@@ -327,3 +327,10 @@ config PM_SUSPEND_DEBUG_OP
         depends on PM_SLEEP
         default y
 
+config QUICK_WAKEUP
+	bool "Quick wakeup"
+	depends on SUSPEND
+	default y
+	---help---
+	  Allow kernel driver to do periodic jobs without resuming the full system
+	  This option can increase battery life on android powered smartphone.

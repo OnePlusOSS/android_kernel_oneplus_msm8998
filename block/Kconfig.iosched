@@ -49,6 +49,16 @@ config CFQ_GROUP_IOSCHED
 	default n
 	---help---
 	  Enable group IO scheduling in CFQ.
+	  
+config IOSCHED_SIO
+	tristate "Simple I/O scheduler"
+	default y
+	---help---
+	  The Simple I/O scheduler is an extremely simple scheduler,
+	  based on noop and deadline, that relies on deadlines to
+	  ensure fairness. The algorithm does not do any sorting but
+	  basic merging, trying to keep a minimum overhead. It is aimed
+	  mainly for aleatory access devices (eg: flash devices).	  
 
 config IOSCHED_BFQ
 	tristate "BFQ I/O scheduler"
@@ -106,6 +116,9 @@ choice
 	config DEFAULT_NOOP
 		bool "No-op"
 
+	config DEFAULT_SIO
+		bool "SIO" if IOSCHED_SIO=y
+
 endchoice
 
 config DEFAULT_IOSCHED
@@ -115,6 +128,7 @@ config DEFAULT_IOSCHED
 	default "bfq" if DEFAULT_BFQ
 	default "fiops" if DEFAULT_FIOPS
 	default "noop" if DEFAULT_NOOP
+	default "sio" if DEFAULT_SIO
 
 endmenu
 

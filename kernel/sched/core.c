@@ -3560,7 +3560,6 @@ static void __sched notrace __schedule(bool preempt)
 
 		trace_sched_switch(preempt, prev, next);
 		rq = context_switch(rq, prev, next); /* unlocks the rq */
-		cpu = cpu_of(rq);
 	} else {
 		update_task_ravg(prev, rq, TASK_UPDATE, wallclock, 0);
 		lockdep_unpin_lock(&rq->lock);

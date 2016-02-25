@@ -1839,8 +1839,7 @@ static void prio_changed_dl(struct rq *rq, struct task_struct *p,
 		 */
 		resched_curr(rq);
 #endif /* CONFIG_SMP */
-	} else
-		switched_to_dl(rq, p);
+	}
 }
 
 const struct sched_class dl_sched_class = {

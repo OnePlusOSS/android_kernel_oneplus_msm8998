@@ -3647,10 +3647,6 @@ static inline void dec_cfs_rq_hmp_stats(struct cfs_rq *cfs_rq,
 
 #endif	/* CONFIG_SCHED_HMP */
 
-#if (SCHED_LOAD_SHIFT - SCHED_LOAD_RESOLUTION) != 10 || SCHED_CAPACITY_SHIFT != 10
-#error "load tracking assumes 2^10 as unit"
-#endif
-
 #define cap_scale(v, s) ((v)*(s) >> SCHED_CAPACITY_SHIFT)
 
 /*

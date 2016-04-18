@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2002-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -27,7 +27,7 @@
 
 /*===========================================================================
 
-                     dfs_radarevent.c
+			dfs_radarevent.c
 
    OVERVIEW:
 
@@ -41,7 +41,7 @@
 
 /*===========================================================================
 
-                      EDIT HISTORY FOR FILE
+			EDIT HISTORY FOR FILE
 
    This section contains comments describing changes made to the module.
    Notice that changes are listed in reverse chronological order.
@@ -127,7 +127,7 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 	uint64_t deltafull_ts = 0, this_ts, deltaT;
 	struct dfs_ieee80211_channel *thischan;
 	struct dfs_pulseline *pl;
-	static uint32_t diff_ts = 0;
+	static uint32_t diff_ts;
 	int ext_chan_event_flag = 0;
 #if 0
 	int pri_multiplier = 2;
@@ -137,13 +137,13 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 	struct dfs_delayline *dl;
 
 	if (dfs == NULL) {
-		CDF_TRACE(CDF_MODULE_ID_SAP, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
 			  "%s[%d]: dfs is NULL", __func__, __LINE__);
 		return 0;
 	}
-	cdf_spin_lock_bh(&dfs->ic->chan_lock);
+	qdf_spin_lock_bh(&dfs->ic->chan_lock);
 	if (!(IEEE80211_IS_CHAN_DFS(dfs->ic->ic_curchan))) {
-		cdf_spin_unlock_bh(&dfs->ic->chan_lock);
+		qdf_spin_unlock_bh(&dfs->ic->chan_lock);
 		DFS_DPRINTK(dfs, ATH_DEBUG_DFS2,
 			    "%s: radar event on non-DFS chan", __func__);
 		dfs_reset_radarq(dfs);
@@ -155,7 +155,7 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 		return 0;
 	}
 
-	cdf_spin_unlock_bh(&dfs->ic->chan_lock);
+	qdf_spin_unlock_bh(&dfs->ic->chan_lock);
 #ifndef ATH_DFS_RADAR_DETECTION_ONLY
 	/* TEST : Simulate radar bang, make sure we add the channel to NOL (bug 29968) */
 	if (dfs->dfs_bangradar) {
@@ -176,7 +176,7 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 	   This is normally 2 but can be higher for W53.
 	 */
 
-	if ((dfs->dfsdomain == DFS_MKK4_DOMAIN) &&
+	if ((dfs->dfsdomain == DFS_MKK_REGION) &&
 	    (dfs->dfs_caps.ath_chip_is_bb_tlv) &&
 	    (chan->ic_freq < FREQ_5500_MHZ)) {
 
@@ -216,7 +216,7 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 
 		if (event == NULL) {
 			empty = 1;
-			CDF_TRACE(CDF_MODULE_ID_SAP, CDF_TRACE_LEVEL_ERROR,
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
 				  "%s[%d]: event is NULL ", __func__, __LINE__);
 			break;
 		}
@@ -235,16 +235,16 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 		ATH_DFSEVENTQ_UNLOCK(dfs);
 
 		found = 0;
-		cdf_spin_lock_bh(&dfs->ic->chan_lock);
+		qdf_spin_lock_bh(&dfs->ic->chan_lock);
 		if (dfs->ic->disable_phy_err_processing) {
 			ATH_DFSQ_LOCK(dfs);
 			empty = STAILQ_EMPTY(&(dfs->dfs_radarq));
 			ATH_DFSQ_UNLOCK(dfs);
-			cdf_spin_unlock_bh(&dfs->ic->chan_lock);
+			qdf_spin_unlock_bh(&dfs->ic->chan_lock);
 			continue;
 		}
 
-		cdf_spin_unlock_bh(&dfs->ic->chan_lock);
+		qdf_spin_unlock_bh(&dfs->ic->chan_lock);
 		if (re.re_chanindex < DFS_NUM_RADAR_STATES)
 			rs = &dfs->dfs_radar[re.re_chanindex];
 		else {
@@ -404,7 +404,7 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 			dfs->radar_log[i].dur = re.re_dur;
 			dfs->dfs_event_log_count++;
 		}
-		CDF_TRACE(CDF_MODULE_ID_SAP, CDF_TRACE_LEVEL_INFO,
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
 			  "%s[%d]:xxxxx ts =%u re.re_dur=%u re.re_rssi =%u diff =%u pl->pl_lastelem.p_time=%llu xxxxx",
 			  __func__, __LINE__, (uint32_t) this_ts, re.re_dur,
 			  re.re_rssi, diff_ts,
@@ -430,15 +430,15 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 		 * so process the next pulse in the queue.
 		 */
 		if ((dfs->disable_dfs_ch_switch == false) &&
-			 (DFS_FCC_DOMAIN == dfs->dfsdomain ||
-			  DFS_MKK4_DOMAIN == dfs->dfsdomain) &&
+			 (DFS_FCC_REGION == dfs->dfsdomain ||
+			  DFS_MKK_REGION == dfs->dfsdomain) &&
 			 (re.re_dur >= 11 && re.re_dur <= 20) &&
 			 (diff_ts > 500 || diff_ts <= 305) &&
 			 (re.sidx == -4)) {
 
-			CDF_TRACE(CDF_MODULE_ID_SAP, CDF_TRACE_LEVEL_INFO,
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
 			"\n%s: Rejecting on Peak Index = %d,re.re_dur = %d,diff_ts = %d\n",
-			__func__,re.sidx, re.re_dur, diff_ts);
+			__func__, re.sidx, re.re_dur, diff_ts);
 
 			ATH_DFSQ_LOCK(dfs);
 			empty = STAILQ_EMPTY(&(dfs->dfs_radarq));
@@ -452,8 +452,8 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 		 * following condition is reported in radar
 		 * summary report.
 		 */
-		if ((DFS_FCC_DOMAIN == dfs->dfsdomain ||
-			DFS_MKK4_DOMAIN == dfs->dfsdomain) &&
+		if ((DFS_FCC_REGION == dfs->dfsdomain ||
+			DFS_MKK_REGION == dfs->dfsdomain) &&
 		    ((chan->ic_flags & IEEE80211_CHAN_VHT80) ==
 			IEEE80211_CHAN_VHT80) &&
 		    (chan->ic_pri_freq_center_freq_mhz_separation ==
@@ -465,16 +465,16 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 		     re.re_dur < DFS_TYPE4_WAR_PULSE_DURATION_UPPER_LIMIT) &&
 		    (diff_ts > DFS_TYPE4_WAR_PRI_LOWER_LIMIT &&
 		     diff_ts < DFS_TYPE4_WAR_PRI_UPPER_LIMIT)) {
-			CDF_TRACE(CDF_MODULE_ID_SAP, CDF_TRACE_LEVEL_INFO,
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
 				"%s:chan->ic_flags=0x%x, MHz separation=%d\n",
 				__func__, chan->ic_flags,
 				chan->ic_pri_freq_center_freq_mhz_separation);
 
-			CDF_TRACE(CDF_MODULE_ID_SAP, CDF_TRACE_LEVEL_INFO,
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
 				"%s: Peak Idx =%d,re.re_dur =%d,diff_ts =%d\n",
 				__func__, re.sidx, re.re_dur, diff_ts);
 
-			CDF_TRACE(CDF_MODULE_ID_SAP, CDF_TRACE_LEVEL_INFO,
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
 				"\n%s: Modify pulse dur to fit valid range \n",
 				__func__);
 
@@ -486,7 +486,7 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 		 * and ETSI type 3 radar pulses when the following
 		 * condition is reported in radar summary report.
 		 */
-		if ((DFS_ETSI_DOMAIN == dfs->dfsdomain) &&
+		if ((DFS_ETSI_REGION == dfs->dfsdomain) &&
 		    ((chan->ic_flags & IEEE80211_CHAN_VHT80) ==
 			IEEE80211_CHAN_VHT80) &&
 		    (chan->ic_pri_freq_center_freq_mhz_separation ==
@@ -502,16 +502,16 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 			diff_ts < DFS_ETSI_TYPE2_WAR_PRI_UPPER_LIMIT) ||
 		     (diff_ts > DFS_ETSI_TYPE3_WAR_PRI_LOWER_LIMIT &&
 			diff_ts < DFS_ETSI_TYPE3_WAR_PRI_UPPER_LIMIT))) {
-			CDF_TRACE(CDF_MODULE_ID_SAP, CDF_TRACE_LEVEL_INFO,
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
 				"\n%s:chan->ic_flags=0x%x,MHz Separation=%d\n",
 				__func__, chan->ic_flags,
 				chan->ic_pri_freq_center_freq_mhz_separation);
 
-			CDF_TRACE(CDF_MODULE_ID_SAP, CDF_TRACE_LEVEL_INFO,
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
 				"%s:Peak Index =%d,re.re_dur =%d,diff_ts =%d\n",
 				__func__, re.sidx, re.re_dur, diff_ts);
 
-			CDF_TRACE(CDF_MODULE_ID_SAP, CDF_TRACE_LEVEL_INFO,
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
 				"%s:Modify ETSI pulse dur to valid range \n",
 				__func__);
 
@@ -520,8 +520,8 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 
 		/* BIN5 pulses are FCC and Japan specific */
 
-		if ((dfs->dfsdomain == DFS_FCC_DOMAIN)
-		    || (dfs->dfsdomain == DFS_MKK4_DOMAIN)) {
+		if ((dfs->dfsdomain == DFS_FCC_REGION)
+		    || (dfs->dfsdomain == DFS_MKK_REGION)) {
 			for (p = 0;
 			     (p < dfs->dfs_rinfo.rn_numbin5radars) && (!found);
 			     p++) {
@@ -598,8 +598,8 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 					    "%s : Rejecting on rssi rssi=%u thresh=%u",
 					    __func__, re.re_rssi,
 					    ft->ft_rssithresh);
-				CDF_TRACE(CDF_MODULE_ID_SAP,
-					  CDF_TRACE_LEVEL_INFO,
+				QDF_TRACE(QDF_MODULE_ID_SAP,
+					  QDF_TRACE_LEVEL_INFO,
 					  "%s[%d]: Rejecting on rssi rssi=%u thresh=%u",
 					  __func__, __LINE__, re.re_rssi,
 					  ft->ft_rssithresh);
@@ -623,8 +623,8 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 					    __func__,
 					    (unsigned long long)deltaT,
 					    ft->ft_minpri);
-				CDF_TRACE(CDF_MODULE_ID_SAP,
-					  CDF_TRACE_LEVEL_INFO,
+				QDF_TRACE(QDF_MODULE_ID_SAP,
+					  QDF_TRACE_LEVEL_INFO,
 					  "%s[%d]:Rejecting on pri pri=%lld minpri=%u",
 					  __func__, __LINE__,
 					  (unsigned long long)deltaT,
@@ -634,7 +634,7 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 			}
 			for (p = 0, found = 0;
 			     (p < ft->ft_numfilters) && (!found); p++) {
-				rf = &(ft->ft_filters[p]);
+				rf = ft->ft_filters[p];
 				dl = (seg_id == 0) ? &rf->rf_dl :
 						     &rf->rf_dl_ext_seg;
 				if ((re.re_dur >= rf->rf_mindur)
@@ -657,8 +657,8 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 							    (unsigned long long)
 							    deltaT,
 							    rf->rf_minpri);
-						CDF_TRACE(CDF_MODULE_ID_SAP,
-							  CDF_TRACE_LEVEL_INFO,
+						QDF_TRACE(QDF_MODULE_ID_SAP,
+							  QDF_TRACE_LEVEL_INFO,
 							  "%s[%d]:filterID= %d::Rejecting on individual filter min PRI deltaT=%lld rf->rf_minpri=%u",
 							  __func__, __LINE__,
 							  rf->rf_pulseid,
@@ -680,9 +680,9 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 								    deltaT,
 								    rf->
 								    rf_minpri);
-							CDF_TRACE
-								(CDF_MODULE_ID_SAP,
-								CDF_TRACE_LEVEL_INFO,
+							QDF_TRACE
+								(QDF_MODULE_ID_SAP,
+								QDF_TRACE_LEVEL_INFO,
 								"%s[%d]:filterID= %d :: Rejecting on individual filter max PRI deltaT=%lld rf->rf_minpri=%u",
 								__func__, __LINE__,
 								rf->rf_pulseid,
@@ -719,9 +719,9 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 								    deltaT,
 								    rf->
 								    rf_minpri);
-							CDF_TRACE
-								(CDF_MODULE_ID_SAP,
-								CDF_TRACE_LEVEL_INFO,
+							QDF_TRACE
+								(QDF_MODULE_ID_SAP,
+								QDF_TRACE_LEVEL_INFO,
 								"%s[%d]:filterID= %d :: Rejecting on individual filter max PRI deltaT=%lld rf->rf_minpri=%u",
 								__func__, __LINE__,
 								rf->rf_pulseid,
@@ -770,9 +770,9 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 					    "Found on channel minDur = %d, filterId = %d",
 					    ft->ft_mindur,
 					    rf != NULL ? rf->rf_pulseid : -1);
-				CDF_TRACE(CDF_MODULE_ID_SAP, CDF_TRACE_LEVEL_INFO,
-					"%s[%d]:### Found on channel minDur = %d,filterId = %d  seg_id = %d ###",
-					__func__,__LINE__,ft->ft_mindur,
+				QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
+					"%s[%d]:### Found on channel minDur = %d, filterId = %d  seg_id = %d ###",
+					__func__, __LINE__, ft->ft_mindur,
 					rf != NULL ? rf->rf_pulseid : -1,
 					seg_id);
 			}
@@ -798,7 +798,7 @@ dfsfound:
 		 */
 		dfs->ic->ic_curchan->ic_radar_found_segid = seg_id;
 
-		CDF_TRACE(CDF_MODULE_ID_SAP, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
 		  "%s[%d]:### RADAR FOUND ON CHANNEL %d (%d MHz),seg_id=%d ###",
 		  __func__, __LINE__, thischan->ic_ieee,
 		  thischan->ic_freq, seg_id);
@@ -848,20 +848,20 @@ dfsfound:
 		DFS_DPRINTK(dfs, ATH_DEBUG_DFS1,
 			    "Primary channel freq = %u flags=0x%x",
 			    chan->ic_freq, chan->ic_flagext);
-		cdf_spin_lock_bh(&dfs->ic->chan_lock);
+		qdf_spin_lock_bh(&dfs->ic->chan_lock);
 		if ((dfs->ic->ic_curchan->ic_freq != thischan->ic_freq)) {
-			cdf_spin_unlock_bh(&dfs->ic->chan_lock);
+			qdf_spin_unlock_bh(&dfs->ic->chan_lock);
 			DFS_DPRINTK(dfs, ATH_DEBUG_DFS1,
 				    "Ext channel freq = %u flags=0x%x",
 				    thischan->ic_freq, thischan->ic_flagext);
 		}
 
-		cdf_spin_unlock_bh(&dfs->ic->chan_lock);
+		qdf_spin_unlock_bh(&dfs->ic->chan_lock);
 		dfs->dfs_phyerr_freq_min = 0x7fffffff;
 		dfs->dfs_phyerr_freq_max = 0;
 		dfs->dfs_phyerr_w53_counter = 0;
 	}
-	/* CDF_TRACE(CDF_MODULE_ID_SAP, CDF_TRACE_LEVEL_INFO, "IN FUNC %s[%d]: retval = %d ",__func__,__LINE__,retval); */
+	/* QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO, "IN FUNC %s[%d]: retval = %d ",__func__,__LINE__,retval); */
 	return retval;
 /* #endif */
 /*        return 1; */

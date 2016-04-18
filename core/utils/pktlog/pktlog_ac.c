@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -41,7 +41,7 @@
  */
 
 #ifndef REMOVE_PKT_LOG
-#include "cdf_memory.h"
+#include "qdf_mem.h"
 #include "athdefs.h"
 #include "pktlog_ac_i.h"
 #include "cds_api.h"
@@ -64,7 +64,8 @@ struct ol_pktlog_dev_t ol_pl_dev = {
 	.pl_funcs = &ol_pl_funcs,
 };
 
-void ol_pl_sethandle(ol_pktlog_dev_handle *pl_handle, struct ol_softc *scn)
+void ol_pl_sethandle(ol_pktlog_dev_handle *pl_handle,
+		     struct hif_opaque_softc *scn)
 {
 	ol_pl_dev.scn = (ol_ath_generic_softc_handle) scn;
 	*pl_handle = &ol_pl_dev;
@@ -74,10 +75,10 @@ static A_STATUS pktlog_wma_post_msg(WMI_PKTLOG_EVENT event_types,
 				    WMI_CMD_ID cmd_id)
 {
 	cds_msg_t msg = { 0 };
-	CDF_STATUS status;
+	QDF_STATUS status;
 	struct ath_pktlog_wmi_params *param;
 
-	param = cdf_mem_malloc(sizeof(struct ath_pktlog_wmi_params));
+	param = qdf_mem_malloc(sizeof(struct ath_pktlog_wmi_params));
 
 	if (!param)
 		return A_NO_MEMORY;
@@ -91,16 +92,16 @@ static A_STATUS pktlog_wma_post_msg(WMI_PKTLOG_EVENT event_types,
 
 	status = cds_mq_post_message(CDS_MQ_ID_WMA, &msg);
 
-	if (status != CDF_STATUS_SUCCESS) {
-		cdf_mem_free(param);
+	if (status != QDF_STATUS_SUCCESS) {
+		qdf_mem_free(param);
 		return A_ERROR;
 	}
 
 	return A_OK;
 }
 
-static inline A_STATUS
-pktlog_enable_tgt(struct ol_softc *_scn, uint32_t log_state)
+static inline A_STATUS pktlog_enable_tgt(struct hif_opaque_softc *_scn,
+					 uint32_t log_state)
 {
 	uint32_t types = 0;
 
@@ -261,10 +262,10 @@ wdi_pktlog_unsubscribe(struct ol_txrx_pdev_t *txrx_pdev, uint32_t log_state)
 	return A_OK;
 }
 
-int pktlog_disable(struct ol_softc *scn)
+int pktlog_disable(struct hif_opaque_softc *scn)
 {
 	struct ol_txrx_pdev_t *txrx_pdev =
-		cds_get_context(CDF_MODULE_ID_TXRX);
+		cds_get_context(QDF_MODULE_ID_TXRX);
 	struct ol_pktlog_dev_t *pl_dev;
 	struct ath_pktlog_info *pl_info;
 
@@ -289,11 +290,11 @@ int pktlog_disable(struct ol_softc *scn)
 	return 0;
 }
 
-void pktlog_init(struct ol_softc *scn)
+void pktlog_init(struct hif_opaque_softc *scn)
 {
 	struct ath_pktlog_info *pl_info;
 	ol_txrx_pdev_handle pdev_txrx_handle;
-	pdev_txrx_handle = cds_get_context(CDF_MODULE_ID_TXRX);
+	pdev_txrx_handle = cds_get_context(QDF_MODULE_ID_TXRX);
 
 	if (pdev_txrx_handle == NULL ||
 			pdev_txrx_handle->pl_dev == NULL ||
@@ -325,7 +326,7 @@ void pktlog_init(struct ol_softc *scn)
 	PKTLOG_RCUPDATE_SUBSCRIBER.callback = pktlog_callback;
 }
 
-int pktlog_enable(struct ol_softc *scn, int32_t log_state)
+int pktlog_enable(struct hif_opaque_softc *scn, int32_t log_state)
 {
 	struct ol_pktlog_dev_t *pl_dev;
 	struct ath_pktlog_info *pl_info;
@@ -338,7 +339,7 @@ int pktlog_enable(struct ol_softc *scn, int32_t log_state)
 		return -1;
 	}
 
-	txrx_pdev = cds_get_context(CDF_MODULE_ID_TXRX);
+	txrx_pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 	if (!txrx_pdev) {
 		printk("%s: Invalid txrx_pdev context\n", __func__);
 		ASSERT(0);
@@ -353,7 +354,6 @@ int pktlog_enable(struct ol_softc *scn, int32_t log_state)
 	}
 
 	pl_info = pl_dev->pl_info;
-	pl_dev->sc_osdev = &scn->aps_osdev;
 
 	if (!pl_info)
 		return 0;
@@ -411,10 +411,10 @@ int pktlog_enable(struct ol_softc *scn, int32_t log_state)
 	return 0;
 }
 
-int pktlog_setsize(struct ol_softc *scn, int32_t size)
+int pktlog_setsize(struct hif_opaque_softc *scn, int32_t size)
 {
 	ol_txrx_pdev_handle pdev_txrx_handle =
-		cds_get_context(CDF_MODULE_ID_TXRX);
+		cds_get_context(QDF_MODULE_ID_TXRX);
 	struct ol_pktlog_dev_t *pl_dev;
 	struct ath_pktlog_info *pl_info;
 

@@ -50,9 +50,7 @@
 #include "lim_send_messages.h"
 #include "lim_sta_hash_api.h"
 
-#if defined WLAN_FEATURE_VOWIFI
 #include "rrm_api.h"
-#endif
 
 #ifdef FEATURE_WLAN_DIAG_SUPPORT
 #include "host_diag_core_log.h"
@@ -135,8 +133,8 @@ ap_beacon_process_24_ghz(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 			return;
 #ifdef FEATURE_WLAN_ESE
 		if (session->isESEconnection)
-			CDF_TRACE(CDF_MODULE_ID_PE,
-				  CDF_TRACE_LEVEL_INFO,
+			QDF_TRACE(QDF_MODULE_ID_PE,
+				  QDF_TRACE_LEVEL_INFO,
 				  FL("[INFOLOG]ESE 11g erpPresent=%d useProtection=%d nonErpPresent=%d"),
 				  bcn_struct->erpPresent,
 				  bcn_struct->erpIEInfo.useProtection,
@@ -162,7 +160,7 @@ ap_beacon_process_24_ghz(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 	if (tmp_exp) {
 #ifdef FEATURE_WLAN_ESE
 		if (session->isESEconnection) {
-			CDF_TRACE(CDF_MODULE_ID_PE, CDF_TRACE_LEVEL_INFO,
+			QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_INFO,
 				  FL("[INFOLOG]ESE 11g erpPresent=%d useProtection=%d nonErpPresent=%d"),
 				  bcn_struct->erpPresent,
 				  bcn_struct->erpIEInfo.useProtection,
@@ -296,7 +294,8 @@ static void __sch_beacon_process_no_session(tpAniSirGlobal pMac,
 {
 	tpPESession psessionEntry = NULL;
 
-	if ((psessionEntry = lim_is_ibss_session_active(pMac)) != NULL) {
+	psessionEntry = lim_is_ibss_session_active(pMac);
+	if (psessionEntry != NULL) {
 		lim_handle_ibss_coalescing(pMac, pBeacon, pRxPacketInfo,
 					   psessionEntry);
 	}
@@ -391,7 +390,7 @@ sch_bcn_process_sta_bt_amp_sta(tpAniSirGlobal mac_ctx,
 		return false;
 
 	beaconParams->bssIdx = *bssIdx;
-	cdf_mem_copy((uint8_t *) &session->lastBeaconTimeStamp,
+	qdf_mem_copy((uint8_t *) &session->lastBeaconTimeStamp,
 			(uint8_t *) bcn->timeStamp, sizeof(uint64_t));
 	session->lastBeaconDtimCount = bcn->tim.dtimCount;
 	session->lastBeaconDtimPeriod = bcn->tim.dtimPeriod;
@@ -533,7 +532,7 @@ sch_bcn_process_sta_bt_amp_sta_ibss(tpAniSirGlobal mac_ctx,
 	uint32_t fw_vht_ch_wd = wma_get_vht_ch_width();
 	bool skip_opmode_update = false;
 
-	if (RF_CHAN_14 >= session->currentOperChannel)
+	if (CHAN_ENUM_14 >= session->currentOperChannel)
 		cb_mode = mac_ctx->roam.configParam.channelBondingMode24GHz;
 	else
 		cb_mode = mac_ctx->roam.configParam.channelBondingMode5GHz;
@@ -720,13 +719,9 @@ static void __sch_beacon_process_for_session(tpAniSirGlobal mac_ctx,
 	uint8_t bssIdx = 0;
 	tUpdateBeaconParams beaconParams;
 	uint8_t sendProbeReq = false;
-#ifdef WLAN_FEATURE_11AC
 	tpSirMacMgmtHdr pMh = WMA_GET_RX_MAC_HEADER(rx_pkt_info);
-#endif
-#if defined FEATURE_WLAN_ESE || defined WLAN_FEATURE_VOWIFI
 	int8_t regMax = 0, maxTxPower = 0;
-#endif
-	cdf_mem_zero(&beaconParams, sizeof(tUpdateBeaconParams));
+	qdf_mem_zero(&beaconParams, sizeof(tUpdateBeaconParams));
 	beaconParams.paramChangeBitmap = 0;
 
 	if (LIM_IS_IBSS_ROLE(session)) {
@@ -762,22 +757,16 @@ static void __sch_beacon_process_for_session(tpAniSirGlobal mac_ctx,
 			lim_cancel_dot11h_channel_switch(mac_ctx, session);
 		}
 	}
-#ifdef WLAN_FEATURE_11AC
 	if (LIM_IS_STA_ROLE(session)
 	    || LIM_IS_BT_AMP_STA_ROLE(session)
 	    || LIM_IS_IBSS_ROLE(session))
 		sch_bcn_process_sta_bt_amp_sta_ibss(mac_ctx, bcn,
 					rx_pkt_info, session, &bssIdx,
 					&beaconParams, &sendProbeReq, pMh);
-#endif
-
-#if defined (FEATURE_WLAN_ESE) || defined (WLAN_FEATURE_VOWIFI)
 	/* Obtain the Max Tx power for the current regulatory  */
 	regMax = cfg_get_regulatory_max_transmit_power(mac_ctx,
 					session->currentOperChannel);
-#endif
 
-#if defined WLAN_FEATURE_VOWIFI
 	if (mac_ctx->rrm.rrmPEContext.rrmEnable
 	    && bcn->powerConstraintPresent)
 		localRRMConstraint =
@@ -786,9 +775,6 @@ static void __sch_beacon_process_for_session(tpAniSirGlobal mac_ctx,
 		localRRMConstraint = 0;
 	maxTxPower = lim_get_max_tx_power(regMax, regMax - localRRMConstraint,
 					mac_ctx->roam.configParam.nTxPowerCap);
-#elif defined FEATURE_WLAN_ESE
-	maxTxPower = regMax;
-#endif
 
 #if defined FEATURE_WLAN_ESE
 	if (session->isESEconnection) {
@@ -805,7 +791,6 @@ static void __sch_beacon_process_for_session(tpAniSirGlobal mac_ctx,
 	}
 #endif
 
-#if defined (FEATURE_WLAN_ESE) || defined (WLAN_FEATURE_VOWIFI)
 	/* If maxTxPower is increased or decreased */
 	if (maxTxPower != session->maxTxPower) {
 		sch_log(mac_ctx, LOG1,
@@ -815,7 +800,6 @@ static void __sch_beacon_process_for_session(tpAniSirGlobal mac_ctx,
 		    == eSIR_SUCCESS)
 			session->maxTxPower = maxTxPower;
 	}
-#endif
 
 	/* Indicate to LIM that Beacon is received */
 	if (bcn->HTInfo.present)
@@ -862,7 +846,7 @@ sch_beacon_process(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 	tpPESession ap_session = NULL;
 	uint8_t i;
 
-	cdf_mem_zero(&bcn_prm, sizeof(tUpdateBeaconParams));
+	qdf_mem_zero(&bcn_prm, sizeof(tUpdateBeaconParams));
 	bcn_prm.paramChangeBitmap = 0;
 	mac_ctx->sch.gSchBcnRcvCnt++;
 	/* Convert the beacon frame into a structure */

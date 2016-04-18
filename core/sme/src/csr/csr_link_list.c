@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2012, 2014-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2012, 2014-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -33,17 +33,17 @@
    ========================================================================== */
 
 #include "csr_link_list.h"
-#include "cdf_lock.h"
-#include "cdf_memory.h"
-#include "cdf_trace.h"
-#include "cdf_mc_timer.h"
+#include "qdf_lock.h"
+#include "qdf_mem.h"
+#include "qdf_trace.h"
+#include "qdf_mc_timer.h"
 
-CDF_INLINE_FN void csr_list_init(tListElem *pList)
+static inline void csr_list_init(tListElem *pList)
 {
 	pList->last = pList->next = pList;
 }
 
-CDF_INLINE_FN void csr_list_remove_entry(tListElem *pEntry)
+static inline void csr_list_remove_entry(tListElem *pEntry)
 {
 	tListElem *pLast;
 	tListElem *pNext;
@@ -54,7 +54,7 @@ CDF_INLINE_FN void csr_list_remove_entry(tListElem *pEntry)
 	pNext->last = pLast;
 }
 
-CDF_INLINE_FN tListElem *csr_list_remove_head(tListElem *pHead)
+static inline tListElem *csr_list_remove_head(tListElem *pHead)
 {
 	tListElem *pEntry;
 	tListElem *pNext;
@@ -67,7 +67,7 @@ CDF_INLINE_FN tListElem *csr_list_remove_head(tListElem *pHead)
 	return pEntry;
 }
 
-CDF_INLINE_FN tListElem *csr_list_remove_tail(tListElem *pHead)
+static inline tListElem *csr_list_remove_tail(tListElem *pHead)
 {
 	tListElem *pEntry;
 	tListElem *pLast;
@@ -80,7 +80,7 @@ CDF_INLINE_FN tListElem *csr_list_remove_tail(tListElem *pHead)
 	return pEntry;
 }
 
-CDF_INLINE_FN void csr_list_insert_tail(tListElem *pHead, tListElem *pEntry)
+static inline void csr_list_insert_tail(tListElem *pHead, tListElem *pEntry)
 {
 	tListElem *pLast;
 
@@ -91,7 +91,7 @@ CDF_INLINE_FN void csr_list_insert_tail(tListElem *pHead, tListElem *pEntry)
 	pHead->last = pEntry;
 }
 
-CDF_INLINE_FN void csr_list_insert_head(tListElem *pHead, tListElem *pEntry)
+static inline void csr_list_insert_head(tListElem *pHead, tListElem *pEntry)
 {
 	tListElem *pNext;
 
@@ -107,7 +107,7 @@ void csr_list_insert_entry(tListElem *pEntry, tListElem *pNewEntry)
 {
 	tListElem *pLast;
 	if (!pEntry) {
-		CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_FATAL,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_FATAL,
 			  "%s: Error!! pEntry is Null", __func__);
 		return;
 	}
@@ -124,7 +124,7 @@ uint32_t csr_ll_count(tDblLinkList *pList)
 	uint32_t c = 0;
 
 	if (!pList) {
-		CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_FATAL,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_FATAL,
 			  "%s: Error!! pList is Null", __func__);
 		return c;
 	}
@@ -140,13 +140,13 @@ void csr_ll_lock(tDblLinkList *pList)
 {
 
 	if (!pList) {
-		CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_FATAL,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_FATAL,
 			  "%s: Error!! pList is Null", __func__);
 		return;
 	}
 
 	if (LIST_FLAG_OPEN == pList->Flag) {
-		cdf_mutex_acquire(&pList->Lock);
+		qdf_mutex_acquire(&pList->Lock);
 	}
 }
 
@@ -154,13 +154,13 @@ void csr_ll_unlock(tDblLinkList *pList)
 {
 
 	if (!pList) {
-		CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_FATAL,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_FATAL,
 			  "%s: Error!! pList is Null", __func__);
 		return;
 	}
 
 	if (LIST_FLAG_OPEN == pList->Flag) {
-		cdf_mutex_release(&pList->Lock);
+		qdf_mutex_release(&pList->Lock);
 	}
 }
 
@@ -169,7 +169,7 @@ bool csr_ll_is_list_empty(tDblLinkList *pList, bool fInterlocked)
 	bool fEmpty = true;
 
 	if (!pList) {
-		CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_FATAL,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_FATAL,
 			  "%s: Error!! pList is Null", __func__);
 		return fEmpty;
 	}
@@ -194,7 +194,7 @@ bool csr_ll_find_entry(tDblLinkList *pList, tListElem *pEntryToFind)
 	tListElem *pEntry;
 
 	if (!pList) {
-		CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_FATAL,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_FATAL,
 			  "%s: Error!! pList is Null", __func__);
 		return fFound;
 	}
@@ -217,28 +217,28 @@ bool csr_ll_find_entry(tDblLinkList *pList, tListElem *pEntryToFind)
 	return fFound;
 }
 
-CDF_STATUS csr_ll_open(tHddHandle hHdd, tDblLinkList *pList)
+QDF_STATUS csr_ll_open(tHddHandle hHdd, tDblLinkList *pList)
 {
-	CDF_STATUS status = CDF_STATUS_SUCCESS;
-	CDF_STATUS cdf_status;
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	QDF_STATUS qdf_status;
 
 	if (!pList) {
-		CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_FATAL,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_FATAL,
 			  "%s: Error!! pList is Null", __func__);
-		return CDF_STATUS_E_FAILURE;
+		return QDF_STATUS_E_FAILURE;
 	}
 
 	if (LIST_FLAG_OPEN != pList->Flag) {
 		pList->Count = 0;
 		pList->cmdTimeoutTimer = NULL;
-		cdf_status = cdf_mutex_init(&pList->Lock);
+		qdf_status = qdf_mutex_create(&pList->Lock);
 
-		if (CDF_IS_STATUS_SUCCESS(cdf_status)) {
+		if (QDF_IS_STATUS_SUCCESS(qdf_status)) {
 			csr_list_init(&pList->ListHead);
 			pList->Flag = LIST_FLAG_OPEN;
 			pList->hHdd = hHdd;
 		} else {
-			status = CDF_STATUS_E_FAILURE;
+			status = QDF_STATUS_E_FAILURE;
 		}
 	}
 	return status;
@@ -247,7 +247,7 @@ CDF_STATUS csr_ll_open(tHddHandle hHdd, tDblLinkList *pList)
 void csr_ll_close(tDblLinkList *pList)
 {
 	if (!pList) {
-		CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_FATAL,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_FATAL,
 			  "%s: Error!! pList is Null", __func__);
 		return;
 	}
@@ -255,7 +255,7 @@ void csr_ll_close(tDblLinkList *pList)
 	if (LIST_FLAG_OPEN == pList->Flag) {
 		/* Make sure the list is empty... */
 		csr_ll_purge(pList, LL_ACCESS_LOCK);
-		cdf_mutex_destroy(&pList->Lock);
+		qdf_mutex_destroy(&pList->Lock);
 		pList->Flag = LIST_FLAG_CLOSE;
 	}
 }
@@ -264,7 +264,7 @@ void csr_ll_insert_tail(tDblLinkList *pList, tListElem *pEntry,
 			bool fInterlocked)
 {
 	if (!pList) {
-		CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_FATAL,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_FATAL,
 			  "%s: Error!! pList is Null", __func__);
 		return;
 	}
@@ -286,7 +286,7 @@ void csr_ll_insert_head(tDblLinkList *pList, tListElem *pEntry,
 {
 
 	if (!pList) {
-		CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_FATAL,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_FATAL,
 			  "%s: Error!! pList is Null", __func__);
 		return;
 	}
@@ -302,7 +302,7 @@ void csr_ll_insert_head(tDblLinkList *pList, tListElem *pEntry,
 		}
 		if (pList->cmdTimeoutTimer && pList->cmdTimeoutDuration) {
 			/* timer to detect pending command in activelist */
-			cdf_mc_timer_start(pList->cmdTimeoutTimer,
+			qdf_mc_timer_start(pList->cmdTimeoutTimer,
 					   pList->cmdTimeoutDuration);
 		}
 	}
@@ -312,7 +312,7 @@ void csr_ll_insert_entry(tDblLinkList *pList, tListElem *pEntry,
 			 tListElem *pNewEntry, bool fInterlocked)
 {
 	if (!pList) {
-		CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_FATAL,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_FATAL,
 			  "%s: Error!! pList is Null", __func__);
 		return;
 	}
@@ -334,7 +334,7 @@ tListElem *csr_ll_remove_tail(tDblLinkList *pList, bool fInterlocked)
 	tListElem *pEntry = NULL;
 
 	if (!pList) {
-		CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_FATAL,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_FATAL,
 			  "%s: Error!! pList is Null", __func__);
 		return pEntry;
 	}
@@ -362,7 +362,7 @@ tListElem *csr_ll_peek_tail(tDblLinkList *pList, bool fInterlocked)
 	tListElem *pEntry = NULL;
 
 	if (!pList) {
-		CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_FATAL,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_FATAL,
 			  "%s: Error!! pList is Null", __func__);
 		return pEntry;
 	}
@@ -388,7 +388,7 @@ tListElem *csr_ll_remove_head(tDblLinkList *pList, bool fInterlocked)
 	tListElem *pEntry = NULL;
 
 	if (!pList) {
-		CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_FATAL,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_FATAL,
 			  "%s: Error!! pList is Null", __func__);
 		return pEntry;
 	}
@@ -416,7 +416,7 @@ tListElem *csr_ll_peek_head(tDblLinkList *pList, bool fInterlocked)
 	tListElem *pEntry = NULL;
 
 	if (!pList) {
-		CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_FATAL,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_FATAL,
 			  "%s: Error!! pList is Null", __func__);
 		return pEntry;
 	}
@@ -442,7 +442,7 @@ void csr_ll_purge(tDblLinkList *pList, bool fInterlocked)
 	tListElem *pEntry;
 
 	if (!pList) {
-		CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_FATAL,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_FATAL,
 			  "%s: Error!! pList is Null", __func__);
 		return;
 	}
@@ -468,7 +468,7 @@ bool csr_ll_remove_entry(tDblLinkList *pList, tListElem *pEntryToRemove,
 	tListElem *pEntry;
 
 	if (!pList) {
-		CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_FATAL,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_FATAL,
 			  "%s: Error!! pList is Null", __func__);
 		return fFound;
 	}
@@ -497,7 +497,7 @@ bool csr_ll_remove_entry(tDblLinkList *pList, tListElem *pEntryToRemove,
 			csr_ll_unlock(pList);
 		}
 		if (pList->cmdTimeoutTimer) {
-			cdf_mc_timer_stop(pList->cmdTimeoutTimer);
+			qdf_mc_timer_stop(pList->cmdTimeoutTimer);
 		}
 	}
 
@@ -510,7 +510,7 @@ tListElem *csr_ll_next(tDblLinkList *pList, tListElem *pEntry,
 	tListElem *pNextEntry = NULL;
 
 	if (!pList) {
-		CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_FATAL,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_FATAL,
 			  "%s: Error!! pList is Null", __func__);
 		return pNextEntry;
 	}
@@ -543,7 +543,7 @@ tListElem *csr_ll_previous(tDblLinkList *pList, tListElem *pEntry,
 	tListElem *pNextEntry = NULL;
 
 	if (!pList) {
-		CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_FATAL,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_FATAL,
 			  "%s: Error!! pList is Null", __func__);
 		return pNextEntry;
 	}

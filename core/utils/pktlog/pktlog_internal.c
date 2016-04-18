@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -44,7 +44,7 @@
 #include "ol_txrx_types.h"
 #include "ol_htt_tx_api.h"
 #include "ol_tx_desc.h"
-#include "cdf_memory.h"
+#include "qdf_mem.h"
 #include "htt.h"
 #include "htt_internal.h"
 #include "pktlog_ac_i.h"
@@ -276,8 +276,8 @@ A_STATUS process_tx_info(struct ol_txrx_pdev_t *txrx_pdev, void *data)
 		printk("Invalid pdev in %s\n", __func__);
 		return A_ERROR;
 	}
-	cdf_assert(txrx_pdev->pl_dev);
-	cdf_assert(data);
+	qdf_assert(txrx_pdev->pl_dev);
+	qdf_assert(data);
 	pl_dev = txrx_pdev->pl_dev;
 
 	pl_tgt_hdr = (uint32_t *) data;
@@ -327,7 +327,7 @@ A_STATUS process_tx_info(struct ol_txrx_pdev_t *txrx_pdev, void *data)
 								&buf_size);
 			if (data) {
 				process_ieee_hdr(data);
-				cdf_mem_free(data);
+				qdf_mem_free(data);
 			}
 		} else {
 			/*
@@ -358,23 +358,23 @@ A_STATUS process_tx_info(struct ol_txrx_pdev_t *txrx_pdev, void *data)
 		 * Add capability to include the fmr hdr for remote frames
 		 */
 		txctl_log.priv.frm_hdr = frm_hdr;
-		cdf_assert(txctl_log.priv.txdesc_ctl);
-		cdf_mem_copy((void *)&txctl_log.priv.txdesc_ctl,
+		qdf_assert(txctl_log.priv.txdesc_ctl);
+		qdf_mem_copy((void *)&txctl_log.priv.txdesc_ctl,
 			     ((void *)data + sizeof(struct ath_pktlog_hdr)),
 			     pl_hdr.size);
-		cdf_assert(txctl_log.txdesc_hdr_ctl);
-		cdf_mem_copy(txctl_log.txdesc_hdr_ctl, &txctl_log.priv,
+		qdf_assert(txctl_log.txdesc_hdr_ctl);
+		qdf_mem_copy(txctl_log.txdesc_hdr_ctl, &txctl_log.priv,
 			     sizeof(txctl_log.priv));
 		/* Add Protocol information and HT specific information */
 #else
 		size_t log_size = sizeof(frm_hdr) + pl_hdr.size;
 		void *txdesc_hdr_ctl = (void *)
 		pktlog_getbuf(pl_dev, pl_info, log_size, &pl_hdr);
-		cdf_assert(txdesc_hdr_ctl);
-		cdf_assert(pl_hdr.size < (370 * sizeof(u_int32_t)));
+		qdf_assert(txdesc_hdr_ctl);
+		qdf_assert(pl_hdr.size < (370 * sizeof(u_int32_t)));
 
-		cdf_mem_copy(txdesc_hdr_ctl, &frm_hdr, sizeof(frm_hdr));
-		cdf_mem_copy((char *)txdesc_hdr_ctl + sizeof(frm_hdr),
+		qdf_mem_copy(txdesc_hdr_ctl, &frm_hdr, sizeof(frm_hdr));
+		qdf_mem_copy((char *)txdesc_hdr_ctl + sizeof(frm_hdr),
 					((void *)data + sizeof(struct ath_pktlog_hdr)),
 					 pl_hdr.size);
 #endif /* !defined(HELIUMPLUS) */
@@ -386,8 +386,8 @@ A_STATUS process_tx_info(struct ol_txrx_pdev_t *txrx_pdev, void *data)
 
 		txstat_log.ds_status = (void *)
 				       pktlog_getbuf(pl_dev, pl_info, log_size, &pl_hdr);
-		cdf_assert(txstat_log.ds_status);
-		cdf_mem_copy(txstat_log.ds_status,
+		qdf_assert(txstat_log.ds_status);
+		qdf_mem_copy(txstat_log.ds_status,
 			     ((void *)data + sizeof(struct ath_pktlog_hdr)),
 			     pl_hdr.size);
 	}
@@ -406,10 +406,10 @@ A_STATUS process_tx_info(struct ol_txrx_pdev_t *txrx_pdev, void *data)
 						  msdu_id_offset);
 		uint8_t *addr, *vap_addr;
 		uint8_t vdev_id;
-		cdf_nbuf_t netbuf;
+		qdf_nbuf_t netbuf;
 		uint32_t len;
 
-		cdf_mem_set(&pl_msdu_info, sizeof(pl_msdu_info), 0);
+		qdf_mem_set(&pl_msdu_info, sizeof(pl_msdu_info), 0);
 
 		pl_msdu_info.num_msdu = *msdu_id_info;
 		pl_msdu_info.priv_size = sizeof(uint32_t) *
@@ -431,15 +431,15 @@ A_STATUS process_tx_info(struct ol_txrx_pdev_t *txrx_pdev, void *data)
 				msdu_id += 1;
 			}
 			tx_desc = ol_tx_desc_find(txrx_pdev, tx_desc_id);
-			cdf_assert(tx_desc);
+			qdf_assert(tx_desc);
 			netbuf = tx_desc->netbuf;
 			htt_tx_desc = (uint32_t *) tx_desc->htt_tx_desc;
-			cdf_assert(htt_tx_desc);
+			qdf_assert(htt_tx_desc);
 
-			cdf_nbuf_peek_header(netbuf, &addr, &len);
+			qdf_nbuf_peek_header(netbuf, &addr, &len);
 
 			if (len < (2 * IEEE80211_ADDR_LEN)) {
-				cdf_print("TX frame does not have a valid"
+				qdf_print("TX frame does not have a valid"
 					  " address\n");
 				return -1;
 			}
@@ -473,16 +473,16 @@ A_STATUS process_tx_info(struct ol_txrx_pdev_t *txrx_pdev, void *data)
 		}
 		pl_msdu_info.ath_msdu_info = pktlog_getbuf(pl_dev, pl_info,
 							   log_size, &pl_hdr);
-		cdf_mem_copy((void *)&pl_msdu_info.priv.msdu_id_info,
+		qdf_mem_copy((void *)&pl_msdu_info.priv.msdu_id_info,
 			     ((void *)data + sizeof(struct ath_pktlog_hdr)),
 			     sizeof(pl_msdu_info.priv.msdu_id_info));
-		cdf_mem_copy(pl_msdu_info.ath_msdu_info, &pl_msdu_info.priv,
+		qdf_mem_copy(pl_msdu_info.ath_msdu_info, &pl_msdu_info.priv,
 			     sizeof(pl_msdu_info.priv));
 	}
 	return A_OK;
 }
 
-A_STATUS process_rx_info_remote(void *pdev, cdf_nbuf_t amsdu)
+A_STATUS process_rx_info_remote(void *pdev, qdf_nbuf_t amsdu)
 {
 	struct ol_pktlog_dev_t *pl_dev;
 	struct ath_pktlog_info *pl_info;
@@ -490,7 +490,7 @@ A_STATUS process_rx_info_remote(void *pdev, cdf_nbuf_t amsdu)
 	struct ath_pktlog_hdr pl_hdr;
 	struct ath_pktlog_rx_info rxstat_log;
 	size_t log_size;
-	cdf_nbuf_t msdu;
+	qdf_nbuf_t msdu;
 
 	if (!pdev) {
 		printk("Invalid pdev in %s\n", __func__);
@@ -506,7 +506,7 @@ A_STATUS process_rx_info_remote(void *pdev, cdf_nbuf_t amsdu)
 
 	while (msdu) {
 		rx_desc =
-			(struct htt_host_rx_desc_base *)(cdf_nbuf_data(msdu)) - 1;
+		   (struct htt_host_rx_desc_base *)(qdf_nbuf_data(msdu)) - 1;
 		log_size =
 			sizeof(*rx_desc) - sizeof(struct htt_host_fw_desc_base);
 
@@ -528,9 +528,9 @@ A_STATUS process_rx_info_remote(void *pdev, cdf_nbuf_t amsdu)
 #endif /* !defined(HELIUMPLUS) */
 		rxstat_log.rx_desc = (void *)pktlog_getbuf(pl_dev, pl_info,
 							   log_size, &pl_hdr);
-		cdf_mem_copy(rxstat_log.rx_desc, (void *)rx_desc +
+		qdf_mem_copy(rxstat_log.rx_desc, (void *)rx_desc +
 			     sizeof(struct htt_host_fw_desc_base), pl_hdr.size);
-		msdu = cdf_nbuf_next(msdu);
+		msdu = qdf_nbuf_next(msdu);
 	}
 	return A_OK;
 }
@@ -567,7 +567,7 @@ A_STATUS process_rx_info(void *pdev, void *data)
 	rxstat_log.rx_desc = (void *)pktlog_getbuf(pl_dev, pl_info,
 						   log_size, &pl_hdr);
 
-	cdf_mem_copy(rxstat_log.rx_desc,
+	qdf_mem_copy(rxstat_log.rx_desc,
 		     (void *)data + sizeof(struct ath_pktlog_hdr), pl_hdr.size);
 
 	return A_OK;
@@ -589,11 +589,11 @@ A_STATUS process_rate_find(void *pdev, void *data)
 	uint32_t *pl_tgt_hdr;
 
 	if (!pdev) {
-		cdf_print("Invalid pdev in %s\n", __func__);
+		qdf_print("Invalid pdev in %s\n", __func__);
 		return A_ERROR;
 	}
 	if (!data) {
-		cdf_print("Invalid data in %s\n", __func__);
+		qdf_print("Invalid data in %s\n", __func__);
 		return A_ERROR;
 	}
 
@@ -620,7 +620,7 @@ A_STATUS process_rate_find(void *pdev, void *data)
 	rcf_log.rcFind = (void *)pktlog_getbuf(pl_dev, pl_info,
 					       log_size, &pl_hdr);
 
-	cdf_mem_copy(rcf_log.rcFind,
+	qdf_mem_copy(rcf_log.rcFind,
 				 ((char *)data + sizeof(struct ath_pktlog_hdr)),
 				 pl_hdr.size);
 
@@ -672,7 +672,7 @@ A_STATUS process_rate_update(void *pdev, void *data)
 	 */
 	rcu_log.txRateCtrl = (void *)pktlog_getbuf(pl_dev, pl_info,
 						   log_size, &pl_hdr);
-	cdf_mem_copy(rcu_log.txRateCtrl,
+	qdf_mem_copy(rcu_log.txRateCtrl,
 		     ((char *)data + sizeof(struct ath_pktlog_hdr)),
 		     pl_hdr.size);
 	return A_OK;

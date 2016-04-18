@@ -25,7 +25,6 @@
  * to the Linux Foundation.
  */
 
-#if defined WLAN_FEATURE_VOWIFI_11R
 /**=========================================================================
 
    Macros and Function prototypes FT and 802.11R purposes
@@ -93,7 +92,7 @@ typedef struct sSirFTUpdateKeyInfo {
 	uint16_t messageType;
 	uint16_t length;
 	uint32_t smeSessionId;
-	struct cdf_mac_addr bssid;
+	struct qdf_mac_addr bssid;
 	tSirKeyMaterial keyMaterial;
 } tSirFTUpdateKeyInfo, *tpSirFTUpdateKeyInfo;
 
@@ -131,5 +130,3 @@ typedef struct sFTPEContext {
 } tftPEContext, *tpftPEContext;
 
 #endif /* __LIMFTDEFS_H__ */
-
-#endif /* WLAN_FEATURE_VOWIFI_11R */

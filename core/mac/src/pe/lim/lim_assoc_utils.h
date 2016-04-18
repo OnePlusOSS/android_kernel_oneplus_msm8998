@@ -45,7 +45,7 @@
 
 #include "lim_types.h"
 
-bool lim_cmp_ssid(tSirMacSSid *, tpPESession);
+uint32_t lim_cmp_ssid(tSirMacSSid *, tpPESession);
 uint8_t lim_compare_capabilities(tpAniSirGlobal,
 				 tSirAssocReq *,
 				 tSirMacCapabilityInfo *, tpPESession);
@@ -62,38 +62,20 @@ void lim_reject_association(tpAniSirGlobal, tSirMacAddr, uint8_t,
 			    uint8_t, tAniAuthType,
 			    uint16_t, uint8_t, tSirResultCodes, tpPESession);
 
-#ifdef WLAN_FEATURE_11AC
 tSirRetStatus lim_populate_peer_rate_set(tpAniSirGlobal pMac,
 					 tpSirSupportedRates pRates,
 					 uint8_t *pSupportedMCSSet,
 					 uint8_t basicOnly,
 					 tpPESession psessionEntry,
-					 tDot11fIEVHTCaps *pVHTCaps);
-#else
-tSirRetStatus lim_populate_peer_rate_set(tpAniSirGlobal pMac,
-					 tpSirSupportedRates pRates,
-					 uint8_t *pSupportedMCSSet,
-					 uint8_t basicOnly,
-					 tpPESession psessionEntry);
-#endif
+					 tDot11fIEVHTCaps * pVHTCaps);
 
-#ifdef WLAN_FEATURE_11AC
 tSirRetStatus lim_populate_own_rate_set(tpAniSirGlobal pMac,
 					tpSirSupportedRates pRates,
 					uint8_t *pSupportedMCSSet,
 					uint8_t basicOnly,
 					tpPESession psessionEntry,
-					tDot11fIEVHTCaps *pVHTCaps);
+					tDot11fIEVHTCaps * pVHTCaps);
 
-#else
-tSirRetStatus lim_populate_own_rate_set(tpAniSirGlobal pMac,
-					tpSirSupportedRates pRates,
-					uint8_t *pSupportedMCSSet,
-					uint8_t basicOnly,
-					tpPESession psessionEntry);
-#endif
-
-#ifdef WLAN_FEATURE_11AC
 tSirRetStatus
 lim_populate_matching_rate_set(tpAniSirGlobal pMac,
 			       tpDphHashNode pStaDs,
@@ -101,40 +83,76 @@ lim_populate_matching_rate_set(tpAniSirGlobal pMac,
 			       tSirMacRateSet *pExtRateSet,
 			       uint8_t *pSupportedMCSSet,
 			       tpPESession psessionEntry,
-			       tDot11fIEVHTCaps *pVHTCaps);
-#else
-tSirRetStatus lim_populate_matching_rate_set(tpAniSirGlobal,
-					     tpDphHashNode,
-					     tSirMacRateSet *,
-					     tSirMacRateSet *,
-					     uint8_t *pSupportedMCSSet,
-					     tpPESession);
+			       tDot11fIEVHTCaps * pVHTCaps);
 
-#endif
-
-#ifdef WLAN_FEATURE_11AC
 #define MCSMAPMASK1x1 0x3
 #define MCSMAPMASK2x2 0xC
-#endif
 
 tSirRetStatus lim_add_sta(tpAniSirGlobal, tpDphHashNode, uint8_t, tpPESession);
 tSirRetStatus lim_del_bss(tpAniSirGlobal, tpDphHashNode, uint16_t, tpPESession);
 tSirRetStatus lim_del_sta(tpAniSirGlobal, tpDphHashNode, bool, tpPESession);
-#ifdef WLAN_FEATURE_VOWIFI_11R
-tSirRetStatus lim_add_ft_sta_self(tpAniSirGlobal pMac, uint16_t assocId,
-				  tpPESession psessionEntry);
-#endif /* WLAN_FEATURE_VOWIFI_11R */
 tSirRetStatus lim_add_sta_self(tpAniSirGlobal, uint16_t, uint8_t, tpPESession);
-tStaRateMode lim_get_sta_rate_mode(uint8_t dot11Mode);
 
 void lim_teardown_infra_bss(tpAniSirGlobal, tpPESession);
+#ifdef WLAN_FEATURE_HOST_ROAM
 void lim_restore_pre_reassoc_state(tpAniSirGlobal,
 				   tSirResultCodes, uint16_t, tpPESession);
 void lim_post_reassoc_failure(tpAniSirGlobal,
 			      tSirResultCodes, uint16_t, tpPESession);
 bool lim_is_reassoc_in_progress(tpAniSirGlobal, tpPESession);
+
+void lim_handle_add_bss_in_re_assoc_context(tpAniSirGlobal pMac,
+		tpDphHashNode pStaDs, tpPESession psessionEntry);
+void lim_handle_del_bss_in_re_assoc_context(tpAniSirGlobal pMac,
+		   tpDphHashNode pStaDs, tpPESession psessionEntry);
+void lim_send_retry_reassoc_req_frame(tpAniSirGlobal pMac,
+	      tLimMlmReassocReq *pMlmReassocReq, tpPESession psessionEntry);
+tSirRetStatus lim_add_ft_sta_self(tpAniSirGlobal pMac, uint16_t assocId,
+				  tpPESession psessionEntry);
+#else
+static inline void lim_restore_pre_reassoc_state(tpAniSirGlobal mac_ctx,
+			tSirResultCodes res_code, uint16_t prot_status,
+			tpPESession pe_session)
+{}
+static inline void lim_post_reassoc_failure(tpAniSirGlobal mac_ctx,
+			      tSirResultCodes res_code, uint16_t prot_status,
+			      tpPESession pe_session)
+{}
+static inline void lim_handle_add_bss_in_re_assoc_context(tpAniSirGlobal pMac,
+		tpDphHashNode pStaDs, tpPESession psessionEntry)
+{}
+static inline void lim_handle_del_bss_in_re_assoc_context(tpAniSirGlobal pMac,
+		   tpDphHashNode pStaDs, tpPESession psessionEntry)
+{}
+static inline void lim_send_retry_reassoc_req_frame(tpAniSirGlobal pMac,
+	      tLimMlmReassocReq *pMlmReassocReq, tpPESession psessionEntry)
+{}
+static inline bool lim_is_reassoc_in_progress(tpAniSirGlobal mac_ctx,
+		tpPESession pe_session)
+{
+	return false;
+}
+static inline tSirRetStatus lim_add_ft_sta_self(tpAniSirGlobal pMac,
+		uint16_t assocId, tpPESession psessionEntry)
+{
+	return eSIR_SUCCESS;
+}
+#endif
+
+#ifdef WLAN_FEATURE_ROAM_OFFLOAD
+static inline bool lim_is_roam_synch_in_progress(tpPESession pe_session)
+{
+	return pe_session->bRoamSynchInProgress;
+}
+#else
+static inline bool lim_is_roam_synch_in_progress(tpPESession pe_session)
+{
+	return false;
+}
+#endif
+
 void
-lim_send_del_sta_cnf(tpAniSirGlobal pMac, struct cdf_mac_addr sta_dsaddr,
+lim_send_del_sta_cnf(tpAniSirGlobal pMac, struct qdf_mac_addr sta_dsaddr,
 		     uint16_t staDsAssocId, tLimMlmStaContext mlmStaContext,
 		     tSirResultCodes statusCode, tpPESession psessionEntry);
 
@@ -150,9 +168,6 @@ void lim_update_re_assoc_globals(tpAniSirGlobal pMac,
 void lim_update_assoc_sta_datas(tpAniSirGlobal pMac,
 				tpDphHashNode pStaDs, tpSirAssocRsp pAssocRsp,
 				tpPESession psessionEntry);
-void lim_fill_supported_rates_info(tpAniSirGlobal pMac, tpDphHashNode pSta,
-				   tpSirSupportedRates pRates,
-				   tpPESession psessionEntry);
 
 tSirRetStatus lim_sta_send_add_bss(tpAniSirGlobal pMac, tpSirAssocRsp pAssocRsp,
 				   tpSchBeaconStruct pBeaconStruct,
@@ -183,18 +198,10 @@ tSirRetStatus lim_is_dot11h_supported_channels_valid(tpAniSirGlobal pMac,
 tSirRetStatus lim_is_dot11h_power_capabilities_in_range(tpAniSirGlobal pMac,
 							tSirAssocReq *assoc,
 							tpPESession);
-
-/* API to re-add the same BSS during re-association */
-void lim_handle_add_bss_in_re_assoc_context(tpAniSirGlobal pMac, tpDphHashNode pStaDs,
-					    tpPESession psessionEntry);
-
 /* API to fill in RX Highest Supported data Rate */
 void lim_fill_rx_highest_supported_rate(tpAniSirGlobal pMac,
 					uint16_t *rxHighestRate,
 					uint8_t *pSupportedMCSSet);
-void lim_send_retry_reassoc_req_frame(tpAniSirGlobal pMac,
-				      tLimMlmReassocReq *pMlmReassocReq,
-				      tpPESession psessionEntry);
 #ifdef WLAN_FEATURE_11W
 void lim_send_sme_unprotected_mgmt_frame_ind(tpAniSirGlobal pMac, uint8_t frameType,
 					     uint8_t *frame, uint32_t frameLen,
@@ -202,7 +209,7 @@ void lim_send_sme_unprotected_mgmt_frame_ind(tpAniSirGlobal pMac, uint8_t frameT
 					     tpPESession psessionEntry);
 #endif
 
-#if defined(FEATURE_WLAN_ESE) && defined(FEATURE_WLAN_ESE_UPLOAD)
+#ifdef FEATURE_WLAN_ESE
 void lim_send_sme_tsm_ie_ind(tpAniSirGlobal pMac, tpPESession psessionEntry,
 			     uint8_t tid, uint8_t state, uint16_t measInterval);
 #else
@@ -210,6 +217,6 @@ static inline void lim_send_sme_tsm_ie_ind(tpAniSirGlobal pMac,
 	tpPESession psessionEntry, uint8_t tid,
 	uint8_t state, uint16_t measInterval)
 {}
-#endif /* FEATURE_WLAN_ESE && FEATURE_WLAN_ESE_UPLOAD */
+#endif /* FEATURE_WLAN_ESE */
 
 #endif /* __LIM_ASSOC_UTILS_H */

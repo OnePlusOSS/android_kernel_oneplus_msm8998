@@ -165,10 +165,8 @@ typedef enum eLimMlmStates {
 	eLIM_MLM_WT_SET_STA_KEY_STATE,
 	eLIM_MLM_WT_SET_STA_BCASTKEY_STATE,
 	eLIM_MLM_WT_SET_MIMOPS_STATE,
-#if defined WLAN_FEATURE_VOWIFI_11R
 	eLIM_MLM_WT_ADD_BSS_RSP_FT_REASSOC_STATE,
 	eLIM_MLM_WT_FT_REASSOC_RSP_STATE,
-#endif
 	eLIM_MLM_P2P_LISTEN_STATE,
 } tLimMlmStates;
 
@@ -209,7 +207,7 @@ typedef enum eLimDot11hChanSwStates {
 
 /* WLAN_SUSPEND_LINK Related */
 typedef void (*SUSPEND_RESUME_LINK_CALLBACK)(tpAniSirGlobal pMac,
-					     CDF_STATUS status,
+					     QDF_STATUS status,
 					     uint32_t *data);
 
 /* LIM to HAL SCAN Management Message Interface states */
@@ -300,14 +298,15 @@ struct tLimScanResultNode {
 
 /* OEM Data related structure definitions */
 typedef struct sLimMlmOemDataReq {
-	struct cdf_mac_addr selfMacAddr;
+	struct qdf_mac_addr selfMacAddr;
 	uint8_t data_len;
 	uint8_t *data;
 } tLimMlmOemDataReq, *tpLimMlmOemDataReq;
 
 typedef struct sLimMlmOemDataRsp {
 	bool target_rsp;
-	uint8_t oemDataRsp[OEM_DATA_RSP_SIZE];
+	uint32_t rsp_len;
+	uint8_t *oem_data_rsp;
 } tLimMlmOemDataRsp, *tpLimMlmOemDataRsp;
 #endif
 
@@ -325,13 +324,13 @@ typedef struct tLimPreAuthNode {
 	uint8_t rsvd:5;
 	TX_TIMER timer;
 	uint16_t seq_num;
-	v_TIME_t timestamp;
+	unsigned long timestamp;
 } tLimPreAuthNode, *tpLimPreAuthNode;
 
 /* Pre-authentication table definition */
 typedef struct tLimPreAuthTable {
 	uint32_t numEntry;
-	tpLimPreAuthNode pTable;
+	tLimPreAuthNode **pTable;
 } tLimPreAuthTable, *tpLimPreAuthTable;
 
 /* / Per STA context structure definition */
@@ -352,9 +351,7 @@ typedef struct sLimMlmStaContext {
 	uint8_t schClean:1;
 	/* 802.11n HT Capability in Station: Enabled 1 or DIsabled 0 */
 	uint8_t htCapability:1;
-#ifdef WLAN_FEATURE_11AC
 	uint8_t vhtCapability:1;
-#endif
 } tLimMlmStaContext, *tpLimMlmStaContext;
 
 /* Structure definition to hold deferred messages queue parameters */
@@ -481,11 +478,9 @@ struct tLimIbssPeerNode {
 	uint8_t *beacon;        /* Hold beacon to be sent to HDD/CSR */
 	uint16_t beaconLen;
 
-#ifdef WLAN_FEATURE_11AC
 	tDot11fIEVHTCaps VHTCaps;
 	uint8_t vhtSupportedChannelWidthSet;
 	uint8_t vhtBeamFormerCapable;
-#endif
 	/*
 	 * Peer Atim Info
 	 */
@@ -507,13 +502,12 @@ typedef struct sLimChannelSwitchInfo {
 	uint8_t ch_center_freq_seg0;
 	uint8_t ch_center_freq_seg1;
 	uint8_t sec_ch_offset;
-	phy_ch_width ch_width;
+	enum phy_ch_width ch_width;
 	int8_t switchCount;
 	uint32_t switchTimeoutValue;
 	uint8_t switchMode;
 } tLimChannelSwitchInfo, *tpLimChannelSwitchInfo;
 
-#ifdef WLAN_FEATURE_11AC
 typedef struct sLimOperatingModeInfo {
 	uint8_t present;
 	uint8_t chanWidth:2;
@@ -521,7 +515,6 @@ typedef struct sLimOperatingModeInfo {
 	uint8_t rxNSS:3;
 	uint8_t rxNSSType:1;
 } tLimOperatingModeInfo, *tpLimOperatingModeInfo;
-#endif
 
 typedef struct sLimWiderBWChannelSwitch {
 	uint8_t newChanWidth;
@@ -570,7 +563,7 @@ typedef struct sLimTspecInfo {
 	uint8_t tclasProc;
 	/* tclassProc is valid only if this is set to 1. */
 	uint8_t tclasProcPresent:1;
-} cdf_packed tLimTspecInfo, *tpLimTspecInfo;
+} qdf_packed tLimTspecInfo, *tpLimTspecInfo;
 
 typedef struct sLimAdmitPolicyInfo {
 	/* admit control policy type */

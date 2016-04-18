@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -54,7 +54,7 @@
 
 tSirRetStatus postPTTMsgApi(tpAniSirGlobal pMac, tSirMsgQ *pMsg);
 
-#include "cdf_types.h"
+#include "qdf_types.h"
 #include "cds_packet.h"
 
 #define MAX_DEAUTH_ALLOWED 5
@@ -78,7 +78,7 @@ tSirRetStatus postPTTMsgApi(tpAniSirGlobal pMac, tSirMsgQ *pMsg);
 tSirRetStatus sys_init_globals(tpAniSirGlobal pMac)
 {
 
-	cdf_mem_set((uint8_t *) &pMac->sys, sizeof(pMac->sys), 0);
+	qdf_mem_set((uint8_t *) &pMac->sys, sizeof(pMac->sys), 0);
 
 	pMac->sys.gSysEnableScanMode = 1;
 	pMac->sys.gSysEnableLinkMonitorMode = 0;
@@ -107,7 +107,7 @@ sys_bbt_process_message_core(tpAniSirGlobal mac_ctx, tpSirMsgQ msg,
 	void *bd_ptr;
 	tMgmtFrmDropReason dropreason;
 	cds_pkt_t *vos_pkt = (cds_pkt_t *) msg->bodyptr;
-	CDF_STATUS cdf_status =
+	QDF_STATUS qdf_status =
 		wma_ds_peek_rx_packet_info(vos_pkt, &bd_ptr, false);
 	uint8_t sessionid;
 	tpPESession pe_session;
@@ -115,7 +115,7 @@ sys_bbt_process_message_core(tpAniSirGlobal mac_ctx, tpSirMsgQ msg,
 
 	mac_ctx->sys.gSysBbtReceived++;
 
-	if (!CDF_IS_STATUS_SUCCESS(cdf_status))
+	if (!QDF_IS_STATUS_SUCCESS(qdf_status))
 		goto fail;
 
 	sys_log(mac_ctx, LOG3, FL("Rx Mgmt Frame Subtype: %d\n"), subtype);
@@ -136,9 +136,9 @@ sys_bbt_process_message_core(tpAniSirGlobal mac_ctx, tpSirMsgQ msg,
 					mac_hdr->bssId,
 					&sessionid);
 			if (pe_session &&
-				(pe_session->pePersona == CDF_SAP_MODE)) {
-				CDF_TRACE(CDF_MODULE_ID_SYS,
-					CDF_TRACE_LEVEL_INFO_HIGH,
+				(pe_session->pePersona == QDF_SAP_MODE)) {
+				QDF_TRACE(QDF_MODULE_ID_SYS,
+					QDF_TRACE_LEVEL_INFO_HIGH,
 					FL("CAC timer is running, dropping the mgmt frame"));
 				goto fail;
 			}
@@ -152,7 +152,7 @@ sys_bbt_process_message_core(tpAniSirGlobal mac_ctx, tpSirMsgQ msg,
 			(!lim_is_system_in_scan_state(mac_ctx)) &&
 			(GET_LIM_PROCESS_DEFD_MESGS(mac_ctx) != true) &&
 			!mac_ctx->lim.gLimSystemInScanLearnMode) {
-			CDF_TRACE(CDF_MODULE_ID_SYS, CDF_TRACE_LEVEL_INFO_HIGH,
+			QDF_TRACE(QDF_MODULE_ID_SYS, QDF_TRACE_LEVEL_INFO_HIGH,
 				FL("dropping received beacon in deffered state"));
 			goto fail;
 		}

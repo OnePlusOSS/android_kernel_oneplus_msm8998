@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -280,7 +280,7 @@ struct _hddTdlsPeer_t;
 typedef struct {
 	struct list_head peer_list[TDLS_PEER_LIST_SIZE];
 	hdd_adapter_t *pAdapter;
-	cdf_mc_timer_t peerDiscoveryTimeoutTimer;
+	qdf_mc_timer_t peerDiscoveryTimeoutTimer;
 	tdls_config_params_t threshold_config;
 	int32_t discovery_peer_cnt;
 	uint32_t discovery_sent_cnt;
@@ -342,7 +342,7 @@ typedef struct _hddTdlsPeer_t {
 	uint8_t supported_channels_len;
 	uint8_t supported_channels[SIR_MAC_MAX_SUPP_CHANNELS];
 	uint8_t supported_oper_classes_len;
-	uint8_t supported_oper_classes[SIR_MAC_MAX_SUPP_OPER_CLASSES];
+	uint8_t supported_oper_classes[CDS_MAX_SUPP_OPER_CLASSES];
 	bool isForcedPeer;
 	uint8_t op_class_for_pref_off_chan;
 	uint8_t pref_off_chan_num;
@@ -361,7 +361,7 @@ typedef struct _hddTdlsPeer_t {
 typedef struct {
 	uint8_t sessionId;
 	uint8_t staId;
-	struct cdf_mac_addr peerMac;
+	struct qdf_mac_addr peerMac;
 } tdlsConnInfo_t;
 
 /**
@@ -491,7 +491,7 @@ int wlan_hdd_tdls_scan_callback(hdd_adapter_t *pAdapter, struct wiphy *wiphy,
 void wlan_hdd_tdls_scan_done_callback(hdd_adapter_t *pAdapter);
 
 void wlan_hdd_tdls_timer_restart(hdd_adapter_t *pAdapter,
-				 cdf_mc_timer_t *timer,
+				 qdf_mc_timer_t *timer,
 				 uint32_t expirationTime);
 void wlan_hdd_tdls_indicate_teardown(hdd_adapter_t *pAdapter,
 				     hddTdlsPeer_t *curr_peer,

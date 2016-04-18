@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -46,9 +46,7 @@
 #include "lim_assoc_utils.h"
 #include "lim_ser_des_utils.h"
 #include "parser_api.h"
-#ifdef WLAN_FEATURE_VOWIFI_11R
 #include "lim_ft_defs.h"
-#endif
 #include "lim_session.h"
 
 void
@@ -71,7 +69,7 @@ lim_send_sme_probe_req_ind(tpAniSirGlobal pMac,
  * @return None
  */
 
-void lim_get_wpspbc_sessions(tpAniSirGlobal mac_ctx, struct cdf_mac_addr addr,
+void lim_get_wpspbc_sessions(tpAniSirGlobal mac_ctx, struct qdf_mac_addr addr,
 		uint8_t *uuid_e, eWPSPBCOverlap *overlap,
 		tpPESession session)
 {
@@ -79,18 +77,18 @@ void lim_get_wpspbc_sessions(tpAniSirGlobal mac_ctx, struct cdf_mac_addr addr,
 	tSirWPSPBCSession *pbc;
 	uint32_t cur_time;
 
-	cur_time = (uint32_t) (cdf_mc_timer_get_system_ticks() /
-						CDF_TICKS_PER_SECOND);
-	cdf_zero_macaddr(&addr);
-	cdf_mem_set((uint8_t *) uuid_e, SIR_WPS_UUID_LEN, 0);
+	cur_time = (uint32_t) (qdf_mc_timer_get_system_ticks() /
+						QDF_TICKS_PER_SECOND);
+	qdf_zero_macaddr(&addr);
+	qdf_mem_set((uint8_t *) uuid_e, SIR_WPS_UUID_LEN, 0);
 	for (pbc = session->pAPWPSPBCSession; pbc; pbc = pbc->next) {
 		if (cur_time > pbc->timestamp + SIR_WPS_PBC_WALK_TIME)
 			break;
 		count++;
 		if (count > 1)
 			break;
-		cdf_copy_macaddr(&addr, &pbc->addr);
-		cdf_mem_copy((uint8_t *) uuid_e, (uint8_t *) pbc->uuid_e,
+		qdf_copy_macaddr(&addr, &pbc->addr);
+		qdf_mem_copy((uint8_t *) uuid_e, (uint8_t *) pbc->uuid_e,
 				SIR_WPS_UUID_LEN);
 	}
 	if (count > 1)
@@ -105,7 +103,7 @@ void lim_get_wpspbc_sessions(tpAniSirGlobal mac_ctx, struct cdf_mac_addr addr,
 
 	lim_log(mac_ctx, LOGE, FL("overlap = %d"), *overlap);
 	sir_dump_buf(mac_ctx, SIR_LIM_MODULE_ID, LOGE, addr.bytes,
-			CDF_MAC_ADDR_SIZE);
+			QDF_MAC_ADDR_SIZE);
 	sir_dump_buf(mac_ctx, SIR_LIM_MODULE_ID, LOGE, uuid_e,
 			SIR_WPS_UUID_LEN);
 	return;
@@ -140,7 +138,7 @@ static void lim_remove_timeout_pbc_sessions(tpAniSirGlobal pMac,
 			       SIR_WPS_UUID_LEN);
 		       )
 
-		cdf_mem_free(prev);
+		qdf_mem_free(prev);
 	}
 }
 
@@ -152,18 +150,18 @@ static void lim_remove_timeout_pbc_sessions(tpAniSirGlobal pMac,
  *
  * Return: none
  */
-void lim_remove_pbc_sessions(tpAniSirGlobal mac, struct cdf_mac_addr remove_mac,
+void lim_remove_pbc_sessions(tpAniSirGlobal mac, struct qdf_mac_addr remove_mac,
 			     tpPESession session_entry)
 {
 	tSirWPSPBCSession *pbc, *prev = NULL;
 	prev = pbc = session_entry->pAPWPSPBCSession;
 
 	while (pbc) {
-		if (cdf_is_macaddr_equal(&pbc->addr, &remove_mac)) {
+		if (qdf_is_macaddr_equal(&pbc->addr, &remove_mac)) {
 			prev->next = pbc->next;
 			if (pbc == session_entry->pAPWPSPBCSession)
 				session_entry->pAPWPSPBCSession = pbc->next;
-			cdf_mem_free(pbc);
+			qdf_mem_free(pbc);
 			return;
 		}
 		prev = pbc;
@@ -204,8 +202,8 @@ static void lim_update_pbc_session_entry(tpAniSirGlobal pMac,
 	uint32_t curTime;
 
 	curTime =
-		(uint32_t) (cdf_mc_timer_get_system_ticks() /
-			    CDF_TICKS_PER_SECOND);
+		(uint32_t) (qdf_mc_timer_get_system_ticks() /
+			    QDF_TICKS_PER_SECOND);
 
 	PELOG4(lim_log
 		       (pMac, LOG4, FL("Receive WPS probe reques curTime=%d"), curTime);
@@ -220,11 +218,11 @@ static void lim_update_pbc_session_entry(tpAniSirGlobal pMac,
 	pbc = psessionEntry->pAPWPSPBCSession;
 
 	while (pbc) {
-		if (cdf_mem_compare
+		if ((!qdf_mem_cmp
 			    ((uint8_t *) pbc->addr.bytes, (uint8_t *) addr,
-			    CDF_MAC_ADDR_SIZE)
-		    && cdf_mem_compare((uint8_t *) pbc->uuid_e,
-				       (uint8_t *) uuid_e, SIR_WPS_UUID_LEN)) {
+			    QDF_MAC_ADDR_SIZE))
+		    && (!qdf_mem_cmp((uint8_t *) pbc->uuid_e,
+				       (uint8_t *) uuid_e, SIR_WPS_UUID_LEN))) {
 			if (prev)
 				prev->next = pbc->next;
 			else
@@ -236,18 +234,18 @@ static void lim_update_pbc_session_entry(tpAniSirGlobal pMac,
 	}
 
 	if (!pbc) {
-		pbc = cdf_mem_malloc(sizeof(tSirWPSPBCSession));
+		pbc = qdf_mem_malloc(sizeof(tSirWPSPBCSession));
 		if (NULL == pbc) {
 			PELOGE(lim_log
 				       (pMac, LOGE, FL("memory allocate failed!"));
 			       )
 			return;
 		}
-		cdf_mem_copy((uint8_t *) pbc->addr.bytes, (uint8_t *) addr,
-			     CDF_MAC_ADDR_SIZE);
+		qdf_mem_copy((uint8_t *) pbc->addr.bytes, (uint8_t *) addr,
+			     QDF_MAC_ADDR_SIZE);
 
 		if (uuid_e)
-			cdf_mem_copy((uint8_t *) pbc->uuid_e,
+			qdf_mem_copy((uint8_t *) pbc->uuid_e,
 				     (uint8_t *) uuid_e, SIR_WPS_UUID_LEN);
 	}
 
@@ -366,7 +364,7 @@ lim_process_probe_req_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 	 * Don't send probe response if P2P go is scanning till scan
 	 * come to idle state.
 	 */
-	if ((session->pePersona == CDF_P2P_GO_MODE) &&
+	if ((session->pePersona == QDF_P2P_GO_MODE) &&
 		((mac_ctx->lim.gpLimRemainOnChanReq) ||
 		 (mac_ctx->lim.gLimHalScanState != eLIM_HAL_IDLE_SCAN_STATE))) {
 		lim_log(mac_ctx, LOG3,
@@ -398,7 +396,7 @@ lim_process_probe_req_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 			mac_ctx->sys.probeError++;
 			return;
 		}
-		if (session->pePersona == CDF_P2P_GO_MODE) {
+		if (session->pePersona == QDF_P2P_GO_MODE) {
 			uint8_t i = 0, rate_11b = 0, other_rates = 0;
 			/* Check 11b rates in supported rates */
 			for (i = 0; i < probe_req.supportedRates.numRates;
@@ -451,7 +449,7 @@ lim_process_probe_req_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 		}
 		ssid.length = session->ssId.length;
 		/* Copy the SSID from sessio entry to local variable */
-		cdf_mem_copy(ssid.ssId, session->ssId.ssId,
+		qdf_mem_copy(ssid.ssId, session->ssId.ssId,
 				session->ssId.length);
 
 		/*
@@ -462,7 +460,7 @@ lim_process_probe_req_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 			if (!ssid.length)
 				goto multipleSSIDcheck;
 
-			if (cdf_mem_compare((uint8_t *) &ssid,
+			if (!qdf_mem_cmp((uint8_t *) &ssid,
 						(uint8_t *) &(probe_req.ssId),
 						(uint8_t) (ssid.length + 1))) {
 				lim_send_probe_rsp_mgmt_frame(mac_ctx,
@@ -473,10 +471,10 @@ lim_process_probe_req_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 						probe_req.p2pIePresent);
 				return;
 			} else if (session->pePersona ==
-					CDF_P2P_GO_MODE) {
+					QDF_P2P_GO_MODE) {
 				uint8_t direct_ssid[7] = "DIRECT-";
 				uint8_t direct_ssid_len = 7;
-				if (cdf_mem_compare((uint8_t *) &direct_ssid,
+				if (!qdf_mem_cmp((uint8_t *) &direct_ssid,
 					(uint8_t *) &(probe_req.ssId.ssId),
 					(uint8_t) (direct_ssid_len))) {
 					lim_send_probe_rsp_mgmt_frame(mac_ctx,
@@ -651,7 +649,7 @@ lim_send_sme_probe_req_ind(tpAniSirGlobal pMac,
 	tSirSmeProbeReqInd *pSirSmeProbeReqInd;
 	tSirMsgQ msgQ;
 
-	pSirSmeProbeReqInd = cdf_mem_malloc(sizeof(tSirSmeProbeReqInd));
+	pSirSmeProbeReqInd = qdf_mem_malloc(sizeof(tSirSmeProbeReqInd));
 	if (NULL == pSirSmeProbeReqInd) {
 		/* Log error */
 		lim_log(pMac, LOGP,
@@ -668,15 +666,15 @@ lim_send_sme_probe_req_ind(tpAniSirGlobal pMac,
 	pSirSmeProbeReqInd->length = sizeof(tSirSmeProbeReq);
 	pSirSmeProbeReqInd->sessionId = psessionEntry->smeSessionId;
 
-	cdf_mem_copy(pSirSmeProbeReqInd->bssid.bytes, psessionEntry->bssId,
-		     CDF_MAC_ADDR_SIZE);
-	cdf_mem_copy(pSirSmeProbeReqInd->WPSPBCProbeReq.peer_macaddr.bytes,
-		     peerMacAddr, CDF_MAC_ADDR_SIZE);
+	qdf_mem_copy(pSirSmeProbeReqInd->bssid.bytes, psessionEntry->bssId,
+		     QDF_MAC_ADDR_SIZE);
+	qdf_mem_copy(pSirSmeProbeReqInd->WPSPBCProbeReq.peer_macaddr.bytes,
+		     peerMacAddr, QDF_MAC_ADDR_SIZE);
 
 	MTRACE(mac_trace_msg_tx(pMac, psessionEntry->peSessionId, msgQ.type));
 	pSirSmeProbeReqInd->WPSPBCProbeReq.probeReqIELen =
 		(uint16_t) ProbeReqIELen;
-	cdf_mem_copy(pSirSmeProbeReqInd->WPSPBCProbeReq.probeReqIE, pProbeReqIE,
+	qdf_mem_copy(pSirSmeProbeReqInd->WPSPBCProbeReq.probeReqIE, pProbeReqIE,
 		     ProbeReqIELen);
 
 	if (lim_sys_process_mmh_msg_api(pMac, &msgQ, ePROT) != eSIR_SUCCESS) {

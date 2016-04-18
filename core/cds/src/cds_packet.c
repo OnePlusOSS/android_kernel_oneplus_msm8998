@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -40,11 +40,11 @@
    ------------------------------------------------------------------------*/
 #include <cds_packet.h>
 #include <i_cds_packet.h>
-#include <cdf_mc_timer.h>
-#include <cdf_trace.h>
+#include <qdf_mc_timer.h>
+#include <qdf_trace.h>
 #include <wlan_hdd_main.h>
-#include "cdf_nbuf.h"
-#include "cdf_memory.h"
+#include "qdf_nbuf.h"
+#include "qdf_mem.h"
 
 #define TX_PKT_MIN_HEADROOM          (64)
 
@@ -63,35 +63,35 @@
 /* protocol Storage Structure */
 typedef struct {
 	uint32_t order;
-	v_TIME_t event_time;
+	unsigned long event_time;
 	char event_string[CDS_PKT_TRAC_MAX_STRING_LEN];
 } cds_pkt_proto_trace_t;
 
 cds_pkt_proto_trace_t *trace_buffer = NULL;
 unsigned int trace_buffer_order = 0;
-cdf_spinlock_t trace_buffer_lock;
+qdf_spinlock_t trace_buffer_lock;
 #endif /* QCA_PKT_PROTO_TRACE */
 
 /**
  * cds_pkt_return_packet  Free the cds Packet
  * @ cds Packet
  */
-CDF_STATUS cds_pkt_return_packet(cds_pkt_t *packet)
+QDF_STATUS cds_pkt_return_packet(cds_pkt_t *packet)
 {
 	/* Validate the input parameter pointer */
 	if (unlikely(packet == NULL)) {
-		return CDF_STATUS_E_INVAL;
+		return QDF_STATUS_E_INVAL;
 	}
 
-	/* Free up the Adf nbuf */
-	cdf_nbuf_free(packet->pkt_buf);
+	/* Free up the qdf nbuf */
+	qdf_nbuf_free(packet->pkt_buf);
 
 	packet->pkt_buf = NULL;
 
 	/* Free up the Rx packet */
-	cdf_mem_free(packet);
+	qdf_mem_free(packet);
 
-	return CDF_STATUS_SUCCESS;
+	return QDF_STATUS_SUCCESS;
 }
 
 /**--------------------------------------------------------------------------
@@ -103,25 +103,25 @@ CDF_STATUS cds_pkt_return_packet(cds_pkt_t *packet)
    \param pPacket - the cds Packet to get the packet length from.
 
    \param pPacketSize - location to return the total size of the data contained
-                       in the cds Packet.
+   in the cds Packet.
    \return
 
    \sa
 
    ---------------------------------------------------------------------------*/
-CDF_STATUS
+QDF_STATUS
 cds_pkt_get_packet_length(cds_pkt_t *pPacket, uint16_t *pPacketSize)
 {
 	/* Validate the parameter pointers */
 	if (unlikely((pPacket == NULL) || (pPacketSize == NULL)) ||
 	    (pPacket->pkt_buf == NULL)) {
-		CDF_TRACE(CDF_MODULE_ID_CDF, CDF_TRACE_LEVEL_FATAL,
+		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_FATAL,
 			  "VPKT [%d]: NULL pointer", __LINE__);
-		return CDF_STATUS_E_INVAL;
+		return QDF_STATUS_E_INVAL;
 	}
 	/* return the requested information */
-	*pPacketSize = cdf_nbuf_len(pPacket->pkt_buf);
-	return CDF_STATUS_SUCCESS;
+	*pPacketSize = qdf_nbuf_len(pPacket->pkt_buf);
+	return QDF_STATUS_SUCCESS;
 }
 
 /*---------------------------------------------------------------------------
@@ -154,7 +154,7 @@ uint8_t cds_pkt_get_proto_type(struct sk_buff *skb, uint8_t tracking_map,
 		ether_type = (uint16_t) (*(uint16_t *)
 					 (skb->data +
 					  CDS_PKT_TRAC_ETH_TYPE_OFFSET));
-		if (CDS_PKT_TRAC_EAPOL_ETH_TYPE == CDF_SWAP_U16(ether_type)) {
+		if (CDS_PKT_TRAC_EAPOL_ETH_TYPE == QDF_SWAP_U16(ether_type)) {
 			pkt_proto_type |= CDS_PKT_TRAC_TYPE_EAPOL;
 		}
 	}
@@ -168,10 +168,10 @@ uint8_t cds_pkt_get_proto_type(struct sk_buff *skb, uint8_t tracking_map,
 				    (skb->data + CDS_PKT_TRAC_IP_OFFSET +
 				     CDS_PKT_TRAC_IP_HEADER_SIZE +
 				     sizeof(uint16_t)));
-		if (((CDS_PKT_TRAC_DHCP_SRV_PORT == CDF_SWAP_U16(SPort))
-		     && (CDS_PKT_TRAC_DHCP_CLI_PORT == CDF_SWAP_U16(DPort)))
-		    || ((CDS_PKT_TRAC_DHCP_CLI_PORT == CDF_SWAP_U16(SPort))
-			&& (CDS_PKT_TRAC_DHCP_SRV_PORT == CDF_SWAP_U16(DPort)))) {
+		if (((CDS_PKT_TRAC_DHCP_SRV_PORT == QDF_SWAP_U16(SPort))
+		     && (CDS_PKT_TRAC_DHCP_CLI_PORT == QDF_SWAP_U16(DPort)))
+		    || ((CDS_PKT_TRAC_DHCP_CLI_PORT == QDF_SWAP_U16(SPort))
+			&& (CDS_PKT_TRAC_DHCP_SRV_PORT == QDF_SWAP_U16(DPort)))) {
 			pkt_proto_type |= CDS_PKT_TRAC_TYPE_DHCP;
 		}
 	}
@@ -191,20 +191,20 @@ void cds_pkt_trace_buf_update(char *event_string)
 {
 	uint32_t slot;
 
-	CDF_TRACE(CDF_MODULE_ID_CDF, CDF_TRACE_LEVEL_INFO,
+	QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_INFO,
 		  "%s %d, %s", __func__, __LINE__, event_string);
-	cdf_spinlock_acquire(&trace_buffer_lock);
+	qdf_spinlock_acquire(&trace_buffer_lock);
 	slot = trace_buffer_order % CDS_PKT_TRAC_MAX_TRACE_BUF;
 	trace_buffer[slot].order = trace_buffer_order;
-	trace_buffer[slot].event_time = cdf_mc_timer_get_system_time();
-	cdf_mem_zero(trace_buffer[slot].event_string,
+	trace_buffer[slot].event_time = qdf_mc_timer_get_system_time();
+	qdf_mem_zero(trace_buffer[slot].event_string,
 		     sizeof(trace_buffer[slot].event_string));
-	cdf_mem_copy(trace_buffer[slot].event_string,
+	qdf_mem_copy(trace_buffer[slot].event_string,
 		     event_string,
 		     (CDS_PKT_TRAC_MAX_STRING_LEN < strlen(event_string)) ?
 		     CDS_PKT_TRAC_MAX_STRING_LEN : strlen(event_string));
 	trace_buffer_order++;
-	cdf_spinlock_release(&trace_buffer_lock);
+	qdf_spinlock_release(&trace_buffer_lock);
 
 	return;
 }
@@ -217,15 +217,15 @@ void cds_pkt_trace_buf_dump(void)
 {
 	uint32_t slot, idx;
 
-	cdf_spinlock_acquire(&trace_buffer_lock);
-	CDF_TRACE(CDF_MODULE_ID_CDF, CDF_TRACE_LEVEL_ERROR,
+	qdf_spinlock_acquire(&trace_buffer_lock);
+	QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
 		  "PACKET TRACE DUMP START Current Timestamp %u",
-		  (unsigned int)cdf_mc_timer_get_system_time());
-	CDF_TRACE(CDF_MODULE_ID_CDF, CDF_TRACE_LEVEL_ERROR,
+		  (unsigned int)qdf_mc_timer_get_system_time());
+	QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
 		  "ORDER :        TIME : EVT");
 	if (CDS_PKT_TRAC_MAX_TRACE_BUF > trace_buffer_order) {
 		for (slot = 0; slot < trace_buffer_order; slot++) {
-			CDF_TRACE(CDF_MODULE_ID_CDF, CDF_TRACE_LEVEL_ERROR,
+			QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
 				  "%5d :%12u : %s",
 				  trace_buffer[slot].order,
 				  (unsigned int)trace_buffer[slot].event_time,
@@ -236,16 +236,16 @@ void cds_pkt_trace_buf_dump(void)
 			slot =
 				(trace_buffer_order +
 				 idx) % CDS_PKT_TRAC_MAX_TRACE_BUF;
-			CDF_TRACE(CDF_MODULE_ID_CDF, CDF_TRACE_LEVEL_ERROR,
+			QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
 				  "%5d :%12u : %s", trace_buffer[slot].order,
 				  (unsigned int)trace_buffer[slot].event_time,
 				  trace_buffer[slot].event_string);
 		}
 	}
 
-	CDF_TRACE(CDF_MODULE_ID_CDF, CDF_TRACE_LEVEL_ERROR,
+	QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
 		  "PACKET TRACE DUMP END");
-	cdf_spinlock_release(&trace_buffer_lock);
+	qdf_spinlock_release(&trace_buffer_lock);
 
 	return;
 }
@@ -257,15 +257,15 @@ void cds_pkt_trace_buf_dump(void)
 void cds_pkt_proto_trace_init(void)
 {
 	/* Init spin lock to protect global memory */
-	cdf_spinlock_init(&trace_buffer_lock);
+	qdf_spinlock_create(&trace_buffer_lock);
 	trace_buffer_order = 0;
 
-	trace_buffer = cdf_mem_malloc(CDS_PKT_TRAC_MAX_TRACE_BUF *
+	trace_buffer = qdf_mem_malloc(CDS_PKT_TRAC_MAX_TRACE_BUF *
 				      sizeof(cds_pkt_proto_trace_t));
 
 	/* Register callback function to NBUF
 	 * Lower layer event also will be reported to here */
-	cdf_nbuf_reg_trace_cb(cds_pkt_trace_buf_update);
+	qdf_nbuf_reg_trace_cb(cds_pkt_trace_buf_update);
 	return;
 }
 
@@ -275,10 +275,10 @@ void cds_pkt_proto_trace_init(void)
    ---------------------------------------------------------------------------*/
 void cds_pkt_proto_trace_close(void)
 {
-	CDF_TRACE(CDF_MODULE_ID_CDF, CDF_TRACE_LEVEL_ERROR,
+	QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
 		  "%s %d", __func__, __LINE__);
-	cdf_mem_free(trace_buffer);
-	cdf_spinlock_destroy(&trace_buffer_lock);
+	qdf_mem_free(trace_buffer);
+	qdf_spinlock_destroy(&trace_buffer_lock);
 
 	return;
 }
@@ -289,49 +289,49 @@ void cds_pkt_proto_trace_close(void)
 * @brief cds_packet_alloc_debug() -
       Allocate a network buffer for TX
    ---------------------------------------------------------------------------*/
-CDF_STATUS cds_packet_alloc_debug(uint16_t size, void **data, void **ppPacket,
+QDF_STATUS cds_packet_alloc_debug(uint16_t size, void **data, void **ppPacket,
 				  uint8_t *file_name, uint32_t line_num)
 {
-	CDF_STATUS cdf_ret_status = CDF_STATUS_E_FAILURE;
-	cdf_nbuf_t nbuf;
+	QDF_STATUS qdf_ret_status = QDF_STATUS_E_FAILURE;
+	qdf_nbuf_t nbuf;
 
-	nbuf =
-		cdf_nbuf_alloc_debug(NULL, roundup(size + TX_PKT_MIN_HEADROOM, 4),
-				     TX_PKT_MIN_HEADROOM, sizeof(uint32_t), false,
+	nbuf = qdf_nbuf_alloc_debug(NULL,
+		roundup(size + TX_PKT_MIN_HEADROOM, 4),
+		TX_PKT_MIN_HEADROOM, sizeof(uint32_t), false,
 				     file_name, line_num);
 
 	if (nbuf != NULL) {
-		cdf_nbuf_put_tail(nbuf, size);
-		cdf_nbuf_set_protocol(nbuf, ETH_P_CONTROL);
+		qdf_nbuf_put_tail(nbuf, size);
+		qdf_nbuf_set_protocol(nbuf, ETH_P_CONTROL);
 		*ppPacket = nbuf;
-		*data = cdf_nbuf_data(nbuf);
-		cdf_ret_status = CDF_STATUS_SUCCESS;
+		*data = qdf_nbuf_data(nbuf);
+		qdf_ret_status = QDF_STATUS_SUCCESS;
 	}
 
-	return cdf_ret_status;
+	return qdf_ret_status;
 }
 #else
 /*---------------------------------------------------------------------------
 * @brief cds_packet_alloc() -
       Allocate a network buffer for TX
    ---------------------------------------------------------------------------*/
-CDF_STATUS cds_packet_alloc(uint16_t size, void **data, void **ppPacket)
+QDF_STATUS cds_packet_alloc(uint16_t size, void **data, void **ppPacket)
 {
-	CDF_STATUS cdf_ret_status = CDF_STATUS_E_FAILURE;
-	cdf_nbuf_t nbuf;
+	QDF_STATUS qdf_ret_status = QDF_STATUS_E_FAILURE;
+	qdf_nbuf_t nbuf;
 
-	nbuf = cdf_nbuf_alloc(NULL, roundup(size + TX_PKT_MIN_HEADROOM, 4),
+	nbuf = qdf_nbuf_alloc(NULL, roundup(size + TX_PKT_MIN_HEADROOM, 4),
 			      TX_PKT_MIN_HEADROOM, sizeof(uint32_t), false);
 
 	if (nbuf != NULL) {
-		cdf_nbuf_put_tail(nbuf, size);
-		cdf_nbuf_set_protocol(nbuf, ETH_P_CONTROL);
+		qdf_nbuf_put_tail(nbuf, size);
+		qdf_nbuf_set_protocol(nbuf, ETH_P_CONTROL);
 		*ppPacket = nbuf;
-		*data = cdf_nbuf_data(nbuf);
-		cdf_ret_status = CDF_STATUS_SUCCESS;
+		*data = qdf_nbuf_data(nbuf);
+		qdf_ret_status = QDF_STATUS_SUCCESS;
 	}
 
-	return cdf_ret_status;
+	return qdf_ret_status;
 }
 
 #endif
@@ -341,5 +341,5 @@ CDF_STATUS cds_packet_alloc(uint16_t size, void **data, void **ppPacket)
    ---------------------------------------------------------------------------*/
 void cds_packet_free(void *pPacket)
 {
-	cdf_nbuf_free((cdf_nbuf_t) pPacket);
+	qdf_nbuf_free((qdf_nbuf_t) pPacket);
 }

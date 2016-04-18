@@ -171,7 +171,6 @@
 
 /* RRM related. */
 /* Refer IEEE Std 802.11k-2008, Section 7.3.2.21, table 7.29 */
-#if defined WLAN_FEATURE_VOWIFI
 
 #define SIR_MAC_RRM_CHANNEL_LOAD_TYPE          3
 #define SIR_MAC_RRM_NOISE_HISTOGRAM_BEACON     4
@@ -191,13 +190,9 @@
 #define SIR_MAC_RRM_NEIGHBOR_REQ               4
 #define SIR_MAC_RRM_NEIGHBOR_RPT               5
 
-#endif
-
 /* VHT Action Field */
-#ifdef WLAN_FEATURE_11AC
 #define SIR_MAC_VHT_GID_NOTIFICATION           1
 #define SIR_MAC_VHT_OPMODE_NOTIFICATION        2
-#endif
 
 #define NUM_OF_SOUNDING_DIMENSIONS	1 /*Nss - 1, (Nss = 2 for 2x2)*/
 /* HT Action Field Codes */
@@ -385,13 +380,13 @@
 #define SIR_MAC_HT_INFO_EID_MIN    0
 #define SIR_MAC_HT_INFO_EID_MAX    255
 
-#ifdef WLAN_FEATURE_11AC
 #define SIR_MAC_VHT_CAPABILITIES_EID   191
 #define SIR_MAC_VHT_OPERATION_EID      192
 #define SIR_MAC_VHT_EXT_BSS_LOAD_EID   193
 #define SIR_MAC_VHT_OPMODE_EID         199
-#endif
 #define SIR_MAC_MAX_SUPPORTED_MCS_SET    16
+
+#define VHT_MCS_1x1 0xFFFC
 
 #ifdef FEATURE_AP_MCC_CH_AVOIDANCE
 #define SIR_MAC_QCOM_VENDOR_EID      200
@@ -565,9 +560,7 @@
 #define SIR_MAC_GET_QOS(x)               ((((uint16_t) x) & 0x0200) >> 9)
 #define SIR_MAC_GET_SHORT_SLOT_TIME(x)   ((((uint16_t) x) & 0x0400) >> 10)
 #define SIR_MAC_GET_APSD(x)              ((((uint16_t) x) & 0x0800) >> 11)
-#if defined WLAN_FEATURE_VOWIFI
 #define SIR_MAC_GET_RRM(x)               ((((uint16_t) x) & 0x1000) >> 12)
-#endif
 #define SIR_MAC_GET_BLOCK_ACK(x)         ((((uint16_t) x) & 0xc000) >> CAPABILITY_INFO_DELAYED_BA_BIT)
 #define SIR_MAC_SET_ESS(x)               (((uint16_t) x) | 0x0001)
 #define SIR_MAC_SET_IBSS(x)              (((uint16_t) x) | 0x0002)
@@ -579,14 +572,10 @@
 #define SIR_MAC_SET_QOS(x)               (((uint16_t) x) | 0x0200)
 #define SIR_MAC_SET_SHORT_SLOT_TIME(x)   (((uint16_t) x) | 0x0400)
 #define SIR_MAC_SET_APSD(x)              (((uint16_t) x) | 0x0800)
-#if defined WLAN_FEATURE_VOWIFI
 #define SIR_MAC_SET_RRM(x)               (((uint16_t) x) | 0x1000)
-#endif
 #define SIR_MAC_SET_GROUP_ACK(x)         (((uint16_t) x) | 0x4000)
 
-#ifdef WLAN_FEATURE_11AC
 #define SIR_MAC_GET_VHT_MAX_AMPDU_EXPO(x) ((((uint32_t) x) & 0x03800000) >> 23)
-#endif
 
 /* bitname must be one of the above, eg ESS, CF_POLLABLE, etc. */
 #define SIR_MAC_CLEAR_CAPABILITY(u16value, bitname) \
@@ -800,7 +789,7 @@ typedef struct sSirMacFrameCtl {
 
 #endif
 
-} cdf_packed tSirMacFrameCtl, *tpSirMacFrameCtl;
+} qdf_packed tSirMacFrameCtl, *tpSirMacFrameCtl;
 
 /* / Sequence control field */
 typedef struct sSirMacSeqCtl {
@@ -819,7 +808,7 @@ typedef struct sSirMacSeqCtl {
 	uint8_t seqNumHi:8;
 
 #endif
-} cdf_packed tSirMacSeqCtl, *tpSirMacSeqCtl;
+} qdf_packed tSirMacSeqCtl, *tpSirMacSeqCtl;
 
 /* / QoS control field */
 typedef struct sSirMacQosCtl {
@@ -843,7 +832,7 @@ typedef struct sSirMacQosCtl {
 	uint8_t txop:8;
 
 #endif
-} cdf_packed tSirMacQosCtl, *tpSirMacQosCtl;
+} qdf_packed tSirMacQosCtl, *tpSirMacQosCtl;
 
 /* / Length (in bytes) of MAC header in 3 address format */
 #define SIR_MAC_HDR_LEN_3A    24
@@ -855,7 +844,7 @@ typedef struct sSirMacDot3Hdr {
 	tSirMacAddr da;
 	tSirMacAddr sa;
 	uint16_t length;
-} cdf_packed tSirMacDot3Hdr, *tpSirMacDot3Hdr;
+} qdf_packed tSirMacDot3Hdr, *tpSirMacDot3Hdr;
 
 /* / 3 address MAC data header format (24/26 bytes) */
 typedef struct sSirMacDataHdr3a {
@@ -867,7 +856,7 @@ typedef struct sSirMacDataHdr3a {
 	tSirMacAddr addr3;
 	tSirMacSeqCtl seqControl;
 	tSirMacQosCtl qosControl;
-} cdf_packed tSirMacDataHdr3a, *tpSirMacDataHdr3a;
+} qdf_packed tSirMacDataHdr3a, *tpSirMacDataHdr3a;
 
 /* / Management header format */
 typedef struct sSirMacMgmtHdr {
@@ -878,7 +867,7 @@ typedef struct sSirMacMgmtHdr {
 	tSirMacAddr sa;
 	tSirMacAddr bssId;
 	tSirMacSeqCtl seqControl;
-} cdf_packed tSirMacMgmtHdr, *tpSirMacMgmtHdr;
+} qdf_packed tSirMacMgmtHdr, *tpSirMacMgmtHdr;
 
 /* / ERP information field */
 typedef struct sSirMacErpInfo {
@@ -893,7 +882,7 @@ typedef struct sSirMacErpInfo {
 	uint8_t barkerPreambleMode:1;
 	uint8_t reserved:5;
 #endif
-} cdf_packed tSirMacErpInfo, *tpSirMacErpInfo;
+} qdf_packed tSirMacErpInfo, *tpSirMacErpInfo;
 
 /* / Capability information field */
 typedef struct sSirMacCapabilityInfo {
@@ -932,14 +921,14 @@ typedef struct sSirMacCapabilityInfo {
 	uint16_t delayedBA:1;
 	uint16_t immediateBA:1;
 #endif
-} cdf_packed tSirMacCapabilityInfo, *tpSirMacCapabilityInfo;
+} qdf_packed tSirMacCapabilityInfo, *tpSirMacCapabilityInfo;
 
 typedef struct sSirMacCfParamSet {
 	uint8_t cfpCount;
 	uint8_t cfpPeriod;
 	uint16_t cfpMaxDuration;
 	uint16_t cfpDurRemaining;
-} cdf_packed tSirMacCfParamSet;
+} qdf_packed tSirMacCfParamSet;
 
 typedef struct sSirMacTim {
 	uint8_t dtimCount;
@@ -947,7 +936,7 @@ typedef struct sSirMacTim {
 	uint8_t bitmapControl;
 	uint8_t bitmapLength;
 	uint8_t bitmap[251];
-} cdf_packed tSirMacTim;
+} qdf_packed tSirMacTim;
 
 /* 12 Bytes long because this structure can be used to represent rate */
 /* and extended rate set IEs */
@@ -955,22 +944,22 @@ typedef struct sSirMacTim {
 typedef struct sSirMacRateSet {
 	uint8_t numRates;
 	uint8_t rate[SIR_MAC_RATESET_EID_MAX];
-} cdf_packed tSirMacRateSet;
+} qdf_packed tSirMacRateSet;
 
 typedef struct sSirMacSSid {
 	uint8_t length;
 	uint8_t ssId[SIR_MAC_MAX_SSID_LENGTH];
-} cdf_packed tSirMacSSid;
+} qdf_packed tSirMacSSid;
 
 typedef struct sSirMacWpaInfo {
 	uint8_t length;
 	uint8_t info[SIR_MAC_MAX_IE_LENGTH];
-} cdf_packed tSirMacWpaInfo, *tpSirMacWpaInfo,
+} qdf_packed tSirMacWpaInfo, *tpSirMacWpaInfo,
 tSirMacRsnInfo, *tpSirMacRsnInfo;
 typedef struct sSirMacWapiInfo {
 	uint8_t length;
 	uint8_t info[SIR_MAC_MAX_IE_LENGTH];
-} cdf_packed tSirMacWapiInfo, *tpSirMacWapiInfo,
+} qdf_packed tSirMacWapiInfo, *tpSirMacWapiInfo,
 tSirMacWapiInfo, *tpSirMacWapiInfo;
 
 typedef struct sSirMacFHParamSet {
@@ -1082,7 +1071,7 @@ typedef struct sSirMacAciAifsn {
 	uint8_t aci:2;
 	uint8_t rsvd:1;
 #endif
-} cdf_packed tSirMacAciAifsn;
+} qdf_packed tSirMacAciAifsn;
 
 /* contention window size */
 typedef struct sSirMacCW {
@@ -1093,13 +1082,13 @@ typedef struct sSirMacCW {
 	uint8_t min:4;
 	uint8_t max:4;
 #endif
-} cdf_packed tSirMacCW;
+} qdf_packed tSirMacCW;
 
 typedef struct sSirMacEdcaParamRecord {
 	tSirMacAciAifsn aci;
 	tSirMacCW cw;
 	uint16_t txoplimit;
-} cdf_packed tSirMacEdcaParamRecord;
+} qdf_packed tSirMacEdcaParamRecord;
 
 typedef struct sSirMacQosInfo {
 #ifndef ANI_LITTLE_BIT_ENDIAN
@@ -1115,7 +1104,7 @@ typedef struct sSirMacQosInfo {
 	uint8_t txopreq:1;
 	uint8_t uapsd:1;
 #endif
-} cdf_packed tSirMacQosInfo;
+} qdf_packed tSirMacQosInfo;
 
 typedef struct sSirMacQosInfoStation {
 #ifdef ANI_LITTLE_BIT_ENDIAN
@@ -1135,7 +1124,7 @@ typedef struct sSirMacQosInfoStation {
 	uint8_t acvi_uapsd:1;
 	uint8_t acvo_uapsd:1;
 #endif
-} cdf_packed tSirMacQosInfoStation, *tpSirMacQosInfoStation;
+} qdf_packed tSirMacQosInfoStation, *tpSirMacQosInfoStation;
 
 typedef struct sSirMacEdcaParamSetIE {
 	uint8_t type;
@@ -1146,14 +1135,14 @@ typedef struct sSirMacEdcaParamSetIE {
 	tSirMacEdcaParamRecord acbk;    /* background */
 	tSirMacEdcaParamRecord acvi;    /* video */
 	tSirMacEdcaParamRecord acvo;    /* voice */
-} cdf_packed tSirMacEdcaParamSetIE;
+} qdf_packed tSirMacEdcaParamSetIE;
 
 typedef struct sSirMacQoSParams {
 	uint8_t count;
 	uint16_t limit;
 	uint8_t CWmin[8];
 	uint8_t AIFS[8];
-} cdf_packed tSirMacQoSParams;
+} qdf_packed tSirMacQoSParams;
 
 /* ts info direction field can take any of these values */
 #define SIR_MAC_DIRECTION_UPLINK    0
@@ -1195,7 +1184,7 @@ typedef struct sSirMacTSInfoTfc {
 	uint16_t userPrio:3;
 	uint16_t ackPolicy:2;
 #endif
-} cdf_packed tSirMacTSInfoTfc;
+} qdf_packed tSirMacTSInfoTfc;
 
 typedef struct sSirMacTSInfoSch {
 #ifndef ANI_LITTLE_BIT_ENDIAN
@@ -1205,12 +1194,12 @@ typedef struct sSirMacTSInfoSch {
 	uint8_t schedule:1;
 	uint8_t rsvd:7;
 #endif
-} cdf_packed tSirMacTSInfoSch;
+} qdf_packed tSirMacTSInfoSch;
 
 typedef struct sSirMacTSInfo {
 	tSirMacTSInfoTfc traffic;
 	tSirMacTSInfoSch schedule;
-} cdf_packed tSirMacTSInfo;
+} qdf_packed tSirMacTSInfo;
 
 typedef struct sSirMacTspecIE {
 	uint8_t type;
@@ -1231,7 +1220,7 @@ typedef struct sSirMacTspecIE {
 	uint32_t minPhyRate;
 	uint16_t surplusBw;
 	uint16_t mediumTime;
-} cdf_packed tSirMacTspecIE;
+} qdf_packed tSirMacTspecIE;
 
 /* frame classifier types */
 #define SIR_MAC_TCLASTYPE_ETHERNET 0
@@ -1243,7 +1232,7 @@ typedef struct sSirMacTclasParamEthernet {
 	tSirMacAddr srcAddr;
 	tSirMacAddr dstAddr;
 	uint16_t type;
-} cdf_packed tSirMacTclasParamEthernet;
+} qdf_packed tSirMacTclasParamEthernet;
 
 typedef struct sSirMacTclasParamIPv4 {
 	uint8_t version;
@@ -1254,7 +1243,7 @@ typedef struct sSirMacTclasParamIPv4 {
 	uint8_t dscp;
 	uint8_t protocol;
 	uint8_t rsvd;
-} cdf_packed tSirMacTclasParamIPv4;
+} qdf_packed tSirMacTclasParamIPv4;
 
 #define SIR_MAC_TCLAS_IPV4  4
 #define SIR_MAC_TCLAS_IPV6  6
@@ -1266,11 +1255,11 @@ typedef struct sSirMacTclasParamIPv6 {
 	uint16_t srcPort;
 	uint16_t dstPort;
 	uint8_t flowLabel[3];
-} cdf_packed tSirMacTclasParamIPv6;
+} qdf_packed tSirMacTclasParamIPv6;
 
 typedef struct sSirMacTclasParam8021dq {
 	uint16_t tag;
-} cdf_packed tSirMacTclasParam8021dq;
+} qdf_packed tSirMacTclasParam8021dq;
 
 typedef struct sSirMacTclasIE {
 	uint8_t type;
@@ -1278,13 +1267,13 @@ typedef struct sSirMacTclasIE {
 	uint8_t userPrio;
 	uint8_t classifierType;
 	uint8_t classifierMask;
-} cdf_packed tSirMacTclasIE;
+} qdf_packed tSirMacTclasIE;
 
 typedef struct sSirMacTsDelayIE {
 	uint8_t type;
 	uint8_t length;
 	uint32_t delay;
-} cdf_packed tSirMacTsDelayIE;
+} qdf_packed tSirMacTsDelayIE;
 
 typedef struct sSirMacScheduleInfo {
 #ifndef ANI_LITTLE_BIT_ENDIAN
@@ -1298,7 +1287,7 @@ typedef struct sSirMacScheduleInfo {
 	uint16_t direction:2;
 	uint16_t rsvd:9;
 #endif
-} cdf_packed tSirMacScheduleInfo;
+} qdf_packed tSirMacScheduleInfo;
 
 typedef struct sSirMacScheduleIE {
 	uint8_t type;
@@ -1308,19 +1297,19 @@ typedef struct sSirMacScheduleIE {
 	uint32_t svcInterval;
 	uint16_t maxSvcDuration;
 	uint16_t specInterval;
-} cdf_packed tSirMacScheduleIE;
+} qdf_packed tSirMacScheduleIE;
 
 typedef struct sSirMacQosCapabilityIE {
 	uint8_t type;
 	uint8_t length;
 	tSirMacQosInfo qosInfo;
-} cdf_packed tSirMacQosCapabilityIE;
+} qdf_packed tSirMacQosCapabilityIE;
 
 typedef struct sSirMacQosCapabilityStaIE {
 	uint8_t type;
 	uint8_t length;
 	tSirMacQosInfoStation qosInfo;
-} cdf_packed tSirMacQosCapabilityStaIE;
+} qdf_packed tSirMacQosCapabilityStaIE;
 
 typedef uint32_t tSirMacTimeStamp[2];
 
@@ -1334,36 +1323,36 @@ typedef uint8_t tSirMacChanNum;
 typedef struct sSirMacSSidIE {
 	uint8_t type;
 	tSirMacSSid ssId;
-} cdf_packed tSirMacSSidIE;
+} qdf_packed tSirMacSSidIE;
 
 typedef struct sSirMacRateSetIE {
 	uint8_t type;
 	tSirMacRateSet supportedRateSet;
-} cdf_packed tSirMacRateSetIE;
+} qdf_packed tSirMacRateSetIE;
 
 typedef struct sSirMacDsParamSetIE {
 	uint8_t type;
 	uint8_t length;
 	tSirMacChanNum channelNumber;
-} cdf_packed tSirMacDsParamSetIE;
+} qdf_packed tSirMacDsParamSetIE;
 
 typedef struct sSirMacCfParamSetIE {
 	uint8_t type;
 	uint8_t length;
 	tSirMacCfParamSet cfParams;
-} cdf_packed tSirMacCfParamSetIE;
+} qdf_packed tSirMacCfParamSetIE;
 
 typedef struct sSirMacChanInfo {
 	tSirMacChanNum firstChanNum;
 	uint8_t numChannels;
 	int8_t maxTxPower;
-} cdf_packed tSirMacChanInfo;
+} qdf_packed tSirMacChanInfo;
 
 typedef struct sSirMacNonErpPresentIE {
 	uint8_t type;
 	uint8_t length;
 	uint8_t erp;
-} cdf_packed tSirMacNonErpPresentIE;
+} qdf_packed tSirMacNonErpPresentIE;
 
 typedef struct sSirMacPowerCapabilityIE {
 	uint8_t type;
@@ -1396,7 +1385,6 @@ typedef struct sSirMacMeasReqIE {
 #define SIR_MAC_MAX_SUPP_RATES            32
 
 #define SIR_MAC_MAX_SUPP_CHANNELS            100
-#define SIR_MAC_MAX_SUPP_OPER_CLASSES        32
 #define SIR_MAC_MAX_EXTN_CAP               8
 
 /* VHT Capabilities Info */
@@ -1444,7 +1432,7 @@ typedef struct sSirMacVHTCapabilityInfo {
 	uint32_t txAntPattern:1;
 	uint32_t reserved1:2;
 #endif
-} cdf_packed tSirMacVHTCapabilityInfo;
+} qdf_packed tSirMacVHTCapabilityInfo;
 
 typedef struct sSirMacVHTTxSupDataRateInfo {
 #ifndef ANI_LITTLE_BIT_ENDIAN
@@ -1454,7 +1442,7 @@ typedef struct sSirMacVHTTxSupDataRateInfo {
 	uint16_t txSupDataRate:13;
 	uint16_t reserved:3;
 #endif
-} cdf_packed tSirMacVHTTxSupDataRateInfo;
+} qdf_packed tSirMacVHTTxSupDataRateInfo;
 
 typedef struct sSirMacVHTRxSupDataRateInfo {
 #ifndef ANI_LITTLE_BIT_ENDIAN
@@ -1464,7 +1452,7 @@ typedef struct sSirMacVHTRxSupDataRateInfo {
 	uint16_t rxSupDataRate:13;
 	uint16_t reserved:3;
 #endif
-} cdf_packed tSirMacVHTRxSupDataRateInfo;
+} qdf_packed tSirMacVHTRxSupDataRateInfo;
 
 /**
  * struct sSirVhtMcsInfo - VHT MCS information
@@ -1604,7 +1592,7 @@ typedef struct sHtCaps {
 	uint8_t txSoundingPPDUs:1;
 	uint8_t reserved5:1;
 
-} cdf_packed tHtCaps;
+} qdf_packed tHtCaps;
 
 /* During 11h channel switch, the AP can indicate if the
  * STA needs to stop the transmission or continue until the
@@ -1636,7 +1624,7 @@ typedef struct _BarControl {
 
 #endif
 
-} cdf_packed barCtrlType;
+} qdf_packed barCtrlType;
 
 typedef struct _BARFrmStruct {
 	tSirMacFrameCtl fc;
@@ -1645,7 +1633,7 @@ typedef struct _BARFrmStruct {
 	tSirMacAddr txAddr;
 	barCtrlType barControl;
 	tSirMacSeqCtl ssnCtrl;
-} cdf_packed BARFrmType;
+} qdf_packed BARFrmType;
 
 /* Supported MCS set */
 #define SIZE_OF_SUPPORTED_MCS_SET                          16
@@ -1727,7 +1715,7 @@ typedef struct sSirMacHTCapabilityInfo {
 	uint16_t stbcControlFrame:1;
 	uint16_t lsigTXOPProtection:1;
 #endif
-} cdf_packed tSirMacHTCapabilityInfo;
+} qdf_packed tSirMacHTCapabilityInfo;
 
 /* HT Parameters Info */
 typedef struct sSirMacHTParametersInfo {
@@ -1740,7 +1728,7 @@ typedef struct sSirMacHTParametersInfo {
 	uint8_t mpduDensity:3;
 	uint8_t reserved:3;
 #endif
-} cdf_packed tSirMacHTParametersInfo;
+} qdf_packed tSirMacHTParametersInfo;
 
 /* Extended HT Capabilities Info */
 typedef struct sSirMacExtendedHTCapabilityInfo {
@@ -1757,7 +1745,7 @@ typedef struct sSirMacExtendedHTCapabilityInfo {
 	uint16_t mcsFeedback:2;
 	uint16_t reserved2:6;
 #endif
-} cdf_packed tSirMacExtendedHTCapabilityInfo;
+} qdf_packed tSirMacExtendedHTCapabilityInfo;
 
 /* IEEE 802.11n/D7.0 - 7.3.2.57.4 */
 /* Part of the "supported MCS set field" */
@@ -1769,7 +1757,7 @@ typedef struct sSirMacRxHighestSupportRate {
 	uint16_t rate:10;
 	uint16_t reserved:6;
 #endif
-} cdf_packed tSirMacRxHighestSupportRate, *tpSirMacRxHighestSupportRate;
+} qdf_packed tSirMacRxHighestSupportRate, *tpSirMacRxHighestSupportRate;
 
 /* Transmit Beam Forming Capabilities Info */
 typedef struct sSirMacTxBFCapabilityInfo {
@@ -1811,7 +1799,7 @@ typedef struct sSirMacTxBFCapabilityInfo {
 	uint32_t compressedSteeringMatrixBFAntennae:2;
 	uint32_t reserved:7;
 #endif
-} cdf_packed tSirMacTxBFCapabilityInfo;
+} qdf_packed tSirMacTxBFCapabilityInfo;
 
 /* Antenna Selection Capability Info */
 typedef struct sSirMacASCapabilityInfo {
@@ -1834,7 +1822,7 @@ typedef struct sSirMacASCapabilityInfo {
 	uint8_t txSoundingPPDUs:1;
 	uint8_t reserved2:1;
 #endif
-} cdf_packed tSirMacASCapabilityInfo;
+} qdf_packed tSirMacASCapabilityInfo;
 
 /* Additional HT IE Field1 */
 typedef struct sSirMacHTInfoField1 {
@@ -1851,7 +1839,7 @@ typedef struct sSirMacHTInfoField1 {
 	uint8_t controlledAccessOnly:1;
 	uint8_t serviceIntervalGranularity:3;
 #endif
-} cdf_packed tSirMacHTInfoField1;
+} qdf_packed tSirMacHTInfoField1;
 
 /* Additional HT IE Field2 */
 typedef struct sSirMacHTInfoField2 {
@@ -1868,7 +1856,7 @@ typedef struct sSirMacHTInfoField2 {
 	uint16_t obssNonHTStaPresent:1; /*added for Obss  */
 	uint16_t reserved:11;
 #endif
-} cdf_packed tSirMacHTInfoField2;
+} qdf_packed tSirMacHTInfoField2;
 
 /* Additional HT IE Field3 */
 typedef struct sSirMacHTInfoField3 {
@@ -1889,13 +1877,13 @@ typedef struct sSirMacHTInfoField3 {
 	uint16_t pcoPhase:1;
 	uint16_t reserved:4;
 #endif
-} cdf_packed tSirMacHTInfoField3;
+} qdf_packed tSirMacHTInfoField3;
 
 typedef struct sSirMacProbeReqFrame {
 	tSirMacSSidIE ssIdIE;
 	tSirMacRateSetIE rateSetIE;
 	tSirMacRateSetIE extendedRateSetIE;
-} cdf_packed tSirMacProbeReqFrame, *tpSirMacProbeReqFrame;
+} qdf_packed tSirMacProbeReqFrame, *tpSirMacProbeReqFrame;
 
 typedef struct sSirMacProbeRspFrame {
 	tSirMacTimeStamp ts;
@@ -1907,7 +1895,7 @@ typedef struct sSirMacProbeRspFrame {
 	tSirMacNonErpPresentIE nonErpPresent;
 	tSirMacDsParamSetIE dsParamsIE;
 	tSirMacCfParamSetIE cfParamsIE;
-} cdf_packed tSirMacProbeRspFrame, *tpSirMacProbeRspFrame;
+} qdf_packed tSirMacProbeRspFrame, *tpSirMacProbeRspFrame;
 
 typedef struct sSirMacAuthFrameBody {
 	uint16_t authAlgoNumber;
@@ -1916,11 +1904,11 @@ typedef struct sSirMacAuthFrameBody {
 	uint8_t type;           /* = SIR_MAC_CHALLENGE_TEXT_EID */
 	uint8_t length;         /* = SIR_MAC_AUTH_CHALLENGE_LENGTH */
 	uint8_t challengeText[SIR_MAC_AUTH_CHALLENGE_LENGTH];
-} cdf_packed tSirMacAuthFrameBody, *tpSirMacAuthFrameBody;
+} qdf_packed tSirMacAuthFrameBody, *tpSirMacAuthFrameBody;
 
 typedef struct sSirMacAuthenticationFrame {
 	tSirMacAuthFrameBody authFrameBody;
-} cdf_packed tSirMacAuthFrame, *tpSirMacAuthFrame;
+} qdf_packed tSirMacAuthFrame, *tpSirMacAuthFrame;
 
 typedef struct sSirMacAssocReqFrame {
 	tSirMacCapabilityInfo capabilityInfo;
@@ -1928,7 +1916,7 @@ typedef struct sSirMacAssocReqFrame {
 	tSirMacSSidIE ssIdIE;
 	tSirMacRateSetIE rateSetIE;
 	tSirMacRateSetIE extendedRateSetIE;
-} cdf_packed tSirMacAssocReqFrame, *tpSirMacAssocReqFrame;
+} qdf_packed tSirMacAssocReqFrame, *tpSirMacAssocReqFrame;
 
 typedef struct sSirMacAssocRspFrame {
 	tSirMacCapabilityInfo capabilityInfo;
@@ -1936,26 +1924,26 @@ typedef struct sSirMacAssocRspFrame {
 	uint16_t aid;
 	tSirMacRateSetIE supportedRates;
 	tSirMacRateSetIE extendedRateSetIE;
-} cdf_packed tSirMacAssocRspFrame, *tpSirMacAssocRspFrame;
+} qdf_packed tSirMacAssocRspFrame, *tpSirMacAssocRspFrame;
 
 typedef struct sSirMacDisassocFrame {
 	uint16_t reasonCode;
-} cdf_packed tSirMacDisassocFrame, *tpSirMacDisassocFrame;
+} qdf_packed tSirMacDisassocFrame, *tpSirMacDisassocFrame;
 
 typedef struct sDSirMacDeauthFrame {
 	uint16_t reasonCode;
-} cdf_packed tSirMacDeauthFrame, *tpSirMacDeauthFrame;
+} qdf_packed tSirMacDeauthFrame, *tpSirMacDeauthFrame;
 
 /* / Common header for all action frames */
 typedef struct sSirMacActionFrameHdr {
 	uint8_t category;
 	uint8_t actionID;
-} cdf_packed tSirMacActionFrameHdr, *tpSirMacActionFrameHdr;
+} qdf_packed tSirMacActionFrameHdr, *tpSirMacActionFrameHdr;
 
 typedef struct sSirMacVendorSpecificFrameHdr {
 	uint8_t category;
 	uint8_t Oui[4];
-} cdf_packed tSirMacVendorSpecificFrameHdr,
+} qdf_packed tSirMacVendorSpecificFrameHdr,
 *tpSirMacVendorSpecificFrameHdr;
 
 typedef struct sSirMacVendorSpecificPublicActionFrameHdr {
@@ -1964,7 +1952,7 @@ typedef struct sSirMacVendorSpecificPublicActionFrameHdr {
 	uint8_t Oui[4];
 	uint8_t OuiSubType;
 	uint8_t dialogToken;
-} cdf_packed tSirMacVendorSpecificPublicActionFrameHdr,
+} qdf_packed tSirMacVendorSpecificPublicActionFrameHdr,
 *tpSirMacVendorSpecificPublicActionFrameHdr;
 
 typedef struct sSirMacP2PActionFrameHdr {
@@ -1972,7 +1960,7 @@ typedef struct sSirMacP2PActionFrameHdr {
 	uint8_t Oui[4];
 	uint8_t OuiSubType;
 	uint8_t dialogToken;
-} cdf_packed tSirMacP2PActionFrameHdr, *tpSirMacP2PActionFrameHdr;
+} qdf_packed tSirMacP2PActionFrameHdr, *tpSirMacP2PActionFrameHdr;
 
 typedef struct sSirMacMeasActionFrameHdr {
 	uint8_t category;
@@ -1991,8 +1979,6 @@ typedef struct sSirMacMeasReqActionFrame {
 	tSirMacMeasReqIE measReqIE;
 } tSirMacMeasReqActionFrame, *tpSirMacMeasReqActionFrame;
 #endif
-
-#if defined WLAN_FEATURE_VOWIFI
 
 typedef struct sSirMacNeighborReportReq {
 	uint8_t dialogToken;
@@ -2038,8 +2024,6 @@ typedef struct sSirMacRadioMeasureReport {
 	} report;
 
 } tSirMacRadioMeasureReport, *tpSirMacRadioMeasureReport;
-
-#endif
 
 /* QOS action frame definitions */
 

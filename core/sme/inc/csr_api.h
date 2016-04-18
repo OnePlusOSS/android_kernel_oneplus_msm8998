@@ -195,7 +195,6 @@ typedef enum {
 	eCSR_INI_SINGLE_CHANNEL_CENTERED = 0,
 	eCSR_INI_DOUBLE_CHANNEL_HIGH_PRIMARY,
 	eCSR_INI_DOUBLE_CHANNEL_LOW_PRIMARY,
-#ifdef WLAN_FEATURE_11AC
 	eCSR_INI_QUADRUPLE_CHANNEL_20MHZ_LOW_40MHZ_CENTERED,
 	eCSR_INI_QUADRUPLE_CHANNEL_20MHZ_CENTERED_40MHZ_CENTERED,
 	eCSR_INI_QUADRUPLE_CHANNEL_20MHZ_HIGH_40MHZ_CENTERED,
@@ -203,7 +202,6 @@ typedef enum {
 	eCSR_INI_QUADRUPLE_CHANNEL_20MHZ_HIGH_40MHZ_LOW,
 	eCSR_INI_QUADRUPLE_CHANNEL_20MHZ_LOW_40MHZ_HIGH,
 	eCSR_INI_QUADRUPLE_CHANNEL_20MHZ_HIGH_40MHZ_HIGH,
-#endif
 	eCSR_INI_CHANNEL_BONDING_STATE_MAX
 } eIniChanBondState;
 
@@ -245,7 +243,7 @@ typedef struct tagCsrSSIDs {
 
 typedef struct tagCsrBSSIDs {
 	uint32_t numOfBSSIDs;
-	struct cdf_mac_addr *bssid;
+	struct qdf_mac_addr *bssid;
 } tCsrBSSIDs;
 
 typedef struct tagCsrStaParams {
@@ -262,12 +260,12 @@ typedef struct tagCsrStaParams {
 	uint8_t supported_channels_len;
 	uint8_t supported_channels[SIR_MAC_MAX_SUPP_CHANNELS];
 	uint8_t supported_oper_classes_len;
-	uint8_t supported_oper_classes[SIR_MAC_MAX_SUPP_OPER_CLASSES];
+	uint8_t supported_oper_classes[CDS_MAX_SUPP_OPER_CLASSES];
 } tCsrStaParams;
 
 typedef struct tagCsrScanRequest {
 	tSirScanType scanType;
-	struct cdf_mac_addr bssid;
+	struct qdf_mac_addr bssid;
 	eCsrRoamBssType BSSType;
 	tCsrSSIDs SSIDs;
 	tCsrChannelInfo ChannelInfo;
@@ -291,7 +289,7 @@ typedef struct tagCsrScanResultInfo {
 	 */
 	void *pvIes;
 	tAniSSID ssId;
-	v_TIME_t timer;           /* timer is variable for hidden SSID timer */
+	unsigned long timer;           /* timer is variable for hidden SSID timer */
 	/*
 	 * This member must be the last in the structure because the
 	 * end of tSirBssDescription is an
@@ -325,15 +323,13 @@ typedef struct tagCsrEseCckmInfo {
 	uint8_t btk[SIR_BTK_KEY_LEN];
 #endif
 } tCsrEseCckmInfo;
-#endif
 
-#if defined(FEATURE_WLAN_ESE) && defined(FEATURE_WLAN_ESE_UPLOAD)
 #define CSR_DOT11F_IE_RSN_MAX_LEN   (114)
 typedef struct tagCsrEseCckmIe {
 	uint8_t cckmIe[CSR_DOT11F_IE_RSN_MAX_LEN];
 	uint8_t cckmIeLen;
 } tCsrEseCckmIe;
-#endif /* FEATURE_WLAN_ESE && FEATURE_WLAN_ESE_UPLOAD */
+#endif /* FEATURE_WLAN_ESE */
 
 typedef struct sCsrChannel_ {
 	uint8_t numChannels;
@@ -363,13 +359,11 @@ typedef struct tagCsrScanResultFilter {
 	/* For WPS filtering if true => auth and ecryption should be ignored */
 	bool bWPSAssociation;
 	bool bOSENAssociation;
-#if defined WLAN_FEATURE_VOWIFI
 	/*
 	 * For measurement reports --> if set, only SSID,
 	 * BSSID and channel is considered for filtering.
 	 */
 	bool fMeasurement;
-#endif
 	tCsrMobilityDomainInfo MDID;
 	bool p2pResult;
 #ifdef WLAN_FEATURE_11W
@@ -385,7 +379,7 @@ typedef struct tagCsrScanResultFilter {
 	 */
 	uint8_t scan_filter_for_roam;
 	struct sCsrChannel_ pcl_channels;
-	enum tCDF_ADAPTER_MODE csrPersona;
+	enum tQDF_ADAPTER_MODE csrPersona;
 } tCsrScanResultFilter;
 
 typedef struct sCsrChnPower_ {
@@ -483,12 +477,14 @@ typedef enum {
 	eCSR_ROAM_UNPROT_MGMT_FRAME_IND,
 #endif
 
-#if defined(FEATURE_WLAN_ESE) && defined(FEATURE_WLAN_ESE_UPLOAD)
+	eCSR_ROAM_IBSS_PEER_INFO_COMPLETE,
+
+#ifdef FEATURE_WLAN_ESE
 	eCSR_ROAM_TSM_IE_IND,
 	eCSR_ROAM_CCKM_PREAUTH_NOTIFY,
 	eCSR_ROAM_ESE_ADJ_AP_REPORT_IND,
 	eCSR_ROAM_ESE_BCN_REPORT_IND,
-#endif /* FEATURE_WLAN_ESE && FEATURE_WLAN_ESE_UPLOAD */
+#endif /* FEATURE_WLAN_ESE */
 
 	/* Radar indication from lower layers */
 	eCSR_ROAM_DFS_RADAR_IND,
@@ -497,6 +493,7 @@ typedef enum {
 	/* Channel sw update notification */
 	eCSR_ROAM_DFS_CHAN_SW_NOTIFY,
 	eCSR_ROAM_EXT_CHG_CHNL_IND,
+	eCSR_ROAM_STATUS_UPDATE_HW_MODE,
 } eRoamCmdStatus;
 
 /* comment inside indicates what roaming callback gets */
@@ -586,12 +583,14 @@ typedef enum {
 	eCSR_ROAM_RESULT_TDLS_SHOULD_PEER_DISCONNECTED,
 #endif
 
+	eCSR_ROAM_RESULT_IBSS_PEER_INFO_SUCCESS,
+	eCSR_ROAM_RESULT_IBSS_PEER_INFO_FAILED,
 	eCSR_ROAM_RESULT_DFS_RADAR_FOUND_IND,
 	eCSR_ROAM_RESULT_CHANNEL_CHANGE_SUCCESS,
 	eCSR_ROAM_RESULT_CHANNEL_CHANGE_FAILURE,
 	eCSR_ROAM_RESULT_DFS_CHANSW_UPDATE_SUCCESS,
-	eCSR_ROAM_RESULT_DFS_CHANSW_UPDATE_FAILURE,
 	eCSR_ROAM_EXT_CHG_CHNL_UPDATE_IND,
+	eCSR_ROAM_RESULT_UPDATE_HW_MODE,
 } eCsrRoamResult;
 
 /*----------------------------------------------------------------------------
@@ -804,23 +803,23 @@ enum csr_hi_rssi_scan_id {
 };
 
 typedef struct tagPmkidCandidateInfo {
-	struct cdf_mac_addr BSSID;
+	struct qdf_mac_addr BSSID;
 	bool preAuthSupported;
 } tPmkidCandidateInfo;
 
 typedef struct tagPmkidCacheInfo {
-	struct cdf_mac_addr BSSID;
+	struct qdf_mac_addr BSSID;
 	uint8_t PMKID[CSR_RSN_PMKID_SIZE];
 } tPmkidCacheInfo;
 
 #ifdef FEATURE_WLAN_WAPI
 typedef struct tagBkidCandidateInfo {
-	struct cdf_mac_addr BSSID;
+	struct qdf_mac_addr BSSID;
 	bool preAuthSupported;
 } tBkidCandidateInfo;
 
 typedef struct tagBkidCacheInfo {
-	struct cdf_mac_addr BSSID;
+	struct qdf_mac_addr BSSID;
 	uint8_t BKID[CSR_WAPI_BKID_SIZE];
 } tBkidCacheInfo;
 #endif /* FEATURE_WLAN_WAPI */
@@ -877,7 +876,7 @@ typedef struct tagCsrRoamProfile {
 	eCsrCBChoice CBMode;
 	tCsrChannelInfo ChannelInfo;
 	uint8_t operationChannel;
-	chan_params_t ch_params;
+	struct ch_params_s ch_params;
 	/* If this is 0, SME will fill in for caller. */
 	uint16_t beaconInterval;
 	/*
@@ -925,7 +924,7 @@ typedef struct tagCsrRoamProfile {
 	uint16_t cfg_protection;
 	uint8_t wps_state;
 	tCsrMobilityDomainInfo MDID;
-	enum tCDF_ADAPTER_MODE csrPersona;
+	enum tQDF_ADAPTER_MODE csrPersona;
 	uint8_t disableDFSChSwitch;
 	/* addIe params */
 	tSirAddIeParams addIeParams;
@@ -939,19 +938,17 @@ typedef struct tagCsrRoamHTProfile {
 	uint8_t htSupportedChannelWidthSet;
 	uint8_t htRecommendedTxWidthSet;
 	ePhyChanBondState htSecondaryChannelOffset;
-#ifdef WLAN_FEATURE_11AC
 	uint8_t vhtCapability;
 	uint8_t vhtTxChannelWidthSet;
 	uint8_t apCenterChan;
 	uint8_t apChanWidth;
-#endif
 } tCsrRoamHTProfile;
 #endif
 typedef struct tagCsrRoamConnectedProfile {
 	tSirMacSSid SSID;
 	bool handoffPermitted;
 	bool ssidHidden;
-	struct cdf_mac_addr bssid;
+	struct qdf_mac_addr bssid;
 	eCsrRoamBssType BSSType;
 	eCsrAuthType AuthType;
 	tCsrAuthList AuthInfo;
@@ -1147,7 +1144,6 @@ typedef struct tagCsrConfigParam {
 	 * request from HDD
 	 */
 	bool fScanTwice;
-#ifdef WLAN_FEATURE_11AC
 	uint32_t nVhtChannelWidth;
 	uint8_t enableTxBF;
 	uint8_t enable_txbf_sap_mode;
@@ -1157,10 +1153,10 @@ typedef struct tagCsrConfigParam {
 	uint8_t enableMuBformee;
 	uint8_t enableVhtpAid;
 	uint8_t enableVhtGid;
-#endif
 	uint8_t enableAmpduPs;
 	uint8_t enableHtSmps;
 	uint8_t htSmps;
+	bool send_smps_action;
 	bool ignore_peer_erp_info;
 	/*
 	 * To enable/disable scanning only 2.4Ghz channels on first scan
@@ -1218,6 +1214,12 @@ typedef struct tagCsrConfigParam {
 	bool policy_manager_enabled;
 	uint32_t fine_time_meas_cap;
 	uint32_t dual_mac_feature_disable;
+	uint32_t roam_dense_traffic_thresh;
+	uint32_t roam_dense_rssi_thresh_offset;
+	uint32_t roam_dense_min_aps;
+	uint32_t obss_width_interval;
+	uint32_t obss_active_dwelltime;
+	uint32_t obss_passive_dwelltime;
 } tCsrConfigParam;
 
 /* Tush */
@@ -1253,12 +1255,12 @@ typedef struct tagCsrRoamInfo {
 	uint8_t *pbFrames;
 	bool fReassocReq;       /* set to true if for re-association */
 	bool fReassocRsp;       /* set to true if for re-association */
-	struct cdf_mac_addr bssid;
+	struct qdf_mac_addr bssid;
 	/*
 	 * Only valid in IBSS. this is the peers MAC address for
 	 * eCSR_ROAM_RESULT_IBSS_NEW_PEER or PEER_DEPARTED
 	 */
-	struct cdf_mac_addr peerMac;
+	struct qdf_mac_addr peerMac;
 	tSirResultCodes statusCode;
 	/* this'd be our own defined or sent from otherBSS(per 802.11spec) */
 	uint32_t reasonCode;
@@ -1287,12 +1289,10 @@ typedef struct tagCsrRoamInfo {
 	uint32_t dtimPeriod;
 #ifdef FEATURE_WLAN_ESE
 	bool isESEAssoc;
-#ifdef FEATURE_WLAN_ESE_UPLOAD
 	tSirTsmIE tsmIe;
 	uint32_t timestamp[2];
 	uint16_t tsmRoamDelay;
 	tSirEseBcnReportRsp *pEseBcnReportRsp;
-#endif /* FEATURE_WLAN_ESE_UPLOAD */
 #endif
 	void *pRemainCtx;
 	uint32_t roc_scan_id;
@@ -1447,7 +1447,7 @@ typedef struct tagCsrPerStaStatsInfo {
 typedef struct tagCsrRoamSetKey {
 	eCsrEncryptionType encType;
 	tAniKeyDirection keyDirection;  /* Tx, Rx or Tx-and-Rx */
-	struct cdf_mac_addr peerMac;    /* Peer MAC. ALL 1's for group key */
+	struct qdf_mac_addr peerMac;    /* Peer MAC. ALL 1's for group key */
 	uint8_t paeRole;        /* 0 for supplicant */
 	uint8_t keyId;          /* Key index */
 	uint16_t keyLength;     /* Number of bytes containing the key in pKey */
@@ -1457,7 +1457,7 @@ typedef struct tagCsrRoamSetKey {
 
 typedef struct tagCsrRoamRemoveKey {
 	eCsrEncryptionType encType;
-	struct cdf_mac_addr peerMac; /* Peer MAC. ALL 1's for group key */
+	struct qdf_mac_addr peerMac; /* Peer MAC. ALL 1's for group key */
 	uint8_t keyId;          /* key index */
 } tCsrRoamRemoveKey;
 
@@ -1473,7 +1473,7 @@ typedef struct tagCsrLinkEstablishParams {
 	uint8_t supportedChannelsLen;
 	uint8_t supportedChannels[SIR_MAC_MAX_SUPP_CHANNELS];
 	uint8_t supportedOperClassesLen;
-	uint8_t supportedOperClasses[SIR_MAC_MAX_SUPP_OPER_CLASSES];
+	uint8_t supportedOperClasses[CDS_MAX_SUPP_OPER_CLASSES];
 } tCsrTdlsLinkEstablishParams;
 
 typedef struct tagCsrTdlsSendMgmt {
@@ -1497,12 +1497,12 @@ typedef enum {
 } handoff_src;
 
 typedef struct tagCsrHandoffRequest {
-	struct cdf_mac_addr bssid;
+	struct qdf_mac_addr bssid;
 	uint8_t channel;
 	uint8_t src;   /* To check if its a REASSOC or a FASTREASSOC IOCTL */
 } tCsrHandoffRequest;
 
-#if defined(FEATURE_WLAN_ESE) && defined(FEATURE_WLAN_ESE_UPLOAD)
+#ifdef FEATURE_WLAN_ESE
 typedef struct tagCsrEseBeaconReqParams {
 	uint16_t measurementToken;
 	uint8_t channel;
@@ -1514,10 +1514,10 @@ typedef struct tagCsrEseBeaconReq {
 	uint8_t numBcnReqIe;
 	tCsrEseBeaconReqParams bcnReq[SIR_ESE_MAX_MEAS_IE_REQS];
 } tCsrEseBeaconReq, *tpCsrEseBeaconReq;
-#endif /* FEATURE_WLAN_ESE && FEATURE_WLAN_ESE_UPLOAD */
+#endif /* FEATURE_WLAN_ESE */
 
 struct tagCsrDelStaParams {
-	struct cdf_mac_addr peerMacAddr;
+	struct qdf_mac_addr peerMacAddr;
 	uint16_t reason_code;
 	uint8_t subtype;
 };
@@ -1526,16 +1526,16 @@ struct tagCsrDelStaParams {
  * NOTE: p2 is the second context pass in for the caller
  * NOTE: what if callback is called before requester gets the scanId??
  */
-typedef CDF_STATUS (*csr_scan_completeCallback)(tHalHandle, void *p2,
+typedef QDF_STATUS (*csr_scan_completeCallback)(tHalHandle, void *p2,
 						uint8_t sessionId,
 						uint32_t scanID,
 						eCsrScanStatus status);
-typedef CDF_STATUS (*csr_roam_completeCallback)(void *pContext,
+typedef QDF_STATUS (*csr_roam_completeCallback)(void *pContext,
 						tCsrRoamInfo * pParam,
 						uint32_t roamId,
 						eRoamCmdStatus roamStatus,
 						eCsrRoamResult roamResult);
-typedef CDF_STATUS (*csr_roamSessionCloseCallback)(void *pContext);
+typedef QDF_STATUS (*csr_roamSessionCloseCallback)(void *pContext);
 
 #define CSR_IS_START_IBSS(pProfile) (eCSR_BSS_TYPE_START_IBSS == \
 				     (pProfile)->BSSType)
@@ -1554,36 +1554,43 @@ typedef CDF_STATUS (*csr_roamSessionCloseCallback)(void *pContext);
 #define CSR_IS_CLOSE_SESSION_COMMAND(pCommand) \
 	((pCommand)->command == eSmeCommandDelStaSession)
 
-CDF_STATUS csr_set_channels(tHalHandle hHal, tCsrConfigParam *pParam);
+QDF_STATUS csr_set_channels(tHalHandle hHal, tCsrConfigParam *pParam);
 
-CDF_STATUS csr_set_reg_info(tHalHandle hHal, uint8_t *apCntryCode);
+QDF_STATUS csr_set_reg_info(tHalHandle hHal, uint8_t *apCntryCode);
 
 /* enum to string conversion for debug output */
 const char *get_e_roam_cmd_status_str(eRoamCmdStatus val);
 const char *get_e_csr_roam_result_str(eCsrRoamResult val);
-CDF_STATUS csr_set_phy_mode(tHalHandle hHal, uint32_t phyMode, eCsrBand eBand,
+QDF_STATUS csr_set_phy_mode(tHalHandle hHal, uint32_t phyMode, eCsrBand eBand,
 			    bool *pfRestartNeeded);
 typedef void (*csr_roamLinkQualityIndCallback)
 	(eCsrRoamLinkQualityInd ind, void *pContext);
 typedef void (*tCsrStatsCallback)(void *stats, void *pContext);
 typedef void (*tCsrRssiCallback)(int8_t rssi, uint32_t staId, void *pContext);
 
-#if defined(FEATURE_WLAN_ESE) && defined(FEATURE_WLAN_ESE_UPLOAD)
+#ifdef FEATURE_WLAN_ESE
 typedef void (*tCsrTsmStatsCallback)(tAniTrafStrmMetrics tsmMetrics,
 				     uint32_t staId, void *pContext);
-#endif /* FEATURE_WLAN_ESE && FEATURE_WLAN_ESE_UPLOAD */
+#endif /* FEATURE_WLAN_ESE */
 typedef void (*tCsrSnrCallback)(int8_t snr, uint32_t staId, void *pContext);
-
-CDF_STATUS csr_roam_issue_ft_preauth_req(tHalHandle hHal, uint32_t sessionId,
-					 tpSirBssDescription pBssDescription);
-CDF_STATUS csr_set_band(tHalHandle hHal, uint8_t sessionId, eCsrBand eBand);
+#ifdef WLAN_FEATURE_HOST_ROAM
+QDF_STATUS csr_roam_issue_ft_preauth_req(tHalHandle hHal, uint32_t sessionId,
+		tpSirBssDescription pBssDescription);
+#else
+static inline QDF_STATUS csr_roam_issue_ft_preauth_req(tHalHandle hHal,
+		uint32_t sessionId, tpSirBssDescription pBssDescription)
+{
+	return QDF_STATUS_E_NOSUPPORT;
+}
+#endif
+QDF_STATUS csr_set_band(tHalHandle hHal, uint8_t sessionId, eCsrBand eBand);
 eCsrBand csr_get_current_band(tHalHandle hHal);
 typedef void (*csr_readyToSuspendCallback)(void *pContext, bool suspended);
 #ifdef WLAN_FEATURE_EXTWOW_SUPPORT
 typedef void (*csr_readyToExtWoWCallback)(void *pContext, bool status);
 #endif
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
-CDF_STATUS csr_roam_issue_ft_roam_offload_synch(tHalHandle hHal,
+QDF_STATUS csr_roam_issue_ft_roam_offload_synch(tHalHandle hHal,
 		uint32_t sessionId, tSirBssDescription *pBssDescription);
 #endif
 typedef void (*tCsrLinkStatusCallback)(uint8_t status, void *pContext);

@@ -50,13 +50,15 @@
 #define LIM_KEEPALIVE_TIMER_MS                   3000
 /* Lim JoinProbeRequest Retry  timer default (200)ms */
 #define LIM_JOIN_PROBE_REQ_TIMER_MS              200
+/* Lim Periodic Auth Retry timer default 60 ms */
+#define LIM_AUTH_RETRY_TIMER_MS   60
+
 
 /* This timer is a periodic timer which expires at every 1 sec to
    convert  ACTIVE DFS channel to DFS channels */
 #define ACTIVE_TO_PASSIVE_CONVERISON_TIMEOUT     1000
 
-static bool
-lim_create_non_ap_timers(tpAniSirGlobal pMac)
+static bool lim_create_non_ap_timers(tpAniSirGlobal pMac)
 {
 	uint32_t cfgValue;
 	/* Create Channel Switch Timer */
@@ -122,6 +124,18 @@ lim_create_non_ap_timers(tpAniSirGlobal pMac)
 		return false;
 	}
 
+	/* Send Auth frame every 60 ms */
+	if ((tx_timer_create(pMac,
+		&pMac->lim.limTimers.g_lim_periodic_auth_retry_timer,
+		"Periodic AUTH Timer",
+		lim_timer_handler, SIR_LIM_AUTH_RETRY_TIMEOUT,
+		SYS_MS_TO_TICKS(LIM_AUTH_RETRY_TIMER_MS), 0,
+		TX_NO_ACTIVATE)) != TX_SUCCESS) {
+		lim_log(pMac, LOGP,
+			FL("could not create Periodic AUTH Timer"));
+		return false;
+	}
+
 	if (wlan_cfg_get_int(pMac, WNI_CFG_ASSOCIATION_FAILURE_TIMEOUT,
 			     &cfgValue) != eSIR_SUCCESS)
 		lim_log(pMac, LOGP,
@@ -135,20 +149,6 @@ lim_create_non_ap_timers(tpAniSirGlobal pMac)
 			    cfgValue, 0, TX_NO_ACTIVATE) != TX_SUCCESS) {
 		lim_log(pMac, LOGP,
 			FL("could not create Association failure timer"));
-		return false;
-	}
-	if (wlan_cfg_get_int(pMac, WNI_CFG_REASSOCIATION_FAILURE_TIMEOUT,
-			     &cfgValue) != eSIR_SUCCESS)
-		lim_log(pMac, LOGP,
-			FL("could not retrieve ReassocFailureTimeout value"));
-
-	cfgValue = SYS_MS_TO_TICKS(cfgValue);
-	/* Create Association failure timer and activate it later */
-	if (tx_timer_create(pMac, &pMac->lim.limTimers.gLimReassocFailureTimer,
-		    "REASSOC FAILURE TIMEOUT", lim_assoc_failure_timer_handler,
-		    LIM_REASSOC, cfgValue, 0, TX_NO_ACTIVATE) != TX_SUCCESS) {
-		lim_log(pMac, LOGP,
-			FL("could not create Reassociation failure timer"));
 		return false;
 	}
 
@@ -221,9 +221,12 @@ uint32_t lim_create_timers(tpAniSirGlobal pMac)
 	uint32_t cfgValue, i = 0;
 	uint32_t cfgValue1;
 
-	PELOG1(lim_log(pMac, LOG1,
+	lim_log(pMac, LOG1,
 	       FL("Creating Timers used by LIM module in Role %d"),
-	       pMac->lim.gLimSystemRole);)
+	       pMac->lim.gLimSystemRole);
+	/* Create timers required for host roaming feature */
+	if (TX_SUCCESS != lim_create_timers_host_roam(pMac))
+		return TX_TIMER_ERROR;
 
 	if (wlan_cfg_get_int(pMac, WNI_CFG_ACTIVE_MINIMUM_CHANNEL_TIME,
 			     &cfgValue) != eSIR_SUCCESS) {
@@ -300,11 +303,23 @@ uint32_t lim_create_timers(tpAniSirGlobal pMac)
 		lim_log(pMac, LOGP, FL("could not retrieve mac preauth value"));
 	pMac->lim.gLimPreAuthTimerTable.numEntry = cfgValue;
 	pMac->lim.gLimPreAuthTimerTable.pTable =
-		cdf_mem_malloc(cfgValue * sizeof(tLimPreAuthNode));
+		qdf_mem_malloc(cfgValue * sizeof(tLimPreAuthNode *));
 
 	if (pMac->lim.gLimPreAuthTimerTable.pTable == NULL) {
 		lim_log(pMac, LOGP, FL("AllocateMemory failed!"));
 		goto err_timer;
+	}
+	qdf_mem_zero(pMac->lim.gLimPreAuthTimerTable.pTable,
+		     cfgValue * sizeof(tLimPreAuthNode *));
+
+	for (i = 0; i < cfgValue; i++) {
+		pMac->lim.gLimPreAuthTimerTable.pTable[i] =
+					qdf_mem_malloc(sizeof(tLimPreAuthNode));
+		if (pMac->lim.gLimPreAuthTimerTable.pTable[i] == NULL) {
+			pMac->lim.gLimPreAuthTimerTable.numEntry = 0;
+			lim_log(pMac, LOGP, FL("AllocateMemory failed!"));
+			goto err_timer;
+		}
 	}
 
 	lim_init_pre_auth_timer_table(pMac, &pMac->lim.gLimPreAuthTimerTable);
@@ -325,21 +340,6 @@ uint32_t lim_create_timers(tpAniSirGlobal pMac)
 		lim_log(pMac, LOGP, FL("Cannot create update OLBC cache tmr"));
 		goto err_timer;
 	}
-#ifdef WLAN_FEATURE_VOWIFI_11R
-	/* In future we need to use the auth timer, cause the pre auth session
-	 * will be introduced before sending Auth frame. We need to go off
-	 * channel and come back to home channel
-	 */
-	cfgValue = 1000;
-	cfgValue = SYS_MS_TO_TICKS(cfgValue);
-	if (tx_timer_create(pMac, &pMac->lim.limTimers.gLimFTPreAuthRspTimer,
-			    "FT PREAUTH RSP TIMEOUT",
-			    lim_timer_handler, SIR_LIM_FT_PREAUTH_RSP_TIMEOUT,
-			    cfgValue, 0, TX_NO_ACTIVATE) != TX_SUCCESS) {
-		lim_log(pMac, LOGP, FL("could not create Join failure timer"));
-		goto err_timer;
-	}
-#endif
 	cfgValue = 1000;
 	cfgValue = SYS_MS_TO_TICKS(cfgValue);
 	if (tx_timer_create(pMac, &pMac->lim.limTimers.gLimRemainOnChannelTimer,
@@ -419,6 +419,7 @@ err_timer:
 	tx_timer_delete(&pMac->lim.limTimers.gLimAssocFailureTimer);
 	tx_timer_delete(&pMac->lim.limTimers.gLimJoinFailureTimer);
 	tx_timer_delete(&pMac->lim.limTimers.gLimPeriodicJoinProbeReqTimer);
+	tx_timer_delete(&pMac->lim.limTimers.g_lim_periodic_auth_retry_timer);
 	tx_timer_delete(&pMac->lim.limTimers.gLimQuietBssTimer);
 	tx_timer_delete(&pMac->lim.limTimers.gLimQuietTimer);
 	tx_timer_delete(&pMac->lim.limTimers.gLimChannelSwitchTimer);
@@ -427,7 +428,9 @@ err_timer:
 	tx_timer_delete(&pMac->lim.limTimers.gLimActiveToPassiveChannelTimer);
 
 	if (NULL != pMac->lim.gLimPreAuthTimerTable.pTable) {
-		cdf_mem_free(pMac->lim.gLimPreAuthTimerTable.pTable);
+		for (i = 0; i < pMac->lim.gLimPreAuthTimerTable.numEntry; i++)
+			qdf_mem_free(pMac->lim.gLimPreAuthTimerTable.pTable[i]);
+		qdf_mem_free(pMac->lim.gLimPreAuthTimerTable.pTable);
 		pMac->lim.gLimPreAuthTimerTable.pTable = NULL;
 	}
 	return TX_TIMER_ERROR;
@@ -471,7 +474,8 @@ void lim_timer_handler(void *pMacGlobal, uint32_t param)
 	msg.bodyptr = NULL;
 	msg.bodyval = 0;
 
-	if ((statusCode = lim_post_msg_api(pMac, &msg)) != eSIR_SUCCESS)
+	statusCode = lim_post_msg_api(pMac, &msg);
+	if (statusCode != eSIR_SUCCESS)
 		lim_log(pMac, LOGE,
 			FL("posting message %X to LIM failed, reason=%d"),
 			msg.type, statusCode);
@@ -583,7 +587,7 @@ void lim_assoc_failure_timer_handler(void *mac_global, uint32_t param)
 				FL("Reassoc request retry MAX(%d) reached"),
 				LIM_MAX_REASSOC_RETRY_LIMIT);
 			if (NULL != session->pLimMlmReassocRetryReq) {
-				cdf_mem_free(session->pLimMlmReassocRetryReq);
+				qdf_mem_free(session->pLimMlmReassocRetryReq);
 				session->pLimMlmReassocRetryReq = NULL;
 			}
 		}
@@ -655,11 +659,17 @@ void lim_update_olbc_cache_timer_handler(void *pMacGlobal, uint32_t param)
 void lim_deactivate_and_change_timer(tpAniSirGlobal pMac, uint32_t timerId)
 {
 	uint32_t val = 0;
+	tpPESession  session_entry;
 
 	MTRACE(mac_trace
 		       (pMac, TRACE_CODE_TIMER_DEACTIVATE, NO_SESSION, timerId));
 
 	switch (timerId) {
+	case eLIM_REASSOC_FAIL_TIMER:
+	case eLIM_FT_PREAUTH_RSP_TIMER:
+		lim_deactivate_and_change_timer_host_roam(pMac, timerId);
+		break;
+
 	case eLIM_ADDTS_RSP_TIMER:
 		pMac->lim.gLimAddtsRspTimerCount++;
 		if (tx_timer_deactivate(&pMac->lim.limTimers.gLimAddtsRspTimer)
@@ -786,6 +796,37 @@ void lim_deactivate_and_change_timer(tpAniSirGlobal pMac, uint32_t timerId)
 
 		break;
 
+	case eLIM_AUTH_RETRY_TIMER:
+
+		if (tx_timer_deactivate
+			  (&pMac->lim.limTimers.g_lim_periodic_auth_retry_timer)
+							 != TX_SUCCESS) {
+			/* Could not deactivate Auth Retry Timer. */
+			lim_log(pMac, LOGE,
+				   FL("Unable to deactivate Auth Retry timer"));
+		}
+		session_entry = pe_find_session_by_session_id(pMac,
+			pMac->lim.limTimers.
+				g_lim_periodic_auth_retry_timer.sessionId);
+		if (NULL == session_entry) {
+			lim_log(pMac, LOGE,
+			  FL("session does not exist for given SessionId : %d"),
+			pMac->lim.limTimers.
+				g_lim_periodic_auth_retry_timer.sessionId);
+			break;
+		}
+		/* 3/5 of the beacon interval */
+		val = (session_entry->beaconParams.beaconInterval * 3) / 5;
+		val = SYS_MS_TO_TICKS(val);
+		if (tx_timer_change
+			 (&pMac->lim.limTimers.g_lim_periodic_auth_retry_timer,
+							val, 0) != TX_SUCCESS) {
+			/* Could not change Auth Retry timer. */
+			lim_log(pMac, LOGE,
+			  FL("Unable to change Auth Retry timer"));
+		}
+		break;
+
 	case eLIM_ASSOC_FAIL_TIMER:
 		if (tx_timer_deactivate
 			    (&pMac->lim.limTimers.gLimAssocFailureTimer) !=
@@ -815,41 +856,6 @@ void lim_deactivate_and_change_timer(tpAniSirGlobal pMac, uint32_t timerId)
 			/* Log error */
 			lim_log(pMac, LOGP,
 				FL("unable to change Assoc failure timer"));
-		}
-
-		break;
-
-	case eLIM_REASSOC_FAIL_TIMER:
-		if (tx_timer_deactivate
-			    (&pMac->lim.limTimers.gLimReassocFailureTimer) !=
-		    TX_SUCCESS) {
-			/* Could not deactivate Reassociation failure timer. */
-			/* Log error */
-			lim_log(pMac, LOGP,
-				FL
-					("unable to deactivate Reassoc failure timer"));
-		}
-		/* Change timer to reactivate it in future */
-		if (wlan_cfg_get_int(pMac, WNI_CFG_REASSOCIATION_FAILURE_TIMEOUT,
-				     &val) != eSIR_SUCCESS) {
-			/**
-			 * Could not get ReassocFailureTimeout value
-			 * from CFG. Log error.
-			 */
-			lim_log(pMac, LOGP,
-				FL
-					("could not retrieve ReassocFailureTimeout value"));
-		}
-		val = SYS_MS_TO_TICKS(val);
-
-		if (tx_timer_change
-			    (&pMac->lim.limTimers.gLimReassocFailureTimer, val,
-			    0) != TX_SUCCESS) {
-			/* Could not change Reassociation failure timer. */
-			/* Log error */
-			lim_log(pMac, LOGP,
-				FL
-					("unable to change Reassociation failure timer"));
 		}
 
 		break;
@@ -897,34 +903,6 @@ void lim_deactivate_and_change_timer(tpAniSirGlobal pMac, uint32_t timerId)
 	case eLIM_LEARN_DURATION_TIMER:
 		break;
 
-#ifdef WLAN_FEATURE_VOWIFI_11R
-	case eLIM_FT_PREAUTH_RSP_TIMER:
-		if (tx_timer_deactivate
-			    (&pMac->lim.limTimers.gLimFTPreAuthRspTimer) !=
-		    TX_SUCCESS) {
-			/**
-			** Could not deactivate Join Failure
-			** timer. Log error.
-			**/
-			lim_log(pMac, LOGP,
-				FL
-					("Unable to deactivate Preauth response Failure timer"));
-			return;
-		}
-		val = 1000;
-		val = SYS_MS_TO_TICKS(val);
-		if (tx_timer_change(&pMac->lim.limTimers.gLimFTPreAuthRspTimer,
-				    val, 0) != TX_SUCCESS) {
-			/**
-			 * Could not change Join Failure
-			 * timer. Log error.
-			 */
-			lim_log(pMac, LOGP,
-				FL("Unable to change Join Failure timer"));
-			return;
-		}
-		break;
-#endif
 	case eLIM_REMAIN_CHN_TIMER:
 		if (tx_timer_deactivate
 			    (&pMac->lim.limTimers.gLimRemainOnChannelTimer) !=
@@ -1274,7 +1252,8 @@ void lim_send_disassoc_frame_threshold_handler(void *pMacGlobal, uint32_t param)
 	msg.bodyval = 0;
 	msg.bodyptr = NULL;
 
-	if ((statusCode = lim_post_msg_api(pMac, &msg)) != eSIR_SUCCESS)
+	statusCode = lim_post_msg_api(pMac, &msg);
+	if (statusCode != eSIR_SUCCESS)
 		lim_log(pMac, LOGE,
 			FL("posting to LIM failed, reason=%d"), statusCode);
 
@@ -1308,7 +1287,8 @@ void lim_cnf_wait_tmer_handler(void *pMacGlobal, uint32_t param)
 	msg.bodyval = (uint32_t) param;
 	msg.bodyptr = NULL;
 
-	if ((statusCode = lim_post_msg_api(pMac, &msg)) != eSIR_SUCCESS)
+	statusCode = lim_post_msg_api(pMac, &msg);
+	if (statusCode != eSIR_SUCCESS)
 		lim_log(pMac, LOGE,
 			FL("posting to LIM failed, reason=%d"), statusCode);
 

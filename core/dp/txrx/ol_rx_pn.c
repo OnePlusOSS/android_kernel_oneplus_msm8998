@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2013-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011, 2013-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -25,13 +25,12 @@
  * to the Linux Foundation.
  */
 
-#include <cdf_nbuf.h>           /* cdf_nbuf_t */
+#include <qdf_nbuf.h>           /* qdf_nbuf_t */
 
 #include <ol_htt_rx_api.h>      /* htt_rx_pn_t, etc. */
 #include <ol_ctrl_txrx_api.h>   /* ol_rx_err */
 
 #include <ol_txrx_internal.h>   /* ol_rx_mpdu_list_next */
-#include <ol_txrx_types.h>      /* ol_txrx_vdev_t, etc. */
 #include <ol_rx_pn.h>           /* our own defs */
 #include <ol_rx_fwd.h>          /* ol_rx_fwd_check */
 #include <ol_rx.h>              /* ol_rx_deliver */
@@ -41,7 +40,7 @@
 		if (!head) {						\
 			head = mpdu;					\
 		} else {						\
-			cdf_nbuf_set_next(tail, mpdu);			\
+			qdf_nbuf_set_next(tail, mpdu);			\
 		}							\
 		tail = mpdu_tail;					\
 	} while (0)
@@ -80,30 +79,30 @@ int ol_rx_pn_wapi_cmp(union htt_rx_pn_t *new_pn,
 	return pn_is_replay;
 }
 
-cdf_nbuf_t
+qdf_nbuf_t
 ol_rx_pn_check_base(struct ol_txrx_vdev_t *vdev,
 		    struct ol_txrx_peer_t *peer,
-		    unsigned tid, cdf_nbuf_t msdu_list)
+		    unsigned tid, qdf_nbuf_t msdu_list)
 {
 	struct ol_txrx_pdev_t *pdev = vdev->pdev;
 	union htt_rx_pn_t *last_pn;
-	cdf_nbuf_t out_list_head = NULL;
-	cdf_nbuf_t out_list_tail = NULL;
-	cdf_nbuf_t mpdu;
+	qdf_nbuf_t out_list_head = NULL;
+	qdf_nbuf_t out_list_tail = NULL;
+	qdf_nbuf_t mpdu;
 	int index;              /* unicast vs. multicast */
 	int pn_len;
 	void *rx_desc;
 	int last_pn_valid;
 
 	/* Make sure host pn check is not redundant */
-	if ((cdf_atomic_read(&peer->fw_pn_check)) ||
+	if ((qdf_atomic_read(&peer->fw_pn_check)) ||
 		(vdev->opmode == wlan_op_mode_ibss)) {
 		return msdu_list;
 	}
 
 	/* First, check whether the PN check applies */
 	rx_desc = htt_rx_msdu_desc_retrieve(pdev->htt_pdev, msdu_list);
-	cdf_assert(htt_rx_msdu_has_wlan_mcast_flag(pdev->htt_pdev, rx_desc));
+	qdf_assert(htt_rx_msdu_has_wlan_mcast_flag(pdev->htt_pdev, rx_desc));
 	index = htt_rx_msdu_is_wlan_mcast(pdev->htt_pdev, rx_desc) ?
 		txrx_sec_mcast : txrx_sec_ucast;
 	pn_len = pdev->rx_pn[peer->security[index].sec_type].len;
@@ -114,7 +113,7 @@ ol_rx_pn_check_base(struct ol_txrx_vdev_t *vdev,
 	last_pn = &peer->tids_last_pn[tid];
 	mpdu = msdu_list;
 	while (mpdu) {
-		cdf_nbuf_t mpdu_tail, next_mpdu;
+		qdf_nbuf_t mpdu_tail, next_mpdu;
 		union htt_rx_pn_t new_pn;
 		int pn_is_replay = 0;
 
@@ -148,7 +147,7 @@ ol_rx_pn_check_base(struct ol_txrx_vdev_t *vdev,
 		}
 
 		if (pn_is_replay) {
-			cdf_nbuf_t msdu;
+			qdf_nbuf_t msdu;
 			static uint32_t last_pncheck_print_time /* = 0 */;
 			int log_level;
 			uint32_t current_time_ms;
@@ -161,7 +160,7 @@ ol_rx_pn_check_base(struct ol_txrx_vdev_t *vdev,
 			 */
 			msdu = mpdu;
 			current_time_ms =
-				cdf_system_ticks_to_msecs(cdf_system_ticks());
+				qdf_system_ticks_to_msecs(qdf_system_ticks());
 			if (TXRX_PN_CHECK_FAILURE_PRINT_PERIOD_MS <
 			    (current_time_ms - last_pncheck_print_time)) {
 				last_pncheck_print_time = current_time_ms;
@@ -198,10 +197,10 @@ ol_rx_pn_check_base(struct ol_txrx_vdev_t *vdev,
 				  mpdu, NULL, 0);
 			/* free all MSDUs within this MPDU */
 			do {
-				cdf_nbuf_t next_msdu;
+				qdf_nbuf_t next_msdu;
 				OL_RX_ERR_STATISTICS_1(pdev, vdev, peer,
 						       rx_desc, OL_RX_ERR_PN);
-				next_msdu = cdf_nbuf_next(msdu);
+				next_msdu = qdf_nbuf_next(msdu);
 				htt_rx_desc_frame_free(pdev->htt_pdev, msdu);
 				if (msdu == mpdu_tail)
 					break;
@@ -228,14 +227,14 @@ ol_rx_pn_check_base(struct ol_txrx_vdev_t *vdev,
 	}
 	/* make sure the list is null-terminated */
 	if (out_list_tail)
-		cdf_nbuf_set_next(out_list_tail, NULL);
+		qdf_nbuf_set_next(out_list_tail, NULL);
 
 	return out_list_head;
 }
 
 void
 ol_rx_pn_check(struct ol_txrx_vdev_t *vdev,
-	       struct ol_txrx_peer_t *peer, unsigned tid, cdf_nbuf_t msdu_list)
+	       struct ol_txrx_peer_t *peer, unsigned tid, qdf_nbuf_t msdu_list)
 {
 	msdu_list = ol_rx_pn_check_base(vdev, peer, tid, msdu_list);
 	ol_rx_fwd_check(vdev, peer, tid, msdu_list);
@@ -244,7 +243,7 @@ ol_rx_pn_check(struct ol_txrx_vdev_t *vdev,
 void
 ol_rx_pn_check_only(struct ol_txrx_vdev_t *vdev,
 		    struct ol_txrx_peer_t *peer,
-		    unsigned tid, cdf_nbuf_t msdu_list)
+		    unsigned tid, qdf_nbuf_t msdu_list)
 {
 	msdu_list = ol_rx_pn_check_base(vdev, peer, tid, msdu_list);
 	ol_rx_deliver(vdev, peer, tid, msdu_list);
@@ -261,7 +260,7 @@ A_STATUS ol_rx_pn_trace_attach(ol_txrx_pdev_handle pdev)
 	pdev->rx_pn_trace.cnt = 0;
 	pdev->rx_pn_trace.mask = num_elems - 1;
 	pdev->rx_pn_trace.data =
-		cdf_mem_malloc(sizeof(*pdev->rx_pn_trace.data) * num_elems);
+		qdf_mem_malloc(sizeof(*pdev->rx_pn_trace.data) * num_elems);
 	if (!pdev->rx_pn_trace.data)
 		return A_NO_MEMORY;
 	return A_OK;
@@ -269,7 +268,7 @@ A_STATUS ol_rx_pn_trace_attach(ol_txrx_pdev_handle pdev)
 
 void ol_rx_pn_trace_detach(ol_txrx_pdev_handle pdev)
 {
-	cdf_mem_free(pdev->rx_pn_trace.data);
+	qdf_mem_free(pdev->rx_pn_trace.data);
 }
 
 void
@@ -329,12 +328,12 @@ void ol_rx_pn_trace_display(ol_txrx_pdev_handle pdev, int just_once)
 	}
 
 	i = start;
-	CDF_TRACE(CDF_MODULE_ID_TXRX, CDF_TRACE_LEVEL_INFO,
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO,
 		  "                                 seq     PN");
-	CDF_TRACE(CDF_MODULE_ID_TXRX, CDF_TRACE_LEVEL_INFO,
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO,
 		  "   count  idx    peer   tid uni  num    LSBs");
 	do {
-		CDF_TRACE(CDF_MODULE_ID_TXRX, CDF_TRACE_LEVEL_INFO,
+		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO,
 			  "  %6lld %4d  %p %2d   %d %4d %8d",
 			  cnt, i,
 			  pdev->rx_pn_trace.data[i].peer,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -29,7 +29,7 @@
 #define _OL_FW_H_
 
 #ifdef QCA_WIFI_FTM
-#include "cdf_types.h"
+#include "qdf_types.h"
 #endif
 #include "hif.h"
 
@@ -47,18 +47,5 @@
 #define AR6320_REV4_VERSION          AR6320_REV2_1_VERSION
 #define AR6320_DEV_VERSION           0x1000000
 
-#ifdef HIF_PCI
-void ol_target_failure(void *instance, CDF_STATUS status);
-uint8_t ol_get_number_of_peers_supported(struct ol_softc *scn);
-#else
-static inline void ol_target_failure(void *instance, CDF_STATUS status)
-{
-	return;
-}
-
-static inline uint8_t ol_get_number_of_peers_supported(struct ol_softc *scn)
-{
-	return 1;
-}
-#endif
+void ol_target_failure(void *instance, QDF_STATUS status);
 #endif /* _OL_FW_H_ */

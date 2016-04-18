@@ -6,6 +6,10 @@ else
 	KERNEL_BUILD := 0
 endif
 
+ifdef CONFIG_ICNSS
+	CONFIG_ROME_IF = snoc
+endif
+
 ifeq ($(CONFIG_CNSS), y)
 ifndef CONFIG_ROME_IF
 	#use pci as default interface
@@ -18,6 +22,8 @@ ifeq ($(KERNEL_BUILD),1)
 	# Need to explicitly define for Kernel-based builds
 	MODNAME := wlan
 	WLAN_ROOT := drivers/staging/qcacld-3.0
+	WLAN_COMMON_ROOT := drivers/staging/qca-wifi-host-cmn
+	WLAN_COMMON_INC := $(WLAN_COMMON_ROOT)
 endif
 
 # Make WLAN as open-source driver by default
@@ -35,6 +41,8 @@ ifeq ($(KERNEL_BUILD), 0)
 	CONFIG_MOBILE_ROUTER := y
 	endif
 
+	#Flag to enable Legacy Fast Roaming2(LFR2)
+	CONFIG_QCACLD_WLAN_LFR2 := y
 	#Flag to enable Legacy Fast Roaming3(LFR3)
 	CONFIG_QCACLD_WLAN_LFR3 := y
 
@@ -65,7 +73,7 @@ ifeq ($(KERNEL_BUILD), 0)
 	CONFIG_QCOM_VOWIFI_11R := y
 
 	ifneq ($(CONFIG_QCA_CLD_WLAN),)
-	        ifeq ($(CONFIG_CNSS),y)
+		ifeq (y,$(filter y,$(CONFIG_CNSS) $(CONFIG_ICNSS)))
 		#Flag to enable Protected Managment Frames (11w) feature
 		CONFIG_WLAN_FEATURE_11W := y
 		#Flag to enable LTE CoEx feature
@@ -133,13 +141,17 @@ ifeq ($(KERNEL_BUILD), 0)
 
 	# Flag to enable LFR Subnet Detection
 	CONFIG_LFR_SUBNET_DETECTION := y
+
+	# Flag to enable MCC to SCC switch feature
+	CONFIG_MCC_TO_SCC_SWITCH := y
 endif
 
+# If not set, assume, Common driver is with in the build tree
+WLAN_COMMON_ROOT ?= qca-wifi-host-cmn
+WLAN_COMMON_INC ?= $(WLAN_ROOT)/$(WLAN_COMMON_ROOT)
+
 ifneq ($(CONFIG_MOBILE_ROUTER), y)
-# To enable ESE upload, dependent config
-# CONFIG_QCOM_ESE must be enabled.
 CONFIG_QCOM_ESE := y
-CONFIG_QCOM_ESE_UPLOAD := y
 endif
 
 # Feature flags which are not (currently) configurable via Kconfig
@@ -290,6 +302,7 @@ HDD_OBJS := 	$(HDD_SRC_DIR)/wlan_hdd_assoc.o \
 		$(HDD_SRC_DIR)/wlan_hdd_ocb.o \
 		$(HDD_SRC_DIR)/wlan_hdd_oemdata.o \
 		$(HDD_SRC_DIR)/wlan_hdd_power.o \
+		$(HDD_SRC_DIR)/wlan_hdd_regulatory.o \
 		$(HDD_SRC_DIR)/wlan_hdd_scan.o \
 		$(HDD_SRC_DIR)/wlan_hdd_softap_tx_rx.o \
 		$(HDD_SRC_DIR)/wlan_hdd_tx_rx.o \
@@ -297,6 +310,7 @@ HDD_OBJS := 	$(HDD_SRC_DIR)/wlan_hdd_assoc.o \
 		$(HDD_SRC_DIR)/wlan_hdd_wext.o \
 		$(HDD_SRC_DIR)/wlan_hdd_wmm.o \
 		$(HDD_SRC_DIR)/wlan_hdd_wowl.o
+
 
 ifeq ($(CONFIG_WLAN_LRO), y)
 HDD_OBJS +=     $(HDD_SRC_DIR)/wlan_hdd_lro.o
@@ -423,14 +437,16 @@ MAC_LIM_OBJS := $(MAC_SRC_DIR)/pe/lim/lim_aid_mgmt.o \
 		$(MAC_SRC_DIR)/pe/lim/lim_trace.o \
 		$(MAC_SRC_DIR)/pe/lim/lim_utils.o
 
-ifeq ($(CONFIG_QCOM_ESE),y)
-ifneq ($(CONFIG_QCOM_ESE_UPLOAD),y)
-MAC_LIM_OBJS += $(MAC_SRC_DIR)/pe/lim/limProcessEseFrame.o
-endif
-endif
-
 ifeq ($(CONFIG_QCOM_TDLS),y)
 MAC_LIM_OBJS += $(MAC_SRC_DIR)/pe/lim/lim_process_tdls.o
+endif
+
+ifeq ($(CONFIG_QCACLD_WLAN_LFR2),y)
+	MAC_LIM_OBJS += $(MAC_SRC_DIR)/pe/lim/lim_process_mlm_host_roam.o \
+		$(MAC_SRC_DIR)/pe/lim/lim_send_frames_host_roam.o \
+		$(MAC_SRC_DIR)/pe/lim/lim_roam_timer_utils.o \
+		$(MAC_SRC_DIR)/pe/lim/lim_ft_preauth.o \
+		$(MAC_SRC_DIR)/pe/lim/lim_reassoc_utils.o
 endif
 
 MAC_SCH_OBJS := $(MAC_SRC_DIR)/pe/sch/sch_api.o \
@@ -493,13 +509,14 @@ SME_CSR_OBJS := $(SME_SRC_DIR)/csr/csr_api_roam.o \
 		$(SME_SRC_DIR)/csr/csr_cmd_process.o \
 		$(SME_SRC_DIR)/csr/csr_link_list.o \
 		$(SME_SRC_DIR)/csr/csr_neighbor_roam.o \
-		$(SME_SRC_DIR)/csr/csr_util.o
+		$(SME_SRC_DIR)/csr/csr_util.o \
 
-ifeq ($(CONFIG_QCOM_ESE),y)
-ifneq ($(CONFIG_QCOM_ESE_UPLOAD),y)
-SME_CSR_OBJS += $(SME_SRC_DIR)/csr/csrEse.o
+
+ifeq ($(CONFIG_QCACLD_WLAN_LFR2),y)
+SME_CSR_OBJS += $(SME_SRC_DIR)/csr/csr_roam_preauth.o \
+		$(SME_SRC_DIR)/csr/csr_host_scan_roam.o
 endif
-endif
+
 
 ifeq ($(CONFIG_QCOM_TDLS),y)
 SME_CSR_OBJS += $(SME_SRC_DIR)/csr/csr_tdls_process.o
@@ -575,23 +592,24 @@ SYS_OBJS :=	$(SYS_COMMON_SRC_DIR)/wlan_qct_sys.o \
 		$(SYS_LEGACY_SRC_DIR)/utils/src/utils_api.o \
 		$(SYS_LEGACY_SRC_DIR)/utils/src/utils_parser.o
 
-############ CDF (Connectivity driver framework) ############
-CDF_DIR :=	core/cdf
-CDF_INC_DIR :=	$(CDF_DIR)/inc
-CDF_SRC_DIR :=	$(CDF_DIR)/src
+############ Qca-wifi-host-cmn ############
+QDF_OS_DIR :=	qdf
+QDF_OS_INC_DIR := $(QDF_OS_DIR)/inc
+QDF_OS_SRC_DIR := $(QDF_OS_DIR)/linux/src
+QDF_OBJ_DIR := $(WLAN_COMMON_ROOT)/$(QDF_OS_SRC_DIR)
 
-CDF_INC := 	-I$(WLAN_ROOT)/$(CDF_INC_DIR) \
-		-I$(WLAN_ROOT)/$(CDF_SRC_DIR)
+QDF_INC :=	-I$(WLAN_COMMON_INC)/$(QDF_OS_INC_DIR) \
+		-I$(WLAN_COMMON_INC)/$(QDF_OS_SRC_DIR)
 
-CDF_OBJS :=	$(CDF_SRC_DIR)/cdf_event.o \
-		$(CDF_SRC_DIR)/cdf_list.o \
-		$(CDF_SRC_DIR)/cdf_lock.o \
-		$(CDF_SRC_DIR)/cdf_memory.o \
-		$(CDF_SRC_DIR)/cdf_threads.o \
-		$(CDF_SRC_DIR)/cdf_mc_timer.o \
-		$(CDF_SRC_DIR)/cdf_trace.o \
-		$(CDF_SRC_DIR)/cdf_nbuf.o \
-		$(CDF_SRC_DIR)/cdf_defer.o
+QDF_OBJS := 	$(QDF_OBJ_DIR)/qdf_defer.o \
+		$(QDF_OBJ_DIR)/qdf_event.o \
+		$(QDF_OBJ_DIR)/qdf_list.o \
+		$(QDF_OBJ_DIR)/qdf_lock.o \
+		$(QDF_OBJ_DIR)/qdf_mc_timer.o \
+		$(QDF_OBJ_DIR)/qdf_mem.o \
+		$(QDF_OBJ_DIR)/qdf_nbuf.o \
+		$(QDF_OBJ_DIR)/qdf_threads.o \
+		$(QDF_OBJ_DIR)/qdf_trace.o
 
 ############ CDS (Connectivity driver services) ############
 CDS_DIR :=	core/cds
@@ -608,7 +626,8 @@ CDS_OBJS :=	$(CDS_SRC_DIR)/cds_api.o \
 		$(CDS_SRC_DIR)/cds_regdomain.o \
 		$(CDS_SRC_DIR)/cds_sched.o \
 		$(CDS_SRC_DIR)/cds_concurrency.o \
-		$(CDS_SRC_DIR)/cds_utils.o
+		$(CDS_SRC_DIR)/cds_utils.o \
+		$(CDS_SRC_DIR)/cds_mc_timer.o
 
 
 ########### BMI ###########
@@ -616,7 +635,6 @@ BMI_DIR := core/bmi
 
 BMI_INC := -I$(WLAN_ROOT)/$(BMI_DIR)/inc
 
-ifneq ($(CONFIG_ICNSS), y)
 BMI_OBJS := $(BMI_DIR)/src/bmi.o \
             $(BMI_DIR)/src/ol_fw.o
 ifeq ($(CONFIG_FEATURE_BMI_2), y)
@@ -624,14 +642,21 @@ BMI_OBJS += $(BMI_DIR)/src/bmi_2.o
 else
 BMI_OBJS += $(BMI_DIR)/src/bmi_1.o
 endif
-endif
+
 ########### WMI ###########
-WMI_DIR := core/wmi
+WMI_ROOT_DIR := wmi
 
-WMI_INC := -I$(WLAN_ROOT)/$(WMI_DIR)
+WMI_SRC_DIR := $(WMI_ROOT_DIR)/src
+WMI_INC_DIR := $(WMI_ROOT_DIR)/inc
+WMI_OBJ_DIR := $(WLAN_COMMON_ROOT)/$(WMI_SRC_DIR)
 
-WMI_OBJS := $(WMI_DIR)/wmi_unified.o \
-	    $(WMI_DIR)/wmi_tlv_helper.o
+WMI_INC := -I$(WLAN_COMMON_INC)/$(WMI_INC_DIR)
+
+WMI_OBJS := $(WMI_OBJ_DIR)/wmi_unified.o \
+	    $(WMI_OBJ_DIR)/wmi_tlv_helper.o \
+	    $(WMI_OBJ_DIR)/wmi_unified_tlv.o \
+	    $(WMI_OBJ_DIR)/wmi_unified_api.o \
+	    $(WMI_OBJ_DIR)/wmi_unified_non_tlv.o
 
 ########### FWLOG ###########
 FWLOG_DIR := core/utils/fwlog
@@ -669,6 +694,11 @@ endif
 OL_DIR :=     core/dp/ol
 OL_INC :=     -I$(WLAN_ROOT)/$(OL_DIR)/inc
 
+############ CDP ############
+CDP_ROOT_DIR := dp
+CDP_INC_DIR := $(CDP_ROOT_DIR)/inc
+CDP_INC := -I$(WLAN_COMMON_INC)/$(CDP_INC_DIR)
+
 ############ PKTLOG ############
 PKTLOG_DIR :=      core/utils/pktlog
 PKTLOG_INC :=      -I$(WLAN_ROOT)/$(PKTLOG_DIR)/include
@@ -689,62 +719,73 @@ HTT_OBJS := $(HTT_DIR)/htt_tx.o \
             $(HTT_DIR)/htt_rx.o
 
 ############## HTC ##########
-HTC_DIR := core/htc
-HTC_INC := -I$(WLAN_ROOT)/$(HTC_DIR)
+HTC_DIR := htc
+HTC_INC := -I$(WLAN_COMMON_INC)/$(HTC_DIR)
 
-HTC_OBJS := $(HTC_DIR)/htc.o \
-            $(HTC_DIR)/htc_send.o \
-            $(HTC_DIR)/htc_recv.o \
-            $(HTC_DIR)/htc_services.o
+HTC_OBJS := $(WLAN_COMMON_ROOT)/$(HTC_DIR)/htc.o \
+            $(WLAN_COMMON_ROOT)/$(HTC_DIR)/htc_send.o \
+            $(WLAN_COMMON_ROOT)/$(HTC_DIR)/htc_recv.o \
+            $(WLAN_COMMON_ROOT)/$(HTC_DIR)/htc_services.o
 
 ########### HIF ###########
-HIF_DIR := core/hif
+HIF_DIR := hif
 HIF_CE_DIR := $(HIF_DIR)/src/ce
 HIF_CNSS_STUB_DIR := $(HIF_DIR)/src/icnss_stub
 
-ifeq ($(CONFIG_HIF_PCI), 1)
+
+HIF_DISPATCHER_DIR := $(HIF_DIR)/src/dispatcher
+
 HIF_PCIE_DIR := $(HIF_DIR)/src/pcie
-else
 HIF_SNOC_DIR := $(HIF_DIR)/src/snoc
-endif
 
-HIF_INC := -I$(WLAN_ROOT)/$(HIF_DIR)/inc \
-				-I$(WLAN_ROOT)/$(HIF_DIR)/src \
-				-I$(WLAN_ROOT)/$(HIF_CE_DIR) \
-				-I$(WLAN_ROOT)/$(HIF_CNSS_STUB_DIR)
+HIF_INC := -I$(WLAN_COMMON_INC)/$(HIF_DIR)/inc \
+	   -I$(WLAN_COMMON_INC)/$(HIF_DIR)/src \
+	   -I$(WLAN_COMMON_INC)/$(HIF_CE_DIR) \
+	   -I$(WLAN_COMMON_INC)/$(HIF_CNSS_STUB_DIR)
+
 
 ifeq ($(CONFIG_HIF_PCI), 1)
-HIF_INC += -I$(WLAN_ROOT)/$(HIF_PCIE_DIR)
-else
-HIF_INC += -I$(WLAN_ROOT)/$(HIF_SNOC_DIR)
+HIF_INC += -I$(WLAN_COMMON_INC)/$(HIF_DISPATCHER_DIR)
+HIF_INC += -I$(WLAN_COMMON_INC)/$(HIF_PCIE_DIR)
 endif
 
-HIF_OBJS := $(HIF_DIR)/src/ath_procfs.o \
-		$(HIF_CE_DIR)/ce_diag.o \
-		$(HIF_CE_DIR)/ce_main.o \
-		$(HIF_CE_DIR)/ce_service.o \
-		$(HIF_CE_DIR)/ce_tasklet.o \
-		$(HIF_DIR)/src/hif_main.o \
-		$(HIF_DIR)/src/mp_dev.o \
-		$(HIF_DIR)/src/regtable.o
+ifeq ($(CONFIG_HIF_SNOC), 1)
+HIF_INC += -I$(WLAN_COMMON_INC)/$(HIF_DISPATCHER_DIR)
+HIF_INC += -I$(WLAN_COMMON_INC)/$(HIF_SNOC_DIR)
+endif
 
-ifeq ($(CONFIG_CNSS), y)
-HIF_OBJS += $(HIF_CNSS_STUB_DIR)/icnss_stub.o \
-		$(HIF_CE_DIR)/ce_bmi.o
+HIF_OBJS := $(WLAN_COMMON_ROOT)/$(HIF_DIR)/src/ath_procfs.o \
+		$(WLAN_COMMON_ROOT)/$(HIF_CE_DIR)/ce_diag.o \
+		$(WLAN_COMMON_ROOT)/$(HIF_CE_DIR)/ce_main.o \
+		$(WLAN_COMMON_ROOT)/$(HIF_CE_DIR)/ce_service.o \
+		$(WLAN_COMMON_ROOT)/$(HIF_CE_DIR)/ce_tasklet.o \
+		$(WLAN_COMMON_ROOT)/$(HIF_DIR)/src/hif_main.o \
+		$(WLAN_COMMON_ROOT)/$(HIF_DIR)/src/mp_dev.o \
+		$(WLAN_COMMON_ROOT)/$(HIF_DIR)/src/regtable.o
+
+ifneq ($(CONFIG_ICNSS), y)
+HIF_OBJS += $(WLAN_COMMON_ROOT)/$(HIF_CNSS_STUB_DIR)/icnss_stub.o
 endif
 
 ifeq ($(CONFIG_WLAN_NAPI), y)
-HIF_OBJS += $(HIF_DIR)/src/hif_napi.o
+HIF_OBJS += $(WLAN_COMMON_ROOT)/$(HIF_DIR)/src/hif_napi.o
 endif
 
+HIF_PCIE_OBJS := $(WLAN_COMMON_ROOT)/$(HIF_PCIE_DIR)/if_pci.o
+HIF_PCIE_OBJS += $(WLAN_COMMON_ROOT)/$(HIF_CE_DIR)/ce_bmi.o
+HIF_SNOC_OBJS := $(WLAN_COMMON_ROOT)/$(HIF_SNOC_DIR)/if_snoc.o
+
+HIF_OBJS += $(WLAN_COMMON_ROOT)/$(HIF_DISPATCHER_DIR)/multibus.o
+HIF_OBJS += $(WLAN_COMMON_ROOT)/$(HIF_DISPATCHER_DIR)/dummy.o
+
 ifeq ($(CONFIG_HIF_PCI), 1)
-HIF_PCIE_OBJS := $(HIF_PCIE_DIR)/if_pci.o
-
 HIF_OBJS += $(HIF_PCIE_OBJS)
-else
-HIF_SNOC_OBJS := $(HIF_SNOC_DIR)/if_snoc.o
+HIF_OBJS += $(WLAN_COMMON_ROOT)/$(HIF_DISPATCHER_DIR)/multibus_pci.o
+endif
 
+ifeq ($(CONFIG_HIF_SNOC), 1)
 HIF_OBJS += $(HIF_SNOC_OBJS)
+HIF_OBJS += $(WLAN_COMMON_ROOT)/$(HIF_DISPATCHER_DIR)/multibus_snoc.o
 endif
 
 ############ WMA ############
@@ -783,7 +824,7 @@ INCS :=		$(HDD_INC) \
 		$(SAP_INC) \
 		$(SME_INC) \
 		$(SYS_INC) \
-		$(CDF_INC) \
+		$(QDF_INC) \
 		$(CDS_INC) \
 		$(DFS_INC)
 
@@ -794,6 +835,7 @@ INCS +=		$(WMA_INC) \
 		$(FWLOG_INC) \
 		$(TXRX_INC) \
 		$(OL_INC) \
+		$(CDP_INC) \
 		$(PKTLOG_INC) \
 		$(HTT_INC) \
 		$(HTC_INC) \
@@ -822,7 +864,7 @@ OBJS :=		$(HDD_OBJS) \
 		$(SAP_OBJS) \
 		$(SME_OBJS) \
 		$(SYS_OBJS) \
-		$(CDF_OBJS) \
+		$(QDF_OBJS) \
 		$(CDS_OBJS) \
 		$(DFS_OBJS)
 
@@ -864,15 +906,12 @@ CDEFINES :=	-DANI_LITTLE_BYTE_ENDIAN \
 		-Werror\
 		-D__linux__ \
 		-DHAL_SELF_STA_PER_BSS=1 \
-		-DWLAN_FEATURE_VOWIFI_11R \
 		-DFEATURE_WLAN_WAPI \
 		-DFEATURE_OEM_DATA_SUPPORT\
 		-DSOFTAP_CHANNEL_RANGE \
 		-DWLAN_AP_STA_CONCURRENCY \
 		-DFEATURE_WLAN_SCAN_PNO \
 		-DWLAN_FEATURE_PACKET_FILTERING \
-		-DWLAN_FEATURE_VOWIFI \
-		-DWLAN_FEATURE_11AC \
 		-DWLAN_FEATURE_P2P_DEBUG \
 		-DWLAN_ENABLE_AGEIE_ON_SCAN_RESULTS \
 		-DWLANTL_DEBUG\
@@ -893,7 +932,8 @@ CDEFINES :=	-DANI_LITTLE_BYTE_ENDIAN \
 		-DWLAN_LOGGING_SOCK_SVC_ENABLE \
 		-DFEATURE_WLAN_EXTSCAN \
 		-DWLAN_FEATURE_MBSSID \
-		-DCONFIG_160MHZ_SUPPORT
+		-DCONFIG_160MHZ_SUPPORT \
+		-DCONFIG_MCL
 
 ifeq (y,$(filter y,$(CONFIG_CNSS_EOS) $(CONFIG_ICNSS)))
 CDEFINES += -DQCA_WIFI_3_0
@@ -978,9 +1018,6 @@ ifeq ($(CONFIG_QCOM_ESE),y)
 CDEFINES += -DFEATURE_WLAN_ESE
 CDEFINES += -DQCA_COMPUTE_TX_DELAY
 CDEFINES += -DQCA_COMPUTE_TX_DELAY_PER_TID
-ifeq ($(CONFIG_QCOM_ESE_UPLOAD),y)
-CDEFINES += -DFEATURE_WLAN_ESE_UPLOAD
-endif
 endif
 
 #normally, TDLS negative behavior is not needed
@@ -990,6 +1027,10 @@ endif
 
 ifeq ($(CONFIG_QCACLD_WLAN_LFR3),y)
 CDEFINES += -DWLAN_FEATURE_ROAM_OFFLOAD
+endif
+
+ifeq ($(CONFIG_QCACLD_WLAN_LFR2),y)
+CDEFINES += -DWLAN_FEATURE_HOST_ROAM
 endif
 
 ifeq ($(CONFIG_PRIMA_WLAN_OKC),y)
@@ -1079,6 +1120,10 @@ endif
 #Enable PCI specific APIS (dma, etc)
 ifeq ($(CONFIG_HIF_PCI), 1)
 CDEFINES += -DHIF_PCI
+endif
+
+ifeq ($(CONFIG_HIF_SNOC), 1)
+CDEFINES += -DHIF_SNOC
 endif
 
 #Enable USB specific APIS
@@ -1171,8 +1216,10 @@ ifeq ($(CONFIG_WLAN_FEATURE_RX_WAKELOCK), y)
 CDEFINES += -DWLAN_FEATURE_HOLD_RX_WAKELOCK
 endif
 
-#Enable Channel Matrix restriction for all targets
+#Enable Channel Matrix restriction for all Rome only targets
+ifneq (y,$(filter y,$(CONFIG_CNSS_EOS) $(CONFIG_ICNSS)))
 CDEFINES += -DWLAN_ENABLE_CHNL_MATRIX_RESTRICTION
+endif
 
 #features specific to mobile router use case
 ifeq ($(CONFIG_MOBILE_ROUTER), y)
@@ -1326,6 +1373,10 @@ ifeq ($(CONFIG_LFR_SUBNET_DETECTION), y)
 CDEFINES += -DFEATURE_LFR_SUBNET_DETECTION
 endif
 
+ifeq ($(CONFIG_MCC_TO_SCC_SWITCH), y)
+CDEFINES += -DFEATURE_WLAN_MCC_TO_SCC_SWITCH
+endif
+
 KBUILD_CPPFLAGS += $(CDEFINES)
 
 # Currently, for versions of gcc which support it, the kernel Makefile
@@ -1339,3 +1390,4 @@ endif
 # Module information used by KBuild framework
 obj-$(CONFIG_QCA_CLD_WLAN) += $(MODNAME).o
 $(MODNAME)-y := $(OBJS)
+

@@ -29,8 +29,8 @@
 #define _HTT_INTERNAL__H_
 
 #include <athdefs.h>            /* A_STATUS */
-#include <cdf_nbuf.h>           /* cdf_nbuf_t */
-#include <cdf_util.h>           /* cdf_assert */
+#include <qdf_nbuf.h>           /* qdf_nbuf_t */
+#include <qdf_util.h>           /* qdf_assert */
 #include <htc_api.h>            /* HTC_PACKET */
 
 #include <htt_types.h>
@@ -133,10 +133,10 @@ struct rx_buf_debug {
 	bool     in_use;
 };
 #endif
-static inline struct htt_host_rx_desc_base *htt_rx_desc(cdf_nbuf_t msdu)
+static inline struct htt_host_rx_desc_base *htt_rx_desc(qdf_nbuf_t msdu)
 {
 	return (struct htt_host_rx_desc_base *)
-	       (((size_t) (cdf_nbuf_head(msdu) + HTT_RX_DESC_ALIGN_MASK)) &
+	       (((size_t) (qdf_nbuf_head(msdu) + HTT_RX_DESC_ALIGN_MASK)) &
 		~HTT_RX_DESC_ALIGN_MASK);
 }
 
@@ -152,31 +152,31 @@ static inline struct htt_host_rx_desc_base *htt_rx_desc(cdf_nbuf_t msdu)
  */
 static inline void htt_print_rx_desc_lro(struct htt_host_rx_desc_base *rx_desc)
 {
-	cdf_print
+	qdf_print
 		("----------------------RX DESC LRO----------------------\n");
-	cdf_print("msdu_end.lro_eligible:0x%x\n",
+	qdf_print("msdu_end.lro_eligible:0x%x\n",
 		 rx_desc->msdu_end.lro_eligible);
-	cdf_print("msdu_start.tcp_only_ack:0x%x\n",
+	qdf_print("msdu_start.tcp_only_ack:0x%x\n",
 		 rx_desc->msdu_start.tcp_only_ack);
-	cdf_print("msdu_end.tcp_udp_chksum:0x%x\n",
+	qdf_print("msdu_end.tcp_udp_chksum:0x%x\n",
 		 rx_desc->msdu_end.tcp_udp_chksum);
-	cdf_print("msdu_end.tcp_seq_number:0x%x\n",
+	qdf_print("msdu_end.tcp_seq_number:0x%x\n",
 		 rx_desc->msdu_end.tcp_seq_number);
-	cdf_print("msdu_end.tcp_ack_number:0x%x\n",
+	qdf_print("msdu_end.tcp_ack_number:0x%x\n",
 		 rx_desc->msdu_end.tcp_ack_number);
-	cdf_print("msdu_start.tcp_proto:0x%x\n",
+	qdf_print("msdu_start.tcp_proto:0x%x\n",
 		 rx_desc->msdu_start.tcp_proto);
-	cdf_print("msdu_start.ipv6_proto:0x%x\n",
+	qdf_print("msdu_start.ipv6_proto:0x%x\n",
 		 rx_desc->msdu_start.ipv6_proto);
-	cdf_print("msdu_start.ipv4_proto:0x%x\n",
+	qdf_print("msdu_start.ipv4_proto:0x%x\n",
 		 rx_desc->msdu_start.ipv4_proto);
-	cdf_print("msdu_start.l3_offset:0x%x\n",
+	qdf_print("msdu_start.l3_offset:0x%x\n",
 		 rx_desc->msdu_start.l3_offset);
-	cdf_print("msdu_start.l4_offset:0x%x\n",
+	qdf_print("msdu_start.l4_offset:0x%x\n",
 		 rx_desc->msdu_start.l4_offset);
-	cdf_print("msdu_start.flow_id_toeplitz:0x%x\n",
+	qdf_print("msdu_start.flow_id_toeplitz:0x%x\n",
 			   rx_desc->msdu_start.flow_id_toeplitz);
-	cdf_print
+	qdf_print
 		("---------------------------------------------------------\n");
 }
 
@@ -191,56 +191,56 @@ static inline void htt_print_rx_desc_lro(struct htt_host_rx_desc_base *rx_desc)
  *
  * Return: none
  */
-static inline void htt_rx_extract_lro_info(cdf_nbuf_t msdu,
+static inline void htt_rx_extract_lro_info(qdf_nbuf_t msdu,
 	 struct htt_host_rx_desc_base *rx_desc)
 {
-	NBUF_LRO_ELIGIBLE(msdu) = rx_desc->msdu_end.lro_eligible;
+	QDF_NBUF_CB_RX_LRO_ELIGIBLE(msdu) = rx_desc->msdu_end.lro_eligible;
 	if (rx_desc->msdu_end.lro_eligible) {
-		NBUF_TCP_PURE_ACK(msdu) = rx_desc->msdu_start.tcp_only_ack;
-		NBUF_TCP_CHKSUM(msdu) = rx_desc->msdu_end.tcp_udp_chksum;
-		NBUF_TCP_SEQ_NUM(msdu) = rx_desc->msdu_end.tcp_seq_number;
-		NBUF_TCP_ACK_NUM(msdu) = rx_desc->msdu_end.tcp_ack_number;
-		NBUF_TCP_WIN(msdu) = rx_desc->msdu_end.window_size;
-		NBUF_TCP_PROTO(msdu) = rx_desc->msdu_start.tcp_proto;
-		NBUF_IPV6_PROTO(msdu) = rx_desc->msdu_start.ipv6_proto;
-		NBUF_IP_OFFSET(msdu) = rx_desc->msdu_start.l3_offset;
-		NBUF_TCP_OFFSET(msdu) = rx_desc->msdu_start.l4_offset;
-		NBUF_FLOW_ID_TOEPLITZ(msdu) =
+		QDF_NBUF_CB_RX_TCP_PURE_ACK(msdu) = rx_desc->msdu_start.tcp_only_ack;
+		QDF_NBUF_CB_RX_TCP_CHKSUM(msdu) = rx_desc->msdu_end.tcp_udp_chksum;
+		QDF_NBUF_CB_RX_TCP_SEQ_NUM(msdu) = rx_desc->msdu_end.tcp_seq_number;
+		QDF_NBUF_CB_RX_TCP_ACK_NUM(msdu) = rx_desc->msdu_end.tcp_ack_number;
+		QDF_NBUF_CB_RX_TCP_WIN(msdu) = rx_desc->msdu_end.window_size;
+		QDF_NBUF_CB_RX_TCP_PROTO(msdu) = rx_desc->msdu_start.tcp_proto;
+		QDF_NBUF_CB_RX_IPV6_PROTO(msdu) = rx_desc->msdu_start.ipv6_proto;
+		QDF_NBUF_CB_RX_IP_OFFSET(msdu) = rx_desc->msdu_start.l3_offset;
+		QDF_NBUF_CB_RX_TCP_OFFSET(msdu) = rx_desc->msdu_start.l4_offset;
+		QDF_NBUF_CB_RX_FLOW_ID_TOEPLITZ(msdu) =
 			 rx_desc->msdu_start.flow_id_toeplitz;
 	}
 }
 #else
 static inline void htt_print_rx_desc_lro(struct htt_host_rx_desc_base *rx_desc)
 {}
-static inline void htt_rx_extract_lro_info(cdf_nbuf_t msdu,
+static inline void htt_rx_extract_lro_info(qdf_nbuf_t msdu,
 	 struct htt_host_rx_desc_base *rx_desc) {}
 #endif /* FEATURE_LRO */
 
 static inline void htt_print_rx_desc(struct htt_host_rx_desc_base *rx_desc)
 {
-	cdf_print
+	qdf_print
 		("----------------------RX DESC----------------------------\n");
-	cdf_print("attention: %#010x\n",
+	qdf_print("attention: %#010x\n",
 		  (unsigned int)(*(uint32_t *) &rx_desc->attention));
-	cdf_print("frag_info: %#010x\n",
+	qdf_print("frag_info: %#010x\n",
 		  (unsigned int)(*(uint32_t *) &rx_desc->frag_info));
-	cdf_print("mpdu_start: %#010x %#010x %#010x\n",
+	qdf_print("mpdu_start: %#010x %#010x %#010x\n",
 		  (unsigned int)(((uint32_t *) &rx_desc->mpdu_start)[0]),
 		  (unsigned int)(((uint32_t *) &rx_desc->mpdu_start)[1]),
 		  (unsigned int)(((uint32_t *) &rx_desc->mpdu_start)[2]));
-	cdf_print("msdu_start: %#010x %#010x %#010x\n",
+	qdf_print("msdu_start: %#010x %#010x %#010x\n",
 		  (unsigned int)(((uint32_t *) &rx_desc->msdu_start)[0]),
 		  (unsigned int)(((uint32_t *) &rx_desc->msdu_start)[1]),
 		  (unsigned int)(((uint32_t *) &rx_desc->msdu_start)[2]));
-	cdf_print("msdu_end: %#010x %#010x %#010x %#010x %#010x\n",
+	qdf_print("msdu_end: %#010x %#010x %#010x %#010x %#010x\n",
 		  (unsigned int)(((uint32_t *) &rx_desc->msdu_end)[0]),
 		  (unsigned int)(((uint32_t *) &rx_desc->msdu_end)[1]),
 		  (unsigned int)(((uint32_t *) &rx_desc->msdu_end)[2]),
 		  (unsigned int)(((uint32_t *) &rx_desc->msdu_end)[3]),
 		  (unsigned int)(((uint32_t *) &rx_desc->msdu_end)[4]));
-	cdf_print("mpdu_end: %#010x\n",
+	qdf_print("mpdu_end: %#010x\n",
 		  (unsigned int)(*(uint32_t *) &rx_desc->mpdu_end));
-	cdf_print("ppdu_start: " "%#010x %#010x %#010x %#010x %#010x\n"
+	qdf_print("ppdu_start: " "%#010x %#010x %#010x %#010x %#010x\n"
 		  "%#010x %#010x %#010x %#010x %#010x\n",
 		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_start)[0]),
 		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_start)[1]),
@@ -252,7 +252,7 @@ static inline void htt_print_rx_desc(struct htt_host_rx_desc_base *rx_desc)
 		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_start)[7]),
 		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_start)[8]),
 		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_start)[9]));
-	cdf_print("ppdu_end:" "%#010x %#010x %#010x %#010x %#010x\n"
+	qdf_print("ppdu_end:" "%#010x %#010x %#010x %#010x %#010x\n"
 		  "%#010x %#010x %#010x %#010x %#010x\n"
 		  "%#010x,%#010x %#010x %#010x %#010x\n"
 		  "%#010x %#010x %#010x %#010x %#010x\n" "%#010x %#010x\n",
@@ -278,7 +278,7 @@ static inline void htt_print_rx_desc(struct htt_host_rx_desc_base *rx_desc)
 		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_end)[19]),
 		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_end)[20]),
 		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_end)[21]));
-	cdf_print
+	qdf_print
 		("---------------------------------------------------------\n");
 }
 
@@ -286,23 +286,23 @@ static inline void htt_print_rx_desc(struct htt_host_rx_desc_base *rx_desc)
 #define HTT_ASSERT_LEVEL 3
 #endif
 
-#define HTT_ASSERT_ALWAYS(condition) cdf_assert_always((condition))
+#define HTT_ASSERT_ALWAYS(condition) qdf_assert_always((condition))
 
-#define HTT_ASSERT0(condition) cdf_assert((condition))
+#define HTT_ASSERT0(condition) qdf_assert((condition))
 #if HTT_ASSERT_LEVEL > 0
-#define HTT_ASSERT1(condition) cdf_assert((condition))
+#define HTT_ASSERT1(condition) qdf_assert((condition))
 #else
 #define HTT_ASSERT1(condition)
 #endif
 
 #if HTT_ASSERT_LEVEL > 1
-#define HTT_ASSERT2(condition) cdf_assert((condition))
+#define HTT_ASSERT2(condition) qdf_assert((condition))
 #else
 #define HTT_ASSERT2(condition)
 #endif
 
 #if HTT_ASSERT_LEVEL > 2
-#define HTT_ASSERT3(condition) cdf_assert((condition))
+#define HTT_ASSERT3(condition) qdf_assert((condition))
 #else
 #define HTT_ASSERT3(condition)
 #endif
@@ -362,16 +362,16 @@ static inline void htt_print_rx_desc(struct htt_host_rx_desc_base *rx_desc)
 #endif
 
 #define HTT_TX_MUTEX_INIT(_mutex)			\
-	cdf_spinlock_init(_mutex)
+	qdf_spinlock_create(_mutex)
 
 #define HTT_TX_MUTEX_ACQUIRE(_mutex)			\
-	cdf_spin_lock_bh(_mutex)
+	qdf_spin_lock_bh(_mutex)
 
 #define HTT_TX_MUTEX_RELEASE(_mutex)			\
-	cdf_spin_unlock_bh(_mutex)
+	qdf_spin_unlock_bh(_mutex)
 
 #define HTT_TX_MUTEX_DESTROY(_mutex)			\
-	cdf_spinlock_destroy(_mutex)
+	qdf_spinlock_destroy(_mutex)
 
 #define HTT_TX_DESC_PADDR(_pdev, _tx_desc_vaddr)       \
 	((_pdev)->tx_descs.pool_paddr +  (uint32_t)	  \
@@ -381,26 +381,26 @@ static inline void htt_print_rx_desc(struct htt_host_rx_desc_base *rx_desc)
 #ifdef ATH_11AC_TXCOMPACT
 
 #define HTT_TX_NBUF_QUEUE_MUTEX_INIT(_pdev)		\
-	cdf_spinlock_init(&_pdev->txnbufq_mutex)
+	qdf_spinlock_create(&_pdev->txnbufq_mutex)
 
 #define HTT_TX_NBUF_QUEUE_MUTEX_DESTROY(_pdev)	       \
 	HTT_TX_MUTEX_DESTROY(&_pdev->txnbufq_mutex)
 
 #define HTT_TX_NBUF_QUEUE_REMOVE(_pdev, _msdu)	do {	\
 	HTT_TX_MUTEX_ACQUIRE(&_pdev->txnbufq_mutex);	\
-	_msdu =  cdf_nbuf_queue_remove(&_pdev->txnbufq);\
+	_msdu =  qdf_nbuf_queue_remove(&_pdev->txnbufq);\
 	HTT_TX_MUTEX_RELEASE(&_pdev->txnbufq_mutex);    \
 	} while (0)
 
 #define HTT_TX_NBUF_QUEUE_ADD(_pdev, _msdu) do {	\
 	HTT_TX_MUTEX_ACQUIRE(&_pdev->txnbufq_mutex);	\
-	cdf_nbuf_queue_add(&_pdev->txnbufq, _msdu);     \
+	qdf_nbuf_queue_add(&_pdev->txnbufq, _msdu);     \
 	HTT_TX_MUTEX_RELEASE(&_pdev->txnbufq_mutex);    \
 	} while (0)
 
 #define HTT_TX_NBUF_QUEUE_INSERT_HEAD(_pdev, _msdu) do {   \
 	HTT_TX_MUTEX_ACQUIRE(&_pdev->txnbufq_mutex);	   \
-	cdf_nbuf_queue_insert_head(&_pdev->txnbufq, _msdu);\
+	qdf_nbuf_queue_insert_head(&_pdev->txnbufq, _msdu);\
 	HTT_TX_MUTEX_RELEASE(&_pdev->txnbufq_mutex);       \
 	} while (0)
 #else
@@ -431,6 +431,16 @@ void htt_rx_detach(struct htt_pdev_t *pdev);
 int htt_htc_attach(struct htt_pdev_t *pdev);
 
 void htt_t2h_msg_handler(void *context, HTC_PACKET *pkt);
+#ifdef WLAN_FEATURE_FASTPATH
+void htt_t2h_msg_handler_fast(void *htt_pdev, qdf_nbuf_t *cmpl_msdus,
+			      uint32_t num_cmpls);
+#else
+static inline void htt_t2h_msg_handler_fast(void *htt_pdev,
+					   qdf_nbuf_t *cmpl_msdus,
+					   uint32_t num_cmpls)
+{
+}
+#endif
 
 void htt_h2t_send_complete(void *context, HTC_PACKET *pkt);
 
@@ -459,13 +469,11 @@ htt_htc_misc_pkt_list_add(struct htt_pdev_t *pdev, struct htt_htc_pkt *pkt);
 void htt_htc_misc_pkt_pool_free(struct htt_pdev_t *pdev);
 #endif
 
-void htt_htc_disable_aspm(void);
-
 int
 htt_rx_hash_list_insert(struct htt_pdev_t *pdev, uint32_t paddr,
-			cdf_nbuf_t netbuf);
+			qdf_nbuf_t netbuf);
 
-cdf_nbuf_t htt_rx_hash_list_lookup(struct htt_pdev_t *pdev, uint32_t paddr);
+qdf_nbuf_t htt_rx_hash_list_lookup(struct htt_pdev_t *pdev, uint32_t paddr);
 
 #ifdef IPA_OFFLOAD
 int
@@ -532,12 +540,12 @@ static inline int htt_rx_ipa_uc_detach(struct htt_pdev_t *pdev)
 static inline
 void htt_rx_dbg_rxbuf_init(struct htt_pdev_t *pdev)
 {
-	pdev->rx_buff_list = cdf_mem_malloc(
+	pdev->rx_buff_list = qdf_mem_malloc(
 				 HTT_RX_RING_BUFF_DBG_LIST *
 				 sizeof(struct rx_buf_debug));
 	if (!pdev->rx_buff_list) {
-		cdf_print("HTT: debug RX buffer allocation failed\n");
-		CDF_ASSERT(0);
+		qdf_print("HTT: debug RX buffer allocation failed\n");
+		QDF_ASSERT(0);
 	}
 }
 /**
@@ -551,7 +559,7 @@ void htt_rx_dbg_rxbuf_init(struct htt_pdev_t *pdev)
 static inline
 void htt_rx_dbg_rxbuf_set(struct htt_pdev_t *pdev,
 				uint32_t paddr,
-				cdf_nbuf_t rx_netbuf)
+				qdf_nbuf_t rx_netbuf)
 {
 	if (pdev->rx_buff_list) {
 		pdev->rx_buff_list[pdev->rx_buff_index].paddr =
@@ -574,7 +582,7 @@ void htt_rx_dbg_rxbuf_set(struct htt_pdev_t *pdev,
  */
 static inline
 void htt_rx_dbg_rxbuf_reset(struct htt_pdev_t *pdev,
-				cdf_nbuf_t netbuf)
+				qdf_nbuf_t netbuf)
 {
 	uint32_t index;
 
@@ -598,7 +606,7 @@ static inline
 void htt_rx_dbg_rxbuf_deinit(struct htt_pdev_t *pdev)
 {
 	if (pdev->rx_buff_list)
-		cdf_mem_free(pdev->rx_buff_list);
+		qdf_mem_free(pdev->rx_buff_list);
 }
 #else
 static inline
@@ -609,13 +617,13 @@ void htt_rx_dbg_rxbuf_init(struct htt_pdev_t *pdev)
 static inline
 void htt_rx_dbg_rxbuf_set(struct htt_pdev_t *pdev,
 				uint32_t paddr,
-				cdf_nbuf_t rx_netbuf)
+				qdf_nbuf_t rx_netbuf)
 {
 	return;
 }
 static inline
 void htt_rx_dbg_rxbuf_reset(struct htt_pdev_t *pdev,
-				cdf_nbuf_t netbuf)
+				qdf_nbuf_t netbuf)
 {
 	return;
 }

@@ -35,6 +35,7 @@
 #include "wma_types.h"
 #include "sme_api.h"
 #include "mac_init_api.h"
+#include "qdf_trace.h"
 
 /*
  * Cookie for SYS messages.  Note that anyone posting a SYS Message
@@ -45,7 +46,7 @@
 
 /* SYS stop timeout 30 seconds */
 #define SYS_STOP_TIMEOUT (30000)
-static cdf_event_t g_stop_evt;
+static qdf_event_t g_stop_evt;
 
 /**
  * sys_build_message_header() - to build the sys message header
@@ -54,14 +55,14 @@ static cdf_event_t g_stop_evt;
  *
  * This API is used to build the sys message header.
  *
- * Return: CDF_STATUS
+ * Return: QDF_STATUS
  */
-CDF_STATUS sys_build_message_header(SYS_MSG_ID sysMsgId, cds_msg_t *pMsg)
+QDF_STATUS sys_build_message_header(SYS_MSG_ID sysMsgId, cds_msg_t *pMsg)
 {
 	pMsg->type = sysMsgId;
 	pMsg->reserved = SYS_MSG_COOKIE;
 
-	return CDF_STATUS_SUCCESS;
+	return QDF_STATUS_SUCCESS;
 }
 
 /**
@@ -72,14 +73,21 @@ CDF_STATUS sys_build_message_header(SYS_MSG_ID sysMsgId, cds_msg_t *pMsg)
  *
  * Return: none
  */
+#ifdef QDF_ENABLE_TRACING
 void sys_stop_complete_cb(void *pUserData)
 {
-	cdf_event_t *pStopEvt = (cdf_event_t *) pUserData;
-	CDF_STATUS cdf_status = cdf_event_set(pStopEvt);
+	qdf_event_t *pStopEvt = (qdf_event_t *) pUserData;
+	QDF_STATUS qdf_status = qdf_event_set(pStopEvt);
 
-	CDF_ASSERT(CDF_IS_STATUS_SUCCESS(cdf_status));
+	QDF_ASSERT(QDF_IS_STATUS_SUCCESS(qdf_status));
 
 }
+#else
+void sys_stop_complete_cb(void *pUserData)
+{
+	return;
+}
+#endif
 
 /**
  * sys_stop() - To post stop message to system module
@@ -87,18 +95,18 @@ void sys_stop_complete_cb(void *pUserData)
  *
  * This API is used post a stop message to system module
  *
- * Return: CDF_STATUS
+ * Return: QDF_STATUS
  */
-CDF_STATUS sys_stop(v_CONTEXT_t p_cds_context)
+QDF_STATUS sys_stop(v_CONTEXT_t p_cds_context)
 {
-	CDF_STATUS cdf_status = CDF_STATUS_SUCCESS;
+	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
 	cds_msg_t sysMsg;
 
 	/* Initialize the stop event */
-	cdf_status = cdf_event_init(&g_stop_evt);
+	qdf_status = qdf_event_create(&g_stop_evt);
 
-	if (!CDF_IS_STATUS_SUCCESS(cdf_status))
-		return cdf_status;
+	if (!QDF_IS_STATUS_SUCCESS(qdf_status))
+		return qdf_status;
 
 	/* post a message to SYS module in MC to stop SME and MAC */
 	sys_build_message_header(SYS_MSG_ID_MC_STOP, &sysMsg);
@@ -108,17 +116,17 @@ CDF_STATUS sys_stop(v_CONTEXT_t p_cds_context)
 	sysMsg.bodyptr = (void *)&g_stop_evt;
 
 	/* post the message.. */
-	cdf_status = cds_mq_post_message(CDS_MQ_ID_SYS, &sysMsg);
-	if (!CDF_IS_STATUS_SUCCESS(cdf_status))
-		cdf_status = CDF_STATUS_E_BADMSG;
+	qdf_status = cds_mq_post_message(CDS_MQ_ID_SYS, &sysMsg);
+	if (!QDF_IS_STATUS_SUCCESS(qdf_status))
+		qdf_status = QDF_STATUS_E_BADMSG;
 
-	cdf_status = cdf_wait_single_event(&g_stop_evt, SYS_STOP_TIMEOUT);
-	CDF_ASSERT(CDF_IS_STATUS_SUCCESS(cdf_status));
+	qdf_status = qdf_wait_single_event(&g_stop_evt, SYS_STOP_TIMEOUT);
+	QDF_ASSERT(QDF_IS_STATUS_SUCCESS(qdf_status));
 
-	cdf_status = cdf_event_destroy(&g_stop_evt);
-	CDF_ASSERT(CDF_IS_STATUS_SUCCESS(cdf_status));
+	qdf_status = qdf_event_destroy(&g_stop_evt);
+	QDF_ASSERT(QDF_IS_STATUS_SUCCESS(qdf_status));
 
-	return cdf_status;
+	return qdf_status;
 }
 
 /**
@@ -128,20 +136,20 @@ CDF_STATUS sys_stop(v_CONTEXT_t p_cds_context)
  *
  * This API is used to process the message
  *
- * Return: CDF_STATUS
+ * Return: QDF_STATUS
  */
-CDF_STATUS sys_mc_process_msg(v_CONTEXT_t p_cds_context, cds_msg_t *pMsg)
+QDF_STATUS sys_mc_process_msg(v_CONTEXT_t p_cds_context, cds_msg_t *pMsg)
 {
-	CDF_STATUS cdf_status = CDF_STATUS_SUCCESS;
-	cdf_mc_timer_callback_t timerCB;
+	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
+	qdf_mc_timer_callback_t timerCB;
 	tpAniSirGlobal mac_ctx;
 	void *hHal;
 
 	if (NULL == pMsg) {
-		CDF_TRACE(CDF_MODULE_ID_SYS, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_SYS, QDF_TRACE_LEVEL_ERROR,
 			  "%s: NULL pointer to cds_msg_t", __func__);
-		CDF_ASSERT(0);
-		return CDF_STATUS_E_INVAL;
+		QDF_ASSERT(0);
+		return QDF_STATUS_E_INVAL;
 	}
 
 	/*
@@ -157,36 +165,36 @@ CDF_STATUS sys_mc_process_msg(v_CONTEXT_t p_cds_context, cds_msg_t *pMsg)
 		case SYS_MSG_ID_MC_START:
 			/*
 			 * Handling for this message is not needed now so adding
-			 * debug print and CDF_ASSERT
+			 * debug print and QDF_ASSERT
 			 */
-			CDF_TRACE(CDF_MODULE_ID_SYS, CDF_TRACE_LEVEL_ERROR,
+			QDF_TRACE(QDF_MODULE_ID_SYS, QDF_TRACE_LEVEL_ERROR,
 				"Rx SYS_MSG_ID_MC_START msgType= %d [0x%08x]",
 				pMsg->type, pMsg->type);
-			CDF_ASSERT(0);
+			QDF_ASSERT(0);
 			break;
 
 		case SYS_MSG_ID_MC_STOP:
-			CDF_TRACE(CDF_MODULE_ID_SYS, CDF_TRACE_LEVEL_INFO,
+			QDF_TRACE(QDF_MODULE_ID_SYS, QDF_TRACE_LEVEL_INFO,
 				"Processing SYS MC STOP");
 
 			/* get the HAL context... */
-			hHal = cds_get_context(CDF_MODULE_ID_PE);
+			hHal = cds_get_context(QDF_MODULE_ID_PE);
 			if (NULL == hHal) {
-				CDF_TRACE(CDF_MODULE_ID_SYS,
-					CDF_TRACE_LEVEL_ERROR,
+				QDF_TRACE(QDF_MODULE_ID_SYS,
+					QDF_TRACE_LEVEL_ERROR,
 					"%s: Invalid hHal", __func__);
 			} else {
-				cdf_status = sme_stop(hHal,
+				qdf_status = sme_stop(hHal,
 						HAL_STOP_TYPE_SYS_DEEP_SLEEP);
-				CDF_ASSERT(CDF_IS_STATUS_SUCCESS(cdf_status));
-				cdf_status = mac_stop(hHal,
+				QDF_ASSERT(QDF_IS_STATUS_SUCCESS(qdf_status));
+				qdf_status = mac_stop(hHal,
 						HAL_STOP_TYPE_SYS_DEEP_SLEEP);
-				CDF_ASSERT(CDF_IS_STATUS_SUCCESS(cdf_status));
+				QDF_ASSERT(QDF_IS_STATUS_SUCCESS(qdf_status));
 
 				((sysResponseCback) pMsg->callback)(
 						(void *)pMsg->bodyptr);
 
-				cdf_status = CDF_STATUS_SUCCESS;
+				qdf_status = QDF_STATUS_SUCCESS;
 			}
 			break;
 
@@ -195,7 +203,7 @@ CDF_STATUS sys_mc_process_msg(v_CONTEXT_t p_cds_context, cds_msg_t *pMsg)
 			 * Process MC thread probe.  Just callback to the
 			 * function that is in the message.
 			 */
-			CDF_TRACE(CDF_MODULE_ID_SYS, CDF_TRACE_LEVEL_ERROR,
+			QDF_TRACE(QDF_MODULE_ID_SYS, QDF_TRACE_LEVEL_ERROR,
 				"Rx SYS_MSG_ID_MC_THR_PROBE msgType=%d[0x%08x]",
 				pMsg->type, pMsg->type);
 			break;
@@ -207,53 +215,53 @@ CDF_STATUS sys_mc_process_msg(v_CONTEXT_t p_cds_context, cds_msg_t *pMsg)
 			break;
 
 		case SYS_MSG_ID_FTM_RSP:
-			hHal = cds_get_context(CDF_MODULE_ID_PE);
+			hHal = cds_get_context(QDF_MODULE_ID_PE);
 			if (NULL == hHal) {
-				CDF_TRACE(CDF_MODULE_ID_SYS,
-						CDF_TRACE_LEVEL_ERROR,
+				QDF_TRACE(QDF_MODULE_ID_SYS,
+						QDF_TRACE_LEVEL_ERROR,
 						FL("Invalid hal"));
-				cdf_mem_free(pMsg->bodyptr);
+				qdf_mem_free(pMsg->bodyptr);
 				break;
 			}
 			mac_ctx = PMAC_STRUCT(hHal);
 			if (NULL == mac_ctx) {
-				CDF_TRACE(CDF_MODULE_ID_SYS,
-						CDF_TRACE_LEVEL_ERROR,
+				QDF_TRACE(QDF_MODULE_ID_SYS,
+						QDF_TRACE_LEVEL_ERROR,
 						FL("Invalid mac context"));
-				cdf_mem_free(pMsg->bodyptr);
+				qdf_mem_free(pMsg->bodyptr);
 				break;
 			}
 			if (NULL == mac_ctx->ftm_msg_processor_callback) {
-				CDF_TRACE(CDF_MODULE_ID_SYS,
-						CDF_TRACE_LEVEL_ERROR,
+				QDF_TRACE(QDF_MODULE_ID_SYS,
+						QDF_TRACE_LEVEL_ERROR,
 						FL("callback pointer is NULL"));
-				cdf_mem_free(pMsg->bodyptr);
+				qdf_mem_free(pMsg->bodyptr);
 				break;
 			}
 			mac_ctx->ftm_msg_processor_callback(
 					(void *)pMsg->bodyptr);
-			cdf_mem_free(pMsg->bodyptr);
+			qdf_mem_free(pMsg->bodyptr);
 			break;
 
 		default:
-			CDF_TRACE(CDF_MODULE_ID_SYS, CDF_TRACE_LEVEL_ERROR,
+			QDF_TRACE(QDF_MODULE_ID_SYS, QDF_TRACE_LEVEL_ERROR,
 				"Unknown message type msgType= %d [0x%08x]",
 				pMsg->type, pMsg->type);
 			break;
 
 		}
 	} else {
-		CDF_TRACE(CDF_MODULE_ID_SYS,
-				CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_SYS,
+				QDF_TRACE_LEVEL_ERROR,
 				"Rx SYS unknown MC msgtype= %d [0x%08X]",
 				pMsg->type, pMsg->type);
-		CDF_ASSERT(0);
-		cdf_status = CDF_STATUS_E_BADMSG;
+		QDF_ASSERT(0);
+		qdf_status = QDF_STATUS_E_BADMSG;
 
 		if (pMsg->bodyptr)
-			cdf_mem_free(pMsg->bodyptr);
+			qdf_mem_free(pMsg->bodyptr);
 	}
-	return (cdf_status);
+	return qdf_status;
 }
 
 /**
@@ -275,9 +283,9 @@ void sys_process_mmh_msg(tpAniSirGlobal pMac, tSirMsgQ *pMsg)
 	 * It is up to the callee to free it
 	 */
 	if (NULL == pMsg) {
-		CDF_TRACE(CDF_MODULE_ID_SYS, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_SYS, QDF_TRACE_LEVEL_ERROR,
 				"NULL Message Pointer");
-		CDF_ASSERT(0);
+		QDF_ASSERT(0);
 		return;
 	}
 
@@ -289,10 +297,10 @@ void sys_process_mmh_msg(tpAniSirGlobal pMac, tSirMsgQ *pMsg)
 	case WNI_CFG_DNLD_CNF:
 		/* Forward this message to the SYS module */
 		targetMQ = CDS_MQ_ID_SYS;
-		CDF_TRACE(CDF_MODULE_ID_SYS, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_SYS, QDF_TRACE_LEVEL_ERROR,
 			"Handling for the Message ID %d is removed in SYS",
 			pMsg->type);
-		CDF_ASSERT(0);
+		QDF_ASSERT(0);
 		break;
 
 		/*
@@ -301,11 +309,11 @@ void sys_process_mmh_msg(tpAniSirGlobal pMac, tSirMsgQ *pMsg)
 	case WNI_CFG_DNLD_RSP:
 		/* Forward this message to the HAL module */
 		targetMQ = CDS_MQ_ID_WMA;
-		CDF_TRACE(CDF_MODULE_ID_SYS, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_SYS, QDF_TRACE_LEVEL_ERROR,
 			"Handling for the Message ID %d is removed as no HAL",
 			pMsg->type);
 
-		CDF_ASSERT(0);
+		QDF_ASSERT(0);
 		break;
 
 	case WNI_CFG_GET_REQ:
@@ -329,23 +337,23 @@ void sys_process_mmh_msg(tpAniSirGlobal pMac, tSirMsgQ *pMsg)
 			break;
 		}
 
-		CDF_TRACE(CDF_MODULE_ID_SYS, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_SYS, QDF_TRACE_LEVEL_ERROR,
 			"Message of ID %d is not yet handled by SYS",
 			pMsg->type);
-		CDF_ASSERT(0);
+		QDF_ASSERT(0);
 	}
 
 	/*
 	 * Post now the message to the appropriate module for handling
 	 */
-	if (CDF_STATUS_SUCCESS != cds_mq_post_message(targetMQ,
+	if (QDF_STATUS_SUCCESS != cds_mq_post_message(targetMQ,
 					(cds_msg_t *) pMsg)) {
 		/*
 		 * Caller doesn't allocate memory for the pMsg.
 		 * It allocate memory for bodyptr free the mem and return
 		 */
 		if (pMsg->bodyptr)
-			cdf_mem_free(pMsg->bodyptr);
+			qdf_mem_free(pMsg->bodyptr);
 	}
 
 }

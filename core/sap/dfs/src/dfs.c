@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2002-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -27,7 +27,7 @@
 
 /*===========================================================================
 
-                              dfs.c
+				dfs.c
 
    OVERVIEW:
 
@@ -41,7 +41,7 @@
 
 /*===========================================================================
 
-                      EDIT HISTORY FOR FILE
+			EDIT HISTORY FOR FILE
 
    This section contains comments describing changes made to the module.
    Notice that changes are listed in reverse chronological order.
@@ -61,7 +61,7 @@
 #include "dfs_ioctl.h"
 #include "dfs.h"
 
-int domainoverride = DFS_UNINIT_DOMAIN;
+int domainoverride = DFS_UNINIT_REGION;
 
 /*
 ** channel switch announcement (CSA)
@@ -169,9 +169,9 @@ static os_timer_func(dfs_task)
 			 */
 			OS_CANCEL_TIMER(&dfs->ath_dfstesttimer);
 			dfs->ath_dfstest = 1;
-			cdf_spin_lock_bh(&ic->chan_lock);
+			qdf_spin_lock_bh(&ic->chan_lock);
 			dfs->ath_dfstest_ieeechan = ic->ic_curchan->ic_ieee;
-			cdf_spin_unlock_bh(&ic->chan_lock);
+			qdf_spin_unlock_bh(&ic->chan_lock);
 			dfs->ath_dfstesttime = 1;       /* 1ms */
 			OS_SET_TIMER(&dfs->ath_dfstesttimer,
 				     dfs->ath_dfstesttime);
@@ -215,6 +215,44 @@ static int dfs_get_debug_info(struct ieee80211com *ic, int type, void *data)
 	return (int)dfs->dfs_proc_phyerr;
 }
 
+/**
+ * dfs_alloc_mem_filter() - allocate memory for dfs ft_filters
+ * @radarf: pointer holding ft_filters
+ *
+ * Return: 0-success and 1-failure
+*/
+static int dfs_alloc_mem_filter(struct dfs_filtertype *radarf)
+{
+	int status = 0, n, i;
+
+	for (i = 0; i < DFS_MAX_NUM_RADAR_FILTERS; i++) {
+		radarf->ft_filters[i] = qdf_mem_malloc(sizeof(struct
+							      dfs_filter));
+		if (NULL == radarf->ft_filters[i]) {
+			DFS_PRINTK("%s[%d]: mem alloc failed\n",
+				    __func__, __LINE__);
+			status = 1;
+			goto error;
+		}
+	}
+
+	return status;
+
+error:
+	/* free up allocated memory */
+	for (n = 0; n < i; n++) {
+		if (radarf->ft_filters[n]) {
+			qdf_mem_free(radarf->ft_filters[n]);
+			radarf->ft_filters[i] = NULL;
+		}
+	}
+
+	DFS_PRINTK("%s[%d]: cannot allocate memory for radar filter types\n",
+		    __func__, __LINE__);
+
+	return status;
+}
+
 int dfs_attach(struct ieee80211com *ic)
 {
 	int i, n;
@@ -229,9 +267,8 @@ int dfs_attach(struct ieee80211com *ic)
 		return 1;
 	}
 
-	dfs =
-		(struct ath_dfs *)os_malloc(NULL, sizeof(struct ath_dfs),
-					    GFP_ATOMIC);
+	dfs = (struct ath_dfs *)os_malloc(NULL, sizeof(struct ath_dfs),
+						GFP_ATOMIC);
 
 	if (dfs == NULL) {
 		/*DFS_DPRINTK(dfs, ATH_DEBUG_DFS1,
@@ -260,10 +297,10 @@ int dfs_attach(struct ieee80211com *ic)
 	dfs_clear_stats(ic);
 	dfs->dfs_event_log_on = 0;
 	OS_INIT_TIMER(NULL, &(dfs->ath_dfs_task_timer), dfs_task, (void *)(ic),
-		CDF_TIMER_TYPE_SW);
+		QDF_TIMER_TYPE_SW);
 #ifndef ATH_DFS_RADAR_DETECTION_ONLY
 	OS_INIT_TIMER(NULL, &(dfs->ath_dfstesttimer), dfs_testtimer_task,
-		      (void *)ic, CDF_TIMER_TYPE_SW);
+		      (void *)ic, QDF_TIMER_TYPE_SW);
 	dfs->ath_dfs_cac_time = ATH_DFS_WAIT_MS;
 	dfs->ath_dfstesttime = ATH_DFS_TEST_RETURN_PERIOD_MS;
 #endif
@@ -314,7 +351,7 @@ int dfs_attach(struct ieee80211com *ic)
 			dfs->events = NULL;
 			OS_FREE(dfs);
 			ic->ic_dfs = NULL;
-			CDF_TRACE(CDF_MODULE_ID_SAP, CDF_TRACE_LEVEL_ERROR,
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
 			    "%s[%d]: pulse buffer allocation failed",
 			    __func__, __LINE__);
 			return 1;
@@ -326,22 +363,24 @@ int dfs_attach(struct ieee80211com *ic)
 
 	/* Allocate memory for radar filters */
 	for (n = 0; n < DFS_MAX_RADAR_TYPES; n++) {
-		dfs->dfs_radarf[n] =
-			(struct dfs_filtertype *)os_malloc(NULL,
-							   sizeof(struct
-								  dfs_filtertype),
-							   GFP_ATOMIC);
+		dfs->dfs_radarf[n] = (struct dfs_filtertype *)
+			os_malloc(NULL, sizeof(struct dfs_filtertype),
+				  GFP_ATOMIC);
 		if (dfs->dfs_radarf[n] == NULL) {
 			DFS_PRINTK
 				("%s: cannot allocate memory for radar filter types\n",
 				__func__);
 			goto bad1;
+		} else {
+			qdf_mem_zero(dfs->dfs_radarf[n],
+				   sizeof(struct dfs_filtertype));
+			if (0 != dfs_alloc_mem_filter(dfs->dfs_radarf[n]))
+				goto bad1;
 		}
-		OS_MEMZERO(dfs->dfs_radarf[n], sizeof(struct dfs_filtertype));
 	}
 	/* Allocate memory for radar table */
 	dfs->dfs_radartable =
-		(int8_t * *) os_malloc(NULL, 256 * sizeof(int8_t *), GFP_ATOMIC);
+		(int8_t **) os_malloc(NULL, 256 * sizeof(int8_t *), GFP_ATOMIC);
 	if (dfs->dfs_radartable == NULL) {
 		DFS_PRINTK("%s: cannot allocate memory for radar table\n",
 			   __func__);
@@ -432,6 +471,23 @@ bad1:
 #undef N
 }
 
+/**
+ * dfs_free_filter() - free memory allocated for dfs ft_filters
+ * @radarf: pointer holding ft_filters
+ *
+ * Return: NA
+*/
+static void dfs_free_filter(struct dfs_filtertype *radarf)
+{
+	int i;
+
+	for (i = 0; i < DFS_MAX_NUM_RADAR_FILTERS; i++) {
+		if (radarf->ft_filters[i]) {
+			qdf_mem_free(radarf->ft_filters[i]);
+			radarf->ft_filters[i] = NULL;
+		}
+	}
+}
 void dfs_detach(struct ieee80211com *ic)
 {
 	struct ath_dfs *dfs = (struct ath_dfs *)ic->ic_dfs;
@@ -490,14 +546,14 @@ void dfs_detach(struct ieee80211com *ic)
 		dfs->pulses = NULL;
 	}
 
-	if (dfs->pulses_ext_seg != NULL &&
-	    ic->dfs_hw_bd_id !=  DFS_HWBD_QCA6174) {
+	if (dfs->pulses_ext_seg != NULL) {
 		OS_FREE(dfs->pulses_ext_seg);
 		dfs->pulses_ext_seg = NULL;
 	}
 
 	for (n = 0; n < DFS_MAX_RADAR_TYPES; n++) {
 		if (dfs->dfs_radarf[n] != NULL) {
+			dfs_free_filter(dfs->dfs_radarf[n]);
 			OS_FREE(dfs->dfs_radarf[n]);
 			dfs->dfs_radarf[n] = NULL;
 		}
@@ -521,8 +577,7 @@ void dfs_detach(struct ieee80211com *ic)
 		OS_FREE(dfs->dfs_b5radars);
 		dfs->dfs_b5radars = NULL;
 	}
-	if (dfs->dfs_b5radars_ext_seg != NULL &&
-	    ic->dfs_hw_bd_id !=  DFS_HWBD_QCA6174) {
+	if (dfs->dfs_b5radars_ext_seg != NULL) {
 		OS_FREE(dfs->dfs_b5radars_ext_seg);
 		dfs->dfs_b5radars_ext_seg = NULL;
 	}
@@ -607,7 +662,7 @@ int dfs_radar_enable(struct ieee80211com *ic,
 	 * 0 on success.
 	 */
 	if (DFS_STATUS_FAIL == radar_filters_init_status) {
-		CDF_TRACE(CDF_MODULE_ID_SAP, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
 			  "%s[%d]: DFS Radar Filters Initialization Failed",
 			  __func__, __LINE__);
 		return -EIO;

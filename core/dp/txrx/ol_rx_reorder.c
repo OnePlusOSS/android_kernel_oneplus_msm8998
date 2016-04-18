@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -27,8 +27,8 @@
 
 /*=== header file includes ===*/
 /* generic utilities */
-#include <cdf_nbuf.h>           /* cdf_nbuf_t, etc. */
-#include <cdf_memory.h>         /* cdf_mem_malloc */
+#include <qdf_nbuf.h>           /* qdf_nbuf_t, etc. */
+#include <qdf_mem.h>         /* qdf_mem_malloc */
 
 #include <ieee80211.h>          /* IEEE80211_SEQ_MAX */
 
@@ -86,7 +86,7 @@ static char g_log2ceil[] = {
 #define OL_RX_REORDER_LIST_APPEND(head_msdu, tail_msdu, rx_reorder_array_elem) \
 	do {								\
 		if (tail_msdu) {					\
-			cdf_nbuf_set_next(tail_msdu,			\
+			qdf_nbuf_set_next(tail_msdu,			\
 					  rx_reorder_array_elem->head); \
 		}							\
 	} while (0)
@@ -178,13 +178,13 @@ ol_rx_seq_num_check(struct ol_txrx_pdev_t *pdev,
 
 	 /* For mcast packets, we only the dup-detection, not re-order check */
 
-	if (cdf_unlikely(OL_RX_MCAST_TID == tid)) {
+	if (qdf_unlikely(OL_RX_MCAST_TID == tid)) {
 
 		pkt_tid = htt_rx_mpdu_desc_tid(pdev->htt_pdev, rx_mpdu_desc);
 
 		/* Invalid packet TID, expected only for HL */
 		/* Pass the packet on */
-		if (cdf_unlikely(pkt_tid >= OL_TXRX_NUM_EXT_TIDS))
+		if (qdf_unlikely(pkt_tid >= OL_TXRX_NUM_EXT_TIDS))
 			return htt_rx_status_ok;
 
 		retry = htt_rx_mpdu_desc_retry(pdev->htt_pdev, rx_mpdu_desc);
@@ -197,7 +197,7 @@ ol_rx_seq_num_check(struct ol_txrx_pdev_t *pdev,
 		 * or out-of-order check for multicast frames as per discussions & spec
 		 * Hence "seq_num <= last_seq_num" check is not necessary.
 		 */
-		if (cdf_unlikely(retry &&
+		if (qdf_unlikely(retry &&
 			(seq_num == peer->tids_mcast_last_seq[pkt_tid]))) {/* drop mcast */
 			TXRX_STATS_INCR(pdev, priv.rx.err.msdu_mc_dup_drop);
 			return htt_rx_status_err_replay;
@@ -223,14 +223,14 @@ void
 ol_rx_reorder_store(struct ol_txrx_pdev_t *pdev,
 		    struct ol_txrx_peer_t *peer,
 		    unsigned tid,
-		    unsigned idx, cdf_nbuf_t head_msdu, cdf_nbuf_t tail_msdu)
+		    unsigned idx, qdf_nbuf_t head_msdu, qdf_nbuf_t tail_msdu)
 {
 	struct ol_rx_reorder_array_elem_t *rx_reorder_array_elem;
 
 	idx &= peer->tids_rx_reorder[tid].win_sz_mask;
 	rx_reorder_array_elem = &peer->tids_rx_reorder[tid].array[idx];
 	if (rx_reorder_array_elem->head) {
-		cdf_nbuf_set_next(rx_reorder_array_elem->tail, head_msdu);
+		qdf_nbuf_set_next(rx_reorder_array_elem->tail, head_msdu);
 	} else {
 		rx_reorder_array_elem->head = head_msdu;
 		OL_RX_REORDER_MPDU_CNT_INCR(&peer->tids_rx_reorder[tid], 1);
@@ -246,8 +246,8 @@ ol_rx_reorder_release(struct ol_txrx_vdev_t *vdev,
 	unsigned idx;
 	unsigned win_sz, win_sz_mask;
 	struct ol_rx_reorder_array_elem_t *rx_reorder_array_elem;
-	cdf_nbuf_t head_msdu;
-	cdf_nbuf_t tail_msdu;
+	qdf_nbuf_t head_msdu;
+	qdf_nbuf_t tail_msdu;
 
 	OL_RX_REORDER_IDX_START_SELF_SELECT(peer, tid, &idx_start);
 	/* may get reset below */
@@ -305,7 +305,7 @@ ol_rx_reorder_release(struct ol_txrx_vdev_t *vdev,
 						  head_msdu));
 		peer->tids_last_seq[tid] = seq_num;
 		/* rx_opt_proc takes a NULL-terminated list of msdu netbufs */
-		cdf_nbuf_set_next(tail_msdu, NULL);
+		qdf_nbuf_set_next(tail_msdu, NULL);
 		peer->rx_opt_proc(vdev, peer, tid, head_msdu);
 	}
 	/*
@@ -327,8 +327,8 @@ ol_rx_reorder_flush(struct ol_txrx_vdev_t *vdev,
 	unsigned win_sz;
 	uint8_t win_sz_mask;
 	struct ol_rx_reorder_array_elem_t *rx_reorder_array_elem;
-	cdf_nbuf_t head_msdu = NULL;
-	cdf_nbuf_t tail_msdu = NULL;
+	qdf_nbuf_t head_msdu = NULL;
+	qdf_nbuf_t tail_msdu = NULL;
 
 	pdev = vdev->pdev;
 	win_sz = peer->tids_rx_reorder[tid].win_sz;
@@ -371,7 +371,7 @@ ol_rx_reorder_flush(struct ol_txrx_vdev_t *vdev,
 				rx_reorder_array_elem->tail = NULL;
 				continue;
 			}
-			cdf_nbuf_set_next(tail_msdu,
+			qdf_nbuf_set_next(tail_msdu,
 					  rx_reorder_array_elem->head);
 			tail_msdu = rx_reorder_array_elem->tail;
 			rx_reorder_array_elem->head =
@@ -390,13 +390,13 @@ ol_rx_reorder_flush(struct ol_txrx_vdev_t *vdev,
 			htt_rx_msdu_desc_retrieve(htt_pdev, head_msdu));
 		peer->tids_last_seq[tid] = seq_num;
 		/* rx_opt_proc takes a NULL-terminated list of msdu netbufs */
-		cdf_nbuf_set_next(tail_msdu, NULL);
+		qdf_nbuf_set_next(tail_msdu, NULL);
 		if (action == htt_rx_flush_release) {
 			peer->rx_opt_proc(vdev, peer, tid, head_msdu);
 		} else {
 			do {
-				cdf_nbuf_t next;
-				next = cdf_nbuf_next(head_msdu);
+				qdf_nbuf_t next;
+				next = qdf_nbuf_next(head_msdu);
 				htt_rx_desc_frame_free(pdev->htt_pdev,
 						       head_msdu);
 				head_msdu = next;
@@ -492,9 +492,9 @@ ol_rx_addba_handler(ol_txrx_pdev_handle pdev,
 	round_pwr2_win_sz = OL_RX_REORDER_ROUND_PWR2(win_sz);
 	array_size =
 		round_pwr2_win_sz * sizeof(struct ol_rx_reorder_array_elem_t);
-	rx_reorder->array = cdf_mem_malloc(array_size);
+	rx_reorder->array = qdf_mem_malloc(array_size);
 	TXRX_ASSERT1(rx_reorder->array);
-	cdf_mem_set(rx_reorder->array, array_size, 0x0);
+	qdf_mem_set(rx_reorder->array, array_size, 0x0);
 
 	rx_reorder->win_sz_mask = round_pwr2_win_sz - 1;
 	rx_reorder->num_mpdus = 0;
@@ -529,7 +529,7 @@ ol_rx_delba_handler(ol_txrx_pdev_handle pdev, uint16_t peer_id, uint8_t tid)
 	if (rx_reorder->array != &rx_reorder->base) {
 		TXRX_PRINT(TXRX_PRINT_LEVEL_INFO1,
 			   "%s, delete reorder array, tid:%d\n", __func__, tid);
-		cdf_mem_free(rx_reorder->array);
+		qdf_mem_free(rx_reorder->array);
 	}
 
 	/* set up the TID with default parameters (ARQ window size = 1) */
@@ -596,8 +596,8 @@ ol_rx_pn_ind_handler(ol_txrx_pdev_handle pdev,
 	struct ol_txrx_peer_t *peer;
 	struct ol_rx_reorder_array_elem_t *rx_reorder_array_elem;
 	unsigned win_sz_mask;
-	cdf_nbuf_t head_msdu = NULL;
-	cdf_nbuf_t tail_msdu = NULL;
+	qdf_nbuf_t head_msdu = NULL;
+	qdf_nbuf_t tail_msdu = NULL;
 	htt_pdev_handle htt_pdev = pdev->htt_pdev;
 	int seq_num, i = 0;
 
@@ -617,7 +617,7 @@ ol_rx_pn_ind_handler(ol_txrx_pdev_handle pdev,
 	else
 		return;
 
-	cdf_atomic_set(&peer->fw_pn_check, 1);
+	qdf_atomic_set(&peer->fw_pn_check, 1);
 	/*TODO: Fragmentation case */
 	win_sz_mask = peer->tids_rx_reorder[tid].win_sz_mask;
 	seq_num_start &= win_sz_mask;
@@ -630,7 +630,7 @@ ol_rx_pn_ind_handler(ol_txrx_pdev_handle pdev,
 
 		if (rx_reorder_array_elem->head) {
 			if (pn_ie_cnt && seq_num == (int)(pn_ie[i])) {
-				cdf_nbuf_t msdu, next_msdu, mpdu_head,
+				qdf_nbuf_t msdu, next_msdu, mpdu_head,
 					   mpdu_tail;
 				static uint32_t last_pncheck_print_time;
 				/* Do not need to initialize as C does it */
@@ -656,8 +656,8 @@ ol_rx_pn_ind_handler(ol_txrx_pdev_handle pdev,
 				htt_rx_mpdu_desc_pn(htt_pdev, rx_desc, &pn,
 						    pn_len);
 
-				current_time_ms = cdf_system_ticks_to_msecs(
-					cdf_system_ticks());
+				current_time_ms = qdf_system_ticks_to_msecs(
+					qdf_system_ticks());
 				if (TXRX_PN_CHECK_FAILURE_PRINT_PERIOD_MS <
 				    (current_time_ms -
 				     last_pncheck_print_time)) {
@@ -691,7 +691,7 @@ ol_rx_pn_ind_handler(ol_txrx_pdev_handle pdev,
 
 				/* free all MSDUs within this MPDU */
 				do {
-					next_msdu = cdf_nbuf_next(msdu);
+					next_msdu = qdf_nbuf_next(msdu);
 					htt_rx_desc_frame_free(htt_pdev, msdu);
 					if (msdu == mpdu_tail)
 						break;
@@ -704,7 +704,7 @@ ol_rx_pn_ind_handler(ol_txrx_pdev_handle pdev,
 					head_msdu = rx_reorder_array_elem->head;
 					tail_msdu = rx_reorder_array_elem->tail;
 				} else {
-					cdf_nbuf_set_next(
+					qdf_nbuf_set_next(
 						tail_msdu,
 						rx_reorder_array_elem->head);
 					tail_msdu = rx_reorder_array_elem->tail;
@@ -718,7 +718,7 @@ ol_rx_pn_ind_handler(ol_txrx_pdev_handle pdev,
 
 	if (head_msdu) {
 		/* rx_opt_proc takes a NULL-terminated list of msdu netbufs */
-		cdf_nbuf_set_next(tail_msdu, NULL);
+		qdf_nbuf_set_next(tail_msdu, NULL);
 		peer->rx_opt_proc(vdev, peer, tid, head_msdu);
 	}
 }
@@ -733,7 +733,7 @@ A_STATUS ol_rx_reorder_trace_attach(ol_txrx_pdev_handle pdev)
 	pdev->rx_reorder_trace.idx = 0;
 	pdev->rx_reorder_trace.cnt = 0;
 	pdev->rx_reorder_trace.mask = num_elems - 1;
-	pdev->rx_reorder_trace.data = cdf_mem_malloc(
+	pdev->rx_reorder_trace.data = qdf_mem_malloc(
 		sizeof(*pdev->rx_reorder_trace.data) * num_elems);
 	if (!pdev->rx_reorder_trace.data)
 		return A_NO_MEMORY;
@@ -746,7 +746,7 @@ A_STATUS ol_rx_reorder_trace_attach(ol_txrx_pdev_handle pdev)
 
 void ol_rx_reorder_trace_detach(ol_txrx_pdev_handle pdev)
 {
-	cdf_mem_free(pdev->rx_reorder_trace.data);
+	qdf_mem_free(pdev->rx_reorder_trace.data);
 }
 
 void
@@ -798,22 +798,22 @@ ol_rx_reorder_trace_display(ol_txrx_pdev_handle pdev, int just_once, int limit)
 	}
 
 	i = start;
-	CDF_TRACE(CDF_MODULE_ID_TXRX, CDF_TRACE_LEVEL_INFO,
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO,
 		  "           log       array seq");
-	CDF_TRACE(CDF_MODULE_ID_TXRX, CDF_TRACE_LEVEL_INFO,
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO,
 		  "   count   idx  tid   idx  num (LSBs)");
 	do {
 		uint16_t seq_num, reorder_idx;
 		seq_num = pdev->rx_reorder_trace.data[i].seq_num;
 		reorder_idx = pdev->rx_reorder_trace.data[i].reorder_idx;
 		if (seq_num < (1 << 14)) {
-			CDF_TRACE(CDF_MODULE_ID_TXRX, CDF_TRACE_LEVEL_INFO,
+			QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO,
 				  "  %6lld  %4d  %3d  %4d  %4d (%d)",
 				  cnt, i, pdev->rx_reorder_trace.data[i].tid,
 				  reorder_idx, seq_num, seq_num & 63);
 		} else {
 			int err = TXRX_SEQ_NUM_ERR(seq_num);
-			CDF_TRACE(CDF_MODULE_ID_TXRX, CDF_TRACE_LEVEL_INFO,
+			QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO,
 				  "  %6lld  %4d err %d (%d MPDUs)",
 				  cnt, i, err,
 				  pdev->rx_reorder_trace.data[i].num_mpdus);

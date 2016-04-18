@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2012, 2014-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2012, 2014-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -37,10 +37,10 @@
 /*--------------------------------------------------------------------------
   Include Files
   ------------------------------------------------------------------------*/
-#include "cdf_lock.h"
-#include "cdf_trace.h"
-#include "cdf_memory.h"
-#include "cdf_types.h"
+#include "qdf_lock.h"
+#include "qdf_trace.h"
+#include "qdf_mem.h"
+#include "qdf_types.h"
 #include "rrm_global.h"
 
 /*--------------------------------------------------------------------------
@@ -54,7 +54,7 @@ typedef struct sRrmNeighborReportDesc {
 } tRrmNeighborReportDesc, *tpRrmNeighborReportDesc;
 
 typedef void (*NeighborReportRspCallback)(void *context,
-		CDF_STATUS cdf_status);
+		QDF_STATUS qdf_status);
 
 typedef struct sRrmNeighborRspCallbackInfo {
 	uint32_t timeout;       /* in ms.. min value is 10 (10ms) */
@@ -65,13 +65,13 @@ typedef struct sRrmNeighborRspCallbackInfo {
 typedef struct sRrmNeighborRequestControlInfo {
 	/* To check whether a neighbor req is already sent & response pending */
 	bool isNeighborRspPending;
-	cdf_mc_timer_t neighborRspWaitTimer;
+	qdf_mc_timer_t neighborRspWaitTimer;
 	tRrmNeighborRspCallbackInfo neighborRspCallbackInfo;
 } tRrmNeighborRequestControlInfo, *tpRrmNeighborRequestControlInfo;
 
 typedef struct sRrmSMEContext {
 	uint16_t token;
-	struct cdf_mac_addr sessionBssId;
+	struct qdf_mac_addr sessionBssId;
 	uint8_t regClass;
 	/* list of all channels to be measured. */
 	tCsrChannelInfo channelList;
@@ -84,14 +84,14 @@ typedef struct sRrmSMEContext {
 	uint16_t duration[SIR_ESE_MAX_MEAS_IE_REQS];
 	uint8_t measMode[SIR_ESE_MAX_MEAS_IE_REQS];
 	struct rrm_config_param rrmConfig;
-	cdf_mc_timer_t IterMeasTimer;
+	qdf_mc_timer_t IterMeasTimer;
 	tDblLinkList neighborReportCache;
 	tRrmNeighborRequestControlInfo neighborReqControlInfo;
 
-#if defined(FEATURE_WLAN_ESE) && defined(FEATURE_WLAN_ESE_UPLOAD)
+#ifdef FEATURE_WLAN_ESE
 	tCsrEseBeaconReq eseBcnReqInfo;
 	bool eseBcnReqInProgress;
-#endif /* FEATURE_WLAN_ESE && FEATURE_WLAN_ESE_UPLOAD */
+#endif /* FEATURE_WLAN_ESE */
 	tRrmMsgReqSource msgSource;
 } tRrmSMEContext, *tpRrmSMEContext;
 

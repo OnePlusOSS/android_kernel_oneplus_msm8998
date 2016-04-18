@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -41,9 +41,7 @@
 #include <stdarg.h>
 #include "sir_mac_prop_exts.h"
 #include "dot11f.h"
-#ifdef WLAN_FEATURE_VOWIFI_11R
 #include "lim_ft_defs.h"
-#endif
 #include "lim_session.h"
 
 #define COUNTRY_STRING_LENGTH    (3)
@@ -115,9 +113,7 @@ typedef struct sSirProbeRespBeacon {
 	tDot11fIEHTCaps HTCaps;
 	tDot11fIEHTInfo HTInfo;
 	tDot11fIEP2PProbeRes P2PProbeRes;
-#ifdef WLAN_FEATURE_VOWIFI_11R
 	uint8_t mdie[SIR_MDIE_SIZE];
-#endif
 #ifdef FEATURE_WLAN_ESE
 	tDot11fIEESETxmitPower eseTxPwr;
 	tDot11fIEQBSSLoad QBSSLoad;
@@ -147,18 +143,14 @@ typedef struct sSirProbeRespBeacon {
 	uint8_t tpcReportPresent;
 	uint8_t powerConstraintPresent;
 
-#ifdef WLAN_FEATURE_VOWIFI_11R
 	uint8_t mdiePresent;
-#endif
 
-#ifdef WLAN_FEATURE_11AC
 	tDot11fIEVHTCaps VHTCaps;
 	tDot11fIEVHTOperation VHTOperation;
 	tDot11fIEVHTExtBssLoad VHTExtBssLoad;
 	tDot11fIEOperatingMode OperatingMode;
 	uint8_t WiderBWChanSwitchAnnPresent;
 	tDot11fIEWiderBWChanSwitchAnn WiderBWChanSwitchAnn;
-#endif
 	uint8_t Vendor1IEPresent;
 	tDot11fIEvendor2_ie vendor2_ie;
 	uint8_t Vendor3IEPresent;
@@ -169,6 +161,7 @@ typedef struct sSirProbeRespBeacon {
 #ifdef FEATURE_WLAN_ESE
 	uint8_t    is_ese_ver_ie_present;
 #endif
+	tDot11fIEOBSSScanParameters obss_scanparams;
 } tSirProbeRespBeacon, *tpSirProbeRespBeacon;
 
 /* probe Request structure */
@@ -183,10 +176,7 @@ typedef struct sSirProbeReq {
 	uint8_t extendedRatesPresent;
 	uint8_t wscIePresent;
 	uint8_t p2pIePresent;
-#ifdef WLAN_FEATURE_11AC
 	tDot11fIEVHTCaps VHTCaps;
-#endif
-
 } tSirProbeReq, *tpSirProbeReq;
 
 /* / Association Request structure (one day to be replaced by */
@@ -235,10 +225,8 @@ typedef struct sSirAssocReq {
 	   required for indicating the frame to upper layers */
 	uint32_t assocReqFrameLength;
 	uint8_t *assocReqFrame;
-#ifdef WLAN_FEATURE_11AC
 	tDot11fIEVHTCaps VHTCaps;
 	tDot11fIEOperatingMode operMode;
-#endif
 	tDot11fIEExtCap ExtCap;
 } tSirAssocReq, *tpSirAssocReq;
 
@@ -256,12 +244,10 @@ typedef struct sSirAssocRsp {
 	tSirAddtsRspInfo addtsRsp;
 	tDot11fIEHTCaps HTCaps;
 	tDot11fIEHTInfo HTInfo;
-#if defined WLAN_FEATURE_VOWIFI_11R
 	tDot11fIEFTInfo FTInfo;
 	uint8_t mdie[SIR_MDIE_SIZE];
 	uint8_t num_RICData;
 	tDot11fIERICDataDesc RICData[2];
-#endif
 
 #ifdef FEATURE_WLAN_ESE
 	uint8_t num_tspecs;
@@ -276,28 +262,25 @@ typedef struct sSirAssocRsp {
 	uint8_t wmeEdcaPresent;
 	uint8_t addtsPresent;
 	uint8_t wsmCapablePresent;
-#if defined WLAN_FEATURE_VOWIFI_11R
 	uint8_t ftinfoPresent;
 	uint8_t mdiePresent;
 	uint8_t ricPresent;
-#endif
 #ifdef FEATURE_WLAN_ESE
 	uint8_t tspecPresent;
 	uint8_t tsmPresent;
 #endif
-#ifdef WLAN_FEATURE_11AC
 	tDot11fIEVHTCaps VHTCaps;
 	tDot11fIEVHTOperation VHTOperation;
-#endif
 	tDot11fIEExtCap ExtCap;
 	tSirQosMapSet QosMapSet;
 #ifdef WLAN_FEATURE_11W
 	tDot11fIETimeoutInterval TimeoutInterval;
 #endif
 	tDot11fIEvendor2_ie vendor2_ie;
+	tDot11fIEOBSSScanParameters obss_scanparams;
 } tSirAssocRsp, *tpSirAssocRsp;
 
-#if defined(FEATURE_WLAN_ESE_UPLOAD)
+#ifdef FEATURE_WLAN_ESE
 /* Structure to hold ESE Beacon report mandatory IEs */
 typedef struct sSirEseBcnReportMandatoryIe {
 	tSirMacSSid ssId;
@@ -318,7 +301,7 @@ typedef struct sSirEseBcnReportMandatoryIe {
 	uint8_t timPresent;
 	uint8_t rrmPresent;
 } tSirEseBcnReportMandatoryIe, *tpSirEseBcnReportMandatoryIe;
-#endif /* FEATURE_WLAN_ESE_UPLOAD */
+#endif /* FEATURE_WLAN_ESE */
 
 /**
  * struct s_ext_cap - holds bitfields of extended capability IE
@@ -474,13 +457,6 @@ sir_parse_beacon_ie(struct sAniSirGlobal *pMac,
 		tpSirProbeRespBeacon pBeaconStruct,
 		uint8_t *pPayload, uint32_t payloadLength);
 
-#if defined(FEATURE_WLAN_ESE_UPLOAD)
-tSirRetStatus
-sir_beacon_ie_ese_bcn_report(tpAniSirGlobal pMac,
-		uint8_t *pPayload, const uint32_t payloadLength,
-		uint8_t **outIeBuf, uint32_t *pOutIeLen);
-#endif /* FEATURE_WLAN_ESE_UPLOAD */
-
 tSirRetStatus
 sir_convert_beacon_frame2_struct(struct sAniSirGlobal *pMac,
 				uint8_t *pBeaconFrame,
@@ -611,12 +587,10 @@ populate_dot11f_ext_supp_rates(tpAniSirGlobal pMac,
 			uint8_t nChannelNum, tDot11fIEExtSuppRates *pDot11f,
 			tpPESession psessionEntry);
 
-#if defined WLAN_FEATURE_VOWIFI
 tSirRetStatus
 populate_dot11f_beacon_report(tpAniSirGlobal pMac,
 			tDot11fIEMeasurementReport *pDot11f,
 			tSirMacBeaconReport *pBeaconReport);
-#endif
 
 /**
  * \brief Populate a tDot11fIEExtSuppRates
@@ -805,6 +779,11 @@ void populate_dot11_tsrsie(tpAniSirGlobal pMac,
 void populate_dot11f_re_assoc_tspec(tpAniSirGlobal pMac,
 				tDot11fReAssocRequest *pReassoc,
 				tpPESession psessionEntry);
+tSirRetStatus
+sir_beacon_ie_ese_bcn_report(tpAniSirGlobal pMac,
+		uint8_t *pPayload, const uint32_t payloadLength,
+		uint8_t **outIeBuf, uint32_t *pOutIeLen);
+
 #endif
 
 void populate_dot11f_wmm_info_ap(tpAniSirGlobal pMac,
@@ -897,7 +876,6 @@ tSirRetStatus populate_dot11_assoc_res_p2p_ie(tpAniSirGlobal pMac,
 tSirRetStatus populate_dot11f_wscInAssocRes(tpAniSirGlobal pMac,
 					tDot11fIEWscAssocRes *pDot11f);
 
-#if defined WLAN_FEATURE_VOWIFI
 tSirRetStatus populate_dot11f_wfatpc(tpAniSirGlobal pMac,
 				tDot11fIEWFATPC *pDot11f, uint8_t txPower,
 				uint8_t linkMargin);
@@ -905,13 +883,10 @@ tSirRetStatus populate_dot11f_wfatpc(tpAniSirGlobal pMac,
 tSirRetStatus populate_dot11f_rrm_ie(tpAniSirGlobal pMac,
 				tDot11fIERRMEnabledCap *pDot11f,
 				tpPESession psessionEntry);
-#endif
 
-#if defined WLAN_FEATURE_VOWIFI_11R
 void populate_mdie(tpAniSirGlobal pMac,
 		tDot11fIEMobilityDomain * pDot11f, uint8_t mdie[]);
 void populate_ft_info(tpAniSirGlobal pMac, tDot11fIEFTInfo *pDot11f);
-#endif
 
 void populate_dot11f_assoc_rsp_rates(tpAniSirGlobal pMac,
 				tDot11fIESuppRates *pSupp,
@@ -920,7 +895,6 @@ void populate_dot11f_assoc_rsp_rates(tpAniSirGlobal pMac,
 
 int find_ie_location(tpAniSirGlobal pMac, tpSirRSNie pRsnIe, uint8_t EID);
 
-#ifdef WLAN_FEATURE_11AC
 tSirRetStatus
 populate_dot11f_vht_caps(tpAniSirGlobal pMac, tpPESession psessionEntry,
 			tDot11fIEVHTCaps *pDot11f);
@@ -947,7 +921,6 @@ void
 populate_dot11f_wider_bw_chan_switch_ann(tpAniSirGlobal pMac,
 					tDot11fIEWiderBWChanSwitchAnn *pDot11f,
 					tpPESession psessionEntry);
-#endif
 
 void populate_dot11f_timeout_interval(tpAniSirGlobal pMac,
 				tDot11fIETimeoutInterval *pDot11f,

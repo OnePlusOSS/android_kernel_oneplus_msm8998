@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2014-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011, 2014-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -29,19 +29,16 @@
 #define _HTT_TYPES__H_
 
 #include <osdep.h>              /* uint16_t, dma_addr_t */
-#include <cdf_types.h>          /* cdf_device_t */
-#include <cdf_lock.h>           /* cdf_spinlock_t */
-#include <cdf_softirq_timer.h>  /* cdf_softirq_timer_t */
-#include <cdf_atomic.h>         /* cdf_atomic_inc */
-#include <cdf_nbuf.h>           /* cdf_nbuf_t */
+#include <qdf_types.h>          /* qdf_device_t */
+#include <qdf_lock.h>           /* qdf_spinlock_t */
+#include <qdf_timer.h>		/* qdf_timer_t */
+#include <qdf_atomic.h>         /* qdf_atomic_inc */
+#include <qdf_nbuf.h>           /* qdf_nbuf_t */
 #include <htc_api.h>            /* HTC_PACKET */
-
-#include <ol_ctrl_api.h>        /* ol_pdev_handle */
-#include <ol_txrx_api.h>        /* ol_txrx_pdev_handle */
 
 #define DEBUG_DMA_DONE
 
-#define HTT_TX_MUTEX_TYPE cdf_spinlock_t
+#define HTT_TX_MUTEX_TYPE qdf_spinlock_t
 
 #ifdef QCA_TX_HTT2_SUPPORT
 #ifndef HTC_TX_HTT2_MAX_SIZE
@@ -83,9 +80,9 @@ struct htt_host_tx_desc_t {
 };
 
 struct htt_tx_mgmt_desc_buf {
-	cdf_nbuf_t msg_buf;
+	qdf_nbuf_t msg_buf;
 	A_BOOL is_inuse;
-	cdf_nbuf_t mgmt_frm;
+	qdf_nbuf_t mgmt_frm;
 };
 
 struct htt_tx_mgmt_desc_ctxt {
@@ -100,7 +97,7 @@ struct htt_list_node {
 
 struct htt_rx_hash_entry {
 	A_UINT32 paddr;
-	cdf_nbuf_t netbuf;
+	qdf_nbuf_t netbuf;
 	A_UINT8 fromlist;
 	struct htt_list_node listnode;
 #ifdef RX_HASH_DEBUG
@@ -122,8 +119,8 @@ struct htt_rx_hash_bucket {
    firmware shared memory structure */
 struct uc_shared_mem_t {
 	uint32_t *vaddr;
-	cdf_dma_addr_t paddr;
-	cdf_dma_mem_context(memctx);
+	qdf_dma_addr_t paddr;
+	qdf_dma_mem_context(memctx);
 };
 
 /* Micro controller datapath offload
@@ -133,7 +130,7 @@ struct htt_ipa_uc_tx_resource_t {
 	struct uc_shared_mem_t tx_comp_base;
 
 	uint32_t tx_comp_idx_paddr;
-	cdf_nbuf_t *tx_buf_pool_vaddr_strg;
+	qdf_nbuf_t *tx_buf_pool_vaddr_strg;
 	uint32_t alloc_tx_buf_cnt;
 };
 
@@ -149,13 +146,13 @@ struct htt_ipa_uc_tx_resource_t {
  * @rx2_ind_ring_size: rx process done ring size
  */
 struct htt_ipa_uc_rx_resource_t {
-	cdf_dma_addr_t rx_rdy_idx_paddr;
+	qdf_dma_addr_t rx_rdy_idx_paddr;
 	struct uc_shared_mem_t rx_ind_ring_base;
 	struct uc_shared_mem_t rx_ipa_prc_done_idx;
 	uint32_t rx_ind_ring_size;
 
 	/* 2nd RX ring */
-	cdf_dma_addr_t rx2_rdy_idx_paddr;
+	qdf_dma_addr_t rx2_rdy_idx_paddr;
 	struct uc_shared_mem_t rx2_ind_ring_base;
 	struct uc_shared_mem_t rx2_ipa_prc_done_idx;
 	uint32_t rx2_ind_ring_size;
@@ -168,23 +165,36 @@ struct htt_ipa_uc_rx_resource_t {
  * @rx_packet_leng: packet length
  */
 struct ipa_uc_rx_ring_elem_t {
-	cdf_dma_addr_t rx_packet_paddr;
+	qdf_dma_addr_t rx_packet_paddr;
 	uint32_t vdev_id;
 	uint32_t rx_packet_leng;
 };
 
 #if defined(HELIUMPLUS_PADDR64)
+/**
+ * msdu_ext_frag_desc:
+ * semantically, this is an array of 6 of 2-tuples of
+ * a 48-bit physical address and a 16 bit len field
+ * with the following layout:
+ * 31               16       8       0
+ * |        p t r - l o w 3 2         |
+ * | len             | ptr-7/16       |
+ */
+struct msdu_ext_frag_desc {
+	union {
+		uint64_t desc64;
+		struct {
+			uint32_t ptr_low;
+			uint32_t ptr_hi:16,
+				len:16;
+		} frag32;
+	} u;
+};
+
 struct msdu_ext_desc_t {
-#if defined(FEATURE_TSO)
-	struct cdf_tso_flags_t tso_flags;
-#else
-	u_int32_t tso_flag0;
-	u_int32_t tso_flag1;
-	u_int32_t tso_flag2;
-	u_int32_t tso_flag3;
-	u_int32_t tso_flag4;
-	u_int32_t tso_flag5;
-#endif
+	struct qdf_tso_flags_t tso_flags;
+	struct msdu_ext_frag_desc frags[6];
+/*
 	u_int32_t frag_ptr0;
 	u_int32_t frag_len0;
 	u_int32_t frag_ptr1;
@@ -197,6 +207,7 @@ struct msdu_ext_desc_t {
 	u_int32_t frag_len4;
 	u_int32_t frag_ptr5;
 	u_int32_t frag_len5;
+*/
 };
 #endif  /* defined(HELIUMPLUS_PADDR64) */
 
@@ -204,7 +215,7 @@ struct htt_pdev_t {
 	ol_pdev_handle ctrl_pdev;
 	ol_txrx_pdev_handle txrx_pdev;
 	HTC_HANDLE htc_pdev;
-	cdf_device_t osdev;
+	qdf_device_t osdev;
 
 	HTC_ENDPOINT_ID htc_endpoint;
 
@@ -215,7 +226,7 @@ struct htt_pdev_t {
 
 #ifdef ATH_11AC_TXCOMPACT
 	HTT_TX_MUTEX_TYPE txnbufq_mutex;
-	cdf_nbuf_queue_t txnbufq;
+	qdf_nbuf_queue_t txnbufq;
 	struct htt_htc_pkt_union *htt_htc_pkt_misclist;
 #endif
 
@@ -245,7 +256,7 @@ struct htt_pdev_t {
 			 * The host SW uses this netbufs ring to locate the nw
 			 * buffer objects whose data buffers the HW has filled.
 			 */
-			cdf_nbuf_t *netbufs_ring;
+			qdf_nbuf_t *netbufs_ring;
 			/*
 			 * Ring of buffer addresses -
 			 * This ring holds the "physical" device address of the
@@ -256,7 +267,7 @@ struct htt_pdev_t {
 #else   /* ! HTT_PADDR64 */
 			uint32_t *paddrs_ring;
 #endif
-			cdf_dma_mem_context(memctx);
+			qdf_dma_mem_context(memctx);
 		} buf;
 		/*
 		 * Base address of ring, as a "physical" device address rather
@@ -280,7 +291,7 @@ struct htt_pdev_t {
 		struct {
 			uint32_t *vaddr;
 			uint32_t paddr;
-			cdf_dma_mem_context(memctx);
+			qdf_dma_mem_context(memctx);
 		} target_idx;
 
 		/*
@@ -296,7 +307,7 @@ struct htt_pdev_t {
 		struct {
 			uint32_t *vaddr;
 			uint32_t paddr;
-			cdf_dma_mem_context(memctx);
+			qdf_dma_mem_context(memctx);
 		} alloc_idx;
 
 		/* sw_rd_idx -
@@ -310,14 +321,14 @@ struct htt_pdev_t {
 		 * refill_retry_timer - timer triggered when the ring is not
 		 * refilled to the level expected
 		 */
-		cdf_softirq_timer_t refill_retry_timer;
+		qdf_timer_t refill_retry_timer;
 
 		/*
 		 * refill_ref_cnt - ref cnt for Rx buffer replenishment - this
 		 * variable is used to guarantee that only one thread tries
 		 * to replenish Rx ring.
 		 */
-		cdf_atomic_t refill_ref_cnt;
+		qdf_atomic_t refill_ref_cnt;
 #ifdef DEBUG_DMA_DONE
 		uint32_t dbg_initial_msdu_payld;
 		uint32_t dbg_mpdu_range;
@@ -341,22 +352,22 @@ struct htt_pdev_t {
 		int size;       /* of each HTT tx desc */
 		uint16_t pool_elems;
 		uint16_t alloc_cnt;
-		struct cdf_mem_multi_page_t desc_pages;
+		struct qdf_mem_multi_page_t desc_pages;
 		uint32_t *freelist;
-		cdf_dma_mem_context(memctx);
+		qdf_dma_mem_context(memctx);
 	} tx_descs;
 #if defined(HELIUMPLUS_PADDR64)
 	struct {
 		int size; /* of each Fragment/MSDU-Ext descriptor */
 		int pool_elems;
-		struct cdf_mem_multi_page_t desc_pages;
-		cdf_dma_mem_context(memctx);
+		struct qdf_mem_multi_page_t desc_pages;
+		qdf_dma_mem_context(memctx);
 	} frag_descs;
 #endif /* defined(HELIUMPLUS_PADDR64) */
 
 	int download_len;
 	void (*tx_send_complete_part2)(void *pdev, A_STATUS status,
-				       cdf_nbuf_t msdu, uint16_t msdu_id);
+				       qdf_nbuf_t msdu, uint16_t msdu_id);
 
 	HTT_TX_MUTEX_TYPE htt_tx_mutex;
 

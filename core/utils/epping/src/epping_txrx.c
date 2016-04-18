@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -62,14 +62,14 @@ static void epping_timer_expire(void *data)
 	epping_adapter_t *pAdapter;
 
 	if (dev == NULL) {
-		EPPING_LOG(CDF_TRACE_LEVEL_FATAL,
+		EPPING_LOG(QDF_TRACE_LEVEL_FATAL,
 			   "%s: netdev = NULL", __func__);
 		return;
 	}
 
 	pAdapter = netdev_priv(dev);
 	if (pAdapter == NULL) {
-		EPPING_LOG(CDF_TRACE_LEVEL_FATAL,
+		EPPING_LOG(QDF_TRACE_LEVEL_FATAL,
 			   "%s: adapter = NULL", __func__);
 		return;
 	}
@@ -94,7 +94,7 @@ static int epping_ndev_stop(struct net_device *dev)
 
 	pAdapter = netdev_priv(dev);
 	if (NULL == pAdapter) {
-		EPPING_LOG(CDF_TRACE_LEVEL_FATAL,
+		EPPING_LOG(QDF_TRACE_LEVEL_FATAL,
 			   "%s: EPPING adapter context is Null", __func__);
 		ret = -ENODEV;
 		goto end;
@@ -110,7 +110,7 @@ static void epping_ndev_uninit(struct net_device *dev)
 
 	pAdapter = netdev_priv(dev);
 	if (NULL == pAdapter) {
-		EPPING_LOG(CDF_TRACE_LEVEL_FATAL,
+		EPPING_LOG(QDF_TRACE_LEVEL_FATAL,
 			   "%s: EPPING adapter context is Null", __func__);
 		goto end;
 	}
@@ -125,12 +125,12 @@ void epping_tx_queue_timeout(struct net_device *dev)
 
 	pAdapter = netdev_priv(dev);
 	if (NULL == pAdapter) {
-		EPPING_LOG(CDF_TRACE_LEVEL_FATAL,
+		EPPING_LOG(QDF_TRACE_LEVEL_FATAL,
 			   "%s: EPPING adapter context is Null", __func__);
 		goto end;
 	}
 
-	EPPING_LOG(CDF_TRACE_LEVEL_ERROR,
+	EPPING_LOG(QDF_TRACE_LEVEL_ERROR,
 		   "%s: Transmission timeout occurred, pAdapter->started= %d",
 		   __func__, pAdapter->started);
 
@@ -153,7 +153,7 @@ int epping_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	pAdapter = netdev_priv(dev);
 	if (NULL == pAdapter) {
-		EPPING_LOG(CDF_TRACE_LEVEL_FATAL,
+		EPPING_LOG(QDF_TRACE_LEVEL_FATAL,
 			   "%s: EPPING adapter context is Null", __func__);
 		ret = -ENODEV;
 		goto end;
@@ -168,7 +168,7 @@ struct net_device_stats *epping_get_stats(struct net_device *dev)
 	epping_adapter_t *pAdapter = netdev_priv(dev);
 
 	if (NULL == pAdapter) {
-		EPPING_LOG(CDF_TRACE_LEVEL_ERROR, "%s: pAdapter = NULL",
+		EPPING_LOG(QDF_TRACE_LEVEL_ERROR, "%s: pAdapter = NULL",
 			   __func__);
 		return NULL;
 	}
@@ -183,13 +183,13 @@ int epping_ndev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 	pAdapter = netdev_priv(dev);
 	if (NULL == pAdapter) {
-		EPPING_LOG(CDF_TRACE_LEVEL_FATAL,
+		EPPING_LOG(QDF_TRACE_LEVEL_FATAL,
 			   "%s: EPPING adapter context is Null", __func__);
 		ret = -ENODEV;
 		goto end;
 	}
 	if (dev != pAdapter->dev) {
-		EPPING_LOG(CDF_TRACE_LEVEL_FATAL,
+		EPPING_LOG(QDF_TRACE_LEVEL_FATAL,
 			   "%s: HDD adapter/dev inconsistency", __func__);
 		ret = -ENODEV;
 		goto end;
@@ -202,12 +202,12 @@ int epping_ndev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 	switch (cmd) {
 	case (SIOCDEVPRIVATE + 1):
-		EPPING_LOG(CDF_TRACE_LEVEL_ERROR,
+		EPPING_LOG(QDF_TRACE_LEVEL_ERROR,
 			   "%s: do not support ioctl %d (SIOCDEVPRIVATE + 1)",
 			   __func__, cmd);
 		break;
 	default:
-		EPPING_LOG(CDF_TRACE_LEVEL_ERROR, "%s: unknown ioctl %d",
+		EPPING_LOG(QDF_TRACE_LEVEL_ERROR, "%s: unknown ioctl %d",
 			   __func__, cmd);
 		ret = -EINVAL;
 		break;
@@ -221,9 +221,9 @@ static int epping_set_mac_address(struct net_device *dev, void *addr)
 {
 	epping_adapter_t *pAdapter = netdev_priv(dev);
 	struct sockaddr *psta_mac_addr = addr;
-	cdf_mem_copy(&pAdapter->macAddressCurrent,
+	qdf_mem_copy(&pAdapter->macAddressCurrent,
 		     psta_mac_addr->sa_data, ETH_ALEN);
-	cdf_mem_copy(dev->dev_addr, psta_mac_addr->sa_data, ETH_ALEN);
+	qdf_mem_copy(dev->dev_addr, psta_mac_addr->sa_data, ETH_ALEN);
 	return 0;
 }
 
@@ -243,7 +243,7 @@ static void epping_stop_adapter(epping_adapter_t *pAdapter)
 static int epping_start_adapter(epping_adapter_t *pAdapter)
 {
 	if (!pAdapter) {
-		EPPING_LOG(CDF_TRACE_LEVEL_FATAL,
+		EPPING_LOG(QDF_TRACE_LEVEL_FATAL,
 			   "%s: pAdapter= NULL\n", __func__);
 		return -1;
 	}
@@ -256,7 +256,7 @@ static int epping_start_adapter(epping_adapter_t *pAdapter)
 		netif_tx_start_all_queues(pAdapter->dev);
 		pAdapter->started = true;
 	} else {
-		EPPING_LOG(CDF_TRACE_LEVEL_WARN,
+		EPPING_LOG(QDF_TRACE_LEVEL_WARN,
 			   "%s: pAdapter %p already started\n", __func__,
 			   pAdapter);
 	}
@@ -267,8 +267,9 @@ static int epping_register_adapter(epping_adapter_t *pAdapter)
 {
 	int ret = 0;
 
-	if ((ret = register_netdev(pAdapter->dev)) != 0) {
-		EPPING_LOG(CDF_TRACE_LEVEL_FATAL,
+	ret = register_netdev(pAdapter->dev);
+	if (ret != 0) {
+		EPPING_LOG(QDF_TRACE_LEVEL_FATAL,
 			   "%s: unable to register device\n",
 			   pAdapter->dev->name);
 	} else {
@@ -286,7 +287,7 @@ static void epping_unregister_adapter(epping_adapter_t *pAdapter)
 			pAdapter->registered = false;
 		}
 	} else {
-		EPPING_LOG(CDF_TRACE_LEVEL_FATAL,
+		EPPING_LOG(QDF_TRACE_LEVEL_FATAL,
 			   "%s: pAdapter = NULL, unable to unregister device\n",
 			   __func__);
 	}
@@ -298,7 +299,7 @@ void epping_destroy_adapter(epping_adapter_t *pAdapter)
 	epping_context_t *pEpping_ctx;
 
 	if (!pAdapter || !pAdapter->pEpping_ctx) {
-		EPPING_LOG(CDF_TRACE_LEVEL_FATAL,
+		EPPING_LOG(QDF_TRACE_LEVEL_FATAL,
 			   "%s: pAdapter = NULL\n", __func__);
 		return;
 	}
@@ -307,20 +308,20 @@ void epping_destroy_adapter(epping_adapter_t *pAdapter)
 	pEpping_ctx = pAdapter->pEpping_ctx;
 	epping_unregister_adapter(pAdapter);
 
-	cdf_spinlock_destroy(&pAdapter->data_lock);
-	cdf_softirq_timer_free(&pAdapter->epping_timer);
+	qdf_spinlock_destroy(&pAdapter->data_lock);
+	qdf_timer_free(&pAdapter->epping_timer);
 	pAdapter->epping_timer_state = EPPING_TX_TIMER_STOPPED;
 
-	while (cdf_nbuf_queue_len(&pAdapter->nodrop_queue)) {
-		cdf_nbuf_t tmp_nbuf = NULL;
-		tmp_nbuf = cdf_nbuf_queue_remove(&pAdapter->nodrop_queue);
+	while (qdf_nbuf_queue_len(&pAdapter->nodrop_queue)) {
+		qdf_nbuf_t tmp_nbuf = NULL;
+		tmp_nbuf = qdf_nbuf_queue_remove(&pAdapter->nodrop_queue);
 		if (tmp_nbuf)
-			cdf_nbuf_free(tmp_nbuf);
+			qdf_nbuf_free(tmp_nbuf);
 	}
 
 	free_netdev(dev);
 	if (!pEpping_ctx)
-		EPPING_LOG(CDF_TRACE_LEVEL_FATAL,
+		EPPING_LOG(QDF_TRACE_LEVEL_FATAL,
 			   "%s: pEpping_ctx = NULL\n", __func__);
 	else
 		pEpping_ctx->epping_adapter = NULL;
@@ -342,7 +343,7 @@ static struct net_device_ops epping_drv_ops = {
 
 epping_adapter_t *epping_add_adapter(epping_context_t *pEpping_ctx,
 				     tSirMacAddr macAddr,
-				     enum tCDF_ADAPTER_MODE device_mode)
+				     enum tQDF_ADAPTER_MODE device_mode)
 {
 	struct net_device *dev;
 	epping_adapter_t *pAdapter;
@@ -353,24 +354,24 @@ epping_adapter_t *epping_add_adapter(epping_context_t *pEpping_ctx,
 #endif
 			   ether_setup);
 	if (dev == NULL) {
-		EPPING_LOG(CDF_TRACE_LEVEL_FATAL,
+		EPPING_LOG(QDF_TRACE_LEVEL_FATAL,
 			   "%s: Cannot allocate epping_adapter_t\n", __func__);
 		return NULL;
 	}
 
 	pAdapter = netdev_priv(dev);
-	cdf_mem_zero(pAdapter, sizeof(*pAdapter));
+	qdf_mem_zero(pAdapter, sizeof(*pAdapter));
 	pAdapter->dev = dev;
 	pAdapter->pEpping_ctx = pEpping_ctx;
 	pAdapter->device_mode = device_mode;    /* station, SAP, etc */
-	cdf_mem_copy(dev->dev_addr, (void *)macAddr, sizeof(tSirMacAddr));
-	cdf_mem_copy(pAdapter->macAddressCurrent.bytes,
+	qdf_mem_copy(dev->dev_addr, (void *)macAddr, sizeof(tSirMacAddr));
+	qdf_mem_copy(pAdapter->macAddressCurrent.bytes,
 		     macAddr, sizeof(tSirMacAddr));
-	cdf_spinlock_init(&pAdapter->data_lock);
-	cdf_nbuf_queue_init(&pAdapter->nodrop_queue);
+	qdf_spinlock_create(&pAdapter->data_lock);
+	qdf_nbuf_queue_init(&pAdapter->nodrop_queue);
 	pAdapter->epping_timer_state = EPPING_TX_TIMER_STOPPED;
-	cdf_softirq_timer_init(epping_get_cdf_ctx(), &pAdapter->epping_timer,
-		epping_timer_expire, dev, CDF_TIMER_TYPE_SW);
+	qdf_timer_init(epping_get_qdf_ctx(), &pAdapter->epping_timer,
+		epping_timer_expire, dev, QDF_TIMER_TYPE_SW);
 	dev->type = ARPHRD_IEEE80211;
 	dev->netdev_ops = &epping_drv_ops;
 	dev->watchdog_timeo = 5 * HZ;   /* XXX */
@@ -389,11 +390,12 @@ epping_adapter_t *epping_add_adapter(epping_context_t *pEpping_ctx,
 int epping_connect_service(epping_context_t *pEpping_ctx)
 {
 	int status, i;
+	int ret = -1;
 	HTC_SERVICE_CONNECT_REQ connect;
 	HTC_SERVICE_CONNECT_RESP response;
 
-	cdf_mem_zero(&connect, sizeof(connect));
-	cdf_mem_zero(&response, sizeof(response));
+	qdf_mem_zero(&connect, sizeof(connect));
+	qdf_mem_zero(&response, sizeof(response));
 
 	/* these fields are the same for all service endpoints */
 	connect.EpCallbacks.pContext = pEpping_ctx;
@@ -418,12 +420,12 @@ int epping_connect_service(epping_context_t *pEpping_ctx)
 	connect.service_id = WMI_DATA_BE_SVC;
 	status = htc_connect_service(pEpping_ctx->HTCHandle, &connect, &response);
 	if (status != EOK) {
-		EPPING_LOG(CDF_TRACE_LEVEL_FATAL,
+		EPPING_LOG(QDF_TRACE_LEVEL_FATAL,
 			   "Failed to connect to Endpoint Ping BE service status:%d \n",
 			   status);
 		return -1;;
 	} else {
-		EPPING_LOG(CDF_TRACE_LEVEL_FATAL,
+		EPPING_LOG(QDF_TRACE_LEVEL_FATAL,
 			   "eppingtest BE endpoint:%d\n", response.Endpoint);
 	}
 	pEpping_ctx->EppingEndpoint[0] = response.Endpoint;
@@ -432,12 +434,12 @@ int epping_connect_service(epping_context_t *pEpping_ctx)
 	connect.service_id = WMI_DATA_BK_SVC;
 	status = htc_connect_service(pEpping_ctx->HTCHandle, &connect, &response);
 	if (status != EOK) {
-		EPPING_LOG(CDF_TRACE_LEVEL_FATAL,
+		EPPING_LOG(QDF_TRACE_LEVEL_FATAL,
 			   "Failed to connect to Endpoint Ping BK service status:%d \n",
 			   status);
-		return -1;;
+		return ret;
 	} else {
-		EPPING_LOG(CDF_TRACE_LEVEL_FATAL,
+		EPPING_LOG(QDF_TRACE_LEVEL_FATAL,
 			   "eppingtest BK endpoint:%d\n", response.Endpoint);
 	}
 	pEpping_ctx->EppingEndpoint[1] = response.Endpoint;

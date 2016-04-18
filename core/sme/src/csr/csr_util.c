@@ -223,12 +223,12 @@ const char *get_e_roam_cmd_status_str(eRoamCmdStatus val)
 #ifdef WLAN_FEATURE_RMC
 		CASE_RETURN_STR(eCSR_ROAM_IBSS_PEER_INFO_COMPLETE);
 #endif
-#if defined(FEATURE_WLAN_ESE) && defined(FEATURE_WLAN_ESE_UPLOAD)
+#ifdef FEATURE_WLAN_ESE
 		CASE_RETURN_STR(eCSR_ROAM_TSM_IE_IND);
 		CASE_RETURN_STR(eCSR_ROAM_CCKM_PREAUTH_NOTIFY);
 		CASE_RETURN_STR(eCSR_ROAM_ESE_ADJ_AP_REPORT_IND);
 		CASE_RETURN_STR(eCSR_ROAM_ESE_BCN_REPORT_IND);
-#endif /* FEATURE_WLAN_ESE && FEATURE_WLAN_ESE_UPLOAD */
+#endif /* FEATURE_WLAN_ESE */
 	default:
 		return "unknown";
 	}
@@ -256,10 +256,10 @@ const char *get_e_csr_roam_result_str(eCsrRoamResult val)
 }
 
 bool csr_get_bss_id_bss_desc(tHalHandle hHal, tSirBssDescription *pSirBssDesc,
-			     struct cdf_mac_addr *pBssId)
+			     struct qdf_mac_addr *pBssId)
 {
-	cdf_mem_copy(pBssId, &pSirBssDesc->bssId[0],
-			sizeof(struct cdf_mac_addr));
+	qdf_mem_copy(pBssId, &pSirBssDesc->bssId[0],
+			sizeof(struct qdf_mac_addr));
 	return true;
 }
 
@@ -268,8 +268,8 @@ bool csr_is_bss_id_equal(tHalHandle hHal, tSirBssDescription *pSirBssDesc1,
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 	bool fEqual = false;
-	struct cdf_mac_addr bssId1;
-	struct cdf_mac_addr bssId2;
+	struct qdf_mac_addr bssId1;
+	struct qdf_mac_addr bssId2;
 
 	do {
 		if (!pSirBssDesc1)
@@ -282,7 +282,7 @@ bool csr_is_bss_id_equal(tHalHandle hHal, tSirBssDescription *pSirBssDesc1,
 		if (!csr_get_bss_id_bss_desc(pMac, pSirBssDesc2, &bssId2))
 			break;
 
-		fEqual = cdf_is_macaddr_equal(&bssId1, &bssId2);
+		fEqual = qdf_is_macaddr_equal(&bssId1, &bssId2);
 	} while (0);
 
 	return fEqual;
@@ -422,9 +422,9 @@ bool csr_is_session_client_and_connected(tpAniSirGlobal pMac, uint8_t sessionId)
 		pSession = CSR_GET_SESSION(pMac, sessionId);
 		if (NULL != pSession->pCurRoamProfile) {
 			if ((pSession->pCurRoamProfile->csrPersona ==
-			     CDF_STA_MODE)
+			     QDF_STA_MODE)
 			    || (pSession->pCurRoamProfile->csrPersona ==
-				CDF_P2P_CLIENT_MODE))
+				QDF_P2P_CLIENT_MODE))
 				return true;
 		}
 	}
@@ -445,7 +445,7 @@ uint8_t csr_get_concurrent_operation_channel(tpAniSirGlobal mac_ctx)
 {
 	tCsrRoamSession *session = NULL;
 	uint8_t i = 0;
-	enum tCDF_ADAPTER_MODE persona;
+	enum tQDF_ADAPTER_MODE persona;
 
 	for (i = 0; i < CSR_ROAM_SESSION_MAX; i++) {
 		if (!CSR_IS_SESSION_VALID(mac_ctx, i))
@@ -454,12 +454,12 @@ uint8_t csr_get_concurrent_operation_channel(tpAniSirGlobal mac_ctx)
 		if (NULL == session->pCurRoamProfile)
 			continue;
 		persona = session->pCurRoamProfile->csrPersona;
-		if ((((persona == CDF_STA_MODE) ||
-			(persona == CDF_P2P_CLIENT_MODE)) &&
+		if ((((persona == QDF_STA_MODE) ||
+			(persona == QDF_P2P_CLIENT_MODE)) &&
 			(session->connectState ==
 				eCSR_ASSOC_STATE_TYPE_INFRA_ASSOCIATED)) ||
-			(((persona == CDF_P2P_GO_MODE) ||
-				(persona == CDF_SAP_MODE))
+			(((persona == QDF_P2P_GO_MODE) ||
+				(persona == QDF_SAP_MODE))
 				 && (session->connectState !=
 					 eCSR_ASSOC_STATE_TYPE_NOT_CONNECTED)))
 			return session->connectedProfile.operationChannel;
@@ -512,19 +512,14 @@ void csr_get_ch_from_ht_profile(tpAniSirGlobal pMac, tCsrRoamHTProfile *htp,
 		goto ret;
 
 	sms_log(pMac, LOG1, FL("##HTC: %d scbw: %d rcbw: %d sco: %d"
-#ifdef WLAN_FEATURE_11AC
 				"VHTC: %d apc: %d apbw: %d"
-#endif
 			      ),
 			htp->htCapability, htp->htSupportedChannelWidthSet,
 			htp->htRecommendedTxWidthSet,
 			htp->htSecondaryChannelOffset,
-#ifdef WLAN_FEATURE_11AC
 			htp->vhtCapability, htp->apCenterChan, htp->apChanWidth
-#endif
 	       );
 
-#ifdef WLAN_FEATURE_11AC
 	if (htp->vhtCapability) {
 		cch = htp->apCenterChan;
 		if (htp->apChanWidth == WNI_CFG_VHT_CHANNEL_WIDTH_80MHZ)
@@ -539,9 +534,7 @@ void csr_get_ch_from_ht_profile(tpAniSirGlobal pMac, tCsrRoamHTProfile *htp,
 			else
 				*hbw = HALF_BW_OF(eCSR_BW_20MHz_VAL);
 		}
-	} else
-#endif
-		if (htp->htCapability) {
+	} else if (htp->htCapability) {
 			if (htp->htSupportedChannelWidthSet ==
 					eHT_CHANNEL_WIDTH_40MHZ) {
 				*hbw = HALF_BW_OF(eCSR_BW_40MHz_VAL);
@@ -588,9 +581,7 @@ static void csr_calc_chb_for_sap_phymode(tpAniSirGlobal mac_ctx,
 		else if (*chb == PHY_DOUBLE_CHANNEL_HIGH_PRIMARY)
 			*sap_cch = CSR_GET_HT40_MINUS_CCH(*sap_ch);
 
-	}
-#ifdef WLAN_FEATURE_11AC
-	else if (*sap_phymode == eCSR_DOT11_MODE_11ac ||
+	} else if (*sap_phymode == eCSR_DOT11_MODE_11ac ||
 			*sap_phymode == eCSR_DOT11_MODE_11ac_ONLY) {
 		/*11AC only 80/40/20 Mhz supported in Rome */
 		if (mac_ctx->roam.configParam.nVhtChannelWidth ==
@@ -630,7 +621,6 @@ static void csr_calc_chb_for_sap_phymode(tpAniSirGlobal mac_ctx,
 				*sap_cch = CSR_GET_HT40_MINUS_CCH(*sap_ch);
 		}
 	}
-#endif
 }
 
 /**
@@ -675,7 +665,7 @@ static void csr_handle_conc_chnl_overlap_for_sap_go(tpAniSirGlobal mac_ctx,
 		}
 	} else if (*sap_ch == 0 &&
 			(session->pCurRoamProfile->csrPersona ==
-					CDF_SAP_MODE)) {
+					QDF_SAP_MODE)) {
 		*sap_ch = session->connectedProfile.operationChannel;
 		csr_get_ch_from_ht_profile(mac_ctx,
 				&session->connectedProfile.HTProfile,
@@ -703,10 +693,13 @@ uint16_t csr_check_concurrent_channel_overlap(tpAniSirGlobal mac_ctx,
 	uint8_t i = 0, chb = PHY_SINGLE_CHANNEL_CENTERED;
 	uint16_t intf_ch = 0, sap_hbw = 0, intf_hbw = 0, intf_cfreq = 0;
 	uint16_t sap_cfreq = 0;
-	uint16_t sap_lfreq, sap_hfreq, intf_lfreq, intf_hfreq, sap_cch;
+	uint16_t sap_lfreq, sap_hfreq, intf_lfreq, intf_hfreq, sap_cch = 0;
+
+	sms_log(mac_ctx, LOG1, FL("sap_ch:%d sap_phymode:%d"),
+		sap_ch, sap_phymode);
 
 	if (mac_ctx->roam.configParam.cc_switch_mode ==
-			CDF_MCC_TO_SCC_SWITCH_DISABLE)
+			QDF_MCC_TO_SCC_SWITCH_DISABLE)
 		return 0;
 
 	if (sap_ch != 0) {
@@ -724,6 +717,10 @@ uint16_t csr_check_concurrent_channel_overlap(tpAniSirGlobal mac_ctx,
 		sap_cfreq = cds_chan_to_freq(sap_cch);
 	}
 
+	sms_log(mac_ctx, LOG1,
+		FL("sap_ch:%d sap_phymode:%d sap_cch:%d sap_hbw:%d chb:%d"),
+		sap_ch, sap_phymode, sap_cch, sap_hbw, chb);
+
 	for (i = 0; i < CSR_ROAM_SESSION_MAX; i++) {
 		if (!CSR_IS_SESSION_VALID(mac_ctx, i))
 			continue;
@@ -731,19 +728,22 @@ uint16_t csr_check_concurrent_channel_overlap(tpAniSirGlobal mac_ctx,
 		session = CSR_GET_SESSION(mac_ctx, i);
 		if (NULL == session->pCurRoamProfile)
 			continue;
-		if (((session->pCurRoamProfile->csrPersona == CDF_STA_MODE) ||
+		if (((session->pCurRoamProfile->csrPersona == QDF_STA_MODE) ||
 			(session->pCurRoamProfile->csrPersona ==
-				CDF_P2P_CLIENT_MODE)) &&
+				QDF_P2P_CLIENT_MODE)) &&
 			(session->connectState ==
 				eCSR_ASSOC_STATE_TYPE_INFRA_ASSOCIATED)) {
 			intf_ch = session->connectedProfile.operationChannel;
 			csr_get_ch_from_ht_profile(mac_ctx,
 				&session->connectedProfile.HTProfile,
 				intf_ch, &intf_cfreq, &intf_hbw);
+			sms_log(mac_ctx, LOG1,
+				FL("%d: intf_ch:%d intf_cfreq:%d intf_hbw:%d"),
+				i, intf_ch, intf_cfreq, intf_hbw);
 		} else if (((session->pCurRoamProfile->csrPersona ==
-					CDF_P2P_GO_MODE) ||
+					QDF_P2P_GO_MODE) ||
 				(session->pCurRoamProfile->csrPersona ==
-					CDF_SAP_MODE)) &&
+					QDF_SAP_MODE)) &&
 				(session->connectState !=
 					eCSR_ASSOC_STATE_TYPE_NOT_CONNECTED)) {
 				if (session->ch_switch_in_progress)
@@ -752,11 +752,22 @@ uint16_t csr_check_concurrent_channel_overlap(tpAniSirGlobal mac_ctx,
 				csr_handle_conc_chnl_overlap_for_sap_go(mac_ctx,
 					session, &sap_ch, &sap_hbw, &sap_cfreq,
 					&intf_ch, &intf_hbw, &intf_cfreq);
+
+				sms_log(mac_ctx, LOG1,
+					FL("%d: sap_ch:%d sap_hbw:%d sap_cfreq:%d intf_ch:%d intf_hbw:%d, intf_cfreq:%d"),
+					i, sap_ch, sap_hbw, sap_cfreq,
+					intf_ch, intf_hbw, intf_cfreq);
 		}
 	}
 
+	sms_log(mac_ctx, LOG1,
+		FL("intf_ch:%d sap_ch:%d intf_ch:%d"),
+		intf_ch, sap_ch, intf_ch);
+
 	if (intf_ch && sap_ch != intf_ch &&
-			cc_switch_mode != CDF_MCC_TO_SCC_SWITCH_FORCE) {
+	    cc_switch_mode != QDF_MCC_TO_SCC_SWITCH_FORCE &&
+	    cc_switch_mode !=
+	    QDF_MCC_TO_SCC_SWITCH_FORCE_WITHOUT_DISCONNECTION) {
 		sap_lfreq = sap_cfreq - sap_hbw;
 		sap_hfreq = sap_cfreq + sap_hbw;
 		intf_lfreq = intf_cfreq - intf_hbw;
@@ -777,7 +788,7 @@ uint16_t csr_check_concurrent_channel_overlap(tpAniSirGlobal mac_ctx,
 			(intf_hfreq > sap_lfreq && intf_hfreq < sap_hfreq))))
 			intf_ch = 0;
 	} else if (intf_ch && sap_ch != intf_ch &&
-				cc_switch_mode == CDF_MCC_TO_SCC_SWITCH_FORCE) {
+				cc_switch_mode == QDF_MCC_TO_SCC_SWITCH_FORCE) {
 		if (!((intf_ch < 14 && sap_ch < 14) ||
 			(intf_ch > 14 && sap_ch > 14)))
 			intf_ch = 0;
@@ -827,7 +838,7 @@ bool csr_is_sta_session_connected(tpAniSirGlobal mac_ctx)
 			pSession = CSR_GET_SESSION(mac_ctx, i);
 
 			if ((NULL != pSession->pCurRoamProfile) &&
-				(CDF_STA_MODE ==
+				(QDF_STA_MODE ==
 					pSession->pCurRoamProfile->csrPersona))
 				return true;
 		}
@@ -849,7 +860,7 @@ bool csr_is_p2p_session_connected(tpAniSirGlobal pMac)
 {
 	uint32_t i;
 	tCsrRoamSession *pSession = NULL;
-	enum tCDF_ADAPTER_MODE persona;
+	enum tQDF_ADAPTER_MODE persona;
 
 	for (i = 0; i < CSR_ROAM_SESSION_MAX; i++) {
 		if (CSR_IS_SESSION_VALID(pMac, i)
@@ -857,8 +868,8 @@ bool csr_is_p2p_session_connected(tpAniSirGlobal pMac)
 			pSession = CSR_GET_SESSION(pMac, i);
 			persona = pSession->pCurRoamProfile->csrPersona;
 			if ((NULL != pSession->pCurRoamProfile) &&
-				((CDF_P2P_CLIENT_MODE == persona) ||
-				(CDF_P2P_GO_MODE == persona))) {
+				((QDF_P2P_CLIENT_MODE == persona) ||
+				(QDF_P2P_GO_MODE == persona))) {
 				return true;
 			}
 		}
@@ -1011,10 +1022,10 @@ bool csr_is_valid_mc_concurrent_session(tpAniSirGlobal mac_ctx,
 	pSession = CSR_GET_SESSION(mac_ctx, session_id);
 	if (NULL == pSession->pCurRoamProfile)
 		return false;
-	if (CDF_STATUS_SUCCESS ==
+	if (QDF_STATUS_SUCCESS ==
 		csr_isconcurrentsession_valid(mac_ctx, session_id,
 			pSession->pCurRoamProfile->csrPersona)) {
-		if (CDF_STATUS_SUCCESS ==
+		if (QDF_STATUS_SUCCESS ==
 			csr_validate_mcc_beacon_interval(mac_ctx,
 				bss_descr->channelId,
 				&bss_descr->beaconInterval, session_id,
@@ -1030,7 +1041,7 @@ static tSirMacCapabilityInfo csr_get_bss_capabilities(tSirBssDescription *
 	tSirMacCapabilityInfo dot11Caps;
 
 	/* tSirMacCapabilityInfo is 16-bit */
-	cdf_get_u16((uint8_t *) &pSirBssDesc->capabilityInfo,
+	qdf_get_u16((uint8_t *) &pSirBssDesc->capabilityInfo,
 		    (uint16_t *) &dot11Caps);
 
 	return dot11Caps;
@@ -1108,13 +1119,13 @@ bool csr_is_ssid_equal(tHalHandle hHal, tSirBssDescription *pSirBssDesc1,
 			break;
 		if (!pIesLocal
 		    &&
-		    !CDF_IS_STATUS_SUCCESS(csr_get_parsed_bss_description_ies
+		    !QDF_IS_STATUS_SUCCESS(csr_get_parsed_bss_description_ies
 						   (pMac, pSirBssDesc2,
 						    &pIesLocal))) {
 			sms_log(pMac, LOGE, FL("  fail to parse IEs"));
 			break;
 		}
-		if (!CDF_IS_STATUS_SUCCESS
+		if (!QDF_IS_STATUS_SUCCESS
 			(csr_get_parsed_bss_description_ies(pMac,
 				pSirBssDesc1, &pIes1))) {
 			break;
@@ -1123,20 +1134,19 @@ bool csr_is_ssid_equal(tHalHandle hHal, tSirBssDescription *pSirBssDesc1,
 			break;
 		if (pIes1->SSID.num_ssid != pIesLocal->SSID.num_ssid)
 			break;
-		cdf_mem_copy(Ssid1.ssId, pIes1->SSID.ssid,
+		qdf_mem_copy(Ssid1.ssId, pIes1->SSID.ssid,
 			     pIes1->SSID.num_ssid);
-		cdf_mem_copy(Ssid2.ssId, pIesLocal->SSID.ssid,
+		qdf_mem_copy(Ssid2.ssId, pIesLocal->SSID.ssid,
 			     pIesLocal->SSID.num_ssid);
 
-		fEqual =
-			cdf_mem_compare(Ssid1.ssId, Ssid2.ssId,
-					pIesLocal->SSID.num_ssid);
+		fEqual = (!qdf_mem_cmp(Ssid1.ssId, Ssid2.ssId,
+					pIesLocal->SSID.num_ssid));
 
 	} while (0);
 	if (pIes1)
-		cdf_mem_free(pIes1);
+		qdf_mem_free(pIes1);
 	if (pIesLocal && !pIes2)
-		cdf_mem_free(pIesLocal);
+		qdf_mem_free(pIesLocal);
 
 	return fEqual;
 }
@@ -1152,7 +1162,7 @@ bool csr_is_bss_description_wme(tHalHandle hHal, tSirBssDescription *pSirBssDesc
 
 	do {
 		if (pIesTemp == NULL) {
-			if (!CDF_IS_STATUS_SUCCESS
+			if (!QDF_IS_STATUS_SUCCESS
 				    (csr_get_parsed_bss_description_ies
 					    (pMac, pSirBssDesc, &pIesTemp))) {
 				fWme = false;
@@ -1172,7 +1182,7 @@ bool csr_is_bss_description_wme(tHalHandle hHal, tSirBssDescription *pSirBssDesc
 	}
 	if ((pIes == NULL) && (NULL != pIesTemp)) {
 		/* we allocate memory here so free it before returning */
-		cdf_mem_free(pIesTemp);
+		qdf_mem_free(pIesTemp);
 	}
 
 	return fWme;
@@ -1185,7 +1195,7 @@ eCsrMediaAccessType csr_get_qo_s_from_bss_desc(tHalHandle hHal,
 	eCsrMediaAccessType qosType = eCSR_MEDIUM_ACCESS_DCF;
 
 	if (NULL == pIes) {
-		CDF_ASSERT(pIes != NULL);
+		QDF_ASSERT(pIes != NULL);
 		return qosType;
 	}
 
@@ -1214,11 +1224,11 @@ eCsrMediaAccessType csr_get_qo_s_from_bss_desc(tHalHandle hHal,
 }
 
 /* Caller allocates memory for pIEStruct */
-CDF_STATUS csr_parse_bss_description_ies(tHalHandle hHal,
+QDF_STATUS csr_parse_bss_description_ies(tHalHandle hHal,
 					  tSirBssDescription *pBssDesc,
 					  tDot11fBeaconIEs *pIEStruct)
 {
-	CDF_STATUS status = CDF_STATUS_E_FAILURE;
+	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 	int ieLen =
 		(int)(pBssDesc->length + sizeof(pBssDesc->length) -
@@ -1229,7 +1239,7 @@ CDF_STATUS csr_parse_bss_description_ies(tHalHandle hHal,
 			    (dot11f_unpack_beacon_i_es
 				    (pMac, (uint8_t *) pBssDesc->ieFields, ieLen,
 				    pIEStruct))) {
-			status = CDF_STATUS_SUCCESS;
+			status = QDF_STATUS_SUCCESS;
 		}
 	}
 
@@ -1238,29 +1248,29 @@ CDF_STATUS csr_parse_bss_description_ies(tHalHandle hHal,
 
 /* This function will allocate memory for the parsed IEs to the caller. Caller must free the memory */
 /* after it is done with the data only if this function succeeds */
-CDF_STATUS csr_get_parsed_bss_description_ies(tHalHandle hHal,
+QDF_STATUS csr_get_parsed_bss_description_ies(tHalHandle hHal,
 					       tSirBssDescription *pBssDesc,
 					       tDot11fBeaconIEs **ppIEStruct)
 {
-	CDF_STATUS status = CDF_STATUS_E_INVAL;
+	QDF_STATUS status = QDF_STATUS_E_INVAL;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 
 	if (pBssDesc && ppIEStruct) {
-		*ppIEStruct = cdf_mem_malloc(sizeof(tDot11fBeaconIEs));
+		*ppIEStruct = qdf_mem_malloc(sizeof(tDot11fBeaconIEs));
 		if ((*ppIEStruct) != NULL) {
-			cdf_mem_set((void *)*ppIEStruct,
+			qdf_mem_set((void *)*ppIEStruct,
 				    sizeof(tDot11fBeaconIEs), 0);
 			status =
 				csr_parse_bss_description_ies(hHal, pBssDesc,
 							       *ppIEStruct);
-			if (!CDF_IS_STATUS_SUCCESS(status)) {
-				cdf_mem_free(*ppIEStruct);
+			if (!QDF_IS_STATUS_SUCCESS(status)) {
+				qdf_mem_free(*ppIEStruct);
 				*ppIEStruct = NULL;
 			}
 		} else {
 			sms_log(pMac, LOGE, FL(" failed to allocate memory"));
-			CDF_ASSERT(0);
-			return CDF_STATUS_E_NOMEM;
+			QDF_ASSERT(0);
+			return QDF_STATUS_E_NOMEM;
 		}
 	}
 
@@ -1339,14 +1349,9 @@ eCsrPhyMode csr_translate_to_phy_mode_from_bss_desc(tSirBssDescription *pSirBssD
 	case eSIR_11N_NW_TYPE:
 		phyMode = eCSR_DOT11_MODE_11n;
 		break;
-#ifdef WLAN_FEATURE_11AC
 	case eSIR_11AC_NW_TYPE:
 	default:
 		phyMode = eCSR_DOT11_MODE_11ac;
-#else
-	default:
-		phyMode = eCSR_DOT11_MODE_11n;
-#endif
 		break;
 	}
 	return phyMode;
@@ -1422,22 +1427,20 @@ uint32_t csr_translate_to_wni_cfg_dot11_mode(tpAniSirGlobal pMac,
  *
  * Return: success
  **/
-CDF_STATUS csr_get_phy_mode_from_bss(tpAniSirGlobal pMac,
+QDF_STATUS csr_get_phy_mode_from_bss(tpAniSirGlobal pMac,
 		tSirBssDescription *pBSSDescription,
 		eCsrPhyMode *pPhyMode, tDot11fBeaconIEs *pIes)
 {
-	CDF_STATUS status = CDF_STATUS_SUCCESS;
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	eCsrPhyMode phyMode =
 		csr_translate_to_phy_mode_from_bss_desc(pBSSDescription);
 
 	if (pIes) {
 		if (pIes->HTCaps.present) {
 			phyMode = eCSR_DOT11_MODE_11n;
-#ifdef WLAN_FEATURE_11AC
 			if (IS_BSS_VHT_CAPABLE(pIes->VHTCaps) ||
 				IS_BSS_VHT_CAPABLE(pIes->vendor2_ie.VHTCaps))
 				phyMode = eCSR_DOT11_MODE_11ac;
-#endif
 		}
 		*pPhyMode = phyMode;
 	}
@@ -1528,18 +1531,12 @@ bool csr_get_phy_mode_in_use(eCsrPhyMode phyModeIn, eCsrPhyMode bssPhyMode,
 			cfgDot11Mode = eCSR_CFG_DOT11_MODE_11A;
 			break;
 		case eCSR_DOT11_MODE_11n:
-#ifdef WLAN_FEATURE_11AC
 		case eCSR_DOT11_MODE_11ac:
-#endif
 			cfgDot11Mode = eCSR_CFG_DOT11_MODE_11N;
 			break;
 
 		default:
-#ifdef WLAN_FEATURE_11AC
 			cfgDot11Mode = eCSR_CFG_DOT11_MODE_11AC;
-#else
-			cfgDot11Mode = eCSR_CFG_DOT11_MODE_11N;
-#endif
 			break;
 		}
 		break;
@@ -1552,7 +1549,6 @@ bool csr_get_phy_mode_in_use(eCsrPhyMode phyModeIn, eCsrPhyMode bssPhyMode,
 		}
 
 		break;
-#ifdef WLAN_FEATURE_11AC
 	case eCSR_DOT11_MODE_11ac:
 		fMatch = true;
 		switch (bssPhyMode) {
@@ -1581,7 +1577,6 @@ bool csr_get_phy_mode_in_use(eCsrPhyMode phyModeIn, eCsrPhyMode bssPhyMode,
 			cfgDot11Mode = eCSR_CFG_DOT11_MODE_11AC;
 		}
 		break;
-#endif
 
 	default:
 		fMatch = true;
@@ -1598,11 +1593,9 @@ bool csr_get_phy_mode_in_use(eCsrPhyMode phyModeIn, eCsrPhyMode bssPhyMode,
 		case eCSR_DOT11_MODE_11n:
 			cfgDot11Mode = eCSR_CFG_DOT11_MODE_11N;
 			break;
-#ifdef WLAN_FEATURE_11AC
 		case eCSR_DOT11_MODE_11ac:
 			cfgDot11Mode = eCSR_CFG_DOT11_MODE_11AC;
 			break;
-#endif
 		default:
 			cfgDot11Mode = eCSR_CFG_DOT11_MODE_AUTO;
 			break;
@@ -1611,12 +1604,10 @@ bool csr_get_phy_mode_in_use(eCsrPhyMode phyModeIn, eCsrPhyMode bssPhyMode,
 	}
 
 	if (fMatch && pCfgDot11ModeToUse) {
-#ifdef WLAN_FEATURE_11AC
 		if (cfgDot11Mode == eCSR_CFG_DOT11_MODE_11AC
 		    && (!IS_FEATURE_SUPPORTED_BY_FW(DOT11AC)))
 			*pCfgDot11ModeToUse = eCSR_CFG_DOT11_MODE_11N;
 		else
-#endif
 			*pCfgDot11ModeToUse = cfgDot11Mode;
 	}
 	return fMatch;
@@ -1647,7 +1638,7 @@ bool csr_is_phy_mode_match(tpAniSirGlobal pMac, uint32_t phyMode,
 	eCsrCfgDot11Mode cfgDot11ModeToUse = eCSR_CFG_DOT11_MODE_AUTO;
 	uint32_t bitMask, loopCount;
 
-	if (!CDF_IS_STATUS_SUCCESS(csr_get_phy_mode_from_bss(pMac, pSirBssDesc,
+	if (!QDF_IS_STATUS_SUCCESS(csr_get_phy_mode_from_bss(pMac, pSirBssDesc,
 					&phyModeInBssDesc, pIes)))
 		return fMatch;
 
@@ -1657,12 +1648,7 @@ bool csr_is_phy_mode_match(tpAniSirGlobal pMac, uint32_t phyMode,
 			phyMode = eCSR_DOT11_MODE_abg;
 		else if (eCSR_CFG_DOT11_MODE_AUTO ==
 				pMac->roam.configParam.uCfgDot11Mode)
-#ifdef WLAN_FEATURE_11AC
 			phyMode = eCSR_DOT11_MODE_11ac;
-#else
-			phyMode = eCSR_DOT11_MODE_11n;
-#endif
-
 		else
 			/* user's pick */
 			phyMode = pMac->roam.configParam.phyMode;
@@ -1708,11 +1694,8 @@ bool csr_is_phy_mode_match(tpAniSirGlobal pMac, uint32_t phyMode,
 					pProfile->negotiatedUCEncryptionType))
 					&& ((eCSR_CFG_DOT11_MODE_11N ==
 						cfgDot11ModeToUse) ||
-#ifdef WLAN_FEATURE_11AC
 					(eCSR_CFG_DOT11_MODE_11AC ==
-						cfgDot11ModeToUse)
-#endif
-				)) {
+						cfgDot11ModeToUse))) {
 				/* We cannot do 11n here */
 				if (!CDS_IS_CHANNEL_5GHZ
 						(pSirBssDesc->channelId)) {
@@ -1736,16 +1719,11 @@ eCsrCfgDot11Mode csr_find_best_phy_mode(tpAniSirGlobal pMac, uint32_t phyMode)
 	eCsrBand eBand = pMac->roam.configParam.eBand;
 
 	if ((0 == phyMode) ||
-#ifdef WLAN_FEATURE_11AC
 	    (eCSR_DOT11_MODE_11ac & phyMode) ||
-#endif
 	    (eCSR_DOT11_MODE_AUTO & phyMode)) {
-#ifdef WLAN_FEATURE_11AC
 		if (IS_FEATURE_SUPPORTED_BY_FW(DOT11AC)) {
 			cfgDot11ModeToUse = eCSR_CFG_DOT11_MODE_11AC;
-		} else
-#endif
-		{
+		} else {
 			/* Default to 11N mode if user has configured 11ac mode
 			 * and FW doesn't supports 11ac mode .
 			 */
@@ -1876,14 +1854,14 @@ bool csr_is_profile_rsn(tCsrRoamProfile *pProfile)
  *
  * This function will check if concurrent session is valid
  *
- * Return: CDF_STATUS
+ * Return: QDF_STATUS
  */
-CDF_STATUS
+QDF_STATUS
 csr_isconcurrentsession_valid(tpAniSirGlobal mac_ctx, uint32_t cur_sessionid,
-			      enum tCDF_ADAPTER_MODE cur_bss_persona)
+			      enum tQDF_ADAPTER_MODE cur_bss_persona)
 {
 	uint32_t sessionid = 0;
-	enum tCDF_ADAPTER_MODE bss_persona;
+	enum tQDF_ADAPTER_MODE bss_persona;
 	eCsrConnectState connect_state, temp;
 	tCsrRoamSession *roam_session;
 
@@ -1897,71 +1875,71 @@ csr_isconcurrentsession_valid(tpAniSirGlobal mac_ctx, uint32_t cur_sessionid,
 		connect_state = roam_session->connectState;
 
 		switch (cur_bss_persona) {
-		case CDF_STA_MODE:
-			CDF_TRACE(CDF_MODULE_ID_SME,
-					CDF_TRACE_LEVEL_INFO,
+		case QDF_STA_MODE:
+			QDF_TRACE(QDF_MODULE_ID_SME,
+					QDF_TRACE_LEVEL_INFO,
 					FL("** STA session **"));
-			return CDF_STATUS_SUCCESS;
+			return QDF_STATUS_SUCCESS;
 
-		case CDF_SAP_MODE:
+		case QDF_SAP_MODE:
 			temp = eCSR_ASSOC_STATE_TYPE_IBSS_DISCONNECTED;
-			if ((bss_persona == CDF_IBSS_MODE)
+			if ((bss_persona == QDF_IBSS_MODE)
 				&& (connect_state != temp)) {
 				/* allow IBSS+SAP for Emulation only */
 #ifndef QCA_WIFI_3_0_EMU
-				CDF_TRACE(CDF_MODULE_ID_SME,
-						CDF_TRACE_LEVEL_ERROR,
+				QDF_TRACE(QDF_MODULE_ID_SME,
+						QDF_TRACE_LEVEL_ERROR,
 						FL("Can't start SAP"));
-				return CDF_STATUS_E_FAILURE;
+				return QDF_STATUS_E_FAILURE;
 #endif
 			}
 			break;
 
-		case CDF_P2P_GO_MODE:
+		case QDF_P2P_GO_MODE:
 			temp = eCSR_ASSOC_STATE_TYPE_IBSS_DISCONNECTED;
-			if ((bss_persona == CDF_IBSS_MODE)
+			if ((bss_persona == QDF_IBSS_MODE)
 					&& (connect_state != temp)) {
-				CDF_TRACE(CDF_MODULE_ID_SME,
-						CDF_TRACE_LEVEL_ERROR,
+				QDF_TRACE(QDF_MODULE_ID_SME,
+						QDF_TRACE_LEVEL_ERROR,
 						FL("Can't start SAP"));
-				return CDF_STATUS_E_FAILURE;
+				return QDF_STATUS_E_FAILURE;
 			}
 			break;
-		case CDF_IBSS_MODE:
-			if ((bss_persona == CDF_IBSS_MODE) &&
+		case QDF_IBSS_MODE:
+			if ((bss_persona == QDF_IBSS_MODE) &&
 				(connect_state ==
 					eCSR_ASSOC_STATE_TYPE_IBSS_CONNECTED)) {
-				CDF_TRACE(CDF_MODULE_ID_SME,
-						CDF_TRACE_LEVEL_ERROR,
+				QDF_TRACE(QDF_MODULE_ID_SME,
+						QDF_TRACE_LEVEL_ERROR,
 						FL("IBSS mode already exist"));
-				return CDF_STATUS_E_FAILURE;
-			} else if (((bss_persona == CDF_P2P_GO_MODE) ||
-					(bss_persona == CDF_SAP_MODE)) &&
+				return QDF_STATUS_E_FAILURE;
+			} else if (((bss_persona == QDF_P2P_GO_MODE) ||
+					(bss_persona == QDF_SAP_MODE)) &&
 					(connect_state !=
 					 eCSR_ASSOC_STATE_TYPE_NOT_CONNECTED)) {
 				/* allow IBSS+SAP for Emulation only */
 #ifndef QCA_WIFI_3_0_EMU
-				CDF_TRACE(CDF_MODULE_ID_SME,
-						CDF_TRACE_LEVEL_ERROR,
+				QDF_TRACE(QDF_MODULE_ID_SME,
+						QDF_TRACE_LEVEL_ERROR,
 						FL("Can't start GO/SAP"));
-				return CDF_STATUS_E_FAILURE;
+				return QDF_STATUS_E_FAILURE;
 #endif
 			}
 			break;
-		case CDF_P2P_CLIENT_MODE:
-			CDF_TRACE(CDF_MODULE_ID_SME,
-				CDF_TRACE_LEVEL_INFO,
+		case QDF_P2P_CLIENT_MODE:
+			QDF_TRACE(QDF_MODULE_ID_SME,
+				QDF_TRACE_LEVEL_INFO,
 				FL("**P2P-Client session**"));
-			return CDF_STATUS_SUCCESS;
+			return QDF_STATUS_SUCCESS;
 		default:
-			CDF_TRACE(CDF_MODULE_ID_SME,
-				CDF_TRACE_LEVEL_ERROR,
+			QDF_TRACE(QDF_MODULE_ID_SME,
+				QDF_TRACE_LEVEL_ERROR,
 				FL("Persona not handled = %d"),
 				cur_bss_persona);
 			break;
 		}
 	}
-	return CDF_STATUS_SUCCESS;
+	return QDF_STATUS_SUCCESS;
 
 }
 
@@ -1971,16 +1949,16 @@ csr_isconcurrentsession_valid(tpAniSirGlobal mac_ctx, uint32_t cur_sessionid,
  *
  * This function is to update the mcc p2p beacon interval
  *
- * Return: CDF_STATUS
+ * Return: QDF_STATUS
  */
-CDF_STATUS csr_update_mcc_p2p_beacon_interval(tpAniSirGlobal mac_ctx)
+QDF_STATUS csr_update_mcc_p2p_beacon_interval(tpAniSirGlobal mac_ctx)
 {
 	uint32_t session_id = 0;
 	tCsrRoamSession *roam_session;
 
 	/* If MCC is not supported just break and return SUCCESS */
 	if (!mac_ctx->roam.configParam.fenableMCCMode)
-		return CDF_STATUS_E_FAILURE;
+		return QDF_STATUS_E_FAILURE;
 
 	for (session_id = 0; session_id < CSR_ROAM_SESSION_MAX; session_id++) {
 		/*
@@ -1988,7 +1966,7 @@ CDF_STATUS csr_update_mcc_p2p_beacon_interval(tpAniSirGlobal mac_ctx)
 		 * change the BI of the P2P-GO
 		 */
 		roam_session = &mac_ctx->roam.roamSession[session_id];
-		if (roam_session->bssParams.bssPersona != CDF_P2P_GO_MODE)
+		if (roam_session->bssParams.bssPersona != QDF_P2P_GO_MODE)
 			continue;
 		/*
 		 * Handle different BI scneario based on the
@@ -2014,7 +1992,7 @@ CDF_STATUS csr_update_mcc_p2p_beacon_interval(tpAniSirGlobal mac_ctx)
 					eCSR_ROAM_RESULT_NONE);
 		}
 	}
-	return CDF_STATUS_E_FAILURE;
+	return QDF_STATUS_E_FAILURE;
 }
 
 uint16_t csr_calculate_mcc_beacon_interval(tpAniSirGlobal pMac, uint16_t sta_bi,
@@ -2068,275 +2046,295 @@ uint16_t csr_calculate_mcc_beacon_interval(tpAniSirGlobal pMac, uint16_t sta_bi,
 	return go_fbi;
 }
 
-CDF_STATUS csr_validate_mcc_beacon_interval(tpAniSirGlobal pMac,
-					uint8_t channelId,
-					uint16_t *beaconInterval,
-					uint32_t cursessionId,
-					enum tCDF_ADAPTER_MODE currBssPersona)
+/**
+ * csr_validate_p2pcli_bcn_intrvl() - to validate p2pcli beacon interval
+ * @mac_ctx: pointer to mac context
+ * @chnl_id: channel id variable
+ * @bcn_interval: pointer to given beacon interval
+ * @session_id: given session id
+ * @status: fill the status in terms of QDF_STATUS to inform caller
+ *
+ * This API can provide the validation the beacon interval and re-calculate
+ * in case concurrency
+ *
+ * Return: bool
+ */
+static bool csr_validate_p2pcli_bcn_intrvl(tpAniSirGlobal mac_ctx,
+		uint8_t chnl_id, uint16_t *bcn_interval, uint32_t session_id,
+		QDF_STATUS *status)
 {
-	uint32_t sessionId = 0;
-	uint16_t new_beaconInterval = 0;
+	tCsrRoamSession *roamsession;
 
-	/* If MCC is not supported just break */
-	if (!pMac->roam.configParam.fenableMCCMode) {
-		return CDF_STATUS_E_FAILURE;
-	}
-
-	for (sessionId = 0; sessionId < CSR_ROAM_SESSION_MAX; sessionId++) {
-		if (cursessionId != sessionId) {
-			if (!CSR_IS_SESSION_VALID(pMac, sessionId)) {
-				continue;
-			}
-
-			switch (currBssPersona) {
-			case CDF_STA_MODE:
-				if (pMac->roam.roamSession[sessionId].
-					pCurRoamProfile &&
-				   (pMac->roam.roamSession[sessionId].
-					pCurRoamProfile->csrPersona ==
-				    CDF_P2P_CLIENT_MODE)) {
-					/* check for P2P client mode */
-					sms_log(pMac, LOG1,
-						FL
-							(" Beacon Interval Validation not required for STA/CLIENT"));
-				}
-				/*
-				 * IF SAP has started and STA wants to connect
-				 * on different channel MCC should
-				 *  MCC should not be enabled so making it
-				 * false to enforce on same channel
-				 */
-				else if (pMac->roam.roamSession[sessionId].
-					 bssParams.bssPersona ==
-					 CDF_SAP_MODE) {
-					if (pMac->roam.roamSession[sessionId].
-					    bssParams.operationChn !=
-					    channelId) {
-						sms_log(pMac, LOGE,
-							FL
-								("*** MCC with SAP+STA sessions ****"));
-						return CDF_STATUS_SUCCESS;
-					}
-				} else if (pMac->roam.roamSession[sessionId].
-						bssParams.bssPersona ==
-						CDF_P2P_GO_MODE) {
-					/*
-					 * Check for P2P go scenario
-					 * if GO in MCC support different
-					 * beacon interval,
-					 * change the BI of the P2P-GO
-					 */
-					if ((pMac->roam.roamSession[sessionId].
-					     bssParams.operationChn !=
-					     channelId)
-					    && (pMac->roam.
-						roamSession[sessionId].
-						bssParams.beaconInterval !=
-						*beaconInterval)) {
-						/* if GO in MCC support different beacon interval, return success */
-						if (pMac->roam.configParam.
-						    fAllowMCCGODiffBI == 0x01) {
-							return
-								CDF_STATUS_SUCCESS;
-						}
-						/* Send only Broadcast disassoc and update beaconInterval */
-						/* If configuration is set to 0x04 then dont */
-						/* disconnect all the station */
-						else if ((pMac->roam.
-							  configParam.
-							  fAllowMCCGODiffBI ==
-							  0x02)
-							 || (pMac->roam.
-							     configParam.
-							     fAllowMCCGODiffBI
-							     == 0x04)) {
-							/* Check to pass the right beacon Interval */
-							 if (pMac->roam.configParam.conc_custom_rule1 ||
-								pMac->roam.configParam.conc_custom_rule2) {
-								 new_beaconInterval = CSR_CUSTOM_CONC_GO_BI;
-							 } else {
-								 new_beaconInterval =
-									 csr_calculate_mcc_beacon_interval(pMac,
-										*beaconInterval,
-										pMac->roam.
-										roamSession
-										[sessionId].
-										bssParams.
-										beaconInterval);
-							 }
-							sms_log(pMac, LOG1,
-								FL
-									(" Peer AP BI : %d, new Beacon Interval: %d"),
-								*beaconInterval,
-								new_beaconInterval);
-							/* Update the becon Interval */
-							if (new_beaconInterval
-							    !=
-							    pMac->roam.
-							    roamSession
-							    [sessionId].
-							    bssParams.
-							    beaconInterval) {
-								/* Update the beaconInterval now */
-								sms_log(pMac,
-									LOGE,
-									FL
-										(" Beacon Interval got changed config used: %d\n"),
-									pMac->
-									roam.
-									configParam.
-									fAllowMCCGODiffBI);
-
-								pMac->roam.
-								roamSession
-								[sessionId].
-								bssParams.
-								beaconInterval
-									=
-										new_beaconInterval;
-								pMac->roam.
-								roamSession
-								[sessionId].
-								bssParams.
-								updatebeaconInterval
-									= true;
-								return
-									csr_update_mcc_p2p_beacon_interval
-										(pMac);
-							}
-							return
-								CDF_STATUS_SUCCESS;
-						}
-						/* Disconnect the P2P session */
-						else if (pMac->roam.configParam.
-							 fAllowMCCGODiffBI ==
-							 0x03) {
-							pMac->roam.roamSession[sessionId].bssParams.updatebeaconInterval = false;
-							return
-								csr_roam_call_callback
-									(pMac, sessionId,
-									NULL, 0,
-									eCSR_ROAM_SEND_P2P_STOP_BSS,
-									eCSR_ROAM_RESULT_NONE);
-						} else {
-							sms_log(pMac, LOGE,
-								FL
-									("BeaconInterval is different cannot connect to preferred AP..."));
-							return
-								CDF_STATUS_E_FAILURE;
-						}
-					}
-				}
-				break;
-
-			case CDF_P2P_CLIENT_MODE:
-				if (pMac->roam.roamSession[sessionId].
-					pCurRoamProfile &&
-				   (pMac->roam.roamSession[sessionId].
-					pCurRoamProfile->csrPersona ==
-					CDF_STA_MODE)) {
-					/* check for P2P client mode */
-					sms_log(pMac, LOG1,
-						FL
-							(" Ignore Beacon Interval Validation..."));
-				} else if (pMac->roam.roamSession[sessionId].
-						bssParams.bssPersona ==
-						CDF_P2P_GO_MODE) {
-					/* Check for P2P go scenario */
-					if ((pMac->roam.roamSession[sessionId].
-					     bssParams.operationChn !=
-					     channelId)
-					    && (pMac->roam.
-						roamSession[sessionId].
-						bssParams.beaconInterval !=
-						*beaconInterval)) {
-						sms_log(pMac, LOGE,
-							FL
-								("BeaconInterval is different cannot connect to P2P_GO network ..."));
-						return CDF_STATUS_E_FAILURE;
-					}
-				}
-				break;
-
-			case CDF_SAP_MODE:
-			case CDF_IBSS_MODE:
-				break;
-
-			case CDF_P2P_GO_MODE:
-			{
-				if (pMac->roam.roamSession[sessionId].
-					pCurRoamProfile &&
-				   ((pMac->roam.roamSession[sessionId].
-					pCurRoamProfile->csrPersona ==
-					CDF_P2P_CLIENT_MODE) ||
-				    (pMac->roam.roamSession[sessionId].
-					pCurRoamProfile->csrPersona ==
-					CDF_STA_MODE))) {
-					/* check for P2P_client scenario */
-					if ((pMac->roam.
-					     roamSession[sessionId].
-					     connectedProfile.
-					     operationChannel == 0)
-					    && (pMac->roam.
-						roamSession[sessionId].
-						connectedProfile.
-						beaconInterval == 0)) {
-						continue;
-					}
-
-					if (csr_is_conn_state_connected_infra
-						    (pMac, sessionId)
-					    && (pMac->roam.
-						roamSession[sessionId].
-						connectedProfile.
-						operationChannel !=
-						channelId)
-					    && (pMac->roam.
-						roamSession[sessionId].
-						connectedProfile.
-						beaconInterval !=
-						*beaconInterval)) {
-						/*
-						 * Updated beaconInterval should be used only when we are starting a new BSS
-						 * not incase of client or STA case
-						 */
-						/* Calculate beacon Interval for P2P-GO incase of MCC */
-						if (pMac->roam.configParam.conc_custom_rule1 ||
-							pMac->roam.configParam.conc_custom_rule2) {
-							new_beaconInterval = CSR_CUSTOM_CONC_GO_BI;
-						} else {
-							new_beaconInterval =
-								csr_calculate_mcc_beacon_interval
-								(pMac,
-								 pMac->roam.
-								 roamSession
-								 [sessionId].
-								 connectedProfile.
-								 beaconInterval,
-								 *beaconInterval);
-						}
-						if (*beaconInterval !=
-						    new_beaconInterval)
-							*beaconInterval
-								=
-									new_beaconInterval;
-						return
-							CDF_STATUS_SUCCESS;
-					}
-				}
-			}
-			break;
-
-			default:
-				sms_log(pMac, LOGE,
-					FL(" Persona not supported : %d"),
-					currBssPersona);
-				return CDF_STATUS_E_FAILURE;
-			}
+	roamsession = &mac_ctx->roam.roamSession[session_id];
+	if (roamsession->pCurRoamProfile &&
+		(roamsession->pCurRoamProfile->csrPersona ==
+			 QDF_STA_MODE)) {
+		/* check for P2P client mode */
+		sms_log(mac_ctx, LOG1,
+			FL(" Ignore Beacon Interval Validation..."));
+	} else if (roamsession->bssParams.bssPersona == QDF_P2P_GO_MODE) {
+		/* Check for P2P go scenario */
+		if ((roamsession->bssParams.operationChn != chnl_id)
+			&& (roamsession->bssParams.beaconInterval !=
+				*bcn_interval)) {
+			sms_log(mac_ctx, LOGE,
+				FL("BcnIntrvl is diff can't connect to P2P_GO network ..."));
+			*status = QDF_STATUS_E_FAILURE;
+			return true;
 		}
 	}
+	return false;
+}
 
-	return CDF_STATUS_SUCCESS;
+/**
+ * csr_validate_p2pgo_bcn_intrvl() - to validate p2pgo beacon interval
+ * @mac_ctx: pointer to mac context
+ * @chnl_id: channel id variable
+ * @bcn_interval: pointer to given beacon interval
+ * @session_id: given session id
+ * @status: fill the status in terms of QDF_STATUS to inform caller
+ *
+ * This API can provide the validation the beacon interval and re-calculate
+ * in case concurrency
+ *
+ * Return: bool
+ */
+static bool csr_validate_p2pgo_bcn_intrvl(tpAniSirGlobal mac_ctx,
+		uint8_t chnl_id, uint16_t *bcn_interval,
+		uint32_t session_id, QDF_STATUS *status)
+{
+	tCsrRoamSession *roamsession;
+	tCsrConfig *cfg_param;
+	tCsrRoamConnectedProfile *conn_profile;
+	uint16_t new_bcn_interval;
+
+	roamsession = &mac_ctx->roam.roamSession[session_id];
+	cfg_param = &mac_ctx->roam.configParam;
+	conn_profile = &roamsession->connectedProfile;
+	if (roamsession->pCurRoamProfile &&
+		((roamsession->pCurRoamProfile->csrPersona ==
+			  QDF_P2P_CLIENT_MODE) ||
+		(roamsession->pCurRoamProfile->csrPersona ==
+			  QDF_STA_MODE))) {
+		/* check for P2P_client scenario */
+		if ((conn_profile->operationChannel == 0) &&
+			(conn_profile->beaconInterval == 0))
+			return false;
+
+		if (csr_is_conn_state_connected_infra(mac_ctx, session_id) &&
+			(conn_profile->operationChannel != chnl_id) &&
+			(conn_profile->beaconInterval != *bcn_interval)) {
+			/*
+			 * Updated beaconInterval should be used only when
+			 * we are starting a new BSS not incase of
+			 * client or STA case
+			 */
+
+			/* Calculate beacon Interval for P2P-GO incase of MCC */
+			if (cfg_param->conc_custom_rule1 ||
+					cfg_param->conc_custom_rule2) {
+				new_bcn_interval = CSR_CUSTOM_CONC_GO_BI;
+			} else {
+				new_bcn_interval =
+					csr_calculate_mcc_beacon_interval(
+						mac_ctx,
+						conn_profile->beaconInterval,
+						*bcn_interval);
+			}
+			if (*bcn_interval != new_bcn_interval)
+				*bcn_interval = new_bcn_interval;
+			*status = QDF_STATUS_SUCCESS;
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
+ * csr_validate_sta_bcn_intrvl() - to validate sta beacon interval
+ * @mac_ctx: pointer to mac context
+ * @chnl_id: channel id variable
+ * @bcn_interval: pointer to given beacon interval
+ * @session_id: given session id
+ * @status: fill the status in terms of QDF_STATUS to inform caller
+ *
+ * This API can provide the validation the beacon interval and re-calculate
+ * in case concurrency
+ *
+ * Return: bool
+ */
+static bool csr_validate_sta_bcn_intrvl(tpAniSirGlobal mac_ctx,
+			uint8_t chnl_id, uint16_t *bcn_interval,
+			uint32_t session_id, QDF_STATUS *status)
+{
+	tCsrRoamSession *roamsession;
+	tCsrConfig *cfg_param;
+	uint16_t new_bcn_interval;
+
+	roamsession = &mac_ctx->roam.roamSession[session_id];
+	cfg_param = &mac_ctx->roam.configParam;
+
+	if (roamsession->pCurRoamProfile &&
+		(roamsession->pCurRoamProfile->csrPersona ==
+				QDF_P2P_CLIENT_MODE)) {
+		/* check for P2P client mode */
+		sms_log(mac_ctx, LOG1,
+			FL("Bcn Intrvl validation not require for STA/CLIENT"));
+		return false;
+	}
+	if ((roamsession->bssParams.bssPersona == QDF_SAP_MODE) &&
+		   (roamsession->bssParams.operationChn != chnl_id)) {
+		/*
+		 * IF SAP has started and STA wants to connect
+		 * on different channel MCC should
+		 *  MCC should not be enabled so making it
+		 * false to enforce on same channel
+		 */
+		sms_log(mac_ctx, LOGE,
+			FL("*** MCC with SAP+STA sessions ****"));
+		*status = QDF_STATUS_SUCCESS;
+		return true;
+	}
+	/*
+	 * Check for P2P go scenario
+	 * if GO in MCC support different
+	 * beacon interval,
+	 * change the BI of the P2P-GO
+	 */
+	if ((roamsession->bssParams.bssPersona == QDF_P2P_GO_MODE) &&
+		(roamsession->bssParams.operationChn != chnl_id) &&
+		(roamsession->bssParams.beaconInterval != *bcn_interval)) {
+		/* if GO in MCC support diff beacon interval, return success */
+		if (cfg_param->fAllowMCCGODiffBI == 0x01) {
+			*status = QDF_STATUS_SUCCESS;
+			return true;
+		}
+		/*
+		 * Send only Broadcast disassoc and update bcn_interval
+		 * If configuration is set to 0x04 then dont
+		 * disconnect all the station
+		 */
+		if ((cfg_param->fAllowMCCGODiffBI == 0x02)
+			|| (cfg_param->fAllowMCCGODiffBI == 0x04)) {
+			/* Check to pass the right beacon Interval */
+			if (cfg_param->conc_custom_rule1 ||
+				cfg_param->conc_custom_rule2) {
+				new_bcn_interval = CSR_CUSTOM_CONC_GO_BI;
+			} else {
+				new_bcn_interval =
+				csr_calculate_mcc_beacon_interval(
+					mac_ctx, *bcn_interval,
+					roamsession->bssParams.beaconInterval);
+			}
+			sms_log(mac_ctx, LOG1,
+				FL(" Peer AP BI : %d, new Beacon Interval: %d"),
+				*bcn_interval, new_bcn_interval);
+			/* Update the becon Interval */
+			if (new_bcn_interval !=
+					roamsession->bssParams.beaconInterval) {
+				/* Update the bcn_interval now */
+				sms_log(mac_ctx, LOGE,
+					FL(" Beacon Interval got changed config used: %d\n"),
+					cfg_param->fAllowMCCGODiffBI);
+
+				roamsession->bssParams.beaconInterval =
+					new_bcn_interval;
+				roamsession->bssParams.updatebeaconInterval =
+					true;
+				*status = csr_update_mcc_p2p_beacon_interval(
+					mac_ctx);
+				return true;
+			}
+			*status = QDF_STATUS_SUCCESS;
+			return true;
+		}
+		if (cfg_param->fAllowMCCGODiffBI
+				== 0x03) {
+			/* Disconnect the P2P session */
+			roamsession->bssParams.updatebeaconInterval = false;
+			*status = csr_roam_call_callback(mac_ctx,
+					session_id, NULL, 0,
+					eCSR_ROAM_SEND_P2P_STOP_BSS,
+					eCSR_ROAM_RESULT_NONE);
+			return true;
+		}
+		sms_log(mac_ctx, LOGE,
+			FL("BcnIntrvl is diff can't connect to preferred AP..."));
+		*status = QDF_STATUS_E_FAILURE;
+		return true;
+	}
+	return false;
+}
+
+/**
+ * csr_validate_mcc_beacon_interval() - to validate the mcc beacon interval
+ * @mac_ctx: pointer to mac context
+ * @chnl_id: channel number
+ * @bcn_interval: provided beacon interval
+ * @cur_session_id: current session id
+ * @cur_bss_persona: Current BSS persona
+ *
+ * This API will validate the mcc beacon interval
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS csr_validate_mcc_beacon_interval(tpAniSirGlobal mac_ctx,
+					uint8_t chnl_id,
+					uint16_t *bcn_interval,
+					uint32_t cur_session_id,
+					enum tQDF_ADAPTER_MODE cur_bss_persona)
+{
+	uint32_t session_id = 0;
+	QDF_STATUS status;
+	bool is_done;
+
+	/* If MCC is not supported just break */
+	if (!mac_ctx->roam.configParam.fenableMCCMode)
+		return QDF_STATUS_E_FAILURE;
+
+	for (session_id = 0; session_id < CSR_ROAM_SESSION_MAX; session_id++) {
+		if (cur_session_id == session_id)
+			continue;
+
+		if (!CSR_IS_SESSION_VALID(mac_ctx, session_id))
+			continue;
+
+		switch (cur_bss_persona) {
+		case QDF_STA_MODE:
+			is_done = csr_validate_sta_bcn_intrvl(mac_ctx, chnl_id,
+					bcn_interval, session_id, &status);
+			if (true == is_done)
+				return status;
+			break;
+
+		case QDF_P2P_CLIENT_MODE:
+			is_done = csr_validate_p2pcli_bcn_intrvl(mac_ctx,
+					chnl_id, bcn_interval, session_id,
+					&status);
+			if (true == is_done)
+				return status;
+			break;
+
+		case QDF_SAP_MODE:
+		case QDF_IBSS_MODE:
+			break;
+
+		case QDF_P2P_GO_MODE:
+			is_done = csr_validate_p2pgo_bcn_intrvl(mac_ctx,
+					chnl_id, bcn_interval,
+					session_id, &status);
+			if (true == is_done)
+				return status;
+			break;
+
+		default:
+			sms_log(mac_ctx, LOGE,
+				FL("Persona not supported : %d"),
+				cur_bss_persona);
+			return QDF_STATUS_E_FAILURE;
+		}
+	}
+	return QDF_STATUS_SUCCESS;
 }
 
 /**
@@ -2428,7 +2426,7 @@ bool csr_is_profile_wapi(tCsrRoamProfile *pProfile)
 static bool csr_is_wapi_oui_equal(tpAniSirGlobal pMac, uint8_t *Oui1,
 				  uint8_t *Oui2)
 {
-	return cdf_mem_compare(Oui1, Oui2, CSR_WAPI_OUI_SIZE);
+	return !qdf_mem_cmp(Oui1, Oui2, CSR_WAPI_OUI_SIZE);
 }
 
 static bool csr_is_wapi_oui_match(tpAniSirGlobal pMac,
@@ -2447,7 +2445,7 @@ static bool csr_is_wapi_oui_match(tpAniSirGlobal pMac,
 	}
 
 	if (fYes && Oui) {
-		cdf_mem_copy(Oui, AllCyphers[idx], CSR_WAPI_OUI_SIZE);
+		qdf_mem_copy(Oui, AllCyphers[idx], CSR_WAPI_OUI_SIZE);
 	}
 
 	return fYes;
@@ -2457,7 +2455,7 @@ static bool csr_is_wapi_oui_match(tpAniSirGlobal pMac,
 static bool csr_is_wpa_oui_equal(tpAniSirGlobal pMac, uint8_t *Oui1,
 				 uint8_t *Oui2)
 {
-	return cdf_mem_compare(Oui1, Oui2, CSR_WPA_OUI_SIZE);
+	return !qdf_mem_cmp(Oui1, Oui2, CSR_WPA_OUI_SIZE);
 }
 
 static bool csr_is_oui_match(tpAniSirGlobal pMac,
@@ -2475,7 +2473,7 @@ static bool csr_is_oui_match(tpAniSirGlobal pMac,
 	}
 
 	if (fYes && Oui) {
-		cdf_mem_copy(Oui, AllCyphers[idx], CSR_WPA_OUI_SIZE);
+		qdf_mem_copy(Oui, AllCyphers[idx], CSR_WPA_OUI_SIZE);
 	}
 
 	return fYes;
@@ -2707,13 +2705,13 @@ bool csr_get_rsn_information(tHalHandle hal, tCsrAuthList *auth_type,
 	if (!rsn_ie->present)
 		goto end;
 	c_mcast_cipher++;
-	cdf_mem_copy(mccipher_arr, rsn_ie->gp_cipher_suite,
+	qdf_mem_copy(mccipher_arr, rsn_ie->gp_cipher_suite,
 			CSR_RSN_OUI_SIZE);
 	c_ucast_cipher =
 		(uint8_t) (rsn_ie->pwise_cipher_suite_count);
 	c_auth_suites = (uint8_t) (rsn_ie->akm_suite_count);
 	for (i = 0; i < c_auth_suites && i < CSR_RSN_MAX_AUTH_SUITES; i++) {
-		cdf_mem_copy((void *)&authsuites[i],
+		qdf_mem_copy((void *)&authsuites[i],
 			(void *)&rsn_ie->akm_suites[i], CSR_RSN_OUI_SIZE);
 	}
 
@@ -2814,14 +2812,14 @@ bool csr_get_rsn_information(tHalHandle hal, tCsrAuthList *auth_type,
 end:
 	if (acceptable_cipher) {
 		if (mcast_cipher)
-			cdf_mem_copy(mcast_cipher, multicast,
+			qdf_mem_copy(mcast_cipher, multicast,
 					CSR_RSN_OUI_SIZE);
 
 		if (ucast_cipher)
-			cdf_mem_copy(ucast_cipher, unicast, CSR_RSN_OUI_SIZE);
+			qdf_mem_copy(ucast_cipher, unicast, CSR_RSN_OUI_SIZE);
 
 		if (auth_suite)
-			cdf_mem_copy(auth_suite, authentication,
+			qdf_mem_copy(auth_suite, authentication,
 					CSR_RSN_OUI_SIZE);
 
 		if (negotiated_authtype)
@@ -2902,7 +2900,7 @@ csr_is_pmf_capabilities_in_rsn_match(tHalHandle hHal,
 		apProfileMFPRequired = (pRSNIe->RSN_Cap[0] >> 6) & 0x1;
 		if (*pFilterMFPEnabled && *pFilterMFPCapable
 		    && *pFilterMFPRequired && (apProfileMFPCapable == 0)) {
-			CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_INFO,
+			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
 				  "AP is not capable to make PMF connection");
 			return false;
 		} else if (*pFilterMFPEnabled && *pFilterMFPCapable &&
@@ -2915,7 +2913,7 @@ csr_is_pmf_capabilities_in_rsn_match(tHalHandle hHal,
 			 * so if AP is not capable of PMF then drop it.
 			 * Don't try to connect with it.
 			 */
-			CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_INFO,
+			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
 				  "we need PMF connection & AP isn't capable to make PMF connection");
 			return false;
 		} else if (!(*pFilterMFPCapable) &&
@@ -2926,12 +2924,12 @@ csr_is_pmf_capabilities_in_rsn_match(tHalHandle hHal,
 			 * requires mandatory PMF connections and we are not
 			 * capable so this AP is not good choice to connect
 			 */
-			CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_INFO,
+			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
 				  "AP needs PMF connection and we are not capable of pmf connection");
 			return false;
 		} else if (!(*pFilterMFPEnabled) && *pFilterMFPCapable &&
 			   (apProfileMFPCapable == 1)) {
-			CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_INFO,
+			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
 				  "we don't need PMF connection even though both parties are capable");
 			return false;
 		}
@@ -2985,9 +2983,9 @@ bool csr_lookup_pmkid(tpAniSirGlobal pMac, uint32_t sessionId, uint8_t *pBSSId,
 			sms_log(pMac, LOG1,
 				"match PMKID " MAC_ADDRESS_STR " to ",
 				MAC_ADDR_ARRAY(pBSSId));
-			if (cdf_mem_compare
+			if (!qdf_mem_cmp
 			    (pBSSId, pSession->PmkidCacheInfo[Index].BSSID.bytes,
-			    sizeof(struct cdf_mac_addr))) {
+			    sizeof(struct qdf_mac_addr))) {
 				/* match found */
 				fMatchFound = true;
 				break;
@@ -2997,7 +2995,7 @@ bool csr_lookup_pmkid(tpAniSirGlobal pMac, uint32_t sessionId, uint8_t *pBSSId,
 		if (!fMatchFound)
 			break;
 
-		cdf_mem_copy(pPMKId, pSession->PmkidCacheInfo[Index].PMKID,
+		qdf_mem_copy(pPMKId, pSession->PmkidCacheInfo[Index].PMKID,
 			     CSR_RSN_PMKID_SIZE);
 
 		fRC = true;
@@ -3038,7 +3036,7 @@ uint8_t csr_construct_rsn_ie(tHalHandle hHal, uint32_t sessionId,
 
 		if (!pIesLocal
 		    &&
-		    (!CDF_IS_STATUS_SUCCESS
+		    (!QDF_IS_STATUS_SUCCESS
 			     (csr_get_parsed_bss_description_ies
 				     (pMac, pSirBssDesc, &pIesLocal)))) {
 			break;
@@ -3058,12 +3056,12 @@ uint8_t csr_construct_rsn_ie(tHalHandle hHal, uint32_t sessionId,
 
 		pRSNIe->Version = CSR_RSN_VERSION_SUPPORTED;
 
-		cdf_mem_copy(pRSNIe->MulticastOui, MulticastCypher,
+		qdf_mem_copy(pRSNIe->MulticastOui, MulticastCypher,
 			     sizeof(MulticastCypher));
 
 		pRSNIe->cUnicastCyphers = 1;
 
-		cdf_mem_copy(&pRSNIe->UnicastOui[0], UnicastCypher,
+		qdf_mem_copy(&pRSNIe->UnicastOui[0], UnicastCypher,
 			     sizeof(UnicastCypher));
 
 		pAuthSuite =
@@ -3071,7 +3069,7 @@ uint8_t csr_construct_rsn_ie(tHalHandle hHal, uint32_t sessionId,
 					   UnicastOui[pRSNIe->cUnicastCyphers]);
 
 		pAuthSuite->cAuthenticationSuites = 1;
-		cdf_mem_copy(&pAuthSuite->AuthOui[0], AuthSuite,
+		qdf_mem_copy(&pAuthSuite->AuthOui[0], AuthSuite,
 			     sizeof(AuthSuite));
 
 		/* RSN capabilities follows the Auth Suite (two octects) */
@@ -3105,7 +3103,7 @@ uint8_t csr_construct_rsn_ie(tHalHandle hHal, uint32_t sessionId,
 					 &(PMKId[0]))) {
 			pPMK->cPMKIDs = 1;
 
-			cdf_mem_copy(pPMK->PMKIDList[0].PMKID, PMKId,
+			qdf_mem_copy(pPMK->PMKIDList[0].PMKID, PMKId,
 				     CSR_RSN_PMKID_SIZE);
 		} else {
 			pPMK->cPMKIDs = 0;
@@ -3116,7 +3114,7 @@ uint8_t csr_construct_rsn_ie(tHalHandle hHal, uint32_t sessionId,
 			pGroupMgmtCipherSuite =
 				(uint8_t *) pPMK + sizeof(uint16_t) +
 				(pPMK->cPMKIDs * CSR_RSN_PMKID_SIZE);
-			cdf_mem_copy(pGroupMgmtCipherSuite, csr_rsn_oui[07],
+			qdf_mem_copy(pGroupMgmtCipherSuite, csr_rsn_oui[07],
 				     CSR_WPA_OUI_SIZE);
 		}
 #endif
@@ -3150,7 +3148,7 @@ uint8_t csr_construct_rsn_ie(tHalHandle hHal, uint32_t sessionId,
 
 	if (!pIes && pIesLocal) {
 		/* locally allocated */
-		cdf_mem_free(pIesLocal);
+		qdf_mem_free(pIesLocal);
 	}
 
 	return cbRSNIe;
@@ -3199,12 +3197,12 @@ bool csr_get_wapi_information(tHalHandle hal, tCsrAuthList *auth_type,
 		goto end;
 
 	c_mcast_cipher++;
-	cdf_mem_copy(mccipher_arr, wapi_ie->multicast_cipher_suite,
+	qdf_mem_copy(mccipher_arr, wapi_ie->multicast_cipher_suite,
 			CSR_WAPI_OUI_SIZE);
 	c_ucast_cipher = (uint8_t) (wapi_ie->unicast_cipher_suite_count);
 	c_auth_suites = (uint8_t) (wapi_ie->akm_suite_count);
 	for (i = 0; i < c_auth_suites && i < CSR_WAPI_MAX_AUTH_SUITES; i++)
-		cdf_mem_copy((void *)&authsuites[i],
+		qdf_mem_copy((void *)&authsuites[i],
 			(void *)&wapi_ie->akm_suites[i], CSR_WAPI_OUI_SIZE);
 
 	wapioui_idx = csr_get_oui_index_from_cipher(encr_type);
@@ -3277,12 +3275,12 @@ bool csr_get_wapi_information(tHalHandle hal, tCsrAuthList *auth_type,
 end:
 	if (acceptable_cipher) {
 		if (mcast_cipher)
-			cdf_mem_copy(mcast_cipher, multicast,
+			qdf_mem_copy(mcast_cipher, multicast,
 					CSR_WAPI_OUI_SIZE);
 		if (ucast_cipher)
-			cdf_mem_copy(ucast_cipher, unicast, CSR_WAPI_OUI_SIZE);
+			qdf_mem_copy(ucast_cipher, unicast, CSR_WAPI_OUI_SIZE);
 		if (auth_suite)
-			cdf_mem_copy(auth_suite, authentication,
+			qdf_mem_copy(auth_suite, authentication,
 					CSR_WAPI_OUI_SIZE);
 		if (negotiated_authtype)
 			*negotiated_authtype = neg_authtype;
@@ -3322,9 +3320,9 @@ bool csr_lookup_bkid(tpAniSirGlobal pMac, uint32_t sessionId, uint8_t *pBSSId,
 		for (Index = 0; Index < pSession->NumBkidCache; Index++) {
 			sms_log(pMac, LOGW, "match BKID " MAC_ADDRESS_STR " to ",
 				MAC_ADDR_ARRAY(pBSSId));
-			if (cdf_mem_compare
+			if (!qdf_mem_cmp
 			    (pBSSId, pSession->BkidCacheInfo[Index].BSSID.bytes,
-				    sizeof(struct cdf_mac_addr))) {
+				    sizeof(struct qdf_mac_addr))) {
 				/* match found */
 				fMatchFound = true;
 				break;
@@ -3334,7 +3332,7 @@ bool csr_lookup_bkid(tpAniSirGlobal pMac, uint32_t sessionId, uint8_t *pBSSId,
 		if (!fMatchFound)
 			break;
 
-		cdf_mem_copy(pBKId, pSession->BkidCacheInfo[Index].BKID,
+		qdf_mem_copy(pBKId, pSession->BkidCacheInfo[Index].BKID,
 			     CSR_WAPI_BKID_SIZE);
 
 		fRC = true;
@@ -3367,7 +3365,7 @@ uint8_t csr_construct_wapi_ie(tpAniSirGlobal pMac, uint32_t sessionId,
 
 		if (!pIesLocal
 		    &&
-		    (!CDF_IS_STATUS_SUCCESS
+		    (!QDF_IS_STATUS_SUCCESS
 			     (csr_get_parsed_bss_description_ies
 				     (pMac, pSirBssDesc, &pIesLocal)))) {
 			break;
@@ -3383,24 +3381,24 @@ uint8_t csr_construct_wapi_ie(tpAniSirGlobal pMac, uint32_t sessionId,
 		if (!fWapiMatch)
 			break;
 
-		cdf_mem_set(pWapiIe, sizeof(tCsrWapiIe), 0);
+		qdf_mem_set(pWapiIe, sizeof(tCsrWapiIe), 0);
 
 		pWapiIe->IeHeader.ElementID = DOT11F_EID_WAPI;
 
 		pWapiIe->Version = CSR_WAPI_VERSION_SUPPORTED;
 
 		pWapiIe->cAuthenticationSuites = 1;
-		cdf_mem_copy(&pWapiIe->AuthOui[0], AuthSuite,
+		qdf_mem_copy(&pWapiIe->AuthOui[0], AuthSuite,
 			     sizeof(AuthSuite));
 
 		pWapi = (uint8_t *) (&pWapiIe->AuthOui[1]);
 
 		*pWapi = (uint16_t) 1;  /* cUnicastCyphers */
 		pWapi += 2;
-		cdf_mem_copy(pWapi, UnicastCypher, sizeof(UnicastCypher));
+		qdf_mem_copy(pWapi, UnicastCypher, sizeof(UnicastCypher));
 		pWapi += sizeof(UnicastCypher);
 
-		cdf_mem_copy(pWapi, MulticastCypher, sizeof(MulticastCypher));
+		qdf_mem_copy(pWapi, MulticastCypher, sizeof(MulticastCypher));
 		pWapi += sizeof(MulticastCypher);
 
 		/* WAPI capabilities follows the Auth Suite (two octects) */
@@ -3416,7 +3414,7 @@ uint8_t csr_construct_wapi_ie(tpAniSirGlobal pMac, uint32_t sessionId,
 			/* Do we need to change the endianness here */
 			*pWapi = (uint16_t) 1;  /* cBKIDs */
 			pWapi += 2;
-			cdf_mem_copy(pWapi, BKId, CSR_WAPI_BKID_SIZE);
+			qdf_mem_copy(pWapi, BKId, CSR_WAPI_BKID_SIZE);
 		} else {
 			*pWapi = 0;
 			pWapi += 1;
@@ -3442,7 +3440,7 @@ uint8_t csr_construct_wapi_ie(tpAniSirGlobal pMac, uint32_t sessionId,
 
 	if (!pIes && pIesLocal) {
 		/* locally allocated */
-		cdf_mem_free(pIesLocal);
+		qdf_mem_free(pIesLocal);
 	}
 
 	return cbWapiIe;
@@ -3487,7 +3485,7 @@ bool csr_get_wpa_cyphers(tpAniSirGlobal mac_ctx, tCsrAuthList *auth_type,
 	if (!wpa_ie->present)
 		goto end;
 	c_mcast_cipher = 1;
-	cdf_mem_copy(mccipher_arr, wpa_ie->multicast_cipher, CSR_WPA_OUI_SIZE);
+	qdf_mem_copy(mccipher_arr, wpa_ie->multicast_cipher, CSR_WPA_OUI_SIZE);
 	c_ucast_cipher = (uint8_t) (wpa_ie->unicast_cipher_count);
 	c_auth_suites = (uint8_t) (wpa_ie->auth_suite_count);
 
@@ -3558,15 +3556,15 @@ bool csr_get_wpa_cyphers(tpAniSirGlobal mac_ctx, tCsrAuthList *auth_type,
 end:
 	if (acceptable_cipher) {
 		if (mcast_cipher)
-			cdf_mem_copy((uint8_t **) mcast_cipher, multicast,
+			qdf_mem_copy((uint8_t **) mcast_cipher, multicast,
 					CSR_WPA_OUI_SIZE);
 
 		if (ucast_cipher)
-			cdf_mem_copy((uint8_t **) ucast_cipher, unicast,
+			qdf_mem_copy((uint8_t **) ucast_cipher, unicast,
 					CSR_WPA_OUI_SIZE);
 
 		if (auth_suite)
-			cdf_mem_copy((uint8_t **) auth_suite, authentication,
+			qdf_mem_copy((uint8_t **) auth_suite, authentication,
 					CSR_WPA_OUI_SIZE);
 
 		if (negotiated_authtype)
@@ -3613,7 +3611,7 @@ uint8_t csr_construct_wpa_ie(tHalHandle hHal, tCsrRoamProfile *pProfile,
 
 		if (!pIesLocal
 		    &&
-		    (!CDF_IS_STATUS_SUCCESS
+		    (!QDF_IS_STATUS_SUCCESS
 			     (csr_get_parsed_bss_description_ies
 				     (pMac, pSirBssDesc, &pIesLocal)))) {
 			break;
@@ -3630,16 +3628,16 @@ uint8_t csr_construct_wpa_ie(tHalHandle hHal, tCsrRoamProfile *pProfile,
 
 		pWpaIe->IeHeader.ElementID = SIR_MAC_WPA_EID;
 
-		cdf_mem_copy(pWpaIe->Oui, csr_wpa_oui[01], sizeof(pWpaIe->Oui));
+		qdf_mem_copy(pWpaIe->Oui, csr_wpa_oui[01], sizeof(pWpaIe->Oui));
 
 		pWpaIe->Version = CSR_WPA_VERSION_SUPPORTED;
 
-		cdf_mem_copy(pWpaIe->MulticastOui, MulticastCypher,
+		qdf_mem_copy(pWpaIe->MulticastOui, MulticastCypher,
 			     sizeof(MulticastCypher));
 
 		pWpaIe->cUnicastCyphers = 1;
 
-		cdf_mem_copy(&pWpaIe->UnicastOui[0], UnicastCypher,
+		qdf_mem_copy(&pWpaIe->UnicastOui[0], UnicastCypher,
 			     sizeof(UnicastCypher));
 
 		pAuthSuite =
@@ -3647,7 +3645,7 @@ uint8_t csr_construct_wpa_ie(tHalHandle hHal, tCsrRoamProfile *pProfile,
 					   UnicastOui[pWpaIe->cUnicastCyphers]);
 
 		pAuthSuite->cAuthenticationSuites = 1;
-		cdf_mem_copy(&pAuthSuite->AuthOui[0], AuthSuite,
+		qdf_mem_copy(&pAuthSuite->AuthOui[0], AuthSuite,
 			     sizeof(AuthSuite));
 
 		/* The WPA capabilities follows the Auth Suite (two octects)-- */
@@ -3669,7 +3667,7 @@ uint8_t csr_construct_wpa_ie(tHalHandle hHal, tCsrRoamProfile *pProfile,
 
 	if (!pIes && pIesLocal) {
 		/* locally allocated */
-		cdf_mem_free(pIesLocal);
+		qdf_mem_free(pIesLocal);
 	}
 
 	return cbWpaIe;
@@ -3691,7 +3689,7 @@ uint8_t csr_retrieve_wpa_ie(tHalHandle hHal, tCsrRoamProfile *pProfile,
 			if (SIR_MAC_WPA_IE_MAX_LENGTH >=
 			    pProfile->nWPAReqIELength) {
 				cbWpaIe = (uint8_t) pProfile->nWPAReqIELength;
-				cdf_mem_copy(pWpaIe, pProfile->pWPAReqIE,
+				qdf_mem_copy(pWpaIe, pProfile->pWPAReqIE,
 					     cbWpaIe);
 			} else {
 				sms_log(pMac, LOGW,
@@ -3732,7 +3730,7 @@ uint8_t csr_retrieve_rsn_ie(tHalHandle hHal, uint32_t sessionId,
 			if (SIR_MAC_WPA_IE_MAX_LENGTH >=
 			    pProfile->nRSNReqIELength) {
 				cbRsnIe = (uint8_t) pProfile->nRSNReqIELength;
-				cdf_mem_copy(pRsnIe, pProfile->pRSNReqIE,
+				qdf_mem_copy(pRsnIe, pProfile->pRSNReqIE,
 					     cbRsnIe);
 			} else {
 				sms_log(pMac, LOGW,
@@ -3767,7 +3765,7 @@ uint8_t csr_retrieve_wapi_ie(tHalHandle hHal, uint32_t sessionId,
 			if (DOT11F_IE_WAPI_MAX_LEN >=
 			    pProfile->nWAPIReqIELength) {
 				cbWapiIe = (uint8_t) pProfile->nWAPIReqIELength;
-				cdf_mem_copy(pWapiIe, pProfile->pWAPIReqIE,
+				qdf_mem_copy(pWapiIe, pProfile->pWAPIReqIE,
 					     cbWapiIe);
 			} else {
 				sms_log(pMac, LOGW,
@@ -3965,18 +3963,18 @@ bool csr_validate_wep(tpAniSirGlobal mac_ctx, eCsrEncryptionType uc_encry_type,
 
 	/* else we can use the encryption type directly */
 	if (ie_ptr->WPA.present) {
-		match = cdf_mem_compare(ie_ptr->WPA.multicast_cipher,
+		match = (!qdf_mem_cmp(ie_ptr->WPA.multicast_cipher,
 				csr_wpa_oui[csr_get_oui_index_from_cipher(
 					uc_encry_type)],
-				CSR_WPA_OUI_SIZE);
+				CSR_WPA_OUI_SIZE));
 		if (match)
 			goto end;
 	}
 	if (ie_ptr->RSN.present) {
-		match = cdf_mem_compare(ie_ptr->RSN.gp_cipher_suite,
+		match = (!qdf_mem_cmp(ie_ptr->RSN.gp_cipher_suite,
 				csr_rsn_oui[csr_get_oui_index_from_cipher(
 					uc_encry_type)],
-				CSR_RSN_OUI_SIZE);
+				CSR_RSN_OUI_SIZE));
 	}
 
 
@@ -4292,7 +4290,7 @@ bool csr_is_ssid_match(tpAniSirGlobal pMac, uint8_t *ssid1, uint8_t ssid1Len,
 
 		if (ssid1Len != bssSsidLen)
 			break;
-		if (cdf_mem_compare(bssSsid, ssid1, bssSsidLen)) {
+		if (!qdf_mem_cmp(bssSsid, ssid1, bssSsidLen)) {
 			fMatch = true;
 			break;
 		}
@@ -4317,9 +4315,9 @@ bool csr_is_ssid_in_list(tHalHandle hHal, tSirMacSSid *pSsid,
 			    ||
 			    ((pSsidList->SSIDList[i].SSID.length ==
 			      pSsid->length)
-			     && cdf_mem_compare(pSsid->ssId,
+			     && (!qdf_mem_cmp(pSsid->ssId,
 						pSsidList->SSIDList[i].SSID.
-						ssId, pSsid->length))) {
+						ssId, pSsid->length)))) {
 				fMatch = true;
 				break;
 			}
@@ -4329,28 +4327,28 @@ bool csr_is_ssid_in_list(tHalHandle hHal, tSirMacSSid *pSsid,
 	return fMatch;
 }
 
-bool csr_is_bssid_match(tHalHandle hHal, struct cdf_mac_addr *pProfBssid,
-			struct cdf_mac_addr *BssBssid)
+bool csr_is_bssid_match(tHalHandle hHal, struct qdf_mac_addr *pProfBssid,
+			struct qdf_mac_addr *BssBssid)
 {
 	bool fMatch = false;
-	struct cdf_mac_addr ProfileBssid;
+	struct qdf_mac_addr ProfileBssid;
 
 	/* for efficiency of the MAC_ADDRESS functions, move the */
 	/* Bssid's into MAC_ADDRESS structs. */
-	cdf_mem_copy(&ProfileBssid, pProfBssid, sizeof(struct cdf_mac_addr));
+	qdf_mem_copy(&ProfileBssid, pProfBssid, sizeof(struct qdf_mac_addr));
 
 	do {
 
 		/* Give the profile the benefit of the doubt... accept either all 0 or */
 		/* the real broadcast Bssid (all 0xff) as broadcast Bssids (meaning to */
 		/* match any Bssids). */
-		if (cdf_is_macaddr_zero(&ProfileBssid) ||
-		    cdf_is_macaddr_broadcast(&ProfileBssid)) {
+		if (qdf_is_macaddr_zero(&ProfileBssid) ||
+		    qdf_is_macaddr_broadcast(&ProfileBssid)) {
 			fMatch = true;
 			break;
 		}
 
-		if (cdf_is_macaddr_equal(BssBssid, &ProfileBssid)) {
+		if (qdf_is_macaddr_equal(BssBssid, &ProfileBssid)) {
 			fMatch = true;
 			break;
 		}
@@ -4706,7 +4704,7 @@ bool csr_match_bss(tHalHandle hal, tSirBssDescription *bss_descr,
 	roam_params = &mac_ctx->roam.configParam.roam_params;
 	if ((NULL == ie_dblptr) || (*ie_dblptr) == NULL) {
 		/* If no IEs passed in, get our own. */
-		if (!CDF_IS_STATUS_SUCCESS(
+		if (!QDF_IS_STATUS_SUCCESS(
 			csr_get_parsed_bss_description_ies(mac_ctx,
 				bss_descr, &ie_ptr))) {
 			goto end;
@@ -4724,9 +4722,9 @@ bool csr_match_bss(tHalHandle hal, tSirBssDescription *bss_descr,
 	/* Check for Blacklist BSSID's and avoid connections */
 	blacklist_check = false;
 	for (i = 0; i < roam_params->num_bssid_avoid_list; i++) {
-		if (cdf_is_macaddr_equal((struct cdf_mac_addr *)
+		if (qdf_is_macaddr_equal((struct qdf_mac_addr *)
 					&roam_params->bssid_avoid_list[i],
-				(struct cdf_mac_addr *)bss_descr->bssId)) {
+				(struct qdf_mac_addr *)bss_descr->bssId)) {
 			blacklist_check = true;
 			break;
 		}
@@ -4754,16 +4752,16 @@ bool csr_match_bss(tHalHandle hal, tSirBssDescription *bss_descr,
 	p2p_macaddr = ie_ptr->P2PBeaconProbeRes.P2PDeviceInfo.P2PDeviceAddress;
 	for (i = 0; i < filter->BSSIDs.numOfBSSIDs; i++) {
 		check = csr_is_bssid_match(mac_ctx,
-				(struct cdf_mac_addr *)&filter->BSSIDs.bssid[i],
-				(struct cdf_mac_addr *)bss_descr->bssId);
+				(struct qdf_mac_addr *)&filter->BSSIDs.bssid[i],
+				(struct qdf_mac_addr *)bss_descr->bssId);
 		if (check)
 			break;
 
 		if (filter->p2pResult && ie_ptr->P2PBeaconProbeRes.present) {
 			check = csr_is_bssid_match(mac_ctx,
-					(struct cdf_mac_addr *)
+					(struct qdf_mac_addr *)
 						&filter->BSSIDs.bssid[i],
-					(struct cdf_mac_addr *)p2p_macaddr);
+					(struct qdf_mac_addr *)p2p_macaddr);
 			if (check)
 				break;
 		}
@@ -4780,13 +4778,11 @@ bool csr_match_bss(tHalHandle hal, tSirBssDescription *bss_descr,
 	}
 	if (!check)
 		goto end;
-#if defined WLAN_FEATURE_VOWIFI
 	/* If this is for measurement filtering */
 	if (filter->fMeasurement) {
 		rc = true;
 		goto end;
 	}
-#endif
 	if (!csr_is_phy_mode_match(mac_ctx, filter->phyMode, bss_descr,
 			NULL, NULL, ie_ptr))
 		goto end;
@@ -4845,7 +4841,7 @@ end:
 	if (ie_dblptr)
 		*ie_dblptr = ie_ptr;
 	else if (ie_ptr)
-		cdf_mem_free(ie_ptr);
+		qdf_mem_free(ie_ptr);
 	return rc;
 }
 
@@ -4892,7 +4888,7 @@ bool csr_match_bss_to_connect_profile(tHalHandle hHal,
 
 	do {
 		if (!pIes) {
-			if (!CDF_IS_STATUS_SUCCESS
+			if (!QDF_IS_STATUS_SUCCESS
 				    (csr_get_parsed_bss_description_ies
 					    (pMac, pBssDesc, &pIesLocal))) {
 				break;
@@ -4933,7 +4929,7 @@ bool csr_match_bss_to_connect_profile(tHalHandle hHal,
 
 	if (!pIes && pIesLocal) {
 		/* locally allocated */
-		cdf_mem_free(pIesLocal);
+		qdf_mem_free(pIesLocal);
 	}
 
 	return fRC;
@@ -5169,57 +5165,57 @@ void csr_release_profile(tpAniSirGlobal pMac, tCsrRoamProfile *pProfile)
 {
 	if (pProfile) {
 		if (pProfile->BSSIDs.bssid) {
-			cdf_mem_free(pProfile->BSSIDs.bssid);
+			qdf_mem_free(pProfile->BSSIDs.bssid);
 			pProfile->BSSIDs.bssid = NULL;
 		}
 		if (pProfile->SSIDs.SSIDList) {
-			cdf_mem_free(pProfile->SSIDs.SSIDList);
+			qdf_mem_free(pProfile->SSIDs.SSIDList);
 			pProfile->SSIDs.SSIDList = NULL;
 		}
 		if (pProfile->pWPAReqIE) {
-			cdf_mem_free(pProfile->pWPAReqIE);
+			qdf_mem_free(pProfile->pWPAReqIE);
 			pProfile->pWPAReqIE = NULL;
 		}
 		if (pProfile->pRSNReqIE) {
-			cdf_mem_free(pProfile->pRSNReqIE);
+			qdf_mem_free(pProfile->pRSNReqIE);
 			pProfile->pRSNReqIE = NULL;
 		}
 #ifdef FEATURE_WLAN_WAPI
 		if (pProfile->pWAPIReqIE) {
-			cdf_mem_free(pProfile->pWAPIReqIE);
+			qdf_mem_free(pProfile->pWAPIReqIE);
 			pProfile->pWAPIReqIE = NULL;
 		}
 #endif /* FEATURE_WLAN_WAPI */
 
 		if (pProfile->pAddIEScan) {
-			cdf_mem_free(pProfile->pAddIEScan);
+			qdf_mem_free(pProfile->pAddIEScan);
 			pProfile->pAddIEScan = NULL;
 		}
 
 		if (pProfile->pAddIEAssoc) {
-			cdf_mem_free(pProfile->pAddIEAssoc);
+			qdf_mem_free(pProfile->pAddIEAssoc);
 			pProfile->pAddIEAssoc = NULL;
 		}
 		if (pProfile->ChannelInfo.ChannelList) {
-			cdf_mem_free(pProfile->ChannelInfo.ChannelList);
+			qdf_mem_free(pProfile->ChannelInfo.ChannelList);
 			pProfile->ChannelInfo.ChannelList = NULL;
 		}
-		cdf_mem_set(pProfile, sizeof(tCsrRoamProfile), 0);
+		qdf_mem_set(pProfile, sizeof(tCsrRoamProfile), 0);
 	}
 }
 
 void csr_free_scan_filter(tpAniSirGlobal pMac, tCsrScanResultFilter *pScanFilter)
 {
 	if (pScanFilter->BSSIDs.bssid) {
-		cdf_mem_free(pScanFilter->BSSIDs.bssid);
+		qdf_mem_free(pScanFilter->BSSIDs.bssid);
 		pScanFilter->BSSIDs.bssid = NULL;
 	}
 	if (pScanFilter->ChannelInfo.ChannelList) {
-		cdf_mem_free(pScanFilter->ChannelInfo.ChannelList);
+		qdf_mem_free(pScanFilter->ChannelInfo.ChannelList);
 		pScanFilter->ChannelInfo.ChannelList = NULL;
 	}
 	if (pScanFilter->SSIDs.SSIDList) {
-		cdf_mem_free(pScanFilter->SSIDs.SSIDList);
+		qdf_mem_free(pScanFilter->SSIDs.SSIDList);
 		pScanFilter->SSIDs.SSIDList = NULL;
 	}
 }
@@ -5230,7 +5226,7 @@ void csr_free_roam_profile(tpAniSirGlobal pMac, uint32_t sessionId)
 
 	if (pSession->pCurRoamProfile) {
 		csr_release_profile(pMac, pSession->pCurRoamProfile);
-		cdf_mem_free(pSession->pCurRoamProfile);
+		qdf_mem_free(pSession->pCurRoamProfile);
 		pSession->pCurRoamProfile = NULL;
 	}
 }
@@ -5240,7 +5236,7 @@ void csr_free_connect_bss_desc(tpAniSirGlobal pMac, uint32_t sessionId)
 	tCsrRoamSession *pSession = &pMac->roam.roamSession[sessionId];
 
 	if (pSession->pConnectBssDesc) {
-		cdf_mem_free(pSession->pConnectBssDesc);
+		qdf_mem_free(pSession->pConnectBssDesc);
 		pSession->pConnectBssDesc = NULL;
 	}
 }
@@ -5254,7 +5250,7 @@ tSirResultCodes csr_get_disassoc_rsp_status_code(tSirSmeDisassocRsp *
 	pBuffer += (sizeof(uint16_t) + sizeof(uint16_t) + sizeof(tSirMacAddr));
 	/* tSirResultCodes is an enum, assuming is 32bit */
 	/* If we cannot make this assumption, use copymemory */
-	cdf_get_u32(pBuffer, &ret);
+	qdf_get_u32(pBuffer, &ret);
 
 	return (tSirResultCodes) ret;
 }
@@ -5269,7 +5265,7 @@ tSirResultCodes csr_get_de_auth_rsp_status_code(tSirSmeDeauthRsp *pSmeRsp)
 		 sizeof(uint16_t));
 	/* tSirResultCodes is an enum, assuming is 32bit */
 	/* If we cannot make this assumption, use copymemory */
-	cdf_get_u32(pBuffer, &ret);
+	qdf_get_u32(pBuffer, &ret);
 
 	return (tSirResultCodes) ret;
 }
@@ -5363,7 +5359,6 @@ eCsrCfgDot11Mode csr_get_cfg_dot11_mode_from_csr_phy_mode(tCsrRoamProfile *pProf
 		cfgDot11Mode = eCSR_CFG_DOT11_MODE_AUTO;
 		break;
 
-#ifdef WLAN_FEATURE_11AC
 	case eCSR_DOT11_MODE_11ac:
 		if (IS_FEATURE_SUPPORTED_BY_FW(DOT11AC)) {
 			cfgDot11Mode = eCSR_CFG_DOT11_MODE_11AC;
@@ -5378,7 +5373,6 @@ eCsrCfgDot11Mode csr_get_cfg_dot11_mode_from_csr_phy_mode(tCsrRoamProfile *pProf
 			cfgDot11Mode = eCSR_CFG_DOT11_MODE_11N;
 		}
 		break;
-#endif
 	default:
 		/* No need to assign anything here */
 		break;
@@ -5387,34 +5381,34 @@ eCsrCfgDot11Mode csr_get_cfg_dot11_mode_from_csr_phy_mode(tCsrRoamProfile *pProf
 	return cfgDot11Mode;
 }
 
-CDF_STATUS csr_get_regulatory_domain_for_country(tpAniSirGlobal pMac,
+QDF_STATUS csr_get_regulatory_domain_for_country(tpAniSirGlobal pMac,
 						 uint8_t *pCountry,
 						 v_REGDOMAIN_t *pDomainId,
 						 enum country_src source)
 {
-	CDF_STATUS status = CDF_STATUS_E_INVAL;
-	CDF_STATUS cdf_status;
+	QDF_STATUS status = QDF_STATUS_E_INVAL;
+	QDF_STATUS qdf_status;
 	uint8_t countryCode[CDS_COUNTRY_CODE_LEN + 1];
 	v_REGDOMAIN_t domainId;
 
 	if (pCountry) {
 		countryCode[0] = pCountry[0];
 		countryCode[1] = pCountry[1];
-		cdf_status = cds_get_reg_domain_from_country_code(&domainId,
+		qdf_status = cds_get_reg_domain_from_country_code(&domainId,
 								  countryCode,
 								  source);
 
-		if (CDF_IS_STATUS_SUCCESS(cdf_status)) {
+		if (QDF_IS_STATUS_SUCCESS(qdf_status)) {
 			if (pDomainId) {
 				*pDomainId = domainId;
 			}
-			status = CDF_STATUS_SUCCESS;
+			status = QDF_STATUS_SUCCESS;
 		} else {
 			sms_log(pMac, LOGW,
 				FL
 					(" Couldn't find domain for country code  %c%c"),
 				pCountry[0], pCountry[1]);
-			status = CDF_STATUS_E_INVAL;
+			status = QDF_STATUS_E_INVAL;
 		}
 	}
 
@@ -5452,7 +5446,7 @@ bool csr_match_country_code(tpAniSirGlobal pMac, uint8_t *pCountry,
 			for (i = 0; i < WNI_CFG_COUNTRY_CODE_LEN - 1; i++) {
 				pCountry[i] = csr_to_upper(pCountry[i]);
 			}
-			if (!cdf_mem_compare(pIes->Country.country, pCountry,
+			if (qdf_mem_cmp(pIes->Country.country, pCountry,
 					     WNI_CFG_COUNTRY_CODE_LEN - 1)) {
 				fRet = false;
 				break;
@@ -5463,32 +5457,32 @@ bool csr_match_country_code(tpAniSirGlobal pMac, uint8_t *pCountry,
 	return fRet;
 }
 
-CDF_STATUS csr_get_modify_profile_fields(tpAniSirGlobal pMac, uint32_t sessionId,
+QDF_STATUS csr_get_modify_profile_fields(tpAniSirGlobal pMac, uint32_t sessionId,
 					 tCsrRoamModifyProfileFields *
 					 pModifyProfileFields)
 {
 
 	if (!pModifyProfileFields) {
-		return CDF_STATUS_E_FAILURE;
+		return QDF_STATUS_E_FAILURE;
 	}
 
-	cdf_mem_copy(pModifyProfileFields,
+	qdf_mem_copy(pModifyProfileFields,
 		     &pMac->roam.roamSession[sessionId].connectedProfile.
 		     modifyProfileFields, sizeof(tCsrRoamModifyProfileFields));
 
-	return CDF_STATUS_SUCCESS;
+	return QDF_STATUS_SUCCESS;
 }
 
-CDF_STATUS csr_set_modify_profile_fields(tpAniSirGlobal pMac, uint32_t sessionId,
+QDF_STATUS csr_set_modify_profile_fields(tpAniSirGlobal pMac, uint32_t sessionId,
 					 tCsrRoamModifyProfileFields *
 					 pModifyProfileFields)
 {
 	tCsrRoamSession *pSession = CSR_GET_SESSION(pMac, sessionId);
 
-	cdf_mem_copy(&pSession->connectedProfile.modifyProfileFields,
+	qdf_mem_copy(&pSession->connectedProfile.modifyProfileFields,
 		     pModifyProfileFields, sizeof(tCsrRoamModifyProfileFields));
 
-	return CDF_STATUS_SUCCESS;
+	return QDF_STATUS_SUCCESS;
 }
 
 
@@ -5526,7 +5520,7 @@ uint16_t sme_chn_to_freq(uint8_t chanNum)
 {
 	int i;
 
-	for (i = 0; i < NUM_RF_CHANNELS; i++) {
+	for (i = 0; i < NUM_CHANNELS; i++) {
 		if (CDS_CHANNEL_NUM(i) == chanNum)
 			return CDS_CHANNEL_FREQ(i);
 	}
@@ -5597,14 +5591,14 @@ const char *sme_request_type_to_string(const uint8_t request_type)
 	}
 }
 
-CDF_STATUS csr_add_to_channel_list_front(uint8_t *pChannelList,
+QDF_STATUS csr_add_to_channel_list_front(uint8_t *pChannelList,
 					 int numChannels, uint8_t channel)
 {
 	int i = 0;
 
 	/* Check for NULL pointer */
 	if (!pChannelList)
-		return CDF_STATUS_E_NULL_VALUE;
+		return QDF_STATUS_E_NULL_VALUE;
 
 	/* Make room for the addition.  (Start moving from the back.) */
 	for (i = numChannels; i > 0; i--) {
@@ -5614,7 +5608,7 @@ CDF_STATUS csr_add_to_channel_list_front(uint8_t *pChannelList,
 	/* Now add the NEW channel...at the front */
 	pChannelList[0] = channel;
 
-	return CDF_STATUS_SUCCESS;
+	return QDF_STATUS_SUCCESS;
 }
 #ifdef FEATURE_WLAN_DIAG_SUPPORT
 /**
@@ -5633,7 +5627,7 @@ void csr_diag_event_report(tpAniSirGlobal pmac, uint16_t event_type,
 {
 	WLAN_HOST_DIAG_EVENT_DEF(diag_event, host_event_wlan_pe_payload_type);
 
-	cdf_mem_zero(&diag_event, sizeof(host_event_wlan_pe_payload_type));
+	qdf_mem_zero(&diag_event, sizeof(host_event_wlan_pe_payload_type));
 
 	/* diag_event.bssid is already all zeroes */
 	diag_event.sme_state = sme_get_lim_sme_state(pmac);
@@ -5661,27 +5655,27 @@ void csr_diag_event_report(tpAniSirGlobal pmac, uint16_t event_type,
 bool csr_wait_for_connection_update(tpAniSirGlobal mac,
 		bool do_release_reacquire_lock)
 {
-	CDF_STATUS status, ret;
+	QDF_STATUS status, ret;
 
 	if (do_release_reacquire_lock == true) {
 		ret = sme_release_global_lock(&mac->sme);
-		if (!CDF_IS_STATUS_SUCCESS(ret)) {
+		if (!QDF_IS_STATUS_SUCCESS(ret)) {
 			cds_err("lock release fail %d", ret);
 			return false;
 		}
 	}
 
-	status = cdf_wait_for_connection_update();
+	status = qdf_wait_for_connection_update();
 
 	if (do_release_reacquire_lock == true) {
 		ret = sme_acquire_global_lock(&mac->sme);
-		if (!CDF_IS_STATUS_SUCCESS(ret)) {
+		if (!QDF_IS_STATUS_SUCCESS(ret)) {
 			cds_err("lock acquire fail %d", ret);
 			return false;
 		}
 	}
 
-	if (!CDF_IS_STATUS_SUCCESS(status)) {
+	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		cds_err("wait for event failed");
 		return false;
 	}
@@ -5696,16 +5690,16 @@ bool csr_wait_for_connection_update(tpAniSirGlobal mac,
  *
  * This function is to return the persona of a session
  *
- * Reture: enum tCDF_ADAPTER_MODE persona
+ * Reture: enum tQDF_ADAPTER_MODE persona
  */
-enum tCDF_ADAPTER_MODE csr_get_session_persona(tpAniSirGlobal pmac,
+enum tQDF_ADAPTER_MODE csr_get_session_persona(tpAniSirGlobal pmac,
 						uint32_t session_id)
 {
 	tCsrRoamSession *session = NULL;
 
 	session = CSR_GET_SESSION(pmac, session_id);
 	if (NULL == session || NULL == session->pCurRoamProfile)
-		return CDF_MAX_NO_OF_MODE;
+		return QDF_MAX_NO_OF_MODE;
 
 	return session->pCurRoamProfile->csrPersona;
 }

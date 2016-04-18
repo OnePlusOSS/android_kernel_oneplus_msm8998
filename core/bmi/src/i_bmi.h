@@ -75,16 +75,16 @@
 
 /* BMI LOGGING WRAPPERS */
 
-#define BMI_LOG(level, args...) CDF_TRACE(CDF_MODULE_ID_BMI, \
+#define BMI_LOG(level, args...) QDF_TRACE(QDF_MODULE_ID_BMI, \
 					level, ##args)
-#define BMI_ERR(args ...)	BMI_LOG(CDF_TRACE_LEVEL_ERROR, args)
-#define BMI_DBG(args ...)	BMI_LOG(CDF_TRACE_LEVEL_DEBUG, args)
-#define BMI_WARN(args ...)	BMI_LOG(CDF_TRACE_LEVEL_WARN, args)
-#define BMI_INFO(args ...)	BMI_LOG(CDF_TRACE_LEVEL_INFO, args)
+#define BMI_ERR(args ...)	BMI_LOG(QDF_TRACE_LEVEL_ERROR, args)
+#define BMI_DBG(args ...)	BMI_LOG(QDF_TRACE_LEVEL_DEBUG, args)
+#define BMI_WARN(args ...)	BMI_LOG(QDF_TRACE_LEVEL_WARN, args)
+#define BMI_INFO(args ...)	BMI_LOG(QDF_TRACE_LEVEL_INFO, args)
 /* End of BMI Logging Wrappers */
 
 /* BMI Assert Wrappers */
-#define bmi_assert CDF_BUG
+#define bmi_assert QDF_BUG
 /*
  * Although we had envisioned BMI to run on top of HTC, this is not how the
  * final implementation ended up. On the Target side, BMI is a part of the BSP
@@ -121,26 +121,72 @@ typedef enum _ATH_BIN_FILE {
 #define NO_BMI 0
 #endif
 
-CDF_STATUS bmi_execute(uint32_t address, uint32_t *param,
-						struct ol_softc *scn);
-CDF_STATUS bmi_init(struct ol_softc *scn);
-CDF_STATUS bmi_no_command(struct ol_softc *scn);
-CDF_STATUS bmi_read_memory(uint32_t address,
-		uint8_t *buffer, uint32_t length, struct ol_softc *scn);
-CDF_STATUS bmi_write_memory(uint32_t address,
-		uint8_t *buffer, uint32_t length, struct ol_softc *scn);
-CDF_STATUS bmi_fast_download(uint32_t address,
-		uint8_t *buffer, uint32_t length, struct ol_softc *scn);
-CDF_STATUS bmi_read_soc_register(uint32_t address,
-				uint32_t *param, struct ol_softc *scn);
-CDF_STATUS bmi_write_soc_register(uint32_t address,
-				uint32_t param, struct ol_softc *scn);
-CDF_STATUS bmi_get_target_info(
-		struct bmi_target_info *targ_info, struct ol_softc *scn);
+/**
+ * struct bmi_info - Structure to hold BMI Specific information
+ * @bmi_cmd_buff - BMI Command Buffer
+ * @bmi_rsp_buff - BMI Response Buffer
+ * @bmi_cmd_da - BMI Command Physical address
+ * @bmi_rsp_da - BMI Response Physical address
+ * @bmi_done - Flag to check if BMI Phase is complete
+ * @fw_files - FW files
+ *
+ */
+struct bmi_info {
+	uint8_t *bmi_cmd_buff;
+	uint8_t *bmi_rsp_buff;
+	dma_addr_t bmi_cmd_da;
+	dma_addr_t bmi_rsp_da;
+	bool bmi_done;
+#ifdef CONFIG_CNSS
+	struct cnss_fw_files fw_files;
+#endif
+};
 
-CDF_STATUS bmi_firmware_download(struct ol_softc *scn);
-CDF_STATUS bmi_done_local(struct ol_softc *scn);
+/**
+ * struct ol_context - Structure to hold OL context
+ * @bmi: BMI info
+ * @cal_in_flash: For Firmware Flash Download
+ * @qdf_dev: QDF Device
+ * @scn: HIF Context
+ * @ramdump_work: WorkQueue for Ramdump collection
+ * @tgt_def: Target Defnition pointer
+ *
+ * Structure to hold all ol BMI/Ramdump info
+ */
+struct ol_context {
+	struct bmi_info bmi;
+	struct ol_config_info cfg_info;
+	uint8_t *cal_in_flash;
+	qdf_device_t qdf_dev;
+	qdf_work_t ramdump_work;
+	struct hif_opaque_softc *scn;
+	struct targetdef_t {
+		struct targetdef_s *targetdef;
+	} tgt_def;
+};
 
-CDF_STATUS ol_download_firmware(struct ol_softc *scn);
-CDF_STATUS ol_configure_target(struct ol_softc *scn);
+#define GET_BMI_CONTEXT(ol_ctx) ((struct bmi_info *)ol_ctx)
+
+QDF_STATUS bmi_execute(uint32_t address, uint32_t *param,
+				struct ol_context *ol_ctx);
+QDF_STATUS bmi_init(struct ol_context *ol_ctx);
+QDF_STATUS bmi_no_command(struct ol_context *ol_ctx);
+QDF_STATUS bmi_read_memory(uint32_t address, uint8_t *buffer, uint32_t length,
+					struct ol_context *ol_ctx);
+QDF_STATUS bmi_write_memory(uint32_t address, uint8_t *buffer, uint32_t length,
+					struct ol_context *ol_ctx);
+QDF_STATUS bmi_fast_download(uint32_t address, uint8_t *buffer, uint32_t length,
+					struct ol_context *ol_ctx);
+QDF_STATUS bmi_read_soc_register(uint32_t address,
+				uint32_t *param, struct ol_context *ol_ctx);
+QDF_STATUS bmi_write_soc_register(uint32_t address, uint32_t param,
+					struct ol_context *ol_ctx);
+QDF_STATUS bmi_get_target_info(struct bmi_target_info *targ_info,
+			       struct ol_context *ol_ctx);
+QDF_STATUS bmi_firmware_download(struct ol_context *ol_ctx);
+QDF_STATUS bmi_done_local(struct ol_context *ol_ctx);
+QDF_STATUS ol_download_firmware(struct ol_context *ol_ctx);
+QDF_STATUS ol_configure_target(struct ol_context *ol_ctx);
+void ramdump_work_handler(void *arg);
+struct ol_config_info *ol_get_ini_handle(struct ol_context *ol_ctx);
 #endif

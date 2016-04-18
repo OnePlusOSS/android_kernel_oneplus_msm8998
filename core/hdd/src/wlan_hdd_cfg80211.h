@@ -106,6 +106,10 @@
 #define CHANNEL_SWITCH_SUPPORTED
 #endif
 
+#if defined(CFG80211_DEL_STA_V2) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)) || defined(WITH_BACKPORTS)
+#define USE_CFG80211_DEL_STA_V2
+#endif
+
 /**
  * typedef struct qcom_ie_age - age ie
  *
@@ -1998,6 +2002,7 @@ enum qca_wlan_vendor_acs_hw_mode {
  * @QCA_WLAN_VENDOR_ATTR_CONFIG_MODULATED_DTIM: modulated dtim
  * @QCA_WLAN_VENDOR_ATTR_CONFIG_STATS_AVG_FACTOR: stats avg. factor
  * @QCA_WLAN_VENDOR_ATTR_CONFIG_GUARD_TIME: guard time
+ * @QCA_WLAN_VENDOR_ATTR_CONFIG_FINE_TIME_MEASUREMENT: fine time measurement
  * @QCA_WLAN_VENDOR_ATTR_CONFIG_LAST: last config
  * @QCA_WLAN_VENDOR_ATTR_CONFIG_MAX: max config
  */
@@ -2006,6 +2011,7 @@ enum qca_wlan_vendor_config {
 	QCA_WLAN_VENDOR_ATTR_CONFIG_MODULATED_DTIM,
 	QCA_WLAN_VENDOR_ATTR_CONFIG_STATS_AVG_FACTOR,
 	QCA_WLAN_VENDOR_ATTR_CONFIG_GUARD_TIME,
+	QCA_WLAN_VENDOR_ATTR_CONFIG_FINE_TIME_MEASUREMENT,
 	/* keep last */
 	QCA_WLAN_VENDOR_ATTR_CONFIG_LAST,
 	QCA_WLAN_VENDOR_ATTR_CONFIG_MAX =
@@ -2266,16 +2272,16 @@ int wlan_hdd_cfg80211_pmksa_candidate_notify(hdd_adapter_t *pAdapter,
 					int index, bool preauth);
 
 #ifdef FEATURE_WLAN_LFR_METRICS
-CDF_STATUS wlan_hdd_cfg80211_roam_metrics_preauth(hdd_adapter_t *pAdapter,
+QDF_STATUS wlan_hdd_cfg80211_roam_metrics_preauth(hdd_adapter_t *pAdapter,
 						tCsrRoamInfo *pRoamInfo);
 
-CDF_STATUS wlan_hdd_cfg80211_roam_metrics_preauth_status(hdd_adapter_t *
+QDF_STATUS wlan_hdd_cfg80211_roam_metrics_preauth_status(hdd_adapter_t *
 							 pAdapter,
 							 tCsrRoamInfo *
 							 pRoamInfo,
 							 bool preauth_status);
 
-CDF_STATUS wlan_hdd_cfg80211_roam_metrics_handover(hdd_adapter_t *pAdapter,
+QDF_STATUS wlan_hdd_cfg80211_roam_metrics_handover(hdd_adapter_t *pAdapter,
 						   tCsrRoamInfo *pRoamInfo);
 #endif
 
@@ -2304,7 +2310,7 @@ void hdd_reg_notifier(struct wiphy *wiphy,
 
 extern void hdd_conn_set_connection_state(hdd_adapter_t *pAdapter,
 					  eConnectionState connState);
-CDF_STATUS wlan_hdd_validate_operation_channel(hdd_adapter_t *pAdapter,
+QDF_STATUS wlan_hdd_validate_operation_channel(hdd_adapter_t *pAdapter,
 					       int channel);
 #ifdef FEATURE_WLAN_TDLS
 int wlan_hdd_cfg80211_send_tdls_discover_req(struct wiphy *wiphy,
@@ -2322,7 +2328,9 @@ void hdd_select_cbmode(hdd_adapter_t *pAdapter, uint8_t operationChannel);
 uint8_t *wlan_hdd_cfg80211_get_ie_ptr(const uint8_t *ies_ptr, int length,
 				      uint8_t eid);
 
-#ifdef CFG80211_DEL_STA_V2
+void wlan_hdd_del_station(hdd_adapter_t *adapter);
+
+#if defined(USE_CFG80211_DEL_STA_V2)
 int wlan_hdd_cfg80211_del_station(struct wiphy *wiphy,
 				  struct net_device *dev,
 				  struct station_del_parameters *param);
@@ -2336,7 +2344,8 @@ int wlan_hdd_cfg80211_del_station(struct wiphy *wiphy,
 				  struct net_device *dev,
 				  uint8_t *mac);
 #endif
-#endif
+#endif /* USE_CFG80211_DEL_STA_V2 */
+
 
 #if  defined(QCA_WIFI_FTM)     && defined(CONFIG_NL80211_TESTMODE)
 void wlan_hdd_testmode_rx_event(void *buf, size_t buf_len);
@@ -2381,14 +2390,37 @@ static inline int wlan_hdd_send_roam_auth_event(hdd_context_t *hdd_ctx_ptr,
 
 int wlan_hdd_cfg80211_update_apies(hdd_adapter_t *adapter);
 
-#if !(defined (SUPPORT_WDEV_CFG80211_VENDOR_EVENT_ALLOC))
+#if !(defined (SUPPORT_WDEV_CFG80211_VENDOR_EVENT_ALLOC)) &&	\
+	(LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 0)) && 	\
+	!(defined(WITH_BACKPORTS))
+
 static inline struct sk_buff *
 backported_cfg80211_vendor_event_alloc(struct wiphy *wiphy,
 					struct wireless_dev *wdev,
 					int approxlen,
 					int event_idx, gfp_t gfp)
 {
-	return cfg80211_vendor_event_alloc(wiphy, approxlen, event_idx, gfp);
+	struct sk_buff *skb;
+
+	skb = cfg80211_vendor_event_alloc(wiphy, approxlen, event_idx, gfp);
+
+	if (skb && wdev) {
+		struct nlattr *attr;
+		u32 ifindex = wdev->netdev->ifindex;
+
+		nla_nest_cancel(skb, ((void **)skb->cb)[2]);
+		if (nla_put_u32(skb, NL80211_ATTR_IFINDEX, ifindex))
+			goto nla_fail;
+
+		attr = nla_nest_start(skb, NL80211_ATTR_VENDOR_DATA);
+		((void **)skb->cb)[2] = attr;
+	}
+
+	return skb;
+
+nla_fail:
+	kfree_skb(skb);
+	return NULL;
 }
 #define cfg80211_vendor_event_alloc backported_cfg80211_vendor_event_alloc
 #endif
@@ -2401,4 +2433,6 @@ int wlan_hdd_disable_dfs_chan_scan(hdd_context_t *hdd_ctx,
 				   hdd_adapter_t *adapter,
 				   uint32_t no_dfs_flag);
 
+int wlan_hdd_cfg80211_update_band(struct wiphy *wiphy,
+				  eCsrBand eBand);
 #endif

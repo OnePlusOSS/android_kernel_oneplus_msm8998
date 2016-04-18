@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -27,10 +27,10 @@
 
 #if !defined(__SME_POWER_SAVE_H)
 #define __SME_POWER_SAVE_H
-#include "cdf_lock.h"
-#include "cdf_trace.h"
-#include "cdf_memory.h"
-#include "cdf_types.h"
+#include "qdf_lock.h"
+#include "qdf_trace.h"
+#include "qdf_mem.h"
+#include "qdf_types.h"
 #include "ani_system_defs.h"
 #include "sir_api.h"
 
@@ -94,7 +94,7 @@ struct ps_params {
 	uint8_t uapsd_per_ac_bit_mask;
 	/* WOWL param */
 	void (*enter_wowl_callback_routine)(void *callback_context,
-			CDF_STATUS status);
+			QDF_STATUS status);
 	void *enter_wowl_callback_context;
 	tSirSmeWowlEnterParams wowl_enter_params;
 #ifdef WLAN_WAKEUP_EVENTS
@@ -111,7 +111,7 @@ struct ps_params {
 	 * Power Save Offload module will
 	 * try to enable sta mode ps
 	 */
-	cdf_mc_timer_t auto_ps_enable_timer;
+	qdf_mc_timer_t auto_ps_enable_timer;
 
 };
 

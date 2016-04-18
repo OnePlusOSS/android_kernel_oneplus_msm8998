@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -34,19 +34,19 @@
  *
  */
 
-#include <cdf_types.h>
-#include <cdf_status.h>
-#include <cdf_memory.h>
-#include <cdf_list.h>
-#include <cdf_trace.h>
-#include <cdf_event.h>
-#include <cdf_lock.h>
+#include <qdf_types.h>
+#include <qdf_status.h>
+#include <qdf_mem.h>
+#include <qdf_list.h>
+#include <qdf_trace.h>
+#include <qdf_event.h>
+#include <qdf_lock.h>
 #include <cds_reg_service.h>
 #include <cds_mq.h>
 #include <cds_packet.h>
 #include <cds_sched.h>
-#include <cdf_threads.h>
-#include <cdf_mc_timer.h>
+#include <qdf_threads.h>
+#include <qdf_mc_timer.h>
 #include <cds_pack_align.h>
 #include <crypto/aes.h>
 #include <crypto/hash.h>

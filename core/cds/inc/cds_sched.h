@@ -25,7 +25,7 @@
  * to the Linux Foundation.
  */
 
-#if !defined( __CDS_SCHED_H )
+#if !defined(__CDS_SCHED_H)
 #define __CDS_SCHED_H
 
 /**=========================================================================
@@ -39,15 +39,16 @@
 /*--------------------------------------------------------------------------
    Include Files
    ------------------------------------------------------------------------*/
-#include <cdf_event.h>
-#include "i_cdf_types.h"
+#include <qdf_event.h>
+#include <i_qdf_types.h>
 #include <linux/wait.h>
 #if defined(WLAN_OPEN_SOURCE) && defined(CONFIG_HAS_WAKELOCK)
 #include <linux/wakelock.h>
 #endif
 #include <cds_mq.h>
-#include <cdf_types.h>
-#include "cdf_lock.h"
+#include <qdf_types.h>
+#include "qdf_lock.h"
+#include "qdf_mc_timer.h"
 
 #define TX_POST_EVENT_MASK               0x001
 #define TX_SUSPEND_EVENT_MASK            0x002
@@ -87,7 +88,7 @@ typedef void (*cds_ol_rx_thread_cb)(void *context, void *rxpkt, uint16_t staid);
 #endif
 
 /*
-** CDF Message queue definition.
+** QDF Message queue definition.
 */
 typedef struct _cds_mq_type {
 	/* Lock use to synchronize access to this message queue */
@@ -242,7 +243,7 @@ typedef struct _cds_context_type {
 	cds_mq_type freeVosMq;
 
 	/* Scheduler Context */
-	cds_sched_context cdf_sched;
+	cds_sched_context qdf_sched;
 
 	/* HDD Module Context  */
 	void *pHDDContext;
@@ -250,11 +251,11 @@ typedef struct _cds_context_type {
 	/* MAC Module Context  */
 	void *pMACContext;
 
-	cdf_event_t ProbeEvent;
+	qdf_event_t ProbeEvent;
 
 	uint32_t driver_state;
 
-	cdf_event_t wmaCompleteEvent;
+	qdf_event_t wmaCompleteEvent;
 
 	/* WMA Context */
 	void *pWMAContext;
@@ -263,12 +264,13 @@ typedef struct _cds_context_type {
 
 	void *htc_ctx;
 
+	void *g_ol_context;
 	/*
-	 * cdf_ctx will be used by cdf
+	 * qdf_ctx will be used by qdf
 	 * while allocating dma memory
 	 * to access dev information.
 	 */
-	cdf_device_t cdf_ctx;
+	qdf_device_t qdf_ctx;
 
 	void *pdev_txrx_ctx;
 
@@ -282,10 +284,13 @@ typedef struct _cds_context_type {
 	uint32_t driver_debug_log_level;
 	uint32_t fw_debug_log_level;
 	struct cds_log_complete log_complete;
-	cdf_spinlock_t bug_report_lock;
-	cdf_event_t connection_update_done_evt;
-	cdf_mutex_t cdf_conc_list_lock;
-
+	qdf_spinlock_t bug_report_lock;
+	qdf_event_t connection_update_done_evt;
+	qdf_mutex_t qdf_conc_list_lock;
+	qdf_mc_timer_t dbs_opportunistic_timer;
+#ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
+	void (*sap_restart_chan_switch_cb)(void *, uint32_t, uint32_t);
+#endif
 } cds_context_type, *p_cds_contextType;
 
 /*---------------------------------------------------------------------------
@@ -368,30 +373,29 @@ void cds_free_ol_rx_pkt_freeq(p_cds_sched_context pSchedContext);
 
      - The Tx thread is created and ready to receive and dispatch messages
 
-   \param  p_cds_context - pointer to the global CDF Context
+   \param  p_cds_context - pointer to the global QDF Context
 
    \param  p_cds_sched_context - pointer to a previously allocated buffer big
-          enough to hold a scheduler context.
- \
+   enough to hold a scheduler context.
 
-   \return CDF_STATUS_SUCCESS - Scheduler was successfully initialized and
-          is ready to be used.
+   \return QDF_STATUS_SUCCESS - Scheduler was successfully initialized and
+   is ready to be used.
 
-          CDF_STATUS_E_RESOURCES - System resources (other than memory)
-          are unavailable to initilize the scheduler
+   QDF_STATUS_E_RESOURCES - System resources (other than memory)
+   are unavailable to initilize the scheduler
 
-          CDF_STATUS_E_NOMEM - insufficient memory exists to initialize
-          the scheduler
+   QDF_STATUS_E_NOMEM - insufficient memory exists to initialize
+   the scheduler
 
-          CDF_STATUS_E_INVAL - Invalid parameter passed to the scheduler Open
-          function
+   QDF_STATUS_E_INVAL - Invalid parameter passed to the scheduler Open
+   function
 
-          CDF_STATUS_E_FAILURE - Failure to initialize the scheduler/
+   QDF_STATUS_E_FAILURE - Failure to initialize the scheduler/
 
    \sa cds_sched_open()
 
    -------------------------------------------------------------------------*/
-CDF_STATUS cds_sched_open(void *p_cds_context,
+QDF_STATUS cds_sched_open(void *p_cds_context,
 			  p_cds_sched_context pSchedCxt, uint32_t SchedCtxSize);
 
 /*---------------------------------------------------------------------------
@@ -407,33 +411,33 @@ CDF_STATUS cds_sched_open(void *p_cds_context,
 
      - The Tx thread is closed
 
-   \param  p_cds_context - pointer to the global CDF Context
+   \param  p_cds_context - pointer to the global QDF Context
 
-   \return CDF_STATUS_SUCCESS - Scheduler was successfully initialized and
-          is ready to be used.
+   \return QDF_STATUS_SUCCESS - Scheduler was successfully initialized and
+   is ready to be used.
 
-          CDF_STATUS_E_INVAL - Invalid parameter passed to the scheduler Open
-          function
+   QDF_STATUS_E_INVAL - Invalid parameter passed to the scheduler Open
+   function
 
-          CDF_STATUS_E_FAILURE - Failure to initialize the scheduler/
+   QDF_STATUS_E_FAILURE - Failure to initialize the scheduler/
 
    \sa cds_sched_close()
 
    ---------------------------------------------------------------------------*/
-CDF_STATUS cds_sched_close(void *p_cds_context);
+QDF_STATUS cds_sched_close(void *p_cds_context);
 
 /* Helper routines provided to other CDS API's */
-CDF_STATUS cds_mq_init(p_cds_mq_type pMq);
+QDF_STATUS cds_mq_init(p_cds_mq_type pMq);
 void cds_mq_deinit(p_cds_mq_type pMq);
 void cds_mq_put(p_cds_mq_type pMq, p_cds_msg_wrapper pMsgWrapper);
 p_cds_msg_wrapper cds_mq_get(p_cds_mq_type pMq);
 bool cds_is_mq_empty(p_cds_mq_type pMq);
 p_cds_sched_context get_cds_sched_ctxt(void);
-CDF_STATUS cds_sched_init_mqs(p_cds_sched_context pSchedContext);
+QDF_STATUS cds_sched_init_mqs(p_cds_sched_context pSchedContext);
 void cds_sched_deinit_mqs(p_cds_sched_context pSchedContext);
 void cds_sched_flush_mc_mqs(p_cds_sched_context pSchedContext);
 
-void cdf_timer_module_init(void);
+void qdf_timer_module_init(void);
 void cds_ssr_protect_init(void);
 void cds_ssr_protect(const char *caller_func);
 void cds_ssr_unprotect(const char *caller_func);

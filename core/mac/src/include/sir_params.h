@@ -59,7 +59,6 @@ typedef enum {
 	PHY_SINGLE_CHANNEL_CENTERED = 0,        /* 20MHz IF bandwidth centered on IF carrier */
 	PHY_DOUBLE_CHANNEL_LOW_PRIMARY = 1,     /* 40MHz IF bandwidth with lower 20MHz supporting the primary channel */
 	PHY_DOUBLE_CHANNEL_HIGH_PRIMARY = 3,    /* 40MHz IF bandwidth with higher 20MHz supporting the primary channel */
-#ifdef WLAN_FEATURE_11AC
 	PHY_QUADRUPLE_CHANNEL_20MHZ_LOW_40MHZ_CENTERED = 4,     /* 20/40MHZ offset LOW 40/80MHZ offset CENTERED */
 	PHY_QUADRUPLE_CHANNEL_20MHZ_CENTERED_40MHZ_CENTERED = 5,        /* 20/40MHZ offset CENTERED 40/80MHZ offset CENTERED */
 	PHY_QUADRUPLE_CHANNEL_20MHZ_HIGH_40MHZ_CENTERED = 6,    /* 20/40MHZ offset HIGH 40/80MHZ offset CENTERED */
@@ -67,7 +66,6 @@ typedef enum {
 	PHY_QUADRUPLE_CHANNEL_20MHZ_HIGH_40MHZ_LOW = 8, /* 20/40MHZ offset HIGH 40/80MHZ offset LOW */
 	PHY_QUADRUPLE_CHANNEL_20MHZ_LOW_40MHZ_HIGH = 9, /* 20/40MHZ offset LOW 40/80MHZ offset HIGH */
 	PHY_QUADRUPLE_CHANNEL_20MHZ_HIGH_40MHZ_HIGH = 10,       /* 20/40MHZ offset-HIGH 40/80MHZ offset HIGH */
-#endif
 	PHY_CHANNEL_BONDING_STATE_MAX = 11
 } ePhyChanBondState;
 
@@ -336,12 +334,10 @@ typedef struct sSirMbMsgP2p {
 
 #define SIR_HAL_CFG_RXP_FILTER_REQ         (SIR_HAL_ITC_MSG_TYPES_BEGIN + 106)
 
-#ifdef WLAN_FEATURE_VOWIFI_11R
 #define SIR_HAL_AGGR_ADD_TS_REQ            (SIR_HAL_ITC_MSG_TYPES_BEGIN + 107)
 #define SIR_HAL_AGGR_ADD_TS_RSP            (SIR_HAL_ITC_MSG_TYPES_BEGIN + 108)
 #define SIR_HAL_AGGR_QOS_REQ               (SIR_HAL_ITC_MSG_TYPES_BEGIN + 109)
 #define SIR_HAL_AGGR_QOS_RSP               (SIR_HAL_ITC_MSG_TYPES_BEGIN + 110)
-#endif /* WLAN_FEATURE_VOWIFI_11R */
 
 /* P2P <-> HAL P2P msg */
 #define SIR_HAL_SET_P2P_GO_NOA_REQ         (SIR_HAL_ITC_MSG_TYPES_BEGIN + 111)
@@ -362,8 +358,10 @@ typedef struct sSirMbMsgP2p {
 
 #ifdef FEATURE_WLAN_SCAN_PNO
 #define SIR_HAL_SET_PNO_REQ                (SIR_HAL_ITC_MSG_TYPES_BEGIN + 119)
-/* (SIR_HAL_ITC_MSG_TYPES_BEGIN + 120) is unused */
 #endif /* FEATURE_WLAN_SCAN_PNO */
+
+#define SIR_HAL_SOC_ANTENNA_MODE_REQ        (SIR_HAL_ITC_MSG_TYPES_BEGIN + 120)
+#define SIR_HAL_SOC_ANTENNA_MODE_RESP       (SIR_HAL_ITC_MSG_TYPES_BEGIN + 121)
 
 /* (SIR_HAL_ITC_MSG_TYPES_BEGIN + 122) is unused */
 
@@ -395,9 +393,7 @@ typedef struct sSirMbMsgP2p {
 
 #define SIR_HAL_SET_TM_LEVEL_REQ           (SIR_HAL_ITC_MSG_TYPES_BEGIN + 134)
 
-#ifdef WLAN_FEATURE_11AC
 #define SIR_HAL_UPDATE_OP_MODE             (SIR_HAL_ITC_MSG_TYPES_BEGIN + 135)
-#endif
 
 #ifdef FEATURE_WLAN_TDLS
 /* / PE <-> HAL TDLS messages */
@@ -433,6 +429,9 @@ typedef struct sSirMbMsgP2p {
 #define SIR_HAL_SOC_DUAL_MAC_CFG_REQ       (SIR_HAL_ITC_MSG_TYPES_BEGIN + 154)
 #define SIR_HAL_SOC_DUAL_MAC_CFG_RESP      (SIR_HAL_ITC_MSG_TYPES_BEGIN + 155)
 
+/* For IBSS peer info related messages */
+#define SIR_HAL_IBSS_PEER_INFO_REQ         (SIR_HAL_ITC_MSG_TYPES_BEGIN + 158)
+
 #define SIR_HAL_RATE_UPDATE_IND            (SIR_HAL_ITC_MSG_TYPES_BEGIN + 159)
 
 #define SIR_HAL_FLUSH_LOG_TO_FW            (SIR_HAL_ITC_MSG_TYPES_BEGIN + 160)
@@ -455,10 +454,10 @@ typedef struct sSirMbMsgP2p {
 #define SIR_HAL_SET_MAX_TX_POWER_PER_BAND_REQ \
 					    (SIR_HAL_ITC_MSG_TYPES_BEGIN + 170)
 
-#ifdef WLAN_FEATURE_11AC
+#define SIR_HAL_TX_FAIL_MONITOR_IND         (SIR_HAL_ITC_MSG_TYPES_BEGIN + 171)
+
 #define SIR_HAL_UPDATE_MEMBERSHIP           (SIR_HAL_ITC_MSG_TYPES_BEGIN + 172)
 #define SIR_HAL_UPDATE_USERPOS              (SIR_HAL_ITC_MSG_TYPES_BEGIN + 173)
-#endif
 
 #ifdef FEATURE_WLAN_TDLS
 #define SIR_HAL_UPDATE_FW_TDLS_STATE        (SIR_HAL_ITC_MSG_TYPES_BEGIN + 174)
@@ -472,10 +471,15 @@ typedef struct sSirMbMsgP2p {
 #define SIR_HAL_BEACON_TX_SUCCESS_IND       (SIR_HAL_ITC_MSG_TYPES_BEGIN + 179)
 #define SIR_HAL_DFS_RADAR_IND               (SIR_HAL_ITC_MSG_TYPES_BEGIN + 180)
 
+#define SIR_HAL_IBSS_CESIUM_ENABLE_IND      (SIR_HAL_ITC_MSG_TYPES_BEGIN + 181)
+
+#define SIR_HAL_RMC_ENABLE_IND              (SIR_HAL_ITC_MSG_TYPES_BEGIN + 182)
+#define SIR_HAL_RMC_DISABLE_IND             (SIR_HAL_ITC_MSG_TYPES_BEGIN + 183)
+#define SIR_HAL_RMC_ACTION_PERIOD_IND       (SIR_HAL_ITC_MSG_TYPES_BEGIN + 184)
 #define SIR_HAL_INIT_THERMAL_INFO_CMD       (SIR_HAL_ITC_MSG_TYPES_BEGIN + 185)
 #define SIR_HAL_SET_THERMAL_LEVEL           (SIR_HAL_ITC_MSG_TYPES_BEGIN + 186)
 
-#if defined(FEATURE_WLAN_ESE) && defined(FEATURE_WLAN_ESE_UPLOAD)
+#ifdef FEATURE_WLAN_ESE
 #define SIR_HAL_SET_PLM_REQ                 (SIR_HAL_ITC_MSG_TYPES_BEGIN + 187)
 #endif
 
@@ -487,9 +491,7 @@ typedef struct sSirMbMsgP2p {
 #define SIR_HAL_DISASSOC_TX_COMP            (SIR_HAL_ITC_MSG_TYPES_BEGIN + 191)
 #define SIR_HAL_DEAUTH_TX_COMP              (SIR_HAL_ITC_MSG_TYPES_BEGIN + 192)
 
-#ifdef WLAN_FEATURE_11AC
 #define SIR_HAL_UPDATE_RX_NSS               (SIR_HAL_ITC_MSG_TYPES_BEGIN + 193)
-#endif
 
 #ifdef WLAN_FEATURE_STATS_EXT
 #define SIR_HAL_STATS_EXT_REQUEST           (SIR_HAL_ITC_MSG_TYPES_BEGIN + 194)
@@ -610,7 +612,7 @@ typedef struct sSirMbMsgP2p {
 #define SIR_HAL_LRO_CONFIG_CMD              (SIR_HAL_ITC_MSG_TYPES_BEGIN + 335)
 
 #define SIR_HAL_SET_EGAP_CONF_PARAMS        (SIR_HAL_ITC_MSG_TYPES_BEGIN + 336)
-
+#define SIR_HAL_HT40_OBSS_SCAN_IND          (SIR_HAL_ITC_MSG_TYPES_BEGIN + 337)
 #define SIR_HAL_MSG_TYPES_END                (SIR_HAL_MSG_TYPES_BEGIN + 0x1FF)
 
 /* CFG message types */
@@ -644,10 +646,7 @@ typedef struct sSirMbMsgP2p {
 #define SIR_LIM_SCH_CLEAN_MSG              (SIR_LIM_ITC_MSG_TYPES_BEGIN + 0xB)
 /* Message from ISR upon Radar Detection */
 #define SIR_LIM_RADAR_DETECT_IND           (SIR_LIM_ITC_MSG_TYPES_BEGIN + 0xC)
-
-/* /////////////////////////////////// */
-/* message id Available */
-/* ////////////////////////////////// */
+#define SIR_LIM_CSA_POST_HW_MODE_CHANGE    (SIR_LIM_ITC_MSG_TYPES_BEGIN + 0xD)
 
 /* Message from Hal to send out a DEL-TS indication */
 #define SIR_LIM_DEL_TS_IND                  (SIR_LIM_ITC_MSG_TYPES_BEGIN + 0xE)
@@ -678,9 +677,7 @@ typedef struct sSirMbMsgP2p {
 #define SIR_LIM_QUIET_BSS_TIMEOUT        (SIR_LIM_TIMEOUT_MSG_START + 0x1C)
 
 #define SIR_LIM_WPS_OVERLAP_TIMEOUT      (SIR_LIM_TIMEOUT_MSG_START + 0x1D)
-#ifdef WLAN_FEATURE_VOWIFI_11R
 #define SIR_LIM_FT_PREAUTH_RSP_TIMEOUT   (SIR_LIM_TIMEOUT_MSG_START + 0x1E)
-#endif
 #define SIR_LIM_REMAIN_CHN_TIMEOUT       (SIR_LIM_TIMEOUT_MSG_START + 0x1F)
 #define SIR_LIM_INSERT_SINGLESHOT_NOA_TIMEOUT (SIR_LIM_TIMEOUT_MSG_START + 0x20)
 
@@ -696,6 +693,7 @@ typedef struct sSirMbMsgP2p {
 
 #define SIR_LIM_CONVERT_ACTIVE_CHANNEL_TO_PASSIVE \
 					 (SIR_LIM_TIMEOUT_MSG_START + 0x2C)
+#define SIR_LIM_AUTH_RETRY_TIMEOUT     (SIR_LIM_TIMEOUT_MSG_START + 0x2D)
 
 #define SIR_LIM_MSG_TYPES_END            (SIR_LIM_MSG_TYPES_BEGIN+0xFF)
 

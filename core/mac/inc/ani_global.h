@@ -34,7 +34,7 @@
 typedef struct sAniSirGlobal *tpAniSirGlobal;
 #endif
 
-#include "cdf_types.h"
+#include "qdf_types.h"
 #include "sir_common.h"
 #include "ani_system_defs.h"
 #include "sys_def.h"
@@ -47,9 +47,7 @@ typedef struct sAniSirGlobal *tpAniSirGlobal;
 #include "sir_api.h"
 
 #include "csr_api.h"
-#ifdef WLAN_FEATURE_VOWIFI_11R
 #include "sme_ft_api.h"
-#endif
 #include "csr_support.h"
 #include "sme_internal.h"
 #include "sap_api.h"
@@ -59,15 +57,11 @@ typedef struct sAniSirGlobal *tpAniSirGlobal;
 #include "oem_data_internal.h"
 #endif
 
-#if defined WLAN_FEATURE_VOWIFI
 #include "sme_rrm_internal.h"
 #include "rrm_global.h"
-#endif
 #include "p2p_api.h"
 
-#if defined WLAN_FEATURE_VOWIFI_11R
 #include <lim_ft_defs.h>
-#endif
 
 /* Check if this definition can actually move here from halInternal.h even for Volans. In that case */
 /* this featurization can be removed. */
@@ -247,7 +241,7 @@ enum wifi_logging_ring_id {
 
 /* ------------------------------------------------------------------- */
 /* Change channel generic scheme */
-typedef void (*CHANGE_CHANNEL_CALLBACK)(tpAniSirGlobal pMac, CDF_STATUS status,
+typedef void (*CHANGE_CHANNEL_CALLBACK)(tpAniSirGlobal pMac, QDF_STATUS status,
 					uint32_t *data,
 					tpPESession psessionEntry);
 
@@ -313,9 +307,7 @@ typedef struct sLimTimers {
 	/* quiet duration */
 	TX_TIMER gLimQuietBssTimer;
 
-#ifdef WLAN_FEATURE_VOWIFI_11R
 	TX_TIMER gLimFTPreAuthRspTimer;
-#endif
 
 #ifdef FEATURE_WLAN_ESE
 	TX_TIMER gLimEseTsmTimer;
@@ -332,6 +324,7 @@ typedef struct sLimTimers {
 	 * for a period of time on a particular DFS channel
 	 */
 	TX_TIMER gLimActiveToPassiveChannelTimer;
+	TX_TIMER g_lim_periodic_auth_retry_timer;
 
 /* ********************TIMER SECTION ENDS************************************************** */
 /* ALL THE FIELDS BELOW THIS CAN BE ZEROED OUT in lim_initialize */
@@ -637,7 +630,7 @@ typedef struct sAniSirLim {
 
 	/* admission control policy information */
 	tLimAdmitPolicyInfo admitPolicyInfo;
-	cdf_mutex_t lkPeGlobalLock;
+	qdf_mutex_t lkPeGlobalLock;
 	uint8_t disableLDPCWithTxbfAP;
 #ifdef FEATURE_WLAN_TDLS
 	uint8_t gLimTDLSBufStaEnabled;
@@ -825,8 +818,8 @@ typedef struct sAniSirLim {
 #endif
 
 	tSirRemainOnChnReq *gpLimRemainOnChanReq;       /* hold remain on chan request in this buf */
-	cdf_mutex_t lim_frame_register_lock;
-	cdf_list_t gLimMgmtFrameRegistratinQueue;
+	qdf_mutex_t lim_frame_register_lock;
+	qdf_list_t gLimMgmtFrameRegistratinQueue;
 	uint32_t mgmtFrameSessionId;
 
 	tpPESession pSessionEntry;
@@ -842,7 +835,7 @@ typedef struct sAniSirLim {
 	uint8_t gLimDfsTargetChanNum;
 	uint8_t probeCounter;
 	uint8_t maxProbe;
-	CDF_STATUS(*add_bssdescr_callback)
+	QDF_STATUS(*add_bssdescr_callback)
 		(tpAniSirGlobal pMac, tpSirBssDescription buf,
 		uint32_t scan_id, uint32_t flags);
 	uint8_t retry_packet_cnt;
@@ -850,19 +843,17 @@ typedef struct sAniSirLim {
 } tAniSirLim, *tpAniSirLim;
 
 struct mgmt_frm_reg_info {
-	cdf_list_node_t node;   /* MUST be first element */
+	qdf_list_node_t node;   /* MUST be first element */
 	uint16_t frameType;
 	uint16_t matchLen;
 	uint16_t sessionId;
 	uint8_t matchData[1];
 };
 
-#if defined WLAN_FEATURE_VOWIFI
 typedef struct sRrmContext {
 	tRrmSMEContext rrmSmeContext;
 	tRrmPEContext rrmPEContext;
 } tRrmContext, *tpRrmContext;
-#endif
 
 /**
  * enum tDriverType - Indicate the driver type to the mac, and based on this
@@ -972,6 +963,21 @@ typedef struct sHalMacStartParameters {
 
 } tHalMacStartParameters;
 
+/**
+ * enum auth_tx_ack_status - Indicate TX status of AUTH
+ * @LIM_AUTH_ACK_NOT_RCD : Default status while waiting for ack status.
+ * @LIM_AUTH_ACK_RCD_SUCCESS : Ack is received.
+ * @LIM_AUTH_ACK_RCD_FAILURE : No Ack received.
+ *
+ * Indicate if driver is waiting for ACK status of auth or ACK received for AUTH
+ * OR NO ACK is received for the auth sent.
+ */
+enum auth_tx_ack_status {
+	LIM_AUTH_ACK_NOT_RCD,
+	LIM_AUTH_ACK_RCD_SUCCESS,
+	LIM_AUTH_ACK_RCD_FAILURE,
+};
+
 /* ------------------------------------------------------------------- */
 /* / MAC Sirius parameter structure */
 typedef struct sAniSirGlobal {
@@ -995,9 +1001,7 @@ typedef struct sAniSirGlobal {
 #ifdef FEATURE_OEM_DATA_SUPPORT
 	tOemDataStruct oemData;
 #endif
-#if defined WLAN_FEATURE_VOWIFI
 	tRrmContext rrm;
-#endif
 #ifdef WLAN_FEATURE_CONCURRENT_P2P
 	tp2pContext p2pContext[MAX_NO_OF_P2P_SESSIONS];
 #else
@@ -1042,6 +1046,7 @@ typedef struct sAniSirGlobal {
 	sir_mgmt_frame_ind_callback mgmt_frame_ind_cb;
 	bool first_scan_done;
 	int8_t first_scan_bucket_threshold;
+	enum auth_tx_ack_status auth_ack_status;
 } tAniSirGlobal;
 
 typedef enum {

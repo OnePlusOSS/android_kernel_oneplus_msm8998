@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -53,15 +53,15 @@ tSirRetStatus u_mac_post_ctrl_msg(void *pSirGlobal, void *pMb);
  *
  * This function initializes the Message queue.
  *
- * Return: cdf status
+ * Return: qdf status
  */
-inline CDF_STATUS cds_mq_init(p_cds_mq_type pMq)
+inline QDF_STATUS cds_mq_init(p_cds_mq_type pMq)
 {
 
 	if (pMq == NULL) {
-		CDF_TRACE(CDF_MODULE_ID_CDF, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
 			  "%s: NULL pointer passed", __func__);
-		return CDF_STATUS_E_FAILURE;
+		return QDF_STATUS_E_FAILURE;
 	}
 
 	/* Now initialize the lock */
@@ -70,7 +70,7 @@ inline CDF_STATUS cds_mq_init(p_cds_mq_type pMq)
 	/* Now initialize the List data structure */
 	INIT_LIST_HEAD(&pMq->mqList);
 
-	return CDF_STATUS_SUCCESS;
+	return QDF_STATUS_SUCCESS;
 } /* cds_mq_init() */
 
 /**
@@ -84,7 +84,7 @@ inline CDF_STATUS cds_mq_init(p_cds_mq_type pMq)
 inline void cds_mq_deinit(p_cds_mq_type pMq)
 {
 	if (pMq == NULL) {
-		CDF_TRACE(CDF_MODULE_ID_CDF, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
 			  "%s: NULL pointer passed", __func__);
 		return;
 	}
@@ -104,7 +104,7 @@ inline void cds_mq_put(p_cds_mq_type pMq, p_cds_msg_wrapper pMsgWrapper)
 	unsigned long flags;
 
 	if ((pMq == NULL) || (pMsgWrapper == NULL)) {
-		CDF_TRACE(CDF_MODULE_ID_CDF, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
 			  "%s: NULL pointer passed", __func__);
 		return;
 	}
@@ -131,7 +131,7 @@ inline p_cds_msg_wrapper cds_mq_get(p_cds_mq_type pMq)
 	unsigned long flags;
 
 	if (pMq == NULL) {
-		CDF_TRACE(CDF_MODULE_ID_CDF, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
 			  "%s: NULL pointer passed", __func__);
 		return NULL;
 	}
@@ -139,7 +139,7 @@ inline p_cds_msg_wrapper cds_mq_get(p_cds_mq_type pMq)
 	spin_lock_irqsave(&pMq->mqLock, flags);
 
 	if (list_empty(&pMq->mqList)) {
-		CDF_TRACE(CDF_MODULE_ID_CDF, CDF_TRACE_LEVEL_WARN,
+		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_WARN,
 			  "%s: CDS Message Queue is empty", __func__);
 	} else {
 		listptr = pMq->mqList.next;
@@ -168,9 +168,9 @@ inline bool cds_is_mq_empty(p_cds_mq_type pMq)
 	unsigned long flags;
 
 	if (pMq == NULL) {
-		CDF_TRACE(CDF_MODULE_ID_CDF, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
 			  "%s: NULL pointer passed", __func__);
-		return CDF_STATUS_E_FAILURE;
+		return QDF_STATUS_E_FAILURE;
 	}
 
 	spin_lock_irqsave(&pMq->mqLock, flags);
@@ -184,32 +184,32 @@ inline bool cds_is_mq_empty(p_cds_mq_type pMq)
  * cds_send_mb_message_to_mac() - post a message to a message queue
  * @pBuf: Pointer to buffer allocated by caller
  *
- * Return: cdf status
+ * Return: qdf status
  */
-CDF_STATUS cds_send_mb_message_to_mac(void *pBuf)
+QDF_STATUS cds_send_mb_message_to_mac(void *pBuf)
 {
-	CDF_STATUS cdf_ret_status = CDF_STATUS_E_FAILURE;
+	QDF_STATUS qdf_ret_status = QDF_STATUS_E_FAILURE;
 	tSirRetStatus sirStatus;
 	v_CONTEXT_t cds_context;
 	void *hHal;
 
 	cds_context = cds_get_global_context();
 	if (NULL == cds_context) {
-		CDF_TRACE(CDF_MODULE_ID_SYS, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_SYS, QDF_TRACE_LEVEL_ERROR,
 			  "%s: invalid cds_context", __func__);
 	} else {
-		hHal = cds_get_context(CDF_MODULE_ID_SME);
+		hHal = cds_get_context(QDF_MODULE_ID_SME);
 		if (NULL == hHal) {
-			CDF_TRACE(CDF_MODULE_ID_SYS, CDF_TRACE_LEVEL_ERROR,
+			QDF_TRACE(QDF_MODULE_ID_SYS, QDF_TRACE_LEVEL_ERROR,
 				  "%s: invalid hHal", __func__);
 		} else {
 			sirStatus = u_mac_post_ctrl_msg(hHal, pBuf);
 			if (eSIR_SUCCESS == sirStatus)
-				cdf_ret_status = CDF_STATUS_SUCCESS;
+				qdf_ret_status = QDF_STATUS_SUCCESS;
 		}
 	}
 
-	cdf_mem_free(pBuf);
+	qdf_mem_free(pBuf);
 
-	return cdf_ret_status;
+	return qdf_ret_status;
 }

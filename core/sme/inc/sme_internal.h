@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -37,11 +37,11 @@
 /*--------------------------------------------------------------------------
   Include Files
   ------------------------------------------------------------------------*/
-#include "cdf_status.h"
-#include "cdf_lock.h"
-#include "cdf_trace.h"
-#include "cdf_memory.h"
-#include "cdf_types.h"
+#include "qdf_status.h"
+#include "qdf_lock.h"
+#include "qdf_trace.h"
+#include "qdf_mem.h"
+#include "qdf_types.h"
 #include "host_diag_core_event.h"
 #include "csr_link_list.h"
 #include "sme_power_save.h"
@@ -92,6 +92,7 @@ typedef enum eSmeCommandType {
 	e_sme_command_set_hw_mode,
 	e_sme_command_nss_update,
 	e_sme_command_set_dual_mac_config,
+	e_sme_command_set_antenna_mode,
 } eSmeCommandType;
 
 typedef enum eSmeState {
@@ -102,6 +103,15 @@ typedef enum eSmeState {
 
 #define SME_IS_START(pMac)  (SME_STATE_STOP != (pMac)->sme.state)
 #define SME_IS_READY(pMac)  (SME_STATE_READY == (pMac)->sme.state)
+
+/* HDD Callback function */
+typedef void (*pIbssPeerInfoCb)(void *pUserData, void *infoParam);
+
+/* Peer info */
+typedef struct tagSmePeerInfoHddCbkInfo {
+	void *pUserData;
+	pIbssPeerInfoCb peerInfoCbk;
+} tSmePeerInfoHddCbkInfo;
 
 typedef struct sStatsExtEvent {
 	uint32_t vdev_id;
@@ -141,14 +151,14 @@ typedef void (*sme_set_thermal_level_callback)(void *context, u_int8_t level);
 
 typedef struct tagSmeStruct {
 	eSmeState state;
-	cdf_mutex_t lkSmeGlobalLock;
+	qdf_mutex_t lkSmeGlobalLock;
 	uint32_t totalSmeCmd;
 	/* following pointer contains array of pointers for tSmeCmd* */
 	void **pSmeCmdBufAddr;
 	tDblLinkList smeCmdActiveList;
 	tDblLinkList smeCmdPendingList;
 	tDblLinkList smeCmdFreeList;    /* preallocated roam cmd list */
-	enum tCDF_ADAPTER_MODE currDeviceMode;
+	enum tQDF_ADAPTER_MODE currDeviceMode;
 #ifdef FEATURE_WLAN_LPHB
 	void (*pLphbIndCb)(void *pHddCtx, tSirLPHBInd *indParam);
 #endif /* FEATURE_WLAN_LPHB */
@@ -156,6 +166,7 @@ typedef struct tagSmeStruct {
 	tDblLinkList smeScanCmdPendingList;
 	/* active scan command list */
 	tDblLinkList smeScanCmdActiveList;
+	tSmePeerInfoHddCbkInfo peerInfoParams;
 #ifdef FEATURE_WLAN_DIAG_SUPPORT_CSR
 	host_event_wlan_status_payload_type eventPayload;
 #endif
@@ -220,6 +231,7 @@ typedef struct tagSmeStruct {
 	ocb_callback dcc_stats_event_callback;
 	sme_set_thermal_level_callback set_thermal_level_cb;
 	void *saved_scan_cmd;
+	struct csa_offload_params saved_csa_params;
 } tSmeStruct, *tpSmeStruct;
 
 #endif /* #if !defined( __SMEINTERNAL_H ) */

@@ -51,7 +51,7 @@
 #define WMA_MAX_STA    (16)
 #endif
 
-#define WMA_NVDownload_Start(x)    ({ CDF_STATUS_SUCCESS; })
+#define WMA_NVDownload_Start(x)    ({ QDF_STATUS_SUCCESS; })
 
 #define DPU_FEEDBACK_UNPROTECTED_ERROR 0x0F
 
@@ -196,6 +196,8 @@
 #define WMA_TSM_STATS_RSP              SIR_HAL_TSM_STATS_RSP
 #endif
 
+#define WMA_HT40_OBSS_SCAN_IND                  SIR_HAL_HT40_OBSS_SCAN_IND
+
 #define WMA_SET_MIMOPS_REQ                      SIR_HAL_SET_MIMOPS_REQ
 #define WMA_SET_MIMOPS_RSP                      SIR_HAL_SET_MIMOPS_RSP
 #define WMA_SYS_READY_IND                       SIR_HAL_SYS_READY_IND
@@ -265,10 +267,8 @@
 #define WMA_RUNTIME_PM_SUSPEND_IND	SIR_HAL_RUNTIME_PM_SUSPEND_IND
 #define WMA_RUNTIME_PM_RESUME_IND	SIR_HAL_RUNTIME_PM_RESUME_IND
 
-#ifdef WLAN_FEATURE_VOWIFI_11R
 #define WMA_AGGR_QOS_REQ               SIR_HAL_AGGR_QOS_REQ
 #define WMA_AGGR_QOS_RSP               SIR_HAL_AGGR_QOS_RSP
-#endif /* WLAN_FEATURE_VOWIFI_11R */
 
 /* FTM CMD MSG */
 #define WMA_FTM_CMD_REQ        SIR_PTT_MSG_TYPES_BEGIN
@@ -281,7 +281,7 @@
 
 #endif /* FEATURE_WLAN_SCAN_PNO */
 
-#if defined(FEATURE_WLAN_ESE) && defined(FEATURE_WLAN_ESE_UPLOAD)
+#ifdef FEATURE_WLAN_ESE
 #define WMA_SET_PLM_REQ             SIR_HAL_SET_PLM_REQ
 #endif
 
@@ -303,6 +303,8 @@
 #define WMA_DHCP_START_IND              SIR_HAL_DHCP_START_IND
 #define WMA_DHCP_STOP_IND               SIR_HAL_DHCP_STOP_IND
 
+#define WMA_TX_FAIL_MONITOR_IND         SIR_HAL_TX_FAIL_MONITOR_IND
+
 #define WMA_HIDDEN_SSID_VDEV_RESTART    SIR_HAL_HIDE_SSID_VDEV_RESTART
 
 #ifdef WLAN_FEATURE_GTK_OFFLOAD
@@ -313,12 +315,10 @@
 
 #define WMA_SET_TM_LEVEL_REQ       SIR_HAL_SET_TM_LEVEL_REQ
 
-#ifdef WLAN_FEATURE_11AC
 #define WMA_UPDATE_OP_MODE         SIR_HAL_UPDATE_OP_MODE
 #define WMA_UPDATE_RX_NSS          SIR_HAL_UPDATE_RX_NSS
 #define WMA_UPDATE_MEMBERSHIP      SIR_HAL_UPDATE_MEMBERSHIP
 #define WMA_UPDATE_USERPOS         SIR_HAL_UPDATE_USERPOS
-#endif
 
 #ifdef WLAN_FEATURE_NAN
 #define WMA_NAN_REQUEST            SIR_HAL_NAN_REQUEST
@@ -360,6 +360,14 @@
 
 #define WMA_INIT_THERMAL_INFO_CMD   SIR_HAL_INIT_THERMAL_INFO_CMD
 #define WMA_SET_THERMAL_LEVEL       SIR_HAL_SET_THERMAL_LEVEL
+#define WMA_RMC_ENABLE_IND          SIR_HAL_RMC_ENABLE_IND
+#define WMA_RMC_DISABLE_IND         SIR_HAL_RMC_DISABLE_IND
+#define WMA_RMC_ACTION_PERIOD_IND   SIR_HAL_RMC_ACTION_PERIOD_IND
+
+/* IBSS peer info related message */
+#define WMA_GET_IBSS_PEER_INFO_REQ  SIR_HAL_IBSS_PEER_INFO_REQ
+
+#define WMA_IBSS_CESIUM_ENABLE_IND  SIR_HAL_IBSS_CESIUM_ENABLE_IND
 
 #ifdef FEATURE_WLAN_TDLS
 #define WMA_UPDATE_FW_TDLS_STATE          SIR_HAL_UPDATE_FW_TDLS_STATE
@@ -462,8 +470,8 @@
 
 #define wma_tx_frame(hHal, pFrmBuf, frmLen, frmType, txDir, tid, pCompFunc, \
 		   pData, txFlag, sessionid, channel_freq) \
-	(CDF_STATUS)( wma_tx_packet( \
-		      cds_get_context(CDF_MODULE_ID_WMA), \
+	(QDF_STATUS)( wma_tx_packet( \
+		      cds_get_context(QDF_MODULE_ID_WMA), \
 		      (pFrmBuf), \
 		      (frmLen), \
 		      (frmType), \
@@ -480,8 +488,8 @@
 #define wma_tx_frameWithTxComplete(hHal, pFrmBuf, frmLen, frmType, txDir, tid, \
 	 pCompFunc, pData, pCBackFnTxComp, txFlag, sessionid, tdlsflag, \
 	 channel_freq) \
-	(CDF_STATUS)( wma_tx_packet( \
-		      cds_get_context(CDF_MODULE_ID_WMA), \
+	(QDF_STATUS)( wma_tx_packet( \
+		      cds_get_context(QDF_MODULE_ID_WMA), \
 		      (pFrmBuf), \
 		      (frmLen), \
 		      (frmType), \
@@ -518,6 +526,7 @@ typedef struct sUapsd_Params {
 	uint8_t beTriggerEnabled:1;
 	uint8_t viTriggerEnabled:1;
 	uint8_t voTriggerEnabled:1;
+	bool enable_ps;
 } tUapsd_Params, *tpUapsd_Params;
 
 /**
@@ -584,7 +593,9 @@ typedef void (*pWMATxRxCompFunc)(void *pContext, void *pData,
 /* callback function for TX complete */
 /* parameter 1 - global pMac pointer */
 /* parameter 2 - txComplete status : 1- success, 0 - failure. */
-typedef CDF_STATUS (*pWMAAckFnTxComp)(tpAniSirGlobal, uint32_t);
+typedef QDF_STATUS (*pWMAAckFnTxComp)(tpAniSirGlobal, uint32_t);
+
+typedef void (*wma_txFailIndCallback)(uint8_t *, uint8_t);
 
 /* generic callback for updating parameters from target to UMAC */
 typedef void (*wma_tgt_cfg_cb)(void *context, void *param);
@@ -653,17 +664,17 @@ tSirRetStatus wma_post_ctrl_msg(tpAniSirGlobal pMac, tSirMsgQ *pMsg);
 
 tSirRetStatus u_mac_post_ctrl_msg(void *pSirGlobal, tSirMbMsg *pMb);
 
-CDF_STATUS wma_set_idle_ps_config(void *wma_ptr, uint32_t idle_ps);
-CDF_STATUS wma_get_snr(tAniGetSnrReq *psnr_req);
+QDF_STATUS wma_set_idle_ps_config(void *wma_ptr, uint32_t idle_ps);
+QDF_STATUS wma_get_snr(tAniGetSnrReq *psnr_req);
 
-CDF_STATUS
+QDF_STATUS
 wma_ds_peek_rx_packet_info
 	(cds_pkt_t *vosDataBuff, void **ppRxHeader, bool bSwap);
 
 
 void wma_tx_abort(uint8_t vdev_id);
 
-CDF_STATUS wma_tx_packet(void *pWMA,
+QDF_STATUS wma_tx_packet(void *pWMA,
 			 void *pFrmBuf,
 			 uint16_t frmLen,
 			 eFrameType frmType,
@@ -675,24 +686,37 @@ CDF_STATUS wma_tx_packet(void *pWMA,
 			 uint8_t txFlag, uint8_t sessionId, bool tdlsflag,
 			 uint16_t channel_freq);
 
-CDF_STATUS wma_open(void *p_cds_context,
+QDF_STATUS wma_open(void *p_cds_context,
 		    wma_tgt_cfg_cb pTgtUpdCB,
 		    wma_dfs_radar_indication_cb radar_ind_cb,
 		    tMacOpenParameters *pMacParams);
 
-typedef CDF_STATUS (*wma_mgmt_frame_rx_callback)(void *p_cds_gctx,
+typedef QDF_STATUS (*wma_mgmt_frame_rx_callback)(void *p_cds_gctx,
 					     void *cds_buff);
 
-CDF_STATUS wma_register_mgmt_frm_client(void *p_cds_gctx,
+QDF_STATUS wma_register_mgmt_frm_client(void *p_cds_gctx,
 				wma_mgmt_frame_rx_callback mgmt_rx_cb);
 
-CDF_STATUS wma_de_register_mgmt_frm_client(void *p_cds_gctx);
-CDF_STATUS wma_register_roaming_callbacks(void *cds_ctx,
+QDF_STATUS wma_de_register_mgmt_frm_client(void *p_cds_gctx);
+QDF_STATUS wma_register_roaming_callbacks(void *cds_ctx,
+#ifdef WLAN_FEATURE_ROAM_OFFLOAD
 		void (*csr_roam_synch_cb)(tpAniSirGlobal mac,
 			roam_offload_synch_ind *roam_synch_data,
 			tpSirBssDescription  bss_desc_ptr, uint8_t reason),
-		CDF_STATUS (*pe_roam_synch_cb)(tpAniSirGlobal mac,
+		QDF_STATUS (*pe_roam_synch_cb)(tpAniSirGlobal mac,
 			roam_offload_synch_ind *roam_synch_data,
 			tpSirBssDescription  bss_desc_ptr));
+#else
+static inline QDF_STATUS wma_register_roaming_callbacks(void *cds_ctx,
+		void (*csr_roam_synch_cb)(tpAniSirGlobal mac,
+			roam_offload_synch_ind *roam_synch_data,
+			tpSirBssDescription  bss_desc_ptr, uint8_t reason),
+		QDF_STATUS (*pe_roam_synch_cb)(tpAniSirGlobal mac,
+			roam_offload_synch_ind *roam_synch_data,
+			tpSirBssDescription  bss_desc_ptr))
+{
+	return QDF_STATUS_E_NOSUPPORT;
+}
+#endif
 
 #endif

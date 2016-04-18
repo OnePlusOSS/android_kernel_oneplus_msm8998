@@ -114,11 +114,11 @@
 #define LIM_MIN_MEM_ASSOC       4
 
 /* / Verifies whether given mac addr matches the CURRENT Bssid */
-#define IS_CURRENT_BSSID(pMac, addr, psessionEntry)  (cdf_mem_compare(addr, \
+#define IS_CURRENT_BSSID(pMac, addr, psessionEntry)  (!qdf_mem_cmp(addr, \
 								      psessionEntry->bssId, \
 								      sizeof(psessionEntry->bssId)))
 /* / Verifies whether given addr matches the REASSOC Bssid */
-#define IS_REASSOC_BSSID(pMac, addr, psessionEntry)  (cdf_mem_compare(addr, \
+#define IS_REASSOC_BSSID(pMac, addr, psessionEntry)  (!qdf_mem_cmp(addr, \
 								      psessionEntry->limReAssocbssId, \
 								      sizeof(psessionEntry->limReAssocbssId)))
 
@@ -309,7 +309,7 @@ typedef struct sLimMlmAuthCnf {
 } tLimMlmAuthCnf, *tpLimMlmAuthCnf;
 
 typedef struct sLimMlmDeauthReq {
-	struct cdf_mac_addr peer_macaddr;
+	struct qdf_mac_addr peer_macaddr;
 	uint16_t reasonCode;
 	uint16_t deauthTrigger;
 	uint16_t aid;
@@ -318,7 +318,7 @@ typedef struct sLimMlmDeauthReq {
 } tLimMlmDeauthReq, *tpLimMlmDeauthReq;
 
 typedef struct sLimMlmDeauthCnf {
-	struct cdf_mac_addr peer_macaddr;
+	struct qdf_mac_addr peer_macaddr;
 	tSirResultCodes resultCode;
 	uint16_t deauthTrigger;
 	uint16_t aid;
@@ -333,7 +333,7 @@ typedef struct sLimMlmDeauthInd {
 } tLimMlmDeauthInd, *tpLimMlmDeauthInd;
 
 typedef struct sLimMlmDisassocReq {
-	struct cdf_mac_addr peer_macaddr;
+	struct qdf_mac_addr peer_macaddr;
 	uint16_t reasonCode;
 	uint16_t disassocTrigger;
 	uint16_t aid;
@@ -371,7 +371,7 @@ typedef struct sLimMlmPurgeStaInd {
 } tLimMlmPurgeStaInd, *tpLimMlmPurgeStaInd;
 
 typedef struct sLimMlmSetKeysCnf {
-	struct cdf_mac_addr peer_macaddr;
+	struct qdf_mac_addr peer_macaddr;
 	uint16_t resultCode;
 	uint16_t aid;
 	uint8_t sessionId;
@@ -418,7 +418,7 @@ void lim_apply_configuration(tpAniSirGlobal, tpPESession);
 void lim_set_cfg_protection(tpAniSirGlobal pMac, tpPESession pesessionEntry);
 
 /* Function to Initialize MLM state machine on STA */
-void lim_init_mlm(tpAniSirGlobal);
+tSirRetStatus lim_init_mlm(tpAniSirGlobal);
 
 /* Function to cleanup MLM state machine */
 void lim_cleanup_mlm(tpAniSirGlobal);
@@ -434,10 +434,8 @@ void lim_process_probe_req_frame_multiple_bss(tpAniSirGlobal, uint8_t *,
 
 /* Process Auth frame when we have a session in progress. */
 void lim_process_auth_frame(tpAniSirGlobal, uint8_t *, tpPESession);
-#ifdef WLAN_FEATURE_VOWIFI_11R
 tSirRetStatus lim_process_auth_frame_no_session(tpAniSirGlobal pMac, uint8_t *,
 						void *body);
-#endif
 
 void lim_process_assoc_req_frame(tpAniSirGlobal, uint8_t *, uint8_t, tpPESession);
 void lim_send_mlm_assoc_ind(tpAniSirGlobal pMac, tpDphHashNode pStaDs,
@@ -458,19 +456,26 @@ tSirRetStatus lim_send_probe_req_mgmt_frame(tpAniSirGlobal, tSirMacSSid *,
 void lim_send_probe_rsp_mgmt_frame(tpAniSirGlobal, tSirMacAddr, tpAniSSID, short,
 				   uint8_t, tpPESession, uint8_t);
 void lim_send_auth_mgmt_frame(tpAniSirGlobal, tSirMacAuthFrameBody *, tSirMacAddr,
-			      uint8_t, tpPESession);
+			      uint8_t, tpPESession, bool wait_for_ack);
 void lim_send_assoc_req_mgmt_frame(tpAniSirGlobal, tLimMlmAssocReq *, tpPESession);
+#ifdef WLAN_FEATURE_HOST_ROAM
+void lim_send_reassoc_req_with_ft_ies_mgmt_frame(tpAniSirGlobal pMac,
+		tLimMlmReassocReq *pMlmReassocReq, tpPESession psessionEntry);
 void lim_send_reassoc_req_mgmt_frame(tpAniSirGlobal, tLimMlmReassocReq *,
 				     tpPESession);
-#ifdef WLAN_FEATURE_VOWIFI_11R
-void lim_send_reassoc_req_with_ft_ies_mgmt_frame(tpAniSirGlobal pMac,
-						 tLimMlmReassocReq *pMlmReassocReq,
-						 tpPESession psessionEntry);
+#else
+static inline void lim_send_reassoc_req_with_ft_ies_mgmt_frame(
+		tpAniSirGlobal pMac, tLimMlmReassocReq *pMlmReassocReq,
+		tpPESession psessionEntry)
+{}
+static inline void lim_send_reassoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
+		tLimMlmReassocReq *reassoc_req, tpPESession pe_session)
+{}
 #endif
 void lim_send_delts_req_action_frame(tpAniSirGlobal pMac, tSirMacAddr peer,
 				     uint8_t wmmTspecPresent,
-				     tSirMacTSInfo *pTsinfo,
-				     tSirMacTspecIE *pTspecIe,
+				     tSirMacTSInfo * pTsinfo,
+				     tSirMacTspecIE * pTspecIe,
 				     tpPESession psessionEntry);
 void lim_send_addts_req_action_frame(tpAniSirGlobal pMac, tSirMacAddr peerMacAddr,
 				     tSirAddtsReqInfo *addts, tpPESession);
@@ -501,7 +506,6 @@ tSirRetStatus lim_send_vht_opmode_notification_frame(tpAniSirGlobal pMac,
 						     tSirMacAddr peer, uint8_t nMode,
 						     tpPESession psessionEntry);
 
-#if defined WLAN_FEATURE_VOWIFI
 tSirRetStatus lim_send_neighbor_report_request_frame(tpAniSirGlobal,
 						     tpSirMacNeighborReportReq,
 						     tSirMacAddr, tpPESession);
@@ -511,7 +515,6 @@ tSirRetStatus lim_send_radio_measure_report_action_frame(tpAniSirGlobal, uint8_t
 							 uint8_t,
 							 tpSirMacRadioMeasureReport,
 							 tSirMacAddr, tpPESession);
-#endif
 
 
 #ifdef FEATURE_WLAN_TDLS
@@ -530,7 +533,7 @@ void lim_send_sme_mgmt_tx_completion(tpAniSirGlobal pMac, tpPESession psessionEn
 				     uint32_t txCompleteStatus);
 tSirRetStatus lim_delete_tdls_peers(tpAniSirGlobal mac_ctx,
 				    tpPESession session_entry);
-CDF_STATUS lim_process_tdls_add_sta_rsp(tpAniSirGlobal pMac, void *msg, tpPESession);
+QDF_STATUS lim_process_tdls_add_sta_rsp(tpAniSirGlobal pMac, void *msg, tpPESession);
 #else
 static inline tSirRetStatus lim_delete_tdls_peers(tpAniSirGlobal mac_ctx,
 						tpPESession session_entry)
@@ -558,7 +561,7 @@ uint32_t lim_defer_msg(tpAniSirGlobal, tSirMsgQ *);
 /* / Function that Switches the Channel and sets the CB Mode */
 void lim_set_channel(tpAniSirGlobal pMac, uint8_t channel,
 		uint8_t ch_center_freq_seg0, uint8_t ch_center_freq_seg1,
-		phy_ch_width ch_width, int8_t maxTxPower,
+		enum phy_ch_width ch_width, int8_t maxTxPower,
 		uint8_t peSessionId);
 
 
@@ -799,13 +802,13 @@ void
 lim_send_vdev_restart(tpAniSirGlobal pMac, tpPESession psessionEntry,
 		      uint8_t sessionId);
 
-void lim_get_wpspbc_sessions(tpAniSirGlobal pMac, struct cdf_mac_addr addr,
+void lim_get_wpspbc_sessions(tpAniSirGlobal pMac, struct qdf_mac_addr addr,
 			uint8_t *uuid_e, eWPSPBCOverlap *overlap,
 			tpPESession psessionEntry);
 void limWPSPBCTimeout(tpAniSirGlobal pMac, tpPESession psessionEntry);
 void lim_wpspbc_close(tpAniSirGlobal pMac, tpPESession psessionEntry);
 void lim_remove_pbc_sessions(tpAniSirGlobal pMac,
-				struct cdf_mac_addr pRemoveMac,
+				struct qdf_mac_addr pRemoveMac,
 				tpPESession psessionEntry);
 
 #define LIM_WPS_OVERLAP_TIMER_MS                 10000
@@ -829,25 +832,23 @@ void lim_process_regd_defd_sme_req_after_noa_start(tpAniSirGlobal pMac);
 
 void lim_process_disassoc_ack_timeout(tpAniSirGlobal pMac);
 void lim_process_deauth_ack_timeout(tpAniSirGlobal pMac);
-CDF_STATUS lim_send_disassoc_cnf(tpAniSirGlobal pMac);
-CDF_STATUS lim_send_deauth_cnf(tpAniSirGlobal pMac);
-CDF_STATUS lim_disassoc_tx_complete_cnf(tpAniSirGlobal pMac,
+QDF_STATUS lim_send_disassoc_cnf(tpAniSirGlobal pMac);
+QDF_STATUS lim_send_deauth_cnf(tpAniSirGlobal pMac);
+QDF_STATUS lim_disassoc_tx_complete_cnf(tpAniSirGlobal pMac,
 					uint32_t txCompleteSuccess);
-CDF_STATUS lim_deauth_tx_complete_cnf(tpAniSirGlobal pMac,
+QDF_STATUS lim_deauth_tx_complete_cnf(tpAniSirGlobal pMac,
 				      uint32_t txCompleteSuccess);
 
-#ifdef WLAN_FEATURE_VOWIFI_11R
 typedef struct sSetLinkCbackParams {
 	void *cbackDataPtr;
 } tSetLinkCbackParams;
-#endif
 
 void lim_process_rx_scan_event(tpAniSirGlobal mac, void *buf);
 
 int lim_process_remain_on_chnl_req(tpAniSirGlobal pMac, uint32_t *pMsg);
-void lim_remain_on_chn_rsp(tpAniSirGlobal pMac, CDF_STATUS status, uint32_t *data);
+void lim_remain_on_chn_rsp(tpAniSirGlobal pMac, QDF_STATUS status, uint32_t *data);
 void lim_send_sme_disassoc_deauth_ntf(tpAniSirGlobal mac_ctx,
-				CDF_STATUS status, uint32_t *ctx);
+				QDF_STATUS status, uint32_t *ctx);
 
 /* / Bit value data structure */
 typedef enum sHalBitVal         /* For Bit operations */

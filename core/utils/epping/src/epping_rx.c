@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -56,7 +56,7 @@
 #define AR6000_BUFFER_SIZE 1664
 #define AR6000_MIN_HEAD_ROOM 64
 
-static bool enb_rx_dump = 0;
+static bool enb_rx_dump;
 
 #ifdef HIF_SDIO
 void epping_refill(void *ctx, HTC_ENDPOINT_ID Endpoint)
@@ -78,12 +78,12 @@ void epping_refill(void *ctx, HTC_ENDPOINT_ID Endpoint)
 
 	INIT_HTC_PACKET_QUEUE(&queue);
 
-	EPPING_LOG(CDF_TRACE_LEVEL_INFO,
+	EPPING_LOG(QDF_TRACE_LEVEL_INFO,
 		   "%s: providing htc with %d buffers at eid=%d\n",
 		   __func__, buffersToRefill, Endpoint);
 
 	for (RxBuffers = 0; RxBuffers < buffersToRefill; RxBuffers++) {
-		osBuf = cdf_nbuf_alloc(NULL, AR6000_BUFFER_SIZE,
+		osBuf = qdf_nbuf_alloc(NULL, AR6000_BUFFER_SIZE,
 				       AR6000_MIN_HEAD_ROOM, 4, false);
 		if (NULL == osBuf) {
 			break;
@@ -93,7 +93,7 @@ void epping_refill(void *ctx, HTC_ENDPOINT_ID Endpoint)
 		pPacket = (HTC_PACKET *) (A_NETBUF_HEAD(osBuf));
 		/* set re-fill info */
 		SET_HTC_PACKET_INFO_RX_REFILL(pPacket, osBuf,
-					      cdf_nbuf_data(osBuf),
+					      qdf_nbuf_data(osBuf),
 					      AR6000_BUFFER_SIZE, Endpoint);
 		SET_HTC_PACKET_NET_BUF_CONTEXT(pPacket, osBuf);
 		/* add to queue */
@@ -116,16 +116,16 @@ void epping_rx(void *ctx, HTC_PACKET *pPacket)
 	HTC_ENDPOINT_ID eid = pPacket->Endpoint;
 	struct sk_buff *pktSkb = (struct sk_buff *)pPacket->pPktContext;
 
-	EPPING_LOG(CDF_TRACE_LEVEL_INFO,
+	EPPING_LOG(QDF_TRACE_LEVEL_INFO,
 		   "%s: pAdapter = 0x%p eid=%d, skb=0x%p, data=0x%p, len=0x%x status:%d",
 		   __func__, pAdapter, eid, pktSkb, pPacket->pBuffer,
 		   pPacket->ActualLength, status);
 
 	if (status != A_OK) {
 		if (status != A_ECANCELED) {
-			printk("%s: RX ERR (%d) \n", __func__, status);
+			printk("%s: RX ERR (%d)\n", __func__, status);
 		}
-		cdf_nbuf_free(pktSkb);
+		qdf_nbuf_free(pktSkb);
 		return;
 	}
 
@@ -135,7 +135,7 @@ void epping_rx(void *ctx, HTC_PACKET *pPacket)
 			A_NETBUF_PULL(pktSkb, EPPING_ALIGNMENT_PAD);
 		}
 		if (enb_rx_dump)
-			epping_hex_dump((void *)cdf_nbuf_data(pktSkb),
+			epping_hex_dump((void *)qdf_nbuf_data(pktSkb),
 					pktSkb->len, __func__);
 		pktSkb->dev = dev;
 		if ((pktSkb->dev->flags & IFF_UP) == IFF_UP) {
@@ -148,14 +148,14 @@ void epping_rx(void *ctx, HTC_PACKET *pPacket)
 				netif_rx_ni(pktSkb);
 			if ((pAdapter->stats.rx_packets %
 				 EPPING_STATS_LOG_COUNT) == 0) {
-				EPPING_LOG(CDF_TRACE_LEVEL_FATAL,
+				EPPING_LOG(QDF_TRACE_LEVEL_FATAL,
 					   "%s: total_rx_pkts = %lu",
 					   __func__,
 					   pAdapter->stats.rx_packets);
 			}
 		} else {
 			++pAdapter->stats.rx_dropped;
-			cdf_nbuf_free(pktSkb);
+			qdf_nbuf_free(pktSkb);
 		}
 	}
 }

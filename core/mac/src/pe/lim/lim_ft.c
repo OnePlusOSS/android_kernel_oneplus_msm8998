@@ -25,7 +25,6 @@
  * to the Linux Foundation.
  */
 
-#ifdef WLAN_FEATURE_VOWIFI_11R
 /**=========================================================================
 
    \brief implementation for PE 11r VoWiFi FT Protocol
@@ -50,7 +49,7 @@
 #include "wma.h"
 
 extern void lim_send_set_sta_key_req(tpAniSirGlobal pMac,
-				     tLimMlmSetKeysReq *pMlmSetKeysReq,
+				     tLimMlmSetKeysReq * pMlmSetKeysReq,
 				     uint16_t staIdx,
 				     uint8_t defWEPIdx,
 				     tpPESession sessionEntry, bool sendRsp);
@@ -61,77 +60,8 @@ extern void lim_send_set_sta_key_req(tpAniSirGlobal pMac,
 void lim_ft_open(tpAniSirGlobal pMac, tpPESession psessionEntry)
 {
 	if (psessionEntry)
-		cdf_mem_set(&psessionEntry->ftPEContext, sizeof(tftPEContext),
+		qdf_mem_set(&psessionEntry->ftPEContext, sizeof(tftPEContext),
 			    0);
-}
-
-/*--------------------------------------------------------------------------
-   Cleanup FT variables.
-   ------------------------------------------------------------------------*/
-void lim_ft_cleanup_pre_auth_info(tpAniSirGlobal pMac, tpPESession psessionEntry)
-{
-	tpPESession pReAssocSessionEntry = NULL;
-	uint8_t sessionId = 0;
-
-	if (!psessionEntry) {
-		lim_log(pMac, LOGE, FL("psessionEntry is NULL"));
-		return;
-	}
-
-	/* Nothing to be done if the session is not in STA mode */
-	if (!LIM_IS_STA_ROLE(psessionEntry)) {
-		lim_log(pMac, LOGE, FL("psessionEntry is not in STA mode"));
-		return;
-	}
-
-	if (psessionEntry->ftPEContext.pFTPreAuthReq) {
-		pReAssocSessionEntry =
-			pe_find_session_by_bssid(pMac,
-						 psessionEntry->ftPEContext.
-						 pFTPreAuthReq->preAuthbssId,
-						 &sessionId);
-
-		lim_log(pMac, LOG1, FL("Freeing pFTPreAuthReq= %p"),
-			       psessionEntry->ftPEContext.pFTPreAuthReq);
-		if (psessionEntry->ftPEContext.pFTPreAuthReq->
-		    pbssDescription) {
-			cdf_mem_free(psessionEntry->ftPEContext.pFTPreAuthReq->
-				     pbssDescription);
-			psessionEntry->ftPEContext.pFTPreAuthReq->
-			pbssDescription = NULL;
-		}
-		cdf_mem_free(psessionEntry->ftPEContext.pFTPreAuthReq);
-		psessionEntry->ftPEContext.pFTPreAuthReq = NULL;
-	}
-
-	if (psessionEntry->ftPEContext.pAddBssReq) {
-		cdf_mem_free(psessionEntry->ftPEContext.pAddBssReq);
-		psessionEntry->ftPEContext.pAddBssReq = NULL;
-	}
-
-	if (psessionEntry->ftPEContext.pAddStaReq) {
-		cdf_mem_free(psessionEntry->ftPEContext.pAddStaReq);
-		psessionEntry->ftPEContext.pAddStaReq = NULL;
-	}
-
-	/* The session is being deleted, cleanup the contents */
-	cdf_mem_set(&psessionEntry->ftPEContext, sizeof(tftPEContext), 0);
-
-	/* Delete the session created while handling pre-auth response */
-	if (pReAssocSessionEntry) {
-		/* If we have successful pre-auth response, then we would have
-		 * created a session on which reassoc request will be sent
-		 */
-		if (pReAssocSessionEntry->valid &&
-		    pReAssocSessionEntry->limSmeState ==
-		    eLIM_SME_WT_REASSOC_STATE) {
-			CDF_TRACE(CDF_MODULE_ID_PE,
-				  CDF_TRACE_LEVEL_DEBUG,
-				  FL("Deleting Preauth session(%d)"),
-				  pReAssocSessionEntry->peSessionId);
-			pe_delete_session(pMac, pReAssocSessionEntry);
-		}
-	}
 }
 
 void lim_ft_cleanup_all_ft_sessions(tpAniSirGlobal pMac)
@@ -166,209 +96,30 @@ void lim_ft_cleanup(tpAniSirGlobal pMac, tpPESession psessionEntry)
 		if (NULL !=
 		    psessionEntry->ftPEContext.pFTPreAuthReq->
 		    pbssDescription) {
-			cdf_mem_free(psessionEntry->ftPEContext.pFTPreAuthReq->
+			qdf_mem_free(psessionEntry->ftPEContext.pFTPreAuthReq->
 				     pbssDescription);
 			psessionEntry->ftPEContext.pFTPreAuthReq->
 			pbssDescription = NULL;
 		}
-		cdf_mem_free(psessionEntry->ftPEContext.pFTPreAuthReq);
+		qdf_mem_free(psessionEntry->ftPEContext.pFTPreAuthReq);
 		psessionEntry->ftPEContext.pFTPreAuthReq = NULL;
 	}
 
 	if (psessionEntry->ftPEContext.pAddBssReq) {
-		cdf_mem_free(psessionEntry->ftPEContext.pAddBssReq);
+		qdf_mem_free(psessionEntry->ftPEContext.pAddBssReq);
 		psessionEntry->ftPEContext.pAddBssReq = NULL;
 	}
 
 	if (psessionEntry->ftPEContext.pAddStaReq) {
-		cdf_mem_free(psessionEntry->ftPEContext.pAddStaReq);
+		qdf_mem_free(psessionEntry->ftPEContext.pAddStaReq);
 		psessionEntry->ftPEContext.pAddStaReq = NULL;
 	}
 
 	/* The session is being deleted, cleanup the contents */
-	cdf_mem_set(&psessionEntry->ftPEContext, sizeof(tftPEContext), 0);
+	qdf_mem_set(&psessionEntry->ftPEContext, sizeof(tftPEContext), 0);
 }
 
-/*
- * lim_process_ft_pre_auth_req() - process ft pre auth req
- *
- * @mac_ctx:    global mac ctx
- * @msg:        pointer to message
- *
- * In this function, we process the FT Pre Auth Req:
- *   We receive Pre-Auth, suspend link, register a call back. In the call back,
- *   we will need to accept frames from the new bssid. Send out the auth req to
- *   new AP. Start timer and when the timer is done or if we receive the Auth
- *   response. We change channel. Resume link
- *
- * Return: value to indicate if buffer was consumed
- */
-int lim_process_ft_pre_auth_req(tpAniSirGlobal mac_ctx, tpSirMsgQ msg)
-{
-	int buf_consumed = false;
-	tpPESession session;
-	uint8_t session_id;
-	tpSirFTPreAuthReq ft_pre_auth_req = (tSirFTPreAuthReq *) msg->bodyptr;
-
-	if (NULL == ft_pre_auth_req) {
-		lim_log(mac_ctx, LOGE, FL("tSirFTPreAuthReq is NULL"));
-		return buf_consumed;
-	}
-
-	/* Get the current session entry */
-	session = pe_find_session_by_bssid(mac_ctx,
-					   ft_pre_auth_req->currbssId,
-					   &session_id);
-	if (session == NULL) {
-		lim_log(mac_ctx, LOGE,
-			FL("Unable to find session for the bssid"
-			   MAC_ADDRESS_STR),
-			   MAC_ADDR_ARRAY(ft_pre_auth_req->currbssId));
-		/* Post the FT Pre Auth Response to SME */
-		lim_post_ft_pre_auth_rsp(mac_ctx, eSIR_FAILURE, NULL, 0,
-					 session);
-		/*
-		 * return FALSE, since the Pre-Auth Req will be freed in
-		 * limPostFTPreAuthRsp on failure
-		 */
-		return buf_consumed;
-	}
-
-	/* Nothing to be done if the session is not in STA mode */
-	if (!LIM_IS_STA_ROLE(session)) {
-		lim_log(mac_ctx, LOGE, FL("session is not in STA mode"));
-		buf_consumed = true;
-		return buf_consumed;
-	}
-
-	/* Can set it only after sending auth */
-	session->ftPEContext.ftPreAuthStatus = eSIR_FAILURE;
-	session->ftPEContext.ftPreAuthSession = true;
-
-	/* Indicate that this is the session on which preauth is being done */
-	if (session->ftPEContext.pFTPreAuthReq) {
-		if (session->ftPEContext.pFTPreAuthReq->pbssDescription) {
-			cdf_mem_free(
-			  session->ftPEContext.pFTPreAuthReq->pbssDescription);
-			session->ftPEContext.pFTPreAuthReq->pbssDescription =
-									NULL;
-		}
-		cdf_mem_free(session->ftPEContext.pFTPreAuthReq);
-		session->ftPEContext.pFTPreAuthReq = NULL;
-	}
-
-	/* We need information from the Pre-Auth Req. Lets save that */
-	session->ftPEContext.pFTPreAuthReq = ft_pre_auth_req;
-
-	lim_log(mac_ctx, LOG1, FL("PRE Auth ft_ies_length=%02x%02x%02x"),
-		session->ftPEContext.pFTPreAuthReq->ft_ies[0],
-		session->ftPEContext.pFTPreAuthReq->ft_ies[1],
-		session->ftPEContext.pFTPreAuthReq->ft_ies[2]);
-#ifdef FEATURE_WLAN_DIAG_SUPPORT_LIM    /* FEATURE_WLAN_DIAG_SUPPORT */
-	lim_diag_event_report(mac_ctx, WLAN_PE_DIAG_PRE_AUTH_REQ_EVENT,
-			      session, 0, 0);
-#endif
-
-	/* Dont need to suspend if APs are in same channel */
-	if (session->currentOperChannel !=
-	    session->ftPEContext.pFTPreAuthReq->preAuthchannelNum) {
-		/* Need to suspend link only if the channels are different */
-		lim_log(mac_ctx, LOG2,
-			FL("Performing pre-auth on diff channel(session %p)"),
-			session);
-		lim_send_preauth_scan_offload(mac_ctx, session->peSessionId,
-				session->ftPEContext.pFTPreAuthReq);
-	} else {
-		lim_log(mac_ctx, LOG2,
-			FL("Performing pre-auth on same channel (session %p)"),
-			session);
-		/* We are in the same channel. Perform pre-auth */
-		lim_perform_ft_pre_auth(mac_ctx, CDF_STATUS_SUCCESS, NULL,
-					session);
-	}
-
-	return buf_consumed;
-}
-
-/*------------------------------------------------------------------
- * Send the Auth1
- * Receive back Auth2
- *------------------------------------------------------------------*/
-void lim_perform_ft_pre_auth(tpAniSirGlobal pMac, CDF_STATUS status,
-			     uint32_t *data, tpPESession psessionEntry)
-{
-	tSirMacAuthFrameBody authFrame;
-
-	if (NULL == psessionEntry) {
-		PELOGE(lim_log(pMac, LOGE, FL("psessionEntry is NULL"));)
-		return;
-	}
-
-	if (psessionEntry->is11Rconnection &&
-	    psessionEntry->ftPEContext.pFTPreAuthReq) {
-		/* Only 11r assoc has FT IEs */
-		if (psessionEntry->ftPEContext.pFTPreAuthReq->ft_ies == NULL) {
-			lim_log(pMac, LOGE,
-				FL("FTIEs for Auth Req Seq 1 is absent"));
-			goto preauth_fail;
-		}
-	}
-
-	if (status != CDF_STATUS_SUCCESS) {
-		lim_log(pMac, LOGE,
-			FL(" Change channel not successful for FT pre-auth"));
-		goto preauth_fail;
-	}
-
-	/* Nothing to be done if the session is not in STA mode */
-	if (!LIM_IS_STA_ROLE(psessionEntry)) {
-		lim_log(pMac, LOGE, FL("psessionEntry is not in STA mode"));
-		return;
-	}
-	lim_log(pMac, LOG2, "Entered wait auth2 state for FT (old session %p)",
-				 psessionEntry);
-	if (psessionEntry->is11Rconnection) {
-		/* Now we are on the right channel and need to send out Auth1 and
-		 * receive Auth2
-		 */
-		authFrame.authAlgoNumber = eSIR_FT_AUTH;
-	} else {
-		/* Will need to make isESEconnection a enum may be for further
-		 * improvements to this to match this algorithm number
-		 */
-		authFrame.authAlgoNumber = eSIR_OPEN_SYSTEM;
-	}
-	authFrame.authTransactionSeqNumber = SIR_MAC_AUTH_FRAME_1;
-	authFrame.authStatusCode = 0;
-
-	/* Start timer here to come back to operating channel */
-	pMac->lim.limTimers.gLimFTPreAuthRspTimer.sessionId =
-		psessionEntry->peSessionId;
-	if (TX_SUCCESS !=
-	    tx_timer_activate(&pMac->lim.limTimers.gLimFTPreAuthRspTimer)) {
-		lim_log(pMac, LOGE, FL("FT Auth Rsp Timer Start Failed"));
-		goto preauth_fail;
-	}
-	MTRACE(mac_trace(pMac, TRACE_CODE_TIMER_ACTIVATE,
-		psessionEntry->peSessionId, eLIM_FT_PREAUTH_RSP_TIMER));
-
-	lim_log(pMac, LOG1, FL("FT Auth Rsp Timer Started"));
-#ifdef FEATURE_WLAN_DIAG_SUPPORT
-	lim_diag_event_report(pMac, WLAN_PE_DIAG_ROAM_AUTH_START_EVENT,
-			pMac->lim.pSessionEntry, eSIR_SUCCESS, eSIR_SUCCESS);
-#endif
-
-	lim_send_auth_mgmt_frame(pMac, &authFrame,
-		 psessionEntry->ftPEContext.pFTPreAuthReq->preAuthbssId,
-		 LIM_NO_WEP_IN_FC, psessionEntry);
-
-	return;
-
-preauth_fail:
-	lim_handle_ft_pre_auth_rsp(pMac, eSIR_FAILURE, NULL, 0, psessionEntry);
-	return;
-}
-
+#if defined(WLAN_FEATURE_HOST_ROAM) || defined(WLAN_FEATURE_ROAM_OFFLOAD)
 /*------------------------------------------------------------------
  *
  * Create the new Add Bss Req to the new AP.
@@ -376,10 +127,9 @@ preauth_fail:
  * The newly created ft Session entry is passed to this function
  *
  *------------------------------------------------------------------*/
-tSirRetStatus lim_ft_prepare_add_bss_req(tpAniSirGlobal pMac,
-					 uint8_t updateEntry,
-					 tpPESession pftSessionEntry,
-					 tpSirBssDescription bssDescription)
+void lim_ft_prepare_add_bss_req(tpAniSirGlobal pMac,
+		uint8_t updateEntry, tpPESession pftSessionEntry,
+		tpSirBssDescription bssDescription)
 {
 	tpAddBssParams pAddBssParams = NULL;
 	tAddStaParams *sta_ctx;
@@ -389,25 +139,25 @@ tSirRetStatus lim_ft_prepare_add_bss_req(tpAniSirGlobal pMac,
 	/* Nothing to be done if the session is not in STA mode */
 	if (!LIM_IS_STA_ROLE(pftSessionEntry)) {
 		lim_log(pMac, LOGE, FL("psessionEntry is not in STA mode"));
-		return eSIR_FAILURE;
+		return;
 	}
 
-	pBeaconStruct = cdf_mem_malloc(sizeof(tSchBeaconStruct));
+	pBeaconStruct = qdf_mem_malloc(sizeof(tSchBeaconStruct));
 	if (NULL == pBeaconStruct) {
 		lim_log(pMac, LOGE,
 			FL("Unable to allocate memory for creating ADD_BSS"));
-		return eSIR_MEM_ALLOC_FAILED;
+		return;
 	}
 	/* Package SIR_HAL_ADD_BSS_REQ message parameters */
-	pAddBssParams = cdf_mem_malloc(sizeof(tAddBssParams));
+	pAddBssParams = qdf_mem_malloc(sizeof(tAddBssParams));
 	if (NULL == pAddBssParams) {
-		cdf_mem_free(pBeaconStruct);
+		qdf_mem_free(pBeaconStruct);
 		lim_log(pMac, LOGP,
 			FL("Unable to allocate memory for creating ADD_BSS"));
-		return (eSIR_MEM_ALLOC_FAILED);
+		return;
 	}
 
-	cdf_mem_set((uint8_t *) pAddBssParams, sizeof(tAddBssParams), 0);
+	qdf_mem_set((uint8_t *) pAddBssParams, sizeof(tAddBssParams), 0);
 
 	lim_extract_ap_capabilities(pMac, (uint8_t *) bssDescription->ieFields,
 			lim_get_ielen_from_bss_description(bssDescription),
@@ -418,11 +168,11 @@ tSirRetStatus lim_ft_prepare_add_bss_req(tpAniSirGlobal pMac,
 		lim_decide_sta_protection_on_assoc(pMac, pBeaconStruct,
 						   pftSessionEntry);
 
-	cdf_mem_copy(pAddBssParams->bssId, bssDescription->bssId,
+	qdf_mem_copy(pAddBssParams->bssId, bssDescription->bssId,
 		     sizeof(tSirMacAddr));
 
 	/* Fill in tAddBssParams selfMacAddr */
-	cdf_mem_copy(pAddBssParams->selfMacAddr, pftSessionEntry->selfMacAddr,
+	qdf_mem_copy(pAddBssParams->selfMacAddr, pftSessionEntry->selfMacAddr,
 		     sizeof(tSirMacAddr));
 
 	pAddBssParams->bssType = pftSessionEntry->bssType;
@@ -445,7 +195,7 @@ tSirRetStatus lim_ft_prepare_add_bss_req(tpAniSirGlobal pMac,
 
 	pAddBssParams->rateSet.numRates =
 		pBeaconStruct->supportedRates.numRates;
-	cdf_mem_copy(pAddBssParams->rateSet.rate,
+	qdf_mem_copy(pAddBssParams->rateSet.rate,
 		     pBeaconStruct->supportedRates.rate,
 		     pBeaconStruct->supportedRates.numRates);
 
@@ -469,10 +219,10 @@ tSirRetStatus lim_ft_prepare_add_bss_req(tpAniSirGlobal pMac,
 	if (IS_DOT11_MODE_HT(pftSessionEntry->dot11mode) &&
 	    (pBeaconStruct->HTCaps.present)) {
 		pAddBssParams->htCapable = pBeaconStruct->HTCaps.present;
-		cdf_mem_copy(&pAddBssParams->staContext.capab_info,
+		qdf_mem_copy(&pAddBssParams->staContext.capab_info,
 			     &pBeaconStruct->capabilityInfo,
 			     sizeof(pAddBssParams->staContext.capab_info));
-		cdf_mem_copy(&pAddBssParams->staContext.ht_caps,
+		qdf_mem_copy(&pAddBssParams->staContext.ht_caps,
 			     (uint8_t *) &pBeaconStruct->HTCaps +
 			     sizeof(uint8_t),
 			     sizeof(pAddBssParams->staContext.ht_caps));
@@ -518,7 +268,6 @@ tSirRetStatus lim_ft_prepare_add_bss_req(tpAniSirGlobal pMac,
 		pBeaconStruct->HTInfo.secondaryChannelOffset;
 	sta_ctx = &pAddBssParams->staContext;
 
-#ifdef WLAN_FEATURE_11AC
 	if (pftSessionEntry->vhtCapability &&
 	    pftSessionEntry->vhtCapabilityPresentInBeacon) {
 		pAddBssParams->vhtCapable = pBeaconStruct->VHTCaps.present;
@@ -574,7 +323,6 @@ tSirRetStatus lim_ft_prepare_add_bss_req(tpAniSirGlobal pMac,
 	} else {
 		pAddBssParams->vhtCapable = 0;
 	}
-#endif
 
 	lim_log(pMac, LOG1, FL("SIR_HAL_ADD_BSS_REQ with channel = %d..."),
 		pAddBssParams->currentOperChannel);
@@ -584,7 +332,7 @@ tSirRetStatus lim_ft_prepare_add_bss_req(tpAniSirGlobal pMac,
 	{
 		pAddBssParams->staContext.staType = STA_ENTRY_OTHER;
 
-		cdf_mem_copy(pAddBssParams->staContext.bssId,
+		qdf_mem_copy(pAddBssParams->staContext.bssId,
 			     bssDescription->bssId, sizeof(tSirMacAddr));
 		pAddBssParams->staContext.listenInterval =
 			bssDescription->beaconInterval;
@@ -684,40 +432,15 @@ tSirRetStatus lim_ft_prepare_add_bss_req(tpAniSirGlobal pMac,
 		    && (pftSessionEntry->isOSENConnection))
 			pAddBssParams->staContext.wpa_rsn = 1;
 		/* Update the rates */
-#ifdef WLAN_FEATURE_11AC
 		lim_populate_peer_rate_set(pMac,
 					   &pAddBssParams->staContext.
 					   supportedRates,
 					   pBeaconStruct->HTCaps.supportedMCSSet,
 					   false, pftSessionEntry,
 					   &pBeaconStruct->VHTCaps);
-#else
-		lim_populate_peer_rate_set(pMac,
-					   &pAddBssParams->staContext.
-					   supportedRates,
-					   beaconStruct.HTCaps.supportedMCSSet,
-					   false, pftSessionEntry);
-#endif
-		if (pftSessionEntry->htCapability) {
-			pAddBssParams->staContext.supportedRates.opRateMode =
-				eSTA_11n;
-			if (pftSessionEntry->vhtCapability)
-				pAddBssParams->staContext.supportedRates.
-				opRateMode = eSTA_11ac;
-		} else {
-			if (pftSessionEntry->limRFBand == SIR_BAND_5_GHZ) {
-				pAddBssParams->staContext.supportedRates.
-				opRateMode = eSTA_11a;
-			} else {
-				pAddBssParams->staContext.supportedRates.
-				opRateMode = eSTA_11bg;
-			}
-		}
 	}
 
-#if defined WLAN_FEATURE_VOWIFI
 	pAddBssParams->maxTxPower = pftSessionEntry->maxTxPower;
-#endif
 
 #ifdef WLAN_FEATURE_11W
 	if (pftSessionEntry->limRmfEnabled) {
@@ -726,7 +449,7 @@ tSirRetStatus lim_ft_prepare_add_bss_req(tpAniSirGlobal pMac,
 	}
 #endif
 
-	pAddBssParams->status = CDF_STATUS_SUCCESS;
+	pAddBssParams->status = QDF_STATUS_SUCCESS;
 	pAddBssParams->respReqd = true;
 
 	pAddBssParams->staContext.sessionId = pftSessionEntry->peSessionId;
@@ -734,7 +457,7 @@ tSirRetStatus lim_ft_prepare_add_bss_req(tpAniSirGlobal pMac,
 	pAddBssParams->sessionId = pftSessionEntry->peSessionId;
 
 	/* Set a new state for MLME */
-	if (!pftSessionEntry->bRoamSynchInProgress) {
+	if (!lim_is_roam_synch_in_progress(pftSessionEntry)) {
 		pftSessionEntry->limMlmState =
 			eLIM_MLM_WT_ADD_BSS_RSP_FT_REASSOC_STATE;
 		MTRACE(mac_trace
@@ -746,12 +469,14 @@ tSirRetStatus lim_ft_prepare_add_bss_req(tpAniSirGlobal pMac,
 
 	pftSessionEntry->ftPEContext.pAddBssReq = pAddBssParams;
 
-	lim_log(pMac, LOG1, FL("Saving SIR_HAL_ADD_BSS_REQ for pre-auth ap..."));
+	lim_log(pMac, LOG1, FL("Saving SIR_HAL_ADD_BSS_REQ for pre-auth ap."));
 
-	cdf_mem_free(pBeaconStruct);
-	return 0;
+	qdf_mem_free(pBeaconStruct);
+	return;
 }
+#endif
 
+#if defined(WLAN_FEATURE_HOST_ROAM) || defined(WLAN_FEATURE_ROAM_OFFLOAD)
 /*------------------------------------------------------------------
  *
  * Setup the new session for the pre-auth AP.
@@ -769,7 +494,7 @@ void lim_fill_ft_session(tpAniSirGlobal pMac,
 	uint32_t selfDot11Mode;
 	ePhyChanBondState cbEnabledMode;
 
-	pBeaconStruct = cdf_mem_malloc(sizeof(tSchBeaconStruct));
+	pBeaconStruct = qdf_mem_malloc(sizeof(tSchBeaconStruct));
 	if (NULL == pBeaconStruct) {
 		lim_log(pMac, LOGE,
 			FL("No memory for creating lim_fill_ft_session"));
@@ -795,18 +520,18 @@ void lim_fill_ft_session(tpAniSirGlobal pMac,
 
 	pftSessionEntry->rateSet.numRates =
 		pBeaconStruct->supportedRates.numRates;
-	cdf_mem_copy(pftSessionEntry->rateSet.rate,
+	qdf_mem_copy(pftSessionEntry->rateSet.rate,
 		     pBeaconStruct->supportedRates.rate,
 		     pBeaconStruct->supportedRates.numRates);
 
 	pftSessionEntry->extRateSet.numRates =
 		pBeaconStruct->extendedRates.numRates;
-	cdf_mem_copy(pftSessionEntry->extRateSet.rate,
+	qdf_mem_copy(pftSessionEntry->extRateSet.rate,
 		     pBeaconStruct->extendedRates.rate,
 		     pftSessionEntry->extRateSet.numRates);
 
 	pftSessionEntry->ssId.length = pBeaconStruct->ssId.length;
-	cdf_mem_copy(pftSessionEntry->ssId.ssId, pBeaconStruct->ssId.ssId,
+	qdf_mem_copy(pftSessionEntry->ssId.ssId, pBeaconStruct->ssId.ssId,
 		     pftSessionEntry->ssId.length);
 
 	wlan_cfg_get_int(pMac, WNI_CFG_DOT11_MODE, &selfDot11Mode);
@@ -837,8 +562,6 @@ void lim_fill_ft_session(tpAniSirGlobal pMac,
 	pftSessionEntry->htRecommendedTxWidthSet =
 		pftSessionEntry->htSupportedChannelWidthSet;
 
-
-#ifdef WLAN_FEATURE_11AC
 	if (IS_BSS_VHT_CAPABLE(pBeaconStruct->VHTCaps) &&
 		pBeaconStruct->VHTOperation.present &&
 		pftSessionEntry->vhtCapability) {
@@ -846,7 +569,6 @@ void lim_fill_ft_session(tpAniSirGlobal pMac,
 	} else {
 		pftSessionEntry->vhtCapabilityPresentInBeacon = 0;
 	}
-#endif
 	if (pftSessionEntry->htRecommendedTxWidthSet) {
 		pftSessionEntry->ch_width = CH_WIDTH_40MHZ;
 		if (pftSessionEntry->vhtCapabilityPresentInBeacon &&
@@ -922,9 +644,7 @@ void lim_fill_ft_session(tpAniSirGlobal pMac,
 	pftSessionEntry->limReassocBssPropCap =
 		pftSessionEntry->limCurrentBssPropCap;
 
-#ifdef WLAN_FEATURE_VOWIFI_11R
 	pftSessionEntry->is11Rconnection = psessionEntry->is11Rconnection;
-#endif
 #ifdef FEATURE_WLAN_ESE
 	pftSessionEntry->isESEconnection = psessionEntry->isESEconnection;
 	pftSessionEntry->is_ese_version_ie_present =
@@ -941,7 +661,7 @@ void lim_fill_ft_session(tpAniSirGlobal pMac,
 		lim_get_max_tx_power(regMax, localPowerConstraint,
 				     pMac->roam.configParam.nTxPowerCap);
 #else
-	pftSessionEntry->maxTxPower = CDF_MIN(regMax, (localPowerConstraint));
+	pftSessionEntry->maxTxPower = QDF_MIN(regMax, (localPowerConstraint));
 #endif
 
 	lim_log(pMac, LOG1,
@@ -949,7 +669,7 @@ void lim_fill_ft_session(tpAniSirGlobal pMac,
 		regMax, localPowerConstraint,
 		pMac->roam.configParam.nTxPowerCap,
 		pftSessionEntry->maxTxPower);
-	if (!psessionEntry->bRoamSynchInProgress) {
+	if (!lim_is_roam_synch_in_progress(psessionEntry)) {
 		pftSessionEntry->limPrevSmeState = pftSessionEntry->limSmeState;
 		pftSessionEntry->limSmeState = eLIM_SME_WT_REASSOC_STATE;
 		MTRACE(mac_trace(pMac,
@@ -961,493 +681,20 @@ void lim_fill_ft_session(tpAniSirGlobal pMac,
 #ifdef WLAN_FEATURE_11W
 	pftSessionEntry->limRmfEnabled = psessionEntry->limRmfEnabled;
 #endif
+	if ((pftSessionEntry->limRFBand == SIR_BAND_2_4_GHZ) &&
+		(pftSessionEntry->htSupportedChannelWidthSet ==
+		eHT_CHANNEL_WIDTH_40MHZ))
+		lim_init_obss_params(pMac, pftSessionEntry);
 
-	cdf_mem_free(pBeaconStruct);
+	pftSessionEntry->enableHtSmps = psessionEntry->enableHtSmps;
+	pftSessionEntry->smpsMode = psessionEntry->smpsMode;
+	lim_log(pMac, LOG1, FL("FT session enable smps: %d mode: %d"),
+		pftSessionEntry->enableHtSmps,
+		pftSessionEntry->smpsMode);
+
+	qdf_mem_free(pBeaconStruct);
 }
-
-/*------------------------------------------------------------------
- *
- * Setup the session and the add bss req for the pre-auth AP.
- *
- *------------------------------------------------------------------*/
-tSirRetStatus lim_ft_setup_auth_session(tpAniSirGlobal pMac,
-					tpPESession psessionEntry)
-{
-	tpPESession pftSessionEntry = NULL;
-	uint8_t sessionId = 0;
-
-	pftSessionEntry =
-		pe_find_session_by_bssid(pMac, psessionEntry->limReAssocbssId,
-					 &sessionId);
-	if (pftSessionEntry == NULL) {
-		PELOGE(lim_log(pMac, LOGE,
-			       FL
-				       ("Unable to find session for the following bssid"));
-		       )
-		lim_print_mac_addr(pMac, psessionEntry->limReAssocbssId, LOGE);
-		return eSIR_FAILURE;
-	}
-
-	/* Nothing to be done if the session is not in STA mode */
-	if (!LIM_IS_STA_ROLE(psessionEntry)) {
-		lim_log(pMac, LOGE, FL("psessionEntry is not in STA mode"));
-		return eSIR_FAILURE;
-	}
-
-	if (psessionEntry->ftPEContext.pFTPreAuthReq &&
-	    psessionEntry->ftPEContext.pFTPreAuthReq->pbssDescription) {
-		lim_fill_ft_session(pMac,
-				    psessionEntry->ftPEContext.pFTPreAuthReq->
-				    pbssDescription, pftSessionEntry,
-				    psessionEntry);
-
-		lim_ft_prepare_add_bss_req(pMac, false, pftSessionEntry,
-					   psessionEntry->ftPEContext.pFTPreAuthReq->
-					   pbssDescription);
-	}
-
-	return eSIR_SUCCESS;
-}
-
-/*------------------------------------------------------------------
- * Resume Link Call Back
- *------------------------------------------------------------------*/
-void lim_ft_process_pre_auth_result(tpAniSirGlobal pMac, CDF_STATUS status,
-				    tpPESession psessionEntry)
-{
-	if (NULL == psessionEntry ||
-	    NULL == psessionEntry->ftPEContext.pFTPreAuthReq)
-		return;
-
-	/* Nothing to be done if the session is not in STA mode */
-	if (!LIM_IS_STA_ROLE(psessionEntry)) {
-		lim_log(pMac, LOGE, FL("psessionEntry is not in STA mode"));
-		return;
-	}
-
-	if (psessionEntry->ftPEContext.ftPreAuthStatus == eSIR_SUCCESS) {
-		psessionEntry->ftPEContext.ftPreAuthStatus =
-			lim_ft_setup_auth_session(pMac, psessionEntry);
-	}
-	/* Post the FT Pre Auth Response to SME */
-	lim_post_ft_pre_auth_rsp(pMac, psessionEntry->ftPEContext.ftPreAuthStatus,
-				 psessionEntry->ftPEContext.saved_auth_rsp,
-				 psessionEntry->ftPEContext.saved_auth_rsp_length,
-				 psessionEntry);
-}
-
-/*
- * lim_post_ft_pre_auth_rsp() - post ft pre auth response to SME.
- *
- * @mac_ctx:		global mac ctx
- * @status:		status code to post in auth rsp
- * @auth_rsp:		pointer to auth rsp FT ie
- * @auth_rsp_length:	len of the IE field
- * @session:	        pe session
- *
- * post pre auth response to SME.
- *
- * Return: void
- */
-void lim_post_ft_pre_auth_rsp(tpAniSirGlobal mac_ctx,
-			      tSirRetStatus status,
-			      uint8_t *auth_rsp,
-			      uint16_t auth_rsp_length,
-			      tpPESession session)
-{
-	tpSirFTPreAuthRsp ft_pre_auth_rsp;
-	tSirMsgQ mmh_msg;
-	uint16_t rsp_len = sizeof(tSirFTPreAuthRsp);
-
-	ft_pre_auth_rsp = (tpSirFTPreAuthRsp) cdf_mem_malloc(rsp_len);
-	if (NULL == ft_pre_auth_rsp) {
-		lim_log(mac_ctx, LOGE, "Failed to allocate memory");
-		CDF_ASSERT(ft_pre_auth_rsp != NULL);
-		return;
-	}
-	cdf_mem_zero(ft_pre_auth_rsp, rsp_len);
-
-	lim_log(mac_ctx, LOG1, FL("Auth Rsp = %p"), ft_pre_auth_rsp);
-	if (session) {
-		/* Nothing to be done if the session is not in STA mode */
-		if (!LIM_IS_STA_ROLE(session)) {
-			lim_log(mac_ctx, LOGE,
-				FL("session is not in STA mode"));
-			cdf_mem_free(ft_pre_auth_rsp);
-			return;
-		}
-		ft_pre_auth_rsp->smeSessionId = session->smeSessionId;
-		/* The bssid of the AP we are sending Auth1 to. */
-		if (session->ftPEContext.pFTPreAuthReq)
-			sir_copy_mac_addr(ft_pre_auth_rsp->preAuthbssId,
-			    session->ftPEContext.pFTPreAuthReq->preAuthbssId);
-	}
-
-	ft_pre_auth_rsp->messageType = eWNI_SME_FT_PRE_AUTH_RSP;
-	ft_pre_auth_rsp->length = (uint16_t) rsp_len;
-	ft_pre_auth_rsp->status = status;
-
-	/* Attach the auth response now back to SME */
-	ft_pre_auth_rsp->ft_ies_length = 0;
-	if ((auth_rsp != NULL) && (auth_rsp_length < MAX_FTIE_SIZE)) {
-		/* Only 11r assoc has FT IEs */
-		cdf_mem_copy(ft_pre_auth_rsp->ft_ies,
-			     auth_rsp, auth_rsp_length);
-		ft_pre_auth_rsp->ft_ies_length = auth_rsp_length;
-	}
-
-	if (status != eSIR_SUCCESS) {
-		/*
-		 * Ensure that on Pre-Auth failure the cached Pre-Auth Req and
-		 * other allocated memory is freed up before returning.
-		 */
-		lim_log(mac_ctx, LOG1, "Pre-Auth Failed, Cleanup!");
-		lim_ft_cleanup(mac_ctx, session);
-	}
-
-	mmh_msg.type = ft_pre_auth_rsp->messageType;
-	mmh_msg.bodyptr = ft_pre_auth_rsp;
-	mmh_msg.bodyval = 0;
-
-	lim_log(mac_ctx, LOG1, FL("Posted Auth Rsp to SME with status of 0x%x"),
-		status);
-#ifdef FEATURE_WLAN_DIAG_SUPPORT_LIM    /* FEATURE_WLAN_DIAG_SUPPORT */
-	if (status == eSIR_SUCCESS)
-		lim_diag_event_report(mac_ctx, WLAN_PE_DIAG_PREAUTH_DONE,
-				      session, status, 0);
 #endif
-	lim_sys_process_mmh_msg_api(mac_ctx, &mmh_msg, ePROT);
-}
-
-/*------------------------------------------------------------------
- *
- * Send the FT Pre Auth Response to SME whenever we have a status
- * ready to be sent to SME
- *
- * SME will be the one to send it up to the supplicant to receive
- * FTIEs which will be required for Reassoc Req.
- *
- *------------------------------------------------------------------*/
-void lim_handle_ft_pre_auth_rsp(tpAniSirGlobal pMac, tSirRetStatus status,
-				uint8_t *auth_rsp, uint16_t auth_rsp_length,
-				tpPESession psessionEntry)
-{
-	tpPESession pftSessionEntry = NULL;
-	uint8_t sessionId = 0;
-	tpSirBssDescription pbssDescription = NULL;
-#ifdef FEATURE_WLAN_DIAG_SUPPORT
-	lim_diag_event_report(pMac, WLAN_PE_DIAG_PRE_AUTH_RSP_EVENT,
-			      psessionEntry, (uint16_t) status, 0);
-#endif
-
-	/* Nothing to be done if the session is not in STA mode */
-	if (!LIM_IS_STA_ROLE(psessionEntry)) {
-		lim_log(pMac, LOGE, FL("psessionEntry is not in STA mode"));
-		return;
-	}
-
-	/* Save the status of pre-auth */
-	psessionEntry->ftPEContext.ftPreAuthStatus = status;
-
-	/* Save the auth rsp, so we can send it to
-	 * SME once we resume link
-	 */
-	psessionEntry->ftPEContext.saved_auth_rsp_length = 0;
-	if ((auth_rsp != NULL) && (auth_rsp_length < MAX_FTIE_SIZE)) {
-		cdf_mem_copy(psessionEntry->ftPEContext.saved_auth_rsp,
-			     auth_rsp, auth_rsp_length);
-		psessionEntry->ftPEContext.saved_auth_rsp_length =
-			auth_rsp_length;
-	}
-
-	if (!psessionEntry->ftPEContext.pFTPreAuthReq ||
-	    !psessionEntry->ftPEContext.pFTPreAuthReq->pbssDescription) {
-		lim_log(pMac, LOGE,
-			FL("pFTPreAuthReq or pbssDescription is NULL"));
-		return;
-	}
-
-	/* Create FT session for the re-association at this point */
-	if (psessionEntry->ftPEContext.ftPreAuthStatus == eSIR_SUCCESS) {
-		pbssDescription =
-			psessionEntry->ftPEContext.pFTPreAuthReq->pbssDescription;
-		lim_print_mac_addr(pMac, pbssDescription->bssId, LOG1);
-		if ((pftSessionEntry =
-			     pe_create_session(pMac, pbssDescription->bssId,
-					       &sessionId, pMac->lim.maxStation,
-					       psessionEntry->bssType)) == NULL) {
-			lim_log(pMac, LOGE, FL(
-				"Session not created for pre-auth 11R AP"));
-			status = eSIR_FAILURE;
-			psessionEntry->ftPEContext.ftPreAuthStatus = status;
-			goto send_rsp;
-		}
-		pftSessionEntry->peSessionId = sessionId;
-		pftSessionEntry->smeSessionId = psessionEntry->smeSessionId;
-		sir_copy_mac_addr(pftSessionEntry->selfMacAddr,
-				  psessionEntry->selfMacAddr);
-		sir_copy_mac_addr(pftSessionEntry->limReAssocbssId,
-				  pbssDescription->bssId);
-		pftSessionEntry->bssType = psessionEntry->bssType;
-
-		if (pftSessionEntry->bssType == eSIR_INFRASTRUCTURE_MODE) {
-			pftSessionEntry->limSystemRole = eLIM_STA_ROLE;
-		} else if (pftSessionEntry->bssType == eSIR_BTAMP_AP_MODE) {
-			pftSessionEntry->limSystemRole = eLIM_BT_AMP_STA_ROLE;
-		} else {
-			lim_log(pMac, LOGE, FL("Invalid bss type"));
-		}
-		pftSessionEntry->limPrevSmeState = pftSessionEntry->limSmeState;
-		cdf_mem_copy(&(pftSessionEntry->htConfig),
-			     &(psessionEntry->htConfig),
-			     sizeof(psessionEntry->htConfig));
-		pftSessionEntry->limSmeState = eLIM_SME_WT_REASSOC_STATE;
-
-		PELOGE(lim_log
-			       (pMac, LOG1, "%s:created session (%p) with id = %d",
-			       __func__, pftSessionEntry,
-			       pftSessionEntry->peSessionId);
-		       )
-
-		/* Update the ReAssoc BSSID of the current session */
-		sir_copy_mac_addr(psessionEntry->limReAssocbssId,
-				  pbssDescription->bssId);
-		lim_print_mac_addr(pMac, psessionEntry->limReAssocbssId, LOG1);
-	}
-send_rsp:
-	if (psessionEntry->currentOperChannel !=
-	    psessionEntry->ftPEContext.pFTPreAuthReq->preAuthchannelNum) {
-		/* Need to move to the original AP channel */
-		lim_process_abort_scan_ind(pMac, psessionEntry->peSessionId,
-			psessionEntry->ftPEContext.pFTPreAuthReq->scan_id,
-			PREAUTH_REQUESTOR_ID);
-	} else {
-		lim_log(pMac, LOG1,
-			"Pre auth on same channel as connected AP channel %d",
-			psessionEntry->ftPEContext.pFTPreAuthReq->
-			preAuthchannelNum);
-		lim_ft_process_pre_auth_result(pMac, status, psessionEntry);
-	}
-}
-
-/*------------------------------------------------------------------
- *
- *  This function handles the 11R Reassoc Req from SME
- *
- *------------------------------------------------------------------*/
-void lim_process_mlm_ft_reassoc_req(tpAniSirGlobal pMac, uint32_t *pMsgBuf,
-				    tpPESession psessionEntry)
-{
-	uint8_t smeSessionId = 0;
-	uint16_t transactionId = 0;
-	uint8_t chanNum = 0;
-	tLimMlmReassocReq *pMlmReassocReq;
-	uint16_t caps;
-	uint32_t val;
-	tSirMsgQ msgQ;
-	tSirRetStatus retCode;
-	uint32_t teleBcnEn = 0;
-
-	chanNum = psessionEntry->currentOperChannel;
-	lim_get_session_info(pMac, (uint8_t *) pMsgBuf, &smeSessionId,
-			     &transactionId);
-	psessionEntry->smeSessionId = smeSessionId;
-	psessionEntry->transactionId = transactionId;
-
-#ifdef FEATURE_WLAN_DIAG_SUPPORT_LIM    /* FEATURE_WLAN_DIAG_SUPPORT */
-	lim_diag_event_report(pMac, WLAN_PE_DIAG_REASSOCIATING, psessionEntry, 0,
-			      0);
-#endif
-
-	/* Nothing to be done if the session is not in STA mode */
-	if (!LIM_IS_STA_ROLE(psessionEntry)) {
-		lim_log(pMac, LOGE, FL("psessionEntry is not in STA mode"));
-		return;
-	}
-
-	if (NULL == psessionEntry->ftPEContext.pAddBssReq) {
-		lim_log(pMac, LOGE, FL("pAddBssReq is NULL"));
-		return;
-	}
-	pMlmReassocReq = cdf_mem_malloc(sizeof(tLimMlmReassocReq));
-	if (NULL == pMlmReassocReq) {
-		lim_log(pMac, LOGE,
-			FL("call to AllocateMemory failed for mlmReassocReq"));
-		return;
-	}
-
-	cdf_mem_copy(pMlmReassocReq->peerMacAddr,
-		     psessionEntry->bssId, sizeof(tSirMacAddr));
-
-	if (wlan_cfg_get_int(pMac, WNI_CFG_REASSOCIATION_FAILURE_TIMEOUT,
-			     (uint32_t *) &pMlmReassocReq->reassocFailureTimeout)
-	    != eSIR_SUCCESS) {
-		/**
-		 * Could not get ReassocFailureTimeout value
-		 * from CFG. Log error.
-		 */
-		lim_log(pMac, LOGE,
-			FL("could not retrieve ReassocFailureTimeout value"));
-		cdf_mem_free(pMlmReassocReq);
-		return;
-	}
-
-	if (cfg_get_capability_info(pMac, &caps, psessionEntry) != eSIR_SUCCESS) {
-		/**
-		 * Could not get Capabilities value
-		 * from CFG. Log error.
-		 */
-		lim_log(pMac, LOGE, FL("could not retrieve Capabilities value"));
-		cdf_mem_free(pMlmReassocReq);
-		return;
-	}
-	pMlmReassocReq->capabilityInfo = caps;
-
-	/* Update PE sessionId */
-	pMlmReassocReq->sessionId = psessionEntry->peSessionId;
-
-	/* If telescopic beaconing is enabled, set listen interval
-	   to WNI_CFG_TELE_BCN_MAX_LI
-	 */
-	if (wlan_cfg_get_int(pMac, WNI_CFG_TELE_BCN_WAKEUP_EN, &teleBcnEn) !=
-	    eSIR_SUCCESS) {
-		lim_log(pMac, LOGP,
-			FL("Couldn't get WNI_CFG_TELE_BCN_WAKEUP_EN"));
-		cdf_mem_free(pMlmReassocReq);
-		return;
-	}
-
-	if (teleBcnEn) {
-		if (wlan_cfg_get_int(pMac, WNI_CFG_TELE_BCN_MAX_LI, &val) !=
-		    eSIR_SUCCESS) {
-			/**
-			 * Could not get ListenInterval value
-			 * from CFG. Log error.
-			 */
-			lim_log(pMac, LOGE,
-				FL("could not retrieve ListenInterval"));
-			cdf_mem_free(pMlmReassocReq);
-			return;
-		}
-	} else {
-		if (wlan_cfg_get_int(pMac, WNI_CFG_LISTEN_INTERVAL, &val) !=
-		    eSIR_SUCCESS) {
-			/**
-			 * Could not get ListenInterval value
-			 * from CFG. Log error.
-			 */
-			lim_log(pMac, LOGE,
-				FL("could not retrieve ListenInterval"));
-			cdf_mem_free(pMlmReassocReq);
-			return;
-		}
-	}
-	if (lim_set_link_state
-		    (pMac, eSIR_LINK_PREASSOC_STATE, psessionEntry->bssId,
-		    psessionEntry->selfMacAddr, NULL, NULL) != eSIR_SUCCESS) {
-		cdf_mem_free(pMlmReassocReq);
-		return;
-	}
-
-	pMlmReassocReq->listenInterval = (uint16_t) val;
-	psessionEntry->pLimMlmReassocReq = pMlmReassocReq;
-
-	/* we need to defer the message until we get the response back from HAL */
-	SET_LIM_PROCESS_DEFD_MESGS(pMac, false);
-
-	msgQ.type = SIR_HAL_ADD_BSS_REQ;
-	msgQ.reserved = 0;
-	msgQ.bodyptr = psessionEntry->ftPEContext.pAddBssReq;
-	msgQ.bodyval = 0;
-
-	lim_log(pMac, LOG1, FL("Sending SIR_HAL_ADD_BSS_REQ..."));
-	MTRACE(mac_trace_msg_tx(pMac, psessionEntry->peSessionId, msgQ.type));
-	retCode = wma_post_ctrl_msg(pMac, &msgQ);
-	if (eSIR_SUCCESS != retCode) {
-		cdf_mem_free(psessionEntry->ftPEContext.pAddBssReq);
-		lim_log(pMac, LOGE,
-			FL("Posting ADD_BSS_REQ to HAL failed, reason=%X"),
-			retCode);
-	}
-
-	psessionEntry->ftPEContext.pAddBssReq = NULL;
-	return;
-}
-
-/*
- * lim_process_ft_preauth_rsp_timeout() - process ft preauth rsp timeout
- *
- * @mac_ctx:		global mac ctx
- *
- * This function is called if preauth response is not received from the AP
- * within this timeout while FT in progress
- *
- * Return: void
- */
-void lim_process_ft_preauth_rsp_timeout(tpAniSirGlobal mac_ctx)
-{
-	tpPESession session;
-
-	/*
-	 * We have failed pre auth. We need to resume link and get back on
-	 * home channel
-	 */
-	lim_log(mac_ctx, LOGE, FL("FT Pre-Auth Time Out!!!!"));
-	session = pe_find_session_by_session_id(mac_ctx,
-			mac_ctx->lim.limTimers.gLimFTPreAuthRspTimer.sessionId);
-	if (NULL == session) {
-		lim_log(mac_ctx, LOGE,
-			FL("Session Does not exist for given sessionID"));
-		return;
-	}
-
-	/* Nothing to be done if the session is not in STA mode */
-	if (!LIM_IS_STA_ROLE(session)) {
-		lim_log(mac_ctx, LOGE, FL("session is not in STA mode"));
-		return;
-	}
-
-	/* Reset the flag to indicate preauth request session */
-	session->ftPEContext.ftPreAuthSession = false;
-
-	if (NULL == session->ftPEContext.pFTPreAuthReq) {
-		lim_log(mac_ctx, LOGE,
-			FL("pFTPreAuthReq is NULL. Auth Rsp might already be posted to SME and ftcleanup done! sessionId:%d"),
-			mac_ctx->lim.limTimers.gLimFTPreAuthRspTimer.sessionId);
-		return;
-	}
-
-	/*
-	 * To handle the race condition where we recieve preauth rsp after
-	 * timer has expired.
-	 */
-	if (true ==
-	    session->ftPEContext.pFTPreAuthReq->bPreAuthRspProcessed) {
-		lim_log(mac_ctx, LOGE,
-			FL("Auth rsp already posted to SME (session %p)"),
-			session);
-		return;
-	} else {
-		/*
-		 * Here we are sending preauth rsp with failure state
-		 * and which is forwarded to SME. Now, if we receive an preauth
-		 * resp from AP with success it would create a FT pesession, but
-		 * will be dropped in SME leaving behind the pesession. Mark
-		 * Preauth rsp processed so that any rsp from AP is dropped in
-		 * lim_process_auth_frame_no_session.
-		 */
-		lim_log(mac_ctx, LOG1,
-			FL("Auth rsp not yet posted to SME (session %p)"),
-			session);
-		session->ftPEContext.pFTPreAuthReq->bPreAuthRspProcessed = true;
-	}
-
-	/*
-	 * Attempted at Pre-Auth and failed. If we are off channel. We need
-	 * to get back to home channel
-	 */
-	lim_handle_ft_pre_auth_rsp(mac_ctx, eSIR_FAILURE, NULL, 0, session);
-}
 
 /*------------------------------------------------------------------
  *
@@ -1492,14 +739,14 @@ bool lim_process_ft_update_key(tpAniSirGlobal pMac, uint32_t *pMsgBuf)
 			&psessionEntry->ftPEContext.PreAuthKeyInfo.
 			extSetStaKeyParam;
 
-		cdf_mem_zero(pMlmSetKeysReq, sizeof(tLimMlmSetKeysReq));
-		cdf_copy_macaddr(&pMlmSetKeysReq->peer_macaddr,
+		qdf_mem_zero(pMlmSetKeysReq, sizeof(tLimMlmSetKeysReq));
+		qdf_copy_macaddr(&pMlmSetKeysReq->peer_macaddr,
 				 &pKeyInfo->bssid);
 		pMlmSetKeysReq->sessionId = psessionEntry->peSessionId;
 		pMlmSetKeysReq->smesessionId = psessionEntry->smeSessionId;
 		pMlmSetKeysReq->edType = pKeyInfo->keyMaterial.edType;
 		pMlmSetKeysReq->numKeys = pKeyInfo->keyMaterial.numKeys;
-		cdf_mem_copy((uint8_t *) &pMlmSetKeysReq->key,
+		qdf_mem_copy((uint8_t *) &pMlmSetKeysReq->key,
 			     (uint8_t *) &pKeyInfo->keyMaterial.key,
 			     sizeof(tSirKeys));
 
@@ -1522,7 +769,7 @@ bool lim_process_ft_update_key(tpAniSirGlobal pMac, uint32_t *pMsgBuf)
 		pAddBssParams->extSetStaKeyParamValid = 1;
 		pAddBssParams->extSetStaKeyParam.encType =
 			pKeyInfo->keyMaterial.edType;
-		cdf_mem_copy((uint8_t *) &pAddBssParams->extSetStaKeyParam.key,
+		qdf_mem_copy((uint8_t *) &pAddBssParams->extSetStaKeyParam.key,
 			     (uint8_t *) &pKeyInfo->keyMaterial.key,
 			     sizeof(tSirKeys));
 		if (eSIR_SUCCESS !=
@@ -1544,7 +791,7 @@ bool lim_process_ft_update_key(tpAniSirGlobal pMac, uint32_t *pMsgBuf)
 			       FL("BSSID = " MAC_ADDRESS_STR),
 			       MAC_ADDR_ARRAY(pKeyInfo->bssid.bytes));)
 
-		cdf_copy_macaddr(&pAddBssParams->extSetStaKeyParam.peer_macaddr,
+		qdf_copy_macaddr(&pAddBssParams->extSetStaKeyParam.peer_macaddr,
 				 &pKeyInfo->bssid);
 
 		pAddBssParams->extSetStaKeyParam.sendRsp = false;
@@ -1601,13 +848,13 @@ lim_ft_send_aggr_qos_rsp(tpAniSirGlobal pMac, uint8_t rspReqd,
 	if (!rspReqd) {
 		return;
 	}
-	rsp = cdf_mem_malloc(sizeof(tSirAggrQosRsp));
+	rsp = qdf_mem_malloc(sizeof(tSirAggrQosRsp));
 	if (NULL == rsp) {
 		lim_log(pMac, LOGP,
 			FL("AllocateMemory failed for tSirAggrQosRsp"));
 		return;
 	}
-	cdf_mem_set((uint8_t *) rsp, sizeof(*rsp), 0);
+	qdf_mem_set((uint8_t *) rsp, sizeof(*rsp), 0);
 	rsp->messageType = eWNI_SME_FT_AGGR_QOS_RSP;
 	rsp->sessionId = smesessionId;
 	rsp->length = sizeof(*rsp);
@@ -1621,6 +868,7 @@ lim_ft_send_aggr_qos_rsp(tpAniSirGlobal pMac, uint8_t rspReqd,
 	lim_send_sme_aggr_qos_rsp(pMac, rsp, smesessionId);
 	return;
 }
+
 void lim_process_ft_aggr_qo_s_rsp(tpAniSirGlobal pMac, tpSirMsgQ limMsg)
 {
 	tpAggrAddTsParams pAggrQosRspMsg = NULL;
@@ -1645,7 +893,7 @@ void lim_process_ft_aggr_qo_s_rsp(tpAniSirGlobal pMac, tpSirMsgQ limMsg)
 			       FL("Cant find session entry for %s"), __func__);
 		       )
 		if (pAggrQosRspMsg != NULL) {
-			cdf_mem_free(pAggrQosRspMsg);
+			qdf_mem_free(pAggrQosRspMsg);
 		}
 		return;
 	}
@@ -1655,7 +903,7 @@ void lim_process_ft_aggr_qo_s_rsp(tpAniSirGlobal pMac, tpSirMsgQ limMsg)
 	}
 	for (i = 0; i < HAL_QOS_NUM_AC_MAX; i++) {
 		if ((((1 << i) & pAggrQosRspMsg->tspecIdx)) &&
-		    (pAggrQosRspMsg->status[i] != CDF_STATUS_SUCCESS)) {
+		    (pAggrQosRspMsg->status[i] != QDF_STATUS_SUCCESS)) {
 			sir_copy_mac_addr(peerMacAddr, psessionEntry->bssId);
 			addTsParam.staIdx = pAggrQosRspMsg->staIdx;
 			addTsParam.sessionId = pAggrQosRspMsg->sessionId;
@@ -1680,10 +928,11 @@ void lim_process_ft_aggr_qo_s_rsp(tpAniSirGlobal pMac, tpSirMsgQ limMsg)
 	lim_ft_send_aggr_qos_rsp(pMac, rspReqd, pAggrQosRspMsg,
 				 psessionEntry->smeSessionId);
 	if (pAggrQosRspMsg != NULL) {
-		cdf_mem_free(pAggrQosRspMsg);
+		qdf_mem_free(pAggrQosRspMsg);
 	}
 	return;
 }
+
 tSirRetStatus lim_process_ft_aggr_qos_req(tpAniSirGlobal pMac, uint32_t *pMsgBuf)
 {
 	tSirMsgQ msg;
@@ -1697,7 +946,7 @@ tSirRetStatus lim_process_ft_aggr_qos_req(tpAniSirGlobal pMac, uint32_t *pMsgBuf
 	uint8_t sessionId;
 	int i;
 
-	pAggrAddTsParam = cdf_mem_malloc(sizeof(tAggrAddTsParams));
+	pAggrAddTsParam = qdf_mem_malloc(sizeof(tAggrAddTsParams));
 	if (NULL == pAggrAddTsParam) {
 		PELOGE(lim_log(pMac, LOGE, FL("AllocateMemory() failed"));)
 		return eSIR_MEM_ALLOC_FAILED;
@@ -1712,14 +961,14 @@ tSirRetStatus lim_process_ft_aggr_qos_req(tpAniSirGlobal pMac, uint32_t *pMsgBuf
 			       FL("psession Entry Null for sessionId = %d"),
 			       aggrQosReq->sessionId);
 		       )
-		cdf_mem_free(pAggrAddTsParam);
+		qdf_mem_free(pAggrAddTsParam);
 		return eSIR_FAILURE;
 	}
 
 	/* Nothing to be done if the session is not in STA mode */
 	if (!LIM_IS_STA_ROLE(psessionEntry)) {
 		lim_log(pMac, LOGE, FL("psessionEntry is not in STA mode"));
-		cdf_mem_free(pAggrAddTsParam);
+		qdf_mem_free(pAggrAddTsParam);
 		return eSIR_FAILURE;
 	}
 
@@ -1730,11 +979,11 @@ tSirRetStatus lim_process_ft_aggr_qos_req(tpAniSirGlobal pMac, uint32_t *pMsgBuf
 			       FL
 				       ("Station context not found - ignoring AddTsRsp"));
 		       )
-		cdf_mem_free(pAggrAddTsParam);
+		qdf_mem_free(pAggrAddTsParam);
 		return eSIR_FAILURE;
 	}
 
-	cdf_mem_set((uint8_t *) pAggrAddTsParam, sizeof(tAggrAddTsParams), 0);
+	qdf_mem_set((uint8_t *) pAggrAddTsParam, sizeof(tAggrAddTsParams), 0);
 	pAggrAddTsParam->staIdx = psessionEntry->staId;
 	/* Fill in the sessionId specific to PE */
 	pAggrAddTsParam->sessionId = sessionId;
@@ -1814,7 +1063,7 @@ tSirRetStatus lim_process_ft_aggr_qos_req(tpAniSirGlobal pMac, uint32_t *pMsgBuf
 						       ("Adding entry in lim Tspec Table failed "));
 				       )
 				pMac->lim.gLimAddtsSent = false;
-				cdf_mem_free(pAggrAddTsParam);
+				qdf_mem_free(pAggrAddTsParam);
 				return eSIR_FAILURE;
 			}
 
@@ -1844,7 +1093,7 @@ tSirRetStatus lim_process_ft_aggr_qos_req(tpAniSirGlobal pMac, uint32_t *pMsgBuf
 				       (pMac, LOGW, FL("wma_post_ctrl_msg() failed"));
 			       )
 			SET_LIM_PROCESS_DEFD_MESGS(pMac, true);
-			cdf_mem_free(pAggrAddTsParam);
+			qdf_mem_free(pAggrAddTsParam);
 			return eSIR_FAILURE;
 		}
 	}
@@ -1858,143 +1107,10 @@ tSirRetStatus lim_process_ft_aggr_qos_req(tpAniSirGlobal pMac, uint32_t *pMsgBuf
 		lim_ft_send_aggr_qos_rsp(pMac, true, pAggrAddTsParam,
 					 psessionEntry->smeSessionId);
 		if (pAggrAddTsParam != NULL) {
-			cdf_mem_free(pAggrAddTsParam);
+			qdf_mem_free(pAggrAddTsParam);
 		}
 	}
 #endif
 
 	return eSIR_SUCCESS;
 }
-/**
- * lim_send_preauth_scan_offload() - Send scan command to handle preauth.
- *
- * @mac_ctx: Pointer to Global MAC structure
- * @session_id: pe session id
- * @ft_preauth_req: Preauth request with parameters
- *
- * Builds a single channel scan request and sends it to WMA.
- * Scan dwell time is the time allocated to go to preauth candidate
- * channel for auth frame exchange.
- *
- * Return: Status of sending message to WMA.
- */
-CDF_STATUS lim_send_preauth_scan_offload(tpAniSirGlobal mac_ctx,
-			uint8_t session_id,
-			tSirFTPreAuthReq *ft_preauth_req)
-{
-	tSirScanOffloadReq *scan_offload_req;
-	tSirRetStatus rc = eSIR_SUCCESS;
-	tSirMsgQ msg;
-
-	scan_offload_req = cdf_mem_malloc(sizeof(tSirScanOffloadReq));
-	if (NULL == scan_offload_req) {
-		lim_log(mac_ctx, LOGE,
-			FL("Memory allocation failed for pScanOffloadReq"));
-		return CDF_STATUS_E_NOMEM;
-	}
-
-	cdf_mem_zero(scan_offload_req, sizeof(tSirScanOffloadReq));
-
-	msg.type = WMA_START_SCAN_OFFLOAD_REQ;
-	msg.bodyptr = scan_offload_req;
-	msg.bodyval = 0;
-
-	cdf_mem_copy((uint8_t *) &scan_offload_req->selfMacAddr.bytes,
-		     (uint8_t *) ft_preauth_req->self_mac_addr,
-		     sizeof(tSirMacAddr));
-
-	cdf_mem_copy((uint8_t *) &scan_offload_req->bssId.bytes,
-		     (uint8_t *) ft_preauth_req->currbssId,
-		     sizeof(tSirMacAddr));
-	scan_offload_req->scanType = eSIR_PASSIVE_SCAN;
-	/*
-	 * P2P_SCAN_TYPE_LISTEN tells firmware to allow mgt frames to/from
-	 * mac address that is not of connected AP.
-	 */
-	scan_offload_req->p2pScanType = P2P_SCAN_TYPE_LISTEN;
-	scan_offload_req->restTime = 0;
-	scan_offload_req->minChannelTime = LIM_FT_PREAUTH_SCAN_TIME;
-	scan_offload_req->maxChannelTime = LIM_FT_PREAUTH_SCAN_TIME;
-	scan_offload_req->sessionId = session_id;
-	scan_offload_req->channelList.numChannels = 1;
-	scan_offload_req->channelList.channelNumber[0] =
-		ft_preauth_req->preAuthchannelNum;
-	wma_get_scan_id(&ft_preauth_req->scan_id);
-	scan_offload_req->scan_id = ft_preauth_req->scan_id;
-	scan_offload_req->scan_requestor_id = PREAUTH_REQUESTOR_ID;
-
-	lim_log(mac_ctx, LOG1,
-		FL("Scan request: duration %u, session %hu, chan %hu"),
-		scan_offload_req->maxChannelTime, session_id,
-		ft_preauth_req->preAuthchannelNum);
-
-	rc = wma_post_ctrl_msg(mac_ctx, &msg);
-	if (rc != eSIR_SUCCESS) {
-		lim_log(mac_ctx, LOGE, FL("START_SCAN_OFFLOAD failed %u"), rc);
-		cdf_mem_free(scan_offload_req);
-		return CDF_STATUS_E_FAILURE;
-	}
-
-	return CDF_STATUS_SUCCESS;
-}
-
-
-/**
- * lim_preauth_scan_event_handler() - Process firmware preauth scan events
- *
- * @mac_ctx:Pointer to global MAC structure
- * @event: Scan event
- * @session_id: session entry
- * @scan_id: scan id from WMA scan event.
- *
- * If scan event signifies failure or successful completion, operation
- * is complete.
- * If scan event signifies that STA is on foreign channel, send auth frame
- *
- * Return: void
- */
-
-void lim_preauth_scan_event_handler(tpAniSirGlobal mac_ctx,
-				tSirScanEventType event,
-				uint8_t session_id,
-				uint32_t scan_id)
-{
-	tpPESession session_entry;
-
-	session_entry = pe_find_session_by_session_id(mac_ctx, session_id);
-	if (session_entry == NULL) {
-		lim_log(mac_ctx, LOGE,
-			FL("SessionId:%d Session Does not exist"), session_id);
-		return;
-	}
-
-	switch (event) {
-	case SCAN_EVENT_START_FAILED:
-		/* Scan command is rejected by firmware */
-		lim_log(mac_ctx, LOGE, FL("Failed to start preauth scan"));
-		lim_post_ft_pre_auth_rsp(mac_ctx, eSIR_FAILURE, NULL, 0,
-					 session_entry);
-		return;
-
-	case SCAN_EVENT_COMPLETED:
-		/*
-		 * Scan either completed succesfully or or got terminated
-		 * after successful auth, or timed out. Either way, STA
-		 * is back to home channel. Data traffic can continue.
-		 */
-		lim_ft_process_pre_auth_result(mac_ctx, CDF_STATUS_SUCCESS,
-			session_entry);
-		break;
-
-	case SCAN_EVENT_FOREIGN_CHANNEL:
-		/* Sta is on candidate channel. Send auth */
-		lim_perform_ft_pre_auth(mac_ctx, CDF_STATUS_SUCCESS, NULL,
-					session_entry);
-		break;
-	default:
-		/* Don't print message for scan events that are ignored */
-		break;
-	}
-}
-
-#endif /* WLAN_FEATURE_VOWIFI_11R */

@@ -58,17 +58,17 @@ static int __wlan_hdd_cfg80211_nan_request(struct wiphy *wiphy,
 					   int data_len)
 {
 	tNanRequestReq nan_req;
-	CDF_STATUS status;
+	QDF_STATUS status;
 	int ret_val;
 	hdd_context_t *hdd_ctx = wiphy_priv(wiphy);
 
-	ENTER();
+	ENTER_DEV(wdev->netdev);
 
 	ret_val = wlan_hdd_validate_context(hdd_ctx);
 	if (ret_val)
 		return ret_val;
 
-	if (CDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
+	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
 		hdd_err("Command not allowed in FTM mode");
 		return -EPERM;
 	}
@@ -82,7 +82,7 @@ static int __wlan_hdd_cfg80211_nan_request(struct wiphy *wiphy,
 	nan_req.request_data = data;
 
 	status = sme_nan_request(&nan_req);
-	if (CDF_STATUS_SUCCESS != status) {
+	if (QDF_STATUS_SUCCESS != status) {
 		ret_val = -EINVAL;
 	}
 	return ret_val;

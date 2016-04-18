@@ -32,21 +32,25 @@
 #ifndef _OL_TXRX_TYPES__H_
 #define _OL_TXRX_TYPES__H_
 
-#include <cdf_nbuf.h>           /* cdf_nbuf_t */
-#include <cdf_memory.h>
+#include <qdf_nbuf.h>           /* qdf_nbuf_t */
+#include <qdf_mem.h>
 #include <cds_queue.h>          /* TAILQ */
 #include <a_types.h>            /* A_UINT8 */
 #include <htt.h>                /* htt_sec_type, htt_pkt_type, etc. */
-#include <cdf_atomic.h>         /* cdf_atomic_t */
+#include <qdf_atomic.h>         /* qdf_atomic_t */
 #include <wdi_event_api.h>      /* wdi_event_subscribe */
-#include <cdf_softirq_timer.h>  /* cdf_softirq_timer_t */
-#include <cdf_lock.h>           /* cdf_spinlock */
+#include <qdf_timer.h>		/* qdf_timer_t */
+#include <qdf_lock.h>           /* qdf_spinlock */
 #include <pktlog.h>             /* ol_pktlog_dev_handle */
 #include <ol_txrx_stats.h>
 #include <txrx.h>
 #include "ol_txrx_htt_api.h"
 #include "ol_htt_tx_api.h"
 #include "ol_htt_rx_api.h"
+#include "ol_txrx_ctrl_api.h" /* WLAN_MAX_STA_COUNT */
+#include "ol_txrx_osif_api.h" /* ol_rx_callback_fp */
+#include "cdp_txrx_flow_ctrl_v2.h"
+#include "cdp_txrx_peer_ops.h"
 
 /*
  * The target may allocate multiple IDs for a peer.
@@ -55,6 +59,8 @@
  * unicast key the peer uses.
  */
 #define MAX_NUM_PEER_ID_PER_PEER 8
+
+#define OL_TXRX_INVALID_NUM_PEERS (-1)
 
 #define OL_TXRX_MAC_ADDR_LEN 6
 
@@ -69,15 +75,15 @@
 #define OL_TX_NUM_TIDS    18
 #define OL_RX_MCAST_TID   18  /* Mcast TID only between f/w & host */
 
-#define OL_TX_VDEV_MCAST_BCAST    0 // HTT_TX_EXT_TID_MCAST_BCAST
-#define OL_TX_VDEV_DEFAULT_MGMT   1 // HTT_TX_EXT_TID_DEFALT_MGMT
+#define OL_TX_VDEV_MCAST_BCAST    0 /* HTT_TX_EXT_TID_MCAST_BCAST */
+#define OL_TX_VDEV_DEFAULT_MGMT   1 /* HTT_TX_EXT_TID_DEFALT_MGMT */
 #define OL_TX_VDEV_NUM_QUEUES     2
 
 #define OL_TXRX_MGMT_TYPE_BASE htt_pkt_num_types
 #define OL_TXRX_MGMT_NUM_TYPES 8
 
-#define OL_TX_MUTEX_TYPE cdf_spinlock_t
-#define OL_RX_MUTEX_TYPE cdf_spinlock_t
+#define OL_TX_MUTEX_TYPE qdf_spinlock_t
+#define OL_RX_MUTEX_TYPE qdf_spinlock_t
 
 /* TXRX Histogram defines */
 #define TXRX_DATA_HISTROGRAM_GRANULARITY      1000
@@ -86,15 +92,6 @@
 struct ol_txrx_pdev_t;
 struct ol_txrx_vdev_t;
 struct ol_txrx_peer_t;
-
-struct ol_pdev_t;
-typedef struct ol_pdev_t *ol_pdev_handle;
-
-struct ol_vdev_t;
-typedef struct ol_vdev_t *ol_vdev_handle;
-
-struct ol_peer_t;
-typedef struct ol_peer_t *ol_peer_handle;
 
 /* rx filter related */
 #define MAX_PRIVACY_FILTERS           4 /* max privacy filters */
@@ -127,13 +124,13 @@ enum ol_tx_frm_type {
 };
 
 struct ol_tx_desc_t {
-	cdf_nbuf_t netbuf;
+	qdf_nbuf_t netbuf;
 	void *htt_tx_desc;
 	uint16_t id;
-	uint32_t htt_tx_desc_paddr;
+	qdf_dma_addr_t htt_tx_desc_paddr;
 	void *htt_frag_desc; /* struct msdu_ext_desc_t * */
-	uint32_t htt_frag_desc_paddr;
-	cdf_atomic_t ref_cnt;
+	qdf_dma_addr_t htt_frag_desc_paddr;
+	qdf_atomic_t ref_cnt;
 	enum htt_tx_status status;
 
 #ifdef QCA_COMPUTE_TX_DELAY
@@ -202,7 +199,7 @@ struct ol_rx_reorder_timeout_list_elem_t {
 
 struct ol_tx_reorder_cat_timeout_t {
 	TAILQ_HEAD(, ol_rx_reorder_timeout_list_elem_t) virtual_timer_list;
-	cdf_softirq_timer_t timer;
+	qdf_timer_t timer;
 	uint32_t duration_ms;
 	struct ol_txrx_pdev_t *pdev;
 };
@@ -216,7 +213,7 @@ enum ol_tx_queue_status {
 struct ol_txrx_msdu_info_t {
 	struct htt_msdu_info_t htt;
 	struct ol_txrx_peer_t *peer;
-	struct cdf_tso_info_t tso_info;
+	struct qdf_tso_info_t tso_info;
 };
 
 enum {
@@ -374,7 +371,7 @@ struct ol_txrx_pool_stats {
  */
 struct ol_tx_flow_pool_t {
 	TAILQ_ENTRY(ol_tx_flow_pool_t) flow_pool_list_elem;
-	cdf_spinlock_t flow_pool_lock;
+	qdf_spinlock_t flow_pool_lock;
 	uint8_t flow_pool_id;
 	uint16_t flow_pool_size;
 	uint16_t avail_desc;
@@ -447,7 +444,7 @@ struct ol_txrx_pdev_t {
 	ol_pdev_handle ctrl_pdev;
 
 	/* osdev - handle for mem alloc / free, map / unmap */
-	cdf_device_t osdev;
+	qdf_device_t osdev;
 
 	htt_pdev_handle htt_pdev;
 
@@ -466,7 +463,8 @@ struct ol_txrx_pdev_t {
 	/* WDI subscriber's event list */
 	wdi_event_subscribe **wdi_event_list;
 
-#ifndef REMOVE_PKT_LOG
+#if !defined(REMOVE_PKT_LOG) && !defined(QVIT)
+	bool pkt_log_init;
 	/* Pktlog pdev */
 	struct ol_pktlog_dev_t *pl_dev;
 #endif /* #ifndef REMOVE_PKT_LOG */
@@ -496,8 +494,8 @@ struct ol_txrx_pdev_t {
 	 * track of roughly how much space is available in the target for
 	 * tx frames
 	 */
-	cdf_atomic_t target_tx_credit;
-	cdf_atomic_t orig_target_tx_credit;
+	qdf_atomic_t target_tx_credit;
+	qdf_atomic_t orig_target_tx_credit;
 
 	/* Peer mac address to staid mapping */
 	struct ol_mac_addr mac_to_staid[WLAN_MAX_STA_COUNT + 3];
@@ -529,13 +527,13 @@ struct ol_txrx_pdev_t {
 			struct ol_tx_reorder_cat_timeout_t
 				access_cats[TXRX_NUM_WMM_AC];
 		} reorder_timeout;
-		cdf_spinlock_t mutex;
+		qdf_spinlock_t mutex;
 	} rx;
 
 	/* rx proc function */
 	void (*rx_opt_proc)(struct ol_txrx_vdev_t *vdev,
 			    struct ol_txrx_peer_t *peer,
-			    unsigned tid, cdf_nbuf_t msdu_list);
+			    unsigned tid, qdf_nbuf_t msdu_list);
 
 	/* tx data delivery notification callback function */
 	struct {
@@ -558,14 +556,14 @@ struct ol_txrx_pdev_t {
 		union ol_tx_desc_list_elem_t *freelist;
 #ifdef QCA_LL_TX_FLOW_CONTROL_V2
 		uint8_t num_invalid_bin;
-		cdf_spinlock_t flow_pool_list_lock;
+		qdf_spinlock_t flow_pool_list_lock;
 		TAILQ_HEAD(flow_pool_list_t, ol_tx_flow_pool_t) flow_pool_list;
 #endif
 		uint32_t page_size;
 		uint16_t desc_reserved_size;
 		uint8_t page_divider;
 		uint32_t offset_filter;
-		struct cdf_mem_multi_page_t desc_pages;
+		struct qdf_mem_multi_page_t desc_pages;
 	} tx_desc;
 
 	uint8_t is_mgmt_over_wmi_enabled;
@@ -676,7 +674,7 @@ struct ol_txrx_pdev_t {
 	 * conditional compilation.
 	 */
 	struct {
-		cdf_atomic_t rsrc_cnt;
+		qdf_atomic_t rsrc_cnt;
 		/* threshold_lo - when to start tx desc margin replenishment */
 		uint16_t rsrc_threshold_lo;
 		/* threshold_hi - where to stop during tx desc margin
@@ -685,7 +683,7 @@ struct ol_txrx_pdev_t {
 	} tx_queue;
 
 #ifdef QCA_ENABLE_OL_TXRX_PEER_STATS
-	cdf_spinlock_t peer_stat_mutex;
+	qdf_spinlock_t peer_stat_mutex;
 #endif
 
 	int rssi_update_shift;
@@ -694,7 +692,7 @@ struct ol_txrx_pdev_t {
 	struct {
 		ol_txrx_local_peer_id_t pool[OL_TXRX_NUM_LOCAL_PEER_IDS + 1];
 		ol_txrx_local_peer_id_t freelist;
-		cdf_spinlock_t lock;
+		qdf_spinlock_t lock;
 		ol_txrx_peer_handle map[OL_TXRX_NUM_LOCAL_PEER_IDS];
 	} local_peer_ids;
 #endif
@@ -707,7 +705,7 @@ struct ol_txrx_pdev_t {
 #define QCA_TX_DELAY_NUM_CATEGORIES 1
 #endif
 	struct {
-		cdf_spinlock_t mutex;
+		qdf_spinlock_t mutex;
 		struct {
 			struct ol_tx_delay_data copies[2]; /* ping-pong */
 			int in_progress_idx;
@@ -725,12 +723,12 @@ struct ol_txrx_pdev_t {
 #endif /* QCA_COMPUTE_TX_DELAY */
 
 	struct {
-		cdf_spinlock_t mutex;
+		qdf_spinlock_t mutex;
 		/* timer used to monitor the throttle "on" phase and
 		   "off" phase */
-		cdf_softirq_timer_t phase_timer;
+		qdf_timer_t phase_timer;
 		/* timer used to send tx frames */
-		cdf_softirq_timer_t tx_timer;
+		qdf_timer_t tx_timer;
 		/* This is the time in ms of the throttling window, it will
 		 * include an "on" phase and an "off" phase */
 		uint32_t throttle_period_ms;
@@ -756,7 +754,7 @@ struct ol_txrx_pdev_t {
 	struct {
 		uint16_t pool_size;
 		uint16_t num_free;
-		struct cdf_tso_seg_elem_t *freelist;
+		struct qdf_tso_seg_elem_t *freelist;
 		/* tso mutex */
 		OL_TX_MUTEX_TYPE tso_mutex;
 	} tso_seg_pool;
@@ -790,7 +788,7 @@ struct ol_txrx_vdev_t {
 	struct ol_txrx_peer_t *last_real_peer; /* last real peer created for
 						  this vdev (not "self"
 						  pseudo-peer) */
-	ol_txrx_tx_fp tx; /* transmit function used by this vdev */
+	ol_txrx_rx_fp rx; /* receive function used by this vdev */
 
 	struct {
 		/*
@@ -826,13 +824,13 @@ struct ol_txrx_vdev_t {
 
 	struct {
 		struct {
-			cdf_nbuf_t head;
-			cdf_nbuf_t tail;
+			qdf_nbuf_t head;
+			qdf_nbuf_t tail;
 			int depth;
 		} txq;
 		uint32_t paused_reason;
-		cdf_spinlock_t mutex;
-		cdf_softirq_timer_t timer;
+		qdf_spinlock_t mutex;
+		qdf_timer_t timer;
 		int max_q_depth;
 		bool is_q_paused;
 		bool is_q_timer_on;
@@ -841,19 +839,19 @@ struct ol_txrx_vdev_t {
 		uint32_t q_overflow_cnt;
 	} ll_pause;
 	bool disable_intrabss_fwd;
-	cdf_atomic_t os_q_paused;
+	qdf_atomic_t os_q_paused;
 	uint16_t tx_fl_lwm;
 	uint16_t tx_fl_hwm;
-	cdf_spinlock_t flow_control_lock;
+	qdf_spinlock_t flow_control_lock;
 	ol_txrx_tx_flow_control_fp osif_flow_control_cb;
 	void *osif_fc_ctx;
 	uint16_t wait_on_peer_id;
-	cdf_event_t wait_delete_comp;
+	qdf_event_t wait_delete_comp;
 #if defined(FEATURE_TSO)
 	struct {
 		int pool_elems; /* total number of elements in the pool */
 		int alloc_cnt; /* number of allocated elements */
-		uint32_t *freelist; /* free list of cdf_tso_seg_elem_t */
+		uint32_t *freelist; /* free list of qdf_tso_seg_elem_t */
 	} tso_pool_t;
 #endif
 
@@ -876,8 +874,8 @@ struct ol_txrx_vdev_t {
 };
 
 struct ol_rx_reorder_array_elem_t {
-	cdf_nbuf_t head;
-	cdf_nbuf_t tail;
+	qdf_nbuf_t head;
+	qdf_nbuf_t tail;
 };
 
 struct ol_rx_reorder_t {
@@ -909,9 +907,9 @@ typedef A_STATUS (*ol_tx_filter_func)(struct ol_txrx_msdu_info_t *
 struct ol_txrx_peer_t {
 	struct ol_txrx_vdev_t *vdev;
 
-	cdf_atomic_t ref_cnt;
-	cdf_atomic_t delete_in_progress;
-	cdf_atomic_t flush_in_progress;
+	qdf_atomic_t ref_cnt;
+	qdf_atomic_t delete_in_progress;
+	qdf_atomic_t flush_in_progress;
 
 	/* The peer state tracking is used for HL systems
 	 * that don't support tx and rx filtering within the target.
@@ -923,9 +921,8 @@ struct ol_txrx_peer_t {
 	 * for all systems.
 	 */
 	enum ol_txrx_peer_state state;
-	cdf_spinlock_t peer_info_lock;
-	ol_rx_callback_fp osif_rx;
-	cdf_spinlock_t bufq_lock;
+	qdf_spinlock_t peer_info_lock;
+	qdf_spinlock_t bufq_lock;
 	struct list_head cached_bufq;
 
 	ol_tx_filter_func tx_filter;
@@ -966,7 +963,7 @@ struct ol_txrx_peer_t {
 	 */
 	void (*rx_opt_proc)(struct ol_txrx_vdev_t *vdev,
 			    struct ol_txrx_peer_t *peer,
-			    unsigned tid, cdf_nbuf_t msdu_list);
+			    unsigned tid, qdf_nbuf_t msdu_list);
 
 #ifdef QCA_ENABLE_OL_TXRX_PEER_STATS
 	ol_txrx_peer_stats_t stats;
@@ -984,7 +981,7 @@ struct ol_txrx_peer_t {
 	uint8_t keyinstalled;
 
 	/* Bit to indicate if PN check is done in fw */
-	cdf_atomic_t fw_pn_check;
+	qdf_atomic_t fw_pn_check;
 
 #ifdef WLAN_FEATURE_11W
 	/* PN counter for Robust Management Frames */

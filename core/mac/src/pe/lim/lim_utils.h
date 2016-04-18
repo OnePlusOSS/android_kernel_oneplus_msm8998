@@ -91,13 +91,11 @@ void lim_print_sme_state(tpAniSirGlobal pMac, uint16_t logLevel,
 		tLimSmeStates state);
 void lim_print_msg_name(tpAniSirGlobal pMac, uint16_t logLevel, uint32_t msgType);
 
-#if defined FEATURE_WLAN_ESE || defined WLAN_FEATURE_VOWIFI
 extern tSirRetStatus lim_send_set_max_tx_power_req(tpAniSirGlobal pMac,
 		int8_t txPower,
 		tpPESession pSessionEntry);
 extern uint8_t lim_get_max_tx_power(int8_t regMax, int8_t apTxPower,
 		uint8_t iniTxPower);
-#endif
 uint8_t lim_is_addr_bc(tSirMacAddr);
 uint8_t lim_is_group_addr(tSirMacAddr);
 
@@ -221,7 +219,7 @@ void lim_switch_primary_secondary_channel(tpAniSirGlobal pMac,
 					uint8_t newChannel,
 					uint8_t ch_center_freq_seg0,
 					uint8_t ch_center_freq_seg1,
-					phy_ch_width ch_width);
+					enum phy_ch_width ch_width);
 void limUpdateStaRunTimeHTSwtichChnlParams(tpAniSirGlobal pMac,
 		tDot11fIEHTInfo *pRcvdHTInfo,
 		uint8_t bssIdx);
@@ -244,7 +242,7 @@ tSirRetStatus lim_restore_pre_quiet_state(tpAniSirGlobal pMac,
 
 void lim_prepare_for11h_channel_switch(tpAniSirGlobal pMac,
 		tpPESession psessionEntry);
-void lim_switch_channel_cback(tpAniSirGlobal pMac, CDF_STATUS status,
+void lim_switch_channel_cback(tpAniSirGlobal pMac, QDF_STATUS status,
 		uint32_t *data, tpPESession psessionEntry);
 
 static inline tSirRFBand lim_get_rf_band(uint8_t channel)
@@ -444,7 +442,6 @@ bool lim_isconnected_on_dfs_channel(uint8_t currentChannel);
 uint8_t lim_get_current_operating_channel(tpAniSirGlobal pMac);
 uint32_t lim_get_max_rate_flags(tpAniSirGlobal mac_ctx, tpDphHashNode sta_ds);
 
-#ifdef WLAN_FEATURE_11AC
 bool lim_check_vht_op_mode_change(tpAniSirGlobal pMac,
 		tpPESession psessionEntry,
 		uint8_t chanWidth, uint8_t staId,
@@ -455,7 +452,6 @@ bool lim_check_membership_user_position(tpAniSirGlobal pMac,
 		tpPESession psessionEntry,
 		uint32_t membership, uint32_t userPosition,
 		uint8_t staId);
-#endif
 
 #ifdef FEATURE_WLAN_DIAG_SUPPORT
 
@@ -563,12 +559,10 @@ void lim_set_ht_caps(tpAniSirGlobal p_mac,
 		uint8_t *p_ie_start,
 		uint32_t num_bytes);
 
-#ifdef WLAN_FEATURE_11AC
 void lim_set_vht_caps(tpAniSirGlobal p_mac,
 		tpPESession p_session_entry,
 		uint8_t *p_ie_start,
 		uint32_t num_bytes);
-#endif /* WLAN_FEATURE_11AC */
 bool lim_validate_received_frame_a1_addr(tpAniSirGlobal mac_ctx,
 		tSirMacAddr a1, tpPESession session);
 void lim_set_stads_rtt_cap(tpDphHashNode sta_ds, struct s_ext_cap *ext_cap,
@@ -576,7 +570,7 @@ void lim_set_stads_rtt_cap(tpDphHashNode sta_ds, struct s_ext_cap *ext_cap,
 
 void lim_check_and_reset_protection_params(tpAniSirGlobal mac_ctx);
 
-CDF_STATUS lim_send_ext_cap_ie(tpAniSirGlobal mac_ctx, uint32_t session_id,
+QDF_STATUS lim_send_ext_cap_ie(tpAniSirGlobal mac_ctx, uint32_t session_id,
 			       tDot11fIEExtCap *extracted_extcap, bool merge);
 
 tSirRetStatus lim_strip_extcap_ie(tpAniSirGlobal mac_ctx, uint8_t *addn_ie,
@@ -588,4 +582,24 @@ tSirRetStatus lim_strip_extcap_update_struct(tpAniSirGlobal mac_ctx,
 void lim_merge_extcap_struct(tDot11fIEExtCap *dst, tDot11fIEExtCap *src);
 
 uint8_t lim_get_80Mhz_center_channel(uint8_t primary_channel);
+void lim_update_obss_scanparams(tpPESession session,
+			tDot11fIEOBSSScanParameters *scan_params);
+void lim_init_obss_params(tpAniSirGlobal mac_ctx, tpPESession session);
+#ifdef WLAN_FEATURE_HOST_ROAM
+uint32_t lim_create_timers_host_roam(tpAniSirGlobal mac_ctx);
+void lim_delete_timers_host_roam(tpAniSirGlobal mac_ctx);
+void lim_deactivate_and_change_timer_host_roam(tpAniSirGlobal mac_ctx,
+		uint32_t timer_id);
+#else
+static inline uint32_t lim_create_timers_host_roam(tpAniSirGlobal mac_ctx)
+{
+	return 0;
+}
+static inline void lim_delete_timers_host_roam(tpAniSirGlobal mac_ctx)
+{}
+static inline void lim_deactivate_and_change_timer_host_roam(
+		tpAniSirGlobal mac_ctx, uint32_t timer_id)
+{}
+#endif
+
 #endif /* __LIM_UTILS_H */

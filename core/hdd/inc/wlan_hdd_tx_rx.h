@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -39,6 +39,7 @@
 #include <cds_api.h>
 #include <linux/skbuff.h>
 #include "ol_txrx_osif_api.h"
+#include "cdp_txrx_flow_ctrl_legacy.h"
 
 #define HDD_ETHERTYPE_802_1_X              0x888E
 #define HDD_ETHERTYPE_802_1_X_FRAME_OFFSET 12
@@ -55,25 +56,25 @@
 
 int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev);
 void hdd_tx_timeout(struct net_device *dev);
-CDF_STATUS hdd_init_tx_rx(hdd_adapter_t *pAdapter);
-CDF_STATUS hdd_deinit_tx_rx(hdd_adapter_t *pAdapter);
-CDF_STATUS hdd_rx_packet_cbk(void *cds_context, cdf_nbuf_t rxBufChain,
-			     uint8_t staId);
+
+QDF_STATUS hdd_init_tx_rx(hdd_adapter_t *pAdapter);
+QDF_STATUS hdd_deinit_tx_rx(hdd_adapter_t *pAdapter);
+QDF_STATUS hdd_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf);
 
 #ifdef IPA_OFFLOAD
-CDF_STATUS hdd_rx_mul_packet_cbk(void *cds_context,
-				 cdf_nbuf_t rx_buf_list, uint8_t staId);
+QDF_STATUS hdd_rx_mul_packet_cbk(void *cds_context,
+				 qdf_nbuf_t rx_buf_list, uint8_t staId);
 #endif /* IPA_OFFLOAD */
 
-CDF_STATUS hdd_ibss_get_sta_id(hdd_station_ctx_t *pHddStaCtx,
-			       struct cdf_mac_addr *pMacAddress,
+QDF_STATUS hdd_ibss_get_sta_id(hdd_station_ctx_t *pHddStaCtx,
+			       struct qdf_mac_addr *pMacAddress,
 			       uint8_t *staId);
 
 #ifdef QCA_LL_LEGACY_TX_FLOW_CONTROL
 void hdd_tx_resume_cb(void *adapter_context, bool tx_resume);
 void hdd_tx_resume_timer_expired_handler(void *adapter_context);
 void hdd_register_tx_flow_control(hdd_adapter_t *adapter,
-		cdf_mc_timer_callback_t timer_callback,
+		qdf_mc_timer_callback_t timer_callback,
 		ol_txrx_tx_flow_control_fp flowControl);
 void hdd_deregister_tx_flow_control(hdd_adapter_t *adapter);
 void hdd_get_tx_resource(hdd_adapter_t *adapter,
@@ -89,7 +90,7 @@ static inline void hdd_tx_resume_timer_expired_handler(void *adapter_context)
 	return;
 }
 static inline void hdd_register_tx_flow_control(hdd_adapter_t *adapter,
-		cdf_mc_timer_callback_t timer_callback,
+		qdf_mc_timer_callback_t timer_callback,
 		ol_txrx_tx_flow_control_fp flowControl)
 {
 	return;

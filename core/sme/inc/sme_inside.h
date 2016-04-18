@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -37,11 +37,11 @@
 /*--------------------------------------------------------------------------
   Include Files
   ------------------------------------------------------------------------*/
-#include "cdf_status.h"
-#include "cdf_lock.h"
-#include "cdf_trace.h"
-#include "cdf_memory.h"
-#include "cdf_types.h"
+#include "qdf_status.h"
+#include "qdf_lock.h"
+#include "qdf_trace.h"
+#include "qdf_mem.h"
+#include "qdf_types.h"
 #include "sir_api.h"
 #include "csr_internal.h"
 #include "sme_qos_api.h"
@@ -51,9 +51,7 @@
 #include "oem_data_internal.h"
 #endif
 
-#if defined WLAN_FEATURE_VOWIFI
 #include "sme_rrm_api.h"
-#endif
 ePhyChanBondState csr_convert_cb_ini_value_to_phy_cb_state(uint32_t cbIniValue);
 
 /*--------------------------------------------------------------------------
@@ -109,7 +107,7 @@ typedef struct TdlsSendMgmtInfo {
 } tTdlsSendMgmtCmdInfo;
 
 typedef struct TdlsLinkEstablishInfo {
-	struct cdf_mac_addr peermac;
+	struct qdf_mac_addr peermac;
 	uint8_t uapsdQueues;
 	uint8_t maxSp;
 	uint8_t isBufSta;
@@ -118,12 +116,12 @@ typedef struct TdlsLinkEstablishInfo {
 	uint8_t supportedChannelsLen;
 	uint8_t supportedChannels[SIR_MAC_MAX_SUPP_CHANNELS];
 	uint8_t supportedOperClassesLen;
-	uint8_t supportedOperClasses[SIR_MAC_MAX_SUPP_OPER_CLASSES];
+	uint8_t supportedOperClasses[CDS_MAX_SUPP_OPER_CLASSES];
 } tTdlsLinkEstablishCmdInfo;
 
 typedef struct TdlsAddStaInfo {
 	eTdlsAddOper tdlsAddOper;
-	struct cdf_mac_addr peermac;
+	struct qdf_mac_addr peermac;
 	uint16_t capability;
 	uint8_t extnCapability[SIR_MAC_MAX_EXTN_CAP];
 	uint8_t supportedRatesLen;
@@ -137,7 +135,7 @@ typedef struct TdlsAddStaInfo {
 } tTdlsAddStaCmdInfo;
 
 typedef struct TdlsDelStaInfo {
-	struct cdf_mac_addr peermac;
+	struct qdf_mac_addr peermac;
 } tTdlsDelStaCmdInfo;
 /*
  * TDLS cmd info, CMD from SME to PE.
@@ -166,6 +164,7 @@ struct s_nss_update_cmd {
 	void *nss_update_cb;
 	void *context;
 	uint8_t next_action;
+	enum sir_conn_update_reason reason;
 };
 
 typedef struct tagSmeCmd {
@@ -192,6 +191,7 @@ typedef struct tagSmeCmd {
 		struct sir_hw_mode set_hw_mode_cmd;
 		struct s_nss_update_cmd nss_update_cmd;
 		struct sir_dual_mac_config set_dual_mac_cmd;
+		struct sir_antenna_mode_param set_antenna_mode_cmd;
 	} u;
 } tSmeCmd;
 
@@ -207,38 +207,38 @@ void purge_sme_session_cmd_list(tpAniSirGlobal pMac, uint32_t sessionId,
 bool sme_command_pending(tpAniSirGlobal pMac);
 bool pmc_process_command(tpAniSirGlobal pMac, tSmeCmd *pCommand);
 bool qos_process_command(tpAniSirGlobal pMac, tSmeCmd *pCommand);
-CDF_STATUS csr_process_scan_command(tpAniSirGlobal pMac, tSmeCmd *pCommand);
-CDF_STATUS csr_roam_process_command(tpAniSirGlobal pMac, tSmeCmd *pCommand);
+QDF_STATUS csr_process_scan_command(tpAniSirGlobal pMac, tSmeCmd *pCommand);
+QDF_STATUS csr_roam_process_command(tpAniSirGlobal pMac, tSmeCmd *pCommand);
 void csr_roam_process_wm_status_change_command(tpAniSirGlobal pMac,
 		tSmeCmd *pCommand);
 void csr_reinit_roam_cmd(tpAniSirGlobal pMac, tSmeCmd *pCommand);
 void csr_reinit_wm_status_change_cmd(tpAniSirGlobal pMac, tSmeCmd *pCommand);
 void csr_reinit_set_key_cmd(tpAniSirGlobal pMac, tSmeCmd *pCommand);
-CDF_STATUS csr_roam_process_set_key_command(tpAniSirGlobal pMac,
+QDF_STATUS csr_roam_process_set_key_command(tpAniSirGlobal pMac,
 		tSmeCmd *pCommand);
 void csr_release_command_set_key(tpAniSirGlobal pMac, tSmeCmd *pCommand);
 void csr_abort_command(tpAniSirGlobal pMac, tSmeCmd *pCommand, bool fStopping);
 
-CDF_STATUS csr_is_valid_channel(tpAniSirGlobal pMac, uint8_t chnNum);
+QDF_STATUS csr_is_valid_channel(tpAniSirGlobal pMac, uint8_t chnNum);
 bool csr_roam_is_valid40_mhz_channel(tpAniSirGlobal pmac, uint8_t channel);
 
-CDF_STATUS sme_acquire_global_lock(tSmeStruct *psSme);
-CDF_STATUS sme_release_global_lock(tSmeStruct *psSme);
+QDF_STATUS sme_acquire_global_lock(tSmeStruct *psSme);
+QDF_STATUS sme_release_global_lock(tSmeStruct *psSme);
 
 #ifdef FEATURE_OEM_DATA_SUPPORT
-CDF_STATUS oem_data_process_oem_data_req_command(tpAniSirGlobal pMac,
+QDF_STATUS oem_data_process_oem_data_req_command(tpAniSirGlobal pMac,
 		tSmeCmd *pCommand);
 #endif
 
-CDF_STATUS csr_process_add_sta_session_command(tpAniSirGlobal pMac,
+QDF_STATUS csr_process_add_sta_session_command(tpAniSirGlobal pMac,
 		tSmeCmd *pCommand);
-CDF_STATUS csr_process_add_sta_session_rsp(tpAniSirGlobal pMac, uint8_t *pMsg);
-CDF_STATUS csr_process_del_sta_session_command(tpAniSirGlobal pMac,
+QDF_STATUS csr_process_add_sta_session_rsp(tpAniSirGlobal pMac, uint8_t *pMsg);
+QDF_STATUS csr_process_del_sta_session_command(tpAniSirGlobal pMac,
 		tSmeCmd *pCommand);
-CDF_STATUS csr_process_del_sta_session_rsp(tpAniSirGlobal pMac, uint8_t *pMsg);
+QDF_STATUS csr_process_del_sta_session_rsp(tpAniSirGlobal pMac, uint8_t *pMsg);
 
 #ifdef FEATURE_WLAN_SCAN_PNO
-CDF_STATUS pmc_set_preferred_network_list(tHalHandle hHal,
+QDF_STATUS pmc_set_preferred_network_list(tHalHandle hHal,
 		tpSirPNOScanReq pRequest,
 		uint8_t sessionId,
 		preferred_network_found_ind_cb
@@ -246,34 +246,34 @@ CDF_STATUS pmc_set_preferred_network_list(tHalHandle hHal,
 #endif /* FEATURE_WLAN_SCAN_PNO */
 bool csr_roamGetConcurrencyConnectStatusForBmps(tpAniSirGlobal pMac);
 #ifdef FEATURE_WLAN_TDLS
-CDF_STATUS csr_tdls_send_mgmt_req(tHalHandle hHal, uint8_t sessionId,
+QDF_STATUS csr_tdls_send_mgmt_req(tHalHandle hHal, uint8_t sessionId,
 		tCsrTdlsSendMgmt * tdlsSendMgmt);
-CDF_STATUS csr_tdls_send_link_establish_params(tHalHandle hHal,
+QDF_STATUS csr_tdls_send_link_establish_params(tHalHandle hHal,
 		uint8_t sessionId, const tSirMacAddr peerMac,
 		tCsrTdlsLinkEstablishParams *tdlsLinkEstablishParams);
-CDF_STATUS csr_tdls_add_peer_sta(tHalHandle hHal, uint8_t sessionId,
+QDF_STATUS csr_tdls_add_peer_sta(tHalHandle hHal, uint8_t sessionId,
 		const tSirMacAddr peerMac);
-CDF_STATUS csr_tdls_change_peer_sta(tHalHandle hHal, uint8_t sessionId,
+QDF_STATUS csr_tdls_change_peer_sta(tHalHandle hHal, uint8_t sessionId,
 		const tSirMacAddr peerMac,
 		tCsrStaParams *pstaParams);
-CDF_STATUS csr_tdls_del_peer_sta(tHalHandle hHal, uint8_t sessionId,
+QDF_STATUS csr_tdls_del_peer_sta(tHalHandle hHal, uint8_t sessionId,
 		const tSirMacAddr peerMac);
-CDF_STATUS csr_tdls_process_cmd(tpAniSirGlobal pMac, tSmeCmd *pCommand);
-CDF_STATUS csr_tdls_process_link_establish(tpAniSirGlobal pMac, tSmeCmd *cmd);
-CDF_STATUS tdls_msg_processor(tpAniSirGlobal pMac, uint16_t msg_type,
+QDF_STATUS csr_tdls_process_cmd(tpAniSirGlobal pMac, tSmeCmd *pCommand);
+QDF_STATUS csr_tdls_process_link_establish(tpAniSirGlobal pMac, tSmeCmd *cmd);
+QDF_STATUS tdls_msg_processor(tpAniSirGlobal pMac, uint16_t msg_type,
 		void *pMsgBuf);
 #endif /* FEATURE_WLAN_TDLS */
 
-CDF_STATUS csr_flush_cfg_bg_scan_roam_channel_list(tpAniSirGlobal pMac,
+QDF_STATUS csr_flush_cfg_bg_scan_roam_channel_list(tpAniSirGlobal pMac,
 		uint8_t sessionId);
-CDF_STATUS csr_create_bg_scan_roam_channel_list(tpAniSirGlobal pMac,
+QDF_STATUS csr_create_bg_scan_roam_channel_list(tpAniSirGlobal pMac,
 		uint8_t sessionId, const uint8_t *pChannelList,
 		const uint8_t numChannels);
-CDF_STATUS csr_update_bg_scan_config_ini_channel_list(tpAniSirGlobal pMac,
+QDF_STATUS csr_update_bg_scan_config_ini_channel_list(tpAniSirGlobal pMac,
 		uint8_t sessionId, eCsrBand eBand);
 
-#if defined(FEATURE_WLAN_ESE) && defined(FEATURE_WLAN_ESE_UPLOAD)
-CDF_STATUS csr_create_roam_scan_channel_list(tpAniSirGlobal pMac,
+#ifdef FEATURE_WLAN_ESE
+QDF_STATUS csr_create_roam_scan_channel_list(tpAniSirGlobal pMac,
 		uint8_t sessionId,
 		uint8_t *pChannelList,
 		uint8_t numChannels,
@@ -283,6 +283,11 @@ CDF_STATUS csr_create_roam_scan_channel_list(tpAniSirGlobal pMac,
 ePhyChanBondState csr_convert_cb_ini_value_to_phy_cb_state(uint32_t cbIniValue);
 void active_list_cmd_timeout_handle(void *userData);
 void csr_process_set_dual_mac_config(tpAniSirGlobal mac, tSmeCmd *command);
+void csr_process_set_antenna_mode(tpAniSirGlobal mac, tSmeCmd *command);
 void csr_process_set_hw_mode(tpAniSirGlobal mac, tSmeCmd *command);
 void csr_process_nss_update_req(tpAniSirGlobal mac, tSmeCmd *command);
+
+QDF_STATUS sme_check_ch_in_band(tpAniSirGlobal mac_ctx, uint8_t start_ch,
+				uint8_t ch_cnt);
+
 #endif /* #if !defined( __SMEINSIDE_H ) */

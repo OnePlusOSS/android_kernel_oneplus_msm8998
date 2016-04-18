@@ -36,7 +36,7 @@
 
    ========================================================================*/
 
-#include "cdf_status.h"
+#include "qdf_status.h"
 
 #define CDS_COUNTRY_CODE_LEN  2
 #define CDS_MAC_ADDRESS_LEN 6
@@ -78,123 +78,79 @@ typedef enum {
 } v_REGDOMAIN_t;
 
 enum channel_enum {
-	RF_CHAN_1 = 0,
-	RF_CHAN_2,
-	RF_CHAN_3,
-	RF_CHAN_4,
-	RF_CHAN_5,
-	RF_CHAN_6,
-	RF_CHAN_7,
-	RF_CHAN_8,
-	RF_CHAN_9,
-	RF_CHAN_10,
-	RF_CHAN_11,
-	RF_CHAN_12,
-	RF_CHAN_13,
-	RF_CHAN_14,
+	CHAN_ENUM_1 = 0,
+	CHAN_ENUM_2,
+	CHAN_ENUM_3,
+	CHAN_ENUM_4,
+	CHAN_ENUM_5,
+	CHAN_ENUM_6,
+	CHAN_ENUM_7,
+	CHAN_ENUM_8,
+	CHAN_ENUM_9,
+	CHAN_ENUM_10,
+	CHAN_ENUM_11,
+	CHAN_ENUM_12,
+	CHAN_ENUM_13,
+	CHAN_ENUM_14,
 
-	RF_CHAN_36,
-	RF_CHAN_40,
-	RF_CHAN_44,
-	RF_CHAN_48,
-	RF_CHAN_52,
-	RF_CHAN_56,
-	RF_CHAN_60,
-	RF_CHAN_64,
+	CHAN_ENUM_36,
+	CHAN_ENUM_40,
+	CHAN_ENUM_44,
+	CHAN_ENUM_48,
+	CHAN_ENUM_52,
+	CHAN_ENUM_56,
+	CHAN_ENUM_60,
+	CHAN_ENUM_64,
 
-	RF_CHAN_100,
-	RF_CHAN_104,
-	RF_CHAN_108,
-	RF_CHAN_112,
-	RF_CHAN_116,
-	RF_CHAN_120,
-	RF_CHAN_124,
-	RF_CHAN_128,
-	RF_CHAN_132,
-	RF_CHAN_136,
-	RF_CHAN_140,
-	RF_CHAN_144,
+	CHAN_ENUM_100,
+	CHAN_ENUM_104,
+	CHAN_ENUM_108,
+	CHAN_ENUM_112,
+	CHAN_ENUM_116,
+	CHAN_ENUM_120,
+	CHAN_ENUM_124,
+	CHAN_ENUM_128,
+	CHAN_ENUM_132,
+	CHAN_ENUM_136,
+	CHAN_ENUM_140,
+	CHAN_ENUM_144,
 
-	RF_CHAN_149,
-	RF_CHAN_153,
-	RF_CHAN_157,
-	RF_CHAN_161,
-	RF_CHAN_165,
+	CHAN_ENUM_149,
+	CHAN_ENUM_153,
+	CHAN_ENUM_157,
+	CHAN_ENUM_161,
+	CHAN_ENUM_165,
 
-	RF_CHAN_170,
-	RF_CHAN_171,
-	RF_CHAN_172,
-	RF_CHAN_173,
-	RF_CHAN_174,
-	RF_CHAN_175,
-	RF_CHAN_176,
-	RF_CHAN_177,
-	RF_CHAN_178,
-	RF_CHAN_179,
-	RF_CHAN_180,
-	RF_CHAN_181,
-	RF_CHAN_182,
-	RF_CHAN_183,
-	RF_CHAN_184,
+	CHAN_ENUM_170,
+	CHAN_ENUM_171,
+	CHAN_ENUM_172,
+	CHAN_ENUM_173,
+	CHAN_ENUM_174,
+	CHAN_ENUM_175,
+	CHAN_ENUM_176,
+	CHAN_ENUM_177,
+	CHAN_ENUM_178,
+	CHAN_ENUM_179,
+	CHAN_ENUM_180,
+	CHAN_ENUM_181,
+	CHAN_ENUM_182,
+	CHAN_ENUM_183,
+	CHAN_ENUM_184,
 
-	/* CHANNEL BONDED CHANNELS */
-	RF_CHAN_BOND_3,
-	RF_CHAN_BOND_4,
-	RF_CHAN_BOND_5,
-	RF_CHAN_BOND_6,
-	RF_CHAN_BOND_7,
-	RF_CHAN_BOND_8,
-	RF_CHAN_BOND_9,
-	RF_CHAN_BOND_10,
-	RF_CHAN_BOND_11,
-	RF_CHAN_BOND_38,
-	RF_CHAN_BOND_42,
-	RF_CHAN_BOND_46,
-	RF_CHAN_BOND_50,
-	RF_CHAN_BOND_54,
-	RF_CHAN_BOND_58,
-	RF_CHAN_BOND_62,
-	RF_CHAN_BOND_102,
-	RF_CHAN_BOND_106,
-	RF_CHAN_BOND_110,
-	RF_CHAN_BOND_114,
-	RF_CHAN_BOND_118,
-	RF_CHAN_BOND_122,
-	RF_CHAN_BOND_126,
-	RF_CHAN_BOND_130,
-	RF_CHAN_BOND_134,
-	RF_CHAN_BOND_138,
-	RF_CHAN_BOND_142,
-	RF_CHAN_BOND_151,
-	RF_CHAN_BOND_155,
-	RF_CHAN_BOND_159,
-	RF_CHAN_BOND_163,
+	NUM_CHANNELS,
 
-	NUM_RF_CHANNELS,
-
-	MIN_24GHZ_CHANNEL = RF_CHAN_1,
-	MAX_24GHZ_CHANNEL = RF_CHAN_14,
+	MIN_24GHZ_CHANNEL = CHAN_ENUM_1,
+	MAX_24GHZ_CHANNEL = CHAN_ENUM_14,
 	NUM_24GHZ_CHANNELS = (MAX_24GHZ_CHANNEL - MIN_24GHZ_CHANNEL + 1),
 
-	MIN_5GHZ_CHANNEL = RF_CHAN_36,
-	MAX_5GHZ_CHANNEL = RF_CHAN_184,
+	MIN_5GHZ_CHANNEL = CHAN_ENUM_36,
+	MAX_5GHZ_CHANNEL = CHAN_ENUM_184,
 	NUM_5GHZ_CHANNELS = (MAX_5GHZ_CHANNEL - MIN_5GHZ_CHANNEL + 1),
 
-	MIN_20MHZ_RF_CHANNEL = RF_CHAN_1,
-	MAX_20MHZ_RF_CHANNEL = RF_CHAN_184,
-	NUM_20MHZ_RF_CHANNELS =
-		(MAX_20MHZ_RF_CHANNEL - MIN_20MHZ_RF_CHANNEL + 1),
+	MIN_59GHZ_CHANNEL = CHAN_ENUM_170,
+	MAX_59GHZ_CHANNEL = CHAN_ENUM_184,
 
-	MIN_40MHZ_RF_CHANNEL = RF_CHAN_BOND_3,
-	MAX_40MHZ_RF_CHANNEL = RF_CHAN_BOND_163,
-	NUM_40MHZ_RF_CHANNELS =
-		(MAX_40MHZ_RF_CHANNEL - MIN_40MHZ_RF_CHANNEL + 1),
-
-	MIN_59GHZ_CHANNEL = RF_CHAN_170,
-	MAX_59GHZ_CHANNEL = RF_CHAN_184,
-
-	INVALID_RF_CHANNEL = 0xBAD,
-	RF_CHANNEL_INVALID_MAX_FIELD = 0x7FFFFFFF
+	INVALID_CHANNEL = 0xBAD,
 };
 
 /**
@@ -284,8 +240,6 @@ struct regulatory {
 	uint32_t eeprom_rd_ext;
 	uint16_t country_code;
 	uint8_t alpha2[CDS_COUNTRY_CODE_LEN + 1];
-	uint8_t def_country[CDS_COUNTRY_CODE_LEN + 1];
-	uint8_t dfs_region;
 	uint8_t ctl_2g;
 	uint8_t ctl_5g;
 	const void *regpair;
@@ -294,53 +248,51 @@ struct regulatory {
 };
 
 /**
- * enum chan_width: channel width
- *
- * @CHAN_WIDTH_0MHZ: channel disabled or invalid
- * @CHAN_WIDTH_5MHZ: channel width 5 MHZ
- * @CHAN_WIDTH_10MHZ: channel width 10 MHZ
- * @CHAN_WIDTH_20MHZ: channel width 20 MHZ
- * @CHAN_WIDTH_40MHZ: channel width 40 MHZ
- * @CHAN_WIDTH_80MHZ: channel width 80MHZ
- * @CHAN_WIDTH_160MHZ: channel width 160 MHZ
+ * phy_ch_width - channel width
+ * @CH_WIDTH_20MHZ: channel width 20 MHz
+ * @CH_WIDTH_40MHZ: channel width 40 MHz
+ * @CH_WIDTH_80MHZ: channel width 80MHz
+ * @CH_WIDTH_160MHZ: channel width 160 MHz
+ * @CH_WIDTH_80P80MHZ: channel width 160MHz(80+80)
+ * @CH_WIDTH_5MHZ: channel width 5MHz
+ * @CH_WIDTH_10MHZ: channel width 10MHz
  */
-enum channel_width {
-	CHAN_WIDTH_0MHZ,
-	CHAN_WIDTH_5MHZ,
-	CHAN_WIDTH_10MHZ,
-	CHAN_WIDTH_20MHZ,
-	CHAN_WIDTH_40MHZ,
-	CHAN_WIDTH_80MHZ,
-	CHAN_WIDTH_160MHZ
+enum phy_ch_width {
+	CH_WIDTH_20MHZ = 0,
+	CH_WIDTH_40MHZ = 1,
+	CH_WIDTH_80MHZ = 2,
+	CH_WIDTH_160MHZ = 3,
+	CH_WIDTH_80P80MHZ = 4,
+	CH_WIDTH_5MHZ = 5,
+	CH_WIDTH_10MHZ = 6,
+	CH_WIDTH_INVALID = 7,
+	CH_WIDTH_MAX
 };
 
+extern const struct chan_map chan_mapping[NUM_CHANNELS];
+extern struct regulatory_channel reg_channels[NUM_CHANNELS];
 
-extern struct regulatory_channel reg_channels[NUM_RF_CHANNELS];
-extern const struct chan_map chan_mapping[NUM_RF_CHANNELS];
-
-CDF_STATUS cds_get_reg_domain_from_country_code(v_REGDOMAIN_t *pRegDomain,
+QDF_STATUS cds_get_reg_domain_from_country_code(v_REGDOMAIN_t *pRegDomain,
 						const uint8_t *country_alpha2,
 						enum country_src source);
 
-CDF_STATUS cds_read_default_country(uint8_t *default_country);
+QDF_STATUS cds_read_default_country(uint8_t *default_country);
 
-CDF_STATUS cds_get_channel_list_with_power(struct channel_power
+QDF_STATUS cds_get_channel_list_with_power(struct channel_power
 					   *base_channels,
-					   uint8_t *num_base_channels,
-					   struct channel_power
-					   *channel_40mhz,
-					   uint8_t *num_channels_40mhz);
-
-CDF_STATUS cds_set_reg_domain(void *client_ctxt, v_REGDOMAIN_t reg_domain);
+					   uint8_t *num_base_channels);
 
 enum channel_state cds_get_channel_state(uint32_t chan_num);
+QDF_STATUS cds_get_dfs_region(uint8_t *dfs_region);
+QDF_STATUS cds_put_dfs_region(uint8_t dfs_region);
 
-CDF_STATUS cds_regulatory_init(void);
-CDF_STATUS cds_get_dfs_region(uint8_t *dfs_region);
-CDF_STATUS cds_set_dfs_region(uint8_t dfs_region);
 bool cds_is_dsrc_channel(uint16_t);
 enum channel_state cds_get_bonded_channel_state(uint32_t chan_num,
-					   enum channel_width chan_width);
-enum channel_width cds_get_max_channel_bw(uint32_t chan_num);
+					   enum phy_ch_width chan_width);
+
+enum phy_ch_width cds_get_max_channel_bw(uint32_t chan_num);
+
+QDF_STATUS cds_set_reg_domain(void *client_ctxt, v_REGDOMAIN_t reg_domain);
+QDF_STATUS cds_put_default_country(uint8_t *def_country);
 
 #endif /* __CDS_REG_SERVICE_H */

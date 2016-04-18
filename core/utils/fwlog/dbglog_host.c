@@ -55,11 +55,11 @@
 
 #if defined(DEBUG)
 
-static bool appstarted = false;
-static bool senddriverstatus = false;
+static bool appstarted;
+static bool senddriverstatus;
 static int cnss_diag_pid = INVALID_PID;
-static int get_version = 0;
-static int gprint_limiter = 0;
+static int get_version;
+static int gprint_limiter;
 
 static ATH_DEBUG_MASK_DESCRIPTION g_fwlog_debug_description[] = {
 	{FWLOG_DEBUG, "fwlog"},
@@ -78,11 +78,6 @@ ATH_DEBUG_INSTANTIATE_MODULE_VAR(fwlog,
 module_dbg_print mod_print[WLAN_MODULE_ID_MAX];
 
 A_UINT32 dbglog_process_type = DBGLOG_PROCESS_NET_RAW;
-
-A_STATUS
-wmi_config_debug_module_cmd(wmi_unified_t wmi_handle, A_UINT32 param,
-			    A_UINT32 val, A_UINT32 *module_id_bitmap,
-			    A_UINT32 bitmap_len);
 
 const char *dbglog_get_module_str(A_UINT32 module_id)
 {
@@ -1284,7 +1279,7 @@ int dbglog_module_log_enable(wmi_unified_t wmi_handle, A_UINT32 mod_id,
 		/* set it to ERROR level */
 		WMI_DBGLOG_SET_LOG_LEVEL(val, DBGLOG_ERR);
 	}
-	wmi_config_debug_module_cmd(wmi_handle, WMI_DEBUG_LOG_PARAM_LOG_LEVEL,
+	wma_config_debug_module_cmd(wmi_handle, WMI_DEBUG_LOG_PARAM_LOG_LEVEL,
 				    val, NULL, 0);
 
 	return 0;
@@ -1300,7 +1295,7 @@ int dbglog_vap_log_enable(wmi_unified_t wmi_handle, A_UINT16 vap_id,
 		return -EINVAL;
 	}
 
-	wmi_config_debug_module_cmd(wmi_handle,
+	wma_config_debug_module_cmd(wmi_handle,
 				    isenable ? WMI_DEBUG_LOG_PARAM_VDEV_ENABLE :
 				    WMI_DEBUG_LOG_PARAM_VDEV_DISABLE, vap_id,
 				    NULL, 0);
@@ -1321,7 +1316,7 @@ int dbglog_set_log_lvl(wmi_unified_t wmi_handle, DBGLOG_LOG_LVL log_lvl)
 
 	WMI_DBGLOG_SET_MODULE_ID(val, WMI_DEBUG_LOG_MODULE_ALL);
 	WMI_DBGLOG_SET_LOG_LEVEL(val, log_lvl);
-	wmi_config_debug_module_cmd(wmi_handle, WMI_DEBUG_LOG_PARAM_LOG_LEVEL,
+	wma_config_debug_module_cmd(wmi_handle, WMI_DEBUG_LOG_PARAM_LOG_LEVEL,
 				    val, NULL, 0);
 
 	return 0;
@@ -1333,75 +1328,17 @@ int dbglog_set_mod_log_lvl(wmi_unified_t wmi_handle, A_UINT32 mod_log_lvl)
 	/* set the global module level to log_lvl */
 	WMI_DBGLOG_SET_MODULE_ID(val, (mod_log_lvl / 10));
 	WMI_DBGLOG_SET_LOG_LEVEL(val, (mod_log_lvl % 10));
-	wmi_config_debug_module_cmd(wmi_handle, WMI_DEBUG_LOG_PARAM_LOG_LEVEL,
+	wma_config_debug_module_cmd(wmi_handle, WMI_DEBUG_LOG_PARAM_LOG_LEVEL,
 				    val, NULL, 0);
 
 	return 0;
-}
-
-A_STATUS
-wmi_config_debug_module_cmd(wmi_unified_t wmi_handle, A_UINT32 param,
-			    A_UINT32 val, A_UINT32 *module_id_bitmap,
-			    A_UINT32 bitmap_len)
-{
-	wmi_buf_t buf;
-	wmi_debug_log_config_cmd_fixed_param *configmsg;
-	A_STATUS status = A_OK;
-	int i;
-	int len;
-	int8_t *buf_ptr;
-	int32_t *module_id_bitmap_array;        /* Used to fomr the second tlv */
-
-	ASSERT(bitmap_len < MAX_MODULE_ID_BITMAP_WORDS);
-
-	/* Allocate size for 2 tlvs - including tlv hdr space for second tlv */
-	len = sizeof(wmi_debug_log_config_cmd_fixed_param) + WMI_TLV_HDR_SIZE +
-	      (sizeof(int32_t) * MAX_MODULE_ID_BITMAP_WORDS);
-	buf = wmi_buf_alloc(wmi_handle, len);
-	if (buf == NULL)
-		return A_NO_MEMORY;
-
-	configmsg =
-		(wmi_debug_log_config_cmd_fixed_param *) (wmi_buf_data(buf));
-	buf_ptr = (int8_t *) configmsg;
-	WMITLV_SET_HDR(&configmsg->tlv_header,
-		       WMITLV_TAG_STRUC_wmi_debug_log_config_cmd_fixed_param,
-		       WMITLV_GET_STRUCT_TLVLEN
-			       (wmi_debug_log_config_cmd_fixed_param));
-	configmsg->dbg_log_param = param;
-	configmsg->value = val;
-	/* Filling in the data part of second tlv -- should follow first tlv _ WMI_TLV_HDR_SIZE */
-	module_id_bitmap_array = (A_UINT32 *) (buf_ptr +
-					       sizeof
-					       (wmi_debug_log_config_cmd_fixed_param)
-					       + WMI_TLV_HDR_SIZE);
-	WMITLV_SET_HDR(buf_ptr + sizeof(wmi_debug_log_config_cmd_fixed_param),
-		       WMITLV_TAG_ARRAY_UINT32,
-		       sizeof(A_UINT32) * MAX_MODULE_ID_BITMAP_WORDS);
-	if (module_id_bitmap) {
-		for (i = 0; i < bitmap_len; ++i) {
-			module_id_bitmap_array[i] = module_id_bitmap[i];
-		}
-	}
-
-	AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
-			("wmi_dbg_cfg_send: param 0x%x val 0x%x \n ", param,
-			 val));
-
-	status = wmi_unified_cmd_send(wmi_handle, buf,
-				      len, WMI_DBGLOG_CFG_CMDID);
-
-	if (status != A_OK)
-		cdf_nbuf_free(buf);
-
-	return status;
 }
 
 void
 dbglog_set_vap_enable_bitmap(wmi_unified_t wmi_handle,
 			     A_UINT32 vap_enable_bitmap)
 {
-	wmi_config_debug_module_cmd(wmi_handle,
+	wma_config_debug_module_cmd(wmi_handle,
 				    WMI_DEBUG_LOG_PARAM_VDEV_ENABLE_BITMAP,
 				    vap_enable_bitmap, NULL, 0);
 }
@@ -1410,7 +1347,7 @@ void
 dbglog_set_mod_enable_bitmap(wmi_unified_t wmi_handle, A_UINT32 log_level,
 			     A_UINT32 *mod_enable_bitmap, A_UINT32 bitmap_len)
 {
-	wmi_config_debug_module_cmd(wmi_handle,
+	wma_config_debug_module_cmd(wmi_handle,
 				    WMI_DEBUG_LOG_PARAM_MOD_ENABLE_BITMAP,
 				    log_level, mod_enable_bitmap, bitmap_len);
 }
@@ -1869,7 +1806,7 @@ static int diag_fw_handler(ol_scn_t scn, uint8_t *data, uint32_t datalen)
 		gprint_limiter = true;
 	}
 	/* Always returns zero */
-	return (0);
+	return 0;
 }
 
 /*
@@ -1953,7 +1890,7 @@ int dbglog_parse_debug_logs(ol_scn_t scn, uint8_t *data, uint32_t datalen)
 	A_UINT32 moduleid;
 	A_UINT16 vapid;
 	A_UINT16 numargs;
-	cdf_size_t length;
+	qdf_size_t length;
 	A_UINT32 dropped;
 	WMI_DEBUG_MESG_EVENTID_param_tlvs *param_buf;
 	uint8_t *datap;
@@ -2053,7 +1990,7 @@ int dbglog_parse_debug_logs(ol_scn_t scn, uint8_t *data, uint32_t datalen)
 		count += numargs + 2;   /* 32 bit Time stamp + 32 bit Dbg header */
 	}
 	/* Always returns zero */
-	return (0);
+	return 0;
 }
 
 void dbglog_reg_modprint(A_UINT32 mod_id, module_dbg_print printfn)
@@ -2191,8 +2128,8 @@ dbglog_sta_powersave_print_handler(A_UINT32 mod_id,
 	switch (dbg_id) {
 	case DBGLOG_DBGID_SM_FRAMEWORK_PROXY_DBGLOG_MSG:
 		dbglog_sm_print(timestamp, vap_id, numargs, args, "STA PS",
-				states, CDF_ARRAY_SIZE(states), events,
-				CDF_ARRAY_SIZE(events));
+				states, QDF_ARRAY_SIZE(states), events,
+				QDF_ARRAY_SIZE(events));
 		break;
 	case PS_STA_PM_ARB_REQUEST:
 		if (numargs == 4) {
@@ -2298,7 +2235,7 @@ dbglog_sta_powersave_print_handler(A_UINT32 mod_id,
 			A_UINT32 param = args[0];
 			A_UINT32 value = args[1];
 
-			if (param < CDF_ARRAY_SIZE(params)) {
+			if (param < QDF_ARRAY_SIZE(params)) {
 				if (params[param].is_time_param) {
 					dbglog_printf(timestamp, vap_id,
 						      "STA PS SET_PARAM %s => %u (us)",
@@ -2411,20 +2348,20 @@ dbglog_ibss_powersave_print_handler(A_UINT32 mod_id,
 		case WLAN_IBSS_PS_SUB_MODULE_IBSS_NW_SM:
 			dbglog_sm_print(timestamp, vap_id, numargs, args,
 					"IBSS PS NW", nw_states,
-					CDF_ARRAY_SIZE(nw_states), events,
-					CDF_ARRAY_SIZE(events));
+					QDF_ARRAY_SIZE(nw_states), events,
+					QDF_ARRAY_SIZE(events));
 			break;
 		case WLAN_IBSS_PS_SUB_MODULE_IBSS_SELF_PS:
 			dbglog_sm_print(timestamp, vap_id, numargs, args,
 					"IBSS PS Self", ps_states,
-					CDF_ARRAY_SIZE(ps_states), events,
-					CDF_ARRAY_SIZE(events));
+					QDF_ARRAY_SIZE(ps_states), events,
+					QDF_ARRAY_SIZE(events));
 			break;
 		case WLAN_IBSS_PS_SUB_MODULE_IBSS_PEER_PS:
 			dbglog_sm_print(timestamp, vap_id, numargs, args,
 					"IBSS PS Peer", peer_ps_states,
-					CDF_ARRAY_SIZE(peer_ps_states), events,
-					CDF_ARRAY_SIZE(events));
+					QDF_ARRAY_SIZE(peer_ps_states), events,
+					QDF_ARRAY_SIZE(events));
 			break;
 		default:
 			break;
@@ -3049,8 +2986,8 @@ dbglog_wal_print_handler(A_UINT32 mod_id,
 	switch (dbg_id) {
 	case DBGLOG_DBGID_SM_FRAMEWORK_PROXY_DBGLOG_MSG:
 		dbglog_sm_print(timestamp, vap_id, numargs, args, "TID PAUSE",
-				states, CDF_ARRAY_SIZE(states), events,
-				CDF_ARRAY_SIZE(events));
+				states, QDF_ARRAY_SIZE(states), events,
+				QDF_ARRAY_SIZE(events));
 		break;
 	case WAL_DBGID_SET_POWER_STATE:
 		if (numargs == 3) {
@@ -3188,8 +3125,8 @@ dbglog_scan_print_handler(A_UINT32 mod_id,
 	switch (dbg_id) {
 	case DBGLOG_DBGID_SM_FRAMEWORK_PROXY_DBGLOG_MSG:
 		dbglog_sm_print(timestamp, vap_id, numargs, args, "SCAN",
-				states, CDF_ARRAY_SIZE(states), events,
-				CDF_ARRAY_SIZE(events));
+				states, QDF_ARRAY_SIZE(states), events,
+				QDF_ARRAY_SIZE(events));
 		break;
 	default:
 		return false;
@@ -3719,8 +3656,8 @@ dbglog_beacon_print_handler(A_UINT32 mod_id,
 	switch (dbg_id) {
 	case DBGLOG_DBGID_SM_FRAMEWORK_PROXY_DBGLOG_MSG:
 		dbglog_sm_print(timestamp, vap_id, numargs, args, "EARLY_RX",
-				states, CDF_ARRAY_SIZE(states), events,
-				CDF_ARRAY_SIZE(events));
+				states, QDF_ARRAY_SIZE(states), events,
+				QDF_ARRAY_SIZE(events));
 		break;
 	case BEACON_EVENT_EARLY_RX_BMISS_STATUS:
 		if (numargs == 3) {
@@ -3826,8 +3763,8 @@ A_BOOL dbglog_smps_print_handler(A_UINT32 mod_id,
 	switch (dbg_id) {
 	case DBGLOG_DBGID_SM_FRAMEWORK_PROXY_DBGLOG_MSG:
 		dbglog_sm_print(timestamp, vap_id, numargs, args, "STA_SMPS SM",
-				states, CDF_ARRAY_SIZE(states), events,
-				CDF_ARRAY_SIZE(events));
+				states, QDF_ARRAY_SIZE(states), events,
+				QDF_ARRAY_SIZE(events));
 		break;
 	case STA_SMPS_DBGID_CREATE_PDEV_INSTANCE:
 		dbglog_printf(timestamp, vap_id, "STA_SMPS Create PDEV ctx %#x",
@@ -3944,8 +3881,8 @@ dbglog_p2p_print_handler(A_UINT32 mod_id,
 	switch (dbg_id) {
 	case DBGLOG_DBGID_SM_FRAMEWORK_PROXY_DBGLOG_MSG:
 		dbglog_sm_print(timestamp, vap_id, numargs, args, "P2P GO PS",
-				states, CDF_ARRAY_SIZE(states), events,
-				CDF_ARRAY_SIZE(events));
+				states, QDF_ARRAY_SIZE(states), events,
+				QDF_ARRAY_SIZE(events));
 		break;
 	default:
 		return false;
@@ -3984,8 +3921,8 @@ dbglog_pcielp_print_handler(A_UINT32 mod_id,
 	switch (dbg_id) {
 	case DBGLOG_DBGID_SM_FRAMEWORK_PROXY_DBGLOG_MSG:
 		dbglog_sm_print(timestamp, vap_id, numargs, args, "PCIELP",
-				states, CDF_ARRAY_SIZE(states), events,
-				CDF_ARRAY_SIZE(events));
+				states, QDF_ARRAY_SIZE(states), events,
+				QDF_ARRAY_SIZE(events));
 		break;
 	default:
 		return false;
@@ -4118,10 +4055,10 @@ cnss_diag_event_report(A_UINT16 event_Id, A_UINT16 length, void *pPayload)
 	event_report_t *pEvent_report;
 	A_UINT16 total_len;
 	total_len = sizeof(event_report_t) + length;
-	pBuf = cdf_mem_malloc(total_len);
+	pBuf = qdf_mem_malloc(total_len);
 	if (!pBuf) {
 		AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
-				("%s: cdf_mem_malloc failed \n", __func__));
+				("%s: qdf_mem_malloc failed \n", __func__));
 		return;
 	}
 	pBuf1 = pBuf;
@@ -4133,7 +4070,7 @@ cnss_diag_event_report(A_UINT16 event_Id, A_UINT16 length, void *pPayload)
 	memcpy(pBuf, pPayload, length);
 	send_diag_netlink_data((A_UINT8 *) pBuf1, total_len,
 			       DIAG_TYPE_HOST_MSG);
-	cdf_mem_free((void *)pBuf1);
+	qdf_mem_free((void *)pBuf1);
 	return;
 
 }
@@ -4235,7 +4172,7 @@ int cnss_diag_msg_callback(struct sk_buff *skb)
 
    \return - 0 for success, non zero for failure
    --------------------------------------------------------------------------*/
-int cnss_diag_notify_wlan_close()
+int cnss_diag_notify_wlan_close(void)
 {
 	/* Send nl msg about the wlan close */
 	if (INVALID_PID != cnss_diag_pid) {
@@ -4257,7 +4194,7 @@ int cnss_diag_notify_wlan_close()
 
    \return - 0 for success, non zero for failure
    --------------------------------------------------------------------------*/
-int cnss_diag_activate_service()
+int cnss_diag_activate_service(void)
 {
 	int ret = 0;
 
@@ -4283,7 +4220,7 @@ dbglog_wow_print_handler(A_UINT32 mod_id,
 		if (4 == numargs) {
 			dbglog_printf(timestamp, vap_id,
 				      "Enable NS offload, for sender %02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x\
-                :%02x%02x:%02x%02x:%02x%02x", *(A_UINT8 *) &args[0], *((A_UINT8 *) &args[0] + 1),
+		:%02x%02x:%02x%02x:%02x%02x", *(A_UINT8 *) &args[0], *((A_UINT8 *) &args[0] + 1),
 				      *((A_UINT8 *) &args[0] + 2), *((A_UINT8 *) &args[0] + 3), *(A_UINT8 *) &args[1], *((A_UINT8 *) &args[1] + 1), *((A_UINT8 *) &args[1] + 2), *((A_UINT8 *) &args[1] + 3),
 				      *(A_UINT8 *) &args[2], *((A_UINT8 *) &args[2] + 1), *((A_UINT8 *) &args[2] + 2), *((A_UINT8 *) &args[2] + 3), *(A_UINT8 *) &args[3], *((A_UINT8 *) &args[3] + 1),
 				      *((A_UINT8 *) &args[3] + 2), *((A_UINT8 *) &args[3] + 3));
@@ -4315,7 +4252,7 @@ dbglog_wow_print_handler(A_UINT32 mod_id,
 		if (4 == numargs) {
 			dbglog_printf(timestamp, vap_id,
 				      "NS requested from %02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x\
-                :%02x%02x:%02x%02x:%02x%02x", *(A_UINT8 *) &args[0], *((A_UINT8 *) &args[0] + 1),
+		:%02x%02x:%02x%02x:%02x%02x", *(A_UINT8 *) &args[0], *((A_UINT8 *) &args[0] + 1),
 				      *((A_UINT8 *) &args[0] + 2), *((A_UINT8 *) &args[0] + 3), *(A_UINT8 *) &args[1], *((A_UINT8 *) &args[1] + 1), *((A_UINT8 *) &args[1] + 2),
 				      *((A_UINT8 *) &args[1] + 3), *(A_UINT8 *) &args[2], *((A_UINT8 *) &args[2] + 1), *((A_UINT8 *) &args[2] + 2), *((A_UINT8 *) &args[2] + 3),
 				      *(A_UINT8 *) &args[3], *((A_UINT8 *) &args[3] + 1), *((A_UINT8 *) &args[3] + 2), *((A_UINT8 *) &args[3] + 3));
@@ -4327,7 +4264,7 @@ dbglog_wow_print_handler(A_UINT32 mod_id,
 		if (4 == numargs) {
 			dbglog_printf(timestamp, vap_id,
 				      "NS replied to %02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x\
-                :%02x%02x:%02x%02x:%02x%02x", *(A_UINT8 *) &args[0], *((A_UINT8 *) &args[0] + 1),
+		:%02x%02x:%02x%02x:%02x%02x", *(A_UINT8 *) &args[0], *((A_UINT8 *) &args[0] + 1),
 				      *((A_UINT8 *) &args[0] + 2), *((A_UINT8 *) &args[0] + 3), *(A_UINT8 *) &args[1], *((A_UINT8 *) &args[1] + 1), *((A_UINT8 *) &args[1] + 2),
 				      *((A_UINT8 *) &args[1] + 3), *(A_UINT8 *) &args[2], *((A_UINT8 *) &args[2] + 1), *((A_UINT8 *) &args[2] + 2), *((A_UINT8 *) &args[2] + 3),
 				      *(A_UINT8 *) &args[3], *((A_UINT8 *) &args[3] + 1), *((A_UINT8 *) &args[3] + 2), *((A_UINT8 *) &args[3] + 3));
@@ -4408,20 +4345,23 @@ int dbglog_init(wmi_unified_t wmi_handle)
 	res =
 		wmi_unified_register_event_handler(wmi_handle,
 						   WMI_DEBUG_MESG_EVENTID,
-						   dbglog_parse_debug_logs);
+						   dbglog_parse_debug_logs,
+						   WMA_RX_WORK_CTX);
 	if (res != 0)
 		return res;
 
 	/* Register handler for FW diag events */
 	res = wmi_unified_register_event_handler(wmi_handle,
 						 WMI_DIAG_DATA_CONTAINER_EVENTID,
-						 fw_diag_data_event_handler);
+						 fw_diag_data_event_handler,
+						 WMA_RX_SERIALIZER_CTX);
 	if (res != 0)
 		return res;
 
 	/* Register handler for new FW diag  Event, LOG, MSG combined */
 	res = wmi_unified_register_event_handler(wmi_handle, WMI_DIAG_EVENTID,
-						 diag_fw_handler);
+						 diag_fw_handler,
+						 WMA_RX_SERIALIZER_CTX);
 	if (res != 0)
 		return res;
 

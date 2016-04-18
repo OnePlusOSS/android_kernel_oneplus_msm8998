@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -26,22 +26,19 @@
  */
 
 /* OS abstraction libraries */
-#include <cdf_nbuf.h>           /* cdf_nbuf_t, etc. */
-#include <cdf_atomic.h>         /* cdf_atomic_read, etc. */
-#include <cdf_util.h>           /* cdf_unlikely */
+#include <qdf_nbuf.h>           /* qdf_nbuf_t, etc. */
+#include <qdf_atomic.h>         /* qdf_atomic_read, etc. */
+#include <qdf_util.h>           /* qdf_unlikely */
 
 /* APIs for other modules */
 #include <htt.h>                /* HTT_TX_EXT_TID_MGMT */
 #include <ol_htt_tx_api.h>      /* htt_tx_desc_tid */
-#include <ol_txrx_api.h>        /* ol_txrx_vdev_handle */
-#include <ol_txrx_ctrl_api.h>   /* ol_txrx_sync */
 
 /* internal header files relevant for all systems */
 #include <ol_txrx_internal.h>   /* TXRX_ASSERT1 */
-#include <ol_txrx_types.h>      /* pdev stats */
 #include <ol_tx_desc.h>         /* ol_tx_desc */
 #include <ol_tx_send.h>         /* ol_tx_send */
-#include <ol_txrx.h>
+#include <ol_txrx.h>            /* ol_txrx_get_vdev_from_vdev_id */
 
 /* internal header files relevant only for HL systems */
 #include <ol_tx_queue.h>        /* ol_tx_enqueue */
@@ -109,7 +106,7 @@ ol_tx_deregister_global_mgmt_pool(struct ol_txrx_pdev_t *pdev)
  */
 void ol_tx_register_flow_control(struct ol_txrx_pdev_t *pdev)
 {
-	cdf_spinlock_init(&pdev->tx_desc.flow_pool_list_lock);
+	qdf_spinlock_create(&pdev->tx_desc.flow_pool_list_lock);
 	TAILQ_INIT(&pdev->tx_desc.flow_pool_list);
 
 	if (!ol_tx_get_is_mgmt_over_wmi_enabled())
@@ -127,7 +124,7 @@ void ol_tx_deregister_flow_control(struct ol_txrx_pdev_t *pdev)
 	if (!ol_tx_get_is_mgmt_over_wmi_enabled())
 		ol_tx_deregister_global_mgmt_pool(pdev);
 
-	cdf_spinlock_destroy(&pdev->tx_desc.flow_pool_list_lock);
+	qdf_spinlock_destroy(&pdev->tx_desc.flow_pool_list_lock);
 	if (!TAILQ_EMPTY(&pdev->tx_desc.flow_pool_list)) {
 		TXRX_PRINT(TXRX_PRINT_LEVEL_ERR,
 			"flow pool list is not empty!!!\n");
@@ -141,7 +138,7 @@ void ol_tx_deregister_flow_control(struct ol_txrx_pdev_t *pdev)
  */
 void ol_tx_dump_flow_pool_info(void)
 {
-	struct ol_txrx_pdev_t *pdev = cds_get_context(CDF_MODULE_ID_TXRX);
+	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 	struct ol_tx_flow_pool_t *pool = NULL;
 	struct ol_tx_flow_pool_t tmp_pool;
 
@@ -168,13 +165,13 @@ void ol_tx_dump_flow_pool_info(void)
 	 * Always take in below order.
 	 * flow_pool_list_lock -> flow_pool_lock
 	 */
-	cdf_spin_lock_bh(&pdev->tx_desc.flow_pool_list_lock);
+	qdf_spin_lock_bh(&pdev->tx_desc.flow_pool_list_lock);
 	TAILQ_FOREACH(pool, &pdev->tx_desc.flow_pool_list,
 					 flow_pool_list_elem) {
-		cdf_spin_lock_bh(&pool->flow_pool_lock);
-		cdf_mem_copy(&tmp_pool, pool, sizeof(tmp_pool));
-		cdf_spin_unlock_bh(&pool->flow_pool_lock);
-		cdf_spin_unlock_bh(&pdev->tx_desc.flow_pool_list_lock);
+		qdf_spin_lock_bh(&pool->flow_pool_lock);
+		qdf_mem_copy(&tmp_pool, pool, sizeof(tmp_pool));
+		qdf_spin_unlock_bh(&pool->flow_pool_lock);
+		qdf_spin_unlock_bh(&pdev->tx_desc.flow_pool_list_lock);
 		TXRX_PRINT(TXRX_PRINT_LEVEL_ERR,
 			"Flow_pool_id %d :: status %d\n",
 			tmp_pool.flow_pool_id, tmp_pool.status);
@@ -188,9 +185,9 @@ void ol_tx_dump_flow_pool_info(void)
 		TXRX_PRINT(TXRX_PRINT_LEVEL_ERR,
 			"Member flow_id  %d :: flow_type %d\n",
 			tmp_pool.member_flow_id, tmp_pool.flow_type);
-		cdf_spin_lock_bh(&pdev->tx_desc.flow_pool_list_lock);
+		qdf_spin_lock_bh(&pdev->tx_desc.flow_pool_list_lock);
 	}
-	cdf_spin_unlock_bh(&pdev->tx_desc.flow_pool_list_lock);
+	qdf_spin_unlock_bh(&pdev->tx_desc.flow_pool_list_lock);
 
 	return;
 }
@@ -202,14 +199,14 @@ void ol_tx_dump_flow_pool_info(void)
  */
 void ol_tx_clear_flow_pool_stats(void)
 {
-	struct ol_txrx_pdev_t *pdev = cds_get_context(CDF_MODULE_ID_TXRX);
+	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 
 	if (!pdev) {
 		TXRX_PRINT(TXRX_PRINT_LEVEL_ERR, "%s: pdev is null\n",
 						 __func__);
 		return;
 	}
-	cdf_mem_zero(&pdev->pool_stats, sizeof(pdev->pool_stats));
+	qdf_mem_zero(&pdev->pool_stats, sizeof(pdev->pool_stats));
 }
 
 /**
@@ -229,17 +226,17 @@ static int ol_tx_move_desc_n(struct ol_tx_flow_pool_t *src_pool,
 	union ol_tx_desc_list_elem_t *temp_list = NULL;
 
 	/* Take descriptors from source pool and put it in temp_list */
-	cdf_spin_lock_bh(&src_pool->flow_pool_lock);
+	qdf_spin_lock_bh(&src_pool->flow_pool_lock);
 	for (i = 0; i < desc_move_count; i++) {
 		tx_desc = ol_tx_get_desc_flow_pool(src_pool);
 		((union ol_tx_desc_list_elem_t *)tx_desc)->next = temp_list;
 		temp_list = (union ol_tx_desc_list_elem_t *)tx_desc;
 
 	}
-	cdf_spin_unlock_bh(&src_pool->flow_pool_lock);
+	qdf_spin_unlock_bh(&src_pool->flow_pool_lock);
 
 	/* Take descriptors from temp_list and put it in destination pool */
-	cdf_spin_lock_bh(&dst_pool->flow_pool_lock);
+	qdf_spin_lock_bh(&dst_pool->flow_pool_lock);
 	for (i = 0; i < desc_move_count; i++) {
 		if (dst_pool->deficient_desc)
 			dst_pool->deficient_desc--;
@@ -250,16 +247,16 @@ static int ol_tx_move_desc_n(struct ol_tx_flow_pool_t *src_pool,
 		ol_tx_put_desc_flow_pool(dst_pool, tx_desc);
 		count++;
 	}
-	cdf_spin_unlock_bh(&dst_pool->flow_pool_lock);
+	qdf_spin_unlock_bh(&dst_pool->flow_pool_lock);
 
 	/* If anything is there in temp_list put it back to source pool */
-	cdf_spin_lock_bh(&src_pool->flow_pool_lock);
+	qdf_spin_lock_bh(&src_pool->flow_pool_lock);
 	while (temp_list) {
 		tx_desc = &temp_list->tx_desc;
 		temp_list = temp_list->next;
 		ol_tx_put_desc_flow_pool(src_pool, tx_desc);
 	}
-	cdf_spin_unlock_bh(&src_pool->flow_pool_lock);
+	qdf_spin_unlock_bh(&src_pool->flow_pool_lock);
 
 	return count;
 }
@@ -277,7 +274,7 @@ static int ol_tx_move_desc_n(struct ol_tx_flow_pool_t *src_pool,
 int
 ol_tx_distribute_descs_to_deficient_pools(struct ol_tx_flow_pool_t *src_pool)
 {
-	struct ol_txrx_pdev_t *pdev = cds_get_context(CDF_MODULE_ID_TXRX);
+	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 	struct ol_tx_flow_pool_t *dst_pool = NULL;
 	uint16_t desc_count = src_pool->avail_desc;
 	uint16_t desc_move_count = 0;
@@ -287,25 +284,25 @@ ol_tx_distribute_descs_to_deficient_pools(struct ol_tx_flow_pool_t *src_pool)
 		   "%s: pdev is NULL\n", __func__);
 		return -EINVAL;
 	}
-	cdf_spin_lock_bh(&pdev->tx_desc.flow_pool_list_lock);
+	qdf_spin_lock_bh(&pdev->tx_desc.flow_pool_list_lock);
 	TAILQ_FOREACH(dst_pool, &pdev->tx_desc.flow_pool_list,
 					 flow_pool_list_elem) {
-		cdf_spin_lock_bh(&dst_pool->flow_pool_lock);
+		qdf_spin_lock_bh(&dst_pool->flow_pool_lock);
 		if (dst_pool->deficient_desc) {
 			desc_move_count =
 				(dst_pool->deficient_desc > desc_count) ?
 					desc_count : dst_pool->deficient_desc;
-			cdf_spin_unlock_bh(&dst_pool->flow_pool_lock);
+			qdf_spin_unlock_bh(&dst_pool->flow_pool_lock);
 			desc_move_count = ol_tx_move_desc_n(src_pool,
 						dst_pool, desc_move_count);
 			desc_count -= desc_move_count;
-			cdf_spin_lock_bh(&dst_pool->flow_pool_lock);
+			qdf_spin_lock_bh(&dst_pool->flow_pool_lock);
 		}
-		cdf_spin_unlock_bh(&dst_pool->flow_pool_lock);
+		qdf_spin_unlock_bh(&dst_pool->flow_pool_lock);
 		if (desc_count == 0)
 			break;
 	}
-	cdf_spin_unlock_bh(&pdev->tx_desc.flow_pool_list_lock);
+	qdf_spin_unlock_bh(&pdev->tx_desc.flow_pool_list_lock);
 
 	return 0;
 }
@@ -321,7 +318,7 @@ ol_tx_distribute_descs_to_deficient_pools(struct ol_tx_flow_pool_t *src_pool)
 struct ol_tx_flow_pool_t *ol_tx_create_flow_pool(uint8_t flow_pool_id,
 						 uint16_t flow_pool_size)
 {
-	struct ol_txrx_pdev_t *pdev = cds_get_context(CDF_MODULE_ID_TXRX);
+	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 	struct ol_tx_flow_pool_t *pool;
 	uint16_t size = 0, i;
 	struct ol_tx_desc_t *tx_desc;
@@ -337,7 +334,7 @@ struct ol_tx_flow_pool_t *ol_tx_create_flow_pool(uint8_t flow_pool_id,
 		return NULL;
 	}
 
-	pool = cdf_mem_malloc(sizeof(*pool));
+	pool = qdf_mem_malloc(sizeof(*pool));
 	if (!pool) {
 		TXRX_PRINT(TXRX_PRINT_LEVEL_ERR,
 		   "%s: malloc failed\n", __func__);
@@ -349,10 +346,10 @@ struct ol_tx_flow_pool_t *ol_tx_create_flow_pool(uint8_t flow_pool_id,
 	pool->status = FLOW_POOL_ACTIVE_UNPAUSED;
 	pool->start_th = (start_threshold * flow_pool_size)/100;
 	pool->stop_th = (stop_threshold * flow_pool_size)/100;
-	cdf_spinlock_init(&pool->flow_pool_lock);
+	qdf_spinlock_create(&pool->flow_pool_lock);
 
 	/* Take TX descriptor from global_pool and put it in temp_list*/
-	cdf_spin_lock_bh(&pdev->tx_mutex);
+	qdf_spin_lock_bh(&pdev->tx_mutex);
 	if (pdev->tx_desc.num_free >= pool->flow_pool_size)
 		size = pool->flow_pool_size;
 	else
@@ -365,7 +362,7 @@ struct ol_tx_flow_pool_t *ol_tx_create_flow_pool(uint8_t flow_pool_id,
 		temp_list = (union ol_tx_desc_list_elem_t *)tx_desc;
 
 	}
-	cdf_spin_unlock_bh(&pdev->tx_mutex);
+	qdf_spin_unlock_bh(&pdev->tx_mutex);
 
 	/* put temp_list to flow_pool */
 	pool->freelist = temp_list;
@@ -373,10 +370,10 @@ struct ol_tx_flow_pool_t *ol_tx_create_flow_pool(uint8_t flow_pool_id,
 	pool->deficient_desc = pool->flow_pool_size - pool->avail_desc;
 
 	/* Add flow_pool to flow_pool_list */
-	cdf_spin_lock_bh(&pdev->tx_desc.flow_pool_list_lock);
+	qdf_spin_lock_bh(&pdev->tx_desc.flow_pool_list_lock);
 	TAILQ_INSERT_TAIL(&pdev->tx_desc.flow_pool_list, pool,
 			 flow_pool_list_elem);
-	cdf_spin_unlock_bh(&pdev->tx_desc.flow_pool_list_lock);
+	qdf_spin_unlock_bh(&pdev->tx_desc.flow_pool_list_lock);
 
 	return pool;
 }
@@ -392,7 +389,7 @@ struct ol_tx_flow_pool_t *ol_tx_create_flow_pool(uint8_t flow_pool_id,
  */
 int ol_tx_delete_flow_pool(struct ol_tx_flow_pool_t *pool)
 {
-	struct ol_txrx_pdev_t *pdev = cds_get_context(CDF_MODULE_ID_TXRX);
+	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 	uint16_t i, size;
 	union ol_tx_desc_list_elem_t *temp_list = NULL;
 	struct ol_tx_desc_t *tx_desc = NULL;
@@ -403,11 +400,11 @@ int ol_tx_delete_flow_pool(struct ol_tx_flow_pool_t *pool)
 		return -ENOMEM;
 	}
 
-	cdf_spin_lock_bh(&pdev->tx_desc.flow_pool_list_lock);
+	qdf_spin_lock_bh(&pdev->tx_desc.flow_pool_list_lock);
 	TAILQ_REMOVE(&pdev->tx_desc.flow_pool_list, pool, flow_pool_list_elem);
-	cdf_spin_unlock_bh(&pdev->tx_desc.flow_pool_list_lock);
+	qdf_spin_unlock_bh(&pdev->tx_desc.flow_pool_list_lock);
 
-	cdf_spin_lock_bh(&pool->flow_pool_lock);
+	qdf_spin_lock_bh(&pool->flow_pool_lock);
 	if (pool->avail_desc == pool->flow_pool_size)
 		pool->status = FLOW_POOL_INACTIVE;
 	else
@@ -420,14 +417,14 @@ int ol_tx_delete_flow_pool(struct ol_tx_flow_pool_t *pool)
 	pool->avail_desc = 0;
 
 	if (pool->status == FLOW_POOL_INACTIVE) {
-		cdf_spin_unlock_bh(&pool->flow_pool_lock);
+		qdf_spin_unlock_bh(&pool->flow_pool_lock);
 		/* Free flow_pool */
-		cdf_spinlock_destroy(&pool->flow_pool_lock);
-		cdf_mem_free(pool);
+		qdf_spinlock_destroy(&pool->flow_pool_lock);
+		qdf_mem_free(pool);
 	} else { /* FLOW_POOL_INVALID case*/
 		pool->flow_pool_size -= size;
 		pool->flow_pool_id = INVALID_FLOW_ID;
-		cdf_spin_unlock_bh(&pool->flow_pool_lock);
+		qdf_spin_unlock_bh(&pool->flow_pool_lock);
 
 		pdev->tx_desc.num_invalid_bin++;
 		TXRX_PRINT(TXRX_PRINT_LEVEL_ERR,
@@ -436,21 +433,21 @@ int ol_tx_delete_flow_pool(struct ol_tx_flow_pool_t *pool)
 		if (pdev->tx_desc.num_invalid_bin > MAX_INVALID_BIN)
 			ASSERT(0);
 
-		cdf_spin_lock_bh(&pdev->tx_desc.flow_pool_list_lock);
+		qdf_spin_lock_bh(&pdev->tx_desc.flow_pool_list_lock);
 		TAILQ_INSERT_TAIL(&pdev->tx_desc.flow_pool_list, pool,
 				 flow_pool_list_elem);
-		cdf_spin_unlock_bh(&pdev->tx_desc.flow_pool_list_lock);
+		qdf_spin_unlock_bh(&pdev->tx_desc.flow_pool_list_lock);
 	}
 
 	/* put free descriptors to global pool */
-	cdf_spin_lock_bh(&pdev->tx_mutex);
+	qdf_spin_lock_bh(&pdev->tx_mutex);
 	for (i = 0; i < size; i++) {
 		tx_desc = &temp_list->tx_desc;
 		temp_list = temp_list->next;
 
 		ol_tx_put_desc_global_pool(pdev, tx_desc);
 	}
-	cdf_spin_unlock_bh(&pdev->tx_mutex);
+	qdf_spin_unlock_bh(&pdev->tx_mutex);
 
 	return 0;
 }
@@ -464,7 +461,7 @@ int ol_tx_delete_flow_pool(struct ol_tx_flow_pool_t *pool)
  */
 int ol_tx_free_invalid_flow_pool(struct ol_tx_flow_pool_t *pool)
 {
-	struct ol_txrx_pdev_t *pdev = cds_get_context(CDF_MODULE_ID_TXRX);
+	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 
 	if ((!pdev) || (!pool) || (pool->status != FLOW_POOL_INVALID)) {
 		TXRX_PRINT(TXRX_PRINT_LEVEL_ERR,
@@ -475,9 +472,9 @@ int ol_tx_free_invalid_flow_pool(struct ol_tx_flow_pool_t *pool)
 	/* direclty distribute to other deficient pools */
 	ol_tx_distribute_descs_to_deficient_pools(pool);
 
-	cdf_spin_lock_bh(&pool->flow_pool_lock);
+	qdf_spin_lock_bh(&pool->flow_pool_lock);
 	pool->flow_pool_size = pool->avail_desc;
-	cdf_spin_unlock_bh(&pool->flow_pool_lock);
+	qdf_spin_unlock_bh(&pool->flow_pool_lock);
 
 	pdev->tx_desc.num_invalid_bin--;
 	TXRX_PRINT(TXRX_PRINT_LEVEL_ERR,
@@ -495,22 +492,22 @@ int ol_tx_free_invalid_flow_pool(struct ol_tx_flow_pool_t *pool)
  */
 struct ol_tx_flow_pool_t *ol_tx_get_flow_pool(uint8_t flow_pool_id)
 {
-	struct ol_txrx_pdev_t *pdev = cds_get_context(CDF_MODULE_ID_TXRX);
+	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 	struct ol_tx_flow_pool_t *pool = NULL;
 	bool is_found = false;
 
-	cdf_spin_lock_bh(&pdev->tx_desc.flow_pool_list_lock);
+	qdf_spin_lock_bh(&pdev->tx_desc.flow_pool_list_lock);
 	TAILQ_FOREACH(pool, &pdev->tx_desc.flow_pool_list,
 					 flow_pool_list_elem) {
-		cdf_spin_lock_bh(&pool->flow_pool_lock);
+		qdf_spin_lock_bh(&pool->flow_pool_lock);
 		if (pool->flow_pool_id == flow_pool_id) {
-			cdf_spin_unlock_bh(&pool->flow_pool_lock);
+			qdf_spin_unlock_bh(&pool->flow_pool_lock);
 			is_found = true;
 			break;
 		}
-		cdf_spin_unlock_bh(&pool->flow_pool_lock);
+		qdf_spin_unlock_bh(&pool->flow_pool_lock);
 	}
-	cdf_spin_unlock_bh(&pdev->tx_desc.flow_pool_list_lock);
+	qdf_spin_unlock_bh(&pdev->tx_desc.flow_pool_list_lock);
 
 	if (is_found == false)
 		pool = NULL;
@@ -541,9 +538,9 @@ void ol_tx_flow_pool_vdev_map(struct ol_tx_flow_pool_t *pool,
 	}
 
 	vdev->pool = pool;
-	cdf_spin_lock_bh(&pool->flow_pool_lock);
+	qdf_spin_lock_bh(&pool->flow_pool_lock);
 	pool->member_flow_id = vdev_id;
-	cdf_spin_unlock_bh(&pool->flow_pool_lock);
+	qdf_spin_unlock_bh(&pool->flow_pool_lock);
 
 	return;
 }
@@ -569,9 +566,9 @@ void ol_tx_flow_pool_vdev_unmap(struct ol_tx_flow_pool_t *pool,
 	}
 
 	vdev->pool = NULL;
-	cdf_spin_lock_bh(&pool->flow_pool_lock);
+	qdf_spin_lock_bh(&pool->flow_pool_lock);
 	pool->member_flow_id = INVALID_FLOW_ID;
-	cdf_spin_unlock_bh(&pool->flow_pool_lock);
+	qdf_spin_unlock_bh(&pool->flow_pool_lock);
 
 	return;
 }
@@ -591,7 +588,7 @@ void ol_tx_flow_pool_vdev_unmap(struct ol_tx_flow_pool_t *pool,
 void ol_tx_flow_pool_map_handler(uint8_t flow_id, uint8_t flow_type,
 				 uint8_t flow_pool_id, uint16_t flow_pool_size)
 {
-	struct ol_txrx_pdev_t *pdev = cds_get_context(CDF_MODULE_ID_TXRX);
+	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 	struct ol_tx_flow_pool_t *pool;
 	uint8_t pool_create = 0;
 	enum htt_flow_type type = flow_type;
@@ -601,7 +598,7 @@ void ol_tx_flow_pool_map_handler(uint8_t flow_id, uint8_t flow_type,
 		"%s: flow_id %d flow_type %d flow_pool_id %d flow_pool_size %d\n",
 		__func__, flow_id, flow_type, flow_pool_id, flow_pool_size);
 
-	if (cdf_unlikely(!pdev)) {
+	if (qdf_unlikely(!pdev)) {
 		TXRX_PRINT(TXRX_PRINT_LEVEL_ERR,
 			"%s: pdev is NULL", __func__);
 		return;
@@ -651,7 +648,7 @@ void ol_tx_flow_pool_map_handler(uint8_t flow_id, uint8_t flow_type,
 void ol_tx_flow_pool_unmap_handler(uint8_t flow_id, uint8_t flow_type,
 							  uint8_t flow_pool_id)
 {
-	struct ol_txrx_pdev_t *pdev = cds_get_context(CDF_MODULE_ID_TXRX);
+	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 	struct ol_tx_flow_pool_t *pool;
 	enum htt_flow_type type = flow_type;
 
@@ -659,7 +656,7 @@ void ol_tx_flow_pool_unmap_handler(uint8_t flow_id, uint8_t flow_type,
 		"%s: flow_id %d flow_type %d flow_pool_id %d\n",
 		__func__, flow_id, flow_type, flow_pool_id);
 
-	if (cdf_unlikely(!pdev)) {
+	if (qdf_unlikely(!pdev)) {
 		TXRX_PRINT(TXRX_PRINT_LEVEL_ERR,
 			"%s: pdev is NULL", __func__);
 		return;

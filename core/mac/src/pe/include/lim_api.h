@@ -167,9 +167,16 @@ bool lim_is_deauth_diassoc_for_drop(tpAniSirGlobal mac, uint8_t *rx_pkt_info);
 bool lim_is_assoc_req_for_drop(tpAniSirGlobal mac, uint8_t *rx_pkt_info);
 #endif
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
-CDF_STATUS pe_roam_synch_callback(tpAniSirGlobal mac_ctx,
+QDF_STATUS pe_roam_synch_callback(tpAniSirGlobal mac_ctx,
 	struct sSirSmeRoamOffloadSynchInd *roam_sync_ind_ptr,
 	tpSirBssDescription  bss_desc_ptr);
+#else
+static inline QDF_STATUS pe_roam_synch_callback(tpAniSirGlobal mac_ctx,
+	struct sSirSmeRoamOffloadSynchInd *roam_sync_ind_ptr,
+	tpSirBssDescription  bss_desc_ptr)
+{
+	return QDF_STATUS_E_NOSUPPORT;
+}
 #endif
 #define limGetQosMode(psessionEntry, pVal) (*(pVal) = (psessionEntry)->limQosEnabled)
 #define limGetWmeMode(psessionEntry, pVal) (*(pVal) = (psessionEntry)->limWmeEnabled)
@@ -229,7 +236,7 @@ void pe_free_msg(tpAniSirGlobal pMac, tSirMsgQ *pMsg);
    \return  void
 
    --------------------------------------------------------------------------*/
-void lim_remain_on_chn_rsp(tpAniSirGlobal pMac, CDF_STATUS status, uint32_t *data);
+void lim_remain_on_chn_rsp(tpAniSirGlobal pMac, QDF_STATUS status, uint32_t *data);
 
 void lim_process_abort_scan_ind(tpAniSirGlobal pMac, uint8_t sessionId,
 	uint32_t scan_id, uint32_t scan_requestor_id);

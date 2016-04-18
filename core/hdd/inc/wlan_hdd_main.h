@@ -42,8 +42,8 @@
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <net/cfg80211.h>
-#include <cdf_list.h>
-#include <cdf_types.h>
+#include <qdf_list.h>
+#include <qdf_types.h>
 #include "sir_mac_prot_def.h"
 #include "csr_api.h"
 #include <wlan_hdd_assoc.h>
@@ -58,13 +58,15 @@
 #include "wlan_hdd_tdls.h"
 #endif
 #include "wlan_hdd_cfg80211.h"
-#include <cdf_defer.h>
+#include <qdf_defer.h>
 #ifdef WLAN_FEATURE_MBSSID
 #include "sap_api.h"
 #endif
 #include "ol_txrx_osif_api.h"
 #include "ol_txrx_ctrl_api.h"
 #include <wlan_hdd_lro.h>
+#include "cdp_txrx_flow_ctrl_legacy.h"
+#include <cdp_txrx_peer_ops.h>
 
 /*---------------------------------------------------------------------------
    Preprocessor definitions and constants
@@ -144,6 +146,9 @@
 /* Scan Req Timeout */
 #define WLAN_WAIT_TIME_SCAN_REQ 100
 
+#define WLAN_WAIT_TIME_ANTENNA_MODE_REQ 3000
+#define WLAN_WAIT_TIME_SET_DUAL_MAC_CFG 1500
+
 #define MAX_NUMBER_OF_ADAPTERS 4
 
 #define MAX_CFG_STRING_LEN  255
@@ -157,26 +162,28 @@
 #define WLAN_CHIP_VERSION   "WCNSS"
 
 #ifndef HDD_DISALLOW_LEGACY_HDDLOG
-#define hddLog(level, args ...) CDF_TRACE(CDF_MODULE_ID_HDD, level, ## args)
+#define hddLog(level, args ...) QDF_TRACE(QDF_MODULE_ID_HDD, level, ## args)
 #endif
-#define hdd_log(level, args...) CDF_TRACE(CDF_MODULE_ID_HDD, level, ## args)
+#define hdd_log(level, args...) QDF_TRACE(QDF_MODULE_ID_HDD, level, ## args)
 #define hdd_logfl(level, format, args...) hdd_log(level, FL(format), ## args)
 
 #define hdd_alert(format, args...) \
-		hdd_logfl(CDF_TRACE_LEVEL_FATAL, format, ## args)
+		hdd_logfl(QDF_TRACE_LEVEL_FATAL, format, ## args)
 #define hdd_err(format, args...) \
-		hdd_logfl(CDF_TRACE_LEVEL_ERROR, format, ## args)
+		hdd_logfl(QDF_TRACE_LEVEL_ERROR, format, ## args)
 #define hdd_warn(format, args...) \
-		hdd_logfl(CDF_TRACE_LEVEL_WARN, format, ## args)
+		hdd_logfl(QDF_TRACE_LEVEL_WARN, format, ## args)
 #define hdd_notice(format, args...) \
-		hdd_logfl(CDF_TRACE_LEVEL_INFO, format, ## args)
+		hdd_logfl(QDF_TRACE_LEVEL_INFO, format, ## args)
 #define hdd_info(format, args...) \
-		hdd_logfl(CDF_TRACE_LEVEL_INFO_HIGH, format, ## args)
+		hdd_logfl(QDF_TRACE_LEVEL_INFO_HIGH, format, ## args)
 #define hdd_debug(format, args...) \
-		hdd_logfl(CDF_TRACE_LEVEL_DEBUG, format, ## args)
+		hdd_logfl(QDF_TRACE_LEVEL_DEBUG, format, ## args)
 
-#define ENTER() hdd_logfl(CDF_TRACE_LEVEL_INFO_LOW, "enter")
-#define EXIT() hdd_logfl(CDF_TRACE_LEVEL_INFO_LOW, "exit")
+#define ENTER() hdd_logfl(QDF_TRACE_LEVEL_INFO_LOW, "enter")
+#define ENTER_DEV(dev) \
+		hdd_logfl(QDF_TRACE_LEVEL_INFO_LOW, "enter(%s)", (dev)->name)
+#define EXIT() hdd_logfl(QDF_TRACE_LEVEL_INFO_LOW, "exit")
 
 #define WLAN_HDD_GET_PRIV_PTR(__dev__) (hdd_adapter_t *)(netdev_priv((__dev__)))
 
@@ -241,6 +248,15 @@
 #ifdef CONFIG_CNSS
 #define cfg80211_vendor_cmd_reply(skb) cnss_vendor_cmd_reply(skb)
 #endif
+#endif
+
+/*
+ * NET_NAME_UNKNOWN is only introduced after Kernel 3.17, to have a macro
+ * here if the Kernel version is less than 3.17 to avoid the interleave
+ * conditional compilation.
+ */
+#if !((LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)) || defined(WITH_BACKPORTS))
+#define NET_NAME_UNKNOWN	0
 #endif
 
 #define BSS_WAIT_TIMEOUT 10000
@@ -399,7 +415,7 @@ typedef enum {
 
 typedef struct roaming_info_s {
 	HDD_ROAM_STATE roamingState;
-	cdf_event_t roamingEvent;
+	qdf_event_t roamingEvent;
 
 	tSirMacAddr bssid;
 	tSirMacAddr peerMac;
@@ -512,7 +528,7 @@ typedef struct _WLAN_BKID_LIST *pWLAN_BKID_LIST;
 struct hdd_wapi_info_s {
 	uint32_t nWapiMode;
 	bool fIsWapiSta;
-	struct cdf_mac_addr cachedMacAddr;
+	struct qdf_mac_addr cachedMacAddr;
 	uint8_t wapiAuthMode;
 } __packed;
 typedef struct hdd_wapi_info_s hdd_wapi_info_t;
@@ -529,28 +545,6 @@ typedef struct beacon_data_s {
 	int assocresp_ies_len;
 	int dtim_period;
 } beacon_data_t;
-
-/**
- * enum device_mode: Maintain one to one correspondence with tCDF_ADAPTER_MODE
- * @WLAN_HDD_INFRA_STATION: station mode
- * @WLAN_HDD_SOFTAP: sap mode
- * @WLAN_HDD_P2P_CLIENT: p2p client mode
- * @WLAN_HDD_P2P_GO: p2p go mode
- * @WLAN_HDD_FTM: ftm mode
- * @WLAN_HDD_IBSS: ibss mode
- * @WLAN_HDD_P2P_DEVICE: p2p device mode
- * @WLAN_HDD_OCB: ocb mode
- */
-typedef enum device_mode {
-	WLAN_HDD_INFRA_STATION,
-	WLAN_HDD_SOFTAP,
-	WLAN_HDD_P2P_CLIENT,
-	WLAN_HDD_P2P_GO,
-	WLAN_HDD_FTM,
-	WLAN_HDD_IBSS,
-	WLAN_HDD_P2P_DEVICE,
-	WLAN_HDD_OCB
-} device_mode_t;
 
 typedef enum rem_on_channel_request_type {
 	REMAIN_ON_CHANNEL_REQUEST,
@@ -570,7 +564,7 @@ typedef struct hdd_remain_on_chan_ctx {
 	unsigned int duration;
 	u64 cookie;
 	rem_on_channel_request_type_t rem_on_chan_request;
-	cdf_mc_timer_t hdd_remain_on_chan_timer;
+	qdf_mc_timer_t hdd_remain_on_chan_timer;
 	action_pkt_buffer_t action_pkt_buff;
 	bool hdd_remain_on_chan_cancel_in_progress;
 	uint32_t scan_id;
@@ -578,7 +572,7 @@ typedef struct hdd_remain_on_chan_ctx {
 
 /* RoC Request entry */
 typedef struct hdd_roc_req {
-	cdf_list_node_t node;   /* MUST be first element */
+	qdf_list_node_t node;   /* MUST be first element */
 	hdd_adapter_t *pAdapter;
 	hdd_remain_on_chan_ctx_t *pRemainChanCtx;
 } hdd_roc_req_t;
@@ -596,7 +590,7 @@ typedef struct hdd_roc_req {
  * Scan request linked list element
  */
 struct hdd_scan_req {
-	cdf_list_node_t node;
+	qdf_list_node_t node;
 	hdd_adapter_t *adapter;
 	struct cfg80211_scan_request *scan_request;
 	uint32_t scan_id;
@@ -633,6 +627,29 @@ typedef struct hdd_cfg80211_state_s {
 	eP2PActionFrameState actionFrmState;
 } hdd_cfg80211_state_t;
 
+
+/*---------------------------------------------------------------------------
+   hdd_ibss_peer_info_params_t
+   ---------------------------------------------------------------------------*/
+typedef struct {
+	uint8_t staIdx;         /* StaIdx */
+	uint32_t txRate;        /* Current Tx Rate */
+	uint32_t mcsIndex;      /* MCS Index */
+	uint32_t txRateFlags;   /* TxRate Flags */
+	int8_t rssi;            /* RSSI */
+} hdd_ibss_peer_info_params_t;
+
+typedef struct {
+	/** Request status */
+	uint32_t status;
+
+	/** Number of peers */
+	uint8_t numIBSSPeers;
+
+	/** Peer Info parameters */
+	hdd_ibss_peer_info_params_t ibssPeerList[MAX_IBSS_PEERS];
+} hdd_ibss_peer_info_t;
+
 struct hdd_station_ctx {
 	/** Handle to the Wireless Extension State */
 	hdd_wext_state_t WextState;
@@ -659,6 +676,7 @@ struct hdd_station_ctx {
 
 	/*Save the wep/wpa-none keys */
 	tCsrRoamSetKey ibss_enc_key;
+	hdd_ibss_peer_info_t ibss_peer_info;
 
 	bool hdd_ReassocScenario;
 
@@ -672,9 +690,9 @@ struct hdd_station_ctx {
 #define BSS_START   1
 typedef struct hdd_hostapd_state_s {
 	int bssState;
-	cdf_event_t cdf_event;
-	cdf_event_t cdf_stop_bss_event;
-	CDF_STATUS cdf_status;
+	qdf_event_t qdf_event;
+	qdf_event_t qdf_stop_bss_event;
+	QDF_STATUS qdf_status;
 	bool bCommit;
 
 } hdd_hostapd_state_t;
@@ -691,7 +709,7 @@ typedef struct {
 	uint8_t ucSTAId;
 
 	/** MAC address of the station */
-	struct cdf_mac_addr macAddrSTA;
+	struct qdf_mac_addr macAddrSTA;
 
 	/** Current Station state so HDD knows how to deal with packet
 	 *  queue. Most recent states used to change TLSHIM STA state */
@@ -734,7 +752,7 @@ struct hdd_ap_ctx_s {
 
 	bool apDisableIntraBssFwd;
 
-	cdf_mc_timer_t hdd_ap_inactivity_timer;
+	qdf_mc_timer_t hdd_ap_inactivity_timer;
 
 	uint8_t operatingChannel;
 
@@ -806,7 +824,7 @@ struct hdd_netif_queue_stats {
  * @pause_map: pause map
  */
 struct hdd_netif_queue_history {
-	cdf_time_t time;
+	qdf_time_t time;
 	uint16_t netif_action;
 	uint16_t netif_reason;
 	uint32_t pause_map;
@@ -829,7 +847,7 @@ struct hdd_adapter_s {
 	/** Handle to the network device */
 	struct net_device *dev;
 
-	device_mode_t device_mode;
+	enum tQDF_ADAPTER_MODE device_mode;
 
 	/** IPv4 notifier callback for handling ARP offload on change in IP */
 	struct work_struct ipv4NotifierWorkQueue;
@@ -851,7 +869,7 @@ struct hdd_adapter_s {
 	uint32_t ctw;
 
 	/** Current MAC Address for the adapter  */
-	struct cdf_mac_addr macAddressCurrent;
+	struct qdf_mac_addr macAddressCurrent;
 
 	/**Event Flags*/
 	unsigned long event_flags;
@@ -899,8 +917,10 @@ struct hdd_adapter_s {
 	struct completion tdls_del_station_comp;
 	struct completion tdls_mgmt_comp;
 	struct completion tdls_link_establish_req_comp;
-	CDF_STATUS tdlsAddStaStatus;
+	QDF_STATUS tdlsAddStaStatus;
 #endif
+
+	struct completion ibss_peer_info_comp;
 
 	/* Track whether the linkup handling is needed  */
 	bool isLinkUpSvcNeeded;
@@ -954,7 +974,7 @@ struct hdd_adapter_s {
 	bool survey_idx;
 
 	hdd_scaninfo_t scan_info;
-#if defined(FEATURE_WLAN_ESE) && defined(FEATURE_WLAN_ESE_UPLOAD)
+#ifdef FEATURE_WLAN_ESE
 	tAniTrafStrmMetrics tsmStats;
 #endif
 	/* Flag to ensure PSB is configured through framework */
@@ -978,7 +998,7 @@ struct hdd_adapter_s {
 	bool is_roc_inprogress;
 
 #ifdef QCA_LL_LEGACY_TX_FLOW_CONTROL
-	cdf_mc_timer_t tx_flow_control_timer;
+	qdf_mc_timer_t tx_flow_control_timer;
 	bool tx_flow_timer_initialized;
 	unsigned int tx_flow_low_watermark;
 	unsigned int tx_flow_high_watermark_offset;
@@ -997,10 +1017,10 @@ struct hdd_adapter_s {
 	int temperature;
 
 	/* Time stamp for last completed RoC request */
-	v_TIME_t last_roc_ts;
+	unsigned long last_roc_ts;
 
 	/* Time stamp for start RoC request */
-	v_TIME_t start_roc_ts;
+	unsigned long start_roc_ts;
 
 	/* State for synchronous OCB requests to WMI */
 	struct sir_ocb_set_config_response ocb_set_config_resp;
@@ -1009,7 +1029,7 @@ struct hdd_adapter_s {
 	struct sir_dcc_update_ndl_response dcc_update_ndl_resp;
 
 	/* MAC addresses used for OCB interfaces */
-	struct cdf_mac_addr ocb_mac_address[CDF_MAX_CONCURRENCY_PERSONA];
+	struct qdf_mac_addr ocb_mac_address[QDF_MAX_CONCURRENCY_PERSONA];
 	int ocb_mac_addr_count;
 
 	/* BITMAP indicating pause reason */
@@ -1021,6 +1041,9 @@ struct hdd_adapter_s {
 		 queue_oper_history[WLAN_HDD_MAX_HISTORY_ENTRY];
 	struct hdd_netif_queue_stats queue_oper_stats[WLAN_REASON_TYPE_MAX];
 	struct hdd_lro_s lro_info;
+	ol_txrx_tx_fp tx_fn;
+	/* debugfs entry */
+	struct dentry *debugfs_phy;
 };
 
 #define WLAN_HDD_GET_STATION_CTX_PTR(pAdapter) (&(pAdapter)->sessionCtx.station)
@@ -1035,8 +1058,8 @@ struct hdd_adapter_s {
 #endif
 #ifdef FEATURE_WLAN_TDLS
 #define WLAN_HDD_IS_TDLS_SUPPORTED_ADAPTER(pAdapter) \
-	(((WLAN_HDD_INFRA_STATION != pAdapter->device_mode) && \
-	  (WLAN_HDD_P2P_CLIENT != pAdapter->device_mode)) ? 0 : 1)
+	(((QDF_STA_MODE != pAdapter->device_mode) && \
+	  (QDF_P2P_CLIENT_MODE != pAdapter->device_mode)) ? 0 : 1)
 #define WLAN_HDD_GET_TDLS_CTX_PTR(pAdapter) \
 	((WLAN_HDD_IS_TDLS_SUPPORTED_ADAPTER(pAdapter)) ? \
 	 (tdlsCtx_t *)(pAdapter)->sessionCtx.station.pHddTdlsCtx : NULL)
@@ -1049,7 +1072,7 @@ struct hdd_adapter_s {
 #define HDD_RESET_MCC_P2P_QUOTA      50
 
 typedef struct hdd_adapter_list_node {
-	cdf_list_node_t node;   /* MUST be first element */
+	qdf_list_node_t node;   /* MUST be first element */
 	hdd_adapter_t *pAdapter;
 } hdd_adapter_list_node_t;
 
@@ -1069,6 +1092,36 @@ typedef struct {
 	uint32_t dl_mod_loglevel[MAX_MOD_LOGLEVEL];
 
 } fw_log_info;
+
+/**
+ * enum antenna_mode - number of TX/RX chains
+ * @HDD_ANTENNA_MODE_INVALID: Invalid mode place holder
+ * @HDD_ANTENNA_MODE_1X1: Number of TX/RX chains equals 1
+ * @HDD_ANTENNA_MODE_2X2: Number of TX/RX chains equals 2
+ * @HDD_ANTENNA_MODE_MAX: Place holder for max mode
+ */
+enum antenna_mode {
+	HDD_ANTENNA_MODE_INVALID,
+	HDD_ANTENNA_MODE_1X1,
+	HDD_ANTENNA_MODE_2X2,
+	HDD_ANTENNA_MODE_MAX
+};
+
+/**
+ * enum smps_mode - SM power save mode
+ * @HDD_SMPS_MODE_STATIC: Static power save
+ * @HDD_SMPS_MODE_DYNAMIC: Dynamic power save
+ * @HDD_SMPS_MODE_RESERVED: Reserved
+ * @HDD_SMPS_MODE_DISABLED: Disable power save
+ * @HDD_SMPS_MODE_MAX: Place holder for max mode
+ */
+enum smps_mode {
+	HDD_SMPS_MODE_STATIC,
+	HDD_SMPS_MODE_DYNAMIC,
+	HDD_SMPS_MODE_RESERVED,
+	HDD_SMPS_MODE_DISABLED,
+	HDD_SMPS_MODE_MAX
+};
 
 #ifdef WLAN_FEATURE_OFFLOAD_PACKETS
 /**
@@ -1105,11 +1158,11 @@ struct hdd_context_s {
 	struct wiphy *wiphy;
 	/* TODO Remove this from here. */
 
-	cdf_spinlock_t hdd_adapter_lock;
-	cdf_list_t hddAdapters; /* List of adapters */
+	qdf_spinlock_t hdd_adapter_lock;
+	qdf_list_t hddAdapters; /* List of adapters */
 
 	/* One per STA: 1 for BCMC_STA_ID, 1 for each SAP_SELF_STA_ID, 1 for WDS_STAID */
-	hdd_adapter_t *sta_to_adapter[WLAN_MAX_STA_COUNT + CDF_MAX_NO_OF_SAP_MODE + 2]; /* One per sta. For quick reference. */
+	hdd_adapter_t *sta_to_adapter[WLAN_MAX_STA_COUNT + QDF_MAX_NO_OF_SAP_MODE + 2]; /* One per sta. For quick reference. */
 
 	/** Pointer for firmware image data */
 	const struct firmware *fw;
@@ -1156,17 +1209,17 @@ struct hdd_context_s {
 	/** Concurrency Parameters*/
 	uint32_t concurrency_mode;
 
-	uint8_t no_of_open_sessions[CDF_MAX_NO_OF_MODE];
-	uint8_t no_of_active_sessions[CDF_MAX_NO_OF_MODE];
+	uint8_t no_of_open_sessions[QDF_MAX_NO_OF_MODE];
+	uint8_t no_of_active_sessions[QDF_MAX_NO_OF_MODE];
 
 	/** P2P Device MAC Address for the adapter  */
-	struct cdf_mac_addr p2pDeviceAddress;
+	struct qdf_mac_addr p2pDeviceAddress;
 
 #ifdef WLAN_FEATURE_HOLD_RX_WAKELOCK
-	cdf_wake_lock_t rx_wake_lock;
+	qdf_wake_lock_t rx_wake_lock;
 #endif
 
-	cdf_wake_lock_t sap_wake_lock;
+	qdf_wake_lock_t sap_wake_lock;
 
 #ifdef FEATURE_WLAN_TDLS
 	eTDLSSupportMode tdls_mode;
@@ -1196,13 +1249,10 @@ struct hdd_context_s {
 
 	bool sus_res_mcastbcast_filter_valid;
 
-	/* debugfs entry */
-	struct dentry *debugfs_phy;
-
 	/* Use below lock to protect access to isSchedScanUpdatePending
 	 * since it will be accessed in two different contexts.
 	 */
-	cdf_spinlock_t sched_scan_lock;
+	qdf_spinlock_t sched_scan_lock;
 
 	/* Flag keeps track of wiphy suspend/resume */
 	bool isWiphySuspended;
@@ -1213,7 +1263,7 @@ struct hdd_context_s {
 #ifdef MSM_PLATFORM
 	/* DDR bus bandwidth compute timer
 	 */
-	cdf_mc_timer_t bus_bw_timer;
+	qdf_mc_timer_t bus_bw_timer;
 	int cur_vote_level;
 	spinlock_t bus_bw_lock;
 	int cur_rx_level;
@@ -1241,7 +1291,7 @@ struct hdd_context_s {
 	struct regulatory reg;
 #ifdef FEATURE_WLAN_CH_AVOID
 	uint16_t unsafe_channel_count;
-	uint16_t unsafe_channel_list[NUM_20MHZ_RF_CHANNELS];
+	uint16_t unsafe_channel_list[NUM_CHANNELS];
 #endif /* FEATURE_WLAN_CH_AVOID */
 
 	uint8_t max_intf_count;
@@ -1253,7 +1303,7 @@ struct hdd_context_s {
 	tSirScanType ioctl_scan_mode;
 
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
-	cdf_work_t sta_ap_intf_check_work;
+	qdf_work_t sta_ap_intf_check_work;
 #endif
 
 	struct work_struct  sap_start_work;
@@ -1270,11 +1320,11 @@ struct hdd_context_s {
 #endif
 	fw_log_info fw_log_settings;
 #ifdef FEATURE_WLAN_AP_AP_ACS_OPTIMIZE
-	cdf_mc_timer_t skip_acs_scan_timer;
+	qdf_mc_timer_t skip_acs_scan_timer;
 	uint8_t skip_acs_scan_status;
 #endif
 
-	cdf_wake_lock_t sap_dfs_wakelock;
+	qdf_wake_lock_t sap_dfs_wakelock;
 	atomic_t sap_dfs_ref_cnt;
 
 #ifdef WLAN_FEATURE_EXTWOW_SUPPORT
@@ -1289,10 +1339,10 @@ struct hdd_context_s {
 	unsigned long g_event_flags;
 	/* RoC request queue and work */
 	struct delayed_work roc_req_work;
-	cdf_spinlock_t hdd_roc_req_q_lock;
-	cdf_list_t hdd_roc_req_q;
-	cdf_spinlock_t hdd_scan_req_q_lock;
-	cdf_list_t hdd_scan_req_q;
+	qdf_spinlock_t hdd_roc_req_q_lock;
+	qdf_list_t hdd_roc_req_q;
+	qdf_spinlock_t hdd_scan_req_q_lock;
+	qdf_list_t hdd_scan_req_q;
 	uint8_t miracast_value;
 #ifdef WLAN_NS_OFFLOAD
 	/* IPv6 notifier callback for handling NS offload on change in IP */
@@ -1312,14 +1362,13 @@ struct hdd_context_s {
 #ifdef WLAN_FEATURE_MEMDUMP
 	uint8_t *fw_dump_loc;
 	uint32_t dump_loc_paddr;
-	cdf_mc_timer_t memdump_cleanup_timer;
+	qdf_mc_timer_t memdump_cleanup_timer;
 	struct mutex memdump_lock;
 	bool memdump_in_progress;
 #endif /* WLAN_FEATURE_MEMDUMP */
 
-	cdf_mc_timer_t dbs_opportunistic_timer;
 	bool connection_in_progress;
-	cdf_spinlock_t connection_status_lock;
+	qdf_spinlock_t connection_status_lock;
 
 	uint16_t hdd_txrx_hist_idx;
 	struct hdd_tx_rx_histogram hdd_txrx_hist[NUM_TX_RX_HISTOGRAM];
@@ -1329,6 +1378,15 @@ struct hdd_context_s {
 	 * switch.
 	 */
 	struct mutex dfs_lock;
+	/*
+	 * place to store FTM capab of target. This allows changing of FTM capab
+	 * at runtime and intersecting it with target capab before updating.
+	 */
+	uint32_t fine_time_meas_cap_target;
+	/* completion variable to indicate set antenna mode complete*/
+	struct completion set_antenna_mode_cmpl;
+	/* Current number of TX X RX chains being used */
+	enum antenna_mode current_antenna_mode;
 };
 
 /*---------------------------------------------------------------------------
@@ -1336,58 +1394,61 @@ struct hdd_context_s {
    -------------------------------------------------------------------------*/
 int hdd_validate_channel_and_bandwidth(hdd_adapter_t *adapter,
 				uint32_t chan_number,
-				phy_ch_width chan_bw);
+				enum phy_ch_width chan_bw);
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
 void wlan_hdd_check_sta_ap_concurrent_ch_intf(void *sta_pAdapter);
 #endif
 
 const char *hdd_device_mode_to_string(uint8_t device_mode);
 
-CDF_STATUS hdd_get_front_adapter(hdd_context_t *pHddCtx,
+QDF_STATUS hdd_get_front_adapter(hdd_context_t *pHddCtx,
 				 hdd_adapter_list_node_t **ppAdapterNode);
 
-CDF_STATUS hdd_get_next_adapter(hdd_context_t *pHddCtx,
+QDF_STATUS hdd_get_next_adapter(hdd_context_t *pHddCtx,
 				hdd_adapter_list_node_t *pAdapterNode,
 				hdd_adapter_list_node_t **pNextAdapterNode);
 
-CDF_STATUS hdd_remove_adapter(hdd_context_t *pHddCtx,
+QDF_STATUS hdd_remove_adapter(hdd_context_t *pHddCtx,
 			      hdd_adapter_list_node_t *pAdapterNode);
 
-CDF_STATUS hdd_remove_front_adapter(hdd_context_t *pHddCtx,
+QDF_STATUS hdd_remove_front_adapter(hdd_context_t *pHddCtx,
 				    hdd_adapter_list_node_t **ppAdapterNode);
 
-CDF_STATUS hdd_add_adapter_back(hdd_context_t *pHddCtx,
+QDF_STATUS hdd_add_adapter_back(hdd_context_t *pHddCtx,
 				hdd_adapter_list_node_t *pAdapterNode);
 
-CDF_STATUS hdd_add_adapter_front(hdd_context_t *pHddCtx,
+QDF_STATUS hdd_add_adapter_front(hdd_context_t *pHddCtx,
 				 hdd_adapter_list_node_t *pAdapterNode);
 
 hdd_adapter_t *hdd_open_adapter(hdd_context_t *pHddCtx, uint8_t session_type,
 				const char *name, tSirMacAddr macAddr,
+				unsigned char name_assign_type,
 				bool rtnl_held);
-CDF_STATUS hdd_close_adapter(hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter,
+QDF_STATUS hdd_close_adapter(hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter,
 			     bool rtnl_held);
-CDF_STATUS hdd_close_all_adapters(hdd_context_t *pHddCtx, bool rtnl_held);
-CDF_STATUS hdd_stop_all_adapters(hdd_context_t *pHddCtx);
-CDF_STATUS hdd_reset_all_adapters(hdd_context_t *pHddCtx);
-CDF_STATUS hdd_start_all_adapters(hdd_context_t *pHddCtx);
+QDF_STATUS hdd_close_all_adapters(hdd_context_t *pHddCtx, bool rtnl_held);
+QDF_STATUS hdd_stop_all_adapters(hdd_context_t *pHddCtx);
+QDF_STATUS hdd_reset_all_adapters(hdd_context_t *pHddCtx);
+QDF_STATUS hdd_start_all_adapters(hdd_context_t *pHddCtx);
 hdd_adapter_t *hdd_get_adapter_by_vdev(hdd_context_t *pHddCtx,
 				       uint32_t vdev_id);
 hdd_adapter_t *hdd_get_adapter_by_macaddr(hdd_context_t *pHddCtx,
 					  tSirMacAddr macAddr);
-CDF_STATUS hdd_init_station_mode(hdd_adapter_t *pAdapter);
-hdd_adapter_t *hdd_get_adapter(hdd_context_t *pHddCtx, device_mode_t mode);
+QDF_STATUS hdd_init_station_mode(hdd_adapter_t *pAdapter);
+hdd_adapter_t *hdd_get_adapter(hdd_context_t *pHddCtx,
+			enum tQDF_ADAPTER_MODE mode);
 void hdd_deinit_adapter(hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter,
 			bool rtnl_held);
-CDF_STATUS hdd_stop_adapter(hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter,
+QDF_STATUS hdd_stop_adapter(hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter,
 			    const bool bCloseSession);
 void hdd_set_station_ops(struct net_device *pWlanDev);
 uint8_t *wlan_hdd_get_intf_addr(hdd_context_t *pHddCtx);
 void wlan_hdd_release_intf_addr(hdd_context_t *pHddCtx, uint8_t *releaseAddr);
-uint8_t hdd_get_operating_channel(hdd_context_t *pHddCtx, device_mode_t mode);
+uint8_t hdd_get_operating_channel(hdd_context_t *pHddCtx,
+			enum tQDF_ADAPTER_MODE mode);
 
 void hdd_set_conparam(uint32_t con_param);
-enum tCDF_GLOBAL_CON_MODE hdd_get_conparam(void);
+enum tQDF_GLOBAL_CON_MODE hdd_get_conparam(void);
 
 void hdd_abort_mac_scan(hdd_context_t *pHddCtx, uint8_t sessionId,
 			eCsrAbortReason reason);
@@ -1400,13 +1461,16 @@ void hdd_allow_suspend(uint32_t reason);
 void hdd_prevent_suspend_timeout(uint32_t timeout, uint32_t reason);
 
 void wlan_hdd_cfg80211_update_wiphy_caps(struct wiphy *wiphy);
-CDF_STATUS hdd_set_ibss_power_save_params(hdd_adapter_t *pAdapter);
-CDF_STATUS wlan_hdd_restart_driver(hdd_context_t *pHddCtx);
+QDF_STATUS hdd_set_ibss_power_save_params(hdd_adapter_t *pAdapter);
+QDF_STATUS wlan_hdd_restart_driver(hdd_context_t *pHddCtx);
 void hdd_exchange_version_and_caps(hdd_context_t *pHddCtx);
 int wlan_hdd_validate_context(hdd_context_t *pHddCtx);
 bool hdd_is_valid_mac_address(const uint8_t *pMacAddr);
-CDF_STATUS hdd_issta_p2p_clientconnected(hdd_context_t *pHddCtx);
+QDF_STATUS hdd_issta_p2p_clientconnected(hdd_context_t *pHddCtx);
 
+struct qdf_mac_addr *
+hdd_wlan_get_ibss_mac_addr_from_staid(hdd_adapter_t *pAdapter,
+				      uint8_t staIdx);
 void hdd_checkandupdate_phymode(hdd_context_t *pHddCtx);
 
 #ifdef MSM_PLATFORM
@@ -1432,7 +1496,7 @@ void __hdd_wlan_exit(void);
 int hdd_wlan_notify_modem_power_state(int state);
 #ifdef QCA_HT_2040_COEX
 int hdd_wlan_set_ht2040_mode(hdd_adapter_t *pAdapter, uint16_t staId,
-			     struct cdf_mac_addr macAddrSTA, int width);
+			     struct qdf_mac_addr macAddrSTA, int width);
 #endif
 
 #ifdef WLAN_FEATURE_LPSS
@@ -1442,6 +1506,24 @@ void wlan_hdd_send_status_pkg(hdd_adapter_t *pAdapter,
 void wlan_hdd_send_version_pkg(uint32_t fw_version,
 			       uint32_t chip_id, const char *chip_name);
 void wlan_hdd_send_all_scan_intf_info(hdd_context_t *pHddCtx);
+#else
+static inline void wlan_hdd_send_status_pkg(hdd_adapter_t *pAdapter,
+					    hdd_station_ctx_t *pHddStaCtx,
+					    uint8_t is_on, uint8_t is_connected)
+{
+	return;
+}
+
+static inline void wlan_hdd_send_version_pkg(uint32_t fw_version, uint32_t
+					     chip_id, const char *chip_name)
+{
+	return;
+}
+
+static inline void wlan_hdd_send_all_scan_intf_info(hdd_context_t *pHddCtx)
+{
+	return;
+}
 #endif
 void wlan_hdd_send_svc_nlink_msg(int type, void *data, int len);
 #ifdef FEATURE_WLAN_AUTO_SHUTDOWN
@@ -1480,15 +1562,15 @@ static inline bool hdd_is_memdump_supported(void)
 #endif /* WLAN_FEATURE_MEMDUMP */
 
 void hdd_update_macaddr(struct hdd_config *config,
-			struct cdf_mac_addr hw_macaddr);
+			struct qdf_mac_addr hw_macaddr);
 void wlan_hdd_disable_roaming(hdd_adapter_t *pAdapter);
 void wlan_hdd_enable_roaming(hdd_adapter_t *pAdapter);
 
-CDF_STATUS hdd_post_cds_enable_config(hdd_context_t *pHddCtx);
+QDF_STATUS hdd_post_cds_enable_config(hdd_context_t *pHddCtx);
 
-CDF_STATUS hdd_abort_mac_scan_all_adapters(hdd_context_t *hdd_ctx);
+QDF_STATUS hdd_abort_mac_scan_all_adapters(hdd_context_t *hdd_ctx);
 
-CDF_STATUS wlan_hdd_check_custom_con_channel_rules(hdd_adapter_t *sta_adapter,
+QDF_STATUS wlan_hdd_check_custom_con_channel_rules(hdd_adapter_t *sta_adapter,
 						  hdd_adapter_t *ap_adapter,
 						  tCsrRoamProfile *roam_profile,
 						  tScanResultHandle *scan_cache,
@@ -1500,6 +1582,8 @@ void wlan_hdd_start_sap(hdd_adapter_t *ap_adapter);
 static inline void wlan_hdd_stop_sap(hdd_adapter_t *ap_adapter) {}
 static inline void wlan_hdd_start_sap(hdd_adapter_t *ap_adapter) {}
 #endif
+
+void wlan_hdd_soc_set_antenna_mode_cb(enum set_antenna_mode_status status);
 
 #ifdef QCA_CONFIG_SMP
 int wlan_hdd_get_cpu(void);
@@ -1522,8 +1606,56 @@ const char *hdd_get_fwpath(void);
 void hdd_indicate_mgmt_frame(tSirSmeMgmtFrameInd *frame_ind);
 hdd_adapter_t *hdd_get_adapter_by_sme_session_id(hdd_context_t *hdd_ctx,
 						uint32_t sme_session_id);
-phy_ch_width hdd_map_nl_chan_width(enum nl80211_chan_width ch_width);
+enum phy_ch_width hdd_map_nl_chan_width(enum nl80211_chan_width ch_width);
 uint8_t wlan_hdd_find_opclass(tHalHandle hal, uint8_t channel,
 			uint8_t bw_offset);
+void hdd_update_config(hdd_context_t *hdd_ctx);
+
+#ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
+QDF_STATUS hdd_register_for_sap_restart_with_channel_switch(void);
+#else
+static inline QDF_STATUS hdd_register_for_sap_restart_with_channel_switch(void)
+{
+	return QDF_STATUS_SUCCESS;
+}
+#endif
+
+#ifdef FEATURE_TSO
+/**
+ * hdd_set_tso_flags() - enable TSO flags in the network device
+ * @hdd_ctx: HDD context
+ * @wlan_dev: network device structure
+ *
+ * This function enables the TSO related feature flags in the
+ * given network device.
+ *
+ * Return: none
+ */
+static inline void hdd_set_tso_flags(hdd_context_t *hdd_ctx,
+	 struct net_device *wlan_dev)
+{
+	if (hdd_ctx->config->tso_enable) {
+		hdd_info("TSO Enabled");
+		wlan_dev->features |=
+			 NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+			 NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_SG;
+	}
+}
+#else
+static inline void hdd_set_tso_flags(hdd_context_t *hdd_ctx,
+	 struct net_device *wlan_dev){}
+#endif /* FEATURE_TSO */
+
+#ifdef WLAN_FEATURE_ROAM_OFFLOAD
+static inline bool roaming_offload_enabled(hdd_context_t *hdd_ctx)
+{
+	return hdd_ctx->config->isRoamOffloadEnabled;
+}
+#else
+static inline bool roaming_offload_enabled(hdd_context_t *hdd_ctx)
+{
+	return false;
+}
+#endif
 
 #endif /* end #if !defined(WLAN_HDD_MAIN_H) */

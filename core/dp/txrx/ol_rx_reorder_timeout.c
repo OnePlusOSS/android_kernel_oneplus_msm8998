@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -27,12 +27,11 @@
 
 /*=== header file includes ===*/
 /* generic utilities */
-#include <cdf_nbuf.h>           /* cdf_nbuf_t, etc. */
-#include <cdf_softirq_timer.h>
-#include <cdf_time.h>
+#include <qdf_nbuf.h>           /* qdf_nbuf_t, etc. */
+#include <qdf_timer.h>
+#include <qdf_time.h>
 
 /* datapath internal interfaces */
-#include <ol_txrx_types.h>      /* ol_txrx_pdev_t, etc. */
 #include <ol_txrx_internal.h>   /* TXRX_ASSERT, etc. */
 #include <ol_rx_reorder.h>      /* ol_rx_reorder_flush, etc. */
 
@@ -68,7 +67,7 @@ ol_rx_reorder_timeout_start(struct ol_tx_reorder_cat_timeout_t
 	list_elem = TAILQ_FIRST(&rx_reorder_timeout_ac->virtual_timer_list);
 
 	duration_ms = list_elem->timestamp_ms - time_now_ms;
-	cdf_softirq_timer_start(&rx_reorder_timeout_ac->timer, duration_ms);
+	qdf_timer_start(&rx_reorder_timeout_ac->timer, duration_ms);
 }
 
 static inline void
@@ -91,7 +90,7 @@ ol_rx_reorder_timeout_add(struct ol_txrx_peer_t *peer, uint8_t tid)
 	list_elem->tid = tid;
 
 	/* set the expiration timestamp */
-	time_now_ms = cdf_system_ticks_to_msecs(cdf_system_ticks());
+	time_now_ms = qdf_system_ticks_to_msecs(qdf_system_ticks());
 	list_elem->timestamp_ms =
 		time_now_ms + rx_reorder_timeout_ac->duration_ms;
 
@@ -133,10 +132,10 @@ static void ol_rx_reorder_timeout(void *arg)
 	struct ol_tx_reorder_cat_timeout_t *rx_reorder_timeout_ac;
 
 	rx_reorder_timeout_ac = (struct ol_tx_reorder_cat_timeout_t *)arg;
-	time_now_ms = cdf_system_ticks_to_msecs(cdf_system_ticks());
+	time_now_ms = qdf_system_ticks_to_msecs(qdf_system_ticks());
 
 	pdev = rx_reorder_timeout_ac->pdev;
-	cdf_spin_lock(&pdev->rx.mutex);
+	qdf_spin_lock(&pdev->rx.mutex);
 /* TODO: conditionally take mutex lock during regular rx */
 	TAILQ_FOREACH_SAFE(list_elem,
 			   &rx_reorder_timeout_ac->virtual_timer_list,
@@ -165,20 +164,20 @@ static void ol_rx_reorder_timeout(void *arg)
 	if (!TAILQ_EMPTY(&rx_reorder_timeout_ac->virtual_timer_list))
 		ol_rx_reorder_timeout_start(rx_reorder_timeout_ac, time_now_ms);
 
-	cdf_spin_unlock(&pdev->rx.mutex);
+	qdf_spin_unlock(&pdev->rx.mutex);
 }
 
 void ol_rx_reorder_timeout_init(struct ol_txrx_pdev_t *pdev)
 {
 	int i;
 
-	for (i = 0; i < CDF_ARRAY_SIZE(pdev->rx.reorder_timeout.access_cats);
+	for (i = 0; i < QDF_ARRAY_SIZE(pdev->rx.reorder_timeout.access_cats);
 		i++) {
 		struct ol_tx_reorder_cat_timeout_t *rx_reorder_timeout_ac;
 		rx_reorder_timeout_ac =
 			&pdev->rx.reorder_timeout.access_cats[i];
 		/* init the per-AC timers */
-		cdf_softirq_timer_init(pdev->osdev,
+		qdf_timer_init(pdev->osdev,
 				       &rx_reorder_timeout_ac->timer,
 				       ol_rx_reorder_timeout,
 				       rx_reorder_timeout_ac);
@@ -206,13 +205,13 @@ void ol_rx_reorder_timeout_cleanup(struct ol_txrx_pdev_t *pdev)
 {
 	int i;
 
-	for (i = 0; i < CDF_ARRAY_SIZE(pdev->rx.reorder_timeout.access_cats);
+	for (i = 0; i < QDF_ARRAY_SIZE(pdev->rx.reorder_timeout.access_cats);
 		i++) {
 		struct ol_tx_reorder_cat_timeout_t *rx_reorder_timeout_ac;
 		rx_reorder_timeout_ac =
 			&pdev->rx.reorder_timeout.access_cats[i];
-		cdf_softirq_timer_cancel(&rx_reorder_timeout_ac->timer);
-		cdf_softirq_timer_free(&rx_reorder_timeout_ac->timer);
+		qdf_timer_stop(&rx_reorder_timeout_ac->timer);
+		qdf_timer_free(&rx_reorder_timeout_ac->timer);
 	}
 }
 

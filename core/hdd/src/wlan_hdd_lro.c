@@ -34,12 +34,13 @@
 #define HDD_DISALLOW_LEGACY_HDDLOG 1
 
 #include <wlan_hdd_includes.h>
-#include <cdf_types.h>
+#include <qdf_types.h>
 #include <wlan_hdd_lro.h>
 #include <wlan_hdd_napi.h>
 #include <wma_api.h>
 #include <ol_txrx_types.h>
 #include <ol_cfg.h>
+#include <cdp_txrx_lro.h>
 
 #include <linux/inet_lro.h>
 #include <linux/list.h>
@@ -67,14 +68,14 @@
 static int hdd_lro_get_skb_header(struct sk_buff *skb, void **ip_hdr,
 	void **tcpudp_hdr, u64 *hdr_flags, void *priv)
 {
-	if (NBUF_IPV6_PROTO(skb)) {
+	if (QDF_NBUF_CB_RX_IPV6_PROTO(skb)) {
 		hdr_flags = 0;
 		return -EINVAL;
 	}
 
 	*hdr_flags |= (LRO_IPV4 | LRO_TCP);
 	(*ip_hdr) = skb->data;
-	(*tcpudp_hdr) = skb->data + NBUF_TCP_OFFSET(skb);
+	(*tcpudp_hdr) = skb->data + QDF_NBUF_CB_RX_TCP_OFFSET(skb);
 	return 0;
 }
 
@@ -101,7 +102,7 @@ static void hdd_lro_desc_pool_init(struct hdd_lro_desc_pool *lro_desc_pool,
 		list_add_tail(&lro_desc_pool->lro_desc_array[i].lro_node,
 			 &lro_desc_pool->lro_free_list_head);
 	}
-	cdf_spinlock_init(&lro_desc_pool->lro_pool_lock);
+	qdf_spinlock_create(&lro_desc_pool->lro_pool_lock);
 }
 
 /**
@@ -128,7 +129,7 @@ static void hdd_lro_desc_info_init(struct hdd_lro_s *hdd_info)
 			 lro_hash_table[i].lro_desc_list);
 	}
 
-	cdf_spinlock_init(&hdd_info->lro_desc_info.lro_hash_lock);
+	qdf_spinlock_create(&hdd_info->lro_desc_info.lro_hash_lock);
 }
 
 /**
@@ -142,7 +143,7 @@ static void hdd_lro_desc_info_init(struct hdd_lro_s *hdd_info)
 static void hdd_lro_desc_pool_deinit(struct hdd_lro_desc_pool *lro_desc_pool)
 {
 	INIT_LIST_HEAD(&lro_desc_pool->lro_free_list_head);
-	cdf_spinlock_destroy(&lro_desc_pool->lro_pool_lock);
+	qdf_spinlock_destroy(&lro_desc_pool->lro_pool_lock);
 }
 
 /**
@@ -160,7 +161,7 @@ static void hdd_lro_desc_info_deinit(struct hdd_lro_s *hdd_info)
 	struct hdd_lro_desc_info *desc_info = &hdd_info->lro_desc_info;
 
 	hdd_lro_desc_pool_deinit(&desc_info->lro_desc_pool);
-	cdf_spinlock_destroy(&desc_info->lro_hash_lock);
+	qdf_spinlock_destroy(&desc_info->lro_hash_lock);
 }
 
 /**
@@ -215,17 +216,17 @@ static int hdd_lro_desc_find(hdd_adapter_t *adapter,
 	struct hdd_lro_desc_info *desc_info = &adapter->lro_info.lro_desc_info;
 
 	*lro_desc = NULL;
-	i = NBUF_FLOW_ID_TOEPLITZ(skb) & LRO_DESC_TABLE_SZ_MASK;
+	i = QDF_NBUF_CB_RX_FLOW_ID_TOEPLITZ(skb) & LRO_DESC_TABLE_SZ_MASK;
 
 	lro_hash_table = &desc_info->lro_hash_table[i];
 
 	if (!lro_hash_table) {
 		hdd_err("Invalid hash entry");
-		CDF_ASSERT(0);
+		QDF_ASSERT(0);
 		return -EINVAL;
 	}
 
-	cdf_spin_lock_bh(&desc_info->lro_hash_lock);
+	qdf_spin_lock_bh(&desc_info->lro_hash_lock);
 	/* Check if this flow exists in the descriptor list */
 	list_for_each(ptr, &lro_hash_table->lro_desc_list) {
 		struct net_lro_desc *tmp_lro_desc = NULL;
@@ -234,43 +235,43 @@ static int hdd_lro_desc_find(hdd_adapter_t *adapter,
 		if (tmp_lro_desc->active) {
 			if (hdd_lro_tcp_flow_match(tmp_lro_desc, iph, tcph)) {
 				*lro_desc = entry->lro_desc;
-				cdf_spin_unlock_bh(&desc_info->lro_hash_lock);
+				qdf_spin_unlock_bh(&desc_info->lro_hash_lock);
 				return 0;
 			}
 		}
 	}
-	cdf_spin_unlock_bh(&desc_info->lro_hash_lock);
+	qdf_spin_unlock_bh(&desc_info->lro_hash_lock);
 
 	/* no existing flow found, a new LRO desc needs to be allocated */
 	free_pool = adapter->lro_info.lro_desc_info.lro_desc_pool;
-	cdf_spin_lock_bh(&free_pool.lro_pool_lock);
+	qdf_spin_lock_bh(&free_pool.lro_pool_lock);
 	entry = list_first_entry_or_null(
 		 &free_pool.lro_free_list_head,
 		 struct hdd_lro_desc_entry, lro_node);
 	if (NULL == entry) {
 		hdd_err("Could not allocate LRO desc!");
-		cdf_spin_unlock_bh(&free_pool.lro_pool_lock);
+		qdf_spin_unlock_bh(&free_pool.lro_pool_lock);
 		return -ENOMEM;
 	}
 
 	list_del_init(&entry->lro_node);
-	cdf_spin_unlock_bh(&free_pool.lro_pool_lock);
+	qdf_spin_unlock_bh(&free_pool.lro_pool_lock);
 
 	if (NULL == entry->lro_desc) {
 		hdd_err("entry->lro_desc is NULL!\n");
 		return -EINVAL;
 	}
 
-	cdf_mem_zero((void *)entry->lro_desc, sizeof(struct net_lro_desc));
+	qdf_mem_zero((void *)entry->lro_desc, sizeof(struct net_lro_desc));
 
 	/*
 	 * lro_desc->active should be 0 and lro_desc->tcp_rcv_tsval
 	 * should be 0 for newly allocated lro descriptors
 	 */
-	cdf_spin_lock_bh(&desc_info->lro_hash_lock);
+	qdf_spin_lock_bh(&desc_info->lro_hash_lock);
 	list_add_tail(&entry->lro_node,
 		 &lro_hash_table->lro_desc_list);
-	cdf_spin_unlock_bh(&desc_info->lro_hash_lock);
+	qdf_spin_unlock_bh(&desc_info->lro_hash_lock);
 	*lro_desc = entry->lro_desc;
 
 	return 0;
@@ -321,7 +322,8 @@ static bool hdd_lro_eligible(hdd_adapter_t *adapter, struct sk_buff *skb,
 {
 	struct net_lro_desc *lro_desc = NULL;
 	int hw_lro_eligible =
-		 NBUF_LRO_ELIGIBLE(skb) && (!NBUF_TCP_PURE_ACK(skb));
+		 QDF_NBUF_CB_RX_LRO_ELIGIBLE(skb) &&
+		 (!QDF_NBUF_CB_RX_TCP_PURE_ACK(skb));
 
 	if (!hw_lro_eligible)
 		return false;
@@ -386,14 +388,14 @@ static void hdd_lro_desc_free(struct net_lro_desc *desc,
 
 	entry = &desc_info->lro_desc_pool.lro_desc_array[i];
 
-	cdf_spin_lock_bh(&desc_info->lro_hash_lock);
+	qdf_spin_lock_bh(&desc_info->lro_hash_lock);
 	list_del_init(&entry->lro_node);
-	cdf_spin_unlock_bh(&desc_info->lro_hash_lock);
+	qdf_spin_unlock_bh(&desc_info->lro_hash_lock);
 
-	cdf_spin_lock_bh(&desc_info->lro_desc_pool.lro_pool_lock);
+	qdf_spin_lock_bh(&desc_info->lro_desc_pool.lro_pool_lock);
 	list_add_tail(&entry->lro_node, &desc_info->
 		 lro_desc_pool.lro_free_list_head);
-	cdf_spin_unlock_bh(&desc_info->lro_desc_pool.lro_pool_lock);
+	qdf_spin_unlock_bh(&desc_info->lro_desc_pool.lro_pool_lock);
 }
 
 /**
@@ -503,7 +505,6 @@ int hdd_lro_enable(hdd_context_t *hdd_ctx,
 	 hdd_adapter_t *adapter)
 {
 	struct hdd_lro_s *hdd_lro;
-	struct ol_txrx_pdev_t *pdev = cds_get_context(CDF_MODULE_ID_TXRX);
 	size_t lro_mgr_sz, desc_arr_sz, desc_pool_sz, hash_table_sz;
 	uint8_t *lro_mem_ptr;
 
@@ -516,7 +517,7 @@ int hdd_lro_enable(hdd_context_t *hdd_ctx,
 	hdd_info("LRO Enabled");
 
 	hdd_lro = &adapter->lro_info;
-	cdf_mem_zero((void *)hdd_lro, sizeof(struct hdd_lro_s));
+	qdf_mem_zero((void *)hdd_lro, sizeof(struct hdd_lro_s));
 	/*
 	* Allocate all the LRO data structures at once and then carve
 	* them up as needed
@@ -526,7 +527,7 @@ int hdd_lro_enable(hdd_context_t *hdd_ctx,
 	desc_pool_sz = (LRO_DESC_POOL_SZ * sizeof(struct hdd_lro_desc_entry));
 	hash_table_sz = (sizeof(struct hdd_lro_desc_table) * LRO_DESC_TABLE_SZ);
 
-	lro_mem_ptr = cdf_mem_malloc(lro_mgr_sz + desc_arr_sz + desc_pool_sz +
+	lro_mem_ptr = qdf_mem_malloc(lro_mgr_sz + desc_arr_sz + desc_pool_sz +
 		 hash_table_sz);
 
 	if (NULL == lro_mem_ptr) {
@@ -556,7 +557,7 @@ int hdd_lro_enable(hdd_context_t *hdd_ctx,
 	 hdd_lro_desc_info_init(hdd_lro);
 
 	hdd_lro->lro_mgr->dev = adapter->dev;
-	if (ol_cfg_is_rx_thread_enabled(pdev->ctrl_pdev))
+	if (hdd_ctx->config->enableRxThread)
 		hdd_lro->lro_mgr->features = LRO_F_NI;
 
 	if (hdd_napi_enabled(HDD_NAPI_ANY))
@@ -597,7 +598,7 @@ void hdd_lro_disable(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 
 	if (adapter->lro_info.lro_mgr) {
 		hdd_lro_desc_info_deinit(&adapter->lro_info);
-		cdf_mem_free(adapter->lro_info.lro_mgr);
+		qdf_mem_free(adapter->lro_info.lro_mgr);
 		adapter->lro_info.lro_mgr = NULL;
 		adapter->lro_info.lro_desc_info.
 			lro_desc_pool.lro_desc_array = NULL;
@@ -624,12 +625,12 @@ enum hdd_lro_rx_status hdd_lro_rx(hdd_context_t *hdd_ctx,
 	enum hdd_lro_rx_status status = HDD_LRO_NO_RX;
 
 	if ((adapter->dev->features & NETIF_F_LRO) &&
-		 NBUF_TCP_PROTO(skb)) {
+		 QDF_NBUF_CB_RX_TCP_PROTO(skb)) {
 		struct iphdr *iph;
 		struct tcphdr *tcph;
 		struct net_lro_desc *lro_desc = NULL;
 		iph = (struct iphdr *)skb->data;
-		tcph = (struct tcphdr *)(skb->data + NBUF_TCP_OFFSET(skb));
+		tcph = (struct tcphdr *)(skb->data + QDF_NBUF_CB_RX_TCP_OFFSET(skb));
 		if (hdd_lro_eligible(adapter, skb, iph, tcph, &lro_desc)) {
 			struct net_lro_info hdd_lro_info;
 
@@ -637,11 +638,11 @@ enum hdd_lro_rx_status hdd_lro_rx(hdd_context_t *hdd_ctx,
 
 			hdd_lro_info.lro_desc = lro_desc;
 			hdd_lro_info.lro_eligible = 1;
-			hdd_lro_info.tcp_ack_num = NBUF_TCP_ACK_NUM(skb);
+			hdd_lro_info.tcp_ack_num = QDF_NBUF_CB_RX_TCP_ACK_NUM(skb);
 			hdd_lro_info.tcp_data_csum =
-				 csum_unfold(htons(NBUF_TCP_CHKSUM(skb)));
-			hdd_lro_info.tcp_seq_num = NBUF_TCP_SEQ_NUM(skb);
-			hdd_lro_info.tcp_win = NBUF_TCP_WIN(skb);
+				 csum_unfold(htons(QDF_NBUF_CB_RX_TCP_CHKSUM(skb)));
+			hdd_lro_info.tcp_seq_num = QDF_NBUF_CB_RX_TCP_SEQ_NUM(skb);
+			hdd_lro_info.tcp_win = QDF_NBUF_CB_RX_TCP_WIN(skb);
 
 			lro_receive_skb_ext(adapter->lro_info.lro_mgr, skb,
 				 (void *)adapter, &hdd_lro_info);

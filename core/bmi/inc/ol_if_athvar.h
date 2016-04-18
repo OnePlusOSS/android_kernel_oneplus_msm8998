@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -32,14 +32,11 @@
 #define _DEV_OL_ATH_ATHVAR_H
 
 #include <osapi_linux.h>
-#include "cdf_types.h"
-#include "cdf_lock.h"
+#include "qdf_types.h"
+#include "qdf_lock.h"
 #include "wmi_unified_api.h"
 #include "htc_api.h"
 #include "bmi_msg.h"
-#include "ol_txrx_api.h"
-#include "ol_txrx_ctrl_api.h"
-#include "ol_txrx_osif_api.h"
 #include "ol_params.h"
 #include <wdi_event_api.h>
 

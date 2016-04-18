@@ -39,6 +39,8 @@
 #include "wlan_tgt_def_config.h"
 #include "sch_api.h"
 #include "wma_api.h"
+#include "ol_txrx.h"
+#include <cdp_txrx_peer_ops.h>
 
 /* Structure definitions for WLAN_SET_DOT11P_CHANNEL_SCHED */
 #define AIFSN_MIN		(2)
@@ -241,16 +243,17 @@ static int hdd_ocb_validate_config(hdd_adapter_t *adapter,
  */
 static int hdd_ocb_register_sta(hdd_adapter_t *adapter)
 {
-	CDF_STATUS cdf_status = CDF_STATUS_E_FAILURE;
+	QDF_STATUS qdf_status = QDF_STATUS_E_FAILURE;
 	struct ol_txrx_desc_type sta_desc = {0};
 	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 	hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
 	uint8_t peer_id;
+	struct ol_txrx_ops txrx_ops;
 
-	cdf_status = ol_txrx_register_ocb_peer(hdd_ctx->pcds_context,
+	qdf_status = ol_txrx_register_ocb_peer(hdd_ctx->pcds_context,
 					       adapter->macAddressCurrent.bytes,
 					       &peer_id);
-	if (!CDF_IS_STATUS_SUCCESS(cdf_status)) {
+	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 		hddLog(LOGE, FL("Error registering OCB Self Peer!"));
 		return -EINVAL;
 	}
@@ -260,11 +263,18 @@ static int hdd_ocb_register_sta(hdd_adapter_t *adapter)
 	sta_desc.sta_id = peer_id;
 	sta_desc.is_qos_enabled = 1;
 
-	cdf_status = ol_txrx_register_peer(hdd_rx_packet_cbk,
-						&sta_desc);
-	if (!CDF_IS_STATUS_SUCCESS(cdf_status)) {
+	/* Register the vdev transmit and receive functions */
+	qdf_mem_zero(&txrx_ops, sizeof(txrx_ops));
+	txrx_ops.rx.rx = hdd_rx_packet_cbk;
+	ol_txrx_vdev_register(
+		 ol_txrx_get_vdev_from_vdev_id(adapter->sessionId),
+		 adapter, &txrx_ops);
+	adapter->tx_fn = txrx_ops.tx.tx;
+
+	qdf_status = ol_txrx_register_peer(&sta_desc);
+	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 		hddLog(LOGE, FL("Failed to register. Status= %d [0x%08X]"),
-		       cdf_status, cdf_status);
+		       qdf_status, qdf_status);
 		return -EINVAL;
 	}
 
@@ -274,7 +284,7 @@ static int hdd_ocb_register_sta(hdd_adapter_t *adapter)
 	}
 
 	pHddStaCtx->conn_info.staId[0] = peer_id;
-	cdf_copy_macaddr(&pHddStaCtx->conn_info.peerMacAddress[0],
+	qdf_copy_macaddr(&pHddStaCtx->conn_info.peerMacAddress[0],
 			 &adapter->macAddressCurrent);
 
 	return 0;
@@ -308,11 +318,11 @@ static struct sir_ocb_config *hdd_ocb_config_new(int num_channels,
 		ndl_chan_list_len +
 		ndl_active_state_list_len;
 
-	cursor = cdf_mem_malloc(len);
+	cursor = qdf_mem_malloc(len);
 	if (!cursor)
 		goto fail;
 
-	cdf_mem_zero(cursor, len);
+	qdf_mem_zero(cursor, len);
 	ret = cursor;
 	cursor += sizeof(*ret);
 
@@ -333,7 +343,7 @@ static struct sir_ocb_config *hdd_ocb_config_new(int num_channels,
 	return ret;
 
 fail:
-	cdf_mem_free(ret);
+	qdf_mem_free(ret);
 	return NULL;
 }
 
@@ -400,7 +410,7 @@ static int hdd_ocb_set_config_req(hdd_adapter_t *adapter,
 				  struct sir_ocb_config *config)
 {
 	int rc;
-	CDF_STATUS cdf_status;
+	QDF_STATUS qdf_status;
 	struct hdd_ocb_ctxt context = {0};
 
 	if (hdd_ocb_validate_config(adapter, config)) {
@@ -417,12 +427,12 @@ static int hdd_ocb_set_config_req(hdd_adapter_t *adapter,
 	netif_carrier_off(adapter->dev);
 
 	/* Call the SME API to set the config */
-	cdf_status = sme_ocb_set_config(
+	qdf_status = sme_ocb_set_config(
 		((hdd_context_t *)adapter->pHddCtx)->hHal, &context,
 		hdd_ocb_set_config_callback, config);
-	if (cdf_status != CDF_STATUS_SUCCESS) {
+	if (qdf_status != QDF_STATUS_SUCCESS) {
 		hddLog(LOGE, FL("Error calling SME function."));
-		/* Convert from ecdf_status to errno */
+		/* Convert from qdf_status to errno */
 		return -EINVAL;
 	}
 
@@ -477,12 +487,14 @@ static int __iw_set_dot11p_channel_sched(struct net_device *dev,
 	int i, j;
 	struct sir_ocb_config_channel *curr_chan;
 
+	ENTER_DEV(dev);
+
 	if (wlan_hdd_validate_context(WLAN_HDD_GET_CTX(adapter))) {
 		hddLog(LOGE, FL("HDD context is not valid"));
 		return -EINVAL;
 	}
 
-	if (adapter->device_mode != WLAN_HDD_OCB) {
+	if (adapter->device_mode != QDF_OCB_MODE) {
 		hddLog(LOGE, FL("Device not in OCB mode!"));
 		return -EINVAL;
 	}
@@ -531,7 +543,7 @@ static int __iw_set_dot11p_channel_sched(struct net_device *dev,
 		 * First channel uses the adapter's address.
 		 */
 		if (i == 0) {
-			cdf_copy_macaddr(&curr_chan->mac_address,
+			qdf_copy_macaddr(&curr_chan->mac_address,
 				     &adapter->macAddressCurrent);
 		} else {
 			mac_addr = wlan_hdd_get_intf_addr(adapter->pHddCtx);
@@ -540,13 +552,13 @@ static int __iw_set_dot11p_channel_sched(struct net_device *dev,
 				rc = -EINVAL;
 				goto fail;
 			}
-			cdf_mem_copy(config->channels[
+			qdf_mem_copy(config->channels[
 				     config->channel_count].mac_address.bytes,
 				     mac_addr, sizeof(tSirMacAddr));
 			/* Save the mac address to release later */
-			cdf_mem_copy(adapter->ocb_mac_address[
+			qdf_mem_copy(adapter->ocb_mac_address[
 				     adapter->ocb_mac_addr_count].bytes,
-				     mac_addr, CDF_MAC_ADDR_SIZE);
+				     mac_addr, QDF_MAC_ADDR_SIZE);
 			adapter->ocb_mac_addr_count++;
 		}
 
@@ -583,7 +595,7 @@ static int __iw_set_dot11p_channel_sched(struct net_device *dev,
 	rc = 0;
 
 fail:
-	cdf_mem_free(config);
+	qdf_mem_free(config);
 	return rc;
 }
 
@@ -733,12 +745,12 @@ static void wlan_hdd_ocb_config_channel_to_sir_ocb_config_channel(
 {
 	uint32_t i;
 
-	cdf_mem_zero(dest, channel_count * sizeof(*dest));
+	qdf_mem_zero(dest, channel_count * sizeof(*dest));
 
 	for (i = 0; i < channel_count; i++) {
 		dest[i].chan_freq = src[i].chan_freq;
 		dest[i].bandwidth = src[i].bandwidth;
-		cdf_mem_copy(dest[i].qos_params, src[i].qos_params,
+		qdf_mem_copy(dest[i].qos_params, src[i].qos_params,
 			     sizeof(dest[i].qos_params));
 		/*
 		 *  max_pwr and min_pwr are divided by 2 because
@@ -784,14 +796,14 @@ static int __wlan_hdd_cfg80211_ocb_set_config(struct wiphy *wiphy,
 	int rc = -EINVAL;
 	uint8_t *mac_addr;
 
-	ENTER();
+	ENTER_DEV(dev);
 
 	if (wlan_hdd_validate_context(hdd_ctx)) {
 		hddLog(LOGE, FL("HDD context is not valid"));
 		return -EINVAL;
 	}
 
-	if (adapter->device_mode != WLAN_HDD_OCB) {
+	if (adapter->device_mode != QDF_OCB_MODE) {
 		hddLog(LOGE, FL("Device not in OCB mode!"));
 		return -EINVAL;
 	}
@@ -877,7 +889,7 @@ static int __wlan_hdd_cfg80211_ocb_set_config(struct wiphy *wiphy,
 	 */
 	for (i = 0; i < config->channel_count; i++) {
 		if (i == 0) {
-			cdf_copy_macaddr(&config->channels[i].mac_address,
+			qdf_copy_macaddr(&config->channels[i].mac_address,
 				&adapter->macAddressCurrent);
 		} else {
 			mac_addr = wlan_hdd_get_intf_addr(adapter->pHddCtx);
@@ -885,10 +897,10 @@ static int __wlan_hdd_cfg80211_ocb_set_config(struct wiphy *wiphy,
 				hddLog(LOGE, FL("Cannot obtain mac address"));
 				goto fail;
 			}
-			cdf_mem_copy(config->channels[i].mac_address.bytes,
-				mac_addr, CDF_MAC_ADDR_SIZE);
+			qdf_mem_copy(config->channels[i].mac_address.bytes,
+				mac_addr, QDF_MAC_ADDR_SIZE);
 			/* Save the mac address to release later */
-			cdf_copy_macaddr(&adapter->ocb_mac_address[
+			qdf_copy_macaddr(&adapter->ocb_mac_address[
 				     adapter->ocb_mac_addr_count],
 				     &config->channels[i].mac_address);
 			adapter->ocb_mac_addr_count++;
@@ -905,13 +917,13 @@ static int __wlan_hdd_cfg80211_ocb_set_config(struct wiphy *wiphy,
 		hddLog(LOGE, FL("SCHEDULE_ARRAY is not the correct size"));
 		goto fail;
 	}
-	cdf_mem_copy(config->schedule, nla_data(sched_array),
+	qdf_mem_copy(config->schedule, nla_data(sched_array),
 		nla_len(sched_array));
 
 	/* Copy the NDL chan array */
 	if (ndl_chan_list_len) {
 		config->dcc_ndl_chan_list_len = ndl_chan_list_len;
-		cdf_mem_copy(config->dcc_ndl_chan_list, nla_data(ndl_chan_list),
+		qdf_mem_copy(config->dcc_ndl_chan_list, nla_data(ndl_chan_list),
 			nla_len(ndl_chan_list));
 	}
 
@@ -919,7 +931,7 @@ static int __wlan_hdd_cfg80211_ocb_set_config(struct wiphy *wiphy,
 	if (ndl_active_state_list_len) {
 		config->dcc_ndl_active_state_list_len =
 			ndl_active_state_list_len;
-		cdf_mem_copy(config->dcc_ndl_active_state_list,
+		qdf_mem_copy(config->dcc_ndl_active_state_list,
 			nla_data(ndl_active_state_list),
 			nla_len(ndl_active_state_list));
 	}
@@ -929,7 +941,7 @@ static int __wlan_hdd_cfg80211_ocb_set_config(struct wiphy *wiphy,
 		hddLog(LOGE, FL("Error while setting OCB config: %d"), rc);
 
 fail:
-	cdf_mem_free(config);
+	qdf_mem_free(config);
 	return rc;
 }
 
@@ -979,14 +991,14 @@ static int __wlan_hdd_cfg80211_ocb_set_utc_time(struct wiphy *wiphy,
 	struct sir_ocb_utc *utc;
 	int rc = -EINVAL;
 
-	ENTER();
+	ENTER_DEV(dev);
 
 	if (wlan_hdd_validate_context(hdd_ctx)) {
 		hddLog(LOGE, FL("HDD context is not valid"));
 		return -EINVAL;
 	}
 
-	if (adapter->device_mode != WLAN_HDD_OCB) {
+	if (adapter->device_mode != QDF_OCB_MODE) {
 		hddLog(LOGE, FL("Device not in OCB mode!"));
 		return -EINVAL;
 	}
@@ -1026,24 +1038,24 @@ static int __wlan_hdd_cfg80211_ocb_set_utc_time(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
-	utc = cdf_mem_malloc(sizeof(*utc));
+	utc = qdf_mem_malloc(sizeof(*utc));
 	if (!utc) {
-		hddLog(LOGE, FL("cdf_mem_malloc failed"));
+		hddLog(LOGE, FL("qdf_mem_malloc failed"));
 		return -ENOMEM;
 	}
 	utc->vdev_id = adapter->sessionId;
-	cdf_mem_copy(utc->utc_time, nla_data(utc_attr), SIZE_UTC_TIME);
-	cdf_mem_copy(utc->time_error, nla_data(time_error_attr),
+	qdf_mem_copy(utc->utc_time, nla_data(utc_attr), SIZE_UTC_TIME);
+	qdf_mem_copy(utc->time_error, nla_data(time_error_attr),
 		SIZE_UTC_TIME_ERROR);
 
-	if (sme_ocb_set_utc_time(hdd_ctx->hHal, utc) != CDF_STATUS_SUCCESS) {
+	if (sme_ocb_set_utc_time(hdd_ctx->hHal, utc) != QDF_STATUS_SUCCESS) {
 		hddLog(LOGE, FL("Error while setting UTC time"));
 		rc = -EINVAL;
 	} else {
 		rc = 0;
 	}
 
-	cdf_mem_free(utc);
+	qdf_mem_free(utc);
 	return rc;
 }
 
@@ -1092,14 +1104,14 @@ __wlan_hdd_cfg80211_ocb_start_timing_advert(struct wiphy *wiphy,
 	struct sir_ocb_timing_advert *timing_advert;
 	int rc = -EINVAL;
 
-	ENTER();
+	ENTER_DEV(dev);
 
 	if (wlan_hdd_validate_context(hdd_ctx)) {
 		hddLog(LOGE, FL("HDD context is not valid"));
 		return -EINVAL;
 	}
 
-	if (adapter->device_mode != WLAN_HDD_OCB) {
+	if (adapter->device_mode != QDF_OCB_MODE) {
 		hddLog(LOGE, FL("Device not in OCB mode!"));
 		return -EINVAL;
 	}
@@ -1109,12 +1121,12 @@ __wlan_hdd_cfg80211_ocb_start_timing_advert(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
-	timing_advert = cdf_mem_malloc(sizeof(*timing_advert));
+	timing_advert = qdf_mem_malloc(sizeof(*timing_advert));
 	if (!timing_advert) {
-		hddLog(LOGE, FL("cdf_mem_malloc failed"));
+		hddLog(LOGE, FL("qdf_mem_malloc failed"));
 		return -ENOMEM;
 	}
-	cdf_mem_zero(timing_advert, sizeof(*timing_advert));
+	qdf_mem_zero(timing_advert, sizeof(*timing_advert));
 	timing_advert->vdev_id = adapter->sessionId;
 
 	/* Parse the netlink message */
@@ -1152,7 +1164,7 @@ __wlan_hdd_cfg80211_ocb_start_timing_advert(struct wiphy *wiphy,
 	}
 
 	if (sme_ocb_start_timing_advert(hdd_ctx->hHal, timing_advert) !=
-			CDF_STATUS_SUCCESS) {
+			QDF_STATUS_SUCCESS) {
 		hddLog(LOGE, FL("Error while starting timing advert"));
 		rc = -EINVAL;
 	} else {
@@ -1161,8 +1173,8 @@ __wlan_hdd_cfg80211_ocb_start_timing_advert(struct wiphy *wiphy,
 
 fail:
 	if (timing_advert->template_value)
-		cdf_mem_free(timing_advert->template_value);
-	cdf_mem_free(timing_advert);
+		qdf_mem_free(timing_advert->template_value);
+	qdf_mem_free(timing_advert);
 	return rc;
 }
 
@@ -1212,14 +1224,14 @@ __wlan_hdd_cfg80211_ocb_stop_timing_advert(struct wiphy *wiphy,
 	struct sir_ocb_timing_advert *timing_advert;
 	int rc = -EINVAL;
 
-	ENTER();
+	ENTER_DEV(dev);
 
 	if (wlan_hdd_validate_context(hdd_ctx)) {
 		hddLog(LOGE, FL("HDD context is not valid"));
 		return -EINVAL;
 	}
 
-	if (adapter->device_mode != WLAN_HDD_OCB) {
+	if (adapter->device_mode != QDF_OCB_MODE) {
 		hddLog(LOGE, FL("Device not in OCB mode!"));
 		return -EINVAL;
 	}
@@ -1229,12 +1241,12 @@ __wlan_hdd_cfg80211_ocb_stop_timing_advert(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
-	timing_advert = cdf_mem_malloc(sizeof(*timing_advert));
+	timing_advert = qdf_mem_malloc(sizeof(*timing_advert));
 	if (!timing_advert) {
-		hddLog(LOGE, FL("cdf_mem_malloc failed"));
+		hddLog(LOGE, FL("qdf_mem_malloc failed"));
 		return -ENOMEM;
 	}
-	cdf_mem_zero(timing_advert, sizeof(sizeof(*timing_advert)));
+	qdf_mem_zero(timing_advert, sizeof(sizeof(*timing_advert)));
 	timing_advert->vdev_id = adapter->sessionId;
 
 	/* Parse the netlink message */
@@ -1254,7 +1266,7 @@ __wlan_hdd_cfg80211_ocb_stop_timing_advert(struct wiphy *wiphy,
 		tb[QCA_WLAN_VENDOR_ATTR_OCB_STOP_TIMING_ADVERT_CHANNEL_FREQ]);
 
 	if (sme_ocb_stop_timing_advert(hdd_ctx->hHal, timing_advert) !=
-			CDF_STATUS_SUCCESS) {
+			QDF_STATUS_SUCCESS) {
 		hddLog(LOGE, FL("Error while stopping timing advert"));
 		rc = -EINVAL;
 	} else {
@@ -1262,7 +1274,7 @@ __wlan_hdd_cfg80211_ocb_stop_timing_advert(struct wiphy *wiphy,
 	}
 
 fail:
-	cdf_mem_free(timing_advert);
+	qdf_mem_free(timing_advert);
 	return rc;
 }
 
@@ -1340,14 +1352,14 @@ __wlan_hdd_cfg80211_ocb_get_tsf_timer(struct wiphy *wiphy,
 	struct sir_ocb_get_tsf_timer request = {0};
 	struct hdd_ocb_ctxt context = {0};
 
-	ENTER();
+	ENTER_DEV(dev);
 
 	if (wlan_hdd_validate_context(hdd_ctx)) {
 		hddLog(LOGE, FL("HDD context is not valid"));
 		return -EINVAL;
 	}
 
-	if (adapter->device_mode != WLAN_HDD_OCB) {
+	if (adapter->device_mode != QDF_OCB_MODE) {
 		hddLog(LOGE, FL("Device not in OCB mode!"));
 		return -EINVAL;
 	}
@@ -1369,7 +1381,7 @@ __wlan_hdd_cfg80211_ocb_get_tsf_timer(struct wiphy *wiphy,
 				   &request);
 	if (rc) {
 		hddLog(LOGE, FL("Error calling SME function"));
-		/* Need to convert from ecdf_status to errno. */
+		/* Need to convert from qdf_status to errno. */
 		return -EINVAL;
 	}
 
@@ -1477,11 +1489,11 @@ static void hdd_dcc_get_stats_callback(void *context_ptr, void *response_ptr)
 			 * request, delete it
 			 */
 			if (context->adapter->dcc_get_stats_resp) {
-				cdf_mem_free(
+				qdf_mem_free(
 				    context->adapter->dcc_get_stats_resp);
 			}
 			context->adapter->dcc_get_stats_resp =
-				cdf_mem_malloc(sizeof(
+				qdf_mem_malloc(sizeof(
 				    *context->adapter->dcc_get_stats_resp) +
 				    response->channel_stats_array_len);
 			if (context->adapter->dcc_get_stats_resp) {
@@ -1489,7 +1501,7 @@ static void hdd_dcc_get_stats_callback(void *context_ptr, void *response_ptr)
 				*hdd_resp = *response;
 				hdd_resp->channel_stats_array =
 					(void *)hdd_resp + sizeof(*hdd_resp);
-				cdf_mem_copy(hdd_resp->channel_stats_array,
+				qdf_mem_copy(hdd_resp->channel_stats_array,
 					     response->channel_stats_array,
 					     response->channel_stats_array_len);
 				context->status = 0;
@@ -1530,14 +1542,14 @@ static int __wlan_hdd_cfg80211_dcc_get_stats(struct wiphy *wiphy,
 	struct sir_dcc_get_stats request = {0};
 	struct hdd_ocb_ctxt context = {0};
 
-	ENTER();
+	ENTER_DEV(dev);
 
 	if (wlan_hdd_validate_context(hdd_ctx)) {
 		hddLog(LOGE, FL("HDD context is not valid"));
 		return -EINVAL;
 	}
 
-	if (adapter->device_mode != WLAN_HDD_OCB) {
+	if (adapter->device_mode != QDF_OCB_MODE) {
 		hddLog(LOGE, FL("Device not in OCB mode!"));
 		return -EINVAL;
 	}
@@ -1586,7 +1598,7 @@ static int __wlan_hdd_cfg80211_dcc_get_stats(struct wiphy *wiphy,
 			       &request);
 	if (rc) {
 		hddLog(LOGE, FL("Error calling SME function"));
-		/* Need to convert from cdf_status to errno. */
+		/* Need to convert from qdf_status to errno. */
 		return -EINVAL;
 	}
 
@@ -1646,7 +1658,7 @@ static int __wlan_hdd_cfg80211_dcc_get_stats(struct wiphy *wiphy,
 end:
 	spin_lock(&hdd_context_lock);
 	context.magic = 0;
-	cdf_mem_free(adapter->dcc_get_stats_resp);
+	qdf_mem_free(adapter->dcc_get_stats_resp);
 	adapter->dcc_get_stats_resp = NULL;
 	spin_unlock(&hdd_context_lock);
 	if (nl_resp)
@@ -1697,14 +1709,14 @@ static int __wlan_hdd_cfg80211_dcc_clear_stats(struct wiphy *wiphy,
 	hdd_adapter_t *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
 	struct nlattr *tb[QCA_WLAN_VENDOR_ATTR_DCC_CLEAR_STATS_MAX + 1];
 
-	ENTER();
+	ENTER_DEV(dev);
 
 	if (wlan_hdd_validate_context(hdd_ctx)) {
 		hddLog(LOGE, FL("HDD context is not valid"));
 		return -EINVAL;
 	}
 
-	if (adapter->device_mode != WLAN_HDD_OCB) {
+	if (adapter->device_mode != QDF_OCB_MODE) {
 		hddLog(LOGE, FL("Device not in OCB mode!"));
 		return -EINVAL;
 	}
@@ -1733,7 +1745,7 @@ static int __wlan_hdd_cfg80211_dcc_clear_stats(struct wiphy *wiphy,
 	if (sme_dcc_clear_stats(hdd_ctx->hHal, adapter->sessionId,
 		nla_get_u32(
 			tb[QCA_WLAN_VENDOR_ATTR_DCC_CLEAR_STATS_BITMAP])) !=
-			CDF_STATUS_SUCCESS) {
+			QDF_STATUS_SUCCESS) {
 		hddLog(LOGE, FL("Error calling SME function."));
 		return -EINVAL;
 	}
@@ -1818,14 +1830,14 @@ static int __wlan_hdd_cfg80211_dcc_update_ndl(struct wiphy *wiphy,
 	int rc = -EINVAL;
 	struct hdd_ocb_ctxt context = {0};
 
-	ENTER();
+	ENTER_DEV(dev);
 
 	if (wlan_hdd_validate_context(hdd_ctx)) {
 		hddLog(LOGE, FL("HDD context is not valid"));
 		goto end;
 	}
 
-	if (adapter->device_mode != WLAN_HDD_OCB) {
+	if (adapter->device_mode != QDF_OCB_MODE) {
 		hddLog(LOGE, FL("Device not in OCB mode!"));
 		goto end;
 	}
@@ -1882,7 +1894,7 @@ static int __wlan_hdd_cfg80211_dcc_update_ndl(struct wiphy *wiphy,
 				&request);
 	if (rc) {
 		hddLog(LOGE, FL("Error calling SME function."));
-		/* Convert from cdf_status to errno */
+		/* Convert from qdf_status to errno */
 		return -EINVAL;
 	}
 

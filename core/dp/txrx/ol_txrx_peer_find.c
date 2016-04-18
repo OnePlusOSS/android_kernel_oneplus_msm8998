@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -28,8 +28,8 @@
 /*=== includes ===*/
 /* header files for OS primitives */
 #include <osdep.h>              /* uint32_t, etc. */
-#include <cdf_memory.h>         /* cdf_mem_malloc, etc. */
-#include <cdf_types.h>          /* cdf_device_t, cdf_print */
+#include <qdf_mem.h>         /* qdf_mem_malloc, etc. */
+#include <qdf_types.h>          /* qdf_device_t, qdf_print */
 /* header files for utilities */
 #include <cds_queue.h>          /* TAILQ */
 
@@ -119,7 +119,7 @@ static int ol_txrx_peer_find_hash_attach(struct ol_txrx_pdev_t *pdev)
 	pdev->peer_hash.idx_bits = log2;
 	/* allocate an array of TAILQ peer object lists */
 	pdev->peer_hash.bins =
-		cdf_mem_malloc(hash_elems *
+		qdf_mem_malloc(hash_elems *
 			       sizeof(TAILQ_HEAD(anonymous_tail_q,
 						 ol_txrx_peer_t)));
 	if (!pdev->peer_hash.bins)
@@ -133,7 +133,7 @@ static int ol_txrx_peer_find_hash_attach(struct ol_txrx_pdev_t *pdev)
 
 static void ol_txrx_peer_find_hash_detach(struct ol_txrx_pdev_t *pdev)
 {
-	cdf_mem_free(pdev->peer_hash.bins);
+	qdf_mem_free(pdev->peer_hash.bins);
 }
 
 static inline unsigned
@@ -157,7 +157,7 @@ ol_txrx_peer_find_hash_add(struct ol_txrx_pdev_t *pdev,
 	unsigned index;
 
 	index = ol_txrx_peer_find_hash_index(pdev, &peer->mac_addr);
-	cdf_spin_lock_bh(&pdev->peer_ref_mutex);
+	qdf_spin_lock_bh(&pdev->peer_ref_mutex);
 	/*
 	 * It is important to add the new peer at the tail of the peer list
 	 * with the bin index.  Together with having the hash_find function
@@ -166,7 +166,7 @@ ol_txrx_peer_find_hash_add(struct ol_txrx_pdev_t *pdev,
 	 * found first.
 	 */
 	TAILQ_INSERT_TAIL(&pdev->peer_hash.bins[index], peer, hash_list_elem);
-	cdf_spin_unlock_bh(&pdev->peer_ref_mutex);
+	qdf_spin_unlock_bh(&pdev->peer_ref_mutex);
 }
 
 struct ol_txrx_peer_t *ol_txrx_peer_vdev_find_hash(struct ol_txrx_pdev_t *pdev,
@@ -182,24 +182,24 @@ struct ol_txrx_peer_t *ol_txrx_peer_vdev_find_hash(struct ol_txrx_pdev_t *pdev,
 	if (mac_addr_is_aligned) {
 		mac_addr = (union ol_txrx_align_mac_addr_t *)peer_mac_addr;
 	} else {
-		cdf_mem_copy(&local_mac_addr_aligned.raw[0],
+		qdf_mem_copy(&local_mac_addr_aligned.raw[0],
 			     peer_mac_addr, OL_TXRX_MAC_ADDR_LEN);
 		mac_addr = &local_mac_addr_aligned;
 	}
 	index = ol_txrx_peer_find_hash_index(pdev, mac_addr);
-	cdf_spin_lock_bh(&pdev->peer_ref_mutex);
+	qdf_spin_lock_bh(&pdev->peer_ref_mutex);
 	TAILQ_FOREACH(peer, &pdev->peer_hash.bins[index], hash_list_elem) {
 		if (ol_txrx_peer_find_mac_addr_cmp(mac_addr, &peer->mac_addr) ==
 		    0 && (check_valid == 0 || peer->valid)
 		    && peer->vdev == vdev) {
 			/* found it - increment the ref count before releasing
 			   the lock */
-			cdf_atomic_inc(&peer->ref_cnt);
-			cdf_spin_unlock_bh(&pdev->peer_ref_mutex);
+			qdf_atomic_inc(&peer->ref_cnt);
+			qdf_spin_unlock_bh(&pdev->peer_ref_mutex);
 			return peer;
 		}
 	}
-	cdf_spin_unlock_bh(&pdev->peer_ref_mutex);
+	qdf_spin_unlock_bh(&pdev->peer_ref_mutex);
 	return NULL;            /* failure */
 }
 
@@ -215,23 +215,23 @@ struct ol_txrx_peer_t *ol_txrx_peer_find_hash_find(struct ol_txrx_pdev_t *pdev,
 	if (mac_addr_is_aligned) {
 		mac_addr = (union ol_txrx_align_mac_addr_t *)peer_mac_addr;
 	} else {
-		cdf_mem_copy(&local_mac_addr_aligned.raw[0],
+		qdf_mem_copy(&local_mac_addr_aligned.raw[0],
 			     peer_mac_addr, OL_TXRX_MAC_ADDR_LEN);
 		mac_addr = &local_mac_addr_aligned;
 	}
 	index = ol_txrx_peer_find_hash_index(pdev, mac_addr);
-	cdf_spin_lock_bh(&pdev->peer_ref_mutex);
+	qdf_spin_lock_bh(&pdev->peer_ref_mutex);
 	TAILQ_FOREACH(peer, &pdev->peer_hash.bins[index], hash_list_elem) {
 		if (ol_txrx_peer_find_mac_addr_cmp(mac_addr, &peer->mac_addr) ==
 		    0 && (check_valid == 0 || peer->valid)) {
 			/* found it - increment the ref count before
 			   releasing the lock */
-			cdf_atomic_inc(&peer->ref_cnt);
-			cdf_spin_unlock_bh(&pdev->peer_ref_mutex);
+			qdf_atomic_inc(&peer->ref_cnt);
+			qdf_spin_unlock_bh(&pdev->peer_ref_mutex);
 			return peer;
 		}
 	}
-	cdf_spin_unlock_bh(&pdev->peer_ref_mutex);
+	qdf_spin_unlock_bh(&pdev->peer_ref_mutex);
 	return NULL;            /* failure */
 }
 
@@ -256,9 +256,9 @@ ol_txrx_peer_find_hash_remove(struct ol_txrx_pdev_t *pdev,
 	 * peer ref count is decremented to zero, but just before the peer
 	 * object reference is removed from the hash table.
 	 */
-	/* cdf_spin_lock_bh(&pdev->peer_ref_mutex); */
+	/* qdf_spin_lock_bh(&pdev->peer_ref_mutex); */
 	TAILQ_REMOVE(&pdev->peer_hash.bins[index], peer, hash_list_elem);
-	/* cdf_spin_unlock_bh(&pdev->peer_ref_mutex); */
+	/* qdf_spin_unlock_bh(&pdev->peer_ref_mutex); */
 }
 
 void ol_txrx_peer_find_hash_erase(struct ol_txrx_pdev_t *pdev)
@@ -290,8 +290,8 @@ void ol_txrx_peer_find_hash_erase(struct ol_txrx_pdev_t *pdev)
 				 * 1, so it will get deleted by
 				 * ol_txrx_peer_unref_delete.
 				 */
-				cdf_atomic_init(&peer->ref_cnt); /* set to 0 */
-				cdf_atomic_inc(&peer->ref_cnt); /* incr to 1 */
+				qdf_atomic_init(&peer->ref_cnt); /* set to 0 */
+				qdf_atomic_inc(&peer->ref_cnt); /* incr to 1 */
 				TXRX_PRINT(TXRX_PRINT_LEVEL_ERR,
 					   "%s: Delete Peer %p\n", __func__,
 					   peer);
@@ -310,7 +310,7 @@ static int ol_txrx_peer_find_map_attach(struct ol_txrx_pdev_t *pdev)
 	/* allocate the peer ID -> peer object map */
 	max_peers = ol_cfg_max_peer_id(pdev->ctrl_pdev) + 1;
 	peer_map_size = max_peers * sizeof(pdev->peer_id_to_obj_map[0]);
-	pdev->peer_id_to_obj_map = cdf_mem_malloc(peer_map_size);
+	pdev->peer_id_to_obj_map = qdf_mem_malloc(peer_map_size);
 	if (!pdev->peer_id_to_obj_map)
 		return 1;       /* failure */
 
@@ -321,14 +321,14 @@ static int ol_txrx_peer_find_map_attach(struct ol_txrx_pdev_t *pdev)
 	 * However, it is convenient for debugging to have all elements
 	 * that are not in use set to 0.
 	 */
-	cdf_mem_set(pdev->peer_id_to_obj_map, peer_map_size, 0);
+	qdf_mem_set(pdev->peer_id_to_obj_map, peer_map_size, 0);
 
 	return 0;               /* success */
 }
 
 static void ol_txrx_peer_find_map_detach(struct ol_txrx_pdev_t *pdev)
 {
-	cdf_mem_free(pdev->peer_id_to_obj_map);
+	qdf_mem_free(pdev->peer_id_to_obj_map);
 }
 
 static inline void
@@ -359,7 +359,7 @@ ol_txrx_peer_find_add_id(struct ol_txrx_pdev_t *pdev,
 		}
 		if (ol_txrx_peer_find_add_id_to_obj(peer, peer_id)) {
 			/* TBDXXX: assert for now */
-			cdf_assert(0);
+			qdf_assert(0);
 		}
 		return;
 	}
@@ -434,19 +434,19 @@ struct ol_txrx_peer_t *ol_txrx_assoc_peer_find(struct ol_txrx_vdev_t *vdev)
 {
 	struct ol_txrx_peer_t *peer;
 
-	cdf_spin_lock_bh(&vdev->pdev->last_real_peer_mutex);
+	qdf_spin_lock_bh(&vdev->pdev->last_real_peer_mutex);
 	/*
 	 * Check the TXRX Peer is itself valid And also
 	 * if HTT Peer ID has been setup for this peer
 	 */
 	if (vdev->last_real_peer
 	    && vdev->last_real_peer->peer_ids[0] != HTT_INVALID_PEER_ID) {
-		cdf_atomic_inc(&vdev->last_real_peer->ref_cnt);
+		qdf_atomic_inc(&vdev->last_real_peer->ref_cnt);
 		peer = vdev->last_real_peer;
 	} else {
 		peer = NULL;
 	}
-	cdf_spin_unlock_bh(&vdev->pdev->last_real_peer_mutex);
+	qdf_spin_unlock_bh(&vdev->pdev->last_real_peer_mutex);
 	return peer;
 }
 
@@ -457,26 +457,26 @@ void ol_txrx_peer_find_display(ol_txrx_pdev_handle pdev, int indent)
 {
 	int i, max_peers;
 
-	CDF_TRACE(CDF_MODULE_ID_TXRX, CDF_TRACE_LEVEL_INFO_LOW,
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
 		  "%*speer map:\n", indent, " ");
 	max_peers = ol_cfg_max_peer_id(pdev->ctrl_pdev) + 1;
 	for (i = 0; i < max_peers; i++) {
 		if (pdev->peer_id_to_obj_map[i]) {
-			CDF_TRACE(CDF_MODULE_ID_TXRX, CDF_TRACE_LEVEL_INFO_LOW,
+			QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
 				  "%*sid %d -> %p\n",
 				  indent + 4, " ", i,
 				  pdev->peer_id_to_obj_map[i]);
 		}
 	}
-	CDF_TRACE(CDF_MODULE_ID_TXRX, CDF_TRACE_LEVEL_INFO_LOW,
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
 		  "%*speer hash table:\n", indent, " ");
 	for (i = 0; i <= pdev->peer_hash.mask; i++) {
 		if (!TAILQ_EMPTY(&pdev->peer_hash.bins[i])) {
 			struct ol_txrx_peer_t *peer;
 			TAILQ_FOREACH(peer, &pdev->peer_hash.bins[i],
 				      hash_list_elem) {
-				CDF_TRACE(CDF_MODULE_ID_TXRX,
-					  CDF_TRACE_LEVEL_INFO_LOW,
+				QDF_TRACE(QDF_MODULE_ID_TXRX,
+					  QDF_TRACE_LEVEL_INFO_LOW,
 					  "%*shash idx %d -> %p (%02x:%02x:%02x:%02x:%02x:%02x)\n",
 					indent + 4, " ", i, peer,
 					peer->mac_addr.raw[0],

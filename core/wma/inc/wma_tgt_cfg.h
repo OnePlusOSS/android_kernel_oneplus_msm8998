@@ -89,7 +89,6 @@ struct wma_tgt_ht_cap {
 	uint32_t num_rf_chains;
 };
 
-#ifdef WLAN_FEATURE_11AC
 /**
  * struct wma_tgt_vht_cap - vht capabalities
  * @vht_max_mpdu: vht max mpdu
@@ -121,7 +120,6 @@ struct wma_tgt_vht_cap {
 	uint32_t vht_max_ampdu_len_exp;
 	uint32_t vht_txop_ps;
 };
-#endif /* WLAN_FEATURE_11AC */
 
 /**
  * struct wma_dfs_radar_ind - dfs radar indication
@@ -154,12 +152,10 @@ struct wma_tgt_cfg {
 	uint8_t band_cap;
 	uint32_t reg_domain;
 	uint32_t eeprom_rd_ext;
-	struct cdf_mac_addr hw_macaddr;
+	struct qdf_mac_addr hw_macaddr;
 	struct wma_tgt_services services;
 	struct wma_tgt_ht_cap ht_cap;
-#ifdef WLAN_FEATURE_11AC
 	struct wma_tgt_vht_cap vht_cap;
-#endif
 	uint8_t max_intf_count;
 #ifdef WLAN_FEATURE_LPSS
 	uint8_t lpss_support;

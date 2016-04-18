@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -45,7 +45,7 @@
 #include "utils_global.h"
 #include "mac_init_api.h"
 
-#include "cdf_trace.h"
+#include "qdf_trace.h"
 
 #ifdef ANI_OS_TYPE_ANDROID
 #include <linux/kernel.h>
@@ -132,33 +132,33 @@ void log_dbg(tpAniSirGlobal pMac, uint8_t modId, uint32_t debugLevel,
 #endif
 }
 
-CDF_TRACE_LEVEL get_vos_debug_level(uint32_t debugLevel)
+QDF_TRACE_LEVEL get_vos_debug_level(uint32_t debugLevel)
 {
 	switch (debugLevel) {
 	case LOGP:
-		return CDF_TRACE_LEVEL_FATAL;
+		return QDF_TRACE_LEVEL_FATAL;
 	case LOGE:
-		return CDF_TRACE_LEVEL_ERROR;
+		return QDF_TRACE_LEVEL_ERROR;
 	case LOGW:
-		return CDF_TRACE_LEVEL_WARN;
+		return QDF_TRACE_LEVEL_WARN;
 	case LOG1:
-		return CDF_TRACE_LEVEL_INFO;
+		return QDF_TRACE_LEVEL_INFO;
 	case LOG2:
-		return CDF_TRACE_LEVEL_INFO_HIGH;
+		return QDF_TRACE_LEVEL_INFO_HIGH;
 	case LOG3:
-		return CDF_TRACE_LEVEL_INFO_MED;
+		return QDF_TRACE_LEVEL_INFO_MED;
 	case LOG4:
-		return CDF_TRACE_LEVEL_INFO_LOW;
+		return QDF_TRACE_LEVEL_INFO_LOW;
 	default:
-		return CDF_TRACE_LEVEL_INFO_LOW;
+		return QDF_TRACE_LEVEL_INFO_LOW;
 	}
 }
 
-static inline CDF_MODULE_ID get_vos_module_id(uint8_t modId)
+static inline QDF_MODULE_ID get_vos_module_id(uint8_t modId)
 {
 	switch (modId) {
 	case SIR_HAL_MODULE_ID:
-		return CDF_MODULE_ID_WMA;
+		return QDF_MODULE_ID_WMA;
 
 	case SIR_LIM_MODULE_ID:
 	case SIR_SCH_MODULE_ID:
@@ -166,16 +166,16 @@ static inline CDF_MODULE_ID get_vos_module_id(uint8_t modId)
 	case SIR_MNT_MODULE_ID:
 	case SIR_DPH_MODULE_ID:
 	case SIR_DBG_MODULE_ID:
-		return CDF_MODULE_ID_PE;
+		return QDF_MODULE_ID_PE;
 
 	case SIR_SYS_MODULE_ID:
-		return CDF_MODULE_ID_SYS;
+		return QDF_MODULE_ID_SYS;
 
 	case SIR_SMS_MODULE_ID:
-		return CDF_MODULE_ID_SME;
+		return QDF_MODULE_ID_SME;
 
 	default:
-		return CDF_MODULE_ID_SYS;
+		return QDF_MODULE_ID_SYS;
 	}
 }
 
@@ -183,18 +183,18 @@ static inline CDF_MODULE_ID get_vos_module_id(uint8_t modId)
 void log_debug(tpAniSirGlobal pMac, uint8_t modId, uint32_t debugLevel,
 	       const char *pStr, va_list marker)
 {
-	CDF_TRACE_LEVEL cdf_debug_level;
-	CDF_MODULE_ID cdf_module_id;
+	QDF_TRACE_LEVEL qdf_debug_level;
+	QDF_MODULE_ID qdf_module_id;
 	char logBuffer[LOG_SIZE];
 
-	cdf_debug_level = get_vos_debug_level(debugLevel);
-	cdf_module_id = get_vos_module_id(modId);
+	qdf_debug_level = get_vos_debug_level(debugLevel);
+	qdf_module_id = get_vos_module_id(modId);
 
 	vsnprintf(logBuffer, LOG_SIZE - 1, pStr, marker);
-	CDF_TRACE(cdf_module_id, cdf_debug_level, "%s", logBuffer);
+	QDF_TRACE(qdf_module_id, qdf_debug_level, "%s", logBuffer);
 
 	/* The caller must check loglevel */
-	CDF_ASSERT((debugLevel <=
+	QDF_ASSERT((debugLevel <=
 		    pMac->utils.gLogDbgLevel[LOG_INDEX_FOR_MODULE(modId)])
 		   && (LOGP != debugLevel));
 } /*** end log_debug() ***/

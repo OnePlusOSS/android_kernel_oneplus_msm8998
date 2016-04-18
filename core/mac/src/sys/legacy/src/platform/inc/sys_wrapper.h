@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -47,10 +47,10 @@ extern "C" {
 #include "sir_types.h"
 #include "sir_params.h"
 #include "sys_def.h"
-#include "cdf_mc_timer.h"
-#include "cdf_types.h"
-#include "cdf_trace.h"
-#include "cdf_memory.h"
+#include "qdf_mc_timer.h"
+#include "qdf_types.h"
+#include "qdf_trace.h"
+#include "qdf_mem.h"
 
 /* Interlocked Compare Exchange related definitions */
 
@@ -110,7 +110,7 @@ typedef struct TX_TIMER_STRUCT {
 	uint32_t expireInput;
 	uint64_t initScheduleTimeInMsecs;
 	uint64_t rescheduleTimeInMsecs;
-	cdf_mc_timer_t cdf_timer;
+	qdf_mc_timer_t qdf_timer;
 
 	/* Pointer to the MAC global structure, which stores the context for the NIC, */
 	/* for which this timer is supposed to operate. */

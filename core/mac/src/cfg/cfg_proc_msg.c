@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1524,7 +1524,49 @@ cgstatic cfg_static[CFG_PARAM_MAX_NUM] = {
 	CFG_CTL_NTF_LIM,
 	WNI_CFG_TDLS_WMM_MODE_ENABLED_STAMIN,
 	WNI_CFG_TDLS_WMM_MODE_ENABLED_STAMAX,
-	WNI_CFG_TDLS_WMM_MODE_ENABLED_STADEF}
+	WNI_CFG_TDLS_WMM_MODE_ENABLED_STADEF},
+	{WNI_CFG_OBSS_HT40_SCAN_PASSIVE_DWELL_TIME,
+	CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_INT |
+	CFG_CTL_NTF_LIM,
+	WNI_CFG_OBSS_HT40_SCAN_PASSIVE_DWELL_TIME_STAMIN,
+	WNI_CFG_OBSS_HT40_SCAN_PASSIVE_DWELL_TIME_STAMAX,
+	WNI_CFG_OBSS_HT40_SCAN_PASSIVE_DWELL_TIME_STADEF},
+	{WNI_CFG_OBSS_HT40_SCAN_ACTIVE_DWELL_TIME,
+	CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_INT |
+	CFG_CTL_NTF_LIM,
+	WNI_CFG_OBSS_HT40_SCAN_ACTIVE_DWELL_TIME_STAMIN,
+	WNI_CFG_OBSS_HT40_SCAN_ACTIVE_DWELL_TIME_STAMAX,
+	WNI_CFG_OBSS_HT40_SCAN_ACTIVE_DWELL_TIME_STADEF},
+	{WNI_CFG_OBSS_HT40_SCAN_WIDTH_TRIGGER_INTERVAL,
+	CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_INT |
+	CFG_CTL_NTF_LIM,
+	WNI_CFG_OBSS_HT40_SCAN_WIDTH_TRIGGER_INTERVAL_STAMIN,
+	WNI_CFG_OBSS_HT40_SCAN_WIDTH_TRIGGER_INTERVAL_STAMAX,
+	WNI_CFG_OBSS_HT40_SCAN_WIDTH_TRIGGER_INTERVAL_STADEF},
+	{WNI_CFG_OBSS_HT40_SCAN_PASSIVE_TOTAL_PER_CHANNEL,
+	CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_INT |
+	CFG_CTL_NTF_LIM,
+	WNI_CFG_OBSS_HT40_SCAN_PASSIVE_TOTAL_PER_CHANNEL_STAMIN,
+	WNI_CFG_OBSS_HT40_SCAN_PASSIVE_TOTAL_PER_CHANNEL_STAMAX,
+	WNI_CFG_OBSS_HT40_SCAN_PASSIVE_TOTAL_PER_CHANNEL_STADEF},
+	{WNI_CFG_OBSS_HT40_SCAN_ACTIVE_TOTAL_PER_CHANNEL,
+	CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_INT |
+	CFG_CTL_NTF_LIM,
+	WNI_CFG_OBSS_HT40_SCAN_ACTIVE_TOTAL_PER_CHANNEL_STAMIN,
+	WNI_CFG_OBSS_HT40_SCAN_ACTIVE_TOTAL_PER_CHANNEL_STAMAX,
+	WNI_CFG_OBSS_HT40_SCAN_ACTIVE_TOTAL_PER_CHANNEL_STADEF},
+	{WNI_CFG_OBSS_HT40_WIDTH_CH_TRANSITION_DELAY,
+	CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_INT |
+	CFG_CTL_NTF_LIM,
+	WNI_CFG_OBSS_HT40_WIDTH_CH_TRANSITION_DELAY_STAMIN,
+	WNI_CFG_OBSS_HT40_WIDTH_CH_TRANSITION_DELAY_STAMAX,
+	WNI_CFG_OBSS_HT40_WIDTH_CH_TRANSITION_DELAY_STADEF},
+	{WNI_CFG_OBSS_HT40_SCAN_ACTIVITY_THRESHOLD,
+	CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_INT |
+	CFG_CTL_NTF_LIM,
+	WNI_CFG_OBSS_HT40_SCAN_ACTIVITY_THRESHOLD_STAMIN,
+	WNI_CFG_OBSS_HT40_SCAN_ACTIVITY_THRESHOLD_STAMAX,
+	WNI_CFG_OBSS_HT40_SCAN_ACTIVITY_THRESHOLD_STADEF}
 };
 
 
@@ -1821,8 +1863,8 @@ void cfg_process_mb_msg(tpAniSirGlobal pMac, tSirMbMsg *pMsg)
 	/* Use type[7:0] as index to function table */
 	index = CFG_GET_FUNC_INDX(pMsg->type);
 
-	if (index >= CDF_ARRAY_SIZE(g_cfg_func)) {
-		cdf_mem_free(pMsg);
+	if (index >= QDF_ARRAY_SIZE(g_cfg_func)) {
+		qdf_mem_free(pMsg);
 		return;
 	}
 	len = pMsg->msgLen - WNI_CFG_MB_HDR_LEN;
@@ -1832,7 +1874,7 @@ void cfg_process_mb_msg(tpAniSirGlobal pMac, tSirMbMsg *pMsg)
 	g_cfg_func[index] (pMac, len, pParam);
 
 	/* Free up buffer */
-	cdf_mem_free(pMsg);
+	qdf_mem_free(pMsg);
 
 } /*** end cfg_process_mb_msg() ***/
 
@@ -2490,7 +2532,7 @@ process_cfg_download_req(tpAniSirGlobal pMac)
 	uint32_t    index;
 	uint8_t    *pDstTest, *pSrcTest;
 	uint8_t     len;
-	cfgstatic_string *pStrCfg;
+	cfgstatic_string * pStrCfg;
 	uint32_t    bufStart, bufEnd;
 	uint32_t    logLevel, retVal;
 	uint32_t    iCount = 0;
@@ -2499,7 +2541,7 @@ process_cfg_download_req(tpAniSirGlobal pMac)
 	for (i = 0; i < CFG_PARAM_MAX_NUM ; i++) {
 		if ((cfg_static[i].control & CFG_CTL_VALID) != 0) {
 			if (!(cfg_static[i].control & CFG_CTL_INT)) {
-				pStrCfg = (cfgstatic_string *)cfg_static[i].
+				pStrCfg = (cfgstatic_string*)cfg_static[i].
 								pStrData;
 				if (pStrCfg == NULL) {
 					PELOGE(cfg_log(pMac, LOGE,
@@ -2552,7 +2594,7 @@ process_cfg_download_req(tpAniSirGlobal pMac)
 				continue;
 
 			pDstTest = &pMac->cfg.gCfgSBuf[index];
-			pStrCfg = (cfgstatic_string *)cfg_static[i].pStrData;
+			pStrCfg = (cfgstatic_string*)cfg_static[i].pStrData;
 			pSrcTest = pStrCfg->data;
 			if ((pDstTest == NULL) || (pStrCfg == NULL) ||
 							(pSrcTest == NULL))

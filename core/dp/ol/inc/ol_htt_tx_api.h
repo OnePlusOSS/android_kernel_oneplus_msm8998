@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -39,14 +39,14 @@
 
 /* #include <osapi_linux.h>    / * uint16_t, etc. * / */
 #include <osdep.h>              /* uint16_t, etc. */
-#include <cdf_nbuf.h>           /* cdf_nbuf_t */
+#include <qdf_nbuf.h>           /* qdf_nbuf_t */
 #include <ol_cfg.h>             /* wlan_frm_fmt */
 
 #include <htt.h>                /* needed by inline functions */
-#include <cdf_net_types.h>
+#include <qdf_net_types.h>
 #include <ol_htt_api.h>         /* htt_pdev_handle */
 #include <htt_types.h>
-#include <cdf_trace.h>
+#include <qdf_trace.h>
 
 /* Remove these macros when they get added to htt.h. */
 #ifndef HTT_TX_DESC_EXTENSION_GET
@@ -256,13 +256,13 @@ struct htt_msdu_info_t {
 		   uint8_t *dest_addr;
 		 */
 
-		uint8_t l3_hdr_offset;  /* wrt cdf_nbuf_data(msdu), in bytes */
+		uint8_t l3_hdr_offset;  /* wrt qdf_nbuf_data(msdu), in bytes */
 
 		/* l4_hdr_offset is not currently used.
 		 * It could be used to specify to a TCP/UDP checksum computation
 		 * engine where the TCP/UDP header starts.
 		 */
-		/* uint8_t l4_hdr_offset; - wrt cdf_nbuf_data(msdu), in bytes */
+		/* uint8_t l4_hdr_offset; - wrt qdf_nbuf_data(msdu), in bytes */
 	} info;
 	/* the action sub-struct specifies how to process the MSDU */
 	struct {
@@ -281,41 +281,41 @@ struct htt_msdu_info_t {
 		 * 0x2 - L4 checksum only
 		 * 0x3 - L3 header checksum + L4 checksum
 		 */
-		cdf_nbuf_tx_cksum_t cksum_offload;
+		qdf_nbuf_tx_cksum_t cksum_offload;
 	} action;
 };
 
 static inline void htt_msdu_info_dump(struct htt_msdu_info_t *msdu_info)
 {
-	CDF_TRACE(CDF_MODULE_ID_TXRX, CDF_TRACE_LEVEL_INFO_LOW,
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
 		  "HTT MSDU info object (%p)\n", msdu_info);
-	CDF_TRACE(CDF_MODULE_ID_TXRX, CDF_TRACE_LEVEL_INFO_LOW,
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
 		  "  ethertype: %#x\n", msdu_info->info.ethertype);
-	CDF_TRACE(CDF_MODULE_ID_TXRX, CDF_TRACE_LEVEL_INFO_LOW,
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
 		  "  peer_id: %d\n", msdu_info->info.peer_id);
-	CDF_TRACE(CDF_MODULE_ID_TXRX, CDF_TRACE_LEVEL_INFO_LOW,
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
 		  "  vdev_id: %d\n", msdu_info->info.vdev_id);
-	CDF_TRACE(CDF_MODULE_ID_TXRX, CDF_TRACE_LEVEL_INFO_LOW,
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
 		  "  ext_tid: %d\n", msdu_info->info.ext_tid);
-	CDF_TRACE(CDF_MODULE_ID_TXRX, CDF_TRACE_LEVEL_INFO_LOW,
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
 		  "  l2_hdr_type: %d\n", msdu_info->info.l2_hdr_type);
-	CDF_TRACE(CDF_MODULE_ID_TXRX, CDF_TRACE_LEVEL_INFO_LOW,
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
 		  "  frame_type: %d\n", msdu_info->info.frame_type);
-	CDF_TRACE(CDF_MODULE_ID_TXRX, CDF_TRACE_LEVEL_INFO_LOW,
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
 		  "  frame_subtype: %d\n", msdu_info->info.frame_subtype);
-	CDF_TRACE(CDF_MODULE_ID_TXRX, CDF_TRACE_LEVEL_INFO_LOW,
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
 		  "  is_unicast: %u\n", msdu_info->info.is_unicast);
-	CDF_TRACE(CDF_MODULE_ID_TXRX, CDF_TRACE_LEVEL_INFO_LOW,
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
 		  "  l3_hdr_offset: %u\n", msdu_info->info.l3_hdr_offset);
-	CDF_TRACE(CDF_MODULE_ID_TXRX, CDF_TRACE_LEVEL_INFO_LOW,
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
 		  "  use 6 Mbps: %d\n", msdu_info->action.use_6mbps);
-	CDF_TRACE(CDF_MODULE_ID_TXRX, CDF_TRACE_LEVEL_INFO_LOW,
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
 		  "  do_encrypt: %d\n", msdu_info->action.do_encrypt);
-	CDF_TRACE(CDF_MODULE_ID_TXRX, CDF_TRACE_LEVEL_INFO_LOW,
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
 		  "  do_tx_complete: %d\n", msdu_info->action.do_tx_complete);
-	CDF_TRACE(CDF_MODULE_ID_TXRX, CDF_TRACE_LEVEL_INFO_LOW,
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
 		  "  is_unicast: %u\n", msdu_info->info.is_unicast);
-	CDF_TRACE(CDF_MODULE_ID_TXRX, CDF_TRACE_LEVEL_INFO_LOW,
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
 		  "  is_unicast: %u\n", msdu_info->info.is_unicast);
 }
 
@@ -357,7 +357,7 @@ uint16_t htt_tx_compl_desc_id(void *iterator, int num);
  * @param[OUT] paddr_lo - physical address of the HTT descriptor
  * @return success -> descriptor handle, -OR- failure -> NULL
  */
-void *htt_tx_desc_alloc(htt_pdev_handle pdev, uint32_t *paddr_lo,
+void *htt_tx_desc_alloc(htt_pdev_handle pdev, qdf_dma_addr_t *paddr,
 			uint16_t index);
 
 /**
@@ -381,10 +381,10 @@ void htt_tx_desc_free(htt_pdev_handle htt_pdev, void *htt_tx_desc);
  * @return success 0
  */
 int htt_tx_frag_alloc(htt_pdev_handle pdev,
-	u_int16_t index, u_int32_t *frag_paddr_lo, void **frag_ptr);
+	u_int16_t index, qdf_dma_addr_t *frag_paddr, void **frag_ptr);
 #else
 static inline int htt_tx_frag_alloc(htt_pdev_handle pdev,
-	u_int16_t index, u_int32_t *frag_paddr_lo, void **frag_ptr)
+	u_int16_t index, qdf_dma_addr_t *frag_paddr, void **frag_ptr)
 {
 	*frag_ptr = NULL;
 	return 0;
@@ -419,7 +419,7 @@ void htt_tx_pending_discard(htt_pdev_handle pdev);
  *  function assumes the tx frame is the default frame type, as specified
  *  by ol_cfg_frame_type.  "Raw" frames need to be transmitted through the
  *  alternate htt_tx_send_nonstd function.
- *  The tx descriptor has already been attached to the cdf_nbuf object during
+ *  The tx descriptor has already been attached to the qdf_nbuf object during
  *  a preceding call to htt_tx_desc_init.
  *
  * @param htt_pdev - the handle of the physical device sending the tx data
@@ -428,7 +428,7 @@ void htt_tx_pending_discard(htt_pdev_handle pdev);
  * @return 0 -> success, -OR- 1 -> failure
  */
 int
-htt_tx_send_std(htt_pdev_handle htt_pdev, cdf_nbuf_t msdu, uint16_t msdu_id);
+htt_tx_send_std(htt_pdev_handle htt_pdev, qdf_nbuf_t msdu, uint16_t msdu_id);
 
 /**
  * @brief Download a Batch Of Tx MSDUs
@@ -442,9 +442,9 @@ htt_tx_send_std(htt_pdev_handle htt_pdev, cdf_nbuf_t msdu, uint16_t msdu_id);
  * @param num_msdus - The total Number of MSDU's provided for batch tx
  * @return null-terminated linked-list of unaccepted frames
  */
-cdf_nbuf_t
+qdf_nbuf_t
 htt_tx_send_batch(htt_pdev_handle htt_pdev,
-		  cdf_nbuf_t head_msdu, int num_msdus);
+		  qdf_nbuf_t head_msdu, int num_msdus);
 
 /* The htt scheduler for queued packets in htt
  * htt when unable to send to HTC because of lack of resource
@@ -459,7 +459,7 @@ void htt_tx_sched(htt_pdev_handle pdev);
  */
 int
 htt_tx_send_nonstd(htt_pdev_handle htt_pdev,
-		   cdf_nbuf_t msdu,
+		   qdf_nbuf_t msdu,
 		   uint16_t msdu_id, enum htt_pkt_type pkt_type);
 
 /**
@@ -530,10 +530,10 @@ static inline
 void
 htt_tx_desc_init(htt_pdev_handle pdev,
 		 void *htt_tx_desc,
-		 uint32_t htt_tx_desc_paddr_lo,
+		 qdf_dma_addr_t htt_tx_desc_paddr,
 		 uint16_t msdu_id,
-		 cdf_nbuf_t msdu, struct htt_msdu_info_t *msdu_info,
-		 struct cdf_tso_info_t *tso_info,
+		 qdf_nbuf_t msdu, struct htt_msdu_info_t *msdu_info,
+		 struct qdf_tso_info_t *tso_info,
 		 struct ocb_tx_ctrl_hdr_t *tx_ctrl,
 		 uint8_t is_dsrc)
 {
@@ -565,15 +565,15 @@ htt_tx_desc_init(htt_pdev_handle pdev,
 
 	pkt_type = msdu_info->info.l2_hdr_type;
 
-	if (cdf_likely(pdev->cfg.ce_classify_enabled)) {
-		if (cdf_likely(pkt_type == htt_pkt_type_eth2 ||
+	if (qdf_likely(pdev->cfg.ce_classify_enabled)) {
+		if (qdf_likely(pkt_type == htt_pkt_type_eth2 ||
 			pkt_type == htt_pkt_type_ethernet))
-			cdf_nbuf_tx_info_get(msdu, pkt_type, pkt_subtype,
+			qdf_nbuf_tx_info_get(msdu, pkt_type, pkt_subtype,
 				     hw_classify);
 
 		ce_pkt_type = htt_to_ce_pkt_type[pkt_type];
 		if (0xffffffff == ce_pkt_type) {
-			CDF_TRACE(CDF_MODULE_ID_TXRX, CDF_TRACE_LEVEL_DEBUG,
+			QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_DEBUG,
 			"Invalid HTT pkt type %d\n", pkt_type);
 			return;
 		}
@@ -608,12 +608,10 @@ htt_tx_desc_init(htt_pdev_handle pdev,
 
 	local_word1 = 0;
 
-#if defined(FEATURE_TSO)
 	if (tso_info->is_tso)
 		HTT_TX_DESC_FRM_LEN_SET(local_word1, tso_info->total_len);
 	else
-#endif
-		HTT_TX_DESC_FRM_LEN_SET(local_word1, cdf_nbuf_len(msdu));
+		HTT_TX_DESC_FRM_LEN_SET(local_word1, qdf_nbuf_len(msdu));
 
 	HTT_TX_DESC_FRM_ID_SET(local_word1, msdu_id);
 	*word1 = local_word1;
@@ -661,8 +659,8 @@ htt_tx_desc_init(htt_pdev_handle pdev,
 
 		local_desc_ext.is_dsrc = (is_dsrc != 0);
 
-		cdf_nbuf_push_head(msdu, sizeof(local_desc_ext));
-		cdf_mem_copy(cdf_nbuf_data(msdu), &local_desc_ext,
+		qdf_nbuf_push_head(msdu, sizeof(local_desc_ext));
+		qdf_mem_copy(qdf_nbuf_data(msdu), &local_desc_ext,
 				sizeof(local_desc_ext));
 	}
 
@@ -677,14 +675,13 @@ htt_tx_desc_init(htt_pdev_handle pdev,
 	 * Setting the flag for this final fragment suffices for specifying
 	 * all fragments provided by the OS rather than added by the driver.
 	 */
-	cdf_nbuf_set_frag_is_wordstream(msdu, cdf_nbuf_get_num_frags(msdu) - 1,
+	qdf_nbuf_set_frag_is_wordstream(msdu, qdf_nbuf_get_num_frags(msdu) - 1,
 					0);
 
 	/* store a link to the HTT tx descriptor within the netbuf */
-	cdf_nbuf_frag_push_head(msdu, sizeof(struct htt_host_tx_desc_t),
+	qdf_nbuf_frag_push_head(msdu, sizeof(struct htt_host_tx_desc_t),
 				(char *)htt_host_tx_desc, /* virtual addr */
-				htt_tx_desc_paddr_lo,
-				0 /* phys addr MSBs - n/a */);
+				htt_tx_desc_paddr);
 
 	/*
 	 * Indicate that the HTT header (and HTC header) is a meta-data
@@ -694,17 +691,17 @@ htt_tx_desc_init(htt_pdev_handle pdev,
 	 * the host is big-endian, to convert to the target's little-endian
 	 * format.
 	 */
-	cdf_nbuf_set_frag_is_wordstream(msdu, 0, 1);
+	qdf_nbuf_set_frag_is_wordstream(msdu, 0, 1);
 
-	if (cdf_likely(pdev->cfg.ce_classify_enabled &&
+	if (qdf_likely(pdev->cfg.ce_classify_enabled &&
 		(msdu_info->info.l2_hdr_type != htt_pkt_type_mgmt))) {
-		uint32_t pkt_offset = cdf_nbuf_get_frag_len(msdu, 0);
-		data_attr = hw_classify << CDF_CE_TX_CLASSIFY_BIT_S;
-		data_attr |= ce_pkt_type << CDF_CE_TX_PKT_TYPE_BIT_S;
-		data_attr |= pkt_offset  << CDF_CE_TX_PKT_OFFSET_BIT_S;
+		uint32_t pkt_offset = qdf_nbuf_get_frag_len(msdu, 0);
+		data_attr = hw_classify << QDF_CE_TX_CLASSIFY_BIT_S;
+		data_attr |= ce_pkt_type << QDF_CE_TX_PKT_TYPE_BIT_S;
+		data_attr |= pkt_offset  << QDF_CE_TX_PKT_OFFSET_BIT_S;
 	}
 
-	cdf_nbuf_data_attr_set(msdu, data_attr);
+	qdf_nbuf_data_attr_set(msdu, data_attr);
 }
 
 /**
@@ -764,15 +761,14 @@ htt_tx_desc_num_frags(htt_pdev_handle pdev, void *desc, uint32_t num_frags)
 	 */
 #if defined(HELIUMPLUS_PADDR64)
 	if (HTT_WIFI_IP(pdev, 2, 0)) {
+		struct msdu_ext_frag_desc *fdesc;
+
 		/** Skip TSO related 4 dwords WIFI2.0*/
-		desc = (void *)&(((struct msdu_ext_desc_t *)desc)->frag_ptr0);
-		/* Frag ptr is 48 bit wide so clear the next dword as well */
-		*((uint32_t *)(((char *)desc) + (num_frags << 3))) = 0;
-		*((uint32_t *)
-		  (((char *)desc) + (num_frags << 3) + sizeof(uint32_t))) = 0;
-		/* TODO: OKA: remove the magic constants */
+		fdesc = (struct msdu_ext_frag_desc *)
+			&(((struct msdu_ext_desc_t *)desc)->frags[0]);
+		fdesc[num_frags].u.desc64 = 0;
 	} else {
-		/* XXXOKA -- Looks like a bug, called with htt_frag_desc */
+		/* This piece of code should never be executed on HELIUMPLUS */
 		*((u_int32_t *)
 		  (((char *) desc) + HTT_TX_DESC_LEN + num_frags * 8)) = 0;
 	}
@@ -811,54 +807,65 @@ static inline
 void
 htt_tx_desc_frag(htt_pdev_handle pdev,
 		 void *desc,
-		 int frag_num, uint32_t frag_phys_addr, uint16_t frag_len)
+		 int frag_num, qdf_dma_addr_t frag_phys_addr, uint16_t frag_len)
 {
-	u_int32_t *word;
-
+	uint32_t *word32;
 #if defined(HELIUMPLUS_PADDR64)
+	uint64_t  *word64;
+
 	if (HTT_WIFI_IP(pdev, 2, 0)) {
-		word = (u_int32_t *)(desc);
+		word32 = (u_int32_t *)(desc);
 		/* Initialize top 6 words of TSO flags per packet */
-		*word++ = 0;
-		*word++ = 0;
-		*word++ = 0;
+		*word32++ = 0;
+		*word32++ = 0;
+		*word32++ = 0;
 		if (((struct txrx_pdev_cfg_t *)(pdev->ctrl_pdev))
 		    ->ip_tcp_udp_checksum_offload)
-			*word |= (IPV4_CSUM_EN | TCP_IPV4_CSUM_EN |
+			*word32 |= (IPV4_CSUM_EN | TCP_IPV4_CSUM_EN |
 					TCP_IPV6_CSUM_EN | UDP_IPV4_CSUM_EN |
 					UDP_IPV6_CSUM_EN);
 		else
-			*word = 0;
-		word++;
-		*word++ = 0;
-		*word++ = 0;
+			*word32 = 0;
+		word32++;
+		*word32++ = 0;
+		*word32++ = 0;
 
-		cdf_assert_always(word == &(((struct msdu_ext_desc_t *)
-					     desc)->frag_ptr0));
+		qdf_assert_always(word32 == (uint32_t *)
+				&(((struct msdu_ext_desc_t *)desc)->frags[0]));
 
 		/* Each fragment consumes 2 DWORDS */
-		word += (frag_num << 1);
-		*word = frag_phys_addr;
-
-		word++;
-		*word = (frag_len<<16);
-
+		word32 += (frag_num << 1);
+		word64 = (uint64_t *)word32;
+		*word64 = frag_phys_addr;
+		/* The frag_phys address is 37 bits. So, the higher 16 bits will be
+		   for len */
+		word32++;
+		*word32 &= 0x0000ffff;
+		*word32 |= (frag_len << 16);
 	} else {
 		/* For Helium+, this block cannot exist */
-		CDF_ASSERT(0);
+		QDF_ASSERT(0);
 	}
 #else /* !defined(HELIUMPLUS_PADDR64) */
-	word = (uint32_t *) (((char *)desc) + HTT_TX_DESC_LEN + frag_num * 8);
-	*word = frag_phys_addr;
-	word++;
-	*word = frag_len;
+	{
+		uint64_t u64  = (uint64_t)frag_phys_addr;
+		uint32_t u32l = (u64 & 0xffffffff);
+		uint32_t u32h = (uint32_t)((u64 >> 32) & 0x1f);
+		uint64_t *word64;
+
+		word32 = (uint32_t *) (((char *)desc) + HTT_TX_DESC_LEN + frag_num * 8);
+		word64 = (uint64_t *)word32;
+		*word32 = u32l;
+		word32++;
+		*word32 = (u32h << 16) | frag_len;
+	}
 #endif /* defined(HELIUMPLUS_PADDR64) */
 }
 
 void htt_tx_desc_frags_table_set(htt_pdev_handle pdev,
 				 void *desc,
-				 uint32_t paddr,
-				 uint32_t frag_desc_paddr_lo,
+				 qdf_dma_addr_t paddr,
+				 qdf_dma_addr_t frag_desc_paddr,
 				 int reset);
 
 /**
@@ -902,9 +909,9 @@ void htt_tx_mgmt_desc_pool_alloc(struct htt_pdev_t *pdev, A_UINT32 num_elems);
  * @param  - pointer to the mamangement from UMAC
  * @return - pointer the allocated mgmt descriptor
  */
-cdf_nbuf_t
+qdf_nbuf_t
 htt_tx_mgmt_desc_alloc(struct htt_pdev_t *pdev, A_UINT32 *desc_id,
-		       cdf_nbuf_t mgmt_frm);
+		       qdf_nbuf_t mgmt_frm);
 
 /** htt_tx_mgmt_desc_free
  * @description - releases the management descriptor back to the pool
@@ -972,7 +979,7 @@ void htt_tx_desc_set_chanfreq(void *htt_tx_desc, uint16_t chanfreq)
 #if defined(FEATURE_TSO)
 void
 htt_tx_desc_fill_tso_info(htt_pdev_handle pdev, void *desc,
-	 struct cdf_tso_info_t *tso_info);
+	 struct qdf_tso_info_t *tso_info);
 #else
 #define htt_tx_desc_fill_tso_info(pdev, desc, tso_info)
 #endif

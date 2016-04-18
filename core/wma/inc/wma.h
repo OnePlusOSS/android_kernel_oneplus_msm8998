@@ -29,18 +29,17 @@
 #define WMA_H
 
 #include "a_types.h"
-#include "cdf_types.h"
+#include "qdf_types.h"
 #include "osapi_linux.h"
 #include "htc_packet.h"
-#include "i_cdf_event.h"
+#include "i_qdf_event.h"
 #include "wmi_services.h"
 #include "wmi_unified.h"
 #include "wmi_version.h"
-#include "cdf_types.h"
+#include "qdf_types.h"
 #include "cfg_api.h"
-#include "cdf_status.h"
+#include "qdf_status.h"
 #include "cds_sched.h"
-#include "ol_txrx_api.h"
 #include "sir_mac_prot_def.h"
 #include "wma_types.h"
 #include "ol_txrx_types.h"
@@ -48,6 +47,7 @@
 #include "utils_api.h"
 #include "lim_types.h"
 #include "wmi_unified_api.h"
+#include "cdp_txrx_cmn.h"
 
 /* Platform specific configuration for max. no. of fragments */
 #define QCA_OL_11AC_TX_MAX_FRAGS            2
@@ -93,27 +93,28 @@
 #define WMA_11P_CHANNEL_END             (184)
 
 #define WMA_LOGD(args ...) \
-	CDF_TRACE(CDF_MODULE_ID_WMA, CDF_TRACE_LEVEL_DEBUG, ## args)
+	QDF_TRACE(QDF_MODULE_ID_WMA, QDF_TRACE_LEVEL_DEBUG, ## args)
 #define WMA_LOGI(args ...) \
-	CDF_TRACE(CDF_MODULE_ID_WMA, CDF_TRACE_LEVEL_INFO, ## args)
+	QDF_TRACE(QDF_MODULE_ID_WMA, QDF_TRACE_LEVEL_INFO, ## args)
 #define WMA_LOGW(args ...) \
-	CDF_TRACE(CDF_MODULE_ID_WMA, CDF_TRACE_LEVEL_WARN, ## args)
+	QDF_TRACE(QDF_MODULE_ID_WMA, QDF_TRACE_LEVEL_WARN, ## args)
 #define WMA_LOGE(args ...) \
-	CDF_TRACE(CDF_MODULE_ID_WMA, CDF_TRACE_LEVEL_ERROR, ## args)
+	QDF_TRACE(QDF_MODULE_ID_WMA, QDF_TRACE_LEVEL_ERROR, ## args)
 #define WMA_LOGP(args ...) \
-	CDF_TRACE(CDF_MODULE_ID_WMA, CDF_TRACE_LEVEL_FATAL, ## args)
+	QDF_TRACE(QDF_MODULE_ID_WMA, QDF_TRACE_LEVEL_FATAL, ## args)
 
 #define WMA_DEBUG_ALWAYS
 
 #ifdef WMA_DEBUG_ALWAYS
 #define WMA_LOGA(args ...) \
-	CDF_TRACE(CDF_MODULE_ID_WMA, CDF_TRACE_LEVEL_FATAL, ## args)
+	QDF_TRACE(QDF_MODULE_ID_WMA, QDF_TRACE_LEVEL_FATAL, ## args)
 #else
 #define WMA_LOGA(args ...)
 #endif
 
 #define     ALIGNED_WORD_SIZE       4
 #define WLAN_HAL_MSG_TYPE_MAX_ENUM_SIZE    0x7FFF
+#define WMA_WILDCARD_PDEV_ID 0x0
 
 /* Prefix used by scan req ids generated on the host */
 #define WMA_HOST_SCAN_REQID_PREFIX       0xA000
@@ -204,19 +205,6 @@
 
 #define WMA_BSS_STATUS_STARTED 0x1
 #define WMA_BSS_STATUS_STOPPED 0x2
-
-#define WMA_FW_PHY_STATS        0x1
-#define WMA_FW_RX_REORDER_STATS 0x2
-#define WMA_FW_RX_RC_STATS      0x3
-#define WMA_FW_TX_PPDU_STATS    0x4
-#define WMA_FW_TX_CONCISE_STATS 0x5
-#define WMA_FW_TX_RC_STATS      0x6
-#define WMA_FW_TXBF_INFO_STATS  0x07
-#define WMA_FW_SND_INFO_STATS   0x08
-#define WMA_FW_ERROR_INFO_STATS 0x09
-#define WMA_FW_TX_SELFGEN_INFO_STATS 0xa
-#define WMA_FW_RX_REM_RING_BUF  0xc
-#define WMA_FW_RX_TXBF_MUSU_NDPA 0xf
 
 #define WMA_TARGET_REQ_TYPE_VDEV_START 0x1
 #define WMA_TARGET_REQ_TYPE_VDEV_STOP  0x2
@@ -354,6 +342,9 @@
 #define WMA_VHT_PPS_DELIM_CRC_FAIL 3
 
 #define WMA_DFS_MAX_20M_SUB_CH 8
+#define WMA_80MHZ_START_CENTER_CH_DIFF 6
+#define WMA_160MHZ_START_CENTER_CH_DIFF 14
+#define WMA_NEXT_20MHZ_START_CH_DIFF 4
 
 #define WMA_DEFAULT_HW_MODE_INDEX 0xFFFF
 
@@ -381,6 +372,8 @@ static const t_probeTime_dwellTime
 	{28, 11},               /* 9 SSID */
 	{28, 8}                 /* 10 SSID */
 };
+
+typedef void (*txFailIndCallback)(uint8_t *peer_mac, uint8_t seqNo);
 
 /**
  * enum t_wma_drv_type - wma driver type
@@ -453,6 +446,18 @@ enum wma_tdls_peer_reason {
 #endif /* FEATURE_WLAN_TDLS */
 
 /**
+ * enum wma_rx_exec_ctx - wma rx execution context
+ * @WMA_RX_WORK_CTX: work queue context execution
+ * @WMA_RX_TASKLET_CTX: tasklet context execution
+ * @WMA_RX_SERIALIZER_CTX: MC thread context execution
+ *
+ */
+enum wma_rx_exec_ctx {
+	WMA_RX_WORK_CTX,
+	WMA_RX_TASKLET_CTX,
+	WMA_RX_SERIALIZER_CTX
+};
+/**
  * struct wma_mem_chunk - memory chunks
  * @vaddr: virtual address
  * @paddr: physical address
@@ -466,7 +471,7 @@ enum wma_tdls_peer_reason {
 struct wma_mem_chunk {
 	uint32_t *vaddr;
 	uint32_t paddr;
-	cdf_dma_mem_context(memctx);
+	qdf_dma_mem_context(memctx);
 	uint32_t len;
 	uint32_t req_id;
 };
@@ -509,7 +514,7 @@ struct scan_param {
  * @lock: lock
  */
 struct beacon_info {
-	cdf_nbuf_t buf;
+	qdf_nbuf_t buf;
 	uint32_t len;
 	uint8_t dma_mapped;
 	uint32_t tim_ie_offset;
@@ -519,7 +524,7 @@ struct beacon_info {
 	uint16_t noa_sub_ie_len;
 	uint8_t *noa_ie;
 	uint16_t p2p_ie_offset;
-	cdf_spinlock_t lock;
+	qdf_spinlock_t lock;
 };
 
 /**
@@ -765,7 +770,7 @@ typedef struct {
 	A_UINT32 requestor_id;
 	A_UINT32 disable_hw_ack;
 	wmi_channel chan;
-	cdf_atomic_t hidden_ssid_restart_in_progress;
+	qdf_atomic_t hidden_ssid_restart_in_progress;
 	uint8_t ssidHidden;
 } vdev_restart_params_t;
 
@@ -843,7 +848,7 @@ struct wma_txrx_node {
 	bool nlo_match_evt_received;
 	bool pno_in_progress;
 #endif
-#if defined(FEATURE_WLAN_ESE) && defined(FEATURE_WLAN_ESE_UPLOAD)
+#ifdef FEATURE_WLAN_ESE
 	bool plm_in_progress;
 #endif
 	bool ptrn_match_enable;
@@ -870,7 +875,7 @@ struct wma_txrx_node {
 	tAniGetPEStatsRsp *stats_rsp;
 	uint8_t fw_stats_set;
 	void *del_staself_req;
-	cdf_atomic_t bss_status;
+	qdf_atomic_t bss_status;
 	uint8_t rate_flags;
 	uint8_t nss;
 	bool is_channel_switch;
@@ -878,9 +883,7 @@ struct wma_txrx_node {
 	int8_t tx_power;
 	int8_t max_tx_power;
 	uint32_t nwType;
-#if defined WLAN_FEATURE_VOWIFI_11R
 	void *staKeyParams;
-#endif
 	bool ps_enabled;
 	uint32_t dtim_policy;
 	uint32_t peer_count;
@@ -897,6 +900,7 @@ struct wma_txrx_node {
 	uint32_t rx_streams;
 	uint32_t chain_mask;
 	uint32_t mac_id;
+	bool roaming_in_progress;
 };
 
 #if defined(QCA_WIFI_FTM)
@@ -928,7 +932,7 @@ typedef struct {
 struct utf_event_info {
 	uint8_t *data;
 	uint32_t length;
-	cdf_size_t offset;
+	qdf_size_t offset;
 	uint8_t currentSeq;
 	uint8_t expectedSeq;
 };
@@ -991,7 +995,7 @@ struct dbs_hw_mode_info {
 struct wmi_desc_t {
 	pWMATxRxCompFunc tx_cmpl_cb;
 	pWMAAckFnTxComp  ota_post_proc_cb;
-	cdf_nbuf_t	 nbuf;
+	qdf_nbuf_t	 nbuf;
 	uint32_t	 desc_id;
 };
 
@@ -1024,14 +1028,15 @@ struct dual_mac_config {
 
 };
 
+
 /**
- * struct wmi_init_cmd - Saved wmi INIT command
- * @buf: Buffer containing the wmi INIT command
- * @buf_len: Length of the buffer
+ * struct wma_ini_config - Structure to hold wma ini configuration
+ * @max_no_of_peers: Max Number of supported
+ *
+ * Placeholder for WMA ini parameters.
  */
-struct wmi_init_cmd {
-	wmi_buf_t buf;
-	uint32_t buf_len;
+struct wma_ini_config {
+	uint8_t max_no_of_peers;
 };
 
 /**
@@ -1057,7 +1062,7 @@ struct wmi_init_cmd {
  * @egap_support: Enhanced Green AP support flag
  * @wmi_ready: wmi status flag
  * @wlan_init_status: wlan init status
- * @cdf_dev: cdf device
+ * @qdf_dev: qdf device
  * @phy_capability: PHY Capability from Target
  * @max_frag_entry: Max number of Fragment entry
  * @wmi_service_bitmap: wmi services bitmap received from Target
@@ -1164,11 +1169,11 @@ typedef struct {
 	void *htc_handle;
 	void *cds_context;
 	void *mac_context;
-	cdf_event_t wma_ready_event;
-	cdf_event_t wma_resume_event;
-	cdf_event_t target_suspend;
-	cdf_event_t runtime_suspend;
-	cdf_event_t recovery_event;
+	qdf_event_t wma_ready_event;
+	qdf_event_t wma_resume_event;
+	qdf_event_t target_suspend;
+	qdf_event_t runtime_suspend;
+	qdf_event_t recovery_event;
 	uint16_t max_station;
 	uint16_t max_bssid;
 	uint32_t frame_xln_reqd;
@@ -1187,7 +1192,7 @@ typedef struct {
 #endif
 	bool wmi_ready;
 	uint32_t wlan_init_status;
-	cdf_device_t cdf_dev;
+	qdf_device_t qdf_dev;
 	uint32_t phy_capability;
 	uint32_t max_frag_entry;
 	uint32_t wmi_service_bitmap[WMI_SERVICE_BM_SIZE];
@@ -1195,36 +1200,34 @@ typedef struct {
 	uint32_t frameTransRequired;
 	tBssSystemRole wmaGlobalSystemRole;
 	pWMATxRxCompFunc tx_frm_download_comp_cb;
-	cdf_event_t tx_frm_download_comp_event;
+	qdf_event_t tx_frm_download_comp_event;
 	/*
 	 * Dummy event to wait for draining MSDUs left in hardware tx
 	 * queue and before requesting VDEV_STOP. Nobody will set this
 	 * and wait will timeout, and code will poll the pending tx
 	 * descriptors number to be zero.
 	 */
-	cdf_event_t tx_queue_empty_event;
+	qdf_event_t tx_queue_empty_event;
 	pWMAAckFnTxComp umac_ota_ack_cb[SIR_MAC_MGMT_RESERVED15];
 	pWMAAckFnTxComp umac_data_ota_ack_cb;
-	v_TIME_t last_umac_data_ota_timestamp;
-	cdf_nbuf_t last_umac_data_nbuf;
+	unsigned long last_umac_data_ota_timestamp;
+	qdf_nbuf_t last_umac_data_nbuf;
 	bool needShutdown;
 	uint32_t num_mem_chunks;
-	struct wma_mem_chunk mem_chunks[MAX_MEM_CHUNKS];
+	struct wmi_host_mem_chunk mem_chunks[MAX_MEM_CHUNKS];
 	wma_tgt_cfg_cb tgt_cfg_update_cb;
 	wma_dfs_radar_indication_cb dfs_radar_indication_cb;
 	HAL_REG_CAPABILITIES reg_cap;
 	uint32_t scan_id;
 	struct wma_txrx_node *interfaces;
 	pdev_cli_config_t pdevconfig;
-	cdf_list_t vdev_resp_queue;
-	cdf_spinlock_t vdev_respq_lock;
-	cdf_list_t wma_hold_req_queue;
-	cdf_spinlock_t wma_hold_req_q_lock;
+	qdf_list_t vdev_resp_queue;
+	qdf_spinlock_t vdev_respq_lock;
+	qdf_list_t wma_hold_req_queue;
+	qdf_spinlock_t wma_hold_req_q_lock;
 	uint32_t ht_cap_info;
-#ifdef WLAN_FEATURE_11AC
 	uint32_t vht_cap_info;
 	uint32_t vht_supp_mcs;
-#endif
 	uint32_t num_rf_chains;
 #if defined(QCA_WIFI_FTM)
 	struct utf_event_info utf_event_info;
@@ -1254,17 +1257,17 @@ typedef struct {
 	uint8_t ibss_started;
 	tSetBssKeyParams ibsskey_info;
 	struct ieee80211com *dfs_ic;
-
+	txFailIndCallback hddTxFailCb;
 #ifdef FEATURE_WLAN_SCAN_PNO
-	cdf_wake_lock_t pno_wake_lock;
+	qdf_wake_lock_t pno_wake_lock;
 #endif
 #ifdef FEATURE_WLAN_EXTSCAN
-	cdf_wake_lock_t extscan_wake_lock;
+	qdf_wake_lock_t extscan_wake_lock;
 #endif
-	cdf_wake_lock_t wow_wake_lock;
+	qdf_wake_lock_t wow_wake_lock;
 	int wow_nack;
-	cdf_atomic_t is_wow_bus_suspended;
-	cdf_mc_timer_t wma_scan_comp_timer;
+	qdf_atomic_t is_wow_bus_suspended;
+	qdf_mc_timer_t wma_scan_comp_timer;
 	uint8_t dfs_phyerr_filter_offload;
 	bool suitable_ap_hb_failure;
 	ibss_power_save_params wma_ibss_power_save_params;
@@ -1281,21 +1284,20 @@ typedef struct {
 	uint8_t staMaxLIModDtim;
 	uint8_t staModDtim;
 	uint8_t staDynamicDtim;
+	uint8_t enable_mhf_offload;
+	unsigned long last_mhf_entries_timestamp;
 	int32_t dfs_pri_multiplier;
 	uint32_t hw_bd_id;
 	uint32_t hw_bd_info[HW_BD_INFO_SIZE];
 	uint32_t miracast_value;
-	cdf_mc_timer_t log_completion_timer;
+	qdf_mc_timer_t log_completion_timer;
 	wma_mgmt_frame_rx_callback mgmt_rx;
 	uint32_t num_dbs_hw_modes;
 	struct dbs_hw_mode_info hw_mode;
 	uint32_t old_hw_mode_index;
 	uint32_t new_hw_mode_index;
-	cdf_atomic_t scan_id_counter;
+	qdf_atomic_t scan_id_counter;
 	wma_peer_authorized_fp peer_authorized_cb;
-	uint32_t num_of_diag_events_logs;
-	uint32_t *events_logs_list;
-
 	uint32_t wow_pno_match_wake_up_count;
 	uint32_t wow_pno_complete_wake_up_count;
 	uint32_t wow_gscan_wake_up_count;
@@ -1317,10 +1319,9 @@ typedef struct {
 		uint16_t num_free;
 		union wmi_desc_elem_t *array;
 		union wmi_desc_elem_t *freelist;
-		cdf_spinlock_t wmi_desc_pool_lock;
+		qdf_spinlock_t wmi_desc_pool_lock;
 	} wmi_desc_pool;
 	uint8_t max_scan;
-	struct wmi_init_cmd saved_wmi_init_cmd;
 	uint16_t self_gen_frm_pwr;
 	bool tx_chain_mask_cck;
 	/* Going with a timer instead of wait event because on receiving the
@@ -1332,16 +1333,20 @@ typedef struct {
 	 * context. So, processing ready event and extended ready event in
 	 * the serialized MC thread context with a timer.
 	 */
-	cdf_mc_timer_t service_ready_ext_timer;
+	qdf_mc_timer_t service_ready_ext_timer;
+#ifdef WLAN_FEATURE_ROAM_OFFLOAD
 	void (*csr_roam_synch_cb)(tpAniSirGlobal mac,
 		roam_offload_synch_ind *roam_synch_data,
 		tpSirBssDescription  bss_desc_ptr, uint8_t reason);
-	CDF_STATUS (*pe_roam_synch_cb)(tpAniSirGlobal mac,
+	QDF_STATUS (*pe_roam_synch_cb)(tpAniSirGlobal mac,
 		roam_offload_synch_ind *roam_synch_data,
 		tpSirBssDescription  bss_desc_ptr);
-	cdf_wake_lock_t wmi_cmd_rsp_wake_lock;
-	cdf_runtime_lock_t wmi_cmd_rsp_runtime_lock;
+#endif
+	qdf_wake_lock_t wmi_cmd_rsp_wake_lock;
+	qdf_runtime_lock_t wmi_cmd_rsp_runtime_lock;
+	qdf_runtime_lock_t wma_runtime_resume_lock;
 	uint32_t fine_time_measurement_cap;
+	struct wma_ini_config ini_config;
 } t_wma_handle, *tp_wma_handle;
 
 /**
@@ -1350,9 +1355,9 @@ typedef struct {
  * @wlan_resource_config: resource config
  */
 struct wma_target_cap {
-        /* wmi services bitmap received from Target */
+	/* wmi services bitmap received from Target */
 	uint32_t wmi_service_bitmap[WMI_SERVICE_BM_SIZE];
-        /* default resource config,the os shim can overwrite it */
+	/* default resource config,the os shim can overwrite it */
 	wmi_resource_config wlan_resource_config;
 };
 
@@ -1388,7 +1393,7 @@ typedef enum {
  * @driverType: driver type (production/FTM)
  * @uConfigBufferLen: length of config buffer
  */
-typedef struct cdf_packed sHalMacStartParameter {
+typedef struct qdf_packed sHalMacStartParameter {
 	tDriverType driverType;
 	uint32_t uConfigBufferLen;
 
@@ -1404,8 +1409,6 @@ extern void cds_wma_complete_cback(void *p_cds_context);
 extern void wma_send_regdomain_info_to_fw(uint32_t reg_dmn, uint16_t regdmn2G,
 					  uint16_t regdmn5G, int8_t ctl2G,
 					  int8_t ctl5G);
-void wma_get_modeselect(tp_wma_handle wma, uint32_t *modeSelect);
-
 /**
  * enum frame_index - Frame index
  * @GENERIC_NODOWNLD_NOACK_COMP_INDEX: Frame index for no download comp no ack
@@ -1433,7 +1436,7 @@ struct wma_tx_ack_work_ctx {
 	tp_wma_handle wma_handle;
 	uint16_t sub_type;
 	int32_t status;
-	cdf_work_t ack_cmp_work;
+	qdf_work_t ack_cmp_work;
 };
 
 /**
@@ -1446,8 +1449,8 @@ struct wma_tx_ack_work_ctx {
  * @type: type
  */
 struct wma_target_req {
-	cdf_mc_timer_t event_timeout;
-	cdf_list_node_t node;
+	qdf_mc_timer_t event_timeout;
+	qdf_list_node_t node;
 	void *user_data;
 	uint32_t msg_type;
 	uint8_t vdev_id;
@@ -1482,7 +1485,7 @@ struct wma_vdev_start_req {
 	uint32_t beacon_intval;
 	uint32_t dtim_period;
 	int32_t max_txpow;
-	phy_ch_width chan_width;
+	enum phy_ch_width chan_width;
 	bool is_dfs;
 	uint8_t vdev_id;
 	uint8_t chan;
@@ -1843,7 +1846,7 @@ enum uapsd_ac {
 	UAPSD_VO
 };
 
-CDF_STATUS wma_disable_uapsd_per_ac(tp_wma_handle wma_handle,
+QDF_STATUS wma_disable_uapsd_per_ac(tp_wma_handle wma_handle,
 				    uint32_t vdev_id, enum uapsd_ac ac);
 
 /**
@@ -1905,8 +1908,7 @@ typedef struct {
 	void *evt_buf;
 } wma_process_fw_event_params;
 
-int wma_process_fw_event_handler(struct wmi_unified *wmi_handle,
-		wmi_buf_t evt_buf);
+int wma_process_fw_event_handler(void *ctx, void *ev, uint8_t rx_ctx);
 
 A_UINT32 e_csr_auth_type_to_rsn_authmode(eCsrAuthType authtype,
 					 eCsrEncryptionType encr);
@@ -1933,34 +1935,36 @@ int wma_dfs_indicate_radar(struct ieee80211com *ic,
 			   struct dfs_ieee80211_channel *ichan);
 uint16_t dfs_usenol(struct ieee80211com *ic);
 
-CDF_STATUS wma_trigger_uapsd_params(tp_wma_handle wma_handle, uint32_t vdev_id,
+QDF_STATUS wma_trigger_uapsd_params(tp_wma_handle wma_handle, uint32_t vdev_id,
 				    tp_wma_trigger_uapsd_params
 				    trigger_uapsd_params);
 
 /* added to get average snr for both data and beacon */
-CDF_STATUS wma_send_snr_request(tp_wma_handle wma_handle, void *pGetRssiReq);
+QDF_STATUS wma_send_snr_request(tp_wma_handle wma_handle, void *pGetRssiReq);
 
 
-CDF_STATUS wma_update_vdev_tbl(tp_wma_handle wma_handle, uint8_t vdev_id,
+QDF_STATUS wma_update_vdev_tbl(tp_wma_handle wma_handle, uint8_t vdev_id,
 			       ol_txrx_vdev_handle tx_rx_vdev_handle,
 			       uint8_t *mac, uint32_t vdev_type, bool add_del);
 
 void wma_send_flush_logs_to_fw(tp_wma_handle wma_handle);
 void wma_log_completion_timeout(void *data);
 
-CDF_STATUS wma_set_rssi_monitoring(tp_wma_handle wma,
+QDF_STATUS wma_set_rssi_monitoring(tp_wma_handle wma,
 					struct rssi_monitor_req *req);
 
-CDF_STATUS wma_send_soc_set_pcl_cmd(tp_wma_handle wma_handle,
+QDF_STATUS wma_send_soc_set_pcl_cmd(tp_wma_handle wma_handle,
 		struct sir_pcl_list *msg);
 
-CDF_STATUS wma_send_soc_set_hw_mode_cmd(tp_wma_handle wma_handle,
+QDF_STATUS wma_send_soc_set_hw_mode_cmd(tp_wma_handle wma_handle,
 		struct sir_hw_mode *msg);
-CDF_STATUS wma_get_scan_id(uint32_t *scan_id);
+QDF_STATUS wma_get_scan_id(uint32_t *scan_id);
 
-CDF_STATUS wma_send_soc_set_dual_mac_config(tp_wma_handle wma_handle,
+QDF_STATUS wma_send_soc_set_dual_mac_config(tp_wma_handle wma_handle,
 		struct sir_dual_mac_config *msg);
-int wma_crash_inject(tp_wma_handle wma_handle, uint32_t type,
+QDF_STATUS wma_send_pdev_set_antenna_mode(tp_wma_handle wma_handle,
+		struct sir_antenna_mode_param *msg);
+QDF_STATUS wma_crash_inject(tp_wma_handle wma_handle, uint32_t type,
 			uint32_t delay_time_ms);
 
 struct wma_target_req *wma_fill_vdev_req(tp_wma_handle wma,
@@ -1972,7 +1976,7 @@ struct wma_target_req *wma_fill_hold_req(tp_wma_handle wma,
 				    uint8_t type, void *params,
 				    uint32_t timeout);
 
-CDF_STATUS wma_vdev_start(tp_wma_handle wma,
+QDF_STATUS wma_vdev_start(tp_wma_handle wma,
 			  struct wma_vdev_start_req *req, bool isRestart);
 
 void wma_remove_vdev_req(tp_wma_handle wma, uint8_t vdev_id,
@@ -1986,29 +1990,38 @@ int wma_mgmt_tx_completion_handler(void *handle, uint8_t *cmpl_event_params,
 				   uint32_t len);
 void wma_set_dfs_region(tp_wma_handle wma, uint8_t dfs_region);
 uint32_t wma_get_vht_ch_width(void);
-
+QDF_STATUS
+wma_config_debug_module_cmd(wmi_unified_t wmi_handle, A_UINT32 param,
+		A_UINT32 val, A_UINT32 *module_id_bitmap,
+		A_UINT32 bitmap_len);
 #ifdef FEATURE_LFR_SUBNET_DETECTION
-CDF_STATUS wma_set_gateway_params(tp_wma_handle wma,
+QDF_STATUS wma_set_gateway_params(tp_wma_handle wma,
 					struct gateway_param_update_req *req);
 #else
-static inline CDF_STATUS wma_set_gateway_params(tp_wma_handle wma,
+static inline QDF_STATUS wma_set_gateway_params(tp_wma_handle wma,
 					struct gateway_param_update_req *req)
 {
-	return CDF_STATUS_SUCCESS;
+	return QDF_STATUS_SUCCESS;
 }
 #endif /* FEATURE_LFR_SUBNET_DETECTION */
 
 #if defined(FEATURE_LRO)
-CDF_STATUS wma_lro_config_cmd(tp_wma_handle wma_handle,
+QDF_STATUS wma_lro_config_cmd(tp_wma_handle wma_handle,
 	 struct wma_lro_config_cmd_t *wma_lro_cmd);
 #else
-static inline CDF_STATUS wma_lro_config_cmd(tp_wma_handle wma_handle,
+static inline QDF_STATUS wma_lro_config_cmd(tp_wma_handle wma_handle,
 	 struct wma_lro_config_cmd_t *wma_lro_cmd)
 {
-	return CDF_STATUS_SUCCESS;
+	return QDF_STATUS_SUCCESS;
 }
 #endif
 void
 wma_indicate_err(enum ol_rx_err_type err_type,
 	 struct ol_error_info *err_info);
+
+QDF_STATUS wma_ht40_stop_obss_scan(tp_wma_handle wma_handle,
+				int32_t vdev_id);
+QDF_STATUS wma_send_ht40_obss_scanind(tp_wma_handle wma,
+	struct obss_ht40_scanind *req);
 #endif
+struct wma_ini_config *wma_get_ini_handle(tp_wma_handle wma_handle);

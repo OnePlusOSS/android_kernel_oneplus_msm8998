@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -25,7 +25,7 @@
  * to the Linux Foundation.
  */
 
-#if !defined( __CDS_UTILS_H )
+#if !defined(__CDS_UTILS_H)
 #define __CDS_UTILS_H
 
 /**=========================================================================
@@ -41,9 +41,9 @@
 /*--------------------------------------------------------------------------
    Include Files
    ------------------------------------------------------------------------*/
-#include <cdf_types.h>
-#include <cdf_status.h>
-#include <cdf_event.h>
+#include <qdf_types.h>
+#include <qdf_status.h>
+#include <qdf_event.h>
 #include "ani_global.h"
 
 /*--------------------------------------------------------------------------
@@ -66,21 +66,21 @@
 #define CDS_CHAN_15_FREQ       (2512)
 #define CDS_CHAN_170_FREQ      (5852)
 
-#define cds_log(level, args...) CDF_TRACE(CDF_MODULE_ID_CDF, level, ## args)
+#define cds_log(level, args...) QDF_TRACE(QDF_MODULE_ID_QDF, level, ## args)
 #define cds_logfl(level, format, args...) cds_log(level, FL(format), ## args)
 
 #define cds_alert(format, args...) \
-		cds_logfl(CDF_TRACE_LEVEL_FATAL, format, ## args)
+		cds_logfl(QDF_TRACE_LEVEL_FATAL, format, ## args)
 #define cds_err(format, args...) \
-		cds_logfl(CDF_TRACE_LEVEL_ERROR, format, ## args)
+		cds_logfl(QDF_TRACE_LEVEL_ERROR, format, ## args)
 #define cds_warn(format, args...) \
-		cds_logfl(CDF_TRACE_LEVEL_WARN, format, ## args)
+		cds_logfl(QDF_TRACE_LEVEL_WARN, format, ## args)
 #define cds_notice(format, args...) \
-		cds_logfl(CDF_TRACE_LEVEL_INFO, format, ## args)
+		cds_logfl(QDF_TRACE_LEVEL_INFO, format, ## args)
 #define cds_info(format, args...) \
-		cds_logfl(CDF_TRACE_LEVEL_INFO_HIGH, format, ## args)
+		cds_logfl(QDF_TRACE_LEVEL_INFO_HIGH, format, ## args)
 #define cds_debug(format, args...) \
-		cds_logfl(CDF_TRACE_LEVEL_DEBUG, format, ## args)
+		cds_logfl(QDF_TRACE_LEVEL_DEBUG, format, ## args)
 /*--------------------------------------------------------------------------
    Type declarations
    ------------------------------------------------------------------------*/
@@ -89,9 +89,9 @@
    Function declarations and documenation
    ------------------------------------------------------------------------*/
 
-CDF_STATUS cds_crypto_init(uint32_t *phCryptProv);
+QDF_STATUS cds_crypto_init(uint32_t *phCryptProv);
 
-CDF_STATUS cds_crypto_deinit(uint32_t hCryptProv);
+QDF_STATUS cds_crypto_deinit(uint32_t hCryptProv);
 
 /**
  * cds_rand_get_bytes
@@ -104,9 +104,9 @@ CDF_STATUS cds_crypto_deinit(uint32_t hCryptProv);
  * @param numBytes the number of bytes that should be generated and
  * copied
  *
- * @return CDF_STATUS_SUCCSS if the operation succeeds
+ * @return QDF_STATUS_SUCCSS if the operation succeeds
  */
-CDF_STATUS cds_rand_get_bytes(uint32_t handle, uint8_t *pbBuf,
+QDF_STATUS cds_rand_get_bytes(uint32_t handle, uint8_t *pbBuf,
 			      uint32_t numBytes);
 
 /**
@@ -128,13 +128,13 @@ CDF_STATUS cds_rand_get_bytes(uint32_t handle, uint8_t *pbBuf,
  * @param keyLen length of key
  * @param digest holds resultant SHA1 HMAC (20B)
  *
- * @return CDF_STATUS_SUCCSS if the operation succeeds
+ * @return QDF_STATUS_SUCCSS if the operation succeeds
  *
  */
-CDF_STATUS cds_sha1_hmac_str(uint32_t cryptHandle,      /* Handle */
-			     uint8_t * text,    /* pointer to data stream */
+QDF_STATUS cds_sha1_hmac_str(uint32_t cryptHandle,      /* Handle */
+			     uint8_t *text,    /* pointer to data stream */
 			     uint32_t textLen,  /* length of data stream */
-			     uint8_t * key,     /* pointer to authentication key */
+			     uint8_t *key,     /* pointer to authentication key */
 			     uint32_t keyLen,   /* length of authentication key */
 			     uint8_t digest[CDS_DIGEST_SHA1_SIZE]);     /* caller digest to be filled in */
 
@@ -157,21 +157,21 @@ CDF_STATUS cds_sha1_hmac_str(uint32_t cryptHandle,      /* Handle */
  * @param keyLen length of key
  * @param digest holds resultant MD5 HMAC (16B)
  *
- * @return CDF_STATUS_SUCCSS if the operation succeeds
+ * @return QDF_STATUS_SUCCSS if the operation succeeds
  *
  */
-CDF_STATUS cds_md5_hmac_str(uint32_t cryptHandle,       /* Handle */
-			    uint8_t * text,     /* pointer to data stream */
+QDF_STATUS cds_md5_hmac_str(uint32_t cryptHandle,       /* Handle */
+			    uint8_t *text,     /* pointer to data stream */
 			    uint32_t textLen,   /* length of data stream */
-			    uint8_t * key,      /* pointer to authentication key */
+			    uint8_t *key,      /* pointer to authentication key */
 			    uint32_t keyLen,    /* length of authentication key */
 			    uint8_t digest[CDS_DIGEST_MD5_SIZE]);       /* caller digest to be filled in */
 
-CDF_STATUS cds_encrypt_aes(uint32_t cryptHandle,        /* Handle */
+QDF_STATUS cds_encrypt_aes(uint32_t cryptHandle,        /* Handle */
 			   uint8_t *pText,      /* pointer to data stream */
 			   uint8_t *Encrypted, uint8_t *pKey);          /* pointer to authentication key */
 
-CDF_STATUS cds_decrypt_aes(uint32_t cryptHandle,        /* Handle */
+QDF_STATUS cds_decrypt_aes(uint32_t cryptHandle,        /* Handle */
 			   uint8_t *pText,      /* pointer to data stream */
 			   uint8_t *pDecrypted, uint8_t *pKey);         /* pointer to authentication key */
 
@@ -185,5 +185,5 @@ bool cds_attach_mmie(uint8_t *igtk, uint8_t *ipn, uint16_t key_id,
 		     uint8_t *frm, uint8_t *efrm, uint16_t frmLen);
 uint8_t cds_get_mmie_size(void);
 #endif /* WLAN_FEATURE_11W */
-CDF_STATUS sme_send_flush_logs_cmd_to_fw(tpAniSirGlobal pMac);
+QDF_STATUS sme_send_flush_logs_cmd_to_fw(tpAniSirGlobal pMac);
 #endif /* #if !defined __CDS_UTILS_H */

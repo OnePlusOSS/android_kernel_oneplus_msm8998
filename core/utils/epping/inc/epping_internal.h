@@ -50,7 +50,7 @@
 #include "htc_api.h"
 #include "htc_packet.h"
 #include "epping_test.h"
-#include <cdf_atomic.h>
+#include <qdf_atomic.h>
 #include <sir_mac_prot_def.h>
 #include <sir_debug.h>
 
@@ -68,7 +68,7 @@
    -------------------------------------------------------------------------*/
 #define EPPING_MAX_ADAPTERS             1
 
-#define EPPING_LOG(level, args ...) CDF_TRACE( CDF_MODULE_ID_HDD, level, ## args)
+#define EPPING_LOG(level, args ...) QDF_TRACE(QDF_MODULE_ID_HDD, level, ## args)
 
 struct epping_cookie {
 	HTC_PACKET HtcPkt;      /* HTC packet wrapper */
@@ -96,11 +96,11 @@ typedef struct {
 	struct task_struct *pid;
 	void *arg;
 	bool done;
-	cdf_nbuf_t skb;
+	qdf_nbuf_t skb;
 	HTC_ENDPOINT_ID eid;
 	struct semaphore sem;
 	bool inited;
-	cdf_atomic_t atm;
+	qdf_atomic_t atm;
 } epping_poll_t;
 #endif
 
@@ -125,7 +125,7 @@ typedef struct epping_context {
 	struct epping_cookie *cookie_list;
 	int cookie_count;
 	struct epping_cookie *s_cookie_mem[MAX_COOKIE_SLOTS_NUM];
-	cdf_spinlock_t cookie_lock;
+	qdf_spinlock_t cookie_lock;
 } epping_context_t;
 
 typedef enum {
@@ -135,15 +135,15 @@ typedef enum {
 
 typedef struct epping_adapter_s {
 	epping_context_t *pEpping_ctx;
-	enum tCDF_ADAPTER_MODE device_mode;
+	enum tQDF_ADAPTER_MODE device_mode;
 	/** Handle to the network device */
 	struct net_device *dev;
-	struct cdf_mac_addr macAddressCurrent;
+	struct qdf_mac_addr macAddressCurrent;
 	uint8_t sessionId;
 	/* for mboxping */
-	cdf_spinlock_t data_lock;
-	cdf_nbuf_queue_t nodrop_queue;
-	cdf_softirq_timer_t epping_timer;
+	qdf_spinlock_t data_lock;
+	qdf_nbuf_queue_t nodrop_queue;
+	qdf_timer_t epping_timer;
 	epping_tx_timer_state_t epping_timer_state;
 	bool registered;
 	bool started;
@@ -158,7 +158,7 @@ void epping_free_cookie(epping_context_t *pEpping_ctx,
 struct epping_cookie *epping_alloc_cookie(epping_context_t *pEpping_ctx);
 void epping_get_dummy_mac_addr(tSirMacAddr macAddr);
 void epping_hex_dump(void *data, int buf_len, const char *str);
-void *epping_get_cdf_ctx(void);
+void *epping_get_qdf_ctx(void);
 void epping_log_packet(epping_adapter_t *pAdapter,
 		       EPPING_HEADER *eppingHdr, int ret, const char *str);
 void epping_log_stats(epping_adapter_t *pAdapter, const char *str);
@@ -168,7 +168,7 @@ void epping_set_kperf_flag(epping_adapter_t *pAdapter,
 /* epping_tx signatures */
 void epping_tx_timer_expire(epping_adapter_t *pAdapter);
 void epping_tx_complete_multiple(void *ctx, HTC_PACKET_QUEUE *pPacketQueue);
-int epping_tx_send(cdf_nbuf_t skb, epping_adapter_t *pAdapter);
+int epping_tx_send(qdf_nbuf_t skb, epping_adapter_t *pAdapter);
 
 #ifdef HIF_SDIO
 HTC_SEND_FULL_ACTION epping_tx_queue_full(void *Context, HTC_PACKET *pPacket);
@@ -183,7 +183,7 @@ void epping_refill(void *ctx, HTC_ENDPOINT_ID Endpoint);
 /* epping_txrx signatures */
 epping_adapter_t *epping_add_adapter(epping_context_t *pEpping_ctx,
 				     tSirMacAddr macAddr,
-				     enum tCDF_ADAPTER_MODE device_mode);
+				     enum tQDF_ADAPTER_MODE device_mode);
 void epping_destroy_adapter(epping_adapter_t *pAdapter);
 int epping_connect_service(epping_context_t *pEpping_ctx);
 #ifdef HIF_PCI
@@ -192,6 +192,6 @@ void epping_register_tx_copier(HTC_ENDPOINT_ID eid,
 void epping_unregister_tx_copier(HTC_ENDPOINT_ID eid,
 				 epping_context_t *pEpping_ctx);
 void epping_tx_copier_schedule(epping_context_t *pEpping_ctx,
-			       HTC_ENDPOINT_ID eid, cdf_nbuf_t skb);
+			       HTC_ENDPOINT_ID eid, qdf_nbuf_t skb);
 #endif /* HIF_PCI */
 #endif /* end #ifndef EPPING_INTERNAL_H */

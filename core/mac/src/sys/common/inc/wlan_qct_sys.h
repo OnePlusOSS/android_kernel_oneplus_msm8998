@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -25,7 +25,7 @@
  * to the Linux Foundation.
  */
 
-#if !defined( WLAN_QCT_SYS_H__ )
+#if !defined(WLAN_QCT_SYS_H__)
 #define WLAN_QCT_SYS_H__
 
 /**===========================================================================
@@ -41,8 +41,8 @@
 /*---------------------------------------------------------------------------
    Include files
    -------------------------------------------------------------------------*/
-#include <cdf_types.h>
-#include <cdf_status.h>
+#include <qdf_types.h>
+#include <qdf_status.h>
 #include <cds_mq.h>
 
 /*---------------------------------------------------------------------------
@@ -61,7 +61,7 @@
    modules in the system.
 
    \param  pUserData - user data that is passed to the Callback function
-                    when it is invoked.
+   when it is invoked.
 
    \return Nothing
 
@@ -97,12 +97,12 @@ typedef enum {
    specific message being built.
 
    \note There are internal / reserved items in a SYS message that must be
-        set correctly for the message to be recognized as a SYS message by
-        the SYS message handlers.  It is important for every SYS message to
-        be setup / built / initialized through this function.
+   set correctly for the message to be recognized as a SYS message by
+   the SYS message handlers.  It is important for every SYS message to
+   be setup / built / initialized through this function.
 
    \param sysMsgId - a valid message ID for a SYS message.  See the
-         SYS_MSG_ID enum for all the valid SYS message IDs.
+   SYS_MSG_ID enum for all the valid SYS message IDs.
 
    \param pMsg - pointer to the message structure to be setup.
 
@@ -111,7 +111,7 @@ typedef enum {
    \sa
 
    --------------------------------------------------------------------------*/
-CDF_STATUS sys_build_message_header(SYS_MSG_ID sysMsgId, cds_msg_t *pMsg);
+QDF_STATUS sys_build_message_header(SYS_MSG_ID sysMsgId, cds_msg_t *pMsg);
 
 /*----------------------------------------------------------------------------
 
@@ -123,20 +123,20 @@ CDF_STATUS sys_build_message_header(SYS_MSG_ID sysMsgId, cds_msg_t *pMsg);
    \param p_cds_context - pointer to the CDS Context
 
    \param userCallback - this is a callback that is called when the SYS
-         has completed the 'start' funciton.
+   has completed the 'start' funciton.
 
    \param pUserData - pointer to some user data entity that is passed to
-         the callback function as a parameter when invoked.
+   the callback function as a parameter when invoked.
 
-   \return CDF_STATUS_SUCCESS -
+   \return QDF_STATUS_SUCCESS -
 
    \todo:  We have not 'status' on the callback.  How do we notify the
-          callback that there is a failure ?
+   callback that there is a failure ?
 
    \sa
 
    --------------------------------------------------------------------------*/
-CDF_STATUS sysMcStart(v_CONTEXT_t p_cds_context, sysResponseCback userCallback,
+QDF_STATUS sysMcStart(v_CONTEXT_t p_cds_context, sysResponseCback userCallback,
 		      void *pUserData);
 
 /*----------------------------------------------------------------------------
@@ -149,14 +149,14 @@ CDF_STATUS sysMcStart(v_CONTEXT_t p_cds_context, sysResponseCback userCallback,
 
    \param p_cds_context - pointer to the CDS Context
 
-   \return CDF_STATUS_SUCCESS - the SYS module is stopped.
+   \return QDF_STATUS_SUCCESS - the SYS module is stopped.
 
-          CDF_STATUS_E_FAILURE - the SYS module open failed to stop.
+   QDF_STATUS_E_FAILURE - the SYS module open failed to stop.
 
    \sa
 
    --------------------------------------------------------------------------*/
-CDF_STATUS sys_stop(v_CONTEXT_t p_cds_context);
+QDF_STATUS sys_stop(v_CONTEXT_t p_cds_context);
 
 /*----------------------------------------------------------------------------
 
@@ -180,14 +180,14 @@ CDF_STATUS sys_stop(v_CONTEXT_t p_cds_context);
 
    \param pMsg - pointer to the message to be processed.
 
-   \return - CDF_STATUS_SUCCESS - the message was processed successfully.
+   \return - QDF_STATUS_SUCCESS - the message was processed successfully.
 
-            CDF_STATUS_E_BADMSG - a bad (unknown type) message was received
-            and subsequently not processed.
+   QDF_STATUS_E_BADMSG - a bad (unknown type) message was received
+   and subsequently not processed.
    \sa
 
    --------------------------------------------------------------------------*/
-CDF_STATUS sys_mc_process_msg(v_CONTEXT_t p_cds_context, cds_msg_t *pMsg);
+QDF_STATUS sys_mc_process_msg(v_CONTEXT_t p_cds_context, cds_msg_t *pMsg);
 
 void wlan_sys_probe(void);
 

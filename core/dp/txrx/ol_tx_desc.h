@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011, 2014-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -33,8 +33,8 @@
 #define _OL_TX_DESC__H_
 
 #include <cds_queue.h>          /* TAILQ_HEAD */
-#include <cdf_nbuf.h>           /* cdf_nbuf_t */
-#include <ol_txrx_types.h>      /* ol_tx_desc_t */
+#include <qdf_nbuf.h>           /* qdf_nbuf_t */
+#include <cdp_txrx_cmn.h>       /* ol_txrx_vdev_t, etc. */
 #include <ol_txrx_internal.h>   /*TXRX_ASSERT2 */
 
 struct ol_tx_desc_t *
@@ -63,7 +63,7 @@ ol_tx_desc_alloc_wrapper(struct ol_txrx_pdev_t *pdev,
  */
 struct ol_tx_desc_t *ol_tx_desc_ll(struct ol_txrx_pdev_t *pdev,
 				   struct ol_txrx_vdev_t *vdev,
-				   cdf_nbuf_t netbuf,
+				   qdf_nbuf_t netbuf,
 				   struct ol_txrx_msdu_info_t *msdu_info);
 
 /**
@@ -159,10 +159,13 @@ void *ol_ath_get_bcn_header(ol_pdev_handle pdev, A_UINT32 vdev_id);
 void ol_tx_desc_free(struct ol_txrx_pdev_t *pdev, struct ol_tx_desc_t *tx_desc);
 
 #if defined(FEATURE_TSO)
-struct cdf_tso_seg_elem_t *ol_tso_alloc_segment(struct ol_txrx_pdev_t *pdev);
+struct qdf_tso_seg_elem_t *ol_tso_alloc_segment(struct ol_txrx_pdev_t *pdev);
 
 void ol_tso_free_segment(struct ol_txrx_pdev_t *pdev,
-	 struct cdf_tso_seg_elem_t *tso_seg);
+	 struct qdf_tso_seg_elem_t *tso_seg);
+#else
+#define ol_tso_alloc_segment(pdev) /*no-op*/
+#define ol_tso_free_segment(pdev, tso_seg) /*no-op*/
 #endif
 
 /**

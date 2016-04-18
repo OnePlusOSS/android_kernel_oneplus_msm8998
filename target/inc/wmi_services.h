@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -141,6 +141,27 @@ typedef enum {
 	WMI_SERVICE_RESTRT_CHNL_SUPPORT,  /* Restricted Channel Support */
 	WMI_SERVICE_BPF_OFFLOAD,          /* FW supports bpf offload */
 	WMI_SERVICE_SYNC_DELETE_CMDS,     /* FW sends response event for Peer, Vdev delete commands */
+	WMI_SERVICE_SMART_ANTENNA_SW_SUPPORT,
+	WMI_SERVICE_SMART_ANTENNA_HW_SUPPORT,
+	/* allow per-peer tx MCS min/max limits by host */
+	WMI_SERVICE_RATECTRL_LIMIT_MAX_MIN_RATES,
+	WMI_SERVICE_NAN_DATA,             /* FW supports NAN data */
+	WMI_SERVICE_NAN_RTT,              /* FW supports NAN RTT */
+	WMI_SERVICE_11AX,                 /* FW supports 802.11ax */
+	/* WMI_SERVICE_DEPRECATED_REPLACE
+	 * FW supports these new WMI commands, to be used rather than
+	 * deprecated matching commands:
+	 * - WMI_PDEV_SET_PCL_CMDID          (vs. WMI_SOC_SET_PCL_CMDID)
+	 * - WMI_PDEV_SET_HW_MODE_CMDID      (vs. WMI_SOC_SET_HW_MODE_CMDID)
+	 * - WMI_PDEV_SET_MAC_CONFIG_CMDID
+	 *				(vs. WMI_SOC_SET_DUAL_MAC_CONFIG_CMDID)
+	 * - WMI_PDEV_SET_ANTENNA_MODE_CMDID
+	 *				(vs. WMI_SOC_SET_ANTENNA_MODE_CMDID)
+	 * - WMI_VDEV_SET_DSCP_TID_MAP_CMDID (vs. WMI_VDEV_SET_WMM_PARAMS_CMDID)
+	 */
+	WMI_SERVICE_DEPRECATED_REPLACE,
+	WMI_SERVICE_TDLS_CONN_TRACKER_IN_HOST_MODE, /* FW supports a new mode that allows to run connection tracker in host */
+	WMI_SERVICE_ENHANCED_MCAST_FILTER,/* FW supports enhanced multicast filtering (of mcast IP inside ucast WLAN) */
 
 	WMI_MAX_SERVICE = 128             /* max service */
 } WMI_SERVICE;

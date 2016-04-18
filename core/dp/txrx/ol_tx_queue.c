@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -25,87 +25,131 @@
  * to the Linux Foundation.
  */
 
-#include <cdf_nbuf.h>           /* cdf_nbuf_t, etc. */
-#include <cdf_atomic.h>         /* cdf_atomic_read, etc. */
+#include <qdf_nbuf.h>           /* qdf_nbuf_t, etc. */
+#include <qdf_atomic.h>         /* qdf_atomic_read, etc. */
 #include <ol_cfg.h>             /* ol_cfg_addba_retry */
 #include <htt.h>                /* HTT_TX_EXT_TID_MGMT */
 #include <ol_htt_tx_api.h>      /* htt_tx_desc_tid */
 #include <ol_txrx_api.h>        /* ol_txrx_vdev_handle */
 #include <ol_txrx_ctrl_api.h>   /* ol_txrx_sync, ol_tx_addba_conf */
+#include <cdp_txrx_tx_throttle.h>
 #include <ol_ctrl_txrx_api.h>   /* ol_ctrl_addba_req */
 #include <ol_txrx_internal.h>   /* TXRX_ASSERT1, etc. */
-#include <ol_txrx_types.h>      /* pdev stats */
 #include <ol_tx_desc.h>         /* ol_tx_desc, ol_tx_desc_frame_list_free */
 #include <ol_tx.h>              /* ol_tx_vdev_ll_pause_queue_send */
 #include <ol_tx_queue.h>
 #include <ol_txrx_dbg.h>        /* ENABLE_TX_QUEUE_LOG */
-#include <cdf_types.h>          /* bool */
+#include <qdf_types.h>          /* bool */
+#include "cdp_txrx_flow_ctrl_legacy.h"
 
 #if defined(QCA_LL_LEGACY_TX_FLOW_CONTROL)
 
+/**
+ * ol_txrx_vdev_pause- Suspend all tx data for the specified virtual device
+ *
+ * @data_vdev - the virtual device being paused
+ * @reason - the reason for which vdev queue is getting paused
+ *
+ * This function applies primarily to HL systems, but also
+ * applies to LL systems that use per-vdev tx queues for MCC or
+ * thermal throttling. As an example, this function could be
+ * used when a single-channel physical device supports multiple
+ * channels by jumping back and forth between the channels in a
+ * time-shared manner.  As the device is switched from channel A
+ * to channel B, the virtual devices that operate on channel A
+ * will be paused.
+ *
+ */
 void ol_txrx_vdev_pause(ol_txrx_vdev_handle vdev, uint32_t reason)
 {
 	/* TO DO: log the queue pause */
 	/* acquire the mutex lock, since we'll be modifying the queues */
 	TX_SCHED_DEBUG_PRINT("Enter %s\n", __func__);
 
-	cdf_spin_lock_bh(&vdev->ll_pause.mutex);
+	qdf_spin_lock_bh(&vdev->ll_pause.mutex);
 	vdev->ll_pause.paused_reason |= reason;
 	vdev->ll_pause.q_pause_cnt++;
 	vdev->ll_pause.is_q_paused = true;
-	cdf_spin_unlock_bh(&vdev->ll_pause.mutex);
+	qdf_spin_unlock_bh(&vdev->ll_pause.mutex);
 
-	DPTRACE(cdf_dp_trace(NULL, CDF_DP_TRACE_VDEV_PAUSE,
+	DPTRACE(qdf_dp_trace(NULL, QDF_DP_TRACE_VDEV_PAUSE,
 				NULL, 0));
 	TX_SCHED_DEBUG_PRINT("Leave %s\n", __func__);
 }
 
+/**
+ * ol_txrx_vdev_unpause - Resume tx for the specified virtual device
+ *
+ * @data_vdev - the virtual device being unpaused
+ * @reason - the reason for which vdev queue is getting unpaused
+ *
+ * This function applies primarily to HL systems, but also applies to
+ * LL systems that use per-vdev tx queues for MCC or thermal throttling.
+ *
+ */
 void ol_txrx_vdev_unpause(ol_txrx_vdev_handle vdev, uint32_t reason)
 {
 	/* TO DO: log the queue unpause */
 	/* acquire the mutex lock, since we'll be modifying the queues */
 	TX_SCHED_DEBUG_PRINT("Enter %s\n", __func__);
 
-	cdf_spin_lock_bh(&vdev->ll_pause.mutex);
+	qdf_spin_lock_bh(&vdev->ll_pause.mutex);
 	if (vdev->ll_pause.paused_reason & reason) {
 		vdev->ll_pause.paused_reason &= ~reason;
 		if (!vdev->ll_pause.paused_reason) {
 			vdev->ll_pause.is_q_paused = false;
 			vdev->ll_pause.q_unpause_cnt++;
-			cdf_spin_unlock_bh(&vdev->ll_pause.mutex);
+			qdf_spin_unlock_bh(&vdev->ll_pause.mutex);
 			ol_tx_vdev_ll_pause_queue_send(vdev);
 		} else {
-			cdf_spin_unlock_bh(&vdev->ll_pause.mutex);
+			qdf_spin_unlock_bh(&vdev->ll_pause.mutex);
 		}
 	} else {
-		cdf_spin_unlock_bh(&vdev->ll_pause.mutex);
+		qdf_spin_unlock_bh(&vdev->ll_pause.mutex);
 	}
-	DPTRACE(cdf_dp_trace(NULL, CDF_DP_TRACE_VDEV_UNPAUSE,
+	DPTRACE(qdf_dp_trace(NULL, QDF_DP_TRACE_VDEV_UNPAUSE,
 				NULL, 0));
 	TX_SCHED_DEBUG_PRINT("Leave %s\n", __func__);
 }
 
+/**
+ * ol_txrx_vdev_flush - Drop all tx data for the specified virtual device
+ *
+ * @data_vdev - the virtual device being flushed
+ *
+ *  This function applies primarily to HL systems, but also applies to
+ *  LL systems that use per-vdev tx queues for MCC or thermal throttling.
+ *  This function would typically be used by the ctrl SW after it parks
+ *  a STA vdev and then resumes it, but to a new AP.  In this case, though
+ *  the same vdev can be used, any old tx frames queued inside it would be
+ *  stale, and would need to be discarded.
+ *
+ */
 void ol_txrx_vdev_flush(ol_txrx_vdev_handle vdev)
 {
-	cdf_spin_lock_bh(&vdev->ll_pause.mutex);
-	cdf_softirq_timer_cancel(&vdev->ll_pause.timer);
+	qdf_spin_lock_bh(&vdev->ll_pause.mutex);
+	qdf_timer_stop(&vdev->ll_pause.timer);
 	vdev->ll_pause.is_q_timer_on = false;
 	while (vdev->ll_pause.txq.head) {
-		cdf_nbuf_t next =
-			cdf_nbuf_next(vdev->ll_pause.txq.head);
-		cdf_nbuf_set_next(vdev->ll_pause.txq.head, NULL);
-		cdf_nbuf_unmap(vdev->pdev->osdev,
+		qdf_nbuf_t next =
+			qdf_nbuf_next(vdev->ll_pause.txq.head);
+		qdf_nbuf_set_next(vdev->ll_pause.txq.head, NULL);
+		qdf_nbuf_unmap(vdev->pdev->osdev,
 			       vdev->ll_pause.txq.head,
-			       CDF_DMA_TO_DEVICE);
-		cdf_nbuf_tx_free(vdev->ll_pause.txq.head,
-				 NBUF_PKT_ERROR);
+			       QDF_DMA_TO_DEVICE);
+		qdf_nbuf_tx_free(vdev->ll_pause.txq.head,
+				 QDF_NBUF_PKT_ERROR);
 		vdev->ll_pause.txq.head = next;
 	}
 	vdev->ll_pause.txq.tail = NULL;
 	vdev->ll_pause.txq.depth = 0;
-	cdf_spin_unlock_bh(&vdev->ll_pause.mutex);
+	qdf_spin_unlock_bh(&vdev->ll_pause.mutex);
 }
-
+#else /* defined(QCA_LL_LEGACY_TX_FLOW_CONTROL) */
+void ol_txrx_vdev_flush(ol_txrx_vdev_handle data_vdev)
+{
+	return;
+}
 #endif /* defined(QCA_LL_LEGACY_TX_FLOW_CONTROL) */
 
 #ifdef QCA_LL_TX_FLOW_CONTROL_V2
@@ -150,7 +194,7 @@ void ol_txrx_vdev_pause(ol_txrx_vdev_handle vdev, uint32_t reason)
 	struct ol_txrx_pdev_t *pdev = vdev->pdev;
 	enum netif_reason_type netif_reason;
 
-	if (cdf_unlikely((!pdev) || (!pdev->pause_cb))) {
+	if (qdf_unlikely((!pdev) || (!pdev->pause_cb))) {
 		TXRX_PRINT(TXRX_PRINT_LEVEL_ERR,
 				   "%s: invalid pdev\n", __func__);
 		return;
@@ -175,7 +219,7 @@ void ol_txrx_vdev_unpause(ol_txrx_vdev_handle vdev, uint32_t reason)
 	struct ol_txrx_pdev_t *pdev = vdev->pdev;
 	enum netif_reason_type netif_reason;
 
-	if (cdf_unlikely((!pdev) || (!pdev->pause_cb))) {
+	if (qdf_unlikely((!pdev) || (!pdev->pause_cb))) {
 		TXRX_PRINT(TXRX_PRINT_LEVEL_ERR,
 				   "%s: invalid pdev\n", __func__);
 		return;
@@ -310,7 +354,7 @@ void ol_tx_pdev_throttle_phase_timer(void *context)
 				THROTTLE_LEVEL_0) {
 			TXRX_PRINT(TXRX_PRINT_LEVEL_WARN,
 					   "start timer %d ms\n", ms);
-			cdf_softirq_timer_start(&pdev->tx_throttle.
+			qdf_timer_start(&pdev->tx_throttle.
 							phase_timer, ms);
 		}
 	} else {
@@ -325,7 +369,7 @@ void ol_tx_pdev_throttle_phase_timer(void *context)
 		    THROTTLE_LEVEL_0) {
 			TXRX_PRINT(TXRX_PRINT_LEVEL_WARN, "start timer %d ms\n",
 				   ms);
-			cdf_softirq_timer_start(&pdev->tx_throttle.phase_timer,
+			qdf_timer_start(&pdev->tx_throttle.phase_timer,
 						ms);
 		}
 	}
@@ -363,10 +407,10 @@ void ol_tx_throttle_set_level(struct ol_txrx_pdev_t *pdev, int level)
 	ms = pdev->tx_throttle.
 	     throttle_time_ms[level][THROTTLE_PHASE_OFF];
 
-	cdf_softirq_timer_cancel(&pdev->tx_throttle.phase_timer);
+	qdf_timer_stop(&pdev->tx_throttle.phase_timer);
 
 	if (level != THROTTLE_LEVEL_0)
-		cdf_softirq_timer_start(&pdev->tx_throttle.phase_timer, ms);
+		qdf_timer_start(&pdev->tx_throttle.phase_timer, ms);
 }
 
 /* This table stores the duty cycle for each level.
@@ -405,22 +449,22 @@ void ol_tx_throttle_init(struct ol_txrx_pdev_t *pdev)
 
 	pdev->tx_throttle.current_throttle_level = THROTTLE_LEVEL_0;
 	pdev->tx_throttle.current_throttle_phase = THROTTLE_PHASE_OFF;
-	cdf_spinlock_init(&pdev->tx_throttle.mutex);
+	qdf_spinlock_create(&pdev->tx_throttle.mutex);
 
 	throttle_period = ol_cfg_throttle_period_ms(pdev->ctrl_pdev);
 
 	ol_tx_throttle_init_period(pdev, throttle_period);
 
-	cdf_softirq_timer_init(pdev->osdev,
+	qdf_timer_init(pdev->osdev,
 			       &pdev->tx_throttle.phase_timer,
 			       ol_tx_pdev_throttle_phase_timer, pdev,
-			       CDF_TIMER_TYPE_SW);
+			       QDF_TIMER_TYPE_SW);
 
 #ifdef QCA_LL_LEGACY_TX_FLOW_CONTROL
-	cdf_softirq_timer_init(pdev->osdev,
+	qdf_timer_init(pdev->osdev,
 			       &pdev->tx_throttle.tx_timer,
 			       ol_tx_pdev_throttle_tx_timer, pdev,
-			       CDF_TIMER_TYPE_SW);
+			       QDF_TIMER_TYPE_SW);
 #endif
 
 	pdev->tx_throttle.tx_threshold = THROTTLE_TX_THRESHOLD;

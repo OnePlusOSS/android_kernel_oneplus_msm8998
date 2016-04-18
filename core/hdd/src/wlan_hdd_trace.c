@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -34,8 +34,11 @@
  *
  */
 
-#include "cdf_trace.h"
-#include "cdf_types.h"
+/* denote that this file does not allow legacy hddLog */
+#define HDD_DISALLOW_LEGACY_HDDLOG 1
+
+#include "qdf_trace.h"
+#include "qdf_types.h"
 #include "wlan_hdd_trace.h"
 #include "wlan_hdd_main.h"
 
@@ -48,14 +51,14 @@
  * Return: none
  */
 static void
-hdd_trace_dump(void *mac, tp_cdf_trace_record record, uint16_t index)
+hdd_trace_dump(void *mac, tp_qdf_trace_record record, uint16_t index)
 {
 	if (TRACE_CODE_HDD_RX_SME_MSG == record->code)
-		hddLog(LOGE, "%04d    %012llu  S%d    %-14s  %-30s(0x%x) ",
+		hdd_err("%04d    %012llu  S%d    %-14s  %-30s(0x%x)",
 			index, record->time, record->session, "RX SME MSG:",
 			get_e_roam_cmd_status_str(record->data), record->data);
 	else
-		hddLog(LOGE, "%04d    %012llu  S%d    %-14s  %-30s(0x%x) ",
+		hdd_err("%04d    %012llu  S%d    %-14s  %-30s(0x%x)",
 			index, record->time, record->session, "HDD Event:",
 			hdd_trace_event_string(record->code), record->data);
 }
@@ -69,7 +72,7 @@ hdd_trace_dump(void *mac, tp_cdf_trace_record record, uint16_t index)
  */
 void hdd_trace_init(void)
 {
-	cdf_trace_register(CDF_MODULE_ID_HDD, hdd_trace_dump);
+	qdf_trace_register(QDF_MODULE_ID_HDD, hdd_trace_dump);
 }
 
 #endif /* ifdef HDD_TRACE_RECORD */

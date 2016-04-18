@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -28,11 +28,12 @@
 #ifndef _OL_CFG__H_
 #define _OL_CFG__H_
 
-#include <cdf_types.h>          /* uint32_t */
-#include <ol_ctrl_api.h>        /* ol_pdev_handle */
+#include <qdf_types.h>          /* uint32_t */
+#include <cdp_txrx_cmn.h>       /* ol_pdev_handle */
 #include <cds_ieee80211_common.h>   /* ieee80211_qosframe_htc_addr4 */
 #include <enet.h>               /* LLC_SNAP_HDR_LEN */
 #include "wlan_tgt_def_config.h"
+#include "ol_txrx_ctrl_api.h"   /* txrx_pdev_cfg_param_t */
 
 /**
  * @brief format of data frames delivered to/from the WLAN driver by/to the OS
@@ -150,18 +151,6 @@ int ol_cfg_rx_pn_check(ol_pdev_handle pdev);
  * @return 1 -> host does rx->tx forward -OR- 0 -> no host-side rx->tx forward
  */
 int ol_cfg_rx_fwd_check(ol_pdev_handle pdev);
-
-/**
- * @brief set rx fwd disable/enable.
- * @details
- *  Choose whether to forward rx frames to tx (where applicable) within the
- *  WLAN driver, or to leave all forwarding up to the operating system.
- *  currently only intra-bss fwd is supported.
- *
- * @param pdev - handle to the physical device
- * @param disable_rx_fwd 1 -> no rx->tx forward -> rx->tx forward
- */
-void ol_set_cfg_rx_fwd_disabled(ol_pdev_handle pdev, uint8_t disalbe_rx_fwd);
 
 /**
  * @brief Check whether rx forwarding is enabled or disabled.
@@ -454,11 +443,6 @@ static inline int ol_tx_cfg_max_tx_queue_depth_ll(ol_pdev_handle pdev)
 	 */
 	return 1500;
 }
-
-/**
- * @brief Set packet log config in HTT config based on CFG ini configuration
- */
-void ol_set_cfg_packet_log_enabled(ol_pdev_handle pdev, uint8_t val);
 
 /**
  * @brief Get packet log config from HTT config

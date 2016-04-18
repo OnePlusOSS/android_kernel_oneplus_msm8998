@@ -62,7 +62,7 @@ extern "C" {
 /* When MBSSID feature is enabled, SAP context is directly passed to SAP APIs */
 #define CDS_GET_SAP_CB(ctx) (ptSapContext)(ctx)
 
-#define CDS_GET_HAL_CB(ctx) cds_get_context(CDF_MODULE_ID_PE)
+#define CDS_GET_HAL_CB(ctx) cds_get_context(QDF_MODULE_ID_PE)
 /* MAC Address length */
 #define ANI_EAPOL_KEY_RSN_NONCE_SIZE      32
 
@@ -136,7 +136,7 @@ struct sap_avoid_channels_info {
 
 typedef struct sSapContext {
 
-	cdf_mutex_t SapGlobalLock;
+	qdf_mutex_t SapGlobalLock;
 
 	/* Include the current channel of AP */
 	uint32_t channel;
@@ -183,13 +183,13 @@ typedef struct sSapContext {
 	tCsrSSIDInfo SSIDList[2];
 
 	/* Actual storage for AP bssid */
-	struct cdf_mac_addr bssid;
+	struct qdf_mac_addr bssid;
 
 	/* Mac filtering settings */
 	eSapMacAddrACL eSapMacAddrAclMode;
-	struct cdf_mac_addr acceptMacList[MAX_ACL_MAC_ADDRESS];
+	struct qdf_mac_addr acceptMacList[MAX_ACL_MAC_ADDRESS];
 	uint8_t nAcceptMac;
-	struct cdf_mac_addr denyMacList[MAX_ACL_MAC_ADDRESS];
+	struct qdf_mac_addr denyMacList[MAX_ACL_MAC_ADDRESS];
 	uint8_t nDenyMac;
 
 	/* QOS config */
@@ -212,7 +212,7 @@ typedef struct sSapContext {
 	uint8_t *channelList;
 	tSapChannelListInfo SapChnlList;
 	uint16_t ch_width_orig;
-	chan_params_t ch_params;
+	struct ch_params_s ch_params;
 
 	/* session to scan */
 	bool isScanSessionOpen;
@@ -262,6 +262,8 @@ typedef struct sSapContext {
 	eSapHddEvent sap_state;
 	eSapStatus sap_status;
 	uint32_t roc_ind_scan_id;
+
+	qdf_event_t sap_session_opened_evt;
 } *ptSapContext;
 
 /*----------------------------------------------------------------------------
@@ -289,13 +291,13 @@ typedef struct sWLAN_SAPEvent {
  * Function Declarations and Documentation
  * -------------------------------------------------------------------------*/
 
-CDF_STATUS
+QDF_STATUS
 wlansap_scan_callback
 	(tHalHandle halHandle,
 	void *pContext,
 	uint8_t sessionId, uint32_t scanID, eCsrScanStatus scanStatus);
 
-CDF_STATUS
+QDF_STATUS
 wlansap_pre_start_bss_acs_scan_callback(
 	tHalHandle hal_handle,
 	void *pcontext,
@@ -304,29 +306,29 @@ wlansap_pre_start_bss_acs_scan_callback(
 	eCsrScanStatus scan_status
 );
 
-CDF_STATUS
+QDF_STATUS
 wlansap_roam_callback
 	(void *pContext,
 	tCsrRoamInfo *pCsrRoamInfo,
 	uint32_t roamId,
 	eRoamCmdStatus roamStatus, eCsrRoamResult roamResult);
 
-CDF_STATUS wlansap_clean_cb(ptSapContext pSapCtx, uint32_t freeFlag);
-CDF_STATUS SapFsm(ptSapContext sapContext, ptWLAN_SAPEvent sapEvent,
+QDF_STATUS wlansap_clean_cb(ptSapContext pSapCtx, uint32_t freeFlag);
+QDF_STATUS SapFsm(ptSapContext sapContext, ptWLAN_SAPEvent sapEvent,
 			 uint8_t *status);
 
 void
-wlansap_pmc_full_pwr_req_cb(void *callbackContext, CDF_STATUS status);
+wlansap_pmc_full_pwr_req_cb(void *callbackContext, QDF_STATUS status);
 
 uint8_t sap_select_channel(tHalHandle halHandle, ptSapContext pSapCtx,
 			   tScanResultHandle pScanResult);
 
-CDF_STATUS
+QDF_STATUS
 sap_signal_hdd_event(ptSapContext sapContext,
 		  tCsrRoamInfo *pCsrRoamInfo,
 		  eSapHddEvent sapHddevent, void *);
 
-CDF_STATUS sap_fsm(ptSapContext sapContext, ptWLAN_SAPEvent sapEvent);
+QDF_STATUS sap_fsm(ptSapContext sapContext, ptWLAN_SAPEvent sapEvent);
 
 eSapStatus
 sapconvert_to_csr_profile(tsap_Config_t *pconfig_params,
@@ -335,30 +337,30 @@ sapconvert_to_csr_profile(tsap_Config_t *pconfig_params,
 
 void sap_free_roam_profile(tCsrRoamProfile *profile);
 
-CDF_STATUS
+QDF_STATUS
 sap_is_peer_mac_allowed(ptSapContext sapContext, uint8_t *peerMac);
 
 void
-sap_sort_mac_list(struct cdf_mac_addr *macList, uint8_t size);
+sap_sort_mac_list(struct qdf_mac_addr *macList, uint8_t size);
 
 void
-sap_add_mac_to_acl(struct cdf_mac_addr *macList, uint8_t *size,
+sap_add_mac_to_acl(struct qdf_mac_addr *macList, uint8_t *size,
 	       uint8_t *peerMac);
 
 void
-sap_remove_mac_from_acl(struct cdf_mac_addr *macList, uint8_t *size,
+sap_remove_mac_from_acl(struct qdf_mac_addr *macList, uint8_t *size,
 		    uint8_t index);
 
 void
-sap_print_acl(struct cdf_mac_addr *macList, uint8_t size);
+sap_print_acl(struct qdf_mac_addr *macList, uint8_t size);
 
 eSapBool
-sap_search_mac_list(struct cdf_mac_addr *macList, uint8_t num_mac,
+sap_search_mac_list(struct qdf_mac_addr *macList, uint8_t num_mac,
 		 uint8_t *peerMac, uint8_t *index);
 
-CDF_STATUS sap_acquire_global_lock(ptSapContext pSapCtx);
+QDF_STATUS sap_acquire_global_lock(ptSapContext pSapCtx);
 
-CDF_STATUS sap_release_global_lock(ptSapContext pSapCtx);
+QDF_STATUS sap_release_global_lock(ptSapContext pSapCtx);
 
 #ifdef FEATURE_WLAN_CH_AVOID
 void sap_update_unsafe_channel_list(ptSapContext pSapCtx);
@@ -368,7 +370,7 @@ uint8_t
 sap_indicate_radar(ptSapContext sapContext,
 		 tSirSmeDfsEventInd *dfs_event);
 
-CDF_STATUS sap_init_dfs_channel_nol_list(ptSapContext sapContext);
+QDF_STATUS sap_init_dfs_channel_nol_list(ptSapContext sapContext);
 
 bool sap_dfs_is_channel_in_nol_list(ptSapContext sapContext,
 				    uint8_t channelNumber,
@@ -395,7 +397,7 @@ bool sap_dfs_is_w53_invalid(tHalHandle hHal, uint8_t channelID);
 bool sap_dfs_is_channel_in_preferred_location(tHalHandle hHal,
 					      uint8_t channelID);
 
-CDF_STATUS sap_goto_channel_sel(
+QDF_STATUS sap_goto_channel_sel(
 	ptSapContext sapContext,
 	ptWLAN_SAPEvent sapEvent,
 	bool sap_do_acs_pre_start_bss);
@@ -417,6 +419,11 @@ void sap_config_acs_result(tHalHandle hal, ptSapContext sap_ctx,
  */
 bool
 sap_check_in_avoid_ch_list(ptSapContext sap_ctx, uint8_t channel);
+QDF_STATUS sap_open_session(tHalHandle hHal, ptSapContext sapContext,
+				uint32_t *session_id);
+QDF_STATUS sap_close_session(tHalHandle hHal,
+			     ptSapContext sapContext,
+			     csr_roamSessionCloseCallback callback, bool valid);
 #ifdef __cplusplus
 }
 #endif

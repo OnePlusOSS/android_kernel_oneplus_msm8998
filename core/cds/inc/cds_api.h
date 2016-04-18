@@ -34,19 +34,19 @@
  *
  */
 
-#include <cdf_types.h>
-#include <cdf_status.h>
-#include <cdf_memory.h>
-#include <cdf_list.h>
-#include <cdf_trace.h>
-#include <cdf_event.h>
-#include <cdf_lock.h>
+#include <qdf_types.h>
+#include <qdf_status.h>
+#include <qdf_mem.h>
+#include <qdf_list.h>
+#include <qdf_trace.h>
+#include <qdf_event.h>
+#include <qdf_lock.h>
 #include <cds_reg_service.h>
 #include <cds_mq.h>
 #include <cds_packet.h>
 #include <cds_sched.h>
-#include <cdf_threads.h>
-#include <cdf_mc_timer.h>
+#include <qdf_threads.h>
+#include <qdf_mc_timer.h>
 #include <cds_pack_align.h>
 
 /* Amount of time to wait for WMA to perform an asynchronous activity.
@@ -185,31 +185,33 @@ static inline void cds_set_unload_in_progress(uint8_t value)
 v_CONTEXT_t cds_init(void);
 void cds_deinit(void);
 
-CDF_STATUS cds_pre_enable(v_CONTEXT_t cds_context);
+QDF_STATUS cds_pre_enable(v_CONTEXT_t cds_context);
 
-CDF_STATUS cds_open(void);
+QDF_STATUS cds_open(void);
 
-CDF_STATUS cds_enable(v_CONTEXT_t cds_context);
+QDF_STATUS cds_enable(v_CONTEXT_t cds_context);
 
-CDF_STATUS cds_disable(v_CONTEXT_t cds_context);
+QDF_STATUS cds_disable(v_CONTEXT_t cds_context);
 
-CDF_STATUS cds_close(v_CONTEXT_t cds_context);
+QDF_STATUS cds_close(v_CONTEXT_t cds_context);
 
-CDF_STATUS cds_shutdown(v_CONTEXT_t cds_context);
+QDF_STATUS cds_shutdown(v_CONTEXT_t cds_context);
 
 void cds_core_return_msg(void *pVContext, p_cds_msg_wrapper pMsgWrapper);
 
-void *cds_get_context(CDF_MODULE_ID moduleId);
+void *cds_get_context(QDF_MODULE_ID moduleId);
 
 v_CONTEXT_t cds_get_global_context(void);
 
-CDF_STATUS cds_alloc_context(void *p_cds_context, CDF_MODULE_ID moduleID,
+QDF_STATUS cds_alloc_context(void *p_cds_context, QDF_MODULE_ID moduleID,
 			     void **ppModuleContext, uint32_t size);
 
-CDF_STATUS cds_free_context(void *p_cds_context, CDF_MODULE_ID moduleID,
+QDF_STATUS cds_free_context(void *p_cds_context, QDF_MODULE_ID moduleID,
 			    void *pModuleContext);
 
-CDF_STATUS cds_get_vdev_types(enum tCDF_ADAPTER_MODE mode, uint32_t *type,
+QDF_STATUS cds_set_context(QDF_MODULE_ID module_id, void *context);
+
+QDF_STATUS cds_get_vdev_types(enum tQDF_ADAPTER_MODE mode, uint32_t *type,
 			      uint32_t *subType);
 
 void cds_flush_work(void *work);
@@ -227,7 +229,7 @@ void cds_set_ring_log_level(uint32_t ring_id, uint32_t log_level);
 enum wifi_driver_log_level cds_get_ring_log_level(uint32_t ring_id);
 void cds_set_multicast_logging(uint8_t value);
 uint8_t cds_is_multicast_logging(void);
-CDF_STATUS cds_set_log_completion(uint32_t is_fatal,
+QDF_STATUS cds_set_log_completion(uint32_t is_fatal,
 		uint32_t type,
 		uint32_t sub_type);
 void cds_get_log_completion(uint32_t *is_fatal,
@@ -236,7 +238,7 @@ void cds_get_log_completion(uint32_t *is_fatal,
 bool cds_is_log_report_in_progress(void);
 void cds_init_log_completion(void);
 void cds_deinit_log_completion(void);
-CDF_STATUS cds_flush_logs(uint32_t is_fatal,
+QDF_STATUS cds_flush_logs(uint32_t is_fatal,
 		uint32_t indicator,
 		uint32_t reason_code);
 void cds_logging_set_fw_flush_complete(void);

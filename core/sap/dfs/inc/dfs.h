@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2005-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -48,14 +48,14 @@
  */
 /*DFS New Include Start*/
 
-#include <cdf_net_types.h>      /* CDF_NBUF_EXEMPT_NO_EXEMPTION, etc. */
-#include <cdf_nbuf.h>           /* cdf_nbuf_t, etc. */
-#include <cdf_util.h>           /* cdf_assert */
-#include <cdf_lock.h>           /* cdf_spinlock */
+#include <qdf_net_types.h>      /* QDF_NBUF_EXEMPT_NO_EXEMPTION, etc. */
+#include <qdf_nbuf.h>           /* qdf_nbuf_t, etc. */
+#include <qdf_util.h>           /* qdf_assert */
+#include <qdf_lock.h>           /* qdf_spinlock */
 #include <cds_queue.h>          /* TAILQ */
-#include <cdf_time.h>
-#include <cdf_softirq_timer.h>
-#include <cdf_memory.h>
+#include <qdf_time.h>
+#include <qdf_timer.h>
+#include <qdf_mem.h>
 #include <osdep.h>
 /*DFS Utility Include END*/
 
@@ -81,7 +81,7 @@
 		if (((dfs) == NULL) ||				     \
 		    ((dfs) != NULL &&				       \
 		     ((_m) & (dfs)->dfs_debug_mask))) {		       \
-			CDF_TRACE(CDF_MODULE_ID_SAP, CDF_TRACE_LEVEL_DEBUG, \
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG, \
 				 _fmt, __VA_ARGS__);	\
 		}						     \
 } while (0)
@@ -131,18 +131,18 @@
 #define DFS_EXT_CHAN_LOADING_THRESH     30
 #define DFS_DEFAULT_PRI_MARGIN          6
 #define DFS_DEFAULT_FIXEDPATTERN_PRI_MARGIN       4
-#define ATH_DFSQ_LOCK(_dfs)        cdf_spin_lock_bh((&(_dfs)->dfs_radarqlock))
-#define ATH_DFSQ_UNLOCK(_dfs)      cdf_spin_unlock_bh((&(_dfs)->dfs_radarqlock))
-#define ATH_DFSQ_LOCK_INIT(_dfs)   cdf_spinlock_init(&(_dfs)->dfs_radarqlock)
+#define ATH_DFSQ_LOCK(_dfs)        qdf_spin_lock_bh((&(_dfs)->dfs_radarqlock))
+#define ATH_DFSQ_UNLOCK(_dfs)      qdf_spin_unlock_bh((&(_dfs)->dfs_radarqlock))
+#define ATH_DFSQ_LOCK_INIT(_dfs)   qdf_spinlock_create(&(_dfs)->dfs_radarqlock)
 
-#define ATH_ARQ_LOCK(_dfs)         cdf_spin_lock_bh((&(_dfs)->dfs_arqlock))
-#define ATH_ARQ_UNLOCK(_dfs)       cdf_spin_unlock_bh((&(_dfs)->dfs_arqlock))
-#define ATH_ARQ_LOCK_INIT(_dfs)    cdf_spinlock_init(&(_dfs)->dfs_arqlock)
+#define ATH_ARQ_LOCK(_dfs)         qdf_spin_lock_bh((&(_dfs)->dfs_arqlock))
+#define ATH_ARQ_UNLOCK(_dfs)       qdf_spin_unlock_bh((&(_dfs)->dfs_arqlock))
+#define ATH_ARQ_LOCK_INIT(_dfs)    qdf_spinlock_create(&(_dfs)->dfs_arqlock)
 
-#define ATH_DFSEVENTQ_LOCK(_dfs)   cdf_spin_lock_bh((&(_dfs)->dfs_eventqlock))
-#define ATH_DFSEVENTQ_UNLOCK(_dfs) cdf_spin_unlock_bh((&(_dfs)->dfs_eventqlock))
+#define ATH_DFSEVENTQ_LOCK(_dfs)   qdf_spin_lock_bh((&(_dfs)->dfs_eventqlock))
+#define ATH_DFSEVENTQ_UNLOCK(_dfs) qdf_spin_unlock_bh((&(_dfs)->dfs_eventqlock))
 #define ATH_DFSEVENTQ_LOCK_INIT(_dfs) \
-				   cdf_spinlock_init((&(_dfs)->dfs_eventqlock))
+				   qdf_spinlock_create((&(_dfs)->dfs_eventqlock))
 /* Mask for time stamp from descriptor */
 #define DFS_TSMASK              0xFFFFFFFF
 /* Shift for time stamp from descriptor */
@@ -222,7 +222,7 @@
 #define DFS_ETSI_TYPE3_WAR_PRI_UPPER_LIMIT 435
 #define DFS_ETSI_WAR_VALID_PULSE_DURATION 15
 
-typedef cdf_spinlock_t dfsq_lock_t;
+typedef qdf_spinlock_t dfsq_lock_t;
 
 #ifdef WIN32
 #pragma pack(push, dfs_pulseparams, 1)
@@ -231,7 +231,7 @@ struct dfs_pulseparams {
 	uint64_t p_time;        /* time for start of pulse in usecs */
 	uint8_t p_dur;          /* Duration of pulse in usecs */
 	uint8_t p_rssi;         /* Duration of pulse in usecs */
-} cdf_packed;
+} qdf_packed;
 #ifdef WIN32
 #pragma pack(pop, dfs_pulseparams)
 #endif
@@ -245,7 +245,7 @@ struct dfs_pulseline {
 	uint32_t pl_firstelem;  /* Index of the first element */
 	uint32_t pl_lastelem;   /* Index of the last element */
 	uint32_t pl_numelems;   /* Number of elements in the delay line */
-} cdf_packed;
+} qdf_packed;
 #ifdef WIN32
 #pragma pack(pop, dfs_pulseline)
 #endif
@@ -287,7 +287,7 @@ struct dfs_event {
 	int sidx;               /* Pulse Index as in radar summary report */
 	int radar_80p80_segid;  /* 80p80 segment ID as in radar sum report */
 	STAILQ_ENTRY(dfs_event) re_list;        /* List of radar events */
-} cdf_packed;
+} qdf_packed;
 #ifdef WIN32
 #pragma pack(pop, dfs_event)
 #endif
@@ -329,7 +329,7 @@ struct dfs_delayelem {
 	uint8_t de_rssi;
 	/* time stamp for this delay element */
 	uint64_t de_ts;
-} cdf_packed;
+} qdf_packed;
 #ifdef WIN32
 #pragma pack(pop, dfs_delayelem)
 #endif
@@ -350,7 +350,7 @@ struct dfs_delayline {
 	uint32_t dl_lastelem;
 	/* Number of elements in the delay line */
 	uint32_t dl_numelems;
-} cdf_packed;
+} qdf_packed;
 #ifdef WIN32
 #pragma pack(pop, dfs_delayline)
 #endif
@@ -384,13 +384,13 @@ struct dfs_filter {
 	uint32_t rf_ignore_pri_window;
 	/* Unique ID corresponding to the original filter ID */
 	uint32_t rf_pulseid;
-} cdf_packed;
+} qdf_packed;
 #ifdef WIN32
 #pragma pack(pop, dfs_filter)
 #endif
 
 struct dfs_filtertype {
-	struct dfs_filter ft_filters[DFS_MAX_NUM_RADAR_FILTERS];
+	struct dfs_filter *ft_filters[DFS_MAX_NUM_RADAR_FILTERS];
 	/* Duration of pulse which specifies filter type */
 	uint32_t ft_filterdur;
 	/* Num filters of this type */
@@ -441,7 +441,7 @@ struct dfs_nolelem {
 	uint32_t nol_timeout_ms;        /* NOL timeout value in msec */
 	os_timer_t nol_timer;   /* per element NOL timer */
 	struct dfs_nolelem *nol_next;   /* next element pointer */
-} cdf_packed;
+} qdf_packed;
 #ifdef WIN32
 #pragma pack(pop, dfs_nolelem)
 #endif
@@ -484,7 +484,7 @@ struct dfs_info {
 	uint64_t dfs_bin5_chirp_ts;
 	uint8_t dfs_last_bin5_dur;
 	uint8_t dfs_last_bin5_dur_ext_seg;
-} cdf_packed;
+} qdf_packed;
 #ifdef WIN32
 #pragma pack(pop, dfs_info)
 #endif

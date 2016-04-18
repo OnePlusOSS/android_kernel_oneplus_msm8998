@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2012, 2014-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2012, 2014-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -34,8 +34,8 @@
 #ifndef CSR_LINK_LIST_H__
 #define CSR_LINK_LIST_H__
 
-#include "cdf_lock.h"
-#include "cdf_mc_timer.h"
+#include "qdf_lock.h"
+#include "qdf_mc_timer.h"
 #include "cds_api.h"
 #include "sir_types.h"
 
@@ -55,13 +55,13 @@ typedef enum {
 /* This is a circular double link list */
 typedef struct tagDblLinkList {
 	tListElem ListHead;
-	cdf_mutex_t Lock;
+	qdf_mutex_t Lock;
 	uint32_t Count;
 	tHddHandle hHdd;
 	tListFlag Flag;
 	/*command debugging */
 	uint32_t cmdTimeoutDuration;       /* command timeout duration */
-	cdf_mc_timer_t *cmdTimeoutTimer;   /*command timeout Timer */
+	qdf_mc_timer_t *cmdTimeoutTimer;   /*command timeout Timer */
 } tDblLinkList;
 
 /*
@@ -82,7 +82,7 @@ typedef struct tagDblLinkList {
 #define csrIsListEmpty(pHead) ((pHead)->next == (pHead))
 
 uint32_t csr_ll_count(tDblLinkList *pList);
-CDF_STATUS csr_ll_open(tHddHandle hHdd, tDblLinkList *pList);
+QDF_STATUS csr_ll_open(tHddHandle hHdd, tDblLinkList *pList);
 void csr_ll_close(tDblLinkList *pList);
 void csr_ll_lock(tDblLinkList *pList);
 void csr_ll_unlock(tDblLinkList *pList);

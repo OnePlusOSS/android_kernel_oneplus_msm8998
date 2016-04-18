@@ -38,8 +38,8 @@
 
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
-#include <cdf_list.h>
-#include <cdf_types.h>
+#include <qdf_list.h>
+#include <qdf_types.h>
 #include <wlan_hdd_main.h>
 
 /* Preprocessor definitions and constants */
@@ -48,18 +48,26 @@
 #define HOSTAPD_IOCTL_COMMAND_STRLEN_MAX   8192
 
 hdd_adapter_t *hdd_wlan_create_ap_dev(hdd_context_t *pHddCtx,
-				      tSirMacAddr macAddr, uint8_t *name);
+				      tSirMacAddr macAddr,
+				      unsigned char name_assign_type,
+				      uint8_t *name);
 
-CDF_STATUS hdd_register_hostapd(hdd_adapter_t *pAdapter, uint8_t rtnl_held);
+QDF_STATUS hdd_register_hostapd(hdd_adapter_t *pAdapter, uint8_t rtnl_held);
 
-CDF_STATUS hdd_unregister_hostapd(hdd_adapter_t *pAdapter, bool rtnl_held);
+QDF_STATUS hdd_unregister_hostapd(hdd_adapter_t *pAdapter, bool rtnl_held);
 
 eCsrAuthType
 hdd_translate_rsn_to_csr_auth_type(uint8_t auth_suite[4]);
 
 int hdd_softap_set_channel_change(struct net_device *dev,
-				int target_channel,
-				phy_ch_width target_bw);
+					int target_channel,
+					enum phy_ch_width target_bw);
+
+#ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
+void hdd_sap_restart_with_channel_switch(hdd_adapter_t *adapter,
+				uint32_t target_channel,
+				uint32_t target_bw);
+#endif
 
 eCsrEncryptionType
 hdd_translate_rsn_to_csr_encryption_type(uint8_t cipher_suite[4]);
@@ -73,7 +81,7 @@ hdd_translate_wpa_to_csr_auth_type(uint8_t auth_suite[4]);
 eCsrEncryptionType
 hdd_translate_wpa_to_csr_encryption_type(uint8_t cipher_suite[4]);
 
-CDF_STATUS hdd_softap_sta_deauth(hdd_adapter_t *,
+QDF_STATUS hdd_softap_sta_deauth(hdd_adapter_t *,
 		struct tagCsrDelStaParams *);
 void hdd_softap_sta_disassoc(hdd_adapter_t *, uint8_t *);
 void hdd_softap_tkip_mic_fail_counter_measure(hdd_adapter_t *, bool);
@@ -85,9 +93,9 @@ int hdd_softap_unpack_ie(tHalHandle halHandle,
 			 bool *pMFPRequired,
 			 uint16_t gen_ie_len, uint8_t *gen_ie);
 
-CDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
+QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 				    void *usrDataForCallback);
-CDF_STATUS hdd_init_ap_mode(hdd_adapter_t *pAdapter);
+QDF_STATUS hdd_init_ap_mode(hdd_adapter_t *pAdapter);
 void hdd_set_ap_ops(struct net_device *pWlanHostapdDev);
 int hdd_hostapd_stop(struct net_device *dev);
 void hdd_hostapd_channel_wakelock_init(hdd_context_t *pHddCtx);
@@ -96,7 +104,7 @@ void hdd_hostapd_channel_wakelock_deinit(hdd_context_t *pHddCtx);
 void hdd_restart_softap(hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter);
 #endif /* FEATURE_WLAN_FORCE_SAP_SCC */
 #ifdef QCA_HT_2040_COEX
-CDF_STATUS hdd_set_sap_ht2040_mode(hdd_adapter_t *pHostapdAdapter,
+QDF_STATUS hdd_set_sap_ht2040_mode(hdd_adapter_t *pHostapdAdapter,
 				   uint8_t channel_type);
 #endif
 
@@ -112,5 +120,5 @@ int wlan_hdd_cfg80211_change_beacon(struct wiphy *wiphy,
 				    struct net_device *dev,
 				    struct cfg80211_beacon_data *params);
 
-CDF_STATUS wlan_hdd_config_acs(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter);
+QDF_STATUS wlan_hdd_config_acs(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter);
 #endif /* end #if !defined(WLAN_HDD_HOSTAPD_H) */

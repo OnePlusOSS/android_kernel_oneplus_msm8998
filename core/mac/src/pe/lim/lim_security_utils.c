@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -46,9 +46,7 @@
 #include "utils_api.h"
 #include "lim_utils.h"
 #include "lim_security_utils.h"
-#ifdef WLAN_FEATURE_VOWIFI_11R
 #include "lim_ft_defs.h"
-#endif
 #include "lim_session.h"
 
 #define LIM_SEED_LENGTH 16
@@ -108,7 +106,7 @@ lim_is_auth_algo_supported(tpAniSirGlobal pMac, tAniAuthType authType,
 
 			return false;
 		} else
-			return ((algoEnable > 0 ? true : false));
+			return algoEnable > 0 ? true : false;
 	} else {
 
 		if (LIM_IS_AP_ROLE(psessionEntry)) {
@@ -138,8 +136,7 @@ lim_is_auth_algo_supported(tpAniSirGlobal pMac, tAniAuthType authType,
 		} else
 
 		if (wlan_cfg_get_int(pMac, WNI_CFG_PRIVACY_ENABLED,
-				     &privacyOptImp) != eSIR_SUCCESS)
-		{
+				     &privacyOptImp) != eSIR_SUCCESS) {
 			/**
 			 * Could not get PrivacyOptionImplemented value
 			 * from CFG. Log error.
@@ -150,7 +147,7 @@ lim_is_auth_algo_supported(tpAniSirGlobal pMac, tAniAuthType authType,
 
 			return false;
 		}
-		return (algoEnable && privacyOptImp);
+		return algoEnable && privacyOptImp;
 	}
 } /****** end lim_is_auth_algo_supported() ******/
 
@@ -239,7 +236,7 @@ struct tLimPreAuthNode *lim_search_pre_auth_list(tpAniSirGlobal pMac,
 	struct tLimPreAuthNode *pTempNode = pMac->lim.pLimPreAuthList;
 
 	while (pTempNode != NULL) {
-		if (cdf_mem_compare((uint8_t *) macAddr,
+		if (!qdf_mem_cmp((uint8_t *) macAddr,
 				    (uint8_t *) &pTempNode->peerMacAddr,
 				    sizeof(tSirMacAddr)))
 			break;
@@ -274,9 +271,9 @@ lim_delete_open_auth_pre_auth_node(tpAniSirGlobal mac_ctx)
 	while (temp_node != NULL) {
 		if (temp_node->mlmState == eLIM_MLM_AUTHENTICATED_STATE &&
 		    temp_node->authType == eSIR_OPEN_SYSTEM &&
-		    (cdf_mc_timer_get_system_ticks() >
+		    (qdf_mc_timer_get_system_ticks() >
 		    (LIM_OPENAUTH_TIMEOUT + temp_node->timestamp) ||
-		    cdf_mc_timer_get_system_ticks() < temp_node->timestamp)) {
+		    qdf_mc_timer_get_system_ticks() < temp_node->timestamp)) {
 			/* Found node to be deleted */
 			auth_node_freed = true;
 			found_node = temp_node;
@@ -389,7 +386,7 @@ void lim_delete_pre_auth_node(tpAniSirGlobal pMac, tSirMacAddr macAddr)
 	if (pTempNode == NULL)
 		return;
 
-	if (cdf_mem_compare((uint8_t *) macAddr,
+	if (!qdf_mem_cmp((uint8_t *) macAddr,
 			    (uint8_t *) &pTempNode->peerMacAddr,
 			    sizeof(tSirMacAddr))) {
 		/* First node to be deleted */
@@ -415,7 +412,7 @@ void lim_delete_pre_auth_node(tpAniSirGlobal pMac, tSirMacAddr macAddr)
 	pTempNode = pTempNode->next;
 
 	while (pTempNode != NULL) {
-		if (cdf_mem_compare((uint8_t *) macAddr,
+		if (!qdf_mem_cmp((uint8_t *) macAddr,
 				    (uint8_t *) &pTempNode->peerMacAddr,
 				    sizeof(tSirMacAddr))) {
 			/* Found node to be deleted */
@@ -482,7 +479,7 @@ lim_restore_from_auth_state(tpAniSirGlobal pMac, tSirResultCodes resultCode,
 			      resultCode, protStatusCode);
 #endif
 
-	cdf_mem_copy((uint8_t *) &mlmAuthCnf.peerMacAddr,
+	qdf_mem_copy((uint8_t *) &mlmAuthCnf.peerMacAddr,
 		     (uint8_t *) &pMac->lim.gpLimMlmAuthReq->peerMacAddr,
 		     sizeof(tSirMacAddr));
 	mlmAuthCnf.authType = pMac->lim.gpLimMlmAuthReq->authType;
@@ -494,7 +491,7 @@ lim_restore_from_auth_state(tpAniSirGlobal pMac, tSirResultCodes resultCode,
 
 	/* / Free up buffer allocated */
 	/* / for pMac->lim.gLimMlmAuthReq */
-	cdf_mem_free(pMac->lim.gpLimMlmAuthReq);
+	qdf_mem_free(pMac->lim.gpLimMlmAuthReq);
 	pMac->lim.gpLimMlmAuthReq = NULL;
 
 	sessionEntry->limMlmState = sessionEntry->limPrevMlmState;
@@ -502,6 +499,15 @@ lim_restore_from_auth_state(tpAniSirGlobal pMac, tSirResultCodes resultCode,
 	MTRACE(mac_trace
 		       (pMac, TRACE_CODE_MLM_STATE, sessionEntry->peSessionId,
 		       sessionEntry->limMlmState));
+
+	/*
+	 * Set the auth_ack_status status flag as success as
+	 * host have received the auth rsp and no longer auth
+	 * retry is needed also cancel the auth rety timer
+	 */
+	pMac->auth_ack_status = LIM_AUTH_ACK_RCD_SUCCESS;
+	/* 'Change' timer for future activations */
+	lim_deactivate_and_change_timer(pMac, eLIM_AUTH_RETRY_TIMER);
 
 	/* 'Change' timer for future activations */
 	lim_deactivate_and_change_timer(pMac, eLIM_AUTH_FAIL_TIMER);
@@ -549,12 +555,12 @@ lim_encrypt_auth_frame(tpAniSirGlobal pMac, uint8_t keyId, uint8_t *pKey,
 	keyLength += 3;
 
 	/* Bytes 3-7 of seed is key */
-	cdf_mem_copy((uint8_t *) &seed[3], pKey, keyLength - 3);
+	qdf_mem_copy((uint8_t *) &seed[3], pKey, keyLength - 3);
 
 	/* Compute CRC-32 and place them in last 4 bytes of plain text */
 	lim_compute_crc32(icv, pPlainText, sizeof(tSirMacAuthFrameBody));
 
-	cdf_mem_copy(pPlainText + sizeof(tSirMacAuthFrameBody),
+	qdf_mem_copy(pPlainText + sizeof(tSirMacAuthFrameBody),
 		     icv, SIR_MAC_WEP_ICV_LENGTH);
 
 	/* Run RC4 on plain text with the seed */
@@ -733,10 +739,10 @@ lim_decrypt_auth_frame(tpAniSirGlobal pMac, uint8_t *pKey, uint8_t *pEncrBody,
 	keyLength += 3;
 
 	/* Bytes 0-2 of seed is received IV */
-	cdf_mem_copy((uint8_t *) seed, pEncrBody, SIR_MAC_WEP_IV_LENGTH - 1);
+	qdf_mem_copy((uint8_t *) seed, pEncrBody, SIR_MAC_WEP_IV_LENGTH - 1);
 
 	/* Bytes 3-7 of seed is key */
-	cdf_mem_copy((uint8_t *) &seed[3], pKey, keyLength - 3);
+	qdf_mem_copy((uint8_t *) &seed[3], pKey, keyLength - 3);
 
 	/* Run RC4 on encrypted text with the seed */
 	lim_rc4(pPlainBody,
@@ -775,11 +781,11 @@ void lim_post_sme_set_keys_cnf(tpAniSirGlobal pMac,
 			       tLimMlmSetKeysCnf *mlmSetKeysCnf)
 {
 	/* Prepare and Send LIM_MLM_SETKEYS_CNF */
-	cdf_copy_macaddr(&mlmSetKeysCnf->peer_macaddr,
+	qdf_copy_macaddr(&mlmSetKeysCnf->peer_macaddr,
 			 &pMlmSetKeysReq->peer_macaddr);
 
 	/* Free up buffer allocated for mlmSetKeysReq */
-	cdf_mem_free(pMlmSetKeysReq);
+	qdf_mem_free(pMlmSetKeysReq);
 	pMac->lim.gpLimMlmSetKeysReq = NULL;
 
 	lim_post_sme_message(pMac,
@@ -828,7 +834,7 @@ void lim_send_set_bss_key_req(tpAniSirGlobal pMac,
 	}
 	/* Package WMA_SET_BSSKEY_REQ message parameters */
 
-	pSetBssKeyParams = cdf_mem_malloc(sizeof(tSetBssKeyParams));
+	pSetBssKeyParams = qdf_mem_malloc(sizeof(tSetBssKeyParams));
 	if (NULL == pSetBssKeyParams) {
 		lim_log(pMac, LOGE,
 			FL("Unable to allocate memory during SET_BSSKEY"));
@@ -837,7 +843,7 @@ void lim_send_set_bss_key_req(tpAniSirGlobal pMac,
 		mlmSetKeysCnf.resultCode = eSIR_SME_RESOURCES_UNAVAILABLE;
 		goto end;
 	} else
-		cdf_mem_set((void *)pSetBssKeyParams,
+		qdf_mem_set((void *)pSetBssKeyParams,
 			    sizeof(tSetBssKeyParams), 0);
 
 	/* Update the WMA_SET_BSSKEY_REQ parameters */
@@ -862,14 +868,14 @@ void lim_send_set_bss_key_req(tpAniSirGlobal pMac,
 		/* IF the key id is non-zero and encryption type is WEP, Send all the 4
 		 * keys to HAL with filling the key at right index in pSetBssKeyParams->key. */
 		pSetBssKeyParams->numKeys = SIR_MAC_MAX_NUM_OF_DEFAULT_KEYS;
-		cdf_mem_copy((uint8_t *) &pSetBssKeyParams->
+		qdf_mem_copy((uint8_t *) &pSetBssKeyParams->
 			     key[pMlmSetKeysReq->key[0].keyId],
 			     (uint8_t *) &pMlmSetKeysReq->key[0],
 			     sizeof(pMlmSetKeysReq->key[0]));
 
 	} else {
 		pSetBssKeyParams->numKeys = pMlmSetKeysReq->numKeys;
-		cdf_mem_copy((uint8_t *) &pSetBssKeyParams->key,
+		qdf_mem_copy((uint8_t *) &pSetBssKeyParams->key,
 			     (uint8_t *) &pMlmSetKeysReq->key,
 			     sizeof(tSirKeys) * pMlmSetKeysReq->numKeys);
 	}
@@ -882,7 +888,8 @@ void lim_send_set_bss_key_req(tpAniSirGlobal pMac,
 
 	lim_log(pMac, LOGW, FL("Sending WMA_SET_BSSKEY_REQ..."));
 	MTRACE(mac_trace_msg_tx(pMac, psessionEntry->peSessionId, msgQ.type));
-	if (eSIR_SUCCESS != (retCode = wma_post_ctrl_msg(pMac, &msgQ))) {
+	retCode = wma_post_ctrl_msg(pMac, &msgQ);
+	if (eSIR_SUCCESS != retCode) {
 		lim_log(pMac, LOGE,
 			FL("Posting SET_BSSKEY to HAL failed, reason=%X"),
 			retCode);
@@ -931,13 +938,13 @@ void lim_send_set_sta_key_req(tpAniSirGlobal pMac,
 	uint32_t val = 0;
 
 	/* Package WMA_SET_STAKEY_REQ message parameters */
-	pSetStaKeyParams = cdf_mem_malloc(sizeof(tSetStaKeyParams));
+	pSetStaKeyParams = qdf_mem_malloc(sizeof(tSetStaKeyParams));
 	if (NULL == pSetStaKeyParams) {
 		lim_log(pMac, LOGP,
 			FL("Unable to allocate memory during SET_BSSKEY"));
 		return;
 	} else
-		cdf_mem_set((void *)pSetStaKeyParams, sizeof(tSetStaKeyParams),
+		qdf_mem_set((void *)pSetStaKeyParams, sizeof(tSetStaKeyParams),
 			    0);
 
 	/* Update the WMA_SET_STAKEY_REQ parameters */
@@ -964,7 +971,7 @@ void lim_send_set_sta_key_req(tpAniSirGlobal pMac,
 	pSetStaKeyParams->defWEPIdx = defWEPIdx;
 
 	pSetStaKeyParams->smesessionId = pMlmSetKeysReq->smesessionId;
-	cdf_copy_macaddr(&pSetStaKeyParams->peer_macaddr,
+	qdf_copy_macaddr(&pSetStaKeyParams->peer_macaddr,
 			 &pMlmSetKeysReq->peer_macaddr);
 
 	if (sendRsp == true) {
@@ -1002,7 +1009,7 @@ void lim_send_set_sta_key_req(tpAniSirGlobal pMac,
 			uint32_t i;
 
 			for (i = 0; i < SIR_MAC_MAX_NUM_OF_DEFAULT_KEYS; i++) {
-				cdf_mem_copy((uint8_t *) &pSetStaKeyParams->
+				qdf_mem_copy((uint8_t *) &pSetStaKeyParams->
 					     key[i],
 					     (uint8_t *) &pMlmSetKeysReq->
 					     key[i], sizeof(tSirKeys));
@@ -1018,7 +1025,7 @@ void lim_send_set_sta_key_req(tpAniSirGlobal pMac,
 			/*This case the keys are coming from upper layer so need to fill the
 			 * key at the default wep key index and send to the HAL */
 			if (defWEPIdx < SIR_MAC_MAX_NUM_OF_DEFAULT_KEYS) {
-				cdf_mem_copy((uint8_t *) &pSetStaKeyParams->
+				qdf_mem_copy((uint8_t *) &pSetStaKeyParams->
 					     key[defWEPIdx],
 					     (uint8_t *) &pMlmSetKeysReq->
 					     key[0],
@@ -1028,7 +1035,7 @@ void lim_send_set_sta_key_req(tpAniSirGlobal pMac,
 			} else {
 				lim_log(pMac, LOGE, FL("Wrong Key Index %d"),
 					defWEPIdx);
-				cdf_mem_free(pSetStaKeyParams);
+				qdf_mem_free(pSetStaKeyParams);
 				return;
 			}
 		}
@@ -1039,7 +1046,7 @@ void lim_send_set_sta_key_req(tpAniSirGlobal pMac,
 	case eSIR_ED_WPI:
 #endif
 		{
-			cdf_mem_copy((uint8_t *) &pSetStaKeyParams->key,
+			qdf_mem_copy((uint8_t *) &pSetStaKeyParams->key,
 				     (uint8_t *) &pMlmSetKeysReq->key[0],
 				     sizeof(tSirKeys));
 		}
@@ -1056,7 +1063,8 @@ void lim_send_set_sta_key_req(tpAniSirGlobal pMac,
 
 	lim_log(pMac, LOG1, FL("Sending WMA_SET_STAKEY_REQ..."));
 	MTRACE(mac_trace_msg_tx(pMac, sessionEntry->peSessionId, msgQ.type));
-	if (eSIR_SUCCESS != (retCode = wma_post_ctrl_msg(pMac, &msgQ))) {
+	retCode = wma_post_ctrl_msg(pMac, &msgQ);
+	if (eSIR_SUCCESS != retCode) {
 		lim_log(pMac, LOGE,
 			FL("Posting SET_STAKEY to HAL failed, reason=%X"),
 			retCode);

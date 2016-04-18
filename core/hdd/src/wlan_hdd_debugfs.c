@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -69,7 +69,7 @@ static ssize_t __wcnss_wowenable_write(struct file *file,
 
 	pAdapter = (hdd_adapter_t *)file->private_data;
 	if ((NULL == pAdapter) || (WLAN_HDD_ADAPTER_MAGIC != pAdapter->magic)) {
-		CDF_TRACE(CDF_MODULE_ID_HDD, CDF_TRACE_LEVEL_FATAL,
+		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_FATAL,
 			  "%s: Invalid adapter or adapter has invalid magic.",
 			  __func__);
 
@@ -83,7 +83,7 @@ static ssize_t __wcnss_wowenable_write(struct file *file,
 
 
 	if (!sme_is_feature_supported_by_fw(WOW)) {
-		CDF_TRACE(CDF_MODULE_ID_HDD, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
 			  "%s: Wake-on-Wireless feature is not supported in firmware!",
 			  __func__);
 
@@ -91,7 +91,7 @@ static ssize_t __wcnss_wowenable_write(struct file *file,
 	}
 
 	if (count > MAX_USER_COMMAND_SIZE_WOWL_ENABLE) {
-		CDF_TRACE(CDF_MODULE_ID_HDD, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
 			  "%s: Command length is larger than %d bytes.",
 			  __func__, MAX_USER_COMMAND_SIZE_WOWL_ENABLE);
 
@@ -114,7 +114,7 @@ static ssize_t __wcnss_wowenable_write(struct file *file,
 	/* Disable wow */
 	if (!wow_enable) {
 		if (!hdd_exit_wowl(pAdapter)) {
-			CDF_TRACE(CDF_MODULE_ID_HDD, CDF_TRACE_LEVEL_ERROR,
+			QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
 				  "%s: hdd_exit_wowl failed!", __func__);
 
 			return -EFAULT;
@@ -142,7 +142,7 @@ static ssize_t __wcnss_wowenable_write(struct file *file,
 		wow_pbm = 1;
 
 	if (!hdd_enter_wowl(pAdapter, wow_mp, wow_pbm)) {
-		CDF_TRACE(CDF_MODULE_ID_HDD, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
 			  "%s: hdd_enter_wowl failed!", __func__);
 
 		return -EFAULT;
@@ -199,7 +199,7 @@ static ssize_t __wcnss_wowpattern_write(struct file *file,
 	ENTER();
 
 	if ((NULL == pAdapter) || (WLAN_HDD_ADAPTER_MAGIC != pAdapter->magic)) {
-		CDF_TRACE(CDF_MODULE_ID_HDD, CDF_TRACE_LEVEL_FATAL,
+		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_FATAL,
 			  "%s: Invalid adapter or adapter has invalid magic.",
 			  __func__);
 
@@ -212,7 +212,7 @@ static ssize_t __wcnss_wowpattern_write(struct file *file,
 		return ret;
 
 	if (!sme_is_feature_supported_by_fw(WOW)) {
-		CDF_TRACE(CDF_MODULE_ID_HDD, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
 			  "%s: Wake-on-Wireless feature is not supported in firmware!",
 			  __func__);
 
@@ -220,7 +220,7 @@ static ssize_t __wcnss_wowpattern_write(struct file *file,
 	}
 
 	if (count > MAX_USER_COMMAND_SIZE_WOWL_PATTERN) {
-		CDF_TRACE(CDF_MODULE_ID_HDD, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
 			  "%s: Command length is larger than %d bytes.",
 			  __func__, MAX_USER_COMMAND_SIZE_WOWL_PATTERN);
 
@@ -321,14 +321,14 @@ static ssize_t __wcnss_patterngen_write(struct file *file,
 	char *pattern_buf;
 	uint16_t pattern_len = 0;
 	uint16_t i = 0;
-	CDF_STATUS status;
+	QDF_STATUS status;
 	int ret;
 
 	ENTER();
 
 	pAdapter = (hdd_adapter_t *)file->private_data;
 	if ((NULL == pAdapter) || (WLAN_HDD_ADAPTER_MAGIC != pAdapter->magic)) {
-		CDF_TRACE(CDF_MODULE_ID_HDD, CDF_TRACE_LEVEL_FATAL,
+		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_FATAL,
 			  "%s: Invalid adapter or adapter has invalid magic.",
 			  __func__);
 
@@ -341,7 +341,7 @@ static ssize_t __wcnss_patterngen_write(struct file *file,
 		return ret;
 
 	if (!sme_is_feature_supported_by_fw(WLAN_PERIODIC_TX_PTRN)) {
-		CDF_TRACE(CDF_MODULE_ID_HDD, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
 			  "%s: Periodic Tx Pattern Offload feature is not supported in firmware!",
 			  __func__);
 		return -EINVAL;
@@ -349,9 +349,9 @@ static ssize_t __wcnss_patterngen_write(struct file *file,
 
 	/* Get command from user */
 	if (count <= MAX_USER_COMMAND_SIZE_FRAME)
-		cmd = cdf_mem_malloc(count + 1);
+		cmd = qdf_mem_malloc(count + 1);
 	else {
-		CDF_TRACE(CDF_MODULE_ID_HDD, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
 			  "%s: Command length is larger than %d bytes.",
 			  __func__, MAX_USER_COMMAND_SIZE_FRAME);
 
@@ -359,13 +359,13 @@ static ssize_t __wcnss_patterngen_write(struct file *file,
 	}
 
 	if (!cmd) {
-		CDF_TRACE(CDF_MODULE_ID_HDD, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
 			  FL("Memory allocation for cmd failed!"));
 		return -ENOMEM;
 	}
 
 	if (copy_from_user(cmd, buf, count)) {
-		cdf_mem_free(cmd);
+		qdf_mem_free(cmd);
 		return -EFAULT;
 	}
 	cmd[count] = '\0';
@@ -379,7 +379,7 @@ static ssize_t __wcnss_patterngen_write(struct file *file,
 		goto failure;
 
 	if (pattern_idx > (MAXNUM_PERIODIC_TX_PTRNS - 1)) {
-		CDF_TRACE(CDF_MODULE_ID_HDD, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
 			  "%s: Pattern index %d is not in the range (0 ~ %d).",
 			  __func__, pattern_idx, MAXNUM_PERIODIC_TX_PTRNS - 1);
 
@@ -396,31 +396,31 @@ static ssize_t __wcnss_patterngen_write(struct file *file,
 	/* Delete pattern using index if duration is 0 */
 	if (!pattern_duration) {
 		delPeriodicTxPtrnParams =
-			cdf_mem_malloc(sizeof(tSirDelPeriodicTxPtrn));
+			qdf_mem_malloc(sizeof(tSirDelPeriodicTxPtrn));
 		if (!delPeriodicTxPtrnParams) {
-			CDF_TRACE(CDF_MODULE_ID_HDD, CDF_TRACE_LEVEL_ERROR,
+			QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
 				  FL("Memory allocation failed!"));
-			cdf_mem_free(cmd);
+			qdf_mem_free(cmd);
 			return -ENOMEM;
 		}
 		delPeriodicTxPtrnParams->ucPtrnId = pattern_idx;
 		delPeriodicTxPtrnParams->ucPatternIdBitmap = 1 << pattern_idx;
-		cdf_copy_macaddr(&delPeriodicTxPtrnParams->mac_address,
+		qdf_copy_macaddr(&delPeriodicTxPtrnParams->mac_address,
 				 &pAdapter->macAddressCurrent);
 
 		/* Delete pattern */
 		status = sme_del_periodic_tx_ptrn(pHddCtx->hHal,
 						  delPeriodicTxPtrnParams);
-		if (CDF_STATUS_SUCCESS != status) {
-			CDF_TRACE(CDF_MODULE_ID_HDD, CDF_TRACE_LEVEL_ERROR,
+		if (QDF_STATUS_SUCCESS != status) {
+			QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
 				  "%s: sme_del_periodic_tx_ptrn() failed!",
 				  __func__);
 
-			cdf_mem_free(delPeriodicTxPtrnParams);
+			qdf_mem_free(delPeriodicTxPtrnParams);
 			goto failure;
 		}
-		cdf_mem_free(cmd);
-		cdf_mem_free(delPeriodicTxPtrnParams);
+		qdf_mem_free(cmd);
+		qdf_mem_free(delPeriodicTxPtrnParams);
 		return count;
 	}
 
@@ -430,9 +430,9 @@ static ssize_t __wcnss_patterngen_write(struct file *file,
 	 * patterns
 	 */
 	hdd_info("device mode %d", pAdapter->device_mode);
-	if ((WLAN_HDD_INFRA_STATION == pAdapter->device_mode) &&
+	if ((QDF_STA_MODE == pAdapter->device_mode) &&
 	    (!hdd_conn_is_connected(WLAN_HDD_GET_STATION_CTX_PTR(pAdapter)))) {
-			CDF_TRACE(CDF_MODULE_ID_HDD, CDF_TRACE_LEVEL_ERROR,
+			QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
 				"%s: Not in Connected state!", __func__);
 			goto failure;
 	}
@@ -448,7 +448,7 @@ static ssize_t __wcnss_patterngen_write(struct file *file,
 
 	/* Since the pattern is a hex string, 2 characters represent 1 byte. */
 	if (pattern_len % 2) {
-		CDF_TRACE(CDF_MODULE_ID_HDD, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
 			  "%s: Malformed pattern!", __func__);
 
 		goto failure;
@@ -456,24 +456,24 @@ static ssize_t __wcnss_patterngen_write(struct file *file,
 		pattern_len >>= 1;
 
 	if (pattern_len < 14 || pattern_len > PERIODIC_TX_PTRN_MAX_SIZE) {
-		CDF_TRACE(CDF_MODULE_ID_HDD, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
 			  "%s: Not an 802.3 frame!", __func__);
 
 		goto failure;
 	}
 
-	addPeriodicTxPtrnParams = cdf_mem_malloc(sizeof(tSirAddPeriodicTxPtrn));
+	addPeriodicTxPtrnParams = qdf_mem_malloc(sizeof(tSirAddPeriodicTxPtrn));
 	if (!addPeriodicTxPtrnParams) {
-		CDF_TRACE(CDF_MODULE_ID_HDD, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
 			  FL("Memory allocation failed!"));
-		cdf_mem_free(cmd);
+		qdf_mem_free(cmd);
 		return -ENOMEM;
 	}
 
 	addPeriodicTxPtrnParams->ucPtrnId = pattern_idx;
 	addPeriodicTxPtrnParams->usPtrnIntervalMs = pattern_duration * 500;
 	addPeriodicTxPtrnParams->ucPtrnSize = pattern_len;
-	cdf_copy_macaddr(&addPeriodicTxPtrnParams->mac_address,
+	qdf_copy_macaddr(&addPeriodicTxPtrnParams->mac_address,
 			 &pAdapter->macAddressCurrent);
 
 	/* Extract the pattern */
@@ -489,20 +489,21 @@ static ssize_t __wcnss_patterngen_write(struct file *file,
 	/* Add pattern */
 	status = sme_add_periodic_tx_ptrn(pHddCtx->hHal,
 					  addPeriodicTxPtrnParams);
-	if (CDF_STATUS_SUCCESS != status) {
-		CDF_TRACE(CDF_MODULE_ID_HDD, CDF_TRACE_LEVEL_ERROR,
+	if (QDF_STATUS_SUCCESS != status) {
+		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
 			  "%s: sme_add_periodic_tx_ptrn() failed!", __func__);
 
-		cdf_mem_free(addPeriodicTxPtrnParams);
+		qdf_mem_free(addPeriodicTxPtrnParams);
 		goto failure;
 	}
-	cdf_mem_free(cmd);
-	cdf_mem_free(addPeriodicTxPtrnParams);
+	qdf_mem_free(cmd);
+	qdf_mem_free(addPeriodicTxPtrnParams);
 	EXIT();
 	return count;
 
 failure:
-	cdf_mem_free(cmd);
+	hdd_err("Invalid input. Input format is: ptrn_idx duration pattern");
+	qdf_mem_free(cmd);
 	return -EINVAL;
 }
 
@@ -548,7 +549,7 @@ static int __wcnss_debugfs_open(struct inode *inode, struct file *file)
 
 	adapter = (hdd_adapter_t *)file->private_data;
 	if ((NULL == adapter) || (WLAN_HDD_ADAPTER_MAGIC != adapter->magic)) {
-		CDF_TRACE(CDF_MODULE_ID_HDD, CDF_TRACE_LEVEL_FATAL,
+		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_FATAL,
 			  "%s: Invalid adapter or adapter has invalid magic.",
 			  __func__);
 		return -EINVAL;
@@ -603,52 +604,57 @@ static const struct file_operations fops_patterngen = {
 
 /**
  * hdd_debugfs_init() - Initialize debugfs interface
- * @pAdapter: primary wlan adapter
+ * @adapter: interface adapter pointer
  *
  * Register support for the debugfs files supported by the driver.
  *
  * NB: The current implementation only supports debugfs operations
  * on the primary interface, i.e. wlan0
  *
- * Return: CDF_STATUS_SUCCESS if all files registered,
- *	   CDF_STATUS_E_FAILURE on failure
+ * Return: QDF_STATUS_SUCCESS if all files registered,
+ *	   QDF_STATUS_E_FAILURE on failure
  */
-CDF_STATUS hdd_debugfs_init(hdd_adapter_t *pAdapter)
+QDF_STATUS hdd_debugfs_init(hdd_adapter_t *adapter)
 {
-	hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
-	pHddCtx->debugfs_phy = debugfs_create_dir("wlan_wcnss", 0);
+	struct net_device *dev = adapter->dev;
+	adapter->debugfs_phy = debugfs_create_dir(dev->name, 0);
 
-	if (NULL == pHddCtx->debugfs_phy)
-		return CDF_STATUS_E_FAILURE;
+	if (NULL == adapter->debugfs_phy)
+		return QDF_STATUS_E_FAILURE;
 
 	if (NULL == debugfs_create_file("wow_enable", S_IRUSR | S_IWUSR,
-					pHddCtx->debugfs_phy, pAdapter,
+					adapter->debugfs_phy, adapter,
 					&fops_wowenable))
-		return CDF_STATUS_E_FAILURE;
+		return QDF_STATUS_E_FAILURE;
 
 	if (NULL == debugfs_create_file("wow_pattern", S_IRUSR | S_IWUSR,
-					pHddCtx->debugfs_phy, pAdapter,
+					adapter->debugfs_phy, adapter,
 					&fops_wowpattern))
-		return CDF_STATUS_E_FAILURE;
+		return QDF_STATUS_E_FAILURE;
 
 	if (NULL == debugfs_create_file("pattern_gen", S_IRUSR | S_IWUSR,
-					pHddCtx->debugfs_phy, pAdapter,
+					adapter->debugfs_phy, adapter,
 					&fops_patterngen))
-		return CDF_STATUS_E_FAILURE;
+		return QDF_STATUS_E_FAILURE;
 
-	return CDF_STATUS_SUCCESS;
+	return QDF_STATUS_SUCCESS;
 }
 
 /**
  * hdd_debugfs_exit() - Shutdown debugfs interface
- * @pHddCtx: the global HDD context
+ * @adapter: interface adapter pointer
  *
  * Unregister support for the debugfs files supported by the driver.
  *
  * Return: None
  */
-void hdd_debugfs_exit(hdd_context_t *pHddCtx)
+void hdd_debugfs_exit(hdd_adapter_t *adapter)
 {
-	debugfs_remove_recursive(pHddCtx->debugfs_phy);
+	struct net_device *dev = adapter->dev;
+
+	if (adapter->debugfs_phy)
+		debugfs_remove_recursive(adapter->debugfs_phy);
+	else
+		hdd_info("Interface %s has no debugfs entry", dev->name);
 }
 #endif /* #ifdef WLAN_OPEN_SOURCE */

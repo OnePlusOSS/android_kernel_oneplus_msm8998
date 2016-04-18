@@ -40,7 +40,7 @@
 /* Include files */
 #include <wlan_hdd_includes.h>
 #include <wlan_hdd_wmm.h>
-#include <cdf_types.h>
+#include <qdf_types.h>
 #include <csr_api.h>
 #include <sap_api.h>
 #include <wmi_unified.h>
@@ -186,11 +186,7 @@ typedef enum {
 
 #define CFG_DOT11_MODE_NAME                    "gDot11Mode"
 #define CFG_DOT11_MODE_MIN                     eHDD_DOT11_MODE_AUTO
-#ifdef WLAN_FEATURE_11AC
 #define CFG_DOT11_MODE_DEFAULT                 eHDD_DOT11_MODE_11ac
-#else
-#define CFG_DOT11_MODE_DEFAULT                 eHDD_DOT11_MODE_11n
-#endif
 #define CFG_DOT11_MODE_MAX                     eHDD_DOT11_MODE_11a
 
 #define CFG_CHANNEL_BONDING_MODE_24GHZ_NAME    "gChannelBondingMode24GHz"
@@ -346,9 +342,9 @@ typedef enum {
 
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
 #define CFG_WLAN_MCC_TO_SCC_SWITCH_MODE          "gWlanMccToSccSwitchMode"
-#define CFG_WLAN_MCC_TO_SCC_SWITCH_MODE_MIN      (CDF_MCC_TO_SCC_SWITCH_DISABLE)
-#define CFG_WLAN_MCC_TO_SCC_SWITCH_MODE_MAX      (CDF_MCC_TO_SCC_SWITCH_FORCE)
-#define CFG_WLAN_MCC_TO_SCC_SWITCH_MODE_DEFAULT  (CDF_MCC_TO_SCC_SWITCH_DISABLE)
+#define CFG_WLAN_MCC_TO_SCC_SWITCH_MODE_MIN      (QDF_MCC_TO_SCC_SWITCH_DISABLE)
+#define CFG_WLAN_MCC_TO_SCC_SWITCH_MODE_MAX      (QDF_MCC_TO_SCC_SWITCH_FORCE_WITHOUT_DISCONNECTION)
+#define CFG_WLAN_MCC_TO_SCC_SWITCH_MODE_DEFAULT  (QDF_MCC_TO_SCC_SWITCH_DISABLE)
 #endif
 
 #define CFG_DISABLE_PACKET_FILTER "gDisablePacketFilter"
@@ -801,7 +797,6 @@ typedef enum {
 #define CFG_TL_DELAYED_TRGR_FRM_INT_MAX                     (4294967295UL)
 #define CFG_TL_DELAYED_TRGR_FRM_INT_DEFAULT                 3000
 
-#if defined WLAN_FEATURE_VOWIFI
 #define CFG_RRM_ENABLE_NAME                              "gRrmEnable"
 #define CFG_RRM_ENABLE_MIN                               (0)
 #define CFG_RRM_ENABLE_MAX                               (1)
@@ -833,7 +828,6 @@ typedef enum {
  */
 #define CFG_RM_CAPABILITY_NAME            "rm_capability"
 #define CFG_RM_CAPABILITY_DEFAULT         "73,00,6D,00,04"
-#endif
 
 #define CFG_QOS_IMPLICIT_SETUP_ENABLED_NAME                 "ImplicitQosIsEnabled"
 #define CFG_QOS_IMPLICIT_SETUP_ENABLED_MIN                  (0)
@@ -1009,6 +1003,28 @@ typedef enum {
 #define CFG_ENABLE_HOST_SSDP_MAX               (1)
 #define CFG_ENABLE_HOST_SSDP_DEFAULT           (1)
 
+#ifdef FEATURE_RUNTIME_PM
+/*
+ * config item to enable runtime suspend
+ * 1 means runtime suspend is enabled
+ * by default runtime suspend is disabled
+ */
+#define CFG_ENABLE_RUNTIME_PM                  "gRuntimePM"
+#define CFG_ENABLE_RUNTIME_PM_MIN              (0)
+#define CFG_ENABLE_RUNTIME_PM_MAX              (1)
+#define CFG_ENABLE_RUNTIME_PM_DEFAULT          (0)
+
+/*
+ * config item for runtime pm's inactivity timer.
+ * the wlan driver will wait for this number of miliseconds
+ * of inactivity before performing a runtime suspend.
+ */
+#define CFG_RUNTIME_PM_DELAY_NAME               "gRuntimePMDelay"
+#define CFG_RUNTIME_PM_DELAY_MIN                (100)
+#define CFG_RUNTIME_PM_DELAY_MAX                (10000)
+#define CFG_RUNTIME_PM_DELAY_DEFAULT            (500)
+#endif
+
 #define CFG_ENABLE_HOST_NSOFFLOAD_NAME         "hostNSOffload"
 #define CFG_ENABLE_HOST_NSOFFLOAD_MIN          (0)
 #define CFG_ENABLE_HOST_NSOFFLOAD_MAX          (1)
@@ -1054,7 +1070,6 @@ typedef enum {
 	eHDD_LINK_SPEED_REPORT_MAX = 1,
 	eHDD_LINK_SPEED_REPORT_MAX_SCALED = 2,
 } eHddLinkSpeedReportType;
-#ifdef WLAN_FEATURE_11AC
 #define CFG_VHT_CHANNEL_WIDTH                "gVhtChannelWidth"
 #define CFG_VHT_CHANNEL_WIDTH_MIN            (0)
 #define CFG_VHT_CHANNEL_WIDTH_MAX            (4)
@@ -1099,7 +1114,6 @@ typedef enum {
 #define CFG_VHT_ENABLE_GID_FEATURE_MIN          (0)
 #define CFG_VHT_ENABLE_GID_FEATURE_MAX          (1)
 #define CFG_VHT_ENABLE_GID_FEATURE_DEFAULT      (0)
-#endif
 
 #define CFG_VHT_ENABLE_1x1_TX_CHAINMASK         "gSetTxChainmask1x1"
 #define CFG_VHT_ENABLE_1x1_TX_CHAINMASK_MIN     (1)
@@ -1278,14 +1292,14 @@ typedef enum {
 #endif /* FEATURE_WLAN_FORCE_SAP_SCC */
 
 /*
- * CDF Trace Enable Control
+ * QDF Trace Enable Control
  * Notes:
  *  the MIN/MAX/DEFAULT values apply for all modules
  *  the DEFAULT value is outside the valid range.  if the DEFAULT
  *    value is not overridden, then no change will be made to the
  *    "built in" default values compiled into the code
  *  values are a bitmap indicating which log levels are to enabled
- *    (must match order of cdf_trace_level enumerations)
+ *    (must match order of qdf_trace_level enumerations)
  *    00000001  FATAL
  *    00000010  ERROR
  *    00000100  WARN
@@ -1298,29 +1312,29 @@ typedef enum {
  *  hence a value of 0xFF would set all bits (enable all logs)
  */
 
-#define CFG_CDF_TRACE_ENABLE_WDI_NAME     "cdf_trace_enable_wdi"
-#define CFG_CDF_TRACE_ENABLE_HDD_NAME     "cdf_trace_enable_hdd"
-#define CFG_CDF_TRACE_ENABLE_SME_NAME     "cdf_trace_enable_sme"
-#define CFG_CDF_TRACE_ENABLE_PE_NAME      "cdf_trace_enable_pe"
-#define CFG_CDF_TRACE_ENABLE_PMC_NAME     "cdf_trace_enable_pmc"
-#define CFG_CDF_TRACE_ENABLE_WMA_NAME     "cdf_trace_enable_wma"
-#define CFG_CDF_TRACE_ENABLE_SYS_NAME     "cdf_trace_enable_sys"
-#define CFG_CDF_TRACE_ENABLE_CDF_NAME     "cdf_trace_enable_cdf"
-#define CFG_CDF_TRACE_ENABLE_SAP_NAME     "cdf_trace_enable_sap"
-#define CFG_CDF_TRACE_ENABLE_HDD_SAP_NAME "cdf_trace_enable_hdd_sap"
-#define CFG_CDF_TRACE_ENABLE_BMI_NAME     "cdf_trace_enable_bmi"
-#define CFG_CDF_TRACE_ENABLE_CFG_NAME     "cdf_trace_enable_cfg"
-#define CFG_CDF_TRACE_ENABLE_EPPING       "cdf_trace_enable_epping"
-#define CFG_CDF_TRACE_ENABLE_CDF_DEVICES  "cdf_trace_enable_cdf_devices"
-#define CFG_CDF_TRACE_ENABLE_TXRX_NAME    "cfd_trace_enable_txrx"
-#define CFG_CDF_TRACE_ENABLE_HTC_NAME     "cdf_trace_enable_htc"
-#define CFG_CDF_TRACE_ENABLE_HIF_NAME     "cdf_trace_enable_hif"
-#define CFG_CDR_TRACE_ENABLE_HDD_SAP_DATA_NAME   "cdf_trace_enable_hdd_sap_data"
-#define CFG_CDF_TRACE_ENABLE_HDD_DATA_NAME       "cdf_trace_enable_hdd_data"
+#define CFG_QDF_TRACE_ENABLE_WDI_NAME     "qdf_trace_enable_wdi"
+#define CFG_QDF_TRACE_ENABLE_HDD_NAME     "qdf_trace_enable_hdd"
+#define CFG_QDF_TRACE_ENABLE_SME_NAME     "qdf_trace_enable_sme"
+#define CFG_QDF_TRACE_ENABLE_PE_NAME      "qdf_trace_enable_pe"
+#define CFG_QDF_TRACE_ENABLE_PMC_NAME     "qdf_trace_enable_pmc"
+#define CFG_QDF_TRACE_ENABLE_WMA_NAME     "qdf_trace_enable_wma"
+#define CFG_QDF_TRACE_ENABLE_SYS_NAME     "qdf_trace_enable_sys"
+#define CFG_QDF_TRACE_ENABLE_QDF_NAME     "qdf_trace_enable_qdf"
+#define CFG_QDF_TRACE_ENABLE_SAP_NAME     "qdf_trace_enable_sap"
+#define CFG_QDF_TRACE_ENABLE_HDD_SAP_NAME "qdf_trace_enable_hdd_sap"
+#define CFG_QDF_TRACE_ENABLE_BMI_NAME     "qdf_trace_enable_bmi"
+#define CFG_QDF_TRACE_ENABLE_CFG_NAME     "qdf_trace_enable_cfg"
+#define CFG_QDF_TRACE_ENABLE_EPPING       "qdf_trace_enable_epping"
+#define CFG_QDF_TRACE_ENABLE_QDF_DEVICES  "qdf_trace_enable_qdf_devices"
+#define CFG_QDF_TRACE_ENABLE_TXRX_NAME    "cfd_trace_enable_txrx"
+#define CFG_QDF_TRACE_ENABLE_HTC_NAME     "qdf_trace_enable_htc"
+#define CFG_QDF_TRACE_ENABLE_HIF_NAME     "qdf_trace_enable_hif"
+#define CFG_CDR_TRACE_ENABLE_HDD_SAP_DATA_NAME   "qdf_trace_enable_hdd_sap_data"
+#define CFG_QDF_TRACE_ENABLE_HDD_DATA_NAME       "qdf_trace_enable_hdd_data"
 
-#define CFG_CDF_TRACE_ENABLE_MIN          (0)
-#define CFG_CDF_TRACE_ENABLE_MAX          (0xff)
-#define CFG_CDF_TRACE_ENABLE_DEFAULT      (0xffff)
+#define CFG_QDF_TRACE_ENABLE_MIN          (0)
+#define CFG_QDF_TRACE_ENABLE_MAX          (0xff)
+#define CFG_QDF_TRACE_ENABLE_DEFAULT      (0xffff)
 
 #define HDD_MCASTBCASTFILTER_FILTER_NONE                       0x00
 #define HDD_MCASTBCASTFILTER_FILTER_ALL_MULTICAST              0x01
@@ -1714,7 +1728,7 @@ typedef enum {
 #define CFG_TX_LDPC_ENABLE_FEATURE         "gTxLdpcEnable"
 #define CFG_TX_LDPC_ENABLE_FEATURE_MIN     (0)
 #define CFG_TX_LDPC_ENABLE_FEATURE_MAX     (3)
-#define CFG_TX_LDPC_ENABLE_FEATURE_DEFAULT (0)
+#define CFG_TX_LDPC_ENABLE_FEATURE_DEFAULT (3)
 
 /*
  * Enable / Disable MCC Adaptive Scheduler feature
@@ -1768,12 +1782,10 @@ typedef enum {
 #define CFG_SAP_ALLOW_ALL_CHANNEL_PARAM_MAX           (1)
 #define CFG_SAP_ALLOW_ALL_CHANNEL_PARAM_DEFAULT       (0)
 
-#ifdef WLAN_FEATURE_11AC
 #define CFG_DISABLE_LDPC_WITH_TXBF_AP             "gDisableLDPCWithTxbfAP"
 #define CFG_DISABLE_LDPC_WITH_TXBF_AP_MIN         (0)
 #define CFG_DISABLE_LDPC_WITH_TXBF_AP_MAX         (1)
 #define CFG_DISABLE_LDPC_WITH_TXBF_AP_DEFAULT     (0)
-#endif
 
 /*
  * IBSS Operating Channels for 2.4G and 5GHz channels
@@ -1959,7 +1971,6 @@ typedef enum {
 #define CFG_ENABLE_FW_SELF_RECOVERY_ENABLE       (1)
 #define CFG_ENABLE_FW_SELF_RECOVERY_DEFAULT      (CFG_ENABLE_FW_SELF_RECOVERY_DISABLE)
 
-#ifdef WLAN_FEATURE_11AC
 /* Macro to handle maximum receive AMPDU size configuration */
 #define CFG_VHT_AMPDU_LEN_EXPONENT_NAME                "gVhtAmpduLenExponent"
 #define CFG_VHT_AMPDU_LEN_EXPONENT_MIN                 (0)
@@ -1970,7 +1981,6 @@ typedef enum {
 #define CFG_VHT_MPDU_LEN_MIN                           (0)
 #define CFG_VHT_MPDU_LEN_MAX                           (2)
 #define CFG_VHT_MPDU_LEN_DEFAULT                       (0)
-#endif
 
 #define CFG_MAX_WOW_FILTERS_NAME                       "gMaxWoWFilters"
 #define CFG_MAX_WOW_FILTERS_MIN                        (0)
@@ -2716,7 +2726,7 @@ enum dot11p_mode {
 #define CFG_CE_CLASSIFY_ENABLE_NAME	"gCEClassifyEnable"
 #define CFG_CE_CLASSIFY_ENABLE_MIN	(0)
 #define CFG_CE_CLASSIFY_ENABLE_MAX	(1)
-#define CFG_CE_CLASSIFY_ENABLE_DEFAULT	(0)
+#define CFG_CE_CLASSIFY_ENABLE_DEFAULT	(1)
 
 #define CFG_DUAL_MAC_FEATURE_DISABLE               "gDualMacFeatureDisable"
 #define CFG_DUAL_MAC_FEATURE_DISABLE_MIN          (0)
@@ -2861,6 +2871,29 @@ enum dot11p_mode {
 #define CFG_INFORM_BSS_RSSI_RAW_MAX                (1)
 #define CFG_INFORM_BSS_RSSI_RAW_DEFAULT            (1)
 
+
+/*
+ * OBSS scan parameters
+ * obss_active_dwelltime - minimum per channel scan duration in active scan
+ * obss_passive_dwelltime - minimum per channel scan duration in passive scan
+ * obss_width_trigger_interval - During an OBSS scan operation, each channel
+ *  in the set is scanned at least once per configured trigger interval time.
+ */
+#define CFG_OBSS_HT40_SCAN_ACTIVE_DWELL_TIME_NAME    "obss_active_dwelltime"
+#define CFG_OBSS_HT40_SCAN_ACTIVE_DWELL_TIME_MIN     (5)
+#define CFG_OBSS_HT40_SCAN_ACTIVE_DWELL_TIME_MAX     (1000)
+#define CFG_OBSS_HT40_SCAN_ACTIVE_DWELL_TIME_DEFAULT (10)
+
+#define CFG_OBSS_HT40_SCAN_PASSIVE_DWELL_TIME_NAME   "obss_passive_dwelltime"
+#define CFG_OBSS_HT40_SCAN_PASSIVE_DWELL_TIME_MIN    (10)
+#define CFG_OBSS_HT40_SCAN_PASSIVE_DWELL_TIME_MAX    (1000)
+#define CFG_OBSS_HT40_SCAN_PASSIVE_DWELL_TIME_DEFAULT (20)
+
+#define CFG_OBSS_HT40_SCAN_WIDTH_TRIGGER_INTERVAL_NAME "obss_width_trigger_interval"
+#define CFG_OBSS_HT40_SCAN_WIDTH_TRIGGER_INTERVAL_MIN  (10)
+#define CFG_OBSS_HT40_SCAN_WIDTH_TRIGGER_INTERVAL_MAX  (900)
+#define CFG_OBSS_HT40_SCAN_WIDTH_TRIGGER_INTERVAL_DEFAULT (200)
+
 #ifdef QCA_WIFI_3_0_EMU
 /*
  * On M2M emulation platform we have a fixed mapping between macs, hence
@@ -2874,6 +2907,38 @@ enum dot11p_mode {
 #define CFG_ENABLE_M2M_LIMITATION_MAX          (1)
 #define CFG_ENABLE_M2M_LIMITATION_DEFAULT      (1)
 #endif /* QCA_WIFI_3_0_EMU */
+
+/*
+ * Dense traffic threshold
+ * traffic threshold required for dense roam scan
+ * not used currently
+ */
+#define CFG_ROAM_DENSE_TRAFFIC_THRESHOLD         "gtraffic_threshold"
+#define CFG_ROAM_DENSE_TRAFFIC_THRESHOLD_MIN     (0)
+#define CFG_ROAM_DENSE_TRAFFIC_THRESHOLD_MAX     (100)
+#define CFG_ROAM_DENSE_TRAFFIC_THRESHOLD_DEFAULT (0)
+
+/*
+ * Dense Roam RSSI Threshold diff
+ * offset value from normal RSSI threshold to dense RSSI threshold
+ * Fw will optimize roaming based on new RSSI threshold once it detects
+ * dense enviournment.
+ */
+#define CFG_ROAM_DENSE_RSSI_THRE_OFFSET         "groam_dense_rssi_thresh_offset"
+#define CFG_ROAM_DENSE_RSSI_THRE_OFFSET_MIN     (0)
+#define CFG_ROAM_DENSE_RSSI_THRE_OFFSET_MAX     (20)
+#define CFG_ROAM_DENSE_RSSI_THRE_OFFSET_DEFAULT (0)
+
+/*
+ * Dense Roam Min APs
+ * minimum number of AP required for dense roam
+ * FW will consider environment as dense once it detects #APs
+ * operating is more than CFG_ROAM_DENSE_MIN_APS.
+ */
+#define CFG_ROAM_DENSE_MIN_APS         "groam_dense_min_aps"
+#define CFG_ROAM_DENSE_MIN_APS_MIN     (1)
+#define CFG_ROAM_DENSE_MIN_APS_MAX     (5)
+#define CFG_ROAM_DENSE_MIN_APS_DEFAULT (1)
 
 /*---------------------------------------------------------------------------
    Type declarations
@@ -2911,11 +2976,11 @@ struct hdd_config {
 	uint32_t nScanAgeTimeCPS;
 	uint8_t nRssiCatGap;
 	bool fIsShortPreamble;
-	struct cdf_mac_addr IbssBssid;
+	struct qdf_mac_addr IbssBssid;
 	uint32_t AdHocChannel5G;
 	uint32_t AdHocChannel24G;
 	uint8_t intfAddrMask;
-	struct cdf_mac_addr intfMacAddr[CDF_MAX_CONCURRENCY_PERSONA];
+	struct qdf_mac_addr intfMacAddr[QDF_MAX_CONCURRENCY_PERSONA];
 
 	bool apUapsdEnabled;
 	bool apRandomBssidEnabled;
@@ -2934,14 +2999,12 @@ struct hdd_config {
 	uint8_t nTxPowerCap;    /* In dBm */
 	bool fIsLowGainOverride;
 	uint8_t disablePacketFilter;
-#if defined WLAN_FEATURE_VOWIFI
 	bool fRrmEnable;
 	uint8_t nInChanMeasMaxDuration;
 	uint8_t nOutChanMeasMaxDuration;
 	uint16_t nRrmRandnIntvl;
 	/* length includes separator */
 	char rm_capability[3 * DOT11F_IE_RRMENABLEDCAP_MAX_LEN];
-#endif
 
 	/* Vowifi 11r params */
 	bool fFTResourceReqSupported;
@@ -3070,6 +3133,12 @@ struct hdd_config {
 	uint8_t mcastBcastFilterSetting;
 	bool fhostArpOffload;
 	bool ssdp;
+
+#ifdef FEATURE_RUNTIME_PM
+	bool runtime_pm;
+	uint32_t runtime_pm_delay;
+#endif
+
 #ifdef FEATURE_WLAN_RA_FILTERING
 	bool IsRArateLimitEnabled;
 	uint16_t RArateLimitInterval;
@@ -3096,26 +3165,26 @@ struct hdd_config {
 	bool fEnableBeaconEarlyTermination;
 	bool teleBcnWakeupEn;
 
-/* CDF Trace Control*/
-	uint16_t cdf_trace_enable_wdi;
-	uint16_t cdf_trace_enable_hdd;
-	uint16_t cdf_trace_enable_sme;
-	uint16_t cdf_trace_enable_pe;
-	uint16_t cdf_trace_enable_pmc;
-	uint16_t cdf_trace_enable_wma;
-	uint16_t cdf_trace_enable_sys;
-	uint16_t cdf_trace_enable_cdf;
-	uint16_t cdf_trace_enable_sap;
-	uint16_t cdf_trace_enable_hdd_sap;
-	uint16_t cdf_trace_enable_bmi;
-	uint16_t cdf_trace_enable_cfg;
+/* QDF Trace Control*/
+	uint16_t qdf_trace_enable_wdi;
+	uint16_t qdf_trace_enable_hdd;
+	uint16_t qdf_trace_enable_sme;
+	uint16_t qdf_trace_enable_pe;
+	uint16_t qdf_trace_enable_pmc;
+	uint16_t qdf_trace_enable_wma;
+	uint16_t qdf_trace_enable_sys;
+	uint16_t qdf_trace_enable_qdf;
+	uint16_t qdf_trace_enable_sap;
+	uint16_t qdf_trace_enable_hdd_sap;
+	uint16_t qdf_trace_enable_bmi;
+	uint16_t qdf_trace_enable_cfg;
 	uint16_t cfd_trace_enable_txrx;
-	uint16_t cdf_trace_enable_htc;
-	uint16_t cdf_trace_enable_hif;
-	uint16_t cdf_trace_enable_hdd_sap_data;
-	uint16_t cdf_trace_enable_hdd_data;
-	uint16_t cdf_trace_enable_epping;
-	uint16_t cdf_trace_enable_cdf_devices;
+	uint16_t qdf_trace_enable_htc;
+	uint16_t qdf_trace_enable_hif;
+	uint16_t qdf_trace_enable_hdd_sap_data;
+	uint16_t qdf_trace_enable_hdd_data;
+	uint16_t qdf_trace_enable_epping;
+	uint16_t qdf_trace_enable_qdf_devices;
 
 	uint16_t nTeleBcnTransListenInterval;
 	uint16_t nTeleBcnMaxListenInterval;
@@ -3242,11 +3311,9 @@ struct hdd_config {
 	bool enable_ip_tcp_udp_checksum_offload;
 	bool enablePowersaveOffload;
 	bool enablefwprint;
-	bool enablefwlog;
-#ifdef WLAN_FEATURE_11AC
+	bool enable_fw_log;
 	uint8_t fVhtAmpduLenExponent;
 	uint32_t vhtMpduLen;
-#endif
 	uint32_t IpaConfig;
 	bool IpaClkScalingEnable;
 	uint32_t IpaDescSize;
@@ -3368,7 +3435,7 @@ struct hdd_config {
 	bool enableSifsBurst;
 
 #ifdef WLAN_FEATURE_LPSS
-	bool enablelpasssupport;
+	bool enable_lpass_support;
 #endif
 #ifdef WLAN_FEATURE_NAN
 	bool enable_nan_support;
@@ -3454,10 +3521,16 @@ struct hdd_config {
 #ifdef FEATURE_LFR_SUBNET_DETECTION
 	bool enable_lfr_subnet_detection;
 #endif
+	uint16_t obss_active_dwelltime;
+	uint16_t obss_passive_dwelltime;
+	uint16_t obss_width_trigger_interval;
 	uint8_t inform_bss_rssi_raw;
 #ifdef QCA_WIFI_3_0_EMU
 	bool enable_m2m_limitation;
 #endif
+	uint32_t roam_dense_traffic_thresh;
+	uint32_t roam_dense_rssi_thresh_offset;
+	uint32_t roam_dense_min_aps;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))
@@ -3569,32 +3642,32 @@ static __inline unsigned long util_min(unsigned long a, unsigned long b)
 }
 
 /* Function declarations and documenation */
-CDF_STATUS hdd_parse_config_ini(hdd_context_t *pHddCtx);
-CDF_STATUS hdd_update_mac_config(hdd_context_t *pHddCtx);
-CDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx);
-CDF_STATUS hdd_set_sme_chan_list(hdd_context_t *hdd_ctx);
+QDF_STATUS hdd_parse_config_ini(hdd_context_t *pHddCtx);
+QDF_STATUS hdd_update_mac_config(hdd_context_t *pHddCtx);
+QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx);
+QDF_STATUS hdd_set_sme_chan_list(hdd_context_t *hdd_ctx);
 bool hdd_update_config_dat(hdd_context_t *pHddCtx);
-CDF_STATUS hdd_cfg_get_global_config(hdd_context_t *pHddCtx, char *pBuf,
+QDF_STATUS hdd_cfg_get_global_config(hdd_context_t *pHddCtx, char *pBuf,
 				     int buflen);
 
 eCsrPhyMode hdd_cfg_xlate_to_csr_phy_mode(eHddDot11Mode dot11Mode);
-CDF_STATUS hdd_execute_global_config_command(hdd_context_t *pHddCtx,
+QDF_STATUS hdd_execute_global_config_command(hdd_context_t *pHddCtx,
 					     char *command);
 
 bool hdd_is_okc_mode_enabled(hdd_context_t *pHddCtx);
-CDF_STATUS hdd_set_idle_ps_config(hdd_context_t *pHddCtx, uint32_t val);
+QDF_STATUS hdd_set_idle_ps_config(hdd_context_t *pHddCtx, uint32_t val);
 
 void hdd_update_tgt_cfg(void *context, void *param);
 bool hdd_dfs_indicate_radar(void *context, void *param);
 
-CDF_STATUS hdd_string_to_u8_array(char *str, uint8_t *intArray, uint8_t *len,
+QDF_STATUS hdd_string_to_u8_array(char *str, uint8_t *intArray, uint8_t *len,
 				  uint8_t intArrayMaxLen);
-CDF_STATUS hdd_hex_string_to_u16_array(char *str, uint16_t *int_array,
+QDF_STATUS hdd_hex_string_to_u16_array(char *str, uint16_t *int_array,
 				uint8_t *len, uint8_t int_array_max_len);
 
 void hdd_cfg_print(hdd_context_t *pHddCtx);
 
-CDF_STATUS hdd_update_nss(hdd_context_t *hdd_ctx, uint8_t nss);
+QDF_STATUS hdd_update_nss(hdd_context_t *hdd_ctx, uint8_t nss);
 #ifdef FEATURE_WLAN_SCAN_PNO
 void hdd_set_pno_channel_prediction_config(
 	tpSmeConfigParams sme_config, hdd_context_t *hdd_ctx);

@@ -190,7 +190,6 @@ void lim_update_assoc_sta_datas(tpAniSirGlobal mac_ctx,
 		lim_update_stads_htcap(mac_ctx, sta_ds, assoc_rsp,
 				       session_entry);
 
-#ifdef WLAN_FEATURE_11AC
 	if (assoc_rsp->VHTCaps.present)
 		vht_caps = &assoc_rsp->VHTCaps;
 	else if (assoc_rsp->vendor2_ie.VHTCaps.present)
@@ -225,20 +224,9 @@ void lim_update_assoc_sta_datas(tpAniSirGlobal mac_ctx,
 			FL("could not get rateset and extended rate set"));
 		return;
 	}
-#else
-	if (lim_populate_peer_rate_set(mac_ctx, &sta_ds->supportedRates,
-		assoc_rsp->HTCaps.supportedMCSSet,
-		false, session_entry) != eSIR_SUCCESS) {
-		lim_log(mac_ctx, LOGP,
-			FL("could not get rateset and extended rate set"));
-		return;
-	}
-#endif
-#ifdef WLAN_FEATURE_11AC
 	sta_ds->vhtSupportedRxNss =
 		((sta_ds->supportedRates.vhtRxMCSMap & MCSMAPMASK2x2)
 		 == MCSMAPMASK2x2) ? 1 : 2;
-#endif
 	/* If one of the rates is 11g rates, set the ERP mode. */
 	if ((phy_mode == WNI_CFG_PHY_MODE_11G) &&
 		sirIsArate(sta_ds->supportedRates.llaRates[0] & 0x7f))
@@ -315,56 +303,6 @@ void lim_update_assoc_sta_datas(tpAniSirGlobal mac_ctx,
 }
 
 /**
- * @function : lim_update_re_assoc_globals
- *
- * @brief :  This function is called to Update the Globals (LIM) during ReAssoc.
- *
- ***LOGIC:
- *
- ***ASSUMPTIONS:
- *
- ***NOTE:
- *
- * @param  pMac    - Pointer to Global MAC structure
- * @param  pAssocRsp    - Pointer to Association Response Structure
- *
- * @return None
- */
-
-void lim_update_re_assoc_globals(tpAniSirGlobal pMac, tpSirAssocRsp pAssocRsp,
-				 tpPESession psessionEntry)
-{
-	/* Update the current Bss Information */
-	cdf_mem_copy(psessionEntry->bssId,
-		     psessionEntry->limReAssocbssId, sizeof(tSirMacAddr));
-	psessionEntry->currentOperChannel = psessionEntry->limReassocChannelId;
-	psessionEntry->htSecondaryChannelOffset =
-		psessionEntry->reAssocHtSupportedChannelWidthSet;
-	psessionEntry->htRecommendedTxWidthSet =
-		psessionEntry->reAssocHtRecommendedTxWidthSet;
-	psessionEntry->htSecondaryChannelOffset =
-		psessionEntry->reAssocHtSecondaryChannelOffset;
-	psessionEntry->limCurrentBssCaps = psessionEntry->limReassocBssCaps;
-	psessionEntry->limCurrentBssQosCaps =
-		psessionEntry->limReassocBssQosCaps;
-	psessionEntry->limCurrentBssPropCap =
-		psessionEntry->limReassocBssPropCap;
-
-	cdf_mem_copy((uint8_t *) &psessionEntry->ssId,
-		     (uint8_t *) &psessionEntry->limReassocSSID,
-		     psessionEntry->limReassocSSID.length + 1);
-
-	/* Store assigned AID for TIM processing */
-	psessionEntry->limAID = pAssocRsp->aid & 0x3FFF;
-	/** Set the State Back to ReAssoc Rsp*/
-	psessionEntry->limMlmState = eLIM_MLM_WT_REASSOC_RSP_STATE;
-	MTRACE(mac_trace
-		       (pMac, TRACE_CODE_MLM_STATE, psessionEntry->peSessionId,
-		       psessionEntry->limMlmState));
-
-}
-#ifdef WLAN_FEATURE_VOWIFI_11R
-/**
  * lim_update_ric_data() - update session with ric data
  * @mac_ctx: Pointer to Global MAC structure
  * @session_entry: PE session handle
@@ -379,7 +317,7 @@ static void lim_update_ric_data(tpAniSirGlobal mac_ctx,
 	 tpPESession session_entry, tpSirAssocRsp assoc_rsp)
 {
 	if (session_entry->ricData != NULL) {
-		cdf_mem_free(session_entry->ricData);
+		qdf_mem_free(session_entry->ricData);
 		session_entry->ricData = NULL;
 		session_entry->RICDataLen = 0;
 	}
@@ -388,13 +326,13 @@ static void lim_update_ric_data(tpAniSirGlobal mac_ctx,
 			assoc_rsp->num_RICData * sizeof(tDot11fIERICDataDesc);
 		if (session_entry->RICDataLen) {
 			session_entry->ricData =
-				cdf_mem_malloc(session_entry->RICDataLen);
+				qdf_mem_malloc(session_entry->RICDataLen);
 			if (NULL == session_entry->ricData) {
 				lim_log(mac_ctx, LOGE,
 					FL("No memory for RIC data"));
 				session_entry->RICDataLen = 0;
 			} else {
-				cdf_mem_copy(session_entry->ricData,
+				qdf_mem_copy(session_entry->ricData,
 					&assoc_rsp->RICData[0],
 					session_entry->RICDataLen);
 			}
@@ -409,10 +347,8 @@ static void lim_update_ric_data(tpAniSirGlobal mac_ctx,
 	}
 	return;
 }
-#endif
 
 #ifdef FEATURE_WLAN_ESE
-
 /**
  * lim_update_ese_tspec() - update session with Tspec info.
  * @mac_ctx: Pointer to Global MAC structure
@@ -428,7 +364,7 @@ static void lim_update_ese_tspec(tpAniSirGlobal mac_ctx,
 	 tpPESession session_entry, tpSirAssocRsp assoc_rsp)
 {
 	if (session_entry->tspecIes != NULL) {
-		cdf_mem_free(session_entry->tspecIes);
+		qdf_mem_free(session_entry->tspecIes);
 		session_entry->tspecIes = NULL;
 		session_entry->tspecLen = 0;
 	}
@@ -438,13 +374,13 @@ static void lim_update_ese_tspec(tpAniSirGlobal mac_ctx,
 			assoc_rsp->num_tspecs * sizeof(tDot11fIEWMMTSPEC);
 		if (session_entry->tspecLen) {
 			session_entry->tspecIes =
-				cdf_mem_malloc(session_entry->tspecLen);
+				qdf_mem_malloc(session_entry->tspecLen);
 			if (NULL == session_entry->tspecIes) {
 				lim_log(mac_ctx, LOGE,
 					FL("Tspec IE:Fail to allocate memory"));
 				session_entry->tspecLen = 0;
 			} else {
-				cdf_mem_copy(session_entry->tspecIes,
+				qdf_mem_copy(session_entry->tspecIes,
 						&assoc_rsp->TSPECInfo[0],
 						session_entry->tspecLen);
 			}
@@ -496,14 +432,12 @@ static void lim_update_ese_tsm(tpAniSirGlobal mac_ctx,
 			EDCA_AC_VO) {
 			tsm_ctx->tid =
 				assoc_rsp->TSPECInfo[cnt].user_priority;
-			cdf_mem_copy(&tsm_ctx->tsmInfo,
+			qdf_mem_copy(&tsm_ctx->tsmInfo,
 				&assoc_rsp->tsmIE, sizeof(tSirMacESETSMIE));
-#ifdef FEATURE_WLAN_ESE_UPLOAD
 			lim_send_sme_tsm_ie_ind(mac_ctx,
 				session_entry, assoc_rsp->tsmIE.tsid,
 				assoc_rsp->tsmIE.state,
 				assoc_rsp->tsmIE.msmt_interval);
-#endif
 			if (tsm_ctx->tsmInfo.state)
 				tsm_ctx->tsmMetrics.RoamingCount++;
 			break;
@@ -552,6 +486,27 @@ static void lim_update_stads_ext_cap(tpAniSirGlobal mac_ctx,
 }
 
 /**
+ * lim_stop_reassoc_retry_timer() - Cleanup after reassoc response is received
+ *  @mac_ctx: Global MAC context
+ *
+ *  Stop the reassoc retry timer and release the stored reassoc request.
+ *
+ *  Return: None
+ */
+void lim_stop_reassoc_retry_timer(tpAniSirGlobal mac_ctx)
+{
+	mac_ctx->lim.reAssocRetryAttempt = 0;
+	if ((NULL != mac_ctx->lim.pSessionEntry)
+		&& (NULL !=
+			mac_ctx->lim.pSessionEntry->pLimMlmReassocRetryReq)) {
+		qdf_mem_free(
+			mac_ctx->lim.pSessionEntry->pLimMlmReassocRetryReq);
+		mac_ctx->lim.pSessionEntry->pLimMlmReassocRetryReq = NULL;
+	}
+	lim_deactivate_and_change_timer(mac_ctx, eLIM_REASSOC_FAIL_TIMER);
+}
+
+/**
  * lim_process_assoc_rsp_frame() - Processes assoc response
  * @mac_ctx: Pointer to Global MAC structure
  * @rx_packet_info    - A pointer to Rx packet info structure
@@ -580,16 +535,14 @@ lim_process_assoc_rsp_frame(tpAniSirGlobal mac_ctx,
 	tSchBeaconStruct *beacon;
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 	uint8_t sme_sessionid = 0;
-#endif
 	tCsrRoamSession *roam_session;
+#endif
 
 	/* Initialize status code to success. */
-#ifdef WLAN_FEATURE_ROAM_OFFLOAD
-	if (session_entry->bRoamSynchInProgress)
+	if (lim_is_roam_synch_in_progress(session_entry))
 		hdr = (tpSirMacMgmtHdr) mac_ctx->roam.pReassocResp;
 	else
-#endif
-	hdr = WMA_GET_RX_MAC_HEADER(rx_pkt_info);
+		hdr = WMA_GET_RX_MAC_HEADER(rx_pkt_info);
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 	sme_sessionid = session_entry->smeSessionId;
 #endif
@@ -614,7 +567,7 @@ lim_process_assoc_rsp_frame(tpAniSirGlobal mac_ctx,
 		(uint) abs((int8_t) WMA_GET_RX_RSSI_NORMALIZED(rx_pkt_info)),
 		MAC_ADDR_ARRAY(hdr->sa));
 
-	beacon = cdf_mem_malloc(sizeof(tSchBeaconStruct));
+	beacon = qdf_mem_malloc(sizeof(tSchBeaconStruct));
 	if (NULL == beacon) {
 		lim_log(mac_ctx, LOGE, FL("Unable to allocate memory"));
 		return;
@@ -629,24 +582,20 @@ lim_process_assoc_rsp_frame(tpAniSirGlobal mac_ctx,
 		lim_log(mac_ctx, LOGE,
 			FL("Should not recieved Re/Assoc Response in role %d "),
 			GET_LIM_SYSTEM_ROLE(session_entry));
-		cdf_mem_free(beacon);
+		qdf_mem_free(beacon);
 		return;
 	}
-#ifdef WLAN_FEATURE_ROAM_OFFLOAD
-	if (session_entry->bRoamSynchInProgress) {
+	if (lim_is_roam_synch_in_progress(session_entry)) {
 		hdr = (tpSirMacMgmtHdr) mac_ctx->roam.pReassocResp;
 		frame_len = mac_ctx->roam.reassocRespLen - SIR_MAC_HDR_LEN_3A;
 	} else {
-#endif
-	hdr = WMA_GET_RX_MAC_HEADER(rx_pkt_info);
-	frame_len = WMA_GET_RX_PAYLOAD_LEN(rx_pkt_info);
-#ifdef WLAN_FEATURE_ROAM_OFFLOAD
-}
-#endif
+		hdr = WMA_GET_RX_MAC_HEADER(rx_pkt_info);
+		frame_len = WMA_GET_RX_PAYLOAD_LEN(rx_pkt_info);
+	}
 	if (((subtype == LIM_ASSOC) &&
 		(session_entry->limMlmState != eLIM_MLM_WT_ASSOC_RSP_STATE)) ||
 		((subtype == LIM_REASSOC) &&
-		 !session_entry->bRoamSynchInProgress &&
+		 !lim_is_roam_synch_in_progress(session_entry) &&
 		((session_entry->limMlmState != eLIM_MLM_WT_REASSOC_RSP_STATE)
 		&& (session_entry->limMlmState !=
 		eLIM_MLM_WT_FT_REASSOC_RSP_STATE)
@@ -667,12 +616,12 @@ lim_process_assoc_rsp_frame(tpAniSirGlobal mac_ctx,
 				mac_ctx->lim.retry_packet_cnt++;
 			}
 		}
-		cdf_mem_free(beacon);
+		qdf_mem_free(beacon);
 		return;
 	}
 	sir_copy_mac_addr(current_bssid, session_entry->bssId);
 	if (subtype == LIM_ASSOC) {
-		if (!cdf_mem_compare
+		if (qdf_mem_cmp
 			(hdr->sa, current_bssid, sizeof(tSirMacAddr))) {
 			/*
 			 * Received Association Response frame from an entity
@@ -683,11 +632,11 @@ lim_process_assoc_rsp_frame(tpAniSirGlobal mac_ctx,
 				 FL("received AssocRsp from unexpected peer "
 				MAC_ADDRESS_STR),
 				MAC_ADDR_ARRAY(hdr->sa));
-			cdf_mem_free(beacon);
+			qdf_mem_free(beacon);
 			return;
 		}
 	} else {
-		if (!cdf_mem_compare
+		if (qdf_mem_cmp
 			(hdr->sa, session_entry->limReAssocbssId,
 			sizeof(tSirMacAddr))) {
 			/*
@@ -699,40 +648,38 @@ lim_process_assoc_rsp_frame(tpAniSirGlobal mac_ctx,
 				FL("received ReassocRsp from unexpected peer "
 				MAC_ADDRESS_STR),
 				MAC_ADDR_ARRAY(hdr->sa));
-			cdf_mem_free(beacon);
+			qdf_mem_free(beacon);
 			return;
 		}
 	}
 
-	assoc_rsp = cdf_mem_malloc(sizeof(*assoc_rsp));
+	assoc_rsp = qdf_mem_malloc(sizeof(*assoc_rsp));
 	if (NULL == assoc_rsp) {
 		lim_log(mac_ctx, LOGP,
 			FL("Allocate Memory failed in AssocRsp"));
-		cdf_mem_free(beacon);
+		qdf_mem_free(beacon);
 		return;
 	}
 	/* Get pointer to Re/Association Response frame body */
-#ifdef WLAN_FEATURE_ROAM_OFFLOAD
-	if (session_entry->bRoamSynchInProgress)
+	if (lim_is_roam_synch_in_progress(session_entry))
 		body = mac_ctx->roam.pReassocResp + SIR_MAC_HDR_LEN_3A;
 	else
-#endif
-	body = WMA_GET_RX_MPDU_DATA(rx_pkt_info);
+		body = WMA_GET_RX_MPDU_DATA(rx_pkt_info);
 	/* parse Re/Association Response frame. */
 	if (sir_convert_assoc_resp_frame2_struct(mac_ctx, body,
 		frame_len, assoc_rsp) == eSIR_FAILURE) {
-		cdf_mem_free(assoc_rsp);
+		qdf_mem_free(assoc_rsp);
 		lim_log(mac_ctx, LOGE,
 			FL("Parse error Assoc resp subtype %d," "length=%d"),
 			frame_len, subtype);
-		cdf_mem_free(beacon);
+		qdf_mem_free(beacon);
 		return;
 	}
 
 	if (!assoc_rsp->suppRatesPresent) {
 		lim_log(mac_ctx, LOGE,
 		FL("assoc response does not have supported rate set"));
-		cdf_mem_copy(&assoc_rsp->supportedRates,
+		qdf_mem_copy(&assoc_rsp->supportedRates,
 			&session_entry->rateSet,
 			sizeof(tSirMacRateSet));
 	}
@@ -742,12 +689,12 @@ lim_process_assoc_rsp_frame(tpAniSirGlobal mac_ctx,
 		lim_log(mac_ctx, LOGW,
 			FL("session_entry->assocRsp is not NULL freeing it "
 			 "and setting NULL"));
-		cdf_mem_free(session_entry->assocRsp);
+		qdf_mem_free(session_entry->assocRsp);
 		session_entry->assocRsp = NULL;
 		session_entry->assocRspLen = 0;
 	}
 
-	session_entry->assocRsp = cdf_mem_malloc(frame_len);
+	session_entry->assocRsp = qdf_mem_malloc(frame_len);
 	if (NULL == session_entry->assocRsp) {
 		lim_log(mac_ctx, LOGE,
 			FL("Unable to allocate memory for assoc res,len=%d"),
@@ -757,13 +704,11 @@ lim_process_assoc_rsp_frame(tpAniSirGlobal mac_ctx,
 		 * Store the Assoc response. This is sent
 		 * to csr/hdd in join cnf response.
 		 */
-		cdf_mem_copy(session_entry->assocRsp, body, frame_len);
+		qdf_mem_copy(session_entry->assocRsp, body, frame_len);
 		session_entry->assocRspLen = frame_len;
 	}
 
-#ifdef WLAN_FEATURE_VOWIFI_11R
 	lim_update_ric_data(mac_ctx, session_entry, assoc_rsp);
-#endif
 
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 	roam_session =
@@ -771,12 +716,12 @@ lim_process_assoc_rsp_frame(tpAniSirGlobal mac_ctx,
 	if (assoc_rsp->FTInfo.R0KH_ID.present) {
 		roam_session->ftSmeContext.r0kh_id_len =
 			assoc_rsp->FTInfo.R0KH_ID.num_PMK_R0_ID;
-		cdf_mem_copy(roam_session->ftSmeContext.r0kh_id,
+		qdf_mem_copy(roam_session->ftSmeContext.r0kh_id,
 			assoc_rsp->FTInfo.R0KH_ID.PMK_R0_ID,
 			roam_session->ftSmeContext.r0kh_id_len);
 	} else {
 		roam_session->ftSmeContext.r0kh_id_len = 0;
-		cdf_mem_zero(roam_session->ftSmeContext.r0kh_id,
+		qdf_mem_zero(roam_session->ftSmeContext.r0kh_id,
 			SIR_ROAM_R0KH_ID_MAX_LEN);
 	}
 #endif
@@ -794,15 +739,15 @@ lim_process_assoc_rsp_frame(tpAniSirGlobal mac_ctx,
 		 */
 		lim_log(mac_ctx, LOGE,
 			FL("received Re/AssocRsp frame with IBSS capability"));
-		cdf_mem_free(assoc_rsp);
-		cdf_mem_free(beacon);
+		qdf_mem_free(assoc_rsp);
+		qdf_mem_free(beacon);
 		return;
 	}
 
 	if (cfg_get_capability_info(mac_ctx, &caps, session_entry)
 		!= eSIR_SUCCESS) {
-		cdf_mem_free(assoc_rsp);
-		cdf_mem_free(beacon);
+		qdf_mem_free(assoc_rsp);
+		qdf_mem_free(beacon);
 		lim_log(mac_ctx, LOGP, FL("could not retrieve Capabilities "));
 		return;
 	}
@@ -812,20 +757,7 @@ lim_process_assoc_rsp_frame(tpAniSirGlobal mac_ctx,
 	if (subtype == LIM_ASSOC)
 		lim_deactivate_and_change_timer(mac_ctx, eLIM_ASSOC_FAIL_TIMER);
 	else
-	{
-		/* Stop Reassociation failure timer */
-		mac_ctx->lim.reAssocRetryAttempt = 0;
-		if ((NULL != mac_ctx->lim.pSessionEntry)
-		    && (NULL !=
-			mac_ctx->lim.pSessionEntry->pLimMlmReassocRetryReq)) {
-			cdf_mem_free(
-			mac_ctx->lim.pSessionEntry->pLimMlmReassocRetryReq);
-			mac_ctx->lim.pSessionEntry->pLimMlmReassocRetryReq =
-				NULL;
-		}
-		lim_deactivate_and_change_timer(mac_ctx,
-			eLIM_REASSOC_FAIL_TIMER);
-	}
+		lim_stop_reassoc_retry_timer(mac_ctx);
 
 	if (assoc_rsp->statusCode != eSIR_MAC_SUCCESS_STATUS
 #ifdef WLAN_FEATURE_11W
@@ -893,8 +825,8 @@ lim_process_assoc_rsp_frame(tpAniSirGlobal mac_ctx,
 				FL("ASSOC res with eSIR_MAC_TRY_AGAIN_LATER "
 				" recvd.Starting timer to wait timeout=%d."),
 				timeout_value);
-			if (CDF_STATUS_SUCCESS !=
-				cdf_mc_timer_start(
+			if (QDF_STATUS_SUCCESS !=
+				qdf_mc_timer_start(
 					&session_entry->pmfComebackTimer,
 					timeout_value)) {
 				lim_log(mac_ctx, LOGE,
@@ -905,15 +837,15 @@ lim_process_assoc_rsp_frame(tpAniSirGlobal mac_ctx,
 				FL("ASSOC resp with try again event recvd. "
 				"But try again time interval IE is wrong."));
 		}
-		cdf_mem_free(beacon);
-		cdf_mem_free(assoc_rsp);
+		qdf_mem_free(beacon);
+		qdf_mem_free(assoc_rsp);
 		return;
 	}
 #endif
 	if (!((session_entry->bssType == eSIR_BTAMP_STA_MODE) ||
 		((session_entry->bssType == eSIR_BTAMP_AP_MODE) &&
 		LIM_IS_BT_AMP_STA_ROLE(session_entry)) ||
-		session_entry->bRoamSynchInProgress)) {
+		lim_is_roam_synch_in_progress(session_entry))) {
 		if (lim_set_link_state
 			(mac_ctx, eSIR_LINK_POSTASSOC_STATE,
 			session_entry->bssId,
@@ -921,8 +853,8 @@ lim_process_assoc_rsp_frame(tpAniSirGlobal mac_ctx,
 			NULL) != eSIR_SUCCESS) {
 			lim_log(mac_ctx, LOGE,
 				FL("Set link state to POSTASSOC failed"));
-			cdf_mem_free(beacon);
-			cdf_mem_free(assoc_rsp);
+			qdf_mem_free(beacon);
+			qdf_mem_free(assoc_rsp);
 			return;
 		}
 	}
@@ -938,7 +870,7 @@ lim_process_assoc_rsp_frame(tpAniSirGlobal mac_ctx,
 		lim_update_ese_tsm(mac_ctx, session_entry, assoc_rsp);
 #endif
 		if (session_entry->pLimMlmJoinReq) {
-			cdf_mem_free(session_entry->pLimMlmJoinReq);
+			qdf_mem_free(session_entry->pLimMlmJoinReq);
 			session_entry->pLimMlmJoinReq = NULL;
 		}
 
@@ -969,7 +901,7 @@ lim_process_assoc_rsp_frame(tpAniSirGlobal mac_ctx,
 		}
 		if ((session_entry->limMlmState ==
 		    eLIM_MLM_WT_FT_REASSOC_RSP_STATE) ||
-			session_entry->bRoamSynchInProgress) {
+			lim_is_roam_synch_in_progress(session_entry)) {
 			lim_log(mac_ctx, LOG1, FL("Sending self sta"));
 			lim_update_assoc_sta_datas(mac_ctx, sta_ds, assoc_rsp,
 				session_entry);
@@ -980,18 +912,15 @@ lim_process_assoc_rsp_frame(tpAniSirGlobal mac_ctx,
 				session_entry->gLimEdcaParams,
 				session_entry);
 			/* Send the active EDCA parameters to HAL */
-#ifdef WLAN_FEATURE_ROAM_OFFLOAD
-			if (!session_entry->bRoamSynchInProgress) {
-#endif
-			lim_send_edca_params(mac_ctx,
-				session_entry->gLimEdcaParamsActive,
-				sta_ds->bssId);
-			lim_add_ft_sta_self(mac_ctx, (assoc_rsp->aid & 0x3FFF),
-				session_entry);
-#ifdef WLAN_FEATURE_ROAM_OFFLOAD
-		}
-#endif
-			cdf_mem_free(beacon);
+			if (!lim_is_roam_synch_in_progress(session_entry)) {
+				lim_send_edca_params(mac_ctx,
+					session_entry->gLimEdcaParamsActive,
+					sta_ds->bssId);
+				lim_add_ft_sta_self(mac_ctx,
+					(assoc_rsp->aid & 0x3FFF),
+					session_entry);
+			}
+			qdf_mem_free(beacon);
 			return;
 		}
 
@@ -1024,7 +953,7 @@ lim_process_assoc_rsp_frame(tpAniSirGlobal mac_ctx,
 				goto assocReject;
 			}
 		}
-		cdf_mem_free(beacon);
+		qdf_mem_free(beacon);
 		return;
 	}
 	lim_log(mac_ctx, LOG1,
@@ -1048,8 +977,8 @@ lim_process_assoc_rsp_frame(tpAniSirGlobal mac_ctx,
 		assoc_cnf.protStatusCode = eSIR_SME_SUCCESS;
 		lim_post_sme_message(mac_ctx, LIM_MLM_ASSOC_CNF,
 			(uint32_t *) &assoc_cnf);
-		cdf_mem_free(assoc_rsp);
-		cdf_mem_free(beacon);
+		qdf_mem_free(assoc_rsp);
+		qdf_mem_free(beacon);
 		return;
 	}
 	/* Delete Pre-auth context for the associated BSS */
@@ -1084,11 +1013,15 @@ lim_process_assoc_rsp_frame(tpAniSirGlobal mac_ctx,
 	lim_diag_event_report(mac_ctx, WLAN_PE_DIAG_CONNECTED, session_entry,
 			      eSIR_SUCCESS, eSIR_SUCCESS);
 #endif
+	if (assoc_rsp->obss_scanparams.present)
+		lim_update_obss_scanparams(session_entry,
+				&assoc_rsp->obss_scanparams);
+
 	if (assoc_rsp->QosMapSet.present)
-		cdf_mem_copy(&session_entry->QosMapSet,
+		qdf_mem_copy(&session_entry->QosMapSet,
 			&assoc_rsp->QosMapSet, sizeof(tSirQosMapSet));
 	 else
-		cdf_mem_zero(&session_entry->QosMapSet, sizeof(tSirQosMapSet));
+		qdf_mem_zero(&session_entry->QosMapSet, sizeof(tSirQosMapSet));
 
 	lim_update_stads_ext_cap(mac_ctx, session_entry, assoc_rsp, sta_ds);
 	/* Update the BSS Entry, this entry was added during preassoc. */
@@ -1096,8 +1029,8 @@ lim_process_assoc_rsp_frame(tpAniSirGlobal mac_ctx,
 			beacon,
 			&session_entry->pLimJoinReq->bssDescription, true,
 			 session_entry)) {
-		cdf_mem_free(assoc_rsp);
-		cdf_mem_free(beacon);
+		qdf_mem_free(assoc_rsp);
+		qdf_mem_free(beacon);
 		return;
 	} else {
 		lim_log(mac_ctx, LOGE, FL("could not update the bss entry"));
@@ -1107,12 +1040,9 @@ lim_process_assoc_rsp_frame(tpAniSirGlobal mac_ctx,
 
 assocReject:
 	if ((subtype == LIM_ASSOC)
-#ifdef WLAN_FEATURE_VOWIFI_11R
 		|| ((subtype == LIM_REASSOC)
 		&& (session_entry->limMlmState ==
-		    eLIM_MLM_WT_FT_REASSOC_RSP_STATE))
-#endif
-	    ) {
+		    eLIM_MLM_WT_FT_REASSOC_RSP_STATE))) {
 		lim_log(mac_ctx, LOGE, FL("Assoc Rejected by the peer. "
 			"mlmestate: %d sessionid %d Reason: %d MACADDR:"
 			MAC_ADDRESS_STR),
@@ -1124,20 +1054,17 @@ assocReject:
 			session_entry->peSessionId,
 			session_entry->limMlmState));
 		if (session_entry->pLimMlmJoinReq) {
-			cdf_mem_free(session_entry->pLimMlmJoinReq);
+			qdf_mem_free(session_entry->pLimMlmJoinReq);
 			session_entry->pLimMlmJoinReq = NULL;
 		}
 		if (subtype == LIM_ASSOC) {
 			lim_post_sme_message(mac_ctx, LIM_MLM_ASSOC_CNF,
 				(uint32_t *) &assoc_cnf);
-		}
-#ifdef WLAN_FEATURE_VOWIFI_11R
-		else {
+		} else {
 			assoc_cnf.resultCode = eSIR_SME_FT_REASSOC_FAILURE;
 			lim_post_sme_message(mac_ctx, LIM_MLM_REASSOC_CNF,
 					(uint32_t *)&assoc_cnf);
 		}
-#endif
 	} else {
 		lim_restore_pre_reassoc_state(mac_ctx,
 			eSIR_SME_REASSOC_REFUSED,
@@ -1145,7 +1072,7 @@ assocReject:
 			session_entry);
 	}
 
-	cdf_mem_free(beacon);
-	cdf_mem_free(assoc_rsp);
+	qdf_mem_free(beacon);
+	qdf_mem_free(assoc_rsp);
 	return;
 }

@@ -192,10 +192,8 @@ typedef struct sPESession       /* Added to Support BT-AMP */
 	uint8_t *assocRsp;      /* Used to store association response received while associating */
 	tAniSirDph dph;
 	void **parsedAssocReq;  /* Used to store parsed assoc req from various requesting station */
-#ifdef WLAN_FEATURE_VOWIFI_11R
 	uint32_t RICDataLen;    /* Used to store the Ric data received in the assoc response */
 	uint8_t *ricData;
-#endif
 #ifdef FEATURE_WLAN_ESE
 	uint32_t tspecLen;      /* Used to store the TSPEC IEs received in the assoc response */
 	uint8_t *tspecIes;
@@ -275,15 +273,9 @@ typedef struct sPESession       /* Added to Support BT-AMP */
 	uint32_t lim11hEnable;
 
 	int8_t maxTxPower;   /* MIN (Regulatory and local power constraint) */
-	enum tCDF_ADAPTER_MODE pePersona;
-
-#if defined WLAN_FEATURE_VOWIFI
+	enum tQDF_ADAPTER_MODE pePersona;
 	int8_t txMgmtPower;
-#endif
-
-#ifdef WLAN_FEATURE_VOWIFI_11R
 	tAniBool is11Rconnection;
-#endif
 
 #ifdef FEATURE_WLAN_ESE
 	tAniBool isESEconnection;
@@ -321,7 +313,7 @@ typedef struct sPESession       /* Added to Support BT-AMP */
 	tLimOperatingModeInfo gLimOperatingMode;
 	uint8_t vhtCapabilityPresentInBeacon;
 	uint8_t ch_center_freq_seg0;
-	phy_ch_width ch_width;
+	enum phy_ch_width ch_width;
 	uint8_t ch_center_freq_seg1;
 	uint8_t txBFIniFeatureEnabled;
 	uint8_t txbf_csn_value;
@@ -333,6 +325,7 @@ typedef struct sPESession       /* Added to Support BT-AMP */
 	uint8_t enableAmpduPs;
 	uint8_t enableHtSmps;
 	uint8_t htSmpsvalue;
+	bool send_smps_action;
 	uint8_t spectrumMgtEnabled;
 	/* *********************11H related**************************** */
 	tLimSpecMgmtInfo gLimSpecMgmt;
@@ -447,18 +440,16 @@ typedef struct sPESession       /* Added to Support BT-AMP */
 	bool bRoamSynchInProgress;
 #endif
 
-#if defined WLAN_FEATURE_VOWIFI_11R
 	/* Fast Transition (FT) */
 	tftPEContext ftPEContext;
-#endif
 	bool isNonRoamReassoc;
 #ifdef WLAN_FEATURE_11W
-	cdf_mc_timer_t pmfComebackTimer;
+	qdf_mc_timer_t pmfComebackTimer;
 	tComebackTimerInfo pmfComebackTimerInfo;
 #endif /* WLAN_FEATURE_11W */
 	uint8_t  is_key_installed;
 	/* timer for reseting protection fileds at regular intervals */
-	cdf_mc_timer_t protection_fields_reset_timer;
+	qdf_mc_timer_t protection_fields_reset_timer;
 	void *mac_ctx;
 	/*
 	 * variable to store state of various protection struct like
@@ -481,6 +472,11 @@ typedef struct sPESession       /* Added to Support BT-AMP */
 	uint8_t country_info_present;
 	uint8_t nss;
 	bool add_bss_failed;
+	struct csa_offload_params saved_csa_params;
+	/* To hold OBSS Scan IE Parameters */
+	struct obss_scanparam obss_ht40_scanparam;
+	/* Supported NSS is intersection of self and peer NSS */
+	bool supported_nss_1x1;
 } tPESession, *tpPESession;
 
 /*-------------------------------------------------------------------------

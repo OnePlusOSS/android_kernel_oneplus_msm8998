@@ -38,6 +38,7 @@
 #include <sme_api.h>
 #include <wlan_defs.h>
 #include "ol_txrx_ctrl_api.h"
+#include "cdp_txrx_peer_ops.h"
 
 /* Preprocessor Definitions and Constants */
 #ifdef FEATURE_WLAN_TDLS
@@ -50,6 +51,9 @@
 #define TKIP_COUNTER_MEASURE_STOPED  0
 /* Timeout (in ms) for Link to Up before Registering Station */
 #define ASSOC_LINKUP_TIMEOUT 60
+
+/* Timeout in ms for peer info request commpletion */
+#define IBSS_PEER_INFO_REQ_TIMOEUT 1000
 
 /* Type Declarations */
 /**
@@ -110,10 +114,10 @@ typedef enum {
 typedef struct connection_info_s {
 	eConnectionState connState;
 	eMib_dot11DesiredBssType connDot11DesiredBssType;
-	struct cdf_mac_addr bssId;
+	struct qdf_mac_addr bssId;
 	tCsrSSIDInfo SSID;
 	uint8_t staId[MAX_IBSS_PEERS];
-	struct cdf_mac_addr peerMacAddress[MAX_IBSS_PEERS];
+	struct qdf_mac_addr peerMacAddress[MAX_IBSS_PEERS];
 	eCsrAuthType authType;
 	eCsrEncryptionType ucEncryptionType;
 	eCsrEncryptionType mcEncryptionType;
@@ -168,9 +172,9 @@ eCsrBand hdd_conn_get_connected_band(hdd_station_ctx_t *pHddStaCtx);
  * @roamStatus: roam status
  * @roamResult: roam result
  *
- * Return: CDF_STATUS enumeration
+ * Return: QDF_STATUS enumeration
  */
-CDF_STATUS hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo,
+QDF_STATUS hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo,
 				 uint32_t roamId,
 				 eRoamCmdStatus roamStatus,
 				 eCsrRoamResult roamResult);
@@ -214,9 +218,9 @@ int hdd_set_csr_auth_type(hdd_adapter_t *pAdapter, eCsrAuthType RSNAuthType);
  * Construct the staDesc and register with TL the new STA.
  * This is called as part of ADD_STA in the TDLS setup.
  *
- * Return: CDF_STATUS enumeration
+ * Return: QDF_STATUS enumeration
  */
-CDF_STATUS hdd_roam_register_tdlssta(hdd_adapter_t *pAdapter,
+QDF_STATUS hdd_roam_register_tdlssta(hdd_adapter_t *pAdapter,
 				     const uint8_t *peerMac, uint16_t staId,
 				     uint8_t ucastSig);
 
@@ -228,7 +232,7 @@ CDF_STATUS hdd_roam_register_tdlssta(hdd_adapter_t *pAdapter,
  */
 void hdd_perform_roam_set_key_complete(hdd_adapter_t *pAdapter);
 
-#if defined(FEATURE_WLAN_ESE) && defined(FEATURE_WLAN_ESE_UPLOAD)
+#ifdef FEATURE_WLAN_ESE
 /**
  * hdd_indicate_ese_bcn_report_no_results() - beacon report no scan results
  * @pAdapter: pointer to adapter
@@ -246,9 +250,9 @@ hdd_indicate_ese_bcn_report_no_results(const hdd_adapter_t *pAdapter,
 					    const uint16_t measurementToken,
 					    const bool flag,
 					    const uint8_t numBss);
-#endif /* FEATURE_WLAN_ESE && FEATURE_WLAN_ESE_UPLOAD */
+#endif /* FEATURE_WLAN_ESE */
 
-CDF_STATUS hdd_change_peer_state(hdd_adapter_t *pAdapter,
+QDF_STATUS hdd_change_peer_state(hdd_adapter_t *pAdapter,
 				 uint8_t sta_id,
 				 enum ol_txrx_peer_state sta_state,
 				 bool roam_synch_in_progress);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -67,9 +67,9 @@ static void memdump_cleanup_timer_cb(void *data)
 {
 	int status;
 	hdd_context_t *hdd_ctx = data;
-	cdf_dma_addr_t paddr;
-	cdf_dma_addr_t dma_ctx = 0;
-	cdf_device_t cdf_ctx;
+	qdf_dma_addr_t paddr;
+	qdf_dma_addr_t dma_ctx = 0;
+	qdf_device_t qdf_ctx;
 
 	status = wlan_hdd_validate_context(hdd_ctx);
 	if (0 != status) {
@@ -82,15 +82,15 @@ static void memdump_cleanup_timer_cb(void *data)
 		return;
 	}
 
-	cdf_ctx = cds_get_context(CDF_MODULE_ID_CDF_DEVICE);
-	if (!cdf_ctx) {
-		hddLog(LOGE, FL("CDF context is NULL"));
+	qdf_ctx = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
+	if (!qdf_ctx) {
+		hddLog(LOGE, FL("QDF context is NULL"));
 		return;
 	}
 
 	paddr = hdd_ctx->dump_loc_paddr;
 	mutex_lock(&hdd_ctx->memdump_lock);
-	cdf_os_mem_free_consistent(cdf_ctx,
+	qdf_mem_free_consistent(qdf_ctx, qdf_ctx->dev,
 		FW_MEM_DUMP_SIZE, hdd_ctx->fw_dump_loc, paddr, dma_ctx);
 	hdd_ctx->fw_dump_loc = NULL;
 	hdd_ctx->memdump_in_progress = false;
@@ -197,16 +197,18 @@ static int __wlan_hdd_cfg80211_get_fw_mem_dump(struct wiphy *wiphy,
 					       const void *data, int data_len)
 {
 	int status;
-	CDF_STATUS sme_status;
+	QDF_STATUS sme_status;
 	hdd_context_t *hdd_ctx = wiphy_priv(wiphy);
 	struct fw_dump_req fw_mem_dump_req;
 	struct fw_dump_seg_req *seg_req;
 	uint8_t loop;
-	cdf_dma_addr_t paddr;
-	cdf_dma_addr_t dma_ctx = 0;
-	cdf_device_t cdf_ctx;
+	qdf_dma_addr_t paddr;
+	qdf_dma_addr_t dma_ctx = 0;
+	qdf_device_t qdf_ctx;
 	unsigned long rc;
 	struct hdd_fw_dump_context *context;
+
+	ENTER_DEV(wdev->netdev);
 
 	status = wlan_hdd_validate_context(hdd_ctx);
 	if (0 != status) {
@@ -214,9 +216,9 @@ static int __wlan_hdd_cfg80211_get_fw_mem_dump(struct wiphy *wiphy,
 		return status;
 	}
 
-	cdf_ctx = cds_get_context(CDF_MODULE_ID_CDF_DEVICE);
-	if (!cdf_ctx) {
-		hddLog(LOGE, FL("CDF context is NULL"));
+	qdf_ctx = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
+	if (!qdf_ctx) {
+		hddLog(LOGE, FL("QDF context is NULL"));
 		return -EINVAL;
 	}
 
@@ -234,11 +236,11 @@ static int __wlan_hdd_cfg80211_get_fw_mem_dump(struct wiphy *wiphy,
 	 */
 	mutex_lock(&hdd_ctx->memdump_lock);
 	if (!hdd_ctx->fw_dump_loc) {
-		hdd_ctx->fw_dump_loc = cdf_os_mem_alloc_consistent(
-			cdf_ctx, FW_MEM_DUMP_SIZE, &paddr, dma_ctx);
+		hdd_ctx->fw_dump_loc = qdf_mem_alloc_consistent(
+			qdf_ctx, qdf_ctx->dev, FW_MEM_DUMP_SIZE, &paddr);
 		if (!hdd_ctx->fw_dump_loc) {
 			mutex_unlock(&hdd_ctx->memdump_lock);
-			hddLog(LOGE, FL("cdf_os_mem_alloc_consistent failed"));
+			hddLog(LOGE, FL("qdf_mem_alloc_consistent failed"));
 			return -ENOMEM;
 		}
 		hdd_ctx->dump_loc_paddr = paddr;
@@ -285,7 +287,7 @@ static int __wlan_hdd_cfg80211_get_fw_mem_dump(struct wiphy *wiphy,
 	 * User space will not be able to access the dump after this time.
 	 * New request should be issued to get the dump again.
 	 */
-	cdf_mc_timer_start(&hdd_ctx->memdump_cleanup_timer,
+	qdf_mc_timer_start(&hdd_ctx->memdump_cleanup_timer,
 			MEMDUMP_COMPLETION_TIME_MS);
 	hdd_ctx->memdump_in_progress = true;
 
@@ -296,18 +298,18 @@ static int __wlan_hdd_cfg80211_get_fw_mem_dump(struct wiphy *wiphy,
 	spin_unlock(&hdd_context_lock);
 
 	sme_status = sme_fw_mem_dump(hdd_ctx->hHal, &fw_mem_dump_req);
-	if (CDF_STATUS_SUCCESS != sme_status) {
+	if (QDF_STATUS_SUCCESS != sme_status) {
 		hddLog(LOGE, FL("sme_fw_mem_dump Failed"));
 		mutex_lock(&hdd_ctx->memdump_lock);
-		cdf_os_mem_free_consistent(cdf_ctx,
+		qdf_mem_free_consistent(qdf_ctx, qdf_ctx->dev,
 			FW_MEM_DUMP_SIZE, hdd_ctx->fw_dump_loc, paddr, dma_ctx);
 		hdd_ctx->fw_dump_loc = NULL;
 		mutex_unlock(&hdd_ctx->memdump_lock);
 		hdd_ctx->memdump_in_progress = false;
-		if (CDF_TIMER_STATE_RUNNING ==
-			cdf_mc_timer_get_current_state(
+		if (QDF_TIMER_STATE_RUNNING ==
+			qdf_mc_timer_get_current_state(
 				&hdd_ctx->memdump_cleanup_timer)) {
-			cdf_mc_timer_stop(&hdd_ctx->memdump_cleanup_timer);
+			qdf_mc_timer_stop(&hdd_ctx->memdump_cleanup_timer);
 		}
 		return -EINVAL;
 	}
@@ -393,9 +395,9 @@ static ssize_t memdump_read(struct file *file, char __user *buf,
 {
 	int status;
 	hdd_context_t *hdd_ctx;
-	cdf_dma_addr_t paddr;
-	cdf_dma_addr_t dma_ctx = 0;
-	cdf_device_t cdf_ctx;
+	qdf_dma_addr_t paddr;
+	qdf_dma_addr_t dma_ctx = 0;
+	qdf_device_t qdf_ctx;
 
 	hdd_ctx = memdump_get_file_data(file);
 
@@ -405,9 +407,9 @@ static ssize_t memdump_read(struct file *file, char __user *buf,
 		hddLog(LOGE, FL("HDD context is not valid"));
 		return -EINVAL;
 	}
-	cdf_ctx = cds_get_context(CDF_MODULE_ID_CDF_DEVICE);
-	if (!cdf_ctx) {
-		hddLog(LOGE, FL("CDF context is NULL"));
+	qdf_ctx = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
+	if (!qdf_ctx) {
+		hddLog(LOGE, FL("QDF context is NULL"));
 		return -EINVAL;
 	}
 
@@ -443,14 +445,14 @@ static ssize_t memdump_read(struct file *file, char __user *buf,
 	if (*pos >= FW_MEM_DUMP_SIZE) {
 		paddr = hdd_ctx->dump_loc_paddr;
 		mutex_lock(&hdd_ctx->memdump_lock);
-		cdf_os_mem_free_consistent(cdf_ctx,
+		qdf_mem_free_consistent(qdf_ctx, qdf_ctx->dev,
 			FW_MEM_DUMP_SIZE, hdd_ctx->fw_dump_loc, paddr, dma_ctx);
 		hdd_ctx->fw_dump_loc = NULL;
 		hdd_ctx->memdump_in_progress = false;
-		if (CDF_TIMER_STATE_RUNNING ==
-			cdf_mc_timer_get_current_state(
+		if (QDF_TIMER_STATE_RUNNING ==
+			qdf_mc_timer_get_current_state(
 				&hdd_ctx->memdump_cleanup_timer)) {
-			cdf_mc_timer_stop(&hdd_ctx->memdump_cleanup_timer);
+			qdf_mc_timer_stop(&hdd_ctx->memdump_cleanup_timer);
 		}
 		mutex_unlock(&hdd_ctx->memdump_lock);
 	}
@@ -481,7 +483,7 @@ static int memdump_procfs_init(void)
 {
 	hdd_context_t *hdd_ctx;
 
-	hdd_ctx = cds_get_context(CDF_MODULE_ID_HDD);
+	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
 	if (!hdd_ctx) {
 		hddLog(LOGE , FL("Invalid HDD context"));
 		return -EINVAL;
@@ -539,23 +541,23 @@ int memdump_init(void)
 {
 	hdd_context_t *hdd_ctx;
 	int status = 0;
-	CDF_STATUS cb_status;
-	CDF_STATUS cdf_status;
+	QDF_STATUS cb_status;
+	QDF_STATUS qdf_status;
 
-	hdd_ctx = cds_get_context(CDF_MODULE_ID_HDD);
+	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
 	if (!hdd_ctx) {
 		hddLog(LOGE , FL("Invalid HDD context"));
 		return -EINVAL;
 	}
 
-	if (CDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
+	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
 		hddLog(LOGE, FL("Not initializing memdump in FTM mode"));
 		return -EINVAL;
 	}
 
 	cb_status = sme_fw_mem_dump_register_cb(hdd_ctx->hHal,
 				wlan_hdd_cfg80211_fw_mem_dump_cb);
-	if (CDF_STATUS_SUCCESS != cb_status) {
+	if (QDF_STATUS_SUCCESS != cb_status) {
 		hddLog(LOGE , FL("Failed to register the callback"));
 		return -EINVAL;
 	}
@@ -568,10 +570,10 @@ int memdump_init(void)
 
 	init_completion(&fw_dump_context.response_event);
 
-	cdf_status = cdf_mc_timer_init(&hdd_ctx->memdump_cleanup_timer,
-				    CDF_TIMER_TYPE_SW, memdump_cleanup_timer_cb,
+	qdf_status = qdf_mc_timer_init(&hdd_ctx->memdump_cleanup_timer,
+				    QDF_TIMER_TYPE_SW, memdump_cleanup_timer_cb,
 				    (void *)hdd_ctx);
-	if (!CDF_IS_STATUS_SUCCESS(cdf_status)) {
+	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 		hddLog(LOGE, FL("Failed to init memdump cleanup timer"));
 		return -EINVAL;
 	}
@@ -591,25 +593,25 @@ int memdump_init(void)
 void memdump_deinit(void)
 {
 	hdd_context_t *hdd_ctx;
-	cdf_dma_addr_t paddr;
-	cdf_dma_addr_t dma_ctx = 0;
-	cdf_device_t cdf_ctx;
-	CDF_STATUS cdf_status;
+	qdf_dma_addr_t paddr;
+	qdf_dma_addr_t dma_ctx = 0;
+	qdf_device_t qdf_ctx;
+	QDF_STATUS qdf_status;
 
-	hdd_ctx = cds_get_context(CDF_MODULE_ID_HDD);
+	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
 	if (!hdd_ctx) {
 		hddLog(LOGE , FL("Invalid HDD context"));
 		return;
 	}
 
-	if (CDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
+	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
 		hddLog(LOGE, FL("Not deinitializing memdump in FTM mode"));
 		return;
 	}
 
-	cdf_ctx = cds_get_context(CDF_MODULE_ID_CDF_DEVICE);
-	if (!cdf_ctx) {
-		hddLog(LOGE, FL("CDF context is NULL"));
+	qdf_ctx = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
+	if (!qdf_ctx) {
+		hddLog(LOGE, FL("QDF context is NULL"));
 		return;
 	}
 
@@ -619,19 +621,19 @@ void memdump_deinit(void)
 	mutex_lock(&hdd_ctx->memdump_lock);
 	if (hdd_ctx->fw_dump_loc) {
 		paddr = hdd_ctx->dump_loc_paddr;
-		cdf_os_mem_free_consistent(cdf_ctx,
+		qdf_mem_free_consistent(qdf_ctx, qdf_ctx->dev,
 			FW_MEM_DUMP_SIZE, hdd_ctx->fw_dump_loc, paddr, dma_ctx);
 		hdd_ctx->fw_dump_loc = NULL;
 		hdd_ctx->memdump_in_progress = false;
 	}
 	mutex_unlock(&hdd_ctx->memdump_lock);
 
-	if (CDF_TIMER_STATE_RUNNING ==
-	  cdf_mc_timer_get_current_state(&hdd_ctx->memdump_cleanup_timer)) {
-		cdf_mc_timer_stop(&hdd_ctx->memdump_cleanup_timer);
+	if (QDF_TIMER_STATE_RUNNING ==
+	  qdf_mc_timer_get_current_state(&hdd_ctx->memdump_cleanup_timer)) {
+		qdf_mc_timer_stop(&hdd_ctx->memdump_cleanup_timer);
 	}
 
-	cdf_status = cdf_mc_timer_destroy(&hdd_ctx->memdump_cleanup_timer);
-	if (!CDF_IS_STATUS_SUCCESS(cdf_status))
+	qdf_status = qdf_mc_timer_destroy(&hdd_ctx->memdump_cleanup_timer);
+	if (!QDF_IS_STATUS_SUCCESS(qdf_status))
 		hddLog(LOGE, FL("Failed to deallocate timer"));
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -28,8 +28,8 @@
 #include "sme_power_save.h"
 #include "sme_power_save_api.h"
 #include "sms_debug.h"
-#include "cdf_memory.h"
-#include "cdf_types.h"
+#include "qdf_mem.h"
+#include "qdf_types.h"
 #include "wma_types.h"
 #include "wmm_apsd.h"
 #include "cfg_api.h"
@@ -40,9 +40,9 @@
  * @type: type
  * @body: body pointer
  *
- * Return: CDF_STATUS
+ * Return: QDF_STATUS
  */
-CDF_STATUS sme_post_ps_msg_to_wma(uint16_t type, void *body)
+QDF_STATUS sme_post_ps_msg_to_wma(uint16_t type, void *body)
 {
 	cds_msg_t msg;
 
@@ -51,76 +51,15 @@ CDF_STATUS sme_post_ps_msg_to_wma(uint16_t type, void *body)
 	msg.bodyptr = body;
 	msg.bodyval = 0;
 
-	if (CDF_STATUS_SUCCESS != cds_mq_post_message(
-				CDF_MODULE_ID_WMA, &msg)) {
-		CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_ERROR,
+	if (QDF_STATUS_SUCCESS != cds_mq_post_message(
+				QDF_MODULE_ID_WMA, &msg)) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 				"%s: Posting message %d failed",
 				__func__, type);
-		cdf_mem_free(body);
-		return CDF_STATUS_E_FAILURE;
+		qdf_mem_free(body);
+		return QDF_STATUS_E_FAILURE;
 	}
-	return CDF_STATUS_SUCCESS;
-}
-
-/**
- * sme_ps_enable_ps_req_params(): enables power save req params
- * @mac_ctx: global mac context
- * @session_id: session id
- *
- * Return: CDF_STATUS
- */
-CDF_STATUS sme_ps_enable_ps_req_params(tpAniSirGlobal mac_ctx,
-		uint32_t session_id)
-{
-	struct sEnablePsParams *enable_ps_req_params;
-	CDF_STATUS status = CDF_STATUS_SUCCESS;
-
-	enable_ps_req_params =  cdf_mem_malloc(sizeof(*enable_ps_req_params));
-	if (NULL == enable_ps_req_params) {
-		sms_log(mac_ctx, LOGE,
-			FL("Memory allocation failed for enable_ps_req_params"));
-		return CDF_STATUS_E_NOMEM;
-	}
-	enable_ps_req_params->psSetting = eSIR_ADDON_NOTHING;
-	enable_ps_req_params->sessionid = session_id;
-
-	status = sme_post_ps_msg_to_wma(WMA_ENTER_PS_REQ, enable_ps_req_params);
-	if (!CDF_IS_STATUS_SUCCESS(status))
-		return CDF_STATUS_E_FAILURE;
-	CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_INFO,
-		FL("Message WMA_ENTER_PS_REQ Successfully sent to WMA"));
-	return CDF_STATUS_SUCCESS;
-}
-
-/**
- * sme_ps_disable_ps_req_params(): Disable power save req params
- * @mac_ctx: global mac context
- * @session_id: session id
- *
- * Return: CDF_STATUS
- */
-CDF_STATUS sme_ps_disable_ps_req_params(tpAniSirGlobal mac_ctx,
-		uint32_t session_id)
-{
-	struct  sDisablePsParams *disable_ps_req_params;
-	CDF_STATUS status = CDF_STATUS_SUCCESS;
-
-	disable_ps_req_params = cdf_mem_malloc(sizeof(*disable_ps_req_params));
-	if (NULL == disable_ps_req_params) {
-		sms_log(mac_ctx, LOGE,
-			FL("Memory allocation failed for sDisablePsParams"));
-		return CDF_STATUS_E_NOMEM;
-	}
-
-	disable_ps_req_params->psSetting = eSIR_ADDON_NOTHING;
-	disable_ps_req_params->sessionid = session_id;
-
-	status = sme_post_ps_msg_to_wma(WMA_EXIT_PS_REQ, disable_ps_req_params);
-	if (!CDF_IS_STATUS_SUCCESS(status))
-		return CDF_STATUS_E_FAILURE;
-	CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_INFO,
-			FL("Message WMA_EXIT_PS_REQ Successfully sent to WMA"));
-	return CDF_STATUS_SUCCESS;
+	return QDF_STATUS_SUCCESS;
 }
 
 /**
@@ -128,27 +67,17 @@ CDF_STATUS sme_ps_disable_ps_req_params(tpAniSirGlobal mac_ctx,
  * @mac_ctx: global mac context
  * @session_id: session id
  *
- * Return: CDF_STATUS
+ * Return: QDF_STATUS
  */
-CDF_STATUS sme_ps_enable_uapsd_req_params(tpAniSirGlobal mac_ctx,
-		uint32_t session_id)
+static void sme_ps_fill_uapsd_req_params(tpAniSirGlobal mac_ctx,
+		tUapsd_Params *uapsdParams, uint32_t session_id,
+		enum ps_state *ps_state)
 {
 
-	struct sEnableUapsdParams *enable_uapsd_req_params;
 	uint8_t uapsd_delivery_mask = 0;
 	uint8_t uapsd_trigger_mask = 0;
 	struct ps_global_info *ps_global_info = &mac_ctx->sme.ps_global_info;
 	struct ps_params *ps_param = &ps_global_info->ps_params[session_id];
-	CDF_STATUS status = CDF_STATUS_SUCCESS;
-
-	enable_uapsd_req_params =
-		cdf_mem_malloc(sizeof(*enable_uapsd_req_params));
-	if (NULL == enable_uapsd_req_params) {
-		sms_log(mac_ctx, LOGE,
-			FL("Memory allocation failed for enable_uapsd_req_params"));
-		return CDF_STATUS_E_NOMEM;
-	}
-
 
 	uapsd_delivery_mask =
 		ps_param->uapsd_per_ac_bit_mask |
@@ -158,41 +87,166 @@ CDF_STATUS sme_ps_enable_uapsd_req_params(tpAniSirGlobal mac_ctx,
 		ps_param->uapsd_per_ac_bit_mask |
 		ps_param->uapsd_per_ac_trigger_enable_mask;
 
-
-	enable_uapsd_req_params->uapsdParams.bkDeliveryEnabled =
+	uapsdParams->bkDeliveryEnabled =
 		LIM_UAPSD_GET(ACBK, uapsd_delivery_mask);
 
-	enable_uapsd_req_params->uapsdParams.beDeliveryEnabled =
+	uapsdParams->beDeliveryEnabled =
 		LIM_UAPSD_GET(ACBE, uapsd_delivery_mask);
 
-	enable_uapsd_req_params->uapsdParams.viDeliveryEnabled =
+	uapsdParams->viDeliveryEnabled =
 		LIM_UAPSD_GET(ACVI, uapsd_delivery_mask);
 
-	enable_uapsd_req_params->uapsdParams.voDeliveryEnabled =
+	uapsdParams->voDeliveryEnabled =
 		LIM_UAPSD_GET(ACVO, uapsd_delivery_mask);
 
-	enable_uapsd_req_params->uapsdParams.bkTriggerEnabled =
+	uapsdParams->bkTriggerEnabled =
 		LIM_UAPSD_GET(ACBK, uapsd_trigger_mask);
 
-	enable_uapsd_req_params->uapsdParams.beTriggerEnabled =
+	uapsdParams->beTriggerEnabled =
 		LIM_UAPSD_GET(ACBE, uapsd_trigger_mask);
 
-	enable_uapsd_req_params->uapsdParams.viTriggerEnabled =
+	uapsdParams->viTriggerEnabled =
 		LIM_UAPSD_GET(ACVI, uapsd_trigger_mask);
 
-	enable_uapsd_req_params->uapsdParams.voTriggerEnabled =
+	uapsdParams->voTriggerEnabled =
 		LIM_UAPSD_GET(ACVO, uapsd_trigger_mask);
+	if (ps_param->ps_state != FULL_POWER_MODE) {
+		uapsdParams->enable_ps = true;
+		*ps_state = UAPSD_MODE;
+	} else {
+		uapsdParams->enable_ps = false;
+		*ps_state = FULL_POWER_MODE;
+	}
+}
 
+static void sme_set_ps_state(tpAniSirGlobal mac_ctx,
+		uint32_t session_id, enum ps_state ps_state)
+{
+	struct ps_global_info *ps_global_info = &mac_ctx->sme.ps_global_info;
+	struct ps_params *ps_param = &ps_global_info->ps_params[session_id];
+	ps_param->ps_state = ps_state;
+}
+
+static void sme_get_ps_state(tpAniSirGlobal mac_ctx,
+		uint32_t session_id, enum ps_state *ps_state)
+{
+	struct ps_global_info *ps_global_info = &mac_ctx->sme.ps_global_info;
+	struct ps_params *ps_param = &ps_global_info->ps_params[session_id];
+	*ps_state = ps_param->ps_state;
+}
+/**
+ * sme_ps_enable_ps_req_params(): enables power save req params
+ * @mac_ctx: global mac context
+ * @session_id: session id
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS sme_ps_enable_ps_req_params(tpAniSirGlobal mac_ctx,
+		uint32_t session_id)
+{
+	struct sEnablePsParams *enable_ps_req_params;
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	struct ps_global_info *ps_global_info = &mac_ctx->sme.ps_global_info;
+	struct ps_params *ps_param = &ps_global_info->ps_params[session_id];
+	enum ps_state ps_state;
+
+	enable_ps_req_params =  qdf_mem_malloc(sizeof(*enable_ps_req_params));
+	if (NULL == enable_ps_req_params) {
+		sms_log(mac_ctx, LOGE,
+			FL("Memory allocation failed for enable_ps_req_params"));
+		return QDF_STATUS_E_NOMEM;
+	}
+	if (ps_param->uapsd_per_ac_bit_mask) {
+		enable_ps_req_params->psSetting = eSIR_ADDON_ENABLE_UAPSD;
+		sme_ps_fill_uapsd_req_params(mac_ctx,
+				&enable_ps_req_params->uapsdParams,
+				session_id, &ps_state);
+		ps_state = UAPSD_MODE;
+		enable_ps_req_params->uapsdParams.enable_ps = true;
+	} else {
+		enable_ps_req_params->psSetting = eSIR_ADDON_NOTHING;
+		ps_state = LEGACY_POWER_SAVE_MODE;
+	}
+	enable_ps_req_params->sessionid = session_id;
+
+	status = sme_post_ps_msg_to_wma(WMA_ENTER_PS_REQ, enable_ps_req_params);
+	if (!QDF_IS_STATUS_SUCCESS(status))
+		return QDF_STATUS_E_FAILURE;
+	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
+		FL("Message WMA_ENTER_PS_REQ Successfully sent to WMA"));
+	ps_param->ps_state = ps_state;
+	return QDF_STATUS_SUCCESS;
+}
+
+/**
+ * sme_ps_disable_ps_req_params(): Disable power save req params
+ * @mac_ctx: global mac context
+ * @session_id: session id
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS sme_ps_disable_ps_req_params(tpAniSirGlobal mac_ctx,
+		uint32_t session_id)
+{
+	struct  sDisablePsParams *disable_ps_req_params;
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+
+	disable_ps_req_params = qdf_mem_malloc(sizeof(*disable_ps_req_params));
+	if (NULL == disable_ps_req_params) {
+		sms_log(mac_ctx, LOGE,
+			FL("Memory allocation failed for sDisablePsParams"));
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	disable_ps_req_params->psSetting = eSIR_ADDON_NOTHING;
+	disable_ps_req_params->sessionid = session_id;
+
+	status = sme_post_ps_msg_to_wma(WMA_EXIT_PS_REQ, disable_ps_req_params);
+	if (!QDF_IS_STATUS_SUCCESS(status))
+		return QDF_STATUS_E_FAILURE;
+	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
+			FL("Message WMA_EXIT_PS_REQ Successfully sent to WMA"));
+	sme_set_ps_state(mac_ctx, session_id, FULL_POWER_MODE);
+	return QDF_STATUS_SUCCESS;
+}
+
+/**
+ * sme_ps_enable_uapsd_req_params(): enables UASPD req params
+ * @mac_ctx: global mac context
+ * @session_id: session id
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS sme_ps_enable_uapsd_req_params(tpAniSirGlobal mac_ctx,
+		uint32_t session_id)
+{
+
+	struct sEnableUapsdParams *enable_uapsd_req_params;
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	enum ps_state ps_state;
+
+	enable_uapsd_req_params =
+		qdf_mem_malloc(sizeof(*enable_uapsd_req_params));
+	if (NULL == enable_uapsd_req_params) {
+		sms_log(mac_ctx, LOGE,
+			FL("Memory allocation failed for enable_uapsd_req_params"));
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	sme_ps_fill_uapsd_req_params(mac_ctx,
+			&enable_uapsd_req_params->uapsdParams,
+			session_id, &ps_state);
 	enable_uapsd_req_params->sessionid = session_id;
 
 	status = sme_post_ps_msg_to_wma(WMA_ENABLE_UAPSD_REQ,
 					enable_uapsd_req_params);
-	if (!CDF_IS_STATUS_SUCCESS(status))
-		return CDF_STATUS_E_FAILURE;
+	if (!QDF_IS_STATUS_SUCCESS(status))
+		return QDF_STATUS_E_FAILURE;
 
-	CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_INFO,
+	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
 		    FL("Msg WMA_ENABLE_UAPSD_REQ Successfully sent to WMA"));
-	return CDF_STATUS_SUCCESS;
+	sme_set_ps_state(mac_ctx, session_id, ps_state);
+	return QDF_STATUS_SUCCESS;
 }
 
 /**
@@ -200,31 +254,38 @@ CDF_STATUS sme_ps_enable_uapsd_req_params(tpAniSirGlobal mac_ctx,
  * @mac_ctx: global mac context
  * @session_id: session id
  *
- * Return: CDF_STATUS
+ * Return: QDF_STATUS
  */
-CDF_STATUS sme_ps_disable_uapsd_req_params(tpAniSirGlobal mac_ctx,
+QDF_STATUS sme_ps_disable_uapsd_req_params(tpAniSirGlobal mac_ctx,
 		uint32_t session_id)
 {
 	struct sDisableUapsdParams *disable_uapsd_req_params;
-	CDF_STATUS status = CDF_STATUS_SUCCESS;
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	enum ps_state ps_state;
 
+	sme_get_ps_state(mac_ctx, session_id, &ps_state);
+	if (ps_state != UAPSD_MODE) {
+		sms_log(mac_ctx, LOGE, FL("UAPSD is already disabled"));
+		return QDF_STATUS_SUCCESS;
+	}
 	disable_uapsd_req_params =
-		cdf_mem_malloc(sizeof(*disable_uapsd_req_params));
+		qdf_mem_malloc(sizeof(*disable_uapsd_req_params));
 	if (NULL == disable_uapsd_req_params) {
 		sms_log(mac_ctx, LOGE,
-			FL("Memory allocation failed for disable_uapsd_req_params"));
-		return CDF_STATUS_E_NOMEM;
+			FL("Mem alloc failed for disable_uapsd_req_params"));
+		return QDF_STATUS_E_NOMEM;
 	}
 
 	disable_uapsd_req_params->sessionid = session_id;
 	status = sme_post_ps_msg_to_wma(WMA_DISABLE_UAPSD_REQ,
 					disable_uapsd_req_params);
-	if (!CDF_IS_STATUS_SUCCESS(status))
-		return CDF_STATUS_E_FAILURE;
+	if (!QDF_IS_STATUS_SUCCESS(status))
+		return QDF_STATUS_E_FAILURE;
 
-	CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_INFO,
+	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
 		FL("Message WMA_DISABLE_UAPSD_REQ Successfully sent to WMA"));
-	return CDF_STATUS_SUCCESS;
+	sme_set_ps_state(mac_ctx, session_id, LEGACY_POWER_SAVE_MODE);
+	return QDF_STATUS_SUCCESS;
 }
 
 /**
@@ -232,9 +293,9 @@ CDF_STATUS sme_ps_disable_uapsd_req_params(tpAniSirGlobal mac_ctx,
  * @mac_ctx: global mac context
  * @session_id: session id
  *
- * Return: CDF_STATUS
+ * Return: QDF_STATUS
  */
-CDF_STATUS sme_ps_enter_wowl_req_params(tpAniSirGlobal mac_ctx,
+QDF_STATUS sme_ps_enter_wowl_req_params(tpAniSirGlobal mac_ctx,
 		uint32_t session_id)
 {
 	struct sSirHalWowlEnterParams *hal_wowl_params;
@@ -245,19 +306,19 @@ CDF_STATUS sme_ps_enter_wowl_req_params(tpAniSirGlobal mac_ctx,
 	sme_wowl_params =
 		&ps_global_info->ps_params[session_id].wowl_enter_params;
 
-	hal_wowl_params = cdf_mem_malloc(sizeof(*hal_wowl_params));
+	hal_wowl_params = qdf_mem_malloc(sizeof(*hal_wowl_params));
 	if (NULL == hal_wowl_params) {
 		sms_log(mac_ctx, LOGP,
 			FL("Fail to allocate memory for Enter Wowl Request"));
-		return  CDF_STATUS_E_NOMEM;
+		return  QDF_STATUS_E_NOMEM;
 	}
-	cdf_mem_set((uint8_t *) hal_wowl_params, sizeof(*hal_wowl_params), 0);
+	qdf_mem_set((uint8_t *) hal_wowl_params, sizeof(*hal_wowl_params), 0);
 
 	/* fill in the message field */
 	hal_wowl_params->ucMagicPktEnable = sme_wowl_params->ucMagicPktEnable;
 	hal_wowl_params->ucPatternFilteringEnable =
 		sme_wowl_params->ucPatternFilteringEnable;
-	cdf_copy_macaddr(&hal_wowl_params->magic_ptrn,
+	qdf_copy_macaddr(&hal_wowl_params->magic_ptrn,
 			 &sme_wowl_params->magic_ptrn);
 
 #ifdef WLAN_WAKEUP_EVENTS
@@ -327,18 +388,18 @@ CDF_STATUS sme_ps_enter_wowl_req_params(tpAniSirGlobal mac_ctx,
 
 	hal_wowl_params->sessionId = sme_wowl_params->sessionId;
 
-	if (CDF_STATUS_SUCCESS == sme_post_ps_msg_to_wma(WMA_WOWL_ENTER_REQ,
+	if (QDF_STATUS_SUCCESS == sme_post_ps_msg_to_wma(WMA_WOWL_ENTER_REQ,
 							hal_wowl_params)){
-		CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_INFO,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
 			FL("Msg WMA_WOWL_ENTER_REQ Successfully sent to WMA"));
-		return CDF_STATUS_SUCCESS;
+		return QDF_STATUS_SUCCESS;
 	} else
 		goto end;
 
 end:
 	if (hal_wowl_params != NULL)
-		cdf_mem_free(hal_wowl_params);
-	return CDF_STATUS_E_FAILURE;
+		qdf_mem_free(hal_wowl_params);
+	return QDF_STATUS_E_FAILURE;
 }
 
 /**
@@ -346,31 +407,31 @@ end:
  * @mac_ctx: global mac context
  * @session_id: session id
  *
- * Return: CDF_STATUS
+ * Return: QDF_STATUS
  */
-CDF_STATUS sme_ps_exit_wowl_req_params(tpAniSirGlobal mac_ctx,
+QDF_STATUS sme_ps_exit_wowl_req_params(tpAniSirGlobal mac_ctx,
 		uint32_t session_id)
 {
 	struct sSirHalWowlExitParams *hal_wowl_msg;
-	hal_wowl_msg = cdf_mem_malloc(sizeof(*hal_wowl_msg));
+	hal_wowl_msg = qdf_mem_malloc(sizeof(*hal_wowl_msg));
 	if (NULL == hal_wowl_msg) {
 		sms_log(mac_ctx, LOGP,
 			FL("Fail to allocate memory for WoWLAN Add Bcast Pattern "));
-		return  CDF_STATUS_E_NOMEM;
+		return  QDF_STATUS_E_NOMEM;
 	}
-	cdf_mem_set((uint8_t *) hal_wowl_msg,
+	qdf_mem_set((uint8_t *) hal_wowl_msg,
 			sizeof(*hal_wowl_msg), 0);
 	hal_wowl_msg->sessionId = session_id;
 
-	if (CDF_STATUS_SUCCESS == sme_post_ps_msg_to_wma(WMA_WOWL_EXIT_REQ,
+	if (QDF_STATUS_SUCCESS == sme_post_ps_msg_to_wma(WMA_WOWL_EXIT_REQ,
 							hal_wowl_msg)){
-		CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_INFO,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
 			FL("Msg WMA_WOWL_EXIT_REQ Successfully sent to WMA"));
-		return CDF_STATUS_SUCCESS;
+		return QDF_STATUS_SUCCESS;
 	}
 	if (hal_wowl_msg != NULL)
-		cdf_mem_free(hal_wowl_msg);
-	return CDF_STATUS_E_FAILURE;
+		qdf_mem_free(hal_wowl_msg);
+	return QDF_STATUS_E_FAILURE;
 }
 
 /**
@@ -380,18 +441,18 @@ CDF_STATUS sme_ps_exit_wowl_req_params(tpAniSirGlobal mac_ctx,
  * @session_id: session id
  * sme_ps_cmd: power save message
  *
- * Return: CDF_STATUS
+ * Return: QDF_STATUS
  */
-CDF_STATUS sme_ps_process_command(tpAniSirGlobal mac_ctx, uint32_t session_id,
+QDF_STATUS sme_ps_process_command(tpAniSirGlobal mac_ctx, uint32_t session_id,
 		enum sme_ps_cmd command)
 {
-	CDF_STATUS status = CDF_STATUS_SUCCESS;
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
 
 	if (!CSR_IS_SESSION_VALID(mac_ctx, session_id)) {
 		sms_log(mac_ctx, LOGE, "Invalid Session_id %x", session_id);
 		return eSIR_FAILURE;
 	}
-	CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_INFO,
+	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
 			FL("Power Save command %d"), command);
 	switch (command) {
 	case SME_PS_ENABLE:
@@ -416,11 +477,11 @@ CDF_STATUS sme_ps_process_command(tpAniSirGlobal mac_ctx, uint32_t session_id,
 	default:
 		sms_log(mac_ctx, LOGE, FL("Invalid command type %d"),
 				command);
-		status = CDF_STATUS_E_FAILURE;
+		status = QDF_STATUS_E_FAILURE;
 		break;
 	}
-	if (status != CDF_STATUS_SUCCESS) {
-		CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_ERROR,
+	if (status != QDF_STATUS_SUCCESS) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 			FL("Not able to enter in PS, Command: %d"), command);
 	}
 	return status;
@@ -435,9 +496,9 @@ CDF_STATUS sme_ps_process_command(tpAniSirGlobal mac_ctx, uint32_t session_id,
  *1) Sta Mode Ps should be enabled in ini file.
  *2) Session should be in infra mode and in connected state.
  *
- * Return: CDF_STATUS
+ * Return: QDF_STATUS
  */
-CDF_STATUS sme_enable_sta_ps_check(tpAniSirGlobal mac_ctx, uint32_t session_id)
+QDF_STATUS sme_enable_sta_ps_check(tpAniSirGlobal mac_ctx, uint32_t session_id)
 {
 	struct ps_global_info *ps_global_info = &mac_ctx->sme.ps_global_info;
 
@@ -445,16 +506,16 @@ CDF_STATUS sme_enable_sta_ps_check(tpAniSirGlobal mac_ctx, uint32_t session_id)
 	if (!ps_global_info->ps_enabled) {
 		sms_log(mac_ctx, LOG1,
 			"Cannot initiate PS. PS is disabled in ini");
-		return CDF_STATUS_E_FAILURE;
+		return QDF_STATUS_E_FAILURE;
 	}
 
 	/* Check whether the given session is Infra and in Connected State */
 	if (!csr_is_conn_state_connected_infra(mac_ctx, session_id)) {
 		sms_log(mac_ctx, LOGE, "Sta not infra/connected state %d",
 				session_id);
-		return CDF_STATUS_E_FAILURE;
+		return QDF_STATUS_E_FAILURE;
 	}
-	return CDF_STATUS_SUCCESS;
+	return QDF_STATUS_SUCCESS;
 
 }
 
@@ -464,15 +525,15 @@ CDF_STATUS sme_enable_sta_ps_check(tpAniSirGlobal mac_ctx, uint32_t session_id)
  * @session_id: session id
  * sme_ps_cmd: power save message
  *
- * Return: CDF_STATUS
+ * Return: QDF_STATUS
  */
-CDF_STATUS sme_ps_enable_disable(tHalHandle hal_ctx, uint32_t session_id,
+QDF_STATUS sme_ps_enable_disable(tHalHandle hal_ctx, uint32_t session_id,
 		enum sme_ps_cmd command)
 {
-	CDF_STATUS status = CDF_STATUS_E_FAILURE;
+	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal_ctx);
 	status =  sme_enable_sta_ps_check(mac_ctx, session_id);
-	if (status != CDF_STATUS_SUCCESS)
+	if (status != QDF_STATUS_SUCCESS)
 		return status;
 	status = sme_ps_process_command(mac_ctx, session_id, command);
 	return status;
@@ -483,19 +544,19 @@ CDF_STATUS sme_ps_enable_disable(tHalHandle hal_ctx, uint32_t session_id,
  * @hal_ctx: global hal_handle
  * @session_id: session id
  *
- * Return: CDF_STATUS
+ * Return: QDF_STATUS
  */
-CDF_STATUS sme_ps_uapsd_enable(tHalHandle hal_ctx, uint32_t session_id)
+QDF_STATUS sme_ps_uapsd_enable(tHalHandle hal_ctx, uint32_t session_id)
 {
 
-	CDF_STATUS status = CDF_STATUS_E_FAILURE;
+	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal_ctx);
 	status =  sme_enable_sta_ps_check(mac_ctx, session_id);
-	if (status != CDF_STATUS_SUCCESS)
+	if (status != QDF_STATUS_SUCCESS)
 		return status;
 	status = sme_ps_process_command(mac_ctx, session_id,
 			SME_PS_UAPSD_ENABLE);
-	if (status == CDF_STATUS_SUCCESS)
+	if (status == QDF_STATUS_SUCCESS)
 		sme_offload_qos_process_into_uapsd_mode(mac_ctx, session_id);
 
 	return status;
@@ -506,19 +567,19 @@ CDF_STATUS sme_ps_uapsd_enable(tHalHandle hal_ctx, uint32_t session_id)
  * @hal_ctx: global hal_handle
  * @session_id: session id
  *
- * Return: CDF_STATUS
+ * Return: QDF_STATUS
  */
-CDF_STATUS sme_ps_uapsd_disable(tHalHandle hal_ctx, uint32_t session_id)
+QDF_STATUS sme_ps_uapsd_disable(tHalHandle hal_ctx, uint32_t session_id)
 {
 
-	CDF_STATUS status = CDF_STATUS_E_FAILURE;
+	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal_ctx);
 	status =  sme_enable_sta_ps_check(mac_ctx, session_id);
-	if (status != CDF_STATUS_SUCCESS)
+	if (status != QDF_STATUS_SUCCESS)
 		return status;
 	status = sme_ps_process_command(mac_ctx, session_id,
 			SME_PS_UAPSD_DISABLE);
-	if (status == CDF_STATUS_SUCCESS)
+	if (status == QDF_STATUS_SUCCESS)
 		sme_offload_qos_process_out_of_uapsd_mode(mac_ctx, session_id);
 
 	return status;
@@ -530,7 +591,7 @@ CDF_STATUS sme_ps_uapsd_disable(tHalHandle hal_ctx, uint32_t session_id)
  * @ts_info: tspec info.
  * @session_id: session id
  *
- * Return: CDF_STATUS
+ * Return: QDF_STATUS
  */
 void sme_set_tspec_uapsd_mask_per_session(tpAniSirGlobal mac_ctx,
 		tSirMacTSInfo *ts_info,
@@ -616,13 +677,13 @@ void sme_set_tspec_uapsd_mask_per_session(tpAniSirGlobal mac_ctx,
  * @uapsd_start_ind_cb: uapsd start indiation cb
  * @callback_context: callback context
  *
- * Return: CDF_STATUS
+ * Return: QDF_STATUS
  */
-CDF_STATUS sme_ps_start_uapsd(tHalHandle hal_ctx, uint32_t session_id,
+QDF_STATUS sme_ps_start_uapsd(tHalHandle hal_ctx, uint32_t session_id,
 		uapsd_start_indication_cb uapsd_start_ind_cb,
 		void *callback_context)
 {
-	CDF_STATUS status = CDF_STATUS_E_FAILURE;
+	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	status = sme_ps_uapsd_enable(hal_ctx, session_id);
 	return status;
 }
@@ -647,13 +708,13 @@ sme_populate_mac_header(tpAniSirGlobal mac_ctx,
 	mac_hdr->fc.subType = sub_type;
 
 	/* Prepare Address 1 */
-	cdf_mem_copy((uint8_t *) mac_hdr->da, (uint8_t *) peer_addr,
+	qdf_mem_copy((uint8_t *) mac_hdr->da, (uint8_t *) peer_addr,
 		     sizeof(tSirMacAddr));
 
 	sir_copy_mac_addr(mac_hdr->sa, self_mac_addr);
 
 	/* Prepare Address 3 */
-	cdf_mem_copy((uint8_t *) mac_hdr->bssId, (uint8_t *) peer_addr,
+	qdf_mem_copy((uint8_t *) mac_hdr->bssId, (uint8_t *) peer_addr,
 		     sizeof(tSirMacAddr));
 	return status_code;
 } /*** sme_populate_mac_header() ***/
@@ -676,7 +737,7 @@ sme_prepare_probe_req_template(tpAniSirGlobal mac_ctx,
 	 * and then hand it off to 'dot11f_pack_probe_request' (for
 	 * serialization).  We start by zero-initializing the structure:
 	 */
-	cdf_mem_set((uint8_t *) &pr, sizeof(pr), 0);
+	qdf_mem_set((uint8_t *) &pr, sizeof(pr), 0);
 
 	populate_dot11f_supp_rates(mac_ctx, channel_num, &pr.SuppRates, NULL);
 
@@ -699,14 +760,14 @@ sme_prepare_probe_req_template(tpAniSirGlobal mac_ctx,
 	 */
 	status = dot11f_get_packed_probe_request_size(mac_ctx, &pr, &payload);
 	if (DOT11F_FAILED(status)) {
-		CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 			  FL("Failed to calculate the packed size for a Probe Request (0x%08x)."),
 				  status);
 
 		/* We'll fall back on the worst case scenario: */
 		payload = sizeof(tDot11fProbeRequest);
 	} else if (DOT11F_WARNED(status)) {
-		CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 			  FL("There were warnings while calculating the packed size for a Probe Request (0x%08x)."),
 			  status);
 	}
@@ -714,7 +775,7 @@ sme_prepare_probe_req_template(tpAniSirGlobal mac_ctx,
 	bytes = payload + sizeof(tSirMacMgmtHdr);
 
 	/* Prepare outgoing frame */
-	cdf_mem_set(frame, bytes, 0);
+	qdf_mem_set(frame, bytes, 0);
 
 	/* Next, we fill out the buffer descriptor: */
 	sir_status = sme_populate_mac_header(mac_ctx, frame, SIR_MAC_MGMT_FRAME,
@@ -722,7 +783,7 @@ sme_prepare_probe_req_template(tpAniSirGlobal mac_ctx,
 					     self_mac_addr);
 
 	if (eSIR_SUCCESS != sir_status) {
-		CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 		FL("Failed to populate the buffer descriptor for a Probe Request (%d)."),
 			sir_status);
 		return sir_status;      /* allocated! */
@@ -732,11 +793,11 @@ sme_prepare_probe_req_template(tpAniSirGlobal mac_ctx,
 					    sizeof(tSirMacMgmtHdr),
 					    payload, &payload);
 	if (DOT11F_FAILED(status)) {
-		CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 			  "Failed to pack a Probe Request (0x%08x).", status);
 		return eSIR_FAILURE;    /* allocated! */
 	} else if (DOT11F_WARNED(status)) {
-		CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 			  "There were warnings while packing a Probe Request");
 	}
 
@@ -764,16 +825,16 @@ void sme_set_pno_channel_prediction(tpSirPNOScanReq request_buf,
 		mac_ctx->roam.configParam.stationary_thresh;
 	request_buf->channel_prediction_full_scan =
 		mac_ctx->roam.configParam.channel_prediction_full_scan;
-	CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_DEBUG,
+	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 			FL("channel_prediction: %d, top_k_num_of_channels: %d"),
 			request_buf->pno_channel_prediction,
 			request_buf->top_k_num_of_channels);
-	CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_DEBUG,
+	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 			FL("stationary_thresh: %d, ch_predict_full_scan: %d"),
 			request_buf->stationary_thresh,
 			request_buf->channel_prediction_full_scan);
 }
-CDF_STATUS sme_set_ps_preferred_network_list(tHalHandle hal_ctx,
+QDF_STATUS sme_set_ps_preferred_network_list(tHalHandle hal_ctx,
 		tpSirPNOScanReq request,
 		uint8_t session_id,
 		preferred_network_found_ind_cb callback_routine,
@@ -786,11 +847,11 @@ CDF_STATUS sme_set_ps_preferred_network_list(tHalHandle hal_ctx,
 	uint8_t uc_dot11_mode;
 
 	if (NULL == session) {
-		CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 				"%s: session is NULL", __func__);
-		return CDF_STATUS_E_FAILURE;
+		return QDF_STATUS_E_FAILURE;
 	}
-	CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_INFO,
+	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
 			"%s: SSID = 0x%08x%08x%08x%08x%08x%08x%08x%08x, 0x%08x%08x%08x%08x%08x%08x%08x%08x", __func__,
 			*((uint32_t *) &request->aNetworks[0].ssId.ssId[0]),
 			*((uint32_t *) &request->aNetworks[0].ssId.ssId[4]),
@@ -810,19 +871,19 @@ CDF_STATUS sme_set_ps_preferred_network_list(tHalHandle hal_ctx,
 			*((uint32_t *) &request->aNetworks[1].ssId.ssId[28]));
 
 	if (!session) {
-		CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 				"%s: session is NULL", __func__);
-		return CDF_STATUS_E_FAILURE;
+		return QDF_STATUS_E_FAILURE;
 	}
 
-	request_buf = cdf_mem_malloc(sizeof(tSirPNOScanReq));
+	request_buf = qdf_mem_malloc(sizeof(tSirPNOScanReq));
 	if (NULL == request_buf) {
-		CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 			FL("Not able to allocate memory for PNO request"));
-		return CDF_STATUS_E_NOMEM;
+		return QDF_STATUS_E_NOMEM;
 	}
 
-	cdf_mem_copy(request_buf, request, sizeof(tSirPNOScanReq));
+	qdf_mem_copy(request_buf, request, sizeof(tSirPNOScanReq));
 
 	/*Must translate the mode first */
 	uc_dot11_mode = (uint8_t) csr_translate_to_wni_cfg_dot11_mode(mac_ctx,
@@ -847,20 +908,20 @@ CDF_STATUS sme_set_ps_preferred_network_list(tHalHandle hal_ctx,
 				((request_buf->us24GProbeTemplateLen +
 				  request->us24GProbeTemplateLen) <
 				 SIR_PNO_MAX_PB_REQ_SIZE)) {
-			cdf_mem_copy((uint8_t *) &request_buf->
+			qdf_mem_copy((uint8_t *) &request_buf->
 					p24GProbeTemplate +
 					request_buf->us24GProbeTemplateLen,
 					(uint8_t *) &request->p24GProbeTemplate,
 					request->us24GProbeTemplateLen);
 			request_buf->us24GProbeTemplateLen +=
 				request->us24GProbeTemplateLen;
-			CDF_TRACE(CDF_MODULE_ID_SME,
-				CDF_TRACE_LEVEL_INFO,
+			QDF_TRACE(QDF_MODULE_ID_SME,
+				QDF_TRACE_LEVEL_INFO,
 				FL("request->us24GProbeTemplateLen = %d"),
 				request->us24GProbeTemplateLen);
 		} else {
-			CDF_TRACE(CDF_MODULE_ID_SME,
-				CDF_TRACE_LEVEL_INFO,
+			QDF_TRACE(QDF_MODULE_ID_SME,
+				QDF_TRACE_LEVEL_INFO,
 				FL("Extra ie discarded on 2.4G, IE len = %d"),
 				request->us24GProbeTemplateLen);
 		}
@@ -880,18 +941,18 @@ CDF_STATUS sme_set_ps_preferred_network_list(tHalHandle hal_ctx,
 				((request_buf->us5GProbeTemplateLen +
 				  request->us5GProbeTemplateLen) <
 				 SIR_PNO_MAX_PB_REQ_SIZE)) {
-			cdf_mem_copy((uint8_t *) &request_buf->
+			qdf_mem_copy((uint8_t *) &request_buf->
 					p5GProbeTemplate +
 					request_buf->us5GProbeTemplateLen,
 					(uint8_t *) &request->p5GProbeTemplate,
 					request->us5GProbeTemplateLen);
 			request_buf->us5GProbeTemplateLen +=
 				request->us5GProbeTemplateLen;
-			CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_INFO,
+			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
 				FL("request_buf->us5GProbeTemplateLen = %d"),
 				request->us5GProbeTemplateLen);
 		} else {
-			CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_INFO,
+			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
 				FL("Extra IE discarded on 5G, IE length = %d"),
 				request->us5GProbeTemplateLen);
 		}
@@ -931,12 +992,12 @@ CDF_STATUS sme_set_ps_preferred_network_list(tHalHandle hal_ctx,
 	msg.type = WMA_SET_PNO_REQ;
 	msg.reserved = 0;
 	msg.bodyptr = request_buf;
-	if (!CDF_IS_STATUS_SUCCESS
-			(cds_mq_post_message(CDF_MODULE_ID_WMA, &msg))) {
-		CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_ERROR,
+	if (!QDF_IS_STATUS_SUCCESS
+			(cds_mq_post_message(QDF_MODULE_ID_WMA, &msg))) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 			FL("Not able to post WMA_SET_PNO_REQ message to WMA"));
-		cdf_mem_free(request_buf);
-		return CDF_STATUS_E_FAILURE;
+		qdf_mem_free(request_buf);
+		return QDF_STATUS_E_FAILURE;
 	}
 
 	/* Cache the Preferred Network Found Indication callback information */
@@ -945,9 +1006,9 @@ CDF_STATUS sme_set_ps_preferred_network_list(tHalHandle hal_ctx,
 	mac_ctx->sme.preferred_network_found_ind_cb_ctx =
 		callback_context;
 
-	CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_INFO, "-%s", __func__);
+	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO, "-%s", __func__);
 
-	return CDF_STATUS_SUCCESS;
+	return QDF_STATUS_SUCCESS;
 }
 #endif /* FEATURE_WLAN_SCAN_PNO */
 
@@ -956,11 +1017,11 @@ CDF_STATUS sme_set_ps_preferred_network_list(tHalHandle hal_ctx,
  * @hal_ctx - The handle returned by mac_open.
  * @request - Pointer to the offload request.
  *
- * Return CDF_STATUS
- *            CDF_STATUS_E_FAILURE  Cannot set the offload.
- *            CDF_STATUS_SUCCESS  Request accepted.
+ * Return QDF_STATUS
+ *            QDF_STATUS_E_FAILURE  Cannot set the offload.
+ *            QDF_STATUS_SUCCESS  Request accepted.
  */
-CDF_STATUS sme_set_ps_host_offload(tHalHandle hal_ctx,
+QDF_STATUS sme_set_ps_host_offload(tHalHandle hal_ctx,
 		tpSirHostOffloadReq request,
 		uint8_t session_id)
 {
@@ -969,7 +1030,7 @@ CDF_STATUS sme_set_ps_host_offload(tHalHandle hal_ctx,
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal_ctx);
 	tCsrRoamSession *session = CSR_GET_SESSION(mac_ctx, session_id);
 
-	CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_INFO,
+	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
 			"%s: IP address = %d.%d.%d.%d", __func__,
 			request->params.hostIpv4Addr[0],
 			request->params.hostIpv4Addr[1],
@@ -977,34 +1038,34 @@ CDF_STATUS sme_set_ps_host_offload(tHalHandle hal_ctx,
 			request->params.hostIpv4Addr[3]);
 
 	if (NULL == session) {
-		CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 				"%s: SESSION not Found", __func__);
-		return CDF_STATUS_E_FAILURE;
+		return QDF_STATUS_E_FAILURE;
 	}
 
-	request_buf = cdf_mem_malloc(sizeof(tSirHostOffloadReq));
+	request_buf = qdf_mem_malloc(sizeof(tSirHostOffloadReq));
 	if (NULL == request_buf) {
-		CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 		   FL("Not able to allocate memory for host offload request"));
-		return CDF_STATUS_E_NOMEM;
+		return QDF_STATUS_E_NOMEM;
 	}
 
-	cdf_copy_macaddr(&request->bssid, &session->connectedProfile.bssid);
+	qdf_copy_macaddr(&request->bssid, &session->connectedProfile.bssid);
 
-	cdf_mem_copy(request_buf, request, sizeof(tSirHostOffloadReq));
+	qdf_mem_copy(request_buf, request, sizeof(tSirHostOffloadReq));
 
 	msg.type = WMA_SET_HOST_OFFLOAD;
 	msg.reserved = 0;
 	msg.bodyptr = request_buf;
-	if (CDF_STATUS_SUCCESS !=
-			cds_mq_post_message(CDF_MODULE_ID_WMA, &msg)) {
-		CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_ERROR,
+	if (QDF_STATUS_SUCCESS !=
+			cds_mq_post_message(QDF_MODULE_ID_WMA, &msg)) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 		      FL("Not able to post WMA_SET_HOST_OFFLOAD msg to WMA"));
-		cdf_mem_free(request_buf);
-		return CDF_STATUS_E_FAILURE;
+		qdf_mem_free(request_buf);
+		return QDF_STATUS_E_FAILURE;
 	}
 
-	return CDF_STATUS_SUCCESS;
+	return QDF_STATUS_SUCCESS;
 }
 
 #ifdef WLAN_NS_OFFLOAD
@@ -1013,11 +1074,11 @@ CDF_STATUS sme_set_ps_host_offload(tHalHandle hal_ctx,
  * @hal_ctx - The handle returned by mac_open.
  * @request - Pointer to the offload request.
  *
- * Return CDF_STATUS
- *		CDF_STATUS_E_FAILURE  Cannot set the offload.
- *		CDF_STATUS_SUCCESS  Request accepted.
+ * Return QDF_STATUS
+ *		QDF_STATUS_E_FAILURE  Cannot set the offload.
+ *		QDF_STATUS_SUCCESS  Request accepted.
  */
-CDF_STATUS sme_set_ps_ns_offload(tHalHandle hal_ctx,
+QDF_STATUS sme_set_ps_ns_offload(tHalHandle hal_ctx,
 		tpSirHostOffloadReq request,
 		uint8_t session_id)
 {
@@ -1028,31 +1089,31 @@ CDF_STATUS sme_set_ps_ns_offload(tHalHandle hal_ctx,
 
 	if (NULL == session) {
 		sms_log(mac_ctx, LOGE, FL("Session not found "));
-		return CDF_STATUS_E_FAILURE;
+		return QDF_STATUS_E_FAILURE;
 	}
 
-	cdf_copy_macaddr(&request->bssid, &session->connectedProfile.bssid);
+	qdf_copy_macaddr(&request->bssid, &session->connectedProfile.bssid);
 
-	request_buf = cdf_mem_malloc(sizeof(*request_buf));
+	request_buf = qdf_mem_malloc(sizeof(*request_buf));
 	if (NULL == request_buf) {
-		CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 			FL("Not able to allocate memory for NS offload request"));
-		return CDF_STATUS_E_NOMEM;
+		return QDF_STATUS_E_NOMEM;
 	}
 	*request_buf = *request;
 
 	msg.type = WMA_SET_NS_OFFLOAD;
 	msg.reserved = 0;
 	msg.bodyptr = request_buf;
-	if (CDF_STATUS_SUCCESS !=
-			cds_mq_post_message(CDF_MODULE_ID_WMA, &msg)) {
-		CDF_TRACE(CDF_MODULE_ID_SME, CDF_TRACE_LEVEL_ERROR,
+	if (QDF_STATUS_SUCCESS !=
+			cds_mq_post_message(QDF_MODULE_ID_WMA, &msg)) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 			FL("Not able to post SIR_HAL_SET_HOST_OFFLOAD message to HAL"));
-		cdf_mem_free(request_buf);
-		return CDF_STATUS_E_FAILURE;
+		qdf_mem_free(request_buf);
+		return QDF_STATUS_E_FAILURE;
 	}
 
-	return CDF_STATUS_SUCCESS;
+	return QDF_STATUS_SUCCESS;
 }
 
 #endif /* WLAN_NS_OFFLOAD */
@@ -1075,26 +1136,26 @@ CDF_STATUS sme_set_ps_ns_offload(tHalHandle hal_ctx,
 
 tSirRetStatus sme_post_pe_message(tpAniSirGlobal mac_ctx, tpSirMsgQ msg)
 {
-	CDF_STATUS cdf_status;
-	cdf_status = cds_mq_post_message(CDS_MQ_ID_PE, (cds_msg_t *) msg);
-	if (!CDF_IS_STATUS_SUCCESS(cdf_status)) {
+	QDF_STATUS qdf_status;
+	qdf_status = cds_mq_post_message(CDS_MQ_ID_PE, (cds_msg_t *) msg);
+	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 		sms_log(mac_ctx, LOGP,
 			FL("cds_mq_post_message failed with status code %d"),
-			cdf_status);
+			qdf_status);
 		return eSIR_FAILURE;
 	}
 
 	return eSIR_SUCCESS;
 }
 
-CDF_STATUS sme_ps_enable_auto_ps_timer(tHalHandle hal_ctx,
+QDF_STATUS sme_ps_enable_auto_ps_timer(tHalHandle hal_ctx,
 		uint32_t session_id,
 		bool is_reassoc)
 {
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal_ctx);
 	struct ps_global_info *ps_global_info = &mac_ctx->sme.ps_global_info;
 	struct ps_params *ps_param = &ps_global_info->ps_params[session_id];
-	CDF_STATUS cdf_status;
+	QDF_STATUS qdf_status;
 	uint32_t timer_value;
 
 	if (is_reassoc)
@@ -1105,23 +1166,23 @@ CDF_STATUS sme_ps_enable_auto_ps_timer(tHalHandle hal_ctx,
 	sms_log(mac_ctx, LOGE, FL("Start auto_ps_timer for %d is_reassoc:%d "),
 			timer_value, is_reassoc);
 
-	cdf_status = cdf_mc_timer_start(&ps_param->auto_ps_enable_timer,
+	qdf_status = qdf_mc_timer_start(&ps_param->auto_ps_enable_timer,
 			timer_value);
-	if (!CDF_IS_STATUS_SUCCESS(cdf_status)) {
-		if (CDF_STATUS_E_ALREADY == cdf_status) {
+	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
+		if (QDF_STATUS_E_ALREADY == qdf_status) {
 			/* Consider this ok since the timer is already started*/
 			sms_log(mac_ctx, LOGW,
 					FL("auto_ps_timer is already started"));
 		} else {
 			sms_log(mac_ctx, LOGP,
 					FL("Cannot start auto_ps_timer"));
-			return CDF_STATUS_E_FAILURE;
+			return QDF_STATUS_E_FAILURE;
 		}
 	}
-	return CDF_STATUS_SUCCESS;
+	return QDF_STATUS_SUCCESS;
 }
 
-CDF_STATUS sme_ps_disable_auto_ps_timer(tHalHandle hal_ctx,
+QDF_STATUS sme_ps_disable_auto_ps_timer(tHalHandle hal_ctx,
 		uint32_t session_id)
 {
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal_ctx);
@@ -1130,19 +1191,19 @@ CDF_STATUS sme_ps_disable_auto_ps_timer(tHalHandle hal_ctx,
 	/*
 	 * Stop the auto ps entry timer if runnin
 	 */
-	if (CDF_TIMER_STATE_RUNNING ==
-			cdf_mc_timer_get_current_state(
+	if (QDF_TIMER_STATE_RUNNING ==
+			qdf_mc_timer_get_current_state(
 				&ps_param->auto_ps_enable_timer)) {
 		sms_log(mac_ctx, LOGE,
 				FL("Stop auto_ps_enable_timer Timer for session ID:%d "),
 				session_id);
-		cdf_mc_timer_stop(&ps_param->auto_ps_enable_timer);
+		qdf_mc_timer_stop(&ps_param->auto_ps_enable_timer);
 	}
-	return CDF_STATUS_SUCCESS;
+	return QDF_STATUS_SUCCESS;
 }
 
 
-CDF_STATUS sme_ps_open(tHalHandle hal_ctx)
+QDF_STATUS sme_ps_open(tHalHandle hal_ctx)
 {
 
 	uint32_t i;
@@ -1151,17 +1212,17 @@ CDF_STATUS sme_ps_open(tHalHandle hal_ctx)
 	sms_log(mac_ctx, LOG1, FL("Enter"));
 
 	for (i = 0; i < MAX_SME_SESSIONS; i++) {
-		if (CDF_STATUS_SUCCESS != sme_ps_open_per_session(hal_ctx, i)) {
+		if (QDF_STATUS_SUCCESS != sme_ps_open_per_session(hal_ctx, i)) {
 			sms_log(mac_ctx, LOGE,
 				FL("PMC Init Failed for session %d"), i);
-			return CDF_STATUS_E_FAILURE;
+			return QDF_STATUS_E_FAILURE;
 		}
 	}
-	return CDF_STATUS_SUCCESS;
+	return QDF_STATUS_SUCCESS;
 }
 
 
-CDF_STATUS sme_ps_open_per_session(tHalHandle hal_ctx, uint32_t session_id)
+QDF_STATUS sme_ps_open_per_session(tHalHandle hal_ctx, uint32_t session_id)
 {
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal_ctx);
 	struct ps_global_info *ps_global_info = &mac_ctx->sme.ps_global_info;
@@ -1171,16 +1232,16 @@ CDF_STATUS sme_ps_open_per_session(tHalHandle hal_ctx, uint32_t session_id)
 
 	sms_log(mac_ctx, LOG1, FL("Enter"));
 	/* Allocate a timer to enable ps automatically */
-	if (!CDF_IS_STATUS_SUCCESS(cdf_mc_timer_init(
+	if (!QDF_IS_STATUS_SUCCESS(qdf_mc_timer_init(
 					&ps_param->auto_ps_enable_timer,
-					CDF_TIMER_TYPE_SW,
+					QDF_TIMER_TYPE_SW,
 					sme_auto_ps_entry_timer_expired,
 					ps_param)))     {
 		sms_log(mac_ctx, LOGE,
 				FL("Cannot allocate timer for auto ps entry"));
-		return CDF_STATUS_E_FAILURE;
+		return QDF_STATUS_E_FAILURE;
 	}
-	return CDF_STATUS_SUCCESS;
+	return QDF_STATUS_SUCCESS;
 
 }
 
@@ -1189,25 +1250,25 @@ void sme_auto_ps_entry_timer_expired(void *data)
 	struct ps_params *ps_params =   (struct ps_params *)data;
 	tpAniSirGlobal mac_ctx = (tpAniSirGlobal)ps_params->mac_ctx;
 	uint32_t session_id = ps_params->session_id;
-	CDF_STATUS status = CDF_STATUS_SUCCESS;
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	status = sme_enable_sta_ps_check(mac_ctx, session_id);
 
-	if (CDF_STATUS_SUCCESS == status) {
+	if (QDF_STATUS_SUCCESS == status) {
 		sme_ps_enable_disable((tHalHandle)mac_ctx, session_id,
 				SME_PS_ENABLE);
 	} else {
 		status =
-			cdf_mc_timer_start(&ps_params->auto_ps_enable_timer,
+			qdf_mc_timer_start(&ps_params->auto_ps_enable_timer,
 					AUTO_PS_ENTRY_TIMER_DEFAULT_VALUE);
-		if (!CDF_IS_STATUS_SUCCESS(status)
-				&& (CDF_STATUS_E_ALREADY != status)) {
+		if (!QDF_IS_STATUS_SUCCESS(status)
+				&& (QDF_STATUS_E_ALREADY != status)) {
 			sms_log(mac_ctx, LOGP,
 					FL("Cannot start traffic timer"));
 		}
 	}
 }
 
-CDF_STATUS sme_ps_close(tHalHandle hal_ctx)
+QDF_STATUS sme_ps_close(tHalHandle hal_ctx)
 {
 	uint32_t i;
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal_ctx);
@@ -1216,33 +1277,33 @@ CDF_STATUS sme_ps_close(tHalHandle hal_ctx)
 
 	for (i = 0; i < CSR_ROAM_SESSION_MAX; i++)
 		sme_ps_close_per_session(hal_ctx, i);
-	return CDF_STATUS_SUCCESS;
+	return QDF_STATUS_SUCCESS;
 }
 
-CDF_STATUS sme_ps_close_per_session(tHalHandle hal_ctx, uint32_t session_id)
+QDF_STATUS sme_ps_close_per_session(tHalHandle hal_ctx, uint32_t session_id)
 {
 
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal_ctx);
 	struct ps_global_info *ps_global_info = &mac_ctx->sme.ps_global_info;
 	struct ps_params *ps_param = &ps_global_info->ps_params[session_id];
-	CDF_STATUS cdf_status = CDF_STATUS_SUCCESS;
+	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
 
 	/*
 	 * Stop the auto ps entry timer if running
 	 */
-	if (CDF_TIMER_STATE_RUNNING ==
-			cdf_mc_timer_get_current_state(
+	if (QDF_TIMER_STATE_RUNNING ==
+			qdf_mc_timer_get_current_state(
 				&ps_param->auto_ps_enable_timer)) {
-		cdf_mc_timer_stop(&ps_param->auto_ps_enable_timer);
+		qdf_mc_timer_stop(&ps_param->auto_ps_enable_timer);
 	}
-	cdf_status =
-		cdf_mc_timer_destroy(&ps_param->auto_ps_enable_timer);
-	if (!CDF_IS_STATUS_SUCCESS(cdf_status))
+	qdf_status =
+		qdf_mc_timer_destroy(&ps_param->auto_ps_enable_timer);
+	if (!QDF_IS_STATUS_SUCCESS(qdf_status))
 		sms_log(mac_ctx, LOGE, FL("Cannot deallocate suto PS timer"));
-	return cdf_status;
+	return qdf_status;
 }
 
-CDF_STATUS sme_is_auto_ps_timer_running(tHalHandle hal_ctx,
+QDF_STATUS sme_is_auto_ps_timer_running(tHalHandle hal_ctx,
 		uint32_t session_id)
 {
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal_ctx);
@@ -1252,8 +1313,8 @@ CDF_STATUS sme_is_auto_ps_timer_running(tHalHandle hal_ctx,
 	/*
 	 * Check if the auto ps entry timer if running
 	 */
-	if (CDF_TIMER_STATE_RUNNING ==
-			cdf_mc_timer_get_current_state(
+	if (QDF_TIMER_STATE_RUNNING ==
+			qdf_mc_timer_get_current_state(
 				&ps_param->auto_ps_enable_timer)) {
 		status = true;
 	}

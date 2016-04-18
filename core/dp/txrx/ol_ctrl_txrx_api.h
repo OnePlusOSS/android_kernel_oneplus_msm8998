@@ -34,10 +34,9 @@
 
 /* #include <osapi_linux.h>      / * uint8_t * / */
 #include <osdep.h>              /* uint8_t */
-#include <cdf_nbuf.h>           /* cdf_nbuf_t */
+#include <qdf_nbuf.h>           /* qdf_nbuf_t */
 
-#include <ol_ctrl_api.h>            /* ol_vdev_handle */
-#include <ol_txrx_api.h>            /* ol_txrx_peer_handle, etc. */
+#include <cdp_txrx_cmn.h>           /* ol_txrx_pdev_handle */
 #include <ol_txrx_types.h>          /* OL_TXRX_MAC_ADDR_LEN */
 #include <cds_ieee80211_common.h>   /* ieee80211_frame */
 
@@ -106,7 +105,7 @@ ol_rx_err(ol_pdev_handle pdev,
 	  int tid,
 	  uint32_t tsf32,
 	  enum ol_rx_err_type err_type,
-	  cdf_nbuf_t rx_frame, uint64_t *pn, uint8_t key_id);
+	  qdf_nbuf_t rx_frame, uint64_t *pn, uint8_t key_id);
 
 enum ol_rx_notify_type {
 	OL_RX_NOTIFY_IPV4_IGMP,
@@ -138,36 +137,9 @@ ol_rx_notify(ol_pdev_handle pdev,
 	     uint8_t *peer_mac_addr,
 	     int tid,
 	     uint32_t tsf32,
-	     enum ol_rx_notify_type notify_type, cdf_nbuf_t rx_frame);
-
-/**
- * @brief Indicate when a paused STA has tx data available.
- * @details
- *  Indicate to the control SW when a paused peer that previously
- *  has all its peer-TID queues empty gets a MSDU to transmit.
- *  Conversely, indicate when a paused peer that had data in one or more of
- *  its peer-TID queues has all queued data removed (e.g. due to a U-APSD
- *  triggered transmission), but is still paused.
- *  It is up to the control SW to determine whether the peer is paused due to
- *  being in power-save sleep, or some other reason, and thus whether it is
- *  necessary to set the TIM in beacons to notify a sleeping STA that it has
- *  data.
- *  The data SW will also issue this ol_tx_paused_peer_data call when an
- *  unpaused peer that currently has tx data in one or more of its
- *  peer-TID queues becomes paused.
- *  The data SW will not issue this ol_tx_paused_peer_data call when a
- *  peer with data in one or more of its peer-TID queues becomes unpaused.
- *
- * @param peer - the paused peer
- * @param has_tx_data -
- *      1 -> a paused peer that previously had no tx data now does, -OR-
- *      0 -> a paused peer that previously had tx data now doesnt
- */
-void ol_tx_paused_peer_data(ol_peer_handle peer, int has_tx_data);
+	     enum ol_rx_notify_type notify_type, qdf_nbuf_t rx_frame);
 
 #define ol_ctrl_addba_req(pdev, peer_mac_addr, tid) ol_addba_req_reject
 #define ol_ctrl_rx_addba_complete(pdev, peer_mac_addr, tid, failed) /* no-op */
-
-void ol_txrx_set_peer_authorized_event(struct ol_txrx_vdev_t *vdev);
 
 #endif /* _OL_CTRL_TXRX_API__H_ */

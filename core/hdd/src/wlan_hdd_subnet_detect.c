@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -46,15 +46,15 @@ static const struct nla_policy
 	policy[QCA_WLAN_VENDOR_ATTR_GW_PARAM_CONFIG_MAX + 1] = {
 		[PARAM_MAC_ADDR] = {
 				.type = NLA_BINARY,
-				.len = CDF_MAC_ADDR_SIZE
+				.len = QDF_MAC_ADDR_SIZE
 		},
 		[PARAM_IPV4_ADDR] = {
 				.type = NLA_BINARY,
-				.len = CDF_IPV4_ADDR_SIZE
+				.len = QDF_IPV4_ADDR_SIZE
 		},
 		[PARAM_IPV6_ADDR] = {
 				.type = NLA_BINARY,
-				.len = CDF_IPV6_ADDR_SIZE
+				.len = QDF_IPV6_ADDR_SIZE
 		}
 };
 
@@ -78,9 +78,9 @@ static int __wlan_hdd_cfg80211_set_gateway_params(struct wiphy *wiphy,
 	struct nlattr *tb[QCA_WLAN_VENDOR_ATTR_GW_PARAM_CONFIG_MAX + 1];
 	struct gateway_param_update_req req = { 0 };
 	int ret;
-	CDF_STATUS status;
+	QDF_STATUS status;
 
-	ENTER();
+	ENTER_DEV(dev);
 
 	ret = wlan_hdd_validate_context(hdd_ctx);
 	if (0 != ret)
@@ -95,7 +95,7 @@ static int __wlan_hdd_cfg80211_set_gateway_params(struct wiphy *wiphy,
 	/* The gateway parameters are only valid in the STA persona
 	 * and only in the connected state.
 	 */
-	if (WLAN_HDD_INFRA_STATION != adapter->device_mode) {
+	if (QDF_STA_MODE != adapter->device_mode) {
 		hdd_err("Received GW param update for non-STA mode adapter");
 		return -ENOTSUPP;
 	}
@@ -121,20 +121,20 @@ static int __wlan_hdd_cfg80211_set_gateway_params(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 	nla_memcpy(req.gw_mac_addr.bytes, tb[PARAM_MAC_ADDR],
-			CDF_MAC_ADDR_SIZE);
+			QDF_MAC_ADDR_SIZE);
 
 	/* req ipv4_addr_type and ipv6_addr_type are initially false due
 	 * to zeroing the struct
 	 */
 	if (tb[PARAM_IPV4_ADDR]) {
 		nla_memcpy(req.ipv4_addr, tb[PARAM_IPV4_ADDR],
-			CDF_IPV4_ADDR_SIZE);
+			QDF_IPV4_ADDR_SIZE);
 		req.ipv4_addr_type = true;
 	}
 
 	if (tb[PARAM_IPV6_ADDR]) {
 		nla_memcpy(&req.ipv6_addr, tb[PARAM_IPV6_ADDR],
-			CDF_IPV6_ADDR_SIZE);
+			QDF_IPV6_ADDR_SIZE);
 		req.ipv6_addr_type = true;
 	}
 
@@ -156,7 +156,7 @@ static int __wlan_hdd_cfg80211_set_gateway_params(struct wiphy *wiphy,
 	hdd_info("ipv6 addr: %pI6c", req.ipv6_addr);
 
 	status = sme_gateway_param_update(hdd_ctx->hHal, &req);
-	if (!CDF_IS_STATUS_SUCCESS(status)) {
+	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		hdd_err("sme_gateway_param_update failed(err=%d)", status);
 		ret = -EINVAL;
 	}

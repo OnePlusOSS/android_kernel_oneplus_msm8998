@@ -28,7 +28,7 @@
 #ifndef _HALMSGAPI_H_
 #define _HALMSGAPI_H_
 
-#include "cdf_types.h"
+#include "qdf_types.h"
 #include "sir_api.h"
 #include "sir_params.h"
 
@@ -155,7 +155,7 @@ typedef enum {
 typedef struct sAniBeaconStruct {
 	uint32_t beaconLength;
 	tSirMacMgmtHdr macHdr;
-} cdf_packed tAniBeaconStruct, *tpAniBeaconStruct;
+} qdf_packed tAniBeaconStruct, *tpAniBeaconStruct;
 
 /**
  * struct sAniProbeRspStruct - probeRsp template structure
@@ -164,7 +164,7 @@ typedef struct sAniBeaconStruct {
 typedef struct sAniProbeRspStruct {
 	tSirMacMgmtHdr macHdr;
 	/* probeRsp body follows here */
-} cdf_packed tAniProbeRspStruct, *tpAniProbeRspStruct;
+} qdf_packed tAniProbeRspStruct, *tpAniProbeRspStruct;
 
 /**
  * struct tAddStaParams - add sta related parameters
@@ -191,7 +191,7 @@ typedef struct sAniProbeRspStruct {
  * @fShortGI40Mhz: short GI support for 40Mhz packets
  * @fShortGI20Mhz: short GI support for 20Mhz packets
  * @supportedRates: legacy supported rates
- * @status: CDF status
+ * @status: QDF status
  * @staIdx: station index
  * @bssIdx: BSSID of BSS to which the station is associated
  * @updateSta: pdate the existing STA entry, if this flag is set
@@ -278,9 +278,9 @@ typedef struct {
 	 * HAL to PE via response message. HAL does not read them.
 	 */
 	/* The return status of SIR_HAL_ADD_STA_REQ is reported here */
-	CDF_STATUS status;
+	QDF_STATUS status;
 	/* Station index; valid only when 'status' field value is
-	 * CDF_STATUS_SUCCESS
+	 * QDF_STATUS_SUCCESS
 	 */
 	uint8_t staIdx;
 	/* BSSID of BSS to which the station is associated.
@@ -309,6 +309,7 @@ typedef struct {
 	uint8_t enableAmpduPs;
 	uint8_t enableHtSmps;
 	uint8_t htSmpsconfig;
+	bool send_smps_action;
 	uint8_t htLdpcCapable;
 	uint8_t vhtLdpcCapable;
 	uint8_t smesessionId;
@@ -338,7 +339,7 @@ typedef struct {
 typedef struct {
 	uint16_t staIdx;
 	uint16_t assocId;
-	CDF_STATUS status;
+	QDF_STATUS status;
 	uint8_t respReqd;
 	uint8_t sessionId;
 	uint8_t smesessionId;
@@ -373,8 +374,8 @@ typedef struct {
 	tSirKeys key[SIR_MAC_MAX_NUM_OF_DEFAULT_KEYS];
 	uint8_t singleTidRc;
 	uint8_t smesessionId;
-	struct cdf_mac_addr peer_macaddr;
-	CDF_STATUS status;
+	struct qdf_mac_addr peer_macaddr;
+	QDF_STATUS status;
 	uint8_t sessionId;
 	uint8_t sendRsp;
 } tSetStaKeyParams, *tpSetStaKeyParams;
@@ -390,7 +391,7 @@ typedef struct {
  * @key: key data
  */
 typedef struct sLimMlmSetKeysReq {
-	struct cdf_mac_addr peer_macaddr;
+	struct qdf_mac_addr peer_macaddr;
 	uint8_t sessionId;      /* Added For BT-AMP Support */
 	uint8_t smesessionId;   /* Added for drivers based on wmi interface */
 	uint16_t aid;
@@ -476,7 +477,7 @@ typedef struct {
 	uint8_t txChannelWidthSet;
 	uint8_t currentOperChannel;
 	tAddStaParams staContext;
-	CDF_STATUS status;
+	QDF_STATUS status;
 	uint16_t bssIdx;
 	/* HAL should update the existing BSS entry, if this flag is set.
 	 * PE will set this flag in case of reassoc, where we want to resue the
@@ -486,15 +487,11 @@ typedef struct {
 	tSirMacSSid ssId;
 	uint8_t respReqd;
 	uint8_t sessionId;
-#if defined WLAN_FEATURE_VOWIFI
 	int8_t txMgmtPower;
 	int8_t maxTxPower;
-#endif /* WLAN_FEATURE_VOWIFI */
 
-#if defined WLAN_FEATURE_VOWIFI_11R
 	uint8_t extSetStaKeyParamValid;
 	tSetStaKeyParams extSetStaKeyParam;
-#endif /* WLAN_FEATURE_VOWIFI_11R */
 
 	uint8_t ucMaxProbeRespRetryLimit;
 	uint8_t bHiddenSSIDEn;
@@ -502,7 +499,7 @@ typedef struct {
 	uint8_t halPersona;
 	uint8_t bSpectrumMgtEnabled;
 	uint8_t vhtCapable;
-	phy_ch_width ch_width;
+	enum phy_ch_width ch_width;
 	uint8_t ch_center_freq_seg0;
 	uint8_t ch_center_freq_seg1;
 	uint8_t reassocReq;     /* Set only during roaming reassociation */
@@ -517,7 +514,7 @@ typedef struct {
 /**
  * struct tDeleteBssParams - params required for del bss request
  * @bssIdx: BSSID
- * @status: CDF status
+ * @status: QDF status
  * @respReqd: response message to LIM only when this flag is set
  * @sessionId: PE session id
  * @bssid: BSSID mac address
@@ -525,7 +522,7 @@ typedef struct {
  */
 typedef struct {
 	uint8_t bssIdx;
-	CDF_STATUS status;
+	QDF_STATUS status;
 	uint8_t respReqd;
 	uint8_t sessionId;
 	tSirMacAddr bssid;
@@ -568,7 +565,7 @@ typedef struct {
 	tSirMacMgmtHdr macMgmtHdr;
 	tSirScanEntry scanEntry;
 	tSirLinkTrafficCheck checkLinkTraffic;
-	CDF_STATUS status;
+	QDF_STATUS status;
 } tInitScanParams, *tpInitScanParams;
 
 typedef enum eDelStaReasonCode {
@@ -612,11 +609,9 @@ typedef struct {
  */
 typedef struct {
 	uint8_t scanChannel;
-	CDF_STATUS status;
-#if defined WLAN_FEATURE_VOWIFI
+	QDF_STATUS status;
 	uint32_t startTSF[2];
 	int8_t txMgmtPower;
-#endif /* WLAN_FEATURE_VOWIFI */
 } tStartScanParams, *tpStartScanParams;
 
 /**
@@ -626,7 +621,7 @@ typedef struct {
  */
 typedef struct {
 	uint8_t scanChannel;
-	CDF_STATUS status;
+	QDF_STATUS status;
 } tEndScanParams, *tpEndScanParams;
 
 /**
@@ -659,7 +654,7 @@ typedef struct {
 	uint8_t frameType;
 	tSirMacMgmtHdr macMgmtHdr;
 	tSirScanEntry scanEntry;
-	CDF_STATUS status;
+	QDF_STATUS status;
 } tFinishScanParams, *tpFinishScanParams;
 
 #ifdef FEATURE_OEM_DATA_SUPPORT
@@ -678,19 +673,22 @@ typedef struct {
  * @oemDataReq: OEM Data request
  */
 typedef struct {
-	struct cdf_mac_addr selfMacAddr;
-	CDF_STATUS status;
+	struct qdf_mac_addr selfMacAddr;
+	QDF_STATUS status;
 	uint8_t data_len;
 	uint8_t *data;
 } tStartOemDataReq, *tpStartOemDataReq;
 
 /**
  * struct tStartOemDataRsp - start OEM Data response
- * @oemDataRsp: OEM Data response
+ * @target_rsp: Indicates if the rsp is from Target or WMA generated.
+ * @rsp_len: oem data response length
+ * @oem_data_rsp: pointer to OEM Data response
  */
 typedef struct {
 	bool target_rsp;
-	uint8_t oemDataRsp[OEM_DATA_RSP_SIZE];
+	uint32_t rsp_len;
+	uint8_t *oem_data_rsp;
 } tStartOemDataRsp, *tpStartOemDataRsp;
 #endif /* FEATURE_OEM_DATA_SUPPORT */
 
@@ -765,7 +763,7 @@ typedef struct {
 	tSirKeys key[SIR_MAC_MAX_NUM_OF_DEFAULT_KEYS];
 	uint8_t singleTidRc;
 	uint8_t smesessionId;
-	CDF_STATUS status;
+	QDF_STATUS status;
 	uint8_t sessionId;
 } tSetBssKeyParams, *tpSetBssKeyParams;
 
@@ -800,7 +798,6 @@ typedef struct {
 	uint8_t smeSessionId;
 } tUpdateBeaconParams, *tpUpdateBeaconParams;
 
-#ifdef WLAN_FEATURE_11AC
 /**
  * struct tUpdateVHTOpMode - VHT operating mode
  * @opMode: VHT operating mode
@@ -857,8 +854,6 @@ typedef struct {
 	tSirMacAddr peer_mac;
 } tUpdateUserPos, *tpUpdateUserPos;
 
-#endif /* WLAN_FEATURE_11AC */
-
 /**
  * struct tUpdateCFParams -CF parameters
  * @bssIdx: BSSID index
@@ -886,7 +881,7 @@ typedef struct {
  * @maxTxPower: max tx power
  * @selfStaMacAddr: self mac address
  * @bssId: bssid
- * @status: CDF status
+ * @status: QDF status
  * @chainMask: chanin mask
  * @smpsMode: SMPS mode
  * @isDfsChannel: is DFS channel
@@ -895,14 +890,9 @@ typedef struct {
  */
 typedef struct {
 	uint8_t channelNumber;
-#ifndef WLAN_FEATURE_VOWIFI
-	uint8_t localPowerConstraint;
-#endif /* WLAN_FEATURE_VOWIFI  */
 	uint8_t peSessionId;
-#if defined WLAN_FEATURE_VOWIFI
 	int8_t txMgmtPower;
 	int8_t maxTxPower;
-#endif /* WLAN_FEATURE_VOWIFI */
 	tSirMacAddr selfStaMacAddr;
 	/* the request has power constraints, this should be applied only to
 	 * that session
@@ -915,12 +905,12 @@ typedef struct {
 	 * this struct
 	 */
 	tSirMacAddr bssId;
-	CDF_STATUS status;
+	QDF_STATUS status;
 	uint16_t chainMask;
 	uint16_t smpsMode;
 	uint8_t isDfsChannel;
 	uint8_t vhtCapable;
-	phy_ch_width ch_width;
+	enum phy_ch_width ch_width;
 	uint8_t ch_center_freq_seg0;
 	uint8_t ch_center_freq_seg1;
 	uint8_t dot11_mode;
@@ -928,28 +918,6 @@ typedef struct {
 	uint8_t restart_on_chan_switch;
 	uint8_t nss;
 } tSwitchChannelParams, *tpSwitchChannelParams;
-
-/**
- * struct tpCSAOffloadParams - CSA offload request parameters
- * @channel: channel
- * @switchmode: switch mode
- * @sec_chan_offset: second channel offset
- * @new_ch_width: new channel width
- * @new_ch_freq_seg1: channel center freq 1
- * @new_ch_freq_seg2: channel center freq 2
- * @ies_present_flag: IE present flag
- */
-typedef struct CSAOffloadParams {
-	uint8_t channel;
-	uint8_t switchmode;
-	uint8_t sec_chan_offset;
-	uint8_t new_ch_width;
-	uint8_t new_op_class;
-	uint8_t new_ch_freq_seg1;
-	uint8_t new_ch_freq_seg2;
-	uint32_t ies_present_flag;
-	tSirMacAddr bssId;
-} *tpCSAOffloadParams, tCSAOffloadParams;
 
 typedef void (*tpSetLinkStateCallback)(tpAniSirGlobal pMac, void *msgParam,
 		bool status);
@@ -970,10 +938,8 @@ typedef struct sLinkStateParams {
 	tSirLinkState state;
 	tpSetLinkStateCallback callback;
 	void *callbackArg;
-#ifdef WLAN_FEATURE_VOWIFI_11R
 	int ft;
 	void *session;
-#endif /* WLAN_FEATURE_VOWIFI_11R */
 	bool status;
 } tLinkStateParams, *tpLinkStateParams;
 
@@ -982,7 +948,7 @@ typedef struct sLinkStateParams {
  * @staIdx: station index
  * @tspecIdx: TSPEC handler uniquely identifying a TSPEC for a STA in a BSS
  * @tspec: tspec value
- * @status: CDF status
+ * @status: QDF status
  * @sessionId: session id
  * @tsm_interval: TSM interval period passed from lim to WMA
  * @setRICparams: RIC parameters
@@ -992,7 +958,7 @@ typedef struct {
 	uint16_t staIdx;
 	uint16_t tspecIdx;
 	tSirMacTspecIE tspec;
-	CDF_STATUS status;
+	QDF_STATUS status;
 	uint8_t sessionId;
 #ifdef FEATURE_WLAN_ESE
 	uint16_t tsm_interval;
@@ -1025,7 +991,6 @@ typedef struct {
 #endif /* WLAN_FEATURE_ROAM_OFFLOAD */
 } tDelTsParams, *tpDelTsParams;
 
-#ifdef WLAN_FEATURE_VOWIFI_11R
 
 #define HAL_QOS_NUM_TSPEC_MAX 2
 #define HAL_QOS_NUM_AC_MAX 4
@@ -1035,18 +1000,17 @@ typedef struct {
  * @staIdx: station index
  * @tspecIdx: TSPEC handler uniquely identifying a TSPEC for a STA in a BSS
  * @tspec: tspec value
- * @status: CDF status
+ * @status: QDF status
  * @sessionId: session id
  */
 typedef struct {
 	uint16_t staIdx;
 	uint16_t tspecIdx;
 	tSirMacTspecIE tspec[HAL_QOS_NUM_AC_MAX];
-	CDF_STATUS status[HAL_QOS_NUM_AC_MAX];
+	QDF_STATUS status[HAL_QOS_NUM_AC_MAX];
 	uint8_t sessionId;
 } tAggrAddTsParams, *tpAggrAddTsParams;
 
-#endif /* WLAN_FEATURE_VOWIFI_11R */
 
 typedef tSirRetStatus (*tHalMsgCallback)(tpAniSirGlobal pMac, uint32_t mesgId,
 					 void *mesgParam);
@@ -1079,7 +1043,7 @@ typedef struct {
 typedef struct sSet_MIMOPS {
 	uint16_t staIdx;
 	tSirMacHTMIMOPowerSaveState htMIMOPSState;
-	CDF_STATUS status;
+	QDF_STATUS status;
 	uint8_t fsendRsp;
 	tSirMacAddr peerMac;
 	uint8_t sessionId;
@@ -1108,7 +1072,7 @@ typedef struct sUapsdParams {
 	uint8_t beTriggerEnabled:1;
 	uint8_t viTriggerEnabled:1;
 	uint8_t voTriggerEnabled:1;
-	CDF_STATUS status;
+	QDF_STATUS status;
 	uint8_t bssIdx;
 } tUapsdParams, *tpUapsdParams;
 
@@ -1155,15 +1119,15 @@ typedef struct sControlTxParams {
  * Request Type = SIR_HAL_SET_MAX_TX_POWER_REQ
  */
 typedef struct sMaxTxPowerParams {
-	struct cdf_mac_addr bssId;
-	struct cdf_mac_addr selfStaMacAddr;
+	struct qdf_mac_addr bssId;
+	struct qdf_mac_addr selfStaMacAddr;
 	/* In request,
 	 * power == MaxTx power to be used.
 	 * In response,
 	 * power == tx power used for management frames.
 	 */
 	int8_t power;
-	enum tCDF_ADAPTER_MODE dev_mode;
+	enum tQDF_ADAPTER_MODE dev_mode;
 } tMaxTxPowerParams, *tpMaxTxPowerParams;
 
 /**
@@ -1187,7 +1151,7 @@ typedef struct sMaxTxPowerPerBandParams {
  */
 struct add_sta_self_params {
 	tSirMacAddr self_mac_addr;
-	enum tCDF_ADAPTER_MODE curr_device_mode;
+	enum tQDF_ADAPTER_MODE curr_device_mode;
 	uint32_t type;
 	uint32_t sub_type;
 	uint8_t session_id;
@@ -1382,7 +1346,7 @@ typedef struct sBeaconFilterMsg {
 	uint16_t ieNum;
 	uint8_t bssIdx;
 	uint8_t reserved;
-} cdf_packed tBeaconFilterMsg, *tpBeaconFilterMsg;
+} qdf_packed tBeaconFilterMsg, *tpBeaconFilterMsg;
 
 /**
  * struct tEidByteInfo - Eid byte info
@@ -1396,7 +1360,7 @@ typedef struct sEidByteInfo {
 	uint8_t value;
 	uint8_t bitMask;
 	uint8_t ref;
-} cdf_packed tEidByteInfo, *tpEidByteInfo;
+} qdf_packed tEidByteInfo, *tpEidByteInfo;
 
 /**
  * struct tBeaconFilterIe - beacon filter IE
@@ -1408,7 +1372,7 @@ typedef struct sBeaconFilterIe {
 	uint8_t elementId;
 	uint8_t checkIePresence;
 	tEidByteInfo byte;
-} cdf_packed tBeaconFilterIe, *tpBeaconFilterIe;
+} qdf_packed tBeaconFilterIe, *tpBeaconFilterIe;
 
 /**
  * struct tDisableIntraBssFwd - intra bss forward parameters
@@ -1418,7 +1382,7 @@ typedef struct sBeaconFilterIe {
 typedef struct sDisableIntraBssFwd {
 	uint16_t sessionId;
 	bool disableintrabssfwd;
-} cdf_packed tDisableIntraBssFwd, *tpDisableIntraBssFwd;
+} qdf_packed tDisableIntraBssFwd, *tpDisableIntraBssFwd;
 
 #ifdef WLAN_FEATURE_STATS_EXT
 /**

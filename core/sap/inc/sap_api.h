@@ -42,7 +42,7 @@
  * -------------------------------------------------------------------------*/
 #include "cds_api.h"
 #include "cds_packet.h"
-#include "cdf_types.h"
+#include "qdf_types.h"
 
 #include "p2p_api.h"
 #include "sme_api.h"
@@ -69,7 +69,7 @@ extern "C" {
 #define       MAX_TEXT_SIZE                32
 
 #define       MAX_CHANNEL_LIST_LEN         256
-#define       CDF_MAX_NO_OF_SAP_MODE       2    /* max # of SAP */
+#define       QDF_MAX_NO_OF_SAP_MODE       2    /* max # of SAP */
 #define       SAP_MAX_NUM_SESSION          5
 #define       SAP_MAX_OBSS_STA_CNT         1    /* max # of OBSS STA */
 #define       SAP_ACS_WEIGHT_MAX           (4444)
@@ -249,7 +249,7 @@ typedef struct sap_StopBssCompleteEvent_s {
 } tSap_StopBssCompleteEvent;
 
 typedef struct sap_StationAssocIndication_s {
-	struct cdf_mac_addr staMac;
+	struct qdf_mac_addr staMac;
 	uint8_t assoId;
 	uint8_t staId;
 	uint8_t status;
@@ -266,7 +266,7 @@ typedef struct sap_StationAssocIndication_s {
 } tSap_StationAssocIndication;
 
 typedef struct sap_StationAssocReassocCompleteEvent_s {
-	struct cdf_mac_addr staMac;
+	struct qdf_mac_addr staMac;
 	uint8_t staId;
 	uint8_t status;
 	uint8_t ies[MAX_ASSOC_IND_IE_LEN];
@@ -286,7 +286,7 @@ typedef struct sap_StationAssocReassocCompleteEvent_s {
 } tSap_StationAssocReassocCompleteEvent;
 
 typedef struct sap_StationDisassocCompleteEvent_s {
-	struct cdf_mac_addr staMac;
+	struct qdf_mac_addr staMac;
 	uint8_t staId;          /* STAID should not be used */
 	uint8_t status;
 	uint32_t statusCode;
@@ -295,14 +295,14 @@ typedef struct sap_StationDisassocCompleteEvent_s {
 
 typedef struct sap_StationSetKeyCompleteEvent_s {
 	uint8_t status;
-	struct cdf_mac_addr peerMacAddr;
+	struct qdf_mac_addr peerMacAddr;
 } tSap_StationSetKeyCompleteEvent;
 
 /*struct corresponding to SAP_STA_MIC_FAILURE_EVENT */
 typedef struct sap_StationMICFailureEvent_s {
-	struct cdf_mac_addr srcMacAddr;    /* address used to compute MIC */
-	struct cdf_mac_addr staMac;        /* taMacAddr transmitter address */
-	struct cdf_mac_addr dstMacAddr;
+	struct qdf_mac_addr srcMacAddr;    /* address used to compute MIC */
+	struct qdf_mac_addr staMac;        /* taMacAddr transmitter address */
+	struct qdf_mac_addr dstMacAddr;
 	eSapBool multicast;
 	uint8_t IV1;            /* first byte of IV */
 	uint8_t keyId;          /* second byte of IV */
@@ -311,7 +311,7 @@ typedef struct sap_StationMICFailureEvent_s {
 } tSap_StationMICFailureEvent;
 /*Structure to return MAC address of associated stations */
 typedef struct sap_AssocMacAddr_s {
-	struct cdf_mac_addr staMac; /* Associated station's MAC address */
+	struct qdf_mac_addr staMac; /* Associated station's MAC address */
 	uint8_t assocId;            /* Associated station's Association ID */
 	uint8_t staId;              /* Allocated station Id */
 	uint8_t ShortGI40Mhz;
@@ -323,7 +323,7 @@ typedef struct sap_AssocMacAddr_s {
 
 /*struct corresponding to SAP_ASSOC_STA_CALLBACK_EVENT */
 typedef struct sap_AssocStaListEvent_s {
-	CDF_MODULE_ID module;
+	QDF_MODULE_ID module;
 	/* module id that was passed in wlansap_get_assoc_stations API */
 	uint8_t noOfAssocSta;           /* Number of associated stations */
 	tpSap_AssocMacAddr pAssocStas;
@@ -336,16 +336,16 @@ typedef struct sap_AssocStaListEvent_s {
 typedef struct sap_GetWPSPBCSessionEvent_s {
 	uint8_t status;
 	/* module id that was passed in wlansap_get_assoc_stations API */
-	CDF_MODULE_ID module;
+	QDF_MODULE_ID module;
 	uint8_t UUID_E[16];             /* Unique identifier of the AP. */
-	struct cdf_mac_addr addr;
+	struct qdf_mac_addr addr;
 	eWPSPBCOverlap wpsPBCOverlap;
 } tSap_GetWPSPBCSessionEvent;
 
 typedef struct sap_WPSPBCProbeReqEvent_s {
 	uint8_t status;
 	/* module id that was passed in wlansap_get_assoc_stations API */
-	CDF_MODULE_ID module;
+	QDF_MODULE_ID module;
 	tSirWPSPBCProbeReq WPSPBCProbeReq;
 } tSap_WPSPBCProbeReqEvent;
 
@@ -366,11 +366,11 @@ typedef struct sap_SendActionCnf_s {
 } tSap_SendActionCnf;
 
 typedef struct sap_UnknownSTAJoinEvent_s {
-	struct cdf_mac_addr macaddr;
+	struct qdf_mac_addr macaddr;
 } tSap_UnknownSTAJoinEvent;
 
 typedef struct sap_MaxAssocExceededEvent_s {
-	struct cdf_mac_addr macaddr;
+	struct qdf_mac_addr macaddr;
 } tSap_MaxAssocExceededEvent;
 
 typedef struct sap_DfsNolInfo_s {
@@ -460,13 +460,13 @@ typedef struct sap_Event_s {
 typedef struct sap_SSID {
 	uint8_t length;
 	uint8_t ssId[MAX_SSID_LEN];
-} cdf_packed tSap_SSID_t;
+} qdf_packed tSap_SSID_t;
 
 typedef struct sap_SSIDInfo {
 	tSap_SSID_t ssid;     /* SSID of the AP */
 	/* SSID should/shouldn't be bcast in probe RSP & beacon */
 	uint8_t ssidHidden;
-} cdf_packed tSap_SSIDInfo_t;
+} qdf_packed tSap_SSIDInfo_t;
 
 struct sap_acs_cfg {
 	/* ACS Algo Input */
@@ -485,7 +485,7 @@ struct sap_acs_cfg {
 #endif
 
 	uint16_t   ch_width;
-	uint8_t    pcl_channels[NUM_RF_CHANNELS];
+	uint8_t    pcl_channels[NUM_CHANNELS];
 	uint32_t   pcl_ch_count;
 	/* ACS Algo Output */
 	uint8_t    pri_ch;
@@ -498,16 +498,16 @@ typedef struct sap_Config {
 	tSap_SSIDInfo_t SSIDinfo;
 	eCsrPhyMode SapHw_mode;         /* Wireless Mode */
 	eSapMacAddrACL SapMacaddr_acl;
-	struct cdf_mac_addr accept_mac[MAX_ACL_MAC_ADDRESS]; /* MAC filtering */
+	struct qdf_mac_addr accept_mac[MAX_ACL_MAC_ADDRESS]; /* MAC filtering */
 	bool ieee80211d;      /* Specify if 11D is enabled or disabled */
 	bool protEnabled;     /* Specify if protection is enabled or disabled */
 	/* Specify if OBSS protection is enabled or disabled */
 	bool obssProtEnabled;
-	struct cdf_mac_addr deny_mac[MAX_ACL_MAC_ADDRESS];  /* MAC filtering */
-	struct cdf_mac_addr self_macaddr;       /* self macaddress or BSSID */
+	struct qdf_mac_addr deny_mac[MAX_ACL_MAC_ADDRESS];  /* MAC filtering */
+	struct qdf_mac_addr self_macaddr;       /* self macaddress or BSSID */
 	uint8_t channel;          /* Operation channel */
 	uint8_t sec_ch;
-	chan_params_t ch_params;
+	struct ch_params_s ch_params;
 	uint32_t ch_width_orig;
 	uint8_t max_num_sta;      /* maximum number of STAs in station table */
 	uint8_t dtim_period;      /* dtim interval */
@@ -532,7 +532,7 @@ typedef struct sap_Config {
 	uint32_t ap_table_max_size;
 	uint32_t ap_table_expiration_time;
 	uint32_t ht_op_mode_fixed;
-	enum tCDF_ADAPTER_MODE persona; /* Tells us which persona, GO or AP */
+	enum tQDF_ADAPTER_MODE persona; /* Tells us which persona, GO or AP */
 	uint8_t disableDFSChSwitch;
 	bool enOverLapCh;
 #ifdef WLAN_FEATURE_11W
@@ -597,7 +597,7 @@ typedef struct sSapDfsNolInfo {
 } tSapDfsNolInfo;
 
 typedef struct sSapDfsInfo {
-	cdf_mc_timer_t sap_dfs_cac_timer;
+	qdf_mc_timer_t sap_dfs_cac_timer;
 	uint8_t sap_radar_found_status;
 	/*
 	 * New channel to move to when a  Radar is
@@ -621,9 +621,9 @@ typedef struct sSapDfsInfo {
 	 * New channel width and new channel bonding mode
 	 * will only be updated via channel fallback mechanism
 	 */
-	phy_ch_width orig_chanWidth;
-	phy_ch_width new_chanWidth;
-	chan_params_t new_ch_params;
+	enum phy_ch_width orig_chanWidth;
+	enum phy_ch_width new_chanWidth;
+	struct ch_params_s new_ch_params;
 
 	/*
 	 * INI param to enable/disable SAP W53
@@ -663,7 +663,7 @@ typedef struct sSapDfsInfo {
 typedef struct tagSapCtxList {
 	uint8_t sessionID;
 	void *pSapContext;
-	enum tCDF_ADAPTER_MODE sapPersona;
+	enum tQDF_ADAPTER_MODE sapPersona;
 } tSapCtxList, tpSapCtxList;
 
 typedef struct tagSapStruct {
@@ -800,109 +800,110 @@ typedef struct {
 #endif /* FEATURE_WLAN_CH_AVOID */
 void sap_cleanup_channel_list(void *sapContext);
 void sapCleanupAllChannelList(void);
-CDF_STATUS wlansap_set_wps_ie(void *p_cds_gctx, tSap_WPSIE *pWPSIe);
-CDF_STATUS wlansap_update_wps_ie(void *p_cds_gctx);
-CDF_STATUS wlansap_stop_Wps(void *p_cds_gctx);
-CDF_STATUS wlansap_get_wps_state(void *p_cds_gctx, bool *pbWPSState);
+QDF_STATUS wlansap_set_wps_ie(void *p_cds_gctx, tSap_WPSIE *pWPSIe);
+QDF_STATUS wlansap_update_wps_ie(void *p_cds_gctx);
+QDF_STATUS wlansap_stop_Wps(void *p_cds_gctx);
+QDF_STATUS wlansap_get_wps_state(void *p_cds_gctx, bool *pbWPSState);
 
 void *wlansap_open(void *p_cds_gctx);
-CDF_STATUS wlansap_start(void *p_cds_gctx);
-CDF_STATUS wlansap_stop(void *p_cds_gctx);
-CDF_STATUS wlansap_close(void *p_cds_gctx);
-typedef CDF_STATUS (*tpWLAN_SAPEventCB)(tpSap_Event pSapEvent,
-		void *pUsrContext);
+QDF_STATUS wlansap_start(void *p_cds_gctx, enum tQDF_ADAPTER_MODE mode,
+			 uint8_t *addr, uint32_t *session_id);
+QDF_STATUS wlansap_stop(void *p_cds_gctx);
+QDF_STATUS wlansap_close(void *p_cds_gctx);
+typedef QDF_STATUS (*tpWLAN_SAPEventCB)(tpSap_Event pSapEvent,
+					void *pUsrContext);
 uint8_t wlansap_get_state(void *p_cds_gctx);
 
-CDF_STATUS wlansap_start_bss(void *p_cds_gctx,
+QDF_STATUS wlansap_start_bss(void *p_cds_gctx,
 	 tpWLAN_SAPEventCB pSapEventCallback,
 	 tsap_Config_t *pConfig, void *pUsrContext);
 
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
 uint16_t wlansap_check_cc_intf(void *Ctx);
 #endif
-CDF_STATUS wlansap_set_mac_acl(void *p_cds_gctx, tsap_Config_t *pConfig);
-CDF_STATUS wlansap_stop_bss(void *p_cds_gctx);
-CDF_STATUS wlansap_disassoc_sta(void *p_cds_gctx,
+QDF_STATUS wlansap_set_mac_acl(void *p_cds_gctx, tsap_Config_t *pConfig);
+QDF_STATUS wlansap_stop_bss(void *p_cds_gctx);
+QDF_STATUS wlansap_disassoc_sta(void *p_cds_gctx,
 				const uint8_t *pPeerStaMac);
-CDF_STATUS wlansap_deauth_sta(void *p_cds_gctx,
+QDF_STATUS wlansap_deauth_sta(void *p_cds_gctx,
 			struct tagCsrDelStaParams *pDelStaParams);
-CDF_STATUS wlansap_set_channel_change_with_csa(void *p_cds_gctx,
-			uint32_t targetChannel, phy_ch_width target_bw);
-CDF_STATUS wlansap_set_key_sta(void *p_cds_gctx,
+QDF_STATUS wlansap_set_channel_change_with_csa(void *p_cds_gctx,
+			uint32_t targetChannel, enum phy_ch_width target_bw);
+QDF_STATUS wlansap_set_key_sta(void *p_cds_gctx,
 	tCsrRoamSetKey *pSetKeyInfo);
-CDF_STATUS wlansap_get_assoc_stations(void *p_cds_gctx,
-	 CDF_MODULE_ID module, tpSap_AssocMacAddr pAssocStas);
-CDF_STATUS wlansap_remove_wps_session_overlap(void *p_cds_gctx,
-	struct cdf_mac_addr pRemoveMac);
-CDF_STATUS wlansap_get_wps_session_overlap(void *p_cds_gctx);
-CDF_STATUS wlansap_set_counter_measure(void *p_cds_gctx, bool bEnable);
-CDF_STATUS wlan_sap_getstation_ie_information(void *p_cds_gctx,
+QDF_STATUS wlansap_get_assoc_stations(void *p_cds_gctx,
+	 QDF_MODULE_ID module, tpSap_AssocMacAddr pAssocStas);
+QDF_STATUS wlansap_remove_wps_session_overlap(void *p_cds_gctx,
+	struct qdf_mac_addr pRemoveMac);
+QDF_STATUS wlansap_get_wps_session_overlap(void *p_cds_gctx);
+QDF_STATUS wlansap_set_counter_measure(void *p_cds_gctx, bool bEnable);
+QDF_STATUS wlan_sap_getstation_ie_information(void *p_cds_gctx,
 	uint32_t *pLen, uint8_t *pBuf);
-CDF_STATUS wlansap_clear_acl(void *p_cds_gctx);
-CDF_STATUS wlansap_get_acl_accept_list(void *p_cds_gctx,
-	 struct cdf_mac_addr *pAcceptList, uint8_t *nAcceptList);
-CDF_STATUS wlansap_get_acl_deny_list(void *pCtx,
-	struct cdf_mac_addr *pDenyList, uint8_t *nDenyList);
-CDF_STATUS wlansap_set_mode(void *p_cds_gctx, uint32_t mode);
-CDF_STATUS wlansap_get_acl_mode(void *p_cds_gctx, eSapMacAddrACL *mode);
-CDF_STATUS wlansap_modify_acl(void *p_cds_gctx,
+QDF_STATUS wlansap_clear_acl(void *p_cds_gctx);
+QDF_STATUS wlansap_get_acl_accept_list(void *p_cds_gctx,
+	 struct qdf_mac_addr *pAcceptList, uint8_t *nAcceptList);
+QDF_STATUS wlansap_get_acl_deny_list(void *pCtx,
+	struct qdf_mac_addr *pDenyList, uint8_t *nDenyList);
+QDF_STATUS wlansap_set_mode(void *p_cds_gctx, uint32_t mode);
+QDF_STATUS wlansap_get_acl_mode(void *p_cds_gctx, eSapMacAddrACL *mode);
+QDF_STATUS wlansap_modify_acl(void *p_cds_gctx,
 	 uint8_t *pPeerStaMac, eSapACLType listType, eSapACLCmdType cmd);
-CDF_STATUS wlansap_set_wparsn_ies
+QDF_STATUS wlansap_set_wparsn_ies
 	(void *p_cds_gctx, uint8_t *pWPARSNIEs, uint32_t WPARSNIEsLen);
-CDF_STATUS wlansap_send_action
+QDF_STATUS wlansap_send_action
 	(void *p_cds_gctx,
 	 const uint8_t *pBuf, uint32_t len, uint16_t wait, uint16_t channel_freq);
-CDF_STATUS wlansap_remain_on_channel
+QDF_STATUS wlansap_remain_on_channel
 	(void *p_cds_gctx,
 	 uint8_t channel,
 	 uint32_t duration, remainOnChanCallback callback, void *pContext,
 	 uint32_t *scan_id);
-CDF_STATUS wlansap_cancel_remain_on_channel(void *p_cds_gctx,
+QDF_STATUS wlansap_cancel_remain_on_channel(void *p_cds_gctx,
 		uint32_t scan_id);
-CDF_STATUS wlansap_register_mgmt_frame
+QDF_STATUS wlansap_register_mgmt_frame
 	(void *p_cds_gctx,
 	 uint16_t frameType, uint8_t *matchData, uint16_t matchLen);
-CDF_STATUS wlansap_de_register_mgmt_frame
+QDF_STATUS wlansap_de_register_mgmt_frame
 	(void *p_cds_gctx,
 	 uint16_t frameType, uint8_t *matchData, uint16_t matchLen);
-CDF_STATUS wlansap_channel_change_request(void *p_cds_gctx,
+QDF_STATUS wlansap_channel_change_request(void *p_cds_gctx,
 		uint8_t tArgetChannel);
-CDF_STATUS wlansap_start_beacon_req(void *pSapCtx);
-CDF_STATUS wlansap_dfs_send_csa_ie_request(void *pSapCtx);
-CDF_STATUS wlansap_get_dfs_ignore_cac(tHalHandle hHal, uint8_t *pIgnore_cac);
-CDF_STATUS wlansap_set_dfs_ignore_cac(tHalHandle hHal, uint8_t ignore_cac);
-CDF_STATUS wlansap_set_dfs_restrict_japan_w53(tHalHandle hHal,
+QDF_STATUS wlansap_start_beacon_req(void *pSapCtx);
+QDF_STATUS wlansap_dfs_send_csa_ie_request(void *pSapCtx);
+QDF_STATUS wlansap_get_dfs_ignore_cac(tHalHandle hHal, uint8_t *pIgnore_cac);
+QDF_STATUS wlansap_set_dfs_ignore_cac(tHalHandle hHal, uint8_t ignore_cac);
+QDF_STATUS wlansap_set_dfs_restrict_japan_w53(tHalHandle hHal,
 			uint8_t disable_Dfs_JapanW3);
 
 #ifdef FEATURE_AP_MCC_CH_AVOIDANCE
-CDF_STATUS
+QDF_STATUS
 wlan_sap_set_channel_avoidance(tHalHandle hal, bool sap_channel_avoidance);
 #endif
 
-CDF_STATUS wlansap_set_dfs_preferred_channel_location(tHalHandle hHal,
+QDF_STATUS wlansap_set_dfs_preferred_channel_location(tHalHandle hHal,
 		uint8_t dfs_Preferred_Channels_location);
-CDF_STATUS wlansap_set_dfs_target_chnl(tHalHandle hHal,
+QDF_STATUS wlansap_set_dfs_target_chnl(tHalHandle hHal,
 			uint8_t target_channel);
 uint32_t wlan_sap_get_vht_ch_width(void *ctx);
 void wlan_sap_set_vht_ch_width(void *ctx, uint32_t vht_channel_width);
-CDF_STATUS wlansap_update_sap_config_add_ie(tsap_Config_t *pConfig,
+QDF_STATUS wlansap_update_sap_config_add_ie(tsap_Config_t *pConfig,
 		const uint8_t *
 		pAdditionIEBuffer,
 		uint16_t additionIELength,
 		eUpdateIEsType updateType);
-CDF_STATUS wlansap_reset_sap_config_add_ie(tsap_Config_t *pConfig,
+QDF_STATUS wlansap_reset_sap_config_add_ie(tsap_Config_t *pConfig,
 			eUpdateIEsType updateType);
 void wlansap_extend_to_acs_range(uint8_t *startChannelNum,
 		uint8_t *endChannelNum,
 		uint8_t *bandStartChannel,
 		uint8_t *bandEndChannel);
-CDF_STATUS wlansap_get_dfs_nol(void *pSapCtx);
-CDF_STATUS wlansap_set_dfs_nol(void *pSapCtx, eSapDfsNolType conf);
+QDF_STATUS wlansap_get_dfs_nol(void *pSapCtx);
+QDF_STATUS wlansap_set_dfs_nol(void *pSapCtx, eSapDfsNolType conf);
 void wlansap_populate_del_sta_params(const uint8_t *mac,
 		uint16_t reason_code,
 		uint8_t subtype,
 		struct tagCsrDelStaParams *pDelStaParams);
-CDF_STATUS wlansap_acs_chselect(void *pvos_gctx,
+QDF_STATUS wlansap_acs_chselect(void *pvos_gctx,
 		tpWLAN_SAPEventCB pacs_event_callback,
 		tsap_Config_t *pconfig,
 		void *pusr_context);

@@ -51,9 +51,7 @@
 #include "lim_prop_exts_utils.h"
 #include "lim_ser_des_utils.h"
 #include "lim_trace.h"
-#ifdef WLAN_FEATURE_VOWIFI_11R
 #include "lim_ft_defs.h"
-#endif
 #include "lim_session.h"
 #include "wma.h"
 
@@ -80,20 +78,17 @@ lim_extract_ap_capability(tpAniSirGlobal mac_ctx, uint8_t *p_ie,
 	int8_t *local_constraint, tpPESession session)
 {
 	tSirProbeRespBeacon *beacon_struct;
-#if !defined WLAN_FEATURE_VOWIFI
-	uint32_t local_power_constraints = 0;
-#endif
 	uint32_t enable_txbf_20mhz;
 	tSirRetStatus cfg_set_status = eSIR_FAILURE;
 	tSirRetStatus cfg_get_status = eSIR_FAILURE;
 
-	beacon_struct = cdf_mem_malloc(sizeof(tSirProbeRespBeacon));
+	beacon_struct = qdf_mem_malloc(sizeof(tSirProbeRespBeacon));
 	if (NULL == beacon_struct) {
 		lim_log(mac_ctx, LOGE, FL("Unable to allocate memory"));
 		return;
 	}
 
-	cdf_mem_set((uint8_t *) beacon_struct, sizeof(tSirProbeRespBeacon), 0);
+	qdf_mem_set((uint8_t *) beacon_struct, sizeof(tSirProbeRespBeacon), 0);
 	*qos_cap = 0;
 	*prop_cap = 0;
 	*uapsd = 0;
@@ -116,12 +111,11 @@ lim_extract_ap_capability(tpAniSirGlobal mac_ctx, uint8_t *p_ie,
 		else
 			mac_ctx->lim.htCapabilityPresentInBeacon = 0;
 
-#ifdef WLAN_FEATURE_11AC
-		CDF_TRACE(CDF_MODULE_ID_PE, CDF_TRACE_LEVEL_INFO_MED,
+		QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_INFO_MED,
 			  "beacon.VHTCaps.present = %d BSS_VHT_Capable:%d",
 			  beacon_struct->VHTCaps.present,
 			  IS_BSS_VHT_CAPABLE(beacon_struct->VHTCaps));
-		CDF_TRACE(CDF_MODULE_ID_PE, CDF_TRACE_LEVEL_INFO_MED,
+		QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_INFO_MED,
 			  "***beacon.SU Beamformer Capable*****=%d",
 			  beacon_struct->VHTCaps.suBeamFormerCap);
 
@@ -165,7 +159,7 @@ lim_extract_ap_capability(tpAniSirGlobal mac_ctx, uint8_t *p_ie,
 			   beacon_struct->VHTOperation.chanWidth) {
 			/* If VHT is supported min 80 MHz support is must */
 			uint32_t fw_vht_ch_wd = wma_get_vht_ch_width();
-			uint32_t vht_ch_wd = CDF_MIN(fw_vht_ch_wd,
+			uint32_t vht_ch_wd = QDF_MIN(fw_vht_ch_wd,
 					beacon_struct->VHTOperation.chanWidth);
 			if (vht_ch_wd == beacon_struct->VHTOperation.chanWidth
 			    || vht_ch_wd >= WNI_CFG_VHT_CHANNEL_WIDTH_160MHZ) {
@@ -200,7 +194,6 @@ lim_extract_ap_capability(tpAniSirGlobal mac_ctx, uint8_t *p_ie,
 				lim_log(mac_ctx, LOGP,
 					FL("Set VHT_SU_BEAMFORMEE_CAP Fail"));
 		}
-#endif
 		/* Extract the UAPSD flag from WMM Parameter element */
 		if (beacon_struct->wmeEdcaPresent)
 			*uapsd = beacon_struct->edcaParams.qosInfo.uapsd;
@@ -215,31 +208,16 @@ lim_extract_ap_capability(tpAniSirGlobal mac_ctx, uint8_t *p_ie,
 			beacon_struct->is_ese_ver_ie_present;
 #endif
 		if (beacon_struct->powerConstraintPresent) {
-#if defined WLAN_FEATURE_VOWIFI
 			*local_constraint -=
 				beacon_struct->localPowerConstraint.
 				localPowerConstraints;
-#else
-			local_power_constraints =
-				(uint32_t) beacon_struct->localPowerConstraint.
-				localPowerConstraints;
-#endif
 		}
-#if !defined WLAN_FEATURE_VOWIFI
-		if (cfg_set_int
-			    (mac_ctx, WNI_CFG_LOCAL_POWER_CONSTRAINT,
-			    local_power_constraints) != eSIR_SUCCESS) {
-			lim_log(mac_ctx, LOGP,
-				FL
-					("Could not update local power constraint to cfg."));
-		}
-#endif
 		session->country_info_present = false;
 		/* Initializing before first use */
 		if (beacon_struct->countryInfoPresent)
 			session->country_info_present = true;
 	}
-	cdf_mem_free(beacon_struct);
+	qdf_mem_free(beacon_struct);
 	return;
 } /****** end lim_extract_ap_capability() ******/
 
@@ -260,59 +238,19 @@ lim_extract_ap_capability(tpAniSirGlobal mac_ctx, uint8_t *p_ie,
 ePhyChanBondState lim_get_htcb_state(ePhyChanBondState aniCBMode)
 {
 	switch (aniCBMode) {
-#ifdef WLAN_FEATURE_11AC
 	case PHY_QUADRUPLE_CHANNEL_20MHZ_HIGH_40MHZ_LOW:
 	case PHY_QUADRUPLE_CHANNEL_20MHZ_HIGH_40MHZ_CENTERED:
 	case PHY_QUADRUPLE_CHANNEL_20MHZ_HIGH_40MHZ_HIGH:
-#endif
 	case PHY_DOUBLE_CHANNEL_HIGH_PRIMARY:
 		return PHY_DOUBLE_CHANNEL_HIGH_PRIMARY;
-#ifdef WLAN_FEATURE_11AC
 	case PHY_QUADRUPLE_CHANNEL_20MHZ_LOW_40MHZ_LOW:
 	case PHY_QUADRUPLE_CHANNEL_20MHZ_LOW_40MHZ_CENTERED:
 	case PHY_QUADRUPLE_CHANNEL_20MHZ_LOW_40MHZ_HIGH:
-#endif
 	case PHY_DOUBLE_CHANNEL_LOW_PRIMARY:
 		return PHY_DOUBLE_CHANNEL_LOW_PRIMARY;
-#ifdef WLAN_FEATURE_11AC
 	case PHY_QUADRUPLE_CHANNEL_20MHZ_CENTERED_40MHZ_CENTERED:
 		return PHY_SINGLE_CHANNEL_CENTERED;
-#endif
 	default:
 		return PHY_SINGLE_CHANNEL_CENTERED;
 	}
-}
-
-/*
- * lim_get_sta_peer_type
- *
- ***FUNCTION:
- * This API returns STA peer type
- *
- ***LOGIC:
- *
- ***ASSUMPTIONS:
- *
- ***NOTE:
- *
- * @param  pMac - Pointer to Global MAC structure
- * @param  pStaDs - Pointer to the tpDphHashNode of the STA
- *         under consideration
- * @return tStaRateMode
- */
-tStaRateMode lim_get_sta_peer_type(tpAniSirGlobal pMac,
-				   tpDphHashNode pStaDs, tpPESession psessionEntry)
-{
-	tStaRateMode staPeerType = eSTA_11b;
-#ifdef WLAN_FEATURE_11AC
-	if (pStaDs->mlmStaContext.vhtCapability)
-		staPeerType = eSTA_11ac;
-#endif
-	else if (pStaDs->mlmStaContext.htCapability)
-		staPeerType = eSTA_11n;
-	else if (pStaDs->erpEnabled)
-		staPeerType = eSTA_11bg;
-	else if (psessionEntry->limRFBand == SIR_BAND_5_GHZ)
-		staPeerType = eSTA_11a;
-	return staPeerType;
 }

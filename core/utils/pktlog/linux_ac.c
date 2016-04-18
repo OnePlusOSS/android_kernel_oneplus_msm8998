@@ -74,8 +74,8 @@ static struct ath_pktlog_info *g_pktlog_info;
 
 static struct proc_dir_entry *g_pktlog_pde;
 
-static int pktlog_attach(struct ol_softc *sc);
-static void pktlog_detach(struct ol_softc *sc);
+static int pktlog_attach(struct hif_opaque_softc *sc);
+static void pktlog_detach(struct hif_opaque_softc *sc);
 static int pktlog_open(struct inode *i, struct file *f);
 static int pktlog_release(struct inode *i, struct file *f);
 static int pktlog_mmap(struct file *f, struct vm_area_struct *vma);
@@ -85,46 +85,46 @@ static ssize_t pktlog_read(struct file *file, char *buf, size_t nbytes,
 static struct file_operations pktlog_fops = {
 	open:  pktlog_open,
 	release:pktlog_release,
-	mmap:  pktlog_mmap,
-	read:  pktlog_read,
+	mmap : pktlog_mmap,
+	read : pktlog_read,
 };
 
 /*
  * Linux implementation of helper functions
  */
 
-static struct ol_pktlog_dev_t *get_pl_handle(struct ol_softc *scn)
+static struct ol_pktlog_dev_t *get_pl_handle(struct hif_opaque_softc *scn)
 {
 	ol_txrx_pdev_handle pdev_txrx_handle;
-	pdev_txrx_handle = cds_get_context(CDF_MODULE_ID_TXRX);
+	pdev_txrx_handle = cds_get_context(QDF_MODULE_ID_TXRX);
 	if (!pdev_txrx_handle)
 		return NULL;
 	return pdev_txrx_handle->pl_dev;
 }
 
-void ol_pl_set_name(ol_softc_handle scn, net_device_handle dev)
+void ol_pl_set_name(hif_opaque_softc_handle scn, net_device_handle dev)
 {
 	ol_txrx_pdev_handle pdev_txrx_handle;
-	pdev_txrx_handle = cds_get_context(CDF_MODULE_ID_TXRX);
+	pdev_txrx_handle = cds_get_context(QDF_MODULE_ID_TXRX);
 	if (pdev_txrx_handle && pdev_txrx_handle->pl_dev && dev)
 		pdev_txrx_handle->pl_dev->name = dev->name;
 }
 
-void pktlog_disable_adapter_logging(struct ol_softc *scn)
+void pktlog_disable_adapter_logging(struct hif_opaque_softc *scn)
 {
 	struct ol_pktlog_dev_t *pl_dev = get_pl_handle(scn);
 	if (pl_dev)
 		pl_dev->pl_info->log_state = 0;
 }
 
-int pktlog_alloc_buf(struct ol_softc *scn)
+int pktlog_alloc_buf(struct hif_opaque_softc *scn)
 {
 	uint32_t page_cnt;
 	unsigned long vaddr;
 	struct page *vpg;
 	struct ath_pktlog_info *pl_info;
 	ol_txrx_pdev_handle pdev_txrx_handle;
-	pdev_txrx_handle = cds_get_context(CDF_MODULE_ID_TXRX);
+	pdev_txrx_handle = cds_get_context(QDF_MODULE_ID_TXRX);
 
 	if (!pdev_txrx_handle || !pdev_txrx_handle->pl_dev) {
 		printk(PKTLOG_TAG
@@ -138,7 +138,8 @@ int pktlog_alloc_buf(struct ol_softc *scn)
 
 	page_cnt = (sizeof(*(pl_info->buf)) + pl_info->buf_size) / PAGE_SIZE;
 
-	if ((pl_info->buf = vmalloc((page_cnt + 2) * PAGE_SIZE)) == NULL) {
+	pl_info->buf = vmalloc((page_cnt + 2) * PAGE_SIZE);
+	if (pl_info->buf == NULL) {
 		printk(PKTLOG_TAG
 		       "%s: Unable to allocate buffer "
 		       "(%d pages)\n", __func__, page_cnt);
@@ -159,14 +160,14 @@ int pktlog_alloc_buf(struct ol_softc *scn)
 	return 0;
 }
 
-void pktlog_release_buf(struct ol_softc *scn)
+void pktlog_release_buf(struct hif_opaque_softc *scn)
 {
 	unsigned long page_cnt;
 	unsigned long vaddr;
 	struct page *vpg;
 	struct ath_pktlog_info *pl_info;
 	ol_txrx_pdev_handle pdev_txrx_handle;
-	pdev_txrx_handle = cds_get_context(CDF_MODULE_ID_TXRX);
+	pdev_txrx_handle = cds_get_context(QDF_MODULE_ID_TXRX);
 
 	if (!pdev_txrx_handle || !pdev_txrx_handle->pl_dev) {
 		printk(PKTLOG_TAG
@@ -200,7 +201,7 @@ void pktlog_cleanup(struct ath_pktlog_info *pl_info)
 
 /* sysctl procfs handler to enable pktlog */
 static int
-ath_sysctl_decl(ath_sysctl_pktlog_enable, ctl, write, filp, buffer, lenp, ppos)
+qdf_sysctl_decl(ath_sysctl_pktlog_enable, ctl, write, filp, buffer, lenp, ppos)
 {
 	int ret, enable;
 	ol_ath_generic_softc_handle scn;
@@ -214,7 +215,7 @@ ath_sysctl_decl(ath_sysctl_pktlog_enable, ctl, write, filp, buffer, lenp, ppos)
 		return -EINVAL;
 	}
 
-	pl_dev = get_pl_handle((struct ol_softc *)scn);
+	pl_dev = get_pl_handle((struct hif_opaque_softc *)scn);
 
 	if (!pl_dev) {
 		printk("%s: Invalid pktlog context\n", __func__);
@@ -226,16 +227,16 @@ ath_sysctl_decl(ath_sysctl_pktlog_enable, ctl, write, filp, buffer, lenp, ppos)
 	ctl->maxlen = sizeof(enable);
 
 	if (write) {
-		ret = ATH_SYSCTL_PROC_DOINTVEC(ctl, write, filp, buffer,
+		ret = QDF_SYSCTL_PROC_DOINTVEC(ctl, write, filp, buffer,
 					       lenp, ppos);
 		if (ret == 0)
-			ret = pl_dev->pl_funcs->pktlog_enable((struct ol_softc
-							       *)scn, enable);
+			ret = pl_dev->pl_funcs->pktlog_enable(
+					(struct hif_opaque_softc *)scn, enable);
 		else
 			printk(PKTLOG_TAG "%s:proc_dointvec failed\n",
 			       __func__);
 	} else {
-		ret = ATH_SYSCTL_PROC_DOINTVEC(ctl, write, filp, buffer,
+		ret = QDF_SYSCTL_PROC_DOINTVEC(ctl, write, filp, buffer,
 					       lenp, ppos);
 		if (ret)
 			printk(PKTLOG_TAG "%s:proc_dointvec failed\n",
@@ -255,7 +256,7 @@ static int get_pktlog_bufsize(struct ol_pktlog_dev_t *pl_dev)
 
 /* sysctl procfs handler to set/get pktlog size */
 static int
-ath_sysctl_decl(ath_sysctl_pktlog_size, ctl, write, filp, buffer, lenp, ppos)
+qdf_sysctl_decl(ath_sysctl_pktlog_size, ctl, write, filp, buffer, lenp, ppos)
 {
 	int ret, size;
 	ol_ath_generic_softc_handle scn;
@@ -269,7 +270,7 @@ ath_sysctl_decl(ath_sysctl_pktlog_size, ctl, write, filp, buffer, lenp, ppos)
 		return -EINVAL;
 	}
 
-	pl_dev = get_pl_handle((struct ol_softc *)scn);
+	pl_dev = get_pl_handle((struct hif_opaque_softc *)scn);
 
 	if (!pl_dev) {
 		printk("%s: Invalid pktlog handle\n", __func__);
@@ -281,14 +282,14 @@ ath_sysctl_decl(ath_sysctl_pktlog_size, ctl, write, filp, buffer, lenp, ppos)
 	ctl->maxlen = sizeof(size);
 
 	if (write) {
-		ret = ATH_SYSCTL_PROC_DOINTVEC(ctl, write, filp, buffer,
+		ret = QDF_SYSCTL_PROC_DOINTVEC(ctl, write, filp, buffer,
 					       lenp, ppos);
 		if (ret == 0)
-			ret = pl_dev->pl_funcs->pktlog_setsize((struct ol_softc
-								*)scn, size);
+			ret = pl_dev->pl_funcs->pktlog_setsize(
+					(struct hif_opaque_softc *)scn, size);
 	} else {
 		size = get_pktlog_bufsize(pl_dev);
-		ret = ATH_SYSCTL_PROC_DOINTVEC(ctl, write, filp, buffer,
+		ret = QDF_SYSCTL_PROC_DOINTVEC(ctl, write, filp, buffer,
 					       lenp, ppos);
 	}
 
@@ -299,7 +300,7 @@ ath_sysctl_decl(ath_sysctl_pktlog_size, ctl, write, filp, buffer, lenp, ppos)
 }
 
 /* Register sysctl table */
-static int pktlog_sysctl_register(struct ol_softc *scn)
+static int pktlog_sysctl_register(struct hif_opaque_softc *scn)
 {
 	struct ol_pktlog_dev_t *pl_dev = get_pl_handle(scn);
 	struct ath_pktlog_info_lnx *pl_info_lnx;
@@ -403,7 +404,7 @@ static int pktlog_sysctl_register(struct ol_softc *scn)
  * Initialize logging for system or adapter
  * Parameter scn should be NULL for system wide logging
  */
-static int pktlog_attach(struct ol_softc *scn)
+static int pktlog_attach(struct hif_opaque_softc *scn)
 {
 	struct ol_pktlog_dev_t *pl_dev;
 	struct ath_pktlog_info_lnx *pl_info_lnx;
@@ -488,7 +489,7 @@ static void pktlog_sysctl_unregister(struct ol_pktlog_dev_t *pl_dev)
 	}
 }
 
-static void pktlog_detach(struct ol_softc *scn)
+static void pktlog_detach(struct hif_opaque_softc *scn)
 {
 	struct ol_pktlog_dev_t *pl_dev = (struct ol_pktlog_dev_t *)
 					 get_pl_handle(scn);
@@ -527,7 +528,7 @@ static int pktlog_release(struct inode *i, struct file *f)
 }
 
 #ifndef MIN
-#define MIN(a,b) (((a) < (b)) ? (a) : (b))
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #endif
 
 /**
@@ -544,7 +545,7 @@ int pktlog_send_per_pkt_stats_to_user(void)
 	ssize_t ret_val;
 	struct host_log_pktlog_info *pktlog = NULL;
 	ol_txrx_pdev_handle txrx_pdev =
-		cds_get_context(CDF_MODULE_ID_TXRX);
+		cds_get_context(QDF_MODULE_ID_TXRX);
 	struct ath_pktlog_info *pl_info;
 	bool read_complete;
 	uint32_t num_bytes_read = 0;
@@ -582,7 +583,7 @@ int pktlog_send_per_pkt_stats_to_user(void)
 
 	do {
 		pktlog = (struct host_log_pktlog_info *)
-			cdf_mem_malloc(sizeof(struct host_log_pktlog_info) +
+			qdf_mem_malloc(sizeof(struct host_log_pktlog_info) +
 					VOS_LOG_PKT_LOG_SIZE);
 		if (!pktlog) {
 			printk(PKTLOG_TAG " %s: Memory allocation failed\n",
@@ -590,7 +591,7 @@ int pktlog_send_per_pkt_stats_to_user(void)
 			return -ENOMEM;
 		}
 
-		cdf_mem_zero(pktlog, VOS_LOG_PKT_LOG_SIZE);
+		qdf_mem_zero(pktlog, VOS_LOG_PKT_LOG_SIZE);
 		host_diag_log_set_code(pktlog, LOG_WLAN_PKT_LOG_INFO_C);
 
 		pktlog->buf_len = 0;
@@ -642,7 +643,7 @@ int pktlog_send_per_pkt_stats_to_user(void)
 			pktlog->seq_no = pl_info->buf->msg_index++;
 			WLAN_HOST_DIAG_LOG_REPORT(pktlog);
 		} else {
-			cdf_mem_free(pktlog);
+			qdf_mem_free(pktlog);
 		}
 		num_bytes_read += ret_val;
 
@@ -709,7 +710,7 @@ pktlog_read_proc_entry(char *buf, size_t nbytes, loff_t *ppos,
 
 	if (*ppos < bufhdr_size) {
 		count = MIN((bufhdr_size - *ppos), rem_len);
-		cdf_mem_copy(buf, ((char *)&log_buf->bufhdr) + *ppos,
+		qdf_mem_copy(buf, ((char *)&log_buf->bufhdr) + *ppos,
 				count);
 		rem_len -= count;
 		ret_val += count;
@@ -755,7 +756,7 @@ pktlog_read_proc_entry(char *buf, size_t nbytes, loff_t *ppos,
 			goto rd_done;
 
 		count = MIN(rem_len, (end_offset - ppos_data + 1));
-		cdf_mem_copy(buf + ret_val,
+		qdf_mem_copy(buf + ret_val,
 				log_buf->log_data + ppos_data,
 				count);
 		ret_val += count;
@@ -763,7 +764,7 @@ pktlog_read_proc_entry(char *buf, size_t nbytes, loff_t *ppos,
 	} else {
 		if (ppos_data <= fold_offset) {
 			count = MIN(rem_len, (fold_offset - ppos_data + 1));
-			cdf_mem_copy(buf + ret_val,
+			qdf_mem_copy(buf + ret_val,
 					log_buf->log_data + ppos_data,
 					count);
 			ret_val += count;
@@ -779,7 +780,7 @@ pktlog_read_proc_entry(char *buf, size_t nbytes, loff_t *ppos,
 
 		if (ppos_data <= end_offset) {
 			count = MIN(rem_len, (end_offset - ppos_data + 1));
-			cdf_mem_copy(buf + ret_val,
+			qdf_mem_copy(buf + ret_val,
 					log_buf->log_data + ppos_data,
 					count);
 			ret_val += count;
@@ -848,7 +849,7 @@ pktlog_read(struct file *file, char *buf, size_t nbytes, loff_t *ppos)
 	count = 0;
 
 	if (*ppos < bufhdr_size) {
-		count = CDF_MIN((bufhdr_size - *ppos), rem_len);
+		count = QDF_MIN((bufhdr_size - *ppos), rem_len);
 		if (copy_to_user(buf, ((char *)&log_buf->bufhdr) + *ppos,
 				 count))
 			return -EFAULT;
@@ -894,7 +895,7 @@ pktlog_read(struct file *file, char *buf, size_t nbytes, loff_t *ppos)
 		if (ppos_data > end_offset)
 			goto rd_done;
 
-		count = CDF_MIN(rem_len, (end_offset - ppos_data + 1));
+		count = QDF_MIN(rem_len, (end_offset - ppos_data + 1));
 		if (copy_to_user(buf + ret_val,
 				 log_buf->log_data + ppos_data, count))
 			return -EFAULT;
@@ -902,7 +903,7 @@ pktlog_read(struct file *file, char *buf, size_t nbytes, loff_t *ppos)
 		rem_len -= count;
 	} else {
 		if (ppos_data <= fold_offset) {
-			count = CDF_MIN(rem_len, (fold_offset - ppos_data + 1));
+			count = QDF_MIN(rem_len, (fold_offset - ppos_data + 1));
 			if (copy_to_user(buf + ret_val,
 					 log_buf->log_data + ppos_data, count))
 				return -EFAULT;
@@ -918,7 +919,7 @@ pktlog_read(struct file *file, char *buf, size_t nbytes, loff_t *ppos)
 					   (fold_offset - start_offset + 1));
 
 		if (ppos_data <= end_offset) {
-			count = CDF_MIN(rem_len, (end_offset - ppos_data + 1));
+			count = QDF_MIN(rem_len, (end_offset - ppos_data + 1));
 			if (copy_to_user(buf + ret_val,
 					 log_buf->log_data + ppos_data, count))
 				return -EFAULT;
@@ -1008,7 +1009,9 @@ int pktlogmod_init(void *context)
 	}
 
 	/* Attach packet log */
-	if ((ret = pktlog_attach((struct ol_softc *)context)))
+	ret = pktlog_attach((struct hif_opaque_softc *)context);
+
+	if (ret)
 		goto attach_fail;
 
 	return ret;
@@ -1021,7 +1024,7 @@ attach_fail:
 
 void pktlogmod_exit(void *context)
 {
-	struct ol_softc *scn = (struct ol_softc *)context;
+	struct hif_opaque_softc *scn = (struct hif_opaque_softc *)context;
 	struct ol_pktlog_dev_t *pl_dev;
 
 	if (!scn)

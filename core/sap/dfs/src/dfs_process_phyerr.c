@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2002-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -88,7 +88,7 @@ dfs_get_event_freqcentre(struct ath_dfs *dfs, int is_pri, int is_ext, int is_dc)
 	 * based on whether it's an upper or lower channel.
 	 */
 	chan_width = dfs_get_event_freqwidth(dfs);
-	cdf_spin_lock_bh(&ic->chan_lock);
+	qdf_spin_lock_bh(&ic->chan_lock);
 	if (IEEE80211_IS_CHAN_11N_HT40PLUS(ic->ic_curchan))
 		chan_offset = chan_width;
 	else if (IEEE80211_IS_CHAN_11N_HT40MINUS(ic->ic_curchan))
@@ -96,7 +96,7 @@ dfs_get_event_freqcentre(struct ath_dfs *dfs, int is_pri, int is_ext, int is_dc)
 	else
 		chan_offset = 0;
 
-	cdf_spin_unlock_bh(&ic->chan_lock);
+	qdf_spin_unlock_bh(&ic->chan_lock);
 
 	/*
 	 * Check for DC events first - the sowl code may just set all
@@ -106,10 +106,10 @@ dfs_get_event_freqcentre(struct ath_dfs *dfs, int is_pri, int is_ext, int is_dc)
 		/*
 		 * XXX TODO: Should DC events be considered 40MHz wide here?
 		 */
-		cdf_spin_lock_bh(&ic->chan_lock);
+		qdf_spin_lock_bh(&ic->chan_lock);
 		freq = ieee80211_chan2freq(ic, ic->ic_curchan) +
 			(chan_offset / 2);
-		cdf_spin_unlock_bh(&ic->chan_lock);
+		qdf_spin_unlock_bh(&ic->chan_lock);
 		return freq;
 	}
 
@@ -118,23 +118,23 @@ dfs_get_event_freqcentre(struct ath_dfs *dfs, int is_pri, int is_ext, int is_dc)
 	 * The centre frequency for pri events is still ic_freq.
 	 */
 	if (is_pri) {
-		cdf_spin_lock_bh(&ic->chan_lock);
+		qdf_spin_lock_bh(&ic->chan_lock);
 		freq = ieee80211_chan2freq(ic, ic->ic_curchan);
-		cdf_spin_unlock_bh(&ic->chan_lock);
+		qdf_spin_unlock_bh(&ic->chan_lock);
 		return freq;
 	}
 
 	if (is_ext) {
-		cdf_spin_lock_bh(&ic->chan_lock);
+		qdf_spin_lock_bh(&ic->chan_lock);
 		freq = ieee80211_chan2freq(ic, ic->ic_curchan) + chan_width;
-		cdf_spin_unlock_bh(&ic->chan_lock);
+		qdf_spin_unlock_bh(&ic->chan_lock);
 		return freq;
 	}
 
 	/* XXX shouldn't get here */
-	cdf_spin_lock_bh(&ic->chan_lock);
+	qdf_spin_lock_bh(&ic->chan_lock);
 	freq = ieee80211_chan2freq(ic, ic->ic_curchan);
-	cdf_spin_unlock_bh(&ic->chan_lock);
+	qdf_spin_unlock_bh(&ic->chan_lock);
 	return freq;
 }
 
@@ -463,7 +463,7 @@ static void dump_phyerr_contents(const char *d, int len)
 	 * Print the final line if we didn't print it above.
 	 */
 	if (n != 0)
-		CDF_TRACE(CDF_MODULE_ID_SAP, CDF_TRACE_LEVEL_INFO, "%s: %s\n",
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO, "%s: %s\n",
 			  __func__, buf);
 #endif /* def CONFIG_ENABLE_DUMP_PHYERR_CONTENTS */
 }
@@ -480,7 +480,7 @@ dfs_process_phyerr(struct ieee80211com *ic, void *buf, uint16_t datalen,
 	int empty;
 
 	if (dfs == NULL) {
-		CDF_TRACE(CDF_MODULE_ID_SAP, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
 			  "%s: sc_dfs is NULL\n", __func__);
 		return;
 	}
@@ -509,21 +509,21 @@ dfs_process_phyerr(struct ieee80211com *ic, void *buf, uint16_t datalen,
 		dump_phyerr_contents(buf, datalen);
 
 	if (chan == NULL) {
-		CDF_TRACE(CDF_MODULE_ID_SAP, CDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
 			  "%s: chan is NULL\n", __func__);
 		return;
 	}
 
-	cdf_spin_lock_bh(&ic->chan_lock);
+	qdf_spin_lock_bh(&ic->chan_lock);
 	if (IEEE80211_IS_CHAN_RADAR(chan)) {
-		cdf_spin_unlock_bh(&ic->chan_lock);
+		qdf_spin_unlock_bh(&ic->chan_lock);
 		DFS_DPRINTK(dfs, ATH_DEBUG_DFS1,
 			    "%s: Radar already found in the channel, "
 			    " do not queue radar data\n", __func__);
 		return;
 	}
 
-	cdf_spin_unlock_bh(&ic->chan_lock);
+	qdf_spin_unlock_bh(&ic->chan_lock);
 	dfs->ath_dfs_stats.total_phy_errors++;
 	DFS_DPRINTK(dfs, ATH_DEBUG_DFS2,
 		    "%s[%d] phyerr %d len %d\n",
@@ -588,7 +588,7 @@ dfs_process_phyerr(struct ieee80211com *ic, void *buf, uint16_t datalen,
 		}
 	}
 
-	CDF_TRACE(CDF_MODULE_ID_SAP, CDF_TRACE_LEVEL_INFO,
+	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
 		  "\n %s: Frequency at which the phyerror was injected = %d",
 		  __func__, e.freq);
 	/*
@@ -625,8 +625,8 @@ dfs_process_phyerr(struct ieee80211com *ic, void *buf, uint16_t datalen,
 		 *
 		 * BIN 5 chirping pulses are only for FCC or Japan MMK4 domain
 		 */
-		if (((dfs->dfsdomain == DFS_FCC_DOMAIN) ||
-		     (dfs->dfsdomain == DFS_MKK4_DOMAIN)) &&
+		if (((dfs->dfsdomain == DFS_FCC_REGION) ||
+		     (dfs->dfsdomain == DFS_MKK_REGION)) &&
 		    (e.dur >= MAYBE_BIN5_DUR) && (e.dur < MAX_BIN5_DUR)) {
 			int add_dur;
 			int slope = 0, dc_found = 0;
@@ -675,8 +675,8 @@ dfs_process_phyerr(struct ieee80211com *ic, void *buf, uint16_t datalen,
 			 * We have a pulse that is either bigger than
 			 * MAX_BIN5_DUR or * less than MAYBE_BIN5_DUR
 			 */
-			if ((dfs->dfsdomain == DFS_FCC_DOMAIN) ||
-			    (dfs->dfsdomain == DFS_MKK4_DOMAIN)) {
+			if ((dfs->dfsdomain == DFS_FCC_REGION) ||
+			    (dfs->dfsdomain == DFS_MKK_REGION)) {
 				/*
 				 * XXX Would this result in very large pulses
 				 *     wrapping around to become short pulses?
@@ -711,9 +711,9 @@ dfs_process_phyerr(struct ieee80211com *ic, void *buf, uint16_t datalen,
 	 * for the adaptive radio (AR) pattern matching rather than
 	 * radar detection.
 	 */
-	cdf_spin_lock_bh(&ic->chan_lock);
+	qdf_spin_lock_bh(&ic->chan_lock);
 	if ((chan->ic_flags & CHANNEL_108G) == CHANNEL_108G) {
-		cdf_spin_unlock_bh(&ic->chan_lock);
+		qdf_spin_unlock_bh(&ic->chan_lock);
 		if (!(dfs->dfs_proc_phyerr & DFS_AR_EN)) {
 			DFS_DPRINTK(dfs, ATH_DEBUG_DFS2,
 				    "%s: DFS_AR_EN not enabled\n", __func__);
@@ -763,7 +763,7 @@ dfs_process_phyerr(struct ieee80211com *ic, void *buf, uint16_t datalen,
 		ATH_ARQ_UNLOCK(dfs);
 	} else {
 		if (IEEE80211_IS_CHAN_DFS(chan)) {
-			cdf_spin_unlock_bh(&ic->chan_lock);
+			qdf_spin_unlock_bh(&ic->chan_lock);
 			if (!(dfs->dfs_proc_phyerr & DFS_RADAR_EN)) {
 				DFS_DPRINTK(dfs, ATH_DEBUG_DFS3,
 					    "%s: DFS_RADAR_EN not enabled\n",
@@ -857,7 +857,7 @@ dfs_process_phyerr(struct ieee80211com *ic, void *buf, uint16_t datalen,
 			STAILQ_INSERT_TAIL(&(dfs->dfs_radarq), event, re_list);
 			ATH_DFSQ_UNLOCK(dfs);
 		} else {
-			cdf_spin_unlock_bh(&ic->chan_lock);
+			qdf_spin_unlock_bh(&ic->chan_lock);
 		}
 	}
 

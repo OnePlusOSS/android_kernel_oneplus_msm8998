@@ -159,11 +159,14 @@ typedef struct {
 } tSmeThermalLevelInfo;
 
 #define SME_MAX_THERMAL_LEVELS (4)
+#define SME_MAX_THROTTLE_LEVELS (4)
+
 typedef struct {
 	/* Array of thermal levels */
 	tSmeThermalLevelInfo smeThermalLevels[SME_MAX_THERMAL_LEVELS];
 	uint8_t smeThermalMgmtEnabled;
 	uint32_t smeThrottlePeriod;
+	uint8_t sme_throttle_duty_cycle_tbl[SME_MAX_THROTTLE_LEVELS];
 } tSmeThermalParams;
 
 typedef enum {
@@ -801,6 +804,8 @@ QDF_STATUS sme_update_add_ie(tHalHandle hHal,
 		tSirUpdateIE *pUpdateIE, eUpdateIEsType updateType);
 QDF_STATUS sme_update_connect_debug(tHalHandle hHal, uint32_t set_value);
 const char *sme_request_type_to_string(const uint8_t request_type);
+const char *sme_scan_type_to_string(const uint8_t scan_type);
+const char *sme_bss_type_to_string(const uint8_t bss_type);
 QDF_STATUS sme_ap_disable_intra_bss_fwd(tHalHandle hHal, uint8_t sessionId,
 		bool disablefwd);
 uint32_t sme_get_channel_bonding_mode5_g(tHalHandle hHal);
@@ -1098,4 +1103,7 @@ QDF_STATUS sme_update_mimo_power_save(tHalHandle hHal,
 				      bool send_smps_action);
 
 bool sme_is_sta_smps_allowed(tHalHandle hHal, uint8_t session_id);
+QDF_STATUS sme_add_beacon_filter(tHalHandle hal,
+				uint32_t session_id, uint32_t *ie_map);
+QDF_STATUS sme_remove_beacon_filter(tHalHandle hal, uint32_t session_id);
 #endif /* #if !defined( __SME_API_H ) */

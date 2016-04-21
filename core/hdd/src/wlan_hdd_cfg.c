@@ -1996,6 +1996,34 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		     CFG_THROTTLE_PERIOD_MIN,
 		     CFG_THROTTLE_PERIOD_MAX),
 
+	REG_VARIABLE(CFG_THROTTLE_DUTY_CYCLE_LEVEL0_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, throttle_dutycycle_level0,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_THROTTLE_DUTY_CYCLE_LEVEL0_DEFAULT,
+		     CFG_THROTTLE_DUTY_CYCLE_LEVEL0_MIN,
+		     CFG_THROTTLE_DUTY_CYCLE_LEVEL0_MAX),
+
+	REG_VARIABLE(CFG_THROTTLE_DUTY_CYCLE_LEVEL1_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, throttle_dutycycle_level1,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_THROTTLE_DUTY_CYCLE_LEVEL1_DEFAULT,
+		     CFG_THROTTLE_DUTY_CYCLE_LEVEL1_MIN,
+		     CFG_THROTTLE_DUTY_CYCLE_LEVEL1_MAX),
+
+	REG_VARIABLE(CFG_THROTTLE_DUTY_CYCLE_LEVEL2_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, throttle_dutycycle_level2,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_THROTTLE_DUTY_CYCLE_LEVEL2_DEFAULT,
+		     CFG_THROTTLE_DUTY_CYCLE_LEVEL2_MIN,
+		     CFG_THROTTLE_DUTY_CYCLE_LEVEL2_MAX),
+
+	REG_VARIABLE(CFG_THROTTLE_DUTY_CYCLE_LEVEL3_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, throttle_dutycycle_level3,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_THROTTLE_DUTY_CYCLE_LEVEL3_DEFAULT,
+		     CFG_THROTTLE_DUTY_CYCLE_LEVEL3_MIN,
+		     CFG_THROTTLE_DUTY_CYCLE_LEVEL3_MAX),
+
 	REG_VARIABLE(CFG_ENABLE_MODULATED_DTIM_NAME, WLAN_PARAM_Integer,
 		     struct hdd_config, enableModulatedDTIM,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -3030,12 +3058,21 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		     CFG_BUS_BANDWIDTH_COMPUTE_INTERVAL_DEFAULT,
 		     CFG_BUS_BANDWIDTH_COMPUTE_INTERVAL_MIN,
 		     CFG_BUS_BANDWIDTH_COMPUTE_INTERVAL_MAX),
+
+	REG_VARIABLE(CFG_ENABLE_TCP_DELACK, WLAN_PARAM_Integer,
+		     struct hdd_config, enable_tcp_delack,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ENABLE_TCP_DELACK_DEFAULT,
+		     CFG_ENABLE_TCP_DELACK_MIN,
+		     CFG_ENABLE_TCP_DELACK_MAX),
+
 	REG_VARIABLE(CFG_TCP_DELACK_THRESHOLD_HIGH, WLAN_PARAM_Integer,
 		     struct hdd_config, tcpDelackThresholdHigh,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
 		     CFG_TCP_DELACK_THRESHOLD_HIGH_DEFAULT,
 		     CFG_TCP_DELACK_THRESHOLD_HIGH_MIN,
 		     CFG_TCP_DELACK_THRESHOLD_HIGH_MAX),
+
 	REG_VARIABLE(CFG_TCP_DELACK_THRESHOLD_LOW, WLAN_PARAM_Integer,
 		     struct hdd_config, tcpDelackThresholdLow,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -3710,6 +3747,14 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		CFG_ROAM_DENSE_RSSI_THRE_OFFSET_DEFAULT,
 		CFG_ROAM_DENSE_RSSI_THRE_OFFSET_MIN,
 		CFG_ROAM_DENSE_RSSI_THRE_OFFSET_MAX),
+
+	REG_VARIABLE(CFG_IGNORE_PEER_HT_MODE_NAME, WLAN_PARAM_Integer,
+			struct hdd_config, ignore_peer_ht_opmode,
+			VAR_FLAGS_OPTIONAL |
+			VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+			CFG_IGNORE_PEER_HT_MODE_DEFAULT,
+			CFG_IGNORE_PEER_HT_MODE_MIN,
+			CFG_IGNORE_PEER_HT_MODE_MAX),
 
 	REG_VARIABLE(CFG_ROAM_DENSE_MIN_APS, WLAN_PARAM_Integer,
 		struct hdd_config, roam_dense_min_aps,
@@ -5091,6 +5136,10 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 		  "Name = [gbusBandwidthComputeInterval] Value = [%u] ",
 		  pHddCtx->config->busBandwidthComputeInterval);
 	QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_INFO_HIGH,
+		  "Name = [%s] Value = [%u] ",
+		  CFG_ENABLE_TCP_DELACK,
+		  pHddCtx->config->enable_tcp_delack);
+	QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_INFO_HIGH,
 		  "Name = [gTcpDelAckThresholdHigh] Value = [%u] ",
 		  pHddCtx->config->tcpDelackThresholdHigh);
 	QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_INFO_HIGH,
@@ -5301,6 +5350,9 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_info("Name = [%s] Value = [%u]",
 		CFG_ROAM_DENSE_RSSI_THRE_OFFSET,
 		pHddCtx->config->roam_dense_rssi_thresh_offset);
+	hdd_info("Name = [%s] Value = [%u]",
+		CFG_IGNORE_PEER_HT_MODE_NAME,
+		pHddCtx->config->ignore_peer_ht_opmode);
 	hdd_info("Name = [%s] Value = [%u]",
 		CFG_ROAM_DENSE_MIN_APS,
 		pHddCtx->config->roam_dense_min_aps);
@@ -6745,6 +6797,8 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 			pHddCtx->config->obss_active_dwelltime;
 	smeConfig->csrConfig.obss_passive_dwelltime =
 			pHddCtx->config->obss_passive_dwelltime;
+	smeConfig->csrConfig.ignore_peer_ht_opmode =
+			pConfig->ignore_peer_ht_opmode;
 
 	status = sme_update_config(pHddCtx->hHal, smeConfig);
 	if (!QDF_IS_STATUS_SUCCESS(status)) {

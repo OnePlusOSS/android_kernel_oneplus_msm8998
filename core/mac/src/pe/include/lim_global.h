@@ -81,8 +81,6 @@ typedef enum eLimSystemRole {
 	eLIM_AP_ROLE,
 	eLIM_STA_IN_IBSS_ROLE,
 	eLIM_STA_ROLE,
-	eLIM_BT_AMP_STA_ROLE,
-	eLIM_BT_AMP_AP_ROLE,
 	eLIM_P2P_DEVICE_ROLE,
 	eLIM_P2P_DEVICE_GO,
 	eLIM_P2P_DEVICE_CLIENT
@@ -288,13 +286,6 @@ struct tLimScanResultNode {
 };
 
 #ifdef FEATURE_OEM_DATA_SUPPORT
-
-#ifndef OEM_DATA_REQ_SIZE
-#define OEM_DATA_REQ_SIZE 280
-#endif
-#ifndef OEM_DATA_RSP_SIZE
-#define OEM_DATA_RSP_SIZE 1724
-#endif
 
 /* OEM Data related structure definitions */
 typedef struct sLimMlmOemDataReq {

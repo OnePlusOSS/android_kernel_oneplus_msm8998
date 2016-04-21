@@ -199,7 +199,8 @@ ap_beacon_process_24_ghz(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 	 * 11b because if that's needed then our operating mode would have
 	 * already been set to legacy in the previous blocks.
 	 */
-	if (eSIR_HT_OP_MODE_OVERLAP_LEGACY == bcn_struct->HTInfo.opMode) {
+	if ((eSIR_HT_OP_MODE_OVERLAP_LEGACY == bcn_struct->HTInfo.opMode) &&
+		!mac_ctx->roam.configParam.ignore_peer_ht_opmode) {
 		if (eSIR_HT_OP_MODE_OVERLAP_LEGACY == mac_ctx->lim.gHTOperMode
 		    || eSIR_HT_OP_MODE_MIXED == mac_ctx->lim.gHTOperMode)
 			return;
@@ -338,7 +339,7 @@ tSirMacHTChannelWidth get_operating_channel_width(tpDphHashNode stads)
 }
 
 /*
- * sch_bcn_process_sta_bt_amp_sta() - Process the received beacon frame for sta,
+ * sch_bcn_process_sta() - Process the received beacon frame for sta,
  * bt_amp_sta
  *
  * @mac_ctx:        mac_ctx
@@ -350,12 +351,12 @@ tSirMacHTChannelWidth get_operating_channel_width(tpDphHashNode stads)
  * @sendProbeReq:   out flag to indicate if probe rsp is to be sent
  * @pMh:            mac header
  *
- * Process the received beacon frame for sta, bt_amp_sta
+ * Process the received beacon frame for sta
  *
  * Return: success of failure of operation
  */
 static bool
-sch_bcn_process_sta_bt_amp_sta(tpAniSirGlobal mac_ctx,
+sch_bcn_process_sta(tpAniSirGlobal mac_ctx,
 			       tpSchBeaconStruct bcn,
 			       uint8_t *rx_pkt_info,
 			       tpPESession session, uint8_t *bssIdx,
@@ -367,7 +368,6 @@ sch_bcn_process_sta_bt_amp_sta(tpAniSirGlobal mac_ctx,
 	/*
 	 *  This handles two cases:
 	 *  -- Infra STA receving beacons from AP
-	 *  -- BTAMP_STA receving beacons from BTAMP_AP
 	 */
 	/* Always save the beacon into LIM's cached scan results */
 	lim_check_and_add_bss_description(mac_ctx, bcn, rx_pkt_info,
@@ -500,7 +500,7 @@ void update_nss(tpAniSirGlobal mac_ctx, tpDphHashNode sta_ds,
 }
 
 /*
- * sch_bcn_process_sta_bt_amp_sta_ibss() - Process the received beacon frame
+ * sch_bcn_process_sta_ibss() - Process the received beacon frame
  * for sta, bt_amp_sta and ibss
  *
  * @mac_ctx:        mac_ctx
@@ -512,12 +512,12 @@ void update_nss(tpAniSirGlobal mac_ctx, tpDphHashNode sta_ds,
  * @sendProbeReq:   out flag to indicate if probe rsp is to be sent
  * @pMh:            mac header
  *
- * Process the received beacon frame for sta, bt_amp_sta and ibss
+ * Process the received beacon frame for sta and ibss
  *
  * Return: void
  */
 static void
-sch_bcn_process_sta_bt_amp_sta_ibss(tpAniSirGlobal mac_ctx,
+sch_bcn_process_sta_ibss(tpAniSirGlobal mac_ctx,
 				    tpSchBeaconStruct bcn,
 				    uint8_t *rx_pkt_info,
 				    tpPESession session, uint8_t *bssIdx,
@@ -684,9 +684,7 @@ sch_bcn_process_sta_bt_amp_sta_ibss(tpAniSirGlobal mac_ctx,
  *     - call lim_handle_ibs_scoalescing with that session context.
  *   Infra STA receving beacons from AP to which it is connected
  *     - call sch_beacon_processFromAP with that session's context.
- *   BTAMP STA receving beacons from BTAMP AP
  *     - call sch_beacon_processFromAP with that session's context.
- *   BTAMP AP receiving beacons from BTAMP STA
  *     (here need to make sure BTAP creates session entry for BT STA)
  *     - just update the beacon count for heart beat purposes for now,
  *       for now, don't process the beacon.
@@ -726,9 +724,8 @@ static void __sch_beacon_process_for_session(tpAniSirGlobal mac_ctx,
 
 	if (LIM_IS_IBSS_ROLE(session)) {
 		lim_handle_ibss_coalescing(mac_ctx, bcn, rx_pkt_info, session);
-	} else if (LIM_IS_STA_ROLE(session)
-	    || LIM_IS_BT_AMP_STA_ROLE(session)) {
-		if (false == sch_bcn_process_sta_bt_amp_sta(mac_ctx, bcn,
+	} else if (LIM_IS_STA_ROLE(session)) {
+		if (false == sch_bcn_process_sta(mac_ctx, bcn,
 				rx_pkt_info, session, &bssIdx,
 				&beaconParams, &sendProbeReq, pMh))
 			return;
@@ -739,7 +736,6 @@ static void __sch_beacon_process_for_session(tpAniSirGlobal mac_ctx,
 						&bcn->HTInfo, bssIdx, session);
 
 	if (LIM_IS_STA_ROLE(session)
-	    || LIM_IS_BT_AMP_STA_ROLE(session)
 	    || LIM_IS_IBSS_ROLE(session)) {
 		/* Channel Switch information element updated */
 		if (bcn->channelSwitchPresent) {
@@ -758,9 +754,8 @@ static void __sch_beacon_process_for_session(tpAniSirGlobal mac_ctx,
 		}
 	}
 	if (LIM_IS_STA_ROLE(session)
-	    || LIM_IS_BT_AMP_STA_ROLE(session)
 	    || LIM_IS_IBSS_ROLE(session))
-		sch_bcn_process_sta_bt_amp_sta_ibss(mac_ctx, bcn,
+		sch_bcn_process_sta_ibss(mac_ctx, bcn,
 					rx_pkt_info, session, &bssIdx,
 					&beaconParams, &sendProbeReq, pMh);
 	/* Obtain the Max Tx power for the current regulatory  */

@@ -457,8 +457,6 @@ void lim_handle_ft_pre_auth_rsp(tpAniSirGlobal pMac, tSirRetStatus status,
 
 		if (pftSessionEntry->bssType == eSIR_INFRASTRUCTURE_MODE)
 			pftSessionEntry->limSystemRole = eLIM_STA_ROLE;
-		else if (pftSessionEntry->bssType == eSIR_BTAMP_AP_MODE)
-			pftSessionEntry->limSystemRole = eLIM_BT_AMP_STA_ROLE;
 		else
 			lim_log(pMac, LOGE, FL("Invalid bss type"));
 		pftSessionEntry->limPrevSmeState = pftSessionEntry->limSmeState;
@@ -738,7 +736,7 @@ QDF_STATUS lim_send_preauth_scan_offload(tpAniSirGlobal mac_ctx,
  */
 
 void lim_preauth_scan_event_handler(tpAniSirGlobal mac_ctx,
-				enum lim_scan_event_type event,
+				enum sir_scan_event_type event,
 				uint8_t session_id,
 				uint32_t scan_id)
 {
@@ -752,14 +750,14 @@ void lim_preauth_scan_event_handler(tpAniSirGlobal mac_ctx,
 	}
 
 	switch (event) {
-	case LIM_SCAN_EVENT_START_FAILED:
+	case SIR_SCAN_EVENT_START_FAILED:
 		/* Scan command is rejected by firmware */
 		lim_log(mac_ctx, LOGE, FL("Failed to start preauth scan"));
 		lim_post_ft_pre_auth_rsp(mac_ctx, eSIR_FAILURE, NULL, 0,
 					 session_entry);
 		return;
 
-	case LIM_SCAN_EVENT_COMPLETED:
+	case SIR_SCAN_EVENT_COMPLETED:
 		/*
 		 * Scan either completed succesfully or or got terminated
 		 * after successful auth, or timed out. Either way, STA
@@ -769,7 +767,7 @@ void lim_preauth_scan_event_handler(tpAniSirGlobal mac_ctx,
 			session_entry);
 		break;
 
-	case LIM_SCAN_EVENT_FOREIGN_CHANNEL:
+	case SIR_SCAN_EVENT_FOREIGN_CHANNEL:
 		/* Sta is on candidate channel. Send auth */
 		lim_perform_ft_pre_auth(mac_ctx, QDF_STATUS_SUCCESS, NULL,
 					session_entry);

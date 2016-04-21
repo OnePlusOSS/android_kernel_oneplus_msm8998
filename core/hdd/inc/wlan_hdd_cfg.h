@@ -1476,6 +1476,32 @@ typedef enum {
 #define CFG_THROTTLE_PERIOD_MAX                (10000)
 #define CFG_THROTTLE_PERIOD_DEFAULT            (4000)
 
+/*
+ * Configure Throttle Period Different Level Duty Cycle in percentage
+ * When temperature measured is greater than threshold at particular level,
+ * then throtling level will get increased by one level and
+ * will reduce TX duty by the given percentage
+ */
+#define CFG_THROTTLE_DUTY_CYCLE_LEVEL0_NAME    "gThrottleDutyCycleLevel0"
+#define CFG_THROTTLE_DUTY_CYCLE_LEVEL0_MIN     (0)
+#define CFG_THROTTLE_DUTY_CYCLE_LEVEL0_MAX     (0)
+#define CFG_THROTTLE_DUTY_CYCLE_LEVEL0_DEFAULT (0)
+
+#define CFG_THROTTLE_DUTY_CYCLE_LEVEL1_NAME    "gThrottleDutyCycleLevel1"
+#define CFG_THROTTLE_DUTY_CYCLE_LEVEL1_MIN     (0)
+#define CFG_THROTTLE_DUTY_CYCLE_LEVEL1_MAX     (100)
+#define CFG_THROTTLE_DUTY_CYCLE_LEVEL1_DEFAULT (50)
+
+#define CFG_THROTTLE_DUTY_CYCLE_LEVEL2_NAME    "gThrottleDutyCycleLevel2"
+#define CFG_THROTTLE_DUTY_CYCLE_LEVEL2_MIN     (0)
+#define CFG_THROTTLE_DUTY_CYCLE_LEVEL2_MAX     (100)
+#define CFG_THROTTLE_DUTY_CYCLE_LEVEL2_DEFAULT (75)
+
+#define CFG_THROTTLE_DUTY_CYCLE_LEVEL3_NAME    "gThrottleDutyCycleLevel3"
+#define CFG_THROTTLE_DUTY_CYCLE_LEVEL3_MIN     (0)
+#define CFG_THROTTLE_DUTY_CYCLE_LEVEL3_MAX     (100)
+#define CFG_THROTTLE_DUTY_CYCLE_LEVEL3_DEFAULT (94)
+
 #define CFG_THERMAL_TEMP_MIN_LEVEL0_NAME      "gThermalTempMinLevel0"
 #define CFG_THERMAL_TEMP_MIN_LEVEL0_MIN       (0)
 #define CFG_THERMAL_TEMP_MIN_LEVEL0_MAX       (1000)
@@ -2264,6 +2290,17 @@ typedef enum {
 #define CFG_BUS_BANDWIDTH_COMPUTE_INTERVAL_MIN     (0)
 #define CFG_BUS_BANDWIDTH_COMPUTE_INTERVAL_MAX     (10000)
 
+/*
+ * Dynamic configuration of tcp delack is enabled by default.
+ * User can set gTcpDelAckEnable flag to 0 in the INI file to disable dynamic
+ * reconfiguration of tcp delack. This does not disable the update of receive
+ * histogram
+ */
+#define CFG_ENABLE_TCP_DELACK                      "gTcpDelAckEnable"
+#define CFG_ENABLE_TCP_DELACK_DEFAULT              (1)
+#define CFG_ENABLE_TCP_DELACK_MIN                  (0)
+#define CFG_ENABLE_TCP_DELACK_MAX                  (1)
+
 #define CFG_TCP_DELACK_THRESHOLD_HIGH              "gTcpDelAckThresholdHigh"
 #define CFG_TCP_DELACK_THRESHOLD_HIGH_DEFAULT      (500)
 #define CFG_TCP_DELACK_THRESHOLD_HIGH_MIN          (0)
@@ -2327,7 +2364,7 @@ typedef enum {
 #define CFG_ROAMING_OFFLOAD_NAME                "gRoamOffloadEnabled"
 #define CFG_ROAMING_OFFLOAD_MIN                 (0)
 #define CFG_ROAMING_OFFLOAD_MAX                 (1)
-#define CFG_ROAMING_OFFLOAD_DEFAULT             (0)
+#define CFG_ROAMING_OFFLOAD_DEFAULT             (1)
 #endif
 
 #define CFG_IPA_UC_TX_BUF_COUNT_NAME               "IpaUcTxBufCount"
@@ -2905,7 +2942,7 @@ enum dot11p_mode {
 #define CFG_ENABLE_M2M_LIMITATION              "gEnableM2MLimitation"
 #define CFG_ENABLE_M2M_LIMITATION_MIN          (0)
 #define CFG_ENABLE_M2M_LIMITATION_MAX          (1)
-#define CFG_ENABLE_M2M_LIMITATION_DEFAULT      (1)
+#define CFG_ENABLE_M2M_LIMITATION_DEFAULT      (0)
 #endif /* QCA_WIFI_3_0_EMU */
 
 /*
@@ -2928,6 +2965,15 @@ enum dot11p_mode {
 #define CFG_ROAM_DENSE_RSSI_THRE_OFFSET_MIN     (0)
 #define CFG_ROAM_DENSE_RSSI_THRE_OFFSET_MAX     (20)
 #define CFG_ROAM_DENSE_RSSI_THRE_OFFSET_DEFAULT (0)
+
+/*
+ * Enabling gignore_peer_ht_opmode will enable 11g
+ * protection only when there is a 11g AP in vicinity.
+ */
+#define CFG_IGNORE_PEER_HT_MODE_NAME       "gignore_peer_ht_opmode"
+#define CFG_IGNORE_PEER_HT_MODE_MIN        (0)
+#define CFG_IGNORE_PEER_HT_MODE_MAX        (1)
+#define CFG_IGNORE_PEER_HT_MODE_DEFAULT    (0)
 
 /*
  * Dense Roam Min APs
@@ -3211,6 +3257,10 @@ struct hdd_config {
 	bool isP2pDeviceAddrAdministrated;
 	uint8_t thermalMitigationEnable;
 	uint32_t throttlePeriod;
+	uint32_t throttle_dutycycle_level0;
+	uint32_t throttle_dutycycle_level1;
+	uint32_t throttle_dutycycle_level2;
+	uint32_t throttle_dutycycle_level3;
 	uint8_t vhtChannelWidth;
 	uint8_t vhtRxMCS;
 	uint8_t vhtTxMCS;
@@ -3383,6 +3433,7 @@ struct hdd_config {
 	uint32_t busBandwidthMediumThreshold;
 	uint32_t busBandwidthLowThreshold;
 	uint32_t busBandwidthComputeInterval;
+	uint32_t enable_tcp_delack;
 	uint32_t tcpDelackThresholdHigh;
 	uint32_t tcpDelackThresholdLow;
 	uint32_t tcp_tx_high_tput_thres;
@@ -3530,6 +3581,7 @@ struct hdd_config {
 #endif
 	uint32_t roam_dense_traffic_thresh;
 	uint32_t roam_dense_rssi_thresh_offset;
+	bool ignore_peer_ht_opmode;
 	uint32_t roam_dense_min_aps;
 };
 

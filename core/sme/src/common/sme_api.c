@@ -192,86 +192,93 @@ static QDF_STATUS sme_process_set_hw_mode_resp(tpAniSirGlobal mac, uint8_t *msg)
 		command->u.set_hw_mode_cmd.reason,
 		command->u.set_hw_mode_cmd.session_id);
 
-	if (callback) {
-		if (!param) {
-			sms_log(mac, LOGE,
-			    FL("Callback failed since HW mode params is NULL"));
-		} else if (reason == SIR_UPDATE_REASON_HIDDEN_STA) {
-			/* In the case of hidden SSID, connection update
-			 * (set hw mode) is done after the scan with reason
-			 * code eCsrScanForSsid completes. The connect/failure
-			 * needs to be handled after the response of set hw
-			 * mode
-			 */
-			saved_cmd = (tSmeCmd *)mac->sme.saved_scan_cmd;
-			if (!saved_cmd) {
-				sms_log(mac, LOGP,
-					FL("saved cmd is NULL, Check this"));
-				goto end;
-			}
-			if (param->status == SET_HW_MODE_STATUS_OK) {
-				sms_log(mac, LOG1,
-					FL("search for ssid success"));
-				csr_scan_handle_search_for_ssid(mac,
-					saved_cmd);
-			} else {
-				sms_log(mac, LOG1,
-					FL("search for ssid failure"));
-				csr_scan_handle_search_for_ssid_failure(mac,
-					saved_cmd);
-			}
-			if (saved_cmd->u.roamCmd.pRoamBssEntry)
-				qdf_mem_free(
-					saved_cmd->u.roamCmd.pRoamBssEntry);
-			if (saved_cmd->u.scanCmd.u.scanRequest.SSIDs.SSIDList)
-				qdf_mem_free(saved_cmd->u.scanCmd.u.
-						scanRequest.SSIDs.SSIDList);
-			if (saved_cmd->u.scanCmd.pToRoamProfile)
-				qdf_mem_free(saved_cmd->u.scanCmd.
-						pToRoamProfile);
-			if (saved_cmd) {
-				qdf_mem_free(saved_cmd);
-				saved_cmd = NULL;
-				mac->sme.saved_scan_cmd = NULL;
-			}
-		} else if (reason == SIR_UPDATE_REASON_CHANNEL_SWITCH) {
-			csr_roam_call_callback(mac,
-					command->u.set_hw_mode_cmd.session_id,
-					&roam_info, 0,
-					eCSR_ROAM_STATUS_UPDATE_HW_MODE,
-					eCSR_ROAM_RESULT_UPDATE_HW_MODE);
-		} else if (reason == SIR_UPDATE_REASON_CHANNEL_SWITCH_STA) {
-			struct sir_saved_csa_params *msg;
-
-			sms_log(mac, LOG1, FL("process channel switch sta"));
-			msg = qdf_mem_malloc(sizeof(*msg));
-			if (!msg) {
-				sms_log(mac, LOGE,
-					FL("memory alloc fail for csa "));
-				goto end;
-			}
-
-			msg->message_type = SIR_LIM_CSA_POST_HW_MODE_CHANGE;
-			msg->length = sizeof(*msg);
-			msg->session_id = command->u.set_hw_mode_cmd.session_id;
-
-			status = cds_send_mb_message_to_mac(msg);
-			if (!QDF_IS_STATUS_SUCCESS(status))
-				sms_log(mac, LOGE,
-					FL("failed to process csa params"));
-			else
-				sms_log(mac, LOG1,
-					FL("csa after hw mode change"));
-		} else {
-			sms_log(mac, LOGE,
-			      FL("Calling HDD callback for HW mode response"));
-			callback(param->status,
-				 param->cfgd_hw_mode_index,
-				 param->num_vdev_mac_entries,
-				 param->vdev_mac_map);
-		}
-	} else {
+	if (!callback) {
 		sms_log(mac, LOGE, FL("Callback does not exist"));
+		goto end;
+	}
+
+	if (!param) {
+		sms_log(mac, LOGE,
+			FL("Callback failed since HW mode params is NULL"));
+		goto end;
+	}
+
+	/* Irrespective of the reason for which the hw mode change request
+	 * was issued, the policy manager connection table needs to be updated
+	 * with the new vdev-mac id mapping, tx/rx spatial streams etc., if the
+	 * set hw mode was successful.
+	 */
+	callback(param->status,
+			param->cfgd_hw_mode_index,
+			param->num_vdev_mac_entries,
+			param->vdev_mac_map);
+
+	if (reason == SIR_UPDATE_REASON_HIDDEN_STA) {
+		/* In the case of hidden SSID, connection update
+		 * (set hw mode) is done after the scan with reason
+		 * code eCsrScanForSsid completes. The connect/failure
+		 * needs to be handled after the response of set hw
+		 * mode
+		 */
+		saved_cmd = (tSmeCmd *)mac->sme.saved_scan_cmd;
+		if (!saved_cmd) {
+			sms_log(mac, LOGP,
+					FL("saved cmd is NULL, Check this"));
+			goto end;
+		}
+		if (param->status == SET_HW_MODE_STATUS_OK) {
+			sms_log(mac, LOG1,
+					FL("search for ssid success"));
+			csr_scan_handle_search_for_ssid(mac,
+					saved_cmd);
+		} else {
+			sms_log(mac, LOG1,
+					FL("search for ssid failure"));
+			csr_scan_handle_search_for_ssid_failure(mac,
+					saved_cmd);
+		}
+		if (saved_cmd->u.roamCmd.pRoamBssEntry)
+			qdf_mem_free(
+					saved_cmd->u.roamCmd.pRoamBssEntry);
+		if (saved_cmd->u.scanCmd.u.scanRequest.SSIDs.SSIDList)
+			qdf_mem_free(saved_cmd->u.scanCmd.u.
+					scanRequest.SSIDs.SSIDList);
+		if (saved_cmd->u.scanCmd.pToRoamProfile)
+			qdf_mem_free(saved_cmd->u.scanCmd.
+					pToRoamProfile);
+		if (saved_cmd) {
+			qdf_mem_free(saved_cmd);
+			saved_cmd = NULL;
+			mac->sme.saved_scan_cmd = NULL;
+		}
+	} else if (reason == SIR_UPDATE_REASON_CHANNEL_SWITCH) {
+		csr_roam_call_callback(mac,
+				command->u.set_hw_mode_cmd.session_id,
+				&roam_info, 0,
+				eCSR_ROAM_STATUS_UPDATE_HW_MODE,
+				eCSR_ROAM_RESULT_UPDATE_HW_MODE);
+	} else if (reason == SIR_UPDATE_REASON_CHANNEL_SWITCH_STA) {
+		struct sir_saved_csa_params *msg;
+
+		sms_log(mac, LOG1, FL("process channel switch sta"));
+		msg = qdf_mem_malloc(sizeof(*msg));
+		if (!msg) {
+			sms_log(mac, LOGE,
+					FL("memory alloc fail for csa "));
+			goto end;
+		}
+
+		msg->message_type = SIR_LIM_CSA_POST_HW_MODE_CHANGE;
+		msg->length = sizeof(*msg);
+		msg->session_id = command->u.set_hw_mode_cmd.session_id;
+
+		status = cds_send_mb_message_to_mac(msg);
+		if (!QDF_IS_STATUS_SUCCESS(status))
+			sms_log(mac, LOGE,
+					FL("failed to process csa params"));
+		else
+			sms_log(mac, LOG1,
+					FL("csa after hw mode change"));
 	}
 
 end:
@@ -12421,6 +12428,16 @@ QDF_STATUS sme_init_thermal_info(tHalHandle hHal, tSmeThermalParams thermalParam
 
 	pWmaParam->thermalMgmtEnabled = thermalParam.smeThermalMgmtEnabled;
 	pWmaParam->throttlePeriod = thermalParam.smeThrottlePeriod;
+
+	pWmaParam->throttle_duty_cycle_tbl[0] =
+		thermalParam.sme_throttle_duty_cycle_tbl[0];
+	pWmaParam->throttle_duty_cycle_tbl[1] =
+		thermalParam.sme_throttle_duty_cycle_tbl[1];
+	pWmaParam->throttle_duty_cycle_tbl[2] =
+		thermalParam.sme_throttle_duty_cycle_tbl[2];
+	pWmaParam->throttle_duty_cycle_tbl[3] =
+		thermalParam.sme_throttle_duty_cycle_tbl[3];
+
 	pWmaParam->thermalLevels[0].minTempThreshold =
 		thermalParam.smeThermalLevels[0].smeMinTempThreshold;
 	pWmaParam->thermalLevels[0].maxTempThreshold =
@@ -15453,4 +15470,98 @@ bool sme_is_sta_smps_allowed(tHalHandle hal, uint8_t session_id)
 	}
 
 	return (csr_session->supported_nss_1x1 == true) ? false : true;
+}
+
+/**
+ * sme_add_beacon_filter() - set the beacon filter configuration
+ * @hal: The handle returned by macOpen
+ * @session_id: session id
+ * @ie_map: bitwise array of IEs
+ *
+ * Return: Return QDF_STATUS, otherwise appropriate failure code
+ */
+QDF_STATUS sme_add_beacon_filter(tHalHandle hal,
+				 uint32_t session_id,
+				 uint32_t *ie_map)
+{
+	cds_msg_t message;
+	QDF_STATUS qdf_status;
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+	struct beacon_filter_param *filter_param;
+
+	if (!CSR_IS_SESSION_VALID(mac_ctx, session_id)) {
+		sms_log(mac_ctx, LOGE,
+			"CSR session not valid: %d",
+			session_id);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	filter_param = qdf_mem_malloc(sizeof(*filter_param));
+	if (NULL == filter_param) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+				"%s: fail to alloc filter_param", __func__);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	filter_param->vdev_id = session_id;
+
+	qdf_mem_copy(filter_param->ie_map, ie_map,
+			BCN_FLT_MAX_ELEMS_IE_LIST * sizeof(uint32_t));
+
+	message.type = WMA_ADD_BCN_FILTER_CMDID;
+	message.bodyptr = filter_param;
+	qdf_status = cds_mq_post_message(QDF_MODULE_ID_WMA,
+					&message);
+	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			"%s: Not able to post msg to WDA!",
+			__func__);
+
+		qdf_mem_free(filter_param);
+	}
+	return qdf_status;
+}
+
+/**
+ * sme_remove_beacon_filter() - set the beacon filter configuration
+ * @hal: The handle returned by macOpen
+ * @session_id: session id
+ *
+ * Return: Return QDF_STATUS, otherwise appropriate failure code
+ */
+QDF_STATUS sme_remove_beacon_filter(tHalHandle hal, uint32_t session_id)
+{
+	cds_msg_t message;
+	QDF_STATUS qdf_status;
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+	struct beacon_filter_param *filter_param;
+
+	if (!CSR_IS_SESSION_VALID(mac_ctx, session_id)) {
+		sms_log(mac_ctx, LOGE,
+			"CSR session not valid: %d",
+			session_id);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	filter_param = qdf_mem_malloc(sizeof(*filter_param));
+	if (NULL == filter_param) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+				"%s: fail to alloc filter_param", __func__);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	filter_param->vdev_id = session_id;
+
+	message.type = WMA_REMOVE_BCN_FILTER_CMDID;
+	message.bodyptr = filter_param;
+	qdf_status = cds_mq_post_message(QDF_MODULE_ID_WMA,
+					&message);
+	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			"%s: Not able to post msg to WDA!",
+			__func__);
+
+		qdf_mem_free(filter_param);
+	}
+	return qdf_status;
 }

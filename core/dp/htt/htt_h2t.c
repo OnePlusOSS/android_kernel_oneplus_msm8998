@@ -136,7 +136,7 @@ A_STATUS htt_h2t_frag_desc_bank_cfg_msg(struct htt_pdev_t *pdev)
 	/* fill in the message contents */
 	msg_word = (u_int32_t *) qdf_nbuf_data(msg);
 
-	memset(msg_word, 0 , sizeof(struct htt_tx_frag_desc_bank_cfg_t));
+	memset(msg_word, 0, sizeof(struct htt_tx_frag_desc_bank_cfg_t));
 	/* rewind beyond alignment pad to get to the HTC header reserved area */
 	qdf_nbuf_push_head(msg, HTC_HDR_ALIGNMENT_PADDING);
 
@@ -172,7 +172,7 @@ A_STATUS htt_h2t_frag_desc_bank_cfg_msg(struct htt_pdev_t *pdev)
 		htt_h2t_send_complete_free_netbuf,
 		qdf_nbuf_data(msg),
 		qdf_nbuf_len(msg),
-		pdev->htc_endpoint,
+		pdev->htc_tx_endpoint,
 		1); /* tag - not relevant here */
 
 	SET_HTC_PACKET_NET_BUF_CONTEXT(&pkt->htc_pkt, msg);
@@ -229,7 +229,7 @@ A_STATUS htt_h2t_ver_req_msg(struct htt_pdev_t *pdev)
 	SET_HTC_PACKET_INFO_TX(&pkt->htc_pkt,
 			       htt_h2t_send_complete_free_netbuf,
 			       qdf_nbuf_data(msg), qdf_nbuf_len(msg),
-			       pdev->htc_endpoint,
+			       pdev->htc_tx_endpoint,
 			       1); /* tag - not relevant here */
 
 	SET_HTC_PACKET_NET_BUF_CONTEXT(&pkt->htc_pkt, msg);
@@ -414,7 +414,7 @@ A_STATUS htt_h2t_rx_ring_cfg_msg_ll(struct htt_pdev_t *pdev)
 			       htt_h2t_send_complete_free_netbuf,
 			       qdf_nbuf_data(msg),
 			       qdf_nbuf_len(msg),
-			       pdev->htc_endpoint,
+			       pdev->htc_tx_endpoint,
 			       HTC_TX_PACKET_TAG_RUNTIME_PUT);
 
 	SET_HTC_PACKET_NET_BUF_CONTEXT(&pkt->htc_pkt, msg);
@@ -504,7 +504,7 @@ htt_h2t_dbg_stats_get(struct htt_pdev_t *pdev,
 			       htt_h2t_send_complete_free_netbuf,
 			       qdf_nbuf_data(msg),
 			       qdf_nbuf_len(msg),
-			       pdev->htc_endpoint,
+			       pdev->htc_tx_endpoint,
 			       htc_tag); /* tag - not relevant here */
 
 	SET_HTC_PACKET_NET_BUF_CONTEXT(&pkt->htc_pkt, msg);
@@ -560,7 +560,7 @@ A_STATUS htt_h2t_sync_msg(struct htt_pdev_t *pdev, uint8_t sync_cnt)
 			       htt_h2t_send_complete_free_netbuf,
 			       qdf_nbuf_data(msg),
 			       qdf_nbuf_len(msg),
-			       pdev->htc_endpoint,
+			       pdev->htc_tx_endpoint,
 			       HTC_TX_PACKET_TAG_RUNTIME_PUT);
 
 	SET_HTC_PACKET_NET_BUF_CONTEXT(&pkt->htc_pkt, msg);
@@ -627,7 +627,7 @@ htt_h2t_aggr_cfg_msg(struct htt_pdev_t *pdev,
 			       htt_h2t_send_complete_free_netbuf,
 			       qdf_nbuf_data(msg),
 			       qdf_nbuf_len(msg),
-			       pdev->htc_endpoint,
+			       pdev->htc_tx_endpoint,
 			       HTC_TX_PACKET_TAG_RUNTIME_PUT);
 
 	SET_HTC_PACKET_NET_BUF_CONTEXT(&pkt->htc_pkt, msg);
@@ -650,100 +650,7 @@ htt_h2t_aggr_cfg_msg(struct htt_pdev_t *pdev,
  * Return: 0 success
  *         A_NO_MEMORY No memory fail
  */
-#ifdef QCA_WIFI_2_0
-/* Rome Support only WDI 1.0 */
-int htt_h2t_ipa_uc_rsc_cfg_msg(struct htt_pdev_t *pdev)
-{
-	struct htt_htc_pkt *pkt;
-	qdf_nbuf_t msg;
-	uint32_t *msg_word;
-
-	pkt = htt_htc_pkt_alloc(pdev);
-	if (!pkt)
-		return A_NO_MEMORY;
-
-	/* show that this is not a tx frame download
-	 * (not required, but helpful)
-	 */
-	pkt->msdu_id = HTT_TX_COMPL_INV_MSDU_ID;
-	pkt->pdev_ctxt = NULL;  /* not used during send-done callback */
-
-	/* reserve room for HTC header */
-	msg = qdf_nbuf_alloc(pdev->osdev, HTT_MSG_BUF_SIZE(HTT_WDI_IPA_CFG_SZ),
-			     HTC_HEADER_LEN + HTC_HDR_ALIGNMENT_PADDING, 4,
-			     false);
-	if (!msg) {
-		htt_htc_pkt_free(pdev, pkt);
-		return A_NO_MEMORY;
-	}
-	/* set the length of the message */
-	qdf_nbuf_put_tail(msg, HTT_WDI_IPA_CFG_SZ);
-
-	/* fill in the message contents */
-	msg_word = (uint32_t *) qdf_nbuf_data(msg);
-
-	/* rewind beyond alignment pad to get to the HTC header reserved area */
-	qdf_nbuf_push_head(msg, HTC_HDR_ALIGNMENT_PADDING);
-
-	*msg_word = 0;
-	HTT_WDI_IPA_CFG_TX_PKT_POOL_SIZE_SET(*msg_word,
-				pdev->ipa_uc_tx_rsc.alloc_tx_buf_cnt);
-	HTT_H2T_MSG_TYPE_SET(*msg_word, HTT_H2T_MSG_TYPE_WDI_IPA_CFG);
-
-	msg_word++;
-	*msg_word = 0;
-	HTT_WDI_IPA_CFG_TX_COMP_RING_BASE_ADDR_SET(*msg_word,
-		(unsigned int)pdev->ipa_uc_tx_rsc.tx_comp_base.paddr);
-
-	msg_word++;
-	*msg_word = 0;
-	HTT_WDI_IPA_CFG_TX_COMP_RING_SIZE_SET(*msg_word,
-		(unsigned int)ol_cfg_ipa_uc_tx_max_buf_cnt(pdev->ctrl_pdev));
-
-	msg_word++;
-	*msg_word = 0;
-	HTT_WDI_IPA_CFG_TX_COMP_WR_IDX_ADDR_SET(*msg_word,
-		(unsigned int)pdev->ipa_uc_tx_rsc.tx_comp_idx_paddr);
-
-	msg_word++;
-	*msg_word = 0;
-	HTT_WDI_IPA_CFG_TX_CE_WR_IDX_ADDR_SET(*msg_word,
-		(unsigned int)pdev->ipa_uc_tx_rsc.tx_ce_idx.paddr);
-
-	msg_word++;
-	*msg_word = 0;
-	HTT_WDI_IPA_CFG_RX_IND_RING_BASE_ADDR_SET(*msg_word,
-		(unsigned int)pdev->ipa_uc_rx_rsc.rx_ind_ring_base.paddr);
-
-	msg_word++;
-	*msg_word = 0;
-	HTT_WDI_IPA_CFG_RX_IND_RING_SIZE_SET(*msg_word,
-		(unsigned int)ol_cfg_ipa_uc_rx_ind_ring_size(pdev->ctrl_pdev));
-
-	msg_word++;
-	*msg_word = 0;
-	HTT_WDI_IPA_CFG_RX_IND_RD_IDX_ADDR_SET(*msg_word,
-		(unsigned int)pdev->ipa_uc_rx_rsc.rx_ipa_prc_done_idx.paddr);
-
-	msg_word++;
-	*msg_word = 0;
-	HTT_WDI_IPA_CFG_RX_IND_WR_IDX_ADDR_SET(*msg_word,
-	       (unsigned int)pdev->ipa_uc_rx_rsc.rx_rdy_idx_paddr);
-
-	SET_HTC_PACKET_INFO_TX(&pkt->htc_pkt,
-			       htt_h2t_send_complete_free_netbuf,
-			       qdf_nbuf_data(msg),
-			       qdf_nbuf_len(msg),
-			       pdev->htc_endpoint,
-			       HTC_TX_PACKET_TAG_RUNTIME_PUT);
-
-	SET_HTC_PACKET_NET_BUF_CONTEXT(&pkt->htc_pkt, msg);
-
-	htc_send_pkt(pdev->htc_pdev, &pkt->htc_pkt);
-
-	return A_OK;
-}
-#else
+#ifdef QCA_WIFI_3_0
 int htt_h2t_ipa_uc_rsc_cfg_msg(struct htt_pdev_t *pdev)
 {
 	struct htt_htc_pkt *pkt;
@@ -878,8 +785,102 @@ int htt_h2t_ipa_uc_rsc_cfg_msg(struct htt_pdev_t *pdev)
 			       htt_h2t_send_complete_free_netbuf,
 			       qdf_nbuf_data(msg),
 			       qdf_nbuf_len(msg),
-			       pdev->htc_endpoint,
-			       1); /* tag - not relevant here */
+			       pdev->htc_tx_endpoint,
+			       HTC_TX_PACKET_TAG_RUNTIME_PUT);
+
+	SET_HTC_PACKET_NET_BUF_CONTEXT(&pkt->htc_pkt, msg);
+
+	htc_send_pkt(pdev->htc_pdev, &pkt->htc_pkt);
+
+	return A_OK;
+}
+#else
+/* Rome Support only WDI 1.0 */
+int htt_h2t_ipa_uc_rsc_cfg_msg(struct htt_pdev_t *pdev)
+{
+	struct htt_htc_pkt *pkt;
+	qdf_nbuf_t msg;
+	uint32_t *msg_word;
+
+	pkt = htt_htc_pkt_alloc(pdev);
+	if (!pkt)
+		return A_NO_MEMORY;
+
+	/* show that this is not a tx frame download
+	 * (not required, but helpful)
+	 */
+	pkt->msdu_id = HTT_TX_COMPL_INV_MSDU_ID;
+	pkt->pdev_ctxt = NULL;  /* not used during send-done callback */
+
+	/* reserve room for HTC header */
+	msg = qdf_nbuf_alloc(pdev->osdev, HTT_MSG_BUF_SIZE(HTT_WDI_IPA_CFG_SZ),
+			     HTC_HEADER_LEN + HTC_HDR_ALIGNMENT_PADDING, 4,
+			     false);
+	if (!msg) {
+		htt_htc_pkt_free(pdev, pkt);
+		return A_NO_MEMORY;
+	}
+	/* set the length of the message */
+	qdf_nbuf_put_tail(msg, HTT_WDI_IPA_CFG_SZ);
+
+	/* fill in the message contents */
+	msg_word = (uint32_t *) qdf_nbuf_data(msg);
+
+	/* rewind beyond alignment pad to get to the HTC header reserved area */
+	qdf_nbuf_push_head(msg, HTC_HDR_ALIGNMENT_PADDING);
+
+	*msg_word = 0;
+	HTT_WDI_IPA_CFG_TX_PKT_POOL_SIZE_SET(*msg_word,
+				pdev->ipa_uc_tx_rsc.alloc_tx_buf_cnt);
+	HTT_H2T_MSG_TYPE_SET(*msg_word, HTT_H2T_MSG_TYPE_WDI_IPA_CFG);
+
+	msg_word++;
+	*msg_word = 0;
+	HTT_WDI_IPA_CFG_TX_COMP_RING_BASE_ADDR_SET(*msg_word,
+		(unsigned int)pdev->ipa_uc_tx_rsc.tx_comp_base.paddr);
+
+	msg_word++;
+	*msg_word = 0;
+	HTT_WDI_IPA_CFG_TX_COMP_RING_SIZE_SET(
+		*msg_word,
+		(unsigned int)ol_cfg_ipa_uc_tx_max_buf_cnt(pdev->ctrl_pdev));
+
+	msg_word++;
+	*msg_word = 0;
+	HTT_WDI_IPA_CFG_TX_COMP_WR_IDX_ADDR_SET(*msg_word,
+		(unsigned int)pdev->ipa_uc_tx_rsc.tx_comp_idx_paddr);
+
+	msg_word++;
+	*msg_word = 0;
+	HTT_WDI_IPA_CFG_TX_CE_WR_IDX_ADDR_SET(*msg_word,
+		(unsigned int)pdev->ipa_uc_tx_rsc.tx_ce_idx.paddr);
+
+	msg_word++;
+	*msg_word = 0;
+	HTT_WDI_IPA_CFG_RX_IND_RING_BASE_ADDR_SET(*msg_word,
+		(unsigned int)pdev->ipa_uc_rx_rsc.rx_ind_ring_base.paddr);
+
+	msg_word++;
+	*msg_word = 0;
+	HTT_WDI_IPA_CFG_RX_IND_RING_SIZE_SET(*msg_word,
+		(unsigned int)ol_cfg_ipa_uc_rx_ind_ring_size(pdev->ctrl_pdev));
+
+	msg_word++;
+	*msg_word = 0;
+	HTT_WDI_IPA_CFG_RX_IND_RD_IDX_ADDR_SET(*msg_word,
+		(unsigned int)pdev->ipa_uc_rx_rsc.rx_ipa_prc_done_idx.paddr);
+
+	msg_word++;
+	*msg_word = 0;
+	HTT_WDI_IPA_CFG_RX_IND_WR_IDX_ADDR_SET(*msg_word,
+	       (unsigned int)pdev->ipa_uc_rx_rsc.rx_rdy_idx_paddr);
+
+	SET_HTC_PACKET_INFO_TX(&pkt->htc_pkt,
+			       htt_h2t_send_complete_free_netbuf,
+			       qdf_nbuf_data(msg),
+			       qdf_nbuf_len(msg),
+			       pdev->htc_tx_endpoint,
+			       HTC_TX_PACKET_TAG_RUNTIME_PUT);
 
 	SET_HTC_PACKET_NET_BUF_CONTEXT(&pkt->htc_pkt, msg);
 
@@ -951,7 +952,7 @@ int htt_h2t_ipa_uc_set_active(struct htt_pdev_t *pdev,
 			       htt_h2t_send_complete_free_netbuf,
 			       qdf_nbuf_data(msg),
 			       qdf_nbuf_len(msg),
-			       pdev->htc_endpoint,
+			       pdev->htc_tx_endpoint,
 			       1); /* tag - not relevant here */
 
 	SET_HTC_PACKET_NET_BUF_CONTEXT(&pkt->htc_pkt, msg);
@@ -1011,7 +1012,7 @@ int htt_h2t_ipa_uc_get_stats(struct htt_pdev_t *pdev)
 			       htt_h2t_send_complete_free_netbuf,
 			       qdf_nbuf_data(msg),
 			       qdf_nbuf_len(msg),
-			       pdev->htc_endpoint,
+			       pdev->htc_tx_endpoint,
 			       1); /* tag - not relevant here */
 
 	SET_HTC_PACKET_NET_BUF_CONTEXT(&pkt->htc_pkt, msg);

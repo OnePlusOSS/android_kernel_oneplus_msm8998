@@ -54,8 +54,8 @@
 
 /* Private */
 
-#define WMA_READY_EVENTID_TIMEOUT          2000
-#define WMA_SERVICE_READY_EXT_TIMEOUT      2000
+#define WMA_READY_EVENTID_TIMEOUT          6000
+#define WMA_SERVICE_READY_EXT_TIMEOUT      6000
 #define WMA_TGT_SUSPEND_COMPLETE_TIMEOUT   6000
 #define WMA_WAKE_LOCK_TIMEOUT              1000
 #define WMA_RESUME_TIMEOUT                 6000
@@ -800,6 +800,7 @@ typedef struct {
  * @vht_capable: VHT capablity flag
  * @ht_capable: HT capablity flag
  * @mhz: channel frequency in KHz
+ * @chan_width: channel bandwidth
  * @vdev_up: is vdev up or not
  * @tsfadjust: TSF adjust
  * @addBssStaContext: add bss context
@@ -863,6 +864,7 @@ struct wma_txrx_node {
 	uint8_t vht_capable;
 	uint8_t ht_capable;
 	A_UINT32 mhz;
+	enum phy_ch_width chan_width;
 	bool vdev_up;
 	uint64_t tsfadjust;
 	void *addBssStaContext;
@@ -1337,7 +1339,8 @@ typedef struct {
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 	void (*csr_roam_synch_cb)(tpAniSirGlobal mac,
 		roam_offload_synch_ind *roam_synch_data,
-		tpSirBssDescription  bss_desc_ptr, uint8_t reason);
+		tpSirBssDescription  bss_desc_ptr,
+		enum sir_roam_op_code reason);
 	QDF_STATUS (*pe_roam_synch_cb)(tpAniSirGlobal mac,
 		roam_offload_synch_ind *roam_synch_data,
 		tpSirBssDescription  bss_desc_ptr);

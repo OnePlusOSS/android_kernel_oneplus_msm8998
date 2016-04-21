@@ -474,6 +474,7 @@ enum cds_band {
  *
  * @mode: connection type
  * @chan: channel of the connection
+ * @bw: channel bandwidth used for the connection
  * @mac: The HW mac it is running
  * @tx_spatial_stream: Tx spatial stream used by the connection
  * @rx_spatial_stream: Tx spatial stream used by the connection
@@ -484,6 +485,7 @@ enum cds_band {
 struct cds_conc_connection_info {
 	enum cds_con_mode mode;
 	uint8_t       chan;
+	enum hw_mode_bandwidth bw;
 	uint8_t       mac;
 	enum cds_chain_mode chain_mask;
 	uint8_t       tx_spatial_stream;
@@ -587,6 +589,9 @@ QDF_STATUS cds_init_policy_mgr(void);
 QDF_STATUS cds_deinit_policy_mgr(void);
 QDF_STATUS cds_get_pcl(enum cds_con_mode mode,
 				uint8_t *pcl_Channels, uint32_t *len);
+uint8_t cds_get_nondfs_preferred_channel(enum cds_con_mode mode,
+					bool for_existing_conn);
+bool cds_is_any_nondfs_chnl_present(uint8_t *channel);
 bool cds_allow_concurrency(enum cds_con_mode mode,
 				uint8_t channel, enum hw_mode_bandwidth bw);
 enum cds_conc_priority_mode cds_get_first_connection_pcl_table_index(void);

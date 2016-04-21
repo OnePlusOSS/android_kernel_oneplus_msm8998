@@ -2046,6 +2046,7 @@ bool cds_set_connection_in_progress(bool value)
  * @conn_index: Connection index
  * @mode: Mode
  * @chan: Channel
+ * @bw: Bandwidth
  * @mac: Mac id
  * @chain_mask: Chain mask
  * @tx_spatial_stream: Tx spatial stream
@@ -2060,6 +2061,7 @@ bool cds_set_connection_in_progress(bool value)
 static void cds_update_conc_list(uint32_t conn_index,
 		enum cds_con_mode mode,
 		uint8_t chan,
+		enum hw_mode_bandwidth bw,
 		uint8_t mac,
 		enum cds_chain_mode chain_mask,
 		uint8_t tx_spatial_stream,
@@ -2075,6 +2077,7 @@ static void cds_update_conc_list(uint32_t conn_index,
 	}
 	conc_connection_list[conn_index].mode = mode;
 	conc_connection_list[conn_index].chan = chan;
+	conc_connection_list[conn_index].bw = bw;
 	conc_connection_list[conn_index].mac = mac;
 	conc_connection_list[conn_index].chain_mask = chain_mask;
 	conc_connection_list[conn_index].tx_spatial_stream = tx_spatial_stream;
@@ -2706,7 +2709,6 @@ static uint32_t cds_dump_current_concurrency_one_connection(char *cc_mode,
 					length);
 		break;
 	default:
-		/* err msg */
 		cds_err("unexpected mode %d", conc_connection_list[0].mode);
 		break;
 	}
@@ -2760,7 +2762,6 @@ static uint32_t cds_dump_current_concurrency_two_connection(char *cc_mode,
 					length);
 		break;
 	default:
-		/* err msg */
 		cds_err("unexpected mode %d", conc_connection_list[1].mode);
 		break;
 	}
@@ -2814,7 +2815,6 @@ static uint32_t cds_dump_current_concurrency_three_connection(char *cc_mode,
 					length);
 		break;
 	default:
-		/* err msg */
 		cds_err("unexpected mode %d", conc_connection_list[2].mode);
 		break;
 	}
@@ -2933,7 +2933,6 @@ static void cds_dump_current_concurrency(void)
 		cds_err("%s", cc_mode);
 		break;
 	default:
-		/* err msg */
 		cds_err("unexpected num_connections value %d",
 			num_connections);
 		break;
@@ -2976,7 +2975,6 @@ static bool cds_current_concurrency_is_scc(void)
 		}
 		break;
 	default:
-		/* err msg */
 		cds_err("unexpected num_connections value %d",
 			num_connections);
 		break;
@@ -4008,9 +4006,10 @@ uint32_t cds_get_connection_count(void)
  *
  * Return: cds_con_mode
  */
-enum cds_con_mode cds_get_mode(uint8_t type, uint8_t subtype)
+static enum cds_con_mode cds_get_mode(uint8_t type, uint8_t subtype)
 {
 	enum cds_con_mode mode = CDS_MAX_NUM_OF_MODE;
+
 	if (type == WMI_VDEV_TYPE_AP) {
 		switch (subtype) {
 		case 0:
@@ -4020,7 +4019,6 @@ enum cds_con_mode cds_get_mode(uint8_t type, uint8_t subtype)
 			mode = CDS_P2P_GO_MODE;
 			break;
 		default:
-		/* err msg*/
 			cds_err("Unknown subtype %d for type %d",
 				subtype, type);
 			break;
@@ -4034,7 +4032,6 @@ enum cds_con_mode cds_get_mode(uint8_t type, uint8_t subtype)
 			mode = CDS_P2P_CLIENT_MODE;
 			break;
 		default:
-		/* err msg*/
 			cds_err("Unknown subtype %d for type %d",
 				subtype, type);
 			break;
@@ -4042,11 +4039,52 @@ enum cds_con_mode cds_get_mode(uint8_t type, uint8_t subtype)
 	} else if (type == WMI_VDEV_TYPE_IBSS) {
 		mode = CDS_IBSS_MODE;
 	} else {
-		/* err msg */
 		cds_err("Unknown type %d", type);
 	}
 
 	return mode;
+}
+
+/**
+ * cds_get_bw() - Get channel bandwidth type used by WMI
+ * @chan_width: channel bandwidth type defined by host
+ *
+ * Get the channel bandwidth type used by WMI
+ *
+ * Return: hw_mode_bandwidth
+ */
+static enum hw_mode_bandwidth cds_get_bw(enum phy_ch_width chan_width)
+{
+	enum hw_mode_bandwidth bw = HW_MODE_BW_NONE;
+
+	switch (chan_width) {
+	case CH_WIDTH_20MHZ:
+		bw = HW_MODE_20_MHZ;
+		break;
+	case CH_WIDTH_40MHZ:
+		bw = HW_MODE_40_MHZ;
+		break;
+	case CH_WIDTH_80MHZ:
+		bw = HW_MODE_80_MHZ;
+		break;
+	case CH_WIDTH_160MHZ:
+		bw = HW_MODE_160_MHZ;
+		break;
+	case CH_WIDTH_80P80MHZ:
+		bw = HW_MODE_80_PLUS_80_MHZ;
+		break;
+	case CH_WIDTH_5MHZ:
+		bw = HW_MODE_5_MHZ;
+		break;
+	case CH_WIDTH_10MHZ:
+		bw = HW_MODE_10_MHZ;
+		break;
+	default:
+		cds_err("Unknown channel BW type %d", chan_width);
+		break;
+	}
+
+	return bw;
 }
 
 /**
@@ -4082,7 +4120,6 @@ QDF_STATUS cds_incr_connection_count(uint32_t vdev_id)
 
 	conn_index = cds_get_connection_count();
 	if (hdd_ctx->config->gMaxConcurrentActiveSessions < conn_index) {
-		/* err msg */
 		cds_err("exceeded max connection limit %d",
 			hdd_ctx->config->gMaxConcurrentActiveSessions);
 		return status;
@@ -4091,7 +4128,6 @@ QDF_STATUS cds_incr_connection_count(uint32_t vdev_id)
 	wma_conn_table_entry = wma_get_interface_by_vdev_id(vdev_id);
 
 	if (NULL == wma_conn_table_entry) {
-		/* err msg*/
 		cds_err("can't find vdev_id %d in WMA table", vdev_id);
 		return status;
 	}
@@ -4101,6 +4137,7 @@ QDF_STATUS cds_incr_connection_count(uint32_t vdev_id)
 			cds_get_mode(wma_conn_table_entry->type,
 					wma_conn_table_entry->sub_type),
 			cds_freq_to_chan(wma_conn_table_entry->mhz),
+			cds_get_bw(wma_conn_table_entry->chan_width),
 			wma_conn_table_entry->mac_id,
 			wma_conn_table_entry->chain_mask,
 			wma_conn_table_entry->tx_streams,
@@ -4174,6 +4211,7 @@ QDF_STATUS cds_update_connection_info(uint32_t vdev_id)
 			cds_get_mode(wma_conn_table_entry->type,
 					wma_conn_table_entry->sub_type),
 			cds_freq_to_chan(wma_conn_table_entry->mhz),
+			cds_get_bw(wma_conn_table_entry->chan_width),
 			wma_conn_table_entry->mac_id,
 			wma_conn_table_entry->chain_mask,
 			wma_conn_table_entry->tx_streams,
@@ -4209,7 +4247,6 @@ QDF_STATUS cds_decr_connection_count(uint32_t vdev_id)
 		conn_index++;
 	}
 	if (!found) {
-		/* err msg */
 		cds_err("can't find vdev_id %d in conc_connection_list",
 			vdev_id);
 		return status;
@@ -4251,6 +4288,7 @@ QDF_STATUS cds_decr_connection_count(uint32_t vdev_id)
  * @len:	Number of channels
  * @order:	no order OR 2.4 Ghz channel followed by 5 Ghz
  *	channel OR 5 Ghz channel followed by 2.4 Ghz channel
+ * @skip_dfs_channel: if this flag is true then skip the dfs channel
  *
  *
  * This function provides the channel(s) on which current
@@ -4259,13 +4297,13 @@ QDF_STATUS cds_decr_connection_count(uint32_t vdev_id)
  * Return: QDF_STATUS
  */
 QDF_STATUS cds_get_connection_channels(uint8_t *channels,
-			uint32_t *len, uint8_t order)
+			uint32_t *len, uint8_t order,
+			bool skip_dfs_channel)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	uint32_t conn_index = 0, num_channels = 0;
 
 	if ((NULL == channels) || (NULL == len)) {
-		/* err msg*/
 		cds_err("channels or len is NULL");
 		status = QDF_STATUS_E_FAILURE;
 		return status;
@@ -4273,45 +4311,55 @@ QDF_STATUS cds_get_connection_channels(uint8_t *channels,
 
 	if (0 == order) {
 		while (CONC_CONNECTION_LIST_VALID_INDEX(conn_index)) {
-			channels[num_channels++] =
-				conc_connection_list[conn_index++].chan;
+			if (skip_dfs_channel && CDS_IS_DFS_CH(
+					conc_connection_list[conn_index].chan))
+				conn_index++;
+			else
+				channels[num_channels++] =
+					conc_connection_list[conn_index++].chan;
 		}
 		*len = num_channels;
 	} else if (1 == order) {
 		while (CONC_CONNECTION_LIST_VALID_INDEX(conn_index)) {
 			if (CDS_IS_CHANNEL_24GHZ(
-				conc_connection_list[conn_index].chan)) {
+					conc_connection_list[conn_index].chan))
 				channels[num_channels++] =
 					conc_connection_list[conn_index++].chan;
-			} else
+			else
 				conn_index++;
 		}
 		conn_index = 0;
 		while (CONC_CONNECTION_LIST_VALID_INDEX(conn_index)) {
-			if (CDS_IS_CHANNEL_5GHZ(
-				conc_connection_list[conn_index].chan)) {
+			if (skip_dfs_channel && CDS_IS_DFS_CH(
+					conc_connection_list[conn_index].chan))
+				conn_index++;
+			else if (CDS_IS_CHANNEL_5GHZ(
+					conc_connection_list[conn_index].chan))
 				channels[num_channels++] =
 					conc_connection_list[conn_index++].chan;
-			} else
+			else
 				conn_index++;
 		}
 		*len = num_channels;
 	} else if (2 == order) {
 		while (CONC_CONNECTION_LIST_VALID_INDEX(conn_index)) {
-			if (CDS_IS_CHANNEL_5GHZ(
-				conc_connection_list[conn_index].chan)) {
+			if (skip_dfs_channel && CDS_IS_DFS_CH(
+					conc_connection_list[conn_index].chan))
+				conn_index++;
+			else if (CDS_IS_CHANNEL_5GHZ(
+					conc_connection_list[conn_index].chan))
 				channels[num_channels++] =
 					conc_connection_list[conn_index++].chan;
-			} else
+			else
 				conn_index++;
 		}
 		conn_index = 0;
 		while (CONC_CONNECTION_LIST_VALID_INDEX(conn_index)) {
 			if (CDS_IS_CHANNEL_24GHZ(
-				conc_connection_list[conn_index].chan)) {
+					conc_connection_list[conn_index].chan))
 				channels[num_channels++] =
 					conc_connection_list[conn_index++].chan;
-			} else
+			else
 				conn_index++;
 		}
 		*len = num_channels;
@@ -4319,6 +4367,7 @@ QDF_STATUS cds_get_connection_channels(uint8_t *channels,
 		cds_err("unknown order %d", order);
 		status = QDF_STATUS_E_FAILURE;
 	}
+
 	return status;
 }
 
@@ -4393,7 +4442,8 @@ void cds_update_with_safe_channel_list(uint8_t *pcl_channels, uint32_t *len)
  * @hdd_ctx:	HDD Context
  * @pcl:	The preferred channel list enum
  * @pcl_channels: PCL channels
- * @len: lenght of the PCL
+ * @len: length of the PCL
+ * @mode: concurrency mode for which channel list is requested
  *
  * This function provides the actual channel list based on the
  * current regulatory domain derived using preferred channel
@@ -4402,7 +4452,7 @@ void cds_update_with_safe_channel_list(uint8_t *pcl_channels, uint32_t *len)
  * Return: Channel List
  */
 QDF_STATUS cds_get_channel_list(enum cds_pcl_type pcl,
-			uint8_t *pcl_channels, uint32_t *len)
+		uint8_t *pcl_channels, uint32_t *len, enum cds_con_mode mode)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	uint32_t num_channels = WNI_CFG_VALID_CHANNEL_LIST_LEN;
@@ -4410,6 +4460,7 @@ QDF_STATUS cds_get_channel_list(enum cds_pcl_type pcl,
 	uint8_t channel_list[MAX_NUM_CHAN] = {0};
 	uint8_t channel_list_24[MAX_NUM_CHAN] = {0};
 	uint8_t channel_list_5[MAX_NUM_CHAN] = {0};
+	bool skip_dfs_channel = false;
 	hdd_context_t *hdd_ctx;
 
 	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
@@ -4419,7 +4470,6 @@ QDF_STATUS cds_get_channel_list(enum cds_pcl_type pcl,
 	}
 
 	if ((NULL == pcl_channels) || (NULL == len)) {
-		/* err msg*/
 		cds_err("pcl_channels or len is NULL");
 		return status;
 	}
@@ -4443,6 +4493,17 @@ QDF_STATUS cds_get_channel_list(enum cds_pcl_type pcl,
 		cds_err("No valid channel");
 		return status;
 	}
+
+	/*
+	 * if you have atleast one STA connection then don't fill DFS channels
+	 * in the preferred channel list
+	 */
+	if (((mode == CDS_SAP_MODE) || (mode == CDS_P2P_GO_MODE)) &&
+	    (cds_mode_specific_connection_count(CDS_STA_MODE, NULL) > 0)) {
+		cds_info("STA present, skip DFS channels from pcl for SAP/Go");
+		skip_dfs_channel = true;
+	}
+
 	/* Let's divide the list in 2.4 & 5 Ghz lists */
 	while ((channel_list[chan_index] <= 11) &&
 		(chan_index_24 < MAX_NUM_CHAN))
@@ -4457,9 +4518,15 @@ QDF_STATUS cds_get_channel_list(enum cds_pcl_type pcl,
 					channel_list[chan_index++];
 		}
 	}
-	while ((chan_index < num_channels) &&
-		(chan_index_5 < MAX_NUM_CHAN))
+
+	while ((chan_index < num_channels) && (chan_index_5 < MAX_NUM_CHAN)) {
+		if ((true == skip_dfs_channel) &&
+		    CDS_IS_DFS_CH(channel_list[chan_index])) {
+			chan_index++;
+			continue;
+		}
 		channel_list_5[chan_index_5++] = channel_list[chan_index++];
+	}
 
 	num_channels = 0;
 	switch (pcl) {
@@ -4478,7 +4545,7 @@ QDF_STATUS cds_get_channel_list(enum cds_pcl_type pcl,
 	case CDS_SCC_CH:
 	case CDS_MCC_CH:
 		cds_get_connection_channels(
-			channel_list, &num_channels, 0);
+			channel_list, &num_channels, 0, skip_dfs_channel);
 		qdf_mem_copy(pcl_channels, channel_list, num_channels);
 		*len = num_channels;
 		status = QDF_STATUS_SUCCESS;
@@ -4486,7 +4553,7 @@ QDF_STATUS cds_get_channel_list(enum cds_pcl_type pcl,
 	case CDS_SCC_CH_24G:
 	case CDS_MCC_CH_24G:
 		cds_get_connection_channels(
-			channel_list, &num_channels, 0);
+			channel_list, &num_channels, 0, skip_dfs_channel);
 		qdf_mem_copy(pcl_channels, channel_list, num_channels);
 		*len = num_channels;
 		qdf_mem_copy(&pcl_channels[num_channels],
@@ -4497,7 +4564,7 @@ QDF_STATUS cds_get_channel_list(enum cds_pcl_type pcl,
 	case CDS_SCC_CH_5G:
 	case CDS_MCC_CH_5G:
 		cds_get_connection_channels(
-			channel_list, &num_channels, 0);
+			channel_list, &num_channels, 0, skip_dfs_channel);
 		qdf_mem_copy(pcl_channels, channel_list,
 			num_channels);
 		*len = num_channels;
@@ -4512,7 +4579,7 @@ QDF_STATUS cds_get_channel_list(enum cds_pcl_type pcl,
 			chan_index_24);
 		*len = chan_index_24;
 		cds_get_connection_channels(
-			channel_list, &num_channels, 0);
+			channel_list, &num_channels, 0, skip_dfs_channel);
 		qdf_mem_copy(&pcl_channels[chan_index_24],
 			channel_list, num_channels);
 		*len += num_channels;
@@ -4524,7 +4591,7 @@ QDF_STATUS cds_get_channel_list(enum cds_pcl_type pcl,
 			chan_index_5);
 		*len = chan_index_5;
 		cds_get_connection_channels(
-			channel_list, &num_channels, 0);
+			channel_list, &num_channels, 0, skip_dfs_channel);
 		qdf_mem_copy(&pcl_channels[chan_index_5],
 			channel_list, num_channels);
 		*len += num_channels;
@@ -4532,7 +4599,7 @@ QDF_STATUS cds_get_channel_list(enum cds_pcl_type pcl,
 		break;
 	case CDS_SCC_ON_24_SCC_ON_5:
 		cds_get_connection_channels(
-			channel_list, &num_channels, 1);
+			channel_list, &num_channels, 1, skip_dfs_channel);
 		qdf_mem_copy(pcl_channels, channel_list,
 			num_channels);
 		*len = num_channels;
@@ -4540,14 +4607,14 @@ QDF_STATUS cds_get_channel_list(enum cds_pcl_type pcl,
 		break;
 	case CDS_SCC_ON_5_SCC_ON_24:
 		cds_get_connection_channels(
-			channel_list, &num_channels, 2);
+			channel_list, &num_channels, 2, skip_dfs_channel);
 		qdf_mem_copy(pcl_channels, channel_list, num_channels);
 		*len = num_channels;
 		status = QDF_STATUS_SUCCESS;
 		break;
 	case CDS_SCC_ON_24_SCC_ON_5_24G:
 		cds_get_connection_channels(
-			channel_list, &num_channels, 1);
+			channel_list, &num_channels, 1, skip_dfs_channel);
 		qdf_mem_copy(pcl_channels, channel_list, num_channels);
 		*len = num_channels;
 		qdf_mem_copy(&pcl_channels[num_channels],
@@ -4557,7 +4624,7 @@ QDF_STATUS cds_get_channel_list(enum cds_pcl_type pcl,
 		break;
 	case CDS_SCC_ON_24_SCC_ON_5_5G:
 		cds_get_connection_channels(
-			channel_list, &num_channels, 1);
+			channel_list, &num_channels, 1, skip_dfs_channel);
 		qdf_mem_copy(pcl_channels, channel_list, num_channels);
 		*len = num_channels;
 		qdf_mem_copy(&pcl_channels[num_channels],
@@ -4567,7 +4634,7 @@ QDF_STATUS cds_get_channel_list(enum cds_pcl_type pcl,
 		break;
 	case CDS_SCC_ON_5_SCC_ON_24_24G:
 		cds_get_connection_channels(
-			channel_list, &num_channels, 2);
+			channel_list, &num_channels, 2, skip_dfs_channel);
 		qdf_mem_copy(pcl_channels, channel_list, num_channels);
 		*len = num_channels;
 		qdf_mem_copy(&pcl_channels[num_channels],
@@ -4577,7 +4644,7 @@ QDF_STATUS cds_get_channel_list(enum cds_pcl_type pcl,
 		break;
 	case CDS_SCC_ON_5_SCC_ON_24_5G:
 		cds_get_connection_channels(
-			channel_list, &num_channels, 2);
+			channel_list, &num_channels, 2, skip_dfs_channel);
 		qdf_mem_copy(pcl_channels, channel_list, num_channels);
 		*len = num_channels;
 		qdf_mem_copy(&pcl_channels[num_channels],
@@ -4586,7 +4653,6 @@ QDF_STATUS cds_get_channel_list(enum cds_pcl_type pcl,
 		status = QDF_STATUS_SUCCESS;
 		break;
 	default:
-		/* err msg */
 		cds_err("unknown pcl value %d", pcl);
 		break;
 	}
@@ -4684,7 +4750,6 @@ QDF_STATUS cds_get_pcl(enum cds_con_mode mode,
 		conc_system_pref = CDS_LATENCY;
 		break;
 	default:
-		/* err msg */
 		cds_err("unknown conc_system_pref value %d",
 			hdd_ctx->config->conc_system_pref);
 		break;
@@ -4700,7 +4765,6 @@ QDF_STATUS cds_get_pcl(enum cds_con_mode mode,
 		second_index =
 			cds_get_second_connection_pcl_table_index();
 		if (CDS_MAX_ONE_CONNECTION_MODE == second_index) {
-			/* err msg */
 			cds_err("couldn't find index for 2nd connection pcl table");
 			return status;
 		}
@@ -4717,7 +4781,6 @@ QDF_STATUS cds_get_pcl(enum cds_con_mode mode,
 		third_index =
 			cds_get_third_connection_pcl_table_index();
 		if (CDS_MAX_TWO_CONNECTION_MODE == third_index) {
-			/* err msg */
 			cds_err("couldn't find index for 3rd connection pcl table");
 			return status;
 		}
@@ -4730,7 +4793,6 @@ QDF_STATUS cds_get_pcl(enum cds_con_mode mode,
 		}
 		break;
 	default:
-		/* err msg */
 		cds_err("unexpected num_connections value %d",
 			num_connections);
 		break;
@@ -4743,7 +4805,7 @@ QDF_STATUS cds_get_pcl(enum cds_con_mode mode,
 	/* once the PCL enum is obtained find out the exact channel list with
 	 * help from sme_get_cfg_valid_channels
 	 */
-	status = cds_get_channel_list(pcl, pcl_channels, len);
+	status = cds_get_channel_list(pcl, pcl_channels, len, mode);
 	if (status == QDF_STATUS_SUCCESS) {
 		uint32_t i;
 		cds_debug("pcl len:%d", *len);
@@ -4820,7 +4882,6 @@ bool cds_allow_new_home_channel(uint8_t channel, uint32_t num_connections)
 		if (wma_is_hw_dbs_capable() == false) {
 			if ((channel != conc_connection_list[0].chan) &&
 				(channel != conc_connection_list[1].chan)) {
-				/* err msg */
 				cds_err("don't allow 3rd home channel on same MAC");
 				status = false;
 			}
@@ -4834,7 +4895,6 @@ bool cds_allow_new_home_channel(uint8_t channel, uint32_t num_connections)
 				(conc_connection_list[0].chan)) &&
 				(CDS_IS_CHANNEL_5GHZ
 				(conc_connection_list[1].chan)))) {
-			/* err msg */
 			cds_err("don't allow 3rd home channel on same MAC");
 			status = false;
 		}
@@ -4850,7 +4910,6 @@ bool cds_allow_new_home_channel(uint8_t channel, uint32_t num_connections)
 			   ((CDS_IS_CHANNEL_5GHZ(channel)) &&
 			(CDS_IS_CHANNEL_5GHZ
 			(conc_connection_list[0].chan)))) {
-			/* err msg */
 			cds_err("don't allow 2nd home channel on same MAC");
 			status = false;
 		}
@@ -4891,6 +4950,35 @@ bool cds_is_ibss_conn_exist(uint8_t *ibss_channel)
 		cds_notice("Multiple IBSS connections, picking first one");
 		status = true;
 	}
+	return status;
+}
+
+/**
+ * cds_vht160_conn_exist() - to check if we have a connection
+ * already using vht160 or vht80+80
+ *
+ * This routine will check if vht160 connection already exist or
+ * no. If it exist then this routine will return true.
+ *
+ * Return: true if vht160 connection exist else false
+ */
+bool cds_vht160_conn_exist(void)
+{
+	uint32_t conn_index;
+	bool status = false;
+
+	for (conn_index = 0; conn_index < MAX_NUMBER_OF_CONC_CONNECTIONS;
+		conn_index++) {
+		if (conc_connection_list[conn_index].in_use &&
+			((conc_connection_list[conn_index].bw ==
+			HW_MODE_80_PLUS_80_MHZ) ||
+			(conc_connection_list[conn_index].bw ==
+			HW_MODE_160_MHZ))) {
+			 status = true;
+			 break;
+		}
+	}
+
 	return status;
 }
 
@@ -4944,9 +5032,40 @@ bool cds_allow_concurrency(enum cds_con_mode mode,
 			num_connections))
 				goto done;
 
-		/* don't allow MCC if SAP/GO on DFS channel or about to come up
-		* on DFS channel
-		*/
+		/*
+		 * If you already have STA connection then don't
+		 * allow any other persona to make connection on DFS channel
+		 * because STA might be on non-DFS right now but later on as
+		 * part of roaming if STA connects to DFS channel which happens
+		 * to be different than requested DFS channel then MCC DFS
+		 * scenario will be encountered
+		 */
+		count = cds_mode_specific_connection_count(CDS_STA_MODE,
+								list);
+		if ((count > 0) && CDS_IS_DFS_CH(channel)) {
+			cds_err("STA active, don't allow DFS channel for 2nd connection");
+#ifndef QCA_WIFI_3_0_EMU
+			/*
+			 * REMOVE THIS COMMENT ONCE QCA_WIFI_3_0_EMU
+			 * FLAG GETS REMOVED
+			 * ==================================================
+			 * As on emulation we can support only 2 nodes max, if
+			 * we don't allow STA DFS (ch.100) + SAP DFS (ch.100)
+			 * then we can't test the mechanism on other device
+			 * where corresponding SAP DFS(ch.100) + STA DFS(
+			 * STA is trying to come up and as a result it will push
+			 * SAP on this device to non-dfs through CSA IE)
+			 * will trigger CSA.
+			 * =================================================
+			 */
+			goto done;
+#endif
+		}
+
+		/*
+		 * don't allow MCC if SAP/GO on DFS channel or about to come up
+		 * on DFS channel
+		 */
 		count = cds_mode_specific_connection_count(
 				CDS_P2P_GO_MODE, list);
 		while (index < count) {
@@ -4955,7 +5074,6 @@ bool cds_allow_concurrency(enum cds_con_mode mode,
 				(CDS_IS_CHANNEL_5GHZ(channel)) &&
 				(channel !=
 				conc_connection_list[list[index]].chan)) {
-				/* err msg */
 				cds_err("don't allow MCC if SAP/GO on DFS channel");
 				goto done;
 			}
@@ -4971,7 +5089,6 @@ bool cds_allow_concurrency(enum cds_con_mode mode,
 				(CDS_IS_CHANNEL_5GHZ(channel)) &&
 				(channel !=
 				conc_connection_list[list[index]].chan)) {
-				/* err msg */
 				cds_err("don't allow MCC if SAP/GO on DFS channel");
 				goto done;
 			}
@@ -4996,33 +5113,28 @@ bool cds_allow_concurrency(enum cds_con_mode mode,
 	if ((CDS_IBSS_MODE == mode) &&
 		(cds_mode_specific_connection_count(
 		CDS_IBSS_MODE, list)) && count) {
-		/* err msg */
 		cds_err("No 2nd IBSS, we already have STA + IBSS");
 		goto done;
 	}
 	if ((CDS_IBSS_MODE == mode) &&
 		(CDS_IS_DFS_CH(channel)) && count) {
-		/* err msg */
 		cds_err("No IBSS + STA SCC/MCC, IBSS is on DFS channel");
 		goto done;
 	}
 	if (CDS_IBSS_MODE == mode) {
 		if (wma_is_hw_dbs_capable() == true) {
 			if (num_connections > 1) {
-				/* err msg */
 				cds_err("No IBSS, we have concurrent connections already");
 				goto done;
 			}
 #ifndef QCA_WIFI_3_0_EMU
 			if (CDS_STA_MODE != conc_connection_list[0].mode) {
-				/* err msg */
 				cds_err("No IBSS, we've a non-STA connection");
 				goto done;
 			}
 #else
 			if (CDS_STA_MODE != conc_connection_list[0].mode &&
 				CDS_SAP_MODE != conc_connection_list[0].mode) {
-				/* err msg */
 				cds_err("No IBSS, we've a non-STA/SAP conn");
 				goto done;
 			}
@@ -5036,12 +5148,10 @@ bool cds_allow_concurrency(enum cds_con_mode mode,
 				(conc_connection_list[0].chan != channel) &&
 				CDS_IS_SAME_BAND_CHANNELS(
 				conc_connection_list[0].chan, channel)) {
-				/* err msg */
 				cds_err("No IBSS + STA MCC");
 				goto done;
 			}
 		} else if (num_connections) {
-			/* err msg */
 			cds_err("No IBSS, we have one connection already");
 			goto done;
 		}
@@ -5050,7 +5160,6 @@ bool cds_allow_concurrency(enum cds_con_mode mode,
 	if ((CDS_STA_MODE == mode) &&
 		(cds_mode_specific_connection_count(
 		CDS_IBSS_MODE, list)) && count) {
-		/* err msg */
 		cds_err("No 2nd STA, we already have STA + IBSS");
 		goto done;
 	}
@@ -5059,14 +5168,12 @@ bool cds_allow_concurrency(enum cds_con_mode mode,
 		(cds_mode_specific_connection_count(CDS_IBSS_MODE, list))) {
 		if (wma_is_hw_dbs_capable() == true) {
 			if (num_connections > 1) {
-				/* err msg */
 				cds_err("No 2nd STA, we already have IBSS concurrency");
 				goto done;
 			}
 			if (channel &&
 				(CDS_IS_DFS_CH(conc_connection_list[0].chan))
 				&& (CDS_IS_CHANNEL_5GHZ(channel))) {
-				/* err msg */
 				cds_err("No IBSS + STA SCC/MCC, IBSS is on DFS channel");
 				goto done;
 			}
@@ -5078,22 +5185,24 @@ bool cds_allow_concurrency(enum cds_con_mode mode,
 			if ((conc_connection_list[0].chan != channel) &&
 				CDS_IS_SAME_BAND_CHANNELS(
 				conc_connection_list[0].chan, channel)) {
-				/* err msg */
 				cds_err("No IBSS + STA MCC");
 				goto done;
 			}
 		} else {
-			/* err msg */
 			cds_err("No STA, we have IBSS connection already");
 			goto done;
 		}
 	}
 
-	/* can we allow vht160 */
+	/* don't allow concurrency on vht160 or vht 80+80 */
 	if (num_connections &&
 		((bw == HW_MODE_80_PLUS_80_MHZ) || (bw == HW_MODE_160_MHZ))) {
-		/* err msg */
 		cds_err("No VHT160, we have one connection already");
+		goto done;
+	}
+
+	if (cds_vht160_conn_exist()) {
+		cds_err("VHT160/80+80 connection exists, no concurrency");
 		goto done;
 	}
 
@@ -5644,7 +5753,6 @@ QDF_STATUS cds_current_connections_update(uint32_t session_id,
 		second_index =
 			cds_get_second_connection_pcl_table_index();
 		if (CDS_MAX_ONE_CONNECTION_MODE == second_index) {
-			/* err msg */
 			cds_err("couldn't find index for 2nd connection next action table");
 			goto done;
 		}
@@ -5655,7 +5763,6 @@ QDF_STATUS cds_current_connections_update(uint32_t session_id,
 		third_index =
 			cds_get_third_connection_pcl_table_index();
 		if (CDS_MAX_TWO_CONNECTION_MODE == third_index) {
-			/* err msg */
 			cds_err("couldn't find index for 3rd connection next action table");
 			goto done;
 		}
@@ -5663,7 +5770,6 @@ QDF_STATUS cds_current_connections_update(uint32_t session_id,
 			next_action_three_connection_table[third_index][band];
 		break;
 	default:
-		/* err msg */
 		cds_err("unexpected num_connections value %d", num_connections);
 		break;
 	}
@@ -5981,7 +6087,6 @@ QDF_STATUS cds_next_actions(uint32_t session_id,
 						reason);
 		break;
 	default:
-		/* err msg */
 		cds_err("unexpected action value %d", action);
 		status = QDF_STATUS_E_FAILURE;
 		break;
@@ -7386,7 +7491,8 @@ QDF_STATUS cds_update_connection_info_utfw(
 
 	cds_update_conc_list(conn_index,
 			cds_get_mode(type, sub_type),
-			channelid, mac_id, chain_mask, tx_streams,
+			channelid, HW_MODE_20_MHZ,
+			mac_id, chain_mask, tx_streams,
 			rx_streams, 0, vdev_id, true);
 	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 
@@ -7427,9 +7533,10 @@ QDF_STATUS cds_incr_connection_count_utfw(
 	cds_info("--> filling entry at index[%d]", conn_index);
 
 	cds_update_conc_list(conn_index,
-			     cds_get_mode(type, sub_type),
-			     channelid, mac_id, chain_mask, tx_streams,
-			     rx_streams, 0, vdev_id, true);
+				cds_get_mode(type, sub_type),
+				channelid, HW_MODE_20_MHZ,
+				mac_id, chain_mask, tx_streams,
+				rx_streams, 0, vdev_id, true);
 	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 
 	return QDF_STATUS_SUCCESS;
@@ -7827,6 +7934,15 @@ enum cds_conc_next_action cds_get_pref_hw_mode_for_chan(uint32_t vdev_id,
 	uint32_t conn_index = 0;
 	bool found = false;
 	uint8_t old_band, new_band;
+#ifdef QCA_WIFI_3_0_EMU
+	hdd_context_t *hdd_ctx;
+
+	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+	if (!hdd_ctx) {
+		cds_err("HDD context is NULL");
+		return CDS_NOP;
+	}
+#endif
 
 	while (CONC_CONNECTION_LIST_VALID_INDEX(conn_index)) {
 		if ((vdev_id == conc_connection_list[conn_index].vdev_id) &&
@@ -7862,6 +7978,14 @@ enum cds_conc_next_action cds_get_pref_hw_mode_for_chan(uint32_t vdev_id,
 
 	switch (num_connections) {
 	case 1:
+#ifdef QCA_WIFI_3_0_EMU
+		/* For M2M emulation only: if it is a connection on 2.4,
+		 * request DBS
+		 */
+		if (hdd_ctx->config->enable_m2m_limitation &&
+				CDS_IS_CHANNEL_24GHZ(target_channel))
+			return CDS_DBS_DOWNGRADE;
+#endif
 		/* The driver would already be in the required hw mode */
 		return CDS_NOP;
 	case 2:
@@ -8068,3 +8192,107 @@ QDF_STATUS cds_register_sap_restart_channel_switch_cb(
 	return QDF_STATUS_SUCCESS;
 }
 #endif
+
+
+
+/**
+ * cds_get_nondfs_preferred_channel() - to get non-dfs preferred channel
+ *                                           for given mode
+ * @mode: mode for which preferred non-dfs channel is requested
+ * @for_existing_conn: flag to indicate if preferred channel is requested
+ *                     for existing connection
+ *
+ * this routine will return non-dfs channel
+ * 1) for getting non-dfs preferred channel, first we check if there are any
+ *    other connection exist whose channel is non-dfs. if yes then return that
+ *    channel so that we can accommodate upto 3 mode concurrency.
+ * 2) if there no any other connection present then query concurrency module
+ *    to give preferred channel list. once we get preferred channel list, loop
+ *    through list to find first non-dfs channel from ascending order.
+ *
+ * Return: uint8_t non-dfs channel
+ */
+uint8_t
+cds_get_nondfs_preferred_channel(enum cds_con_mode mode,
+		bool for_existing_conn)
+{
+	uint8_t pcl_channels[NUM_CHANNELS];
+	/*
+	 * in worst case if we can't find any channel at all
+	 * then return 2.4G channel, so atleast we won't fall
+	 * under 5G MCC scenario
+	 */
+	uint8_t channel = CDS_24_GHZ_CHANNEL_6;
+	uint32_t i, pcl_len;
+
+	if (true == for_existing_conn) {
+		/*
+		 * First try to see if there is any non-dfs channel already
+		 * present in current connection table. If yes then return
+		 * that channel
+		 */
+		if (true == cds_is_any_nondfs_chnl_present(&channel))
+			return channel;
+
+		if (QDF_STATUS_SUCCESS != cds_get_pcl_for_existing_conn(mode,
+					&pcl_channels[0], &pcl_len))
+			return channel;
+	} else {
+		if (QDF_STATUS_SUCCESS != cds_get_pcl(mode,
+					&pcl_channels[0], &pcl_len))
+			return channel;
+	}
+
+	for (i = 0; i < pcl_len; i++) {
+#ifdef QCA_WIFI_3_0_EMU
+		/*
+		 * for Emulation platform MCC is not allowed.
+		 * so better don't return 5G channel as this API mostly
+		 * called when one more persona wants to come up on 5G band
+		 */
+		if (CDS_IS_CHANNEL_5GHZ(pcl_channels[i])) {
+			continue;
+		}
+#endif
+		if (CDS_IS_DFS_CH(pcl_channels[i])) {
+			continue;
+		} else {
+			channel = pcl_channels[i];
+			break;
+		}
+	}
+	return channel;
+}
+/**
+ * cds_is_any_nondfs_chnl_present() - Find any non-dfs channel from conc table
+ * @channel: pointer to channel which needs to be filled
+ *
+ * In-case if any connection is already present whose channel is none dfs then
+ * return that channel
+ *
+ * Return: true up-on finding non-dfs channel else false
+ */
+bool cds_is_any_nondfs_chnl_present(uint8_t *channel)
+{
+	cds_context_type *cds_ctx;
+	bool status = false;
+	uint32_t conn_index = 0;
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return false;
+	}
+	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
+	for (conn_index = 0; conn_index < MAX_NUMBER_OF_CONC_CONNECTIONS;
+			conn_index++) {
+		if (conc_connection_list[conn_index].in_use &&
+		    !CDS_IS_DFS_CH(conc_connection_list[conn_index].chan)) {
+			*channel = conc_connection_list[conn_index].chan;
+			status = true;
+		}
+	}
+	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
+	return status;
+}
+

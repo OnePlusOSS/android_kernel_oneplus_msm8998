@@ -170,10 +170,21 @@ typedef enum {
 #define SIR_UAPSD_FLAG_ACBE     (1 << SIR_UAPSD_BITOFFSET_ACBE)
 #define SIR_UAPSD_GET(ac, mask)      (((mask) & (SIR_UAPSD_FLAG_ ## ac)) >> SIR_UAPSD_BITOFFSET_ ## ac)
 
-#define ROAM_SYNCH_PROPAGATION 1
-#define ROAMING_TX_QUEUE_DISABLE 2
 #endif
 
+/**
+ * enum sir_roam_op_code - Operation to be done by the callback.
+ * @SIR_ROAM_SYNCH_PROPAGATION: Propagate the new BSS info after roaming.
+ * @SIR_ROAMING_DEREGISTER_STA: Deregister the old STA after roaming.
+ * @SIR_ROAMING_TX_QUEUE_DISABLE: Disable the network queues while roaming.
+ * @SIR_ROAMING_TX_QUEUE_ENABLE: Enable back the n/w queues in case roam fails.
+ */
+enum sir_roam_op_code {
+	SIR_ROAM_SYNCH_PROPAGATION = 1,
+	SIR_ROAMING_DEREGISTER_STA,
+	SIR_ROAMING_TX_QUEUE_DISABLE,
+	SIR_ROAMING_TX_QUEUE_ENABLE,
+};
 /**
  * Module ID definitions.
  */
@@ -482,8 +493,6 @@ typedef enum eSirBssType {
 	eSIR_INFRASTRUCTURE_MODE,
 	eSIR_INFRA_AP_MODE,     /* Added for softAP support */
 	eSIR_IBSS_MODE,
-	eSIR_BTAMP_STA_MODE,    /* Added for BT-AMP support */
-	eSIR_BTAMP_AP_MODE,     /* Added for BT-AMP support */
 	eSIR_AUTO_MODE,
 	eSIR_DONOT_USE_BSS_TYPE = SIR_MAX_ENUM_SIZE
 } tSirBssType;
@@ -846,13 +855,6 @@ typedef struct sSirSmeScanChanReq {
 } tSirSmeGetScanChanReq, *tpSirSmeGetScanChanReq;
 
 #ifdef FEATURE_OEM_DATA_SUPPORT
-
-#ifndef OEM_DATA_REQ_SIZE
-#define OEM_DATA_REQ_SIZE 280
-#endif
-#ifndef OEM_DATA_RSP_SIZE
-#define OEM_DATA_RSP_SIZE 1724
-#endif
 
 typedef struct sSirOemDataReq {
 	uint16_t messageType;   /* eWNI_SME_OEM_DATA_REQ */
@@ -3570,31 +3572,31 @@ typedef struct sSirScanOffloadReq {
 } tSirScanOffloadReq, *tpSirScanOffloadReq;
 
 /**
- * lim_scan_event_type - scan event types used in LIM
- * @LIM_SCAN_EVENT_STARTED - scan command accepted by FW
- * @LIM_SCAN_EVENT_COMPLETED - scan has been completed by FW
- * @LIM_SCAN_EVENT_BSS_CHANNEL - FW is going to move to HOME channel
- * @LIM_SCAN_EVENT_FOREIGN_CHANNEL - FW is going to move to FORIEGN channel
- * @LIM_SCAN_EVENT_DEQUEUED - scan request got dequeued
- * @LIM_SCAN_EVENT_PREEMPTED - preempted by other high priority scan
- * @LIM_SCAN_EVENT_START_FAILED - scan start failed
- * @LIM_SCAN_EVENT_RESTARTED - scan restarted
- * @LIM_SCAN_EVENT_MAX - max value for event type
+ * sir_scan_event_type - scan event types used in LIM
+ * @SIR_SCAN_EVENT_STARTED - scan command accepted by FW
+ * @SIR_SCAN_EVENT_COMPLETED - scan has been completed by FW
+ * @SIR_SCAN_EVENT_BSS_CHANNEL - FW is going to move to HOME channel
+ * @SIR_SCAN_EVENT_FOREIGN_CHANNEL - FW is going to move to FORIEGN channel
+ * @SIR_SCAN_EVENT_DEQUEUED - scan request got dequeued
+ * @SIR_SCAN_EVENT_PREEMPTED - preempted by other high priority scan
+ * @SIR_SCAN_EVENT_START_FAILED - scan start failed
+ * @SIR_SCAN_EVENT_RESTARTED - scan restarted
+ * @SIR_SCAN_EVENT_MAX - max value for event type
 */
-enum lim_scan_event_type {
-	LIM_SCAN_EVENT_STARTED = 0x1,
-	LIM_SCAN_EVENT_COMPLETED = 0x2,
-	LIM_SCAN_EVENT_BSS_CHANNEL = 0x4,
-	LIM_SCAN_EVENT_FOREIGN_CHANNEL = 0x8,
-	LIM_SCAN_EVENT_DEQUEUED = 0x10,
-	LIM_SCAN_EVENT_PREEMPTED = 0x20,
-	LIM_SCAN_EVENT_START_FAILED = 0x40,
-	LIM_SCAN_EVENT_RESTARTED = 0x80,
-	LIM_SCAN_EVENT_MAX = 0x8000
+enum sir_scan_event_type {
+	SIR_SCAN_EVENT_STARTED = 0x1,
+	SIR_SCAN_EVENT_COMPLETED = 0x2,
+	SIR_SCAN_EVENT_BSS_CHANNEL = 0x4,
+	SIR_SCAN_EVENT_FOREIGN_CHANNEL = 0x8,
+	SIR_SCAN_EVENT_DEQUEUED = 0x10,
+	SIR_SCAN_EVENT_PREEMPTED = 0x20,
+	SIR_SCAN_EVENT_START_FAILED = 0x40,
+	SIR_SCAN_EVENT_RESTARTED = 0x80,
+	SIR_SCAN_EVENT_MAX = 0x8000
 };
 
 typedef struct sSirScanOffloadEvent {
-	enum lim_scan_event_type event;
+	enum sir_scan_event_type event;
 	tSirResultCodes reasonCode;
 	uint32_t chanFreq;
 	uint32_t requestor;
@@ -3742,15 +3744,20 @@ typedef struct {
 	/* of peer with staIdx is reported */
 } tSirIbssGetPeerInfoReqParams, *tpSirIbssGetPeerInfoReqParams;
 
-/*---------------------------------------------------------------------------
-* tSirIbssGetPeerInfoParams
-*--------------------------------------------------------------------------*/
+/**
+ * typedef struct - tSirIbssGetPeerInfoParams
+ * @mac_addr: mac address received from target
+ * @txRate: TX rate
+ * @mcsIndex: MCS index
+ * @txRateFlags: TX rate flags
+ * @rssi: RSSI
+ */
 typedef struct {
-	uint8_t staIdx;         /* StaIdx */
-	uint32_t txRate;        /* Tx Rate */
-	uint32_t mcsIndex;      /* MCS Index */
-	uint32_t txRateFlags;   /* TxRate Flags */
-	int8_t rssi;            /* RSSI */
+	uint8_t  mac_addr[QDF_MAC_ADDR_SIZE];
+	uint32_t txRate;
+	uint32_t mcsIndex;
+	uint32_t txRateFlags;
+	int8_t  rssi;
 } tSirIbssPeerInfoParams;
 
 typedef struct {
@@ -3972,12 +3979,15 @@ typedef enum {
 	WLAN_WMA_MAX_THERMAL_LEVELS
 } t_thermal_level;
 
+#define WLAN_THROTTLE_DUTY_CYCLE_LEVEL_MAX (4)
+
 typedef struct {
 	/* Array of thermal levels */
 	t_thermal_level_info thermalLevels[WLAN_WMA_MAX_THERMAL_LEVELS];
 	uint8_t thermalCurrLevel;
 	uint8_t thermalMgmtEnabled;
 	uint32_t throttlePeriod;
+	uint8_t throttle_duty_cycle_tbl[WLAN_THROTTLE_DUTY_CYCLE_LEVEL_MAX];
 } t_thermal_mgmt, *tp_thermal_mgmt;
 
 typedef struct sSirTxPowerLimit {
@@ -5545,6 +5555,18 @@ struct egap_conf_params {
 	uint32_t   inactivity_time;
 	uint32_t   wait_time;
 	uint32_t   flags;
+};
+
+#define SIR_BCN_FLT_MAX_ELEMS_IE_LIST 8
+/**
+ * struct beacon_filter_param - parameters for beacon filtering
+ * @vdev_id: vdev id
+ * @ie_map: bitwise map of IEs that needs to be filtered
+ *
+ */
+struct beacon_filter_param {
+	uint32_t   vdev_id;
+	uint32_t   ie_map[SIR_BCN_FLT_MAX_ELEMS_IE_LIST];
 };
 
 /**

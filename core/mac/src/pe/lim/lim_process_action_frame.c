@@ -717,8 +717,7 @@ static void __lim_process_add_ts_rsp(tpAniSirGlobal mac_ctx,
 	frameLen = WMA_GET_RX_PAYLOAD_LEN(rx_pkt_info);
 
 	lim_log(mac_ctx, LOGW, "Recv AddTs Response");
-	if (LIM_IS_AP_ROLE(session) ||
-	    LIM_IS_BT_AMP_AP_ROLE(session)) {
+	if (LIM_IS_AP_ROLE(session)) {
 		lim_log(mac_ctx, LOGW,
 			FL("AddTsRsp recvd at AP: ignoring"));
 		return;
@@ -1015,8 +1014,7 @@ static void __lim_process_del_ts_req(tpAniSirGlobal mac_ctx,
 		}
 	}
 
-	if (!LIM_IS_AP_ROLE(session) &&
-	    !LIM_IS_BT_AMP_AP_ROLE(session))
+	if (!LIM_IS_AP_ROLE(session))
 		lim_send_sme_delts_ind(mac_ctx, &delts, aid, session);
 
 	/* try to delete the TS */
@@ -1680,8 +1678,7 @@ lim_drop_unprotected_action_frame(tpAniSirGlobal pMac, tpPESession psessionEntry
 	tpDphHashNode pStaDs;
 	bool rmfConnection = false;
 
-	if (LIM_IS_AP_ROLE(psessionEntry) ||
-	    LIM_IS_BT_AMP_AP_ROLE(psessionEntry)) {
+	if (LIM_IS_AP_ROLE(psessionEntry)) {
 		pStaDs =
 			dph_lookup_hash_entry(pMac, pHdr->sa, &aid,
 					      &psessionEntry->dph.dphHashTable);
@@ -1692,11 +1689,8 @@ lim_drop_unprotected_action_frame(tpAniSirGlobal pMac, tpPESession psessionEntry
 		rmfConnection = true;
 
 	if (rmfConnection && (pHdr->fc.wep == 0)) {
-		PELOGE(lim_log
-			       (pMac, LOGE,
-			       FL("Dropping unprotected Action category %d frame "
-				  "since RMF is enabled."), category);
-		       )
+		lim_log(pMac, LOGE,
+			       FL("Dropping unprotected Action category %d frame since RMF is enabled."), category);
 		return true;
 	} else
 		return false;
@@ -1730,15 +1724,17 @@ void lim_process_action_frame(tpAniSirGlobal mac_ctx,
 	tpSirMacVendorSpecificPublicActionFrameHdr pub_action;
 	uint8_t p2p_oui[] = { 0x50, 0x6F, 0x9A, 0x09 };
 
+#ifdef WLAN_FEATURE_11W
+	if (lim_is_robust_mgmt_action_frame(action_hdr->category) &&
+	   lim_drop_unprotected_action_frame(mac_ctx, session,
+			mac_hdr_11w, action_hdr->category))
+		return;
+#endif
+
 	frame_len = WMA_GET_RX_PAYLOAD_LEN(rx_pkt_info);
 
 	switch (action_hdr->category) {
 	case SIR_MAC_ACTION_QOS_MGMT:
-#ifdef WLAN_FEATURE_11W
-		if (lim_drop_unprotected_action_frame(mac_ctx, session,
-					mac_hdr_11w, action_hdr->category))
-			break;
-#endif
 		if ((session->limQosEnabled) ||
 		    (action_hdr->actionID == SIR_MAC_QOS_MAP_CONFIGURE)) {
 			switch (action_hdr->actionID) {
@@ -1776,11 +1772,6 @@ void lim_process_action_frame(tpAniSirGlobal mac_ctx,
 		break;
 
 	case SIR_MAC_ACTION_SPECTRUM_MGMT:
-#ifdef WLAN_FEATURE_11W
-		if (lim_drop_unprotected_action_frame(mac_ctx, session,
-				mac_hdr_11w, action_hdr->category))
-			break;
-#endif
 		switch (action_hdr->actionID) {
 #ifdef ANI_SUPPORT_11H
 		case SIR_MAC_ACTION_MEASURE_REQUEST_ID:
@@ -1864,14 +1855,6 @@ void lim_process_action_frame(tpAniSirGlobal mac_ctx,
 		break;
 
 	case SIR_MAC_ACTION_WNM:
-#ifdef WLAN_FEATURE_11W
-		if ((session->limRmfEnabled) && (mac_hdr_11w->fc.wep == 0)) {
-			lim_log(mac_ctx, LOG1,
-				FL("Dropping unprot action %d frm (PMF on)"),
-				action_hdr->category);
-			break;
-		}
-#endif
 		lim_log(mac_ctx, LOG1,
 			FL("WNM Action category %d action %d."),
 			action_hdr->category, action_hdr->actionID);
@@ -1901,11 +1884,6 @@ void lim_process_action_frame(tpAniSirGlobal mac_ctx,
 		break;
 
 	case SIR_MAC_ACTION_RRM:
-#ifdef WLAN_FEATURE_11W
-		if (lim_drop_unprotected_action_frame(mac_ctx, session,
-					mac_hdr_11w, action_hdr->category))
-			break;
-#endif
 		if (mac_ctx->rrm.rrmPEContext.rrmEnable) {
 			switch (action_hdr->actionID) {
 			case SIR_MAC_RRM_RADIO_MEASURE_REQ:
@@ -2064,9 +2042,6 @@ void lim_process_action_frame(tpAniSirGlobal mac_ctx,
 		lim_log(mac_ctx, LOG1,
 			FL("SA Query Action category %d action %d."),
 			action_hdr->category, action_hdr->actionID);
-		if (lim_drop_unprotected_action_frame(mac_ctx, session,
-			mac_hdr_11w, action_hdr->category))
-			break;
 		switch (action_hdr->actionID) {
 		case SIR_MAC_SA_QUERY_REQ:
 			/**11w SA query request action frame received**/

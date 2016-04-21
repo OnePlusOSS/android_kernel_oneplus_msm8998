@@ -76,6 +76,8 @@
 #define	CTRY_DEFAULT            0
 #define COUNTRY_ERD_FLAG        0x8000
 #define WORLDWIDE_ROAMING_FLAG  0x4000
+#define MIN_TX_PWR_CAP    8
+#define MAX_TX_PWR_CAP    22
 
 enum country_code {
 	CTRY_AFGHANISTAN = 4,
@@ -522,20 +524,6 @@ struct country_code_to_reg_dmn {
 	uint16_t reg_dmn_pair;
 	const char *alpha2;
 	const char *name;
-};
-
-/**
- * struct ch_params_s
- * @ch_width: channel width
- * @sec_ch_offset: secondary channel offset
- * @center_freq_seg0: center freq for segment 0
- * @center_freq_seg1: center freq for segment 1
- */
-struct ch_params_s {
-	enum phy_ch_width ch_width;
-	uint8_t sec_ch_offset;
-	uint8_t center_freq_seg0;
-	uint8_t center_freq_seg1;
 };
 
 /**

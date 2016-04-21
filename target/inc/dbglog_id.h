@@ -615,7 +615,8 @@ extern "C" {
 #define SCAN_SEND_PROBE_REQ_INFO                    45
 #define SCAN_SM_CANCEL                              46
 #define SCAN_SM_PROBE_REQ_FRAME_SEND_FAILED         47
-#define SCAN_DBGID_DEFINITION_END                   48
+#define SCAN_SCH_BANNED_MODULE                      48
+#define SCAN_DBGID_DEFINITION_END                   49
 
 #define BEACON_EVENT_SWBA_SEND_FAILED               0
 #define BEACON_EVENT_EARLY_RX_BMISS_STATUS          1
@@ -1245,7 +1246,9 @@ extern "C" {
 #define WLAN_STATS_DBGID_EST_LINKSPEED_CHAN_TIME_END     3
 #define WLAN_STATS_DBGID_EST_LINKSPEED_CALC              4
 #define WLAN_STATS_DBGID_EST_LINKSPEED_UPDATE_HOME_CHAN  5
-#define WLAN_STATS_DBGID_DEFINITION_END                  6
+#define WLAN_STATS_DBGID_RSSI                            6
+#define WLAN_STATS_DBGID_CNE_RSSI                        7
+#define WLAN_STATS_DBGID_DEFINITION_END                  8
 /* NAN DBGIDs */
 #define NAN_DBGID_START                             0
 
@@ -1568,6 +1571,44 @@ extern "C" {
 #define EXTSCAN_CONFIG_WLAN_CHANGE_TABLE                40
 #define EXTSCAN_EVENT_SEND_FAILED                       41
 
+/* ERE DBGIDs */
+#define ERE_DBGID_DEFINITION_START                       0
+#define ERE_DBGID_VDEV_ATTACH                            1
+#define ERE_DBGID_VDEV_DETACH                            2
+#define ERE_DBGID_ENABLE_CMD                             3
+#define ERE_DBGID_STATUS_ENABLED                         4
+#define ERE_DBGID_STATUS_DISABLED                        5
+#define ERE_DBGID_ISROUTE_TABLE_EMPTY                    6
+#define ERE_DBGID_HASH_VALUE                             7
+#define ERE_DBGID_MATCH_REQ                              8
+#define ERE_DBGID_ADD_ROUTE_DBG                          9
+#define ERE_DBGID_ADD_ROUTE_ENTRY                       10
+#define ERE_DBGID_STATS_TX                              11
+#define ERE_DBGID_STATS_RX                              12
+#define ERE_DBGID_DEFINITION_END                        13
+/* IDs 14 - 251 reserved for ERE */
+
+/* Timekeeper debug IDs */
+#define TIMEKEEPER_INIT                                 252
+#define TIMEKEEPER_OPEN                                 253
+#define TIMEKEEPER_CLOSE                                254
+#define TIMEKEEPER_NEGOTIATE                            255
+#define TIMEKEEPER_TMR_HNDLR                            256
+#define TIMEKEEPER_UNITTEST                             257
+#define TIMEKEEPER_LF_TMR_HNDLR                         258
+#define TIMEKEEPER_DEINIT                               259
+#define TIMEKEEPER_SLOTBITMAP                           260
+#define TIMEKEEPER_CANCEL_SLOTBITMAP                    261
+#define TIMEKEEPER_CONFIRM_SLOTBITMAP                   262
+#define TIMEKEEPER_RESOLVE_SLOTBITMAP                   263
+#define TIMEKEEPER_ADD_CHAN_ELEMENT                     264
+#define TIMEKEEPER_REMOVE_CHAN_ELEMENT                  265
+#define TIMEKEEPER_FIND_CHAN_ELEMENT                    266
+#define TIMEKEEPER_QUERY_COMMITTED_SLOTBITMAP           267
+#define TIMEKEEPER_ENCODE_SLOTBITMAP                    268
+#define TIMEKEEPER_SLOT_ARRAY_DBG                       269
+#define TIMEKEEPER_POPULATE_MASTER                      270
+
 /* NLO DBGIDs */
 #define NLO_DBGID_SSID_TO_BE_SCANNED_LIST 0
 #define NLO_DBGID_SSID_TO_BE_SKIPPED_LIST 1
@@ -1630,7 +1671,7 @@ extern "C" {
 #define  DCC_DBGID_RX_PATH                              269
 #define  DCC_DBGID_TX_PATH                              270
 
-/* RSSI Threshold Monitor DBGIDs*/
+/* RSSI Threshold Monitor DBGIDs */
 #define RSSI_MONITOR_DBGID_DEFINITION_START               0
 #define RSSI_MONITOR_VDEV_INIT                            1
 #define RSSI_MONITOR_VDEV_FREE                            2
@@ -1646,6 +1687,12 @@ extern "C" {
 #define RSSI_MONITOR_DELIVER_EVENT                       12
 #define RSSI_MONITOR_UPDATE_BEACON_RSSI                  13
 #define RSSI_MONITOR_DBGID_DEFINITION_END                14
+
+/* QBOOST DBGIDs */
+#define WLAN_MODULE_QBOOST_DEFINITION_START               0
+#define WLAN_MODULE_QBOOST_DBGID_WLAN_PEER_NOT_FOUND      1
+#define WLAN_MODULE_QBOOST_DEFINITION_END                 2
+
 
 #ifdef __cplusplus
 }

@@ -39,14 +39,6 @@
 #include "sir_mac_prot_def.h"
 #include "csr_link_list.h"
 
-#ifndef OEM_DATA_REQ_SIZE
-#define OEM_DATA_REQ_SIZE 280
-#endif
-
-#ifndef OEM_DATA_RSP_SIZE
-#define OEM_DATA_RSP_SIZE 1724
-#endif
-
 /* message subtype for internal purpose */
 #define OEM_MESSAGE_SUBTYPE_INTERNAL   0xdeadbeef
 #define OEM_MESSAGE_SUBTYPE_LEN 4
@@ -59,7 +51,7 @@ typedef struct tagOemDataReq {
 } tOemDataReq, tOemDataReqConfig;
 
 typedef struct tagOemDataRsp {
-	uint8_t rsp_len;
+	uint32_t rsp_len;
 	uint8_t *oem_data_rsp;
 } tOemDataRsp;
 

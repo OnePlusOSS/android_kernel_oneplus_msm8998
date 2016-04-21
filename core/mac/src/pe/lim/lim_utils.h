@@ -50,9 +50,6 @@ typedef enum {
 	TWO_BYTE = 2
 } eSizeOfLenField;
 
-#define MIN_TX_PWR_CAP    8
-#define MAX_TX_PWR_CAP    22
-
 #define LIM_STA_ID_MASK                        0x00FF
 #define LIM_AID_MASK                              0xC000
 #define LIM_SPECTRUM_MANAGEMENT_BIT_MASK          0x0100
@@ -406,11 +403,11 @@ void lim_update_beacon(tpAniSirGlobal pMac);
 
 void lim_process_ap_mlm_add_sta_rsp(tpAniSirGlobal pMac, tpSirMsgQ limMsgQ,
 		tpPESession psessionEntry);
-void lim_process_bt_amp_ap_mlm_del_bss_rsp(tpAniSirGlobal pMac,
+void lim_process_ap_mlm_del_bss_rsp(tpAniSirGlobal pMac,
 		tpSirMsgQ limMsgQ,
 		tpPESession psessionEntry);
 
-void lim_process_bt_amp_ap_mlm_del_sta_rsp(tpAniSirGlobal pMac,
+void lim_process_ap_mlm_del_sta_rsp(tpAniSirGlobal pMac,
 		tpSirMsgQ limMsgQ,
 		tpPESession psessionEntry);
 
@@ -602,4 +599,5 @@ static inline void lim_deactivate_and_change_timer_host_roam(
 {}
 #endif
 
+bool lim_is_robust_mgmt_action_frame(uint8_t action_category);
 #endif /* __LIM_UTILS_H */

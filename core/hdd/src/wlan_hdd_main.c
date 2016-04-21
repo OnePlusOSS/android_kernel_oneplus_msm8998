@@ -3770,6 +3770,82 @@ static inline int hdd_logging_sock_deactivate_svc(hdd_context_t *hdd_ctx)
 #endif
 
 /**
+ * hdd_exit_netlink_services - Exit netlink services
+ * @hdd_ctx: HDD context
+ *
+ * Exit netlink services like cnss_diag, cesium netlink socket, ptt socket and
+ * nl service.
+ *
+ * Return: None.
+ */
+static void hdd_exit_netlink_services(hdd_context_t *hdd_ctx)
+{
+	cnss_diag_notify_wlan_close();
+
+	hdd_close_cesium_nl_sock();
+
+	ptt_sock_deactivate_svc();
+
+	nl_srv_exit();
+}
+
+/**
+ * hdd_init_netlink_services- Init netlink services
+ * @hdd_ctx: HDD context
+ *
+ * Init netlink services like cnss_diag, cesium netlink socket, ptt socket and
+ * nl service.
+ *
+ * Return: 0 on success and errno on failure.
+ */
+static int hdd_init_netlink_services(hdd_context_t *hdd_ctx)
+{
+	int ret;
+
+	ret = nl_srv_init();
+	if (ret) {
+		hdd_alert("nl_srv_init failed: %d", ret);
+		goto out;
+	}
+
+	ret = oem_activate_service(hdd_ctx);
+	if (ret) {
+		hdd_alert("oem_activate_service failed: %d", ret);
+		goto err_nl_srv;
+	}
+
+	ret = ptt_sock_activate_svc();
+	if (ret) {
+		hdd_alert("ptt_sock_activate_svc failed: %d", ret);
+		goto err_nl_srv;
+	}
+
+	ret = hdd_open_cesium_nl_sock();
+	if (ret) {
+		hdd_alert("hdd_open_cesium_nl_sock failed");
+		goto err_ptt_deactivate;
+	}
+
+	ret = cnss_diag_activate_service();
+	if (ret) {
+		hdd_alert("cnss_diag_activate_service failed: %d", ret);
+		goto err_close_cesium;
+	}
+
+	return 0;
+
+err_close_cesium:
+	hdd_close_cesium_nl_sock();
+err_ptt_deactivate:
+	ptt_sock_deactivate_svc();
+err_nl_srv:
+	nl_srv_exit();
+out:
+	return ret;
+}
+
+
+/**
  * hdd_free_context - Free HDD context
  * @hdd_ctx:	HDD context to be freed.
  *
@@ -3914,15 +3990,9 @@ void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 
 	hdd_wlan_green_ap_deinit(hdd_ctx);
 
-#ifdef WLAN_KD_READY_NOTIFIER
-	cnss_diag_notify_wlan_close();
-	ptt_sock_deactivate_svc();
-#endif /* WLAN_KD_READY_NOTIFIER */
-	nl_srv_exit();
+	hdd_exit_netlink_services(hdd_ctx);
 
 	hdd_close_all_adapters(hdd_ctx, false);
-
-	hdd_close_cesium_nl_sock();
 
 	hdd_ipa_cleanup(hdd_ctx);
 
@@ -4309,6 +4379,17 @@ static int hdd_wiphy_init(hdd_context_t *hdd_ctx)
 	return ret_val;
 }
 
+/**
+ * hdd_cnss_request_bus_bandwidth() - Function to control bus bandwidth
+ * @hdd_ctx - handle to hdd context
+ * @tx_packets - transmit packet count
+ * @rx_packets - receive packet count
+ *
+ * The function controls the bus bandwidth and dynamic control of
+ * tcp delayed ack configuration
+ *
+ * Returns: None
+ */
 #ifdef MSM_PLATFORM
 void hdd_cnss_request_bus_bandwidth(hdd_context_t *hdd_ctx,
 			const uint64_t tx_packets, const uint64_t rx_packets)
@@ -4335,11 +4416,8 @@ void hdd_cnss_request_bus_bandwidth(hdd_context_t *hdd_ctx,
 							next_vote_level;
 
 	if (hdd_ctx->cur_vote_level != next_vote_level) {
-		hddLog(QDF_TRACE_LEVEL_DEBUG,
-		       FL(
-			  "trigger level %d, tx_packets: %lld, rx_packets: %lld"
-			 ),
-		       next_vote_level, tx_packets, rx_packets);
+		hdd_debug("trigger level %d, tx_packets: %lld, rx_packets: %lld",
+			 next_vote_level, tx_packets, rx_packets);
 		hdd_ctx->cur_vote_level = next_vote_level;
 		cnss_request_bus_bandwidth(next_vote_level);
 	}
@@ -4357,11 +4435,16 @@ void hdd_cnss_request_bus_bandwidth(hdd_context_t *hdd_ctx,
 								next_rx_level;
 
 	if (hdd_ctx->cur_rx_level != next_rx_level) {
-		hddLog(QDF_TRACE_LEVEL_DEBUG,
-		       FL("TCP DELACK trigger level %d, average_rx: %llu"),
+		hdd_debug("TCP DELACK trigger level %d, average_rx: %llu",
 		       next_rx_level, temp_rx);
 		hdd_ctx->cur_rx_level = next_rx_level;
-		wlan_hdd_send_svc_nlink_msg(WLAN_SVC_WLAN_TP_IND,
+		/* Send throughput indication only if it is enabled.
+		 * Disabling tcp_del_ack will revert the tcp stack behavior
+		 * to default delayed ack. Note that this will disable the
+		 * dynamic delayed ack mechanism across the system
+		 */
+		if (hdd_ctx->config->enable_tcp_delack)
+			wlan_hdd_send_svc_nlink_msg(WLAN_SVC_WLAN_TP_IND,
 					    &next_rx_level,
 					    sizeof(next_rx_level));
 	}
@@ -5253,6 +5336,7 @@ hdd_context_t *hdd_init_context(struct device *dev, void *hif_sc)
 
 	hdd_tdls_pre_init(hdd_ctx);
 	mutex_init(&hdd_ctx->dfs_lock);
+	mutex_init(&hdd_ctx->sap_lock);
 
 	init_completion(&hdd_ctx->set_antenna_mode_cmpl);
 
@@ -5494,6 +5578,15 @@ static int hdd_init_thermal_info(hdd_context_t *hdd_ctx)
 	thermal_param.smeThermalMgmtEnabled =
 		hdd_ctx->config->thermalMitigationEnable;
 	thermal_param.smeThrottlePeriod = hdd_ctx->config->throttlePeriod;
+
+	thermal_param.sme_throttle_duty_cycle_tbl[0] =
+		hdd_ctx->config->throttle_dutycycle_level0;
+	thermal_param.sme_throttle_duty_cycle_tbl[1] =
+		hdd_ctx->config->throttle_dutycycle_level1;
+	thermal_param.sme_throttle_duty_cycle_tbl[2] =
+		hdd_ctx->config->throttle_dutycycle_level2;
+	thermal_param.sme_throttle_duty_cycle_tbl[3] =
+		hdd_ctx->config->throttle_dutycycle_level3;
 
 	thermal_param.smeThermalLevels[0].smeMinTempThreshold =
 		hdd_ctx->config->thermalTempMinLevel0;
@@ -5763,7 +5856,7 @@ int hdd_wlan_startup(struct device *dev, void *hif_sc)
 	ret = hdd_update_country_code(hdd_ctx, adapter);
 
 	if (ret)
-		goto err_cds_disable;
+		goto err_close_adapter;
 
 	sme_register11d_scan_done_callback(hdd_ctx->hHal, hdd_11d_scan_done);
 
@@ -5773,34 +5866,10 @@ int hdd_wlan_startup(struct device *dev, void *hif_sc)
 	/* FW capabilities received, Set the Dot11 mode */
 	sme_setdef_dot11mode(hdd_ctx->hHal);
 
-	/* Initialize the nlink service */
-	if (nl_srv_init() != 0) {
-		hddLog(QDF_TRACE_LEVEL_FATAL, FL("nl_srv_init failed"));
-		goto err_close_adapter;
-	}
+	ret = hdd_init_netlink_services(hdd_ctx);
 
-	ret = oem_activate_service(hdd_ctx);
-	if (ret) {
-		hdd_alert("oem_activate_service failed: %d", ret);
-		goto err_nl_srv;
-	}
-
-	ret = ptt_sock_activate_svc();
-	if (ret) {
-		hdd_alert("ptt_sock_activate_svc failed: %d", ret);
-		goto err_nl_srv;
-	}
-
-	ret = cnss_diag_activate_service();
-	if (ret) {
-		hdd_alert("cnss_diag_activate_service failed: %d", ret);
-		goto err_nl_srv;
-	}
-
-	if (hdd_open_cesium_nl_sock() < 0) {
-		hdd_alert("hdd_open_cesium_nl_sock failed");
-		goto err_nl_srv;
-	}
+	if (ret)
+		goto err_debugfs_exit;
 
 	/*
 	 * Action frame registered in one adapter which will
@@ -5808,15 +5877,13 @@ int hdd_wlan_startup(struct device *dev, void *hif_sc)
 	 */
 	wlan_hdd_cfg80211_register_frames(adapter);
 
-	mutex_init(&hdd_ctx->sap_lock);
-
 	hdd_release_rtnl_lock();
 	rtnl_held = false;
 
 	ret = register_netdevice_notifier(&hdd_netdev_notifier);
 	if (ret < 0) {
 		hdd_err("register_netdevice_notifier failed: %d", ret);
-		goto err_nl_srv;
+		goto err_exit_nl_srv;
 	}
 
 #ifdef WLAN_FEATURE_HOLD_RX_WAKELOCK
@@ -5856,14 +5923,14 @@ int hdd_wlan_startup(struct device *dev, void *hif_sc)
 	status = cds_init_policy_mgr();
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		hdd_err("Policy manager initialization failed");
-		goto err_unreg_netdev_notifier;
+		goto err_exit_nl_srv;
 	}
 
 	ret = hdd_init_thermal_info(hdd_ctx);
 
 	if (ret) {
 		hdd_err("Error while initializing thermal information");
-		goto err_unreg_netdev_notifier;
+		goto err_exit_nl_srv;
 	}
 
 	if (0 != hdd_lro_init(hdd_ctx))
@@ -5947,19 +6014,16 @@ int hdd_wlan_startup(struct device *dev, void *hif_sc)
 err_unreg_netdev_notifier:
 	unregister_netdevice_notifier(&hdd_netdev_notifier);
 
-err_nl_srv:
-#ifdef WLAN_KD_READY_NOTIFIER
-	cnss_diag_notify_wlan_close();
-	ptt_sock_deactivate_svc();
-#endif /* WLAN_KD_READY_NOTIFIER */
-	nl_srv_exit();
+err_exit_nl_srv:
+	hdd_exit_netlink_services(hdd_ctx);
 
 	if (!QDF_IS_STATUS_SUCCESS(cds_deinit_policy_mgr())) {
 		hdd_err("Failed to deinit policy manager");
 		/* Proceed and complete the clean up */
 	}
 
-	hdd_close_cesium_nl_sock();
+err_debugfs_exit:
+	hdd_debugfs_exit(adapter);
 
 err_close_adapter:
 	hdd_release_rtnl_lock();

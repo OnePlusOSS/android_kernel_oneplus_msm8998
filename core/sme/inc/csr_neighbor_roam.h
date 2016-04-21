@@ -187,8 +187,6 @@ QDF_STATUS csr_neighbor_roam_prepare_scan_profile_filter(tpAniSirGlobal pMac,
 QDF_STATUS csr_neighbor_roam_preauth_rsp_handler(tpAniSirGlobal pMac,
 		uint8_t sessionId, tSirRetStatus limStatus);
 bool csr_neighbor_roam_is11r_assoc(tpAniSirGlobal pMac, uint8_t sessionId);
-QDF_STATUS csr_neighbor_roam_create_chan_list_from_neighbor_report(
-		tpAniSirGlobal pMac, uint8_t sessionId);
 #ifdef WLAN_FEATURE_HOST_ROAM
 void csr_neighbor_roam_tranistion_preauth_done_to_disconnected(
 		tpAniSirGlobal pMac, uint8_t sessionId);
@@ -366,11 +364,11 @@ QDF_STATUS csr_neighbor_roam_offload_update_preauth_list(tpAniSirGlobal pMac,
 		roam_offload_synch_ind *roam_synch_ind_ptr, uint8_t sessionId);
 void csr_roam_synch_callback(tpAniSirGlobal mac,
 	roam_offload_synch_ind *roam_synch_data,
-	tpSirBssDescription  bss_desc_ptr, uint8_t reason);
+	tpSirBssDescription  bss_desc_ptr, enum sir_roam_op_code reason);
 #else
 static inline void csr_roam_synch_callback(tpAniSirGlobal mac,
 	roam_offload_synch_ind *roam_synch_data,
-	tpSirBssDescription  bss_desc_ptr, uint8_t reason)
+	tpSirBssDescription  bss_desc_ptr, enum sir_roam_op_code reason)
 {}
 #endif
 void csr_neighbor_roam_state_transition(tpAniSirGlobal mac_ctx,

@@ -802,6 +802,123 @@ QDF_STATUS wma_get_link_speed(WMA_HANDLE handle, tSirLinkSpeedInfo *pLinkSpeed)
 	return QDF_STATUS_SUCCESS;
 }
 
+/**
+* wma_add_beacon_filter() - Issue WMI command to set beacon filter
+* @wma: wma handler
+* @filter_params: beacon_filter_param to set
+*
+* Return: Return QDF_STATUS
+*/
+QDF_STATUS wma_add_beacon_filter(WMA_HANDLE handle,
+				struct beacon_filter_param *filter_params)
+{
+	int i;
+	wmi_buf_t wmi_buf;
+	u_int8_t *buf;
+	A_UINT32 *ie_map;
+	int ret;
+	tp_wma_handle wma = (tp_wma_handle) handle;
+	wmi_add_bcn_filter_cmd_fixed_param *cmd;
+	int len = sizeof(wmi_add_bcn_filter_cmd_fixed_param);
+
+	len += WMI_TLV_HDR_SIZE;
+	len += BCN_FLT_MAX_ELEMS_IE_LIST*sizeof(A_UINT32);
+
+	if (!wma || !wma->wmi_handle) {
+		WMA_LOGE("%s: WMA is closed, can not issue set beacon filter",
+			__func__);
+		return QDF_STATUS_E_INVAL;
+	}
+
+	wmi_buf = wmi_buf_alloc(wma->wmi_handle, len);
+	if (!wmi_buf) {
+		WMA_LOGE("%s: wmi_buf_alloc failed", __func__);
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	buf = (u_int8_t *) wmi_buf_data(wmi_buf);
+
+	cmd = (wmi_add_bcn_filter_cmd_fixed_param *)wmi_buf_data(wmi_buf);
+	cmd->vdev_id = filter_params->vdev_id;
+
+	WMITLV_SET_HDR(&cmd->tlv_header,
+			WMITLV_TAG_STRUC_wmi_add_bcn_filter_cmd_fixed_param,
+			WMITLV_GET_STRUCT_TLVLEN(
+				wmi_add_bcn_filter_cmd_fixed_param));
+
+	buf += sizeof(wmi_add_bcn_filter_cmd_fixed_param);
+
+	WMITLV_SET_HDR(buf, WMITLV_TAG_ARRAY_UINT32,
+			(BCN_FLT_MAX_ELEMS_IE_LIST * sizeof(u_int32_t)));
+
+	ie_map = (A_UINT32 *)(buf + WMI_TLV_HDR_SIZE);
+	for (i = 0; i < BCN_FLT_MAX_ELEMS_IE_LIST; i++) {
+		ie_map[i] = filter_params->ie_map[i];
+		WMA_LOGD("beacon filter ie map = %u", ie_map[i]);
+	}
+
+	ret = wmi_unified_cmd_send(wma->wmi_handle, wmi_buf, len,
+			WMI_ADD_BCN_FILTER_CMDID);
+	if (ret) {
+		WMA_LOGE("Failed to send wmi add beacon filter = %d",
+				ret);
+		wmi_buf_free(wmi_buf);
+		return QDF_STATUS_E_FAILURE;
+	}
+	WMA_LOGD("added beacon filter = %d", ret);
+
+	return QDF_STATUS_SUCCESS;
+}
+
+/**
+* wma_remove_beacon_filter() - Issue WMI command to remove beacon filter
+* @wma: wma handler
+* @filter_params: beacon_filter_params
+*
+* Return: Return QDF_STATUS
+*/
+QDF_STATUS wma_remove_beacon_filter(WMA_HANDLE handle,
+				struct beacon_filter_param *filter_params)
+{
+	wmi_buf_t buf;
+	tp_wma_handle wma = (tp_wma_handle) handle;
+	wmi_rmv_bcn_filter_cmd_fixed_param *cmd;
+	int len = sizeof(wmi_rmv_bcn_filter_cmd_fixed_param);
+	int ret;
+
+	if (!wma || !wma->wmi_handle) {
+		WMA_LOGE("%s: WMA is closed, cannot issue remove beacon filter",
+			__func__);
+		return QDF_STATUS_E_INVAL;
+	}
+
+	buf = wmi_buf_alloc(wma->wmi_handle, len);
+	if (!buf) {
+		WMA_LOGE("%s: wmi_buf_alloc failed", __func__);
+		return QDF_STATUS_E_NOMEM;
+	}
+	cmd = (wmi_rmv_bcn_filter_cmd_fixed_param *)wmi_buf_data(buf);
+	cmd->vdev_id = filter_params->vdev_id;
+
+	WMITLV_SET_HDR(&cmd->tlv_header,
+			WMITLV_TAG_STRUC_wmi_rmv_bcn_filter_cmd_fixed_param,
+			WMITLV_GET_STRUCT_TLVLEN(
+				wmi_rmv_bcn_filter_cmd_fixed_param));
+
+	ret = wmi_unified_cmd_send(wma->wmi_handle, buf, len,
+			WMI_RMV_BCN_FILTER_CMDID);
+	if (ret) {
+		WMA_LOGE("Failed to send wmi remove beacon filter = %d",
+				ret);
+		wmi_buf_free(buf);
+		return QDF_STATUS_E_FAILURE;
+	}
+	WMA_LOGD("removed beacon filter = %d", ret);
+
+	return QDF_STATUS_SUCCESS;
+}
+
+
 #ifdef FEATURE_GREEN_AP
 
 /**
@@ -1254,7 +1371,7 @@ int wma_oem_capability_event_callback(void *handle,
 	}
 
 	/*
-	 *  wma puts 4 bytes prefix for msg subtype, so length
+	 * wma puts 4 bytes prefix for msg subtype, so length
 	 * of data received from target should be 4 bytes less
 	 * then max allowed
 	 */
@@ -1269,12 +1386,21 @@ int wma_oem_capability_event_callback(void *handle,
 		WMA_LOGE("%s: Failed to alloc pStartOemDataRsp", __func__);
 		return -ENOMEM;
 	}
+
 	pStartOemDataRsp->rsp_len = datalen + OEM_MESSAGE_SUBTYPE_LEN;
-	pStartOemDataRsp->oem_data_rsp = qdf_mem_malloc(datalen);
-	if (!pStartOemDataRsp->oem_data_rsp) {
-		WMA_LOGE(FL("malloc failed for oem_data_rsp"));
+	if (pStartOemDataRsp->rsp_len) {
+		pStartOemDataRsp->oem_data_rsp =
+				qdf_mem_malloc(pStartOemDataRsp->rsp_len);
+		if (!pStartOemDataRsp->oem_data_rsp) {
+			WMA_LOGE(FL("malloc failed for oem_data_rsp"));
+			qdf_mem_free(pStartOemDataRsp);
+			return -ENOMEM;
+		}
+	} else {
+		WMA_LOGE(FL("Invalid rsp length: %d"),
+			 pStartOemDataRsp->rsp_len);
 		qdf_mem_free(pStartOemDataRsp);
-		return -ENOMEM;
+		return -EINVAL;
 	}
 
 	pStartOemDataRsp->target_rsp = true;
@@ -1340,12 +1466,21 @@ int wma_oem_measurement_report_event_callback(void *handle,
 		WMA_LOGE("%s: Failed to alloc pStartOemDataRsp", __func__);
 		return -ENOMEM;
 	}
+
 	pStartOemDataRsp->rsp_len = datalen + OEM_MESSAGE_SUBTYPE_LEN;
-	pStartOemDataRsp->oem_data_rsp = qdf_mem_malloc(datalen);
-	if (!pStartOemDataRsp->oem_data_rsp) {
-		WMA_LOGE(FL("malloc failed for oem_data_rsp"));
+	if (pStartOemDataRsp->rsp_len) {
+		pStartOemDataRsp->oem_data_rsp =
+				qdf_mem_malloc(pStartOemDataRsp->rsp_len);
+		if (!pStartOemDataRsp->oem_data_rsp) {
+			WMA_LOGE(FL("malloc failed for oem_data_rsp"));
+			qdf_mem_free(pStartOemDataRsp);
+			return -ENOMEM;
+		}
+	} else {
+		WMA_LOGE(FL("Invalid rsp length: %d"),
+			 pStartOemDataRsp->rsp_len);
 		qdf_mem_free(pStartOemDataRsp);
-		return -ENOMEM;
+		return -EINVAL;
 	}
 
 	pStartOemDataRsp->target_rsp = true;
@@ -1353,10 +1488,10 @@ int wma_oem_measurement_report_event_callback(void *handle,
 	*msg_subtype = WMI_OEM_MEASUREMENT_RSP;
 	/* copy data after msg sub type */
 	qdf_mem_copy(pStartOemDataRsp->oem_data_rsp + OEM_MESSAGE_SUBTYPE_LEN,
-		     data, pStartOemDataRsp->rsp_len);
+		     data, datalen);
 
 	WMA_LOGI("%s: Sending WMA_START_OEM_DATA_RSP, data len (%d)",
-		 __func__, datalen);
+		 __func__, pStartOemDataRsp->rsp_len);
 
 	wma_send_msg(wma, WMA_START_OEM_DATA_RSP, (void *)pStartOemDataRsp, 0);
 	return 0;
@@ -1410,12 +1545,21 @@ int wma_oem_error_report_event_callback(void *handle,
 		WMA_LOGE("%s: Failed to alloc pStartOemDataRsp", __func__);
 		return -ENOMEM;
 	}
+
 	pStartOemDataRsp->rsp_len = datalen + OEM_MESSAGE_SUBTYPE_LEN;
-	pStartOemDataRsp->oem_data_rsp = qdf_mem_malloc(datalen);
-	if (!pStartOemDataRsp->oem_data_rsp) {
-		WMA_LOGE(FL("malloc failed for oem_data_rsp"));
+	if (pStartOemDataRsp->rsp_len) {
+		pStartOemDataRsp->oem_data_rsp =
+				qdf_mem_malloc(pStartOemDataRsp->rsp_len);
+		if (!pStartOemDataRsp->oem_data_rsp) {
+			WMA_LOGE(FL("malloc failed for oem_data_rsp"));
+			qdf_mem_free(pStartOemDataRsp);
+			return -ENOMEM;
+		}
+	} else {
+		WMA_LOGE(FL("Invalid rsp length: %d"),
+			 pStartOemDataRsp->rsp_len);
 		qdf_mem_free(pStartOemDataRsp);
-		return -ENOMEM;
+		return -EINVAL;
 	}
 
 	pStartOemDataRsp->target_rsp = true;
@@ -1423,10 +1567,10 @@ int wma_oem_error_report_event_callback(void *handle,
 	*msg_subtype = WMI_OEM_ERROR_REPORT_RSP;
 	/* copy data after msg sub type */
 	qdf_mem_copy(pStartOemDataRsp->oem_data_rsp + OEM_MESSAGE_SUBTYPE_LEN,
-		     data, pStartOemDataRsp->rsp_len);
+		     data, datalen);
 
 	WMA_LOGI("%s: Sending WMA_START_OEM_DATA_RSP, data len (%d)",
-		 __func__, datalen);
+		 __func__, pStartOemDataRsp->rsp_len);
 
 	wma_send_msg(wma, WMA_START_OEM_DATA_RSP, (void *)pStartOemDataRsp, 0);
 	return 0;
@@ -1475,11 +1619,18 @@ int wma_oem_data_response_handler(void *handle,
 		return -ENOMEM;
 	}
 	oem_rsp->rsp_len = datalen;
-	oem_rsp->oem_data_rsp = qdf_mem_malloc(datalen);
-	if (!oem_rsp->rsp_len) {
-		WMA_LOGE(FL("malloc failed for oem_data_rsp"));
+	if (oem_rsp->rsp_len) {
+		oem_rsp->oem_data_rsp = qdf_mem_malloc(oem_rsp->rsp_len);
+		if (!oem_rsp->oem_data_rsp) {
+			WMA_LOGE(FL("malloc failed for oem_data_rsp"));
+			qdf_mem_free(oem_rsp);
+			return -ENOMEM;
+		}
+	} else {
+		WMA_LOGE(FL("Invalid rsp length: %d"),
+			 oem_rsp->rsp_len);
 		qdf_mem_free(oem_rsp);
-		return -ENOMEM;
+		return -EINVAL;
 	}
 
 	oem_rsp->target_rsp = true;
@@ -4013,6 +4164,53 @@ static QDF_STATUS wma_add_clear_mcbc_filter(tp_wma_handle wma_handle,
 }
 
 /**
+ * wma_config_enhance_multicast_offload() - config enhance multicast offload
+ * @wma_handle: wma handle
+ * @vdev_id: vdev id
+ * @action: enable or disable enhance multicast offload
+ *
+ * Return: none
+ */
+static void wma_config_enhance_multicast_offload(tp_wma_handle wma_handle,
+						uint8_t vdev_id,
+						uint8_t action)
+{
+	int status;
+	wmi_buf_t buf;
+	wmi_config_enhanced_mcast_filter_cmd_fixed_param *cmd;
+
+	buf = wmi_buf_alloc(wma_handle->wmi_handle, sizeof(*cmd));
+	if (!buf) {
+		WMA_LOGE("Failed to allocate buffer to send set key cmd");
+		return;
+	}
+
+	cmd = (wmi_config_enhanced_mcast_filter_cmd_fixed_param *)
+							wmi_buf_data(buf);
+
+	WMITLV_SET_HDR(&cmd->tlv_header,
+		 WMITLV_TAG_STRUC_wmi_config_enhanced_mcast_filter_fixed_param,
+		 WMITLV_GET_STRUCT_TLVLEN(wmi_config_enhanced_mcast_filter_cmd_fixed_param));
+
+	cmd->vdev_id = vdev_id;
+	cmd->enable = ((0 == action) ? ENHANCED_MCAST_FILTER_DISABLED :
+			ENHANCED_MCAST_FILTER_ENABLED);
+
+	WMA_LOGD("%s: config enhance multicast offload action %d for vdev %d",
+		__func__, action, vdev_id);
+
+	status = wmi_unified_cmd_send(wma_handle->wmi_handle, buf,
+			sizeof(*cmd), WMI_CONFIG_ENHANCED_MCAST_FILTER_CMDID);
+	if (status) {
+		qdf_nbuf_free(buf);
+		WMA_LOGE("%s:Failed to send WMI_CONFIG_ENHANCED_MCAST_FILTER_CMDID",
+			__func__);
+	}
+
+	return;
+}
+
+/**
  * wma_process_mcbc_set_filter_req() - process mcbc set filter request
  * @wma_handle: wma handle
  * @mcbc_param: mcbc params
@@ -4036,6 +4234,21 @@ QDF_STATUS wma_process_mcbc_set_filter_req(tp_wma_handle wma_handle,
 			 mcbc_param->bssid.bytes);
 		return QDF_STATUS_E_FAILURE;
 	}
+
+	/*
+	 * Configure enhance multicast offload feature for filtering out
+	 * multicast IP data packets transmitted using unicast MAC address
+	 */
+	if (WMI_SERVICE_IS_ENABLED(wma_handle->wmi_service_bitmap,
+		WMI_SERVICE_ENHANCED_MCAST_FILTER)) {
+		WMA_LOGD("%s: FW supports enhance multicast offload", __func__);
+		wma_config_enhance_multicast_offload(wma_handle, vdev_id,
+			mcbc_param->action);
+	} else {
+		WMA_LOGD("%s: FW does not support enhance multicast offload",
+		__func__);
+	}
+
 	/* set mcbc_param->action to clear MCList and reset
 	 * to configure the MCList in FW
 	 */
@@ -6138,9 +6351,12 @@ struct dfs_ieee80211_channel *wma_dfs_configure_channel(
 		dfs_ic->ic_curchan->ic_ieee_ext = ext_channel;
 
 		/* verify both the 80MHz are DFS bands or not */
-		if (CHANNEL_STATE_DFS == cds_get_channel_state(req->chan) &&
-		    CHANNEL_STATE_DFS == cds_get_channel_state(ext_channel -
-						WMA_80MHZ_START_CENTER_CH_DIFF))
+		if ((CHANNEL_STATE_DFS ==
+		     cds_get_5g_bonded_channel_state(req->chan ,
+						     CH_WIDTH_80MHZ)) &&
+		    (CHANNEL_STATE_DFS == cds_get_5g_bonded_channel_state(
+			    ext_channel - WMA_80MHZ_START_CENTER_CH_DIFF,
+			    CH_WIDTH_80MHZ)))
 			dfs_ic->ic_curchan->ic_80p80_both_dfs = true;
 		break;
 	case CH_WIDTH_160MHZ:

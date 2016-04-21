@@ -142,7 +142,6 @@ typedef enum {
 } eCsrPhyMode;
 
 typedef enum {
-	eCSR_BSS_TYPE_NONE,
 	eCSR_BSS_TYPE_INFRASTRUCTURE,
 	eCSR_BSS_TYPE_INFRA_AP,   /* SoftAP AP */
 	eCSR_BSS_TYPE_IBSS,       /* IBSS network we'll NOT start */
@@ -494,6 +493,8 @@ typedef enum {
 	eCSR_ROAM_DFS_CHAN_SW_NOTIFY,
 	eCSR_ROAM_EXT_CHG_CHNL_IND,
 	eCSR_ROAM_STATUS_UPDATE_HW_MODE,
+	eCSR_ROAM_DISABLE_QUEUES,
+	eCSR_ROAM_ENABLE_QUEUES,
 } eRoamCmdStatus;
 
 /* comment inside indicates what roaming callback gets */
@@ -1220,6 +1221,7 @@ typedef struct tagCsrConfigParam {
 	uint32_t obss_width_interval;
 	uint32_t obss_active_dwelltime;
 	uint32_t obss_passive_dwelltime;
+	bool ignore_peer_ht_opmode;
 } tCsrConfigParam;
 
 /* Tush */

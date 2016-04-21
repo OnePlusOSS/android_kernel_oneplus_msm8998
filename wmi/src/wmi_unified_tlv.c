@@ -806,7 +806,7 @@ QDF_STATUS send_resume_cmd_tlv(wmi_unified_t wmi_handle,
 		       WMITLV_TAG_STRUC_wmi_pdev_resume_cmd_fixed_param,
 		       WMITLV_GET_STRUCT_TLVLEN
 			       (wmi_pdev_resume_cmd_fixed_param));
-	cmd->reserved0 = 0;
+	cmd->pdev_id = 0;
 	ret = wmi_unified_cmd_send(wmi_handle, wmibuf, sizeof(*cmd),
 				   WMI_PDEV_RESUME_CMDID);
 	if (QDF_IS_STATUS_ERROR(ret)) {
@@ -1744,6 +1744,10 @@ QDF_STATUS send_set_mimops_cmd_tlv(wmi_unified_t wmi_handle,
 
 	cmd->vdev_id = vdev_id;
 
+	/* WMI_SMPS_FORCED_MODE values do not directly map
+	 * to SM power save values defined in the specification.
+	 * Make sure to send the right mapping.
+	 */
 	switch (value) {
 	case 0:
 		cmd->forced_mode = WMI_SMPS_FORCED_MODE_NONE;

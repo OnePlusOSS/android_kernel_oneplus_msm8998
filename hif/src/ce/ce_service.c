@@ -530,11 +530,25 @@ int ce_send_fast(struct CE_handle *copyeng, qdf_nbuf_t *msdus,
 	qdf_nbuf_t msdu;
 	int i;
 	uint64_t dma_addr;
-	uint32_t user_flags = 0;
+	uint32_t user_flags;
 
 	qdf_spin_lock_bh(&ce_state->ce_index_lock);
-	sw_index = src_ring->sw_index;
+	Q_TARGET_ACCESS_BEGIN(scn);
+
+	src_ring->sw_index = CE_SRC_RING_READ_IDX_GET_FROM_DDR(scn, ctrl_addr);
 	write_index = src_ring->write_index;
+	sw_index = src_ring->sw_index;
+
+	if (qdf_unlikely(CE_RING_DELTA(nentries_mask, write_index, sw_index - 1)
+			 < (SLOTS_PER_DATAPATH_TX * num_msdus))) {
+		HIF_ERROR("Source ring full, required %d, available %d",
+		      (SLOTS_PER_DATAPATH_TX * num_msdus),
+		      CE_RING_DELTA(nentries_mask, write_index, sw_index - 1));
+		OL_ATH_CE_PKT_ERROR_COUNT_INCR(scn, CE_RING_DELTA_FAIL);
+		Q_TARGET_ACCESS_END(scn);
+		qdf_spin_unlock_bh(&ce_state->ce_index_lock);
+		return 0;
+	}
 
 	/* 2 msdus per packet */
 	for (i = 0; i < num_msdus; i++) {
@@ -630,6 +644,7 @@ int ce_send_fast(struct CE_handle *copyeng, qdf_nbuf_t *msdus,
 		}
 	}
 
+	Q_TARGET_ACCESS_END(scn);
 	qdf_spin_unlock_bh(&ce_state->ce_index_lock);
 
 	/*
@@ -639,6 +654,44 @@ int ce_send_fast(struct CE_handle *copyeng, qdf_nbuf_t *msdus,
 	 */
 	ASSERT(i == num_msdus);
 	return i;
+}
+
+/**
+ * ce_is_fastpath_enabled() - returns true if fastpath mode is enabled
+ * @scn: Handle to HIF context
+ *
+ * Return: true if fastpath is enabled else false.
+ */
+static bool ce_is_fastpath_enabled(struct hif_softc *scn)
+{
+	return scn->fastpath_mode_on;
+}
+
+/**
+ * ce_is_fastpath_handler_registered() - return true for datapath CEs and if
+ * fastpath is enabled.
+ * @ce_state: handle to copy engine
+ *
+ * Return: true if fastpath handler is registered for datapath CE.
+ */
+static bool ce_is_fastpath_handler_registered(struct CE_state *ce_state)
+{
+	if (ce_state->fastpath_handler)
+		return true;
+	else
+		return false;
+}
+
+
+#else
+static inline bool ce_is_fastpath_enabled(struct hif_softc *scn)
+{
+	return false;
+}
+
+static inline bool ce_is_fastpath_handler_registered(struct CE_state *ce_state)
+{
+	return false;
 }
 #endif /* WLAN_FEATURE_FASTPATH */
 
@@ -673,10 +726,10 @@ ce_recv_buf_enqueue(struct CE_handle *copyeng,
 		return -EIO;
 	}
 
-	if (CE_RING_DELTA(nentries_mask, write_index, sw_index - 1) > 0) {
+	if ((CE_RING_DELTA(nentries_mask, write_index, sw_index - 1) > 0) ||
+	    (ce_is_fastpath_enabled(scn) && CE_state->htt_rx_data)) {
 		struct CE_dest_desc *dest_ring_base =
-			(struct CE_dest_desc *)dest_ring->
-			    base_addr_owner_space;
+			(struct CE_dest_desc *)dest_ring->base_addr_owner_space;
 		struct CE_dest_desc *dest_desc =
 			CE_DEST_RING_TO_DESC(dest_ring_base, write_index);
 
@@ -697,12 +750,14 @@ ce_recv_buf_enqueue(struct CE_handle *copyeng,
 
 		/* Update Destination Ring Write Index */
 		write_index = CE_RING_IDX_INCR(nentries_mask, write_index);
-		CE_DEST_RING_WRITE_IDX_SET(scn, ctrl_addr, write_index);
-		dest_ring->write_index = write_index;
+		if (write_index != sw_index) {
+			CE_DEST_RING_WRITE_IDX_SET(scn, ctrl_addr, write_index);
+			dest_ring->write_index = write_index;
+		}
 		status = QDF_STATUS_SUCCESS;
-	} else {
+	} else
 		status = QDF_STATUS_E_FAILURE;
-	}
+
 	Q_TARGET_ACCESS_END(scn);
 	qdf_spin_unlock_bh(&CE_state->ce_index_lock);
 	return status;
@@ -1277,6 +1332,175 @@ void ce_per_engine_servicereap(struct hif_softc *scn, unsigned int ce_id)
  */
 #define CE_TXRX_COMP_CHECK_THRESHOLD 20
 
+#ifdef WLAN_FEATURE_FASTPATH
+/**
+ * ce_fastpath_rx_handle() - Updates write_index and calls fastpath msg handler
+ * @ce_state: handle to copy engine state
+ * @cmpl_msdus: Rx msdus
+ * @num_cmpls: number of Rx msdus
+ * @ctrl_addr: CE control address
+ *
+ * Return: None
+ */
+static void ce_fastpath_rx_handle(struct CE_state *ce_state,
+				  qdf_nbuf_t *cmpl_msdus, uint32_t num_cmpls,
+				  uint32_t ctrl_addr)
+{
+	struct hif_softc *scn = ce_state->scn;
+	struct CE_ring_state *dest_ring = ce_state->dest_ring;
+	uint32_t nentries_mask = dest_ring->nentries_mask;
+	uint32_t write_index;
+
+	(ce_state->fastpath_handler)(ce_state->context, cmpl_msdus, num_cmpls);
+
+	/* Update Destination Ring Write Index */
+	write_index = dest_ring->write_index;
+	write_index = CE_RING_IDX_ADD(nentries_mask, write_index, num_cmpls);
+	CE_DEST_RING_WRITE_IDX_SET(scn, ctrl_addr, write_index);
+	dest_ring->write_index = write_index;
+}
+
+#define MSG_FLUSH_NUM 6
+/**
+ * ce_per_engine_service_fast() - CE handler routine to service fastpath messages
+ * @scn: hif_context
+ * @ce_id: Copy engine ID
+ * 1) Go through the CE ring, and find the completions
+ * 2) For valid completions retrieve context (nbuf) for per_transfer_context[]
+ * 3) Unmap buffer & accumulate in an array.
+ * 4) Call message handler when array is full or when exiting the handler
+ *
+ * Return: void
+ */
+
+static void ce_per_engine_service_fast(struct hif_softc *scn, int ce_id)
+{
+	struct CE_state *ce_state = scn->ce_id_to_state[ce_id];
+	struct CE_ring_state *dest_ring = ce_state->dest_ring;
+	struct CE_dest_desc *dest_ring_base =
+		(struct CE_dest_desc *)dest_ring->base_addr_owner_space;
+
+	uint32_t nentries_mask = dest_ring->nentries_mask;
+	uint32_t sw_index = dest_ring->sw_index;
+	uint32_t nbytes;
+	qdf_nbuf_t nbuf;
+	uint32_t paddr_lo;
+	struct CE_dest_desc *dest_desc;
+	uint32_t ce_int_status = (1 << ce_id);
+	qdf_nbuf_t cmpl_msdus[MSG_FLUSH_NUM];
+	uint32_t ctrl_addr = ce_state->ctrl_addr;
+	uint32_t nbuf_cmpl_idx = 0;
+	unsigned int more_comp_cnt = 0;
+
+more_data:
+	if (ce_int_status == (1 << ce_id)) {
+		for (;;) {
+
+			dest_desc = CE_DEST_RING_TO_DESC(dest_ring_base,
+							 sw_index);
+
+			/*
+			 * The following 2 reads are from non-cached memory
+			 */
+			nbytes = dest_desc->nbytes;
+
+			/* If completion is invalid, break */
+			if (qdf_unlikely(nbytes == 0))
+				break;
+
+
+			/*
+			 * Build the nbuf list from valid completions
+			 */
+			nbuf = dest_ring->per_transfer_context[sw_index];
+
+			/*
+			 * No lock is needed here, since this is the only thread
+			 * that accesses the sw_index
+			 */
+			sw_index = CE_RING_IDX_INCR(nentries_mask, sw_index);
+
+			/*
+			 * CAREFUL : Uncached write, but still less expensive,
+			 * since most modern caches use "write-combining" to
+			 * flush multiple cache-writes all at once.
+			 */
+			dest_desc->nbytes = 0;
+
+			/*
+			 * Per our understanding this is not required on our
+			 * since we are doing the same cache invalidation
+			 * operation on the same buffer twice in succession,
+			 * without any modifiication to this buffer by CPU in
+			 * between.
+			 * However, this code with 2 syncs in succession has
+			 * been undergoing some testing at a customer site,
+			 * and seemed to be showing no problems so far. Would
+			 * like to validate from the customer, that this line
+			 * is really not required, before we remove this line
+			 * completely.
+			 */
+			paddr_lo = QDF_NBUF_CB_PADDR(nbuf);
+
+			qdf_mem_dma_sync_single_for_cpu(scn->qdf_dev,
+					paddr_lo,
+					(skb_end_pointer(nbuf) - (nbuf)->data),
+					DMA_FROM_DEVICE);
+			qdf_nbuf_put_tail(nbuf, nbytes);
+
+			qdf_assert_always(nbuf->data != NULL);
+
+			cmpl_msdus[nbuf_cmpl_idx++] = nbuf;
+
+			/*
+			 * we are not posting the buffers back instead
+			 * reusing the buffers
+			 */
+			if (nbuf_cmpl_idx == MSG_FLUSH_NUM) {
+				qdf_spin_unlock(&ce_state->ce_index_lock);
+				ce_fastpath_rx_handle(ce_state, cmpl_msdus,
+						      MSG_FLUSH_NUM, ctrl_addr);
+				qdf_spin_lock(&ce_state->ce_index_lock);
+				nbuf_cmpl_idx = 0;
+			}
+
+		}
+
+		/*
+		 * If there are not enough completions to fill the array,
+		 * just call the message handler here
+		 */
+		if (nbuf_cmpl_idx) {
+			qdf_spin_unlock(&ce_state->ce_index_lock);
+			ce_fastpath_rx_handle(ce_state, cmpl_msdus,
+					      nbuf_cmpl_idx, ctrl_addr);
+			qdf_spin_lock(&ce_state->ce_index_lock);
+			nbuf_cmpl_idx = 0;
+		}
+		qdf_atomic_set(&ce_state->rx_pending, 0);
+		dest_ring->sw_index = sw_index;
+
+		CE_ENGINE_INT_STATUS_CLEAR(scn, ctrl_addr,
+					   HOST_IS_COPY_COMPLETE_MASK);
+	}
+	if (ce_recv_entries_done_nolock(scn, ce_state)) {
+		if (more_comp_cnt++ < CE_TXRX_COMP_CHECK_THRESHOLD) {
+			goto more_data;
+		} else {
+			HIF_ERROR("%s:Potential infinite loop detected during Rx processing nentries_mask:0x%x sw read_idx:0x%x hw read_idx:0x%x",
+				  __func__, nentries_mask,
+				  ce_state->dest_ring->sw_index,
+				  CE_DEST_RING_READ_IDX_GET(scn, ctrl_addr));
+		}
+	}
+}
+
+#else
+static void ce_per_engine_service_fast(struct hif_softc *scn, int ce_id)
+{
+}
+#endif /* WLAN_FEATURE_FASTPATH */
+
 /*
  * Guts of interrupt handler for per-engine interrupts on a particular CE.
  *
@@ -1309,6 +1533,17 @@ int ce_per_engine_service(struct hif_softc *scn, unsigned int CE_id)
 	}
 
 	qdf_spin_lock(&CE_state->ce_index_lock);
+
+	/*
+	 * With below check we make sure CE we are handling is datapath CE and
+	 * fastpath is enabled.
+	 */
+	if (ce_is_fastpath_handler_registered(CE_state)) {
+		/* For datapath only Rx CEs */
+		ce_per_engine_service_fast(scn, CE_id);
+		qdf_spin_unlock(&CE_state->ce_index_lock);
+		return CE_state->receive_count;
+	}
 
 	/* Clear force_break flag and re-initialize receive_count to 0 */
 
@@ -1349,8 +1584,6 @@ more_completions:
 			 */
 			if (qdf_unlikely(CE_state->force_break)) {
 				qdf_atomic_set(&CE_state->rx_pending, 1);
-				CE_ENGINE_INT_STATUS_CLEAR(scn, ctrl_addr,
-					HOST_IS_COPY_COMPLETE_MASK);
 				if (Q_TARGET_ACCESS_END(scn) < 0)
 					HIF_ERROR("<--[premature rc=%d]\n",
 						  CE_state->receive_count);
@@ -1747,14 +1980,13 @@ bool ce_get_rx_pending(struct hif_softc *scn)
 
 /**
  * ce_check_rx_pending() - ce_check_rx_pending
- * @scn: hif_softc
- * @ce_id: ce_id
+ * @CE_state: context of the copy engine to check
  *
- * Return: bool
+ * Return: true if there per_engine_service
+ *	didn't process all the rx descriptors.
  */
-bool ce_check_rx_pending(struct hif_softc *scn, int ce_id)
+bool ce_check_rx_pending(struct CE_state *CE_state)
 {
-	struct CE_state *CE_state = scn->ce_id_to_state[ce_id];
 	if (qdf_atomic_read(&CE_state->rx_pending))
 		return true;
 	else

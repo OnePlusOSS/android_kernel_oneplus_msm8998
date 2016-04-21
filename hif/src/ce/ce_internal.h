@@ -108,6 +108,8 @@ struct CE_state {
 
 #ifdef WLAN_FEATURE_FASTPATH
 	u_int32_t download_len; /* pkt download length for source ring */
+	fastpath_msg_handler fastpath_handler;
+	void *context;
 #endif /* WLAN_FEATURE_FASTPATH */
 
 	ce_send_cb send_cb;
@@ -140,6 +142,10 @@ struct CE_state {
 	/* epping */
 	bool timer_inited;
 	qdf_timer_t poll_timer;
+
+	/* datapath - for faster access, use bools instead of a bitmap */
+	bool htt_tx_data;
+	bool htt_rx_data;
 	void (*lro_flush_cb)(void *);
 	void *lro_data;
 };
@@ -353,6 +359,15 @@ struct ce_sendlist_s {
 
 #ifdef WLAN_FEATURE_FASTPATH
 void ce_h2t_tx_ce_cleanup(struct CE_handle *ce_hdl);
+void ce_t2h_msg_ce_cleanup(struct CE_handle *ce_hdl);
+#else
+static inline void ce_h2t_tx_ce_cleanup(struct CE_handle *ce_hdl)
+{
+}
+
+static inline void ce_t2h_msg_ce_cleanup(struct CE_handle *ce_hdl)
+{
+}
 #endif
 
 /* which ring of a CE? */

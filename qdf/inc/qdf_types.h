@@ -239,6 +239,7 @@ typedef void (*qdf_timer_func_t)(void *);
  * @QDF_MODULE_ID_CFG: CFG module ID
  * @QDF_MODULE_ID_BMI: BMI module ID
  * @QDF_MODULE_ID_EPPING: EPPING module ID
+ * @QDF_MODULE_ID_QVIT: QVIT module ID
  * @QDF_MODULE_ID_MAX: Max place holder module ID
  *
  * These are generic IDs that identify the various modules in the software
@@ -268,6 +269,7 @@ typedef enum {
 	QDF_MODULE_ID_CFG = 20,
 	QDF_MODULE_ID_BMI = 21,
 	QDF_MODULE_ID_EPPING = 22,
+	QDF_MODULE_ID_QVIT = 23,
 	QDF_MODULE_ID_MAX
 } QDF_MODULE_ID;
 
@@ -280,23 +282,25 @@ typedef enum {
  * @QDF_FTM_MODE: FTM mode
  * @QDF_IBSS_MODE: IBSS mode
  * @QDF_P2P_DEVICE_MODE: P2P device mode
- * @QDF_EPPING_MODE: EPPING device mode
  * @QDF_OCB_MODE: OCB device mode
+ * @QDF_EPPING_MODE: EPPING device mode
+ * @QDF_QVIT_MODE: QVIT device mode
  * @QDF_MAX_NO_OF_MODE: Max place holder
  *
  * These are generic IDs that identify the various roles
  * in the software system
  */
 enum tQDF_ADAPTER_MODE {
-	QDF_STA_MODE = 0,
-	QDF_SAP_MODE = 1,
+	QDF_STA_MODE,
+	QDF_SAP_MODE,
 	QDF_P2P_CLIENT_MODE,
 	QDF_P2P_GO_MODE,
 	QDF_FTM_MODE,
 	QDF_IBSS_MODE,
 	QDF_P2P_DEVICE_MODE,
-	QDF_EPPING_MODE,
 	QDF_OCB_MODE,
+	QDF_EPPING_MODE,
+	QDF_QVIT_MODE,
 	QDF_MAX_NO_OF_MODE
 };
 
@@ -307,12 +311,14 @@ enum tQDF_ADAPTER_MODE {
  * @QDF_GLOBAL_MISSION_MODE: mission mode (STA, SAP...)
  * @QDF_GLOBAL_FTM_MODE: FTM mode
  * @QDF_GLOBAL_EPPING_MODE: EPPING mode
+ * @QDF_GLOBAL_QVIT_MODE: QVIT global mode
  * @QDF_GLOBAL_MAX_MODE: Max place holder
  */
 enum tQDF_GLOBAL_CON_MODE {
 	QDF_GLOBAL_MISSION_MODE,
 	QDF_GLOBAL_FTM_MODE = 5,
 	QDF_GLOBAL_EPPING_MODE = 8,
+	QDF_GLOBAL_QVIT_MODE = 9,
 	QDF_GLOBAL_MAX_MODE
 };
 
@@ -354,6 +360,7 @@ typedef enum {
 	QDF_MCC_TO_SCC_SWITCH_DISABLE = 0,
 	QDF_MCC_TO_SCC_SWITCH_ENABLE,
 	QDF_MCC_TO_SCC_SWITCH_FORCE,
+	QDF_MCC_TO_SCC_SWITCH_FORCE_WITHOUT_DISCONNECTION,
 	QDF_MCC_TO_SCC_SWITCH_MAX
 } tQDF_MCC_TO_SCC_SWITCH_MODE;
 #endif

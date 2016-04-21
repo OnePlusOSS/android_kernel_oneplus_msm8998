@@ -49,8 +49,9 @@ ATH_DEBUG_INSTANTIATE_MODULE_VAR(hif, "hif", "PCIe Host Interface",
 #endif
 
 #ifdef CONFIG_ATH_PCIE_ACCESS_DEBUG
+/* globals are initialized to 0 by the compiler */;
 spinlock_t pcie_access_log_lock;
-unsigned int pcie_access_log_seqnum = 0;
+unsigned int pcie_access_log_seqnum;
 HIF_ACCESS_LOG pcie_access_log[PCIE_ACCESS_LOG_NUM];
 static void hif_target_dump_access_log(void);
 #endif
@@ -94,9 +95,11 @@ static struct CE_attr host_ce_config_wlan[] = {
 		2, DIAG_TRANSFER_LIMIT, 2, NULL,},
 	/* Target to uMC */
 	{ /* CE8 */ CE_ATTR_FLAGS, 0, 0, 0, 0, NULL,},
+	/* target->host HTT */
+	{ /* CE9 */ CE_ATTR_FLAGS, 0, 0,  2048, 512, NULL,},
+	/* target->host HTT */
+	{ /* CE10 */ CE_ATTR_FLAGS, 0, 0,  2048, 512, NULL,},
 	/*The following CEs are not being used yet */
-	{ /* CE9 */ CE_ATTR_FLAGS, 0, 0,  0, 0, NULL,},
-	{ /* CE10 */ CE_ATTR_FLAGS, 0, 0, 0, 0, NULL,},
 	{ /* CE11 */ CE_ATTR_FLAGS, 0, 0, 0, 0, NULL,},
 };
 
@@ -123,10 +126,12 @@ static struct CE_pipe_config target_ce_config_wlan[] = {
 		(CE_ATTR_FLAGS | CE_ATTR_DISABLE_INTR), 0,},
 	/* CE8 used only by IPA */
 	{ /* CE8 */ 8, PIPEDIR_IN, 32, 2048, CE_ATTR_FLAGS, 0,},
+	/* CE9 target->host HTT */
+	{ /* CE9 */ 9, PIPEDIR_IN,  32, 2048, CE_ATTR_FLAGS, 0,},
+	/* CE10 target->host HTT */
+	{ /* CE10 */ 10, PIPEDIR_IN,  32, 2048, CE_ATTR_FLAGS, 0,},
 	/*The following CEs are not being used yet*/
-	{ /* CE9 */ 9, PIPEDIR_IN,  0, 0, CE_ATTR_FLAGS, 0,},
-	{ /* CE10 */ 9, PIPEDIR_IN,  0, 0, CE_ATTR_FLAGS, 0,},
-	{ /* CE11 */ 9, PIPEDIR_IN,  0, 0, CE_ATTR_FLAGS, 0,},
+	{ /* CE11 */ 11, PIPEDIR_IN,  0, 0, CE_ATTR_FLAGS, 0,},
 };
 
 static struct CE_attr host_ce_config_wlan_epping_poll[] = {
@@ -251,6 +256,11 @@ static struct CE_attr host_ce_config_wlan_epping_poll[] = {
 	{ /* CE6 */ CE_ATTR_FLAGS, 0, 0,   0, 0, NULL,},
 	/* ce_diag, the Diagnostic Window */
 	{ /* CE7 */ CE_ATTR_FLAGS, 0, 2,   DIAG_TRANSFER_LIMIT, 2, NULL,},
+	{ /* CE8 */ CE_ATTR_FLAGS, 0, 0, 0, 0, NULL,},
+	/* The following CEs are not being used yet */
+	{ /* CE9 */ CE_ATTR_FLAGS, 0, 0,  0, 0, NULL,},
+	{ /* CE10 */ CE_ATTR_FLAGS, 0, 0, 0, 0, NULL,},
+	{ /* CE11 */ CE_ATTR_FLAGS, 0, 0, 0, 0, NULL,},
 };
 static struct CE_attr host_ce_config_wlan_epping_irq[] = {
 	/* host->target HTC control and raw streams */
@@ -269,6 +279,11 @@ static struct CE_attr host_ce_config_wlan_epping_irq[] = {
 	{ /* CE6 */ CE_ATTR_FLAGS, 0, 0, 0, 0, NULL,},
 	/* ce_diag, the Diagnostic Window */
 	{ /* CE7 */ CE_ATTR_FLAGS, 0, 2, DIAG_TRANSFER_LIMIT, 2, NULL,},
+	{ /* CE8 */ CE_ATTR_FLAGS, 0, 0, 0, 0, NULL,},
+	/* The following CEs are not being used yet */
+	{ /* CE9 */ CE_ATTR_FLAGS, 0, 0,  0, 0, NULL,},
+	{ /* CE10 */ CE_ATTR_FLAGS, 0, 0, 0, 0, NULL,},
+	{ /* CE11 */ CE_ATTR_FLAGS, 0, 0, 0, 0, NULL,},
 };
 /*
  * EP-ping firmware's CE configuration
@@ -291,7 +306,10 @@ static struct CE_pipe_config target_ce_config_wlan_epping[] = {
 	/* CE7 used only by Host */
 	{ /* CE7 */ 7, PIPEDIR_INOUT_H2H, 0, 0, 0, 0,},
 	/* CE8 used only by IPA */
-	{ /* CE8 */ 8, PIPEDIR_IN, 32, 2048, CE_ATTR_FLAGS, 0,}
+	{ /* CE8 */ 8, PIPEDIR_IN, 32, 2048, CE_ATTR_FLAGS, 0,},
+	{ /* CE9 */ 9, PIPEDIR_IN,  0, 0, CE_ATTR_FLAGS, 0,},
+	{ /* CE10 */ 10, PIPEDIR_IN,  0, 0, CE_ATTR_FLAGS, 0,},
+	{ /* CE11 */ 11, PIPEDIR_IN,  0, 0, CE_ATTR_FLAGS, 0,},
 };
 #endif
 

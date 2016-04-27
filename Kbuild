@@ -22,8 +22,8 @@ ifeq ($(KERNEL_BUILD),1)
 	# Need to explicitly define for Kernel-based builds
 	MODNAME := wlan
 	WLAN_ROOT := drivers/staging/qcacld-3.0
-	WLAN_COMMON_ROOT := drivers/staging/qca-wifi-host-cmn
-	WLAN_COMMON_INC := $(WLAN_COMMON_ROOT)
+	WLAN_COMMON_ROOT := ../qca-wifi-host-cmn
+	WLAN_COMMON_INC := $(WLAN_ROOT)/$(WLAN_COMMON_ROOT)
 endif
 
 # Make WLAN as open-source driver by default
@@ -39,6 +39,31 @@ ifeq ($(KERNEL_BUILD), 0)
 
 	ifeq ($(CONFIG_ARCH_MDM9640), y)
 	CONFIG_MOBILE_ROUTER := y
+	endif
+
+	# As per target team, build is done as follows:
+	# Defconfig : build with default flags
+	# Slub      : defconfig  + CONFIG_SLUB_DEBUG=y +
+	#	      CONFIG_SLUB_DEBUG_ON=y + CONFIG_PAGE_POISONING=y
+	# Perf      : Using appropriate msmXXXX-perf_defconfig
+	#
+	# Shipment builds (user variants) should not have any debug feature
+	# enabled. This is identified using 'TARGET_BUILD_VARIANT'. Slub builds
+	# are identified using the CONFIG_SLUB_DEBUG_ON configuration. Since
+	# there is no other way to identify defconfig builds, QCOMs internal
+	# representation of perf builds (identified using the string 'perf'),
+	# is used to identify if the build is a slub or defconfig one. This
+	# way no critical debug feature will be enabled for perf and shipment
+	# builds. Other OEMs are also protected using the TARGET_BUILD_VARIANT
+	# config.
+	ifneq ($(TARGET_BUILD_VARIANT),user)
+		ifeq ($(CONFIG_SLUB_DEBUG_ON),y)
+			CONFIG_PKT_PROTO_TRACE := y
+		else
+			ifeq ($(findstring perf,$(KERNEL_DEFCONFIG)),)
+				CONFIG_PKT_PROTO_TRACE := y
+			endif
+		endif
 	endif
 
 	#Flag to enable Legacy Fast Roaming2(LFR2)
@@ -73,7 +98,7 @@ ifeq ($(KERNEL_BUILD), 0)
 	CONFIG_QCOM_VOWIFI_11R := y
 
 	ifneq ($(CONFIG_QCA_CLD_WLAN),)
-		ifeq (y,$(filter y,$(CONFIG_CNSS) $(CONFIG_ICNSS)))
+		ifeq (y,$(findstring y,$(CONFIG_CNSS) $(CONFIG_ICNSS)))
 		#Flag to enable Protected Managment Frames (11w) feature
 		CONFIG_WLAN_FEATURE_11W := y
 		#Flag to enable LTE CoEx feature
@@ -139,6 +164,10 @@ ifeq ($(KERNEL_BUILD), 0)
 		endif
 	endif
 
+ifeq ($(CONFIG_ROME_IF), snoc)
+	CONFIG_WLAN_TX_FLOW_CONTROL_V2 := y
+endif
+
 	# Flag to enable LFR Subnet Detection
 	CONFIG_LFR_SUBNET_DETECTION := y
 
@@ -198,6 +227,11 @@ endif
 ifeq ($(CONFIG_ROME_IF),pci)
 	CONFIG_ATH_PCI := 1
 endif
+
+ifeq ($(CONFIG_ROME_IF),snoc)
+	CONFIG_HIF_SNOC:= 1
+endif
+
 ifeq ($(CONFIG_ROME_IF),usb)
 #CONFIG_ATH_PCI := 1
 endif
@@ -755,6 +789,7 @@ HIF_INC += -I$(WLAN_COMMON_INC)/$(HIF_SNOC_DIR)
 endif
 
 HIF_OBJS := $(WLAN_COMMON_ROOT)/$(HIF_DIR)/src/ath_procfs.o \
+		$(WLAN_COMMON_ROOT)/$(HIF_CE_DIR)/ce_bmi.o \
 		$(WLAN_COMMON_ROOT)/$(HIF_CE_DIR)/ce_diag.o \
 		$(WLAN_COMMON_ROOT)/$(HIF_CE_DIR)/ce_main.o \
 		$(WLAN_COMMON_ROOT)/$(HIF_CE_DIR)/ce_service.o \
@@ -772,7 +807,6 @@ HIF_OBJS += $(WLAN_COMMON_ROOT)/$(HIF_DIR)/src/hif_napi.o
 endif
 
 HIF_PCIE_OBJS := $(WLAN_COMMON_ROOT)/$(HIF_PCIE_DIR)/if_pci.o
-HIF_PCIE_OBJS += $(WLAN_COMMON_ROOT)/$(HIF_CE_DIR)/ce_bmi.o
 HIF_SNOC_OBJS := $(WLAN_COMMON_ROOT)/$(HIF_SNOC_DIR)/if_snoc.o
 
 HIF_OBJS += $(WLAN_COMMON_ROOT)/$(HIF_DISPATCHER_DIR)/multibus.o
@@ -960,11 +994,7 @@ ifeq ($(CONFIG_FEATURE_BMI_2), y)
 CDEFINES += -DFEATURE_BMI_2
 endif
 
-ifeq ($(CONFIG_ARCH_MSM), y)
-CDEFINES += -DMSM_PLATFORM
-endif
-
-ifeq ($(CONFIG_ARCH_MSMCOBALT), y)
+ifeq (y,$(findstring y,$(CONFIG_ARCH_MSM) $(CONFIG_ARCH_QCOM)))
 CDEFINES += -DMSM_PLATFORM
 endif
 
@@ -979,7 +1009,7 @@ CDEFINES +=	-DQCA_LL_LEGACY_TX_FLOW_CONTROL
 endif
 endif
 
-ifeq ($(CONFIG_DEBUG_LL),y)
+ifeq ($(CONFIG_PKT_PROTO_TRACE), y)
 CDEFINES +=    	-DQCA_PKT_PROTO_TRACE
 endif
 

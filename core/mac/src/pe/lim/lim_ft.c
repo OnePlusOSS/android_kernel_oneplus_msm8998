@@ -685,10 +685,20 @@ void lim_fill_ft_session(tpAniSirGlobal pMac,
 		lim_init_obss_params(pMac, pftSessionEntry);
 
 	pftSessionEntry->enableHtSmps = psessionEntry->enableHtSmps;
-	pftSessionEntry->smpsMode = psessionEntry->smpsMode;
-	lim_log(pMac, LOG1, FL("FT session enable smps: %d mode: %d"),
+	pftSessionEntry->htSmpsvalue = psessionEntry->htSmpsvalue;
+	/*
+	 * By default supported NSS 1x1 is set to true
+	 * and later on updated while determining session
+	 * supported rates which is the intersection of
+	 * self and peer rates
+	 */
+	pftSessionEntry->supported_nss_1x1 = true;
+	lim_log(pMac, LOG1,
+		FL("FT enable smps: %d mode: %d supported nss 1x1: %d"),
 		pftSessionEntry->enableHtSmps,
-		pftSessionEntry->smpsMode);
+		pftSessionEntry->htSmpsvalue,
+		pftSessionEntry->supported_nss_1x1);
+
 
 	qdf_mem_free(pBeaconStruct);
 }

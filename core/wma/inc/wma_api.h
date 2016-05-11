@@ -65,6 +65,8 @@ typedef enum {
 	GEN_PARAM_DUMP_PCIE_ACCESS_LOG,
 #endif
 	GEN_PARAM_MODULATED_DTIM,
+	GEN_PARAM_CAPTURE_TSF,
+	GEN_PARAM_RESET_TSF_GPIO,
 } GEN_PARAM;
 
 #define VDEV_CMD 1
@@ -121,7 +123,7 @@ int wma_runtime_suspend(void);
 int wma_runtime_resume(void);
 int wma_bus_suspend(void);
 QDF_STATUS wma_suspend_target(WMA_HANDLE handle, int disable_target_intr);
-void wma_target_suspend_acknowledge(void *context);
+void wma_target_suspend_acknowledge(void *context, bool wow_nack);
 int wma_bus_resume(void);
 QDF_STATUS wma_resume_target(WMA_HANDLE handle);
 QDF_STATUS wma_disable_wow_in_fw(WMA_HANDLE handle);

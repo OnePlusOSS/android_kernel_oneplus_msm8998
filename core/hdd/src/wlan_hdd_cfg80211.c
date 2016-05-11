@@ -42,9 +42,6 @@
 #include <net/arp.h>
 #include <net/cfg80211.h>
 #include <qdf_trace.h>
-#ifdef CONFIG_CNSS
-#include <net/cnss.h>
-#endif
 #include <wlan_hdd_wowl.h>
 #include <ani_global.h>
 #include "sir_params.h"
@@ -177,12 +174,6 @@ static struct ieee80211_channel hdd_channels_2_4_ghz[] = {
 	HDD2GHZCHAN(2484, 14, 0),
 };
 
-static struct ieee80211_channel hdd_social_channels_2_4_ghz[] = {
-	HDD2GHZCHAN(2412, 1, 0),
-	HDD2GHZCHAN(2437, 6, 0),
-	HDD2GHZCHAN(2462, 11, 0),
-};
-
 static struct ieee80211_channel hdd_channels_5_ghz[] = {
 	HDD5GHZCHAN(5180, 36, 0),
 	HDD5GHZCHAN(5200, 40, 0),
@@ -264,23 +255,6 @@ static struct ieee80211_supported_band wlan_hdd_band_2_4_ghz = {
 		      | IEEE80211_HT_CAP_DSSSCCK40
 		      | IEEE80211_HT_CAP_LSIG_TXOP_PROT
 		      | IEEE80211_HT_CAP_SGI_40 | IEEE80211_HT_CAP_SUP_WIDTH_20_40,
-	.ht_cap.ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K,
-	.ht_cap.ampdu_density = IEEE80211_HT_MPDU_DENSITY_16,
-	.ht_cap.mcs.rx_mask = {0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0,},
-	.ht_cap.mcs.rx_highest = cpu_to_le16(72),
-	.ht_cap.mcs.tx_params = IEEE80211_HT_MCS_TX_DEFINED,
-};
-
-static struct ieee80211_supported_band wlan_hdd_band_p2p_2_4_ghz = {
-	.channels = hdd_social_channels_2_4_ghz,
-	.n_channels = ARRAY_SIZE(hdd_social_channels_2_4_ghz),
-	.band = IEEE80211_BAND_2GHZ,
-	.bitrates = g_mode_rates,
-	.n_bitrates = g_mode_rates_size,
-	.ht_cap.ht_supported = 1,
-	.ht_cap.cap = IEEE80211_HT_CAP_SGI_20
-		      | IEEE80211_HT_CAP_GRN_FLD
-		      | IEEE80211_HT_CAP_DSSSCCK40 | IEEE80211_HT_CAP_LSIG_TXOP_PROT,
 	.ht_cap.ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K,
 	.ht_cap.ampdu_density = IEEE80211_HT_MPDU_DENSITY_16,
 	.ht_cap.mcs.rx_mask = {0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0,},
@@ -505,6 +479,24 @@ wlan_hdd_p2p_p2p_iface_limit[] = {
 	},
 };
 
+static const struct ieee80211_iface_limit
+	wlan_hdd_mon_iface_limit[] = {
+	{
+		.max = 3,       /* Monitor interface */
+		.types = BIT(NL80211_IFTYPE_MONITOR),
+	},
+};
+
+static struct ieee80211_iface_combination
+	wlan_hdd_mon_iface[] = {
+	{
+		.limits = wlan_hdd_mon_iface_limit,
+		.max_interfaces = 3,
+		.num_different_channels = 2,
+		.n_limits = ARRAY_SIZE(wlan_hdd_mon_iface_limit),
+	},
+};
+
 static struct ieee80211_iface_combination
 	wlan_hdd_iface_combination[] = {
 	/* STA */
@@ -585,7 +577,7 @@ static struct ieee80211_iface_combination
 };
 
 static struct cfg80211_ops wlan_hdd_cfg80211_ops;
-
+struct hdd_bpf_context bpf_context;
 
 #ifdef WLAN_NL80211_TESTMODE
 enum wlan_hdd_tm_attr {
@@ -1773,13 +1765,8 @@ void wlan_hdd_cfg80211_acs_ch_select_evt(hdd_adapter_t *adapter)
 	con_sap_adapter = hdd_get_con_sap_adapter(adapter, false);
 	if (con_sap_adapter &&
 		test_bit(ACS_PENDING, &con_sap_adapter->event_flags)) {
-#ifdef CONFIG_CNSS
-		cnss_init_delayed_work(&con_sap_adapter->acs_pending_work,
-				      wlan_hdd_cfg80211_start_pending_acs);
-#else
 		INIT_DELAYED_WORK(&con_sap_adapter->acs_pending_work,
 				      wlan_hdd_cfg80211_start_pending_acs);
-#endif
 		/* Lets give 500ms for OBSS + START_BSS to complete */
 		schedule_delayed_work(&con_sap_adapter->acs_pending_work,
 							msecs_to_jiffies(500));
@@ -3563,7 +3550,8 @@ static int __wlan_hdd_cfg80211_wifi_logger_get_ring_data(struct wiphy *wiphy,
 
 	status = cds_flush_logs(WLAN_LOG_TYPE_NON_FATAL,
 			WLAN_LOG_INDICATOR_FRAMEWORK,
-			WLAN_LOG_REASON_CODE_UNUSED);
+			WLAN_LOG_REASON_CODE_UNUSED,
+			true, false);
 	if (QDF_STATUS_SUCCESS != status) {
 		hddLog(LOGE, FL("Failed to trigger bug report"));
 		return -EINVAL;
@@ -4913,7 +4901,363 @@ static int wlan_hdd_cfg80211_txpower_scale_decr_db(struct wiphy *wiphy,
 
 	return ret;
 }
+/*
+ * define short names for the global vendor params
+ * used by __wlan_hdd_cfg80211_bpf_offload()
+ */
+#define BPF_INVALID \
+	QCA_WLAN_VENDOR_ATTR_PACKET_FILTER_INVALID
+#define BPF_SET_RESET \
+	QCA_WLAN_VENDOR_ATTR_SET_RESET_PACKET_FILTER
+#define BPF_VERSION \
+	QCA_WLAN_VENDOR_ATTR_PACKET_FILTER_VERSION
+#define BPF_FILTER_ID \
+	QCA_WLAN_VENDOR_ATTR_PACKET_FILTER_ID
+#define BPF_PACKET_SIZE \
+	QCA_WLAN_VENDOR_ATTR_PACKET_FILTER_SIZE
+#define BPF_CURRENT_OFFSET \
+	QCA_WLAN_VENDOR_ATTR_PACKET_FILTER_CURRENT_OFFSET
+#define BPF_PROGRAM \
+	QCA_WLAN_VENDOR_ATTR_PACKET_FILTER_PROGRAM
+#define BPF_MAX \
+	QCA_WLAN_VENDOR_ATTR_PACKET_FILTER_MAX
 
+static const struct nla_policy
+wlan_hdd_bpf_offload_policy[BPF_MAX + 1] = {
+	[BPF_SET_RESET] = {.type = NLA_U32},
+	[BPF_VERSION] = {.type = NLA_U32},
+	[BPF_FILTER_ID] = {.type = NLA_U32},
+	[BPF_PACKET_SIZE] = {.type = NLA_U32},
+	[BPF_CURRENT_OFFSET] = {.type = NLA_U32},
+	[BPF_PROGRAM] = {.type = NLA_U8},
+};
+
+/**
+ * hdd_get_bpf_offload_cb() - Callback function to BPF Offload
+ * @hdd_context: hdd_context
+ * @bpf_get_offload: struct for get offload
+ *
+ * This function receives the response/data from the lower layer and
+ * checks to see if the thread is still waiting then post the results to
+ * upper layer, if the request has timed out then ignore.
+ *
+ * Return: None
+ */
+void hdd_get_bpf_offload_cb(void *hdd_context,
+			    struct sir_bpf_get_offload *data)
+{
+	hdd_context_t *hdd_ctx = hdd_context;
+	struct hdd_bpf_context *context;
+
+	ENTER();
+
+	if (wlan_hdd_validate_context(hdd_ctx) || !data) {
+		hddLog(LOGE, FL("HDD context is invalid or data(%p) is null"),
+			data);
+		return;
+	}
+
+	spin_lock(&hdd_context_lock);
+
+	context = &bpf_context;
+	/* The caller presumably timed out so there is nothing we can do */
+	if (context->magic != BPF_CONTEXT_MAGIC) {
+		spin_unlock(&hdd_context_lock);
+		return;
+	}
+
+	/* context is valid so caller is still waiting */
+	/* paranoia: invalidate the magic */
+	context->magic = 0;
+
+	context->capability_response = *data;
+	complete(&context->completion);
+
+	spin_unlock(&hdd_context_lock);
+
+	return;
+}
+
+/**
+ * hdd_post_get_bpf_capabilities_rsp() - Callback function to BPF Offload
+ * @hdd_context: hdd_context
+ * @bpf_get_offload: struct for get offload
+ *
+ * Return: 0 on success, error number otherwise.
+ */
+static int hdd_post_get_bpf_capabilities_rsp(hdd_context_t *hdd_ctx,
+			    struct sir_bpf_get_offload *bpf_get_offload)
+{
+	struct sk_buff *skb;
+	uint32_t nl_buf_len;
+
+	ENTER();
+
+	nl_buf_len = NLMSG_HDRLEN;
+	nl_buf_len +=
+		(sizeof(bpf_get_offload->max_bytes_for_bpf_inst) + NLA_HDRLEN) +
+		(sizeof(bpf_get_offload->bpf_version) + NLA_HDRLEN);
+
+	skb = cfg80211_vendor_cmd_alloc_reply_skb(hdd_ctx->wiphy, nl_buf_len);
+	if (!skb) {
+		hddLog(LOGE, FL("cfg80211_vendor_cmd_alloc_reply_skb failed"));
+		return -ENOMEM;
+	}
+
+	hddLog(LOG1, "BPF Version: %u BPF max bytes: %u",
+			bpf_get_offload->bpf_version,
+			bpf_get_offload->max_bytes_for_bpf_inst);
+
+	if (nla_put_u32(skb, BPF_PACKET_SIZE,
+			bpf_get_offload->max_bytes_for_bpf_inst) ||
+	    nla_put_u32(skb, BPF_VERSION, bpf_get_offload->bpf_version)) {
+		hddLog(LOGE, FL("nla put failure"));
+		goto nla_put_failure;
+	}
+
+	cfg80211_vendor_cmd_reply(skb);
+	EXIT();
+	return 0;
+
+nla_put_failure:
+	kfree_skb(skb);
+	return -EINVAL;
+}
+
+/**
+ * hdd_get_bpf_offload - Get BPF offload Capabilities
+ * @hdd_ctx: Hdd context
+ *
+ * Return: 0 on success, errno on failure
+ */
+static int hdd_get_bpf_offload(hdd_context_t *hdd_ctx)
+{
+	unsigned long rc;
+	struct hdd_bpf_context *context;
+	QDF_STATUS status;
+	int ret;
+
+	ENTER();
+
+	spin_lock(&hdd_context_lock);
+	context = &bpf_context;
+	context->magic = BPF_CONTEXT_MAGIC;
+	INIT_COMPLETION(context->completion);
+	spin_unlock(&hdd_context_lock);
+
+	status = sme_get_bpf_offload_capabilities(hdd_ctx->hHal);
+	if (!QDF_IS_STATUS_SUCCESS(status)) {
+		hddLog(LOGE, FL("Unable to retrieve BPF caps"));
+		return -EINVAL;
+	}
+	/* request was sent -- wait for the response */
+	rc = wait_for_completion_timeout(&context->completion,
+			msecs_to_jiffies(WLAN_WAIT_TIME_BPF));
+	if (!rc) {
+		hddLog(LOGE, FL("Target response timed out"));
+		spin_lock(&hdd_context_lock);
+		context->magic = 0;
+		spin_unlock(&hdd_context_lock);
+
+		return -ETIMEDOUT;
+	}
+	ret = hdd_post_get_bpf_capabilities_rsp(hdd_ctx,
+					&bpf_context.capability_response);
+	if (ret)
+		hddLog(LOGE, FL("Failed to post get bpf capabilities"));
+
+	EXIT();
+	return ret;
+}
+
+/**
+ * hdd_set_reset_bpf_offload - Post set/reset bpf to SME
+ * @hdd_ctx: Hdd context
+ * @tb: Length of @data
+ * @session_id: Session identifier
+ *
+ * Return: 0 on success; errno on failure
+ */
+static int hdd_set_reset_bpf_offload(hdd_context_t *hdd_ctx,
+				     struct nlattr **tb,
+				     uint8_t session_id)
+{
+	struct sir_bpf_set_offload *bpf_set_offload;
+	QDF_STATUS status;
+	int prog_len;
+
+	ENTER();
+
+	bpf_set_offload = qdf_mem_malloc(sizeof(*bpf_set_offload));
+	if (bpf_set_offload == NULL) {
+		hddLog(LOGE, FL("qdf_mem_malloc failed for bpf_set_offload"));
+		return -ENOMEM;
+	}
+	qdf_mem_zero(bpf_set_offload, sizeof(*bpf_set_offload));
+
+	/* Parse and fetch bpf packet size */
+	if (!tb[BPF_PACKET_SIZE]) {
+		hddLog(LOGE, FL("attr bpf packet size failed"));
+		goto fail;
+	}
+	bpf_set_offload->total_length = nla_get_u32(tb[BPF_PACKET_SIZE]);
+
+	if (!bpf_set_offload->total_length) {
+		hddLog(LOG1, FL("BPF reset packet filter received"));
+		goto post_sme;
+	}
+
+	/* Parse and fetch bpf program */
+	if (!tb[BPF_PROGRAM]) {
+		hddLog(LOGE, FL("attr bpf program failed"));
+		goto fail;
+	}
+
+	prog_len = nla_len(tb[BPF_PROGRAM]);
+	bpf_set_offload->program = qdf_mem_malloc(sizeof(uint8_t) * prog_len);
+	bpf_set_offload->current_length = prog_len;
+	nla_memcpy(bpf_set_offload->program, tb[BPF_PROGRAM], prog_len);
+	bpf_set_offload->session_id = session_id;
+
+	/* Parse and fetch filter Id */
+	if (!tb[BPF_FILTER_ID]) {
+		hddLog(LOGE, FL("attr filter id failed"));
+		goto fail;
+	}
+	bpf_set_offload->filter_id = nla_get_u32(tb[BPF_FILTER_ID]);
+
+	/* Parse and fetch current offset */
+	if (!tb[BPF_CURRENT_OFFSET]) {
+		hddLog(LOGE, FL("attr current offset failed"));
+		goto fail;
+	}
+	bpf_set_offload->current_offset = nla_get_u32(tb[BPF_CURRENT_OFFSET]);
+
+post_sme:
+	hddLog(LOG1, FL("Posting BPF SET/RESET to SME, session_id: %d Bpf Version: %d filter ID: %d total_length: %d current_length: %d current offset: %d"),
+			bpf_set_offload->session_id,
+			bpf_set_offload->version,
+			bpf_set_offload->filter_id,
+			bpf_set_offload->total_length,
+			bpf_set_offload->current_length,
+			bpf_set_offload->current_offset);
+
+	status = sme_set_bpf_instructions(hdd_ctx->hHal, bpf_set_offload);
+	if (!QDF_IS_STATUS_SUCCESS(status)) {
+		hddLog(LOGE,
+			FL("sme_set_bpf_instructions failed(err=%d)"), status);
+		goto fail;
+	}
+	EXIT();
+	if (bpf_set_offload->current_length)
+		qdf_mem_free(bpf_set_offload->program);
+	qdf_mem_free(bpf_set_offload);
+	return 0;
+
+fail:
+	if (bpf_set_offload->current_length)
+		qdf_mem_free(bpf_set_offload->program);
+	qdf_mem_free(bpf_set_offload);
+	return -EINVAL;
+}
+
+/**
+ * wlan_hdd_cfg80211_bpf_offload() - Set/Reset to BPF Offload
+ * @wiphy:    wiphy structure pointer
+ * @wdev:     Wireless device structure pointer
+ * @data:     Pointer to the data received
+ * @data_len: Length of @data
+ *
+ * Return: 0 on success; errno on failure
+ */
+static int
+__wlan_hdd_cfg80211_bpf_offload(struct wiphy *wiphy,
+				struct wireless_dev *wdev,
+				const void *data, int data_len)
+{
+	hdd_context_t *hdd_ctx = wiphy_priv(wiphy);
+	struct net_device *dev = wdev->netdev;
+	hdd_adapter_t *pAdapter =  WLAN_HDD_GET_PRIV_PTR(dev);
+	struct nlattr *tb[BPF_MAX + 1];
+	int ret_val, packet_filter_subcmd;
+
+	ENTER();
+
+	ret_val = wlan_hdd_validate_context(hdd_ctx);
+	if (ret_val)
+		return ret_val;
+
+	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
+		hddLog(LOGE, FL("Command not allowed in FTM mode"));
+		return -EINVAL;
+	}
+
+	if (!hdd_ctx->bpf_enabled) {
+		hddLog(LOGE, FL("BPF offload is not supported by firmware"));
+		return -ENOTSUPP;
+	}
+
+	if (nla_parse(tb, BPF_MAX, data, data_len,
+				wlan_hdd_bpf_offload_policy)) {
+		hddLog(LOGE, FL("Invalid ATTR"));
+		return -EINVAL;
+	}
+
+	if (!tb[BPF_SET_RESET]) {
+		hddLog(LOGE, FL("attr bpf set reset failed"));
+		return -EINVAL;
+	}
+
+	packet_filter_subcmd = nla_get_u32(tb[BPF_SET_RESET]);
+
+	if (packet_filter_subcmd == QCA_WLAN_GET_PACKET_FILTER)
+		return hdd_get_bpf_offload(hdd_ctx);
+	else
+		return hdd_set_reset_bpf_offload(hdd_ctx, tb,
+						 pAdapter->sessionId);
+}
+
+/**
+ * wlan_hdd_cfg80211_bpf_offload() - SSR Wrapper to BPF Offload
+ * @wiphy:    wiphy structure pointer
+ * @wdev:     Wireless device structure pointer
+ * @data:     Pointer to the data received
+ * @data_len: Length of @data
+ *
+ * Return: 0 on success; errno on failure
+ */
+
+static int wlan_hdd_cfg80211_bpf_offload(struct wiphy *wiphy,
+		struct wireless_dev *wdev,
+		const void *data, int data_len)
+{
+	int ret;
+
+	cds_ssr_protect(__func__);
+	ret = __wlan_hdd_cfg80211_bpf_offload(wiphy, wdev, data, data_len);
+	cds_ssr_unprotect(__func__);
+
+	return ret;
+}
+
+/**
+ * hdd_init_bpf_completion() - Initialize the completion event for bpf
+ *
+ * Return: None
+ */
+void hdd_init_bpf_completion(void)
+{
+	init_completion(&bpf_context.completion);
+}
+
+#undef BPF_INVALID
+#undef BPF_SET_RESET
+#undef BPF_VERSION
+#undef BPF_ID
+#undef BPF_PACKET_SIZE
+#undef BPF_CURRENT_OFFSET
+#undef BPF_PROGRAM
+#undef BPF_MAX
 const struct wiphy_vendor_command hdd_wiphy_vendor_commands[] = {
 	{
 		.info.vendor_id = QCA_NL80211_VENDOR_ID,
@@ -5368,6 +5712,14 @@ const struct wiphy_vendor_command hdd_wiphy_vendor_commands[] = {
 				 WIPHY_VENDOR_CMD_NEED_RUNNING,
 		.doit = wlan_hdd_cfg80211_txpower_scale_decr_db
 	},
+	{
+		.info.vendor_id = QCA_NL80211_VENDOR_ID,
+		.info.subcmd = QCA_NL80211_VENDOR_SUBCMD_PACKET_FILTER,
+		.flags = WIPHY_VENDOR_CMD_NEED_WDEV |
+			WIPHY_VENDOR_CMD_NEED_NETDEV |
+			WIPHY_VENDOR_CMD_NEED_RUNNING,
+		.doit = wlan_hdd_cfg80211_bpf_offload
+	},
 };
 
 /**
@@ -5543,26 +5895,35 @@ int wlan_hdd_cfg80211_init(struct device *dev,
 
 	wiphy->max_acl_mac_addrs = MAX_ACL_MAC_ADDRESS;
 
-	/* Supports STATION & AD-HOC modes right now */
-	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION)
-				 | BIT(NL80211_IFTYPE_ADHOC)
-				 | BIT(NL80211_IFTYPE_P2P_CLIENT)
-				 | BIT(NL80211_IFTYPE_P2P_GO)
-				 | BIT(NL80211_IFTYPE_AP);
+	if (cds_get_conparam() != QDF_GLOBAL_MONITOR_MODE) {
+		/* Supports STATION & AD-HOC modes right now */
+		wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION)
+					 | BIT(NL80211_IFTYPE_ADHOC)
+					 | BIT(NL80211_IFTYPE_P2P_CLIENT)
+					 | BIT(NL80211_IFTYPE_P2P_GO)
+					 | BIT(NL80211_IFTYPE_AP);
 
-	if (pCfg->advertiseConcurrentOperation) {
-		if (pCfg->enableMCC) {
-			int i;
-			for (i = 0; i < ARRAY_SIZE(wlan_hdd_iface_combination);
-			     i++) {
-				if (!pCfg->allowMCCGODiffBI)
-					wlan_hdd_iface_combination[i].
-					beacon_int_infra_match = true;
+		if (pCfg->advertiseConcurrentOperation) {
+			if (pCfg->enableMCC) {
+				int i;
+
+				for (i = 0;
+				     i < ARRAY_SIZE(wlan_hdd_iface_combination);
+				     i++) {
+					if (!pCfg->allowMCCGODiffBI)
+						wlan_hdd_iface_combination[i].
+						beacon_int_infra_match = true;
+				}
 			}
+			wiphy->n_iface_combinations =
+				ARRAY_SIZE(wlan_hdd_iface_combination);
+			wiphy->iface_combinations = wlan_hdd_iface_combination;
 		}
+	} else {
+		wiphy->interface_modes = BIT(NL80211_IFTYPE_MONITOR);
 		wiphy->n_iface_combinations =
-			ARRAY_SIZE(wlan_hdd_iface_combination);
-		wiphy->iface_combinations = wlan_hdd_iface_combination;
+			ARRAY_SIZE(wlan_hdd_mon_iface);
+		wiphy->iface_combinations = wlan_hdd_mon_iface;
 	}
 
 	/* Before registering we need to update the ht capabilitied based
@@ -5570,8 +5931,6 @@ int wlan_hdd_cfg80211_init(struct device *dev,
 	if (!pCfg->ShortGI20MhzEnable) {
 		wlan_hdd_band_2_4_ghz.ht_cap.cap &= ~IEEE80211_HT_CAP_SGI_20;
 		wlan_hdd_band_5_ghz.ht_cap.cap &= ~IEEE80211_HT_CAP_SGI_20;
-		wlan_hdd_band_p2p_2_4_ghz.ht_cap.cap &=
-			~IEEE80211_HT_CAP_SGI_20;
 	}
 
 	if (!pCfg->ShortGI40MhzEnable) {
@@ -7434,9 +7793,7 @@ wlan_hdd_cfg80211_inform_bss_frame(hdd_adapter_t *pAdapter,
 	int rssi = 0;
 	hdd_context_t *pHddCtx;
 	int status;
-#ifdef CONFIG_CNSS
 	struct timespec ts;
-#endif
 	struct hdd_config *cfg_param;
 
 	ENTER();
@@ -7455,18 +7812,11 @@ wlan_hdd_cfg80211_inform_bss_frame(hdd_adapter_t *pAdapter,
 
 	memcpy(mgmt->bssid, bss_desc->bssId, ETH_ALEN);
 
-#ifdef CONFIG_CNSS
 	/* Android does not want the timestamp from the frame.
 	   Instead it wants a monotonic increasing value */
-	cnss_get_monotonic_boottime(&ts);
+	get_monotonic_boottime(&ts);
 	mgmt->u.probe_resp.timestamp =
 		((u64) ts.tv_sec * 1000000) + (ts.tv_nsec / 1000);
-#else
-	/* keep old behavior for non-open source (for now) */
-	memcpy(&mgmt->u.probe_resp.timestamp, bss_desc->timeStamp,
-	       sizeof(bss_desc->timeStamp));
-
-#endif
 
 	mgmt->u.probe_resp.beacon_int = bss_desc->beaconInterval;
 	mgmt->u.probe_resp.capab_info = bss_desc->capabilityInfo;
@@ -7877,6 +8227,10 @@ void hdd_select_cbmode(hdd_adapter_t *pAdapter, uint8_t operationChannel)
 	uint8_t iniDot11Mode = (WLAN_HDD_GET_CTX(pAdapter))->config->dot11Mode;
 	eHddDot11Mode hddDot11Mode = iniDot11Mode;
 	struct ch_params_s ch_params;
+	hdd_station_ctx_t *station_ctx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
+	uint32_t cb_mode;
+	struct hdd_mon_set_ch_info *ch_info = &station_ctx->ch_info;
+
 	ch_params.ch_width =
 			(WLAN_HDD_GET_CTX(pAdapter))->config->vhtChannelWidth;
 
@@ -7899,10 +8253,20 @@ void hdd_select_cbmode(hdd_adapter_t *pAdapter, uint8_t operationChannel)
 		break;
 	}
 	/* This call decides required channel bonding mode */
-	sme_set_ch_params((WLAN_HDD_GET_CTX(pAdapter)->hHal),
+	cb_mode = sme_set_ch_params((WLAN_HDD_GET_CTX(pAdapter)->hHal),
 				hdd_cfg_xlate_to_csr_phy_mode(hddDot11Mode),
 				operationChannel, 0,
 				&ch_params);
+
+	if (QDF_GLOBAL_MONITOR_MODE == cds_get_conparam()) {
+		ch_info->channel_width = ch_params.ch_width;
+		ch_info->phy_mode = hdd_cfg_xlate_to_csr_phy_mode(hddDot11Mode);
+		ch_info->channel = operationChannel;
+		ch_info->cb_mode = cb_mode;
+		hdd_info("ch_info width %d, phymode %d channel %d",
+			 ch_info->channel_width, ch_info->phy_mode,
+			 ch_info->channel);
+	}
 }
 
 /**
@@ -8194,20 +8558,6 @@ int wlan_hdd_cfg80211_connect_start(hdd_adapter_t *pAdapter,
 			return -EINVAL;
 		}
 
-		/* change conn_state to connecting before sme_roam_connect(), because sme_roam_connect()
-		 * has a direct path to call hdd_sme_roam_callback(), which will change the conn_state
-		 * If direct path, conn_state will be accordingly changed to NotConnected or Associated
-		 * by either hdd_association_completion_handler() or hdd_dis_connect_handler() in sme_RoamCallback()
-		 * if sme_RomConnect is to be queued, Connecting state will remain until it is completed.
-		 */
-		if (QDF_STA_MODE == pAdapter->device_mode ||
-		    QDF_P2P_CLIENT_MODE == pAdapter->device_mode) {
-			hddLog(LOG1,
-				FL("Set HDD connState to eConnectionState_Connecting"));
-			hdd_conn_set_connection_state(pAdapter,
-						      eConnectionState_Connecting);
-		}
-
 		/* After 8-way handshake supplicant should give the scan command
 		 * in that it update the additional IEs, But because of scan
 		 * enhancements, the supplicant is not issuing the scan command now.
@@ -8263,6 +8613,32 @@ int wlan_hdd_cfg80211_connect_start(hdd_adapter_t *pAdapter,
 			pHddCtx->config->nChannelBondingMode24GHz;
 		sme_update_config(pHddCtx->hHal, sme_config);
 		qdf_mem_free(sme_config);
+		/*
+		 * Change conn_state to connecting before sme_roam_connect(),
+		 * because sme_roam_connect() has a direct path to call
+		 * hdd_sme_roam_callback(), which will change the conn_state
+		 * If direct path, conn_state will be accordingly changed to
+		 * NotConnected or Associated by either
+		 * hdd_association_completion_handler() or
+		 * hdd_dis_connect_handler() in sme_RoamCallback()if
+		 * sme_RomConnect is to be queued,
+		 * Connecting state will remain until it is completed.
+		 *
+		 * If connection state is not changed, connection state will
+		 * remain in eConnectionState_NotConnected state.
+		 * In hdd_association_completion_handler, "hddDisconInProgress"
+		 * is set to true if conn state is
+		 * eConnectionState_NotConnected.
+		 * If "hddDisconInProgress" is set to true then cfg80211 layer
+		 * is not informed of connect result indication which
+		 * is an issue.
+		 */
+		if (QDF_STA_MODE == pAdapter->device_mode ||
+			QDF_P2P_CLIENT_MODE == pAdapter->device_mode) {
+			hdd_info("Set HDD connState to eConnectionState_Connecting");
+			hdd_conn_set_connection_state(pAdapter,
+			eConnectionState_Connecting);
+		}
 
 		status = sme_roam_connect(WLAN_HDD_GET_HAL_CTX(pAdapter),
 					  pAdapter->sessionId, pRoamProfile,
@@ -11477,6 +11853,93 @@ enum cds_con_mode wlan_hdd_convert_nl_iftype_to_hdd_type(
 }
 
 /**
+ * wlan_hdd_cfg80211_set_mon_ch() - Set monitor mode capture channel
+ * @wiphy: Handle to struct wiphy to get handle to module context.
+ * @chandef: Contains information about the capture channel to be set.
+ *
+ * This interface is called if and only if monitor mode interface alone is
+ * active.
+ *
+ * Return: 0 success or error code on failure.
+ */
+static int __wlan_hdd_cfg80211_set_mon_ch(struct wiphy *wiphy,
+				       struct cfg80211_chan_def *chandef)
+{
+	hdd_context_t *hdd_ctx = wiphy_priv(wiphy);
+	hdd_adapter_t *adapter;
+	hdd_station_ctx_t *sta_ctx;
+	struct hdd_mon_set_ch_info *ch_info;
+	QDF_STATUS status;
+	tHalHandle hal_hdl;
+	struct qdf_mac_addr bssid;
+	tCsrRoamProfile roam_profile;
+	struct ch_params_s ch_params;
+	int ret;
+	uint16_t chan_num = cds_freq_to_chan(chandef->chan->center_freq);
+
+	ENTER();
+
+	ret = wlan_hdd_validate_context(hdd_ctx);
+	if (ret)
+		return ret;
+
+	hal_hdl = hdd_ctx->hHal;
+
+	adapter = hdd_get_adapter(hdd_ctx, QDF_MONITOR_MODE);
+	if (!adapter)
+		return -EIO;
+
+	hdd_info("%s: set monitor mode Channel %d and freq %d",
+		 adapter->dev->name, chan_num, chandef->chan->center_freq);
+
+	sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
+	ch_info = &sta_ctx->ch_info;
+	hdd_select_cbmode(adapter, chan_num);
+	roam_profile.ChannelInfo.ChannelList = &ch_info->channel;
+	roam_profile.ChannelInfo.numOfChannels = 1;
+	roam_profile.phyMode = ch_info->phy_mode;
+	roam_profile.ch_params.ch_width = chandef->width;
+
+	qdf_mem_copy(bssid.bytes, adapter->macAddressCurrent.bytes,
+		     QDF_MAC_ADDR_SIZE);
+
+	ch_params.ch_width = chandef->width;
+	sme_set_ch_params(hal_hdl, ch_info->phy_mode, chan_num, 0,
+			  &ch_params);
+	status = sme_roam_channel_change_req(hal_hdl, bssid, &ch_params,
+						 &roam_profile);
+	if (status) {
+		hdd_err("Status: %d Failed to set sme_RoamChannel for monitor mode",
+			status);
+		ret = qdf_status_to_os_return(status);
+		return ret;
+	}
+	EXIT();
+	return 0;
+}
+
+/**
+ * wlan_hdd_cfg80211_set_mon_ch() - Set monitor mode capture channel
+ * @wiphy: Handle to struct wiphy to get handle to module context.
+ * @chandef: Contains information about the capture channel to be set.
+ *
+ * This interface is called if and only if monitor mode interface alone is
+ * active.
+ *
+ * Return: 0 success or error code on failure.
+ */
+static int wlan_hdd_cfg80211_set_mon_ch(struct wiphy *wiphy,
+				       struct cfg80211_chan_def *chandef)
+{
+	int ret;
+
+	cds_ssr_protect(__func__);
+	ret = __wlan_hdd_cfg80211_set_mon_ch(wiphy, chandef);
+	cds_ssr_unprotect(__func__);
+	return ret;
+}
+
+/**
  * struct cfg80211_ops - cfg80211_ops
  *
  * @add_virtual_intf: Add virtual interface
@@ -11591,4 +12054,5 @@ static struct cfg80211_ops wlan_hdd_cfg80211_ops = {
 #ifdef CHANNEL_SWITCH_SUPPORTED
 	.channel_switch = wlan_hdd_cfg80211_channel_switch,
 #endif
+	.set_monitor_channel = wlan_hdd_cfg80211_set_mon_ch,
 };

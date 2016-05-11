@@ -988,7 +988,7 @@ bool sme_is_any_session_in_connected_state(tHalHandle h_hal);
 
 QDF_STATUS sme_pdev_set_pcl(tHalHandle hal,
 		struct sir_pcl_list msg);
-QDF_STATUS sme_soc_set_hw_mode(tHalHandle hal,
+QDF_STATUS sme_pdev_set_hw_mode(tHalHandle hal,
 		struct sir_hw_mode msg);
 void sme_register_hw_mode_trans_cb(tHalHandle hal,
 		hw_mode_transition_cb callback);
@@ -1096,6 +1096,17 @@ static inline QDF_STATUS sme_send_egap_conf_params(uint32_t enable,
 
 void sme_update_fine_time_measurement_capab(tHalHandle hal, uint32_t val);
 QDF_STATUS sme_ht40_stop_obss_scan(tHalHandle hHal, uint32_t vdev_id);
+QDF_STATUS sme_set_tsfcb(tHalHandle hHal,
+	int (*cb_fn)(void *cb_ctx, struct stsf *ptsf), void *cb_ctx);
+
+#ifdef WLAN_FEATURE_TSF
+QDF_STATUS sme_set_tsf_gpio(tHalHandle h_hal, uint32_t pinvalue);
+#else
+static inline QDF_STATUS sme_set_tsf_gpio(tHalHandle h_hal, uint32_t pinvalue)
+{
+	return QDF_STATUS_E_FAILURE;
+}
+#endif
 
 QDF_STATUS sme_update_mimo_power_save(tHalHandle hHal,
 				      uint8_t is_ht_smps_enabled,
@@ -1106,4 +1117,13 @@ bool sme_is_sta_smps_allowed(tHalHandle hHal, uint8_t session_id);
 QDF_STATUS sme_add_beacon_filter(tHalHandle hal,
 				uint32_t session_id, uint32_t *ie_map);
 QDF_STATUS sme_remove_beacon_filter(tHalHandle hal, uint32_t session_id);
+QDF_STATUS sme_bpf_offload_register_callback(tHalHandle hal,
+					void (*pbpf_get_offload_cb)(void *,
+					struct sir_bpf_get_offload *));
+
+QDF_STATUS sme_get_bpf_offload_capabilities(tHalHandle hal);
+QDF_STATUS sme_set_bpf_instructions(tHalHandle hal,
+				struct sir_bpf_set_offload *);
+
+QDF_STATUS sme_create_mon_session(tHalHandle hal_handle, uint8_t *bssid);
 #endif /* #if !defined( __SME_API_H ) */

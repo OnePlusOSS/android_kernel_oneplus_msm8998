@@ -165,7 +165,7 @@ static QDF_STATUS lim_process_set_hw_mode(tpAniSirGlobal mac, uint32_t *msg)
 	/* Other parameters are not needed for WMA */
 
 	cds_message.bodyptr = req_msg;
-	cds_message.type    = SIR_HAL_SOC_SET_HW_MODE;
+	cds_message.type    = SIR_HAL_PDEV_SET_HW_MODE;
 
 	lim_log(mac, LOG1, FL("Posting SIR_HAL_SOC_SET_HW_MOD to WMA"));
 	status = cds_mq_post_message(CDS_MQ_ID_WMA, &cds_message);
@@ -238,10 +238,10 @@ static QDF_STATUS lim_process_set_dual_mac_cfg_req(tpAniSirGlobal mac,
 	/* Other parameters are not needed for WMA */
 
 	cds_message.bodyptr = req_msg;
-	cds_message.type    = SIR_HAL_SOC_DUAL_MAC_CFG_REQ;
+	cds_message.type    = SIR_HAL_PDEV_DUAL_MAC_CFG_REQ;
 
 	lim_log(mac, LOG1,
-		FL("Post SIR_HAL_SOC_DUAL_MAC_CFG_REQ to WMA: %x %x"),
+		FL("Post SIR_HAL_PDEV_DUAL_MAC_CFG_REQ to WMA: %x %x"),
 		req_msg->scan_config, req_msg->fw_mode_config);
 	status = cds_mq_post_message(CDS_MQ_ID_WMA, &cds_message);
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
@@ -1298,6 +1298,8 @@ static QDF_STATUS lim_send_hal_start_scan_offload_req(tpAniSirGlobal pMac,
 	pScanOffloadReq->minChannelTime = pScanReq->minChannelTime;
 	pScanOffloadReq->maxChannelTime = pScanReq->maxChannelTime;
 	pScanOffloadReq->restTime = pScanReq->restTime;
+	pScanOffloadReq->min_rest_time = pScanReq->min_rest_time;
+	pScanOffloadReq->idle_time = pScanReq->idle_time;
 
 	/* for normal scan, the value for p2pScanType should be 0
 	   always */

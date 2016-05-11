@@ -3172,13 +3172,22 @@ hdd_roam_tdls_status_update_handler(hdd_adapter_t *pAdapter,
 								pRoamInfo->
 								peerMac.bytes,
 								true);
-				if (NULL != curr_peer
-				    && TDLS_IS_CONNECTED(curr_peer)) {
+				if (NULL != curr_peer) {
+				    hdd_info("Current status for peer " MAC_ADDRESS_STR " is %d",
+				    MAC_ADDR_ARRAY(pRoamInfo->peerMac.bytes),
+					    curr_peer->link_status);
+				    if (TDLS_IS_CONNECTED(curr_peer)) {
 					hdd_roam_deregister_tdlssta
 						(pAdapter,
 						pRoamInfo->staId);
 					wlan_hdd_tdls_decrement_peer_count
 						(pAdapter);
+				    } else if (eTDLS_LINK_CONNECTING ==
+					    curr_peer->link_status) {
+					hdd_roam_deregister_tdlssta
+						(pAdapter,
+						pRoamInfo->staId);
+				    }
 				}
 				wlan_hdd_tdls_reset_peer(pAdapter,
 							 pRoamInfo->
@@ -3209,6 +3218,8 @@ hdd_roam_tdls_status_update_handler(hdd_adapter_t *pAdapter,
 						pRoamInfo->peerMac.bytes, true);
 		wlan_hdd_tdls_indicate_teardown(pAdapter, curr_peer,
 						pRoamInfo->reasonCode);
+		hdd_send_wlan_tdls_teardown_event(eTDLS_TEARDOWN_BSS_DISCONNECT,
+						curr_peer->peerMac);
 		status = QDF_STATUS_SUCCESS;
 		break;
 	}
@@ -3388,6 +3399,9 @@ hdd_roam_tdls_status_update_handler(hdd_adapter_t *pAdapter,
 				wlan_hdd_tdls_indicate_teardown
 					(pHddTdlsCtx->pAdapter, curr_peer,
 					reason);
+				hdd_send_wlan_tdls_teardown_event(
+					eTDLS_TEARDOWN_BSS_DISCONNECT,
+					curr_peer->peerMac);
 			} else {
 				hddLog(LOGE,
 					  FL
@@ -3436,6 +3450,9 @@ hdd_roam_tdls_status_update_handler(hdd_adapter_t *pAdapter,
 				wlan_hdd_tdls_indicate_teardown
 					(pHddTdlsCtx->pAdapter, curr_peer,
 					reason);
+				hdd_send_wlan_tdls_teardown_event(
+					eTDLS_TEARDOWN_BSS_DISCONNECT,
+					curr_peer->peerMac);
 			} else {
 				hddLog(LOGE,
 					  FL
@@ -4296,6 +4313,19 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 		break;
 	}
 #endif /* FEATURE_WLAN_ESE */
+	case eCSR_ROAM_STA_CHANNEL_SWITCH:
+		hdd_info("channel switch for session:%d to channel:%d",
+			pAdapter->sessionId, pRoamInfo->chan_info.chan_id);
+
+		status = hdd_chan_change_notify(pAdapter, pAdapter->dev,
+						pRoamInfo->chan_info.chan_id);
+		if (QDF_IS_STATUS_ERROR(status))
+			hdd_err("channel change notification failed");
+
+		status = cds_set_hw_mode_on_channel_switch(pAdapter->sessionId);
+		if (QDF_IS_STATUS_ERROR(status))
+			hdd_info("set hw mode change not done");
+		break;
 	default:
 		break;
 	}
@@ -4971,8 +5001,41 @@ static int __iw_set_essid(struct net_device *dev,
 				  (WLAN_HDD_GET_CTX(pAdapter))->config->
 				  AdHocChannel5G);
 	}
+	/*
+	 * Change conn_state to connecting before sme_roam_connect(),
+	 * because sme_roam_connect() has a direct path to call
+	 * hdd_sme_roam_callback(), which will change the conn_state
+	 * If direct path, conn_state will be accordingly changed to
+	 * NotConnected or Associated by either
+	 * hdd_association_completion_handler() or hdd_dis_connect_handler()
+	 * in sme_RoamCallback()if sme_RomConnect is to be queued,
+	 * Connecting state will remain until it is completed.
+	 *
+	 * If connection state is not changed,
+	 * connection state will remain in eConnectionState_NotConnected state.
+	 * In hdd_association_completion_handler, "hddDisconInProgress" is
+	 * set to true if conn state is eConnectionState_NotConnected.
+	 * If "hddDisconInProgress" is set to true then cfg80211 layer is not
+	 * informed of connect result indication which is an issue.
+	 */
+	if (QDF_STA_MODE == pAdapter->device_mode ||
+			QDF_P2P_CLIENT_MODE == pAdapter->device_mode) {
+		hdd_info("Set HDD connState to eConnectionState_Connecting");
+		hdd_conn_set_connection_state(pAdapter,
+				eConnectionState_Connecting);
+	}
+
 	status = sme_roam_connect(hHal, pAdapter->sessionId,
 				  &(pWextState->roamProfile), &roamId);
+	if ((QDF_STATUS_SUCCESS != status) &&
+		(QDF_STA_MODE == pAdapter->device_mode ||
+		 QDF_P2P_CLIENT_MODE == pAdapter->device_mode)) {
+		hdd_err("sme_roam_connect (session %d) failed with status %d. -> NotConnected",
+			pAdapter->sessionId, status);
+		/* change back to NotAssociated */
+		hdd_conn_set_connection_state(pAdapter,
+			eConnectionState_NotConnected);
+	}
 	pRoamProfile->ChannelInfo.ChannelList = NULL;
 	pRoamProfile->ChannelInfo.numOfChannels = 0;
 

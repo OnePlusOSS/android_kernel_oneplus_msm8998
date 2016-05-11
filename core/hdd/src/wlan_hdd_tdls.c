@@ -85,6 +85,85 @@ static void wlan_hdd_tdls_determine_channel_opclass(hdd_context_t *hddctx,
 	}
 }
 
+#ifdef FEATURE_WLAN_DIAG_SUPPORT
+/**
+ * hdd_send_wlan_tdls_teardown_event()- send TDLS teardown event
+ * @reason: reason for tear down.
+ * @peer_mac: peer mac
+ *
+ * This Function sends TDLS teardown diag event
+ *
+ * Return: void.
+ */
+void hdd_send_wlan_tdls_teardown_event(uint32_t reason,
+					uint8_t *peer_mac)
+{
+	WLAN_HOST_DIAG_EVENT_DEF(tdls_tear_down,
+		struct host_event_tdls_teardown);
+	qdf_mem_zero(&tdls_tear_down,
+			sizeof(tdls_tear_down));
+
+	tdls_tear_down.reason = reason;
+	qdf_mem_copy(tdls_tear_down.peer_mac, peer_mac, MAC_ADDR_LEN);
+	WLAN_HOST_DIAG_EVENT_REPORT(&tdls_tear_down,
+		EVENT_WLAN_TDLS_TEARDOWN);
+}
+
+/**
+ * hdd_wlan_tdls_enable_link_event()- send TDLS enable link event
+ * @peer_mac: peer mac
+ * @is_off_chan_supported: Does peer supports off chan
+ * @is_off_chan_configured: If off channel is configured
+ * @is_off_chan_established: If off chan is established
+ *
+ * This Function send TDLS enable link diag event
+ *
+ * Return: void.
+ */
+
+void hdd_wlan_tdls_enable_link_event(const uint8_t *peer_mac,
+				uint8_t is_off_chan_supported,
+				uint8_t is_off_chan_configured,
+				uint8_t is_off_chan_established)
+{
+	WLAN_HOST_DIAG_EVENT_DEF(tdls_event,
+		struct host_event_tdls_enable_link);
+
+	qdf_mem_copy(tdls_event.peer_mac,
+			peer_mac, MAC_ADDR_LEN);
+
+	tdls_event.is_off_chan_supported =
+			is_off_chan_supported;
+	tdls_event.is_off_chan_configured =
+			is_off_chan_configured;
+	tdls_event.is_off_chan_established =
+			is_off_chan_established;
+
+	WLAN_HOST_DIAG_EVENT_REPORT(&tdls_event,
+		EVENT_WLAN_TDLS_ENABLE_LINK);
+}
+
+/**
+ * hdd_wlan_block_scan_by_tdls_event()- send event
+ * if scan is blocked by tdls
+ *
+ * This Function send send diag event if scan is
+ * blocked by tdls
+ *
+ * Return: void.
+ */
+void hdd_wlan_block_scan_by_tdls_event(void)
+{
+	WLAN_HOST_DIAG_EVENT_DEF(tdls_scan_block_status,
+		struct host_event_tdls_scan_rejected);
+
+	tdls_scan_block_status.status = true;
+	WLAN_HOST_DIAG_EVENT_REPORT(&tdls_scan_block_status,
+		EVENT_TDLS_SCAN_BLOCK);
+}
+
+#endif
+
 /**
  * wlan_hdd_tdls_hash_key() - calculate tdls hash key given mac address
  * @mac: mac address
@@ -168,6 +247,8 @@ void wlan_hdd_tdls_disable_offchan_and_teardown_links(hdd_context_t *hddctx)
 					curr_peer->pHddTdlsCtx->pAdapter,
 					curr_peer,
 					eSIR_MAC_TDLS_TEARDOWN_UNSPEC_REASON);
+		hdd_send_wlan_tdls_teardown_event(eTDLS_TEARDOWN_CONCURRENCY,
+			curr_peer->peerMac);
 	}
 }
 
@@ -508,18 +589,29 @@ static void wlan_hdd_tdls_del_non_forced_peers(tdlsCtx_t *hdd_tdls_ctx)
 }
 
 /**
- * hdd_tdls_pre_init - TDLS pre init
+ * hdd_tdls_context_init() - Init TDLS context
  * @hdd_ctx:	HDD context
  *
- * tdls_lock is initialized before an hdd_open_adapter ( which is
- * invoked by other instances also) to protect the concurrent
- * access for the Adapters by TDLS module.
+ * Initialize TDLS global context.
  *
  * Return: None
  */
-void hdd_tdls_pre_init(hdd_context_t *hdd_ctx)
+void hdd_tdls_context_init(hdd_context_t *hdd_ctx)
 {
 	mutex_init(&hdd_ctx->tdls_lock);
+}
+
+/**
+ * hdd_tdls_context_destroy() - Destroy TDLS context
+ * @hdd_ctx:	HDD context
+ *
+ * Destroy TDLS global context.
+ *
+ * Return: None
+ */
+void hdd_tdls_context_destroy(hdd_context_t *hdd_ctx)
+{
+	mutex_destroy(&hdd_ctx->tdls_lock);
 }
 
 /**
@@ -658,19 +750,10 @@ int wlan_hdd_tdls_init(hdd_adapter_t *pAdapter)
 		pHddCtx->tdls_mode = eTDLS_SUPPORT_ENABLED;
 	}
 
-#ifdef CONFIG_CNSS
-	cnss_init_work(&pHddTdlsCtx->implicit_setup, wlan_hdd_tdls_pre_setup);
-#else
 	INIT_WORK(&pHddTdlsCtx->implicit_setup, wlan_hdd_tdls_pre_setup);
-#endif
 
-#ifdef CONFIG_CNSS
-	cnss_init_delayed_work(&pHddCtx->tdls_scan_ctxt.tdls_scan_work,
-			       wlan_hdd_tdls_schedule_scan);
-#else
 	INIT_DELAYED_WORK(&pHddCtx->tdls_scan_ctxt.tdls_scan_work,
 			  wlan_hdd_tdls_schedule_scan);
-#endif
 
 	/*
 	 * Release tdls lock before calling in SME api
@@ -748,7 +831,7 @@ void wlan_hdd_tdls_exit(hdd_adapter_t *pAdapter)
 
 	pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
 	if (!pHddCtx) {
-		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_WARN,
 			  FL("pHddCtx is NULL"));
 		return;
 	}
@@ -2764,6 +2847,9 @@ int wlan_hdd_tdls_scan_callback(hdd_adapter_t *pAdapter, struct wiphy *wiphy,
 						(connectedPeerList[i]->pHddTdlsCtx->
 						pAdapter, connectedPeerList[i],
 						eSIR_MAC_TDLS_TEARDOWN_UNSPEC_REASON);
+					hdd_send_wlan_tdls_teardown_event(
+						eTDLS_TEARDOWN_SCAN,
+						connectedPeerList[i]->peerMac);
 				}
 			}
 			/* schedule scan */
@@ -2876,6 +2962,7 @@ void wlan_hdd_tdls_indicate_teardown(hdd_adapter_t *pAdapter,
 	wlan_hdd_tdls_set_peer_link_status(curr_peer,
 					   eTDLS_LINK_TEARING,
 					   eTDLS_LINK_UNSPECIFIED);
+	hdd_info("Teardown reason %d", reason);
 	cfg80211_tdls_oper_request(pAdapter->dev,
 				   curr_peer->peerMac,
 				   NL80211_TDLS_TEARDOWN, reason, GFP_KERNEL);
@@ -3899,7 +3986,11 @@ static int __wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy,
 				cds_get_driver_state());
 			return -EAGAIN;
 		}
-
+		if (rc <= 0)
+			cds_flush_logs(WLAN_LOG_TYPE_FATAL,
+				WLAN_LOG_INDICATOR_HOST_DRIVER,
+				WLAN_LOG_REASON_HDD_TIME_OUT,
+				true, false);
 		pAdapter->mgmtTxCompletionStatus = false;
 		return -EINVAL;
 	}
@@ -4117,6 +4208,9 @@ int wlan_hdd_tdls_extctrl_deconfig_peer(hdd_adapter_t *pAdapter,
 	} else {
 		wlan_hdd_tdls_indicate_teardown(pAdapter, pTdlsPeer,
 						eSIR_MAC_TDLS_TEARDOWN_UNSPEC_REASON);
+		hdd_send_wlan_tdls_teardown_event(
+			eTDLS_TEARDOWN_EXT_CTRL,
+			pTdlsPeer->peerMac);
 	}
 	if (0 != wlan_hdd_tdls_set_force_peer(pAdapter, peer, false)) {
 		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
@@ -4425,7 +4519,9 @@ static int __wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy,
 				}
 			}
 		}
-
+		hdd_wlan_tdls_enable_link_event(peer,
+			pTdlsPeer->isOffChannelSupported,
+			0, 0);
 	}
 	break;
 	case NL80211_TDLS_DISABLE_LINK:
@@ -4519,7 +4615,7 @@ static int __wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy,
 		return -ENOTSUPP;
 	default:
 		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
-			  "%s: unsupported event", __func__);
+			  "%s: unsupported event %d", __func__, oper);
 		return -ENOTSUPP;
 	}
 	EXIT();

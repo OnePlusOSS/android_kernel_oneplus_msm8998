@@ -155,8 +155,6 @@ static QDF_STATUS sme_process_set_hw_mode_resp(tpAniSirGlobal mac, uint8_t *msg)
 	struct sir_set_hw_mode_resp *param;
 	enum sir_conn_update_reason reason;
 	tSmeCmd *saved_cmd;
-	tCsrRoamInfo roam_info = {0};
-	QDF_STATUS status;
 
 	sms_log(mac, LOG1, FL("%s"), __func__);
 	param = (struct sir_set_hw_mode_resp *)msg;
@@ -251,34 +249,6 @@ static QDF_STATUS sme_process_set_hw_mode_resp(tpAniSirGlobal mac, uint8_t *msg)
 			saved_cmd = NULL;
 			mac->sme.saved_scan_cmd = NULL;
 		}
-	} else if (reason == SIR_UPDATE_REASON_CHANNEL_SWITCH) {
-		csr_roam_call_callback(mac,
-				command->u.set_hw_mode_cmd.session_id,
-				&roam_info, 0,
-				eCSR_ROAM_STATUS_UPDATE_HW_MODE,
-				eCSR_ROAM_RESULT_UPDATE_HW_MODE);
-	} else if (reason == SIR_UPDATE_REASON_CHANNEL_SWITCH_STA) {
-		struct sir_saved_csa_params *msg;
-
-		sms_log(mac, LOG1, FL("process channel switch sta"));
-		msg = qdf_mem_malloc(sizeof(*msg));
-		if (!msg) {
-			sms_log(mac, LOGE,
-					FL("memory alloc fail for csa "));
-			goto end;
-		}
-
-		msg->message_type = SIR_LIM_CSA_POST_HW_MODE_CHANGE;
-		msg->length = sizeof(*msg);
-		msg->session_id = command->u.set_hw_mode_cmd.session_id;
-
-		status = cds_send_mb_message_to_mac(msg);
-		if (!QDF_IS_STATUS_SUCCESS(status))
-			sms_log(mac, LOGE,
-					FL("failed to process csa params"));
-		else
-			sms_log(mac, LOG1,
-					FL("csa after hw mode change"));
 	}
 
 end:
@@ -651,8 +621,16 @@ tSmeCmd *sme_get_command_buffer(tpAniSirGlobal pMac)
 		sme_command_queue_full++;
 		csr_ll_unlock(&pMac->roam.roamCmdPendingList);
 
-		/* panic with out-of-command */
-		QDF_BUG(0);
+		if (pMac->roam.configParam.enable_fatal_event)
+			cds_flush_logs(WLAN_LOG_TYPE_FATAL,
+				WLAN_LOG_INDICATOR_HOST_DRIVER,
+				WLAN_LOG_REASON_SME_OUT_OF_CMD_BUF,
+				false,
+				pMac->sme.enableSelfRecovery ? true : false);
+		else if (pMac->sme.enableSelfRecovery)
+			cds_trigger_recovery();
+		else
+			QDF_BUG(0);
 	}
 
 	/* memset to zero */
@@ -2804,6 +2782,14 @@ QDF_STATUS sme_process_msg(tHalHandle hHal, cds_msg_t *pMsg)
 			csr_scan_flush_bss_entry(pMac, pMsg->bodyptr);
 			qdf_mem_free(pMsg->bodyptr);
 		}
+		break;
+	case eWNI_SME_TSF_EVENT:
+		if (pMac->sme.get_tsf_cb) {
+			pMac->sme.get_tsf_cb(pMac->sme.get_tsf_cxt,
+					(struct stsf *)pMsg->bodyptr);
+		}
+		if (pMsg->bodyptr)
+			qdf_mem_free(pMsg->bodyptr);
 		break;
 #ifdef WLAN_FEATURE_NAN
 	case eWNI_SME_NAN_EVENT:
@@ -7300,6 +7286,60 @@ QDF_STATUS sme_preferred_network_found_ind(tHalHandle hHal, void *pMsg)
 
 #endif /* FEATURE_WLAN_SCAN_PNO */
 
+/*
+ * sme_set_tsfcb() - Set callback for TSF capture
+ * @h_hal: Handler return by mac_open
+ * @cb_fn: Callback function pointer
+ * @db_ctx: Callback data
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS sme_set_tsfcb(tHalHandle h_hal,
+	int (*cb_fn)(void *cb_ctx, struct stsf *ptsf), void *cb_ctx)
+{
+	tpAniSirGlobal mac = PMAC_STRUCT(h_hal);
+	QDF_STATUS status;
+
+	status = sme_acquire_global_lock(&mac->sme);
+	if (QDF_IS_STATUS_SUCCESS(status)) {
+		mac->sme.get_tsf_cb = cb_fn;
+		mac->sme.get_tsf_cxt = cb_ctx;
+		sme_release_global_lock(&mac->sme);
+	}
+	return status;
+}
+
+#ifdef WLAN_FEATURE_TSF
+/*
+ * sme_set_tsf_gpio() - set gpio pin that be toggled when capture tef
+ * @h_hal: Handler return by mac_open
+ * @pinvalue: gpio pin id
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS sme_set_tsf_gpio(tHalHandle h_hal, uint32_t pinvalue)
+{
+	QDF_STATUS status;
+	cds_msg_t tsf_msg = {0};
+	tpAniSirGlobal mac = PMAC_STRUCT(h_hal);
+
+	status = sme_acquire_global_lock(&mac->sme);
+	if (QDF_IS_STATUS_SUCCESS(status)) {
+		tsf_msg.type = WMA_TSF_GPIO_PIN;
+		tsf_msg.reserved = 0;
+		tsf_msg.bodyval = pinvalue;
+
+		status = cds_mq_post_message(CDS_MQ_ID_WMA, &tsf_msg);
+		if (!QDF_IS_STATUS_SUCCESS(status)) {
+			sms_log(mac, LOGE, "Unable to post WMA_TSF_GPIO_PIN");
+			status = QDF_STATUS_E_FAILURE;
+		}
+		sme_release_global_lock(&mac->sme);
+	}
+	return status;
+}
+#endif
+
 QDF_STATUS sme_get_cfg_valid_channels(tHalHandle hHal, uint8_t *aValidChannels,
 				      uint32_t *len)
 {
@@ -11650,19 +11690,41 @@ void sme_save_active_cmd_stats(tHalHandle hHal)
 
 void active_list_cmd_timeout_handle(void *userData)
 {
-	if (NULL == userData)
-		return;
-	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-		  "%s: Active List command timeout Cmd List Count %d", __func__,
-		  csr_ll_count(&((tpAniSirGlobal) userData)->sme.
-			       smeCmdActiveList));
-	sme_get_command_q_status((tHalHandle) userData);
+	tHalHandle hal = (tHalHandle)userData;
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
 
-	if (((tpAniSirGlobal) userData)->sme.enableSelfRecovery) {
-		sme_save_active_cmd_stats((tHalHandle) userData);
+	if (NULL == mac_ctx) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			"%s: mac_ctx is null", __func__);
+		return;
+	}
+	/* Return if no cmd pending in active list as
+	 * in this case we should not be here.
+	 */
+	if (0 == csr_ll_count(&mac_ctx->sme.smeCmdActiveList))
+		return;
+	sms_log(mac_ctx, LOGE,
+		FL("Active List command timeout Cmd List Count %d"),
+		  csr_ll_count(&mac_ctx->sme.smeCmdActiveList));
+	sme_get_command_q_status(hal);
+
+	if (mac_ctx->roam.configParam.enable_fatal_event)
+		cds_flush_logs(WLAN_LOG_TYPE_FATAL,
+			WLAN_LOG_INDICATOR_HOST_DRIVER,
+			WLAN_LOG_REASON_SME_COMMAND_STUCK,
+			false,
+			mac_ctx->sme.enableSelfRecovery ? true : false);
+	else
+		qdf_trace_dump_all(mac_ctx, 0, 0, 500, 0);
+
+	if (mac_ctx->sme.enableSelfRecovery) {
+		sme_save_active_cmd_stats(hal);
 		cds_trigger_recovery();
 	} else {
-		QDF_BUG(0);
+		if (!mac_ctx->roam.configParam.enable_fatal_event &&
+		   !(cds_is_load_or_unload_in_progress() ||
+		    cds_is_driver_recovering()))
+			QDF_BUG(0);
 	}
 }
 
@@ -14383,7 +14445,7 @@ QDF_STATUS sme_wifi_start_logger(tHalHandle hal,
 	status = cds_mq_post_message(CDS_MQ_ID_WMA, &cds_message);
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		sms_log(mac, LOGE,
-			FL("vos_mq_post_message failed!(err=%d)"),
+			FL("cds_mq_post_message failed!(err=%d)"),
 			status);
 		qdf_mem_free(req_msg);
 		status = QDF_STATUS_E_FAILURE;
@@ -14856,14 +14918,14 @@ QDF_STATUS sme_pdev_set_pcl(tHalHandle hal,
 }
 
 /*
- * sme_soc_set_hw_mode() - Send WMI_SOC_SET_HW_MODE_CMDID to the WMA
+ * sme_pdev_set_hw_mode() - Send WMI_PDEV_SET_HW_MODE_CMDID to the WMA
  * @hal: Handle returned by macOpen
  * @msg: HW mode structure containing hw mode and callback details
  *
- * Sends the command to CSR to send WMI_SOC_SET_HW_MODE_CMDID to FW
+ * Sends the command to CSR to send WMI_PDEV_SET_HW_MODE_CMDID to FW
  * Return: QDF_STATUS_SUCCESS on successful posting
  */
-QDF_STATUS sme_soc_set_hw_mode(tHalHandle hal,
+QDF_STATUS sme_pdev_set_hw_mode(tHalHandle hal,
 		struct sir_hw_mode msg)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
@@ -15566,4 +15628,151 @@ QDF_STATUS sme_remove_beacon_filter(tHalHandle hal, uint32_t session_id)
 		qdf_mem_free(filter_param);
 	}
 	return qdf_status;
+}
+
+/**
+ * sme_get_bpf_offload_capabilities() - Get length for BPF offload
+ * @hal: Global HAL handle
+ * This function constructs the cds message and fill in message type,
+ * post the same to WDA.
+ * Return: QDF_STATUS enumeration
+ */
+QDF_STATUS sme_get_bpf_offload_capabilities(tHalHandle hal)
+{
+	QDF_STATUS          status     = QDF_STATUS_SUCCESS;
+	tpAniSirGlobal      mac_ctx      = PMAC_STRUCT(hal);
+	cds_msg_t           cds_msg;
+
+	sms_log(mac_ctx, LOG1, FL("enter"));
+
+	status = sme_acquire_global_lock(&mac_ctx->sme);
+	if (QDF_STATUS_SUCCESS == status) {
+		/* Serialize the req through MC thread */
+		cds_msg.bodyptr = NULL;
+		cds_msg.type = WDA_BPF_GET_CAPABILITIES_REQ;
+		status = cds_mq_post_message(QDF_MODULE_ID_WMA, &cds_msg);
+		if (!QDF_IS_STATUS_SUCCESS(status)) {
+			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+					FL("Post bpf get offload msg fail"));
+			status = QDF_STATUS_E_FAILURE;
+		}
+		sme_release_global_lock(&mac_ctx->sme);
+	} else {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			FL("sme_acquire_global_lock error"));
+	}
+	sms_log(mac_ctx, LOG1, FL("exit"));
+	return status;
+}
+
+
+/**
+ * sme_set_bpf_instructions() - Set BPF bpf filter instructions.
+ * @hal: HAL handle
+ * @bpf_set_offload: struct to set bpf filter instructions.
+ *
+ * Return: QDF_STATUS enumeration.
+ */
+QDF_STATUS sme_set_bpf_instructions(tHalHandle hal,
+				    struct sir_bpf_set_offload *req)
+{
+	QDF_STATUS          status     = QDF_STATUS_SUCCESS;
+	tpAniSirGlobal      mac_ctx    = PMAC_STRUCT(hal);
+	cds_msg_t           cds_msg;
+	struct sir_bpf_set_offload *set_offload;
+
+	set_offload = qdf_mem_malloc(sizeof(*set_offload));
+
+	if (NULL == set_offload) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			FL("Failed to alloc set_offload"));
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	set_offload->session_id = req->session_id;
+	set_offload->filter_id = req->filter_id;
+	set_offload->current_offset = req->current_offset;
+	set_offload->total_length = req->total_length;
+	if (set_offload->total_length) {
+		set_offload->current_length = req->current_length;
+		set_offload->program = qdf_mem_malloc(sizeof(uint8_t) *
+						req->current_length);
+		qdf_mem_copy(set_offload->program, req->program,
+				set_offload->current_length);
+	}
+	status = sme_acquire_global_lock(&mac_ctx->sme);
+	if (QDF_STATUS_SUCCESS == status) {
+		/* Serialize the req through MC thread */
+		cds_msg.bodyptr = set_offload;
+		cds_msg.type = WDA_BPF_SET_INSTRUCTIONS_REQ;
+		status = cds_mq_post_message(QDF_MODULE_ID_WMA, &cds_msg);
+
+		if (!QDF_IS_STATUS_SUCCESS(status)) {
+			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+				FL("Post BPF set offload msg fail"));
+			status = QDF_STATUS_E_FAILURE;
+			if (set_offload->total_length)
+				qdf_mem_free(set_offload->program);
+			qdf_mem_free(set_offload);
+		}
+		sme_release_global_lock(&mac_ctx->sme);
+	} else {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+				FL("sme_acquire_global_lock failed"));
+		if (set_offload->total_length)
+			qdf_mem_free(set_offload->program);
+		qdf_mem_free(set_offload);
+	}
+	return status;
+}
+
+/**
+ * sme_bpf_offload_register_callback() - Register get bpf offload callbacK
+ *
+ * @hal - MAC global handle
+ * @callback_routine - callback routine from HDD
+ *
+ * This API is invoked by HDD to register its callback in SME
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS sme_bpf_offload_register_callback(tHalHandle hal,
+				void (*pbpf_get_offload_cb)(void *context,
+					struct sir_bpf_get_offload *))
+{
+	QDF_STATUS status   = QDF_STATUS_SUCCESS;
+	tpAniSirGlobal mac  = PMAC_STRUCT(hal);
+
+	status = sme_acquire_global_lock(&mac->sme);
+	if (QDF_IS_STATUS_SUCCESS(status)) {
+		mac->sme.pbpf_get_offload_cb = pbpf_get_offload_cb;
+		sme_release_global_lock(&mac->sme);
+	} else {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			FL("sme_acquire_global_lock failed"));
+	}
+	return status;
+}
+
+/**
+ * sme_create_mon_session() - post message to create PE session for monitormode
+ * operation
+ * @hal_handle: Handle to the HAL
+ * @bssid: pointer to bssid
+ *
+ * Return: QDF_STATUS_SUCCESS on success, non-zero error code on failure.
+ */
+QDF_STATUS sme_create_mon_session(tHalHandle hal_handle, tSirMacAddr bss_id)
+{
+	QDF_STATUS status = QDF_STATUS_E_FAILURE;
+	struct sir_create_session *msg;
+
+	msg = qdf_mem_malloc(sizeof(*msg));
+	if (NULL != msg) {
+		msg->type = eWNI_SME_MON_INIT_SESSION;
+		msg->msg_len = sizeof(*msg);
+		qdf_mem_copy(msg->bss_id.bytes, bss_id, QDF_MAC_ADDR_SIZE);
+		status = cds_send_mb_message_to_mac(msg);
+	}
+	return status;
 }

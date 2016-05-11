@@ -75,6 +75,7 @@
 #include "qdf_trace.h"
 #include "wlan_hdd_cfg.h"
 #include "cds_concurrency.h"
+#include "wlan_hdd_tsf.h"
 #include "wlan_hdd_green_ap.h"
 
 #define    IS_UP(_dev) \
@@ -101,16 +102,25 @@
 /* Function definitions */
 
 /**
- * hdd_hostapd_channel_wakelock_init() - init the channel wakelock
- * @pHddCtx: pointer to hdd context
+ * hdd_sap_context_init() - Initialize SAP context.
+ * @hdd_ctx:	HDD context.
  *
- * Return: None
+ * Initialize SAP context.
+ *
+ * Return: 0 on success.
  */
-void hdd_hostapd_channel_wakelock_init(hdd_context_t *pHddCtx)
+int hdd_sap_context_init(hdd_context_t *hdd_ctx)
 {
-	/* Initialize the wakelock */
-	qdf_wake_lock_create(&pHddCtx->sap_dfs_wakelock, "sap_dfs_wakelock");
-	atomic_set(&pHddCtx->sap_dfs_ref_cnt, 0);
+	qdf_wake_lock_create(&hdd_ctx->sap_dfs_wakelock, "sap_dfs_wakelock");
+	atomic_set(&hdd_ctx->sap_dfs_ref_cnt, 0);
+
+	mutex_init(&hdd_ctx->sap_lock);
+	qdf_wake_lock_create(&hdd_ctx->sap_wake_lock, "qcom_sap_wakelock");
+	qdf_spinlock_create(&hdd_ctx->sap_update_info_lock);
+
+	mutex_init(&hdd_ctx->dfs_lock);
+
+	return 0;
 }
 
 /**
@@ -186,25 +196,33 @@ void hdd_hostapd_channel_prevent_suspend(hdd_adapter_t *pAdapter,
 }
 
 /**
- * hdd_hostapd_channel_wakelock_deinit() - destroy the channel wakelock
+ * hdd_sap_context_destroy() - Destroy SAP context
  *
- * @pHddCtx: pointer to hdd context
+ * @hdd_ctx:	HDD context.
+ *
+ * Destroy SAP context.
  *
  * Return: None
  */
-void hdd_hostapd_channel_wakelock_deinit(hdd_context_t *pHddCtx)
+void hdd_sap_context_destroy(hdd_context_t *hdd_ctx)
 {
-	if (atomic_read(&pHddCtx->sap_dfs_ref_cnt)) {
-		/* Release wakelock */
-		qdf_wake_lock_release(&pHddCtx->sap_dfs_wakelock,
+	if (atomic_read(&hdd_ctx->sap_dfs_ref_cnt)) {
+		qdf_wake_lock_release(&hdd_ctx->sap_dfs_wakelock,
 				      WIFI_POWER_EVENT_WAKELOCK_DRIVER_EXIT);
-		/* Reset the reference count */
-		atomic_set(&pHddCtx->sap_dfs_ref_cnt, 0);
-		hddLog(LOGE, FL("DFS: allowing suspend"));
+
+		atomic_set(&hdd_ctx->sap_dfs_ref_cnt, 0);
+		hdd_warn("DFS: Allowing suspend");
 	}
 
-	/* Destroy lock */
-	qdf_wake_lock_destroy(&pHddCtx->sap_dfs_wakelock);
+	qdf_wake_lock_destroy(&hdd_ctx->sap_dfs_wakelock);
+
+	mutex_destroy(&hdd_ctx->sap_lock);
+	qdf_wake_lock_destroy(&hdd_ctx->sap_wake_lock);
+
+	mutex_destroy(&hdd_ctx->dfs_lock);
+
+	qdf_spinlock_destroy(&hdd_ctx->sap_update_info_lock);
+
 }
 
 /**
@@ -705,7 +723,7 @@ hdd_update_chandef(hdd_adapter_t *hostapd_adapter,
  * Return: Success on intimating userspace
  *
  */
-QDF_STATUS hdd_chan_change_notify(hdd_adapter_t *hostapd_adapter,
+QDF_STATUS hdd_chan_change_notify(hdd_adapter_t *adapter,
 		struct net_device *dev,
 		uint8_t oper_chan)
 {
@@ -715,7 +733,7 @@ QDF_STATUS hdd_chan_change_notify(hdd_adapter_t *hostapd_adapter,
 	eCsrPhyMode phy_mode;
 	ePhyChanBondState cb_mode;
 	uint32_t freq;
-	tHalHandle  hal = WLAN_HDD_GET_HAL_CTX(hostapd_adapter);
+	tHalHandle  hal = WLAN_HDD_GET_HAL_CTX(adapter);
 
 	if (NULL == hal) {
 		hdd_err("hal is NULL");
@@ -724,14 +742,18 @@ QDF_STATUS hdd_chan_change_notify(hdd_adapter_t *hostapd_adapter,
 
 	freq = cds_chan_to_freq(oper_chan);
 
-	chan = __ieee80211_get_channel(hostapd_adapter->wdev.wiphy, freq);
+	chan = __ieee80211_get_channel(adapter->wdev.wiphy, freq);
 
 	if (!chan) {
 		hdd_err("Invalid input frequency for channel conversion");
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	phy_mode = hdd_sap_get_phymode(hostapd_adapter);
+	if (adapter->device_mode == QDF_SAP_MODE ||
+	    adapter->device_mode == QDF_P2P_GO_MODE)
+		phy_mode = hdd_sap_get_phymode(adapter);
+	else
+		phy_mode = sme_get_phy_mode(hal);
 
 	if (oper_chan <= 14)
 		cb_mode = sme_get_cb_phy_state_from_cb_ini_value(
@@ -766,7 +788,7 @@ QDF_STATUS hdd_chan_change_notify(hdd_adapter_t *hostapd_adapter,
 
 	if ((phy_mode == eCSR_DOT11_MODE_11ac) ||
 	    (phy_mode == eCSR_DOT11_MODE_11ac_ONLY))
-		hdd_update_chandef(hostapd_adapter, &chandef, cb_mode);
+		hdd_update_chandef(adapter, &chandef, cb_mode);
 
 	cfg80211_ch_switch_notify(dev, &chandef);
 
@@ -1098,6 +1120,15 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 		cds_dump_concurrency_info();
 		/* Send SCC/MCC Switching event to IPA */
 		hdd_ipa_send_mcc_scc_msg(pHddCtx, pHddCtx->mcc_mode);
+
+		if (cds_is_hw_mode_change_after_vdev_up()) {
+			hdd_info("check for possible hw mode change");
+			status = cds_set_hw_mode_on_channel_switch(
+					pHostapdAdapter->sessionId);
+			if (QDF_IS_STATUS_ERROR(status))
+				hdd_info("set hw mode change not done");
+			cds_set_do_hw_mode_change_flag(false);
+		}
 		break;          /* Event will be sent after Switch-Case stmt */
 
 	case eSAP_STOP_BSS_EVENT:
@@ -2453,7 +2484,16 @@ static __iw_softap_setparam(struct net_device *dev,
 		else
 			ret = -EINVAL;
 		break;
-
+	case QCSAP_PARAM_CONC_SYSTEM_PREF:
+		hdd_info("New preference: %d", set_value);
+		if (!((set_value >= CFG_CONC_SYSTEM_PREF_MIN) &&
+				(set_value <= CFG_CONC_SYSTEM_PREF_MAX))) {
+			hdd_err("Invalid system preference %d", set_value);
+			return -EINVAL;
+		}
+		/* hdd_ctx, hdd_ctx->config are already checked for null */
+		hdd_ctx->config->conc_system_pref = set_value;
+		break;
 	case QCSAP_PARAM_MAX_ASSOC:
 		if (WNI_CFG_ASSOC_STA_LIMIT_STAMIN > set_value) {
 			hddLog(LOGE, FL("Invalid setMaxAssoc value %d"),
@@ -3011,6 +3051,66 @@ static __iw_softap_setparam(struct net_device *dev,
 	return ret;
 }
 
+/**
+ * __iw_softap_get_three() - return three value to upper layer.
+ * @dev: pointer of net_device of this wireless card
+ * @info: meta data about Request sent
+ * @wrqu: include request info
+ * @extra: buf used for in/out
+ *
+ * Return: execute result
+ */
+static int __iw_softap_get_three(struct net_device *dev,
+					struct iw_request_info *info,
+					union iwreq_data *wrqu, char *extra)
+{
+	uint32_t *value = (uint32_t *)extra;
+	uint32_t sub_cmd = value[0];
+	int ret = 0; /* success */
+	struct hdd_context_s *hdd_ctx;
+	struct hdd_adapter_s *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
+
+	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+	ret = wlan_hdd_validate_context(hdd_ctx);
+	if (ret != 0)
+		return ret;
+
+	switch (sub_cmd) {
+	case QCSAP_GET_TSF:
+		ret = hdd_indicate_tsf(adapter, value, 3);
+		break;
+	default:
+		hdd_err(FL("Invalid getparam command %d"), sub_cmd);
+		ret = -EINVAL;
+		break;
+	}
+	return ret;
+}
+
+
+/**
+ * iw_softap_get_three() - return three value to upper layer.
+ *
+ * @dev: pointer of net_device of this wireless card
+ * @info: meta data about Request sent
+ * @wrqu: include request info
+ * @extra: buf used for in/Output
+ *
+ * Return: execute result
+ */
+static int iw_softap_get_three(struct net_device *dev,
+					struct iw_request_info *info,
+					union iwreq_data *wrqu, char *extra)
+{
+	int ret;
+
+	cds_ssr_protect(__func__);
+	ret = __iw_softap_get_three(dev, info, wrqu, extra);
+	cds_ssr_unprotect(__func__);
+
+	return ret;
+}
+
 int
 static iw_softap_setparam(struct net_device *dev,
 			  struct iw_request_info *info,
@@ -3211,6 +3311,9 @@ static __iw_softap_getparam(struct net_device *dev,
 					     VDEV_CMD);
 		break;
 	}
+	case QCSAP_CAP_TSF:
+		ret = hdd_capture_tsf(pHostapdAdapter, (uint32_t *)value, 1);
+		break;
 	case QCASAP_GET_TEMP_CMD:
 	{
 		hddLog(LOG1, "QCASAP_GET_TEMP_CMD");
@@ -5608,6 +5711,10 @@ static const struct iw_priv_args hostapd_private_args[] = {
 		QCSAP_PARAM_AUTO_CHANNEL,
 		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0,
 		"setAutoChannel"
+	}, {
+		QCSAP_PARAM_CONC_SYSTEM_PREF,
+		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0,
+		"setConcSysPref"
 	},
 	/* Sub-cmds DBGLOG specific commands */
 	{
@@ -5822,6 +5929,15 @@ static const struct iw_priv_args hostapd_private_args[] = {
 		QCASAP_NSS_CMD, 0, IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
 		"get_nss"
 	}, {
+		QCSAP_CAP_TSF, 0, IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
+		"cap_tsf"
+	}, {
+		QCSAP_IOCTL_SET_NONE_GET_THREE, 0, IW_PRIV_TYPE_INT |
+		IW_PRIV_SIZE_FIXED | 3,    ""
+	}, {
+		QCSAP_GET_TSF, 0, IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 3,
+		"get_tsf"
+	}, {
 		QCASAP_GET_TEMP_CMD, 0,
 		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, "get_temp"
 	}, {
@@ -5997,6 +6113,8 @@ static const iw_handler hostapd_private[] = {
 	[QCSAP_IOCTL_SETPARAM - SIOCIWFIRSTPRIV] = iw_softap_setparam,
 	/* get priv ioctl */
 	[QCSAP_IOCTL_GETPARAM - SIOCIWFIRSTPRIV] = iw_softap_getparam,
+	[QCSAP_IOCTL_SET_NONE_GET_THREE - SIOCIWFIRSTPRIV] =
+							iw_softap_get_three,
 	/* get station genIE */
 	[QCSAP_IOCTL_GET_STAWPAIE - SIOCIWFIRSTPRIV] = iw_get_genie,
 	[QCSAP_IOCTL_SETWPAIE - SIOCIWFIRSTPRIV] = iw_softap_setwpsie,
@@ -8046,9 +8164,9 @@ static int __wlan_hdd_cfg80211_stop_ap(struct wiphy *wiphy,
 	    (QDF_SAP_MODE == pAdapter->device_mode)) {
 		cds_flush_work(&pHddCtx->sap_start_work);
 		hddLog(LOGW, FL("Canceled the pending restart work"));
-		spin_lock(&pHddCtx->sap_update_info_lock);
+		qdf_spin_lock(&pHddCtx->sap_update_info_lock);
 		pHddCtx->is_sap_restart_required = false;
-		spin_unlock(&pHddCtx->sap_update_info_lock);
+		qdf_spin_unlock(&pHddCtx->sap_update_info_lock);
 	}
 	pAdapter->sessionCtx.ap.sapConfig.acs_cfg.acs_mode = false;
 	if (pAdapter->sessionCtx.ap.sapConfig.acs_cfg.ch_list)

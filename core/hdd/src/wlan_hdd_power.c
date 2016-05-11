@@ -87,6 +87,46 @@ enum hdd_power_mode {
 	DRIVER_POWER_MODE_ACTIVE = 1,
 };
 
+#ifdef FEATURE_WLAN_DIAG_SUPPORT
+/**
+ * hdd_wlan_suspend_resume_event()- send suspend/resume state
+ * @state: suspend/resume state
+ *
+ * This Function send send suspend resume state diag event
+ *
+ * Return: void.
+ */
+void hdd_wlan_suspend_resume_event(uint8_t state)
+{
+	WLAN_HOST_DIAG_EVENT_DEF(suspend_state, struct host_event_suspend);
+	qdf_mem_zero(&suspend_state, sizeof(suspend_state));
+
+	suspend_state.state = state;
+	WLAN_HOST_DIAG_EVENT_REPORT(&suspend_state, EVENT_WLAN_SUSPEND_RESUME);
+}
+
+/**
+ * hdd_wlan_offload_event()- send offloads event
+ * @type: offload type
+ * @state: enabled or disabled
+ *
+ * This Function send offloads enable/disable diag event
+ *
+ * Return: void.
+ */
+
+void hdd_wlan_offload_event(uint8_t type, uint8_t state)
+{
+	WLAN_HOST_DIAG_EVENT_DEF(host_offload, struct host_event_offload_req);
+	qdf_mem_zero(&host_offload, sizeof(host_offload));
+
+	host_offload.offload_type = type;
+	host_offload.state = state;
+
+	WLAN_HOST_DIAG_EVENT_REPORT(&host_offload, EVENT_WLAN_OFFLOAD_REQ);
+}
+#endif
+
 /* Function and variables declarations */
 
 extern struct notifier_block hdd_netdev_notifier;
@@ -387,6 +427,8 @@ static void hdd_conf_ns_offload(hdd_adapter_t *pAdapter, bool fenable)
 					&offLoadRequest.nsOffloadInfo.selfIPv6Addr[i],
 					&offLoadRequest.nsOffloadInfo.targetIPv6Addr[i], i);
 			}
+			hdd_wlan_offload_event(SIR_IPV6_NS_OFFLOAD,
+				SIR_OFFLOAD_ENABLE);
 			offLoadRequest.offloadType =  SIR_IPV6_NS_OFFLOAD;
 			offLoadRequest.enableOrDisable = SIR_OFFLOAD_ENABLE;
 			qdf_copy_macaddr(&offLoadRequest.nsOffloadInfo.self_macaddr,
@@ -405,6 +447,8 @@ static void hdd_conf_ns_offload(hdd_adapter_t *pAdapter, bool fenable)
 			return;
 		}
 	} else {
+		hdd_wlan_offload_event(SIR_IPV6_NS_OFFLOAD,
+			SIR_OFFLOAD_DISABLE);
 		/* Disable NSOffload */
 		qdf_mem_zero((void *)&offLoadRequest, sizeof(tSirHostOffloadReq));
 		offLoadRequest.enableOrDisable = SIR_OFFLOAD_DISABLE;
@@ -720,6 +764,8 @@ QDF_STATUS hdd_conf_arp_offload(hdd_adapter_t *pAdapter, bool fenable)
 		if (ifa && ifa->ifa_local) {
 			offLoadRequest.offloadType = SIR_IPV4_ARP_REPLY_OFFLOAD;
 			offLoadRequest.enableOrDisable = SIR_OFFLOAD_ENABLE;
+			hdd_wlan_offload_event(SIR_IPV4_ARP_REPLY_OFFLOAD,
+				SIR_OFFLOAD_ENABLE);
 
 			hddLog(QDF_TRACE_LEVEL_INFO, "%s: Enabled", __func__);
 
@@ -734,7 +780,9 @@ QDF_STATUS hdd_conf_arp_offload(hdd_adapter_t *pAdapter, bool fenable)
 				hddLog(QDF_TRACE_LEVEL_INFO,
 				       "offload: inside arp offload conditional check");
 			}
-
+			hdd_wlan_offload_event(
+				SIR_OFFLOAD_ARP_AND_BCAST_FILTER_ENABLE,
+				SIR_OFFLOAD_ENABLE);
 			hddLog(QDF_TRACE_LEVEL_INFO,
 			       "offload: arp filter programmed = %d",
 			       offLoadRequest.enableOrDisable);
@@ -767,6 +815,8 @@ QDF_STATUS hdd_conf_arp_offload(hdd_adapter_t *pAdapter, bool fenable)
 
 		return QDF_STATUS_SUCCESS;
 	} else {
+		hdd_wlan_offload_event(SIR_IPV4_ARP_REPLY_OFFLOAD,
+			SIR_OFFLOAD_DISABLE);
 		qdf_mem_zero((void *)&offLoadRequest,
 			     sizeof(tSirHostOffloadReq));
 		offLoadRequest.enableOrDisable = SIR_OFFLOAD_DISABLE;
@@ -810,6 +860,7 @@ static void hdd_mcbc_filter_modification(hdd_context_t *pHddCtx,
 		 * of Broadcast BIT
 		 */
 		*pMcBcFilter &= ~(HDD_MCASTBCASTFILTER_FILTER_ALL_BROADCAST);
+		hdd_info("ARP offload is enabled");
 	}
 #ifdef WLAN_NS_OFFLOAD
 	if (pHddCtx->config->fhostNSOffload) {
@@ -818,6 +869,7 @@ static void hdd_mcbc_filter_modification(hdd_context_t *pHddCtx,
 		 * disable Multicast filtering, Anding with the negation
 		 * of Multicast BIT
 		 */
+		hdd_info("NS offload is enabled");
 		*pMcBcFilter &= ~(HDD_MCASTBCASTFILTER_FILTER_ALL_MULTICAST);
 	}
 #endif
@@ -1137,6 +1189,7 @@ hdd_suspend_wlan(void (*callback)(void *callbackContext, bool suspended),
 			callbackContext);
 
 	pHddCtx->hdd_wlan_suspended = true;
+	hdd_wlan_suspend_resume_event(HDD_WLAN_EARLY_SUSPEND);
 
 	return;
 }
@@ -1170,6 +1223,7 @@ static void hdd_resume_wlan(void)
 	}
 
 	pHddCtx->hdd_wlan_suspended = false;
+	hdd_wlan_suspend_resume_event(HDD_WLAN_EARLY_RESUME);
 
 	/*loop through all adapters. Concurrency */
 	status = hdd_get_front_adapter(pHddCtx, &pAdapterNode);

@@ -55,6 +55,7 @@
 #include "wlan_hdd_ftm.h"
 #include "wlan_hdd_power.h"
 #include "wlan_hdd_stats.h"
+#include "wlan_hdd_scan.h"
 #include "qdf_types.h"
 #include "qdf_trace.h"
 #include <cdp_txrx_peer_ops.h>
@@ -90,6 +91,7 @@
 #include "cds_regdomain.h"
 #include "cdp_txrx_flow_ctrl_v2.h"
 #endif /* FEATURE_WLAN_CH_AVOID */
+#include "pld_common.h"
 #include "wlan_hdd_ocb.h"
 #include "wlan_hdd_nan.h"
 #include "wlan_hdd_debugfs.h"
@@ -101,6 +103,7 @@
 #include "hif.h"
 #include "wma.h"
 #include "cds_concurrency.h"
+#include "wlan_hdd_tsf.h"
 #include "wlan_hdd_green_ap.h"
 #include "platform_icnss.h"
 #include "bmi.h"
@@ -1335,6 +1338,7 @@ void hdd_update_tgt_cfg(void *context, void *param)
 	hdd_info("Init current antenna mode: %d",
 		 hdd_ctx->current_antenna_mode);
 
+	hdd_ctx->bpf_enabled = cfg->bpf_enabled;
 }
 
 /**
@@ -1430,6 +1434,42 @@ bool hdd_is_valid_mac_address(const uint8_t *pMacAddr)
 		++pMacAddr;
 	}
 	return xdigit == 12 && (separator == 5 || separator == 0);
+}
+
+/**
+ * __hdd__mon_open() - HDD Open function
+ * @dev: Pointer to net_device structure
+ *
+ * This is called in response to ifconfig up
+ *
+ * Return: 0 for success; non-zero for failure
+ */
+static int __hdd_mon_open(struct net_device *dev)
+{
+	int ret;
+
+	ENTER_DEV(dev);
+	ret = hdd_set_mon_rx_cb(dev);
+	return ret;
+}
+
+/**
+ * hdd_mon_open() - Wrapper function for __hdd_mon_open to protect it from SSR
+ * @dev:	Pointer to net_device structure
+ *
+ * This is called in response to ifconfig up
+ *
+ * Return: 0 for success; non-zero for failure
+ */
+int hdd_mon_open(struct net_device *dev)
+{
+	int ret;
+
+	cds_ssr_protect(__func__);
+	ret = __hdd_mon_open(dev);
+	cds_ssr_unprotect(__func__);
+
+	return ret;
 }
 
 /**
@@ -1889,9 +1929,44 @@ static struct net_device_ops wlan_drv_ops = {
 #endif
 };
 
+/* Monitor mode net_device_ops, doesnot Tx and most of operations. */
+static struct net_device_ops wlan_mon_drv_ops = {
+	.ndo_open = hdd_mon_open,
+	.ndo_stop = hdd_stop,
+	.ndo_get_stats = hdd_get_stats,
+};
+
+/**
+ * hdd_set_station_ops() - update net_device ops for monitor mode
+ * @pWlanDev: Handle to struct net_device to be updated.
+ * Return: None
+ */
 void hdd_set_station_ops(struct net_device *pWlanDev)
 {
-	pWlanDev->netdev_ops = &wlan_drv_ops;
+	if (QDF_GLOBAL_MONITOR_MODE == cds_get_conparam())
+		pWlanDev->netdev_ops = &wlan_mon_drv_ops;
+	else
+		pWlanDev->netdev_ops = &wlan_drv_ops;
+}
+
+/**
+ * hdd_mon_mode_ether_setup() - Update monitor mode struct net_device.
+ * @dev: Handle to struct net_device to be updated.
+ *
+ * Return: None
+ */
+static void hdd_mon_mode_ether_setup(struct net_device *dev)
+{
+	dev->header_ops         = NULL;
+	dev->type               = ARPHRD_IEEE80211_RADIOTAP;
+	dev->hard_header_len    = ETH_HLEN;
+	dev->mtu                = ETH_DATA_LEN;
+	dev->addr_len           = ETH_ALEN;
+	dev->tx_queue_len       = 1000; /* Ethernet wants good queues */
+	dev->flags              = IFF_BROADCAST|IFF_MULTICAST;
+	dev->priv_flags        |= IFF_TX_SKB_SHARING;
+
+	memset(dev->broadcast, 0xFF, ETH_ALEN);
 }
 
 /**
@@ -1919,7 +1994,9 @@ static hdd_adapter_t *hdd_alloc_station_adapter(hdd_context_t *hdd_ctx,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)) || defined(WITH_BACKPORTS)
 				   name_assign_type,
 #endif
-				   ether_setup, NUM_TX_QUEUES);
+				(QDF_GLOBAL_MONITOR_MODE == cds_get_conparam() ?
+				hdd_mon_mode_ether_setup : ether_setup),
+				NUM_TX_QUEUES);
 
 	if (pWlanDev != NULL) {
 
@@ -2431,6 +2508,7 @@ hdd_adapter_t *hdd_open_adapter(hdd_context_t *hdd_ctx, uint8_t session_type,
 	case QDF_P2P_CLIENT_MODE:
 	case QDF_P2P_DEVICE_MODE:
 	case QDF_OCB_MODE:
+	case QDF_MONITOR_MODE:
 	{
 		adapter = hdd_alloc_station_adapter(hdd_ctx, macAddr,
 						    name_assign_type,
@@ -2447,6 +2525,8 @@ hdd_adapter_t *hdd_open_adapter(hdd_context_t *hdd_ctx, uint8_t session_type,
 			adapter->wdev.iftype = NL80211_IFTYPE_P2P_CLIENT;
 		else if (QDF_P2P_DEVICE_MODE == session_type)
 			adapter->wdev.iftype = NL80211_IFTYPE_P2P_DEVICE;
+		else if (QDF_MONITOR_MODE == session_type)
+			adapter->wdev.iftype = NL80211_IFTYPE_MONITOR;
 		else
 			adapter->wdev.iftype = NL80211_IFTYPE_STATION;
 
@@ -2462,26 +2542,16 @@ hdd_adapter_t *hdd_open_adapter(hdd_context_t *hdd_ctx, uint8_t session_type,
 		 * Workqueue which gets scheduled in IPv4 notification
 		 * callback
 		 */
-#ifdef CONFIG_CNSS
-		cnss_init_work(&adapter->ipv4NotifierWorkQueue,
-			       hdd_ipv4_notifier_work_queue);
-#else
 		INIT_WORK(&adapter->ipv4NotifierWorkQueue,
 			  hdd_ipv4_notifier_work_queue);
-#endif
 
 #ifdef WLAN_NS_OFFLOAD
 		/*
 		 * Workqueue which gets scheduled in IPv6
 		 * notification callback.
 		 */
-#ifdef CONFIG_CNSS
-		cnss_init_work(&adapter->ipv6NotifierWorkQueue,
-			       hdd_ipv6_notifier_work_queue);
-#else
 		INIT_WORK(&adapter->ipv6NotifierWorkQueue,
 			  hdd_ipv6_notifier_work_queue);
-#endif
 #endif
 		status = hdd_register_interface(adapter, rtnl_held);
 		if (QDF_STATUS_SUCCESS != status) {
@@ -3587,8 +3657,10 @@ QDF_STATUS hdd_abort_mac_scan_all_adapters(hdd_context_t *hdd_ctx)
 
 #ifdef WLAN_NS_OFFLOAD
 /**
- * hdd_wlan_unregister_ip6_notifier() - unregister IP6 change notifier
+ * hdd_wlan_unregister_ip6_notifier() - unregister IPv6 change notifier
  * @hdd_ctx: Pointer to hdd context
+ *
+ * Unregister for IPv6 address change notifications.
  *
  * Return: None
  */
@@ -3600,42 +3672,52 @@ static void hdd_wlan_unregister_ip6_notifier(hdd_context_t *hdd_ctx)
 }
 
 /**
- * hdd_wlan_register_ip6_notifier() - register IP6 change notifier
+ * hdd_wlan_register_ip6_notifier() - register IPv6 change notifier
  * @hdd_ctx: Pointer to hdd context
  *
- * Return: None
+ * Register for IPv6 address change notifications.
+ *
+ * Return: 0 on success and errno on failure.
  */
-static void hdd_wlan_register_ip6_notifier(hdd_context_t *hdd_ctx)
+static int hdd_wlan_register_ip6_notifier(hdd_context_t *hdd_ctx)
 {
 	int ret;
 
 	hdd_ctx->ipv6_notifier.notifier_call = wlan_hdd_ipv6_changed;
 	ret = register_inet6addr_notifier(&hdd_ctx->ipv6_notifier);
-	if (ret)
-		hddLog(LOGE, FL("Failed to register IPv6 notifier"));
-	else
-		hdd_info("Registered IPv6 notifier");
+	if (ret) {
+		hdd_err("Failed to register IPv6 notifier: %d", ret);
+		goto out;
+	}
 
-	return;
+	hdd_info("Registered IPv6 notifier");
+out:
+	return ret;
 }
 #else
 /**
- * hdd_wlan_unregister_ip6_notifier() - unregister IP6 change notifier
+ * hdd_wlan_unregister_ip6_notifier() - unregister IPv6 change notifier
  * @hdd_ctx: Pointer to hdd context
+ *
+ * Unregister for IPv6 address change notifications.
  *
  * Return: None
  */
 static void hdd_wlan_unregister_ip6_notifier(hdd_context_t *hdd_ctx)
 {
 }
+
 /**
- * hdd_wlan_register_ip6_notifier() - register IP6 change notifier
+ * hdd_wlan_register_ip6_notifier() - register IPv6 change notifier
  * @hdd_ctx: Pointer to hdd context
+ *
+ * Register for IPv6 address change notifications.
  *
  * Return: None
  */
-static void hdd_wlan_register_ip6_notifier(hdd_context_t *hdd_ctx)
+static int hdd_wlan_register_ip6_notifier(hdd_context_t *hdd_ctx)
 {
+	return 0;
 }
 #endif
 
@@ -3770,6 +3852,63 @@ static inline int hdd_logging_sock_deactivate_svc(hdd_context_t *hdd_ctx)
 #endif
 
 /**
+ * hdd_register_notifiers - Register netdev notifiers.
+ * @hdd_ctx: HDD context
+ *
+ * Register netdev notifiers like IPv4 and IPv6.
+ *
+ * Return: 0 on success and errno on failure
+ */
+static int hdd_register_notifiers(hdd_context_t *hdd_ctx)
+{
+	int ret;
+
+	ret = register_netdevice_notifier(&hdd_netdev_notifier);
+	if (ret) {
+		hdd_err("register_netdevice_notifier failed: %d", ret);
+		goto out;
+	}
+
+	ret = hdd_wlan_register_ip6_notifier(hdd_ctx);
+	if (ret)
+		goto unregister_notifier;
+
+	hdd_ctx->ipv4_notifier.notifier_call = wlan_hdd_ipv4_changed;
+	ret = register_inetaddr_notifier(&hdd_ctx->ipv4_notifier);
+	if (ret) {
+		hdd_err("Failed to register IPv4 notifier: %d", ret);
+		goto unregister_ip6_notifier;
+	}
+
+	return 0;
+
+unregister_ip6_notifier:
+	hdd_wlan_unregister_ip6_notifier(hdd_ctx);
+unregister_notifier:
+	unregister_netdevice_notifier(&hdd_netdev_notifier);
+out:
+	return ret;
+
+}
+
+/**
+ * hdd_unregister_notifiers - Unregister netdev notifiers.
+ * @hdd_ctx: HDD context
+ *
+ * Unregister netdev notifiers like IPv4 and IPv6.
+ *
+ * Return: None.
+ */
+static void hdd_unregister_notifiers(hdd_context_t *hdd_ctx)
+{
+	hdd_wlan_unregister_ip6_notifier(hdd_ctx);
+
+	unregister_inetaddr_notifier(&hdd_ctx->ipv4_notifier);
+
+	unregister_netdevice_notifier(&hdd_netdev_notifier);
+}
+
+/**
  * hdd_exit_netlink_services - Exit netlink services
  * @hdd_ctx: HDD context
  *
@@ -3844,19 +3983,93 @@ out:
 	return ret;
 }
 
+#ifdef WLAN_FEATURE_HOLD_RX_WAKELOCK
+/**
+ * hdd_rx_wake_lock_destroy() - Destroy RX wakelock
+ * @hdd_ctx:	HDD context.
+ *
+ * Destroy RX wakelock.
+ *
+ * Return: None.
+ */
+static void hdd_rx_wake_lock_destroy(hdd_context_t *hdd_ctx)
+{
+	qdf_wake_lock_destroy(&hdd_ctx->rx_wake_lock);
+}
 
 /**
- * hdd_free_context - Free HDD context
- * @hdd_ctx:	HDD context to be freed.
+ * hdd_rx_wake_lock_create() - Create RX wakelock
+ * @hdd_ctx:	HDD context.
  *
- * Free config and HDD context.
+ * Create RX wakelock.
+ *
+ * Return: None.
+ */
+static void hdd_rx_wake_lock_create(hdd_context_t *hdd_ctx)
+{
+	qdf_wake_lock_create(&hdd_ctx->rx_wake_lock, "qcom_rx_wakelock");
+}
+#else
+static void hdd_rx_wake_lock_destroy(hdd_context_t *hdd_ctx) { }
+static void hdd_rx_wake_lock_create(hdd_context_t *hdd_ctx) { }
+#endif
+
+/**
+ * hdd_roc_context_init() - Init ROC context
+ * @hdd_ctx:	HDD context.
+ *
+ * Initialize ROC context.
+ *
+ * Return: 0 on success and errno on failure.
+ */
+static int hdd_roc_context_init(hdd_context_t *hdd_ctx)
+{
+	qdf_spinlock_create(&hdd_ctx->hdd_roc_req_q_lock);
+	qdf_list_create(&hdd_ctx->hdd_roc_req_q, MAX_ROC_REQ_QUEUE_ENTRY);
+
+	INIT_DELAYED_WORK(&hdd_ctx->roc_req_work, wlan_hdd_roc_request_dequeue);
+
+	return 0;
+}
+
+/**
+ * hdd_roc_context_destroy() - Destroy ROC context
+ * @hdd_ctx:	HDD context.
+ *
+ * Destroy roc list and flush the pending roc work.
+ *
+ * Return: None.
+ */
+static void hdd_roc_context_destroy(hdd_context_t *hdd_ctx)
+{
+	flush_delayed_work(&hdd_ctx->roc_req_work);
+	qdf_list_destroy(&hdd_ctx->hdd_roc_req_q);
+}
+
+/**
+ * hdd_context_destroy() - Destroy HDD context
+ * @hdd_ctx:	HDD context to be destroyed.
+ *
+ * Free config and HDD context as well as destroy all the resources.
  *
  * Return: None
  */
-static void hdd_free_context(hdd_context_t *hdd_ctx)
+static void hdd_context_destroy(hdd_context_t *hdd_ctx)
 {
 	if (QDF_GLOBAL_FTM_MODE != hdd_get_conparam())
 		hdd_logging_sock_deactivate_svc(hdd_ctx);
+
+	hdd_roc_context_destroy(hdd_ctx);
+
+	hdd_sap_context_destroy(hdd_ctx);
+
+	hdd_rx_wake_lock_destroy(hdd_ctx);
+
+	hdd_tdls_context_destroy(hdd_ctx);
+
+	hdd_scan_context_destroy(hdd_ctx);
+
+	qdf_list_destroy(&hdd_ctx->hddAdapters);
 
 	qdf_mem_free(hdd_ctx->config);
 	hdd_ctx->config = NULL;
@@ -3880,11 +4093,6 @@ void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 
 	ENTER();
 
-	hddLog(LOGE, FL("Unregister IPv6 notifier"));
-	hdd_wlan_unregister_ip6_notifier(hdd_ctx);
-	hddLog(LOGE, FL("Unregister IPv4 notifier"));
-	unregister_inetaddr_notifier(&hdd_ctx->ipv4_notifier);
-
 	hdd_unregister_wext_all_adapters(hdd_ctx);
 
 	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
@@ -3893,6 +4101,8 @@ void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 		hdd_alert("FTM driver unloaded");
 		goto free_hdd_ctx;
 	}
+
+	hdd_unregister_notifiers(hdd_ctx);
 
 	/*
 	 * Cancel any outstanding scan requests.  We are about to close all
@@ -3972,14 +4182,10 @@ void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 		       FL("Failed to close CDS Scheduler"));
 		QDF_ASSERT(QDF_IS_STATUS_SUCCESS(qdf_status));
 	}
-#ifdef WLAN_FEATURE_HOLD_RX_WAKELOCK
-	/* Destroy the wake lock */
-	qdf_wake_lock_destroy(&hdd_ctx->rx_wake_lock);
-#endif
-	/* Destroy the wake lock */
-	qdf_wake_lock_destroy(&hdd_ctx->sap_wake_lock);
 
-	hdd_hostapd_channel_wakelock_deinit(hdd_ctx);
+	qdf_spinlock_destroy(&hdd_ctx->hdd_adapter_lock);
+	qdf_spinlock_destroy(&hdd_ctx->sta_update_info_lock);
+	qdf_spinlock_destroy(&hdd_ctx->connection_status_lock);
 
 	/*
 	 * Close CDS
@@ -3998,8 +4204,6 @@ void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 
 	/* Free up RoC request queue and flush workqueue */
 	cds_flush_work(&hdd_ctx->roc_req_work);
-	qdf_list_destroy(&hdd_ctx->hdd_roc_req_q);
-	qdf_list_destroy(&hdd_ctx->hdd_scan_req_q);
 
 	if (!QDF_IS_STATUS_SUCCESS(cds_deinit_policy_mgr())) {
 		hdd_err("Failed to deinit policy manager");
@@ -4010,7 +4214,7 @@ free_hdd_ctx:
 
 	wiphy_unregister(wiphy);
 
-	hdd_free_context(hdd_ctx);
+	hdd_context_destroy(hdd_ctx);
 }
 
 void __hdd_wlan_exit(void)
@@ -4035,11 +4239,9 @@ void __hdd_wlan_exit(void)
 
 	memdump_deinit();
 
-#ifdef QCA_PKT_PROTO_TRACE
-	cds_pkt_proto_trace_close();
-#endif
 	/* Do all the cleanup before deregistering the driver */
 	hdd_wlan_exit(hdd_ctx);
+
 	EXIT();
 }
 
@@ -5264,7 +5466,80 @@ static void hdd_set_trace_level_for_each(hdd_context_t *hdd_ctx)
 }
 
 /**
- * hdd_init_context - Alloc and initialize HDD context
+ * hdd_context_init() - Initialize HDD context
+ * @hdd_ctx:	HDD context.
+ *
+ * Initialize HDD context along with all the feature specific contexts.
+ *
+ * return: 0 on success and errno on failure.
+ */
+static int hdd_context_init(hdd_context_t *hdd_ctx)
+{
+	int ret;
+
+	hdd_ctx->ioctl_scan_mode = eSIR_ACTIVE_SCAN;
+	hdd_ctx->max_intf_count = CSR_ROAM_SESSION_MAX;
+
+	hdd_init_ll_stats_ctx();
+
+	init_completion(&hdd_ctx->mc_sus_event_var);
+	init_completion(&hdd_ctx->ready_to_suspend);
+
+	hdd_init_bpf_completion();
+
+	qdf_spinlock_create(&hdd_ctx->connection_status_lock);
+	qdf_spinlock_create(&hdd_ctx->sta_update_info_lock);
+	qdf_spinlock_create(&hdd_ctx->hdd_adapter_lock);
+
+	qdf_list_create(&hdd_ctx->hddAdapters, MAX_NUMBER_OF_ADAPTERS);
+
+	init_completion(&hdd_ctx->set_antenna_mode_cmpl);
+
+	ret = hdd_scan_context_init(hdd_ctx);
+	if (ret)
+		goto list_destroy;
+
+	hdd_tdls_context_init(hdd_ctx);
+
+	hdd_rx_wake_lock_create(hdd_ctx);
+
+	ret = hdd_sap_context_init(hdd_ctx);
+	if (ret)
+		goto scan_destroy;
+
+	ret = hdd_roc_context_init(hdd_ctx);
+	if (ret)
+		goto sap_destroy;
+
+	wlan_hdd_cfg80211_extscan_init(hdd_ctx);
+
+	hdd_init_offloaded_packets_ctx(hdd_ctx);
+
+	ret = wlan_hdd_cfg80211_init(hdd_ctx->parent_dev, hdd_ctx->wiphy,
+				     hdd_ctx->config);
+	if (ret)
+		goto roc_destroy;
+
+	return 0;
+
+roc_destroy:
+	hdd_roc_context_destroy(hdd_ctx);
+
+sap_destroy:
+	hdd_sap_context_destroy(hdd_ctx);
+
+scan_destroy:
+	hdd_scan_context_destroy(hdd_ctx);
+	hdd_rx_wake_lock_destroy(hdd_ctx);
+	hdd_tdls_context_destroy(hdd_ctx);
+
+list_destroy:
+	qdf_list_destroy(&hdd_ctx->hddAdapters);
+	return ret;
+}
+
+/**
+ * hdd_context_create() - Allocate and inialize HDD context.
  * @dev:	Pointer to the underlying device
  * @hif_sc:	HIF context
  *
@@ -5273,7 +5548,7 @@ static void hdd_set_trace_level_for_each(hdd_context_t *hdd_ctx)
  *
  * Return: HDD context on success and ERR_PTR on failure
  */
-hdd_context_t *hdd_init_context(struct device *dev, void *hif_sc)
+hdd_context_t *hdd_context_create(struct device *dev, void *hif_sc)
 {
 	QDF_STATUS status;
 	int ret = 0;
@@ -5298,6 +5573,7 @@ hdd_context_t *hdd_init_context(struct device *dev, void *hif_sc)
 	}
 
 	hdd_ctx->pcds_context = p_cds_context;
+	hdd_ctx->parent_dev = dev;
 
 	hdd_ctx->config = qdf_mem_malloc(sizeof(struct hdd_config));
 	if (hdd_ctx->config == NULL) {
@@ -5315,53 +5591,26 @@ hdd_context_t *hdd_init_context(struct device *dev, void *hif_sc)
 		goto err_free_config;
 	}
 
-	((cds_context_type *) (p_cds_context))->pHDDContext = (void *)hdd_ctx;
-
-	hdd_ctx->parent_dev = dev;
-
-	hdd_ctx->ioctl_scan_mode = eSIR_ACTIVE_SCAN;
-
-	hdd_init_ll_stats_ctx();
-
-	init_completion(&hdd_ctx->mc_sus_event_var);
-	init_completion(&hdd_ctx->ready_to_suspend);
-
-	qdf_spinlock_create(&hdd_ctx->connection_status_lock);
-	qdf_spinlock_create(&hdd_ctx->sched_scan_lock);
-
-	qdf_spinlock_create(&hdd_ctx->hdd_adapter_lock);
-	qdf_list_create(&hdd_ctx->hddAdapters, MAX_NUMBER_OF_ADAPTERS);
-
-	wlan_hdd_cfg80211_extscan_init(hdd_ctx);
-
-	hdd_tdls_pre_init(hdd_ctx);
-	mutex_init(&hdd_ctx->dfs_lock);
-	mutex_init(&hdd_ctx->sap_lock);
-
-	init_completion(&hdd_ctx->set_antenna_mode_cmpl);
-
-	hdd_ctx->target_type = tgt_info->target_type;
-
-	hdd_init_offloaded_packets_ctx(hdd_ctx);
-
-	icnss_set_fw_debug_mode(hdd_ctx->config->enable_fw_log);
-
-	hdd_ctx->max_intf_count = CSR_ROAM_SESSION_MAX;
-
 	hdd_ctx->configuredMcastBcastFilter =
 		hdd_ctx->config->mcastBcastFilterSetting;
 
 	hdd_notice("Setting configuredMcastBcastFilter: %d",
 		   hdd_ctx->config->mcastBcastFilterSetting);
 
+	cds_set_fatal_event(hdd_ctx->config->enable_fatal_event);
+
 	hdd_override_ini_config(hdd_ctx);
 
-	ret = wlan_hdd_cfg80211_init(dev, hdd_ctx->wiphy, hdd_ctx->config);
+	((cds_context_type *) (p_cds_context))->pHDDContext = (void *)hdd_ctx;
 
-	if (ret) {
-		hdd_err("CFG80211 wiphy init failed: %d", ret);
+	ret = hdd_context_init(hdd_ctx);
+
+	if (ret)
 		goto err_free_config;
-	}
+
+	hdd_ctx->target_type = tgt_info->target_type;
+
+	icnss_set_fw_debug_mode(hdd_ctx->config->enable_fw_log);
 
 	hdd_enable_fastpath(hdd_ctx->config, hif_sc);
 
@@ -5457,6 +5706,21 @@ static inline int hdd_open_p2p_interface(struct hdd_context_t *hdd_ctx,
 	return 0;
 }
 #endif
+
+/**
+ * hdd_open_monitor_interface() - Open monitor mode interface
+ * @hdd_ctx: HDD context
+ * @rtnl_held: True if RTNL lock is held
+ *
+ * Return: Primary adapter on success and PTR_ERR on failure
+ */
+static hdd_adapter_t *hdd_open_monitor_interface(hdd_context_t *hdd_ctx,
+						 bool rtnl_held)
+{
+	return hdd_open_adapter(hdd_ctx, QDF_MONITOR_MODE, "wlan%d",
+				wlan_hdd_get_intf_addr(hdd_ctx),
+				NET_NAME_UNKNOWN, rtnl_held);
+}
 
 /**
  * hdd_open_interfaces - Open all required interfaces
@@ -5671,6 +5935,124 @@ QDF_STATUS hdd_register_for_sap_restart_with_channel_switch(void)
 #endif
 
 /**
+ * hdd_tsf_init() - Initialize the TSF synchronization interface
+ * @hdd_ctx: HDD global context
+ *
+ * When TSF synchronization via GPIO is supported by the driver and
+ * has been enabled in the configuration file, this function plumbs
+ * the GPIO value down to firmware via SME.
+ *
+ * Return: None
+ */
+#ifdef WLAN_FEATURE_TSF
+static void hdd_tsf_init(hdd_context_t *hdd_ctx)
+{
+	QDF_STATUS status;
+
+	if (hdd_ctx->config->tsf_gpio_pin == TSF_GPIO_PIN_INVALID)
+		return;
+
+	status = sme_set_tsf_gpio(hdd_ctx->hHal,
+				      hdd_ctx->config->tsf_gpio_pin);
+	if (!QDF_IS_STATUS_SUCCESS(status))
+		hdd_err("Set tsf GPIO failed, status: %d", status);
+}
+#else
+static void hdd_tsf_init(hdd_context_t *hdd_ctx)
+{
+}
+#endif
+
+/**
+ * hdd_pre_enable_configure() - Configurations prior to cds_enable
+ * @hdd_ctx:	HDD context
+ *
+ * Pre configurations to be done at lower layer before calling cds enable.
+ *
+ * Return: 0 on success and errno on failure.
+ */
+static int hdd_pre_enable_configure(hdd_context_t *hdd_ctx)
+{
+	int ret;
+	QDF_STATUS status;
+	tSirRetStatus hal_status;
+
+	ol_txrx_register_pause_cb(wlan_hdd_txrx_pause_cb);
+
+	/*
+	 * Set 802.11p config
+	 * TODO-OCB: This has been temporarily added here to ensure this
+	 * parameter is set in CSR when we init the channel list. This should
+	 * be removed once the 5.9 GHz channels are added to the regulatory
+	 * domain.
+	 */
+	hdd_set_dot11p_config(hdd_ctx);
+
+	/*
+	 * Note that the cds_pre_enable() sequence triggers the cfg download.
+	 * The cfg download must occur before we update the SME config
+	 * since the SME config operation must access the cfg database
+	 */
+	status = hdd_set_sme_config(hdd_ctx);
+
+	if (QDF_STATUS_SUCCESS != status) {
+		hdd_alert("Failed hdd_set_sme_config: %d", status);
+		ret = qdf_status_to_os_return(status);
+		goto out;
+	}
+
+	ret = wma_cli_set_command(0, WMI_PDEV_PARAM_TX_CHAIN_MASK_1SS,
+				  hdd_ctx->config->tx_chain_mask_1ss,
+				  PDEV_CMD);
+	if (0 != ret) {
+		hdd_err("WMI_PDEV_PARAM_TX_CHAIN_MASK_1SS failed %d", ret);
+		goto out;
+	}
+
+	hdd_program_country_code(hdd_ctx);
+
+	status = hdd_set_sme_chan_list(hdd_ctx);
+	if (status != QDF_STATUS_SUCCESS) {
+		hdd_alert("Failed to init channel list: %d", status);
+		ret = qdf_status_to_os_return(status);
+		goto out;
+	}
+
+	/* Apply the cfg.ini to cfg.dat */
+	if (!hdd_update_config_dat(hdd_ctx)) {
+		hdd_alert("config update failed");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	status = hdd_update_mac_config(hdd_ctx);
+	if (QDF_STATUS_SUCCESS != status) {
+		hdd_warn("can't update mac config, using MAC from ini file: %d",
+			 status);
+	}
+
+	/*
+	 * Set the MAC Address Currently this is used by HAL to add self sta.
+	 * Remove this once self sta is added as part of session open.
+	 */
+	hal_status = cfg_set_str(hdd_ctx->hHal, WNI_CFG_STA_ID,
+				     hdd_ctx->config->intfMacAddr[0].bytes,
+				     sizeof(hdd_ctx->config->intfMacAddr[0]));
+
+	if (!IS_SIR_STATUS_SUCCESS(hal_status)) {
+		hdd_err("Failed to set MAC Address. HALStatus is %08d [x%08x]",
+			hal_status, hal_status);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	hdd_init_channel_avoidance(hdd_ctx);
+
+out:
+	return ret;
+}
+
+/**
  * hdd_wlan_startup() - HDD init function
  * @dev:	Pointer to the underlying device
  *
@@ -5686,18 +6068,16 @@ int hdd_wlan_startup(struct device *dev, void *hif_sc)
 	int ret;
 	tSirTxPowerLimit hddtxlimit;
 	bool rtnl_held;
-	tSirRetStatus hal_status;
-	int ret_val;
 
 	ENTER();
 
-	if (WLAN_IS_EPPING_ENABLED(con_mode)) {
+	if (QDF_IS_EPPING_ENABLED(con_mode)) {
 		ret = epping_enable(dev);
 		EXIT();
 		return ret;
 	}
 
-	hdd_ctx = hdd_init_context(dev, hif_sc);
+	hdd_ctx = hdd_context_create(dev, hif_sc);
 
 	if (IS_ERR(hdd_ctx))
 		return PTR_ERR(hdd_ctx);
@@ -5734,80 +6114,15 @@ int hdd_wlan_startup(struct device *dev, void *hif_sc)
 		goto err_cds_close;
 	}
 
-	ol_txrx_register_pause_cb(wlan_hdd_txrx_pause_cb);
-
-	ret_val = hdd_wiphy_init(hdd_ctx);
-
-	if (ret_val) {
-		hdd_alert("failed to initialize wiphy");
+	ret = hdd_wiphy_init(hdd_ctx);
+	if (ret) {
+		hdd_alert("Failed to initialize wiphy: %d", ret);
 		goto err_cds_close;
 	}
 
-	/*
-	 * Set 802.11p config
-	 * TODO-OCB: This has been temporarily added here to ensure this
-	 * parameter is set in CSR when we init the channel list. This should
-	 * be removed once the 5.9 GHz channels are added to the regulatory
-	 * domain.
-	 */
-	hdd_set_dot11p_config(hdd_ctx);
-
-	/*
-	 * Note that the cds_pre_enable() sequence triggers the cfg download.
-	 * The cfg download must occur before we update the SME config
-	 * since the SME config operation must access the cfg database
-	 */
-	status = hdd_set_sme_config(hdd_ctx);
-
-	if (QDF_STATUS_SUCCESS != status) {
-		hddLog(QDF_TRACE_LEVEL_FATAL, FL("Failed hdd_set_sme_config"));
+	ret = hdd_pre_enable_configure(hdd_ctx);
+	if (ret)
 		goto err_wiphy_unregister;
-	}
-
-	ret = wma_cli_set_command(0, WMI_PDEV_PARAM_TX_CHAIN_MASK_1SS,
-				  hdd_ctx->config->tx_chain_mask_1ss,
-				  PDEV_CMD);
-	if (0 != ret) {
-		hddLog(QDF_TRACE_LEVEL_ERROR,
-		       "%s: WMI_PDEV_PARAM_TX_CHAIN_MASK_1SS failed %d",
-		       __func__, ret);
-	}
-
-	hdd_program_country_code(hdd_ctx);
-
-	status = hdd_set_sme_chan_list(hdd_ctx);
-	if (status != QDF_STATUS_SUCCESS) {
-		hddLog(QDF_TRACE_LEVEL_FATAL,
-		       FL("Failed to init channel list"));
-		goto err_wiphy_unregister;
-	}
-
-	/* Apply the cfg.ini to cfg.dat */
-	if (false == hdd_update_config_dat(hdd_ctx)) {
-		hddLog(QDF_TRACE_LEVEL_FATAL,
-		       FL("config update failed"));
-		goto err_wiphy_unregister;
-	}
-
-	if (QDF_STATUS_SUCCESS != hdd_update_mac_config(hdd_ctx)) {
-		hddLog(QDF_TRACE_LEVEL_WARN,
-		       FL("can't update mac config, using MAC from ini file"));
-	}
-
-	/*
-	 * Set the MAC Address Currently this is used by HAL to add self sta.
-	 * Remove this once self sta is added as part of session open.
-	 */
-	hal_status = cfg_set_str(hdd_ctx->hHal, WNI_CFG_STA_ID,
-				     hdd_ctx->config->intfMacAddr[0].bytes,
-				     sizeof(hdd_ctx->config->intfMacAddr[0]));
-
-	if (!IS_SIR_STATUS_SUCCESS(hal_status)) {
-		hdd_err("Failed to set MAC Address. HALStatus is %08d [x%08x]",
-			hal_status, hal_status);
-		ret = -EINVAL;
-		goto err_wiphy_unregister;
-	}
 
 	if (hdd_ipa_init(hdd_ctx) == QDF_STATUS_E_FAILURE)
 		goto err_wiphy_unregister;
@@ -5822,8 +6137,6 @@ int hdd_wlan_startup(struct device *dev, void *hif_sc)
 		goto err_ipa_cleanup;
 	}
 
-	hdd_init_channel_avoidance(hdd_ctx);
-
 	status = hdd_post_cds_enable_config(hdd_ctx);
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		hddLog(QDF_TRACE_LEVEL_FATAL,
@@ -5831,11 +6144,12 @@ int hdd_wlan_startup(struct device *dev, void *hif_sc)
 		goto err_cds_disable;
 	}
 
-	cds_pkt_proto_trace_init();
-
 	rtnl_held = hdd_hold_rtnl_lock();
 
-	adapter = hdd_open_interfaces(hdd_ctx, rtnl_held);
+	if (QDF_GLOBAL_MONITOR_MODE == hdd_get_conparam())
+		adapter = hdd_open_monitor_interface(hdd_ctx, rtnl_held);
+	else
+		adapter = hdd_open_interfaces(hdd_ctx, rtnl_held);
 
 	if (IS_ERR(adapter)) {
 		ret = PTR_ERR(adapter);
@@ -5869,7 +6183,7 @@ int hdd_wlan_startup(struct device *dev, void *hif_sc)
 	ret = hdd_init_netlink_services(hdd_ctx);
 
 	if (ret)
-		goto err_debugfs_exit;
+		goto err_close_adapter;
 
 	/*
 	 * Action frame registered in one adapter which will
@@ -5879,21 +6193,6 @@ int hdd_wlan_startup(struct device *dev, void *hif_sc)
 
 	hdd_release_rtnl_lock();
 	rtnl_held = false;
-
-	ret = register_netdevice_notifier(&hdd_netdev_notifier);
-	if (ret < 0) {
-		hdd_err("register_netdevice_notifier failed: %d", ret);
-		goto err_exit_nl_srv;
-	}
-
-#ifdef WLAN_FEATURE_HOLD_RX_WAKELOCK
-	/* Initialize the wake lcok */
-	qdf_wake_lock_create(&hdd_ctx->rx_wake_lock, "qcom_rx_wakelock");
-#endif
-	/* Initialize the wake lcok */
-	qdf_wake_lock_create(&hdd_ctx->sap_wake_lock, "qcom_sap_wakelock");
-
-	hdd_hostapd_channel_wakelock_init(hdd_ctx);
 
 	if (hdd_ctx->config->fIsImpsEnabled)
 		hdd_set_idle_ps_config(hdd_ctx, true);
@@ -5942,6 +6241,7 @@ int hdd_wlan_startup(struct device *dev, void *hif_sc)
 	if (QDF_IS_STATUS_SUCCESS(status))
 		hdd_err("Error setting txlimit in sme: %d", status);
 
+	hdd_tsf_init(hdd_ctx);
 #ifdef MSM_PLATFORM
 	spin_lock_init(&hdd_ctx->bus_bw_lock);
 	qdf_mc_timer_init(&hdd_ctx->bus_bw_timer,
@@ -5956,46 +6256,22 @@ int hdd_wlan_startup(struct device *dev, void *hif_sc)
 
 	status = hdd_register_for_sap_restart_with_channel_switch();
 	if (!QDF_IS_STATUS_SUCCESS(status))
-		/* Error already logged */
-		goto err_unreg_netdev_notifier;
+		goto err_exit_nl_srv;
 
 	sme_set_rssi_threshold_breached_cb(hdd_ctx->hHal,
 				hdd_rssi_threshold_breached);
 
-	hdd_cfg80211_link_layer_stats_init(hdd_ctx);
+	status = sme_bpf_offload_register_callback(hdd_ctx->hHal,
+							hdd_get_bpf_offload_cb);
+	if (QDF_IS_STATUS_SUCCESS(status))
+		hdd_err("set bpf offload callback failed");
 
+	hdd_cfg80211_link_layer_stats_init(hdd_ctx);
+	wlan_hdd_tsf_init(hdd_ctx);
 	wlan_hdd_send_all_scan_intf_info(hdd_ctx);
 	wlan_hdd_send_version_pkg(hdd_ctx->target_fw_version,
 				  hdd_ctx->target_hw_version,
 				  hdd_ctx->target_hw_name);
-
-	qdf_spinlock_create(&hdd_ctx->hdd_roc_req_q_lock);
-	qdf_list_create((&hdd_ctx->hdd_roc_req_q), MAX_ROC_REQ_QUEUE_ENTRY);
-	qdf_spinlock_create(&hdd_ctx->hdd_scan_req_q_lock);
-	qdf_list_create((&hdd_ctx->hdd_scan_req_q), CFG_MAX_SCAN_COUNT_MAX);
-#ifdef CONFIG_CNSS
-	cnss_init_delayed_work(&hdd_ctx->roc_req_work,
-			wlan_hdd_roc_request_dequeue);
-#else
-	INIT_DELAYED_WORK(&hdd_ctx->roc_req_work, wlan_hdd_roc_request_dequeue);
-#endif
-
-	/*
-	 * Register IPv6 notifier to notify if any change in IP
-	 * So that we can reconfigure the offload parameters
-	*/
-	hdd_wlan_register_ip6_notifier(hdd_ctx);
-
-	/*
-	 * Register IPv4 notifier to notify if any change in IP
-	 * So that we can reconfigure the offload parameters
-	 */
-	hdd_ctx->ipv4_notifier.notifier_call = wlan_hdd_ipv4_changed;
-	ret = register_inetaddr_notifier(&hdd_ctx->ipv4_notifier);
-	if (ret)
-		hddLog(LOGE, FL("Failed to register IPv4 notifier"));
-	else
-		hdd_info("Registered IPv4 notifier");
 
 	wlan_hdd_dcc_register_for_dcc_stats_event(hdd_ctx);
 
@@ -6003,16 +6279,17 @@ int hdd_wlan_startup(struct device *dev, void *hif_sc)
 		status = wlan_hdd_disable_all_dual_mac_features(hdd_ctx);
 		if (status != QDF_STATUS_SUCCESS) {
 			hdd_err("Failed to disable dual mac features");
-			goto err_unreg_netdev_notifier;
+			goto err_exit_nl_srv;
 		}
 	}
+
+	ret = hdd_register_notifiers(hdd_ctx);
+	if (ret)
+		goto err_exit_nl_srv;
 
 	memdump_init();
 
 	goto success;
-
-err_unreg_netdev_notifier:
-	unregister_netdevice_notifier(&hdd_netdev_notifier);
 
 err_exit_nl_srv:
 	hdd_exit_netlink_services(hdd_ctx);
@@ -6021,9 +6298,6 @@ err_exit_nl_srv:
 		hdd_err("Failed to deinit policy manager");
 		/* Proceed and complete the clean up */
 	}
-
-err_debugfs_exit:
-	hdd_debugfs_exit(adapter);
 
 err_close_adapter:
 	hdd_release_rtnl_lock();
@@ -6049,7 +6323,7 @@ err_cds_close:
 	cds_close(hdd_ctx->pcds_context);
 
 err_hdd_free_context:
-	hdd_free_context(hdd_ctx);
+	hdd_context_destroy(hdd_ctx);
 	QDF_BUG(1);
 
 	return -EIO;
@@ -7019,6 +7293,8 @@ static int __hdd_module_init(void)
 	pr_info("%s: Loading driver v%s\n", WLAN_MODULE_NAME,
 		QWLAN_VERSIONSTR TIMER_MANAGER_STR MEMORY_DEBUG_STR);
 
+	pld_init();
+
 	qdf_wake_lock_create(&wlan_wake_lock, "wlan");
 
 	hdd_set_conparam((uint32_t) con_mode);
@@ -7034,6 +7310,7 @@ static int __hdd_module_init(void)
 	return 0;
 out:
 	qdf_wake_lock_destroy(&wlan_wake_lock);
+	pld_deinit();
 	return ret;
 }
 
@@ -7050,6 +7327,8 @@ static void __hdd_module_exit(void)
 	wlan_hdd_unregister_driver();
 
 	qdf_wake_lock_destroy(&wlan_wake_lock);
+
+	pld_deinit();
 
 	return;
 }

@@ -151,10 +151,13 @@ void epping_close(void)
 	qdf_mem_free(to_free);
 }
 
-static void epping_target_suspend_acknowledge(void *context)
+/**
+ * epping_target_suspend_acknowledge() - process wow ack/nack from fw
+ * @context: HTC_INIT_INFO->context
+ * @wow_nack: true when wow is rejected
+ */
+static void epping_target_suspend_acknowledge(void *context, bool wow_nack)
 {
-	int wow_nack = *((int *)context);
-
 	if (NULL == g_epping_ctx) {
 		EPPING_LOG(QDF_TRACE_LEVEL_FATAL,
 			   "%s: epping_ctx is NULL", __func__);
@@ -164,6 +167,27 @@ static void epping_target_suspend_acknowledge(void *context)
 	g_epping_ctx->wow_nack = wow_nack;
 }
 
+/**
+ * epping_update_ol_config - API to update ol configuration parameters
+ *
+ * Return: void
+ */
+static void epping_update_ol_config(void)
+{
+	struct ol_config_info cfg;
+	struct ol_context *ol_ctx = cds_get_context(QDF_MODULE_ID_BMI);
+
+	if (!ol_ctx)
+		return;
+
+	cfg.enable_self_recovery = 0;
+	cfg.enable_uart_print = 0;
+	cfg.enable_fw_log = 0;
+	cfg.enable_ramdump_collection = 0;
+	cfg.enable_lpass_support = 0;
+
+	ol_init_ini_config(ol_ctx, &cfg);
+}
 /**
  * epping_enable(): End point ping driver enable Function
  *
@@ -221,6 +245,7 @@ int epping_enable(struct device *parent_dev)
 	pEpping_ctx->target_type = tgt_info->target_type;
 
 	ol_ctx = cds_get_context(QDF_MODULE_ID_BMI);
+	epping_update_ol_config();
 #ifndef FEATURE_BMI_2
 	/* Initialize BMI and Download firmware */
 	if (bmi_download_firmware(ol_ctx)) {

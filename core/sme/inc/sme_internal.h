@@ -197,6 +197,8 @@ typedef struct tagSmeStruct {
 	bool enableSelfRecovery;
 	tCsrLinkStatusCallback linkStatusCallback;
 	void *linkStatusContext;
+	int (*get_tsf_cb)(void *pcb_cxt, struct stsf *ptsf);
+	void *get_tsf_cxt;
 	/* get temperature event context and callback */
 	void *pTemperatureCbContext;
 	void (*pGetTemperatureCb)(int temperature, void *context);
@@ -232,7 +234,8 @@ typedef struct tagSmeStruct {
 	ocb_callback dcc_stats_event_callback;
 	sme_set_thermal_level_callback set_thermal_level_cb;
 	void *saved_scan_cmd;
-	struct csa_offload_params saved_csa_params;
+	void (*pbpf_get_offload_cb)(void *context,
+			struct sir_bpf_get_offload *);
 } tSmeStruct, *tpSmeStruct;
 
 #endif /* #if !defined( __SMEINTERNAL_H ) */

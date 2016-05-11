@@ -304,7 +304,7 @@ populate_dot11_supp_operating_classes(tpAniSirGlobal mac_ptr,
 {
 	uint8_t ch_bandwidth;
 
-	if (session_entry->vhtTxChannelWidthSet == eHT_CHANNEL_WIDTH_80MHZ) {
+	if (session_entry->ch_width == CH_WIDTH_80MHZ) {
 		ch_bandwidth = BW80;
 	} else {
 		switch (session_entry->htSecondaryChannelOffset) {
@@ -747,13 +747,6 @@ populate_dot11f_ht_caps(tpAniSirGlobal pMac,
 		pDot11f->shortGI40MHz = 0;
 	}
 
-	dot11f_log(pMac, LOG2,
-		   FL
-			   ("SupportedChnlWidth: %d, mimoPS: %d, GF: %d, shortGI20:%d, shortGI40: %d, dsssCck: %d\n"),
-		   pDot11f->supportedChannelWidthSet, pDot11f->mimoPowerSave,
-		   pDot11f->greenField, pDot11f->shortGI20MHz,
-		   pDot11f->shortGI40MHz, pDot11f->dsssCckMode40MHz);
-
 	CFG_GET_INT(nSirStatus, pMac, WNI_CFG_HT_AMPDU_PARAMS, nCfgValue);
 
 	nCfgValue8 = (uint8_t) nCfgValue;
@@ -762,8 +755,6 @@ populate_dot11f_ht_caps(tpAniSirGlobal pMac,
 	pDot11f->maxRxAMPDUFactor = pHTParametersInfo->maxRxAMPDUFactor;
 	pDot11f->mpduDensity = pHTParametersInfo->mpduDensity;
 	pDot11f->reserved1 = pHTParametersInfo->reserved;
-
-	dot11f_log(pMac, LOG2, FL("AMPDU Param: %x\n"), nCfgValue);
 
 	CFG_GET_STR(nSirStatus, pMac, WNI_CFG_SUPPORTED_MCS_SET,
 		    pDot11f->supportedMCSSet, nCfgLen,
@@ -977,8 +968,7 @@ populate_dot11f_vht_caps(tpAniSirGlobal pMac,
 				    nCfgValue);
 
 		pDot11f->ldpcCodingCap = (nCfgValue & 0x0001);
-		if (psessionEntry->vhtTxChannelWidthSet <
-			WNI_CFG_VHT_CHANNEL_WIDTH_80MHZ) {
+		if (psessionEntry->ch_width < CH_WIDTH_80MHZ) {
 			 pDot11f->shortGI80MHz = 0;
 		} else {
 			nCfgValue = 0;
@@ -989,8 +979,7 @@ populate_dot11f_vht_caps(tpAniSirGlobal pMac,
 			pDot11f->shortGI80MHz = (nCfgValue & 0x0001);
 		}
 
-		if (psessionEntry->vhtTxChannelWidthSet <
-			WNI_CFG_VHT_CHANNEL_WIDTH_160MHZ) {
+		if (psessionEntry->ch_width < CH_WIDTH_160MHZ) {
 			pDot11f->shortGI160and80plus80MHz = 0;
 		} else {
 			nCfgValue = 0;
@@ -3657,6 +3646,11 @@ sir_parse_beacon_ie(tpAniSirGlobal pMac,
 		qdf_mem_copy(&pBeaconStruct->vendor2_ie.VHTOperation,
 				&pBies->vendor2_ie.VHTOperation,
 				sizeof(tDot11fIEVHTOperation));
+	}
+	if (pBies->ExtCap.present) {
+		pBeaconStruct->ext_cap.present = 1;
+		qdf_mem_copy(&pBeaconStruct->ext_cap, &pBies->ExtCap,
+				sizeof(tDot11fIEExtCap));
 	}
 	qdf_mem_free(pBies);
 	return eSIR_SUCCESS;

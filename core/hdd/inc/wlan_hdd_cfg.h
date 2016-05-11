@@ -463,6 +463,25 @@ typedef enum {
 #define CFG_REST_TIME_CONC_MAX                      (10000)
 #define CFG_REST_TIME_CONC_DEFAULT                  (100)
 
+/* Mininum time spent on home channel before moving to a new channel to scan */
+#define CFG_MIN_REST_TIME_NAME                      "gMinRestTimeConc"
+#define CFG_MIN_REST_TIME_MIN                       (0)
+#define CFG_MIN_REST_TIME_MAX                       (50)
+#define CFG_MIN_REST_TIME_DEFAULT                   (50)
+
+/* Data inactivity time in msec on bss channel that will be used
+ * by scan engine in firmware.
+ * for example if this value is 25ms then firmware will check for
+ * data inactivity every 25ms till gRestTimeConc is reached.
+ * If inactive then scan engine will move from home channel to
+ * scan the next frequency.
+ */
+#define CFG_IDLE_TIME_NAME                          "gIdleTimeConc"
+#define CFG_IDLE_TIME_MIN                           (0)
+#define CFG_IDLE_TIME_MAX                           (25)
+#define CFG_IDLE_TIME_DEFAULT                       (25)
+
+
 #define CFG_NUM_STA_CHAN_COMBINED_CONC_NAME             "gNumStaChanCombinedConc"
 #define CFG_NUM_STA_CHAN_COMBINED_CONC_MIN              (1)
 #define CFG_NUM_STA_CHAN_COMBINED_CONC_MAX              (255)
@@ -2911,6 +2930,12 @@ enum dot11p_mode {
 #define CFG_INFORM_BSS_RSSI_RAW_MAX                (1)
 #define CFG_INFORM_BSS_RSSI_RAW_DEFAULT            (1)
 
+/* GPIO pin to toggle when capture tsf */
+#define CFG_SET_TSF_GPIO_PIN_NAME                  "gtsf_gpio_pin"
+#define CFG_SET_TSF_GPIO_PIN_MIN                   (0)
+#define CFG_SET_TSF_GPIO_PIN_MAX                   (254)
+#define TSF_GPIO_PIN_INVALID                       (255)
+#define CFG_SET_TSF_GPIO_PIN_DEFAULT               (TSF_GPIO_PIN_INVALID)
 
 /*
  * OBSS scan parameters
@@ -2988,6 +3013,15 @@ enum dot11p_mode {
 #define CFG_ROAM_DENSE_MIN_APS_MIN     (1)
 #define CFG_ROAM_DENSE_MIN_APS_MAX     (5)
 #define CFG_ROAM_DENSE_MIN_APS_DEFAULT (1)
+
+/*
+ * Enable/Disable to initiate BUG report in case of fatal event
+ * Default: Enable
+ */
+#define CFG_ENABLE_FATAL_EVENT_TRIGGER                 "gEnableFatalEvent"
+#define CFG_ENABLE_FATAL_EVENT_TRIGGER_MIN             (0)
+#define CFG_ENABLE_FATAL_EVENT_TRIGGER_MAX             (1)
+#define CFG_ENABLE_FATAL_EVENT_TRIGGER_DEFAULT         (1)
 
 /*---------------------------------------------------------------------------
    Type declarations
@@ -3096,6 +3130,10 @@ struct hdd_config {
 	uint32_t nActiveMinChnTimeConc; /* in units of milliseconds */
 	uint32_t nActiveMaxChnTimeConc; /* in units of milliseconds */
 	uint32_t nRestTimeConc; /* in units of milliseconds */
+	/* In units of milliseconds */
+	uint32_t       min_rest_time_conc;
+	/* In units of milliseconds */
+	uint32_t       idle_time_conc;
 	uint8_t nNumStaChanCombinedConc;        /* number of channels combined for */
 	/* STA in each split scan operation */
 	uint8_t nNumP2PChanCombinedConc;        /* number of channels combined for */
@@ -3579,6 +3617,9 @@ struct hdd_config {
 	uint16_t obss_passive_dwelltime;
 	uint16_t obss_width_trigger_interval;
 	uint8_t inform_bss_rssi_raw;
+#ifdef WLAN_FEATURE_TSF
+	uint32_t tsf_gpio_pin;
+#endif
 #ifdef QCA_WIFI_3_0_EMU
 	bool enable_m2m_limitation;
 #endif
@@ -3586,6 +3627,8 @@ struct hdd_config {
 	uint32_t roam_dense_rssi_thresh_offset;
 	bool ignore_peer_ht_opmode;
 	uint32_t roam_dense_min_aps;
+	bool enable_fatal_event;
+	bool bpf_enabled;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

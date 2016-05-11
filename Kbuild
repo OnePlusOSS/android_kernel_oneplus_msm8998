@@ -129,10 +129,6 @@ ifeq ($(KERNEL_BUILD), 0)
                 CONFIG_LINUX_QCMBR :=y
         endif
 
-        ifeq ($(CONFIG_CNSS_EOS),y)
-        CONFIG_FEATURE_BMI_2 :=y
-        endif
-
 	CONFIG_MPC_UT_FRAMEWORK := y
 
 	#Flag to enable offload packets feature
@@ -375,6 +371,10 @@ endif
 
 ifeq ($(CONFIG_QCOM_TDLS),y)
 HDD_OBJS +=	$(HDD_SRC_DIR)/wlan_hdd_tdls.o
+endif
+
+ifeq ($(CONFIG_WLAN_SYNC_TSF),y)
+HDD_OBJS +=	$(HDD_SRC_DIR)/wlan_hdd_tsf.o
 endif
 
 ifeq ($(CONFIG_MPC_UT_FRAMEWORK),y)
@@ -671,11 +671,7 @@ BMI_INC := -I$(WLAN_ROOT)/$(BMI_DIR)/inc
 
 BMI_OBJS := $(BMI_DIR)/src/bmi.o \
             $(BMI_DIR)/src/ol_fw.o
-ifeq ($(CONFIG_FEATURE_BMI_2), y)
-BMI_OBJS += $(BMI_DIR)/src/bmi_2.o
-else
 BMI_OBJS += $(BMI_DIR)/src/bmi_1.o
-endif
 
 ########### WMI ###########
 WMI_ROOT_DIR := wmi
@@ -847,6 +843,23 @@ ifeq ($(CONFIG_MPC_UT_FRAMEWORK),y)
 WMA_OBJS +=	$(WMA_SRC_DIR)/wma_utils_ut.o
 endif
 
+############## PLD ##########
+PLD_DIR := core/pld
+PLD_INC_DIR := $(PLD_DIR)/inc
+PLD_SRC_DIR := $(PLD_DIR)/src
+
+PLD_INC :=	-I$(WLAN_ROOT)/$(PLD_INC_DIR) \
+		-I$(WLAN_ROOT)/$(PLD_SRC_DIR)
+
+PLD_OBJS :=	$(PLD_SRC_DIR)/pld_common.o
+
+ifeq ($(CONFIG_PCI), y)
+PLD_OBJS +=	$(PLD_SRC_DIR)/pld_pcie.o
+endif
+ifeq ($(CONFIG_ICNSS),y)
+PLD_OBJS +=	$(PLD_SRC_DIR)/pld_snoc.o
+endif
+
 TARGET_INC :=	-I$(WLAN_ROOT)/target/inc
 
 LINUX_INC :=	-Iinclude/linux
@@ -884,6 +897,8 @@ INCS +=		$(NLINK_INC) \
 		$(PTT_INC) \
 		$(WLAN_LOGGING_INC)
 
+INCS +=		$(PLD_INC)
+
 ifeq ($(CONFIG_REMOVE_PKT_LOG), 0)
 INCS +=		$(PKTLOG_INC)
 endif
@@ -916,6 +931,8 @@ OBJS +=		$(HIF_OBJS) \
 OBJS +=		$(WLAN_LOGGING_OBJS)
 OBJS +=		$(NLINK_OBJS)
 OBJS +=		$(PTT_OBJS)
+
+OBJS +=		$(PLD_OBJS)
 
 ifeq ($(CONFIG_REMOVE_PKT_LOG), 0)
 OBJS +=		$(PKTLOG_OBJS)
@@ -988,10 +1005,6 @@ CDEFINES += -DFEATURE_NAPI
 ifeq ($(CONFIG_WLAN_NAPI_DEBUG), y)
 CDEFINES += -DFEATURE_NAPI_DEBUG
 endif
-endif
-
-ifeq ($(CONFIG_FEATURE_BMI_2), y)
-CDEFINES += -DFEATURE_BMI_2
 endif
 
 ifeq (y,$(findstring y,$(CONFIG_ARCH_MSM) $(CONFIG_ARCH_QCOM)))
@@ -1339,6 +1352,10 @@ ifeq ($(CONFIG_LINUX_QCMBR),y)
 CDEFINES += -DLINUX_QCMBR
 endif
 
+# Enable featue sync tsf between multi devices
+ifeq ($(CONFIG_WLAN_SYNC_TSF), y)
+CDEFINES += -DWLAN_FEATURE_TSF
+endif
 
 # Enable full rx re-order offload for adrastea
 ifeq (y, $(filter y, $(CONFIG_CNSS_ADRASTEA) $(CONFIG_ICNSS)))

@@ -1699,8 +1699,6 @@ void lim_fill_join_rsp_ht_caps(tpPESession session, tpSirSmeJoinRsp join_rsp)
 	ht_profile->dot11mode = session->dot11mode;
 	ht_profile->htCapability = session->htCapability;
 	ht_profile->vhtCapability = session->vhtCapability;
-	ht_profile->vhtTxChannelWidthSet =
-		session->vhtTxChannelWidthSet;
 	ht_profile->apCenterChan = session->ch_center_freq_seg0;
 	ht_profile->apChanWidth = session->ch_width;
 }
@@ -1880,6 +1878,7 @@ QDF_STATUS pe_roam_synch_callback(tpAniSirGlobal mac_ctx,
 	tpAddBssParams add_bss_params;
 	uint8_t local_nss;
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
+	uint16_t join_rsp_len;
 
 	if (!roam_sync_ind_ptr) {
 		lim_log(mac_ctx, LOGE, FL("LFR3:roam_sync_ind_ptr is NULL"));
@@ -1989,6 +1988,31 @@ QDF_STATUS pe_roam_synch_callback(tpAniSirGlobal mac_ctx,
 	curr_sta_ds->nss = local_nss;
 	ft_session_ptr->limMlmState = eLIM_MLM_LINK_ESTABLISHED_STATE;
 	lim_init_tdls_data(mac_ctx, ft_session_ptr);
+	join_rsp_len = ft_session_ptr->RICDataLen + sizeof(tSirSmeJoinRsp) -
+			sizeof(uint8_t);
+	roam_sync_ind_ptr->join_rsp = qdf_mem_malloc(join_rsp_len);
+	if (NULL == roam_sync_ind_ptr->join_rsp) {
+		lim_log(mac_ctx, LOGE, FL("LFR3:mem alloc failed"));
+		ft_session_ptr->bRoamSynchInProgress = false;
+		if (mac_ctx->roam.pReassocResp)
+			qdf_mem_free(mac_ctx->roam.pReassocResp);
+		mac_ctx->roam.pReassocResp = NULL;
+		return QDF_STATUS_E_NOMEM;
+	}
+	qdf_mem_zero(roam_sync_ind_ptr->join_rsp, join_rsp_len);
+
+	lim_log(mac_ctx, LOG1, FL("Session RicLength = %d"),
+			ft_session_ptr->RICDataLen);
+	if (ft_session_ptr->ricData != NULL) {
+		roam_sync_ind_ptr->join_rsp->parsedRicRspLen =
+			ft_session_ptr->RICDataLen;
+		qdf_mem_copy(roam_sync_ind_ptr->join_rsp->frames,
+				ft_session_ptr->ricData,
+				roam_sync_ind_ptr->join_rsp->parsedRicRspLen);
+		qdf_mem_free(ft_session_ptr->ricData);
+		ft_session_ptr->ricData = NULL;
+		ft_session_ptr->RICDataLen = 0;
+	}
 	roam_sync_ind_ptr->join_rsp->vht_channel_width =
 		ft_session_ptr->ch_width;
 	roam_sync_ind_ptr->join_rsp->staId = curr_sta_ds->staIndex;
@@ -2145,3 +2169,29 @@ QDF_STATUS pe_release_global_lock(tAniSirLim *psPe)
 	return status;
 }
 
+/**
+ * lim_mon_init_session() - create PE session for monitor mode operation
+ * @mac_ptr: mac pointer
+ * @msg: Pointer to struct sir_create_session type.
+ *
+ * Return: NONE
+ */
+void lim_mon_init_session(tpAniSirGlobal mac_ptr,
+			  struct sir_create_session *msg)
+{
+	tpPESession psession_entry;
+	uint8_t session_id;
+
+	lim_print_mac_addr(mac_ptr, msg->bss_id.bytes, LOGE);
+	psession_entry = pe_create_session(mac_ptr, msg->bss_id.bytes,
+					   &session_id,
+					   mac_ptr->lim.maxStation,
+					   eSIR_MONITOR_MODE);
+	if (psession_entry == NULL) {
+		QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_ERROR,
+			  ("Monitor mode: Session Can not be created"));
+		lim_print_mac_addr(mac_ptr, msg->bss_id.bytes, LOGE);
+		return;
+	}
+	psession_entry->vhtCapability = 1;
+}

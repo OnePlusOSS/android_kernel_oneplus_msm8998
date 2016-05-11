@@ -123,8 +123,6 @@ lim_extract_ap_capability(tpAniSirGlobal mac_ctx, uint8_t *p_ie,
 			beacon_struct->VHTOperation.present &&
 			session->vhtCapability) {
 			session->vhtCapabilityPresentInBeacon = 1;
-			session->vhtTxChannelWidthSet =
-				beacon_struct->VHTOperation.chanWidth;
 			if (((beacon_struct->Vendor1IEPresent &&
 				beacon_struct->vendor2_ie.present &&
 				beacon_struct->Vendor3IEPresent)) &&
@@ -217,6 +215,9 @@ lim_extract_ap_capability(tpAniSirGlobal mac_ctx, uint8_t *p_ie,
 		if (beacon_struct->countryInfoPresent)
 			session->country_info_present = true;
 	}
+	/* Check if Extended caps are present in probe resp or not */
+	if (beacon_struct->ext_cap.present)
+		session->is_ext_caps_present = true;
 	qdf_mem_free(beacon_struct);
 	return;
 } /****** end lim_extract_ap_capability() ******/

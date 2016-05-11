@@ -80,6 +80,7 @@
 #include "sme_power_save_api.h"
 #include "cds_concurrency.h"
 #include "wlan_hdd_conc_ut.h"
+#include "wlan_hdd_tsf.h"
 #include "wlan_hdd_ocb.h"
 #include "wlan_hdd_napi.h"
 #include "cdp_txrx_flow_ctrl_legacy.h"
@@ -215,6 +216,7 @@ static const hdd_freq_chan_map_t freq_chan_map[] = {
 /* Private sub ioctl for starting/stopping the profiling */
 #define WE_START_FW_PROFILE                      87
 #define WE_SET_CHANNEL                        88
+#define WE_SET_CONC_SYSTEM_PREF               89
 
 /* Private ioctls and their sub-ioctls */
 #define WLAN_PRIV_SET_NONE_GET_INT    (SIOCIWFIRSTPRIV + 1)
@@ -273,6 +275,7 @@ static const hdd_freq_chan_map_t freq_chan_map[] = {
 #define WE_GET_GTX_MINTPC               53
 #define WE_GET_GTX_BWMASK               54
 #define WE_GET_TEMPERATURE              56
+#define WE_CAP_TSF                      58
 
 /* Private ioctls and their sub-ioctls */
 #define WLAN_PRIV_SET_INT_GET_INT     (SIOCIWFIRSTPRIV + 2)
@@ -364,6 +367,7 @@ static const hdd_freq_chan_map_t freq_chan_map[] = {
 
 #define WE_SET_DUAL_MAC_SCAN_CONFIG    21
 #define WE_SET_DUAL_MAC_FW_MODE_CONFIG 22
+#define WE_SET_MON_MODE_CHAN 23
 
 #ifdef FEATURE_WLAN_TDLS
 #undef  MAX_VAR_ARGS
@@ -383,7 +387,8 @@ static const hdd_freq_chan_map_t freq_chan_map[] = {
 /* (SIOCIWFIRSTPRIV + 10) is currently unused */
 /* (SIOCIWFIRSTPRIV + 12) is currently unused */
 /* (SIOCIWFIRSTPRIV + 14) is currently unused */
-/* (SIOCIWFIRSTPRIV + 15) is currently unused */
+#define WLAN_PRIV_SET_NONE_GET_THREE_INT   (SIOCIWFIRSTPRIV + 15)
+#define WE_GET_TSF      1
 /* (SIOCIWFIRSTPRIV + 16) is currently unused */
 /* (SIOCIWFIRSTPRIV + 17) is currently unused */
 /* (SIOCIWFIRSTPRIV + 19) is currently unused */
@@ -6271,7 +6276,19 @@ static int __iw_setint_getnone(struct net_device *dev,
 		}
 		break;
 	}
+	case WE_SET_CONC_SYSTEM_PREF:
+	{
+		hdd_info("New preference: %d", set_value);
+		if (!((set_value >= CFG_CONC_SYSTEM_PREF_MIN) &&
+				(set_value <= CFG_CONC_SYSTEM_PREF_MAX))) {
+			hdd_err("Invalid system preference %d", set_value);
+			return -EINVAL;
+		}
 
+		/* hdd_ctx, hdd_ctx->config are already checked for null */
+		hdd_ctx->config->conc_system_pref = set_value;
+		break;
+	}
 	default:
 	{
 		hddLog(LOGE, "%s: Invalid sub command %d", __func__,
@@ -6293,6 +6310,65 @@ static int iw_setint_getnone(struct net_device *dev,
 
 	cds_ssr_protect(__func__);
 	ret = __iw_setint_getnone(dev, info, wrqu, extra);
+	cds_ssr_unprotect(__func__);
+
+	return ret;
+}
+
+/**
+ * __iw_setnone_get_threeint() - return three value to up layer.
+ *
+ * @dev: pointer of net_device of this wireless card
+ * @info: meta data about Request sent
+ * @wrqu: include request info
+ * @extra: buf used for in/Output
+ *
+ * Return: execute result
+ */
+static int __iw_setnone_get_threeint(struct net_device *dev,
+					struct iw_request_info *info,
+					union iwreq_data *wrqu, char *extra)
+{
+	int ret = 0; /* success */
+	uint32_t *value = (int *)extra;
+	hdd_adapter_t *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
+	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+
+	ENTER_DEV(dev);
+	ret = wlan_hdd_validate_context(hdd_ctx);
+	if (0 != ret)
+		return ret;
+
+	hdd_info(FL("param = %d"), value[0]);
+	switch (value[0]) {
+	case WE_GET_TSF:
+		ret = hdd_indicate_tsf(adapter, value, 3);
+		break;
+	default:
+		hdd_err("Invalid IOCTL get_value command %d", value[0]);
+		break;
+	}
+	return ret;
+}
+
+/**
+ * iw_setnone_get_threeint() - return three value to up layer.
+ *
+ * @dev: pointer of net_device of this wireless card
+ * @info: meta data about Request sent
+ * @wrqu: include request info
+ * @extra: buf used for in/Output
+ *
+ * Return: execute result
+ */
+static int iw_setnone_get_threeint(struct net_device *dev,
+					struct iw_request_info *info,
+					union iwreq_data *wrqu, char *extra)
+{
+	int ret;
+
+	cds_ssr_protect(__func__);
+	ret = __iw_setnone_get_threeint(dev, info, wrqu, extra);
 	cds_ssr_unprotect(__func__);
 
 	return ret;
@@ -6914,7 +6990,9 @@ static int __iw_setnone_getint(struct net_device *dev,
 					     QPOWER_CMD);
 		break;
 	}
-
+	case WE_CAP_TSF:
+		ret = hdd_capture_tsf(pAdapter, (uint32_t *)value, 1);
+		break;
 	case WE_GET_TEMPERATURE:
 	{
 		hddLog(QDF_TRACE_LEVEL_INFO, "WE_GET_TEMPERATURE");
@@ -7977,7 +8055,7 @@ static int __iw_set_var_ints_getnone(struct net_device *dev,
 		if (apps_args[0] == 0) {
 			hddLog(LOGE,
 				FL("set hw mode for single mac\n"));
-			cds_soc_set_hw_mode(
+			cds_pdev_set_hw_mode(
 					pAdapter->sessionId,
 					HW_MODE_SS_2x2,
 					HW_MODE_80_MHZ,
@@ -7988,7 +8066,7 @@ static int __iw_set_var_ints_getnone(struct net_device *dev,
 		} else if (apps_args[0] == 1) {
 			hddLog(LOGE,
 				FL("set hw mode for dual mac\n"));
-			cds_soc_set_hw_mode(
+			cds_pdev_set_hw_mode(
 					pAdapter->sessionId,
 					HW_MODE_SS_1x1,
 					HW_MODE_80_MHZ,
@@ -9651,6 +9729,53 @@ static int iw_set_band_config(struct net_device *dev,
 	return ret;
 }
 
+/**
+ * wlan_hdd_set_mon_chan() - Set capture channel on the monitor mode interface.
+ * @adapter: Handle to adapter
+ * @chan: Monitor mode channel
+ * @bandwidth: Capture channel bandwidth
+ *
+ * Return: 0 on success else error code.
+ */
+static int wlan_hdd_set_mon_chan(hdd_adapter_t *adapter, uint32_t chan,
+				 uint32_t bandwidth)
+{
+	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+	hdd_station_ctx_t *sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
+	struct hdd_mon_set_ch_info *ch_info = &sta_ctx->ch_info;
+	QDF_STATUS status;
+	tHalHandle hal_hdl = hdd_ctx->hHal;
+	struct qdf_mac_addr bssid;
+	tCsrRoamProfile roam_profile;
+	struct ch_params_s ch_params;
+
+	if (QDF_GLOBAL_MONITOR_MODE != hdd_get_conparam()) {
+		hdd_err("Not supported, device is not in monitor mode");
+		return -EINVAL;
+	}
+
+	hdd_info("Set monitor mode Channel %d", chan);
+	hdd_select_cbmode(adapter, chan);
+	roam_profile.ChannelInfo.ChannelList = &ch_info->channel;
+	roam_profile.ChannelInfo.numOfChannels = 1;
+	roam_profile.phyMode = ch_info->phy_mode;
+	roam_profile.ch_params.ch_width = bandwidth;
+
+	qdf_mem_copy(bssid.bytes, adapter->macAddressCurrent.bytes,
+		     QDF_MAC_ADDR_SIZE);
+
+	ch_params.ch_width = bandwidth;
+	sme_set_ch_params(hal_hdl, ch_info->phy_mode, chan, 0, &ch_params);
+	status = sme_roam_channel_change_req(hal_hdl, bssid, &ch_params,
+					     &roam_profile);
+	if (status) {
+		hdd_err("Status: %d Failed to set sme_roam Channel for monitor mode",
+			status);
+	}
+
+	return qdf_status_to_os_return(status);
+}
+
 static int __iw_set_two_ints_getnone(struct net_device *dev,
 				     struct iw_request_info *info,
 				     union iwreq_data *wrqu, char *extra)
@@ -9715,6 +9840,9 @@ static int __iw_set_two_ints_getnone(struct net_device *dev,
 		       value[1], value[2]);
 		if (value[1] == DUMP_DP_TRACE)
 			qdf_dp_trace_dump_all(value[2]);
+		break;
+	case WE_SET_MON_MODE_CHAN:
+		ret = wlan_hdd_set_mon_chan(pAdapter, value[1], value[2]);
 		break;
 	default:
 		hddLog(LOGE, "%s: Invalid IOCTL command %d", __func__, sub_cmd);
@@ -9809,6 +9937,8 @@ static const iw_handler we_private[] = {
 	[WLAN_PRIV_SET_NONE_GET_NONE - SIOCIWFIRSTPRIV] = iw_setnone_getnone,   /* action priv ioctl */
 	[WLAN_PRIV_SET_VAR_INT_GET_NONE - SIOCIWFIRSTPRIV] =
 		iw_hdd_set_var_ints_getnone,
+	[WLAN_PRIV_SET_NONE_GET_THREE_INT - SIOCIWFIRSTPRIV] =
+							iw_setnone_get_threeint,
 	[WLAN_PRIV_ADD_TSPEC - SIOCIWFIRSTPRIV] = iw_add_tspec,
 	[WLAN_PRIV_DEL_TSPEC - SIOCIWFIRSTPRIV] = iw_del_tspec,
 	[WLAN_PRIV_GET_TSPEC - SIOCIWFIRSTPRIV] = iw_get_tspec,
@@ -10256,6 +10386,10 @@ static const struct iw_priv_args we_private_args[] = {
 	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
 	 0, "setChanChange" },
 
+	{WE_SET_CONC_SYSTEM_PREF,
+	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
+	 0, "setConcSysPref" },
+
 	{WLAN_PRIV_SET_NONE_GET_INT,
 	 0,
 	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
@@ -10506,6 +10640,11 @@ static const struct iw_priv_args we_private_args[] = {
 	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
 	 "get_qnodatapoll"},
 
+	{WE_CAP_TSF,
+	 0,
+	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
+	 "cap_tsf"},
+
 	{WE_GET_TEMPERATURE,
 	 0,
 	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
@@ -10565,6 +10704,15 @@ static const struct iw_priv_args we_private_args[] = {
 	IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 3,
 	0,
 	"setsapchannels"},
+	/* handlers for main ioctl */
+	{WLAN_PRIV_SET_NONE_GET_THREE_INT,
+	 0,
+	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 3,
+	 "" },
+	{WE_GET_TSF,
+	 0,
+	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 3,
+	 "get_tsf" },
 
 	{WE_SET_DUAL_MAC_SCAN_CONFIG,
 	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 3,
@@ -10916,6 +11064,10 @@ static const struct iw_priv_args we_private_args[] = {
 	{WE_DUMP_DP_TRACE_LEVEL,
 	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 2,
 	 0, "dump_dp_trace"}
+	,
+	{WE_SET_MON_MODE_CHAN,
+	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 2,
+	 0, "setMonChan"}
 	,
 };
 

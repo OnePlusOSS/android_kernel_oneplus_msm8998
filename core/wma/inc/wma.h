@@ -63,6 +63,15 @@
 
 #define WMA_CRASH_INJECT_TIMEOUT           5000
 
+/* MAC ID to PDEV ID mapping is as given below
+ * MAC_ID           PDEV_ID
+ * 0                    1
+ * 1                    2
+ * SOC Level            WMI_PDEV_ID_SOC
+ */
+#define WMA_MAC_TO_PDEV_MAP(x) ((x) + (1))
+#define WMA_PDEV_TO_MAC_MAP(x) ((x) - (1))
+
 /* In prima 12 HW stations are supported including BCAST STA(staId 0)
  * and SELF STA(staId 1) so total ASSOC stations which can connect to Prima
  * SoftAP = 12 - 1(Self STa) - 1(Bcast Sta) = 10 Stations.
@@ -1972,11 +1981,11 @@ QDF_STATUS wma_set_rssi_monitoring(tp_wma_handle wma,
 QDF_STATUS wma_send_pdev_set_pcl_cmd(tp_wma_handle wma_handle,
 		struct wmi_pcl_chan_weights *msg);
 
-QDF_STATUS wma_send_soc_set_hw_mode_cmd(tp_wma_handle wma_handle,
+QDF_STATUS wma_send_pdev_set_hw_mode_cmd(tp_wma_handle wma_handle,
 		struct sir_hw_mode *msg);
 QDF_STATUS wma_get_scan_id(uint32_t *scan_id);
 
-QDF_STATUS wma_send_soc_set_dual_mac_config(tp_wma_handle wma_handle,
+QDF_STATUS wma_send_pdev_set_dual_mac_config(tp_wma_handle wma_handle,
 		struct sir_dual_mac_config *msg);
 QDF_STATUS wma_send_pdev_set_antenna_mode(tp_wma_handle wma_handle,
 		struct sir_antenna_mode_param *msg);
@@ -2039,5 +2048,12 @@ QDF_STATUS wma_ht40_stop_obss_scan(tp_wma_handle wma_handle,
 				int32_t vdev_id);
 QDF_STATUS wma_send_ht40_obss_scanind(tp_wma_handle wma,
 	struct obss_ht40_scanind *req);
+
+int wma_get_bpf_caps_event_handler(void *handle,
+				u_int8_t *cmd_param_info,
+				u_int32_t len);
+QDF_STATUS wma_get_bpf_capabilities(tp_wma_handle wma);
+QDF_STATUS wma_set_bpf_instructions(tp_wma_handle wma,
+			struct sir_bpf_set_offload *bpf_set_offload);
 #endif
 struct wma_ini_config *wma_get_ini_handle(tp_wma_handle wma_handle);

@@ -51,12 +51,14 @@
 #include "qdf_types.h"
 #include "qdf_mem.h"
 #include "ol_txrx_peer_find.h"
+#include "ol_htt_api.h"
 
 #include "wma_types.h"
 #include "lim_api.h"
 #include "lim_session_utils.h"
 
 #include "cds_utils.h"
+#include "cds_concurrency.h"
 
 #if !defined(REMOVE_PKT_LOG)
 #include "pktlog_ac.h"
@@ -237,19 +239,21 @@ QDF_STATUS wma_get_buf_start_scan_cmd(tp_wma_handle wma_handle,
 	cmd->repeat_probe_time =
 		cmd->dwell_time_active / WMA_SCAN_NPROBES_DEFAULT;
 
-	/* CSR sends only one value restTime for staying on home channel
-	 * to continue data traffic. Rome fw has facility to monitor the traffic
-	 * and move to next channel. Stay on the channel for at least half
-	 * of the requested time and then leave if there is no traffic.
+	/* CSR sends min_rest_Time, max_rest_time and idle_time
+	 * for staying on home channel to continue data traffic.
+	 * Rome fw has facility to monitor the traffic
+	 * and move to next channel. Stay on the channel for min_rest_time
+	 * and then leave if there is no traffic.
 	 */
-	cmd->min_rest_time = scan_req->restTime / 2;
+	cmd->min_rest_time = scan_req->min_rest_time;
 	cmd->max_rest_time = scan_req->restTime;
 
 	/* Check for traffic at idle_time interval after min_rest_time.
 	 * Default value is 25 ms to allow full use of max_rest_time
 	 * when voice packets are running at 20 ms interval.
 	 */
-	cmd->idle_time = WMA_SCAN_IDLE_TIME_DEFAULT;
+	cmd->idle_time = scan_req->idle_time;
+
 
 	/* Large timeout value for full scan cycle, 30 seconds */
 	cmd->max_scan_time = WMA_HW_DEF_SCAN_MAX_DURATION;
@@ -293,20 +297,6 @@ QDF_STATUS wma_get_buf_start_scan_cmd(tp_wma_handle wma_handle,
 				else
 					cmd->burst_duration =
 					WMA_3PORT_CONC_SCAN_MAX_BURST_DURATION;
-				break;
-			}
-			if (wma_is_sap_active(wma_handle)) {
-				/* Background scan while SoftAP is sending beacons.
-				 * Max duration of CTS2self is 32 ms, which limits
-				 * the dwell time.
-				 */
-				cmd->dwell_time_active =
-				   QDF_MIN(scan_req->maxChannelTime,
-					   (WMA_CTS_DURATION_MS_MAX -
-					    WMA_ROAM_SCAN_CHANNEL_SWITCH_TIME));
-				cmd->dwell_time_passive =
-					cmd->dwell_time_active;
-				cmd->burst_duration = 0;
 				break;
 			}
 			if (wma_handle->miracast_value &&
@@ -412,6 +402,20 @@ QDF_STATUS wma_get_buf_start_scan_cmd(tp_wma_handle wma_handle,
 			WMA_LOGE("Invalid scan type");
 			goto error;
 		}
+	}
+
+	if (wma_is_sap_active(wma_handle)) {
+		/* P2P/STA scan while SoftAP is sending beacons.
+		 * Max duration of CTS2self is 32 ms, which limits the
+		 * dwell time.
+		 */
+		cmd->dwell_time_active =
+			QDF_MIN(scan_req->maxChannelTime,
+					(WMA_CTS_DURATION_MS_MAX -
+					 WMA_ROAM_SCAN_CHANNEL_SWITCH_TIME));
+		cmd->dwell_time_passive =
+			cmd->dwell_time_active;
+		cmd->burst_duration = 0;
 	}
 
 	cmd->n_probes = (cmd->repeat_probe_time > 0) ?
@@ -2078,15 +2082,12 @@ int wma_roam_synch_event_handler(void *handle, uint8_t *event,
 		goto cleanup_label;
 	}
 	bss_desc_ptr = qdf_mem_malloc(sizeof(tSirBssDescription) + ie_len);
-	roam_synch_ind_ptr->join_rsp = qdf_mem_malloc(sizeof(tSirSmeJoinRsp));
-	if ((NULL == roam_synch_ind_ptr->join_rsp) || (NULL == bss_desc_ptr)) {
+	if (NULL == bss_desc_ptr) {
 		WMA_LOGE("LFR3: mem alloc failed!");
 		QDF_ASSERT(bss_desc_ptr != NULL);
-		QDF_ASSERT(roam_synch_ind_ptr->join_rsp != NULL);
 		status =  -ENOMEM;
 		goto cleanup_label;
 	}
-	qdf_mem_zero(roam_synch_ind_ptr->join_rsp, sizeof(tSirSmeJoinRsp));
 	qdf_mem_zero(bss_desc_ptr, sizeof(tSirBssDescription) + ie_len);
 	wma->pe_roam_synch_cb((tpAniSirGlobal)wma->mac_context,
 			roam_synch_ind_ptr, bss_desc_ptr);
@@ -2446,6 +2447,112 @@ void wma_process_roam_synch_complete(WMA_HANDLE handle, uint8_t vdev_id)
 #endif /* WLAN_FEATURE_ROAM_OFFLOAD */
 
 /**
+ * wma_switch_channel() -  WMA api to switch channel dynamically
+ * @wma: Pointer of WMA context
+ * @req: Pointer vdev_start having channel switch info.
+ *
+ * Return: 0 for success, otherwise appropriate error code
+ */
+QDF_STATUS wma_switch_channel(tp_wma_handle wma, struct wma_vdev_start_req *req)
+{
+
+	wmi_buf_t buf;
+	wmi_channel *cmd;
+	int32_t len, ret;
+	WLAN_PHY_MODE chanmode;
+	struct wma_txrx_node *intr = wma->interfaces;
+	tpAniSirGlobal pmac;
+
+	pmac = cds_get_context(QDF_MODULE_ID_PE);
+
+	if (pmac == NULL) {
+		WMA_LOGE("%s: vdev start failed as pmac is NULL", __func__);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	len = sizeof(*cmd);
+	buf = wmi_buf_alloc(wma->wmi_handle, len);
+	if (!buf) {
+		WMA_LOGE("%s : wmi_buf_alloc failed", __func__);
+		return QDF_STATUS_E_NOMEM;
+	}
+	cmd = (wmi_channel *)wmi_buf_data(buf);
+	WMITLV_SET_HDR(&cmd->tlv_header,
+		       WMITLV_TAG_STRUC_wmi_channel,
+		       WMITLV_GET_STRUCT_TLVLEN(wmi_channel));
+
+	/* Fill channel info */
+	cmd->mhz = cds_chan_to_freq(req->chan);
+	chanmode = wma_chan_to_mode(req->chan, req->chan_width,
+				req->vht_capable, req->dot11_mode);
+
+	intr[req->vdev_id].chanmode = chanmode; /* save channel mode */
+	intr[req->vdev_id].ht_capable = req->ht_capable;
+	intr[req->vdev_id].vht_capable = req->vht_capable;
+	intr[req->vdev_id].config.gtx_info.gtxRTMask[0] =
+						CFG_TGT_DEFAULT_GTX_HT_MASK;
+	intr[req->vdev_id].config.gtx_info.gtxRTMask[1] =
+						CFG_TGT_DEFAULT_GTX_VHT_MASK;
+	intr[req->vdev_id].config.gtx_info.gtxUsrcfg =
+						CFG_TGT_DEFAULT_GTX_USR_CFG;
+	intr[req->vdev_id].config.gtx_info.gtxPERThreshold =
+					CFG_TGT_DEFAULT_GTX_PER_THRESHOLD;
+	intr[req->vdev_id].config.gtx_info.gtxPERMargin =
+					CFG_TGT_DEFAULT_GTX_PER_MARGIN;
+	intr[req->vdev_id].config.gtx_info.gtxTPCstep =
+					CFG_TGT_DEFAULT_GTX_TPC_STEP;
+	intr[req->vdev_id].config.gtx_info.gtxTPCMin =
+					CFG_TGT_DEFAULT_GTX_TPC_MIN;
+	intr[req->vdev_id].config.gtx_info.gtxBWMask =
+					CFG_TGT_DEFAULT_GTX_BW_MASK;
+	intr[req->vdev_id].mhz = cmd->mhz;
+
+	WMI_SET_CHANNEL_MODE(cmd, chanmode);
+	cmd->band_center_freq1 = cmd->mhz;
+
+	if (chanmode == MODE_11AC_VHT80)
+		cmd->band_center_freq1 =
+			cds_chan_to_freq(req->ch_center_freq_seg0);
+
+	if ((chanmode == MODE_11NA_HT40) || (chanmode == MODE_11NG_HT40) ||
+			(chanmode == MODE_11AC_VHT40)) {
+		if (req->chan_width == CH_WIDTH_80MHZ)
+			cmd->band_center_freq1 += 10;
+		else
+			cmd->band_center_freq1 -= 10;
+	}
+	cmd->band_center_freq2 = 0;
+
+	/* Set half or quarter rate WMI flags */
+	if (req->is_half_rate)
+		WMI_SET_CHANNEL_FLAG(cmd, WMI_CHAN_FLAG_HALF_RATE);
+	else if (req->is_quarter_rate)
+		WMI_SET_CHANNEL_FLAG(cmd, WMI_CHAN_FLAG_QUARTER_RATE);
+
+	/* Find out min, max and regulatory power levels */
+	WMI_SET_CHANNEL_REG_POWER(cmd, req->max_txpow);
+	WMI_SET_CHANNEL_MAX_TX_POWER(cmd, req->max_txpow);
+
+
+	WMA_LOGE("%s: freq %d channel %d chanmode %d center_chan %d center_freq2 %d reg_info_1: 0x%x reg_info_2: 0x%x, req->max_txpow: 0x%x",
+		 __func__, cmd->mhz, req->chan, chanmode,
+		 cmd->band_center_freq1, cmd->band_center_freq2,
+		 cmd->reg_info_1, cmd->reg_info_2, req->max_txpow);
+
+
+	ret = wmi_unified_cmd_send(wma->wmi_handle, buf, len,
+				   WMI_PDEV_SET_CHANNEL_CMDID);
+
+	if (ret < 0) {
+		WMA_LOGP("%s: Failed to send vdev start command", __func__);
+		qdf_nbuf_free(buf);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
+
+/**
  * wma_set_channel() - set channel
  * @wma: wma handle
  * @params: switch channel parameters
@@ -2521,17 +2628,30 @@ void wma_set_channel(tp_wma_handle wma, tpSwitchChannelParams params)
 		(params->restart_on_chan_switch == true))
 		wma->interfaces[req.vdev_id].is_channel_switch = true;
 
-	status = wma_vdev_start(wma, &req,
-				wma->interfaces[req.vdev_id].is_channel_switch);
-	if (status != QDF_STATUS_SUCCESS) {
-		wma_remove_vdev_req(wma, req.vdev_id,
-				    WMA_TARGET_REQ_TYPE_VDEV_START);
-		WMA_LOGP("%s: vdev start failed status = %d", __func__, status);
-		goto send_resp;
-	}
+	if (QDF_GLOBAL_MONITOR_MODE == cds_get_conparam() &&
+	    wma_is_vdev_up(vdev_id)) {
+		status = wma_switch_channel(wma, &req);
+		if (status != QDF_STATUS_SUCCESS)
+			WMA_LOGE("%s: wma_switch_channel failed %d\n", __func__,
+				 status);
 
-	if (wma->interfaces[req.vdev_id].is_channel_switch)
-		wma->interfaces[req.vdev_id].is_channel_switch = false;
+		ol_htt_mon_note_chan(pdev, req.chan);
+	} else {
+		status = wma_vdev_start(wma, &req,
+				wma->interfaces[req.vdev_id].is_channel_switch);
+		if (status != QDF_STATUS_SUCCESS) {
+			wma_remove_vdev_req(wma, req.vdev_id,
+					    WMA_TARGET_REQ_TYPE_VDEV_START);
+			WMA_LOGP("%s: vdev start failed status = %d", __func__, status);
+			goto send_resp;
+		}
+
+		if (wma->interfaces[req.vdev_id].is_channel_switch)
+			wma->interfaces[req.vdev_id].is_channel_switch = false;
+
+		if (QDF_GLOBAL_MONITOR_MODE == cds_get_conparam())
+			ol_htt_mon_note_chan(pdev, req.chan);
+	}
 	return;
 send_resp:
 	WMA_LOGD("%s: channel %d ch_width %d txpower %d status %d", __func__,

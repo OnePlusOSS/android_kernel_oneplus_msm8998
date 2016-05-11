@@ -256,6 +256,11 @@ static void csr_set_default_scan_timing(tpAniSirGlobal pMac, tSirScanType scanTy
 		}
 		pScanRequest->restTime = pMac->roam.configParam.nRestTimeConc;
 
+		pScanRequest->min_rest_time =
+			pMac->roam.configParam.min_rest_time_conc;
+		pScanRequest->idle_time =
+			pMac->roam.configParam.idle_time_conc;
+
 		/* Return so that fields set above will not be overwritten. */
 		return;
 	}
@@ -278,8 +283,12 @@ static void csr_set_default_scan_timing(tpAniSirGlobal pMac, tSirScanType scanTy
 			pMac->roam.configParam.nPassiveMinChnTime;
 	}
 #ifdef WLAN_AP_STA_CONCURRENCY
-	/* No rest time if no sessions are connected. */
+
+	/* No rest time/Idle time if no sessions are connected. */
 	pScanRequest->restTime = 0;
+	pScanRequest->min_rest_time = 0;
+	pScanRequest->idle_time = 0;
+
 #endif
 }
 
@@ -546,9 +555,14 @@ QDF_STATUS csr_scan_request(tpAniSirGlobal pMac, uint16_t sessionId,
 			scan_req->minChnTime, scan_req->maxChnTime);
 	}
 #ifdef WLAN_AP_STA_CONCURRENCY
-	/* Need to set restTime only if at least one session is connected */
+	/*
+	 * Need to set restTime/min_Ret_time/idle_time
+	 * only if at least one session is connected
+	 */
 	if (scan_req->restTime == 0 && csr_is_any_session_connected(pMac)) {
 		scan_req->restTime = cfg_prm->nRestTimeConc;
+		scan_req->min_rest_time = cfg_prm->min_rest_time_conc;
+		scan_req->idle_time = cfg_prm->idle_time_conc;
 		if (scan_req->scanType == eSIR_ACTIVE_SCAN) {
 			scan_req->maxChnTime = cfg_prm->nActiveMaxChnTimeConc;
 			scan_req->minChnTime = cfg_prm->nActiveMinChnTimeConc;
@@ -2916,8 +2930,8 @@ static void csr_move_temp_scan_results_to_main_list(tpAniSirGlobal pMac,
 			return;
 		}
 	}
-	csr_elected_country_info(pMac);
-	csr_learn_11dcountry_information(pMac, NULL, NULL, true);
+	if (csr_elected_country_info(pMac))
+		csr_learn_11dcountry_information(pMac, NULL, NULL, true);
 }
 
 static tCsrScanResult *csr_scan_save_bss_description(tpAniSirGlobal pMac,
@@ -3313,6 +3327,8 @@ bool csr_elected_country_info(tpAniSirGlobal pMac)
 	uint8_t i, j = 0;
 
 	if (!pMac->scan.countryCodeCount) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_WARN,
+			"No AP with 11d Country code is present in scan list");
 		return fRet;
 	}
 	maxVotes = pMac->scan.votes11d[0].votes;
@@ -4162,6 +4178,11 @@ bool csr_scan_complete(tpAniSirGlobal pMac, tSirSmeScanRsp *pScanRsp)
 		pCommand->u.scanCmd.abortScanDueToBandChange = false;
 	}
 	csr_save_scan_results(pMac, pCommand->u.scanCmd.reason, sessionId);
+	/* filter scan result based on valid channel list number */
+	if (pMac->scan.fcc_constraint) {
+		sms_log(pMac, LOG1, FL("Clear BSS from invalid channels"));
+		csr_scan_filter_results(pMac);
+	}
 #ifdef FEATURE_WLAN_DIAG_SUPPORT_CSR
 	csr_diag_scan_complete(pMac, pCommand, pScanRsp);
 #endif /* #ifdef FEATURE_WLAN_DIAG_SUPPORT_CSR */
@@ -4984,8 +5005,12 @@ QDF_STATUS csr_send_mb_scan_req(tpAniSirGlobal pMac, uint16_t sessionId,
 	pMsg->maxChannelTime = maxChnTime;
 	/* hidden SSID option */
 	pMsg->hiddenSsid = pScanReqParam->hiddenSsid;
-	/* rest time */
+	/* maximum rest time */
 	pMsg->restTime = pScanReq->restTime;
+	/* Minimum rest time */
+	pMsg->min_rest_time = pScanReq->min_rest_time;
+	/* Idle time */
+	pMsg->idle_time = pScanReq->idle_time;
 	pMsg->returnAfterFirstMatch = pScanReqParam->bReturnAfter1stMatch;
 	/* All the scan results caching will be done by Roaming */
 	/* We do not want LIM to do any caching of scan results, */
@@ -7244,6 +7269,8 @@ void csr_scan_active_list_timeout_handle(void *userData)
 			FL(" Failed to post message to LIM"));
 		qdf_mem_free(msg);
 	}
+	csr_save_scan_results(mac_ctx, scan_cmd->u.scanCmd.reason,
+		scan_cmd->sessionId);
 	csr_release_scan_command(mac_ctx, scan_cmd, eCSR_SCAN_FAILURE);
 	return;
 }

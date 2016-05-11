@@ -1241,160 +1241,6 @@ static void lim_process_sme_obss_scan_ind(tpAniSirGlobal mac_ctx,
 }
 
 /**
- * lim_handle_hw_mode_change_on_csa() - Do HW mode change on CSA for STA mode
- * @mac_ctx: Global MAC context
- * @msg: Received message
- *
- * Checks if hw mode change is required for the new channel.
- * If MCC upgrade is required, this function will start the opportunistic
- * timer and the caller will invoke the other APIs to perform vdev restart on
- * the new channel.
- *
- * If DBS downgrade is required, this function will initiate the hw mode
- * change and vdev restart will happen on the new channel after getting hw
- * mode response
- *
- * Return: QDF_STATUS_SUCCESS if processing of csa params (and hence vdev
- * restart) needs to happen or if no hw mode change is required,
- * QDF_STATUS_E_FAILURE otherwise.
- */
-static QDF_STATUS lim_handle_hw_mode_change_on_csa(tpAniSirGlobal mac_ctx,
-							tpSirMsgQ msg)
-{
-	tpPESession session_entry;
-	struct csa_offload_params *csa_params =
-				(struct csa_offload_params *) (msg->bodyptr);
-	tpDphHashNode sta_ds = NULL;
-	uint8_t session_id;
-	uint16_t aid = 0;
-	QDF_STATUS status = QDF_STATUS_E_FAILURE;
-
-	lim_log(mac_ctx, LOG1, FL("handle hw mode change for csa"));
-
-	if (!csa_params) {
-		lim_log(mac_ctx, LOGE, FL("limMsgQ body ptr is NULL"));
-		/* qdf_mem_free() can handle NULL values */
-		goto err;
-	}
-
-	session_entry = pe_find_session_by_bssid(mac_ctx,
-					csa_params->bssId, &session_id);
-	if (!session_entry) {
-		lim_log(mac_ctx, LOGE, FL("Session does not exist"));
-		goto err;
-	}
-
-	sta_ds = dph_lookup_hash_entry(mac_ctx, session_entry->bssId, &aid,
-			&session_entry->dph.dphHashTable);
-
-	if (!sta_ds) {
-		lim_log(mac_ctx, LOGE, FL("sta_ds does not exist"));
-		goto err;
-	}
-
-	status = cds_handle_hw_mode_change_on_csa(session_entry->smeSessionId,
-			csa_params->channel, csa_params->bssId,
-			&session_entry->saved_csa_params, csa_params,
-			sizeof(session_entry->saved_csa_params));
-
-	if (QDF_IS_STATUS_SUCCESS(status))
-		return status;
-
-err:
-	qdf_mem_free(csa_params);
-	return status;
-}
-
-/**
- * lim_handle_hw_mode_change_on_csa_event() - Handle hw mode change on csa
- * @mac_ctx: Pointer to the Global Mac Context
- * @msg: Received message
- *
- * Checks if a hw mode change is required for the received csa event. Processes
- * csa params and do vdev restart immediately if the there is no need for a hw
- * mode change or if MCC upgrade is required
- *
- * Return: None
- */
-static void lim_handle_hw_mode_change_on_csa_event(tpAniSirGlobal mac_ctx,
-							tpSirMsgQ msg)
-{
-	QDF_STATUS qdf_status;
-
-	lim_log(mac_ctx, LOG1, FL("lim received csa offload event"));
-	if (mac_ctx->policy_manager_enabled &&
-			wma_is_hw_dbs_capable() == true) {
-		/* Check if a hw mode change is required */
-		qdf_status = lim_handle_hw_mode_change_on_csa(mac_ctx,
-				msg);
-		/* Process csa params and do vdev restart immediately if
-		 * there is no need for a hw mode change or if MCC upgrade is
-		 * required.
-		 */
-		if (QDF_IS_STATUS_SUCCESS(qdf_status))
-			lim_handle_csa_offload_msg(mac_ctx, msg);
-	} else {
-		lim_handle_csa_offload_msg(mac_ctx, msg);
-	}
-}
-
-/**
- * lim_handle_csa_event_post_dbs_downgrade() - Process csa event post dbs
- * downgrade
- * @mac_ctx: Pointer to the Global Mac Context
- * @msg: Received message
- *
- * Process the csa event to do vdev restart on the new channel after the dbs
- * downgrade. If there was a DBS downgrade as part of the event
- * WMA_CSA_OFFLOAD_EVENT, SIR_LIM_CSA_POST_HW_MODE_CHANGE will be received after
- * receiving the set hw mode response, where this processing will happen.
- *
- * Return: None
- */
-static void lim_handle_csa_event_post_dbs_downgrade(tpAniSirGlobal mac_ctx,
-							tpSirMsgQ msg)
-{
-	tSirMsgQ csa_msg;
-	tpPESession session_entry;
-
-	struct sir_saved_csa_params *buf =
-		(struct sir_saved_csa_params *)msg->bodyptr;
-
-	/* Null check for 'msg' already done before coming here in the caller */
-
-	session_entry = pe_find_session_by_sme_session_id(mac_ctx,
-				buf->session_id);
-	if (!session_entry) {
-		lim_log(mac_ctx, LOGE, FL("Invalid session id:%d"),
-			buf->session_id);
-		return;
-	}
-
-	lim_log(mac_ctx, LOG1,
-			FL("received csa offload event post hw change for %pM"),
-			session_entry->saved_csa_params.bssId);
-
-	csa_msg.bodyptr = qdf_mem_malloc(
-			sizeof(struct csa_offload_params));
-	if (!csa_msg.bodyptr) {
-		lim_log(mac_ctx, LOGE, FL("malloc failed for csa msg"));
-		goto clean_msg_body;
-	}
-
-	qdf_mem_copy((void *)csa_msg.bodyptr,
-			(void *)&session_entry->saved_csa_params,
-			sizeof(struct csa_offload_params));
-	/* If there was a DBS downgrade as part of the event
-	 * WMA_CSA_OFFLOAD_EVENT, SIR_LIM_CSA_POST_HW_MODE_CHANGE will
-	 * be received after receiving the set hw mode response.
-	 */
-	lim_handle_csa_offload_msg(mac_ctx, &csa_msg);
-clean_msg_body:
-	if (msg->bodyptr)
-		qdf_mem_free(msg->bodyptr);
-}
-
-/**
  * lim_process_messages() - Process messages from upper layers.
  *
  * @mac_ctx:          Pointer to the Global Mac Context.
@@ -1626,6 +1472,11 @@ void lim_process_messages(tpAniSirGlobal mac_ctx, tpSirMsgQ msg)
 		qdf_mem_free(msg->bodyptr);
 		msg->bodyptr = NULL;
 		break;
+	case eWNI_SME_MON_INIT_SESSION:
+		lim_mon_init_session(mac_ctx, msg->bodyptr);
+		qdf_mem_free(msg->bodyptr);
+		msg->bodyptr = NULL;
+		break;
 	case SIR_HAL_P2P_NOA_START_IND:
 		session_entry = &mac_ctx->lim.gpSession[0];
 		lim_log(mac_ctx, LOG1, "LIM received NOA start %x", msg->type);
@@ -1853,10 +1704,7 @@ void lim_process_messages(tpAniSirGlobal mac_ctx, tpSirMsgQ msg)
 		lim_handle_delete_bss_rsp(mac_ctx, msg);
 		break;
 	case WMA_CSA_OFFLOAD_EVENT:
-		lim_handle_hw_mode_change_on_csa_event(mac_ctx, msg);
-		break;
-	case SIR_LIM_CSA_POST_HW_MODE_CHANGE:
-		lim_handle_csa_event_post_dbs_downgrade(mac_ctx, msg);
+		lim_handle_csa_offload_msg(mac_ctx, msg);
 		break;
 	case WMA_SET_BSSKEY_RSP:
 	case WMA_SET_STA_BCASTKEY_RSP:
@@ -2046,17 +1894,17 @@ void lim_process_messages(tpAniSirGlobal mac_ctx, tpSirMsgQ msg)
 		msg->bodyptr = NULL;
 		break;
 #endif
-	case SIR_HAL_SOC_SET_HW_MODE_RESP:
+	case SIR_HAL_PDEV_SET_HW_MODE_RESP:
 		lim_process_set_hw_mode_resp(mac_ctx, msg->bodyptr);
 		qdf_mem_free((void *)msg->bodyptr);
 		msg->bodyptr = NULL;
 		break;
-	case SIR_HAL_SOC_HW_MODE_TRANS_IND:
+	case SIR_HAL_PDEV_HW_MODE_TRANS_IND:
 		lim_process_hw_mode_trans_ind(mac_ctx, msg->bodyptr);
 		qdf_mem_free((void *)msg->bodyptr);
 		msg->bodyptr = NULL;
 		break;
-	case SIR_HAL_SOC_DUAL_MAC_CFG_RESP:
+	case SIR_HAL_PDEV_MAC_CFG_RESP:
 		lim_process_dual_mac_cfg_resp(mac_ctx, msg->bodyptr);
 		qdf_mem_free((void *)msg->bodyptr);
 		msg->bodyptr = NULL;

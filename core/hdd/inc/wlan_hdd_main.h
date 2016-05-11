@@ -57,6 +57,7 @@
 #ifdef FEATURE_WLAN_TDLS
 #include "wlan_hdd_tdls.h"
 #endif
+#include "wlan_hdd_tsf.h"
 #include "wlan_hdd_cfg80211.h"
 #include <qdf_defer.h>
 #ifdef WLAN_FEATURE_MBSSID
@@ -148,6 +149,8 @@
 
 #define WLAN_WAIT_TIME_ANTENNA_MODE_REQ 3000
 #define WLAN_WAIT_TIME_SET_DUAL_MAC_CFG 1500
+
+#define WLAN_WAIT_TIME_BPF     1000
 
 #define MAX_NUMBER_OF_ADAPTERS 4
 
@@ -244,12 +247,6 @@
  */
 #define WLAN_TFC_IPAUC_TX_DESC_RESERVE   100
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0))
-#ifdef CONFIG_CNSS
-#define cfg80211_vendor_cmd_reply(skb) cnss_vendor_cmd_reply(skb)
-#endif
-#endif
-
 /*
  * NET_NAME_UNKNOWN is only introduced after Kernel 3.17, to have a macro
  * here if the Kernel version is less than 3.17 to avoid the interleave
@@ -314,6 +311,7 @@ extern spinlock_t hdd_context_lock;
 #define LINK_CONTEXT_MAGIC  0x4C494E4B  /* LINKSPEED */
 #define LINK_STATUS_MAGIC   0x4C4B5354  /* LINKSTATUS(LNST) */
 #define TEMP_CONTEXT_MAGIC  0x74656d70   /* TEMP (temperature) */
+#define BPF_CONTEXT_MAGIC 0x4575354    /* BPF */
 
 /* MAX OS Q block time value in msec
  * Prevent from permanent stall, resume OS Q if timer expired */
@@ -627,6 +625,20 @@ typedef struct hdd_cfg80211_state_s {
 	eP2PActionFrameState actionFrmState;
 } hdd_cfg80211_state_t;
 
+/**
+ * struct hdd_mon_set_ch_info - Holds monitor mode channel switch params
+ * @channel: Channel number.
+ * @cb_mode: Channel bonding
+ * @channel_width: Channel width 0/1/2 for 20/40/80MHz respectively.
+ * @phy_mode: PHY mode
+ */
+struct hdd_mon_set_ch_info {
+	uint8_t channel;
+	uint8_t cb_mode;
+	uint32_t channel_width;
+	eCsrPhyMode phy_mode;
+};
+
 struct hdd_station_ctx {
 	/** Handle to the Wireless Extension State */
 	hdd_wext_state_t WextState;
@@ -661,6 +673,8 @@ struct hdd_station_ctx {
 	int staDebugState;
 
 	uint8_t broadcast_ibss_staid;
+
+	struct hdd_mon_set_ch_info ch_info;
 };
 
 #define BSS_STOP    0
@@ -940,6 +954,14 @@ struct hdd_adapter_s {
 		hdd_ap_ctx_t ap;
 	} sessionCtx;
 
+#ifdef WLAN_FEATURE_TSF
+	/* tsf value received from firmware */
+	uint32_t tsf_low;
+	uint32_t tsf_high;
+	/* TSF capture state */
+	enum hdd_tsf_capture_state tsf_state;
+#endif
+
 	hdd_cfg80211_state_t cfg80211State;
 
 #ifdef WLAN_FEATURE_PACKET_FILTERING
@@ -1123,6 +1145,18 @@ struct hdd_offloaded_packets_ctx {
 };
 #endif
 
+/**
+ * struct hdd_bpf_context - hdd Context for bpf
+ * @magic: magic number
+ * @completion: Completion variable for BPF Get Capability
+ * @capability_response: capabilities response received from fw
+ */
+struct hdd_bpf_context {
+	unsigned int magic;
+	struct completion completion;
+	struct sir_bpf_get_offload capability_response;
+};
+
 /** Adapter structure definition */
 
 struct hdd_context_s {
@@ -1286,8 +1320,8 @@ struct hdd_context_s {
 	struct work_struct  sap_start_work;
 	bool is_sap_restart_required;
 	bool is_sta_connection_pending;
-	spinlock_t sap_update_info_lock;
-	spinlock_t sta_update_info_lock;
+	qdf_spinlock_t sap_update_info_lock;
+	qdf_spinlock_t sta_update_info_lock;
 
 	uint8_t dev_dfs_cac_status;
 
@@ -1364,6 +1398,7 @@ struct hdd_context_s {
 	struct completion set_antenna_mode_cmpl;
 	/* Current number of TX X RX chains being used */
 	enum antenna_mode current_antenna_mode;
+	bool bpf_enabled;
 };
 
 /*---------------------------------------------------------------------------
@@ -1587,6 +1622,9 @@ enum phy_ch_width hdd_map_nl_chan_width(enum nl80211_chan_width ch_width);
 uint8_t wlan_hdd_find_opclass(tHalHandle hal, uint8_t channel,
 			uint8_t bw_offset);
 void hdd_update_config(hdd_context_t *hdd_ctx);
+
+QDF_STATUS hdd_chan_change_notify(hdd_adapter_t *adapter,
+				struct net_device *dev, uint8_t oper_chan);
 
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
 QDF_STATUS hdd_register_for_sap_restart_with_channel_switch(void);

@@ -494,6 +494,7 @@ typedef enum eSirBssType {
 	eSIR_INFRA_AP_MODE,     /* Added for softAP support */
 	eSIR_IBSS_MODE,
 	eSIR_AUTO_MODE,
+	eSIR_MONITOR_MODE,
 	eSIR_DONOT_USE_BSS_TYPE = SIR_MAX_ENUM_SIZE
 } tSirBssType;
 
@@ -682,7 +683,6 @@ typedef struct sSirSmeHTProfile {
 	uint8_t htRecommendedTxWidthSet;
 	ePhyChanBondState htSecondaryChannelOffset;
 	uint8_t vhtCapability;
-	uint8_t vhtTxChannelWidthSet;
 	uint8_t apCenterChan;
 	uint8_t apChanWidth;
 } tSirSmeHTProfile;
@@ -778,6 +778,10 @@ typedef struct sSirSmeScanReq {
 	 */
 	/* in units of milliseconds, ignored when not connected */
 	uint32_t restTime;
+	/*in units of milliseconds, ignored when not connected*/
+	uint32_t min_rest_time;
+	/*in units of milliseconds, ignored when not connected*/
+	uint32_t idle_time;
 	uint8_t returnAfterFirstMatch;
 
 	/**
@@ -2430,6 +2434,18 @@ typedef struct sSirUpdateParams {
 	uint8_t ssidHidden;     /* Hide SSID */
 } tSirUpdateParams, *tpSirUpdateParams;
 
+/**
+ * struct sir_create_session - Used for creating session in monitor mode
+ * @type: SME host message type.
+ * @msg_len: Length of the message.
+ * @bss_id: bss_id for creating the session.
+ */
+struct sir_create_session {
+	uint16_t type;
+	uint16_t msg_len;
+	struct qdf_mac_addr bss_id;
+};
+
 /* Beacon Interval */
 typedef struct sSirChangeBIParams {
 	uint16_t messageType;
@@ -3571,6 +3587,10 @@ typedef struct sSirScanOffloadReq {
 	uint32_t scan_requestor_id;
 	/* in units of milliseconds, ignored when not connected */
 	uint32_t restTime;
+	/*in units of milliseconds, ignored when not connected*/
+	uint32_t min_rest_time;
+	/*in units of milliseconds, ignored when not connected*/
+	uint32_t idle_time;
 	tSirP2pScanType p2pScanType;
 	uint16_t uIEFieldLen;
 	uint16_t uIEFieldOffset;
@@ -5564,6 +5584,21 @@ struct sir_sme_ext_cng_chan_ind {
 };
 
 /**
+ * struct stsf - the basic stsf structure
+ *
+ * @vdev_id: vdev id
+ * @tsf_low: low 32bits of tsf
+ * @tsf_high: high 32bits of tsf
+ *
+ * driver use this struct to store the tsf info
+ */
+struct stsf {
+	uint32_t vdev_id;
+	uint32_t tsf_low;
+	uint32_t tsf_high;
+};
+
+/**
  * struct egap_params - the enhanced green ap params
  * @vdev_id: vdev id
  * @enable: enable or disable the enhance green ap in firmware
@@ -5612,18 +5647,6 @@ struct csa_offload_params {
 	uint8_t new_ch_freq_seg2;
 	uint32_t ies_present_flag;
 	tSirMacAddr bssId;
-};
-
-/**
- * struct sir_saved_csa_params - saved csa offload params
- * @message_type: Message type
- * @length: Message length
- * @session_id: Session id
- */
-struct sir_saved_csa_params {
-	uint16_t message_type;
-	uint16_t length;
-	uint32_t session_id;
 };
 
 /**
@@ -5709,6 +5732,42 @@ struct obss_scanparam {
 	uint16_t obss_active_total_per_channel;
 	uint16_t bsswidth_ch_trans_delay;
 	uint16_t obss_activity_threshold;
+};
+
+/**
+ * struct sir_bpf_set_offload - set bpf filter instructions
+ * @session_id: session identifier
+ * @version: host bpf version
+ * @filter_id: Filter ID for BPF filter
+ * @total_length: The total length of the full instruction
+ *                total_length equal to 0 means reset
+ * @current_offset: current offset, 0 means start a new setting
+ * @current_length: Length of current @program
+ * @program: BPF instructions
+ */
+struct sir_bpf_set_offload {
+	uint8_t  session_id;
+	uint32_t version;
+	uint32_t filter_id;
+	uint32_t total_length;
+	uint32_t current_offset;
+	uint32_t current_length;
+	uint8_t  *program;
+};
+
+/**
+ * struct sir_bpf_offload_capabilities - get bpf Capabilities
+ * @bpf_version: fw's implement version
+ * @max_bpf_filters: max filters that fw supports
+ * @max_bytes_for_bpf_inst: the max bytes that can be used as bpf instructions
+ * @remaining_bytes_for_bpf_inst: remaining bytes for bpf instructions
+ *
+ */
+struct sir_bpf_get_offload {
+	uint32_t bpf_version;
+	uint32_t max_bpf_filters;
+	uint32_t max_bytes_for_bpf_inst;
+	uint32_t remaining_bytes_for_bpf_inst;
 };
 
 #endif /* __SIR_API_H */

@@ -247,6 +247,9 @@ static void wma_set_default_tgt_config(tp_wma_handle wma_handle)
 		tgt_cfg.rx_decap_mode = CFG_TGT_RX_DECAP_MODE_NWIFI;
 	}
 #endif /* PERE_IP_HDR_ALIGNMENT_WAR */
+	if (QDF_GLOBAL_MONITOR_MODE == cds_get_conparam())
+		tgt_cfg.rx_decap_mode = CFG_TGT_RX_DECAP_MODE_RAW;
+
 	wma_handle->wlan_resource_config = tgt_cfg;
 }
 
@@ -918,6 +921,12 @@ static void wma_process_cli_set_cmd(tp_wma_handle wma,
 				ret = wma_crash_inject(wma,
 						privcmd->param_value,
 						privcmd->param_sec_value);
+			break;
+		case GEN_PARAM_CAPTURE_TSF:
+			ret = wma_capture_tsf(wma, privcmd->param_value);
+			break;
+		case GEN_PARAM_RESET_TSF_GPIO:
+			ret = wma_reset_tsf_gpio(wma, privcmd->param_value);
 			break;
 #ifdef CONFIG_ATH_PCIE_ACCESS_DEBUG
 		case GEN_PARAM_DUMP_PCIE_ACCESS_LOG:
@@ -1672,6 +1681,13 @@ QDF_STATUS wma_open(void *cds_context,
 	wma_handle->wma_runtime_resume_lock =
 		qdf_runtime_lock_init("wma_runtime_resume");
 
+	/* Initialize max_no_of_peers for wma_get_number_of_peers_supported() */
+	wma_init_max_no_of_peers(wma_handle, mac_params->maxStation);
+	/* Cap maxStation based on the target version */
+	mac_params->maxStation = wma_get_number_of_peers_supported(wma_handle);
+	/* Reinitialize max_no_of_peers based on the capped maxStation value */
+	wma_init_max_no_of_peers(wma_handle, mac_params->maxStation);
+
 	/* initialize default target config */
 	wma_set_default_tgt_config(wma_handle);
 
@@ -1733,8 +1749,6 @@ QDF_STATUS wma_open(void *cds_context,
 	if (cds_get_conparam() == QDF_GLOBAL_FTM_MODE)
 		wma_utf_attach(wma_handle);
 #endif /* QCA_WIFI_FTM */
-	wma_init_max_no_of_peers(wma_handle, mac_params->maxStation);
-	mac_params->maxStation = wma_get_number_of_peers_supported(wma_handle);
 
 	mac_params->maxBssId = WMA_MAX_SUPPORTED_BSS;
 	mac_params->frameTransRequired = 0;
@@ -2052,6 +2066,10 @@ QDF_STATUS wma_open(void *cds_context,
 					   WMI_PEER_DELETE_RESP_EVENTID,
 					   wma_peer_delete_handler,
 					   WMA_RX_SERIALIZER_CTX);
+	wmi_unified_register_event_handler(wma_handle->wmi_handle,
+					   WMI_BPF_CAPABILIY_INFO_EVENTID,
+					   wma_get_bpf_caps_event_handler,
+					   WMA_RX_SERIALIZER_CTX);
 	return QDF_STATUS_SUCCESS;
 
 err_dbglog_init:
@@ -2263,7 +2281,7 @@ static int wma_flush_complete_evt_handler(void *handle,
 				reason_code);
 		status = cds_set_log_completion(WLAN_LOG_TYPE_FATAL,
 				WLAN_LOG_INDICATOR_FIRMWARE,
-				reason_code);
+				reason_code, false);
 		if (QDF_STATUS_SUCCESS != status) {
 			WMA_LOGE("%s: Failed to set log trigger params",
 					__func__);
@@ -2284,23 +2302,24 @@ static int wma_flush_complete_evt_handler(void *handle,
 }
 
 /**
- * wma_soc_set_hw_mode_resp_evt_handler() - Set HW mode resp evt handler
+ * wma_pdev_set_hw_mode_resp_evt_handler() - Set HW mode resp evt handler
  * @handle: WMI handle
  * @event:  Event recevied from FW
  * @len:    Length of the event
  *
- * Event handler for WMI_SOC_SET_HW_MODE_RESP_EVENTID that is sent to host
- * driver in response to a WMI_SOC_SET_HW_MODE_CMDID being sent to WLAN firmware
+ * Event handler for WMI_PDEV_SET_HW_MODE_RESP_EVENTID that is sent to host
+ * driver in response to a WMI_PDEV_SET_HW_MODE_CMDID being sent to WLAN
+ * firmware
  *
  * Return: Success on receiving valid params from FW
  */
-static int wma_soc_set_hw_mode_resp_evt_handler(void *handle,
+static int wma_pdev_set_hw_mode_resp_evt_handler(void *handle,
 		uint8_t *event,
 		uint32_t len)
 {
-	WMI_SOC_SET_HW_MODE_RESP_EVENTID_param_tlvs *param_buf;
-	wmi_soc_set_hw_mode_response_event_fixed_param *wmi_event;
-	wmi_soc_set_hw_mode_response_vdev_mac_entry *vdev_mac_entry;
+	WMI_PDEV_SET_HW_MODE_RESP_EVENTID_param_tlvs *param_buf;
+	wmi_pdev_set_hw_mode_response_event_fixed_param *wmi_event;
+	wmi_pdev_set_hw_mode_response_vdev_mac_entry *vdev_mac_entry;
 	uint32_t i;
 	struct sir_set_hw_mode_resp *hw_mode_resp;
 	tp_wma_handle wma = (tp_wma_handle) handle;
@@ -2322,9 +2341,9 @@ static int wma_soc_set_hw_mode_resp_evt_handler(void *handle,
 		return QDF_STATUS_E_NULL_VALUE;
 	}
 
-	param_buf = (WMI_SOC_SET_HW_MODE_RESP_EVENTID_param_tlvs *) event;
+	param_buf = (WMI_PDEV_SET_HW_MODE_RESP_EVENTID_param_tlvs *) event;
 	if (!param_buf) {
-		WMA_LOGE("Invalid WMI_SOC_SET_HW_MODE_RESP_EVENTID event");
+		WMA_LOGE("Invalid WMI_PDEV_SET_HW_MODE_RESP_EVENTID event");
 		/* Need to send response back to upper layer to free
 		 * active command list
 		 */
@@ -2341,13 +2360,20 @@ static int wma_soc_set_hw_mode_resp_evt_handler(void *handle,
 			wmi_event->cfgd_hw_mode_index,
 			wmi_event->num_vdev_mac_entries);
 	vdev_mac_entry =
-		param_buf->wmi_soc_set_hw_mode_response_vdev_mac_mapping;
+		param_buf->wmi_pdev_set_hw_mode_response_vdev_mac_mapping;
 
 	/* Store the vdev-mac map in WMA and prepare to send to PE  */
 	for (i = 0; i < wmi_event->num_vdev_mac_entries; i++) {
-		uint32_t vdev_id, mac_id;
+		uint32_t vdev_id, mac_id, pdev_id;
 		vdev_id = vdev_mac_entry[i].vdev_id;
-		mac_id = vdev_mac_entry[i].mac_id;
+		pdev_id = vdev_mac_entry[i].pdev_id;
+		if (pdev_id == WMI_PDEV_ID_SOC) {
+			WMA_LOGE("%s: soc level id received for mac id)",
+				__func__);
+			QDF_BUG(0);
+			goto fail;
+		}
+		mac_id = WMA_PDEV_TO_MAC_MAP(vdev_mac_entry[i].pdev_id);
 
 		WMA_LOGI("%s: vdev_id:%d mac_id:%d",
 			__func__, vdev_id, mac_id);
@@ -2370,7 +2396,7 @@ static int wma_soc_set_hw_mode_resp_evt_handler(void *handle,
 	WMA_LOGI("%s: Updated: old_hw_mode_index:%d new_hw_mode_index:%d",
 		__func__, wma->old_hw_mode_index, wma->new_hw_mode_index);
 
-	wma_send_msg(wma, SIR_HAL_SOC_SET_HW_MODE_RESP,
+	wma_send_msg(wma, SIR_HAL_PDEV_SET_HW_MODE_RESP,
 		     (void *) hw_mode_resp, 0);
 
 	return QDF_STATUS_SUCCESS;
@@ -2380,33 +2406,33 @@ fail:
 	hw_mode_resp->status = SET_HW_MODE_STATUS_ECANCELED;
 	hw_mode_resp->cfgd_hw_mode_index = 0;
 	hw_mode_resp->num_vdev_mac_entries = 0;
-	wma_send_msg(wma, SIR_HAL_SOC_SET_HW_MODE_RESP,
+	wma_send_msg(wma, SIR_HAL_PDEV_SET_HW_MODE_RESP,
 			(void *) hw_mode_resp, 0);
 
 	return QDF_STATUS_E_FAILURE;
 }
 
 /**
- * wma_soc_hw_mode_transition_evt_handler() - HW mode transition evt handler
+ * wma_pdev_hw_mode_transition_evt_handler() - HW mode transition evt handler
  * @handle: WMI handle
  * @event:  Event recevied from FW
  * @len:    Length of the event
  *
- * Event handler for WMI_SOC_HW_MODE_TRANSITION_EVENTID that indicates an
+ * Event handler for WMI_PDEV_HW_MODE_TRANSITION_EVENTID that indicates an
  * asynchronous hardware mode transition. This event notifies the host driver
  * that firmware independently changed the hardware mode for some reason, such
  * as Coex, LFR 3.0, etc
  *
  * Return: Success on receiving valid params from FW
  */
-static int wma_soc_hw_mode_transition_evt_handler(void *handle,
+static int wma_pdev_hw_mode_transition_evt_handler(void *handle,
 		uint8_t *event,
 		uint32_t len)
 {
 	uint32_t i;
-	WMI_SOC_HW_MODE_TRANSITION_EVENTID_param_tlvs *param_buf;
-	wmi_soc_hw_mode_transition_event_fixed_param *wmi_event;
-	wmi_soc_set_hw_mode_response_vdev_mac_entry *vdev_mac_entry;
+	WMI_PDEV_HW_MODE_TRANSITION_EVENTID_param_tlvs *param_buf;
+	wmi_pdev_hw_mode_transition_event_fixed_param *wmi_event;
+	wmi_pdev_set_hw_mode_response_vdev_mac_entry *vdev_mac_entry;
 	struct sir_hw_mode_trans_ind *hw_mode_trans_ind;
 	tp_wma_handle wma = (tp_wma_handle) handle;
 
@@ -2416,10 +2442,10 @@ static int wma_soc_hw_mode_transition_evt_handler(void *handle,
 		return QDF_STATUS_E_NULL_VALUE;
 	}
 
-	param_buf = (WMI_SOC_HW_MODE_TRANSITION_EVENTID_param_tlvs *) event;
+	param_buf = (WMI_PDEV_HW_MODE_TRANSITION_EVENTID_param_tlvs *) event;
 	if (!param_buf) {
 		/* This is an async event. So, not sending any event to LIM */
-		WMA_LOGE("Invalid WMI_SOC_HW_MODE_TRANSITION_EVENTID event");
+		WMA_LOGE("Invalid WMI_PDEV_HW_MODE_TRANSITION_EVENTID event");
 		return QDF_STATUS_E_FAILURE;
 	}
 
@@ -2439,13 +2465,22 @@ static int wma_soc_hw_mode_transition_evt_handler(void *handle,
 		wmi_event->new_hw_mode_index, wmi_event->num_vdev_mac_entries);
 
 	vdev_mac_entry =
-		param_buf->wmi_soc_set_hw_mode_response_vdev_mac_mapping;
+		param_buf->wmi_pdev_set_hw_mode_response_vdev_mac_mapping;
 
 	/* Store the vdev-mac map in WMA and prepare to send to HDD  */
 	for (i = 0; i < wmi_event->num_vdev_mac_entries; i++) {
-		uint32_t vdev_id, mac_id;
+		uint32_t vdev_id, mac_id, pdev_id;
 		vdev_id = vdev_mac_entry[i].vdev_id;
-		mac_id = vdev_mac_entry[i].mac_id;
+		pdev_id = vdev_mac_entry[i].pdev_id;
+
+		if (pdev_id == WMI_PDEV_ID_SOC) {
+			WMA_LOGE("%s: soc level id received for mac id)",
+					__func__);
+			QDF_BUG(0);
+			return QDF_STATUS_E_FAILURE;
+		}
+
+		mac_id = WMA_PDEV_TO_MAC_MAP(vdev_mac_entry[i].pdev_id);
 
 		WMA_LOGI("%s: vdev_id:%d mac_id:%d",
 				__func__, vdev_id, mac_id);
@@ -2462,32 +2497,32 @@ static int wma_soc_hw_mode_transition_evt_handler(void *handle,
 		__func__, wma->old_hw_mode_index, wma->new_hw_mode_index);
 
 	/* Pass the message to PE */
-	wma_send_msg(wma, SIR_HAL_SOC_HW_MODE_TRANS_IND,
+	wma_send_msg(wma, SIR_HAL_PDEV_HW_MODE_TRANS_IND,
 		     (void *) hw_mode_trans_ind, 0);
 
 	return QDF_STATUS_SUCCESS;
 }
 
 /**
- * wma_soc_set_dual_mode_config_resp_evt_handler() - Dual mode evt handler
+ * wma_pdev_set_dual_mode_config_resp_evt_handler() - Dual mode evt handler
  * @handle: WMI handle
  * @event:  Event received from FW
  * @len:    Length of the event
  *
  * Notifies the host driver of the completion or failure of a
- * WMI_SOC_SET_DUAL_MAC_CONFIG_CMDID command. This event would be returned to
+ * WMI_PDEV_SET_MAC_CONFIG_CMDID command. This event would be returned to
  * the host driver once the firmware has completed a reconfiguration of the Scan
  * and FW mode configuration. This changes could include entering or leaving a
  * dual mac configuration for either scan and/or more permanent firmware mode.
  *
  * Return: Success on receiving valid params from FW
  */
-static int wma_soc_set_dual_mode_config_resp_evt_handler(void *handle,
+static int wma_pdev_set_dual_mode_config_resp_evt_handler(void *handle,
 		uint8_t *event,
 		uint32_t len)
 {
-	WMI_SOC_SET_DUAL_MAC_CONFIG_RESP_EVENTID_param_tlvs *param_buf;
-	wmi_soc_set_dual_mac_config_response_event_fixed_param *wmi_event;
+	WMI_PDEV_SET_MAC_CONFIG_RESP_EVENTID_param_tlvs *param_buf;
+	wmi_pdev_set_mac_config_response_event_fixed_param *wmi_event;
 	tp_wma_handle wma = (tp_wma_handle) handle;
 	struct sir_dual_mac_config_resp *dual_mac_cfg_resp;
 
@@ -2508,7 +2543,7 @@ static int wma_soc_set_dual_mode_config_resp_evt_handler(void *handle,
 		return QDF_STATUS_E_NULL_VALUE;
 	}
 
-	param_buf = (WMI_SOC_SET_DUAL_MAC_CONFIG_RESP_EVENTID_param_tlvs *)
+	param_buf = (WMI_PDEV_SET_MAC_CONFIG_RESP_EVENTID_param_tlvs *)
 		event;
 	if (!param_buf) {
 		WMA_LOGE("%s: Invalid event", __func__);
@@ -2531,7 +2566,7 @@ static int wma_soc_set_dual_mode_config_resp_evt_handler(void *handle,
 	}
 
 	/* Pass the message to PE */
-	wma_send_msg(wma, SIR_HAL_SOC_DUAL_MAC_CFG_RESP,
+	wma_send_msg(wma, SIR_HAL_PDEV_MAC_CFG_RESP,
 			(void *) dual_mac_cfg_resp, 0);
 
 	return QDF_STATUS_SUCCESS;
@@ -2539,7 +2574,7 @@ static int wma_soc_set_dual_mode_config_resp_evt_handler(void *handle,
 fail:
 	WMA_LOGE("%s: Sending fail response to LIM", __func__);
 	dual_mac_cfg_resp->status = SET_HW_MODE_STATUS_ECANCELED;
-	wma_send_msg(wma, SIR_HAL_SOC_DUAL_MAC_CFG_RESP,
+	wma_send_msg(wma, SIR_HAL_PDEV_MAC_CFG_RESP,
 			(void *) dual_mac_cfg_resp, 0);
 
 	return QDF_STATUS_E_FAILURE;
@@ -2755,6 +2790,16 @@ QDF_STATUS wma_start(void *cds_ctx)
 		goto end;
 	}
 
+	status = wmi_unified_register_event_handler(wma_handle->wmi_handle,
+						WMI_VDEV_TSF_REPORT_EVENTID,
+						wma_vdev_tsf_handler,
+						WMA_RX_SERIALIZER_CTX);
+	if (0 != status) {
+		WMA_LOGP("%s: Failed to register tsf callback", __func__);
+		qdf_status = QDF_STATUS_E_FAILURE;
+		goto end;
+	}
+
 	/* Initialize the log flush complete event handler */
 	status = wmi_unified_register_event_handler(wma_handle->wmi_handle,
 			WMI_DEBUG_MESG_FLUSH_COMPLETE_EVENTID,
@@ -2766,10 +2811,10 @@ QDF_STATUS wma_start(void *cds_ctx)
 		goto end;
 	}
 
-	/* Initialize the WMI_SOC_SET_HW_MODE_RESP_EVENTID event handler */
+	/* Initialize the wma_pdev_set_hw_mode_resp_evt_handler event handler */
 	status = wmi_unified_register_event_handler(wma_handle->wmi_handle,
-			WMI_SOC_SET_HW_MODE_RESP_EVENTID,
-			wma_soc_set_hw_mode_resp_evt_handler,
+			WMI_PDEV_SET_HW_MODE_RESP_EVENTID,
+			wma_pdev_set_hw_mode_resp_evt_handler,
 			WMA_RX_SERIALIZER_CTX);
 	if (status != QDF_STATUS_SUCCESS) {
 		WMA_LOGE("Failed to register set hw mode resp event cb");
@@ -2779,8 +2824,8 @@ QDF_STATUS wma_start(void *cds_ctx)
 
 	/* Initialize the WMI_SOC_HW_MODE_TRANSITION_EVENTID event handler */
 	status = wmi_unified_register_event_handler(wma_handle->wmi_handle,
-			WMI_SOC_HW_MODE_TRANSITION_EVENTID,
-			wma_soc_hw_mode_transition_evt_handler,
+			WMI_PDEV_HW_MODE_TRANSITION_EVENTID,
+			wma_pdev_hw_mode_transition_evt_handler,
 			WMA_RX_SERIALIZER_CTX);
 	if (status != QDF_STATUS_SUCCESS) {
 		WMA_LOGE("Failed to register hw mode transition event cb");
@@ -2790,8 +2835,8 @@ QDF_STATUS wma_start(void *cds_ctx)
 
 	/* Initialize the set dual mac configuration event handler */
 	status = wmi_unified_register_event_handler(wma_handle->wmi_handle,
-			WMI_SOC_SET_DUAL_MAC_CONFIG_RESP_EVENTID,
-			wma_soc_set_dual_mode_config_resp_evt_handler,
+			WMI_PDEV_SET_MAC_CONFIG_RESP_EVENTID,
+			wma_pdev_set_dual_mode_config_resp_evt_handler,
 			WMA_RX_SERIALIZER_CTX);
 	if (status != QDF_STATUS_SUCCESS) {
 		WMA_LOGE("Failed to register hw mode transition event cb");
@@ -3900,6 +3945,20 @@ int wma_rx_service_ready_event(void *handle, uint8_t *cmd_param_info,
 			("Failed to register WMI_TBTTOFFSET_UPDATE_EVENTID callback");
 		return -EINVAL;
 	}
+
+	/* mac_id is replaced with pdev_id in converged firmware to have
+	 * multi-radio support. In order to maintain backward compatibility
+	 * with old fw, host needs to check WMI_SERVICE_DEPRECATED_REPLACE
+	 * in service bitmap from FW and host needs to set use_pdev_id in
+	 * wmi_resource_config to true. If WMI_SERVICE_DEPRECATED_REPLACE
+	 * service is not set, then host shall not expect MAC ID from FW in
+	 * VDEV START RESPONSE event and host shall use PDEV ID.
+	 */
+	 if (WMI_SERVICE_IS_ENABLED(wma_handle->wmi_service_bitmap,
+			WMI_SERVICE_DEPRECATED_REPLACE))
+		wma_handle->wlan_resource_config.use_pdev_id = true;
+	else
+		wma_handle->wlan_resource_config.use_pdev_id = false;
 
 	/* register the Enhanced Green AP event handler */
 	wma_register_egap_event_handle(wma_handle);
@@ -5107,6 +5166,10 @@ QDF_STATUS wma_mc_process_msg(void *cds_context, cds_msg_t *msg)
 		wma_get_temperature(wma_handle);
 		qdf_mem_free(msg->bodyptr);
 		break;
+	case WMA_TSF_GPIO_PIN:
+		wma_set_tsf_gpio_pin(wma_handle, msg->bodyval);
+		break;
+
 #ifdef DHCP_SERVER_OFFLOAD
 	case WMA_SET_DHCP_SERVER_OFFLOAD_CMD:
 		wma_process_dhcpserver_offload(wma_handle,
@@ -5171,8 +5234,8 @@ QDF_STATUS wma_mc_process_msg(void *cds_context, cds_msg_t *msg)
 				(struct wmi_pcl_chan_weights *)msg->bodyptr);
 		qdf_mem_free(msg->bodyptr);
 		break;
-	case SIR_HAL_SOC_SET_HW_MODE:
-		wma_send_soc_set_hw_mode_cmd(wma_handle,
+	case SIR_HAL_PDEV_SET_HW_MODE:
+		wma_send_pdev_set_hw_mode_cmd(wma_handle,
 				(struct sir_hw_mode *)msg->bodyptr);
 		qdf_mem_free(msg->bodyptr);
 		break;
@@ -5216,8 +5279,8 @@ QDF_STATUS wma_mc_process_msg(void *cds_context, cds_msg_t *msg)
 			(struct sir_dcc_update_ndl *)msg->bodyptr);
 		qdf_mem_free(msg->bodyptr);
 		break;
-	case SIR_HAL_SOC_DUAL_MAC_CFG_REQ:
-		wma_send_soc_set_dual_mac_config(wma_handle,
+	case SIR_HAL_PDEV_DUAL_MAC_CFG_REQ:
+		wma_send_pdev_set_dual_mac_config(wma_handle,
 				(struct sir_dual_mac_config *)msg->bodyptr);
 		qdf_mem_free(msg->bodyptr);
 		break;
@@ -5257,6 +5320,13 @@ QDF_STATUS wma_mc_process_msg(void *cds_context, cds_msg_t *msg)
 		break;
 	case WMA_REMOVE_BCN_FILTER_CMDID:
 		wma_remove_beacon_filter(wma_handle, msg->bodyptr);
+		qdf_mem_free(msg->bodyptr);
+		break;
+	case WDA_BPF_GET_CAPABILITIES_REQ:
+		wma_get_bpf_capabilities(wma_handle);
+		break;
+	case WDA_BPF_SET_INSTRUCTIONS_REQ:
+		wma_set_bpf_instructions(wma_handle, msg->bodyptr);
 		qdf_mem_free(msg->bodyptr);
 		break;
 
@@ -5347,7 +5417,7 @@ QDF_STATUS wma_send_pdev_set_pcl_cmd(tp_wma_handle wma_handle,
 }
 
 /**
- * wma_send_soc_set_hw_mode_cmd() - Send WMI_SOC_SET_HW_MODE_CMDID to FW
+ * wma_send_pdev_set_hw_mode_cmd() - Send WMI_PDEV_SET_HW_MODE_CMDID to FW
  * @wma_handle: WMA handle
  * @msg: Structure containing the following parameters
  *
@@ -5360,7 +5430,7 @@ QDF_STATUS wma_send_pdev_set_pcl_cmd(tp_wma_handle wma_handle,
  *
  * Return: Success if the cmd is sent successfully to the firmware
  */
-QDF_STATUS wma_send_soc_set_hw_mode_cmd(tp_wma_handle wma_handle,
+QDF_STATUS wma_send_pdev_set_hw_mode_cmd(tp_wma_handle wma_handle,
 				struct sir_hw_mode *msg)
 {
 	struct sir_set_hw_mode_resp *param;
@@ -5395,13 +5465,13 @@ fail:
 	param->cfgd_hw_mode_index = 0;
 	param->num_vdev_mac_entries = 0;
 	WMA_LOGE("%s: Sending HW mode fail response to LIM", __func__);
-	wma_send_msg(wma_handle, SIR_HAL_SOC_SET_HW_MODE_RESP,
+	wma_send_msg(wma_handle, SIR_HAL_PDEV_SET_HW_MODE_RESP,
 			(void *) param, 0);
 	return QDF_STATUS_SUCCESS;
 }
 
 /**
- * wma_send_soc_set_dual_mac_config() - Set dual mac config to FW
+ * wma_send_pdev_set_dual_mac_config() - Set dual mac config to FW
  * @wma_handle: WMA handle
  * @msg: Dual MAC config parameters
  *
@@ -5409,9 +5479,11 @@ fail:
  *
  * Return: QDF_STATUS. 0 on success.
  */
-QDF_STATUS wma_send_soc_set_dual_mac_config(tp_wma_handle wma_handle,
+QDF_STATUS wma_send_pdev_set_dual_mac_config(tp_wma_handle wma_handle,
 		struct sir_dual_mac_config *msg)
 {
+	QDF_STATUS status;
+
 	if (!wma_handle) {
 		WMA_LOGE("%s: WMA handle is NULL. Cannot issue command",
 				__func__);
@@ -5423,11 +5495,17 @@ QDF_STATUS wma_send_soc_set_dual_mac_config(tp_wma_handle wma_handle,
 		return QDF_STATUS_E_NULL_VALUE;
 	}
 
+	status = wmi_unified_pdev_set_dual_mac_config_cmd(
+				wma_handle->wmi_handle,
+				(struct wmi_dual_mac_config *)msg);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		WMA_LOGE("%s: Failed to send WMI_PDEV_SET_DUAL_MAC_CONFIG_CMDID: %d",
+				__func__, status);
+		return status;
+	}
 
-	if (wmi_unified_soc_set_dual_mac_config_cmd(wma_handle->wmi_handle,
-				(struct wmi_dual_mac_config *)msg))
-		WMA_LOGE("%s: Failed to send WMI_SOC_SET_DUAL_MAC_CONFIG_CMDID",
-				__func__);
+	wma_handle->dual_mac_cfg.req_scan_config = msg->scan_config;
+	wma_handle->dual_mac_cfg.req_fw_mode_config = msg->fw_mode_config;
 
 	return QDF_STATUS_SUCCESS;
 }

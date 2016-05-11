@@ -161,6 +161,30 @@ typedef enum eTDLSLinkStatus {
 } tTDLSLinkStatus;
 
 /**
+ * enum tdls_teardown_reason - Reason for TDLS teardown
+ * @eTDLS_TEARDOWN_EXT_CTRL: Reason ext ctrl.
+ * @eTDLS_TEARDOWN_CONCURRENCY: Reason concurrency.
+ * @eTDLS_TEARDOWN_RSSI_THRESHOLD: Reason rssi threshold.
+ * @eTDLS_TEARDOWN_TXRX_THRESHOLD: Reason txrx threshold.
+ * @eTDLS_TEARDOWN_BTCOEX: Reason BTCOEX.
+ * @eTDLS_TEARDOWN_SCAN: Reason scan.
+ * @eTDLS_TEARDOWN_BSS_DISCONNECT: Reason bss disconnected.
+ * @eTDLS_TEARDOWN_ANTENNA_SWITCH: Disconnected due to antenna switch
+ *
+ * Reason to indicate in diag event of tdls teardown.
+ */
+enum tdls_teardown_reason {
+	eTDLS_TEARDOWN_EXT_CTRL,
+	eTDLS_TEARDOWN_CONCURRENCY,
+	eTDLS_TEARDOWN_RSSI_THRESHOLD,
+	eTDLS_TEARDOWN_TXRX_THRESHOLD,
+	eTDLS_TEARDOWN_BTCOEX,
+	eTDLS_TEARDOWN_SCAN,
+	eTDLS_TEARDOWN_BSS_DISCONNECT,
+	eTDLS_TEARDOWN_ANTENNA_SWITCH,
+};
+
+/**
  * enum tTDLSLinkReason - tdls link reason
  *
  * @eTDLS_LINK_SUCCESS: Success
@@ -607,7 +631,8 @@ int hdd_set_tdls_offchannel(hdd_context_t *hdd_ctx, int offchannel);
 int hdd_set_tdls_secoffchanneloffset(hdd_context_t *hdd_ctx, int offchanoffset);
 int hdd_set_tdls_offchannelmode(hdd_adapter_t *adapter, int offchanmode);
 int hdd_set_tdls_scan_type(hdd_context_t *hdd_ctx, int val);
-void hdd_tdls_pre_init(hdd_context_t *hdd_ctx);
+void hdd_tdls_context_init(hdd_context_t *hdd_ctx);
+void hdd_tdls_context_destroy(hdd_context_t *hdd_ctx);
 
 #else
 static inline void hdd_tdls_notify_mode_change(hdd_adapter_t *adapter,
@@ -622,7 +647,28 @@ static inline void wlan_hdd_tdls_exit(hdd_adapter_t *adapter)
 {
 }
 
-static inline void hdd_tdls_pre_init(hdd_context_t *hdd_ctx) { }
+static inline void hdd_tdls_context_init(hdd_context_t *hdd_ctx) { }
+static inline void hdd_tdls_context_destroy(hdd_context_t *hdd_ctx) { }
 #endif /* End of FEATURE_WLAN_TDLS */
+
+#ifdef FEATURE_WLAN_DIAG_SUPPORT
+void hdd_send_wlan_tdls_teardown_event(uint32_t reason,
+					uint8_t *peer_mac);
+void hdd_wlan_tdls_enable_link_event(const uint8_t *peer_mac,
+	uint8_t is_off_chan_supported,
+	uint8_t is_off_chan_configured,
+	uint8_t is_off_chan_established);
+void hdd_wlan_block_scan_by_tdls_event(void);
+#else
+static inline
+void hdd_send_wlan_tdls_teardown_event(uint32_t reason,
+					uint8_t *peer_mac) {}
+static inline
+void hdd_wlan_tdls_enable_link_event(const uint8_t *peer_mac,
+	uint8_t is_off_chan_supported,
+	uint8_t is_off_chan_configured,
+	uint8_t is_off_chan_established) {}
+static inline void hdd_wlan_block_scan_by_tdls_event(void) {}
+#endif /* FEATURE_WLAN_DIAG_SUPPORT */
 
 #endif /* __HDD_TDLS_H */

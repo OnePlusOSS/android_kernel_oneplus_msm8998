@@ -44,6 +44,7 @@
 #include <csr_api.h>
 #include <wlan_hdd_misc.h>
 #include <wlan_hdd_napi.h>
+#include <cds_concurrency.h>
 
 static void
 cb_notify_set_roam_prefer5_g_hz(hdd_context_t *pHddCtx, unsigned long notifyId)
@@ -801,6 +802,20 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		     CFG_REST_TIME_CONC_DEFAULT,
 		     CFG_REST_TIME_CONC_MIN,
 		     CFG_REST_TIME_CONC_MAX),
+
+	REG_VARIABLE(CFG_MIN_REST_TIME_NAME, WLAN_PARAM_Integer,
+		      struct hdd_config, min_rest_time_conc,
+		      VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		      CFG_MIN_REST_TIME_DEFAULT,
+		      CFG_MIN_REST_TIME_MIN,
+		      CFG_MIN_REST_TIME_MAX),
+
+	REG_VARIABLE(CFG_IDLE_TIME_NAME , WLAN_PARAM_Integer,
+		      struct hdd_config, idle_time_conc,
+		      VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		      CFG_IDLE_TIME_DEFAULT,
+		      CFG_IDLE_TIME_MIN,
+		      CFG_IDLE_TIME_MAX) ,
 
 	REG_VARIABLE(CFG_NUM_STA_CHAN_COMBINED_CONC_NAME, WLAN_PARAM_Integer,
 		     struct hdd_config, nNumStaChanCombinedConc,
@@ -3725,6 +3740,15 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		CFG_INFORM_BSS_RSSI_RAW_MIN,
 		CFG_INFORM_BSS_RSSI_RAW_MAX),
 
+#ifdef WLAN_FEATURE_TSF
+	REG_VARIABLE(CFG_SET_TSF_GPIO_PIN_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, tsf_gpio_pin,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_SET_TSF_GPIO_PIN_DEFAULT,
+		CFG_SET_TSF_GPIO_PIN_MIN,
+		CFG_SET_TSF_GPIO_PIN_MAX),
+#endif
+
 #ifdef QCA_WIFI_3_0_EMU
 	REG_VARIABLE(CFG_ENABLE_M2M_LIMITATION, WLAN_PARAM_Integer,
 		struct hdd_config, enable_m2m_limitation,
@@ -3762,6 +3786,15 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		CFG_ROAM_DENSE_MIN_APS_DEFAULT,
 		CFG_ROAM_DENSE_MIN_APS_MIN,
 		CFG_ROAM_DENSE_MIN_APS_MAX),
+
+	REG_VARIABLE(CFG_ENABLE_FATAL_EVENT_TRIGGER, WLAN_PARAM_Integer,
+			struct hdd_config, enable_fatal_event,
+			VAR_FLAGS_OPTIONAL |
+			VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+			CFG_ENABLE_FATAL_EVENT_TRIGGER_DEFAULT,
+			CFG_ENABLE_FATAL_EVENT_TRIGGER_MIN,
+			CFG_ENABLE_FATAL_EVENT_TRIGGER_MAX),
+
 
 };
 
@@ -5354,8 +5387,18 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 		CFG_IGNORE_PEER_HT_MODE_NAME,
 		pHddCtx->config->ignore_peer_ht_opmode);
 	hdd_info("Name = [%s] Value = [%u]",
+		CFG_ENABLE_FATAL_EVENT_TRIGGER,
+		pHddCtx->config->enable_fatal_event);
+	hdd_info("Name = [%s] Value = [%u]",
 		CFG_ROAM_DENSE_MIN_APS,
 		pHddCtx->config->roam_dense_min_aps);
+	hdd_info("Name = [%s] Value = [%u]",
+		CFG_MIN_REST_TIME_NAME,
+		pHddCtx->config->min_rest_time_conc);
+	hdd_info("Name = [%s] Value = [%u]",
+		CFG_IDLE_TIME_NAME,
+		pHddCtx->config->idle_time_conc);
+
 }
 
 
@@ -5451,6 +5494,66 @@ QDF_STATUS hdd_update_mac_config(hdd_context_t *pHddCtx)
 config_exit:
 	release_firmware(fw);
 	return qdf_status;
+}
+
+/**
+ * hdd_disable_runtime_pm() - Override to disable runtime_pm.
+ * @cfg_ini: Handle to struct hdd_config
+ *
+ * Return: None
+ */
+#ifdef FEATURE_RUNTIME_PM
+static void hdd_disable_runtime_pm(struct hdd_config *cfg_ini)
+{
+	cfg_ini->runtime_pm = 0;
+}
+#else
+static void hdd_disable_runtime_pm(struct hdd_config *cfg_ini)
+{
+}
+#endif
+
+/**
+ * hdd_disable_auto_shutdown() - Override to disable auto_shutdown.
+ * @cfg_ini: Handle to struct hdd_config
+ *
+ * Return: None
+ */
+#ifdef FEATURE_WLAN_AUTO_SHUTDOWN
+static void hdd_disable_auto_shutdown(struct hdd_config *cfg_ini)
+{
+	cfg_ini->WlanAutoShutdown = 0;
+}
+#else
+static void hdd_disable_auto_shutdown(struct hdd_config *cfg_ini)
+{
+}
+#endif
+
+/**
+ * hdd_override_all_ps() - overrides to disables all the powersave features.
+ * @hdd_ctx: Pointer to HDD context.
+ * Overrides below powersave ini configurations.
+ * gEnableImps=0
+ * gEnableBmps=0
+ * gRuntimePM=0
+ * gWlanAutoShutdown = 0
+ * gEnableSuspend=0
+ * gEnablePowerSaveOffload=0
+ * gEnableWoW=0
+ *
+ * Return: None
+ */
+static void hdd_override_all_ps(hdd_context_t *hdd_ctx)
+{
+	struct hdd_config *cfg_ini = hdd_ctx->config;
+
+	cfg_ini->fIsImpsEnabled = 0;
+	cfg_ini->is_ps_enabled = 0;
+	hdd_disable_runtime_pm(cfg_ini);
+	hdd_disable_auto_shutdown(cfg_ini);
+	cfg_ini->enablePowersaveOffload = 0;
+	cfg_ini->wowEnable = 0;
 }
 
 /**
@@ -5556,6 +5659,8 @@ QDF_STATUS hdd_parse_config_ini(hdd_context_t *pHddCtx)
 		hdd_napi_event(NAPI_EVT_INI_FILE,
 			       (void *)pHddCtx->config->napi_enable);
 #endif /* FEATURE_NAPI */
+	if (QDF_GLOBAL_MONITOR_MODE == cds_get_conparam())
+		hdd_override_all_ps(pHddCtx);
 
 config_exit:
 	release_firmware(fw);
@@ -6565,6 +6670,8 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 	smeConfig->csrConfig.nPassiveMinChnTimeConc =
 		pConfig->nPassiveMinChnTimeConc;
 	smeConfig->csrConfig.nRestTimeConc = pConfig->nRestTimeConc;
+	smeConfig->csrConfig.min_rest_time_conc = pConfig->min_rest_time_conc;
+	smeConfig->csrConfig.idle_time_conc     = pConfig->idle_time_conc;
 	smeConfig->csrConfig.nNumStaChanCombinedConc =
 		pConfig->nNumStaChanCombinedConc;
 	smeConfig->csrConfig.nNumP2PChanCombinedConc =
@@ -6799,6 +6906,8 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 			pHddCtx->config->obss_passive_dwelltime;
 	smeConfig->csrConfig.ignore_peer_ht_opmode =
 			pConfig->ignore_peer_ht_opmode;
+	smeConfig->csrConfig.enable_fatal_event =
+			pConfig->enable_fatal_event;
 
 	status = sme_update_config(pHddCtx->hHal, smeConfig);
 	if (!QDF_IS_STATUS_SUCCESS(status)) {

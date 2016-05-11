@@ -309,7 +309,6 @@ typedef struct sPESession       /* Added to Support BT-AMP */
 
 	tBeaconParams beaconParams;
 	uint8_t vhtCapability;
-	uint8_t vhtTxChannelWidthSet;
 	tLimOperatingModeInfo gLimOperatingMode;
 	uint8_t vhtCapabilityPresentInBeacon;
 	uint8_t ch_center_freq_seg0;
@@ -472,11 +471,11 @@ typedef struct sPESession       /* Added to Support BT-AMP */
 	uint8_t country_info_present;
 	uint8_t nss;
 	bool add_bss_failed;
-	struct csa_offload_params saved_csa_params;
 	/* To hold OBSS Scan IE Parameters */
 	struct obss_scanparam obss_ht40_scanparam;
 	/* Supported NSS is intersection of self and peer NSS */
 	bool supported_nss_1x1;
+	bool is_ext_caps_present;
 } tPESession, *tpPESession;
 
 /*-------------------------------------------------------------------------

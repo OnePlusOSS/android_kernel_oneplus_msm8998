@@ -267,6 +267,192 @@ end:
 	wma_post_link_status(pGetLinkStatus, LINK_STATUS_LEGACY);
 }
 
+#ifdef WLAN_FEATURE_TSF
+/**
+ * wma_vdev_tsf_handler() - handle tsf event indicated by FW
+ * @handle: wma context
+ * @data: event buffer
+ * @data len: length of event buffer
+ *
+ * Return: 0 on success
+ */
+int wma_vdev_tsf_handler(void *handle, uint8_t *data, uint32_t data_len)
+{
+	cds_msg_t tsf_msg = {0};
+	WMI_VDEV_TSF_REPORT_EVENTID_param_tlvs *param_buf;
+	wmi_vdev_tsf_report_event_fixed_param *tsf_event;
+	struct stsf *ptsf;
+
+	if (data == NULL) {
+		WMA_LOGE("%s: invalid pointer", __func__);
+		return -EINVAL;
+	}
+	ptsf = qdf_mem_malloc(sizeof(*ptsf));
+	if (NULL == ptsf) {
+		WMA_LOGE("%s: failed to allocate tsf data structure", __func__);
+		return -ENOMEM;
+	}
+
+	param_buf = (WMI_VDEV_TSF_REPORT_EVENTID_param_tlvs *)data;
+	tsf_event = param_buf->fixed_param;
+
+	ptsf->vdev_id = tsf_event->vdev_id;
+	ptsf->tsf_low = tsf_event->tsf_low;
+	ptsf->tsf_high = tsf_event->tsf_high;
+
+	WMA_LOGD("%s: receive WMI_VDEV_TSF_REPORT_EVENTID ", __func__);
+	WMA_LOGD("%s: vdev_id = %u,tsf_low =%u, tsf_high = %u", __func__,
+	ptsf->vdev_id, ptsf->tsf_low, ptsf->tsf_high);
+
+	tsf_msg.type = eWNI_SME_TSF_EVENT;
+	tsf_msg.bodyptr = ptsf;
+	tsf_msg.bodyval = 0;
+
+	if (QDF_STATUS_SUCCESS !=
+		cds_mq_post_message(CDS_MQ_ID_SME, &tsf_msg)) {
+
+		WMA_LOGP("%s: Failed to post eWNI_SME_TSF_EVENT", __func__);
+		qdf_mem_free(ptsf);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+/**
+ * wma_capture_tsf() - send wmi to fw to capture tsf
+ * @wma_handle: wma handler
+ * @vdev_id: vdev id
+ *
+ * Return: wmi send state
+ */
+QDF_STATUS wma_capture_tsf(tp_wma_handle wma_handle, uint32_t vdev_id)
+{
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	wmi_buf_t buf;
+	wmi_vdev_tsf_tstamp_action_cmd_fixed_param *cmd;
+	int ret;
+	int len = sizeof(*cmd);
+
+	buf = wmi_buf_alloc(wma_handle->wmi_handle, len);
+	if (!buf) {
+		WMA_LOGP("%s: failed to allocate memory for cap tsf cmd",
+			 __func__);
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	cmd = (wmi_vdev_tsf_tstamp_action_cmd_fixed_param *) wmi_buf_data(buf);
+	cmd->vdev_id = vdev_id;
+	cmd->tsf_action = TSF_TSTAMP_CAPTURE_REQ;
+
+	WMA_LOGD("%s :vdev_id %u, TSF_TSTAMP_CAPTURE_REQ", __func__,
+		 cmd->vdev_id);
+
+	WMITLV_SET_HDR(&cmd->tlv_header,
+	WMITLV_TAG_STRUC_wmi_vdev_tsf_tstamp_action_cmd_fixed_param,
+	WMITLV_GET_STRUCT_TLVLEN(
+	wmi_vdev_tsf_tstamp_action_cmd_fixed_param));
+
+	ret = wmi_unified_cmd_send(wma_handle->wmi_handle, buf, len,
+				   WMI_VDEV_TSF_TSTAMP_ACTION_CMDID);
+	if (ret != EOK) {
+		WMA_LOGE("wmi_unified_cmd_send returned Error %d", status);
+		status = QDF_STATUS_E_FAILURE;
+		goto error;
+	}
+
+	return QDF_STATUS_SUCCESS;
+
+error:
+	if (buf)
+		wmi_buf_free(buf);
+	return status;
+}
+
+/**
+ * wma_reset_tsf_gpio() - send wmi to fw to reset GPIO
+ * @wma_handle: wma handler
+ * @vdev_id: vdev id
+ *
+ * Return: wmi send state
+ */
+QDF_STATUS wma_reset_tsf_gpio(tp_wma_handle wma_handle, uint32_t vdev_id)
+{
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	wmi_buf_t buf;
+	wmi_vdev_tsf_tstamp_action_cmd_fixed_param *cmd;
+	int ret;
+	int len = sizeof(*cmd);
+	uint8_t *buf_ptr;
+
+	buf = wmi_buf_alloc(wma_handle->wmi_handle, len);
+	if (!buf) {
+		WMA_LOGP("%s: failed to allocate memory for reset tsf gpio",
+			 __func__);
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	buf_ptr = (uint8_t *) wmi_buf_data(buf);
+	cmd = (wmi_vdev_tsf_tstamp_action_cmd_fixed_param *) buf_ptr;
+	cmd->vdev_id = vdev_id;
+	cmd->tsf_action = TSF_TSTAMP_CAPTURE_RESET;
+
+	WMA_LOGD("%s :vdev_id %u, TSF_TSTAMP_CAPTURE_RESET", __func__,
+		 cmd->vdev_id);
+
+	WMITLV_SET_HDR(&cmd->tlv_header,
+		WMITLV_TAG_STRUC_wmi_vdev_tsf_tstamp_action_cmd_fixed_param,
+		WMITLV_GET_STRUCT_TLVLEN(
+				wmi_vdev_tsf_tstamp_action_cmd_fixed_param));
+
+	ret = wmi_unified_cmd_send(wma_handle->wmi_handle, buf, len,
+				   WMI_VDEV_TSF_TSTAMP_ACTION_CMDID);
+
+	if (ret != EOK) {
+		WMA_LOGE("wmi_unified_cmd_send returned Error %d", status);
+		status = QDF_STATUS_E_FAILURE;
+		goto error;
+	}
+	return QDF_STATUS_SUCCESS;
+
+error:
+	if (buf)
+		wmi_buf_free(buf);
+	return status;
+}
+
+/**
+ * wma_set_tsf_gpio_pin() - send wmi cmd to configure gpio pin
+ * @handle: wma handler
+ * @pin: GPIO pin id
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS wma_set_tsf_gpio_pin(WMA_HANDLE handle, uint32_t pin)
+{
+	tp_wma_handle wma = (tp_wma_handle)handle;
+	struct pdev_params pdev_param = {0};
+	int32_t ret;
+
+	if (!wma || !wma->wmi_handle) {
+		WMA_LOGE("%s: WMA is closed, can not set gpio", __func__);
+		return QDF_STATUS_E_INVAL;
+	}
+
+	WMA_LOGD("%s: set tsf gpio pin: %d", __func__, pin);
+
+	pdev_param.param_id = WMI_PDEV_PARAM_WNTS_CONFIG;
+	pdev_param.param_value = pin;
+	ret = wmi_unified_pdev_param_send(wma->wmi_handle,
+					 &pdev_param,
+					 WMA_WILDCARD_PDEV_ID);
+	if (ret) {
+		WMA_LOGE("%s: Failed to set tsf gpio pin (%d)", __func__, ret);
+		return QDF_STATUS_E_FAILURE;
+	}
+	return QDF_STATUS_SUCCESS;
+}
+#endif
+
 #ifdef FEATURE_WLAN_LPHB
 /**
  * wma_lphb_conf_hbenable() - enable command of LPHB configuration requests
@@ -3060,7 +3246,7 @@ QDF_STATUS wma_enable_wow_in_fw(WMA_HANDLE handle)
 #endif /* CONFIG_CNSS */
 
 	qdf_event_reset(&wma->target_suspend);
-	wma->wow_nack = 0;
+	wma->wow_nack = false;
 
 	host_credits = wmi_get_host_credits(wma->wmi_handle);
 	wmi_pending_cmds = wmi_get_pending_cmds(wma->wmi_handle);
@@ -5739,14 +5925,14 @@ QDF_STATUS wma_suspend_target(WMA_HANDLE handle, int disable_target_intr)
 
 /**
  * wma_target_suspend_acknowledge() - update target susspend status
- * @context: wma context
+ * @context: HTC_INIT_INFO->context
+ * @wow_nack: true when wow is rejected
  *
  * Return: none
  */
-void wma_target_suspend_acknowledge(void *context)
+void wma_target_suspend_acknowledge(void *context, bool wow_nack)
 {
 	tp_wma_handle wma = cds_get_context(QDF_MODULE_ID_WMA);
-	int wow_nack = *((int *)context);
 
 	if (NULL == wma) {
 		WMA_LOGE("%s: wma is NULL", __func__);
@@ -6718,3 +6904,172 @@ QDF_STATUS wma_process_set_ie_info(tp_wma_handle wma,
 	return ret;
 }
 
+/**
+ *  wma_get_bpf_caps_event_handler() - Event handler for get bpf capability
+ *  @handle: WMA global handle
+ *  @cmd_param_info: command event data
+ *  @len: Length of @cmd_param_info
+ *
+ *  Return: 0 on Success or Errno on failure
+ */
+int wma_get_bpf_caps_event_handler(void *handle,
+			u_int8_t *cmd_param_info,
+			u_int32_t len)
+{
+	WMI_BPF_CAPABILIY_INFO_EVENTID_param_tlvs  *param_buf;
+	wmi_bpf_capability_info_evt_fixed_param *event;
+	struct sir_bpf_get_offload *bpf_get_offload;
+	tpAniSirGlobal pmac = (tpAniSirGlobal)cds_get_context(
+				QDF_MODULE_ID_PE);
+
+	if (!pmac) {
+		WMA_LOGE("%s: Invalid pmac", __func__);
+		return -EINVAL;
+	}
+	if (!pmac->sme.pbpf_get_offload_cb) {
+		WMA_LOGE("%s: Callback not registered", __func__);
+		return -EINVAL;
+	}
+
+	param_buf = (WMI_BPF_CAPABILIY_INFO_EVENTID_param_tlvs *)cmd_param_info;
+	event = param_buf->fixed_param;
+	bpf_get_offload = qdf_mem_malloc(sizeof(*bpf_get_offload));
+
+	if (!bpf_get_offload) {
+		WMA_LOGP("%s: Memory allocation failed.", __func__);
+		return -ENOMEM;
+	}
+
+	bpf_get_offload->bpf_version = event->bpf_version;
+	bpf_get_offload->max_bpf_filters = event->max_bpf_filters;
+	bpf_get_offload->max_bytes_for_bpf_inst =
+			event->max_bytes_for_bpf_inst;
+	WMA_LOGD("%s: BPF capabilities version: %d max bpf filter size: %d",
+			__func__, bpf_get_offload->bpf_version,
+	bpf_get_offload->max_bytes_for_bpf_inst);
+
+	WMA_LOGD("%s: sending bpf capabilities event to hdd", __func__);
+	pmac->sme.pbpf_get_offload_cb(pmac->hHdd, bpf_get_offload);
+	qdf_mem_free(bpf_get_offload);
+	return 0;
+}
+
+/**
+ * wma_get_bpf_capabilities - Send get bpf capability to firmware
+ * @wma_handle: wma handle
+ *
+ * Return: QDF_STATUS enumeration.
+ */
+QDF_STATUS wma_get_bpf_capabilities(tp_wma_handle wma)
+{
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	wmi_bpf_get_capability_cmd_fixed_param *cmd;
+	wmi_buf_t wmi_buf;
+	uint32_t   len;
+	u_int8_t *buf_ptr;
+
+	if (!wma || !wma->wmi_handle) {
+		WMA_LOGE(FL("WMA is closed, can not issue get BPF capab"));
+		return QDF_STATUS_E_INVAL;
+	}
+
+	if (!WMI_SERVICE_IS_ENABLED(wma->wmi_service_bitmap,
+		WMI_SERVICE_BPF_OFFLOAD)) {
+		WMA_LOGE(FL("BPF cababilities feature bit not enabled"));
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	len = sizeof(*cmd);
+	wmi_buf = wmi_buf_alloc(wma->wmi_handle, len);
+	if (!wmi_buf) {
+		WMA_LOGE("%s: wmi_buf_alloc failed", __func__);
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	buf_ptr = (u_int8_t *) wmi_buf_data(wmi_buf);
+	cmd = (wmi_bpf_get_capability_cmd_fixed_param *) buf_ptr;
+	WMITLV_SET_HDR(&cmd->tlv_header,
+	WMITLV_TAG_STRUC_wmi_bpf_get_capability_cmd_fixed_param,
+		WMITLV_GET_STRUCT_TLVLEN(
+		wmi_bpf_get_capability_cmd_fixed_param));
+
+	if (wmi_unified_cmd_send(wma->wmi_handle, wmi_buf, len,
+		WMI_BPF_GET_CAPABILITY_CMDID)) {
+		WMA_LOGE(FL("Failed to send BPF capability command"));
+		wmi_buf_free(wmi_buf);
+		return QDF_STATUS_E_FAILURE;
+	}
+	return status;
+}
+
+/**
+ *  wma_set_bpf_instructions - Set bpf instructions to firmware
+ *  @wma: wma handle
+ *  @bpf_set_offload: Bpf offload information to set to firmware
+ *
+ *  Return: QDF_STATUS enumeration
+ */
+QDF_STATUS wma_set_bpf_instructions(tp_wma_handle wma,
+				struct sir_bpf_set_offload *bpf_set_offload)
+{
+	wmi_bpf_set_vdev_instructions_cmd_fixed_param *cmd;
+	wmi_buf_t wmi_buf;
+	uint32_t   len = 0, len_aligned = 0;
+	u_int8_t *buf_ptr;
+
+	if (!wma || !wma->wmi_handle) {
+		WMA_LOGE("%s: WMA is closed, can not issue set BPF capability",
+			__func__);
+		return QDF_STATUS_E_INVAL;
+	}
+
+	if (!WMI_SERVICE_IS_ENABLED(wma->wmi_service_bitmap,
+		WMI_SERVICE_BPF_OFFLOAD)) {
+		WMA_LOGE(FL("BPF offload feature Disabled"));
+		return QDF_STATUS_E_NOSUPPORT;
+	}
+
+	if (bpf_set_offload->total_length) {
+		len_aligned = roundup(bpf_set_offload->current_length,
+					sizeof(A_UINT32));
+		len = len_aligned + WMI_TLV_HDR_SIZE;
+	}
+
+	len += sizeof(*cmd);
+	wmi_buf = wmi_buf_alloc(wma->wmi_handle, len);
+	if (!wmi_buf) {
+		WMA_LOGE("%s: wmi_buf_alloc failed", __func__);
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	buf_ptr = (u_int8_t *) wmi_buf_data(wmi_buf);
+	cmd = (wmi_bpf_set_vdev_instructions_cmd_fixed_param *) buf_ptr;
+
+	WMITLV_SET_HDR(&cmd->tlv_header,
+		WMITLV_TAG_STRUC_wmi_bpf_set_vdev_instructions_cmd_fixed_param,
+		WMITLV_GET_STRUCT_TLVLEN(
+			wmi_bpf_set_vdev_instructions_cmd_fixed_param));
+	cmd->vdev_id = bpf_set_offload->session_id;
+	cmd->filter_id = bpf_set_offload->filter_id;
+	cmd->total_length = bpf_set_offload->total_length;
+	cmd->current_offset = bpf_set_offload->current_offset;
+	cmd->current_length = bpf_set_offload->current_length;
+
+	if (bpf_set_offload->total_length) {
+		buf_ptr +=
+			sizeof(wmi_bpf_set_vdev_instructions_cmd_fixed_param);
+		WMITLV_SET_HDR(buf_ptr, WMITLV_TAG_ARRAY_BYTE, len_aligned);
+		buf_ptr += WMI_TLV_HDR_SIZE;
+		qdf_mem_copy(buf_ptr, bpf_set_offload->program,
+					bpf_set_offload->current_length);
+		qdf_mem_free(bpf_set_offload->program);
+	}
+
+	if (wmi_unified_cmd_send(wma->wmi_handle, wmi_buf, len,
+		WMI_BPF_SET_VDEV_INSTRUCTIONS_CMDID)) {
+		WMA_LOGE(FL("Failed to send config bpf instructions command"));
+		wmi_buf_free(wmi_buf);
+		return QDF_STATUS_E_FAILURE;
+	}
+	return QDF_STATUS_SUCCESS;
+}

@@ -1331,13 +1331,8 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 			 */
 			pAdapter->request = request;
 
-#ifdef CONFIG_CNSS
-			cnss_init_work(&pAdapter->scan_block_work,
-				       wlan_hdd_cfg80211_scan_block_cb);
-#else
 			INIT_WORK(&pAdapter->scan_block_work,
 				  wlan_hdd_cfg80211_scan_block_cb);
-#endif
 			schedule_work(&pAdapter->scan_block_work);
 			return 0;
 		}
@@ -1378,6 +1373,7 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 		else
 			hddLog(LOGE, FL("TDLS teardown is ongoing %d"),
 			       status);
+		hdd_wlan_block_scan_by_tdls_event();
 		return status;
 	}
 #endif
@@ -1390,7 +1386,6 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 
 	qdf_mem_zero(&scan_req, sizeof(scan_req));
 
-	hddLog(LOG1, "scan request for ssid = %d", request->n_ssids);
 	scan_req.timestamp = qdf_mc_timer_get_system_ticks();
 
 	/* Even though supplicant doesn't provide any SSIDs, n_ssids is
@@ -2493,4 +2488,36 @@ void hdd_cleanup_scan_queue(hdd_context_t *hdd_ctx)
 	qdf_spin_unlock(&hdd_ctx->hdd_scan_req_q_lock);
 
 	return;
+}
+
+/**
+ * hdd_scan_context_destroy() - Destroy scan context
+ * @hdd_ctx:	HDD context.
+ *
+ * Destroy scan context.
+ *
+ * Return: None.
+ */
+void hdd_scan_context_destroy(hdd_context_t *hdd_ctx)
+{
+	qdf_list_destroy(&hdd_ctx->hdd_scan_req_q);
+	qdf_spinlock_destroy(&hdd_ctx->sched_scan_lock);
+}
+
+/**
+ * hdd_scan_context_init() - Initialize scan context
+ * @hdd_ctx:	HDD context.
+ *
+ * Initialize scan related resources like spin lock and lists.
+ *
+ * Return: 0 on success and errno on failure.
+ */
+int hdd_scan_context_init(hdd_context_t *hdd_ctx)
+{
+	qdf_spinlock_create(&hdd_ctx->sched_scan_lock);
+
+	qdf_spinlock_create(&hdd_ctx->hdd_scan_req_q_lock);
+	qdf_list_create(&hdd_ctx->hdd_scan_req_q, CFG_MAX_SCAN_COUNT_MAX);
+
+	return 0;
 }

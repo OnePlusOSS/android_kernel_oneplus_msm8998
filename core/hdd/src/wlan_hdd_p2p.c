@@ -206,9 +206,7 @@ QDF_STATUS wlan_hdd_remain_on_channel_callback(tHalHandle hHal, void *pCtx,
 
 	if (REMAIN_ON_CHANNEL_REQUEST == pRemainChanCtx->rem_on_chan_request) {
 		if (cfgState->buf) {
-			hddLog(LOGP,
-			       "%s: We need to receive yet an ack from one of tx packet",
-			       __func__);
+			hdd_info("We need to receive yet an ack from one of tx packet");
 		}
 		cfg80211_remain_on_channel_expired(
 			pRemainChanCtx->dev->
@@ -319,6 +317,10 @@ void wlan_hdd_cancel_existing_remain_on_channel(hdd_adapter_t *pAdapter)
 			hddLog(LOGE,
 			       "%s: timeout waiting for remain on channel ready indication",
 			       __func__);
+			cds_flush_logs(WLAN_LOG_TYPE_FATAL,
+				WLAN_LOG_INDICATOR_HOST_DRIVER,
+				WLAN_LOG_REASON_HDD_TIME_OUT,
+				true, false);
 		}
 
 		INIT_COMPLETION(pAdapter->cancel_rem_on_chan_var);
@@ -1171,6 +1173,10 @@ int __wlan_hdd_cfg80211_cancel_remain_on_channel(struct wiphy *wiphy,
 				 cds_get_driver_state());
 			return -EAGAIN;
 		}
+		cds_flush_logs(WLAN_LOG_TYPE_FATAL,
+			WLAN_LOG_INDICATOR_HOST_DRIVER,
+			WLAN_LOG_REASON_HDD_TIME_OUT,
+			true, false);
 	}
 	INIT_COMPLETION(pAdapter->cancel_rem_on_chan_var);
 	/* Issue abort remain on chan request to sme.
@@ -2247,8 +2253,8 @@ void __hdd_indicate_mgmt_frame(hdd_adapter_t *pAdapter,
 					     + 2], SIR_MAC_P2P_OUI,
 					    SIR_MAC_P2P_OUI_SIZE)) {
 			/* P2P action frames */
-				u8 *macFrom =
-					&pbFrames[WLAN_HDD_80211_FRM_DA_OFFSET + 6];
+				u8 *macFrom = &pbFrames
+					[WLAN_HDD_80211_PEER_ADDR_OFFSET];
 				actionFrmType =
 					pbFrames
 					[WLAN_HDD_PUBLIC_ACTION_FRAME_TYPE_OFFSET];
@@ -2409,8 +2415,8 @@ void __hdd_indicate_mgmt_frame(hdd_adapter_t *pAdapter,
 			else if (pbFrames
 				 [WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET + 1] ==
 				 WLAN_HDD_PUBLIC_ACTION_TDLS_DISC_RESP) {
-				u8 *mac =
-					&pbFrames[WLAN_HDD_80211_FRM_DA_OFFSET + 6];
+				u8 *mac = &pbFrames
+					[WLAN_HDD_80211_PEER_ADDR_OFFSET];
 
 				hddLog(LOG1,
 				       "[TDLS] TDLS Discovery Response,"
@@ -2420,6 +2426,10 @@ void __hdd_indicate_mgmt_frame(hdd_adapter_t *pAdapter,
 				wlan_hdd_tdls_set_rssi(pAdapter, mac, rxRssi);
 				wlan_hdd_tdls_recv_discovery_resp(pAdapter,
 								  mac);
+				cds_tdls_tx_rx_mgmt_event(SIR_MAC_ACTION_TDLS,
+				   SIR_MAC_ACTION_RX, SIR_MAC_MGMT_ACTION,
+				   WLAN_HDD_PUBLIC_ACTION_TDLS_DISC_RESP,
+				   &pbFrames[WLAN_HDD_80211_PEER_ADDR_OFFSET]);
 			}
 #endif
 		}
@@ -2437,6 +2447,10 @@ void __hdd_indicate_mgmt_frame(hdd_adapter_t *pAdapter,
 				       "[TDLS] %s <--- OTA",
 				       tdls_action_frame_type[actionFrmType]);
 			}
+			cds_tdls_tx_rx_mgmt_event(SIR_MAC_ACTION_TDLS,
+				SIR_MAC_ACTION_RX, SIR_MAC_MGMT_ACTION,
+				actionFrmType,
+				&pbFrames[WLAN_HDD_80211_PEER_ADDR_OFFSET]);
 		}
 
 		if ((pbFrames[WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET] ==

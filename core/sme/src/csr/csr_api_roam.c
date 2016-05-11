@@ -1292,6 +1292,8 @@ static void init_config_param(tpAniSirGlobal pMac)
 	pMac->roam.configParam.nPassiveMinChnTimeConc =
 		CSR_PASSIVE_MIN_CHANNEL_TIME_CONC;
 	pMac->roam.configParam.nRestTimeConc = CSR_REST_TIME_CONC;
+	pMac->roam.configParam.min_rest_time_conc =  CSR_MIN_REST_TIME_CONC;
+	pMac->roam.configParam.idle_time_conc = CSR_IDLE_TIME_CONC;
 	pMac->roam.configParam.nNumStaChanCombinedConc =
 		CSR_NUM_STA_CHAN_COMBINED_CONC;
 	pMac->roam.configParam.nNumP2PChanCombinedConc =
@@ -2057,10 +2059,11 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 			pMac->roam.configParam.nPassiveMinChnTimeConc =
 				pParam->nPassiveMinChnTimeConc;
 		}
-		if (pParam->nRestTimeConc) {
-			pMac->roam.configParam.nRestTimeConc =
-				pParam->nRestTimeConc;
-		}
+		pMac->roam.configParam.nRestTimeConc = pParam->nRestTimeConc;
+		pMac->roam.configParam.min_rest_time_conc =
+			pParam->min_rest_time_conc;
+		pMac->roam.configParam.idle_time_conc = pParam->idle_time_conc;
+
 		if (pParam->nNumStaChanCombinedConc) {
 			pMac->roam.configParam.nNumStaChanCombinedConc =
 				pParam->nNumStaChanCombinedConc;
@@ -2353,6 +2356,8 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 			pParam->early_stop_scan_min_threshold;
 		pMac->roam.configParam.early_stop_scan_max_threshold =
 			pParam->early_stop_scan_max_threshold;
+		pMac->roam.configParam.enable_fatal_event =
+			pParam->enable_fatal_event;
 
 	}
 	return status;
@@ -2398,6 +2403,8 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 	pParam->nPassiveMaxChnTimeConc = cfg_params->nPassiveMaxChnTimeConc;
 	pParam->nPassiveMinChnTimeConc = cfg_params->nPassiveMinChnTimeConc;
 	pParam->nRestTimeConc = cfg_params->nRestTimeConc;
+	pParam->min_rest_time_conc = cfg_params->min_rest_time_conc;
+	pParam->idle_time_conc = cfg_params->idle_time_conc;
 	pParam->nNumStaChanCombinedConc = cfg_params->nNumStaChanCombinedConc;
 	pParam->nNumP2PChanCombinedConc = cfg_params->nNumP2PChanCombinedConc;
 #endif
@@ -2536,6 +2543,8 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 	pParam->enableHtSmps = pMac->roam.configParam.enableHtSmps;
 	pParam->htSmps = pMac->roam.configParam.htSmps;
 	pParam->send_smps_action = pMac->roam.configParam.send_smps_action;
+	pParam->enable_fatal_event =
+		pMac->roam.configParam.enable_fatal_event;
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -5942,7 +5951,6 @@ static void csr_roam_copy_ht_profile(tCsrRoamHTProfile *dst_profile,
 	dst_profile->htSecondaryChannelOffset =
 		src_profile->htSecondaryChannelOffset;
 	dst_profile->vhtCapability = src_profile->vhtCapability;
-	dst_profile->vhtTxChannelWidthSet = src_profile->vhtTxChannelWidthSet;
 	dst_profile->apCenterChan = src_profile->apCenterChan;
 	dst_profile->apChanWidth = src_profile->apChanWidth;
 }
@@ -8672,6 +8680,10 @@ static void csr_roam_roaming_state_reassoc_rsp_processor(tpAniSirGlobal pMac,
 			"CSR SmeReassocReq failed with statusCode= 0x%08X [%d]",
 			pSmeJoinRsp->statusCode, pSmeJoinRsp->statusCode);
 		result = eCsrReassocFailure;
+		cds_flush_logs(WLAN_LOG_TYPE_FATAL,
+			WLAN_LOG_INDICATOR_HOST_DRIVER,
+			WLAN_LOG_REASON_ROAM_FAIL,
+			true, false);
 		if ((eSIR_SME_FT_REASSOC_TIMEOUT_FAILURE ==
 		     pSmeJoinRsp->statusCode)
 		    || (eSIR_SME_FT_REASSOC_FAILURE ==
@@ -10250,6 +10262,7 @@ csr_roam_chk_lnk_swt_ch_ind(tpAniSirGlobal mac_ctx, tSirSmeRsp *msg_ptr)
 	uint32_t sessionId = CSR_SESSION_ID_INVALID;
 	QDF_STATUS status;
 	tpSirSmeSwitchChannelInd pSwitchChnInd;
+	tCsrRoamInfo roamInfo;
 
 	/* in case of STA, the SWITCH_CHANNEL originates from its AP */
 	sms_log(mac_ctx, LOGW, FL("eWNI_SME_SWITCH_CHL_IND from SME"));
@@ -10272,6 +10285,12 @@ csr_roam_chk_lnk_swt_ch_ind(tpAniSirGlobal mac_ctx, tSirSmeRsp *msg_ptr)
 			session->pConnectBssDesc->channelId =
 				(uint8_t) pSwitchChnInd->newChannelId;
 		}
+
+		qdf_mem_set(&roamInfo, sizeof(tCsrRoamInfo), 0);
+		roamInfo.chan_info.chan_id = pSwitchChnInd->newChannelId;
+		status = csr_roam_call_callback(mac_ctx, sessionId,
+				&roamInfo, 0, eCSR_ROAM_STA_CHANNEL_SWITCH,
+				eCSR_ROAM_RESULT_NONE);
 	}
 }
 
@@ -18709,6 +18728,7 @@ void csr_roam_synch_callback(tpAniSirGlobal mac_ctx,
 	struct qdf_mac_addr bcast_mac = QDF_MAC_ADDR_BROADCAST_INITIALIZER;
 	tpAddBssParams add_bss_params;
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	uint16_t len;
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
 	tSirSmeHTProfile *src_profile = NULL;
 	tCsrRoamHTProfile *dst_profile = NULL;
@@ -18869,6 +18889,19 @@ void csr_roam_synch_callback(tpAniSirGlobal mac_ctx,
 			FL("LFR3:Clear Connected info"));
 	csr_roam_free_connected_info(mac_ctx,
 			&session->connectedInfo);
+	len = roam_synch_data->join_rsp->parsedRicRspLen;
+	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
+			FL("LFR3: RIC length - %d"), len);
+	if (len) {
+		session->connectedInfo.pbFrames =
+			qdf_mem_malloc(len);
+		if (session->connectedInfo.pbFrames != NULL) {
+			qdf_mem_copy(session->connectedInfo.pbFrames,
+				roam_synch_data->join_rsp->frames, len);
+			session->connectedInfo.nRICRspLength =
+				roam_synch_data->join_rsp->parsedRicRspLen;
+		}
+	}
 	conn_profile->vht_channel_width =
 		roam_synch_data->join_rsp->vht_channel_width;
 	add_bss_params = (tpAddBssParams)roam_synch_data->add_bss_params;

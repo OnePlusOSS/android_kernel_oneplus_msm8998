@@ -130,6 +130,36 @@ void cds_deinit(void)
 	return;
 }
 
+#ifdef FEATURE_WLAN_DIAG_SUPPORT
+/**
+ * cds_tdls_tx_rx_mgmt_event()- send tdls mgmt rx tx event
+ * @event_id: event id
+ * @tx_rx: tx or rx
+ * @type: type of frame
+ * @action_sub_type: action frame type
+ * @peer_mac: peer mac
+ *
+ * This Function sends tdls mgmt rx tx diag event
+ *
+ * Return: void.
+ */
+void cds_tdls_tx_rx_mgmt_event(uint8_t event_id, uint8_t tx_rx,
+		uint8_t type, uint8_t action_sub_type, uint8_t *peer_mac)
+{
+	WLAN_HOST_DIAG_EVENT_DEF(tdls_tx_rx_mgmt,
+		struct host_event_tdls_tx_rx_mgmt);
+
+	tdls_tx_rx_mgmt.event_id = event_id;
+	tdls_tx_rx_mgmt.tx_rx = tx_rx;
+	tdls_tx_rx_mgmt.type = type;
+	tdls_tx_rx_mgmt.action_sub_type = action_sub_type;
+	qdf_mem_copy(tdls_tx_rx_mgmt.peer_mac,
+			peer_mac, CDS_MAC_ADDRESS_LEN);
+	WLAN_HOST_DIAG_EVENT_REPORT(&tdls_tx_rx_mgmt,
+				EVENT_WLAN_TDLS_TX_RX_MGMT);
+}
+#endif
+
 #ifdef WLAN_FEATURE_NAN
 /**
  * cds_set_nan_enable() - set nan enable flag in mac open param
@@ -192,6 +222,9 @@ QDF_STATUS cds_open(void)
 
 	/* Initialize bug reporting structure */
 	cds_init_log_completion();
+
+	/* Initialize protocol trace functionality */
+	cds_pkt_proto_trace_init();
 
 	/* Initialize the probe event */
 	if (qdf_event_create(&gp_cds_context->ProbeEvent) != QDF_STATUS_SUCCESS) {
@@ -823,6 +856,9 @@ QDF_STATUS cds_close(v_CONTEXT_t cds_context)
 		QDF_ASSERT(QDF_IS_STATUS_SUCCESS(qdf_status));
 	}
 
+	/* De-Initialize protocol trace functionality */
+	cds_pkt_proto_trace_deinit();
+
 	cds_deinit_log_completion();
 
 	gp_cds_context->pHDDContext = NULL;
@@ -1314,11 +1350,15 @@ QDF_STATUS cds_mq_post_message(CDS_MQ_ID msgQueueId, cds_msg_t *pMsg)
 
 	if (NULL == pMsgWrapper) {
 		debug_count = atomic_inc_return(&cds_wrapper_empty_count);
-		if (1 == debug_count)
+		if (1 == debug_count) {
 			QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
 				"%s: CDS Core run out of message wrapper %d",
 				__func__, debug_count);
-
+			cds_flush_logs(WLAN_LOG_TYPE_FATAL,
+				WLAN_LOG_INDICATOR_HOST_ONLY,
+				WLAN_LOG_REASON_VOS_MSG_UNDER_RUN,
+				true, false);
+		}
 		if (CDS_WRAPPER_MAX_FAIL_COUNT == debug_count)
 			QDF_BUG(0);
 
@@ -1548,6 +1588,9 @@ QDF_STATUS cds_get_vdev_types(enum tQDF_ADAPTER_MODE mode, uint32_t *type,
 	case QDF_IBSS_MODE:
 		*type = WMI_VDEV_TYPE_IBSS;
 		break;
+	case QDF_MONITOR_MODE:
+		*type = WMI_VDEV_TYPE_MONITOR;
+		break;
 	default:
 		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
 			  "Invalid device mode %d", mode);
@@ -1565,11 +1608,7 @@ QDF_STATUS cds_get_vdev_types(enum tQDF_ADAPTER_MODE mode, uint32_t *type,
  */
 void cds_flush_work(void *work)
 {
-#if defined (CONFIG_CNSS)
-	cnss_flush_work(work);
-#elif defined (WLAN_OPEN_SOURCE)
 	cancel_work_sync(work);
-#endif
 }
 
 /**
@@ -1580,11 +1619,7 @@ void cds_flush_work(void *work)
  */
 void cds_flush_delayed_work(void *dwork)
 {
-#if defined (CONFIG_CNSS)
-	cnss_flush_delayed_work(dwork);
-#elif defined (WLAN_OPEN_SOURCE)
 	cancel_delayed_work_sync(dwork);
-#endif
 }
 
 /**
@@ -1663,15 +1698,10 @@ void cds_trigger_recovery(void)
 
 uint64_t cds_get_monotonic_boottime(void)
 {
-#ifdef CONFIG_CNSS
 	struct timespec ts;
 
-	cnss_get_monotonic_boottime(&ts);
+	get_monotonic_boottime(&ts);
 	return ((uint64_t) ts.tv_sec * 1000000) + (ts.tv_nsec / 1000);
-#else
-	return ((uint64_t)qdf_system_ticks_to_msecs(qdf_system_ticks()) *
-			 1000);
-#endif
 }
 
 /**
@@ -1891,6 +1921,7 @@ void cds_deinit_log_completion(void)
  * @is_fatal: Indicates if the event triggering bug report is fatal or not
  * @indicator: Source which trigerred the bug report
  * @reason_code: Reason for triggering bug report
+ * @recovery_needed: If recovery is needed after bug report
  *
  * This function is used to set the logging parameters based on the
  * caller
@@ -1899,7 +1930,8 @@ void cds_deinit_log_completion(void)
  */
 QDF_STATUS cds_set_log_completion(uint32_t is_fatal,
 		uint32_t indicator,
-		uint32_t reason_code)
+		uint32_t reason_code,
+		bool recovery_needed)
 {
 	p_cds_contextType p_cds_context;
 
@@ -1914,24 +1946,27 @@ QDF_STATUS cds_set_log_completion(uint32_t is_fatal,
 	p_cds_context->log_complete.is_fatal = is_fatal;
 	p_cds_context->log_complete.indicator = indicator;
 	p_cds_context->log_complete.reason_code = reason_code;
+	p_cds_context->log_complete.recovery_needed = recovery_needed;
 	p_cds_context->log_complete.is_report_in_progress = true;
 	qdf_spinlock_release(&p_cds_context->bug_report_lock);
 	return QDF_STATUS_SUCCESS;
 }
 
 /**
- * cds_get_log_completion() - Get the logging related params
+ * cds_get_and_reset_log_completion() - Get and reset logging related params
  * @is_fatal: Indicates if the event triggering bug report is fatal or not
  * @indicator: Source which trigerred the bug report
  * @reason_code: Reason for triggering bug report
+ * @recovery_needed: If recovery is needed after bug report
  *
  * This function is used to get the logging related parameters
  *
  * Return: None
  */
-void cds_get_log_completion(uint32_t *is_fatal,
+void cds_get_and_reset_log_completion(uint32_t *is_fatal,
 		uint32_t *indicator,
-		uint32_t *reason_code)
+		uint32_t *reason_code,
+		bool *recovery_needed)
 {
 	p_cds_contextType p_cds_context;
 
@@ -1946,7 +1981,14 @@ void cds_get_log_completion(uint32_t *is_fatal,
 	*is_fatal =  p_cds_context->log_complete.is_fatal;
 	*indicator = p_cds_context->log_complete.indicator;
 	*reason_code = p_cds_context->log_complete.reason_code;
+	*recovery_needed = p_cds_context->log_complete.recovery_needed;
+
+	/* reset */
+	p_cds_context->log_complete.indicator = WLAN_LOG_INDICATOR_UNUSED;
+	p_cds_context->log_complete.is_fatal = WLAN_LOG_TYPE_NON_FATAL;
 	p_cds_context->log_complete.is_report_in_progress = false;
+	p_cds_context->log_complete.reason_code = WLAN_LOG_REASON_CODE_UNUSED;
+	p_cds_context->log_complete.recovery_needed = false;
 	qdf_spinlock_release(&p_cds_context->bug_report_lock);
 }
 
@@ -1971,10 +2013,79 @@ bool cds_is_log_report_in_progress(void)
 }
 
 /**
+ * cds_is_fatal_event_enabled() - Return if fatal event is enabled
+ *
+ * Return true if fatal event is enabled.
+ */
+bool cds_is_fatal_event_enabled(void)
+{
+	p_cds_contextType p_cds_context;
+
+	p_cds_context = cds_get_global_context();
+	if (!p_cds_context) {
+		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
+				"%s: cds context is Invalid", __func__);
+		return false;
+	}
+
+
+	return p_cds_context->enable_fatal_event;
+}
+
+/**
+ * cds_get_log_indicator() - Get the log flush indicator
+ *
+ * This function is used to get the log flush indicator
+ *
+ * Return: log indicator
+ */
+uint32_t cds_get_log_indicator(void)
+{
+	p_cds_contextType p_cds_context;
+	uint32_t indicator;
+
+	p_cds_context = cds_get_global_context();
+	if (!p_cds_context) {
+		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
+				"%s: cds context is Invalid", __func__);
+		return WLAN_LOG_INDICATOR_UNUSED;
+	}
+
+	if (cds_is_load_or_unload_in_progress() ||
+	    cds_is_driver_recovering()) {
+		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
+				"%s: vos context initialization is in progress"
+				, __func__);
+		return WLAN_LOG_INDICATOR_UNUSED;
+	}
+
+	qdf_spinlock_acquire(&p_cds_context->bug_report_lock);
+	indicator = p_cds_context->log_complete.indicator;
+	qdf_spinlock_release(&p_cds_context->bug_report_lock);
+	return indicator;
+}
+
+/**
+ * cds_wlan_flush_host_logs_for_fatal() - Wrapper to flush host logs
+ *
+ * This function is used to send signal to the logger thread to
+ * flush the host logs.
+ *
+ * Return: None
+ *
+ */
+void cds_wlan_flush_host_logs_for_fatal(void)
+{
+	wlan_flush_host_logs_for_fatal();
+}
+
+/**
  * cds_flush_logs() - Report fatal event to userspace
  * @is_fatal: Indicates if the event triggering bug report is fatal or not
  * @indicator: Source which trigerred the bug report
  * @reason_code: Reason for triggering bug report
+ * @dump_mac_trace: If mac trace are needed in logs.
+ * @recovery_needed: If recovery is needed after bug report
  *
  * This function sets the log related params and send the WMI command to the
  * FW to flush its logs. On receiving the flush completion event from the FW
@@ -1984,7 +2095,9 @@ bool cds_is_log_report_in_progress(void)
  */
 QDF_STATUS cds_flush_logs(uint32_t is_fatal,
 		uint32_t indicator,
-		uint32_t reason_code)
+		uint32_t reason_code,
+		bool dump_mac_trace,
+		bool recovery_needed)
 {
 	uint32_t ret;
 	QDF_STATUS status;
@@ -1997,6 +2110,17 @@ QDF_STATUS cds_flush_logs(uint32_t is_fatal,
 				"%s: cds context is Invalid", __func__);
 		return QDF_STATUS_E_FAILURE;
 	}
+	if (!p_cds_context->enable_fatal_event) {
+		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
+				"%s: Fatal event not enabled", __func__);
+		return QDF_STATUS_E_FAILURE;
+	}
+	if (cds_is_load_or_unload_in_progress() ||
+	    cds_is_driver_recovering()) {
+		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
+				"%s: un/Load/SSR in progress", __func__);
+		return QDF_STATUS_E_FAILURE;
+	}
 
 	if (cds_is_log_report_in_progress() == true) {
 		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
@@ -2005,16 +2129,25 @@ QDF_STATUS cds_flush_logs(uint32_t is_fatal,
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	status = cds_set_log_completion(is_fatal, indicator, reason_code);
+	status = cds_set_log_completion(is_fatal, indicator,
+		reason_code, recovery_needed);
 	if (QDF_STATUS_SUCCESS != status) {
 		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
 			"%s: Failed to set log trigger params", __func__);
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_INFO,
+	QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
 			"%s: Triggering bug report: type:%d, indicator=%d reason_code=%d",
 			__func__, is_fatal, indicator, reason_code);
+
+	if (dump_mac_trace)
+		qdf_trace_dump_all(p_cds_context->pMACContext, 0, 0, 500, 0);
+
+	if (WLAN_LOG_INDICATOR_HOST_ONLY == indicator) {
+		cds_wlan_flush_host_logs_for_fatal();
+		return QDF_STATUS_SUCCESS;
+	}
 
 	ret = sme_send_flush_logs_cmd_to_fw(p_cds_context->pMACContext);
 	if (0 != ret) {
@@ -2040,3 +2173,23 @@ void cds_logging_set_fw_flush_complete(void)
 {
 	wlan_logging_set_fw_flush_complete();
 }
+
+/**
+ * cds_set_fatal_event() - set fatal event status
+ * @value: pending statue to set
+ *
+ * Return: None
+ */
+void cds_set_fatal_event(bool value)
+{
+	p_cds_contextType p_cds_context;
+
+	p_cds_context = cds_get_global_context();
+	if (!p_cds_context) {
+		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
+				"%s: cds context is Invalid", __func__);
+		return;
+	}
+	p_cds_context->enable_fatal_event = value;
+}
+

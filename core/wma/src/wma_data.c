@@ -999,6 +999,7 @@ QDF_STATUS wma_set_enable_disable_mcc_adaptive_scheduler(uint32_t
 							 mcc_adaptive_scheduler)
 {
 	tp_wma_handle wma = NULL;
+	uint32_t pdev_id;
 
 	wma = cds_get_context(QDF_MODULE_ID_WMA);
 	if (NULL == wma) {
@@ -1006,8 +1007,17 @@ QDF_STATUS wma_set_enable_disable_mcc_adaptive_scheduler(uint32_t
 		return QDF_STATUS_E_FAULT;
 	}
 
+	/* In WMI_RESMGR_ADAPTIVE_OCS_ENABLE_DISABLE_CMDID fw cannot
+	 * determine the PDEV on its own, Host needs to specify the PDEV
+	 * ID in the command.
+	 */
+	if (wma->wlan_resource_config.use_pdev_id)
+		pdev_id = WMA_MAC_TO_PDEV_MAP(0);
+	else
+		pdev_id = WMI_PDEV_ID_SOC;
+
 	return wmi_unified_set_enable_disable_mcc_adaptive_scheduler_cmd(
-			wma->wmi_handle, mcc_adaptive_scheduler);
+			wma->wmi_handle, mcc_adaptive_scheduler, pdev_id);
 }
 
 /**
@@ -2675,11 +2685,15 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 		chanfreq = wma_handle->interfaces[vdev_id].scan_info.chan_freq;
 		WMA_LOGI("%s: Preauth frame on channel %d", __func__, chanfreq);
 	} else if (pFc->subType == SIR_MAC_MGMT_PROBE_RSP) {
-		chanfreq = wma_handle->interfaces[vdev_id].mhz;
-		WMA_LOGI("%s: Probe response frame on channel %d", __func__,
-			 chanfreq);
-		WMA_LOGI("%s: Probe response frame on vdev id %d", __func__,
-			 vdev_id);
+		if ((wma_is_vdev_in_ap_mode(wma_handle, vdev_id)) &&
+		    (0 != wma_handle->interfaces[vdev_id].mhz))
+			chanfreq = wma_handle->interfaces[vdev_id].mhz;
+		else
+			chanfreq = channel_freq;
+		WMA_LOGI("%s: Probe response frame on channel %d vdev:%d",
+			__func__, chanfreq, vdev_id);
+		if (wma_is_vdev_in_ap_mode(wma_handle, vdev_id) && !chanfreq)
+			WMA_LOGE("%s: AP oper chan is zero", __func__);
 	} else if (pFc->subType == SIR_MAC_MGMT_ACTION) {
 		chanfreq = channel_freq;
 	} else {
@@ -2704,14 +2718,19 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 		mgmt_param.tx_complete_cb = tx_frm_download_comp_cb;
 		mgmt_param.tx_ota_post_proc_cb = tx_frm_ota_comp_cb;
 		mgmt_param.chanfreq = chanfreq;
-		mgmt_param.wmi_desc = wmi_desc_get(wma_handle);
 		mgmt_param.pdata = pData;
 		mgmt_param.qdf_ctx = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
-
-		status = wmi_mgmt_unified_cmd_send(wma_handle->wmi_handle,
-					&mgmt_param);
-		if (status)
-			wmi_desc_put(wma_handle, mgmt_param.wmi_desc);
+		mgmt_param.wmi_desc = wmi_desc_get(wma_handle);
+		if (NULL == mgmt_param.wmi_desc) {
+			WMA_LOGE(FL("Failed to get wmi descriptor"));
+			status = QDF_STATUS_E_FAILURE;
+		} else {
+			status = wmi_mgmt_unified_cmd_send(
+						wma_handle->wmi_handle,
+						&mgmt_param);
+			if (status)
+				wmi_desc_put(wma_handle, mgmt_param.wmi_desc);
+		}
 	} else {
 		/* Hand over the Tx Mgmt frame to TxRx */
 		status = ol_txrx_mgmt_send_ext(txrx_vdev, tx_frame,

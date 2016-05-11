@@ -54,6 +54,7 @@
 #include "lim_session_utils.h"
 
 #include "cds_utils.h"
+#include "cds_concurrency.h"
 
 #if !defined(REMOVE_PKT_LOG)
 #include "pktlog_ac.h"
@@ -72,6 +73,8 @@
 #include <cdp_txrx_peer_ops.h>
 #include <cdp_txrx_cfg.h>
 #include <cdp_txrx_cmn.h>
+
+#include "cds_concurrency.h"
 
 /**
  * wma_find_vdev_by_addr() - find vdev_id from mac address
@@ -204,6 +207,8 @@ enum wlan_op_mode wma_get_txrx_vdev_type(uint32_t type)
 		vdev_type = wlan_op_mode_ocb;
 		break;
 	case WMI_VDEV_TYPE_MONITOR:
+		vdev_type = wlan_op_mode_monitor;
+		break;
 	default:
 		WMA_LOGE("Invalid vdev type %u", type);
 		vdev_type = wlan_op_mode_unknown;
@@ -790,6 +795,7 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 	tpAniSirGlobal mac_ctx = cds_get_context(QDF_MODULE_ID_PE);
 	if (NULL == mac_ctx) {
 		WMA_LOGE("%s: Failed to get mac_ctx", __func__);
+		cds_set_do_hw_mode_change_flag(false);
 		return -EINVAL;
 	}
 #endif /* FEATURE_AP_MCC_CH_AVOIDANCE */
@@ -798,12 +804,14 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 	param_buf = (WMI_VDEV_START_RESP_EVENTID_param_tlvs *) cmd_param_info;
 	if (!param_buf) {
 		WMA_LOGE("Invalid start response event buffer");
+		cds_set_do_hw_mode_change_flag(false);
 		return -EINVAL;
 	}
 
 	resp_event = param_buf->fixed_param;
 	if (!resp_event) {
 		WMA_LOGE("Invalid start response event buffer");
+		cds_set_do_hw_mode_change_flag(false);
 		return -EINVAL;
 	}
 
@@ -820,8 +828,20 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 			resp_event->cfgd_rx_streams;
 		wma->interfaces[resp_event->vdev_id].chain_mask =
 			resp_event->chain_mask;
-		wma->interfaces[resp_event->vdev_id].mac_id =
-			resp_event->mac_id;
+		if (wma->wlan_resource_config.use_pdev_id) {
+			if (resp_event->pdev_id == WMI_PDEV_ID_SOC) {
+				WMA_LOGE("%s: soc level id received for mac id",
+					__func__);
+				QDF_BUG(0);
+				return -EINVAL;
+			}
+			wma->interfaces[resp_event->vdev_id].mac_id =
+				WMA_PDEV_TO_MAC_MAP(resp_event->pdev_id);
+		} else {
+			wma->interfaces[resp_event->vdev_id].mac_id =
+				resp_event->mac_id;
+		}
+
 		WMA_LOGI("%s: vdev:%d tx ss=%d rx ss=%d chain mask=%d mac=%d",
 				__func__,
 				resp_event->vdev_id,
@@ -845,6 +865,7 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 			    wma->interfaces[resp_event->vdev_id].bssid,
 				&param) != QDF_STATUS_SUCCESS) {
 			WMA_LOGE("%s : failed to send vdev up", __func__);
+			cds_set_do_hw_mode_change_flag(false);
 			return -EEXIST;
 		}
 		qdf_atomic_set(&wma->interfaces[resp_event->vdev_id].
@@ -859,6 +880,7 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 	if (!req_msg) {
 		WMA_LOGE("%s: Failed to lookup request message for vdev %d",
 			 __func__, resp_event->vdev_id);
+		cds_set_do_hw_mode_change_flag(false);
 		return -EINVAL;
 	}
 
@@ -877,6 +899,7 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 		if (!params) {
 			WMA_LOGE("%s: channel switch params is NULL for vdev %d",
 				__func__, resp_event->vdev_id);
+			cds_set_do_hw_mode_change_flag(false);
 			return -EINVAL;
 		}
 
@@ -889,8 +912,11 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 		}
 		params->smpsMode = host_map_smps_mode(resp_event->smps_mode);
 		params->status = resp_event->status;
-		if (resp_event->resp_type == WMI_VDEV_RESTART_RESP_EVENT &&
-		    (iface->type == WMI_VDEV_TYPE_STA)) {
+		if (((resp_event->resp_type == WMI_VDEV_RESTART_RESP_EVENT) &&
+		    (iface->type == WMI_VDEV_TYPE_STA)) ||
+		    ((resp_event->resp_type == WMI_VDEV_START_RESP_EVENT) &&
+		     (iface->type == WMI_VDEV_TYPE_MONITOR))) {
+
 			param.vdev_id = resp_event->vdev_id;
 			param.assoc_id = iface->aid;
 			status = wmi_unified_vdev_up_send(wma->wmi_handle,
@@ -901,6 +927,7 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 					 __func__, resp_event->vdev_id);
 				wma->interfaces[resp_event->vdev_id].vdev_up =
 					false;
+				cds_set_do_hw_mode_change_flag(false);
 			} else {
 				wma->interfaces[resp_event->vdev_id].vdev_up =
 					true;
@@ -920,6 +947,7 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 					     iface->bssid,
 					     &param) != QDF_STATUS_SUCCESS) {
 			WMA_LOGE(FL("failed to send vdev up"));
+			cds_set_do_hw_mode_change_flag(false);
 			return -EEXIST;
 		}
 		iface->vdev_up = true;
@@ -1552,7 +1580,8 @@ ol_txrx_vdev_handle wma_vdev_attach(tp_wma_handle wma_handle,
 
 	if (((self_sta_req->type == WMI_VDEV_TYPE_AP) &&
 	    (self_sta_req->sub_type == WMI_UNIFIED_VDEV_SUBTYPE_P2P_DEVICE)) ||
-	    (self_sta_req->type == WMI_VDEV_TYPE_OCB)) {
+	    (self_sta_req->type == WMI_VDEV_TYPE_OCB) ||
+	    (self_sta_req->type == WMI_VDEV_TYPE_MONITOR)) {
 		WMA_LOGA("Creating self peer %pM, vdev_id %hu",
 			 self_sta_req->self_mac_addr, self_sta_req->session_id);
 		status = wma_create_peer(wma_handle, txrx_pdev,
@@ -1777,7 +1806,7 @@ QDF_STATUS wma_vdev_start(tp_wma_handle wma,
 	 */
 	params.is_dfs = req->is_dfs;
 	params.is_restart = isRestart;
-	if (req->is_dfs) {
+	if ((QDF_GLOBAL_MONITOR_MODE != cds_get_conparam()) && req->is_dfs) {
 		params.flag_dfs = WMI_CHAN_FLAG_DFS;
 		temp_chan_info |=  (1 << WMI_CHAN_FLAG_DFS);
 		params.dis_hw_ack = true;
@@ -3790,6 +3819,7 @@ static void wma_add_sta_req_sta_mode(tp_wma_handle wma, tpAddStaParams params)
 				     &param) != QDF_STATUS_SUCCESS) {
 		WMA_LOGP("%s: Failed to send vdev up cmd: vdev %d bssid %pM",
 			 __func__, params->smesessionId, params->bssId);
+		cds_set_do_hw_mode_change_flag(false);
 		status = QDF_STATUS_E_FAILURE;
 	} else {
 		wma->interfaces[params->smesessionId].vdev_up = true;

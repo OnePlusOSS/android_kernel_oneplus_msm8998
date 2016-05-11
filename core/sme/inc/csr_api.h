@@ -270,7 +270,12 @@ typedef struct tagCsrScanRequest {
 	tCsrChannelInfo ChannelInfo;
 	uint32_t minChnTime;    /* in units of milliseconds */
 	uint32_t maxChnTime;    /* in units of milliseconds */
-	uint32_t restTime;      /* in units of milliseconds */
+	/* In units of milliseconds, ignored when not connected */
+	uint32_t restTime;
+	/* In units of milliseconds, ignored when not connected */
+	uint32_t min_rest_time;
+	/* In units of milliseconds, ignored when not connected */
+	uint32_t idle_time;
 	uint32_t uIEFieldLen;
 	uint8_t *pIEField;
 	eCsrRequestType requestType; /* 11d scan or full scan */
@@ -492,9 +497,9 @@ typedef enum {
 	/* Channel sw update notification */
 	eCSR_ROAM_DFS_CHAN_SW_NOTIFY,
 	eCSR_ROAM_EXT_CHG_CHNL_IND,
-	eCSR_ROAM_STATUS_UPDATE_HW_MODE,
 	eCSR_ROAM_DISABLE_QUEUES,
 	eCSR_ROAM_ENABLE_QUEUES,
+	eCSR_ROAM_STA_CHANNEL_SWITCH,
 } eRoamCmdStatus;
 
 /* comment inside indicates what roaming callback gets */
@@ -591,7 +596,6 @@ typedef enum {
 	eCSR_ROAM_RESULT_CHANNEL_CHANGE_FAILURE,
 	eCSR_ROAM_RESULT_DFS_CHANSW_UPDATE_SUCCESS,
 	eCSR_ROAM_EXT_CHG_CHNL_UPDATE_IND,
-	eCSR_ROAM_RESULT_UPDATE_HW_MODE,
 } eCsrRoamResult;
 
 /*----------------------------------------------------------------------------
@@ -940,7 +944,6 @@ typedef struct tagCsrRoamHTProfile {
 	uint8_t htRecommendedTxWidthSet;
 	ePhyChanBondState htSecondaryChannelOffset;
 	uint8_t vhtCapability;
-	uint8_t vhtTxChannelWidthSet;
 	uint8_t apCenterChan;
 	uint8_t apChanWidth;
 } tCsrRoamHTProfile;
@@ -1096,6 +1099,11 @@ typedef struct tagCsrConfigParam {
 	/* number of channels combined for P2P in each split scan operation */
 	uint8_t nNumP2PChanCombinedConc;
 #endif
+	/*In units of milliseconds*/
+	uint32_t       min_rest_time_conc;
+	/*In units of milliseconds*/
+	uint32_t       idle_time_conc;
+
 	/*
 	 * in dBm, the maximum TX power The actual TX power is the lesser of
 	 * this value and 11d. If 11d is disable, the lesser of this and
@@ -1222,6 +1230,7 @@ typedef struct tagCsrConfigParam {
 	uint32_t obss_active_dwelltime;
 	uint32_t obss_passive_dwelltime;
 	bool ignore_peer_ht_opmode;
+	bool enable_fatal_event;
 } tCsrConfigParam;
 
 /* Tush */

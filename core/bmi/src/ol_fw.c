@@ -135,6 +135,18 @@ end:
 }
 #endif
 
+#ifdef QCA_SIGNED_SPLIT_BINARY_SUPPORT
+#define SIGNED_SPLIT_BINARY_VALUE true
+#else
+#define SIGNED_SPLIT_BINARY_VALUE false
+#endif
+
+#ifdef CONFIG_CNSS
+#define CONFIG_CNSS_DEFINED true
+#else
+#define CONFIG_CNSS_DEFINED false
+#endif
+
 static int
 __ol_transfer_bin_file(struct ol_context *ol_ctx, ATH_BIN_FILE file,
 				  uint32_t address, bool compressed)
@@ -146,15 +158,15 @@ __ol_transfer_bin_file(struct ol_context *ol_ctx, ATH_BIN_FILE file,
 	uint32_t fw_entry_size;
 	uint8_t *temp_eeprom;
 	uint32_t board_data_size;
-#ifdef QCA_SIGNED_SPLIT_BINARY_SUPPORT
 	bool bin_sign = false;
 	int bin_off, bin_len;
 	SIGN_HEADER_T *sign_header;
-#endif
 	struct hif_target_info *tgt_info = hif_get_target_info_handle(scn);
 	uint32_t target_type = tgt_info->target_type;
 #if defined(CONFIG_CNSS)
+	/* fw_files variable used in filename assignment macros */
 	struct bmi_info *bmi_ctx = GET_BMI_CONTEXT(ol_ctx);
+	struct cnss_fw_files *fw_files = &bmi_ctx->fw_files;
 #endif
 	qdf_device_t qdf_dev = ol_ctx->qdf_dev;
 
@@ -163,95 +175,69 @@ __ol_transfer_bin_file(struct ol_context *ol_ctx, ATH_BIN_FILE file,
 		BMI_ERR("%s: Unknown file type", __func__);
 		return -1;
 	case ATH_OTP_FILE:
-#if defined(CONFIG_CNSS)
-		filename = bmi_ctx->fw_files.otp_data;
-#else
 		filename = QCA_OTP_FILE;
-#endif
-#ifdef QCA_SIGNED_SPLIT_BINARY_SUPPORT
-		bin_sign = true;
-#endif
+		if (SIGNED_SPLIT_BINARY_VALUE)
+			bin_sign = true;
+
 		break;
 	case ATH_FIRMWARE_FILE:
-		if (WLAN_IS_EPPING_ENABLED(cds_get_conparam())) {
-#if defined(CONFIG_CNSS)
-			filename = bmi_ctx->fw_files.epping_file;
-#else
+		if (QDF_IS_EPPING_ENABLED(cds_get_conparam())) {
 			filename = QCA_FIRMWARE_EPPING_FILE;
-#endif
 			BMI_INFO("%s: Loading epping firmware file %s",
 						__func__, filename);
 			break;
 		}
 #ifdef QCA_WIFI_FTM
 		if (cds_get_conparam() == QDF_GLOBAL_FTM_MODE) {
-#if defined(CONFIG_CNSS)
-			filename = bmi_ctx->fw_files.utf_file;
-#else
 			filename = QCA_UTF_FIRMWARE_FILE;
-#endif
-#ifdef QCA_SIGNED_SPLIT_BINARY_SUPPORT
-			bin_sign = true;
-#endif
+			if (SIGNED_SPLIT_BINARY_VALUE)
+				bin_sign = true;
 			BMI_INFO("%s: Loading firmware file %s",
 						__func__, filename);
 			break;
 		}
 #endif
-#if defined(CONFIG_CNSS)
-		filename = bmi_ctx->fw_files.image_file;
-#else
 		filename = QCA_FIRMWARE_FILE;
-#endif
-#ifdef QCA_SIGNED_SPLIT_BINARY_SUPPORT
-		bin_sign = true;
-#endif
+		if (SIGNED_SPLIT_BINARY_VALUE)
+			bin_sign = true;
 		break;
 	case ATH_PATCH_FILE:
 		BMI_INFO("%s: no Patch file defined", __func__);
 		return 0;
 	case ATH_BOARD_DATA_FILE:
+
 #ifdef QCA_WIFI_FTM
 		if (cds_get_conparam() == QDF_GLOBAL_FTM_MODE) {
-#if defined(CONFIG_CNSS)
-			filename = bmi_ctx->fw_files.utf_board_data;
-#else
-			filename = QCA_BOARD_DATA_FILE;
-#endif
-#ifdef QCA_SIGNED_SPLIT_BINARY_SUPPORT
-			bin_sign = true;
-#endif
+			filename = QCA_UTF_BOARD_DATA_FILE;
+
+			if (SIGNED_SPLIT_BINARY_VALUE)
+				bin_sign = true;
+
 			BMI_INFO("%s: Loading board data file %s",
 						__func__, filename);
 			break;
 		}
 #endif /* QCA_WIFI_FTM */
-#if defined(CONFIG_CNSS)
-		filename = bmi_ctx->fw_files.board_data;
-#else
 		filename = QCA_BOARD_DATA_FILE;
-#endif
-#ifdef QCA_SIGNED_SPLIT_BINARY_SUPPORT
-		bin_sign = false;
-#endif
+
+		if (SIGNED_SPLIT_BINARY_VALUE)
+			bin_sign = false;
+
 		break;
 	case ATH_SETUP_FILE:
-		if (cds_get_conparam() != QDF_GLOBAL_FTM_MODE &&
-		    !WLAN_IS_EPPING_ENABLED(cds_get_conparam())) {
-#ifdef CONFIG_CNSS
+		if (CONFIG_CNSS_DEFINED ||
+		    cds_get_conparam() == QDF_GLOBAL_FTM_MODE ||
+		    QDF_IS_EPPING_ENABLED(cds_get_conparam())) {
 			BMI_INFO("%s: no Setup file defined", __func__);
 			return -1;
-#else
+		} else {
 			filename = QCA_SETUP_FILE;
-#ifdef QCA_SIGNED_SPLIT_BINARY_SUPPORT
-			bin_sign = true;
-#endif
+
+			if (SIGNED_SPLIT_BINARY_VALUE)
+				bin_sign = true;
+
 			BMI_INFO("%s: Loading setup file %s",
 			       __func__, filename);
-#endif /* CONFIG_CNSS */
-		} else {
-			BMI_INFO("%s: no Setup file needed", __func__);
-			return -1;
 		}
 		break;
 	}
@@ -362,8 +348,8 @@ __ol_transfer_bin_file(struct ol_context *ol_ctx, ATH_BIN_FILE file,
 			fw_entry_size = board_data_size;
 		}
 	}
-#ifdef QCA_SIGNED_SPLIT_BINARY_SUPPORT
-	if (bin_sign) {
+
+	if (bin_sign && SIGNED_SPLIT_BINARY_VALUE) {
 		uint32_t chip_id;
 
 		if (fw_entry_size < sizeof(SIGN_HEADER_T)) {
@@ -417,7 +403,7 @@ __ol_transfer_bin_file(struct ol_context *ol_ctx, ATH_BIN_FILE file,
 		}
 	}
 
-	if (bin_sign) {
+	if (bin_sign && SIGNED_SPLIT_BINARY_VALUE) {
 		bin_off += bin_len;
 		bin_len = sign_header->total_len - sign_header->rampatch_len;
 
@@ -429,23 +415,6 @@ __ol_transfer_bin_file(struct ol_context *ol_ctx, ATH_BIN_FILE file,
 				BMI_ERR("sign stream error");
 		}
 	}
-#else
-	if (compressed) {
-		status = bmi_fast_download(address,
-					   (uint8_t *) fw_entry->data,
-					   fw_entry_size, ol_ctx);
-	} else {
-		if (file == ATH_BOARD_DATA_FILE && fw_entry->data) {
-			status = bmi_write_memory(address,
-						  (uint8_t *) temp_eeprom,
-						  fw_entry_size, ol_ctx);
-		} else {
-			status = bmi_write_memory(address,
-						  (uint8_t *) fw_entry->data,
-						  fw_entry_size, ol_ctx);
-		}
-	}
-#endif /* QCA_SIGNED_SPLIT_BINARY_SUPPORT */
 
 end:
 	if (temp_eeprom)
@@ -621,8 +590,7 @@ void ol_target_failure(void *instance, QDF_STATUS status)
 	struct ol_config_info *ini_cfg = ol_get_ini_handle(ol_ctx);
 	int ret;
 #endif
-	ol_target_status target_status =
-			hif_get_target_status(scn);
+	enum hif_target_status target_status = hif_get_target_status(scn);
 
 	if (hif_get_bus_type(scn) == QDF_BUS_TYPE_SNOC) {
 		BMI_ERR("SNOC doesn't suppor this code path!");
@@ -631,12 +599,12 @@ void ol_target_failure(void *instance, QDF_STATUS status)
 
 	qdf_event_set(&wma->recovery_event);
 
-	if (OL_TRGET_STATUS_RESET == target_status) {
+	if (TARGET_STATUS_RESET == target_status) {
 		BMI_ERR("Target is already asserted, ignore!");
 		return;
 	}
 
-	hif_set_target_status(scn, OL_TRGET_STATUS_RESET);
+	hif_set_target_status(scn, TARGET_STATUS_RESET);
 
 	if (cds_is_driver_recovering()) {
 		BMI_ERR("%s: Recovery in progress, ignore!\n", __func__);
@@ -1296,9 +1264,7 @@ QDF_STATUS ol_download_firmware(struct ol_context *ol_ctx)
 		/* Execute the OTP code only if entry found and downloaded */
 		if (status == EOK) {
 			param = 0;
-#ifndef FEATURE_BMI_2
 			bmi_execute(address, &param, ol_ctx);
-#endif
 		} else if (status < 0) {
 			return status;
 		}
@@ -1307,9 +1273,7 @@ QDF_STATUS ol_download_firmware(struct ol_context *ol_ctx)
 	if (ol_transfer_bin_file(ol_ctx, ATH_SETUP_FILE,
 		BMI_SEGMENTED_WRITE_ADDR, true) == EOK) {
 		param = 0;
-#ifndef FEATURE_BMI_2
 		bmi_execute(address, &param, ol_ctx);
-#endif
 	}
 
 	/* Download Target firmware
@@ -1332,9 +1296,7 @@ QDF_STATUS ol_download_firmware(struct ol_context *ol_ctx)
 			(uint8_t *) &address, 4, ol_ctx);
 	}
 
-	if (ini_cfg->enable_uart_print ||
-	    (WLAN_IS_EPPING_ENABLED(cds_get_conparam()) &&
-	     WLAN_IS_EPPING_FW_UART(cds_get_conparam()))) {
+	if (ini_cfg->enable_uart_print) {
 		switch (target_version) {
 		case AR6004_VERSION_REV1_3:
 			param = 11;

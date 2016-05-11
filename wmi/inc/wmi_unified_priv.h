@@ -249,7 +249,8 @@ QDF_STATUS (*send_set_mcc_channel_time_latency_cmd)
 	uint32_t mcc_channel_freq, uint32_t mcc_channel_time_latency);
 
 QDF_STATUS (*send_set_enable_disable_mcc_adaptive_scheduler_cmd)(
-		   wmi_unified_t wmi_handle, uint32_t mcc_adaptive_scheduler);
+		  wmi_unified_t wmi_handle, uint32_t mcc_adaptive_scheduler,
+		  uint32_t pdev_id);
 
 QDF_STATUS (*send_p2p_go_set_beacon_ie_cmd)(wmi_unified_t wmi_handle,
 				    A_UINT32 vdev_id, uint8_t *p2p_ie);
@@ -553,10 +554,10 @@ QDF_STATUS (*send_flush_logs_to_fw_cmd)(wmi_unified_t wmi_handle);
 QDF_STATUS (*send_pdev_set_pcl_cmd)(wmi_unified_t wmi_handle,
 				struct wmi_pcl_chan_weights *msg);
 
-QDF_STATUS (*send_soc_set_hw_mode_cmd)(wmi_unified_t wmi_handle,
+QDF_STATUS (*send_pdev_set_hw_mode_cmd)(wmi_unified_t wmi_handle,
 				uint32_t hw_mode_index);
 
-QDF_STATUS (*send_soc_set_dual_mac_config_cmd)(wmi_unified_t wmi_handle,
+QDF_STATUS (*send_pdev_set_dual_mac_config_cmd)(wmi_unified_t wmi_handle,
 		struct wmi_dual_mac_config *msg);
 
 QDF_STATUS (*send_enable_arp_ns_offload_cmd)(wmi_unified_t wmi_handle,
@@ -1019,6 +1020,9 @@ QDF_STATUS (*extract_tx_data_traffic_ctrl_ev)(wmi_unified_t wmi_handle,
 
 QDF_STATUS (*extract_vdev_extd_stats)(wmi_unified_t wmi_handle, void *evt_buf,
 		uint32_t index, wmi_host_vdev_extd_stats *vdev_extd_stats);
+
+QDF_STATUS (*send_power_dbg_cmd)(wmi_unified_t wmi_handle,
+				struct wmi_power_dbg_params *param);
 };
 
 struct target_abi_version {

@@ -448,7 +448,8 @@ QDF_STATUS wmi_unified_set_mcc_channel_time_latency_cmd
 	uint32_t mcc_channel_freq, uint32_t mcc_channel_time_latency);
 
 QDF_STATUS wmi_unified_set_enable_disable_mcc_adaptive_scheduler_cmd(
-		   void *wmi_hdl, uint32_t mcc_adaptive_scheduler);
+		   void *wmi_hdl, uint32_t mcc_adaptive_scheduler,
+		   uint32_t pdev_id);
 
 #ifndef WMI_NON_TLV_SUPPORT
 QDF_STATUS wmi_unified_bcn_buf_ll_cmd(void *wmi_hdl,
@@ -768,7 +769,7 @@ QDF_STATUS wmi_unified_pdev_set_pcl_cmd(void *wmi_hdl,
 QDF_STATUS wmi_unified_soc_set_hw_mode_cmd(void *wmi_hdl,
 				uint32_t hw_mode_index);
 
-QDF_STATUS wmi_unified_soc_set_dual_mac_config_cmd(void *wmi_hdl,
+QDF_STATUS wmi_unified_pdev_set_dual_mac_config_cmd(void *wmi_hdl,
 		struct wmi_dual_mac_config *msg);
 
 QDF_STATUS wmi_unified_enable_arp_ns_offload_cmd(void *wmi_hdl,
@@ -1225,4 +1226,7 @@ QDF_STATUS wmi_extract_vdev_stats(void *wmi_hdl, void *evt_buf,
 
 QDF_STATUS wmi_extract_vdev_extd_stats(void *wmi_hdl, void *evt_buf,
 		uint32_t index, wmi_host_vdev_extd_stats *vdev_extd_stats);
+
+QDF_STATUS wmi_unified_send_power_dbg_cmd(void *wmi_hdl,
+				struct wmi_power_dbg_params *param);
 #endif /* _WMI_UNIFIED_API_H_ */

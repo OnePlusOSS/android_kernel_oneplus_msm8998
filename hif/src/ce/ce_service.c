@@ -33,7 +33,6 @@
 #include "ce_reg.h"
 #include "qdf_lock.h"
 #include "regtable.h"
-#include "epping_main.h"
 #include "hif_main.h"
 #include "hif_debug.h"
 
@@ -498,6 +497,8 @@ ce_buffer_addr_hi_set(struct CE_src_desc *shadow_src_desc,
 }
 #endif
 
+#define SLOTS_PER_DATAPATH_TX 2
+
 /**
  * ce_send_fast() CE layer Tx buffer posting function
  * @copyeng: copy engine handle
@@ -514,7 +515,6 @@ ce_buffer_addr_hi_set(struct CE_src_desc *shadow_src_desc,
  *
  * Return: No. of packets that could be sent
  */
-
 int ce_send_fast(struct CE_handle *copyeng, qdf_nbuf_t *msdus,
 		 unsigned int num_msdus, unsigned int transfer_id)
 {
@@ -538,6 +538,10 @@ int ce_send_fast(struct CE_handle *copyeng, qdf_nbuf_t *msdus,
 	src_ring->sw_index = CE_SRC_RING_READ_IDX_GET_FROM_DDR(scn, ctrl_addr);
 	write_index = src_ring->write_index;
 	sw_index = src_ring->sw_index;
+
+	hif_record_ce_desc_event(scn, ce_state->id,
+				FAST_TX_SOFTWARE_INDEX_UPDATE,
+				NULL, NULL, write_index);
 
 	if (qdf_unlikely(CE_RING_DELTA(nentries_mask, write_index, sw_index - 1)
 			 < (SLOTS_PER_DATAPATH_TX * num_msdus))) {
@@ -635,6 +639,10 @@ int ce_send_fast(struct CE_handle *copyeng, qdf_nbuf_t *msdus,
 		src_ring->write_index = write_index;
 
 		if (hif_pm_runtime_get(hif_hdl) == 0) {
+			hif_record_ce_desc_event(scn, ce_state->id,
+						 FAST_TX_WRITE_INDEX_UPDATE,
+						 NULL, NULL, write_index);
+
 			/* Don't call WAR_XXX from here
 			 * Just call XXX instead, that has the reqd. intel
 			 */
@@ -1356,6 +1364,11 @@ static void ce_fastpath_rx_handle(struct CE_state *ce_state,
 	/* Update Destination Ring Write Index */
 	write_index = dest_ring->write_index;
 	write_index = CE_RING_IDX_ADD(nentries_mask, write_index, num_cmpls);
+
+	hif_record_ce_desc_event(scn, ce_state->id,
+			FAST_RX_WRITE_INDEX_UPDATE,
+			NULL, NULL, write_index);
+
 	CE_DEST_RING_WRITE_IDX_SET(scn, ctrl_addr, write_index);
 	dest_ring->write_index = write_index;
 }
@@ -1457,6 +1470,11 @@ more_data:
 			 * reusing the buffers
 			 */
 			if (nbuf_cmpl_idx == MSG_FLUSH_NUM) {
+				hif_record_ce_desc_event(scn, ce_state->id,
+						 FAST_RX_SOFTWARE_INDEX_UPDATE,
+						 NULL, NULL, sw_index);
+				dest_ring->sw_index = sw_index;
+
 				qdf_spin_unlock(&ce_state->ce_index_lock);
 				ce_fastpath_rx_handle(ce_state, cmpl_msdus,
 						      MSG_FLUSH_NUM, ctrl_addr);
@@ -1465,6 +1483,12 @@ more_data:
 			}
 
 		}
+
+		hif_record_ce_desc_event(scn, ce_state->id,
+					 FAST_RX_SOFTWARE_INDEX_UPDATE,
+					 NULL, NULL, sw_index);
+
+		dest_ring->sw_index = sw_index;
 
 		/*
 		 * If there are not enough completions to fill the array,
@@ -1478,8 +1502,6 @@ more_data:
 			nbuf_cmpl_idx = 0;
 		}
 		qdf_atomic_set(&ce_state->rx_pending, 0);
-		dest_ring->sw_index = sw_index;
-
 		CE_ENGINE_INT_STATUS_CLEAR(scn, ctrl_addr,
 					   HOST_IS_COPY_COMPLETE_MASK);
 	}
@@ -1612,7 +1634,7 @@ more_completions:
 			 &toeplitz_hash_result) == QDF_STATUS_SUCCESS) {
 
 			if (CE_id != CE_HTT_H2T_MSG ||
-			    WLAN_IS_EPPING_ENABLED(mode)) {
+			    QDF_IS_EPPING_ENABLED(mode)) {
 				qdf_spin_unlock(&CE_state->ce_index_lock);
 				CE_state->send_cb((struct CE_handle *)CE_state,
 						  CE_context, transfer_context,
@@ -1684,7 +1706,7 @@ more_watermarks:
 	 * we find no more events to process.
 	 */
 	if (CE_state->recv_cb && ce_recv_entries_done_nolock(scn, CE_state)) {
-		if (WLAN_IS_EPPING_ENABLED(mode) ||
+		if (QDF_IS_EPPING_ENABLED(mode) ||
 		    more_comp_cnt++ < CE_TXRX_COMP_CHECK_THRESHOLD) {
 			goto more_completions;
 		} else {
@@ -1698,7 +1720,7 @@ more_watermarks:
 	}
 
 	if (CE_state->send_cb && ce_send_entries_done_nolock(scn, CE_state)) {
-		if (WLAN_IS_EPPING_ENABLED(mode) ||
+		if (QDF_IS_EPPING_ENABLED(mode) ||
 		    more_snd_comp_cnt++ < CE_TXRX_COMP_CHECK_THRESHOLD) {
 			goto more_completions;
 		} else {
@@ -1991,42 +2013,6 @@ bool ce_check_rx_pending(struct CE_state *CE_state)
 		return true;
 	else
 		return false;
-}
-
-/**
- * ce_enable_msi(): write the msi configuration to the target
- * @scn: hif context
- * @CE_id: which copy engine will be configured for msi interupts
- * @msi_addr_lo: Hardware will write to this address to generate an interrupt
- * @msi_addr_hi: Hardware will write to this address to generate an interrupt
- * @msi_data: Hardware will write this data to generate an interrupt
- *
- * should be done in the initialization sequence so no locking would be needed
- */
-void ce_enable_msi(struct hif_softc *scn, unsigned int CE_id,
-				   uint32_t msi_addr_lo, uint32_t msi_addr_hi,
-				   uint32_t msi_data)
-{
-#ifdef WLAN_ENABLE_QCA6180
-	struct CE_state *CE_state;
-	A_target_id_t targid;
-	u_int32_t ctrl_addr;
-	uint32_t tmp;
-
-	CE_state = scn->ce_id_to_state[CE_id];
-	if (!CE_state) {
-		HIF_ERROR("%s: error - CE_state = NULL", __func__);
-		return;
-	}
-	targid = TARGID(sc);
-	ctrl_addr = CE_state->ctrl_addr;
-	CE_MSI_ADDR_LOW_SET(scn, ctrl_addr, msi_addr_lo);
-	CE_MSI_ADDR_HIGH_SET(scn, ctrl_addr, msi_addr_hi);
-	CE_MSI_DATA_SET(scn, ctrl_addr, msi_data);
-	tmp = CE_CTRL_REGISTER1_GET(scn, ctrl_addr);
-	tmp |= (1 << CE_MSI_ENABLE_BIT);
-	CE_CTRL_REGISTER1_SET(scn, ctrl_addr, tmp);
-#endif
 }
 
 #ifdef IPA_OFFLOAD

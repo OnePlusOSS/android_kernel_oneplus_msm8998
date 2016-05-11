@@ -29,7 +29,6 @@
 #include "wmi_unified_api.h"
 #include "wmi.h"
 #include "wmi_unified_priv.h"
-#include "wma_api.h"
 #include "wma.h"
 #include "wmi_version_whitelist.h"
 
@@ -63,6 +62,7 @@ QDF_STATUS send_vdev_create_cmd_tlv(wmi_unified_t wmi_handle,
 	cmd->vdev_id = param->if_id;
 	cmd->vdev_type = param->type;
 	cmd->vdev_subtype = param->subtype;
+	cmd->pdev_id = WMI_PDEV_ID_SOC;
 	WMI_CHAR_ARRAY_TO_MAC_ADDR(macaddr, &cmd->vdev_macaddr);
 	WMI_LOGD("%s: ID = %d VAP Addr = %02x:%02x:%02x:%02x:%02x:%02x",
 		 __func__, param->if_id,
@@ -806,7 +806,7 @@ QDF_STATUS send_resume_cmd_tlv(wmi_unified_t wmi_handle,
 		       WMITLV_TAG_STRUC_wmi_pdev_resume_cmd_fixed_param,
 		       WMITLV_GET_STRUCT_TLVLEN
 			       (wmi_pdev_resume_cmd_fixed_param));
-	cmd->pdev_id = 0;
+	cmd->pdev_id = WMI_PDEV_ID_SOC;
 	ret = wmi_unified_cmd_send(wmi_handle, wmibuf, sizeof(*cmd),
 				   WMI_PDEV_RESUME_CMDID);
 	if (QDF_IS_STATUS_ERROR(ret)) {
@@ -2693,7 +2693,8 @@ QDF_STATUS send_ocb_set_config_cmd_tlv(wmi_unified_t wmi_handle,
  * Return: QDF_STATUS_SUCCESS for sucess or error code
  */
 QDF_STATUS send_set_enable_disable_mcc_adaptive_scheduler_cmd_tlv(
-		   wmi_unified_t wmi_handle, uint32_t mcc_adaptive_scheduler)
+		wmi_unified_t wmi_handle, uint32_t mcc_adaptive_scheduler,
+		uint32_t pdev_id)
 {
 	QDF_STATUS ret;
 	wmi_buf_t buf = 0;
@@ -2714,6 +2715,7 @@ QDF_STATUS send_set_enable_disable_mcc_adaptive_scheduler_cmd_tlv(
 		       WMITLV_GET_STRUCT_TLVLEN
 			       (wmi_resmgr_adaptive_ocs_enable_disable_cmd_fixed_param));
 	cmd->enable = mcc_adaptive_scheduler;
+	cmd->pdev_id = pdev_id;
 
 	ret = wmi_unified_cmd_send(wmi_handle, buf, len,
 				   WMI_RESMGR_ADAPTIVE_OCS_ENABLE_DISABLE_CMDID);
@@ -6789,6 +6791,7 @@ QDF_STATUS send_pktlog_wmi_send_cmd_tlv(wmi_unified_t wmi_handle,
 		       WMITLV_GET_STRUCT_TLVLEN
 		       (wmi_pdev_pktlog_enable_cmd_fixed_param));
 		cmd->evlist = PKTLOG_EVENT;
+		cmd->pdev_id = WMI_PDEV_ID_SOC;
 		if (wmi_unified_cmd_send(wmi_handle, buf, len,
 					 WMI_PDEV_PKTLOG_ENABLE_CMDID)) {
 			WMI_LOGE("failed to send pktlog enable cmdid");
@@ -6808,7 +6811,7 @@ QDF_STATUS send_pktlog_wmi_send_cmd_tlv(wmi_unified_t wmi_handle,
 		     WMITLV_TAG_STRUC_wmi_pdev_pktlog_disable_cmd_fixed_param,
 		     WMITLV_GET_STRUCT_TLVLEN
 		     (wmi_pdev_pktlog_disable_cmd_fixed_param));
-		disable_cmd->pdev_id = 0;
+		disable_cmd->pdev_id = WMI_PDEV_ID_SOC;
 		if (wmi_unified_cmd_send(wmi_handle, buf, len,
 					 WMI_PDEV_PKTLOG_DISABLE_CMDID)) {
 			WMI_LOGE("failed to send pktlog disable cmdid");
@@ -8969,6 +8972,7 @@ QDF_STATUS send_set_base_macaddr_indicate_cmd_tlv(wmi_unified_t wmi_handle,
 		       WMITLV_GET_STRUCT_TLVLEN
 			       (wmi_pdev_set_base_macaddr_cmd_fixed_param));
 	WMI_CHAR_ARRAY_TO_MAC_ADDR(custom_addr, &cmd->base_macaddr);
+	cmd->pdev_id = WMI_PDEV_ID_SOC;
 	err = wmi_unified_cmd_send(wmi_handle, buf,
 				   sizeof(*cmd),
 				   WMI_PDEV_SET_BASE_MACADDR_CMDID);
@@ -9305,7 +9309,7 @@ QDF_STATUS send_pdev_set_pcl_cmd_tlv(wmi_unified_t wmi_handle,
 }
 
 /**
- * send_soc_set_hw_mode_cmd_tlv() - Send WMI_SOC_SET_HW_MODE_CMDID to FW
+ * send_pdev_set_hw_mode_cmd_tlv() - Send WMI_PDEV_SET_HW_MODE_CMDID to FW
  * @wmi_handle: wmi handle
  * @msg: Structure containing the following parameters
  *
@@ -9318,10 +9322,10 @@ QDF_STATUS send_pdev_set_pcl_cmd_tlv(wmi_unified_t wmi_handle,
  *
  * Return: Success if the cmd is sent successfully to the firmware
  */
-QDF_STATUS send_soc_set_hw_mode_cmd_tlv(wmi_unified_t wmi_handle,
+QDF_STATUS send_pdev_set_hw_mode_cmd_tlv(wmi_unified_t wmi_handle,
 				uint32_t hw_mode_index)
 {
-	wmi_soc_set_hw_mode_cmd_fixed_param *cmd;
+	wmi_pdev_set_hw_mode_cmd_fixed_param *cmd;
 	wmi_buf_t buf;
 	uint32_t len;
 
@@ -9333,16 +9337,18 @@ QDF_STATUS send_soc_set_hw_mode_cmd_tlv(wmi_unified_t wmi_handle,
 		return QDF_STATUS_E_NOMEM;
 	}
 
-	cmd = (wmi_soc_set_hw_mode_cmd_fixed_param *) wmi_buf_data(buf);
+	cmd = (wmi_pdev_set_hw_mode_cmd_fixed_param *) wmi_buf_data(buf);
 	WMITLV_SET_HDR(&cmd->tlv_header,
-		WMITLV_TAG_STRUC_wmi_soc_set_hw_mode_cmd_fixed_param,
-		WMITLV_GET_STRUCT_TLVLEN(wmi_soc_set_hw_mode_cmd_fixed_param));
+		WMITLV_TAG_STRUC_wmi_pdev_set_hw_mode_cmd_fixed_param,
+		WMITLV_GET_STRUCT_TLVLEN(wmi_pdev_set_hw_mode_cmd_fixed_param));
+
+	cmd->pdev_id = WMI_PDEV_ID_SOC;
 	cmd->hw_mode_index = hw_mode_index;
 	WMI_LOGI("%s: HW mode index:%d", __func__, cmd->hw_mode_index);
 
 	if (wmi_unified_cmd_send(wmi_handle, buf, len,
-				WMI_SOC_SET_HW_MODE_CMDID)) {
-		WMI_LOGE("%s: Failed to send WMI_SOC_SET_HW_MODE_CMDID",
+				WMI_PDEV_SET_HW_MODE_CMDID)) {
+		WMI_LOGE("%s: Failed to send WMI_PDEV_SET_HW_MODE_CMDID",
 			__func__);
 		qdf_nbuf_free(buf);
 		return QDF_STATUS_E_FAILURE;
@@ -9352,7 +9358,7 @@ QDF_STATUS send_soc_set_hw_mode_cmd_tlv(wmi_unified_t wmi_handle,
 }
 
 /**
- * send_soc_set_dual_mac_config_cmd_tlv() - Set dual mac config to FW
+ * send_pdev_set_dual_mac_config_cmd_tlv() - Set dual mac config to FW
  * @wmi_handle: wmi handle
  * @msg: Dual MAC config parameters
  *
@@ -9360,10 +9366,10 @@ QDF_STATUS send_soc_set_hw_mode_cmd_tlv(wmi_unified_t wmi_handle,
  *
  * Return: QDF_STATUS. 0 on success.
  */
-QDF_STATUS send_soc_set_dual_mac_config_cmd_tlv(wmi_unified_t wmi_handle,
+QDF_STATUS send_pdev_set_dual_mac_config_cmd_tlv(wmi_unified_t wmi_handle,
 		struct wmi_dual_mac_config *msg)
 {
-	wmi_soc_set_dual_mac_config_cmd_fixed_param *cmd;
+	wmi_pdev_set_mac_config_cmd_fixed_param *cmd;
 	wmi_buf_t buf;
 	uint32_t len;
 
@@ -9375,19 +9381,21 @@ QDF_STATUS send_soc_set_dual_mac_config_cmd_tlv(wmi_unified_t wmi_handle,
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	cmd = (wmi_soc_set_dual_mac_config_cmd_fixed_param *) wmi_buf_data(buf);
+	cmd = (wmi_pdev_set_mac_config_cmd_fixed_param *) wmi_buf_data(buf);
 	WMITLV_SET_HDR(&cmd->tlv_header,
-		WMITLV_TAG_STRUC_wmi_soc_set_dual_mac_config_cmd_fixed_param,
+		WMITLV_TAG_STRUC_wmi_pdev_set_mac_config_cmd_fixed_param,
 		WMITLV_GET_STRUCT_TLVLEN(
-			wmi_soc_set_dual_mac_config_cmd_fixed_param));
+			wmi_pdev_set_mac_config_cmd_fixed_param));
+
+	cmd->pdev_id = WMI_PDEV_ID_SOC;
 	cmd->concurrent_scan_config_bits = msg->scan_config;
 	cmd->fw_mode_config_bits = msg->fw_mode_config;
 	WMI_LOGI("%s: scan_config:%x fw_mode_config:%x",
 			__func__, msg->scan_config, msg->fw_mode_config);
 
 	if (wmi_unified_cmd_send(wmi_handle, buf, len,
-				WMI_SOC_SET_DUAL_MAC_CONFIG_CMDID)) {
-		WMI_LOGE("%s: Failed to send WMI_SOC_SET_DUAL_MAC_CONFIG_CMDID",
+				WMI_PDEV_SET_MAC_CONFIG_CMDID)) {
+		WMI_LOGE("%s: Failed to send WMI_PDEV_SET_MAC_CONFIG_CMDID",
 				__func__);
 		qdf_nbuf_free(buf);
 	}
@@ -10305,6 +10313,70 @@ QDF_STATUS send_get_buf_extscan_hotlist_cmd_tlv(wmi_unified_t wmi_handle,
 	return QDF_STATUS_SUCCESS;
 }
 
+/**
+ * send_power_dbg_cmd_tlv() - send power debug commands
+ * @wmi_handle: wmi handle
+ * @param: wmi power debug parameter
+ *
+ * Send WMI_POWER_DEBUG_CMDID parameters to fw.
+ *
+ * Return: QDF_STATUS_SUCCESS on success, QDF_STATUS_E_** on error
+ */
+QDF_STATUS send_power_dbg_cmd_tlv(wmi_unified_t wmi_handle,
+				struct wmi_power_dbg_params *param)
+{
+	wmi_buf_t buf = NULL;
+	QDF_STATUS status;
+	int len, args_tlv_len;
+	uint8_t *buf_ptr;
+	uint8_t i;
+	wmi_pdev_wal_power_debug_cmd_fixed_param *cmd;
+	uint32_t *cmd_args;
+
+	/* Prepare and send power debug cmd parameters */
+	args_tlv_len = WMI_TLV_HDR_SIZE + param->num_args * sizeof(uint32_t);
+	len = sizeof(*cmd) + args_tlv_len;
+	buf = wmi_buf_alloc(wmi_handle, len);
+	if (!buf) {
+		WMI_LOGE("%s : wmi_buf_alloc failed", __func__);
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	buf_ptr = (uint8_t *) wmi_buf_data(buf);
+	cmd = (wmi_pdev_wal_power_debug_cmd_fixed_param *) buf_ptr;
+	WMITLV_SET_HDR(&cmd->tlv_header,
+		  WMITLV_TAG_STRUC_wmi_pdev_wal_power_debug_cmd_fixed_param,
+		  WMITLV_GET_STRUCT_TLVLEN
+		  (wmi_pdev_wal_power_debug_cmd_fixed_param));
+
+	cmd->pdev_id = param->pdev_id;
+	cmd->module_id = param->module_id;
+	cmd->num_args = param->num_args;
+	buf_ptr += sizeof(*cmd);
+	WMITLV_SET_HDR(buf_ptr, WMITLV_TAG_ARRAY_UINT32,
+		       (param->num_args * sizeof(uint32_t)));
+	cmd_args = (uint32_t *) (buf_ptr + WMI_TLV_HDR_SIZE);
+	WMI_LOGI("%s: %d num of args = ", __func__, param->num_args);
+	for (i = 0; (i < param->num_args && i < WMI_MAX_NUM_ARGS); i++) {
+		cmd_args[i] = param->args[i];
+		WMI_LOGI("%d,", param->args[i]);
+	}
+
+	status = wmi_unified_cmd_send(wmi_handle, buf,
+				      len, WMI_PDEV_WAL_POWER_DEBUG_CMDID);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		WMI_LOGE("wmi_unified_cmd_send WMI_PDEV_WAL_POWER_DEBUG_CMDID returned Error %d",
+			status);
+		goto error;
+	}
+
+	return QDF_STATUS_SUCCESS;
+error:
+	wmi_buf_free(buf);
+
+	return status;
+}
+
 struct wmi_ops tlv_ops =  {
 	.send_vdev_create_cmd = send_vdev_create_cmd_tlv,
 	.send_vdev_delete_cmd = send_vdev_delete_cmd_tlv,
@@ -10483,9 +10555,9 @@ struct wmi_ops tlv_ops =  {
 		 send_enable_specific_fw_logs_cmd_tlv,
 	.send_flush_logs_to_fw_cmd = send_flush_logs_to_fw_cmd_tlv,
 	.send_pdev_set_pcl_cmd = send_pdev_set_pcl_cmd_tlv,
-	.send_soc_set_hw_mode_cmd = send_soc_set_hw_mode_cmd_tlv,
-	.send_soc_set_dual_mac_config_cmd =
-		 send_soc_set_dual_mac_config_cmd_tlv,
+	.send_pdev_set_hw_mode_cmd = send_pdev_set_hw_mode_cmd_tlv,
+	.send_pdev_set_dual_mac_config_cmd =
+		 send_pdev_set_dual_mac_config_cmd_tlv,
 	.send_enable_arp_ns_offload_cmd =
 		 send_enable_arp_ns_offload_cmd_tlv,
 	.send_app_type1_params_in_fw_cmd =
@@ -10506,6 +10578,7 @@ struct wmi_ops tlv_ops =  {
 		 send_roam_scan_offload_rssi_change_cmd_tlv,
 	.send_get_buf_extscan_hotlist_cmd =
 		 send_get_buf_extscan_hotlist_cmd_tlv,
+	.send_power_dbg_cmd = send_power_dbg_cmd_tlv,
 	/* TODO - Add other tlv apis here */
 };
 

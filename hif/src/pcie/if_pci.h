@@ -33,7 +33,6 @@
 #include <linux/interrupt.h>
 
 #define ATH_DBG_DEFAULT   0
-#include <ol_if_athvar.h>
 #include "hif.h"
 #include "cepci.h"
 #include "ce_main.h"
@@ -146,7 +145,6 @@ struct hif_pci_softc {
 };
 
 bool hif_pci_targ_is_present(struct hif_softc *scn, void *__iomem *mem);
-void icnss_dispatch_ce_irq(struct hif_softc *scn);
 int hif_configure_irq(struct hif_softc *sc);
 void hif_pci_cancel_deferred_target_sleep(struct hif_softc *scn);
 

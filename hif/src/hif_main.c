@@ -31,10 +31,8 @@
 #include "qdf_status.h"
 #include <qdf_atomic.h>         /* qdf_atomic_read */
 #include <targaddrs.h>
-#include <bmi_msg.h>
 #include "hif_io32.h"
 #include <hif.h>
-#include <htc_services.h>
 #include "regtable.h"
 #define ATH_MODULE_NAME hif
 #include <a_debug.h>
@@ -47,7 +45,6 @@
 #ifdef CONFIG_CNSS
 #include <net/cnss.h>
 #endif
-#include "epping_main.h"
 #include "hif_debug.h"
 #include "mp_dev.h"
 #include "platform_icnss.h"
@@ -289,8 +286,6 @@ uint32_t hif_hia_item_address(uint32_t target_type, uint32_t item_offset)
 	case TARGET_TYPE_AR6320:
 	case TARGET_TYPE_AR6320V2:
 		return AR6320_HOST_INTEREST_ADDRESS + item_offset;
-	case TARGET_TYPE_QCA6180:
-		return QCA6180_HOST_INTEREST_ADDRESS + item_offset;
 	case TARGET_TYPE_ADRASTEA:
 		/* ADRASTEA doesn't have a host interest address */
 		ASSERT(0);
@@ -312,7 +307,7 @@ uint32_t hif_hia_item_address(uint32_t target_type, uint32_t item_offset)
  */
 bool hif_max_num_receives_reached(struct hif_softc *scn, unsigned int count)
 {
-	if (WLAN_IS_EPPING_ENABLED(hif_get_conparam(scn)))
+	if (QDF_IS_EPPING_ENABLED(hif_get_conparam(scn)))
 		return count > 120;
 	else
 		return count > MAX_NUM_OF_RECEIVES;
@@ -537,7 +532,7 @@ void hif_wlan_disable(struct hif_softc *scn)
 
 	if (QDF_GLOBAL_FTM_MODE == con_mode)
 		mode = ICNSS_FTM;
-	else if (WLAN_IS_EPPING_ENABLED(con_mode))
+	else if (QDF_IS_EPPING_ENABLED(con_mode))
 		mode = ICNSS_EPPING;
 	else
 		mode = ICNSS_MISSION;
@@ -613,7 +608,7 @@ void hif_crash_shutdown(struct hif_opaque_softc *hif_ctx)
 		return;
 	}
 
-	if (OL_TRGET_STATUS_RESET == scn->target_status) {
+	if (TARGET_STATUS_RESET == scn->target_status) {
 		HIF_INFO_MED("%s: Target is already asserted, ignore!",
 			    __func__);
 		return;
@@ -687,19 +682,12 @@ int hif_get_device_type(uint32_t device_id,
 	int ret = 0;
 
 	switch (device_id) {
-#ifdef QCA_WIFI_3_0_ADRASTEA
 	case ADRASTEA_DEVICE_ID:
 	case ADRASTEA_DEVICE_ID_P2_E12:
 
 		*hif_type = HIF_TYPE_ADRASTEA;
 		*target_type = TARGET_TYPE_ADRASTEA;
 		break;
-#else
-	case QCA6180_DEVICE_ID:
-		*hif_type = HIF_TYPE_QCA6180;
-		*target_type = TARGET_TYPE_QCA6180;
-		break;
-#endif
 
 	case AR9888_DEVICE_ID:
 		*hif_type = HIF_TYPE_AR9888;
@@ -828,9 +816,9 @@ void hif_lro_flush_cb_deregister(struct hif_opaque_softc *scn)
  * hif_get_target_status - API to get target status
  * @hif_ctx: HIF Context
  *
- * Return: enum ol_target_status
+ * Return: enum hif_target_status
  */
-ol_target_status hif_get_target_status(struct hif_opaque_softc *hif_ctx)
+enum hif_target_status hif_get_target_status(struct hif_opaque_softc *hif_ctx)
 {
 	struct hif_softc *scn = HIF_GET_SOFTC(hif_ctx);
 
@@ -844,8 +832,8 @@ ol_target_status hif_get_target_status(struct hif_opaque_softc *hif_ctx)
  *
  * Return: void
  */
-void hif_set_target_status(struct hif_opaque_softc *hif_ctx,
-			   ol_target_status status)
+void hif_set_target_status(struct hif_opaque_softc *hif_ctx, enum
+			   hif_target_status status)
 {
 	struct hif_softc *scn = HIF_GET_SOFTC(hif_ctx);
 

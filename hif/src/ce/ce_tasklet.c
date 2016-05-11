@@ -39,6 +39,7 @@
 #include "ce_api.h"
 #include "ce_reg.h"
 #include "ce_internal.h"
+#include "ce_tasklet.h"
 #ifdef CONFIG_CNSS
 #include <net/cnss.h>
 #include "platform_icnss.h"
@@ -46,22 +47,6 @@
 #include "hif_debug.h"
 #include "hif_napi.h"
 
-
-/**
- * ce_irq_status() - read CE IRQ status
- * @scn: struct hif_softc
- * @ce_id: ce_id
- * @host_status: host_status
- *
- * Return: IRQ status
- */
-static inline void ce_irq_status(struct hif_softc *scn,
-	int ce_id, uint32_t *host_status)
-{
-	uint32_t offset = HOST_IS_ADDRESS + CE_BASE_ADDRESS(ce_id);
-
-	*host_status = hif_read32_mb(scn->mem + offset);
-}
 
 /**
  * struct tasklet_work
@@ -114,19 +99,11 @@ static bool work_initialized;
  *
  * Return: N/A
  */
-#ifdef CONFIG_CNSS
-static void init_tasklet_work(struct work_struct *work,
-			      work_func_t work_handler)
-{
-	cnss_init_work(work, work_handler);
-}
-#else
 static void init_tasklet_work(struct work_struct *work,
 			      work_func_t work_handler)
 {
 	INIT_WORK(work, work_handler);
 }
-#endif
 
 /**
  * init_tasklet_workers() - init_tasklet_workers
@@ -216,7 +193,7 @@ static void ce_tasklet(unsigned long data)
 		return;
 	}
 
-	if (scn->target_status != OL_TRGET_STATUS_RESET)
+	if (scn->target_status != TARGET_STATUS_RESET)
 		hif_irq_enable(scn, tasklet_entry->ce_id);
 
 	hif_record_ce_desc_event(scn, tasklet_entry->ce_id, HIF_CE_TASKLET_EXIT,
@@ -265,21 +242,33 @@ void ce_tasklet_kill(struct hif_softc *scn)
 		}
 	qdf_atomic_set(&scn->active_tasklet_cnt, 0);
 }
+
 /**
- * ce_irq_handler() - ce_irq_handler
- * @ce_id: ce_id
+ * hif_snoc_interrupt_handler() - hif_snoc_interrupt_handler
+ * @irq: irq coming from kernel
  * @context: context
  *
  * Return: N/A
  */
-static irqreturn_t ce_irq_handler(int irq, void *context)
+static irqreturn_t hif_snoc_interrupt_handler(int irq, void *context)
 {
 	struct ce_tasklet_entry *tasklet_entry = context;
+	return ce_dispatch_interrupt(icnss_get_ce_id(irq), tasklet_entry);
+}
+
+/**
+ * ce_dispatch_interrupt() - dispatch an interrupt to a processing context
+ * @ce_id: ce_id
+ * @tasklet_entry: context
+ *
+ * Return: N/A
+ */
+irqreturn_t ce_dispatch_interrupt(int ce_id,
+				  struct ce_tasklet_entry *tasklet_entry)
+{
 	struct HIF_CE_state *hif_ce_state = tasklet_entry->hif_ce_state;
 	struct hif_softc *scn = HIF_GET_SOFTC(hif_ce_state);
 	struct hif_opaque_softc *hif_hdl = GET_HIF_OPAQUE_HDL(scn);
-	uint32_t host_status;
-	int ce_id = icnss_get_ce_id(irq);
 
 	if (tasklet_entry->ce_id != ce_id) {
 		HIF_ERROR("%s: ce_id (expect %d, received %d) does not match",
@@ -291,11 +280,7 @@ static irqreturn_t ce_irq_handler(int irq, void *context)
 			  __func__, tasklet_entry->ce_id, CE_COUNT_MAX);
 		return IRQ_NONE;
 	}
-#ifndef HIF_PCI
-	disable_irq_nosync(irq);
-#endif
 	hif_irq_disable(scn, ce_id);
-	ce_irq_status(scn, ce_id, &host_status);
 	qdf_atomic_inc(&scn->active_tasklet_cnt);
 	hif_record_ce_desc_event(scn, ce_id, HIF_IRQ_EVENT, NULL, NULL, 0);
 	if (hif_napi_enabled(hif_hdl, ce_id))
@@ -338,13 +323,14 @@ const char *ce_name[ICNSS_MAX_IRQ_REGISTRATIONS] = {
 QDF_STATUS ce_unregister_irq(struct HIF_CE_state *hif_ce_state, uint32_t mask)
 {
 	int id;
+	int ce_count = HIF_GET_SOFTC(hif_ce_state)->ce_count;
 	int ret;
 
 	if (hif_ce_state == NULL) {
 		HIF_WARN("%s: hif_ce_state = NULL", __func__);
 		return QDF_STATUS_SUCCESS;
 	}
-	for (id = 0; id < CE_COUNT_MAX; id++) {
+	for (id = 0; id < ce_count; id++) {
 		if ((mask & (1 << id)) && hif_ce_state->tasklets[id].inited) {
 			ret = icnss_ce_free_irq(id,
 					&hif_ce_state->tasklets[id]);
@@ -369,13 +355,15 @@ QDF_STATUS ce_unregister_irq(struct HIF_CE_state *hif_ce_state, uint32_t mask)
 QDF_STATUS ce_register_irq(struct HIF_CE_state *hif_ce_state, uint32_t mask)
 {
 	int id;
+	int ce_count = HIF_GET_SOFTC(hif_ce_state)->ce_count;
 	int ret;
 	unsigned long irqflags = IRQF_TRIGGER_RISING;
 	uint32_t done_mask = 0;
 
-	for (id = 0; id < CE_COUNT_MAX; id++) {
+	for (id = 0; id < ce_count; id++) {
 		if ((mask & (1 << id)) && hif_ce_state->tasklets[id].inited) {
-			ret = icnss_ce_request_irq(id, ce_irq_handler,
+			ret = icnss_ce_request_irq(id,
+				hif_snoc_interrupt_handler,
 				irqflags, ce_name[id],
 				&hif_ce_state->tasklets[id]);
 			if (ret) {
@@ -389,11 +377,6 @@ QDF_STATUS ce_register_irq(struct HIF_CE_state *hif_ce_state, uint32_t mask)
 			}
 		}
 	}
-
-#ifndef HIF_PCI
-	/* move to hif_configure_irq */
-	ce_enable_irq_in_group_reg(HIF_GET_SOFTC(hif_ce_state), done_mask);
-#endif
 
 	return QDF_STATUS_SUCCESS;
 }

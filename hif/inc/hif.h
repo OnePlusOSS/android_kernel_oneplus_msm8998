@@ -45,6 +45,7 @@ extern "C" {
 
 typedef struct htc_callbacks HTC_CALLBACKS;
 typedef void __iomem *A_target_id_t;
+typedef void *hif_handle_t;
 
 #define HIF_TYPE_AR6002   2
 #define HIF_TYPE_AR6003   3
@@ -54,7 +55,6 @@ typedef void __iomem *A_target_id_t;
 #define HIF_TYPE_AR6320V2 8
 /* For attaching Peregrine 2.0 board host_reg_tbl only */
 #define HIF_TYPE_AR9888V2 8
-#define HIF_TYPE_QCA6180  9
 #define HIF_TYPE_ADRASTEA 10
 
 #define TARGET_TYPE_UNKNOWN   0
@@ -76,17 +76,11 @@ typedef void __iomem *A_target_id_t;
 #define TARGET_TYPE_AR6320V3    13
 /* For Tufello1.0 target_reg_tbl ID*/
 #define TARGET_TYPE_QCA9377V1   14
-/* For QCA6180 target */
-#define TARGET_TYPE_QCA6180     15
 /* For Adrastea target */
 #define TARGET_TYPE_ADRASTEA     16
 
 struct CE_state;
-#ifdef QCA_WIFI_3_0_ADRASTEA
 #define CE_COUNT_MAX 12
-#else
-#define CE_COUNT_MAX 8
-#endif
 
 /* These numbers are selected so that the product is close to current
    higher limit of packets HIF services at one shot (1000) */
@@ -317,9 +311,11 @@ typedef void (*fastpath_msg_handler)(void *, qdf_nbuf_t *, uint32_t);
 void hif_enable_fastpath(struct hif_opaque_softc *hif_ctx);
 bool hif_is_fastpath_mode_enabled(struct hif_opaque_softc *hif_ctx);
 void *hif_get_ce_handle(struct hif_opaque_softc *hif_ctx, int);
-int hif_ce_fastpath_cb_register(fastpath_msg_handler handler, void *context);
+int hif_ce_fastpath_cb_register(struct hif_opaque_softc *hif_ctx,
+				fastpath_msg_handler handler, void *context);
 #else
-static inline int hif_ce_fastpath_cb_register(fastpath_msg_handler handler,
+static inline int hif_ce_fastpath_cb_register(struct hif_opaque_softc *hif_ctx,
+					      fastpath_msg_handler handler,
 					      void *context)
 {
 	return QDF_STATUS_E_FAILURE;
@@ -374,6 +370,13 @@ struct hif_msg_callbacks {
 					uint8_t pipeID);
 	void (*txResourceAvailHandler)(void *context, uint8_t pipe);
 	void (*fwEventHandler)(void *context, QDF_STATUS status);
+};
+
+enum hif_target_status {
+	TARGET_STATUS_CONNECTED = 0,  /* target connected */
+	TARGET_STATUS_RESET,  /* target got reset */
+	TARGET_STATUS_EJECT,  /* target got ejected */
+	TARGET_STATUS_SUSPEND /*target got suspend */
 };
 
 #define HIF_DATA_ATTR_SET_TX_CLASSIFY(attr, v) \
@@ -528,8 +531,9 @@ struct hif_target_info *hif_get_target_info_handle(struct hif_opaque_softc *
 						   scn);
 struct hif_config_info *hif_get_ini_handle(struct hif_opaque_softc *scn);
 struct ramdump_info *hif_get_ramdump_ctx(struct hif_opaque_softc *hif_ctx);
-ol_target_status hif_get_target_status(struct hif_opaque_softc *hif_ctx);
-void hif_set_target_status(struct hif_opaque_softc *hif_ctx, ol_target_status);
+enum hif_target_status hif_get_target_status(struct hif_opaque_softc *hif_ctx);
+void hif_set_target_status(struct hif_opaque_softc *hif_ctx, enum
+			   hif_target_status);
 void hif_init_ini_config(struct hif_opaque_softc *hif_ctx,
 			 struct hif_config_info *cfg);
 

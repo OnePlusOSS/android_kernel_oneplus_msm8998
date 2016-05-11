@@ -30,7 +30,6 @@
 #include "qdf_status.h"
 #include <qdf_atomic.h>         /* qdf_atomic_read */
 #include <targaddrs.h>
-#include <bmi_msg.h>
 #include "hif_io32.h"
 #include <hif.h>
 #include "regtable.h"
@@ -42,7 +41,6 @@
 #ifdef CONFIG_CNSS
 #include <net/cnss.h>
 #endif
-#include "epping_main.h"
 #include "hif_debug.h"
 #include "ce_internal.h"
 #include "ce_reg.h"
@@ -50,7 +48,6 @@
 #include "ce_tasklet.h"
 #include "platform_icnss.h"
 #include "qwlan_version.h"
-#include <cds_api.h>
 
 #define CE_POLL_TIMEOUT 10      /* ms */
 
@@ -358,7 +355,7 @@ bool ce_mark_datapath(struct CE_state *ce_state)
 	bool   rc = false;
 
 	if (ce_state != NULL) {
-		if (WLAN_IS_EPPING_ENABLED(hif_get_conparam(ce_state->scn))) {
+		if (QDF_IS_EPPING_ENABLED(hif_get_conparam(ce_state->scn))) {
 			svc_map = target_service_to_ce_map_wlan_epping;
 			map_sz = sizeof(target_service_to_ce_map_wlan_epping) /
 				sizeof(struct service_to_pipe);
@@ -563,8 +560,9 @@ struct CE_handle *ce_init(struct hif_softc *scn,
 			dma_addr = src_ring->base_addr_CE_space;
 			CE_SRC_RING_BASE_ADDR_SET(scn, ctrl_addr,
 				 (uint32_t)(dma_addr & 0xFFFFFFFF));
-#ifdef WLAN_ENABLE_QCA6180
-			{
+
+			/* if SR_BA_ADDRESS_HIGH register exists */
+			if (SR_BA_ADDRESS_HIGH) {
 				uint32_t tmp;
 				tmp = CE_SRC_RING_BASE_ADDR_HIGH_GET(
 				   scn, ctrl_addr);
@@ -573,7 +571,6 @@ struct CE_handle *ce_init(struct hif_softc *scn,
 				CE_SRC_RING_BASE_ADDR_HIGH_SET(scn,
 					 ctrl_addr, (uint32_t)dma_addr);
 			}
-#endif
 			CE_SRC_RING_SZ_SET(scn, ctrl_addr, nentries);
 			CE_SRC_RING_DMAX_SET(scn, ctrl_addr, attr->src_sz_max);
 #ifdef BIG_ENDIAN_HOST
@@ -696,8 +693,9 @@ struct CE_handle *ce_init(struct hif_softc *scn,
 			dma_addr = dest_ring->base_addr_CE_space;
 			CE_DEST_RING_BASE_ADDR_SET(scn, ctrl_addr,
 				 (uint32_t)(dma_addr & 0xFFFFFFFF));
-#ifdef WLAN_ENABLE_QCA6180
-			{
+
+			/* if DR_BA_ADDRESS_HIGH exists */
+			if (DR_BA_ADDRESS_HIGH) {
 				uint32_t tmp;
 				tmp = CE_DEST_RING_BASE_ADDR_HIGH_GET(scn,
 						ctrl_addr);
@@ -706,7 +704,7 @@ struct CE_handle *ce_init(struct hif_softc *scn,
 				CE_DEST_RING_BASE_ADDR_HIGH_SET(scn,
 					ctrl_addr, (uint32_t)dma_addr);
 			}
-#endif
+
 			CE_DEST_RING_SZ_SET(scn, ctrl_addr, nentries);
 #ifdef BIG_ENDIAN_HOST
 			/* Enable Dest ring byte swap for big endian host */
@@ -1132,8 +1130,7 @@ hif_pci_ce_send_done(struct CE_handle *copyeng, void *ce_context,
 		 * when last fragment is complteted.
 		 */
 		if (transfer_context != CE_SENDLIST_ITEM_CTXT) {
-			if (scn->target_status
-					== OL_TRGET_STATUS_RESET)
+			if (scn->target_status == TARGET_STATUS_RESET)
 				qdf_nbuf_free(transfer_context);
 			else
 				msg_callbacks->txCompletionHandler(
@@ -1208,7 +1205,7 @@ hif_pci_ce_recv_data(struct CE_handle *copyeng, void *ce_context,
 
 		atomic_inc(&pipe_info->recv_bufs_needed);
 		hif_post_recv_buffers_for_pipe(pipe_info);
-		if (scn->target_status == OL_TRGET_STATUS_RESET)
+		if (scn->target_status == TARGET_STATUS_RESET)
 			qdf_nbuf_free(transfer_context);
 		else
 			hif_ce_do_recv(msg_callbacks, transfer_context,
@@ -1736,7 +1733,7 @@ int hif_wlan_enable(struct hif_softc *scn)
 
 	if (QDF_GLOBAL_FTM_MODE == con_mode)
 		mode = ICNSS_FTM;
-	else if (WLAN_IS_EPPING_ENABLED(con_mode))
+	else if (QDF_IS_EPPING_ENABLED(con_mode))
 		mode = ICNSS_EPPING;
 	else
 		mode = ICNSS_MISSION;
@@ -1746,6 +1743,8 @@ int hif_wlan_enable(struct hif_softc *scn)
 	else
 		return icnss_wlan_enable(&cfg, mode, QWLAN_VERSIONSTR);
 }
+
+#define CE_EPPING_USES_IRQ true
 
 /**
  * hif_ce_prepare_config() - load the correct static tables.
@@ -1757,8 +1756,8 @@ void hif_ce_prepare_config(struct hif_softc *scn)
 {
 	uint32_t mode = hif_get_conparam(scn);
 	/* if epping is enabled we need to use the epping configuration. */
-	if (WLAN_IS_EPPING_ENABLED(mode)) {
-		if (WLAN_IS_EPPING_IRQ(mode))
+	if (QDF_IS_EPPING_ENABLED(mode)) {
+		if (CE_EPPING_USES_IRQ)
 			host_ce_config = host_ce_config_wlan_epping_irq;
 		else
 			host_ce_config = host_ce_config_wlan_epping_poll;
@@ -1960,11 +1959,12 @@ err:
  *
  * Return: QDF_STATUS_SUCCESS on success or QDF_STATUS_E_FAILURE
  */
-int hif_ce_fastpath_cb_register(fastpath_msg_handler handler, void *context)
+int hif_ce_fastpath_cb_register(struct hif_opaque_softc *hif_ctx,
+				fastpath_msg_handler handler,
+				void *context)
 {
-	struct hif_softc *scn =
-	    (struct hif_softc *)cds_get_context(QDF_MODULE_ID_HIF);
 	struct CE_state *ce_state;
+	struct hif_softc *scn = HIF_GET_SOFTC(hif_ctx);
 	int i;
 
 	QDF_ASSERT(scn != NULL);
@@ -1974,7 +1974,7 @@ int hif_ce_fastpath_cb_register(fastpath_msg_handler handler, void *context)
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	for (i = 0; i < CE_COUNT_MAX; i++) {
+	for (i = 0; i < scn->ce_count; i++) {
 		ce_state = scn->ce_id_to_state[i];
 		if (ce_state->htt_rx_data) {
 			ce_state->fastpath_handler = handler;
@@ -2175,7 +2175,7 @@ void ce_lro_flush_cb_register(struct hif_opaque_softc *hif_hdl,
 
 	QDF_ASSERT(scn != NULL);
 
-	for (i = 0; i < CE_COUNT_MAX; i++) {
+	for (i = 0; i < scn->ce_count; i++) {
 		ce_state = scn->ce_id_to_state[i];
 		if (ce_state->htt_rx_data) {
 			ce_state->lro_flush_cb = handler;
@@ -2201,7 +2201,7 @@ void ce_lro_flush_cb_deregister(struct hif_opaque_softc *hif_hdl)
 
 	QDF_ASSERT(scn != NULL);
 
-	for (i = 0; i < CE_COUNT_MAX; i++) {
+	for (i = 0; i < scn->ce_count; i++) {
 		ce_state = scn->ce_id_to_state[i];
 		if (ce_state->htt_rx_data) {
 			ce_state->lro_flush_cb = NULL;
@@ -2240,7 +2240,7 @@ int hif_map_service_to_pipe(struct hif_opaque_softc *hif_hdl, uint16_t svc_id,
 	struct hif_softc *scn = HIF_GET_SOFTC(hif_hdl);
 	uint32_t mode = hif_get_conparam(scn);
 
-	if (WLAN_IS_EPPING_ENABLED(mode)) {
+	if (QDF_IS_EPPING_ENABLED(mode)) {
 		tgt_svc_map_to_use = target_service_to_ce_map_wlan_epping;
 		sz_tgt_svc_map_to_use =
 			sizeof(target_service_to_ce_map_wlan_epping);
@@ -2431,7 +2431,12 @@ int hif_dump_ce_registers(struct hif_softc *scn)
 	uint16_t i;
 	QDF_STATUS status;
 
-	for (i = 0; i < CE_COUNT_MAX; i++, ce_reg_address += CE_OFFSET) {
+	for (i = 0; i < scn->ce_count; i++, ce_reg_address += CE_OFFSET) {
+		if (scn->ce_id_to_state[i] == NULL) {
+			HIF_DBG("CE%d not used.", i);
+			continue;
+		}
+
 		status = hif_diag_read_mem(hif_hdl, ce_reg_address,
 					   (uint8_t *) &ce_reg_values[i][0],
 					   ce_reg_word_size * sizeof(uint32_t));

@@ -93,11 +93,6 @@
 #define AR6320_FW_3_2  (0x32)
 #define ADRASTEA_DEVICE_ID (0xabcd)
 #define ADRASTEA_DEVICE_ID_P2_E12 (0x7021)
-#if (defined(QVIT))
-#define QCA6180_DEVICE_ID (0xabcd)
-#else
-#define QCA6180_DEVICE_ID (0x041)
-#endif
 
 #define HIF_GET_PCI_SOFTC(scn) ((struct hif_pci_softc *)scn)
 #define HIF_GET_CE_STATE(scn) ((struct HIF_CE_state *)scn)
@@ -122,7 +117,7 @@ struct hif_softc {
 	bool request_irq_done;
 	/* Packet statistics */
 	struct hif_ce_stats pkt_stats;
-	ol_target_status target_status;
+	enum hif_target_status target_status;
 
 	struct targetdef_s *targetdef;
 	struct ce_reg_def *target_ce_def;

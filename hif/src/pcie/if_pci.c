@@ -52,7 +52,6 @@
 #else
 #include "cnss_stub.h"
 #endif
-#include "epping_main.h"
 #include "mp_dev.h"
 #include "hif_debug.h"
 
@@ -123,6 +122,54 @@ void hif_pci_route_adrastea_interrupt(struct hif_pci_softc *sc)
 	}
 }
 #endif
+
+/**
+ * pci_dispatch_ce_irq() - pci_dispatch_ce_irq
+ * @scn: scn
+ *
+ * Return: N/A
+ */
+static void pci_dispatch_interrupt(struct hif_softc *scn)
+{
+	uint32_t intr_summary;
+	int id;
+	struct HIF_CE_state *hif_state = HIF_GET_CE_STATE(scn);
+
+	if (scn->hif_init_done != true)
+		return;
+
+	if (Q_TARGET_ACCESS_BEGIN(scn) < 0)
+		return;
+
+	intr_summary = CE_INTERRUPT_SUMMARY(scn);
+
+	if (intr_summary == 0) {
+		if ((scn->target_status != TARGET_STATUS_RESET) &&
+			(!qdf_atomic_read(&scn->link_suspended))) {
+
+			hif_write32_mb(scn->mem +
+				(SOC_CORE_BASE_ADDRESS |
+				PCIE_INTR_ENABLE_ADDRESS),
+				HOST_GROUP0_MASK);
+
+			hif_read32_mb(scn->mem +
+					(SOC_CORE_BASE_ADDRESS |
+					PCIE_INTR_ENABLE_ADDRESS));
+		}
+		Q_TARGET_ACCESS_END(scn);
+		return;
+	} else {
+		Q_TARGET_ACCESS_END(scn);
+	}
+
+	scn->ce_irq_summary = intr_summary;
+	for (id = 0; intr_summary && (id < scn->ce_count); id++) {
+		if (intr_summary & (1 << id)) {
+			intr_summary &= ~(1 << id);
+			ce_dispatch_interrupt(id,  &hif_state->tasklets[id]);
+		}
+	}
+}
 
 static irqreturn_t hif_pci_interrupt_handler(int irq, void *arg)
 {
@@ -249,7 +296,7 @@ static irqreturn_t hif_pci_interrupt_handler(int irq, void *arg)
 		qdf_atomic_inc(&scn->active_tasklet_cnt);
 		tasklet_schedule(&sc->intr_tq);
 	} else {
-		icnss_dispatch_ce_irq(scn);
+		pci_dispatch_interrupt(scn);
 	}
 
 	return IRQ_HANDLED;
@@ -852,7 +899,7 @@ static void wlan_tasklet(unsigned long data)
 
 	if (!ADRASTEA_BU) {
 		(irqreturn_t) hif_fw_interrupt_handler(sc->irq_event, scn);
-		if (scn->target_status == OL_TRGET_STATUS_RESET)
+		if (scn->target_status == TARGET_STATUS_RESET)
 			goto end;
 	}
 
@@ -1065,7 +1112,7 @@ static void hif_pm_runtime_start(struct hif_pci_softc *sc)
 		return;
 	}
 
-	if (mode == QDF_GLOBAL_FTM_MODE || WLAN_IS_EPPING_ENABLED(mode)) {
+	if (mode == QDF_GLOBAL_FTM_MODE || QDF_IS_EPPING_ENABLED(mode)) {
 		HIF_INFO("%s: RUNTIME PM is disabled for FTM/EPPING mode\n",
 				__func__);
 		return;
@@ -1097,7 +1144,7 @@ static void hif_pm_runtime_stop(struct hif_pci_softc *sc)
 	if (!ol_sc->hif_config.enable_runtime_pm)
 		return;
 
-	if (mode == QDF_GLOBAL_FTM_MODE || WLAN_IS_EPPING_ENABLED(mode))
+	if (mode == QDF_GLOBAL_FTM_MODE || QDF_IS_EPPING_ENABLED(mode))
 		return;
 
 	cnss_runtime_exit(sc->dev);
@@ -1982,7 +2029,7 @@ static void wlan_tasklet_msi(unsigned long data)
 	if (entry->id == HIF_MAX_TASKLET_NUM) {
 		/* the last tasklet is for fw IRQ */
 		(irqreturn_t)hif_fw_interrupt_handler(sc->irq_event, scn);
-		if (scn->target_status == OL_TRGET_STATUS_RESET)
+		if (scn->target_status == TARGET_STATUS_RESET)
 			goto irq_handled;
 	} else if (entry->id < scn->ce_count) {
 		ce_per_engine_service(scn, entry->id);
@@ -3273,7 +3320,7 @@ void hif_pci_irq_enable(struct hif_softc *scn, int ce_id)
 	if (scn->ce_irq_summary == 0) {
 		/* Enable Legacy PCI line interrupts */
 		if (LEGACY_INTERRUPTS(sc) &&
-			(scn->target_status != OL_TRGET_STATUS_RESET) &&
+			(scn->target_status != TARGET_STATUS_RESET) &&
 			(!qdf_atomic_read(&scn->link_suspended))) {
 
 			hif_write32_mb(scn->mem +

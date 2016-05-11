@@ -31,10 +31,8 @@
 #include "qdf_status.h"
 #include <qdf_atomic.h>         /* qdf_atomic_read */
 #include <targaddrs.h>
-#include <bmi_msg.h>
 #include "hif_io32.h"
 #include <hif.h>
-#include <htc_services.h>
 #include "regtable.h"
 #include <a_debug.h>
 #include "hif_main.h"
@@ -44,7 +42,6 @@
 #include <net/cnss.h>
 #endif
 #include "hif_debug.h"
-#include "epping_main.h"
 
 void
 hif_dump_target_memory(struct hif_opaque_softc *hif_ctx, void *ramdump_base,

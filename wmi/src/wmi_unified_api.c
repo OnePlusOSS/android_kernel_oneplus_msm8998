@@ -1099,13 +1099,14 @@ QDF_STATUS wmi_unified_ocb_set_config(void *wmi_hdl,
  * Return: QDF_STATUS_SUCCESS for sucess or error code
  */
 QDF_STATUS wmi_unified_set_enable_disable_mcc_adaptive_scheduler_cmd(
-		void *wmi_hdl, uint32_t mcc_adaptive_scheduler)
+		void *wmi_hdl, uint32_t mcc_adaptive_scheduler,
+		uint32_t pdev_id)
 {
 	wmi_unified_t wmi_handle = (wmi_unified_t) wmi_hdl;
 
 	if (wmi_handle->ops->send_set_enable_disable_mcc_adaptive_scheduler_cmd)
 		return wmi_handle->ops->send_set_enable_disable_mcc_adaptive_scheduler_cmd(wmi_handle,
-					mcc_adaptive_scheduler);
+					mcc_adaptive_scheduler, pdev_id);
 
 	return QDF_STATUS_E_FAILURE;
 }
@@ -3080,15 +3081,15 @@ QDF_STATUS wmi_unified_soc_set_hw_mode_cmd(void *wmi_hdl,
 {
 	wmi_unified_t wmi_handle = (wmi_unified_t) wmi_hdl;
 
-	if (wmi_handle->ops->send_soc_set_hw_mode_cmd)
-		return wmi_handle->ops->send_soc_set_hw_mode_cmd(wmi_handle,
+	if (wmi_handle->ops->send_pdev_set_hw_mode_cmd)
+		return wmi_handle->ops->send_pdev_set_hw_mode_cmd(wmi_handle,
 				  hw_mode_index);
 
 	return QDF_STATUS_E_FAILURE;
 }
 
 /**
- * wmi_unified_soc_set_dual_mac_config_cmd() - Set dual mac config to FW
+ * wmi_unified_pdev_set_dual_mac_config_cmd() - Set dual mac config to FW
  * @wmi_hdl: wmi handle
  * @msg: Dual MAC config parameters
  *
@@ -3096,13 +3097,13 @@ QDF_STATUS wmi_unified_soc_set_hw_mode_cmd(void *wmi_hdl,
  *
  * Return: QDF_STATUS_SUCCESS on success and QDF_STATUS_E_FAILURE for failures.
  */
-QDF_STATUS wmi_unified_soc_set_dual_mac_config_cmd(void *wmi_hdl,
+QDF_STATUS wmi_unified_pdev_set_dual_mac_config_cmd(void *wmi_hdl,
 		struct wmi_dual_mac_config *msg)
 {
 	wmi_unified_t wmi_handle = (wmi_unified_t) wmi_hdl;
 
-	if (wmi_handle->ops->send_soc_set_dual_mac_config_cmd)
-		return wmi_handle->ops->send_soc_set_dual_mac_config_cmd(wmi_handle,
+	if (wmi_handle->ops->send_pdev_set_dual_mac_config_cmd)
+		return wmi_handle->ops->send_pdev_set_dual_mac_config_cmd(wmi_handle,
 				  msg);
 
 	return QDF_STATUS_E_FAILURE;
@@ -6014,6 +6015,27 @@ QDF_STATUS wmi_extract_vdev_extd_stats(void *wmi_hdl, void *evt_buf,
 	if (wmi_handle->ops->extract_vdev_extd_stats)
 		return wmi_handle->ops->extract_vdev_extd_stats(wmi_handle,
 				evt_buf, index, vdev_extd_stats);
+
+	return QDF_STATUS_E_FAILURE;
+}
+
+/**
+ * wmi_unified_send_power_dbg_cmd() - send power debug commands
+ * @wmi_handle: wmi handle
+ * @param: wmi power debug parameter
+ *
+ * Send WMI_POWER_DEBUG_CMDID parameters to fw.
+ *
+ * Return: QDF_STATUS_SUCCESS on success, QDF_STATUS_E_** on error
+ */
+QDF_STATUS wmi_unified_send_power_dbg_cmd(void *wmi_hdl,
+				struct wmi_power_dbg_params *param)
+{
+	wmi_unified_t wmi_handle = (wmi_unified_t) wmi_hdl;
+
+	if (wmi_handle->ops->send_power_dbg_cmd)
+		return wmi_handle->ops->send_power_dbg_cmd(wmi_handle,
+				  param);
 
 	return QDF_STATUS_E_FAILURE;
 }

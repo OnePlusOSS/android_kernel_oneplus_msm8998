@@ -126,7 +126,13 @@ static void *get_cpu_dbs_info_s(int cpu)				\
  * cdbs: common dbs
  * od_*: On-demand governor
  * cs_*: Conservative governor
+<<<<<<< HEAD
  * zz_*: ZZMoove governor
+=======
+ * ac_*: Alucard governor
+ * dk_*: Darkness governor
+ * nm_*: Nightmare governor
+>>>>>>> 32d3b79... Imported Alucard, Darkness and Nightmare CPU Governors!
  */
 
 /* Common to all CPUs of a policy */
@@ -173,11 +179,31 @@ struct cs_cpu_dbs_info_s {
 	unsigned int requested_freq;
 };
 
+<<<<<<< HEAD
 struct zz_cpu_dbs_info_s {
 	struct cpu_dbs_info cdbs;
 	struct cpufreq_frequency_table *freq_table;
 	unsigned int down_skip;
 	unsigned int requested_freq;
+=======
+struct ac_cpu_dbs_info_s {
+	struct cpu_dbs_common_info cdbs;
+	struct cpufreq_frequency_table *freq_table;
+	unsigned int up_rate:1;
+	unsigned int down_rate:1;
+	unsigned int min_index;
+	unsigned int max_index;
+};
+
+struct dk_cpu_dbs_info_s {
+	struct cpu_dbs_common_info cdbs;
+	struct cpufreq_frequency_table *freq_table;
+};
+
+struct nm_cpu_dbs_info_s {
+	struct cpu_dbs_common_info cdbs;
+	struct cpufreq_frequency_table *freq_table;
+>>>>>>> 32d3b79... Imported Alucard, Darkness and Nightmare CPU Governors!
 };
 
 /* Per policy Governors sysfs tunables */
@@ -199,6 +225,7 @@ struct cs_dbs_tuners {
 	unsigned int freq_step;
 };
 
+<<<<<<< HEAD
 struct zz_dbs_tuners {
 	unsigned int ignore_nice_load;
 	unsigned int sampling_rate;
@@ -213,6 +240,39 @@ struct zz_dbs_tuners {
 	unsigned int afs_threshold2;
 	unsigned int afs_threshold3;
 	unsigned int afs_threshold4;
+=======
+struct ac_dbs_tuners {
+	unsigned int ignore_nice_load;
+	unsigned int sampling_rate;
+	int inc_cpu_load_at_min_freq;
+	int inc_cpu_load;
+	int dec_cpu_load_at_min_freq;
+	int dec_cpu_load;
+	int freq_responsiveness;
+	unsigned int cpus_up_rate;
+	unsigned int cpus_down_rate;
+};
+
+struct dk_dbs_tuners {
+	unsigned int ignore_nice_load;
+	unsigned int sampling_rate;
+};
+
+struct nm_dbs_tuners {
+	unsigned int ignore_nice_load;
+	unsigned int sampling_rate;
+	int inc_cpu_load_at_min_freq;
+	int inc_cpu_load;
+	int dec_cpu_load;
+	int freq_for_responsiveness;
+	int freq_for_responsiveness_max;
+	int freq_up_brake_at_min_freq;
+	int freq_up_brake;
+	int freq_step_at_min_freq;
+	int freq_step;
+	int freq_step_dec;
+	int freq_step_dec_at_max_freq;
+>>>>>>> 32d3b79... Imported Alucard, Darkness and Nightmare CPU Governors!
 };
 
 /* Common Governor data across policies */
@@ -221,7 +281,13 @@ struct common_dbs_data {
 	/* Common across governors */
 	#define GOV_ONDEMAND		0
 	#define GOV_CONSERVATIVE	1
+<<<<<<< HEAD
 	#define GOV_ZZMOOVE		2
+=======
+	#define GOV_ALUCARD			2
+	#define GOV_DARKNESS		3
+	#define GOV_NIGHTMARE		4
+>>>>>>> 32d3b79... Imported Alucard, Darkness and Nightmare CPU Governors!
 	int governor;
 	struct attribute_group *attr_group_gov_sys; /* one governor - system */
 	struct attribute_group *attr_group_gov_pol; /* one governor - policy */

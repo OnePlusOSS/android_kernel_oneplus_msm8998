@@ -41,15 +41,7 @@
 #define PUMP_DEC_STEP_AT_MIN_FREQ	2
 #define PUMP_DEC_STEP				1
 
-struct ac_pump_cpu_parm {
-	int pump_inc_step;
-	int pump_inc_step_at_min_freq;
-	int pump_dec_step;
-	int pump_dec_step_at_min_freq;
-};
-
 static DEFINE_PER_CPU(struct ac_cpu_dbs_info_s, ac_cpu_dbs_info);
-static DEFINE_PER_CPU_SHARED_ALIGNED(struct ac_pump_cpu_parm, od_ac_pump_cpu_parm);
 
 static struct ac_ops ac_ops;
 
@@ -109,12 +101,11 @@ static void ac_check_cpu(int cpu, unsigned int load)
 	struct cpufreq_policy *policy = dbs_info->cdbs.cur_policy;
 	struct dbs_data *dbs_data = policy->governor_data;
 	struct ac_dbs_tuners *ac_tuners = dbs_data->tuners;
-	struct ac_pump_cpu_parm *this_cpu_parm = &per_cpu(od_ac_pump_cpu_parm, cpu);
 	unsigned int freq_responsiveness = ac_tuners->freq_responsiveness;
 	int dec_cpu_load = ac_tuners->dec_cpu_load;
 	int inc_cpu_load = ac_tuners->inc_cpu_load;
-	int pump_inc_step = this_cpu_parm->pump_inc_step;
-	int pump_dec_step = this_cpu_parm->pump_dec_step;
+	int pump_inc_step = ac_tuners->pump_inc_step;
+	int pump_dec_step = ac_tuners->pump_dec_step;
 	unsigned int cpus_up_rate = ac_tuners->cpus_up_rate;
 	unsigned int cpus_down_rate = ac_tuners->cpus_down_rate;
 	unsigned int index = 0;
@@ -128,8 +119,8 @@ static void ac_check_cpu(int cpu, unsigned int load)
 	if (policy->cur < freq_responsiveness) {
 		inc_cpu_load = ac_tuners->inc_cpu_load_at_min_freq;
 		dec_cpu_load = ac_tuners->dec_cpu_load_at_min_freq;
-		pump_inc_step = this_cpu_parm->pump_inc_step_at_min_freq;
-		pump_dec_step = this_cpu_parm->pump_dec_step_at_min_freq;
+		pump_inc_step = ac_tuners->pump_inc_step_at_min_freq;
+		pump_dec_step = ac_tuners->pump_dec_step_at_min_freq;
 	}
 
 	/* Check for frequency increase or for frequency decrease */
@@ -206,91 +197,6 @@ static void ac_dbs_timer(struct work_struct *work)
 
 /************************** sysfs interface ************************/
 static struct common_dbs_data ac_dbs_cdata;
-
-#define show_pcpu_pump_param(file_name, num_core)		\
-static ssize_t show_##file_name##_##num_core		\
-(struct kobject *kobj, struct attribute *attr, char *buf)		\
-{									\
-	struct ac_pump_cpu_parm *this_cpu_parm = &per_cpu(od_ac_pump_cpu_parm, num_core - 1); \
-	return sprintf(buf, "%d\n", \
-			this_cpu_parm->file_name);		\
-}
-
-show_pcpu_pump_param(pump_inc_step_at_min_freq, 1);
-show_pcpu_pump_param(pump_inc_step_at_min_freq, 2);
-show_pcpu_pump_param(pump_inc_step_at_min_freq, 3);
-show_pcpu_pump_param(pump_inc_step_at_min_freq, 4);
-show_pcpu_pump_param(pump_inc_step, 1);
-show_pcpu_pump_param(pump_inc_step, 2);
-show_pcpu_pump_param(pump_inc_step, 3);
-show_pcpu_pump_param(pump_inc_step, 4);
-show_pcpu_pump_param(pump_dec_step_at_min_freq, 1);
-show_pcpu_pump_param(pump_dec_step_at_min_freq, 2);
-show_pcpu_pump_param(pump_dec_step_at_min_freq, 3);
-show_pcpu_pump_param(pump_dec_step_at_min_freq, 4);
-show_pcpu_pump_param(pump_dec_step, 1);
-show_pcpu_pump_param(pump_dec_step, 2);
-show_pcpu_pump_param(pump_dec_step, 3);
-show_pcpu_pump_param(pump_dec_step, 4);
-
-#define store_pcpu_pump_param(file_name, num_core)		\
-static ssize_t store_##file_name##_##num_core		\
-(struct kobject *kobj, struct attribute *attr,				\
-	const char *buf, size_t count)					\
-{									\
-	int input;						\
-	struct ac_pump_cpu_parm *this_cpu_parm; \
-	int ret;							\
-														\
-	ret = sscanf(buf, "%d", &input);					\
-	if (ret != 1)											\
-		return -EINVAL;										\
-														\
-	input = min(max(1, input), 6);							\
-														\
-	this_cpu_parm = &per_cpu(od_ac_pump_cpu_parm, num_core - 1); \
-														\
-	if (input == this_cpu_parm->file_name) {		\
-		return count;						\
-	}								\
-										\
-	this_cpu_parm->file_name = input;			\
-	return count;							\
-}
-
-store_pcpu_pump_param(pump_inc_step_at_min_freq, 1);
-store_pcpu_pump_param(pump_inc_step_at_min_freq, 2);
-store_pcpu_pump_param(pump_inc_step_at_min_freq, 3);
-store_pcpu_pump_param(pump_inc_step_at_min_freq, 4);
-store_pcpu_pump_param(pump_inc_step, 1);
-store_pcpu_pump_param(pump_inc_step, 2);
-store_pcpu_pump_param(pump_inc_step, 3);
-store_pcpu_pump_param(pump_inc_step, 4);
-store_pcpu_pump_param(pump_dec_step_at_min_freq, 1);
-store_pcpu_pump_param(pump_dec_step_at_min_freq, 2);
-store_pcpu_pump_param(pump_dec_step_at_min_freq, 3);
-store_pcpu_pump_param(pump_dec_step_at_min_freq, 4);
-store_pcpu_pump_param(pump_dec_step, 1);
-store_pcpu_pump_param(pump_dec_step, 2);
-store_pcpu_pump_param(pump_dec_step, 3);
-store_pcpu_pump_param(pump_dec_step, 4);
-
-define_one_global_rw(pump_inc_step_at_min_freq_1);
-define_one_global_rw(pump_inc_step_at_min_freq_2);
-define_one_global_rw(pump_inc_step_at_min_freq_3);
-define_one_global_rw(pump_inc_step_at_min_freq_4);
-define_one_global_rw(pump_inc_step_1);
-define_one_global_rw(pump_inc_step_2);
-define_one_global_rw(pump_inc_step_3);
-define_one_global_rw(pump_inc_step_4);
-define_one_global_rw(pump_dec_step_at_min_freq_1);
-define_one_global_rw(pump_dec_step_at_min_freq_2);
-define_one_global_rw(pump_dec_step_at_min_freq_3);
-define_one_global_rw(pump_dec_step_at_min_freq_4);
-define_one_global_rw(pump_dec_step_1);
-define_one_global_rw(pump_dec_step_2);
-define_one_global_rw(pump_dec_step_3);
-define_one_global_rw(pump_dec_step_4);
 
 /**
  * update_sampling_rate - update sampling rate effective immediately if needed.
@@ -556,6 +462,94 @@ static ssize_t store_cpus_down_rate(struct dbs_data *dbs_data, const char *buf,
 	return count;
 }
 
+/* pump_inc_step_at_min_freq */
+static ssize_t store_pump_inc_step_at_min_freq(struct dbs_data *dbs_data, const char *buf,
+		size_t count)
+{
+	struct ac_dbs_tuners *ac_tuners = dbs_data->tuners;
+	int input;
+	int ret;
+
+	ret = sscanf(buf, "%d", &input);
+	if (ret != 1)
+		return -EINVAL;
+
+	input = min(max(1, input), 6);
+
+	if (input == ac_tuners->pump_inc_step_at_min_freq)
+		return count;
+
+	ac_tuners->pump_inc_step_at_min_freq = input;
+
+	return count;
+}
+
+/* pump_inc_step */
+static ssize_t store_pump_inc_step(struct dbs_data *dbs_data, const char *buf,
+		size_t count)
+{
+	struct ac_dbs_tuners *ac_tuners = dbs_data->tuners;
+	int input;
+	int ret;
+
+	ret = sscanf(buf, "%d", &input);
+	if (ret != 1)
+		return -EINVAL;
+
+	input = min(max(1, input), 6);
+
+	if (input == ac_tuners->pump_inc_step)
+		return count;
+
+	ac_tuners->pump_inc_step = input;
+
+	return count;
+}
+
+/* pump_dec_step_at_min_freq */
+static ssize_t store_pump_dec_step_at_min_freq(struct dbs_data *dbs_data, const char *buf,
+		size_t count)
+{
+	struct ac_dbs_tuners *ac_tuners = dbs_data->tuners;
+	int input;
+	int ret;
+
+	ret = sscanf(buf, "%d", &input);
+	if (ret != 1)
+		return -EINVAL;
+
+	input = min(max(1, input), 6);
+
+	if (input == ac_tuners->pump_dec_step_at_min_freq)
+		return count;
+
+	ac_tuners->pump_dec_step_at_min_freq = input;
+
+	return count;
+}
+
+/* pump_dec_step */
+static ssize_t store_pump_dec_step(struct dbs_data *dbs_data, const char *buf,
+		size_t count)
+{
+	struct ac_dbs_tuners *ac_tuners = dbs_data->tuners;
+	int input;
+	int ret;
+
+	ret = sscanf(buf, "%d", &input);
+	if (ret != 1)
+		return -EINVAL;
+
+	input = min(max(1, input), 6);
+
+	if (input == ac_tuners->pump_dec_step)
+		return count;
+
+	ac_tuners->pump_dec_step = input;
+
+	return count;
+}
+
 show_store_one(ac, sampling_rate);
 show_store_one(ac, inc_cpu_load_at_min_freq);
 show_store_one(ac, inc_cpu_load);
@@ -565,6 +559,10 @@ show_store_one(ac, freq_responsiveness);
 show_store_one(ac, cpus_up_rate);
 show_store_one(ac, cpus_down_rate);
 show_store_one(ac, ignore_nice_load);
+show_store_one(ac, pump_inc_step_at_min_freq);
+show_store_one(ac, pump_inc_step);
+show_store_one(ac, pump_dec_step_at_min_freq);
+show_store_one(ac, pump_dec_step);
 declare_show_sampling_rate_min(ac);
 
 gov_sys_pol_attr_rw(sampling_rate);
@@ -576,6 +574,10 @@ gov_sys_pol_attr_rw(freq_responsiveness);
 gov_sys_pol_attr_rw(cpus_up_rate);
 gov_sys_pol_attr_rw(cpus_down_rate);
 gov_sys_pol_attr_rw(ignore_nice_load);
+gov_sys_pol_attr_rw(pump_inc_step_at_min_freq);
+gov_sys_pol_attr_rw(pump_inc_step);
+gov_sys_pol_attr_rw(pump_dec_step_at_min_freq);
+gov_sys_pol_attr_rw(pump_dec_step);
 gov_sys_pol_attr_ro(sampling_rate_min);
 
 static struct attribute *dbs_attributes_gov_sys[] = {
@@ -586,25 +588,13 @@ static struct attribute *dbs_attributes_gov_sys[] = {
 	&dec_cpu_load_at_min_freq_gov_sys.attr,
 	&dec_cpu_load_gov_sys.attr,
 	&freq_responsiveness_gov_sys.attr,
-	&pump_inc_step_at_min_freq_1.attr,
-	&pump_inc_step_at_min_freq_2.attr,
-	&pump_inc_step_at_min_freq_3.attr,
-	&pump_inc_step_at_min_freq_4.attr,
-	&pump_inc_step_1.attr,
-	&pump_inc_step_2.attr,
-	&pump_inc_step_3.attr,
-	&pump_inc_step_4.attr,
-	&pump_dec_step_at_min_freq_1.attr,
-	&pump_dec_step_at_min_freq_2.attr,
-	&pump_dec_step_at_min_freq_3.attr,
-	&pump_dec_step_at_min_freq_4.attr,
-	&pump_dec_step_1.attr,
-	&pump_dec_step_2.attr,
-	&pump_dec_step_3.attr,
-	&pump_dec_step_4.attr,
 	&cpus_up_rate_gov_sys.attr,
 	&cpus_down_rate_gov_sys.attr,
 	&ignore_nice_load_gov_sys.attr,
+	&pump_inc_step_at_min_freq_gov_sys.attr,
+	&pump_inc_step_gov_sys.attr,
+	&pump_dec_step_at_min_freq_gov_sys.attr,
+	&pump_dec_step_gov_sys.attr,
 	NULL
 };
 
@@ -621,25 +611,13 @@ static struct attribute *dbs_attributes_gov_pol[] = {
 	&dec_cpu_load_at_min_freq_gov_pol.attr,
 	&dec_cpu_load_gov_pol.attr,
 	&freq_responsiveness_gov_pol.attr,
-	&pump_inc_step_at_min_freq_1.attr,
-	&pump_inc_step_at_min_freq_2.attr,
-	&pump_inc_step_at_min_freq_3.attr,
-	&pump_inc_step_at_min_freq_4.attr,
-	&pump_inc_step_1.attr,
-	&pump_inc_step_2.attr,
-	&pump_inc_step_3.attr,
-	&pump_inc_step_4.attr,
-	&pump_dec_step_at_min_freq_1.attr,
-	&pump_dec_step_at_min_freq_2.attr,
-	&pump_dec_step_at_min_freq_3.attr,
-	&pump_dec_step_at_min_freq_4.attr,
-	&pump_dec_step_1.attr,
-	&pump_dec_step_2.attr,
-	&pump_dec_step_3.attr,
-	&pump_dec_step_4.attr,
 	&cpus_up_rate_gov_pol.attr,
 	&cpus_down_rate_gov_pol.attr,
 	&ignore_nice_load_gov_pol.attr,
+	&pump_inc_step_at_min_freq_gov_pol.attr,
+	&pump_inc_step_gov_pol.attr,
+	&pump_dec_step_at_min_freq_gov_pol.attr,
+	&pump_dec_step_gov_pol.attr,
 	NULL
 };
 
@@ -653,21 +631,11 @@ static struct attribute_group ac_attr_group_gov_pol = {
 static int ac_init(struct dbs_data *dbs_data)
 {
 	struct ac_dbs_tuners *tuners;
-	unsigned int cpu = 0;
 
 	tuners = kzalloc(sizeof(struct ac_dbs_tuners), GFP_KERNEL);
 	if (!tuners) {
 		pr_err("%s: kzalloc failed\n", __func__);
 		return -ENOMEM;
-	}
-
-	for_each_possible_cpu(cpu) {
-		struct ac_pump_cpu_parm *this_cpu_parm = &per_cpu(od_ac_pump_cpu_parm, cpu);
-
-		this_cpu_parm->pump_inc_step_at_min_freq = PUMP_INC_STEP_AT_MIN_FREQ;
-		this_cpu_parm->pump_inc_step = PUMP_INC_STEP;
-		this_cpu_parm->pump_dec_step = PUMP_DEC_STEP;
-		this_cpu_parm->pump_dec_step_at_min_freq = PUMP_DEC_STEP_AT_MIN_FREQ;
 	}
 
 	dbs_data->min_sampling_rate = MIN_SAMPLING_RATE;
@@ -680,6 +648,10 @@ static int ac_init(struct dbs_data *dbs_data)
 	tuners->freq_responsiveness = FREQ_RESPONSIVENESS;
 	tuners->cpus_up_rate = CPUS_UP_RATE;
 	tuners->cpus_down_rate = CPUS_DOWN_RATE;
+	tuners->pump_inc_step_at_min_freq = PUMP_INC_STEP_AT_MIN_FREQ;
+	tuners->pump_inc_step = PUMP_INC_STEP;
+	tuners->pump_dec_step = PUMP_DEC_STEP;
+	tuners->pump_dec_step_at_min_freq = PUMP_DEC_STEP_AT_MIN_FREQ;
 
 	dbs_data->tuners = tuners;
 	mutex_init(&dbs_data->mutex);

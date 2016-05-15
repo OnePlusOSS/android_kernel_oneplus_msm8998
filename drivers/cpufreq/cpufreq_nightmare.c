@@ -36,7 +36,7 @@
 #define FREQ_STEP_DEC				10
 #define FREQ_STEP_DEC_AT_MAX_FREQ	10
 
-#define DEF_SAMPLING_RATE			(10000)
+#define DEF_SAMPLING_RATE			(20000)
 #define MIN_SAMPLING_RATE			(10000)
 
 static DEFINE_PER_CPU(struct nm_cpu_dbs_info_s, nm_cpu_dbs_info);

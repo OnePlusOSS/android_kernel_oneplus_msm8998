@@ -20,7 +20,7 @@
 #include "cpufreq_governor.h"
 
 /* darkness governor macros */
-#define DEF_SAMPLING_RATE			(10000)
+#define DEF_SAMPLING_RATE			(20000)
 #define MIN_SAMPLING_RATE			(10000)
 
 static DEFINE_PER_CPU(struct dk_cpu_dbs_info_s, dk_cpu_dbs_info);

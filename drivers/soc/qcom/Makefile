@@ -107,3 +107,5 @@ obj-y += project_info.o
 obj-$(CONFIG_RF_CABLE_DETECT) += op_rf_cable_monitor.o
 obj-$(CONFIG_QCOM_EARLY_RANDOM)	+= early_random.o
 obj-$(CONFIG_QCOM_CX_IPEAK) += cx_ipeak.o
+
+obj-$(CONFIG_STATE_NOTIFIER)		+= state_notifier.o

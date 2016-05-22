@@ -121,14 +121,14 @@ static void nm_check_cpu(int cpu, unsigned int load)
 		 && policy->cur < policy->max) {
 		tmp_freq = adjust_cpufreq_frequency_target(policy,
 												   dbs_info->freq_table,
-												   (policy->cur + ((load + freq_step - freq_up_brake == 0 ? 1 : load + freq_step - freq_up_brake) * 3780)));
+												   (policy->cur + ((load + freq_step - freq_up_brake == 0 ? 1 : load + freq_step - freq_up_brake) * 1536)));
 
 		__cpufreq_driver_target(policy, tmp_freq, CPUFREQ_RELATION_L);
 	} else if (load < dec_cpu_load
 				&& policy->cur > policy->min) {
 		tmp_freq = adjust_cpufreq_frequency_target(policy,
 												   dbs_info->freq_table,
-												   (policy->cur - ((100 - load + freq_step_dec == 0 ? 1 : 100 - load + freq_step_dec) * 3780)));
+												   (policy->cur - ((100 - load + freq_step_dec == 0 ? 1 : 100 - load + freq_step_dec) * 1536)));
 
 		__cpufreq_driver_target(policy, tmp_freq, CPUFREQ_RELATION_L);
 	}

@@ -566,68 +566,6 @@ void csr_neighbor_roam_reset_init_state_control_info(tpAniSirGlobal pMac,
 	csr_neighbor_roam_reset_report_scan_state_control_info(pMac, sessionId);
 }
 
-#ifdef WLAN_FEATURE_ROAM_OFFLOAD
-/**
- * csr_neighbor_roam_offload_update_preauth_list()
- *
- * @mac_ctx: Pointer to Global MAC structure
- * @session_id: Session ID
- * @roam_sync_ind_ptr: Roam offload sync Ind Info
- *
- * This function handles the RoamOffloadSynch and adds the
- * roamed AP to the preauth done list
- *
- * Return: QDF_STATUS_SUCCESS on success, QDF_STATUS_E_FAILURE otherwise
- */
-QDF_STATUS
-csr_neighbor_roam_offload_update_preauth_list(tpAniSirGlobal pMac,
-	roam_offload_synch_ind *roam_sync_ind_ptr, uint8_t session_id)
-{
-	tpCsrNeighborRoamControlInfo neighbor_roam_info_ptr =
-		&pMac->roam.neighborRoamInfo[session_id];
-	tpCsrNeighborRoamBSSInfo bss_info_ptr;
-	uint16_t bss_desc_len;
-
-	if (neighbor_roam_info_ptr->neighborRoamState !=
-	    eCSR_NEIGHBOR_ROAM_STATE_CONNECTED) {
-		NEIGHBOR_ROAM_DEBUG(pMac, LOGW,
-			FL("LFR3:Roam Offload Synch Ind received in state %d"),
-			neighbor_roam_info_ptr->neighborRoamState);
-		return QDF_STATUS_E_FAILURE;
-	}
-
-	bss_info_ptr = qdf_mem_malloc(sizeof(tCsrNeighborRoamBSSInfo));
-	if (NULL == bss_info_ptr) {
-		sms_log(pMac, LOGE,
-		FL("LFR3:Memory allocation for Neighbor Roam BSS Info failed"));
-		return QDF_STATUS_E_NOMEM;
-	}
-	bss_desc_len = roam_sync_ind_ptr->bss_desc_ptr->length +
-		     sizeof(roam_sync_ind_ptr->bss_desc_ptr->length);
-	bss_info_ptr->pBssDescription = qdf_mem_malloc(bss_desc_len);
-	if (bss_info_ptr->pBssDescription != NULL) {
-		qdf_mem_copy(bss_info_ptr->pBssDescription,
-			     roam_sync_ind_ptr->bss_desc_ptr,
-			     bss_desc_len);
-	} else {
-		sms_log(pMac, LOGE,
-		FL("LFR3:Mem alloc for Neighbor Roam BSS Descriptor failed"));
-		qdf_mem_free(bss_info_ptr);
-		return QDF_STATUS_E_NOMEM;
-
-	}
-	csr_ll_insert_tail(&neighbor_roam_info_ptr->FTRoamInfo.preAuthDoneList,
-			   &bss_info_ptr->List, LL_ACCESS_LOCK);
-
-	csr_neighbor_roam_state_transition(pMac,
-			eCSR_NEIGHBOR_ROAM_STATE_PREAUTH_DONE, session_id);
-	neighbor_roam_info_ptr->FTRoamInfo.numPreAuthRetries = 0;
-	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-		  "LFR3:Entry added to Auth Done List");
-
-	return QDF_STATUS_SUCCESS;
-}
-#endif
 /**
  * csr_neighbor_roam_prepare_scan_profile_filter()
  *
@@ -788,42 +726,6 @@ csr_neighbor_roam_prepare_scan_profile_filter(tpAniSirGlobal pMac,
 	pScanFilter->MFPCapable = pCurProfile->MFPCapable;
 #endif
 	return QDF_STATUS_SUCCESS;
-}
-
-uint32_t csr_get_current_ap_rssi(tpAniSirGlobal pMac,
-				 tScanResultHandle *pScanResultList,
-				 uint8_t sessionId)
-{
-	tCsrScanResultInfo *pScanResult;
-	tpCsrNeighborRoamControlInfo nbr_roam_info =
-		&pMac->roam.neighborRoamInfo[sessionId];
-	/* We are setting this as default value to make sure we return this value,
-	   when we do not see this AP in the scan result for some reason.However,it is
-	   less likely that we are associated to an AP and do not see it in the scan list */
-	uint32_t CurrAPRssi = -125;
-
-	while (NULL !=
-	       (pScanResult = csr_scan_result_get_next(pMac, *pScanResultList))) {
-		if (true !=
-		    qdf_mem_cmp(pScanResult->BssDescriptor.bssId,
-				    nbr_roam_info->currAPbssid.bytes,
-				    sizeof(tSirMacAddr))) {
-			/* We got a match with the currently associated AP.
-			 * Capture the RSSI value and complete the while loop.
-			 * The while loop is completed in order to make the current entry go back to NULL,
-			 * and in the next while loop, it properly starts searching from the head of the list.
-			 * TODO: Can also try setting the current entry directly to NULL as soon as we find the new AP*/
-
-			CurrAPRssi =
-				(int)pScanResult->BssDescriptor.rssi * (-1);
-
-		} else {
-			continue;
-		}
-	}
-
-	return CurrAPRssi;
-
 }
 
 /**
@@ -1109,63 +1011,6 @@ bool csr_neighbor_roam_connected_profile_match(tpAniSirGlobal pMac,
 
 	return csr_neighbor_roam_is_ssid_and_security_match(pMac, pCurProfile,
 							    pBssDesc, pIes);
-}
-
-/**
- * csr_neighbor_roam_prepare_non_occupied_channel_list() - prepare non-occup CL
- * @pMac: The handle returned by mac_open
- * @pInputChannelList: The default channels list
- * @numOfChannels: The number of channels in the default channels list
- * @pOutputChannelList: The place to put the non-occupied channel list
- * @pOutputNumOfChannels: Number of channels in the non-occupied channel list
- *
- * This function is used to prepare a channel list that is derived from
- * the list of valid channels and does not include those in the occupied list
- *
- * Return QDF_STATUS
- */
-QDF_STATUS
-csr_neighbor_roam_prepare_non_occupied_channel_list(tpAniSirGlobal pMac,
-		uint8_t sessionId, uint8_t *pInputChannelList,
-		uint8_t numOfChannels, uint8_t *pOutputChannelList,
-		uint8_t *pOutputNumOfChannels)
-{
-	uint8_t i = 0;
-	uint8_t outputNumOfChannels = 0;
-	uint8_t numOccupiedChannels =
-			pMac->scan.occupiedChannels[sessionId].numChannels;
-	uint8_t *pOccupiedChannelList =
-			pMac->scan.occupiedChannels[sessionId].channelList;
-
-	for (i = 0; i < numOfChannels; i++) {
-		if (csr_is_channel_present_in_list
-				(pOccupiedChannelList, numOccupiedChannels,
-				 pInputChannelList[i]))
-			continue;
-		/*
-		 * DFS channel will be added in the list only when the
-		 * DFS Roaming scan flag is enabled
-		 */
-		if (CDS_IS_DFS_CH(pInputChannelList[i])) {
-			if (CSR_ROAMING_DFS_CHANNEL_DISABLED !=
-				pMac->roam.configParam.allowDFSChannelRoam) {
-				pOutputChannelList[outputNumOfChannels++] =
-						pInputChannelList[i];
-			}
-		} else {
-			pOutputChannelList[outputNumOfChannels++] =
-						pInputChannelList[i];
-		}
-	}
-
-	sms_log(pMac, LOG2,
-		FL("Number of channels in the valid channel list=%d; "
-		   "Number of channels in the non-occupied list list=%d"),
-		numOfChannels, outputNumOfChannels);
-
-	/* Return the number of channels */
-	*pOutputNumOfChannels = outputNumOfChannels;
-	return QDF_STATUS_SUCCESS;
 }
 
 /**

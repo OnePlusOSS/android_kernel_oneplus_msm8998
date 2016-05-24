@@ -2031,6 +2031,7 @@ int wma_roam_synch_event_handler(void *handle, uint8_t *event,
 	tpSirBssDescription  bss_desc_ptr = NULL;
 	uint16_t ie_len = 0;
 	int status = -EINVAL;
+	qdf_time_t roam_synch_received = qdf_get_system_timestamp();
 
 	WMA_LOGD("LFR3:%s", __func__);
 	if (!event) {
@@ -2095,6 +2096,10 @@ int wma_roam_synch_event_handler(void *handle, uint8_t *event,
 	wma->csr_roam_synch_cb((tpAniSirGlobal)wma->mac_context,
 		roam_synch_ind_ptr, bss_desc_ptr, SIR_ROAM_SYNCH_PROPAGATION);
 	wma_process_roam_synch_complete(wma, synch_event->vdev_id);
+	wma->interfaces[synch_event->vdev_id].roam_synch_delay =
+		qdf_get_system_timestamp() - roam_synch_received;
+	WMA_LOGD("LFR3: roam_synch_delay:%d",
+		wma->interfaces[synch_event->vdev_id].roam_synch_delay);
 cleanup_label:
 	if (roam_synch_ind_ptr->join_rsp)
 		qdf_mem_free(roam_synch_ind_ptr->join_rsp);
@@ -2744,12 +2749,6 @@ QDF_STATUS wma_pno_start(tp_wma_handle wma, tpSirPNOScanReq pno)
 	params->active_max_time = pno->active_max_time;
 	params->passive_min_time = pno->passive_min_time;
 	params->passive_max_time = pno->passive_max_time;
-	params->us24GProbeTemplateLen = pno->us24GProbeTemplateLen;
-	qdf_mem_copy(params->p24GProbeTemplate, pno->p24GProbeTemplate,
-				WMI_PNO_MAX_PB_REQ_SIZE);
-	params->us5GProbeTemplateLen = pno->us5GProbeTemplateLen;
-	qdf_mem_copy(params->p5GProbeTemplate, pno->p5GProbeTemplate,
-				WMI_PNO_MAX_PB_REQ_SIZE);
 #ifdef FEATURE_WLAN_SCAN_PNO
 	params->pno_channel_prediction = pno->pno_channel_prediction;
 	params->top_k_num_of_channels = pno->top_k_num_of_channels;

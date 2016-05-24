@@ -2060,6 +2060,7 @@ static hdd_adapter_t *hdd_alloc_station_adapter(hdd_context_t *hdd_ctx,
 		SET_NETDEV_DEV(pWlanDev, hdd_ctx->parent_dev);
 		hdd_wmm_init(adapter);
 		spin_lock_init(&adapter->pause_map_lock);
+		adapter->start_time = adapter->last_time = qdf_system_ticks();
 	}
 
 	return adapter;
@@ -4212,6 +4213,7 @@ void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 
 free_hdd_ctx:
 
+	wlan_hdd_deinit_tx_rx_histogram(hdd_ctx);
 	wiphy_unregister(wiphy);
 
 	hdd_context_destroy(hdd_ctx);
@@ -4754,6 +4756,38 @@ static void hdd_bus_bw_compute_cbk(void *priv)
 #endif
 
 /**
+ * wlan_hdd_init_tx_rx_histogram() - init tx/rx histogram stats
+ * @hdd_ctx: hdd context
+ *
+ * Return: 0 for success or error code
+ */
+int wlan_hdd_init_tx_rx_histogram(hdd_context_t *hdd_ctx)
+{
+	hdd_ctx->hdd_txrx_hist = qdf_mem_malloc(
+		(sizeof(struct hdd_tx_rx_histogram) * NUM_TX_RX_HISTOGRAM));
+	if (hdd_ctx->hdd_txrx_hist == NULL) {
+		hdd_err("%s: Failed malloc for hdd_txrx_hist", __func__);
+		return -ENOMEM;
+	}
+	return 0;
+}
+
+/**
+ * wlan_hdd_deinit_tx_rx_histogram() - deinit tx/rx histogram stats
+ * @hdd_ctx: hdd context
+ *
+ * Return: none
+ */
+void wlan_hdd_deinit_tx_rx_histogram(hdd_context_t *hdd_ctx)
+{
+	if (hdd_ctx->hdd_txrx_hist) {
+		qdf_mem_free(hdd_ctx->hdd_txrx_hist);
+		hdd_ctx->hdd_txrx_hist = NULL;
+	}
+}
+
+
+/**
  * wlan_hdd_display_tx_rx_histogram() - display tx rx histogram
  * @hdd_ctx: hdd context
  *
@@ -4803,7 +4837,8 @@ void wlan_hdd_display_tx_rx_histogram(hdd_context_t *hdd_ctx)
 void wlan_hdd_clear_tx_rx_histogram(hdd_context_t *hdd_ctx)
 {
 	hdd_ctx->hdd_txrx_hist_idx = 0;
-	qdf_mem_zero(hdd_ctx->hdd_txrx_hist, sizeof(hdd_ctx->hdd_txrx_hist));
+	qdf_mem_zero(hdd_ctx->hdd_txrx_hist,
+		(sizeof(struct hdd_tx_rx_histogram) * NUM_TX_RX_HISTOGRAM));
 }
 
 /**
@@ -4819,24 +4854,40 @@ void wlan_hdd_display_netif_queue_history(hdd_context_t *hdd_ctx)
 	hdd_adapter_list_node_t *adapter_node = NULL, *next = NULL;
 	QDF_STATUS status;
 	int i;
+	qdf_time_t total, pause, unpause, curr_time;
 
 	status = hdd_get_front_adapter(hdd_ctx, &adapter_node);
 	while (NULL != adapter_node && QDF_STATUS_SUCCESS == status) {
 		adapter = adapter_node->pAdapter;
 
 		hddLog(QDF_TRACE_LEVEL_ERROR,
-			"Session_id %d device mode %d current index %d",
-			adapter->sessionId, adapter->device_mode,
-			adapter->history_index);
+			"Session_id %d device mode %d",
+			adapter->sessionId, adapter->device_mode);
 
 		hddLog(QDF_TRACE_LEVEL_ERROR,
 			"Netif queue operation statistics:");
 		hddLog(QDF_TRACE_LEVEL_ERROR,
 			"Current pause_map value %x", adapter->pause_map);
+		curr_time = qdf_system_ticks();
+		total = curr_time - adapter->start_time;
+		if (adapter->pause_map) {
+			pause = adapter->total_pause_time +
+				curr_time - adapter->last_time;
+			unpause = adapter->total_unpause_time;
+		} else {
+			unpause = adapter->total_unpause_time +
+				  curr_time - adapter->last_time;
+			pause = adapter->total_pause_time;
+		}
 		hddLog(QDF_TRACE_LEVEL_ERROR,
-			"  reason_type: pause_cnt: unpause_cnt");
+			"Total: %ums Pause: %ums Unpause: %ums",
+			qdf_system_ticks_to_msecs(total),
+			qdf_system_ticks_to_msecs(pause),
+			qdf_system_ticks_to_msecs(unpause));
+		hddLog(QDF_TRACE_LEVEL_ERROR,
+			"reason_type: pause_cnt: unpause_cnt");
 
-		for (i = 0; i < WLAN_REASON_TYPE_MAX; i++) {
+		for (i = 1; i < WLAN_REASON_TYPE_MAX; i++) {
 			hddLog(QDF_TRACE_LEVEL_ERROR,
 				"%s: %d: %d",
 				hdd_reason_type_to_string(i),
@@ -4845,7 +4896,8 @@ void wlan_hdd_display_netif_queue_history(hdd_context_t *hdd_ctx)
 		}
 
 		hddLog(QDF_TRACE_LEVEL_ERROR,
-			"Netif queue operation history:");
+			"Netif queue operation history: current index %d",
+			adapter->history_index);
 		hddLog(QDF_TRACE_LEVEL_ERROR,
 			"index: time: action_type: reason_type: pause_map");
 
@@ -4888,7 +4940,10 @@ void wlan_hdd_clear_netif_queue_history(hdd_context_t *hdd_ctx)
 					sizeof(adapter->queue_oper_stats));
 		qdf_mem_zero(adapter->queue_oper_history,
 					sizeof(adapter->queue_oper_history));
-
+		adapter->history_index = 0;
+		adapter->start_time = adapter->last_time = qdf_system_ticks();
+		adapter->total_pause_time = 0;
+		adapter->total_unpause_time = 0;
 		status = hdd_get_next_adapter(hdd_ctx, adapter_node, &next);
 		adapter_node = next;
 	}
@@ -5622,9 +5677,14 @@ hdd_context_t *hdd_context_create(struct device *dev, void *hif_sc)
 
 	cds_set_multicast_logging(hdd_ctx->config->multicast_host_fw_msgs);
 
+	status = wlan_hdd_init_tx_rx_histogram(hdd_ctx);
+	if (status)
+		goto err_free_config;
+
 	ret = hdd_logging_sock_activate_svc(hdd_ctx);
 	if (ret)
-		goto err_free_config;
+		goto err_free_histogram;
+
 
 	/*
 	 * Update QDF trace levels based upon the code. The multicast
@@ -5638,6 +5698,9 @@ skip_multicast_logging:
 	hdd_set_trace_level_for_each(hdd_ctx);
 
 	return hdd_ctx;
+
+err_free_histogram:
+	wlan_hdd_deinit_tx_rx_histogram(hdd_ctx);
 
 err_free_config:
 	qdf_mem_free(hdd_ctx->config);
@@ -6652,9 +6715,8 @@ void wlan_hdd_send_svc_nlink_msg(int type, void *data, int len)
 	switch (type) {
 	case WLAN_SVC_FW_CRASHED_IND:
 	case WLAN_SVC_LTE_COEX_IND:
-#ifdef FEATURE_WLAN_AUTO_SHUTDOWN
 	case WLAN_SVC_WLAN_AUTO_SHUTDOWN_IND:
-#endif
+	case WLAN_SVC_WLAN_AUTO_SHUTDOWN_CANCEL_IND:
 		ani_hdr->length = 0;
 		nlh->nlmsg_len = NLMSG_LENGTH((sizeof(tAniMsgHdr)));
 		skb_put(skb, NLMSG_SPACE(sizeof(tAniMsgHdr)));
@@ -6803,6 +6865,8 @@ void wlan_hdd_auto_shutdown_enable(hdd_context_t *hdd_ctx, bool enable)
 			hddLog(LOGE,
 			       FL("Failed to stop wlan auto shutdown timer"));
 		}
+		wlan_hdd_send_svc_nlink_msg(
+			WLAN_SVC_WLAN_AUTO_SHUTDOWN_CANCEL_IND, NULL, 0);
 		return;
 	}
 

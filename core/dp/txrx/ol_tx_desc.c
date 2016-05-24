@@ -122,6 +122,7 @@ struct ol_tx_desc_t *ol_tx_desc_alloc(struct ol_txrx_pdev_t *pdev,
 	qdf_spin_lock_bh(&pdev->tx_mutex);
 	if (pdev->tx_desc.freelist) {
 		tx_desc = ol_tx_get_desc_global_pool(pdev);
+		ol_tx_desc_dup_detect_set(pdev, tx_desc);
 		ol_tx_desc_sanity_checks(pdev, tx_desc);
 		ol_tx_desc_compute_delay(tx_desc);
 	}
@@ -165,6 +166,7 @@ struct ol_tx_desc_t *ol_tx_desc_alloc(struct ol_txrx_pdev_t *pdev,
 		qdf_spin_lock_bh(&pool->flow_pool_lock);
 		if (pool->avail_desc) {
 			tx_desc = ol_tx_get_desc_flow_pool(pool);
+			ol_tx_desc_dup_detect_set(pdev, tx_desc);
 			if (qdf_unlikely(pool->avail_desc < pool->stop_th)) {
 				pool->status = FLOW_POOL_ACTIVE_PAUSED;
 				qdf_spin_unlock_bh(&pool->flow_pool_lock);
@@ -230,7 +232,7 @@ void ol_tx_desc_free(struct ol_txrx_pdev_t *pdev, struct ol_tx_desc_t *tx_desc)
 {
 	qdf_spin_lock_bh(&pdev->tx_mutex);
 
-	if (tx_desc->pkt_type == ol_tx_frm_tso) {
+	if (tx_desc->pkt_type == OL_TX_FRM_TSO) {
 		if (qdf_unlikely(tx_desc->tso_desc == NULL)) {
 			qdf_print("%s %d TSO desc is NULL!\n",
 				 __func__, __LINE__);
@@ -239,6 +241,7 @@ void ol_tx_desc_free(struct ol_txrx_pdev_t *pdev, struct ol_tx_desc_t *tx_desc)
 			ol_tso_free_segment(pdev, tx_desc->tso_desc);
 		}
 	}
+	ol_tx_desc_dup_detect_reset(pdev, tx_desc);
 	ol_tx_desc_reset_pkt_type(tx_desc);
 	ol_tx_desc_reset_timestamp(tx_desc);
 
@@ -259,7 +262,7 @@ void ol_tx_desc_free(struct ol_txrx_pdev_t *pdev, struct ol_tx_desc_t *tx_desc)
 	struct ol_tx_flow_pool_t *pool = tx_desc->pool;
 
 #if defined(FEATURE_TSO)
-	if (tx_desc->pkt_type == ol_tx_frm_tso) {
+	if (tx_desc->pkt_type == OL_TX_FRM_TSO) {
 		if (qdf_unlikely(tx_desc->tso_desc == NULL))
 			qdf_print("%s %d TSO desc is NULL!\n",
 				 __func__, __LINE__);
@@ -271,6 +274,7 @@ void ol_tx_desc_free(struct ol_txrx_pdev_t *pdev, struct ol_tx_desc_t *tx_desc)
 	ol_tx_desc_reset_timestamp(tx_desc);
 
 	qdf_spin_lock_bh(&pool->flow_pool_lock);
+	ol_tx_desc_dup_detect_reset(pdev, tx_desc);
 	ol_tx_put_desc_flow_pool(pool, tx_desc);
 	switch (pool->status) {
 	case FLOW_POOL_ACTIVE_PAUSED:
@@ -359,14 +363,13 @@ struct ol_tx_desc_t *ol_tx_desc_ll(struct ol_txrx_pdev_t *pdev,
 
 	if (msdu_info->tso_info.is_tso) {
 		tx_desc->tso_desc = msdu_info->tso_info.curr_seg;
-		tx_desc->pkt_type = ol_tx_frm_tso;
+		tx_desc->pkt_type = OL_TX_FRM_TSO;
 		TXRX_STATS_MSDU_INCR(pdev, tx.tso.tso_pkts, netbuf);
 	} else {
-		tx_desc->pkt_type = ol_tx_frm_std;
+		tx_desc->pkt_type = OL_TX_FRM_STD;
 	}
 
 	/* initialize the HW tx descriptor */
-
 	htt_tx_desc_init(pdev->htt_pdev, tx_desc->htt_tx_desc,
 			 tx_desc->htt_tx_desc_paddr,
 			 ol_tx_desc_id(pdev, tx_desc), netbuf, &msdu_info->htt,
@@ -472,7 +475,7 @@ void ol_tx_desc_frame_free_nonstd(struct ol_txrx_pdev_t *pdev,
 #endif
 	trace_str = (had_error) ? "OT:C:F:" : "OT:C:S:";
 	qdf_nbuf_trace_update(tx_desc->netbuf, trace_str);
-	if (tx_desc->pkt_type == ol_tx_frm_no_free) {
+	if (tx_desc->pkt_type == OL_TX_FRM_NO_FREE) {
 		/* free the tx desc but don't unmap or free the frame */
 		if (pdev->tx_data_callback.func) {
 			qdf_nbuf_set_next(tx_desc->netbuf, NULL);

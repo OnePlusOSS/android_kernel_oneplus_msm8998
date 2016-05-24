@@ -117,10 +117,10 @@ struct privacy_exemption {
 };
 
 enum ol_tx_frm_type {
-	ol_tx_frm_std = 0, /* regular frame - no added header fragments */
-	ol_tx_frm_tso,     /* TSO segment, with a modified IP header added */
-	ol_tx_frm_audio,   /* audio frames, with a custom LLC/SNAP hdr added */
-	ol_tx_frm_no_free, /* frame requires special tx completion callback */
+	OL_TX_FRM_STD = 0, /* regular frame - no added header fragments */
+	OL_TX_FRM_TSO,     /* TSO segment, with a modified IP header added */
+	OL_TX_FRM_AUDIO,   /* audio frames, with a custom LLC/SNAP hdr added */
+	OL_TX_FRM_NO_FREE, /* frame requires special tx completion callback */
 };
 
 struct ol_tx_desc_t {
@@ -564,6 +564,9 @@ struct ol_txrx_pdev_t {
 		uint8_t page_divider;
 		uint32_t offset_filter;
 		struct qdf_mem_multi_page_t desc_pages;
+#ifdef DESC_DUP_DETECT_DEBUG
+		uint32_t *free_list_bitmap;
+#endif
 	} tx_desc;
 
 	uint8_t is_mgmt_over_wmi_enabled;

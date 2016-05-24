@@ -142,9 +142,17 @@ static inline uint8_t ol_tx_prepare_tso(ol_txrx_vdev_handle vdev,
 qdf_nbuf_t ol_tx_data(ol_txrx_vdev_handle vdev, qdf_nbuf_t skb)
 {
 	void *qdf_ctx = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
-	struct ol_txrx_pdev_t *pdev = vdev->pdev;
+	struct ol_txrx_pdev_t *pdev;
 	qdf_nbuf_t ret;
 	QDF_STATUS status;
+
+	if (qdf_unlikely(!vdev)) {
+		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_WARN,
+			"%s:vdev is null", __func__);
+		return skb;
+	} else {
+		pdev = vdev->pdev;
+	}
 
 	if (qdf_unlikely(!pdev)) {
 		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_WARN,
@@ -384,10 +392,10 @@ ol_tx_prepare_ll_fast(struct ol_txrx_pdev_t *pdev,
 	tx_desc->netbuf = msdu;
 	if (msdu_info->tso_info.is_tso) {
 		tx_desc->tso_desc = msdu_info->tso_info.curr_seg;
-		tx_desc->pkt_type = ol_tx_frm_tso;
+		tx_desc->pkt_type = OL_TX_FRM_TSO;
 		TXRX_STATS_MSDU_INCR(pdev, tx.tso.tso_pkts, msdu);
 	} else {
-		tx_desc->pkt_type = ol_tx_frm_std;
+		tx_desc->pkt_type = OL_TX_FRM_STD;
 	}
 
 	htt_tx_desc = tx_desc->htt_tx_desc;
@@ -1049,9 +1057,9 @@ ol_tx_non_std_ll(ol_txrx_vdev_handle vdev,
 
 		if (tx_spec != OL_TX_SPEC_STD) {
 			if (tx_spec & OL_TX_SPEC_NO_FREE) {
-				tx_desc->pkt_type = OL_TX_SPEC_NO_FREE;
+				tx_desc->pkt_type = OL_TX_FRM_NO_FREE;
 			} else if (tx_spec & OL_TX_SPEC_TSO) {
-				tx_desc->pkt_type = OL_TX_SPEC_TSO;
+				tx_desc->pkt_type = OL_TX_FRM_TSO;
 			} else if (tx_spec & OL_TX_SPEC_NWIFI_NO_ENCRYPT) {
 				uint8_t sub_type =
 					ol_txrx_tx_raw_subtype(tx_spec);

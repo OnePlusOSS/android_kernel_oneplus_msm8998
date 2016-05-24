@@ -233,6 +233,7 @@ typedef enum {
 	WMI_GRP_PMF_OFFLOAD,
 	WMI_GRP_BPF_OFFLOAD, /* Berkeley Packet Filter */
 	WMI_GRP_NAN_DATA,
+	WMI_GRP_PROTOTYPE,
 } WMI_GRP_ID;
 
 #define WMI_CMD_GRP_START_ID(grp_id) (((grp_id) << 12) | 0x1)
@@ -262,6 +263,8 @@ typedef enum {
 
 	/** set OUI to be used in probe request if enabled */
 	WMI_SCAN_PROB_REQ_OUI_CMDID,
+	/** config adaptive dwell scan */
+	WMI_SCAN_ADAPTIVE_DWELL_CONFIG_CMDID,
 
 	/* PDEV(physical device) specific commands */
 	/** set regulatorty ctl id used by FW to determine the exact ctl power limits */
@@ -630,6 +633,9 @@ typedef enum {
 	/* configure WOW host wakeup PIN pattern */
 	WMI_WOW_HOSTWAKEUP_GPIO_PIN_PATTERN_CONFIG_CMDID,
 
+	/* Set which action category should wake the host from suspend */
+	WMI_WOW_SET_ACTION_WAKE_UP_CMDID,
+
 	/* RTT measurement related cmd */
 	/** request to make an RTT measurement */
 	WMI_RTT_MEASREQ_CMDID = WMI_CMD_GRP_START_ID(WMI_GRP_RTT),
@@ -774,6 +780,9 @@ typedef enum {
 	WMI_TRANSFER_DATA_TO_FLASH_CMDID,
 	/** Command to enable/disable filtering of multicast IP with unicast mac */
 	WMI_CONFIG_ENHANCED_MCAST_FILTER_CMDID,
+	/** Command to control WISA mode */
+	WMI_VDEV_WISA_CMDID,
+
 	/* GPIO Configuration */
 	WMI_GPIO_CONFIG_CMDID = WMI_CMD_GRP_START_ID(WMI_GRP_GPIO),
 	WMI_GPIO_OUTPUT_CMDID,
@@ -956,7 +965,8 @@ typedef enum {
 	 * NDI - NAN Data Interface
 	 * NDP - NAN Data Path
 	 */
-	WMI_NDI_GET_CAP_REQ_CMDID = WMI_CMD_GRP_START_ID(WMI_GRP_NAN_DATA),
+	/* Commands in prototyping phase */
+	WMI_NDI_GET_CAP_REQ_CMDID = WMI_CMD_GRP_START_ID(WMI_GRP_PROTOTYPE),
 	WMI_NDP_INITIATOR_REQ_CMDID,
 	WMI_NDP_RESPONDER_REQ_CMDID,
 	WMI_NDP_END_REQ_CMDID,
@@ -1163,8 +1173,11 @@ typedef enum {
 	/** Event indicating the DIAG logs/events supported by FW */
 	WMI_DIAG_EVENT_LOG_SUPPORTED_EVENTID,
 
-	/* Instantaneous RSSI event */
+	/** Instantaneous RSSI event */
 	WMI_INST_RSSI_STATS_EVENTID,
+
+	/** FW update tx power levels event */
+	WMI_RADIO_TX_POWER_LEVEL_STATS_EVENTID,
 
 	/** NLO specific events */
 	/** NLO match event after the first match */
@@ -1335,12 +1348,11 @@ typedef enum {
 	WMI_MAWC_ENABLE_SENSOR_EVENTID = WMI_EVT_GRP_START_ID(WMI_GRP_MAWC),
 
 	/** pkt filter (BPF) offload relevant events */
-	WMI_BPF_CAPABILIY_INFO_EVENTID =
-				WMI_EVT_GRP_START_ID(WMI_GRP_BPF_OFFLOAD),
+	WMI_BPF_CAPABILIY_INFO_EVENTID = WMI_EVT_GRP_START_ID(WMI_GRP_BPF_OFFLOAD),
 	WMI_BPF_VDEV_STATS_INFO_EVENTID,
 
-	/** NAN Data Events */
-	WMI_NDI_CAP_RSP_EVENTID = WMI_EVT_GRP_START_ID(WMI_GRP_NAN_DATA),
+	/* Events in Prototyping phase */
+	WMI_NDI_CAP_RSP_EVENTID = WMI_EVT_GRP_START_ID(WMI_GRP_PROTOTYPE),
 	WMI_NDP_INITIATOR_RSP_EVENTID,
 	WMI_NDP_RESPONDER_RSP_EVENTID,
 	WMI_NDP_END_RSP_EVENTID,
@@ -1370,12 +1382,6 @@ typedef enum {
 #define WMI_SSID_LIST_TAG		 0x2
 #define WMI_BSSID_LIST_TAG		 0x3
 #define WMI_IE_TAG			 0x4
-#define WMI_NDP_CFG_TAG                  0x5
-#define WMI_NDP_QOS_CFG_TAG              0x6
-#define WMI_NDP_APP_INFO_TAG             0x7
-#define WMI_NDP_END_REQ_LIST_TAG         0x8
-#define WMI_NDP_END_RSP_PER_NDI_LIST_TAG 0x9
-#define WMI_NDP_END_INDICATION_LIST_TAG  0xA
 
 typedef struct {
 	A_UINT32 tlv_header;            /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_channel */
@@ -1477,6 +1483,8 @@ typedef enum {
 #define WMI_HT_CAP_MPDU_DENSITY           0x0700        /* MPDU Density */
 #define WMI_HT_CAP_MPDU_DENSITY_MASK_SHIFT 8
 #define WMI_HT_CAP_HT40_SGI               0x0800
+#define WMI_HT_CAP_RX_LDPC                0x1000   /* LDPC RX support */
+#define WMI_HT_CAP_TX_LDPC                0x2000   /* LDPC TX support */
 
 /* These macros should be used when we wish to advertise STBC support for
  * only 1SS or 2SS or 3SS. */
@@ -1489,7 +1497,9 @@ typedef enum {
 				WMI_HT_CAP_HT40_SGI      | \
 				WMI_HT_CAP_TX_STBC       | \
 				WMI_HT_CAP_RX_STBC       | \
-				WMI_HT_CAP_LDPC)
+				WMI_HT_CAP_LDPC          | \
+				WMI_HT_CAP_TX_LDPC       | \
+				WMI_HT_CAP_RX_LDPC)
 
 /* WMI_VHT_CAP_* these maps to ieee 802.11ac vht capability information
    field. The fields not defined here are not supported, or reserved.
@@ -1521,6 +1531,7 @@ typedef enum {
 #define WMI_VHT_CAP_MAX_AMPDU_LEN_EXP_SHIFT      23
 #define WMI_VHT_CAP_RX_FIXED_ANT                 0x10000000
 #define WMI_VHT_CAP_TX_FIXED_ANT                 0x20000000
+#define WMI_VHT_CAP_TX_LDPC                      0x40000000
 
 /* TEMPORARY:
  * Preserve the incorrect old name as an alias for the correct new name
@@ -1547,6 +1558,7 @@ typedef enum {
 				 WMI_VHT_CAP_TX_STBC             |	\
 				 WMI_VHT_CAP_RX_STBC_MASK        |	\
 				 WMI_VHT_CAP_RX_LDPC             |	\
+				 WMI_VHT_CAP_TX_LDPC             |	\
 				 WMI_VHT_CAP_MAX_AMPDU_LEN_EXP   |	\
 				 WMI_VHT_CAP_RX_FIXED_ANT        |	\
 				 WMI_VHT_CAP_TX_FIXED_ANT)
@@ -2560,6 +2572,27 @@ typedef struct {
 #define WMI_SCAN_CAPTURE_PHY_ERROR  0x8000
 /** always do passive scan on passive channels */
 #define WMI_SCAN_FLAG_STRICT_PASSIVE_ON_PCHN 0x1000
+/** for adaptive scan mode using 3 bits (21 - 23 bits) */
+#define WMI_SCAN_DWELL_MODE_MASK 0x00E00000
+#define WMI_SCAN_DWELL_MODE_SHIFT        21
+
+typedef enum {
+	WMI_SCAN_DWELL_MODE_DEFAULT      = 0,
+	WMI_SCAN_DWELL_MODE_CONSERVATIVE = 1,
+	WMI_SCAN_DWELL_MODE_MODERATE     = 2,
+	WMI_SCAN_DWELL_MODE_AGGRESSIVE   = 3,
+	WMI_SCAN_DWELL_MODE_STATIC       = 4,
+} WMI_SCAN_DWELL_MODE;
+
+#define WMI_SCAN_SET_DWELL_MODE(flag, mode) \
+	do { \
+		(flag) |= (((mode) << WMI_SCAN_DWELL_MODE_SHIFT) & \
+		WMI_SCAN_DWELL_MODE_MASK); \
+	} while (0)
+
+#define WMI_SCAN_GET_DWELL_MODE(flag) \
+	(((flag) & WMI_SCAN_DWELL_MODE_MASK) >> WMI_SCAN_DWELL_MODE_SHIFT)
+
 /** WMI_SCAN_CLASS_MASK must be the same value as IEEE80211_SCAN_CLASS_MASK */
 #define WMI_SCAN_CLASS_MASK 0xFF000000
 
@@ -4420,9 +4453,49 @@ typedef struct {
 	A_UINT32 on_time_hs20;
 	/** number of channels */
 	A_UINT32 num_channels;
-	/** tx time (in milliseconds) per TPC level (0.5 dBm) */
+	/*
+	 * tx time per TPC level - DEPRECATED
+	 * This field is deprecated.
+	 * It is superseded by the WMI_RADIO_TX_POWER_LEVEL_STATS_EVENTID
+	 * message.
+	 */
 	A_UINT32 tx_time_per_tpc[MAX_TPC_LEVELS];
 } wmi_radio_link_stats;
+
+/** tx time per power level statistics */
+typedef struct {
+	/*
+	 * TLV tag and len; tag equals
+	 * WMITLV_TAG_STRUC_wmi_tx_power_level_stats_evt_fixed_param
+	 */
+	A_UINT32 tlv_header;
+	/* total number of tx power levels */
+	A_UINT32 total_num_tx_power_levels;
+	/* number of tx power levels that are carried in this event */
+	A_UINT32 num_tx_power_levels;
+	/*
+	 * offset of current stats
+	 * If ((num_tx_power_levels + power_level_offset)) ==
+	 *     total_num_tx_power_levels)
+	 * this message completes the report of tx time per power levels.
+	 * Otherwise, additional WMI_RADIO_TX_POWER_LEVEL_STATS_EVENTID
+	 * messages will be sent by the target to deliver the remainder of the
+	 * tx time per power level stats.
+	 */
+	A_UINT32 power_level_offset;
+	/*
+	 * This TLV will be followed by a TLV containing a variable-length
+	 * array of A_UINT32 with tx time per power level data
+	 *  A_UINT32 tx_time_per_power_level[num_tx_power_levels]
+	 * The tx time is in units of milliseconds.
+	 * The power levels are board-specific values; a board-specific
+	 * translation has to be applied to determine what actual power
+	 * corresponds to each power level.
+	 * Just as the host has a BDF file available, the host should also have
+	 * a data file available that provides the power level to power
+	 * translations.
+	 */
+} wmi_tx_power_level_stats_evt_fixed_param;
 
 /** Radio statistics (once started) do not stop or get reset unless wifi_clear_link_stats is invoked */
 typedef struct {
@@ -6756,8 +6829,8 @@ typedef struct {
 	/** total number of negotiated ht rate set. Also the sizeof
 	 *  peer_ht_rates[] */
 	A_UINT32 num_peer_ht_rates;
-	/**
-	 * Bitmap providing QCA proprietary mapping of bandwidths to max Rx NSS
+	/*
+	 * Bitmap providing customized mapping of bandwidths to max Rx NSS
 	 * for this peer.
 	 * This is required since 802.11 standard currently facilitates peer to
 	 * be able to advertise only a single max Rx NSS value across all
@@ -8034,6 +8107,7 @@ typedef enum event_type_e {
 	WOW_NAN_DATA_EVENT,
 	WOW_NAN_RTT_EVENT,
 	WOW_TDLS_CONN_TRACKER_EVENT,
+	WOW_CRITICAL_LOG_EVENT,
 } WOW_WAKE_EVENT_TYPE;
 
 typedef enum wake_reason_e {
@@ -8081,6 +8155,7 @@ typedef enum wake_reason_e {
 	WOW_REASON_NAN_DATA,
 	WOW_REASON_NAN_RTT,
 	WOW_REASON_TDLS_CONN_TRACKER_EVENT,
+	WOW_REASON_CRITICAL_LOG,
 	WOW_REASON_DEBUG_TEST = 0xFF,
 } WOW_WAKE_REASON_TYPE;
 
@@ -8348,6 +8423,32 @@ typedef struct {
 	/* repeat times for pulse (0xffffffff means forever) */
 	A_UINT32 repeat_cnt;
 } WMI_WOW_HOSTWAKEUP_GPIO_PIN_PATTERN_CONFIG_CMD_fixed_param;
+
+#define MAX_SUPPORTED_ACTION_CATEGORY           256
+#define MAX_SUPPORTED_ACTION_CATEGORY_ELE_LIST  (MAX_SUPPORTED_ACTION_CATEGORY/32)
+
+typedef enum {
+	WOW_ACTION_WAKEUP_OPERATION_RESET = 0,
+	WOW_ACTION_WAKEUP_OPERATION_SET,
+	WOW_ACTION_WAKEUP_OPERATION_ADD_SET,
+	WOW_ACTION_WAKEUP_OPERATION_DELETE_SET,
+} WOW_ACTION_WAKEUP_OPERATION;
+
+typedef struct {
+	/*
+	 * TLV tag and len; tag equals
+	 * WMITLV_TAG_STRUC_WMI_WOW_SET_ACTION_WAKE_UP_CMD_fixed_param
+	 */
+	A_UINT32 tlv_header;
+	A_UINT32 vdev_id;
+	/*
+	 * 0 reset to fw default, 1 set the bits, 2 add the setting bits,
+	 * 3 delete the setting bits
+	 */
+	A_UINT32 operation;
+	A_UINT32 action_category_map[MAX_SUPPORTED_ACTION_CATEGORY_ELE_LIST];
+} WMI_WOW_SET_ACTION_WAKE_UP_CMD_fixed_param;
+
 
 typedef struct wow_event_info_s {
 	A_UINT32 tlv_header;            /* TLV tag and len; tag equals WMITLV_TAG_STRUC_WOW_EVENT_INFO_fixed_param  */
@@ -10970,7 +11071,9 @@ typedef struct {
 	A_UINT32 vdev_id;
 	/** NAN interface MAC address */
 	wmi_mac_addr nan_interface_macaddr;
-} wmi_nan_disc_iface_created_event_fixed_param;
+} wmi_nan_disc_iface_created_event_fixed_param_PROTOTYPE;
+
+#define wmi_nan_disc_iface_created_event_fixed_param wmi_nan_disc_iface_created_event_fixed_param_PROTOTYPE
 
 /**
  * Event to indicate NAN discovery interface deleted
@@ -10983,7 +11086,9 @@ typedef struct {
 	A_UINT32 tlv_header;
 	/** Unique id identifying the VDEV */
 	A_UINT32 vdev_id;
-} wmi_nan_disc_iface_deleted_event_fixed_param;
+} wmi_nan_disc_iface_deleted_event_fixed_param_PROTOTYPE;
+
+#define wmi_nan_disc_iface_deleted_event_fixed_param wmi_nan_disc_iface_deleted_event_fixed_param_PROTOTYPE
 
 /**
  * Event to indicate NAN device started new cluster
@@ -10998,7 +11103,9 @@ typedef struct {
 	A_UINT32 vdev_id;
 	/** NAN Cluster ID */
 	A_UINT32 nan_cluster_id;
-} wmi_nan_started_cluster_event_fixed_param;
+} wmi_nan_started_cluster_event_fixed_param_PROTOTYPE;
+
+#define wmi_nan_started_cluster_event_fixed_param wmi_nan_started_cluster_event_fixed_param_PROTOTYPE
 
 /**
  * Event to indicate NAN device joined to cluster
@@ -11013,7 +11120,9 @@ typedef struct {
 	A_UINT32 vdev_id;
 	/** NAN Cluster ID */
 	A_UINT32 nan_cluster_id;
-} wmi_nan_joined_cluster_event_fixed_param;
+} wmi_nan_joined_cluster_event_fixed_param_PROTOTYPE;
+
+#define wmi_nan_joined_cluster_event_fixed_param wmi_nan_joined_cluster_event_fixed_param_PROTOTYPE
 
 /** NAN DATA CMD's */
 
@@ -11028,34 +11137,9 @@ typedef struct {
 	A_UINT32 tlv_header;
 	/** unique id generated in upper layer for the transaction */
 	A_UINT32 transaction_id;
-} wmi_ndi_get_cap_req_fixed_param;
+} wmi_ndi_get_cap_req_fixed_param_PROTOTYPE;
 
-/**
- * NDP configuration (Security and/or QOS)
- */
-typedef struct {
-	A_UINT32 tag; /** WMI_NDP_CFG_TAG */
-	A_UINT32 ndp_cfg_len; /** ndp_cfg length in byte */
-	A_UINT32 ndp_cfg[1]; /** Security/QoS configuration */
-} wmi_ndp_cfg;
-
-/**
- * NDP QOS configuration
- */
-typedef struct {
-	A_UINT32 tag; /** WMI_NDP_QOS_CFG_TAG */
-	A_UINT32 ndp_qos_cfg_len; /** ndp_qos_cfg length in byte */
-	A_UINT32 ndp_qos_cfg[1]; /** QoS configuration */
-} wmi_ndp_qos_cfg;
-
-/**
- * NDP application information
- */
-typedef struct {
-	A_UINT32 tag; /** WMI_NDP_APP_INFO_TAG */
-	A_UINT32 ndp_app_info_len; /** ndp_app_info length in byte */
-	A_UINT32 ndp_app_info[1]; /** App/Service information */
-} wmi_ndp_app_info;
+#define wmi_ndi_get_cap_req_fixed_param wmi_ndi_get_cap_req_fixed_param_PROTOTYPE
 
 /**
  * NDP Response code
@@ -11064,7 +11148,9 @@ typedef enum {
 	NDP_RSP_CODE_REQUEST_ACCEPT = 0x00,
 	NDP_RSP_CODE_REQUEST_REJECT = 0x01,
 	NDP_RSP_CODE_REQUEST_DEFER  = 0x02,
-} wmi_ndp_rsp_code;
+} wmi_ndp_rsp_code_PROTOTYPE;
+
+#define wmi_ndp_rsp_code wmi_ndp_rsp_code_PROTOTYPE
 
 /**
  * NDP Initiator requesting a data session
@@ -11083,17 +11169,20 @@ typedef struct {
 	A_UINT32 service_instance_id;
 	/** Discovery MAC addr of the publisher/peer */
 	wmi_mac_addr peer_discovery_mac_addr;
-	/** Number of bytes in TLV wmi_ndp_cfg */
+	/* Actual number of bytes in TLV ndp_cfg */
 	A_UINT32 ndp_cfg_len;
-	/** Number of bytes in TLV wmi_ndp_app_info */
+	/* Actual number of bytes in TLV ndp_app_info */
 	A_UINT32 ndp_app_info_len;
 	/**
 	 * TLV (tag length value ) parameters follow the ndp_initiator_req
 	 * structure. The TLV's are:
-	 * wmi_ndp_cfg ndp_cfg[];
-	 * wmi_ndp_app_info ndp_app_info[];
+	 * wmi_channel channel;
+	 * A_UINT8 ndp_cfg[];
+	 * A_UINT8 ndp_app_info[];
 	 */
-} wmi_ndp_initiator_req_fixed_param;
+} wmi_ndp_initiator_req_fixed_param_PROTOTYPE;
+
+#define wmi_ndp_initiator_req_fixed_param wmi_ndp_initiator_req_fixed_param_PROTOTYPE
 
 /**
  * Initiate a data response on the responder side
@@ -11116,54 +11205,53 @@ typedef struct {
 	A_UINT32 ndp_instance_id;
 	/** Response Code defined in wmi_ndp_rsp_code */
 	A_UINT32 rsp_code;
-	/** Number of bytes in TLV wmi_ndp_cfg */
+	/** Number of bytes in TLV ndp_cfg */
 	A_UINT32 ndp_cfg_len;
-	/** Number of bytes in TLV wmi_ndp_app_info */
+	/** Number of bytes in TLV ndp_app_info */
 	A_UINT32 ndp_app_info_len;
 	/**
 	 * TLV (tag length value ) parameters follow the ndp_responder_req
 	 * structure. The TLV's are:
-	 * wmi_ndp_cfg ndp_cfg[];
-	 * wmi_ndp_app_info ndp_app_info[];
+	 * A_UINT8 ndp_cfg[];
+	 * A_UINT8 ndp_app_info[];
 	 */
-} wmi_ndp_responder_req_fixed_param;
+} wmi_ndp_responder_req_fixed_param_PROTOTYPE;
+
+#define wmi_ndp_responder_req_fixed_param wmi_ndp_responder_req_fixed_param_PROTOTYPE
 
 /**
  * NDP end type
  */
 typedef enum {
-	NDP_END_TYPE_UNSPECIFIED = 0x00,
-	NDP_END_TYPE_PEER_UNAVAILABLE = 0x01,
-	NDP_END_TYPE_OTA_FRAME = 0x02,
-} wmi_ndp_end_type;
+	WMI_NDP_END_TYPE_UNSPECIFIED = 0x00,
+	WMI_NDP_END_TYPE_PEER_UNAVAILABLE = 0x01,
+	WMI_NDP_END_TYPE_OTA_FRAME = 0x02,
+} wmi_ndp_end_type_PROTOTYPE;
+
+#define wmi_ndp_end_type wmi_ndp_end_type_PROTOTYPE
 
 /**
  * NDP end reason code
  */
 typedef enum {
-	NDP_END_REASON_UNSPECIFIED = 0x00,
-	NDP_END_REASON_INACTIVITY = 0x01,
-	NDP_END_REASON_PEER_DATA_END = 0x02,
-} wmi_ndp_end_reason_code;
+	WMI_NDP_END_REASON_UNSPECIFIED = 0x00,
+	WMI_NDP_END_REASON_INACTIVITY = 0x01,
+	WMI_NDP_END_REASON_PEER_DATA_END = 0x02,
+} wmi_ndp_end_reason_code_PROTOTYPE;
+
+#define wmi_ndp_end_reason_code wmi_ndp_end_reason_code_PROTOTYPE
 
 /**
  * NDP end request
  */
 typedef struct {
-	/** reason_code  defined in  wmi_ndp_end_reason_code */
-	A_UINT32 reason_code;
+	/* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_ndp_end_req */
+	A_UINT32 tlv_header;
 	/** NDP instance id */
 	A_UINT32 ndp_instance_id;
-} wmi_ndp_end_req;
+} wmi_ndp_end_req_PROTOTYPE;
 
-/**
- * NDP end request list
- */
-typedef struct {
-	A_UINT32 tag;/** WMI_NDP_END_REQ_LIST_TAG  */
-	A_UINT32 num_ndp_end_reqs; /** number of wmi_ndp_end_req */
-	wmi_ndp_end_req ndp_end_reqs[1];
-} wmi_ndp_end_req_list;
+#define wmi_ndp_end_req wmi_ndp_end_req_PROTOTYPE
 
 /**
  * NDP End request
@@ -11176,16 +11264,14 @@ typedef struct {
 	A_UINT32 tlv_header;
 	/** unique id generated in upper layer for the transaction */
 	A_UINT32 transaction_id;
-	/** Number of ndp instances in wmi_ndp_end_req_list */
-	A_UINT32 num_ndp_instances;
-	/** Number of bytes in TLV wmi_ndp_end_req_list */
-	A_UINT32 ndp_end_req_len;
 	/**
 	 * TLV (tag length value ) parameters follow the ndp_end_req
 	 * structure. The TLV's are:
-	 * wmi_ndp_end_req wmi_ndp_end_req_list[];
+	 * wmi_ndp_end_req ndp_end_req_list[];
 	 */
-} wmi_ndp_end_req_fixed_param;
+} wmi_ndp_end_req_fixed_param_PROTOTYPE;
+
+#define wmi_ndp_end_req_fixed_param wmi_ndp_end_req_fixed_param_PROTOTYPE
 
 /* NAN DATA RSP EVENTS */
 
@@ -11202,11 +11288,13 @@ typedef struct {
 	A_UINT32 transaction_id;
 	/** Max ndi interface support */
 	A_UINT32 max_ndi_interfaces;
-	/** Max ndp per ndi support */
-	A_UINT32 max_ndp_per_ndi;
+	/** Max ndp sessions can support */
+	A_UINT32 max_ndp_sessions;
 	/** Max number of peer's per ndi */
 	A_UINT32 max_peers_per_ndi;
-} wmi_ndi_cap_rsp_event_fixed_param;
+} wmi_ndi_cap_rsp_event_fixed_param_PROTOTYPE;
+
+#define wmi_ndi_cap_rsp_event_fixed_param wmi_ndi_cap_rsp_event_fixed_param_PROTOTYPE
 
 /**
  * NDP command response code
@@ -11214,7 +11302,9 @@ typedef struct {
 typedef enum {
 	NDP_CMD_RSP_STATUS_SUCCESS = 0x00,
 	NDP_CMD_RSP_STATUS_ERROR = 0x01,
-} wmi_ndp_cmd_rsp_status;
+} wmi_ndp_cmd_rsp_status_PROTOTYPE;
+
+#define wmi_ndp_cmd_rsp_status wmi_ndp_cmd_rsp_status_PROTOTYPE
 
 /**
  * NDP command reason code
@@ -11228,7 +11318,17 @@ typedef enum {
 	NDP_INVALID_APP_INFO_LEN_PARAM = 0x05,
 	NDP_INVALID_NDP_INSTANCE_ID_PARAM = 0x06,
 	NDP_INVALID_RSP_CODE_PARAM = 0x07,
-} wmi_ndp_cmd_reason_code;
+	NDP_INVALID_CHANNEL_PARAM = 0x08,
+	NDP_INVALID_APP_INFO = 0x09,
+	NDP_INVALID_NDP_CFG = 0x0A,
+	NDP_INVALID_NDP_CFG_LEN_PARAM = 0x0B,
+	NDP_INVALID_NUM_NDP_INSTANCES_PARAM = 0x0C,
+	NDP_INVALID_NDP_END_REQ_LEN_PARAM = 0x0D,
+	NDP_INVALID_NDP_END_REQ = 0x0E,
+	NDP_REACHED_MAX_NDP_INSTANCES = 0x0F,
+} wmi_ndp_cmd_reason_code_PROTOTYPE;
+
+#define wmi_ndp_cmd_reason_code wmi_ndp_cmd_reason_code_PROTOTYPE
 
 /**
  * Event response for wmi_ndp_initiator_req
@@ -11247,7 +11347,14 @@ typedef struct {
 	A_UINT32 rsp_status;
 	/** Reason code defined in wmi_ndp_cmd_reason_code */
 	A_UINT32 reason_code;
-} wmi_ndp_initiator_rsp_event_fixed_param;
+	/*
+	 * Unique token Id generated on the initiator/responder
+	 * side used for a NDP session between two NAN devices
+	 */
+	A_UINT32 ndp_instance_id;
+} wmi_ndp_initiator_rsp_event_fixed_param_PROTOTYPE;
+
+#define wmi_ndp_initiator_rsp_event_fixed_param wmi_ndp_initiator_rsp_event_fixed_param_PROTOTYPE
 
 /**
  * Event response for wmi_ndp_responder_req cmd
@@ -11266,30 +11373,49 @@ typedef struct {
 	A_UINT32 rsp_status;
 	/** Reason code defined in wmi_ndp_cmd_reason_code */
 	A_UINT32 reason_code;
-} wmi_ndp_responder_rsp_event_fixed_param;
+	/*
+	 * Unique token Id generated on the initiator/responder
+	 * side used for a NDP session between two NAN devices
+	 */
+	A_UINT32 ndp_instance_id;
+	/* NDI mac address of the peer */
+	wmi_mac_addr peer_ndi_mac_addr;
+} wmi_ndp_responder_rsp_event_fixed_param_PROTOTYPE;
+
+#define wmi_ndp_responder_rsp_event_fixed_param wmi_ndp_responder_rsp_event_fixed_param_PROTOTYPE
+/**
+ * Active ndp instance id
+ */
+typedef struct {
+	/*
+	 * TLV tag and len; tag equals
+	 * WMITLV_TAG_STRUC_wmi_active_ndp_instance_id
+	 */
+	A_UINT32 tlv_header;
+	/* NDP instance id */
+	A_UINT32 ndp_instance_id;
+} wmi_active_ndp_instance_id_PROTOTYPE;
+
+#define wmi_active_ndp_instance_id wmi_active_ndp_instance_id_PROTOTYPE
 
 /**
  * NDP end response per ndi
  */
 typedef struct {
+	/*
+	 * TLV tag and len; tag equals
+	 * WMITLV_TAG_STRUC_wmi_ndp_end_rsp_per_ndi
+	 */
+	A_UINT32 tlv_header;
 	/** Unique id identifying the VDEV */
 	A_UINT32 vdev_id;
 	/** Peer MAC addr */
 	wmi_mac_addr peer_mac_addr;
 	/** Number of active ndps on this ndi */
 	A_UINT32 num_active_ndps_on_ndi;
-} wmi_ndp_end_rsp_per_ndi;
+} wmi_ndp_end_rsp_per_ndi_PROTOTYPE;
 
-/**
- * NDP end response per ndi list
- */
-typedef struct {
-	/** WMI_NDP_END_RSP_PER_NDI_LIST_TAG */
-	A_UINT32 tag;
-	/** Number of ndp_end_rsp_per_ndi */
-	A_UINT32 num_ndp_end_rsp_per_ndis;
-	wmi_ndp_end_rsp_per_ndi ndp_end_rsp_per_ndis[1];
-} wmi_ndp_end_rsp_per_ndi_list;
+#define wmi_ndp_end_rsp_per_ndi wmi_ndp_end_rsp_per_ndi_PROTOTYPE
 
 /**
  * Event response for wmi_ndp_end_req cmd
@@ -11306,14 +11432,15 @@ typedef struct {
 	A_UINT32 rsp_status;
 	/** Reason code defined in wmi_ndp_cmd_reason_code */
 	A_UINT32 reason_code;
-	/** Number of bytes in TLV wmi_ndp_end_rsp_per_ndi */
-	A_UINT32 data_end_req_rsp_len;
 	/**
 	 * TLV (tag length value ) parameters follow the ndp_end_rsp
 	 * structure. The TLV's are:
 	 * wmi_ndp_end_rsp_per_ndi ndp_end_rsp_per_ndis[];
+	 * wmi_active_ndp_instance_id active_ndp_instances_id[];
 	 */
-} wmi_ndp_end_rsp_event_fixed_param;
+} wmi_ndp_end_rsp_event_fixed_param_PROTOTYPE;
+
+#define wmi_ndp_end_rsp_event_fixed_param wmi_ndp_end_rsp_event_fixed_param_PROTOTYPE
 
 /** NAN DATA EVENTS */
 
@@ -11323,7 +11450,9 @@ typedef struct {
 typedef enum {
 	WMI_NDP_INITIATOR_ROLE,
 	WMI_NDP_RESPONDER_ROLE,
-} wmi_ndp_self_role;
+} wmi_ndp_self_role_PROTOTYPE;
+
+#define wmi_ndp_self_role wmi_ndp_self_role_PROTOTYPE
 
 /**
  * NDP accept policy
@@ -11331,7 +11460,9 @@ typedef enum {
 typedef enum {
 	WMI_NDP_ACCEPT_POLICY_NONE,
 	WMI_NDP_ACCEPT_POLICY_ALL,
-} wmi_ndp_accept_policy;
+} wmi_ndp_accept_policy_PROTOTYPE;
+
+#define wmi_ndp_accept_policy wmi_ndp_accept_policy_PROTOTYPE
 
 /**
  * Event indication received on the responder side when a NDP Initiator request/
@@ -11357,7 +11488,9 @@ typedef struct {
 	/** Unique Instance Id corresponding to a service/session. */
 	A_UINT32 service_instance_id;
 	/** Discovery MAC addr of the peer/initiator */
-	wmi_mac_addr peer_disc_mac_addr;
+	wmi_mac_addr peer_discovery_mac_addr;
+	/* NDI mac address of the peer */
+	wmi_mac_addr peer_ndi_mac_addr;
 	/**
 	 * Unique token Id generated on the initiator/responder
 	 * side used for a NDP session between two NAN devices
@@ -11370,10 +11503,12 @@ typedef struct {
 	/**
 	 * TLV (tag length value ) parameters follow the ndp_indication
 	 * structure. The TLV's are:
-	 * wmi_ndp_cfg ndp_cfg[];
-	 * wmi_ndp_app_info ndp_app_info[];
+	 * A_UINT8 ndp_cfg[];
+	 * A_UINT8 ndp_app_info[];
 	 */
-} wmi_ndp_indication_event_fixed_param;
+} wmi_ndp_indication_event_fixed_param_PROTOTYPE;
+
+#define wmi_ndp_indication_event_fixed_param wmi_ndp_indication_event_fixed_param_PROTOTYPE
 
 /**
  * Event indication of data confirm is received on both
@@ -11403,59 +11538,44 @@ typedef struct {
 	A_UINT32 ndp_cfg_len;
 	/** Number of bytes in TLV wmi_ndp_app_info */
 	A_UINT32 ndp_app_info_len;
+	/** Reason Code */
+	A_UINT32 reason_code;
+	/** Number of active ndps on this peer */
+	A_UINT32 num_active_ndps_on_peer;
 	/**
 	 * TLV (tag length value ) parameters follow the ndp_confirm
 	 * structure. The TLV's are:
-	 * wmi_ndp_cfg ndp_cfg[];
-	 * wmi_ndp_app_info ndp_app_info[];
+	 * A_UINT8 ndp_cfg[];
+	 * A_UINT8 ndp_app_info[];
 	 */
-} wmi_ndp_confirm_event_fixed_param;
+} wmi_ndp_confirm_event_fixed_param_PROTOTYPE;
+
+#define wmi_ndp_confirm_event_fixed_param wmi_ndp_confirm_event_fixed_param_PROTOTYPE
 
 /**
- * NDP end indication
- */
-typedef struct {
-	/** type defined in  wmi_ndp_end_type */
-	A_UINT32 type;
-	/** reason_code  defined in  wmi_ndp_end_reason_code */
-	A_UINT32 reason_code;
-	/** NDP instance id */
-	A_UINT32 ndp_instance_id;
-} wmi_ndp_end_indication;
-
-/**
- * NDP end indication list
- */
-typedef struct {
-	/** WMI_NDP_END_INDICATION_LIST_TAG */
-	A_UINT32 tag;
-	/** Number of ndp_end_rsp_per_ndi */
-	A_UINT32 num_ndp_end_indications;
-	wmi_ndp_end_indication ndp_end_indications[1];
-} wmi_ndp_end_indication_list;
-
-/**
- * Event indication received on the initiator/responder side
- * terminating a NDP session
+ * Event indication received on the initiator/responder side terminating a NDP session
  */
 typedef struct {
 	/*
 	 * TLV tag and len; tag equals
-	 * WMITLV_TAG_STRUC_wmi_ndp_end_indication_event_fixed_param
+	 * WMITLV_TAG_STRUC_wmi_ndp_end_indication
 	 */
 	A_UINT32 tlv_header;
-	/** Unique id identifying the VDEV */
+	/** type defined in  wmi_ndp_end_type */
+	A_UINT32 type;
+	/* Unique id identifying the VDEV */
 	A_UINT32 vdev_id;
-	/** Number of ndp instances in wmi_ndp_end_indication */
-	A_UINT32 num_ndp_instances;
-	/** Number of bytes in TLV wmi_ndp_end_indication */
-	A_UINT32 data_end_event_len;
-	/**
-	 * TLV (tag length value ) parameters follow the ndp_end_indication
-	 * structure. The TLV's are:
-	 * wmi_ndp_end_indication ndp_end_indications[];
-	 */
-} wmi_ndp_end_indication_event_fixed_param;
+	/** reason_code  defined in  wmi_ndp_end_reason_code */
+	A_UINT32 reason_code;
+	/** NDP instance id */
+	A_UINT32 ndp_instance_id;
+	/* NDI MAC addr of the peer */
+	wmi_mac_addr peer_ndi_mac_addr;
+	/* Number of active ndps on this peer */
+	A_UINT32 num_active_ndps_on_peer;
+} wmi_ndp_end_indication_PROTOTYPE;
+
+#define wmi_ndp_end_indication wmi_ndp_end_indication_PROTOTYPE
 
 typedef struct {
 	A_UINT32 tlv_header;
@@ -12325,9 +12445,9 @@ typedef enum {
 
 typedef struct {
 	A_UINT32 tlv_header;            /* TLV tag and len; tag equals WMITLV_TAG_ARRAY_STRUC */
-	/**RSSI */
+	/** RSSI */
 	A_UINT32 rssi;
-	/**time stamp in milliseconds */
+	/** time stamp in milliseconds */
 	A_UINT32 tstamp;
 	/** Extscan cycle during which this entry was scanned */
 	A_UINT32    scan_cycle_id;
@@ -12336,6 +12456,8 @@ typedef struct {
 	 * interrupted (aborted/large time gap preempted) scan
 	 */
 	A_UINT32    flags;
+	/** Bitmask of buckets (i.e. sets of channels) scanned */
+	A_UINT32    buckets_scanned;
 } wmi_extscan_rssi_info;
 
 typedef struct {
@@ -14515,6 +14637,18 @@ typedef struct {
 	A_UINT32 enable;
 } wmi_config_enhanced_mcast_filter_cmd_fixed_param;
 
+typedef struct {
+	/*
+	 * TLV tag and len; tag equals
+	 * WMITLV_TAG_STRUC_wmi_vdev_wisa_cmd_fixed_param
+	 */
+	A_UINT32 tlv_header;
+	/* unique id identifying the VDEV, generated by the caller */
+	A_UINT32 vdev_id;
+	/* WISA enable / disable mode */
+	A_UINT32 wisa_mode;
+} wmi_vdev_wisa_cmd_fixed_param;
+
 /*
  * This structure is used to report SMPS force mode set complete to host.
  */
@@ -15279,6 +15413,233 @@ typedef struct {
  *   A_UINT32 args[];
  **/
 } wmi_pdev_wal_power_debug_cmd_fixed_param;
+
+typedef enum {
+	    WLAN_2G_CAPABILITY = 0x1,
+	    WLAN_5G_CAPABILITY = 0x2,
+} WLAN_BAND_CAPABILITY;
+
+#define WMI_SUPPORT_11B_GET(flags) WMI_GET_BITS(flags, 0, 1)
+#define WMI_SUPPORT_11B_SET(flags, value) WMI_SET_BITS(flags, 0, 1, value)
+
+#define WMI_SUPPORT_11G_GET(flags) WMI_GET_BITS(flags, 1, 1)
+#define WMI_SUPPORT_11G_SET(flags, value) WMI_SET_BITS(flags, 1, 1, value)
+
+#define WMI_SUPPORT_11A_GET(flags) WMI_GET_BITS(flags, 2, 1)
+#define WMI_SUPPORT_11A_SET(flags, value) WMI_SET_BITS(flags, 2, 1, value)
+
+#define WMI_SUPPORT_11N_GET(flags) WMI_GET_BITS(flags, 3, 1)
+#define WMI_SUPPORT_11N_SET(flags, value) WMI_SET_BITS(flags, 3, 1, value)
+
+#define WMI_SUPPORT_11AC_GET(flags) WMI_GET_BITS(flags, 4, 1)
+#define WMI_SUPPORT_11AC_SET(flags, value) WMI_SET_BITS(flags, 4, 1, value)
+
+#define WMI_SUPPORT_11AX_GET(flags) WMI_GET_BITS(flags, 5, 1)
+#define WMI_SUPPORT_11AX_SET(flags, value) WMI_SET_BITS(flags, 5, 1, value)
+
+typedef struct {
+	/*
+	 * TLV tag and len; tag equals
+	 * WMITLV_TAG_STRUC_WMI_MAC_PHY_CAPABILITIES
+	 */
+	A_UINT32 tlv_header;
+	/*
+	 * hw_mode_id - identify a particular set of HW characteristics, as
+	 * specified by the subsequent fields. WMI_MAC_PHY_CAPABILITIES element
+	 * must be mapped to its parent WMI_HW_MODE_CAPABILITIES element using
+	 * hw_mode_id. No particular ordering of WMI_MAC_PHY_CAPABILITIES
+	 * elements should be assumed, though in practice the elements may
+	 * always be ordered by hw_mode_id
+	 */
+	A_UINT32 hw_mode_id;
+	/*
+	 * pdev_id starts with 1. pdev_id 1 => phy_id 0,
+	 * pdev_id 2 => phy_id 1
+	 */
+	A_UINT32 pdev_id;
+	/* phy id. Starts with 0 */
+	A_UINT32 phy_id;
+	/* supported modulations */
+	union {
+		A_UINT32 supports_11b:1,
+			 supports_11g:1,
+			 supports_11a:1,
+			 supports_11n:1,
+			 supports_11ac:1,
+			 supports_11ax:1;
+		A_UINT32 supported_flags;
+	};
+	/* supported bands, enum WLAN_BAND_CAPABILITY */
+	A_UINT32 supported_bands;
+	/*
+	 * ampdu density 0 for no restriction, 1 for 1/4 us, 2 for 1/2 us,
+	 * 3 for 1 us,4 for 2 us, 5 for 4 us, 6 for 8 us,7 for 16 us
+	 */
+	A_UINT32 ampdu_density;
+	/* max bw supported 2G, enum wmi_channel_width */
+	A_UINT32 max_bw_supported_2G;
+	/* WMI HT Capability, WMI_HT_CAP defines */
+	A_UINT32 ht_cap_info_2G;
+	/* VHT capability info field of 802.11ac, WMI_VHT_CAP defines */
+	A_UINT32 vht_cap_info_2G;
+	/*
+	 * VHT Supported MCS Set field Rx/Tx same
+	 * The max VHT-MCS for n SS subfield (where n = 1,...,8) is encoded as
+	 * follows
+	 * - 0 indicates support for VHT-MCS 0-7 for n spatial streams
+	 * - 1 indicates support for VHT-MCS 0-8 for n spatial streams
+	 * - 2 indicates support for VHT-MCS 0-9 for n spatial streams
+	 * - 3 indicates that n spatial streams is not supported
+	 */
+	A_UINT32 vht_supp_mcs_2G;
+	/* HE capability info field of 802.11ax, WMI_HE_CAP defines */
+	A_UINT32 he_cap_info_2G;
+	/* HE Supported MCS Set field Rx/Tx same */
+	A_UINT32 he_supp_mcs_2G;
+	/* Valid Transmit chain mask */
+	A_UINT32 tx_chain_mask_2G;
+	/* Valid Receive chain mask */
+	A_UINT32 rx_chain_mask_2G;
+	/* max bw supported 5G, enum wmi_channel_width */
+	A_UINT32 max_bw_supported_5G;
+	/* WMI HT Capability, WMI_HT_CAP defines */
+	A_UINT32 ht_cap_info_5G;
+	/* VHT capability info field of 802.11ac, WMI_VHT_CAP defines */
+	A_UINT32 vht_cap_info_5G;
+	/*
+	 * VHT Supported MCS Set field Rx/Tx same
+	 * The max VHT-MCS for n SS subfield (where n = 1,...,8) is encoded as
+	 * follows
+	 * - 0 indicates support for VHT-MCS 0-7 for n spatial streams
+	 * - 1 indicates support for VHT-MCS 0-8 for n spatial streams
+	 * - 2 indicates support for VHT-MCS 0-9 for n spatial streams
+	 * - 3 indicates that n spatial streams is not supported
+	 */
+	A_UINT32 vht_supp_mcs_5G;
+	/* HE capability info field of 802.11ax, WMI_HE_CAP defines */
+	A_UINT32 he_cap_info_5G;
+	/* HE Supported MCS Set field Rx/Tx same */
+	A_UINT32 he_supp_mcs_5G;
+	/* Valid Transmit chain mask */
+	A_UINT32 tx_chain_mask_5G;
+	/* Valid Receive chain mask */
+	A_UINT32 rx_chain_mask_5G;
+} WMI_MAC_PHY_CAPABILITIES;
+
+typedef struct {
+	/*
+	 * TLV tag and len; tag equal
+	 * WMITLV_TAG_STRUC_WMI_HW_MODE_CAPABILITIES
+	 */
+	A_UINT32 tlv_header;
+	/*
+	 * hw_mode_id - identify a particular set of HW characteristics,
+	 * as specified by the subsequent fields
+	 */
+	A_UINT32 hw_mode_id;
+	/* BIT0 represents phy_id 0, BIT1 represent phy_id 1 and so on */
+	A_UINT32 phy_id_map;
+	/*
+	 * number of bits set in phy_id_map represents number of
+	 * WMI_MAC_PHY_CAPABILITIES TLV's
+	 * one for each active PHY for current HW mode
+	 * identified by hw_mode_id. For example for
+	 * DBS/SBS mode there will be 2
+	 * WMI_MAC_PHY_CAPABILITIES TLVs and for
+	 * single MAC modes it
+	 * will be 1 WMI_MAC_PHY_CAPABILITIES
+	 * TLVs
+	 */
+} WMI_HW_MODE_CAPABILITIES;
+
+typedef struct {
+	/*
+	 * TLV tag and len; tag equals
+	 * WMITLV_TAG_STRUC_WMI_SOC_MAC_PHY_HW_MODE_CAPS
+	 */
+	A_UINT32 tlv_header;
+	/* num HW modes */
+	A_UINT32 num_hw_modes;
+	/* num_hw_modes WMI_HW_MODE_CAPABILITIES TLV's */
+} WMI_SOC_MAC_PHY_HW_MODE_CAPS;
+
+/*Below are Reg caps per PHY. Please note PHY ID starts with 0.*/
+typedef struct {
+	/*
+	 * TLV tag and len; tag equals
+	 * WMITLV_TAG_STRUC_WMI_HAL_REG_CAPABILITIES_EXT
+	 */
+	A_UINT32 tlv_header;
+	/* phy id */
+	A_UINT32 phy_id;
+	/* regdomain value specified in EEPROM */
+	A_UINT32 eeprom_reg_domain;
+	/* regdomain */
+	A_UINT32 eeprom_reg_domain_ext;
+	/*
+	 * CAP1 capabilities bit map, see REGDMN_CAP1_
+	 * defines
+	 */
+	A_UINT32 regcap1;
+	/*
+	 * REGDMN EEPROM CAP, see
+	 * REGDMN_EEPROM_EEREGCAP_ defines
+	 */
+	A_UINT32 regcap2;
+	/* REGDMN MODE, see REGDMN_MODE_ enum */
+	A_UINT32 wireless_modes;
+	A_UINT32 low_2ghz_chan;
+	A_UINT32 high_2ghz_chan;
+	A_UINT32 low_5ghz_chan;
+	A_UINT32 high_5ghz_chan;
+} WMI_HAL_REG_CAPABILITIES_EXT;
+
+typedef struct {
+	/*
+	 * TLV tag and len; tag equals
+	 * WMITLV_TAG_STRUC_WMI_SOC_HAL_REG_CAPABILITIES
+	 */
+	A_UINT32 tlv_header;
+	/* num_phy WMI_HAL_REG_CAPABILITIES_EXT TLV's */
+	A_UINT32 num_phy;
+} WMI_SOC_HAL_REG_CAPABILITIES;
+
+typedef struct {
+	/*
+	 * TLV tag and len; tag equals
+	 * WMITLV_TAG_STRUC_wmi_scan_adaptive_dwell_parameters_tlv
+	 */
+	A_UINT32 tlv_header;
+	/*
+	 * global default adaptive dwell mode,
+	 * used when WMI_SCAN_DWELL_MODE_DEFAULT
+	 */
+	A_UINT32 default_adaptive_dwell_mode;
+	/*
+	 * the weight to calculate the average low pass filter for
+	 * channel congestion. 0-100
+	 */
+	A_UINT32 adapative_lpf_weight;
+	/* interval to monitor passive scan in msec */
+	A_UINT32 passive_monitor_interval_ms;
+	/* % of wifi activity to switch from passive to active 0-100 */
+	A_UINT32 wifi_activity_threshold_pct;
+} wmi_scan_adaptive_dwell_parameters_tlv;
+
+typedef struct {
+	/*
+	 * TLV tag and len; tag equals
+	 * WMITLV_TAG_STRUC_wmi_scan_adaptive_dwell_config_fixed_param
+	 */
+	A_UINT32 tlv_header;
+	/* globally enable/disable adaptive dwell */
+	A_UINT32 enable;
+	/*
+	 * followed by TLV (tag length value) parameters array
+	 * The TLV's are:
+	 * wmi_scan_adaptive_dwell_parameters_tlv param[]; (0 or 1 elements)
+	 */
+} wmi_scan_adaptive_dwell_config_fixed_param;
 
 /* ADD NEW DEFS HERE */
 

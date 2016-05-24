@@ -960,6 +960,7 @@ struct hdd_adapter_s {
 	uint32_t tsf_high;
 	/* TSF capture state */
 	enum hdd_tsf_capture_state tsf_state;
+	uint64_t tsf_sync_soc_timer;
 #endif
 
 	hdd_cfg80211_state_t cfg80211State;
@@ -1034,7 +1035,10 @@ struct hdd_adapter_s {
 	/* BITMAP indicating pause reason */
 	uint32_t pause_map;
 	spinlock_t pause_map_lock;
-
+	qdf_time_t start_time;
+	qdf_time_t last_time;
+	qdf_time_t total_pause_time;
+	qdf_time_t total_unpause_time;
 	uint8_t history_index;
 	struct hdd_netif_queue_history
 		 queue_oper_history[WLAN_HDD_MAX_HISTORY_ENTRY];
@@ -1382,7 +1386,7 @@ struct hdd_context_s {
 	qdf_spinlock_t connection_status_lock;
 
 	uint16_t hdd_txrx_hist_idx;
-	struct hdd_tx_rx_histogram hdd_txrx_hist[NUM_TX_RX_HISTOGRAM];
+	struct hdd_tx_rx_histogram *hdd_txrx_hist;
 	/*
 	 * Dfs lock used to syncronize on sap channel switch during
 	 * radar found indication and application triggered channel
@@ -1610,6 +1614,8 @@ void wlan_hdd_txrx_pause_cb(uint8_t vdev_id,
 	enum netif_action_type action, enum netif_reason_type reason);
 
 void hdd_wlan_dump_stats(hdd_adapter_t *adapter, int value);
+int wlan_hdd_init_tx_rx_histogram(hdd_context_t *hdd_ctx);
+void wlan_hdd_deinit_tx_rx_histogram(hdd_context_t *hdd_ctx);
 void wlan_hdd_display_tx_rx_histogram(hdd_context_t *pHddCtx);
 void wlan_hdd_clear_tx_rx_histogram(hdd_context_t *pHddCtx);
 void wlan_hdd_display_netif_queue_history(hdd_context_t *hdd_ctx);

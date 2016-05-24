@@ -387,6 +387,9 @@ int wma_cli_get_command(int vdev_id, int param_id, int vpdev)
 		case GEN_VDEV_PARAM_AMSDU:
 			ret = intr[vdev_id].config.amsdu;
 			break;
+		case GEN_VDEV_ROAM_SYNCH_DELAY:
+			ret = intr[vdev_id].roam_synch_delay;
+			break;
 		default:
 			WMA_LOGE("Invalid generic vdev command/Not"
 				 " yet implemented 0x%x", param_id);
@@ -5267,6 +5270,11 @@ QDF_STATUS wma_mc_process_msg(void *cds_context, cds_msg_t *msg)
 	case WMA_OCB_GET_TSF_TIMER_CMD:
 		wma_ocb_get_tsf_timer(wma_handle,
 			(struct sir_ocb_get_tsf_timer *)msg->bodyptr);
+		qdf_mem_free(msg->bodyptr);
+		break;
+	case WMA_SET_WISA_PARAMS:
+		wma_set_wisa_params(wma_handle,
+			(struct sir_wisa_params *)msg->bodyptr);
 		qdf_mem_free(msg->bodyptr);
 		break;
 	case WMA_DCC_GET_STATS_CMD:

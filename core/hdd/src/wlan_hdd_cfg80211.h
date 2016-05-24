@@ -121,6 +121,7 @@
  * @type: Type
  * @age: Age
  * @tsf_delta: tsf delta from FW
+ * @beacon_tsf: original beacon TSF
  */
 typedef struct {
 	u8 element_id;
@@ -131,6 +132,7 @@ typedef struct {
 	u32 type;
 	u32 age;
 	u32 tsf_delta;
+	u64 beacon_tsf;
 } __attribute__ ((packed)) qcom_ie_age;
 #endif
 
@@ -256,6 +258,8 @@ typedef enum {
  * @QCA_NL80211_VENDOR_SUBCMD_GW_PARAM_CONFIG: set gateway parameters
  * @QCA_NL80211_VENDOR_SUBCMD_SET_TXPOWER_SCALE: set tx power by percentage
  * @QCA_NL80211_VENDOR_SUBCMD_SET_TXPOWER_SCALE_DECR_DB: reduce tx power by DB
+ * @QCA_NL80211_VENDOR_SUBCMD_TSF: TSF operations command
+ * @QCA_NL80211_VENDOR_SUBCMD_WISA: WISA mode configuration
  */
 
 enum qca_nl80211_vendor_subcmds {
@@ -375,7 +379,8 @@ enum qca_nl80211_vendor_subcmds {
 	QCA_NL80211_VENDOR_SUBCMD_SET_TXPOWER_SCALE = 109,
 	/* Tx power scaling in db subcommands */
 	QCA_NL80211_VENDOR_SUBCMD_SET_TXPOWER_SCALE_DECR_DB = 115,
-
+	QCA_NL80211_VENDOR_SUBCMD_TSF = 119,
+	QCA_NL80211_VENDOR_SUBCMD_WISA = 120,
 };
 
 /**
@@ -436,6 +441,7 @@ enum qca_nl80211_vendor_subcmds {
  *	vendor scan complete event  index
  * @QCA_NL80211_VENDOR_SUBCMD_GW_PARAM_CONFIG_INDEX:
  *	update gateway parameters index
+ * @QCA_NL80211_VENDOR_SUBCMD_TSF_INDEX: TSF response events index
  */
 
 enum qca_nl80211_vendor_subcmds_index {
@@ -505,6 +511,9 @@ enum qca_nl80211_vendor_subcmds_index {
 	QCA_NL80211_VENDOR_SUBCMD_SCAN_INDEX,
 	QCA_NL80211_VENDOR_SUBCMD_SCAN_DONE_INDEX,
 	QCA_NL80211_VENDOR_SUBCMD_GW_PARAM_CONFIG_INDEX,
+#ifdef WLAN_FEATURE_TSF
+	QCA_NL80211_VENDOR_SUBCMD_TSF_INDEX,
+#endif
 };
 
 /**
@@ -1555,6 +1564,21 @@ enum qca_wlan_vendor_attr_set_no_dfs_flag {
 		QCA_WLAN_VENDOR_ATTR_SET_NO_DFS_FLAG_AFTER_LAST - 1,
 };
 
+/**
+ * enum qca_vendor_attr_wisa_cmd
+ * @QCA_WLAN_VENDOR_ATTR_WISA_INVALID: Invalid attr
+ * @QCA_WLAN_VENDOR_ATTR_WISA_MODE: WISA mode value attr (u32)
+ * @QCA_WLAN_VENDOR_ATTR_WISA_AFTER_LAST: After last
+ * @QCA_WLAN_VENDOR_ATTR_WISA_MAX: Max Value
+ * WISA setup vendor commands
+ */
+enum qca_vendor_attr_wisa_cmd {
+	QCA_WLAN_VENDOR_ATTR_WISA_INVALID = 0,
+	QCA_WLAN_VENDOR_ATTR_WISA_MODE,
+	QCA_WLAN_VENDOR_ATTR_WISA_AFTER_LAST,
+	QCA_WLAN_VENDOR_ATTR_WISA_MAX =
+		QCA_WLAN_VENDOR_ATTR_WISA_AFTER_LAST - 1
+};
 
 /**
  * enum qca_wlan_vendor_attr_roam_auth - vendor event for roaming
@@ -2171,6 +2195,38 @@ enum qca_wlan_vendor_attr_packet_filter {
 	QCA_WLAN_VENDOR_ATTR_PACKET_FILTER_AFTER_LAST,
 	QCA_WLAN_VENDOR_ATTR_PACKET_FILTER_MAX =
 	QCA_WLAN_VENDOR_ATTR_PACKET_FILTER_AFTER_LAST - 1,
+};
+
+/**
+ * enum qca_vendor_attr_get_tsf: Vendor attributes for TSF capture
+ * @QCA_WLAN_VENDOR_ATTR_TSF_INVALID: Invalid attribute value
+ * @QCA_WLAN_VENDOR_ATTR_TSF_CMD: enum qca_tsf_operation (u32)
+ * @QCA_WLAN_VENDOR_ATTR_TSF_TIMER_VALUE: Unsigned 64 bit TSF timer value
+ * @QCA_WLAN_VENDOR_ATTR_TSF_SOC_TIMER_VALUE: Unsigned 64 bit Synchronized
+ *	SOC timer value at TSF capture
+ * @QCA_WLAN_VENDOR_ATTR_TSF_AFTER_LAST: after last
+ * @QCA_WLAN_VENDOR_ATTR_TSF_MAX: Max value
+ */
+enum qca_vendor_attr_tsf_cmd {
+	QCA_WLAN_VENDOR_ATTR_TSF_INVALID = 0,
+	QCA_WLAN_VENDOR_ATTR_TSF_CMD,
+	QCA_WLAN_VENDOR_ATTR_TSF_TIMER_VALUE,
+	QCA_WLAN_VENDOR_ATTR_TSF_SOC_TIMER_VALUE,
+	QCA_WLAN_VENDOR_ATTR_TSF_AFTER_LAST,
+	QCA_WLAN_VENDOR_ATTR_TSF_MAX =
+		QCA_WLAN_VENDOR_ATTR_TSF_AFTER_LAST - 1
+};
+
+/**
+ * enum qca_tsf_operation: TSF driver commands
+ * @QCA_TSF_CAPTURE: Initiate TSF Capture
+ * @QCA_TSF_GET: Get TSF capture value
+ * @QCA_TSF_SYNC_GET: Initiate TSF capture and return with captured value
+ */
+enum qca_tsf_cmd {
+	QCA_TSF_CAPTURE,
+	QCA_TSF_GET,
+	QCA_TSF_SYNC_GET,
 };
 
 /**

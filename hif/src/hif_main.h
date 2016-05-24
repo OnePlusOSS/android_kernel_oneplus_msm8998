@@ -61,15 +61,8 @@
 #ifdef QCA_WIFI_3_0
 #define DISABLE_L1SS_STATES 1
 #endif
-#ifdef CONFIG_SLUB_DEBUG_ON
-#define MAX_NUM_OF_RECEIVES 100 /* Maximum number of Rx buf to process before*
-				 * break out in SLUB debug builds */
-#elif defined(FEATURE_NAPI)
+
 #define MAX_NUM_OF_RECEIVES HIF_NAPI_MAX_RECEIVES
-#else /* no SLUBS, no NAPI */
-/* Maximum number of Rx buf to process before break out */
-#define MAX_NUM_OF_RECEIVES 1000
-#endif /* SLUB_DEBUG_ON / FEATURE_NAPI */
 
 #ifdef QCA_WIFI_3_0_ADRASTEA
 #define ADRASTEA_BU 1
@@ -93,6 +86,11 @@
 #define AR6320_FW_3_2  (0x32)
 #define ADRASTEA_DEVICE_ID (0xabcd)
 #define ADRASTEA_DEVICE_ID_P2_E12 (0x7021)
+#define AR9887_DEVICE_ID    (0x0050)
+#define AR900B_DEVICE_ID    (0x0040)
+#define QCA9984_DEVICE_ID   (0x0046)
+#define QCA9888_DEVICE_ID   (0x0056)
+#define IPQ4019_DEVICE_ID   (0x12ef)
 
 #define HIF_GET_PCI_SOFTC(scn) ((struct hif_pci_softc *)scn)
 #define HIF_GET_CE_STATE(scn) ((struct HIF_CE_state *)scn)
@@ -143,7 +141,22 @@ struct hif_softc {
 #endif /* FEATURE_NAPI */
 	struct hif_driver_state_callbacks callbacks;
 	uint32_t hif_con_param;
+#ifdef QCA_NSS_WIFI_OFFLOAD_SUPPORT
+	uint32_t nss_wifi_ol_mode;
+#endif
 };
+
+#ifdef QCA_NSS_WIFI_OFFLOAD_SUPPORT
+static inline bool hif_is_nss_wifi_enabled(struct hif_softc *sc)
+{
+	return !!(sc->nss_wifi_ol_mode);
+}
+#else
+static inline bool hif_is_nss_wifi_enabled(struct hif_softc *sc)
+{
+	return false;
+}
+#endif
 
 A_target_id_t hif_get_target_id(struct hif_softc *scn);
 void hif_dump_pipe_debug_count(struct hif_softc *scn);

@@ -54,8 +54,14 @@ typedef void *hif_handle_t;
 #define HIF_TYPE_AR6320   7
 #define HIF_TYPE_AR6320V2 8
 /* For attaching Peregrine 2.0 board host_reg_tbl only */
-#define HIF_TYPE_AR9888V2 8
+#define HIF_TYPE_AR9888V2 9
 #define HIF_TYPE_ADRASTEA 10
+#define HIF_TYPE_AR900B 11
+#define HIF_TYPE_QCA9984 12
+#define HIF_TYPE_IPQ4019 13
+#define HIF_TYPE_QCA9888 14
+
+
 
 #define TARGET_TYPE_UNKNOWN   0
 #define TARGET_TYPE_AR6001    1
@@ -66,29 +72,32 @@ typedef void *hif_handle_t;
 #define TARGET_TYPE_AR9888    7
 #define TARGET_TYPE_AR6320    8
 #define TARGET_TYPE_AR900B    9
+#define TARGET_TYPE_QCA9984   10
+#define TARGET_TYPE_IPQ4019   11
+#define TARGET_TYPE_QCA9888   12
 /* For attach Peregrine 2.0 board target_reg_tbl only */
-#define TARGET_TYPE_AR9888V2  10
+#define TARGET_TYPE_AR9888V2  13
 /* For attach Rome1.0 target_reg_tbl only*/
-#define TARGET_TYPE_AR6320V1    11
+#define TARGET_TYPE_AR6320V1    14
 /* For Rome2.0/2.1 target_reg_tbl ID*/
-#define TARGET_TYPE_AR6320V2    12
+#define TARGET_TYPE_AR6320V2    15
 /* For Rome3.0 target_reg_tbl ID*/
-#define TARGET_TYPE_AR6320V3    13
+#define TARGET_TYPE_AR6320V3    16
 /* For Tufello1.0 target_reg_tbl ID*/
-#define TARGET_TYPE_QCA9377V1   14
+#define TARGET_TYPE_QCA9377V1   17
 /* For Adrastea target */
-#define TARGET_TYPE_ADRASTEA     16
+#define TARGET_TYPE_ADRASTEA     19
 
 struct CE_state;
 #define CE_COUNT_MAX 12
 
-/* These numbers are selected so that the product is close to current
-   higher limit of packets HIF services at one shot (1000) */
+#ifdef CONFIG_SLUB_DEBUG_ON
+#define QCA_NAPI_BUDGET    64
+#define QCA_NAPI_DEF_SCALE  2
+#else  /* PERF build */
 #define QCA_NAPI_BUDGET    64
 #define QCA_NAPI_DEF_SCALE 16
-/* NOTE: This is to adapt non-NAPI solution to use
-   the same "budget" as NAPI. Will be removed
-   `once decision about NAPI is made */
+#endif /* SLUB_DEBUG_ON */
 #define HIF_NAPI_MAX_RECEIVES (QCA_NAPI_BUDGET * QCA_NAPI_DEF_SCALE)
 
 /* NOTE: "napi->scale" can be changed,
@@ -218,6 +227,10 @@ typedef struct _HID_ACCESS_LOG {
 	uint32_t value;
 } HIF_ACCESS_LOG;
 #endif
+
+void hif_reg_write(struct hif_opaque_softc *hif_ctx, uint32_t offset,
+		uint32_t value);
+uint32_t hif_reg_read(struct hif_opaque_softc *hif_ctx, uint32_t offset);
 
 #define HIF_MAX_DEVICES                 1
 
@@ -394,6 +407,33 @@ enum hif_target_status {
 #define HIF_DATA_ATTR_SET_ENABLE_11H(attr, v) \
 	(attr |= (v & 0x01) << 30)
 
+struct hif_ul_pipe_info {
+	unsigned int nentries;
+	unsigned int nentries_mask;
+	unsigned int sw_index;
+	unsigned int write_index; /* cached copy */
+	unsigned int hw_index;    /* cached copy */
+	void *base_addr_owner_space; /* Host address space */
+	qdf_dma_addr_t base_addr_CE_space; /* CE address space */
+};
+
+struct hif_dl_pipe_info {
+	unsigned int nentries;
+	unsigned int nentries_mask;
+	unsigned int sw_index;
+	unsigned int write_index; /* cached copy */
+	unsigned int hw_index;    /* cached copy */
+	void *base_addr_owner_space; /* Host address space */
+	qdf_dma_addr_t base_addr_CE_space; /* CE address space */
+};
+
+struct hif_pipe_addl_info {
+	uint32_t pci_mem;
+	uint32_t ctrl_addr;
+	struct hif_ul_pipe_info ul_pipe;
+	struct hif_dl_pipe_info dl_pipe;
+};
+
 struct hif_bus_id;
 typedef struct hif_bus_id hif_bus_id;
 
@@ -408,6 +448,7 @@ QDF_STATUS hif_send_head(struct hif_opaque_softc *scn, uint8_t PipeID,
 				  qdf_nbuf_t wbuf, uint32_t data_attr);
 void hif_send_complete_check(struct hif_opaque_softc *scn, uint8_t PipeID,
 			     int force);
+void hif_shut_down_device(struct hif_opaque_softc *scn);
 void hif_get_default_pipe(struct hif_opaque_softc *scn, uint8_t *ULPipe,
 			  uint8_t *DLPipe);
 int hif_map_service_to_pipe(struct hif_opaque_softc *scn, uint16_t svc_id,
@@ -536,6 +577,24 @@ void hif_set_target_status(struct hif_opaque_softc *hif_ctx, enum
 			   hif_target_status);
 void hif_init_ini_config(struct hif_opaque_softc *hif_ctx,
 			 struct hif_config_info *cfg);
+void hif_update_tx_ring(struct hif_opaque_softc *osc, u_int32_t num_htt_cmpls);
+qdf_nbuf_t hif_batch_send(struct hif_opaque_softc *osc, qdf_nbuf_t msdu,
+		uint32_t transfer_id, u_int32_t len, uint32_t sendhead);
+int hif_send_single(struct hif_opaque_softc *osc, qdf_nbuf_t msdu, uint32_t
+		transfer_id, u_int32_t len);
+int hif_send_fast(struct hif_opaque_softc *osc, qdf_nbuf_t *nbuf_arr, uint32_t
+		num_msdus, uint32_t transfer_id);
+void hif_pkt_dl_len_set(void *hif_sc, unsigned int pkt_download_len);
+void hif_ce_war_disable(void);
+void hif_ce_war_enable(void);
+void hif_disable_interrupt(struct hif_opaque_softc *osc, uint32_t pipe_num);
+#ifdef QCA_NSS_WIFI_OFFLOAD_SUPPORT
+struct hif_pipe_addl_info *hif_get_addl_pipe_info(struct hif_opaque_softc *osc,
+		struct hif_pipe_addl_info *hif_info, uint32_t pipe_number);
+uint32_t hif_set_nss_wifiol_mode(struct hif_opaque_softc *osc,
+		uint32_t pipe_num);
+int32_t hif_get_nss_wifiol_bypass_nw_process(struct hif_opaque_softc *osc);
+#endif
 
 #ifdef __cplusplus
 }

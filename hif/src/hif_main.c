@@ -263,6 +263,12 @@ bool hif_can_suspend_link(struct hif_opaque_softc *hif_ctx)
 	return scn->linkstate_vote == 0;
 }
 
+#ifndef CONFIG_WIN
+#define QCA9984_HOST_INTEREST_ADDRESS -1
+#define QCA9888_HOST_INTEREST_ADDRESS -1
+#define IPQ4019_HOST_INTEREST_ADDRESS -1
+#endif
+
 /**
  * hif_hia_item_address(): hif_hia_item_address
  * @target_type: target_type
@@ -290,6 +296,15 @@ uint32_t hif_hia_item_address(uint32_t target_type, uint32_t item_offset)
 		/* ADRASTEA doesn't have a host interest address */
 		ASSERT(0);
 		return 0;
+	case TARGET_TYPE_AR900B:
+		return AR900B_HOST_INTEREST_ADDRESS + item_offset;
+	case TARGET_TYPE_QCA9984:
+		return QCA9984_HOST_INTEREST_ADDRESS + item_offset;
+	case TARGET_TYPE_QCA9888:
+		return QCA9888_HOST_INTEREST_ADDRESS + item_offset;
+	case TARGET_TYPE_IPQ4019:
+		return IPQ4019_HOST_INTEREST_ADDRESS + item_offset;
+
 	default:
 		ASSERT(0);
 		return 0;
@@ -347,6 +362,54 @@ void hif_save_htc_htt_config_endpoint(struct hif_opaque_softc *hif_ctx,
 
 	scn->htc_htt_tx_endpoint = htc_htt_tx_endpoint;
 }
+
+static const struct qwlan_hw qwlan_hw_list[] = {
+	{
+		.id = AR6320_REV1_VERSION,
+		.subid = 0,
+		.name = "QCA6174_REV1",
+	},
+	{
+		.id = AR6320_REV1_1_VERSION,
+		.subid = 0x1,
+		.name = "QCA6174_REV1_1",
+	},
+	{
+		.id = AR6320_REV1_3_VERSION,
+		.subid = 0x2,
+		.name = "QCA6174_REV1_3",
+	},
+	{
+		.id = AR6320_REV2_1_VERSION,
+		.subid = 0x4,
+		.name = "QCA6174_REV2_1",
+	},
+	{
+		.id = AR6320_REV2_1_VERSION,
+		.subid = 0x5,
+		.name = "QCA6174_REV2_2",
+	},
+	{
+		.id = AR6320_REV3_VERSION,
+		.subid = 0x6,
+		.name = "QCA6174_REV2.3",
+	},
+	{
+		.id = AR6320_REV3_VERSION,
+		.subid = 0x8,
+		.name = "QCA6174_REV3",
+	},
+	{
+		.id = AR6320_REV3_VERSION,
+		.subid = 0x9,
+		.name = "QCA6174_REV3_1",
+	},
+	{
+		.id = AR6320_REV3_2_VERSION,
+		.subid = 0xA,
+		.name = "AR6320_REV3_2_VERSION",
+	}
+};
 
 /**
  * hif_get_hw_name(): get a human readable name for the hardware
@@ -424,7 +487,7 @@ struct hif_opaque_softc *hif_open(qdf_device_t qdf_ctx, uint32_t mode,
 	qdf_atomic_init(&scn->link_suspended);
 	qdf_atomic_init(&scn->tasklet_from_intr);
 	qdf_mem_copy(&scn->callbacks, cbk, sizeof(struct hif_driver_state_callbacks));
-
+	scn->bus_type  = bus_type;
 	status = hif_bus_open(scn, bus_type);
 	if (status != QDF_STATUS_SUCCESS) {
 		HIF_ERROR("%s: hif_bus_open error = %d, bus_type = %d",
@@ -717,6 +780,36 @@ int hif_get_device_type(uint32_t device_id,
 		}
 		break;
 
+	case AR9887_DEVICE_ID:
+		*hif_type = HIF_TYPE_AR9888;
+		*target_type = TARGET_TYPE_AR9888;
+		HIF_INFO(" *********** AR9887 **************\n");
+		break;
+
+	case QCA9984_DEVICE_ID:
+		*hif_type = HIF_TYPE_QCA9984;
+		*target_type = TARGET_TYPE_QCA9984;
+		HIF_INFO(" *********** QCA9984 *************\n");
+		break;
+
+	case QCA9888_DEVICE_ID:
+		*hif_type = HIF_TYPE_QCA9888;
+		*target_type = TARGET_TYPE_QCA9888;
+		HIF_INFO(" *********** QCA9888 *************\n");
+		break;
+
+	case AR900B_DEVICE_ID:
+		*hif_type = HIF_TYPE_AR900B;
+		*target_type = TARGET_TYPE_AR900B;
+		HIF_INFO(" *********** AR900B *************\n");
+		break;
+
+	case IPQ4019_DEVICE_ID:
+		*hif_type = HIF_TYPE_IPQ4019;
+		*target_type = TARGET_TYPE_IPQ4019;
+		HIF_INFO(" *********** IPQ4019  *************\n");
+		break;
+
 	default:
 		HIF_ERROR("%s: Unsupported device ID!", __func__);
 		ret = -ENODEV;
@@ -928,4 +1021,118 @@ bool hif_is_recovery_in_progress(struct hif_softc *scn)
 		return cbk->is_recovery_in_progress(cbk->context);
 
 	return false;
+}
+
+/**
+ * hif_batch_send() - API to access hif specific function
+ * ce_batch_send.
+ * @osc: HIF Context
+ * @msdu : list of msdus to be sent
+ * @transfer_id : transfer id
+ * @len : donwloaded length
+ *
+ * Return: list of msds not sent
+ */
+qdf_nbuf_t hif_batch_send(struct hif_opaque_softc *osc, qdf_nbuf_t msdu,
+		uint32_t transfer_id, u_int32_t len, uint32_t sendhead)
+{
+	void *ce_tx_hdl = hif_get_ce_handle(osc, CE_HTT_TX_CE);
+	return ce_batch_send((struct CE_handle *)ce_tx_hdl, msdu, transfer_id,
+			len, sendhead);
+}
+
+/**
+ * hif_update_tx_ring() - API to access hif specific function
+ * ce_update_tx_ring.
+ * @osc: HIF Context
+ * @num_htt_cmpls : number of htt compl received.
+ *
+ * Return: void
+ */
+void hif_update_tx_ring(struct hif_opaque_softc *osc, u_int32_t num_htt_cmpls)
+{
+	void *ce_tx_hdl = hif_get_ce_handle(osc, CE_HTT_TX_CE);
+	ce_update_tx_ring(ce_tx_hdl, num_htt_cmpls);
+}
+
+
+/**
+ * hif_send_single() - API to access hif specific function
+ * ce_send_single.
+ * @osc: HIF Context
+ * @msdu : msdu to be sent
+ * @transfer_id: transfer id
+ * @len : downloaded length
+ *
+ * Return: msdu sent status
+ */
+int hif_send_single(struct hif_opaque_softc *osc, qdf_nbuf_t msdu, uint32_t
+		transfer_id, u_int32_t len)
+{
+	void *ce_tx_hdl = hif_get_ce_handle(osc, CE_HTT_TX_CE);
+	return ce_send_single((struct CE_handle *)ce_tx_hdl, msdu, transfer_id,
+			len);
+}
+
+/**
+ * hif_send_fast() - API to access hif specific function
+ * ce_send_fast.
+ * @osc: HIF Context
+ * @msdu : array of msdus to be sent
+ * @num_msdus : number of msdus in an array
+ * @transfer_id: transfer id
+ *
+ * Return: No. of packets that could be sent
+ */
+int hif_send_fast(struct hif_opaque_softc *osc, qdf_nbuf_t *nbuf_arr,
+		uint32_t num_msdus, uint32_t transfer_id)
+{
+	void *ce_tx_hdl = hif_get_ce_handle(osc, CE_HTT_TX_CE);
+	return ce_send_fast((struct CE_handle *)ce_tx_hdl, nbuf_arr, num_msdus,
+			transfer_id);
+}
+
+/**
+ * hif_pkt_dl_len_set() - API to access hif specific function
+ * ce_pkt_dl_len_set.
+ * @osc: HIF Context
+ * @pkt_download_len: download length
+ *
+ * Return: None
+ */
+void hif_pkt_dl_len_set(void *hif_sc, unsigned int pkt_download_len)
+{
+	ce_pkt_dl_len_set(hif_sc, pkt_download_len);
+}
+
+/**
+ * hif_reg_write() - API to access hif specific function
+ * hif_write32_mb.
+ * @hif_ctx : HIF Context
+ * @offset : offset on which value has to be written
+ * @value : value to be written
+ *
+ * Return: None
+ */
+void hif_reg_write(struct hif_opaque_softc *hif_ctx, uint32_t offset,
+		uint32_t value)
+{
+	struct hif_softc *scn = HIF_GET_SOFTC(hif_ctx);
+	hif_write32_mb(scn->mem + offset, value);
+
+}
+
+/**
+ * hif_reg_read() - API to access hif specific function
+ * hif_read32_mb.
+ * @hif_ctx : HIF Context
+ * @offset : offset from which value has to be read
+ *
+ * Return: Read value
+ */
+uint32_t hif_reg_read(struct hif_opaque_softc *hif_ctx, uint32_t offset)
+{
+
+	struct hif_softc *scn = HIF_GET_SOFTC(hif_ctx);
+	return hif_read32_mb(scn->mem + offset);
 }

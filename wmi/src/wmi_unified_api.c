@@ -2194,7 +2194,7 @@ QDF_STATUS wmi_unified_wow_sta_ra_filter_cmd(void *wmi_hdl,
 
 	if (wmi_handle->ops->send_wow_sta_ra_filter_cmd)
 		return wmi_handle->ops->send_wow_sta_ra_filter_cmd(wmi_handle,
-			    vdev_id, default_pattern, default_pattern);
+			    vdev_id, default_pattern, rate_limit_interval);
 
 	return QDF_STATUS_E_FAILURE;
 
@@ -2299,7 +2299,7 @@ QDF_STATUS wmi_unified_pktlog_wmi_send_cmd(void *wmi_hdl,
 
 	if (wmi_handle->ops->send_pktlog_wmi_send_cmd)
 		return wmi_handle->ops->send_pktlog_wmi_send_cmd(wmi_handle,
-			    pktlog_event, pktlog_event);
+			    pktlog_event, cmd_id);
 
 	return QDF_STATUS_E_FAILURE;
 }
@@ -2323,8 +2323,8 @@ QDF_STATUS wmi_unified_add_wow_wakeup_event_cmd(void *wmi_hdl,
 	wmi_unified_t wmi_handle = (wmi_unified_t) wmi_hdl;
 
 	if (wmi_handle->ops->send_add_wow_wakeup_event_cmd)
-		return wmi_handle->ops->send_add_wow_wakeup_event_cmd(wmi_handle,
-			    vdev_id, vdev_id, vdev_id);
+		return wmi_handle->ops->send_add_wow_wakeup_event_cmd(
+				wmi_handle, vdev_id, bitmap, enable);
 
 	return QDF_STATUS_E_FAILURE;
 }
@@ -2476,8 +2476,8 @@ QDF_STATUS wmi_unified_enable_disable_packet_filter_cmd(void *wmi_hdl,
 	wmi_unified_t wmi_handle = (wmi_unified_t) wmi_hdl;
 
 	if (wmi_handle->ops->send_enable_disable_packet_filter_cmd)
-		return wmi_handle->ops->send_enable_disable_packet_filter_cmd(wmi_handle,
-			    vdev_id, vdev_id);
+		return wmi_handle->ops->send_enable_disable_packet_filter_cmd(
+				wmi_handle, vdev_id, enable);
 
 	return QDF_STATUS_E_FAILURE;
 }
@@ -5878,18 +5878,19 @@ QDF_STATUS wmi_extract_thermal_level_stats(void *wmi_hdl, void *evt_buf,
  * wmi_extract_profile_data() - extract profile data from event
  * @wmi_handle: wmi handle
  * @param evt_buf: pointer to event buffer
+ * @idx index: index of profile data
  * @param profile_data: Pointer to hold profile data
  *
  * Return: QDF_STATUS_SUCCESS on success and QDF_STATUS_E_FAILURE for failure
  */
-QDF_STATUS wmi_extract_profile_data(void *wmi_hdl, void *evt_buf,
+QDF_STATUS wmi_extract_profile_data(void *wmi_hdl, void *evt_buf, uint8_t idx,
 			       wmi_host_wlan_profile_t *profile_data)
 {
 	wmi_unified_t wmi_handle = (wmi_unified_t) wmi_hdl;
 
 	if (wmi_handle->ops->extract_profile_data)
 		return wmi_handle->ops->extract_profile_data(wmi_handle,
-			evt_buf, profile_data);
+			evt_buf, idx, profile_data);
 
 	return QDF_STATUS_E_FAILURE;
 }

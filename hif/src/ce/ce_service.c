@@ -72,6 +72,22 @@ static int war1_allow_sleep;
 /* io32 write workaround */
 static int hif_ce_war1;
 
+/**
+ * hif_ce_war_disable() - disable ce war gobally
+ */
+void hif_ce_war_disable(void)
+{
+	hif_ce_war1 = 0;
+}
+
+/**
+ * hif_ce_war_enable() - enable ce war gobally
+ */
+void hif_ce_war_enable(void)
+{
+	hif_ce_war1 = 1;
+}
+
 #ifdef CONFIG_SLUB_DEBUG_ON
 
 /**
@@ -257,8 +273,9 @@ void war_ce_src_ring_write_idx_set(struct hif_softc *scn,
 			hif_write32_mb(indicator_addr, 0);
 			local_irq_restore(irq_flags);
 		}
-	} else
+	} else {
 		CE_SRC_RING_WRITE_IDX_SET(scn, ctrl_addr, write_index);
+	}
 }
 
 int
@@ -309,6 +326,9 @@ ce_send_nolock(struct CE_handle *copyeng,
 		memcpy(&(((uint32_t *)shadow_src_desc)[1]), &user_flags,
 			   sizeof(uint32_t));
 #endif
+		shadow_src_desc->target_int_disable = 0;
+		shadow_src_desc->host_int_disable = 0;
+
 		shadow_src_desc->meta_data = transfer_id;
 
 		/*
@@ -703,6 +723,201 @@ static inline bool ce_is_fastpath_handler_registered(struct CE_state *ce_state)
 }
 #endif /* WLAN_FEATURE_FASTPATH */
 
+#ifndef AH_NEED_TX_DATA_SWAP
+#define AH_NEED_TX_DATA_SWAP 0
+#endif
+
+/**
+ * ce_batch_send() - sends bunch of msdus at once
+ * @ce_tx_hdl : pointer to CE handle
+ * @msdu : list of msdus to be sent
+ * @transfer_id : transfer id
+ * @len : Downloaded length
+ * @sendhead : sendhead
+ *
+ * Assumption : Called with an array of MSDU's
+ * Function:
+ * For each msdu in the array
+ * 1. Send each msdu
+ * 2. Increment write index accordinlgy.
+ *
+ * Return: list of msds not sent
+ */
+qdf_nbuf_t ce_batch_send(struct CE_handle *ce_tx_hdl,  qdf_nbuf_t msdu,
+		uint32_t transfer_id, u_int32_t len, uint32_t sendhead)
+{
+	struct CE_state *ce_state = (struct CE_state *)ce_tx_hdl;
+	struct hif_softc *scn = ce_state->scn;
+	struct CE_ring_state *src_ring = ce_state->src_ring;
+	u_int32_t ctrl_addr = ce_state->ctrl_addr;
+	/*  A_target_id_t targid = TARGID(scn);*/
+
+	uint32_t nentries_mask = src_ring->nentries_mask;
+	uint32_t sw_index, write_index;
+
+	struct CE_src_desc *src_desc_base =
+		(struct CE_src_desc *)src_ring->base_addr_owner_space;
+	uint32_t *src_desc;
+
+	struct CE_src_desc lsrc_desc = {0};
+	int deltacount = 0;
+	qdf_nbuf_t freelist = NULL, hfreelist = NULL, tempnext;
+
+	sw_index = src_ring->sw_index;
+	write_index = src_ring->write_index;
+
+	deltacount = CE_RING_DELTA(nentries_mask, write_index, sw_index-1);
+
+	while (msdu) {
+		tempnext = qdf_nbuf_next(msdu);
+
+		if (deltacount < 2) {
+			if (sendhead)
+				return msdu;
+			qdf_print("Out of descriptor\n");
+			src_ring->write_index = write_index;
+			war_ce_src_ring_write_idx_set(scn, ctrl_addr,
+					write_index);
+
+			sw_index = src_ring->sw_index;
+			write_index = src_ring->write_index;
+
+			deltacount = CE_RING_DELTA(nentries_mask, write_index,
+					sw_index-1);
+			if (freelist == NULL) {
+				freelist = msdu;
+				hfreelist = msdu;
+			} else {
+				qdf_nbuf_set_next(freelist, msdu);
+				freelist = msdu;
+			}
+			qdf_nbuf_set_next(msdu, NULL);
+			msdu = tempnext;
+			continue;
+		}
+
+		src_desc = (uint32_t *)CE_SRC_RING_TO_DESC(src_desc_base,
+				write_index);
+
+		src_desc[0]   = qdf_nbuf_get_frag_paddr(msdu, 0);
+
+		lsrc_desc.meta_data = transfer_id;
+		if (len  > msdu->len)
+			len =  msdu->len;
+		lsrc_desc.nbytes = len;
+		/*  Data packet is a byte stream, so disable byte swap */
+		lsrc_desc.byte_swap = AH_NEED_TX_DATA_SWAP;
+		lsrc_desc.gather    = 0; /*For the last one, gather is not set*/
+
+		src_desc[1] = ((uint32_t *)&lsrc_desc)[1];
+
+
+		src_ring->per_transfer_context[write_index] = msdu;
+		write_index = CE_RING_IDX_INCR(nentries_mask, write_index);
+
+		if (sendhead)
+			break;
+		qdf_nbuf_set_next(msdu, NULL);
+		msdu = tempnext;
+
+	}
+
+
+	src_ring->write_index = write_index;
+	war_ce_src_ring_write_idx_set(scn, ctrl_addr, write_index);
+
+	return hfreelist;
+}
+
+/**
+ * ce_update_tx_ring() - Advance sw index.
+ * @ce_tx_hdl : pointer to CE handle
+ * @num_htt_cmpls : htt completions received.
+ *
+ * Function:
+ * Increment the value of sw index of src ring
+ * according to number of htt completions
+ * received.
+ *
+ * Return: void
+ */
+void ce_update_tx_ring(struct CE_handle *ce_tx_hdl, uint32_t num_htt_cmpls)
+{
+	struct CE_state *ce_state = (struct CE_state *)ce_tx_hdl;
+	struct CE_ring_state *src_ring = ce_state->src_ring;
+	uint32_t nentries_mask = src_ring->nentries_mask;
+	/*
+	 * Advance the s/w index:
+	 * This effectively simulates completing the CE ring descriptors
+	 */
+	src_ring->sw_index =
+		CE_RING_IDX_ADD(nentries_mask, src_ring->sw_index,
+				num_htt_cmpls);
+}
+
+/**
+ * ce_send_single() - sends
+ * @ce_tx_hdl : pointer to CE handle
+ * @msdu : msdu to be sent
+ * @transfer_id : transfer id
+ * @len : Downloaded length
+ *
+ * Function:
+ * 1. Send one msdu
+ * 2. Increment write index of src ring accordinlgy.
+ *
+ * Return: int: CE sent status
+ */
+int ce_send_single(struct CE_handle *ce_tx_hdl, qdf_nbuf_t msdu,
+		uint32_t transfer_id, u_int32_t len)
+{
+	struct CE_state *ce_state = (struct CE_state *)ce_tx_hdl;
+	struct hif_softc *scn = ce_state->scn;
+	struct CE_ring_state *src_ring = ce_state->src_ring;
+	uint32_t ctrl_addr = ce_state->ctrl_addr;
+	/*A_target_id_t targid = TARGID(scn);*/
+
+	uint32_t nentries_mask = src_ring->nentries_mask;
+	uint32_t sw_index, write_index;
+
+	struct CE_src_desc *src_desc_base =
+		(struct CE_src_desc *)src_ring->base_addr_owner_space;
+	uint32_t *src_desc;
+
+	struct CE_src_desc lsrc_desc = {0};
+
+	sw_index = src_ring->sw_index;
+	write_index = src_ring->write_index;
+
+	if (qdf_unlikely(CE_RING_DELTA(nentries_mask, write_index,
+					sw_index-1) < 1)) {
+		/* ol_tx_stats_inc_ring_error(sc->scn->pdev_txrx_handle, 1); */
+		qdf_print("ce send fail %d %d %d\n", nentries_mask,
+				write_index, sw_index);
+		return 1;
+	}
+
+	src_desc = (uint32_t *)CE_SRC_RING_TO_DESC(src_desc_base, write_index);
+
+	src_desc[0] = qdf_nbuf_get_frag_paddr(msdu, 0);
+
+	lsrc_desc.meta_data = transfer_id;
+	lsrc_desc.nbytes = len;
+	/*  Data packet is a byte stream, so disable byte swap */
+	lsrc_desc.byte_swap = AH_NEED_TX_DATA_SWAP;
+	lsrc_desc.gather    = 0; /* For the last one, gather is not set */
+
+	src_desc[1] = ((uint32_t *)&lsrc_desc)[1];
+
+
+	src_ring->per_transfer_context[write_index] = msdu;
+	write_index = CE_RING_IDX_INCR(nentries_mask, write_index);
+
+	src_ring->write_index = write_index;
+	war_ce_src_ring_write_idx_set(scn, ctrl_addr, write_index);
+
+	return QDF_STATUS_SUCCESS;
+}
 /**
  * ce_recv_buf_enqueue() - enqueue a recv buffer into a copy engine
  * @coyeng: copy engine handle
@@ -1373,7 +1588,7 @@ static void ce_fastpath_rx_handle(struct CE_state *ce_state,
 	dest_ring->write_index = write_index;
 }
 
-#define MSG_FLUSH_NUM 6
+#define MSG_FLUSH_NUM 32
 /**
  * ce_per_engine_service_fast() - CE handler routine to service fastpath messages
  * @scn: hif_context
@@ -1548,6 +1763,9 @@ int ce_per_engine_service(struct hif_softc *scn, unsigned int CE_id)
 	unsigned int sw_idx, hw_idx;
 	uint32_t toeplitz_hash_result;
 	uint32_t mode = hif_get_conparam(scn);
+
+	if (hif_is_nss_wifi_enabled(scn) && (CE_state->htt_rx_data))
+		return CE_state->receive_count;
 
 	if (Q_TARGET_ACCESS_BEGIN(scn) < 0) {
 		HIF_ERROR("[premature rc=0]\n");

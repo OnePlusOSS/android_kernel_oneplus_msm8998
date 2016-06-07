@@ -126,7 +126,7 @@ struct HIF_CE_state {
 	bool fake_sleep;
 	qdf_timer_t sleep_timer;
 	bool sleep_timer_init;
-	unsigned long sleep_ticks;
+	qdf_time_t sleep_ticks;
 
 	/* Per-pipe state. */
 	struct HIF_CE_pipe_info pipe_info[CE_COUNT_MAX];
@@ -141,6 +141,27 @@ struct HIF_CE_state {
 	/* Copy Engine used for Diagnostic Accesses */
 	struct CE_handle *ce_diag;
 };
+
+/*
+ * HIA Map Definition
+ */
+struct host_interest_area_t {
+	uint32_t hi_interconnect_state;
+	uint32_t hi_early_alloc;
+	uint32_t hi_option_flag2;
+	uint32_t hi_board_data;
+	uint32_t hi_board_data_initialized;
+	uint32_t hi_failure_state;
+	uint32_t hi_rddi_msi_num;
+	uint32_t hi_pcie_perst_couple_en;
+	uint32_t hi_sw_protocol_version;
+};
+
+struct shadow_reg_cfg {
+	uint16_t ce_id;
+	uint16_t reg_offset;
+};
+
 int hif_dump_ce_registers(struct hif_softc *scn);
 
 int hif_wlan_enable(struct hif_softc *scn);

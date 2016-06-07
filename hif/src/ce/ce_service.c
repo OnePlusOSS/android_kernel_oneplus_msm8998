@@ -189,6 +189,22 @@ inline void ce_init_ce_desc_event_log(int ce_id, int size)
 }
 #endif
 
+/**
+ * hif_ce_service_should_yield() - return true if the service is hogging the cpu
+ * @scn: hif context
+ * @ce_state: context of the copy engine being serviced
+ *
+ * Return: true if the service should yield
+ */
+bool hif_ce_service_should_yield(struct hif_softc *scn,
+				 struct CE_state *ce_state)
+{
+	bool yield = qdf_system_time_after_eq(qdf_system_ticks(),
+					     ce_state->ce_service_yield_time) ||
+		     hif_max_num_receives_reached(scn, ce_state->receive_count);
+	return yield;
+}
+
 /*
  * Support for Copy Engine hardware, which is mainly used for
  * communication between Host and Target over a PCIe interconnect.
@@ -1574,7 +1590,9 @@ static void ce_fastpath_rx_handle(struct CE_state *ce_state,
 	uint32_t nentries_mask = dest_ring->nentries_mask;
 	uint32_t write_index;
 
+	qdf_spin_unlock(&ce_state->ce_index_lock);
 	(ce_state->fastpath_handler)(ce_state->context, cmpl_msdus, num_cmpls);
+	qdf_spin_lock(&ce_state->ce_index_lock);
 
 	/* Update Destination Ring Write Index */
 	write_index = dest_ring->write_index;
@@ -1612,114 +1630,128 @@ static void ce_per_engine_service_fast(struct hif_softc *scn, int ce_id)
 	uint32_t sw_index = dest_ring->sw_index;
 	uint32_t nbytes;
 	qdf_nbuf_t nbuf;
-	uint32_t paddr_lo;
+	dma_addr_t paddr;
 	struct CE_dest_desc *dest_desc;
-	uint32_t ce_int_status = (1 << ce_id);
 	qdf_nbuf_t cmpl_msdus[MSG_FLUSH_NUM];
 	uint32_t ctrl_addr = ce_state->ctrl_addr;
 	uint32_t nbuf_cmpl_idx = 0;
 	unsigned int more_comp_cnt = 0;
 
 more_data:
-	if (ce_int_status == (1 << ce_id)) {
-		for (;;) {
+	for (;;) {
 
-			dest_desc = CE_DEST_RING_TO_DESC(dest_ring_base,
-							 sw_index);
-
-			/*
-			 * The following 2 reads are from non-cached memory
-			 */
-			nbytes = dest_desc->nbytes;
-
-			/* If completion is invalid, break */
-			if (qdf_unlikely(nbytes == 0))
-				break;
-
-
-			/*
-			 * Build the nbuf list from valid completions
-			 */
-			nbuf = dest_ring->per_transfer_context[sw_index];
-
-			/*
-			 * No lock is needed here, since this is the only thread
-			 * that accesses the sw_index
-			 */
-			sw_index = CE_RING_IDX_INCR(nentries_mask, sw_index);
-
-			/*
-			 * CAREFUL : Uncached write, but still less expensive,
-			 * since most modern caches use "write-combining" to
-			 * flush multiple cache-writes all at once.
-			 */
-			dest_desc->nbytes = 0;
-
-			/*
-			 * Per our understanding this is not required on our
-			 * since we are doing the same cache invalidation
-			 * operation on the same buffer twice in succession,
-			 * without any modifiication to this buffer by CPU in
-			 * between.
-			 * However, this code with 2 syncs in succession has
-			 * been undergoing some testing at a customer site,
-			 * and seemed to be showing no problems so far. Would
-			 * like to validate from the customer, that this line
-			 * is really not required, before we remove this line
-			 * completely.
-			 */
-			paddr_lo = QDF_NBUF_CB_PADDR(nbuf);
-
-			qdf_mem_dma_sync_single_for_cpu(scn->qdf_dev,
-					paddr_lo,
-					(skb_end_pointer(nbuf) - (nbuf)->data),
-					DMA_FROM_DEVICE);
-			qdf_nbuf_put_tail(nbuf, nbytes);
-
-			qdf_assert_always(nbuf->data != NULL);
-
-			cmpl_msdus[nbuf_cmpl_idx++] = nbuf;
-
-			/*
-			 * we are not posting the buffers back instead
-			 * reusing the buffers
-			 */
-			if (nbuf_cmpl_idx == MSG_FLUSH_NUM) {
-				hif_record_ce_desc_event(scn, ce_state->id,
-						 FAST_RX_SOFTWARE_INDEX_UPDATE,
-						 NULL, NULL, sw_index);
-				dest_ring->sw_index = sw_index;
-
-				qdf_spin_unlock(&ce_state->ce_index_lock);
-				ce_fastpath_rx_handle(ce_state, cmpl_msdus,
-						      MSG_FLUSH_NUM, ctrl_addr);
-				qdf_spin_lock(&ce_state->ce_index_lock);
-				nbuf_cmpl_idx = 0;
-			}
-
-		}
-
-		hif_record_ce_desc_event(scn, ce_state->id,
-					 FAST_RX_SOFTWARE_INDEX_UPDATE,
-					 NULL, NULL, sw_index);
-
-		dest_ring->sw_index = sw_index;
+		dest_desc = CE_DEST_RING_TO_DESC(dest_ring_base,
+						 sw_index);
 
 		/*
-		 * If there are not enough completions to fill the array,
-		 * just call the message handler here
+		 * The following 2 reads are from non-cached memory
 		 */
-		if (nbuf_cmpl_idx) {
-			qdf_spin_unlock(&ce_state->ce_index_lock);
+		nbytes = dest_desc->nbytes;
+
+		/* If completion is invalid, break */
+		if (qdf_unlikely(nbytes == 0))
+			break;
+
+
+		/*
+		 * Build the nbuf list from valid completions
+		 */
+		nbuf = dest_ring->per_transfer_context[sw_index];
+
+		/*
+		 * No lock is needed here, since this is the only thread
+		 * that accesses the sw_index
+		 */
+		sw_index = CE_RING_IDX_INCR(nentries_mask, sw_index);
+
+		/*
+		 * CAREFUL : Uncached write, but still less expensive,
+		 * since most modern caches use "write-combining" to
+		 * flush multiple cache-writes all at once.
+		 */
+		dest_desc->nbytes = 0;
+
+		/*
+		 * Per our understanding this is not required on our
+		 * since we are doing the same cache invalidation
+		 * operation on the same buffer twice in succession,
+		 * without any modifiication to this buffer by CPU in
+		 * between.
+		 * However, this code with 2 syncs in succession has
+		 * been undergoing some testing at a customer site,
+		 * and seemed to be showing no problems so far. Would
+		 * like to validate from the customer, that this line
+		 * is really not required, before we remove this line
+		 * completely.
+		 */
+		paddr = QDF_NBUF_CB_PADDR(nbuf);
+
+		qdf_mem_dma_sync_single_for_cpu(scn->qdf_dev, paddr,
+				(skb_end_pointer(nbuf) - (nbuf)->data),
+				DMA_FROM_DEVICE);
+
+		qdf_nbuf_put_tail(nbuf, nbytes);
+
+		qdf_assert_always(nbuf->data != NULL);
+
+		cmpl_msdus[nbuf_cmpl_idx++] = nbuf;
+
+		/*
+		 * we are not posting the buffers back instead
+		 * reusing the buffers
+		 */
+		if (nbuf_cmpl_idx == MSG_FLUSH_NUM) {
+			hif_record_ce_desc_event(scn, ce_state->id,
+						 FAST_RX_SOFTWARE_INDEX_UPDATE,
+						 NULL, NULL, sw_index);
+			dest_ring->sw_index = sw_index;
+
 			ce_fastpath_rx_handle(ce_state, cmpl_msdus,
-					      nbuf_cmpl_idx, ctrl_addr);
-			qdf_spin_lock(&ce_state->ce_index_lock);
+					      MSG_FLUSH_NUM, ctrl_addr);
+
+			ce_state->receive_count += MSG_FLUSH_NUM;
+			if (qdf_unlikely(hif_ce_service_should_yield(
+						scn, ce_state))) {
+				ce_state->force_break = 1;
+				qdf_atomic_set(&ce_state->rx_pending, 1);
+				return;
+			}
+
 			nbuf_cmpl_idx = 0;
+			more_comp_cnt = 0;
 		}
-		qdf_atomic_set(&ce_state->rx_pending, 0);
-		CE_ENGINE_INT_STATUS_CLEAR(scn, ctrl_addr,
-					   HOST_IS_COPY_COMPLETE_MASK);
 	}
+
+	hif_record_ce_desc_event(scn, ce_state->id,
+				 FAST_RX_SOFTWARE_INDEX_UPDATE,
+				 NULL, NULL, sw_index);
+
+	dest_ring->sw_index = sw_index;
+
+	/*
+	 * If there are not enough completions to fill the array,
+	 * just call the message handler here
+	 */
+	if (nbuf_cmpl_idx) {
+		ce_fastpath_rx_handle(ce_state, cmpl_msdus,
+				      nbuf_cmpl_idx, ctrl_addr);
+
+		ce_state->receive_count += nbuf_cmpl_idx;
+		if (qdf_unlikely(hif_ce_service_should_yield(scn, ce_state))) {
+			ce_state->force_break = 1;
+			qdf_atomic_set(&ce_state->rx_pending, 1);
+			return;
+		}
+
+		/* check for more packets after upper layer processing */
+		nbuf_cmpl_idx = 0;
+		more_comp_cnt = 0;
+		goto more_data;
+	}
+	qdf_atomic_set(&ce_state->rx_pending, 0);
+	CE_ENGINE_INT_STATUS_CLEAR(scn, ctrl_addr,
+				   HOST_IS_COPY_COMPLETE_MASK);
+
 	if (ce_recv_entries_done_nolock(scn, ce_state)) {
 		if (more_comp_cnt++ < CE_TXRX_COMP_CHECK_THRESHOLD) {
 			goto more_data;
@@ -1738,6 +1770,7 @@ static void ce_per_engine_service_fast(struct hif_softc *scn, int ce_id)
 }
 #endif /* WLAN_FEATURE_FASTPATH */
 
+#define CE_PER_ENGINE_SERVICE_MAX_TIME_JIFFIES 2
 /*
  * Guts of interrupt handler for per-engine interrupts on a particular CE.
  *
@@ -1746,7 +1779,6 @@ static void ce_per_engine_service_fast(struct hif_softc *scn, int ce_id)
  *
  * Returns: number of messages processed
  */
-
 int ce_per_engine_service(struct hif_softc *scn, unsigned int CE_id)
 {
 	struct CE_state *CE_state = scn->ce_id_to_state[CE_id];
@@ -1772,8 +1804,14 @@ int ce_per_engine_service(struct hif_softc *scn, unsigned int CE_id)
 		return 0; /* no work done */
 	}
 
-	qdf_spin_lock(&CE_state->ce_index_lock);
+	/* Clear force_break flag and re-initialize receive_count to 0 */
+	CE_state->receive_count = 0;
+	CE_state->force_break = 0;
+	CE_state->ce_service_yield_time = qdf_system_ticks() +
+		CE_PER_ENGINE_SERVICE_MAX_TIME_JIFFIES;
 
+
+	qdf_spin_lock(&CE_state->ce_index_lock);
 	/*
 	 * With below check we make sure CE we are handling is datapath CE and
 	 * fastpath is enabled.
@@ -1781,15 +1819,9 @@ int ce_per_engine_service(struct hif_softc *scn, unsigned int CE_id)
 	if (ce_is_fastpath_handler_registered(CE_state)) {
 		/* For datapath only Rx CEs */
 		ce_per_engine_service_fast(scn, CE_id);
-		qdf_spin_unlock(&CE_state->ce_index_lock);
-		return CE_state->receive_count;
+		goto unlock_end;
 	}
 
-	/* Clear force_break flag and re-initialize receive_count to 0 */
-
-	/* NAPI: scn variables- thread/multi-processing safety? */
-	CE_state->receive_count = 0;
-	CE_state->force_break = 0;
 more_completions:
 	if (CE_state->recv_cb) {
 
@@ -1824,10 +1856,7 @@ more_completions:
 			 */
 			if (qdf_unlikely(CE_state->force_break)) {
 				qdf_atomic_set(&CE_state->rx_pending, 1);
-				if (Q_TARGET_ACCESS_END(scn) < 0)
-					HIF_ERROR("<--[premature rc=%d]\n",
-						  CE_state->receive_count);
-				return CE_state->receive_count;
+				goto target_access_end;
 			}
 			qdf_spin_lock(&CE_state->ce_index_lock);
 		}
@@ -1960,9 +1989,11 @@ more_watermarks:
 		}
 	}
 
-	qdf_spin_unlock(&CE_state->ce_index_lock);
 	qdf_atomic_set(&CE_state->rx_pending, 0);
 
+unlock_end:
+	qdf_spin_unlock(&CE_state->ce_index_lock);
+target_access_end:
 	if (Q_TARGET_ACCESS_END(scn) < 0)
 		HIF_ERROR("<--[premature rc=%d]\n", CE_state->receive_count);
 	return CE_state->receive_count;

@@ -528,10 +528,10 @@ struct qdf_nbuf_track_t {
 	size_t size;
 };
 
-spinlock_t g_qdf_net_buf_track_lock;
+static spinlock_t g_qdf_net_buf_track_lock[QDF_NET_BUF_TRACK_MAX_SIZE];
 typedef struct qdf_nbuf_track_t QDF_NBUF_TRACK;
 
-QDF_NBUF_TRACK *gp_qdf_net_buf_track_tbl[QDF_NET_BUF_TRACK_MAX_SIZE];
+static QDF_NBUF_TRACK *gp_qdf_net_buf_track_tbl[QDF_NET_BUF_TRACK_MAX_SIZE];
 
 /**
  * qdf_net_buf_debug_init() - initialize network buffer debug functionality
@@ -547,16 +547,11 @@ QDF_NBUF_TRACK *gp_qdf_net_buf_track_tbl[QDF_NET_BUF_TRACK_MAX_SIZE];
 void qdf_net_buf_debug_init(void)
 {
 	uint32_t i;
-	unsigned long irq_flag;
 
-	spin_lock_init(&g_qdf_net_buf_track_lock);
-
-	spin_lock_irqsave(&g_qdf_net_buf_track_lock, irq_flag);
-
-	for (i = 0; i < QDF_NET_BUF_TRACK_MAX_SIZE; i++)
+	for (i = 0; i < QDF_NET_BUF_TRACK_MAX_SIZE; i++) {
 		gp_qdf_net_buf_track_tbl[i] = NULL;
-
-	spin_unlock_irqrestore(&g_qdf_net_buf_track_lock, irq_flag);
+		spin_lock_init(&g_qdf_net_buf_track_lock[i]);
+	}
 
 	return;
 }
@@ -576,9 +571,8 @@ void qdf_net_buf_debug_exit(void)
 	QDF_NBUF_TRACK *p_node;
 	QDF_NBUF_TRACK *p_prev;
 
-	spin_lock_irqsave(&g_qdf_net_buf_track_lock, irq_flag);
-
 	for (i = 0; i < QDF_NET_BUF_TRACK_MAX_SIZE; i++) {
+		spin_lock_irqsave(&g_qdf_net_buf_track_lock[i], irq_flag);
 		p_node = gp_qdf_net_buf_track_tbl[i];
 		while (p_node) {
 			p_prev = p_node;
@@ -588,9 +582,8 @@ void qdf_net_buf_debug_exit(void)
 				  p_prev->file_name, p_prev->line_num,
 				  p_prev->size);
 		}
+		spin_unlock_irqrestore(&g_qdf_net_buf_track_lock[i], irq_flag);
 	}
-
-	spin_unlock_irqrestore(&g_qdf_net_buf_track_lock, irq_flag);
 
 	return;
 }
@@ -608,18 +601,16 @@ void qdf_net_buf_debug_clean(void)
 	QDF_NBUF_TRACK *p_node;
 	QDF_NBUF_TRACK *p_prev;
 
-	spin_lock_irqsave(&g_qdf_net_buf_track_lock, irq_flag);
-
 	for (i = 0; i < QDF_NET_BUF_TRACK_MAX_SIZE; i++) {
+		spin_lock_irqsave(&g_qdf_net_buf_track_lock[i], irq_flag);
 		p_node = gp_qdf_net_buf_track_tbl[i];
 		while (p_node) {
 			p_prev = p_node;
 			p_node = p_node->p_next;
 			qdf_mem_free(p_prev);
 		}
+		spin_unlock_irqrestore(&g_qdf_net_buf_track_lock[i], irq_flag);
 	}
-
-	spin_unlock_irqrestore(&g_qdf_net_buf_track_lock, irq_flag);
 
 	return;
 }
@@ -634,7 +625,9 @@ uint32_t qdf_net_buf_debug_hash(qdf_nbuf_t net_buf)
 {
 	uint32_t i;
 
-	i = (uint32_t) ((uintptr_t) net_buf & (QDF_NET_BUF_TRACK_MAX_SIZE - 1));
+	i = (uint32_t) (((uintptr_t) net_buf) >> 4);
+	i += (uint32_t) (((uintptr_t) net_buf) >> 14);
+	i &= (QDF_NET_BUF_TRACK_MAX_SIZE - 1);
 
 	return i;
 }
@@ -675,10 +668,13 @@ void qdf_net_buf_debug_add_node(qdf_nbuf_t net_buf, size_t size,
 	uint32_t i;
 	unsigned long irq_flag;
 	QDF_NBUF_TRACK *p_node;
+	QDF_NBUF_TRACK *new_node;
 
-	spin_lock_irqsave(&g_qdf_net_buf_track_lock, irq_flag);
+	new_node = (QDF_NBUF_TRACK *) qdf_mem_malloc(sizeof(*new_node));
 
 	i = qdf_net_buf_debug_hash(net_buf);
+	spin_lock_irqsave(&g_qdf_net_buf_track_lock[i], irq_flag);
+
 	p_node = qdf_net_buf_debug_look_up(net_buf);
 
 	if (p_node) {
@@ -687,10 +683,10 @@ void qdf_net_buf_debug_add_node(qdf_nbuf_t net_buf, size_t size,
 			  p_node->net_buf, p_node->file_name, p_node->line_num,
 			  net_buf, file_name, line_num);
 		QDF_ASSERT(0);
+		qdf_mem_free(new_node);
 		goto done;
 	} else {
-		p_node = (QDF_NBUF_TRACK *)
-			 qdf_mem_malloc(sizeof(*p_node));
+		p_node = new_node;
 		if (p_node) {
 			p_node->net_buf = net_buf;
 			p_node->file_name = file_name;
@@ -707,7 +703,7 @@ void qdf_net_buf_debug_add_node(qdf_nbuf_t net_buf, size_t size,
 	}
 
 done:
-	spin_unlock_irqrestore(&g_qdf_net_buf_track_lock, irq_flag);
+	spin_unlock_irqrestore(&g_qdf_net_buf_track_lock[i], irq_flag);
 
 	return;
 }
@@ -727,9 +723,9 @@ void qdf_net_buf_debug_delete_node(qdf_nbuf_t net_buf)
 	unsigned long irq_flag;
 	QDF_NBUF_TRACK *p_prev;
 
-	spin_lock_irqsave(&g_qdf_net_buf_track_lock, irq_flag);
-
 	i = qdf_net_buf_debug_hash(net_buf);
+	spin_lock_irqsave(&g_qdf_net_buf_track_lock[i], irq_flag);
+
 	p_head = gp_qdf_net_buf_track_tbl[i];
 
 	/* Unallocated SKB */
@@ -765,7 +761,7 @@ done:
 		QDF_ASSERT(0);
 	}
 
-	spin_unlock_irqrestore(&g_qdf_net_buf_track_lock, irq_flag);
+	spin_unlock_irqrestore(&g_qdf_net_buf_track_lock[i], irq_flag);
 
 	return;
 }

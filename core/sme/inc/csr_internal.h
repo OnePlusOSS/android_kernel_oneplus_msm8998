@@ -649,6 +649,19 @@ typedef struct tagCsrConfig {
 	uint32_t obss_active_dwelltime;
 	uint32_t obss_passive_dwelltime;
 	bool ignore_peer_ht_opmode;
+	bool enable_edca_params;
+	uint32_t edca_vo_cwmin;
+	uint32_t edca_vi_cwmin;
+	uint32_t edca_bk_cwmin;
+	uint32_t edca_be_cwmin;
+	uint32_t edca_vo_cwmax;
+	uint32_t edca_vi_cwmax;
+	uint32_t edca_bk_cwmax;
+	uint32_t edca_be_cwmax;
+	uint32_t edca_vo_aifs;
+	uint32_t edca_vi_aifs;
+	uint32_t edca_bk_aifs;
+	uint32_t edca_be_aifs;
 	bool enable_fatal_event;
 } tCsrConfig;
 
@@ -765,6 +778,7 @@ typedef struct tagCsrScanStruct {
 	csr_scan_completeCallback callback11dScanDone;
 	bool fcc_constraint;
 	uint8_t max_scan_count;
+	bool defer_update_channel_list;
 } tCsrScanStruct;
 
 /*
@@ -977,6 +991,7 @@ typedef struct tagCsrRoamSession {
 	bool ch_switch_in_progress;
 	bool roam_synch_in_progress;
 	bool supported_nss_1x1;
+	bool disable_hi_rssi;
 } tCsrRoamSession;
 
 typedef struct tagCsrRoamStruct {

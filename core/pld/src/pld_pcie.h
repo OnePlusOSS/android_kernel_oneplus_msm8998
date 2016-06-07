@@ -96,10 +96,12 @@ static inline int cnss_wlan_pm_control(bool vote)
 #endif
 
 #ifndef CONFIG_CNSS
+
 static inline int
 pld_pcie_get_fw_files_for_target(struct pld_fw_files *pfw_files,
 				 u32 target_type, u32 target_version)
 {
+	pld_get_default_fw_files(pfw_files);
 	return 0;
 }
 static inline int
@@ -137,6 +139,10 @@ static inline int cnss_wlan_set_dfs_nol(void *info, u16 info_len)
 static inline int cnss_wlan_get_dfs_nol(void *info, u16 info_len)
 {
 	return 0;
+}
+static void cnss_schedule_recovery_work(void)
+{
+	return;
 }
 static inline void *cnss_get_virt_ramdump_mem(unsigned long *size)
 {

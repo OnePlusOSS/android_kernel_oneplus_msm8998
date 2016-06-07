@@ -109,6 +109,8 @@ static void pld_pcie_remove(struct pci_dev *pdev)
 	if (!pld_context)
 		return;
 
+	pld_context->ops->remove(&pdev->dev, PLD_BUS_TYPE_PCIE);
+
 	spin_lock_irqsave(&pld_context->pld_lock, flags);
 	list_for_each_entry_safe(dev_node, tmp, &pld_context->dev_list, list) {
 		if (dev_node->dev == &pdev->dev) {
@@ -117,8 +119,6 @@ static void pld_pcie_remove(struct pci_dev *pdev)
 		}
 	}
 	spin_unlock_irqrestore(&pld_context->pld_lock, flags);
-
-	pld_context->ops->remove(&pdev->dev, PLD_BUS_TYPE_PCIE);
 }
 
 #ifdef CONFIG_CNSS
@@ -463,12 +463,28 @@ int pld_pcie_get_fw_files_for_target(struct pld_fw_files *pfw_files,
 	if (pfw_files == NULL)
 		return -ENODEV;
 
+	memset(pfw_files, 0, sizeof(*pfw_files));
+
 	ret = cnss_get_fw_files_for_target(&cnss_fw_files,
 					   target_type, target_version);
 	if (0 != ret)
 		return ret;
 
-	memcpy(pfw_files, &cnss_fw_files, sizeof(*pfw_files));
+	strlcpy(pfw_files->image_file, cnss_fw_files.image_file,
+		PLD_MAX_FILE_NAME);
+	strlcpy(pfw_files->board_data, cnss_fw_files.board_data,
+		PLD_MAX_FILE_NAME);
+	strlcpy(pfw_files->otp_data, cnss_fw_files.otp_data,
+		PLD_MAX_FILE_NAME);
+	strlcpy(pfw_files->utf_file, cnss_fw_files.utf_file,
+		PLD_MAX_FILE_NAME);
+	strlcpy(pfw_files->utf_board_data, cnss_fw_files.utf_board_data,
+		PLD_MAX_FILE_NAME);
+	strlcpy(pfw_files->epping_file, cnss_fw_files.epping_file,
+		PLD_MAX_FILE_NAME);
+	strlcpy(pfw_files->evicted_data, cnss_fw_files.evicted_data,
+		PLD_MAX_FILE_NAME);
+
 	return 0;
 }
 

@@ -509,6 +509,13 @@ static void cds_set_2g_channel_params(uint16_t oper_ch,
 	if (CH_WIDTH_MAX <= ch_params->ch_width)
 		ch_params->ch_width = CH_WIDTH_40MHZ;
 
+	if ((cds_bw_value(ch_params->ch_width) > 20) && !sec_ch_2g) {
+		if (oper_ch >= 1 && oper_ch <= 5)
+			sec_ch_2g = oper_ch + 4;
+		else if (oper_ch >= 6 && oper_ch <= 13)
+			sec_ch_2g = oper_ch - 4;
+	}
+
 	while (ch_params->ch_width != CH_WIDTH_INVALID) {
 		chan_state = cds_get_2g_bonded_channel_state(oper_ch,
 							    ch_params->ch_width,
@@ -663,6 +670,38 @@ QDF_STATUS cds_put_default_country(uint8_t *def_country)
 	default_country[1] = def_country[1];
 
 	return QDF_STATUS_SUCCESS;
+}
+
+/**
+ * cds_bw_value() - give bandwidth value
+ * bw: bandwidth enum
+ *
+ * Return: uint16_t
+ */
+uint16_t cds_bw_value(enum phy_ch_width bw)
+{
+	switch (bw) {
+	case CH_WIDTH_20MHZ:
+		return 20;
+	case CH_WIDTH_40MHZ:
+		return 40;
+	case CH_WIDTH_80MHZ:
+		return 80;
+	case CH_WIDTH_160MHZ:
+		return 160;
+	case CH_WIDTH_80P80MHZ:
+		return 160;
+	case CH_WIDTH_INVALID:
+		return 0;
+	case CH_WIDTH_5MHZ:
+		return 10;
+	case CH_WIDTH_10MHZ:
+		return 5;
+	case CH_WIDTH_MAX:
+		return 160;
+	default:
+		return 0;
+	}
 }
 
 /**

@@ -326,6 +326,34 @@ int pld_set_fw_debug_mode(struct device *dev, bool enablefwlog)
 }
 
 /**
+ * pld_get_default_fw_files() - Get default FW file names
+ * @pfw_files: buffer for FW file names
+ *
+ * Return default FW file names to the buffer.
+ *
+ * Return: void
+ */
+void pld_get_default_fw_files(struct pld_fw_files *pfw_files)
+{
+	memset(pfw_files, 0, sizeof(*pfw_files));
+
+	strlcpy(pfw_files->image_file, PLD_IMAGE_FILE,
+		PLD_MAX_FILE_NAME);
+	strlcpy(pfw_files->board_data, PLD_BOARD_DATA_FILE,
+		PLD_MAX_FILE_NAME);
+	strlcpy(pfw_files->otp_data, PLD_OTP_FILE,
+		PLD_MAX_FILE_NAME);
+	strlcpy(pfw_files->utf_file, PLD_UTF_FIRMWARE_FILE,
+		PLD_MAX_FILE_NAME);
+	strlcpy(pfw_files->utf_board_data, PLD_BOARD_DATA_FILE,
+		PLD_MAX_FILE_NAME);
+	strlcpy(pfw_files->epping_file, PLD_EPPING_FILE,
+		PLD_MAX_FILE_NAME);
+	strlcpy(pfw_files->setup_file, PLD_SETUP_FILE,
+		PLD_MAX_FILE_NAME);
+}
+
+/**
  * pld_get_fw_files_for_target() - Get FW file names
  * @dev: device
  * @pfw_files: buffer for FW file names
@@ -584,6 +612,28 @@ int pld_wlan_get_dfs_nol(struct device *dev, void *info, u16 info_len)
 	}
 
 	return ret;
+}
+
+/**
+ * pld_schedule_recovery_work() - Schedule recovery work
+ * @dev: device
+ *
+ * Schedule a system self recovery work.
+ *
+ * Return: void
+ */
+void pld_schedule_recovery_work(struct device *dev)
+{
+	switch (pld_get_bus_type(dev)) {
+	case PLD_BUS_TYPE_PCIE:
+		cnss_schedule_recovery_work();
+		break;
+	case PLD_BUS_TYPE_SNOC:
+		break;
+	default:
+		pr_err("Invalid device type\n");
+		break;
+	}
 }
 
 /**

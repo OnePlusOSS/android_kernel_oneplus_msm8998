@@ -71,6 +71,7 @@
 #include "sme_power_save_api.h"
 #include "cds_concurrency.h"
 #include "cdp_txrx_flow_ctrl_v2.h"
+#include "pld_common.h"
 
 /* Preprocessor definitions and constants */
 #define HDD_SSR_BRING_UP_TIME 30000
@@ -595,10 +596,8 @@ void __hdd_ipv4_notifier_work_queue(struct work_struct *work)
 	hdd_info("Configuring ARP Offload");
 	pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
 	status = wlan_hdd_validate_context(pHddCtx);
-	if (0 != status) {
-		hddLog(LOGE, FL("HDD context is invalid"));
+	if (status)
 		return;
-	}
 
 	if (!pHddCtx->config->active_mode_offload) {
 		hdd_err("Active mode offload is disabled");
@@ -1676,7 +1675,6 @@ err_cds_close:
 	if (pHddCtx) {
 		/* Unregister the Net Device Notifier */
 		unregister_netdevice_notifier(&hdd_netdev_notifier);
-		cnss_diag_notify_wlan_close();
 		ptt_sock_deactivate_svc();
 
 		nl_srv_exit();
@@ -1686,6 +1684,7 @@ err_cds_close:
 		pHddCtx->config = NULL;
 		wlan_hdd_deinit_tx_rx_histogram(pHddCtx);
 		wiphy_unregister(pHddCtx->wiphy);
+		wlan_hdd_cfg80211_deinit(pHddCtx->wiphy);
 		wiphy_free(pHddCtx->wiphy);
 
 		if (!QDF_IS_STATUS_SUCCESS(cds_deinit_policy_mgr())) {
@@ -1794,9 +1793,7 @@ static int __wlan_hdd_cfg80211_resume_wlan(struct wiphy *wiphy)
 	result = wlan_hdd_validate_context(pHddCtx);
 	if (0 != result)
 		return result;
-#ifdef CONFIG_CNSS
-	cnss_request_bus_bandwidth(CNSS_BUS_WIDTH_MEDIUM);
-#endif
+	pld_request_bus_bandwidth(pHddCtx->parent_dev, PLD_BUS_WIDTH_MEDIUM);
 
 	/* Resume MC thread */
 	if (pHddCtx->isMcThreadSuspended) {
@@ -2065,9 +2062,7 @@ static int __wlan_hdd_cfg80211_suspend_wlan(struct wiphy *wiphy,
 			 NO_SESSION, pHddCtx->isWiphySuspended));
 	pHddCtx->isWiphySuspended = true;
 
-#ifdef CONFIG_CNSS
-	cnss_request_bus_bandwidth(CNSS_BUS_WIDTH_NONE);
-#endif
+	pld_request_bus_bandwidth(pHddCtx->parent_dev, PLD_BUS_WIDTH_NONE);
 
 	EXIT();
 	return 0;

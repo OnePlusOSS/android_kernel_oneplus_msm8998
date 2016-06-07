@@ -55,6 +55,9 @@
 #include "wma.h"
 #include "cds_concurrency.h"
 
+#define MAX_PWR_FCC_CHAN_12 8
+#define MAX_PWR_FCC_CHAN_13 2
+
 #define CSR_NUM_IBSS_START_CHANNELS_50      4
 #define CSR_NUM_IBSS_START_CHANNELS_24      3
 /* 5 seconds, for WPA, WPA2, CCKM */
@@ -683,12 +686,7 @@ QDF_STATUS csr_update_channel_list(tpAniSirGlobal pMac)
 		/* Scan is not performed on DSRC channels*/
 		if (pScan->base_channels.channelList[i] >= CDS_MIN_11P_CHANNEL)
 			continue;
-		if (pScan->fcc_constraint) {
-			if (pScan->base_channels.channelList[i] == 12)
-				continue;
-			if (pScan->base_channels.channelList[i] == 13)
-				continue;
-		}
+
 		channel_state =
 			cds_get_channel_state(
 				pScan->base_channels.channelList[i]);
@@ -699,6 +697,27 @@ QDF_STATUS csr_update_channel_list(tpAniSirGlobal pMac)
 			pChanList->chanParam[num_channel].pwr =
 				csr_find_channel_pwr(pScan->defaultPowerTable,
 						  pChanList->chanParam[num_channel].chanId);
+
+			if (pScan->fcc_constraint) {
+				if (12 == pChanList->chanParam[num_channel].chanId) {
+					pChanList->chanParam[num_channel].pwr =
+						MAX_PWR_FCC_CHAN_12;
+					QDF_TRACE(QDF_MODULE_ID_SME,
+						  QDF_TRACE_LEVEL_INFO,
+						  "txpow for channel 12 is %d",
+						  MAX_PWR_FCC_CHAN_12);
+				}
+				if (13 == pChanList->chanParam[num_channel].chanId) {
+					pChanList->chanParam[num_channel].pwr =
+						MAX_PWR_FCC_CHAN_13;
+					QDF_TRACE(QDF_MODULE_ID_SME,
+						  QDF_TRACE_LEVEL_INFO,
+						  "txpow for channel 13 is %d",
+						  MAX_PWR_FCC_CHAN_13);
+				}
+			}
+
+
 			if (CHANNEL_STATE_ENABLE == channel_state)
 				pChanList->chanParam[num_channel].dfsSet =
 					false;
@@ -2356,6 +2375,23 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 			pParam->early_stop_scan_min_threshold;
 		pMac->roam.configParam.early_stop_scan_max_threshold =
 			pParam->early_stop_scan_max_threshold;
+		pMac->roam.configParam.enable_edca_params =
+			pParam->enable_edca_params;
+		pMac->roam.configParam.edca_vo_cwmin = pParam->edca_vo_cwmin;
+		pMac->roam.configParam.edca_vi_cwmin = pParam->edca_vi_cwmin;
+		pMac->roam.configParam.edca_bk_cwmin = pParam->edca_bk_cwmin;
+		pMac->roam.configParam.edca_be_cwmin = pParam->edca_be_cwmin;
+
+		pMac->roam.configParam.edca_vo_cwmax = pParam->edca_vo_cwmax;
+		pMac->roam.configParam.edca_vi_cwmax = pParam->edca_vi_cwmax;
+		pMac->roam.configParam.edca_bk_cwmax = pParam->edca_bk_cwmax;
+		pMac->roam.configParam.edca_be_cwmax = pParam->edca_be_cwmax;
+
+		pMac->roam.configParam.edca_vo_aifs = pParam->edca_vo_aifs;
+		pMac->roam.configParam.edca_vi_aifs = pParam->edca_vi_aifs;
+		pMac->roam.configParam.edca_bk_aifs = pParam->edca_bk_aifs;
+		pMac->roam.configParam.edca_be_aifs = pParam->edca_be_aifs;
+
 		pMac->roam.configParam.enable_fatal_event =
 			pParam->enable_fatal_event;
 
@@ -2543,6 +2579,23 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 	pParam->enableHtSmps = pMac->roam.configParam.enableHtSmps;
 	pParam->htSmps = pMac->roam.configParam.htSmps;
 	pParam->send_smps_action = pMac->roam.configParam.send_smps_action;
+
+	pParam->enable_edca_params =
+		pMac->roam.configParam.enable_edca_params;
+	pParam->edca_vo_cwmin = pMac->roam.configParam.edca_vo_cwmin;
+	pParam->edca_vi_cwmin = pMac->roam.configParam.edca_vi_cwmin;
+	pParam->edca_bk_cwmin = pMac->roam.configParam.edca_bk_cwmin;
+	pParam->edca_be_cwmin = pMac->roam.configParam.edca_be_cwmin;
+
+	pParam->edca_vo_cwmax = pMac->roam.configParam.edca_vo_cwmax;
+	pParam->edca_vi_cwmax = pMac->roam.configParam.edca_vi_cwmax;
+	pParam->edca_bk_cwmax = pMac->roam.configParam.edca_bk_cwmax;
+	pParam->edca_be_cwmax = pMac->roam.configParam.edca_be_cwmax;
+
+	pParam->edca_vo_aifs = pMac->roam.configParam.edca_vo_aifs;
+	pParam->edca_vi_aifs = pMac->roam.configParam.edca_vi_aifs;
+	pParam->edca_bk_aifs = pMac->roam.configParam.edca_bk_aifs;
+	pParam->edca_be_aifs = pMac->roam.configParam.edca_be_aifs;
 	pParam->enable_fatal_event =
 		pMac->roam.configParam.enable_fatal_event;
 
@@ -13403,6 +13456,7 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 	struct ps_global_info *ps_global_info = &pMac->sme.ps_global_info;
 	struct ps_params *ps_param = &ps_global_info->ps_params[sessionId];
 	uint8_t ese_config = 0;
+	tpCsrNeighborRoamControlInfo neigh_roam_info;
 
 
 	if (!pSession) {
@@ -13414,6 +13468,20 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 		sms_log(pMac, LOGE, FL(" pBssDescription is NULL"));
 		return QDF_STATUS_E_FAILURE;
 	}
+	neigh_roam_info = &pMac->roam.neighborRoamInfo[sessionId];
+	if ((eWNI_SME_REASSOC_REQ == messageType) ||
+		CDS_IS_CHANNEL_5GHZ(pBssDescription->channelId) ||
+		(abs(pBssDescription->rssi) <
+		 (neigh_roam_info->cfgParams.neighborLookupThreshold -
+		  neigh_roam_info->cfgParams.hi_rssi_scan_rssi_delta))) {
+		pSession->disable_hi_rssi = true;
+		sms_log(pMac, LOG1,
+			FL("Disabling HI_RSSI feature, AP channel=%d, rssi=%d"),
+			pBssDescription->channelId, pBssDescription->rssi);
+	} else {
+		pSession->disable_hi_rssi = false;
+	}
+
 
 	do {
 		pSession->joinFailStatusCode.statusCode = eSIR_SME_SUCCESS;
@@ -13460,8 +13528,8 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 		qdf_mem_copy(&csr_join_req->selfMacAddr, &pSession->selfMacAddr,
 			     sizeof(tSirMacAddr));
 		sms_log(pMac, LOGE,
-			"Connecting to ssid:%.*s bssid: "
-			MAC_ADDRESS_STR" rssi: %d channel: %d country_code: %c%c",
+			FL("Connecting to ssid:%.*s bssid: "
+			MAC_ADDRESS_STR" rssi: %d channel: %d country_code: %c%c"),
 			pIes->SSID.num_ssid, pIes->SSID.ssid,
 			MAC_ADDR_ARRAY(pBssDescription->bssId),
 			pBssDescription->rssi, pBssDescription->channelId,
@@ -13489,7 +13557,7 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 #endif
 		csr_join_req->staPersona = (uint8_t) pProfile->csrPersona;
 		csr_join_req->cbMode = (uint8_t) pSession->bssParams.cbMode;
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
+		sms_log(pMac, LOG2,
 			  FL("CSR PERSONA=%d CSR CbMode %d"),
 			  pProfile->csrPersona, pSession->bssParams.cbMode);
 		csr_join_req->uapsdPerAcBitmask = pProfile->uapsd_mask;
@@ -16914,14 +16982,11 @@ csr_roam_offload_scan(tpAniSirGlobal mac_ctx, uint8_t session_id,
 	 * is useful only if we are connected to a 2.4 GHz AP and we wish
 	 * to connect to a better 5GHz AP is available.
 	 */
-	if (CDS_IS_CHANNEL_5GHZ(op_channel)) {
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-			"Disabling HI_RSSI feature as connected AP is 5GHz");
+	if (session->disable_hi_rssi)
 		req_buf->hi_rssi_scan_rssi_delta = 0;
-	} else {
+	else
 		req_buf->hi_rssi_scan_rssi_delta =
 			roam_info->cfgParams.hi_rssi_scan_rssi_delta;
-	}
 	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 		"hi_rssi:delta=%d, max_count=%d, delay=%d, ub=%d",
 			req_buf->hi_rssi_scan_rssi_delta,

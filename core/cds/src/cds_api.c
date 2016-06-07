@@ -45,10 +45,8 @@
 #include "wma_types.h"
 #include "wlan_hdd_main.h"
 #include <linux/vmalloc.h>
-#ifdef CONFIG_CNSS
-#include <net/cnss.h>
-#endif
 
+#include "pld_common.h"
 #include "sap_api.h"
 #include "qdf_trace.h"
 #include "bmi.h"
@@ -985,8 +983,11 @@ void *cds_get_context(QDF_MODULE_ID moduleId)
 v_CONTEXT_t cds_get_global_context(void)
 {
 	if (gp_cds_context == NULL) {
-		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
-			  "%s: global cds context is NULL", __func__);
+		/*
+		 * To avoid recursive call, this should not change to
+		 * QDF_TRACE().
+		 */
+		pr_err("%s: global cds context is NULL", __func__);
 	}
 
 	return gp_cds_context;
@@ -1651,6 +1652,7 @@ void cds_trigger_recovery(void)
 	tp_wma_handle wma_handle = cds_get_context(QDF_MODULE_ID_WMA);
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	qdf_runtime_lock_t recovery_lock;
+	qdf_device_t qdf_ctx = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
 
 	if (!wma_handle) {
 		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
@@ -1675,15 +1677,13 @@ void cds_trigger_recovery(void)
 	if (QDF_STATUS_SUCCESS != status) {
 		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
 			"CRASH_INJECT command is timed out!");
- #ifdef CONFIG_CNSS
 		if (cds_is_driver_recovering()) {
 			QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
 				"Recovery is in progress, ignore!");
 		} else {
 			cds_set_recovery_in_progress(true);
-			cnss_schedule_recovery_work();
+			pld_schedule_recovery_work(qdf_ctx->dev);
 		}
- #endif
 	}
 
 	qdf_runtime_pm_allow_suspend(recovery_lock);
@@ -2193,3 +2193,45 @@ void cds_set_fatal_event(bool value)
 	p_cds_context->enable_fatal_event = value;
 }
 
+/**
+ * cds_get_radio_index() - get radio index
+ *
+ * Return: radio index otherwise, -EINVAL
+ */
+int cds_get_radio_index(void)
+{
+	p_cds_contextType p_cds_context;
+
+	p_cds_context = cds_get_global_context();
+	if (!p_cds_context) {
+		/*
+		 * To avoid recursive call, this should not change to
+		 * QDF_TRACE().
+		 */
+		pr_err("%s: cds context is invalid\n", __func__);
+		return -EINVAL;
+	}
+
+	return p_cds_context->radio_index;
+}
+
+/**
+ * cds_set_radio_index() - set radio index
+ * @radio_index:	the radio index to set
+ *
+ * Return: QDF status
+ */
+QDF_STATUS cds_set_radio_index(int radio_index)
+{
+	p_cds_contextType p_cds_context;
+
+	p_cds_context = cds_get_global_context();
+	if (!p_cds_context) {
+		pr_err("%s: cds context is invalid\n", __func__);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	p_cds_context->radio_index = radio_index;
+
+	return QDF_STATUS_SUCCESS;
+}

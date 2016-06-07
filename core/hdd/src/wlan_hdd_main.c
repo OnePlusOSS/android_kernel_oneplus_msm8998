@@ -74,9 +74,7 @@
 #include <linux/ctype.h>
 #include <linux/compat.h>
 #ifdef MSM_PLATFORM
-#ifdef CONFIG_CNSS
 #include <soc/qcom/subsystem_restart.h>
-#endif
 #endif
 #include <wlan_hdd_hostapd.h>
 #include <wlan_hdd_softap_tx_rx.h>
@@ -85,9 +83,6 @@
 #include "wma_types.h"
 #include "wlan_hdd_tdls.h"
 #ifdef FEATURE_WLAN_CH_AVOID
-#ifdef CONFIG_CNSS
-#include <net/cnss.h>
-#endif
 #include "cds_regdomain.h"
 #include "cdp_txrx_flow_ctrl_v2.h"
 #endif /* FEATURE_WLAN_CH_AVOID */
@@ -105,7 +100,6 @@
 #include "cds_concurrency.h"
 #include "wlan_hdd_tsf.h"
 #include "wlan_hdd_green_ap.h"
-#include "platform_icnss.h"
 #include "bmi.h"
 #include <wlan_hdd_regulatory.h>
 
@@ -526,19 +520,19 @@ static void hdd_qdf_trace_enable(QDF_MODULE_ID moduleId, uint32_t bitmask)
 int wlan_hdd_validate_context(hdd_context_t *hdd_ctx)
 {
 	if (NULL == hdd_ctx || NULL == hdd_ctx->config) {
-		hddLog(LOGE, FL("HDD context is Null"));
+		hdd_err("%pS HDD context is Null", (void *)_RET_IP_);
 		return -ENODEV;
 	}
 
 	if (cds_is_driver_recovering()) {
-		hdd_err("Recovery in Progress. State: 0x%x Ignore!!!",
-			 cds_get_driver_state());
+		hdd_err("%pS Recovery in Progress. State: 0x%x Ignore!!!",
+			(void *)_RET_IP_, cds_get_driver_state());
 		return -EAGAIN;
 	}
 
 	if (cds_is_load_or_unload_in_progress()) {
-		hdd_err("Unloading/Loading in Progress. Ignore!!!: 0x%x",
-			cds_get_driver_state());
+		hdd_err("%pS Unloading/Loading in Progress. Ignore!!!: 0x%x",
+			(void *)_RET_IP_, cds_get_driver_state());
 		return -EAGAIN;
 	}
 	return 0;
@@ -1492,10 +1486,9 @@ static int __hdd_open(struct net_device *dev)
 			 adapter->sessionId, adapter->device_mode));
 
 	ret = wlan_hdd_validate_context(hdd_ctx);
-	if (0 != ret) {
-		hddLog(LOGE, FL("HDD context is not valid"));
+	if (ret)
 		return ret;
-	}
+
 
 	set_bit(DEVICE_IFACE_OPENED, &adapter->event_flags);
 	if (hdd_conn_is_connected(WLAN_HDD_GET_STATION_CTX_PTR(adapter))) {
@@ -2114,23 +2107,6 @@ static QDF_STATUS hdd_sme_close_session_callback(void *pContext)
 	}
 
 	clear_bit(SME_SESSION_OPENED, &adapter->event_flags);
-
-#if !defined (CONFIG_CNSS) && \
-	!defined (WLAN_OPEN_SOURCE)
-	/*
-	 * need to make sure all of our scheduled work has completed.
-	 * This callback is called from MC thread context, so it is safe to
-	 * to call below flush workqueue API from here.
-	 *
-	 * Even though this is called from MC thread context, if there is a faulty
-	 * work item in the system, that can hang this call forever.  So flushing
-	 * this global work queue is not safe; and now we make sure that
-	 * individual work queues are stopped correctly. But the cancel work queue
-	 * is a GPL only API, so the proprietary  version of the driver would still
-	 * rely on the global work queue flush.
-	 */
-	flush_scheduled_work();
-#endif
 
 	/*
 	 * We can be blocked while waiting for scheduled work to be
@@ -3920,8 +3896,6 @@ static void hdd_unregister_notifiers(hdd_context_t *hdd_ctx)
  */
 static void hdd_exit_netlink_services(hdd_context_t *hdd_ctx)
 {
-	cnss_diag_notify_wlan_close();
-
 	hdd_close_cesium_nl_sock();
 
 	ptt_sock_deactivate_svc();
@@ -3942,11 +3916,12 @@ static int hdd_init_netlink_services(hdd_context_t *hdd_ctx)
 {
 	int ret;
 
-	ret = nl_srv_init();
+	ret = wlan_hdd_nl_init(hdd_ctx);
 	if (ret) {
 		hdd_alert("nl_srv_init failed: %d", ret);
 		goto out;
 	}
+	cds_set_radio_index(hdd_ctx->radio_index);
 
 	ret = oem_activate_service(hdd_ctx);
 	if (ret) {
@@ -3961,10 +3936,8 @@ static int hdd_init_netlink_services(hdd_context_t *hdd_ctx)
 	}
 
 	ret = hdd_open_cesium_nl_sock();
-	if (ret) {
-		hdd_alert("hdd_open_cesium_nl_sock failed");
-		goto err_ptt_deactivate;
-	}
+	if (ret)
+		hdd_warn("hdd_open_cesium_nl_sock failed");
 
 	ret = cnss_diag_activate_service();
 	if (ret) {
@@ -3976,7 +3949,6 @@ static int hdd_init_netlink_services(hdd_context_t *hdd_ctx)
 
 err_close_cesium:
 	hdd_close_cesium_nl_sock();
-err_ptt_deactivate:
 	ptt_sock_deactivate_svc();
 err_nl_srv:
 	nl_srv_exit();
@@ -4096,6 +4068,8 @@ void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 
 	hdd_unregister_wext_all_adapters(hdd_ctx);
 
+	hdd_exit_netlink_services(hdd_ctx);
+
 	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
 		hdd_disable_ftm(hdd_ctx);
 
@@ -4197,8 +4171,6 @@ void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 
 	hdd_wlan_green_ap_deinit(hdd_ctx);
 
-	hdd_exit_netlink_services(hdd_ctx);
-
 	hdd_close_all_adapters(hdd_ctx, false);
 
 	hdd_ipa_cleanup(hdd_ctx);
@@ -4215,6 +4187,7 @@ free_hdd_ctx:
 
 	wlan_hdd_deinit_tx_rx_histogram(hdd_ctx);
 	wiphy_unregister(wiphy);
+	wlan_hdd_cfg80211_deinit(wiphy);
 
 	hdd_context_destroy(hdd_ctx);
 }
@@ -4283,10 +4256,9 @@ int hdd_wlan_set_ht2040_mode(hdd_adapter_t *adapter, uint16_t staId,
 	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 
 	status = wlan_hdd_validate_context(hdd_ctx);
-	if (0 != status) {
-		hddLog(LOGE, FL("HDD context is not valid"));
+	if (status)
 		return status;
-	}
+
 	if (!hdd_ctx->hHal)
 		return -EINVAL;
 
@@ -4317,10 +4289,9 @@ int hdd_wlan_notify_modem_power_state(int state)
 
 	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
 	status = wlan_hdd_validate_context(hdd_ctx);
-	if (0 != status) {
-		hddLog(LOGE, FL("HDD context is not valid"));
+	if (status)
 		return status;
-	}
+
 	if (!hdd_ctx->hHal)
 		return -EINVAL;
 
@@ -4584,7 +4555,7 @@ static int hdd_wiphy_init(hdd_context_t *hdd_ctx)
 }
 
 /**
- * hdd_cnss_request_bus_bandwidth() - Function to control bus bandwidth
+ * hdd_pld_request_bus_bandwidth() - Function to control bus bandwidth
  * @hdd_ctx - handle to hdd context
  * @tx_packets - transmit packet count
  * @rx_packets - receive packet count
@@ -4595,26 +4566,25 @@ static int hdd_wiphy_init(hdd_context_t *hdd_ctx)
  * Returns: None
  */
 #ifdef MSM_PLATFORM
-void hdd_cnss_request_bus_bandwidth(hdd_context_t *hdd_ctx,
+void hdd_pld_request_bus_bandwidth(hdd_context_t *hdd_ctx,
 			const uint64_t tx_packets, const uint64_t rx_packets)
 {
-#ifdef CONFIG_CNSS
 	uint64_t total = tx_packets + rx_packets;
 	uint64_t temp_rx = 0;
 	uint64_t temp_tx = 0;
-	enum cnss_bus_width_type next_vote_level = CNSS_BUS_WIDTH_NONE;
+	enum pld_bus_width_type next_vote_level = PLD_BUS_WIDTH_NONE;
 	enum wlan_tp_level next_rx_level = WLAN_SVC_TP_NONE;
 	enum wlan_tp_level next_tx_level = WLAN_SVC_TP_NONE;
 
 
 	if (total > hdd_ctx->config->busBandwidthHighThreshold)
-		next_vote_level = CNSS_BUS_WIDTH_HIGH;
+		next_vote_level = PLD_BUS_WIDTH_HIGH;
 	else if (total > hdd_ctx->config->busBandwidthMediumThreshold)
-		next_vote_level = CNSS_BUS_WIDTH_MEDIUM;
+		next_vote_level = PLD_BUS_WIDTH_MEDIUM;
 	else if (total > hdd_ctx->config->busBandwidthLowThreshold)
-		next_vote_level = CNSS_BUS_WIDTH_LOW;
+		next_vote_level = PLD_BUS_WIDTH_LOW;
 	else
-		next_vote_level = CNSS_BUS_WIDTH_NONE;
+		next_vote_level = PLD_BUS_WIDTH_NONE;
 
 	hdd_ctx->hdd_txrx_hist[hdd_ctx->hdd_txrx_hist_idx].next_vote_level =
 							next_vote_level;
@@ -4623,7 +4593,7 @@ void hdd_cnss_request_bus_bandwidth(hdd_context_t *hdd_ctx,
 		hdd_debug("trigger level %d, tx_packets: %lld, rx_packets: %lld",
 			 next_vote_level, tx_packets, rx_packets);
 		hdd_ctx->cur_vote_level = next_vote_level;
-		cnss_request_bus_bandwidth(next_vote_level);
+		pld_request_bus_bandwidth(hdd_ctx->parent_dev, next_vote_level);
 	}
 
 	/* fine-tuning parameters for RX Flows */
@@ -4674,7 +4644,6 @@ void hdd_cnss_request_bus_bandwidth(hdd_context_t *hdd_ctx,
 								next_tx_level;
 	hdd_ctx->hdd_txrx_hist_idx++;
 	hdd_ctx->hdd_txrx_hist_idx &= NUM_TX_RX_HISTOGRAM_MASK;
-#endif
 }
 
 #define HDD_BW_GET_DIFF(_x, _y) (unsigned long)((ULONG_MAX - (_y)) + (_x) + 1)
@@ -4745,7 +4714,7 @@ static void hdd_bus_bw_compute_cbk(void *priv)
 		return;
 	}
 
-	hdd_cnss_request_bus_bandwidth(hdd_ctx, tx_packets, rx_packets);
+	hdd_pld_request_bus_bandwidth(hdd_ctx, tx_packets, rx_packets);
 
 	hdd_ipa_set_perf_level(hdd_ctx, tx_packets, rx_packets);
 	hdd_ipa_uc_stat_request(adapter, 2);
@@ -5026,7 +4995,7 @@ static void hdd_enable_fastpath(struct hdd_config *hdd_cfg,
 }
 #endif
 
-#if defined(FEATURE_WLAN_CH_AVOID) && defined(CONFIG_CNSS)
+#if defined(FEATURE_WLAN_CH_AVOID)
 /**
  * hdd_set_thermal_level_cb() - set thermal level callback function
  * @context:	hdd context pointer
@@ -5244,7 +5213,8 @@ static void hdd_ch_avoid_cb(void *hdd_context, void *indi_param)
 	       FL("number of unsafe channels is %d "),
 	       hdd_ctxt->unsafe_channel_count);
 
-	if (cnss_set_wlan_unsafe_channel(hdd_ctxt->unsafe_channel_list,
+	if (pld_set_wlan_unsafe_channel(hdd_ctxt->parent_dev,
+					hdd_ctxt->unsafe_channel_list,
 				hdd_ctxt->unsafe_channel_count)) {
 		hdd_err("Failed to set unsafe channel");
 
@@ -5322,7 +5292,7 @@ static void hdd_ch_avoid_cb(void *hdd_context, void *indi_param)
  * @hdd_ctx:	HDD global context
  *
  * Initialize the channel avoidance logic by retrieving the unsafe
- * channel list from the CNSS platform driver and plumbing the data
+ * channel list from the platform driver and plumbing the data
  * down to the lower layers.  Then subscribe to subsequent channel
  * avoidance events.
  *
@@ -5333,7 +5303,8 @@ static void hdd_init_channel_avoidance(hdd_context_t *hdd_ctx)
 	uint16_t unsafe_channel_count;
 	int index;
 
-	cnss_get_wlan_unsafe_channel(hdd_ctx->unsafe_channel_list,
+	pld_get_wlan_unsafe_channel(hdd_ctx->parent_dev,
+				    hdd_ctx->unsafe_channel_list,
 				     &(hdd_ctx->unsafe_channel_count),
 				     sizeof(uint16_t) * NUM_CHANNELS);
 
@@ -5359,7 +5330,7 @@ static void hdd_init_channel_avoidance(hdd_context_t *hdd_ctx)
 static void hdd_set_thermal_level_cb(void *context, u_int8_t level)
 {
 }
-#endif /* defined(FEATURE_WLAN_CH_AVOID) && defined(CONFIG_CNSS) */
+#endif /* defined(FEATURE_WLAN_CH_AVOID) */
 
 /**
  * hdd_indicate_mgmt_frame() - Wrapper to indicate management frame to
@@ -5665,7 +5636,8 @@ hdd_context_t *hdd_context_create(struct device *dev, void *hif_sc)
 
 	hdd_ctx->target_type = tgt_info->target_type;
 
-	icnss_set_fw_debug_mode(hdd_ctx->config->enable_fw_log);
+	pld_set_fw_debug_mode(hdd_ctx->parent_dev,
+			      hdd_ctx->config->enable_fw_log);
 
 	hdd_enable_fastpath(hdd_ctx->config, hif_sc);
 
@@ -6145,11 +6117,14 @@ int hdd_wlan_startup(struct device *dev, void *hif_sc)
 	if (IS_ERR(hdd_ctx))
 		return PTR_ERR(hdd_ctx);
 
+	ret = hdd_init_netlink_services(hdd_ctx);
+	if (ret)
+		goto err_hdd_free_context;
+
 	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
 		ret = hdd_enable_ftm(hdd_ctx);
-
 		if (ret)
-			goto err_hdd_free_context;
+			goto err_exit_nl_srv;
 
 		goto success;
 	}
@@ -6159,7 +6134,7 @@ int hdd_wlan_startup(struct device *dev, void *hif_sc)
 	status = cds_open();
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		hddLog(QDF_TRACE_LEVEL_FATAL, FL("cds_open failed"));
-		goto err_hdd_free_context;
+		goto err_exit_nl_srv;
 	}
 
 	wlan_hdd_update_wiphy(hdd_ctx->wiphy, hdd_ctx->config);
@@ -6243,11 +6218,6 @@ int hdd_wlan_startup(struct device *dev, void *hif_sc)
 	/* FW capabilities received, Set the Dot11 mode */
 	sme_setdef_dot11mode(hdd_ctx->hHal);
 
-	ret = hdd_init_netlink_services(hdd_ctx);
-
-	if (ret)
-		goto err_close_adapter;
-
 	/*
 	 * Action frame registered in one adapter which will
 	 * applicable to all interfaces
@@ -6285,14 +6255,14 @@ int hdd_wlan_startup(struct device *dev, void *hif_sc)
 	status = cds_init_policy_mgr();
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		hdd_err("Policy manager initialization failed");
-		goto err_exit_nl_srv;
+		goto err_debugfs_exit;
 	}
 
 	ret = hdd_init_thermal_info(hdd_ctx);
 
 	if (ret) {
 		hdd_err("Error while initializing thermal information");
-		goto err_exit_nl_srv;
+		goto err_debugfs_exit;
 	}
 
 	if (0 != hdd_lro_init(hdd_ctx))
@@ -6354,13 +6324,8 @@ int hdd_wlan_startup(struct device *dev, void *hif_sc)
 
 	goto success;
 
-err_exit_nl_srv:
-	hdd_exit_netlink_services(hdd_ctx);
-
-	if (!QDF_IS_STATUS_SUCCESS(cds_deinit_policy_mgr())) {
-		hdd_err("Failed to deinit policy manager");
-		/* Proceed and complete the clean up */
-	}
+err_debugfs_exit:
+	hdd_debugfs_exit(adapter);
 
 err_close_adapter:
 	hdd_release_rtnl_lock();
@@ -6375,6 +6340,7 @@ err_ipa_cleanup:
 
 err_wiphy_unregister:
 	wiphy_unregister(hdd_ctx->wiphy);
+	wlan_hdd_cfg80211_deinit(hdd_ctx->wiphy);
 
 err_cds_close:
 	status = cds_sched_close(hdd_ctx->pcds_context);
@@ -6384,6 +6350,14 @@ err_cds_close:
 		QDF_ASSERT(QDF_IS_STATUS_SUCCESS(status));
 	}
 	cds_close(hdd_ctx->pcds_context);
+
+err_exit_nl_srv:
+	hdd_exit_netlink_services(hdd_ctx);
+
+	if (!QDF_IS_STATUS_SUCCESS(cds_deinit_policy_mgr())) {
+		hdd_err("Failed to deinit policy manager");
+		/* Proceed and complete the clean up */
+	}
 
 err_hdd_free_context:
 	hdd_context_destroy(hdd_ctx);
@@ -6775,19 +6749,6 @@ void wlan_hdd_send_version_pkg(uint32_t fw_version,
 {
 	int ret = 0;
 	struct wlan_version_data data;
-#ifdef CONFIG_CNSS
-	struct cnss_platform_cap cap;
-
-	ret = cnss_get_platform_cap(&cap);
-	if (ret) {
-		hddLog(QDF_TRACE_LEVEL_ERROR,
-		       FL("platform capability info from CNSS not available"));
-		return;
-	}
-
-	if (!(cap.cap_flag & CNSS_HAS_UART_ACCESS))
-		return;
-#endif
 
 	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam())
 		return;
@@ -7105,11 +7066,9 @@ void wlan_hdd_stop_sap(hdd_adapter_t *ap_adapter)
 
 	hdd_ap_ctx = WLAN_HDD_GET_AP_CTX_PTR(ap_adapter);
 	hdd_ctx = WLAN_HDD_GET_CTX(ap_adapter);
-	if (0 != wlan_hdd_validate_context(hdd_ctx)) {
-		hddLog(QDF_TRACE_LEVEL_ERROR,
-		       FL("HDD context is not valid"));
+	if (wlan_hdd_validate_context(hdd_ctx))
 		return;
-	}
+
 	mutex_lock(&hdd_ctx->sap_lock);
 	if (test_bit(SOFTAP_BSS_STARTED, &ap_adapter->event_flags)) {
 		wlan_hdd_del_station(ap_adapter);
@@ -7175,11 +7134,9 @@ void wlan_hdd_start_sap(hdd_adapter_t *ap_adapter)
 	hostapd_state = WLAN_HDD_GET_HOSTAP_STATE_PTR(ap_adapter);
 	sap_config = &ap_adapter->sessionCtx.ap.sapConfig;
 
-	if (0 != wlan_hdd_validate_context(hdd_ctx)) {
-		hddLog(QDF_TRACE_LEVEL_ERROR,
-		       FL("HDD context is not valid"));
+	if (wlan_hdd_validate_context(hdd_ctx))
 		return;
-	}
+
 	mutex_lock(&hdd_ctx->sap_lock);
 	if (test_bit(SOFTAP_BSS_STARTED, &ap_adapter->event_flags))
 		goto end;

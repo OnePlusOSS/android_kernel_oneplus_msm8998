@@ -763,7 +763,6 @@ static int wma_unified_link_radio_stats_event_handler(void *handle,
 	pMac->sme.pLinkLayerStatsIndCallback(pMac->hHdd,
 					     WMA_LINK_LAYER_STATS_RESULTS_RSP,
 					     link_stats_results);
-	WMA_LOGD("%s: Radio Stats event posted to HDD", __func__);
 	qdf_mem_free(link_stats_results);
 
 	return 0;
@@ -1722,14 +1721,11 @@ WLAN_PHY_MODE wma_peer_phymode(tSirNwType nw_type, uint8_t sta_type,
 			break;
 		}
 		if (is_vht) {
-#if CONFIG_160MHZ_SUPPORT != 0
 			if (ch_width == CH_WIDTH_160MHZ)
 				phymode = MODE_11AC_VHT160;
 			else if (ch_width == CH_WIDTH_80P80MHZ)
 				phymode = MODE_11AC_VHT80_80;
-			else
-#endif
-			if (ch_width == CH_WIDTH_80MHZ)
+			else if (ch_width == CH_WIDTH_80MHZ)
 				phymode = MODE_11AC_VHT80;
 			else
 				phymode = (ch_width) ?

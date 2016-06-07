@@ -906,93 +906,112 @@ QDF_STATUS wma_process_dhcp_ind(tp_wma_handle wma_handle,
 }
 
 /**
- * wma_chan_to_mode() - convert channel to phy mode
+ * wma_chan_phy__mode() - get WLAN_PHY_MODE for channel
  * @chan: channel number
- * @chan_width: channel width
- * @vht_capable: vht capable
- * @dot11_mode: 802.11 mode
+ * @chan_width: maximum channel width possible
+ * @dot11_mode: maximum phy_mode possible
  *
- * Return: return phy mode
+ * Return: return WLAN_PHY_MODE
  */
-WLAN_PHY_MODE wma_chan_to_mode(u8 chan, enum phy_ch_width chan_width,
-				      u8 vht_capable, u8 dot11_mode)
+WLAN_PHY_MODE wma_chan_phy_mode(u8 chan, enum phy_ch_width chan_width,
+				u8 dot11_mode)
 {
 	WLAN_PHY_MODE phymode = MODE_UNKNOWN;
+	uint16_t bw_val = cds_bw_value(chan_width);
 
-	/* 2.4 GHz band */
-	if ((chan >= WMA_11G_CHANNEL_BEGIN) && (chan <= WMA_11G_CHANNEL_END)) {
-		switch (chan_width) {
-		case CH_WIDTH_20MHZ:
-			/* In case of no channel bonding, use dot11_mode
-			 * to set phy mode
-			 */
+	if (CDS_IS_CHANNEL_24GHZ(chan)) {
+		if (((CH_WIDTH_5MHZ == chan_width) ||
+		     (CH_WIDTH_10MHZ == chan_width)) &&
+		    ((WNI_CFG_DOT11_MODE_11B == dot11_mode) ||
+		     (WNI_CFG_DOT11_MODE_11G == dot11_mode) ||
+		     (WNI_CFG_DOT11_MODE_11N == dot11_mode) ||
+		     (WNI_CFG_DOT11_MODE_ALL == dot11_mode) ||
+		     (WNI_CFG_DOT11_MODE_11AC == dot11_mode)))
+			phymode = MODE_11G;
+		else {
 			switch (dot11_mode) {
-			case WNI_CFG_DOT11_MODE_11A:
-				phymode = MODE_11A;
-				break;
 			case WNI_CFG_DOT11_MODE_11B:
-				phymode = MODE_11B;
+				if ((20 == bw_val) ||
+				    (40 == bw_val))
+					phymode = MODE_11B;
 				break;
 			case WNI_CFG_DOT11_MODE_11G:
-				phymode = MODE_11G;
+			  if ((20 == bw_val) ||
+			      (40 == bw_val))
+					phymode = MODE_11G;
 				break;
 			case WNI_CFG_DOT11_MODE_11G_ONLY:
-				phymode = MODE_11GONLY;
+				if ((20 == bw_val) ||
+				    (40 == bw_val))
+					phymode = MODE_11GONLY;
+				break;
+			case WNI_CFG_DOT11_MODE_11N:
+			case WNI_CFG_DOT11_MODE_11N_ONLY:
+				if (20 == bw_val)
+					phymode = MODE_11NG_HT20;
+				else if (40 == bw_val)
+					phymode = MODE_11NG_HT40;
+				break;
+			case WNI_CFG_DOT11_MODE_ALL:
+			case WNI_CFG_DOT11_MODE_11AC:
+			case WNI_CFG_DOT11_MODE_11AC_ONLY:
+				if (20 == bw_val)
+					phymode = MODE_11AC_VHT20_2G;
+				else if (40 == bw_val)
+					phymode = MODE_11AC_VHT40_2G;
 				break;
 			default:
-				/* Configure MODE_11NG_HT20 for
-				 * self vdev(for vht too)
-				 */
-				phymode = MODE_11NG_HT20;
 				break;
 			}
-			break;
-		case CH_WIDTH_40MHZ:
-			phymode = vht_capable ? MODE_11AC_VHT40 :
-						MODE_11NG_HT40;
-			break;
-		default:
-			break;
 		}
-	}
-
-	/* 5 GHz band */
-	if ((chan >= WMA_11A_CHANNEL_BEGIN) && (chan <= WMA_11A_CHANNEL_END)) {
-		switch (chan_width) {
-		case CH_WIDTH_20MHZ:
-			phymode = vht_capable ? MODE_11AC_VHT20 :
-						MODE_11NA_HT20;
-			break;
-		case CH_WIDTH_40MHZ:
-			phymode = vht_capable ? MODE_11AC_VHT40 :
-						MODE_11NA_HT40;
-			break;
-		case CH_WIDTH_80MHZ:
-			phymode = MODE_11AC_VHT80;
-			break;
-#if CONFIG_160MHZ_SUPPORT != 0
-		case CH_WIDTH_160MHZ:
-			phymode = MODE_11AC_VHT160;
-			break;
-		case CH_WIDTH_80P80MHZ:
-			phymode = MODE_11AC_VHT80_80;
-			break;
-#endif
-
-		default:
-			break;
-		}
-	}
-
-	/* 5.9 GHz Band */
-	if ((chan >= WMA_11P_CHANNEL_BEGIN) && (chan <= WMA_11P_CHANNEL_END))
-		/* Only Legacy Modulation Schemes are supported */
+	} else if (CDS_IS_CHANNEL_DSRC(chan))
 		phymode = MODE_11A;
+	else {
+		if (((CH_WIDTH_5MHZ == chan_width) ||
+		     (CH_WIDTH_10MHZ == chan_width)) &&
+		    ((WNI_CFG_DOT11_MODE_11A == dot11_mode) ||
+		     (WNI_CFG_DOT11_MODE_11N == dot11_mode) ||
+		     (WNI_CFG_DOT11_MODE_ALL == dot11_mode) ||
+		     (WNI_CFG_DOT11_MODE_11AC == dot11_mode)))
+			phymode = MODE_11A;
+		else {
+			switch (dot11_mode) {
+			case WNI_CFG_DOT11_MODE_11A:
+				if (0 < bw_val)
+					phymode = MODE_11A;
+				break;
+			case WNI_CFG_DOT11_MODE_11N:
+			case WNI_CFG_DOT11_MODE_11N_ONLY:
+				if (20 == bw_val)
+					phymode = MODE_11NA_HT20;
+				else if (40 <= bw_val)
+					phymode = MODE_11NA_HT40;
+				break;
+			case WNI_CFG_DOT11_MODE_ALL:
+			case WNI_CFG_DOT11_MODE_11AC:
+			case WNI_CFG_DOT11_MODE_11AC_ONLY:
+				if (20 == bw_val)
+					phymode = MODE_11AC_VHT20;
+				else if (40 == bw_val)
+					phymode = MODE_11AC_VHT40;
+				else if (80 == bw_val)
+					phymode = MODE_11AC_VHT80;
+				else if (CH_WIDTH_160MHZ == chan_width)
+					phymode = MODE_11AC_VHT160;
+				else if (CH_WIDTH_80P80MHZ == chan_width)
+					phymode = MODE_11AC_VHT80_80;
+				break;
+			default:
+				break;
+			}
+		}
+	}
 
-	WMA_LOGD("%s: phymode %d channel %d ch_width %d vht_capable %d "
+	WMA_LOGD("%s: phymode %d channel %d ch_width %d"
 		 "dot11_mode %d", __func__, phymode, chan,
-		 chan_width, vht_capable, dot11_mode);
+		 chan_width, dot11_mode);
 
+	QDF_ASSERT(MODE_UNKNOWN != phymode);
 	return phymode;
 }
 
@@ -1474,6 +1493,12 @@ int wma_nan_rsp_event_handler(void *handle, uint8_t *event_buf,
 		return -EFAULT;
 	}
 	WMA_LOGD("%s: NaN response event Posted to SME", __func__);
+	return 0;
+}
+#else
+int wma_nan_rsp_event_handler(void *handle, uint8_t *event_buf,
+			      uint32_t len)
+{
 	return 0;
 }
 #endif /* WLAN_FEATURE_NAN */
@@ -2545,6 +2570,8 @@ static const u8 *wma_wow_wake_reason_str(A_INT32 wake_reason)
 		return "WOW_REASON_RSSI_BREACH_EVENT";
 	case WOW_REASON_NLO_SCAN_COMPLETE:
 		return "WOW_REASON_NLO_SCAN_COMPLETE";
+	case WOW_REASON_NAN_EVENT:
+		return "WOW_REASON_NAN_EVENT";
 	}
 	return "unknown";
 }
@@ -2926,6 +2953,12 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 			} else
 			    WMA_LOGD("No wow_packet_buffer present");
 		}
+		break;
+	case WOW_REASON_NAN_EVENT:
+		WMA_LOGA("Host woken up due to NAN event reason");
+		wma_nan_rsp_event_handler(handle,
+				(uint8_t *)param_buf->wow_packet_buffer,
+				sizeof(WMI_NAN_EVENTID_param_tlvs));
 		break;
 	default:
 		break;

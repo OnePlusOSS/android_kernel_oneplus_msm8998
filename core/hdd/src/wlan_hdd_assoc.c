@@ -56,6 +56,7 @@
 #include "ol_txrx_ctrl_api.h"
 #include "ol_txrx_types.h"
 #include "ol_txrx.h"
+#include "ol_rx_fwd.h"
 #include "cdp_txrx_flow_ctrl_legacy.h"
 #include "cdp_txrx_peer_ops.h"
 
@@ -863,6 +864,9 @@ static void hdd_send_association_event(struct net_device *dev,
 		spin_lock_bh(&pHddCtx->bus_bw_lock);
 		pAdapter->prev_tx_packets = pAdapter->stats.tx_packets;
 		pAdapter->prev_rx_packets = pAdapter->stats.rx_packets;
+		ol_get_intra_bss_fwd_pkts_count(pAdapter->sessionId,
+			&pAdapter->prev_fwd_tx_packets,
+			&pAdapter->prev_fwd_rx_packets);
 		spin_unlock_bh(&pHddCtx->bus_bw_lock);
 		hdd_start_bus_bw_compute_timer(pAdapter);
 #endif
@@ -918,6 +922,8 @@ static void hdd_send_association_event(struct net_device *dev,
 		spin_lock_bh(&pHddCtx->bus_bw_lock);
 		pAdapter->prev_tx_packets = 0;
 		pAdapter->prev_rx_packets = 0;
+		pAdapter->prev_fwd_tx_packets = 0;
+		pAdapter->prev_fwd_rx_packets = 0;
 		spin_unlock_bh(&pHddCtx->bus_bw_lock);
 		hdd_stop_bus_bw_compute_timer(pAdapter);
 #endif
@@ -1052,11 +1058,9 @@ static QDF_STATUS hdd_dis_connect_handler(hdd_adapter_t *pAdapter,
 	wlan_hdd_auto_shutdown_enable(pHddCtx, true);
 #endif
 
-#ifdef QCA_PKT_PROTO_TRACE
-	/* STA disconnected, update into trace buffer */
-	if (pHddCtx->config->gEnableDebugLog)
-		cds_pkt_trace_buf_update("ST:DISASC");
-#endif /* QCA_PKT_PROTO_TRACE */
+	DPTRACE(qdf_dp_trace_mgmt_pkt(QDF_DP_TRACE_MGMT_PACKET_RECORD,
+				pAdapter->sessionId,
+				QDF_PROTO_TYPE_MGMT, QDF_PROTO_MGMT_DISASSOC));
 
 	/* HDD has initiated disconnect, do not send disconnect indication
 	 * to kernel. Sending disconnected event to kernel for userspace
@@ -1926,11 +1930,10 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 		wlan_hdd_tdls_connection_callback(pAdapter);
 #endif
 
-#ifdef QCA_PKT_PROTO_TRACE
-		/* STA Associated, update into trace buffer */
-		if (pHddCtx->config->gEnableDebugLog)
-			cds_pkt_trace_buf_update("ST:ASSOC");
-#endif /* QCA_PKT_PROTO_TRACE */
+		DPTRACE(qdf_dp_trace_mgmt_pkt(QDF_DP_TRACE_MGMT_PACKET_RECORD,
+			pAdapter->sessionId,
+			QDF_PROTO_TYPE_MGMT, QDF_PROTO_MGMT_ASSOC));
+
 		/*
 		 * For reassoc, the station is already registered, all we need
 		 * is to change the state of the STA in TL.
@@ -3967,6 +3970,7 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 	hdd_station_ctx_t *pHddStaCtx = NULL;
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	hdd_context_t *pHddCtx = NULL;
+	struct hdd_chan_change_params chan_change;
 
 	hddLog(LOG2,
 		  "CSR Callback: status= %d result= %d roamID=%d",
@@ -4307,8 +4311,18 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 		hdd_info("channel switch for session:%d to channel:%d",
 			pAdapter->sessionId, pRoamInfo->chan_info.chan_id);
 
+		chan_change.chan = pRoamInfo->chan_info.chan_id;
+		chan_change.chan_params.ch_width =
+					pRoamInfo->chan_info.ch_width;
+		chan_change.chan_params.sec_ch_offset =
+					pRoamInfo->chan_info.sec_ch_offset;
+		chan_change.chan_params.center_freq_seg0 =
+					pRoamInfo->chan_info.band_center_freq1;
+		chan_change.chan_params.center_freq_seg1 =
+					pRoamInfo->chan_info.band_center_freq2;
+
 		status = hdd_chan_change_notify(pAdapter, pAdapter->dev,
-						pRoamInfo->chan_info.chan_id);
+					chan_change);
 		if (QDF_IS_STATUS_ERROR(status))
 			hdd_err("channel change notification failed");
 

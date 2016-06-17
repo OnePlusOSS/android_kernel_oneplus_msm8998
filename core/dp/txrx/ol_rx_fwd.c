@@ -39,6 +39,8 @@
 #include <ol_rx.h>              /* ol_rx_deliver */
 #include <ol_txrx_internal.h>   /* TXRX_ASSERT1 */
 #include <ol_tx.h>
+#include <ol_txrx.h>
+
 /*
  * Porting from Ap11PrepareForwardedPacket.
  * This routine is called when a RX data frame from an associated station is
@@ -117,7 +119,6 @@ static inline void ol_rx_fwd_to_tx(struct ol_txrx_vdev_t *vdev, qdf_nbuf_t msdu)
 	 * Map the netbuf, so it's accessible to the DMA that
 	 * sends it to the target.
 	 */
-	qdf_nbuf_map_single(pdev->osdev, msdu, QDF_DMA_TO_DEVICE);
 	qdf_nbuf_set_next(msdu, NULL);  /* add NULL terminator */
 
 	msdu = OL_TX_LL(vdev, msdu);
@@ -128,7 +129,6 @@ static inline void ol_rx_fwd_to_tx(struct ol_txrx_vdev_t *vdev, qdf_nbuf_t msdu)
 		 * We could store the frame and try again later,
 		 * but the simplest solution is to discard the frames.
 		 */
-		qdf_nbuf_unmap_single(pdev->osdev, msdu, QDF_DMA_TO_DEVICE);
 		qdf_nbuf_tx_free(msdu, QDF_NBUF_PKT_ERROR);
 	}
 }
@@ -197,13 +197,17 @@ ol_rx_fwd_check(struct ol_txrx_vdev_t *vdev,
 				qdf_net_buf_debug_release_skb(msdu);
 				ol_rx_fwd_to_tx(tx_vdev, msdu);
 				msdu = NULL;    /* already handled this MSDU */
+				tx_vdev->fwd_tx_packets++;
+				vdev->fwd_rx_packets++;
 				TXRX_STATS_ADD(pdev,
 					 pub.rx.intra_bss_fwd.packets_fwd, 1);
 			} else {
 				qdf_nbuf_t copy;
 				copy = qdf_nbuf_copy(msdu);
-				if (copy)
+				if (copy) {
 					ol_rx_fwd_to_tx(tx_vdev, copy);
+					tx_vdev->fwd_tx_packets++;
+				}
 				TXRX_STATS_ADD(pdev,
 				   pub.rx.intra_bss_fwd.packets_stack_n_fwd, 1);
 			}
@@ -229,3 +233,27 @@ ol_rx_fwd_check(struct ol_txrx_vdev_t *vdev,
 		}
 	}
 }
+
+/*
+ * ol_get_intra_bss_fwd_pkts_count() - to get the total tx and rx packets
+ *   that has been forwarded from txrx layer without going to upper layers.
+ * @vdev_id: vdev id
+ * @fwd_tx_packets: pointer to forwarded tx packets count parameter
+ * @fwd_rx_packets: pointer to forwarded rx packets count parameter
+ *
+ * Return: status -> A_OK - success, A_ERROR - failure
+ */
+A_STATUS ol_get_intra_bss_fwd_pkts_count(uint8_t vdev_id,
+		uint64_t *fwd_tx_packets, uint64_t *fwd_rx_packets)
+{
+	struct ol_txrx_vdev_t *vdev = NULL;
+
+	vdev = (struct ol_txrx_vdev_t *)ol_txrx_get_vdev_from_vdev_id(vdev_id);
+	if (!vdev)
+		return A_ERROR;
+
+	*fwd_tx_packets = vdev->fwd_tx_packets;
+	*fwd_rx_packets = vdev->fwd_rx_packets;
+	return A_OK;
+}
+

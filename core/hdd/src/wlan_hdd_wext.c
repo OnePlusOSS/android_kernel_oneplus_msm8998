@@ -85,10 +85,6 @@
 #include "wlan_hdd_napi.h"
 #include "cdp_txrx_flow_ctrl_legacy.h"
 
-#ifdef QCA_PKT_PROTO_TRACE
-#include "cds_packet.h"
-#endif /* QCA_PKT_PROTO_TRACE */
-
 #define HDD_FINISH_ULA_TIME_OUT         800
 #define HDD_SET_MCBC_FILTERS_TO_FW      1
 #define HDD_DELETE_MCBC_FILTERS_FROM_FW 0
@@ -428,7 +424,6 @@ static const hdd_freq_chan_map_t freq_chan_map[] = {
 #define WE_SET_FW_CRASH_INJECT    2
 #endif
 #define WE_DUMP_DP_TRACE_LEVEL    3
-#define DUMP_DP_TRACE       0
 /* Private sub ioctl for enabling and setting histogram interval of profiling */
 #define WE_ENABLE_FW_PROFILE    4
 #define WE_SET_FW_PROFILE_HIST_INTVL    5
@@ -6157,13 +6152,7 @@ static int __iw_setint_getnone(struct net_device *dev,
 	case WE_SET_DEBUG_LOG:
 	{
 		hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(pAdapter);
-#ifdef QCA_PKT_PROTO_TRACE
-		/* Trace buffer dump only */
-		if (CDS_PKT_TRAC_DUMP_CMD == set_value) {
-			cds_pkt_trace_buf_dump();
-			break;
-		}
-#endif /* QCA_PKT_PROTO_TRACE */
+
 		hdd_ctx->config->gEnableDebugLog = set_value;
 		sme_update_connect_debug(hdd_ctx->hHal, set_value);
 		break;
@@ -9844,6 +9833,8 @@ static int __iw_set_two_ints_getnone(struct net_device *dev,
 		       value[1], value[2]);
 		if (value[1] == DUMP_DP_TRACE)
 			qdf_dp_trace_dump_all(value[2]);
+		else if (value[1] == ENABLE_DP_TRACE_LIVE_MODE)
+			qdf_dp_trace_enable_live_mode();
 		break;
 	case WE_SET_MON_MODE_CHAN:
 		ret = wlan_hdd_set_mon_chan(pAdapter, value[1], value[2]);

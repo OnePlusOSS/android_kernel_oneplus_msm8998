@@ -102,6 +102,7 @@
 #include "wlan_hdd_green_ap.h"
 #include "bmi.h"
 #include <wlan_hdd_regulatory.h>
+#include "ol_rx_fwd.h"
 
 #ifdef MODULE
 #define WLAN_MODULE_NAME  module_name(THIS_MODULE)
@@ -4652,9 +4653,12 @@ static void hdd_bus_bw_compute_cbk(void *priv)
 	hdd_context_t *hdd_ctx = (hdd_context_t *) priv;
 	hdd_adapter_t *adapter = NULL;
 	uint64_t tx_packets = 0, rx_packets = 0;
+	uint64_t fwd_tx_packets = 0, fwd_rx_packets = 0;
+	uint64_t fwd_tx_packets_diff = 0, fwd_rx_packets_diff = 0;
 	uint64_t total_tx = 0, total_rx = 0;
 	hdd_adapter_list_node_t *adapterNode = NULL;
 	QDF_STATUS status = 0;
+	A_STATUS ret;
 	bool connected = false;
 	uint32_t ipa_tx_packets = 0, ipa_rx_packets = 0;
 
@@ -4687,12 +4691,31 @@ static void hdd_bus_bw_compute_cbk(void *priv)
 		rx_packets += HDD_BW_GET_DIFF(adapter->stats.rx_packets,
 					      adapter->prev_rx_packets);
 
+		if (adapter->device_mode == QDF_SAP_MODE ||
+				adapter->device_mode == QDF_P2P_GO_MODE ||
+				adapter->device_mode == QDF_IBSS_MODE) {
+
+			ret = ol_get_intra_bss_fwd_pkts_count(
+				adapter->sessionId,
+				&fwd_tx_packets, &fwd_rx_packets);
+			if (ret == A_OK) {
+				fwd_tx_packets_diff += HDD_BW_GET_DIFF(
+					fwd_tx_packets,
+					adapter->prev_fwd_tx_packets);
+				fwd_rx_packets_diff += HDD_BW_GET_DIFF(
+					fwd_tx_packets,
+					adapter->prev_fwd_rx_packets);
+			}
+		}
+
 		total_rx += adapter->stats.rx_packets;
 		total_tx += adapter->stats.tx_packets;
 
 		spin_lock_bh(&hdd_ctx->bus_bw_lock);
 		adapter->prev_tx_packets = adapter->stats.tx_packets;
 		adapter->prev_rx_packets = adapter->stats.rx_packets;
+		adapter->prev_fwd_tx_packets = fwd_tx_packets;
+		adapter->prev_fwd_rx_packets = fwd_rx_packets;
 		spin_unlock_bh(&hdd_ctx->bus_bw_lock);
 		connected = true;
 	}
@@ -4703,6 +4726,10 @@ static void hdd_bus_bw_compute_cbk(void *priv)
 								rx_packets;
 	hdd_ctx->hdd_txrx_hist[hdd_ctx->hdd_txrx_hist_idx].interval_tx =
 								tx_packets;
+
+	/* add intra bss forwarded tx and rx packets */
+	tx_packets += fwd_tx_packets_diff;
+	rx_packets += fwd_rx_packets_diff;
 
 	hdd_ipa_uc_stat_query(hdd_ctx, &ipa_tx_packets, &ipa_rx_packets);
 	tx_packets += (uint64_t)ipa_tx_packets;
@@ -5019,72 +5046,148 @@ static void hdd_set_thermal_level_cb(void *context, u_int8_t level)
 }
 
 /**
- * hdd_find_prefd_safe_chnl() - find safe channel within preferred channel
- * @hdd_ctxt:	hdd context pointer
- * @ap_adapter: hdd hostapd adapter pointer
+ * hdd_get_safe_channel_from_pcl_and_acs_range() - Get safe channel for SAP
+ * restart
+ * @adapter: AP adapter, which should be checked for NULL
  *
- * Try to find safe channel within preferred channel
- * In case auto channel selection enabled
- *  - Preferred and safe channel should be used
- *  - If no overlapping, preferred channel should be used
+ * Get a safe channel to restart SAP. PCL already takes into account the
+ * unsafe channels. So, the PCL is validated with the ACS range to provide
+ * a safe channel for the SAP to restart.
  *
- * Return: 1: found preferred safe channel
- *         0: could not found preferred safe channel
+ * Return: Channel number to restart SAP in case of success. In case of any
+ * failure, the channel number returned is zero.
  */
-static uint8_t hdd_find_prefd_safe_chnl(hdd_context_t *hdd_ctxt,
-					hdd_adapter_t *ap_adapter)
+static uint8_t hdd_get_safe_channel_from_pcl_and_acs_range(
+				hdd_adapter_t *adapter)
 {
-	uint16_t safe_channels[NUM_CHANNELS];
-	uint16_t safe_channel_count;
-	uint16_t unsafe_channel_count;
-	uint8_t is_unsafe = 1;
-	uint16_t i;
-	uint16_t channel_loop;
+	struct sir_pcl_list pcl;
+	QDF_STATUS status;
+	uint32_t i, j;
+	tHalHandle *hal_handle;
+	hdd_context_t *hdd_ctx;
+	bool found = false;
 
-	if (!hdd_ctxt || !ap_adapter) {
-		hdd_err("invalid context/adapter");
-		return 0;
+	hal_handle = WLAN_HDD_GET_HAL_CTX(adapter);
+	if (!hal_handle) {
+		hdd_err("invalid HAL handle");
+		return INVALID_CHANNEL_ID;
 	}
 
-	safe_channel_count = 0;
-	unsafe_channel_count = QDF_MIN((uint16_t)hdd_ctxt->unsafe_channel_count,
-				       (uint16_t)NUM_CHANNELS);
+	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+	if (!hdd_ctx) {
+		hdd_err("invalid HDD context");
+		return INVALID_CHANNEL_ID;
+	}
 
-	for (i = 0; i < NUM_CHANNELS; i++) {
-		is_unsafe = 0;
-		for (channel_loop = 0;
-		     channel_loop < unsafe_channel_count; channel_loop++) {
-			if (CDS_CHANNEL_NUM(i) ==
-			    hdd_ctxt->unsafe_channel_list[channel_loop]) {
-				is_unsafe = 1;
+	status = cds_get_pcl_for_existing_conn(CDS_SAP_MODE,
+			pcl.pcl_list, &pcl.pcl_len,
+			pcl.weight_list, QDF_ARRAY_SIZE(pcl.weight_list));
+	if (QDF_IS_STATUS_ERROR(status)) {
+		hdd_err("Get PCL failed");
+		return INVALID_CHANNEL_ID;
+	}
+
+	if (!pcl.pcl_len) {
+		hdd_alert("pcl length is zero. this is not expected");
+		return INVALID_CHANNEL_ID;
+	}
+
+	hdd_info("start:%d end:%d",
+		adapter->sessionCtx.ap.sapConfig.acs_cfg.start_ch,
+		adapter->sessionCtx.ap.sapConfig.acs_cfg.end_ch);
+
+	/* PCL already takes unsafe channel into account */
+	for (i = 0; i < pcl.pcl_len; i++) {
+		hdd_info("chan[%d]:%d", i, pcl.pcl_list[i]);
+		if ((pcl.pcl_list[i] >=
+		   adapter->sessionCtx.ap.sapConfig.acs_cfg.start_ch) &&
+		   (pcl.pcl_list[i] <=
+		   adapter->sessionCtx.ap.sapConfig.acs_cfg.end_ch)) {
+			hdd_info("found PCL safe chan:%d", pcl.pcl_list[i]);
+			return pcl.pcl_list[i];
+		}
+	}
+
+	hdd_info("no safe channel from PCL found in ACS range");
+
+	/* Try for safe channel from all valid channel */
+	pcl.pcl_len = MAX_NUM_CHAN;
+	status = sme_get_cfg_valid_channels(hal_handle, pcl.pcl_list,
+					&pcl.pcl_len);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		hdd_err("error in getting valid channel list");
+		return INVALID_CHANNEL_ID;
+	}
+
+	for (i = 0; i < pcl.pcl_len; i++) {
+		hdd_info("chan[%d]:%d", i, pcl.pcl_list[i]);
+		found = false;
+		for (j = 0; j < hdd_ctx->unsafe_channel_count; j++) {
+			if (cds_chan_to_freq(pcl.pcl_list[i]) ==
+			   hdd_ctx->unsafe_channel_list[j]) {
+				hdd_info("unsafe chan:%d", pcl.pcl_list[i]);
+				found = true;
 				break;
 			}
 		}
-		if (!is_unsafe) {
-			safe_channels[safe_channel_count] =
-			  CDS_CHANNEL_NUM(i);
-			hddLog(QDF_TRACE_LEVEL_INFO_HIGH,
-			       FL("safe channel %d"),
-			       safe_channels[safe_channel_count]);
-			safe_channel_count++;
+
+		if (found)
+			continue;
+
+		if ((pcl.pcl_list[i] >=
+		   adapter->sessionCtx.ap.sapConfig.acs_cfg.start_ch) &&
+		   (pcl.pcl_list[i] <=
+		   adapter->sessionCtx.ap.sapConfig.acs_cfg.end_ch)) {
+			hdd_info("found safe chan:%d", pcl.pcl_list[i]);
+			return pcl.pcl_list[i];
 		}
 	}
-	hddLog(QDF_TRACE_LEVEL_INFO_HIGH,
-	       FL("perferred range %d - %d"),
-		ap_adapter->sessionCtx.ap.sapConfig.acs_cfg.start_ch,
-		ap_adapter->sessionCtx.ap.sapConfig.acs_cfg.end_ch);
-	for (i = 0; i < safe_channel_count; i++) {
-		if (safe_channels[i] >=
-			ap_adapter->sessionCtx.ap.sapConfig.acs_cfg.start_ch
-		    && safe_channels[i] <=
-			ap_adapter->sessionCtx.ap.sapConfig.acs_cfg.end_ch) {
-			hddLog(QDF_TRACE_LEVEL_INFO_HIGH,
-			       FL("safe channel %d is in perferred range"),
-			       safe_channels[i]);
-			return 1;
-		}
+
+	return INVALID_CHANNEL_ID;
+}
+
+/**
+ * hdd_restart_sap() - Restarts SAP on the given channel
+ * @adapter: AP adapter
+ * @channel: Channel
+ *
+ * Restarts the SAP interface by invoking the function which executes the
+ * callback to perform channel switch using (E)CSA.
+ *
+ * Return: None
+ */
+void hdd_restart_sap(hdd_adapter_t *adapter, uint8_t channel)
+{
+	hdd_ap_ctx_t *hdd_ap_ctx;
+	tHalHandle *hal_handle;
+
+	if (!adapter) {
+		hdd_err("invalid adapter");
+		return;
 	}
-	return 0;
+
+	hdd_ap_ctx = WLAN_HDD_GET_AP_CTX_PTR(adapter);
+
+	hal_handle = WLAN_HDD_GET_HAL_CTX(adapter);
+	if (!hal_handle) {
+		hdd_err("invalid HAL handle");
+		return;
+	}
+
+	hdd_ap_ctx->sapConfig.channel = channel;
+	hdd_ap_ctx->sapConfig.ch_params.ch_width =
+		hdd_ap_ctx->sapConfig.ch_width_orig;
+
+	hdd_info("chan:%d width:%d",
+		channel, hdd_ap_ctx->sapConfig.ch_width_orig);
+
+	sme_set_ch_params(hal_handle,
+			hdd_ap_ctx->sapConfig.SapHw_mode,
+			hdd_ap_ctx->sapConfig.channel,
+			hdd_ap_ctx->sapConfig.sec_ch,
+			&hdd_ap_ctx->sapConfig.ch_params);
+
+	cds_change_sap_channel_with_csa(adapter, hdd_ap_ctx);
 }
 
 /**
@@ -5100,7 +5203,6 @@ static uint8_t hdd_find_prefd_safe_chnl(hdd_context_t *hdd_ctxt,
  */
 static void hdd_ch_avoid_cb(void *hdd_context, void *indi_param)
 {
-	hdd_adapter_t *hostapd_adapter = NULL;
 	hdd_context_t *hdd_ctxt;
 	tSirChAvoidIndType *ch_avoid_indi;
 	uint8_t range_loop;
@@ -5109,9 +5211,13 @@ static void hdd_ch_avoid_cb(void *hdd_context, void *indi_param)
 	uint16_t start_channel;
 	uint16_t end_channel;
 	v_CONTEXT_t cds_context;
-	static int restart_sap_in_progress;
 	tHddAvoidFreqList hdd_avoid_freq_list;
 	uint32_t i;
+	QDF_STATUS status;
+	hdd_adapter_list_node_t *adapter_node = NULL, *next = NULL;
+	hdd_adapter_t *adapter_temp;
+	uint8_t restart_chan;
+	bool found = false;
 
 	/* Basic sanity */
 	if (!hdd_context || !indi_param) {
@@ -5233,56 +5339,66 @@ static void hdd_ch_avoid_cb(void *hdd_context, void *indi_param)
 		       hdd_ctxt->unsafe_channel_list[channel_loop]);
 	}
 
-	/*
-	 * If auto channel select is enabled
-	 * preferred channel is in safe channel,
-	 * re-start softap interface with safe channel.
-	 * no overlap with preferred channel and safe channel
-	 * do not re-start softap interface
-	 * stay current operating channel.
-	 */
-	if (hdd_ctxt->unsafe_channel_count) {
-		hostapd_adapter = hdd_get_adapter(hdd_ctxt, QDF_SAP_MODE);
-		if (hostapd_adapter) {
-			if ((hostapd_adapter->sessionCtx.ap.sapConfig.
-				acs_cfg.acs_mode) &&
-				(!hdd_find_prefd_safe_chnl(hdd_ctxt,
-				hostapd_adapter)))
-				return;
+	if (!hdd_ctxt->unsafe_channel_count) {
+		hdd_info("no unsafe channels - not restarting SAP");
+		return;
+	}
 
-			hddLog(QDF_TRACE_LEVEL_INFO,
-			       FL(
-				  "Current operation channel %d, sessionCtx.ap.sapConfig.channel %d"
-				 ),
-			       hostapd_adapter->sessionCtx.ap.
-			       operatingChannel,
-			       hostapd_adapter->sessionCtx.ap.sapConfig.
-			       channel);
-			for (channel_loop = 0;
-			     channel_loop < hdd_ctxt->unsafe_channel_count;
-			     channel_loop++) {
-				if (((hdd_ctxt->
-					unsafe_channel_list[channel_loop] ==
-						hostapd_adapter->sessionCtx.ap.
-						      operatingChannel)) &&
-					(hostapd_adapter->sessionCtx.ap.
-						sapConfig.acs_cfg.acs_mode
-								 == true) &&
-					!restart_sap_in_progress) {
-					hddLog(QDF_TRACE_LEVEL_INFO,
-					       FL("Restarting SAP"));
-					wlan_hdd_send_svc_nlink_msg
-						(WLAN_SVC_LTE_COEX_IND, NULL, 0);
-					restart_sap_in_progress = 1;
-					/*
-					 * current operating channel is un-safe
-					 * channel, restart driver
-					 */
-					hdd_hostapd_stop(hostapd_adapter->dev);
-					break;
-				}
+	/* No channel change is done for fixed channel SAP.
+	 * Loop through all ACS SAP interfaces and change the channels for
+	 * the ones operating on unsafe channels.
+	 */
+	status = hdd_get_front_adapter(hdd_ctxt, &adapter_node);
+	while (NULL != adapter_node && QDF_STATUS_SUCCESS == status) {
+		adapter_temp = adapter_node->pAdapter;
+
+		if (!adapter_temp) {
+			hdd_err("adapter is NULL, moving to next one");
+			goto next_adapater;
+		}
+
+		if (!((adapter_temp->device_mode == QDF_SAP_MODE) &&
+		   (adapter_temp->sessionCtx.ap.sapConfig.acs_cfg.acs_mode))) {
+			hdd_info("skip device mode:%d acs:%d",
+				adapter_temp->device_mode,
+				adapter_temp->sessionCtx.ap.sapConfig.
+				acs_cfg.acs_mode);
+			goto next_adapater;
+		}
+
+		found = false;
+		for (i = 0; i < hdd_ctxt->unsafe_channel_count; i++) {
+			if (cds_chan_to_freq(
+				adapter_temp->sessionCtx.ap.operatingChannel) ==
+				hdd_ctxt->unsafe_channel_list[i]) {
+				found = true;
+				hdd_info("operating ch:%d is unsafe",
+				  adapter_temp->sessionCtx.ap.operatingChannel);
+				break;
 			}
 		}
+
+		if (!found) {
+			hdd_info("ch:%d is safe. no need to change channel",
+				adapter_temp->sessionCtx.ap.operatingChannel);
+			goto next_adapater;
+		}
+
+		restart_chan =
+			hdd_get_safe_channel_from_pcl_and_acs_range(
+					adapter_temp);
+		if (!restart_chan) {
+			hdd_alert("fail to restart SAP");
+		} else {
+			hdd_info("sending coex indication");
+			wlan_hdd_send_svc_nlink_msg
+				(WLAN_SVC_LTE_COEX_IND, NULL, 0);
+			hdd_restart_sap(adapter_temp, restart_chan);
+		}
+
+next_adapater:
+		status = hdd_get_next_adapter(hdd_ctxt, adapter_node, &next);
+		adapter_node = next;
 	}
 	return;
 }
@@ -5969,6 +6085,132 @@ QDF_STATUS hdd_register_for_sap_restart_with_channel_switch(void)
 }
 #endif
 
+#ifdef CONFIG_CNSS
+/**
+ * hdd_get_cnss_wlan_mac_buff() - API to query platform driver for MAC address
+ * @dev: Device Pointer
+ * @num: Number of Valid Mac address
+ *
+ * Return: Pointer to MAC address buffer
+ */
+static uint8_t *hdd_get_cnss_wlan_mac_buff(struct device *dev, uint32_t *num)
+{
+	return cnss_common_get_wlan_mac_address(dev, num);
+}
+#else
+static uint8_t *hdd_get_cnss_wlan_mac_buff(struct device *dev, uint32_t *num)
+{
+	*num = 0;
+	return NULL;
+}
+#endif
+
+/**
+ * hdd_populate_random_mac_addr() - API to populate random mac addresses
+ * @hdd_ctx: HDD Context
+ * @num: Number of random mac addresses needed
+ *
+ * Generate random addresses using bit manipulation on the base mac address
+ *
+ * Return: None
+ */
+static void hdd_populate_random_mac_addr(hdd_context_t *hdd_ctx, uint32_t num)
+{
+	uint32_t start_idx = QDF_MAX_CONCURRENCY_PERSONA - num;
+	uint32_t iter;
+	struct hdd_config *ini = hdd_ctx->config;
+	uint8_t *buf = NULL;
+	uint8_t macaddr_b3, tmp_br3;
+	uint8_t *src = ini->intfMacAddr[0].bytes;
+
+	for (iter = start_idx; iter < QDF_MAX_CONCURRENCY_PERSONA; ++iter) {
+		buf = ini->intfMacAddr[iter].bytes;
+		qdf_mem_copy(buf, src, QDF_MAC_ADDR_SIZE);
+		macaddr_b3 = buf[3];
+		tmp_br3 = ((macaddr_b3 >> 4 & INTF_MACADDR_MASK) + iter) &
+			INTF_MACADDR_MASK;
+		macaddr_b3 += tmp_br3;
+		macaddr_b3 ^= (1 << INTF_MACADDR_MASK);
+		buf[0] |= 0x02;
+		buf[3] = macaddr_b3;
+		hdd_info(FL(MAC_ADDRESS_STR), MAC_ADDR_ARRAY(buf));
+	}
+}
+
+/**
+ * hdd_cnss_wlan_mac() - API to get mac addresses from cnss platform driver
+ * @hdd_ctx: HDD Context
+ *
+ * API to get mac addresses from platform driver and update the driver
+ * structures and configure FW with the base mac address.
+ * Return: int
+ */
+static int hdd_cnss_wlan_mac(hdd_context_t *hdd_ctx)
+{
+	uint32_t no_of_mac_addr, iter;
+	uint32_t max_mac_addr = QDF_MAX_CONCURRENCY_PERSONA;
+	uint32_t mac_addr_size = QDF_MAC_ADDR_SIZE;
+	uint8_t *addr, *buf;
+	struct device *dev = hdd_ctx->parent_dev;
+	struct hdd_config *ini = hdd_ctx->config;
+	tSirMacAddr mac_addr;
+	QDF_STATUS status;
+
+	addr = hdd_get_cnss_wlan_mac_buff(dev, &no_of_mac_addr);
+
+	if (no_of_mac_addr == 0 || !addr) {
+		hdd_warn("Platform Driver Doesn't have wlan mac addresses");
+		return -EINVAL;
+	}
+
+	if (no_of_mac_addr > max_mac_addr)
+		no_of_mac_addr = max_mac_addr;
+
+	qdf_mem_copy(&mac_addr, addr, mac_addr_size);
+
+	for (iter = 0; iter < no_of_mac_addr; ++iter, addr += mac_addr_size) {
+		buf = ini->intfMacAddr[iter].bytes;
+		qdf_mem_copy(buf, addr, QDF_MAC_ADDR_SIZE);
+		hdd_info(FL(MAC_ADDRESS_STR), MAC_ADDR_ARRAY(buf));
+	}
+
+	status = sme_set_custom_mac_addr(mac_addr);
+
+	if (!QDF_IS_STATUS_SUCCESS(status))
+		return -EAGAIN;
+	if (no_of_mac_addr < max_mac_addr)
+		hdd_populate_random_mac_addr(hdd_ctx, max_mac_addr -
+					     no_of_mac_addr);
+	return 0;
+}
+
+/**
+ * hdd_initialize_mac_address() - API to get wlan mac addresses
+ * @hdd_ctx: HDD Context
+ *
+ * Get MAC addresses from platform driver or wlan_mac.bin. If platform driver
+ * is provisioned with mac addresses, driver uses it, else it will use
+ * wlan_mac.bin to update HW MAC addresses.
+ *
+ * Return: None
+ */
+static void hdd_initialize_mac_address(hdd_context_t *hdd_ctx)
+{
+	QDF_STATUS status;
+	int ret;
+
+	ret = hdd_cnss_wlan_mac(hdd_ctx);
+	if (ret == 0)
+		return;
+
+	hdd_warn("Can't update mac config via platform driver ret:%d", ret);
+
+	status = hdd_update_mac_config(hdd_ctx);
+
+	if (!QDF_IS_STATUS_SUCCESS(status))
+		hdd_warn("can't update mac config, using MAC from ini file");
+}
+
 /**
  * hdd_tsf_init() - Initialize the TSF synchronization interface
  * @hdd_ctx: HDD global context
@@ -6060,11 +6302,7 @@ static int hdd_pre_enable_configure(hdd_context_t *hdd_ctx)
 		goto out;
 	}
 
-	status = hdd_update_mac_config(hdd_ctx);
-	if (QDF_STATUS_SUCCESS != status) {
-		hdd_warn("can't update mac config, using MAC from ini file: %d",
-			 status);
-	}
+	hdd_initialize_mac_address(hdd_ctx);
 
 	/*
 	 * Set the MAC Address Currently this is used by HAL to add self sta.
@@ -6161,6 +6399,9 @@ int hdd_wlan_startup(struct device *dev, void *hif_sc)
 	ret = hdd_pre_enable_configure(hdd_ctx);
 	if (ret)
 		goto err_wiphy_unregister;
+
+	if (hdd_ctx->config->enable_dp_trace)
+		qdf_dp_trace_init();
 
 	if (hdd_ipa_init(hdd_ctx) == QDF_STATUS_E_FAILURE)
 		goto err_wiphy_unregister;

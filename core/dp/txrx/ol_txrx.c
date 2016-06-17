@@ -33,8 +33,10 @@
 #include <qdf_lock.h>           /* qdf_spinlock */
 #include <qdf_atomic.h>         /* qdf_atomic_read */
 
+#if defined(HIF_PCI) || defined(HIF_SNOC) || defined(HIF_AHB)
 /* Required for WLAN_FEATURE_FASTPATH */
 #include <ce_api.h>
+#endif
 /* header files for utilities */
 #include <cds_queue.h>          /* TAILQ */
 
@@ -70,6 +72,7 @@
 #include <cdp_txrx_flow_ctrl_legacy.h>
 #include <cdp_txrx_ipa.h>
 #include "wma.h"
+#include "hif.h"
 #include <cdp_txrx_peer_ops.h>
 #ifndef REMOVE_PKT_LOG
 #include "pktlog_ac.h"
@@ -556,9 +559,6 @@ ol_txrx_pdev_post_attach(ol_txrx_pdev_handle pdev)
 	if (ret)
 		goto ol_attach_fail;
 
-	/* Update CE's pkt download length */
-	ce_pkt_dl_len_set((void *)osc, htt_pkt_dl_len_get(pdev->htt_pdev));
-
 	/* Attach micro controller data path offload resource */
 	if (ol_cfg_ipa_uc_offload_enabled(pdev->ctrl_pdev))
 		if (htt_ipa_uc_attach(pdev->htt_pdev))
@@ -935,7 +935,6 @@ ol_txrx_pdev_post_attach(ol_txrx_pdev_handle pdev)
 	ol_tso_seg_list_init(pdev, desc_pool_size);
 
 	ol_tx_register_flow_control(pdev);
-	htt_pkt_log_init(pdev, osc);
 
 	return 0;            /* success */
 
@@ -1146,6 +1145,8 @@ ol_txrx_vdev_attach(ol_txrx_pdev_handle pdev,
 	vdev->safemode = 0;
 	vdev->drop_unenc = 1;
 	vdev->num_filters = 0;
+	vdev->fwd_tx_packets = 0;
+	vdev->fwd_rx_packets = 0;
 
 	qdf_mem_copy(&vdev->mac_addr.raw[0], vdev_mac_addr,
 		     OL_TXRX_MAC_ADDR_LEN);
@@ -1526,7 +1527,6 @@ ol_txrx_peer_attach(ol_txrx_vdev_handle vdev, uint8_t *peer_mac_addr)
 	for (i = 0; i < MAX_NUM_PEER_ID_PER_PEER; i++)
 		peer->peer_ids[i] = HTT_INVALID_PEER;
 
-	peer->vdev->rx = NULL;
 	qdf_spinlock_create(&peer->peer_info_lock);
 	qdf_spinlock_create(&peer->bufq_lock);
 
@@ -2257,7 +2257,6 @@ ol_txrx_clear_peer_internal(struct ol_txrx_peer_t *peer)
 	ol_txrx_flush_rx_frames(peer, 1);
 
 	qdf_spin_lock_bh(&peer->peer_info_lock);
-	peer->vdev->rx = NULL;
 	peer->state = OL_TXRX_PEER_STATE_DISC;
 	qdf_spin_unlock_bh(&peer->peer_info_lock);
 
@@ -3652,6 +3651,9 @@ void ol_rx_data_process(struct ol_txrx_peer_t *peer,
 	 */
 	if (!data_rx) {
 		struct ol_rx_cached_buf *cache_buf;
+
+		TXRX_PRINT(TXRX_PRINT_LEVEL_ERR,
+			   "Data on the peer before it is registered!!!");
 		buf = rx_buf_list;
 		while (buf) {
 			next_buf = qdf_nbuf_queue_next(buf);
@@ -4014,4 +4016,20 @@ ol_txrx_vdev_handle ol_txrx_get_vdev_from_vdev_id(uint8_t vdev_id)
 	}
 
 	return vdev;
+}
+
+/**
+ * ol_txrx_set_wisa_mode() - set wisa mode
+ * @vdev: vdev handle
+ * @enable: enable flag
+ *
+ * Return: QDF STATUS
+ */
+QDF_STATUS ol_txrx_set_wisa_mode(ol_txrx_vdev_handle vdev, bool enable)
+{
+	if (!vdev)
+		return QDF_STATUS_E_INVAL;
+
+	vdev->is_wisa_mode_enable = enable;
+	return QDF_STATUS_SUCCESS;
 }

@@ -4458,6 +4458,11 @@ void cds_update_with_safe_channel_list(uint8_t *pcl_channels, uint32_t *len,
 	uint32_t safe_channel_count = 0, current_channel_count = 0;
 	qdf_device_t qdf_ctx = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
 
+	if (!qdf_ctx) {
+		cds_err("qdf_ctx is NULL");
+		return;
+	}
+
 	if (len) {
 		current_channel_count = QDF_MIN(*len, MAX_NUM_CHAN);
 	} else {
@@ -7486,6 +7491,34 @@ void cds_set_mcc_latency(hdd_adapter_t *adapter, int set_value)
 	} else {
 		cds_info("%s: MCC is not active. Exit w/o setting latency",
 			__func__);
+	}
+}
+
+/**
+ * cds_change_sap_channel_with_csa() - Move SAP channel using (E)CSA
+ * @adapter: AP adapter
+ * @hdd_ap_ctx: AP context
+ *
+ * Invoke the callback function to change SAP channel using (E)CSA
+ *
+ * Return: None
+ */
+void cds_change_sap_channel_with_csa(hdd_adapter_t *adapter,
+					hdd_ap_ctx_t *hdd_ap_ctx)
+{
+	p_cds_contextType cds_ctx;
+
+	cds_ctx = cds_get_global_context();
+	if (!cds_ctx) {
+		cds_err("Invalid CDS context");
+		return;
+	}
+
+	if (cds_ctx->sap_restart_chan_switch_cb) {
+		cds_info("SAP change change without restart");
+		cds_ctx->sap_restart_chan_switch_cb(adapter,
+				hdd_ap_ctx->sapConfig.channel,
+				hdd_ap_ctx->sapConfig.ch_params.ch_width);
 	}
 }
 

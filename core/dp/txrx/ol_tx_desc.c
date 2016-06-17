@@ -327,6 +327,59 @@ const uint32_t htt_to_ce_pkt_type[] = {
 	[htt_pkt_num_types] = 0xffffffff
 };
 
+#define WISA_DEST_PORT_6MBPS	50000
+#define WISA_DEST_PORT_24MBPS	50001
+
+/**
+ * ol_tx_get_wisa_ext_hdr_type() - get header type for WiSA mode
+ * @netbuf: network buffer
+ *
+ * Return: extension header type
+ */
+enum extension_header_type
+ol_tx_get_wisa_ext_hdr_type(qdf_nbuf_t netbuf)
+{
+	uint8_t *buf = qdf_nbuf_data(netbuf);
+	uint16_t dport;
+
+	if (qdf_is_macaddr_group(
+		(struct qdf_mac_addr *)(buf + QDF_NBUF_DEST_MAC_OFFSET))) {
+
+		dport = (uint16_t)(*(uint16_t *)(buf +
+			QDF_NBUF_TRAC_IPV4_OFFSET +
+			QDF_NBUF_TRAC_IPV4_HEADER_SIZE + sizeof(uint16_t)));
+
+		if (dport == QDF_SWAP_U16(WISA_DEST_PORT_6MBPS))
+			return WISA_MODE_EXT_HEADER_6MBPS;
+		else if (dport == QDF_SWAP_U16(WISA_DEST_PORT_24MBPS))
+			return WISA_MODE_EXT_HEADER_24MBPS;
+		else
+			return EXT_HEADER_NOT_PRESENT;
+	} else {
+		return EXT_HEADER_NOT_PRESENT;
+	}
+}
+
+/**
+ * ol_tx_get_ext_header_type() - extension header is required or not
+ * @vdev: vdev pointer
+ * @netbuf: network buffer
+ *
+ * This function returns header type and if extension header is
+ * not required than returns EXT_HEADER_NOT_PRESENT.
+ *
+ * Return: extension header type
+ */
+enum extension_header_type
+ol_tx_get_ext_header_type(struct ol_txrx_vdev_t *vdev,
+	qdf_nbuf_t netbuf)
+{
+	if (vdev->is_wisa_mode_enable == true)
+		return ol_tx_get_wisa_ext_hdr_type(netbuf);
+	else
+		return EXT_HEADER_NOT_PRESENT;
+}
+
 struct ol_tx_desc_t *ol_tx_desc_ll(struct ol_txrx_pdev_t *pdev,
 				   struct ol_txrx_vdev_t *vdev,
 				   qdf_nbuf_t netbuf,
@@ -335,6 +388,7 @@ struct ol_tx_desc_t *ol_tx_desc_ll(struct ol_txrx_pdev_t *pdev,
 	struct ol_tx_desc_t *tx_desc;
 	unsigned int i;
 	uint32_t num_frags;
+	enum extension_header_type type;
 
 	msdu_info->htt.info.vdev_id = vdev->vdev_id;
 	msdu_info->htt.action.cksum_offload = qdf_nbuf_get_tx_cksum(netbuf);
@@ -369,12 +423,13 @@ struct ol_tx_desc_t *ol_tx_desc_ll(struct ol_txrx_pdev_t *pdev,
 		tx_desc->pkt_type = OL_TX_FRM_STD;
 	}
 
+	type = ol_tx_get_ext_header_type(vdev, netbuf);
+
 	/* initialize the HW tx descriptor */
 	htt_tx_desc_init(pdev->htt_pdev, tx_desc->htt_tx_desc,
 			 tx_desc->htt_tx_desc_paddr,
 			 ol_tx_desc_id(pdev, tx_desc), netbuf, &msdu_info->htt,
-			 &msdu_info->tso_info,
-			 NULL, vdev->opmode == wlan_op_mode_ocb);
+			 &msdu_info->tso_info, NULL, type);
 
 	/*
 	 * Initialize the fragmentation descriptor.
@@ -466,15 +521,12 @@ void ol_tx_desc_frame_free_nonstd(struct ol_txrx_pdev_t *pdev,
 {
 	int mgmt_type;
 	ol_txrx_mgmt_tx_cb ota_ack_cb;
-	char *trace_str;
 
 	qdf_atomic_init(&tx_desc->ref_cnt);     /* clear the ref cnt */
 #ifdef QCA_SUPPORT_SW_TXRX_ENCAP
 	/* restore original hdr offset */
 	OL_TX_RESTORE_HDR(tx_desc, (tx_desc->netbuf));
 #endif
-	trace_str = (had_error) ? "OT:C:F:" : "OT:C:S:";
-	qdf_nbuf_trace_update(tx_desc->netbuf, trace_str);
 	if (tx_desc->pkt_type == OL_TX_FRM_NO_FREE) {
 		/* free the tx desc but don't unmap or free the frame */
 		if (pdev->tx_data_callback.func) {

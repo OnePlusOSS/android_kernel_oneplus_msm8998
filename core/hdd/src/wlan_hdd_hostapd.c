@@ -75,6 +75,7 @@
 #include "cds_concurrency.h"
 #include "wlan_hdd_tsf.h"
 #include "wlan_hdd_green_ap.h"
+#include "ol_rx_fwd.h"
 
 #define    IS_UP(_dev) \
 	(((_dev)->flags & (IFF_RUNNING|IFF_UP)) == (IFF_RUNNING|IFF_UP))
@@ -95,7 +96,6 @@
 #define SAP_24GHZ_CH_COUNT (14)
 #define ACS_SCAN_EXPIRY_TIMEOUT_S 4
 
-#define DUMP_DP_TRACE       0
 
 /* Function definitions */
 
@@ -624,97 +624,11 @@ static void hdd_issue_stored_joinreq(hdd_adapter_t *sta_adapter,
 	}
 }
 
-#ifdef WLAN_FEATURE_MBSSID
-static eCsrPhyMode
-hdd_sap_get_phymode(hdd_adapter_t *hostapd_adapter)
-{
-	return wlansap_get_phymode(WLAN_HDD_GET_SAP_CTX_PTR(hostapd_adapter));
-}
-#else
-static eCsrPhyMode
-hdd_sap_get_phymode(hdd_adapter_t *hostapd_adapter)
-{
-	return wlansap_get_phymode(
-		(WLAN_HDD_GET_CTX(hostapd_adapter))->pcds_context);
-}
-#endif
-
-/**
- * hdd_update_chandef() - Function to update channel width and center freq
- * @hostapd_adapter:	hostapd adapter
- * @chandef:		cfg80211 chan def
- * @cb_mode:		chan offset
- *
- * This function will be called to update channel width and center freq
- *
- * Return: None
- */
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0)) || defined(WITH_BACKPORTS)
-static inline void
-hdd_update_chandef(hdd_adapter_t *hostapd_adapter,
-		struct cfg80211_chan_def *chandef,
-		ePhyChanBondState cb_mode)
-{
-	uint16_t   ch_width;
-	hdd_ap_ctx_t *phdd_ap_ctx;
-	uint8_t  center_chan, chan;
-
-	phdd_ap_ctx = WLAN_HDD_GET_AP_CTX_PTR(hostapd_adapter);
-	ch_width = phdd_ap_ctx->sapConfig.acs_cfg.ch_width;
-
-	switch (ch_width) {
-	case eHT_CHANNEL_WIDTH_20MHZ:
-	case eHT_CHANNEL_WIDTH_40MHZ:
-		hdd_info("ch_width %d, won't update", ch_width);
-		break;
-	case eHT_CHANNEL_WIDTH_80MHZ:
-		chan = cds_freq_to_chan(chandef->chan->center_freq);
-		chandef->width = NL80211_CHAN_WIDTH_80;
-
-		switch (cb_mode) {
-		case PHY_QUADRUPLE_CHANNEL_20MHZ_LOW_40MHZ_CENTERED:
-		case PHY_QUADRUPLE_CHANNEL_20MHZ_HIGH_40MHZ_LOW:
-			center_chan = chan + 2;
-			break;
-		case PHY_QUADRUPLE_CHANNEL_20MHZ_LOW_40MHZ_LOW:
-			center_chan = chan + 6;
-			break;
-		case PHY_QUADRUPLE_CHANNEL_20MHZ_LOW_40MHZ_HIGH:
-		case PHY_QUADRUPLE_CHANNEL_20MHZ_HIGH_40MHZ_CENTERED:
-			center_chan = chan - 2;
-			break;
-		case PHY_QUADRUPLE_CHANNEL_20MHZ_HIGH_40MHZ_HIGH:
-			center_chan = chan - 6;
-			break;
-		default:
-			center_chan = chan;
-			break;
-		}
-
-		chandef->center_freq1 = cds_chan_to_freq(center_chan);
-		break;
-	case eHT_CHANNEL_WIDTH_160MHZ:
-	default:
-		/* Todo, please add related codes if support 160MHZ or others */
-		hdd_err("unsupport ch_width %d", ch_width);
-		break;
-	}
-
-}
-#else
-static inline void
-hdd_update_chandef(hdd_adapter_t *hostapd_adapter,
-		struct cfg80211_chan_def *chandef,
-		ePhyChanBondState cb_mode)
-{
-}
-#endif
-
 /**
  * hdd_chan_change_notify() - Function to notify hostapd about channel change
  * @hostapd_adapter	hostapd adapter
  * @dev:		Net device structure
- * @oper_chan:		New operating channel
+ * @chan_change:	New channel change parameters
  *
  * This function is used to notify hostapd about the channel change
  *
@@ -723,13 +637,11 @@ hdd_update_chandef(hdd_adapter_t *hostapd_adapter,
  */
 QDF_STATUS hdd_chan_change_notify(hdd_adapter_t *adapter,
 		struct net_device *dev,
-		uint8_t oper_chan)
+		struct hdd_chan_change_params chan_change)
 {
 	struct ieee80211_channel *chan;
 	struct cfg80211_chan_def chandef;
 	enum nl80211_channel_type channel_type;
-	eCsrPhyMode phy_mode;
-	ePhyChanBondState cb_mode;
 	uint32_t freq;
 	tHalHandle  hal = WLAN_HDD_GET_HAL_CTX(adapter);
 
@@ -738,7 +650,13 @@ QDF_STATUS hdd_chan_change_notify(hdd_adapter_t *adapter,
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	freq = cds_chan_to_freq(oper_chan);
+	hdd_info("chan:%d width:%d sec_ch_offset:%d seg0:%d seg1:%d",
+		chan_change.chan, chan_change.chan_params.ch_width,
+		chan_change.chan_params.sec_ch_offset,
+		chan_change.chan_params.center_freq_seg0,
+		chan_change.chan_params.center_freq_seg1);
+
+	freq = cds_chan_to_freq(chan_change.chan);
 
 	chan = __ieee80211_get_channel(adapter->wdev.wiphy, freq);
 
@@ -747,46 +665,49 @@ QDF_STATUS hdd_chan_change_notify(hdd_adapter_t *adapter,
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	if (adapter->device_mode == QDF_SAP_MODE ||
-	    adapter->device_mode == QDF_P2P_GO_MODE)
-		phy_mode = hdd_sap_get_phymode(adapter);
-	else
-		phy_mode = sme_get_phy_mode(hal);
-
-	if (oper_chan <= 14)
-		cb_mode = sme_get_cb_phy_state_from_cb_ini_value(
-				sme_get_channel_bonding_mode24_g(hal));
-	else
-		cb_mode = sme_get_cb_phy_state_from_cb_ini_value(
-				sme_get_channel_bonding_mode5_g(hal));
-
-	switch (phy_mode) {
-	case eCSR_DOT11_MODE_11n:
-	case eCSR_DOT11_MODE_11n_ONLY:
-	case eCSR_DOT11_MODE_11ac:
-	case eCSR_DOT11_MODE_11ac_ONLY:
-		if (cb_mode == PHY_SINGLE_CHANNEL_CENTERED)
-			channel_type = NL80211_CHAN_HT20;
-		else if (cb_mode == PHY_DOUBLE_CHANNEL_HIGH_PRIMARY)
-			channel_type = NL80211_CHAN_HT40MINUS;
-		else if (cb_mode == PHY_DOUBLE_CHANNEL_LOW_PRIMARY)
-			channel_type = NL80211_CHAN_HT40PLUS;
-		else
-			channel_type = NL80211_CHAN_HT40PLUS;
+	switch (chan_change.chan_params.sec_ch_offset) {
+	case PHY_SINGLE_CHANNEL_CENTERED:
+		channel_type = NL80211_CHAN_HT20;
+		break;
+	case PHY_DOUBLE_CHANNEL_HIGH_PRIMARY:
+		channel_type = NL80211_CHAN_HT40MINUS;
+		break;
+	case PHY_DOUBLE_CHANNEL_LOW_PRIMARY:
+		channel_type = NL80211_CHAN_HT40PLUS;
 		break;
 	default:
 		channel_type = NL80211_CHAN_NO_HT;
 		break;
 	}
 
-	hdd_info("%s: phy_mode %d cb_mode %d chann_type %d oper_chan %d",
-		__func__, phy_mode, cb_mode, channel_type, oper_chan);
-
 	cfg80211_chandef_create(&chandef, chan, channel_type);
 
-	if ((phy_mode == eCSR_DOT11_MODE_11ac) ||
-	    (phy_mode == eCSR_DOT11_MODE_11ac_ONLY))
-		hdd_update_chandef(adapter, &chandef, cb_mode);
+	/* cfg80211_chandef_create() does update of width and center_freq1
+	 * only for NL80211_CHAN_NO_HT, NL80211_CHAN_HT20, NL80211_CHAN_HT40PLUS
+	 * and NL80211_CHAN_HT40MINUS.
+	 */
+	if (chan_change.chan_params.ch_width == CH_WIDTH_80MHZ)
+		chandef.width = NL80211_CHAN_WIDTH_80;
+	else if (chan_change.chan_params.ch_width == CH_WIDTH_80P80MHZ)
+		chandef.width = NL80211_CHAN_WIDTH_80P80;
+	else if (chan_change.chan_params.ch_width == CH_WIDTH_160MHZ)
+		chandef.width = NL80211_CHAN_WIDTH_160;
+
+	if ((chan_change.chan_params.ch_width == CH_WIDTH_80MHZ) ||
+	    (chan_change.chan_params.ch_width == CH_WIDTH_80P80MHZ) ||
+	    (chan_change.chan_params.ch_width == CH_WIDTH_160MHZ)) {
+		if (chan_change.chan_params.center_freq_seg0)
+			chandef.center_freq1 = cds_chan_to_freq(
+				chan_change.chan_params.center_freq_seg0);
+
+		if (chan_change.chan_params.center_freq_seg1)
+			chandef.center_freq2 = cds_chan_to_freq(
+				chan_change.chan_params.center_freq_seg1);
+	}
+
+	hdd_info("notify: chan:%d width:%d freq1:%d freq2:%d",
+		chandef.chan->center_freq, chandef.width, chandef.center_freq1,
+		chandef.center_freq2);
 
 	cfg80211_ch_switch_notify(dev, &chandef);
 
@@ -897,6 +818,7 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 	uint8_t cc_len = WLAN_SVC_COUNTRY_CODE_LEN;
 	hdd_adapter_t *con_sap_adapter;
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	struct hdd_chan_change_params chan_change;
 	int ret = 0;
 
 	dev = (struct net_device *)usrDataForCallback;
@@ -1383,12 +1305,9 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 			}
 		}
 
-#ifdef QCA_PKT_PROTO_TRACE
-		/* Peer associated, update into trace buffer */
-		if (pHddCtx->config->gEnableDebugLog) {
-			cds_pkt_trace_buf_update("HA:ASSOC");
-		}
-#endif /* QCA_PKT_PROTO_TRACE */
+		DPTRACE(qdf_dp_trace_mgmt_pkt(QDF_DP_TRACE_MGMT_PACKET_RECORD,
+			pHostapdAdapter->sessionId,
+			QDF_PROTO_TYPE_MGMT, QDF_PROTO_MGMT_ASSOC));
 
 #ifdef MSM_PLATFORM
 		/* start timer in sap/p2p_go */
@@ -1398,6 +1317,10 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 				pHostapdAdapter->stats.tx_packets;
 			pHostapdAdapter->prev_rx_packets =
 				pHostapdAdapter->stats.rx_packets;
+			ol_get_intra_bss_fwd_pkts_count(
+				pHostapdAdapter->sessionId,
+				&pHostapdAdapter->prev_fwd_tx_packets,
+				&pHostapdAdapter->prev_fwd_rx_packets);
 			spin_unlock_bh(&pHddCtx->bus_bw_lock);
 			hdd_start_bus_bw_compute_timer(pHostapdAdapter);
 		}
@@ -1516,12 +1439,10 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 			}
 		}
 #endif
-#ifdef QCA_PKT_PROTO_TRACE
-		/* Peer dis-associated, update into trace buffer */
-		if (pHddCtx->config->gEnableDebugLog) {
-			cds_pkt_trace_buf_update("HA:DISASC");
-		}
-#endif /* QCA_PKT_PROTO_TRACE */
+		DPTRACE(qdf_dp_trace_mgmt_pkt(QDF_DP_TRACE_MGMT_PACKET_RECORD,
+			pHostapdAdapter->sessionId,
+			QDF_PROTO_TYPE_MGMT, QDF_PROTO_MGMT_DISASSOC));
+
 		hdd_softap_deregister_sta(pHostapdAdapter, staId);
 
 		pHddApCtx->bApActive = false;
@@ -1593,6 +1514,8 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 			spin_lock_bh(&pHddCtx->bus_bw_lock);
 			pHostapdAdapter->prev_tx_packets = 0;
 			pHostapdAdapter->prev_rx_packets = 0;
+			pHostapdAdapter->prev_fwd_tx_packets = 0;
+			pHostapdAdapter->prev_fwd_rx_packets = 0;
 			spin_unlock_bh(&pHddCtx->bus_bw_lock);
 			hdd_stop_bus_bw_compute_timer(pHostapdAdapter);
 		}
@@ -1743,11 +1666,23 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 		 * only for non driver override acs
 		 */
 		if (pHostapdAdapter->device_mode == QDF_SAP_MODE &&
-						pHddCtx->config->force_sap_acs)
+					pHddCtx->config->force_sap_acs) {
 			return QDF_STATUS_SUCCESS;
-		else
+		} else {
+			chan_change.chan =
+			  pSapEvent->sapevt.sap_ch_selected.pri_ch;
+			chan_change.chan_params.ch_width =
+			  pSapEvent->sapevt.sap_ch_selected.ch_width;
+			chan_change.chan_params.sec_ch_offset =
+			  pSapEvent->sapevt.sap_ch_selected.ht_sec_ch;
+			chan_change.chan_params.center_freq_seg0 =
+			  pSapEvent->sapevt.sap_ch_selected.vht_seg0_center_ch;
+			chan_change.chan_params.center_freq_seg1 =
+			  pSapEvent->sapevt.sap_ch_selected.vht_seg1_center_ch;
+
 			return hdd_chan_change_notify(pHostapdAdapter, dev,
-				   pSapEvent->sapevt.sap_ch_selected.pri_ch);
+							chan_change);
+		}
 
 #ifdef FEATURE_WLAN_AP_AP_ACS_OPTIMIZE
 	case eSAP_ACS_SCAN_SUCCESS_EVENT:
@@ -2848,23 +2783,6 @@ static __iw_softap_setparam(struct net_device *dev,
 					  set_value, GTX_CMD);
 		break;
 	}
-
-#ifdef QCA_PKT_PROTO_TRACE
-	case QCASAP_SET_DEBUG_LOG:
-	{
-		hdd_context_t *pHddCtx =
-			WLAN_HDD_GET_CTX(pHostapdAdapter);
-
-		hddLog(LOG1, "QCASAP_SET_DEBUG_LOG val %d", set_value);
-		/* Trace buffer dump only */
-		if (CDS_PKT_TRAC_DUMP_CMD == set_value) {
-			cds_pkt_trace_buf_dump();
-			break;
-		}
-		pHddCtx->config->gEnableDebugLog = set_value;
-		break;
-	}
-#endif /* QCA_PKT_PROTO_TRACE */
 
 	case QCASAP_SET_TM_LEVEL:
 	{
@@ -5791,12 +5709,6 @@ static const struct iw_priv_args hostapd_private_args[] = {
 		QCSAP_PARAM_ACL_MODE,
 		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "setAclMode"
 	},
-#ifdef QCA_PKT_PROTO_TRACE
-	{
-		QCASAP_SET_DEBUG_LOG,
-		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "setDbgLvl"
-	},
-#endif /* QCA_PKT_PROTO_TRACE */
 	{
 		QCASAP_SET_TM_LEVEL,
 		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,

@@ -57,7 +57,8 @@
 #include "cds_utils.h"
 #include "wlan_logging_sock_svc.h"
 #include "wma.h"
-
+#include "ol_txrx.h"
+#include "pktlog_ac.h"
 #include "wlan_hdd_ipa.h"
 /* Preprocessor Definitions and Constants */
 
@@ -100,7 +101,6 @@ v_CONTEXT_t cds_init(void)
 #if defined(TRACE_RECORD)
 	qdf_trace_init();
 #endif
-	qdf_dp_trace_init();
 
 	cds_ssr_protect_init();
 
@@ -220,9 +220,6 @@ QDF_STATUS cds_open(void)
 
 	/* Initialize bug reporting structure */
 	cds_init_log_completion();
-
-	/* Initialize protocol trace functionality */
-	cds_pkt_proto_trace_init();
 
 	/* Initialize the probe event */
 	if (qdf_event_create(&gp_cds_context->ProbeEvent) != QDF_STATUS_SUCCESS) {
@@ -353,6 +350,7 @@ QDF_STATUS cds_open(void)
 		pHddCtx->config->fDfsPhyerrFilterOffload;
 	if (pHddCtx->config->ssdp)
 		mac_openParms.ssdp = pHddCtx->config->ssdp;
+	mac_openParms.enable_mc_list = pHddCtx->config->fEnableMCAddrList;
 #ifdef FEATURE_WLAN_RA_FILTERING
 	mac_openParms.RArateLimitInterval =
 		pHddCtx->config->RArateLimitInterval;
@@ -427,7 +425,7 @@ QDF_STATUS cds_open(void)
 			  "%s: Failed to complete BMI phase", __func__);
 		goto err_wma_close;
 	}
-
+	bmi_target_ready(scn, gp_cds_context->cfg_ctx);
 	/* Now proceed to open the MAC */
 
 	/* UMA is supported in hardware for performing the
@@ -549,6 +547,10 @@ QDF_STATUS cds_pre_enable(v_CONTEXT_t cds_context)
 			  "%s: scn is null!", __func__);
 		return QDF_STATUS_E_FAILURE;
 	}
+
+	/* call Packetlog connect service */
+	htt_pkt_log_init(gp_cds_context->pdev_txrx_ctx, scn);
+	pktlog_htc_attach();
 
 	/* Reset wma wait event */
 	qdf_event_reset(&gp_cds_context->wmaCompleteEvent);
@@ -853,9 +855,6 @@ QDF_STATUS cds_close(v_CONTEXT_t cds_context)
 			  "%s: failed to destroy ProbeEvent", __func__);
 		QDF_ASSERT(QDF_IS_STATUS_SUCCESS(qdf_status));
 	}
-
-	/* De-Initialize protocol trace functionality */
-	cds_pkt_proto_trace_deinit();
 
 	cds_deinit_log_completion();
 

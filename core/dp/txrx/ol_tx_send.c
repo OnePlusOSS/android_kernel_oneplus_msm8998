@@ -175,7 +175,7 @@ ol_tx_send_base(struct ol_txrx_pdev_t *pdev,
 
 void
 ol_tx_send(struct ol_txrx_pdev_t *pdev,
-	   struct ol_tx_desc_t *tx_desc, qdf_nbuf_t msdu)
+	   struct ol_tx_desc_t *tx_desc, qdf_nbuf_t msdu, uint8_t vdev_id)
 {
 	int msdu_credit_consumed;
 	uint16_t id;
@@ -184,9 +184,10 @@ ol_tx_send(struct ol_txrx_pdev_t *pdev,
 	msdu_credit_consumed = ol_tx_send_base(pdev, tx_desc, msdu);
 	id = ol_tx_desc_id(pdev, tx_desc);
 	QDF_NBUF_UPDATE_TX_PKT_COUNT(msdu, QDF_NBUF_TX_PKT_TXRX);
-	DPTRACE(qdf_dp_trace(msdu, QDF_DP_TRACE_TXRX_PACKET_PTR_RECORD,
-				(uint8_t *)(qdf_nbuf_data(msdu)),
-				sizeof(qdf_nbuf_data(msdu))));
+	DPTRACE(qdf_dp_trace_ptr(msdu, QDF_DP_TRACE_TXRX_PACKET_PTR_RECORD,
+				qdf_nbuf_data_addr(msdu),
+				sizeof(qdf_nbuf_data(msdu)), tx_desc->id,
+				vdev_id));
 	failed = htt_tx_send_std(pdev->htt_pdev, msdu, id);
 	if (qdf_unlikely(failed)) {
 		OL_TX_TARGET_CREDIT_INCR_INT(pdev, msdu_credit_consumed);
@@ -486,8 +487,6 @@ ol_tx_completion_handler(ol_txrx_pdev_handle pdev,
 	uint16_t *desc_ids = (uint16_t *) tx_desc_id_iterator;
 	uint16_t tx_desc_id;
 	struct ol_tx_desc_t *tx_desc;
-	char *trace_str;
-
 	uint32_t byte_cnt = 0;
 	qdf_nbuf_t netbuf;
 
@@ -498,15 +497,16 @@ ol_tx_completion_handler(ol_txrx_pdev_handle pdev,
 
 	OL_TX_DELAY_COMPUTE(pdev, status, desc_ids, num_msdus);
 
-	trace_str = (status) ? "OT:C:F:" : "OT:C:S:";
 	for (i = 0; i < num_msdus; i++) {
 		tx_desc_id = desc_ids[i];
 		tx_desc = ol_tx_desc_find(pdev, tx_desc_id);
 		tx_desc->status = status;
 		netbuf = tx_desc->netbuf;
-
+		DPTRACE(qdf_dp_trace_ptr(netbuf,
+			QDF_DP_TRACE_FREE_PACKET_PTR_RECORD,
+			qdf_nbuf_data_addr(netbuf),
+			sizeof(qdf_nbuf_data(netbuf)), tx_desc->id, status));
 		qdf_runtime_pm_put();
-		qdf_nbuf_trace_update(netbuf, trace_str);
 		/* Per SDU update of byte count */
 		byte_cnt += qdf_nbuf_len(netbuf);
 		if (OL_TX_DESC_NO_REFS(tx_desc)) {

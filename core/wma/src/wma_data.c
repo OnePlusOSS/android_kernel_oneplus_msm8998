@@ -2381,9 +2381,6 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 	struct wma_txrx_node *iface;
 	tpAniSirGlobal pMac;
 	tpSirMacMgmtHdr mHdr;
-#ifdef QCA_PKT_PROTO_TRACE
-	uint8_t proto_type = 0;
-#endif /* QCA_PKT_PROTO_TRACE */
 	struct wmi_mgmt_params mgmt_param = {0};
 	ol_pdev_handle ctrl_pdev;
 
@@ -2577,9 +2574,6 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 		/* Zero out skb's context buffer for the driver to use */
 		qdf_mem_set(skb->cb, sizeof(skb->cb), 0);
 
-		/* Do the DMA Mapping */
-		qdf_nbuf_map_single(pdev->osdev, skb, QDF_DMA_TO_DEVICE);
-
 		/* Terminate the (single-element) list of tx frames */
 		skb->next = NULL;
 
@@ -2595,8 +2589,6 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 
 		if (ret) {
 			WMA_LOGE("TxRx Rejected. Fail to do Tx");
-			qdf_nbuf_unmap_single(pdev->osdev, skb,
-					      QDF_DMA_TO_DEVICE);
 			/* Call Download Cb so that umac can free the buffer */
 			if (tx_frm_download_comp_cb)
 				tx_frm_download_comp_cb(wma_handle->mac_context,
@@ -2639,15 +2631,6 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 				wma_handle->umac_ota_ack_cb[pFc->subType] =
 					tx_frm_ota_comp_cb;
 			}
-#ifdef QCA_PKT_PROTO_TRACE
-			if (pFc->subType == SIR_MAC_MGMT_ACTION)
-				proto_type = cds_pkt_get_proto_type(tx_frame,
-						pMac->fEnableDebugLog,
-						CDS_PKT_TRAC_TYPE_MGMT_ACTION);
-			if (proto_type & CDS_PKT_TRAC_TYPE_MGMT_ACTION)
-				cds_pkt_trace_buf_update("WM:T:MACT");
-			qdf_nbuf_trace_set_proto_type(tx_frame, proto_type);
-#endif /* QCA_PKT_PROTO_TRACE */
 		} else {
 			if (downld_comp_required)
 				tx_frm_index =

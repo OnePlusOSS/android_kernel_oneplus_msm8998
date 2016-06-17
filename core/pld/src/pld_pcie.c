@@ -31,11 +31,10 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 
-#ifdef CONFIG_CNSS
+#ifdef CONFIG_PLD_PCIE_CNSS
 #include <net/cnss.h>
 #endif
 
-#include "pld_common.h"
 #include "pld_internal.h"
 
 #ifdef CONFIG_PCI
@@ -60,8 +59,6 @@ static int pld_pcie_probe(struct pci_dev *pdev,
 			  const struct pci_device_id *id)
 {
 	struct pld_context *pld_context;
-	unsigned long flags;
-	struct dev_node *dev_node;
 	int ret = 0;
 
 	pld_context = pld_get_global_context();
@@ -70,17 +67,9 @@ static int pld_pcie_probe(struct pci_dev *pdev,
 		goto out;
 	}
 
-	dev_node = kzalloc(sizeof(*dev_node), GFP_KERNEL);
-	if (dev_node == NULL) {
-		ret = -ENOMEM;
+	ret = pld_add_dev(pld_context, &pdev->dev, PLD_BUS_TYPE_PCIE);
+	if (ret)
 		goto out;
-	}
-	dev_node->dev = &pdev->dev;
-	dev_node->bus_type = PLD_BUS_TYPE_PCIE;
-
-	spin_lock_irqsave(&pld_context->pld_lock, flags);
-	list_add_tail(&dev_node->list, &pld_context->dev_list);
-	spin_unlock_irqrestore(&pld_context->pld_lock, flags);
 
 	return pld_context->ops->probe(&pdev->dev,
 		       PLD_BUS_TYPE_PCIE, pdev, (void *)id);
@@ -101,8 +90,6 @@ out:
 static void pld_pcie_remove(struct pci_dev *pdev)
 {
 	struct pld_context *pld_context;
-	unsigned long flags;
-	struct dev_node *dev_node, *tmp;
 
 	pld_context = pld_get_global_context();
 
@@ -111,17 +98,10 @@ static void pld_pcie_remove(struct pci_dev *pdev)
 
 	pld_context->ops->remove(&pdev->dev, PLD_BUS_TYPE_PCIE);
 
-	spin_lock_irqsave(&pld_context->pld_lock, flags);
-	list_for_each_entry_safe(dev_node, tmp, &pld_context->dev_list, list) {
-		if (dev_node->dev == &pdev->dev) {
-			list_del(&dev_node->list);
-			kfree(dev_node);
-		}
-	}
-	spin_unlock_irqrestore(&pld_context->pld_lock, flags);
+	pld_del_dev(pld_context, &pdev->dev);
 }
 
-#ifdef CONFIG_CNSS
+#ifdef CONFIG_PLD_PCIE_CNSS
 /**
  * pld_pcie_reinit() - SSR re-initialize function for PCIE device
  * @pdev: PCIE device
@@ -242,6 +222,7 @@ static int pld_pcie_runtime_resume(struct pci_dev *pdev)
 #endif
 #endif
 
+#ifdef CONFIG_PM
 /**
  * pld_pcie_suspend() - Suspend callback function for power management
  * @pdev: PCIE device
@@ -277,6 +258,7 @@ static int pld_pcie_resume(struct pci_dev *pdev)
 	pld_context = pld_get_global_context();
 	return pld_context->ops->resume(&pdev->dev, PLD_BUS_TYPE_PCIE);
 }
+#endif
 
 static struct pci_device_id pld_pcie_id_table[] = {
 	{ 0x168c, 0x003c, PCI_ANY_ID, PCI_ANY_ID },
@@ -287,7 +269,7 @@ static struct pci_device_id pld_pcie_id_table[] = {
 	{ 0 }
 };
 
-#ifdef CONFIG_CNSS
+#ifdef CONFIG_PLD_PCIE_CNSS
 #ifdef FEATURE_RUNTIME_PM
 struct cnss_wlan_runtime_ops runtime_pm_ops = {
 	.runtime_suspend = pld_pcie_runtime_suspend,
@@ -370,7 +352,7 @@ int pld_pcie_get_ce_id(int irq)
 	return -EINVAL;
 }
 
-#ifdef CONFIG_CNSS
+#ifdef CONFIG_PLD_PCIE_CNSS
 #ifdef QCA_WIFI_3_0_ADRASTEA
 /**
  * pld_pcie_wlan_enable() - Enable WLAN
@@ -440,6 +422,66 @@ int pld_pcie_wlan_disable(enum pld_driver_mode mode)
 int pld_pcie_set_fw_debug_mode(bool mode)
 {
 	return cnss_set_fw_debug_mode(mode);
+}
+
+/**
+ * pld_pcie_intr_notify_q6() - Notify Q6 FW interrupts
+ *
+ * Notify Q6 that a FW interrupt is triggered.
+ *
+ * Return: void
+ */
+void pld_pcie_intr_notify_q6(void)
+{
+	cnss_intr_notify_q6();
+}
+#endif
+
+#ifdef CONFIG_CNSS_SECURE_FW
+/**
+ * pld_pcie_get_sha_hash() - Get sha hash number
+ * @data: input data
+ * @data_len: data length
+ * @hash_idx: hash index
+ * @out:  output buffer
+ *
+ * Return computed hash to the out buffer.
+ *
+ * Return: 0 for success
+ *         Non zero failure code for errors
+ */
+int pld_pcie_get_sha_hash(const u8 *data,
+			  u32 data_len, u8 *hash_idx, u8 *out)
+{
+	return cnss_get_sha_hash(data, data_len, hash_idx, out);
+}
+
+/**
+ * pld_pcie_get_fw_ptr() - Get secure FW memory address
+ *
+ * Return: secure memory address
+ */
+void *pld_pcie_get_fw_ptr(void)
+{
+	return cnss_get_fw_ptr();
+}
+#endif
+
+#ifdef CONFIG_PCI_MSM
+/**
+ * pld_wlan_pm_control() - WLAN PM control on PCIE
+ * @vote: 0 for enable PCIE PC, 1 for disable PCIE PC
+ *
+ * This is for PCIE power collaps control during suspend/resume.
+ * When PCIE power collaps is disabled, WLAN FW can access memory
+ * through PCIE when system is suspended.
+ *
+ * Return: 0 for success
+ *         Non zero failure code for errors
+ */
+int pld_pcie_wlan_pm_control(bool vote)
+{
+	return cnss_wlan_pm_control(vote);
 }
 #endif
 
@@ -586,6 +628,223 @@ void pld_pcie_set_driver_status(enum pld_driver_status status)
 		break;
 	}
 	cnss_set_driver_status(cnss_status);
+}
+
+/**
+ * pld_pcie_link_down() - Notification for pci link down event
+ *
+ * Notify platform that pci link is down.
+ *
+ * Return: void
+ */
+void pld_pcie_link_down(void)
+{
+	cnss_wlan_pci_link_down();
+}
+
+/**
+ * pld_pcie_shadow_control() - Control pci shadow registers
+ * @enable: 0 for disable, 1 for enable
+ *
+ * This function is for suspend/resume. It can control if we
+ * use pci shadow registers (for saving config space) or not.
+ * During suspend we disable it to avoid config space corruption.
+ *
+ * Return: 0 for success
+ *         Non zero failure code for errors
+ */
+int pld_pcie_shadow_control(bool enable)
+{
+	/* cnss_shadow_control is not supported on LA.BF64.0.3
+	 * Disable it for now
+	 */
+
+	/* return cnss_shadow_control(enable); */
+
+	return 0;
+}
+
+/**
+ * pld_pcie_set_wlan_unsafe_channel() - Set unsafe channel
+ * @unsafe_ch_list: unsafe channel list
+ * @ch_count: number of channel
+ *
+ * Return: 0 for success
+ *         Non zero failure code for errors
+ */
+int pld_pcie_set_wlan_unsafe_channel(u16 *unsafe_ch_list, u16 ch_count)
+{
+	return cnss_set_wlan_unsafe_channel(unsafe_ch_list, ch_count);
+}
+
+/**
+ * pld_pcie_get_wlan_unsafe_channel() - Get unsafe channel
+ * @unsafe_ch_list: buffer to unsafe channel list
+ * @ch_count: number of channel
+ * @buf_len: buffer length
+ *
+ * Return WLAN unsafe channel to the buffer.
+ *
+ * Return: 0 for success
+ *         Non zero failure code for errors
+ */
+int pld_pcie_get_wlan_unsafe_channel(u16 *unsafe_ch_list,
+				     u16 *ch_count, u16 buf_len)
+{
+	return cnss_get_wlan_unsafe_channel(unsafe_ch_list, ch_count, buf_len);
+}
+
+/**
+ * pld_pcie_wlan_set_dfs_nol() - Set DFS info
+ * @info: DFS info
+ * @info_len: info length
+ *
+ * Return: 0 for success
+ *         Non zero failure code for errors
+ */
+int pld_pcie_wlan_set_dfs_nol(void *info, u16 info_len)
+{
+	return cnss_wlan_set_dfs_nol(info, info_len);
+}
+
+/**
+ * pld_pcie_wlan_get_dfs_nol() - Get DFS info
+ * @info: buffer to DFS info
+ * @info_len: info length
+ *
+ * Return DFS info to the buffer.
+ *
+ * Return: 0 for success
+ *         Non zero failure code for errors
+ */
+int pld_pcie_wlan_get_dfs_nol(void *info, u16 info_len)
+{
+	return cnss_wlan_get_dfs_nol(info, info_len);
+}
+
+/**
+ * pld_pcie_schedule_recovery_work() - Schedule recovery work
+ *
+ * Return: void
+ */
+void pld_pcie_schedule_recovery_work(void)
+{
+	cnss_schedule_recovery_work();
+}
+
+/**
+ * pld_pcie_get_virt_ramdump_mem() - Get virtual ramdump memory
+ * @size: buffer to virtual memory size
+ *
+ * Return: virtual ramdump memory address
+ */
+void *pld_pcie_get_virt_ramdump_mem(unsigned long *size)
+{
+	return cnss_get_virt_ramdump_mem(size);
+}
+
+/**
+ * pld_pcie_device_crashed() - Notification for device crash event
+ *
+ * Notify subsystem a device crashed event. A subsystem restart
+ * is expected to happen after calling this function.
+ *
+ * Return: void
+ */
+void pld_pcie_device_crashed(void)
+{
+	cnss_device_crashed();
+}
+
+/**
+ * pld_pcie_device_self_recovery() - Device self recovery
+ *
+ * Return: void
+ */
+void pld_pcie_device_self_recovery(void)
+{
+	cnss_device_self_recovery();
+}
+
+/**
+ * pld_pcie_request_pm_qos() - Request system PM
+ * @qos_val: request value
+ *
+ * It votes for the value of aggregate QoS expectations.
+ *
+ * Return: void
+ */
+void pld_pcie_request_pm_qos(u32 qos_val)
+{
+	cnss_request_pm_qos(qos_val);
+}
+
+/**
+ * pld_pcie_remove_pm_qos() - Remove system PM
+ *
+ * Remove the vote request for Qos expectations.
+ *
+ * Return: void
+ */
+void pld_pcie_remove_pm_qos(void)
+{
+	cnss_remove_pm_qos();
+}
+
+/**
+ * pld_pcie_request_bus_bandwidth() - Request bus bandwidth
+ * @bandwidth: bus bandwidth
+ *
+ * Votes for HIGH/MEDIUM/LOW bus bandwidth.
+ *
+ * Return: 0 for success
+ *         Non zero failure code for errors
+ */
+int pld_pcie_request_bus_bandwidth(int bandwidth)
+{
+	return cnss_request_bus_bandwidth(bandwidth);
+}
+
+/**
+ * pld_pcie_auto_suspend() - Auto suspend
+ *
+ * Return: 0 for success
+ *         Non zero failure code for errors
+ */
+int pld_pcie_auto_suspend(void)
+{
+	return cnss_auto_suspend();
+}
+
+/**
+ * pld_pcie_auto_resume() - Auto resume
+ *
+ * Return: 0 for success
+ *         Non zero failure code for errors
+ */
+int pld_pcie_auto_resume(void)
+{
+	return cnss_auto_resume();
+}
+
+/**
+ * pld_pcie_lock_pm_sem() - Lock PM semaphore
+ *
+ * Return: void
+ */
+void pld_pcie_lock_pm_sem(void)
+{
+	cnss_lock_pm_sem();
+}
+
+/**
+ * pld_pcie_release_pm_sem() - Release PM semaphore
+ *
+ * Return: void
+ */
+void pld_pcie_release_pm_sem(void)
+{
+	cnss_release_pm_sem();
 }
 #endif
 

@@ -58,10 +58,10 @@ ifeq ($(KERNEL_BUILD), 0)
 	# config.
 	ifneq ($(TARGET_BUILD_VARIANT),user)
 		ifeq ($(CONFIG_SLUB_DEBUG_ON),y)
-			CONFIG_PKT_PROTO_TRACE := y
+			CONFIG_FEATURE_DP_TRACE := y
 		else
 			ifeq ($(findstring perf,$(KERNEL_DEFCONFIG)),)
-				CONFIG_PKT_PROTO_TRACE := y
+				CONFIG_FEATURE_DP_TRACE := y
 			endif
 		endif
 	endif
@@ -673,7 +673,8 @@ BMI_DIR := core/bmi
 BMI_INC := -I$(WLAN_ROOT)/$(BMI_DIR)/inc
 
 BMI_OBJS := $(BMI_DIR)/src/bmi.o \
-            $(BMI_DIR)/src/ol_fw.o
+            $(BMI_DIR)/src/ol_fw.o \
+            $(BMI_DIR)/src/ol_fw_common.o
 BMI_OBJS += $(BMI_DIR)/src/bmi_1.o
 
 ########### WMI ###########
@@ -988,6 +989,18 @@ CDEFINES :=	-DANI_LITTLE_BYTE_ENDIAN \
 		-DCONFIG_160MHZ_SUPPORT \
 		-DCONFIG_MCL
 
+ifeq ($(CONFIG_CNSS), y)
+ifeq ($(CONFIG_CNSS_SDIO), y)
+CDEFINES += -DCONFIG_PLD_SDIO_CNSS
+else
+CDEFINES += -DCONFIG_PLD_PCIE_CNSS
+endif
+endif
+
+ifeq ($(CONFIG_ICNSS), y)
+CDEFINES += -DCONFIG_PLD_SNOC_ICNSS
+endif
+
 ifeq (y,$(filter y,$(CONFIG_CNSS_EOS) $(CONFIG_ICNSS)))
 CDEFINES += -DQCA_WIFI_3_0
 CDEFINES += -DQCA_WIFI_3_0_EMU
@@ -1001,6 +1014,10 @@ endif
 
 ifeq ($(CONFIG_WLAN_FASTPATH), y)
 CDEFINES +=	-DWLAN_FEATURE_FASTPATH
+endif
+
+ifeq ($(CONFIG_FEATURE_DP_TRACE), y)
+CDEFINES +=	-DFEATURE_DP_TRACE
 endif
 
 ifeq ($(CONFIG_WLAN_NAPI), y)
@@ -1023,10 +1040,6 @@ else
 ifeq ($(CONFIG_ROME_IF),pci)
 CDEFINES +=	-DQCA_LL_LEGACY_TX_FLOW_CONTROL
 endif
-endif
-
-ifeq ($(CONFIG_PKT_PROTO_TRACE), y)
-CDEFINES +=    	-DQCA_PKT_PROTO_TRACE
 endif
 
 ifneq ($(CONFIG_QCA_CLD_WLAN),)
@@ -1119,6 +1132,7 @@ endif
 
 ifneq ($(TARGET_BUILD_VARIANT),user)
 CDEFINES += -DDESC_DUP_DETECT_DEBUG
+CDEFINES += -DDEBUG_RX_RING_BUFFER
 endif
 
 ifeq ($(PANIC_ON_BUG),1)
@@ -1316,6 +1330,13 @@ endif
 ifneq ($(CONFIG_ARCH_MDM9630), y)
 ifeq ($(CONFIG_HIF_PCI), 1)
 CDEFINES += -DWLAN_FEATURE_RX_FULL_REORDER_OL
+endif
+endif
+
+#enable Code swap feature
+ifeq ($(CONFIG_CNSS), y)
+ifeq ($(CONFIG_HIF_PCI), 1)
+CDEFINES += -DCONFIG_CODESWAP_FEATURE
 endif
 endif
 

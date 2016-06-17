@@ -30,14 +30,13 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 
-#ifdef CONFIG_ICNSS
+#ifdef CONFIG_PLD_SNOC_ICNSS
 #include <soc/qcom/icnss.h>
 #endif
 
-#include "pld_common.h"
 #include "pld_internal.h"
 
-#ifdef CONFIG_ICNSS
+#ifdef CONFIG_PLD_SNOC_ICNSS
 /**
  * pld_snoc_probe() - Probe function for platform driver
  * @dev: device
@@ -50,8 +49,6 @@
 static int pld_snoc_probe(struct device *dev)
 {
 	struct pld_context *pld_context;
-	unsigned long flags;
-	struct dev_node *dev_node;
 	int ret = 0;
 
 	pld_context = pld_get_global_context();
@@ -60,17 +57,9 @@ static int pld_snoc_probe(struct device *dev)
 		goto out;
 	}
 
-	dev_node = kzalloc(sizeof(*dev_node), GFP_KERNEL);
-	if (dev_node == NULL) {
-		ret = -ENOMEM;
+	ret = pld_add_dev(pld_context, dev, PLD_BUS_TYPE_SNOC);
+	if (ret)
 		goto out;
-	}
-	dev_node->dev = dev;
-	dev_node->bus_type = PLD_BUS_TYPE_SNOC;
-
-	spin_lock_irqsave(&pld_context->pld_lock, flags);
-	list_add_tail(&dev_node->list, &pld_context->dev_list);
-	spin_unlock_irqrestore(&pld_context->pld_lock, flags);
 
 	return pld_context->ops->probe(dev, PLD_BUS_TYPE_SNOC,
 				       NULL, NULL);
@@ -91,8 +80,6 @@ out:
 static void pld_snoc_remove(struct device *dev)
 {
 	struct pld_context *pld_context;
-	unsigned long flags;
-	struct dev_node *dev_node, *tmp;
 
 	pld_context = pld_get_global_context();
 
@@ -101,14 +88,7 @@ static void pld_snoc_remove(struct device *dev)
 
 	pld_context->ops->remove(dev, PLD_BUS_TYPE_SNOC);
 
-	spin_lock_irqsave(&pld_context->pld_lock, flags);
-	list_for_each_entry_safe(dev_node, tmp, &pld_context->dev_list, list) {
-		if (dev_node->dev == dev) {
-			list_del(&dev_node->list);
-			kfree(dev_node);
-		}
-	}
-	spin_unlock_irqrestore(&pld_context->pld_lock, flags);
+	pld_del_dev(pld_context, dev);
 }
 
 /**
@@ -312,6 +292,70 @@ int pld_snoc_get_soc_info(struct pld_soc_info *info)
 
 	memcpy(info, &icnss_info, sizeof(*info));
 	return 0;
+}
+
+/**
+ * pld_snoc_ce_request_irq() - Register IRQ for CE
+ * @ce_id: CE number
+ * @handler: IRQ callback function
+ * @flags: IRQ flags
+ * @name: IRQ name
+ * @ctx: IRQ context
+ *
+ * Return: 0 for success
+ *         Non zero failure code for errors
+ */
+int pld_snoc_ce_request_irq(unsigned int ce_id,
+			    irqreturn_t (*handler)(int, void *),
+			    unsigned long flags, const char *name, void *ctx)
+{
+	return icnss_ce_request_irq(ce_id, handler, flags, name, ctx);
+}
+
+/**
+ * pld_snoc_ce_free_irq() - Free IRQ for CE
+ * @ce_id: CE number
+ * @ctx: IRQ context
+ *
+ * Return: 0 for success
+ *         Non zero failure code for errors
+ */
+int pld_snoc_ce_free_irq(unsigned int ce_id, void *ctx)
+{
+	return icnss_ce_free_irq(ce_id, ctx);
+}
+
+/**
+ * pld_snoc_enable_irq() - Enable IRQ for CE
+ * @ce_id: CE number
+ *
+ * Return: void
+ */
+void pld_snoc_enable_irq(unsigned int ce_id)
+{
+	icnss_enable_irq(ce_id);
+}
+
+/**
+ * pld_snoc_disable_irq() - Disable IRQ for CE
+ * @ce_id: CE number
+ *
+ * Return: void
+ */
+void pld_snoc_disable_irq(unsigned int ce_id)
+{
+	icnss_disable_irq(ce_id);
+}
+
+/**
+ * pld_snoc_get_ce_id() - Get CE number for the provided IRQ
+ * @irq: IRQ number
+ *
+ * Return: CE number
+ */
+int pld_snoc_get_ce_id(int irq)
+{
+	return icnss_get_ce_id(irq);
 }
 
 #endif

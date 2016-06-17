@@ -172,10 +172,6 @@ int hdd_softap_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	hdd_ap_ctx_t *pHddApCtx = WLAN_HDD_GET_AP_CTX_PTR(pAdapter);
 	struct qdf_mac_addr *pDestMacAddress;
 	uint8_t STAId;
-#ifdef QCA_PKT_PROTO_TRACE
-	uint8_t proto_type = 0;
-	hdd_context_t *hddCtxt = (hdd_context_t *) pAdapter->pHddCtx;
-#endif /* QCA_PKT_PROTO_TRACE */
 
 	++pAdapter->hdd_stats.hddTxRxStats.txXmitCalled;
 	/* Prevent this function from being called during SSR since TL
@@ -289,44 +285,25 @@ int hdd_softap_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 #endif
 
-	wlan_hdd_log_eapol(skb,
-			   WIFI_EVENT_DRIVER_EAPOL_FRAME_TRANSMIT_REQUESTED);
-
-#ifdef QCA_PKT_PROTO_TRACE
-	if ((hddCtxt->config->gEnableDebugLog & CDS_PKT_TRAC_TYPE_EAPOL) ||
-	    (hddCtxt->config->gEnableDebugLog & CDS_PKT_TRAC_TYPE_DHCP)) {
-		/* Proto Trace enabled */
-		proto_type = cds_pkt_get_proto_type(skb,
-						    hddCtxt->config->
-						    gEnableDebugLog, 0);
-		if (CDS_PKT_TRAC_TYPE_EAPOL & proto_type) {
-			cds_pkt_trace_buf_update("HA:T:EPL");
-		} else if (CDS_PKT_TRAC_TYPE_DHCP & proto_type) {
-			cds_pkt_trace_buf_update("HA:T:DHC");
-		}
-	}
-#endif /* QCA_PKT_PROTO_TRACE */
 	pAdapter->stats.tx_bytes += skb->len;
 	++pAdapter->stats.tx_packets;
 
 	/* Zero out skb's context buffer for the driver to use */
 	qdf_mem_set(skb->cb, sizeof(skb->cb), 0);
+	qdf_dp_trace_log_pkt(pAdapter->sessionId, skb, QDF_TX);
 	QDF_NBUF_CB_TX_PACKET_TRACK(skb) = QDF_NBUF_TX_PKT_DATA_TRACK;
 	QDF_NBUF_UPDATE_TX_PKT_COUNT(skb, QDF_NBUF_TX_PKT_HDD);
 
-	qdf_dp_trace_set_track(skb);
-	DPTRACE(qdf_dp_trace(skb, QDF_DP_TRACE_HDD_PACKET_PTR_RECORD,
-				(uint8_t *)skb->data, sizeof(skb->data)));
-	DPTRACE(qdf_dp_trace(skb, QDF_DP_TRACE_HDD_PACKET_RECORD,
-				(uint8_t *)skb->data, qdf_nbuf_len(skb)));
+	qdf_dp_trace_set_track(skb, QDF_TX);
+	DPTRACE(qdf_dp_trace(skb, QDF_DP_TRACE_HDD_TX_PACKET_PTR_RECORD,
+			(uint8_t *)&skb->data, sizeof(skb->data), QDF_TX));
+	DPTRACE(qdf_dp_trace(skb, QDF_DP_TRACE_HDD_TX_PACKET_RECORD,
+			(uint8_t *)skb->data, qdf_nbuf_len(skb), QDF_TX));
 	if (qdf_nbuf_len(skb) > QDF_DP_TRACE_RECORD_SIZE)
-		DPTRACE(qdf_dp_trace(skb, QDF_DP_TRACE_HDD_PACKET_RECORD,
-				(uint8_t *)&skb->data[QDF_DP_TRACE_RECORD_SIZE],
-				(qdf_nbuf_len(skb)-QDF_DP_TRACE_RECORD_SIZE)));
+		DPTRACE(qdf_dp_trace(skb, QDF_DP_TRACE_HDD_TX_PACKET_RECORD,
+			(uint8_t *)&skb->data[QDF_DP_TRACE_RECORD_SIZE],
+			(qdf_nbuf_len(skb)-QDF_DP_TRACE_RECORD_SIZE), QDF_TX));
 
-#ifdef QCA_PKT_PROTO_TRACE
-	qdf_nbuf_trace_set_proto_type(skb, proto_type);
-#endif
 	if (pAdapter->tx_fn(ol_txrx_get_vdev_by_sta_id(STAId),
 		 (qdf_nbuf_t) skb) != NULL) {
 		QDF_TRACE(QDF_MODULE_ID_HDD_SAP_DATA, QDF_TRACE_LEVEL_WARN,
@@ -342,11 +319,11 @@ int hdd_softap_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 drop_pkt:
 
 	DPTRACE(qdf_dp_trace(skb, QDF_DP_TRACE_DROP_PACKET_RECORD,
-				(uint8_t *)skb->data, qdf_nbuf_len(skb)));
+			(uint8_t *)skb->data, qdf_nbuf_len(skb), QDF_TX));
 	if (qdf_nbuf_len(skb) > QDF_DP_TRACE_RECORD_SIZE)
 		DPTRACE(qdf_dp_trace(skb, QDF_DP_TRACE_DROP_PACKET_RECORD,
-				(uint8_t *)&skb->data[QDF_DP_TRACE_RECORD_SIZE],
-				(qdf_nbuf_len(skb)-QDF_DP_TRACE_RECORD_SIZE)));
+			(uint8_t *)&skb->data[QDF_DP_TRACE_RECORD_SIZE],
+			(qdf_nbuf_len(skb)-QDF_DP_TRACE_RECORD_SIZE), QDF_TX));
 	kfree_skb(skb);
 
 drop_pkt_accounting:
@@ -374,7 +351,7 @@ static void __hdd_softap_tx_timeout(struct net_device *dev)
 	int i;
 
 	DPTRACE(qdf_dp_trace(NULL, QDF_DP_TRACE_HDD_SOFTAP_TX_TIMEOUT,
-				NULL, 0));
+				NULL, 0, QDF_TX));
 	/* Getting here implies we disabled the TX queues for too
 	 * long. Queues are disabled either because of disassociation
 	 * or low resource scenarios. In case of disassociation it is
@@ -539,9 +516,6 @@ QDF_STATUS hdd_softap_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 	unsigned int cpu_index;
 	struct sk_buff *skb = NULL;
 	hdd_context_t *pHddCtx = NULL;
-#ifdef QCA_PKT_PROTO_TRACE
-	uint8_t proto_type;
-#endif /* QCA_PKT_PROTO_TRACE */
 
 	/* Sanity check on inputs */
 	if (unlikely((NULL == context) || (NULL == rxBuf))) {
@@ -583,21 +557,10 @@ QDF_STATUS hdd_softap_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 	++pAdapter->stats.rx_packets;
 	pAdapter->stats.rx_bytes += skb->len;
 
-	wlan_hdd_log_eapol(skb, WIFI_EVENT_DRIVER_EAPOL_FRAME_RECEIVED);
-
-#ifdef QCA_PKT_PROTO_TRACE
-	if ((pHddCtx->config->gEnableDebugLog & CDS_PKT_TRAC_TYPE_EAPOL) ||
-	    (pHddCtx->config->gEnableDebugLog & CDS_PKT_TRAC_TYPE_DHCP)) {
-		proto_type = cds_pkt_get_proto_type(skb,
-						    pHddCtx->config->
-						    gEnableDebugLog, 0);
-		if (CDS_PKT_TRAC_TYPE_EAPOL & proto_type) {
-			cds_pkt_trace_buf_update("HA:R:EPL");
-		} else if (CDS_PKT_TRAC_TYPE_DHCP & proto_type) {
-			cds_pkt_trace_buf_update("HA:R:DHC");
-		}
-	}
-#endif /* QCA_PKT_PROTO_TRACE */
+	DPTRACE(qdf_dp_trace(rxBuf,
+		QDF_DP_TRACE_RX_HDD_PACKET_PTR_RECORD,
+		qdf_nbuf_data_addr(rxBuf),
+		sizeof(qdf_nbuf_data(rxBuf)), QDF_RX));
 
 	skb->protocol = eth_type_trans(skb, skb->dev);
 #ifdef WLAN_FEATURE_HOLD_RX_WAKELOCK
@@ -610,7 +573,6 @@ QDF_STATUS hdd_softap_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 	 * it to stack
 	 */
 	qdf_net_buf_debug_release_skb(rxBuf);
-
 	if (hdd_napi_enabled(HDD_NAPI_ANY) && !pHddCtx->config->enableRxThread)
 		rxstat = netif_receive_skb(skb);
 	else

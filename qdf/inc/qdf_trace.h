@@ -105,6 +105,9 @@ typedef enum {
 
 #include  <i_qdf_trace.h>
 
+#define DUMP_DP_TRACE       0
+#define ENABLE_DP_TRACE_LIVE_MODE	1
+
 #ifdef TRACE_RECORD
 
 #define MTRACE(p) p
@@ -154,7 +157,11 @@ typedef struct s_qdf_trace_data {
 #define CASE_RETURN_STRING(str) case ((str)): return (uint8_t *)(# str);
 
 /* DP Trace Implementation */
+#ifdef FEATURE_DP_TRACE
 #define DPTRACE(p) p
+#else
+#define DPTRACE(p)
+#endif
 
 #define MAX_QDF_DP_TRACE_RECORDS       4000
 #define QDF_DP_TRACE_RECORD_SIZE       16
@@ -166,40 +173,174 @@ typedef struct s_qdf_trace_data {
 
 /**
  * enum QDF_DP_TRACE_ID - Generic ID to identify various events in data path
- * @QDF_DP_TRACE_INVALID: Invalid ID
- * @QDF_DP_TRACE_DROP_PACKET_RECORD: Dropped packet stored with this id
- * @QDF_DP_TRACE_HDD_PACKET_PTR_RECORD: nbuf->data ptr of HDD
- * @QDF_DP_TRACE_HDD_PACKET_RECORD: nbuf->data stored with this id
- * @QDF_DP_TRACE_CE_PACKET_PTR_RECORD: nbuf->data ptr of CE
- * @QDF_DP_TRACE_CE_PACKET_RECORD: nbuf->data stored with this id
- * @QDF_DP_TRACE_TXRX_QUEUE_PACKET_PTR_RECORD: nbuf->data ptr of txrx queue
- * @QDF_DP_TRACE_TXRX_PACKET_PTR_RECORD: nbuf->data ptr of txrx
- * @QDF_DP_TRACE_HTT_PACKET_PTR_RECORD: nbuf->data ptr of htt
- * @QDF_DP_TRACE_HTC_PACKET_PTR_RECORD: nbuf->data ptr of htc
- * @QDF_DP_TRACE_HIF_PACKET_PTR_RECORD: nbuf->data ptr of hif
- * @QDF_DP_TRACE_HDD_TX_TIMEOUT: hdd tx timeout event
- * @QDF_DP_TRACE_HDD_SOFTAP_TX_TIMEOUT: hdd tx softap timeout event
- * @QDF_DP_TRACE_VDEV_PAUSE: vdev pause event
- * @QDF_DP_TRACE_VDEV_UNPAUSE: vdev unpause event
+ * @QDF_DP_TRACE_INVALID - invalid
+ * @QDF_DP_TRACE_DROP_PACKET_RECORD - record drop packet
+ * @QDF_DP_TRACE_EAPOL_PACKET_RECORD - record EAPOL packet
+ * @QDF_DP_TRACE_DHCP_PACKET_RECORD - record DHCP packet
+ * @QDF_DP_TRACE_ARP_PACKET_RECORD - record ARP packet
+ * @QDF_DP_TRACE_MGMT_PACKET_RECORD - record MGMT pacekt
+ * @QDF_DP_TRACE_DEFAULT_VERBOSITY - below this are part of default verbosity
+ * @QDF_DP_TRACE_HDD_TX_TIMEOUT - HDD tx timeout
+ * @QDF_DP_TRACE_HDD_SOFTAP_TX_TIMEOUT- SOFTAP HDD tx timeout
+ * @QDF_DP_TRACE_HDD_TX_PACKET_PTR_RECORD - HDD layer ptr record
+ * @QDF_DP_TRACE_CE_PACKET_PTR_RECORD - CE layer ptr record
+ * @QDF_DP_TRACE_CE_FAST_PACKET_PTR_RECORD- CE fastpath ptr record
+ * @QDF_DP_TRACE_FREE_PACKET_PTR_RECORD - tx completion ptr record
+ * @QDF_DP_TRACE_RX_HTT_PACKET_PTR_RECORD - HTT RX record
+ * @QDF_DP_TRACE_RX_OFFLOAD_HTT_PACKET_PTR_RECORD- HTT RX offload record
+ * @QDF_DP_TRACE_RX_HDD_PACKET_PTR_RECORD - HDD RX record
+ * @QDF_DP_TRACE_LOW_VERBOSITY - below this are part of low verbosity
+ * @QDF_DP_TRACE_TXRX_QUEUE_PACKET_PTR_RECORD -tx queue ptr record
+ * @QDF_DP_TRACE_TXRX_PACKET_PTR_RECORD - txrx packet ptr record
+ * @QDF_DP_TRACE_TXRX_FAST_PACKET_PTR_RECORD - txrx fast path record
+ * @QDF_DP_TRACE_HTT_PACKET_PTR_RECORD - htt packet ptr record
+ * @QDF_DP_TRACE_HTC_PACKET_PTR_RECORD - htc packet ptr record
+ * @QDF_DP_TRACE_HIF_PACKET_PTR_RECORD - hif packet ptr record
+ * @QDF_DP_TRACE_RX_TXRX_PACKET_PTR_RECORD - txrx packet ptr record
+ * @QDF_DP_TRACE_MED_VERBOSITY - below this are part of med verbosity
+ * @QDF_DP_TRACE_HDD_TX_PACKET_RECORD - record 32 bytes at HDD
+ * @QDF_DP_TRACE_HIGH_VERBOSITY - below this are part of high verbosity
  */
 enum  QDF_DP_TRACE_ID {
-	QDF_DP_TRACE_INVALID                           = 0,
-	QDF_DP_TRACE_DROP_PACKET_RECORD                = 1,
-	QDF_DP_TRACE_HDD_PACKET_PTR_RECORD             = 2,
-	QDF_DP_TRACE_HDD_PACKET_RECORD                 = 3,
-	QDF_DP_TRACE_CE_PACKET_PTR_RECORD              = 4,
-	QDF_DP_TRACE_CE_PACKET_RECORD                  = 5,
-	QDF_DP_TRACE_TXRX_QUEUE_PACKET_PTR_RECORD      = 6,
-	QDF_DP_TRACE_TXRX_PACKET_PTR_RECORD            = 7,
-	QDF_DP_TRACE_HTT_PACKET_PTR_RECORD             = 8,
-	QDF_DP_TRACE_HTC_PACKET_PTR_RECORD             = 9,
-	QDF_DP_TRACE_HIF_PACKET_PTR_RECORD             = 10,
-	QDF_DP_TRACE_HDD_TX_TIMEOUT                    = 11,
-	QDF_DP_TRACE_HDD_SOFTAP_TX_TIMEOUT             = 12,
-	QDF_DP_TRACE_VDEV_PAUSE                        = 13,
-	QDF_DP_TRACE_VDEV_UNPAUSE                      = 14,
+	QDF_DP_TRACE_INVALID,
+	QDF_DP_TRACE_DROP_PACKET_RECORD,
+	QDF_DP_TRACE_EAPOL_PACKET_RECORD,
+	QDF_DP_TRACE_DHCP_PACKET_RECORD,
+	QDF_DP_TRACE_ARP_PACKET_RECORD,
+	QDF_DP_TRACE_MGMT_PACKET_RECORD,
+	QDF_DP_TRACE_DEFAULT_VERBOSITY,
+	QDF_DP_TRACE_HDD_TX_TIMEOUT,
+	QDF_DP_TRACE_HDD_SOFTAP_TX_TIMEOUT,
+	QDF_DP_TRACE_HDD_TX_PACKET_PTR_RECORD,
+	QDF_DP_TRACE_CE_PACKET_PTR_RECORD,
+	QDF_DP_TRACE_CE_FAST_PACKET_PTR_RECORD,
+	QDF_DP_TRACE_FREE_PACKET_PTR_RECORD,
+	QDF_DP_TRACE_RX_HTT_PACKET_PTR_RECORD,
+	QDF_DP_TRACE_RX_OFFLOAD_HTT_PACKET_PTR_RECORD,
+	QDF_DP_TRACE_RX_HDD_PACKET_PTR_RECORD,
+	QDF_DP_TRACE_LOW_VERBOSITY,
+	QDF_DP_TRACE_TXRX_QUEUE_PACKET_PTR_RECORD,
+	QDF_DP_TRACE_TXRX_PACKET_PTR_RECORD,
+	QDF_DP_TRACE_TXRX_FAST_PACKET_PTR_RECORD,
+	QDF_DP_TRACE_HTT_PACKET_PTR_RECORD,
+	QDF_DP_TRACE_HTC_PACKET_PTR_RECORD,
+	QDF_DP_TRACE_HIF_PACKET_PTR_RECORD,
+	QDF_DP_TRACE_RX_TXRX_PACKET_PTR_RECORD,
+	QDF_DP_TRACE_MED_VERBOSITY,
+	QDF_DP_TRACE_HDD_TX_PACKET_RECORD,
+	QDF_DP_TRACE_HIGH_VERBOSITY,
 	QDF_DP_TRACE_MAX
+};
 
+/**
+ * qdf_proto_type - protocol type
+ * @QDF_PROTO_TYPE_DHCP - DHCP
+ * @QDF_PROTO_TYPE_EAPOL - EAPOL
+ * @QDF_PROTO_TYPE_ARP - ARP
+ * @QDF_PROTO_TYPE_MGMT - MGMT
+ */
+enum qdf_proto_type {
+	QDF_PROTO_TYPE_DHCP,
+	QDF_PROTO_TYPE_EAPOL,
+	QDF_PROTO_TYPE_ARP,
+	QDF_PROTO_TYPE_MGMT,
+	QDF_PROTO_TYPE_MAX
+};
+
+/**
+ * qdf_proto_subtype - subtype of packet
+ * @QDF_PROTO_EAPOL_M1 - EAPOL 1/4
+ * @QDF_PROTO_EAPOL_M2 - EAPOL 2/4
+ * @QDF_PROTO_EAPOL_M3 - EAPOL 3/4
+ * @QDF_PROTO_EAPOL_M4 - EAPOL 4/4
+ * @QDF_PROTO_DHCP_DISCOVER - discover
+ * @QDF_PROTO_DHCP_REQUEST - request
+ * @QDF_PROTO_DHCP_OFFER - offer
+ * @QDF_PROTO_DHCP_ACK - ACK
+ * @QDF_PROTO_DHCP_NACK - NACK
+ * @QDF_PROTO_DHCP_RELEASE - release
+ * @QDF_PROTO_DHCP_INFORM - inform
+ * @QDF_PROTO_DHCP_DECLINE - decline
+ * @QDF_PROTO_ARP_SUBTYPE - arp
+ * @QDF_PROTO_MGMT_ASSOC -assoc
+ * @QDF_PROTO_MGMT_DISASSOC - disassoc
+ * @QDF_PROTO_MGMT_AUTH - auth
+ * @QDF_PROTO_MGMT_DEAUTH - deauth
+ */
+enum qdf_proto_subtype {
+	QDF_PROTO_INVALID,
+	QDF_PROTO_EAPOL_M1,
+	QDF_PROTO_EAPOL_M2,
+	QDF_PROTO_EAPOL_M3,
+	QDF_PROTO_EAPOL_M4,
+	QDF_PROTO_DHCP_DISCOVER,
+	QDF_PROTO_DHCP_REQUEST,
+	QDF_PROTO_DHCP_OFFER,
+	QDF_PROTO_DHCP_ACK,
+	QDF_PROTO_DHCP_NACK,
+	QDF_PROTO_DHCP_RELEASE,
+	QDF_PROTO_DHCP_INFORM,
+	QDF_PROTO_DHCP_DECLINE,
+	QDF_PROTO_ARP_SUBTYPE,
+	QDF_PROTO_MGMT_ASSOC,
+	QDF_PROTO_MGMT_DISASSOC,
+	QDF_PROTO_MGMT_AUTH,
+	QDF_PROTO_MGMT_DEAUTH,
+	QDF_PROTO_SUBTYPE_MAX
+};
+
+/**
+ * qdf_proto_dir - direction
+ * @QDF_TX: TX direction
+ * @QDF_RX: RX direction
+ * @QDF_NA: not applicable
+ */
+enum qdf_proto_dir {
+	QDF_TX,
+	QDF_RX,
+	QDF_NA
+};
+
+/**
+ * struct qdf_dp_trace_ptr_buf - pointer record buffer
+ * @cookie: cookie value
+ * @msdu_id: msdu_id
+ * @status: completion status
+ */
+struct qdf_dp_trace_ptr_buf {
+	uint64_t cookie;
+	uint16_t msdu_id;
+	uint16_t status;
+};
+
+/**
+ * struct qdf_dp_trace_proto_buf - proto packet buffer
+ * @sa: source address
+ * @da: destination address
+ * @vdev_id : vdev id
+ * @type: packet type
+ * @subtype: packet subtype
+ * @dir: direction
+ */
+struct qdf_dp_trace_proto_buf {
+	struct qdf_mac_addr sa;
+	struct qdf_mac_addr da;
+	uint8_t vdev_id;
+	uint8_t type;
+	uint8_t subtype;
+	uint8_t dir;
+};
+
+/**
+ * struct qdf_dp_trace_mgmt_buf - mgmt packet buffer
+ * @vdev_id : vdev id
+ * @type: packet type
+ * @subtype: packet subtype
+ */
+struct qdf_dp_trace_mgmt_buf {
+	uint8_t vdev_id;
+	uint8_t type;
+	uint8_t subtype;
 };
 
 /**
@@ -237,8 +378,12 @@ struct s_qdf_dp_trace_data {
 	uint8_t no_of_record;
 	uint8_t verbosity;
 	bool enable;
-	uint32_t count;
+	uint32_t tx_count;
+	uint32_t rx_count;
+	bool live_mode;
 };
+
+
 /* Function declarations and documenation */
 
 /**
@@ -282,17 +427,68 @@ void qdf_trace_init(void);
 void qdf_trace_enable(uint32_t, uint8_t enable);
 void qdf_trace_dump_all(void *, uint8_t, uint8_t, uint32_t, uint32_t);
 
-void qdf_dp_trace_spin_lock_init(void);
+
+#ifdef FEATURE_DP_TRACE
+void qdf_dp_trace_log_pkt(uint8_t session_id, struct sk_buff *skb,
+				enum qdf_proto_dir dir);
 void qdf_dp_trace_init(void);
+void qdf_dp_trace_spin_lock_init(void);
 void qdf_dp_trace_set_value(uint8_t proto_bitmap, uint8_t no_of_records,
 			 uint8_t verbosity);
-void qdf_dp_trace_set_track(qdf_nbuf_t nbuf);
+void qdf_dp_trace_set_track(qdf_nbuf_t nbuf, enum qdf_proto_dir dir);
 void qdf_dp_trace(qdf_nbuf_t nbuf, enum QDF_DP_TRACE_ID code,
-			uint8_t *data, uint8_t size);
+			uint8_t *data, uint8_t size, enum qdf_proto_dir dir);
 void qdf_dp_trace_dump_all(uint32_t count);
 typedef void (*tp_qdf_dp_trace_cb)(struct qdf_dp_trace_record_s* , uint16_t);
 void qdf_dp_display_record(struct qdf_dp_trace_record_s *record,
 							uint16_t index);
+void qdf_dp_trace_ptr(qdf_nbuf_t nbuf, enum QDF_DP_TRACE_ID code,
+		uint8_t *data, uint8_t size, uint16_t msdu_id, uint16_t status);
+
+void qdf_dp_display_ptr_record(struct qdf_dp_trace_record_s *pRecord,
+				uint16_t recIndex);
+uint8_t qdf_dp_get_proto_bitmap(void);
+void
+qdf_dp_trace_proto_pkt(enum QDF_DP_TRACE_ID code, uint8_t vdev_id,
+		uint8_t *sa, uint8_t *da, enum qdf_proto_type type,
+		enum qdf_proto_subtype subtype, enum qdf_proto_dir dir);
+void qdf_dp_display_proto_pkt(struct qdf_dp_trace_record_s *record,
+				uint16_t index);
+void qdf_dp_trace_enable_live_mode(void);
+void qdf_dp_trace_mgmt_pkt(enum QDF_DP_TRACE_ID code, uint8_t vdev_id,
+		enum qdf_proto_type type, enum qdf_proto_subtype subtype);
+void qdf_dp_display_mgmt_pkt(struct qdf_dp_trace_record_s *record,
+			      uint16_t index);
+#else
+static inline
+void qdf_dp_trace_log_pkt(uint8_t session_id, struct sk_buff *skb,
+				enum qdf_proto_dir dir)
+{
+}
+static inline
+void qdf_dp_trace_init(void)
+{
+}
+static inline
+void qdf_dp_trace_set_track(qdf_nbuf_t nbuf, enum qdf_proto_dir dir)
+{
+}
+static inline
+void qdf_dp_trace_set_value(uint8_t proto_bitmap, uint8_t no_of_records,
+			 uint8_t verbosity)
+{
+}
+static inline
+void qdf_dp_trace_dump_all(uint32_t count)
+{
+}
+
+static inline
+void qdf_dp_trace_enable_live_mode(void)
+{
+}
+
+#endif
 
 
 /**

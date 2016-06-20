@@ -2541,7 +2541,7 @@ static int hif_bus_suspend_link_up(struct hif_softc *scn)
 		return -EINVAL;
 	}
 
-	hif_pci_cancel_deferred_target_sleep(scn);
+	hif_cancel_deferred_target_sleep(scn);
 
 	return 0;
 }
@@ -2603,7 +2603,7 @@ static int hif_bus_suspend_link_down(struct hif_softc *scn)
 	}
 
 	/* Stop the HIF Sleep Timer */
-	hif_pci_cancel_deferred_target_sleep(scn);
+	hif_cancel_deferred_target_sleep(scn);
 
 	qdf_atomic_set(&scn->link_suspended, 1);
 

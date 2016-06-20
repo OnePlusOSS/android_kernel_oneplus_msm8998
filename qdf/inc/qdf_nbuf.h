@@ -40,13 +40,33 @@
 #include <i_qdf_trace.h>
 #include <qdf_net_types.h>
 
-#define IPA_NBUF_OWNER_ID 0xaa55aa55
-#define QDF_NBUF_PKT_TRAC_TYPE_EAPOL   0x02
-#define QDF_NBUF_PKT_TRAC_TYPE_DHCP    0x04
-#define QDF_NBUF_PKT_TRAC_TYPE_MGMT_ACTION    0x08
-#define QDF_NBUF_PKT_TRAC_MAX_STRING   12
-#define QDF_NBUF_PKT_TRAC_PROTO_STRING 4
-#define QDF_NBUF_PKT_ERROR  1
+#define IPA_NBUF_OWNER_ID			0xaa55aa55
+#define QDF_NBUF_PKT_TRAC_TYPE_EAPOL		0x02
+#define QDF_NBUF_PKT_TRAC_TYPE_DHCP		0x04
+#define QDF_NBUF_PKT_TRAC_TYPE_MGMT_ACTION	0x08
+#define QDF_NBUF_PKT_TRAC_TYPE_ARP		0x10
+#define QDF_NBUF_PKT_TRAC_MAX_STRING		12
+#define QDF_NBUF_PKT_TRAC_PROTO_STRING		4
+#define QDF_NBUF_PKT_ERROR			1
+
+#define QDF_NBUF_TRAC_IPV4_OFFSET		14
+#define QDF_NBUF_TRAC_IPV4_HEADER_SIZE		20
+#define QDF_NBUF_TRAC_DHCP_SRV_PORT		67
+#define QDF_NBUF_TRAC_DHCP_CLI_PORT		68
+#define QDF_NBUF_TRAC_ETH_TYPE_OFFSET		12
+#define QDF_NBUF_TRAC_EAPOL_ETH_TYPE		0x888E
+#define QDF_NBUF_TRAC_ARP_ETH_TYPE		0x0806
+#define QDF_NBUF_DEST_MAC_OFFSET		0
+#define QDF_NBUF_SRC_MAC_OFFSET			6
+
+/* EAPOL Related MASK */
+#define EAPOL_PACKET_TYPE_OFFSET		15
+#define EAPOL_KEY_INFO_OFFSET			19
+#define EAPOL_MASK				0x8013
+#define EAPOL_M1_BIT_MASK			0x8000
+#define EAPOL_M2_BIT_MASK			0x0001
+#define EAPOL_M3_BIT_MASK			0x8013
+#define EAPOL_M4_BIT_MASK			0x0003
 
 /* Tracked Packet types */
 #define QDF_NBUF_TX_PKT_INVALID              0
@@ -64,8 +84,6 @@
 #define QDF_NBUF_TX_PKT_CE                   8
 #define QDF_NBUF_TX_PKT_FREE                 9
 #define QDF_NBUF_TX_PKT_STATE_MAX            10
-
-#define QDF_NBUF_IPA_CHECK_MASK              0x80000000
 
 /**
  * struct mon_rx_status - This will have monitor mode rx_status extracted from
@@ -109,6 +127,23 @@ struct mon_rx_status {
 	uint8_t  ldpc;
 	uint8_t  beamformed;
 };
+
+/* DHCP Related Mask */
+#define QDF_DHCP_OPTION53			(0x35)
+#define QDF_DHCP_OPTION53_LENGTH		(1)
+#define QDF_DHCP_OPTION53_OFFSET		(0x11A)
+#define QDF_DHCP_OPTION53_LENGTH_OFFSET	(0x11B)
+#define QDF_DHCP_OPTION53_STATUS_OFFSET	(0x11C)
+#define QDF_DHCP_DISCOVER			(1)
+#define QDF_DHCP_OFFER				(2)
+#define QDF_DHCP_REQUEST			(3)
+#define QDF_DHCP_DECLINE			(4)
+#define QDF_DHCP_ACK				(5)
+#define QDF_DHCP_NAK				(6)
+#define QDF_DHCP_RELEASE			(7)
+#define QDF_DHCP_INFORM				(8)
+
+#define QDF_NBUF_IPA_CHECK_MASK		0x80000000
 
 /**
  * @qdf_nbuf_t - Platform indepedent packet abstraction
@@ -557,6 +592,17 @@ static inline uint8_t *qdf_nbuf_data(qdf_nbuf_t buf)
 }
 
 /**
+ * qdf_nbuf_data_addr() - Return the address of skb->data
+ * @buf: Network buffer
+ *
+ * Return: Data address
+ */
+static inline uint8_t *qdf_nbuf_data_addr(qdf_nbuf_t buf)
+{
+	return __qdf_nbuf_data_addr(buf);
+}
+
+/**
  * qdf_nbuf_headroom() - amount of headroom int the current nbuf
  * @buf: Network buffer
  *
@@ -991,27 +1037,6 @@ static inline uint8_t qdf_nbuf_trace_get_proto_type(qdf_nbuf_t buf)
 	return __qdf_nbuf_trace_get_proto_type(buf);
 }
 
-#ifdef QCA_PKT_PROTO_TRACE
-/**
- * qdf_nbuf_trace_set_proto_type() - this function updates packet proto type
- * @buf: Network buffer
- * @proto_type: Protocol type
- *
- * Return: none
- */
-static inline void
-qdf_nbuf_trace_set_proto_type(qdf_nbuf_t buf, uint8_t proto_type)
-{
-	__qdf_nbuf_trace_set_proto_type(buf, proto_type);
-}
-#else
-static inline void
-qdf_nbuf_trace_set_proto_type(qdf_nbuf_t buf, uint8_t proto_type)
-{
-	return;
-}
-#endif
-
 /**
  * qdf_nbuf_reg_trace_cb() - this function registers protocol trace callback
  * @cb_func_ptr: Callback pointer
@@ -1023,17 +1048,6 @@ static inline void qdf_nbuf_reg_trace_cb(qdf_nbuf_trace_update_t cb_func_ptr)
 	__qdf_nbuf_reg_trace_cb(cb_func_ptr);
 }
 
-/**
- * qdf_nbuf_trace_update() - this function updates protocol event
- * @buf: Network buffer
- * @event_string: Event string pointer
- *
- * Return: none
- */
-static inline void qdf_nbuf_trace_update(qdf_nbuf_t buf, char *event_string)
-{
-	__qdf_nbuf_trace_update(buf, event_string);
-}
 
 /**
  * qdf_nbuf_set_tx_parallel_dnload_frm() - set tx parallel download
@@ -1064,6 +1078,62 @@ qdf_nbuf_set_tx_parallel_dnload_frm(qdf_nbuf_t buf, uint8_t candi)
 static inline uint8_t qdf_nbuf_get_tx_parallel_dnload_frm(qdf_nbuf_t buf)
 {
 	return __qdf_nbuf_get_tx_htt2_frm(buf);
+}
+
+/**
+ * qdf_nbuf_is_ipv4_pkt() - check if packet is a ipv4 packet or not
+ * @buf:  buffer
+ *
+ * This api is for Tx packets.
+ *
+ * Return: true if packet is ipv4 packet
+ */
+static inline
+bool qdf_nbuf_is_ipv4_pkt(qdf_nbuf_t buf)
+{
+	return __qdf_nbuf_is_ipv4_pkt(buf);
+}
+
+/**
+ * qdf_nbuf_is_ipv4_dhcp_pkt() - check if packet is a dhcp packet or not
+ * @buf:  buffer
+ *
+ * This api is for ipv4 packet.
+ *
+ * Return: true if packet is DHCP packet
+ */
+static inline
+bool qdf_nbuf_is_ipv4_dhcp_pkt(qdf_nbuf_t buf)
+{
+	return __qdf_nbuf_is_ipv4_dhcp_pkt(buf);
+}
+
+/**
+ * qdf_nbuf_is_ipv4_eapol_pkt() - check if packet is a eapol packet or not
+ * @buf:  buffer
+ *
+ * This api is for ipv4 packet.
+ *
+ * Return: true if packet is EAPOL packet
+ */
+static inline
+bool qdf_nbuf_is_ipv4_eapol_pkt(qdf_nbuf_t buf)
+{
+	return __qdf_nbuf_is_ipv4_eapol_pkt(buf);
+}
+
+/**
+ * qdf_nbuf_is_ipv4_arp_pkt() - check if packet is a arp packet or not
+ * @buf:  buffer
+ *
+ * This api is for ipv4 packet.
+ *
+ * Return: true if packet is ARP packet
+ */
+static inline
+bool qdf_nbuf_is_ipv4_arp_pkt(qdf_nbuf_t buf)
+{
+	return __qdf_nbuf_is_ipv4_arp_pkt(buf);
 }
 
 /**
@@ -1099,6 +1169,19 @@ static inline void qdf_invalidate_range(void *start, void *end)
 static inline void qdf_nbuf_reset_num_frags(qdf_nbuf_t buf)
 {
 	__qdf_nbuf_reset_num_frags(buf);
+}
+
+/**
+ * qdf_dmaaddr_to_32s - return high and low parts of dma_addr
+ *
+ * Returns the high and low 32-bits of the DMA addr in the provided ptrs
+ *
+ * Return: N/A
+ */
+static inline void qdf_dmaaddr_to_32s(qdf_dma_addr_t dmaaddr,
+				      uint32_t *lo, uint32_t *hi)
+{
+	return __qdf_dmaaddr_to_32s(dmaaddr, lo, hi);
 }
 
 /**
@@ -1161,7 +1244,6 @@ static inline qdf_nbuf_t qdf_nbuf_inc_users(qdf_nbuf_t nbuf)
 {
 	return __qdf_nbuf_inc_users(nbuf);
 }
-
 
 /**
  * qdf_nbuf_data_attr_get() - Get data_attr field from cvg_nbuf_cb

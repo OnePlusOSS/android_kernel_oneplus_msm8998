@@ -135,6 +135,12 @@ struct qdf_nbuf_cb {
 			uint32_t tcp_seq_num;
 			uint32_t tcp_ack_num;
 			uint32_t flow_id_toeplitz;
+			uint32_t map_index;
+			union {
+				uint8_t packet_state;
+				uint8_t dp_trace:1,
+						rsrvd:7;
+			} trace;
 		} rx; /* 20 bytes */
 
 		/* Note: MAX: 40 bytes */
@@ -150,7 +156,8 @@ struct qdf_nbuf_cb {
 							num:1,
 							flag_chfrag_start:1,
 							flag_chfrag_end:1,
-							reserved:3;
+							flag_ext_header:1,
+							reserved:2;
 					} bits;
 					uint8_t u8;
 				} flags;
@@ -227,6 +234,8 @@ struct qdf_nbuf_cb {
 	(((struct qdf_nbuf_cb *)((skb)->cb))->u.rx.tcp_ack_num)
 #define QDF_NBUF_CB_RX_FLOW_ID_TOEPLITZ(skb) \
 	(((struct qdf_nbuf_cb *)((skb)->cb))->u.rx.flow_id_toeplitz)
+#define QDF_NBUF_CB_RX_DP_TRACE(skb) \
+	(((struct qdf_nbuf_cb *)((skb)->cb))->u.rx.trace.dp_trace)
 
 #define QDF_NBUF_CB_TX_EXTRA_FRAG_VADDR(skb) \
 	(((struct qdf_nbuf_cb *)((skb)->cb))->u.tx.extra_frag.vaddr)
@@ -244,6 +253,9 @@ struct qdf_nbuf_cb {
 #define QDF_NBUF_CB_TX_EXTRA_FRAG_FLAGS_CHFRAG_END(skb) \
 		(((struct qdf_nbuf_cb *) \
 		((skb)->cb))->u.tx.extra_frag.flags.bits.flag_chfrag_end)
+#define QDF_NBUF_CB_TX_EXTRA_FRAG_FLAGS_EXT_HEADER(skb) \
+		(((struct qdf_nbuf_cb *) \
+		((skb)->cb))->u.tx.extra_frag.flags.bits.flag_ext_header)
 #define QDF_NBUF_CB_TX_EXTRA_FRAG_WORDSTR_EFRAG(skb) \
 	(((struct qdf_nbuf_cb *) \
 		((skb)->cb))->u.tx.extra_frag.flags.bits.flag_efrag)
@@ -474,11 +486,10 @@ QDF_STATUS __qdf_nbuf_frag_map(
 	qdf_device_t osdev, __qdf_nbuf_t nbuf,
 	int offset, qdf_dma_dir_t dir, int cur_frag);
 
-#ifdef QCA_PKT_PROTO_TRACE
-void __qdf_nbuf_trace_update(struct sk_buff *buf, char *event_string);
-#else
-#define __qdf_nbuf_trace_update(skb, event_string)
-#endif /* QCA_PKT_PROTO_TRACE */
+bool __qdf_nbuf_is_ipv4_pkt(struct sk_buff *skb);
+bool __qdf_nbuf_is_ipv4_dhcp_pkt(struct sk_buff *skb);
+bool __qdf_nbuf_is_ipv4_eapol_pkt(struct sk_buff *skb);
+bool __qdf_nbuf_is_ipv4_arp_pkt(struct sk_buff *skb);
 
 /**
  * __qdf_to_status() - OS to QDF status conversion
@@ -729,6 +740,11 @@ static inline uint8_t *__qdf_nbuf_head(struct sk_buff *skb)
 static inline uint8_t *__qdf_nbuf_data(struct sk_buff *skb)
 {
 	return skb->data;
+}
+
+static inline uint8_t *__qdf_nbuf_data_addr(struct sk_buff *skb)
+{
+	return (uint8_t *)&skb->data;
 }
 
 /**
@@ -984,6 +1000,9 @@ __qdf_nbuf_set_protocol(struct sk_buff *skb, uint16_t protocol)
 
 #define __qdf_nbuf_get_tx_htt2_frm(skb)	\
 	QDF_NBUF_CB_TX_HL_HTT2_FRM(skb)
+
+void __qdf_dmaaddr_to_32s(qdf_dma_addr_t dmaaddr,
+				      uint32_t *lo, uint32_t *hi);
 
 uint32_t __qdf_nbuf_get_tso_info(qdf_device_t osdev, struct sk_buff *skb,
 	struct qdf_tso_info_t *tso_info);

@@ -329,9 +329,10 @@ static A_STATUS htc_send_bundled_netbuf(HTC_TARGET *target,
 #endif
 	status = hif_send_head(target->hif_dev,
 			       pEndpoint->UL_PipeID,
-			       pEndpoint->Id, data_len, bundleBuf, data_attr);
+			       pEndpoint->Id, data_len,
+			       bundleBuf, data_attr);
 	if (status != A_OK) {
-		qdf_print("%s:hif_send_head failed(len=%d).\n", __FUNCTION__,
+		qdf_print("%s:hif_send_head failed(len=%zu).\n", __func__,
 			  data_len);
 	}
 	return status;
@@ -1410,8 +1411,8 @@ A_STATUS htc_send_data_pkt(HTC_HANDLE HTCHandle, qdf_nbuf_t netbuf, int Epid,
 
 	QDF_NBUF_UPDATE_TX_PKT_COUNT(netbuf, QDF_NBUF_TX_PKT_HTC);
 	DPTRACE(qdf_dp_trace(netbuf, QDF_DP_TRACE_HTC_PACKET_PTR_RECORD,
-				(uint8_t *)(qdf_nbuf_data(netbuf)),
-				sizeof(qdf_nbuf_data(netbuf))));
+				qdf_nbuf_data_addr(netbuf),
+				sizeof(qdf_nbuf_data(netbuf)), QDF_TX));
 	status = hif_send_head(target->hif_dev,
 			       pEndpoint->UL_PipeID,
 			       pEndpoint->Id, ActualLength, netbuf, data_attr);
@@ -1545,8 +1546,8 @@ A_STATUS htc_send_data_pkt(HTC_HANDLE HTCHandle, HTC_PACKET *pPacket,
 	}
 	QDF_NBUF_UPDATE_TX_PKT_COUNT(netbuf, QDF_NBUF_TX_PKT_HTC);
 	DPTRACE(qdf_dp_trace(netbuf, QDF_DP_TRACE_HTC_PACKET_PTR_RECORD,
-				(uint8_t *)(qdf_nbuf_data(netbuf)),
-				sizeof(qdf_nbuf_data(netbuf))));
+				qdf_nbuf_data_addr(netbuf),
+				sizeof(qdf_nbuf_data(netbuf)), QDF_TX));
 
 	/* send what we can */
 	while (true) {

@@ -339,7 +339,6 @@ void qdf_mem_clean(void)
 {
 	uint32_t list_size;
 	list_size = qdf_list_size(&qdf_mem_list);
-	qdf_net_buf_debug_clean();
 	if (list_size) {
 		qdf_list_node_t *node;
 		QDF_STATUS qdf_status;
@@ -861,6 +860,7 @@ void qdf_mem_move(void *dst_addr, const void *src_addr, uint32_t num_bytes)
 }
 EXPORT_SYMBOL(qdf_mem_move);
 
+#if defined(A_SIMOS_DEVHOST) || defined(HIF_SDIO)
 /**
  * qdf_mem_alloc_consistent() - allocates consistent qdf memory
  * @osdev: OS device handle
@@ -873,19 +873,17 @@ EXPORT_SYMBOL(qdf_mem_move);
 void *qdf_mem_alloc_consistent(qdf_device_t osdev, void *dev, qdf_size_t size,
 			       qdf_dma_addr_t *phy_addr)
 {
-#if defined(A_SIMOS_DEVHOST)
-	static int first = 1;
 	void *vaddr;
-
-	if (first) {
-		first = 0;
-		qdf_print("Warning: bypassing %s\n", __func__);
-	}
 
 	vaddr = qdf_mem_malloc(size);
 	*phy_addr = ((qdf_dma_addr_t) vaddr);
 	return vaddr;
+}
+
 #else
+void *qdf_mem_alloc_consistent(qdf_device_t osdev, void *dev, qdf_size_t size,
+			       qdf_dma_addr_t *phy_addr)
+{
 	int flags = GFP_KERNEL;
 	void *alloc_mem = NULL;
 
@@ -897,10 +895,12 @@ void *qdf_mem_alloc_consistent(qdf_device_t osdev, void *dev, qdf_size_t size,
 		qdf_print("%s Warning: unable to alloc consistent memory of size %zu!\n",
 			__func__, size);
 	return alloc_mem;
-#endif
 }
+
+#endif
 EXPORT_SYMBOL(qdf_mem_alloc_consistent);
 
+#if defined(A_SIMOS_DEVHOST) ||  defined(HIF_SDIO)
 /**
  * qdf_mem_free_consistent() - free consistent qdf memory
  * @osdev: OS device handle
@@ -916,19 +916,20 @@ inline void qdf_mem_free_consistent(qdf_device_t osdev, void *dev,
 				    qdf_dma_addr_t phy_addr,
 				    qdf_dma_context_t memctx)
 {
-#if defined(A_SIMOS_DEVHOST)
-	static int first = 1;
-
-	if (first) {
-		first = 0;
-		qdf_print("Warning: bypassing %s\n", __func__);
-	}
 	qdf_mem_free(vaddr);
 	return;
-#else
-	dma_free_coherent(dev, size, vaddr, phy_addr);
-#endif
 }
+
+#else
+inline void qdf_mem_free_consistent(qdf_device_t osdev, void *dev,
+				    qdf_size_t size, void *vaddr,
+				    qdf_dma_addr_t phy_addr,
+				    qdf_dma_context_t memctx)
+{
+	dma_free_coherent(dev, size, vaddr, phy_addr);
+}
+
+#endif
 EXPORT_SYMBOL(qdf_mem_free_consistent);
 
 /**

@@ -218,6 +218,42 @@ enum hif_disable_type {
 	HIF_DISABLE_TYPE_SHUTDOWN,
 	HIF_DISABLE_TYPE_MAX
 };
+/**
+ * enum hif_device_config_opcode: configure mode
+ *
+ * @HIF_DEVICE_POWER_STATE: device power state
+ * @HIF_DEVICE_GET_MBOX_BLOCK_SIZE: get mbox block size
+ * @HIF_DEVICE_GET_MBOX_ADDR: get mbox block address
+ * @HIF_DEVICE_GET_PENDING_EVENTS_FUNC: get pending events functions
+ * @HIF_DEVICE_GET_IRQ_PROC_MODE: get irq proc mode
+ * @HIF_DEVICE_GET_RECV_EVENT_MASK_UNMASK_FUNC: receive event function
+ * @HIF_DEVICE_POWER_STATE_CHANGE: change power state
+ * @HIF_DEVICE_GET_IRQ_YIELD_PARAMS: get yield params
+ * @HIF_CONFIGURE_QUERY_SCATTER_REQUEST_SUPPORT: configure scatter request
+ * @HIF_DEVICE_GET_OS_DEVICE: get OS device
+ * @HIF_DEVICE_DEBUG_BUS_STATE: debug bus state
+ * @HIF_BMI_DONE: bmi done
+ * @HIF_DEVICE_SET_TARGET_TYPE: set target type
+ * @HIF_DEVICE_SET_HTC_CONTEXT: set htc context
+ * @HIF_DEVICE_GET_HTC_CONTEXT: get htc context
+ */
+enum hif_device_config_opcode {
+	HIF_DEVICE_POWER_STATE = 0,
+	HIF_DEVICE_GET_MBOX_BLOCK_SIZE,
+	HIF_DEVICE_GET_MBOX_ADDR,
+	HIF_DEVICE_GET_PENDING_EVENTS_FUNC,
+	HIF_DEVICE_GET_IRQ_PROC_MODE,
+	HIF_DEVICE_GET_RECV_EVENT_MASK_UNMASK_FUNC,
+	HIF_DEVICE_POWER_STATE_CHANGE,
+	HIF_DEVICE_GET_IRQ_YIELD_PARAMS,
+	HIF_CONFIGURE_QUERY_SCATTER_REQUEST_SUPPORT,
+	HIF_DEVICE_GET_OS_DEVICE,
+	HIF_DEVICE_DEBUG_BUS_STATE,
+	HIF_BMI_DONE,
+	HIF_DEVICE_SET_TARGET_TYPE,
+	HIF_DEVICE_SET_HTC_CONTEXT,
+	HIF_DEVICE_GET_HTC_CONTEXT,
+};
 
 #ifdef CONFIG_ATH_PCIE_ACCESS_DEBUG
 typedef struct _HID_ACCESS_LOG {
@@ -238,8 +274,8 @@ struct htc_callbacks {
 	void *context;		/* context to pass to the dsrhandler
 				 * note : rwCompletionHandler is provided
 				 * the context passed to hif_read_write  */
-	int (*rwCompletionHandler)(void *rwContext, int status);
-	int (*dsrHandler)(void *context);
+	QDF_STATUS(*rwCompletionHandler)(void *rwContext, QDF_STATUS status);
+	QDF_STATUS(*dsrHandler)(void *context);
 };
 
 /**
@@ -342,33 +378,10 @@ static inline int hif_ce_fastpath_cb_register(struct hif_opaque_softc *hif_ctx,
  */
 #define CONFIG_DISABLE_CDC_MAX_PERF_WAR 0
 
-#ifdef IPA_OFFLOAD
 void hif_ipa_get_ce_resource(struct hif_opaque_softc *scn,
 			     qdf_dma_addr_t *ce_sr_base_paddr,
 			     uint32_t *ce_sr_ring_size,
 			     qdf_dma_addr_t *ce_reg_paddr);
-#else
-/**
- * hif_ipa_get_ce_resource() - get uc resource on hif
- * @scn: bus context
- * @ce_sr_base_paddr: copyengine source ring base physical address
- * @ce_sr_ring_size: copyengine source ring size
- * @ce_reg_paddr: copyengine register physical address
- *
- * IPA micro controller data path offload feature enabled,
- * HIF should release copy engine related resource information to IPA UC
- * IPA UC will access hardware resource with released information
- *
- * Return: None
- */
-static inline void hif_ipa_get_ce_resource(struct hif_opaque_softc *scn,
-			     qdf_dma_addr_t *ce_sr_base_paddr,
-			     uint32_t *ce_sr_ring_size,
-			     qdf_dma_addr_t *ce_reg_paddr)
-{
-	return;
-}
-#endif /* IPA_OFFLOAD */
 
 /**
  * @brief List of callbacks - filled in by HTC.
@@ -437,12 +450,20 @@ struct hif_pipe_addl_info {
 struct hif_bus_id;
 typedef struct hif_bus_id hif_bus_id;
 
+void hif_claim_device(struct hif_opaque_softc *hif_ctx);
+QDF_STATUS hif_get_config_item(struct hif_opaque_softc *hif_ctx,
+		     int opcode, void *config, uint32_t config_len);
+void hif_set_mailbox_swap(struct hif_opaque_softc *hif_ctx);
+void hif_mask_interrupt_call(struct hif_opaque_softc *scn);
 void hif_post_init(struct hif_opaque_softc *scn, void *hHTC,
 		   struct hif_msg_callbacks *callbacks);
 QDF_STATUS hif_start(struct hif_opaque_softc *scn);
 void hif_stop(struct hif_opaque_softc *scn);
 void hif_flush_surprise_remove(struct hif_opaque_softc *scn);
 void hif_dump(struct hif_opaque_softc *scn, uint8_t CmdId, bool start);
+void hif_trigger_dump(struct hif_opaque_softc *hif_ctx,
+		      uint8_t cmd_id, bool start);
+
 QDF_STATUS hif_send_head(struct hif_opaque_softc *scn, uint8_t PipeID,
 				  uint32_t transferID, uint32_t nbytes,
 				  qdf_nbuf_t wbuf, uint32_t data_attr);
@@ -575,8 +596,8 @@ qdf_nbuf_t hif_batch_send(struct hif_opaque_softc *osc, qdf_nbuf_t msdu,
 		uint32_t transfer_id, u_int32_t len, uint32_t sendhead);
 int hif_send_single(struct hif_opaque_softc *osc, qdf_nbuf_t msdu, uint32_t
 		transfer_id, u_int32_t len);
-int hif_send_fast(struct hif_opaque_softc *osc, qdf_nbuf_t *nbuf_arr, uint32_t
-		num_msdus, uint32_t transfer_id);
+int hif_send_fast(struct hif_opaque_softc *osc, qdf_nbuf_t nbuf,
+	uint32_t transfer_id, uint32_t download_len);
 void hif_pkt_dl_len_set(void *hif_sc, unsigned int pkt_download_len);
 void hif_ce_war_disable(void);
 void hif_ce_war_enable(void);

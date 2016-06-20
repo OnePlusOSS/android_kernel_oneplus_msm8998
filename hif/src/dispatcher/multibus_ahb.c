@@ -48,9 +48,19 @@ QDF_STATUS hif_initialize_ahb_ops(struct hif_bus_ops *bus_ops)
 	bus_ops->hif_enable_bus = &hif_ahb_enable_bus;
 	bus_ops->hif_disable_bus = &hif_ahb_disable_bus;
 	bus_ops->hif_bus_configure = &hif_ahb_bus_configure;
+	bus_ops->hif_get_config_item = &hif_dummy_get_config_item;
+	bus_ops->hif_set_mailbox_swap = &hif_dummy_set_mailbox_swap;
+	bus_ops->hif_claim_device = &hif_dummy_claim_device;
+	bus_ops->hif_shutdown_device = &hif_ce_stop;
+	bus_ops->hif_stop = &hif_ce_stop;
+	bus_ops->hif_cancel_deferred_target_sleep =
+				&hif_dummy_cancel_deferred_target_sleep;
 	bus_ops->hif_irq_disable = &hif_ahb_irq_disable;
 	bus_ops->hif_irq_enable = &hif_ahb_irq_enable;
 	bus_ops->hif_dump_registers = &hif_ahb_dump_registers;
+	bus_ops->hif_dump_target_memory = &hif_dummy_dump_target_memory;
+	bus_ops->hif_ipa_get_ce_resource = &hif_dummy_ipa_get_ce_resource;
+	bus_ops->hif_mask_interrupt_call = &hif_dummy_mask_interrupt_call;
 	bus_ops->hif_enable_power_management =
 		&hif_dummy_enable_power_management;
 	bus_ops->hif_disable_power_management =

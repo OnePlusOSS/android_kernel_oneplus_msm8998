@@ -775,10 +775,19 @@ QDF_STATUS wma_tx_attach(tp_wma_handle wma_handle);
 
 QDF_STATUS wma_tx_detach(tp_wma_handle wma_handle);
 
-#if defined(QCA_LL_LEGACY_TX_FLOW_CONTROL) || defined(QCA_LL_TX_FLOW_CONTROL_V2)
+#if defined(QCA_LL_LEGACY_TX_FLOW_CONTROL) || \
+	defined(QCA_LL_TX_FLOW_CONTROL_V2) || defined(CONFIG_HL_SUPPORT)
+
 int wma_mcc_vdev_tx_pause_evt_handler(void *handle, uint8_t *event,
 					     uint32_t len);
 #endif
+
+#if defined(CONFIG_HL_SUPPORT) && defined(QCA_BAD_PEER_TX_FLOW_CL)
+QDF_STATUS wma_process_init_bad_peer_tx_ctl_info(tp_wma_handle wma,
+					struct t_bad_peer_txtcl_config *config);
+
+#endif
+
 
 QDF_STATUS wma_process_init_thermal_info(tp_wma_handle wma,
 					 t_thermal_mgmt *pThermalParams);
@@ -892,9 +901,6 @@ QDF_STATUS wma_process_lphb_conf_req(tp_wma_handle wma_handle,
 
 QDF_STATUS wma_process_dhcp_ind(tp_wma_handle wma_handle,
 				tAniDHCPInd *ta_dhcp_ind);
-
-WLAN_PHY_MODE wma_chan_phy_mode(u8 chan, enum phy_ch_width chan_width,
-				u8 dot11_mode);
 
 QDF_STATUS wma_get_link_speed(WMA_HANDLE handle, tSirLinkSpeedInfo *pLinkSpeed);
 

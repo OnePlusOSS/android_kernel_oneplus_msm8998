@@ -45,7 +45,6 @@
 #include "cfg_api.h"
 #include "ol_txrx_ctrl_api.h"
 #include <cdp_txrx_tx_delay.h>
-#include "wlan_tgt_def_config.h"
 #include <cdp_txrx_peer_ops.h>
 
 #include "qdf_nbuf.h"
@@ -70,6 +69,7 @@
 #include "dfs.h"
 #include "radar_filters.h"
 #include "wma_internal.h"
+#include "ol_txrx.h"
 
 #ifndef ARRAY_LENGTH
 #define ARRAY_LENGTH(a)         (sizeof(a) / sizeof((a)[0]))
@@ -1174,6 +1174,33 @@ QDF_STATUS wma_remove_beacon_filter(WMA_HANDLE handle,
 	return QDF_STATUS_SUCCESS;
 }
 
+/**
+ * wma_send_adapt_dwelltime_params() - send adaptive dwelltime configuration
+ * params to firmware
+ * @wma_handle:	 wma handler
+ * @dwelltime_params: pointer to dwelltime_params
+ *
+ * Return: QDF_STATUS_SUCCESS on success and QDF failure reason code for failure
+ */
+QDF_STATUS wma_send_adapt_dwelltime_params(WMA_HANDLE handle,
+			struct adaptive_dwelltime_params *dwelltime_params)
+{
+	tp_wma_handle wma_handle = (tp_wma_handle) handle;
+	struct wmi_adaptive_dwelltime_params wmi_param = {0};
+	int32_t err;
+
+	wmi_param.is_enabled = dwelltime_params->is_enabled;
+	wmi_param.dwelltime_mode = dwelltime_params->dwelltime_mode;
+	wmi_param.lpf_weight = dwelltime_params->lpf_weight;
+	wmi_param.passive_mon_intval = dwelltime_params->passive_mon_intval;
+	wmi_param.wifi_act_threshold = dwelltime_params->wifi_act_threshold;
+	err = wmi_unified_send_adapt_dwelltime_params_cmd(wma_handle->
+					wmi_handle, &wmi_param);
+	if (err)
+		return QDF_STATUS_E_FAILURE;
+
+	return QDF_STATUS_SUCCESS;
+}
 
 #ifdef FEATURE_GREEN_AP
 
@@ -5303,20 +5330,33 @@ QDF_STATUS wma_process_del_periodic_tx_ptrn_ind(WMA_HANDLE handle,
 QDF_STATUS wma_stats_ext_req(void *wma_ptr, tpStatsExtRequest preq)
 {
 	tp_wma_handle wma = (tp_wma_handle) wma_ptr;
-	struct stats_ext_params params = {0};
+	struct stats_ext_params *params;
+	size_t params_len;
+	QDF_STATUS status;
 
 	if (!wma) {
 		WMA_LOGE("%s: wma handle is NULL", __func__);
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	params.vdev_id = preq->vdev_id;
-	params.request_data_len = preq->request_data_len;
-	qdf_mem_copy(params.request_data, preq->request_data,
-				params.request_data_len);
+	params_len = sizeof(*params) + preq->request_data_len;
+	params = qdf_mem_malloc(params_len);
 
-	return wmi_unified_stats_ext_req_cmd(wma->wmi_handle,
-					&params);
+	if (params == NULL) {
+		WMA_LOGE(FL("memory allocation failed"));
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	params->vdev_id = preq->vdev_id;
+	params->request_data_len = preq->request_data_len;
+	if (preq->request_data_len > 0)
+		qdf_mem_copy(params->request_data, preq->request_data,
+			     params->request_data_len);
+
+	status = wmi_unified_stats_ext_req_cmd(wma->wmi_handle, params);
+	qdf_mem_free(params);
+
+	return status;
 }
 
 #endif /* WLAN_FEATURE_STATS_EXT */
@@ -5525,23 +5565,32 @@ QDF_STATUS wma_set_auto_shutdown_timer_req(tp_wma_handle wma_handle,
 QDF_STATUS wma_nan_req(void *wma_ptr, tpNanRequest nan_req)
 {
 	tp_wma_handle wma_handle = (tp_wma_handle) wma_ptr;
-	struct nan_req_params params = {0};
+	struct nan_req_params *params;
+	size_t params_len;
+	QDF_STATUS status;
 
 	if (!wma_handle) {
 		WMA_LOGE("%s: wma handle is NULL", __func__);
 		return QDF_STATUS_E_FAILURE;
 	}
-	if (!nan_req) {
-		WMA_LOGE("%s:nan req is not valid", __func__);
-		return QDF_STATUS_E_FAILURE;
+
+	params_len = sizeof(*params) + nan_req->request_data_len;
+	params = qdf_mem_malloc(params_len);
+
+	if (params == NULL) {
+		WMA_LOGE(FL("memory allocation failed"));
+		return QDF_STATUS_E_NOMEM;
 	}
 
-	params.request_data_len = nan_req->request_data_len;
-	qdf_mem_copy(params.request_data, nan_req->request_data,
-					params.request_data_len);
+	params->request_data_len = nan_req->request_data_len;
+	if (params->request_data_len > 0)
+		qdf_mem_copy(params->request_data, nan_req->request_data,
+			     params->request_data_len);
 
-	return wmi_unified_nan_req_cmd(wma_handle->wmi_handle,
-							&params);
+	status = wmi_unified_nan_req_cmd(wma_handle->wmi_handle, params);
+	qdf_mem_free(params);
+
+	return status;
 }
 #endif /* WLAN_FEATURE_NAN */
 
@@ -6400,6 +6449,7 @@ int wma_update_tdls_peer_state(WMA_HANDLE handle,
 	uint8_t *peer_mac_addr;
 	int ret = 0;
 	uint32_t *ch_mhz;
+	bool restore_last_peer = false;
 
 	if (!wma_handle || !wma_handle->wmi_handle) {
 		WMA_LOGE("%s: WMA is closed, can not issue cmd", __func__);
@@ -6451,6 +6501,7 @@ int wma_update_tdls_peer_state(WMA_HANDLE handle,
 			goto end_tdls_peer_state;
 		}
 		peer_mac_addr = ol_txrx_peer_get_peer_mac_addr(peer);
+		restore_last_peer = is_vdev_restore_last_peer(peer);
 
 		WMA_LOGD("%s: calling wma_remove_peer for peer " MAC_ADDRESS_STR
 			 " vdevId: %d", __func__,
@@ -6458,6 +6509,8 @@ int wma_update_tdls_peer_state(WMA_HANDLE handle,
 			 peerStateParams->vdevId);
 		wma_remove_peer(wma_handle, peer_mac_addr,
 				peerStateParams->vdevId, peer, false);
+		ol_txrx_update_last_real_peer(pdev, peer, &peer_id,
+					      restore_last_peer);
 	}
 
 end_tdls_peer_state:

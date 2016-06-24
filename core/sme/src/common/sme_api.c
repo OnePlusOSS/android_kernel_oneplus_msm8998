@@ -7187,6 +7187,8 @@ void sme_update_roam_pno_channel_prediction_config(
 			csr_config->stationary_thresh;
 		mac_ctx->roam.configParam.channel_prediction_full_scan =
 			csr_config->channel_prediction_full_scan;
+		mac_ctx->roam.configParam.pnoscan_adaptive_dwell_mode =
+			csr_config->pnoscan_adaptive_dwell_mode;
 	} else if (copy_from_to == ROAM_CONFIG_TO_SME_CONFIG) {
 		csr_config->pno_channel_prediction =
 			mac_ctx->roam.configParam.pno_channel_prediction;
@@ -7196,6 +7198,8 @@ void sme_update_roam_pno_channel_prediction_config(
 			mac_ctx->roam.configParam.stationary_thresh;
 		csr_config->channel_prediction_full_scan =
 			mac_ctx->roam.configParam.channel_prediction_full_scan;
+		csr_config->pnoscan_adaptive_dwell_mode =
+			mac_ctx->roam.configParam.pnoscan_adaptive_dwell_mode;
 	}
 
 }
@@ -10315,214 +10319,6 @@ QDF_STATUS sme_check_ch_in_band(tpAniSirGlobal mac_ctx, uint8_t start_ch,
 		if (QDF_STATUS_SUCCESS != csr_is_valid_channel(mac_ctx,
 					(start_ch + i*4)))
 			return QDF_STATUS_E_FAILURE;
-	}
-	return QDF_STATUS_SUCCESS;
-}
-
-void sme_set_160bw_params(tpAniSirGlobal mac_ctx, uint8_t channel,
-		struct ch_params_s *ch_params)
-{
-	uint8_t start_ch = 0;
-	QDF_STATUS status = QDF_STATUS_SUCCESS;
-
-	if (channel >= 36 && channel <= 64) {
-		ch_params->center_freq_seg0 = 50;
-		start_ch = 36;
-	} else if (channel >= 100 && channel <= 128) {
-		ch_params->center_freq_seg0 = 114;
-		start_ch = 100;
-	} else {
-		ch_params->ch_width = CH_WIDTH_80MHZ;
-	}
-
-	if (ch_params->ch_width == CH_WIDTH_160MHZ)
-		status = sme_check_ch_in_band(mac_ctx, start_ch, 8);
-
-	if (QDF_STATUS_SUCCESS != status)
-		ch_params->ch_width = CH_WIDTH_80MHZ;
-}
-
-void sme_set_80bw_params(tpAniSirGlobal mac_ctx, uint8_t channel,
-		struct ch_params_s *ch_params)
-{
-	uint8_t start_ch = 0;
-	QDF_STATUS status = QDF_STATUS_SUCCESS;
-
-	if (channel >= 36 && channel <= 48) {
-		ch_params->center_freq_seg0 = 42;
-		start_ch = 36;
-	} else if (channel >= 52 && channel <= 64) {
-		ch_params->center_freq_seg0 = 58;
-		start_ch = 52;
-	} else if (channel >= 100 && channel <= 112) {
-		ch_params->center_freq_seg0 = 106;
-		start_ch = 100;
-	} else if (channel >= 116 && channel <= 128) {
-		ch_params->center_freq_seg0 = 122;
-		start_ch = 116;
-	} else if (channel >= 132 && channel <= 144) {
-		ch_params->center_freq_seg0 = 138;
-		start_ch = 132;
-	} else if (channel >= 149 && channel <= 161) {
-		ch_params->center_freq_seg0 = 155;
-		start_ch = 149;
-	} else {
-		ch_params->ch_width = CH_WIDTH_40MHZ;
-	}
-
-	if (ch_params->ch_width == CH_WIDTH_80MHZ)
-		status = sme_check_ch_in_band(mac_ctx, start_ch, 4);
-
-	if (QDF_STATUS_SUCCESS != status)
-		ch_params->ch_width = CH_WIDTH_40MHZ;
-}
-
-void sme_set_40bw_params(tpAniSirGlobal mac_ctx, uint8_t channel,
-			 struct ch_params_s *ch_params, uint8_t is_11ac_mode)
-{
-	uint8_t tmp;
-	uint8_t center_freq = 0;
-	uint8_t start_ch = 0;
-	QDF_STATUS status = QDF_STATUS_SUCCESS;
-
-	if (channel == 165) {
-		ch_params->ch_width = CH_WIDTH_20MHZ;
-		ch_params->center_freq_seg0 = 0;
-		ch_params->sec_ch_offset = PHY_SINGLE_CHANNEL_CENTERED;
-		return;
-	}
-	tmp = channel % 2;
-	if ((channel - tmp) % 8) {
-		ch_params->sec_ch_offset = PHY_DOUBLE_CHANNEL_LOW_PRIMARY;
-		center_freq = channel + 2;
-	} else {
-		ch_params->sec_ch_offset = PHY_DOUBLE_CHANNEL_HIGH_PRIMARY;
-		center_freq = channel - 2;
-	}
-	if ((!is_11ac_mode) || (is_11ac_mode &&
-				(ch_params->ch_width == CH_WIDTH_40MHZ))) {
-		ch_params->ch_width = CH_WIDTH_40MHZ;
-		ch_params->center_freq_seg0 = center_freq;
-
-		if (channel <= 40)
-			start_ch = 36;
-		else if (channel <= 48)
-			start_ch = 44;
-		else if (channel <= 56)
-			start_ch = 52;
-		else if (channel <= 64)
-			start_ch = 60;
-		else if (channel <= 104)
-			start_ch = 100;
-		else if (channel <= 112)
-			start_ch = 108;
-		else if (channel <= 120)
-			start_ch = 116;
-		else if (channel <= 128)
-			start_ch = 124;
-		else if (channel <= 136)
-			start_ch = 132;
-		else if (channel <= 144)
-			start_ch = 140;
-		else if (channel <= 153)
-			start_ch = 149;
-		else if (channel <= 161)
-			start_ch = 157;
-
-		status = sme_check_ch_in_band(mac_ctx, start_ch, 2);
-
-		if (QDF_STATUS_SUCCESS != status) {
-			ch_params->ch_width = CH_WIDTH_20MHZ;
-			ch_params->center_freq_seg0 = 0;
-			ch_params->sec_ch_offset = PHY_SINGLE_CHANNEL_CENTERED;
-		}
-	}
-}
-
-/*
- * SME API to determine the channel bonding mode
- */
-QDF_STATUS sme_set_ch_params(tHalHandle hHal, eCsrPhyMode eCsrPhyMode,
-			     uint8_t channel, uint8_t ht_sec_ch,
-			     struct ch_params_s *ch_params)
-{
-	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hHal);
-	int is_11ac_mode = CSR_IS_PHY_MODE_11ac(eCsrPhyMode);
-
-	if (!CSR_IS_PHY_MODE_11n(eCsrPhyMode) ||
-		ch_params->ch_width == CH_WIDTH_20MHZ ||
-		QDF_STATUS_SUCCESS != csr_is_valid_channel(mac_ctx, channel)) {
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-			"%s: Invalid Channel/phymode config: CB Mode disabled",
-								__func__);
-		ch_params->ch_width = CH_WIDTH_20MHZ;
-		ch_params->sec_ch_offset = PHY_SINGLE_CHANNEL_CENTERED;
-		if (channel <= 14)
-			mac_ctx->roam.configParam.channelBondingMode24GHz =
-					PHY_SINGLE_CHANNEL_CENTERED;
-		else
-			mac_ctx->roam.configParam.channelBondingMode5GHz =
-					PHY_SINGLE_CHANNEL_CENTERED;
-		return QDF_STATUS_SUCCESS;
-	}
-
-	sms_log(mac_ctx, LOGW, "%s: channel - %d, vht channel width - %d",
-				__func__, channel, ch_params->ch_width);
-
-	if (CDS_IS_CHANNEL_5GHZ(channel)) {
-		if (ch_params->ch_width == CH_WIDTH_160MHZ)
-			sme_set_160bw_params(mac_ctx, channel, ch_params);
-		if ((ch_params->ch_width == CH_WIDTH_80MHZ) ||
-		   (ch_params->ch_width == CH_WIDTH_80P80MHZ))
-			sme_set_80bw_params(mac_ctx, channel, ch_params);
-
-		sme_set_40bw_params(mac_ctx, channel,
-					ch_params, is_11ac_mode);
-
-		mac_ctx->roam.configParam.channelBondingMode5GHz =
-			ch_params->sec_ch_offset;
-	} else if (CDS_IS_CHANNEL_24GHZ(channel)) {
-		if (channel >= 1 && channel < 5) {
-			ch_params->ch_width = CH_WIDTH_40MHZ;
-			ch_params->sec_ch_offset =
-				PHY_DOUBLE_CHANNEL_LOW_PRIMARY;
-			ch_params->center_freq_seg0 = channel + 2;
-		} else if (channel >= 5 && channel <= 9) {
-			ch_params->ch_width = CH_WIDTH_40MHZ;
-			if (0 != ht_sec_ch) {
-				if (ht_sec_ch > channel) {
-					ch_params->sec_ch_offset =
-						PHY_DOUBLE_CHANNEL_LOW_PRIMARY;
-					ch_params->center_freq_seg0 =
-						channel + 2;
-				} else {
-					ch_params->sec_ch_offset =
-						PHY_DOUBLE_CHANNEL_HIGH_PRIMARY;
-					ch_params->center_freq_seg0 =
-						channel - 2;
-				}
-			} else {
-				/* in case ht_sec_ch is not set by ACS or
-				 * calling function, set the secondary channel
-				 * offset value to lower channel
-				 */
-				ch_params->sec_ch_offset =
-					PHY_DOUBLE_CHANNEL_HIGH_PRIMARY;
-				ch_params->center_freq_seg0 = channel - 2;
-			}
-		} else if (channel > 9 && channel <= 13) {
-			ch_params->ch_width = CH_WIDTH_40MHZ;
-			ch_params->sec_ch_offset =
-				PHY_DOUBLE_CHANNEL_HIGH_PRIMARY;
-			ch_params->center_freq_seg0 = channel - 2;
-		} else if (channel == 14) {
-			ch_params->ch_width = CH_WIDTH_20MHZ;
-			ch_params->sec_ch_offset =
-				PHY_SINGLE_CHANNEL_CENTERED;
-			ch_params->center_freq_seg0 = 0;
-		}
-		mac_ctx->roam.configParam.channelBondingMode24GHz =
-			ch_params->sec_ch_offset;
 	}
 	return QDF_STATUS_SUCCESS;
 }
@@ -15744,6 +15540,20 @@ QDF_STATUS sme_bpf_offload_register_callback(tHalHandle hal,
 }
 
 /**
+ * sme_get_wni_dot11_mode() - return configured wni dot11mode
+ * @hal: hal pointer
+ *
+ * Return: wni dot11 mode.
+ */
+uint32_t sme_get_wni_dot11_mode(tHalHandle hal)
+{
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+
+	return csr_translate_to_wni_cfg_dot11_mode(mac_ctx,
+		mac_ctx->roam.configParam.uCfgDot11Mode);
+}
+
+/**
  * sme_create_mon_session() - post message to create PE session for monitormode
  * operation
  * @hal_handle: Handle to the HAL
@@ -15762,6 +15572,47 @@ QDF_STATUS sme_create_mon_session(tHalHandle hal_handle, tSirMacAddr bss_id)
 		msg->msg_len = sizeof(*msg);
 		qdf_mem_copy(msg->bss_id.bytes, bss_id, QDF_MAC_ADDR_SIZE);
 		status = cds_send_mb_message_to_mac(msg);
+	}
+	return status;
+}
+
+
+/**
+ * sme_set_adaptive_dwelltime_config() - Update Adaptive dwelltime configuration
+ * @hal: The handle returned by macOpen
+ * @params: adaptive_dwelltime_params config
+ *
+ * Return: QDF_STATUS if adaptive dwell time update
+ * configuration sucsess else failure status
+ */
+QDF_STATUS sme_set_adaptive_dwelltime_config(tHalHandle hal,
+			struct adaptive_dwelltime_params *params)
+{
+	cds_msg_t message;
+	QDF_STATUS status;
+	struct adaptive_dwelltime_params *dwelltime_params;
+
+	dwelltime_params = qdf_mem_malloc(sizeof(*dwelltime_params));
+	if (NULL == dwelltime_params) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+				"%s: fail to alloc dwelltime_params", __func__);
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	dwelltime_params->is_enabled = params->is_enabled;
+	dwelltime_params->dwelltime_mode = params->dwelltime_mode;
+	dwelltime_params->lpf_weight = params->lpf_weight;
+	dwelltime_params->passive_mon_intval = params->passive_mon_intval;
+	dwelltime_params->wifi_act_threshold = params->wifi_act_threshold;
+
+	message.type = WMA_SET_ADAPT_DWELLTIME_CONF_PARAMS;
+	message.bodyptr = dwelltime_params;
+	status = cds_mq_post_message(QDF_MODULE_ID_WMA, &message);
+	if (!QDF_IS_STATUS_SUCCESS(status)) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			"%s: Not able to post msg to WMA!", __func__);
+
+		qdf_mem_free(dwelltime_params);
 	}
 	return status;
 }

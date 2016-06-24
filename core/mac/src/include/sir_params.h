@@ -109,6 +109,7 @@ typedef enum eSriLinkState {
 	eSIR_LINK_POSTASSOC_STATE = 2,
 	eSIR_LINK_AP_STATE = 3,
 	eSIR_LINK_IBSS_STATE = 4,
+	eSIR_LINK_DOWN_STATE = 5,
 } tSirLinkState;
 
 /* / Message queue structure used across Sirius project. */
@@ -591,6 +592,7 @@ typedef struct sSirMbMsgP2p {
 #define SIR_HAL_PDEV_SET_HW_MODE_RESP        (SIR_HAL_ITC_MSG_TYPES_BEGIN + 330)
 #define SIR_HAL_PDEV_HW_MODE_TRANS_IND       (SIR_HAL_ITC_MSG_TYPES_BEGIN + 331)
 
+#define SIR_HAL_BAD_PEER_TX_CTL_INI_CMD     (SIR_HAL_ITC_MSG_TYPES_BEGIN + 332)
 #define SIR_HAL_SET_RSSI_MONITOR_REQ        (SIR_HAL_ITC_MSG_TYPES_BEGIN + 333)
 #define SIR_HAL_SET_IE_INFO                 (SIR_HAL_ITC_MSG_TYPES_BEGIN + 334)
 
@@ -608,6 +610,7 @@ typedef struct sSirMbMsgP2p {
 #define SIR_HAL_BPF_SET_INSTRUCTIONS_REQ    (SIR_HAL_ITC_MSG_TYPES_BEGIN + 342)
 
 #define SIR_HAL_SET_WISA_PARAMS             (SIR_HAL_ITC_MSG_TYPES_BEGIN + 343)
+#define SIR_HAL_SET_ADAPT_DWELLTIME_PARAMS  (SIR_HAL_ITC_MSG_TYPES_BEGIN + 344)
 #define SIR_HAL_MSG_TYPES_END                (SIR_HAL_MSG_TYPES_BEGIN + 0x1FF)
 
 /* CFG message types */

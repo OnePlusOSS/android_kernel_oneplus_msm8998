@@ -1384,16 +1384,16 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 		if (pHostapdAdapter->device_mode == QDF_P2P_GO_MODE) {
 			/* send peer status indication to oem app */
 			hdd_send_peer_status_ind_to_oem_app(&pSapEvent->sapevt.
-							    sapStationAssocReassocCompleteEvent.
-							    staMac, ePeerConnected,
-							    pSapEvent->sapevt.
-							    sapStationAssocReassocCompleteEvent.
-							    timingMeasCap,
-							    pHostapdAdapter->
-							    sessionId,
-							    &pSapEvent->sapevt.
-							    sapStationAssocReassocCompleteEvent.
-							    chan_info);
+					sapStationAssocReassocCompleteEvent.
+					staMac, ePeerConnected,
+					pSapEvent->sapevt.
+					sapStationAssocReassocCompleteEvent.
+					timingMeasCap,
+					pHostapdAdapter->sessionId,
+					&pSapEvent->sapevt.
+					sapStationAssocReassocCompleteEvent.
+					chan_info,
+					pHostapdAdapter->device_mode);
 		}
 		hdd_wlan_green_ap_add_sta(pHddCtx);
 		break;
@@ -1502,11 +1502,12 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 		if (pHostapdAdapter->device_mode == QDF_P2P_GO_MODE) {
 			/* send peer status indication to oem app */
 			hdd_send_peer_status_ind_to_oem_app(&pSapEvent->sapevt.
-							    sapStationDisassocCompleteEvent.
-							    staMac, ePeerDisconnected,
-							    0,
-							    pHostapdAdapter->
-							    sessionId, NULL);
+						sapStationDisassocCompleteEvent.
+						staMac, ePeerDisconnected,
+						0,
+						pHostapdAdapter->sessionId,
+						NULL,
+						pHostapdAdapter->device_mode);
 		}
 #ifdef MSM_PLATFORM
 		/*stop timer in sap/p2p_go */
@@ -7308,7 +7309,6 @@ int wlan_hdd_setup_driver_overrides(hdd_adapter_t *ap_adapter)
 {
 	tsap_Config_t *sap_cfg = &ap_adapter->sessionCtx.ap.sapConfig;
 	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(ap_adapter);
-	tHalHandle h_hal = WLAN_HDD_GET_HAL_CTX(ap_adapter);
 
 	if (ap_adapter->device_mode == QDF_SAP_MODE &&
 				hdd_ctx->config->force_sap_acs)
@@ -7342,7 +7342,7 @@ int wlan_hdd_setup_driver_overrides(hdd_adapter_t *ap_adapter)
 				eHT_CHANNEL_WIDTH_20MHZ;
 	}
 	sap_cfg->ch_params.ch_width = sap_cfg->ch_width_orig;
-	sme_set_ch_params(h_hal, sap_cfg->SapHw_mode, sap_cfg->channel,
+	cds_set_channel_params(sap_cfg->channel,
 				sap_cfg->sec_ch, &sap_cfg->ch_params);
 
 	return 0;

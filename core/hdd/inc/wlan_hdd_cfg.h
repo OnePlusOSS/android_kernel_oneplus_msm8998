@@ -1481,6 +1481,138 @@ typedef enum {
 #define CFG_ALLOW_MCC_GO_DIFF_BI_MAX            (4)
 #define CFG_ALLOW_MCC_GO_DIFF_BI_DEFAULT        (4)
 
+#if defined(CONFIG_HL_SUPPORT) && defined(QCA_BAD_PEER_TX_FLOW_CL)
+/*
+ * Enable/Disable Bad Peer TX CTL feature
+ * Default: Enable
+ */
+#define CFG_BAD_PEER_TX_CTL_ENABLE_NAME		"gBadPeerTxCtlEnable"
+#define CFG_BAD_PEER_TX_CTL_ENABLE_MIN         (0)
+#define CFG_BAD_PEER_TX_CTL_ENABLE_MAX         (1)
+#define CFG_BAD_PEER_TX_CTL_ENABLE_DEFAULT     (1)
+
+#define CFG_BAD_PEER_TX_CTL_PERIOD_NAME		"gBadPeerTxCtlPeriod"
+#define CFG_BAD_PEER_TX_CTL_PERIOD_MIN         (10)
+#define CFG_BAD_PEER_TX_CTL_PERIOD_MAX         (10000)
+#define CFG_BAD_PEER_TX_CTL_PERIOD_DEFAULT     (50)
+
+#define CFG_BAD_PEER_TX_CTL_TXQ_LIMIT_NAME	"gBadPeerTxCtlTxqLimit"
+#define CFG_BAD_PEER_TX_CTL_TXQ_LIMIT_MIN      (1)
+#define CFG_BAD_PEER_TX_CTL_TXQ_LIMIT_MAX      (5000)
+#define CFG_BAD_PEER_TX_CTL_TXQ_LIMIT_DEFAULT  (100)
+
+#define CFG_BAD_PEER_TX_CTL_TGT_BACKOFF_T_NAME	"gBadPeerTxCtlTgtBackoffTime"
+#define CFG_BAD_PEER_TX_CTL_TGT_BACKOFF_T_MIN     (1)
+#define CFG_BAD_PEER_TX_CTL_TGT_BACKOFF_T_MAX     (5000)
+#define CFG_BAD_PEER_TX_CTL_TGT_BACKOFF_T_DEFAULT (20)
+
+#define CFG_BAD_PEER_TX_CTL_TGT_REPORT_PRD_NAME	"gBadPeerTxCtlTgtReportPeriod"
+#define CFG_BAD_PEER_TX_CTL_TGT_REPORT_PRD_MIN     (1)
+#define CFG_BAD_PEER_TX_CTL_TGT_REPORT_PRD_MAX     (5000)
+#define CFG_BAD_PEER_TX_CTL_TGT_REPORT_PRD_DEFAULT (500)
+
+#define CFG_BAD_PEER_TX_CTL_COND_LEVEL_IEEEB_NAME	"gBadPeerTxCtlCondLevelIeeeB"
+#define CFG_BAD_PEER_TX_CTL_COND_LEVEL_IEEEB_MIN     (1)
+#define CFG_BAD_PEER_TX_CTL_COND_LEVEL_IEEEB_MAX     (2)
+#define CFG_BAD_PEER_TX_CTL_COND_LEVEL_IEEEB_DEFAULT (2)
+
+#define CFG_BAD_PEER_TX_CTL_DELTA_LEVEL_IEEEB_NAME	"gBadPeerTxCtlDeltaLevelIeeeB"
+#define CFG_BAD_PEER_TX_CTL_DELTA_LEVEL_IEEEB_MIN     (1)
+#define CFG_BAD_PEER_TX_CTL_DELTA_LEVEL_IEEEB_MAX     (11)
+#define CFG_BAD_PEER_TX_CTL_DELTA_LEVEL_IEEEB_DEFAULT (2)
+
+#define CFG_BAD_PEER_TX_CTL_PCT_LEVEL_IEEEB_NAME	"gBadPeerTxCtlPctLevelIeeeB"
+#define CFG_BAD_PEER_TX_CTL_PCT_LEVEL_IEEEB_MIN        (1)
+#define CFG_BAD_PEER_TX_CTL_PCT_LEVEL_IEEEB_MAX        (8)
+#define CFG_BAD_PEER_TX_CTL_PCT_LEVEL_IEEEB_DEFAULT    (1)
+
+#define CFG_BAD_PEER_TX_CTL_TPUT_LEVEL_IEEEB_NAME	"gBadPeerTxCtlTputLevelIeeeB"
+#define CFG_BAD_PEER_TX_CTL_TPUT_LEVEL_IEEEB_MIN       (1)
+#define CFG_BAD_PEER_TX_CTL_TPUT_LEVEL_IEEEB_MAX       (11)
+#define CFG_BAD_PEER_TX_CTL_TPUT_LEVEL_IEEEB_DEFAULT   (2)
+
+#define CFG_BAD_PEER_TX_CTL_TX_LIMIT_LEVEL_IEEEB_NAME	"gBadPeerTxCtlTxLimitLevelIeeeB"
+#define CFG_BAD_PEER_TX_CTL_TX_LIMIT_LEVEL_IEEEB_MIN      (0)
+#define CFG_BAD_PEER_TX_CTL_TX_LIMIT_LEVEL_IEEEB_MAX      (50)
+#define CFG_BAD_PEER_TX_CTL_TX_LIMIT_LEVEL_IEEEB_DEFAULT  (3)
+
+#define CFG_BAD_PEER_TX_CTL_COND_LEVEL_IEEEAG_NAME	"gBadPeerTxCtlCondLevelIeeeAG"
+#define CFG_BAD_PEER_TX_CTL_COND_LEVEL_IEEEAG_MIN         (1)
+#define CFG_BAD_PEER_TX_CTL_COND_LEVEL_IEEEAG_MAX         (2)
+#define CFG_BAD_PEER_TX_CTL_COND_LEVEL_IEEEAG_DEFAULT     (2)
+
+#define CFG_BAD_PEER_TX_CTL_DELTA_LEVEL_IEEEAG_NAME	"gBadPeerTxCtlDeltaLevelIeeeAG"
+#define CFG_BAD_PEER_TX_CTL_DELTA_LEVEL_IEEEAG_MIN        (6)
+#define CFG_BAD_PEER_TX_CTL_DELTA_LEVEL_IEEEAG_MAX        (54)
+#define CFG_BAD_PEER_TX_CTL_DELTA_LEVEL_IEEEAG_DEFAULT    (6)
+
+#define CFG_BAD_PEER_TX_CTL_PCT_LEVEL_IEEEAG_NAME	"gBadPeerTxCtlPctLevelIeeeAG"
+#define CFG_BAD_PEER_TX_CTL_PCT_LEVEL_IEEEAG_MIN          (1)
+#define CFG_BAD_PEER_TX_CTL_PCT_LEVEL_IEEEAG_MAX          (8)
+#define CFG_BAD_PEER_TX_CTL_PCT_LEVEL_IEEEAG_DEFAULT      (1)
+
+#define CFG_BAD_PEER_TX_CTL_TPUT_LEVEL_IEEEAG_NAME	"gBadPeerTxCtlTputLevelIeeeAG"
+#define CFG_BAD_PEER_TX_CTL_TPUT_LEVEL_IEEEAG_MIN         (6)
+#define CFG_BAD_PEER_TX_CTL_TPUT_LEVEL_IEEEAG_MAX         (54)
+#define CFG_BAD_PEER_TX_CTL_TPUT_LEVEL_IEEEAG_DEFAULT     (6)
+
+#define CFG_BAD_PEER_TX_CTL_TX_LIMIT_LEVEL_IEEEAG_NAME	"gBadPeerTxCtlTxLimitLevelIeeeAG"
+#define CFG_BAD_PEER_TX_CTL_TX_LIMIT_LEVEL_IEEEAG_MIN     (0)
+#define CFG_BAD_PEER_TX_CTL_TX_LIMIT_LEVEL_IEEEAG_MAX     (50)
+#define CFG_BAD_PEER_TX_CTL_TX_LIMIT_LEVEL_IEEEAG_DEFAULT (3)
+
+#define CFG_BAD_PEER_TX_CTL_COND_LEVEL_IEEEN_NAME	"gBadPeerTxCtlCondLevelIeeeN"
+#define CFG_BAD_PEER_TX_CTL_COND_LEVEL_IEEEN_MIN          (1)
+#define CFG_BAD_PEER_TX_CTL_COND_LEVEL_IEEEN_MAX          (2)
+#define CFG_BAD_PEER_TX_CTL_COND_LEVEL_IEEEN_DEFAULT      (2)
+
+#define CFG_BAD_PEER_TX_CTL_DELTA_LEVEL_IEEEN_NAME	"gBadPeerTxCtlDeltaLevelIeeeN"
+#define CFG_BAD_PEER_TX_CTL_DELTA_LEVEL_IEEEN_MIN         (6)
+#define CFG_BAD_PEER_TX_CTL_DELTA_LEVEL_IEEEN_MAX         (72)
+#define CFG_BAD_PEER_TX_CTL_DELTA_LEVEL_IEEEN_DEFAULT     (6)
+
+#define CFG_BAD_PEER_TX_CTL_PCT_LEVEL_IEEEN_NAME	"gBadPeerTxCtlPctLevelIeeeN"
+#define CFG_BAD_PEER_TX_CTL_PCT_LEVEL_IEEEN_MIN           (1)
+#define CFG_BAD_PEER_TX_CTL_PCT_LEVEL_IEEEN_MAX           (8)
+#define CFG_BAD_PEER_TX_CTL_PCT_LEVEL_IEEEN_DEFAULT       (1)
+
+#define CFG_BAD_PEER_TX_CTL_TPUT_LEVEL_IEEEN_NAME	"gBadPeerTxCtlTputLevelIeeeN"
+#define CFG_BAD_PEER_TX_CTL_TPUT_LEVEL_IEEEN_MIN          (6)
+#define CFG_BAD_PEER_TX_CTL_TPUT_LEVEL_IEEEN_MAX          (72)
+#define CFG_BAD_PEER_TX_CTL_TPUT_LEVEL_IEEEN_DEFAULT      (15)
+
+#define CFG_BAD_PEER_TX_CTL_TX_LIMIT_LEVEL_IEEEN_NAME	"gBadPeerTxCtlTxLimitLevelIeeeN"
+#define CFG_BAD_PEER_TX_CTL_TX_LIMIT_LEVEL_IEEEN_MIN      (0)
+#define CFG_BAD_PEER_TX_CTL_TX_LIMIT_LEVEL_IEEEN_MAX      (50)
+#define CFG_BAD_PEER_TX_CTL_TX_LIMIT_LEVEL_IEEEN_DEFAULT  (3)
+
+#define CFG_BAD_PEER_TX_CTL_COND_LEVEL_IEEEAC_NAME	"gBadPeerTxCtlCondLevelIeeeAC"
+#define CFG_BAD_PEER_TX_CTL_COND_LEVEL_IEEEAC_MIN         (1)
+#define CFG_BAD_PEER_TX_CTL_COND_LEVEL_IEEEAC_MAX         (2)
+#define CFG_BAD_PEER_TX_CTL_COND_LEVEL_IEEEAC_DEFAULT     (2)
+
+#define CFG_BAD_PEER_TX_CTL_DELTA_LEVEL_IEEEAC_NAME	"gBadPeerTxCtlDeltaLevelIeeeAC"
+#define CFG_BAD_PEER_TX_CTL_DELTA_LEVEL_IEEEAC_MIN        (6)
+#define CFG_BAD_PEER_TX_CTL_DELTA_LEVEL_IEEEAC_MAX        (433)
+#define CFG_BAD_PEER_TX_CTL_DELTA_LEVEL_IEEEAC_DEFAULT    (6)
+
+#define CFG_BAD_PEER_TX_CTL_PCT_LEVEL_IEEEAC_NAME	"gBadPeerTxCtlPctLevelIeeeAC"
+#define CFG_BAD_PEER_TX_CTL_PCT_LEVEL_IEEEAC_MIN          (1)
+#define CFG_BAD_PEER_TX_CTL_PCT_LEVEL_IEEEAC_MAX          (8)
+#define CFG_BAD_PEER_TX_CTL_PCT_LEVEL_IEEEAC_DEFAULT      (1)
+
+#define CFG_BAD_PEER_TX_CTL_TPUT_LEVEL_IEEEAC_NAME	"gBadPeerTxCtlTputLevelIeeeAC"
+#define CFG_BAD_PEER_TX_CTL_TPUT_LEVEL_IEEEAC_MIN         (6)
+#define CFG_BAD_PEER_TX_CTL_TPUT_LEVEL_IEEEAC_MAX         (433)
+#define CFG_BAD_PEER_TX_CTL_TPUT_LEVEL_IEEEAC_DEFAULT     (15)
+
+#define CFG_BAD_PEER_TX_CTL_TX_LIMIT_LEVEL_IEEEAC_NAME    "gBadPeerTxCtlTxLimitLevelIeeeAC"
+#define CFG_BAD_PEER_TX_CTL_TX_LIMIT_LEVEL_IEEEAC_MIN     (0)
+#define CFG_BAD_PEER_TX_CTL_TX_LIMIT_LEVEL_IEEEAC_MAX     (50)
+#define CFG_BAD_PEER_TX_CTL_TX_LIMIT_LEVEL_IEEEAC_DEFAULT (3)
+#endif
+
+
 /*
  * Enable/Disable Thermal Mitigation feature
  * Default: Enable
@@ -3116,6 +3248,123 @@ enum dot11p_mode {
 #define CFG_ENABLE_DP_TRACE_MAX		(1)
 #define CFG_ENABLE_DP_TRACE_DEFAULT	(1)
 
+/*
+ * This parameter will globally disable/enable the adaptive dwell config.
+ * Scan dwell time optimization
+ * Following parameters will set different values of attributes for dwell
+ * time optimization thus reducing total scan time.
+ */
+
+/*
+ * This parameter will globally disable/enable the adaptive dwell config.
+ * Acceptable values for this:
+ * 0: Config is disabled
+ * 1: Config is enabled
+ */
+#define CFG_ADAPTIVE_DWELL_MODE_ENABLED_NAME      "adaptive_dwell_mode_enabled"
+#define CFG_ADAPTIVE_DWELL_MODE_ENABLED_MIN       (0)
+#define CFG_ADAPTIVE_DWELL_MODE_ENABLED_MAX       (1)
+#define CFG_ADAPTIVE_DWELL_MODE_ENABLED_DEFAULT   (0)
+
+/*
+ * This parameter will set default adaptive mode, will be used if any of the
+ * scan dwell mode is set to default.
+ * For uses : see enum wmi_dwelltime_adaptive_mode
+ */
+#define CFG_GLOBAL_ADAPTIVE_DWELL_MODE_NAME       "global_adapt_dwelltime_mode"
+#define CFG_GLOBAL_ADAPTIVE_DWELL_MODE_MIN        (0)
+#define CFG_GLOBAL_ADAPTIVE_DWELL_MODE_MAX        (4)
+#define CFG_GLOBAL_ADAPTIVE_DWELL_MODE_DEFAULT    (0)
+
+/*
+ * This parameter will set the weight to calculate the average low pass
+ * filter for channel congestion.
+ * Acceptable values for this: 0-100 (In %)
+ */
+#define CFG_ADAPT_DWELL_LPF_WEIGHT_NAME       "adapt_dwell_lpf_weight"
+#define CFG_ADAPT_DWELL_LPF_WEIGHT_MIN        (0)
+#define CFG_ADAPT_DWELL_LPF_WEIGHT_MAX        (100)
+#define CFG_ADAPT_DWELL_LPF_WEIGHT_DEFAULT    (80)
+
+/*
+ * This parameter will set interval to monitor wifi activity
+ * in passive scan in msec.
+ * Acceptable values for this: 0-25
+ */
+#define CFG_ADAPT_DWELL_PASMON_INTVAL_NAME     "adapt_dwell_passive_mon_intval"
+#define CFG_ADAPT_DWELL_PASMON_INTVAL_MIN      (0)
+#define CFG_ADAPT_DWELL_PASMON_INTVAL_MAX      (10)
+#define CFG_ADAPT_DWELL_PASMON_INTVAL_DEFAULT  (25)
+
+/*
+ * This parameter will set % of wifi activity used in passive scan 0-100.
+ * Acceptable values for this: 0-100 (in %)
+ */
+#define CFG_ADAPT_DWELL_WIFI_THRESH_NAME       "adapt_dwell_wifi_act_threshold"
+#define CFG_ADAPT_DWELL_WIFI_THRESH_MIN        (0)
+#define CFG_ADAPT_DWELL_WIFI_THRESH_MAX        (100)
+#define CFG_ADAPT_DWELL_WIFI_THRESH_DEFAULT    (10)
+
+/*
+ * This parameter will set the algo used in dwell time optimization during
+ * host scan. see enum wmi_dwelltime_adaptive_mode.
+ * Acceptable values for this:
+ * 0: Default (Use firmware default mode)
+ * 1: Conservative optimization
+ * 2: Moderate optimization
+ * 3: Aggressive optimization
+ * 4: Static
+ */
+#define CFG_ADAPTIVE_SCAN_DWELL_MODE_NAME        "hostscan_adaptive_dwell_mode"
+#define CFG_ADAPTIVE_SCAN_DWELL_MODE_MIN         (0)
+#define CFG_ADAPTIVE_SCAN_DWELL_MODE_MAX         (4)
+#define CFG_ADAPTIVE_SCAN_DWELL_MODE_DEFAULT     (0)
+
+/*
+ * This parameter will set the algo used in dwell time optimization during
+ * roam scan. see enum wmi_dwelltime_adaptive_mode.
+ * Acceptable values for this:
+ * 0: Default (Use firmware default mode)
+ * 1: Conservative optimization
+ * 2: Moderate optimization
+ * 3: Aggressive optimization
+ * 4: Static
+ */
+#define CFG_ADAPTIVE_ROAMSCAN_DWELL_MODE_NAME    "roamscan_adaptive_dwell_mode"
+#define CFG_ADAPTIVE_ROAMSCAN_DWELL_MODE_MIN     (0)
+#define CFG_ADAPTIVE_ROAMSCAN_DWELL_MODE_MAX     (4)
+#define CFG_ADAPTIVE_ROAMSCAN_DWELL_MODE_DEFAULT (0)
+
+/*
+ * This parameter will set the algo used in dwell time optimization during
+ * ext scan. see enum wmi_dwelltime_adaptive_mode.
+ * Acceptable values for this:
+ * 0: Default (Use firmware default mode)
+ * 1: Conservative optimization
+ * 2: Moderate optimization
+ * 3: Aggressive optimization
+ * 4: Static
+ */
+#define CFG_ADAPTIVE_EXTSCAN_DWELL_MODE_NAME     "extscan_adaptive_dwell_mode"
+#define CFG_ADAPTIVE_EXTSCAN_DWELL_MODE_MIN      (0)
+#define CFG_ADAPTIVE_EXTSCAN_DWELL_MODE_MAX      (4)
+#define CFG_ADAPTIVE_EXTSCAN_DWELL_MODE_DEFAULT  (0)
+
+/*
+ * This parameter will set the algo used in dwell time optimization during
+ * pno scan. see enum wmi_dwelltime_adaptive_mode.
+ * Acceptable values for this:
+ * 0: Default (Use firmware default mode)
+ * 1: Conservative optimization
+ * 2: Moderate optimization
+ * 3: Aggressive optimization
+ * 4: Static
+ */
+#define CFG_ADAPTIVE_PNOSCAN_DWELL_MODE_NAME     "pnoscan_adaptive_dwell_mode"
+#define CFG_ADAPTIVE_PNOSCAN_DWELL_MODE_MIN      (0)
+#define CFG_ADAPTIVE_PNOSCAN_DWELL_MODE_MAX      (4)
+#define CFG_ADAPTIVE_PNOSCAN_DWELL_MODE_DEFAULT  (0)
+
 /*---------------------------------------------------------------------------
    Type declarations
    -------------------------------------------------------------------------*/
@@ -3395,6 +3644,33 @@ struct hdd_config {
 	uint32_t throttle_dutycycle_level1;
 	uint32_t throttle_dutycycle_level2;
 	uint32_t throttle_dutycycle_level3;
+#if defined(CONFIG_HL_SUPPORT) && defined(QCA_BAD_PEER_TX_FLOW_CL)
+	bool bad_peer_txctl_enable;
+	uint32_t bad_peer_txctl_prd;
+	uint32_t bad_peer_txctl_txq_lmt;
+	uint32_t bad_peer_tgt_backoff;
+	uint32_t bad_peer_tgt_report_prd;
+	uint32_t bad_peer_cond_ieee80211b;
+	uint32_t bad_peer_delta_ieee80211b;
+	uint32_t bad_peer_pct_ieee80211b;
+	uint32_t bad_peer_tput_ieee80211b;
+	uint32_t bad_peer_limit_ieee80211b;
+	uint32_t bad_peer_cond_ieee80211ag;
+	uint32_t bad_peer_delta_ieee80211ag;
+	uint32_t bad_peer_pct_ieee80211ag;
+	uint32_t bad_peer_tput_ieee80211ag;
+	uint32_t bad_peer_limit_ieee80211ag;
+	uint32_t bad_peer_cond_ieee80211n;
+	uint32_t bad_peer_delta_ieee80211n;
+	uint32_t bad_peer_pct_ieee80211n;
+	uint32_t bad_peer_tput_ieee80211n;
+	uint32_t bad_peer_limit_ieee80211n;
+	uint32_t bad_peer_cond_ieee80211ac;
+	uint32_t bad_peer_delta_ieee80211ac;
+	uint32_t bad_peer_pct_ieee80211ac;
+	uint32_t bad_peer_tput_ieee80211ac;
+	uint32_t bad_peer_limit_ieee80211ac;
+#endif
 	uint8_t vhtChannelWidth;
 	uint8_t vhtRxMCS;
 	uint8_t vhtTxMCS;
@@ -3736,6 +4012,15 @@ struct hdd_config {
 	bool enable_fatal_event;
 	bool bpf_enabled;
 	bool enable_dp_trace;
+	bool adaptive_dwell_mode_enabled;
+	enum wmi_dwelltime_adaptive_mode scan_adaptive_dwell_mode;
+	enum wmi_dwelltime_adaptive_mode roamscan_adaptive_dwell_mode;
+	enum wmi_dwelltime_adaptive_mode extscan_adaptive_dwell_mode;
+	enum wmi_dwelltime_adaptive_mode pnoscan_adaptive_dwell_mode;
+	enum wmi_dwelltime_adaptive_mode global_adapt_dwelltime_mode;
+	uint8_t adapt_dwell_lpf_weight;
+	uint8_t adapt_dwell_passive_mon_intval;
+	uint8_t adapt_dwell_wifi_act_threshold;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

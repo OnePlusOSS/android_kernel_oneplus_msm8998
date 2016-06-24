@@ -690,13 +690,6 @@ QDF_STATUS sme_send_tdls_chan_switch_req(
 void sme_update_enable_ssr(tHalHandle hHal, bool enableSSR);
 QDF_STATUS sme_set_phy_mode(tHalHandle hHal, eCsrPhyMode phyMode);
 eCsrPhyMode sme_get_phy_mode(tHalHandle hHal);
-/*
- * SME API to determine the channel bonding mode
- */
-QDF_STATUS sme_set_ch_params(tHalHandle hHal, eCsrPhyMode eCsrPhyMode,
-			     uint8_t channel, uint8_t ht_sec_ch,
-			     struct ch_params_s *ch_params);
-
 QDF_STATUS sme_handoff_request(tHalHandle hHal, uint8_t sessionId,
 			       tCsrHandoffRequest *pHandoffInfo);
 QDF_STATUS sme_is_sta_p2p_client_connected(tHalHandle hHal);
@@ -1126,6 +1119,8 @@ QDF_STATUS sme_bpf_offload_register_callback(tHalHandle hal,
 QDF_STATUS sme_get_bpf_offload_capabilities(tHalHandle hal);
 QDF_STATUS sme_set_bpf_instructions(tHalHandle hal,
 				struct sir_bpf_set_offload *);
-
+uint32_t sme_get_wni_dot11_mode(tHalHandle hal);
 QDF_STATUS sme_create_mon_session(tHalHandle hal_handle, uint8_t *bssid);
+QDF_STATUS sme_set_adaptive_dwelltime_config(tHalHandle hal,
+			struct adaptive_dwelltime_params *dwelltime_params);
 #endif /* #if !defined( __SME_API_H ) */

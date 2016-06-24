@@ -197,6 +197,7 @@
 #define WMI_HOST_TPC_TX_NUM_CHAIN	4
 #define WMI_HOST_RXG_CAL_CHAN_MAX	4
 #define WMI_HOST_MAX_NUM_CHAINS	4
+#define WMI_MAX_NUM_OF_RATE_THRESH   4
 
 #include "qdf_atomic.h"
 
@@ -258,6 +259,22 @@ typedef enum {
 	WMI_HOST_MODE_MAX	= 16
 } WMI_HOST_WLAN_PHY_MODE;
 
+
+/**
+ * enum wmi_dwelltime_adaptive_mode: dwelltime_mode
+ * @WMI_DWELL_MODE_DEFAULT: Use firmware default mode
+ * @WMI_DWELL_MODE_CONSERVATIVE: Conservative adaptive mode
+ * @WMI_DWELL_MODE_MODERATE: Moderate adaptive mode
+ * @WMI_DWELL_MODE_AGGRESSIVE: Aggressive adaptive mode
+ * @WMI_DWELL_MODE_STATIC: static adaptive mode
+ */
+enum wmi_dwelltime_adaptive_mode {
+	WMI_DWELL_MODE_DEFAULT = 0,
+	WMI_DWELL_MODE_CONSERVATIVE = 1,
+	WMI_DWELL_MODE_MODERATE = 2,
+	WMI_DWELL_MODE_AGGRESSIVE = 3,
+	WMI_DWELL_MODE_STATIC = 4
+};
 
 #define MAX_NUM_CHAN 128
 
@@ -1323,6 +1340,67 @@ struct ocb_config_param {
 	void *dcc_ndl_active_state_list;
 };
 
+enum wmi_peer_rate_report_cond_phy_type {
+	WMI_PEER_RATE_REPORT_COND_11B = 0,
+	WMI_PEER_RATE_REPORT_COND_11A_G,
+	WMI_PEER_RATE_REPORT_COND_11N,
+	WMI_PEER_RATE_REPORT_COND_11AC,
+	WMI_PEER_RATE_REPORT_COND_MAX_NUM
+};
+
+/**
+ * struct report_rate_delta - peer specific parameters
+ * @percent: percentage
+ * @delta_min: rate min delta
+ */
+struct report_rate_delta {
+	A_UINT32 percent; /* in unit of 12.5% */
+	A_UINT32 delta_min;  /* in unit of Mbps */
+};
+
+/**
+ * struct report_rate_per_phy - per phy report parameters
+ * @cond_flags: condition flag val
+ * @delta: rate delta
+ * @report_rate_threshold: rate threshold
+ */
+struct report_rate_per_phy {
+	/*
+	 * PEER_RATE_REPORT_COND_FLAG_DELTA,
+	 * PEER_RATE_REPORT_COND_FLAG_THRESHOLD
+	 * Any of these two conditions or both of
+	 * them can be set.
+	 */
+	A_UINT32 cond_flags;
+	struct report_rate_delta delta;
+	/*
+	 * In unit of Mbps. There are at most 4 thresholds
+	 * If the threshold count is less than 4, set zero to
+	 * the one following the last threshold
+	 */
+	A_UINT32 report_rate_threshold[WMI_MAX_NUM_OF_RATE_THRESH];
+};
+
+/**
+ * struct peer_rate_report_params - peer rate report parameters
+ * @rate_report_enable: enable rate report param
+ * @backoff_time: backoff time
+ * @timer_period: timer
+ * @report_per_phy: report per phy type
+ */
+struct wmi_peer_rate_report_params {
+	A_UINT32 rate_report_enable;
+	A_UINT32 backoff_time;            /* in unit of msecond */
+	A_UINT32 timer_period;            /* in unit of msecond */
+	/*
+	 *In the following field, the array index means the phy type,
+	 * please see enum wmi_peer_rate_report_cond_phy_type for detail
+	 */
+	struct report_rate_per_phy report_per_phy[
+				WMI_PEER_RATE_REPORT_COND_MAX_NUM];
+
+};
+
 /**
  * struct t_thermal_cmd_params - thermal command parameters
  * @min_temp: minimum temprature
@@ -1840,6 +1918,13 @@ struct pno_nw_type {
  * @p24GProbeTemplate: 2.4G probe template
  * @us5GProbeTemplateLen: 5G probe template length
  * @p5GProbeTemplate: 5G probe template
+ * @pno_channel_prediction: PNO channel prediction feature status
+ * @top_k_num_of_channels: top K number of channels are used for tanimoto
+ * distance calculation.
+ * @stationary_thresh: threshold value to determine that the STA is stationary.
+ * @pnoscan_adaptive_dwell_mode: adaptive dwelltime mode for pno scan
+ * @channel_prediction_full_scan: periodic timer upon which a full scan needs
+ * to be triggered.
  */
 struct pno_scan_req_params {
 	uint8_t enable;
@@ -1862,6 +1947,7 @@ struct pno_scan_req_params {
 	bool pno_channel_prediction;
 	uint8_t top_k_num_of_channels;
 	uint8_t stationary_thresh;
+	enum wmi_dwelltime_adaptive_mode pnoscan_adaptive_dwell_mode;
 	uint32_t channel_prediction_full_scan;
 #endif
 };
@@ -1976,6 +2062,7 @@ struct wifi_scan_bucket_params {
  * @min_dwell_time_passive: per bucket minimum passive dwell time
  * @max_dwell_time_passive: per bucket maximum passive dwell time
  * @configuration_flags: configuration flags
+ * @extscan_adaptive_dwell_mode: adaptive dwelltime mode for extscan
  * @buckets: buckets array
  */
 struct wifi_scan_cmd_req_params {
@@ -1994,6 +2081,7 @@ struct wifi_scan_cmd_req_params {
 	uint32_t min_dwell_time_passive;
 	uint32_t max_dwell_time_passive;
 	uint32_t configuration_flags;
+	enum wmi_dwelltime_adaptive_mode extscan_adaptive_dwell_mode;
 	struct wifi_scan_bucket_params buckets[WMI_WLAN_EXTSCAN_MAX_BUCKETS];
 };
 
@@ -6303,5 +6391,24 @@ struct wmi_power_dbg_params {
 	uint32_t args[WMI_MAX_POWER_DBG_ARGS];
 };
 
+/**
+ * struct wmi_adaptive_dwelltime_params - the adaptive dwelltime params
+ * @vdev_id: vdev id
+ * @is_enabled: Adaptive dwell time is enabled/disabled
+ * @dwelltime_mode: global default adaptive dwell mode
+ * @lpf_weight: weight to calculate the average low pass
+ * filter for channel congestion
+ * @passive_mon_intval: intval to monitor wifi activity in passive scan in msec
+ * @wifi_act_threshold: % of wifi activity used in passive scan 0-100
+ *
+ */
+struct wmi_adaptive_dwelltime_params {
+	uint32_t vdev_id;
+	bool is_enabled;
+	enum wmi_dwelltime_adaptive_mode dwelltime_mode;
+	uint8_t lpf_weight;
+	uint8_t passive_mon_intval;
+	uint8_t wifi_act_threshold;
+};
 #endif /* _WMI_UNIFIED_PARAM_H_ */
 

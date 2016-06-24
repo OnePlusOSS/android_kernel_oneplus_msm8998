@@ -438,6 +438,9 @@ QDF_STATUS wmi_unified_lro_config_cmd(void *wmi_hdl,
 QDF_STATUS wmi_unified_set_thermal_mgmt_cmd(void *wmi_hdl,
 				struct thermal_cmd_params *thermal_info);
 
+QDF_STATUS wmi_unified_peer_rate_report_cmd(void *wmi_hdl,
+		struct wmi_peer_rate_report_params *rate_report_params);
+
 QDF_STATUS wmi_unified_set_mcc_channel_time_quota_cmd
 	(void *wmi_hdl,
 	uint32_t adapter_1_chan_freq,
@@ -1229,4 +1232,7 @@ QDF_STATUS wmi_extract_vdev_extd_stats(void *wmi_hdl, void *evt_buf,
 
 QDF_STATUS wmi_unified_send_power_dbg_cmd(void *wmi_hdl,
 				struct wmi_power_dbg_params *param);
+QDF_STATUS wmi_unified_send_adapt_dwelltime_params_cmd(void *wmi_hdl,
+				   struct wmi_adaptive_dwelltime_params *
+				   wmi_param);
 #endif /* _WMI_UNIFIED_API_H_ */

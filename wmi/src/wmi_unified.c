@@ -848,10 +848,11 @@ out:
  *
  * Return: none
  */
-static void wmi_debugfs_remove(wmi_unified_t wmi_handle, struct dentry *dentry
-		, int id)
+static void wmi_debugfs_remove(wmi_unified_t wmi_handle)
 {
 	int i;
+	struct dentry *dentry = wmi_handle->log_info.wmi_log_debugfs_dir;
+	int id = wmi_handle->log_info.wmi_instance_id;
 
 	if (dentry && (!(id < 0) || (id >= MAX_WMI_INSTANCES))) {
 		for (i = 0; i < NUM_DEBUG_INFOS; ++i) {
@@ -901,8 +902,7 @@ static QDF_STATUS wmi_debugfs_init(wmi_unified_t wmi_handle)
  *
  * Return: none
  */
-static void wmi_debugfs_remove(wmi_unified_t wmi_handle, struct dentry *dentry
-		, int id) { }
+static void wmi_debugfs_remove(wmi_unified_t wmi_handle) { }
 #endif /*WMI_INTERFACE_EVENT_LOGGING */
 
 int wmi_get_host_credits(wmi_unified_t wmi_handle);
@@ -1551,31 +1551,27 @@ static uint8_t *wmi_id_to_name(WMI_CMD_ID wmi_command)
 		CASE_RETURN_STRING(WMI_SET_PERIODIC_CHANNEL_STATS_CONFIG_CMDID);
 		CASE_RETURN_STRING(WMI_VDEV_SET_CUSTOM_AGGR_SIZE_CMDID);
 		CASE_RETURN_STRING(WMI_PDEV_WAL_POWER_DEBUG_CMDID);
+		CASE_RETURN_STRING(WMI_PEER_BWF_REQUEST_CMDID);
+		CASE_RETURN_STRING(WMI_DBGLOG_TIME_STAMP_SYNC_CMDID);
+		CASE_RETURN_STRING(WMI_P2P_LISTEN_OFFLOAD_START_CMDID);
+		CASE_RETURN_STRING(WMI_P2P_LISTEN_OFFLOAD_STOP_CMDID);
 	}
 
 	return "Invalid WMI cmd";
 }
 
-#ifdef QCA_WIFI_3_0_EMU
-static inline void wma_log_cmd_id(WMI_CMD_ID cmd_id)
-{
-	WMI_LOGE("Send WMI command:%s command_id:%d",
-		 wmi_id_to_name(cmd_id), cmd_id);
-}
-#else
 static inline void wma_log_cmd_id(WMI_CMD_ID cmd_id)
 {
 	WMI_LOGD("Send WMI command:%s command_id:%d",
 		 wmi_id_to_name(cmd_id), cmd_id);
 }
-#endif
-#else /* WMI_NON_TLV_SUPPORT */
+#else
 static uint8_t *wmi_id_to_name(WMI_CMD_ID wmi_command)
 {
 	return "Invalid WMI cmd";
 }
-
 #endif
+
 
 /**
  * wmi_is_runtime_pm_cmd() - check if a cmd is from suspend resume sequence
@@ -2202,8 +2198,7 @@ void wmi_unified_detach(struct wmi_unified *wmi_handle)
 
 	cancel_work_sync(&wmi_handle->rx_event_work);
 
-	wmi_debugfs_remove(wmi_handle, wmi_handle->log_info.wmi_log_debugfs_dir,
-				wmi_handle->log_info.wmi_instance_id);
+	wmi_debugfs_remove(wmi_handle);
 
 	qdf_spin_lock_bh(&wmi_handle->eventq_lock);
 	buf = qdf_nbuf_queue_remove(&wmi_handle->event_queue);
@@ -2276,11 +2271,8 @@ void wmi_htc_tx_complete(void *ctx, HTC_PACKET *htc_pkt)
 		cmd_id = WMI_GET_FIELD(qdf_nbuf_data(wmi_cmd_buf),
 				WMI_CMD_HDR, COMMANDID);
 
-#ifdef QCA_WIFI_3_0_EMU
-	qdf_print
-		("\nSent WMI command:%s command_id:0x%x over dma and recieved tx complete interupt\n",
-		wmi_id_to_name(cmd_id), cmd_id);
-#endif
+	WMI_LOGD("Sent WMI command:%s command_id:0x%x over dma and recieved tx complete interupt",
+		 wmi_id_to_name(cmd_id), cmd_id);
 
 	qdf_spin_lock_bh(&wmi_handle->log_info.wmi_record_lock);
 	/* Record 16 bytes of WMI cmd tx complete data

@@ -5159,15 +5159,15 @@ static uint8_t hdd_get_safe_channel_from_pcl_and_acs_range(
 	hdd_context_t *hdd_ctx;
 	bool found = false;
 
-	hal_handle = WLAN_HDD_GET_HAL_CTX(adapter);
-	if (!hal_handle) {
-		hdd_err("invalid HAL handle");
-		return INVALID_CHANNEL_ID;
-	}
-
 	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 	if (!hdd_ctx) {
 		hdd_err("invalid HDD context");
+		return INVALID_CHANNEL_ID;
+	}
+
+	hal_handle = WLAN_HDD_GET_HAL_CTX(adapter);
+	if (!hal_handle) {
+		hdd_err("invalid HAL handle");
 		return INVALID_CHANNEL_ID;
 	}
 
@@ -6619,7 +6619,7 @@ int hdd_wlan_startup(struct device *dev, void *hif_sc)
 #endif
 
 	wlan_hdd_nan_init(hdd_ctx);
-	status = cds_init_policy_mgr();
+	status = cds_init_policy_mgr(sme_get_cfg_valid_channels);
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		hdd_err("Policy manager initialization failed");
 		goto err_debugfs_exit;

@@ -315,6 +315,10 @@ int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	bool granted;
 	uint8_t STAId = WLAN_MAX_STA_COUNT;
 	hdd_station_ctx_t *pHddStaCtx = &pAdapter->sessionCtx.station;
+#ifdef QCA_PKT_PROTO_TRACE
+	uint8_t proto_type = 0;
+#endif /* QCA_PKT_PROTO_TRACE */
+	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(pAdapter);
 
 #ifdef QCA_WIFI_FTM
 	if (hdd_get_conparam() == QDF_GLOBAL_FTM_MODE) {
@@ -466,7 +470,25 @@ int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		skb->queue_mapping = hdd_linux_up_to_ac_map[up];
 	}
 
+#ifdef QCA_PKT_PROTO_TRACE
+	if ((hdd_ctx->config->gEnableDebugLog & CDS_PKT_TRAC_TYPE_EAPOL) ||
+	    (hdd_ctx->config->gEnableDebugLog & CDS_PKT_TRAC_TYPE_DHCP)) {
+		proto_type = cds_pkt_get_proto_type(skb,
+						    hdd_ctx->config->gEnableDebugLog,
+						    0);
+		if (CDS_PKT_TRAC_TYPE_EAPOL & proto_type) {
+			cds_pkt_trace_buf_update("ST:T:EPL");
+		} else if (CDS_PKT_TRAC_TYPE_DHCP & proto_type) {
+			cds_pkt_trace_buf_update("ST:T:DHC");
+		}
+	}
+#endif /* QCA_PKT_PROTO_TRACE */
+
 	pAdapter->stats.tx_bytes += skb->len;
+
+	if (hdd_ctx->enable_tdls_connection_tracker)
+		wlan_hdd_tdls_update_tx_pkt_cnt(pAdapter, skb);
+
 	++pAdapter->stats.tx_packets;
 
 	/* Zero out skb's context buffer for the driver to use */
@@ -805,6 +827,9 @@ QDF_STATUS hdd_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 		qdf_nbuf_data_addr(rxBuf),
 		sizeof(qdf_nbuf_data(rxBuf)), QDF_RX));
 
+	if (pHddCtx->enable_tdls_connection_tracker)
+		wlan_hdd_tdls_update_rx_pkt_cnt(pAdapter, skb);
+
 	skb->dev = pAdapter->dev;
 	skb->protocol = eth_type_trans(skb, skb->dev);
 	++pAdapter->hdd_stats.hddTxRxStats.rxPackets[cpu_index];
@@ -966,12 +991,25 @@ static void wlan_hdd_update_unpause_time(hdd_adapter_t *adapter)
  *
  * Return: none
  */
-static void wlan_hdd_update_pause_time(hdd_adapter_t *adapter)
+static void wlan_hdd_update_pause_time(hdd_adapter_t *adapter,
+	 uint32_t temp_map)
 {
 	qdf_time_t curr_time = qdf_system_ticks();
+	uint8_t i;
+	qdf_time_t pause_time;
 
-	adapter->total_pause_time += curr_time - adapter->last_time;
+	pause_time = curr_time - adapter->last_time;
+	adapter->total_pause_time += pause_time;
 	adapter->last_time = curr_time;
+
+	for (i = 0; i < WLAN_REASON_TYPE_MAX; i++) {
+		if (temp_map & (1 << i)) {
+			adapter->queue_oper_stats[i].total_pause_time +=
+								 pause_time;
+			break;
+		}
+	}
+
 }
 
 /**
@@ -989,6 +1027,7 @@ static void wlan_hdd_update_pause_time(hdd_adapter_t *adapter)
 void wlan_hdd_netif_queue_control(hdd_adapter_t *adapter,
 	enum netif_action_type action, enum netif_reason_type reason)
 {
+	uint32_t temp_map;
 
 	if ((!adapter) || (WLAN_HDD_ADAPTER_MAGIC != adapter->magic) ||
 		 (!adapter->dev)) {
@@ -1019,20 +1058,22 @@ void wlan_hdd_netif_queue_control(hdd_adapter_t *adapter,
 
 	case WLAN_START_ALL_NETIF_QUEUE:
 		spin_lock_bh(&adapter->pause_map_lock);
+		temp_map = adapter->pause_map;
 		adapter->pause_map &= ~(1 << reason);
 		if (!adapter->pause_map) {
 			netif_tx_start_all_queues(adapter->dev);
-			wlan_hdd_update_pause_time(adapter);
+			wlan_hdd_update_pause_time(adapter, temp_map);
 		}
 		spin_unlock_bh(&adapter->pause_map_lock);
 		break;
 
 	case WLAN_WAKE_ALL_NETIF_QUEUE:
 		spin_lock_bh(&adapter->pause_map_lock);
+		temp_map = adapter->pause_map;
 		adapter->pause_map &= ~(1 << reason);
 		if (!adapter->pause_map) {
 			netif_tx_wake_all_queues(adapter->dev);
-			wlan_hdd_update_pause_time(adapter);
+			wlan_hdd_update_pause_time(adapter, temp_map);
 		}
 		spin_unlock_bh(&adapter->pause_map_lock);
 		break;
@@ -1052,10 +1093,11 @@ void wlan_hdd_netif_queue_control(hdd_adapter_t *adapter,
 	case WLAN_START_ALL_NETIF_QUEUE_N_CARRIER:
 		spin_lock_bh(&adapter->pause_map_lock);
 		netif_carrier_on(adapter->dev);
+		temp_map = adapter->pause_map;
 		adapter->pause_map &= ~(1 << reason);
 		if (!adapter->pause_map) {
 			netif_tx_start_all_queues(adapter->dev);
-			wlan_hdd_update_pause_time(adapter);
+			wlan_hdd_update_pause_time(adapter, temp_map);
 		}
 		spin_unlock_bh(&adapter->pause_map_lock);
 		break;

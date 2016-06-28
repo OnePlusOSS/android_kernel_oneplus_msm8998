@@ -808,20 +808,24 @@ wlansap_roam_callback(void *ctx, tCsrRoamInfo *csr_roam_info, uint32_t roamId,
 		      eRoamCmdStatus roam_status, eCsrRoamResult roam_result)
 {
 	/* sap_ctx value */
-	ptSapContext sap_ctx = (ptSapContext) ctx;
+	ptSapContext sap_ctx;
 	/* State machine event */
 	tWLAN_SAPEvent sap_event;
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
 	QDF_STATUS qdf_ret_status = QDF_STATUS_SUCCESS;
-	tHalHandle hal = CDS_GET_HAL_CB(sap_ctx->p_cds_gctx);
+	tHalHandle hal;
 	tpAniSirGlobal mac_ctx = NULL;
 	uint8_t intf;
 
-	if (NULL == hal) {
+	if (QDF_IS_STATUS_ERROR(wlansap_context_get((ptSapContext)ctx)))
+		return QDF_STATUS_E_FAILURE;
+
+	sap_ctx = (ptSapContext) ctx;
+	hal = CDS_GET_HAL_CB(sap_ctx->p_cds_gctx);
+	if (!hal) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-			  FL("Invalid hal"));
-		qdf_ret_status = QDF_STATUS_E_NOMEM;
-		return qdf_ret_status;
+			  FL("Invalid handle"));
+		return QDF_STATUS_E_NOMEM;
 	}
 
 	mac_ctx = PMAC_STRUCT(hal);
@@ -1214,5 +1218,6 @@ wlansap_roam_callback(void *ctx, tCsrRoamInfo *csr_roam_info, uint32_t roamId,
 			  roam_result);
 		break;
 	}
+	wlansap_context_put(sap_ctx);
 	return qdf_ret_status;
 }

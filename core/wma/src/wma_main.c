@@ -3112,6 +3112,46 @@ QDF_STATUS wma_wmi_work_close(void *cds_ctx)
 	return QDF_STATUS_SUCCESS;
 }
 
+/**
+ * wma_cleanup_dbs_phy_caps() - release memory allocated for holding ext cap
+ * @wma_handle: pointer to wma handle
+ *
+ * This function releases all the memory created for holding extended
+ * capabilities per hardware mode and per PHY
+ *
+ * Return: void
+ */
+static void wma_cleanup_dbs_phy_caps(t_wma_handle *wma_handle)
+{
+	if (NULL == wma_handle) {
+		WMA_LOGE("%s: Invalid wma handle", __func__);
+		return;
+	}
+
+	if (wma_handle->phy_caps.hw_mode_to_mac_cap_map) {
+		qdf_mem_free(wma_handle->phy_caps.hw_mode_to_mac_cap_map);
+		wma_handle->phy_caps.hw_mode_to_mac_cap_map = NULL;
+		WMA_LOGI("%s: hw_mode_to_mac_cap_map freed", __func__);
+	}
+
+	if (wma_handle->phy_caps.each_hw_mode_cap) {
+		qdf_mem_free(wma_handle->phy_caps.each_hw_mode_cap);
+		wma_handle->phy_caps.each_hw_mode_cap = NULL;
+		WMA_LOGI("%s: each_hw_mode_cap freed", __func__);
+	}
+
+	if (wma_handle->phy_caps.each_phy_cap_per_hwmode) {
+		qdf_mem_free(wma_handle->phy_caps.each_phy_cap_per_hwmode);
+		wma_handle->phy_caps.each_phy_cap_per_hwmode = NULL;
+		WMA_LOGI("%s: each_phy_cap_per_hwmode freed", __func__);
+	}
+
+	if (wma_handle->phy_caps.each_phy_hal_reg_cap) {
+		qdf_mem_free(wma_handle->phy_caps.each_phy_hal_reg_cap);
+		wma_handle->phy_caps.each_phy_hal_reg_cap = NULL;
+		WMA_LOGI("%s: each_phy_hal_reg_cap freed", __func__);
+	}
+}
 
 /**
  * wma_close() - wma close function.
@@ -3148,7 +3188,7 @@ QDF_STATUS wma_close(void *cds_ctx)
 		wma_handle->hw_mode.hw_mode_list = NULL;
 		WMA_LOGI("%s: DBS list is freed", __func__);
 	}
-
+	wma_cleanup_dbs_phy_caps(wma_handle);
 	if (cds_get_conparam() != QDF_GLOBAL_FTM_MODE) {
 #ifdef FEATURE_WLAN_SCAN_PNO
 		qdf_wake_lock_destroy(&wma_handle->pno_wake_lock);
@@ -3397,6 +3437,9 @@ static inline void wma_update_target_services(tp_wma_handle wh,
 	cfg->en_tdls_uapsd_sleep_sta =
 		WMI_SERVICE_IS_ENABLED(wh->wmi_service_bitmap,
 				       WMI_SERVICE_TDLS_UAPSD_SLEEP_STA);
+	cfg->per_band_chainmask_supp =
+		WMI_SERVICE_IS_ENABLED(wh->wmi_service_bitmap,
+				WMI_SERVICE_PER_BAND_CHAINMASK_SUPPORT);
 #endif /* FEATURE_WLAN_TDLS */
 	if (WMI_SERVICE_IS_ENABLED
 		    (wh->wmi_service_bitmap, WMI_SERVICE_BEACON_OFFLOAD))
@@ -3519,6 +3562,301 @@ static inline void wma_update_target_vht_cap(tp_wma_handle wh,
 }
 
 /**
+ * wma_derive_ext_ht_cap() - Derive HT caps based on given value
+ * @wma_handle: pointer to wma_handle
+ * @ht_cap: given pointer to HT caps which needs to be updated
+ * @tx_chain: given tx chainmask value
+ * @rx_chain: given rx chainmask value
+ * @value: new HT cap info provided in form of bitmask
+ *
+ * This function takes the value provided in form of bitmask and decodes
+ * it. After decoding, what ever value it gets, it takes the union(max) or
+ * intersection(min) with previously derived values.
+ *
+ * Return: none
+ *
+ */
+static void wma_derive_ext_ht_cap(tp_wma_handle wma_handle,
+			struct wma_tgt_ht_cap *ht_cap, uint32_t value,
+			uint32_t tx_chain, uint32_t rx_chain)
+{
+	struct wma_tgt_ht_cap tmp = {0};
+
+	if (NULL == wma_handle || NULL == ht_cap)
+		return;
+
+	if (0 == qdf_mem_cmp(ht_cap, &tmp, sizeof(struct wma_tgt_ht_cap))) {
+		ht_cap->ht_rx_stbc = (!!(value & WMI_HT_CAP_RX_STBC));
+		ht_cap->ht_tx_stbc = (!!(value & WMI_HT_CAP_TX_STBC));
+		ht_cap->mpdu_density = (!!(value & WMI_HT_CAP_MPDU_DENSITY));
+		ht_cap->ht_rx_ldpc = (!!(value & WMI_HT_CAP_RX_LDPC));
+		ht_cap->ht_sgi_20 = (!!(value & WMI_HT_CAP_HT20_SGI));
+		ht_cap->ht_sgi_40 = (!!(value & WMI_HT_CAP_HT40_SGI));
+		ht_cap->num_rf_chains =
+			QDF_MAX(wma_get_num_of_setbits_from_bitmask(tx_chain),
+				wma_get_num_of_setbits_from_bitmask(rx_chain));
+	} else {
+		ht_cap->ht_rx_stbc = QDF_MIN(ht_cap->ht_rx_stbc,
+					(!!(value & WMI_HT_CAP_RX_STBC)));
+		ht_cap->ht_tx_stbc = QDF_MAX(ht_cap->ht_tx_stbc,
+					(!!(value & WMI_HT_CAP_TX_STBC)));
+		ht_cap->mpdu_density = QDF_MIN(ht_cap->mpdu_density,
+					(!!(value & WMI_HT_CAP_MPDU_DENSITY)));
+		ht_cap->ht_rx_ldpc = QDF_MIN(ht_cap->ht_rx_ldpc,
+					(!!(value & WMI_HT_CAP_RX_LDPC)));
+		ht_cap->ht_sgi_20 = QDF_MIN(ht_cap->ht_sgi_20,
+					(!!(value & WMI_HT_CAP_HT20_SGI)));
+		ht_cap->ht_sgi_40 = QDF_MIN(ht_cap->ht_sgi_40,
+					(!!(value & WMI_HT_CAP_HT40_SGI)));
+		ht_cap->num_rf_chains =
+			QDF_MAX(ht_cap->num_rf_chains,
+				QDF_MAX(wma_get_num_of_setbits_from_bitmask(
+								tx_chain),
+					wma_get_num_of_setbits_from_bitmask(
+								rx_chain)));
+	}
+}
+
+/**
+ * wma_update_target_ext_ht_cap() - Update HT caps with given extended cap
+ * @wma_handle: pointer to wma_handle
+ * @ht_cap: HT cap structure to be filled
+ *
+ * This function loop through each hardware mode and for each hardware mode
+ * again it loop through each MAC/PHY and pull the caps 2G and 5G specific
+ * HT caps and derives the final cap.
+ *
+ * Return: none
+ *
+ */
+static void wma_update_target_ext_ht_cap(tp_wma_handle wma_handle,
+		struct wma_tgt_ht_cap *ht_cap)
+{
+	int i, j = 0, max_mac;
+	uint32_t ht_2g, ht_5g;
+	struct wma_tgt_ht_cap tmp_ht_cap = {0}, tmp_cap = {0};
+	struct extended_caps *phy_caps;
+	WMI_MAC_PHY_CAPABILITIES *mac_cap;
+
+	/*
+	 * for legacy device extended cap might not even come, so in that case
+	 * don't overwrite legacy values
+	 */
+	if (!wma_handle ||
+		(0 == wma_handle->phy_caps.num_hw_modes.num_hw_modes)) {
+		WMA_LOGI("%s: No extended HT cap for current SOC", __func__);
+		return;
+	}
+
+	phy_caps = &wma_handle->phy_caps;
+	for (i = 0; i < phy_caps->num_hw_modes.num_hw_modes; i++) {
+		if (phy_caps->each_hw_mode_cap[i].phy_id_map == PHY1_PHY2)
+			max_mac = j + 2;
+		else
+			max_mac = j + 1;
+		for ( ; j < max_mac; j++) {
+			mac_cap = &phy_caps->each_phy_cap_per_hwmode[j];
+			ht_2g = mac_cap->ht_cap_info_2G;
+			ht_5g = mac_cap->ht_cap_info_5G;
+			if (ht_2g)
+				wma_derive_ext_ht_cap(wma_handle, &tmp_ht_cap,
+					ht_2g, mac_cap->tx_chain_mask_2G,
+					mac_cap->rx_chain_mask_2G);
+			if (ht_5g)
+				wma_derive_ext_ht_cap(wma_handle, &tmp_ht_cap,
+					ht_5g, mac_cap->tx_chain_mask_5G,
+					mac_cap->rx_chain_mask_5G);
+		}
+	}
+
+	if (0 != qdf_mem_cmp(&tmp_cap, &tmp_ht_cap,
+				sizeof(struct wma_tgt_ht_cap))) {
+			qdf_mem_copy(ht_cap, &tmp_ht_cap,
+					sizeof(struct wma_tgt_ht_cap));
+	}
+
+	WMA_LOGI("%s: [ext ht cap] ht_rx_stbc - %d, ht_tx_stbc - %d\n\
+			mpdu_density - %d ht_rx_ldpc - %d ht_sgi_20 - %d\n\
+			ht_sgi_40 - %d num_rf_chains - %d ", __func__,
+			ht_cap->ht_rx_stbc, ht_cap->ht_tx_stbc,
+			ht_cap->mpdu_density, ht_cap->ht_rx_ldpc,
+			ht_cap->ht_sgi_20, ht_cap->ht_sgi_40,
+			ht_cap->num_rf_chains);
+}
+
+/**
+ * wma_derive_ext_vht_cap() - Derive VHT caps based on given value
+ * @wma_handle: pointer to wma_handle
+ * @vht_cap: pointer to given VHT caps to be filled
+ * @value: new VHT cap info provided in form of bitmask
+ *
+ * This function takes the value provided in form of bitmask and decodes
+ * it. After decoding, what ever value it gets, it takes the union(max) or
+ * intersection(min) with previously derived values.
+ *
+ * Return: none
+ *
+ */
+static void wma_derive_ext_vht_cap(t_wma_handle *wma_handle,
+			struct wma_tgt_vht_cap *vht_cap, uint32_t value)
+{
+	struct wma_tgt_vht_cap tmp_cap = {0};
+	uint32_t tmp = 0;
+
+	if (NULL == wma_handle || NULL == vht_cap)
+		return;
+
+	if (0 == qdf_mem_cmp(vht_cap, &tmp_cap,
+				sizeof(struct wma_tgt_vht_cap))) {
+		if (value & WMI_VHT_CAP_MAX_MPDU_LEN_11454)
+			vht_cap->vht_max_mpdu = WMI_VHT_CAP_MAX_MPDU_LEN_11454;
+		else if (value & WMI_VHT_CAP_MAX_MPDU_LEN_7935)
+			vht_cap->vht_max_mpdu = WMI_VHT_CAP_MAX_MPDU_LEN_7935;
+		else
+			vht_cap->vht_max_mpdu = 0;
+
+		if (value & WMI_VHT_CAP_CH_WIDTH_80P80_160MHZ) {
+			vht_cap->supp_chan_width =
+				1 << eHT_CHANNEL_WIDTH_80P80MHZ;
+			vht_cap->supp_chan_width |=
+				1 << eHT_CHANNEL_WIDTH_160MHZ;
+		} else if (value & WMI_VHT_CAP_CH_WIDTH_160MHZ) {
+			vht_cap->supp_chan_width =
+				1 << eHT_CHANNEL_WIDTH_160MHZ;
+		} else {
+			vht_cap->supp_chan_width = 1 << eHT_CHANNEL_WIDTH_80MHZ;
+		}
+		vht_cap->vht_rx_ldpc = value & WMI_VHT_CAP_RX_LDPC;
+		vht_cap->vht_short_gi_80 = value & WMI_VHT_CAP_SGI_80MHZ;
+		vht_cap->vht_short_gi_160 = value & WMI_VHT_CAP_SGI_160MHZ;
+		vht_cap->vht_tx_stbc = value & WMI_VHT_CAP_TX_STBC;
+		vht_cap->vht_rx_stbc =
+			(value & WMI_VHT_CAP_RX_STBC_1SS) |
+			(value & WMI_VHT_CAP_RX_STBC_2SS) |
+			(value & WMI_VHT_CAP_RX_STBC_3SS);
+		vht_cap->vht_max_ampdu_len_exp =
+			(value & WMI_VHT_CAP_MAX_AMPDU_LEN_EXP) >>
+				WMI_VHT_CAP_MAX_AMPDU_LEN_EXP_SHIFT;
+		vht_cap->vht_su_bformer = value & WMI_VHT_CAP_SU_BFORMER;
+		vht_cap->vht_su_bformee = value & WMI_VHT_CAP_SU_BFORMEE;
+		vht_cap->vht_mu_bformer = value & WMI_VHT_CAP_MU_BFORMER;
+		vht_cap->vht_mu_bformee = value & WMI_VHT_CAP_MU_BFORMEE;
+		vht_cap->vht_txop_ps = value & WMI_VHT_CAP_TXOP_PS;
+	} else {
+		if (value & WMI_VHT_CAP_MAX_MPDU_LEN_11454)
+			tmp = WMI_VHT_CAP_MAX_MPDU_LEN_11454;
+		else if (value & WMI_VHT_CAP_MAX_MPDU_LEN_7935)
+			tmp = WMI_VHT_CAP_MAX_MPDU_LEN_7935;
+		else
+			tmp = 0;
+		vht_cap->vht_max_mpdu = QDF_MIN(vht_cap->vht_max_mpdu, tmp);
+
+		if ((value & WMI_VHT_CAP_CH_WIDTH_80P80_160MHZ)) {
+			tmp = (1 << eHT_CHANNEL_WIDTH_80P80MHZ) |
+				(1 << eHT_CHANNEL_WIDTH_160MHZ);
+		} else if (value & WMI_VHT_CAP_CH_WIDTH_160MHZ) {
+			tmp = 1 << eHT_CHANNEL_WIDTH_160MHZ;
+		} else {
+			tmp = 1 << eHT_CHANNEL_WIDTH_80MHZ;
+		}
+		vht_cap->supp_chan_width =
+			QDF_MAX(vht_cap->supp_chan_width, tmp);
+		vht_cap->vht_rx_ldpc = QDF_MIN(vht_cap->vht_rx_ldpc,
+						value & WMI_VHT_CAP_RX_LDPC);
+		vht_cap->vht_short_gi_80 = QDF_MAX(vht_cap->vht_short_gi_80,
+						value & WMI_VHT_CAP_SGI_80MHZ);
+		vht_cap->vht_short_gi_160 = QDF_MAX(vht_cap->vht_short_gi_160,
+						value & WMI_VHT_CAP_SGI_160MHZ);
+		vht_cap->vht_tx_stbc = QDF_MAX(vht_cap->vht_tx_stbc,
+						value & WMI_VHT_CAP_TX_STBC);
+		vht_cap->vht_rx_stbc = QDF_MIN(vht_cap->vht_rx_stbc,
+					(value & WMI_VHT_CAP_RX_STBC_1SS) |
+					(value & WMI_VHT_CAP_RX_STBC_2SS) |
+					(value & WMI_VHT_CAP_RX_STBC_3SS));
+		vht_cap->vht_max_ampdu_len_exp =
+			QDF_MIN(vht_cap->vht_max_ampdu_len_exp,
+				(value & WMI_VHT_CAP_MAX_AMPDU_LEN_EXP) >>
+					WMI_VHT_CAP_MAX_AMPDU_LEN_EXP_SHIFT);
+		vht_cap->vht_su_bformer = QDF_MAX(vht_cap->vht_su_bformer,
+						value & WMI_VHT_CAP_SU_BFORMER);
+		vht_cap->vht_su_bformee = QDF_MAX(vht_cap->vht_su_bformee,
+						value & WMI_VHT_CAP_SU_BFORMEE);
+		vht_cap->vht_mu_bformer = QDF_MAX(vht_cap->vht_mu_bformer,
+						value & WMI_VHT_CAP_MU_BFORMER);
+		vht_cap->vht_mu_bformee = QDF_MAX(vht_cap->vht_mu_bformee,
+						value & WMI_VHT_CAP_MU_BFORMEE);
+		vht_cap->vht_txop_ps = QDF_MIN(vht_cap->vht_txop_ps,
+						value & WMI_VHT_CAP_TXOP_PS);
+	}
+}
+
+/**
+ * wma_update_target_ext_vht_cap() - Update VHT caps with given extended cap
+ * @wma_handle: pointer to wma_handle
+ * @vht_cap: VHT cap structure to be filled
+ *
+ * This function loop through each hardware mode and for each hardware mode
+ * again it loop through each MAC/PHY and pull the caps 2G and 5G specific
+ * VHT caps and derives the final cap.
+ *
+ * Return: none
+ *
+ */
+static void wma_update_target_ext_vht_cap(t_wma_handle *wma_handle,
+		struct wma_tgt_vht_cap *vht_cap)
+{
+	int i, j = 0, max_mac;
+	uint32_t vht_cap_info_2g, vht_cap_info_5g;
+	struct wma_tgt_vht_cap tmp_vht_cap = {0}, tmp_cap = {0};
+	struct extended_caps *phy_caps;
+	WMI_MAC_PHY_CAPABILITIES *mac_cap;
+
+	/*
+	 * for legacy device extended cap might not even come, so in that case
+	 * don't overwrite legacy values
+	 */
+	if (!wma_handle ||
+		(0 == wma_handle->phy_caps.num_hw_modes.num_hw_modes)) {
+		WMA_LOGI("%s: No extended VHT cap for current SOC", __func__);
+		return;
+	}
+
+	phy_caps = &wma_handle->phy_caps;
+	for (i = 0; i < phy_caps->num_hw_modes.num_hw_modes; i++) {
+		if (phy_caps->each_hw_mode_cap[i].phy_id_map == PHY1_PHY2)
+			max_mac = j + 2;
+		else
+			max_mac = j + 1;
+		for ( ; j < max_mac; j++) {
+			mac_cap = &phy_caps->each_phy_cap_per_hwmode[j];
+			vht_cap_info_2g = mac_cap->vht_cap_info_2G;
+			vht_cap_info_5g = mac_cap->vht_cap_info_5G;
+			if (vht_cap_info_2g)
+				wma_derive_ext_vht_cap(wma_handle, &tmp_vht_cap,
+					vht_cap_info_2g);
+			if (vht_cap_info_5g)
+				wma_derive_ext_vht_cap(wma_handle, &tmp_vht_cap,
+					vht_cap_info_5g);
+		}
+	}
+
+	if (0 != qdf_mem_cmp(&tmp_cap, &tmp_vht_cap,
+				sizeof(struct wma_tgt_vht_cap))) {
+			qdf_mem_copy(vht_cap, &tmp_vht_cap,
+					sizeof(struct wma_tgt_vht_cap));
+	}
+
+	WMA_LOGI("%s: [ext vhtcap] max_mpdu %d supp_chan_width %x rx_ldpc %x\n \
+		short_gi_80 %x tx_stbc %x rx_stbc %x txop_ps %x\n \
+		su_bformee %x mu_bformee %x max_ampdu_len_exp %d", __func__,
+		vht_cap->vht_max_mpdu, vht_cap->supp_chan_width,
+		vht_cap->vht_rx_ldpc, vht_cap->vht_short_gi_80,
+		vht_cap->vht_tx_stbc, vht_cap->vht_rx_stbc,
+		vht_cap->vht_txop_ps, vht_cap->vht_su_bformee,
+		vht_cap->vht_mu_bformee, vht_cap->vht_max_ampdu_len_exp);
+}
+
+/**
  * wma_update_hdd_cfg() - update HDD config
  * @wma_handle: wma handle
  *
@@ -3557,6 +3895,12 @@ static void wma_update_hdd_cfg(tp_wma_handle wma_handle)
 	wma_update_target_services(wma_handle, &tgt_cfg.services);
 	wma_update_target_ht_cap(wma_handle, &tgt_cfg.ht_cap);
 	wma_update_target_vht_cap(wma_handle, &tgt_cfg.vht_cap);
+	/*
+	 * This will overwrite the structure filled by wma_update_target_ht_cap
+	 * and wma_update_target_vht_cap APIs.
+	 */
+	wma_update_target_ext_ht_cap(wma_handle, &tgt_cfg.ht_cap);
+	wma_update_target_ext_vht_cap(wma_handle, &tgt_cfg.vht_cap);
 
 	tgt_cfg.target_fw_version = wma_handle->target_fw_version;
 #ifdef WLAN_FEATURE_LPSS
@@ -4047,6 +4391,225 @@ int wma_rx_service_ready_event(void *handle, uint8_t *cmd_param_info,
 }
 
 /**
+ * wma_print_populate_soc_caps() - Prints all the caps populated per hw mode
+ * @wma_handle: pointer to wma_handle
+ *
+ * This function prints all the caps populater per hw mode and per PHY
+ *
+ * Return: none
+ */
+static void wma_print_populate_soc_caps(t_wma_handle *wma_handle)
+{
+	int i, j = 0, max_mac;
+	WMI_MAC_PHY_CAPABILITIES *tmp;
+
+	/* print number of hw modes */
+	WMA_LOGI("%s: num of hw modes [%d]", __func__,
+		wma_handle->phy_caps.num_hw_modes.num_hw_modes);
+	WMA_LOGI("%s: <====== HW mode cap printing starts ======>", __func__);
+	/* print cap of each hw mode */
+	for (i = 0; i < wma_handle->phy_caps.num_hw_modes.num_hw_modes; i++) {
+		WMA_LOGI("====>: hw mode id[%d], phy_id map[%d]",
+			wma_handle->phy_caps.each_hw_mode_cap[i].hw_mode_id,
+			wma_handle->phy_caps.each_hw_mode_cap[i].phy_id_map);
+		if (wma_handle->phy_caps.each_hw_mode_cap[i].phy_id_map ==
+								PHY1_PHY2)
+			max_mac = j + 2;
+		else
+			max_mac = j + 1;
+
+		for ( ; j < max_mac; j++) {
+			tmp = &wma_handle->phy_caps.each_phy_cap_per_hwmode[j];
+			WMA_LOGI("\t: index j[%d]", j);
+			WMA_LOGI("\t: cap for hw_mode_id[%d]", tmp->hw_mode_id);
+			WMA_LOGI("\t: pdev_id[%d]", tmp->pdev_id);
+			WMA_LOGI("\t: phy_id[%d]", tmp->phy_id);
+			WMA_LOGI("\t: supports_11b[%d]",
+				WMI_SUPPORT_11B_GET(tmp->supported_flags));
+			WMA_LOGI("\t: supports_11g[%d]",
+				WMI_SUPPORT_11G_GET(tmp->supported_flags));
+			WMA_LOGI("\t: supports_11a[%d]",
+				WMI_SUPPORT_11A_GET(tmp->supported_flags));
+			WMA_LOGI("\t: supports_11n[%d]",
+				WMI_SUPPORT_11N_GET(tmp->supported_flags));
+			WMA_LOGI("\t: supports_11ac[%d]",
+				WMI_SUPPORT_11AC_GET(tmp->supported_flags));
+			WMA_LOGI("\t: supports_11ax[%d]",
+				WMI_SUPPORT_11AX_GET(tmp->supported_flags));
+			WMA_LOGI("\t: supported_flags[%d]",
+					tmp->supported_flags);
+			WMA_LOGI("\t: supported_bands[%d]",
+					tmp->supported_bands);
+			WMA_LOGI("\t: ampdu_density[%d]",
+					tmp->ampdu_density);
+			WMA_LOGI("\t: max_bw_supported_2G[%d]",
+					tmp->max_bw_supported_2G);
+			WMA_LOGI("\t: ht_cap_info_2G[%d]", tmp->ht_cap_info_2G);
+			WMA_LOGI("\t: vht_cap_info_2G[%d]",
+					tmp->vht_cap_info_2G);
+			WMA_LOGI("\t: he_cap_info_2G[%d]", tmp->he_cap_info_2G);
+			WMA_LOGI("\t: vht_supp_mcs_2G[%d]",
+					tmp->vht_supp_mcs_2G);
+			WMA_LOGI("\t: he_supp_mcs_2G[%d]", tmp->he_supp_mcs_2G);
+			WMA_LOGI("\t: tx_chain_mask_2G[%d]",
+					tmp->tx_chain_mask_2G);
+			WMA_LOGI("\t: rx_chain_mask_2G[%d]",
+					tmp->rx_chain_mask_2G);
+			WMA_LOGI("\t: max_bw_supported_5G[%d]",
+					tmp->max_bw_supported_5G);
+			WMA_LOGI("\t: ht_cap_info_5G[%d]",
+					tmp->ht_cap_info_5G);
+			WMA_LOGI("\t: vht_cap_info_5G[%d]",
+					tmp->vht_cap_info_5G);
+			WMA_LOGI("\t: he_cap_info_5G[%d]", tmp->he_cap_info_5G);
+			WMA_LOGI("\t: vht_supp_mcs_5G[%d]",
+					tmp->vht_supp_mcs_5G);
+			WMA_LOGI("\t: he_supp_mcs_5G[%d]", tmp->he_supp_mcs_5G);
+			WMA_LOGI("\t: tx_chain_mask_5G[%d]",
+					tmp->tx_chain_mask_5G);
+			WMA_LOGI("\t: rx_chain_mask_5G[%d]",
+					tmp->rx_chain_mask_5G);
+		}
+	}
+	WMA_LOGI("%s: <====== HW mode cap printing ends ======>\n", __func__);
+}
+
+/**
+ * wma_populate_soc_caps() - populate entire SOC's capabilities
+ * @wma_handle: pointer to wma global structure
+ * @param_buf: pointer to param of service ready extension event from fw
+ *
+ * This API populates all capabilities of entire SOC. For example,
+ * how many number of hw modes are supported by this SOC, what are the
+ * capabilities of each phy per hw mode, what are HAL reg capabilities per
+ * phy.
+ *
+ * Return: none
+ */
+static void wma_populate_soc_caps(t_wma_handle *wma_handle,
+			WMI_SERVICE_READY_EXT_EVENTID_param_tlvs *param_buf)
+{
+	int i, num_of_mac_caps = 0, tmp = 0;
+	struct extended_caps *phy_caps;
+	struct hw_mode_idx_to_mac_cap_idx *map;
+
+	WMA_LOGD("%s: Enter", __func__);
+
+	if (!wma_handle) {
+		WMA_LOGP("%s: Invalid WMA handle", __func__);
+		return;
+	}
+
+	if (!param_buf) {
+		WMA_LOGP("%s: Invalid event", __func__);
+		return;
+	}
+	phy_caps = &wma_handle->phy_caps;
+
+	/*
+	 * first thing to do is to get how many number of hw modes are
+	 * supported and populate in wma_handle global structure
+	 */
+	qdf_mem_copy(&phy_caps->num_hw_modes,
+			param_buf->soc_hw_mode_caps,
+			sizeof(WMI_SOC_MAC_PHY_HW_MODE_CAPS));
+	if (0 == phy_caps->num_hw_modes.num_hw_modes) {
+		WMA_LOGE("%s: Invalid number of hw modes", __func__);
+		return;
+	} else {
+		WMA_LOGI("%s: Given number of hw modes[%d]",
+			 __func__, phy_caps->num_hw_modes.num_hw_modes);
+	}
+
+	/*
+	 * next thing is to allocate the memory to map hw mode to phy/mac caps
+	 */
+	phy_caps->hw_mode_to_mac_cap_map =
+		qdf_mem_malloc(phy_caps->num_hw_modes.num_hw_modes *
+				sizeof(struct hw_mode_idx_to_mac_cap_idx));
+	if (!phy_caps->hw_mode_to_mac_cap_map) {
+		WMA_LOGE("%s: Memory allocation failed", __func__);
+		return;
+	}
+
+	/*
+	 * next thing is to allocate the memory for per hw caps
+	 */
+	phy_caps->each_hw_mode_cap =
+		qdf_mem_malloc(phy_caps->num_hw_modes.num_hw_modes *
+				sizeof(WMI_HW_MODE_CAPABILITIES));
+	if (!phy_caps->each_hw_mode_cap) {
+		WMA_LOGE("%s: Memory allocation failed", __func__);
+		wma_cleanup_dbs_phy_caps(wma_handle);
+		return;
+	}
+	qdf_mem_copy(phy_caps->each_hw_mode_cap,
+			param_buf->hw_mode_caps,
+			phy_caps->num_hw_modes.num_hw_modes *
+			sizeof(WMI_HW_MODE_CAPABILITIES));
+	/*
+	 * next thing is to count the number of mac cap to populate per
+	 * hw mode and generate map, so that our search can be done
+	 * efficiently which is O(1)
+	 */
+	for (i = 0; i < phy_caps->num_hw_modes.num_hw_modes; i++) {
+		map = &phy_caps->hw_mode_to_mac_cap_map[i];
+		if (phy_caps->each_hw_mode_cap[i].phy_id_map == PHY1_PHY2) {
+			tmp = num_of_mac_caps;
+			num_of_mac_caps = num_of_mac_caps +  2;
+			map->num_of_macs = 2;
+		} else {
+			tmp = num_of_mac_caps;
+			num_of_mac_caps = num_of_mac_caps + 1;
+			map->num_of_macs = 1;
+		}
+		map->mac_cap_idx = tmp;
+		map->hw_mode_id = phy_caps->each_hw_mode_cap[i].hw_mode_id;
+	}
+
+	/*
+	 * next thing is to populate each phy caps per hw mode
+	 */
+	phy_caps->each_phy_cap_per_hwmode =
+		qdf_mem_malloc(num_of_mac_caps *
+				sizeof(WMI_MAC_PHY_CAPABILITIES));
+	if (!phy_caps->each_phy_cap_per_hwmode) {
+		WMA_LOGE("%s: Memory allocation failed", __func__);
+		wma_cleanup_dbs_phy_caps(wma_handle);
+		return;
+	}
+	qdf_mem_copy(phy_caps->each_phy_cap_per_hwmode,
+			param_buf->mac_phy_caps,
+			num_of_mac_caps * sizeof(WMI_MAC_PHY_CAPABILITIES));
+
+	/*
+	 * next thing is to populate reg caps per phy
+	 */
+	qdf_mem_copy(&phy_caps->num_phy_for_hal_reg_cap,
+			param_buf->soc_hal_reg_caps,
+			sizeof(WMI_SOC_HAL_REG_CAPABILITIES));
+	if (phy_caps->num_phy_for_hal_reg_cap.num_phy == 0) {
+		WMA_LOGE("%s: incorrect number of phys", __func__);
+		wma_cleanup_dbs_phy_caps(wma_handle);
+		return;
+	}
+	phy_caps->each_phy_hal_reg_cap =
+		qdf_mem_malloc(phy_caps->num_phy_for_hal_reg_cap.num_phy *
+				sizeof(WMI_HAL_REG_CAPABILITIES_EXT));
+	if (!phy_caps->each_phy_hal_reg_cap) {
+		WMA_LOGE("%s: Memory allocation failed", __func__);
+		wma_cleanup_dbs_phy_caps(wma_handle);
+		return;
+	}
+	qdf_mem_copy(phy_caps->each_phy_hal_reg_cap,
+			param_buf->hal_reg_caps,
+			phy_caps->num_phy_for_hal_reg_cap.num_phy *
+				sizeof(WMI_HAL_REG_CAPABILITIES_EXT));
+	wma_print_populate_soc_caps(wma_handle);
+	return;
+}
+
+/**
  * wma_rx_service_ready_ext_event() - evt handler for sevice ready ext event.
  * @handle: wma handle
  * @event: params of the service ready extended event
@@ -4093,6 +4656,7 @@ int wma_rx_service_ready_ext_event(void *handle, uint8_t *event,
 		WMA_LOGP("Failed to stop the service ready ext timer");
 		return -EINVAL;
 	}
+	wma_populate_soc_caps(wma_handle, param_buf);
 
 	WMA_LOGA("WMA --> WMI_INIT_CMDID");
 	status = wmi_unified_send_saved_init_cmd(wma_handle->wmi_handle);
@@ -4708,6 +5272,11 @@ QDF_STATUS wma_mc_process_msg(void *cds_context, cds_msg_t *msg)
 	case WMA_CLI_SET_CMD:
 		wma_process_cli_set_cmd(wma_handle,
 					(wma_cli_set_cmd_t *) msg->bodyptr);
+		qdf_mem_free(msg->bodyptr);
+		break;
+	case WMA_SET_PDEV_IE_REQ:
+		wma_process_set_pdev_ie_req(wma_handle,
+				(struct set_ie_param *)msg->bodyptr);
 		qdf_mem_free(msg->bodyptr);
 		break;
 #if !defined(REMOVE_PKT_LOG)

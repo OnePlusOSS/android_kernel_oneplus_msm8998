@@ -4484,6 +4484,9 @@ static int __wlan_hdd_cfg80211_set_probable_oper_channel(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
+	if (0 != wlan_hdd_check_remain_on_channel(adapter))
+		hdd_warn("Remain On Channel Pending");
+
 	if (hdd_ctx->config->policy_manager_enabled) {
 		ret = qdf_reset_connection_update();
 		if (!QDF_IS_STATUS_SUCCESS(ret))
@@ -9896,11 +9899,8 @@ disconnected:
 	 * is handled by __cfg80211_disconnect call to __cfg80211_disconnected
 	 */
 	hddLog(LOG1, FL("Send disconnected event to userspace"));
-	cfg80211_disconnected(pAdapter->dev, WLAN_REASON_UNSPECIFIED, NULL, 0,
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)) || defined(WITH_BACKPORTS)
-			      false,
-#endif
-			      GFP_KERNEL);
+	wlan_hdd_cfg80211_indicate_disconnect(pAdapter->dev, true,
+						WLAN_REASON_UNSPECIFIED);
 #endif
 
 	return result;
@@ -12361,4 +12361,8 @@ static struct cfg80211_ops wlan_hdd_cfg80211_ops = {
 	.channel_switch = wlan_hdd_cfg80211_channel_switch,
 #endif
 	.set_monitor_channel = wlan_hdd_cfg80211_set_mon_ch,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0)) || \
+    defined(CFG80211_ABORT_SCAN)
+	.abort_scan = wlan_hdd_cfg80211_abort_scan,
+#endif
 };

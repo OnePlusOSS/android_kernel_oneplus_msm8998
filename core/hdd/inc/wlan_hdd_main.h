@@ -319,12 +319,6 @@ extern spinlock_t hdd_context_lock;
 #define WLAN_SAP_HDD_TX_FLOW_CONTROL_OS_Q_BLOCK_TIME 100
 #define WLAN_HDD_TX_FLOW_CONTROL_MAX_24BAND_CH   14
 
-#define HDD_VHT_RX_HIGHEST_SUPPORTED_DATA_RATE_1_1       390
-#define HDD_VHT_TX_HIGHEST_SUPPORTED_DATA_RATE_1_1       390
-#define HDD_VHT_RX_HIGHEST_SUPPORTED_DATA_RATE_2_2       780
-#define HDD_VHT_TX_HIGHEST_SUPPORTED_DATA_RATE_2_2       780
-
-
 #define NUM_TX_RX_HISTOGRAM 1024
 #define NUM_TX_RX_HISTOGRAM_MASK (NUM_TX_RX_HISTOGRAM - 1)
 
@@ -805,6 +799,7 @@ typedef struct multicast_addr_list {
 struct hdd_netif_queue_stats {
 	uint16_t pause_count;
 	uint16_t unpause_count;
+	qdf_time_t total_pause_time;
 };
 
 /**
@@ -1257,10 +1252,13 @@ struct hdd_context_s {
 	uint16_t connected_peer_count;
 	tdls_scan_context_t tdls_scan_ctxt;
 	/* Lock to avoid race condition during TDLS operations */
+	qdf_spinlock_t tdls_ct_spinlock;
 	struct mutex tdls_lock;
 	uint8_t tdls_off_channel;
 	uint16_t tdls_channel_offset;
 	int32_t tdls_fw_off_chan_mode;
+	bool enable_tdls_connection_tracker;
+	uint8_t tdls_external_peer_count;
 #endif
 
 	void *hdd_ipa;

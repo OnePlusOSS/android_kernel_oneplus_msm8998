@@ -550,15 +550,17 @@ static void cpufreq_blu_active_timer(unsigned long data)
 			if (new_freq < tunables->hispeed_freq)
 				new_freq = tunables->hispeed_freq;
 		}
-	} else {
-		if (!tunables->fastlane)
-			new_freq = choose_freq(ppol, loadadjfreq);
-		else
-			new_freq = ppol->policy->min + cpu_load * (ppol->policy->max - ppol->policy->min) / 100;
-		if (new_freq > tunables->hispeed_freq &&
-				ppol->policy->cur < tunables->hispeed_freq)
-			new_freq = tunables->hispeed_freq;
-	}
+	} else if (cpu_load <= 5) {
+		new_freq = ppol->policy->min;
+		} else {
+			if (!tunables->fastlane)
+				new_freq = choose_freq(ppol, loadadjfreq);
+			else
+				new_freq = ppol->policy->min + cpu_load * (ppol->policy->max - ppol->policy->min) / 100;
+			if (new_freq > tunables->hispeed_freq &&
+					ppol->policy->cur < tunables->hispeed_freq)
+				new_freq = tunables->hispeed_freq;
+		}
 
 	if (now - ppol->max_freq_hyst_start_time <
 	    tunables->max_freq_hysteresis)
@@ -1812,4 +1814,3 @@ MODULE_AUTHOR("engstk <eng.stk@sapo.pt>");
 MODULE_DESCRIPTION("'cpufreq_blu_active' - A cpufreq governor for"
 	"Latency sensitive workloads based on Google & CM Interactive");
 MODULE_LICENSE("GPLv2");
-

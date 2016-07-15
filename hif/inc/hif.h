@@ -61,8 +61,11 @@ typedef void *hif_handle_t;
 #define HIF_TYPE_IPQ4019 13
 #define HIF_TYPE_QCA9888 14
 
-
-
+/* TARGET definition needs to be abstracted in fw common
+ * header files, below is the placeholder till WIN codebase
+ * moved to latest copy of fw common header files.
+ */
+#ifdef CONFIG_WIN
 #define TARGET_TYPE_UNKNOWN   0
 #define TARGET_TYPE_AR6001    1
 #define TARGET_TYPE_AR6002    2
@@ -87,6 +90,7 @@ typedef void *hif_handle_t;
 #define TARGET_TYPE_QCA9377V1   17
 /* For Adrastea target */
 #define TARGET_TYPE_ADRASTEA     19
+#endif
 
 struct CE_state;
 #define CE_COUNT_MAX 12
@@ -505,7 +509,8 @@ QDF_STATUS hif_enable(struct hif_opaque_softc *hif_ctx, struct device *dev,
 		      enum qdf_bus_type bus_type,
 		      enum hif_enable_type type);
 void hif_disable(struct hif_opaque_softc *hif_ctx, enum hif_disable_type type);
-
+void hif_display_stats(struct hif_opaque_softc *hif_ctx);
+void hif_clear_stats(struct hif_opaque_softc *hif_ctx);
 #ifdef FEATURE_RUNTIME_PM
 struct hif_pm_runtime_lock;
 int hif_pm_runtime_get(struct hif_opaque_softc *hif_ctx);

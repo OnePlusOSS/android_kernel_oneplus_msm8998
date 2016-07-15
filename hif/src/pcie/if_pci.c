@@ -1128,9 +1128,9 @@ static void hif_pm_runtime_start(struct hif_pci_softc *sc)
 			(unsigned long)sc);
 
 	HIF_INFO("%s: Enabling RUNTIME PM, Delay: %d ms", __func__,
-			ol_sc->runtime_pm_delay);
+			ol_sc->hif_config.runtime_pm_delay);
 
-	cnss_runtime_init(sc->dev, ol_sc->runtime_pm_delay);
+	cnss_runtime_init(sc->dev, ol_sc->hif_config.runtime_pm_delay);
 	qdf_atomic_set(&sc->pm_state, HIF_PM_RUNTIME_STATE_ON);
 	hif_runtime_pm_debugfs_create(sc);
 }
@@ -1154,7 +1154,7 @@ static void hif_pm_runtime_stop(struct hif_pci_softc *sc)
 		return;
 
 	cnss_runtime_exit(sc->dev);
-	cnss_pm_runtime_request(sc->dev, CNSS_PM_RUNTIME_RESUME);
+	hif_pm_runtime_resume(sc->dev);
 
 	qdf_atomic_set(&sc->pm_state, HIF_PM_RUNTIME_STATE_NONE);
 
@@ -1323,6 +1323,28 @@ void hif_pci_disable_power_management(struct hif_softc *hif_ctx)
 	}
 
 	hif_pm_runtime_stop(pci_ctx);
+}
+
+void hif_pci_display_stats(struct hif_softc *hif_ctx)
+{
+	struct hif_pci_softc *pci_ctx = HIF_GET_PCI_SOFTC(hif_ctx);
+
+	if (pci_ctx == NULL) {
+		HIF_ERROR("%s, hif_ctx null", __func__);
+		return;
+	}
+	hif_display_ce_stats(&pci_ctx->ce_sc);
+}
+
+void hif_pci_clear_stats(struct hif_softc *hif_ctx)
+{
+	struct hif_pci_softc *pci_ctx = HIF_GET_PCI_SOFTC(hif_ctx);
+
+	if (pci_ctx == NULL) {
+		HIF_ERROR("%s, hif_ctx null", __func__);
+		return;
+	}
+	hif_clear_ce_stats(&pci_ctx->ce_sc);
 }
 
 #define ATH_PCI_PROBE_RETRY_MAX 3
@@ -1856,7 +1878,7 @@ int hif_set_hia(struct hif_softc *scn)
 	if ((target_type == TARGET_TYPE_AR900B)
 			|| (target_type == TARGET_TYPE_QCA9984)
 			|| (target_type == TARGET_TYPE_QCA9888)
-			|| (target_type == TARGET_TYPE_QCA9888)) {
+			|| (target_type == TARGET_TYPE_AR9888)) {
 		hif_set_hia_extnd(scn);
 	}
 
@@ -2327,6 +2349,7 @@ static int hif_pci_configure_legacy_irq(struct hif_pci_softc *sc)
 {
 	int ret = 0;
 	struct hif_softc *scn = HIF_GET_SOFTC(sc);
+	uint32_t target_type = scn->target_info.target_type;
 
 	HIF_TRACE("%s: E", __func__);
 
@@ -2350,6 +2373,15 @@ static int hif_pci_configure_legacy_irq(struct hif_pci_softc *sc)
 			       PCIE_INTR_ENABLE_ADDRESS));
 	hif_write32_mb(sc->mem + PCIE_LOCAL_BASE_ADDRESS +
 		      PCIE_SOC_WAKE_ADDRESS, PCIE_SOC_WAKE_RESET);
+
+	if ((target_type == TARGET_TYPE_IPQ4019) ||
+			(target_type == TARGET_TYPE_AR900B)  ||
+			(target_type == TARGET_TYPE_QCA9984) ||
+			(target_type == TARGET_TYPE_AR9888) ||
+			(target_type == TARGET_TYPE_QCA9888)) {
+		hif_write32_mb(scn->mem + PCIE_LOCAL_BASE_ADDRESS +
+				PCIE_SOC_WAKE_ADDRESS, PCIE_SOC_WAKE_V_MASK);
+	}
 end:
 	QDF_TRACE(QDF_MODULE_ID_HIF, QDF_TRACE_LEVEL_ERROR,
 			  "%s: X, ret = %d", __func__, ret);
@@ -2401,7 +2433,7 @@ void hif_pci_nointrs(struct hif_softc *scn)
 void hif_pci_disable_bus(struct hif_softc *scn)
 {
 	struct hif_pci_softc *sc = HIF_GET_PCI_SOFTC(scn);
-	struct pci_dev *pdev = sc->pdev;
+	struct pci_dev *pdev;
 	void __iomem *mem;
 
 	/* Attach did not succeed, all resources have been
@@ -2410,6 +2442,7 @@ void hif_pci_disable_bus(struct hif_softc *scn)
 	if (!sc)
 		return;
 
+	pdev = sc->pdev;
 	if (ADRASTEA_BU) {
 		hif_write32_mb(sc->mem + PCIE_INTR_ENABLE_ADDRESS, 0);
 		hif_write32_mb(sc->mem + PCIE_INTR_CLR_ADDRESS,
@@ -3437,7 +3470,7 @@ again:
 		  __func__, hif_type, target_type);
 
 	hif_register_tbl_attach(ol_sc, hif_type);
-	target_register_tbl_attach(ol_sc, target_type);
+	hif_target_register_tbl_attach(ol_sc, target_type);
 
 	ret = hif_pci_probe_tgt_wakeup(sc);
 	if (ret < 0) {

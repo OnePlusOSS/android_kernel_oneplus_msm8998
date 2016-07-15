@@ -75,6 +75,28 @@ int hif_snoc_dump_registers(struct hif_softc *hif_ctx)
 	return 0;
 }
 
+void hif_snoc_display_stats(struct hif_softc *hif_ctx)
+{
+	struct HIF_CE_state *hif_state = HIF_GET_CE_STATE(hif_ctx);
+
+	if (hif_state == NULL) {
+		HIF_ERROR("%s, hif_ctx null", __func__);
+		return;
+	}
+	hif_display_ce_stats(hif_state);
+}
+
+void hif_snoc_clear_stats(struct hif_softc *hif_ctx)
+{
+	struct HIF_CE_state *hif_state = HIF_GET_CE_STATE(hif_ctx);
+
+	if (hif_state == NULL) {
+		HIF_ERROR("%s, hif_ctx null", __func__);
+		return;
+	}
+	hif_clear_ce_stats(hif_state);
+}
+
 /**
  * hif_snoc_close(): hif_bus_close
  *
@@ -220,7 +242,7 @@ QDF_STATUS hif_snoc_enable_bus(struct hif_softc *ol_sc,
 	ol_sc->target_info.target_type = target_type;
 
 	hif_register_tbl_attach(ol_sc, hif_type);
-	target_register_tbl_attach(ol_sc, target_type);
+	hif_target_register_tbl_attach(ol_sc, target_type);
 
 	HIF_TRACE("%s: X - hif_type = 0x%x, target_type = 0x%x",
 		  __func__, hif_type, target_type);

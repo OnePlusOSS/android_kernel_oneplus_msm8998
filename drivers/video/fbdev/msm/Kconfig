@@ -171,4 +171,11 @@ config IRIS2P_DRC_SUPPORT
 	---help---
 	Say y to enable
 
+config FB_MSM_MDSS_KCAL_CTRL
+	depends on FB_MSM_MDSS
+	bool "MDSS color control"
+	---help---
+	  Enable sysfs for post-processing control of mdss-mdp5 display
+	  controllers in MDSS.
+
 endif

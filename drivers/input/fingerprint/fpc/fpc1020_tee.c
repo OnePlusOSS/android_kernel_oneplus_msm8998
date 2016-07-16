@@ -91,6 +91,7 @@ struct fpc1020_data {
 	#if defined(CONFIG_FB)
 	struct notifier_block fb_notif;
     #endif
+	struct work_struct pm_work;
 };
 
 static int fpc1020_request_named_gpio(struct fpc1020_data *fpc1020,
@@ -435,29 +436,33 @@ void fpc1020_input_destroy(struct fpc1020_data *fpc1020)
 		input_free_device(fpc1020->input_dev);
 }
 
+static void fpc1020_suspend_resume(struct work_struct *work)
+{
+	struct fpc1020_data *fpc1020 =
+		container_of(work, typeof(*fpc1020), pm_work);
+
+	sysfs_notify(&fpc1020->dev->kobj, NULL,
+				dev_attr_screen_state.attr.name);
+}
+
 #if defined(CONFIG_FB)
 static int fb_notifier_callback(struct notifier_block *self, unsigned long event, void *data)
 {
-	struct fb_event *evdata = data;
-	int *blank;
-
 	struct fpc1020_data *fpc1020 = container_of(self, struct fpc1020_data, fb_notif);
+	struct fb_event *evdata = data;
+	int *blank = evdata->data;
 
-	if(FB_EARLY_EVENT_BLANK != event && FB_EVENT_BLANK != event)
-	return 0;
-	if((evdata) && (evdata->data) && (fpc1020)) {
-		blank = evdata->data;
-		if( *blank == FB_BLANK_UNBLANK && (event == FB_EARLY_EVENT_BLANK )) {
-			dev_err(fpc1020->dev, "%s screen on\n", __func__);
-			fpc1020->screen_state = 1;
-			sysfs_notify(&fpc1020->dev->kobj, NULL, dev_attr_screen_state.attr.name);
+	if (event != FB_EARLY_EVENT_BLANK)
+		return 0;
 
-		} else if( *blank == FB_BLANK_POWERDOWN && (event == FB_EARLY_EVENT_BLANK/*FB_EVENT_BLANK*/ )) {
-            dev_err(fpc1020->dev, "%s screen off\n", __func__);
-		    fpc1020->screen_state = 0;
-			sysfs_notify(&fpc1020->dev->kobj, NULL, dev_attr_screen_state.attr.name);
-		}
+	if (*blank == FB_BLANK_UNBLANK) {
+		fpc1020->screen_state = 1;
+		queue_work(system_highpri_wq, &fpc1020->pm_work);
+	} else if (*blank == FB_BLANK_POWERDOWN) {
+		fpc1020->screen_state = 0;
+		queue_work(system_highpri_wq, &fpc1020->pm_work);
 	}
+
 	return 0;
 }
 #endif
@@ -594,6 +599,8 @@ static int fpc1020_probe(struct platform_device *pdev)
     rc = fpc1020_input_init(fpc1020);
     if (rc)
 		goto exit;
+
+	INIT_WORK(&fpc1020->pm_work, fpc1020_suspend_resume);
 
     #if defined(CONFIG_FB)
 	fpc1020->fb_notif.notifier_call = fb_notifier_callback;

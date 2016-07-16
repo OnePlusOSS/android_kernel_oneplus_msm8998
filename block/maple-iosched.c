@@ -21,7 +21,7 @@
 #include <linux/powersuspend.h>
 #endif
 
-#define MAPLE_IOSCHED_PATCHLEVEL	(2)
+#define MAPLE_IOSCHED_PATCHLEVEL	(3)
 
 enum maple_sync { ASYNC, SYNC };
 
@@ -30,7 +30,7 @@ static const int sync_write_expire = 150;	/* max time before a write sync is sub
 static const int async_read_expire = 900;	/* ditto for read async, these limits are SOFT! */
 static const int async_write_expire = 900;	/* ditto for write async, these limits are SOFT! */
 static const int fifo_batch = 16;		/* # of sequential requests treated as one by the above parameters. */
-static const int writes_starved = 1;		/* max times reads can starve a write */
+static const int writes_starved = 3;		/* max times reads can starve a write */
 static const int sleep_latency_multiple = 3;	/* multple for expire time when device is asleep */
 
 struct maple_data {
@@ -193,7 +193,7 @@ static int maple_dispatch_requests(struct request_queue *q, int force)
 	}
 
 	if (!rq) {
-		if (mdata->starved > mdata->writes_starved)
+		if (mdata->starved >= mdata->writes_starved)
 			readwrite = WRITE;
 
 		rq = maple_choose_request(mdata, readwrite);

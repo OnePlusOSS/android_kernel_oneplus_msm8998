@@ -32,6 +32,7 @@
  */
 
 #include <wlan_hdd_includes.h>
+#include <ani_global.h>
 #include <wlan_hdd_hostapd.h>
 #include <wlan_hdd_trace.h>
 #include <net/cfg80211.h>
@@ -743,6 +744,8 @@ int wlan_hdd_tdls_init(hdd_adapter_t *pAdapter)
 
 	/* initialize TDLS global context */
 	pHddCtx->connected_peer_count = 0;
+	pHddCtx->tdls_nss_switch_in_progress = false;
+	pHddCtx->tdls_teardown_peers_cnt = 0;
 	sme_set_tdls_power_save_prohibited(WLAN_HDD_GET_HAL_CTX(pAdapter),
 					   pAdapter->sessionId, 0);
 
@@ -3772,6 +3775,16 @@ int wlan_hdd_tdls_add_station(struct wiphy *wiphy,
 
 	INIT_COMPLETION(pAdapter->tdls_add_station_comp);
 
+	/* Update the number of stream for each peer */
+	if ((NULL != StaParams) && (StaParams->htcap_present)) {
+		hddTdlsPeer_t *tdls_peer;
+
+		tdls_peer = wlan_hdd_tdls_find_peer(pAdapter, mac, true);
+		if (NULL != tdls_peer)
+			tdls_peer->spatial_streams =
+			StaParams->HTCap.suppMcsSet[1];
+	}
+
 	if (!update) {
 		status = sme_add_tdls_peer_sta(WLAN_HDD_GET_HAL_CTX(pAdapter),
 					       pAdapter->sessionId, mac);
@@ -3942,6 +3955,10 @@ static int __wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy,
 				  " TDLS mode is disabled. action %d declined.",
 				  __func__, MAC_ADDR_ARRAY(peer), action_code);
 			return -ENOTSUPP;
+		} else if (pHddCtx->tdls_nss_switch_in_progress) {
+			hdd_err("TDLS antenna switch in progress, action %d declined for "
+				MAC_ADDRESS_STR, action_code, MAC_ADDR_ARRAY(peer));
+			return -EAGAIN;
 		}
 	}
 
@@ -4067,6 +4084,17 @@ static int __wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy,
 		pAdapter->mgmtTxCompletionStatus = false;
 		return -EINVAL;
 	}
+
+	if (SIR_MAC_TDLS_TEARDOWN == action_code &&
+	    pHddCtx->tdls_nss_switch_in_progress) {
+		mutex_lock(&pHddCtx->tdls_lock);
+		if (pHddCtx->tdls_teardown_peers_cnt != 0)
+			pHddCtx->tdls_teardown_peers_cnt--;
+		if (pHddCtx->tdls_teardown_peers_cnt == 0)
+			pHddCtx->tdls_nss_switch_in_progress = false;
+		mutex_unlock(&pHddCtx->tdls_lock);
+	}
+
 
 	if ((SIR_MAC_TDLS_DIS_REQ == action_code) ||
 	    (SIR_MAC_TDLS_DIS_RSP == action_code)) {
@@ -5743,4 +5771,130 @@ int hdd_set_tdls_scan_type(hdd_context_t *hdd_ctx, int val)
 		hdd_ctx->config->enable_tdls_scan = val;
 		return 0;
 	}
+}
+
+/**
+ * wlan_hdd_tdls_teardown_links() - teardown tdls links
+ * @hddCtx : pointer to hdd context
+ *
+ * Return: 0 if success else non zero
+ */
+static int wlan_hdd_tdls_teardown_links(hdd_context_t *hddctx,
+					uint32_t mode)
+{
+	uint16_t connected_tdls_peers = 0;
+	uint8_t staidx;
+	hddTdlsPeer_t *curr_peer;
+	hdd_adapter_t *adapter;
+	int ret = 0;
+
+	if (eTDLS_SUPPORT_NOT_ENABLED == hddctx->tdls_mode) {
+		hdd_info("TDLS mode is disabled OR not enabled in FW");
+		return 0;
+	}
+
+	adapter = hdd_get_adapter(hddctx, QDF_STA_MODE);
+
+	if (adapter == NULL) {
+		hdd_info("Station Adapter Not Found");
+		return 0;
+	}
+
+	connected_tdls_peers = wlan_hdd_tdls_connected_peers(adapter);
+
+	if (!connected_tdls_peers)
+		return 0;
+
+	for (staidx = 0; staidx < hddctx->max_num_tdls_sta;
+							staidx++) {
+		if (!hddctx->tdlsConnInfo[staidx].staId)
+			continue;
+
+		curr_peer = wlan_hdd_tdls_find_all_peer(hddctx,
+			hddctx->tdlsConnInfo[staidx].peerMac.bytes);
+
+		if (!curr_peer)
+			continue;
+
+		/* Check if connected peer supports more than one stream */
+		if (curr_peer->spatial_streams == TDLS_NSS_1x1_MODE)
+			continue;
+
+		hdd_info("Indicate TDLS teardown (staId %d)",
+			 curr_peer->staId);
+
+		wlan_hdd_tdls_indicate_teardown(
+					curr_peer->pHddTdlsCtx->pAdapter,
+					curr_peer,
+					eSIR_MAC_TDLS_TEARDOWN_UNSPEC_REASON);
+		mutex_lock(&hddctx->tdls_lock);
+		hddctx->tdls_teardown_peers_cnt++;
+		mutex_unlock(&hddctx->tdls_lock);
+	}
+	mutex_lock(&hddctx->tdls_lock);
+	if (hddctx->tdls_teardown_peers_cnt >= 1) {
+		hddctx->tdls_nss_switch_in_progress = true;
+		hdd_info("TDLS peers to be torn down = %d",
+			 hddctx->tdls_teardown_peers_cnt);
+		/*  Antenna switch 2x2 to 1x1 */
+		if (mode == HDD_ANTENNA_MODE_1X1)
+			ret = -EAGAIN;
+		else
+		/*  Antenna switch 1x1 to 2x2 */
+			ret = 0;
+		hdd_info("TDLS teardown for antenna switch operation starts");
+	}
+	mutex_unlock(&hddctx->tdls_lock);
+	return ret;
+}
+
+/**
+ * wlan_hdd_tdls_antenna_switch() - Dynamic TDLS antenna  switch 1x1 <-> 2x2
+ * antenna mode in standalone station
+ * @hdd_ctx: Pointer to hdd contex
+ * @adapter: Pointer to hdd adapter
+ *
+ * Return: 0 if success else non zero
+ */
+int wlan_hdd_tdls_antenna_switch(hdd_context_t *hdd_ctx,
+					hdd_adapter_t *adapter, uint32_t mode)
+{
+	uint8_t tdls_peer_cnt;
+	uint32_t vdev_nss;
+	hdd_station_ctx_t *sta_ctx =
+		WLAN_HDD_GET_STATION_CTX_PTR(adapter);
+
+	/* Check whether TDLS antenna switch is in progress */
+	if (hdd_ctx->tdls_nss_switch_in_progress) {
+		hdd_err("TDLS antenna switch is in progress");
+		return -EAGAIN;
+	}
+
+	/* Check whether TDLS is connected or not */
+	mutex_lock(&hdd_ctx->tdls_lock);
+	tdls_peer_cnt = hdd_ctx->connected_peer_count;
+	mutex_unlock(&hdd_ctx->tdls_lock);
+	if (tdls_peer_cnt <= 0) {
+		hdd_info("No TDLS connection established");
+		goto tdls_ant_sw_done;
+	}
+
+	/* Check the supported nss for TDLS */
+	if (IS_5G_CH(sta_ctx->conn_info.operationChannel))
+		vdev_nss = CFG_TDLS_NSS(
+			hdd_ctx->config->vdev_type_nss_5g);
+	else
+		vdev_nss = CFG_TDLS_NSS(
+			hdd_ctx->config->vdev_type_nss_2g);
+
+	if (vdev_nss == HDD_ANTENNA_MODE_1X1) {
+		hdd_info("Supported NSS is 1X1, no need to teardown TDLS links");
+		goto tdls_ant_sw_done;
+	}
+
+	/* teardown all the tdls connections */
+	return wlan_hdd_tdls_teardown_links(hdd_ctx, mode);
+
+tdls_ant_sw_done:
+	return 0;
 }

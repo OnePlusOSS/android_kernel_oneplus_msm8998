@@ -57,6 +57,7 @@
 #include "wmm_apsd.h"
 #include "sir_mac_prot_def.h"
 #include "rrm_api.h"
+#include "nan_datapath.h"
 
 #include "sap_api.h"
 
@@ -114,7 +115,7 @@ static void lim_process_modify_add_ies(tpAniSirGlobal pMac, uint32_t *pMsg);
 
 static void lim_process_update_add_ies(tpAniSirGlobal pMac, uint32_t *pMsg);
 
-extern void pe_register_wma_handle(tpAniSirGlobal pMac,
+extern void pe_register_callbacks_with_wma(tpAniSirGlobal pMac,
 		tSirSmeReadyReq *ready_req);
 static void lim_process_ext_change_channel(tpAniSirGlobal mac_ctx,
 						uint32_t *msg);
@@ -170,7 +171,7 @@ static QDF_STATUS lim_process_set_hw_mode(tpAniSirGlobal mac, uint32_t *msg)
 	status = cds_mq_post_message(CDS_MQ_ID_WMA, &cds_message);
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		lim_log(mac, LOGE,
-			FL("vos_mq_post_message failed!(err=%d)"),
+			FL("cds_mq_post_message failed!(err=%d)"),
 			status);
 		qdf_mem_free(req_msg);
 		goto fail;
@@ -245,7 +246,7 @@ static QDF_STATUS lim_process_set_dual_mac_cfg_req(tpAniSirGlobal mac,
 	status = cds_mq_post_message(CDS_MQ_ID_WMA, &cds_message);
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		lim_log(mac, LOGE,
-				FL("vos_mq_post_message failed!(err=%d)"),
+				FL("cds_mq_post_message failed!(err=%d)"),
 				status);
 		qdf_mem_free(req_msg);
 		goto fail;
@@ -311,7 +312,7 @@ static QDF_STATUS lim_process_set_antenna_mode_req(tpAniSirGlobal mac,
 	status = cds_mq_post_message(CDS_MQ_ID_WMA, &cds_message);
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		lim_log(mac, LOGE,
-				FL("vos_mq_post_message failed!(err=%d)"),
+				FL("cds_mq_post_message failed!(err=%d)"),
 				status);
 		qdf_mem_free(req_msg);
 		goto fail;
@@ -359,32 +360,44 @@ __lim_fresh_scan_reqd(tpAniSirGlobal mac_ctx, uint8_t return_fresh_results)
 	}
 
 	for (i = 0; i < mac_ctx->lim.maxBssId; i++) {
+
+		if (mac_ctx->lim.gpSession[i].valid == false)
+			continue;
+
 		lim_log(mac_ctx, LOG1,
 			FL("session %d, bsstype %d, limSystemRole %d, limSmeState %d"),
 			i, mac_ctx->lim.gpSession[i].bssType,
 			mac_ctx->lim.gpSession[i].limSystemRole,
 			mac_ctx->lim.gpSession[i].limSmeState);
-		if (mac_ctx->lim.gpSession[i].valid == true) {
-			if (!((((mac_ctx->lim.gpSession[i].bssType ==
-					eSIR_INFRASTRUCTURE_MODE)) &&
-				(mac_ctx->lim.gpSession[i].limSmeState ==
-					eLIM_SME_LINK_EST_STATE)) ||
-			      (((mac_ctx->lim.gpSession[i].bssType ==
-					eSIR_IBSS_MODE)) &&
-			       (mac_ctx->lim.gpSession[i].limSmeState ==
-					eLIM_SME_NORMAL_STATE)) ||
-			      ((((mac_ctx->lim.gpSession[i].bssType ==
-					eSIR_INFRA_AP_MODE) &&
-				(mac_ctx->lim.gpSession[i].pePersona ==
-					QDF_P2P_GO_MODE)) ||
-			      (mac_ctx->lim.gpSession[i].limSystemRole ==
-					eLIM_AP_ROLE)) &&
-			      (mac_ctx->lim.gpSession[i].limSmeState ==
-					eLIM_SME_NORMAL_STATE)))) {
-				valid_state = false;
-				break;
-			}
-		}
+
+		if (mac_ctx->lim.gpSession[i].bssType == eSIR_NDI_MODE)
+			continue;
+
+		if (mac_ctx->lim.gpSession[i].bssType ==
+				eSIR_INFRASTRUCTURE_MODE &&
+				mac_ctx->lim.gpSession[i].limSmeState ==
+				eLIM_SME_LINK_EST_STATE)
+			continue;
+
+		if (mac_ctx->lim.gpSession[i].bssType == eSIR_IBSS_MODE &&
+				mac_ctx->lim.gpSession[i].limSmeState ==
+				eLIM_SME_NORMAL_STATE)
+			continue;
+
+		if (mac_ctx->lim.gpSession[i].bssType == eSIR_INFRA_AP_MODE &&
+				mac_ctx->lim.gpSession[i].pePersona ==
+				QDF_P2P_GO_MODE &&
+				mac_ctx->lim.gpSession[i].limSmeState ==
+				eLIM_SME_NORMAL_STATE)
+			continue;
+
+		if (mac_ctx->lim.gpSession[i].limSystemRole == eLIM_AP_ROLE &&
+				mac_ctx->lim.gpSession[i].limSmeState ==
+				eLIM_SME_NORMAL_STATE)
+			continue;
+
+		valid_state = false;
+		break;
 	}
 
 	lim_log(mac_ctx, LOG1, FL("valid_state: %d"), valid_state);
@@ -545,7 +558,7 @@ static bool __lim_process_sme_sys_ready_ind(tpAniSirGlobal pMac, uint32_t *pMsgB
 
 	if (ANI_DRIVER_TYPE(pMac) != eDRIVER_TYPE_MFG) {
 		ready_req->pe_roam_synch_cb = pe_roam_synch_callback;
-		pe_register_wma_handle(pMac, ready_req);
+		pe_register_callbacks_with_wma(pMac, ready_req);
 		pMac->lim.add_bssdescr_callback = ready_req->add_bssdescr_cb;
 	}
 	PELOGW(lim_log(pMac, LOGW, FL("sending WMA_SYS_READY_IND msg to HAL"));)
@@ -698,27 +711,34 @@ __lim_handle_sme_start_bss_request(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 			}
 		}
 
-		/* Probe resp add ie */
-		lim_start_bss_update_add_ie_buffer(mac_ctx,
-			&session->addIeParams.probeRespData_buff,
-			&session->addIeParams.probeRespDataLen,
-			sme_start_bss_req->addIeParams.probeRespData_buff,
-			sme_start_bss_req->addIeParams.probeRespDataLen);
+		if (QDF_NDI_MODE != sme_start_bss_req->bssPersona) {
+			/* Probe resp add ie */
+			lim_start_bss_update_add_ie_buffer(mac_ctx,
+				&session->addIeParams.probeRespData_buff,
+				&session->addIeParams.probeRespDataLen,
+				sme_start_bss_req->addIeParams.
+					probeRespData_buff,
+				sme_start_bss_req->addIeParams.
+					probeRespDataLen);
 
-		/* Probe Beacon add ie */
-		lim_start_bss_update_add_ie_buffer(mac_ctx,
-			&session->addIeParams.probeRespBCNData_buff,
-			&session->addIeParams.probeRespBCNDataLen,
-			sme_start_bss_req->addIeParams.probeRespBCNData_buff,
-			sme_start_bss_req->addIeParams.probeRespBCNDataLen);
+			/* Probe Beacon add ie */
+			lim_start_bss_update_add_ie_buffer(mac_ctx,
+				&session->addIeParams.probeRespBCNData_buff,
+				&session->addIeParams.probeRespBCNDataLen,
+				sme_start_bss_req->addIeParams.
+					probeRespBCNData_buff,
+				sme_start_bss_req->addIeParams.
+					probeRespBCNDataLen);
 
-		/* Assoc resp IE */
-		lim_start_bss_update_add_ie_buffer(mac_ctx,
-			&session->addIeParams.assocRespData_buff,
-			&session->addIeParams.assocRespDataLen,
-			sme_start_bss_req->addIeParams.assocRespData_buff,
-			sme_start_bss_req->addIeParams.assocRespDataLen);
-
+			/* Assoc resp IE */
+			lim_start_bss_update_add_ie_buffer(mac_ctx,
+				&session->addIeParams.assocRespData_buff,
+				&session->addIeParams.assocRespDataLen,
+				sme_start_bss_req->addIeParams.
+					assocRespData_buff,
+				sme_start_bss_req->addIeParams.
+					assocRespDataLen);
+		}
 		/* Store the session related params in newly created session */
 		session->pLimStartBssReq = sme_start_bss_req;
 
@@ -826,6 +846,10 @@ __lim_handle_sme_start_bss_request(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 			session->vdev_nss = vdev_type_nss->ibss;
 
 			break;
+		case eSIR_NDI_MODE:
+			session->limSystemRole = eLIM_NDI_ROLE;
+			break;
+
 
 		/*
 		 * There is one more mode called auto mode.
@@ -861,7 +885,8 @@ __lim_handle_sme_start_bss_request(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 					sizeof(tpSirAssocReq)), 0);
 		}
 
-		if (!sme_start_bss_req->channelId) {
+		if (!sme_start_bss_req->channelId &&
+		    sme_start_bss_req->bssType != eSIR_NDI_MODE) {
 			lim_log(mac_ctx, LOGE,
 				FL("Received invalid eWNI_SME_START_BSS_REQ"));
 			ret_code = eSIR_SME_INVALID_PARAMETERS;
@@ -924,7 +949,9 @@ __lim_handle_sme_start_bss_request(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 		lim_set_rs_nie_wp_aiefrom_sme_start_bss_req_message(mac_ctx,
 				&sme_start_bss_req->rsnIE, session);
 
-		if (LIM_IS_AP_ROLE(session) || LIM_IS_IBSS_ROLE(session)) {
+		if (LIM_IS_AP_ROLE(session) ||
+		    LIM_IS_IBSS_ROLE(session) ||
+		    LIM_IS_NDI_ROLE(session)) {
 			session->gLimProtectionControl =
 				sme_start_bss_req->protEnabled;
 			/*
@@ -962,7 +989,8 @@ __lim_handle_sme_start_bss_request(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 		/* Fill PE session Id from the session Table */
 		mlm_start_req->sessionId = session->peSessionId;
 
-		if (mlm_start_req->bssType == eSIR_INFRA_AP_MODE) {
+		if (mlm_start_req->bssType == eSIR_INFRA_AP_MODE ||
+		    mlm_start_req->bssType == eSIR_NDI_MODE) {
 			/*
 			 * Copy the BSSId from sessionTable to
 			 * mlmStartReq struct
@@ -2051,8 +2079,8 @@ __lim_process_sme_join_req(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 	}
 
 end:
-	sme_session_id = sme_join_req->sessionId;
-	sme_transaction_id = sme_join_req->transactionId;
+	sme_session_id = ((tpSirSmeJoinReq)msg_buf)->sessionId;
+	sme_transaction_id = ((tpSirSmeJoinReq)msg_buf)->transactionId;
 
 	if (sme_join_req) {
 		qdf_mem_free(sme_join_req);
@@ -3420,34 +3448,39 @@ __lim_handle_sme_stop_bss_request(tpAniSirGlobal pMac, uint32_t *pMsgBuf)
 	psessionEntry->smeSessionId = smesessionId;
 	psessionEntry->transactionId = smetransactionId;
 
-	/* BTAMP_STA and STA_IN_IBSS should NOT send Disassoc frame */
-	if (!LIM_IS_IBSS_ROLE(psessionEntry)) {
+	/* STA_IN_IBSS and NDI should NOT send Disassoc frame */
+	if (!LIM_IS_IBSS_ROLE(psessionEntry) &&
+	    !LIM_IS_NDI_ROLE(psessionEntry)) {
 		tSirMacAddr bcAddr = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 		if (stopBssReq.reasonCode == eSIR_SME_MIC_COUNTER_MEASURES)
 			/* Send disassoc all stations associated thru TKIP */
 			__lim_counter_measures(pMac, psessionEntry);
 		else
 			lim_send_disassoc_mgmt_frame(pMac,
-						     eSIR_MAC_DEAUTH_LEAVING_BSS_REASON,
-						     bcAddr, psessionEntry, false);
+				eSIR_MAC_DEAUTH_LEAVING_BSS_REASON,
+				bcAddr, psessionEntry, false);
 	}
 
-	/* Free the buffer allocated in START_BSS_REQ */
-	qdf_mem_free(psessionEntry->addIeParams.probeRespData_buff);
-	psessionEntry->addIeParams.probeRespDataLen = 0;
-	psessionEntry->addIeParams.probeRespData_buff = NULL;
+	if (!LIM_IS_NDI_ROLE(psessionEntry)) {
+		/* Free the buffer allocated in START_BSS_REQ */
+		qdf_mem_free(psessionEntry->addIeParams.probeRespData_buff);
+		psessionEntry->addIeParams.probeRespDataLen = 0;
+		psessionEntry->addIeParams.probeRespData_buff = NULL;
 
-	qdf_mem_free(psessionEntry->addIeParams.assocRespData_buff);
-	psessionEntry->addIeParams.assocRespDataLen = 0;
-	psessionEntry->addIeParams.assocRespData_buff = NULL;
+		qdf_mem_free(psessionEntry->addIeParams.assocRespData_buff);
+		psessionEntry->addIeParams.assocRespDataLen = 0;
+		psessionEntry->addIeParams.assocRespData_buff = NULL;
 
-	qdf_mem_free(psessionEntry->addIeParams.probeRespBCNData_buff);
-	psessionEntry->addIeParams.probeRespBCNDataLen = 0;
-	psessionEntry->addIeParams.probeRespBCNData_buff = NULL;
+		qdf_mem_free(psessionEntry->addIeParams.probeRespBCNData_buff);
+		psessionEntry->addIeParams.probeRespBCNDataLen = 0;
+		psessionEntry->addIeParams.probeRespBCNData_buff = NULL;
 
-	/* lim_del_bss is also called as part of coalescing, when we send DEL BSS followed by Add Bss msg. */
-	pMac->lim.gLimIbssCoalescingHappened = false;
-
+		/*
+		 * lim_del_bss is also called as part of coalescing,
+		 * when we send DEL BSS followed by Add Bss msg.
+		 */
+		pMac->lim.gLimIbssCoalescingHappened = false;
+	}
 	for (i = 1; i < pMac->lim.gLimAssocStaLimit; i++) {
 		pStaDs =
 			dph_get_hash_entry(pMac, i, &psessionEntry->dph.dphHashTable);
@@ -5149,6 +5182,10 @@ bool lim_process_sme_req_messages(tpAniSirGlobal pMac, tpSirMsgQ pMsg)
 		break;
 	case eWNI_SME_PDEV_SET_HT_VHT_IE:
 		lim_process_set_pdev_IEs(pMac, pMsgBuf);
+	case eWNI_SME_NDP_END_REQ:
+	case eWNI_SME_NDP_INITIATOR_REQ:
+	case eWNI_SME_NDP_RESPONDER_REQ:
+		lim_handle_ndp_request_message(pMac, pMsg);
 		break;
 	default:
 		qdf_mem_free((void *)pMsg->bodyptr);

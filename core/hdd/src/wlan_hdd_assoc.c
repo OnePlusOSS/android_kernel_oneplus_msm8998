@@ -50,6 +50,7 @@
 #include "sme_api.h"
 #include "wlan_hdd_hostapd.h"
 #include <wlan_hdd_ipa.h>
+#include "wlan_hdd_lpass.h"
 #include <cds_sched.h>
 #include "cds_concurrency.h"
 #include "sme_power_save_api.h"
@@ -990,8 +991,7 @@ static void hdd_conn_remove_connect_info(hdd_station_ctx_t *pHddStaCtx)
  *
  * Return: QDF_STATUS enumeration
  */
-static QDF_STATUS
-hdd_roam_deregister_sta(hdd_adapter_t *pAdapter, uint8_t staId)
+QDF_STATUS hdd_roam_deregister_sta(hdd_adapter_t *pAdapter, uint8_t staId)
 {
 	QDF_STATUS qdf_status;
 	hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
@@ -1160,7 +1160,7 @@ static QDF_STATUS hdd_dis_connect_handler(hdd_adapter_t *pAdapter,
 		}
 		pHddCtx->sta_to_adapter[sta_id] = NULL;
 		/* Clear all the peer sta register with TL. */
-		for (i = 0; i < MAX_IBSS_PEERS; i++) {
+		for (i = 0; i < MAX_PEERS; i++) {
 			if (0 == pHddStaCtx->conn_info.staId[i])
 				continue;
 			sta_id = pHddStaCtx->conn_info.staId[i];
@@ -1337,7 +1337,7 @@ QDF_STATUS hdd_change_peer_state(hdd_adapter_t *pAdapter,
  *
  * Return: QDF_STATUS enumeration
  */
-static QDF_STATUS hdd_roam_register_sta(hdd_adapter_t *pAdapter,
+QDF_STATUS hdd_roam_register_sta(hdd_adapter_t *pAdapter,
 					tCsrRoamInfo *pRoamInfo,
 					uint8_t staId,
 					struct qdf_mac_addr *pPeerMacAddress,
@@ -1667,7 +1667,7 @@ static QDF_STATUS hdd_roam_set_key_complete_handler(hdd_adapter_t *pAdapter,
 				pHddStaCtx->roam_info.roamingState =
 					HDD_ROAM_STATE_NONE;
 			} else {
-				qdf_status = hdd_ibss_get_sta_id(
+				qdf_status = hdd_get_peer_sta_id(
 							pHddStaCtx,
 							&pRoamInfo->peerMac,
 							&staId);
@@ -2550,37 +2550,54 @@ static void hdd_roam_ibss_indication_handler(hdd_adapter_t *pAdapter,
 }
 
 /**
- * roam_save_ibss_station() - Save the IBSS peer MAC address in the adapter
- * @pHddStaCtx: pointer to global HDD station context
- * @staId: station id
- * @peerMacAddress: pointer to peer MAC address
+ * hdd_save_peer() - Save peer MAC address in adapter peer table.
+ * @sta_ctx: pointer to hdd station context
+ * @sta_id: station ID
+ * @peer_mac_addr: mac address of new peer
  *
  * This information is passed to iwconfig later. The peer that joined
  * last is passed as information to iwconfig.
- *
- * Return:
- *	true if we add MAX_IBSS_PEERS or less STA
- *	false otherwise.
+
+ * Return: true if success, false otherwise
  */
-static bool roam_save_ibss_station(hdd_station_ctx_t *pHddStaCtx, uint8_t staId,
-				  struct qdf_mac_addr *peerMacAddress)
+bool hdd_save_peer(hdd_station_ctx_t *sta_ctx, uint8_t sta_id,
+		   struct qdf_mac_addr *peer_mac_addr)
 {
-	bool fSuccess = false;
-	int idx = 0;
+	int idx;
 
-	for (idx = 0; idx < MAX_IBSS_PEERS; idx++) {
-		if (0 == pHddStaCtx->conn_info.staId[idx]) {
-			pHddStaCtx->conn_info.staId[idx] = staId;
+	for (idx = 0; idx < SIR_MAX_NUM_STA_IN_IBSS; idx++) {
+		if (0 == sta_ctx->conn_info.staId[idx]) {
+			hddLog(LOG1, FL("adding peer: %pM, sta_id: %d, at idx: %d"),
+			       peer_mac_addr, sta_id, idx);
+			sta_ctx->conn_info.staId[idx] = sta_id;
+			qdf_copy_macaddr(
+				&sta_ctx->conn_info.peerMacAddress[idx],
+				peer_mac_addr);
+			return true;
+		}
+	}
+	return false;
+}
 
-			qdf_copy_macaddr(&pHddStaCtx->conn_info.
-					 peerMacAddress[idx], peerMacAddress);
+/**
+ * hdd_delete_peer() - removes peer from hdd station context peer table
+ * @sta_ctx: pointer to hdd station context
+ * @sta_id: station ID
+ *
+ * Return: None
+ */
+void hdd_delete_peer(hdd_station_ctx_t *sta_ctx, uint8_t sta_id)
+{
+	int i;
 
-			fSuccess = true;
-			break;
+	for (i = 0; i < SIR_MAX_NUM_STA_IN_IBSS; i++) {
+		if (sta_id == sta_ctx->conn_info.staId[i]) {
+			sta_ctx->conn_info.staId[i] = 0;
+			return;
 		}
 	}
 
-	return fSuccess;
+	hdd_err(FL("sta_id %d is not present in peer table"), sta_id);
 }
 
 /**
@@ -2589,7 +2606,7 @@ static bool roam_save_ibss_station(hdd_station_ctx_t *pHddStaCtx, uint8_t staId,
  * @staId: station id
  *
  * Return:
- *	true if we remove MAX_IBSS_PEERS or less STA
+ *	true if we remove MAX_PEERS or less STA
  *	false otherwise.
  */
 static bool roam_remove_ibss_station(hdd_adapter_t *pAdapter, uint8_t staId)
@@ -2601,7 +2618,7 @@ static bool roam_remove_ibss_station(hdd_adapter_t *pAdapter, uint8_t staId)
 	uint8_t empty_slots = 0;
 	hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
 
-	for (idx = 0; idx < MAX_IBSS_PEERS; idx++) {
+	for (idx = 0; idx < MAX_PEERS; idx++) {
 		if (staId == pHddStaCtx->conn_info.staId[idx]) {
 			pHddStaCtx->conn_info.staId[idx] = 0;
 
@@ -2627,7 +2644,7 @@ static bool roam_remove_ibss_station(hdd_adapter_t *pAdapter, uint8_t staId)
 		}
 	}
 
-	if (MAX_IBSS_PEERS == empty_slots) {
+	if (MAX_PEERS == empty_slots) {
 		/* Last peer departed, set the IBSS state appropriately */
 		pHddStaCtx->conn_info.connState =
 			eConnectionState_IbssDisconnected;
@@ -2789,7 +2806,7 @@ roam_roam_connect_status_update_handler(hdd_adapter_t *pAdapter,
 			MAC_ADDR_ARRAY(pHddStaCtx->conn_info.bssId.bytes),
 			pRoamInfo->staId);
 
-		if (!roam_save_ibss_station
+		if (!hdd_save_peer
 			    (WLAN_HDD_GET_STATION_CTX_PTR(pAdapter),
 			    pRoamInfo->staId,
 			    &pRoamInfo->peerMac)) {
@@ -3363,6 +3380,12 @@ hdd_roam_tdls_status_update_handler(hdd_adapter_t *pAdapter,
 				 pHddCtx->concurrency_mode,
 				 pHddCtx->no_of_active_sessions[QDF_STA_MODE]);
 			status = QDF_STATUS_E_FAILURE;
+			break;
+		}
+
+		if (pHddCtx->tdls_nss_switch_in_progress) {
+			hdd_err("TDLS antenna switch is in progress, ignore SHOULD_DISCOVER");
+			status = QDF_STATUS_SUCCESS;
 			break;
 		}
 
@@ -4392,6 +4415,10 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 		status = cds_set_hw_mode_on_channel_switch(pAdapter->sessionId);
 		if (QDF_IS_STATUS_ERROR(status))
 			hdd_info("set hw mode change not done");
+		break;
+	case eCSR_ROAM_NDP_STATUS_UPDATE:
+		hdd_ndp_event_handler(pAdapter, pRoamInfo, roamId, roamStatus,
+			roamResult);
 		break;
 	default:
 		break;
@@ -5444,7 +5471,6 @@ int iw_set_auth(struct net_device *dev, struct iw_request_info *info,
 
 	return ret;
 }
-
 /**
  * __iw_get_auth() -
  *	This function returns the auth type to the wpa_supplicant

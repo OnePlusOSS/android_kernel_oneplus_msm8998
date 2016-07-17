@@ -72,6 +72,7 @@
 #define BSS_OPERATIONAL_MODE_AP     0
 #define BSS_OPERATIONAL_MODE_STA    1
 #define BSS_OPERATIONAL_MODE_IBSS   2
+#define BSS_OPERATIONAL_MODE_NDI    3
 
 /* STA entry type in add sta message */
 #define STA_ENTRY_SELF              0
@@ -83,6 +84,7 @@
 #ifdef FEATURE_WLAN_TDLS
 #define STA_ENTRY_TDLS_PEER         4
 #endif /* FEATURE_WLAN_TDLS */
+#define STA_ENTRY_NDI_PEER          5
 
 #define STA_INVALID_IDX 0xFF
 
@@ -594,6 +596,8 @@ typedef enum eSmpsModeValue {
  * @rssi: rssi value during disconnection
  */
 typedef struct {
+	bool is_tdls;
+	uint8_t vdev_id;
 	uint16_t assocId;
 	uint16_t staId;
 	tSirMacAddr bssId;

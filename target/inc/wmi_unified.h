@@ -122,7 +122,7 @@ extern "C" {
 	(((num_entries) / (32 / (bits_per_entry))) +            \
 	(((num_entries) % (32 / (bits_per_entry))) ? 1 : 0))
 
-static inline A_UINT32 wmi_packed_arr_get_bits(A_UINT32 *arr,
+static INLINE A_UINT32 wmi_packed_arr_get_bits(A_UINT32 *arr,
 			A_UINT32 entry_index, A_UINT32 bits_per_entry)
 {
 	A_UINT32 entries_per_uint = (32 / bits_per_entry);
@@ -134,7 +134,7 @@ static inline A_UINT32 wmi_packed_arr_get_bits(A_UINT32 *arr,
 		((1 << bits_per_entry) - 1);
 }
 
-static inline void wmi_packed_arr_set_bits(A_UINT32 *arr, A_UINT32 entry_index,
+static INLINE void wmi_packed_arr_set_bits(A_UINT32 *arr, A_UINT32 entry_index,
 			A_UINT32 bits_per_entry, A_UINT32 val)
 {
 	A_UINT32 entries_per_uint = (32 / bits_per_entry);
@@ -345,8 +345,10 @@ typedef enum {
 	WMI_SET_PERIODIC_CHANNEL_STATS_CONFIG_CMDID,
 	/** WMI command for power debug framework */
 	WMI_PDEV_WAL_POWER_DEBUG_CMDID,
+	/** set per-AC rx reorder timeouts */
+	WMI_PDEV_SET_REORDER_TIMEOUT_VAL_CMDID,
 
-	/* VDEV(virtual device) specific commands */
+	/* VDEV (virtual device) specific commands */
 	/** vdev create */
 	WMI_VDEV_CREATE_CMDID = WMI_CMD_GRP_START_ID(WMI_GRP_VDEV),
 	/** vdev delete */
@@ -443,6 +445,13 @@ typedef enum {
 	WMI_PEER_ATF_REQUEST_CMDID,
 	/** bandwidth fairness (BWF) peer configuration request command */
 	WMI_PEER_BWF_REQUEST_CMDID,
+	/** rx reorder queue setup for peer/tid */
+	WMI_PEER_REORDER_QUEUE_SETUP_CMDID,
+	/** rx reorder queue remove for peer/tid */
+	WMI_PEER_REORDER_QUEUE_REMOVE_CMDID,
+	/** specify a limit for rx A-MPDU block size */
+	WMI_PEER_SET_RX_BLOCKSIZE_CMDID,
+
 
 	/* beacon/management specific commands */
 
@@ -791,6 +800,10 @@ typedef enum {
 	WMI_VDEV_WISA_CMDID,
 	/** set debug log time stamp sync up with host */
 	WMI_DBGLOG_TIME_STAMP_SYNC_CMDID,
+	/** Command for host to set/delete multiple mcast filters */
+	WMI_SET_MULTIPLE_MCAST_FILTER_CMDID,
+	/** upload a requested section of data from firmware flash to host */
+	WMI_READ_DATA_FROM_FLASH_CMDID,
 
 	/* GPIO Configuration */
 	WMI_GPIO_CONFIG_CMDID = WMI_CMD_GRP_START_ID(WMI_GRP_GPIO),
@@ -1117,6 +1130,9 @@ typedef enum {
 	WMI_OFFLOAD_PROB_RESP_TX_STATUS_EVENTID,
 	/** Event for Mgmt TX completion event */
 	WMI_MGMT_TX_COMPLETION_EVENTID,
+	/** Event for Mgmt TX bundle completion event */
+	WMI_MGMT_TX_BUNDLE_COMPLETION_EVENTID,
+
 
 	/*ADDBA Related WMI Events */
 	/** Indication the completion of the prior
@@ -1278,6 +1294,9 @@ typedef enum {
 
 	/** event to report SCPC calibrated data to host */
 	WMI_PDEV_UTF_SCPC_EVENTID,
+
+	/** event to provide requested data from the target's flash memory */
+	WMI_READ_DATA_FROM_FLASH_EVENTID,
 
 	/* GPIO Event */
 	WMI_GPIO_INPUT_EVENTID = WMI_EVT_GRP_START_ID(WMI_GRP_GPIO),
@@ -2293,6 +2312,9 @@ typedef struct {
 	#define WMI_RSRC_CFG_FLAG_QWRAP_MODE_ENABLE_S 8
 	#define WMI_RSRC_CFG_FLAG_QWRAP_MODE_ENABLE_M 0x100
 
+	#define WMI_RSRC_CFG_FLAG_MGMT_COMP_EVT_BUNDLE_SUPPORT_S 9
+	#define WMI_RSRC_CFG_FLAG_MGMT_COMP_EVT_BUNDLE_SUPPORT_M 0x200
+
 	A_UINT32 flag1;
 
 	/** @brief smart_ant_cap - Smart Antenna capabilities information
@@ -2399,6 +2421,11 @@ typedef struct {
 #define WMI_RSRC_CFG_FLAG_QWRAP_MODE_ENABLE_GET(word32) \
 		WMI_RSRC_CFG_FLAG_GET((word32), QWRAP_MODE_ENABLE)
 
+#define WMI_RSRC_CFG_FLAG_MGMT_COMP_EVT_BUNDLE_SUPPORT_SET(word32, value) \
+		WMI_RSRC_CFG_FLAG_SET((word32), MGMT_COMP_EVT_BUNDLE_SUPPORT, (value))
+#define WMI_RSRC_CFG_FLAG_MGMT_COMP_EVT_BUNDLE_SUPPORT_GET(word32) \
+		WMI_RSRC_CFG_FLAG_GET((word32), MGMT_COMP_EVT_BUNDLE_SUPPORT)
+
 typedef struct {
 	A_UINT32 tlv_header;            /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_init_cmd_fixed_param */
 
@@ -2410,9 +2437,16 @@ typedef struct {
 
 	A_UINT32 num_host_mem_chunks;
 	/** size of array host_mem_chunks[] */
-	/* The TLVs for resource_config and host_mem_chunks[] will follow.
+	/* The TLVs for resource_config, host_mem_chunks[], and
+	 * hw_mode_config will follow.
 	 *     wmi_resource_config   resource_config;
 	 *     wlan_host_memory_chunk host_mem_chunks[];
+	 *     wmi_pdev_set_hw_mode_cmd_fixed_param hw_mode_config;
+	 *         Note that the hw_mode_config, in spite of its "pdev" name,
+	 *         applies to the entire target rather than for a single pdev
+	 *         within the target.
+	 *         To avoid specifying a HW mode for the target, the host should
+	 *         fill hw_mode_config's fields with 0x0.
 	 */
 
 } wmi_init_cmd_fixed_param;
@@ -2583,6 +2617,11 @@ typedef struct {
 #define WMI_SCAN_CAPTURE_PHY_ERROR  0x8000
 /** always do passive scan on passive channels */
 #define WMI_SCAN_FLAG_STRICT_PASSIVE_ON_PCHN 0x1000
+/** set HALF (10MHz) rate support */
+#define WMI_SCAN_FLAG_HALF_RATE_SUPPORT      0x20000
+/** set Quarter (5MHz) rate support */
+#define WMI_SCAN_FLAG_QUARTER_RATE_SUPPORT   0x40000
+
 /** for adaptive scan mode using 3 bits (21 - 23 bits) */
 #define WMI_SCAN_DWELL_MODE_MASK 0x00E00000
 #define WMI_SCAN_DWELL_MODE_SHIFT        21
@@ -3686,6 +3725,17 @@ typedef enum {
 	WMI_PDEV_PARAM_CUST_TXPOWER_SCALE,
 	/** ATF enabe/disabe dynamically */
 	WMI_PDEV_PARAM_ATF_DYNAMIC_ENABLE,
+	/** Set tx retry limit for control frames. 0 = disable, 31 = max */
+	WMI_PDEV_PARAM_CTRL_RETRY_LIMIT,
+	/** Set propagation delay for 2G / 5G band.
+	 * The propagation delay is fundamentally a per-peer property, but
+	 * the target may not support per-peer settings for ack timeouts.
+	 * This pdev parameter allows the MAC-level ack timeout to be set to
+	 * a value suitable for the worst-case propagation delay of any peer
+	 * within that pdev.
+	 * Units are microseconds.
+	 */
+	WMI_PDEV_PARAM_PROPAGATION_DELAY,
 
 } WMI_PDEV_PARAM;
 
@@ -3904,6 +3954,15 @@ typedef struct {
 	A_UINT32    desc_id; /* from tx_send_cmd */
 	A_UINT32    status;  /* WMI_MGMT_TX_COMP_STATUS_TYPE */
 } wmi_mgmt_tx_compl_event_fixed_param;
+
+typedef struct {
+	A_UINT32    tlv_header;
+	A_UINT32    num_reports;
+	/* tlv for completion
+	 * A_UINT32 desc_ids[num_reports]; <- from tx_send_cmd
+	 * A_UINT32 status[num_reports];   <- WMI_MGMT_TX_COMP_STATUS_TYPE
+	 */
+} wmi_mgmt_tx_compl_bundle_event_fixed_param;
 
 #define WMI_TPC_RATE_MAX            160
 /* WMI_TPC_TX_NUM_CHAIN macro can't be changed without breaking the WMI compatibility */
@@ -6534,6 +6593,24 @@ typedef struct {
 } wmi_peer_delete_cmd_fixed_param;
 
 typedef struct {
+	/**
+	 * TLV tag and len; tag equals
+	 * WMITLV_TAG_STRUC_wmi_peer_set_rx_blocksize_cmd_fixed_param
+	 */
+	A_UINT32 tlv_header;
+	/** unique id identifying the VDEV, generated by the caller */
+	A_UINT32 vdev_id;
+	/** peer MAC address */
+	wmi_mac_addr peer_macaddr;
+	/**
+	 * maximum block ack window size to use during a rx block ack
+	 * negotiation, i.e. the maximum number of MPDUs per A-MPDU
+	 * that will be received
+	 */
+	A_UINT32  rx_block_ack_win_limit;
+} wmi_peer_set_rx_blocksize_cmd_fixed_param;
+
+typedef struct {
 	A_UINT32 tlv_header;         /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_peer_flush_tids_cmd_fixed_param */
 	/** unique id identifying the VDEV, generated by the caller */
 	A_UINT32 vdev_id;
@@ -6775,6 +6852,14 @@ typedef struct {
 #define WMI_PEER_SET_MAX_TX_RATE                        0x11
 /** Set peer minimal tx rate (MCS) in adaptive rate ctrl */
 #define WMI_PEER_SET_MIN_TX_RATE                        0x12
+/**
+ * default ring routing for peer data packets,
+ * param_value = bit 0 for hash based routing enabled or not
+ * (value 1 is enabled, value 0 is disabled)
+ * bits 1:5 are for ring 32 (i.e. ring id value
+ * selected from 0 to 31 values)
+ */
+#define WMI_PEER_SET_DEFAULT_ROUTING                    0x13
 
 /** mimo ps values for the parameter WMI_PEER_MIMO_PS_STATE  */
 #define WMI_PEER_MIMO_PS_NONE                          0x0
@@ -7798,7 +7883,9 @@ typedef struct {
 #define WMI_ROAM_INVOKE_FLAG_ADD_CH_TO_CACHE       0
 /* indicate to host of failure if WMI_ROAM_INVOKE_CMDID. */
 #define WMI_ROAM_INVOKE_FLAG_REPORT_FAILURE        1
-/* from bit 2 to bit 31 are reserved */
+/* during host-invoked roaming, don't send null data frame to AP */
+#define WMI_ROAM_INVOKE_FLAG_NO_NULL_FRAME_TO_AP   2
+/* from bit 3 to bit 31 are reserved */
 
 #define WMI_SET_ROAM_INVOKE_ADD_CH_TO_CACHE(flag) do { \
 	(flag) |=  (1 << WMI_SET_ROAM_INVOKE_ADD_CH_TO_CACHE);      \
@@ -9686,8 +9773,12 @@ typedef struct {
 	A_UINT32 type;          /*0:unused 1: ASSERT, 2: not respond detect command,3:  simulate ep-full(),4:... */
 	A_UINT32 delay_time_ms;         /*0xffffffff means the simulate will delay for random time (0 ~0xffffffff ms) */
 } WMI_FORCE_FW_HANG_CMD_fixed_param;
-#define WMI_MCAST_FILTER_SET 1
-#define WMI_MCAST_FILTER_DELETE 2
+
+typedef enum {
+	WMI_MCAST_FILTER_SET = 1,
+	WMI_MCAST_FILTER_DELETE
+} WMI_SET_SINGLE_MCAST_FILTER_OP;
+
 typedef struct {
 	A_UINT32 tlv_header;
 	A_UINT32 vdev_id;
@@ -9695,6 +9786,28 @@ typedef struct {
 	A_UINT32 action;
 	wmi_mac_addr mcastbdcastaddr;
 } WMI_SET_MCASTBCAST_FILTER_CMD_fixed_param;
+
+typedef enum {
+	WMI_MULTIPLE_MCAST_FILTER_CLEAR = 1, /* clear all previous mc list */
+	/* clear all previous mc list, and set new list */
+	WMI_MULTIPLE_MCAST_FILTER_SET,
+	WMI_MULTIPLE_MCAST_FILTER_DELETE,    /* delete one/multiple mc list */
+	WMI_MULTIPLE_MCAST_FILTER_ADD        /* add one/multiple mc list */
+} WMI_MULTIPLE_MCAST_FILTER_OP;
+
+typedef struct {
+	A_UINT32 tlv_header;
+	A_UINT32 vdev_id;
+	A_UINT32 operation;  /* refer WMI_MULTIPLE_MCAST_FILTER_OP */
+	/* number of elements in the subsequent mcast addr list */
+	A_UINT32 num_mcastaddrs;
+	/**
+	 * TLV (tag length value) parameters follow the
+	 * structure. The TLV's are:
+	 * wmi_mac_addr mcastaddr_list[num_mcastaddrs];
+	 */
+} WMI_SET_MULTIPLE_MCAST_FILTER_CMD_fixed_param;
+
 
 /* WMI_DBGLOG_TIME_STAMP_SYNC_CMDID */
 typedef enum {
@@ -10241,6 +10354,16 @@ enum wmi_tdls_peer_reason {
 	WMI_TDLS_ENTER_BT_BUSY_MODE,
 	/** BT exited busy mode, TDLS connection tracker needs to handle this */
 	WMI_TDLS_EXIT_BT_BUSY_MODE,
+	/*
+	 * TDLS module received a scan start event, TDLS connection tracker
+	 * needs to handle this
+	 */
+	WMI_TDLS_SCAN_STARTED_EVENT,
+	/*
+	 * TDLS module received a scan complete event, TDLS connection tracker
+	 * needs to handle this
+	 */
+	WMI_TDLS_SCAN_COMPLETED_EVENT,
 };
 
 /* WMI_TDLS_PEER_EVENTID */
@@ -14376,6 +14499,64 @@ typedef struct {
 	 */
 } wmi_pdev_hw_mode_transition_event_fixed_param;
 
+/**
+ * This command is sent from WLAN host driver to firmware for
+ * plugging in reorder queue desc to lithium hw.
+ *
+ * Example: plug-in queue desc for TID 5
+ * host->target: WMI_PEER_REORDER_QUEUE_SETUP_CMDID,
+ *               (vdev_id = PEER vdev id,
+ *                peer_macaddr = PEER mac addr,
+ *                tid = 5,
+ *                queue_ptr_lo = queue desc addr lower 32 bits,
+ *                queue_ptr_hi = queue desc addr higher 32 bits,
+ *                queue_no = 16-bit number assigned by host for queue,
+ *                              stored in bits 15:0 of queue_no field)
+ */
+typedef struct {
+	/* TLV tag and len; tag equals
+	 * WMITLV_TAG_STRUC_wmi_peer_reorder_queue_setup_cmd_fixed_param
+	 */
+	A_UINT32 tlv_header;
+	A_UINT32 vdev_id;
+	/* peer mac address */
+	wmi_mac_addr peer_macaddr;
+	/* 0 to 15 = QoS TIDs, 16 = non-qos TID */
+	A_UINT32 tid;
+	/* lower 32 bits of queue desc adddress */
+	A_UINT32 queue_ptr_lo;
+	/* upper 32 bits of queue desc adddress */
+	A_UINT32 queue_ptr_hi;
+	/* 16-bit number assigned by host for queue,
+	 * stored in bits 15:0 of queue_no field
+	 */
+	A_UINT32 queue_no;
+} wmi_peer_reorder_queue_setup_cmd_fixed_param;
+
+/**
+ * This command is sent from WLAN host driver to firmware for
+ * removing one or more reorder queue desc to lithium hw.
+ *
+ * Example: remove queue desc for all TIDs
+ * host->target: WMI_PEER_REORDER_REMOVE_CMDID,
+ *               (vdev_id = PEER vdev id,
+ *                peer_macaddr = PEER mac addr,
+ *                tid = 0x1FFFF,
+ */
+typedef struct {
+	/* TLV tag and len;
+	 * tag equals
+	 * WMITLV_TAG_STRUC_wmi_peer_reorder_queue_remove_cmd_fixed_param
+	 */
+	A_UINT32 tlv_header;
+	A_UINT32 vdev_id;
+	/* peer mac address */
+	wmi_mac_addr peer_macaddr;
+	/* bits 0 to 15 = QoS TIDs, bit 16 = non-qos TID */
+	A_UINT32 tid_mask;
+} wmi_peer_reorder_queue_remove_cmd_fixed_param;
+
+
 /* DEPRECATED - use wmi_pdev_set_mac_config_response_event_fixed_param
  * instead
  */
@@ -14819,10 +15000,6 @@ typedef struct {
 	A_UINT32 toeplitz_hash_ipv6_40;
 } wmi_lro_info_cmd_fixed_param;
 
-/*
- * This structure is used to set the pattern for WOW host wakeup pin pulse
- * pattern confirguration.
- */
 typedef struct {
 	/*
 	 * TLV tag and len; tag equals
@@ -14844,6 +15021,27 @@ typedef struct {
 	/* Return status. 0 for success, non-zero otherwise */
 	A_UINT32 status;
 } wmi_transfer_data_to_flash_complete_event_fixed_param;
+
+typedef struct {
+	/*
+	 * TLV tag and len; tag equals
+	 * WMITLV_TAG_STRUC_wmi_read_data_from_flash_cmd_fixed_param
+	 */
+	A_UINT32 tlv_header;
+	A_UINT32 offset; /* flash offset to read, starting from 0 */
+	A_UINT32 length; /* data length to read, unit: byte */
+} wmi_read_data_from_flash_cmd_fixed_param;
+
+typedef struct {
+	/*
+	 * TLV tag and len; tag equals
+	 * WMITLV_TAG_STRUC_wmi_read_data_from_flash_event_fixed_param
+	 */
+	A_UINT32 tlv_header;
+	A_UINT32 status; /* Return status. 0 for success, non-zero otherwise */
+	A_UINT32 offset; /* flash offset reading from, starting from 0 */
+	A_UINT32 length; /* length of data being reported, unit: byte */
+} wmi_read_data_from_flash_event_fixed_param;
 
 typedef enum {
 	ENHANCED_MCAST_FILTER_DISABLED,
@@ -15679,6 +15877,30 @@ typedef struct {
  *   A_UINT32 args[];
  **/
 } wmi_pdev_wal_power_debug_cmd_fixed_param;
+
+typedef struct {
+	/*
+	 * TLV tag and len; tag equals
+	 * WMITLV_TAG_STRUC_wmi_pdev_set_reorder_timeout_val_cmd_fixed_param
+	 */
+	A_UINT32 tlv_header;
+	/**
+	 * @brief rx_timeout_pri - what rx reorder timeout (ms) to use
+	 * for the AC
+	 * @details
+	 *     Each WMM access category (voice, video, best-effort,
+	 *     background) will have its own timeout value to dictate
+	 *     how long to wait for missing rx MPDUs to arrive before
+	 *     releasing subsequent MPDUs that have already been
+	 *     received.
+	 *     This parameter specifies the timeout in milliseconds
+	 *     for each access category.
+	 *     The array elements are indexed by the WMI_AC enum to
+	 *     identify which array element corresponds to which AC /
+	 *     traffic type.
+	 */
+	A_UINT32 rx_timeout_pri[WMI_AC_MAX];
+} wmi_pdev_set_reorder_timeout_val_cmd_fixed_param;
 
 typedef enum {
 	    WLAN_2G_CAPABILITY = 0x1,

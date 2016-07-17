@@ -93,6 +93,9 @@ typedef enum eSmeCommandType {
 	e_sme_command_nss_update,
 	e_sme_command_set_dual_mac_config,
 	e_sme_command_set_antenna_mode,
+	eSmeCommandNdpInitiatorRequest,
+	eSmeCommandNdpResponderRequest,
+	eSmeCommandNdpDataEndInitiatorRequest,
 } eSmeCommandType;
 
 typedef enum eSmeState {
@@ -149,6 +152,7 @@ typedef void (*preferred_network_found_ind_cb)(void *callback_context,
 
 typedef void (*ocb_callback)(void *context, void *response);
 typedef void (*sme_set_thermal_level_callback)(void *context, u_int8_t level);
+typedef void (*p2p_lo_callback)(void *context, void *event);
 
 typedef struct tagSmeStruct {
 	eSmeState state;
@@ -236,6 +240,8 @@ typedef struct tagSmeStruct {
 	void *saved_scan_cmd;
 	void (*pbpf_get_offload_cb)(void *context,
 			struct sir_bpf_get_offload *);
+	p2p_lo_callback p2p_lo_event_callback;
+	void *p2p_lo_event_context;
 } tSmeStruct, *tpSmeStruct;
 
 #endif /* #if !defined( __SMEINTERNAL_H ) */

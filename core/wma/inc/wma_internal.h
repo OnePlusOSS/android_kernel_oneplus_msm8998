@@ -28,6 +28,10 @@
 #ifndef WMA_INTERNAL_H
 #define WMA_INTERNAL_H
 
+#if !defined(REMOVE_PKT_LOG)
+#include "pktlog_ac.h"
+#endif
+
 /* ################### defines ################### */
 /*
  * TODO: Following constant should be shared by firwmare in
@@ -1210,4 +1214,11 @@ int wma_peer_delete_handler(void *handle, uint8_t *cmd_param_info,
 				uint32_t len);
 void wma_remove_req(tp_wma_handle wma, uint8_t vdev_id,
 			    uint8_t type);
+int wma_p2p_lo_event_handler(void *handle, uint8_t *event_buf,
+				uint32_t len);
+
+QDF_STATUS wma_process_hal_pwr_dbg_cmd(WMA_HANDLE handle,
+				       struct sir_mac_pwr_dbg_cmd *
+				       sir_pwr_dbg_params);
+
 #endif

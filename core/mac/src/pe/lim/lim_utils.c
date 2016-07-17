@@ -56,6 +56,7 @@
 #include "lim_ft_defs.h"
 #include "lim_session.h"
 #include "cds_reg_service.h"
+#include "nan_datapath.h"
 
 #ifdef WLAN_FEATURE_11W
 #include "wni_cfg.h"
@@ -2947,15 +2948,13 @@ uint8_t lim_get_ht_capability(tpAniSirGlobal pMac,
 		break;
 
 	case eHT_SHORT_GI_40MHZ:
-		retVal = (uint8_t)
-			 (psessionEntry->htConfig.ht_sgi) ? macHTCapabilityInfo.
-			 shortGI40MHz : 0;
+		retVal = (uint8_t) (psessionEntry->htConfig.ht_sgi40) ?
+			 macHTCapabilityInfo.shortGI40MHz : 0;
 		break;
 
 	case eHT_SHORT_GI_20MHZ:
-		retVal = (uint8_t)
-			 (psessionEntry->htConfig.ht_sgi) ? macHTCapabilityInfo.
-			 shortGI20MHz : 0;
+		retVal = (uint8_t) (psessionEntry->htConfig.ht_sgi20) ?
+			 macHTCapabilityInfo.shortGI20MHz : 0;
 		break;
 
 	case eHT_GREENFIELD:
@@ -5593,32 +5592,41 @@ uint8_t lim_get_current_operating_channel(tpAniSirGlobal pMac)
 	return 0;
 }
 
-void lim_process_add_sta_rsp(tpAniSirGlobal pMac, tpSirMsgQ limMsgQ)
+/**
+ * lim_process_add_sta_rsp() - process WDA_ADD_STA_RSP from WMA
+ * @mac_ctx: Pointer to Global MAC structure
+ * @msg: msg from WMA
+ *
+ * @Return: void
+ */
+void lim_process_add_sta_rsp(tpAniSirGlobal mac_ctx, tpSirMsgQ msg)
 {
-	tpPESession psessionEntry;
-	tpAddStaParams pAddStaParams;
+	tpPESession session;
+	tpAddStaParams add_sta_params;
 
-	pAddStaParams = (tpAddStaParams) limMsgQ->bodyptr;
+	add_sta_params = (tpAddStaParams) msg->bodyptr;
 
-	psessionEntry = pe_find_session_by_session_id(pMac,
-			pAddStaParams->sessionId);
-	if (psessionEntry == NULL) {
-		lim_log(pMac, LOGP,
+	session = pe_find_session_by_session_id(mac_ctx,
+			add_sta_params->sessionId);
+	if (session == NULL) {
+		lim_log(mac_ctx, LOGP,
 			FL("Session Does not exist for given sessionID"));
-		qdf_mem_free(pAddStaParams);
+		qdf_mem_free(add_sta_params);
 		return;
 	}
-	psessionEntry->csaOffloadEnable = pAddStaParams->csaOffloadEnable;
-	if (LIM_IS_IBSS_ROLE(psessionEntry))
-		(void)lim_ibss_add_sta_rsp(pMac, limMsgQ->bodyptr, psessionEntry);
+	session->csaOffloadEnable = add_sta_params->csaOffloadEnable;
+	if (LIM_IS_IBSS_ROLE(session))
+		(void)lim_ibss_add_sta_rsp(mac_ctx, msg->bodyptr, session);
+	else if (LIM_IS_NDI_ROLE(session))
+		lim_ndp_add_sta_rsp(mac_ctx, session, msg->bodyptr);
 #ifdef FEATURE_WLAN_TDLS
-	else if (pMac->lim.gLimAddStaTdls) {
-		lim_process_tdls_add_sta_rsp(pMac, limMsgQ->bodyptr, psessionEntry);
-		pMac->lim.gLimAddStaTdls = false;
+	else if (mac_ctx->lim.gLimAddStaTdls) {
+		lim_process_tdls_add_sta_rsp(mac_ctx, msg->bodyptr, session);
+		mac_ctx->lim.gLimAddStaTdls = false;
 	}
 #endif
 	else
-		lim_process_mlm_add_sta_rsp(pMac, limMsgQ, psessionEntry);
+		lim_process_mlm_add_sta_rsp(mac_ctx, msg, session);
 
 }
 
@@ -6751,6 +6759,7 @@ const char *lim_bss_type_to_string(const uint16_t bss_type)
 	CASE_RETURN_STRING(eSIR_INFRA_AP_MODE);
 	CASE_RETURN_STRING(eSIR_IBSS_MODE);
 	CASE_RETURN_STRING(eSIR_AUTO_MODE);
+	CASE_RETURN_STRING(eSIR_NDI_MODE);
 	default:
 		return "Unknown bss_type";
 	}

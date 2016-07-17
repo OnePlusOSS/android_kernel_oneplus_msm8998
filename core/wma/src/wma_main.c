@@ -78,6 +78,7 @@
 #include "cdp_txrx_flow_ctrl_legacy.h"
 #include "cdp_txrx_flow_ctrl_v2.h"
 #include "cdp_txrx_ipa.h"
+#include "wma_nan_datapath.h"
 
 #define WMA_LOG_COMPLETION_TIMER 10000 /* 10 seconds */
 
@@ -1469,6 +1470,41 @@ static int wma_process_fw_event_tasklet_ctx(void *ctx, void *ev)
 }
 
 /**
+ * wma_process_hal_pwr_dbg_cmd() - send hal pwr dbg cmd to fw.
+ * @handle: wma handle
+ * @sir_pwr_dbg_params: unit test command
+ *
+ * This function send unit test command to fw.
+ *
+ * Return: QDF_STATUS_SUCCESS on success, QDF_STATUS_E_** on error
+ */
+QDF_STATUS wma_process_hal_pwr_dbg_cmd(WMA_HANDLE handle,
+				       struct sir_mac_pwr_dbg_cmd *
+				       sir_pwr_dbg_params)
+{
+	tp_wma_handle wma_handle = (tp_wma_handle)handle;
+	int i;
+	struct wmi_power_dbg_params wmi_pwr_dbg_params;
+	QDF_STATUS status;
+
+	if (!sir_pwr_dbg_params) {
+		WMA_LOGE("%s: sir_pwr_dbg_params is null", __func__);
+		return QDF_STATUS_E_INVAL;
+	}
+	wmi_pwr_dbg_params.module_id = sir_pwr_dbg_params->module_id;
+	wmi_pwr_dbg_params.pdev_id = sir_pwr_dbg_params->pdev_id;
+	wmi_pwr_dbg_params.num_args = sir_pwr_dbg_params->num_args;
+
+	for (i = 0; i < wmi_pwr_dbg_params.num_args; i++)
+		wmi_pwr_dbg_params.args[i] = sir_pwr_dbg_params->args[i];
+
+	status = wmi_unified_send_power_dbg_cmd(wma_handle->wmi_handle,
+						&wmi_pwr_dbg_params);
+
+	return status;
+}
+
+/**
  * wma_process_fw_event_handler() - common event handler to serialize
  *                                  event processing through mc_thread
  * @ctx: wmi context
@@ -1590,6 +1626,11 @@ static void wma_init_max_no_of_peers(tp_wma_handle wma_handle,
 				     uint16_t max_peers)
 {
 	struct wma_ini_config *cfg = wma_get_ini_handle(wma_handle);
+
+	if (cfg == NULL) {
+		WMA_LOGE("%s: NULL WMA ini handle", __func__);
+		return;
+	}
 
 	cfg->max_no_of_peers = max_peers;
 }
@@ -2076,6 +2117,7 @@ QDF_STATUS wma_open(void *cds_context,
 					   WMI_BPF_CAPABILIY_INFO_EVENTID,
 					   wma_get_bpf_caps_event_handler,
 					   WMA_RX_SERIALIZER_CTX);
+	wma_ndp_register_all_event_handlers(wma_handle);
 	return QDF_STATUS_SUCCESS;
 
 err_dbglog_init:
@@ -2851,6 +2893,17 @@ QDF_STATUS wma_start(void *cds_ctx)
 		goto end;
 	}
 
+	/* Initialize the P2P Listen Offload event handler */
+	status = wmi_unified_register_event_handler(wma_handle->wmi_handle,
+			WMI_P2P_LISTEN_OFFLOAD_STOPPED_EVENTID,
+			wma_p2p_lo_event_handler,
+			WMA_RX_SERIALIZER_CTX);
+	if (!QDF_IS_STATUS_SUCCESS(status)) {
+		WMA_LOGE("Failed to register p2p lo event cb");
+		qdf_status = QDF_STATUS_E_FAILURE;
+		goto end;
+	}
+
 end:
 	WMA_LOGD("%s: Exit", __func__);
 	return qdf_status;
@@ -3245,6 +3298,9 @@ QDF_STATUS wma_close(void *cds_ctx)
 		qdf_mem_free(wma_handle->pGetRssiReq);
 		wma_handle->pGetRssiReq = NULL;
 	}
+
+	wma_ndp_unregister_all_event_handlers(wma_handle);
+
 	if (WMI_SERVICE_IS_ENABLED(wma_handle->wmi_service_bitmap,
 				   WMI_SERVICE_MGMT_TX_WMI)) {
 		wmi_desc_pool_deinit(wma_handle);
@@ -3912,6 +3968,7 @@ static void wma_update_hdd_cfg(tp_wma_handle wma_handle)
 	wma_setup_egap_support(&tgt_cfg, wma_handle);
 
 	wma_handle->tgt_cfg_update_cb(hdd_ctx, &tgt_cfg);
+	wma_update_hdd_cfg_ndp(wma_handle, &tgt_cfg);
 }
 
 /**
@@ -4324,6 +4381,9 @@ int wma_rx_service_ready_event(void *handle, uint8_t *cmd_param_info,
 		return -EINVAL;
 	}
 
+	wma_handle->nan_datapath_enabled =
+		WMI_SERVICE_IS_ENABLED(wma_handle->wmi_service_bitmap,
+			WMI_SERVICE_NAN_DATA);
 	qdf_mem_copy(target_cap.wmi_service_bitmap,
 		     param_buf->wmi_service_bitmap,
 		     sizeof(wma_handle->wmi_service_bitmap));
@@ -5921,7 +5981,24 @@ QDF_STATUS wma_mc_process_msg(void *cds_context, cds_msg_t *msg)
 		wma_set_bpf_instructions(wma_handle, msg->bodyptr);
 		qdf_mem_free(msg->bodyptr);
 		break;
+	case SIR_HAL_NDP_INITIATOR_REQ:
+		wma_handle_ndp_initiator_req(wma_handle, msg->bodyptr);
+		qdf_mem_free(msg->bodyptr);
+		break;
 
+	case SIR_HAL_NDP_RESPONDER_REQ:
+		wma_handle_ndp_responder_req(wma_handle, msg->bodyptr);
+		break;
+
+	case SIR_HAL_NDP_END_REQ:
+		wma_handle_ndp_end_req(wma_handle, msg->bodyptr);
+		qdf_mem_free(msg->bodyptr);
+		break;
+	case SIR_HAL_POWER_DBG_CMD:
+		wma_process_hal_pwr_dbg_cmd(wma_handle,
+					    msg->bodyptr);
+		qdf_mem_free(msg->bodyptr);
+		break;
 	default:
 		WMA_LOGD("unknow msg type %x", msg->type);
 		/* Do Nothing? MSG Body should be freed at here */

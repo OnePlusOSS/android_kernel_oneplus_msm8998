@@ -103,6 +103,7 @@
 #include "bmi.h"
 #include <wlan_hdd_regulatory.h>
 #include "ol_rx_fwd.h"
+#include "wlan_hdd_lpass.h"
 
 #ifdef MODULE
 #define WLAN_MODULE_NAME  module_name(THIS_MODULE)
@@ -227,6 +228,7 @@ const char *hdd_device_mode_to_string(uint8_t device_mode)
 	CASE_RETURN_STRING(QDF_IBSS_MODE);
 	CASE_RETURN_STRING(QDF_P2P_DEVICE_MODE);
 	CASE_RETURN_STRING(QDF_OCB_MODE);
+	CASE_RETURN_STRING(QDF_NDI_MODE);
 	default:
 		return "Unknown";
 	}
@@ -1374,11 +1376,12 @@ void hdd_update_tgt_cfg(void *context, void *param)
 	hdd_ctx->ap_arpns_support = cfg->ap_arpns_support;
 	hdd_update_tgt_services(hdd_ctx, &cfg->services);
 
-	hdd_update_vdev_nss(hdd_ctx);
-
 	hdd_update_tgt_ht_cap(hdd_ctx, &cfg->ht_cap);
 
 	hdd_update_tgt_vht_cap(hdd_ctx, &cfg->vht_cap);
+
+	hdd_update_vdev_nss(hdd_ctx);
+
 	hdd_ctx->config->fine_time_meas_cap &= cfg->fine_time_measurement_cap;
 	hdd_ctx->fine_time_meas_cap_target = cfg->fine_time_measurement_cap;
 	hdd_info(FL("fine_time_meas_cap: 0x%x"),
@@ -1391,6 +1394,8 @@ void hdd_update_tgt_cfg(void *context, void *param)
 		 hdd_ctx->current_antenna_mode);
 
 	hdd_ctx->bpf_enabled = cfg->bpf_enabled;
+	/* Configure NAN datapath features */
+	hdd_nan_datapath_target_config(hdd_ctx, cfg);
 }
 
 /**
@@ -1398,9 +1403,9 @@ void hdd_update_tgt_cfg(void *context, void *param)
  * @context:	HDD context pointer
  * @param:	HDD radar indication pointer
  *
- * This function is invoked when a radar in found on the
- * SAP current operating channel and Data Tx from netif
- * has to be stopped to honor the DFS regulations.
+ * This function is invoked in atomic context when a radar
+ * is found on the SAP current operating channel and Data Tx
+ * from netif has to be stopped to honor the DFS regulations.
  * Actions: Stop the netif Tx queues,Indicate Radar present
  * in HDD context for future usage.
  *
@@ -1420,18 +1425,18 @@ bool hdd_dfs_indicate_radar(void *context, void *param)
 		return true;
 
 	if (true == hdd_radar_event->dfs_radar_status) {
-		mutex_lock(&hdd_ctx->dfs_lock);
+		qdf_spin_lock_bh(&hdd_ctx->dfs_lock);
 		if (hdd_ctx->dfs_radar_found) {
 			/*
 			 * Application already triggered channel switch
 			 * on current channel, so return here.
 			 */
-			mutex_unlock(&hdd_ctx->dfs_lock);
+			qdf_spin_unlock_bh(&hdd_ctx->dfs_lock);
 			return false;
 		}
 
 		hdd_ctx->dfs_radar_found = true;
-		mutex_unlock(&hdd_ctx->dfs_lock);
+		qdf_spin_unlock_bh(&hdd_ctx->dfs_lock);
 
 		status = hdd_get_front_adapter(hdd_ctx, &adapterNode);
 		while (NULL != adapterNode && QDF_STATUS_SUCCESS == status) {
@@ -2150,7 +2155,7 @@ QDF_STATUS hdd_register_interface(hdd_adapter_t *adapter,
 	return QDF_STATUS_SUCCESS;
 }
 
-static QDF_STATUS hdd_sme_close_session_callback(void *pContext)
+QDF_STATUS hdd_sme_close_session_callback(void *pContext)
 {
 	hdd_adapter_t *adapter = pContext;
 
@@ -2163,6 +2168,12 @@ static QDF_STATUS hdd_sme_close_session_callback(void *pContext)
 		hddLog(QDF_TRACE_LEVEL_FATAL, FL("Invalid magic"));
 		return QDF_STATUS_NOT_INITIALIZED;
 	}
+
+	/*
+	 * For NAN Data interface, the close session results in the final
+	 * indication to the userspace
+	 */
+	hdd_ndp_session_end_handler(adapter);
 
 	clear_bit(SME_SESSION_OPENED, &adapter->event_flags);
 
@@ -2545,6 +2556,7 @@ hdd_adapter_t *hdd_open_adapter(hdd_context_t *hdd_ctx, uint8_t session_type,
 	case QDF_P2P_DEVICE_MODE:
 	case QDF_OCB_MODE:
 	case QDF_MONITOR_MODE:
+	case QDF_NDI_MODE:
 	{
 		adapter = hdd_alloc_station_adapter(hdd_ctx, macAddr,
 						    name_assign_type,
@@ -2568,7 +2580,11 @@ hdd_adapter_t *hdd_open_adapter(hdd_context_t *hdd_ctx, uint8_t session_type,
 
 		adapter->device_mode = session_type;
 
-		status = hdd_init_station_mode(adapter);
+		if (QDF_NDI_MODE == session_type)
+			status = hdd_init_nan_data_mode(adapter);
+		else
+			status = hdd_init_station_mode(adapter);
+
 		if (QDF_STATUS_SUCCESS != status)
 			goto err_free_netdev;
 
@@ -3045,21 +3061,33 @@ QDF_STATUS hdd_stop_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 	case QDF_P2P_CLIENT_MODE:
 	case QDF_IBSS_MODE:
 	case QDF_P2P_DEVICE_MODE:
-		if (hdd_conn_is_connected(
+	case QDF_NDI_MODE:
+		if ((QDF_NDI_MODE == adapter->device_mode) ||
+			hdd_conn_is_connected(
 				WLAN_HDD_GET_STATION_CTX_PTR(adapter)) ||
 			hdd_is_connecting(
 				WLAN_HDD_GET_STATION_CTX_PTR(adapter))) {
-			if (pWextState->roamProfile.BSSType ==
-			    eCSR_BSS_TYPE_START_IBSS)
-				qdf_ret_status =
-					sme_roam_disconnect(hdd_ctx->hHal,
-							    adapter->sessionId,
-							    eCSR_DISCONNECT_REASON_IBSS_LEAVE);
+			INIT_COMPLETION(adapter->disconnect_comp_var);
+			/*
+			 * For NDI do not use pWextState from sta_ctx, if needed
+			 * extract from ndi_ctx.
+			 */
+			if (QDF_NDI_MODE == adapter->device_mode)
+				qdf_ret_status = sme_roam_disconnect(
+					hdd_ctx->hHal,
+					adapter->sessionId,
+					eCSR_DISCONNECT_REASON_NDI_DELETE);
+			else if (pWextState->roamProfile.BSSType ==
+						eCSR_BSS_TYPE_START_IBSS)
+				qdf_ret_status = sme_roam_disconnect(
+					hdd_ctx->hHal,
+					adapter->sessionId,
+					eCSR_DISCONNECT_REASON_IBSS_LEAVE);
 			else
-				qdf_ret_status =
-					sme_roam_disconnect(hdd_ctx->hHal,
-							    adapter->sessionId,
-							    eCSR_DISCONNECT_REASON_UNSPECIFIED);
+				qdf_ret_status = sme_roam_disconnect(
+					hdd_ctx->hHal,
+					adapter->sessionId,
+					eCSR_DISCONNECT_REASON_UNSPECIFIED);
 			/* success implies disconnect command got queued up successfully */
 			if (qdf_ret_status == QDF_STATUS_SUCCESS) {
 				rc = wait_for_completion_timeout(
@@ -4651,6 +4679,24 @@ void hdd_pld_request_bus_bandwidth(hdd_context_t *hdd_ctx,
 			 next_vote_level, tx_packets, rx_packets);
 		hdd_ctx->cur_vote_level = next_vote_level;
 		pld_request_bus_bandwidth(hdd_ctx->parent_dev, next_vote_level);
+		if (next_vote_level == PLD_BUS_WIDTH_LOW) {
+			if (hdd_ctx->hbw_requested) {
+				pld_remove_pm_qos(hdd_ctx->parent_dev);
+				hdd_ctx->hbw_requested = false;
+			}
+			if (cds_sched_handle_throughput_req(false))
+				hdd_log(LOGE,
+				   FL("low bandwidth set rx affinity fail"));
+		 } else {
+			if (!hdd_ctx->hbw_requested) {
+				pld_request_pm_qos(hdd_ctx->parent_dev, 1);
+				hdd_ctx->hbw_requested = true;
+			}
+
+			if (cds_sched_handle_throughput_req(true))
+				hdd_log(LOGE,
+				   FL("high bandwidth set rx affinity fail"));
+		 }
 	}
 
 	/* fine-tuning parameters for RX Flows */
@@ -6416,6 +6462,52 @@ out:
 }
 
 /**
+ * wlan_hdd_p2p_lo_event_callback - P2P listen offload stop event handler
+ * @context_ptr - hdd context pointer
+ * @event_ptr - event structure pointer
+ *
+ * This is the p2p listen offload stop event handler, it sends vendor
+ * event back to supplicant to notify the stop reason.
+ *
+ * Return: None
+ */
+static void wlan_hdd_p2p_lo_event_callback(void *context_ptr,
+				void *event_ptr)
+{
+	hdd_context_t *hdd_ctx = (hdd_context_t *)context_ptr;
+	struct sir_p2p_lo_event *evt = event_ptr;
+	struct sk_buff *vendor_event;
+
+	ENTER();
+
+	if (hdd_ctx == NULL) {
+		hdd_err("Invalid HDD context pointer");
+		return;
+	}
+
+	vendor_event =
+		cfg80211_vendor_event_alloc(hdd_ctx->wiphy,
+			NULL, sizeof(uint32_t) + NLMSG_HDRLEN,
+			QCA_NL80211_VENDOR_SUBCMD_P2P_LO_EVENT_INDEX,
+			GFP_KERNEL);
+
+	if (!vendor_event) {
+		hdd_err("cfg80211_vendor_event_alloc failed");
+		return;
+	}
+
+	if (nla_put_u32(vendor_event,
+			QCA_WLAN_VENDOR_ATTR_P2P_LISTEN_OFFLOAD_STOP_REASON,
+			evt->reason_code)) {
+		hdd_err("nla put failed");
+		kfree_skb(vendor_event);
+		return;
+	}
+
+	cfg80211_vendor_event(vendor_event, GFP_KERNEL);
+}
+
+/**
  * hdd_adaptive_dwelltime_init() - initialization for adaptive dwell time config
  * @hdd_ctx: HDD context
  *
@@ -6467,6 +6559,8 @@ int hdd_wlan_startup(struct device *dev, void *hif_sc)
 	int ret;
 	tSirTxPowerLimit hddtxlimit;
 	bool rtnl_held;
+	/* structure of function pointers to be used by CDS */
+	struct cds_sme_cbacks sme_cbacks;
 
 	ENTER();
 
@@ -6619,7 +6713,9 @@ int hdd_wlan_startup(struct device *dev, void *hif_sc)
 #endif
 
 	wlan_hdd_nan_init(hdd_ctx);
-	status = cds_init_policy_mgr(sme_get_cfg_valid_channels);
+	sme_cbacks.sme_get_valid_channels = sme_get_cfg_valid_channels;
+	sme_cbacks.sme_get_nss_for_vdev = sme_get_vdev_type_nss;
+	status = cds_init_policy_mgr(&sme_cbacks);
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		hdd_err("Policy manager initialization failed");
 		goto err_debugfs_exit;
@@ -6685,6 +6781,11 @@ int hdd_wlan_startup(struct device *dev, void *hif_sc)
 			goto err_debugfs_exit;
 		}
 	}
+
+	/* register P2P Listen Offload event callback */
+	if (wma_is_p2p_lo_capable())
+		sme_register_p2p_lo_event(hdd_ctx->hHal, hdd_ctx,
+				wlan_hdd_p2p_lo_event_callback);
 
 	ret = hdd_register_notifiers(hdd_ctx);
 	if (ret)
@@ -6846,86 +6947,6 @@ QDF_STATUS hdd_issta_p2p_clientconnected(hdd_context_t *hdd_ctx)
 {
 	return sme_is_sta_p2p_client_connected(hdd_ctx->hHal);
 }
-
-#ifdef WLAN_FEATURE_LPSS
-int wlan_hdd_gen_wlan_status_pack(struct wlan_status_data *data,
-				  hdd_adapter_t *adapter,
-				  hdd_station_ctx_t *pHddStaCtx,
-				  uint8_t is_on, uint8_t is_connected)
-{
-	hdd_context_t *hdd_ctx = NULL;
-	uint8_t buflen = WLAN_SVC_COUNTRY_CODE_LEN;
-
-	if (!data) {
-		hddLog(LOGE, FL("invalid data pointer"));
-		return -EINVAL;
-	}
-	if (!adapter) {
-		if (is_on) {
-			/* no active interface */
-			data->lpss_support = 0;
-			data->is_on = is_on;
-			return 0;
-		}
-		hddLog(LOGE, FL("invalid adapter pointer"));
-		return -EINVAL;
-	}
-
-	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
-	if (hdd_ctx->lpss_support && hdd_ctx->config->enable_lpass_support)
-		data->lpss_support = 1;
-	else
-		data->lpss_support = 0;
-	data->numChannels = WLAN_SVC_MAX_NUM_CHAN;
-	sme_get_cfg_valid_channels(hdd_ctx->hHal, data->channel_list,
-				   &data->numChannels);
-	sme_get_country_code(hdd_ctx->hHal, data->country_code, &buflen);
-	data->is_on = is_on;
-	data->vdev_id = adapter->sessionId;
-	data->vdev_mode = adapter->device_mode;
-	if (pHddStaCtx) {
-		data->is_connected = is_connected;
-		data->rssi = adapter->rssi;
-		data->freq =
-			cds_chan_to_freq(pHddStaCtx->conn_info.operationChannel);
-		if (WLAN_SVC_MAX_SSID_LEN >=
-		    pHddStaCtx->conn_info.SSID.SSID.length) {
-			data->ssid_len = pHddStaCtx->conn_info.SSID.SSID.length;
-			memcpy(data->ssid,
-			       pHddStaCtx->conn_info.SSID.SSID.ssId,
-			       pHddStaCtx->conn_info.SSID.SSID.length);
-		}
-		if (QDF_MAC_ADDR_SIZE >=
-		    sizeof(pHddStaCtx->conn_info.bssId))
-			memcpy(data->bssid, pHddStaCtx->conn_info.bssId.bytes,
-			       QDF_MAC_ADDR_SIZE);
-	}
-	return 0;
-}
-
-int wlan_hdd_gen_wlan_version_pack(struct wlan_version_data *data,
-				   uint32_t fw_version,
-				   uint32_t chip_id, const char *chip_name)
-{
-	if (!data) {
-		hddLog(LOGE, FL("invalid data pointer"));
-		return -EINVAL;
-	}
-
-	data->chip_id = chip_id;
-	strlcpy(data->chip_name, chip_name, WLAN_SVC_MAX_STR_LEN);
-	if (strncmp(chip_name, "Unknown", 7))
-		strlcpy(data->chip_from, "Qualcomm", WLAN_SVC_MAX_STR_LEN);
-	else
-		strlcpy(data->chip_from, "Unknown", WLAN_SVC_MAX_STR_LEN);
-	strlcpy(data->host_version, QWLAN_VERSIONSTR, WLAN_SVC_MAX_STR_LEN);
-	scnprintf(data->fw_version, WLAN_SVC_MAX_STR_LEN, "%d.%d.%d.%d",
-		  (fw_version & 0xf0000000) >> 28,
-		  (fw_version & 0xf000000) >> 24,
-		  (fw_version & 0xf00000) >> 20, (fw_version & 0x7fff));
-	return 0;
-}
-#endif
 
 /**
  * wlan_hdd_disable_roaming() - disable roaming on all STAs except the input one
@@ -7096,81 +7117,6 @@ void wlan_hdd_send_svc_nlink_msg(int type, void *data, int len)
 
 	return;
 }
-
-#ifdef WLAN_FEATURE_LPSS
-void wlan_hdd_send_status_pkg(hdd_adapter_t *adapter,
-			      hdd_station_ctx_t *pHddStaCtx,
-			      uint8_t is_on, uint8_t is_connected)
-{
-	int ret = 0;
-	struct wlan_status_data data;
-
-	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam())
-		return;
-
-	memset(&data, 0, sizeof(struct wlan_status_data));
-	if (is_on)
-		ret = wlan_hdd_gen_wlan_status_pack(&data, adapter, pHddStaCtx,
-						    is_on, is_connected);
-	if (!ret)
-		wlan_hdd_send_svc_nlink_msg(WLAN_SVC_WLAN_STATUS_IND,
-					    &data,
-					    sizeof(struct wlan_status_data));
-}
-
-void wlan_hdd_send_version_pkg(uint32_t fw_version,
-			       uint32_t chip_id, const char *chip_name)
-{
-	int ret = 0;
-	struct wlan_version_data data;
-
-	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam())
-		return;
-
-	memset(&data, 0, sizeof(struct wlan_version_data));
-	ret =
-		wlan_hdd_gen_wlan_version_pack(&data, fw_version, chip_id,
-					       chip_name);
-	if (!ret)
-		wlan_hdd_send_svc_nlink_msg(WLAN_SVC_WLAN_VERSION_IND,
-					    &data,
-					    sizeof(struct wlan_version_data));
-}
-
-void wlan_hdd_send_all_scan_intf_info(hdd_context_t *hdd_ctx)
-{
-	hdd_adapter_t *pDataAdapter = NULL;
-	hdd_adapter_list_node_t *adapterNode = NULL, *pNext = NULL;
-	bool scan_intf_found = false;
-	QDF_STATUS status;
-
-	if (!hdd_ctx) {
-		hddLog(QDF_TRACE_LEVEL_ERROR,
-		       FL("NULL pointer for hdd_ctx"));
-		return;
-	}
-
-	status = hdd_get_front_adapter(hdd_ctx, &adapterNode);
-	while (NULL != adapterNode && QDF_STATUS_SUCCESS == status) {
-		pDataAdapter = adapterNode->pAdapter;
-		if (pDataAdapter) {
-			if (pDataAdapter->device_mode == QDF_STA_MODE
-			    || pDataAdapter->device_mode == QDF_P2P_CLIENT_MODE
-			    || pDataAdapter->device_mode ==
-			    QDF_P2P_DEVICE_MODE) {
-				scan_intf_found = true;
-				wlan_hdd_send_status_pkg(pDataAdapter, NULL, 1,
-							 0);
-			}
-		}
-		status = hdd_get_next_adapter(hdd_ctx, adapterNode, &pNext);
-		adapterNode = pNext;
-	}
-
-	if (!scan_intf_found)
-		wlan_hdd_send_status_pkg(pDataAdapter, NULL, 1, 0);
-}
-#endif
 
 #ifdef FEATURE_WLAN_AUTO_SHUTDOWN
 void wlan_hdd_auto_shutdown_cb(void)

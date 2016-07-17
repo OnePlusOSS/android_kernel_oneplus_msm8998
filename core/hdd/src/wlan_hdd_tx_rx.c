@@ -57,6 +57,8 @@
 #include "cdp_txrx_peer_ops.h"
 #include "ol_txrx.h"
 
+#include "wlan_hdd_nan_datapath.h"
+
 const uint8_t hdd_wmm_ac_to_highest_up[] = {
 	SME_QOS_WMM_UP_RESV,
 	SME_QOS_WMM_UP_EE,
@@ -331,10 +333,7 @@ int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (cds_is_driver_recovering()) {
 		QDF_TRACE(QDF_MODULE_ID_HDD_DATA, QDF_TRACE_LEVEL_WARN,
 			"Recovery in progress, dropping the packet");
-		++pAdapter->stats.tx_dropped;
-		++pAdapter->hdd_stats.hddTxRxStats.txXmitDropped;
-		kfree_skb(skb);
-		return NETDEV_TX_OK;
+		goto drop_pkt;
 	}
 
 	if (QDF_IBSS_MODE == pAdapter->device_mode) {
@@ -342,8 +341,8 @@ int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 					(struct qdf_mac_addr *) skb->data;
 
 		if (QDF_STATUS_SUCCESS !=
-				hdd_ibss_get_sta_id(&pAdapter->sessionCtx.station,
-					pDestMacAddress, &STAId))
+			hdd_get_peer_sta_id(&pAdapter->sessionCtx.station,
+				pDestMacAddress, &STAId))
 			STAId = HDD_WLAN_INVALID_STA_ID;
 
 		if ((STAId == HDD_WLAN_INVALID_STA_ID) &&
@@ -357,6 +356,17 @@ int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			QDF_TRACE(QDF_MODULE_ID_HDD_DATA, QDF_TRACE_LEVEL_WARN,
 				  "%s: Received Unicast frame with invalid staID",
 				  __func__);
+			goto drop_pkt;
+		}
+	} else if (QDF_NDI_MODE == pAdapter->device_mode) {
+		struct qdf_mac_addr *dest_mac_addr =
+			(struct qdf_mac_addr *)skb->data;
+		if (hdd_get_peer_sta_id(&pAdapter->sessionCtx.station,
+				dest_mac_addr, &STAId) !=
+				QDF_STATUS_SUCCESS) {
+			QDF_TRACE(QDF_MODULE_ID_HDD_DATA, QDF_TRACE_LEVEL_WARN,
+				FL("Can't find peer: %pM, dropping packet"),
+				dest_mac_addr);
 			++pAdapter->stats.tx_dropped;
 			++pAdapter->hdd_stats.hddTxRxStats.txXmitDropped;
 			kfree_skb(skb);
@@ -369,10 +379,7 @@ int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			QDF_TRACE(QDF_MODULE_ID_HDD_DATA, QDF_TRACE_LEVEL_INFO,
 				FL("Tx frame in not associated state in %d context"),
 				pAdapter->device_mode);
-			++pAdapter->stats.tx_dropped;
-			++pAdapter->hdd_stats.hddTxRxStats.txXmitDropped;
-			kfree_skb(skb);
-			return NETDEV_TX_OK;
+			goto drop_pkt;
 		}
 		STAId = pHddStaCtx->conn_info.staId[0];
 	}
@@ -388,16 +395,7 @@ int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* Check if the buffer has enough header room */
 		skb = skb_unshare(skb, GFP_ATOMIC);
 		if (!skb)
-			goto drop_pkt;
-
-		if (skb_headroom(skb) < dev->hard_header_len) {
-			struct sk_buff *tmp;
-			tmp = skb;
-			skb = skb_realloc_headroom(tmp, dev->hard_header_len);
-			dev_kfree_skb(tmp);
-			if (!skb)
-				goto drop_pkt;
-		}
+			goto drop_pkt_accounting;
 	}
 
 	/* user priority from IP header, which is already extracted and set from
@@ -515,7 +513,8 @@ int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 				 QDF_TRACE_LEVEL_WARN,
 				 "%s: station is not connected..dropping pkt",
 				 __func__);
-				goto drop_pkt;
+		++pAdapter->hdd_stats.hddTxRxStats.txXmitDroppedAC[ac];
+		goto drop_pkt;
 	}
 
 	/*
@@ -525,6 +524,7 @@ int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		QDF_TRACE(QDF_MODULE_ID_HDD_SAP_DATA, QDF_TRACE_LEVEL_INFO_HIGH,
 			 "%s: TX function not registered by the data path",
 			 __func__);
+		++pAdapter->hdd_stats.hddTxRxStats.txXmitDroppedAC[ac];
 		goto drop_pkt;
 	}
 
@@ -533,6 +533,7 @@ int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		QDF_TRACE(QDF_MODULE_ID_HDD_DATA, QDF_TRACE_LEVEL_WARN,
 			  "%s: Failed to send packet to txrx for staid:%d",
 			  __func__, STAId);
+		++pAdapter->hdd_stats.hddTxRxStats.txXmitDroppedAC[ac];
 		goto drop_pkt;
 	}
 	dev->trans_start = jiffies;
@@ -541,22 +542,29 @@ int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 drop_pkt:
 
-	DPTRACE(qdf_dp_trace(skb, QDF_DP_TRACE_DROP_PACKET_RECORD,
-			(uint8_t *)skb->data, qdf_nbuf_len(skb), QDF_TX));
-	if (qdf_nbuf_len(skb) > QDF_DP_TRACE_RECORD_SIZE)
+	if (skb) {
 		DPTRACE(qdf_dp_trace(skb, QDF_DP_TRACE_DROP_PACKET_RECORD,
-			(uint8_t *)&skb->data[QDF_DP_TRACE_RECORD_SIZE],
-			(qdf_nbuf_len(skb)-QDF_DP_TRACE_RECORD_SIZE), QDF_TX));
+			(uint8_t *)skb->data, qdf_nbuf_len(skb), QDF_TX));
+		if (qdf_nbuf_len(skb) > QDF_DP_TRACE_RECORD_SIZE)
+			DPTRACE(qdf_dp_trace(skb,
+				 QDF_DP_TRACE_DROP_PACKET_RECORD,
+				(uint8_t *)&skb->data[QDF_DP_TRACE_RECORD_SIZE],
+				(qdf_nbuf_len(skb)-QDF_DP_TRACE_RECORD_SIZE),
+				 QDF_TX));
+
+		kfree_skb(skb);
+	}
+
+drop_pkt_accounting:
 
 	++pAdapter->stats.tx_dropped;
 	++pAdapter->hdd_stats.hddTxRxStats.txXmitDropped;
-	++pAdapter->hdd_stats.hddTxRxStats.txXmitDroppedAC[ac];
-	kfree_skb(skb);
+
 	return NETDEV_TX_OK;
 }
 
 /**
- * hdd_ibss_get_sta_id() - Get the StationID using the Peer Mac address
+ * hdd_get_peer_sta_id() - Get the StationID using the Peer Mac address
  * @pHddStaCtx: pointer to HDD Station Context
  * @pMacAddress: pointer to Peer Mac address
  * @staID: pointer to returned Station Index
@@ -564,12 +572,12 @@ drop_pkt:
  * Return: QDF_STATUS_SUCCESS/QDF_STATUS_E_FAILURE
  */
 
-QDF_STATUS hdd_ibss_get_sta_id(hdd_station_ctx_t *pHddStaCtx,
+QDF_STATUS hdd_get_peer_sta_id(hdd_station_ctx_t *pHddStaCtx,
 			       struct qdf_mac_addr *pMacAddress, uint8_t *staId)
 {
 	uint8_t idx;
 
-	for (idx = 0; idx < MAX_IBSS_PEERS; idx++) {
+	for (idx = 0; idx < MAX_PEERS; idx++) {
 		if (!qdf_mem_cmp(&pHddStaCtx->conn_info.peerMacAddress[idx],
 				    pMacAddress, QDF_MAC_ADDR_SIZE)) {
 			*staId = pHddStaCtx->conn_info.staId[idx];
@@ -759,6 +767,29 @@ static QDF_STATUS hdd_mon_rx_packet_cbk(void *context, qdf_nbuf_t rxbuf)
 	adapter->dev->last_rx = jiffies;
 
 	return QDF_STATUS_SUCCESS;
+}
+
+/**
+ * hdd_get_peer_idx() - Get the idx for given address in peer table
+ * @sta_ctx: pointer to HDD Station Context
+ * @addr: pointer to Peer Mac address
+ *
+ * Return: index when success else INVALID_PEER_IDX
+ */
+int hdd_get_peer_idx(hdd_station_ctx_t *sta_ctx, struct qdf_mac_addr *addr)
+{
+	uint8_t idx;
+
+	for (idx = 0; idx < MAX_PEERS; idx++) {
+		if (sta_ctx->conn_info.staId[idx] == 0)
+			continue;
+		if (qdf_mem_cmp(&sta_ctx->conn_info.peerMacAddress[idx],
+				addr, sizeof(struct qdf_mac_addr)))
+			continue;
+		return idx;
+	}
+
+	return INVALID_PEER_IDX;
 }
 
 /**

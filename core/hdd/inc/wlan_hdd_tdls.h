@@ -135,6 +135,16 @@ typedef enum {
 } eTDLSSupportMode;
 
 /**
+ * enum tdls_spatial_streams - TDLS spatial streams
+ * @TDLS_NSS_1x1_MODE: TDLS tx/rx spatial streams = 1
+ * @TDLS_NSS_2x2_MODE: TDLS tx/rx spatial streams = 2
+ */
+enum tdls_spatial_streams {
+	TDLS_NSS_1x1_MODE = 0,
+	TDLS_NSS_2x2_MODE = 0xff,
+};
+
+/**
  * enum tTDLSCapType - tdls capability type
  *
  * @eTDLS_CAP_NOT_SUPPORTED: tdls not supported
@@ -369,6 +379,7 @@ typedef struct {
  * @op_class_for_pref_off_chan_is_set: op class for preferred off channel set
  * @peer_idle_timer: time to check idle traffic in tdls peers
  * @is_peer_idle_timer_initialised: Flag to check idle timer init
+ * @spatial_streams: Number of TX/RX spatial streams for TDLS
  * @reason: reason
  * @state_change_notification: state change notification
  */
@@ -400,6 +411,7 @@ typedef struct _hddTdlsPeer_t {
 	uint8_t op_class_for_pref_off_chan_is_set;
 	qdf_mc_timer_t peer_idle_timer;
 	bool is_peer_idle_timer_initialised;
+	uint8_t spatial_streams;
 	tTDLSLinkReason reason;
 	cfg80211_exttdls_callback state_change_notification;
 } hddTdlsPeer_t;
@@ -669,6 +681,10 @@ void wlan_hdd_tdls_update_rx_pkt_cnt(hdd_adapter_t *adapter,
 int hdd_set_tdls_scan_type(hdd_context_t *hdd_ctx, int val);
 void hdd_tdls_context_init(hdd_context_t *hdd_ctx);
 void hdd_tdls_context_destroy(hdd_context_t *hdd_ctx);
+int wlan_hdd_tdls_antenna_switch(hdd_context_t *hdd_ctx,
+				 hdd_adapter_t *adapter,
+				 uint32_t mode);
+
 #else
 static inline void hdd_tdls_notify_mode_change(hdd_adapter_t *adapter,
 				hdd_context_t *hddctx)
@@ -691,6 +707,13 @@ static inline void wlan_hdd_tdls_update_rx_pkt_cnt(hdd_adapter_t *adapter,
 }
 static inline void hdd_tdls_context_init(hdd_context_t *hdd_ctx) { }
 static inline void hdd_tdls_context_destroy(hdd_context_t *hdd_ctx) { }
+
+static inline int wlan_hdd_tdls_antenna_switch(hdd_context_t *hdd_ctx,
+					       hdd_adapter_t *adapter,
+					       uint32_t mode)
+{
+	return 0;
+}
 #endif /* End of FEATURE_WLAN_TDLS */
 
 #ifdef FEATURE_WLAN_DIAG_SUPPORT

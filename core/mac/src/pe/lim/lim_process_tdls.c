@@ -76,6 +76,7 @@
 #include "dph_hash_table.h"
 #include "wma_types.h"
 #include "cds_regdomain.h"
+#include "cds_utils.h"
 
 /* define NO_PAD_TDLS_MIN_8023_SIZE to NOT padding: See CR#447630
    There was IOT issue with cisco 1252 open mode, where it pads
@@ -548,6 +549,7 @@ static void populate_dot11f_tdls_ht_vht_cap(tpAniSirGlobal pMac,
 	else
 		nss = pMac->vdev_type_nss_2g.tdls;
 
+	nss = QDF_MIN(nss, pMac->user_configured_nss);
 	if (IS_DOT11_MODE_HT(selfDot11Mode)) {
 		/* Include HT Capability IE */
 		populate_dot11f_ht_caps(pMac, NULL, htCap);
@@ -585,6 +587,17 @@ static void populate_dot11f_tdls_ht_vht_cap(tpAniSirGlobal pMac,
 		    IS_FEATURE_SUPPORTED_BY_FW(DOT11AC)) {
 			/* Include VHT Capability IE */
 			populate_dot11f_vht_caps(pMac, psessionEntry, vhtCap);
+
+			/*
+			 * Set to 0 if the TDLS STA does not support either 160
+			 * or 80+80 MHz.
+			 * Set to 1 if the TDLS STA supports 160 MHz.
+			 * Set to 2 if the TDLS STA supports 160 MHz and
+			 * 80+80 MHz.
+			 * The value 3 is reserved
+			 */
+			vhtCap->supportedChannelWidthSet = 0;
+
 			vhtCap->suBeamformeeCap = 0;
 			vhtCap->suBeamFormerCap = 0;
 			vhtCap->muBeamformeeCap = 0;
@@ -2266,6 +2279,9 @@ lim_tdls_populate_matching_rate_set(tpAniSirGlobal mac_ctx, tpDphHashNode stads,
 		nss = mac_ctx->vdev_type_nss_5g.tdls;
 	else
 		nss = mac_ctx->vdev_type_nss_2g.tdls;
+
+	nss = QDF_MIN(nss, mac_ctx->user_configured_nss);
+
 	/* compute the matching MCS rate set, if peer is 11n capable and self mode is 11n */
 #ifdef FEATURE_WLAN_TDLS
 	if (stads->mlmStaContext.htCapability)
@@ -2366,29 +2382,16 @@ static void lim_tdls_update_hash_node_info(tpAniSirGlobal pMac,
 	if (pVhtCaps->present) {
 		pStaDs->mlmStaContext.vhtCapability = 1;
 
-		if (psessionEntry->currentOperChannel <= SIR_11B_CHANNEL_END) {
-			/*
-			 * if the channel is 2G then update the min channel
-			 * widthset in pStaDs. These values are used when
-			 * sending a AddSta request to firmware
-			 * 11.21.1 General: The channel width of the TDLS direct
-			 * link on the base channel shall not exceed the channel
-			 * width of the BSS to which the TDLS peer STAs are
-			 * associated.
-			 */
-			pStaDs->vhtSupportedChannelWidthSet =
-				WNI_CFG_VHT_CHANNEL_WIDTH_20_40MHZ;
-			pStaDs->htSupportedChannelWidthSet =
-				eHT_CHANNEL_WIDTH_20MHZ;
-			lim_log(pMac, LOG1, FL("vhtSupportedChannelWidthSet = %hu, htSupportedChannelWidthSet %hu"),
-				pStaDs->htSupportedChannelWidthSet,
-				pStaDs->htSupportedChannelWidthSet);
-		} else {
-			pStaDs->vhtSupportedChannelWidthSet =
-				WNI_CFG_VHT_CHANNEL_WIDTH_80MHZ;
-			pStaDs->htSupportedChannelWidthSet =
-				eHT_CHANNEL_WIDTH_40MHZ;
-		}
+		/*
+		 * 11.21.1 General: The channel width of the TDLS direct
+		 * link on the base channel shall not exceed the channel
+		 * width of the BSS to which the TDLS peer STAs are
+		 * associated.
+		 */
+		pStaDs->vhtSupportedChannelWidthSet = psessionEntry->ch_width;
+		lim_log(pMac, LOG1, FL("vhtSupportedChannelWidthSet = %hu, htSupportedChannelWidthSet %hu"),
+			pStaDs->htSupportedChannelWidthSet,
+			pStaDs->htSupportedChannelWidthSet);
 
 		pStaDs->vhtLdpcCapable = pVhtCaps->ldpcCodingCap;
 		pStaDs->vhtBeamFormerCapable = 0;
@@ -2643,6 +2646,10 @@ void populate_dot11f_tdls_offchannel_params(tpAniSirGlobal pMac,
 	uint8_t op_class;
 	uint8_t numClasses;
 	uint8_t classes[CDS_MAX_SUPP_OPER_CLASSES];
+	uint32_t band;
+	uint8_t nss_2g;
+	uint8_t nss_5g;
+
 	if (wlan_cfg_get_str(pMac, WNI_CFG_VALID_CHANNEL_LIST,
 			     validChan, &numChans) != eSIR_SUCCESS) {
 		/**
@@ -2654,16 +2661,34 @@ void populate_dot11f_tdls_offchannel_params(tpAniSirGlobal pMac,
 		return;
 	}
 
-	/* validating the channel list for DFS channels */
+	if (IS_5G_CH(psessionEntry->currentOperChannel))
+		band = eCSR_BAND_5G;
+	else
+		band = eCSR_BAND_24;
+
+	nss_5g = QDF_MIN(pMac->vdev_type_nss_5g.tdls,
+			 pMac->user_configured_nss);
+	nss_2g = QDF_MIN(pMac->vdev_type_nss_2g.tdls,
+			 pMac->user_configured_nss);
+
+	/* validating the channel list for DFS and 2G channels */
 	for (i = 0U; i < numChans; i++) {
-		if (CHANNEL_STATE_DFS ==
-		    cds_get_channel_state(validChan[i])) {
+		if ((band == eCSR_BAND_5G) &&
+		    (NSS_2x2_MODE == nss_5g) &&
+		    (NSS_1x1_MODE == nss_2g) &&
+		    (true == CDS_IS_DFS_CH(validChan[i]))) {
 			lim_log(pMac, LOG1,
-				FL(
-				   "skipping DFS channel %d from the valid channel list"
-				  ),
-				validChan[i]);
+				FL("skipping channel %d, nss_5g: %d, nss_2g: %d"),
+				validChan[i], nss_5g, nss_2g);
 			continue;
+		} else {
+			if (true == cds_is_dsrc_channel(
+				cds_chan_to_freq(validChan[i]))) {
+				lim_log(pMac, LOG1,
+					FL("skipping channel %d from the valid channel list"),
+					validChan[i]);
+				continue;
+			}
 		}
 
 		if (valid_count >= ARRAY_SIZE(suppChannels->bands))

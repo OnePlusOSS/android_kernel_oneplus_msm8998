@@ -25,25 +25,35 @@
  * to the Linux Foundation.
  */
 
-#ifndef QWLAN_VERSION_H
-#define QWLAN_VERSION_H
-/*===========================================================================
+#if !defined(WLAN_HDD_LPASS_H)
+#define WLAN_HDD_LPASS_H
 
-   FILE:
-   qwlan_version.h
+#ifdef WLAN_FEATURE_LPSS
+void wlan_hdd_send_status_pkg(hdd_adapter_t *adapter,
+			      hdd_station_ctx_t *sta_ctx,
+			      uint8_t is_on, uint8_t is_connected);
+void wlan_hdd_send_version_pkg(uint32_t fw_version,
+			       uint32_t chip_id, const char *chip_name);
+void wlan_hdd_send_all_scan_intf_info(hdd_context_t *hdd_ctx);
+#else
+static inline void wlan_hdd_send_status_pkg(hdd_adapter_t *adapter,
+					    hdd_station_ctx_t *sta_ctx,
+					    uint8_t is_on, uint8_t is_connected)
+{
+	return;
+}
 
-   BRIEF DESCRIPTION:
-   WLAN Host Version file.
-   Build number automaticly updated by build scripts.
+static inline void wlan_hdd_send_version_pkg(uint32_t fw_version,
+					     uint32_t chip_id,
+					     const char *chip_name)
+{
+	return;
+}
 
-   ===========================================================================*/
+static inline void wlan_hdd_send_all_scan_intf_info(hdd_context_t *hdd_ctx)
+{
+	return;
+}
+#endif
 
-#define QWLAN_VERSION_MAJOR            5
-#define QWLAN_VERSION_MINOR            1
-#define QWLAN_VERSION_PATCH            0
-#define QWLAN_VERSION_EXTRA            ""
-#define QWLAN_VERSION_BUILD            22
-
-#define QWLAN_VERSIONSTR               "5.1.0.22"
-
-#endif /* QWLAN_VERSION_H */
+#endif /* WLAN_HDD_LPASS_H */

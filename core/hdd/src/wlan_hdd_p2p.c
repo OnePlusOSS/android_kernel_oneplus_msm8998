@@ -53,8 +53,8 @@
 #include "cds_sched.h"
 #include "cds_concurrency.h"
 
-/* Ms to Micro Sec */
-#define MS_TO_MUS(x)   ((x) * 1000)
+/* Ms to Time Unit Micro Sec */
+#define MS_TO_TU_MUS(x)   ((x) * 1024)
 
 static uint8_t *hdd_get_action_string(uint16_t MsgType)
 {
@@ -1411,7 +1411,9 @@ int __wlan_hdd_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 			home_ch = goAdapter->sessionCtx.ap.operatingChannel;
 	}
 
-	if (ieee80211_frequency_to_channel(chan->center_freq) == home_ch) {
+	if (chan &&
+	    (ieee80211_frequency_to_channel(chan->center_freq) ==
+	     home_ch)) {
 		/* if adapter is already on requested ch, no need for ROC */
 		wait = 0;
 		hddLog(LOG1,
@@ -1419,7 +1421,7 @@ int __wlan_hdd_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		goto send_frame;
 	}
 
-	if (offchan && wait) {
+	if (offchan && wait && chan) {
 		int status;
 		rem_on_channel_request_type_t req_type = OFF_CHANNEL_ACTION_TX;
 		/* In case of P2P Client mode if we are already */
@@ -1732,7 +1734,7 @@ int hdd_set_p2p_noa(struct net_device *dev, uint8_t *command)
 	hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
 	tHalHandle hHal = WLAN_HDD_GET_HAL_CTX(pAdapter);
 	tP2pPsConfig NoA;
-	int count, duration, start_time;
+	int count, duration, interval;
 	char *param;
 	int ret;
 
@@ -1743,7 +1745,7 @@ int hdd_set_p2p_noa(struct net_device *dev, uint8_t *command)
 		return -EINVAL;
 	}
 	param++;
-	ret = sscanf(param, "%d %d %d", &count, &start_time, &duration);
+	ret = sscanf(param, "%d %d %d", &count, &interval, &duration);
 	if (ret != 3) {
 		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
 			  "%s: P2P_SET GO NoA: fail to read params, ret=%d",
@@ -1751,9 +1753,9 @@ int hdd_set_p2p_noa(struct net_device *dev, uint8_t *command)
 		return -EINVAL;
 	}
 	QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_INFO,
-		  "%s: P2P_SET GO NoA: count=%d start_time=%d duration=%d",
-		  __func__, count, start_time, duration);
-	duration = MS_TO_MUS(duration);
+		  "%s: P2P_SET GO NoA: count=%d interval=%d duration=%d",
+		  __func__, count, interval, duration);
+	duration = MS_TO_TU_MUS(duration);
 	/* PS Selection
 	 * Periodic NoA (2)
 	 * Single NOA   (4)
@@ -1769,7 +1771,7 @@ int hdd_set_p2p_noa(struct net_device *dev, uint8_t *command)
 		NoA.single_noa_duration = 0;
 		NoA.psSelection = P2P_POWER_SAVE_TYPE_PERIODIC_NOA;
 	}
-	NoA.interval = MS_TO_MUS(100);
+	NoA.interval = MS_TO_TU_MUS(interval);
 	NoA.count = count;
 	NoA.sessionid = pAdapter->sessionId;
 
@@ -1807,30 +1809,45 @@ int hdd_set_p2p_noa(struct net_device *dev, uint8_t *command)
 
 int hdd_set_p2p_opps(struct net_device *dev, uint8_t *command)
 {
-	hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
-	tHalHandle hHal = WLAN_HDD_GET_HAL_CTX(pAdapter);
-	tP2pPsConfig NoA;
+	hdd_adapter_t *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
+	tHalHandle handle = WLAN_HDD_GET_HAL_CTX(adapter);
+	tP2pPsConfig noa;
 	char *param;
 	int legacy_ps, opp_ps, ctwindow;
 	int ret;
 
 	param = strnchr(command, strlen(command), ' ');
 	if (param == NULL) {
-		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
-			  "%s: strnchr failed to find delimiter", __func__);
+		hdd_err("strnchr failed to find delimiter");
 		return -EINVAL;
 	}
 	param++;
 	ret = sscanf(param, "%d %d %d", &legacy_ps, &opp_ps, &ctwindow);
 	if (ret != 3) {
-		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
-			  "%s: P2P_SET GO PS: fail to read params, ret=%d",
-			  __func__, ret);
+		hdd_err("P2P_SET GO PS: fail to read params, ret=%d", ret);
 		return -EINVAL;
 	}
-	QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_INFO,
-		  "%s: P2P_SET GO PS: legacy_ps=%d opp_ps=%d ctwindow=%d",
-		  __func__, legacy_ps, opp_ps, ctwindow);
+
+	if ((opp_ps != -1) && (opp_ps != 0) && (opp_ps != 1)) {
+		hdd_err("Invalid opp_ps value:%d", opp_ps);
+		return -EINVAL;
+	}
+
+	/* P2P spec: 3.3.2 Power Management and discovery:
+	 *     CTWindow should be at least 10 TU.
+	 * P2P spec: Table 27 - CTWindow and OppPS Parameters field format:
+	 *     CTWindow and OppPS Parameters together is 8 bits.
+	 *     CTWindow uses 7 bits (0-6, Bit 7 is for OppPS)
+	 * 0 indicates that there shall be no CTWindow
+	 */
+	if ((ctwindow != -1) && (ctwindow != 0) &&
+	    (!((ctwindow >= 10) && (ctwindow <= 127)))) {
+		hdd_err("Invalid CT window value:%d", ctwindow);
+		return -EINVAL;
+	}
+
+	hdd_info("P2P_SET GO PS: legacy_ps=%d opp_ps=%d ctwindow=%d",
+		  legacy_ps, opp_ps, ctwindow);
 
 	/* PS Selection
 	 * Opportunistic Power Save (1)
@@ -1843,67 +1860,44 @@ int hdd_set_p2p_opps(struct net_device *dev, uint8_t *command)
 	 * P2P_SET ctwindow 30
 	 * Command Received at hdd_hostapd_ioctl is as below:
 	 * P2P_SET_PS -1 -1 30 (legacy_ps = -1, opp_ps = -1, ctwindow = 30)
+	 *
+	 * e.g., 1: P2P_SET_PS 1 1 30
+	 * Driver sets the Opps and CTwindow as 30 and send it to FW.
+	 * e.g., 2: P2P_SET_PS 1 -1 15
+	 * Driver caches the CTwindow value but not send the command to FW.
+	 * e.g., 3: P2P_SET_PS 1 1 -1
+	 * Driver sends the command to FW with Opps enabled and CT window as
+	 * 15 (last cached CTWindow value).
+	 * (or) : P2P_SET_PS 1 1 20
+	 * Driver sends the command to FW with opps enabled and CT window
+	 * as 20.
+	 *
+	 * legacy_ps param remains unused until required in the future.
 	 */
-	if (ctwindow != -1) {
+	if (ctwindow != -1)
+		adapter->ctw = ctwindow;
 
-		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_INFO,
-			  "Opportunistic Power Save is %s",
-			  (true == pAdapter->ops) ? "Enable" : "Disable");
-
-		if (ctwindow != pAdapter->ctw) {
-			pAdapter->ctw = ctwindow;
-
-			if (pAdapter->ops) {
-				NoA.opp_ps = pAdapter->ops;
-				NoA.ctWindow = pAdapter->ctw;
-				NoA.duration = 0;
-				NoA.single_noa_duration = 0;
-				NoA.interval = 0;
-				NoA.count = 0;
-				NoA.psSelection =
-					P2P_POWER_SAVE_TYPE_OPPORTUNISTIC;
-				NoA.sessionid = pAdapter->sessionId;
-
-				QDF_TRACE(QDF_MODULE_ID_HDD,
-					  QDF_TRACE_LEVEL_INFO,
-					  "%s: P2P_PS_ATTR:oppPS %d ctWindow %d duration %d "
-					  "interval %d count %d single noa duration %d "
-					  "PsSelection %x", __func__,
-					  NoA.opp_ps, NoA.ctWindow,
-					  NoA.duration, NoA.interval, NoA.count,
-					  NoA.single_noa_duration,
-					  NoA.psSelection);
-
-				sme_p2p_set_ps(hHal, &NoA);
-			}
-			return 0;
-		}
-	}
-
+	/* Send command to FW when OppPS is either enabled(1)/disbaled(0) */
 	if (opp_ps != -1) {
-		pAdapter->ops = opp_ps;
+		adapter->ops = opp_ps;
+		noa.opp_ps = adapter->ops;
+		noa.ctWindow = adapter->ctw;
+		noa.duration = 0;
+		noa.single_noa_duration = 0;
+		noa.interval = 0;
+		noa.count = 0;
+		noa.psSelection = P2P_POWER_SAVE_TYPE_OPPORTUNISTIC;
+		noa.sessionid = adapter->sessionId;
 
-		if ((opp_ps != -1) && (pAdapter->ctw)) {
-			NoA.opp_ps = opp_ps;
-			NoA.ctWindow = pAdapter->ctw;
-			NoA.duration = 0;
-			NoA.single_noa_duration = 0;
-			NoA.interval = 0;
-			NoA.count = 0;
-			NoA.psSelection = P2P_POWER_SAVE_TYPE_OPPORTUNISTIC;
-			NoA.sessionid = pAdapter->sessionId;
+		hdd_debug("P2P_PS_ATTR: oppPS %d ctWindow %d duration %d interval %d count %d single noa duration %d PsSelection %x",
+			noa.opp_ps, noa.ctWindow,
+			noa.duration, noa.interval, noa.count,
+			noa.single_noa_duration,
+			noa.psSelection);
 
-			QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_INFO,
-				  "%s: P2P_PS_ATTR:oppPS %d ctWindow %d duration %d "
-				  "interval %d count %d single noa duration %d "
-				  "PsSelection %x", __func__, NoA.opp_ps,
-				  NoA.ctWindow, NoA.duration, NoA.interval,
-				  NoA.count, NoA.single_noa_duration,
-				  NoA.psSelection);
-
-			sme_p2p_set_ps(hHal, &NoA);
-		}
+		sme_p2p_set_ps(handle, &noa);
 	}
+
 	return 0;
 }
 

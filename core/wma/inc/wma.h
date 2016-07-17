@@ -48,6 +48,8 @@
 #include "lim_types.h"
 #include "wmi_unified_api.h"
 #include "cdp_txrx_cmn.h"
+#include "ol_defines.h"
+#include "dbglog.h"
 
 /* Platform specific configuration for max. no. of fragments */
 #define QCA_OL_11AC_TX_MAX_FRAGS            2
@@ -230,7 +232,7 @@
 #define WMA_VDEV_START_REQUEST_TIMEOUT (3000)   /* 3 seconds */
 #define WMA_VDEV_STOP_REQUEST_TIMEOUT  (3000)   /* 3 seconds */
 
-#define WMA_TGT_INVALID_SNR (-1)
+#define WMA_TGT_INVALID_SNR 0x127
 
 #define WMA_TX_Q_RECHECK_TIMER_WAIT      2      /* 2 ms */
 #define WMA_TX_Q_RECHECK_TIMER_MAX_WAIT  20     /* 20 ms */
@@ -937,6 +939,7 @@ struct wma_txrx_node {
 	int32_t roam_synch_delay;
 	uint8_t nss_2g;
 	uint8_t nss_5g;
+	bool p2p_lo_in_progress;
 };
 
 #if defined(QCA_WIFI_FTM)
@@ -1429,6 +1432,10 @@ typedef struct {
 	uint32_t fine_time_measurement_cap;
 	struct wma_ini_config ini_config;
 	struct wma_valid_channels saved_chan;
+	/* NAN datapath support enabled in firmware */
+	bool nan_datapath_enabled;
+	QDF_STATUS (*pe_ndp_event_handler)(tpAniSirGlobal mac_ctx,
+					   cds_msg_t *msg);
 } t_wma_handle, *tp_wma_handle;
 
 /**
@@ -2119,6 +2126,19 @@ void wma_process_set_pdev_ht_ie_req(tp_wma_handle wma,
 		struct set_ie_param *ie_params);
 void wma_process_set_pdev_vht_ie_req(tp_wma_handle wma,
 		struct set_ie_param *ie_params);
+void wma_remove_peer(tp_wma_handle wma, u_int8_t *bssid,
+			u_int8_t vdev_id, ol_txrx_peer_handle peer,
+			bool roam_synch_in_progress);
+
+QDF_STATUS wma_add_wow_wakeup_event(tp_wma_handle wma,
+					uint32_t vdev_id,
+					uint32_t bitmap,
+					bool enable);
+QDF_STATUS wma_create_peer(tp_wma_handle wma, ol_txrx_pdev_handle pdev,
+			   ol_txrx_vdev_handle vdev, u8 peer_addr[6],
+			   u_int32_t peer_type, u_int8_t vdev_id,
+			   bool roam_synch_in_progress);
+
 #endif
 struct wma_ini_config *wma_get_ini_handle(tp_wma_handle wma_handle);
 WLAN_PHY_MODE wma_chan_phy_mode(u8 chan, enum phy_ch_width chan_width,

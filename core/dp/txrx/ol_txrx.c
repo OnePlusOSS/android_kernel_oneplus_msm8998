@@ -80,6 +80,7 @@
 #endif
 #include <cds_concurrency.h>
 #include "epping_main.h"
+#include <a_types.h>
 
 #ifdef CONFIG_HL_SUPPORT
 
@@ -1822,8 +1823,13 @@ void ol_txrx_vdev_register(ol_txrx_vdev_handle vdev,
 				void *osif_vdev,
 				struct ol_txrx_ops *txrx_ops)
 {
-	vdev->osif_dev = osif_vdev;
+	if (qdf_unlikely(!vdev) || qdf_unlikely(!txrx_ops)) {
+		qdf_print("%s: vdev/txrx_ops is NULL!\n", __func__);
+		qdf_assert(0);
+		return;
+	}
 
+	vdev->osif_dev = osif_vdev;
 	vdev->rx = txrx_ops->rx.rx;
 	txrx_ops->tx.tx = ol_tx_data;
 }
@@ -2368,7 +2374,7 @@ ol_txrx_update_ibss_add_peer_num_of_vdev(ol_txrx_vdev_handle vdev,
 	int16_t new_peer_num;
 
 	new_peer_num = vdev->ibss_peer_num + peer_num_delta;
-	if (new_peer_num > MAX_IBSS_PEERS || new_peer_num < 0)
+	if (new_peer_num > MAX_PEERS || new_peer_num < 0)
 		return OL_TXRX_INVALID_NUM_PEERS;
 
 	vdev->ibss_peer_num = new_peer_num;

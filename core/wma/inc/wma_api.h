@@ -32,6 +32,7 @@
 #include "cds_mq.h"
 #include "ani_global.h"
 #include "a_types.h"
+#include "osapi_linux.h"
 #include "wmi_unified.h"
 #ifdef NOT_YET
 #include "htc_api.h"
@@ -250,4 +251,21 @@ static inline QDF_STATUS wma_send_egap_conf_params(WMA_HANDLE handle,
 #endif
 QDF_STATUS wma_set_tx_power_scale(uint8_t vdev_id, int value);
 QDF_STATUS wma_set_tx_power_scale_decr_db(uint8_t vdev_id, int value);
+
+#ifdef WLAN_FEATURE_NAN_DATAPATH
+QDF_STATUS wma_register_ndp_cb(QDF_STATUS (*pe_ndp_event_handler)
+					  (tpAniSirGlobal mac_ctx,
+					  cds_msg_t *msg));
+#else
+static inline QDF_STATUS wma_register_ndp_cb(QDF_STATUS (*pe_ndp_event_handler)
+							(tpAniSirGlobal mac_ctx,
+							cds_msg_t *msg))
+{
+	return QDF_STATUS_SUCCESS;
+}
+#endif
+
+bool wma_is_p2p_lo_capable(void);
+QDF_STATUS wma_p2p_lo_start(struct sir_p2p_lo_start *params);
+QDF_STATUS wma_p2p_lo_stop(u_int32_t vdev_id);
 #endif

@@ -69,6 +69,7 @@
 #include "cds_utils.h"
 #include "sys_startup.h"
 #include "cds_concurrency.h"
+#include "nan_datapath.h"
 
 static void __lim_init_scan_vars(tpAniSirGlobal pMac)
 {
@@ -406,39 +407,6 @@ static tSirRetStatus __lim_init_config(tpAniSirGlobal pMac)
 	} else {
 		/* No need to activate the timer during init time. */
 		pMac->sys.gSysEnableLinkMonitorMode = 1;
-	}
-
-	/* WNI_CFG_SHORT_GI_20MHZ */
-
-	if (wlan_cfg_get_int(pMac, WNI_CFG_HT_CAP_INFO, &val1) != eSIR_SUCCESS) {
-		PELOGE(lim_log(pMac, LOGE, FL("could not retrieve HT Cap CFG"));)
-		return eSIR_FAILURE;
-	}
-	if (wlan_cfg_get_int(pMac, WNI_CFG_SHORT_GI_20MHZ, &val2) != eSIR_SUCCESS) {
-		PELOGE(lim_log
-			       (pMac, LOGE, FL("could not retrieve shortGI 20Mhz CFG"));
-		       )
-		return eSIR_FAILURE;
-	}
-	if (wlan_cfg_get_int(pMac, WNI_CFG_SHORT_GI_40MHZ, &val3) != eSIR_SUCCESS) {
-		PELOGE(lim_log
-			       (pMac, LOGE, FL("could not retrieve shortGI 40Mhz CFG"));
-		       )
-		return eSIR_FAILURE;
-	}
-
-	val16 = (uint16_t) val1;
-	pHTCapabilityInfo = (tSirMacHTCapabilityInfo *) &val16;
-	pHTCapabilityInfo->shortGI20MHz = (uint16_t) val2;
-	pHTCapabilityInfo->shortGI40MHz = (uint16_t) val3;
-
-	if (cfg_set_int
-		    (pMac, WNI_CFG_HT_CAP_INFO,
-		    *(uint16_t *) pHTCapabilityInfo) != eSIR_SUCCESS) {
-		PELOGE(lim_log
-			       (pMac, LOGE, FL("could not update HT Cap Info CFG"));
-		       )
-		return eSIR_FAILURE;
 	}
 
 	/* WNI_CFG_MAX_RX_AMPDU_FACTOR */
@@ -1065,13 +1033,15 @@ QDF_STATUS pe_handle_mgmt_frame(void *p_cds_gctx, void *cds_buff)
 }
 
 /**
- * pe_register_wma_handle() - register management frame handler to WMA
+ * pe_register_callbacks_with_wma() - register SME and PE callback functions to
+ * WMA.
  * @pMac: mac global ctx
- * @ready_req: Ready request parameters
+ * @ready_req: Ready request parameters, containing callback pointers
  *
  * Return: None
  */
-void pe_register_wma_handle(tpAniSirGlobal pMac, tSirSmeReadyReq *ready_req)
+void pe_register_callbacks_with_wma(tpAniSirGlobal pMac,
+				    tSirSmeReadyReq *ready_req)
 {
 	void *p_cds_gctx;
 	QDF_STATUS retStatus;
@@ -1090,6 +1060,11 @@ void pe_register_wma_handle(tpAniSirGlobal pMac, tSirSmeReadyReq *ready_req)
 	if (retStatus != QDF_STATUS_SUCCESS)
 		lim_log(pMac, LOGP,
 			FL("Registering roaming callbacks with WMA failed"));
+
+	retStatus = wma_register_ndp_cb(lim_handle_ndp_event_message);
+	if (retStatus != QDF_STATUS_SUCCESS)
+		lim_log(pMac, LOGE,
+			FL("Registering NDP callbacks with WMA failed"));
 }
 
 /**

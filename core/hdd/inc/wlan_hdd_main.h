@@ -68,6 +68,7 @@
 #include <wlan_hdd_lro.h>
 #include "cdp_txrx_flow_ctrl_legacy.h"
 #include <cdp_txrx_peer_ops.h>
+#include "wlan_hdd_nan_datapath.h"
 
 /*---------------------------------------------------------------------------
    Preprocessor definitions and constants
@@ -669,6 +670,9 @@ struct hdd_station_ctx {
 	uint8_t broadcast_ibss_staid;
 
 	struct hdd_mon_set_ch_info ch_info;
+#ifdef WLAN_FEATURE_NAN_DATAPATH
+	struct nan_datapath_ctx ndp_ctx;
+#endif
 };
 
 #define BSS_STOP    0
@@ -1074,6 +1078,19 @@ struct hdd_adapter_s {
 	 (tdlsCtx_t *)(pAdapter)->sessionCtx.station.pHddTdlsCtx : NULL)
 #endif
 
+#ifdef WLAN_FEATURE_NAN_DATAPATH
+#define WLAN_HDD_GET_NDP_CTX_PTR(adapter) \
+		(&(adapter)->sessionCtx.station.ndp_ctx)
+#define WLAN_HDD_IS_NDP_ENABLED(hdd_ctx) ((hdd_ctx)->nan_datapath_enabled)
+#else
+/* WLAN_HDD_GET_NDP_CTX_PTR and WLAN_HDD_GET_NDP_WEXT_STATE_PTR are not defined
+ * intentionally so that all references to these must be within NDP code.
+ * non-NDP code can call WLAN_HDD_IS_NDP_ENABLED(), and when it is enabled,
+ * invoke NDP code to do all work.
+ */
+#define WLAN_HDD_IS_NDP_ENABLED(hdd_ctx) (false)
+#endif
+
 /* Set mac address locally administered bit */
 #define WLAN_HDD_RESET_LOCALLY_ADMINISTERED_BIT(macaddr) (macaddr[0] &= 0xFD)
 
@@ -1259,6 +1276,8 @@ struct hdd_context_s {
 	int32_t tdls_fw_off_chan_mode;
 	bool enable_tdls_connection_tracker;
 	uint8_t tdls_external_peer_count;
+	bool tdls_nss_switch_in_progress;
+	int32_t tdls_teardown_peers_cnt;
 #endif
 
 	void *hdd_ipa;
@@ -1401,7 +1420,7 @@ struct hdd_context_s {
 	 * radar found indication and application triggered channel
 	 * switch.
 	 */
-	struct mutex dfs_lock;
+	qdf_spinlock_t dfs_lock;
 	/*
 	 * place to store FTM capab of target. This allows changing of FTM capab
 	 * at runtime and intersecting it with target capab before updating.
@@ -1415,6 +1434,10 @@ struct hdd_context_s {
 
 	/* the radio index assigned by cnss_logger */
 	int radio_index;
+	bool hbw_requested;
+#ifdef WLAN_FEATURE_NAN_DATAPATH
+	bool nan_datapath_enabled;
+#endif
 };
 
 /*---------------------------------------------------------------------------
@@ -1527,32 +1550,6 @@ int hdd_wlan_set_ht2040_mode(hdd_adapter_t *pAdapter, uint16_t staId,
 			     struct qdf_mac_addr macAddrSTA, int width);
 #endif
 
-#ifdef WLAN_FEATURE_LPSS
-void wlan_hdd_send_status_pkg(hdd_adapter_t *pAdapter,
-			      hdd_station_ctx_t *pHddStaCtx,
-			      uint8_t is_on, uint8_t is_connected);
-void wlan_hdd_send_version_pkg(uint32_t fw_version,
-			       uint32_t chip_id, const char *chip_name);
-void wlan_hdd_send_all_scan_intf_info(hdd_context_t *pHddCtx);
-#else
-static inline void wlan_hdd_send_status_pkg(hdd_adapter_t *pAdapter,
-					    hdd_station_ctx_t *pHddStaCtx,
-					    uint8_t is_on, uint8_t is_connected)
-{
-	return;
-}
-
-static inline void wlan_hdd_send_version_pkg(uint32_t fw_version, uint32_t
-					     chip_id, const char *chip_name)
-{
-	return;
-}
-
-static inline void wlan_hdd_send_all_scan_intf_info(hdd_context_t *pHddCtx)
-{
-	return;
-}
-#endif
 void wlan_hdd_send_svc_nlink_msg(int type, void *data, int len);
 #ifdef FEATURE_WLAN_AUTO_SHUTDOWN
 void wlan_hdd_auto_shutdown_enable(hdd_context_t *hdd_ctx, bool enable);
@@ -1644,6 +1641,7 @@ void hdd_update_config(hdd_context_t *hdd_ctx);
 QDF_STATUS hdd_chan_change_notify(hdd_adapter_t *adapter,
 		struct net_device *dev,
 		struct hdd_chan_change_params chan_change);
+
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
 QDF_STATUS hdd_register_for_sap_restart_with_channel_switch(void);
 #else
@@ -1742,4 +1740,6 @@ static inline int wlan_hdd_nl_init(hdd_context_t *hdd_ctx)
 	return nl_srv_init(hdd_ctx->wiphy);
 }
 #endif
+QDF_STATUS hdd_sme_close_session_callback(void *pContext);
+
 #endif /* end #if !defined(WLAN_HDD_MAIN_H) */

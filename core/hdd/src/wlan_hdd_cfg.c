@@ -3518,13 +3518,6 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		   CFG_CONC_SYSTEM_PREF_MIN,
 		   CFG_CONC_SYSTEM_PREF_MAX),
 
-	REG_VARIABLE(CFG_POLICY_MNGR_ENABLE, WLAN_PARAM_Integer,
-		     struct hdd_config, policy_manager_enabled,
-		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
-		     CFG_POLICY_MNGR_ENABLE_DEFAULT,
-		     CFG_POLICY_MNGR_ENABLE_MIN,
-		     CFG_POLICY_MNGR_ENABLE_MAX),
-
 	REG_VARIABLE(CFG_TSO_ENABLED_NAME, WLAN_PARAM_Integer,
 		     struct hdd_config, tso_enable,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -3770,15 +3763,6 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		CFG_SET_TSF_GPIO_PIN_MAX),
 #endif
 
-#ifdef QCA_WIFI_3_0_EMU
-	REG_VARIABLE(CFG_ENABLE_M2M_LIMITATION, WLAN_PARAM_Integer,
-		struct hdd_config, enable_m2m_limitation,
-		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
-		CFG_ENABLE_M2M_LIMITATION_DEFAULT,
-		CFG_ENABLE_M2M_LIMITATION_MIN,
-		CFG_ENABLE_M2M_LIMITATION_MAX),
-#endif
-
 	REG_VARIABLE(CFG_ROAM_DENSE_TRAFFIC_THRESHOLD, WLAN_PARAM_Integer,
 		struct hdd_config, roam_dense_traffic_thresh,
 		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -3919,6 +3903,21 @@ REG_TABLE_ENTRY g_registry_table[] = {
 			CFG_EDCA_BE_AIFS_VALUE_DEFAULT,
 			CFG_EDCA_BE_AIFS_VALUE_MIN,
 			CFG_EDCA_BE_AIFS_VALUE_MAX),
+#ifdef WLAN_FEATURE_NAN_DATAPATH
+	REG_VARIABLE(CFG_ENABLE_NAN_DATAPATH_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, enable_nan_datapath,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_ENABLE_NAN_DATAPATH_DEFAULT,
+		CFG_ENABLE_NAN_DATAPATH_MIN,
+		CFG_ENABLE_NAN_DATAPATH_MAX),
+
+	REG_VARIABLE(CFG_ENABLE_NAN_NDI_CHANNEL_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, nan_datapath_ndi_channel,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_ENABLE_NAN_NDI_CHANNEL_DEFAULT,
+		CFG_ENABLE_NAN_NDI_CHANNEL_MIN,
+		CFG_ENABLE_NAN_NDI_CHANNEL_MAX),
+#endif
 
 	REG_VARIABLE(CFG_ENABLE_DP_TRACE, WLAN_PARAM_Integer,
 		struct hdd_config, enable_dp_trace,
@@ -5489,9 +5488,6 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 		  "Name = [is_ps_enabled] value = [%d]",
 		  pHddCtx->config->is_ps_enabled);
 	QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
-		  "Name = [policy_manager_enabled] value = [%d]",
-		  pHddCtx->config->policy_manager_enabled);
-	QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
 		  "Name = [tso_enable] value = [%d]",
 		  pHddCtx->config->tso_enable);
 	QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
@@ -5657,6 +5653,7 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_info("Name = [%s] Value = [%u]",
 		CFG_ADAPT_DWELL_WIFI_THRESH_NAME,
 		pHddCtx->config->adapt_dwell_wifi_act_threshold);
+	hdd_ndp_print_ini_config(pHddCtx);
 }
 
 
@@ -6113,11 +6110,31 @@ bool hdd_update_config_dat(hdd_context_t *pHddCtx)
 	struct hdd_config *pConfig = pHddCtx->config;
 	tSirMacHTCapabilityInfo *phtCapInfo;
 
-	if (sme_cfg_set_int(pHddCtx->hHal, WNI_CFG_SHORT_GI_20MHZ,
-			    pConfig->ShortGI20MhzEnable) ==
+	/*
+	 * During the initialization both 2G and 5G capabilities should be same.
+	 * So read 5G HT capablity and update 2G and 5G capablities.
+	 */
+	if (sme_cfg_get_int(pHddCtx->hHal, WNI_CFG_HT_CAP_INFO,
+			    &val) ==
 			QDF_STATUS_E_FAILURE) {
 		fStatus = false;
-		hddLog(LOGE, "Could not pass on WNI_CFG_SHORT_GI_20MHZ to CFG");
+		hdd_err("Could not pass on WNI_CFG_HT_CAP_INFO to CFG");
+	}
+	if (pConfig->ShortGI20MhzEnable)
+		val |= HT_CAPS_SHORT_GI20;
+	else
+		val &= ~(HT_CAPS_SHORT_GI20);
+
+	if (pConfig->ShortGI40MhzEnable)
+		val |= HT_CAPS_SHORT_GI40;
+	else
+		val &= ~(HT_CAPS_SHORT_GI40);
+
+	if (sme_cfg_set_int(pHddCtx->hHal, WNI_CFG_HT_CAP_INFO,
+			  val) ==
+			QDF_STATUS_E_FAILURE) {
+		fStatus = false;
+		hdd_err("Could not pass on WNI_CFG_HT_CAP_INFO to CFG");
 	}
 
 	if (sme_cfg_set_int(pHddCtx->hHal, WNI_CFG_FIXED_RATE, pConfig->TxRate)
@@ -6470,13 +6487,6 @@ bool hdd_update_config_dat(hdd_context_t *pHddCtx)
 		       "Could not pass on WNI_CFG_TX_PWR_CTRL_ENABLE to CFG");
 	}
 
-	if (sme_cfg_set_int(pHddCtx->hHal, WNI_CFG_SHORT_GI_40MHZ,
-			    pConfig->ShortGI40MhzEnable) ==
-			QDF_STATUS_E_FAILURE) {
-		fStatus = false;
-		hddLog(LOGE, "Could not pass on WNI_CFG_SHORT_GI_40MHZ to CFG");
-	}
-
 	if (sme_cfg_set_int
 		    (pHddCtx->hHal, WNI_CFG_ENABLE_MC_ADDR_LIST,
 		    pConfig->fEnableMCAddrList) == QDF_STATUS_E_FAILURE) {
@@ -6550,12 +6560,6 @@ bool hdd_update_config_dat(hdd_context_t *pHddCtx)
 				hdd_err("failed to set NUM_OF_SOUNDING_DIM");
 			}
 		}
-	}
-
-	if (sme_cfg_set_int(pHddCtx->hHal, WNI_CFG_HT_RX_STBC,
-			    pConfig->enableRxSTBC) == QDF_STATUS_E_FAILURE) {
-		fStatus = false;
-		hddLog(LOGE, "Could not pass on WNI_CFG_HT_RX_STBC to CFG");
 	}
 
 	sme_cfg_get_int(pHddCtx->hHal, WNI_CFG_HT_CAP_INFO, &val);
@@ -7091,8 +7095,6 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 
 	smeConfig->csrConfig.sendDeauthBeforeCon = pConfig->sendDeauthBeforeCon;
 
-	smeConfig->csrConfig.policy_manager_enabled =
-			pHddCtx->config->policy_manager_enabled;
 	smeConfig->csrConfig.max_scan_count =
 			pHddCtx->config->max_scan_count;
 

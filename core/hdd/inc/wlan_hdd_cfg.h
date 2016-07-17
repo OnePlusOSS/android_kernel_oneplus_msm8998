@@ -43,6 +43,7 @@
 #include <qdf_types.h>
 #include <csr_api.h>
 #include <sap_api.h>
+#include "osapi_linux.h"
 #include <wmi_unified.h>
 
 #define FW_MODULE_LOG_LEVEL_STRING_LENGTH  (255)
@@ -2775,11 +2776,6 @@ typedef enum {
 #define CFG_CONC_SYSTEM_PREF_MAX           (2)
 #define CFG_CONC_SYSTEM_PREF_DEFAULT       (0)
 
-#define CFG_POLICY_MNGR_ENABLE              "gPolicyManagerEnable"
-#define CFG_POLICY_MNGR_ENABLE_MIN          (0)
-#define CFG_POLICY_MNGR_ENABLE_MAX          (1)
-#define CFG_POLICY_MNGR_ENABLE_DEFAULT      (1)
-
 #define CFG_TSO_ENABLED_NAME           "TSOEnable"
 #define CFG_TSO_ENABLED_MIN            (0)
 #define CFG_TSO_ENABLED_MAX            (1)
@@ -3025,7 +3021,7 @@ enum dot11p_mode {
 #define CFG_EARLY_STOP_SCAN_ENABLE           "gEnableEarlyStopScan"
 #define CFG_EARLY_STOP_SCAN_ENABLE_MIN       (0)
 #define CFG_EARLY_STOP_SCAN_ENABLE_MAX       (1)
-#define CFG_EARLY_STOP_SCAN_ENABLE_DEFAULT   (0)
+#define CFG_EARLY_STOP_SCAN_ENABLE_DEFAULT   (1)
 /*
  * Early stop scan minimum threshold is the minimum threshold
  * to be considered for stopping the scan. The algorithm starts
@@ -3037,7 +3033,7 @@ enum dot11p_mode {
 #define CFG_EARLY_STOP_SCAN_MIN_THRESHOLD           "gEarlyStopScanMinThreshold"
 #define CFG_EARLY_STOP_SCAN_MIN_THRESHOLD_MIN       (-80)
 #define CFG_EARLY_STOP_SCAN_MIN_THRESHOLD_MAX       (-70)
-#define CFG_EARLY_STOP_SCAN_MIN_THRESHOLD_DEFAULT   (-78)
+#define CFG_EARLY_STOP_SCAN_MIN_THRESHOLD_DEFAULT   (-73)
 /*
  * Early stop scan maximum threshold is the maximum threshold
  * at which the candidate AP should be to be qualified as a
@@ -3046,7 +3042,7 @@ enum dot11p_mode {
 #define CFG_EARLY_STOP_SCAN_MAX_THRESHOLD           "gEarlyStopScanMaxThreshold"
 #define CFG_EARLY_STOP_SCAN_MAX_THRESHOLD_MIN       (-60)
 #define CFG_EARLY_STOP_SCAN_MAX_THRESHOLD_MAX       (-40)
-#define CFG_EARLY_STOP_SCAN_MAX_THRESHOLD_DEFAULT   (-45)
+#define CFG_EARLY_STOP_SCAN_MAX_THRESHOLD_DEFAULT   (-43)
 
 /*
  * This parameter will configure the first scan bucket
@@ -3113,20 +3109,6 @@ enum dot11p_mode {
 #define CFG_OBSS_HT40_SCAN_WIDTH_TRIGGER_INTERVAL_MAX  (900)
 #define CFG_OBSS_HT40_SCAN_WIDTH_TRIGGER_INTERVAL_DEFAULT (200)
 
-#ifdef QCA_WIFI_3_0_EMU
-/*
- * On M2M emulation platform we have a fixed mapping between macs, hence
- * vdev transition & MCC support is not possible on this platform. But MPR
- * platform doesn't have these limitations. This config allows at runtime
- * enable/disable vdev transition & MCC support depending on the platform
- * it is running on
- */
-#define CFG_ENABLE_M2M_LIMITATION              "gEnableM2MLimitation"
-#define CFG_ENABLE_M2M_LIMITATION_MIN          (0)
-#define CFG_ENABLE_M2M_LIMITATION_MAX          (1)
-#define CFG_ENABLE_M2M_LIMITATION_DEFAULT      (0)
-#endif /* QCA_WIFI_3_0_EMU */
-
 /*
  * Dense traffic threshold
  * traffic threshold required for dense roam scan
@@ -3156,6 +3138,26 @@ enum dot11p_mode {
 #define CFG_IGNORE_PEER_HT_MODE_MIN        (0)
 #define CFG_IGNORE_PEER_HT_MODE_MAX        (1)
 #define CFG_IGNORE_PEER_HT_MODE_DEFAULT    (0)
+
+#ifdef WLAN_FEATURE_NAN_DATAPATH
+/*
+ * Enable NaN data path feature. NaN data path enables
+ * NaN supported devices to exchange data over traditional
+ * TCP/UDP network stack.
+ */
+#define CFG_ENABLE_NAN_DATAPATH_NAME    "genable_nan_datapath"
+#define CFG_ENABLE_NAN_DATAPATH_MIN     (0)
+#define CFG_ENABLE_NAN_DATAPATH_MAX     (1)
+#define CFG_ENABLE_NAN_DATAPATH_DEFAULT (0)
+
+/*
+ * NAN channel on which NAN data interface to start
+ */
+#define CFG_ENABLE_NAN_NDI_CHANNEL_NAME    "gnan_datapath_ndi_channel"
+#define CFG_ENABLE_NAN_NDI_CHANNEL_MIN     (6)
+#define CFG_ENABLE_NAN_NDI_CHANNEL_MAX     (149)
+#define CFG_ENABLE_NAN_NDI_CHANNEL_DEFAULT (6)
+#endif
 
 /*
  * Dense Roam Min APs
@@ -3968,7 +3970,6 @@ struct hdd_config {
 	uint8_t multicast_host_fw_msgs;
 	uint8_t conc_system_pref;
 	bool sendDeauthBeforeCon;
-	bool policy_manager_enabled;
 	bool tso_enable;
 	bool lro_enable;
 	bool active_mode_offload;
@@ -4013,9 +4014,6 @@ struct hdd_config {
 #ifdef WLAN_FEATURE_TSF
 	uint32_t tsf_gpio_pin;
 #endif
-#ifdef QCA_WIFI_3_0_EMU
-	bool enable_m2m_limitation;
-#endif
 	uint32_t roam_dense_traffic_thresh;
 	uint32_t roam_dense_rssi_thresh_offset;
 	bool ignore_peer_ht_opmode;
@@ -4045,6 +4043,10 @@ struct hdd_config {
 	uint8_t adapt_dwell_lpf_weight;
 	uint8_t adapt_dwell_passive_mon_intval;
 	uint8_t adapt_dwell_wifi_act_threshold;
+#ifdef WLAN_FEATURE_NAN_DATAPATH
+	bool enable_nan_datapath;
+	uint8_t nan_datapath_ndi_channel;
+#endif
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

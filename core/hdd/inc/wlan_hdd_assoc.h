@@ -55,10 +55,11 @@
 /* Timeout in ms for peer info request commpletion */
 #define IBSS_PEER_INFO_REQ_TIMOEUT 1000
 
-/* Type Declarations */
+#define INVALID_PEER_IDX -1
+
 /**
- * typedef eConnectionState - Connection states
- * @eConnectionState_NotConnected: Not associated in Infra or participating
+ * enum eConnectionState - connection state values at HDD
+ * @eConnectionState_NotConnected: Not associated in Infra or participating in
  *			in an IBSS / Ad-hoc network
  * @eConnectionState_Connecting: While connection in progress
  * @eConnectionState_Associated: Associated in an Infrastructure network
@@ -66,7 +67,9 @@
  *			disconnected (no partner stations in the IBSS)
  * @eConnectionState_IbssConnected: Participating in an IBSS network with
  *			partner stations also present
- * eConnectionState_Disconnecting: Disconnecting in an Infrastructure network
+ * @eConnectionState_Disconnecting: Disconnecting in an Infrastructure network.
+ * @eConnectionState_NdiDisconnected: NDI in disconnected state - no peers
+ * @eConnectionState_NdiConnected: NDI in connected state - at least one peer
  */
 typedef enum {
 	eConnectionState_NotConnected,
@@ -74,7 +77,9 @@ typedef enum {
 	eConnectionState_Associated,
 	eConnectionState_IbssDisconnected,
 	eConnectionState_IbssConnected,
-	eConnectionState_Disconnecting
+	eConnectionState_Disconnecting,
+	eConnectionState_NdiDisconnected,
+	eConnectionState_NdiConnected,
 } eConnectionState;
 
 /**
@@ -116,8 +121,8 @@ typedef struct connection_info_s {
 	eMib_dot11DesiredBssType connDot11DesiredBssType;
 	struct qdf_mac_addr bssId;
 	tCsrSSIDInfo SSID;
-	uint8_t staId[MAX_IBSS_PEERS];
-	struct qdf_mac_addr peerMacAddress[MAX_IBSS_PEERS];
+	uint8_t staId[MAX_PEERS];
+	struct qdf_mac_addr peerMacAddress[MAX_PEERS];
 	eCsrAuthType authType;
 	eCsrEncryptionType ucEncryptionType;
 	eCsrEncryptionType mcEncryptionType;
@@ -264,5 +269,17 @@ static inline bool hdd_is_roam_sync_in_progress(tCsrRoamInfo *roaminfo)
 	return false;
 }
 #endif
+
+QDF_STATUS hdd_roam_register_sta(struct hdd_adapter_s *adapter,
+					struct tagCsrRoamInfo *roam_info,
+					uint8_t sta_id,
+					struct qdf_mac_addr *peer_mac_addr,
+					struct sSirBssDescription *bss_desc);
+
+bool hdd_save_peer(hdd_station_ctx_t *sta_ctx, uint8_t sta_id,
+		   struct qdf_mac_addr *peer_mac_addr);
+void hdd_delete_peer(hdd_station_ctx_t *sta_ctx, uint8_t sta_id);
+int hdd_get_peer_idx(hdd_station_ctx_t *sta_ctx, struct qdf_mac_addr *addr);
+QDF_STATUS hdd_roam_deregister_sta(hdd_adapter_t *adapter, uint8_t sta_id);
 
 #endif

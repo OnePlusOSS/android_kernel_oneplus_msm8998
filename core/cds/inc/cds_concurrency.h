@@ -532,8 +532,7 @@ enum cds_band {
  * @chan: channel of the connection
  * @bw: channel bandwidth used for the connection
  * @mac: The HW mac it is running
- * @tx_spatial_stream: Tx spatial stream used by the connection
- * @rx_spatial_stream: Tx spatial stream used by the connection
+ * @chain_mask: The original capability advertised by HW
  * @original_nss: nss negotiated at connection time
  * @vdev_id: vdev id of the connection
  * @in_use: if the table entry is active
@@ -544,8 +543,6 @@ struct cds_conc_connection_info {
 	enum hw_mode_bandwidth bw;
 	uint8_t       mac;
 	enum cds_chain_mode chain_mask;
-	uint8_t       tx_spatial_stream;
-	uint8_t       rx_spatial_stream;
 	uint32_t      original_nss;
 	uint32_t      vdev_id;
 	bool          in_use;
@@ -614,8 +611,17 @@ QDF_STATUS cds_change_mcc_go_beacon_interval(hdd_adapter_t *pHostapdAdapter);
 int cds_go_set_mcc_p2p_quota(hdd_adapter_t *hostapd_adapter,
 		uint32_t set_value);
 void cds_set_mcc_latency(hdd_adapter_t *adapter, int set_value);
+#if defined(FEATURE_WLAN_MCC_TO_SCC_SWITCH)
 void cds_change_sap_channel_with_csa(hdd_adapter_t *adapter,
 						hdd_ap_ctx_t *hdd_ap_ctx);
+#else
+static inline void cds_change_sap_channel_with_csa(hdd_adapter_t *adapter,
+		hdd_ap_ctx_t *hdd_ap_ctx)
+{
+
+}
+#endif
+
 #if defined(FEATURE_WLAN_MCC_TO_SCC_SWITCH) || \
 		defined(FEATURE_WLAN_STA_AP_MODE_DFS_DISABLE)
 void cds_restart_sap(hdd_adapter_t *ap_adapter);
@@ -642,8 +648,7 @@ void cds_decr_active_session(enum tQDF_ADAPTER_MODE mode,
 				uint8_t sessionId);
 void cds_decr_session_set_pcl(enum tQDF_ADAPTER_MODE mode,
 		uint8_t session_id);
-QDF_STATUS cds_init_policy_mgr(
-	QDF_STATUS (*sme_get_valid_chans)(void*, uint8_t *, uint32_t *));
+QDF_STATUS cds_init_policy_mgr(struct cds_sme_cbacks *sme_cbacks);
 QDF_STATUS cds_deinit_policy_mgr(void);
 QDF_STATUS cds_get_pcl(enum cds_con_mode mode,
 			uint8_t *pcl_channels, uint32_t *len,
@@ -759,6 +764,8 @@ QDF_STATUS cds_update_and_wait_for_connection_update(uint8_t session_id,
 bool cds_is_sap_mandatory_channel_set(void);
 bool cds_list_has_24GHz_channel(uint8_t *channel_list, uint32_t list_len);
 QDF_STATUS cds_get_valid_chans(uint8_t *chan_list, uint32_t *list_len);
+QDF_STATUS cds_get_nss_for_vdev(enum cds_con_mode mode,
+		uint8_t *nss_2g, uint8_t *nss_5g);
 QDF_STATUS cds_get_sap_mandatory_channel(uint32_t *chan);
 QDF_STATUS cds_set_sap_mandatory_channels(uint8_t *channels, uint32_t len);
 QDF_STATUS cds_reset_sap_mandatory_channels(void);

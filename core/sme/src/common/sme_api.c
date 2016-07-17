@@ -59,6 +59,7 @@
 #include "sme_power_save_api.h"
 #include "wma.h"
 #include "sch_api.h"
+#include "sme_nan_datapath.h"
 
 extern tSirRetStatus u_mac_post_ctrl_msg(void *pSirGlobal, tSirMbMsg *pMb);
 
@@ -955,6 +956,33 @@ sme_process_cmd:
 	case eSmeCommandAddStaSession:
 		csr_ll_unlock(&pMac->sme.smeCmdActiveList);
 		csr_process_add_sta_session_command(pMac, pCommand);
+		break;
+	case eSmeCommandNdpInitiatorRequest:
+		csr_ll_unlock(&pMac->sme.smeCmdActiveList);
+		if (csr_process_ndp_initiator_request(pMac, pCommand) !=
+			QDF_STATUS_SUCCESS)
+			if (csr_ll_remove_entry(
+				&pMac->sme.smeCmdActiveList,
+				&pCommand->Link, LL_ACCESS_LOCK))
+				csr_release_command(pMac, pCommand);
+		break;
+	case eSmeCommandNdpResponderRequest:
+		csr_ll_unlock(&pMac->sme.smeCmdActiveList);
+		status = csr_process_ndp_responder_request(pMac, pCommand);
+		if (status != QDF_STATUS_SUCCESS) {
+			if (csr_ll_remove_entry(&pMac->sme.smeCmdActiveList,
+					&pCommand->Link, LL_ACCESS_LOCK))
+				csr_release_command(pMac, pCommand);
+		}
+		break;
+	case eSmeCommandNdpDataEndInitiatorRequest:
+		csr_ll_unlock(&pMac->sme.smeCmdActiveList);
+		status = csr_process_ndp_data_end_request(pMac, pCommand);
+		if (status != QDF_STATUS_SUCCESS) {
+			if (csr_ll_remove_entry(&pMac->sme.smeCmdActiveList,
+					&pCommand->Link, LL_ACCESS_LOCK))
+				csr_release_command(pMac, pCommand);
+		}
 		break;
 	case eSmeCommandDelStaSession:
 		csr_ll_unlock(&pMac->sme.smeCmdActiveList);
@@ -2985,6 +3013,16 @@ QDF_STATUS sme_process_msg(tHalHandle hHal, cds_msg_t *pMsg)
 					pMsg->type);
 		}
 		break;
+	case eWNI_SME_NDP_CONFIRM_IND:
+	case eWNI_SME_NDP_NEW_PEER_IND:
+	case eWNI_SME_NDP_INITIATOR_RSP:
+	case eWNI_SME_NDP_INDICATION:
+	case eWNI_SME_NDP_RESPONDER_RSP:
+	case eWNI_SME_NDP_END_RSP:
+	case eWNI_SME_NDP_END_IND:
+	case eWNI_SME_NDP_PEER_DEPARTED_IND:
+		sme_ndp_msg_processor(pMac, pMsg);
+		break;
 	default:
 
 		if ((pMsg->type >= eWNI_SME_MSG_TYPES_BEGIN)
@@ -4785,9 +4823,11 @@ void sme_register_ftm_msg_processor(tHalHandle hal,
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
 
 	if (mac_ctx == NULL) {
-		sms_log(mac_ctx, LOGE, FL("mac_ctx is NULL"));
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			FL("mac ctx is NULL"));
 		return;
 	}
+
 	mac_ctx->ftm_msg_processor_callback = callback;
 	return;
 }
@@ -10055,6 +10095,7 @@ QDF_STATUS sme_update_tdls_peer_state(tHalHandle hHal,
 	tTdlsPeerCapParams *peer_cap = NULL;
 	cds_msg_t cds_message;
 	uint8_t num;
+	uint8_t peer_chan_len;
 	uint8_t chanId;
 	uint8_t i;
 
@@ -10103,9 +10144,7 @@ QDF_STATUS sme_update_tdls_peer_state(tHalHandle hHal,
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 			FL("invalid peer state param (%d)"),
 			peerStateParams->peerState);
-		qdf_mem_free(pTdlsPeerStateParams);
-		sme_release_global_lock(&pMac->sme);
-		return QDF_STATUS_E_FAILURE;
+		goto error_return;
 	}
 	peer_cap = &(pTdlsPeerStateParams->peerCap);
 	peer_cap->isPeerResponder =
@@ -10124,22 +10163,30 @@ QDF_STATUS sme_update_tdls_peer_state(tHalHandle hHal,
 		peerStateParams->peerCap.selfCurrOperClass;
 
 	num = 0;
-	for (i = 0; i < peerStateParams->peerCap.peerChanLen; i++) {
-		chanId = peerStateParams->peerCap.peerChan[i];
-		if (!csr_roam_is_channel_valid(pMac, chanId))
-			continue;
-		peer_cap->peerChan[num].chanId = chanId;
-		peer_cap->peerChan[num].pwr =
-					csr_get_cfg_max_tx_power(pMac, chanId);
+	peer_chan_len = peerStateParams->peerCap.peerChanLen;
 
-		if (cds_get_channel_state(chanId) == CHANNEL_STATE_DFS)
-			peer_cap->peerChan[num].dfsSet =
-					true;
-		else
-			peer_cap->peerChan[num].dfsSet =
-					false;
-		num++;
+	if (peer_chan_len >= 0 &&
+	    peer_chan_len <= SME_TDLS_MAX_SUPP_CHANNELS) {
+		for (i = 0; i < peerStateParams->peerCap.peerChanLen; i++) {
+			chanId = peerStateParams->peerCap.peerChan[i];
+			if (csr_roam_is_channel_valid(pMac, chanId) &&
+			    !(cds_get_channel_state(chanId) ==
+			      CHANNEL_STATE_DFS) &&
+			    !cds_is_dsrc_channel(cds_chan_to_freq(chanId))) {
+				peer_cap->peerChan[num].chanId = chanId;
+				peer_cap->peerChan[num].pwr =
+					csr_get_cfg_max_tx_power(pMac, chanId);
+				peer_cap->peerChan[num].dfsSet = false;
+			num++;
+			}
+		}
+	} else {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			FL("invalid peer channel len (%d)"),
+			peer_chan_len);
+		goto error_return;
 	}
+
 	peer_cap->peerChanLen = num;
 	peer_cap->peerOperClassLen =
 		peerStateParams->peerCap.peerOperClassLen;
@@ -10161,9 +10208,17 @@ QDF_STATUS sme_update_tdls_peer_state(tHalHandle hHal,
 
 	qdf_status = cds_mq_post_message(CDS_MQ_ID_WMA, &cds_message);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		qdf_mem_free(pTdlsPeerStateParams);
-		status = QDF_STATUS_E_FAILURE;
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			FL("cds_mq_post_message failed "));
+		goto error_return;
+	} else {
+		goto success_return;
 	}
+
+error_return:
+	status = QDF_STATUS_E_FAILURE;
+	qdf_mem_free(pTdlsPeerStateParams);
+success_return:
 	sme_release_global_lock(&pMac->sme);
 	return status;
 }
@@ -11697,8 +11752,9 @@ int16_t sme_get_ht_config(tHalHandle hHal, uint8_t session_id, uint16_t ht_capab
 	case WNI_CFG_HT_CAP_INFO_RX_STBC:
 		return pSession->htConfig.ht_rx_stbc;
 	case WNI_CFG_HT_CAP_INFO_SHORT_GI_20MHZ:
+		return pSession->htConfig.ht_sgi20;
 	case WNI_CFG_HT_CAP_INFO_SHORT_GI_40MHZ:
-		return pSession->htConfig.ht_sgi;
+		return pSession->htConfig.ht_sgi40;
 	default:
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 			  "invalid ht capability");
@@ -11735,8 +11791,10 @@ int sme_update_ht_config(tHalHandle hHal, uint8_t sessionId, uint16_t htCapab,
 		pSession->htConfig.ht_rx_stbc = value;
 		break;
 	case WNI_CFG_HT_CAP_INFO_SHORT_GI_20MHZ:
+		pSession->htConfig.ht_sgi20 = value;
+		break;
 	case WNI_CFG_HT_CAP_INFO_SHORT_GI_40MHZ:
-		pSession->htConfig.ht_sgi = value;
+		pSession->htConfig.ht_sgi40 = value;
 		break;
 	}
 
@@ -13176,13 +13234,13 @@ QDF_STATUS sme_get_cached_results(tHalHandle hHal,
 
 /**
  * sme_set_epno_list() - set epno network list
- * @hHal: global hal handle
+ * @hal: global hal handle
  * @input: request message
  *
  * This function constructs the cds message and fill in message type,
  * bodyptr with %input and posts it to WDA queue.
  *
- * Return: eHalStatus enumeration
+ * Return: QDF_STATUS enumeration
  */
 QDF_STATUS sme_set_epno_list(tHalHandle hal,
 				struct wifi_epno_params *input)
@@ -13251,7 +13309,7 @@ QDF_STATUS sme_set_epno_list(tHalHandle hal,
  * This function constructs the cds message and fill in message type,
  * bodyptr with @input and posts it to WDA queue.
  *
- * Return: eHalStatus enumeration
+ * Return: QDF_STATUS enumeration
  */
 QDF_STATUS sme_set_passpoint_list(tHalHandle hal,
 				struct wifi_passpoint_req *input)
@@ -13318,7 +13376,7 @@ QDF_STATUS sme_set_passpoint_list(tHalHandle hal,
  * @hHal: global hal handle
  * @input: request message
  *
- * Return: eHalStatus enumeration
+ * Return: QDF_STATUS enumeration
  */
 QDF_STATUS sme_reset_passpoint_list(tHalHandle hal,
 				    struct wifi_passpoint_req *input)
@@ -13368,7 +13426,7 @@ QDF_STATUS sme_reset_passpoint_list(tHalHandle hal,
  * @hal: SME handle
  * @request: set ssid hotlist request
  *
- * Return: eHalStatus
+ * Return: QDF_STATUS
  */
 QDF_STATUS
 sme_set_ssid_hotlist(tHalHandle hal,
@@ -14260,7 +14318,7 @@ bool sme_neighbor_middle_of_roaming(tHalHandle hHal, uint8_t sessionId)
  * This function is used to send the command that will
  * be used to flush the logs in the firmware
  *
- * Return: eHalStatus
+ * Return: QDF_STATUS
  */
 QDF_STATUS sme_send_flush_logs_cmd_to_fw(tpAniSirGlobal mac)
 {
@@ -14454,6 +14512,20 @@ QDF_STATUS sme_update_nss(tHalHandle h_hal, uint8_t nss)
 		sme_release_global_lock(&mac_ctx->sme);
 	}
 	return status;
+}
+
+/**
+ * sme_update_user_configured_nss() - sets the nss based on user request
+ * @hal: Pointer to HAL
+ * @nss: number of streams
+ *
+ * Return: None
+ */
+void sme_update_user_configured_nss(tHalHandle hal, uint8_t nss)
+{
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+
+	mac_ctx->user_configured_nss = nss;
 }
 
 /**
@@ -14675,8 +14747,8 @@ QDF_STATUS sme_pdev_set_pcl(tHalHandle hal,
 	status = sme_acquire_global_lock(&mac->sme);
 	if (status != QDF_STATUS_SUCCESS) {
 		sms_log(mac, LOGE,
-				FL("sme_AcquireGlobalLock failed!(status=%d)"),
-				status);
+			FL("sme_acquire_global_lock failed!(status=%d)"),
+			status);
 		qdf_mem_free(req_msg);
 		return status;
 	}
@@ -14687,7 +14759,7 @@ QDF_STATUS sme_pdev_set_pcl(tHalHandle hal,
 	status = cds_mq_post_message(CDS_MQ_ID_WMA, &cds_message);
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		sms_log(mac, LOGE,
-				FL("vos_mq_post_message failed!(err=%d)"),
+				FL("cds_mq_post_message failed!(err=%d)"),
 				status);
 		qdf_mem_free(req_msg);
 		status = QDF_STATUS_E_FAILURE;
@@ -15722,4 +15794,92 @@ void sme_update_vdev_type_nss(tHalHandle hal, uint8_t max_supp_nss,
 		band, vdev_nss->sta, vdev_nss->sap, vdev_nss->p2p_cli,
 		vdev_nss->p2p_go, vdev_nss->p2p_dev, vdev_nss->ibss,
 		vdev_nss->tdls, vdev_nss->ocb);
+}
+
+/**
+ * sme_register_p2p_lo_event() - Register for the p2p lo event
+ * @hHal: reference to the HAL
+ * @context: the context of the call
+ * @callback: the callback to hdd
+ *
+ * This function registers the callback function for P2P listen
+ * offload stop event.
+ *
+ * Return: none
+ */
+void sme_register_p2p_lo_event(tHalHandle hHal, void *context,
+					p2p_lo_callback callback)
+{
+	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+	QDF_STATUS status = QDF_STATUS_E_FAILURE;
+
+	status = sme_acquire_global_lock(&pMac->sme);
+	pMac->sme.p2p_lo_event_callback = callback;
+	pMac->sme.p2p_lo_event_context = context;
+	sme_release_global_lock(&pMac->sme);
+}
+
+/**
+ * sme_process_mac_pwr_dbg_cmd() - enable mac pwr debugging
+ * @hal: The handle returned by macOpen
+ * @session_id: session id
+ * @dbg_args: args for mac pwr debug command
+ * Return: Return QDF_STATUS, otherwise appropriate failure code
+ */
+QDF_STATUS sme_process_mac_pwr_dbg_cmd(tHalHandle hal, uint32_t session_id,
+				       struct sir_mac_pwr_dbg_cmd*
+				       dbg_args)
+{
+	cds_msg_t message;
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+	struct sir_mac_pwr_dbg_cmd *req;
+	int i;
+
+	if (!CSR_IS_SESSION_VALID(mac_ctx, session_id)) {
+		sms_log(mac_ctx, LOGE,
+			"CSR session not valid: %d",
+			session_id);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	req = qdf_mem_malloc(sizeof(*req));
+	if (NULL == req) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			  "%s: fail to alloc mac_pwr_dbg_args", __func__);
+		return QDF_STATUS_E_FAILURE;
+	}
+	req->module_id = dbg_args->module_id;
+	req->pdev_id = dbg_args->pdev_id;
+	req->num_args = dbg_args->num_args;
+	for (i = 0; i < req->num_args; i++)
+		req->args[i] = dbg_args->args[i];
+
+	message.type = SIR_HAL_POWER_DBG_CMD;
+	message.bodyptr = req;
+
+	if (!QDF_IS_STATUS_SUCCESS(cds_mq_post_message
+				(QDF_MODULE_ID_WMA, &message))) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			  "%s: Not able to post msg to WDA!",
+			  __func__);
+		qdf_mem_free(req);
+	}
+	return QDF_STATUS_SUCCESS;
+}
+/**
+ * sme_get_vdev_type_nss() - gets the nss per vdev type
+ * @hal: Pointer to HAL
+ * @dev_mode: connection type.
+ * @nss2g: Pointer to the 2G Nss parameter.
+ * @nss5g: Pointer to the 5G Nss parameter.
+ *
+ * Fills the 2G and 5G Nss values based on connection type.
+ *
+ * Return: None
+ */
+void sme_get_vdev_type_nss(tHalHandle hal, enum tQDF_ADAPTER_MODE dev_mode,
+		uint8_t *nss_2g, uint8_t *nss_5g)
+{
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+	csr_get_vdev_type_nss(mac_ctx, dev_mode, nss_2g, nss_5g);
 }

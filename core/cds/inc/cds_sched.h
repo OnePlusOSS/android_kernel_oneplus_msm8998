@@ -200,6 +200,15 @@ typedef struct _cds_sched_context {
 
 	/* cpu hotplug notifier */
 	struct notifier_block *cpu_hot_plug_notifier;
+
+	/* affinity lock */
+	spinlock_t affinity_lock;
+
+	/* rx thread affinity cpu */
+	unsigned long rx_thread_cpu;
+
+	/* high throughput required */
+	bool high_throughput_required;
 #endif
 } cds_sched_context, *p_cds_sched_context;
 
@@ -296,7 +305,10 @@ typedef struct _cds_context_type {
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
 	void (*sap_restart_chan_switch_cb)(void *, uint32_t, uint32_t);
 #endif
-	QDF_STATUS (*sme_get_valid_chans)(void*, uint8_t *, uint32_t *);
+	QDF_STATUS (*sme_get_valid_channels)(void*, uint8_t *, uint32_t *);
+	void (*sme_get_nss_for_vdev)(void*, enum tQDF_ADAPTER_MODE,
+		uint8_t *, uint8_t *);
+
 	/* This list is not sessionized. This mandatory channel list would be
 	 * as per OEMs preference as per the regulatory/other considerations.
 	 * So, this would remain same for all the interfaces.
@@ -311,6 +323,9 @@ typedef struct _cds_context_type {
    Function declarations and documenation
    ---------------------------------------------------------------------------*/
 #ifdef QCA_CONFIG_SMP
+int cds_sched_handle_cpu_hot_plug(void);
+int cds_sched_handle_throughput_req(bool high_tput_required);
+
 /*---------------------------------------------------------------------------
    \brief cds_drop_rxpkt_by_staid() - API to drop pending Rx packets for a sta
    The \a cds_drop_rxpkt_by_staid() drops queued packets for a station, to drop
@@ -434,6 +449,13 @@ static inline
 void cds_free_ol_rx_pkt_freeq(p_cds_sched_context pSchedContext)
 {
 }
+
+static inline int cds_sched_handle_throughput_req(
+	bool high_tput_required)
+{
+	return 0;
+}
+
 #endif
 
 /*---------------------------------------------------------------------------

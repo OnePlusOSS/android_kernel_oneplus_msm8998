@@ -893,16 +893,20 @@ bool csr_is_p2p_session_connected(tpAniSirGlobal pMac)
 	enum tQDF_ADAPTER_MODE persona;
 
 	for (i = 0; i < CSR_ROAM_SESSION_MAX; i++) {
-		if (CSR_IS_SESSION_VALID(pMac, i)
-		    && !csr_is_conn_state_disconnected(pMac, i)) {
-			pSession = CSR_GET_SESSION(pMac, i);
-			persona = pSession->pCurRoamProfile->csrPersona;
-			if ((NULL != pSession->pCurRoamProfile) &&
-				((QDF_P2P_CLIENT_MODE == persona) ||
-				(QDF_P2P_GO_MODE == persona))) {
-				return true;
-			}
-		}
+		if (!CSR_IS_SESSION_VALID(pMac, i))
+			continue;
+
+		if (csr_is_conn_state_disconnected(pMac, i))
+			continue;
+
+		pSession = CSR_GET_SESSION(pMac, i);
+		if (pSession->pCurRoamProfile == NULL)
+			continue;
+
+		persona = pSession->pCurRoamProfile->csrPersona;
+		if (QDF_P2P_CLIENT_MODE == persona ||
+				QDF_P2P_GO_MODE == persona)
+			return true;
 	}
 
 	return false;
@@ -1961,6 +1965,14 @@ csr_isconcurrentsession_valid(tpAniSirGlobal mac_ctx, uint32_t cur_sessionid,
 				QDF_TRACE_LEVEL_INFO,
 				FL("**P2P-Client session**"));
 			return QDF_STATUS_SUCCESS;
+		case QDF_NDI_MODE:
+			if (bss_persona != QDF_STA_MODE) {
+				QDF_TRACE(QDF_MODULE_ID_SME,
+					QDF_TRACE_LEVEL_ERROR,
+					FL("***NDI mode can co-exist only with STA ***"));
+				return QDF_STATUS_E_FAILURE;
+			}
+			break;
 		default:
 			QDF_TRACE(QDF_MODULE_ID_SME,
 				QDF_TRACE_LEVEL_ERROR,
@@ -5338,6 +5350,9 @@ tSirBssType csr_translate_bsstype_to_mac_type(eCsrRoamBssType csrtype)
 		break;
 	case eCSR_BSS_TYPE_INFRA_AP:
 		ret = eSIR_INFRA_AP_MODE;
+		break;
+	case eCSR_BSS_TYPE_NDI:
+		ret = eSIR_NDI_MODE;
 		break;
 	case eCSR_BSS_TYPE_ANY:
 	default:

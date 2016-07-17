@@ -346,6 +346,8 @@ int wma_peer_sta_kickout_event_handler(void *handle, u8 *event, u32 len)
 			return -ENOMEM;
 		}
 
+		del_sta_ctx->is_tdls = true;
+		del_sta_ctx->vdev_id = vdev_id;
 		del_sta_ctx->staId = peer_id;
 		qdf_mem_copy(del_sta_ctx->addr2, macaddr, IEEE80211_ADDR_LEN);
 		qdf_mem_copy(del_sta_ctx->bssId, wma->interfaces[vdev_id].bssid,
@@ -407,7 +409,10 @@ int wma_peer_sta_kickout_event_handler(void *handle, u8 *event, u32 len)
 		break;
 
 	case WMI_PEER_STA_KICKOUT_REASON_INACTIVITY:
-	/* Handle SA query kickout is same as inactivity kickout */
+	/*
+	 * Handle SA query kickout is same as inactivity kickout.
+	 * This could be for STA or SAP role
+	 */
 	case WMI_PEER_STA_KICKOUT_REASON_SA_QUERY_TIMEOUT:
 	default:
 		break;
@@ -423,6 +428,8 @@ int wma_peer_sta_kickout_event_handler(void *handle, u8 *event, u32 len)
 		return -ENOMEM;
 	}
 
+	del_sta_ctx->is_tdls = false;
+	del_sta_ctx->vdev_id = vdev_id;
 	del_sta_ctx->staId = peer_id;
 	qdf_mem_copy(del_sta_ctx->addr2, macaddr, IEEE80211_ADDR_LEN);
 	qdf_mem_copy(del_sta_ctx->bssId, wma->interfaces[vdev_id].addr,
@@ -659,6 +666,12 @@ void wma_set_sta_keep_alive(tp_wma_handle wma, uint8_t vdev_id,
 
 	if (!wma) {
 		WMA_LOGE("%s: wma handle is NULL", __func__);
+		return;
+	}
+
+	if (timeperiod > WNI_CFG_INFRA_STA_KEEP_ALIVE_PERIOD_STAMAX) {
+		WMI_LOGE("Invalid period %d Max limit %d", timeperiod,
+			 WNI_CFG_INFRA_STA_KEEP_ALIVE_PERIOD_STAMAX);
 		return;
 	}
 
@@ -1623,14 +1636,14 @@ static uint16_t wma_calc_ibss_heart_beat_timer(int16_t peer_num)
 	/* entry index : (the number of currently connected peers) - 1
 	   entry value : the heart time threshold value in seconds for
 	   detecting ibss peer departure */
-	static const uint16_t heart_beat_timer[MAX_IBSS_PEERS] = {
+	static const uint16_t heart_beat_timer[MAX_PEERS] = {
 		4, 4, 4, 4, 4, 4, 4, 4,
 		8, 8, 8, 8, 8, 8, 8, 8,
 		12, 12, 12, 12, 12, 12, 12, 12,
 		16, 16, 16, 16, 16, 16, 16, 16
 	};
 
-	if (peer_num < 1 || peer_num > MAX_IBSS_PEERS)
+	if (peer_num < 1 || peer_num > MAX_PEERS)
 		return 0;
 
 	return heart_beat_timer[peer_num - 1];
@@ -2456,10 +2469,19 @@ int wma_mgmt_tx_completion_handler(void *handle, uint8_t *cmpl_event_params,
 	struct wmi_desc_t *wmi_desc;
 
 	ol_txrx_pdev_handle pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+	if (!pdev) {
+		WMA_LOGE("%s: txrx pdev is NULL", __func__);
+		return -EINVAL;
+	}
+
+	if (pdev == NULL) {
+		WMA_LOGE("%s: NULL pdev pointer", __func__);
+		return -EINVAL;
+	}
 
 	param_buf = (WMI_MGMT_TX_COMPLETION_EVENTID_param_tlvs *)
 		cmpl_event_params;
-	if (!param_buf && !wma_handle) {
+	if (!param_buf || !wma_handle) {
 		WMA_LOGE("%s: Invalid mgmt Tx completion event", __func__);
 		return -EINVAL;
 	}
@@ -3039,7 +3061,7 @@ static int wma_mgmt_rx_process(void *handle, uint8_t *data,
 	}
 
 	if (cds_is_load_or_unload_in_progress()) {
-		WMA_LOGE("Load/Unload in progress");
+		WMA_LOGW(FL("Load/Unload in progress"));
 		return -EINVAL;
 	}
 

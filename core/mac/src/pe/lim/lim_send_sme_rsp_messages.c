@@ -57,6 +57,7 @@
 #include "sir_api.h"
 #include "cds_regdomain.h"
 #include "lim_send_messages.h"
+#include "nan_datapath.h"
 
 static void lim_handle_join_rsp_status(tpAniSirGlobal mac_ctx,
 	tpPESession session_entry, tSirResultCodes result_code,
@@ -612,6 +613,7 @@ lim_send_sme_start_bss_rsp(tpAniSirGlobal pMac,
 			pSirSmeRsp->bssDescription.channelId =
 				psessionEntry->currentOperChannel;
 
+		if (!LIM_IS_NDI_ROLE(psessionEntry)) {
 			curLen = psessionEntry->schBeaconOffsetBegin - ieOffset;
 			qdf_mem_copy((uint8_t *) &pSirSmeRsp->bssDescription.
 				     ieFields,
@@ -630,6 +632,7 @@ lim_send_sme_start_bss_rsp(tpAniSirGlobal pMac,
 				sizeof(uint32_t) + ieLen;
 			/* This is the size of the message, subtracting the size of the pointer to ieFields */
 			size += ieLen - sizeof(uint32_t);
+		}
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
 			if (psessionEntry->cc_switch_mode
 			    != QDF_MCC_TO_SCC_SWITCH_DISABLE) {
@@ -2245,14 +2248,15 @@ void lim_handle_delete_bss_rsp(tpAniSirGlobal pMac, tpSirMsgQ MsgQ)
 		lim_log(pMac, LOGE,
 			FL("Session Does not exist for given sessionID %d"),
 			pDelBss->sessionId);
+		qdf_mem_free(MsgQ->bodyptr);
 		return;
 	}
-	if (LIM_IS_IBSS_ROLE(psessionEntry)) {
+	if (LIM_IS_IBSS_ROLE(psessionEntry))
 		lim_ibss_del_bss_rsp(pMac, MsgQ->bodyptr, psessionEntry);
-	} else if (LIM_IS_UNKNOWN_ROLE(psessionEntry)) {
+	else if (LIM_IS_UNKNOWN_ROLE(psessionEntry))
 		lim_process_sme_del_bss_rsp(pMac, MsgQ->bodyval, psessionEntry);
-	}
-
+	else if (LIM_IS_NDI_ROLE(psessionEntry))
+		lim_ndi_del_bss_rsp(pMac, MsgQ->bodyptr, psessionEntry);
 	else
 		lim_process_mlm_del_bss_rsp(pMac, MsgQ, psessionEntry);
 

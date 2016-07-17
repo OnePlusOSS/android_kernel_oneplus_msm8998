@@ -914,7 +914,7 @@ QDF_STATUS sme_set_scanning_mac_oui(tHalHandle hHal,
     \param  hHal - The handle returned by macOpen.
     \param  sessionId - Session Identifier
     \param  pRequest -  Pointer to the offload request.
-    \return eHalStatus
+    \return QDF_STATUS
   ---------------------------------------------------------------------------*/
 QDF_STATUS sme_ipa_offload_enable_disable(tHalHandle hal,
 				uint8_t session_id,
@@ -978,6 +978,7 @@ QDF_STATUS sme_register_mgmt_frame_ind_callback(tHalHandle hal,
 			sir_mgmt_frame_ind_callback callback);
 
 QDF_STATUS sme_update_nss(tHalHandle h_hal, uint8_t nss);
+void sme_update_user_configured_nss(tHalHandle hal, uint8_t nss);
 
 bool sme_is_any_session_in_connected_state(tHalHandle h_hal);
 
@@ -1128,4 +1129,13 @@ void sme_set_pdev_ht_vht_ies(tHalHandle hHal, bool enable2x2);
 
 void sme_update_vdev_type_nss(tHalHandle hal, uint8_t max_supp_nss,
 		uint32_t vdev_type_nss, eCsrBand band);
+void sme_register_p2p_lo_event(tHalHandle hHal, void *context,
+					p2p_lo_callback callback);
+
+QDF_STATUS sme_process_mac_pwr_dbg_cmd(tHalHandle hal, uint32_t session_id,
+				       struct sir_mac_pwr_dbg_cmd*
+				       dbg_args);
+
+void sme_get_vdev_type_nss(tHalHandle hal, enum tQDF_ADAPTER_MODE dev_mode,
+		uint8_t *nss_2g, uint8_t *nss_5g);
 #endif /* #if !defined( __SME_API_H ) */

@@ -192,6 +192,11 @@ typedef struct tagSmeCmd {
 		struct s_nss_update_cmd nss_update_cmd;
 		struct sir_dual_mac_config set_dual_mac_cmd;
 		struct sir_antenna_mode_param set_antenna_mode_cmd;
+#ifdef WLAN_FEATURE_NAN_DATAPATH
+		struct ndp_initiator_req initiator_req;
+		struct ndp_responder_req responder_req;
+		struct ndp_end_req *data_end_req;
+#endif
 	} u;
 } tSmeCmd;
 
@@ -230,9 +235,6 @@ QDF_STATUS oem_data_process_oem_data_req_command(tpAniSirGlobal pMac,
 		tSmeCmd *pCommand);
 #endif
 
-void csr_get_vdev_type_nss(tpAniSirGlobal mac_ctx,
-		enum tQDF_ADAPTER_MODE dev_mode,
-		uint8_t *nss_2g, uint8_t *nss_5g);
 QDF_STATUS csr_process_add_sta_session_command(tpAniSirGlobal pMac,
 		tSmeCmd *pCommand);
 QDF_STATUS csr_process_add_sta_session_rsp(tpAniSirGlobal pMac, uint8_t *pMsg);

@@ -5150,9 +5150,9 @@ static int drv_cmd_get_ibss_peer_info(hdd_adapter_t *adapter,
 	}
 
 	/* Get station index for the peer mac address and sanitize it */
-	hdd_ibss_get_sta_id(pHddStaCtx, &peerMacAddr, &staIdx);
+	hdd_get_peer_sta_id(pHddStaCtx, &peerMacAddr, &staIdx);
 
-	if (staIdx > MAX_IBSS_PEERS) {
+	if (staIdx > MAX_PEERS) {
 		hdd_err("Invalid StaIdx %d returned", staIdx);
 		ret = -EINVAL;
 		goto exit;
@@ -6611,6 +6611,16 @@ static int drv_cmd_set_antenna_mode(hdd_adapter_t *adapter,
 		goto exit;
 	}
 
+	/* Check TDLS status and update antenna mode */
+	if ((QDF_STA_MODE == adapter->device_mode) &&
+	    cds_is_sta_active_connection_exists() &&
+	    (hdd_ctx->connected_peer_count > 0)) {
+		ret = wlan_hdd_tdls_antenna_switch(hdd_ctx, adapter,
+						   mode);
+		if (0 != ret)
+			goto exit;
+	}
+
 	params.set_antenna_mode_resp =
 	    (void *)wlan_hdd_soc_set_antenna_mode_cb;
 	hdd_info("Set antenna mode rx chains: %d tx chains: %d",
@@ -6655,10 +6665,19 @@ static int drv_cmd_set_antenna_mode(hdd_adapter_t *adapter,
 		goto exit;
 	}
 
-	hdd_info("Successfully switched to mode: %d x %d", mode, mode);
-	ret = 0;
 	hdd_ctx->current_antenna_mode = mode;
+	/* Update the user requested nss in the mac context.
+	 * This will be used in tdls protocol engine to form tdls
+	 * Management frames.
+	 */
+	sme_update_user_configured_nss(
+		hdd_ctx->hHal,
+		hdd_ctx->current_antenna_mode);
 
+	hdd_info("Successfully switched to mode: %d x %d",
+		 hdd_ctx->current_antenna_mode,
+		 hdd_ctx->current_antenna_mode);
+	ret = 0;
 exit:
 	hdd_info("Set antenna status: %d current mode: %d",
 		 ret, hdd_ctx->current_antenna_mode);

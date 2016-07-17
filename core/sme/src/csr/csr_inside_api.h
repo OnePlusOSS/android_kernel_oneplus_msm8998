@@ -140,7 +140,8 @@ typedef enum {
 	eCsrSilentlyStopRoaming,
 	eCsrSilentlyStopRoamingSaveState,
 	eCsrJoinFailureDueToConcurrency,
-
+	eCsrStopBssSuccess,
+	eCsrStopBssFailure,
 } eCsrRoamCompleteResult;
 
 typedef struct tagScanReqParam {
@@ -612,6 +613,10 @@ QDF_STATUS csr_get_active_scan_entry(tpAniSirGlobal mac, uint32_t scan_id,
 bool csr_is_profile_wapi(tCsrRoamProfile *pProfile);
 #endif /* FEATURE_WLAN_WAPI */
 
+void csr_get_vdev_type_nss(tpAniSirGlobal mac_ctx,
+		enum tQDF_ADAPTER_MODE dev_mode,
+		uint8_t *nss_2g, uint8_t *nss_5g);
+
 #ifdef FEATURE_WLAN_DIAG_SUPPORT_CSR
 
 /* Security */
@@ -1070,3 +1075,16 @@ bool is_disconnect_pending(tpAniSirGlobal mac_ctx,
 void csr_scan_active_list_timeout_handle(void *userData);
 QDF_STATUS csr_prepare_disconnect_command(tpAniSirGlobal mac,
 			uint32_t session_id, tSmeCmd **sme_cmd);
+QDF_STATUS csr_roam_prepare_bss_config_from_profile(tpAniSirGlobal mac_ctx,
+		tCsrRoamProfile *profile, tBssConfigParam *bss_cfg,
+		tSirBssDescription *bss_desc);
+void csr_roam_prepare_bss_params(tpAniSirGlobal mac_ctx, uint32_t session_id,
+		tCsrRoamProfile *profile, tSirBssDescription *bss_desc,
+		tBssConfigParam *bss_cfg, tDot11fBeaconIEs *ies);
+
+QDF_STATUS csr_roam_set_bss_config_cfg(tpAniSirGlobal mac_ctx,
+		uint32_t session_id,
+		tCsrRoamProfile *profile, tSirBssDescription *bss_desc,
+		tBssConfigParam *bss_cfg, tDot11fBeaconIEs *ies,
+		bool reset_country);
+

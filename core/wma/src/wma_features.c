@@ -70,6 +70,7 @@
 #include "radar_filters.h"
 #include "wma_internal.h"
 #include "ol_txrx.h"
+#include "wma_nan_datapath.h"
 
 #ifndef ARRAY_LENGTH
 #define ARRAY_LENGTH(a)         (sizeof(a) / sizeof((a)[0]))
@@ -2987,6 +2988,23 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 				(uint8_t *)param_buf->wow_packet_buffer,
 				sizeof(WMI_NAN_EVENTID_param_tlvs));
 		break;
+	case WOW_REASON_NAN_DATA:
+		WMA_LOGD(FL("Host woken up for NAN data path event from FW"));
+		if (param_buf->wow_packet_buffer) {
+			wow_buf_pkt_len =
+				*(uint32_t *)param_buf->wow_packet_buffer;
+			WMA_LOGD(FL("wow_packet_buffer dump"));
+			qdf_trace_hex_dump(QDF_MODULE_ID_WMA,
+				QDF_TRACE_LEVEL_DEBUG,
+				param_buf->wow_packet_buffer,
+				wow_buf_pkt_len);
+			wma_ndp_wow_event_callback(handle,
+				(param_buf->wow_packet_buffer + 4),
+				wow_buf_pkt_len);
+		} else {
+			WMA_LOGE(FL("wow_packet_buffer is empty"));
+		}
+		break;
 	default:
 		break;
 	}
@@ -3043,7 +3061,7 @@ static inline void wma_set_wow_bus_suspend(tp_wma_handle wma, int val)
  *
  * Return: QDF status
  */
-static QDF_STATUS wma_add_wow_wakeup_event(tp_wma_handle wma,
+QDF_STATUS wma_add_wow_wakeup_event(tp_wma_handle wma,
 					uint32_t vdev_id,
 					uint32_t bitmap,
 					bool enable)
@@ -3385,6 +3403,13 @@ void wma_register_wow_wakeup_events(WMA_HANDLE handle,
 		event_bitmap = WMA_WOW_SAP_WAKE_UP_EVENTS;
 		WMA_LOGI("SAP specific default wake up event 0x%x vdev id %d",
 			event_bitmap, vdev_id);
+	} else if (WMI_VDEV_TYPE_NDI == vdev_type) {
+		/*
+		 * Configure NAN data path specific default wake up events.
+		 * Following routine sends the command to firmware.
+		 */
+		wma_ndp_add_wow_wakeup_event(wma, vdev_id);
+		return;
 	} else {
 		WMA_LOGE("unknown type %d subtype %d", vdev_type, vdev_subtype);
 		return;
@@ -3937,6 +3962,23 @@ bool wma_is_extscan_in_progress(tp_wma_handle wma, int vdev_id)
 #endif
 
 /**
+ * wma_is_p2plo_in_progress(): check if P2P listen offload is in progress
+ * @wma: wma handle
+ * @vdev_id: vdev_id
+ *
+ * This function is to check if p2p listen offload is in progress,
+ *  true: p2p listen offload in progress
+ *  false: otherwise
+ *
+ * Return: TRUE/FALSE
+ */
+static inline
+bool wma_is_p2plo_in_progress(tp_wma_handle wma, int vdev_id)
+{
+	return wma->interfaces[vdev_id].p2p_lo_in_progress;
+}
+
+/**
  * wma_is_wow_applicable(): should enable wow
  * @wma: wma handle
  *
@@ -3945,6 +3987,10 @@ bool wma_is_extscan_in_progress(tp_wma_handle wma, int vdev_id)
  *  2) Is any one of vdev in connected state (in STA mode) ?
  *  3) Is PNO in progress in any one of vdev ?
  *  4) Is Extscan in progress in any one of vdev ?
+ *  5) Is P2P listen offload in any one of vdev?
+ *  6) Is any vdev in NAN data mode? BSS is already started at the
+ *     the time of device creation. It is ready to accept data
+ *     requests.
  *  If none of above conditions is true then return false
  *
  * Return: true if wma needs to configure wow false otherwise.
@@ -3966,6 +4012,14 @@ bool wma_is_wow_applicable(tp_wma_handle wma)
 			return true;
 		} else if (wma_is_extscan_in_progress(wma, vdev_id)) {
 			WMA_LOGD("EXT is in progress, enabling wow");
+			return true;
+		} else if (wma_is_p2plo_in_progress(wma, vdev_id)) {
+			WMA_LOGD("P2P LO is in progress, enabling wow");
+			return true;
+		}
+		if (WMA_IS_VDEV_IN_NDI_MODE(wma->interfaces, vdev_id)) {
+			WMA_LOGD("vdev %d is in NAN data mode, enabling wow",
+				vdev_id);
 			return true;
 		}
 	}
@@ -4810,7 +4864,7 @@ QDF_STATUS wma_process_gtk_offload_req(tp_wma_handle wma,
 	}
 
 	/* Validate vdev id */
-	if (vdev_id >= wma->max_bssid) {
+	if (vdev_id >= WMA_MAX_SUPPORTED_BSS) {
 		WMA_LOGE("invalid vdev_id %d for %pM", vdev_id,
 			 params->bssid.bytes);
 		status = QDF_STATUS_E_INVAL;
@@ -6481,6 +6535,12 @@ int wma_update_tdls_peer_state(WMA_HANDLE handle,
 
 	ch_mhz = qdf_mem_malloc(sizeof(uint32_t) *
 			 peerStateParams->peerCap.peerChanLen);
+	if (ch_mhz == NULL) {
+		WMA_LOGE("%s: memory allocation failed", __func__);
+		ret = -ENOMEM;
+		goto end_tdls_peer_state;
+	}
+
 	for (i = 0; i < peerStateParams->peerCap.peerChanLen; ++i) {
 		ch_mhz[i] =
 			cds_chan_to_freq(peerStateParams->peerCap.peerChan[i].
@@ -7309,4 +7369,183 @@ QDF_STATUS wma_set_bpf_instructions(tp_wma_handle wma,
 		return QDF_STATUS_E_FAILURE;
 	}
 	return QDF_STATUS_SUCCESS;
+}
+
+/**
+ *  wma_p2p_lo_start() - P2P listen offload start
+ *  @params: p2p listen offload parameters
+ *
+ *  This function sends WMI command to start P2P listen offload.
+ *
+ *  Return: QDF_STATUS enumeration
+ */
+QDF_STATUS wma_p2p_lo_start(struct sir_p2p_lo_start *params)
+{
+	wmi_buf_t buf;
+	wmi_p2p_lo_start_cmd_fixed_param *cmd;
+	int32_t len = sizeof(*cmd);
+	tp_wma_handle wma = cds_get_context(QDF_MODULE_ID_WMA);
+	uint8_t *buf_ptr;
+	int ret;
+
+	if (NULL == wma) {
+		WMA_LOGE("%s: wma context is NULL", __func__);
+		return QDF_STATUS_E_INVAL;
+	}
+
+	len += 2 * WMI_TLV_HDR_SIZE +
+	       qdf_roundup(params->dev_types_len, sizeof(A_UINT32)) +
+	       qdf_roundup(params->probe_resp_len, sizeof(A_UINT32));
+
+	buf = wmi_buf_alloc(wma->wmi_handle, len);
+	if (!buf) {
+		WMA_LOGP("%s: failed to allocate memory for p2p lo start",
+			 __func__);
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	cmd = (wmi_p2p_lo_start_cmd_fixed_param *)wmi_buf_data(buf);
+	buf_ptr = (uint8_t *) wmi_buf_data(buf);
+
+	WMITLV_SET_HDR(&cmd->tlv_header,
+		 WMITLV_TAG_STRUC_wmi_p2p_lo_start_cmd_fixed_param,
+		 WMITLV_GET_STRUCT_TLVLEN(
+			wmi_p2p_lo_start_cmd_fixed_param));
+
+	cmd->vdev_id = params->vdev_id;
+	cmd->ctl_flags = params->ctl_flags;
+	cmd->channel = params->freq;
+	cmd->period = params->period;
+	cmd->interval = params->interval;
+	cmd->count = params->count;
+
+	buf_ptr += sizeof(wmi_p2p_lo_start_cmd_fixed_param);
+	WMITLV_SET_HDR(buf_ptr, WMITLV_TAG_ARRAY_BYTE,
+		qdf_roundup(params->dev_types_len, sizeof(A_UINT32)));
+	buf_ptr += WMI_TLV_HDR_SIZE;
+	qdf_mem_copy(buf_ptr, params->device_types, params->dev_types_len);
+
+	buf_ptr += qdf_roundup(params->dev_types_len, sizeof(A_UINT32));
+	WMITLV_SET_HDR(buf_ptr, WMITLV_TAG_ARRAY_BYTE,
+		qdf_roundup(params->probe_resp_len, sizeof(A_UINT32)));
+	buf_ptr += WMI_TLV_HDR_SIZE;
+	qdf_mem_copy(buf_ptr, params->probe_resp_tmplt, params->probe_resp_len);
+
+	WMA_LOGI("%s: Sending WMI_P2P_LO_START command, channel=%d, period=%d, interval=%d, count=%d",
+			__func__, cmd->channel, cmd->period,
+			cmd->interval, cmd->count);
+
+	ret = wmi_unified_cmd_send(wma->wmi_handle,
+				   buf, len,
+				   WMI_P2P_LISTEN_OFFLOAD_START_CMDID);
+	if (ret) {
+		WMA_LOGE("Failed to send p2p lo start: %d", ret);
+		wmi_buf_free(buf);
+	}
+
+	WMA_LOGI("%s: Successfully sent WMI_P2P_LO_START", __func__);
+	wma->interfaces[params->vdev_id].p2p_lo_in_progress = true;
+
+	return ret;
+}
+
+/**
+ *  wma_p2p_lo_stop() - P2P listen offload stop
+ *  @vdev_id: vdev identifier
+ *
+ *  This function sends WMI command to stop P2P listen offload.
+ *
+ *  Return: QDF_STATUS enumeration
+ */
+QDF_STATUS wma_p2p_lo_stop(u_int32_t vdev_id)
+{
+	wmi_buf_t buf;
+	wmi_p2p_lo_stop_cmd_fixed_param *cmd;
+	int32_t len;
+	tp_wma_handle wma = cds_get_context(QDF_MODULE_ID_WMA);
+	int ret;
+
+	if (NULL == wma) {
+		WMA_LOGE("%s: wma context is NULL", __func__);
+		return QDF_STATUS_E_INVAL;
+	}
+
+	len = sizeof(*cmd);
+	buf = wmi_buf_alloc(wma->wmi_handle, len);
+	if (!buf) {
+		WMA_LOGP("%s: failed to allocate memory for p2p lo stop",
+			 __func__);
+		return QDF_STATUS_E_NOMEM;
+	}
+	cmd = (wmi_p2p_lo_stop_cmd_fixed_param *)wmi_buf_data(buf);
+
+	WMITLV_SET_HDR(&cmd->tlv_header,
+		WMITLV_TAG_STRUC_wmi_p2p_lo_stop_cmd_fixed_param,
+		WMITLV_GET_STRUCT_TLVLEN(
+			wmi_p2p_lo_stop_cmd_fixed_param));
+
+	cmd->vdev_id = vdev_id;
+
+	WMA_LOGI("%s: Sending WMI_P2P_LO_STOP command", __func__);
+
+	ret = wmi_unified_cmd_send(wma->wmi_handle,
+				   buf, len,
+				   WMI_P2P_LISTEN_OFFLOAD_STOP_CMDID);
+	if (ret) {
+		WMA_LOGE("Failed to send p2p lo stop: %d", ret);
+		wmi_buf_free(buf);
+	}
+
+	WMA_LOGI("%s: Successfully sent WMI_P2P_LO_STOP", __func__);
+	wma->interfaces[vdev_id].p2p_lo_in_progress = false;
+
+	return ret;
+}
+
+/**
+ * wma_p2p_lo_event_handler() - p2p lo event
+ * @handle: the WMA handle
+ * @event_buf: buffer with the event parameters
+ * @len: length of the buffer
+ *
+ * This function receives P2P listen offload stop event from FW and
+ * pass the event information to upper layer.
+ *
+ * Return: 0 on success
+ */
+int wma_p2p_lo_event_handler(void *handle, uint8_t *event_buf,
+				uint32_t len)
+{
+	tp_wma_handle wma = cds_get_context(QDF_MODULE_ID_WMA);
+	struct sir_p2p_lo_event *event;
+	WMI_P2P_LISTEN_OFFLOAD_STOPPED_EVENTID_param_tlvs *param_tlvs;
+	wmi_p2p_lo_stopped_event_fixed_param *fix_param;
+	tpAniSirGlobal p_mac = cds_get_context(QDF_MODULE_ID_PE);
+
+	if (!p_mac) {
+		WMA_LOGE("%s: Invalid p_mac", __func__);
+		return -EINVAL;
+	}
+
+	if (!p_mac->sme.p2p_lo_event_callback) {
+		WMA_LOGE("%s: Callback not registered", __func__);
+		return -EINVAL;
+	}
+
+	param_tlvs = (WMI_P2P_LISTEN_OFFLOAD_STOPPED_EVENTID_param_tlvs *)
+								event_buf;
+	fix_param = param_tlvs->fixed_param;
+	event = qdf_mem_malloc(sizeof(*event));
+	if (event == NULL) {
+		WMA_LOGE("Event allocation failed");
+		return -ENOMEM;
+	}
+	event->vdev_id = fix_param->vdev_id;
+	event->reason_code = fix_param->reason;
+
+	p_mac->sme.p2p_lo_event_callback(p_mac->hHdd, event);
+
+	wma->interfaces[event->vdev_id].p2p_lo_in_progress = false;
+
+	return 0;
 }

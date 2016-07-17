@@ -76,6 +76,7 @@
 
 
 #include "cds_concurrency.h"
+#include "wma_nan_datapath.h"
 
 /**
  * wma_find_vdev_by_addr() - find vdev_id from mac address
@@ -209,6 +210,9 @@ enum wlan_op_mode wma_get_txrx_vdev_type(uint32_t type)
 		break;
 	case WMI_VDEV_TYPE_MONITOR:
 		vdev_type = wlan_op_mode_monitor;
+		break;
+	case WMI_VDEV_TYPE_NDI:
+		vdev_type = wlan_op_mode_ndi;
 		break;
 	default:
 		WMA_LOGE("Invalid vdev type %u", type);
@@ -1374,7 +1378,11 @@ int wma_vdev_stop_resp_handler(void *handle, uint8_t *cmd_param_info,
 		}
 		if (wma_is_vdev_in_ibss_mode(wma, resp_event->vdev_id))
 			wma_delete_all_ibss_peers(wma, resp_event->vdev_id);
-		else {
+		else if (WMA_IS_VDEV_IN_NDI_MODE(wma->interfaces,
+			resp_event->vdev_id)) {
+			wma_delete_all_nan_remote_peers(wma,
+				resp_event->vdev_id);
+		} else {
 			if (wma_is_vdev_in_ap_mode(wma, resp_event->vdev_id)) {
 				wma_delete_all_ap_remote_peers(wma,
 						resp_event->vdev_id);
@@ -1584,7 +1592,8 @@ ol_txrx_vdev_handle wma_vdev_attach(tp_wma_handle wma_handle,
 	if (((self_sta_req->type == WMI_VDEV_TYPE_AP) &&
 	    (self_sta_req->sub_type == WMI_UNIFIED_VDEV_SUBTYPE_P2P_DEVICE)) ||
 	    (self_sta_req->type == WMI_VDEV_TYPE_OCB) ||
-	    (self_sta_req->type == WMI_VDEV_TYPE_MONITOR)) {
+	    (self_sta_req->type == WMI_VDEV_TYPE_MONITOR) ||
+	    (self_sta_req->type == WMI_VDEV_TYPE_NDI)) {
 		WMA_LOGA("Creating self peer %pM, vdev_id %hu",
 			 self_sta_req->self_mac_addr, self_sta_req->session_id);
 		status = wma_create_peer(wma_handle, txrx_pdev,
@@ -3286,6 +3295,10 @@ void wma_add_bss(tp_wma_handle wma, tpAddBssParams params)
 		break;
 #endif
 
+	case QDF_NDI_MODE:
+		wma_add_bss_ndi_mode(wma, params);
+		break;
+
 	default:
 		wma_add_bss_sta_mode(wma, params);
 		break;
@@ -4054,6 +4067,8 @@ void wma_add_sta(tp_wma_handle wma, tpAddStaParams add_sta)
 	else if (wma_is_vdev_in_ibss_mode(wma, add_sta->smesessionId))
 		oper_mode = BSS_OPERATIONAL_MODE_IBSS;
 
+	if (WMA_IS_VDEV_IN_NDI_MODE(wma->interfaces, add_sta->smesessionId))
+		oper_mode = BSS_OPERATIONAL_MODE_NDI;
 	switch (oper_mode) {
 	case BSS_OPERATIONAL_MODE_STA:
 		wma_add_sta_req_sta_mode(wma, add_sta);
@@ -4064,6 +4079,9 @@ void wma_add_sta(tp_wma_handle wma, tpAddStaParams add_sta)
 	case BSS_OPERATIONAL_MODE_AP:
 		htc_vote_link_down(wma->htc_handle);
 		wma_add_sta_req_ap_mode(wma, add_sta);
+		break;
+	case BSS_OPERATIONAL_MODE_NDI:
+		wma_add_sta_ndi_mode(wma, add_sta);
 		break;
 	}
 
@@ -4094,6 +4112,8 @@ void wma_delete_sta(tp_wma_handle wma, tpDeleteStaParams del_sta)
 		oper_mode = BSS_OPERATIONAL_MODE_IBSS;
 		WMA_LOGD("%s: to delete sta for IBSS mode", __func__);
 	}
+	if (del_sta->staType == STA_ENTRY_NDI_PEER)
+		oper_mode = BSS_OPERATIONAL_MODE_NDI;
 
 	switch (oper_mode) {
 	case BSS_OPERATIONAL_MODE_STA:
@@ -4119,6 +4139,9 @@ void wma_delete_sta(tp_wma_handle wma, tpDeleteStaParams del_sta)
 				 del_sta->smesessionId, del_sta->status);
 			qdf_mem_free(del_sta);
 		}
+		break;
+	case BSS_OPERATIONAL_MODE_NDI:
+		wma_delete_sta_req_ndi_mode(wma, del_sta);
 		break;
 	}
 
@@ -4160,6 +4183,12 @@ void wma_delete_bss(tp_wma_handle wma, tpDeleteBssParams params)
 		peer = ol_txrx_find_peer_by_addr(pdev,
 			wma->interfaces[params->smesessionId].addr,
 			&peer_id);
+	else if (WMA_IS_VDEV_IN_NDI_MODE(wma->interfaces,
+			params->smesessionId))
+		/* In ndi case, self mac is used to create the self peer */
+		peer = ol_txrx_find_peer_by_addr(pdev,
+				wma->interfaces[params->smesessionId].addr,
+				&peer_id);
 	else
 		peer = ol_txrx_find_peer_by_addr(pdev, params->bssid, &peer_id);
 

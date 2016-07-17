@@ -63,6 +63,7 @@
 #include "cds_packet.h"
 #include "qdf_mem.h"
 #include "cds_concurrency.h"
+#include "nan_datapath.h"
 
 void lim_log_session_states(tpAniSirGlobal pMac);
 static void lim_process_normal_hdd_msg(tpAniSirGlobal mac_ctx,
@@ -1451,7 +1452,10 @@ void lim_process_messages(tpAniSirGlobal mac_ctx, tpSirMsgQ msg)
 #endif  /* FEATURE_WLAN_ESE */
 	case eWNI_SME_REGISTER_MGMT_FRAME_CB:
 	case eWNI_SME_EXT_CHANGE_CHANNEL:
-	/* These messages are from HDD.No need to respond to HDD */
+	case eWNI_SME_NDP_INITIATOR_REQ:
+	case eWNI_SME_NDP_RESPONDER_REQ:
+	case eWNI_SME_NDP_END_REQ:
+		/* These messages are from HDD.No need to respond to HDD */
 		lim_process_normal_hdd_msg(mac_ctx, msg, false);
 		break;
 
@@ -1928,7 +1932,6 @@ void lim_process_messages(tpAniSirGlobal mac_ctx, tpSirMsgQ msg)
 		qdf_mem_free((void *)msg->bodyptr);
 		msg->bodyptr = NULL;
 		/* Unwanted messages */
-		/* Log error */
 		lim_log(mac_ctx, LOGE,
 			FL("Discarding unexpected message received %X"),
 			msg->type);

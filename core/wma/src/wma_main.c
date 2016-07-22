@@ -238,6 +238,8 @@ static void wma_set_default_tgt_config(tp_wma_handle wma_handle)
 	tgt_cfg.num_tids = (2 * (no_of_peers_supported + CFG_TGT_NUM_VDEV + 2));
 	tgt_cfg.scan_max_pending_req = wma_handle->max_scan;
 
+	WMI_RSRC_CFG_FLAG_MGMT_COMP_EVT_BUNDLE_SUPPORT_SET(tgt_cfg.flag1, 1);
+
 	WMITLV_SET_HDR(&tgt_cfg.tlv_header,
 		       WMITLV_TAG_STRUC_wmi_resource_config,
 		       WMITLV_GET_STRUCT_TLVLEN(wmi_resource_config));
@@ -4318,6 +4320,16 @@ int wma_rx_service_ready_event(void *handle, uint8_t *cmd_param_info,
 			return -EINVAL;
 		}
 
+		status = wmi_unified_register_event_handler(
+				wma_handle->wmi_handle,
+				WMI_MGMT_TX_BUNDLE_COMPLETION_EVENTID,
+				wma_mgmt_tx_bundle_completion_handler,
+				WMA_RX_SERIALIZER_CTX);
+		if (status) {
+			WMA_LOGE("Failed to register MGMT over WMI completion handler");
+			return -EINVAL;
+		}
+
 	} else {
 		WMA_LOGE("FW doesnot support WMI_SERVICE_MGMT_TX_WMI, Use HTT interface for Management Tx");
 	}
@@ -4570,16 +4582,20 @@ static void wma_populate_soc_caps(t_wma_handle *wma_handle,
 	 * first thing to do is to get how many number of hw modes are
 	 * supported and populate in wma_handle global structure
 	 */
+	if (NULL == param_buf->soc_hw_mode_caps) {
+		WMA_LOGE("%s: Invalid number of hw modes", __func__);
+		return;
+	}
+
 	qdf_mem_copy(&phy_caps->num_hw_modes,
 			param_buf->soc_hw_mode_caps,
 			sizeof(WMI_SOC_MAC_PHY_HW_MODE_CAPS));
 	if (0 == phy_caps->num_hw_modes.num_hw_modes) {
-		WMA_LOGE("%s: Invalid number of hw modes", __func__);
+		WMA_LOGE("%s: Number of hw modes is zero", __func__);
 		return;
-	} else {
-		WMA_LOGI("%s: Given number of hw modes[%d]",
-			 __func__, phy_caps->num_hw_modes.num_hw_modes);
 	}
+	WMA_LOGI("%s: Given number of hw modes[%d]",
+		 __func__, phy_caps->num_hw_modes.num_hw_modes);
 
 	/*
 	 * next thing is to allocate the memory to map hw mode to phy/mac caps

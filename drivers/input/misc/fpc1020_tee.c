@@ -448,6 +448,20 @@ void fpc1020_input_destroy(struct fpc1020_data *fpc1020)
 		input_free_device(fpc1020->input_dev);
 }
 
+static void set_fingerprintd_nice(int nice)
+{
+	struct task_struct *p;
+
+	read_lock(&tasklist_lock);
+	for_each_process(p) {
+		if (!memcmp(p->comm, "fingerprintd", 13)) {
+			set_user_nice(p, nice);
+			break;
+		}
+	}
+	read_unlock(&tasklist_lock);
+}
+
 #if defined(CONFIG_FB)
 static int fb_notifier_callback(struct notifier_block *self, unsigned long event, void *data)
 {
@@ -461,13 +475,15 @@ static int fb_notifier_callback(struct notifier_block *self, unsigned long event
 	if((evdata) && (evdata->data) && (fpc1020)) {
 		blank = evdata->data;
 		if( *blank == FB_BLANK_UNBLANK && (event == FB_EARLY_EVENT_BLANK )) {
+			set_fingerprintd_nice(0);
 			dev_err(fpc1020->dev, "%s screen on\n", __func__);
 			fpc1020->screen_state = 1;
 			sysfs_notify(&fpc1020->dev->kobj, NULL, dev_attr_screen_state.attr.name);
 
 		} else if( *blank == FB_BLANK_POWERDOWN && (event == FB_EARLY_EVENT_BLANK/*FB_EVENT_BLANK*/ )) {
-            dev_err(fpc1020->dev, "%s screen off\n", __func__);
-		    fpc1020->screen_state = 0;
+			set_fingerprintd_nice(MIN_NICE);
+			dev_err(fpc1020->dev, "%s screen off\n", __func__);
+			fpc1020->screen_state = 0;
 			sysfs_notify(&fpc1020->dev->kobj, NULL, dev_attr_screen_state.attr.name);
 		}
 	}

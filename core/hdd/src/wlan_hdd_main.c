@@ -104,6 +104,7 @@
 #include <wlan_hdd_regulatory.h>
 #include "ol_rx_fwd.h"
 #include "wlan_hdd_lpass.h"
+#include "nan_api.h"
 
 #ifdef MODULE
 #define WLAN_MODULE_NAME  module_name(THIS_MODULE)
@@ -2377,30 +2378,73 @@ void hdd_cleanup_actionframe(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 	return;
 }
 
+/**
+ * hdd_station_adapter_deinit() - De-initialize the station adapter
+ * @hdd_ctx: global hdd context
+ * @adapter: HDD adapter
+ *
+ * This function De-initializes the STA/P2P/OCB adapter.
+ *
+ * Return: None.
+ */
+void hdd_station_adapter_deinit(hdd_context_t *hdd_ctx,
+				hdd_adapter_t *adapter)
+{
+	ENTER_DEV(adapter->dev);
+
+	if (test_bit(INIT_TX_RX_SUCCESS, &adapter->event_flags)) {
+		hdd_deinit_tx_rx(adapter);
+		clear_bit(INIT_TX_RX_SUCCESS, &adapter->event_flags);
+	}
+
+	if (test_bit(WMM_INIT_DONE, &adapter->event_flags)) {
+		hdd_wmm_adapter_close(adapter);
+		clear_bit(WMM_INIT_DONE, &adapter->event_flags);
+	}
+
+	hdd_cleanup_actionframe(hdd_ctx, adapter);
+	wlan_hdd_tdls_exit(adapter);
+
+	EXIT();
+}
+
+/**
+ * hdd_ap_adapter_deinit() - De-initialize the ap adapter
+ * @hdd_ctx: global hdd context
+ * @adapter: HDD adapter
+ * @rtnl_held: the rtnl lock hold flag
+ * This function De-initializes the AP/P2PGo adapter.
+ *
+ * Return: None.
+ */
+void hdd_ap_adapter_deinit(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
+			   bool rtnl_held)
+{
+	ENTER_DEV(adapter->dev);
+
+	if (test_bit(WMM_INIT_DONE, &adapter->event_flags)) {
+		hdd_wmm_adapter_close(adapter);
+		clear_bit(WMM_INIT_DONE, &adapter->event_flags);
+	}
+
+	hdd_cleanup_actionframe(hdd_ctx, adapter);
+
+	hdd_unregister_hostapd(adapter, rtnl_held);
+
+	EXIT();
+}
+
 void hdd_deinit_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 			bool rtnl_held)
 {
 	ENTER();
+
 	switch (adapter->device_mode) {
 	case QDF_STA_MODE:
 	case QDF_P2P_CLIENT_MODE:
 	case QDF_P2P_DEVICE_MODE:
 	{
-		if (test_bit
-			    (INIT_TX_RX_SUCCESS, &adapter->event_flags)) {
-			hdd_deinit_tx_rx(adapter);
-			clear_bit(INIT_TX_RX_SUCCESS,
-				  &adapter->event_flags);
-		}
-
-		if (test_bit(WMM_INIT_DONE, &adapter->event_flags)) {
-			hdd_wmm_adapter_close(adapter);
-			clear_bit(WMM_INIT_DONE,
-				  &adapter->event_flags);
-		}
-
-		hdd_cleanup_actionframe(hdd_ctx, adapter);
-		wlan_hdd_tdls_exit(adapter);
+		hdd_station_adapter_deinit(hdd_ctx, adapter);
 		break;
 	}
 
@@ -2408,16 +2452,7 @@ void hdd_deinit_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 	case QDF_P2P_GO_MODE:
 	{
 
-		if (test_bit(WMM_INIT_DONE, &adapter->event_flags)) {
-			hdd_wmm_adapter_close(adapter);
-			clear_bit(WMM_INIT_DONE,
-				  &adapter->event_flags);
-		}
-
-		hdd_cleanup_actionframe(hdd_ctx, adapter);
-
-		hdd_unregister_hostapd(adapter, rtnl_held);
-
+		hdd_ap_adapter_deinit(hdd_ctx, adapter, rtnl_held);
 		break;
 	}
 
@@ -2484,6 +2519,184 @@ QDF_STATUS hdd_check_for_existing_macaddr(hdd_context_t *hdd_ctx,
 		adapterNode = pNext;
 	}
 	return QDF_STATUS_SUCCESS;
+}
+
+#ifdef CONFIG_FW_LOGS_BASED_ON_INI
+/**
+ * hdd_set_fw_log_params() - Set log parameters to FW
+ * @hdd_ctx: HDD Context
+ * @adapter: HDD Adapter
+ *
+ * This function set the FW Debug log level based on the INI.
+ *
+ * Return: None
+ */
+static void hdd_set_fw_log_params(hdd_context_t *hdd_ctx,
+				  hdd_adapter_t *adapter)
+{
+	uint8_t count = 0, numentries = 0,
+			moduleloglevel[FW_MODULE_LOG_LEVEL_STRING_LENGTH];
+	uint32_t value = 0;
+	int ret;
+
+	/* Enable FW logs based on INI configuration */
+	if ((QDF_GLOBAL_FTM_MODE == cds_get_conparam() ||
+	     (!hdd_ctx->config->enable_fw_log))) {
+		hdd_info("enable_fw_log not enabled in INI or in FTM mode return");
+		return;
+	}
+
+	hdd_ctx->fw_log_settings.dl_type =
+			hdd_ctx->config->enableFwLogType;
+	ret = wma_cli_set_command(adapter->sessionId,
+				  WMI_DBGLOG_TYPE,
+				  hdd_ctx->config->enableFwLogType,
+				  DBG_CMD);
+	if (ret)
+		hdd_err("Failed to enable FW log type ret %d", ret);
+
+	hdd_ctx->fw_log_settings.dl_loglevel =
+		hdd_ctx->config->enableFwLogLevel;
+	ret = wma_cli_set_command(adapter->sessionId,
+				  WMI_DBGLOG_LOG_LEVEL,
+				  hdd_ctx->config->enableFwLogLevel,
+				  DBG_CMD);
+	if (ret)
+		hdd_err("Failed to enable FW log level ret %d", ret);
+
+	hdd_string_to_u8_array(
+		hdd_ctx->config->enableFwModuleLogLevel,
+		moduleloglevel,
+		&numentries,
+		FW_MODULE_LOG_LEVEL_STRING_LENGTH);
+
+	while (count < numentries) {
+		/*
+		 * FW module log level input string looks like
+		 * below:
+		 * gFwDebugModuleLoglevel=<FW Module ID>,
+		 * <Log Level>,...
+		 * For example:
+		 * gFwDebugModuleLoglevel=
+		 * 1,0,2,1,3,2,4,3,5,4,6,5,7,6
+		 * Above input string means :
+		 * For FW module ID 1 enable log level 0
+		 * For FW module ID 2 enable log level 1
+		 * For FW module ID 3 enable log level 2
+		 * For FW module ID 4 enable log level 3
+		 * For FW module ID 5 enable log level 4
+		 * For FW module ID 6 enable log level 5
+		 * For FW module ID 7 enable log level 6
+		 */
+
+		/*
+		 * FW expects WMI command value =
+		 * Module ID * 10 + Module Log level
+		 */
+		value = ((moduleloglevel[count] * 10) +
+			 moduleloglevel[count + 1]);
+		ret = wma_cli_set_command(adapter->sessionId,
+					  WMI_DBGLOG_MOD_LOG_LEVEL,
+					  value, DBG_CMD);
+		if (ret)
+			hdd_err("Failed to enable FW module log level %d ret %d",
+				value, ret);
+
+		count += 2;
+	}
+}
+#else
+static void hdd_set_fw_log_params(hdd_context_t *hdd_ctx,
+				  hdd_adapter_t *adapter)
+{
+}
+
+#endif
+
+/**
+ * hdd_set_fw_params() - Set parameters to firmware
+ * @adapter: HDD adapter
+ *
+ * This function Sets various parameters to fw once the
+ * adapter is started.
+ *
+ * Return: 0 on success or errno on failure
+ */
+int hdd_set_fw_params(hdd_adapter_t *adapter)
+{
+	int ret;
+	hdd_context_t *hdd_ctx;
+
+	ENTER_DEV(adapter->dev);
+
+	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+	if (!hdd_ctx)
+		return -EINVAL;
+
+	if ((QDF_GLOBAL_FTM_MODE == cds_get_conparam() ||
+	    (!hdd_ctx->config->enable2x2))) {
+		hdd_info("enable2x2 not enabled in INI or in FTM mode return");
+		return 0;
+	}
+
+#define HDD_DTIM_1CHAIN_RX_ID 0x5
+#define HDD_SMPS_PARAM_VALUE_S 29
+
+	/*
+	 * Disable DTIM 1 chain Rx when in 1x1,
+	 * we are passing two value
+	 * as param_id << 29 | param_value.
+	 * Below param_value = 0(disable)
+	 */
+	ret = wma_cli_set_command(adapter->sessionId,
+				  WMI_STA_SMPS_PARAM_CMDID,
+				  HDD_DTIM_1CHAIN_RX_ID <<
+				  HDD_SMPS_PARAM_VALUE_S,
+				  VDEV_CMD);
+	if (ret) {
+		hdd_err("DTIM 1 chain set failed %d", ret);
+		goto error;
+	}
+
+	ret = wma_cli_set_command(adapter->sessionId,
+				  WMI_PDEV_PARAM_TX_CHAIN_MASK,
+				  hdd_ctx->config->txchainmask1x1,
+				  PDEV_CMD);
+	if (ret) {
+		hdd_err("WMI_PDEV_PARAM_TX_CHAIN_MASK set failed %d",
+			ret);
+		goto error;
+	}
+
+	ret = wma_cli_set_command(adapter->sessionId,
+				  WMI_PDEV_PARAM_RX_CHAIN_MASK,
+				  hdd_ctx->config->rxchainmask1x1,
+				  PDEV_CMD);
+	if (ret) {
+		hdd_err("WMI_PDEV_PARAM_RX_CHAIN_MASK set failed %d",
+			ret);
+		goto error;
+	}
+#undef HDD_DTIM_1CHAIN_RX_ID
+#undef HDD_SMPS_PARAM_VALUE_S
+
+	ret = wma_cli_set_command(adapter->sessionId,
+				  WMI_PDEV_PARAM_HYST_EN,
+				  hdd_ctx->config->enableMemDeepSleep,
+				  PDEV_CMD);
+
+	if (ret != 0) {
+		hdd_err("WMI_PDEV_PARAM_HYST_EN set failed %d",
+			ret);
+		goto error;
+	}
+
+	hdd_set_fw_log_params(hdd_ctx, adapter);
+
+	EXIT();
+	return 0;
+error:
+	return -EINVAL;
 }
 
 /**
@@ -2577,13 +2790,15 @@ hdd_adapter_t *hdd_open_adapter(hdd_context_t *hdd_ctx, uint8_t session_type,
 
 		adapter->device_mode = session_type;
 
-		if (QDF_NDI_MODE == session_type)
+		if (QDF_NDI_MODE == session_type) {
 			status = hdd_init_nan_data_mode(adapter);
-		else
-			status = hdd_init_station_mode(adapter);
-
-		if (QDF_STATUS_SUCCESS != status)
-			goto err_free_netdev;
+			if (QDF_STATUS_SUCCESS != status)
+				goto err_free_netdev;
+		} else {
+			ret = hdd_start_station_adapter(adapter);
+			if (ret)
+				goto err_free_netdev;
+		}
 
 		hdd_lro_enable(hdd_ctx, adapter);
 
@@ -2640,8 +2855,8 @@ hdd_adapter_t *hdd_open_adapter(hdd_context_t *hdd_ctx, uint8_t session_type,
 			NL80211_IFTYPE_P2P_GO;
 		adapter->device_mode = session_type;
 
-		status = hdd_init_ap_mode(adapter);
-		if (QDF_STATUS_SUCCESS != status)
+		ret = hdd_start_ap_adapter(adapter);
+		if (ret)
 			goto err_free_netdev;
 
 		status = hdd_register_hostapd(adapter, rtnl_held);
@@ -2678,7 +2893,9 @@ hdd_adapter_t *hdd_open_adapter(hdd_context_t *hdd_ctx, uint8_t session_type,
 		adapter->device_mode = session_type;
 		status = hdd_register_interface(adapter, rtnl_held);
 
-		hdd_init_tx_rx(adapter);
+		ret = hdd_start_ftm_adapter(adapter);
+		if (ret)
+			goto err_free_netdev;
 
 		/* Stop the Interface TX queue. */
 		hddLog(LOG1, FL("Disabling queues"));
@@ -2742,137 +2959,11 @@ hdd_adapter_t *hdd_open_adapter(hdd_context_t *hdd_ctx, uint8_t session_type,
 		cds_check_and_restart_sap_with_non_dfs_acs();
 	}
 
-	if ((cds_get_conparam() != QDF_GLOBAL_FTM_MODE)
-	    && (!hdd_ctx->config->enable2x2)) {
-#define HDD_DTIM_1CHAIN_RX_ID 0x5
-#define HDD_SMPS_PARAM_VALUE_S 29
-
-		/*
-		 * Disable DTIM 1 chain Rx when in 1x1, we are passing two value
-		 * as param_id << 29 | param_value.
-		 * Below param_value = 0(disable)
-		 */
-		ret = wma_cli_set_command(adapter->sessionId,
-					  WMI_STA_SMPS_PARAM_CMDID,
-					  HDD_DTIM_1CHAIN_RX_ID <<
-						HDD_SMPS_PARAM_VALUE_S,
-					  VDEV_CMD);
-
-		if (ret != 0) {
-			hddLog(QDF_TRACE_LEVEL_ERROR,
-			       FL("DTIM 1 chain set failed %d"), ret);
-			goto err_lro_cleanup;
-		}
-
-		ret = wma_cli_set_command(adapter->sessionId,
-					  WMI_PDEV_PARAM_TX_CHAIN_MASK,
-					  hdd_ctx->config->txchainmask1x1,
-					  PDEV_CMD);
-		if (ret != 0) {
-			hddLog(QDF_TRACE_LEVEL_ERROR,
-			       FL("WMI_PDEV_PARAM_TX_CHAIN_MASK set failed %d"),
-			       ret);
-			goto err_lro_cleanup;
-		}
-		ret = wma_cli_set_command(adapter->sessionId,
-					  WMI_PDEV_PARAM_RX_CHAIN_MASK,
-					  hdd_ctx->config->rxchainmask1x1,
-					  PDEV_CMD);
-		if (ret != 0) {
-			hddLog(QDF_TRACE_LEVEL_ERROR,
-			       FL("WMI_PDEV_PARAM_RX_CHAIN_MASK set failed %d"),
-			       ret);
-			goto err_lro_cleanup;
-		}
-#undef HDD_DTIM_1CHAIN_RX_ID
-#undef HDD_SMPS_PARAM_VALUE_S
+	if (hdd_set_fw_params(adapter)) {
+		hdd_err("Failed to set the fw parameters");
+		goto err_lro_cleanup;
 	}
 
-	if (QDF_GLOBAL_FTM_MODE != cds_get_conparam()) {
-		ret = wma_cli_set_command(adapter->sessionId,
-					  WMI_PDEV_PARAM_HYST_EN,
-					  hdd_ctx->config->enableMemDeepSleep,
-					  PDEV_CMD);
-
-		if (ret != 0) {
-			hddLog(QDF_TRACE_LEVEL_ERROR,
-			       FL("WMI_PDEV_PARAM_HYST_EN set failed %d"),
-			       ret);
-			goto err_lro_cleanup;
-		}
-	}
-
-#ifdef CONFIG_FW_LOGS_BASED_ON_INI
-
-	/* Enable FW logs based on INI configuration */
-	if ((QDF_GLOBAL_FTM_MODE != cds_get_conparam()) &&
-	    (hdd_ctx->config->enable_fw_log)) {
-		uint8_t count = 0;
-		uint32_t value = 0;
-		uint8_t numEntries = 0;
-		uint8_t moduleLoglevel[FW_MODULE_LOG_LEVEL_STRING_LENGTH];
-
-		hdd_ctx->fw_log_settings.dl_type =
-					hdd_ctx->config->enableFwLogType;
-		ret = wma_cli_set_command(adapter->sessionId,
-					  WMI_DBGLOG_TYPE,
-					  hdd_ctx->config->enableFwLogType,
-					  DBG_CMD);
-		if (ret != 0) {
-			hddLog(LOGE, FL("Failed to enable FW log type ret %d"),
-			       ret);
-		}
-
-		hdd_ctx->fw_log_settings.dl_loglevel =
-					hdd_ctx->config->enableFwLogLevel;
-		ret = wma_cli_set_command(adapter->sessionId,
-					  WMI_DBGLOG_LOG_LEVEL,
-					  hdd_ctx->config->enableFwLogLevel,
-					  DBG_CMD);
-		if (ret != 0) {
-			hddLog(LOGE, FL("Failed to enable FW log level ret %d"),
-			       ret);
-		}
-
-		hdd_string_to_u8_array(hdd_ctx->config->enableFwModuleLogLevel,
-				       moduleLoglevel,
-				       &numEntries,
-				       FW_MODULE_LOG_LEVEL_STRING_LENGTH);
-		while (count < numEntries) {
-			/*
-			 * FW module log level input string looks like below:
-			 * gFwDebugModuleLoglevel=<FW Module ID>,<Log Level>,...
-			 * For example:
-			 * gFwDebugModuleLoglevel=1,0,2,1,3,2,4,3,5,4,6,5,7,6
-			 * Above input string means :
-			 * For FW module ID 1 enable log level 0
-			 * For FW module ID 2 enable log level 1
-			 * For FW module ID 3 enable log level 2
-			 * For FW module ID 4 enable log level 3
-			 * For FW module ID 5 enable log level 4
-			 * For FW module ID 6 enable log level 5
-			 * For FW module ID 7 enable log level 6
-			 */
-
-			/* FW expects WMI command value =
-			 *               Module ID * 10 + Module Log level
-			 */
-			value =	((moduleLoglevel[count] * 10) +
-				 moduleLoglevel[count + 1]);
-			ret = wma_cli_set_command(adapter->sessionId,
-						  WMI_DBGLOG_MOD_LOG_LEVEL,
-						  value, DBG_CMD);
-			if (ret != 0) {
-				hddLog(LOGE,
-				       FL
-					       ("Failed to enable FW module log level %d ret %d"),
-				       value, ret);
-			}
-
-			count += 2;
-		}
-	}
-#endif
 	if (QDF_STATUS_SUCCESS != hdd_debugfs_init(adapter))
 		hdd_err("Interface %s wow debug_fs init failed", iface_name);
 
@@ -4217,6 +4308,9 @@ void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 	 * still available to handle those control messages
 	 */
 	hdd_stop_all_adapters(hdd_ctx);
+
+	/* De-register the SME callbacks */
+	hdd_deregister_cb(hdd_ctx);
 
 	/* Stop all the modules */
 	qdf_status = cds_disable(p_cds_context);
@@ -6013,6 +6107,81 @@ static hdd_adapter_t *hdd_open_monitor_interface(hdd_context_t *hdd_ctx,
 }
 
 /**
+ * hdd_start_station_adapter()- Start the Station Adapter
+ * @adapter: HDD adapter
+ *
+ * This function initializes the adapter for the station mode.
+ *
+ * Return: 0 on success or errno on failure.
+ */
+int hdd_start_station_adapter(hdd_adapter_t *adapter)
+{
+	QDF_STATUS status;
+
+	ENTER_DEV(adapter->dev);
+
+	status = hdd_init_station_mode(adapter);
+
+	if (QDF_STATUS_SUCCESS != status) {
+		hdd_err("Error Initializing station mode: %d", status);
+		return qdf_status_to_os_return(status);
+	}
+
+	EXIT();
+	return 0;
+}
+
+/**
+ * hdd_start_ap_adapter()- Start AP Adapter
+ * @adapter: HDD adapter
+ *
+ * This function initializes the adapter for the AP mode.
+ *
+ * Return: 0 on success errno on failure.
+ */
+int hdd_start_ap_adapter(hdd_adapter_t *adapter)
+{
+	QDF_STATUS status;
+
+	ENTER();
+
+	status = hdd_init_ap_mode(adapter);
+
+	if (QDF_STATUS_SUCCESS != status) {
+		hdd_err("Error Initializing the AP mode: %d", status);
+		return qdf_status_to_os_return(status);
+	}
+
+	EXIT();
+	return 0;
+}
+
+/**
+ * hdd_start_ftm_adapter()- Start FTM adapter
+ * @adapter: HDD adapter
+ *
+ * This function initializes the adapter for the FTM mode.
+ *
+ * Return: 0 on success or errno on failure.
+ */
+int hdd_start_ftm_adapter(hdd_adapter_t *adapter)
+{
+	QDF_STATUS qdf_status;
+
+	ENTER_DEV(adapter->dev);
+
+	qdf_status = hdd_init_tx_rx(adapter);
+
+	if (QDF_STATUS_SUCCESS != qdf_status) {
+		hdd_err("Failed to start FTM adapter: %d", qdf_status);
+		return qdf_status_to_os_return(qdf_status);
+	}
+
+	return 0;
+	EXIT();
+}
+
+/**
  * hdd_open_interfaces - Open all required interfaces
  * hdd_ctx:	HDD context
  * rtnl_held: True if RTNL lock is held
@@ -6113,6 +6282,145 @@ static int hdd_update_country_code(hdd_context_t *hdd_ctx,
 	}
 
 	return ret;
+}
+
+#ifdef QCA_LL_TX_FLOW_CONTROL_V2
+/**
+ * hdd_txrx_populate_cds_config() - Populate txrx cds configuration
+ * @cds_cfg: CDS Configuration
+ * @hdd_ctx: Pointer to hdd context
+ *
+ * Return: none
+ */
+static inline void hdd_txrx_populate_cds_config(struct cds_config_info
+						*cds_cfg,
+						hdd_context_t *hdd_ctx)
+{
+	cds_cfg->tx_flow_stop_queue_th =
+		hdd_ctx->config->TxFlowStopQueueThreshold;
+	cds_cfg->tx_flow_start_queue_offset =
+		hdd_ctx->config->TxFlowStartQueueOffset;
+}
+#else
+static inline void hdd_txrx_populate_cds_config(struct cds_config_info
+						*cds_cfg,
+						hdd_context_t *hdd_ctx)
+{
+}
+#endif
+
+#ifdef FEATURE_WLAN_RA_FILTERING
+/**
+ * hdd_ra_populate_cds_config() - Populate RA filtering cds configuration
+ * @cds_cfg: CDS Configuration
+ * @hdd_ctx: Pointer to hdd context
+ *
+ * Return: none
+ */
+inline void hdd_ra_populate_cds_config(struct cds_config_info *cds_cfg,
+			      hdd_context_t *hdd_ctx)
+{
+	cds_cfg->ra_ratelimit_interval =
+		hdd_ctx->config->RArateLimitInterval;
+	cds_cfg->is_ra_ratelimit_enabled =
+		hdd_ctx->config->IsRArateLimitEnabled;
+}
+#else
+inline void hdd_ra_populate_cds_config(struct cds_config_info *cds_cfg,
+			     hdd_context_t *hdd_ctx)
+{
+}
+#endif
+
+/**
+ * hdd_update_cds_config() - API to update cds configuration parameters
+ * @hdd_ctx: HDD Context
+ *
+ * Return: 0 for Success, errno on failure
+ */
+int hdd_update_cds_config(hdd_context_t *hdd_ctx)
+{
+	struct cds_config_info *cds_cfg;
+
+	cds_cfg = (struct cds_config_info *)qdf_mem_malloc(sizeof(*cds_cfg));
+	if (!cds_cfg) {
+		hdd_err("failed to allocate cds config");
+		return -ENOMEM;
+	}
+
+	qdf_mem_zero(cds_cfg, sizeof(*cds_cfg));
+
+	/* UMA is supported in hardware for performing the
+	 * frame translation 802.11 <-> 802.3
+	 */
+	cds_cfg->frame_xln_reqd = 1;
+	cds_cfg->driver_type = DRIVER_TYPE_PRODUCTION;
+	cds_cfg->powersave_offload_enabled =
+		hdd_ctx->config->enablePowersaveOffload;
+	cds_cfg->sta_dynamic_dtim = hdd_ctx->config->enableDynamicDTIM;
+	cds_cfg->sta_mod_dtim = hdd_ctx->config->enableModulatedDTIM;
+	cds_cfg->sta_maxlimod_dtim = hdd_ctx->config->fMaxLIModulatedDTIM;
+	cds_cfg->wow_enable = hdd_ctx->config->wowEnable;
+	cds_cfg->max_wow_filters = hdd_ctx->config->maxWoWFilters;
+
+	/* Here ol_ini_info is used to store ini status of arp offload
+	 * ns offload and others. Currently 1st bit is used for arp
+	 * off load and 2nd bit for ns offload currently, rest bits are unused
+	 */
+	if (hdd_ctx->config->fhostArpOffload)
+		cds_cfg->ol_ini_info = cds_cfg->ol_ini_info | 0x1;
+	if (hdd_ctx->config->fhostNSOffload)
+		cds_cfg->ol_ini_info = cds_cfg->ol_ini_info | 0x2;
+
+	/*
+	 * Copy the DFS Phyerr Filtering Offload status.
+	 * This parameter reflects the value of the
+	 * dfs_phyerr_filter_offload flag as set in the ini.
+	 */
+	cds_cfg->dfs_phyerr_filter_offload =
+		hdd_ctx->config->fDfsPhyerrFilterOffload;
+	if (hdd_ctx->config->ssdp)
+		cds_cfg->ssdp = hdd_ctx->config->ssdp;
+
+	cds_cfg->enable_mc_list = hdd_ctx->config->fEnableMCAddrList;
+	cds_cfg->ap_maxoffload_peers = hdd_ctx->config->apMaxOffloadPeers;
+
+	cds_cfg->ap_maxoffload_reorderbuffs =
+		hdd_ctx->config->apMaxOffloadReorderBuffs;
+
+	cds_cfg->ap_disable_intrabss_fwd =
+		hdd_ctx->config->apDisableIntraBssFwd;
+
+	cds_cfg->dfs_pri_multiplier =
+		hdd_ctx->config->dfsRadarPriMultiplier;
+	cds_cfg->reorder_offload =
+			hdd_ctx->config->reorderOffloadSupport;
+
+	/* IPA micro controller data path offload resource config item */
+	cds_cfg->uc_offload_enabled = hdd_ipa_uc_is_enabled(hdd_ctx);
+	cds_cfg->uc_txbuf_count = hdd_ctx->config->IpaUcTxBufCount;
+	cds_cfg->uc_txbuf_size = hdd_ctx->config->IpaUcTxBufSize;
+	cds_cfg->uc_rxind_ringcount =
+			hdd_ctx->config->IpaUcRxIndRingCount;
+	cds_cfg->uc_tx_partition_base =
+				hdd_ctx->config->IpaUcTxPartitionBase;
+	cds_cfg->max_scan = hdd_ctx->config->max_scan_count;
+
+	cds_cfg->ip_tcp_udp_checksum_offload =
+		hdd_ctx->config->enable_ip_tcp_udp_checksum_offload;
+	cds_cfg->enable_rxthread = hdd_ctx->config->enableRxThread;
+	cds_cfg->ce_classify_enabled =
+		hdd_ctx->config->ce_classify_enabled;
+	cds_cfg->tx_chain_mask_cck = hdd_ctx->config->tx_chain_mask_cck;
+	cds_cfg->self_gen_frm_pwr = hdd_ctx->config->self_gen_frm_pwr;
+	cds_cfg->max_station = hdd_ctx->config->maxNumberOfPeers;
+
+	hdd_ra_populate_cds_config(cds_cfg, hdd_ctx);
+	hdd_txrx_populate_cds_config(cds_cfg, hdd_ctx);
+	hdd_nan_populate_cds_config(cds_cfg, hdd_ctx);
+
+	cds_init_ini_config(cds_cfg);
+	return 0;
 }
 
 /**
@@ -6582,6 +6890,10 @@ int hdd_wlan_startup(struct device *dev, void *hif_sc)
 	if (ret)
 		goto err_hdd_free_context;
 
+	ret = hdd_update_config(hdd_ctx);
+	if (ret)
+		goto err_hdd_free_context;
+
 	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
 		ret = hdd_enable_ftm(hdd_ctx);
 		if (ret)
@@ -6591,7 +6903,6 @@ int hdd_wlan_startup(struct device *dev, void *hif_sc)
 	}
 
 	hdd_wlan_green_ap_init(hdd_ctx);
-
 	status = cds_open();
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		hddLog(QDF_TRACE_LEVEL_FATAL, FL("cds_open failed"));
@@ -6669,17 +6980,12 @@ int hdd_wlan_startup(struct device *dev, void *hif_sc)
 			&hdd_ctx->target_hw_name);
 
 	/* Get the wlan hw/fw version */
-	hdd_wlan_get_version(adapter, NULL, NULL);
+	hdd_wlan_get_version(hdd_ctx, NULL, NULL);
 
 	ret = hdd_update_country_code(hdd_ctx, adapter);
 
 	if (ret)
 		goto err_close_adapter;
-
-	sme_register11d_scan_done_callback(hdd_ctx->hHal, hdd_11d_scan_done);
-
-	sme_register_oem_data_rsp_callback(hdd_ctx->hHal,
-					hdd_send_oem_data_rsp_msg);
 
 	/* FW capabilities received, Set the Dot11 mode */
 	sme_setdef_dot11mode(hdd_ctx->hHal);
@@ -6717,7 +7023,6 @@ int hdd_wlan_startup(struct device *dev, void *hif_sc)
 		hddLog(LOGE, FL("Failed to init ACS Skip timer"));
 #endif
 
-	wlan_hdd_nan_init(hdd_ctx);
 	sme_cbacks.sme_get_valid_channels = sme_get_cfg_valid_channels;
 	sme_cbacks.sme_get_nss_for_vdev = sme_get_vdev_type_nss;
 	status = cds_init_policy_mgr(&sme_cbacks);
@@ -6753,31 +7058,10 @@ int hdd_wlan_startup(struct device *dev, void *hif_sc)
 			  hdd_bus_bw_compute_cbk, (void *)hdd_ctx);
 #endif
 
-	wlan_hdd_cfg80211_stats_ext_init(hdd_ctx);
-
-	sme_ext_scan_register_callback(hdd_ctx->hHal,
-				       wlan_hdd_cfg80211_extscan_callback);
-
-	status = hdd_register_for_sap_restart_with_channel_switch();
-	if (!QDF_IS_STATUS_SUCCESS(status))
-		goto err_exit_nl_srv;
-
-	sme_set_rssi_threshold_breached_cb(hdd_ctx->hHal,
-				hdd_rssi_threshold_breached);
-
-	status = sme_bpf_offload_register_callback(hdd_ctx->hHal,
-							hdd_get_bpf_offload_cb);
-	if (QDF_IS_STATUS_SUCCESS(status))
-		hdd_err("set bpf offload callback failed");
-
-	hdd_cfg80211_link_layer_stats_init(hdd_ctx);
-	wlan_hdd_tsf_init(hdd_ctx);
 	wlan_hdd_send_all_scan_intf_info(hdd_ctx);
 	wlan_hdd_send_version_pkg(hdd_ctx->target_fw_version,
 				  hdd_ctx->target_hw_version,
 				  hdd_ctx->target_hw_name);
-
-	wlan_hdd_dcc_register_for_dcc_stats_event(hdd_ctx);
 
 	if (hdd_ctx->config->dual_mac_feature_disable) {
 		status = wlan_hdd_disable_all_dual_mac_features(hdd_ctx);
@@ -6801,6 +7085,12 @@ int hdd_wlan_startup(struct device *dev, void *hif_sc)
 		goto err_debugfs_exit;
 
 	memdump_init();
+
+	ret = hdd_register_cb(hdd_ctx);
+	if (ret) {
+		hdd_err("Failed to register HDD callbacks!");
+		goto err_exit_nl_srv;
+	}
 
 	goto success;
 
@@ -6838,7 +7128,7 @@ err_exit_nl_srv:
 		hdd_err("Failed to deinit policy manager");
 		/* Proceed and complete the clean up */
 	}
-
+	cds_deinit_ini_config();
 err_hdd_free_context:
 	hdd_context_destroy(hdd_ctx);
 	QDF_BUG(1);
@@ -6848,6 +7138,122 @@ err_hdd_free_context:
 success:
 	EXIT();
 	return 0;
+}
+
+/**
+ * hdd_register_cb() - Register HDD callbacks.
+ * @hdd_ctx: HDD context
+ *
+ * Register the HDD callbacks to CDS/SME.
+ *
+ * Return: 0 for success or Error code for failure
+ */
+int hdd_register_cb(hdd_context_t *hdd_ctx)
+{
+	QDF_STATUS status;
+	int ret = 0;
+
+	ENTER();
+
+	sme_register11d_scan_done_callback(hdd_ctx->hHal, hdd_11d_scan_done);
+
+	sme_register_oem_data_rsp_callback(hdd_ctx->hHal,
+					hdd_send_oem_data_rsp_msg);
+
+	status = sme_fw_mem_dump_register_cb(hdd_ctx->hHal,
+					     wlan_hdd_cfg80211_fw_mem_dump_cb);
+	if (!QDF_IS_STATUS_SUCCESS(status)) {
+		hdd_err("Failed to register memdump callback");
+		ret = -EINVAL;
+		return ret;
+	}
+
+	sme_set_tsfcb(hdd_ctx->hHal, hdd_get_tsf_cb, hdd_ctx);
+	sme_nan_register_callback(hdd_ctx->hHal,
+				  wlan_hdd_cfg80211_nan_callback);
+	sme_stats_ext_register_callback(hdd_ctx->hHal,
+					wlan_hdd_cfg80211_stats_ext_callback);
+
+	sme_ext_scan_register_callback(hdd_ctx->hHal,
+				       wlan_hdd_cfg80211_extscan_callback);
+
+	status = cds_register_sap_restart_channel_switch_cb(
+			(void *)hdd_sap_restart_with_channel_switch);
+	if (!QDF_IS_STATUS_SUCCESS(status)) {
+		hdd_err("restart cb registration failed");
+		ret = -EINVAL;
+		return ret;
+	}
+
+	sme_set_rssi_threshold_breached_cb(hdd_ctx->hHal,
+				hdd_rssi_threshold_breached);
+
+	status = sme_bpf_offload_register_callback(hdd_ctx->hHal,
+						   hdd_get_bpf_offload_cb);
+	if (!QDF_IS_STATUS_SUCCESS(status)) {
+		hdd_err("set bpf offload callback failed");
+		ret = -EINVAL;
+		return ret;
+	}
+
+	sme_set_link_layer_stats_ind_cb(hdd_ctx->hHal,
+				wlan_hdd_cfg80211_link_layer_stats_callback);
+
+	wlan_hdd_dcc_register_for_dcc_stats_event(hdd_ctx);
+
+	EXIT();
+
+	return ret;
+}
+
+/**
+ * hdd_deregister_cb() - De-Register HDD callbacks.
+ * @hdd_ctx: HDD context
+ *
+ * De-Register the HDD callbacks to CDS/SME.
+ *
+ * Return: void
+ */
+void hdd_deregister_cb(hdd_context_t *hdd_ctx)
+{
+	QDF_STATUS status;
+
+	ENTER();
+
+	status = sme_deregister_for_dcc_stats_event(hdd_ctx->hHal);
+	if (!QDF_IS_STATUS_SUCCESS(status))
+		hdd_err("De-register of dcc stats callback failed: %d",
+			status);
+
+	sme_reset_link_layer_stats_ind_cb(hdd_ctx->hHal);
+	status = sme_bpf_offload_deregister_callback(hdd_ctx->hHal);
+	if (!QDF_IS_STATUS_SUCCESS(status))
+		hdd_err("De-register bpf offload callback failed: %d",
+			status);
+	sme_reset_rssi_threshold_breached_cb(hdd_ctx->hHal);
+
+	status = cds_deregister_sap_restart_channel_switch_cb();
+	if (!QDF_IS_STATUS_SUCCESS(status))
+		hdd_err("De-register restart cb registration failed: %d",
+			status);
+
+	sme_stats_ext_register_callback(hdd_ctx->hHal,
+					wlan_hdd_cfg80211_stats_ext_callback);
+
+	sme_nan_deregister_callback(hdd_ctx->hHal);
+	status = sme_reset_tsfcb(hdd_ctx->hHal);
+	if (!QDF_IS_STATUS_SUCCESS(status))
+		hdd_err("Failed to de-register tsfcb the callback:%d",
+			status);
+	status = sme_fw_mem_dump_unregister_cb(hdd_ctx->hHal);
+	if (!QDF_IS_STATUS_SUCCESS(status))
+		hdd_err("Failed to de-register the fw mem dump callback: %d",
+			status);
+
+	sme_deregister_oem_data_rsp_callback(hdd_ctx->hHal);
+	sme_deregister11d_scan_done_callback(hdd_ctx->hHal);
+
+	EXIT();
 }
 
 /**
@@ -7887,12 +8293,20 @@ static void hdd_update_hif_config(hdd_context_t *hdd_ctx)
  * @hdd_ctx: HDD Context
  *
  * API is used to initialize all driver per module configuration parameters
- * Return: void
+ * Return: 0 for success, errno for failure
  */
-void hdd_update_config(hdd_context_t *hdd_ctx)
+int hdd_update_config(hdd_context_t *hdd_ctx)
 {
+	int ret;
+
 	hdd_update_ol_config(hdd_ctx);
 	hdd_update_hif_config(hdd_ctx);
+	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam())
+		ret = hdd_update_cds_config_ftm(hdd_ctx);
+	else
+		ret = hdd_update_cds_config(hdd_ctx);
+
+	return ret;
 }
 
 /* Register the module init/exit functions */

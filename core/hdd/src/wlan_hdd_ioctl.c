@@ -837,22 +837,66 @@ static int hdd_parse_reassoc_command_v1_data(const uint8_t *pValue,
 	return 0;
 }
 
+#ifdef WLAN_FEATURE_ROAM_OFFLOAD
+void hdd_wma_send_fastreassoc_cmd(int sessionId, const tSirMacAddr bssid,
+				  int channel)
+{
+	struct wma_roam_invoke_cmd *fastreassoc;
+	cds_msg_t msg = {0};
+
+	fastreassoc = qdf_mem_malloc(sizeof(*fastreassoc));
+	if (NULL == fastreassoc) {
+		hdd_err("qdf_mem_malloc failed for fastreassoc");
+		return;
+	}
+	fastreassoc->vdev_id = sessionId;
+	fastreassoc->channel = channel;
+	fastreassoc->bssid[0] = bssid[0];
+	fastreassoc->bssid[1] = bssid[1];
+	fastreassoc->bssid[2] = bssid[2];
+	fastreassoc->bssid[3] = bssid[3];
+	fastreassoc->bssid[4] = bssid[4];
+	fastreassoc->bssid[5] = bssid[5];
+
+	msg.type = SIR_HAL_ROAM_INVOKE;
+	msg.reserved = 0;
+	msg.bodyptr = fastreassoc;
+	if (QDF_STATUS_SUCCESS != cds_mq_post_message(QDF_MODULE_ID_WMA,
+								&msg)) {
+		qdf_mem_free(fastreassoc);
+		hdd_err("Not able to post ROAM_INVOKE_CMD message to WMA");
+	}
+}
+#else
+void hdd_wma_send_fastreassoc_cmd(int sessionId, const tSirMacAddr bssid,
+				  int channel)
+{
+}
+
+#endif
+
 /**
  * hdd_reassoc() - perform a userspace-directed reassoc
  * @adapter:	Adapter upon which the command was received
  * @bssid:	BSSID with which to reassociate
  * @channel:	channel upon which to reassociate
+ * @src:        The source for the trigger of this action
  *
  * This function performs a userspace-directed reassoc operation
  *
  * Return: 0 for success non-zero for failure
  */
-static int
-hdd_reassoc(hdd_adapter_t *adapter, const uint8_t *bssid,
-	    const uint8_t channel)
+int hdd_reassoc(hdd_adapter_t *adapter, const uint8_t *bssid,
+		const uint8_t channel, const handoff_src src)
 {
 	hdd_station_ctx_t *pHddStaCtx;
+	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 	int ret = 0;
+
+	if (hdd_ctx == NULL) {
+		hdd_err("Invalid hdd ctx");
+		return -EINVAL;
+	}
 
 	if (QDF_STA_MODE != adapter->device_mode) {
 		hdd_warn("Unsupported in mode %s(%d)",
@@ -890,12 +934,14 @@ hdd_reassoc(hdd_adapter_t *adapter, const uint8_t *bssid,
 	}
 
 	/* Proceed with reassoc */
-	{
+	if (roaming_offload_enabled(hdd_ctx)) {
+		hdd_wma_send_fastreassoc_cmd((int)adapter->sessionId,
+					bssid, (int)channel);
+	} else {
 		tCsrHandoffRequest handoffInfo;
-		hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 
 		handoffInfo.channel = channel;
-		handoffInfo.src = REASSOC;
+		handoffInfo.src = src;
 		qdf_mem_copy(handoffInfo.bssid.bytes, bssid, QDF_MAC_ADDR_SIZE);
 		sme_handoff_request(hdd_ctx->hHal, adapter->sessionId,
 				    &handoffInfo);
@@ -931,7 +977,7 @@ static int hdd_parse_reassoc_v1(hdd_adapter_t *adapter, const char *command)
 	if (ret) {
 		hdd_err("Failed to parse reassoc command data");
 	} else {
-		ret = hdd_reassoc(adapter, bssid, channel);
+		ret = hdd_reassoc(adapter, bssid, channel, REASSOC);
 	}
 	return ret;
 }
@@ -961,7 +1007,7 @@ static int hdd_parse_reassoc_v2(hdd_adapter_t *adapter, const char *command)
 		hdd_err("MAC address parsing failed");
 		ret = -EINVAL;
 	} else {
-		ret = hdd_reassoc(adapter, bssid, params.channel);
+		ret = hdd_reassoc(adapter, bssid, params.channel, REASSOC);
 	}
 	return ret;
 }
@@ -4344,41 +4390,6 @@ exit:
 	return ret;
 }
 
-#ifdef WLAN_FEATURE_ROAM_OFFLOAD
-static void hdd_wma_send_fastreassoc_cmd(int sessionId, tSirMacAddr bssid,
-							int channel)
-{
-	struct wma_roam_invoke_cmd *fastreassoc;
-	cds_msg_t msg = {0};
-
-	fastreassoc = qdf_mem_malloc(sizeof(*fastreassoc));
-	if (NULL == fastreassoc) {
-		hdd_err("qdf_mem_malloc failed for fastreassoc");
-		return;
-	}
-	fastreassoc->vdev_id = sessionId;
-	fastreassoc->channel = channel;
-	fastreassoc->bssid[0] = bssid[0];
-	fastreassoc->bssid[1] = bssid[1];
-	fastreassoc->bssid[2] = bssid[2];
-	fastreassoc->bssid[3] = bssid[3];
-	fastreassoc->bssid[4] = bssid[4];
-	fastreassoc->bssid[5] = bssid[5];
-
-	msg.type = SIR_HAL_ROAM_INVOKE;
-	msg.reserved = 0;
-	msg.bodyptr = fastreassoc;
-	if (QDF_STATUS_SUCCESS != cds_mq_post_message(QDF_MODULE_ID_WMA,
-								&msg)) {
-		qdf_mem_free(fastreassoc);
-		hdd_err("Not able to post ROAM_INVOKE_CMD message to WMA");
-	}
-}
-#else
-static inline void hdd_wma_send_fastreassoc_cmd(int sessionId,
-		tSirMacAddr bssid, int channel)
-{}
-#endif
 static int drv_cmd_fast_reassoc(hdd_adapter_t *adapter,
 				hdd_context_t *hdd_ctx,
 				uint8_t *command,

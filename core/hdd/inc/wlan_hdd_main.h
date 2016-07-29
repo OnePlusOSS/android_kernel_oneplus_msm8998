@@ -1631,7 +1631,7 @@ hdd_adapter_t *hdd_get_adapter_by_sme_session_id(hdd_context_t *hdd_ctx,
 enum phy_ch_width hdd_map_nl_chan_width(enum nl80211_chan_width ch_width);
 uint8_t wlan_hdd_find_opclass(tHalHandle hal, uint8_t channel,
 			uint8_t bw_offset);
-void hdd_update_config(hdd_context_t *hdd_ctx);
+int hdd_update_config(hdd_context_t *hdd_ctx);
 
 QDF_STATUS hdd_chan_change_notify(hdd_adapter_t *adapter,
 		struct net_device *dev,
@@ -1737,4 +1737,13 @@ static inline int wlan_hdd_nl_init(hdd_context_t *hdd_ctx)
 #endif
 QDF_STATUS hdd_sme_close_session_callback(void *pContext);
 
+int hdd_reassoc(hdd_adapter_t *adapter, const uint8_t *bssid,
+		const uint8_t channel, const handoff_src src);
+
+int hdd_register_cb(hdd_context_t *hdd_ctx);
+void hdd_deregister_cb(hdd_context_t *hdd_ctx);
+int hdd_start_station_adapter(hdd_adapter_t *adapter);
+int hdd_start_ap_adapter(hdd_adapter_t *adapter);
+int hdd_start_ftm_adapter(hdd_adapter_t *adapter);
+int hdd_set_fw_params(hdd_adapter_t *adapter);
 #endif /* end #if !defined(WLAN_HDD_MAIN_H) */

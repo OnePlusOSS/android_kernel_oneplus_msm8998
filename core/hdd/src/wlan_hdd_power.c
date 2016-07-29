@@ -1326,6 +1326,8 @@ QDF_STATUS hdd_wlan_shutdown(void)
 	hdd_cleanup_scan_queue(pHddCtx);
 	hdd_reset_all_adapters(pHddCtx);
 
+	/* De-register the HDD callbacks */
+	hdd_deregister_cb(pHddCtx);
 	hdd_ipa_uc_ssr_deinit();
 
 	cds_sched_context = get_cds_sched_ctxt();
@@ -1432,7 +1434,7 @@ QDF_STATUS hdd_wlan_re_init(void *hif_sc)
 	hdd_context_t *pHddCtx = NULL;
 	QDF_STATUS qdf_ret_status;
 	hdd_adapter_t *pAdapter;
-	int i;
+	int i, ret;
 
 	hdd_prevent_suspend(WIFI_POWER_EVENT_WAKELOCK_DRIVER_REINIT);
 
@@ -1459,6 +1461,10 @@ QDF_STATUS hdd_wlan_re_init(void *hif_sc)
 
 	/* The driver should always be initialized in STA mode after SSR */
 	hdd_set_conparam(0);
+
+	ret = hdd_update_config(pHddCtx);
+	if (ret)
+		goto err_re_init;
 
 	/* Re-open CDS, it is a re-open b'se control transport was never closed. */
 	qdf_status = cds_open();
@@ -1551,9 +1557,7 @@ QDF_STATUS hdd_wlan_re_init(void *hif_sc)
 	if (hdd_ipa_uc_ssr_reinit())
 		hdd_err("HDD IPA UC reinit failed");
 
-	/* Get WLAN Host/FW/HW version */
-	if (pAdapter)
-		hdd_wlan_get_version(pAdapter, NULL, NULL);
+	hdd_wlan_get_version(pHddCtx, NULL, NULL);
 
 	/* Restart all adapters */
 	hdd_start_all_adapters(pHddCtx);
@@ -1611,15 +1615,11 @@ QDF_STATUS hdd_wlan_re_init(void *hif_sc)
 	/* Allow the phone to go to sleep */
 	hdd_allow_suspend(WIFI_POWER_EVENT_WAKELOCK_DRIVER_REINIT);
 
-	sme_ext_scan_register_callback(pHddCtx->hHal,
-				wlan_hdd_cfg80211_extscan_callback);
-
-	qdf_status = hdd_register_for_sap_restart_with_channel_switch();
-	if (!QDF_IS_STATUS_SUCCESS(qdf_status))
-		/* Error already logged */
+	ret = hdd_register_cb(pHddCtx);
+	if (ret) {
+		hdd_err("Failed to register HDD callbacks!");
 		goto err_cds_disable;
-
-	sme_set_rssi_threshold_breached_cb(pHddCtx->hHal, hdd_rssi_threshold_breached);
+	}
 
 	wlan_hdd_send_all_scan_intf_info(pHddCtx);
 	wlan_hdd_send_version_pkg(pHddCtx->target_fw_version,

@@ -1971,10 +1971,6 @@ int hdd_softap_set_channel_change(struct net_device *dev, int target_channel,
 		}
 	}
 
-	if (qdf_atomic_read(&pHddCtx->dfs_radar_found)) {
-		hdd_err("Channel switch in progress!!");
-		return -EBUSY;
-	}
 	/*
 	 * Set the dfs_radar_found flag to mimic channel change
 	 * when a radar is found. This will enable synchronizing
@@ -1984,7 +1980,11 @@ int hdd_softap_set_channel_change(struct net_device *dev, int target_channel,
 	 * once the channel change is completed and SAP will
 	 * post eSAP_START_BSS_EVENT success event to HDD.
 	 */
-	qdf_atomic_set(&pHddCtx->dfs_radar_found, 1);
+	if (qdf_atomic_inc_return(&pHddCtx->dfs_radar_found) > 1) {
+		hdd_err("Channel switch in progress!!");
+		return -EBUSY;
+	}
+
 	/*
 	 * Post the Channel Change request to SAP.
 	 */
@@ -2794,19 +2794,21 @@ static __iw_softap_setparam(struct net_device *dev,
 			(WLAN_HDD_GET_AP_CTX_PTR(pHostapdAdapter))->
 			operatingChannel;
 		bool isDfsch;
+		int32_t dfs_radar_found;
 
 		isDfsch = (CHANNEL_STATE_DFS ==
 			   cds_get_channel_state(ch));
 
 		hdd_notice("Set QCASAP_SET_RADAR_CMD val %d", set_value);
 
-		if (!qdf_atomic_read(&pHddCtx->dfs_radar_found) && isDfsch) {
+		dfs_radar_found = qdf_atomic_read(&pHddCtx->dfs_radar_found);
+		if (!dfs_radar_found && isDfsch) {
 			ret = wma_cli_set_command(pHostapdAdapter->sessionId,
 						  WMA_VDEV_DFS_CONTROL_CMDID,
 						  set_value, VDEV_CMD);
 		} else {
 			hdd_err("Ignore, radar_found: %d,  dfs_channel: %d",
-			       qdf_atomic_read(&pHddCtx->dfs_radar_found), isDfsch);
+				dfs_radar_found, isDfsch);
 		}
 		break;
 	}
@@ -6434,12 +6436,15 @@ static int wlan_hdd_set_channel(struct wiphy *wiphy,
 	 */
 
 	channel = ieee80211_frequency_to_channel(chandef->chan->center_freq);
+
 	if (NL80211_CHAN_WIDTH_80P80 == chandef->width ||
-	    NL80211_CHAN_WIDTH_160 == chandef->width)
-		channel_seg2 =
-			ieee80211_frequency_to_channel(chandef->center_freq2);
-	else
-		channel_seg2 = 0;
+	    NL80211_CHAN_WIDTH_160 == chandef->width) {
+		if (chandef->center_freq2)
+			channel_seg2 = ieee80211_frequency_to_channel(
+					chandef->center_freq2);
+		else
+			hdd_err("Invalid center_freq2");
+	}
 
 	/* Check freq range */
 	if ((WNI_CFG_CURRENT_CHANNEL_STAMIN > channel) ||

@@ -1247,6 +1247,7 @@ static void hdd_send_association_event(struct net_device *dev,
 	int we_event;
 	char *msg;
 	struct qdf_mac_addr peerMacAddr;
+	hdd_adapter_t *tdls_adapter;
 
 	/* Added to find the auth type on the fly at run time */
 	/* rather than with cfg to see if FT is enabled */
@@ -1340,6 +1341,14 @@ static void hdd_send_association_event(struct net_device *dev,
 							&chan_info,
 							pAdapter->device_mode);
 
+		hdd_info("Assoc: Check and enable or disable TDLS state ");
+		if ((pAdapter->device_mode == QDF_STA_MODE ||
+		     pAdapter->device_mode == QDF_P2P_CLIENT_MODE) &&
+		     !pHddCtx->concurrency_marked)
+			wlan_hdd_update_tdls_info(pAdapter,
+				pCsrRoamInfo->tdls_prohibited,
+				pCsrRoamInfo->tdls_chan_swit_prohibited);
+
 #ifdef MSM_PLATFORM
 #ifdef CONFIG_CNSS
 		/* start timer in sta/p2p_cli */
@@ -1389,16 +1398,21 @@ static void hdd_send_association_event(struct net_device *dev,
 		wlan_hdd_send_status_pkg(pAdapter, pHddStaCtx, 1, 0);
 #endif
 #ifdef FEATURE_WLAN_TDLS
-		if ((pAdapter->device_mode == QDF_STA_MODE) &&
-		    (pCsrRoamInfo)) {
-			hddLog(LOG4,
-				FL("tdls_prohibited: %d, tdls_chan_swit_prohibited: %d"),
-				pCsrRoamInfo->tdls_prohibited,
-				pCsrRoamInfo->tdls_chan_swit_prohibited);
-
-			wlan_hdd_update_tdls_info(pAdapter,
-				pCsrRoamInfo->tdls_prohibited,
-				pCsrRoamInfo->tdls_chan_swit_prohibited);
+		hdd_info("Disassoc: Check and enable or disable TDLS state ");
+		if ((pAdapter->device_mode == QDF_STA_MODE ||
+		     pAdapter->device_mode == QDF_P2P_CLIENT_MODE) &&
+		     !pHddCtx->concurrency_marked) {
+				wlan_hdd_update_tdls_info(pAdapter,
+							  true,
+							  true);
+		}
+		if (!pHddCtx->concurrency_marked) {
+			tdls_adapter = wlan_hdd_tdls_check_and_enable(
+								pHddCtx);
+			if (NULL != tdls_adapter)
+				wlan_hdd_update_tdls_info(tdls_adapter,
+							  false,
+							  false);
 		}
 #endif
 #ifdef MSM_PLATFORM
@@ -2892,6 +2906,13 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 						GFP_KERNEL);
 			}
 			hdd_clear_roam_profile_ie(pAdapter);
+		} else  if ((eCSR_ROAM_CANCELLED == roamStatus
+		    && !hddDisconInProgress)) {
+				cfg80211_connect_result(dev,
+						pWextState->req_bssId.bytes,
+						NULL, 0, NULL, 0,
+						WLAN_STATUS_UNSPECIFIED_FAILURE,
+						GFP_KERNEL);
 		}
 
 		if (pRoamInfo) {
@@ -2909,9 +2930,10 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 		/*
 		 * Set connection state to eConnectionState_NotConnected only
 		 * when CSR has completed operation - with a
-		 * ASSOCIATION_FAILURE status.
+		 * ASSOCIATION_FAILURE or eCSR_ROAM_CANCELLED status.
 		 */
-		if (eCSR_ROAM_ASSOCIATION_FAILURE == roamStatus
+		if (((eCSR_ROAM_ASSOCIATION_FAILURE == roamStatus) ||
+			(eCSR_ROAM_CANCELLED == roamStatus))
 		    && !hddDisconInProgress) {
 			hdd_conn_set_connection_state(pAdapter,
 					eConnectionState_NotConnected);
@@ -3903,12 +3925,8 @@ hdd_roam_tdls_status_update_handler(hdd_adapter_t *pAdapter,
 	case eCSR_ROAM_RESULT_TDLS_SHOULD_DISCOVER:
 	{
 		/* ignore TDLS_SHOULD_DISCOVER if any concurrency detected */
-		if (((1 << QDF_STA_MODE) != pHddCtx->concurrency_mode) ||
-		    (pHddCtx->no_of_active_sessions[QDF_STA_MODE] > 1)) {
-			hddLog(LOG2,
-				FL("concurrency detected. ignore SHOULD_DISCOVER concurrency_mode: 0x%x, active_sessions: %d"),
-				 pHddCtx->concurrency_mode,
-				 pHddCtx->no_of_active_sessions[QDF_STA_MODE]);
+		if (!cds_check_is_tdls_allowed(pAdapter->device_mode)) {
+			hdd_err("TDLS not allowed, ignore SHOULD_DISCOVER");
 			status = QDF_STATUS_E_FAILURE;
 			break;
 		}
@@ -4761,6 +4779,8 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 			pRoamInfo->roamSynchInProgress = false;
 #endif
 		break;
+	case eCSR_ROAM_CANCELLED:
+		hdd_info("****eCSR_ROAM_CANCELLED****");
 	case eCSR_ROAM_ASSOCIATION_FAILURE:
 		qdf_ret_status = hdd_association_completion_handler(pAdapter,
 								    pRoamInfo,

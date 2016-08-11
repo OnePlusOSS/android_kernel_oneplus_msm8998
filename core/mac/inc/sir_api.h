@@ -2908,6 +2908,7 @@ typedef struct {
  * struct sSirPNOScanReq - PNO Scan request structure
  * @enable: flag to enable or disable
  * @modePNO: PNO Mode
+ * @do_passive_scan: Flag to request passive scan to fw
  * @ucNetworksCount: Number of networks
  * @aNetworks: Preferred network list
  * @sessionId: Session identifier
@@ -2922,6 +2923,7 @@ typedef struct {
 typedef struct sSirPNOScanReq {
 	uint8_t enable;
 	eSirPNOMode modePNO;
+	bool    do_passive_scan;
 	uint8_t ucNetworksCount;
 	tSirNetworkType aNetworks[SIR_PNO_MAX_SUPP_NETWORKS];
 	uint8_t sessionId;

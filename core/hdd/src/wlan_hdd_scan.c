@@ -2633,6 +2633,11 @@ static int __wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
 		pPnoRequest->aNetworks[i].rssiThreshold =
 			request->match_sets[i].rssi_thold;
 	}
+	 /* set scan to passive if no SSIDs are specified in the request */
+	if (0 == request->n_ssids)
+		pPnoRequest->do_passive_scan = true;
+	else
+		pPnoRequest->do_passive_scan = false;
 
 	for (i = 0; i < request->n_ssids; i++) {
 		j = 0;

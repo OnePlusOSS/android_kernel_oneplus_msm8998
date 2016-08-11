@@ -248,6 +248,16 @@ typedef enum {
 #define CFG_ROAM_PREFER_5GHZ_DEFAULT          (1)
 
 /*
+ * Timer waiting for interface up from the upper layer. If
+ * this timer expires all the cds modules shall be closed.
+ * Time Units: ms
+ */
+#define CFG_INTERFACE_CHANGE_WAIT_NAME    "gInterfaceChangeWait"
+#define CFG_INTERFACE_CHANGE_WAIT_MIN     (10)
+#define CFG_INTERFACE_CHANGE_WAIT_MAX     (10000)
+#define CFG_INTERFACE_CHANGE_WAIT_DEFAULT (50)
+
+/*
     To enable, set gRoamIntraBand=1 (Roaming within band)
     To disable, set gRoamIntraBand=0 (Roaming across band)
  */
@@ -848,7 +858,7 @@ typedef enum {
  * Comma is used as a separator for each byte.
  */
 #define CFG_RM_CAPABILITY_NAME            "rm_capability"
-#define CFG_RM_CAPABILITY_DEFAULT         "73,00,6D,00,04"
+#define CFG_RM_CAPABILITY_DEFAULT         "73,10,6D,00,04"
 
 #define CFG_QOS_IMPLICIT_SETUP_ENABLED_NAME                 "ImplicitQosIsEnabled"
 #define CFG_QOS_IMPLICIT_SETUP_ENABLED_MIN                  (0)
@@ -4047,6 +4057,7 @@ struct hdd_config {
 	bool enable_nan_datapath;
 	uint8_t nan_datapath_ndi_channel;
 #endif
+	uint32_t iface_change_wait_time;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

@@ -1962,21 +1962,6 @@ QDF_STATUS wma_open(void *cds_context,
 
 #ifdef FEATURE_OEM_DATA_SUPPORT
 	wmi_unified_register_event_handler(wma_handle->wmi_handle,
-					   WMI_OEM_CAPABILITY_EVENTID,
-					   wma_oem_capability_event_callback,
-					   WMA_RX_SERIALIZER_CTX);
-
-	wmi_unified_register_event_handler(wma_handle->wmi_handle,
-				WMI_OEM_MEASUREMENT_REPORT_EVENTID,
-				wma_oem_measurement_report_event_callback,
-				WMA_RX_SERIALIZER_CTX);
-
-	wmi_unified_register_event_handler(wma_handle->wmi_handle,
-					   WMI_OEM_ERROR_REPORT_EVENTID,
-					   wma_oem_error_report_event_callback,
-					   WMA_RX_SERIALIZER_CTX);
-
-	wmi_unified_register_event_handler(wma_handle->wmi_handle,
 					   WMI_OEM_RESPONSE_EVENTID,
 					   wma_oem_data_response_handler,
 					   WMA_RX_SERIALIZER_CTX);
@@ -3967,6 +3952,7 @@ static void wma_update_hdd_cfg(tp_wma_handle wma_handle)
 	tgt_cfg.lpss_support = wma_handle->lpss_support;
 #endif /* WLAN_FEATURE_LPSS */
 	tgt_cfg.ap_arpns_support = wma_handle->ap_arpns_support;
+	tgt_cfg.bpf_enabled = wma_handle->bpf_enabled;
 	tgt_cfg.fine_time_measurement_cap =
 		wma_handle->fine_time_measurement_cap;
 	wma_setup_egap_support(&tgt_cfg, wma_handle);
@@ -4285,6 +4271,10 @@ int wma_rx_service_ready_event(void *handle, uint8_t *cmd_param_info,
 	wma_handle->ap_arpns_support =
 		WMI_SERVICE_IS_ENABLED(wma_handle->wmi_service_bitmap,
 				WMI_SERVICE_AP_ARPNS_OFFLOAD);
+
+	wma_handle->bpf_enabled =
+		WMI_SERVICE_IS_ENABLED(wma_handle->wmi_service_bitmap,
+				WMI_SERVICE_BPF_OFFLOAD);
 
 	if (WMI_SERVICE_IS_ENABLED(wma_handle->wmi_service_bitmap,
 				   WMI_SERVICE_CSA_OFFLOAD)) {
@@ -5523,12 +5513,6 @@ QDF_STATUS wma_mc_process_msg(void *cds_context, cds_msg_t *msg)
 				(tpSirGtkOffloadGetInfoRspParams)msg->bodyptr);
 		break;
 #endif /* WLAN_FEATURE_GTK_OFFLOAD */
-#ifdef FEATURE_OEM_DATA_SUPPORT
-	case WMA_START_OEM_DATA_REQ:
-		wma_start_oem_data_req(wma_handle,
-				       (tStartOemDataReq *) msg->bodyptr);
-		break;
-#endif /* FEATURE_OEM_DATA_SUPPORT */
 	case WMA_SET_HOST_OFFLOAD:
 		wma_enable_arp_ns_offload(wma_handle,
 					  (tpSirHostOffloadReq) msg->bodyptr,

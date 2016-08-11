@@ -47,10 +47,6 @@
 #include "sap_api.h"
 #include "csr_internal.h"
 
-#ifdef FEATURE_OEM_DATA_SUPPORT
-#include "oem_data_internal.h"
-#endif
-
 #include "sme_rrm_internal.h"
 #include "rrm_global.h"
 #include "p2p_api.h"
@@ -815,11 +811,6 @@ typedef struct sAniSirLim {
 	uint8_t gSmeSessionId;
 	uint16_t gTransactionId;
 
-#ifdef FEATURE_OEM_DATA_SUPPORT
-	tLimMlmOemDataReq *gpLimMlmOemDataReq;
-	tLimMlmOemDataRsp *gpLimMlmOemDataRsp;
-#endif
-
 	tSirRemainOnChnReq *gpLimRemainOnChanReq;       /* hold remain on chan request in this buf */
 	qdf_mutex_t lim_frame_register_lock;
 	qdf_list_t gLimMgmtFrameRegistratinQueue;
@@ -935,9 +926,6 @@ typedef struct sAniSirGlobal {
 	tCsrScanStruct scan;
 	tCsrRoamStruct roam;
 
-#ifdef FEATURE_OEM_DATA_SUPPORT
-	tOemDataStruct oemData;
-#endif
 	tRrmContext rrm;
 #ifdef WLAN_FEATURE_CONCURRENT_P2P
 	tp2pContext p2pContext[MAX_NO_OF_P2P_SESSIONS];

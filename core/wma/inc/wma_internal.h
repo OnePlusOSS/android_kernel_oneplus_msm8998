@@ -940,15 +940,6 @@ int wma_gtk_offload_status_event(void *handle, uint8_t *event, uint32_t len);
 #endif
 
 #ifdef FEATURE_OEM_DATA_SUPPORT
-int wma_oem_capability_event_callback(void *handle,
-				      uint8_t *datap, uint32_t len);
-
-int wma_oem_measurement_report_event_callback(void *handle, uint8_t *datap,
-					      uint32_t len);
-
-int wma_oem_error_report_event_callback(void *handle, uint8_t *datap,
-					uint32_t len);
-
 int wma_oem_data_response_handler(void *handle, uint8_t *datap,
 				  uint32_t len);
 #endif
@@ -1010,11 +1001,6 @@ int wma_process_receive_filter_set_filter_req(tp_wma_handle wma_handle,
 int wma_process_receive_filter_clear_filter_req(tp_wma_handle wma_handle,
 						       tSirRcvFltPktClearParam *
 						       rcv_clear_param);
-
-#ifdef FEATURE_OEM_DATA_SUPPORT
-void wma_start_oem_data_req(tp_wma_handle wma_handle,
-				   tStartOemDataReq * startOemDataReq);
-#endif
 
 #ifdef FEATURE_WLAN_ESE
 QDF_STATUS wma_process_tsm_stats_req(tp_wma_handle wma_handler,

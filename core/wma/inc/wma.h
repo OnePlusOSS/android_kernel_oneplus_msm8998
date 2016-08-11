@@ -1430,6 +1430,7 @@ typedef struct {
 	qdf_runtime_lock_t wmi_cmd_rsp_runtime_lock;
 	qdf_runtime_lock_t wma_runtime_resume_lock;
 	uint32_t fine_time_measurement_cap;
+	bool bpf_enabled;
 	struct wma_ini_config ini_config;
 	struct wma_valid_channels saved_chan;
 	/* NAN datapath support enabled in firmware */
@@ -2145,3 +2146,8 @@ QDF_STATUS wma_create_peer(tp_wma_handle wma, ol_txrx_pdev_handle pdev,
 struct wma_ini_config *wma_get_ini_handle(tp_wma_handle wma_handle);
 WLAN_PHY_MODE wma_chan_phy_mode(u8 chan, enum phy_ch_width chan_width,
 	u8 dot11_mode);
+
+#ifdef FEATURE_OEM_DATA_SUPPORT
+QDF_STATUS wma_start_oem_data_req(tp_wma_handle wma_handle,
+				  struct oem_data_req *oem_req);
+#endif

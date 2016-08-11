@@ -2012,6 +2012,7 @@ struct pno_nw_type {
  * @enable: flag to enable or disable
  * @modePNO: PNO Mode
  * @ucNetworksCount: Number of networks
+ * @do_passive_scan: Flag to request passive scan to fw
  * @aNetworks: Preferred network list
  * @sessionId: Session identifier
  * @fast_scan_period: Fast Scan period
@@ -2033,6 +2034,7 @@ struct pno_scan_req_params {
 	uint8_t enable;
 	enum pno_mode modePNO;
 	uint8_t ucNetworksCount;
+	bool    do_passive_scan;
 	struct pno_nw_type aNetworks[WMI_PNO_MAX_SUPP_NETWORKS];
 	uint8_t sessionId;
 	uint32_t fast_scan_period;

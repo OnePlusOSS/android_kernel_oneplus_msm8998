@@ -426,10 +426,11 @@ static void mlm_add_sta(tpAniSirGlobal mac_ctx, tpAddStaParams sta_param,
 	if (session_entry->vhtCapability) {
 		sta_param->vhtCapable = true;
 		sta_param->vhtTxBFCapable =
-				session_entry->txBFIniFeatureEnabled;
-		sta_param->vhtTxMUBformeeCapable = session_entry->txMuBformee;
+				session_entry->vht_config.su_beam_formee;
+		sta_param->vhtTxMUBformeeCapable =
+				session_entry->vht_config.mu_beam_formee;
 		sta_param->enable_su_tx_bformer =
-				session_entry->enable_su_tx_bformer;
+				session_entry->vht_config.su_beam_former;
 	}
 	/*
 	 * Since this is Self-STA, need to populate Self MAX_AMPDU_SIZE
@@ -598,6 +599,14 @@ lim_mlm_add_bss(tpAniSirGlobal mac_ctx,
 	}
 	lim_log(mac_ctx, LOG2, FL("dot11_mode:%d nss value:%d"),
 			addbss_param->dot11_mode, addbss_param->nss);
+
+	if (cds_is_5_mhz_enabled()) {
+		addbss_param->ch_width = CH_WIDTH_5MHZ;
+		addbss_param->staContext.ch_width = CH_WIDTH_5MHZ;
+	} else if (cds_is_10_mhz_enabled()) {
+		addbss_param->ch_width = CH_WIDTH_10MHZ;
+		addbss_param->staContext.ch_width = CH_WIDTH_10MHZ;
+	}
 
 	msg_buf.type = WMA_ADD_BSS_REQ;
 	msg_buf.reserved = 0;

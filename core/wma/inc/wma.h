@@ -1393,6 +1393,7 @@ typedef struct {
 	uint32_t wow_ipv6_mcast_ra_stats;
 	uint32_t wow_ipv6_mcast_ns_stats;
 	uint32_t wow_ipv6_mcast_na_stats;
+	uint32_t wow_oem_response_wake_up_count;
 
 	/* OCB request contexts */
 	struct sir_ocb_config *ocb_config_req;
@@ -1437,6 +1438,7 @@ typedef struct {
 	bool nan_datapath_enabled;
 	QDF_STATUS (*pe_ndp_event_handler)(tpAniSirGlobal mac_ctx,
 					   cds_msg_t *msg);
+	bool sub_20_support;
 } t_wma_handle, *tp_wma_handle;
 
 /**

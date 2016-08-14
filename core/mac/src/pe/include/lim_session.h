@@ -314,12 +314,8 @@ typedef struct sPESession       /* Added to Support BT-AMP */
 	uint8_t ch_center_freq_seg0;
 	enum phy_ch_width ch_width;
 	uint8_t ch_center_freq_seg1;
-	uint8_t txBFIniFeatureEnabled;
-	uint8_t txbf_csn_value;
-	uint8_t txMuBformee;
 	uint8_t enableVhtpAid;
 	uint8_t enableVhtGid;
-	uint8_t enable_su_tx_bformer;
 	tLimWiderBWChannelSwitchInfo gLimWiderBWChannelSwitch;
 	uint8_t enableAmpduPs;
 	uint8_t enableHtSmps;
@@ -361,7 +357,7 @@ typedef struct sPESession       /* Added to Support BT-AMP */
 	uint8_t isCoalesingInIBSSAllowed;
 
 	tSirHTConfig htConfig;
-
+	struct sir_vht_config vht_config;
 	/*
 	 * Place holder for StartBssReq message
 	 * received by SME state machine

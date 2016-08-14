@@ -3968,6 +3968,13 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		CFG_ADAPT_DWELL_LPF_WEIGHT_MIN,
 		CFG_ADAPT_DWELL_LPF_WEIGHT_MAX),
 
+	REG_VARIABLE(CFG_SUB_20_CHANNEL_WIDTH_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, enable_sub_20_channel_width,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_SUB_20_CHANNEL_WIDTH_DEFAULT,
+		     CFG_SUB_20_CHANNEL_WIDTH_MIN,
+		     CFG_SUB_20_CHANNEL_WIDTH_MAX),
+
 	REG_VARIABLE(CFG_ADAPT_DWELL_PASMON_INTVAL_NAME, WLAN_PARAM_Integer,
 		struct hdd_config, adapt_dwell_passive_mon_intval,
 		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -5662,6 +5669,9 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_info("Name = [%s] Value = [%u]",
 		CFG_ADAPT_DWELL_WIFI_THRESH_NAME,
 		pHddCtx->config->adapt_dwell_wifi_act_threshold);
+	hdd_info("Name = [%s] value = [%u]",
+		 CFG_SUB_20_CHANNEL_WIDTH_NAME,
+		 pHddCtx->config->enable_sub_20_channel_width);
 	hdd_ndp_print_ini_config(pHddCtx);
 	hdd_info("Name = [%s] Value = [%s]",
 		CFG_RM_CAPABILITY_NAME,
@@ -6787,6 +6797,15 @@ bool hdd_update_config_dat(hdd_context_t *pHddCtx)
 		hddLog(LOGE,
 		       "Could not pass on WNI_CFG_IBSS_ATIM_WIN_SIZE to CFG");
 	}
+
+	if (sme_cfg_set_int(pHddCtx->hHal,
+		WNI_CFG_VHT_CSN_BEAMFORMEE_ANT_SUPPORTED,
+		pConfig->txBFCsnValue) ==
+			QDF_STATUS_E_FAILURE) {
+		fStatus = false;
+		hddLog(LOGE,
+		       "Could not pass on WNI_CFG_VHT_CSN_BEAMFORMEE_ANT_SUPPORTED to CFG");
+	}
 	return fStatus;
 }
 #ifdef FEATURE_WLAN_SCAN_PNO
@@ -6927,7 +6946,6 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 	smeConfig->csrConfig.enableTxBF = pConfig->enableTxBF;
 	smeConfig->csrConfig.enable_txbf_sap_mode =
 		pConfig->enable_txbf_sap_mode;
-	smeConfig->csrConfig.txBFCsnValue = pConfig->txBFCsnValue;
 	smeConfig->csrConfig.enable2x2 = pConfig->enable2x2;
 	smeConfig->csrConfig.enableVhtFor24GHz = pConfig->enableVhtFor24GHzBand;
 	smeConfig->csrConfig.enableMuBformee = pConfig->enableMuBformee;
@@ -7260,7 +7278,7 @@ QDF_STATUS hdd_update_nss(hdd_context_t *hdd_ctx, uint8_t nss)
 	tSirMacHTCapabilityInfo *ht_cap_info;
 	uint8_t mcs_set[SIZE_OF_SUPPORTED_MCS_SET] = {0};
 	uint8_t mcs_set_temp[SIZE_OF_SUPPORTED_MCS_SET];
-	uint32_t val;
+	uint32_t val, val32;
 	uint16_t val16;
 	uint8_t enable2x2;
 
@@ -7314,10 +7332,13 @@ QDF_STATUS hdd_update_nss(hdd_context_t *hdd_ctx, uint8_t nss)
 	sme_cfg_get_int(hdd_ctx->hHal, WNI_CFG_HT_CAP_INFO, &temp);
 	val16 = (uint16_t)temp;
 	ht_cap_info = (tSirMacHTCapabilityInfo *)&val16;
-	if (!(hdd_ctx->ht_tx_stbc_supported && hdd_config->enable2x2))
+	if (!(hdd_ctx->ht_tx_stbc_supported && hdd_config->enable2x2)) {
 		ht_cap_info->txSTBC = 0;
-	else
-		ht_cap_info->txSTBC = hdd_config->enableTxSTBC;
+	} else {
+		sme_cfg_get_int(hdd_ctx->hHal, WNI_CFG_VHT_TXSTBC, &val32);
+		hddLog(LOG1, FL("STBC %d"), val32);
+		ht_cap_info->txSTBC = val32;
+	}
 	temp = val16;
 	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_HT_CAP_INFO,
 			    temp) == QDF_STATUS_E_FAILURE) {

@@ -1400,17 +1400,21 @@ int wma_vdev_stop_resp_handler(void *handle, uint8_t *cmd_param_info,
 					peer, false);
 		}
 
-		if (wmi_unified_vdev_down_send(wma->wmi_handle,
+		if (wma->interfaces[resp_event->vdev_id].vdev_up) {
+			if (wmi_unified_vdev_down_send(wma->wmi_handle,
 						resp_event->vdev_id) !=
-						QDF_STATUS_SUCCESS) {
-			WMA_LOGE("Failed to send vdev down cmd: vdev %d",
-				 resp_event->vdev_id);
-		} else {
-			wma->interfaces[resp_event->vdev_id].vdev_up = false;
+					QDF_STATUS_SUCCESS) {
+				WMA_LOGE("Failed to send vdev down: vdev %d",
+						resp_event->vdev_id);
+			} else {
+				wma->interfaces[resp_event->vdev_id].vdev_up =
+					false;
 #ifdef FEATURE_AP_MCC_CH_AVOIDANCE
-		if (mac_ctx->sap.sap_channel_avoidance)
-			wma_find_mcc_ap(wma, resp_event->vdev_id, false);
+				if (mac_ctx->sap.sap_channel_avoidance)
+					wma_find_mcc_ap(wma,
+						resp_event->vdev_id, false);
 #endif /* FEATURE_AP_MCC_CH_AVOIDANCE */
+			}
 		}
 		ol_txrx_vdev_flush(iface->handle);
 		WMA_LOGD("%s, vdev_id: %d, un-pausing tx_ll_queue for VDEV_STOP rsp",
@@ -2400,16 +2404,21 @@ void wma_vdev_resp_timer(void *data)
 					peer, false);
 		}
 
-		if (wmi_unified_vdev_down_send(wma->wmi_handle,
-				tgt_req->vdev_id) != QDF_STATUS_SUCCESS) {
-			WMA_LOGE("Failed to send vdev down cmd: vdev %d",
-				 tgt_req->vdev_id);
-		} else {
-			wma->interfaces[tgt_req->vdev_id].vdev_up = false;
+		if (wma->interfaces[tgt_req->vdev_id].vdev_up) {
+			if (wmi_unified_vdev_down_send(wma->wmi_handle,
+						tgt_req->vdev_id) !=
+					QDF_STATUS_SUCCESS) {
+				WMA_LOGE("Failed to send vdev down: vdev %d",
+						tgt_req->vdev_id);
+			} else {
+				wma->interfaces[tgt_req->vdev_id].vdev_up =
+					false;
 #ifdef FEATURE_AP_MCC_CH_AVOIDANCE
-		if (mac_ctx->sap.sap_channel_avoidance)
-			wma_find_mcc_ap(wma, tgt_req->vdev_id, false);
+				if (mac_ctx->sap.sap_channel_avoidance)
+					wma_find_mcc_ap(wma, tgt_req->vdev_id,
+							false);
 #endif /* FEATURE_AP_MCC_CH_AVOIDANCE */
+			}
 		}
 		ol_txrx_vdev_flush(iface->handle);
 		WMA_LOGD("%s, vdev_id: %d, un-pausing tx_ll_queue for WDA_DELETE_BSS_REQ timeout",
@@ -2747,6 +2756,12 @@ static void wma_add_bss_ap_mode(tp_wma_handle wma, tpAddBssParams add_bss)
 	req.vdev_id = vdev_id;
 	req.chan = add_bss->currentOperChannel;
 	req.chan_width = add_bss->ch_width;
+
+	if (add_bss->ch_width == CH_WIDTH_10MHZ)
+		req.is_half_rate = 1;
+	else if (add_bss->ch_width == CH_WIDTH_5MHZ)
+		req.is_quarter_rate = 1;
+
 	req.ch_center_freq_seg0 = add_bss->ch_center_freq_seg0;
 	req.ch_center_freq_seg1 = add_bss->ch_center_freq_seg1;
 	req.vht_capable = add_bss->vhtCapable;
@@ -3089,6 +3104,12 @@ static void wma_add_bss_sta_mode(tp_wma_handle wma, tpAddBssParams add_bss)
 			req.vdev_id = vdev_id;
 			req.chan = add_bss->currentOperChannel;
 			req.chan_width = add_bss->ch_width;
+
+			if (add_bss->ch_width == CH_WIDTH_10MHZ)
+				req.is_half_rate = 1;
+			else if (add_bss->ch_width == CH_WIDTH_5MHZ)
+				req.is_quarter_rate = 1;
+
 			req.ch_center_freq_seg0 = add_bss->ch_center_freq_seg0;
 			req.ch_center_freq_seg1 = add_bss->ch_center_freq_seg1;
 			req.max_txpow = add_bss->maxTxPower;
@@ -4081,7 +4102,7 @@ void wma_add_sta(tp_wma_handle wma, tpAddStaParams add_sta)
 	/* IBSS should share the same code as AP mode */
 	case BSS_OPERATIONAL_MODE_IBSS:
 	case BSS_OPERATIONAL_MODE_AP:
-		htc_vote_link_down(wma->htc_handle);
+		htc_vote_link_up(wma->htc_handle);
 		wma_add_sta_req_ap_mode(wma, add_sta);
 		break;
 	case BSS_OPERATIONAL_MODE_NDI:
@@ -4133,7 +4154,7 @@ void wma_delete_sta(tp_wma_handle wma, tpDeleteStaParams del_sta)
 
 	case BSS_OPERATIONAL_MODE_IBSS: /* IBSS shares AP code */
 	case BSS_OPERATIONAL_MODE_AP:
-		htc_vote_link_up(wma->htc_handle);
+		htc_vote_link_down(wma->htc_handle);
 		wma_delete_sta_req_ap_mode(wma, del_sta);
 		/* free the memory here only if sync feature is not enabled */
 		if (!rsp_requested &&

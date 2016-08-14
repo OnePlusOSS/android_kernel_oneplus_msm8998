@@ -570,7 +570,8 @@ static void wlan_hdd_tdls_peer_idle_timers_stop(tdlsCtx_t *hdd_tdls_ctx)
 		head = &hdd_tdls_ctx->peer_list[i];
 		list_for_each(pos, head) {
 			curr_peer = list_entry(pos, hddTdlsPeer_t, node);
-			qdf_mc_timer_stop(&curr_peer->peer_idle_timer);
+			if (curr_peer->is_peer_idle_timer_initialised)
+				qdf_mc_timer_stop(&curr_peer->peer_idle_timer);
 		}
 	}
 }
@@ -690,7 +691,6 @@ int wlan_hdd_tdls_init(hdd_adapter_t *pAdapter)
 	tdlsCtx_t *pHddTdlsCtx;
 	int i;
 	uint8_t staIdx;
-	tdlsInfo_t *tInfo;
 
 	if (NULL == pHddCtx)
 		return -EINVAL;
@@ -822,55 +822,10 @@ int wlan_hdd_tdls_init(hdd_adapter_t *pAdapter)
 	INIT_DELAYED_WORK(&pHddCtx->tdls_scan_ctxt.tdls_scan_work,
 			  wlan_hdd_tdls_schedule_scan);
 
-	/*
-	 * Release tdls lock before calling in SME api
-	 * which would try to acquire sme lock.
-	 */
 	mutex_unlock(&pHddCtx->tdls_lock);
-	tInfo = qdf_mem_malloc(sizeof(tdlsInfo_t));
-	if (NULL == tInfo) {
-		hddLog(QDF_TRACE_LEVEL_ERROR,
-		       FL("qdf_mem_malloc failed for tInfo"));
-		qdf_mc_timer_destroy(&pHddTdlsCtx->peerDiscoveryTimeoutTimer);
-		qdf_mem_free(pHddTdlsCtx);
-		return -ENOMEM;
-	}
 
-	tInfo->vdev_id = pAdapter->sessionId;
-	tInfo->tdls_state = pHddCtx->tdls_mode;
-	tInfo->notification_interval_ms =
-		pHddTdlsCtx->threshold_config.tx_period_t;
-	tInfo->tx_discovery_threshold =
-		pHddTdlsCtx->threshold_config.tx_packet_n;
-	tInfo->tx_teardown_threshold =
-		pHddTdlsCtx->threshold_config.idle_packet_n;
-	tInfo->rssi_teardown_threshold =
-		pHddTdlsCtx->threshold_config.rssi_teardown_threshold;
-	tInfo->rssi_delta = pHddTdlsCtx->threshold_config.rssi_delta;
-	tInfo->tdls_options = 0;
-
-	if (pHddCtx->config->fEnableTDLSOffChannel) {
-		tInfo->tdls_options |= ENA_TDLS_OFFCHAN;
+	if (pHddCtx->config->fEnableTDLSOffChannel)
 		pHddCtx->tdls_fw_off_chan_mode = ENABLE_CHANSWITCH;
-	}
-
-	if (pHddCtx->config->fEnableTDLSBufferSta)
-		tInfo->tdls_options |= ENA_TDLS_BUFFER_STA;
-	if (pHddCtx->config->fEnableTDLSSleepSta)
-		tInfo->tdls_options |= ENA_TDLS_SLEEP_STA;
-	tInfo->peer_traffic_ind_window = pHddCtx->config->fTDLSPuapsdPTIWindow;
-	tInfo->peer_traffic_response_timeout =
-		pHddCtx->config->fTDLSPuapsdPTRTimeout;
-	tInfo->puapsd_mask = pHddCtx->config->fTDLSUapsdMask;
-	tInfo->puapsd_inactivity_time =
-		pHddCtx->config->fTDLSPuapsdInactivityTimer;
-	tInfo->puapsd_rx_frame_threshold =
-		pHddCtx->config->fTDLSRxFrameThreshold;
-	tInfo->teardown_notification_ms =
-		pHddCtx->config->tdls_idle_timeout;
-	tInfo->tdls_peer_kickout_threshold =
-		pHddCtx->config->tdls_peer_kickout_threshold;
-	dump_tdls_state_param_setting(tInfo);
 
 	EXIT();
 	return 0;
@@ -886,7 +841,6 @@ void wlan_hdd_tdls_exit(hdd_adapter_t *pAdapter)
 {
 	tdlsCtx_t *pHddTdlsCtx;
 	hdd_context_t *pHddCtx;
-	tdlsInfo_t *tInfo;
 
 	ENTER();
 	pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
@@ -926,51 +880,6 @@ void wlan_hdd_tdls_exit(hdd_adapter_t *pAdapter)
 	mutex_unlock(&pHddCtx->tdls_lock);
 
 	wlan_hdd_tdls_free_scan_request(&pHddCtx->tdls_scan_ctxt);
-
-	/* No need to post message during driver unlaod because MC thread is
-	   already shutdown */
-	if (!cds_is_driver_unloading()) {
-		tInfo = qdf_mem_malloc(sizeof(tdlsInfo_t));
-		if (NULL != tInfo) {
-			tInfo->vdev_id = pAdapter->sessionId;
-			tInfo->tdls_state = eTDLS_SUPPORT_DISABLED;
-			tInfo->notification_interval_ms =
-				pHddTdlsCtx->threshold_config.tx_period_t;
-			tInfo->tx_discovery_threshold =
-				pHddTdlsCtx->threshold_config.tx_packet_n;
-			tInfo->tx_teardown_threshold =
-				pHddTdlsCtx->threshold_config.idle_packet_n;
-			tInfo->rssi_teardown_threshold =
-				pHddTdlsCtx->threshold_config.
-				rssi_teardown_threshold;
-			tInfo->rssi_delta =
-				pHddTdlsCtx->threshold_config.rssi_delta;
-			tInfo->tdls_options = 0;
-			if (pHddCtx->config->fEnableTDLSOffChannel)
-				tInfo->tdls_options |= ENA_TDLS_OFFCHAN;
-			if (pHddCtx->config->fEnableTDLSBufferSta)
-				tInfo->tdls_options |= ENA_TDLS_BUFFER_STA;
-			if (pHddCtx->config->fEnableTDLSSleepSta)
-				tInfo->tdls_options |= ENA_TDLS_SLEEP_STA;
-			tInfo->peer_traffic_ind_window =
-				pHddCtx->config->fTDLSPuapsdPTIWindow;
-			tInfo->peer_traffic_response_timeout =
-				pHddCtx->config->fTDLSPuapsdPTRTimeout;
-			tInfo->puapsd_mask = pHddCtx->config->fTDLSUapsdMask;
-			tInfo->puapsd_inactivity_time =
-				pHddCtx->config->fTDLSPuapsdInactivityTimer;
-			tInfo->puapsd_rx_frame_threshold =
-				pHddCtx->config->fTDLSRxFrameThreshold;
-			tInfo->teardown_notification_ms =
-				pHddCtx->config->tdls_idle_timeout;
-			tInfo->tdls_peer_kickout_threshold =
-				pHddCtx->config->tdls_peer_kickout_threshold;
-			dump_tdls_state_param_setting(tInfo);
-		} else {
-			hddLog(QDF_TRACE_LEVEL_ERROR,
-			       "%s: qdf_mem_malloc failed for tInfo", __func__);
-		}
-	}
 
 	pHddTdlsCtx->magic = 0;
 	pHddTdlsCtx->pAdapter = NULL;
@@ -5209,10 +5118,10 @@ static void wlan_hdd_tdls_ct_sampling_tx_rx(hdd_adapter_t *adapter,
 	uint8_t valid_mac_entries;
 	struct tdls_ct_mac_table ct_peer_mac_table[TDLS_CT_MAC_MAX_TABLE_SIZE];
 
-	qdf_spin_lock(&hdd_ctx->tdls_ct_spinlock);
+	qdf_spin_lock_bh(&hdd_ctx->tdls_ct_spinlock);
 
 	if (0 == tdls_ctx->valid_mac_entries) {
-		qdf_spin_unlock(&hdd_ctx->tdls_ct_spinlock);
+		qdf_spin_unlock_bh(&hdd_ctx->tdls_ct_spinlock);
 		return;
 	}
 
@@ -5226,7 +5135,7 @@ static void wlan_hdd_tdls_ct_sampling_tx_rx(hdd_adapter_t *adapter,
 
 	tdls_ctx->valid_mac_entries = 0;
 
-	qdf_spin_unlock(&hdd_ctx->tdls_ct_spinlock);
+	qdf_spin_unlock_bh(&hdd_ctx->tdls_ct_spinlock);
 
 	for (mac_cnt = 0; mac_cnt < valid_mac_entries; mac_cnt++) {
 		memcpy(mac, ct_peer_mac_table[mac_cnt].mac_address.bytes,
@@ -5278,7 +5187,7 @@ void wlan_hdd_tdls_update_rx_pkt_cnt(hdd_adapter_t *adapter,
 	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 	tdls_ctx = adapter->sessionCtx.station.pHddTdlsCtx;
 
-	qdf_spin_lock(&hdd_ctx->tdls_ct_spinlock);
+	qdf_spin_lock_bh(&hdd_ctx->tdls_ct_spinlock);
 	valid_mac_entries = tdls_ctx->valid_mac_entries;
 
 	for (mac_cnt = 0; mac_cnt < valid_mac_entries; mac_cnt++) {
@@ -5300,7 +5209,7 @@ void wlan_hdd_tdls_update_rx_pkt_cnt(hdd_adapter_t *adapter,
 	}
 
 rx_cnt_return:
-	qdf_spin_unlock(&hdd_ctx->tdls_ct_spinlock);
+	qdf_spin_unlock_bh(&hdd_ctx->tdls_ct_spinlock);
 	return;
 }
 
@@ -5341,7 +5250,7 @@ void wlan_hdd_tdls_update_tx_pkt_cnt(hdd_adapter_t *adapter,
 	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 	tdls_ctx = adapter->sessionCtx.station.pHddTdlsCtx;
 
-	qdf_spin_lock(&hdd_ctx->tdls_ct_spinlock);
+	qdf_spin_lock_bh(&hdd_ctx->tdls_ct_spinlock);
 	valid_mac_entries = tdls_ctx->valid_mac_entries;
 
 	for (mac_cnt = 0; mac_cnt < valid_mac_entries; mac_cnt++) {
@@ -5363,7 +5272,7 @@ void wlan_hdd_tdls_update_tx_pkt_cnt(hdd_adapter_t *adapter,
 	}
 
 tx_cnt_return:
-	qdf_spin_unlock(&hdd_ctx->tdls_ct_spinlock);
+	qdf_spin_unlock_bh(&hdd_ctx->tdls_ct_spinlock);
 	return;
 }
 

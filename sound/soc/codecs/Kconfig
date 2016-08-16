@@ -997,4 +997,10 @@ config SND_SOC_MSM_HDMI_CODEC_RX
 source "sound/soc/codecs/sdm660_cdc/Kconfig"
 source "sound/soc/codecs/msm_sdw/Kconfig"
 
+config BOEFFLA_SOUND
+	bool "Boeffla Sound engine"
+	default y
+	help
+		Boeffla sound engine by andip71 (aka Lord Boeffla)
+
 endmenu

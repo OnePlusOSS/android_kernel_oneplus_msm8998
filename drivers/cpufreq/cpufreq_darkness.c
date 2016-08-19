@@ -84,7 +84,10 @@ static void dk_check_cpu(int cpu, unsigned int load)
 
 	next_freq = adjust_cpufreq_frequency_target(policy, dbs_info->freq_table, 
 												 load * (policy->max / 100));
-	if (next_freq != policy->cur && next_freq > 0)
+
+	if (next_freq > policy->cur)
+		__cpufreq_driver_target(policy, next_freq, CPUFREQ_RELATION_H);
+	else if (next_freq < policy->cur && next_freq > 0)
 		__cpufreq_driver_target(policy, next_freq, CPUFREQ_RELATION_L);
 
 }

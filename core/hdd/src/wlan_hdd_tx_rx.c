@@ -265,36 +265,80 @@ void hdd_get_tx_resource(hdd_adapter_t *adapter,
 
 #endif /* QCA_LL_LEGACY_TX_FLOW_CONTROL */
 
+/**
+ * qdf_event_eapol_log() - send event to wlan diag
+ * @skb: skb ptr
+ * @dir: direction
+ * @eapol_key_info: eapol key info
+ *
+ * Return: None
+ */
+void hdd_event_eapol_log(struct sk_buff *skb, enum qdf_proto_dir dir)
+{
+	int16_t eapol_key_info;
+
+	WLAN_HOST_DIAG_EVENT_DEF(wlan_diag_event, struct host_event_wlan_eapol);
+
+	if ((dir == QDF_TX &&
+		(QDF_NBUF_CB_PACKET_TYPE_EAPOL !=
+		 QDF_NBUF_CB_GET_PACKET_TYPE(skb))))
+		return;
+	else if (!qdf_nbuf_is_ipv4_eapol_pkt(skb))
+		return;
+
+	eapol_key_info = (uint16_t)(*(uint16_t *)
+				(skb->data + EAPOL_KEY_INFO_OFFSET));
+
+	wlan_diag_event.event_sub_type =
+		(dir == QDF_TX ?
+		 WIFI_EVENT_DRIVER_EAPOL_FRAME_TRANSMIT_REQUESTED :
+		 WIFI_EVENT_DRIVER_EAPOL_FRAME_RECEIVED);
+	wlan_diag_event.eapol_packet_type = (uint8_t)(*(uint8_t *)
+				(skb->data + EAPOL_PACKET_TYPE_OFFSET));
+	wlan_diag_event.eapol_key_info = eapol_key_info;
+	wlan_diag_event.eapol_rate = 0;
+	qdf_mem_copy(wlan_diag_event.dest_addr,
+			(skb->data + QDF_NBUF_DEST_MAC_OFFSET),
+			sizeof(wlan_diag_event.dest_addr));
+	qdf_mem_copy(wlan_diag_event.src_addr,
+			(skb->data + QDF_NBUF_SRC_MAC_OFFSET),
+			sizeof(wlan_diag_event.src_addr));
+
+	WLAN_HOST_DIAG_EVENT_REPORT(&wlan_diag_event, EVENT_WLAN_EAPOL);
+}
+
 
 /**
- * wlan_hdd_is_eapol_or_wai() - Check if frame is EAPOL or WAPI
- * @skb:    skb data
+ * wlan_hdd_classify_pkt() - classify packet
+ * @skb - sk buff
  *
- * This function checks if the frame is EAPOL or WAPI.
- * single routine call will check for both types, thus avoiding
- * data path performance penalty.
- *
- * Return: true (1) if packet is EAPOL or WAPI
- *
+ * Return: none
  */
-static bool wlan_hdd_is_eapol_or_wai(struct sk_buff *skb)
+void wlan_hdd_classify_pkt(struct sk_buff *skb)
 {
-	uint16_t ether_type;
+	struct ethhdr *eh = (struct ethhdr *)skb->data;
 
-	if (!skb) {
-		hdd_err(FL("skb is NULL"));
-		return false;
-	}
+	qdf_mem_set(skb->cb, sizeof(skb->cb), 0);
 
-	ether_type = (uint16_t)(*(uint16_t *)
-			(skb->data + HDD_ETHERTYPE_802_1_X_FRAME_OFFSET));
+	/* check destination mac address is broadcast/multicast */
+	if (is_broadcast_ether_addr((uint8_t *)eh))
+		QDF_NBUF_CB_GET_IS_BCAST(skb) = true;
+	else if (is_multicast_ether_addr((uint8_t *)eh))
+		QDF_NBUF_CB_GET_IS_MCAST(skb) = true;
 
-	if (ether_type == QDF_SWAP_U16(HDD_ETHERTYPE_802_1_X) ||
-	    ether_type == QDF_SWAP_U16(HDD_ETHERTYPE_WAI))
-		return true;
+	if (qdf_nbuf_is_ipv4_arp_pkt(skb))
+		QDF_NBUF_CB_GET_PACKET_TYPE(skb) =
+			QDF_NBUF_CB_PACKET_TYPE_ARP;
+	else if (qdf_nbuf_is_ipv4_dhcp_pkt(skb))
+		QDF_NBUF_CB_GET_PACKET_TYPE(skb) =
+			QDF_NBUF_CB_PACKET_TYPE_DHCP;
+	else if (qdf_nbuf_is_ipv4_eapol_pkt(skb))
+		QDF_NBUF_CB_GET_PACKET_TYPE(skb) =
+			QDF_NBUF_CB_PACKET_TYPE_EAPOL;
+	else if (qdf_nbuf_is_ipv4_wapi_pkt(skb))
+		QDF_NBUF_CB_GET_PACKET_TYPE(skb) =
+			QDF_NBUF_CB_PACKET_TYPE_WAPI;
 
-	/* No error msg handled since this will happen often */
-	return false;
 }
 
 /**
@@ -309,19 +353,19 @@ static bool wlan_hdd_is_eapol_or_wai(struct sk_buff *skb)
  * Returns: None
  */
 static void hdd_get_transmit_sta_id(hdd_adapter_t *adapter,
-			struct qdf_mac_addr *dst_addr, uint8_t *station_id)
+			struct sk_buff *skb, uint8_t *station_id)
 {
 	bool mcbc_addr = false;
 	hdd_station_ctx_t *sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
+	struct qdf_mac_addr *dst_addr = NULL;
 
+	dst_addr = (struct qdf_mac_addr *)skb->data;
 	hdd_get_peer_sta_id(sta_ctx, dst_addr, station_id);
 	if (*station_id == HDD_WLAN_INVALID_STA_ID) {
-		if (qdf_is_macaddr_broadcast(dst_addr) ||
-				qdf_is_macaddr_group(dst_addr)) {
+		if (QDF_NBUF_CB_GET_IS_BCAST(skb) ||
+				QDF_NBUF_CB_GET_IS_MCAST(skb)) {
 			hdd_info("Received MC/BC packet for transmission");
 			mcbc_addr = true;
-		} else {
-			hdd_err("UC frame with invalid destination address");
 		}
 	}
 
@@ -364,9 +408,8 @@ int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	sme_QosWmmUpType up;
 	hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
 	bool granted;
-	uint8_t STAId = WLAN_MAX_STA_COUNT;
+	uint8_t STAId;
 	hdd_station_ctx_t *pHddStaCtx = &pAdapter->sessionCtx.station;
-	struct qdf_mac_addr *pDestMacAddress = NULL;
 #ifdef QCA_PKT_PROTO_TRACE
 	uint8_t proto_type = 0;
 #endif /* QCA_PKT_PROTO_TRACE */
@@ -386,10 +429,11 @@ int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto drop_pkt;
 	}
 
-	pDestMacAddress = (struct qdf_mac_addr *)skb->data;
+	wlan_hdd_classify_pkt(skb);
+
 	STAId = HDD_WLAN_INVALID_STA_ID;
 
-	hdd_get_transmit_sta_id(pAdapter, pDestMacAddress, &STAId);
+	hdd_get_transmit_sta_id(pAdapter, skb, &STAId);
 	if (STAId >= WLAN_MAX_STA_COUNT) {
 		hddLog(LOGE, "Invalid station id, transmit operation suspended");
 		goto drop_pkt;
@@ -438,7 +482,10 @@ int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		likely(pAdapter->hddWmmStatus.wmmAcStatus[ac].
 			wmmAcAccessAllowed)) ||
 		((pHddStaCtx->conn_info.uIsAuthenticated == false) &&
-		 wlan_hdd_is_eapol_or_wai(skb))) {
+		 (QDF_NBUF_CB_PACKET_TYPE_EAPOL ==
+			QDF_NBUF_CB_GET_PACKET_TYPE(skb) ||
+		  QDF_NBUF_CB_PACKET_TYPE_WAPI ==
+			QDF_NBUF_CB_GET_PACKET_TYPE(skb)))) {
 		granted = true;
 	} else {
 		status = hdd_wmm_acquire_access(pAdapter, ac, &granted);
@@ -502,8 +549,7 @@ int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	++pAdapter->stats.tx_packets;
 
-	/* Zero out skb's context buffer for the driver to use */
-	qdf_mem_set(skb->cb, sizeof(skb->cb), 0);
+	hdd_event_eapol_log(skb, QDF_TX);
 	qdf_dp_trace_log_pkt(pAdapter->sessionId, skb, QDF_TX);
 	QDF_NBUF_CB_TX_PACKET_TRACK(skb) = QDF_NBUF_TX_PKT_DATA_TRACK;
 	QDF_NBUF_UPDATE_TX_PKT_COUNT(skb, QDF_NBUF_TX_PKT_HDD);
@@ -866,6 +912,7 @@ QDF_STATUS hdd_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 		return QDF_STATUS_SUCCESS;
 	}
 
+	hdd_event_eapol_log(skb, QDF_RX);
 	DPTRACE(qdf_dp_trace(rxBuf,
 		QDF_DP_TRACE_RX_HDD_PACKET_PTR_RECORD,
 		qdf_nbuf_data_addr(rxBuf),
@@ -893,7 +940,7 @@ QDF_STATUS hdd_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 	if (HDD_LRO_NO_RX ==
 		 hdd_lro_rx(pHddCtx, pAdapter, skb)) {
 		if (hdd_napi_enabled(HDD_NAPI_ANY) &&
-		    !pHddCtx->config->enableRxThread)
+		    !pHddCtx->enableRxThread)
 			rxstat = netif_receive_skb(skb);
 		else
 			rxstat = netif_rx_ni(skb);
@@ -1236,3 +1283,67 @@ exit:
 	ret = qdf_status_to_os_return(qdf_status);
 	return ret;
 }
+
+/**
+ * hdd_send_rps_ind() - send rps indication to daemon
+ * @adapter: adapter context
+ *
+ * If RPS feature enabled by INI, send RPS enable indication to daemon
+ * Indication contents is the name of interface to find correct sysfs node
+ * Should send all available interfaces
+ *
+ * Return: none
+ */
+void hdd_send_rps_ind(hdd_adapter_t *adapter)
+{
+	int i;
+	uint8_t cpu_map_list_len = 0;
+	hdd_context_t *hdd_ctxt = NULL;
+	struct wlan_rps_data rps_data;
+
+	if (!adapter) {
+		hdd_err("adapter is NULL");
+		return;
+	}
+
+	hdd_ctxt = WLAN_HDD_GET_CTX(adapter);
+	rps_data.num_queues = NUM_TX_QUEUES;
+
+	hdd_info("cpu_map_list '%s'", hdd_ctxt->config->cpu_map_list);
+
+	/* in case no cpu map list is provided, simply return */
+	if (!strlen(hdd_ctxt->config->cpu_map_list)) {
+		hdd_err("no cpu map list found");
+		goto err;
+	}
+
+	if (QDF_STATUS_SUCCESS !=
+		hdd_hex_string_to_u16_array(hdd_ctxt->config->cpu_map_list,
+				rps_data.cpu_map_list,
+				&cpu_map_list_len,
+				WLAN_SVC_IFACE_NUM_QUEUES)) {
+		hdd_err("invalid cpu map list");
+		goto err;
+	}
+
+	rps_data.num_queues =
+		(cpu_map_list_len < rps_data.num_queues) ?
+				cpu_map_list_len : rps_data.num_queues;
+
+	for (i = 0; i < rps_data.num_queues; i++) {
+		hdd_info("cpu_map_list[%d] = 0x%x",
+			i, rps_data.cpu_map_list[i]);
+	}
+
+	strlcpy(rps_data.ifname, adapter->dev->name,
+			sizeof(rps_data.ifname));
+	wlan_hdd_send_svc_nlink_msg(WLAN_SVC_RPS_ENABLE_IND,
+				&rps_data, sizeof(rps_data));
+
+err:
+	hdd_err("Wrong RPS configuration. enabling rx_thread");
+	hdd_ctxt->rps = false;
+	hdd_ctxt->enableRxThread = true;
+}
+
+

@@ -33,6 +33,7 @@
 
 /* Header files */
 
+#include "cds_ieee80211_common.h"	/* ieee80211_frame */
 #include "wma.h"
 #include "wma_api.h"
 #include "cds_api.h"
@@ -2348,6 +2349,14 @@ static const u8 *wma_wow_wake_reason_str(A_INT32 wake_reason)
 		return "WOW_REASON_NAN_EVENT";
 	case WOW_REASON_OEM_RESPONSE_EVENT:
 		return "WOW_OEM_RESPONSE_EVENT";
+	case WOW_REASON_ASSOC_RES_RECV:
+		return "ASSOC_RES_RECV";
+	case WOW_REASON_REASSOC_REQ_RECV:
+		return "REASSOC_REQ_RECV";
+	case WOW_REASON_REASSOC_RES_RECV:
+		return "REASSOC_RES_RECV";
+	case WOW_REASON_ACTION_FRAME_RECV:
+		return "ACTION_FRAME_RECV";
 	}
 	return "unknown";
 }
@@ -2617,6 +2626,431 @@ static bool tlv_check_required(int32_t reason)
 }
 
 /**
+ * wma_pkt_proto_subtype_to_string() - to convert proto subtype
+ *         of data packet to string.
+ * @proto_subtype: proto subtype for data packet
+ *
+ * This function returns the string for the proto subtype of
+ * data packet.
+ *
+ * Return: string for proto subtype for data packet
+ */
+const char *
+wma_pkt_proto_subtype_to_string(enum qdf_proto_subtype proto_subtype)
+{
+	switch (proto_subtype) {
+	case QDF_PROTO_EAPOL_M1:
+		return "EAPOL M1";
+	case QDF_PROTO_EAPOL_M2:
+		return "EAPOL M2";
+	case QDF_PROTO_EAPOL_M3:
+		return "EAPOL M3";
+	case QDF_PROTO_EAPOL_M4:
+		return "EAPOL M4";
+	case QDF_PROTO_DHCP_DISCOVER:
+		return "DHCP DISCOVER";
+	case QDF_PROTO_DHCP_REQUEST:
+		return "DHCP REQUEST";
+	case QDF_PROTO_DHCP_OFFER:
+		return "DHCP OFFER";
+	case QDF_PROTO_DHCP_ACK:
+		return "DHCP ACK";
+	case QDF_PROTO_DHCP_NACK:
+		return "DHCP NACK";
+	case QDF_PROTO_DHCP_RELEASE:
+		return "DHCP RELEASE";
+	case QDF_PROTO_DHCP_INFORM:
+		return "DHCP INFORM";
+	case QDF_PROTO_DHCP_DECLINE:
+		return "DHCP DECLINE";
+	case QDF_PROTO_ARP_REQ:
+		return "ARP REQUEST";
+	case QDF_PROTO_ARP_RES:
+		return "ARP RESPONSE";
+	case QDF_PROTO_ICMP_REQ:
+		return "ICMP REQUEST";
+	case QDF_PROTO_ICMP_RES:
+		return "ICMP RESPONSE";
+	case QDF_PROTO_ICMPV6_REQ:
+		return "ICMPV6 REQUEST";
+	case QDF_PROTO_ICMPV6_RES:
+		return "ICMPV6 RESPONSE";
+	case QDF_PROTO_IPV4_UDP:
+		return "IPV4 UDP Packet";
+	case QDF_PROTO_IPV4_TCP:
+		return "IPV4 TCP Packet";
+	case QDF_PROTO_IPV6_UDP:
+		return "IPV6 UDP Packet";
+	case QDF_PROTO_IPV6_TCP:
+		return "IPV6 TCP Packet";
+	default:
+		return "Invalid Packet";
+	}
+}
+
+/**
+ * wma_wow_get_pkt_proto_subtype() - get the proto subtype
+ *            of the packet.
+ * @data: Pointer to data buffer
+ * @len: length of the data buffer
+ *
+ * This function gives the proto subtype of the packet.
+ *
+ * Return: proto subtype of the packet.
+ */
+static enum qdf_proto_subtype
+wma_wow_get_pkt_proto_subtype(uint8_t *data,
+			uint32_t len)
+{
+	uint16_t ether_type = (uint16_t)(*(uint16_t *)(data +
+				QDF_NBUF_TRAC_ETH_TYPE_OFFSET));
+
+	WMA_LOGE("Ether Type: 0x%04x",
+		ani_cpu_to_be16(ether_type));
+
+	if (QDF_NBUF_TRAC_EAPOL_ETH_TYPE ==
+		   ani_cpu_to_be16(ether_type)) {
+		if (len >= WMA_EAPOL_SUBTYPE_GET_MIN_LEN)
+			return qdf_nbuf_data_get_eapol_subtype(data);
+		QDF_TRACE(QDF_MODULE_ID_WMA,
+			QDF_TRACE_LEVEL_ERROR, "EAPOL Packet");
+		return QDF_PROTO_INVALID;
+	} else if (QDF_NBUF_TRAC_ARP_ETH_TYPE ==
+		   ani_cpu_to_be16(ether_type)) {
+		if (len >= WMA_ARP_SUBTYPE_GET_MIN_LEN)
+			return qdf_nbuf_data_get_arp_subtype(data);
+		QDF_TRACE(QDF_MODULE_ID_WMA,
+			QDF_TRACE_LEVEL_ERROR, "ARP Packet");
+		return QDF_PROTO_INVALID;
+	} else if (QDF_NBUF_TRAC_IPV4_ETH_TYPE ==
+		   ani_cpu_to_be16(ether_type)) {
+		if (len >= WMA_IPV4_PROTO_GET_MIN_LEN) {
+			uint8_t proto_type;
+
+			proto_type = qdf_nbuf_data_get_ipv4_proto(data);
+			WMA_LOGE("IPV4_proto_type: %u", proto_type);
+			if (proto_type == QDF_NBUF_TRAC_ICMP_TYPE) {
+				if (len >= WMA_ICMP_SUBTYPE_GET_MIN_LEN)
+					return qdf_nbuf_data_get_icmp_subtype(
+							data);
+				QDF_TRACE(QDF_MODULE_ID_WMA,
+					QDF_TRACE_LEVEL_ERROR, "ICMP Packet");
+				return QDF_PROTO_INVALID;
+			} else if (proto_type == QDF_NBUF_TRAC_UDP_TYPE) {
+				if (len >= WMA_IS_DHCP_GET_MIN_LEN) {
+					if (qdf_nbuf_data_is_ipv4_dhcp_pkt(data)) {
+						if (len >=
+						   WMA_DHCP_SUBTYPE_GET_MIN_LEN)
+						  return qdf_nbuf_data_get_dhcp_subtype(data);
+						QDF_TRACE(QDF_MODULE_ID_WMA,
+						    QDF_TRACE_LEVEL_ERROR,
+						    "DHCP Packet");
+						return QDF_PROTO_INVALID;
+					}
+				}
+				return QDF_PROTO_IPV4_UDP;
+			} else if (proto_type == QDF_NBUF_TRAC_TCP_TYPE) {
+				return QDF_PROTO_IPV4_TCP;
+			}
+		}
+		QDF_TRACE(QDF_MODULE_ID_WMA,
+			QDF_TRACE_LEVEL_ERROR, "IPV4 Packet");
+		return QDF_PROTO_INVALID;
+	} else if (QDF_NBUF_TRAC_IPV6_ETH_TYPE ==
+		   ani_cpu_to_be16(ether_type)) {
+		if (len >= WMA_IPV6_PROTO_GET_MIN_LEN) {
+			uint8_t proto_type;
+
+			proto_type = qdf_nbuf_data_get_ipv6_proto(data);
+			WMA_LOGE("IPV6_proto_type: %u", proto_type);
+			if (proto_type == QDF_NBUF_TRAC_ICMPV6_TYPE) {
+				if (len >= WMA_ICMPV6_SUBTYPE_GET_MIN_LEN)
+					return qdf_nbuf_data_get_icmpv6_subtype(
+							data);
+				QDF_TRACE(QDF_MODULE_ID_WMA,
+					QDF_TRACE_LEVEL_ERROR, "ICMPV6 Packet");
+				return QDF_PROTO_INVALID;
+			} else if (proto_type == QDF_NBUF_TRAC_UDP_TYPE) {
+				return QDF_PROTO_IPV6_UDP;
+			} else if (proto_type == QDF_NBUF_TRAC_TCP_TYPE) {
+				return QDF_PROTO_IPV6_TCP;
+			}
+		}
+		QDF_TRACE(QDF_MODULE_ID_WMA,
+			QDF_TRACE_LEVEL_ERROR, "IPV6 Packet");
+		return QDF_PROTO_INVALID;
+	}
+
+	return QDF_PROTO_INVALID;
+}
+
+/**
+ * wma_wow_parse_data_pkt_buffer() - API to parse data buffer for data
+ *    packet that resulted in WOW wakeup.
+ * @data: Pointer to data buffer
+ * @buf_len: data buffer length
+ *
+ * This function parses the data buffer received (first few bytes of
+ * skb->data) to get informaton like src mac addr, dst mac addr, packet
+ * len, seq_num, etc.
+ *
+ * Return: void
+ */
+static void wma_wow_parse_data_pkt_buffer(uint8_t *data,
+			uint32_t buf_len)
+{
+	enum qdf_proto_subtype proto_subtype;
+	uint16_t pkt_len, key_len, seq_num;
+	uint16_t src_port, dst_port;
+	uint32_t transaction_id, tcp_seq_num;
+
+	WMA_LOGD("wow_buf_pkt_len: %u", buf_len);
+	if (buf_len >= QDF_NBUF_TRAC_IPV4_OFFSET)
+		WMA_LOGE("Src_mac: " MAC_ADDRESS_STR " Dst_mac: " MAC_ADDRESS_STR,
+			MAC_ADDR_ARRAY(data),
+			MAC_ADDR_ARRAY(data + QDF_NBUF_SRC_MAC_OFFSET));
+	else
+		goto end;
+
+	proto_subtype = wma_wow_get_pkt_proto_subtype(data, buf_len);
+	switch (proto_subtype) {
+	case QDF_PROTO_EAPOL_M1:
+	case QDF_PROTO_EAPOL_M2:
+	case QDF_PROTO_EAPOL_M3:
+	case QDF_PROTO_EAPOL_M4:
+		WMA_LOGE("WOW Wakeup: %s rcvd",
+			wma_pkt_proto_subtype_to_string(proto_subtype));
+		if (buf_len >= WMA_EAPOL_INFO_GET_MIN_LEN) {
+			pkt_len = (uint16_t)(*(uint16_t *)(data +
+				EAPOL_PKT_LEN_OFFSET));
+			key_len = (uint16_t)(*(uint16_t *)(data +
+				EAPOL_KEY_LEN_OFFSET));
+			WMA_LOGE("Pkt_len: %u, Key_len: %u",
+				ani_cpu_to_be16(pkt_len),
+				ani_cpu_to_be16(key_len));
+		}
+		break;
+
+	case QDF_PROTO_DHCP_DISCOVER:
+	case QDF_PROTO_DHCP_REQUEST:
+	case QDF_PROTO_DHCP_OFFER:
+	case QDF_PROTO_DHCP_ACK:
+	case QDF_PROTO_DHCP_NACK:
+	case QDF_PROTO_DHCP_RELEASE:
+	case QDF_PROTO_DHCP_INFORM:
+	case QDF_PROTO_DHCP_DECLINE:
+		WMA_LOGE("WOW Wakeup: %s rcvd",
+			wma_pkt_proto_subtype_to_string(proto_subtype));
+		if (buf_len >= WMA_DHCP_INFO_GET_MIN_LEN) {
+			pkt_len = (uint16_t)(*(uint16_t *)(data +
+				DHCP_PKT_LEN_OFFSET));
+			transaction_id = (uint32_t)(*(uint32_t *)(data +
+				DHCP_TRANSACTION_ID_OFFSET));
+			WMA_LOGE("Pkt_len: %u, Transaction_id: %u",
+				ani_cpu_to_be16(pkt_len),
+				ani_cpu_to_be16(transaction_id));
+		}
+		break;
+
+	case QDF_PROTO_ARP_REQ:
+	case QDF_PROTO_ARP_RES:
+		WMA_LOGE("WOW Wakeup: %s rcvd",
+			wma_pkt_proto_subtype_to_string(proto_subtype));
+		break;
+
+	case QDF_PROTO_ICMP_REQ:
+	case QDF_PROTO_ICMP_RES:
+		WMA_LOGE("WOW Wakeup: %s rcvd",
+			wma_pkt_proto_subtype_to_string(proto_subtype));
+		if (buf_len >= WMA_IPV4_PKT_INFO_GET_MIN_LEN) {
+			pkt_len = (uint16_t)(*(uint16_t *)(data +
+				IPV4_PKT_LEN_OFFSET));
+			seq_num = (uint16_t)(*(uint16_t *)(data +
+				ICMP_SEQ_NUM_OFFSET));
+			WMA_LOGE("Pkt_len: %u, Seq_num: %u",
+				ani_cpu_to_be16(pkt_len),
+				ani_cpu_to_be16(seq_num));
+		}
+		break;
+
+	case QDF_PROTO_ICMPV6_REQ:
+	case QDF_PROTO_ICMPV6_RES:
+		WMA_LOGE("WOW Wakeup: %s rcvd",
+			wma_pkt_proto_subtype_to_string(proto_subtype));
+		if (buf_len >= WMA_IPV6_PKT_INFO_GET_MIN_LEN) {
+			pkt_len = (uint16_t)(*(uint16_t *)(data +
+				IPV6_PKT_LEN_OFFSET));
+			seq_num = (uint16_t)(*(uint16_t *)(data +
+				ICMPV6_SEQ_NUM_OFFSET));
+			WMA_LOGE("Pkt_len: %u, Seq_num: %u",
+				ani_cpu_to_be16(pkt_len),
+				ani_cpu_to_be16(seq_num));
+		}
+		break;
+
+	case QDF_PROTO_IPV4_UDP:
+	case QDF_PROTO_IPV4_TCP:
+		WMA_LOGE("WOW Wakeup: %s rcvd",
+			wma_pkt_proto_subtype_to_string(proto_subtype));
+		if (buf_len >= WMA_IPV4_PKT_INFO_GET_MIN_LEN) {
+			pkt_len = (uint16_t)(*(uint16_t *)(data +
+				IPV4_PKT_LEN_OFFSET));
+			src_port = (uint16_t)(*(uint16_t *)(data +
+				IPV4_SRC_PORT_OFFSET));
+			dst_port = (uint16_t)(*(uint16_t *)(data +
+				IPV4_DST_PORT_OFFSET));
+			WMA_LOGE("Pkt_len: %u",
+				ani_cpu_to_be16(pkt_len));
+			WMA_LOGE("src_port: %u, dst_port: %u",
+				ani_cpu_to_be16(src_port),
+				ani_cpu_to_be16(dst_port));
+			if (proto_subtype == QDF_PROTO_IPV4_TCP) {
+				tcp_seq_num = (uint32_t)(*(uint32_t *)(data +
+					IPV4_TCP_SEQ_NUM_OFFSET));
+				WMA_LOGE("TCP_seq_num: %u",
+					ani_cpu_to_be16(tcp_seq_num));
+			}
+		}
+		break;
+
+	case QDF_PROTO_IPV6_UDP:
+	case QDF_PROTO_IPV6_TCP:
+		WMA_LOGE("WOW Wakeup: %s rcvd",
+			wma_pkt_proto_subtype_to_string(proto_subtype));
+		if (buf_len >= WMA_IPV6_PKT_INFO_GET_MIN_LEN) {
+			pkt_len = (uint16_t)(*(uint16_t *)(data +
+				IPV6_PKT_LEN_OFFSET));
+			src_port = (uint16_t)(*(uint16_t *)(data +
+				IPV6_SRC_PORT_OFFSET));
+			dst_port = (uint16_t)(*(uint16_t *)(data +
+				IPV6_DST_PORT_OFFSET));
+			WMA_LOGE("Pkt_len: %u",
+				ani_cpu_to_be16(pkt_len));
+			WMA_LOGE("src_port: %u, dst_port: %u",
+				ani_cpu_to_be16(src_port),
+				ani_cpu_to_be16(dst_port));
+			if (proto_subtype == QDF_PROTO_IPV6_TCP) {
+				tcp_seq_num = (uint32_t)(*(uint32_t *)(data +
+					IPV6_TCP_SEQ_NUM_OFFSET));
+				WMA_LOGE("TCP_seq_num: %u",
+					ani_cpu_to_be16(tcp_seq_num));
+			}
+		}
+		break;
+
+	default:
+end:
+		WMA_LOGE("wow_buf_pkt_len: %u", buf_len);
+		WMA_LOGE("Invalid Packet Type or Smaller WOW packet buffer than expected");
+		break;
+	}
+}
+
+/**
+ * wma_wow_dump_mgmt_buffer() - API to parse data buffer for mgmt.
+ *    packet that resulted in WOW wakeup.
+ * @wow_packet_buffer: Pointer to data buffer
+ * @buf_len: length of data buffer
+ *
+ * This function parses the data buffer received (802.11 header)
+ * to get informaton like src mac addr, dst mac addr, seq_num,
+ * frag_num, etc.
+ *
+ * Return: void
+ */
+static void wma_wow_dump_mgmt_buffer(uint8_t *wow_packet_buffer,
+			uint32_t buf_len)
+{
+	struct ieee80211_frame_addr4 *wh;
+
+	WMA_LOGD("wow_buf_pkt_len: %u", buf_len);
+	wh = (struct ieee80211_frame_addr4 *)
+		(wow_packet_buffer + 4);
+	if (buf_len >= sizeof(struct ieee80211_frame)) {
+		uint8_t to_from_ds, frag_num;
+		uint32_t seq_num;
+
+		WMA_LOGE("RA: " MAC_ADDRESS_STR " TA: " MAC_ADDRESS_STR,
+			MAC_ADDR_ARRAY(wh->i_addr1),
+			MAC_ADDR_ARRAY(wh->i_addr2));
+
+		WMA_LOGE("TO_DS: %u, FROM_DS: %u",
+			wh->i_fc[1] & IEEE80211_FC1_DIR_TODS,
+			wh->i_fc[1] & IEEE80211_FC1_DIR_FROMDS);
+
+		to_from_ds = wh->i_fc[1] & IEEE80211_FC1_DIR_DSTODS;
+
+		switch (to_from_ds) {
+		case IEEE80211_NO_DS:
+			WMA_LOGE("BSSID: " MAC_ADDRESS_STR,
+				MAC_ADDR_ARRAY(wh->i_addr3));
+			break;
+		case IEEE80211_TO_DS:
+			WMA_LOGE("DA: " MAC_ADDRESS_STR,
+				MAC_ADDR_ARRAY(wh->i_addr3));
+			break;
+		case IEEE80211_FROM_DS:
+			WMA_LOGE("SA: " MAC_ADDRESS_STR,
+				MAC_ADDR_ARRAY(wh->i_addr3));
+			break;
+		case IEEE80211_DS_TO_DS:
+			if (buf_len >= sizeof(struct ieee80211_frame_addr4))
+				WMA_LOGE("DA: " MAC_ADDRESS_STR " SA: "
+					MAC_ADDRESS_STR,
+					MAC_ADDR_ARRAY(wh->i_addr3),
+					MAC_ADDR_ARRAY(wh->i_addr4));
+			break;
+		}
+
+		seq_num = (((*(uint16_t *)wh->i_seq) &
+				IEEE80211_SEQ_SEQ_MASK) >>
+				IEEE80211_SEQ_SEQ_SHIFT);
+		frag_num = (((*(uint16_t *)wh->i_seq) &
+				IEEE80211_SEQ_FRAG_MASK) >>
+				IEEE80211_SEQ_FRAG_SHIFT);
+
+		WMA_LOGE("SEQ_NUM: %u, FRAG_NUM: %u",
+				seq_num, frag_num);
+	} else {
+		WMA_LOGE("Insufficient buffer length for mgmt. packet");
+	}
+}
+
+/**
+ * wma_wow_get_wakelock_duration() - return the wakelock duration
+ *        for some mgmt packets received.
+ * @wake_reason: wow wakeup reason
+ *
+ * This function returns the wakelock duration for some mgmt packets
+ * received while in wow suspend.
+ *
+ * Return: wakelock duration
+ */
+static uint32_t wma_wow_get_wakelock_duration(int wake_reason)
+{
+	uint32_t wake_lock_duration = 0;
+
+	switch (wake_reason) {
+	case WOW_REASON_AUTH_REQ_RECV:
+		wake_lock_duration = WMA_AUTH_REQ_RECV_WAKE_LOCK_TIMEOUT;
+		break;
+	case WOW_REASON_ASSOC_REQ_RECV:
+		wake_lock_duration = WMA_ASSOC_REQ_RECV_WAKE_LOCK_DURATION;
+		break;
+	case WOW_REASON_DEAUTH_RECVD:
+		wake_lock_duration = WMA_DEAUTH_RECV_WAKE_LOCK_DURATION;
+		break;
+	case WOW_REASON_DISASSOC_RECVD:
+		wake_lock_duration = WMA_DISASSOC_RECV_WAKE_LOCK_DURATION;
+		break;
+	default:
+		break;
+	}
+
+	return wake_lock_duration;
+}
+
+/**
  * wma_wow_wakeup_host_event() - wakeup host event handler
  * @handle: wma handle
  * @event: event data
@@ -2686,19 +3120,29 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 
 	switch (wake_info->wake_reason) {
 	case WOW_REASON_AUTH_REQ_RECV:
-		wake_lock_duration = WMA_AUTH_REQ_RECV_WAKE_LOCK_TIMEOUT;
-		break;
-
 	case WOW_REASON_ASSOC_REQ_RECV:
-		wake_lock_duration = WMA_ASSOC_REQ_RECV_WAKE_LOCK_DURATION;
-		break;
-
 	case WOW_REASON_DEAUTH_RECVD:
-		wake_lock_duration = WMA_DEAUTH_RECV_WAKE_LOCK_DURATION;
-		break;
-
 	case WOW_REASON_DISASSOC_RECVD:
-		wake_lock_duration = WMA_DISASSOC_RECV_WAKE_LOCK_DURATION;
+	case WOW_REASON_ASSOC_RES_RECV:
+	case WOW_REASON_REASSOC_REQ_RECV:
+	case WOW_REASON_REASSOC_RES_RECV:
+	case WOW_REASON_BEACON_RECV:
+	case WOW_REASON_ACTION_FRAME_RECV:
+		wake_lock_duration =
+			wma_wow_get_wakelock_duration(wake_info->wake_reason);
+		if (param_buf->wow_packet_buffer) {
+			/* First 4-bytes of wow_packet_buffer is the length */
+			qdf_mem_copy((uint8_t *) &wow_buf_pkt_len,
+				param_buf->wow_packet_buffer, 4);
+			if (wow_buf_pkt_len)
+				wma_wow_dump_mgmt_buffer(
+					param_buf->wow_packet_buffer,
+					wow_buf_pkt_len);
+			else
+				WMA_LOGE("wow packet buffer is empty");
+		} else {
+			WMA_LOGE("No wow packet buffer present");
+		}
 		break;
 
 	case WOW_REASON_AP_ASSOC_LOST:
@@ -2764,14 +3208,25 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 			/* First 4-bytes of wow_packet_buffer is the length */
 			qdf_mem_copy((uint8_t *) &wow_buf_pkt_len,
 				     param_buf->wow_packet_buffer, 4);
-			wma_wow_wake_up_stats(wma,
-				param_buf->wow_packet_buffer + 4,
-				wow_buf_pkt_len,
-				WOW_REASON_PATTERN_MATCH_FOUND);
-			qdf_trace_hex_dump(QDF_MODULE_ID_WMA,
-					   QDF_TRACE_LEVEL_DEBUG,
-					   param_buf->wow_packet_buffer + 4,
-					   wow_buf_pkt_len);
+			if (wow_buf_pkt_len) {
+				uint8_t *data;
+
+				wma_wow_wake_up_stats(wma,
+					param_buf->wow_packet_buffer + 4,
+					wow_buf_pkt_len,
+					WOW_REASON_PATTERN_MATCH_FOUND);
+				qdf_trace_hex_dump(QDF_MODULE_ID_WMA,
+					QDF_TRACE_LEVEL_DEBUG,
+					param_buf->wow_packet_buffer + 4,
+					wow_buf_pkt_len);
+
+				data = (uint8_t *)
+					(param_buf->wow_packet_buffer + 4);
+				wma_wow_parse_data_pkt_buffer(data,
+					wow_buf_pkt_len);
+			} else {
+				WMA_LOGE("wow packet buffer is empty");
+			}
 		} else {
 			WMA_LOGE("No wow packet buffer present");
 		}
@@ -6775,6 +7230,15 @@ int wma_get_channels(struct dfs_ieee80211_channel *ichan,
 	chan_list->nchannels = 0;
 
 	if (IEEE80211_IS_CHAN_11AC_VHT160(ichan)) {
+
+		/*
+		 * as per the latest draft for BSS bandwidth 160MHz,
+		 * channel frequency segment 2 represents the center
+		 * channel frequency.
+		 */
+		if (ichan->ic_vhtop_ch_freq_seg2)
+			center_chan =
+				cds_freq_to_chan(ichan->ic_vhtop_ch_freq_seg2);
 		/*
 		 * In 160MHz channel width, need to
 		 * check if each of the 8 20MHz channel

@@ -48,6 +48,7 @@
 #include "wlan_hdd_scan.h"
 #include "cds_concurrency.h"
 #include "wma_api.h"
+#include "cds_utils.h"
 
 #define MAX_RATES                       12
 #define HDD_WAKE_LOCK_SCAN_DURATION (5 * 1000) /* in msec */
@@ -1263,6 +1264,7 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 	uint8_t *pP2pIe = NULL;
 	hdd_adapter_t *con_sap_adapter;
 	uint16_t con_dfs_ch;
+	uint8_t num_chan = 0;
 
 	ENTER();
 
@@ -1430,8 +1432,6 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 		request->n_channels = MAX_CHANNEL;
 	}
 
-	hdd_notice("No of Scan Channels: %d", request->n_channels);
-
 	if (request->n_channels) {
 		char chList[(request->n_channels * 5) + 1];
 		int len;
@@ -1442,14 +1442,23 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 			goto free_mem;
 		}
 		for (i = 0, len = 0; i < request->n_channels; i++) {
-			channelList[i] = request->channels[i]->hw_value;
+			if (cds_is_dsrc_channel(cds_chan_to_freq(
+			    request->channels[i]->hw_value)))
+				continue;
+			channelList[num_chan] = request->channels[i]->hw_value;
 			len += snprintf(chList + len, 5, "%d ", channelList[i]);
+			num_chan++;
 		}
-
 		hdd_notice("Channel-List: %s", chList);
-
+		hdd_notice("No. of Scan Channels: %d", num_chan);
 	}
-	scan_req.ChannelInfo.numOfChannels = request->n_channels;
+	if (!num_chan) {
+		hdd_err("Received zero non-dsrc channels");
+		status = -EINVAL;
+		goto free_mem;
+	}
+
+	scan_req.ChannelInfo.numOfChannels = num_chan;
 	scan_req.ChannelInfo.ChannelList = channelList;
 
 	/* set requestType to full scan */
@@ -2136,13 +2145,16 @@ static int __wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
 						num_ignore_dfs_ch++;
 						break;
 					}
-
-					valid_ch[num_ch++] =
-						request->channels[i]->hw_value;
-					len +=
-						snprintf(chList + len, 5, "%d ",
-							 request->channels[i]->
-							 hw_value);
+					if (!cds_is_dsrc_channel(
+					    cds_chan_to_freq(
+					    request->channels[i]->hw_value))) {
+						valid_ch[num_ch++] = request->
+							channels[i]->hw_value;
+						len += snprintf(chList + len,
+							5, "%d ",
+							request->channels[i]->
+							hw_value);
+					}
 					break;
 				}
 			}
@@ -2152,8 +2164,8 @@ static int __wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
 		/* If all channels are DFS and dropped,
 		 * then ignore the PNO request
 		 */
-		if (num_ignore_dfs_ch == request->n_channels) {
-			hdd_notice("All requested channels are DFS channels");
+		if (!num_ch) {
+			hdd_notice("Channel list empty due to filtering of DSRC,DFS channels");
 			ret = -EINVAL;
 			goto error;
 		}

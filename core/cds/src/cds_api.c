@@ -307,7 +307,6 @@ QDF_STATUS cds_open(void)
 	}
 
 	/*Open the WMA module */
-
 	qdf_status = wma_open(gp_cds_context,
 			      hdd_update_tgt_cfg,
 			      hdd_dfs_indicate_radar, cds_cfg);
@@ -378,6 +377,8 @@ QDF_STATUS cds_open(void)
 		QDF_ASSERT(0);
 		goto err_sme_close;
 	}
+
+	gp_cds_context->ol_txrx_update_mac_id = ol_txrx_update_mac_id;
 
 	QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_INFO_HIGH,
 		  "%s: CDS successfully Opened", __func__);

@@ -166,6 +166,34 @@
 #define WMA_MCAST_IPV4_MAC_ADDR (0x01)
 #define WMA_MCAST_IPV6_MAC_ADDR (0x33)
 
+#define WMA_IS_EAPOL_GET_MIN_LEN          14
+#define WMA_EAPOL_SUBTYPE_GET_MIN_LEN     21
+#define WMA_EAPOL_INFO_GET_MIN_LEN        23
+#define WMA_IS_DHCP_GET_MIN_LEN           38
+#define WMA_DHCP_SUBTYPE_GET_MIN_LEN      0x11D
+#define WMA_DHCP_INFO_GET_MIN_LEN         50
+#define WMA_IS_ARP_GET_MIN_LEN            14
+#define WMA_ARP_SUBTYPE_GET_MIN_LEN       22
+#define WMA_IPV4_PROTO_GET_MIN_LEN        24
+#define WMA_IPV4_PKT_INFO_GET_MIN_LEN     42
+#define WMA_ICMP_SUBTYPE_GET_MIN_LEN      35
+#define WMA_IPV6_PROTO_GET_MIN_LEN        21
+#define WMA_IPV6_PKT_INFO_GET_MIN_LEN     62
+#define WMA_ICMPV6_SUBTYPE_GET_MIN_LEN    55
+
+/**
+ * ds_mode: distribution system mode
+ * @IEEE80211_NO_DS: NO DS at either side
+ * @IEEE80211_TO_DS: DS at receiver side
+ * @IEEE80211_FROM_DS: DS at sender side
+ * @IEEE80211_DS_TO_DS: DS at both sender and revceiver side
+ */
+enum ds_mode {
+	IEEE80211_NO_DS,
+	IEEE80211_TO_DS,
+	IEEE80211_FROM_DS,
+	IEEE80211_DS_TO_DS
+};
 
 /* Roaming default values
  * All time and period values are in milliseconds.
@@ -864,6 +892,7 @@ typedef struct {
  * @rx_streams: number of rx streams can be used by the vdev
  * @chain_mask: chain mask can be used by the vdev
  * @mac_id: the mac on which vdev is on
+ * @wep_default_key_idx: wep default index for group key
  *
  * It stores parameters per vdev in wma.
  */
@@ -940,6 +969,7 @@ struct wma_txrx_node {
 	uint8_t nss_2g;
 	uint8_t nss_5g;
 	bool p2p_lo_in_progress;
+	uint8_t wep_default_key_idx;
 };
 
 #if defined(QCA_WIFI_FTM)

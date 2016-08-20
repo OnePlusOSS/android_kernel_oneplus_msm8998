@@ -89,6 +89,34 @@
 #define QCOM_VENDOR_IE_AGE_TYPE  0x100
 #define QCOM_VENDOR_IE_AGE_LEN   (sizeof(qcom_ie_age) - 2)
 
+/**
+ * typedef struct qcom_ie_age - age ie
+ *
+ * @element_id: Element id
+ * @len: Length
+ * @oui_1: OUI 1
+ * @oui_2: OUI 2
+ * @oui_3: OUI 3
+ * @type: Type
+ * @age: Age
+ * @tsf_delta: tsf delta from FW
+ * @beacon_tsf: original beacon TSF
+ * @seq_ctrl: sequence control field
+ */
+typedef struct {
+	u8 element_id;
+	u8 len;
+	u8 oui_1;
+	u8 oui_2;
+	u8 oui_3;
+	u32 type;
+	u32 age;
+	u32 tsf_delta;
+	u64 beacon_tsf;
+	u16 seq_ctrl;
+} __attribute__ ((packed)) qcom_ie_age;
+#endif
+
 #ifdef FEATURE_WLAN_TDLS
 #define WLAN_IS_TDLS_SETUP_ACTION(action) \
 	((SIR_MAC_TDLS_SETUP_REQ <= action) && \
@@ -108,32 +136,6 @@
 
 #if defined(CFG80211_DEL_STA_V2) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)) || defined(WITH_BACKPORTS)
 #define USE_CFG80211_DEL_STA_V2
-#endif
-
-/**
- * typedef struct qcom_ie_age - age ie
- *
- * @element_id: Element id
- * @len: Length
- * @oui_1: OUI 1
- * @oui_2: OUI 2
- * @oui_3: OUI 3
- * @type: Type
- * @age: Age
- * @tsf_delta: tsf delta from FW
- * @beacon_tsf: original beacon TSF
- */
-typedef struct {
-	u8 element_id;
-	u8 len;
-	u8 oui_1;
-	u8 oui_2;
-	u8 oui_3;
-	u32 type;
-	u32 age;
-	u32 tsf_delta;
-	u64 beacon_tsf;
-} __attribute__ ((packed)) qcom_ie_age;
 #endif
 
 /**
@@ -931,10 +933,9 @@ enum qca_wlan_vendor_attr {
  * @QCA_WLAN_VENDOR_ATTR_EXTSCAN_BUCKET_SPEC_MAX_PERIOD:
  *	Unsigned 32-bit value. If max_period is non zero or different than
  *	period, then this bucket is an exponential backoff bucket.
- * @QCA_WLAN_VENDOR_ATTR_EXTSCAN_BUCKET_SPEC_EXPONENT:
+ * @QCA_WLAN_VENDOR_ATTR_EXTSCAN_BUCKET_SPEC_BASE:
  *	Unsigned 32-bit value. For exponential back off bucket,
- *	number of scans performed at a given period and until the
- *	exponent is applied.
+ *	number of scans to performed for a given period.
  * @QCA_WLAN_VENDOR_ATTR_EXTSCAN_BUCKET_SPEC_STEP_COUNT:
  *	Unsigned 8-bit value; in number of scans, wake up AP after these
  *	many scans.
@@ -1010,7 +1011,7 @@ enum qca_wlan_vendor_attr_extscan_config_params {
 	QCA_WLAN_VENDOR_ATTR_EXTSCAN_BSSID_HOTLIST_PARAMS_LOST_AP_SAMPLE_SIZE,
 
 	QCA_WLAN_VENDOR_ATTR_EXTSCAN_BUCKET_SPEC_MAX_PERIOD,
-	QCA_WLAN_VENDOR_ATTR_EXTSCAN_BUCKET_SPEC_EXPONENT,
+	QCA_WLAN_VENDOR_ATTR_EXTSCAN_BUCKET_SPEC_BASE,
 	QCA_WLAN_VENDOR_ATTR_EXTSCAN_BUCKET_SPEC_STEP_COUNT,
 	QCA_WLAN_VENDOR_ATTR_EXTSCAN_SCAN_CMD_PARAMS_REPORT_THRESHOLD_NUM_SCANS,
 
@@ -1130,6 +1131,10 @@ enum qca_wlan_vendor_attr_extscan_config_params {
  *	Unsigned 32bit value; Max number of epno networks by ssid
  * @QCA_WLAN_VENDOR_ATTR_EXTSCAN_RESULTS_CAPABILITIES_MAX_NUM_WHITELISTED_SSID:
  *	Unsigned 32bit value; Max number of whitelisted ssids
+ * @QCA_WLAN_VENDOR_ATTR_EXTSCAN_RESULTS_BUCKETS_SCANNED:
+ *	Unsigned 32bit value, Bit mask of all buckets scanned in the
+ *	current EXTSCAN CYCLE. For e.g. If fw scan is going to scan
+ *	following buckets 0, 1, 2 in current cycle then it will be (0x111)
  * @QCA_WLAN_VENDOR_ATTR_EXTSCAN_RESULTS_AFTER_LAST: After last
  * @QCA_WLAN_VENDOR_ATTR_EXTSCAN_RESULTS_MAX: Max value
  */
@@ -1250,6 +1255,7 @@ enum qca_wlan_vendor_attr_extscan_results {
 	/* Use attr QCA_WLAN_VENDOR_ATTR_EXTSCAN_NUM_RESULTS_AVAILABLE
 	 * to indicate number of results.
 	 */
+	QCA_WLAN_VENDOR_ATTR_EXTSCAN_RESULTS_BUCKETS_SCANNED,
 
 	/* keep last */
 	QCA_WLAN_VENDOR_ATTR_EXTSCAN_RESULTS_AFTER_LAST,

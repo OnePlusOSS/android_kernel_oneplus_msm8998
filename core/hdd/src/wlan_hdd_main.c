@@ -77,6 +77,7 @@
 #ifdef MSM_PLATFORM
 #include <soc/qcom/subsystem_restart.h>
 #endif
+#include <soc/qcom/socinfo.h>
 #include <wlan_hdd_hostapd.h>
 #include <wlan_hdd_softap_tx_rx.h>
 #include "cfg_api.h"
@@ -197,6 +198,28 @@ struct sock *cesium_nl_srv_sock;
 #ifdef FEATURE_WLAN_AUTO_SHUTDOWN
 void wlan_hdd_auto_shutdown_cb(void);
 #endif
+
+/**
+ * hdd_set_rps_cpu_mask - set RPS CPU mask for interfaces
+ * @hdd_ctx: pointer to hdd_context_t
+ *
+ * Return: none
+ */
+void hdd_set_rps_cpu_mask(hdd_context_t *hdd_ctx)
+{
+	hdd_adapter_t *adapter;
+	hdd_adapter_list_node_t *adapter_node, *next;
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+
+	status = hdd_get_front_adapter(hdd_ctx, &adapter_node);
+	while (NULL != adapter_node && QDF_STATUS_SUCCESS == status) {
+		adapter = adapter_node->pAdapter;
+		if (NULL != adapter)
+			hdd_send_rps_ind(adapter);
+		status = hdd_get_next_adapter(hdd_ctx, adapter_node, &next);
+		adapter_node = next;
+	}
+}
 
 /**
  * wlan_hdd_txrx_pause_cb() - pause callback from txrx layer
@@ -1342,6 +1365,38 @@ static void hdd_update_tgt_vht_cap(hdd_context_t *hdd_ctx,
 
 }
 
+/**
+ * hdd_generate_macaddr_auto() - Auto-generate mac address
+ * @hdd_ctx: Pointer to the HDD context
+ *
+ * Auto-generate mac address using device serial number.
+ * Keep the first 3 bytes of OUI as before and replace
+ * the last 3 bytes with the lower 3 bytes of serial number.
+ *
+ * Return: 0 for success
+ *         Non zero failure code for errors
+ */
+static int hdd_generate_macaddr_auto(hdd_context_t *hdd_ctx)
+{
+	unsigned int serialno = 0;
+	struct qdf_mac_addr mac_addr = {
+		{0x00, 0x0A, 0xF5, 0x00, 0x00, 0x00}
+	};
+
+	serialno = socinfo_get_serial_number();
+	if (serialno == 0)
+		return -EINVAL;
+
+	serialno &= 0x00ffffff;
+
+	mac_addr.bytes[3] = (serialno >> 16) & 0xff;
+	mac_addr.bytes[4] = (serialno >> 8) & 0xff;
+	mac_addr.bytes[5] = serialno & 0xff;
+
+	hdd_update_macaddr(hdd_ctx->config, mac_addr);
+	return 0;
+}
+
 void hdd_update_tgt_cfg(void *context, void *param)
 {
 	hdd_context_t *hdd_ctx = (hdd_context_t *) context;
@@ -1389,11 +1444,22 @@ void hdd_update_tgt_cfg(void *context, void *param)
 	if (!qdf_is_macaddr_zero(&cfg->hw_macaddr)) {
 		hdd_update_macaddr(hdd_ctx->config, cfg->hw_macaddr);
 	} else {
-		hddLog(QDF_TRACE_LEVEL_ERROR,
-		       FL(
-			  "Invalid MAC passed from target, using MAC from ini file"
-			  MAC_ADDRESS_STR),
-		       MAC_ADDR_ARRAY(hdd_ctx->config->intfMacAddr[0].bytes));
+		static struct qdf_mac_addr default_mac_addr = {
+			{0x00, 0x0A, 0xF5, 0x89, 0x89, 0xFF}
+		};
+		if (qdf_is_macaddr_equal(&hdd_ctx->config->intfMacAddr[0],
+					 &default_mac_addr)) {
+			if (hdd_generate_macaddr_auto(hdd_ctx) != 0)
+				hdd_err("Fail to auto-generate MAC, using MAC from ini file "
+					MAC_ADDRESS_STR,
+					MAC_ADDR_ARRAY(hdd_ctx->config->
+						       intfMacAddr[0].bytes));
+		} else {
+			hdd_err("Invalid MAC passed from target, using MAC from ini file "
+				MAC_ADDRESS_STR,
+				MAC_ADDR_ARRAY(hdd_ctx->config->
+					       intfMacAddr[0].bytes));
+		}
 	}
 
 	hdd_ctx->target_fw_version = cfg->target_fw_version;
@@ -1426,7 +1492,10 @@ void hdd_update_tgt_cfg(void *context, void *param)
 	hdd_info("Init current antenna mode: %d",
 		 hdd_ctx->current_antenna_mode);
 
-	hdd_ctx->bpf_enabled = cfg->bpf_enabled;
+	hdd_info("Target BPF %d Host BPF %d",
+		cfg->bpf_enabled, hdd_ctx->config->bpf_packet_filter_enable);
+	hdd_ctx->bpf_enabled = (cfg->bpf_enabled &&
+				hdd_ctx->config->bpf_packet_filter_enable);
 	/* Configure NAN datapath features */
 	hdd_nan_datapath_target_config(hdd_ctx, cfg);
 }
@@ -4501,6 +4570,8 @@ void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 	wiphy_unregister(wiphy);
 	wlan_hdd_cfg80211_deinit(wiphy);
 
+	wlan_hdd_send_status_pkg(NULL, NULL, 0, 0);
+
 	hdd_exit_netlink_services(hdd_ctx);
 	mutex_destroy(&hdd_ctx->iface_change_lock);
 	hdd_context_destroy(hdd_ctx);
@@ -4521,10 +4592,6 @@ void __hdd_wlan_exit(void)
 
 	/* Check IPA HW Pipe shutdown */
 	hdd_ipa_uc_force_pipe_shutdown(hdd_ctx);
-
-#ifdef WLAN_FEATURE_LPSS
-	wlan_hdd_send_status_pkg(NULL, NULL, 0, 0);
-#endif
 
 	memdump_deinit();
 
@@ -6525,7 +6592,7 @@ int hdd_update_cds_config(hdd_context_t *hdd_ctx)
 
 	cds_cfg->ip_tcp_udp_checksum_offload =
 		hdd_ctx->config->enable_ip_tcp_udp_checksum_offload;
-	cds_cfg->enable_rxthread = hdd_ctx->config->enableRxThread;
+	cds_cfg->enable_rxthread = hdd_ctx->enableRxThread;
 	cds_cfg->ce_classify_enabled =
 		hdd_ctx->config->ce_classify_enabled;
 	cds_cfg->tx_chain_mask_cck = hdd_ctx->config->tx_chain_mask_cck;
@@ -7428,6 +7495,8 @@ int hdd_wlan_startup(struct device *dev)
 				  hdd_ctx->target_hw_version,
 				  hdd_ctx->target_hw_name);
 
+	if (hdd_ctx->rps)
+		hdd_set_rps_cpu_mask(hdd_ctx);
 
 	ret = hdd_register_notifiers(hdd_ctx);
 	if (ret)
@@ -7883,6 +7952,7 @@ void wlan_hdd_send_svc_nlink_msg(int type, void *data, int len)
 	case WLAN_SVC_DFS_ALL_CHANNEL_UNAVAIL_IND:
 	case WLAN_SVC_WLAN_TP_IND:
 	case WLAN_SVC_WLAN_TP_TX_IND:
+	case WLAN_SVC_RPS_ENABLE_IND:
 		ani_hdr->length = len;
 		nlh->nlmsg_len = NLMSG_LENGTH((sizeof(tAniMsgHdr) + len));
 		nl_data = (char *)ani_hdr + sizeof(tAniMsgHdr);

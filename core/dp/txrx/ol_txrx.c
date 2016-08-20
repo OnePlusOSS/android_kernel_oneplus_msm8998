@@ -848,7 +848,7 @@ ol_txrx_vdev_tx_queue_free(struct ol_txrx_vdev_t *vdev)
 
 	for (i = 0; i < OL_TX_VDEV_NUM_QUEUES; i++) {
 		txq = &vdev->txqs[i];
-		ol_tx_queue_free(pdev, txq, (i + OL_TX_NUM_TIDS));
+		ol_tx_queue_free(pdev, txq, (i + OL_TX_NUM_TIDS), false);
 	}
 }
 
@@ -902,7 +902,7 @@ ol_txrx_peer_tx_queue_free(struct ol_txrx_pdev_t *pdev,
 
 	for (i = 0; i < OL_TX_NUM_TIDS; i++) {
 		txq = &peer->txqs[i];
-		ol_tx_queue_free(pdev, txq, i);
+		ol_tx_queue_free(pdev, txq, i, true);
 	}
 }
 #else
@@ -3781,6 +3781,25 @@ void ol_vdev_rx_set_intrabss_fwd(ol_txrx_vdev_handle vdev, bool val)
 		return;
 
 	vdev->disable_intrabss_fwd = val;
+}
+
+/**
+ * ol_txrx_update_mac_id() - update mac_id for vdev
+ * @vdev_id: vdev id
+ * @mac_id: mac id
+ *
+ * Return: none
+ */
+void ol_txrx_update_mac_id(uint8_t vdev_id, uint8_t mac_id)
+{
+	ol_txrx_vdev_handle vdev = ol_txrx_get_vdev_from_vdev_id(vdev_id);
+
+	if (NULL == vdev) {
+		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
+			  "%s: Invalid vdev_id %d", __func__, vdev_id);
+		return;
+	}
+	vdev->mac_id = mac_id;
 }
 
 #ifdef QCA_LL_LEGACY_TX_FLOW_CONTROL

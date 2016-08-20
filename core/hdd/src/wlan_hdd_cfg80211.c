@@ -6084,6 +6084,7 @@ static int hdd_set_reset_bpf_offload(hdd_context_t *hdd_ctx,
 	struct sir_bpf_set_offload *bpf_set_offload;
 	QDF_STATUS status;
 	int prog_len;
+	int ret = 0;
 
 	ENTER();
 
@@ -6097,6 +6098,7 @@ static int hdd_set_reset_bpf_offload(hdd_context_t *hdd_ctx,
 	/* Parse and fetch bpf packet size */
 	if (!tb[BPF_PACKET_SIZE]) {
 		hdd_err("attr bpf packet size failed");
+		ret = -EINVAL;
 		goto fail;
 	}
 	bpf_set_offload->total_length = nla_get_u32(tb[BPF_PACKET_SIZE]);
@@ -6109,11 +6111,19 @@ static int hdd_set_reset_bpf_offload(hdd_context_t *hdd_ctx,
 	/* Parse and fetch bpf program */
 	if (!tb[BPF_PROGRAM]) {
 		hdd_err("attr bpf program failed");
+		ret = -EINVAL;
 		goto fail;
 	}
 
 	prog_len = nla_len(tb[BPF_PROGRAM]);
 	bpf_set_offload->program = qdf_mem_malloc(sizeof(uint8_t) * prog_len);
+
+	if (bpf_set_offload->program == NULL) {
+		hdd_err("qdf_mem_malloc failed for bpf offload program");
+		ret = -ENOMEM;
+		goto fail;
+	}
+
 	bpf_set_offload->current_length = prog_len;
 	nla_memcpy(bpf_set_offload->program, tb[BPF_PROGRAM], prog_len);
 	bpf_set_offload->session_id = session_id;
@@ -6121,6 +6131,7 @@ static int hdd_set_reset_bpf_offload(hdd_context_t *hdd_ctx,
 	/* Parse and fetch filter Id */
 	if (!tb[BPF_FILTER_ID]) {
 		hdd_err("attr filter id failed");
+		ret = -EINVAL;
 		goto fail;
 	}
 	bpf_set_offload->filter_id = nla_get_u32(tb[BPF_FILTER_ID]);
@@ -6128,6 +6139,7 @@ static int hdd_set_reset_bpf_offload(hdd_context_t *hdd_ctx,
 	/* Parse and fetch current offset */
 	if (!tb[BPF_CURRENT_OFFSET]) {
 		hdd_err("attr current offset failed");
+		ret = -EINVAL;
 		goto fail;
 	}
 	bpf_set_offload->current_offset = nla_get_u32(tb[BPF_CURRENT_OFFSET]);
@@ -6144,19 +6156,16 @@ post_sme:
 	status = sme_set_bpf_instructions(hdd_ctx->hHal, bpf_set_offload);
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		hdd_err("sme_set_bpf_instructions failed(err=%d)", status);
+		ret = -EINVAL;
 		goto fail;
 	}
 	EXIT();
-	if (bpf_set_offload->current_length)
-		qdf_mem_free(bpf_set_offload->program);
-	qdf_mem_free(bpf_set_offload);
-	return 0;
 
 fail:
 	if (bpf_set_offload->current_length)
 		qdf_mem_free(bpf_set_offload->program);
 	qdf_mem_free(bpf_set_offload);
-	return -EINVAL;
+	return ret;
 }
 
 /**
@@ -6191,7 +6200,7 @@ __wlan_hdd_cfg80211_bpf_offload(struct wiphy *wiphy,
 	}
 
 	if (!hdd_ctx->bpf_enabled) {
-		hdd_err("BPF offload is not supported by firmware");
+		hdd_err("BPF offload is not supported/enabled");
 		return -ENOTSUPP;
 	}
 
@@ -9242,6 +9251,11 @@ static int __wlan_hdd_cfg80211_set_default_key(struct wiphy *wiphy,
 				WLAN_HDD_GET_AP_CTX_PTR(pAdapter);
 			pAPCtx->wepKey[key_index].keyDirection =
 				eSIR_TX_DEFAULT;
+			hdd_info("key index passed for sme_roam_set_default_key_index %d",
+				key_index);
+			sme_roam_set_default_key_index(
+				WLAN_HDD_GET_HAL_CTX(pAdapter),
+				pAdapter->sessionId, key_index);
 		}
 	}
 
@@ -9419,6 +9433,8 @@ wlan_hdd_cfg80211_inform_bss_frame(hdd_adapter_t *pAdapter,
 	qie_age->tsf_delta = bss_desc->tsf_delta;
 	memcpy(&qie_age->beacon_tsf, bss_desc->timeStamp,
 	       sizeof(qie_age->beacon_tsf));
+	memcpy(&qie_age->seq_ctrl, &bss_desc->seq_ctrl,
+	       sizeof(qie_age->seq_ctrl));
 #endif
 
 	memcpy(mgmt->u.probe_resp.variable, ie, ie_length);
@@ -11046,6 +11062,16 @@ static int __wlan_hdd_cfg80211_connect(struct wiphy *wiphy,
 	if (true == wlan_hdd_reassoc_bssid_hint(pAdapter, req, &status))
 		return status;
 
+	wlan_hdd_disable_roaming(pAdapter);
+
+	/* Try disconnecting if already in connected state */
+	status = wlan_hdd_try_disconnect(pAdapter);
+	if (0 > status) {
+		hdd_err("Failed to disconnect the existing connection");
+		return -EALREADY;
+	}
+
+	/* Check for max concurrent connections after doing disconnect if any */
 	if (req->channel) {
 		if (!cds_allow_concurrency(
 				cds_convert_device_mode_to_qdf_type(
@@ -11061,15 +11087,6 @@ static int __wlan_hdd_cfg80211_connect(struct wiphy *wiphy,
 			hdd_err("This concurrency combination is not allowed");
 			return -ECONNREFUSED;
 		}
-	}
-
-	wlan_hdd_disable_roaming(pAdapter);
-
-	/*Try disconnecting if already in connected state */
-	status = wlan_hdd_try_disconnect(pAdapter);
-	if (0 > status) {
-		hdd_err("Failed to disconnect the existing connection");
-		return -EALREADY;
 	}
 
 	/*initialise security parameters */

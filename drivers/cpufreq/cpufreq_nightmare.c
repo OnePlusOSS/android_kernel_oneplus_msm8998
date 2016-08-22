@@ -106,6 +106,7 @@ static void nm_check_cpu(int cpu, unsigned int load)
 	int freq_up_brake = nm_tuners->freq_up_brake;
 	int freq_step_dec = nm_tuners->freq_step_dec;
 	unsigned int tmp_freq = 0;
+	int tmp_step = 0;
 
 	/* CPUs Online Scale Frequency*/
 	if (policy->cur < freq_for_responsiveness) {
@@ -119,16 +120,24 @@ static void nm_check_cpu(int cpu, unsigned int load)
 	/* Check for frequency increase or for frequency decrease */
 	if (load >= inc_cpu_load
 		 && policy->cur < policy->max) {
+		tmp_step = (load + freq_step - freq_up_brake) * 1536;
+		if (tmp_step < 0)
+			tmp_step = 0;
+
 		tmp_freq = adjust_cpufreq_frequency_target(policy,
 												   dbs_info->freq_table,
-												   (policy->cur + ((load + freq_step - freq_up_brake == 0 ? 1 : load + freq_step - freq_up_brake) * 1536)));
+												   policy->cur + tmp_step);
 
 		__cpufreq_driver_target(policy, tmp_freq, CPUFREQ_RELATION_H);
 	} else if (load < dec_cpu_load
 				&& policy->cur > policy->min) {
+		tmp_step = (100 - load + freq_step_dec) * 1536;
+		if (tmp_step < 0)
+			tmp_step = 0;
+
 		tmp_freq = adjust_cpufreq_frequency_target(policy,
 												   dbs_info->freq_table,
-												   (policy->cur - ((100 - load + freq_step_dec == 0 ? 1 : 100 - load + freq_step_dec) * 1536)));
+												   (policy->cur < tmp_step ? 0 : policy->cur - tmp_step));
 
 		__cpufreq_driver_target(policy, tmp_freq, CPUFREQ_RELATION_L);
 	}

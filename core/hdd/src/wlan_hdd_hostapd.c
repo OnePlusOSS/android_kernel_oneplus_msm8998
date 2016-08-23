@@ -1078,7 +1078,7 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 		if (hdd_ipa_is_enabled(pHddCtx)) {
 			status = hdd_ipa_wlan_evt(pHostapdAdapter,
 					pHddApCtx->uBCStaId,
-					WLAN_AP_CONNECT,
+					HDD_IPA_AP_CONNECT,
 					pHostapdAdapter->dev->dev_addr);
 			if (status) {
 				hdd_err("WLAN_AP_CONNECT event failed!!");
@@ -1234,7 +1234,7 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 		if (hdd_ipa_is_enabled(pHddCtx)) {
 			status = hdd_ipa_wlan_evt(pHostapdAdapter,
 					pHddApCtx->uBCStaId,
-					WLAN_AP_DISCONNECT,
+					HDD_IPA_AP_DISCONNECT,
 					pHostapdAdapter->dev->dev_addr);
 			if (status) {
 				hdd_err("WLAN_AP_DISCONNECT event failed!!");
@@ -1473,7 +1473,7 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 			status = hdd_ipa_wlan_evt(pHostapdAdapter,
 					pSapEvent->sapevt.
 					sapStationAssocReassocCompleteEvent.
-					staId, WLAN_CLIENT_CONNECT_EX,
+					staId, HDD_IPA_CLIENT_CONNECT_EX,
 					pSapEvent->sapevt.
 					sapStationAssocReassocCompleteEvent.
 					staMac.bytes);
@@ -1608,7 +1608,7 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 #ifdef IPA_OFFLOAD
 		if (hdd_ipa_is_enabled(pHddCtx)) {
 			status = hdd_ipa_wlan_evt(pHostapdAdapter, staId,
-					WLAN_CLIENT_DISCONNECT,
+					HDD_IPA_CLIENT_DISCONNECT,
 					pSapEvent->sapevt.
 					sapStationDisassocCompleteEvent.
 					staMac.bytes);
@@ -3601,6 +3601,39 @@ static iw_softap_set_max_tx_power(struct net_device *dev,
 
 	return ret;
 }
+
+int
+static __iw_softap_set_pktlog(struct net_device *dev,
+				    struct iw_request_info *info,
+				    union iwreq_data *wrqu, char *extra)
+{
+	hdd_adapter_t *pHostapdAdapter = netdev_priv(dev);
+	hdd_context_t *hdd_ctx;
+	int *value = (int *)extra;
+
+	ENTER_DEV(dev);
+
+	if (NULL == value)
+		return -ENOMEM;
+
+	hdd_ctx = WLAN_HDD_GET_CTX(pHostapdAdapter);
+	return hdd_process_pktlog_command(hdd_ctx, value[0]);
+}
+
+int
+static iw_softap_set_pktlog(struct net_device *dev,
+				  struct iw_request_info *info,
+				  union iwreq_data *wrqu, char *extra)
+{
+	int ret;
+
+	cds_ssr_protect(__func__);
+	ret = __iw_softap_set_pktlog(dev, info, wrqu, extra);
+	cds_ssr_unprotect(__func__);
+
+	return ret;
+}
+
 
 int
 static __iw_softap_set_tx_power(struct net_device *dev,
@@ -6096,6 +6129,12 @@ static const struct iw_priv_args hostapd_private_args[] = {
 		0, "setTxMaxPower"
 	}
 	,
+	{
+		QCSAP_IOCTL_SET_PKTLOG,
+		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
+		0, "pktlog"
+	}
+	,
 	/* Set HDD CFG Ini param */
 	{
 		QCSAP_IOCTL_SET_INI_CFG,
@@ -6195,6 +6234,8 @@ static const iw_handler hostapd_private[] = {
 		iw_softap_set_tx_power,
 	[QCSAP_IOCTL_SET_MAX_TX_POWER - SIOCIWFIRSTPRIV] =
 		iw_softap_set_max_tx_power,
+	[QCSAP_IOCTL_SET_PKTLOG - SIOCIWFIRSTPRIV] =
+		iw_softap_set_pktlog,
 	[QCSAP_IOCTL_SET_INI_CFG - SIOCIWFIRSTPRIV] =
 		iw_softap_set_ini_cfg,
 	[QCSAP_IOCTL_GET_INI_CFG - SIOCIWFIRSTPRIV] =
@@ -7618,6 +7659,7 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 	/* Protection parameter to enable or disable */
 	pConfig->protEnabled = iniConfig->apProtEnabled;
 
+	pConfig->enOverLapCh = iniConfig->gEnableOverLapCh;
 	pConfig->dtim_period = pBeacon->dtim_period;
 
 	hdd_info("****pConfig->dtim_period=%d***",

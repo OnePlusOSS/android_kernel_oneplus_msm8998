@@ -2224,18 +2224,11 @@ QDF_STATUS wma_pktlog_wmi_send_cmd(WMA_HANDLE handle,
 	tp_wma_handle wma_handle = (tp_wma_handle) handle;
 	int ret;
 
-	/*Check if packet log is enabled in cfg.ini */
-	if (!cds_is_packet_log_enabled()) {
-		WMA_LOGE("%s:pkt log is not enabled in cfg.ini", __func__);
-		return QDF_STATUS_E_FAILURE;
-	}
-
 	ret = wmi_unified_pktlog_wmi_send_cmd(wma_handle->wmi_handle,
-					   params->pktlog_event,
-					   params->cmd_id);
+			params->pktlog_event,
+			params->cmd_id, params->user_triggered);
 	if (ret)
 		return QDF_STATUS_E_FAILURE;
-
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -2357,6 +2350,8 @@ static const u8 *wma_wow_wake_reason_str(A_INT32 wake_reason)
 		return "REASSOC_RES_RECV";
 	case WOW_REASON_ACTION_FRAME_RECV:
 		return "ACTION_FRAME_RECV";
+	case WOW_REASON_BPF_ALLOW:
+		return "WOW_REASON_BPF_ALLOW";
 	}
 	return "unknown";
 }
@@ -2369,7 +2364,7 @@ static const u8 *wma_wow_wake_reason_str(A_INT32 wake_reason)
  */
 static void wma_wow_wake_up_stats_display(tp_wma_handle wma)
 {
-	WMA_LOGA("uc %d bc %d v4_mc %d v6_mc %d ra %d ns %d na %d pno_match %d pno_complete %d gscan %d low_rssi %d rssi_breach %d oem %d",
+	WMA_LOGA("uc %d bc %d v4_mc %d v6_mc %d ra %d ns %d na %d pno_match %d pno_complete %d gscan %d low_rssi %d rssi_breach %d icmp %d icmpv6 %d oem %d",
 		wma->wow_ucast_wake_up_count,
 		wma->wow_bcast_wake_up_count,
 		wma->wow_ipv4_mcast_wake_up_count,
@@ -2382,6 +2377,8 @@ static void wma_wow_wake_up_stats_display(tp_wma_handle wma)
 		wma->wow_gscan_wake_up_count,
 		wma->wow_low_rssi_wake_up_count,
 		wma->wow_rssi_breach_wake_up_count,
+		wma->wow_icmpv4_count,
+		wma->wow_icmpv6_count,
 		wma->wow_oem_response_wake_up_count);
 
 	return;
@@ -2396,12 +2393,13 @@ static void wma_wow_wake_up_stats_display(tp_wma_handle wma)
  */
 static void wma_wow_ipv6_mcast_stats(tp_wma_handle wma, uint8_t *data)
 {
-	static const uint8_t ipv6_mcast[] = {0x86, 0xDD};
+	static const uint8_t ipv6_ether_type[] = {0x86, 0xDD};
 
-	if (!memcmp(ipv6_mcast, (data + WMA_ETHER_TYPE_OFFSET),
-						sizeof(ipv6_mcast))) {
+	if (!memcmp(ipv6_ether_type, (data + WMA_ETHER_TYPE_OFFSET),
+						sizeof(ipv6_ether_type))) {
 		if (WMA_ICMP_V6_HEADER_TYPE ==
 			*(data + WMA_ICMP_V6_HEADER_OFFSET)) {
+			wma->wow_icmpv6_count++;
 			if (WMA_ICMP_V6_RA_TYPE ==
 				*(data + WMA_ICMP_V6_TYPE_OFFSET))
 				wma->wow_ipv6_mcast_ra_stats++;
@@ -2444,8 +2442,17 @@ static void wma_wow_wake_up_stats(tp_wma_handle wma, uint8_t *data,
 	case WOW_REASON_PATTERN_MATCH_FOUND:
 		if (WMA_BCAST_MAC_ADDR == *data) {
 			wma->wow_bcast_wake_up_count++;
+			if (len >= WMA_IPV4_PROTO_GET_MIN_LEN &&
+			    qdf_nbuf_data_is_icmp_pkt(data))
+				wma->wow_icmpv4_count++;
+			else if ((len > WMA_ICMP_V6_TYPE_OFFSET) &&
+			    qdf_nbuf_data_is_icmpv6_pkt(data))
+				wma->wow_icmpv6_count++;
 		} else if (WMA_MCAST_IPV4_MAC_ADDR == *data) {
 			wma->wow_ipv4_mcast_wake_up_count++;
+			if (len >= WMA_IPV4_PROTO_GET_MIN_LEN &&
+			    WMA_ICMP_PROTOCOL == *(data + WMA_IPV4_PROTOCOL))
+				wma->wow_icmpv4_count++;
 		} else if (WMA_MCAST_IPV6_MAC_ADDR == *data) {
 			wma->wow_ipv6_mcast_wake_up_count++;
 			if (len > WMA_ICMP_V6_TYPE_OFFSET)
@@ -2454,11 +2461,24 @@ static void wma_wow_wake_up_stats(tp_wma_handle wma, uint8_t *data,
 				WMA_LOGA("ICMP_V6 data len %d", len);
 		} else {
 			wma->wow_ucast_wake_up_count++;
+			if (qdf_nbuf_data_is_ipv4_mcast_pkt(data))
+				wma->wow_ipv4_mcast_wake_up_count++;
+			else if (qdf_nbuf_data_is_ipv6_mcast_pkt(data))
+				wma->wow_ipv6_mcast_wake_up_count++;
+
+			if (len >= WMA_IPV4_PROTO_GET_MIN_LEN &&
+			    qdf_nbuf_data_is_icmp_pkt(data))
+				wma->wow_icmpv4_count++;
+			else if (len > WMA_ICMP_V6_TYPE_OFFSET &&
+			    qdf_nbuf_data_is_icmpv6_pkt(data))
+				wma->wow_icmpv6_count++;
 		}
 		break;
 
 	case WOW_REASON_RA_MATCH:
+		wma->wow_icmpv6_count++;
 		wma->wow_ipv6_mcast_ra_stats++;
+		wma->wow_ipv6_mcast_wake_up_count++;
 		break;
 
 	case WOW_REASON_NLOD:
@@ -2941,7 +2961,7 @@ static void wma_wow_parse_data_pkt_buffer(uint8_t *data,
 	default:
 end:
 		WMA_LOGE("wow_buf_pkt_len: %u", buf_len);
-		WMA_LOGE("Invalid Packet Type or Smaller WOW packet buffer than expected");
+		WMA_LOGE("Unknown Packet or Insufficient packet buffer");
 		break;
 	}
 }
@@ -5630,15 +5650,23 @@ QDF_STATUS wma_process_add_periodic_tx_ptrn_ind(WMA_HANDLE handle,
 						pAddPeriodicTxPtrnParams)
 {
 	tp_wma_handle wma_handle = (tp_wma_handle) handle;
-	struct periodic_tx_pattern params;
+	struct periodic_tx_pattern *params_ptr;
 	uint8_t vdev_id;
-
-	qdf_mem_set(&params, sizeof(struct periodic_tx_pattern), 0);
+	QDF_STATUS status;
 
 	if (!wma_handle || !wma_handle->wmi_handle) {
 		WMA_LOGE("%s: WMA is closed, can not issue fw add pattern cmd",
 			 __func__);
 		return QDF_STATUS_E_INVAL;
+	}
+
+	params_ptr = qdf_mem_malloc(sizeof(*params_ptr));
+
+	if (!params_ptr) {
+		WMA_LOGE(
+			"%s: unable to allocate memory for periodic_tx_pattern",
+			 __func__);
+		return QDF_STATUS_E_NOMEM;
 	}
 
 	if (!wma_find_vdev_by_addr(wma_handle,
@@ -5649,17 +5677,22 @@ QDF_STATUS wma_process_add_periodic_tx_ptrn_ind(WMA_HANDLE handle,
 		return QDF_STATUS_E_INVAL;
 	}
 
-	params.ucPtrnId = pAddPeriodicTxPtrnParams->ucPtrnId;
-	params.ucPtrnSize = pAddPeriodicTxPtrnParams->ucPtrnSize;
-	params.usPtrnIntervalMs = pAddPeriodicTxPtrnParams->usPtrnIntervalMs;
-	qdf_mem_copy(&params.mac_address,
+	params_ptr->ucPtrnId = pAddPeriodicTxPtrnParams->ucPtrnId;
+	params_ptr->ucPtrnSize = pAddPeriodicTxPtrnParams->ucPtrnSize;
+	params_ptr->usPtrnIntervalMs =
+				pAddPeriodicTxPtrnParams->usPtrnIntervalMs;
+	qdf_mem_copy(&params_ptr->mac_address,
 			&pAddPeriodicTxPtrnParams->mac_address,
 			sizeof(struct qdf_mac_addr));
-	qdf_mem_copy(params.ucPattern, pAddPeriodicTxPtrnParams->ucPattern,
-					params.ucPtrnSize);
+	qdf_mem_copy(params_ptr->ucPattern,
+			pAddPeriodicTxPtrnParams->ucPattern,
+			params_ptr->ucPtrnSize);
 
-	return wmi_unified_process_add_periodic_tx_ptrn_cmd(
-			wma_handle->wmi_handle,	&params, vdev_id);
+	status =  wmi_unified_process_add_periodic_tx_ptrn_cmd(
+			wma_handle->wmi_handle,	params_ptr, vdev_id);
+
+	qdf_mem_free(params_ptr);
+	return status;
 }
 
 /**
@@ -7041,6 +7074,22 @@ void wma_dfs_configure(struct ieee80211com *ic)
 		rinfo.b5pulses = dfs_jpn_bin5pulses;
 		rinfo.numb5radars = QDF_ARRAY_SIZE(dfs_jpn_bin5pulses);
 		break;
+	case DFS_CN_REGION:
+		WMA_LOGI("%s: DFS-CN domain", __func__);
+		rinfo.dfsdomain = DFS_CN_REGION;
+		rinfo.dfs_radars = dfs_china_radars;
+		rinfo.numradars = QDF_ARRAY_SIZE(dfs_china_radars);
+		rinfo.b5pulses = NULL;
+		rinfo.numb5radars = 0;
+		break;
+	case DFS_KR_REGION:
+		WMA_LOGI("%s: DFS-KR domain", __func__);
+		rinfo.dfsdomain = DFS_KR_REGION;
+		rinfo.dfs_radars = dfs_korea_radars;
+		rinfo.numradars = QDF_ARRAY_SIZE(dfs_korea_radars);
+		rinfo.b5pulses = NULL;
+		rinfo.numb5radars = 0;
+		break;
 	default:
 		WMA_LOGI("%s: DFS-UNINT domain", __func__);
 		rinfo.dfsdomain = DFS_UNINIT_REGION;
@@ -7199,10 +7248,11 @@ struct dfs_ieee80211_channel *wma_dfs_configure_channel(
  *
  * Return: none
  */
-void wma_set_dfs_region(tp_wma_handle wma, uint8_t dfs_region)
+void wma_set_dfs_region(tp_wma_handle wma, enum dfs_region dfs_region)
 {
-	/* dfs information is passed */
-	if (dfs_region > DFS_MKK_REGION || dfs_region == DFS_UNINIT_REGION)
+	if (dfs_region >= DFS_UNDEF_REGION ||
+	    dfs_region == DFS_UNINIT_REGION)
+
 		/* assign DFS_FCC_REGION as default region*/
 		wma->dfs_ic->current_dfs_regdomain = DFS_FCC_REGION;
 	else
@@ -7887,4 +7937,49 @@ int wma_p2p_lo_event_handler(void *handle, uint8_t *event_buf,
 	wma->interfaces[event->vdev_id].p2p_lo_in_progress = false;
 
 	return 0;
+}
+
+/**
+ * wma_get_wakelock_stats() - Collects wake lock stats
+ * @wake_lock_stats: wakelock structure to be filled
+ *
+ * This function collects wake lock stats
+ *
+ * Return: VOS_STATUS_SUCCESS on success, error number otherwise
+ */
+QDF_STATUS wma_get_wakelock_stats(struct sir_wake_lock_stats *wake_lock_stats)
+{
+	tp_wma_handle wma_handle;
+
+	wma_handle = cds_get_context(QDF_MODULE_ID_WMA);
+
+	if (!wake_lock_stats) {
+		WMA_LOGE("%s: invalid pointer", __func__);
+		return QDF_STATUS_E_INVAL;
+	}
+
+	if (!wma_handle) {
+		WMA_LOGE("%s: WMA context is invalid!", __func__);
+		return QDF_STATUS_E_INVAL;
+	}
+
+	wake_lock_stats->wow_ucast_wake_up_count =
+			wma_handle->wow_ucast_wake_up_count;
+	wake_lock_stats->wow_bcast_wake_up_count =
+			wma_handle->wow_bcast_wake_up_count;
+	wake_lock_stats->wow_ipv4_mcast_wake_up_count =
+			wma_handle->wow_ipv4_mcast_wake_up_count;
+	wake_lock_stats->wow_ipv6_mcast_wake_up_count =
+			wma_handle->wow_ipv6_mcast_wake_up_count;
+	wake_lock_stats->wow_ipv6_mcast_ra_stats =
+			wma_handle->wow_ipv6_mcast_ra_stats;
+	wake_lock_stats->wow_ipv6_mcast_ns_stats =
+			wma_handle->wow_ipv6_mcast_ns_stats;
+	wake_lock_stats->wow_ipv6_mcast_na_stats =
+			wma_handle->wow_ipv6_mcast_na_stats;
+	wake_lock_stats->wow_icmpv4_count = wma_handle->wow_icmpv4_count;
+	wake_lock_stats->wow_icmpv6_count =
+			wma_handle->wow_icmpv6_count;
+
+	return QDF_STATUS_SUCCESS;
 }

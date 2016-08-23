@@ -3993,6 +3993,14 @@ REG_TABLE_ENTRY g_registry_table[] = {
 				 VAR_FLAGS_OPTIONAL,
 				 (void *)CFG_RPS_RX_QUEUE_CPU_MAP_LIST_DEFAULT),
 
+	REG_VARIABLE(CFG_INDOOR_CHANNEL_SUPPORT_NAME,
+		     WLAN_PARAM_Integer,
+		     struct hdd_config, indoor_channel_support,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_INDOOR_CHANNEL_SUPPORT_DEFAULT,
+		     CFG_INDOOR_CHANNEL_SUPPORT_MIN,
+		     CFG_INDOOR_CHANNEL_SUPPORT_MAX),
+
 	REG_VARIABLE(CFG_INTERFACE_CHANGE_WAIT_NAME, WLAN_PARAM_Integer,
 			struct hdd_config, iface_change_wait_time,
 			VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK,
@@ -5970,11 +5978,6 @@ QDF_STATUS hdd_parse_config_ini(hdd_context_t *pHddCtx)
 	/* Loop through the registry table and apply all these configs */
 	qdf_status = hdd_apply_cfg_ini(pHddCtx, cfgIniTable, i);
 	hdd_set_rx_mode_value(pHddCtx);
-#ifdef FEATURE_NAPI
-	if (QDF_STATUS_SUCCESS == qdf_status)
-		hdd_napi_event(NAPI_EVT_INI_FILE,
-			       (void *)pHddCtx->napi_enable);
-#endif /* FEATURE_NAPI */
 	if (QDF_GLOBAL_MONITOR_MODE == cds_get_conparam())
 		hdd_override_all_ps(pHddCtx);
 
@@ -7153,6 +7156,7 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 	smeConfig->csrConfig.scanCfgAgingTime = pConfig->scanAgingTimeout;
 
 	smeConfig->csrConfig.enableTxLdpc = pConfig->enableTxLdpc;
+	smeConfig->csrConfig.enableRxLDPC = pConfig->enableRxLDPC;
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
 	smeConfig->csrConfig.cc_switch_mode = pConfig->WlanMccToSccSwitchMode;
 #endif

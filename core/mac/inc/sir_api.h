@@ -3174,33 +3174,17 @@ typedef struct {
  *                 statistics, connectivity etc.
  * @verbose_level: Verbose level which can be 0,1,2,3
  * @flag:          Flag field for future use
+ * @ini_triggered: triggered using ini
+ * @user_triggered: triggered by user
  */
 struct sir_wifi_start_log {
 	uint32_t ring_id;
 	uint32_t verbose_level;
 	uint32_t flag;
+	bool ini_triggered;
+	uint8_t user_triggered;
 };
 
-/**
- * enum hw_mode_ss_config - Possible spatial stream configuration
- * @SS_0x0: Unused Tx and Rx of MAC
- * @SS_1x1: 1 Tx SS and 1 Rx SS
- * @SS_2x2: 2 Tx SS and 2 Rx SS
- * @SS_3x3: 3 Tx SS and 3 Rx SS
- * @SS_4x4: 4 Tx SS and 4 Rx SS
- *
- * Note: Right now only 1x1 and 2x2 are being supported. Other modes should
- * be added when supported. Asymmetric configuration like 1x2, 2x1 are also
- * not supported now. But, they are still valid. Right now, Tx/Rx SS support is
- * 4 bits long. So, we can go upto 15x15
- */
-enum hw_mode_ss_config {
-	HW_MODE_SS_0x0,
-	HW_MODE_SS_1x1,
-	HW_MODE_SS_2x2,
-	HW_MODE_SS_3x3,
-	HW_MODE_SS_4x4,
-};
 
 /**
  * enum hw_mode_bandwidth - bandwidth of wifi channel.
@@ -3227,26 +3211,6 @@ enum hw_mode_bandwidth {
 	HW_MODE_80_PLUS_80_MHZ,
 	HW_MODE_160_MHZ,
 	HW_MODE_MAX_BANDWIDTH
-};
-
-/**
- * enum hw_mode_dbs_capab - DBS HW mode capability
- * @HW_MODE_DBS_NONE: Non DBS capable
- * @HW_MODE_DBS: DFS capable
- */
-enum hw_mode_dbs_capab {
-	HW_MODE_DBS_NONE,
-	HW_MODE_DBS,
-};
-
-/**
- * enum hw_mode_agile_dfs_capab - Agile DFS HW mode capability
- * @HW_MODE_AGILE_DFS_NONE: Non Agile DFS capable
- * @HW_MODE_AGILE_DFS: Agile DFS capable
- */
-enum hw_mode_agile_dfs_capab {
-	HW_MODE_AGILE_DFS_NONE,
-	HW_MODE_AGILE_DFS,
 };
 
 /**
@@ -5933,6 +5897,30 @@ struct sir_bpf_get_offload {
 	uint32_t max_bpf_filters;
 	uint32_t max_bytes_for_bpf_inst;
 	uint32_t remaining_bytes_for_bpf_inst;
+};
+
+/**
+ * struct sir_wake_lock_stats - wake lock stats structure
+ * @wow_ucast_wake_up_count: Unicast wakeup count
+ * @wow_bcast_wake_up_count: Broadcast wakeup count
+ * @wow_ipv4_mcast_wake_up_count: ipv4 multicast wakeup count
+ * @wow_ipv6_mcast_wake_up_count: ipv6 multicast wakeup count
+ * @wow_ipv6_mcast_ra_stats: ipv6 multicast ra stats
+ * @wow_ipv6_mcast_ns_stats: ipv6 multicast ns stats
+ * @wow_ipv6_mcast_na_stats: ipv6 multicast na stats
+ * @wow_icmpv4_count: ipv4 icmp packet count
+ * @wow_icmpv6_count: ipv6 icmp packet count
+ */
+struct sir_wake_lock_stats {
+	uint32_t wow_ucast_wake_up_count;
+	uint32_t wow_bcast_wake_up_count;
+	uint32_t wow_ipv4_mcast_wake_up_count;
+	uint32_t wow_ipv6_mcast_wake_up_count;
+	uint32_t wow_ipv6_mcast_ra_stats;
+	uint32_t wow_ipv6_mcast_ns_stats;
+	uint32_t wow_ipv6_mcast_na_stats;
+	uint32_t wow_icmpv4_count;
+	uint32_t wow_icmpv6_count;
 };
 
 /**

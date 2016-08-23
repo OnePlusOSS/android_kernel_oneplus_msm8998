@@ -204,7 +204,7 @@ QDF_STATUS wma_update_channel_list(WMA_HANDLE handle,
 
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 QDF_STATUS wma_roam_scan_fill_self_caps(tp_wma_handle wma_handle,
-					wmi_roam_offload_tlv_param *
+					roam_offload_param *
 					roam_offload_params,
 					tSirRoamOffloadScanReq *roam_req);
 #endif
@@ -794,9 +794,14 @@ int wma_mcc_vdev_tx_pause_evt_handler(void *handle, uint8_t *event,
 #if defined(CONFIG_HL_SUPPORT) && defined(QCA_BAD_PEER_TX_FLOW_CL)
 QDF_STATUS wma_process_init_bad_peer_tx_ctl_info(tp_wma_handle wma,
 					struct t_bad_peer_txtcl_config *config);
-
+#else
+static inline QDF_STATUS
+wma_process_init_bad_peer_tx_ctl_info(tp_wma_handle wma,
+			struct t_bad_peer_txtcl_config *config)
+{
+	return QDF_STATUS_E_FAILURE;
+}
 #endif
-
 
 QDF_STATUS wma_process_init_thermal_info(tp_wma_handle wma,
 					 t_thermal_mgmt *pThermalParams);

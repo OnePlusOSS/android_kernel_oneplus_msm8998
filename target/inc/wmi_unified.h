@@ -235,6 +235,7 @@ typedef enum {
 	WMI_GRP_BPF_OFFLOAD,          /* 0x36 Berkeley Packet Filter */
 	WMI_GRP_NAN_DATA,             /* 0x37 */
 	WMI_GRP_PROTOTYPE,            /* 0x38 */
+	WMI_GRP_MONITOR,              /* 0x39 */
 } WMI_GRP_ID;
 
 #define WMI_CMD_GRP_START_ID(grp_id) (((grp_id) << 12) | 0x1)
@@ -351,6 +352,8 @@ typedef enum {
 	WMI_PDEV_SET_WAKEUP_CONFIG_CMDID,
 	/* Get current ANT's per chain's RSSI info */
 	WMI_PDEV_GET_ANTDIV_STATUS_CMDID,
+	/** WMI command for getting Chip Power Stats */
+	WMI_PDEV_GET_CHIP_POWER_STATS_CMDID,
 
 	/* VDEV (virtual device) specific commands */
 	/** vdev create */
@@ -991,6 +994,10 @@ typedef enum {
 	WMI_BPF_GET_VDEV_STATS_CMDID,
 	WMI_BPF_SET_VDEV_INSTRUCTIONS_CMDID,
 	WMI_BPF_DEL_VDEV_INSTRUCTIONS_CMDID,
+
+	/** WMI commands related to monitor mode. */
+	WMI_MNT_FILTER_CMDID = WMI_CMD_GRP_START_ID(WMI_GRP_MONITOR),
+
 	/**
 	 * Nan Data commands
 	 * NDI - NAN Data Interface
@@ -1073,6 +1080,8 @@ typedef enum {
 	WMI_PDEV_SET_MAC_CONFIG_RESP_EVENTID,
 	/** Report ANT DIV feature's status */
 	WMI_PDEV_ANTDIV_STATUS_EVENTID,
+	/** Chip level Power stats */
+	WMI_PDEV_CHIP_POWER_STATS_EVENTID,
 
 	/* VDEV specific events */
 	/** VDEV started event in response to VDEV_START request */
@@ -4155,6 +4164,7 @@ typedef enum {
 	WMI_PKTLOG_EVENT_RCU = 0x8,             /* Rate Control Update */
 	/* 0x10 used by deprecated DBG_PRINT */
 	WMI_PKTLOG_EVENT_SMART_ANTENNA = 0x20, /* To support Smart Antenna */
+	WMI_PKTLOG_EVENT_SW = 0x40, /* To support SW defined events */
 } WMI_PKTLOG_EVENT;
 
 typedef enum {
@@ -8386,6 +8396,21 @@ typedef struct {
 	A_UINT32 reason; /* refer to p2p_lo_stopped_reason_e */
 } wmi_p2p_lo_stopped_event_fixed_param;
 
+typedef enum {
+	WMI_MNT_FILTER_CONFIG_MANAGER,
+	WMI_MNT_FILTER_CONFIG_CONTROL,
+	WMI_MNT_FILTER_CONFIG_DATA,
+	WMI_MNT_FILTER_CONFIG_ALL,
+	WMI_MNT_FILTER_CONFIG_UNKNOWN,
+} WMI_MNT_FILTER_CONFIG_TYPE;
+
+typedef struct {
+	A_UINT32 tlv_header;
+	A_UINT32 vdev_id;
+	A_UINT32 clear_or_set;
+	A_UINT32 configure_type; /* see WMI_MNT_FILTER_CONFIG_TYPE */
+} wmi_mnt_filter_cmd_fixed_param;
+
 typedef struct {
 	A_UINT32 time32;                /* upper 32 bits of time stamp */
 	A_UINT32 time0;         /* lower 32 bits of time stamp */
@@ -11859,6 +11884,8 @@ typedef struct {
 	A_UINT32 max_ndp_sessions;
 	/** Max number of peer's per ndi */
 	A_UINT32 max_peers_per_ndi;
+	/** which combination of bands is supported - see NAN_DATA_SUPPORTED_BAND enums */
+	A_UINT32 nan_data_supported_bands;
 } wmi_ndi_cap_rsp_event_fixed_param_PROTOTYPE;
 
 #define wmi_ndi_cap_rsp_event_fixed_param wmi_ndi_cap_rsp_event_fixed_param_PROTOTYPE
@@ -14472,6 +14499,15 @@ typedef struct {
 	 */
 } wmi_soc_set_pcl_cmd_fixed_param;
 
+/* Values for channel_weight */
+typedef enum {
+	WMI_PCL_WEIGHT_DISALLOW  = 0,
+	WMI_PCL_WEIGHT_LOW       = 1,
+	WMI_PCL_WEIGHT_MEDIUM    = 2,
+	WMI_PCL_WEIGHT_HIGH      = 3,
+	WMI_PCL_WEIGHT_VERY_HIGH = 4,
+} wmi_pcl_chan_weight;
+
 typedef struct {
 	/* TLV tag and len; tag equals
 	 * WMITLV_TAG_STRUC_wmi_pdev_set_pcl_cmd_fixed_param
@@ -15978,6 +16014,17 @@ typedef struct {
 } wmi_pdev_get_tpc_cmd_fixed_param;
 
 typedef struct {
+	A_UINT32 tlv_header; /* TLV tag and len; tag equals
+	WMITLV_TAG_STRUC_wmi_pdev_get_chip_power_stats_cmd_fixed_param */
+	/**
+	 * pdev_id for identifying the MAC See macros
+	 * starting with WMI_PDEV_ID_ for values.
+	 */
+	A_UINT32 pdev_id;
+} wmi_pdev_get_chip_power_stats_cmd_fixed_param;
+
+
+typedef struct {
 	/*
 	 * TLV tag and len; tag equals
 	 * WMITLV_TAG_STRUC_wmi_pdev_tpc_event_fixed_param
@@ -16043,6 +16090,56 @@ typedef struct {
 	A_UINT32 tlv_header;
 	A_UINT32 cck_level;
 } wmi_ani_cck_event_fixed_param;
+
+typedef enum wmi_power_debug_reg_fmt_type {
+	/* WMI_POWER_DEBUG_REG_FMT_TYPE_ROME -> Dumps following 12 Registers
+	 *     SOC_SYSTEM_SLEEP
+	 *     WLAN_SYSTEM_SLEEP
+	 *     RTC_SYNC_FORCE_WAKE
+	 *     MAC_DMA_ISR
+	 *     MAC_DMA_TXRX_ISR
+	 *     MAC_DMA_ISR_S1
+	 *     MAC_DMA_ISR_S2
+	 *     MAC_DMA_ISR_S3
+	 *     MAC_DMA_ISR_S4
+	 *     MAC_DMA_ISR_S5
+	 *     MAC_DMA_ISR_S6
+	 *     MAC_DMA_ISR_S7
+	 */
+	WMI_POWER_DEBUG_REG_FMT_TYPE_ROME,
+	WMI_POWER_DEBUG_REG_FMT_TYPE_MAX = 0xf,
+} WMI_POWER_DEBUG_REG_FMT_TYPE;
+
+typedef struct {
+	A_UINT32 tlv_header; /* TLV tag and len; tag equals
+	WMITLV_TAG_STRUC_wmi_chip_power_stats_event_fixed_param */
+	/*
+	 * maximum range is 35 hours, due to conversion from internal
+	 * 0.03215 ms units to ms
+	 */
+	A_UINT32 cumulative_sleep_time_ms;
+	/*
+	 * maximum range is 35 hours, due to conversion from internal
+	 * 0.03215 ms units to ms
+	 */
+	A_UINT32 cumulative_total_on_time_ms;
+	/* count of number of times chip enterred deep sleep */
+	A_UINT32 deep_sleep_enter_counter;
+	/* Last Timestamp when Chip went to deep sleep */
+	A_UINT32 last_deep_sleep_enter_tstamp_ms;
+	/*
+	 * WMI_POWER_DEBUG_REG_FMT_TYPE enum, describes debug registers
+	 * being dumped as part of the event
+	 */
+	A_UINT32 debug_register_fmt;
+	/* number of debug registers being sent to host */
+	A_UINT32 num_debug_register;
+	/*
+	 * Following this structure is the TLV:
+	 * A_UINT32 debug_registers[num_debug_registers];
+	 */
+} wmi_pdev_chip_power_stats_event_fixed_param;
+
 
 typedef struct {
 	/*

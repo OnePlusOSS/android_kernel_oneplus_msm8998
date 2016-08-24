@@ -78,7 +78,7 @@ maple_add_request(struct request_queue *q, struct request *rq)
 	struct maple_data *mdata = maple_get_data(q);
 	const int sync = rq_is_sync(rq);
 	const int dir = rq_data_dir(rq);
-	static bool display_on = is_display_on();
+	const bool display_on = is_display_on();
 
 	/*
 	 * Add request to the proper fifo list and set its
@@ -205,7 +205,7 @@ maple_dispatch_requests(struct request_queue *q, int force)
 	struct maple_data *mdata = maple_get_data(q);
 	struct request *rq = NULL;
 	int data_dir = READ;
-	static bool display_on = is_display_on();
+	const bool display_on = is_display_on();
 
 	/*
 	 * Retrieve any expired request after a batch of

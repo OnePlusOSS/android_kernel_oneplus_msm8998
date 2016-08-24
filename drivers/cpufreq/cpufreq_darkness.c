@@ -86,7 +86,7 @@ static void dk_check_cpu(int cpu, unsigned int load)
 												 load * (policy->max / 100));
 
 	if (next_freq > policy->cur)
-		__cpufreq_driver_target(policy, next_freq, CPUFREQ_RELATION_H);
+		__cpufreq_driver_target(policy, next_freq, CPUFREQ_RELATION_L);
 	else if (next_freq < policy->cur && next_freq > 0)
 		__cpufreq_driver_target(policy, next_freq, CPUFREQ_RELATION_L);
 

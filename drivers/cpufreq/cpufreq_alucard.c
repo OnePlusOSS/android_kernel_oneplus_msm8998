@@ -138,7 +138,7 @@ static void ac_check_cpu(int cpu, unsigned int load)
 			if (dbs_info->freq_table[index].frequency != CPUFREQ_ENTRY_INVALID)
 				__cpufreq_driver_target(policy,
 										dbs_info->freq_table[index].frequency,
-										CPUFREQ_RELATION_H);
+										CPUFREQ_RELATION_L);
 		} else {
 			if (dbs_info->up_rate < cpus_up_rate)
 				++dbs_info->up_rate;

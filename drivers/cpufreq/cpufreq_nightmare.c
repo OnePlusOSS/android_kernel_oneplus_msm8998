@@ -128,7 +128,7 @@ static void nm_check_cpu(int cpu, unsigned int load)
 												   dbs_info->freq_table,
 												   policy->cur + tmp_step);
 
-		__cpufreq_driver_target(policy, tmp_freq, CPUFREQ_RELATION_H);
+		__cpufreq_driver_target(policy, tmp_freq, CPUFREQ_RELATION_L);
 	} else if (load < dec_cpu_load
 				&& policy->cur > policy->min) {
 		tmp_step = (100 - load + freq_step_dec) * 1536;

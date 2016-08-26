@@ -147,6 +147,7 @@ static int boost_adjust_notify(struct notifier_block *nb, unsigned long val,
 
 static struct notifier_block boost_adjust_nb = {
 	.notifier_call = boost_adjust_notify,
+	.priority = INT_MAX,
 };
 
 static void update_policy_online(void)

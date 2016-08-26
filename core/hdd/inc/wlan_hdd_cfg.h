@@ -3424,6 +3424,8 @@ enum dot11p_mode {
 				 CFG_ENABLE_NAPI)
 #ifdef MDM_PLATFORM
 #define CFG_RX_MODE_DEFAULT  (0)
+#elif defined(HELIUMPLUS)
+#define CFG_RX_MODE_DEFAULT  CFG_ENABLE_NAPI
 #else
 #define CFG_RX_MODE_DEFAULT  (CFG_ENABLE_RX_THREAD | CFG_ENABLE_NAPI)
 #endif
@@ -3478,6 +3480,19 @@ enum dot11p_mode {
 #define CFG_INDOOR_CHANNEL_SUPPORT_MIN      (0)
 #define CFG_INDOOR_CHANNEL_SUPPORT_MAX      (1)
 #define CFG_INDOOR_CHANNEL_SUPPORT_DEFAULT  (0)
+
+/*
+ * Enable filtering of replayed multicast packets
+ * In a typical infrastructure setup, it is quite normal to receive
+ * replayed multicast packets. These packets may cause more harm than
+ * help if not handled properly. Providing a configuration option
+ * to enable filtering of such packets
+ */
+#define CFG_FILTER_MULTICAST_REPLAY_NAME    "enable_multicast_replay_filter"
+#define CFG_FILTER_MULTICAST_REPLAY_MIN      (0)
+#define CFG_FILTER_MULTICAST_REPLAY_MAX      (1)
+#define CFG_FILTER_MULTICAST_REPLAY_DEFAULT  (1)
+
 
 /*---------------------------------------------------------------------------
    Type declarations
@@ -4139,6 +4154,7 @@ struct hdd_config {
 	uint32_t iface_change_wait_time;
 	enum cfg_sub_20_channel_width enable_sub_20_channel_width;
 	bool indoor_channel_support;
+	bool multicast_replay_filter;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

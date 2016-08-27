@@ -61,38 +61,34 @@ static void alucard_get_cpu_frequency_table_minmax(struct cpufreq_policy *policy
 {
 	struct ac_cpu_dbs_info_s *dbs_info = &per_cpu(ac_cpu_dbs_info, cpu);
 	struct cpufreq_frequency_table *table = dbs_info->freq_table;
-	unsigned int i = 0;
+	struct cpufreq_frequency_table *pos;
+	unsigned int freq, i = 0;
 
-	for (i = 0; (table[i].frequency != CPUFREQ_TABLE_END); i++) {
-		unsigned int freq = table[i].frequency;
-		if (freq != CPUFREQ_ENTRY_INVALID) {
-			if (freq == policy->min)
-				dbs_info->min_index = i;
-			if (freq == policy->max)
-				dbs_info->max_index = i;
+	cpufreq_for_each_valid_entry(pos, table) {
+		freq = pos->frequency;
+		i = pos - table;
 
-			if (freq >= policy->min &&
-				freq >= policy->max)
-				break;
-		}
+		if (freq == policy->min)
+			dbs_info->min_index = i;
+		if (freq == policy->max)
+			dbs_info->max_index = i;
+
+		if (freq >= policy->min &&
+			freq >= policy->max)
+			break;
 	}
 }
 
-static void alucard_get_cpu_frequency_table_cur(struct cpufreq_policy *policy,
-					struct cpufreq_frequency_table *table,
-					unsigned int *index)
+static int alucard_get_cpu_frequency_table_cur(struct cpufreq_policy *policy,
+					struct cpufreq_frequency_table *table)
 {
-	unsigned int i = 0;
+	struct cpufreq_frequency_table *pos;
 
-	for (i = 0; (table[i].frequency != CPUFREQ_TABLE_END); i++) {
-		unsigned int freq = table[i].frequency;
-		if (freq != CPUFREQ_ENTRY_INVALID) {
-			if (freq == policy->cur) {
-				*index = i;
-				break;
-			}
-		}
-	}
+	cpufreq_for_each_valid_entry(pos, table)
+		if (pos->frequency == policy->cur)
+			return pos - table;
+
+	return -1;
 }
 
 static void ac_check_cpu(int cpu, unsigned int load)
@@ -108,12 +104,16 @@ static void ac_check_cpu(int cpu, unsigned int load)
 	int pump_dec_step = ac_tuners->pump_dec_step;
 	unsigned int cpus_up_rate = ac_tuners->cpus_up_rate;
 	unsigned int cpus_down_rate = ac_tuners->cpus_down_rate;
-	unsigned int index = 0;
+	int index;
 
-	/* Get min, current, max indexes from current cpu policy */
-	alucard_get_cpu_frequency_table_cur(policy,
-				dbs_info->freq_table,
-				&index);
+	/* Get current from current cpu policy */
+	index = alucard_get_cpu_frequency_table_cur(policy,
+				dbs_info->freq_table);
+
+	/* Exit if index is not valid */
+	if (index < dbs_info->min_index
+		|| index > dbs_info->max_index)
+		return;
 
 	/* CPUs Online Scale Frequency*/
 	if (policy->cur < freq_responsiveness) {

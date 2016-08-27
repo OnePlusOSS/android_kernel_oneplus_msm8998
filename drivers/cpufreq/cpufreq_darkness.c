@@ -42,27 +42,27 @@ static unsigned int adjust_cpufreq_frequency_target(struct cpufreq_policy *polic
 					struct cpufreq_frequency_table *table,
 					unsigned int tmp_freq)
 {
-	unsigned int i = 0, l_freq = 0, h_freq = 0, target_freq = 0;
+	struct cpufreq_frequency_table *pos;
+	unsigned int i = 0, l_freq = 0, h_freq = 0, target_freq = 0, freq;
 
 	if (tmp_freq < policy->min)
 		tmp_freq = policy->min;
 	if (tmp_freq > policy->max)
 		tmp_freq = policy->max;
 
-	for (i = 0; (table[i].frequency != CPUFREQ_TABLE_END); i++) {
-		unsigned int freq = table[i].frequency;
-		if (freq != CPUFREQ_ENTRY_INVALID) {
-			if (freq < tmp_freq) {
-				h_freq = freq;
-			}
-			if (freq == tmp_freq) {
-				target_freq = freq;
-				break;
-			}
-			if (freq > tmp_freq) {
-				l_freq = freq;
-				break;
-			}
+	cpufreq_for_each_valid_entry(pos, table) {
+		freq = pos->frequency;
+		i = pos - table;
+		if (freq < tmp_freq) {
+			h_freq = freq;
+		}
+		if (freq == tmp_freq) {
+			target_freq = freq;
+			break;
+		}
+		if (freq > tmp_freq) {
+			l_freq = freq;
+			break;
 		}
 	}
 	if (!target_freq) {

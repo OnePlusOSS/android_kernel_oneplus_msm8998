@@ -79,18 +79,6 @@ static void alucard_get_cpu_frequency_table_minmax(struct cpufreq_policy *policy
 	}
 }
 
-static int alucard_get_cpu_frequency_table_cur(struct cpufreq_policy *policy,
-					struct cpufreq_frequency_table *table)
-{
-	struct cpufreq_frequency_table *pos;
-
-	cpufreq_for_each_valid_entry(pos, table)
-		if (pos->frequency == policy->cur)
-			return pos - table;
-
-	return -1;
-}
-
 static void ac_check_cpu(int cpu, unsigned int load)
 {
 	struct ac_cpu_dbs_info_s *dbs_info = &per_cpu(ac_cpu_dbs_info, cpu);
@@ -106,13 +94,12 @@ static void ac_check_cpu(int cpu, unsigned int load)
 	unsigned int cpus_down_rate = ac_tuners->cpus_down_rate;
 	int index;
 
-	/* Get current from current cpu policy */
-	index = alucard_get_cpu_frequency_table_cur(policy,
-				dbs_info->freq_table);
+	/* Get current index from current cpu policy */
+	index = cpufreq_frequency_table_get_index(policy,
+				policy->cur);
 
 	/* Exit if index is not valid */
-	if (index < dbs_info->min_index
-		|| index > dbs_info->max_index)
+	if (index < 0)
 		return;
 
 	/* CPUs Online Scale Frequency*/

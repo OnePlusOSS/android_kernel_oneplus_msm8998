@@ -3126,6 +3126,17 @@ int hdd_set_fw_params(hdd_adapter_t *adapter)
 			hdd_err("FAILED TO SET RTSCTS Profile ret:%d", ret);
 			goto error;
 		}
+
+		hdd_info("SET AMSDU num %d", hdd_ctx->config->max_amsdu_num);
+
+		ret = wma_cli_set_command(adapter->sessionId,
+					  GEN_VDEV_PARAM_AMSDU,
+					  hdd_ctx->config->max_amsdu_num,
+					  GEN_CMD);
+		if (ret != 0) {
+			hdd_err("GEN_VDEV_PARAM_AMSDU set failed %d", ret);
+			goto error;
+		}
 	}
 
 	hdd_set_fw_log_params(hdd_ctx, adapter);

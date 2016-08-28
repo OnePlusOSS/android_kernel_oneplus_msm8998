@@ -4062,10 +4062,26 @@ typedef enum {
 #define CFG_PNO_SLOW_SCAN_MULTIPLIER_MAX             (30)
 #endif
 
-#define CFG_AMSDU_SUPPORT_IN_AMPDU_NAME                "gAmsduSupportInAMPDU"
-#define CFG_AMSDU_SUPPORT_IN_AMPDU_MIN                 (0)
-#define CFG_AMSDU_SUPPORT_IN_AMPDU_MAX                 (1)
-#define CFG_AMSDU_SUPPORT_IN_AMPDU_DEFAULT             (0)      /* disabled */
+/*
+ * <ini>
+ * gMaxAmsduNum - Max number of MSDU's in aggregate
+ * @Min: 0
+ * @Max: 3
+ * @Default: 1
+ * gMaxAmsduNum is the number of MSDU's transmitted in the 11n aggregate
+ * frame. Setting it to a value larger than 1 enables transmit aggregation.
+ * It is a PHY parameter that applies to all vdev's in firmware.
+ *
+ * Supported Feature: 11n aggregation
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+#define CFG_MAX_AMSDU_NUM_NAME                "gMaxAmsduNum"
+#define CFG_MAX_AMSDU_NUM_MIN                 (0)
+#define CFG_MAX_AMSDU_NUM_MAX                 (3)
+#define CFG_MAX_AMSDU_NUM_DEFAULT             (1)
 
 /* It enables IP, TCP and UDP checksum offload in hardware
  * and also advertise same to network stack.
@@ -7158,7 +7174,7 @@ struct hdd_config {
 	uint32_t configPNOScanTimerRepeatValue;
 	uint32_t pno_slow_scan_multiplier;
 #endif
-	uint8_t isAmsduSupportInAMPDU;
+	uint8_t max_amsdu_num;
 	uint8_t nSelect5GHzMargin;
 	uint8_t isCoalesingInIBSSAllowed;
 

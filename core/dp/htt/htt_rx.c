@@ -1448,6 +1448,16 @@ htt_rx_offload_paddr_msdu_pop_ll(htt_pdev_handle pdev,
 #else
 	qdf_nbuf_unmap(pdev->osdev, buf, QDF_DMA_FROM_DEVICE);
 #endif
+
+	if (pdev->cfg.is_first_wakeup_packet) {
+		if (HTT_RX_IN_ORD_PADDR_IND_MSDU_INFO_GET(*(curr_msdu + 1)) &
+			   FW_MSDU_INFO_FIRST_WAKEUP_M) {
+			qdf_nbuf_mark_wakeup_frame(buf);
+			qdf_print("%s: First packet after WOW Wakeup rcvd\n",
+				__func__);
+		}
+	}
+
 	msdu_hdr = (uint32_t *) qdf_nbuf_data(buf);
 
 	/* First dword */

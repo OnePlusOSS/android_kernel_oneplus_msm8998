@@ -4817,6 +4817,79 @@ fail:
 	return;
 }
 
+static const struct nla_policy
+ns_offload_set_policy[QCA_WLAN_VENDOR_ATTR_ND_OFFLOAD_MAX + 1] = {
+	[QCA_WLAN_VENDOR_ATTR_ND_OFFLOAD_FLAG] = {.type = NLA_U8},
+};
+
+/**
+ * __wlan_hdd_cfg80211_set_ns_offload() - enable/disable NS offload
+ * @wiphy: Pointer to wireless phy
+ * @wdev: Pointer to wireless device
+ * @data: Pointer to data
+ * @data_len: Length of @data
+ *
+ * Return: 0 on success, negative errno on failure
+ */
+static int
+__wlan_hdd_cfg80211_set_ns_offload(struct wiphy *wiphy,
+			struct wireless_dev *wdev,
+			const void *data, int data_len)
+{
+	int status;
+	struct nlattr *tb[QCA_WLAN_VENDOR_ATTR_ND_OFFLOAD_MAX + 1];
+	hdd_context_t *pHddCtx = wiphy_priv(wiphy);
+
+	ENTER_DEV(wdev->netdev);
+
+	status = wlan_hdd_validate_context(pHddCtx);
+	if (0 != status)
+		return status;
+	if (!pHddCtx->config->fhostNSOffload) {
+		hdd_err("ND Offload not supported");
+		return -EINVAL;
+	}
+
+	if (nla_parse(tb, QCA_WLAN_VENDOR_ATTR_ND_OFFLOAD_MAX,
+			(struct nlattr *)data,
+			data_len, ns_offload_set_policy)) {
+		hdd_err("nla_parse failed");
+		return -EINVAL;
+	}
+
+	if (!tb[QCA_WLAN_VENDOR_ATTR_ND_OFFLOAD_FLAG]) {
+		hdd_err("ND Offload flag attribute not present");
+		return -EINVAL;
+	}
+
+	pHddCtx->ns_offload_enable =
+		nla_get_u8(tb[QCA_WLAN_VENDOR_ATTR_ND_OFFLOAD_FLAG]);
+
+	return 0;
+}
+
+/**
+ * wlan_hdd_cfg80211_set_ns_offload() - enable/disable NS offload
+ * @wiphy:   pointer to wireless wiphy structure.
+ * @wdev:    pointer to wireless_dev structure.
+ * @data:    Pointer to the data to be passed via vendor interface
+ * @data_len:Length of the data to be passed
+ *
+ * Return:   Return the Success or Failure code.
+ */
+static int wlan_hdd_cfg80211_set_ns_offload(struct wiphy *wiphy,
+					struct wireless_dev *wdev,
+					const void *data, int data_len)
+{
+	int ret;
+
+	cds_ssr_protect(__func__);
+	ret = __wlan_hdd_cfg80211_set_ns_offload(wiphy, wdev, data, data_len);
+	cds_ssr_unprotect(__func__);
+
+	return ret;
+}
+
 /** __wlan_hdd_cfg80211_get_preferred_freq_list() - get preferred frequency list
  * @wiphy: Pointer to wireless phy
  * @wdev: Pointer to wireless device
@@ -6562,8 +6635,18 @@ int wlan_hdd_request_pre_cac(uint8_t channel)
 			wlan_hdd_get_intf_addr(hdd_ctx),
 			NET_NAME_UNKNOWN, true);
 	if (!pre_cac_adapter) {
-		hdd_err("error starting pre cac adapter");
+		hdd_err("error opening the pre cac adapter");
 		return -EINVAL;
+	}
+
+	/*
+	 * This interface is internally created by the driver. So, no interface
+	 * up comes for this interface from user space and hence starting
+	 * the adapter internally.
+	 */
+	if (hdd_start_adapter(pre_cac_adapter)) {
+		hdd_err("error starting the pre cac adapter");
+		goto close_pre_cac_adapter;
 	}
 
 	hdd_debug("preparing for start ap/bss on the pre cac adapter");
@@ -6579,7 +6662,7 @@ int wlan_hdd_request_pre_cac(uint8_t channel)
 			sizeof(*ap_adapter->sessionCtx.ap.beacon));
 	if (!pre_cac_adapter->sessionCtx.ap.beacon) {
 		hdd_err("failed to alloc mem for beacon");
-		goto close_pre_cac_adapter;
+		goto stop_close_pre_cac_adapter;
 	}
 	qdf_mem_copy(pre_cac_adapter->sessionCtx.ap.beacon,
 			ap_adapter->sessionCtx.ap.beacon,
@@ -6613,7 +6696,7 @@ int wlan_hdd_request_pre_cac(uint8_t channel)
 	chan = __ieee80211_get_channel(wiphy, freq);
 	if (!chan) {
 		hdd_err("channel converion failed");
-		goto close_pre_cac_adapter;
+		goto stop_close_pre_cac_adapter;
 	}
 
 	cfg80211_chandef_create(&chandef, chan, channel_type);
@@ -6625,7 +6708,7 @@ int wlan_hdd_request_pre_cac(uint8_t channel)
 	ret = wlan_hdd_set_channel(wiphy, dev, &chandef, channel_type);
 	if (0 != ret) {
 		hdd_err("failed to set channel");
-		goto close_pre_cac_adapter;
+		goto stop_close_pre_cac_adapter;
 	}
 
 	status = wlan_hdd_cfg80211_start_bss(pre_cac_adapter, NULL,
@@ -6633,7 +6716,7 @@ int wlan_hdd_request_pre_cac(uint8_t channel)
 			eHIDDEN_SSID_NOT_IN_USE, false);
 	if (QDF_IS_STATUS_ERROR(status)) {
 		hdd_err("start bss failed");
-		goto close_pre_cac_adapter;
+		goto stop_close_pre_cac_adapter;
 	}
 
 	/*
@@ -6644,25 +6727,25 @@ int wlan_hdd_request_pre_cac(uint8_t channel)
 	ret = wlan_hdd_set_pre_cac_status(pre_cac_adapter, true, handle);
 	if (0 != ret) {
 		hdd_err("failed to set pre cac status");
-		goto stop_pre_cac_adapter;
+		goto stop_close_pre_cac_adapter;
 	}
 
 	ret = wlan_hdd_set_chan_before_pre_cac(ap_adapter,
 				hdd_ap_ctx->operatingChannel);
 	if (0 != ret) {
 		hdd_err("failed to set channel before pre cac");
-		goto stop_pre_cac_adapter;
+		goto stop_close_pre_cac_adapter;
 	}
 
 	ap_adapter->pre_cac_chan = pre_cac_chan;
 
 	return 0;
 
-stop_pre_cac_adapter:
-	hdd_stop_adapter(hdd_ctx, pre_cac_adapter, false);
-close_pre_cac_adapter:
+stop_close_pre_cac_adapter:
+	hdd_stop_adapter(hdd_ctx, pre_cac_adapter, true);
 	qdf_mem_free(pre_cac_adapter->sessionCtx.ap.beacon);
 	pre_cac_adapter->sessionCtx.ap.beacon = NULL;
+close_pre_cac_adapter:
 	hdd_close_adapter(hdd_ctx, pre_cac_adapter, false);
 	return -EINVAL;
 }
@@ -7401,6 +7484,14 @@ const struct wiphy_vendor_command hdd_wiphy_vendor_commands[] = {
 			WIPHY_VENDOR_CMD_NEED_NETDEV |
 			WIPHY_VENDOR_CMD_NEED_RUNNING,
 		.doit = wlan_hdd_cfg80211_monitor_rssi
+	},
+	{
+		.info.vendor_id = QCA_NL80211_VENDOR_ID,
+		.info.subcmd = QCA_NL80211_VENDOR_SUBCMD_ND_OFFLOAD,
+		.flags = WIPHY_VENDOR_CMD_NEED_WDEV |
+			 WIPHY_VENDOR_CMD_NEED_NETDEV |
+			 WIPHY_VENDOR_CMD_NEED_RUNNING,
+		.doit = wlan_hdd_cfg80211_set_ns_offload
 	},
 	{
 		.info.vendor_id = QCA_NL80211_VENDOR_ID,
@@ -9612,9 +9703,8 @@ struct cfg80211_bss *wlan_hdd_cfg80211_update_bss_list(hdd_adapter_t *pAdapter,
  *
  * Return: struct cfg80211_bss pointer
  */
-static struct cfg80211_bss *
-wlan_hdd_cfg80211_inform_bss_frame(hdd_adapter_t *pAdapter,
-				   tSirBssDescription *bss_desc)
+struct cfg80211_bss *wlan_hdd_cfg80211_inform_bss_frame(hdd_adapter_t *pAdapter,
+						tSirBssDescription *bss_desc)
 {
 	/*
 	 * cfg80211_inform_bss() is not updating ie field of bss entry, if entry
@@ -10412,6 +10502,20 @@ static int wlan_hdd_cfg80211_connect_start(hdd_adapter_t *pAdapter,
 				return -EINVAL;
 			}
 			hdd_select_cbmode(pAdapter, operatingChannel);
+		}
+		/*
+		 * if MFPEnabled is set but the peer AP is non-PMF i.e 80211w=2
+		 * or pmf=2 is an explicit configuration in the supplicant
+		 * configuration, drop the connection request.
+		 */
+		if (pWextState->roamProfile.MFPEnabled &&
+		    !(pWextState->roamProfile.MFPRequired ||
+		    pWextState->roamProfile.MFPCapable)) {
+			hdd_err("Drop connect req as supplicant has indicated PMF req for a non-PMF peer. MFPEnabled %d MFPRequired %d MFPCapable %d",
+					pWextState->roamProfile.MFPEnabled,
+					pWextState->roamProfile.MFPRequired,
+					pWextState->roamProfile.MFPCapable);
+			return -EINVAL;
 		}
 
 		if (true == cds_is_connection_in_progress()) {

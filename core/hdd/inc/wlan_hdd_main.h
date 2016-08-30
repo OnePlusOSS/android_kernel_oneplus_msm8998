@@ -113,9 +113,9 @@
 
 /** Maximum time(ms)to wait for disconnect to complete **/
 #ifdef QCA_WIFI_3_0_EMU
-#define WLAN_WAIT_TIME_DISCONNECT  3000
+#define WLAN_WAIT_TIME_DISCONNECT  5000
 #else
-#define WLAN_WAIT_TIME_DISCONNECT  2000
+#define WLAN_WAIT_TIME_DISCONNECT  5000
 #endif
 #define WLAN_WAIT_TIME_STATS       800
 #define WLAN_WAIT_TIME_POWER       800
@@ -1415,10 +1415,12 @@ struct hdd_context_s {
 	qdf_spinlock_t hdd_scan_req_q_lock;
 	qdf_list_t hdd_scan_req_q;
 	uint8_t miracast_value;
+
 #ifdef WLAN_NS_OFFLOAD
 	/* IPv6 notifier callback for handling NS offload on change in IP */
 	struct notifier_block ipv6_notifier;
 #endif
+	bool ns_offload_enable;
 	/* IPv4 notifier callback for handling ARP offload on change in IP */
 	struct notifier_block ipv4_notifier;
 

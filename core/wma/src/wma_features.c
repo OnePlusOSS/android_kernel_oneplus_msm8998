@@ -2639,6 +2639,16 @@ static bool tlv_check_required(int32_t reason)
 {
 	switch (reason) {
 	case WOW_REASON_PATTERN_MATCH_FOUND:
+	case WOW_REASON_BPF_ALLOW:
+	case WOW_REASON_AUTH_REQ_RECV:
+	case WOW_REASON_ASSOC_REQ_RECV:
+	case WOW_REASON_DEAUTH_RECVD:
+	case WOW_REASON_DISASSOC_RECVD:
+	case WOW_REASON_ASSOC_RES_RECV:
+	case WOW_REASON_REASSOC_REQ_RECV:
+	case WOW_REASON_REASSOC_RES_RECV:
+	case WOW_REASON_BEACON_RECV:
+	case WOW_REASON_ACTION_FRAME_RECV:
 		return false;
 	default:
 		return true;
@@ -3344,9 +3354,6 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 		WMA_LOGD(FL("Host woken up for OEM Response event"));
 		break;
 	default:
-		WMA_LOGE(FL("WOW reason %s(%d)- not handled"),
-			wma_wow_wake_reason_str(wake_info->wake_reason),
-			wake_info->wake_reason);
 		break;
 	}
 
@@ -3357,7 +3364,9 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 		WMA_LOGA("Holding %d msec wake_lock", wake_lock_duration);
 	}
 
-	wmitlv_free_allocated_event_tlvs(event_id, &wmi_cmd_struct_ptr);
+	if (wmi_cmd_struct_ptr)
+		wmitlv_free_allocated_event_tlvs(event_id, &wmi_cmd_struct_ptr);
+
 	return 0;
 }
 

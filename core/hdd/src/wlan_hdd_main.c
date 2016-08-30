@@ -1720,10 +1720,21 @@ int hdd_wlan_start_modules(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 		}
 
 		hif_ctx = cds_get_context(QDF_MODULE_ID_HIF);
+		if (!hif_ctx) {
+			hdd_err("hif context is null!!");
+			goto power_down;
+		}
+
 		status = ol_cds_init(qdf_dev, hif_ctx);
 		if (status != QDF_STATUS_SUCCESS) {
 			hdd_err("No Memory to Create BMI Context :%d", status);
 			goto hif_close;
+		}
+
+		ret = hdd_update_config(hdd_ctx);
+		if (ret) {
+			hdd_err("Failed to update configuration :%d", ret);
+			goto ol_cds_free;
 		}
 
 		status = cds_open();
@@ -2924,51 +2935,51 @@ int hdd_set_fw_params(hdd_adapter_t *adapter)
 	if (!hdd_ctx)
 		return -EINVAL;
 
-	if ((cds_get_conparam() != QDF_GLOBAL_FTM_MODE) ||
+	if ((cds_get_conparam() != QDF_GLOBAL_FTM_MODE) &&
 	    (!hdd_ctx->config->enable2x2)) {
-		hdd_info("enable2x2 not enabled in INI or in FTM mode return");
-		return 0;
-	}
 #define HDD_DTIM_1CHAIN_RX_ID 0x5
 #define HDD_SMPS_PARAM_VALUE_S 29
+		/*
+		 * Disable DTIM 1 chain Rx when in 1x1,
+		 * we are passing two value
+		 * as param_id << 29 | param_value.
+		 * Below param_value = 0(disable)
+		 */
+		ret = wma_cli_set_command(adapter->sessionId,
+					  WMI_STA_SMPS_PARAM_CMDID,
+					  HDD_DTIM_1CHAIN_RX_ID <<
+					  HDD_SMPS_PARAM_VALUE_S,
+					  VDEV_CMD);
+		if (ret) {
+			hdd_err("DTIM 1 chain set failed %d", ret);
+			goto error;
+		}
 
-	/*
-	 * Disable DTIM 1 chain Rx when in 1x1,
-	 * we are passing two value
-	 * as param_id << 29 | param_value.
-	 * Below param_value = 0(disable)
-	 */
-	ret = wma_cli_set_command(adapter->sessionId,
-				  WMI_STA_SMPS_PARAM_CMDID,
-				  HDD_DTIM_1CHAIN_RX_ID <<
-				  HDD_SMPS_PARAM_VALUE_S,
-				  VDEV_CMD);
-	if (ret) {
-		hdd_err("DTIM 1 chain set failed %d", ret);
-		goto error;
-	}
+		ret = wma_cli_set_command(adapter->sessionId,
+					  WMI_PDEV_PARAM_TX_CHAIN_MASK,
+					  hdd_ctx->config->txchainmask1x1,
+					  PDEV_CMD);
+		if (ret) {
+			hdd_err("WMI_PDEV_PARAM_TX_CHAIN_MASK set failed %d",
+				ret);
+			goto error;
+		}
 
-	ret = wma_cli_set_command(adapter->sessionId,
-				  WMI_PDEV_PARAM_TX_CHAIN_MASK,
-				  hdd_ctx->config->txchainmask1x1,
-				  PDEV_CMD);
-	if (ret) {
-		hdd_err("WMI_PDEV_PARAM_TX_CHAIN_MASK set failed %d",
-			ret);
-		goto error;
-	}
-
-	ret = wma_cli_set_command(adapter->sessionId,
-				  WMI_PDEV_PARAM_RX_CHAIN_MASK,
-				  hdd_ctx->config->rxchainmask1x1,
-				  PDEV_CMD);
-	if (ret) {
-		hdd_err("WMI_PDEV_PARAM_RX_CHAIN_MASK set failed %d",
-			ret);
-		goto error;
-	}
+		ret = wma_cli_set_command(adapter->sessionId,
+					  WMI_PDEV_PARAM_RX_CHAIN_MASK,
+					  hdd_ctx->config->rxchainmask1x1,
+					  PDEV_CMD);
+		if (ret) {
+			hdd_err("WMI_PDEV_PARAM_RX_CHAIN_MASK set failed %d",
+				ret);
+			goto error;
+		}
 #undef HDD_DTIM_1CHAIN_RX_ID
 #undef HDD_SMPS_PARAM_VALUE_S
+	} else {
+		hdd_info("FTM Mode or 2x2 mode - Do not set 1x1 params");
+	}
+
 	if (QDF_GLOBAL_FTM_MODE != cds_get_conparam()) {
 		ret = wma_cli_set_command(adapter->sessionId,
 					  WMI_PDEV_PARAM_HYST_EN,
@@ -6055,6 +6066,9 @@ hdd_context_t *hdd_context_create(struct device *dev)
 	hdd_notice("Setting configuredMcastBcastFilter: %d",
 		   hdd_ctx->config->mcastBcastFilterSetting);
 
+	if (hdd_ctx->config->fhostNSOffload)
+		hdd_ctx->ns_offload_enable = true;
+
 	cds_set_fatal_event(hdd_ctx->config->enable_fatal_event);
 
 	hdd_override_ini_config(hdd_ctx);
@@ -7375,10 +7389,6 @@ int hdd_wlan_startup(struct device *dev)
 		goto err_hdd_free_context;
 
 	hdd_wlan_green_ap_init(hdd_ctx);
-
-	ret = hdd_update_config(hdd_ctx);
-	if (ret)
-		goto err_exit_nl_srv;
 
 	ret = hdd_wlan_start_modules(hdd_ctx, adapter, false);
 	if (ret) {

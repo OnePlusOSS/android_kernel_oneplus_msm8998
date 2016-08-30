@@ -429,6 +429,7 @@ static QDF_STATUS sme_rrm_send_scan_result(tpAniSirGlobal mac_ctx,
 	uint8_t counter = 0;
 	tpRrmSMEContext rrm_ctx = &mac_ctx->rrm.rrmSmeContext;
 	uint32_t session_id;
+	tCsrRoamInfo *roam_info;
 
 	qdf_mem_zero(&filter, sizeof(filter));
 	qdf_mem_zero(scanresults_arr,
@@ -519,16 +520,31 @@ static QDF_STATUS sme_rrm_send_scan_result(tpAniSirGlobal mac_ctx,
 						NULL, measurementdone, 0);
 	}
 	counter = 0;
+
+	roam_info = qdf_mem_malloc(sizeof(*roam_info));
+	if (NULL == roam_info) {
+		sms_log(mac_ctx, LOGP, FL("vos_mem_malloc failed"));
+		status = QDF_STATUS_E_NOMEM;
+		goto rrm_send_scan_results_done;
+	}
+
 	while (scan_results) {
 		next_result = sme_scan_result_get_next(mac_ctx, result_handle);
 		sms_log(mac_ctx, LOG1, "Scan res timer:%lu, rrm scan timer:%lu",
 				scan_results->timer, rrm_scan_timer);
-		if (scan_results->timer >= rrm_scan_timer)
+		if (scan_results->timer >= rrm_scan_timer) {
+			qdf_mem_zero(roam_info, sizeof(*roam_info));
+			roam_info->pBssDesc = &scan_results->BssDescriptor;
+			csr_roam_call_callback(mac_ctx, session_id, roam_info,
+						0, eCSR_ROAM_UPDATE_SCAN_RESULT,
+						eCSR_ROAM_RESULT_NONE);
 			scanresults_arr[counter++] = scan_results;
+		}
 		scan_results = next_result;
 		if (counter >= SIR_BCN_REPORT_MAX_BSS_DESC)
 			break;
 	}
+	qdf_mem_free(roam_info);
 	/*
 	 * The beacon report should be sent whether the counter is zero or
 	 * non-zero. There might be a few scan results in the cache but not
@@ -554,6 +570,8 @@ static QDF_STATUS sme_rrm_send_scan_result(tpAniSirGlobal mac_ctx,
 					scanresults_arr, measurementdone,
 					counter);
 	}
+
+rrm_send_scan_results_done:
 	sme_scan_result_purge(mac_ctx, result_handle);
 	return status;
 }
@@ -635,6 +653,7 @@ QDF_STATUS sme_rrm_issue_scan_req(tpAniSirGlobal mac_ctx)
 	tpRrmSMEContext sme_rrm_ctx = &mac_ctx->rrm.rrmSmeContext;
 	uint32_t session_id;
 	tSirScanType scan_type;
+	unsigned long current_time;
 
 	status = csr_roam_get_session_id_from_bssid(mac_ctx,
 			&sme_rrm_ctx->sessionBssId, &session_id);
@@ -694,6 +713,27 @@ QDF_STATUS sme_rrm_issue_scan_req(tpAniSirGlobal mac_ctx)
 
 		sms_log(mac_ctx, LOG1, FL("Scan Type(%d) Max Dwell Time(%d)"),
 				scan_req.scanType, scan_req.maxChnTime);
+
+		/*
+		 * For RRM scans timing is very important especially when the
+		 * request is for limited channels. There is no need for
+		 * firmware to rest for about 100-200 ms on the home channel.
+		 * Instead, it can start the scan right away which will make the
+		 * host to respond with the beacon report as quickly as
+		 * possible. Ensure that the scan requests are not back to back
+		 * and hence there is a check to see if the requests are atleast
+		 * 1 second apart.
+		 */
+		current_time = qdf_mc_timer_get_system_time();
+		sms_log(mac_ctx, LOG1, "prev scan triggered before %ld ms, totalchannels %d",
+				current_time - rrm_scan_timer,
+				sme_rrm_ctx->channelList.numOfChannels);
+		if ((abs(current_time - rrm_scan_timer) > 1000) &&
+				(sme_rrm_ctx->channelList.numOfChannels == 1)) {
+			scan_req.restTime = 1;
+			scan_req.min_rest_time = 1;
+			scan_req.idle_time = 1;
+		}
 
 		rrm_scan_timer = qdf_mc_timer_get_system_time();
 

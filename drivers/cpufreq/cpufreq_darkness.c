@@ -24,6 +24,7 @@
 #define MIN_SAMPLING_RATE			(10000)
 
 static DEFINE_PER_CPU(struct dk_cpu_dbs_info_s, dk_cpu_dbs_info);
+static DEFINE_PER_CPU(struct dk_dbs_tuners, dk_cached_tuners);
 
 static struct dk_ops dk_ops;
 
@@ -31,11 +32,41 @@ static struct dk_ops dk_ops;
 static struct cpufreq_governor cpufreq_gov_darkness;
 #endif
 
-static void darkness_get_cpu_frequency_table(int cpu)
+static void dk_get_cpu_frequency_table(int cpu)
 {
 	struct dk_cpu_dbs_info_s *dbs_info = &per_cpu(dk_cpu_dbs_info, cpu);
 
 	dbs_info->freq_table = cpufreq_frequency_get_table(cpu);
+}
+
+static void dk_set_cpu_cached_tuners(struct cpufreq_policy *policy,
+				int cpu)
+{
+	struct dk_dbs_tuners *cached_tuners = &per_cpu(dk_cached_tuners, cpu);
+	struct dbs_data *dbs_data = policy->governor_data;
+	struct dk_dbs_tuners *tuners = dbs_data->tuners;
+
+	if (!tuners)
+		return;
+
+	cached_tuners->sampling_rate = tuners->sampling_rate;
+	cached_tuners->ignore_nice_load = tuners->ignore_nice_load;
+}
+
+static void dk_get_cpu_cached_tuners(struct cpufreq_policy *policy,
+				int cpu)
+{
+	struct dk_dbs_tuners *cached_tuners = &per_cpu(dk_cached_tuners, cpu);
+	struct dbs_data *dbs_data = policy->governor_data;
+	struct dk_dbs_tuners *tuners = dbs_data->tuners;
+
+	if (!cached_tuners || !tuners)
+		return;
+
+	if (cached_tuners->sampling_rate) {
+		tuners->sampling_rate = cached_tuners->sampling_rate;
+		tuners->ignore_nice_load = cached_tuners->ignore_nice_load;
+	}
 }
 
 static unsigned int adjust_cpufreq_frequency_target(struct cpufreq_policy *policy,
@@ -292,7 +323,9 @@ static void dk_exit(struct dbs_data *dbs_data)
 define_get_cpu_dbs_routines(dk_cpu_dbs_info);
 
 static struct dk_ops dk_ops = {
-	.get_cpu_frequency_table = darkness_get_cpu_frequency_table,
+	.get_cpu_frequency_table = dk_get_cpu_frequency_table,
+	.set_cpu_cached_tuners = dk_set_cpu_cached_tuners,
+	.get_cpu_cached_tuners = dk_get_cpu_cached_tuners,
 };
 
 static struct common_dbs_data dk_dbs_cdata = {

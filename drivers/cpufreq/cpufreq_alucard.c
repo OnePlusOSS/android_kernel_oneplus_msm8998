@@ -80,58 +80,6 @@ static void ac_get_cpu_frequency_table_minmax(struct cpufreq_policy *policy,
 	}
 }
 
-static void ac_set_cpu_cached_tuners(struct cpufreq_policy *policy,
-				int cpu)
-{
-	struct ac_dbs_tuners *cached_tuners = &per_cpu(ac_cached_tuners, cpu);
-	struct dbs_data *dbs_data = policy->governor_data;
-	struct ac_dbs_tuners *tuners = dbs_data->tuners;
-
-	if (!tuners)
-		return;
-
-	cached_tuners->sampling_rate = tuners->sampling_rate;
-	cached_tuners->ignore_nice_load = tuners->ignore_nice_load;
-	cached_tuners->inc_cpu_load_at_min_freq = tuners->inc_cpu_load_at_min_freq;
-	cached_tuners->inc_cpu_load = tuners->inc_cpu_load;
-	cached_tuners->dec_cpu_load_at_min_freq = tuners->dec_cpu_load_at_min_freq;
-	cached_tuners->dec_cpu_load = tuners->dec_cpu_load;
-	cached_tuners->freq_responsiveness = tuners->freq_responsiveness;
-	cached_tuners->cpus_up_rate = tuners->cpus_up_rate;
-	cached_tuners->cpus_down_rate = tuners->cpus_down_rate;
-	cached_tuners->pump_inc_step_at_min_freq = tuners->pump_inc_step_at_min_freq;
-	cached_tuners->pump_inc_step = tuners->pump_inc_step;
-	cached_tuners->pump_dec_step = tuners->pump_dec_step;
-	cached_tuners->pump_dec_step_at_min_freq = tuners->pump_dec_step_at_min_freq;
-}
-
-static void ac_get_cpu_cached_tuners(struct cpufreq_policy *policy,
-				int cpu)
-{
-	struct ac_dbs_tuners *cached_tuners = &per_cpu(ac_cached_tuners, cpu);
-	struct dbs_data *dbs_data = policy->governor_data;
-	struct ac_dbs_tuners *tuners = dbs_data->tuners;
-
-	if (!cached_tuners || !tuners)
-		return;
-
-	if (cached_tuners->sampling_rate) {
-		tuners->sampling_rate = cached_tuners->sampling_rate;
-		tuners->ignore_nice_load = cached_tuners->ignore_nice_load;
-		tuners->inc_cpu_load_at_min_freq = cached_tuners->inc_cpu_load_at_min_freq;
-		tuners->inc_cpu_load = cached_tuners->inc_cpu_load;
-		tuners->dec_cpu_load_at_min_freq = cached_tuners->dec_cpu_load_at_min_freq;
-		tuners->dec_cpu_load = cached_tuners->dec_cpu_load;
-		tuners->freq_responsiveness = cached_tuners->freq_responsiveness;
-		tuners->cpus_up_rate = cached_tuners->cpus_up_rate;
-		tuners->cpus_down_rate = cached_tuners->cpus_down_rate;
-		tuners->pump_inc_step_at_min_freq = cached_tuners->pump_inc_step_at_min_freq;
-		tuners->pump_inc_step = cached_tuners->pump_inc_step;
-		tuners->pump_dec_step = cached_tuners->pump_dec_step;
-		tuners->pump_dec_step_at_min_freq = cached_tuners->pump_dec_step_at_min_freq;
-	}
-}
-
 static void ac_check_cpu(int cpu, unsigned int load)
 {
 	struct ac_cpu_dbs_info_s *dbs_info = &per_cpu(ac_cpu_dbs_info, cpu);
@@ -669,6 +617,7 @@ static struct attribute_group ac_attr_group_gov_pol = {
 
 static int ac_init(struct dbs_data *dbs_data)
 {
+	struct ac_dbs_tuners *cached_tuners = &per_cpu(ac_cached_tuners, dbs_data->cpu);
 	struct ac_dbs_tuners *tuners;
 
 	tuners = kzalloc(sizeof(struct ac_dbs_tuners), GFP_KERNEL);
@@ -678,19 +627,35 @@ static int ac_init(struct dbs_data *dbs_data)
 	}
 
 	dbs_data->min_sampling_rate = MIN_SAMPLING_RATE;
-	tuners->sampling_rate = DEF_SAMPLING_RATE;
-	tuners->ignore_nice_load = 0;
-	tuners->inc_cpu_load_at_min_freq = INC_CPU_LOAD_AT_MIN_FREQ;
-	tuners->inc_cpu_load = INC_CPU_LOAD;
-	tuners->dec_cpu_load_at_min_freq = DEC_CPU_LOAD_AT_MIN_FREQ;
-	tuners->dec_cpu_load = DEC_CPU_LOAD;
-	tuners->freq_responsiveness = FREQ_RESPONSIVENESS;
-	tuners->cpus_up_rate = CPUS_UP_RATE;
-	tuners->cpus_down_rate = CPUS_DOWN_RATE;
-	tuners->pump_inc_step_at_min_freq = PUMP_INC_STEP_AT_MIN_FREQ;
-	tuners->pump_inc_step = PUMP_INC_STEP;
-	tuners->pump_dec_step = PUMP_DEC_STEP;
-	tuners->pump_dec_step_at_min_freq = PUMP_DEC_STEP_AT_MIN_FREQ;
+	if (cached_tuners->sampling_rate) {
+		tuners->sampling_rate = cached_tuners->sampling_rate;
+		tuners->ignore_nice_load = cached_tuners->ignore_nice_load;
+		tuners->inc_cpu_load_at_min_freq = cached_tuners->inc_cpu_load_at_min_freq;
+		tuners->inc_cpu_load = cached_tuners->inc_cpu_load;
+		tuners->dec_cpu_load_at_min_freq = cached_tuners->dec_cpu_load_at_min_freq;
+		tuners->dec_cpu_load = cached_tuners->dec_cpu_load;
+		tuners->freq_responsiveness = cached_tuners->freq_responsiveness;
+		tuners->cpus_up_rate = cached_tuners->cpus_up_rate;
+		tuners->cpus_down_rate = cached_tuners->cpus_down_rate;
+		tuners->pump_inc_step_at_min_freq = cached_tuners->pump_inc_step_at_min_freq;
+		tuners->pump_inc_step = cached_tuners->pump_inc_step;
+		tuners->pump_dec_step = cached_tuners->pump_dec_step;
+		tuners->pump_dec_step_at_min_freq = cached_tuners->pump_dec_step_at_min_freq;
+	} else {
+		tuners->sampling_rate = DEF_SAMPLING_RATE;
+		tuners->ignore_nice_load = 0;
+		tuners->inc_cpu_load_at_min_freq = INC_CPU_LOAD_AT_MIN_FREQ;
+		tuners->inc_cpu_load = INC_CPU_LOAD;
+		tuners->dec_cpu_load_at_min_freq = DEC_CPU_LOAD_AT_MIN_FREQ;
+		tuners->dec_cpu_load = DEC_CPU_LOAD;
+		tuners->freq_responsiveness = FREQ_RESPONSIVENESS;
+		tuners->cpus_up_rate = CPUS_UP_RATE;
+		tuners->cpus_down_rate = CPUS_DOWN_RATE;
+		tuners->pump_inc_step_at_min_freq = PUMP_INC_STEP_AT_MIN_FREQ;
+		tuners->pump_inc_step = PUMP_INC_STEP;
+		tuners->pump_dec_step = PUMP_DEC_STEP;
+		tuners->pump_dec_step_at_min_freq = PUMP_DEC_STEP_AT_MIN_FREQ;
+	}
 
 	dbs_data->tuners = tuners;
 	mutex_init(&dbs_data->mutex);
@@ -699,7 +664,27 @@ static int ac_init(struct dbs_data *dbs_data)
 
 static void ac_exit(struct dbs_data *dbs_data)
 {
+	struct ac_dbs_tuners *cached_tuners = &per_cpu(ac_cached_tuners, dbs_data->cpu);
+	struct ac_dbs_tuners *tuners = dbs_data->tuners;
+
+	if (tuners) {
+		cached_tuners->sampling_rate = tuners->sampling_rate;
+		cached_tuners->ignore_nice_load = tuners->ignore_nice_load;
+		cached_tuners->inc_cpu_load_at_min_freq = tuners->inc_cpu_load_at_min_freq;
+		cached_tuners->inc_cpu_load = tuners->inc_cpu_load;
+		cached_tuners->dec_cpu_load_at_min_freq = tuners->dec_cpu_load_at_min_freq;
+		cached_tuners->dec_cpu_load = tuners->dec_cpu_load;
+		cached_tuners->freq_responsiveness = tuners->freq_responsiveness;
+		cached_tuners->cpus_up_rate = tuners->cpus_up_rate;
+		cached_tuners->cpus_down_rate = tuners->cpus_down_rate;
+		cached_tuners->pump_inc_step_at_min_freq = tuners->pump_inc_step_at_min_freq;
+		cached_tuners->pump_inc_step = tuners->pump_inc_step;
+		cached_tuners->pump_dec_step = tuners->pump_dec_step;
+		cached_tuners->pump_dec_step_at_min_freq = tuners->pump_dec_step_at_min_freq;
+	}
+
 	kfree(dbs_data->tuners);
+	tuners = NULL;
 }
 
 define_get_cpu_dbs_routines(ac_cpu_dbs_info);
@@ -707,8 +692,6 @@ define_get_cpu_dbs_routines(ac_cpu_dbs_info);
 static struct ac_ops ac_ops = {
 	.get_cpu_frequency_table = ac_get_cpu_frequency_table,
 	.get_cpu_frequency_table_minmax = ac_get_cpu_frequency_table_minmax,
-	.set_cpu_cached_tuners = ac_set_cpu_cached_tuners,
-	.get_cpu_cached_tuners = ac_get_cpu_cached_tuners,
 };
 
 static struct common_dbs_data ac_dbs_cdata = {

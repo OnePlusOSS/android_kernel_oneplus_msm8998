@@ -324,6 +324,7 @@ struct common_dbs_data {
 struct dbs_data {
 	struct common_dbs_data *cdata;
 	unsigned int min_sampling_rate;
+<<<<<<< HEAD
 	struct cpufreq_frequency_table *freq_table;
 	/* following is only used by zzmoove governor */
 	bool freq_table_desc;				// table order ascending or descending (true)
@@ -340,6 +341,9 @@ struct dbs_data {
 	unsigned int scaling_mode_up;			// fast up scaling steps
 	unsigned int scaling_mode_down;			// fast down scaling steps
 	/* used by zzmoove governor end */
+=======
+	unsigned int cpu;
+>>>>>>> bb77c095... alucard, darkness and nightmare cpu govs: Enhanced store and restore tuners settings when hotplugging cpus!
 	int usage_count;
 	void *tuners;
 };
@@ -356,26 +360,14 @@ struct ac_ops {
 	void (*get_cpu_frequency_table)(int cpu);
 	void (*get_cpu_frequency_table_minmax)(struct cpufreq_policy *policy, 
 			int cpu);
-	void (*set_cpu_cached_tuners)(struct cpufreq_policy *policy, 
-			int cpu);
-	void (*get_cpu_cached_tuners)(struct cpufreq_policy *policy, 
-			int cpu);
 };
 
 struct dk_ops {
 	void (*get_cpu_frequency_table)(int cpu);
-	void (*set_cpu_cached_tuners)(struct cpufreq_policy *policy, 
-			int cpu);
-	void (*get_cpu_cached_tuners)(struct cpufreq_policy *policy, 
-			int cpu);
 };
 
 struct nm_ops {
 	void (*get_cpu_frequency_table)(int cpu);
-	void (*set_cpu_cached_tuners)(struct cpufreq_policy *policy, 
-			int cpu);
-	void (*get_cpu_cached_tuners)(struct cpufreq_policy *policy, 
-			int cpu);
 };
 
 static inline int delay_for_sampling_rate(unsigned int sampling_rate)

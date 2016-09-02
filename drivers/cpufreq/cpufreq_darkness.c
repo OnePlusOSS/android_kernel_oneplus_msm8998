@@ -39,36 +39,6 @@ static void dk_get_cpu_frequency_table(int cpu)
 	dbs_info->freq_table = cpufreq_frequency_get_table(cpu);
 }
 
-static void dk_set_cpu_cached_tuners(struct cpufreq_policy *policy,
-				int cpu)
-{
-	struct dk_dbs_tuners *cached_tuners = &per_cpu(dk_cached_tuners, cpu);
-	struct dbs_data *dbs_data = policy->governor_data;
-	struct dk_dbs_tuners *tuners = dbs_data->tuners;
-
-	if (!tuners)
-		return;
-
-	cached_tuners->sampling_rate = tuners->sampling_rate;
-	cached_tuners->ignore_nice_load = tuners->ignore_nice_load;
-}
-
-static void dk_get_cpu_cached_tuners(struct cpufreq_policy *policy,
-				int cpu)
-{
-	struct dk_dbs_tuners *cached_tuners = &per_cpu(dk_cached_tuners, cpu);
-	struct dbs_data *dbs_data = policy->governor_data;
-	struct dk_dbs_tuners *tuners = dbs_data->tuners;
-
-	if (!cached_tuners || !tuners)
-		return;
-
-	if (cached_tuners->sampling_rate) {
-		tuners->sampling_rate = cached_tuners->sampling_rate;
-		tuners->ignore_nice_load = cached_tuners->ignore_nice_load;
-	}
-}
-
 static unsigned int adjust_cpufreq_frequency_target(struct cpufreq_policy *policy,
 					struct cpufreq_frequency_table *table,
 					unsigned int tmp_freq)
@@ -298,6 +268,7 @@ static struct attribute_group dk_attr_group_gov_pol = {
 
 static int dk_init(struct dbs_data *dbs_data)
 {
+	struct dk_dbs_tuners *cached_tuners = &per_cpu(dk_cached_tuners, dbs_data->cpu);
 	struct dk_dbs_tuners *tuners;
 
 	tuners = kzalloc(sizeof(struct dk_dbs_tuners), GFP_KERNEL);
@@ -307,8 +278,13 @@ static int dk_init(struct dbs_data *dbs_data)
 	}
 
 	dbs_data->min_sampling_rate = MIN_SAMPLING_RATE;
-	tuners->sampling_rate = DEF_SAMPLING_RATE;
-	tuners->ignore_nice_load = 0;
+	if (cached_tuners->sampling_rate) {
+		tuners->sampling_rate = cached_tuners->sampling_rate;
+		tuners->ignore_nice_load = cached_tuners->ignore_nice_load;
+	} else {
+		tuners->sampling_rate = DEF_SAMPLING_RATE;
+		tuners->ignore_nice_load = 0;
+	}
 
 	dbs_data->tuners = tuners;
 	mutex_init(&dbs_data->mutex);
@@ -317,15 +293,22 @@ static int dk_init(struct dbs_data *dbs_data)
 
 static void dk_exit(struct dbs_data *dbs_data)
 {
+	struct dk_dbs_tuners *cached_tuners = &per_cpu(dk_cached_tuners, dbs_data->cpu);
+	struct dk_dbs_tuners *tuners = dbs_data->tuners;
+
+	if (tuners) {
+		cached_tuners->sampling_rate = tuners->sampling_rate;
+		cached_tuners->ignore_nice_load = tuners->ignore_nice_load;
+	}
+
 	kfree(dbs_data->tuners);
+	tuners = NULL;
 }
 
 define_get_cpu_dbs_routines(dk_cpu_dbs_info);
 
 static struct dk_ops dk_ops = {
 	.get_cpu_frequency_table = dk_get_cpu_frequency_table,
-	.set_cpu_cached_tuners = dk_set_cpu_cached_tuners,
-	.get_cpu_cached_tuners = dk_get_cpu_cached_tuners,
 };
 
 static struct common_dbs_data dk_dbs_cdata = {

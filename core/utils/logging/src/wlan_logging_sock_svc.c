@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -884,6 +884,13 @@ static int wlan_logging_proc_sock_rx_msg(struct sk_buff *skb)
 			"%s: invalid length, msgLen:%x skb len:%x headLen: %d data_len: %d",
 			__func__, len, skb->len, skb_headlen(skb),
 			skb->data_len);
+		return -EINVAL;
+	}
+
+	if (wnl->wmsg.length > skb->data_len) {
+		LOGGING_TRACE(QDF_TRACE_LEVEL_ERROR,
+			"%s: invalid length msgLen:%x skb data_len:%x\n",
+			__func__, wnl->wmsg.length, skb->data_len);
 		return -EINVAL;
 	}
 

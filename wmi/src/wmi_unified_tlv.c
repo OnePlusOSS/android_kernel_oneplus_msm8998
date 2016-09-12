@@ -12158,6 +12158,7 @@ struct wmi_ops tlv_ops =  {
 	.extract_chan_info_event = extract_chan_info_event_tlv,
 	.extract_channel_hopping_event = extract_channel_hopping_event_tlv,
 	.send_fw_test_cmd = send_fw_test_cmd_tlv,
+	.send_power_dbg_cmd = send_power_dbg_cmd_tlv,
 };
 
 #ifdef WMI_TLV_AND_NON_TLV_SUPPORT

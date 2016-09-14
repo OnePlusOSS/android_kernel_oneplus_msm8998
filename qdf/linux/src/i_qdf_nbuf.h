@@ -1046,6 +1046,8 @@ static inline bool __qdf_nbuf_is_tso(struct sk_buff *skb)
 
 struct sk_buff *__qdf_nbuf_inc_users(struct sk_buff *skb);
 
+int __qdf_nbuf_get_users(struct sk_buff *skb);
+
 /**
  * __qdf_nbuf_tx_info_get() - Modify pkt_type, set pkt_subtype,
  *			      and get hw_classify by peeking
@@ -1670,4 +1672,16 @@ __qdf_nbuf_mark_wakeup_frame(__qdf_nbuf_t buf)
 	buf->mark |= QDF_MARK_FIRST_WAKEUP_PACKET;
 }
 
+/**
+ * __qdf_nbuf_get_queue_mapping() - get the queue mapping set by linux kernel
+ *
+ * @buf: sk buff
+ *
+ * Return: Queue mapping
+ */
+static inline uint16_t
+__qdf_nbuf_get_queue_mapping(struct sk_buff *skb)
+{
+	return skb->queue_mapping;
+}
 #endif /*_I_QDF_NET_BUF_H */

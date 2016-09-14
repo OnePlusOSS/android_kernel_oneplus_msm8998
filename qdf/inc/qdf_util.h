@@ -433,5 +433,38 @@ static inline int qdf_device_init_wakeup(qdf_device_t qdf_dev, bool enable)
 	return __qdf_device_init_wakeup(qdf_dev, enable);
 }
 
+static inline
+uint64_t qdf_get_totalramsize(void)
+{
+	return __qdf_get_totalramsize();
+}
+
+/**
+ * qdf_get_lower_32_bits() - get lower 32 bits from an address.
+ * @addr: address
+ *
+ * This api returns the lower 32 bits of an address.
+ *
+ * Return: lower 32 bits.
+ */
+static inline
+uint32_t qdf_get_lower_32_bits(qdf_dma_addr_t addr)
+{
+	return __qdf_get_lower_32_bits(addr);
+}
+
+/**
+ * qdf_get_upper_32_bits() - get upper 32 bits from an address.
+ * @addr: address
+ *
+ * This api returns the upper 32 bits of an address.
+ *
+ * Return: upper 32 bits.
+ */
+static inline
+uint32_t qdf_get_upper_32_bits(qdf_dma_addr_t addr)
+{
+	return __qdf_get_upper_32_bits(addr);
+}
 
 #endif /*_QDF_UTIL_H*/

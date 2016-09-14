@@ -101,6 +101,13 @@
 #define QDF_NBUF_TX_PKT_FREE                 9
 #define QDF_NBUF_TX_PKT_STATE_MAX            10
 
+/* Enable flag to print TSO specific prints in datapath */
+#ifdef TSO_DEBUG_LOG_ENABLE
+#define TSO_DEBUG(args ...) printk(args)
+#else
+#define TSO_DEBUG(args ...)
+#endif
+
 /**
  * struct mon_rx_status - This will have monitor mode rx_status extracted from
  * htt_rx_desc used later to update radiotap information.
@@ -1851,6 +1858,19 @@ static inline qdf_nbuf_t qdf_nbuf_inc_users(qdf_nbuf_t nbuf)
 }
 
 /**
+ * qdf_nbuf_get_users() - function to get the number of users referencing this
+ * network buffer
+ *
+ * @nbuf:   network buffer
+ *
+ * Return: number of user references to nbuf.
+ */
+static inline int qdf_nbuf_get_users(qdf_nbuf_t nbuf)
+{
+	return __qdf_nbuf_get_users(nbuf);
+}
+
+/**
  * qdf_nbuf_data_attr_get() - Get data_attr field from cvg_nbuf_cb
  *
  * @nbuf: Network buffer (skb on linux)
@@ -2039,6 +2059,12 @@ static inline uint32_t qdf_nbuf_get_priority(qdf_nbuf_t buf)
 static inline void qdf_nbuf_set_priority(qdf_nbuf_t buf, uint32_t p)
 {
 	__qdf_nbuf_set_priority(buf, p);
+}
+
+static inline uint16_t
+qdf_nbuf_get_queue_mapping(qdf_nbuf_t buf)
+{
+	return __qdf_nbuf_get_queue_mapping(buf);
 }
 
 static inline uint8_t *

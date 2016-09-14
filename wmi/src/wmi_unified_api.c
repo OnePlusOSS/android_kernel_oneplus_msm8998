@@ -3234,6 +3234,28 @@ QDF_STATUS wmi_unified_roam_synch_complete_cmd(void *wmi_hdl,
 }
 
 /**
+ * wmi_unified_fw_test_cmd() - send fw test command to fw.
+ * @wmi_hdl: wmi handle
+ * @wmi_fwtest: fw test command
+ *
+ * This function sends fw test command to fw.
+ *
+ * Return: QDF_STATUS_SUCCESS on success and QDF_STATUS_E_FAILURE for failure
+ */
+QDF_STATUS wmi_unified_fw_test_cmd(void *wmi_hdl,
+				   struct set_fwtest_params *wmi_fwtest)
+{
+	wmi_unified_t wmi_handle = (wmi_unified_t) wmi_hdl;
+
+	if (wmi_handle->ops->send_fw_test_cmd)
+		return wmi_handle->ops->send_fw_test_cmd(wmi_handle,
+				  wmi_fwtest);
+
+	return QDF_STATUS_E_FAILURE;
+
+}
+
+/**
  * wmi_unified_unit_test_cmd() - send unit test command to fw.
  * @wmi_hdl: wmi handle
  * @wmi_utest: unit test command
@@ -3439,6 +3461,24 @@ QDF_STATUS wmi_unified_pdev_get_tpc_config_cmd_send(void *wmi_hdl,
 	if (wmi_handle->ops->send_pdev_get_tpc_config_cmd)
 		return wmi_handle->ops->send_pdev_get_tpc_config_cmd(wmi_handle,
 				param);
+
+	return QDF_STATUS_E_FAILURE;
+}
+
+/**
+ *  wmi_unified_set_bwf_cmd_send() - WMI set bwf function
+ *  @param wmi_handle      : handle to WMI.
+ *  @param param    : pointer to set bwf param
+ *
+ *  @return QDF_STATUS_SUCCESS on success and QDF_STATUS_E_FAILURE for failure
+ */
+QDF_STATUS wmi_unified_set_bwf_cmd_send(void *wmi_hdl,
+				struct set_bwf_params *param)
+{
+	wmi_unified_t wmi_handle = (wmi_unified_t) wmi_hdl;
+
+	if (wmi_handle->ops->send_set_bwf_cmd)
+		return wmi_handle->ops->send_set_bwf_cmd(wmi_handle, param);
 
 	return QDF_STATUS_E_FAILURE;
 }

@@ -387,6 +387,9 @@ typedef enum {
 typedef void *v_CONTEXT_t;
 
 #define QDF_MAC_ADDR_SIZE (6)
+#define QDF_MAC_ADDRESS_STR "%02x:%02x:%02x:%02x:%02x:%02x"
+#define QDF_MAC_ADDR_ARRAY(a) \
+	(a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
 
 /**
  * struct qdf_mac_addr - mac address array
@@ -486,6 +489,7 @@ struct qdf_tso_flags_t {
  * struct qdf_tso_seg_t - single TSO segment
  * @tso_flags: TSO flags
  * @num_frags: number of fragments
+ * @total_len: total length of the packet
  * @tso_frags: array holding the fragments
  *
  * This structure holds the information of a single TSO segment of a jumbo
@@ -494,6 +498,7 @@ struct qdf_tso_flags_t {
 struct qdf_tso_seg_t {
 	struct qdf_tso_flags_t tso_flags;
 	uint32_t num_frags;
+	uint32_t total_len;
 	struct qdf_tso_frag_t tso_frags[FRAG_NUM_MAX];
 };
 
@@ -511,7 +516,6 @@ struct qdf_tso_seg_elem_t {
  * struct qdf_tso_info_t - TSO information extracted
  * @is_tso: is this is a TSO frame
  * @num_segs: number of segments
- * @total_len: total length of the packet
  * @tso_seg_list: list of TSO segments for this jumbo packet
  * @curr_seg: segment that is currently being processed
  *
@@ -522,7 +526,6 @@ struct qdf_tso_seg_elem_t {
 struct qdf_tso_info_t {
 	uint8_t is_tso;
 	uint32_t num_segs;
-	uint32_t total_len;
 	struct qdf_tso_seg_elem_t *tso_seg_list;
 	struct qdf_tso_seg_elem_t *curr_seg;
 };

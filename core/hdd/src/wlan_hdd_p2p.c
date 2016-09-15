@@ -496,8 +496,9 @@ void wlan_hdd_remain_on_chan_timeout(void *data)
 	hdd_remain_on_chan_ctx_t *pRemainChanCtx;
 	hdd_cfg80211_state_t *cfgState;
 
-	if (NULL == pAdapter) {
-		hddLog(LOGE, "%s: pAdapter is NULL !!!", __func__);
+	if ((NULL == pAdapter) ||
+	    (WLAN_HDD_ADAPTER_MAGIC != pAdapter->magic)) {
+		hdd_err("pAdapter is invalid %p !!!", pAdapter);
 		return;
 	}
 
@@ -1439,6 +1440,35 @@ int __wlan_hdd_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 			    qdf_mc_timer_get_current_state(&cfgState->
 						   remain_on_chan_ctx->
 						   hdd_remain_on_chan_timer)) {
+
+				/* In the latest wpa_supplicant, the wait time
+				 * for go negotiation response is set to 100ms,
+				 * due to which, there could be a possibility
+				 * that, if the go negotaition confirmation
+				 * frame is not received within 100 msec, ROC
+				 * would be timeout and resulting in connection
+				 * failures as the device will not be on the
+				 * listen channel anymore to receive the conf
+				 * frame. Also wpa_supplicant has set the wait
+				 * to 50msec for go negotiation confirmation,
+				 * invitation response and prov discovery rsp
+				 * frames. So increase the wait time for all
+				 * these frames.
+				 */
+				actionFrmType = buf
+				[WLAN_HDD_PUBLIC_ACTION_FRAME_TYPE_OFFSET];
+				if (actionFrmType == WLAN_HDD_GO_NEG_RESP ||
+				    actionFrmType == WLAN_HDD_PROV_DIS_RESP)
+					wait = wait + ACTION_FRAME_RSP_WAIT;
+				else if (actionFrmType ==
+					 WLAN_HDD_GO_NEG_CNF ||
+					 actionFrmType ==
+					 WLAN_HDD_INVITATION_RESP)
+					wait = wait + ACTION_FRAME_ACK_WAIT;
+
+				hddLog(LOG1, FL("Extending the wait time %d for actionFrmType=%d"),
+						wait, actionFrmType);
+
 				qdf_mc_timer_stop(&cfgState->
 						  remain_on_chan_ctx->
 						  hdd_remain_on_chan_timer);
@@ -1683,13 +1713,27 @@ void hdd_send_action_cnf(hdd_adapter_t *pAdapter, bool actionSendSuccess)
 
 	cfgState->actionFrmState = HDD_IDLE;
 
-	hddLog(LOG1, "Send Action cnf, actionSendSuccess %d",
-	       actionSendSuccess);
 
 	if (NULL == cfgState->buf) {
 		return;
 	}
 
+	if (cfgState->is_go_neg_ack_received) {
+
+		cfgState->is_go_neg_ack_received = 0;
+		/* Sometimes its possible that host may receive the ack for GO
+		 * negotiation req after sending go negotaition confirmation,
+		 * in such case drop the ack received for the go negotiation
+		 * request, so that supplicant waits for the confirmation ack
+		 * from firmware.
+		 */
+		hdd_info("Drop the pending ack received in cfgState->actionFrmState %d",
+				cfgState->actionFrmState);
+		return;
+	}
+
+	hdd_info("Send Action cnf, actionSendSuccess %d",
+		actionSendSuccess);
 	/*
 	 * buf is the same pointer it passed us to send. Since we are sending
 	 * it through control path, we use different buffers.
@@ -1706,6 +1750,40 @@ void hdd_send_action_cnf(hdd_adapter_t *pAdapter, bool actionSendSuccess)
 	cfgState->buf = NULL;
 
 	complete(&pAdapter->tx_action_cnf_event);
+}
+
+/**
+ * hdd_send_action_cnf_cb - action confirmation callback
+ * @session_id: SME session ID
+ * @tx_completed: ack status
+ *
+ * This function invokes hdd_sendActionCnf to update ack status to
+ * supplicant.
+ */
+void hdd_send_action_cnf_cb(uint32_t session_id, bool tx_completed)
+{
+	hdd_context_t *hdd_ctx;
+	hdd_adapter_t *adapter;
+
+	ENTER();
+
+	/* Get the HDD context.*/
+	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+	if (0 != wlan_hdd_validate_context(hdd_ctx))
+		return;
+
+	adapter = hdd_get_adapter_by_sme_session_id(hdd_ctx, session_id);
+	if (NULL == adapter) {
+		hddLog(LOGE, FL("adapter not found"));
+		return;
+	}
+
+	if (WLAN_HDD_ADAPTER_MAGIC != adapter->magic) {
+		hddLog(LOGE, FL("adapter has invalid magic"));
+		return;
+	}
+
+	hdd_send_action_cnf(adapter, tx_completed);
 }
 
 /**
@@ -2057,7 +2135,12 @@ struct wireless_dev *__wlan_hdd_add_virtual_intf(struct wiphy *wiphy,
 	if (ret)
 		return ERR_PTR(ret);
 
-	if (NL80211_IFTYPE_AP == type) {
+	/*
+	 * Once the support for session creation/deletion from
+	 * hdd_hostapd_open/hdd_host_stop is in place.
+	 * The support for starting adapter from here can be removed.
+	 */
+	if (NL80211_IFTYPE_AP == type || (NL80211_IFTYPE_P2P_GO == type)) {
 		ret = hdd_start_adapter(pAdapter);
 		if (ret) {
 			hdd_err("Failed to start %s", name);
@@ -2442,6 +2525,7 @@ void __hdd_indicate_mgmt_frame(hdd_adapter_t *pAdapter,
 					hddLog(LOG1,
 					       "%s: ACK_PENDING and But received RESP for Action frame ",
 					       __func__);
+					cfgState->is_go_neg_ack_received = 1;
 					hdd_send_action_cnf(pAdapter, true);
 				}
 			}

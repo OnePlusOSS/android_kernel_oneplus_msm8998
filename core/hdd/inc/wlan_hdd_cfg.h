@@ -711,12 +711,10 @@ typedef enum {
 #define CFG_ROAM_SCAN_HOME_AWAY_TIME_DEFAULT                (CFG_ROAM_SCAN_HOME_AWAY_TIME_MIN)
 /* disabled by default */
 
-#ifdef FEATURE_WLAN_OKC
 #define CFG_OKC_FEATURE_ENABLED_NAME                       "OkcEnabled"
 #define CFG_OKC_FEATURE_ENABLED_MIN                        (0)
 #define CFG_OKC_FEATURE_ENABLED_MAX                        (1)
 #define CFG_OKC_FEATURE_ENABLED_DEFAULT                    (1)
-#endif
 
 #define CFG_ROAM_SCAN_OFFLOAD_ENABLED                       "gRoamScanOffloadEnabled"
 #define CFG_ROAM_SCAN_OFFLOAD_ENABLED_MIN                   (0)
@@ -839,13 +837,13 @@ typedef enum {
 
 #define CFG_RRM_OPERATING_CHAN_MAX_DURATION_NAME         "gRrmOperChanMax"      /* section 11.10.3 IEEE std. 802.11k-2008 */
 #define CFG_RRM_OPERATING_CHAN_MAX_DURATION_MIN          (0)    /* Maxduration = 2^(maxDuration - 4) * bcnIntvl. */
-#define CFG_RRM_OPERATING_CHAN_MAX_DURATION_MAX          (8)
-#define CFG_RRM_OPERATING_CHAN_MAX_DURATION_DEFAULT      (3)    /* max duration = 2^-1 * bcnIntvl (50% of bcn intvl) */
+#define CFG_RRM_OPERATING_CHAN_MAX_DURATION_MAX          (7)
+#define CFG_RRM_OPERATING_CHAN_MAX_DURATION_DEFAULT      (4)    /* max duration = 2^0 * bcnIntvl (100% of bcn intvl) */
 
 #define CFG_RRM_NON_OPERATING_CHAN_MAX_DURATION_NAME     "gRrmNonOperChanMax"   /* Same as above. */
 #define CFG_RRM_NON_OPERATING_CHAN_MAX_DURATION_MIN      (0)
-#define CFG_RRM_NON_OPERATING_CHAN_MAX_DURATION_MAX      (8)
-#define CFG_RRM_NON_OPERATING_CHAN_MAX_DURATION_DEFAULT  (3)
+#define CFG_RRM_NON_OPERATING_CHAN_MAX_DURATION_MAX      (7)
+#define CFG_RRM_NON_OPERATING_CHAN_MAX_DURATION_DEFAULT  (4)
 
 #define CFG_RRM_MEAS_RANDOMIZATION_INTVL_NAME            "gRrmRandnIntvl"
 #define CFG_RRM_MEAS_RANDOMIZATION_INTVL_MIN             (10)
@@ -862,7 +860,7 @@ typedef enum {
  * Comma is used as a separator for each byte.
  */
 #define CFG_RM_CAPABILITY_NAME            "rm_capability"
-#define CFG_RM_CAPABILITY_DEFAULT         "73,10,6D,00,04"
+#define CFG_RM_CAPABILITY_DEFAULT         "73,10,91,00,04"
 
 #define CFG_QOS_IMPLICIT_SETUP_ENABLED_NAME                 "ImplicitQosIsEnabled"
 #define CFG_QOS_IMPLICIT_SETUP_ENABLED_MIN                  (0)
@@ -1031,7 +1029,7 @@ typedef enum {
 #define CFG_ENABLE_HOST_ARPOFFLOAD_NAME         "hostArpOffload"
 #define CFG_ENABLE_HOST_ARPOFFLOAD_MIN          (0)
 #define CFG_ENABLE_HOST_ARPOFFLOAD_MAX          (1)
-#define CFG_ENABLE_HOST_ARPOFFLOAD_DEFAULT      (0)
+#define CFG_ENABLE_HOST_ARPOFFLOAD_DEFAULT      (1)
 
 #define CFG_ENABLE_HOST_SSDP_NAME              "ssdp"
 #define CFG_ENABLE_HOST_SSDP_MIN               (0)
@@ -1063,7 +1061,7 @@ typedef enum {
 #define CFG_ENABLE_HOST_NSOFFLOAD_NAME         "hostNSOffload"
 #define CFG_ENABLE_HOST_NSOFFLOAD_MIN          (0)
 #define CFG_ENABLE_HOST_NSOFFLOAD_MAX          (1)
-#define CFG_ENABLE_HOST_NSOFFLOAD_DEFAULT      (0)
+#define CFG_ENABLE_HOST_NSOFFLOAD_DEFAULT      (1)
 
 #define CFG_BAND_CAPABILITY_NAME          "BandCapability"
 #define CFG_BAND_CAPABILITY_MIN           (0)
@@ -1324,12 +1322,12 @@ typedef enum {
 
 #define CFG_ENABLE_EGAP_INACT_TIME_FEATURE         "gEGAPInactTime"
 #define CFG_ENABLE_EGAP_INACT_TIME_FEATURE_MIN     (0)
-#define CFG_ENABLE_EGAP_INACT_TIME_FEATURE_MAX     (5000)
+#define CFG_ENABLE_EGAP_INACT_TIME_FEATURE_MAX     (300000)
 #define CFG_ENABLE_EGAP_INACT_TIME_FEATURE_DEFAULT (1000)
 
 #define CFG_ENABLE_EGAP_WAIT_TIME_FEATURE          "gEGAPWaitTime"
 #define CFG_ENABLE_EGAP_WAIT_TIME_FEATURE_MIN      (0)
-#define CFG_ENABLE_EGAP_WAIT_TIME_FEATURE_MAX      (5000)
+#define CFG_ENABLE_EGAP_WAIT_TIME_FEATURE_MAX      (300000)
 #define CFG_ENABLE_EGAP_WAIT_TIME_FEATURE_DEFAULT  (100)
 
 #define CFG_ENABLE_EGAP_FLAGS_FEATURE              "gEGAPFeatures"
@@ -1786,14 +1784,14 @@ typedef enum {
 #define CFG_TDLS_IMPLICIT_TRIGGER_DEFAULT           (0)
 
 #define CFG_TDLS_TX_STATS_PERIOD                    "gTDLSTxStatsPeriod"
-#define CFG_TDLS_TX_STATS_PERIOD_MIN                (10)
+#define CFG_TDLS_TX_STATS_PERIOD_MIN                (1000)
 #define CFG_TDLS_TX_STATS_PERIOD_MAX                (4294967295UL)
-#define CFG_TDLS_TX_STATS_PERIOD_DEFAULT            (500)
+#define CFG_TDLS_TX_STATS_PERIOD_DEFAULT            (2000)
 
 #define CFG_TDLS_TX_PACKET_THRESHOLD                "gTDLSTxPacketThreshold"
 #define CFG_TDLS_TX_PACKET_THRESHOLD_MIN            (0)
 #define CFG_TDLS_TX_PACKET_THRESHOLD_MAX            (4294967295UL)
-#define CFG_TDLS_TX_PACKET_THRESHOLD_DEFAULT        (10)
+#define CFG_TDLS_TX_PACKET_THRESHOLD_DEFAULT        (40)
 
 #define CFG_TDLS_MAX_DISCOVERY_ATTEMPT              "gTDLSMaxDiscoveryAttempt"
 #define CFG_TDLS_MAX_DISCOVERY_ATTEMPT_MIN          (1)
@@ -2327,12 +2325,12 @@ typedef enum {
 #define CFG_SET_TXPOWER_LIMIT2G_NAME               "TxPower2g"
 #define CFG_SET_TXPOWER_LIMIT2G_MIN                (0)
 #define CFG_SET_TXPOWER_LIMIT2G_MAX                (30)
-#define CFG_SET_TXPOWER_LIMIT2G_DEFAULT            (15)
+#define CFG_SET_TXPOWER_LIMIT2G_DEFAULT            (30)
 
 #define CFG_SET_TXPOWER_LIMIT5G_NAME               "TxPower5g"
 #define CFG_SET_TXPOWER_LIMIT5G_MIN                (0)
 #define CFG_SET_TXPOWER_LIMIT5G_MAX                (30)
-#define CFG_SET_TXPOWER_LIMIT5G_DEFAULT            (15)
+#define CFG_SET_TXPOWER_LIMIT5G_DEFAULT            (30)
 
 #ifdef QCA_LL_LEGACY_TX_FLOW_CONTROL
 #define CFG_LL_TX_FLOW_LWM                         "TxFlowLowWaterMark"
@@ -2800,6 +2798,17 @@ typedef enum {
 #define CFG_LRO_ENABLED_DEFAULT        (0)
 
 /*
+ * Enable Rx traffic flow steering to enable Rx interrupts on multiple CEs based
+ * on the flows. Different CEs<==>different IRQs<==>probably different CPUs.
+ * Parallel Rx paths.
+ * 1 - enable  0 - disable
+ */
+#define CFG_FLOW_STEERING_ENABLED_NAME        "gEnableFlowSteering"
+#define CFG_FLOW_STEERING_ENABLED_MIN         (0)
+#define CFG_FLOW_STEERING_ENABLED_MAX         (1)
+#define CFG_FLOW_STEERING_ENABLED_DEFAULT     (0)
+
+/*
  * In static display use case when APPS is in stand alone power save mode enable
  * active offload mode which helps FW to filter out MC/BC data packets to avoid
  * APPS wake up and save more power.
@@ -2923,6 +2932,17 @@ enum dot11p_mode {
 #define CFG_DOT11P_MODE_MAX              (WLAN_HDD_11P_CONCURRENT)
 
 #ifdef FEATURE_WLAN_EXTSCAN
+
+/*
+ * This ini is added to control the enabling of extscan feature outside of code
+ * To enable , gExtScanEnable=1 need to be declared in ini file.
+ * Otherwise, Extscan feature will remain disabled.
+ */
+#define CFG_EXTSCAN_ALLOWED_NAME                   "gExtScanEnable"
+#define CFG_EXTSCAN_ALLOWED_MIN                    (0)
+#define CFG_EXTSCAN_ALLOWED_MAX                    (1)
+#define CFG_EXTSCAN_ALLOWED_DEF                    (0)
+
 #define CFG_EXTSCAN_PASSIVE_MAX_CHANNEL_TIME_NAME      "gExtScanPassiveMaxChannelTime"
 #define CFG_EXTSCAN_PASSIVE_MAX_CHANNEL_TIME_MIN       (0)
 #define CFG_EXTSCAN_PASSIVE_MAX_CHANNEL_TIME_MAX       (500)
@@ -3493,6 +3513,15 @@ enum dot11p_mode {
 #define CFG_FILTER_MULTICAST_REPLAY_MAX      (1)
 #define CFG_FILTER_MULTICAST_REPLAY_DEFAULT  (1)
 
+/*
+ * This parameter will control SIFS burst duration in FW from 0 to 12 ms.
+ * Default value is set to 8ms.
+ */
+#define CFG_SIFS_BURST_DURATION_NAME     "g_sifs_burst_duration"
+#define CFG_SIFS_BURST_DURATION_MIN      (0)
+#define CFG_SIFS_BURST_DURATION_MAX      (12)
+#define CFG_SIFS_BURST_DURATION_DEFAULT  (8)
+
 
 /*---------------------------------------------------------------------------
    Type declarations
@@ -3646,9 +3675,7 @@ struct hdd_config {
 	bool isFastTransitionEnabled;
 	uint8_t RoamRssiDiff;
 	bool isWESModeEnabled;
-#ifdef FEATURE_WLAN_OKC
 	bool isOkcIniFeatureEnabled;
-#endif
 	bool isRoamOffloadScanEnabled;
 	bool bImplicitQosEnabled;
 
@@ -4076,6 +4103,7 @@ struct hdd_config {
 	bool sendDeauthBeforeCon;
 	bool tso_enable;
 	bool lro_enable;
+	bool flow_steering_enable;
 	bool active_mode_offload;
 	bool bpf_packet_filter_enable;
 	uint32_t fine_time_meas_cap;
@@ -4087,6 +4115,7 @@ struct hdd_config {
 	uint8_t rx_mode;
 	uint8_t cpu_map_list[CFG_RPS_RX_QUEUE_CPU_MAP_LIST_LEN];
 #ifdef FEATURE_WLAN_EXTSCAN
+	bool     extscan_enabled;
 	uint32_t extscan_passive_max_chn_time;
 	uint32_t extscan_passive_min_chn_time;
 	uint32_t extscan_active_max_chn_time;
@@ -4155,6 +4184,8 @@ struct hdd_config {
 	enum cfg_sub_20_channel_width enable_sub_20_channel_width;
 	bool indoor_channel_support;
 	bool multicast_replay_filter;
+	/* parameter for indicating sifs burst duration to fw */
+	uint8_t sifs_burst_duration;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

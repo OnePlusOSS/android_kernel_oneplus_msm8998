@@ -873,7 +873,8 @@ void lim_process_mlm_assoc_ind(tpAniSirGlobal pMac, uint32_t *pMsgBuf)
 	pSirSmeAssocInd->staId = pStaDs->staIndex;
 	pSirSmeAssocInd->reassocReq = pStaDs->mlmStaContext.subType;
 	pSirSmeAssocInd->timingMeasCap = pStaDs->timingMeasCap;
-	MTRACE(mac_trace_msg_tx(pMac, psessionEntry->peSessionId, msgQ.type));
+	MTRACE(mac_trace(pMac, TRACE_CODE_TX_SME_MSG,
+			 psessionEntry->peSessionId, msgQ.type));
 #ifdef FEATURE_WLAN_DIAG_SUPPORT_LIM    /* FEATURE_WLAN_DIAG_SUPPORT */
 	lim_diag_event_report(pMac, WLAN_PE_DIAG_ASSOC_IND_EVENT, psessionEntry, 0,
 			      0);
@@ -2142,12 +2143,12 @@ static void lim_process_ap_mlm_add_bss_rsp(tpAniSirGlobal pMac, tpSirMsgQ limMsg
 			if ((psessionEntry->gStartBssRSNIe.present)
 			    || (psessionEntry->gStartBssWPAIe.present))
 				lim_log(pMac, LOG1,
-					FL("WPA/WPA2 SAP configuration\n"));
+					FL("WPA/WPA2 SAP configuration"));
 			else {
 				if (pMac->lim.gLimAssocStaLimit >
 				    MAX_SUPPORTED_PEERS_WEP) {
 					lim_log(pMac, LOG1,
-						FL("WEP SAP Configuration\n"));
+						FL("WEP SAP Configuration"));
 					pMac->lim.gLimAssocStaLimit =
 						MAX_SUPPORTED_PEERS_WEP;
 					isWepEnabled = true;
@@ -2481,6 +2482,11 @@ lim_process_sta_mlm_add_bss_rsp(tpAniSirGlobal mac_ctx,
 				session_entry);
 			goto end;
 		}
+
+		if (lim_send_ht_vht_ie(mac_ctx, session_entry) !=
+				QDF_STATUS_SUCCESS)
+			lim_log(mac_ctx, LOGE,
+				FL("Unable to send HT/VHT Cap to FW"));
 
 		/* Set MLME state */
 		session_entry->limMlmState = eLIM_MLM_WT_ADD_STA_RSP_STATE;
@@ -3273,10 +3279,7 @@ void lim_process_rx_scan_event(tpAniSirGlobal pMac, void *buf)
 			 * failure.
 			 */
 			if (pMac->lim.mgmtFrameSessionId != 0xff) {
-				lim_send_sme_rsp(pMac,
-					eWNI_SME_ACTION_FRAME_SEND_CNF,
-					eSIR_SME_SEND_ACTION_FAIL,
-					pMac->lim.mgmtFrameSessionId, 0);
+				lim_p2p_action_cnf(pMac, false);
 				pMac->lim.mgmtFrameSessionId = 0xff;
 			}
 		} else if (PREAUTH_REQUESTOR_ID == pScanEvent->requestor) {

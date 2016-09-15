@@ -79,9 +79,6 @@ ifeq ($(KERNEL_BUILD), 0)
 	#Flag to enable Legacy Fast Roaming3(LFR3)
 	CONFIG_QCACLD_WLAN_LFR3 := y
 
-	#JB kernel has PMKSA patches, hence enabling this flag
-	CONFIG_PRIMA_WLAN_OKC := y
-
 	# JB kernel has CPU enablement patches, so enable
 	ifeq ($(CONFIG_ROME_IF),pci)
 		CONFIG_PRIMA_WLAN_11AC_HIGH_TP := y
@@ -286,6 +283,13 @@ CONFIG_GTK_OFFLOAD := 1
 #Enable EXT WOW
 ifeq ($(CONFIG_ROME_IF),pci)
 	CONFIG_EXT_WOW := 1
+endif
+
+# Flag to enable bus auto suspend
+ifeq ($(CONFIG_ROME_IF),pci)
+ifeq ($(CONFIG_BUS_AUTO_SUSPEND), y)
+CDEFINES += -DFEATURE_RUNTIME_PM
+endif
 endif
 
 #Set this to 1 to catch erroneous Target accesses during debug.
@@ -1176,10 +1180,6 @@ ifeq ($(CONFIG_QCACLD_WLAN_LFR2),y)
 CDEFINES += -DWLAN_FEATURE_HOST_ROAM
 endif
 
-ifeq ($(CONFIG_PRIMA_WLAN_OKC),y)
-CDEFINES += -DFEATURE_WLAN_OKC
-endif
-
 ifeq ($(BUILD_DIAG_VERSION),1)
 CDEFINES += -DFEATURE_WLAN_DIAG_SUPPORT
 CDEFINES += -DFEATURE_WLAN_DIAG_SUPPORT_CSR
@@ -1379,6 +1379,9 @@ ifneq (y,$(filter y,$(CONFIG_CNSS_EOS) $(CONFIG_ICNSS)))
 CDEFINES += -DWLAN_ENABLE_CHNL_MATRIX_RESTRICTION
 endif
 
+#Enable OBSS feature
+CDEFINES += -DQCA_HT_2040_COEX
+
 #features specific to mobile router use case
 ifeq ($(CONFIG_MOBILE_ROUTER), y)
 
@@ -1399,9 +1402,6 @@ CDEFINES += -DFEATURE_WLAN_STA_4ADDR_SCHEME
 
 #Disable STA-AP Mode DFS support
 CDEFINES += -DFEATURE_WLAN_STA_AP_MODE_DFS_DISABLE
-
-#Enable OBSS feature
-CDEFINES += -DQCA_HT_2040_COEX
 
 else #CONFIG_MOBILE_ROUTER
 

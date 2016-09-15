@@ -359,6 +359,7 @@ typedef struct tagCsrRoamStartBssParams {
 #endif
 	tSirAddIeParams addIeParams;
 	uint8_t sap_dot11mc;
+	uint8_t beacon_tx_rate;
 } tCsrRoamStartBssParams;
 
 typedef struct tagScanCmd {
@@ -986,6 +987,7 @@ typedef struct tagCsrRoamSession {
 	size_t pmk_len;
 	uint8_t RoamKeyMgmtOffloadEnabled;
 	roam_offload_synch_ind *roam_synch_data;
+	bool okc_enabled;
 #endif
 	tftSMEContext ftSmeContext;
 	/* This count represents the number of bssid's we try to join. */

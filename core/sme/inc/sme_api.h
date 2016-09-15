@@ -893,9 +893,10 @@ QDF_STATUS sme_set_wisa_params(tHalHandle hal,
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 QDF_STATUS sme_update_roam_offload_enabled(tHalHandle hHal,
 		bool nRoamOffloadEnabled);
-QDF_STATUS sme_update_roam_key_mgmt_offload_enabled(tHalHandle hHal,
-		uint8_t sessionId,
-		bool nRoamKeyMgmtOffloadEnabled);
+QDF_STATUS sme_update_roam_key_mgmt_offload_enabled(tHalHandle hal_ctx,
+		uint8_t session_id,
+		bool key_mgmt_offload_enabled,
+		bool okc_enabled);
 #endif
 #ifdef WLAN_FEATURE_NAN
 QDF_STATUS sme_nan_event(tHalHandle hHal, void *pMsg);
@@ -1099,6 +1100,7 @@ static inline QDF_STATUS sme_send_egap_conf_params(uint32_t enable,
 
 void sme_update_fine_time_measurement_capab(tHalHandle hal, uint32_t val);
 QDF_STATUS sme_ht40_stop_obss_scan(tHalHandle hHal, uint32_t vdev_id);
+QDF_STATUS sme_set_fw_test(struct set_fwtest_params *fw_test);
 QDF_STATUS sme_set_tsfcb(tHalHandle hHal,
 	int (*cb_fn)(void *cb_ctx, struct stsf *ptsf), void *cb_ctx);
 
@@ -1156,4 +1158,6 @@ void sme_get_vdev_type_nss(tHalHandle hal, enum tQDF_ADAPTER_MODE dev_mode,
 		uint8_t *nss_2g, uint8_t *nss_5g);
 QDF_STATUS sme_roam_set_default_key_index(tHalHandle hal, uint8_t session_id,
 					  uint8_t default_idx);
+QDF_STATUS sme_register_p2p_ack_ind_callback(tHalHandle hal,
+		sir_p2p_ack_ind_callback callback);
 #endif /* #if !defined( __SME_API_H ) */

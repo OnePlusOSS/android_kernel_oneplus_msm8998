@@ -414,9 +414,6 @@ static inline void hdd_pld_driver_unloading(struct device *dev)
  */
 static void wlan_hdd_remove(struct device *dev)
 {
-	void *hif_ctx;
-
-
 	pr_info("%s: Removing driver v%s\n", WLAN_MODULE_NAME,
 		QWLAN_VERSIONSTR);
 
@@ -433,11 +430,6 @@ static void wlan_hdd_remove(struct device *dev)
 		hdd_err("External threads are still active attempting driver unload anyway");
 
 	hdd_pld_driver_unloading(dev);
-
-	hif_ctx = cds_get_context(QDF_MODULE_ID_HIF);
-
-	if (NULL == hif_ctx)
-		return;
 
 	if (QDF_IS_EPPING_ENABLED(cds_get_conparam())) {
 		epping_disable();
@@ -562,9 +554,16 @@ static int __wlan_hdd_bus_suspend(pm_message_t state)
 	if (err)
 		goto resume_wma;
 
-	hdd_err("suspend done, status = %d", err);
+	err = wma_is_target_wake_up_received();
+	if (err)
+		goto resume_hif;
+
+	hdd_err("suspend done");
 	return err;
 
+resume_hif:
+	status = hif_bus_resume(hif_ctx);
+	QDF_BUG(!status);
 resume_wma:
 	status = wma_bus_resume();
 	QDF_BUG(!status);
@@ -572,7 +571,7 @@ resume_oltxrx:
 	status = ol_txrx_bus_resume();
 	QDF_BUG(!status);
 done:
-	hdd_err("suspend done, status = %d", err);
+	hdd_err("suspend failed, status = %d", err);
 	return err;
 }
 

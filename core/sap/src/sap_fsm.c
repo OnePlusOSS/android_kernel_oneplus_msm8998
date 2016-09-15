@@ -819,7 +819,6 @@ static uint8_t *sap_hdd_event_to_string(eSapHddEvent event)
 	CASE_RETURN_STRING(eSAP_GET_WPSPBC_SESSION_EVENT);
 	CASE_RETURN_STRING(eSAP_WPS_PBC_PROBE_REQ_EVENT);
 	CASE_RETURN_STRING(eSAP_REMAIN_CHAN_READY);
-	CASE_RETURN_STRING(eSAP_SEND_ACTION_CNF);
 	CASE_RETURN_STRING(eSAP_DISCONNECT_ALL_P2P_CLIENT);
 	CASE_RETURN_STRING(eSAP_MAC_TRIG_STOP_BSS_EVENT);
 	CASE_RETURN_STRING(eSAP_UNKNOWN_STA_JOIN);
@@ -1726,8 +1725,10 @@ static uint8_t sap_random_channel_sel(ptSapContext sap_ctx)
 			break;
 	} while (true);
 
-	if (target_channel)
+	if (target_channel) {
 		mac_ctx->sap.SapDfsInfo.new_chanWidth = ch_wd;
+		mac_ctx->sap.SapDfsInfo.new_ch_params.ch_width = ch_wd;
+	}
 
 	qdf_mem_free(rule_adjusted_lst);
 	qdf_mem_free(leakage_adjusted_lst);
@@ -2865,11 +2866,6 @@ QDF_STATUS sap_signal_hdd_event(ptSapContext sap_ctx,
 		sap_ap_event.sapevt.sap_roc_ind.scan_id =
 				sap_ctx->roc_ind_scan_id;
 		break;
-	case eSAP_SEND_ACTION_CNF:
-		sap_ap_event.sapHddEventCode = eSAP_SEND_ACTION_CNF;
-		sap_ap_event.sapevt.sapActionCnf.actionSendSuccess =
-			(eSapStatus) context;
-		break;
 
 	case eSAP_DISCONNECT_ALL_P2P_CLIENT:
 		sap_ap_event.sapHddEventCode = eSAP_DISCONNECT_ALL_P2P_CLIENT;
@@ -3780,23 +3776,8 @@ static QDF_STATUS sap_fsm_state_starting(ptSapContext sap_ctx,
 				wlansap_start_beacon_req(sap_ctx);
 			}
 		}
-	} else if (msg == eSAP_MAC_START_FAILS) {
-		/*
-		 * Transition from STARTING to DISCONNECTED
-		 * (both without substates)
-		 */
-		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-			  FL("from state %s => %s"),
-			  "eSAP_STARTING", "eSAP_DISCONNECTED");
-
-		/*Action code for transition */
-		qdf_status = sap_signal_hdd_event(sap_ctx, NULL,
-				eSAP_START_BSS_EVENT,
-				(void *) eSAP_STATUS_FAILURE);
-		qdf_status = sap_goto_disconnected(sap_ctx);
-		/* Advance outer statevar */
-		sap_ctx->sapsMachine = eSAP_DISCONNECTED;
-	} else if (msg == eSAP_HDD_STOP_INFRA_BSS) {
+	} else if (msg == eSAP_MAC_START_FAILS ||
+			msg == eSAP_HDD_STOP_INFRA_BSS) {
 		/*
 		 * Transition from eSAP_STARTING to eSAP_DISCONNECTED
 		 * (both without substates)
@@ -4446,7 +4427,7 @@ static QDF_STATUS sap_get_channel_list(ptSapContext sap_ctx,
 	uint8_t end_ch_num, band_end_ch;
 	uint32_t en_lte_coex;
 	tHalHandle hal = CDS_GET_HAL_CB(sap_ctx->p_cds_gctx);
-#ifdef FEATURE_WLAN_CH_AVOID
+#if defined(FEATURE_WLAN_CH_AVOID) || defined(SOFTAP_CHANNEL_RANGE)
 	uint8_t i;
 #endif
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);

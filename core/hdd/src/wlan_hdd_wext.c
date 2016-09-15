@@ -299,6 +299,7 @@ static const hdd_freq_chan_map_t freq_chan_map[] = {
 #define WE_SET_WLAN_DBG      1
 #define WE_SET_DP_TRACE      2
 #define WE_SET_SAP_CHANNELS  3
+#define WE_SET_FW_TEST       4
 
 /* Private ioctls and their sub-ioctls */
 #define WLAN_PRIV_GET_CHAR_SET_NONE   (SIOCIWFIRSTPRIV + 5)
@@ -1520,6 +1521,14 @@ int wlan_hdd_get_link_speed(hdd_adapter_t *sta_adapter, uint32_t *link_speed)
 	if (ret)
 		return ret;
 
+	/* Linkspeed is allowed only for P2P mode */
+	if (sta_adapter->device_mode != QDF_P2P_CLIENT_MODE) {
+		hdd_err("Link Speed is not allowed in Device mode %s(%d)",
+			hdd_device_mode_to_string(sta_adapter->device_mode),
+			sta_adapter->device_mode);
+		return -ENOTSUPP;
+	}
+
 	if (eConnectionState_Associated != hdd_stactx->conn_info.connState) {
 		/* we are not connected so we don't have a classAstats */
 		*link_speed = 0;
@@ -1707,6 +1716,207 @@ uint8_t *wlan_hdd_get_vendor_oui_ie_ptr(uint8_t *oui, uint8_t oui_size,
 		ptr += (elem_len + 2);
 	}
 	return NULL;
+}
+
+/**
+ * hdd_get_ldpc() - Get adapter LDPC
+ * @adapter: adapter being queried
+ * @value: where to store the value
+ *
+ * Return: 0 on success, negative errno on failure
+ */
+int hdd_get_ldpc(hdd_adapter_t *adapter, int *value)
+{
+	tHalHandle hal = WLAN_HDD_GET_HAL_CTX(adapter);
+	int ret;
+
+	ENTER();
+	ret = sme_get_ht_config(hal, adapter->sessionId,
+				WNI_CFG_HT_CAP_INFO_ADVANCE_CODING);
+	if (ret < 0) {
+		hdd_alert("Failed to get LDPC value");
+	} else {
+		*value = ret;
+		ret = 0;
+	}
+	return ret;
+}
+
+/**
+ * hdd_set_ldpc() - Set adapter LDPC
+ * @adapter: adapter being modified
+ * @value: new LDPC value
+ *
+ * Return: 0 on success, negative errno on failure
+ */
+int hdd_set_ldpc(hdd_adapter_t *adapter, int value)
+{
+	tHalHandle hal = WLAN_HDD_GET_HAL_CTX(adapter);
+	int ret;
+
+	hdd_alert("%d", value);
+	if (value) {
+		/* make sure HT capabilities allow this */
+		QDF_STATUS status;
+		uint32_t cfg_value;
+		union {
+			uint16_t cfg_value16;
+			tSirMacHTCapabilityInfo ht_cap_info;
+		} u;
+
+		status = sme_cfg_get_int(hal, WNI_CFG_HT_CAP_INFO, &cfg_value);
+		if (QDF_STATUS_SUCCESS != status) {
+			hdd_alert("Failed to get HT capability info");
+			return -EIO;
+		}
+		u.cfg_value16 = cfg_value & 0xFFFF;
+		if (!u.ht_cap_info.advCodingCap) {
+			hdd_alert("LDCP not supported");
+			return -EINVAL;
+		}
+	}
+
+	ret = sme_update_ht_config(hal, adapter->sessionId,
+				   WNI_CFG_HT_CAP_INFO_ADVANCE_CODING,
+				   value);
+	if (ret)
+		hdd_alert("Failed to set LDPC value");
+
+	return ret;
+}
+
+/**
+ * hdd_get_tx_stbc() - Get adapter TX STBC
+ * @adapter: adapter being queried
+ * @value: where to store the value
+ *
+ * Return: 0 on success, negative errno on failure
+ */
+int hdd_get_tx_stbc(hdd_adapter_t *adapter, int *value)
+{
+	tHalHandle hal = WLAN_HDD_GET_HAL_CTX(adapter);
+	int ret;
+
+	ENTER();
+	ret = sme_get_ht_config(hal, adapter->sessionId,
+				WNI_CFG_HT_CAP_INFO_TX_STBC);
+	if (ret < 0) {
+		hdd_alert("Failed to get TX STBC value");
+	} else {
+		*value = ret;
+		ret = 0;
+	}
+
+	return ret;
+}
+
+/**
+ * hdd_set_tx_stbc() - Set adapter TX STBC
+ * @adapter: adapter being modified
+ * @value: new TX STBC value
+ *
+ * Return: 0 on success, negative errno on failure
+ */
+int hdd_set_tx_stbc(hdd_adapter_t *adapter, int value)
+{
+	tHalHandle hal = WLAN_HDD_GET_HAL_CTX(adapter);
+	int ret;
+
+	hdd_alert("%d", value);
+	if (value) {
+		/* make sure HT capabilities allow this */
+		QDF_STATUS status;
+		uint32_t cfg_value;
+		union {
+			uint16_t cfg_value16;
+			tSirMacHTCapabilityInfo ht_cap_info;
+		} u;
+
+		status = sme_cfg_get_int(hal, WNI_CFG_HT_CAP_INFO, &cfg_value);
+		if (QDF_STATUS_SUCCESS != status) {
+			hdd_alert("Failed to get HT capability info");
+			return -EIO;
+		}
+		u.cfg_value16 = cfg_value & 0xFFFF;
+		if (!u.ht_cap_info.txSTBC) {
+			hdd_alert("TX STBC not supported");
+			return -EINVAL;
+		}
+	}
+	ret = sme_update_ht_config(hal, adapter->sessionId,
+				   WNI_CFG_HT_CAP_INFO_TX_STBC,
+				   value);
+	if (ret)
+		hdd_alert("Failed to set TX STBC value");
+
+	return ret;
+}
+
+/**
+ * hdd_get_rx_stbc() - Get adapter RX STBC
+ * @adapter: adapter being queried
+ * @value: where to store the value
+ *
+ * Return: 0 on success, negative errno on failure
+ */
+int hdd_get_rx_stbc(hdd_adapter_t *adapter, int *value)
+{
+	tHalHandle hal = WLAN_HDD_GET_HAL_CTX(adapter);
+	int ret;
+
+	ENTER();
+	ret = sme_get_ht_config(hal, adapter->sessionId,
+				WNI_CFG_HT_CAP_INFO_RX_STBC);
+	if (ret < 0) {
+		hdd_alert("Failed to get RX STBC value");
+	} else {
+		*value = ret;
+		ret = 0;
+	}
+
+	return ret;
+}
+
+/**
+ * hdd_set_rx_stbc() - Set adapter RX STBC
+ * @adapter: adapter being modified
+ * @value: new RX STBC value
+ *
+ * Return: 0 on success, negative errno on failure
+ */
+int hdd_set_rx_stbc(hdd_adapter_t *adapter, int value)
+{
+	tHalHandle hal = WLAN_HDD_GET_HAL_CTX(adapter);
+	int ret;
+
+	hdd_alert("%d", value);
+	if (value) {
+		/* make sure HT capabilities allow this */
+		QDF_STATUS status;
+		uint32_t cfg_value;
+		union {
+			uint16_t cfg_value16;
+			tSirMacHTCapabilityInfo ht_cap_info;
+		} u;
+
+		status = sme_cfg_get_int(hal, WNI_CFG_HT_CAP_INFO, &cfg_value);
+		if (QDF_STATUS_SUCCESS != status) {
+			hdd_alert("Failed to get HT capability info");
+			return -EIO;
+		}
+		u.cfg_value16 = cfg_value & 0xFFFF;
+		if (!u.ht_cap_info.rxSTBC) {
+			hdd_alert("RX STBC not supported");
+			return -EINVAL;
+		}
+	}
+	ret = sme_update_ht_config(hal, adapter->sessionId,
+				   WNI_CFG_HT_CAP_INFO_RX_STBC,
+				   value);
+	if (ret)
+		hdd_alert("Failed to set RX STBC value");
+
+	return ret;
 }
 
 /**
@@ -2737,13 +2947,16 @@ static int __iw_get_genie(struct net_device *dev,
 	status = csr_roam_get_wpa_rsn_req_ie(WLAN_HDD_GET_HAL_CTX(pAdapter),
 					     pAdapter->sessionId,
 					     &length, genIeBytes);
-	length = QDF_MIN((uint16_t) length, DOT11F_IE_RSN_MAX_LEN);
-	if (wrqu->data.length < length) {
-		hdd_notice("failed to copy data to user buffer");
+	if (QDF_STATUS_SUCCESS != status) {
+		hdd_notice("failed to get WPA-RSN IE data");
 		return -EFAULT;
 	}
-	qdf_mem_copy(extra, (void *)genIeBytes, length);
 	wrqu->data.length = length;
+	if (length > DOT11F_IE_RSN_MAX_LEN) {
+		hdd_notice("invalid buffer length length:%d", length);
+		return -E2BIG;
+	}
+	qdf_mem_copy(extra, (void *)genIeBytes, length);
 
 	hdd_notice("RSN IE of %d bytes returned",
 	       wrqu->data.length);
@@ -5289,100 +5502,19 @@ static int __iw_setint_getnone(struct net_device *dev,
 
 	case WE_SET_LDPC:
 	{
-		uint32_t value;
-		union {
-			uint16_t nCfgValue16;
-			tSirMacHTCapabilityInfo htCapInfo;
-		} uHTCapabilityInfo;
-
-		hdd_notice("LDPC val %d", set_value);
-		/* get the HT capability info */
-		ret = sme_cfg_get_int(hHal, WNI_CFG_HT_CAP_INFO, &value);
-		if (QDF_STATUS_SUCCESS != ret) {
-			hdd_err("could not get HT capability info");
-			return -EIO;
-		}
-
-		uHTCapabilityInfo.nCfgValue16 = 0xFFFF & value;
-		if ((set_value
-		     && (uHTCapabilityInfo.htCapInfo.advCodingCap))
-		    || (!set_value)) {
-			ret =
-				sme_update_ht_config(hHal,
-						     pAdapter->sessionId,
-						     WNI_CFG_HT_CAP_INFO_ADVANCE_CODING,
-						     set_value);
-		}
-
-		if (ret)
-			hdd_err("Failed to set LDPC value");
-
+		ret = hdd_set_ldpc(pAdapter, set_value);
 		break;
 	}
 
 	case WE_SET_TX_STBC:
 	{
-		uint32_t value;
-		union {
-			uint16_t nCfgValue16;
-			tSirMacHTCapabilityInfo htCapInfo;
-		} uHTCapabilityInfo;
-
-		hdd_notice("TX_STBC val %d", set_value);
-		/* get the HT capability info */
-		ret = sme_cfg_get_int(hHal, WNI_CFG_HT_CAP_INFO, &value);
-		if (QDF_STATUS_SUCCESS != ret) {
-			hdd_err("could not get HT capability info");
-			return -EIO;
-		}
-
-		uHTCapabilityInfo.nCfgValue16 = 0xFFFF & value;
-		if ((set_value && (uHTCapabilityInfo.htCapInfo.txSTBC))
-		    || (!set_value)) {
-			ret =
-				sme_update_ht_config(hHal,
-						     pAdapter->sessionId,
-						     WNI_CFG_HT_CAP_INFO_TX_STBC,
-						     set_value);
-		}
-
-		if (ret)
-			hdd_err("Failed to set TX STBC value");
-
+		ret = hdd_set_tx_stbc(pAdapter, set_value);
 		break;
 	}
 
 	case WE_SET_RX_STBC:
 	{
-		uint32_t value;
-		union {
-			uint16_t nCfgValue16;
-			tSirMacHTCapabilityInfo htCapInfo;
-		} uHTCapabilityInfo;
-
-		hdd_notice("WMI_VDEV_PARAM_RX_STBC val %d",
-		       set_value);
-		/* get the HT capability info */
-		ret = sme_cfg_get_int(hHal, WNI_CFG_HT_CAP_INFO, &value);
-		if (QDF_STATUS_SUCCESS != ret) {
-			hdd_err("could not get HT capability info");
-			return -EIO;
-		}
-
-		uHTCapabilityInfo.nCfgValue16 = 0xFFFF & value;
-		if ((set_value && (uHTCapabilityInfo.htCapInfo.rxSTBC))
-		    || (!set_value)) {
-			ret =
-				sme_update_ht_config(hHal,
-						     pAdapter->sessionId,
-						     WNI_CFG_HT_CAP_INFO_RX_STBC,
-						     (!set_value) ? set_value
-						     : uHTCapabilityInfo.
-						     htCapInfo.rxSTBC);
-		}
-
-		if (ret)
-			hdd_err("Failed to set RX STBC value");
+		ret = hdd_set_rx_stbc(pAdapter, set_value);
 		break;
 	}
 
@@ -6518,25 +6650,19 @@ static int __iw_setnone_getint(struct net_device *dev,
 
 	case WE_GET_LDPC:
 	{
-		hdd_notice("GET WMI_VDEV_PARAM_LDPC");
-		*value = sme_get_ht_config(hHal, pAdapter->sessionId,
-					   WNI_CFG_HT_CAP_INFO_ADVANCE_CODING);
+		ret = hdd_get_ldpc(pAdapter, value);
 		break;
 	}
 
 	case WE_GET_TX_STBC:
 	{
-		hdd_notice("GET WMI_VDEV_PARAM_TX_STBC");
-		*value = sme_get_ht_config(hHal, pAdapter->sessionId,
-					   WNI_CFG_HT_CAP_INFO_TX_STBC);
+		ret = hdd_get_tx_stbc(pAdapter, value);
 		break;
 	}
 
 	case WE_GET_RX_STBC:
 	{
-		hdd_notice("GET WMI_VDEV_PARAM_RX_STBC");
-		*value = sme_get_ht_config(hHal, pAdapter->sessionId,
-					   WNI_CFG_HT_CAP_INFO_RX_STBC);
+		ret = hdd_get_rx_stbc(pAdapter, value);
 		break;
 	}
 
@@ -6875,6 +7001,47 @@ static int iw_setnone_getint(struct net_device *dev,
 	return ret;
 }
 
+static int hdd_set_fwtest(int argc, int cmd, int value)
+{
+	struct set_fwtest_params *fw_test;
+
+	/* check for max number of arguments */
+	if (argc > (WMA_MAX_NUM_ARGS) ||
+	    argc != HDD_FWTEST_PARAMS) {
+		hdd_err("Too Many args %d", argc);
+		return -EINVAL;
+	}
+	/*
+	 * check if number of arguments are 3 then, check
+	 * then set the default value for sounding interval.
+	 */
+	if (HDD_FWTEST_PARAMS == argc) {
+		if (HDD_FWTEST_SU_PARAM_ID == cmd && 0 == value)
+			value = HDD_FWTEST_SU_DEFAULT_VALUE;
+		if (HDD_FWTEST_MU_PARAM_ID == cmd && 0 == value)
+			value = HDD_FWTEST_MU_DEFAULT_VALUE;
+	}
+	/* check sounding interval value should not exceed to max */
+	if (value > HDD_FWTEST_MAX_VALUE) {
+		hdd_err("Invalid arguments value should not exceed max: %d",
+			value);
+		return -EINVAL;
+	}
+	fw_test = qdf_mem_malloc(sizeof(*fw_test));
+	if (NULL == fw_test) {
+		hdd_err("qdf_mem_malloc failed for fw_test");
+		return -ENOMEM;
+	}
+	fw_test->arg = cmd;
+	fw_test->value = value;
+	if (QDF_STATUS_SUCCESS != sme_set_fw_test(fw_test)) {
+		qdf_mem_free(fw_test);
+		hdd_err("Not able to post FW_TEST_CMD message to WMA");
+		return -EINVAL;
+	}
+	return 0;
+}
+
 /**
  * iw_set_three_ints_getnone() - Generic "set 3 params" private ioctl handler
  * @dev: device upon which the ioctl was received
@@ -6938,6 +7105,15 @@ static int __iw_set_three_ints_getnone(struct net_device *dev,
 		hdd_debug("%d %d %d", value[1], value[2], value[3]);
 		cds_set_dual_mac_scan_config(value[1], value[2], value[3]);
 		break;
+	case WE_SET_FW_TEST:
+	{
+		ret = hdd_set_fwtest(value[1], value[2], value[3]);
+		if (ret) {
+			hdd_err("Not able to set fwtest %d", ret);
+			return ret;
+		}
+	}
+	break;
 	default:
 		hdd_err("Invalid IOCTL command %d", sub_cmd);
 		break;
@@ -7263,8 +7439,7 @@ static int __iw_get_char_setnone(struct net_device *dev,
 		tChannelListInfo channel_list;
 
 		memset(&channel_list, 0, sizeof(channel_list));
-		status =
-			iw_softap_get_channel_list(dev, info, wrqu,
+		status = iw_get_channel_list(dev, info, wrqu,
 						   (char *)&channel_list);
 		if (!QDF_IS_STATUS_SUCCESS(status)) {
 			hdd_err("GetChannelList Failed!!!");
@@ -7999,8 +8174,9 @@ static int __iw_set_var_ints_getnone(struct net_device *dev,
 			       apps_args[0]);
 			return -EINVAL;
 		}
-		if (apps_args[1] > (WMA_MAX_NUM_ARGS)) {
-			hdd_err("Too Many args %d",
+		if ((apps_args[1] > (WMA_MAX_NUM_ARGS)) ||
+		    (apps_args[1] < 0)) {
+			hdd_err("Too Many/Few args %d",
 			       apps_args[1]);
 			return -EINVAL;
 		}
@@ -8086,7 +8262,6 @@ static int __iw_set_var_ints_getnone(struct net_device *dev,
 		}
 	}
 	break;
-
 	default:
 	{
 		hdd_err("Invalid IOCTL command %d", sub_cmd);
@@ -9582,11 +9757,11 @@ static int wlan_hdd_set_mon_chan(hdd_adapter_t *adapter, uint32_t chan,
 	}
 
 	hdd_info("Set monitor mode Channel %d", chan);
-	hdd_select_cbmode(adapter, chan);
 	roam_profile.ChannelInfo.ChannelList = &ch_info->channel;
 	roam_profile.ChannelInfo.numOfChannels = 1;
 	roam_profile.phyMode = ch_info->phy_mode;
 	roam_profile.ch_params.ch_width = bandwidth;
+	hdd_select_cbmode(adapter, chan, &roam_profile.ch_params);
 
 	qdf_mem_copy(bssid.bytes, adapter->macAddressCurrent.bytes,
 		     QDF_MAC_ADDR_SIZE);
@@ -10578,6 +10753,11 @@ static const struct iw_priv_args we_private_args[] = {
 	IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 3,
 	0,
 	"setsapchannels"},
+
+	{WE_SET_FW_TEST,
+	IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 3,
+	0, "fw_test"},
+
 	/* handlers for main ioctl */
 	{WLAN_PRIV_SET_NONE_GET_THREE_INT,
 	 0,

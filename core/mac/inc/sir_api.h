@@ -687,6 +687,7 @@ typedef struct sSirSmeStartBssReq {
 
 	bool obssEnabled;
 	uint8_t sap_dot11mc;
+	uint8_t beacon_tx_rate;
 
 } tSirSmeStartBssReq, *tpSirSmeStartBssReq;
 
@@ -1089,6 +1090,7 @@ typedef struct sSirSmeJoinReq {
 	uint8_t cc_switch_mode;
 #endif
 	enum tQDF_ADAPTER_MODE staPersona;       /* Persona */
+	bool wps_registration;
 	ePhyChanBondState cbMode;       /* Pass CB mode value in Join. */
 
 	/*This contains the UAPSD Flag for all 4 AC
@@ -2670,6 +2672,21 @@ struct sir_sme_mgmt_frame_cb_req {
 	sir_mgmt_frame_ind_callback callback;
 };
 
+typedef void (*sir_p2p_ack_ind_callback)(uint32_t session_id,
+		bool tx_completion_status);
+
+/**
+ * struct sir_p2p_ack_ind_cb_req - Register a p2p ack ind callback req
+ * @message_type: message id
+ * @length: msg length
+ * @callback: callback for p2p ack indication
+ */
+struct sir_sme_p2p_ack_ind_cb_req {
+	uint16_t message_type;
+	uint16_t length;
+	sir_p2p_ack_ind_callback callback;
+};
+
 #ifdef WLAN_FEATURE_11W
 typedef struct sSirSmeUnprotMgmtFrameInd {
 	uint8_t sessionId;
@@ -3008,6 +3025,7 @@ typedef struct sSirRoamOffloadScanReq {
 	uint8_t R0KH_ID[SIR_ROAM_R0KH_ID_MAX_LEN];
 	uint32_t R0KH_ID_Length;
 	uint8_t RoamKeyMgmtOffloadEnabled;
+	bool okc_enabled;
 #endif
 	struct roam_ext_params roam_params;
 	uint8_t  middle_of_roaming;
@@ -3019,6 +3037,7 @@ typedef struct sSirRoamOffloadScanReq {
 	int8_t early_stop_scan_min_threshold;
 	int8_t early_stop_scan_max_threshold;
 	enum wmi_dwelltime_adaptive_mode roamscan_adaptive_dwell_mode;
+	tSirAddie assoc_ie;
 } tSirRoamOffloadScanReq, *tpSirRoamOffloadScanReq;
 
 typedef struct sSirRoamOffloadScanRsp {
@@ -5326,6 +5345,7 @@ struct fw_dump_rsp {
  * @vdev_id - vdev for which the IE is being sent
  * @ie_id - ID of the IE
  * @length - length of the IE data
+ * @band - indicates IE is intended for which band
  * @data - IE data
  *
  * This structure is used to store the IE information.
@@ -5334,6 +5354,7 @@ struct vdev_ie_info {
 	uint32_t vdev_id;
 	uint32_t ie_id;
 	uint32_t length;
+	uint32_t band;
 	uint8_t *data;
 };
 
@@ -6118,6 +6139,7 @@ struct ndi_create_req {
 struct ndi_create_rsp {
 	uint32_t status;
 	uint32_t reason;
+	uint8_t sta_id;
 };
 
 /**

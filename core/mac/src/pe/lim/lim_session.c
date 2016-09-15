@@ -141,7 +141,7 @@ void pe_reset_protection_callback(void *ptr)
 
 	QDF_TRACE(QDF_MODULE_ID_PE,
 		  QDF_TRACE_LEVEL_INFO,
-		  FL("old protection state: 0x%04X, new protection state: 0x%04X\n"),
+		  FL("old protection state: 0x%04X, new protection state: 0x%04X"),
 		  pe_session_entry->old_protection_state,
 		  current_protection_state);
 
@@ -181,6 +181,7 @@ void pe_reset_protection_callback(void *ptr)
 
 	old_op_mode = pe_session_entry->htOperMode;
 	pe_session_entry->htOperMode = eSIR_HT_OP_MODE_PURE;
+	mac_ctx->lim.gHTOperMode = eSIR_HT_OP_MODE_PURE;
 
 	qdf_mem_zero(&beacon_params, sizeof(tUpdateBeaconParams));
 	/* index 0, is self node, peers start from 1 */
@@ -201,7 +202,7 @@ void pe_reset_protection_callback(void *ptr)
 		(false == mac_ctx->sap.SapDfsInfo.is_dfs_cac_timer_running)) {
 		QDF_TRACE(QDF_MODULE_ID_PE,
 			  QDF_TRACE_LEVEL_ERROR,
-			  FL("protection changed, update beacon template\n"));
+			  FL("protection changed, update beacon template"));
 		/* update beacon fix params and send update to FW */
 		qdf_mem_zero(&beacon_params, sizeof(tUpdateBeaconParams));
 		beacon_params.bssIdx = pe_session_entry->bssIdx;
@@ -241,7 +242,7 @@ void pe_reset_protection_callback(void *ptr)
 		!= QDF_STATUS_SUCCESS) {
 		QDF_TRACE(QDF_MODULE_ID_PE,
 			QDF_TRACE_LEVEL_ERROR,
-			FL("cannot create or start protectionFieldsResetTimer\n"));
+			FL("cannot create or start protectionFieldsResetTimer"));
 	}
 }
 
@@ -275,7 +276,7 @@ pe_create_session(tpAniSirGlobal pMac, uint8_t *bssid, uint8_t *sessionId,
 
 	if (i == pMac->lim.maxBssId) {
 		lim_log(pMac, LOGE,
-			FL("Session can't be created. Reached max sessions\n"));
+			FL("Session can't be created. Reached max sessions"));
 		return NULL;
 	}
 
@@ -399,7 +400,7 @@ pe_create_session(tpAniSirGlobal pMac, uint8_t *bssid, uint8_t *sessionId,
 		}
 		if (status != QDF_STATUS_SUCCESS)
 			QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_ERROR,
-				FL("cannot create or start protectionFieldsResetTimer\n"));
+				FL("cannot create or start protectionFieldsResetTimer"));
 	}
 
 	session_ptr->pmfComebackTimerInfo.pMac = pMac;
@@ -442,7 +443,7 @@ tpPESession pe_find_session_by_bssid(tpAniSirGlobal pMac, uint8_t *bssid,
 		}
 	}
 
-	lim_log(pMac, LOG4, FL("Session lookup fails for BSSID: \n "));
+	lim_log(pMac, LOG4, FL("Session lookup fails for BSSID:"));
 	lim_print_mac_addr(pMac, bssid, LOG4);
 	return NULL;
 
@@ -534,7 +535,7 @@ pe_find_session_by_sta_id(tpAniSirGlobal mac_ctx,
 	}
 
 	lim_log(mac_ctx, LOG4,
-		FL("Session lookup fails for StaId: %d\n "), staid);
+		FL("Session lookup fails for StaId: %d"), staid);
 	return NULL;
 }
 
@@ -744,7 +745,7 @@ tpPESession pe_find_session_by_peer_sta(tpAniSirGlobal pMac, uint8_t *sa,
 		}
 	}
 
-	lim_log(pMac, LOG1, FL("Session lookup fails for Peer StaId: \n "));
+	lim_log(pMac, LOG1, FL("Session lookup fails for Peer StaId:"));
 	lim_print_mac_addr(pMac, sa, LOG1);
 	return NULL;
 }

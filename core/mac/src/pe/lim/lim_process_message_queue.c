@@ -1238,8 +1238,27 @@ void lim_process_messages(tpAniSirGlobal mac_ctx, tpSirMsgQ msg)
 #ifdef WLAN_DEBUG
 	mac_ctx->lim.numTot++;
 #endif
-	MTRACE(mac_trace_msg_rx(mac_ctx, NO_SESSION,
-		LIM_TRACE_MAKE_RXMSG(msg->type, LIM_MSG_PROCESSED));)
+	/*
+	 * MTRACE logs not captured for events received from SME
+	 * SME enums (eWNI_SME_START_REQ) starts with 0x16xx.
+	 * Compare received SME events with SIR_SME_MODULE_ID
+	 */
+	if (SIR_SME_MODULE_ID ==
+	    (uint8_t)MAC_TRACE_GET_MODULE_ID(msg->type)) {
+		MTRACE(mac_trace(mac_ctx, TRACE_CODE_RX_SME_MSG,
+				 NO_SESSION, msg->type));
+	} else {
+		/*
+		 * Omitting below message types as these are too frequent
+		 * and when crash happens we loose critical trace logs
+		 * if these are also logged
+		 */
+		if (msg->type != SIR_CFG_PARAM_UPDATE_IND &&
+		    msg->type != SIR_BB_XPORT_MGMT_MSG)
+			MTRACE(mac_trace_msg_rx(mac_ctx, NO_SESSION,
+				LIM_TRACE_MAKE_RXMSG(msg->type,
+				LIM_MSG_PROCESSED));)
+	}
 
 	switch (msg->type) {
 
@@ -1397,6 +1416,7 @@ void lim_process_messages(tpAniSirGlobal mac_ctx, tpSirMsgQ msg)
 	case eWNI_SME_NDP_INITIATOR_REQ:
 	case eWNI_SME_NDP_RESPONDER_REQ:
 	case eWNI_SME_NDP_END_REQ:
+	case eWNI_SME_REGISTER_P2P_ACK_CB:
 		/* These messages are from HDD.No need to respond to HDD */
 		lim_process_normal_hdd_msg(mac_ctx, msg, false);
 		break;

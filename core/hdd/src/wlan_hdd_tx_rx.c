@@ -39,6 +39,7 @@
 #include <linux/etherdevice.h>
 #include <linux/if_ether.h>
 #include <cds_sched.h>
+#include <cds_utils.h>
 
 #include <wlan_hdd_p2p.h>
 #include <linux/wireless.h>
@@ -370,20 +371,14 @@ static void hdd_get_transmit_sta_id(hdd_adapter_t *adapter,
 		}
 	}
 
-	if (adapter->device_mode == QDF_IBSS_MODE) {
+	if (adapter->device_mode == QDF_IBSS_MODE ||
+		adapter->device_mode == QDF_NDI_MODE) {
 		/*
 		 * This check is necessary to make sure station id is not
-		 * overwritten for UC traffic in IBSS mode
+		 * overwritten for UC traffic in IBSS or NDI mode
 		 */
 		if (mcbc_addr)
-			*station_id = sta_ctx->broadcast_ibss_staid;
-	} else if (adapter->device_mode == QDF_NDI_MODE) {
-		/*
-		 * This check is necessary to make sure station id is not
-		 * overwritten for UC traffic in NAN data mode
-		 */
-		if (mcbc_addr)
-			*station_id = NDP_BROADCAST_STAID;
+			*station_id = sta_ctx->broadcast_staid;
 	} else {
 		/* For the rest, traffic is directed to AP/P2P GO */
 		if (eConnectionState_Associated == sta_ctx->conn_info.connState)
@@ -958,9 +953,11 @@ QDF_STATUS hdd_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 	}
 
 #ifdef WLAN_FEATURE_HOLD_RX_WAKELOCK
+	cds_host_diag_log_work(&pHddCtx->rx_wake_lock,
+			       HDD_WAKE_LOCK_DURATION,
+			       WIFI_POWER_EVENT_WAKELOCK_HOLD_RX);
 	qdf_wake_lock_timeout_acquire(&pHddCtx->rx_wake_lock,
-				      HDD_WAKE_LOCK_DURATION,
-				      WIFI_POWER_EVENT_WAKELOCK_HOLD_RX);
+				      HDD_WAKE_LOCK_DURATION);
 #endif
 
 	/* Remove SKB from internal tracking table before submitting
@@ -1368,7 +1365,8 @@ void hdd_send_rps_ind(hdd_adapter_t *adapter)
 
 	strlcpy(rps_data.ifname, adapter->dev->name,
 			sizeof(rps_data.ifname));
-	wlan_hdd_send_svc_nlink_msg(WLAN_SVC_RPS_ENABLE_IND,
+	wlan_hdd_send_svc_nlink_msg(hdd_ctxt->radio_index,
+				WLAN_SVC_RPS_ENABLE_IND,
 				&rps_data, sizeof(rps_data));
 
 err:

@@ -1897,6 +1897,7 @@ static int wma_unified_dfs_radar_rx_event_handler(void *handle,
 	 * Index of peak magnitude
 	 */
 	event->sidx = radar_event->peak_sidx;
+	event->re_flags = 0;
 
 	/*
 	 * Handle chirp flags.
@@ -2439,6 +2440,7 @@ static void wma_wow_wake_up_stats(tp_wma_handle wma, uint8_t *data,
 {
 	switch (event) {
 
+	case WOW_REASON_BPF_ALLOW:
 	case WOW_REASON_PATTERN_MATCH_FOUND:
 		if (WMA_BCAST_MAC_ADDR == *data) {
 			wma->wow_bcast_wake_up_count++;
@@ -2638,20 +2640,17 @@ static int wow_get_wmi_eventid(int32_t reason, uint32_t tag)
 static bool tlv_check_required(int32_t reason)
 {
 	switch (reason) {
-	case WOW_REASON_PATTERN_MATCH_FOUND:
-	case WOW_REASON_BPF_ALLOW:
-	case WOW_REASON_AUTH_REQ_RECV:
-	case WOW_REASON_ASSOC_REQ_RECV:
-	case WOW_REASON_DEAUTH_RECVD:
-	case WOW_REASON_DISASSOC_RECVD:
-	case WOW_REASON_ASSOC_RES_RECV:
-	case WOW_REASON_REASSOC_REQ_RECV:
-	case WOW_REASON_REASSOC_RES_RECV:
-	case WOW_REASON_BEACON_RECV:
-	case WOW_REASON_ACTION_FRAME_RECV:
-		return false;
-	default:
+	case WOW_REASON_NLO_SCAN_COMPLETE:
+	case WOW_REASON_CSA_EVENT:
+	case WOW_REASON_LOW_RSSI:
+	case WOW_REASON_CLIENT_KICKOUT_EVENT:
+	case WOW_REASON_EXTSCAN:
+	case WOW_REASON_RSSI_BREACH_EVENT:
+	case WOW_REASON_NAN_EVENT:
+	case WOW_REASON_NAN_DATA:
 		return true;
+	default:
+		return false;
 	}
 }
 
@@ -2837,8 +2836,8 @@ static void wma_wow_parse_data_pkt_buffer(uint8_t *data,
 	WMA_LOGD("wow_buf_pkt_len: %u", buf_len);
 	if (buf_len >= QDF_NBUF_TRAC_IPV4_OFFSET)
 		WMA_LOGE("Src_mac: " MAC_ADDRESS_STR " Dst_mac: " MAC_ADDRESS_STR,
-			MAC_ADDR_ARRAY(data),
-			MAC_ADDR_ARRAY(data + QDF_NBUF_SRC_MAC_OFFSET));
+			MAC_ADDR_ARRAY(data + QDF_NBUF_SRC_MAC_OFFSET),
+			MAC_ADDR_ARRAY(data + QDF_NBUF_DEST_MAC_OFFSET));
 	else
 		goto end;
 
@@ -3201,9 +3200,11 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 		if (node) {
 			WMA_LOGD("NLO match happened");
 			node->nlo_match_evt_received = true;
-			qdf_wake_lock_timeout_acquire(&wma->pno_wake_lock,
+			cds_host_diag_log_work(&wma->pno_wake_lock,
 					WMA_PNO_MATCH_WAKE_LOCK_TIMEOUT,
 					WIFI_POWER_EVENT_WAKELOCK_PNO);
+			qdf_wake_lock_timeout_acquire(&wma->pno_wake_lock,
+					WMA_PNO_MATCH_WAKE_LOCK_TIMEOUT);
 		}
 		break;
 
@@ -3231,6 +3232,8 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 
 	case WOW_REASON_HTT_EVENT:
 		break;
+
+	case WOW_REASON_BPF_ALLOW:
 	case WOW_REASON_PATTERN_MATCH_FOUND:
 		wma_wow_wake_up_stats_display(wma);
 		WMA_LOGD("Wake up for Rx packet, dump starting from ethernet hdr");
@@ -3358,9 +3361,11 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 	}
 
 	if (wake_lock_duration) {
+		cds_host_diag_log_work(&wma->wow_wake_lock,
+				       wake_lock_duration,
+				       WIFI_POWER_EVENT_WAKELOCK_WOW);
 		qdf_wake_lock_timeout_acquire(&wma->wow_wake_lock,
-					      wake_lock_duration,
-					      WIFI_POWER_EVENT_WAKELOCK_WOW);
+					      wake_lock_duration);
 		WMA_LOGA("Holding %d msec wake_lock", wake_lock_duration);
 	}
 
@@ -3852,6 +3857,7 @@ QDF_STATUS wma_enable_wow_in_fw(WMA_HANDLE handle)
 		WMA_LOGE("Credits:%d; Pending_Cmds: %d",
 			 wmi_get_host_credits(wma->wmi_handle),
 			 wmi_get_pending_cmds(wma->wmi_handle));
+		wmi_set_target_suspend(wma->wmi_handle, false);
 		if (!cds_is_driver_recovering()) {
 #ifdef CONFIG_CNSS
 			if (pMac->sme.enableSelfRecovery) {
@@ -3866,7 +3872,6 @@ QDF_STATUS wma_enable_wow_in_fw(WMA_HANDLE handle)
 			WMA_LOGE("%s: LOGP is in progress, ignore!", __func__);
 		}
 
-		wmi_set_target_suspend(wma->wmi_handle, false);
 		return QDF_STATUS_E_FAILURE;
 	}
 
@@ -3898,6 +3903,7 @@ QDF_STATUS wma_enable_wow_in_fw(WMA_HANDLE handle)
 
 	if (scn == NULL) {
 		WMA_LOGE("%s: Failed to get HIF context", __func__);
+		wmi_set_target_suspend(wma->wmi_handle, false);
 		QDF_ASSERT(0);
 		return QDF_STATUS_E_FAULT;
 	}
@@ -4329,6 +4335,56 @@ bool wma_is_p2plo_in_progress(tp_wma_handle wma, int vdev_id)
 	return wma->interfaces[vdev_id].p2p_lo_in_progress;
 }
 
+#ifdef WLAN_FEATURE_LPSS
+/**
+ * wma_is_lpass_enabled() - check if lpass is enabled
+ * @handle: Pointer to wma handle
+ *
+ * WoW is needed if LPASS or NaN feature is enabled in INI because
+ * target can't wake up itself if its put in PDEV suspend when LPASS
+ * or NaN features are supported
+ *
+ * Return: true if lpass is enabled else false
+ */
+bool static wma_is_lpass_enabled(tp_wma_handle wma)
+{
+	if (wma->is_lpass_enabled)
+		return true;
+	else
+		return false;
+}
+#else
+bool static wma_is_lpass_enabled(tp_wma_handle wma)
+{
+	return false;
+}
+#endif
+
+#ifdef WLAN_FEATURE_NAN
+/**
+ * wma_is_nan_enabled() - check if NaN is enabled
+ * @handle: Pointer to wma handle
+ *
+ * WoW is needed if LPASS or NaN feature is enabled in INI because
+ * target can't wake up itself if its put in PDEV suspend when LPASS
+ * or NaN features are supported
+ *
+ * Return: true if NaN is enabled else false
+ */
+bool static wma_is_nan_enabled(tp_wma_handle wma)
+{
+	if (wma->is_nan_enabled)
+		return true;
+	else
+		return false;
+}
+#else
+bool static wma_is_nan_enabled(tp_wma_handle wma)
+{
+	return false;
+}
+#endif
+
 /**
  * wma_is_wow_applicable(): should enable wow
  * @wma: wma handle
@@ -4342,6 +4398,8 @@ bool wma_is_p2plo_in_progress(tp_wma_handle wma, int vdev_id)
  *  6) Is any vdev in NAN data mode? BSS is already started at the
  *     the time of device creation. It is ready to accept data
  *     requests.
+ *  7) If LPASS feature is enabled
+ *  8) If NaN feature is enabled
  *  If none of above conditions is true then return false
  *
  * Return: true if wma needs to configure wow false otherwise.
@@ -4367,8 +4425,13 @@ bool wma_is_wow_applicable(tp_wma_handle wma)
 		} else if (wma_is_p2plo_in_progress(wma, vdev_id)) {
 			WMA_LOGD("P2P LO is in progress, enabling wow");
 			return true;
-		}
-		if (WMA_IS_VDEV_IN_NDI_MODE(wma->interfaces, vdev_id)) {
+		} else if (wma_is_lpass_enabled(wma)) {
+			WMA_LOGD("LPASS is enabled, enabling WoW");
+			return true;
+		} else if (wma_is_nan_enabled(wma)) {
+			WMA_LOGD("NAN is enabled, enabling WoW");
+			return true;
+		} else if (WMA_IS_VDEV_IN_NDI_MODE(wma->interfaces, vdev_id)) {
 			WMA_LOGD("vdev %d is in NAN data mode, enabling wow",
 				vdev_id);
 			return true;
@@ -4561,9 +4624,6 @@ QDF_STATUS wma_disable_wow_in_fw(WMA_HANDLE handle)
 	tp_wma_handle wma = handle;
 	QDF_STATUS ret;
 
-	if (!wma->wow.wow_enable || !wma->wow.wow_enable_cmd_sent)
-		return QDF_STATUS_SUCCESS;
-
 	ret = wma_send_host_wakeup_ind_to_fw(wma);
 
 	if (ret != QDF_STATUS_SUCCESS)
@@ -4580,55 +4640,6 @@ QDF_STATUS wma_disable_wow_in_fw(WMA_HANDLE handle)
 	return ret;
 }
 
-#ifdef WLAN_FEATURE_LPSS
-/**
- * wma_is_lpass_enabled() - check if lpass is enabled
- * @handle: Pointer to wma handle
- *
- * WoW is needed if LPASS or NaN feature is enabled in INI because
- * target can't wake up itself if its put in PDEV suspend when LPASS
- * or NaN features are supported
- *
- * Return: true if lpass is enabled else false
- */
-bool static wma_is_lpass_enabled(tp_wma_handle wma)
-{
-	if (wma->is_lpass_enabled)
-		return true;
-	else
-		return false;
-}
-#else
-bool static wma_is_lpass_enabled(tp_wma_handle wma)
-{
-	return false;
-}
-#endif
-
-#ifdef WLAN_FEATURE_NAN
-/**
- * wma_is_nan_enabled() - check if NaN is enabled
- * @handle: Pointer to wma handle
- *
- * WoW is needed if LPASS or NaN feature is enabled in INI because
- * target can't wake up itself if its put in PDEV suspend when LPASS
- * or NaN features are supported
- *
- * Return: true if NaN is enabled else false
- */
-bool static wma_is_nan_enabled(tp_wma_handle wma)
-{
-	if (wma->is_nan_enabled)
-		return true;
-	else
-		return false;
-}
-#else
-bool static wma_is_nan_enabled(tp_wma_handle wma)
-{
-	return false;
-}
-#endif
 
 /**
  * wma_is_wow_mode_selected() - check if wow needs to be enabled in fw
@@ -4641,17 +4652,8 @@ bool static wma_is_nan_enabled(tp_wma_handle wma)
 bool wma_is_wow_mode_selected(WMA_HANDLE handle)
 {
 	tp_wma_handle wma = (tp_wma_handle) handle;
-
-	if (wma_is_lpass_enabled(wma)) {
-		WMA_LOGD("LPASS is enabled select WoW");
-		return true;
-	} else if (wma_is_nan_enabled(wma)) {
-		WMA_LOGD("NAN is enabled select WoW");
-		return true;
-	} else {
-		WMA_LOGD("WoW enable %d", wma->wow.wow_enable);
-		return wma->wow.wow_enable;
-	}
+	WMA_LOGD("WoW enable %d", wma->wow.wow_enable);
+	return wma->wow.wow_enable;
 }
 
 /**
@@ -6414,9 +6416,12 @@ int wma_bus_suspend(void)
 int __wma_bus_resume(WMA_HANDLE handle)
 {
 	bool wow_mode = wma_is_wow_mode_selected(handle);
+	tp_wma_handle wma = handle;
 	QDF_STATUS status;
 
 	WMA_LOGE("%s: wow mode %d", __func__, wow_mode);
+
+	wma->wow_initial_wake_up = false;
 
 	if (!wow_mode)
 		return qdf_status_to_os_return(wma_resume_target(handle));
@@ -6512,7 +6517,6 @@ static inline void wma_suspend_target_timeout(bool is_self_recovery_enabled)
 QDF_STATUS wma_suspend_target(WMA_HANDLE handle, int disable_target_intr)
 {
 	tp_wma_handle wma_handle = (tp_wma_handle) handle;
-	struct hif_opaque_softc *scn;
 	QDF_STATUS status;
 	struct suspend_params param = {0};
 
@@ -6547,14 +6551,6 @@ QDF_STATUS wma_suspend_target(WMA_HANDLE handle, int disable_target_intr)
 		return QDF_STATUS_E_FAULT;
 	}
 
-	scn = cds_get_context(QDF_MODULE_ID_HIF);
-
-	if (scn == NULL) {
-		WMA_LOGE("%s: Failed to get HIF context", __func__);
-		QDF_ASSERT(0);
-		return QDF_STATUS_E_FAULT;
-	}
-
 	return QDF_STATUS_SUCCESS;
 }
 
@@ -6576,10 +6572,54 @@ void wma_target_suspend_acknowledge(void *context, bool wow_nack)
 
 	wma->wow_nack = wow_nack;
 	qdf_event_set(&wma->target_suspend);
-	if (wow_nack)
+	if (wow_nack) {
+		cds_host_diag_log_work(&wma->wow_wake_lock,
+				       WMA_WAKE_LOCK_TIMEOUT,
+				       WIFI_POWER_EVENT_WAKELOCK_WOW);
 		qdf_wake_lock_timeout_acquire(&wma->wow_wake_lock,
-					      WMA_WAKE_LOCK_TIMEOUT,
-					      WIFI_POWER_EVENT_WAKELOCK_WOW);
+					      WMA_WAKE_LOCK_TIMEOUT);
+	}
+}
+
+/**
+ * wma_handle_initial_wake_up() - handle inital wake up
+ *
+ * Return: none
+ */
+void wma_handle_initial_wake_up(void)
+{
+	tp_wma_handle wma = cds_get_context(QDF_MODULE_ID_WMA);
+
+	if (NULL == wma) {
+		WMA_LOGE("%s: wma is NULL", __func__);
+		return;
+	}
+
+	wma->wow_initial_wake_up = true;
+}
+
+/**
+ * wma_is_target_wake_up_received() - check for initial wake up
+ *
+ * Check if target initial wake up is received and fail PM suspend gracefully
+ *
+ * Return: -EAGAIN if initial wake up is received else 0
+ */
+int wma_is_target_wake_up_received(void)
+{
+	tp_wma_handle wma = cds_get_context(QDF_MODULE_ID_WMA);
+
+	if (NULL == wma) {
+		WMA_LOGE("%s: wma is NULL", __func__);
+		return -EAGAIN;
+	}
+
+	if (wma->wow_initial_wake_up) {
+		WMA_LOGE("Target initial wake up received try again");
+		return -EAGAIN;
+	} else {
+		return 0;
+	}
 }
 
 /**
@@ -7585,7 +7625,14 @@ QDF_STATUS wma_process_set_ie_info(tp_wma_handle wma,
 	cmd.vdev_id = ie_info->vdev_id;
 	cmd.ie_id = ie_info->ie_id;
 	cmd.length = ie_info->length;
+	cmd.band = ie_info->band;
 	cmd.data = ie_info->data;
+
+	WMA_LOGD(FL("ie_id: %d, band: %d, len: %d"),
+		ie_info->ie_id, ie_info->band, ie_info->length);
+
+	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_WMA, QDF_TRACE_LEVEL_DEBUG,
+		ie_info->data, ie_info->length);
 
 	ret = wmi_unified_process_set_ie_info_cmd(wma->wmi_handle,
 				   &cmd);
@@ -7991,4 +8038,32 @@ QDF_STATUS wma_get_wakelock_stats(struct sir_wake_lock_stats *wake_lock_stats)
 			wma_handle->wow_icmpv6_count;
 
 	return QDF_STATUS_SUCCESS;
+}
+
+/**
+ * wma_process_fw_test_cmd() - send unit test command to fw.
+ * @handle: wma handle
+ * @wma_fwtest: fw test command
+ *
+ * This function send fw test command to fw.
+ *
+ * Return: none
+ */
+void wma_process_fw_test_cmd(WMA_HANDLE handle,
+			     struct set_fwtest_params *wma_fwtest)
+{
+	tp_wma_handle wma_handle = (tp_wma_handle) handle;
+
+	if (!wma_handle || !wma_handle->wmi_handle) {
+		WMA_LOGE("%s: WMA is closed, can not issue fw test cmd",
+			 __func__);
+		return;
+	}
+
+	if (wmi_unified_fw_test_cmd(wma_handle->wmi_handle,
+				    (struct set_fwtest_params *)wma_fwtest)) {
+		WMA_LOGE("%s: Failed to issue fw test cmd",
+			 __func__);
+		return;
+	}
 }

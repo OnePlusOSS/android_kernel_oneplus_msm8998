@@ -256,6 +256,11 @@ static int hdd_lro_desc_find(hdd_adapter_t *adapter,
 		return -ENOMEM;
 	}
 
+	if (list_empty(&entry->lro_node)) {
+		hdd_err("Reached max supported lro_desc range\n");
+		return -EINVAL;
+	}
+
 	list_del_init(&entry->lro_node);
 	qdf_spin_unlock_bh(&free_pool.lro_pool_lock);
 
@@ -459,6 +464,8 @@ void hdd_lro_flush(void *data)
  *
  * This function sends the LRO configuration to the firmware
  * via WMA
+ * Make sure that this function gets called after NAPI
+ * instances have been created.
  *
  * Return: 0 - success, < 0 - failure
  */
@@ -466,8 +473,10 @@ int hdd_lro_init(hdd_context_t *hdd_ctx)
 {
 	struct wma_lro_config_cmd_t lro_config;
 
-	if (!hdd_ctx->config->lro_enable) {
-		hdd_err("LRO Disabled");
+	if ((!hdd_ctx->config->lro_enable) &&
+	    (hdd_napi_enabled(HDD_NAPI_ANY) == 0))
+	{
+		hdd_err("LRO and NAPI are both disabled.");
 		return 0;
 	}
 
@@ -513,7 +522,7 @@ int hdd_lro_enable(hdd_context_t *hdd_ctx,
 	uint8_t *lro_mem_ptr;
 
 	if (!hdd_ctx->config->lro_enable ||
-		 NL80211_IFTYPE_STATION != adapter->wdev.iftype) {
+		 QDF_STA_MODE != adapter->device_mode) {
 		hdd_info("LRO Disabled");
 		return 0;
 	}
@@ -594,7 +603,7 @@ int hdd_lro_enable(hdd_context_t *hdd_ctx,
 void hdd_lro_disable(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 {
 	if (!hdd_ctx->config->lro_enable ||
-		 NL80211_IFTYPE_STATION != adapter->wdev.iftype)
+		 QDF_STA_MODE != adapter->device_mode)
 		return;
 
 	/* Deregister the flush callback */

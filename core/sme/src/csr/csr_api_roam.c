@@ -38,6 +38,7 @@
 #include "cds_mq.h"
 #include "csr_inside_api.h"
 #include "sms_debug.h"
+#include "sme_trace.h"
 #include "sme_qos_internal.h"
 #include "sme_inside.h"
 #include "host_diag_core_event.h"
@@ -782,7 +783,8 @@ QDF_STATUS csr_update_channel_list(tpAniSirGlobal pMac)
 	msg.reserved = 0;
 	msg.bodyptr = pChanList;
 	pChanList->numChan = num_channel;
-
+	MTRACE(qdf_trace(QDF_MODULE_ID_SME, TRACE_CODE_SME_TX_WMA_MSG,
+			 NO_SESSION, msg.type));
 	if (QDF_STATUS_SUCCESS != cds_mq_post_message(QDF_MODULE_ID_WMA, &msg)) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_FATAL,
 			  "%s: Failed to post msg to WMA", __func__);
@@ -6340,18 +6342,19 @@ static void csr_roam_process_start_bss_success(tpAniSirGlobal mac_ctx,
 		roam_info.u.pConnectedProfile = &session->connectedProfile;
 		qdf_mem_copy(&roam_info.bssid, &bss_desc->bssId,
 			    sizeof(struct qdf_mac_addr));
-	}
-	csr_roam_state_change(mac_ctx, eCSR_ROAMING_STATE_JOINED,
-			session_id);
-	if (!QDF_IS_STATUS_SUCCESS
-		(csr_get_parsed_bss_description_ies(mac_ctx, bss_desc,
-						    &ies_ptr))) {
-		sms_log(mac_ctx, LOGW, FL("cannot parse IBSS IEs"));
-		roam_info.pBssDesc = bss_desc;
-		csr_roam_call_callback(mac_ctx, session_id, &roam_info,
-			cmd->u.roamCmd.roamId, eCSR_ROAM_IBSS_IND,
-			eCSR_ROAM_RESULT_IBSS_START_FAILED);
-		return;
+	} else {
+		csr_roam_state_change(mac_ctx, eCSR_ROAMING_STATE_JOINED,
+				session_id);
+		if (!QDF_IS_STATUS_SUCCESS
+			(csr_get_parsed_bss_description_ies(mac_ctx, bss_desc,
+							    &ies_ptr))) {
+			sms_log(mac_ctx, LOGW, FL("cannot parse IBSS IEs"));
+			roam_info.pBssDesc = bss_desc;
+			csr_roam_call_callback(mac_ctx, session_id, &roam_info,
+				cmd->u.roamCmd.roamId, eCSR_ROAM_IBSS_IND,
+				eCSR_ROAM_RESULT_IBSS_START_FAILED);
+			return;
+		}
 	}
 	if (!CSR_IS_INFRA_AP(profile)) {
 		scan_res =
@@ -6435,6 +6438,7 @@ static void csr_roam_process_start_bss_success(tpAniSirGlobal mac_ctx,
 			roam_status = eCSR_ROAM_INFRA_IND;
 			roam_result = eCSR_ROAM_RESULT_INFRA_STARTED;
 		}
+		roam_info.staId = (uint8_t) start_bss_rsp->staId;
 		if (CSR_IS_NDI(profile)) {
 			csr_roam_update_ndp_return_params(mac_ctx,
 							eCsrStartBssSuccess,
@@ -6452,7 +6456,6 @@ static void csr_roam_process_start_bss_success(tpAniSirGlobal mac_ctx,
 		roam_info.reasonCode = session->joinFailStatusCode.reasonCode;
 		/* We start the IBSS (didn't find any matched IBSS out there) */
 		roam_info.pBssDesc = bss_desc;
-		roam_info.staId = (uint8_t) start_bss_rsp->staId;
 		if (bss_desc)
 			qdf_mem_copy(roam_info.bssid.bytes, bss_desc->bssId,
 				sizeof(struct qdf_mac_addr));
@@ -9337,9 +9340,18 @@ void csr_roaming_state_msg_processor(tpAniSirGlobal pMac, void *pMsgBuf)
 		break;
 	case eWNI_SME_DEAUTH_RSP:
 		/* or the Deauthentication response message... */
-		if (CSR_IS_ROAM_SUBSTATE_DEAUTH_REQ(pMac, pSmeRsp->sessionId))
+		if (CSR_IS_ROAM_SUBSTATE_DEAUTH_REQ(pMac, pSmeRsp->sessionId)) {
+			csr_remove_cmd_with_session_id_from_pending_list(pMac,
+					pSmeRsp->sessionId,
+					&pMac->sme.smeCmdPendingList,
+					eSmeCommandWmStatusChange);
+			csr_remove_cmd_with_session_id_from_pending_list(pMac,
+					pSmeRsp->sessionId,
+					&pMac->roam.roamCmdPendingList,
+					eSmeCommandWmStatusChange);
 			csr_roam_roaming_state_deauth_rsp_processor(pMac,
 						(tSirSmeDeauthRsp *) pSmeRsp);
+		}
 		break;
 	case eWNI_SME_START_BSS_RSP:
 		/* or the Start BSS response message... */
@@ -10287,8 +10299,16 @@ csr_roam_chk_lnk_disassoc_ind(tpAniSirGlobal mac_ctx, tSirSmeRsp *msg_ptr)
 	QDF_STATUS status;
 	tCsrRoamInfo *roam_info_ptr = NULL;
 	tSirSmeDisassocInd *pDisassocInd;
-	tSmeCmd cmd;
+	tSmeCmd *cmd;
 	tCsrRoamInfo roam_info;
+
+	cmd = qdf_mem_malloc(sizeof(*cmd));
+	if (NULL == cmd) {
+		sms_log(mac_ctx, LOGE,
+			FL("memory allocation failed for size = %zu"),
+			sizeof(*cmd));
+		return;
+	}
 
 	/*
 	 * Check if AP dis-associated us because of MIC failure. If so,
@@ -10303,6 +10323,7 @@ csr_roam_chk_lnk_disassoc_ind(tpAniSirGlobal mac_ctx, tSirSmeRsp *msg_ptr)
 		sms_log(mac_ctx, LOGE, FL("Session Id not found for BSSID "
 			MAC_ADDRESS_STR),
 			MAC_ADDR_ARRAY(pDisassocInd->bssid.bytes));
+		qdf_mem_free(cmd);
 		return;
 	}
 
@@ -10338,6 +10359,7 @@ csr_roam_chk_lnk_disassoc_ind(tpAniSirGlobal mac_ctx, tSirSmeRsp *msg_ptr)
 	session = CSR_GET_SESSION(mac_ctx, sessionId);
 	if (!session) {
 		sms_log(mac_ctx, LOGE, FL("session %d not found"), sessionId);
+		qdf_mem_free(cmd);
 		return;
 	}
 	if (csr_is_conn_state_infra(mac_ctx, sessionId))
@@ -10367,15 +10389,16 @@ csr_roam_chk_lnk_disassoc_ind(tpAniSirGlobal mac_ctx, tSirSmeRsp *msg_ptr)
 		 * STA/P2P client got  disassociated so remove any pending
 		 * deauth commands in sme pending list
 		 */
-		cmd.command = eSmeCommandRoam;
-		cmd.sessionId = (uint8_t) sessionId;
-		cmd.u.roamCmd.roamReason = eCsrForcedDeauthSta;
-		qdf_mem_copy(cmd.u.roamCmd.peerMac,
+		cmd->command = eSmeCommandRoam;
+		cmd->sessionId = (uint8_t) sessionId;
+		cmd->u.roamCmd.roamReason = eCsrForcedDeauthSta;
+		qdf_mem_copy(cmd->u.roamCmd.peerMac,
 			     pDisassocInd->peer_macaddr.bytes,
 			     QDF_MAC_ADDR_SIZE);
-		csr_roam_remove_duplicate_command(mac_ctx, sessionId, &cmd,
+		csr_roam_remove_duplicate_command(mac_ctx, sessionId, cmd,
 						  eCsrForcedDeauthSta);
 	}
+	qdf_mem_free(cmd);
 }
 
 static void
@@ -12029,6 +12052,11 @@ csr_roam_get_phy_mode_band_for_bss(tpAniSirGlobal mac_ctx,
 		cfg_dot11_mode = eCSR_CFG_DOT11_MODE_11B;
 	}
 
+	if (IS_24G_CH(opr_chn) &&
+	   (false == mac_ctx->roam.configParam.enableVhtFor24GHz) &&
+	   (eCSR_CFG_DOT11_MODE_11AC == cfg_dot11_mode ||
+	    eCSR_CFG_DOT11_MODE_11AC_ONLY == cfg_dot11_mode))
+		cfg_dot11_mode = eCSR_CFG_DOT11_MODE_11N;
 	/*
 	 * Incase of WEP Security encryption type is coming as part of add key.
 	 * So while STart BSS dont have information
@@ -13751,6 +13779,7 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 			pMac->roam.configParam.cc_switch_mode;
 #endif
 		csr_join_req->staPersona = (uint8_t) pProfile->csrPersona;
+		csr_join_req->wps_registration = pProfile->bWPSAssociation;
 		csr_join_req->cbMode = (uint8_t) pSession->bssParams.cbMode;
 		sms_log(pMac, LOG2,
 			  FL("CSR PERSONA=%d CSR CbMode %d"),
@@ -14008,6 +14037,11 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 		else
 			csr_join_req->MgmtEncryptionType = eSIR_ED_NONE;
 #endif
+		if (pProfile->MFPEnabled &&
+			 !(pProfile->MFPRequired) &&
+			 ((pIes->RSN.present) &&
+			 (!(pIes->RSN.RSN_Cap[0] >> 7) & 0x1)))
+			csr_join_req->MgmtEncryptionType = eSIR_ED_NONE;
 #ifdef FEATURE_WLAN_ESE
 		ese_config =  pMac->roam.configParam.isEseIniFeatureEnabled;
 #endif
@@ -16617,16 +16651,29 @@ QDF_STATUS csr_get_statistics(tpAniSirGlobal pMac,
 }
 
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
-QDF_STATUS csr_roam_set_key_mgmt_offload(tpAniSirGlobal pMac,
-					 uint32_t sessionId,
-					 bool nRoamKeyMgmtOffloadEnabled)
+/**
+ * csr_roam_set_key_mgmt_offload() - enable/disable key mgmt offload
+ * @mac_ctx: mac context.
+ * @session_id: Session Identifier
+ * @roam_key_mgmt_offload_enabled: key mgmt enable/disable flag
+ * @okc_enabled: Opportunistic key caching enable/disable flag
+ *
+ * Return: QDF_STATUS_SUCCESS - CSR updated config successfully.
+ * Other status means CSR is failed to update.
+ */
+
+QDF_STATUS csr_roam_set_key_mgmt_offload(tpAniSirGlobal mac_ctx,
+					 uint32_t session_id,
+					 bool roam_key_mgmt_offload_enabled,
+					 bool okc_enabled)
 {
-	tCsrRoamSession *pSession = CSR_GET_SESSION(pMac, sessionId);
-	if (!pSession) {
-		sms_log(pMac, LOGE, FL("session %d not found"), sessionId);
+	tCsrRoamSession *session = CSR_GET_SESSION(mac_ctx, session_id);
+	if (!session) {
+		sms_log(mac_ctx, LOGE, FL("session %d not found"), session_id);
 		return QDF_STATUS_E_FAILURE;
 	}
-	pSession->RoamKeyMgmtOffloadEnabled = nRoamKeyMgmtOffloadEnabled;
+	session->RoamKeyMgmtOffloadEnabled = roam_key_mgmt_offload_enabled;
+	session->okc_enabled = okc_enabled;
 	return QDF_STATUS_SUCCESS;
 }
 
@@ -17081,6 +17128,7 @@ csr_create_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 	req_buf->RoamOffloadEnabled = csr_roamIsRoamOffloadEnabled(mac_ctx);
 	req_buf->RoamKeyMgmtOffloadEnabled = session->RoamKeyMgmtOffloadEnabled;
+	req_buf->okc_enabled = session->okc_enabled;
 	/* Roam Offload piggybacks upon the Roam Scan offload command. */
 	if (req_buf->RoamOffloadEnabled)
 		csr_update_roam_scan_offload_request(mac_ctx, req_buf, session);
@@ -17395,9 +17443,21 @@ csr_roam_offload_scan(tpAniSirGlobal mac_ctx, uint8_t session_id,
 			req_buf->hi_rssi_scan_delay,
 			req_buf->hi_rssi_scan_rssi_ub);
 
+	if ((command == ROAM_SCAN_OFFLOAD_START) &&
+				(reason == REASON_CONNECT)) {
+		req_buf->assoc_ie.length = session->nAddIEAssocLength;
+		qdf_mem_copy(req_buf->assoc_ie.addIEdata,
+				session->pAddIEAssoc,
+				session->nAddIEAssocLength);
+	} else {
+		req_buf->assoc_ie.length = 0;
+	}
+
 	msg.type = WMA_ROAM_SCAN_OFFLOAD_REQ;
 	msg.reserved = 0;
 	msg.bodyptr = req_buf;
+	MTRACE(qdf_trace(QDF_MODULE_ID_SME, TRACE_CODE_SME_TX_WMA_MSG,
+			 session_id, msg.type));
 	if (!QDF_IS_STATUS_SUCCESS
 		    (cds_mq_post_message(QDF_MODULE_ID_WMA, &msg))) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
@@ -18055,6 +18115,12 @@ QDF_STATUS csr_roam_channel_change_req(tpAniSirGlobal pMac,
 	pMsg->ch_width = profile->ch_params.ch_width;
 	pMsg->dot11mode = csr_translate_to_wni_cfg_dot11_mode(pMac,
 					pMac->roam.configParam.uCfgDot11Mode);
+	if (IS_24G_CH(pMsg->targetChannel) &&
+	   (false == pMac->roam.configParam.enableVhtFor24GHz) &&
+	   (WNI_CFG_DOT11_MODE_11AC == pMsg->dot11mode ||
+	    WNI_CFG_DOT11_MODE_11AC_ONLY == pMsg->dot11mode))
+		pMsg->dot11mode = WNI_CFG_DOT11_MODE_11N;
+
 	pMsg->center_freq_seg_0 = ch_params->center_freq_seg0;
 	pMsg->center_freq_seg_1 = ch_params->center_freq_seg1;
 	qdf_mem_copy(pMsg->bssid, bssid.bytes, QDF_MAC_ADDR_SIZE);

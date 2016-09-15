@@ -201,7 +201,6 @@ const char *get_e_roam_cmd_status_str(eRoamCmdStatus val)
 		CASE_RETURN_STR(eCSR_ROAM_FT_RESPONSE);
 		CASE_RETURN_STR(eCSR_ROAM_FT_START);
 		CASE_RETURN_STR(eCSR_ROAM_REMAIN_CHAN_READY);
-		CASE_RETURN_STR(eCSR_ROAM_SEND_ACTION_CNF);
 		CASE_RETURN_STR(eCSR_ROAM_SESSION_OPENED);
 		CASE_RETURN_STR(eCSR_ROAM_FT_REASSOC_FAILED);
 		CASE_RETURN_STR(eCSR_ROAM_PMK_NOTIFY);
@@ -2830,25 +2829,21 @@ csr_is_pmf_capabilities_in_rsn_match(tHalHandle hHal,
 		/* Extracting MFPCapable bit from RSN Ie */
 		apProfileMFPCapable = (pRSNIe->RSN_Cap[0] >> 7) & 0x1;
 		apProfileMFPRequired = (pRSNIe->RSN_Cap[0] >> 6) & 0x1;
+
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
+			FL("pFilterMFPEnabled=%d pFilterMFPRequired=%d"
+			   "pFilterMFPCapable=%d apProfileMFPCapable=%d"
+			   "apProfileMFPRequired=%d"),
+			 *pFilterMFPEnabled, *pFilterMFPRequired,
+			 *pFilterMFPCapable, apProfileMFPCapable,
+			 apProfileMFPRequired);
+
 		if (*pFilterMFPEnabled && *pFilterMFPCapable
 		    && *pFilterMFPRequired && (apProfileMFPCapable == 0)) {
 			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
 				  "AP is not capable to make PMF connection");
 			return false;
-		} else if (*pFilterMFPEnabled && *pFilterMFPCapable &&
-			   !(*pFilterMFPRequired) &&
-				(apProfileMFPCapable == 0)) {
-			/*
-			 * This is tricky, because supplicant asked us to
-			 * make mandatory PMF connection eventhough PMF
-			 * connection is optional here.
-			 * so if AP is not capable of PMF then drop it.
-			 * Don't try to connect with it.
-			 */
-			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
-				  "we need PMF connection & AP isn't capable to make PMF connection");
-			return false;
-		} else if (!(*pFilterMFPCapable) &&
+		}  else if (!(*pFilterMFPCapable) &&
 			   apProfileMFPCapable && apProfileMFPRequired) {
 
 			/*
@@ -2858,11 +2853,6 @@ csr_is_pmf_capabilities_in_rsn_match(tHalHandle hHal,
 			 */
 			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
 				  "AP needs PMF connection and we are not capable of pmf connection");
-			return false;
-		} else if (!(*pFilterMFPEnabled) && *pFilterMFPCapable &&
-			   (apProfileMFPCapable == 1)) {
-			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
-				  "we don't need PMF connection even though both parties are capable");
 			return false;
 		}
 	}
@@ -3042,7 +3032,11 @@ uint8_t csr_construct_rsn_ie(tHalHandle hHal, uint32_t sessionId,
 		}
 
 #ifdef WLAN_FEATURE_11W
-		if (pProfile->MFPEnabled) {
+		/* Advertise BIP in group cipher key management only if PMF is
+		 * enabled and AP is capable.
+		 */
+		if (pProfile->MFPEnabled &&
+			(RSNCapabilities.MFPCapable && pProfile->MFPCapable)) {
 			pGroupMgmtCipherSuite =
 				(uint8_t *) pPMK + sizeof(uint16_t) +
 				(pPMK->cPMKIDs * CSR_RSN_PMKID_SIZE);
@@ -3066,7 +3060,8 @@ uint8_t csr_construct_rsn_ie(tHalHandle hHal, uint32_t sessionId,
 							       CSR_RSN_PMKID_SIZE));
 		}
 #ifdef WLAN_FEATURE_11W
-		if (pProfile->MFPEnabled) {
+		if (pProfile->MFPEnabled &&
+			(RSNCapabilities.MFPCapable && pProfile->MFPCapable)) {
 			if (0 == pPMK->cPMKIDs)
 				pRSNIe->IeHeader.Length += sizeof(uint16_t);
 			pRSNIe->IeHeader.Length += CSR_WPA_OUI_SIZE;

@@ -229,7 +229,11 @@
 #define WLAN_HDD_QOS_MAP_CONFIGURE 4
 #define HDD_SAP_WAKE_LOCK_DURATION 10000        /* in msecs */
 
+#if defined(CONFIG_HL_SUPPORT)
+#define HDD_MOD_EXIT_SSR_MAX_RETRIES 200
+#else
 #define HDD_MOD_EXIT_SSR_MAX_RETRIES 75
+#endif
 
 #ifdef WLAN_FEATURE_GTK_OFFLOAD
 #define GTK_OFFLOAD_ENABLE  0
@@ -240,6 +244,10 @@
 
 #define HDD_MIN_TX_POWER (-100) /* minimum tx power */
 #define HDD_MAX_TX_POWER (+100) /* maximum tx power */
+
+/* FW expects burst duration in 1020*ms */
+#define SIFS_BURST_DUR_MULTIPLIER 1020
+#define SIFS_BURST_DUR_MAX        12240
 
 /* If IPA UC data path is enabled, target should reserve extra tx descriptors
  * for IPA data path.
@@ -623,6 +631,11 @@ typedef struct hdd_cfg80211_state_s {
 	hdd_remain_on_chan_ctx_t *remain_on_chan_ctx;
 	struct mutex remain_on_chan_ctx_lock;
 	eP2PActionFrameState actionFrmState;
+	/* is_go_neg_ack_received flag is set to 1 when
+	* the pending ack for GO negotiation req is
+	* received.
+	*/
+	bool is_go_neg_ack_received;
 } hdd_cfg80211_state_t;
 
 /**
@@ -672,7 +685,7 @@ struct hdd_station_ctx {
 	/* STA ctx debug variables */
 	int staDebugState;
 
-	uint8_t broadcast_ibss_staid;
+	uint8_t broadcast_staid;
 
 	struct hdd_mon_set_ch_info ch_info;
 #ifdef WLAN_FEATURE_NAN_DATAPATH
@@ -758,6 +771,9 @@ struct hdd_ap_ctx_s {
 	tCsrRoamSetKey groupKey;
 	/* This will have WEP key data, if it is received before start bss */
 	tCsrRoamSetKey wepKey[CSR_MAX_NUM_KEY];
+
+	/* WEP default key index */
+	uint8_t wep_def_key_idx;
 
 	beacon_data_t *beacon;
 
@@ -1438,6 +1454,7 @@ struct hdd_context_s {
 	qdf_mc_timer_t memdump_cleanup_timer;
 	struct mutex memdump_lock;
 	bool memdump_in_progress;
+	bool memdump_init_done;
 #endif /* WLAN_FEATURE_MEMDUMP */
 
 	bool connection_in_progress;
@@ -1473,6 +1490,8 @@ struct hdd_context_s {
 	bool rps;
 	bool enableRxThread;
 	bool napi_enable;
+	bool stop_modules_in_progress;
+	bool start_modules_in_progress;
 };
 
 /*---------------------------------------------------------------------------
@@ -1584,7 +1603,7 @@ int hdd_wlan_set_ht2040_mode(hdd_adapter_t *pAdapter, uint16_t staId,
 			     struct qdf_mac_addr macAddrSTA, int width);
 #endif
 
-void wlan_hdd_send_svc_nlink_msg(int type, void *data, int len);
+void wlan_hdd_send_svc_nlink_msg(int radio, int type, void *data, int len);
 #ifdef FEATURE_WLAN_AUTO_SHUTDOWN
 void wlan_hdd_auto_shutdown_enable(hdd_context_t *hdd_ctx, bool enable);
 #endif
@@ -1815,6 +1834,11 @@ int hdd_wlan_start_modules(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 			   bool reinit);
 int hdd_wlan_stop_modules(hdd_context_t *hdd_ctx, bool shutdown);
 int hdd_start_adapter(hdd_adapter_t *adapter);
+void hdd_connect_result(struct net_device *dev, const u8 *bssid,
+			tCsrRoamInfo *roam_info, const u8 *req_ie,
+			size_t req_ie_len, const u8 *resp_ie,
+			size_t resp_ie_len, u16 status, gfp_t gfp);
+
 #ifdef WLAN_FEATURE_FASTPATH
 void hdd_enable_fastpath(struct hdd_config *hdd_cfg,
 			 void *context);

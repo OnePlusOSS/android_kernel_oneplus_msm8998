@@ -96,15 +96,6 @@ cb_notify_set_roam_scan_home_away_time(hdd_context_t *pHddCtx, unsigned long not
 					    true);
 }
 
-#ifdef FEATURE_WLAN_OKC
-static void
-cb_notify_set_okc_feature_enabled(hdd_context_t *pHddCtx, unsigned long notifyId)
-{
-	/* At the point this routine is called, the value in the hdd config
-	   table has already been updated */
-}
-#endif
-
 static void
 notify_is_fast_roam_ini_feature_enabled(hdd_context_t *pHddCtx,
 					unsigned long notifyId)
@@ -1079,16 +1070,13 @@ REG_TABLE_ENTRY g_registry_table[] = {
 			     CFG_ENABLE_WES_MODE_NAME_MIN,
 			     CFG_ENABLE_WES_MODE_NAME_MAX,
 			     cb_notify_set_wes_mode, 0),
-#ifdef FEATURE_WLAN_OKC
-	REG_DYNAMIC_VARIABLE(CFG_OKC_FEATURE_ENABLED_NAME, WLAN_PARAM_Integer,
-			     struct hdd_config, isOkcIniFeatureEnabled,
-			     VAR_FLAGS_OPTIONAL |
-			     VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
-			     CFG_OKC_FEATURE_ENABLED_DEFAULT,
-			     CFG_OKC_FEATURE_ENABLED_MIN,
-			     CFG_OKC_FEATURE_ENABLED_MAX,
-			     cb_notify_set_okc_feature_enabled, 0),
-#endif
+	REG_VARIABLE(CFG_OKC_FEATURE_ENABLED_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, isOkcIniFeatureEnabled,
+		     VAR_FLAGS_OPTIONAL |
+		     VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_OKC_FEATURE_ENABLED_DEFAULT,
+		     CFG_OKC_FEATURE_ENABLED_MIN,
+		     CFG_OKC_FEATURE_ENABLED_MAX),
 	REG_DYNAMIC_VARIABLE(CFG_ROAM_SCAN_OFFLOAD_ENABLED, WLAN_PARAM_Integer,
 			     struct hdd_config, isRoamOffloadScanEnabled,
 			     VAR_FLAGS_OPTIONAL |
@@ -3532,6 +3520,13 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		     CFG_BPF_PACKET_FILTER_OFFLOAD_MIN,
 		     CFG_BPF_PACKET_FILTER_OFFLOAD_MAX),
 
+	REG_VARIABLE(CFG_FLOW_STEERING_ENABLED_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, flow_steering_enable,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_FLOW_STEERING_ENABLED_DEFAULT,
+		     CFG_FLOW_STEERING_ENABLED_MIN,
+		     CFG_FLOW_STEERING_ENABLED_MAX),
+
 	REG_VARIABLE(CFG_ACTIVE_MODE_OFFLOAD, WLAN_PARAM_Integer,
 		     struct hdd_config, active_mode_offload,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -3569,6 +3564,14 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		     CFG_DOT11P_MODE_MAX),
 
 #ifdef FEATURE_WLAN_EXTSCAN
+	REG_VARIABLE(CFG_EXTSCAN_ALLOWED_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, extscan_enabled,
+		     VAR_FLAGS_OPTIONAL |
+		     VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_EXTSCAN_ALLOWED_DEF,
+		     CFG_EXTSCAN_ALLOWED_MIN,
+		     CFG_EXTSCAN_ALLOWED_MAX),
+
 	REG_VARIABLE(CFG_EXTSCAN_PASSIVE_MAX_CHANNEL_TIME_NAME,
 		     WLAN_PARAM_Integer,
 		     struct hdd_config, extscan_passive_max_chn_time,
@@ -4015,6 +4018,13 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		CFG_FILTER_MULTICAST_REPLAY_DEFAULT,
 		CFG_FILTER_MULTICAST_REPLAY_MIN,
 		CFG_FILTER_MULTICAST_REPLAY_MAX),
+
+	REG_VARIABLE(CFG_SIFS_BURST_DURATION_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, sifs_burst_duration,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_SIFS_BURST_DURATION_DEFAULT,
+		     CFG_SIFS_BURST_DURATION_MIN,
+		     CFG_SIFS_BURST_DURATION_MAX),
 };
 
 /**
@@ -4178,7 +4188,7 @@ static QDF_STATUS hdd_cfg_get_config(REG_TABLE_ENTRY *reg_table,
 		 * however the config is too big so we just printk() for now
 		 */
 #ifdef RETURN_IN_BUFFER
-		if (curlen <= buflen) {
+		if (curlen < buflen) {
 			/* copy string + '\0' */
 			memcpy(pCur, configStr, curlen + 1);
 
@@ -5004,11 +5014,9 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_INFO_HIGH,
 		  "Name = [isWESModeEnabled] Value = [%u] ",
 		  pHddCtx->config->isWESModeEnabled);
-#ifdef FEATURE_WLAN_OKC
 	QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_INFO_HIGH,
 		  "Name = [OkcEnabled] Value = [%u] ",
 		  pHddCtx->config->isOkcIniFeatureEnabled);
-#endif
 #ifdef FEATURE_WLAN_SCAN_PNO
 	QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_INFO_HIGH,
 		  "Name = [configPNOScanSupport] Value = [%u] ",
@@ -7040,6 +7048,18 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 	hdd_hex_string_to_u8_array(pConfig->rm_capability,
 			smeConfig->rrmConfig.rm_capability, &rrm_capab_len,
 			DOT11F_IE_RRMENABLEDCAP_MAX_LEN);
+	/*
+	 * Update the INI values gRrmOperChanMax and gRrmNonOperChanMax
+	 * appropriately
+	 */
+	smeConfig->rrmConfig.rm_capability[2] =
+		((pConfig->nOutChanMeasMaxDuration <<
+		  CAP_NONOPER_CHAN_MAX_DURATION_OFFSET) |
+		 (pConfig->nOutChanMeasMaxDuration <<
+		  CAP_OPER_CHAN_MAX_DURATION_OFFSET) |
+		 (smeConfig->rrmConfig.rm_capability[2] &
+		  (RM_CAP_RM_MIB | RM_CAP_AP_CHAN_REPORT)));
+
 	/* Remaining config params not obtained from registry
 	 * On RF EVB beacon using channel 1.
 	 */
@@ -7351,11 +7371,7 @@ bool hdd_is_okc_mode_enabled(hdd_context_t *pHddCtx)
 		hddLog(QDF_TRACE_LEVEL_FATAL, "%s: pHddCtx is NULL", __func__);
 		return -EINVAL;
 	}
-#ifdef FEATURE_WLAN_OKC
 	return pHddCtx->config->isOkcIniFeatureEnabled;
-#else
-	return false;
-#endif
 }
 
 /**

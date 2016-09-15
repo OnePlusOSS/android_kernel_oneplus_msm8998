@@ -160,7 +160,16 @@ QDF_STATUS wlansap_scan_callback(tHalHandle hal_handle,
 				  __func__, scan_id);
 #endif
 		operChannel = sap_select_channel(hal_handle, sap_ctx, result);
+		if (!operChannel) {
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
+				"No channel was selected from preferred channel for Operating channel");
 
+			operChannel = sap_ctx->acs_cfg->start_ch;
+
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
+				"Selecting operating channel as starting channel from preferred channel list: %d",
+				operChannel);
+		}
 		sme_scan_result_purge(hal_handle, result);
 		break;
 
@@ -364,6 +373,16 @@ wlansap_pre_start_bss_acs_scan_callback(tHalHandle hal_handle, void *pcontext,
 		}
 #endif
 		oper_channel = sap_select_channel(hal_handle, sap_ctx, presult);
+		if (!oper_channel) {
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
+				"No channel was selected from preferred channel for Operating channel");
+
+			oper_channel = sap_ctx->acs_cfg->start_ch;
+
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
+				"Selecting operating channel as starting channel from preferred channel list: %d",
+				oper_channel);
+		}
 		sme_scan_result_purge(hal_handle, presult);
 	}
 
@@ -557,7 +576,7 @@ wlansap_roam_process_dfs_chansw_update(tHalHandle hHal,
 		/* Further actions to be taken here */
 		QDF_TRACE(QDF_MODULE_ID_SAP,
 			  QDF_TRACE_LEVEL_WARN,
-			  FL("eCSR_ROAM_RESULT_DFS_RADAR_FOUND_IND received in (%d) state\n"),
+			  FL("eCSR_ROAM_RESULT_DFS_RADAR_FOUND_IND received in (%d) state"),
 			  sap_ctx->sapsMachine);
 		return;
 	}
@@ -738,7 +757,7 @@ wlansap_roam_process_dfs_radar_found(tpAniSirGlobal mac_ctx,
 	}
 	/* Further actions to be taken here */
 	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-		  FL("eCSR_ROAM_RESULT_DFS_RADAR_FOUND_IND received in (%d) state\n"),
+		  FL("eCSR_ROAM_RESULT_DFS_RADAR_FOUND_IND received in (%d) state"),
 		  sap_ctx->sapsMachine);
 
 	return;
@@ -763,7 +782,7 @@ wlansap_roam_process_infra_assoc_ind(ptSapContext sap_ctx,
 {
 	QDF_STATUS qdf_status;
 	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-		  FL("CSR roam_result = eCSR_ROAM_RESULT_INFRA_ASSOCIATION_IND (%d)\n"),
+		  FL("CSR roam_result = eCSR_ROAM_RESULT_INFRA_ASSOCIATION_IND (%d)"),
 		  roam_result);
 	sap_ctx->nStaWPARSnReqIeLength = csr_roam_info->rsnIELen;
 	if (sap_ctx->nStaWPARSnReqIeLength)
@@ -846,7 +865,7 @@ wlansap_roam_callback(void *ctx, tCsrRoamInfo *csr_roam_info, uint32_t roamId,
 
 	mac_ctx = PMAC_STRUCT(hal);
 	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-		  FL("Before switch on roam_status = %d\n"), roam_status);
+		  FL("Before switch on roam_status = %d"), roam_status);
 	switch (roam_status) {
 	case eCSR_ROAM_SESSION_OPENED:
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
@@ -857,7 +876,7 @@ wlansap_roam_callback(void *ctx, tCsrRoamInfo *csr_roam_info, uint32_t roamId,
 		break;
 	case eCSR_ROAM_INFRA_IND:
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  FL("CSR roam_status = eCSR_ROAM_INFRA_IND (%d)\n"),
+			  FL("CSR roam_status = eCSR_ROAM_INFRA_IND (%d)"),
 			  roam_status);
 		if (roam_result == eCSR_ROAM_RESULT_INFRA_START_FAILED) {
 			/* Fill in the event structure */
@@ -873,17 +892,17 @@ wlansap_roam_callback(void *ctx, tCsrRoamInfo *csr_roam_info, uint32_t roamId,
 		break;
 	case eCSR_ROAM_LOSTLINK:
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  FL("CSR roam_status = eCSR_ROAM_LOSTLINK (%d)\n"),
+			  FL("CSR roam_status = eCSR_ROAM_LOSTLINK (%d)"),
 			  roam_status);
 		break;
 	case eCSR_ROAM_MIC_ERROR_IND:
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  FL("CSR roam_status = eCSR_ROAM_MIC_ERROR_IND (%d)\n"),
+			  FL("CSR roam_status = eCSR_ROAM_MIC_ERROR_IND (%d)"),
 			  roam_status);
 		break;
 	case eCSR_ROAM_SET_KEY_COMPLETE:
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  FL("CSR roam_status = eCSR_ROAM_SET_KEY_COMPLETE (%d)\n"),
+			  FL("CSR roam_status = eCSR_ROAM_SET_KEY_COMPLETE (%d)"),
 			  roam_status);
 		if (roam_result == eCSR_ROAM_RESULT_FAILURE)
 			sap_signal_hdd_event(sap_ctx, csr_roam_info,
@@ -892,7 +911,7 @@ wlansap_roam_callback(void *ctx, tCsrRoamInfo *csr_roam_info, uint32_t roamId,
 		break;
 	case eCSR_ROAM_ASSOCIATION_COMPLETION:
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  FL("CSR roam_status = eCSR_ROAM_ASSOCIATION_COMPLETION (%d)\n"),
+			  FL("CSR roam_status = eCSR_ROAM_ASSOCIATION_COMPLETION (%d)"),
 			  roam_status);
 		if (roam_result == eCSR_ROAM_RESULT_FAILURE)
 			sap_signal_hdd_event(sap_ctx, csr_roam_info,
@@ -901,7 +920,7 @@ wlansap_roam_callback(void *ctx, tCsrRoamInfo *csr_roam_info, uint32_t roamId,
 		break;
 	case eCSR_ROAM_DISASSOCIATED:
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  FL("CSR roam_status = eCSR_ROAM_DISASSOCIATED (%d)\n"),
+			  FL("CSR roam_status = eCSR_ROAM_DISASSOCIATED (%d)"),
 			  roam_status);
 		if (roam_result == eCSR_ROAM_RESULT_MIC_FAILURE)
 			sap_signal_hdd_event(sap_ctx, csr_roam_info,
@@ -910,7 +929,7 @@ wlansap_roam_callback(void *ctx, tCsrRoamInfo *csr_roam_info, uint32_t roamId,
 		break;
 	case eCSR_ROAM_WPS_PBC_PROBE_REQ_IND:
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  FL("CSR roam_status = eCSR_ROAM_WPS_PBC_PROBE_REQ_IND (%d)\n"),
+			  FL("CSR roam_status = eCSR_ROAM_WPS_PBC_PROBE_REQ_IND (%d)"),
 			  roam_status);
 		break;
 	case eCSR_ROAM_REMAIN_CHAN_READY:
@@ -919,13 +938,6 @@ wlansap_roam_callback(void *ctx, tCsrRoamInfo *csr_roam_info, uint32_t roamId,
 		sap_signal_hdd_event(sap_ctx, csr_roam_info,
 				     eSAP_REMAIN_CHAN_READY,
 				     (void *) eSAP_STATUS_SUCCESS);
-		break;
-	case eCSR_ROAM_SEND_ACTION_CNF:
-		sap_signal_hdd_event(sap_ctx, csr_roam_info,
-			eSAP_SEND_ACTION_CNF,
-			(void *) ((eSapStatus)
-			((roam_result == eCSR_ROAM_RESULT_NONE) ?
-			eSAP_STATUS_SUCCESS : eSAP_STATUS_FAILURE)));
 		break;
 	case eCSR_ROAM_DISCONNECT_ALL_P2P_CLIENTS:
 		sap_signal_hdd_event(sap_ctx, csr_roam_info,
@@ -1017,14 +1029,14 @@ wlansap_roam_callback(void *ctx, tCsrRoamInfo *csr_roam_info, uint32_t roamId,
 		break;
 	default:
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-			  FL("CSR roam_status not handled roam_status = %s (%d)\n"),
+			  FL("CSR roam_status not handled roam_status = %s (%d)"),
 			  get_e_roam_cmd_status_str(roam_status),
 			  roam_status);
 		break;
 	}
 
 	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-		  FL("Before switch on roam_result = %d\n"), roam_result);
+		  FL("Before switch on roam_result = %d"), roam_result);
 
 	switch (roam_result) {
 	case eCSR_ROAM_RESULT_INFRA_ASSOCIATION_IND:
@@ -1033,7 +1045,7 @@ wlansap_roam_callback(void *ctx, tCsrRoamInfo *csr_roam_info, uint32_t roamId,
 		break;
 	case eCSR_ROAM_RESULT_INFRA_ASSOCIATION_CNF:
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  FL("CSR roam_result = eCSR_ROAM_RESULT_INFRA_ASSOCIATION_CNF (%d)\n"),
+			  FL("CSR roam_result = eCSR_ROAM_RESULT_INFRA_ASSOCIATION_CNF (%d)"),
 			  roam_result);
 		sap_ctx->nStaWPARSnReqIeLength = csr_roam_info->rsnIELen;
 		if (sap_ctx->nStaWPARSnReqIeLength)
@@ -1058,7 +1070,7 @@ wlansap_roam_callback(void *ctx, tCsrRoamInfo *csr_roam_info, uint32_t roamId,
 		break;
 	case eCSR_ROAM_RESULT_DISASSOC_IND:
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  FL("CSR roam_result = eCSR_ROAM_RESULT_DISASSOC_IND (%d)\n"),
+			  FL("CSR roam_result = eCSR_ROAM_RESULT_DISASSOC_IND (%d)"),
 			  roam_result);
 		/* Fill in the event structure */
 		qdf_status = sap_signal_hdd_event(sap_ctx, csr_roam_info,
@@ -1069,7 +1081,7 @@ wlansap_roam_callback(void *ctx, tCsrRoamInfo *csr_roam_info, uint32_t roamId,
 		break;
 	case eCSR_ROAM_RESULT_DEAUTH_IND:
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  FL("CSR roam_result = eCSR_ROAM_RESULT_DEAUTH_IND (%d)\n"),
+			  FL("CSR roam_result = eCSR_ROAM_RESULT_DEAUTH_IND (%d)"),
 			  roam_result);
 		/*
 		 * Fill in the event structure
@@ -1084,7 +1096,7 @@ wlansap_roam_callback(void *ctx, tCsrRoamInfo *csr_roam_info, uint32_t roamId,
 		break;
 	case eCSR_ROAM_RESULT_MIC_ERROR_GROUP:
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  FL("CSR roam_result = eCSR_ROAM_RESULT_MIC_ERROR_GROUP (%d)\n"),
+			  FL("CSR roam_result = eCSR_ROAM_RESULT_MIC_ERROR_GROUP (%d)"),
 			  roam_result);
 		/*
 		 * Fill in the event structure
@@ -1098,7 +1110,7 @@ wlansap_roam_callback(void *ctx, tCsrRoamInfo *csr_roam_info, uint32_t roamId,
 		break;
 	case eCSR_ROAM_RESULT_MIC_ERROR_UNICAST:
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  FL("CSR roam_result = eCSR_ROAM_RESULT_MIC_ERROR_UNICAST (%d)\n"),
+			  FL("CSR roam_result = eCSR_ROAM_RESULT_MIC_ERROR_UNICAST (%d)"),
 			  roam_result);
 		/*
 		 * Fill in the event structure
@@ -1114,7 +1126,7 @@ wlansap_roam_callback(void *ctx, tCsrRoamInfo *csr_roam_info, uint32_t roamId,
 		break;
 	case eCSR_ROAM_RESULT_AUTHENTICATED:
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  FL("CSR roam_result = eCSR_ROAM_RESULT_AUTHENTICATED (%d)\n"),
+			  FL("CSR roam_result = eCSR_ROAM_RESULT_AUTHENTICATED (%d)"),
 			  roam_result);
 		/* Fill in the event structure */
 		sap_signal_hdd_event(sap_ctx, csr_roam_info,
@@ -1125,7 +1137,7 @@ wlansap_roam_callback(void *ctx, tCsrRoamInfo *csr_roam_info, uint32_t roamId,
 		break;
 	case eCSR_ROAM_RESULT_ASSOCIATED:
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  FL("CSR roam_result = eCSR_ROAM_RESULT_ASSOCIATED (%d)\n"),
+			  FL("CSR roam_result = eCSR_ROAM_RESULT_ASSOCIATED (%d)"),
 			  roam_result);
 		/* Fill in the event structure */
 		sap_signal_hdd_event(sap_ctx, csr_roam_info,
@@ -1134,7 +1146,7 @@ wlansap_roam_callback(void *ctx, tCsrRoamInfo *csr_roam_info, uint32_t roamId,
 		break;
 	case eCSR_ROAM_RESULT_INFRA_STARTED:
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  FL("CSR roam_result = eCSR_ROAM_RESULT_INFRA_STARTED (%d)\n"),
+			  FL("CSR roam_result = eCSR_ROAM_RESULT_INFRA_STARTED (%d)"),
 			  roam_result);
 		/*
 		 * In the current implementation, hostapd is not aware that
@@ -1152,7 +1164,7 @@ wlansap_roam_callback(void *ctx, tCsrRoamInfo *csr_roam_info, uint32_t roamId,
 		break;
 	case eCSR_ROAM_RESULT_INFRA_STOPPED:
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  FL("CSR roam_result = eCSR_ROAM_RESULT_INFRA_STOPPED (%d)\n"),
+			  FL("CSR roam_result = eCSR_ROAM_RESULT_INFRA_STOPPED (%d)"),
 			  roam_result);
 		/* Fill in the event structure */
 		sap_event.event = eSAP_MAC_READY_FOR_CONNECTIONS;
@@ -1166,7 +1178,7 @@ wlansap_roam_callback(void *ctx, tCsrRoamInfo *csr_roam_info, uint32_t roamId,
 		break;
 	case eCSR_ROAM_RESULT_WPS_PBC_PROBE_REQ_IND:
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  FL("CSR roam_result = eCSR_ROAM_RESULT_WPS_PBC_PROBE_REQ_IND (%d)\n"),
+			  FL("CSR roam_result = eCSR_ROAM_RESULT_WPS_PBC_PROBE_REQ_IND (%d)"),
 			  roam_result);
 		/*
 		 * Fill in the event structure
@@ -1180,7 +1192,7 @@ wlansap_roam_callback(void *ctx, tCsrRoamInfo *csr_roam_info, uint32_t roamId,
 		break;
 	case eCSR_ROAM_RESULT_FORCED:
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  FL("CSR roam_result = eCSR_ROAM_RESULT_FORCED (%d)\n"),
+			  FL("CSR roam_result = eCSR_ROAM_RESULT_FORCED (%d)"),
 			  roam_result);
 		/*
 		 * This event can be used to inform hdd about user triggered
@@ -1193,7 +1205,7 @@ wlansap_roam_callback(void *ctx, tCsrRoamInfo *csr_roam_info, uint32_t roamId,
 		break;
 	case eCSR_ROAM_RESULT_NONE:
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  FL("CSR roam_result = eCSR_ROAM_RESULT_NONE (%d)\n"),
+			  FL("CSR roam_result = eCSR_ROAM_RESULT_NONE (%d)"),
 			  roam_result);
 		/*
 		 * This event can be used to inform hdd about user triggered
@@ -1207,7 +1219,7 @@ wlansap_roam_callback(void *ctx, tCsrRoamInfo *csr_roam_info, uint32_t roamId,
 		break;
 	case eCSR_ROAM_RESULT_MAX_ASSOC_EXCEEDED:
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  FL("CSR roam_result = eCSR_ROAM_RESULT_MAX_ASSOC_EXCEEDED (%d)\n"),
+			  FL("CSR roam_result = eCSR_ROAM_RESULT_MAX_ASSOC_EXCEEDED (%d)"),
 			  roam_result);
 		/* Fill in the event structure */
 		qdf_status = sap_signal_hdd_event(sap_ctx, csr_roam_info,
@@ -1246,7 +1258,7 @@ wlansap_roam_callback(void *ctx, tCsrRoamInfo *csr_roam_info, uint32_t roamId,
 		break;
 	default:
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-			  FL("CSR roam_result = %s (%d) not handled\n"),
+			  FL("CSR roam_result = %s (%d) not handled"),
 			  get_e_csr_roam_result_str(roam_result),
 			  roam_result);
 		break;

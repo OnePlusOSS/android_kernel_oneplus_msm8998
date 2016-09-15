@@ -283,7 +283,6 @@ enum ds_mode {
 #define WMA_TX_FRAME_BUFFER_NO_FREE    0
 #define WMA_TX_FRAME_BUFFER_FREE       1
 
-
 /* Default InActivity Time is 200 ms */
 #define POWERSAVE_DEFAULT_INACTIVITY_TIME 200
 
@@ -930,6 +929,7 @@ struct wma_txrx_node {
 	uint8_t ht_capable;
 	A_UINT32 mhz;
 	enum phy_ch_width chan_width;
+	bool vdev_active;
 	bool vdev_up;
 	uint64_t tsfadjust;
 	void *addBssStaContext;
@@ -1275,6 +1275,7 @@ struct extended_caps {
  * It contains global wma module parameters and
  * handle of other modules.
  * @saved_wmi_init_cmd: Saved WMI INIT command
+ * @bool bpf_packet_filter_enable: BPF filter enabled or not
  * @service_ready_ext_evt: Wait event for service ready ext
  * @wmi_cmd_rsp_wake_lock: wmi command response wake lock
  * @wmi_cmd_rsp_runtime_lock: wmi command response bus lock
@@ -1383,6 +1384,7 @@ typedef struct {
 #endif
 	qdf_wake_lock_t wow_wake_lock;
 	int wow_nack;
+	bool wow_initial_wake_up;
 	qdf_atomic_t is_wow_bus_suspended;
 	qdf_mc_timer_t wma_scan_comp_timer;
 	uint8_t dfs_phyerr_filter_offload;
@@ -1469,6 +1471,7 @@ typedef struct {
 	qdf_runtime_lock_t wma_runtime_resume_lock;
 	uint32_t fine_time_measurement_cap;
 	bool bpf_enabled;
+	bool bpf_packet_filter_enable;
 	struct wma_ini_config ini_config;
 	struct wma_valid_channels saved_chan;
 	/* NAN datapath support enabled in firmware */
@@ -1632,6 +1635,7 @@ struct wma_vdev_start_req {
 	bool is_quarter_rate;
 	uint32_t preferred_tx_streams;
 	uint32_t preferred_rx_streams;
+	uint8_t beacon_tx_rate;
 };
 
 /**
@@ -2152,6 +2156,10 @@ wma_indicate_err(enum ol_rx_err_type err_type,
 
 QDF_STATUS wma_ht40_stop_obss_scan(tp_wma_handle wma_handle,
 				int32_t vdev_id);
+
+void wma_process_fw_test_cmd(WMA_HANDLE handle,
+				      struct set_fwtest_params *wma_fwtest);
+
 QDF_STATUS wma_send_ht40_obss_scanind(tp_wma_handle wma,
 	struct obss_ht40_scanind *req);
 

@@ -40,6 +40,7 @@
 #include <wlan_hdd_napi.h>
 #include <ol_txrx.h>
 #include <cdp_txrx_peer_ops.h>
+#include <cds_utils.h>
 
 #ifdef IPA_OFFLOAD
 #include <wlan_hdd_ipa.h>
@@ -602,9 +603,11 @@ QDF_STATUS hdd_softap_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 
 	skb->protocol = eth_type_trans(skb, skb->dev);
 #ifdef WLAN_FEATURE_HOLD_RX_WAKELOCK
+	cds_host_diag_log_work(&pHddCtx->rx_wake_lock,
+			       HDD_WAKE_LOCK_DURATION,
+			       WIFI_POWER_EVENT_WAKELOCK_HOLD_RX);
 	qdf_wake_lock_timeout_acquire(&pHddCtx->rx_wake_lock,
-				      HDD_WAKE_LOCK_DURATION,
-				      WIFI_POWER_EVENT_WAKELOCK_HOLD_RX);
+				      HDD_WAKE_LOCK_DURATION);
 #endif
 
 	/* Remove SKB from internal tracking table before submitting

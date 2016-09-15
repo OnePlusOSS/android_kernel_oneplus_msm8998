@@ -128,7 +128,7 @@ static QDF_STATUS lim_add_ndi_peer(tpAniSirGlobal mac_ctx,
 static QDF_STATUS lim_handle_ndp_indication_event(tpAniSirGlobal mac_ctx,
 					struct ndp_indication_event *ndp_ind)
 {
-	QDF_STATUS status;
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
 
 	lim_log(mac_ctx, LOG1,
 		FL("role: %d, vdev: %d, peer_mac_addr "MAC_ADDRESS_STR),
@@ -138,10 +138,6 @@ static QDF_STATUS lim_handle_ndp_indication_event(tpAniSirGlobal mac_ctx,
 	if ((ndp_ind->role == NDP_ROLE_INITIATOR) ||
 	   ((NDP_ROLE_RESPONDER == ndp_ind->role) &&
 	   (NDP_ACCEPT_POLICY_ALL == ndp_ind->policy))) {
-		/* Free config only for INITIATOR role */
-		qdf_mem_free(ndp_ind->ndp_config.ndp_cfg);
-		qdf_mem_free(ndp_ind->ndp_info.ndp_app_info);
-
 		status = lim_add_ndi_peer(mac_ctx, ndp_ind->vdev_id,
 				ndp_ind->peer_mac_addr);
 		if (QDF_STATUS_SUCCESS != status) {
@@ -168,10 +164,12 @@ ndp_indication_failed:
 	 * As for success responder case this info is sent till HDD
 	 * and will be freed in sme.
 	 */
-	if ((status != QDF_STATUS_SUCCESS) ||
-			(NDP_ROLE_INITIATOR == ndp_ind->role)) {
+	if (status != QDF_STATUS_SUCCESS ||
+			NDP_ROLE_INITIATOR == ndp_ind->role) {
 		qdf_mem_free(ndp_ind->ndp_config.ndp_cfg);
 		qdf_mem_free(ndp_ind->ndp_info.ndp_app_info);
+		ndp_ind->ndp_config.ndp_cfg = NULL;
+		ndp_ind->ndp_info.ndp_app_info = NULL;
 	}
 	return status;
 }
@@ -496,8 +494,6 @@ QDF_STATUS lim_handle_ndp_event_message(tpAniSirGlobal mac_ctx, cds_msg_t *msg)
 	case SIR_HAL_NDP_INDICATION: {
 		struct ndp_indication_event *ndp_ind = msg->bodyptr;
 		status = lim_handle_ndp_indication_event(mac_ctx, ndp_ind);
-		qdf_mem_free(ndp_ind->ndp_config.ndp_cfg);
-		qdf_mem_free(ndp_ind->ndp_info.ndp_app_info);
 		break;
 	}
 	case SIR_HAL_NDP_RESPONDER_RSP:
@@ -722,11 +718,11 @@ void lim_process_ndi_mlm_add_bss_rsp(tpAniSirGlobal mac_ctx, tpSirMsgQ lim_msgq,
 	tLimMlmStartCnf mlm_start_cnf;
 	tpAddBssParams add_bss_params = (tpAddBssParams) lim_msgq->bodyptr;
 
-	lim_log(mac_ctx, LOG1, FL("Status %d"), add_bss_params->status);
 	if (NULL == add_bss_params) {
 		lim_log(mac_ctx, LOGE, FL("Invalid body pointer in message"));
 		goto end;
 	}
+	lim_log(mac_ctx, LOG1, FL("Status %d"), add_bss_params->status);
 	if (QDF_STATUS_SUCCESS == add_bss_params->status) {
 		lim_log(mac_ctx, LOG1,
 		       FL("WDA_ADD_BSS_RSP returned QDF_STATUS_SUCCESS"));
@@ -737,6 +733,7 @@ void lim_process_ndi_mlm_add_bss_rsp(tpAniSirGlobal mac_ctx, tpSirMsgQ lim_msgq,
 		session_entry->bssIdx = (uint8_t) add_bss_params->bssIdx;
 		session_entry->limSystemRole = eLIM_NDI_ROLE;
 		session_entry->statypeForBss = STA_ENTRY_SELF;
+		session_entry->staId = add_bss_params->staContext.staIdx;
 		/* Apply previously set configuration at HW */
 		lim_apply_configuration(mac_ctx, session_entry);
 		mlm_start_cnf.resultCode = eSIR_SME_SUCCESS;

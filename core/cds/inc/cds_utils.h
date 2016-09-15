@@ -44,6 +44,7 @@
 #include <qdf_types.h>
 #include <qdf_status.h>
 #include <qdf_event.h>
+#include <qdf_lock.h>
 #include "ani_global.h"
 
 /*--------------------------------------------------------------------------
@@ -81,7 +82,14 @@
 #define cds_debug(format, args...) \
 		cds_logfl(QDF_TRACE_LEVEL_DEBUG, format, ## args)
 
+/**
+ * enum cds_band_type - Band type - 2g, 5g or all
+ * CDS_BAND_ALL: Both 2G and 5G are valid.
+ * CDS_BAND_2GHZ: only 2G is valid.
+ * CDS_BAND_5GHZ: only 5G is valid.
+ */
 enum cds_band_type {
+	CDS_BAND_ALL = 0,
 	CDS_BAND_2GHZ = 1,
 	CDS_BAND_5GHZ = 2
 };
@@ -187,4 +195,13 @@ bool cds_attach_mmie(uint8_t *igtk, uint8_t *ipn, uint16_t key_id,
 uint8_t cds_get_mmie_size(void);
 #endif /* WLAN_FEATURE_11W */
 QDF_STATUS sme_send_flush_logs_cmd_to_fw(tpAniSirGlobal pMac);
+static inline void cds_host_diag_log_work(qdf_wake_lock_t *lock, uint32_t msec,
+			    uint32_t reason) {
+	if (((cds_get_ring_log_level(RING_ID_WAKELOCK) >= WLAN_LOG_LEVEL_ACTIVE)
+	     && (WIFI_POWER_EVENT_WAKELOCK_HOLD_RX == reason)) ||
+	    (WIFI_POWER_EVENT_WAKELOCK_HOLD_RX != reason)) {
+		host_diag_log_wlock(reason, qdf_wake_lock_name(lock),
+				    msec, WIFI_POWER_EVENT_WAKELOCK_TAKEN);
+	}
+}
 #endif /* #if !defined __CDS_UTILS_H */

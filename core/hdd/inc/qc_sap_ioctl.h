@@ -137,7 +137,6 @@ typedef struct {
 #define QCSAP_IOCTL_SET_NONE_GET_THREE (SIOCIWFIRSTPRIV + 3)
 #define WE_GET_TSF 1
 #define QCSAP_IOCTL_GET_STAWPAIE      (SIOCIWFIRSTPRIV + 4)
-#define QCSAP_IOCTL_SETWPAIE          (SIOCIWFIRSTPRIV + 5)
 #define QCSAP_IOCTL_STOPBSS           (SIOCIWFIRSTPRIV + 6)
 #define QCSAP_IOCTL_VERSION           (SIOCIWFIRSTPRIV + 7)
 #define QCSAP_IOCTL_GET_WPS_PBC_PROBE_REQ_IES       (SIOCIWFIRSTPRIV + 8)
@@ -243,12 +242,15 @@ enum {
 	QCSAP_START_FW_PROFILING,
 	QCSAP_CAP_TSF,
 	QCSAP_GET_TSF,
-	QCSAP_PARAM_CONC_SYSTEM_PREF
+	QCSAP_PARAM_CONC_SYSTEM_PREF,
+	QCASAP_PARAM_LDPC,
+	QCASAP_PARAM_TX_STBC,
+	QCASAP_PARAM_RX_STBC,
 };
 
-int iw_softap_get_channel_list(struct net_device *dev,
-			       struct iw_request_info *info,
-			       union iwreq_data *wrqu, char *extra);
+int iw_get_channel_list(struct net_device *dev,
+		struct iw_request_info *info,
+		union iwreq_data *wrqu, char *extra);
 
 #endif /* __linux__ */
 

@@ -726,6 +726,7 @@ tSirRetStatus pe_open(tpAniSirGlobal pMac, struct cds_config_info *cds_cfg)
 		    sizeof(tPESession) * pMac->lim.maxBssId, 0);
 
 	pMac->lim.mgmtFrameSessionId = 0xff;
+	pMac->lim.tdls_frm_session_id = NO_SESSION;
 	pMac->lim.deferredMsgCnt = 0;
 
 	if (!QDF_IS_STATUS_SUCCESS(qdf_mutex_create(&pMac->lim.lkPeGlobalLock))) {
@@ -986,13 +987,6 @@ QDF_STATUS pe_handle_mgmt_frame(void *p_cds_gctx, void *cds_buff)
 		       WMA_GET_RX_MPDU_LEN(pRxPacketInfo),
 		       WMA_GET_RX_MPDU_HEADER_LEN(pRxPacketInfo),
 		       WMA_GET_RX_PAYLOAD_LEN(pRxPacketInfo));
-
-		MTRACE(mac_trace(pMac, TRACE_CODE_RX_MGMT,
-				 WMA_GET_RX_PAYLOAD_LEN(pRxPacketInfo),
-				 LIM_TRACE_MAKE_RXMGMT(mHdr->fc.subType,
-				 (uint16_t) (((uint16_t)
-				      (mHdr->seqControl.seqNumHi << 4)) |
-				      mHdr->seqControl.seqNumLo)));)
 
 		if (WMA_GET_ROAMCANDIDATEIND(pRxPacketInfo))
 			lim_log(pMac, LOG1, FL("roamCandidateInd %d"),
@@ -1296,9 +1290,10 @@ lim_enc_type_matched(tpAniSirGlobal mac_ctx,
 		FL("Beacon/Probe:: Privacy :%d WPA Present:%d RSN Present: %d"),
 		bcn->capabilityInfo.privacy, bcn->wpaPresent, bcn->rsnPresent);
 	lim_log(mac_ctx, LOG1,
-		FL("session:: Privacy :%d EncyptionType: %d"),
+		FL("session:: Privacy :%d EncyptionType: %d OSEN %d WPS %d"),
 		SIR_MAC_GET_PRIVACY(session->limCurrentBssCaps),
-		session->encryptType);
+		session->encryptType, session->isOSENConnection,
+		session->wps_registration);
 
 	/*
 	 * This is handled by sending probe req due to IOT issues so
@@ -1332,6 +1327,20 @@ lim_enc_type_matched(tpAniSirGlobal mac_ctx,
 	    ((session->encryptType == eSIR_ED_TKIP) ||
 		(session->encryptType == eSIR_ED_CCMP) ||
 		(session->encryptType == eSIR_ED_AES_128_CMAC)))
+		return true;
+
+	/*
+	 * For HS2.0, RSN ie is not present
+	 * in beacon. Therefore no need to
+	 * check for security type in case
+	 * OSEN session.
+	 * For WPS registration session no need to detect
+	 * detect security mismatch as it wont match and
+	 * driver may end up sending probe request without
+	 * WPS IE during WPS registration process.
+	 */
+	if (session->isOSENConnection ||
+	   session->wps_registration)
 		return true;
 
 	return false;

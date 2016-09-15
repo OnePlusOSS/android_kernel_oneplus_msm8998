@@ -91,9 +91,11 @@ enum cfg_sub_20_channel_width {
  * @tx_flow_start_queue_offset: Start queue offset in percentage
  * @is_lpass_enabled: Indicate whether LPASS is enabled or not
  * @is_nan_enabled: Indicate whether NAN is enabled or not
+ * @bool bpf_packet_filter_enable; Indicate bpf filter enabled or not
  * @tx_chain_mask_cck: Tx chain mask enabled or not
  * @self_gen_frm_pwr: Self gen from power
  * @sub_20_channel_width: Sub 20 MHz ch width, ini intersected with fw cap
+ * @flow_steering_enabled: Receive flow steering.
  * Structure for holding cds ini parameters.
  */
 
@@ -140,8 +142,10 @@ struct cds_config_info {
 #ifdef WLAN_FEATURE_NAN
 	bool is_nan_enabled;
 #endif
+	bool bpf_packet_filter_enable;
 	bool tx_chain_mask_cck;
 	uint16_t self_gen_frm_pwr;
 	enum cfg_sub_20_channel_width sub_20_channel_width;
+	bool flow_steering_enabled;
 };
 #endif /* !defined( __CDS_CONFIG_H ) */

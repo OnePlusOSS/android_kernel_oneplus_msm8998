@@ -1367,11 +1367,10 @@ static void hdd_send_association_event(struct net_device *dev,
 		cds_update_connection_info(pAdapter->sessionId);
 		memcpy(wrqu.ap_addr.sa_data, pHddStaCtx->conn_info.bssId.bytes,
 		       ETH_ALEN);
-		pr_info("wlan: new IBSS connection to " MAC_ADDRESS_STR "\n",
-			MAC_ADDR_ARRAY(pHddStaCtx->conn_info.bssId.bytes));
+		hdd_err("wlan: new IBSS connection to " MAC_ADDRESS_STR,
+			 MAC_ADDR_ARRAY(pHddStaCtx->conn_info.bssId.bytes));
 	} else {                /* Not Associated */
-
-		pr_info("wlan: disconnected\n");
+		hdd_err("wlan: disconnected");
 		memset(wrqu.ap_addr.sa_data, '\0', ETH_ALEN);
 		cds_decr_session_set_pcl(pAdapter->device_mode,
 					pAdapter->sessionId);
@@ -1691,7 +1690,7 @@ static QDF_STATUS hdd_dis_connect_handler(hdd_adapter_t *pAdapter,
 
 	if (eCSR_ROAM_IBSS_LEAVE == roamStatus) {
 		uint8_t i;
-		sta_id = pHddStaCtx->broadcast_ibss_staid;
+		sta_id = pHddStaCtx->broadcast_staid;
 		vstatus = hdd_roam_deregister_sta(pAdapter, sta_id);
 		if (!QDF_IS_STATUS_SUCCESS(vstatus)) {
 			hdd_err("hdd_roam_deregister_sta() failed for staID %d Status=%d [0x%x]",
@@ -2358,9 +2357,12 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 	/* HDD has initiated disconnect, do not send connect result indication
 	 * to kernel as it will be handled by __cfg80211_disconnect.
 	 */
-	if ((eConnectionState_Disconnecting == pHddStaCtx->conn_info.connState)
-	    && ((eCSR_ROAM_RESULT_ASSOCIATED == roamResult)
-		|| (eCSR_ROAM_ASSOCIATION_FAILURE == roamStatus))) {
+	if (((eConnectionState_Disconnecting ==
+	    pHddStaCtx->conn_info.connState) ||
+	    (eConnectionState_NotConnected ==
+	    pHddStaCtx->conn_info.connState)) &&
+	    ((eCSR_ROAM_RESULT_ASSOCIATED == roamResult) ||
+	    (eCSR_ROAM_ASSOCIATION_FAILURE == roamStatus))) {
 		hddLog(LOG1, FL("Disconnect from HDD in progress"));
 		hddDisconInProgress = true;
 	}
@@ -2463,10 +2465,6 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 		hdd_info("check for SAP restart");
 		cds_check_concurrent_intf_and_restart_sap(pHddStaCtx,
 							  pAdapter);
-
-#ifdef FEATURE_WLAN_TDLS
-		wlan_hdd_tdls_connection_callback(pAdapter);
-#endif
 
 		DPTRACE(qdf_dp_trace_mgmt_pkt(QDF_DP_TRACE_MGMT_PACKET_RECORD,
 			pAdapter->sessionId,
@@ -2646,9 +2644,10 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 					hddLog(LOG1,
 					       FL("ft_carrier_on is %d, sending connect indication"),
 					       ft_carrier_on);
-					cfg80211_connect_result(dev,
+					hdd_connect_result(dev,
 								pRoamInfo->
 								bssid.bytes,
+								pRoamInfo,
 								pFTAssocReq,
 								assocReqlen,
 								pFTAssocRsp,
@@ -2689,9 +2688,10 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 						       roamResult, roamStatus);
 
 						/* inform connect result to nl80211 */
-						cfg80211_connect_result(dev,
+						hdd_connect_result(dev,
 									pRoamInfo->
 									bssid.bytes,
+									pRoamInfo,
 									reqRsnIe,
 									reqRsnLength,
 									rspRsnIe,
@@ -2799,6 +2799,10 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 						   WLAN_CONTROL_PATH);
 		}
 
+#ifdef FEATURE_WLAN_TDLS
+		wlan_hdd_tdls_connection_callback(pAdapter);
+#endif
+
 		if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 			hddLog(LOGE,
 				"STA register with TL failed. status(=%d) [%08X]",
@@ -2812,16 +2816,15 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 		hdd_wext_state_t *pWextState =
 			WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
 		if (pRoamInfo)
-			pr_info("wlan: connection failed with " MAC_ADDRESS_STR
-				" result:%d and Status:%d\n",
-				MAC_ADDR_ARRAY(pRoamInfo->bssid.bytes),
-				roamResult, roamStatus);
+			hdd_err("wlan: connection failed with " MAC_ADDRESS_STR
+				 " result:%d and Status:%d",
+				 MAC_ADDR_ARRAY(pRoamInfo->bssid.bytes),
+				 roamResult, roamStatus);
 		else
-			pr_info("wlan: connection failed with " MAC_ADDRESS_STR
-				" result:%d and Status:%d\n",
-				MAC_ADDR_ARRAY(pWextState->req_bssId.bytes),
-				roamResult, roamStatus);
-
+			hdd_err("wlan: connection failed with " MAC_ADDRESS_STR
+				 " result:%d and Status:%d",
+				 MAC_ADDR_ARRAY(pWextState->req_bssId.bytes),
+				 roamResult, roamStatus);
 		/*
 		 * CR465478: Only send up a connection failure result when CSR
 		 * has completed operation - with a ASSOCIATION_FAILURE status.
@@ -2851,15 +2854,15 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 			if (eCSR_ROAM_RESULT_ASSOC_FAIL_CON_CHANNEL ==
 			    roamResult) {
 				if (pRoamInfo)
-					cfg80211_connect_result(dev,
+					hdd_connect_result(dev,
 						pRoamInfo->bssid.bytes,
-						NULL, 0, NULL, 0,
+						NULL, NULL, 0, NULL, 0,
 						WLAN_STATUS_ASSOC_DENIED_UNSPEC,
 						GFP_KERNEL);
 				else
-					cfg80211_connect_result(dev,
+					hdd_connect_result(dev,
 						pWextState->req_bssId.bytes,
-						NULL, 0, NULL, 0,
+						NULL, NULL, 0, NULL, 0,
 						WLAN_STATUS_ASSOC_DENIED_UNSPEC,
 						GFP_KERNEL);
 			} else {
@@ -2890,18 +2893,18 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 					 * applications to reconnect the station
 					 * with correct configuration.
 					 */
-					cfg80211_connect_result(dev,
-						pRoamInfo->bssid.bytes, NULL, 0,
-						NULL, 0,
+					hdd_connect_result(dev,
+						pRoamInfo->bssid.bytes,
+						NULL, NULL, 0, NULL, 0,
 						(isWep &&
 						 pRoamInfo->reasonCode) ?
 						pRoamInfo->reasonCode :
 						WLAN_STATUS_UNSPECIFIED_FAILURE,
 						GFP_KERNEL);
 				} else
-					cfg80211_connect_result(dev,
+					hdd_connect_result(dev,
 						pWextState->req_bssId.bytes,
-						NULL, 0, NULL, 0,
+						NULL, NULL, 0, NULL, 0,
 						WLAN_STATUS_UNSPECIFIED_FAILURE,
 						GFP_KERNEL);
 			}
@@ -3011,7 +3014,7 @@ static void hdd_roam_ibss_indication_handler(hdd_adapter_t *pAdapter,
 		hdd_wmm_connect(pAdapter, pRoamInfo,
 				eCSR_BSS_TYPE_IBSS);
 
-		hdd_sta_ctx->broadcast_ibss_staid = pRoamInfo->staId;
+		hdd_sta_ctx->broadcast_staid = pRoamInfo->staId;
 
 		pHddCtx->sta_to_adapter[pRoamInfo->staId] =
 			pAdapter;
@@ -3351,12 +3354,12 @@ roam_roam_connect_status_update_handler(hdd_adapter_t *pAdapter,
 			WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
 		struct station_info staInfo;
 
-		pr_info("IBSS New Peer indication from SME "
-			"with peerMac " MAC_ADDRESS_STR " BSSID: "
-			MAC_ADDRESS_STR " and stationID= %d",
-			MAC_ADDR_ARRAY(pRoamInfo->peerMac.bytes),
-			MAC_ADDR_ARRAY(pHddStaCtx->conn_info.bssId.bytes),
-			pRoamInfo->staId);
+		hdd_err("IBSS New Peer indication from SME "
+			 "with peerMac " MAC_ADDRESS_STR " BSSID: "
+			 MAC_ADDRESS_STR " and stationID= %d",
+			 MAC_ADDR_ARRAY(pRoamInfo->peerMac.bytes),
+			 MAC_ADDR_ARRAY(pHddStaCtx->conn_info.bssId.bytes),
+			 pRoamInfo->staId);
 
 		if (!hdd_save_peer
 			    (WLAN_HDD_GET_STATION_CTX_PTR(pAdapter),
@@ -3441,12 +3444,12 @@ roam_roam_connect_status_update_handler(hdd_adapter_t *pAdapter,
 			hddLog(LOGW,
 				"IBSS peer departed by cannot find peer in our registration table with TL");
 
-		pr_info("IBSS Peer Departed from SME "
-			"with peerMac " MAC_ADDRESS_STR " BSSID: "
-			MAC_ADDRESS_STR " and stationID= %d",
-			MAC_ADDR_ARRAY(pRoamInfo->peerMac.bytes),
-			MAC_ADDR_ARRAY(pHddStaCtx->conn_info.bssId.bytes),
-			pRoamInfo->staId);
+		hdd_err("IBSS Peer Departed from SME "
+			 "with peerMac " MAC_ADDRESS_STR " BSSID: "
+			 MAC_ADDRESS_STR " and stationID= %d",
+			 MAC_ADDR_ARRAY(pRoamInfo->peerMac.bytes),
+			 MAC_ADDR_ARRAY(pHddStaCtx->conn_info.bssId.bytes),
+			 pRoamInfo->staId);
 
 		hdd_roam_deregister_sta(pAdapter, pRoamInfo->staId);
 
@@ -4888,11 +4891,6 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 	case eCSR_ROAM_REMAIN_CHAN_READY:
 		hdd_remain_chan_ready_handler(pAdapter, pRoamInfo->roc_scan_id);
 		break;
-	case eCSR_ROAM_SEND_ACTION_CNF:
-		hdd_send_action_cnf(pAdapter,
-				    (roamResult ==
-				     eCSR_ROAM_RESULT_NONE) ? true : false);
-		break;
 #ifdef FEATURE_WLAN_TDLS
 	case eCSR_ROAM_TDLS_STATUS_UPDATE:
 		qdf_ret_status =
@@ -5654,10 +5652,12 @@ static int __iw_set_essid(struct net_device *dev,
 	pWextState->roamProfile.csrPersona = pAdapter->device_mode;
 
 	if (eCSR_BSS_TYPE_START_IBSS == pRoamProfile->BSSType) {
+		pRoamProfile->ch_params.ch_width = 0;
 		hdd_select_cbmode(pAdapter,
-				  (WLAN_HDD_GET_CTX(pAdapter))->config->
-				  AdHocChannel5G);
+			(WLAN_HDD_GET_CTX(pAdapter))->config->AdHocChannel5G,
+			&pRoamProfile->ch_params);
 	}
+
 	/*
 	 * Change conn_state to connecting before sme_roam_connect(),
 	 * because sme_roam_connect() has a direct path to call

@@ -465,7 +465,6 @@ typedef enum {
 	eCSR_ROAM_FT_RESPONSE,
 	eCSR_ROAM_FT_START,
 	eCSR_ROAM_REMAIN_CHAN_READY,
-	eCSR_ROAM_SEND_ACTION_CNF,
 	/* this mean error happens before assoc_start/roam_start is called. */
 	eCSR_ROAM_SESSION_OPENED,
 	eCSR_ROAM_FT_REASSOC_FAILED,
@@ -965,6 +964,9 @@ typedef struct tagCsrRoamProfile {
 	/* addIe params */
 	tSirAddIeParams addIeParams;
 	uint8_t sap_dot11mc;
+	uint8_t beacon_tx_rate;
+	tSirMacRateSet supp_rate_set;
+	tSirMacRateSet extended_rate_set;
 } tCsrRoamProfile;
 
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH

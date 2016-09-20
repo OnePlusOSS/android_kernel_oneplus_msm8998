@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -93,6 +93,10 @@ struct dot11p_channel_sched {
  *	array of NDL active state configuration
  * @QCA_WLAN_VENDOR_ATTR_OCB_SET_CONFIG_FLAGS:
  *	flag to set the absolute expiry
+ *      configuration flags such as OCB_CONFIG_FLAG_80211_FRAME_MODE
+ * @QCA_WLAN_VENDOR_ATTR_OCB_SET_CONFIG_DEF_TX_PARAM:
+ *      default TX parameters to use in the case that a packet is sent without
+ *      a TX control header
  */
 enum qca_wlan_vendor_attr_ocb_set_config {
 	QCA_WLAN_VENDOR_ATTR_OCB_SET_CONFIG_INVALID = 0,
@@ -103,6 +107,7 @@ enum qca_wlan_vendor_attr_ocb_set_config {
 	QCA_WLAN_VENDOR_ATTR_OCB_SET_CONFIG_NDL_CHANNEL_ARRAY,
 	QCA_WLAN_VENDOR_ATTR_OCB_SET_CONFIG_NDL_ACTIVE_STATE_ARRAY,
 	QCA_WLAN_VENDOR_ATTR_OCB_SET_CONFIG_FLAGS,
+	QCA_WLAN_VENDOR_ATTR_OCB_SET_CONFIG_DEF_TX_PARAM,
 	QCA_WLAN_VENDOR_ATTR_OCB_SET_CONFIG_AFTER_LAST,
 	QCA_WLAN_VENDOR_ATTR_OCB_SET_CONFIG_MAX =
 		QCA_WLAN_VENDOR_ATTR_OCB_SET_CONFIG_AFTER_LAST - 1,

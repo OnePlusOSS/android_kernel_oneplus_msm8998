@@ -4591,6 +4591,92 @@ bool ol_txrx_get_ocb_peer(struct ol_txrx_pdev_t *pdev,
 exit:
 	return rc;
 }
+#define MAX_TID		15
+#define MAX_DATARATE	7
+#define OCB_HEADER_VERSION 1
+
+/**
+ * ol_txrx_set_ocb_def_tx_param() - Set the default OCB TX parameters
+ * @vdev: The OCB vdev that will use these defaults.
+ * @_def_tx_param: The default TX parameters.
+ * @def_tx_param_size: The size of the _def_tx_param buffer.
+ *
+ * Return: true if the default parameters were set correctly, false if there
+ * is an error, for example an invalid parameter. In the case that false is
+ * returned, see the kernel log for the error description.
+ */
+bool ol_txrx_set_ocb_def_tx_param(ol_txrx_vdev_handle vdev,
+	void *_def_tx_param, uint32_t def_tx_param_size)
+{
+	struct ocb_tx_ctrl_hdr_t *def_tx_param =
+		(struct ocb_tx_ctrl_hdr_t *)_def_tx_param;
+
+		if (def_tx_param) {
+			/*
+			* Default TX parameters are provided.
+			* Validate the contents and
+			* save them in the vdev.
+			*/
+		if (def_tx_param_size != sizeof(struct ocb_tx_ctrl_hdr_t)) {
+			QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
+			"%sInvalid size of OCB default TX params", __func__);
+			return false;
+		}
+
+		if (def_tx_param->version != OCB_HEADER_VERSION) {
+			QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
+			"%sInvalid version of OCB default TX params", __func__);
+			return false;
+		}
+
+		if (def_tx_param->channel_freq) {
+			int i;
+
+			for (i = 0; i < vdev->ocb_channel_count; i++) {
+				if (vdev->ocb_channel_info[i].chan_freq ==
+					def_tx_param->channel_freq)
+					break;
+			}
+			if (i == vdev->ocb_channel_count) {
+				QDF_TRACE(QDF_MODULE_ID_TXRX,
+				QDF_TRACE_LEVEL_ERROR,
+			"%sInvalid default channel frequency", __func__);
+				return false;
+			}
+		}
+
+		if (def_tx_param->valid_datarate &&
+				def_tx_param->datarate > MAX_DATARATE) {
+			QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
+				"%sInvalid default datarate", __func__);
+			return false;
+		}
+
+		if (def_tx_param->valid_tid &&
+				def_tx_param->ext_tid > MAX_TID) {
+			QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
+				"%sInvalid default TID", __func__);
+			return false;
+		}
+
+		if (vdev->ocb_def_tx_param == NULL)
+			vdev->ocb_def_tx_param =
+				qdf_mem_malloc(sizeof(*vdev->ocb_def_tx_param));
+			qdf_mem_copy(vdev->ocb_def_tx_param, def_tx_param,
+				sizeof(*vdev->ocb_def_tx_param));
+		} else {
+		/*
+		* Default TX parameters are not provided.
+		* Delete the old defaults.
+		*/
+		if (vdev->ocb_def_tx_param) {
+			qdf_mem_free(vdev->ocb_def_tx_param);
+			vdev->ocb_def_tx_param = NULL;
+		}
+	}
+
+	return true;
+}
 
 #ifdef QCA_LL_TX_FLOW_CONTROL_V2
 /**

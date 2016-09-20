@@ -82,6 +82,13 @@ int wma_ocb_set_config_resp(tp_wma_handle wma_handle, uint8_t status)
 			ocb_set_chan.ocb_channel_info = 0;
 			ocb_set_chan.ocb_channel_count = 0;
 		}
+		/* Default TX parameter */
+		if (!ol_txrx_set_ocb_def_tx_param(vdev,
+				req->def_tx_param, req->def_tx_param_size)) {
+				/* Setting the default param failed */
+				WMA_LOGE(FL("Invalid default TX parameters"));
+				status = QDF_STATUS_E_INVAL;
+		}
 		ol_txrx_set_ocb_chan_info(vdev, ocb_set_chan);
 	}
 

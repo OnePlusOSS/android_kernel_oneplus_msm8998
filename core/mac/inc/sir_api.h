@@ -5600,8 +5600,8 @@ struct sir_ocb_config_sched {
  * @dcc_ndl_chan_list: array of dcc channel info
  * @dcc_ndl_active_state_list_len: size of the active state array
  * @dcc_ndl_active_state_list: array of active states
- * @adapter: the OCB adapter
- * @dcc_stats_callback: callback for the response event
+ * @def_tx_param: default TX parameters
+ * @def_tx_param_size: size of the default TX parameters
  */
 struct sir_ocb_config {
 	uint8_t session_id;
@@ -5614,6 +5614,8 @@ struct sir_ocb_config {
 	void *dcc_ndl_chan_list;
 	uint32_t dcc_ndl_active_state_list_len;
 	void *dcc_ndl_active_state_list;
+	void *def_tx_param;
+	uint32_t def_tx_param_size;
 };
 
 /* The size of the utc time in bytes. */

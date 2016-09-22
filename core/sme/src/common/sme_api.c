@@ -1269,12 +1269,13 @@ QDF_STATUS sme_set_reg_info(tHalHandle hHal, uint8_t *apCntryCode)
  *
  * Return: None
  */
-void sme_update_fine_time_measurement_capab(tHalHandle hal, uint32_t val)
+void sme_update_fine_time_measurement_capab(tHalHandle hal, uint8_t session_id,
+						uint32_t val)
 {
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
 	mac_ctx->fine_time_meas_cap = val;
 
-	if (val == 0) {
+	if (!val) {
 		mac_ctx->rrm.rrmPEContext.rrmEnabledCaps.fine_time_meas_rpt = 0;
 		((tpRRMCaps)mac_ctx->rrm.rrmSmeContext.
 			rrmConfig.rm_capability)->fine_time_meas_rpt = 0;
@@ -1283,6 +1284,11 @@ void sme_update_fine_time_measurement_capab(tHalHandle hal, uint32_t val)
 		((tpRRMCaps)mac_ctx->rrm.rrmSmeContext.
 			rrmConfig.rm_capability)->fine_time_meas_rpt = 1;
 	}
+
+	/* Inform this RRM IE change to FW */
+	csr_roam_offload_scan(mac_ctx, session_id,
+			ROAM_SCAN_OFFLOAD_UPDATE_CFG,
+			REASON_CONNECT_IES_CHANGED);
 }
 
 /*--------------------------------------------------------------------------
@@ -3227,6 +3233,31 @@ QDF_STATUS sme_close(tHalHandle hHal)
 }
 
 /**
+ * sme_remove_bssid_from_scan_list() - wrapper to remove the bssid from
+ * scan list
+ * @hal: hal context.
+ * @bssid: bssid to be removed
+ *
+ * This function remove the given bssid from scan list.
+ *
+ * Return: QDF status.
+ */
+QDF_STATUS sme_remove_bssid_from_scan_list(tHalHandle hal,
+	tSirMacAddr bssid)
+{
+	QDF_STATUS status = QDF_STATUS_E_FAILURE;
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+
+	status = sme_acquire_global_lock(&mac_ctx->sme);
+	if (QDF_IS_STATUS_SUCCESS(status)) {
+		csr_remove_bssid_from_scan_list(mac_ctx, bssid);
+		sme_release_global_lock(&mac_ctx->sme);
+	}
+
+	return status;
+}
+
+/**
  * sme_scan_request() - wrapper function to Request a 11d or full scan from CSR.
  * @hal:          hal global context
  * @session_id:   session id
@@ -3967,6 +3998,29 @@ QDF_STATUS sme_roam_disconnect(tHalHandle hHal, uint8_t sessionId,
 	return status;
 }
 
+/* sme_dhcp_done_ind() - send dhcp done ind
+ * @hal: hal context
+ * @session_id: session id
+ *
+ * Return: void.
+ */
+void sme_dhcp_done_ind(tHalHandle hal, uint8_t session_id)
+{
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+	tCsrRoamSession *session;
+
+	if (!mac_ctx)
+		return;
+
+	session = CSR_GET_SESSION(mac_ctx, session_id);
+	if (!session) {
+		sms_log(mac_ctx, LOGE,
+			FL("session %d not found"), session_id);
+		return;
+	}
+	session->dhcp_done = true;
+}
+
 /* ---------------------------------------------------------------------------
     \fn sme_roam_stop_bss
     \brief To stop BSS for Soft AP. This is an asynchronous API.
@@ -3993,16 +4047,19 @@ QDF_STATUS sme_roam_stop_bss(tHalHandle hHal, uint8_t sessionId)
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_roam_disconnect_sta
-    \brief To disassociate a station. This is an asynchronous API.
-    \param hHal - Global structure
-    \param sessionId - sessionId of SoftAP
-    \param pPeerMacAddr - Caller allocated memory filled with peer MAC address (6 bytes)
-    \return QDF_STATUS  SUCCESS  Roam callback will be called to indicate actual results
-   -------------------------------------------------------------------------------*/
+/**
+ * sme_roam_disconnect_sta() - disassociate a station
+ * @hHal:          Global structure
+ * @sessionId:     SessionId of SoftAP
+ * @p_del_sta_params: Pointer to parameters of the station to disassoc
+ *
+ * To disassociate a station. This is an asynchronous API.
+ *
+ * Return: QDF_STATUS_SUCCESS on success.Roam callback will
+ *         be called to indicate actual result.
+ */
 QDF_STATUS sme_roam_disconnect_sta(tHalHandle hHal, uint8_t sessionId,
-				   const uint8_t *pPeerMacAddr)
+				   struct tagCsrDelStaParams *p_del_sta_params)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
@@ -4016,8 +4073,7 @@ QDF_STATUS sme_roam_disconnect_sta(tHalHandle hHal, uint8_t sessionId,
 	if (QDF_IS_STATUS_SUCCESS(status)) {
 		if (CSR_IS_SESSION_VALID(pMac, sessionId)) {
 			status = csr_roam_issue_disassociate_sta_cmd(pMac,
-					sessionId, pPeerMacAddr,
-					eSIR_MAC_DEAUTH_LEAVING_BSS_REASON);
+					sessionId, p_del_sta_params);
 		} else {
 			status = QDF_STATUS_E_INVAL;
 		}
@@ -8865,6 +8921,46 @@ QDF_STATUS sme_update_is_fast_roam_ini_feature_enabled
 	return QDF_STATUS_SUCCESS;
 }
 
+/**
+ * sme_config_fast_roaming() - enable/disable LFR support at runtime
+ * @hal - The handle returned by macOpen.
+ * @session_id - Session Identifier
+ * @is_fast_roam_enabled - flag to enable/disable roaming
+ *
+ * When Supplicant issues enabled/disable fast roaming on the basis
+ * of the Bssid modification in network block (e.g. AutoJoin mode N/W block)
+ *
+ * Return: QDF_STATUS
+ */
+
+QDF_STATUS sme_config_fast_roaming(tHalHandle hal, uint8_t session_id,
+				   const bool is_fast_roam_enabled)
+{
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+	tCsrRoamSession *session = CSR_GET_SESSION(mac_ctx, session_id);
+	QDF_STATUS status;
+
+	if (!mac_ctx->roam.configParam.isFastRoamIniFeatureEnabled) {
+		sms_log(mac_ctx, LOGE, FL("Fast roam is disabled through ini"));
+		if (!is_fast_roam_enabled)
+			return QDF_STATUS_SUCCESS;
+		return  QDF_STATUS_E_FAILURE;
+	}
+
+	if (is_fast_roam_enabled && session && session->pCurRoamProfile)
+		session->pCurRoamProfile->do_not_roam = false;
+
+	status = csr_neighbor_roam_update_fast_roaming_enabled(mac_ctx,
+					 session_id, is_fast_roam_enabled);
+	if (!QDF_IS_STATUS_SUCCESS(status)) {
+		sms_log(mac_ctx, LOGE,
+			FL("csr_neighbor_roam_update_fast_roaming_enabled failed"));
+		return  QDF_STATUS_E_FAILURE;
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
+
 /*--------------------------------------------------------------------------
    \brief sme_update_is_mawc_ini_feature_enabled() -
    Enable/disable LFR MAWC support at runtime
@@ -11033,7 +11129,7 @@ void sme_get_command_q_status(tHalHandle hHal)
 
 	return;
 }
-
+#ifdef WLAN_FEATURE_DSRC
 /**
  * sme_set_dot11p_config() - API to set the 802.11p config
  * @hHal:           The handle returned by macOpen
@@ -11606,6 +11702,7 @@ QDF_STATUS sme_deregister_for_dcc_stats_event(tHalHandle h_hal)
 
 	return status;
 }
+#endif
 
 void sme_get_recovery_stats(tHalHandle hHal)
 {
@@ -12050,6 +12147,51 @@ QDF_STATUS sme_send_rate_update_ind(tHalHandle hHal,
 		sme_release_global_lock(&pMac->sme);
 		return QDF_STATUS_SUCCESS;
 	}
+
+	return status;
+}
+
+/**
+ * sme_update_access_policy_vendor_ie() - update vendor ie and access policy.
+ * @hal: Pointer to the mac context
+ * @session_id: sme session id
+ * @vendor_ie: vendor ie
+ * @access_policy: vendor ie access policy
+ *
+ * This function updates the vendor ie and access policy to lim.
+ *
+ * Return: success or failure.
+ */
+QDF_STATUS sme_update_access_policy_vendor_ie(tHalHandle hal,
+		uint8_t session_id, uint8_t *vendor_ie, int access_policy)
+{
+	struct sme_update_access_policy_vendor_ie *msg;
+	uint16_t msg_len;
+	QDF_STATUS status = QDF_STATUS_E_FAILURE;
+	tpAniSirGlobal mac = PMAC_STRUCT(hal);
+
+	msg_len  = sizeof(*msg);
+
+	msg = qdf_mem_malloc(msg_len);
+	if (!msg) {
+		sms_log(mac, LOGE,
+			"failed to allocate memory for sme_update_access_policy_vendor_ie");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	qdf_mem_set(msg, msg_len, 0);
+	msg->msg_type = (uint16_t)eWNI_SME_UPDATE_ACCESS_POLICY_VENDOR_IE;
+	msg->length = (uint16_t)msg_len;
+
+	qdf_mem_copy(&msg->ie[0], vendor_ie, sizeof(msg->ie));
+
+	msg->sme_session_id = session_id;
+	msg->access_policy = access_policy;
+
+	sms_log(mac, LOG1, "sme_session_id %hu, access_policy %d", session_id,
+			access_policy);
+
+	status = cds_send_mb_message_to_mac(msg);
 
 	return status;
 }
@@ -15818,6 +15960,72 @@ QDF_STATUS sme_remove_beacon_filter(tHalHandle hal, uint32_t session_id)
 		qdf_mem_free(filter_param);
 	}
 	return qdf_status;
+}
+
+/**
+ * sme_send_disassoc_req_frame - send disassoc req
+ * @hal: handler to hal
+ * @session_id: session id
+ * @peer_mac: peer mac address
+ * @reason: reason for disassociation
+ * wait_for_ack: wait for acknowledgment
+ *
+ * function to send disassoc request to lim
+ *
+ * return: none
+ */
+void sme_send_disassoc_req_frame(tHalHandle hal, uint8_t session_id,
+		uint8_t *peer_mac, uint16_t reason, uint8_t wait_for_ack)
+{
+	struct sme_send_disassoc_frm_req *msg;
+	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
+	A_UINT8  *buf;
+	A_UINT16 tmp;
+
+	msg = qdf_mem_malloc(sizeof(struct sme_send_disassoc_frm_req));
+
+	if (NULL == msg)
+		qdf_status = QDF_STATUS_E_FAILURE;
+	else
+		qdf_status = QDF_STATUS_SUCCESS;
+
+	if (!QDF_IS_STATUS_SUCCESS(qdf_status))
+		return;
+
+	qdf_mem_set(msg, sizeof(struct sme_send_disassoc_frm_req), 0);
+	msg->msg_type = (uint16_t) eWNI_SME_SEND_DISASSOC_FRAME;
+
+	msg->length = (uint16_t) sizeof(struct sme_send_disassoc_frm_req);
+
+	buf = &msg->session_id;
+
+	/* session id */
+	*buf = (A_UINT8) session_id;
+	buf += sizeof(A_UINT8);
+
+	/* transaction id */
+	*buf = 0;
+	*(buf + 1) = 0;
+	buf += sizeof(A_UINT16);
+
+	/* Set the peer MAC address before sending the message to LIM */
+	qdf_mem_copy(buf, peer_mac, QDF_MAC_ADDR_SIZE);
+
+	buf += QDF_MAC_ADDR_SIZE;
+
+	/* reasoncode */
+	tmp = (uint16_t) reason;
+	qdf_mem_copy(buf, &tmp, sizeof(uint16_t));
+	buf += sizeof(uint16_t);
+
+	*buf =  wait_for_ack;
+	buf += sizeof(uint8_t);
+
+	qdf_status = cds_send_mb_message_to_mac(msg);
+
+	if (qdf_status != QDF_STATUS_SUCCESS)
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			FL("cds_send_mb_message Failed"));
 }
 
 /**

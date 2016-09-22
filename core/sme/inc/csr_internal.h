@@ -240,6 +240,7 @@ typedef enum {
 	eCsrGlobalClassCStats,
 	eCsrGlobalClassDStats,
 	eCsrPerStaStats,
+	csr_per_chain_rssi_stats,
 	eCsrMaxStats
 } eCsrRoamStatsClassTypes;
 
@@ -706,7 +707,6 @@ typedef struct tagCsrScanStruct {
 	qdf_mc_timer_t hTimerStaApConcTimer;
 #endif
 	qdf_mc_timer_t hTimerIdleScan;
-	qdf_mc_timer_t hTimerResultCfgAging;
 	/*
 	 * changes on every scan, it is used as a flag for whether 11d info is
 	 * found on every scan
@@ -997,6 +997,7 @@ typedef struct tagCsrRoamSession {
 	bool roam_synch_in_progress;
 	bool supported_nss_1x1;
 	bool disable_hi_rssi;
+	bool dhcp_done;
 } tCsrRoamSession;
 
 typedef struct tagCsrRoamStruct {
@@ -1023,6 +1024,7 @@ typedef struct tagCsrRoamStruct {
 	tCsrGlobalClassCStatsInfo classCStatsInfo;
 	tCsrGlobalClassDStatsInfo classDStatsInfo;
 	tCsrPerStaStatsInfo perStaStatsInfo[CSR_MAX_STA];
+	struct csr_per_chain_rssi_stats_info  per_chain_rssi_stats;
 	tDblLinkList statsClientReqList;
 	tDblLinkList peStatsReqList;
 	tCsrTlStatsReqInfo tlStatsReqInfo;

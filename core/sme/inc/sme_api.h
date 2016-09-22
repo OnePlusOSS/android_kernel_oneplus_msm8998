@@ -60,6 +60,7 @@
 #define SME_GLOBAL_CLASSC_STATS   8
 #define SME_GLOBAL_CLASSD_STATS  16
 #define SME_PER_STA_STATS        32
+#define SME_PER_CHAIN_RSSI_STATS 64
 
 #define SME_SESSION_ID_ANY        50
 
@@ -281,13 +282,14 @@ QDF_STATUS sme_roam_reassoc(tHalHandle hHal, uint8_t sessionId,
 QDF_STATUS sme_roam_connect_to_last_profile(tHalHandle hHal, uint8_t sessionId);
 QDF_STATUS sme_roam_disconnect(tHalHandle hHal, uint8_t sessionId,
 		eCsrRoamDisconnectReason reason);
+void sme_dhcp_done_ind(tHalHandle hal, uint8_t session_id);
 QDF_STATUS sme_roam_stop_bss(tHalHandle hHal, uint8_t sessionId);
 QDF_STATUS sme_roam_get_associated_stas(tHalHandle hHal, uint8_t sessionId,
 		QDF_MODULE_ID modId, void *pUsrContext,
 		void *pfnSapEventCallback,
 		uint8_t *pAssocStasBuf);
 QDF_STATUS sme_roam_disconnect_sta(tHalHandle hHal, uint8_t sessionId,
-		const uint8_t *pPeerMacAddr);
+		struct tagCsrDelStaParams *p_del_sta_params);
 QDF_STATUS sme_roam_deauth_sta(tHalHandle hHal, uint8_t sessionId,
 		struct tagCsrDelStaParams *pDelStaParams);
 QDF_STATUS sme_roam_tkip_counter_measures(tHalHandle hHal, uint8_t sessionId,
@@ -581,6 +583,10 @@ QDF_STATUS sme_update_is_fast_roam_ini_feature_enabled(tHalHandle hHal,
 		uint8_t sessionId,
 		const bool
 		isFastRoamIniFeatureEnabled);
+
+QDF_STATUS sme_config_fast_roaming(tHalHandle hal, uint8_t session_id,
+		const bool is_fast_roam_enabled);
+
 QDF_STATUS sme_update_is_mawc_ini_feature_enabled(tHalHandle hHal,
 		const bool MAWCEnabled);
 QDF_STATUS sme_stop_roaming(tHalHandle hHal, uint8_t sessionId, uint8_t reason);
@@ -1020,6 +1026,7 @@ QDF_STATUS sme_update_roam_scan_hi_rssi_scan_params(tHalHandle hal_handle,
 	int32_t val);
 
 void wlan_sap_enable_phy_error_logs(tHalHandle hal, bool enable_log);
+#ifdef WLAN_FEATURE_DSRC
 void sme_set_dot11p_config(tHalHandle hal, bool enable_dot11p);
 
 QDF_STATUS sme_ocb_set_config(tHalHandle hHal, void *context,
@@ -1057,6 +1064,81 @@ QDF_STATUS sme_register_for_dcc_stats_event(tHalHandle hHal, void *context,
 					    ocb_callback callback);
 QDF_STATUS sme_deregister_for_dcc_stats_event(tHalHandle hHal);
 
+#else
+static inline void sme_set_dot11p_config(tHalHandle hal, bool enable_dot11p)
+{
+	return;
+}
+
+static inline QDF_STATUS sme_ocb_set_config(tHalHandle hHal, void *context,
+		ocb_callback callback,
+		struct sir_ocb_config *config)
+{
+	return QDF_STATUS_SUCCESS;
+}
+
+static inline QDF_STATUS sme_ocb_set_utc_time(struct sir_ocb_utc *utc)
+{
+	return QDF_STATUS_SUCCESS;
+}
+
+static inline QDF_STATUS sme_ocb_start_timing_advert(
+		struct sir_ocb_timing_advert *timing_advert)
+{
+	return QDF_STATUS_SUCCESS;
+}
+
+static inline QDF_STATUS sme_ocb_stop_timing_advert(struct sir_ocb_timing_advert
+		*timing_advert)
+{
+	return QDF_STATUS_SUCCESS;
+}
+
+static inline int sme_ocb_gen_timing_advert_frame(tHalHandle hHal,
+		tSirMacAddr self_addr, uint8_t **buf,
+		uint32_t *timestamp_offset,
+		uint32_t *time_value_offset)
+{
+	return 0;
+}
+
+static inline QDF_STATUS sme_ocb_get_tsf_timer(tHalHandle hHal, void *context,
+		ocb_callback callback,
+		struct sir_ocb_get_tsf_timer *request)
+{
+	return QDF_STATUS_SUCCESS;
+}
+
+static inline QDF_STATUS sme_dcc_get_stats(tHalHandle hHal, void *context,
+		ocb_callback callback,
+		struct sir_dcc_get_stats *request)
+{
+	return QDF_STATUS_SUCCESS;
+}
+
+static inline QDF_STATUS sme_dcc_clear_stats(uint32_t vdev_id,
+		uint32_t dcc_stats_bitmap)
+{
+	return QDF_STATUS_SUCCESS;
+}
+
+static inline QDF_STATUS sme_dcc_update_ndl(tHalHandle hHal, void *context,
+		ocb_callback callback,
+		struct sir_dcc_update_ndl *request)
+{
+	return QDF_STATUS_SUCCESS;
+}
+
+static inline QDF_STATUS sme_register_for_dcc_stats_event(tHalHandle hHal,
+		void *context, ocb_callback callback)
+{
+	return QDF_STATUS_SUCCESS;
+}
+static inline QDF_STATUS sme_deregister_for_dcc_stats_event(tHalHandle hHal)
+{
+	return QDF_STATUS_SUCCESS;
+}
+#endif
 void sme_add_set_thermal_level_callback(tHalHandle hal,
 		sme_set_thermal_level_callback callback);
 
@@ -1098,7 +1180,8 @@ static inline QDF_STATUS sme_send_egap_conf_params(uint32_t enable,
 }
 #endif
 
-void sme_update_fine_time_measurement_capab(tHalHandle hal, uint32_t val);
+void sme_update_fine_time_measurement_capab(tHalHandle hal, uint8_t session_id,
+								uint32_t val);
 QDF_STATUS sme_ht40_stop_obss_scan(tHalHandle hHal, uint32_t vdev_id);
 QDF_STATUS sme_set_fw_test(struct set_fwtest_params *fw_test);
 QDF_STATUS sme_set_tsfcb(tHalHandle hHal,
@@ -1150,6 +1233,9 @@ void sme_update_vdev_type_nss(tHalHandle hal, uint8_t max_supp_nss,
 void sme_register_p2p_lo_event(tHalHandle hHal, void *context,
 					p2p_lo_callback callback);
 
+QDF_STATUS sme_remove_bssid_from_scan_list(tHalHandle hal,
+	tSirMacAddr bssid);
+
 QDF_STATUS sme_process_mac_pwr_dbg_cmd(tHalHandle hal, uint32_t session_id,
 				       struct sir_mac_pwr_dbg_cmd*
 				       dbg_args);
@@ -1160,4 +1246,11 @@ QDF_STATUS sme_roam_set_default_key_index(tHalHandle hal, uint8_t session_id,
 					  uint8_t default_idx);
 QDF_STATUS sme_register_p2p_ack_ind_callback(tHalHandle hal,
 		sir_p2p_ack_ind_callback callback);
+void sme_send_disassoc_req_frame(tHalHandle hal, uint8_t session_id, uint8_t
+				*peer_mac, uint16_t reason, uint8_t
+				wait_for_ack);
+QDF_STATUS sme_update_access_policy_vendor_ie(tHalHandle hal,
+					uint8_t session_id, uint8_t *vendor_ie,
+					int access_policy);
+
 #endif /* #if !defined( __SME_API_H ) */

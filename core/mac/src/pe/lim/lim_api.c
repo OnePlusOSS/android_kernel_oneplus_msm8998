@@ -873,6 +873,21 @@ uint32_t lim_post_msg_api(tpAniSirGlobal pMac, tSirMsgQ *pMsg)
 
 } /*** end lim_post_msg_api() ***/
 
+/**
+ * lim_post_msg_high_priority() - posts high priority pe message
+ * @mac: mac context
+ * @msg: message to be posted
+ *
+ * This function is used to post high priority pe message
+ *
+ * Return: returns value returned by vos_mq_post_message_by_priority
+ */
+uint32_t lim_post_msg_high_priority(tpAniSirGlobal mac, tSirMsgQ *msg)
+{
+	return cds_mq_post_message_by_priority(CDS_MQ_ID_PE, (cds_msg_t *)msg,
+					       HIGH_PRIORITY);
+}
+
 /*--------------------------------------------------------------------------
 
    \brief pe_post_msg_api() - A wrapper function to post message to Voss msg queues
@@ -1902,6 +1917,11 @@ QDF_STATUS pe_roam_synch_callback(tpAniSirGlobal mac_ctx,
 	lim_delete_tdls_peers(mac_ctx, session_ptr);
 	curr_sta_ds = dph_lookup_hash_entry(mac_ctx, session_ptr->bssId,
 			&aid, &session_ptr->dph.dphHashTable);
+	if (curr_sta_ds == NULL) {
+		lim_log(mac_ctx, LOGE, FL("LFR3:failed to lookup hash entry"));
+		ft_session_ptr->bRoamSynchInProgress = false;
+		return status;
+	}
 	local_nss = curr_sta_ds->nss;
 	session_ptr->limSmeState = eLIM_SME_IDLE_STATE;
 	lim_cleanup_rx_path(mac_ctx, curr_sta_ds, session_ptr);

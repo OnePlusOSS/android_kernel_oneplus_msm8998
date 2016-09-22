@@ -148,25 +148,26 @@ static void pld_snoc_crash_shutdown(void *dev)
 }
 
 /**
- * pld_snoc_suspend() - Suspend callback function for power management
+ * pld_snoc_pm_suspend() - PM suspend callback function for power management
  * @dev: device
- * @state: power state
  *
  * This function is to suspend the platform device when power management
  * is enabled.
  *
  * Return: void
  */
-static int pld_snoc_suspend(struct device *dev, pm_message_t state)
+static int pld_snoc_pm_suspend(struct device *dev)
 {
 	struct pld_context *pld_context;
+	pm_message_t state;
 
+	state.event = PM_EVENT_SUSPEND;
 	pld_context = pld_get_global_context();
 	return pld_context->ops->suspend(dev, PLD_BUS_TYPE_SNOC, state);
 }
 
 /**
- * pld_snoc_resume() - Resume callback function for power management
+ * pld_snoc_pm_resume() - PM resume callback function for power management
  * @pdev: device
  *
  * This function is to resume the platform device when power management
@@ -174,12 +175,64 @@ static int pld_snoc_suspend(struct device *dev, pm_message_t state)
  *
  * Return: void
  */
-static int pld_snoc_resume(struct device *dev)
+static int pld_snoc_pm_resume(struct device *dev)
 {
 	struct pld_context *pld_context;
 
 	pld_context = pld_get_global_context();
 	return pld_context->ops->resume(dev, PLD_BUS_TYPE_SNOC);
+}
+
+/**
+ * pld_snoc_suspend_noirq() - Complete the actions started by suspend()
+ * @dev: device
+ *
+ * Complete the actions started by suspend().  Carry out any
+ * additional operations required for suspending the device that might be
+ * racing with its driver's interrupt handler, which is guaranteed not to
+ * run while suspend_noirq() is being executed.
+ *
+ * Return: 0 for success
+ *         Non zero failure code for errors
+ */
+static int pld_snoc_suspend_noirq(struct device *dev)
+{
+	struct pld_context *pld_context;
+
+	pld_context = pld_get_global_context();
+	if (!pld_context)
+		return -EINVAL;
+
+	if (pld_context->ops->suspend_noirq)
+		return pld_context->ops->
+			suspend_noirq(dev, PLD_BUS_TYPE_SNOC);
+	return 0;
+}
+
+/**
+ * pld_snoc_resume_noirq() - Prepare for the execution of resume()
+ * @pdev: device
+ *
+ * Prepare for the execution of resume() by carrying out any
+ * operations required for resuming the device that might be racing with
+ * its driver's interrupt handler, which is guaranteed not to run while
+ * resume_noirq() is being executed.
+ *
+ * Return: 0 for success
+ *         Non zero failure code for errors
+ */
+static int pld_snoc_resume_noirq(struct device *dev)
+{
+	struct pld_context *pld_context;
+
+	pld_context = pld_get_global_context();
+	if (!pld_context)
+		return -EINVAL;
+
+	if (pld_context->ops->resume_noirq)
+		return pld_context->ops->
+			resume_noirq(dev, PLD_BUS_TYPE_SNOC);
+	return 0;
 }
 
 struct icnss_driver_ops pld_snoc_ops = {
@@ -189,8 +242,10 @@ struct icnss_driver_ops pld_snoc_ops = {
 	.shutdown   = pld_snoc_shutdown,
 	.reinit     = pld_snoc_reinit,
 	.crash_shutdown = pld_snoc_crash_shutdown,
-	.suspend    = pld_snoc_suspend,
-	.resume     = pld_snoc_resume,
+	.pm_suspend = pld_snoc_pm_suspend,
+	.pm_resume  = pld_snoc_pm_resume,
+	.suspend_noirq = pld_snoc_suspend_noirq,
+	.resume_noirq = pld_snoc_resume_noirq,
 };
 
 /**
@@ -391,6 +446,65 @@ int pld_snoc_power_off(struct device *dev)
 int pld_snoc_get_irq(int ce_id)
 {
 	return icnss_get_irq(ce_id);
+}
+
+/**
+ * pld_snoc_set_wlan_unsafe_channel() - Set unsafe channel
+ * @unsafe_ch_list: unsafe channel list
+ * @ch_count: number of channel
+ *
+ * Return: 0 for success
+ *         Non zero failure code for errors
+ */
+int pld_snoc_set_wlan_unsafe_channel(u16 *unsafe_ch_list, u16 ch_count)
+{
+	return icnss_set_wlan_unsafe_channel(unsafe_ch_list, ch_count);
+}
+
+/**
+ * pld_get_wlan_unsafe_channel() - Get unsafe channel
+ * @unsafe_ch_list: buffer to unsafe channel list
+ * @ch_count: number of channel
+ * @buf_len: buffer length
+ *
+ * Return WLAN unsafe channel to the buffer.
+ *
+ * Return: 0 for success
+ *         Non zero failure code for errors
+ */
+int pld_snoc_get_wlan_unsafe_channel(u16 *unsafe_ch_list, u16 *ch_count,
+				     u16 buf_len)
+{
+	return icnss_get_wlan_unsafe_channel(unsafe_ch_list, ch_count,
+					     buf_len);
+}
+
+/**
+ * pld_wlan_set_dfs_nol() - Set DFS info
+ * @info: DFS info
+ * @info_len: info length
+ *
+ * Return: 0 for success
+ *         Non zero failure code for errors
+ */
+int pld_snoc_wlan_set_dfs_nol(const void *info, u16 info_len)
+{
+	return icnss_wlan_set_dfs_nol(info, info_len);
+}
+
+/**
+ * pld_wlan_get_dfs_nol() - Get DFS info
+ * @info: buffer to DFS info
+ * @info_len: info length
+ *
+ * Return DFS info to the buffer.
+ *
+ * Return: 0 for success
+ *         Non zero failure code for errors
+ */
+int pld_snoc_wlan_get_dfs_nol(void *info, u16 info_len)
+{
+	return icnss_wlan_get_dfs_nol(info, info_len);
 }
 
 #endif

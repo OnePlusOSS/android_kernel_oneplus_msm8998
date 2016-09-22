@@ -2705,8 +2705,15 @@ QDF_STATUS wma_switch_channel(tp_wma_handle wma, struct wma_vdev_start_req *req)
 						CFG_TGT_DEFAULT_GTX_HT_MASK;
 	intr[req->vdev_id].config.gtx_info.gtxRTMask[1] =
 						CFG_TGT_DEFAULT_GTX_VHT_MASK;
-	intr[req->vdev_id].config.gtx_info.gtxUsrcfg =
-						CFG_TGT_DEFAULT_GTX_USR_CFG;
+
+	if (wlan_cfg_get_int(pmac, WNI_CFG_TGT_GTX_USR_CFG,
+	    &intr[req->vdev_id].config.gtx_info.gtxUsrcfg) != eSIR_SUCCESS) {
+		intr[req->vdev_id].config.gtx_info.gtxUsrcfg =
+						WNI_CFG_TGT_GTX_USR_CFG_STADEF;
+		QDF_TRACE(QDF_MODULE_ID_WMA, QDF_TRACE_LEVEL_WARN,
+			  "Failed to get WNI_CFG_TGT_GTX_USR_CFG");
+	}
+
 	intr[req->vdev_id].config.gtx_info.gtxPERThreshold =
 					CFG_TGT_DEFAULT_GTX_PER_THRESHOLD;
 	intr[req->vdev_id].config.gtx_info.gtxPERMargin =
@@ -2863,9 +2870,6 @@ void wma_set_channel(tp_wma_handle wma, tpSwitchChannelParams params)
 			WMA_LOGP("%s: vdev start failed status = %d", __func__, status);
 			goto send_resp;
 		}
-
-		if (wma->interfaces[req.vdev_id].is_channel_switch)
-			wma->interfaces[req.vdev_id].is_channel_switch = false;
 
 		if (QDF_GLOBAL_MONITOR_MODE == cds_get_conparam())
 			ol_htt_mon_note_chan(pdev, req.chan);

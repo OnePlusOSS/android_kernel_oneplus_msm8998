@@ -2392,19 +2392,25 @@ void wma_send_beacon(tp_wma_handle wma, tpSendbeaconParams bcn_info)
 		WMA_LOGE("%s : wma_store_bcn_tmpl Failed", __func__);
 		return;
 	}
-	if (!wma->interfaces[vdev_id].vdev_up) {
-		param.vdev_id = vdev_id;
-		param.assoc_id = 0;
-		status = wmi_unified_vdev_up_send(wma->wmi_handle,
-						  bcn_info->bssId,
-						  &param);
-		if (QDF_IS_STATUS_ERROR(status)) {
-			WMA_LOGE("%s : failed to send vdev up", __func__);
-			cds_set_do_hw_mode_change_flag(false);
-			return;
+	if (!((qdf_atomic_read(
+		&wma->interfaces[vdev_id].vdev_restart_params.
+		hidden_ssid_restart_in_progress)) ||
+		(wma->interfaces[vdev_id].is_channel_switch))) {
+		if (!wma->interfaces[vdev_id].vdev_up) {
+			param.vdev_id = vdev_id;
+			param.assoc_id = 0;
+			status = wmi_unified_vdev_up_send(wma->wmi_handle,
+					bcn_info->bssId,
+					&param);
+			if (QDF_IS_STATUS_ERROR(status)) {
+				WMA_LOGE(FL("failed to send vdev up"));
+				cds_set_do_hw_mode_change_flag(false);
+				return;
+			}
+			wma->interfaces[vdev_id].vdev_up = true;
+			wma_set_sap_keepalive(wma, vdev_id);
+
 		}
-		wma->interfaces[vdev_id].vdev_up = true;
-		wma_set_sap_keepalive(wma, vdev_id);
 	}
 }
 
@@ -2710,6 +2716,7 @@ void wma_hidden_ssid_vdev_restart(tp_wma_handle wma_handle,
 				  tHalHiddenSsidVdevRestart *pReq)
 {
 	struct wma_txrx_node *intr = wma_handle->interfaces;
+	struct wma_target_req *msg;
 
 	if ((pReq->sessionId !=
 	     intr[pReq->sessionId].vdev_restart_params.vdev_id)
@@ -2723,6 +2730,16 @@ void wma_hidden_ssid_vdev_restart(tp_wma_handle wma_handle,
 	qdf_atomic_set(&intr[pReq->sessionId].vdev_restart_params.
 		       hidden_ssid_restart_in_progress, 1);
 
+	msg = wma_fill_vdev_req(wma_handle, pReq->sessionId,
+			WMA_HIDDEN_SSID_VDEV_RESTART,
+			WMA_TARGET_REQ_TYPE_VDEV_STOP, pReq,
+			WMA_VDEV_STOP_REQUEST_TIMEOUT);
+	if (!msg) {
+		WMA_LOGE("%s: Failed to fill vdev restart request for vdev_id %d",
+				__func__, pReq->sessionId);
+		return;
+	}
+
 	/* vdev stop -> vdev restart -> vdev up */
 	WMA_LOGD("%s, vdev_id: %d, pausing tx_ll_queue for VDEV_STOP",
 		 __func__, pReq->sessionId);
@@ -2734,6 +2751,8 @@ void wma_hidden_ssid_vdev_restart(tp_wma_handle wma_handle,
 		WMA_LOGE("%s: %d Failed to send vdev stop", __func__, __LINE__);
 		qdf_atomic_set(&intr[pReq->sessionId].vdev_restart_params.
 			       hidden_ssid_restart_in_progress, 0);
+		wma_remove_vdev_req(wma_handle, pReq->sessionId,
+					WMA_TARGET_REQ_TYPE_VDEV_STOP);
 		return;
 	}
 }
@@ -3118,6 +3137,11 @@ static int wma_mgmt_rx_process(void *handle, uint8_t *data,
 
 	if (cds_is_load_or_unload_in_progress()) {
 		WMA_LOGW(FL("Load/Unload in progress"));
+		return -EINVAL;
+	}
+
+	if (cds_is_driver_recovering()) {
+		WMA_LOGW(FL("Recovery in progress"));
 		return -EINVAL;
 	}
 

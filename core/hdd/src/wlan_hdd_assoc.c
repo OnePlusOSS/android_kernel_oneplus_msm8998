@@ -1722,6 +1722,15 @@ static QDF_STATUS hdd_dis_connect_handler(hdd_adapter_t *pAdapter,
 		}
 	} else {
 		sta_id = pHddStaCtx->conn_info.staId[0];
+
+		/* clear scan cache for Link Lost */
+		if (pRoamInfo && !pRoamInfo->reasonCode &&
+		   (eCSR_ROAM_RESULT_DEAUTH_IND == roamResult)) {
+			wlan_hdd_cfg80211_update_bss_list(pAdapter,
+				pHddStaCtx->conn_info.bssId.bytes);
+			sme_remove_bssid_from_scan_list(pHddCtx->hHal,
+			pHddStaCtx->conn_info.bssId.bytes);
+		}
 		/* We should clear all sta register with TL,
 		 * for now, only one.
 		 */
@@ -2133,7 +2142,12 @@ static int hdd_change_sta_state_authenticated(hdd_adapter_t *adapter,
 						 tCsrRoamInfo *roaminfo)
 {
 	int ret;
+	uint32_t timeout;
 	hdd_station_ctx_t *hddstactx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
+
+	timeout = hddstactx->hdd_ReassocScenario ?
+		AUTO_PS_ENTRY_TIMER_DEFAULT_VALUE :
+		AUTO_DEFERRED_PS_ENTRY_TIMER_DEFAULT_VALUE;
 
 	hddLog(LOG1,
 		"Changing TL state to AUTHENTICATED for StaId= %d",
@@ -2152,7 +2166,7 @@ static int hdd_change_sta_state_authenticated(hdd_adapter_t *adapter,
 		sme_ps_enable_auto_ps_timer(
 			WLAN_HDD_GET_HAL_CTX(adapter),
 			adapter->sessionId,
-			hddstactx->hdd_ReassocScenario);
+			timeout);
 	}
 
 	return ret;
@@ -2354,6 +2368,11 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 		return QDF_STATUS_E_FAILURE;
 	}
 
+	/* validate config */
+	if (!pHddCtx->config) {
+		hdd_err("config is NULL");
+		return QDF_STATUS_E_NULL_VALUE;
+	}
 	/* HDD has initiated disconnect, do not send connect result indication
 	 * to kernel as it will be handled by __cfg80211_disconnect.
 	 */
@@ -2491,10 +2510,26 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 				wlan_hdd_cfg80211_update_bss_db(pAdapter,
 								pRoamInfo);
 			if (NULL == bss) {
-				pr_err("wlan: Not able to create BSS entry\n");
+				hdd_err("wlan: Not able to create BSS entry");
 				wlan_hdd_netif_queue_control(pAdapter,
 					WLAN_NETIF_CARRIER_OFF,
 					WLAN_CONTROL_PATH);
+				if (!hddDisconInProgress) {
+					/*
+					 * Here driver was not able to add bss
+					 * in cfg80211 database this can happen
+					 * if connected channel is not valid,
+					 * i.e reg domain was changed during
+					 * connection. Queue disconnect for the
+					 * session if disconnect is not in
+					 * progress.
+					 */
+					hdd_err("Disconnecting...");
+					sme_roam_disconnect(
+					   WLAN_HDD_GET_HAL_CTX(pAdapter),
+					   pAdapter->sessionId,
+					   eCSR_DISCONNECT_REASON_UNSPECIFIED);
+				}
 				return QDF_STATUS_E_FAILURE;
 			}
 			if (pRoamInfo->u.pConnectedProfile->AuthType ==
@@ -2653,7 +2688,8 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 								pFTAssocRsp,
 								assocRsplen,
 								WLAN_STATUS_SUCCESS,
-								GFP_KERNEL);
+								GFP_KERNEL,
+								false);
 				}
 			} else {
 				/*
@@ -2697,7 +2733,8 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 									rspRsnIe,
 									rspRsnLength,
 									WLAN_STATUS_SUCCESS,
-									GFP_KERNEL);
+									GFP_KERNEL,
+									false);
 					}
 				}
 			}
@@ -2813,6 +2850,7 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 			     sizeof(pAdapter->hdd_stats.hddPmfStats));
 #endif
 	} else {
+		bool connect_timeout = false;
 		hdd_wext_state_t *pWextState =
 			WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
 		if (pRoamInfo)
@@ -2825,6 +2863,26 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 				 " result:%d and Status:%d",
 				 MAC_ADDR_ARRAY(pWextState->req_bssId.bytes),
 				 roamResult, roamStatus);
+
+		if ((eCSR_ROAM_RESULT_SCAN_FOR_SSID_FAILURE == roamResult) ||
+		   (pRoamInfo &&
+		   ((eSIR_SME_JOIN_TIMEOUT_RESULT_CODE ==
+					pRoamInfo->statusCode) ||
+		   (eSIR_SME_AUTH_TIMEOUT_RESULT_CODE ==
+					pRoamInfo->statusCode) ||
+		   (eSIR_SME_ASSOC_TIMEOUT_RESULT_CODE ==
+					pRoamInfo->statusCode)))) {
+			wlan_hdd_cfg80211_update_bss_list(pAdapter,
+				pRoamInfo ?
+				pRoamInfo->bssid.bytes :
+				pWextState->req_bssId.bytes);
+			sme_remove_bssid_from_scan_list(pHddCtx->hHal,
+				pRoamInfo ?
+				pRoamInfo->bssid.bytes :
+				pWextState->req_bssId.bytes);
+			connect_timeout = true;
+		}
+
 		/*
 		 * CR465478: Only send up a connection failure result when CSR
 		 * has completed operation - with a ASSOCIATION_FAILURE status.
@@ -2858,13 +2916,15 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 						pRoamInfo->bssid.bytes,
 						NULL, NULL, 0, NULL, 0,
 						WLAN_STATUS_ASSOC_DENIED_UNSPEC,
-						GFP_KERNEL);
+						GFP_KERNEL,
+						connect_timeout);
 				else
 					hdd_connect_result(dev,
 						pWextState->req_bssId.bytes,
 						NULL, NULL, 0, NULL, 0,
 						WLAN_STATUS_ASSOC_DENIED_UNSPEC,
-						GFP_KERNEL);
+						GFP_KERNEL,
+						connect_timeout);
 			} else {
 				if (pRoamInfo) {
 					eCsrAuthType authType =
@@ -2900,34 +2960,25 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 						 pRoamInfo->reasonCode) ?
 						pRoamInfo->reasonCode :
 						WLAN_STATUS_UNSPECIFIED_FAILURE,
-						GFP_KERNEL);
+						GFP_KERNEL,
+						connect_timeout);
 				} else
 					hdd_connect_result(dev,
 						pWextState->req_bssId.bytes,
 						NULL, NULL, 0, NULL, 0,
 						WLAN_STATUS_UNSPECIFIED_FAILURE,
-						GFP_KERNEL);
+						GFP_KERNEL,
+						connect_timeout);
 			}
 			hdd_clear_roam_profile_ie(pAdapter);
 		} else  if ((eCSR_ROAM_CANCELLED == roamStatus
 		    && !hddDisconInProgress)) {
-				cfg80211_connect_result(dev,
+				hdd_connect_result(dev,
 						pWextState->req_bssId.bytes,
-						NULL, 0, NULL, 0,
+						NULL, NULL, 0, NULL, 0,
 						WLAN_STATUS_UNSPECIFIED_FAILURE,
-						GFP_KERNEL);
-		}
-
-		if (pRoamInfo) {
-			if ((eSIR_SME_JOIN_TIMEOUT_RESULT_CODE ==
-			     pRoamInfo->statusCode)
-			    || (eSIR_SME_AUTH_TIMEOUT_RESULT_CODE ==
-				pRoamInfo->statusCode)
-			    || (eSIR_SME_ASSOC_TIMEOUT_RESULT_CODE ==
-				pRoamInfo->statusCode)) {
-				wlan_hdd_cfg80211_update_bss_list(pAdapter,
-								  pRoamInfo);
-			}
+						GFP_KERNEL,
+						connect_timeout);
 		}
 
 		/*
@@ -3492,6 +3543,7 @@ roam_roam_connect_status_update_handler(hdd_adapter_t *pAdapter,
  * @peerMac: pointer to peer MAC address
  * @staId: station identifier
  * @ucastSig: unicast signature
+ * @qos: QOS capability of TDLS station/link
  *
  * Construct the staDesc and register with TL the new STA.
  * This is called as part of ADD_STA in the TDLS setup.
@@ -3500,7 +3552,7 @@ roam_roam_connect_status_update_handler(hdd_adapter_t *pAdapter,
  */
 QDF_STATUS hdd_roam_register_tdlssta(hdd_adapter_t *pAdapter,
 				     const uint8_t *peerMac, uint16_t staId,
-				     uint8_t ucastSig)
+				     uint8_t ucastSig, uint8_t qos)
 {
 	QDF_STATUS qdf_status = QDF_STATUS_E_FAILURE;
 	struct ol_txrx_desc_type staDesc = { 0 };
@@ -3513,8 +3565,7 @@ QDF_STATUS hdd_roam_register_tdlssta(hdd_adapter_t *pAdapter,
 	staDesc.sta_id = staId;
 
 	/* set the QoS field appropriately .. */
-	(hdd_wmm_is_active(pAdapter)) ? (staDesc.is_qos_enabled = 1)
-	: (staDesc.is_qos_enabled = 0);
+	staDesc.is_qos_enabled = qos;
 
 	/* Register the vdev transmit and receive functions */
 	qdf_mem_zero(&txrx_ops, sizeof(txrx_ops));

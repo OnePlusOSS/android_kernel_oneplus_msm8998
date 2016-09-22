@@ -76,7 +76,6 @@ static void lim_delete_sta_util(tpAniSirGlobal mac_ctx, tpDeleteStaContext msg,
 		msg->staId, msg->reasonCode);
 
 	if (LIM_IS_IBSS_ROLE(session_entry)) {
-		qdf_mem_free(msg);
 		return;
 	}
 
@@ -87,7 +86,6 @@ static void lim_delete_sta_util(tpAniSirGlobal mac_ctx, tpDeleteStaContext msg,
 		lim_log(mac_ctx, LOGE,
 			FL("Invalid STA limSystemRole=%d"),
 			GET_LIM_SYSTEM_ROLE(session_entry));
-		qdf_mem_free(msg);
 		return;
 	}
 	stads->del_sta_ctx_rssi = msg->rssi;
@@ -98,7 +96,6 @@ static void lim_delete_sta_util(tpAniSirGlobal mac_ctx, tpDeleteStaContext msg,
 	if (stads->staIndex != msg->staId) {
 		lim_log(mac_ctx, LOGE, FL("staid mismatch: %d vs %d "),
 			stads->staIndex, msg->staId);
-		qdf_mem_free(msg);
 		return;
 	}
 
@@ -122,7 +119,6 @@ static void lim_delete_sta_util(tpAniSirGlobal mac_ctx, tpDeleteStaContext msg,
 			lim_log(mac_ctx, LOGE,
 				FL("Inv Del STA staId:%d, assocId:%d"),
 				msg->staId, msg->assocId);
-			qdf_mem_free(msg);
 			return;
 		} else {
 			lim_send_disassoc_mgmt_frame(mac_ctx,
@@ -169,7 +165,6 @@ static void lim_delete_sta_util(tpAniSirGlobal mac_ctx, tpDeleteStaContext msg,
 					"in some transit state, Addr = "
 					MAC_ADDRESS_STR),
 					MAC_ADDR_ARRAY(msg->bssId));
-			qdf_mem_free(msg);
 			return;
 		}
 
@@ -268,6 +263,7 @@ void lim_delete_sta_context(tpAniSirGlobal mac_ctx, tpSirMsgQ lim_msg)
 		break;
 	}
 	qdf_mem_free(msg);
+	lim_msg->bodyptr = NULL;
 	return;
 }
 
@@ -294,13 +290,16 @@ lim_trigger_sta_deletion(tpAniSirGlobal mac_ctx, tpDphHashNode sta_ds,
 
 	if ((sta_ds->mlmStaContext.mlmState == eLIM_MLM_WT_DEL_STA_RSP_STATE) ||
 		(sta_ds->mlmStaContext.mlmState ==
-			eLIM_MLM_WT_DEL_BSS_RSP_STATE)) {
+			eLIM_MLM_WT_DEL_BSS_RSP_STATE) ||
+		sta_ds->sta_deletion_in_progress) {
 		/* Already in the process of deleting context for the peer */
-		lim_log(mac_ctx, LOGE,
-			FL("Deletion is in progress for peer:%pM"),
-			sta_ds->staAddr);
+		lim_log(mac_ctx, LOG1,
+			FL("Deletion is in progress (%d) for peer:%p in mlmState %d"),
+			sta_ds->sta_deletion_in_progress, sta_ds->staAddr,
+			sta_ds->mlmStaContext.mlmState);
 		return;
 	}
+	sta_ds->sta_deletion_in_progress = true;
 
 	sta_ds->mlmStaContext.disassocReason =
 		eSIR_MAC_DISASSOC_DUE_TO_INACTIVITY_REASON;

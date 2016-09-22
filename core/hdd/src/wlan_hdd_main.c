@@ -1424,6 +1424,7 @@ void hdd_update_tgt_cfg(void *context, void *param)
 
 	if (!qdf_is_macaddr_zero(&cfg->hw_macaddr)) {
 		hdd_update_macaddr(hdd_ctx->config, cfg->hw_macaddr);
+		hdd_ctx->update_mac_addr_to_fw = false;
 	} else {
 		static struct qdf_mac_addr default_mac_addr = {
 			{0x00, 0x0A, 0xF5, 0x89, 0x89, 0xFF}
@@ -1441,6 +1442,7 @@ void hdd_update_tgt_cfg(void *context, void *param)
 				MAC_ADDR_ARRAY(hdd_ctx->config->
 					       intfMacAddr[0].bytes));
 		}
+		hdd_ctx->update_mac_addr_to_fw = true;
 	}
 
 	hdd_ctx->target_fw_version = cfg->target_fw_version;
@@ -2260,7 +2262,8 @@ static void __hdd_set_multicast_list(struct net_device *dev)
 		adapter->mc_addr_list.mc_cnt = 0;
 	} else {
 		mc_count = netdev_mc_count(dev);
-		hdd_notice("mc_count = %u", mc_count);
+		hdd_notice("mc_count : %u", mc_count);
+
 		if (mc_count > WLAN_HDD_MAX_MC_ADDR_LIST) {
 			hdd_notice("No free filter available; allow all multicast frames");
 			adapter->mc_addr_list.mc_cnt = 0;
@@ -2270,6 +2273,9 @@ static void __hdd_set_multicast_list(struct net_device *dev)
 		adapter->mc_addr_list.mc_cnt = mc_count;
 
 		netdev_for_each_mc_addr(ha, dev) {
+			hdd_notice("ha_addr[%d] "MAC_ADDRESS_STR,
+				i, MAC_ADDR_ARRAY(ha->addr));
+
 			if (i == mc_count)
 				break;
 			/*
@@ -3415,9 +3421,11 @@ QDF_STATUS hdd_stop_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 	union iwreq_data wrqu;
 	tSirUpdateIE updateIE;
 	unsigned long rc;
+	hdd_scaninfo_t *scan_info = NULL;
 
 	ENTER();
 
+	scan_info = &adapter->scan_info;
 	hdd_notice("Disabling queues");
 	wlan_hdd_netif_queue_control(adapter, WLAN_NETIF_TX_DISABLE_N_CARRIER,
 				   WLAN_CONTROL_PATH);
@@ -3470,7 +3478,8 @@ QDF_STATUS hdd_stop_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 			memset(wrqu.ap_addr.sa_data, '\0', ETH_ALEN);
 			wireless_send_event(adapter->dev, SIOCGIWAP, &wrqu,
 					    NULL);
-		} else {
+		}
+		if (scan_info != NULL && scan_info->mScanPending) {
 			wlan_hdd_scan_abort(adapter);
 		}
 		hdd_lro_disable(hdd_ctx, adapter);
@@ -3697,6 +3706,47 @@ struct cfg80211_bss *hdd_cfg80211_get_bss(struct wiphy *wiphy,
 #endif
 #endif
 
+#if defined CFG80211_CONNECT_BSS
+/**
+ * hdd_connect_bss() - API to send connection status to supplicant
+ * @dev: network device
+ * @bssid: bssid to which we want to associate
+ * @req_ie: Request Information Element
+ * @req_ie_len: len of the req IE
+ * @resp_ie: Response IE
+ * @resp_ie_len: len of ht response IE
+ * @status: status
+ * @gfp: Kernel Flag
+ * @connect_timeout: If timed out waiting for Auth/Assoc/Probe resp
+ *
+ * The API is a wrapper to send connection status to supplicant
+ *
+ * Return: Void
+ */
+#if defined CFG80211_CONNECT_TIMEOUT
+static void hdd_connect_bss(struct net_device *dev, const u8 *bssid,
+			struct cfg80211_bss *bss, const u8 *req_ie,
+			size_t req_ie_len, const u8 *resp_ie,
+			size_t resp_ie_len, int status, gfp_t gfp,
+			bool connect_timeout)
+{
+	if (connect_timeout)
+		cfg80211_connect_timeout(dev, bssid, NULL, 0, GFP_KERNEL);
+	else
+		cfg80211_connect_bss(dev, bssid, bss, req_ie, req_ie_len,
+			resp_ie, resp_ie_len, status, gfp);
+}
+#else
+static void hdd_connect_bss(struct net_device *dev, const u8 *bssid,
+			struct cfg80211_bss *bss, const u8 *req_ie,
+			size_t req_ie_len, const u8 *resp_ie,
+			size_t resp_ie_len, int status, gfp_t gfp,
+			bool connect_timeout)
+{
+	cfg80211_connect_bss(dev, bssid, bss, req_ie, req_ie_len,
+		resp_ie, resp_ie_len, status, gfp);
+}
+#endif
 
 /**
  * hdd_connect_result() - API to send connection status to supplicant
@@ -3709,17 +3759,18 @@ struct cfg80211_bss *hdd_cfg80211_get_bss(struct wiphy *wiphy,
  * @resp_ie_len: len of ht response IE
  * @status: status
  * @gfp: Kernel Flag
+ * @connect_timeout: If timed out waiting for Auth/Assoc/Probe resp
  *
  * The API is a wrapper to send connection status to supplicant
  * and allow runtime suspend
  *
  * Return: Void
  */
-#if defined CFG80211_CONNECT_BSS
 void hdd_connect_result(struct net_device *dev, const u8 *bssid,
 			tCsrRoamInfo *roam_info, const u8 *req_ie,
 			size_t req_ie_len, const u8 *resp_ie,
-			size_t resp_ie_len, u16 status, gfp_t gfp)
+			size_t resp_ie_len, u16 status, gfp_t gfp,
+			bool connect_timeout)
 {
 	hdd_adapter_t *padapter = (hdd_adapter_t *) netdev_priv(dev);
 	struct cfg80211_bss *bss = NULL;
@@ -3741,14 +3792,16 @@ void hdd_connect_result(struct net_device *dev, const u8 *bssid,
 			roam_info->u.pConnectedProfile->SSID.ssId,
 			roam_info->u.pConnectedProfile->SSID.length);
 	}
-	cfg80211_connect_bss(dev, bssid, bss, req_ie, req_ie_len,
-		resp_ie, resp_ie_len, status, gfp);
+	hdd_connect_bss(dev, bssid, bss, req_ie,
+		req_ie_len, resp_ie, resp_ie_len,
+		status, gfp, connect_timeout);
 }
 #else
 void hdd_connect_result(struct net_device *dev, const u8 *bssid,
 			tCsrRoamInfo *roam_info, const u8 *req_ie,
 			size_t req_ie_len, const u8 *resp_ie,
-			size_t resp_ie_len, u16 status, gfp_t gfp)
+			size_t resp_ie_len, u16 status, gfp_t gfp,
+			bool connect_timeout)
 {
 	cfg80211_connect_result(dev, bssid, req_ie, req_ie_len,
 				resp_ie, resp_ie_len, status, gfp);
@@ -3817,7 +3870,7 @@ QDF_STATUS hdd_start_all_adapters(hdd_context_t *hdd_ctx)
 				hdd_connect_result(adapter->dev, NULL, NULL,
 							NULL, 0, NULL, 0,
 							WLAN_STATUS_ASSOC_DENIED_UNSPEC,
-							GFP_KERNEL);
+							GFP_KERNEL, false);
 			}
 
 			hdd_register_tx_flow_control(adapter,
@@ -6639,6 +6692,8 @@ int hdd_update_cds_config(hdd_context_t *hdd_ctx)
 	cds_cfg->enable_rxthread = hdd_ctx->enableRxThread;
 	cds_cfg->ce_classify_enabled =
 		hdd_ctx->config->ce_classify_enabled;
+	cds_cfg->bpf_packet_filter_enable =
+		hdd_ctx->config->bpf_packet_filter_enable;
 	cds_cfg->tx_chain_mask_cck = hdd_ctx->config->tx_chain_mask_cck;
 	cds_cfg->self_gen_frm_pwr = hdd_ctx->config->self_gen_frm_pwr;
 	cds_cfg->max_station = hdd_ctx->config->maxNumberOfPeers;
@@ -6935,6 +6990,30 @@ static int hdd_cnss_wlan_mac(hdd_context_t *hdd_ctx)
 }
 
 /**
+ * hdd_update_mac_addr_to_fw() - API to update wlan mac addresses to FW
+ * @hdd_ctx: HDD Context
+ *
+ * Update MAC address to FW. If MAC address passed by FW is invalid, host
+ * will generate its own MAC and update it to FW.
+ *
+ * Return: 0 for success
+ *         Non-zero error code for failure
+ */
+static int hdd_update_mac_addr_to_fw(hdd_context_t *hdd_ctx)
+{
+	tSirMacAddr customMacAddr;
+	QDF_STATUS status;
+
+	qdf_mem_copy(&customMacAddr,
+		     &hdd_ctx->config->intfMacAddr[0].bytes[0],
+		     sizeof(tSirMacAddr));
+	status = sme_set_custom_mac_addr(customMacAddr);
+	if (!QDF_IS_STATUS_SUCCESS(status))
+		return -EAGAIN;
+	return 0;
+}
+
+/**
  * hdd_initialize_mac_address() - API to get wlan mac addresses
  * @hdd_ctx: HDD Context
  *
@@ -6957,8 +7036,18 @@ static void hdd_initialize_mac_address(hdd_context_t *hdd_ctx)
 
 	status = hdd_update_mac_config(hdd_ctx);
 
-	if (!QDF_IS_STATUS_SUCCESS(status))
-		hdd_warn("can't update mac config, using MAC from ini file");
+	if (QDF_IS_STATUS_SUCCESS(status))
+		return;
+
+	hdd_warn("can't update mac config via wlan_mac.bin, using MAC from ini file or auto-gen");
+
+	if (hdd_ctx->update_mac_addr_to_fw)
+		ret = hdd_update_mac_addr_to_fw(hdd_ctx);
+
+	if (ret != 0) {
+		hdd_err("MAC address out-of-sync, ret:%d", ret);
+		QDF_ASSERT(ret);
+	}
 }
 
 /**
@@ -7581,6 +7670,10 @@ int hdd_wlan_startup(struct device *dev)
 	}
 
 	hif_sc = cds_get_context(QDF_MODULE_ID_HIF);
+	if (!hif_sc) {
+		hdd_err("HIF context is NULL");
+		goto err_close_adapter;
+	}
 	/*
 	 * target hw version/revision would only be retrieved after firmware
 	 * donwload
@@ -7651,18 +7744,19 @@ int hdd_wlan_startup(struct device *dev)
 
 err_debugfs_exit:
 	hdd_debugfs_exit(adapter);
+
+err_close_adapter:
 	hdd_close_all_adapters(hdd_ctx, false);
 
 	if (rtnl_held)
 		hdd_release_rtnl_lock();
 
+err_ipa_cleanup:
+	hdd_ipa_cleanup(hdd_ctx);
 
 err_wiphy_unregister:
 	wiphy_unregister(hdd_ctx->wiphy);
 	wlan_hdd_cfg80211_deinit(hdd_ctx->wiphy);
-
-err_ipa_cleanup:
-	hdd_ipa_cleanup(hdd_ctx);
 
 err_stop_modules:
 	hdd_wlan_stop_modules(hdd_ctx, false);
@@ -7874,13 +7968,14 @@ QDF_STATUS hdd_softap_sta_deauth(hdd_adapter_t *adapter,
 /**
  * hdd_softap_sta_disassoc() - take counter measure to handle deauth req from HDD
  * @adapter:	Pointer to the HDD
+ * @p_del_sta_params: pointer to station deletion parameters
  *
  * This to take counter measure to handle deauth req from HDD
  *
  * Return: None
  */
 void hdd_softap_sta_disassoc(hdd_adapter_t *adapter,
-			     uint8_t *pDestMacAddress)
+			     struct tagCsrDelStaParams *pDelStaParams)
 {
 #ifndef WLAN_FEATURE_MBSSID
 	v_CONTEXT_t p_cds_context = (WLAN_HDD_GET_CTX(adapter))->pcds_context;
@@ -7892,14 +7987,14 @@ void hdd_softap_sta_disassoc(hdd_adapter_t *adapter,
 	       (WLAN_HDD_GET_CTX(adapter))->pcds_context);
 
 	/* Ignore request to disassoc bcmc station */
-	if (pDestMacAddress[0] & 0x1)
+	if (pDelStaParams->peerMacAddr.bytes[0] & 0x1)
 		return;
 
 #ifdef WLAN_FEATURE_MBSSID
 	wlansap_disassoc_sta(WLAN_HDD_GET_SAP_CTX_PTR(adapter),
-			     pDestMacAddress);
+			     pDelStaParams);
 #else
-	wlansap_disassoc_sta(p_cds_context, pDestMacAddress);
+	wlansap_disassoc_sta(p_cds_context, pDelStaParams);
 #endif
 }
 
@@ -8132,7 +8227,7 @@ void wlan_hdd_send_svc_nlink_msg(int radio, int type, void *data, int len)
 #ifdef FEATURE_WLAN_AUTO_SHUTDOWN
 void wlan_hdd_auto_shutdown_cb(void)
 {
-	hdd_context_t *hdd_ctx = cdf_get_global_context();
+	hdd_context_t *hdd_ctx = cds_get_global_context();
 
 	if (!hdd_ctx)
 		return;

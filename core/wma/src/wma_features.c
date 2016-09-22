@@ -2616,6 +2616,12 @@ static int wow_get_wmi_eventid(int32_t reason, uint32_t tag)
 	case WOW_REASON_NAN_EVENT:
 		event_id = WMI_NAN_EVENTID;
 		break;
+	case WOW_REASON_NAN_DATA:
+		event_id = wma_ndp_get_eventid_from_tlvtag(tag);
+		break;
+	case WOW_REASON_TDLS_CONN_TRACKER_EVENT:
+		event_id = WOW_TDLS_CONN_TRACKER_EVENT;
+		break;
 	default:
 		WMA_LOGD(FL("Unexpected WOW reason : %s(%d)"),
 			 wma_wow_wake_reason_str(reason), reason);
@@ -2969,8 +2975,7 @@ static void wma_wow_parse_data_pkt_buffer(uint8_t *data,
 
 	default:
 end:
-		WMA_LOGE("wow_buf_pkt_len: %u", buf_len);
-		WMA_LOGE("Unknown Packet or Insufficient packet buffer");
+		WMA_LOGD("wow_buf_pkt_len: %u", buf_len);
 		break;
 	}
 }
@@ -3112,9 +3117,14 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 
 	wake_info = param_buf->fixed_param;
 
-	WMA_LOGA("WOW wakeup host event received (reason: %s(%d)) for vdev %d",
-		 wma_wow_wake_reason_str(wake_info->wake_reason),
-		 wake_info->wake_reason, wake_info->vdev_id);
+	if ((wake_info->wake_reason != WOW_REASON_UNSPECIFIED) ||
+	    (wake_info->wake_reason == WOW_REASON_UNSPECIFIED &&
+	     !wmi_get_runtime_pm_inprogress(wma->wmi_handle))) {
+		WMA_LOGA("WOW wakeup host event received (reason: %s(%d)) for vdev %d",
+			 wma_wow_wake_reason_str(wake_info->wake_reason),
+			 wake_info->wake_reason, wake_info->vdev_id);
+		qdf_wow_wakeup_host_event(wake_info->wake_reason);
+	}
 
 	qdf_event_set(&wma->wma_resume_event);
 
@@ -3333,16 +3343,8 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 	case WOW_REASON_NAN_DATA:
 		WMA_LOGD(FL("Host woken up for NAN data path event from FW"));
 		if (param_buf->wow_packet_buffer) {
-			wow_buf_pkt_len =
-				*(uint32_t *)param_buf->wow_packet_buffer;
-			WMA_LOGD(FL("wow_packet_buffer dump"));
-			qdf_trace_hex_dump(QDF_MODULE_ID_WMA,
-				QDF_TRACE_LEVEL_DEBUG,
-				param_buf->wow_packet_buffer,
-				wow_buf_pkt_len);
-			wma_ndp_wow_event_callback(handle,
-				(param_buf->wow_packet_buffer + 4),
-				wow_buf_pkt_len);
+			wma_ndp_wow_event_callback(handle, wmi_cmd_struct_ptr,
+						   wow_buf_pkt_len, event_id);
 		} else {
 			WMA_LOGE(FL("wow_packet_buffer is empty"));
 		}
@@ -3356,6 +3358,16 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 		 */
 		WMA_LOGD(FL("Host woken up for OEM Response event"));
 		break;
+#ifdef FEATURE_WLAN_TDLS
+	case WOW_REASON_TDLS_CONN_TRACKER_EVENT:
+		WMA_LOGD("Host woken up because of TDLS event");
+		if (param_buf->wow_packet_buffer)
+			wma_tdls_event_handler(handle,
+				wmi_cmd_struct_ptr, wow_buf_pkt_len);
+		else
+			WMA_LOGD("No wow_packet_buffer present");
+		break;
+#endif
 	default:
 		break;
 	}
@@ -3456,14 +3468,12 @@ static QDF_STATUS wma_send_wow_patterns_to_fw(tp_wma_handle wma,
 {
 	struct wma_txrx_node *iface;
 	int ret;
-	uint8_t default_patterns;
 
 	iface = &wma->interfaces[vdev_id];
-	default_patterns = iface->num_wow_default_patterns++;
 	ret = wmi_unified_wow_patterns_to_fw_cmd(wma->wmi_handle,
 			    vdev_id, ptrn_id, ptrn,
 				ptrn_len, ptrn_offset, mask,
-				mask_len, user, default_patterns);
+				mask_len, user, 0);
 	if (ret) {
 		if (!user)
 			iface->num_wow_default_patterns--;
@@ -3490,10 +3500,16 @@ static QDF_STATUS wma_wow_ap(tp_wma_handle wma, uint8_t vdev_id)
 	QDF_STATUS ret;
 	uint8_t arp_offset = 20;
 	uint8_t mac_mask[IEEE80211_ADDR_LEN];
+	struct wma_txrx_node *iface = &wma->interfaces[vdev_id];
 
-	/* Setup unicast pkt pattern */
+	/*
+	 * Setup unicast pkt pattern
+	 * WoW pattern id should be unique for each vdev
+	 * WoW pattern id can be same on 2 different VDEVs
+	 */
 	qdf_mem_set(&mac_mask, IEEE80211_ADDR_LEN, 0xFF);
-	ret = wma_send_wow_patterns_to_fw(wma, vdev_id, 0,
+	ret = wma_send_wow_patterns_to_fw(wma, vdev_id,
+				iface->num_wow_default_patterns++,
 				wma->interfaces[vdev_id].addr,
 				IEEE80211_ADDR_LEN, 0, mac_mask,
 				IEEE80211_ADDR_LEN, false);
@@ -3504,9 +3520,10 @@ static QDF_STATUS wma_wow_ap(tp_wma_handle wma, uint8_t vdev_id)
 
 	/*
 	 * Setup all ARP pkt pattern. This is dummy pattern hence the length
-	 * is zero
+	 * is zero. Pattern ID should be unique per vdev.
 	 */
-	ret = wma_send_wow_patterns_to_fw(wma, vdev_id, 0,
+	ret = wma_send_wow_patterns_to_fw(wma, vdev_id,
+			iface->num_wow_default_patterns++,
 			arp_ptrn, 0, arp_offset, arp_mask, 0, false);
 	if (ret != QDF_STATUS_SUCCESS) {
 		WMA_LOGE("Failed to add WOW ARP pattern ret %d", ret);
@@ -3529,8 +3546,14 @@ static QDF_STATUS wma_configure_wow_ssdp(tp_wma_handle wma, uint8_t vdev_id)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	uint8_t discvr_offset = 30;
+	struct wma_txrx_node *iface = &wma->interfaces[vdev_id];
 
-	 status = wma_send_wow_patterns_to_fw(wma, vdev_id, 0,
+	/*
+	 * WoW pattern ID should be unique for each vdev
+	 * Different WoW patterns can use same pattern ID
+	 */
+	 status = wma_send_wow_patterns_to_fw(wma, vdev_id,
+				iface->num_wow_default_patterns++,
 				discvr_ptrn, sizeof(discvr_ptrn), discvr_offset,
 				discvr_mask, sizeof(discvr_ptrn), false);
 
@@ -3626,10 +3649,16 @@ static QDF_STATUS wma_wow_sta(tp_wma_handle wma, uint8_t vdev_id)
 	uint8_t arp_offset = 12;
 	uint8_t mac_mask[IEEE80211_ADDR_LEN];
 	QDF_STATUS ret = QDF_STATUS_SUCCESS;
+	struct wma_txrx_node *iface = &wma->interfaces[vdev_id];
 
-	/* Setup unicast pkt pattern */
 	qdf_mem_set(&mac_mask, IEEE80211_ADDR_LEN, 0xFF);
-	ret = wma_send_wow_patterns_to_fw(wma, vdev_id, 0,
+	/*
+	 * Set up unicast wow pattern
+	 * WoW pattern ID should be unique for each vdev
+	 * Different WoW patterns can use same pattern ID
+	 */
+	ret = wma_send_wow_patterns_to_fw(wma, vdev_id,
+				iface->num_wow_default_patterns++,
 				wma->interfaces[vdev_id].addr,
 				IEEE80211_ADDR_LEN, 0, mac_mask,
 				IEEE80211_ADDR_LEN, false);
@@ -3648,7 +3677,9 @@ static QDF_STATUS wma_wow_sta(tp_wma_handle wma, uint8_t vdev_id)
 	 */
 	if (!(wma->ol_ini_info & 0x1)) {
 		/* Setup all ARP pkt pattern */
-		ret = wma_send_wow_patterns_to_fw(wma, vdev_id, 0,
+		WMA_LOGI("ARP offload is disabled in INI enable WoW for ARP");
+		ret = wma_send_wow_patterns_to_fw(wma, vdev_id,
+				iface->num_wow_default_patterns++,
 				arp_ptrn, sizeof(arp_ptrn), arp_offset,
 				arp_mask, sizeof(arp_mask), false);
 		if (ret != QDF_STATUS_SUCCESS) {
@@ -3660,7 +3691,9 @@ static QDF_STATUS wma_wow_sta(tp_wma_handle wma, uint8_t vdev_id)
 	/* for NS or NDP offload packets */
 	if (!(wma->ol_ini_info & 0x2)) {
 		/* Setup all NS pkt pattern */
-		ret = wma_send_wow_patterns_to_fw(wma, vdev_id, 0,
+		WMA_LOGI("NS offload is disabled in INI enable WoW for NS");
+		ret = wma_send_wow_patterns_to_fw(wma, vdev_id,
+				iface->num_wow_default_patterns++,
 				ns_ptrn, sizeof(arp_ptrn), arp_offset,
 				arp_mask, sizeof(arp_mask), false);
 		if (ret != QDF_STATUS_SUCCESS) {
@@ -4699,6 +4732,40 @@ void wma_aggr_qos_req(tp_wma_handle wma,
 	wma_send_msg(wma, WMA_AGGR_QOS_RSP, pAggrQosRspMsg, 0);
 }
 
+#ifdef FEATURE_WLAN_ESE
+/**
+ * wma_set_tsm_interval() - Set TSM interval
+ * @req: pointer to ADDTS request
+ *
+ * Return: QDF_STATUS_E_FAILURE or QDF_STATUS_SUCCESS
+ */
+static QDF_STATUS wma_set_tsm_interval(tAddTsParams *req)
+{
+	/*
+	 * msmt_interval is in unit called TU (1 TU = 1024 us)
+	 * max value of msmt_interval cannot make resulting
+	 * interval_milliseconds overflow 32 bit
+	 *
+	 */
+	uint32_t interval_milliseconds;
+	ol_txrx_pdev_handle pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+	if (NULL == pdev) {
+		WMA_LOGE("%s: Failed to get pdev", __func__);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	interval_milliseconds = (req->tsm_interval * 1024) / 1000;
+
+	ol_tx_set_compute_interval(pdev, interval_milliseconds);
+	return QDF_STATUS_SUCCESS;
+}
+#else
+static inline QDF_STATUS wma_set_tsm_interval(tAddTsParams *req)
+{
+	return QDF_STATUS_SUCCESS;
+}
+#endif /* FEATURE_WLAN_ESE */
+
 /**
  * wma_add_ts_req() - send ADDTS request to fw
  * @wma: wma handle
@@ -4709,40 +4776,23 @@ void wma_aggr_qos_req(tp_wma_handle wma,
 void wma_add_ts_req(tp_wma_handle wma, tAddTsParams *msg)
 {
 	struct add_ts_param cmd = {0};
-
-#ifdef FEATURE_WLAN_ESE
-	/*
-	 * msmt_interval is in unit called TU (1 TU = 1024 us)
-	 * max value of msmt_interval cannot make resulting
-	 * interval_miliseconds overflow 32 bit
-	 */
-	uint32_t intervalMiliseconds;
-	ol_txrx_pdev_handle pdev = cds_get_context(QDF_MODULE_ID_TXRX);
-	if (NULL == pdev) {
-		WMA_LOGE("%s: Failed to get pdev", __func__);
-		goto err;
-	}
-
-	intervalMiliseconds = (msg->tsm_interval * 1024) / 1000;
-
-	ol_tx_set_compute_interval(pdev, intervalMiliseconds);
-#endif /* FEATURE_WLAN_ESE */
 	msg->status = QDF_STATUS_SUCCESS;
 
+	if (wma_set_tsm_interval(msg) == QDF_STATUS_SUCCESS) {
 
-	cmd.sme_session_id = msg->sme_session_id;
-	cmd.tspec.tsinfo.traffic.userPrio =
+		cmd.sme_session_id = msg->sme_session_id;
+		cmd.tspec.tsinfo.traffic.userPrio =
 			TID_TO_WME_AC(msg->tspec.tsinfo.traffic.userPrio);
-	cmd.tspec.mediumTime = msg->tspec.mediumTime;
-	if (wmi_unified_add_ts_cmd(wma->wmi_handle, &cmd))
-		msg->status = QDF_STATUS_E_FAILURE;
+		cmd.tspec.mediumTime = msg->tspec.mediumTime;
+		if (wmi_unified_add_ts_cmd(wma->wmi_handle, &cmd))
+			msg->status = QDF_STATUS_E_FAILURE;
 
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
-	if (msg->setRICparams == true)
-		wma_set_ric_req(wma, msg, true);
+		if (msg->setRICparams == true)
+			wma_set_ric_req(wma, msg, true);
 #endif /* WLAN_FEATURE_ROAM_OFFLOAD */
 
-err:
+	}
 	wma_send_msg(wma, WMA_ADD_TS_RSP, msg, 0);
 }
 
@@ -6617,9 +6667,30 @@ int wma_is_target_wake_up_received(void)
 	if (wma->wow_initial_wake_up) {
 		WMA_LOGE("Target initial wake up received try again");
 		return -EAGAIN;
-	} else {
-		return 0;
 	}
+
+	return 0;
+}
+
+/**
+ * wma_clear_target_wake_up() - clear initial wake up
+ *
+ * Clear target initial wake up reason
+ *
+ * Return: 0 for success and negative error code for failure
+ */
+int wma_clear_target_wake_up(void)
+{
+	tp_wma_handle wma = cds_get_context(QDF_MODULE_ID_WMA);
+
+	if (NULL == wma) {
+		WMA_LOGE("%s: wma is NULL", __func__);
+		return -EFAULT;
+	}
+
+	wma->wow_initial_wake_up = false;
+
+	return 0;
 }
 
 /**
@@ -7966,6 +8037,11 @@ int wma_p2p_lo_event_handler(void *handle, uint8_t *event_buf,
 	WMI_P2P_LISTEN_OFFLOAD_STOPPED_EVENTID_param_tlvs *param_tlvs;
 	wmi_p2p_lo_stopped_event_fixed_param *fix_param;
 	tpAniSirGlobal p_mac = cds_get_context(QDF_MODULE_ID_PE);
+
+	if (!wma) {
+		WMA_LOGE("%s: Invalid WMA Context", __func__);
+		return -EINVAL;
+	}
 
 	if (!p_mac) {
 		WMA_LOGE("%s: Invalid p_mac", __func__);

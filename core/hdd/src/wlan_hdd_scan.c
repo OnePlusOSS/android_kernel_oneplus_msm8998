@@ -783,7 +783,8 @@ static int __iw_set_scan(struct net_device *dev, struct iw_request_info *info,
 
 		if (wrqu->data.flags & IW_SCAN_THIS_ESSID) {
 
-			if (scanReq->essid_len) {
+			if (scanReq->essid_len &&
+			    (scanReq->essid_len <= SIR_MAC_MAX_SSID_LENGTH)) {
 				scanRequest.SSIDs.numOfSSIDs = 1;
 				scanRequest.SSIDs.SSIDList =
 					(tCsrSSIDInfo *)
@@ -800,6 +801,9 @@ static int __iw_set_scan(struct net_device *dev, struct iw_request_info *info,
 					hdd_err("Unable to allocate memory");
 					QDF_ASSERT(0);
 				}
+			} else {
+				hdd_err("Invalid essid length : %d",
+					scanReq->essid_len);
 			}
 		}
 
@@ -1123,6 +1127,7 @@ static QDF_STATUS hdd_cfg80211_scan_done_callback(tHalHandle halHandle,
 	bool aborted = false;
 	hdd_context_t *hddctx = WLAN_HDD_GET_CTX(pAdapter);
 	int ret = 0;
+	unsigned int current_timestamp, time_elapsed;
 	uint8_t source;
 	uint32_t scan_time;
 	uint32_t size = 0;
@@ -1150,8 +1155,28 @@ static QDF_STATUS hdd_cfg80211_scan_done_callback(tHalHandle halHandle,
 
 	ret = wlan_hdd_cfg80211_update_bss((WLAN_HDD_GET_CTX(pAdapter))->wiphy,
 					   pAdapter, scan_time);
-	if (0 > ret)
+	if (0 > ret) {
 		hdd_notice("NO SCAN result");
+		if (hddctx->config->bug_report_for_no_scan_results) {
+			current_timestamp = jiffies_to_msecs(jiffies);
+			time_elapsed = current_timestamp -
+				hddctx->last_nil_scan_bug_report_timestamp;
+
+			/*
+			 * check if we have generated bug report in
+			 * MIN_TIME_REQUIRED_FOR_NEXT_BUG_REPORT time.
+			 */
+			if (time_elapsed >
+			    MIN_TIME_REQUIRED_FOR_NEXT_BUG_REPORT) {
+				cds_flush_logs(WLAN_LOG_TYPE_NON_FATAL,
+						WLAN_LOG_INDICATOR_HOST_DRIVER,
+						WLAN_LOG_REASON_NO_SCAN_RESULTS,
+						true, true);
+				hddctx->last_nil_scan_bug_report_timestamp =
+					current_timestamp;
+			}
+		}
+	}
 
 	/*
 	 * cfg80211_scan_done informing NL80211 about completion
@@ -1288,6 +1313,7 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 	hdd_adapter_t *con_sap_adapter;
 	uint16_t con_dfs_ch;
 	uint8_t num_chan = 0;
+	bool is_p2p_scan = false;
 
 	ENTER();
 
@@ -1501,12 +1527,17 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 	 * fails which is not desired
 	 */
 
-	if (request->n_channels != WLAN_HDD_P2P_SINGLE_CHANNEL_SCAN) {
+	if ((request->n_ssids == 1) &&
+		(request->ssids != NULL) &&
+		qdf_mem_cmp(&request->ssids[0], "DIRECT-", 7))
+		is_p2p_scan = true;
+
+	if (is_p2p_scan ||
+		(request->n_channels != WLAN_HDD_P2P_SINGLE_CHANNEL_SCAN)) {
 		hdd_debug("Flushing P2P Results");
 		sme_scan_flush_p2p_result(WLAN_HDD_GET_HAL_CTX(pAdapter),
-					   pAdapter->sessionId);
+			pAdapter->sessionId);
 	}
-
 	if (request->ie_len) {
 		/* save this for future association (join requires this) */
 		memset(&pScanInfo->scanAddIE, 0, sizeof(pScanInfo->scanAddIE));

@@ -83,7 +83,6 @@
 	((pMac)->scan.nBssLimit <= (csr_ll_count(&(pMac)->scan.scanResultList)))
 
 void csr_scan_get_result_timer_handler(void *);
-static void csr_scan_result_cfg_aging_timer_handler(void *pv);
 static void csr_set_default_scan_timing(tpAniSirGlobal pMac, tSirScanType scanType,
 					tCsrScanRequest *pScanRequest);
 #ifdef WLAN_AP_STA_CONCURRENCY
@@ -106,6 +105,7 @@ static bool csr_scan_validate_scan_result(tpAniSirGlobal pMac, uint8_t *pChannel
 bool csr_roam_is_valid_channel(tpAniSirGlobal pMac, uint8_t channel);
 void csr_prune_channel_list_for_mode(tpAniSirGlobal pMac,
 				     tCsrChannel *pChannelList);
+static void csr_purge_scan_result_by_age(void *pv);
 
 #define CSR_IS_SOCIAL_CHANNEL(channel) \
 	(((channel) == 1) || ((channel) == 6) || ((channel) == 11))
@@ -180,14 +180,6 @@ QDF_STATUS csr_scan_open(tpAniSirGlobal mac_ctx)
 		return status;
 	}
 #endif
-	status = qdf_mc_timer_init(&mac_ctx->scan.hTimerResultCfgAging,
-				   QDF_TIMER_TYPE_SW,
-				   csr_scan_result_cfg_aging_timer_handler,
-				   mac_ctx);
-	if (!QDF_IS_STATUS_SUCCESS(status))
-		sms_log(mac_ctx, LOGE,
-			FL("Mem Alloc failed for CFG ResultAging timer"));
-
 	return status;
 }
 
@@ -208,7 +200,6 @@ QDF_STATUS csr_scan_close(tpAniSirGlobal pMac)
 	csr_ll_close(&pMac->scan.channelPowerInfoList24);
 	csr_ll_close(&pMac->scan.channelPowerInfoList5G);
 	csr_scan_disable(pMac);
-	qdf_mc_timer_destroy(&pMac->scan.hTimerResultCfgAging);
 #ifdef WLAN_AP_STA_CONCURRENCY
 	qdf_mc_timer_destroy(&pMac->scan.hTimerStaApConcTimer);
 #endif
@@ -225,8 +216,6 @@ QDF_STATUS csr_scan_enable(tpAniSirGlobal pMac)
 
 QDF_STATUS csr_scan_disable(tpAniSirGlobal pMac)
 {
-
-	csr_scan_stop_timers(pMac);
 	pMac->scan.fScanEnable = false;
 
 	return QDF_STATUS_SUCCESS;
@@ -1218,7 +1207,7 @@ QDF_STATUS csr_scan_handle_search_for_ssid(tpAniSirGlobal pMac,
 		csr_roam_call_callback(pMac, sessionId, NULL,
 				       pCommand->u.scanCmd.roamId,
 				       eCSR_ROAM_ASSOCIATION_FAILURE,
-				       eCSR_ROAM_RESULT_FAILURE);
+				       eCSR_ROAM_RESULT_SCAN_FOR_SSID_FAILURE);
 	}
 	if (pScanFilter) {
 		csr_free_scan_filter(pMac, pScanFilter);
@@ -1300,12 +1289,12 @@ QDF_STATUS csr_scan_handle_search_for_ssid_failure(tpAniSirGlobal pMac,
 		csr_roam_call_callback(pMac, sessionId, pRoamInfo,
 				       pCommand->u.scanCmd.roamId,
 				       eCSR_ROAM_ASSOCIATION_COMPLETION,
-				       eCSR_ROAM_RESULT_FAILURE);
+				       eCSR_ROAM_RESULT_SCAN_FOR_SSID_FAILURE);
 	} else {
 		csr_roam_call_callback(pMac, sessionId, NULL,
 				       pCommand->u.scanCmd.roamId,
 				       eCSR_ROAM_ASSOCIATION_FAILURE,
-				       eCSR_ROAM_RESULT_FAILURE);
+				       eCSR_ROAM_RESULT_SCAN_FOR_SSID_FAILURE);
 	}
 roam_completion:
 	csr_roam_completion(pMac, sessionId, NULL, pCommand, roam_result,
@@ -1325,6 +1314,44 @@ QDF_STATUS csr_scan_result_purge(tpAniSirGlobal pMac,
 		qdf_mem_free(pScanList);
 	}
 	return status;
+}
+
+/**
+ * csr_remove_bssid_from_scan_list() - remove the bssid from
+ * scan list
+ * @mac_tx: mac context.
+ * @bssid: bssid to be removed
+ *
+ * This function remove the given bssid from scan list.
+ *
+ * Return: void.
+ */
+void csr_remove_bssid_from_scan_list(tpAniSirGlobal mac_ctx,
+			tSirMacAddr bssid)
+{
+	tListElem *entry, *free_elem;
+	tCsrScanResult *bss_desc;
+	tDblLinkList *list = &mac_ctx->scan.scanResultList;
+
+	csr_ll_lock(list);
+	entry = csr_ll_peek_head(list, LL_ACCESS_NOLOCK);
+	while (entry != NULL) {
+		bss_desc = GET_BASE_ADDR(entry, tCsrScanResult, Link);
+		if (!qdf_mem_cmp(bss_desc->Result.BssDescriptor.bssId,
+		   bssid, sizeof(tSirMacAddr))) {
+			free_elem = entry;
+			entry = csr_ll_next(list, entry, LL_ACCESS_NOLOCK);
+			csr_ll_remove_entry(list, free_elem, LL_ACCESS_NOLOCK);
+			csr_free_scan_result_entry(mac_ctx, bss_desc);
+			sms_log(mac_ctx, LOGW, FL("Removed BSS entry:%pM"),
+				bssid);
+			continue;
+		}
+
+		entry = csr_ll_next(list, entry, LL_ACCESS_NOLOCK);
+	}
+
+	csr_ll_unlock(list);
 }
 
 /**
@@ -2815,6 +2842,53 @@ bool csr_process_bss_desc_for_bkid_list(tpAniSirGlobal pMac,
 
 #endif
 
+/**
+ * csr_purge_old_scan_results() - This function removes old scan entries
+ * @mac_ctx: pointer to Global MAC structure
+ *
+ * This function removes old scan entries
+ *
+ * Return: None
+ */
+
+static void csr_purge_old_scan_results(tpAniSirGlobal mac_ctx)
+{
+	tListElem *pentry, *tmp_entry;
+	tCsrScanResult *presult, *oldest_bss = NULL;
+	uint32_t oldest_entry = 0;
+	uint32_t curr_time = qdf_mc_timer_get_system_ticks();
+
+	csr_ll_unlock(&mac_ctx->scan.scanResultList);
+	pentry = csr_ll_peek_head(&mac_ctx->scan.scanResultList,
+					LL_ACCESS_NOLOCK);
+	while (pentry) {
+		tmp_entry = csr_ll_next(&mac_ctx->scan.scanResultList, pentry,
+			LL_ACCESS_NOLOCK);
+		presult = GET_BASE_ADDR(pentry, tCsrScanResult, Link);
+		if ((curr_time - presult->Result.BssDescriptor.nReceivedTime) >
+		     oldest_entry) {
+			oldest_entry = curr_time -
+				presult->Result.BssDescriptor.nReceivedTime;
+			oldest_bss = presult;
+		}
+		pentry = tmp_entry;
+	}
+	if (oldest_bss) {
+		/* Free the old BSS Entries */
+		if (csr_ll_remove_entry(&mac_ctx->scan.scanResultList,
+		    &oldest_bss->Link, LL_ACCESS_NOLOCK)) {
+			sms_log(mac_ctx, LOG1,
+				FL("Current time delta (%d) of BSSID to be removed" MAC_ADDRESS_STR),
+				(curr_time -
+				oldest_bss->Result.BssDescriptor.nReceivedTime),
+				MAC_ADDR_ARRAY(
+				oldest_bss->Result.BssDescriptor.bssId));
+			csr_free_scan_result_entry(mac_ctx, oldest_bss);
+		}
+	}
+	csr_ll_unlock(&mac_ctx->scan.scanResultList);
+}
+
 static void
 csr_remove_from_tmp_list(tpAniSirGlobal mac_ctx,
 			 uint8_t reason,
@@ -2856,12 +2930,8 @@ csr_remove_from_tmp_list(tpAniSirGlobal mac_ctx,
 		 * LFR candidates came from FW
 		 */
 		if (CSR_SCAN_IS_OVER_BSS_LIMIT(mac_ctx)) {
-			sms_log(mac_ctx, LOGW, FL("BSS limit reached"));
-			if ((bss_dscp->Result.pvIes == NULL) && local_ie)
-				qdf_mem_free(local_ie);
-			csr_free_scan_result_entry(mac_ctx, bss_dscp);
-			/* Continue because there may be duplicated BSS */
-			continue;
+			sms_log(mac_ctx, LOG1, FL("BSS Limit reached"));
+			csr_purge_old_scan_results(mac_ctx);
 		}
 		/* check for duplicate scan results */
 		if (!dup_bss) {
@@ -4638,6 +4708,9 @@ QDF_STATUS csr_scan_sme_scan_response(tpAniSirGlobal pMac,
 	if (eSmeCommandScan != pCommand->command)
 		goto error_handling;
 
+	 /* Purge the scan results based on Aging */
+	if (pEntry && pMac->scan.scanResultCfgAgingTime)
+		csr_purge_scan_result_by_age(pMac);
 	scanStatus = (eSIR_SME_SUCCESS == pScanRsp->statusCode) ?
 			eCSR_SCAN_SUCCESS : eCSR_SCAN_FAILURE;
 	reason = pCommand->u.scanCmd.reason;
@@ -5636,14 +5709,6 @@ void csr_scan_call_callback(tpAniSirGlobal pMac, tSmeCmd *pCommand,
 	}
 }
 
-void csr_scan_stop_timers(tpAniSirGlobal pMac)
-{
-	if (0 != pMac->scan.scanResultCfgAgingTime) {
-		csr_scan_stop_result_cfg_aging_timer(pMac);
-	}
-
-}
-
 #ifdef WLAN_AP_STA_CONCURRENCY
 /**
  * csr_sta_ap_conc_timer_handler - Function to handle STA,AP concurrency timer
@@ -5820,44 +5885,27 @@ static void csr_sta_ap_conc_timer_handler(void *pv)
 }
 #endif
 
-QDF_STATUS csr_scan_start_result_cfg_aging_timer(tpAniSirGlobal pMac)
-{
-	QDF_STATUS status = QDF_STATUS_E_FAILURE;
-
-	if (pMac->scan.fScanEnable) {
-		status =
-			qdf_mc_timer_start(&pMac->scan.hTimerResultCfgAging,
-					   CSR_SCAN_RESULT_CFG_AGING_INTERVAL /
-					   QDF_MC_TIMER_TO_MS_UNIT);
-	}
-	return status;
-}
-
-QDF_STATUS csr_scan_stop_result_cfg_aging_timer(tpAniSirGlobal pMac)
-{
-	return qdf_mc_timer_stop(&pMac->scan.hTimerResultCfgAging);
-}
-
 /**
- * csr_scan_result_cfg_aging_timer_handler() - Time based scan aging handler
+ * csr_purge_scan_result_by_age() - Purge scan results based on Age
  * @pv: Global context
  *
- * This routine is to handle scan aging based on user configured timer value.
+ * This routine is to purge scan results based on aging.
  *
  * Return: None
  */
-static void csr_scan_result_cfg_aging_timer_handler(void *pv)
+static void csr_purge_scan_result_by_age(void *pv)
 {
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(pv);
 	tListElem *entry, *tmp_entry;
 	tCsrScanResult *result;
-	uint32_t ageout_time =
+	unsigned long ageout_time =
 		mac_ctx->scan.scanResultCfgAgingTime * QDF_TICKS_PER_SECOND/10;
-	uint32_t cur_time = (uint32_t) qdf_mc_timer_get_system_ticks();
+	unsigned long cur_time =  qdf_mc_timer_get_system_ticks();
 	uint8_t *bssId;
 
 	csr_ll_lock(&mac_ctx->scan.scanResultList);
 	entry = csr_ll_peek_head(&mac_ctx->scan.scanResultList, LL_ACCESS_NOLOCK);
+	sms_log(mac_ctx, LOG1, FL(" Ageout time=%ld"), ageout_time);
 	while (entry) {
 		tmp_entry = csr_ll_next(&mac_ctx->scan.scanResultList, entry,
 					LL_ACCESS_NOLOCK);
@@ -5877,9 +5925,6 @@ static void csr_scan_result_cfg_aging_timer_handler(void *pv)
 		entry = tmp_entry;
 	}
 	csr_ll_unlock(&mac_ctx->scan.scanResultList);
-	qdf_mc_timer_start(&mac_ctx->scan.hTimerResultCfgAging,
-			   CSR_SCAN_RESULT_CFG_AGING_INTERVAL /
-			   QDF_MC_TIMER_TO_MS_UNIT);
 }
 
 bool csr_scan_remove_fresh_scan_command(tpAniSirGlobal pMac, uint8_t sessionId)

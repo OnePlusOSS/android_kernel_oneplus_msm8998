@@ -859,6 +859,8 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 				wma->interfaces[resp_event->vdev_id].mac_id);
 	}
 
+	iface = &wma->interfaces[resp_event->vdev_id];
+
 	if ((resp_event->vdev_id <= wma->max_bssid) &&
 	    (qdf_atomic_read
 		(&wma->interfaces[resp_event->vdev_id].vdev_restart_params.hidden_ssid_restart_in_progress))
@@ -880,6 +882,15 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 			       vdev_restart_params.
 			       hidden_ssid_restart_in_progress, 0);
 		wma->interfaces[resp_event->vdev_id].vdev_up = true;
+		/*
+		 * Unpause TX queue in SAP case while configuring hidden ssid
+		 * enable or disable, else the data path is paused forever
+		 * causing data packets(starting from DHCP offer) to get stuck
+		 */
+		ol_txrx_vdev_unpause(iface->handle,
+				OL_TXQ_PAUSE_REASON_VDEV_STOP);
+		iface->pause_bitmap &= ~(1 << PAUSE_TYPE_HOST);
+
 	}
 
 	req_msg = wma_find_vdev_req(wma, resp_event->vdev_id,
@@ -900,7 +911,6 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 		wma_find_mcc_ap(wma, resp_event->vdev_id, true);
 #endif /* FEATURE_AP_MCC_CH_AVOIDANCE */
 
-	iface = &wma->interfaces[resp_event->vdev_id];
 	if (req_msg->msg_type == WMA_CHNL_SWITCH_REQ) {
 		tpSwitchChannelParams params =
 			(tpSwitchChannelParams) req_msg->user_data;
@@ -920,11 +930,14 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 		}
 		params->smpsMode = host_map_smps_mode(resp_event->smps_mode);
 		params->status = resp_event->status;
+		if (wma->interfaces[resp_event->vdev_id].is_channel_switch) {
+			wma->interfaces[resp_event->vdev_id].is_channel_switch =
+				false;
+		}
 		if (((resp_event->resp_type == WMI_VDEV_RESTART_RESP_EVENT) &&
-		    (iface->type == WMI_VDEV_TYPE_STA)) ||
-		    ((resp_event->resp_type == WMI_VDEV_START_RESP_EVENT) &&
-		     (iface->type == WMI_VDEV_TYPE_MONITOR))) {
-
+			(iface->type == WMI_VDEV_TYPE_STA)) ||
+			((resp_event->resp_type == WMI_VDEV_START_RESP_EVENT) &&
+			 (iface->type == WMI_VDEV_TYPE_MONITOR))) {
 			param.vdev_id = resp_event->vdev_id;
 			param.assoc_id = iface->aid;
 			status = wmi_unified_vdev_up_send(wma->wmi_handle,
@@ -1345,6 +1358,17 @@ int wma_vdev_stop_resp_handler(void *handle, uint8_t *cmd_param_info,
 		&& (wma->interfaces[resp_event->vdev_id].sub_type == 0))) {
 		WMA_LOGE("%s: vdev stop event recevied for hidden ssid set using IOCTL ",
 			__func__);
+
+		req_msg = wma_fill_vdev_req(wma, resp_event->vdev_id,
+				WMA_HIDDEN_SSID_VDEV_RESTART,
+				WMA_TARGET_REQ_TYPE_VDEV_START, resp_event,
+				WMA_VDEV_START_REQUEST_TIMEOUT);
+		if (!req_msg) {
+			WMA_LOGE("%s: Failed to fill vdev request, vdev_id %d",
+					__func__, resp_event->vdev_id);
+			return -EINVAL;
+		}
+
 		wma_hidden_ssid_vdev_restart_on_vdev_stop(wma,
 							  resp_event->vdev_id);
 	}
@@ -1772,8 +1796,15 @@ QDF_STATUS wma_vdev_start(tp_wma_handle wma,
 		CFG_TGT_DEFAULT_GTX_HT_MASK;
 	intr[params.vdev_id].config.gtx_info.gtxRTMask[1] =
 		CFG_TGT_DEFAULT_GTX_VHT_MASK;
-	intr[params.vdev_id].config.gtx_info.gtxUsrcfg =
-		CFG_TGT_DEFAULT_GTX_USR_CFG;
+
+	if (wlan_cfg_get_int(mac_ctx, WNI_CFG_TGT_GTX_USR_CFG,
+	    &intr[params.vdev_id].config.gtx_info.gtxUsrcfg) != eSIR_SUCCESS) {
+		intr[params.vdev_id].config.gtx_info.gtxUsrcfg =
+						WNI_CFG_TGT_GTX_USR_CFG_STADEF;
+		QDF_TRACE(QDF_MODULE_ID_WMA, QDF_TRACE_LEVEL_WARN,
+			  "Failed to get WNI_CFG_TGT_GTX_USR_CFG");
+	}
+
 	intr[params.vdev_id].config.gtx_info.gtxPERThreshold =
 		CFG_TGT_DEFAULT_GTX_PER_THRESHOLD;
 	intr[params.vdev_id].config.gtx_info.gtxPERMargin =
@@ -2371,6 +2402,10 @@ void wma_vdev_resp_timer(void *data)
 		params->status = QDF_STATUS_E_TIMEOUT;
 		WMA_LOGA("%s: WMA_SWITCH_CHANNEL_REQ timedout", __func__);
 		wma_send_msg(wma, WMA_SWITCH_CHANNEL_RSP, (void *)params, 0);
+		if (wma->interfaces[tgt_req->vdev_id].is_channel_switch) {
+			wma->interfaces[tgt_req->vdev_id].is_channel_switch =
+				false;
+		}
 	} else if (tgt_req->msg_type == WMA_DELETE_BSS_REQ) {
 		tpDeleteBssParams params =
 			(tpDeleteBssParams) tgt_req->user_data;
@@ -2539,6 +2574,9 @@ error0:
 		iface = &wma->interfaces[tgt_req->vdev_id];
 		iface->vdev_up = false;
 		wma_ocb_set_config_resp(wma, QDF_STATUS_E_TIMEOUT);
+	} else if (tgt_req->msg_type == WMA_HIDDEN_SSID_VDEV_RESTART) {
+		WMA_LOGE("Hidden ssid vdev restart Timed Out; vdev_id: %d, type = %d",
+				tgt_req->vdev_id, tgt_req->type);
 	}
 free_tgt_req:
 	qdf_mc_timer_destroy(&tgt_req->event_timeout);

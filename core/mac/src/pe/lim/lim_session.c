@@ -227,6 +227,7 @@ void pe_reset_protection_callback(void *ptr)
 				pe_session_entry->beaconParams.fRIFSMode;
 		beacon_params.smeSessionId =
 				pe_session_entry->smeSessionId;
+		beacon_params.paramChangeBitmap |= PARAM_llBCOEXIST_CHANGED;
 		bcn_prms_changed = true;
 	}
 
@@ -703,6 +704,11 @@ void pe_delete_session(tpAniSirGlobal mac_ctx, tpPESession session)
 	qdf_mc_timer_destroy(&session->pmfComebackTimer);
 #endif
 	session->valid = false;
+
+	if (session->access_policy_vendor_ie)
+		qdf_mem_free(session->access_policy_vendor_ie);
+
+	session->access_policy_vendor_ie = NULL;
 
 	if (LIM_IS_AP_ROLE(session))
 		lim_check_and_reset_protection_params(mac_ctx);

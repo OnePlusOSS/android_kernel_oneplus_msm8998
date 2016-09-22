@@ -167,6 +167,7 @@ int wlan_hdd_cfg80211_resume_wlan(struct wiphy *wiphy);
 
 void hdd_ipv4_notifier_work_queue(struct work_struct *work);
 #ifdef WLAN_NS_OFFLOAD
+void hdd_conf_ns_offload(hdd_adapter_t *adapter, bool fenable);
 void hdd_ipv6_notifier_work_queue(struct work_struct *work);
 #endif
 
@@ -178,7 +179,8 @@ int wlan_hdd_cfg80211_set_txpower(struct wiphy *wiphy,
 				  enum nl80211_tx_power_setting type,
 				  int dbm);
 int wlan_hdd_cfg80211_set_power_mgmt(struct wiphy *wiphy,
-				     struct net_device *dev, bool mode,
+				     struct net_device *dev,
+				     bool allow_power_save,
 				     int timeout);
 
 int wlan_hdd_ipv4_changed(struct notifier_block *nb,

@@ -622,6 +622,8 @@ int pld_set_wlan_unsafe_channel(struct device *dev,
 						       ch_count);
 		break;
 	case PLD_BUS_TYPE_SNOC:
+		ret = pld_snoc_set_wlan_unsafe_channel(unsafe_ch_list,
+						       ch_count);
 		break;
 	case PLD_BUS_TYPE_SDIO:
 		/* To do get unsafe channel via cnss sdio API */
@@ -657,6 +659,8 @@ int pld_get_wlan_unsafe_channel(struct device *dev, u16 *unsafe_ch_list,
 						       ch_count, buf_len);
 		break;
 	case PLD_BUS_TYPE_SNOC:
+		ret = pld_snoc_get_wlan_unsafe_channel(unsafe_ch_list,
+						       ch_count, buf_len);
 		break;
 	case PLD_BUS_TYPE_SDIO:
 		/* To do get unsafe channel via cnss sdio API */
@@ -687,6 +691,7 @@ int pld_wlan_set_dfs_nol(struct device *dev, void *info, u16 info_len)
 		ret = pld_pcie_wlan_set_dfs_nol(info, info_len);
 		break;
 	case PLD_BUS_TYPE_SNOC:
+		ret = pld_snoc_wlan_set_dfs_nol(info, info_len);
 		break;
 	case PLD_BUS_TYPE_SDIO:
 		/* To do get nol via cnss sdio API */
@@ -719,6 +724,7 @@ int pld_wlan_get_dfs_nol(struct device *dev, void *info, u16 info_len)
 		ret = pld_pcie_wlan_get_dfs_nol(info, info_len);
 		break;
 	case PLD_BUS_TYPE_SNOC:
+		ret = pld_snoc_wlan_get_dfs_nol(info, info_len);
 		break;
 	case PLD_BUS_TYPE_SDIO:
 		break;
@@ -1404,13 +1410,140 @@ int pld_power_off(struct device *dev)
 
 	switch (pld_get_bus_type(dev)) {
 	case PLD_BUS_TYPE_PCIE:
-		ret = pld_pcie_power_on(dev);
+		ret = pld_pcie_power_off(dev);
 		break;
 	case PLD_BUS_TYPE_SNOC:
 		ret = pld_snoc_power_off(dev);
 		break;
 	default:
 		pr_err("Invalid device type\n");
+		break;
+	}
+
+	return ret;
+}
+
+/**
+ * pld_athdiag_read() - Read data from WLAN FW
+ * @dev: device
+ * @offset: address offset
+ * @memtype: memory type
+ * @datalen: data length
+ * @output: output buffer
+ *
+ * Return: 0 for success
+ *         Non zero failure code for errors
+ */
+int pld_athdiag_read(struct device *dev, uint32_t offset,
+		     uint32_t memtype, uint32_t datalen,
+		     uint8_t *output)
+{
+	int ret = 0;
+
+	switch (pld_get_bus_type(dev)) {
+	case PLD_BUS_TYPE_SNOC:
+		ret = pld_snoc_athdiag_read(dev, offset, memtype,
+					    datalen, output);
+		break;
+	case PLD_BUS_TYPE_PCIE:
+	case PLD_BUS_TYPE_SDIO:
+	case PLD_BUS_TYPE_USB:
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
+/**
+ * pld_athdiag_write() - Write data to WLAN FW
+ * @dev: device
+ * @offset: address offset
+ * @memtype: memory type
+ * @datalen: data length
+ * @input: input buffer
+ *
+ * Return: 0 for success
+ *         Non zero failure code for errors
+ */
+int pld_athdiag_write(struct device *dev, uint32_t offset,
+		      uint32_t memtype, uint32_t datalen,
+		      uint8_t *input)
+{
+	int ret = 0;
+
+	switch (pld_get_bus_type(dev)) {
+	case PLD_BUS_TYPE_SNOC:
+		ret = pld_snoc_athdiag_write(dev, offset, memtype,
+					     datalen, input);
+		break;
+	case PLD_BUS_TYPE_PCIE:
+	case PLD_BUS_TYPE_SDIO:
+	case PLD_BUS_TYPE_USB:
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
+/**
+ * pld_smmu_get_mapping() - Get SMMU mapping context
+ * @dev: device
+ *
+ * Return: Pointer to the mapping context
+ */
+void *pld_smmu_get_mapping(struct device *dev)
+{
+	void *ptr = NULL;
+	enum pld_bus_type type = pld_get_bus_type(dev);
+
+	switch (type) {
+	case PLD_BUS_TYPE_SNOC:
+		ptr = pld_snoc_smmu_get_mapping(dev);
+		break;
+	case PLD_BUS_TYPE_PCIE:
+		pr_err("Not supported on type %d\n", type);
+		break;
+	default:
+		pr_err("Invalid device type %d\n", type);
+		break;
+	}
+
+	return ptr;
+}
+
+/**
+ * pld_smmu_map() - Map SMMU
+ * @dev: device
+ * @paddr: physical address that needs to map to
+ * @iova_addr: IOVA address
+ * @size: size to be mapped
+ *
+ * Return: 0 for success
+ *         Non zero failure code for errors
+ */
+int pld_smmu_map(struct device *dev, phys_addr_t paddr,
+		 uint32_t *iova_addr, size_t size)
+{
+	int ret = 0;
+	enum pld_bus_type type = pld_get_bus_type(dev);
+
+	switch (type) {
+	case PLD_BUS_TYPE_SNOC:
+		ret = pld_snoc_smmu_map(dev, paddr, iova_addr, size);
+		break;
+	case PLD_BUS_TYPE_PCIE:
+		pr_err("Not supported on type %d\n", type);
+		ret = -ENODEV;
+		break;
+	default:
+		pr_err("Invalid device type %d\n", type);
+		ret = -EINVAL;
 		break;
 	}
 

@@ -108,6 +108,11 @@ typedef uint8_t tSirVersionString[SIR_VERSION_STRING_LEN];
 #define MAX_VDEV_SUPPORTED                        4
 
 #define MAX_POWER_DBG_ARGS_SUPPORTED 8
+#define QOS_MAP_MAX_EX  21
+#define QOS_MAP_LEN_MIN 16
+#define QOS_MAP_LEN_MAX \
+	(QOS_MAP_LEN_MIN + 2 * QOS_MAP_MAX_EX)
+#define NUM_CHAINS_MAX  2
 
 /**
  * enum sir_conn_update_reason: Reason for conc connection update
@@ -4119,12 +4124,11 @@ typedef struct {
 } tSirStatsExtEvent, *tpSirStatsExtEvent;
 #endif
 
-#ifdef WLAN_FEATURE_NAN
 typedef struct {
 	uint32_t event_data_len;
 	uint8_t event_data[];
 } tSirNanEvent, *tpSirNanEvent;
-#endif
+
 typedef struct sSirSmeRoamOffloadSynchInd {
 	uint16_t messageType;   /*eWNI_SME_ROAM_OFFLOAD_SYNCH_IND */
 	uint16_t length;
@@ -6429,6 +6433,43 @@ struct sir_mac_pwr_dbg_cmd {
 	uint32_t module_id;
 	uint32_t num_args;
 	uint32_t args[MAX_POWER_DBG_ARGS_SUPPORTED];
+};
+
+/**
+ * struct sme_send_disassoc_frm_req - send disassoc request frame
+ * @msg_type: message type
+ * @length: length of message
+ * @session_id: session id
+ * @trans_id: transaction id
+ * @peer_mac: peer mac address
+ * @reason: reason for disassoc
+ * @wait_for_ack: wait for acknowledgment
+ **/
+ struct sme_send_disassoc_frm_req {
+	uint16_t msg_type;
+	uint16_t length;
+	uint8_t session_id;
+	uint16_t trans_id;
+	uint8_t peer_mac[6];
+	uint16_t reason;
+	uint8_t wait_for_ack;
+ };
+
+/**
+ * struct sme_update_access_policy_vendor_ie - update vendor ie and access
+ * policy
+ * @msg_type: message id
+ * @msg_len: message length
+ * @sme_session_id: sme session id
+ * @ie: vendor ie
+ * @access_policy: access policy for vendor ie
+ */
+struct sme_update_access_policy_vendor_ie {
+	uint16_t msg_type;
+	uint16_t length;
+	uint32_t sme_session_id;
+	uint8_t ie[SIR_MAC_MAX_IE_LENGTH];
+	uint8_t access_policy;
 };
 
 #endif /* __SIR_API_H */

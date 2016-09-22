@@ -401,6 +401,7 @@ typedef struct hdd_stats_s {
 	tCsrGlobalClassCStatsInfo ClassC_stat;
 	tCsrGlobalClassDStatsInfo ClassD_stat;
 	tCsrPerStaStatsInfo perStaStats;
+	struct csr_per_chain_rssi_stats_info  per_chain_rssi_stats;
 	hdd_tx_rx_stats_t hddTxRxStats;
 #ifdef WLAN_FEATURE_11W
 	hdd_pmf_stats_t hddPmfStats;
@@ -1060,8 +1061,10 @@ struct hdd_adapter_s {
 	struct sir_dcc_update_ndl_response dcc_update_ndl_resp;
 
 	/* MAC addresses used for OCB interfaces */
+#ifdef WLAN_FEATURE_DSRC
 	struct qdf_mac_addr ocb_mac_address[QDF_MAX_CONCURRENCY_PERSONA];
 	int ocb_mac_addr_count;
+#endif
 
 	/* BITMAP indicating pause reason */
 	uint32_t pause_map;
@@ -1478,6 +1481,7 @@ struct hdd_context_s {
 	int radio_index;
 	qdf_work_t sap_pre_cac_work;
 	bool hbw_requested;
+	uint32_t last_nil_scan_bug_report_timestamp;
 #ifdef WLAN_FEATURE_NAN_DATAPATH
 	bool nan_datapath_enabled;
 #endif
@@ -1492,6 +1496,7 @@ struct hdd_context_s {
 	bool napi_enable;
 	bool stop_modules_in_progress;
 	bool start_modules_in_progress;
+	bool update_mac_addr_to_fw;
 };
 
 /*---------------------------------------------------------------------------
@@ -1837,7 +1842,8 @@ int hdd_start_adapter(hdd_adapter_t *adapter);
 void hdd_connect_result(struct net_device *dev, const u8 *bssid,
 			tCsrRoamInfo *roam_info, const u8 *req_ie,
 			size_t req_ie_len, const u8 *resp_ie,
-			size_t resp_ie_len, u16 status, gfp_t gfp);
+			size_t resp_ie_len, u16 status, gfp_t gfp,
+			bool connect_timeout);
 
 #ifdef WLAN_FEATURE_FASTPATH
 void hdd_enable_fastpath(struct hdd_config *hdd_cfg,

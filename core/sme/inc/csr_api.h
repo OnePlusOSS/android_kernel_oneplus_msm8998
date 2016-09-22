@@ -61,10 +61,8 @@ typedef enum {
 	eCSR_AUTH_TYPE_WAPI_WAI_CERTIFICATE,
 	eCSR_AUTH_TYPE_WAPI_WAI_PSK,
 #endif /* FEATURE_WLAN_WAPI */
-#ifdef FEATURE_WLAN_ESE
 	eCSR_AUTH_TYPE_CCKM_WPA,
 	eCSR_AUTH_TYPE_CCKM_RSN,
-#endif /* FEATURE_WLAN_ESE */
 #ifdef WLAN_FEATURE_11W
 	eCSR_AUTH_TYPE_RSN_PSK_SHA256,
 	eCSR_AUTH_TYPE_RSN_8021X_SHA256,
@@ -621,6 +619,8 @@ typedef enum {
 	eCSR_ROAM_RESULT_NDP_END_RSP,
 	eCSR_ROAM_RESULT_NDP_PEER_DEPARTED_IND,
 	eCSR_ROAM_RESULT_NDP_END_IND,
+	/* If Scan for SSID failed to found proper BSS */
+	eCSR_ROAM_RESULT_SCAN_FOR_SSID_FAILURE,
 } eCsrRoamResult;
 
 /*----------------------------------------------------------------------------
@@ -967,6 +967,7 @@ typedef struct tagCsrRoamProfile {
 	uint8_t beacon_tx_rate;
 	tSirMacRateSet supp_rate_set;
 	tSirMacRateSet extended_rate_set;
+	bool do_not_roam;
 } tCsrRoamProfile;
 
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
@@ -1524,6 +1525,16 @@ typedef struct tagCsrPerStaStatsInfo {
 	uint32_t tx_mpdu_in_ampdu_cnt;
 } tCsrPerStaStatsInfo;
 
+/**
+ * struct csr_per_chain_rssi_stats_info - stores chain rssi
+ * @rssi: array containing rssi for all chains
+ * @peer_mac_addr: peer mac address
+ */
+struct csr_per_chain_rssi_stats_info {
+	int8_t rssi[NUM_CHAINS_MAX];
+	tSirMacAddr peer_mac_addr;
+};
+
 typedef struct tagCsrRoamSetKey {
 	eCsrEncryptionType encType;
 	tAniKeyDirection keyDirection;  /* Tx, Rx or Tx-and-Rx */
@@ -1554,6 +1565,7 @@ typedef struct tagCsrLinkEstablishParams {
 	uint8_t supportedChannels[SIR_MAC_MAX_SUPP_CHANNELS];
 	uint8_t supportedOperClassesLen;
 	uint8_t supportedOperClasses[CDS_MAX_SUPP_OPER_CLASSES];
+	uint8_t qos;
 } tCsrTdlsLinkEstablishParams;
 
 typedef struct tagCsrTdlsSendMgmt {

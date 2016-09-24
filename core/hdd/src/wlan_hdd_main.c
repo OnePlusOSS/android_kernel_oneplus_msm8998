@@ -3529,13 +3529,8 @@ QDF_STATUS hdd_stop_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 			QDF_STATUS qdf_status;
 
 			/* Stop Bss. */
-#ifdef WLAN_FEATURE_MBSSID
 			status = wlansap_stop_bss(
 					WLAN_HDD_GET_SAP_CTX_PTR(adapter));
-#else
-			status = wlansap_stop_bss(
-				(WLAN_HDD_GET_CTX(adapter))->pcds_context);
-#endif
 
 			if (QDF_IS_STATUS_SUCCESS(status)) {
 				hdd_hostapd_state_t *hostapd_state =
@@ -3826,7 +3821,7 @@ QDF_STATUS hdd_start_all_adapters(hdd_context_t *hdd_ctx)
 		adapter = adapterNode->pAdapter;
 
 		if (!hdd_is_interface_up(adapter))
-			continue;
+			goto get_adapter;
 
 		hdd_wmm_init(adapter);
 
@@ -3899,7 +3894,7 @@ QDF_STATUS hdd_start_all_adapters(hdd_context_t *hdd_ctx)
 		default:
 			break;
 		}
-
+get_adapter:
 		status = hdd_get_next_adapter(hdd_ctx, adapterNode, &pNext);
 		adapterNode = pNext;
 	}
@@ -4596,6 +4591,7 @@ void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 	if (QDF_TIMER_STATE_RUNNING ==
 	    qdf_mc_timer_get_current_state(&hdd_ctx->bus_bw_timer)) {
 		qdf_mc_timer_stop(&hdd_ctx->bus_bw_timer);
+		hdd_reset_tcp_delack(hdd_ctx);
 	}
 
 	if (!QDF_IS_STATUS_SUCCESS
@@ -5058,6 +5054,7 @@ void hdd_pld_request_bus_bandwidth(hdd_context_t *hdd_ctx,
 	enum pld_bus_width_type next_vote_level = PLD_BUS_WIDTH_NONE;
 	enum wlan_tp_level next_rx_level = WLAN_SVC_TP_NONE;
 	enum wlan_tp_level next_tx_level = WLAN_SVC_TP_NONE;
+	uint32_t delack_timer_cnt = hdd_ctx->config->tcp_delack_timer_count;
 
 	if (total > hdd_ctx->config->busBandwidthHighThreshold)
 		next_vote_level = PLD_BUS_WIDTH_HIGH;
@@ -5099,10 +5096,14 @@ void hdd_pld_request_bus_bandwidth(hdd_context_t *hdd_ctx,
 	temp_rx = (rx_packets + hdd_ctx->prev_rx) / 2;
 
 	hdd_ctx->prev_rx = rx_packets;
-	if (temp_rx > hdd_ctx->config->tcpDelackThresholdHigh)
+	if (temp_rx > hdd_ctx->config->tcpDelackThresholdHigh &&
+	    (hdd_ctx->cur_rx_level != WLAN_SVC_TP_HIGH &&
+	    ++hdd_ctx->rx_high_ind_cnt == delack_timer_cnt)) {
 		next_rx_level = WLAN_SVC_TP_HIGH;
-	else
+	} else {
 		next_rx_level = WLAN_SVC_TP_LOW;
+		hdd_ctx->rx_high_ind_cnt = 0;
+	}
 
 	hdd_ctx->hdd_txrx_hist[hdd_ctx->hdd_txrx_hist_idx].next_rx_level =
 								next_rx_level;
@@ -5262,7 +5263,7 @@ static void hdd_bus_bw_compute_cbk(void *priv)
  *
  * Return: 0 for success or error code
  */
-int wlan_hdd_init_tx_rx_histogram(hdd_context_t *hdd_ctx)
+static int wlan_hdd_init_tx_rx_histogram(hdd_context_t *hdd_ctx)
 {
 	hdd_ctx->hdd_txrx_hist = qdf_mem_malloc(
 		(sizeof(struct hdd_tx_rx_histogram) * NUM_TX_RX_HISTOGRAM));
@@ -6041,9 +6042,6 @@ static QDF_STATUS wlan_hdd_disable_all_dual_mac_features(hdd_context_t *hdd_ctx)
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	if (hdd_ctx->config->dual_mac_feature_disable)
-		return QDF_STATUS_SUCCESS;
-
 	cfg.scan_config = 0;
 	cfg.fw_mode_config = 0;
 	cfg.set_dual_mac_cb = cds_soc_set_dual_mac_cfg_cb;
@@ -6130,6 +6128,36 @@ static void hdd_set_trace_level_for_each(hdd_context_t *hdd_ctx)
 
 	hdd_cfg_print(hdd_ctx);
 }
+
+/**
+ * hdd_context_deinit() - Deinitialize HDD context
+ * @hdd_ctx:    HDD context.
+ *
+ * Deinitialize HDD context along with all the feature specific contexts but
+ * do not free hdd context itself. Caller of this API is supposed to free
+ * HDD context.
+ *
+ * return: 0 on success and errno on failure.
+ */
+static int hdd_context_deinit(hdd_context_t *hdd_ctx)
+{
+	wlan_hdd_cfg80211_deinit(hdd_ctx->wiphy);
+
+	hdd_roc_context_destroy(hdd_ctx);
+
+	hdd_sap_context_destroy(hdd_ctx);
+
+	hdd_rx_wake_lock_destroy(hdd_ctx);
+
+	hdd_tdls_context_destroy(hdd_ctx);
+
+	hdd_scan_context_destroy(hdd_ctx);
+
+	qdf_list_destroy(&hdd_ctx->hddAdapters);
+
+	return 0;
+}
+
 
 /**
  * hdd_context_init() - Initialize HDD context
@@ -6288,9 +6316,9 @@ hdd_context_t *hdd_context_create(struct device *dev)
 
 	cds_set_multicast_logging(hdd_ctx->config->multicast_host_fw_msgs);
 
-	status = wlan_hdd_init_tx_rx_histogram(hdd_ctx);
-	if (status)
-		goto err_free_config;
+	ret = wlan_hdd_init_tx_rx_histogram(hdd_ctx);
+	if (ret)
+		goto err_deinit_hdd_context;
 
 	ret = hdd_logging_sock_activate_svc(hdd_ctx);
 	if (ret)
@@ -6312,6 +6340,9 @@ skip_multicast_logging:
 
 err_free_histogram:
 	wlan_hdd_deinit_tx_rx_histogram(hdd_ctx);
+
+err_deinit_hdd_context:
+	hdd_context_deinit(hdd_ctx);
 
 err_free_config:
 	qdf_mem_free(hdd_ctx->config);
@@ -7330,14 +7361,6 @@ static int hdd_features_init(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 
 	hdd_tsf_init(hdd_ctx);
 
-	if (hdd_ctx->config->dual_mac_feature_disable) {
-		status = wlan_hdd_disable_all_dual_mac_features(hdd_ctx);
-		if (status != QDF_STATUS_SUCCESS) {
-			hdd_err("Failed to disable dual mac features");
-			goto deregister_frames;
-		}
-	}
-
 	ret = hdd_register_cb(hdd_ctx);
 	if (ret) {
 		hdd_err("Failed to register HDD callbacks!");
@@ -7939,9 +7962,6 @@ void hdd_deregister_cb(hdd_context_t *hdd_ctx)
 QDF_STATUS hdd_softap_sta_deauth(hdd_adapter_t *adapter,
 				 struct tagCsrDelStaParams *pDelStaParams)
 {
-#ifndef WLAN_FEATURE_MBSSID
-	v_CONTEXT_t p_cds_context = (WLAN_HDD_GET_CTX(adapter))->pcds_context;
-#endif
 	QDF_STATUS qdf_status = QDF_STATUS_E_FAULT;
 
 	ENTER();
@@ -7953,13 +7973,9 @@ QDF_STATUS hdd_softap_sta_deauth(hdd_adapter_t *adapter,
 	if (pDelStaParams->peerMacAddr.bytes[0] & 0x1)
 		return qdf_status;
 
-#ifdef WLAN_FEATURE_MBSSID
 	qdf_status =
 		wlansap_deauth_sta(WLAN_HDD_GET_SAP_CTX_PTR(adapter),
 				   pDelStaParams);
-#else
-	qdf_status = wlansap_deauth_sta(p_cds_context, pDelStaParams);
-#endif
 
 	EXIT();
 	return qdf_status;
@@ -7977,10 +7993,6 @@ QDF_STATUS hdd_softap_sta_deauth(hdd_adapter_t *adapter,
 void hdd_softap_sta_disassoc(hdd_adapter_t *adapter,
 			     struct tagCsrDelStaParams *pDelStaParams)
 {
-#ifndef WLAN_FEATURE_MBSSID
-	v_CONTEXT_t p_cds_context = (WLAN_HDD_GET_CTX(adapter))->pcds_context;
-#endif
-
 	ENTER();
 
 	hdd_err("hdd_softap_sta_disassoc:(%p, false)",
@@ -7990,32 +8002,20 @@ void hdd_softap_sta_disassoc(hdd_adapter_t *adapter,
 	if (pDelStaParams->peerMacAddr.bytes[0] & 0x1)
 		return;
 
-#ifdef WLAN_FEATURE_MBSSID
 	wlansap_disassoc_sta(WLAN_HDD_GET_SAP_CTX_PTR(adapter),
 			     pDelStaParams);
-#else
-	wlansap_disassoc_sta(p_cds_context, pDelStaParams);
-#endif
 }
 
 void hdd_softap_tkip_mic_fail_counter_measure(hdd_adapter_t *adapter,
 					      bool enable)
 {
-#ifndef WLAN_FEATURE_MBSSID
-	v_CONTEXT_t p_cds_context = (WLAN_HDD_GET_CTX(adapter))->pcds_context;
-#endif
-
 	ENTER();
 
 	hdd_err("hdd_softap_tkip_mic_fail_counter_measure:(%p, false)",
 	       (WLAN_HDD_GET_CTX(adapter))->pcds_context);
 
-#ifdef WLAN_FEATURE_MBSSID
 	wlansap_set_counter_measure(WLAN_HDD_GET_SAP_CTX_PTR(adapter),
 				    (bool) enable);
-#else
-	wlansap_set_counter_measure(p_cds_context, (bool) enable);
-#endif
 }
 
 /**
@@ -8400,8 +8400,10 @@ void hdd_stop_bus_bw_compute_timer(hdd_adapter_t *adapter)
 		}
 	}
 
-	if (can_stop == true)
+	if (can_stop == true) {
 		qdf_mc_timer_stop(&hdd_ctx->bus_bw_timer);
+		hdd_reset_tcp_delack(hdd_ctx);
+	}
 }
 #endif
 
@@ -8466,7 +8468,6 @@ QDF_STATUS wlan_hdd_check_custom_con_channel_rules(hdd_adapter_t *sta_adapter,
 	return QDF_STATUS_SUCCESS;
 }
 
-#ifdef WLAN_FEATURE_MBSSID
 /**
  * wlan_hdd_stop_sap() - This function stops bss of SAP.
  * @ap_adapter: SAP adapter
@@ -8588,7 +8589,6 @@ end:
 	mutex_unlock(&hdd_ctx->sap_lock);
 	return;
 }
-#endif
 
 /**
  * wlan_hdd_soc_set_antenna_mode_cb() - Callback for set dual

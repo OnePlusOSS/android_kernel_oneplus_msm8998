@@ -756,6 +756,32 @@ static int32_t wma_set_priv_cfg(tp_wma_handle wma_handle,
 }
 
 /**
+ * wma_set_dtim_period() - set dtim period to FW
+ * @wma: wma handle
+ * @dtim_params: dtim params
+ *
+ * Return: none
+ */
+void wma_set_dtim_period(tp_wma_handle wma,
+			    struct set_dtim_params *dtim_params)
+{
+	QDF_STATUS ret;
+	uint8_t vdev_id = dtim_params->session_id;
+	struct wma_txrx_node *iface =
+		&wma->interfaces[vdev_id];
+
+	WMA_LOGI("%s: set dtim_period %d", __func__,
+			dtim_params->dtim_period);
+	iface->dtimPeriod = dtim_params->dtim_period;
+	ret = wma_vdev_set_param(wma->wmi_handle,
+			vdev_id,
+			WMI_VDEV_PARAM_LISTEN_INTERVAL,
+			dtim_params->dtim_period);
+	if (QDF_IS_STATUS_ERROR(ret))
+		WMA_LOGW("Failed to set listen interval");
+
+}
+/**
  * wma_set_modulated_dtim() - function to configure modulated dtim
  * @wma: wma handle
  * @privcmd: structure containing parameters
@@ -3501,9 +3527,6 @@ static inline void wma_update_target_services(tp_wma_handle wh,
 	cfg->en_tdls_uapsd_sleep_sta =
 		WMI_SERVICE_IS_ENABLED(wh->wmi_service_bitmap,
 				       WMI_SERVICE_TDLS_UAPSD_SLEEP_STA);
-	cfg->per_band_chainmask_supp =
-		WMI_SERVICE_IS_ENABLED(wh->wmi_service_bitmap,
-				WMI_SERVICE_PER_BAND_CHAINMASK_SUPPORT);
 #endif /* FEATURE_WLAN_TDLS */
 	if (WMI_SERVICE_IS_ENABLED
 		    (wh->wmi_service_bitmap, WMI_SERVICE_BEACON_OFFLOAD))
@@ -3649,7 +3672,7 @@ static void wma_derive_ext_ht_cap(tp_wma_handle wma_handle,
 	if (NULL == wma_handle || NULL == ht_cap)
 		return;
 
-	if (0 == qdf_mem_cmp(ht_cap, &tmp, sizeof(struct wma_tgt_ht_cap))) {
+	if (!qdf_mem_cmp(ht_cap, &tmp, sizeof(struct wma_tgt_ht_cap))) {
 		ht_cap->ht_rx_stbc = (!!(value & WMI_HT_CAP_RX_STBC));
 		ht_cap->ht_tx_stbc = (!!(value & WMI_HT_CAP_TX_STBC));
 		ht_cap->mpdu_density = (!!(value & WMI_HT_CAP_MPDU_DENSITY));
@@ -3733,7 +3756,7 @@ static void wma_update_target_ext_ht_cap(tp_wma_handle wma_handle,
 		}
 	}
 
-	if (0 != qdf_mem_cmp(&tmp_cap, &tmp_ht_cap,
+	if (qdf_mem_cmp(&tmp_cap, &tmp_ht_cap,
 				sizeof(struct wma_tgt_ht_cap))) {
 			qdf_mem_copy(ht_cap, &tmp_ht_cap,
 					sizeof(struct wma_tgt_ht_cap));
@@ -3770,7 +3793,7 @@ static void wma_derive_ext_vht_cap(t_wma_handle *wma_handle,
 	if (NULL == wma_handle || NULL == vht_cap)
 		return;
 
-	if (0 == qdf_mem_cmp(vht_cap, &tmp_cap,
+	if (!qdf_mem_cmp(vht_cap, &tmp_cap,
 				sizeof(struct wma_tgt_vht_cap))) {
 		if (value & WMI_VHT_CAP_MAX_MPDU_LEN_11454)
 			vht_cap->vht_max_mpdu = WMI_VHT_CAP_MAX_MPDU_LEN_11454;
@@ -3904,7 +3927,7 @@ static void wma_update_target_ext_vht_cap(t_wma_handle *wma_handle,
 		}
 	}
 
-	if (0 != qdf_mem_cmp(&tmp_cap, &tmp_vht_cap,
+	if (qdf_mem_cmp(&tmp_cap, &tmp_vht_cap,
 				sizeof(struct wma_tgt_vht_cap))) {
 			qdf_mem_copy(vht_cap, &tmp_vht_cap,
 					sizeof(struct wma_tgt_vht_cap));
@@ -5615,6 +5638,11 @@ QDF_STATUS wma_mc_process_msg(void *cds_context, cds_msg_t *msg)
 	case WMA_DISABLE_UAPSD_REQ:
 		wma_disable_uapsd_mode(wma_handle,
 				       (tpDisableUapsdParams) msg->bodyptr);
+		qdf_mem_free(msg->bodyptr);
+		break;
+	case WMA_SET_DTIM_PERIOD:
+		wma_set_dtim_period(wma_handle,
+				       (struct set_dtim_params *)msg->bodyptr);
 		qdf_mem_free(msg->bodyptr);
 		break;
 	case WMA_SET_TX_POWER_REQ:

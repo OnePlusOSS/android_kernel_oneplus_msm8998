@@ -1226,7 +1226,7 @@ typedef enum {
 #define CFG_PPS_ENABLE_5G_EBT                 "gEnable5gEBT"
 #define CFG_PPS_ENABLE_5G_EBT_FEATURE_MIN     (0)
 #define CFG_PPS_ENABLE_5G_EBT_FEATURE_MAX     (1)
-#define CFG_PPS_ENABLE_5G_EBT_FEATURE_DEFAULT (0)
+#define CFG_PPS_ENABLE_5G_EBT_FEATURE_DEFAULT (1)
 
 #define CFG_ENABLE_MEMORY_DEEP_SLEEP          "gEnableMemDeepSleep"
 #define CFG_ENABLE_MEMORY_DEEP_SLEEP_MIN      (0)
@@ -2434,6 +2434,12 @@ typedef enum {
 #define CFG_TCP_DELACK_THRESHOLD_LOW_DEFAULT       (1000)
 #define CFG_TCP_DELACK_THRESHOLD_LOW_MIN           (0)
 #define CFG_TCP_DELACK_THRESHOLD_LOW_MAX           (10000)
+
+#define CFG_TCP_DELACK_TIMER_COUNT                 "gTcpDelAckTimerCount"
+#define CFG_TCP_DELACK_TIMER_COUNT_DEFAULT         (30)
+#define CFG_TCP_DELACK_TIMER_COUNT_MIN             (1)
+#define CFG_TCP_DELACK_TIMER_COUNT_MAX             (1000)
+
 
 /* TCP_TX_HIGH_TPUT_THRESHOLD specifies the threshold of packets transmitted
  * over a period of 100 ms beyond which TCP can be considered to have a high
@@ -3948,6 +3954,7 @@ struct hdd_config {
 	uint32_t tcpDelackThresholdHigh;
 	uint32_t tcpDelackThresholdLow;
 	uint32_t tcp_tx_high_tput_thres;
+	uint32_t tcp_delack_timer_count;
 #endif /* MSM_PLATFORM */
 
 	/* FW debug log parameters */

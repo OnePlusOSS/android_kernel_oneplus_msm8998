@@ -67,6 +67,7 @@
 #include "cdp_txrx_flow_ctrl_legacy.h"
 #include <cdp_txrx_peer_ops.h>
 #include "wlan_hdd_nan_datapath.h"
+#include "wlan_tgt_def_config.h"
 
 /*---------------------------------------------------------------------------
    Preprocessor definitions and constants
@@ -803,7 +804,7 @@ typedef struct hdd_scaninfo_s {
 
 } hdd_scaninfo_t;
 
-#define WLAN_HDD_MAX_MC_ADDR_LIST 10
+#define WLAN_HDD_MAX_MC_ADDR_LIST CFG_TGT_MAX_MULTICAST_FILTER_ENTRIES
 
 #ifdef WLAN_FEATURE_PACKET_FILTERING
 typedef struct multicast_addr_list {
@@ -1818,7 +1819,7 @@ QDF_STATUS hdd_sme_close_session_callback(void *pContext);
 
 int hdd_reassoc(hdd_adapter_t *adapter, const uint8_t *bssid,
 		const uint8_t channel, const handoff_src src);
-
+void hdd_svc_fw_shutdown_ind(struct device *dev);
 int hdd_register_cb(hdd_context_t *hdd_ctx);
 void hdd_deregister_cb(hdd_context_t *hdd_ctx);
 int hdd_start_station_adapter(hdd_adapter_t *adapter);

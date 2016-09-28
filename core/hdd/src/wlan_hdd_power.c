@@ -1285,16 +1285,16 @@ static void hdd_resume_wlan(void)
 	hdd_adapter_list_node_t *pAdapterNode = NULL, *pNext = NULL;
 	QDF_STATUS status;
 
-	hdd_notice("WLAN being resumed by OS");
+	hdd_info("WLAN being resumed by OS");
 
 	pHddCtx = cds_get_context(QDF_MODULE_ID_HDD);
 	if (!pHddCtx) {
-		hdd_alert("HDD context is Null");
+		hdd_err("HDD context is Null");
 		return;
 	}
 
 	if (cds_is_driver_recovering()) {
-		hdd_warn("Recovery in Progress. State: 0x%x Ignore resume!!!",
+		hdd_err("Recovery in Progress. State: 0x%x Ignore resume!!!",
 			 cds_get_driver_state());
 		return;
 	}
@@ -1309,7 +1309,7 @@ static void hdd_resume_wlan(void)
 		pAdapter = pAdapterNode->pAdapter;
 
 		/* wake the tx queues */
-		hdd_notice("Enabling queues");
+		hdd_info("Enabling queues");
 		wlan_hdd_netif_queue_control(pAdapter,
 					WLAN_WAKE_ALL_NETIF_QUEUE,
 					WLAN_CONTROL_PATH);
@@ -1382,6 +1382,30 @@ static void hdd_ssr_timer_start(int msec)
 	ssr_timer.function = hdd_ssr_timer_cb;
 	add_timer(&ssr_timer);
 	ssr_timer_started = true;
+}
+
+/**
+ * hdd_svc_fw_shutdown_ind() - API to send FW SHUTDOWN IND to Userspace
+ *
+ * @dev: Device Pointer
+ *
+ * Return: None
+ */
+void hdd_svc_fw_shutdown_ind(struct device *dev)
+{
+	hdd_context_t *hdd_ctx;
+	v_CONTEXT_t g_context;
+
+	g_context = cds_get_global_context();
+
+	if (!g_context)
+		return;
+
+	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+
+	hdd_ctx ? wlan_hdd_send_svc_nlink_msg(hdd_ctx->radio_index,
+					      WLAN_SVC_FW_SHUTDOWN_IND,
+					      NULL, 0) : 0;
 }
 
 /**
@@ -1698,7 +1722,7 @@ static int __wlan_hdd_cfg80211_resume_wlan(struct wiphy *wiphy)
 	pHddCtx->isWiphySuspended = false;
 	if (true != pHddCtx->isSchedScanUpdatePending) {
 		qdf_spin_unlock(&pHddCtx->sched_scan_lock);
-		hdd_notice("Return resume is not due to PNO indication");
+		hdd_info("Return resume is not due to PNO indication");
 		return 0;
 	}
 	/* Reset flag to avoid updatating cfg80211 data old results again */
@@ -1728,7 +1752,7 @@ static int __wlan_hdd_cfg80211_resume_wlan(struct wiphy *wiphy)
 				cfg80211_sched_scan_results(pHddCtx->wiphy);
 			}
 
-			hdd_notice("cfg80211 scan result database updated");
+			hdd_info("cfg80211 scan result database updated");
 			EXIT();
 			return result;
 		}
@@ -1736,7 +1760,6 @@ static int __wlan_hdd_cfg80211_resume_wlan(struct wiphy *wiphy)
 		pAdapterNode = pNext;
 	}
 
-	hdd_notice("Failed to find Adapter");
 	EXIT();
 	return result;
 }
@@ -1831,7 +1854,7 @@ static int __wlan_hdd_cfg80211_suspend_wlan(struct wiphy *wiphy,
 			    true ==
 			    WLAN_HDD_GET_AP_CTX_PTR(pAdapter)->
 			    dfs_cac_block_tx) {
-				hdd_notice("RADAR detection in progress, do not allow suspend");
+				hdd_err("RADAR detection in progress, do not allow suspend");
 				return -EAGAIN;
 			} else if (!pHddCtx->config->enableSapSuspend) {
 				/* return -EOPNOTSUPP if SAP does not support
@@ -1863,7 +1886,7 @@ static int __wlan_hdd_cfg80211_suspend_wlan(struct wiphy *wiphy,
 
 		if (sme_sta_in_middle_of_roaming
 			    (pHddCtx->hHal, pAdapter->sessionId)) {
-			hdd_notice("Roaming in progress, do not allow suspend");
+			hdd_err("Roaming in progress, do not allow suspend");
 			return -EAGAIN;
 		}
 
@@ -1890,7 +1913,7 @@ static int __wlan_hdd_cfg80211_suspend_wlan(struct wiphy *wiphy,
 	 * firmware to avoid any race conditions.
 	 */
 	if (hdd_ipa_suspend(pHddCtx)) {
-		hdd_notice("IPA not ready to suspend!");
+		hdd_err("IPA not ready to suspend!");
 		return -EAGAIN;
 	}
 

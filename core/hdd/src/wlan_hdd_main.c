@@ -2265,7 +2265,9 @@ static void __hdd_set_multicast_list(struct net_device *dev)
 		hdd_notice("mc_count : %u", mc_count);
 
 		if (mc_count > WLAN_HDD_MAX_MC_ADDR_LIST) {
-			hdd_notice("No free filter available; allow all multicast frames");
+			hdd_notice("Exceeded max MC filter addresses (%d). Allowing all MC frames by disabling MC address filtering",
+				   WLAN_HDD_MAX_MC_ADDR_LIST);
+			wlan_hdd_set_mc_addr_list(adapter, false);
 			adapter->mc_addr_list.mc_cnt = 0;
 			return;
 		}
@@ -8166,6 +8168,7 @@ void wlan_hdd_send_svc_nlink_msg(int radio, int type, void *data, int len)
 
 	switch (type) {
 	case WLAN_SVC_FW_CRASHED_IND:
+	case WLAN_SVC_FW_SHUTDOWN_IND:
 	case WLAN_SVC_LTE_COEX_IND:
 	case WLAN_SVC_WLAN_AUTO_SHUTDOWN_IND:
 	case WLAN_SVC_WLAN_AUTO_SHUTDOWN_CANCEL_IND:

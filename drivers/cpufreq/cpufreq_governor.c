@@ -58,6 +58,7 @@ void dbs_check_cpu(struct dbs_data *dbs_data, int cpu)
 
 		ignore_nice = od_tuners->ignore_nice_load;
 <<<<<<< HEAD
+<<<<<<< HEAD
 	} else if (dbs_data->cdata->governor == GOV_ZZMOOVE) {
 		sampling_rate = zz_tuners->sampling_rate;
 		ignore_nice = zz_tuners->ignore_nice_load;
@@ -72,6 +73,8 @@ void dbs_check_cpu(struct dbs_data *dbs_data, int cpu)
 		sampling_rate = nm_tuners->sampling_rate;
 		ignore_nice = nm_tuners->ignore_nice_load;
 >>>>>>> 32d3b79... Imported Alucard, Darkness and Nightmare CPU Governors!
+=======
+>>>>>>> 506d9a5... Alucard, Darkness, Nightmare CPU governors: Rebased on cpufreq_impulse(@neobuddy89) and cpufreq_interactive governor. Separated from CPU_FREQ_GOV_COMMON code.
 	} else {
 		sampling_rate = cs_tuners->sampling_rate;
 		ignore_nice = cs_tuners->ignore_nice_load;
@@ -309,6 +312,7 @@ static void set_sampling_rate(struct dbs_data *dbs_data,
 =======
 		cs_tuners->sampling_rate = max(cs_tuners->sampling_rate,
 			sampling_rate);
+<<<<<<< HEAD
 	} else if (dbs_data->cdata->governor == GOV_ALUCARD) {
 		struct ac_dbs_tuners *ac_tuners = dbs_data->tuners;
 		ac_tuners->sampling_rate = max(ac_tuners->sampling_rate, 
@@ -322,6 +326,8 @@ static void set_sampling_rate(struct dbs_data *dbs_data,
 		nm_tuners->sampling_rate = max(nm_tuners->sampling_rate, 
 			sampling_rate);
 >>>>>>> 32d3b79... Imported Alucard, Darkness and Nightmare CPU Governors!
+=======
+>>>>>>> 506d9a5... Alucard, Darkness, Nightmare CPU governors: Rebased on cpufreq_impulse(@neobuddy89) and cpufreq_interactive governor. Separated from CPU_FREQ_GOV_COMMON code.
 	} else {
 		struct od_dbs_tuners *od_tuners = dbs_data->tuners;
 		od_tuners->sampling_rate = max(od_tuners->sampling_rate, 
@@ -486,6 +492,7 @@ static int cpufreq_governor_start(struct cpufreq_policy *policy,
 		sampling_rate = cs_tuners->sampling_rate;
 		ignore_nice = cs_tuners->ignore_nice_load;
 <<<<<<< HEAD
+<<<<<<< HEAD
 	} else if (cdata->governor == GOV_ZZMOOVE) {
 		struct zz_dbs_tuners *zz_tuners = dbs_data->tuners;
 
@@ -511,6 +518,8 @@ static int cpufreq_governor_start(struct cpufreq_policy *policy,
 		ignore_nice = nm_tuners->ignore_nice_load;
 		nm_ops = dbs_data->cdata->gov_ops;
 >>>>>>> 32d3b79... Imported Alucard, Darkness and Nightmare CPU Governors!
+=======
+>>>>>>> 506d9a5... Alucard, Darkness, Nightmare CPU governors: Rebased on cpufreq_impulse(@neobuddy89) and cpufreq_interactive governor. Separated from CPU_FREQ_GOV_COMMON code.
 	} else {
 		struct od_dbs_tuners *od_tuners = dbs_data->tuners;
 

@@ -127,12 +127,15 @@ static void *get_cpu_dbs_info_s(int cpu)				\
  * od_*: On-demand governor
  * cs_*: Conservative governor
 <<<<<<< HEAD
+<<<<<<< HEAD
  * zz_*: ZZMoove governor
 =======
  * ac_*: Alucard governor
  * dk_*: Darkness governor
  * nm_*: Nightmare governor
 >>>>>>> 32d3b79... Imported Alucard, Darkness and Nightmare CPU Governors!
+=======
+>>>>>>> 506d9a5... Alucard, Darkness, Nightmare CPU governors: Rebased on cpufreq_impulse(@neobuddy89) and cpufreq_interactive governor. Separated from CPU_FREQ_GOV_COMMON code.
  */
 
 /* Common to all CPUs of a policy */
@@ -180,6 +183,7 @@ struct cs_cpu_dbs_info_s {
 };
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 struct zz_cpu_dbs_info_s {
 	struct cpu_dbs_info cdbs;
 	struct cpufreq_frequency_table *freq_table;
@@ -206,6 +210,8 @@ struct nm_cpu_dbs_info_s {
 >>>>>>> 32d3b79... Imported Alucard, Darkness and Nightmare CPU Governors!
 };
 
+=======
+>>>>>>> 506d9a5... Alucard, Darkness, Nightmare CPU governors: Rebased on cpufreq_impulse(@neobuddy89) and cpufreq_interactive governor. Separated from CPU_FREQ_GOV_COMMON code.
 /* Per policy Governors sysfs tunables */
 struct od_dbs_tuners {
 	unsigned int ignore_nice_load;
@@ -225,6 +231,7 @@ struct cs_dbs_tuners {
 	unsigned int freq_step;
 };
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 struct zz_dbs_tuners {
 	unsigned int ignore_nice_load;
@@ -279,6 +286,8 @@ struct nm_dbs_tuners {
 >>>>>>> 32d3b79... Imported Alucard, Darkness and Nightmare CPU Governors!
 };
 
+=======
+>>>>>>> 506d9a5... Alucard, Darkness, Nightmare CPU governors: Rebased on cpufreq_impulse(@neobuddy89) and cpufreq_interactive governor. Separated from CPU_FREQ_GOV_COMMON code.
 /* Common Governor data across policies */
 struct dbs_data;
 struct common_dbs_data {
@@ -286,12 +295,15 @@ struct common_dbs_data {
 	#define GOV_ONDEMAND		0
 	#define GOV_CONSERVATIVE	1
 <<<<<<< HEAD
+<<<<<<< HEAD
 	#define GOV_ZZMOOVE		2
 =======
 	#define GOV_ALUCARD			2
 	#define GOV_DARKNESS		3
 	#define GOV_NIGHTMARE		4
 >>>>>>> 32d3b79... Imported Alucard, Darkness and Nightmare CPU Governors!
+=======
+>>>>>>> 506d9a5... Alucard, Darkness, Nightmare CPU governors: Rebased on cpufreq_impulse(@neobuddy89) and cpufreq_interactive governor. Separated from CPU_FREQ_GOV_COMMON code.
 	int governor;
 	struct attribute_group *attr_group_gov_sys; /* one governor - system */
 	struct attribute_group *attr_group_gov_pol; /* one governor - policy */
@@ -325,6 +337,7 @@ struct dbs_data {
 	struct common_dbs_data *cdata;
 	unsigned int min_sampling_rate;
 <<<<<<< HEAD
+<<<<<<< HEAD
 	struct cpufreq_frequency_table *freq_table;
 	/* following is only used by zzmoove governor */
 	bool freq_table_desc;				// table order ascending or descending (true)
@@ -344,6 +357,8 @@ struct dbs_data {
 =======
 	unsigned int cpu;
 >>>>>>> bb77c095... alucard, darkness and nightmare cpu govs: Enhanced store and restore tuners settings when hotplugging cpus!
+=======
+>>>>>>> 506d9a5... Alucard, Darkness, Nightmare CPU governors: Rebased on cpufreq_impulse(@neobuddy89) and cpufreq_interactive governor. Separated from CPU_FREQ_GOV_COMMON code.
 	int usage_count;
 	void *tuners;
 };
@@ -356,18 +371,6 @@ struct od_ops {
 	void (*freq_increase)(struct cpufreq_policy *policy, unsigned int freq);
 };
 
-struct ac_ops {
-	void (*get_cpu_frequency_table)(int cpu);
-	void (*get_cpu_frequency_table_minmax)(struct cpufreq_policy *policy, 
-			int cpu);
-};
-
-struct dk_ops {
-	void (*get_cpu_frequency_table)(int cpu);
-};
-
-struct nm_ops {
-	void (*get_cpu_frequency_table)(int cpu);
 };
 
 static inline int delay_for_sampling_rate(unsigned int sampling_rate)

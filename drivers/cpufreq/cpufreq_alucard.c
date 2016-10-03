@@ -212,8 +212,8 @@ static unsigned int choose_target_freq(struct cpufreq_alucard_policyinfo *pcpu,
 	struct cpufreq_policy *policy = pcpu->policy;
 	struct cpufreq_frequency_table *table = pcpu->freq_table;
 	struct cpufreq_frequency_table *pos;
-	unsigned int i = 0, target_freq = 0, freq;
-	int count = 0;
+	unsigned int target_freq = 0, freq;
+	int i = 0, t = 0;
 
 	if (!policy || !table || !step)
 		return 0;
@@ -224,19 +224,21 @@ static unsigned int choose_target_freq(struct cpufreq_alucard_policyinfo *pcpu,
 		if (isup) {
 			if (freq > policy->cur) {
 				target_freq = freq;
-				count++;
-				if (count == step)
+				step--;
+				if (step == 0) {
 					break;
+				}
 			}
 		} else {
 			if (freq == policy->cur) {
-				for (count = (i - 1); count >= 0; count--) {
-					if (table[count].frequency != CPUFREQ_ENTRY_INVALID) {
-						target_freq = table[count].frequency;
+				for (t = (i - 1); t >= 0; t--) {
+					if (table[t].frequency != CPUFREQ_ENTRY_INVALID) {
+						target_freq = table[t].frequency;
 						step--;
+						if (step == 0) {
+							break;
+						}
 					}
-					if (step == 0)
-						break;
 				}
 				break;
 			}

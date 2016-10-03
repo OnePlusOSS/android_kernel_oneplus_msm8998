@@ -221,7 +221,6 @@ static bool update_load(int cpu)
 	struct cpufreq_darkness_cpuinfo *pcpu = &per_cpu(cpuinfo, cpu);
 	struct cpufreq_darkness_tunables *tunables =
 		ppol->policy->governor_data;
-	struct cpufreq_govinfo govinfo;
 	u64 now;
 	u64 now_idle;
 	unsigned int delta_idle;
@@ -243,19 +242,6 @@ static bool update_load(int cpu)
 	pcpu->time_in_idle = now_idle;
 	pcpu->time_in_idle_timestamp = now;
 
-	/*
-	 * Send govinfo notification.
-	 * Govinfo notification could potentially wake up another thread
-	 * managed by its clients. Thread wakeups might trigger a load
-	 * change callback that executes this function again. Therefore
-	 * no spinlock could be held when sending the notification.
-	 */
-	govinfo.cpu = cpu;
-	govinfo.load = pcpu->load;
-	govinfo.sampling_rate_us = tunables->timer_rate;
-	atomic_notifier_call_chain(&cpufreq_govinfo_notifier_list,
-					   CPUFREQ_LOAD_CHANGE, &govinfo);
-
 	return ignore;
 }
 
@@ -268,6 +254,7 @@ static void cpufreq_darkness_timer(unsigned long data)
 		ppol->policy->governor_data;
 #endif
 	struct cpufreq_darkness_cpuinfo *pcpu;
+	struct cpufreq_govinfo govinfo;
 	unsigned int new_freq;
 	unsigned int max_load = 0, tmpload;
 	unsigned long flags;
@@ -328,6 +315,22 @@ static void cpufreq_darkness_timer(unsigned long data)
 rearm:
 	if (!timer_pending(&ppol->policy_timer))
 		cpufreq_darkness_timer_resched(data, false);
+
+	/*
+	 * Send govinfo notification.
+	 * Govinfo notification could potentially wake up another thread
+	 * managed by its clients. Thread wakeups might trigger a load
+	 * change callback that executes this function again. Therefore
+	 * no spinlock could be held when sending the notification.
+	 */
+	for_each_cpu(i, ppol->policy->cpus) {
+		pcpu = &per_cpu(cpuinfo, i);
+		govinfo.cpu = i;
+		govinfo.load = pcpu->load;
+		govinfo.sampling_rate_us = tunables->timer_rate;
+		atomic_notifier_call_chain(&cpufreq_govinfo_notifier_list,
+					   CPUFREQ_LOAD_CHANGE, &govinfo);
+	}
 
 exit:
 	up_read(&ppol->enable_sem);

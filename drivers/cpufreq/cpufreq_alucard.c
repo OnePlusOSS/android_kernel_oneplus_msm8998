@@ -252,7 +252,6 @@ static bool update_load(int cpu)
 	struct cpufreq_alucard_cpuinfo *pcpu = &per_cpu(cpuinfo, cpu);
 	struct cpufreq_alucard_tunables *tunables =
 		ppol->policy->governor_data;
-	struct cpufreq_govinfo govinfo;
 	u64 now;
 	u64 now_idle;
 	unsigned int delta_idle;
@@ -274,19 +273,6 @@ static bool update_load(int cpu)
 	pcpu->time_in_idle = now_idle;
 	pcpu->time_in_idle_timestamp = now;
 
-	/*
-	 * Send govinfo notification.
-	 * Govinfo notification could potentially wake up another thread
-	 * managed by its clients. Thread wakeups might trigger a load
-	 * change callback that executes this function again. Therefore
-	 * no spinlock could be held when sending the notification.
-	 */
-	govinfo.cpu = cpu;
-	govinfo.load = pcpu->load;
-	govinfo.sampling_rate_us = tunables->timer_rate;
-	atomic_notifier_call_chain(&cpufreq_govinfo_notifier_list,
-					   CPUFREQ_LOAD_CHANGE, &govinfo);
-
 	return ignore;
 }
 
@@ -297,6 +283,7 @@ static void cpufreq_alucard_timer(unsigned long data)
 	struct cpufreq_alucard_tunables *tunables =
 		ppol->policy->governor_data;
 	struct cpufreq_alucard_cpuinfo *pcpu;
+	struct cpufreq_govinfo govinfo;
 	unsigned int freq_responsiveness = tunables->freq_responsiveness;
 	int dec_cpu_load = tunables->dec_cpu_load;
 	int inc_cpu_load = tunables->inc_cpu_load;
@@ -401,6 +388,22 @@ static void cpufreq_alucard_timer(unsigned long data)
 rearm:
 	if (!timer_pending(&ppol->policy_timer))
 		cpufreq_alucard_timer_resched(data, false);
+
+	/*
+	 * Send govinfo notification.
+	 * Govinfo notification could potentially wake up another thread
+	 * managed by its clients. Thread wakeups might trigger a load
+	 * change callback that executes this function again. Therefore
+	 * no spinlock could be held when sending the notification.
+	 */
+	for_each_cpu(i, ppol->policy->cpus) {
+		pcpu = &per_cpu(cpuinfo, i);
+		govinfo.cpu = i;
+		govinfo.load = pcpu->load;
+		govinfo.sampling_rate_us = tunables->timer_rate;
+		atomic_notifier_call_chain(&cpufreq_govinfo_notifier_list,
+					   CPUFREQ_LOAD_CHANGE, &govinfo);
+	}
 
 exit:
 	up_read(&ppol->enable_sem);

@@ -752,6 +752,40 @@ static int32_t wma_set_priv_cfg(tp_wma_handle wma_handle,
 	}
 		break;
 
+	case WMA_VDEV_TXRX_GET_IPA_UC_SHARING_STATS_CMDID:
+	{
+		ol_txrx_pdev_handle pdev;
+		uint8_t reset_stats = privcmd->param_value;
+
+		WMA_LOGE("%s: reset_stats=%d",
+			 "WMA_VDEV_TXRX_GET_IPA_UC_SHARING_STATS_CMDID",
+			 reset_stats);
+		pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+		if (!pdev) {
+			WMA_LOGE("pdev NULL for uc stat");
+			return -EINVAL;
+		}
+		ol_txrx_ipa_uc_get_share_stats(pdev, reset_stats);
+	}
+		break;
+
+	case WMA_VDEV_TXRX_SET_IPA_UC_QUOTA_CMDID:
+	{
+		ol_txrx_pdev_handle pdev;
+		uint64_t quota_bytes = privcmd->param_value;
+
+		WMA_LOGE("%s: quota_bytes=%llu",
+			 "WMA_VDEV_TXRX_SET_IPA_UC_QUOTA_CMDID",
+			 quota_bytes);
+		pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+		if (!pdev) {
+			WMA_LOGE("pdev NULL for uc stat");
+			return -EINVAL;
+		}
+		ol_txrx_ipa_uc_set_quota(pdev, quota_bytes);
+	}
+		break;
+
 	default:
 		WMA_LOGE("Invalid wma config command id:%d", privcmd->param_id);
 		ret = -EINVAL;

@@ -1585,6 +1585,7 @@ KBUILD_CPPFLAGS += $(CDEFINES)
 ifeq ($(call cc-option-yn, -Wmaybe-uninitialized),y)
 EXTRA_CFLAGS += -Wmaybe-uninitialized
 endif
+EXTRA_CFLAGS += -Wmissing-prototypes
 
 # If the module name is not "wlan", then the define MULTI_IF_NAME to be the
 # same a the module name. The host driver will then append MULTI_IF_NAME to

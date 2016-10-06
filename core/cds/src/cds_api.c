@@ -1479,7 +1479,7 @@ QDF_STATUS cds_mq_post_message_by_priority(CDS_MQ_ID msgQueueId,
 	else
 		cds_mq_put(pTargetMq, pMsgWrapper);
 
-	set_bit(MC_POST_EVENT_MASK, &gp_cds_context->qdf_sched.mcEventFlag);
+	set_bit(MC_POST_EVENT, &gp_cds_context->qdf_sched.mcEventFlag);
 	wake_up_interruptible(&gp_cds_context->qdf_sched.mcWaitQueue);
 
 	return QDF_STATUS_SUCCESS;

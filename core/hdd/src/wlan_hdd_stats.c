@@ -1700,13 +1700,13 @@ static int __wlan_hdd_cfg80211_get_station(struct wiphy *wiphy,
 	sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL);
 #endif
 
-#ifdef WLAN_FEATURE_LPSS
-	if (!pAdapter->rssi_send) {
-		pAdapter->rssi_send = true;
-		if (cds_is_driver_unloading())
-			wlan_hdd_send_status_pkg(pAdapter, pHddStaCtx, 1, 1);
-	}
-#endif
+	/*
+	 * we notify connect to lpass here instead of during actual
+	 * connect processing because rssi info is not accurate during
+	 * actual connection.  lpass will ensure the notification is
+	 * only processed once per association.
+	 */
+	hdd_lpass_notify_connect(pAdapter);
 
 	wlan_hdd_get_station_stats(pAdapter);
 	rate_flags = pAdapter->hdd_stats.ClassA_stat.tx_rate_flags;
@@ -1735,6 +1735,11 @@ static int __wlan_hdd_cfg80211_get_station(struct wiphy *wiphy,
 		 (int)pCfg->linkSpeedRssiHigh, (int)pCfg->linkSpeedRssiMid,
 		 (int)pCfg->linkSpeedRssiLow, (int)rate_flags,
 		 (int)pAdapter->hdd_stats.ClassA_stat.mcs_index);
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0)) || defined(WITH_BACKPORTS)
+	/* assume basic BW. anything else will override this later */
+	sinfo->txrate.bw = RATE_INFO_BW_20;
+#endif
 
 	if (eHDD_LINK_SPEED_REPORT_ACTUAL != pCfg->reportMaxLinkSpeed) {
 		/* we do not want to necessarily report the current speed */

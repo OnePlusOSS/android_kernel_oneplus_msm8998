@@ -117,14 +117,13 @@ void cds_deinit(void)
 	if (gp_cds_context == NULL)
 		return;
 
+	qdf_mc_timer_manager_exit();
+	qdf_mem_exit();
+
 	gp_cds_context->qdf_ctx = NULL;
 	gp_cds_context = NULL;
 
 	qdf_mem_zero(&g_cds_context, sizeof(g_cds_context));
-
-	qdf_mc_timer_manager_exit();
-	qdf_mem_exit();
-
 	return;
 }
 
@@ -817,6 +816,22 @@ QDF_STATUS cds_close(v_CONTEXT_t cds_context)
 	gp_cds_context->is_cds_disabled = 0;
 	return QDF_STATUS_SUCCESS;
 }
+
+void cds_flush_cache_rx_queue(void)
+{
+	uint8_t sta_id;
+	struct ol_txrx_peer_t *peer;
+	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+
+	for (sta_id = 0; sta_id < WLAN_MAX_STA_COUNT; sta_id++) {
+		peer = ol_txrx_peer_find_by_local_id(pdev, sta_id);
+		if (!peer)
+			continue;
+		ol_txrx_flush_rx_frames(peer, 1);
+	}
+	return;
+}
+
 
 /**
  * cds_get_context() - get context data area

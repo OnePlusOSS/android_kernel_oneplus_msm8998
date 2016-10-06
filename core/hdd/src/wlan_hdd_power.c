@@ -1448,6 +1448,9 @@ QDF_STATUS hdd_wlan_shutdown(void)
 	hdd_cleanup_scan_queue(pHddCtx);
 	hdd_reset_all_adapters(pHddCtx);
 
+	/* Flush cached rx frame queue */
+	cds_flush_cache_rx_queue();
+
 	/* De-register the HDD callbacks */
 	hdd_deregister_cb(pHddCtx);
 	hdd_ipa_uc_ssr_deinit();
@@ -1469,7 +1472,7 @@ QDF_STATUS hdd_wlan_shutdown(void)
 	wlansap_global_deinit();
 	hdd_wlan_stop_modules(pHddCtx, true);
 
-	wlan_hdd_send_status_pkg(NULL, NULL, 0, 0);
+	hdd_lpass_notify_stop(pHddCtx);
 
 	hdd_alert("WLAN driver shutdown complete");
 	return QDF_STATUS_SUCCESS;
@@ -1555,10 +1558,7 @@ QDF_STATUS hdd_wlan_re_init(void)
 		goto err_cds_disable;
 	}
 
-	wlan_hdd_send_all_scan_intf_info(pHddCtx);
-	wlan_hdd_send_version_pkg(pHddCtx->target_fw_version,
-				  pHddCtx->target_hw_version,
-				  pHddCtx->target_hw_name);
+	hdd_lpass_notify_start(pHddCtx);
 	qdf_status = wlansap_global_init();
 	if (QDF_IS_STATUS_ERROR(qdf_status))
 		goto err_cds_disable;
@@ -2303,4 +2303,49 @@ int wlan_hdd_cfg80211_get_txpower(struct wiphy *wiphy,
 	cds_ssr_unprotect(__func__);
 
 	return ret;
+}
+
+/**
+ * hdd_set_qpower_config() - set qpower config to firmware
+ * @adapter: HDD adapter
+ * @qpower: new qpower config value
+ *
+ * Return: 0 on success; Errno on failure
+ */
+int hdd_set_qpower_config(hdd_context_t *hddctx, hdd_adapter_t *adapter,
+				 uint8_t qpower)
+{
+	QDF_STATUS qdf_status;
+	int status;
+	bool is_timer_running;
+
+	if (!hddctx->config->enablePowersaveOffload) {
+		hdd_err("qpower is disabled in configuration");
+		return -EINVAL;
+	}
+	if (qpower > PS_DUTY_CYCLING_QPOWER ||
+	    qpower < PS_LEGACY_NODEEPSLEEP) {
+		hdd_err("invalid qpower value=%d", qpower);
+		return -EINVAL;
+	}
+	hdd_info("updating qpower value=%d to wma", qpower);
+	qdf_status = wma_set_powersave_config(qpower);
+	if (qdf_status != QDF_STATUS_SUCCESS) {
+		hdd_err("failed to update qpower %d",
+			qdf_status);
+		return -EINVAL;
+	}
+	is_timer_running = sme_is_auto_ps_timer_running(
+						WLAN_HDD_GET_HAL_CTX(adapter),
+						adapter->sessionId);
+	if (!is_timer_running) {
+		status =  wlan_hdd_set_powersave(adapter, true, 0);
+
+		if (status != 0) {
+			hdd_err("failed to put device in power save mode %d",
+				status);
+			return -EINVAL;
+		}
+	}
+	return 0;
 }

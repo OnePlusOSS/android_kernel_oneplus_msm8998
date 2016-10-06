@@ -1934,16 +1934,12 @@ __lim_process_sme_join_req(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 			session->htConfig.ht_tx_stbc = 0;
 		}
 
-#ifdef FEATURE_WLAN_ESE
 		session->maxTxPower = lim_get_max_tx_power(reg_max,
 					local_power_constraint,
 					mac_ctx->roam.configParam.nTxPowerCap);
-#else
-		session->maxTxPower =
-			QDF_MIN(reg_max, (local_power_constraint));
-#endif
+
 		lim_log(mac_ctx, LOG1,
-			FL("Reg max = %d, local power con = %d, max tx = %d"),
+			FL("Reg max %d local power con %d max tx pwr %d"),
 			reg_max, local_power_constraint, session->maxTxPower);
 
 		if (session->gLimCurrentBssUapsd) {
@@ -4144,46 +4140,125 @@ lim_send_vdev_restart(tpAniSirGlobal pMac,
 	}
 }
 
-static void __lim_process_sme_hide_ssid(tpAniSirGlobal pMac, uint32_t *pMsgBuf)
+/**
+ * __lim_process_roam_scan_offload_req() - Process Roam scan offload from csr
+ * @mac_ctx: Pointer to Global MAC structure
+ * @msg_buf: Pointer to SME message buffer
+ *
+ * Return: None
+ */
+static void __lim_process_roam_scan_offload_req(tpAniSirGlobal mac_ctx,
+						uint32_t *msg_buf)
 {
-	tpSirUpdateParams pUpdateParams;
-	tpPESession psessionEntry;
+	tpPESession pe_session;
+	tSirMsgQ wma_msg;
+	tSirRetStatus status;
+	tSirRoamOffloadScanReq *req_buffer;
+	uint16_t local_ie_len;
+	uint8_t *local_ie_buf;
 
-	PELOG1(lim_log(pMac, LOG1, FL("received HIDE_SSID message")););
+	req_buffer = (tSirRoamOffloadScanReq *)msg_buf;
+	pe_session = pe_find_session_by_sme_session_id(mac_ctx,
+					req_buffer->sessionId);
 
-	if (pMsgBuf == NULL) {
-		lim_log(pMac, LOGE, FL("Buffer is Pointing to NULL"));
+	local_ie_buf = qdf_mem_malloc(MAX_DEFAULT_SCAN_IE_LEN);
+	if (!local_ie_buf) {
+		lim_log(mac_ctx, LOGE, FL("Mem Alloc failed for local_ie_buf"));
 		return;
 	}
 
-	pUpdateParams = (tpSirUpdateParams) pMsgBuf;
-
-	psessionEntry = pe_find_session_by_sme_session_id(pMac,
-				pUpdateParams->sessionId);
-	if (psessionEntry == NULL) {
-		lim_log(pMac, LOGW,
-			"Session does not exist for given sessionId %d",
-			pUpdateParams->sessionId);
-		return;
+	local_ie_len = req_buffer->assoc_ie.length;
+	/* Update ext cap IE if present */
+	if (local_ie_len &&
+		!lim_update_ext_cap_ie(mac_ctx, req_buffer->assoc_ie.addIEdata,
+					local_ie_buf, &local_ie_len)) {
+		req_buffer->assoc_ie.length = local_ie_len;
+		qdf_mem_copy(req_buffer->assoc_ie.addIEdata, local_ie_buf,
+				local_ie_len);
 	}
+	qdf_mem_free(local_ie_buf);
 
-	if (psessionEntry->ssidHidden != pUpdateParams->ssidHidden) {
-		/* Update the session entry */
-		psessionEntry->ssidHidden = pUpdateParams->ssidHidden;
-	} else {
-		lim_log(pMac, LOG1, FL("Same config already present!"));
+	wma_msg.type = WMA_ROAM_SCAN_OFFLOAD_REQ;
+	wma_msg.bodyptr = req_buffer;
+
+	status = wma_post_ctrl_msg(mac_ctx, &wma_msg);
+	if (eSIR_SUCCESS != status) {
+		lim_log(mac_ctx, LOGE,
+			FL("Posting WMA_ROAM_SCAN_OFFLOAD_REQ failed"));
+		qdf_mem_free(req_buffer);
+	}
+}
+
+/*
+ * lim_handle_update_ssid_hidden() - Processes SSID hidden update
+ * @mac_ctx: Pointer to global mac context
+ * @session: Pointer to PE session
+ * @ssid_hidden: SSID hidden value to set; 0 - Broadcast SSID,
+ *    1 - Disable broadcast SSID
+ *
+ * Return: None
+ */
+static void lim_handle_update_ssid_hidden(tpAniSirGlobal mac_ctx,
+				tpPESession session, uint8_t ssid_hidden)
+{
+	lim_log(mac_ctx, LOG1, FL("received HIDE_SSID message"));
+	if (ssid_hidden != session->ssidHidden)
+		session->ssidHidden = ssid_hidden;
+	else {
+		lim_log(mac_ctx, LOG1, FL("Same config already present!"));
 		return;
 	}
 
 	/* Send vdev restart */
-	lim_send_vdev_restart(pMac, psessionEntry, pUpdateParams->sessionId);
+	lim_send_vdev_restart(mac_ctx, session, session->smeSessionId);
 
 	/* Update beacon */
-	sch_set_fixed_beacon_fields(pMac, psessionEntry);
-	lim_send_beacon_ind(pMac, psessionEntry);
+	sch_set_fixed_beacon_fields(mac_ctx, session);
+	lim_send_beacon_ind(mac_ctx, session);
 
 	return;
-} /*** end __lim_process_sme_hide_ssid(tpAniSirGlobal pMac, uint32_t *pMsgBuf) ***/
+}
+
+/**
+ * __lim_process_sme_session_update - process SME session update msg
+ *
+ * @mac_ctx: Pointer to global mac context
+ * @msg_buf: Pointer to the received message buffer
+ *
+ * Return: None
+ */
+static void __lim_process_sme_session_update(tpAniSirGlobal mac_ctx,
+						uint32_t *msg_buf)
+{
+	struct sir_update_session_param *msg;
+	tpPESession session;
+
+	if (!msg_buf) {
+		lim_log(mac_ctx, LOGE, FL("Buffer is Pointing to NULL"));
+		return;
+	}
+
+	msg = (struct sir_update_session_param *) msg_buf;
+
+	session = pe_find_session_by_sme_session_id(mac_ctx, msg->session_id);
+	if (!session) {
+		lim_log(mac_ctx, LOGW,
+			"Session does not exist for given sessionId %d",
+			msg->session_id);
+		return;
+	}
+
+	lim_log(mac_ctx, LOG1, FL("received SME Session update for %d val %d"),
+			msg->param_type, msg->param_val);
+	switch (msg->param_type) {
+	case SIR_PARAM_SSID_HIDDEN:
+		lim_handle_update_ssid_hidden(mac_ctx, session, msg->param_val);
+		break;
+	default:
+		lim_log(mac_ctx, LOGE, FL("Unknown session param"));
+		break;
+	}
+}
 
 static void __lim_process_sme_set_wparsni_es(tpAniSirGlobal pMac, uint32_t *pMsgBuf)
 {
@@ -4962,6 +5037,35 @@ static void lim_set_pdev_vht_ie(tpAniSirGlobal mac_ctx, uint8_t pdev_id,
 }
 
 /**
+ * lim_process_set_vdev_ies_per_band() - process the set vdev IE req
+ * @mac_ctx: Pointer to Global MAC structure
+ * @msg_buf: Pointer to the SME message buffer
+ *
+ * This function is called by limProcessMessageQueue(). This function sets the
+ * VDEV IEs to the FW.
+ *
+ * Return: None
+ */
+static void lim_process_set_vdev_ies_per_band(tpAniSirGlobal mac_ctx,
+						uint32_t *msg_buf)
+{
+	struct sir_set_vdev_ies_per_band *p_msg =
+				(struct sir_set_vdev_ies_per_band *)msg_buf;
+
+	if (NULL == p_msg) {
+		lim_log(mac_ctx, LOGE, FL("NULL p_msg"));
+		return;
+	}
+
+	lim_log(mac_ctx, LOG1, FL("rcvd set vdev ie per band req vdev_id = %d"),
+		p_msg->vdev_id);
+	/* intentionally using NULL here so that self capabilty are sent */
+	if (lim_send_ies_per_band(mac_ctx, NULL, p_msg->vdev_id) !=
+			QDF_STATUS_SUCCESS)
+		lim_log(mac_ctx, LOGE, FL("Unable to send HT/VHT Cap to FW"));
+}
+
+/**
  * lim_process_set_pdev_IEs() - process the set pdev IE req
  * @mac_ctx: Pointer to Global MAC structure
  * @msg_buf: Pointer to the SME message buffer
@@ -5181,8 +5285,12 @@ bool lim_process_sme_req_messages(tpAniSirGlobal pMac, tpSirMsgQ pMsg)
 		lim_process_tkip_counter_measures(pMac, pMsgBuf);
 		break;
 
-	case eWNI_SME_HIDE_SSID_REQ:
-		__lim_process_sme_hide_ssid(pMac, pMsgBuf);
+	case eWNI_SME_SESSION_UPDATE_PARAM:
+		__lim_process_sme_session_update(pMac, pMsgBuf);
+		break;
+	case eWNI_SME_ROAM_SCAN_OFFLOAD_REQ:
+		__lim_process_roam_scan_offload_req(pMac, pMsgBuf);
+		bufConsumed = false;
 		break;
 	case eWNI_SME_UPDATE_APWPSIE_REQ:
 		__lim_process_sme_update_apwpsi_es(pMac, pMsgBuf);
@@ -5285,6 +5393,10 @@ bool lim_process_sme_req_messages(tpAniSirGlobal pMac, tpSirMsgQ pMsg)
 		break;
 	case eWNI_SME_PDEV_SET_HT_VHT_IE:
 		lim_process_set_pdev_IEs(pMac, pMsgBuf);
+		break;
+	case eWNI_SME_SET_VDEV_IES_PER_BAND:
+		lim_process_set_vdev_ies_per_band(pMac, pMsgBuf);
+		break;
 	case eWNI_SME_NDP_END_REQ:
 	case eWNI_SME_NDP_INITIATOR_REQ:
 	case eWNI_SME_NDP_RESPONDER_REQ:

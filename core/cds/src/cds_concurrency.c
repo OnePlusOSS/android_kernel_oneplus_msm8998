@@ -2512,10 +2512,10 @@ static void cds_pdev_set_hw_mode_cb(uint32_t status,
  *
  * Return: None
  */
-static void cds_hw_mode_transition_cb(uint32_t old_hw_mode_index,
-				 uint32_t new_hw_mode_index,
-				 uint32_t num_vdev_mac_entries,
-				 struct sir_vdev_mac_map *vdev_mac_map)
+void cds_hw_mode_transition_cb(uint32_t old_hw_mode_index,
+			uint32_t new_hw_mode_index,
+			uint32_t num_vdev_mac_entries,
+			struct sir_vdev_mac_map *vdev_mac_map)
 {
 	QDF_STATUS status;
 	struct sir_hw_mode_params hw_mode;
@@ -4951,6 +4951,36 @@ bool cds_map_concurrency_mode(enum tQDF_ADAPTER_MODE *old_mode,
 }
 
 /**
+ * cds_get_channel() - provide channel number of given mode and vdevid
+ * @mode: given CDS mode
+ * @vdev_id: pointer to vdev_id
+ *
+ * This API will provide channel number of matching mode and vdevid.
+ * If vdev_id is NULL then it will match only mode
+ * If vdev_id is not NULL the it will match both mode and vdev_id
+ *
+ * Return: channel number
+ */
+uint8_t cds_get_channel(enum cds_con_mode mode, uint32_t *vdev_id)
+{
+	uint32_t idx = 0;
+
+	if (mode >= CDS_MAX_NUM_OF_MODE) {
+		cds_err("incorrect mode");
+		return 0;
+	}
+
+	for (idx = 0; idx < MAX_NUMBER_OF_CONC_CONNECTIONS; idx++) {
+		if ((conc_connection_list[idx].mode == mode) &&
+				(!vdev_id || (*vdev_id ==
+					conc_connection_list[idx].vdev_id))
+				&& conc_connection_list[idx].in_use)
+			return conc_connection_list[idx].chan;
+	}
+	return 0;
+}
+
+/**
  * cds_get_pcl() - provides the preferred channel list for
  * new connection
  * @mode:	Device mode
@@ -6245,14 +6275,11 @@ QDF_STATUS cds_next_actions(uint32_t session_id,
 		return status;
 	}
 	/**
-	 *  if already in DBS no need to request DBS or if already in
-	 *  non dbs no need request for non dbs again. Might be needed
+	 *  if already in DBS no need to request DBS. Might be needed
 	 *  to extend the logic when multiple dbs HW mode is available
 	 */
 	if ((((CDS_DBS_DOWNGRADE == action) || (CDS_DBS == action))
-		&& hw_mode.dbs_cap) ||
-		(((CDS_SINGLE_MAC_UPGRADE == action) ||
-		(CDS_SINGLE_MAC == action)) && !hw_mode.dbs_cap)) {
+		&& hw_mode.dbs_cap)) {
 		cds_err("driver is already in %s mode, no further action needed",
 				(hw_mode.dbs_cap) ? "dbs" : "non dbs");
 		return QDF_STATUS_E_ALREADY;
@@ -7013,17 +7040,18 @@ static void cds_check_sta_ap_concurrent_ch_intf(void *data)
 	}
 
 }
+
 /**
  * cds_check_concurrent_intf_and_restart_sap() - Check concurrent change intf
- * @hdd_sta_ctx: Pointer to HDD STA context
+ * @adapter: Pointer to HDD adapter
  *
  * Checks the concurrent change interface and restarts SAP
  * Return: None
  */
-void cds_check_concurrent_intf_and_restart_sap(hdd_station_ctx_t *hdd_sta_ctx,
-		hdd_adapter_t *adapter)
+void cds_check_concurrent_intf_and_restart_sap(hdd_adapter_t *adapter)
 {
 	hdd_context_t *hdd_ctx;
+	hdd_station_ctx_t *hdd_sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
 
 	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
 	if (!hdd_ctx) {
@@ -8169,13 +8197,17 @@ enum cds_conc_next_action cds_get_current_pref_hw_mode(void)
 }
 
 /**
- * cds_stop_start_opportunistic_timer() - Start and stop the opportunistic timer
+ * cds_restart_opportunistic_timer() - Restarts opportunistic timer
+ * @check_state: check timer state if this flag is set, else restart
+ *               irrespective of state
  *
- * Stops and starts the opportunistic timer for DBS_OPPORTUNISTIC_TIME seconds
+ * Restarts opportunistic timer for DBS_OPPORTUNISTIC_TIME seconds.
+ * Check if current state is RUNNING if check_state is set, else
+ * restart the timer irrespective of state.
  *
  * Return: QDF_STATUS
  */
-QDF_STATUS cds_stop_start_opportunistic_timer(void)
+QDF_STATUS cds_restart_opportunistic_timer(bool check_state)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	p_cds_contextType cds_ctx;
@@ -8185,6 +8217,11 @@ QDF_STATUS cds_stop_start_opportunistic_timer(void)
 		cds_err("Invalid CDS context");
 		return status;
 	}
+
+	if (check_state &&
+			QDF_TIMER_STATE_RUNNING !=
+			cds_ctx->dbs_opportunistic_timer.state)
+		return status;
 
 	qdf_mc_timer_stop(&cds_ctx->dbs_opportunistic_timer);
 
@@ -8822,7 +8859,7 @@ QDF_STATUS cds_set_hw_mode_on_channel_switch(uint8_t session_id)
 	 * as well.
 	 */
 	if (action == CDS_SINGLE_MAC_UPGRADE) {
-		qdf_status = cds_stop_start_opportunistic_timer();
+		qdf_status = cds_restart_opportunistic_timer(false);
 		if (QDF_IS_STATUS_SUCCESS(qdf_status))
 			cds_info("opportunistic timer for MCC upgrade");
 		goto done;

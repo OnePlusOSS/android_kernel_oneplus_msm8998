@@ -415,6 +415,9 @@ static const t_probeTime_dwellTime
 };
 
 typedef void (*txFailIndCallback)(uint8_t *peer_mac, uint8_t seqNo);
+typedef void (*encrypt_decrypt_cb)(struct sir_encrypt_decrypt_rsp_params
+		*encrypt_decrypt_rsp_params);
+
 
 /**
  * enum t_wma_drv_type - wma driver type
@@ -2213,3 +2216,6 @@ WLAN_PHY_MODE wma_chan_phy_mode(u8 chan, enum phy_ch_width chan_width,
 QDF_STATUS wma_start_oem_data_req(tp_wma_handle wma_handle,
 				  struct oem_data_req *oem_req);
 #endif
+
+QDF_STATUS wma_enable_disable_caevent_ind(tp_wma_handle wma_handle,
+				uint8_t val);

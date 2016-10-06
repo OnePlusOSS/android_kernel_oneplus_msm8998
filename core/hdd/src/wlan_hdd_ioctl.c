@@ -446,21 +446,24 @@ hdd_get_ibss_peer_info_cb(void *pUserData,
 	pStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
 	if (NULL != pPeerInfo && QDF_STATUS_SUCCESS == pPeerInfo->status) {
 		/* validate number of peers */
-		if (pPeerInfo->numPeers < SIR_MAX_NUM_STA_IN_IBSS) {
-			pStaCtx->ibss_peer_info.status = pPeerInfo->status;
-			pStaCtx->ibss_peer_info.numPeers = pPeerInfo->numPeers;
-
-			for (i = 0; i < pPeerInfo->numPeers; i++) {
-				pStaCtx->ibss_peer_info.peerInfoParams[i] =
-					pPeerInfo->peerInfoParams[i];
-			}
-			hdd_info("Peer Info copied in HDD");
-		} else {
-			hdd_info("Number of peers %d returned is more than limit %d",
+		if (pPeerInfo->numPeers > SIR_MAX_NUM_STA_IN_IBSS) {
+			hdd_warn("Limiting num_peers %u to %u",
 				pPeerInfo->numPeers, SIR_MAX_NUM_STA_IN_IBSS);
+			pPeerInfo->numPeers = SIR_MAX_NUM_STA_IN_IBSS;
 		}
+		pStaCtx->ibss_peer_info.status = pPeerInfo->status;
+		pStaCtx->ibss_peer_info.numPeers = pPeerInfo->numPeers;
+
+		for (i = 0; i < pPeerInfo->numPeers; i++)
+			pStaCtx->ibss_peer_info.peerInfoParams[i] =
+				pPeerInfo->peerInfoParams[i];
 	} else {
-		hdd_info("peerInfo returned is NULL");
+		hdd_err("peerInfo %s: status %u, numPeers %u",
+			pPeerInfo ? "valid" : "null",
+			pPeerInfo ? pPeerInfo->status : QDF_STATUS_E_FAILURE,
+			pPeerInfo ? pPeerInfo->numPeers : 0);
+		pStaCtx->ibss_peer_info.numPeers = 0;
+		pStaCtx->ibss_peer_info.status = QDF_STATUS_E_FAILURE;
 	}
 
 	complete(&adapter->ibss_peer_info_comp);
@@ -5058,6 +5061,11 @@ static int drv_cmd_get_ibss_peer_info_all(hdd_adapter_t *adapter,
 			tx_rate =
 				pHddStaCtx->ibss_peer_info.peerInfoParams[idx].
 									txRate;
+			/*
+			 * Only lower 3 bytes are rate info. Mask of the MSByte
+			 */
+			tx_rate &= 0x00FFFFFF;
+
 			rssi = pHddStaCtx->ibss_peer_info.peerInfoParams[idx].
 									rssi;
 
@@ -5175,6 +5183,8 @@ static int drv_cmd_get_ibss_peer_info(hdd_adapter_t *adapter,
 	if (QDF_STATUS_SUCCESS == status) {
 		uint32_t txRate =
 			pHddStaCtx->ibss_peer_info.peerInfoParams[0].txRate;
+		/* Only lower 3 bytes are rate info. Mask of the MSByte */
+		txRate &= 0x00FFFFFF;
 
 		length = scnprintf(extra, sizeof(extra), "%d %d",
 				(int)txRate,

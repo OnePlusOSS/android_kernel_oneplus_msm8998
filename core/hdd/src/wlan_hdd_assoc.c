@@ -364,7 +364,7 @@ static int hdd_add_beacon_filter(hdd_adapter_t *adapter)
 	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 
 	for (i = 0; i < ARRAY_SIZE(beacon_filter_table); i++)
-		qdf_set_bit((beacon_filter_table[i] - 1),
+		qdf_set_bit((beacon_filter_table[i]),
 				(unsigned long int *)ie_map);
 
 	status = sme_add_beacon_filter(hdd_ctx->hHal,
@@ -1392,10 +1392,7 @@ static void hdd_send_association_event(struct net_device *dev,
 							NULL,
 							pAdapter->device_mode);
 		}
-#ifdef WLAN_FEATURE_LPSS
-		pAdapter->rssi_send = false;
-		wlan_hdd_send_status_pkg(pAdapter, pHddStaCtx, 1, 0);
-#endif
+		hdd_lpass_notify_disconnect(pAdapter);
 #ifdef FEATURE_WLAN_TDLS
 		hdd_info("Disassoc: Check and enable or disable TDLS state ");
 		if ((pAdapter->device_mode == QDF_STA_MODE ||
@@ -2482,8 +2479,7 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 #endif
 
 		hdd_info("check for SAP restart");
-		cds_check_concurrent_intf_and_restart_sap(pHddStaCtx,
-							  pAdapter);
+		cds_check_concurrent_intf_and_restart_sap(pAdapter);
 
 		DPTRACE(qdf_dp_trace_mgmt_pkt(QDF_DP_TRACE_MGMT_PACKET_RECORD,
 			pAdapter->sessionId,
@@ -4738,19 +4734,6 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 		       FL("hdd_ReassocScenario set to: %d, due to eCSR_ROAM_FT_START, session: %d"),
 		       pHddStaCtx->hdd_ReassocScenario, pAdapter->sessionId);
 		break;
-	case eCSR_ROAM_DISABLE_QUEUES:
-		hdd_info("Disabling queues");
-		wlan_hdd_netif_queue_control(pAdapter,
-				WLAN_NETIF_TX_DISABLE,
-				WLAN_CONTROL_PATH);
-		break;
-	case eCSR_ROAM_ENABLE_QUEUES:
-		hdd_info("Enabling queues");
-		wlan_hdd_netif_queue_control(pAdapter,
-				WLAN_WAKE_ALL_NETIF_QUEUE,
-				WLAN_CONTROL_PATH);
-		break;
-
 	case eCSR_ROAM_SHOULD_ROAM:
 		/* notify apps that we can't pass traffic anymore */
 		hddLog(LOG1, FL("Disabling queues"));
@@ -5034,6 +5017,22 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 		hdd_ndp_event_handler(pAdapter, pRoamInfo, roamId, roamStatus,
 			roamResult);
 		break;
+	case eCSR_ROAM_START:
+		hdd_info("Process ROAM_START from firmware");
+		wlan_hdd_netif_queue_control(pAdapter,
+				WLAN_NETIF_TX_DISABLE,
+				WLAN_CONTROL_PATH);
+		cds_set_connection_in_progress(true);
+		cds_restart_opportunistic_timer(true);
+		break;
+	case eCSR_ROAM_ABORT:
+		hdd_info("Firmware aborted roaming operation, previous connection is still valid");
+		wlan_hdd_netif_queue_control(pAdapter,
+				WLAN_WAKE_ALL_NETIF_QUEUE,
+				WLAN_CONTROL_PATH);
+		cds_set_connection_in_progress(false);
+		break;
+
 	default:
 		break;
 	}

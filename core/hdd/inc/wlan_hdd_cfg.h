@@ -396,12 +396,6 @@ typedef enum {
 #define CFG_BEACON_INTERVAL_MAX                WNI_CFG_BEACON_INTERVAL_STAMAX
 #define CFG_BEACON_INTERVAL_DEFAULT            WNI_CFG_BEACON_INTERVAL_STADEF
 
-/* Additional Handoff related Parameters */
-#define CFG_ROAMING_TIME_NAME                 "gRoamingTime"
-#define CFG_ROAMING_TIME_MIN                  (0)
-#define CFG_ROAMING_TIME_MAX                  (4294967UL)
-#define CFG_ROAMING_TIME_DEFAULT              (10)
-
 #define CFG_VCC_RSSI_TRIGGER_NAME             "gVccRssiTrigger"
 #define CFG_VCC_RSSI_TRIGGER_MIN              (0)
 #define CFG_VCC_RSSI_TRIGGER_MAX              (80)
@@ -514,6 +508,12 @@ typedef enum {
 #define CFG_MAX_TX_POWER_MAX                    WNI_CFG_CURRENT_TX_POWER_LEVEL_STAMAX
 /* Not to use CFG default because if no registry setting, this is ignored by SME. */
 #define CFG_MAX_TX_POWER_DEFAULT                WNI_CFG_CURRENT_TX_POWER_LEVEL_STAMAX
+
+/* This ini controls driver to honor/dishonor power constraint from AP */
+#define CFG_TX_POWER_CTRL_NAME                 "gAllowTPCfromAP"
+#define CFG_TX_POWER_CTRL_DEFAULT              (1)
+#define CFG_TX_POWER_CTRL_MIN                  (0)
+#define CFG_TX_POWER_CTRL_MAX                  (1)
 
 #define CFG_LOW_GAIN_OVERRIDE_NAME             "gLowGainOverride"
 #define CFG_LOW_GAIN_OVERRIDE_MIN              WNI_CFG_LOW_GAIN_OVERRIDE_STAMIN
@@ -1246,7 +1246,13 @@ typedef enum {
 #define CFG_ENABLE_PACKET_LOG            "gEnablePacketLog"
 #define CFG_ENABLE_PACKET_LOG_MIN        (0)
 #define CFG_ENABLE_PACKET_LOG_MAX        (1)
+#ifdef FEATURE_PKTLOG
 #define CFG_ENABLE_PACKET_LOG_DEFAULT    (1)
+#else
+#define CFG_ENABLE_PACKET_LOG_DEFAULT    (0)
+#endif
+
+
 
 /* gFwDebugLogType takes values from enum dbglog_process_t,
  * make default value as DBGLOG_PROCESS_NET_RAW to give the
@@ -2881,14 +2887,14 @@ enum dot11p_mode {
 #ifdef FEATURE_WLAN_EXTSCAN
 
 /*
- * This ini is added to control the enabling of extscan feature outside of code
- * To enable , gExtScanEnable=1 need to be declared in ini file.
- * Otherwise, Extscan feature will remain disabled.
+ * This ini is added to control the enabling of extscan feature outside of code.
+ * By default extscan feature will be enabled, to disable extscan add
+ * gExtScanEnable=0 in ini file.
  */
 #define CFG_EXTSCAN_ALLOWED_NAME                   "gExtScanEnable"
 #define CFG_EXTSCAN_ALLOWED_MIN                    (0)
 #define CFG_EXTSCAN_ALLOWED_MAX                    (1)
-#define CFG_EXTSCAN_ALLOWED_DEF                    (0)
+#define CFG_EXTSCAN_ALLOWED_DEF                    (1)
 
 #define CFG_EXTSCAN_PASSIVE_MAX_CHANNEL_TIME_NAME      "gExtScanPassiveMaxChannelTime"
 #define CFG_EXTSCAN_PASSIVE_MAX_CHANNEL_TIME_MIN       (0)
@@ -3482,6 +3488,11 @@ enum dot11p_mode {
 #define CFG_SIFS_BURST_DURATION_MAX      (12)
 #define CFG_SIFS_BURST_DURATION_DEFAULT  (8)
 
+/* Optimize channel avoidance indication comming from firmware */
+#define CFG_OPTIMIZE_CA_EVENT_NAME       "goptimize_chan_avoid_event"
+#define CFG_OPTIMIZE_CA_EVENT_DISABLE    (0)
+#define CFG_OPTIMIZE_CA_EVENT_ENABLE     (1)
+#define CFG_OPTIMIZE_CA_EVENT_DEFAULT    (0)
 
 /*---------------------------------------------------------------------------
    Type declarations
@@ -3539,6 +3550,7 @@ struct hdd_config {
 	uint32_t goLinkMonitorPeriod;
 	uint32_t nBeaconInterval;
 	uint8_t nTxPowerCap;    /* In dBm */
+	bool allow_tpc_from_ap;
 	bool fIsLowGainOverride;
 	uint8_t disablePacketFilter;
 	bool fRrmEnable;
@@ -3569,7 +3581,6 @@ struct hdd_config {
 	int32_t nhi_rssi_scan_rssi_ub;
 
 	/* Additional Handoff params */
-	uint32_t nRoamingTime;
 	uint16_t nVccRssiTrigger;
 	uint32_t nVccUlMacLossThreshold;
 
@@ -4140,6 +4151,7 @@ struct hdd_config {
 	bool multicast_replay_filter;
 	/* parameter for indicating sifs burst duration to fw */
 	uint8_t sifs_burst_duration;
+	bool goptimize_chan_avoid_event;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))
@@ -4255,7 +4267,7 @@ QDF_STATUS hdd_parse_config_ini(hdd_context_t *pHddCtx);
 QDF_STATUS hdd_update_mac_config(hdd_context_t *pHddCtx);
 QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx);
 QDF_STATUS hdd_set_sme_chan_list(hdd_context_t *hdd_ctx);
-bool hdd_update_config_dat(hdd_context_t *pHddCtx);
+bool hdd_update_config_cfg(hdd_context_t *pHddCtx);
 QDF_STATUS hdd_cfg_get_global_config(hdd_context_t *pHddCtx, char *pBuf,
 				     int buflen);
 

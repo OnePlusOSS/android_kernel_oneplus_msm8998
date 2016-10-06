@@ -193,14 +193,16 @@ typedef enum {
  * enum sir_roam_op_code - Operation to be done by the callback.
  * @SIR_ROAM_SYNCH_PROPAGATION: Propagate the new BSS info after roaming.
  * @SIR_ROAMING_DEREGISTER_STA: Deregister the old STA after roaming.
- * @SIR_ROAMING_TX_QUEUE_DISABLE: Disable the network queues while roaming.
- * @SIR_ROAMING_TX_QUEUE_ENABLE: Enable back the n/w queues in case roam fails.
+ * @SIR_ROAMING_START: Firmware started roaming operation
+ * @SIR_ROAMING_ABORT: Firmware aborted roaming operation, still connected.
+ * @SIR_ROAM_SYNCH_COMPLETE: Roam sync propagation is complete.
  */
 enum sir_roam_op_code {
 	SIR_ROAM_SYNCH_PROPAGATION = 1,
 	SIR_ROAMING_DEREGISTER_STA,
-	SIR_ROAMING_TX_QUEUE_DISABLE,
-	SIR_ROAMING_TX_QUEUE_ENABLE,
+	SIR_ROAMING_START,
+	SIR_ROAMING_ABORT,
+	SIR_ROAM_SYNCH_COMPLETE,
 };
 /**
  * Module ID definitions.
@@ -2500,12 +2502,29 @@ typedef struct sSirUpdateAPWPSIEsReq {
 	tSirAPWPSIEs APWPSIEs;
 } tSirUpdateAPWPSIEsReq, *tpSirUpdateAPWPSIEsReq;
 
-typedef struct sSirUpdateParams {
-	uint16_t messageType;
+/*
+ * enum sir_update_session_param_type - session param type
+ * @SIR_PARAM_SSID_HIDDEN: ssidHidden parameter
+ */
+enum sir_update_session_param_type {
+	SIR_PARAM_SSID_HIDDEN,
+};
+
+/*
+ * struct sir_update_session_param
+ * @message_type: SME message type
+ * @length: size of struct sir_update_session_param
+ * @session_id: Session ID
+ * @param_type: parameter to be updated
+ * @param_val: Parameter value to update
+ */
+struct sir_update_session_param {
+	uint16_t message_type;
 	uint16_t length;
-	uint8_t sessionId;      /* Session ID */
-	uint8_t ssidHidden;     /* Hide SSID */
-} tSirUpdateParams, *tpSirUpdateParams;
+	uint8_t session_id;
+	uint32_t param_type;
+	uint32_t param_val;
+};
 
 /**
  * struct sir_create_session - Used for creating session in monitor mode
@@ -2989,6 +3008,8 @@ struct roam_ext_params {
 };
 
 typedef struct sSirRoamOffloadScanReq {
+	uint16_t message_type;
+	uint16_t length;
 	bool RoamScanOffloadEnabled;
 	bool MAWCEnabled;
 	int8_t LookupThreshold;
@@ -3198,14 +3219,14 @@ typedef struct {
  * @name:          Attribute which indicates the type of logging like per packet
  *                 statistics, connectivity etc.
  * @verbose_level: Verbose level which can be 0,1,2,3
- * @flag:          Flag field for future use
+ * @is_iwpriv_command: Set 1 for iwpriv command
  * @ini_triggered: triggered using ini
  * @user_triggered: triggered by user
  */
 struct sir_wifi_start_log {
 	uint32_t ring_id;
 	uint32_t verbose_level;
-	uint32_t flag;
+	uint32_t is_iwpriv_command;
 	bool ini_triggered;
 	uint8_t user_triggered;
 };
@@ -3556,6 +3577,7 @@ typedef struct sSirActiveModeSetBcnFilterReq {
 	uint16_t messageType;
 	uint16_t length;
 	uint8_t seesionId;
+	struct qdf_mac_addr bssid;
 } tSirSetActiveModeSetBncFilterReq, *tpSirSetActiveModeSetBncFilterReq;
 
 /* Reset AP Caps Changed */
@@ -4153,6 +4175,7 @@ typedef struct sSirSmeRoamOffloadSynchInd {
 	void *add_bss_params;
 	tpSirSmeJoinRsp join_rsp;
 	uint16_t aid;
+	struct sir_hw_mode_trans_ind hw_mode_trans_ind;
 } roam_offload_synch_ind;
 
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
@@ -4795,6 +4818,20 @@ struct sir_ipa_offload_enable_disable {
 };
 
 /**
+ * struct sir_set_vdev_ies_per_band
+ * @msg_type: message type
+ * @len: message length
+ * @vdev_id: vdev id
+ *
+ * Message wrapper structure for eWNI_SME_SET_VDEV_IES_PER_BAND.
+ */
+struct sir_set_vdev_ies_per_band {
+	uint16_t msg_type;
+	uint16_t len;
+	uint32_t vdev_id;
+};
+
+/**
  * struct sir_set_ht_vht_cfg - ht, vht IE config
  * @msg_type: message type
  * @len: message length
@@ -5342,6 +5379,34 @@ struct fw_dump_req {
 struct fw_dump_rsp {
 	uint32_t request_id;
 	uint32_t dump_complete;
+};
+
+/**
+ * DEFAULT_SCAN_IE_ID - Identifier for the collection of IE's added
+ * by default to the probe request
+ */
+#define DEFAULT_SCAN_IE_ID 256
+
+ /* MAX_DEFAULT_SCAN_IE_LEN - Maxmimum length of Default Scan IE's */
+#define MAX_DEFAULT_SCAN_IE_LEN 1024
+
+ /* Extended Capabilities IE header(IE Id + IE Length) length */
+#define EXT_CAP_IE_HDR_LEN 2
+
+/**
+ * struct hdd_default_scan_ie - HDD default scan IE structure
+ * @message_type: message type to be set with eWNI_SME_DEFAULT_SCAN_IE
+ * @length: length of the struct hdd_default_scan_ie
+ * @session_id: Session Id
+ * @ie_len: Default scan IE length
+ * @ie_data: Pointer to default scan IE data
+ */
+struct hdd_default_scan_ie {
+	uint16_t message_type;
+	uint16_t length;
+	uint16_t session_id;
+	uint16_t ie_len;
+	uint8_t ie_data[MAX_DEFAULT_SCAN_IE_LEN];
 };
 
 /**
@@ -6470,6 +6535,20 @@ struct sme_update_access_policy_vendor_ie {
 	uint32_t sme_session_id;
 	uint8_t ie[SIR_MAC_MAX_IE_LENGTH];
 	uint8_t access_policy;
+};
+
+/**
+ * struct sir_encrypt_decrypt_rsp_params - encrypt/decrypt rsp params
+ * @vdev_id: vdev id
+ * @status: status
+ * @data_length: data length
+ * @data: data pointer
+ */
+struct sir_encrypt_decrypt_rsp_params {
+	uint32_t vdev_id;
+	int32_t status;
+	uint32_t data_length;
+	uint8_t *data;
 };
 
 #endif /* __SIR_API_H */

@@ -82,6 +82,8 @@
 
 #define WMA_LOG_COMPLETION_TIMER 10000 /* 10 seconds */
 
+#define WMI_TLV_HEADROOM 128
+
 static uint32_t g_fw_wlan_feat_caps;
 
 /**
@@ -2145,6 +2147,10 @@ QDF_STATUS wma_open(void *cds_context,
 					   WMI_BPF_CAPABILIY_INFO_EVENTID,
 					   wma_get_bpf_caps_event_handler,
 					   WMA_RX_SERIALIZER_CTX);
+	wmi_unified_register_event_handler(wma_handle->wmi_handle,
+				WMI_VDEV_ENCRYPT_DECRYPT_DATA_RESP_EVENTID,
+				wma_encrypt_decrypt_msg_handler,
+				WMA_RX_SERIALIZER_CTX);
 	wma_ndp_register_all_event_handlers(wma_handle);
 	return QDF_STATUS_SUCCESS;
 
@@ -2489,6 +2495,66 @@ fail:
 }
 
 /**
+ * wma_process_pdev_hw_mode_trans_ind() - Process HW mode transition info
+ *
+ * @handle: WMA handle
+ * @fixed_param: Event fixed parameters
+ * @vdev_mac_entry - vdev mac entry
+ * @hw_mode_trans_ind - Buffer to store parsed information
+ *
+ * Parses fixed_param, vdev_mac_entry and fills in the information into
+ * hw_mode_trans_ind and wma
+ *
+ * Return: None
+ */
+void wma_process_pdev_hw_mode_trans_ind(void *handle,
+	wmi_pdev_hw_mode_transition_event_fixed_param *fixed_param,
+	wmi_pdev_set_hw_mode_response_vdev_mac_entry *vdev_mac_entry,
+	struct sir_hw_mode_trans_ind *hw_mode_trans_ind)
+{
+	uint32_t i;
+	tp_wma_handle wma = (tp_wma_handle) handle;
+
+	hw_mode_trans_ind->old_hw_mode_index = fixed_param->old_hw_mode_index;
+	hw_mode_trans_ind->new_hw_mode_index = fixed_param->new_hw_mode_index;
+	hw_mode_trans_ind->num_vdev_mac_entries =
+					fixed_param->num_vdev_mac_entries;
+	WMA_LOGI("%s: old_hw_mode_index:%d new_hw_mode_index:%d entries=%d",
+		__func__, fixed_param->old_hw_mode_index,
+		fixed_param->new_hw_mode_index,
+		fixed_param->num_vdev_mac_entries);
+
+	/* Store the vdev-mac map in WMA and send to policy manager */
+	for (i = 0; i < fixed_param->num_vdev_mac_entries; i++) {
+		uint32_t vdev_id, mac_id, pdev_id;
+		vdev_id = vdev_mac_entry[i].vdev_id;
+		pdev_id = vdev_mac_entry[i].pdev_id;
+
+		if (pdev_id == WMI_PDEV_ID_SOC) {
+			WMA_LOGE("%s: soc level id received for mac id)",
+					__func__);
+			QDF_BUG(0);
+			return;
+		}
+
+		mac_id = WMA_PDEV_TO_MAC_MAP(vdev_mac_entry[i].pdev_id);
+
+		WMA_LOGI("%s: vdev_id:%d mac_id:%d",
+				__func__, vdev_id, mac_id);
+
+		hw_mode_trans_ind->vdev_mac_map[i].vdev_id = vdev_id;
+		hw_mode_trans_ind->vdev_mac_map[i].mac_id = mac_id;
+		wma_update_intf_hw_mode_params(vdev_id, mac_id,
+				fixed_param->new_hw_mode_index);
+	}
+	wma->old_hw_mode_index = fixed_param->old_hw_mode_index;
+	wma->new_hw_mode_index = fixed_param->new_hw_mode_index;
+
+	WMA_LOGI("%s: Updated: old_hw_mode_index:%d new_hw_mode_index:%d",
+		__func__, wma->old_hw_mode_index, wma->new_hw_mode_index);
+}
+
+/**
  * wma_pdev_hw_mode_transition_evt_handler() - HW mode transition evt handler
  * @handle: WMI handle
  * @event:  Event recevied from FW
@@ -2505,7 +2571,6 @@ static int wma_pdev_hw_mode_transition_evt_handler(void *handle,
 		uint8_t *event,
 		uint32_t len)
 {
-	uint32_t i;
 	WMI_PDEV_HW_MODE_TRANSITION_EVENTID_param_tlvs *param_buf;
 	wmi_pdev_hw_mode_transition_event_fixed_param *wmi_event;
 	wmi_pdev_set_hw_mode_response_vdev_mac_entry *vdev_mac_entry;
@@ -2532,46 +2597,10 @@ static int wma_pdev_hw_mode_transition_evt_handler(void *handle,
 	}
 
 	wmi_event = param_buf->fixed_param;
-	hw_mode_trans_ind->old_hw_mode_index = wmi_event->old_hw_mode_index;
-	hw_mode_trans_ind->new_hw_mode_index = wmi_event->new_hw_mode_index;
-	hw_mode_trans_ind->num_vdev_mac_entries =
-						wmi_event->num_vdev_mac_entries;
-	WMA_LOGI("%s: old_hw_mode_index:%d new_hw_mode_index:%d entries=%d",
-		__func__, wmi_event->old_hw_mode_index,
-		wmi_event->new_hw_mode_index, wmi_event->num_vdev_mac_entries);
-
 	vdev_mac_entry =
 		param_buf->wmi_pdev_set_hw_mode_response_vdev_mac_mapping;
-
-	/* Store the vdev-mac map in WMA and prepare to send to HDD  */
-	for (i = 0; i < wmi_event->num_vdev_mac_entries; i++) {
-		uint32_t vdev_id, mac_id, pdev_id;
-		vdev_id = vdev_mac_entry[i].vdev_id;
-		pdev_id = vdev_mac_entry[i].pdev_id;
-
-		if (pdev_id == WMI_PDEV_ID_SOC) {
-			WMA_LOGE("%s: soc level id received for mac id)",
-					__func__);
-			QDF_BUG(0);
-			return QDF_STATUS_E_FAILURE;
-		}
-
-		mac_id = WMA_PDEV_TO_MAC_MAP(vdev_mac_entry[i].pdev_id);
-
-		WMA_LOGI("%s: vdev_id:%d mac_id:%d",
-				__func__, vdev_id, mac_id);
-
-		hw_mode_trans_ind->vdev_mac_map[i].vdev_id = vdev_id;
-		hw_mode_trans_ind->vdev_mac_map[i].mac_id = mac_id;
-		wma_update_intf_hw_mode_params(vdev_id, mac_id,
-				wmi_event->new_hw_mode_index);
-	}
-	wma->old_hw_mode_index = wmi_event->old_hw_mode_index;
-	wma->new_hw_mode_index = wmi_event->new_hw_mode_index;
-
-	WMA_LOGI("%s: Updated: old_hw_mode_index:%d new_hw_mode_index:%d",
-		__func__, wma->old_hw_mode_index, wma->new_hw_mode_index);
-
+	wma_process_pdev_hw_mode_trans_ind(wma, wmi_event, vdev_mac_entry,
+		hw_mode_trans_ind);
 	/* Pass the message to PE */
 	wma_send_msg(wma, SIR_HAL_PDEV_HW_MODE_TRANS_IND,
 		     (void *) hw_mode_trans_ind, 0);
@@ -4020,6 +4049,8 @@ static void wma_update_hdd_cfg(tp_wma_handle wma_handle)
 	wma_update_ra_rate_limit(wma_handle, &tgt_cfg);
 	tgt_cfg.fine_time_measurement_cap =
 		wma_handle->fine_time_measurement_cap;
+	tgt_cfg.wmi_max_len = wmi_get_max_msg_len(wma_handle->wmi_handle)
+			      - WMI_TLV_HEADROOM;
 	wma_setup_egap_support(&tgt_cfg, wma_handle);
 
 	wma_update_hdd_cfg_ndp(wma_handle, &tgt_cfg);
@@ -5414,11 +5445,13 @@ void wma_set_wifi_start_packet_stats(void *wma_handle,
 
 	if (start_log->verbose_level == WLAN_LOG_LEVEL_ACTIVE) {
 		pktlog_enable(scn, log_state, start_log->ini_triggered,
-					start_log->user_triggered);
+			      start_log->user_triggered,
+			      start_log->is_iwpriv_command);
 		WMA_LOGI("%s: Enabling per packet stats", __func__);
 	} else {
 		pktlog_enable(scn, 0, start_log->ini_triggered,
-				start_log->user_triggered);
+				start_log->user_triggered,
+				start_log->is_iwpriv_command);
 		WMA_LOGI("%s: Disabling per packet stats", __func__);
 	}
 }
@@ -6269,6 +6302,13 @@ QDF_STATUS wma_mc_process_msg(void *cds_context, cds_msg_t *msg)
 	case WMA_UPDATE_WEP_DEFAULT_KEY:
 		wma_update_wep_default_key(wma_handle,
 			(struct wep_update_default_key_idx *)msg->bodyptr);
+		qdf_mem_free(msg->bodyptr);
+		break;
+	case WMA_SEND_FREQ_RANGE_CONTROL_IND:
+		wma_enable_disable_caevent_ind(wma_handle, msg->bodyval);
+		break;
+	case WMA_ENCRYPT_DECRYPT_MSG:
+		wma_encrypt_decrypt_msg(wma_handle, msg->bodyptr);
 		qdf_mem_free(msg->bodyptr);
 		break;
 	default:

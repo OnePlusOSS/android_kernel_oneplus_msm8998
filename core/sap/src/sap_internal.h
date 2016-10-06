@@ -270,6 +270,7 @@ typedef struct sSapContext {
 	uint8_t beacon_tx_rate;
 	tSirMacRateSet supp_rate_set;
 	tSirMacRateSet extended_rate_set;
+	enum sap_acs_dfs_mode dfs_mode;
 } *ptSapContext;
 
 /*----------------------------------------------------------------------------
@@ -434,4 +435,5 @@ QDF_STATUS sap_close_session(tHalHandle hHal,
 #ifdef __cplusplus
 }
 #endif
+uint8_t sap_select_default_oper_chan(tHalHandle hal, uint32_t acs_hwmode);
 #endif

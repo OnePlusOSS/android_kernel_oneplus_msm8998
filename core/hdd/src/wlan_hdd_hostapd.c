@@ -1108,7 +1108,7 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 						    operatingChannel);
 
 		pHostapdState->bssState = BSS_START;
-		hdd_wlan_green_ap_start_bss(pHddCtx);
+		hdd_green_ap_start_bss(pHddCtx);
 
 		/* Set default key index */
 		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_INFO,
@@ -1205,7 +1205,7 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 		hdd_hostapd_channel_allow_suspend(pHostapdAdapter,
 						  pHddApCtx->operatingChannel);
 
-		hdd_wlan_green_ap_stop_bss(pHddCtx);
+		hdd_green_ap_stop_bss(pHddCtx);
 
 		/* Free up Channel List incase if it is set */
 		sap_cleanup_channel_list(
@@ -1560,7 +1560,7 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 					chan_info,
 					pHostapdAdapter->device_mode);
 		}
-		hdd_wlan_green_ap_add_sta(pHddCtx);
+		hdd_green_ap_add_sta(pHddCtx);
 		break;
 
 	case eSAP_STA_DISASSOC_EVENT:
@@ -1684,7 +1684,7 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 			hdd_stop_bus_bw_compute_timer(pHostapdAdapter);
 		}
 #endif
-		hdd_wlan_green_ap_del_sta(pHddCtx);
+		hdd_green_ap_del_sta(pHddCtx);
 		break;
 
 	case eSAP_WPS_PBC_PROBE_REQ_EVENT:
@@ -2553,13 +2553,13 @@ static __iw_softap_setparam(struct net_device *dev,
 
 	case QCSAP_PARAM_HIDE_SSID:
 	{
-		QDF_STATUS status = QDF_STATUS_SUCCESS;
-		status =
-			sme_hide_ssid(hHal, pHostapdAdapter->sessionId,
-				      set_value);
+		QDF_STATUS status;
+		status = sme_update_session_param(hHal,
+				pHostapdAdapter->sessionId,
+				SIR_PARAM_SSID_HIDDEN, set_value);
 		if (QDF_STATUS_SUCCESS != status) {
 			hdd_err("QCSAP_PARAM_HIDE_SSID failed");
-			return status;
+			return -EIO;
 		}
 		break;
 	}
@@ -5595,6 +5595,7 @@ QDF_STATUS hdd_init_ap_mode(hdd_adapter_t *pAdapter)
 	int ret;
 	enum tQDF_ADAPTER_MODE mode;
 	uint32_t session_id = CSR_SESSION_ID_INVALID;
+	enum dfs_mode acs_dfs_mode;
 
 	ENTER();
 
@@ -5605,6 +5606,11 @@ QDF_STATUS hdd_init_ap_mode(hdd_adapter_t *pAdapter)
 	}
 
 	pAdapter->sessionCtx.ap.sapContext = sapContext;
+	pAdapter->sessionCtx.ap.sapConfig.channel =
+		pHddCtx->acs_policy.acs_channel;
+	acs_dfs_mode = pHddCtx->acs_policy.acs_dfs_mode;
+	pAdapter->sessionCtx.ap.sapConfig.acs_dfs_mode =
+		wlan_hdd_get_dfs_mode(acs_dfs_mode);
 
 	if (pAdapter->device_mode == QDF_P2P_GO_MODE) {
 		mode = QDF_P2P_GO_MODE;
@@ -6069,37 +6075,12 @@ int wlan_hdd_set_channel(struct wiphy *wiphy,
 			case NL80211_CHAN_HT20:
 			case NL80211_CHAN_NO_HT:
 				smeConfig.csrConfig.obssEnabled = false;
-				if (channel <= 14)
-					smeConfig.csrConfig.
-						channelBondingMode24GHz =
-					eCSR_INI_SINGLE_CHANNEL_CENTERED;
-				else
-					smeConfig.csrConfig.
-						channelBondingMode5GHz =
-					eCSR_INI_SINGLE_CHANNEL_CENTERED;
 				sap_config->sec_ch = 0;
 				break;
-
 			case NL80211_CHAN_HT40MINUS:
-				if (channel <= 14)
-					smeConfig.csrConfig.
-					channelBondingMode24GHz =
-					eCSR_INI_DOUBLE_CHANNEL_HIGH_PRIMARY;
-				else
-					smeConfig.csrConfig.
-					channelBondingMode5GHz =
-					eCSR_INI_DOUBLE_CHANNEL_HIGH_PRIMARY;
 				sap_config->sec_ch = sap_config->channel - 4;
 				break;
 			case NL80211_CHAN_HT40PLUS:
-				if (channel <= 14)
-					smeConfig.csrConfig.
-					channelBondingMode24GHz =
-					eCSR_INI_DOUBLE_CHANNEL_LOW_PRIMARY;
-				else
-					smeConfig.csrConfig.
-					channelBondingMode5GHz =
-					eCSR_INI_DOUBLE_CHANNEL_LOW_PRIMARY;
 				sap_config->sec_ch = sap_config->channel + 4;
 				break;
 			default:
@@ -6455,6 +6436,13 @@ int wlan_hdd_cfg80211_update_apies(hdd_adapter_t *adapter)
 
 	wlan_hdd_add_extra_ie(adapter, genie, &total_ielen,
 			      WLAN_EID_VHT_TX_POWER_ENVELOPE);
+
+	/* Extract and add the extended capabilities and interworking IE */
+	wlan_hdd_add_extra_ie(adapter, genie, &total_ielen,
+			      WLAN_EID_EXT_CAPABILITY);
+
+	wlan_hdd_add_extra_ie(adapter, genie, &total_ielen,
+			      WLAN_EID_INTERWORKING);
 
 	if (0 != wlan_hdd_add_ie(adapter, genie,
 		&total_ielen, WPS_OUI_TYPE, WPS_OUI_TYPE_SIZE)) {
@@ -6921,6 +6909,8 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 	bool MFPCapable = false;
 	bool MFPRequired = false;
 	uint16_t prev_rsn_length = 0;
+	enum dfs_mode mode;
+
 	ENTER();
 
 	if (cds_is_connection_in_progress()) {
@@ -6952,6 +6942,10 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 
 	pConfig->enOverLapCh = iniConfig->gEnableOverLapCh;
 	pConfig->dtim_period = pBeacon->dtim_period;
+	if (pHddCtx->acs_policy.acs_channel)
+		pConfig->channel = pHddCtx->acs_policy.acs_channel;
+	mode = pHddCtx->acs_policy.acs_dfs_mode;
+	pConfig->acs_dfs_mode = wlan_hdd_get_dfs_mode(mode);
 
 	hdd_info("****pConfig->dtim_period=%d***",
 		pConfig->dtim_period);
@@ -7559,6 +7553,7 @@ static int __wlan_hdd_cfg80211_stop_ap(struct wiphy *wiphy,
 	}
 
 	hdd_cleanup_actionframe(pHddCtx, pAdapter);
+	wlan_hdd_cleanup_remain_on_channel_ctx(pAdapter);
 
 	mutex_lock(&pHddCtx->sap_lock);
 	if (test_bit(SOFTAP_BSS_STARTED, &pAdapter->event_flags)) {

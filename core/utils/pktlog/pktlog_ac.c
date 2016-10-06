@@ -311,7 +311,6 @@ int pktlog_disable(struct hif_opaque_softc *scn)
 		return -EFAULT;
 
 	pl_dev = txrx_pdev->pl_dev;
-	pl_dev->enable_flag = false;
 	pl_info = pl_dev->pl_info;
 
 	if (pktlog_wma_post_msg(0, WMI_PDEV_PKTLOG_DISABLE_CMDID, 0, 0)) {
@@ -356,7 +355,7 @@ void pktlog_init(struct hif_opaque_softc *scn)
 	pl_info->pktlen = 0;
 	pl_info->start_time_thruput = 0;
 	pl_info->start_time_per = 0;
-	pdev_txrx_handle->pl_dev->enable_flag = false;
+	pdev_txrx_handle->pl_dev->vendor_cmd_send = false;
 
 	PKTLOG_TX_SUBSCRIBER.callback = pktlog_callback;
 	PKTLOG_RX_SUBSCRIBER.callback = pktlog_callback;
@@ -367,7 +366,8 @@ void pktlog_init(struct hif_opaque_softc *scn)
 }
 
 int pktlog_enable(struct hif_opaque_softc *scn, int32_t log_state,
-		 bool ini_triggered, uint8_t user_triggered)
+		 bool ini_triggered, uint8_t user_triggered,
+		 uint32_t is_iwpriv_command)
 {
 	struct ol_pktlog_dev_t *pl_dev;
 	struct ath_pktlog_info *pl_info;
@@ -398,17 +398,15 @@ int pktlog_enable(struct hif_opaque_softc *scn, int32_t log_state,
 
 	if (!pl_info)
 		return 0;
-	/*
-	 * Do not send the pktlog disable command in case when pktlog
-	 * is enabled from INI during init, SO make enable_flag as false.
-	 * send the pktlog disable command only after when user will triggere
-	 * iwpriv pktlog enable command or enable through pktlog conf tool or
-	 * vendor will send pktlog enable command.
+
+	/* is_iwpriv_command : 0 indicates its a vendor command
+	 * log_state: 0 indicates pktlog disable command
+	 * vendor_cmd_send flag; false means no vendor pktlog enable
+	 * command was sent previously
 	 */
-	if (ini_triggered == 1 && user_triggered == 0 && log_state != 0)
-		pl_dev->enable_flag = false;
-	else if (log_state != 0)
-		pl_dev->enable_flag = true;
+	if (is_iwpriv_command == 0 && log_state == 0 &&
+	    pl_dev->vendor_cmd_send == false)
+		return 0;
 
 	if (!pl_dev->tgt_pktlog_alloced) {
 		if (pl_info->buf == NULL) {
@@ -455,8 +453,13 @@ int pktlog_enable(struct hif_opaque_softc *scn, int32_t log_state,
 			printk("Device cannot be enabled, %s\n", __func__);
 			return -1;
 		}
-	} else if (pl_dev->enable_flag) {
+
+		if (is_iwpriv_command == 0)
+			pl_dev->vendor_cmd_send = true;
+	} else {
 		pl_dev->pl_funcs->pktlog_disable(scn);
+		if (is_iwpriv_command == 0)
+			pl_dev->vendor_cmd_send = false;
 	}
 
 	pl_info->log_state = log_state;

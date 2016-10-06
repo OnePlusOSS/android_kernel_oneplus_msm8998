@@ -1226,6 +1226,8 @@ uint32_t sme_get_wni_dot11_mode(tHalHandle hal);
 QDF_STATUS sme_create_mon_session(tHalHandle hal_handle, uint8_t *bssid);
 QDF_STATUS sme_set_adaptive_dwelltime_config(tHalHandle hal,
 			struct adaptive_dwelltime_params *dwelltime_params);
+
+void sme_set_vdev_ies_per_band(tHalHandle hal, uint8_t vdev_id);
 void sme_set_pdev_ht_vht_ies(tHalHandle hHal, bool enable2x2);
 
 void sme_update_vdev_type_nss(tHalHandle hal, uint8_t max_supp_nss,
@@ -1252,5 +1254,66 @@ void sme_send_disassoc_req_frame(tHalHandle hal, uint8_t session_id, uint8_t
 QDF_STATUS sme_update_access_policy_vendor_ie(tHalHandle hal,
 					uint8_t session_id, uint8_t *vendor_ie,
 					int access_policy);
+
+QDF_STATUS sme_update_sta_roam_policy(tHalHandle hal,
+		enum sta_roam_policy_dfs_mode dfs_mode,
+		bool skip_unsafe_channels,
+		uint8_t session_id);
+QDF_STATUS sme_enable_disable_chanavoidind_event(tHalHandle hal,
+					uint8_t set_value);
+QDF_STATUS sme_set_default_scan_ie(tHalHandle hal, uint16_t session_id,
+				uint8_t *ie_data, uint16_t ie_len);
+/**
+ * sme_update_session_param() - API to update PE session param
+ * @hal: HAL handle for device
+ * @session_id: Session ID
+ * @param_type: Param type to be updated
+ * @param_val: Param value to be update
+ *
+ * Note: this setting will not persist over reboots.
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS sme_update_session_param(tHalHandle hal, uint8_t session_id,
+		uint32_t param_type, uint32_t param_val);
+
+/**
+ * sme_encrypt_decrypt_msg_register_callback() - Registers
+ * encrypt/decrypt message callback
+ *
+ * @hal - MAC global handle
+ * @callback_routine - callback routine from HDD
+ *
+ * This API is invoked by HDD to register its callback in SME
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS sme_encrypt_decrypt_msg_register_callback(tHalHandle hal,
+		void (*encrypt_decrypt_cb)(void *hdd_context,
+			struct sir_encrypt_decrypt_rsp_params
+					*encrypt_decrypt_rsp_params));
+
+/**
+ * sme_encrypt_decrypt_msg_deregister_callback() - Registers
+ * encrypt/decrypt message callback
+ *
+ * @h_hal - MAC global handle
+ * @callback_routine - callback routine from HDD
+ *
+ * This API is invoked by HDD to de-register its callback in SME
+ *
+ * Return: QDF_STATUS Enumeration
+ */
+QDF_STATUS sme_encrypt_decrypt_msg_deregister_callback(tHalHandle h_hal);
+
+/**
+ * sme_encrypt_decrypt_msg() - handles encrypt/decrypt mesaage
+ * @hal: HAL handle
+ * @encrypt_decrypt_params: struct to set encryption/decryption params.
+ *
+ * Return: QDF_STATUS enumeration.
+ */
+QDF_STATUS sme_encrypt_decrypt_msg(tHalHandle hal,
+	struct encrypt_decrypt_req_params *encrypt_decrypt_params);
 
 #endif /* #if !defined( __SME_API_H ) */

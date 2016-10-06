@@ -156,6 +156,9 @@
 
 #define MAX_CFG_STRING_LEN  255
 
+/* SSR Retry Count */
+#define HDD_MOD_EXIT_SSR_MAX_RETRIES 75
+
 #define MAC_ADDR_ARRAY(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
 /** Mac Address string **/
 #define MAC_ADDRESS_STR "%02x:%02x:%02x:%02x:%02x:%02x"
@@ -796,6 +799,8 @@ typedef struct hdd_scaninfo_s {
 	/* Additional IE for scan */
 	tSirAddie scanAddIE;
 
+	uint8_t *default_scan_ies;
+	uint8_t default_scan_ies_len;
 	/* Scan mode */
 	tSirScanType scan_mode;
 
@@ -1224,6 +1229,16 @@ enum driver_modules_status {
 	DRIVER_MODULES_CLOSED
 };
 
+/**
+ * struct acs_dfs_policy - Define ACS policies
+ * @acs_dfs_mode: Dfs mode enabled/disabled.
+ * @acs_channel: pre defined channel to avoid ACS.
+ */
+struct acs_dfs_policy {
+	enum dfs_mode acs_dfs_mode;
+	uint8_t acs_channel;
+};
+
 /** Adapter structure definition */
 
 struct hdd_context_s {
@@ -1495,6 +1510,8 @@ struct hdd_context_s {
 	bool stop_modules_in_progress;
 	bool start_modules_in_progress;
 	bool update_mac_addr_to_fw;
+	struct acs_dfs_policy acs_policy;
+	uint16_t wmi_max_len;
 };
 
 /*---------------------------------------------------------------------------
@@ -1536,6 +1553,7 @@ QDF_STATUS hdd_close_adapter(hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter,
 			     bool rtnl_held);
 QDF_STATUS hdd_close_all_adapters(hdd_context_t *pHddCtx, bool rtnl_held);
 QDF_STATUS hdd_stop_all_adapters(hdd_context_t *pHddCtx);
+void hdd_deinit_all_adapters(hdd_context_t *hdd_ctx, bool rtnl_held);
 QDF_STATUS hdd_reset_all_adapters(hdd_context_t *pHddCtx);
 QDF_STATUS hdd_start_all_adapters(hdd_context_t *pHddCtx);
 hdd_adapter_t *hdd_get_adapter_by_vdev(hdd_context_t *pHddCtx,
@@ -1848,4 +1866,10 @@ static inline void hdd_enable_fastpath(struct hdd_config *hdd_cfg,
 #endif
 void hdd_wlan_update_target_info(hdd_context_t *hdd_ctx, void *context);
 
+enum  sap_acs_dfs_mode wlan_hdd_get_dfs_mode(enum dfs_mode mode);
+
+void hdd_ch_avoid_cb(void *hdd_context, void *indi_param);
+void hdd_unsafe_channel_restart_sap(hdd_context_t *hdd_ctx);
+int hdd_enable_disable_ca_event(hdd_context_t *hddctx,
+				uint8_t set_value);
 #endif /* end #if !defined(WLAN_HDD_MAIN_H) */

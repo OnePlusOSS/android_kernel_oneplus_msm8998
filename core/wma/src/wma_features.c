@@ -90,7 +90,8 @@
 				(1 << WOW_RA_MATCH_EVENT) |\
 				(1 << WOW_NLO_DETECTED_EVENT) |\
 				(1 << WOW_EXTSCAN_EVENT)) |\
-				(1 << WOW_OEM_RESPONSE_EVENT)\
+				(1 << WOW_OEM_RESPONSE_EVENT)|\
+				(1 << WOW_TDLS_CONN_TRACKER_EVENT)\
 
 #define WMA_WOW_SAP_WAKE_UP_EVENTS ((1 << WOW_PROBE_REQ_WPS_IE_EVENT) |\
 				(1 << WOW_PATTERN_MATCH_EVENT) |\
@@ -99,6 +100,13 @@
 				(1 << WOW_DEAUTH_RECVD_EVENT) |\
 				(1 << WOW_DISASSOC_RECVD_EVENT) |\
 				(1 << WOW_HTT_EVENT))\
+
+/**
+ * WMA_SET_VDEV_IE_SOURCE_HOST - Flag to identify the source of VDEV SET IE
+ * command. The value is 0x0 for the VDEV SET IE WMI commands from mobile
+ * MCL platform.
+ */
+#define WMA_SET_VDEV_IE_SOURCE_HOST 0x0
 
 static const uint8_t arp_ptrn[] = {0x08, 0x06};
 static const uint8_t arp_mask[] = {0xff, 0xff};
@@ -1124,7 +1132,6 @@ QDF_STATUS wma_add_beacon_filter(WMA_HANDLE handle,
 		wmi_buf_free(wmi_buf);
 		return QDF_STATUS_E_FAILURE;
 	}
-	WMA_LOGD("added beacon filter = %d", ret);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -1172,7 +1179,6 @@ QDF_STATUS wma_remove_beacon_filter(WMA_HANDLE handle,
 		wmi_buf_free(buf);
 		return QDF_STATUS_E_FAILURE;
 	}
-	WMA_LOGD("removed beacon filter = %d", ret);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -7534,12 +7540,6 @@ int wma_dfs_indicate_radar(struct ieee80211com *ic,
 		WMA_LOGE("%s:DFS- Invalid WMA handle", __func__);
 		return -ENOENT;
 	}
-	radar_event = (struct wma_dfs_radar_indication *)
-		      qdf_mem_malloc(sizeof(struct wma_dfs_radar_indication));
-	if (radar_event == NULL) {
-		WMA_LOGE("%s:DFS- Invalid radar_event", __func__);
-		return -ENOMEM;
-	}
 
 	/*
 	 * Do not post multiple Radar events on the same channel.
@@ -7552,6 +7552,12 @@ int wma_dfs_indicate_radar(struct ieee80211com *ic,
 
 	if ((ichan->ic_ieee != (wma->dfs_ic->last_radar_found_chan)) ||
 	    (pmac->sap.SapDfsInfo.disable_dfs_ch_switch == true)) {
+		radar_event = (struct wma_dfs_radar_indication *)
+			qdf_mem_malloc(sizeof(struct wma_dfs_radar_indication));
+		if (radar_event == NULL) {
+			WMA_LOGE(FL("Failed to allocate memory for radar_event"));
+			return -ENOMEM;
+		}
 		wma->dfs_ic->last_radar_found_chan = ichan->ic_ieee;
 		/* Indicate the radar event to HDD to stop the netif Tx queues */
 		wma_radar_event.chan_freq = ichan->ic_freq;
@@ -7730,6 +7736,7 @@ QDF_STATUS wma_process_set_ie_info(tp_wma_handle wma,
 	cmd.length = ie_info->length;
 	cmd.band = ie_info->band;
 	cmd.data = ie_info->data;
+	cmd.ie_source = WMA_SET_VDEV_IE_SOURCE_HOST;
 
 	WMA_LOGD(FL("ie_id: %d, band: %d, len: %d"),
 		ie_info->ie_id, ie_info->band, ie_info->length);
@@ -7739,7 +7746,6 @@ QDF_STATUS wma_process_set_ie_info(tp_wma_handle wma,
 
 	ret = wmi_unified_process_set_ie_info_cmd(wma->wmi_handle,
 				   &cmd);
-
 	return ret;
 }
 
@@ -7901,7 +7907,6 @@ QDF_STATUS wma_set_bpf_instructions(tp_wma_handle wma,
 		buf_ptr += WMI_TLV_HDR_SIZE;
 		qdf_mem_copy(buf_ptr, bpf_set_offload->program,
 					bpf_set_offload->current_length);
-		qdf_mem_free(bpf_set_offload->program);
 	}
 
 	if (wmi_unified_cmd_send(wma->wmi_handle, wmi_buf, len,
@@ -8174,4 +8179,152 @@ void wma_process_fw_test_cmd(WMA_HANDLE handle,
 			 __func__);
 		return;
 	}
+}
+
+/**
+ * wma_enable_disable_caevent_ind() - Issue WMI command to enable or
+ * disable ca event indication
+ * @wma: wma handler
+ * @val: boolean value true or false
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS wma_enable_disable_caevent_ind(tp_wma_handle wma, uint8_t val)
+{
+	WMI_CHAN_AVOID_RPT_ALLOW_CMD_fixed_param *cmd;
+	wmi_buf_t wmi_buf;
+	uint8_t *buf_ptr;
+	uint32_t len;
+
+	if (!wma || !wma->wmi_handle) {
+		WMA_LOGE(FL("WMA is closed, can not issue set/clear CA"));
+		return QDF_STATUS_E_INVAL;
+	}
+
+	len = sizeof(*cmd);
+	wmi_buf = wmi_buf_alloc(wma->wmi_handle, len);
+	if (!wmi_buf) {
+		WMA_LOGE(FL("wmi_buf_alloc failed"));
+		return QDF_STATUS_E_NOMEM;
+	}
+	buf_ptr = (uint8_t *) wmi_buf_data(wmi_buf);
+	cmd = (WMI_CHAN_AVOID_RPT_ALLOW_CMD_fixed_param *) buf_ptr;
+	WMITLV_SET_HDR(&cmd->tlv_header,
+		WMITLV_TAG_STRUC_WMI_CHAN_AVOID_RPT_ALLOW_CMD_fixed_param,
+		WMITLV_GET_STRUCT_TLVLEN(
+				WMI_CHAN_AVOID_RPT_ALLOW_CMD_fixed_param));
+	cmd->rpt_allow = val;
+	if (wmi_unified_cmd_send(wma->wmi_handle, wmi_buf, len,
+				WMI_CHAN_AVOID_RPT_ALLOW_CMDID)) {
+		WMA_LOGE(FL("Failed to send enable/disable CA event command"));
+		wmi_buf_free(wmi_buf);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
+
+/**
+ * wma_encrypt_decrypt_msg() -
+ * @encrypt_decrypt_params: encryption/decryption params
+ * @data_len: data length
+ * @encrypt_decrypt_cb: encrypt/decrypt callback
+ *
+ *  This function sends WMI command to check encryption/decryption engine.
+ *
+ *  Return: QDF_STATUS enumeration
+ */
+QDF_STATUS wma_encrypt_decrypt_msg(WMA_HANDLE handle,
+		struct encrypt_decrypt_req_params *encrypt_decrypt_params)
+{
+	int ret;
+	tp_wma_handle wma = (tp_wma_handle) handle;
+
+	if (!wma || !wma->wmi_handle) {
+		WMA_LOGE("%s: WMA is closed, can not issue encrypt/decrypt msg",
+			__func__);
+		return QDF_STATUS_E_INVAL;
+	}
+
+	if (encrypt_decrypt_params == NULL) {
+		WMA_LOGE("%s: encrypt/decrypt ptr NULL",
+			__func__);
+		return QDF_STATUS_E_INVAL;
+	}
+
+	ret = wmi_unified_encrypt_decrypt_send_cmd(wma->wmi_handle,
+				encrypt_decrypt_params);
+
+	return ret;
+}
+
+/**
+ * wma_encrypt_decrypt_msg_handler() - handle encrypt/decrypt data
+ * indicated by FW
+ * @handle: wma context
+ * @data: event buffer
+ * @data len: length of event buffer
+ *
+ * Return: 0 on success
+ */
+int wma_encrypt_decrypt_msg_handler(void *handle, uint8_t *data,
+			uint32_t data_len)
+{
+	WMI_VDEV_ENCRYPT_DECRYPT_DATA_RESP_EVENTID_param_tlvs *param_buf;
+	wmi_vdev_encrypt_decrypt_data_resp_event_fixed_param *data_event;
+	struct sir_encrypt_decrypt_rsp_params encrypt_decrypt_rsp_params;
+	tp_wma_handle wma = handle;
+	u_int8_t *buf_ptr;
+	tpAniSirGlobal pmac;
+
+	if (data == NULL) {
+		WMA_LOGE("%s: invalid pointer", __func__);
+		return -EINVAL;
+	}
+
+	if (wma == NULL) {
+		WMA_LOGE("%s: wma context is NULL", __func__);
+		return -EINVAL;
+	}
+
+	WMA_LOGE("%s: received WMI_VDEV_ENCRYPT_DECRYPT_DATA_RESP_EVENTID ",
+			__func__);
+
+	pmac = (tpAniSirGlobal)cds_get_context(QDF_MODULE_ID_PE);
+
+	if (!pmac) {
+		WMA_LOGE("%s: Invalid pmac", __func__);
+		return -EINVAL;
+	}
+	if (!pmac->sme.encrypt_decrypt_cb) {
+		WMA_LOGE("%s: Callback not registered", __func__);
+		return -EINVAL;
+	}
+
+	param_buf =
+		(WMI_VDEV_ENCRYPT_DECRYPT_DATA_RESP_EVENTID_param_tlvs *)data;
+	if (!param_buf) {
+		WMA_LOGE("%s: Invalid response data buf", __func__);
+		return -EINVAL;
+	}
+
+	data_event = param_buf->fixed_param;
+
+	encrypt_decrypt_rsp_params.vdev_id = data_event->vdev_id;
+	encrypt_decrypt_rsp_params.status = data_event->status;
+	encrypt_decrypt_rsp_params.data_length = data_event->data_length;
+
+	if (encrypt_decrypt_rsp_params.data_length) {
+		buf_ptr =
+			(uint8_t *)data_event +
+			sizeof(
+			wmi_vdev_encrypt_decrypt_data_resp_event_fixed_param) +
+			WMI_TLV_HDR_SIZE;
+
+		encrypt_decrypt_rsp_params.data = buf_ptr;
+	}
+
+	pmac->sme.encrypt_decrypt_cb(pmac->hHdd, &encrypt_decrypt_rsp_params);
+
+	return 0;
 }

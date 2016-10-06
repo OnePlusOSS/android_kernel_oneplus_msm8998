@@ -60,6 +60,7 @@
 #include "wma.h"
 #include "sch_api.h"
 #include "sme_nan_datapath.h"
+#include "csr_api.h"
 
 extern tSirRetStatus u_mac_post_ctrl_msg(void *pSirGlobal, tSirMbMsg *pMb);
 
@@ -8360,55 +8361,41 @@ QDF_STATUS sme_set_tx_power(tHalHandle hHal, uint8_t sessionId,
 	return QDF_STATUS_SUCCESS;
 }
 
-/* ---------------------------------------------------------------------------
-
-    \fn sme_hide_ssid
-
-    \brief hide/show SSID dynamically. Note: this setting will
-    not persist over reboots.
-
-    \param hHal
-    \param sessionId
-    \param ssidHidden 0 - Broadcast SSID, 1 - Disable broadcast SSID
-   \- return QDF_STATUS
-
-   -------------------------------------------------------------------------------*/
-QDF_STATUS sme_hide_ssid(tHalHandle hHal, uint8_t sessionId, uint8_t ssidHidden)
+QDF_STATUS sme_update_session_param(tHalHandle hal, uint8_t session_id,
+			uint32_t param_type, uint32_t param_val)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
-	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
 	uint16_t len;
 
-	status = sme_acquire_global_lock(&pMac->sme);
+	status = sme_acquire_global_lock(&mac_ctx->sme);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
-		tpSirUpdateParams pMsg;
-		tCsrRoamSession *pSession = CSR_GET_SESSION(pMac, sessionId);
+		struct sir_update_session_param *msg;
+		tCsrRoamSession *session = CSR_GET_SESSION(mac_ctx, session_id);
 
-		if (!pSession) {
-			sms_log(pMac, LOGE, FL("  session %d not found "),
-				sessionId);
-			sme_release_global_lock(&pMac->sme);
-			return QDF_STATUS_E_FAILURE;
+		if (!session) {
+			sms_log(mac_ctx, LOGE, FL("session %d not found"),
+				session_id);
+			sme_release_global_lock(&mac_ctx->sme);
+			return status;
 		}
 
-		if (!pSession->sessionActive)
+		if (!session->sessionActive)
 			QDF_ASSERT(0);
 
-		/* Create the message and send to lim */
-		len = sizeof(tSirUpdateParams);
-		pMsg = qdf_mem_malloc(len);
-		if (NULL == pMsg)
+		len = sizeof(*msg);
+		msg = qdf_mem_malloc(len);
+		if (!msg)
 			status = QDF_STATUS_E_NOMEM;
 		else {
-			qdf_mem_set(pMsg, sizeof(tSirUpdateParams), 0);
-			pMsg->messageType = eWNI_SME_HIDE_SSID_REQ;
-			pMsg->length = len;
-			/* Data starts from here */
-			pMsg->sessionId = sessionId;
-			pMsg->ssidHidden = ssidHidden;
-			status = cds_send_mb_message_to_mac(pMsg);
+			msg->message_type = eWNI_SME_SESSION_UPDATE_PARAM;
+			msg->length = len;
+			msg->session_id = session_id;
+			msg->param_type = param_type;
+			msg->param_val = param_val;
+			status = cds_send_mb_message_to_mac(msg);
 		}
-		sme_release_global_lock(&pMac->sme);
+		sme_release_global_lock(&mac_ctx->sme);
 	}
 	return status;
 }
@@ -14685,7 +14672,7 @@ QDF_STATUS sme_wifi_start_logger(tHalHandle hal,
 	qdf_mem_zero(req_msg, len);
 
 	req_msg->verbose_level = start_log.verbose_level;
-	req_msg->flag = start_log.flag;
+	req_msg->is_iwpriv_command = start_log.is_iwpriv_command;
 	req_msg->ring_id = start_log.ring_id;
 	req_msg->ini_triggered = start_log.ini_triggered;
 	req_msg->user_triggered = start_log.user_triggered;
@@ -16077,7 +16064,8 @@ QDF_STATUS sme_set_bpf_instructions(tHalHandle hal,
 	cds_msg_t           cds_msg;
 	struct sir_bpf_set_offload *set_offload;
 
-	set_offload = qdf_mem_malloc(sizeof(*set_offload));
+	set_offload = qdf_mem_malloc(sizeof(*set_offload) +
+					req->current_length);
 
 	if (NULL == set_offload) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
@@ -16091,14 +16079,8 @@ QDF_STATUS sme_set_bpf_instructions(tHalHandle hal,
 	set_offload->total_length = req->total_length;
 	set_offload->current_length = req->current_length;
 	if (set_offload->total_length) {
-		set_offload->program = qdf_mem_malloc(sizeof(uint8_t) *
-						req->current_length);
-		if (NULL == set_offload->program) {
-			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-				FL("Failed to alloc instruction memory"));
-			qdf_mem_free(set_offload);
-			return QDF_STATUS_E_NOMEM;
-		}
+		set_offload->program = ((uint8_t *)set_offload) +
+					sizeof(*set_offload);
 		qdf_mem_copy(set_offload->program, req->program,
 				set_offload->current_length);
 	}
@@ -16113,16 +16095,12 @@ QDF_STATUS sme_set_bpf_instructions(tHalHandle hal,
 			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 				FL("Post BPF set offload msg fail"));
 			status = QDF_STATUS_E_FAILURE;
-			if (set_offload->total_length)
-				qdf_mem_free(set_offload->program);
 			qdf_mem_free(set_offload);
 		}
 		sme_release_global_lock(&mac_ctx->sme);
 	} else {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 				FL("sme_acquire_global_lock failed"));
-		if (set_offload->total_length)
-			qdf_mem_free(set_offload->program);
 		qdf_mem_free(set_offload);
 	}
 	return status;
@@ -16267,6 +16245,38 @@ QDF_STATUS sme_set_adaptive_dwelltime_config(tHalHandle hal,
 	}
 	return status;
 }
+
+/**
+ * sme_set_vdev_ies_per_band() - sends the per band IEs to vdev
+ * @hal: Pointer to HAL
+ * @vdev_id: vdev_id for which IE is targeted
+ *
+ * Return: None
+ */
+void sme_set_vdev_ies_per_band(tHalHandle hal, uint8_t vdev_id)
+{
+	tpAniSirGlobal p_mac = PMAC_STRUCT(hal);
+	struct sir_set_vdev_ies_per_band *p_msg;
+	QDF_STATUS status = QDF_STATUS_E_FAILURE;
+
+	p_msg = qdf_mem_malloc(sizeof(*p_msg));
+	if (NULL == p_msg) {
+		sms_log(p_mac, LOGE, FL("mem alloc failed for sme msg"));
+		return;
+	}
+
+	p_msg->vdev_id = vdev_id;
+	p_msg->msg_type = eWNI_SME_SET_VDEV_IES_PER_BAND;
+	p_msg->len = sizeof(*p_msg);
+	sms_log(p_mac, LOG1,
+		FL("sending eWNI_SME_SET_VDEV_IES_PER_BAND: vdev_id: %d "),
+		vdev_id);
+	status = cds_send_mb_message_to_mac(p_msg);
+	if (QDF_STATUS_SUCCESS != status)
+		sms_log(p_mac, LOGE,
+			FL("Send eWNI_SME_SET_VDEV_IES_PER_BAND fail"));
+}
+
 /**
  * sme_set_pdev_ht_vht_ies() - sends the set pdev IE req
  * @hal: Pointer to HAL
@@ -16324,7 +16334,6 @@ void sme_set_pdev_ht_vht_ies(tHalHandle hal, bool enable2x2)
 		if (QDF_STATUS_SUCCESS != status) {
 			sms_log(mac_ctx, LOGE, FL(
 					"Send SME_PDEV_SET_HT_VHT_IE fail"));
-			qdf_mem_free(ht_vht_cfg);
 		}
 		sme_release_global_lock(&mac_ctx->sme);
 	}
@@ -16458,4 +16467,251 @@ void sme_get_vdev_type_nss(tHalHandle hal, enum tQDF_ADAPTER_MODE dev_mode,
 {
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
 	csr_get_vdev_type_nss(mac_ctx, dev_mode, nss_2g, nss_5g);
+}
+
+/**
+ * sme_update_sta_roam_policy() - update sta roam policy for
+ * unsafe and DFS channels.
+ * @hal_handle: hal handle for getting global mac struct
+ * @dfs_mode: dfs mode which tell if dfs channel needs to be
+ * skipped or not
+ * @skip_unsafe_channels: Param to tell if driver needs to
+ * skip unsafe channels or not.
+ * @param session_id: sme_session_id
+ *
+ * sme_update_sta_roam_policy update sta rome policies to csr
+ * this function will call csrUpdateChannelList as well
+ * to include/exclude DFS channels and unsafe channels.
+ *
+ * Return: eHAL_STATUS_SUCCESS or non-zero on failure.
+ */
+QDF_STATUS sme_update_sta_roam_policy(tHalHandle hal_handle,
+		enum sta_roam_policy_dfs_mode dfs_mode,
+		bool skip_unsafe_channels,
+		uint8_t session_id)
+{
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal_handle);
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	tSmeConfigParams sme_config;
+
+	if (!mac_ctx) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_FATAL,
+				"%s: mac_ctx is null", __func__);
+		return QDF_STATUS_E_FAILURE;
+	}
+	qdf_mem_zero(&sme_config, sizeof(sme_config));
+	sme_get_config_param(hal_handle, &sme_config);
+
+	sme_config.csrConfig.sta_roam_policy_params.dfs_mode =
+		dfs_mode;
+	sme_config.csrConfig.sta_roam_policy_params.skip_unsafe_channels =
+		skip_unsafe_channels;
+
+	sme_update_config(hal_handle, &sme_config);
+
+	status = csr_update_channel_list(mac_ctx);
+	if (QDF_STATUS_SUCCESS != status) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			FL("failed to update the supported channel list"));
+	}
+	if (mac_ctx->roam.configParam.isRoamOffloadScanEnabled)
+		csr_roam_offload_scan(mac_ctx, session_id,
+				ROAM_SCAN_OFFLOAD_UPDATE_CFG,
+				REASON_ROAM_SCAN_STA_ROAM_POLICY_CHANGED);
+	return status;
+}
+
+/**
+ * sme_enable_disable_chanavoidind_event - configure ca event ind
+ * @hal: handler to hal
+ * @set_value: enable/disable
+ *
+ * function to enable/disable chan avoidance indication
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS sme_enable_disable_chanavoidind_event(tHalHandle hal,
+		uint8_t set_value)
+{
+	QDF_STATUS status;
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+	cds_msg_t msg;
+
+	sms_log(mac_ctx, LOG1, FL("set_value: %d"), set_value);
+	status = sme_acquire_global_lock(&mac_ctx->sme);
+	if (QDF_STATUS_SUCCESS == status) {
+		qdf_mem_zero(&msg, sizeof(cds_msg_t));
+		msg.type = WMA_SEND_FREQ_RANGE_CONTROL_IND;
+		msg.bodyval = set_value;
+		status = cds_mq_post_message(QDF_MODULE_ID_WMA, &msg);
+		sme_release_global_lock(&mac_ctx->sme);
+		return status;
+	}
+	return status;
+}
+
+/*
+ * sme_set_default_scan_ie() - API to send default scan IE to LIM
+ * @hal: reference to the HAL
+ * @session_id: current session ID
+ * @ie_data: Pointer to Scan IE data
+ * @ie_len: Length of @ie_data
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS sme_set_default_scan_ie(tHalHandle hal, uint16_t session_id,
+					uint8_t *ie_data, uint16_t ie_len)
+{
+	QDF_STATUS status;
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+	struct hdd_default_scan_ie *set_ie_params;
+
+	status = sme_acquire_global_lock(&mac_ctx->sme);
+	if (QDF_IS_STATUS_SUCCESS(status)) {
+		set_ie_params = qdf_mem_malloc(sizeof(*set_ie_params));
+		if (!set_ie_params)
+			status = QDF_STATUS_E_NOMEM;
+		else {
+			set_ie_params->message_type = eWNI_SME_DEFAULT_SCAN_IE;
+			set_ie_params->length = sizeof(*set_ie_params);
+			set_ie_params->session_id = session_id;
+			set_ie_params->ie_len = ie_len;
+			qdf_mem_copy(set_ie_params->ie_data, ie_data, ie_len);
+			status = cds_send_mb_message_to_mac(set_ie_params);
+		}
+		sme_release_global_lock(&mac_ctx->sme);
+	}
+	sms_log(mac_ctx, LOG1, FL("Set default scan IE status %d"), status);
+	return status;
+}
+
+/**
+ * sme_encrypt_decrypt_msg() - handles encrypt/decrypt mesaage
+ * @hal: HAL handle
+ * @encrypt_decrypt_params: struct to set encryption/decryption params.
+ *
+ * Return: QDF_STATUS enumeration.
+ */
+QDF_STATUS sme_encrypt_decrypt_msg(tHalHandle hal,
+	struct encrypt_decrypt_req_params *encrypt_decrypt_params)
+{
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+	cds_msg_t cds_msg;
+	struct encrypt_decrypt_req_params *params;
+	uint8_t *ptr;
+
+	ptr = qdf_mem_malloc(sizeof(*params) +
+				encrypt_decrypt_params->data_len);
+	if (ptr == NULL) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			FL("Failed to alloc memory for encrypt/decrypt params"));
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	params = (struct encrypt_decrypt_req_params *)ptr;
+
+	*params = *encrypt_decrypt_params;
+
+	if (params->data_len) {
+		params->data = ptr + sizeof(*params);
+
+		qdf_mem_copy(params->data, encrypt_decrypt_params->data,
+					params->data_len);
+	}
+
+	status = sme_acquire_global_lock(&mac_ctx->sme);
+	if (status == QDF_STATUS_SUCCESS) {
+		/* Serialize the req through MC thread */
+		cds_msg.bodyptr = params;
+		cds_msg.type = WMA_ENCRYPT_DECRYPT_MSG;
+		status = cds_mq_post_message(QDF_MODULE_ID_WMA, &cds_msg);
+
+		if (!QDF_IS_STATUS_SUCCESS(status)) {
+			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+				FL("Post encrypt/decrypt msg fail"));
+			status = QDF_STATUS_E_FAILURE;
+			qdf_mem_free(params);
+		}
+		sme_release_global_lock(&mac_ctx->sme);
+	} else {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+				FL("sme_acquire_global_lock failed"));
+		qdf_mem_free(params);
+	}
+	return status;
+
+}
+
+/**
+ * sme_encrypt_decrypt_msg_register_callback() - Registers
+ * encrypt/decrypt message callback
+ *
+ * @hal - MAC global handle
+ * @callback_routine - callback routine from HDD
+ *
+ * This API is invoked by HDD to register its callback in SME
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS sme_encrypt_decrypt_msg_register_callback(tHalHandle hal,
+		void (*encrypt_decrypt_cb)(void *hdd_context,
+			struct sir_encrypt_decrypt_rsp_params
+				*encrypt_decrypt_rsp_params))
+{
+	QDF_STATUS status   = QDF_STATUS_SUCCESS;
+	tpAniSirGlobal mac;
+
+	if (!hal) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+				  FL("hHal is not valid"));
+		return QDF_STATUS_E_INVAL;
+	}
+
+	mac = PMAC_STRUCT(hal);
+
+	status = sme_acquire_global_lock(&mac->sme);
+	if (QDF_IS_STATUS_SUCCESS(status)) {
+		mac->sme.encrypt_decrypt_cb = encrypt_decrypt_cb;
+		sme_release_global_lock(&mac->sme);
+	} else {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			FL("sme_acquire_global_lock failed"));
+	}
+	return status;
+}
+
+/**
+ * sme_encrypt_decrypt_msg_deregister_callback() - Registers
+ * encrypt/decrypt message callback
+ *
+ * @h_hal - MAC global handle
+ * @callback_routine - callback routine from HDD
+ *
+ * This API is invoked by HDD to de-register its callback in SME
+ *
+ * Return: QDF_STATUS Enumeration
+ */
+QDF_STATUS sme_encrypt_decrypt_msg_deregister_callback(tHalHandle h_hal)
+{
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	tpAniSirGlobal mac;
+
+	if (!h_hal) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+				  FL("hHal is not valid"));
+		return QDF_STATUS_E_INVAL;
+	}
+
+	mac = PMAC_STRUCT(h_hal);
+
+	status = sme_acquire_global_lock(&mac->sme);
+	if (QDF_IS_STATUS_SUCCESS(status)) {
+		mac->sme.encrypt_decrypt_cb = NULL;
+		sme_release_global_lock(&mac->sme);
+	} else {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			FL("sme_acquire_global_lock failed"));
+	}
+	return status;
 }

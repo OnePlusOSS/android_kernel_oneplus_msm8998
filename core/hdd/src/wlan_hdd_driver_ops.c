@@ -266,8 +266,6 @@ int hdd_hif_open(struct device *dev, void *bdev, const hif_bus_id *bid,
 		}
 	}
 
-	hif_enable_power_management(hif_ctx, cds_is_packet_log_enabled());
-
 	return 0;
 
 err_hif_close:
@@ -286,8 +284,6 @@ void hdd_hif_close(void *hif_ctx)
 {
 	if (hif_ctx == NULL)
 		return;
-
-	hif_disable_power_management(hif_ctx);
 
 	hif_disable(hif_ctx, HIF_DISABLE_TYPE_REMOVE);
 
@@ -417,11 +413,6 @@ static void wlan_hdd_remove(struct device *dev)
 	pr_info("%s: Removing driver v%s\n", WLAN_MODULE_NAME,
 		QWLAN_VERSIONSTR);
 
-	/* Wait for recovery to complete */
-	while (cds_is_driver_recovering()) {
-		hdd_alert("Recovery in progress; wait here!!!");
-		msleep(1000);
-	}
 
 	cds_set_driver_loaded(false);
 	cds_set_unload_in_progress(true);

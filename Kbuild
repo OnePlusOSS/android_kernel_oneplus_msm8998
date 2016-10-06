@@ -65,6 +65,7 @@ ifeq ($(KERNEL_BUILD), 0)
 	# builds. Other OEMs are also protected using the TARGET_BUILD_VARIANT
 	# config.
 	ifneq ($(TARGET_BUILD_VARIANT),user)
+		CONFIG_FEATURE_PKTLOG := y
 		ifeq ($(CONFIG_SLUB_DEBUG_ON),y)
 			CONFIG_FEATURE_DP_TRACE := y
 		else
@@ -96,6 +97,9 @@ ifeq ($(KERNEL_BUILD), 0)
 	endif
 
 	ifeq ($(CONFIG_MOBILE_ROUTER), y)
+	CONFIG_QCACLD_FEATURE_GREEN_AP := y
+	endif
+	ifeq ($(CONFIG_ARCH_MSMCOBALT), y)
 	CONFIG_QCACLD_FEATURE_GREEN_AP := y
 	endif
 
@@ -154,6 +158,9 @@ ifeq ($(KERNEL_BUILD), 0)
 ifneq ($(CONFIG_ROME_IF),sdio)
 	#Flag to enable memdump feature
 	CONFIG_WLAN_FEATURE_MEMDUMP := n
+
+	#Flag to enable DISA
+	CONFIG_WLAN_FEATURE_DISA := y
 
 	#Flag to enable Fast Path feature
 	CONFIG_WLAN_FASTPATH := y
@@ -414,6 +421,10 @@ endif
 
 ifeq ($(CONFIG_WLAN_FEATURE_MEMDUMP),y)
 HDD_OBJS += $(HDD_SRC_DIR)/wlan_hdd_memdump.o
+endif
+
+ifeq ($(CONFIG_WLAN_FEATURE_DISA),y)
+HDD_OBJS += $(HDD_SRC_DIR)/wlan_hdd_disa.o
 endif
 
 ifeq ($(CONFIG_LFR_SUBNET_DETECTION), y)
@@ -1114,6 +1125,10 @@ ifeq ($(CONFIG_WLAN_FASTPATH), y)
 CDEFINES +=	-DWLAN_FEATURE_FASTPATH
 endif
 
+ifeq ($(CONFIG_FEATURE_PKTLOG), y)
+CDEFINES +=     -DFEATURE_PKTLOG
+endif
+
 ifeq ($(CONFIG_FEATURE_DP_TRACE), y)
 CDEFINES +=	-DFEATURE_DP_TRACE
 endif
@@ -1535,6 +1550,10 @@ endif
 
 ifeq ($(CONFIG_WLAN_FEATURE_MEMDUMP),y)
 CDEFINES += -DWLAN_FEATURE_MEMDUMP
+endif
+
+ifeq ($(CONFIG_WLAN_FEATURE_DISA),y)
+CDEFINES += -DWLAN_FEATURE_DISA
 endif
 
 ifeq ($(CONFIG_LFR_SUBNET_DETECTION), y)

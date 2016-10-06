@@ -505,11 +505,11 @@ typedef enum {
 	/* Channel sw update notification */
 	eCSR_ROAM_DFS_CHAN_SW_NOTIFY,
 	eCSR_ROAM_EXT_CHG_CHNL_IND,
-	eCSR_ROAM_DISABLE_QUEUES,
-	eCSR_ROAM_ENABLE_QUEUES,
 	eCSR_ROAM_STA_CHANNEL_SWITCH,
 	eCSR_ROAM_NDP_STATUS_UPDATE,
 	eCSR_ROAM_UPDATE_SCAN_RESULT,
+	eCSR_ROAM_START,
+	eCSR_ROAM_ABORT,
 } eRoamCmdStatus;
 
 /* comment inside indicates what roaming callback gets */
@@ -1060,6 +1060,30 @@ typedef struct tagCsrNeighborRoamConfigParams {
 	int32_t nhi_rssi_scan_rssi_ub;
 } tCsrNeighborRoamConfigParams;
 
+/**
+ * enum sta_roam_policy_dfs_mode - state of DFS mode for STA ROME policy
+ * @CSR_STA_ROAM_POLICY_NONE: DFS mode attribute is not valid
+ * @CSR_STA_ROAM_POLICY_DFS_ENABLED:  DFS mode is enabled
+ * @CSR_STA_ROAM_POLICY_DFS_DISABLED: DFS mode is disabled
+ * @CSR_STA_ROAM_POLICY_DFS_DEPRIORITIZE: Deprioritize DFS channels in scanning
+ */
+enum sta_roam_policy_dfs_mode {
+	CSR_STA_ROAM_POLICY_NONE,
+	CSR_STA_ROAM_POLICY_DFS_ENABLED,
+	CSR_STA_ROAM_POLICY_DFS_DISABLED,
+	CSR_STA_ROAM_POLICY_DFS_DEPRIORITIZE
+};
+
+/**
+ * struct csr_sta_roam_policy_params - sta roam policy params for station
+ * @dfs_mode: tell is DFS channels needs to be skipped while scanning
+ * @skip_unsafe_channels: tells if unsafe channels needs to be skip in scanning
+ */
+struct csr_sta_roam_policy_params {
+	enum sta_roam_policy_dfs_mode dfs_mode;
+	bool skip_unsafe_channels;
+};
+
 typedef struct tagCsrConfigParam {
 	uint32_t FragmentationThreshold;
 	/* keep this uint32_t. This gets converted to ePhyChannelBondState */
@@ -1095,8 +1119,6 @@ typedef struct tagCsrConfigParam {
 	uint32_t scanAgeTimeCNPS;
 	/* scan res aging time threshold when Connect-Power-Save, in sec */
 	uint32_t scanAgeTimeCPS;
-	/* In sec, CSR'll try this long before gives up. 0 means no roaming */
-	uint32_t nRoamingTime;
 	/* to set the RSSI difference for each category */
 	uint8_t bCatRssiOffset;
 	/* to set MCC Enable/Disable mode */
@@ -1144,6 +1166,7 @@ typedef struct tagCsrConfigParam {
 	 * default setting.
 	 */
 	uint8_t nTxPowerCap;
+	bool allow_tpc_from_ap;
 	/* stats request frequency from PE while in full power */
 	uint32_t statsReqPeriodicity;
 	/* stats request frequency from PE while in power save */
@@ -1280,6 +1303,7 @@ typedef struct tagCsrConfigParam {
 	bool enable_fatal_event;
 	enum wmi_dwelltime_adaptive_mode scan_adaptive_dwell_mode;
 	enum wmi_dwelltime_adaptive_mode roamscan_adaptive_dwell_mode;
+	struct csr_sta_roam_policy_params sta_roam_policy_params;
 } tCsrConfigParam;
 
 /* Tush */

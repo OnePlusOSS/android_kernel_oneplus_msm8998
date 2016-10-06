@@ -100,6 +100,35 @@ enum extscan_report_events_type {
 #endif
 
 /**
+ * wma_set_scan_info() - set scan info in wma handle
+ * @wma_handle: wma handle
+ * @scan_id: scan id
+ * @vdev_id: vdev id
+ *
+ * Return: none
+ */
+static inline void wma_set_scan_info(tp_wma_handle wma_handle,
+				     uint32_t scan_id,
+				     uint32_t vdev_id)
+{
+	wma_handle->interfaces[vdev_id].scan_info.scan_id = scan_id;
+}
+
+/**
+ * wma_reset_scan_info() - reset scan info from wma handle
+ * @wma_handle: wma handle
+ * @vdev_id: vdev id
+ *
+ * Return: none
+ */
+static inline void wma_reset_scan_info(tp_wma_handle wma_handle,
+					   uint8_t vdev_id)
+{
+	qdf_mem_zero((void *)&(wma_handle->interfaces[vdev_id].scan_info),
+		     sizeof(wma_handle->interfaces[vdev_id].scan_info));
+}
+
+/**
  * wma_set_p2p_scan_info() - set p2p scan info in wma handle
  * @wma_handle: wma handle
  * @scan_id: scan id
@@ -415,14 +444,19 @@ QDF_STATUS wma_get_buf_start_scan_cmd(tp_wma_handle wma_handle,
 	if (wma_is_sap_active(wma_handle)) {
 		/* P2P/STA scan while SoftAP is sending beacons.
 		 * Max duration of CTS2self is 32 ms, which limits the
-		 * dwell time.
+		 * dwell time. If DBS is supported and if SAP is on 2G channel
+		 * then keep passive dwell time default.
 		 */
 		cmd->dwell_time_active =
 			QDF_MIN(scan_req->maxChannelTime,
 					(WMA_CTS_DURATION_MS_MAX -
 					 WMA_ROAM_SCAN_CHANNEL_SWITCH_TIME));
-		cmd->dwell_time_passive =
-			cmd->dwell_time_active;
+		if (!wma_is_hw_dbs_capable() ||
+			(wma_is_hw_dbs_capable() &&
+				CDS_IS_CHANNEL_5GHZ(
+					cds_get_channel(CDS_SAP_MODE, NULL)))) {
+			cmd->dwell_time_passive = cmd->dwell_time_active;
+		}
 		cmd->burst_duration = 0;
 	}
 
@@ -525,11 +559,16 @@ QDF_STATUS wma_start_scan(tp_wma_handle wma_handle,
 		goto error1;
 	}
 
+	wma_set_scan_info(wma_handle, cmd.scan_id, cmd.vdev_id);
+
 	if (scan_req->p2pScanType == P2P_SCAN_TYPE_LISTEN)
 		wma_set_p2p_scan_info(wma_handle, cmd.scan_id,
 			 cmd.vdev_id, P2P_SCAN_TYPE_LISTEN);
 	WMA_LOGI("scan_id 0x%x, vdev_id %d, p2pScanType %d, msg_type 0x%x",
 		 cmd.scan_id, cmd.vdev_id, scan_req->p2pScanType, msg_type);
+
+	if (scan_req->p2pScanType)
+		cmd.scan_priority = WMI_SCAN_PRIORITY_MEDIUM;
 	/*
 	 * Cache vdev_id and scan_id because cmd is freed after calling
 	 * wmi_unified_cmd_send cmd. WMI internally frees cmd buffer after
@@ -704,7 +743,7 @@ QDF_STATUS wma_update_channel_list(WMA_HANDLE handle,
 
 		WMI_SET_CHANNEL_REG_POWER(tchan_info,
 					  chan_list->chanParam[i].pwr);
-		WMA_LOGD("Channel TX power[%d] = %u: %d", i, tchan_info->mhz,
+		WMA_LOGI("Channel TX power[%d] = %u: %d", i, tchan_info->mhz,
 			 chan_list->chanParam[i].pwr);
 		/*TODO: Set WMI_SET_CHANNEL_MIN_POWER */
 		/*TODO: Set WMI_SET_CHANNEL_ANTENNA_MAX */
@@ -2150,6 +2189,13 @@ void wma_fill_roam_synch_buffer(tp_wma_handle wma,
 		QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_WMA, QDF_TRACE_LEVEL_DEBUG,
 				   key->replay_counter, SIR_REPLAY_CTR_LEN);
 	}
+	if (param_buf->hw_mode_transition_fixed_param)
+		wma_process_pdev_hw_mode_trans_ind(wma,
+		    param_buf->hw_mode_transition_fixed_param,
+		    param_buf->wmi_pdev_set_hw_mode_response_vdev_mac_mapping,
+		    &roam_synch_ind_ptr->hw_mode_trans_ind);
+	else
+		WMA_LOGD(FL("hw_mode transition fixed param is NULL"));
 }
 
 /**
@@ -2279,8 +2325,7 @@ int wma_roam_synch_event_handler(void *handle, uint8_t *event,
 	}
 	qdf_mem_zero(roam_synch_ind_ptr, len);
 	wma_fill_roam_synch_buffer(wma, roam_synch_ind_ptr, param_buf);
-
-	 /* 24 byte MAC header and 12 byte to ssid IE */
+	/* 24 byte MAC header and 12 byte to ssid IE */
 	if (roam_synch_ind_ptr->beaconProbeRespLength >
 			(SIR_MAC_HDR_LEN_3A + SIR_MAC_B_PR_SSID_OFFSET)) {
 		ie_len = roam_synch_ind_ptr->beaconProbeRespLength -
@@ -2303,6 +2348,16 @@ int wma_roam_synch_event_handler(void *handle, uint8_t *event,
 	wma->csr_roam_synch_cb((tpAniSirGlobal)wma->mac_context,
 		roam_synch_ind_ptr, bss_desc_ptr, SIR_ROAM_SYNCH_PROPAGATION);
 	wma_process_roam_synch_complete(wma, synch_event->vdev_id);
+
+	/* update freq and channel width */
+	wma->interfaces[synch_event->vdev_id].mhz =
+		roam_synch_ind_ptr->chan_freq;
+	if (roam_synch_ind_ptr->join_rsp)
+		wma->interfaces[synch_event->vdev_id].chan_width =
+			roam_synch_ind_ptr->join_rsp->vht_channel_width;
+
+	wma->csr_roam_synch_cb((tpAniSirGlobal)wma->mac_context,
+		roam_synch_ind_ptr, bss_desc_ptr, SIR_ROAM_SYNCH_COMPLETE);
 	wma->interfaces[synch_event->vdev_id].roam_synch_delay =
 		qdf_get_system_timestamp() - roam_synch_received;
 	WMA_LOGD("LFR3: roam_synch_delay:%d",
@@ -5618,6 +5673,12 @@ int wma_scan_event_callback(WMA_HANDLE handle, uint8_t *data,
 	scan_event->chanFreq = wmi_event->channel_freq;
 
 	if (scan_event->scanId ==
+		wma_handle->interfaces[vdev_id].scan_info.scan_id) {
+		if (scan_event->event == SIR_SCAN_EVENT_COMPLETED)
+			wma_reset_scan_info(wma_handle, vdev_id);
+	}
+
+	if (scan_event->scanId ==
 		wma_handle->interfaces[vdev_id].p2p_scan_info.scan_id) {
 		scan_event->p2pScanType = P2P_SCAN_TYPE_LISTEN;
 		if  (scan_event->event == SIR_SCAN_EVENT_COMPLETED)
@@ -5784,9 +5845,9 @@ int wma_roam_event_callback(WMA_HANDLE handle, uint8_t *event_buf,
 			return -ENOMEM;
 		}
 		if (wmi_event->notif == WMI_ROAM_NOTIF_ROAM_START)
-			op_code = SIR_ROAMING_TX_QUEUE_DISABLE;
+			op_code = SIR_ROAMING_START;
 		if (wmi_event->notif == WMI_ROAM_NOTIF_ROAM_ABORT)
-			op_code = SIR_ROAMING_TX_QUEUE_ENABLE;
+			op_code = SIR_ROAMING_ABORT;
 		roam_synch_data->roamedVdevId = wmi_event->vdev_id;
 		wma_handle->csr_roam_synch_cb(
 				(tpAniSirGlobal)wma_handle->mac_context,

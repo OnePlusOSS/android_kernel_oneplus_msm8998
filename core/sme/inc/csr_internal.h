@@ -525,8 +525,6 @@ typedef struct tagCsrConfig {
 	uint32_t BssPreferValue[CSR_NUM_RSSI_CAT];
 	int RSSICat[CSR_NUM_RSSI_CAT];
 	uint8_t bCatRssiOffset; /* to set RSSI difference for each category */
-	/* In secs, CSR'll try this long before gives up, 0 means no roaming */
-	uint32_t nRoamingTime;
 	/*
 	 * Whether to limit the channels to the ones set in Csr11dInfo.
 	 * If true, the opertaional channels are limited to the default channel
@@ -567,6 +565,7 @@ typedef struct tagCsrConfig {
 	 * value & 11d. If 11d is disable, the lesser of this & default setting.
 	 */
 	uint8_t nTxPowerCap;
+	bool allow_tpc_from_ap;
 	uint32_t statsReqPeriodicity;    /* stats req freq while in fullpower */
 	uint32_t statsReqPeriodicityInPS;/* stats req freq while in powersave */
 	uint32_t dtimPeriod;
@@ -666,6 +665,7 @@ typedef struct tagCsrConfig {
 	bool enable_fatal_event;
 	enum wmi_dwelltime_adaptive_mode scan_adaptive_dwell_mode;
 	enum wmi_dwelltime_adaptive_mode roamscan_adaptive_dwell_mode;
+	struct csr_sta_roam_policy_params sta_roam_policy;
 } tCsrConfig;
 
 typedef struct tagCsrChannelPowerInfo {
@@ -946,7 +946,6 @@ typedef struct tagCsrRoamSession {
 	uint8_t *pAddIEScan;
 	uint32_t nAddIEAssocLength;     /* the byte count for pAddIeAssocIE */
 	uint8_t *pAddIEAssoc;
-	uint32_t roamingStartTime;      /* in units of 10ms */
 	tCsrTimerInfo roamingTimerInfo;
 	eCsrRoamingReason roamingReason;
 	bool fCancelRoaming;

@@ -118,7 +118,7 @@
 /* De -initialization function of the rx buffer hash table. This function will
  *   free up the hash table which includes freeing all the pending rx buffers
  */
-void htt_rx_hash_deinit(struct htt_pdev_t *pdev)
+static void htt_rx_hash_deinit(struct htt_pdev_t *pdev)
 {
 
 	uint32_t i;
@@ -222,9 +222,8 @@ htt_rx_mpdu_desc_seq_num_hl(htt_pdev_handle pdev, void *mpdu_desc)
 		return (u_int16_t)(pdev->cur_seq_num_hl);
 	}
 }
-#endif
 
-void
+static void
 htt_rx_mpdu_desc_pn_hl(
 	htt_pdev_handle pdev,
 	void *mpdu_desc,
@@ -269,6 +268,7 @@ htt_rx_mpdu_desc_pn_hl(
 		qdf_assert(0);
 	}
 }
+#endif
 
 /**
  * htt_rx_mpdu_desc_tid_hl() - Returns the TID value from the Rx descriptor
@@ -405,7 +405,7 @@ static void htt_rx_ring_refill_retry(void *arg)
 }
 #endif
 
-void htt_rx_ring_fill_n(struct htt_pdev_t *pdev, int num)
+static void htt_rx_ring_fill_n(struct htt_pdev_t *pdev, int num)
 {
 	int idx;
 	QDF_STATUS status;
@@ -509,14 +509,14 @@ fail:
 	return;
 }
 
-unsigned htt_rx_ring_elems(struct htt_pdev_t *pdev)
+static inline unsigned htt_rx_ring_elems(struct htt_pdev_t *pdev)
 {
 	return
 		(*pdev->rx_ring.alloc_idx.vaddr -
 		 pdev->rx_ring.sw_rd_idx.msdu_payld) & pdev->rx_ring.size_mask;
 }
 
-unsigned int htt_rx_in_order_ring_elems(struct htt_pdev_t *pdev)
+static inline unsigned int htt_rx_in_order_ring_elems(struct htt_pdev_t *pdev)
 {
 	return
 		(*pdev->rx_ring.alloc_idx.vaddr -
@@ -608,7 +608,7 @@ void htt_rx_detach(struct htt_pdev_t *pdev)
  *
  * Return:        boolean -- true if retry is set, false otherwise
  */
-bool
+static bool
 htt_rx_mpdu_desc_retry_ll(htt_pdev_handle pdev, void *mpdu_desc)
 {
 	struct htt_host_rx_desc_base *rx_desc =
@@ -620,7 +620,8 @@ htt_rx_mpdu_desc_retry_ll(htt_pdev_handle pdev, void *mpdu_desc)
 		RX_MPDU_START_0_RETRY_LSB);
 }
 
-uint16_t htt_rx_mpdu_desc_seq_num_ll(htt_pdev_handle pdev, void *mpdu_desc)
+static uint16_t htt_rx_mpdu_desc_seq_num_ll(htt_pdev_handle pdev,
+					    void *mpdu_desc)
 {
 	struct htt_host_rx_desc_base *rx_desc =
 		(struct htt_host_rx_desc_base *)mpdu_desc;
@@ -632,7 +633,7 @@ uint16_t htt_rx_mpdu_desc_seq_num_ll(htt_pdev_handle pdev, void *mpdu_desc)
 }
 
 /* FIX THIS: APPLIES TO LL ONLY */
-void
+static void
 htt_rx_mpdu_desc_pn_ll(htt_pdev_handle pdev,
 		       void *mpdu_desc, union htt_rx_pn_t *pn, int pn_len_bits)
 {
@@ -691,7 +692,7 @@ htt_rx_mpdu_desc_pn_ll(htt_pdev_handle pdev,
  *
  * Return:        Actual TID set in the packet header.
  */
-uint8_t
+static uint8_t
 htt_rx_mpdu_desc_tid_ll(htt_pdev_handle pdev, void *mpdu_desc)
 {
 	struct htt_host_rx_desc_base *rx_desc =
@@ -718,7 +719,8 @@ char *htt_rx_mpdu_wifi_hdr_retrieve(htt_pdev_handle pdev, void *mpdu_desc)
 }
 
 /* FIX THIS: APPLIES TO LL ONLY */
-bool htt_rx_msdu_desc_completes_mpdu_ll(htt_pdev_handle pdev, void *msdu_desc)
+static bool htt_rx_msdu_desc_completes_mpdu_ll(htt_pdev_handle pdev,
+					       void *msdu_desc)
 {
 	struct htt_host_rx_desc_base *rx_desc =
 		(struct htt_host_rx_desc_base *)msdu_desc;
@@ -728,7 +730,8 @@ bool htt_rx_msdu_desc_completes_mpdu_ll(htt_pdev_handle pdev, void *msdu_desc)
 }
 
 /* FIX THIS: APPLIES TO LL ONLY */
-int htt_rx_msdu_has_wlan_mcast_flag_ll(htt_pdev_handle pdev, void *msdu_desc)
+static int htt_rx_msdu_has_wlan_mcast_flag_ll(htt_pdev_handle pdev,
+					      void *msdu_desc)
 {
 	struct htt_host_rx_desc_base *rx_desc =
 		(struct htt_host_rx_desc_base *)msdu_desc;
@@ -740,7 +743,7 @@ int htt_rx_msdu_has_wlan_mcast_flag_ll(htt_pdev_handle pdev, void *msdu_desc)
 }
 
 /* FIX THIS: APPLIES TO LL ONLY */
-bool htt_rx_msdu_is_wlan_mcast_ll(htt_pdev_handle pdev, void *msdu_desc)
+static bool htt_rx_msdu_is_wlan_mcast_ll(htt_pdev_handle pdev, void *msdu_desc)
 {
 	struct htt_host_rx_desc_base *rx_desc =
 		(struct htt_host_rx_desc_base *)msdu_desc;
@@ -751,7 +754,7 @@ bool htt_rx_msdu_is_wlan_mcast_ll(htt_pdev_handle pdev, void *msdu_desc)
 }
 
 /* FIX THIS: APPLIES TO LL ONLY */
-int htt_rx_msdu_is_frag_ll(htt_pdev_handle pdev, void *msdu_desc)
+static int htt_rx_msdu_is_frag_ll(htt_pdev_handle pdev, void *msdu_desc)
 {
 	struct htt_host_rx_desc_base *rx_desc =
 		(struct htt_host_rx_desc_base *)msdu_desc;
@@ -969,7 +972,7 @@ void htt_set_checksum_result_hl(qdf_nbuf_t msdu,
 #define MAX_DONE_BIT_CHECK_ITER 5
 #endif
 
-int
+static int
 htt_rx_amsdu_pop_ll(htt_pdev_handle pdev,
 		    qdf_nbuf_t rx_ind_msg,
 		    qdf_nbuf_t *head_msdu, qdf_nbuf_t *tail_msdu)
@@ -1333,7 +1336,7 @@ htt_rx_offload_msdu_pop_hl(htt_pdev_handle pdev,
 }
 #endif
 
-int
+static int
 htt_rx_offload_msdu_pop_ll(htt_pdev_handle pdev,
 			   qdf_nbuf_t offload_deliver_msg,
 			   int *vdev_id,
@@ -1449,6 +1452,7 @@ htt_rx_offload_paddr_msdu_pop_ll(htt_pdev_handle pdev,
  *
  * Return: 1 on success and 0 on failure.
  */
+static
 int htt_mon_rx_handle_amsdu_packet(qdf_nbuf_t msdu, htt_pdev_handle pdev,
 				   uint32_t **msg_word, uint32_t amsdu_len)
 {
@@ -1714,9 +1718,9 @@ static uint8_t htt_mon_rx_get_rtap_flags(struct htt_host_rx_desc_base *rx_desc)
  *
  * Return: None
  */
-void htt_rx_mon_get_rx_status(htt_pdev_handle pdev,
-			      struct htt_host_rx_desc_base *rx_desc,
-			      struct mon_rx_status *rx_status)
+static void htt_rx_mon_get_rx_status(htt_pdev_handle pdev,
+				     struct htt_host_rx_desc_base *rx_desc,
+				     struct mon_rx_status *rx_status)
 {
 	uint16_t channel_flags = 0;
 	struct mon_channel *ch_info = &pdev->mon_ch_info;
@@ -1755,10 +1759,10 @@ void htt_rx_mon_get_rx_status(htt_pdev_handle pdev,
  *
  * Return: 1 for success, 0 on failure.
  */
-int htt_rx_mon_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
-					qdf_nbuf_t rx_ind_msg,
-					qdf_nbuf_t *head_msdu,
-					qdf_nbuf_t *tail_msdu)
+static int htt_rx_mon_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
+					       qdf_nbuf_t rx_ind_msg,
+					       qdf_nbuf_t *head_msdu,
+					       qdf_nbuf_t *tail_msdu)
 {
 	qdf_nbuf_t msdu, next;
 	uint8_t *rx_ind_data;
@@ -1909,7 +1913,7 @@ uint32_t htt_rx_amsdu_rx_in_order_get_pktlog(qdf_nbuf_t rx_ind_msg)
 }
 
 /* Return values: 1 - success, 0 - failure */
-int
+static int
 htt_rx_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 				qdf_nbuf_t rx_ind_msg,
 				qdf_nbuf_t *head_msdu, qdf_nbuf_t *tail_msdu)
@@ -2090,7 +2094,7 @@ htt_rx_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 /* Util fake function that has same prototype as qdf_nbuf_clone that just
  * retures the same nbuf
  */
-qdf_nbuf_t htt_rx_qdf_noclone_buf(qdf_nbuf_t buf)
+static qdf_nbuf_t htt_rx_qdf_noclone_buf(qdf_nbuf_t buf)
 {
 	return buf;
 }
@@ -2515,6 +2519,7 @@ bool (*htt_rx_mpdu_is_encrypted)(htt_pdev_handle pdev, void *mpdu_desc);
 bool (*htt_rx_msdu_desc_key_id)(htt_pdev_handle pdev,
 				void *mpdu_desc, uint8_t *key_id);
 
+static
 void *htt_rx_mpdu_desc_list_next_ll(htt_pdev_handle pdev, qdf_nbuf_t rx_ind_msg)
 {
 	int idx = pdev->rx_ring.sw_rd_idx.msdu_desc;
@@ -2536,8 +2541,8 @@ bool (*htt_rx_msdu_center_freq)(
 	uint16_t *contig_chan2_center_freq_mhz,
 	uint8_t *phy_mode);
 
-void *htt_rx_in_ord_mpdu_desc_list_next_ll(htt_pdev_handle pdev,
-					   qdf_nbuf_t netbuf)
+static void *htt_rx_in_ord_mpdu_desc_list_next_ll(htt_pdev_handle pdev,
+						  qdf_nbuf_t netbuf)
 {
 	return (void *)htt_rx_desc(netbuf);
 }
@@ -2688,12 +2693,12 @@ htt_rx_msdu_desc_key_id_hl(htt_pdev_handle htt_pdev,
 
 #endif
 
-void *htt_rx_msdu_desc_retrieve_ll(htt_pdev_handle pdev, qdf_nbuf_t msdu)
+static void *htt_rx_msdu_desc_retrieve_ll(htt_pdev_handle pdev, qdf_nbuf_t msdu)
 {
 	return htt_rx_desc(msdu);
 }
 
-bool htt_rx_mpdu_is_encrypted_ll(htt_pdev_handle pdev, void *mpdu_desc)
+static bool htt_rx_mpdu_is_encrypted_ll(htt_pdev_handle pdev, void *mpdu_desc)
 {
 	struct htt_host_rx_desc_base *rx_desc =
 		(struct htt_host_rx_desc_base *)mpdu_desc;
@@ -2703,12 +2708,13 @@ bool htt_rx_mpdu_is_encrypted_ll(htt_pdev_handle pdev, void *mpdu_desc)
 		RX_MPDU_START_0_ENCRYPTED_LSB) ? true : false;
 }
 
+static
 bool htt_rx_msdu_chan_info_present_ll(htt_pdev_handle pdev, void *mpdu_desc)
 {
 	return false;
 }
 
-bool htt_rx_msdu_center_freq_ll(htt_pdev_handle pdev,
+static bool htt_rx_msdu_center_freq_ll(htt_pdev_handle pdev,
 	struct ol_txrx_peer_t *peer,
 	void *mpdu_desc,
 	uint16_t *primary_chan_center_freq_mhz,
@@ -2727,7 +2733,7 @@ bool htt_rx_msdu_center_freq_ll(htt_pdev_handle pdev,
 	return false;
 }
 
-bool
+static bool
 htt_rx_msdu_desc_key_id_ll(htt_pdev_handle pdev, void *mpdu_desc,
 			   uint8_t *key_id)
 {
@@ -2985,7 +2991,7 @@ qdf_nbuf_t htt_rx_hash_list_lookup(struct htt_pdev_t *pdev, uint32_t paddr)
 /* Initialization function of the rx buffer hash table. This function will
    allocate a hash table of a certain pre-determined size and initialize all
    the elements */
-int htt_rx_hash_init(struct htt_pdev_t *pdev)
+static int htt_rx_hash_init(struct htt_pdev_t *pdev)
 {
 	int i, j;
 	int rc = 0;
@@ -3266,7 +3272,7 @@ fail1:
  *
  * Return: 0 success
  */
-int htt_rx_ipa_uc_alloc_wdi2_rsc(struct htt_pdev_t *pdev,
+static int htt_rx_ipa_uc_alloc_wdi2_rsc(struct htt_pdev_t *pdev,
 			 unsigned int rx_ind_ring_elements)
 {
 	/* Allocate RX2 indication ring */
@@ -3312,7 +3318,7 @@ int htt_rx_ipa_uc_alloc_wdi2_rsc(struct htt_pdev_t *pdev,
 	return 0;
 }
 #else
-int htt_rx_ipa_uc_alloc_wdi2_rsc(struct htt_pdev_t *pdev,
+static int htt_rx_ipa_uc_alloc_wdi2_rsc(struct htt_pdev_t *pdev,
 			 unsigned int rx_ind_ring_elements)
 {
 	return 0;
@@ -3383,7 +3389,7 @@ int htt_rx_ipa_uc_attach(struct htt_pdev_t *pdev,
  *
  * Return: None
  */
-void htt_rx_ipa_uc_free_wdi2_rsc(struct htt_pdev_t *pdev)
+static void htt_rx_ipa_uc_free_wdi2_rsc(struct htt_pdev_t *pdev)
 {
 	if (pdev->ipa_uc_rx_rsc.rx2_ind_ring_base.vaddr) {
 		qdf_mem_free_consistent(
@@ -3409,7 +3415,7 @@ void htt_rx_ipa_uc_free_wdi2_rsc(struct htt_pdev_t *pdev)
 	}
 }
 #else
-void htt_rx_ipa_uc_free_wdi2_rsc(struct htt_pdev_t *pdev)
+static void htt_rx_ipa_uc_free_wdi2_rsc(struct htt_pdev_t *pdev)
 {
 	return;
 }

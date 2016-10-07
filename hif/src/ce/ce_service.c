@@ -272,6 +272,7 @@ ce_completed_send_next_nolock(struct CE_state *CE_state,
 			      unsigned int *sw_idx, unsigned int *hw_idx,
 			      uint32_t *toeplitz_hash_result);
 
+static
 void war_ce_src_ring_write_idx_set(struct hif_softc *scn,
 				   u32 ctrl_addr, unsigned int write_index)
 {
@@ -328,7 +329,7 @@ static void ce_validate_nbytes(uint32_t nbytes, struct CE_state *ce_state)
 }
 #endif
 
-int
+static int
 ce_send_nolock(struct CE_handle *copyeng,
 			   void *per_transfer_context,
 			   qdf_dma_addr_t buffer,
@@ -1095,7 +1096,7 @@ unsigned int ce_recv_entries_avail(struct CE_handle *copyeng)
  * Guts of ce_send_entries_done.
  * The caller takes responsibility for any necessary locking.
  */
-unsigned int
+static unsigned int
 ce_send_entries_done_nolock(struct hif_softc *scn,
 			    struct CE_state *CE_state)
 {
@@ -1127,7 +1128,7 @@ unsigned int ce_send_entries_done(struct CE_handle *copyeng)
  * Guts of ce_recv_entries_done.
  * The caller takes responsibility for any necessary locking.
  */
-unsigned int
+static unsigned int
 ce_recv_entries_done_nolock(struct hif_softc *scn,
 			    struct CE_state *CE_state)
 {
@@ -1165,7 +1166,7 @@ void *ce_debug_cmplsn_context;  /* completed send next context */
  * Guts of ce_completed_recv_next.
  * The caller takes responsibility for any necessary locking.
  */
-int
+static int
 ce_completed_recv_next_nolock(struct CE_state *CE_state,
 			      void **per_CE_contextp,
 			      void **per_transfer_contextp,

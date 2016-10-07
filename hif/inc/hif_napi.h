@@ -129,6 +129,20 @@ int hif_napi_schedule(struct hif_opaque_softc *scn, int ce_id);
 /* called by hdd_napi, which is called by kernel */
 int hif_napi_poll(struct hif_opaque_softc *hif_ctx,
 			struct napi_struct *napi, int budget);
+#ifdef HELIUMPLUS
+/* called to retrieve NAPI CPU statistics */
+void hif_napi_stats(struct qca_napi_data *napid);
+void hif_napi_update_yield_stats(struct CE_state *ce_state,
+				 bool time_limit_reached,
+				 bool rxpkt_thresh_reached);
+#else
+static inline void hif_napi_stats(struct qca_napi_data *napid) { }
+
+static inline void hif_napi_update_yield_stats(struct CE_state *ce_state,
+				 bool time_limit_reached,
+				 bool rxpkt_thresh_reached) { }
+
+#endif
 
 #ifdef FEATURE_NAPI_DEBUG
 #define NAPI_DEBUG(fmt, ...)			\
@@ -223,6 +237,8 @@ static inline int hif_napi_schedule(struct hif_opaque_softc *hif, int ce_id)
 
 static inline int hif_napi_poll(struct napi_struct *napi, int budget)
 { return -EPERM; }
+
+static inline void hif_napi_stats(struct qca_napi_data *napid) { }
 
 #endif /* FEATURE_NAPI */
 

@@ -112,7 +112,7 @@ struct ce_tasklet_entry {
 	void *hif_ce_state;
 };
 
-struct ce_intr_stats {
+struct ce_stats {
 	uint32_t ce_per_cpu[CE_COUNT_MAX][QDF_MAX_AVAILABLE_CPU];
 };
 
@@ -140,7 +140,7 @@ struct HIF_CE_state {
 
 	/* Copy Engine used for Diagnostic Accesses */
 	struct CE_handle *ce_diag;
-	struct ce_intr_stats stats;
+	struct ce_stats stats;
 };
 
 /*

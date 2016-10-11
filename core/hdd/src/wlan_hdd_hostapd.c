@@ -6942,10 +6942,21 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 
 	pConfig->enOverLapCh = iniConfig->gEnableOverLapCh;
 	pConfig->dtim_period = pBeacon->dtim_period;
-	if (pHddCtx->acs_policy.acs_channel)
-		pConfig->channel = pHddCtx->acs_policy.acs_channel;
-	mode = pHddCtx->acs_policy.acs_dfs_mode;
-	pConfig->acs_dfs_mode = wlan_hdd_get_dfs_mode(mode);
+	hdd_info("acs_mode %d", pConfig->acs_cfg.acs_mode);
+
+	if (pConfig->acs_cfg.acs_mode == true) {
+		hdd_info("acs_channel %d, acs_dfs_mode %d",
+			pHddCtx->acs_policy.acs_channel,
+			pHddCtx->acs_policy.acs_dfs_mode);
+
+		if (pHddCtx->acs_policy.acs_channel)
+			pConfig->channel = pHddCtx->acs_policy.acs_channel;
+		mode = pHddCtx->acs_policy.acs_dfs_mode;
+		pConfig->acs_dfs_mode = wlan_hdd_get_dfs_mode(mode);
+	}
+
+	hdd_info("pConfig->channel %d, pConfig->acs_dfs_mode %d",
+		pConfig->channel, pConfig->acs_dfs_mode);
 
 	hdd_info("****pConfig->dtim_period=%d***",
 		pConfig->dtim_period);
@@ -7248,6 +7259,40 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 			qdf_mem_copy(&pConfig->accept_mac[i], acl_entry->addr,
 				     sizeof(qcmacaddr));
 			acl_entry++;
+		}
+	}
+	if (!pHddCtx->config->force_sap_acs) {
+		pIe = wlan_hdd_cfg80211_get_ie_ptr(
+				&pMgmt_frame->u.beacon.variable[0],
+				pBeacon->head_len, WLAN_EID_SUPP_RATES);
+
+		if (pIe != NULL) {
+			pIe++;
+			pConfig->supported_rates.numRates = pIe[0];
+			pIe++;
+			for (i = 0;
+			     i < pConfig->supported_rates.numRates; i++) {
+				if (pIe[i]) {
+				     pConfig->supported_rates.rate[i] = pIe[i];
+				     hdd_info("Configured Supported rate is %2x",
+					pConfig->supported_rates.rate[i]);
+				}
+			}
+		}
+		pIe = wlan_hdd_cfg80211_get_ie_ptr(pBeacon->tail,
+				pBeacon->tail_len,
+				WLAN_EID_EXT_SUPP_RATES);
+		if (pIe != NULL) {
+			pIe++;
+			pConfig->extended_rates.numRates = pIe[0];
+			pIe++;
+			for (i = 0; i < pConfig->extended_rates.numRates; i++) {
+				if (pIe[i]) {
+				      pConfig->extended_rates.rate[i] = pIe[i];
+				      hdd_info("Configured ext Supported rate is %2x",
+					pConfig->extended_rates.rate[i]);
+				}
+			}
 		}
 	}
 

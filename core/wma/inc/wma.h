@@ -991,6 +991,7 @@ struct wma_txrx_node {
 	uint8_t wep_default_key_idx;
 	tSirHostOffloadReq arp_offload_req;
 	tSirHostOffloadReq ns_offload_req;
+	bool is_vdev_valid;
 };
 
 #if defined(QCA_WIFI_FTM)
@@ -1068,6 +1069,18 @@ typedef struct {
 struct dbs_hw_mode_info {
 	uint32_t tlv_header;
 	uint32_t *hw_mode_list;
+};
+
+/**
+ * struct mac_ss_bw_info - hw_mode_list PHY/MAC params for each MAC
+ * @mac_tx_stream: Max TX stream
+ * @mac_rx_stream: Max RX stream
+ * @mac_bw: Max bandwidth
+ */
+struct mac_ss_bw_info {
+	uint32_t mac_tx_stream;
+	uint32_t mac_rx_stream;
+	uint32_t mac_bw;
 };
 
 /* Current HTC credit is 2, pool size of 50 is sufficient */

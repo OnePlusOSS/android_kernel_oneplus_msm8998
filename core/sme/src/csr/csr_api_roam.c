@@ -2427,6 +2427,8 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 			pParam->isRoamOffloadEnabled;
 #endif
 		pMac->roam.configParam.obssEnabled = pParam->obssEnabled;
+		pMac->roam.configParam.vendor_vht_sap =
+			pParam->vendor_vht_sap;
 		pMac->roam.configParam.conc_custom_rule1 =
 			pParam->conc_custom_rule1;
 		pMac->roam.configParam.conc_custom_rule2 =
@@ -2517,6 +2519,11 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 			pParam->sta_roam_policy_params.dfs_mode;
 		pMac->roam.configParam.sta_roam_policy.skip_unsafe_channels =
 			pParam->sta_roam_policy_params.skip_unsafe_channels;
+
+		pMac->roam.configParam.tx_aggregation_size =
+			pParam->tx_aggregation_size;
+		pMac->roam.configParam.rx_aggregation_size =
+			pParam->rx_aggregation_size;
 
 	}
 	return status;
@@ -2648,8 +2655,10 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 	pParam->enable_dot11p = pMac->enable_dot11p;
 	csr_set_channels(pMac, pParam);
 	pParam->obssEnabled = cfg_params->obssEnabled;
+	pParam->vendor_vht_sap =
+		pMac->roam.configParam.vendor_vht_sap;
 	pParam->roam_dense_rssi_thresh_offset =
-			cfg_params->roam_params.dense_rssi_thresh_offset;
+		cfg_params->roam_params.dense_rssi_thresh_offset;
 	pParam->roam_dense_min_aps =
 			cfg_params->roam_params.dense_min_aps_cnt;
 	pParam->roam_dense_traffic_thresh =
@@ -2726,6 +2735,10 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 		pMac->roam.configParam.sta_roam_policy.dfs_mode;
 	pParam->sta_roam_policy_params.skip_unsafe_channels =
 		pMac->roam.configParam.sta_roam_policy.skip_unsafe_channels;
+	pParam->tx_aggregation_size =
+		pMac->roam.configParam.tx_aggregation_size;
+	pParam->rx_aggregation_size =
+		pMac->roam.configParam.rx_aggregation_size;
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -7315,6 +7328,20 @@ QDF_STATUS csr_roam_copy_profile(tpAniSirGlobal pMac,
 	}
 	qdf_mem_copy(&pDstProfile->addIeParams, &pSrcProfile->addIeParams,
 			sizeof(tSirAddIeParams));
+	if (pSrcProfile->supported_rates.numRates) {
+		qdf_mem_copy(pDstProfile->supported_rates.rate,
+				pSrcProfile->supported_rates.rate,
+				pSrcProfile->supported_rates.numRates);
+		pDstProfile->supported_rates.numRates =
+			pSrcProfile->supported_rates.numRates;
+	}
+	if (pSrcProfile->extended_rates.numRates) {
+		qdf_mem_copy(pDstProfile->extended_rates.rate,
+				pSrcProfile->extended_rates.rate,
+				pSrcProfile->extended_rates.numRates);
+		pDstProfile->extended_rates.numRates =
+			pSrcProfile->extended_rates.numRates;
+	}
 end:
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		csr_release_profile(pMac, pDstProfile);
@@ -12517,12 +12544,11 @@ uint8_t csr_roam_get_ibss_start_channel_number24(tpAniSirGlobal pMac)
 
 	return channel;
 }
-
 /**
  * csr_populate_basic_rates() - populates OFDM or CCK rates
  * @rates:         rate struct to populate
- * @type:          true: ofdm rates, false: cck rates
- * @masked:        indicates if rates are to be masked with
+ * @is_ofdm_rates:          true: ofdm rates, false: cck rates
+ * @is_basic_rates:        indicates if rates are to be masked with
  *                 CSR_DOT11_BASIC_RATE_MASK
  *
  * This function will populate OFDM or CCK rates
@@ -12530,8 +12556,10 @@ uint8_t csr_roam_get_ibss_start_channel_number24(tpAniSirGlobal pMac)
  * Return: void
  */
 static void
-csr_populate_basic_rates(tSirMacRateSet *rate_set, bool type, bool masked)
+csr_populate_basic_rates(tSirMacRateSet *rate_set, bool is_ofdm_rates,
+		bool is_basic_rates)
 {
+	int i = 0;
 	uint8_t ofdm_rates[8] = {
 		SIR_MAC_RATE_6,
 		SIR_MAC_RATE_9,
@@ -12549,23 +12577,30 @@ csr_populate_basic_rates(tSirMacRateSet *rate_set, bool type, bool masked)
 		SIR_MAC_RATE_11
 	};
 
-	if (type == true) {
+	if (is_ofdm_rates == true) {
 		rate_set->numRates = 8;
 		qdf_mem_copy(rate_set->rate, ofdm_rates, sizeof(ofdm_rates));
-		if (masked) {
+		if (is_basic_rates) {
 			rate_set->rate[0] |= CSR_DOT11_BASIC_RATE_MASK;
 			rate_set->rate[2] |= CSR_DOT11_BASIC_RATE_MASK;
 			rate_set->rate[4] |= CSR_DOT11_BASIC_RATE_MASK;
 		}
+		for (i = 0; i < rate_set->numRates; i++)
+			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
+			FL("Default OFDM rate is %2x"), rate_set->rate[i]);
 	} else {
 		rate_set->numRates = 4;
 		qdf_mem_copy(rate_set->rate, cck_rates, sizeof(cck_rates));
-		if (masked) {
+		if (is_basic_rates) {
 			rate_set->rate[0] |= CSR_DOT11_BASIC_RATE_MASK;
 			rate_set->rate[1] |= CSR_DOT11_BASIC_RATE_MASK;
 			rate_set->rate[2] |= CSR_DOT11_BASIC_RATE_MASK;
 			rate_set->rate[3] |= CSR_DOT11_BASIC_RATE_MASK;
 		}
+		for (i = 0; i < rate_set->numRates; i++)
+			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
+			FL("Default CCK rate is %2x"), rate_set->rate[i]);
+
 	}
 }
 
@@ -12600,6 +12635,41 @@ csr_convert_mode_to_nw_type(eCsrCfgDot11Mode dot11_mode, eCsrBand band)
 	return eSIR_DONOT_USE_NW_TYPE;
 }
 
+/**
+ * csr_populate_supported_rates_from_hostapd() - populates operational
+ * and extended rates.
+ * from hostapd.conf file
+ * @opr_rates:         rate struct to populate operational rates
+ * @ext_rates:         rate struct to populate extended rates
+ * @profile:       bss profile
+ *
+ * Return: void
+ */
+static void csr_populate_supported_rates_from_hostapd(tSirMacRateSet *opr_rates,
+		tSirMacRateSet *ext_rates,
+		tCsrRoamProfile *pProfile)
+{
+	int i = 0;
+	if (pProfile->supported_rates.numRates) {
+		opr_rates->numRates = pProfile->supported_rates.numRates;
+		qdf_mem_copy(opr_rates->rate,
+				pProfile->supported_rates.rate,
+				pProfile->supported_rates.numRates);
+		for (i = 0; i < opr_rates->numRates; i++)
+			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
+			FL("Supported Rate is %2x"), opr_rates->rate[i]);
+	}
+	if (pProfile->extended_rates.numRates) {
+		ext_rates->numRates =
+			pProfile->extended_rates.numRates;
+		qdf_mem_copy(ext_rates->rate,
+				pProfile->extended_rates.rate,
+				pProfile->extended_rates.numRates);
+		for (i = 0; i < ext_rates->numRates; i++)
+			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
+			FL("Extended Rate is %2x"), ext_rates->rate[i]);
+	}
+}
 /**
  * csr_roam_get_bss_start_parms() - get bss start param from profile
  * @pMac:          mac global context
@@ -12642,58 +12712,77 @@ csr_roam_get_bss_start_parms(tpAniSirGlobal pMac,
 
 	nw_type = csr_convert_mode_to_nw_type(pParam->uCfgDot11Mode, band);
 	ext_rates->numRates = 0;
-
-	switch (nw_type) {
-	default:
-		sms_log(pMac, LOGE, FL("sees an unknown pSirNwType (%d)"),
-			nw_type);
-	case eSIR_11A_NW_TYPE:
-		csr_populate_basic_rates(opr_rates, true, true);
-		if (eCSR_OPERATING_CHANNEL_ANY != tmp_opr_ch) {
-			opr_ch = tmp_opr_ch;
+	/*
+	 * hostapd.conf will populate its basic and extended rates
+	 * as per hw_mode but if acs in ini is enabled, driver should
+	 * ignore basic and extended rates from hostapd.conf and should
+	 * populate default rates.
+	 */
+	if (pProfile->supported_rates.numRates ||
+			pProfile->extended_rates.numRates) {
+		csr_populate_supported_rates_from_hostapd(opr_rates,
+				ext_rates, pProfile);
+		pParam->operationChn = tmp_opr_ch;
+	} else {
+		switch (nw_type) {
+		default:
+			sms_log(pMac, LOGE,
+					FL("sees an unknown pSirNwType (%d)"),
+					nw_type);
+		case eSIR_11A_NW_TYPE:
+			csr_populate_basic_rates(opr_rates, true, true);
+			if (eCSR_OPERATING_CHANNEL_ANY != tmp_opr_ch) {
+				opr_ch = tmp_opr_ch;
+				break;
+			}
+			opr_ch = csr_roam_get_ibss_start_channel_number50(pMac);
+			if (0 == opr_ch &&
+			    CSR_IS_PHY_MODE_DUAL_BAND(pProfile->phyMode) &&
+			    CSR_IS_PHY_MODE_DUAL_BAND(
+				    pMac->roam.configParam.phyMode)) {
+				/*
+				 * We could not find a 5G channel by auto pick,
+				 * let's try 2.4G channels. We only do this here
+				 * because csr_roam_get_phy_mode_band_for_bss
+				 * always picks 11a  for AUTO
+				 */
+				nw_type = eSIR_11B_NW_TYPE;
+				opr_ch =
+				csr_roam_get_ibss_start_channel_number24(pMac);
+				csr_populate_basic_rates(opr_rates, false,
+						true);
+			}
+			break;
+		case eSIR_11B_NW_TYPE:
+			csr_populate_basic_rates(opr_rates, false, true);
+			if (eCSR_OPERATING_CHANNEL_ANY == tmp_opr_ch)
+				opr_ch =
+				csr_roam_get_ibss_start_channel_number24(pMac);
+			else
+				opr_ch = tmp_opr_ch;
+			break;
+		case eSIR_11G_NW_TYPE:
+			/* For P2P Client and P2P GO, disable 11b rates */
+			if ((pProfile->csrPersona == QDF_P2P_CLIENT_MODE) ||
+			    (pProfile->csrPersona == QDF_P2P_GO_MODE) ||
+			    (eCSR_CFG_DOT11_MODE_11G_ONLY ==
+						pParam->uCfgDot11Mode)) {
+				csr_populate_basic_rates(opr_rates, true, true);
+			} else {
+				csr_populate_basic_rates(opr_rates, false,
+						true);
+				csr_populate_basic_rates(ext_rates, true,
+						false);
+			}
+			if (eCSR_OPERATING_CHANNEL_ANY == tmp_opr_ch)
+				opr_ch =
+				csr_roam_get_ibss_start_channel_number24(pMac);
+			else
+				opr_ch = tmp_opr_ch;
 			break;
 		}
-		opr_ch = csr_roam_get_ibss_start_channel_number50(pMac);
-		if (0 == opr_ch &&
-		    CSR_IS_PHY_MODE_DUAL_BAND(pProfile->phyMode) &&
-		    CSR_IS_PHY_MODE_DUAL_BAND(pMac->roam.configParam.phyMode)) {
-			/*
-			 * We could not find a 5G channel by auto pick, let's
-			 * try 2.4G channels. We only do this here because
-			 * csr_roam_get_phy_mode_band_for_bss always picks 11a
-			 * for AUTO
-			 */
-			nw_type = eSIR_11B_NW_TYPE;
-			opr_ch = csr_roam_get_ibss_start_channel_number24(pMac);
-			csr_populate_basic_rates(opr_rates, false, true);
-		}
-		break;
-	case eSIR_11B_NW_TYPE:
-		csr_populate_basic_rates(opr_rates, false, true);
-		if (eCSR_OPERATING_CHANNEL_ANY == tmp_opr_ch)
-			opr_ch = csr_roam_get_ibss_start_channel_number24(pMac);
-		else
-			opr_ch = tmp_opr_ch;
-		break;
-	case eSIR_11G_NW_TYPE:
-		/* For P2P Client and P2P GO, disable 11b rates */
-		if ((pProfile->csrPersona == QDF_P2P_CLIENT_MODE)
-		    || (pProfile->csrPersona == QDF_P2P_GO_MODE)
-		    || (eCSR_CFG_DOT11_MODE_11G_ONLY ==
-					pParam->uCfgDot11Mode)) {
-			csr_populate_basic_rates(opr_rates, true, true);
-		} else {
-			csr_populate_basic_rates(opr_rates, false, true);
-			csr_populate_basic_rates(ext_rates, true, false);
-		}
-
-		if (eCSR_OPERATING_CHANNEL_ANY == tmp_opr_ch)
-			opr_ch = csr_roam_get_ibss_start_channel_number24(pMac);
-		else
-			opr_ch = tmp_opr_ch;
-		break;
+		pParam->operationChn = opr_ch;
 	}
-	pParam->operationChn = opr_ch;
 	pParam->sirNwType = nw_type;
 	pParam->ch_params.ch_width = pProfile->ch_params.ch_width;
 	pParam->ch_params.center_freq_seg0 =
@@ -14197,10 +14286,11 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 					pIes->VHTCaps.numSoundingDim)
 				txBFCsnValue = QDF_MIN(txBFCsnValue,
 						pIes->VHTCaps.numSoundingDim);
-			else if (IS_BSS_VHT_CAPABLE(pIes->vendor2_ie.VHTCaps)
-				&& pIes->vendor2_ie.VHTCaps.numSoundingDim)
+			else if (IS_BSS_VHT_CAPABLE(pIes->vendor_vht_ie.VHTCaps)
+				&& pIes->vendor_vht_ie.VHTCaps.numSoundingDim)
 				txBFCsnValue = QDF_MIN(txBFCsnValue,
-					pIes->vendor2_ie.VHTCaps.numSoundingDim);
+					pIes->vendor_vht_ie.
+					VHTCaps.numSoundingDim);
 		}
 		csr_join_req->vht_config.csnof_beamformer_antSup = txBFCsnValue;
 
@@ -14989,6 +15079,8 @@ QDF_STATUS csr_send_mb_start_bss_req_msg(tpAniSirGlobal pMac, uint32_t sessionId
 		     sizeof(pParam->addIeParams));
 	pMsg->obssEnabled = pMac->roam.configParam.obssEnabled;
 	pMsg->sap_dot11mc = pParam->sap_dot11mc;
+	pMsg->vendor_vht_sap =
+			pMac->roam.configParam.vendor_vht_sap;
 
 	return cds_send_mb_message_to_mac(pMsg);
 }
@@ -15224,6 +15316,10 @@ QDF_STATUS csr_process_add_sta_session_command(tpAniSirGlobal pMac,
 	add_sta_self_req->sub_type = pAddStaReq->subType;
 	add_sta_self_req->nss_2g = nss_2g;
 	add_sta_self_req->nss_5g = nss_5g;
+	add_sta_self_req->tx_aggregation_size =
+			pMac->roam.configParam.tx_aggregation_size;
+	add_sta_self_req->rx_aggregation_size =
+			pMac->roam.configParam.rx_aggregation_size;
 
 	msg.type = WMA_ADD_STA_SELF_REQ;
 	msg.reserved = 0;

@@ -965,9 +965,10 @@ typedef struct tagCsrRoamProfile {
 	tSirAddIeParams addIeParams;
 	uint8_t sap_dot11mc;
 	uint8_t beacon_tx_rate;
-	tSirMacRateSet supp_rate_set;
-	tSirMacRateSet extended_rate_set;
+	tSirMacRateSet  supported_rates;
+	tSirMacRateSet  extended_rates;
 	bool do_not_roam;
+
 } tCsrRoamProfile;
 
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
@@ -1215,6 +1216,7 @@ typedef struct tagCsrConfigParam {
 	uint8_t enable_txbf_sap_mode;
 	uint8_t enable2x2;
 	bool enableVhtFor24GHz;
+	bool vendor_vht_sap;
 	uint8_t enableMuBformee;
 	uint8_t enableVhtpAid;
 	uint8_t enableVhtGid;
@@ -1304,6 +1306,8 @@ typedef struct tagCsrConfigParam {
 	enum wmi_dwelltime_adaptive_mode scan_adaptive_dwell_mode;
 	enum wmi_dwelltime_adaptive_mode roamscan_adaptive_dwell_mode;
 	struct csr_sta_roam_policy_params sta_roam_policy_params;
+	uint32_t tx_aggregation_size;
+	uint32_t rx_aggregation_size;
 } tCsrConfigParam;
 
 /* Tush */

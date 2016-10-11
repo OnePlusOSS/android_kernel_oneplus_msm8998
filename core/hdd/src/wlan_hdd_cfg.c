@@ -2468,6 +2468,14 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		     CFG_ENABLE_VHT_FOR_24GHZ_MIN,
 		     CFG_ENABLE_VHT_FOR_24GHZ_MAX),
 
+
+	REG_VARIABLE(CFG_ENABLE_VENDOR_VHT_FOR_24GHZ_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, enable_sap_vendor_vht,
+		     VAR_FLAGS_OPTIONAL,
+		     CFG_ENABLE_VENDOR_VHT_FOR_24GHZ_DEFAULT,
+		     CFG_ENABLE_VENDOR_VHT_FOR_24GHZ_MIN,
+		     CFG_ENABLE_VENDOR_VHT_FOR_24GHZ_MAX),
+
 	REG_DYNAMIC_VARIABLE(CFG_ENABLE_FAST_ROAM_IN_CONCURRENCY,
 			     WLAN_PARAM_Integer,
 			     struct hdd_config, bFastRoamInConIniFeatureEnabled,
@@ -3734,6 +3742,14 @@ REG_TABLE_ENTRY g_registry_table[] = {
 			CFG_ENABLE_EDCA_INI_MIN,
 			CFG_ENABLE_EDCA_INI_MAX),
 
+	REG_VARIABLE(CFG_ENABLE_GO_CTS2SELF_FOR_STA, WLAN_PARAM_Integer,
+			struct hdd_config, enable_go_cts2self_for_sta,
+			VAR_FLAGS_OPTIONAL |
+			VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+			CFG_ENABLE_GO_CTS2SELF_FOR_STA_DEFAULT,
+			CFG_ENABLE_GO_CTS2SELF_FOR_STA_MIN,
+			CFG_ENABLE_GO_CTS2SELF_FOR_STA_MAX),
+
 	REG_VARIABLE(CFG_EDCA_VO_CWMIN_VALUE_NAME, WLAN_PARAM_Integer,
 			struct hdd_config, edca_vo_cwmin,
 			VAR_FLAGS_OPTIONAL |
@@ -3977,6 +3993,20 @@ REG_TABLE_ENTRY g_registry_table[] = {
 			CFG_OPTIMIZE_CA_EVENT_DEFAULT,
 			CFG_OPTIMIZE_CA_EVENT_DISABLE,
 			CFG_OPTIMIZE_CA_EVENT_ENABLE),
+
+	REG_VARIABLE(CFG_TX_AGGREGATION_SIZE, WLAN_PARAM_Integer,
+		struct hdd_config, tx_aggregation_size,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_TX_AGGREGATION_SIZE_DEFAULT,
+		CFG_TX_AGGREGATION_SIZE_MIN,
+		CFG_TX_AGGREGATION_SIZE_MAX),
+
+	REG_VARIABLE(CFG_RX_AGGREGATION_SIZE, WLAN_PARAM_Integer,
+		struct hdd_config, rx_aggregation_size,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_RX_AGGREGATION_SIZE_DEFAULT,
+		CFG_RX_AGGREGATION_SIZE_MIN,
+		CFG_RX_AGGREGATION_SIZE_MAX),
 };
 
 /**
@@ -5546,6 +5576,9 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 		CFG_IGNORE_PEER_HT_MODE_NAME,
 		pHddCtx->config->ignore_peer_ht_opmode);
 	hdd_info("Name = [%s] Value = [%u]",
+		 CFG_ENABLE_VENDOR_VHT_FOR_24GHZ_NAME,
+		 pHddCtx->config->enable_sap_vendor_vht);
+	hdd_info("Name = [%s] Value = [%u]",
 		CFG_ENABLE_FATAL_EVENT_TRIGGER,
 		pHddCtx->config->enable_fatal_event);
 	hdd_info("Name = [%s] Value = [%u]",
@@ -5646,6 +5679,9 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_info("Name = [%s] Value = [%d]",
 		CFG_FILTER_MULTICAST_REPLAY_NAME,
 		pHddCtx->config->multicast_replay_filter);
+	hdd_info("Name = [%s] Value = [%u]",
+		CFG_ENABLE_GO_CTS2SELF_FOR_STA,
+		pHddCtx->config->enable_go_cts2self_for_sta);
 }
 
 
@@ -6893,6 +6929,8 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 		pConfig->enable_txbf_sap_mode;
 	smeConfig->csrConfig.enable2x2 = pConfig->enable2x2;
 	smeConfig->csrConfig.enableVhtFor24GHz = pConfig->enableVhtFor24GHzBand;
+	smeConfig->csrConfig.vendor_vht_sap =
+		pConfig->enable_sap_vendor_vht;
 	smeConfig->csrConfig.enableMuBformee = pConfig->enableMuBformee;
 	smeConfig->csrConfig.enableVhtpAid = pConfig->enableVhtpAid;
 	smeConfig->csrConfig.enableVhtGid = pConfig->enableVhtGid;
@@ -7142,6 +7180,11 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 	smeConfig->csrConfig.sta_roam_policy_params.dfs_mode =
 		CSR_STA_ROAM_POLICY_DFS_ENABLED;
 	smeConfig->csrConfig.sta_roam_policy_params.skip_unsafe_channels = 0;
+
+	smeConfig->csrConfig.tx_aggregation_size =
+			pHddCtx->config->tx_aggregation_size;
+	smeConfig->csrConfig.rx_aggregation_size =
+			pHddCtx->config->rx_aggregation_size;
 
 	status = sme_update_config(pHddCtx->hHal, smeConfig);
 	if (!QDF_IS_STATUS_SUCCESS(status)) {

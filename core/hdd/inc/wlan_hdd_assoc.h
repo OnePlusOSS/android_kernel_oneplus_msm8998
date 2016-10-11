@@ -34,7 +34,6 @@
  */
 
 /* Include files */
-#include <wlan_hdd_mib.h>
 #include <sme_api.h>
 #include <wlan_defs.h>
 #include "ol_txrx_ctrl_api.h"
@@ -149,10 +148,6 @@ struct hdd_conn_flag {
 /**
  * typedef connection_info_t - structure to store connection information
  * @connState: connection state of the NIC
- * @connDot11DesiredBssType: BSS type of the current connection.
- *		Comes from the MIB at the time the connect request is issued
- *		in combination with the BssDescription from the
- *		associated entity
  * @bssId: BSSID
  * @SSID: SSID Info
  * @staId: Station ID
@@ -182,7 +177,6 @@ struct hdd_conn_flag {
  */
 typedef struct connection_info_s {
 	eConnectionState connState;
-	eMib_dot11DesiredBssType connDot11DesiredBssType;
 	struct qdf_mac_addr bssId;
 	tCsrSSIDInfo SSID;
 	uint8_t staId[MAX_PEERS];
@@ -259,17 +253,6 @@ QDF_STATUS hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo,
 				 uint32_t roamId,
 				 eRoamCmdStatus roamStatus,
 				 eCsrRoamResult roamResult);
-
-/**
- * hdd_conn_get_connected_bss_type() - get current bss type
- * @pHddStaCtx:         pointer to global HDD Station context
- * @pConnectedBssType:  pointer to connected bss type
- *
- * Return: false if any errors encountered, true otherwise
- */
-bool
-hdd_conn_get_connected_bss_type(hdd_station_ctx_t *pHddStaCtx,
-				eMib_dot11DesiredBssType *pConnectedBssType);
 
 /**
  * hdd_set_genie_to_csr() - set genie to csr

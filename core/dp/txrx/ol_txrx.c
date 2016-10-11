@@ -3632,6 +3632,8 @@ void ol_txrx_stats_display_tso(ol_txrx_pdev_handle pdev)
 			TXRX_STATS_TSO_MSDU_IDX(pdev));
 
 	for (msdu_idx = 0; msdu_idx < NUM_MAX_TSO_MSDUS; msdu_idx++) {
+		if (TXRX_STATS_TSO_MSDU_TOTAL_LEN(pdev, msdu_idx) == 0)
+			continue;
 		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
 			"jumbo pkt idx: %d num segs %d gso_len %d total_len %d nr_frags %d",
 			msdu_idx,
@@ -3664,7 +3666,6 @@ void ol_txrx_stats_display_tso(ol_txrx_pdev_handle pdev)
 				 tso_seg.tso_flags.tcp_seq_num,
 				 tso_seg.tso_flags.ip_id);
 		}
-	 QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR, "\n");
 	}
 }
 #else
@@ -3697,7 +3698,7 @@ ol_txrx_stats(uint8_t vdev_id, char *buffer, unsigned buf_len)
 	}
 
 	len = scnprintf(buffer, buf_len,
-			"\nTXRX stats:\n\nllQueue State : %s\n pause %u unpause %u\n overflow %u\n llQueue timer state : %s\n",
+			"\n\nTXRX stats:\nllQueue State : %s\npause %u unpause %u\noverflow %u\nllQueue timer state : %s",
 			((vdev->ll_pause.is_q_paused == false) ?
 			 "UNPAUSED" : "PAUSED"),
 			vdev->ll_pause.q_pause_cnt,
@@ -4166,44 +4167,21 @@ void ol_txrx_ipa_uc_get_stat(ol_txrx_pdev_handle pdev)
 #endif /* IPA_UC_OFFLOAD */
 
 /**
- * ol_txrx_display_stats_help() - print statistics help
+ * ol_txrx_display_stats() - Display OL TXRX display stats
+ * @value: Module id for which stats needs to be displayed
  *
- * Return: none
+ * Return: QDF_STATUS_SUCCESS on success, QDF_STATUS_E code on failure
  */
-static void ol_txrx_display_stats_help(void)
-{
-	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
-				"iwpriv wlan0 dumpStats [option] - dump statistics");
-	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
-				"iwpriv wlan0 clearStats [option] - clear statistics");
-	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
-				"options:");
-	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
-				"  1 -- TXRX Layer statistics");
-	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
-				"  2 -- Bandwidth compute timer stats");
-	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
-				"  3 -- TSO statistics");
-	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
-				"  4 -- Network queue statistics");
-	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
-				"  5 -- Flow control statistics");
-	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
-				"  6 -- Per Layer statistics");
-	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
-				"  7 -- Copy engine interrupt statistics");
-
-}
-
-void ol_txrx_display_stats(uint16_t value)
+QDF_STATUS ol_txrx_display_stats(uint16_t value)
 {
 	ol_txrx_pdev_handle pdev;
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
 
 	pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 	if (!pdev) {
 		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
 			  "%s: pdev is NULL", __func__);
-		return;
+		return QDF_STATUS_E_NULL_VALUE;
 	}
 
 	switch (value) {
@@ -4240,20 +4218,28 @@ void ol_txrx_display_stats(uint16_t value)
 #endif
 #endif
 	default:
-		ol_txrx_display_stats_help();
+		status = QDF_STATUS_E_INVAL;
 		break;
 	}
+	return status;
 }
 
-void ol_txrx_clear_stats(uint16_t value)
+/**
+ * ol_txrx_clear_stats() - Clear OL TXRX stats
+ * @value: Module id for which stats needs to be cleared
+ *
+ * Return: QDF_STATUS_SUCCESS on success, QDF_STATUS_E code on failure
+ */
+QDF_STATUS ol_txrx_clear_stats(uint16_t value)
 {
 	ol_txrx_pdev_handle pdev;
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
 
 	pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 	if (!pdev) {
 		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
 			  "%s: pdev is NULL", __func__);
-		return;
+		return QDF_STATUS_E_NULL_VALUE;
 	}
 
 	switch (value) {
@@ -4283,9 +4269,11 @@ void ol_txrx_clear_stats(uint16_t value)
 		break;
 #endif
 	default:
-		ol_txrx_display_stats_help();
+		status = QDF_STATUS_E_INVAL;
 		break;
 	}
+
+	return status;
 }
 
 /**

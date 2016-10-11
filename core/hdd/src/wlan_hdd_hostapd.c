@@ -3135,7 +3135,7 @@ static __iw_softap_setparam(struct net_device *dev,
 	case QCASAP_DUMP_STATS:
 	{
 		hdd_notice("QCASAP_DUMP_STATS val %d", set_value);
-		hdd_wlan_dump_stats(pHostapdAdapter, set_value);
+		ret = hdd_wlan_dump_stats(pHostapdAdapter, set_value);
 		break;
 	}
 	case QCASAP_CLEAR_STATS:
@@ -3160,7 +3160,11 @@ static __iw_softap_setparam(struct net_device *dev,
 			hdd_clear_hif_stats();
 			break;
 		default:
-			ol_txrx_clear_stats(set_value);
+			if (ol_txrx_clear_stats(set_value) ==
+						QDF_STATUS_E_INVAL) {
+				hdd_display_stats_help();
+				ret = EINVAL;
+			}
 		}
 		break;
 	}

@@ -650,7 +650,8 @@ send_pdev_utf_cmd_tlv(wmi_unified_t wmi_handle,
 {
 	wmi_buf_t buf;
 	uint8_t *cmd;
-	QDF_STATUS ret;
+	/* if param->len is 0 no data is sent, return error */
+	QDF_STATUS ret = QDF_STATUS_E_INVAL;
 	static uint8_t msgref = 1;
 	uint8_t segNumber = 0, segInfo, numSegments;
 	uint16_t chunk_len, total_bytes;
@@ -5399,7 +5400,7 @@ QDF_STATUS wmi_get_buf_extscan_start_cmd(wmi_unified_t wmi_handle,
 			       WMI_SCAN_ADD_DS_IE_IN_PROBE_REQ;
 	WMI_SCAN_SET_DWELL_MODE(cmd->scan_ctrl_flags,
 			pstart->extscan_adaptive_dwell_mode);
-	cmd->scan_priority = WMI_SCAN_PRIORITY_HIGH;
+	cmd->scan_priority = WMI_SCAN_PRIORITY_VERY_LOW;
 	cmd->num_ssids = 0;
 	cmd->num_bssid = 0;
 	cmd->ie_len = 0;

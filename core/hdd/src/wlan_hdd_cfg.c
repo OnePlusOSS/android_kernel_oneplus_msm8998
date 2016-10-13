@@ -2029,6 +2029,13 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		     CFG_VDEV_TYPE_NSS_2G_MIN,
 		     CFG_VDEV_TYPE_NSS_2G_MAX),
 
+	REG_VARIABLE(CFG_STA_PREFER_80MHZ_OVER_160MHZ, WLAN_PARAM_Integer,
+		     struct hdd_config, sta_prefer_80MHz_over_160MHz,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_STA_PREFER_80MHZ_OVER_160MHZ_DEFAULT,
+		     CFG_STA_PREFER_80MHZ_OVER_160MHZ_MIN,
+		     CFG_STA_PREFER_80MHZ_OVER_160MHZ_MAX),
+
 	REG_VARIABLE(CFG_VDEV_TYPE_NSS_5G, WLAN_PARAM_Integer,
 		     struct hdd_config, vdev_type_nss_5g,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -3052,6 +3059,13 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		     CFG_ENABLE_FW_DEBUG_LOG_LEVEL_MIN,
 		     CFG_ENABLE_FW_DEBUG_LOG_LEVEL_MAX),
 
+	REG_VARIABLE(CFG_ENABLE_FW_RTS_PROFILE, WLAN_PARAM_Integer,
+		     struct hdd_config, rts_profile,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ENABLE_FW_RTS_PROFILE_DEFAULT,
+		     CFG_ENABLE_FW_RTS_PROFILE_MIN,
+		     CFG_ENABLE_FW_RTS_PROFILE_MAX),
+
 	REG_VARIABLE_STRING(CFG_ENABLE_FW_MODULE_LOG_LEVEL, WLAN_PARAM_String,
 			    struct hdd_config, enableFwModuleLogLevel,
 			    VAR_FLAGS_OPTIONAL,
@@ -3964,6 +3978,14 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		     CFG_INDOOR_CHANNEL_SUPPORT_DEFAULT,
 		     CFG_INDOOR_CHANNEL_SUPPORT_MIN,
 		     CFG_INDOOR_CHANNEL_SUPPORT_MAX),
+
+	REG_VARIABLE(CFG_BUG_ON_REINIT_FAILURE_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, bug_on_reinit_failure,
+		     VAR_FLAGS_OPTIONAL |
+		     VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_BUG_ON_REINIT_FAILURE_DEFAULT,
+		     CFG_BUG_ON_REINIT_FAILURE_MIN,
+		     CFG_BUG_ON_REINIT_FAILURE_MAX),
 
 	REG_VARIABLE(CFG_INTERFACE_CHANGE_WAIT_NAME, WLAN_PARAM_Integer,
 			struct hdd_config, iface_change_wait_time,
@@ -5590,6 +5612,9 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_info("Name = [%s] Value = [%u]",
 		CFG_IDLE_TIME_NAME,
 		pHddCtx->config->idle_time_conc);
+	hdd_info("Name = [%s] Value = [%d]",
+		CFG_BUG_ON_REINIT_FAILURE_NAME,
+		pHddCtx->config->bug_on_reinit_failure);
 	hdd_info("Name = [%s] Value = [%u]",
 		CFG_INTERFACE_CHANGE_WAIT_NAME,
 		pHddCtx->config->iface_change_wait_time);
@@ -5857,7 +5882,7 @@ static void hdd_override_all_ps(hdd_context_t *hdd_ctx)
  *
  * Return: none
  */
-void hdd_set_rx_mode_value(hdd_context_t *hdd_ctx)
+static void hdd_set_rx_mode_value(hdd_context_t *hdd_ctx)
 {
 	if (hdd_ctx->config->rx_mode & CFG_ENABLE_RX_THREAD &&
 		 hdd_ctx->config->rx_mode & CFG_ENABLE_RPS) {
@@ -6125,8 +6150,9 @@ static QDF_STATUS hdd_convert_string_to_array(char *str, uint8_t *array,
  *
  * Return: QDF_STATUS
  */
-QDF_STATUS hdd_hex_string_to_u8_array(char *str, uint8_t *hex_array,
-				      uint8_t *len, uint8_t array_max_len)
+static QDF_STATUS hdd_hex_string_to_u8_array(char *str, uint8_t *hex_array,
+					     uint8_t *len,
+					     uint8_t array_max_len)
 {
 	return hdd_convert_string_to_array(str, hex_array, len,
 					   array_max_len, true);

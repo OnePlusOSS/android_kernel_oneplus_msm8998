@@ -2594,8 +2594,6 @@ QDF_STATUS sme_process_msg(tHalHandle hHal, cds_msg_t *pMsg)
 		qdf_mem_free(pMsg->bodyptr);
 		break;
 #endif
-	case eWNI_PMC_SMPS_STATE_IND:
-		break;
 	case WNI_CFG_SET_CNF:
 	case WNI_CFG_DNLD_CNF:
 	case WNI_CFG_GET_RSP:
@@ -11214,6 +11212,18 @@ void sme_get_command_q_status(tHalHandle hHal)
 
 	return;
 }
+/**
+ * sme_set_prefer_80MHz_over_160MHz() - API to set sta_prefer_80MHz_over_160MHz
+ * @hal:           The handle returned by macOpen
+ * @sta_prefer_80MHz_over_160MHz: sta_prefer_80MHz_over_160MHz config param
+ */
+void sme_set_prefer_80MHz_over_160MHz(tHalHandle hal,
+		bool sta_prefer_80MHz_over_160MHz)
+{
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+	mac_ctx->sta_prefer_80MHz_over_160MHz = sta_prefer_80MHz_over_160MHz;
+}
+
 #ifdef WLAN_FEATURE_DSRC
 /**
  * sme_set_dot11p_config() - API to set the 802.11p config

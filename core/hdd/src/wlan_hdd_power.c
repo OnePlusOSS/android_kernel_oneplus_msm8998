@@ -52,6 +52,7 @@
 #include <wlan_nlink_srv.h>
 #include <wlan_hdd_misc.h>
 #include <wlan_hdd_power.h>
+#include <wlan_hdd_host_offload.h>
 #include <dbglog_host.h>
 #include <wlan_hdd_trace.h>
 #include <wlan_hdd_p2p.h>
@@ -544,7 +545,7 @@ void hdd_conf_ns_offload(hdd_adapter_t *adapter, bool fenable)
  *
  * Return: None
  */
-void __hdd_ipv6_notifier_work_queue(struct work_struct *work)
+static void __hdd_ipv6_notifier_work_queue(struct work_struct *work)
 {
 	hdd_adapter_t *pAdapter =
 		container_of(work, hdd_adapter_t, ipv6NotifierWorkQueue);
@@ -663,7 +664,7 @@ void hdd_conf_hostoffload(hdd_adapter_t *pAdapter, bool fenable)
  *
  * Return: None
  */
-void __hdd_ipv4_notifier_work_queue(struct work_struct *work)
+static void __hdd_ipv4_notifier_work_queue(struct work_struct *work)
 {
 	hdd_adapter_t *pAdapter =
 		container_of(work, hdd_adapter_t, ipv4NotifierWorkQueue);
@@ -1495,6 +1496,7 @@ QDF_STATUS hdd_wlan_re_init(void)
 	hdd_adapter_t *pAdapter;
 	QDF_STATUS qdf_status;
 	int ret;
+	bool bug_on_reinit_failure = CFG_BUG_ON_REINIT_FAILURE_DEFAULT;
 
 	hdd_prevent_suspend(WIFI_POWER_EVENT_WAKELOCK_DRIVER_REINIT);
 
@@ -1511,6 +1513,7 @@ QDF_STATUS hdd_wlan_re_init(void)
 		hdd_alert("HDD context is Null");
 		goto err_re_init;
 	}
+	bug_on_reinit_failure = pHddCtx->config->bug_on_reinit_failure;
 
 	/* The driver should always be initialized in STA mode after SSR */
 	hdd_set_conparam(0);
@@ -1591,7 +1594,8 @@ err_wiphy_unregister:
 err_re_init:
 	/* Allow the phone to go to sleep */
 	hdd_allow_suspend(WIFI_POWER_EVENT_WAKELOCK_DRIVER_REINIT);
-	QDF_BUG(0);
+	if (bug_on_reinit_failure)
+		QDF_BUG(0);
 	return -EPERM;
 
 success:
@@ -1662,6 +1666,24 @@ static int wlan_hdd_set_powersave(hdd_adapter_t *adapter,
 	}
 
 	return 0;
+}
+
+static void wlan_hdd_print_suspend_fail_stats(hdd_context_t *hdd_ctx)
+{
+	hdd_err("ipa:%d, radar:%d, roam:%d, scan:%d, initial_wakeup:%d",
+		hdd_ctx->suspend_fail_stats[SUSPEND_FAIL_IPA],
+		hdd_ctx->suspend_fail_stats[SUSPEND_FAIL_RADAR],
+		hdd_ctx->suspend_fail_stats[SUSPEND_FAIL_ROAM],
+		hdd_ctx->suspend_fail_stats[SUSPEND_FAIL_SCAN],
+		hdd_ctx->suspend_fail_stats[SUSPEND_FAIL_INITIAL_WAKEUP]);
+}
+
+void wlan_hdd_inc_suspend_stats(hdd_context_t *hdd_ctx,
+				enum suspend_fail_reason reason)
+{
+	wlan_hdd_print_suspend_fail_stats(hdd_ctx);
+	hdd_ctx->suspend_fail_stats[reason]++;
+	wlan_hdd_print_suspend_fail_stats(hdd_ctx);
 }
 
 /**
@@ -1856,6 +1878,8 @@ static int __wlan_hdd_cfg80211_suspend_wlan(struct wiphy *wiphy,
 			    WLAN_HDD_GET_AP_CTX_PTR(pAdapter)->
 			    dfs_cac_block_tx) {
 				hdd_err("RADAR detection in progress, do not allow suspend");
+				wlan_hdd_inc_suspend_stats(pHddCtx,
+							   SUSPEND_FAIL_RADAR);
 				return -EAGAIN;
 			} else if (!pHddCtx->config->enableSapSuspend) {
 				/* return -EOPNOTSUPP if SAP does not support
@@ -1888,6 +1912,8 @@ static int __wlan_hdd_cfg80211_suspend_wlan(struct wiphy *wiphy,
 		if (sme_sta_in_middle_of_roaming
 			    (pHddCtx->hHal, pAdapter->sessionId)) {
 			hdd_err("Roaming in progress, do not allow suspend");
+			wlan_hdd_inc_suspend_stats(pHddCtx,
+						   SUSPEND_FAIL_ROAM);
 			return -EAGAIN;
 		}
 
@@ -1902,6 +1928,8 @@ static int __wlan_hdd_cfg80211_suspend_wlan(struct wiphy *wiphy,
 				    msecs_to_jiffies(WLAN_WAIT_TIME_ABORTSCAN));
 			if (!status) {
 				hdd_err("Timeout occurred while waiting for abort scan");
+				wlan_hdd_inc_suspend_stats(pHddCtx,
+							   SUSPEND_FAIL_SCAN);
 				return -ETIME;
 			}
 		}
@@ -1915,6 +1943,7 @@ static int __wlan_hdd_cfg80211_suspend_wlan(struct wiphy *wiphy,
 	 */
 	if (hdd_ipa_suspend(pHddCtx)) {
 		hdd_err("IPA not ready to suspend!");
+		wlan_hdd_inc_suspend_stats(pHddCtx, SUSPEND_FAIL_IPA);
 		return -EAGAIN;
 	}
 
@@ -2314,46 +2343,33 @@ int wlan_hdd_cfg80211_get_txpower(struct wiphy *wiphy,
  * Return: 0 on success; Errno on failure
  */
 int hdd_set_qpower_config(hdd_context_t *hddctx, hdd_adapter_t *adapter,
-				 uint8_t qpower)
+			  u8 qpower)
 {
-	QDF_STATUS qdf_status;
-	int status;
-	bool is_timer_running;
+	QDF_STATUS status;
 
 	if (!hddctx->config->enablePowersaveOffload) {
 		hdd_err("qpower is disabled in configuration");
 		return -EINVAL;
 	}
+
 	if (qpower > PS_DUTY_CYCLING_QPOWER ||
 	    qpower < PS_LEGACY_NODEEPSLEEP) {
-		hdd_err("invalid qpower value=%d", qpower);
+		hdd_err("invalid qpower value: %d", qpower);
 		return -EINVAL;
 	}
-	hdd_info("updating qpower value=%d to wma", qpower);
-	qdf_status = wma_set_powersave_config(qpower);
-	if (qdf_status != QDF_STATUS_SUCCESS) {
-		hdd_err("failed to update qpower %d",
-			qdf_status);
-		return -EINVAL;
-	}
-	is_timer_running = sme_is_auto_ps_timer_running(
-						WLAN_HDD_GET_HAL_CTX(adapter),
-						adapter->sessionId);
-	if (!is_timer_running) {
-		status =  wlan_hdd_set_powersave(adapter, true, 0);
 
-		if (status != 0) {
-			hdd_err("failed to put device in power save mode %d",
-				status);
-			return -EINVAL;
-		}
+	status = wma_set_qpower_config(adapter->sessionId, qpower);
+	if (status != QDF_STATUS_SUCCESS) {
+		hdd_err("failed to configure qpower: %d", status);
+		return -EINVAL;
 	}
+
 	return 0;
 }
 
 #ifdef WLAN_SUSPEND_RESUME_TEST
 /*
- * On Rome/iHelium there are 12 CE irqs and #2 is the wake irq. This may not be
+ * On iHelium there are 12 CE irqs and #2 is the wake irq. This may not be
  * a valid assumption on future platforms.
  */
 #define CE_IRQ_COUNT 12
@@ -2363,7 +2379,41 @@ static struct wiphy *g_wiphy;
 #define HDD_FA_SUSPENDED_BIT (0)
 static unsigned long fake_apps_state;
 
-static int __hdd_wlan_fake_apps_resume(struct wiphy *wiphy);
+/**
+ * __hdd_wlan_fake_apps_resume() - The core logic for
+ *	hdd_wlan_fake_apps_resume() skipping the call to hif_fake_apps_resume(),
+ *	which is only need for non-irq resume
+ * @wiphy: wiphy struct from a validated hdd context
+ *
+ * Return: Zero on success, calls QDF_BUG() on failure
+ */
+static void __hdd_wlan_fake_apps_resume(struct wiphy *wiphy)
+{
+	qdf_device_t qdf_dev = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
+	int i, resume_err;
+
+	hdd_info("Unit-test resume WLAN");
+	if (!test_and_clear_bit(HDD_FA_SUSPENDED_BIT, &fake_apps_state)) {
+		hdd_info("Not unit-test suspended; Nothing to do");
+		return;
+	}
+
+	/* disable wake irq */
+	pld_disable_irq(qdf_dev->dev, CE_WAKE_IRQ);
+
+	resume_err = wlan_hdd_bus_resume_noirq();
+	QDF_BUG(resume_err == 0);
+
+	/* simulate kernel enable irqs */
+	for (i = 0; i < CE_IRQ_COUNT; i++)
+		pld_enable_irq(qdf_dev->dev, i);
+
+	resume_err = wlan_hdd_bus_resume();
+	QDF_BUG(resume_err == 0);
+
+	resume_err = wlan_hdd_cfg80211_resume_wlan(wiphy);
+	QDF_BUG(resume_err == 0);
+}
 
 /**
  * hdd_wlan_fake_apps_resume_irq_callback() - Irq callback function for resuming
@@ -2383,12 +2433,6 @@ static void hdd_wlan_fake_apps_resume_irq_callback(uint32_t val)
 	g_wiphy = NULL;
 }
 
-/**
- * hdd_wlan_fake_apps_suspend() - Initiate a unit-test triggered suspend
- * @wiphy: wiphy struct from a validated hdd context
- *
- * Return: Zero on success, suspend related non-zero error code on failure
- */
 int hdd_wlan_fake_apps_suspend(struct wiphy *wiphy)
 {
 	qdf_device_t qdf_dev = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
@@ -2446,62 +2490,12 @@ resume_done:
 	return suspend_err;
 }
 
-/**
- * hdd_wlan_fake_apps_resume() - Resume from unit-test triggered suspend
- * @wiphy: wiphy struct from a validated hdd context
- *
- * Return: Zero on success, calls QDF_BUG() on failure
- */
 int hdd_wlan_fake_apps_resume(struct wiphy *wiphy)
 {
 	struct hif_opaque_softc *hif_ctx = cds_get_context(QDF_MODULE_ID_HIF);
-	int err;
 
 	hif_fake_apps_resume(hif_ctx);
-	err = __hdd_wlan_fake_apps_resume(wiphy);
-	if (err) {
-		hif_fake_apps_suspend(hif_ctx,
-				      hdd_wlan_fake_apps_resume_irq_callback);
-		return err;
-	}
-
-	return 0;
-}
-
-/**
- * __hdd_wlan_fake_apps_resume() - The core logic for
- *	hdd_wlan_fake_apps_resume() skipping the call to hif_fake_apps_resume(),
- *	which is only need for non-irq resume
- * @wiphy: wiphy struct from a validated hdd context
- *
- * Return: Zero on success, calls QDF_BUG() on failure
- */
-static int __hdd_wlan_fake_apps_resume(struct wiphy *wiphy)
-{
-	qdf_device_t qdf_dev = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
-	int i, resume_err;
-
-	hdd_info("Unit-test resume WLAN");
-	if (!test_and_clear_bit(HDD_FA_SUSPENDED_BIT, &fake_apps_state)) {
-		hdd_info("Not unit-test suspended; Nothing to do");
-		return 0;
-	}
-
-	/* disable wake irq */
-	pld_disable_irq(qdf_dev->dev, CE_WAKE_IRQ);
-
-	resume_err = wlan_hdd_bus_resume_noirq();
-	QDF_BUG(resume_err == 0);
-
-	/* simulate kernel enable irqs */
-	for (i = 0; i < CE_IRQ_COUNT; i++)
-		pld_enable_irq(qdf_dev->dev, i);
-
-	resume_err = wlan_hdd_bus_resume();
-	QDF_BUG(resume_err == 0);
-
-	resume_err = wlan_hdd_cfg80211_resume_wlan(wiphy);
-	QDF_BUG(resume_err == 0);
+	__hdd_wlan_fake_apps_resume(wiphy);
 
 	return 0;
 }

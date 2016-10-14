@@ -56,6 +56,7 @@
 #include <htt_internal.h>
 #include <htt_types.h>        /* htc_endpoint */
 #include <cdp_txrx_peer_ops.h>
+#include <cdp_txrx_ipa.h>
 
 int ce_send_fast(struct CE_handle *copyeng, qdf_nbuf_t msdu,
 		 unsigned int transfer_id, uint32_t download_len);
@@ -1159,9 +1160,9 @@ ol_tx_non_std_ll(ol_txrx_vdev_handle vdev,
  * Return: true if ocb parsing is successful
  */
 #define OCB_HEADER_VERSION     1
-bool parse_ocb_tx_header(qdf_nbuf_t msdu,
-			struct ocb_tx_ctrl_hdr_t *tx_ctrl,
-			bool *tx_ctrl_header_found)
+static bool parse_ocb_tx_header(qdf_nbuf_t msdu,
+				struct ocb_tx_ctrl_hdr_t *tx_ctrl,
+				bool *tx_ctrl_header_found)
 {
 	struct ether_header *eth_hdr_p;
 	struct ocb_tx_ctrl_hdr_t *tx_ctrl_hdr;
@@ -1891,11 +1892,6 @@ ol_txrx_mgmt_send_ext(ol_txrx_vdev_handle vdev,
 						&tx_msdu_info, chanfreq);
 
 	return 0;               /* accepted the tx mgmt frame */
-}
-
-void ol_txrx_sync(ol_txrx_pdev_handle pdev, uint8_t sync_cnt)
-{
-	htt_h2t_sync_msg(pdev->htt_pdev, sync_cnt);
 }
 
 qdf_nbuf_t ol_tx_reinject(struct ol_txrx_vdev_t *vdev,

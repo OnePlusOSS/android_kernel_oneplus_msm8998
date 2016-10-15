@@ -69,15 +69,15 @@ static struct mutex gov_lock;
 
 #define CPUS_DOWN_RATE				1
 #define CPUS_UP_RATE				1
-#define DEC_CPU_LOAD				70
+#define DEC_CPU_LOAD				60
 #define DEC_CPU_LOAD_AT_MIN_FREQ	60
-#define INC_CPU_LOAD				70
+#define INC_CPU_LOAD				80
 #define INC_CPU_LOAD_AT_MIN_FREQ	60
 
 #define PUMP_INC_STEP_AT_MIN_FREQ	2
-#define PUMP_INC_STEP				2
-#define PUMP_DEC_STEP_AT_MIN_FREQ	2
-#define PUMP_DEC_STEP				1
+#define PUMP_INC_STEP				1
+#define PUMP_DEC_STEP_AT_MIN_FREQ	1
+#define PUMP_DEC_STEP				2
 
 struct cpufreq_alucard_tunables {
 	int usage_count;

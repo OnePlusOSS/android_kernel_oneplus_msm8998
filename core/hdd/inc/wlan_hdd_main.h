@@ -118,6 +118,7 @@
 #define WLAN_WAIT_TIME_POWER       800
 #define WLAN_WAIT_TIME_COUNTRY     1000
 #define WLAN_WAIT_TIME_LINK_STATUS 800
+#define WLAN_WAIT_TIME_POWER_STATS 800
 /* Amount of time to wait for sme close session callback.
    This value should be larger than the timeout used by WDI to wait for
    a response from WCNSS */
@@ -323,6 +324,7 @@ extern spinlock_t hdd_context_lock;
 #define LINK_STATUS_MAGIC   0x4C4B5354  /* LINKSTATUS(LNST) */
 #define TEMP_CONTEXT_MAGIC  0x74656d70   /* TEMP (temperature) */
 #define BPF_CONTEXT_MAGIC 0x4575354    /* BPF */
+#define POWER_STATS_MAGIC 0x14111990
 
 /* MAX OS Q block time value in msec
  * Prevent from permanent stall, resume OS Q if timer expired */
@@ -1127,6 +1129,7 @@ struct hdd_adapter_s {
 	 */
 	uint8_t pre_cac_chan;
 	struct hdd_connect_pm_context connect_rpm_ctx;
+	struct power_stats_response *chip_power_stats;
 };
 
 #define WLAN_HDD_GET_STATION_CTX_PTR(pAdapter) (&(pAdapter)->sessionCtx.station)

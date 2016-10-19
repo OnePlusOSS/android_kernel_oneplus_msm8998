@@ -1572,6 +1572,8 @@ struct hdd_context_s {
 	uint32_t suspend_fail_stats[SUSPEND_FAIL_MAX_COUNT];
 	struct hdd_runtime_pm_context runtime_context;
 	bool roaming_in_progress;
+	/* bit map to set/reset TDLS by different sources */
+	unsigned long tdls_source_bitmap;
 };
 
 /*---------------------------------------------------------------------------

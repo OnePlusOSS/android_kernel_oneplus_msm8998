@@ -1570,6 +1570,8 @@ struct hdd_context_s {
 	bool roaming_in_progress;
 	/* bit map to set/reset TDLS by different sources */
 	unsigned long tdls_source_bitmap;
+	/* tdls source timer to enable/disable TDLS on p2p listen */
+	qdf_mc_timer_t tdls_source_timer;
 	qdf_atomic_t disable_lro_in_concurrency;
 };
 

@@ -231,7 +231,6 @@ struct hif_sdio_device *hif_dev_create(struct hif_sdio_dev *hif_device,
 		return NULL;
 	}
 
-	qdf_mem_zero(pdev, sizeof(struct hif_sdio_device));
 	qdf_spinlock_create(&pdev->Lock);
 	qdf_spinlock_create(&pdev->TxLock);
 	qdf_spinlock_create(&pdev->RxLock);

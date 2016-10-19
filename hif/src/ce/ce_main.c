@@ -617,7 +617,6 @@ struct CE_handle *ce_init(struct hif_softc *scn,
 			return NULL;
 		}
 		malloc_CE_state = true;
-		qdf_mem_zero(CE_state, sizeof(*CE_state));
 		scn->ce_id_to_state[CE_id] = CE_state;
 		qdf_spinlock_create(&CE_state->ce_index_lock);
 
@@ -677,7 +676,6 @@ struct CE_handle *ce_init(struct hif_softc *scn,
 				 */
 				malloc_src_ring = true;
 			}
-			qdf_mem_zero(ptr, CE_nbytes);
 
 			src_ring = CE_state->src_ring =
 					   (struct CE_ring_state *)ptr;
@@ -825,7 +823,6 @@ struct CE_handle *ce_init(struct hif_softc *scn,
 				}
 				return NULL;
 			}
-			qdf_mem_zero(ptr, CE_nbytes);
 
 			dest_ring = CE_state->dest_ring =
 					    (struct CE_ring_state *)ptr;

@@ -3699,6 +3699,37 @@ enum dot11p_mode {
 #define CFG_RX_WAKELOCK_TIMEOUT_MIN      (0)
 #define CFG_RX_WAKELOCK_TIMEOUT_MAX      (100)
 
+#ifdef WLAN_FEATURE_UDP_RESPONSE_OFFLOAD
+/*
+ * Enable/Disable  UDP response offload feature
+ * Default : Disable
+ */
+#define CFG_UDP_RESP_OFFLOAD_SUPPORT_NAME           "gudp_resp_offload_support"
+#define CFG_UDP_RESP_OFFLOAD_SUPPORT_MIN            (0)
+#define CFG_UDP_RESP_OFFLOAD_SUPPORT_MAX            (1)
+#define CFG_UDP_RESP_OFFLOAD_SUPPORT_DEFAULT        (CFG_UDP_RESP_OFFLOAD_SUPPORT_MIN)
+
+/* Dest port of specific UDP packet */
+#define CFG_UDP_RESP_OFFLOAD_DEST_PORT_NAME         "gudp_resp_offload_dest_port"
+#define CFG_UDP_RESP_OFFLOAD_DEST_PORT_MIN          (0)
+#define CFG_UDP_RESP_OFFLOAD_DEST_PORT_MAX          (65535)
+#define CFG_UDP_RESP_OFFLOAD_DEST_PORT_DEFAULT      (CFG_UDP_RESP_OFFLOAD_DEST_PORT_MAX)
+
+/*
+ * Payload filter of specific UDP packet
+ * Firmware will use this filter to identify the specific UDP packet
+ */
+#define CFG_UDP_RESP_OFFLOAD_PAYLOAD_FILTER_NAME       "gudp_resp_offload_payload_filter"
+#define CFG_UDP_RESP_OFFLOAD_PAYLOAD_FILTER_DEFAULT    ""
+
+/*
+ * Payload of the response UDP
+ * The specific response UDP packet payload
+ */
+#define CFG_UDP_RESP_OFFLOAD_RESPONSE_PAYLOAD_NAME     "gudp_resp_offload_response_payload"
+#define CFG_UDP_RESP_OFFLOAD_RESPONSE_PAYLOAD_DEFAULT  "status=off"
+#endif
+
 /*---------------------------------------------------------------------------
    Type declarations
    -------------------------------------------------------------------------*/
@@ -4298,6 +4329,12 @@ struct hdd_config {
 	bool     tx_chain_mask_cck;
 	uint8_t  tx_chain_mask_1ss;
 	uint16_t  self_gen_frm_pwr;
+#ifdef WLAN_FEATURE_UDP_RESPONSE_OFFLOAD
+	bool udp_resp_offload_support;
+	uint32_t dest_port;
+	char payload_filter[MAX_LEN_UDP_RESP_OFFLOAD];
+	char response_payload[MAX_LEN_UDP_RESP_OFFLOAD];
+#endif
 #ifdef FEATURE_WLAN_SCAN_PNO
 	bool pno_channel_prediction;
 	uint8_t top_k_num_of_channels;

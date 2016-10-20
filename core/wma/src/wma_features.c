@@ -8508,3 +8508,96 @@ int wma_unified_power_debug_stats_event_handler(void *handle,
 	return 0;
 }
 #endif
+
+#ifdef WLAN_FEATURE_UDP_RESPONSE_OFFLOAD
+/**
+* wma_send_udp_resp_offload_cmd() - send wmi cmd of udp response offload
+* infomation to fw.
+* @wma_handle: wma handler
+* @udp_response: udp_resp_offload struct pointer
+*
+* Return: QDF_STATUS
+*/
+QDF_STATUS wma_send_udp_resp_offload_cmd(tp_wma_handle wma_handle,
+					struct udp_resp_offload *udp_response)
+{
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	wmi_buf_t buf;
+	WMI_WOW_UDP_SVC_OFLD_CMD_fixed_param *cmd;
+	uint16_t len;
+	uint16_t pattern_len = 0;
+	uint16_t response_len = 0;
+	uint16_t udp_len = 0;
+	uint16_t resp_len = 0;
+
+	WMA_LOGD("%s: Enter", __func__);
+	if (1 == udp_response->enable) {
+		pattern_len = strlen(udp_response->udp_payload_filter);
+		response_len = strlen(udp_response->udp_response_payload);
+	}
+
+	udp_len = (pattern_len % 4) ?
+			(4 * ((pattern_len / 4) + 1)) : (pattern_len);
+
+	resp_len = (response_len % 4) ?
+			(4 * ((response_len / 4) + 1)) : (response_len);
+
+
+	len = sizeof(*cmd) + udp_len + resp_len + 2 * WMI_TLV_HDR_SIZE;
+	buf = wmi_buf_alloc(wma_handle->wmi_handle, len);
+	if (!buf) {
+		 WMA_LOGE("wmi_buf_alloc failed");
+		 return QDF_STATUS_E_NOMEM;
+	}
+
+	cmd = (WMI_WOW_UDP_SVC_OFLD_CMD_fixed_param *)wmi_buf_data(buf);
+
+	WMITLV_SET_HDR(&cmd->tlv_header,
+			WMITLV_TAG_STRUC_WMI_WOW_UDP_SVC_OFLD_CMD_fixed_param,
+			WMITLV_GET_STRUCT_TLVLEN(
+				WMI_WOW_UDP_SVC_OFLD_CMD_fixed_param));
+
+	cmd->vdev_id = udp_response->vdev_id;
+	cmd->enable = udp_response->enable;
+	cmd->dest_port = udp_response->dest_port;
+	cmd->pattern_len = pattern_len;
+	cmd->response_len = response_len;
+
+
+	WMITLV_SET_HDR((A_UINT32 *)(cmd + 1),
+			WMITLV_TAG_ARRAY_BYTE,
+			udp_len);
+
+	qdf_mem_copy((void *)(cmd + 1) + WMI_TLV_HDR_SIZE,
+			(void *)udp_response->udp_payload_filter,
+			cmd->pattern_len);
+	WMITLV_SET_HDR((A_UINT32 *)((void *)(cmd + 1) +
+			WMI_TLV_HDR_SIZE + udp_len),
+			WMITLV_TAG_ARRAY_BYTE,
+			resp_len);
+
+	qdf_mem_copy((void *)(cmd + 1) + WMI_TLV_HDR_SIZE +
+			udp_len + WMI_TLV_HDR_SIZE,
+			(void *)udp_response->udp_response_payload,
+			cmd->response_len);
+
+	WMA_LOGD("wma_set_udp_resp_cmd: enable:%d vdev_id:%d dest_port:%u",
+		cmd->enable, cmd->vdev_id, cmd->dest_port);
+
+	if (wmi_unified_cmd_send(wma_handle->wmi_handle, buf, len,
+				 WMI_WOW_UDP_SVC_OFLD_CMDID)) {
+		WMA_LOGE("Failed to send set udp resp offload");
+		wmi_buf_free(buf);
+		status = QDF_STATUS_E_FAILURE;
+	}
+
+	WMA_LOGD("%s: Exit", __func__);
+	return status;
+}
+#else
+inline QDF_STATUS wma_send_udp_resp_offload_cmd(tp_wma_handle wma_handle,
+					struct udp_resp_offload *udp_response)
+{
+	return QDF_STATUS_E_FAILURE;
+}
+#endif

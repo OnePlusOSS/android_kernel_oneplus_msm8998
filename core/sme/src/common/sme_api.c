@@ -17074,7 +17074,6 @@ QDF_STATUS sme_set_lost_link_info_cb(tHalHandle hal,
 	return status;
 }
 
-
 #ifdef WLAN_FEATURE_WOW_PULSE
 /**
  * sme_set_wow_pulse() - set wow pulse info
@@ -17105,6 +17104,7 @@ QDF_STATUS sme_set_wow_pulse(struct wow_pulse_mode *wow_pulse_set_info)
 
 	message.type = WMA_SET_WOW_PULSE_CMD;
 	message.bodyptr = wow_pulse_set_cmd;
+
 	status = cds_mq_post_message(QDF_MODULE_ID_WMA,
 					&message);
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
@@ -17112,6 +17112,54 @@ QDF_STATUS sme_set_wow_pulse(struct wow_pulse_mode *wow_pulse_set_info)
 			"%s: Not able to post msg to WDA!",
 			__func__);
 		qdf_mem_free(wow_pulse_set_cmd);
+		status = QDF_STATUS_E_FAILURE;
+	}
+
+	return status;
+}
+#endif
+
+#ifdef WLAN_FEATURE_UDP_RESPONSE_OFFLOAD
+/**
+ * sme_set_udp_resp_offload() - set udp response payload.
+ * @pudp_resp_cmd: specific udp and response udp payload struct pointer
+ *
+ * This function set specific udp and response udp payload info
+ * including enable dest_port,udp_payload, resp_payload.
+ *
+ * Return: Return QDF_STATUS.
+ */
+QDF_STATUS sme_set_udp_resp_offload(struct udp_resp_offload *pudp_resp_cmd)
+{
+	cds_msg_t message;
+	QDF_STATUS status;
+	struct udp_resp_offload *udp_resp_cmd;
+
+	if (!pudp_resp_cmd) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+				"%s: invalid pudp_resp_cmd pointer", __func__);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	udp_resp_cmd = qdf_mem_malloc(sizeof(*udp_resp_cmd));
+	if (NULL == udp_resp_cmd) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+				"%s: fail to alloc sudp_cmd", __func__);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	*udp_resp_cmd = *pudp_resp_cmd;
+
+	message.type = WDA_SET_UDP_RESP_OFFLOAD;
+	message.bodyptr = udp_resp_cmd;
+
+	status = cds_mq_post_message(QDF_MODULE_ID_WMA,
+					&message);
+	if (!QDF_IS_STATUS_SUCCESS(status)) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+				"%s: Not able to post msg to WDA!",
+				__func__);
+		qdf_mem_free(udp_resp_cmd);
 		status = QDF_STATUS_E_FAILURE;
 	}
 

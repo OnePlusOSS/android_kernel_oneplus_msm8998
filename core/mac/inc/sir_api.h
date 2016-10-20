@@ -115,6 +115,8 @@ typedef uint8_t tSirVersionString[SIR_VERSION_STRING_LEN];
 	(QOS_MAP_LEN_MIN + 2 * QOS_MAP_MAX_EX)
 #define NUM_CHAINS_MAX  2
 
+#define MAX_LEN_UDP_RESP_OFFLOAD 128
+
 /**
  * enum sir_conn_update_reason: Reason for conc connection update
  * @SIR_UPDATE_REASON_SET_OPER_CHAN: Set probable operating channel
@@ -6722,4 +6724,21 @@ struct wow_pulse_mode {
 	uint16_t                   wow_pulse_interval_low;
 };
 
+/*
+ * struct udp_resp_offload - the basic info structure
+ * @vdev_id: vdev id
+ * @dest_port: specific UDP dest port
+ * @udp_payload_filter: specific UDP payload filter
+ * @udp_response_payload: response UDP oayload
+ *
+ * driver use this structure to configure fw specific
+ * udp offload filter and response udp info
+ */
+struct udp_resp_offload {
+	uint32_t   vdev_id;
+	uint32_t   enable;
+	uint32_t   dest_port;
+	char       udp_payload_filter[MAX_LEN_UDP_RESP_OFFLOAD];
+	char       udp_response_payload[MAX_LEN_UDP_RESP_OFFLOAD];
+};
 #endif /* __SIR_API_H */

@@ -2329,3 +2329,6 @@ QDF_STATUS wma_enable_disable_caevent_ind(tp_wma_handle wma_handle,
 				uint8_t val);
 void wma_update_sta_inactivity_timeout(tp_wma_handle wma,
 		struct sme_sta_inactivity_timeout  *sta_inactivity_timer);
+
+QDF_STATUS wma_send_udp_resp_offload_cmd(tp_wma_handle wma_handle,
+					struct udp_resp_offload *udp_response);

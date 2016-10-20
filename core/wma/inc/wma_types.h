@@ -488,6 +488,8 @@
 
 #define WMA_SET_WOW_PULSE_CMD                SIR_HAL_SET_WOW_PULSE_CMD
 
+#define WDA_SET_UDP_RESP_OFFLOAD             SIR_HAL_SET_UDP_RESP_OFFLOAD
+
 /* Bit 6 will be used to control BD rate for Management frames */
 #define HAL_USE_BD_RATE2_FOR_MANAGEMENT_FRAME 0x40
 

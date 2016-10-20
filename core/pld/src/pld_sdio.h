@@ -42,23 +42,23 @@
 struct pld_fw_files fw_files_qca6174_fw_1_1 = {
 	PREFIX "qwlan11.bin", PREFIX  "bdwlan11.bin", PREFIX "otp11.bin",
 	PREFIX  "utf11.bin", PREFIX "utfbd11.bin", PREFIX "qsetup11.bin",
-	PREFIX "epping11.bin"};
+	PREFIX "epping11.bin", ""};
 struct pld_fw_files fw_files_qca6174_fw_2_0 = {
 	PREFIX "qwlan20.bin", PREFIX "bdwlan20.bin", PREFIX "otp20.bin",
 	PREFIX "utf20.bin", PREFIX "utfbd20.bin", PREFIX "qsetup20.bin",
-	PREFIX "epping20.bin"};
+	PREFIX "epping20.bin", ""};
 struct pld_fw_files fw_files_qca6174_fw_1_3 = {
 	PREFIX "qwlan13.bin", PREFIX "bdwlan13.bin", PREFIX "otp13.bin",
 	PREFIX "utf13.bin", PREFIX "utfbd13.bin", PREFIX "qsetup13.bin",
-	PREFIX "epping13.bin"};
+	PREFIX "epping13.bin", ""};
 struct pld_fw_files fw_files_qca6174_fw_3_0 = {
 	PREFIX "qwlan30.bin", PREFIX "bdwlan30.bin", PREFIX "otp30.bin",
 	PREFIX "utf30.bin", PREFIX "utfbd30.bin", PREFIX "qsetup30.bin",
-	PREFIX "epping30.bin"};
+	PREFIX "epping30.bin", PREFIX "qwlan30i.bin"};
 struct pld_fw_files fw_files_default = {
 	PREFIX "qwlan.bin", PREFIX "bdwlan.bin", PREFIX "otp.bin",
 	PREFIX "utf.bin", PREFIX "utfbd.bin", PREFIX "qsetup.bin",
-	PREFIX "epping.bin"};
+	PREFIX "epping.bin", ""};
 #endif
 
 #ifndef CONFIG_SDIO

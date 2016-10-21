@@ -104,6 +104,7 @@ typedef void (*hdd_ftm_msg_processor)(void *);
 typedef struct _smeConfigParams {
 	tCsrConfigParam csrConfig;
 	struct rrm_config_param rrmConfig;
+	bool snr_monitor_enabled;
 } tSmeConfigParams, *tpSmeConfigParams;
 
 #ifdef FEATURE_WLAN_TDLS
@@ -1767,4 +1768,15 @@ QDF_STATUS sme_get_peer_info_ext(tHalHandle hal,
  */
 int sme_cli_set_command(int vdev_id, int param_id, int sval, int vpdev);
 
+/*
+ * sme_set_chan_info_callback() - set scan chan info call back
+ * @hal: Handle returned by mac_open
+ * @callback: scan chan info call back
+ *
+ * This function is used to set scan chan info call back.
+ *
+ * Return: None
+ */
+void sme_set_chan_info_callback(tHalHandle hal_handle,
+			void (*callback)(struct scan_chan_info *chan_info));
 #endif /* #if !defined( __SME_API_H ) */

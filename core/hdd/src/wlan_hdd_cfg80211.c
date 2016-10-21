@@ -98,6 +98,8 @@
 #include "wlan_hdd_disa.h"
 #include "wlan_hdd_spectralscan.h"
 
+#include "wmi_unified.h"
+
 #define g_mode_rates_size (12)
 #define a_mode_rates_size (8)
 #define GET_IE_LEN_IN_BSS_DESC(lenInBss) (lenInBss + sizeof(lenInBss) - \
@@ -139,6 +141,11 @@
 		.hw_value = rate_id, \
 		.flags = flag, \
 	}
+
+#define CHAN_INFO \
+		"freq:%u nf:%d cc:%u rcc:%u clk:%u cmd:%d tfc:%d index:%d"
+
+#define CHAN_INFO_DELTA     " dcc:%d drcc:%d dtfc:%d"
 
 #define WLAN_AKM_SUITE_FT_8021X         0x000FAC03
 #define WLAN_AKM_SUITE_FT_PSK           0x000FAC04
@@ -17869,6 +17876,137 @@ void wlan_hdd_clear_link_layer_stats(hdd_adapter_t *adapter)
 	sme_ll_stats_clear_req(hal, &link_layer_stats_clear_req);
 
 	return;
+}
+
+/**
+ * wlan_hdd_chan_info_cb() - channel info callback
+ * @chan_info: struct scan_chan_info
+ *
+ * Store channel info into HDD context
+ *
+ * Return: None.
+ */
+static void wlan_hdd_chan_info_cb(struct scan_chan_info *info)
+{
+	hdd_context_t *hdd_ctx;
+	struct hdd_scan_chan_info *chan;
+	uint8_t idx = 0;
+
+	ENTER();
+
+	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+	if (NULL == hdd_ctx) {
+		hdd_err("hdd_ctx is invalid");
+		EXIT();
+		return;
+	}
+
+	if (NULL == hdd_ctx->chan_info) {
+		hdd_err("chan_info is NULL");
+		EXIT();
+		return;
+	}
+
+	mutex_lock(&hdd_ctx->chan_info_lock);
+	chan = hdd_ctx->chan_info;
+	for (; idx < QDF_MAX_NUM_CHAN; idx++) {
+		if (chan[idx].freq == info->freq) {
+			if (info->cmd_flag == WMI_CHAN_InFO_START_RESP) {
+				chan[idx].cmd_flag = info->cmd_flag;
+				chan[idx].noise_floor = info->noise_floor;
+				chan[idx].cycle_count = info->cycle_count;
+				chan[idx].rx_clear_count = info->rx_clear_count;
+				chan[idx].tx_frame_count = info->tx_frame_count;
+				chan[idx].clock_freq = info->clock_freq;
+				hdd_debug("start "CHAN_INFO,
+					  chan[idx].freq,
+					  chan[idx].noise_floor,
+					  chan[idx].cycle_count,
+					  chan[idx].rx_clear_count,
+					  chan[idx].clock_freq,
+					  chan[idx].cmd_flag,
+					  chan[idx].tx_frame_count, idx);
+				break;
+			}
+			if (info->cmd_flag == WMI_CHAN_InFO_END_RESP) {
+				chan[idx].delta_cycle_count =
+						info->cycle_count -
+						chan[idx].cycle_count;
+
+				chan[idx].delta_rx_clear_count =
+						info->rx_clear_count -
+						chan[idx].rx_clear_count;
+
+				chan[idx].delta_tx_frame_count =
+						info->tx_frame_count -
+						chan[idx].tx_frame_count;
+
+				chan[idx].noise_floor = info->noise_floor;
+				chan[idx].cmd_flag = info->cmd_flag;
+				hdd_debug("end "CHAN_INFO CHAN_INFO_DELTA,
+					  chan[idx].freq,
+					  chan[idx].noise_floor,
+					  chan[idx].cycle_count,
+					  chan[idx].rx_clear_count,
+					  chan[idx].clock_freq,
+					  chan[idx].cmd_flag,
+					  chan[idx].tx_frame_count, idx,
+					  chan[idx].delta_cycle_count,
+					  chan[idx].delta_rx_clear_count,
+					  chan[idx].delta_tx_frame_count);
+				break;
+			}
+			hdd_err("cmd flag is invalid: %d",
+						info->cmd_flag);
+			break;
+		}
+	}
+	mutex_unlock(&hdd_ctx->chan_info_lock);
+
+	EXIT();
+}
+
+void wlan_hdd_init_chan_info(hdd_context_t *hdd_ctx)
+{
+	uint8_t num_2g, num_5g, index = 0;
+
+	if (!hdd_ctx->config->fEnableSNRMonitoring)
+		return;
+
+	hdd_ctx->chan_info =
+		qdf_mem_malloc(sizeof(struct scan_chan_info)
+					* QDF_MAX_NUM_CHAN);
+	if (NULL == hdd_ctx->chan_info) {
+		hdd_err("Failed to malloc for chan info");
+		return;
+	}
+	mutex_init(&hdd_ctx->chan_info_lock);
+
+	num_2g = QDF_ARRAY_SIZE(hdd_channels_2_4_ghz);
+	for (; index < num_2g; index++) {
+		hdd_ctx->chan_info[index].freq =
+			hdd_channels_2_4_ghz[index].center_freq;
+	}
+
+	num_5g = QDF_ARRAY_SIZE(hdd_channels_5_ghz);
+	for (; (index - num_2g) < num_5g; index++) {
+		if (cds_is_dsrc_channel(
+			hdd_channels_5_ghz[index - num_2g].center_freq))
+			continue;
+		hdd_ctx->chan_info[index].freq =
+			hdd_channels_5_ghz[index - num_2g].center_freq;
+	}
+	sme_set_chan_info_callback(hdd_ctx->hHal,
+				   &wlan_hdd_chan_info_cb);
+}
+
+void wlan_hdd_deinit_chan_info(hdd_context_t *hdd_ctx)
+{
+	if (hdd_ctx->chan_info) {
+		qdf_mem_free(hdd_ctx->chan_info);
+		hdd_ctx->chan_info = NULL;
+		mutex_destroy(&hdd_ctx->chan_info_lock);
+	}
 }
 
 /**

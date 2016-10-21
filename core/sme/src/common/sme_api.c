@@ -1432,6 +1432,8 @@ QDF_STATUS sme_update_config(tHalHandle hHal, tpSmeConfigParams
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 			  "Could not pass on WNI_CFG_SCAN_IN_POWERSAVE to CFG");
 
+	pMac->snr_monitor_enabled = pSmeConfigParams->snr_monitor_enabled;
+
 	return status;
 }
 
@@ -18150,7 +18152,16 @@ QDF_STATUS sme_ipa_uc_stat_request(tHalHandle hal, uint32_t vdev_id,
 	return status;
 }
 
+
 int sme_cli_set_command(int vdev_id, int param_id, int sval, int vpdev)
 {
 	return wma_cli_set_command(vdev_id, param_id, sval, vpdev);
+}
+
+void sme_set_chan_info_callback(tHalHandle hal_handle,
+			void (*callback)(struct scan_chan_info *chan_info))
+{
+	tpAniSirGlobal mac = PMAC_STRUCT(hal_handle);
+
+	mac->chan_info_cb = callback;
 }

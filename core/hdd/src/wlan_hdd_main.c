@@ -5632,6 +5632,7 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 		hdd_lpass_notify_stop(hdd_ctx);
 	}
 
+	wlan_hdd_deinit_chan_info(hdd_ctx);
 	hdd_exit_netlink_services(hdd_ctx);
 	mutex_destroy(&hdd_ctx->iface_change_lock);
 	hdd_context_destroy(hdd_ctx);
@@ -7473,6 +7474,7 @@ static hdd_context_t *hdd_context_create(struct device *dev)
 
 	cds_set_multicast_logging(hdd_ctx->config->multicast_host_fw_msgs);
 
+	wlan_hdd_init_chan_info(hdd_ctx);
 	ret = wlan_hdd_init_tx_rx_histogram(hdd_ctx);
 	if (ret)
 		goto err_deinit_hdd_context;

@@ -4142,4 +4142,19 @@ void hdd_bt_activity_cb(void *context, uint32_t bt_activity);
 void hdd_update_cca_info_cb(void *context, uint32_t congestion,
 			uint32_t vdev_id);
 
+/**
+ * wlan_hdd_init_chan_info() - init chan info in hdd context
+ * @hdd_ctx: HDD context pointer
+ *
+ * Return: none
+ */
+void wlan_hdd_init_chan_info(hdd_context_t *hdd_ctx);
+
+/**
+ * wlan_hdd_deinit_chan_info() - deinit chan info in hdd context
+ * @hdd_ctx: hdd context pointer
+ *
+ * Return: none
+ */
+void wlan_hdd_deinit_chan_info(hdd_context_t *hdd_ctx);
 #endif

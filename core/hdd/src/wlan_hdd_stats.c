@@ -3721,85 +3721,116 @@ static int __wlan_hdd_cfg80211_dump_survey(struct wiphy *wiphy,
 	hdd_context_t *pHddCtx;
 	hdd_station_ctx_t *pHddStaCtx;
 	tHalHandle halHandle;
-	uint32_t channel = 0, freq = 0; /* Initialization Required */
-	int8_t snr, rssi;
-	int status, i, j, filled = 0;
+	uint32_t channel = 0, freq = 0, opfreq; /* Initialization Required */
+	int status, i, j = 0;
+	bool filled = false;
 
 	ENTER_DEV(dev);
 
-	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
-		hdd_warn("Command not allowed in FTM mode");
+	hdd_info("dump survey index:%d", idx);
+	if (idx > QDF_MAX_NUM_CHAN - 1)
 		return -EINVAL;
-	}
 
 	pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
 	status = wlan_hdd_validate_context(pHddCtx);
-
 	if (0 != status)
 		return status;
 
-	pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
-
-	if (0 == pHddCtx->config->fEnableSNRMonitoring ||
-	    0 != pAdapter->survey_idx ||
-	    eConnectionState_Associated != pHddStaCtx->conn_info.connState) {
-		/* The survey dump ops when implemented completely is expected
-		 * to return a survey of all channels and the ops is called by
-		 * the kernel with incremental values of the argument 'idx'
-		 * till it returns -ENONET. But we can only support the survey
-		 * for the operating channel for now. survey_idx is used to
-		 * track that the ops is called only once and then return
-		 * -ENONET for the next iteration
-		 */
-		pAdapter->survey_idx = 0;
+	if (0 == pHddCtx->config->fEnableSNRMonitoring) {
+		hdd_debug("gEnableSNRMonitoring is 0");
 		return -ENONET;
 	}
 
+	if (NULL == pHddCtx->chan_info) {
+		hdd_err("chan_info is NULL");
+		return -EINVAL;
+
+	}
+
+	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
+		hdd_err("Command not allowed in FTM mode");
+		return -EINVAL;
+	}
+
+	pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
+
 	if (pHddStaCtx->hdd_ReassocScenario) {
-		hdd_err("Roaming in progress, hence return");
+		hdd_debug("Roaming in progress, hence return");
 		return -ENONET;
 	}
 
 	halHandle = WLAN_HDD_GET_HAL_CTX(pAdapter);
 
-	wlan_hdd_get_snr(pAdapter, &snr);
-	wlan_hdd_get_rssi(pAdapter, &rssi);
-
-	MTRACE(qdf_trace(QDF_MODULE_ID_HDD,
-			 TRACE_CODE_HDD_CFG80211_DUMP_SURVEY,
-			 pAdapter->sessionId, pAdapter->device_mode));
-
 	sme_get_operation_channel(halHandle, &channel, pAdapter->sessionId);
-	hdd_wlan_get_freq(channel, &freq);
+	hdd_wlan_get_freq(channel, &opfreq);
 
-	for (i = 0; i < NUM_NL80211_BANDS; i++) {
+	mutex_lock(&pHddCtx->chan_info_lock);
+	freq = pHddCtx->chan_info[idx].freq;
+
+	for (i = 0; i < NUM_NL80211_BANDS && !filled; i++) {
+		struct ieee80211_supported_band *band = wiphy->bands[i];
 		if (NULL == wiphy->bands[i])
 			continue;
+		for (j = 0; j < wiphy->bands[i]->n_channels && !filled; j++) {
+			if (band->channels[j].center_freq != (uint16_t)freq)
+				continue;
 
-		for (j = 0; j < wiphy->bands[i]->n_channels; j++) {
-			struct ieee80211_supported_band *band = wiphy->bands[i];
+			survey->channel = &band->channels[j];
+			survey->noise =
+				pHddCtx->chan_info[idx].noise_floor;
+			survey->filled = SURVEY_INFO_NOISE_DBM;
 
-			if (band->channels[j].center_freq == (uint16_t) freq) {
-				survey->channel = &band->channels[j];
-				/* The Rx BDs contain SNR values in dB for the
-				 * received frames while the supplicant expects
-				 * noise. So we calculate and return the value
-				 * of noise (dBm)
-				 *  SNR (dB) = RSSI (dBm) - NOISE (dBm)
-				 */
-				survey->noise = rssi - snr;
-				survey->filled = SURVEY_INFO_NOISE_DBM;
-				filled = 1;
-			}
+			if (opfreq == freq)
+				survey->filled |= SURVEY_INFO_IN_USE;
+
+			filled = true;
+
+			if (pHddCtx->chan_info[idx].clock_freq == 0)
+				continue;
+
+			/*
+			 * time = cycle_count * cycle
+			 * cycle = 1 / clock_freq
+			 * Since the unit of clock_freq reported from
+			 * FW is MHZ, and we want to calculate time in
+			 * ms level, the result is
+			 * time = cycle / (clock_freq * 1000)
+			 */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0))
+			survey->time =
+				pHddCtx->chan_info[idx].delta_cycle_count /
+				(pHddCtx->chan_info[idx].clock_freq * 1000);
+			survey->time_busy =
+				pHddCtx->chan_info[idx].delta_rx_clear_count /
+				(pHddCtx->chan_info[idx].clock_freq * 1000);
+			survey->time_tx =
+				pHddCtx->chan_info[idx].delta_tx_frame_count /
+				(pHddCtx->chan_info[idx].clock_freq * 1000);
+
+			survey->filled |= SURVEY_INFO_TIME |
+					  SURVEY_INFO_TIME_BUSY |
+					  SURVEY_INFO_TIME_TX;
+#else
+			survey->channel_time =
+				pHddCtx->chan_info[idx].delta_cycle_count /
+				(pHddCtx->chan_info[idx].clock_freq * 1000);
+			survey->channel_time_busy =
+				pHddCtx->chan_info[idx].delta_rx_clear_count /
+				(pHddCtx->chan_info[idx].clock_freq * 1000);
+			survey->channel_time_tx =
+				pHddCtx->chan_info[idx].delta_tx_frame_count /
+				(pHddCtx->chan_info[idx].clock_freq * 1000);
+
+			survey->filled |= SURVEY_INFO_CHANNEL_TIME |
+					  SURVEY_INFO_CHANNEL_TIME_BUSY |
+					  SURVEY_INFO_CHANNEL_TIME_TX;
+#endif
 		}
 	}
+	mutex_unlock(&pHddCtx->chan_info_lock);
 
-	if (filled)
-		pAdapter->survey_idx = 1;
-	else {
-		pAdapter->survey_idx = 0;
+	if (!filled)
 		return -ENONET;
-	}
 	EXIT();
 	return 0;
 }

@@ -2669,6 +2669,10 @@ QDF_STATUS wma_open(void *cds_context,
 					   wma_get_bpf_caps_event_handler,
 					   WMA_RX_SERIALIZER_CTX);
 	wmi_unified_register_event_handler(wma_handle->wmi_handle,
+					   WMI_CHAN_INFO_EVENTID,
+					   wma_chan_info_event_handler,
+					   WMA_RX_SERIALIZER_CTX);
+	wmi_unified_register_event_handler(wma_handle->wmi_handle,
 				WMI_VDEV_ENCRYPT_DECRYPT_DATA_RESP_EVENTID,
 				wma_encrypt_decrypt_msg_handler,
 				WMA_RX_SERIALIZER_CTX);

@@ -2625,4 +2625,16 @@ static inline void wma_print_wmi_mgmt_event_log(uint32_t count,
  */
 void wma_ipa_uc_stat_request(wma_cli_set_cmd_t *privcmd);
 
+/*
+ * wma_chan_info_event_handler() - chan info event handler
+ * @handle: wma handle
+ * @event_buf: event handler data
+ * @len: length of event_buf
+ *
+ * this function will handle the WMI_CHAN_INFO_EVENTID
+ *
+ * Return: int
+ */
+int wma_chan_info_event_handler(void *handle, u_int8_t *event_buf,
+						u_int32_t len);
 #endif

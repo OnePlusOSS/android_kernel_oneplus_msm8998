@@ -304,9 +304,8 @@ static void cpufreq_alucard_timer(unsigned long data)
 	if (!ppol->governor_enabled)
 		goto exit;
 
-	spin_lock_irqsave(&ppol->target_freq_lock, flags);
-	spin_lock(&ppol->load_lock);
 	fcpu = cpumask_first(ppol->policy->related_cpus);
+	spin_lock_irqsave(&ppol->load_lock, flags);
 	ppol->last_evaluated_jiffy = get_jiffies_64();
 
 #ifdef CONFIG_STATE_NOTIFIER
@@ -342,9 +341,26 @@ static void cpufreq_alucard_timer(unsigned long data)
 			max_cpu = i;
 		}
 	}
-	spin_unlock(&ppol->load_lock);
+	spin_unlock_irqrestore(&ppol->load_lock, flags);
+
+	/*
+	 * Send govinfo notification.
+	 * Govinfo notification could potentially wake up another thread
+	 * managed by its clients. Thread wakeups might trigger a load
+	 * change callback that executes this function again. Therefore
+	 * no spinlock could be held when sending the notification.
+	 */
+	for_each_cpu(i, ppol->policy->cpus) {
+		pcpu = &per_cpu(cpuinfo, i);
+		govinfo.cpu = i;
+		govinfo.load = pcpu->load;
+		govinfo.sampling_rate_us = tunables->timer_rate;
+		atomic_notifier_call_chain(&cpufreq_govinfo_notifier_list,
+					   CPUFREQ_LOAD_CHANGE, &govinfo);
+	}
 
 	/* Check for frequency increase or for frequency decrease */
+	spin_lock_irqsave(&ppol->target_freq_lock, flags);
 	if (max_load >= inc_cpu_load
 		 && ppol->policy->cur < ppol->policy->max) {
 		if (ppol->up_rate % cpus_up_rate == 0) {
@@ -390,22 +406,6 @@ static void cpufreq_alucard_timer(unsigned long data)
 rearm:
 	if (!timer_pending(&ppol->policy_timer))
 		cpufreq_alucard_timer_resched(data, false);
-
-	/*
-	 * Send govinfo notification.
-	 * Govinfo notification could potentially wake up another thread
-	 * managed by its clients. Thread wakeups might trigger a load
-	 * change callback that executes this function again. Therefore
-	 * no spinlock could be held when sending the notification.
-	 */
-	for_each_cpu(i, ppol->policy->cpus) {
-		pcpu = &per_cpu(cpuinfo, i);
-		govinfo.cpu = i;
-		govinfo.load = pcpu->load;
-		govinfo.sampling_rate_us = tunables->timer_rate;
-		atomic_notifier_call_chain(&cpufreq_govinfo_notifier_list,
-					   CPUFREQ_LOAD_CHANGE, &govinfo);
-	}
 
 exit:
 	up_read(&ppol->enable_sem);

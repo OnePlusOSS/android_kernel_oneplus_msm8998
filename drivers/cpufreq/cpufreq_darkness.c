@@ -266,9 +266,8 @@ static void cpufreq_darkness_timer(unsigned long data)
 	if (!ppol->governor_enabled)
 		goto exit;
 
-	spin_lock_irqsave(&ppol->target_freq_lock, flags);
-	spin_lock(&ppol->load_lock);
 	fcpu = cpumask_first(ppol->policy->related_cpus);
+	spin_lock_irqsave(&ppol->load_lock, flags);
 	ppol->last_evaluated_jiffy = get_jiffies_64();
 
 #ifdef CONFIG_STATE_NOTIFIER
@@ -297,24 +296,7 @@ static void cpufreq_darkness_timer(unsigned long data)
 			max_cpu = i;
 		}
 	}
-	spin_unlock(&ppol->load_lock);
-
-	new_freq = choose_freq(ppol, max_load * (ppol->policy->max / 100));
-	if (!new_freq) {
-		spin_unlock_irqrestore(&ppol->target_freq_lock, flags);
-		goto rearm;
-	}
-
-	ppol->target_freq = new_freq;
-	spin_unlock_irqrestore(&ppol->target_freq_lock, flags);
-	spin_lock_irqsave(&speedchange_cpumask_lock, flags);
-	cpumask_set_cpu(max_cpu, &speedchange_cpumask);
-	spin_unlock_irqrestore(&speedchange_cpumask_lock, flags);
-	wake_up_process_no_notif(speedchange_task);
-
-rearm:
-	if (!timer_pending(&ppol->policy_timer))
-		cpufreq_darkness_timer_resched(data, false);
+	spin_unlock_irqrestore(&ppol->load_lock, flags);
 
 	/*
 	 * Send govinfo notification.
@@ -331,6 +313,24 @@ rearm:
 		atomic_notifier_call_chain(&cpufreq_govinfo_notifier_list,
 					   CPUFREQ_LOAD_CHANGE, &govinfo);
 	}
+
+	spin_lock_irqsave(&ppol->target_freq_lock, flags);
+	new_freq = choose_freq(ppol, max_load * (ppol->policy->max / 100));
+	if (!new_freq) {
+		spin_unlock_irqrestore(&ppol->target_freq_lock, flags);
+		goto rearm;
+	}
+
+	ppol->target_freq = new_freq;
+	spin_unlock_irqrestore(&ppol->target_freq_lock, flags);
+	spin_lock_irqsave(&speedchange_cpumask_lock, flags);
+	cpumask_set_cpu(max_cpu, &speedchange_cpumask);
+	spin_unlock_irqrestore(&speedchange_cpumask_lock, flags);
+	wake_up_process_no_notif(speedchange_task);
+
+rearm:
+	if (!timer_pending(&ppol->policy_timer))
+		cpufreq_darkness_timer_resched(data, false);
 
 exit:
 	up_read(&ppol->enable_sem);

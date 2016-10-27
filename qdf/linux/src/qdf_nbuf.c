@@ -606,6 +606,9 @@ __qdf_nbuf_data_get_icmp_subtype(uint8_t *data)
 	subtype = (uint8_t)(*(uint8_t *)
 			(data + ICMP_SUBTYPE_OFFSET));
 
+	QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_DEBUG,
+		"ICMP proto type: 0x%02x", subtype);
+
 	switch (subtype) {
 	case ICMP_REQUEST:
 		proto_subtype = QDF_PROTO_ICMP_REQ;
@@ -637,6 +640,9 @@ __qdf_nbuf_data_get_icmpv6_subtype(uint8_t *data)
 
 	subtype = (uint8_t)(*(uint8_t *)
 			(data + ICMPV6_SUBTYPE_OFFSET));
+
+	QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_DEBUG,
+		"ICMPv6 proto type: 0x%02x", subtype);
 
 	switch (subtype) {
 	case ICMPV6_REQUEST:
@@ -1371,7 +1377,7 @@ EXPORT_SYMBOL(qdf_net_buf_debug_exit);
  *
  * Return: hash value
  */
-uint32_t qdf_net_buf_debug_hash(qdf_nbuf_t net_buf)
+static uint32_t qdf_net_buf_debug_hash(qdf_nbuf_t net_buf)
 {
 	uint32_t i;
 
@@ -1381,7 +1387,6 @@ uint32_t qdf_net_buf_debug_hash(qdf_nbuf_t net_buf)
 
 	return i;
 }
-EXPORT_SYMBOL(qdf_net_buf_debug_hash);
 
 /**
  * qdf_net_buf_debug_look_up() - look up network buffer in debug hash table
@@ -1389,7 +1394,7 @@ EXPORT_SYMBOL(qdf_net_buf_debug_hash);
  * Return: If skb is found in hash table then return pointer to network buffer
  *	else return %NULL
  */
-QDF_NBUF_TRACK *qdf_net_buf_debug_look_up(qdf_nbuf_t net_buf)
+static QDF_NBUF_TRACK *qdf_net_buf_debug_look_up(qdf_nbuf_t net_buf)
 {
 	uint32_t i;
 	QDF_NBUF_TRACK *p_node;
@@ -1405,7 +1410,6 @@ QDF_NBUF_TRACK *qdf_net_buf_debug_look_up(qdf_nbuf_t net_buf)
 
 	return NULL;
 }
-EXPORT_SYMBOL(qdf_net_buf_debug_look_up);
 
 /**
  * qdf_net_buf_debug_add_node() - store skb in debug hash table
@@ -1570,7 +1574,7 @@ struct qdf_tso_cmn_seg_info_t {
  *
  * Return: 0 - success 1 - failure
  */
-uint8_t __qdf_nbuf_get_tso_cmn_seg_info(struct sk_buff *skb,
+static uint8_t __qdf_nbuf_get_tso_cmn_seg_info(struct sk_buff *skb,
 	struct qdf_tso_cmn_seg_info_t *tso_info)
 {
 	/* Get ethernet type and ethernet header length */
@@ -1612,7 +1616,6 @@ uint8_t __qdf_nbuf_get_tso_cmn_seg_info(struct sk_buff *skb,
 		skb->len);
 	return 0;
 }
-EXPORT_SYMBOL(__qdf_nbuf_get_tso_cmn_seg_info);
 
 
 /**
@@ -2253,22 +2256,6 @@ __qdf_nbuf_dmamap_set_cb(__qdf_dma_map_t dmap, void *cb, void *arg)
 EXPORT_SYMBOL(__qdf_nbuf_dmamap_set_cb);
 
 
-/**
- * __qdf_nbuf_get_vlan_info() - get vlan info
- * @hdl: net handle
- * @skb: sk buff
- * @vlan: vlan header
- *
- * Return: QDF status
- */
-QDF_STATUS
-__qdf_nbuf_get_vlan_info(qdf_net_handle_t hdl, struct sk_buff *skb,
-			qdf_net_vlanhdr_t *vlan)
-{
-	return QDF_STATUS_SUCCESS;
-}
-EXPORT_SYMBOL(__qdf_nbuf_get_vlan_info);
-
 #ifndef REMOVE_INIT_DEBUG_CODE
 /**
  * __qdf_nbuf_sync_single_for_cpu() - nbuf sync
@@ -2279,14 +2266,13 @@ EXPORT_SYMBOL(__qdf_nbuf_get_vlan_info);
  * Return: none
  */
 #if defined(A_SIMOS_DEVHOST)
-void __qdf_nbuf_sync_single_for_cpu(
+static void __qdf_nbuf_sync_single_for_cpu(
 	qdf_device_t osdev, qdf_nbuf_t buf, qdf_dma_dir_t dir)
 {
 	return;
 }
-EXPORT_SYMBOL(__qdf_nbuf_sync_single_for_cpu);
 #else
-void __qdf_nbuf_sync_single_for_cpu(
+static void __qdf_nbuf_sync_single_for_cpu(
 	qdf_device_t osdev, qdf_nbuf_t buf, qdf_dma_dir_t dir)
 {
 	if (0 ==  QDF_NBUF_CB_PADDR(buf)) {
@@ -2296,7 +2282,6 @@ void __qdf_nbuf_sync_single_for_cpu(
 	dma_sync_single_for_cpu(osdev->dev, QDF_NBUF_CB_PADDR(buf),
 		skb_end_offset(buf) - skb_headroom(buf), dir);
 }
-EXPORT_SYMBOL(__qdf_nbuf_sync_single_for_cpu);
 #endif
 /**
  * __qdf_nbuf_sync_for_cpu() - nbuf sync

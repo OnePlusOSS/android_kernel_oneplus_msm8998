@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -37,6 +37,7 @@
 #include <qdf_types.h>
 #include <qdf_status.h>
 #include <qdf_mem.h>
+#include <qdf_debugfs.h>
 #include <qdf_list.h>
 #include <qdf_trace.h>
 #include <qdf_event.h>

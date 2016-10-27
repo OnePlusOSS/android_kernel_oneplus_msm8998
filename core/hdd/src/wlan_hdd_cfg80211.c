@@ -3889,6 +3889,11 @@ wlan_hdd_wifi_config_policy[QCA_WLAN_VENDOR_ATTR_CONFIG_MAX + 1] = {
 	[QCA_WLAN_VENDOR_ATTR_CONFIG_CHANNEL_AVOIDANCE_IND] = {.type = NLA_U8 },
 	[QCA_WLAN_VENDOR_ATTR_CONFIG_TX_MPDU_AGGREGATION] = {.type = NLA_U8 },
 	[QCA_WLAN_VENDOR_ATTR_CONFIG_RX_MPDU_AGGREGATION] = {.type = NLA_U8 },
+	[QCA_WLAN_VENDOR_ATTR_CONFIG_NON_AGG_RETRY] = {.type = NLA_U8 },
+	[QCA_WLAN_VENDOR_ATTR_CONFIG_AGG_RETRY] = {.type = NLA_U8 },
+	[QCA_WLAN_VENDOR_ATTR_CONFIG_MGMT_RETRY] = {.type = NLA_U8 },
+	[QCA_WLAN_VENDOR_ATTR_CONFIG_CTRL_RETRY] = {.type = NLA_U8 },
+	[QCA_WLAN_VENDOR_ATTR_CONFIG_PROPAGATION_DELAY] = {.type = NLA_U8 },
 };
 
 /**
@@ -3959,6 +3964,8 @@ __wlan_hdd_cfg80211_wifi_configuration_set(struct wiphy *wiphy,
 	uint8_t *scan_ie;
 	struct sir_set_tx_rx_aggregation_size request;
 	QDF_STATUS qdf_status;
+	uint8_t retry, delay;
+	int param_id;
 
 	ENTER_DEV(dev);
 
@@ -4066,6 +4073,57 @@ __wlan_hdd_cfg80211_wifi_configuration_set(struct wiphy *wiphy,
 		access_policy_present = true;
 		hdd_info("Access policy present. access_policy %d",
 			access_policy);
+	}
+
+	if (tb[QCA_WLAN_VENDOR_ATTR_CONFIG_NON_AGG_RETRY]) {
+		retry = nla_get_u8(tb[
+				QCA_WLAN_VENDOR_ATTR_CONFIG_NON_AGG_RETRY]);
+		retry = retry > CFG_NON_AGG_RETRY_MAX ?
+				CFG_NON_AGG_RETRY_MAX : retry;
+		param_id = WMI_PDEV_PARAM_NON_AGG_SW_RETRY_TH;
+		ret_val = wma_cli_set_command(adapter->sessionId, param_id,
+					      retry, PDEV_CMD);
+	}
+
+	if (tb[QCA_WLAN_VENDOR_ATTR_CONFIG_AGG_RETRY]) {
+		retry = nla_get_u8(tb[QCA_WLAN_VENDOR_ATTR_CONFIG_AGG_RETRY]);
+		retry = retry > CFG_AGG_RETRY_MAX ?
+			CFG_AGG_RETRY_MAX : retry;
+
+		/* Value less than CFG_AGG_RETRY_MIN has side effect to t-put */
+		retry = ((retry > 0) && (retry < CFG_AGG_RETRY_MIN)) ?
+				CFG_AGG_RETRY_MIN : retry;
+		param_id = WMI_PDEV_PARAM_AGG_SW_RETRY_TH;
+		ret_val = wma_cli_set_command(adapter->sessionId, param_id,
+					      retry, PDEV_CMD);
+	}
+
+	if (tb[QCA_WLAN_VENDOR_ATTR_CONFIG_MGMT_RETRY]) {
+		retry = nla_get_u8(tb[QCA_WLAN_VENDOR_ATTR_CONFIG_MGMT_RETRY]);
+		retry = retry > CFG_MGMT_RETRY_MAX ?
+				CFG_MGMT_RETRY_MAX : retry;
+		param_id = WMI_PDEV_PARAM_MGMT_RETRY_LIMIT;
+		ret_val = wma_cli_set_command(adapter->sessionId, param_id,
+					      retry, PDEV_CMD);
+	}
+
+	if (tb[QCA_WLAN_VENDOR_ATTR_CONFIG_CTRL_RETRY]) {
+		retry = nla_get_u8(tb[QCA_WLAN_VENDOR_ATTR_CONFIG_CTRL_RETRY]);
+		retry = retry > CFG_CTRL_RETRY_MAX ?
+				CFG_CTRL_RETRY_MAX : retry;
+		param_id = WMI_PDEV_PARAM_CTRL_RETRY_LIMIT;
+		ret_val = wma_cli_set_command(adapter->sessionId, param_id,
+					      retry, PDEV_CMD);
+	}
+
+	if (tb[QCA_WLAN_VENDOR_ATTR_CONFIG_PROPAGATION_DELAY]) {
+		delay = nla_get_u8(tb[
+				QCA_WLAN_VENDOR_ATTR_CONFIG_PROPAGATION_DELAY]);
+		delay = delay > CFG_PROPAGATION_DELAY_MAX ?
+				CFG_PROPAGATION_DELAY_MAX : delay;
+		param_id = WMI_PDEV_PARAM_PROPAGATION_DELAY;
+		ret_val = wma_cli_set_command(adapter->sessionId, param_id,
+					      delay, PDEV_CMD);
 	}
 
 	if (vendor_ie_present && access_policy_present) {
@@ -4286,6 +4344,9 @@ static int __wlan_hdd_cfg80211_wifi_logger_start(struct wiphy *wiphy,
 	start_log.is_iwpriv_command = nla_get_u32(
 			tb[QCA_WLAN_VENDOR_ATTR_WIFI_LOGGER_FLAGS]);
 	hdd_info("is_iwpriv_command =%d", start_log.is_iwpriv_command);
+
+	/* size is buff size which can be set using iwpriv command*/
+	start_log.size = 0;
 
 	cds_set_ring_log_level(start_log.ring_id, start_log.verbose_level);
 
@@ -6404,7 +6465,6 @@ static int hdd_set_reset_bpf_offload(hdd_context_t *hdd_ctx,
 		hdd_err("qdf_mem_malloc failed for bpf_set_offload");
 		return -ENOMEM;
 	}
-	qdf_mem_zero(bpf_set_offload, sizeof(*bpf_set_offload));
 
 	/* Parse and fetch bpf packet size */
 	if (!tb[BPF_PACKET_SIZE]) {
@@ -9154,7 +9214,6 @@ static void wlan_hdd_set_dhcp_server_offload(hdd_adapter_t *pHostapdAdapter)
 		hdd_err("could not allocate tDhcpSrvOffloadInfo!");
 		return;
 	}
-	qdf_mem_zero(pDhcpSrvInfo, sizeof(*pDhcpSrvInfo));
 	pDhcpSrvInfo->vdev_id = pHostapdAdapter->sessionId;
 	pDhcpSrvInfo->dhcpSrvOffloadEnabled = true;
 	pDhcpSrvInfo->dhcpClientNum = pHddCtx->config->dhcpMaxNumClients;
@@ -10594,8 +10653,14 @@ struct cfg80211_bss *wlan_hdd_cfg80211_inform_bss_frame(hdd_adapter_t *pAdapter,
 	qie_age->oui_2 = QCOM_OUI2;
 	qie_age->oui_3 = QCOM_OUI3;
 	qie_age->type = QCOM_VENDOR_IE_AGE_TYPE;
+	/*
+	 * Lowi expects the timestamp of bss in units of 1/10 ms. In driver
+	 * all bss related timestamp is in units of ms. Due to this when scan
+	 * results are sent to lowi the scan age is high.To address this,
+	 * send age in units of 1/10 ms.
+	 */
 	qie_age->age =
-		qdf_mc_timer_get_system_ticks() - bss_desc->nReceivedTime;
+		(qdf_mc_timer_get_system_time() - bss_desc->received_time)/10;
 	qie_age->tsf_delta = bss_desc->tsf_delta;
 	memcpy(&qie_age->beacon_tsf, bss_desc->timeStamp,
 	       sizeof(qie_age->beacon_tsf));
@@ -10769,7 +10834,7 @@ int wlan_hdd_cfg80211_update_bss(struct wiphy *wiphy,
 		 */
 		if ((scan_time == 0) ||
 			(scan_time <
-				pScanResult->BssDescriptor.nReceivedTime)) {
+				pScanResult->BssDescriptor.received_time)) {
 			bss_status =
 				wlan_hdd_cfg80211_inform_bss_frame(pAdapter,
 						&pScanResult->BssDescriptor);
@@ -11415,7 +11480,6 @@ static int wlan_hdd_cfg80211_connect_start(hdd_adapter_t *pAdapter,
 					eConnectionState_NotConnected);
 			return -ENOMEM;
 		}
-		qdf_mem_zero(sme_config, sizeof(*sme_config));
 		sme_get_config_param(pHddCtx->hHal, sme_config);
 		/* These values are not sessionized. So, any change in these SME
 		 * configs on an older or parallel interface will affect the

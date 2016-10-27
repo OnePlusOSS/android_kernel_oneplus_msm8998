@@ -177,14 +177,14 @@ lim_collect_bss_description(tpAniSirGlobal pMac,
 		MAC_ADDR_ARRAY(pHdr->bssId), pBssDescr->rssi,
 		pBssDescr->rssi_raw);
 
-	pBssDescr->nReceivedTime = (uint32_t) qdf_mc_timer_get_system_ticks();
+	pBssDescr->received_time = (uint64_t)qdf_mc_timer_get_system_time();
 	pBssDescr->tsf_delta = WMA_GET_RX_TSF_DELTA(pRxPacketInfo);
 	pBssDescr->seq_ctrl = pHdr->seqControl;
 
 	lim_log(pMac, LOG1,
-		  FL("BSSID: "MAC_ADDRESS_STR " tsf_delta = %u ReceivedTime = %u ssid = %s"),
+		  FL("BSSID: "MAC_ADDRESS_STR " tsf_delta = %u ReceivedTime = %llu ssid = %s"),
 		  MAC_ADDR_ARRAY(pHdr->bssId), pBssDescr->tsf_delta,
-		  pBssDescr->nReceivedTime,
+		  pBssDescr->received_time,
 		  ((pBPR->ssidPresent) ? (char *)pBPR->ssId.ssId : ""));
 
 	lim_log(pMac, LOG1, FL("Seq Ctrl: Frag Num: %d, Seq Num: LO:%02x HI:%02x"),
@@ -388,8 +388,6 @@ lim_check_and_add_bss_description(tpAniSirGlobal mac_ctx,
 			FL("qdf_mem_malloc(length=%d) failed"), frame_len);
 		return;
 	}
-
-	qdf_mem_zero(bssdescr, frame_len);
 
 	/* In scan state, store scan result. */
 	lim_collect_bss_description(mac_ctx, bssdescr, bpr, rx_packet_info,

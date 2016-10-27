@@ -724,8 +724,8 @@ typedef struct sSirBssDescription {
 	/* used only in scan case. */
 	uint8_t channelIdSelf;
 	uint8_t sSirBssDescriptionRsvd[3];
-	/* base on a tick count. It is a time stamp, not a relative time. */
-	uint32_t nReceivedTime;
+	/* Based on system time, not a relative time. */
+	uint64_t received_time;
 	uint32_t parentTSF;
 	uint32_t startTSF[2];
 	uint8_t mdiePresent;
@@ -3226,6 +3226,7 @@ typedef struct {
  * @is_iwpriv_command: Set 1 for iwpriv command
  * @ini_triggered: triggered using ini
  * @user_triggered: triggered by user
+ * @size: pktlog buffer size
  */
 struct sir_wifi_start_log {
 	uint32_t ring_id;
@@ -3233,6 +3234,7 @@ struct sir_wifi_start_log {
 	uint32_t is_iwpriv_command;
 	bool ini_triggered;
 	uint8_t user_triggered;
+	int size;
 };
 
 

@@ -4873,7 +4873,6 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 		hdd_stop_all_adapters(hdd_ctx);
 	}
 
-	hdd_wlan_stop_modules(hdd_ctx);
 	/*
 	 * Close the scheduler before calling cds_close to make sure no thread
 	 * is scheduled after the each module close is called i.e after all the
@@ -4884,6 +4883,8 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 		hdd_alert("Failed to close CDS Scheduler");
 		QDF_ASSERT(QDF_IS_STATUS_SUCCESS(qdf_status));
 	}
+
+	hdd_wlan_stop_modules(hdd_ctx);
 
 	qdf_spinlock_destroy(&hdd_ctx->hdd_adapter_lock);
 	qdf_spinlock_destroy(&hdd_ctx->sta_update_info_lock);
@@ -6023,6 +6024,14 @@ void hdd_unsafe_channel_restart_sap(hdd_context_t *hdd_ctxt)
 		if (!restart_chan) {
 			hdd_alert("fail to restart SAP");
 		} else {
+			/* SAP restart due to unsafe channel. While restarting
+			 * the SAP, make sure to clear acs_channel, channel to
+			 * reset to 0. Otherwise these settings will override
+			 * the ACS while restart.
+			*/
+			hdd_ctxt->acs_policy.acs_channel = AUTO_CHANNEL_SELECT;
+			adapter_temp->sessionCtx.ap.sapConfig.channel =
+							AUTO_CHANNEL_SELECT;
 			hdd_info("sending coex indication");
 			wlan_hdd_send_svc_nlink_msg(hdd_ctxt->radio_index,
 					WLAN_SVC_LTE_COEX_IND, NULL, 0);
@@ -6894,8 +6903,6 @@ static int hdd_update_cds_config(hdd_context_t *hdd_ctx)
 		return -ENOMEM;
 	}
 
-	qdf_mem_zero(cds_cfg, sizeof(*cds_cfg));
-
 	/* UMA is supported in hardware for performing the
 	 * frame translation 802.11 <-> 802.3
 	 */
@@ -6964,6 +6971,7 @@ static int hdd_update_cds_config(hdd_context_t *hdd_ctx)
 	cds_cfg->max_station = hdd_ctx->config->maxNumberOfPeers;
 	cds_cfg->sub_20_channel_width = WLAN_SUB_20_CH_WIDTH_NONE;
 	cds_cfg->flow_steering_enabled = hdd_ctx->config->flow_steering_enable;
+	cds_cfg->self_recovery_enabled = hdd_ctx->config->enableSelfRecovery;
 
 	hdd_ra_populate_cds_config(cds_cfg, hdd_ctx);
 	hdd_txrx_populate_cds_config(cds_cfg, hdd_ctx);
@@ -7061,14 +7069,53 @@ static inline void hdd_release_rtnl_lock(void) { }
 
 #if !defined(REMOVE_PKT_LOG)
 
+/* MAX iwpriv command support */
+#define PKTLOG_SET_BUFF_SIZE	3
+#define MAX_PKTLOG_SIZE		16
+
+/**
+ * hdd_pktlog_set_buff_size() - set pktlog buffer size
+ * @hdd_ctx: hdd context
+ * @set_value2: pktlog buffer size value
+ *
+ *
+ * Return: 0 for success or error.
+ */
+static int hdd_pktlog_set_buff_size(hdd_context_t *hdd_ctx, int set_value2)
+{
+	struct sir_wifi_start_log start_log = { 0 };
+	QDF_STATUS status;
+
+	start_log.ring_id = RING_ID_PER_PACKET_STATS;
+	start_log.verbose_level = WLAN_LOG_LEVEL_OFF;
+	start_log.ini_triggered = cds_is_packet_log_enabled();
+	start_log.user_triggered = 1;
+	start_log.size = set_value2;
+
+	status = sme_wifi_start_logger(hdd_ctx->hHal, start_log);
+	if (!QDF_IS_STATUS_SUCCESS(status)) {
+		hdd_err("sme_wifi_start_logger failed(err=%d)", status);
+		EXIT();
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /**
  * hdd_process_pktlog_command() - process pktlog command
  * @hdd_ctx: hdd context
  * @set_value: value set by user
+ * @set_value2: pktlog buffer size value
+ *
+ * This function process pktlog command.
+ * set_value2 only matters when set_value is 3 (set buff size)
+ * otherwise we ignore it.
  *
  * Return: 0 for success or error.
  */
-int hdd_process_pktlog_command(hdd_context_t *hdd_ctx, uint32_t set_value)
+int hdd_process_pktlog_command(hdd_context_t *hdd_ctx, uint32_t set_value,
+			       int set_value2)
 {
 	int ret;
 	bool enable;
@@ -7078,11 +7125,22 @@ int hdd_process_pktlog_command(hdd_context_t *hdd_ctx, uint32_t set_value)
 	if (0 != ret)
 		return ret;
 
-	hdd_info("set pktlog %d", set_value);
+	hdd_info("set pktlog %d, set size %d", set_value, set_value2);
 
-	if (set_value > 2) {
+	if (set_value > PKTLOG_SET_BUFF_SIZE) {
 		hdd_err("invalid pktlog value %d", set_value);
 		return -EINVAL;
+	}
+
+	if (set_value == PKTLOG_SET_BUFF_SIZE) {
+		if (set_value2 <= 0) {
+			hdd_err("invalid pktlog size %d", set_value2);
+			return -EINVAL;
+		} else if (set_value2 > MAX_PKTLOG_SIZE) {
+			hdd_err("Pktlog buff size is too large. max value is 16MB.\n");
+			return -EINVAL;
+		}
+		return hdd_pktlog_set_buff_size(hdd_ctx, set_value2);
 	}
 
 	/*
@@ -7099,17 +7157,19 @@ int hdd_process_pktlog_command(hdd_context_t *hdd_ctx, uint32_t set_value)
 		user_triggered = 1;
 	}
 
-	return hdd_pktlog_enable_disable(hdd_ctx, enable, user_triggered);
+	return hdd_pktlog_enable_disable(hdd_ctx, enable, user_triggered, 0);
 }
 /**
  * hdd_pktlog_enable_disable() - Enable/Disable packet logging
  * @hdd_ctx: HDD context
  * @enable: Flag to enable/disable
+ * @user_triggered: triggered through iwpriv
+ * @size: buffer size to be used for packetlog
  *
  * Return: 0 on success; error number otherwise
  */
 int hdd_pktlog_enable_disable(hdd_context_t *hdd_ctx, bool enable,
-				uint8_t user_triggered)
+				uint8_t user_triggered, int size)
 {
 	struct sir_wifi_start_log start_log;
 	QDF_STATUS status;
@@ -7119,6 +7179,7 @@ int hdd_pktlog_enable_disable(hdd_context_t *hdd_ctx, bool enable,
 			enable ? WLAN_LOG_LEVEL_ACTIVE : WLAN_LOG_LEVEL_OFF;
 	start_log.ini_triggered = cds_is_packet_log_enabled();
 	start_log.user_triggered = user_triggered;
+	start_log.size = size;
 	/*
 	 * Use "is_iwpriv_command" flag to distinguish iwpriv command from other
 	 * commands. Host uses this flag to decide whether to send pktlog
@@ -8047,7 +8108,7 @@ int hdd_wlan_startup(struct device *dev)
 
 
 	if (cds_is_packet_log_enabled())
-		hdd_pktlog_enable_disable(hdd_ctx, true, 0);
+		hdd_pktlog_enable_disable(hdd_ctx, true, 0, 0);
 
 	ret = hdd_register_notifiers(hdd_ctx);
 	if (ret)
@@ -9049,6 +9110,12 @@ static int __hdd_module_init(void)
 
 	pld_init();
 
+	ret = hdd_init();
+	if (ret) {
+		pr_err("hdd_init failed %x\n", ret);
+		goto err_hdd_init;
+	}
+
 	qdf_wake_lock_create(&wlan_wake_lock, "wlan");
 
 	hdd_set_conparam((uint32_t) con_mode);
@@ -9065,6 +9132,8 @@ static int __hdd_module_init(void)
 	return 0;
 out:
 	qdf_wake_lock_destroy(&wlan_wake_lock);
+	hdd_deinit();
+err_hdd_init:
 	pld_deinit();
 	return ret;
 }
@@ -9107,6 +9176,7 @@ static void __hdd_module_exit(void)
 
 	qdf_wake_lock_destroy(&wlan_wake_lock);
 
+	hdd_deinit();
 	pld_deinit();
 
 	return;
@@ -9424,9 +9494,10 @@ static int hdd_register_req_mode(hdd_context_t *hdd_ctx,
 }
 
 /**
- * con_mode_handler() - Handles module param con_mode change
+ * __con_mode_handler() - Handles module param con_mode change
  * @kmessage: con mode name on which driver to be bring up
  * @kp: The associated kernel parameter
+ * @hdd_ctx: Pointer to the global HDD context
  *
  * This function is invoked when user updates con mode using sys entry,
  * to initialize and bring-up driver in that specific mode.
@@ -9440,6 +9511,10 @@ static int __con_mode_handler(const char *kmessage, struct kernel_param *kp,
 	hdd_adapter_t *adapter;
 	enum tQDF_GLOBAL_CON_MODE curr_mode;
 	enum tQDF_ADAPTER_MODE adapter_mode;
+
+	ret = wlan_hdd_validate_context(hdd_ctx);
+	if (ret)
+		return ret;
 
 	cds_set_load_in_progress(true);
 

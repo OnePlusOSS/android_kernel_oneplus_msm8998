@@ -422,8 +422,6 @@ lim_process_ext_channel_switch_action_frame(tpAniSirGlobal mac_ctx,
 			return;
 		}
 
-		qdf_mem_zero(ext_cng_chan_ind,
-			sizeof(*ext_cng_chan_ind));
 		ext_cng_chan_ind->session_id =
 					session_entry->smeSessionId;
 
@@ -1546,10 +1544,9 @@ static void __lim_process_sa_query_request_action_frame(tpAniSirGlobal pMac,
 		return;
 
 	/* 11w offload is enabled then firmware should not fwd this frame */
-	if (pMac->pmf_offload) {
+	if (LIM_IS_STA_ROLE(psessionEntry) && pMac->pmf_offload) {
 		lim_log(pMac, LOGE,
-			FL("11w offload is enabled, SA Query request is not expected ")
-			);
+			FL("11w offload enabled, SA Query req isn't expected"));
 		return;
 	}
 

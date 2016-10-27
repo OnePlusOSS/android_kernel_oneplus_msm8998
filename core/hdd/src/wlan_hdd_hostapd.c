@@ -1532,7 +1532,6 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 				hdd_err("Failed to allocate station info");
 				return QDF_STATUS_E_FAILURE;
 			}
-			memset(sta_info, 0, sizeof(*sta_info));
 			if (iesLen <= MAX_ASSOC_IND_IE_LEN) {
 				sta_info->assoc_req_ies =
 					(const u8 *)&pSapEvent->sapevt.
@@ -3603,8 +3602,13 @@ static __iw_softap_set_pktlog(struct net_device *dev,
 	if (NULL == value)
 		return -ENOMEM;
 
+	if (wrqu->data.length < 1 || wrqu->data.length > 2) {
+		hdd_err("pktlog: either 1 or 2 parameters are required");
+		return -EINVAL;
+	}
+
 	hdd_ctx = WLAN_HDD_GET_CTX(pHostapdAdapter);
-	return hdd_process_pktlog_command(hdd_ctx, value[0]);
+	return hdd_process_pktlog_command(hdd_ctx, value[0], value[1]);
 }
 
 int
@@ -5488,7 +5492,7 @@ static const struct iw_priv_args hostapd_private_args[] = {
 	,
 	{
 		QCSAP_IOCTL_SET_PKTLOG,
-		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
+		IW_PRIV_TYPE_INT | MAX_VAR_ARGS,
 		0, "pktlog"
 	}
 	,
@@ -5817,6 +5821,11 @@ hdd_adapter_t *hdd_wlan_create_ap_dev(hdd_context_t *pHddCtx,
 		pWlanHostapdDev->watchdog_timeo = HDD_TX_TIMEOUT;
 		pWlanHostapdDev->mtu = HDD_DEFAULT_MTU;
 		pWlanHostapdDev->tx_queue_len = HDD_NETDEV_TX_QUEUE_LEN;
+
+		if (pHddCtx->config->enable_ip_tcp_udp_checksum_offload)
+			pWlanHostapdDev->features |=
+				NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
+		pWlanHostapdDev->features |= NETIF_F_RXCSUM;
 
 		qdf_mem_copy(pWlanHostapdDev->dev_addr, (void *)macAddr,
 			     sizeof(tSirMacAddr));

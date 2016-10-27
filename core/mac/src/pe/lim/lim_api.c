@@ -779,9 +779,6 @@ tSirRetStatus pe_open(tpAniSirGlobal pMac, struct cds_config_info *cds_cfg)
 		goto pe_open_psession_fail;
 	}
 
-	qdf_mem_set(pMac->lim.gpSession,
-		    sizeof(tPESession) * pMac->lim.maxBssId, 0);
-
 	pMac->lim.mgmtFrameSessionId = 0xff;
 	pMac->lim.tdls_frm_session_id = NO_SESSION;
 	pMac->lim.deferredMsgCnt = 0;
@@ -1871,8 +1868,8 @@ lim_roam_fill_bss_descr(tpAniSirGlobal pMac,
 	qdf_mem_copy((uint8_t *) &bss_desc_ptr->bssId,
 			(uint8_t *) mac_hdr->bssId,
 			sizeof(tSirMacAddr));
-	bss_desc_ptr->nReceivedTime =
-		(uint32_t)qdf_mc_timer_get_system_ticks();
+	bss_desc_ptr->received_time =
+		      (uint64_t)qdf_mc_timer_get_system_time();
 	if (parsed_frm_ptr->mdiePresent) {
 		bss_desc_ptr->mdiePresent = parsed_frm_ptr->mdiePresent;
 		qdf_mem_copy((uint8_t *)bss_desc_ptr->mdie,
@@ -2045,7 +2042,6 @@ QDF_STATUS pe_roam_synch_callback(tpAniSirGlobal mac_ctx,
 		mac_ctx->roam.pReassocResp = NULL;
 		return QDF_STATUS_E_NOMEM;
 	}
-	qdf_mem_zero(roam_sync_ind_ptr->join_rsp, join_rsp_len);
 
 	lim_log(mac_ctx, LOG1, FL("Session RicLength = %d"),
 			ft_session_ptr->RICDataLen);

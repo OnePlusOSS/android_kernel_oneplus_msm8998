@@ -671,7 +671,6 @@ static QDF_STATUS csr_issue_roam_after_lostlink_scan(tpAniSirGlobal pMac,
 		status = QDF_STATUS_E_NOMEM;
 		goto free_filter;
 	}
-	qdf_mem_set(pScanFilter, sizeof(tCsrScanResultFilter), 0);
 	if (NULL == pSession->pCurRoamProfile) {
 		pScanFilter->EncryptionType.numEntries = 1;
 		pScanFilter->EncryptionType.encryptionType[0] =
@@ -686,7 +685,6 @@ static QDF_STATUS csr_issue_roam_after_lostlink_scan(tpAniSirGlobal pMac,
 			status = QDF_STATUS_E_NOMEM;
 			goto free_filter;
 		}
-		qdf_mem_set(pProfile, sizeof(tCsrRoamProfile), 0);
 		status = csr_roam_copy_profile(pMac, pProfile,
 					       pSession->pCurRoamProfile);
 		if (!QDF_IS_STATUS_SUCCESS(status))
@@ -838,7 +836,6 @@ csr_update_lost_link1_cmd(tpAniSirGlobal mac_ctx, tSmeCmd *cmd,
 	if (NULL == scan_filter)
 		return QDF_STATUS_E_NOMEM;
 
-	qdf_mem_set(scan_filter, sizeof(tCsrScanResultFilter), 0);
 	status = csr_roam_prepare_filter_from_profile(mac_ctx,
 			pSession->pCurRoamProfile, scan_filter);
 	if (!QDF_IS_STATUS_SUCCESS(status))
@@ -1177,7 +1174,6 @@ QDF_STATUS csr_scan_handle_search_for_ssid(tpAniSirGlobal pMac,
 			status = QDF_STATUS_E_NOMEM;
 			break;
 		}
-		qdf_mem_set(pScanFilter, sizeof(tCsrScanResultFilter), 0);
 		status = csr_roam_prepare_filter_from_profile(pMac, pProfile,
 							      pScanFilter);
 		if (!QDF_IS_STATUS_SUCCESS(status))
@@ -1930,7 +1926,6 @@ csr_save_scan_entry(tpAniSirGlobal pMac,
 			qdf_mem_free(pNewIes);
 		return status;
 	}
-	qdf_mem_set(pResult, allocLen, 0);
 	pResult->capValue = pBssDesc->capValue;
 	pResult->preferValue = pBssDesc->preferValue;
 	pResult->ucEncryptionType = uc;
@@ -2121,7 +2116,6 @@ QDF_STATUS csr_scan_get_result(tpAniSirGlobal pMac,
 		return QDF_STATUS_E_NOMEM;
 	}
 
-	qdf_mem_set(pRetList, sizeof(tScanResultList), 0);
 	csr_ll_open(pMac->hHdd, &pRetList->List);
 	pRetList->pCurEntry = NULL;
 	status = csr_parse_scan_results(pMac, pFilter, pRetList, &count);
@@ -2380,7 +2374,6 @@ QDF_STATUS csr_scan_copy_result_list(tpAniSirGlobal pMac, tScanResultHandle hIn,
 	if (NULL == pRetList)
 		status = QDF_STATUS_E_NOMEM;
 	else {
-		qdf_mem_set(pRetList, sizeof(tScanResultList), 0);
 		csr_ll_open(pMac->hHdd, &pRetList->List);
 		pRetList->pCurEntry = NULL;
 		csr_ll_lock(&pMac->scan.scanResultList);
@@ -2858,8 +2851,8 @@ static void csr_purge_old_scan_results(tpAniSirGlobal mac_ctx)
 {
 	tListElem *pentry, *tmp_entry;
 	tCsrScanResult *presult, *oldest_bss = NULL;
-	uint32_t oldest_entry = 0;
-	uint32_t curr_time = qdf_mc_timer_get_system_ticks();
+	uint64_t oldest_entry = 0;
+	uint64_t curr_time = (uint64_t)qdf_mc_timer_get_system_time();
 
 	csr_ll_unlock(&mac_ctx->scan.scanResultList);
 	pentry = csr_ll_peek_head(&mac_ctx->scan.scanResultList,
@@ -2868,10 +2861,10 @@ static void csr_purge_old_scan_results(tpAniSirGlobal mac_ctx)
 		tmp_entry = csr_ll_next(&mac_ctx->scan.scanResultList, pentry,
 			LL_ACCESS_NOLOCK);
 		presult = GET_BASE_ADDR(pentry, tCsrScanResult, Link);
-		if ((curr_time - presult->Result.BssDescriptor.nReceivedTime) >
+		if ((curr_time - presult->Result.BssDescriptor.received_time) >
 		     oldest_entry) {
 			oldest_entry = curr_time -
-				presult->Result.BssDescriptor.nReceivedTime;
+				presult->Result.BssDescriptor.received_time;
 			oldest_bss = presult;
 		}
 		pentry = tmp_entry;
@@ -2881,9 +2874,9 @@ static void csr_purge_old_scan_results(tpAniSirGlobal mac_ctx)
 		if (csr_ll_remove_entry(&mac_ctx->scan.scanResultList,
 		    &oldest_bss->Link, LL_ACCESS_NOLOCK)) {
 			sms_log(mac_ctx, LOG1,
-				FL("Current time delta (%d) of BSSID to be removed" MAC_ADDRESS_STR),
+				FL("Current time delta (%llu) of BSSID to be removed" MAC_ADDRESS_STR),
 				(curr_time -
-				oldest_bss->Result.BssDescriptor.nReceivedTime),
+				oldest_bss->Result.BssDescriptor.received_time),
 				MAC_ADDR_ARRAY(
 				oldest_bss->Result.BssDescriptor.bssId));
 			csr_free_scan_result_entry(mac_ctx, oldest_bss);
@@ -2961,8 +2954,9 @@ csr_remove_from_tmp_list(tpAniSirGlobal mac_ctx,
 			 * hidden ssid from the profile i.e., forget the SSID
 			 * via GUI that SSID shouldn't see in the profile
 			 */
-			unsigned long time_gap = qdf_mc_timer_get_system_time() -
-									timer;
+			uint64_t time_gap =
+				(uint64_t)qdf_mc_timer_get_system_time() -
+									 timer;
 			if ((0 == bss_dscp->Result.ssId.length)
 			    && (time_gap <= HIDDEN_TIMER)
 			    && tmpSsid.length) {
@@ -3040,7 +3034,6 @@ static tCsrScanResult *csr_scan_save_bss_description(tpAniSirGlobal pMac,
 
 	pCsrBssDescription = qdf_mem_malloc(cbAllocated);
 	if (NULL != pCsrBssDescription) {
-		qdf_mem_set(pCsrBssDescription, cbAllocated, 0);
 		pCsrBssDescription->AgingCount =
 			(int32_t) pMac->roam.configParam.agingCount;
 		sms_log(pMac, LOGW,
@@ -3097,7 +3090,7 @@ tCsrScanResult *csr_scan_append_bss_description(tpAniSirGlobal pMac,
 			 * hidden ssid from the profile i.e., forget the SSID
 			 * via GUI that SSID shouldn't see in the profile
 			 */
-			if ((qdf_mc_timer_get_system_time() - timer) <=
+			if (((uint64_t)qdf_mc_timer_get_system_time() - timer) <=
 			    HIDDEN_TIMER) {
 				pCsrBssDescription->Result.ssId = tmpSsid;
 				pCsrBssDescription->Result.timer = timer;
@@ -3151,7 +3144,6 @@ QDF_STATUS csr_save_to_channel_power2_g_5_g(tpAniSirGlobal pMac,
 			pChannelInfo++;
 			continue;
 		}
-		qdf_mem_set(pChannelSet, sizeof(tCsrChannelPowerInfo), 0);
 		pChannelSet->firstChannel = pChannelInfo->firstChanNum;
 		pChannelSet->numChannels = pChannelInfo->numChannels;
 		/*
@@ -3234,7 +3226,6 @@ static void csr_clear_dfs_channel_list(tpAniSirGlobal pMac)
 	msgLen = (uint16_t) (sizeof(tSirMbMsg));
 	pMsg = qdf_mem_malloc(msgLen);
 	if (NULL != pMsg) {
-		qdf_mem_set((void *)pMsg, msgLen, 0);
 		pMsg->type = eWNI_SME_CLEAR_DFS_CHANNEL_LIST;
 		pMsg->msgLen = msgLen;
 		cds_send_mb_message_to_mac(pMsg);
@@ -3623,8 +3614,6 @@ void csr_save_channel_power_for_band(tpAniSirGlobal pMac, bool fill_5f)
 	if (NULL == chan_info)
 		return;
 
-	qdf_mem_set(chan_info, sizeof(tSirMacChanInfo) *
-		    WNI_CFG_VALID_CHANNEL_LIST_LEN, 0);
 	ch_info_start = chan_info;
 	for (idx = 0; idx < max_ch_idx; idx++) {
 		ch = pMac->scan.defaultPowerTable[idx].chan_num;
@@ -4360,7 +4349,6 @@ static tCsrScanResult *csr_scan_save_bss_description_to_interim_list(
 		cbAllocated, cbBSSDesc);
 	pCsrBssDescription = qdf_mem_malloc(cbAllocated);
 	if (NULL != pCsrBssDescription) {
-		qdf_mem_set(pCsrBssDescription, cbAllocated, 0);
 		qdf_mem_copy(&pCsrBssDescription->Result.BssDescriptor,
 			     pBSSDescription, cbBSSDesc);
 		pCsrBssDescription->AgingCount =
@@ -4887,8 +4875,8 @@ static bool csr_scan_age_out_bss(tpAniSirGlobal pMac, tCsrScanResult *pResult)
 			FL("Connected BSS, Set Aging Count=%d for BSS "
 			   MAC_ADDRESS_STR), pResult->AgingCount,
 			MAC_ADDR_ARRAY(pResult->Result.BssDescriptor.bssId));
-		pResult->Result.BssDescriptor.nReceivedTime =
-			(uint32_t) qdf_mc_timer_get_system_ticks();
+		pResult->Result.BssDescriptor.received_time =
+			(uint64_t)qdf_mc_timer_get_system_time();
 		return fRet;
 	}
 	/*
@@ -4998,7 +4986,6 @@ static QDF_STATUS csr_send_mb_scan_req(tpAniSirGlobal pMac, uint16_t sessionId,
 		return QDF_STATUS_E_NOMEM;
 	}
 
-	qdf_mem_set(pMsg, msgLen, 0);
 	pMsg->messageType = eWNI_SME_SCAN_REQ;
 	pMsg->length = msgLen;
 	/* ToDO: Fill in session info when we need to do scan base on session */
@@ -5175,7 +5162,6 @@ QDF_STATUS csr_send_mb_scan_result_req(tpAniSirGlobal pMac,
 	if (NULL == pMsg)
 		return QDF_STATUS_E_NOMEM;
 
-	qdf_mem_set(pMsg, msgLen, 0);
 	pMsg->messageType = eWNI_SME_SCAN_REQ;
 	pMsg->length = msgLen;
 	pMsg->sessionId = sessionId;
@@ -5941,23 +5927,20 @@ static void csr_purge_scan_result_by_age(void *pv)
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(pv);
 	tListElem *entry, *tmp_entry;
 	tCsrScanResult *result;
-	unsigned long ageout_time =
-		mac_ctx->scan.scanResultCfgAgingTime * QDF_TICKS_PER_SECOND/10;
-	unsigned long cur_time =  qdf_mc_timer_get_system_ticks();
+	uint64_t ageout_time =
+		mac_ctx->scan.scanResultCfgAgingTime * SYSTEM_TIME_SEC_TO_MSEC;
+	uint64_t cur_time = qdf_mc_timer_get_system_time();
 	uint8_t *bssId;
 
 	csr_ll_lock(&mac_ctx->scan.scanResultList);
 	entry = csr_ll_peek_head(&mac_ctx->scan.scanResultList, LL_ACCESS_NOLOCK);
-	sms_log(mac_ctx, LOG1, FL(" Ageout time=%ld"), ageout_time);
+	sms_log(mac_ctx, LOG1, FL(" Ageout time=%llu"), ageout_time);
 	while (entry) {
 		tmp_entry = csr_ll_next(&mac_ctx->scan.scanResultList, entry,
 					LL_ACCESS_NOLOCK);
 		result = GET_BASE_ADDR(entry, tCsrScanResult, Link);
-		/*
-		 * qdf_mc_timer_get_system_ticks() returns in 10ms interval.
-		 * so ageout time value also updated to 10ms interval value.
-		 */
-		if ((cur_time - result->Result.BssDescriptor.nReceivedTime) >
+
+		if ((cur_time - result->Result.BssDescriptor.received_time) >
 			    ageout_time) {
 			bssId = result->Result.BssDescriptor.bssId;
 			sms_log(mac_ctx, LOGW,
@@ -6081,7 +6064,6 @@ QDF_STATUS csr_scan_get_pmkid_candidate_list(tpAniSirGlobal pMac,
 	if (NULL == pScanFilter)
 		return QDF_STATUS_E_NOMEM;
 
-	qdf_mem_set(pScanFilter, sizeof(tCsrScanResultFilter), 0);
 	/* Here is the profile we need to connect to */
 	status = csr_roam_prepare_filter_from_profile(pMac,
 					pSession->pCurRoamProfile, pScanFilter);
@@ -6152,7 +6134,6 @@ QDF_STATUS csr_scan_get_bkid_candidate_list(tpAniSirGlobal pMac,
 	if (NULL == pScanFilter)
 		return QDF_STATUS_E_NOMEM;
 
-	qdf_mem_set(pScanFilter, sizeof(tCsrScanResultFilter), 0);
 	/* Here is the profile we need to connect to */
 	status = csr_roam_prepare_filter_from_profile(pMac,
 					pSession->pCurRoamProfile, pScanFilter);
@@ -6317,9 +6298,6 @@ QDF_STATUS csr_scan_for_ssid(tpAniSirGlobal mac_ctx, uint32_t session_id,
 		else
 			status = QDF_STATUS_SUCCESS;
 
-		qdf_mem_set(scan_req->pIEField,
-				profile->nAddIEScanLength, 0);
-
 		if (QDF_IS_STATUS_SUCCESS(status)) {
 			qdf_mem_copy(scan_req->pIEField,
 					profile->pAddIEScan,
@@ -6473,7 +6451,6 @@ void csr_save_tx_power_to_cfg(tpAniSirGlobal pMac, tDblLinkList *pList,
 	if (pBuf == NULL)
 		return;
 
-	qdf_mem_set(pBuf, dataLen, 0);
 	ch_pwr_set = (tSirMacChanInfo *) (pBuf);
 	pEntry = csr_ll_peek_head(pList, LL_ACCESS_LOCK);
 	/*
@@ -6615,8 +6592,6 @@ void csr_set_cfg_scan_control_list(tpAniSirGlobal pMac, uint8_t *countryCode,
 
 	pControlList = qdf_mem_malloc(WNI_CFG_SCAN_CONTROL_LIST_LEN);
 	if (pControlList != NULL) {
-		qdf_mem_set((void *)pControlList, WNI_CFG_SCAN_CONTROL_LIST_LEN,
-			    0);
 		if (IS_SIR_STATUS_SUCCESS(wlan_cfg_get_str(pMac,
 					WNI_CFG_SCAN_CONTROL_LIST,
 					pControlList, &len))) {
@@ -6849,7 +6824,6 @@ static void csr_send_scan_abort(tpAniSirGlobal mac_ctx,
 			FL("Failed to alloc memory for SmeScanAbortReq"));
 		return;
 	}
-	qdf_mem_zero((void *)msg, msg_len);
 	msg->type = eWNI_SME_SCAN_ABORT_IND;
 	msg->msgLen = msg_len;
 	msg->sessionId = session_id;
@@ -6998,7 +6972,6 @@ QDF_STATUS csr_scan_save_preferred_network_found(tpAniSirGlobal pMac,
 		qdf_mem_free(parsed_frm);
 		return QDF_STATUS_E_NOMEM;
 	}
-	qdf_mem_set(pScanResult, sizeof(tCsrScanResult) + uLen, 0);
 	pBssDescr = &pScanResult->Result.BssDescriptor;
 	/*
 	 * Length of BSS desription is without length of length itself and
@@ -7055,7 +7028,7 @@ QDF_STATUS csr_scan_save_preferred_network_found(tpAniSirGlobal pMac,
 	pBssDescr->capabilityInfo = *((uint16_t *)&parsed_frm->capabilityInfo);
 	qdf_mem_copy((uint8_t *) &pBssDescr->bssId,
 		     (uint8_t *) macHeader->bssId, sizeof(tSirMacAddr));
-	pBssDescr->nReceivedTime = (uint32_t) qdf_mc_timer_get_system_ticks();
+	pBssDescr->received_time = (uint64_t)qdf_mc_timer_get_system_time();
 	sms_log(pMac, LOG2, FL("Bssid= "MAC_ADDRESS_STR" chan= %d, rssi = %d"),
 		MAC_ADDR_ARRAY(pBssDescr->bssId), pBssDescr->channelId,
 		pBssDescr->rssi);
@@ -7271,7 +7244,6 @@ QDF_STATUS csr_scan_save_roam_offload_ap_to_scan_cache(tpAniSirGlobal pMac,
 		return QDF_STATUS_E_NOMEM;
 	}
 
-	qdf_mem_zero(scan_res_ptr, sizeof(tCsrScanResult) + length);
 	qdf_mem_copy(&scan_res_ptr->Result.BssDescriptor,
 			bss_desc_ptr,
 			(sizeof(tSirBssDescription) + length));
@@ -7384,7 +7356,6 @@ void csr_scan_active_list_timeout_handle(void *userData)
 			FL("Failed to alloc memory for SmeScanAbortReq"));
 		return;
 	}
-	qdf_mem_zero((void *)msg, msg_len);
 	msg->type = eWNI_SME_SCAN_ABORT_IND;
 	msg->msgLen = msg_len;
 	msg->sessionId = scan_cmd->sessionId;

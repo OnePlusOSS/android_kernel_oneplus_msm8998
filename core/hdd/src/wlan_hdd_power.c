@@ -1057,7 +1057,6 @@ void wlan_hdd_set_mc_addr_list(hdd_adapter_t *pAdapter, uint8_t set)
 		hdd_err("Could not allocate Memory");
 		return;
 	}
-	qdf_mem_zero(pMulticastAddrs, sizeof(tSirRcvFltMcAddrList));
 	pMulticastAddrs->action = set;
 
 	if (set) {
@@ -1586,7 +1585,7 @@ QDF_STATUS hdd_wlan_re_init(void)
 		goto err_cds_disable;
 
 	if (cds_is_packet_log_enabled())
-		hdd_pktlog_enable_disable(pHddCtx, true, 0);
+		hdd_pktlog_enable_disable(pHddCtx, true, 0, 0);
 
 	hdd_err("WLAN host driver reinitiation completed!");
 	goto success;

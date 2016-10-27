@@ -31,6 +31,8 @@
 #ifndef _CDP_TXRX_CFG_H_
 #define _CDP_TXRX_CFG_H_
 
+#include "cds_config.h"
+
 /**
  * struct txrx_pdev_cfg_param_t - configuration information
  * passed to the data path
@@ -59,6 +61,8 @@ struct txrx_pdev_cfg_param_t {
 	/* Start queue offset in percentage */
 	uint32_t tx_flow_start_queue_offset;
 #endif
+
+	struct ol_tx_sched_wrr_ac_specs_t ac_specs[TX_WMM_AC_NUM];
 };
 
 void ol_set_cfg_rx_fwd_disabled(ol_pdev_handle pdev, uint8_t disable_rx_fwd);

@@ -114,6 +114,7 @@ struct qca_napi_stat {
 	uint32_t napi_polls;
 	uint32_t napi_completes;
 	uint32_t napi_workdone;
+	uint32_t cpu_corrected;
 	uint32_t napi_budget_uses[QCA_NAPI_NUM_BUCKETS];
 	uint32_t time_limit_reached;
 	uint32_t rxpkt_thresh_reached;
@@ -132,6 +133,7 @@ struct qca_napi_info {
 	struct napi_struct   napi;
 	uint8_t              scale;   /* currently same on all instances */
 	uint8_t              id;
+	uint8_t              cpu;
 	int                  irq;
 	struct qca_napi_stat stats[NR_CPUS];
 	/* will only be present for data rx CE's */
@@ -195,6 +197,7 @@ struct qca_napi_data {
 	int                  lilcl_head, bigcl_head;
 	enum qca_napi_tput_state napi_mode;
 	struct notifier_block hnc_cpu_notifier;
+	uint8_t              flags;
 };
 
 /**

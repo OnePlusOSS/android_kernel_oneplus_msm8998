@@ -803,9 +803,11 @@ void qdf_dp_trace_init(void)
 	g_qdf_dp_trace_data.tail = INVALID_QDF_DP_TRACE_ADDR;
 	g_qdf_dp_trace_data.num = 0;
 	g_qdf_dp_trace_data.proto_bitmap = QDF_NBUF_PKT_TRAC_TYPE_EAPOL |
-	    QDF_NBUF_PKT_TRAC_TYPE_DHCP | QDF_NBUF_PKT_TRAC_TYPE_MGMT_ACTION;
+					   QDF_NBUF_PKT_TRAC_TYPE_DHCP |
+					   QDF_NBUF_PKT_TRAC_TYPE_MGMT_ACTION |
+					   QDF_NBUF_PKT_TRAC_TYPE_ARP;
 	g_qdf_dp_trace_data.no_of_record = 0;
-	g_qdf_dp_trace_data.verbosity    = QDF_DP_TRACE_VERBOSITY_LOW;
+	g_qdf_dp_trace_data.verbosity    = QDF_DP_TRACE_VERBOSITY_HIGH;
 	g_qdf_dp_trace_data.enable = true;
 
 	for (i = 0; i < ARRAY_SIZE(qdf_dp_trace_cb_table); i++)
@@ -821,6 +823,8 @@ void qdf_dp_trace_init(void)
 						qdf_dp_display_proto_pkt;
 	qdf_dp_trace_cb_table[QDF_DP_TRACE_MGMT_PACKET_RECORD] =
 					qdf_dp_display_mgmt_pkt;
+	qdf_dp_trace_cb_table[QDF_DP_TRACE_EVENT_RECORD] =
+					qdf_dp_display_event_record;
 
 	qdf_dp_trace_cb_table[QDF_DP_TRACE_MAX] = qdf_dp_unused;
 }
@@ -967,6 +971,8 @@ const char *qdf_dp_code_to_string(enum QDF_DP_TRACE_ID code)
 		return "ARP:";
 	case QDF_DP_TRACE_MGMT_PACKET_RECORD:
 		return "MGMT:";
+	case QDF_DP_TRACE_EVENT_RECORD:
+		return "EVENT:";
 	case QDF_DP_TRACE_HDD_TX_PACKET_PTR_RECORD:
 		return "HDD: TX: PTR:";
 	case QDF_DP_TRACE_HDD_TX_PACKET_RECORD:
@@ -1041,6 +1047,8 @@ static const char *qdf_dp_type_to_str(enum qdf_proto_type type)
 		return "ARP";
 	case QDF_PROTO_TYPE_MGMT:
 		return "MGMT";
+	case QDF_PROTO_TYPE_EVENT:
+		return "EVENT";
 	default:
 		return "invalid";
 	}
@@ -1091,6 +1099,12 @@ static const char *qdf_dp_subtype_to_str(enum qdf_proto_subtype subtype)
 		return "AUTH";
 	case QDF_PROTO_MGMT_DEAUTH:
 		return "DEAUTH";
+	case QDF_ROAM_SYNCH:
+		return "ROAM SYNCH";
+	case QDF_ROAM_COMPLETE:
+		return "ROAM COMPLETE";
+	case QDF_ROAM_EVENTID:
+		return "ROAM EVENTID";
 	default:
 		return "invalid";
 	}
@@ -1209,6 +1223,8 @@ static bool qdf_log_eapol_pkt(uint8_t session_id, struct sk_buff *skb,
 			QDF_NBUF_CB_TX_DP_TRACE(skb) = 1;
 		else if (QDF_RX == dir)
 			QDF_NBUF_CB_RX_DP_TRACE(skb) = 1;
+
+		QDF_NBUF_CB_DP_TRACE_PRINT(skb) = true;
 		return true;
 	}
 	return false;
@@ -1241,6 +1257,8 @@ static bool qdf_log_dhcp_pkt(uint8_t session_id, struct sk_buff *skb,
 			QDF_NBUF_CB_TX_DP_TRACE(skb) = 1;
 		else if (QDF_RX == dir)
 			QDF_NBUF_CB_RX_DP_TRACE(skb) = 1;
+
+		QDF_NBUF_CB_DP_TRACE_PRINT(skb) = true;
 		return true;
 	}
 	return false;
@@ -1273,6 +1291,8 @@ static bool qdf_log_arp_pkt(uint8_t session_id, struct sk_buff *skb,
 			QDF_NBUF_CB_TX_DP_TRACE(skb) = 1;
 		else if (QDF_RX == dir)
 			QDF_NBUF_CB_RX_DP_TRACE(skb) = 1;
+
+		QDF_NBUF_CB_DP_TRACE_PRINT(skb) = true;
 		return true;
 	}
 	return false;
@@ -1353,6 +1373,54 @@ void qdf_dp_trace_mgmt_pkt(enum QDF_DP_TRACE_ID code, uint8_t vdev_id,
 }
 EXPORT_SYMBOL(qdf_dp_trace_mgmt_pkt);
 
+/**
+ * qdf_dp_display_event_record() - display event records
+ * @record: dptrace record
+ * @index: index
+ *
+ * Return: none
+ */
+void qdf_dp_display_event_record(struct qdf_dp_trace_record_s *record,
+			      uint16_t index)
+{
+	struct qdf_dp_trace_event_buf *buf =
+		(struct qdf_dp_trace_event_buf *)record->data;
+
+	qdf_print("DPT: %04d: %012llu: %s vdev_id %d", index,
+		record->time, qdf_dp_code_to_string(record->code),
+		buf->vdev_id);
+	qdf_print("DPT: Type %s Subtype %s", qdf_dp_type_to_str(buf->type),
+		qdf_dp_subtype_to_str(buf->subtype));
+}
+EXPORT_SYMBOL(qdf_dp_display_event_record);
+
+/**
+ * qdf_dp_trace_record_event() - record events
+ * @code: dptrace code
+ * @vdev_id: vdev id
+ * @type: proto type
+ * @subtype: proto subtype
+ *
+ * Return: none
+ */
+void qdf_dp_trace_record_event(enum QDF_DP_TRACE_ID code, uint8_t vdev_id,
+		enum qdf_proto_type type, enum qdf_proto_subtype subtype)
+{
+	struct qdf_dp_trace_event_buf buf;
+	int buf_size = sizeof(struct qdf_dp_trace_event_buf);
+
+	if (qdf_dp_enable_check(NULL, code, QDF_NA) == false)
+		return;
+
+	if (buf_size > QDF_DP_TRACE_RECORD_SIZE)
+		QDF_BUG(0);
+
+	buf.type = type;
+	buf.subtype = subtype;
+	buf.vdev_id = vdev_id;
+	qdf_dp_add_record(code, (uint8_t *)&buf, buf_size, true);
+}
+EXPORT_SYMBOL(qdf_dp_trace_record_event);
 
 /**
  * qdf_dp_display_proto_pkt() - display proto packet
@@ -1466,7 +1534,8 @@ void qdf_dp_trace_ptr(qdf_nbuf_t nbuf, enum QDF_DP_TRACE_ID code,
 	qdf_mem_copy(&buf.cookie, data, size);
 	buf.msdu_id = msdu_id;
 	buf.status = status;
-	qdf_dp_add_record(code, (uint8_t *)&buf, buf_size, false);
+	qdf_dp_add_record(code, (uint8_t *)&buf, buf_size,
+				QDF_NBUF_CB_DP_TRACE_PRINT(nbuf));
 }
 EXPORT_SYMBOL(qdf_dp_trace_ptr);
 
@@ -1517,7 +1586,7 @@ void qdf_dp_trace(qdf_nbuf_t nbuf, enum QDF_DP_TRACE_ID code,
 	if (qdf_dp_enable_check(nbuf, code, dir) == false)
 		return;
 
-	qdf_dp_add_record(code, data, size, false);
+	qdf_dp_add_record(code, data, size, QDF_NBUF_CB_DP_TRACE_PRINT(nbuf));
 }
 EXPORT_SYMBOL(qdf_dp_trace);
 

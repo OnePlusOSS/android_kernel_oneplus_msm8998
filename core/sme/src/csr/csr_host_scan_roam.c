@@ -149,7 +149,9 @@ void csr_neighbor_roam_process_scan_results(tpAniSirGlobal mac_ctx,
 	tpCsrNeighborRoamControlInfo n_roam_info =
 		&mac_ctx->roam.neighborRoamInfo[sessionid];
 	tpCsrNeighborRoamBSSInfo bss_info;
-	uint64_t age = 0;
+	uint32_t age_ticks = 0;
+	uint32_t limit_ticks =
+		qdf_system_msecs_to_ticks(ROAM_AP_AGE_LIMIT_MS);
 	uint8_t num_candidates = 0;
 	uint8_t num_dropped = 0;
 	/*
@@ -185,9 +187,9 @@ void csr_neighbor_roam_process_scan_results(tpAniSirGlobal mac_ctx,
 			descr = &scan_result->BssDescriptor;
 			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 				  FL("Scan result: BSSID " MAC_ADDRESS_STR
-				     " (Rssi %ld, Ch:%d)"),
+				     " (Rssi %d, Ch:%d)"),
 				  MAC_ADDR_ARRAY(descr->bssId),
-				  abs(descr->rssi), descr->channelId);
+				  (int)abs(descr->rssi), descr->channelId);
 
 			if (!qdf_mem_cmp(descr->bssId,
 					n_roam_info->currAPbssid.bytes,
@@ -294,10 +296,9 @@ void csr_neighbor_roam_process_scan_results(tpAniSirGlobal mac_ctx,
 			}
 
 			/* check the age of the AP */
-			age = (uint64_t) qdf_mc_timer_get_system_time() -
-					descr->received_time;
-			if (age_constraint == true &&
-				age > ROAM_AP_AGE_LIMIT_MS) {
+			age_ticks = (uint32_t) qdf_mc_timer_get_system_ticks() -
+					descr->nReceivedTime;
+			if (age_constraint == true && age_ticks > limit_ticks) {
 				num_dropped++;
 				QDF_TRACE(QDF_MODULE_ID_SME,
 					QDF_TRACE_LEVEL_WARN,

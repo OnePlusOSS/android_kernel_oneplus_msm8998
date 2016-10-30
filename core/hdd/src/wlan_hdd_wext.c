@@ -5086,10 +5086,10 @@ int wlan_hdd_update_phymode(struct net_device *net, tHalHandle hal,
 			return -EIO;
 		}
 		if (phddctx->config->nChannelBondingMode5GHz)
-			phddctx->wiphy->bands[IEEE80211_BAND_5GHZ]->ht_cap.cap
+			phddctx->wiphy->bands[NL80211_BAND_5GHZ]->ht_cap.cap
 				|= IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 		else
-			phddctx->wiphy->bands[IEEE80211_BAND_5GHZ]->ht_cap.cap
+			phddctx->wiphy->bands[NL80211_BAND_5GHZ]->ht_cap.cap
 				&= ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 
 		hdd_warn("New_Phymode= %d ch_bonding=%d band=%d VHT_ch_width=%u",
@@ -9883,10 +9883,10 @@ static int __iw_set_two_ints_getnone(struct net_device *dev,
 		ret = wlan_hdd_set_mon_chan(pAdapter, value[1], value[2]);
 		break;
 	case WE_SET_WLAN_SUSPEND:
-		ret = hdd_wlan_fake_apps_suspend(hdd_ctx->wiphy);
+		ret = hdd_wlan_fake_apps_suspend(hdd_ctx->wiphy, dev);
 		break;
 	case WE_SET_WLAN_RESUME:
-		ret = hdd_wlan_fake_apps_resume(hdd_ctx->wiphy);
+		ret = hdd_wlan_fake_apps_resume(hdd_ctx->wiphy, dev);
 		break;
 	default:
 		hdd_err("Invalid IOCTL command %d", sub_cmd);
@@ -11060,8 +11060,8 @@ static const struct iw_priv_args we_private_args[] = {
 #ifdef WLAN_FEATURE_PACKET_FILTERING
 	{
 		WLAN_SET_PACKET_FILTER_PARAMS,
-		IW_PRIV_TYPE_BYTE | IW_PRIV_SIZE_FIXED |
-					sizeof(struct pkt_filter_cfg),
+		IW_PRIV_TYPE_BYTE |
+		sizeof(struct pkt_filter_cfg),
 		0,
 		"setPktFilter"
 	}

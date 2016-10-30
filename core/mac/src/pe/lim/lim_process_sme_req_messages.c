@@ -4165,9 +4165,12 @@ static void __lim_process_roam_scan_offload_req(tpAniSirGlobal mac_ctx,
 	if (local_ie_len &&
 		!lim_update_ext_cap_ie(mac_ctx, req_buffer->assoc_ie.addIEdata,
 					local_ie_buf, &local_ie_len)) {
-		req_buffer->assoc_ie.length = local_ie_len;
-		qdf_mem_copy(req_buffer->assoc_ie.addIEdata, local_ie_buf,
-				local_ie_len);
+		if (local_ie_len <=
+		    QDF_ARRAY_SIZE(req_buffer->assoc_ie.addIEdata)) {
+			req_buffer->assoc_ie.length = local_ie_len;
+			qdf_mem_copy(req_buffer->assoc_ie.addIEdata,
+				     local_ie_buf, local_ie_len);
+		}
 	}
 	qdf_mem_free(local_ie_buf);
 
@@ -4633,11 +4636,12 @@ skip_match:
 	}
 	if (match) {
 		qdf_mutex_acquire(&mac_ctx->lim.lim_frame_register_lock);
-		qdf_list_remove_node(
+		if (QDF_STATUS_SUCCESS ==
+				qdf_list_remove_node(
 				&mac_ctx->lim.gLimMgmtFrameRegistratinQueue,
-				(qdf_list_node_t *)lim_mgmt_regn);
+				(qdf_list_node_t *)lim_mgmt_regn))
+			qdf_mem_free(lim_mgmt_regn);
 		qdf_mutex_release(&mac_ctx->lim.lim_frame_register_lock);
-		qdf_mem_free(lim_mgmt_regn);
 	}
 
 	if (sme_req->registerFrame) {

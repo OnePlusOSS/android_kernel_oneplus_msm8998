@@ -7546,6 +7546,7 @@ int wma_dfs_indicate_radar(struct ieee80211com *ic,
 			qdf_mem_malloc(sizeof(struct wma_dfs_radar_indication));
 		if (radar_event == NULL) {
 			WMA_LOGE(FL("Failed to allocate memory for radar_event"));
+			qdf_spin_unlock_bh(&ic->chan_lock);
 			return -ENOMEM;
 		}
 		wma->dfs_ic->last_radar_found_chan = ichan->ic_ieee;
@@ -8279,6 +8280,7 @@ QDF_STATUS wma_enable_disable_caevent_ind(tp_wma_handle wma, uint8_t val)
 	return QDF_STATUS_SUCCESS;
 }
 
+#ifdef WLAN_FEATURE_DISA
 /**
  * wma_encrypt_decrypt_msg() -
  * @encrypt_decrypt_params: encryption/decryption params
@@ -8383,3 +8385,4 @@ int wma_encrypt_decrypt_msg_handler(void *handle, uint8_t *data,
 
 	return 0;
 }
+#endif

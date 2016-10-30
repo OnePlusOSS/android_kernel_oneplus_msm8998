@@ -1672,6 +1672,25 @@ static void wma_init_max_no_of_peers(tp_wma_handle wma_handle,
 	cfg->max_no_of_peers = max_peers;
 }
 
+/**
+ * wma_shutdown_notifier_cb - Shutdown notifer call back
+ * @priv : WMA handle
+ *
+ * During recovery, WMA may wait for resume to complete if the crash happens
+ * while in suspend. This may cause delays in completing the recovery. This call
+ * back would be called during recovery and the event is completed so that if
+ * the resume is waiting on FW to respond then it can get out of the wait so
+ * that recovery thread can start bringing down all the modules.
+ *
+ * Return: None
+ */
+static void wma_shutdown_notifier_cb(void *priv)
+{
+	tp_wma_handle wma_handle = priv;
+
+	qdf_event_set(&wma_handle->wma_resume_event);
+}
+
 struct wma_version_info g_wmi_version_info;
 
 /**
@@ -2094,6 +2113,14 @@ QDF_STATUS wma_open(void *cds_context,
 	if (qdf_status != QDF_STATUS_SUCCESS) {
 		WMA_LOGP("%s: wma_resume_event initialization failed",
 			 __func__);
+		goto err_event_init;
+	}
+
+	qdf_status = cds_shutdown_notifier_register(wma_shutdown_notifier_cb,
+						    wma_handle);
+	if (qdf_status != QDF_STATUS_SUCCESS) {
+		WMA_LOGP("%s: Shutdown notifier register failed: %d",
+			 __func__, qdf_status);
 		goto err_event_init;
 	}
 
@@ -3475,6 +3502,8 @@ QDF_STATUS wma_close(void *cds_ctx)
 	qdf_event_destroy(&wma_handle->wma_resume_event);
 	qdf_event_destroy(&wma_handle->runtime_suspend);
 	qdf_event_destroy(&wma_handle->recovery_event);
+	qdf_event_destroy(&wma_handle->tx_frm_download_comp_event);
+	qdf_event_destroy(&wma_handle->tx_queue_empty_event);
 	wma_cleanup_vdev_resp(wma_handle);
 	wma_cleanup_hold_req(wma_handle);
 	qdf_wake_lock_destroy(&wma_handle->wmi_cmd_rsp_wake_lock);

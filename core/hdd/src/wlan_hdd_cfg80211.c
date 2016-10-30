@@ -118,7 +118,7 @@
 #define IBSS_CFG_PROTECTION_ENABLE_MASK 0x8282
 
 #define HDD2GHZCHAN(freq, chan, flag)   {     \
-		.band =  IEEE80211_BAND_2GHZ, \
+		.band =  NL80211_BAND_2GHZ, \
 		.center_freq = (freq), \
 		.hw_value = (chan), \
 		.flags = (flag), \
@@ -127,7 +127,7 @@
 }
 
 #define HDD5GHZCHAN(freq, chan, flag)   {     \
-		.band =  IEEE80211_BAND_5GHZ, \
+		.band =  NL80211_BAND_5GHZ, \
 		.center_freq = (freq), \
 		.hw_value = (chan), \
 		.flags = (flag), \
@@ -265,7 +265,7 @@ static struct ieee80211_rate a_mode_rates[] = {
 static struct ieee80211_supported_band wlan_hdd_band_2_4_ghz = {
 	.channels = NULL,
 	.n_channels = ARRAY_SIZE(hdd_channels_2_4_ghz),
-	.band = IEEE80211_BAND_2GHZ,
+	.band = NL80211_BAND_2GHZ,
 	.bitrates = g_mode_rates,
 	.n_bitrates = g_mode_rates_size,
 	.ht_cap.ht_supported = 1,
@@ -284,7 +284,7 @@ static struct ieee80211_supported_band wlan_hdd_band_2_4_ghz = {
 static struct ieee80211_supported_band wlan_hdd_band_5_ghz = {
 	.channels = NULL,
 	.n_channels = ARRAY_SIZE(hdd_channels_5_ghz),
-	.band = IEEE80211_BAND_5GHZ,
+	.band = NL80211_BAND_5GHZ,
 	.bitrates = a_mode_rates,
 	.n_bitrates = a_mode_rates_size,
 	.ht_cap.ht_supported = 1,
@@ -1621,7 +1621,7 @@ out:
 		if (temp_skbuff != NULL)
 			return cfg80211_vendor_cmd_reply(temp_skbuff);
 	}
-
+	wlan_hdd_undo_acs(adapter);
 	clear_bit(ACS_IN_PROGRESS, &hdd_ctx->g_event_flags);
 
 	return status;
@@ -1651,6 +1651,26 @@ static int wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 	cds_ssr_unprotect(__func__);
 
 	return ret;
+}
+
+/**
+ * wlan_hdd_undo_acs : Do cleanup of DO_ACS
+ * @adapter:  Pointer to adapter struct
+ *
+ * This function handle cleanup of what was done in DO_ACS, including free
+ * memory.
+ *
+ * Return: void
+ */
+
+void wlan_hdd_undo_acs(hdd_adapter_t *adapter)
+{
+	if (adapter == NULL)
+		return;
+	if (adapter->sessionCtx.ap.sapConfig.acs_cfg.ch_list) {
+		qdf_mem_free(adapter->sessionCtx.ap.sapConfig.acs_cfg.ch_list);
+		adapter->sessionCtx.ap.sapConfig.acs_cfg.ch_list = NULL;
+	}
 }
 
 /**
@@ -5245,11 +5265,11 @@ static int __wlan_hdd_cfg80211_get_preferred_freq_list(struct wiphy *wiphy,
 		if (pcl[i] <= ARRAY_SIZE(hdd_channels_2_4_ghz))
 			freq_list[i] =
 				ieee80211_channel_to_frequency(pcl[i],
-							IEEE80211_BAND_2GHZ);
+							NL80211_BAND_2GHZ);
 		else
 			freq_list[i] =
 				ieee80211_channel_to_frequency(pcl[i],
-							IEEE80211_BAND_5GHZ);
+							NL80211_BAND_5GHZ);
 	}
 
 	/* send the freq_list back to supplicant */
@@ -8605,7 +8625,7 @@ int wlan_hdd_cfg80211_update_band(struct wiphy *wiphy, eCsrBand eBand)
 
 	ENTER();
 
-	for (i = 0; i < IEEE80211_NUM_BANDS; i++) {
+	for (i = 0; i < NUM_NL80211_BANDS; i++) {
 
 		if (NULL == wiphy->bands[i])
 			continue;
@@ -8617,7 +8637,7 @@ int wlan_hdd_cfg80211_update_band(struct wiphy *wiphy, eCsrBand eBand)
 				cds_get_channel_state(band->channels[j].
 								 hw_value);
 
-			if (IEEE80211_BAND_2GHZ == i && eCSR_BAND_5G == eBand) {
+			if (NL80211_BAND_2GHZ == i && eCSR_BAND_5G == eBand) {
 				/* 5G only */
 #ifdef WLAN_ENABLE_SOCIAL_CHANNELS_5G_ONLY
 				/* Enable Social channels for P2P */
@@ -8632,7 +8652,7 @@ int wlan_hdd_cfg80211_update_band(struct wiphy *wiphy, eCsrBand eBand)
 				band->channels[j].flags |=
 					IEEE80211_CHAN_DISABLED;
 				continue;
-			} else if (IEEE80211_BAND_5GHZ == i &&
+			} else if (NL80211_BAND_5GHZ == i &&
 					eCSR_BAND_24 == eBand) {
 				/* 2G only */
 				band->channels[j].flags |=
@@ -8792,14 +8812,14 @@ int wlan_hdd_cfg80211_init(struct device *dev,
 	 * wiphy flags don't get reset because of static memory.
 	 * It's better not to store channel in static memory.
 	 */
-	wiphy->bands[IEEE80211_BAND_2GHZ] = &wlan_hdd_band_2_4_ghz;
-	wiphy->bands[IEEE80211_BAND_2GHZ]->channels =
+	wiphy->bands[NL80211_BAND_2GHZ] = &wlan_hdd_band_2_4_ghz;
+	wiphy->bands[NL80211_BAND_2GHZ]->channels =
 		qdf_mem_malloc(sizeof(hdd_channels_2_4_ghz));
-	if (wiphy->bands[IEEE80211_BAND_2GHZ]->channels == NULL) {
+	if (wiphy->bands[NL80211_BAND_2GHZ]->channels == NULL) {
 		hdd_err("Not enough memory to allocate channels");
 		return -ENOMEM;
 	}
-	qdf_mem_copy(wiphy->bands[IEEE80211_BAND_2GHZ]->channels,
+	qdf_mem_copy(wiphy->bands[NL80211_BAND_2GHZ]->channels,
 			&hdd_channels_2_4_ghz[0],
 			sizeof(hdd_channels_2_4_ghz));
 	if ((hdd_is_5g_supported(pHddCtx)) &&
@@ -8807,22 +8827,22 @@ int wlan_hdd_cfg80211_init(struct device *dev,
 		 (eHDD_DOT11_MODE_11g != pCfg->dot11Mode) &&
 		 (eHDD_DOT11_MODE_11b_ONLY != pCfg->dot11Mode) &&
 		 (eHDD_DOT11_MODE_11g_ONLY != pCfg->dot11Mode))) {
-		wiphy->bands[IEEE80211_BAND_5GHZ] = &wlan_hdd_band_5_ghz;
-		wiphy->bands[IEEE80211_BAND_5GHZ]->channels =
+		wiphy->bands[NL80211_BAND_5GHZ] = &wlan_hdd_band_5_ghz;
+		wiphy->bands[NL80211_BAND_5GHZ]->channels =
 			qdf_mem_malloc(sizeof(hdd_channels_5_ghz));
-		if (wiphy->bands[IEEE80211_BAND_5GHZ]->channels == NULL) {
+		if (wiphy->bands[NL80211_BAND_5GHZ]->channels == NULL) {
 			hdd_err("Not enough memory to allocate channels");
 			qdf_mem_free(wiphy->
-				bands[IEEE80211_BAND_2GHZ]->channels);
-			wiphy->bands[IEEE80211_BAND_2GHZ]->channels = NULL;
+				bands[NL80211_BAND_2GHZ]->channels);
+			wiphy->bands[NL80211_BAND_2GHZ]->channels = NULL;
 			return -ENOMEM;
 		}
-		qdf_mem_copy(wiphy->bands[IEEE80211_BAND_5GHZ]->channels,
+		qdf_mem_copy(wiphy->bands[NL80211_BAND_5GHZ]->channels,
 			&hdd_channels_5_ghz[0],
 			sizeof(hdd_channels_5_ghz));
 	}
 
-	for (i = 0; i < IEEE80211_NUM_BANDS; i++) {
+	for (i = 0; i < NUM_NL80211_BANDS; i++) {
 
 		if (NULL == wiphy->bands[i])
 			continue;
@@ -8830,7 +8850,7 @@ int wlan_hdd_cfg80211_init(struct device *dev,
 		for (j = 0; j < wiphy->bands[i]->n_channels; j++) {
 			struct ieee80211_supported_band *band = wiphy->bands[i];
 
-			if (IEEE80211_BAND_2GHZ == i &&
+			if (NL80211_BAND_2GHZ == i &&
 				eCSR_BAND_5G == pCfg->nBandCapability) {
 				/* 5G only */
 #ifdef WLAN_ENABLE_SOCIAL_CHANNELS_5G_ONLY
@@ -8844,7 +8864,7 @@ int wlan_hdd_cfg80211_init(struct device *dev,
 				band->channels[j].flags |=
 					IEEE80211_CHAN_DISABLED;
 				continue;
-			} else if (IEEE80211_BAND_5GHZ == i &&
+			} else if (NL80211_BAND_5GHZ == i &&
 					eCSR_BAND_24 == pCfg->nBandCapability) {
 				/* 2G only */
 				band->channels[j].flags |=
@@ -8901,7 +8921,7 @@ void wlan_hdd_cfg80211_deinit(struct wiphy *wiphy)
 {
 	int i;
 
-	for (i = 0; i < IEEE80211_NUM_BANDS; i++) {
+	for (i = 0; i < NUM_NL80211_BANDS; i++) {
 		if (NULL != wiphy->bands[i] &&
 		   (NULL != wiphy->bands[i]->channels)) {
 			qdf_mem_free(wiphy->bands[i]->channels);
@@ -10653,14 +10673,8 @@ struct cfg80211_bss *wlan_hdd_cfg80211_inform_bss_frame(hdd_adapter_t *pAdapter,
 	qie_age->oui_2 = QCOM_OUI2;
 	qie_age->oui_3 = QCOM_OUI3;
 	qie_age->type = QCOM_VENDOR_IE_AGE_TYPE;
-	/*
-	 * Lowi expects the timestamp of bss in units of 1/10 ms. In driver
-	 * all bss related timestamp is in units of ms. Due to this when scan
-	 * results are sent to lowi the scan age is high.To address this,
-	 * send age in units of 1/10 ms.
-	 */
 	qie_age->age =
-		(qdf_mc_timer_get_system_time() - bss_desc->received_time)/10;
+		qdf_mc_timer_get_system_ticks() - bss_desc->nReceivedTime;
 	qie_age->tsf_delta = bss_desc->tsf_delta;
 	memcpy(&qie_age->beacon_tsf, bss_desc->timeStamp,
 	       sizeof(qie_age->beacon_tsf));
@@ -10678,15 +10692,15 @@ struct cfg80211_bss *wlan_hdd_cfg80211_inform_bss_frame(hdd_adapter_t *pAdapter,
 	}
 
 	if (chan_no <= ARRAY_SIZE(hdd_channels_2_4_ghz) &&
-	    (wiphy->bands[IEEE80211_BAND_2GHZ] != NULL)) {
+	    (wiphy->bands[NL80211_BAND_2GHZ] != NULL)) {
 		freq =
 			ieee80211_channel_to_frequency(chan_no,
-						       IEEE80211_BAND_2GHZ);
+						       NL80211_BAND_2GHZ);
 	} else if ((chan_no > ARRAY_SIZE(hdd_channels_2_4_ghz))
-		   && (wiphy->bands[IEEE80211_BAND_5GHZ] != NULL)) {
+		   && (wiphy->bands[NL80211_BAND_5GHZ] != NULL)) {
 		freq =
 			ieee80211_channel_to_frequency(chan_no,
-						       IEEE80211_BAND_5GHZ);
+						       NL80211_BAND_5GHZ);
 	} else {
 		hdd_err("Invalid chan_no %d", chan_no);
 		kfree(mgmt);
@@ -10834,7 +10848,7 @@ int wlan_hdd_cfg80211_update_bss(struct wiphy *wiphy,
 		 */
 		if ((scan_time == 0) ||
 			(scan_time <
-				pScanResult->BssDescriptor.received_time)) {
+				pScanResult->BssDescriptor.nReceivedTime)) {
 			bss_status =
 				wlan_hdd_cfg80211_inform_bss_frame(pAdapter,
 						&pScanResult->BssDescriptor);

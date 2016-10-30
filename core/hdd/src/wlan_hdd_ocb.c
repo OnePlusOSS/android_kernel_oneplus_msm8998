@@ -145,7 +145,7 @@ static int dot11p_validate_channel(struct wiphy *wiphy,
 	struct ieee80211_supported_band *current_band;
 	struct ieee80211_channel *current_channel;
 
-	for (band_idx = 0; band_idx < IEEE80211_NUM_BANDS; band_idx++) {
+	for (band_idx = 0; band_idx < NUM_NL80211_BANDS; band_idx++) {
 		current_band = wiphy->bands[band_idx];
 		if (!current_band)
 			continue;
@@ -302,10 +302,11 @@ static int hdd_ocb_register_sta(hdd_adapter_t *adapter)
  *
  * Return: A pointer to the OCB configuration struct, NULL on failure.
  */
-static struct sir_ocb_config *hdd_ocb_config_new(int num_channels,
-						 int num_schedule,
-						 int ndl_chan_list_len,
-						 int ndl_active_state_list_len)
+static
+struct sir_ocb_config *hdd_ocb_config_new(uint32_t num_channels,
+					  uint32_t num_schedule,
+					  uint32_t ndl_chan_list_len,
+					  uint32_t ndl_active_state_list_len)
 {
 	struct sir_ocb_config *ret = 0;
 	uint32_t len;
@@ -791,7 +792,7 @@ static int __wlan_hdd_cfg80211_ocb_set_config(struct wiphy *wiphy,
 	uint32_t ndl_active_state_list_len;
 	uint32_t flags = 0;
 	int i;
-	int channel_count, schedule_size;
+	uint32_t channel_count, schedule_size;
 	struct sir_ocb_config *config;
 	int rc = -EINVAL;
 	uint8_t *mac_addr;

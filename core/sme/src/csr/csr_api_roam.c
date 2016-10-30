@@ -57,6 +57,7 @@
 #include "cds_concurrency.h"
 #include "sme_nan_datapath.h"
 #include "pld_common.h"
+#include <wlan_logging_sock_svc.h>
 
 #define MAX_PWR_FCC_CHAN_12 8
 #define MAX_PWR_FCC_CHAN_13 2
@@ -85,6 +86,10 @@
 #define MAX_CB_VALUE_IN_INI (2)
 
 #define MAX_SOCIAL_CHANNELS  3
+
+/* packet dump timer duration of 60 secs */
+#define PKT_DUMP_TIMER_DURATION 60
+
 /* Choose the largest possible value that can be accomodates in 8 bit signed */
 /* variable. */
 #define SNR_HACK_BMPS                         (127)
@@ -960,6 +965,58 @@ void csr_set_global_cfgs(tpAniSirGlobal pMac)
 	csr_set_default_dot11_mode(pMac);
 }
 
+/**
+ * csr_packetdump_timer_handler() - packet dump timer
+ * handler
+ * @pv: user data
+ *
+ * This function is used to handle packet dump timer
+ *
+ * Return: None
+ *
+ */
+static void csr_packetdump_timer_handler(void *pv)
+{
+	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
+			"%s Invoking packetdump deregistration API", __func__);
+	wlan_deregister_txrx_packetdump();
+}
+
+/**
+ * csr_packetdump_timer_stop() - stops packet dump timer
+ *
+ * This function is used to stop packet dump timer
+ *
+ * Return: None
+ *
+ */
+void csr_packetdump_timer_stop(void)
+{
+	QDF_STATUS status;
+	tHalHandle hal;
+	tpAniSirGlobal mac;
+	v_CONTEXT_t vos_ctx_ptr;
+
+	/* get the global voss context */
+	vos_ctx_ptr = cds_get_global_context();
+	if (vos_ctx_ptr == NULL) {
+		QDF_ASSERT(0);
+		return;
+	}
+
+	hal = cds_get_context(QDF_MODULE_ID_SME);
+	if (hal == NULL) {
+		QDF_ASSERT(0);
+		return;
+	}
+
+	mac = PMAC_STRUCT(hal);
+	status = qdf_mc_timer_stop(&mac->roam.packetdump_timer);
+	if (!QDF_IS_STATUS_SUCCESS(status)) {
+		sms_log(mac, LOGE, FL("cannot stop packetdump timer"));
+	}
+}
+
 QDF_STATUS csr_roam_open(tpAniSirGlobal pMac)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
@@ -986,6 +1043,14 @@ QDF_STATUS csr_roam_open(tpAniSirGlobal pMac)
 					("cannot allocate memory for WaitForKey time out timer"));
 			break;
 		}
+		status = qdf_mc_timer_init(&pMac->roam.packetdump_timer,
+				QDF_TIMER_TYPE_SW, csr_packetdump_timer_handler,
+				pMac);
+		if (!QDF_IS_STATUS_SUCCESS(status)) {
+			sms_log(pMac, LOGE,
+			   FL("cannot allocate memory for packetdump timer"));
+			break;
+		}
 		status =
 			qdf_mc_timer_init(&pMac->roam.tlStatsReqInfo.hTlStatsTimer,
 					  QDF_TIMER_TYPE_SW,
@@ -1010,6 +1075,8 @@ QDF_STATUS csr_roam_close(tpAniSirGlobal pMac)
 	qdf_mc_timer_destroy(&pMac->roam.hTimerWaitForKey);
 	qdf_mc_timer_stop(&pMac->roam.tlStatsReqInfo.hTlStatsTimer);
 	qdf_mc_timer_destroy(&pMac->roam.tlStatsReqInfo.hTlStatsTimer);
+	qdf_mc_timer_stop(&pMac->roam.packetdump_timer);
+	qdf_mc_timer_destroy(&pMac->roam.packetdump_timer);
 	return QDF_STATUS_SUCCESS;
 }
 
@@ -7637,8 +7704,7 @@ QDF_STATUS csr_roam_connect(tpAniSirGlobal pMac, uint32_t sessionId,
 	pSession->dhcp_done = false;
 	csr_roam_cancel_roaming(pMac, sessionId);
 	csr_scan_remove_fresh_scan_command(pMac, sessionId);
-	/* Only abort the scan if its not used for other roam/connect purpose */
-	csr_scan_abort_mac_scan(pMac, sessionId, eCSR_SCAN_ABORT_DEFAULT);
+	csr_scan_abort_all_scans(pMac, eCSR_SCAN_ABORT_DEFAULT);
 	csr_roam_remove_duplicate_command(pMac, sessionId, NULL, eCsrHddIssued);
 	/* Check whether ssid changes */
 	if (csr_is_conn_state_connected(pMac, sessionId) &&
@@ -9031,6 +9097,7 @@ static void csr_roam_roaming_state_stop_bss_rsp_processor(tpAniSirGlobal pMac,
 							  tSirSmeRsp *pSmeRsp)
 {
 	eCsrRoamCompleteResult result_code = eCsrNothingToJoin;
+	tCsrRoamProfile *profile;
 
 #ifdef FEATURE_WLAN_DIAG_SUPPORT_CSR
 	{
@@ -9049,16 +9116,16 @@ static void csr_roam_roaming_state_stop_bss_rsp_processor(tpAniSirGlobal pMac,
 	pMac->roam.roamSession[pSmeRsp->sessionId].connectState =
 		eCSR_ASSOC_STATE_TYPE_NOT_CONNECTED;
 	if (CSR_IS_ROAM_SUBSTATE_STOP_BSS_REQ(pMac, pSmeRsp->sessionId)) {
-		if (CSR_IS_CONN_NDI(pMac->roam.roamSession[pSmeRsp->sessionId].
-							pCurRoamProfile)) {
+		profile =
+		    pMac->roam.roamSession[pSmeRsp->sessionId].pCurRoamProfile;
+		if (profile && CSR_IS_CONN_NDI(profile)) {
 			result_code = eCsrStopBssSuccess;
 			if (pSmeRsp->statusCode != eSIR_SME_SUCCESS)
 				result_code = eCsrStopBssFailure;
 		}
 		csr_roam_complete(pMac, result_code, NULL);
-	} else
-	if (CSR_IS_ROAM_SUBSTATE_DISCONNECT_CONTINUE
-		    (pMac, pSmeRsp->sessionId)) {
+	} else if (CSR_IS_ROAM_SUBSTATE_DISCONNECT_CONTINUE(pMac,
+			pSmeRsp->sessionId)) {
 		csr_roam_reissue_roam_command(pMac);
 	}
 }
@@ -13762,6 +13829,7 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 	uint8_t ese_config = 0;
 	tpCsrNeighborRoamControlInfo neigh_roam_info;
 	uint32_t value = 0, value1 = 0;
+	QDF_STATUS packetdump_timer_status;
 
 	if (!pSession) {
 		sms_log(pMac, LOGE, FL("  session %d not found "), sessionId);
@@ -14233,10 +14301,11 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 		}
 		/*
 		 * If RX LDPC has been disabled for 2.4GHz channels and enabled
-		 * for 5Ghz for STA like persona here is how to handle those
-		 * cases here (by now channel has been decided).
+		 * for 5Ghz for STA like persona then here is how to handle
+		 * those cases (by now channel has been decided).
 		 */
-		if (eSIR_INFRASTRUCTURE_MODE == csr_join_req->bsstype)
+		if (eSIR_INFRASTRUCTURE_MODE == csr_join_req->bsstype ||
+		    !wma_is_dbs_enable())
 			csr_set_ldpc_exception(pMac, pSession,
 					pBssDescription->channelId,
 					pMac->roam.configParam.rxLdpcEnable);
@@ -14413,6 +14482,25 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 			csr_join_req = NULL;
 			break;
 		} else {
+			if (pProfile->csrPersona == QDF_STA_MODE) {
+				sms_log(pMac, LOG1,
+				    FL(" Invoking packetdump register API"));
+				wlan_register_txrx_packetdump();
+				packetdump_timer_status =
+					qdf_mc_timer_start(
+					&pMac->roam.packetdump_timer,
+					(PKT_DUMP_TIMER_DURATION *
+					QDF_MC_TIMER_TO_SEC_UNIT)/
+					QDF_MC_TIMER_TO_MS_UNIT);
+				if (!QDF_IS_STATUS_SUCCESS(
+						packetdump_timer_status)) {
+					sms_log(pMac, LOGE,
+					   FL("cannot start packetdump timer"));
+					sms_log(pMac, LOGE,
+					   FL("packetdump_timer_status: %d"),
+					   packetdump_timer_status);
+				}
+			}
 #ifndef WLAN_MDM_CODE_REDUCTION_OPT
 			if (eWNI_SME_JOIN_REQ == messageType) {
 				/* Notify QoS module that join happening */
@@ -15032,7 +15120,12 @@ QDF_STATUS csr_send_mb_start_bss_req_msg(tpAniSirGlobal pMac, uint32_t sessionId
 	qdf_mem_copy(&pMsg->extendedRateSet,
 		     &pParam->extendedRateSet,
 		     sizeof(tSirMacRateSet));
-	if (eSIR_IBSS_MODE == pMsg->bssType)
+	/*
+	 * If RX LDPC has been disabled for 2.4GHz channels and enabled
+	 * for 5Ghz for STA like persona then here is how to handle
+	 * those cases (by now channel has been decided).
+	 */
+	if (eSIR_IBSS_MODE == pMsg->bssType || !wma_is_dbs_enable())
 		csr_set_ldpc_exception(pMac, pSession,
 				pMsg->channelId,
 				pMac->roam.configParam.rxLdpcEnable);
@@ -15707,6 +15800,9 @@ QDF_STATUS csr_roam_close_session(tpAniSirGlobal pMac, uint32_t sessionId,
 						   &pMac->sme.smeCmdPendingList);
 			purge_sme_session_cmd_list(pMac, sessionId,
 					   &pMac->sme.smeScanCmdPendingList);
+
+			purge_sme_session_cmd_list(pMac, sessionId,
+					   &pMac->sme.smeScanCmdActiveList);
 
 			purge_csr_session_cmd_list(pMac, sessionId);
 			status = csr_issue_del_sta_for_session_req(pMac,

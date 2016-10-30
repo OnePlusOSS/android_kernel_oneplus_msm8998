@@ -1556,11 +1556,6 @@ QDF_STATUS wma_tx_detach(tp_wma_handle wma_handle)
 						NULL, txrx_pdev);
 		}
 	}
-	/* Destroy Tx Frame Complete event */
-	qdf_event_destroy(&wma_handle->tx_frm_download_comp_event);
-
-	/* Tx queue empty check event (dummy event) */
-	qdf_event_destroy(&wma_handle->tx_queue_empty_event);
 
 	/* Reset Tx Frm Callbacks */
 	wma_handle->tx_frm_download_comp_cb = NULL;
@@ -2836,6 +2831,7 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 			status = QDF_STATUS_E_FAILURE;
 		} else {
 			mgmt_param.desc_id = wmi_desc->desc_id;
+			wmi_desc->vdev_id = vdev_id;
 			status = wmi_mgmt_unified_cmd_send(
 					wma_handle->wmi_handle,
 					&mgmt_param);

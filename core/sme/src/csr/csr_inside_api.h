@@ -66,7 +66,6 @@
 
 #define CSR_MAX_BSS_SUPPORT            512
 #define SYSTEM_TIME_MSEC_TO_USEC      1000
-#define SYSTEM_TIME_SEC_TO_MSEC       1000
 
 /* This number minus 1 means the number of times a channel is scanned before a BSS is remvoed from */
 /* cache scan result */
@@ -267,6 +266,8 @@ QDF_STATUS csr_scan_for_ssid(tpAniSirGlobal pMac, uint32_t sessionId,
 /* To remove fresh scan commands from the pending queue */
 bool csr_scan_remove_fresh_scan_command(tpAniSirGlobal pMac, uint8_t sessionId);
 QDF_STATUS csr_scan_abort_mac_scan(tpAniSirGlobal pMac, uint8_t sessionId,
+				   eCsrAbortReason reason);
+QDF_STATUS csr_scan_abort_all_scans(tpAniSirGlobal mac_ctx,
 				   eCsrAbortReason reason);
 void csr_remove_cmd_from_pending_list(tpAniSirGlobal pMac, tDblLinkList *pList,
 				      eSmeCommandType commandType);

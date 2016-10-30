@@ -1017,6 +1017,15 @@ sme_process_cmd:
 			  pCommand->command);
 		csr_ll_unlock(&pMac->sme.smeCmdActiveList);
 		status = csr_tdls_process_cmd(pMac, pCommand);
+		if (!QDF_IS_STATUS_SUCCESS(status)) {
+			if (csr_ll_remove_entry(&pMac->sme.smeCmdActiveList,
+						&pCommand->Link,
+						LL_ACCESS_LOCK)) {
+				qdf_mem_zero(&pCommand->u.tdlsCmd,
+					     sizeof(tTdlsCmd));
+				csr_release_command(pMac, pCommand);
+			}
+		}
 		break;
 #endif
 	case e_sme_command_set_hw_mode:
@@ -16644,6 +16653,7 @@ QDF_STATUS sme_set_default_scan_ie(tHalHandle hal, uint16_t session_id,
 	return status;
 }
 
+#ifdef WLAN_FEATURE_DISA
 /**
  * sme_encrypt_decrypt_msg() - handles encrypt/decrypt mesaage
  * @hal: HAL handle
@@ -16774,6 +16784,7 @@ QDF_STATUS sme_encrypt_decrypt_msg_deregister_callback(tHalHandle h_hal)
 	}
 	return status;
 }
+#endif
 
 QDF_STATUS sme_set_cts2self_for_p2p_go(tHalHandle hal_handle)
 {

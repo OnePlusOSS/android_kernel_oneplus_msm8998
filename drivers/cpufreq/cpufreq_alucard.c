@@ -294,7 +294,7 @@ static void cpufreq_alucard_timer(unsigned long data)
 	unsigned int cpus_up_rate = tunables->cpus_up_rate;
 	unsigned int cpus_down_rate = tunables->cpus_down_rate;
 	unsigned int new_freq = 0;
-	unsigned int max_load = 0, tmpload;
+	unsigned int max_load = 0;
 	unsigned long flags;
 	unsigned long max_cpu;
 	int i, fcpu;
@@ -334,10 +334,9 @@ static void cpufreq_alucard_timer(unsigned long data)
 		ignore = update_load(i);
 		if (ignore)
 			continue;
-		tmpload = pcpu->load;
 
-		if (tmpload > max_load) {
-			max_load = tmpload;
+		if (pcpu->load > max_load) {
+			max_load = pcpu->load;
 			max_cpu = i;
 		}
 	}

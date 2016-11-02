@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1613,7 +1613,7 @@ err_wiphy_unregister:
 		nl_srv_exit();
 
 		/* Free up dynamically allocated members inside HDD Adapter */
-		kfree(pHddCtx->config);
+		qdf_mem_free(pHddCtx->config);
 		pHddCtx->config = NULL;
 		wlan_hdd_deinit_tx_rx_histogram(pHddCtx);
 		wiphy_unregister(pHddCtx->wiphy);

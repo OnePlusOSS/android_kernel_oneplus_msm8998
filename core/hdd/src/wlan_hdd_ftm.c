@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -219,7 +219,7 @@ static int wlan_hdd_qcmbr_command(hdd_adapter_t *adapter,
 		if (!ret) {
 			memcpy(pqcmbr_data->buf, qcmbr_buf->utf_buf,
 			       (MAX_UTF_LENGTH + 4));
-			kfree(qcmbr_buf);
+			qdf_mem_free(qcmbr_buf);
 		} else {
 			ret = -EAGAIN;
 		}
@@ -244,7 +244,7 @@ static int wlan_hdd_qcmbr_compat_ioctl(hdd_adapter_t *adapter,
 	qcmbr_data_t *qcmbr_data;
 	int ret = 0;
 
-	qcmbr_data = kzalloc(sizeof(qcmbr_data_t), GFP_KERNEL);
+	qcmbr_data = qdf_mem_malloc(sizeof(qcmbr_data_t));
 	if (qcmbr_data == NULL)
 		return -ENOMEM;
 
@@ -260,7 +260,7 @@ static int wlan_hdd_qcmbr_compat_ioctl(hdd_adapter_t *adapter,
 	}
 
 exit:
-	kfree(qcmbr_data);
+	qdf_mem_free(qcmbr_data);
 	return ret;
 }
 #else                           /* CONFIG_COMPAT */
@@ -283,7 +283,7 @@ static int wlan_hdd_qcmbr_ioctl(hdd_adapter_t *adapter, struct ifreq *ifr)
 	qcmbr_data_t *qcmbr_data;
 	int ret = 0;
 
-	qcmbr_data = kzalloc(sizeof(qcmbr_data_t), GFP_KERNEL);
+	qcmbr_data = qdf_mem_malloc(sizeof(qcmbr_data_t));
 	if (qcmbr_data == NULL)
 		return -ENOMEM;
 
@@ -299,7 +299,7 @@ static int wlan_hdd_qcmbr_ioctl(hdd_adapter_t *adapter, struct ifreq *ifr)
 	}
 
 exit:
-	kfree(qcmbr_data);
+	qdf_mem_free(qcmbr_data);
 	return ret;
 }
 
@@ -335,7 +335,7 @@ static void wlanqcmbr_mc_process_msg(void *message)
 	uint32_t data_len;
 
 	data_len = *((uint32_t *) message) + sizeof(uint32_t);
-	qcmbr_buf = kzalloc(sizeof(qcmbr_queue_t), GFP_KERNEL);
+	qcmbr_buf = qdf_mem_malloc(sizeof(qcmbr_queue_t));
 	if (qcmbr_buf != NULL) {
 		memcpy(qcmbr_buf->utf_buf, message, data_len);
 		spin_lock_bh(&qcmbr_queue_lock);

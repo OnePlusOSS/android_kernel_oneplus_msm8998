@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -9350,30 +9350,51 @@ static void __hdd_module_exit(void)
  * Return: 'count' on success or a negative error code in case of failure
  */
 static ssize_t wlan_boot_cb(struct kobject *kobj,
-				struct kobj_attribute *attr,
-				const char *buf,
-				size_t count)
+			    struct kobj_attribute *attr,
+			    const char *buf,
+			    size_t count)
 {
 
-	int ret = 0;
-
 	if (wlan_loader->loaded_state) {
-		pr_info("Wlan driver already initialized");
-		return 0;
+		pr_err("%s: wlan driver already initialized\n", __func__);
+		return -EALREADY;
 	}
 
-
-	pr_err("%s: Loading driver v%s\n", WLAN_MODULE_NAME,
-		QWLAN_VERSIONSTR TIMER_MANAGER_STR MEMORY_DEBUG_STR);
-
 	if (__hdd_module_init()) {
-		pr_err("%s: Failed to register handler\n", __func__);
-		ret = -EINVAL;
-	} else
-		wlan_loader->loaded_state = MODULE_INITIALIZED;
+		pr_err("%s: wlan driver initialization failed\n", __func__);
+		return -EIO;
+	}
+
+	wlan_loader->loaded_state = MODULE_INITIALIZED;
 
 	return count;
 
+}
+
+/**
+ * hdd_sysfs_cleanup() - cleanup sysfs
+ *
+ * Return: None
+ *
+ */
+static void hdd_sysfs_cleanup(void)
+{
+
+	/* remove from group */
+	if (wlan_loader->boot_wlan_obj && wlan_loader->attr_group)
+		sysfs_remove_group(wlan_loader->boot_wlan_obj,
+				   wlan_loader->attr_group);
+
+	/* unlink the object from parent */
+	kobject_del(wlan_loader->boot_wlan_obj);
+
+	/* free the object */
+	kobject_put(wlan_loader->boot_wlan_obj);
+
+	kfree(wlan_loader->attr_group);
+	kfree(wlan_loader);
+
+	wlan_loader = NULL;
 }
 
 /**
@@ -9383,17 +9404,19 @@ static ssize_t wlan_boot_cb(struct kobject *kobj,
  * This is creates the syfs entry boot_wlan. Which shall be invoked
  * when the filesystem is ready.
  *
+ * QDF API cannot be used here since this function is called even before
+ * initializing WLAN driver.
+ *
  * Return: 0 for success, errno on failure
  */
 static int wlan_init_sysfs(void)
 {
-	int ret = -EINVAL;
+	int ret = -ENOMEM;
 
 	wlan_loader = kzalloc(sizeof(*wlan_loader), GFP_KERNEL);
 	if (!wlan_loader) {
 		pr_err("%s: memory alloc failed\n", __func__);
-		ret = -ENOMEM;
-		return ret;
+		return -ENOMEM;
 	}
 
 	wlan_loader->boot_wlan_obj = NULL;
@@ -9401,7 +9424,6 @@ static int wlan_init_sysfs(void)
 					  GFP_KERNEL);
 	if (!wlan_loader->attr_group) {
 		pr_err("%s: malloc attr_group failed\n", __func__);
-		ret = -ENOMEM;
 		goto error_return;
 	}
 
@@ -9412,7 +9434,6 @@ static int wlan_init_sysfs(void)
 							    kernel_kobj);
 	if (!wlan_loader->boot_wlan_obj) {
 		pr_err("%s: sysfs create and add failed\n", __func__);
-		ret = -ENOMEM;
 		goto error_return;
 	}
 
@@ -9426,11 +9447,7 @@ static int wlan_init_sysfs(void)
 	return 0;
 
 error_return:
-
-	if (wlan_loader->boot_wlan_obj) {
-		kobject_del(wlan_loader->boot_wlan_obj);
-		wlan_loader->boot_wlan_obj = NULL;
-	}
+	hdd_sysfs_cleanup();
 
 	return ret;
 }
@@ -9442,23 +9459,16 @@ error_return:
  */
 static int wlan_deinit_sysfs(void)
 {
-
 	if (!wlan_loader) {
 		hdd_alert("wlan loader context is Null!");
 		return -EINVAL;
 	}
 
-	if (wlan_loader->boot_wlan_obj) {
-		sysfs_remove_group(wlan_loader->boot_wlan_obj,
-				   wlan_loader->attr_group);
-		kobject_del(wlan_loader->boot_wlan_obj);
-		wlan_loader->boot_wlan_obj = NULL;
-	}
-
+	hdd_sysfs_cleanup();
 	return 0;
 }
 
-#endif
+#endif /* MODULE */
 
 #ifdef MODULE
 /**

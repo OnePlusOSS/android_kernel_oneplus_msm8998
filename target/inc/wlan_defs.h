@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2010, 2013-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2004-2010, 2013-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -102,7 +102,7 @@ typedef enum {
 
 	/*
 	 * MODE_UNKNOWN should not be used within the host / target interface.
-	 * Thus, it is permissible for ODE_UNKNOWN to be conditionally-defined,
+	 * Thus, it is permissible for MODE_UNKNOWN to be conditionally-defined,
 	 * taking different values when compiling for different targets.
 	 */
 

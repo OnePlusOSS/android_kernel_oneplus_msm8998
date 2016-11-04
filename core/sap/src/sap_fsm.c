@@ -1062,7 +1062,6 @@ sap_mark_leaking_ch(ptSapContext sap_ctx,
 					FL("sapdfs: channel: %d will have bad leakage due to channel: %d\n"),
 					dfs_nol_channel, temp_ch_lst[j]);
 				temp_ch_lst[j] = 0;
-				break;
 			}
 			j++;
 			k++;
@@ -2215,7 +2214,18 @@ QDF_STATUS sap_goto_channel_sel(ptSapContext sap_context,
 #endif
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
 		if (sap_context->cc_switch_mode !=
-						QDF_MCC_TO_SCC_SWITCH_DISABLE) {
+					QDF_MCC_TO_SCC_SWITCH_DISABLE &&
+					sap_context->channel) {
+			/*
+			 * For ACS request ,the sapContext->channel is 0,
+			 * we skip below overlap checking. When the ACS
+			 * finish and SAPBSS start, the sapContext->channel
+			 * will not be 0. Then the overlap checking will be
+			 * reactivated.If we use sapContext->channel = 0
+			 * to perform the overlap checking, an invalid overlap
+			 * channel con_ch could becreated. That may cause
+			 * SAP start failed.
+			 */
 			con_ch = sme_check_concurrent_channel_overlap(h_hal,
 					sap_context->channel,
 					sap_context->csr_roamProfile.phyMode,
@@ -2245,7 +2255,8 @@ QDF_STATUS sap_goto_channel_sel(ptSapContext sap_context,
 #endif
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
 		if (sap_context->cc_switch_mode !=
-						QDF_MCC_TO_SCC_SWITCH_DISABLE) {
+					QDF_MCC_TO_SCC_SWITCH_DISABLE &&
+					sap_context->channel) {
 			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
 				FL("check for overlap: chan:%d mode:%d"),
 				sap_context->channel,
@@ -2317,7 +2328,7 @@ QDF_STATUS sap_goto_channel_sel(ptSapContext sap_context,
 			eCSR_SCAN_SOFTAP_CHANNEL_RANGE;
 
 		sap_context->channelList = channel_list;
-
+		sap_context->num_of_channel = num_of_channels;
 #endif
 		/* Set requestType to Full scan */
 
@@ -2371,6 +2382,7 @@ QDF_STATUS sap_goto_channel_sel(ptSapContext sap_context,
 				qdf_mem_free(sap_context->
 					channelList);
 				sap_context->channelList = NULL;
+				sap_context->num_of_channel = 0;
 			}
 #endif
 			if (true == sap_do_acs_pre_start_bss) {
@@ -2638,9 +2650,21 @@ static QDF_STATUS sap_goto_disconnecting(ptSapContext sapContext)
 static QDF_STATUS sap_roam_session_close_callback(void *pContext)
 {
 	ptSapContext sapContext = (ptSapContext) pContext;
-	return sap_signal_hdd_event(sapContext, NULL,
+	QDF_STATUS status;
+
+	status = wlansap_context_get(pContext);
+	if (status != QDF_STATUS_SUCCESS) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			  "%s: sap context has already been freed", __func__);
+		return status;
+	}
+
+	status = sap_signal_hdd_event(sapContext, NULL,
 				 eSAP_STOP_BSS_EVENT,
 				 (void *) eSAP_STATUS_SUCCESS);
+
+	wlansap_context_put(pContext);
+	return status;
 }
 
 /*==========================================================================
@@ -2681,6 +2705,34 @@ static QDF_STATUS sap_goto_disconnected(ptSapContext sapContext)
 
 	return qdf_status;
 }
+
+#ifdef FEATURE_WLAN_AP_AP_ACS_OPTIMIZE
+/**
+ * sap_handle_acs_scan_event() - handle acs scan event for SAP
+ * @sap_context: ptSapContext
+ * @sap_event: tSap_Event
+ * @status: status of acs scan
+ *
+ * The function is to handle the eSAP_ACS_SCAN_SUCCESS_EVENT event.
+ *
+ * Return: void
+ */
+static void sap_handle_acs_scan_event(ptSapContext sap_context,
+		tSap_Event *sap_event, eSapStatus status)
+{
+	sap_event->sapHddEventCode = eSAP_ACS_SCAN_SUCCESS_EVENT;
+	sap_event->sapevt.sap_acs_scan_comp.status = status;
+	sap_event->sapevt.sap_acs_scan_comp.num_of_channels =
+			sap_context->num_of_channel;
+	sap_event->sapevt.sap_acs_scan_comp.channellist =
+			sap_context->channelList;
+}
+#else
+static void sap_handle_acs_scan_event(ptSapContext sap_context,
+		tSap_Event *sap_event, eSapStatus status)
+{
+}
+#endif
 
 /**
  * sap_signal_hdd_event() - send event notification
@@ -2785,14 +2837,14 @@ QDF_STATUS sap_signal_hdd_event(ptSapContext sap_ctx,
 	case eSAP_DFS_RADAR_DETECT:
 	case eSAP_DFS_RADAR_DETECT_DURING_PRE_CAC:
 	case eSAP_DFS_NO_AVAILABLE_CHANNEL:
-#ifdef FEATURE_WLAN_AP_AP_ACS_OPTIMIZE
-	case eSAP_ACS_SCAN_SUCCESS_EVENT:
-#endif
 		sap_ap_event.sapHddEventCode = sap_hddevent;
 		sap_ap_event.sapevt.sapStopBssCompleteEvent.status =
 			(eSapStatus) context;
 		break;
-
+	case eSAP_ACS_SCAN_SUCCESS_EVENT:
+		sap_handle_acs_scan_event(sap_ctx, &sap_ap_event,
+			(eSapStatus)context);
+		break;
 	case eSAP_ACS_CHANNEL_SELECTED:
 		sap_ap_event.sapHddEventCode = sap_hddevent;
 		acs_selected = &sap_ap_event.sapevt.sap_ch_selected;

@@ -1052,8 +1052,15 @@ populate_dot11f_vht_caps(tpAniSirGlobal pMac,
 		CFG_GET_INT(nStatus, pMac, WNI_CFG_VHT_RXSTBC, nCfgValue);
 		pDot11f->rxSTBC = (nCfgValue & 0x0007);
 
-		pDot11f->suBeamformeeCap = 0;
-		pDot11f->muBeamformeeCap = 0;
+		nCfgValue = 0;
+		CFG_GET_INT(nStatus, pMac,
+			    WNI_CFG_VHT_SU_BEAMFORMEE_CAP, nCfgValue);
+		pDot11f->suBeamformeeCap = (nCfgValue & 0x0001);
+
+		nCfgValue = 0;
+		CFG_GET_INT(nStatus, pMac,
+			    WNI_CFG_VHT_MU_BEAMFORMEE_CAP, nCfgValue);
+		pDot11f->muBeamformeeCap = (nCfgValue & 0x0001);
 
 		nCfgValue = 0;
 		CFG_GET_INT(nStatus, pMac, WNI_CFG_VHT_SU_BEAMFORMER_CAP,
@@ -4629,7 +4636,7 @@ sir_convert_qos_map_configure_frame2_struct(tpAniSirGlobal pMac,
 	uint32_t status;
 	status =
 		dot11f_unpack_qos_map_configure(pMac, pFrame, nFrame, &mapConfigure);
-	if (DOT11F_FAILED(status)) {
+	if (DOT11F_FAILED(status) || !mapConfigure.QosMapSet.present) {
 		dot11f_log(pMac, LOGE,
 			   FL("Failed to parse Qos Map Configure frame (0x%08x, %d bytes):"),
 			   status, nFrame);

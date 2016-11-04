@@ -96,27 +96,6 @@ struct pld_fw_files {
 	char setup_file[PLD_MAX_FILE_NAME];
 };
 
-#define PLD_CODESWAP_MAX_CODESEGS 16
-
-/**
- * struct pld_codeswap_codeseg_info - code swap segment information
- * @codeseg_total_bytes: total bytes of segments
- * @num_codesegs: number of code segments
- * @codeseg_size: code segment size
- * @codeseg_size_log2: log2 of code segment size
- * @codeseg_busaddr: array of addresses of each code segment
- *
- * pld_codeswap_codeseg_info is used to store code swap segment
- * information.
- */
-struct pld_codeswap_codeseg_info {
-	u32   codeseg_total_bytes;
-	u32   num_codesegs;
-	u32   codeseg_size;
-	u32   codeseg_size_log2;
-	void *codeseg_busaddr[PLD_CODESWAP_MAX_CODESEGS];
-};
-
 /**
  * enum pld_platform_cap_flag - platform capability flag
  * @PLD_HAS_EXTERNAL_SWREG: has external regulator
@@ -333,8 +312,6 @@ int pld_get_fw_files_for_target(struct device *dev,
 				u32 target_type, u32 target_version);
 void pld_is_pci_link_down(struct device *dev);
 int pld_shadow_control(struct device *dev, bool enable);
-int pld_get_codeswap_struct(struct device *dev,
-			    struct pld_codeswap_codeseg_info *swap_seg);
 int pld_set_wlan_unsafe_channel(struct device *dev, u16 *unsafe_ch_list,
 				u16 ch_count);
 int pld_get_wlan_unsafe_channel(struct device *dev, u16 *unsafe_ch_list,
@@ -380,4 +357,6 @@ int pld_smmu_map(struct device *dev, phys_addr_t paddr,
 		 uint32_t *iova_addr, size_t size);
 unsigned int pld_socinfo_get_serial_number(struct device *dev);
 uint8_t *pld_common_get_wlan_mac_address(struct device *dev, uint32_t *num);
+int pld_is_qmi_disable(struct device *dev);
+
 #endif

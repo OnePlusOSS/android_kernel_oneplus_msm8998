@@ -233,29 +233,31 @@ static int __wlan_hdd_ipv6_changed(struct notifier_block *nb,
 	struct net_device *ndev = ifa->idev->dev;
 	hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(ndev);
 	hdd_context_t *pHddCtx;
+	hdd_station_ctx_t *sta_ctx;
 	int status;
 
-	ENTER();
+	ENTER_DEV(ndev);
 
 	if ((pAdapter == NULL) || (WLAN_HDD_ADAPTER_MAGIC != pAdapter->magic)) {
 		hdd_err("Adapter context is invalid %p", pAdapter);
-		return -EINVAL;
+		return NOTIFY_DONE;
 	}
 
 	if ((pAdapter->dev == ndev) &&
-		(pAdapter->device_mode == QDF_STA_MODE ||
-		pAdapter->device_mode == QDF_P2P_CLIENT_MODE ||
-		pAdapter->device_mode == QDF_NDI_MODE)) {
+	    (pAdapter->device_mode == QDF_STA_MODE ||
+	     pAdapter->device_mode == QDF_P2P_CLIENT_MODE ||
+	     pAdapter->device_mode == QDF_NDI_MODE)) {
 		pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
 		status = wlan_hdd_validate_context(pHddCtx);
 		if (0 != status)
 			return NOTIFY_DONE;
+		sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
 		if (eConnectionState_Associated ==
-		   WLAN_HDD_GET_STATION_CTX_PTR(
-		   pAdapter)->conn_info.connState)
+						sta_ctx->conn_info.connState) {
+			hdd_info("invoking sme_dhcp_done_ind");
 			sme_dhcp_done_ind(pHddCtx->hHal,
-				pAdapter->sessionId);
-
+					  pAdapter->sessionId);
+		}
 		schedule_work(&pAdapter->ipv6NotifierWorkQueue);
 	}
 	EXIT();
@@ -751,30 +753,33 @@ static int __wlan_hdd_ipv4_changed(struct notifier_block *nb,
 	struct net_device *ndev = ifa->ifa_dev->dev;
 	hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(ndev);
 	hdd_context_t *pHddCtx;
+	hdd_station_ctx_t *sta_ctx;
 	int status;
 
-	ENTER();
+	ENTER_DEV(ndev);
 
 	if ((pAdapter == NULL) || (WLAN_HDD_ADAPTER_MAGIC != pAdapter->magic)) {
 		hdd_err("Adapter context is invalid %p", pAdapter);
-		return -EINVAL;
+		return NOTIFY_DONE;
 	}
 
-	if ((pAdapter && pAdapter->dev == ndev) &&
-		(pAdapter->device_mode == QDF_STA_MODE ||
-		pAdapter->device_mode == QDF_P2P_CLIENT_MODE ||
-		pAdapter->device_mode == QDF_NDI_MODE)) {
+	if ((pAdapter->dev == ndev) &&
+	    (pAdapter->device_mode == QDF_STA_MODE ||
+	     pAdapter->device_mode == QDF_P2P_CLIENT_MODE ||
+	     pAdapter->device_mode == QDF_NDI_MODE)) {
 
 		pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
 		status = wlan_hdd_validate_context(pHddCtx);
 		if (0 != status)
 			return NOTIFY_DONE;
 
+		sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
 		if (eConnectionState_Associated ==
-		   WLAN_HDD_GET_STATION_CTX_PTR(
-		   pAdapter)->conn_info.connState)
+						sta_ctx->conn_info.connState) {
+			hdd_info("invoking sme_dhcp_done_ind");
 			sme_dhcp_done_ind(pHddCtx->hHal,
-				pAdapter->sessionId);
+					  pAdapter->sessionId);
+		}
 
 		if (!pHddCtx->config->fhostArpOffload) {
 			hdd_notice("Offload not enabled ARPOffload=%d",
@@ -1897,6 +1902,12 @@ static int __wlan_hdd_cfg80211_suspend_wlan(struct wiphy *wiphy,
 	status = hdd_get_front_adapter(pHddCtx, &pAdapterNode);
 	while (NULL != pAdapterNode && QDF_STATUS_SUCCESS == status) {
 		pAdapter = pAdapterNode->pAdapter;
+
+		if (wlan_hdd_validate_session_id(pAdapter->sessionId)) {
+			hdd_err("invalid session id: %d", pAdapter->sessionId);
+			goto next_adapter;
+		}
+
 		if (QDF_SAP_MODE == pAdapter->device_mode) {
 			if (BSS_START ==
 			    WLAN_HDD_GET_HOSTAP_STATE_PTR(pAdapter)->bssState &&
@@ -1925,6 +1936,7 @@ static int __wlan_hdd_cfg80211_suspend_wlan(struct wiphy *wiphy,
 		}
 		if (pAdapter->is_roc_inprogress)
 			wlan_hdd_cleanup_remain_on_channel_ctx(pAdapter);
+next_adapter:
 		status = hdd_get_next_adapter(pHddCtx, pAdapterNode, &pNext);
 		pAdapterNode = pNext;
 	}
@@ -2142,6 +2154,11 @@ static int __wlan_hdd_cfg80211_set_power_mgmt(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
+	if (wlan_hdd_validate_session_id(pAdapter->sessionId)) {
+		hdd_err("invalid session id: %d", pAdapter->sessionId);
+		return -EINVAL;
+	}
+
 	MTRACE(qdf_trace(QDF_MODULE_ID_HDD,
 			 TRACE_CODE_HDD_CFG80211_SET_POWER_MGMT,
 			 pAdapter->sessionId, timeout));
@@ -2327,6 +2344,11 @@ static int __wlan_hdd_cfg80211_get_txpower(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
+	if (wlan_hdd_validate_session_id(adapter->sessionId)) {
+		hdd_err("invalid session id: %d", adapter->sessionId);
+		return -EINVAL;
+	}
+
 	status = wlan_hdd_validate_context(pHddCtx);
 	if (0 != status) {
 		*dbm = 0;
@@ -2339,8 +2361,8 @@ static int __wlan_hdd_cfg80211_get_txpower(struct wiphy *wiphy,
 	}
 
 	/* Validate adapter sessionId */
-	if (adapter->sessionId == HDD_SESSION_ID_INVALID) {
-		hdd_err("Adapter Session Invalid!");
+	if (wlan_hdd_validate_session_id(adapter->sessionId)) {
+		hdd_err("invalid session id: %d", adapter->sessionId);
 		return -ENOTSUPP;
 	}
 

@@ -183,7 +183,6 @@
 #define WMA_IPV6_PROTO_GET_MIN_LEN        21
 #define WMA_IPV6_PKT_INFO_GET_MIN_LEN     62
 #define WMA_ICMPV6_SUBTYPE_GET_MIN_LEN    55
-
 /**
  * ds_mode: distribution system mode
  * @IEEE80211_NO_DS: NO DS at either side
@@ -388,6 +387,7 @@ enum ds_mode {
 #define WMA_NEXT_20MHZ_START_CH_DIFF 4
 
 #define WMA_DEFAULT_HW_MODE_INDEX 0xFFFF
+#define TWO_THIRD (2/3)
 
 /**
  * WMA hardware mode list bit-mask definitions.
@@ -493,7 +493,7 @@ typedef struct probeTime_dwellTime {
 
 static const t_probeTime_dwellTime
 	probe_time_dwell_time_map[WMA_DWELL_TIME_PROBE_TIME_MAP_SIZE] = {
-	{28, 0},                /* 0 SSID */
+	{28, 11},               /* 0 SSID */
 	{28, 20},               /* 1 SSID */
 	{28, 20},               /* 2 SSID */
 	{28, 20},               /* 3 SSID */
@@ -1061,7 +1061,6 @@ struct wma_txrx_node {
 	int8_t max_tx_power;
 	uint32_t nwType;
 	void *staKeyParams;
-	bool ps_enabled;
 	uint32_t dtim_policy;
 	uint32_t peer_count;
 	bool roam_synch_in_progress;
@@ -2196,7 +2195,6 @@ void ieee80211_mark_dfs(struct ieee80211com *ic,
 			struct dfs_ieee80211_channel *ichan);
 int wma_dfs_indicate_radar(struct ieee80211com *ic,
 			   struct dfs_ieee80211_channel *ichan);
-uint16_t dfs_usenol(struct ieee80211com *ic);
 
 QDF_STATUS wma_trigger_uapsd_params(tp_wma_handle wma_handle, uint32_t vdev_id,
 				    tp_wma_trigger_uapsd_params
@@ -2335,3 +2333,5 @@ void wma_register_packetdump_callback(
 		tp_wma_packetdump_cb wma_mgmt_tx_packetdump_cb,
 		tp_wma_packetdump_cb wma_mgmt_rx_packetdump_cb);
 void wma_deregister_packetdump_callback(void);
+void wma_update_sta_inactivity_timeout(tp_wma_handle wma,
+		struct sme_sta_inactivity_timeout  *sta_inactivity_timer);

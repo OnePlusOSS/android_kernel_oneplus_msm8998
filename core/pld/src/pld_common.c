@@ -539,39 +539,6 @@ int pld_shadow_control(struct device *dev, bool enable)
 }
 
 /**
- * pld_get_codeswap_struct() - Get codeswap structure
- * @dev: device
- * @swap_seg: buffer to codeswap information
- *
- * Return codeswap structure information to the buffer.
- *
- * Return: 0 for success
- *         Non zero failure code for errors
- */
-int pld_get_codeswap_struct(struct device *dev,
-			    struct pld_codeswap_codeseg_info *swap_seg)
-{
-	int ret = 0;
-
-	switch (pld_get_bus_type(dev)) {
-	case PLD_BUS_TYPE_PCIE:
-		ret = pld_pcie_get_codeswap_struct(swap_seg);
-		break;
-	case PLD_BUS_TYPE_SNOC:
-		break;
-	case PLD_BUS_TYPE_SDIO:
-		break;
-	case PLD_BUS_TYPE_USB:
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-
-	return ret;
-}
-
-/**
  * pld_set_wlan_unsafe_channel() - Set unsafe channel
  * @dev: device
  * @unsafe_ch_list: unsafe channel list
@@ -1573,4 +1540,35 @@ uint8_t *pld_common_get_wlan_mac_address(struct device *dev, uint32_t *num)
 
 	*num = 0;
 	return NULL;
+}
+
+/**
+ * pld_is_qmi_disable() - Check QMI support is present or not
+ * @dev: device
+ *
+ *  Return: 1 QMI is not supported
+ *          0 QMI is supported
+ *          Non zero failure code for errors
+ */
+int pld_is_qmi_disable(struct device *dev)
+{
+	int ret = 0;
+	enum pld_bus_type type = pld_get_bus_type(dev);
+
+	switch (type) {
+	case PLD_BUS_TYPE_SNOC:
+		ret = pld_snoc_is_qmi_disable();
+		break;
+	case PLD_BUS_TYPE_PCIE:
+	case PLD_BUS_TYPE_SDIO:
+		pr_err("Not supported on type %d\n", type);
+		ret = -EINVAL;
+		break;
+	default:
+		pr_err("Invalid device type %d\n", type);
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
 }

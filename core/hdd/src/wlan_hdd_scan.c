@@ -482,9 +482,9 @@ static int hdd_indicate_scan_result(hdd_scan_info_t *scanInfo,
 	/* AGE */
 	event.cmd = IWEVCUSTOM;
 	p = custom;
-	p += scnprintf(p, MAX_CUSTOM_LEN, " Age: %lu",
-		       qdf_mc_timer_get_system_ticks() -
-		       descriptor->nReceivedTime);
+	p += scnprintf(p, MAX_CUSTOM_LEN, " Age: %llu",
+		       qdf_mc_timer_get_system_time() -
+		       descriptor->received_time);
 	event.u.data.length = p - custom;
 	current_event = iwe_stream_add_point(scanInfo->info, current_event, end,
 					     &event, custom);
@@ -855,12 +855,13 @@ static int __iw_set_scan(struct net_device *dev, struct iw_request_info *info,
 	}
 
 	/* push addIEScan in scanRequset if exist */
-	if (pAdapter->scan_info.scanAddIE.addIEdata &&
-	    pAdapter->scan_info.scanAddIE.length) {
+	if (pAdapter->scan_info.scanAddIE.length &&
+	    pAdapter->scan_info.scanAddIE.length <=
+	    sizeof(pAdapter->scan_info.scanAddIE.addIEdata)) {
 		scanRequest.uIEFieldLen = pAdapter->scan_info.scanAddIE.length;
 		scanRequest.pIEField = pAdapter->scan_info.scanAddIE.addIEdata;
 	}
-	scanRequest.timestamp = qdf_mc_timer_get_system_ticks();
+	scanRequest.timestamp = qdf_mc_timer_get_system_time();
 	status = sme_scan_request((WLAN_HDD_GET_CTX(pAdapter))->hHal,
 				  pAdapter->sessionId, &scanRequest,
 				  &hdd_scan_request_callback, dev);
@@ -1293,6 +1294,65 @@ allow_suspend:
 	return 0;
 }
 
+#ifdef FEATURE_WLAN_AP_AP_ACS_OPTIMIZE
+/**
+ * wlan_hdd_sap_skip_scan_check() - The function will check OBSS
+ *         scan skip or not for SAP.
+ * @hdd_ctx: pointer to hdd context.
+ * @request: pointer to scan request.
+ *
+ * This function will check the scan request's chan list against the
+ * previous ACS scan chan list. If all the chan are covered by
+ * previous ACS scan, we can skip the scan and return scan complete
+ * to save the SAP starting time.
+ *
+ * Return: true to skip the scan,
+ *            false to continue the scan
+ */
+static bool wlan_hdd_sap_skip_scan_check(hdd_context_t *hdd_ctx,
+	struct cfg80211_scan_request *request)
+{
+	int i, j;
+	bool skip;
+
+	hdd_info("HDD_ACS_SKIP_STATUS = %d",
+		hdd_ctx->skip_acs_scan_status);
+	if (hdd_ctx->skip_acs_scan_status != eSAP_SKIP_ACS_SCAN)
+		return false;
+	qdf_spin_lock(&hdd_ctx->acs_skip_lock);
+	if (hdd_ctx->last_acs_channel_list == NULL ||
+	   hdd_ctx->num_of_channels == 0 ||
+	   request->n_channels == 0) {
+		qdf_spin_unlock(&hdd_ctx->acs_skip_lock);
+		return false;
+	}
+	skip = true;
+	for (i = 0; i < request->n_channels ; i++) {
+		bool find = false;
+		for (j = 0; j < hdd_ctx->num_of_channels; j++) {
+			if (hdd_ctx->last_acs_channel_list[j] ==
+			   request->channels[i]->hw_value) {
+				find = true;
+				break;
+			}
+		}
+		if (!find) {
+			skip = false;
+			hdd_info("Chan %d isn't in ACS chan list",
+				request->channels[i]->hw_value);
+			break;
+		}
+	}
+	qdf_spin_unlock(&hdd_ctx->acs_skip_lock);
+	return skip;
+}
+#else
+static bool wlan_hdd_sap_skip_scan_check(hdd_context_t *hdd_ctx,
+	struct cfg80211_scan_request *request)
+{
+	return false;
+}
+#endif
 
 /**
  * wlan_hdd_cfg80211_scan_block_cb() - scan block work handler
@@ -1436,6 +1496,11 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
+	if (wlan_hdd_validate_session_id(pAdapter->sessionId)) {
+		hdd_err("invalid session id: %d", pAdapter->sessionId);
+		return -EINVAL;
+	}
+
 	status = wlan_hdd_validate_context(pHddCtx);
 
 	if (0 != status)
@@ -1477,6 +1542,7 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 			 * If we return scan failure hostapd fails secondary AP
 			 * startup.
 			 */
+			hdd_err("##In DFS Master mode. Scan aborted");
 			pAdapter->request = request;
 
 			INIT_WORK(&pAdapter->scan_block_work,
@@ -1530,10 +1596,20 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 		hdd_err("Scan not allowed");
 		return -EBUSY;
 	}
+	/* Check whether SAP scan can be skipped or not */
+	if (pAdapter->device_mode == QDF_SAP_MODE &&
+	   wlan_hdd_sap_skip_scan_check(pHddCtx, request)) {
+		hdd_err("sap scan skipped");
+		pAdapter->request = request;
+		INIT_WORK(&pAdapter->scan_block_work,
+			wlan_hdd_cfg80211_scan_block_cb);
+		schedule_work(&pAdapter->scan_block_work);
+		return 0;
+	}
 
 	qdf_mem_zero(&scan_req, sizeof(scan_req));
 
-	scan_req.timestamp = qdf_mc_timer_get_system_ticks();
+	scan_req.timestamp = qdf_mc_timer_get_system_time();
 
 	/* Even though supplicant doesn't provide any SSIDs, n_ssids is
 	 * set to 1.  Because of this, driver is assuming that this is not
@@ -2012,6 +2088,12 @@ static int __wlan_hdd_cfg80211_vendor_scan(struct wiphy *wiphy,
 		nla_for_each_nested(attr, tb[QCA_WLAN_VENDOR_ATTR_SCAN_SSIDS],
 				tmp) {
 			request->ssids[count].ssid_len = nla_len(attr);
+			if (request->ssids[count].ssid_len >
+				SIR_MAC_MAX_SSID_LENGTH) {
+				hdd_err("SSID Len %d is not correct for network %d",
+					 request->ssids[count].ssid_len, count);
+				goto error;
+			}
 			memcpy(request->ssids[count].ssid, nla_data(attr),
 					nla_len(attr));
 			count++;
@@ -2032,14 +2114,17 @@ static int __wlan_hdd_cfg80211_vendor_scan(struct wiphy *wiphy,
 
 	if (tb[QCA_WLAN_VENDOR_ATTR_SCAN_SUPP_RATES]) {
 		nla_for_each_nested(attr,
-			tb[QCA_WLAN_VENDOR_ATTR_SCAN_SUPP_RATES],
-			tmp) {
+				    tb[QCA_WLAN_VENDOR_ATTR_SCAN_SUPP_RATES],
+				    tmp) {
 			band = nla_type(attr);
+			if (band >= NUM_NL80211_BANDS)
+				continue;
 			if (!wiphy->bands[band])
 				continue;
-			request->rates[band] = wlan_hdd_get_rates(wiphy,
-							band, nla_data(attr),
-							nla_len(attr));
+			request->rates[band] =
+				wlan_hdd_get_rates(wiphy,
+						   band, nla_data(attr),
+						   nla_len(attr));
 		}
 	}
 
@@ -2047,7 +2132,7 @@ static int __wlan_hdd_cfg80211_vendor_scan(struct wiphy *wiphy,
 		request->flags =
 			nla_get_u32(tb[QCA_WLAN_VENDOR_ATTR_SCAN_FLAGS]);
 		if ((request->flags & NL80211_SCAN_FLAG_LOW_PRIORITY) &&
-		!(wiphy->features & NL80211_FEATURE_LOW_PRIORITY_SCAN)) {
+		    !(wiphy->features & NL80211_FEATURE_LOW_PRIORITY_SCAN)) {
 			hdd_err("LOW PRIORITY SCAN not supported");
 			goto error;
 		}
@@ -2232,6 +2317,11 @@ static int __wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
 
 	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
 		hdd_err("Command not allowed in FTM mode");
+		return -EINVAL;
+	}
+
+	if (wlan_hdd_validate_session_id(pAdapter->sessionId)) {
+		hdd_err("invalid session id: %d", pAdapter->sessionId);
 		return -EINVAL;
 	}
 
@@ -2517,6 +2607,11 @@ static int __wlan_hdd_cfg80211_sched_scan_stop(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
+	if (wlan_hdd_validate_session_id(pAdapter->sessionId)) {
+		hdd_err("invalid session id: %d", pAdapter->sessionId);
+		return -EINVAL;
+	}
+
 	pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
 
 	if (NULL == pHddCtx) {
@@ -2622,6 +2717,11 @@ static void __wlan_hdd_cfg80211_abort_scan(struct wiphy *wiphy,
 
 	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
 		hdd_err("Command not allowed in FTM mode");
+		return;
+	}
+
+	if (wlan_hdd_validate_session_id(adapter->sessionId)) {
+		hdd_err("invalid session id: %d", adapter->sessionId);
 		return;
 	}
 

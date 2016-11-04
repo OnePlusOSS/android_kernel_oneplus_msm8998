@@ -4839,6 +4839,11 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 		    (qdf_mc_timer_destroy(&hdd_ctx->skip_acs_scan_timer))) {
 		hdd_err("Cannot deallocate ACS Skip timer");
 	}
+	qdf_spin_lock(&hdd_ctx->acs_skip_lock);
+	qdf_mem_free(hdd_ctx->last_acs_channel_list);
+	hdd_ctx->last_acs_channel_list = NULL;
+	hdd_ctx->num_of_channels = 0;
+	qdf_spin_unlock(&hdd_ctx->acs_skip_lock);
 #endif
 
 	mutex_lock(&hdd_ctx->iface_change_lock);
@@ -4945,12 +4950,27 @@ void __hdd_wlan_exit(void)
 }
 
 #ifdef FEATURE_WLAN_AP_AP_ACS_OPTIMIZE
+/**
+ * hdd_skip_acs_scan_timer_handler() - skip ACS scan timer timeout handler
+ * @data: pointer to hdd_context_t
+ *
+ * This function will reset acs_scan_status to eSAP_DO_NEW_ACS_SCAN.
+ * Then new ACS request will do a fresh scan without reusing the cached
+ * scan information.
+ *
+ * Return: void
+ */
 void hdd_skip_acs_scan_timer_handler(void *data)
 {
 	hdd_context_t *hdd_ctx = (hdd_context_t *) data;
 
 	hdd_notice("ACS Scan result expired. Reset ACS scan skip");
 	hdd_ctx->skip_acs_scan_status = eSAP_DO_NEW_ACS_SCAN;
+	qdf_spin_lock(&hdd_ctx->acs_skip_lock);
+	qdf_mem_free(hdd_ctx->last_acs_channel_list);
+	hdd_ctx->last_acs_channel_list = NULL;
+	hdd_ctx->num_of_channels = 0;
+	qdf_spin_unlock(&hdd_ctx->acs_skip_lock);
 
 	if (!hdd_ctx->hHal)
 		return;
@@ -5213,11 +5233,13 @@ QDF_STATUS hdd_set_sme_chan_list(hdd_context_t *hdd_ctx)
  */
 bool hdd_is_5g_supported(hdd_context_t *hdd_ctx)
 {
-	/*
-	 * If wcnss_wlan_iris_xo_mode() returns WCNSS_XO_48MHZ(1);
-	 * then hardware support 5Ghz.
-	 */
-	return true;
+	if (!hdd_ctx || !hdd_ctx->config)
+		return true;
+
+	if (hdd_ctx->config->nBandCapability != eCSR_BAND_24)
+		return true;
+	else
+		return false;
 }
 
 static int hdd_wiphy_init(hdd_context_t *hdd_ctx)
@@ -8098,6 +8120,7 @@ int hdd_wlan_startup(struct device *dev)
 				   (void *)hdd_ctx);
 	if (!QDF_IS_STATUS_SUCCESS(status))
 		hdd_err("Failed to init ACS Skip timer");
+	qdf_spinlock_create(&hdd_ctx->acs_skip_lock);
 #endif
 
 	hdd_bus_bandwidth_init(hdd_ctx);
@@ -9230,7 +9253,7 @@ static ssize_t wlan_boot_cb(struct kobject *kobj,
  * This is creates the syfs entry boot_wlan. Which shall be invoked
  * when the filesystem is ready.
  *
- * Return: None
+ * Return: 0 for success, errno on failure
  */
 static int wlan_init_sysfs(void)
 {
@@ -9335,7 +9358,7 @@ static int __init hdd_module_init(void)
 	int ret = -EINVAL;
 
 	ret = wlan_init_sysfs();
-	if (!ret)
+	if (ret)
 		pr_err("Failed to create sysfs entry for loading wlan");
 
 	return ret;

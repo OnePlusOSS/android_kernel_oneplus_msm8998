@@ -177,14 +177,14 @@ lim_collect_bss_description(tpAniSirGlobal pMac,
 		MAC_ADDR_ARRAY(pHdr->bssId), pBssDescr->rssi,
 		pBssDescr->rssi_raw);
 
-	pBssDescr->nReceivedTime = (uint32_t) qdf_mc_timer_get_system_ticks();
+	pBssDescr->received_time = (uint64_t)qdf_mc_timer_get_system_time();
 	pBssDescr->tsf_delta = WMA_GET_RX_TSF_DELTA(pRxPacketInfo);
 	pBssDescr->seq_ctrl = pHdr->seqControl;
 
 	lim_log(pMac, LOG1,
-		  FL("BSSID: "MAC_ADDRESS_STR " tsf_delta = %u ReceivedTime = %u ssid = %s"),
+		  FL("BSSID: "MAC_ADDRESS_STR " tsf_delta = %u ReceivedTime = %llu ssid = %s"),
 		  MAC_ADDR_ARRAY(pHdr->bssId), pBssDescr->tsf_delta,
-		  pBssDescr->nReceivedTime,
+		  pBssDescr->received_time,
 		  ((pBPR->ssidPresent) ? (char *)pBPR->ssId.ssId : ""));
 
 	lim_log(pMac, LOG1, FL("Seq Ctrl: Frag Num: %d, Seq Num: LO:%02x HI:%02x"),
@@ -231,47 +231,6 @@ lim_collect_bss_description(tpAniSirGlobal pMac,
 
 	return;
 } /*** end lim_collect_bss_description() ***/
-
-/**
- * lim_is_scan_requested_ssid()
- *
- ***FUNCTION:
- * This function is called during scan upon receiving
- * Beacon/Probe Response frame to check if the received
- * SSID is present in the list of requested SSIDs in scan
- *
- ***LOGIC:
- *
- ***ASSUMPTIONS:
- * NA
- *
- ***NOTE:
- * NA
- *
- * @param  pMac - Pointer to Global MAC structure
- * @param  ssId - SSID Received in beacons/Probe responses that is compared
- * against therequeusted SSID in scan list
- * ---------------------------------------------
- *
- * @return bool - true if SSID is present in requested list, false otherwise
- */
-
-bool lim_is_scan_requested_ssid(tpAniSirGlobal pMac, tSirMacSSid *ssId)
-{
-	uint8_t i = 0;
-
-	for (i = 0; i < pMac->lim.gpLimMlmScanReq->numSsid; i++) {
-		if (!qdf_mem_cmp((uint8_t *) ssId,
-					    (uint8_t *) &pMac->lim.
-					    gpLimMlmScanReq->ssId[i],
-					    (uint8_t) (pMac->lim.
-						       gpLimMlmScanReq->ssId[i].
-						       length + 1))) {
-			return true;
-		}
-	}
-	return false;
-}
 
 /**
  * lim_check_and_add_bss_description()

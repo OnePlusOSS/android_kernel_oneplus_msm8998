@@ -3090,7 +3090,14 @@ void wlan_hdd_tdls_timer_restart(hdd_adapter_t *pAdapter,
 				 qdf_mc_timer_t *timer,
 				 uint32_t expirationTime)
 {
-	hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
+	hdd_station_ctx_t *pHddStaCtx;
+
+	if (NULL == pAdapter || WLAN_HDD_ADAPTER_MAGIC != pAdapter->magic) {
+		hdd_err("invalid pAdapter: %p", pAdapter);
+		return;
+	}
+
+	pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
 
 	/* Check whether driver load unload is in progress */
 	if (cds_is_load_or_unload_in_progress()) {
@@ -3932,6 +3939,11 @@ static int __wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
+	if (wlan_hdd_validate_session_id(pAdapter->sessionId)) {
+		hdd_err("invalid session id: %d", pAdapter->sessionId);
+		return -EINVAL;
+	}
+
 	MTRACE(qdf_trace(QDF_MODULE_ID_HDD,
 			 TRACE_CODE_HDD_CFG80211_TDLS_MGMT,
 			 pAdapter->sessionId, action_code));
@@ -4435,6 +4447,11 @@ static int __wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy,
 
 	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
 		hdd_err("Command not allowed in FTM mode");
+		return -EINVAL;
+	}
+
+	if (wlan_hdd_validate_session_id(pAdapter->sessionId)) {
+		hdd_err("invalid session id: %d", pAdapter->sessionId);
 		return -EINVAL;
 	}
 

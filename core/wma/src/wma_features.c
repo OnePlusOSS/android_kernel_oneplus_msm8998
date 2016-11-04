@@ -523,8 +523,9 @@ error:
  *
  * Return: QDF status
  */
-QDF_STATUS wma_lphb_conf_hbenable(tp_wma_handle wma_handle,
-				  tSirLPHBReq *lphb_conf_req, bool by_user)
+static QDF_STATUS wma_lphb_conf_hbenable(tp_wma_handle wma_handle,
+					 tSirLPHBReq *lphb_conf_req,
+					 bool by_user)
 {
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
 	int status = 0;
@@ -598,8 +599,8 @@ error:
  *
  * Return: QDF status
  */
-QDF_STATUS wma_lphb_conf_tcp_params(tp_wma_handle wma_handle,
-				    tSirLPHBReq *lphb_conf_req)
+static QDF_STATUS wma_lphb_conf_tcp_params(tp_wma_handle wma_handle,
+					   tSirLPHBReq *lphb_conf_req)
 {
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
 	int status = 0;
@@ -655,8 +656,8 @@ error:
  *
  * Return: QDF status
  */
-QDF_STATUS wma_lphb_conf_tcp_pkt_filter(tp_wma_handle wma_handle,
-					tSirLPHBReq *lphb_conf_req)
+static QDF_STATUS wma_lphb_conf_tcp_pkt_filter(tp_wma_handle wma_handle,
+					       tSirLPHBReq *lphb_conf_req)
 {
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
 	int status = 0;
@@ -705,8 +706,8 @@ error:
  *
  * Return: QDF status
  */
-QDF_STATUS wma_lphb_conf_udp_params(tp_wma_handle wma_handle,
-				    tSirLPHBReq *lphb_conf_req)
+static QDF_STATUS wma_lphb_conf_udp_params(tp_wma_handle wma_handle,
+					   tSirLPHBReq *lphb_conf_req)
 {
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
 	int status = 0;
@@ -761,8 +762,8 @@ error:
  *
  * Return: QDF status
  */
-QDF_STATUS wma_lphb_conf_udp_pkt_filter(tp_wma_handle wma_handle,
-					tSirLPHBReq *lphb_conf_req)
+static QDF_STATUS wma_lphb_conf_udp_pkt_filter(tp_wma_handle wma_handle,
+					       tSirLPHBReq *lphb_conf_req)
 {
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
 	int status = 0;
@@ -2675,7 +2676,7 @@ static bool tlv_check_required(int32_t reason)
  *
  * Return: string for proto subtype for data packet
  */
-const char *
+static const char *
 wma_pkt_proto_subtype_to_string(enum qdf_proto_subtype proto_subtype)
 {
 	switch (proto_subtype) {
@@ -3841,14 +3842,12 @@ QDF_STATUS wma_enable_wow_in_fw(WMA_HANDLE handle)
 	int wmi_pending_cmds;
 	struct wow_cmd_params param = {0};
 
-#ifdef CONFIG_CNSS
 	tpAniSirGlobal pMac = cds_get_context(QDF_MODULE_ID_PE);
 
 	if (NULL == pMac) {
 		WMA_LOGE("%s: Unable to get PE context", __func__);
 		return QDF_STATUS_E_FAILURE;
 	}
-#endif /* CONFIG_CNSS */
 
 	qdf_event_reset(&wma->target_suspend);
 	wma->wow_nack = false;
@@ -3888,15 +3887,11 @@ QDF_STATUS wma_enable_wow_in_fw(WMA_HANDLE handle)
 			 wmi_get_pending_cmds(wma->wmi_handle));
 		wmi_set_target_suspend(wma->wmi_handle, false);
 		if (!cds_is_driver_recovering()) {
-#ifdef CONFIG_CNSS
 			if (pMac->sme.enableSelfRecovery) {
 				cds_trigger_recovery();
 			} else {
 				QDF_BUG(0);
 			}
-#else
-			QDF_BUG(0);
-#endif /* CONFIG_CNSS */
 		} else {
 			WMA_LOGE("%s: LOGP is in progress, ignore!", __func__);
 		}
@@ -4433,7 +4428,7 @@ bool static wma_is_nan_enabled(tp_wma_handle wma)
  *
  * Return: true if wma needs to configure wow false otherwise.
  */
-bool wma_is_wow_applicable(tp_wma_handle wma)
+static bool wma_is_wow_applicable(tp_wma_handle wma)
 {
 	int vdev_id;
 	if (wma_support_wow_for_beaconing(wma)) {
@@ -4479,7 +4474,7 @@ bool wma_is_wow_applicable(tp_wma_handle wma)
  *
  * Return: none
  */
-void wma_configure_dynamic_wake_events(tp_wma_handle wma)
+static void wma_configure_dynamic_wake_events(tp_wma_handle wma)
 {
 	int vdev_id;
 	int enable_mask;
@@ -4593,13 +4588,11 @@ static QDF_STATUS wma_send_host_wakeup_ind_to_fw(tp_wma_handle wma)
 {
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
 	int ret;
-#ifdef CONFIG_CNSS
 	tpAniSirGlobal pMac = cds_get_context(QDF_MODULE_ID_PE);
 	if (NULL == pMac) {
 		WMA_LOGE("%s: Unable to get PE context", __func__);
 		return QDF_STATUS_E_FAILURE;
 	}
-#endif /* CONFIG_CNSS */
 
 	qdf_event_reset(&wma->wma_resume_event);
 
@@ -4619,15 +4612,11 @@ static QDF_STATUS wma_send_host_wakeup_ind_to_fw(tp_wma_handle wma)
 			 wmi_get_pending_cmds(wma->wmi_handle),
 			 wmi_get_host_credits(wma->wmi_handle));
 		if (!cds_is_driver_recovering()) {
-#ifdef CONFIG_CNSS
 			if (pMac->sme.enableSelfRecovery) {
 				cds_trigger_recovery();
 			} else {
 				QDF_BUG(0);
 			}
-#else
-			QDF_BUG(0);
-#endif /* CONFIG_CNSS */
 		} else {
 			WMA_LOGE("%s: SSR in progress, ignore resume timeout",
 				 __func__);
@@ -6491,7 +6480,7 @@ int wma_bus_suspend(void)
  *
  * Return: os error code.
  */
-int __wma_bus_resume(WMA_HANDLE handle)
+static int __wma_bus_resume(WMA_HANDLE handle)
 {
 	bool wow_mode = wma_is_wow_mode_selected(handle);
 	tp_wma_handle wma = handle;
@@ -6731,13 +6720,11 @@ QDF_STATUS wma_resume_target(WMA_HANDLE handle)
 {
 	tp_wma_handle wma = (tp_wma_handle) handle;
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
-#ifdef CONFIG_CNSS
 	tpAniSirGlobal pMac = cds_get_context(QDF_MODULE_ID_PE);
 	if (NULL == pMac) {
 		WMA_LOGE("%s: Unable to get PE context", __func__);
 		return QDF_STATUS_E_INVAL;
 	}
-#endif /* CONFIG_CNSS */
 
 	qdf_event_reset(&wma->wma_resume_event);
 	qdf_status = wmi_unified_resume_send(wma->wmi_handle,
@@ -6754,15 +6741,11 @@ QDF_STATUS wma_resume_target(WMA_HANDLE handle)
 			wmi_get_pending_cmds(wma->wmi_handle),
 			wmi_get_host_credits(wma->wmi_handle));
 		if (!cds_is_driver_recovering()) {
-#ifdef CONFIG_CNSS
 			if (pMac->sme.enableSelfRecovery) {
 				cds_trigger_recovery();
 			} else {
 				QDF_BUG(0);
 			}
-#else
-			QDF_BUG(0);
-#endif /* CONFIG_CNSS */
 		} else {
 			WMA_LOGE("%s: SSR in progress, ignore resume timeout",
 				__func__);
@@ -7417,8 +7400,8 @@ void wma_set_dfs_region(tp_wma_handle wma, enum dfs_region dfs_region)
  *
  * Return: return number of channels
  */
-int wma_get_channels(struct dfs_ieee80211_channel *ichan,
-		     struct wma_dfs_radar_channel_list *chan_list)
+static int wma_get_channels(struct dfs_ieee80211_channel *ichan,
+			    struct wma_dfs_radar_channel_list *chan_list)
 {
 	uint8_t center_chan = cds_freq_to_chan(ichan->ic_vhtop_ch_freq_seg1);
 	int count = 0;

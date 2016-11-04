@@ -2851,8 +2851,8 @@ static void csr_purge_old_scan_results(tpAniSirGlobal mac_ctx)
 {
 	tListElem *pentry, *tmp_entry;
 	tCsrScanResult *presult, *oldest_bss = NULL;
-	uint32_t oldest_entry = 0;
-	uint32_t curr_time = qdf_mc_timer_get_system_ticks();
+	uint64_t oldest_entry = 0;
+	uint64_t curr_time = (uint64_t)qdf_mc_timer_get_system_time();
 
 	csr_ll_unlock(&mac_ctx->scan.scanResultList);
 	pentry = csr_ll_peek_head(&mac_ctx->scan.scanResultList,
@@ -2861,10 +2861,10 @@ static void csr_purge_old_scan_results(tpAniSirGlobal mac_ctx)
 		tmp_entry = csr_ll_next(&mac_ctx->scan.scanResultList, pentry,
 			LL_ACCESS_NOLOCK);
 		presult = GET_BASE_ADDR(pentry, tCsrScanResult, Link);
-		if ((curr_time - presult->Result.BssDescriptor.nReceivedTime) >
+		if ((curr_time - presult->Result.BssDescriptor.received_time) >
 		     oldest_entry) {
 			oldest_entry = curr_time -
-				presult->Result.BssDescriptor.nReceivedTime;
+				presult->Result.BssDescriptor.received_time;
 			oldest_bss = presult;
 		}
 		pentry = tmp_entry;
@@ -2874,9 +2874,9 @@ static void csr_purge_old_scan_results(tpAniSirGlobal mac_ctx)
 		if (csr_ll_remove_entry(&mac_ctx->scan.scanResultList,
 		    &oldest_bss->Link, LL_ACCESS_NOLOCK)) {
 			sms_log(mac_ctx, LOG1,
-				FL("Current time delta (%d) of BSSID to be removed" MAC_ADDRESS_STR),
+				FL("Current time delta (%llu) of BSSID to be removed" MAC_ADDRESS_STR),
 				(curr_time -
-				oldest_bss->Result.BssDescriptor.nReceivedTime),
+				oldest_bss->Result.BssDescriptor.received_time),
 				MAC_ADDR_ARRAY(
 				oldest_bss->Result.BssDescriptor.bssId));
 			csr_free_scan_result_entry(mac_ctx, oldest_bss);
@@ -2954,8 +2954,9 @@ csr_remove_from_tmp_list(tpAniSirGlobal mac_ctx,
 			 * hidden ssid from the profile i.e., forget the SSID
 			 * via GUI that SSID shouldn't see in the profile
 			 */
-			unsigned long time_gap = qdf_mc_timer_get_system_time() -
-									timer;
+			uint64_t time_gap =
+				(uint64_t)qdf_mc_timer_get_system_time() -
+									 timer;
 			if ((0 == bss_dscp->Result.ssId.length)
 			    && (time_gap <= HIDDEN_TIMER)
 			    && tmpSsid.length) {
@@ -3089,7 +3090,7 @@ tCsrScanResult *csr_scan_append_bss_description(tpAniSirGlobal pMac,
 			 * hidden ssid from the profile i.e., forget the SSID
 			 * via GUI that SSID shouldn't see in the profile
 			 */
-			if ((qdf_mc_timer_get_system_time() - timer) <=
+			if (((uint64_t)qdf_mc_timer_get_system_time() - timer) <=
 			    HIDDEN_TIMER) {
 				pCsrBssDescription->Result.ssId = tmpSsid;
 				pCsrBssDescription->Result.timer = timer;
@@ -3702,9 +3703,13 @@ bool csr_learn_11dcountry_information(tpAniSirGlobal pMac,
 	else
 		pCountryCodeSelected = pMac->scan.countryCodeElected;
 
-	if (qdf_mem_cmp(pCountryCodeSelected, pMac->scan.countryCode11d,
-		   CDS_COUNTRY_CODE_LEN) == 0)
+	if (qdf_mem_cmp(pCountryCodeSelected, pMac->scan.countryCodeCurrent,
+			CDS_COUNTRY_CODE_LEN) == 0) {
+		qdf_mem_copy(pMac->scan.countryCode11d,
+			     pMac->scan.countryCodeCurrent,
+			     CDS_COUNTRY_CODE_LEN);
 		goto free_ie;
+	}
 
 	pMac->is_11d_hint = true;
 	status = csr_get_regulatory_domain_for_country(pMac,
@@ -3715,9 +3720,6 @@ bool csr_learn_11dcountry_information(tpAniSirGlobal pMac,
 		goto free_ie;
 	}
 
-	/* updating 11d Country Code with Country code selected. */
-	qdf_mem_copy(pMac->scan.countryCode11d, pCountryCodeSelected,
-		     WNI_CFG_COUNTRY_CODE_LEN);
 	fRet = true;
 free_ie:
 	if (!pIes && pIesLocal) {
@@ -4874,8 +4876,8 @@ static bool csr_scan_age_out_bss(tpAniSirGlobal pMac, tCsrScanResult *pResult)
 			FL("Connected BSS, Set Aging Count=%d for BSS "
 			   MAC_ADDRESS_STR), pResult->AgingCount,
 			MAC_ADDR_ARRAY(pResult->Result.BssDescriptor.bssId));
-		pResult->Result.BssDescriptor.nReceivedTime =
-			(uint32_t) qdf_mc_timer_get_system_ticks();
+		pResult->Result.BssDescriptor.received_time =
+			(uint64_t)qdf_mc_timer_get_system_time();
 		return fRet;
 	}
 	/*
@@ -5144,37 +5146,6 @@ send_scan_req:
 			FL("failed to send down scan req with status = %d"),
 			status);
 		qdf_mem_free(pMsg);
-	}
-	return status;
-}
-
-QDF_STATUS csr_send_mb_scan_result_req(tpAniSirGlobal pMac,
-				       uint32_t sessionId,
-				       tScanReqParam *pScanReqParam)
-{
-	QDF_STATUS status = QDF_STATUS_SUCCESS;
-	tSirSmeScanReq *pMsg;
-	uint16_t msgLen;
-
-	msgLen = (uint16_t) (sizeof(tSirSmeScanReq));
-	pMsg = qdf_mem_malloc(msgLen);
-	if (NULL == pMsg)
-		return QDF_STATUS_E_NOMEM;
-
-	pMsg->messageType = eWNI_SME_SCAN_REQ;
-	pMsg->length = msgLen;
-	pMsg->sessionId = sessionId;
-	pMsg->transactionId = 0;
-	pMsg->returnFreshResults = pScanReqParam->freshScan;
-	/* Always ask for unique result */
-	pMsg->returnUniqueResults = pScanReqParam->fUniqueResult;
-	pMsg->returnAfterFirstMatch =
-		pScanReqParam->bReturnAfter1stMatch;
-	status = cds_send_mb_message_to_mac(pMsg);
-	if (!QDF_IS_STATUS_SUCCESS(status)) {
-		sms_log(pMac, LOGE,
-			FL("Failed to send down scan req with status = %d\n"),
-			status);
 	}
 	return status;
 }
@@ -5926,23 +5897,20 @@ static void csr_purge_scan_result_by_age(void *pv)
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(pv);
 	tListElem *entry, *tmp_entry;
 	tCsrScanResult *result;
-	unsigned long ageout_time =
-		mac_ctx->scan.scanResultCfgAgingTime * QDF_TICKS_PER_SECOND/10;
-	unsigned long cur_time =  qdf_mc_timer_get_system_ticks();
+	uint64_t ageout_time =
+		mac_ctx->scan.scanResultCfgAgingTime * SYSTEM_TIME_SEC_TO_MSEC;
+	uint64_t cur_time = qdf_mc_timer_get_system_time();
 	uint8_t *bssId;
 
 	csr_ll_lock(&mac_ctx->scan.scanResultList);
 	entry = csr_ll_peek_head(&mac_ctx->scan.scanResultList, LL_ACCESS_NOLOCK);
-	sms_log(mac_ctx, LOG1, FL(" Ageout time=%ld"), ageout_time);
+	sms_log(mac_ctx, LOG1, FL(" Ageout time=%llu"), ageout_time);
 	while (entry) {
 		tmp_entry = csr_ll_next(&mac_ctx->scan.scanResultList, entry,
 					LL_ACCESS_NOLOCK);
 		result = GET_BASE_ADDR(entry, tCsrScanResult, Link);
-		/*
-		 * qdf_mc_timer_get_system_ticks() returns in 10ms interval.
-		 * so ageout time value also updated to 10ms interval value.
-		 */
-		if ((cur_time - result->Result.BssDescriptor.nReceivedTime) >
+
+		if ((cur_time - result->Result.BssDescriptor.received_time) >
 			    ageout_time) {
 			bssId = result->Result.BssDescriptor.bssId;
 			sms_log(mac_ctx, LOGW,
@@ -7063,7 +7031,7 @@ QDF_STATUS csr_scan_save_preferred_network_found(tpAniSirGlobal pMac,
 	pBssDescr->capabilityInfo = *((uint16_t *)&parsed_frm->capabilityInfo);
 	qdf_mem_copy((uint8_t *) &pBssDescr->bssId,
 		     (uint8_t *) macHeader->bssId, sizeof(tSirMacAddr));
-	pBssDescr->nReceivedTime = (uint32_t) qdf_mc_timer_get_system_ticks();
+	pBssDescr->received_time = (uint64_t)qdf_mc_timer_get_system_time();
 	sms_log(pMac, LOG2, FL("Bssid= "MAC_ADDRESS_STR" chan= %d, rssi = %d"),
 		MAC_ADDR_ARRAY(pBssDescr->bssId), pBssDescr->channelId,
 		pBssDescr->rssi);

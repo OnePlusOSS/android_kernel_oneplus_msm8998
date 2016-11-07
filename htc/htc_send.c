@@ -1210,10 +1210,9 @@ static HTC_SEND_QUEUE_RESULT htc_try_send(HTC_TARGET *target,
 
 			for (i = HTC_PACKET_QUEUE_DEPTH(&sendQueue); i > 0; i--)
 				hif_pm_runtime_put(target->hif_dev);
-
+			LOCK_HTC_TX(target);
 			HTC_PACKET_QUEUE_TRANSFER_TO_HEAD(&pEndpoint->TxQueue,
 							  &sendQueue);
-			LOCK_HTC_TX(target);
 			break;
 		}
 

@@ -1962,12 +1962,21 @@ next_action_three_connection_table[CDS_MAX_TWO_CONNECTION_MODE]
 uint32_t cds_get_connection_count(void)
 {
 	uint32_t conn_index, count = 0;
+	cds_context_type *cds_ctx;
 
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return count;
+	}
+
+	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	for (conn_index = 0; conn_index < MAX_NUMBER_OF_CONC_CONNECTIONS;
 		 conn_index++) {
 		if (conc_connection_list[conn_index].in_use)
 			count++;
 	}
+	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 
 	return count;
 }
@@ -2173,6 +2182,14 @@ uint32_t cds_mode_specific_connection_count(enum cds_con_mode mode,
 						uint32_t *list)
 {
 	uint32_t conn_index = 0, count = 0;
+	cds_context_type *cds_ctx;
+
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return count;
+	}
+	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	for (conn_index = 0; conn_index < MAX_NUMBER_OF_CONC_CONNECTIONS;
 		 conn_index++) {
 		if ((conc_connection_list[conn_index].mode == mode) &&
@@ -2182,6 +2199,7 @@ uint32_t cds_mode_specific_connection_count(enum cds_con_mode mode,
 			 count++;
 		}
 	}
+	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 	return count;
 }
 
@@ -2201,7 +2219,15 @@ static void cds_store_and_del_conn_info(enum cds_con_mode mode,
 {
 	uint32_t conn_index = 0;
 	bool found = false;
+	cds_context_type *cds_ctx;
 
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return;
+	}
+
+	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	while (CONC_CONNECTION_LIST_VALID_INDEX(conn_index)) {
 		if (mode == conc_connection_list[conn_index].mode) {
 			found = true;
@@ -2211,12 +2237,14 @@ static void cds_store_and_del_conn_info(enum cds_con_mode mode,
 	}
 
 	if (!found) {
+		qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 		cds_err("Mode:%d not available in the conn info", mode);
 		return;
 	}
 
 	/* Storing the STA entry which will be temporarily deleted */
 	*info = conc_connection_list[conn_index];
+	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 
 	/* Deleting the STA entry */
 	cds_decr_connection_count(info->vdev_id);
@@ -2240,6 +2268,13 @@ static void cds_restore_deleted_conn_info(
 					struct cds_conc_connection_info *info)
 {
 	uint32_t conn_index;
+	cds_context_type *cds_ctx;
+
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return;
+	}
 
 	conn_index = cds_get_connection_count();
 	if (MAX_NUMBER_OF_CONC_CONNECTIONS <= conn_index) {
@@ -2248,7 +2283,9 @@ static void cds_restore_deleted_conn_info(
 		return;
 	}
 
+	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	conc_connection_list[conn_index] = *info;
+	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 
 	cds_info("Restored the deleleted conn info, vdev:%d, index:%d",
 		info->vdev_id, conn_index);
@@ -2297,8 +2334,8 @@ static void cds_update_hw_mode_conn_info(uint32_t num_vdev_mac_entries,
 			  conc_connection_list[conn_index].mac);
 		}
 	}
-	cds_dump_connection_status_info();
 	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
+	cds_dump_connection_status_info();
 }
 
 /**
@@ -2763,8 +2800,18 @@ static uint32_t cds_dump_current_concurrency_one_connection(char *cc_mode,
 			uint32_t length)
 {
 	uint32_t count = 0;
+	enum cds_con_mode mode;
+	cds_context_type *cds_ctx;
 
-	switch (conc_connection_list[0].mode) {
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return count;
+	}
+
+	mode = conc_connection_list[0].mode;
+
+	switch (mode) {
 	case CDS_STA_MODE:
 		count = strlcat(cc_mode, "STA",
 					length);
@@ -2786,7 +2833,7 @@ static uint32_t cds_dump_current_concurrency_one_connection(char *cc_mode,
 					length);
 		break;
 	default:
-		cds_err("unexpected mode %d", conc_connection_list[0].mode);
+		cds_err("unexpected mode %d", mode);
 		break;
 	}
 	return count;
@@ -2806,8 +2853,18 @@ static uint32_t cds_dump_current_concurrency_two_connection(char *cc_mode,
 			uint32_t length)
 {
 	uint32_t count = 0;
+	enum cds_con_mode mode;
+	cds_context_type *cds_ctx;
 
-	switch (conc_connection_list[1].mode) {
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return count;
+	}
+
+	mode = conc_connection_list[1].mode;
+
+	switch (mode) {
 	case CDS_STA_MODE:
 		count = cds_dump_current_concurrency_one_connection(
 				cc_mode, length);
@@ -2839,7 +2896,7 @@ static uint32_t cds_dump_current_concurrency_two_connection(char *cc_mode,
 					length);
 		break;
 	default:
-		cds_err("unexpected mode %d", conc_connection_list[1].mode);
+		cds_err("unexpected mode %d", mode);
 		break;
 	}
 	return count;
@@ -2859,8 +2916,18 @@ static uint32_t cds_dump_current_concurrency_three_connection(char *cc_mode,
 			uint32_t length)
 {
 	uint32_t count = 0;
+	enum cds_con_mode mode;
+	cds_context_type *cds_ctx;
 
-	switch (conc_connection_list[2].mode) {
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return count;
+	}
+
+	mode = conc_connection_list[2].mode;
+
+	switch (mode) {
 	case CDS_STA_MODE:
 		count = cds_dump_current_concurrency_two_connection(
 				cc_mode, length);
@@ -2892,7 +2959,7 @@ static uint32_t cds_dump_current_concurrency_three_connection(char *cc_mode,
 					length);
 		break;
 	default:
-		cds_err("unexpected mode %d", conc_connection_list[2].mode);
+		cds_err("unexpected mode %d", mode);
 		break;
 	}
 	return count;
@@ -2911,8 +2978,16 @@ static void cds_dump_dbs_concurrency(char *cc_mode, uint32_t length)
 {
 	char buf[4] = {0};
 	uint8_t mac = 0;
+	cds_context_type *cds_ctx;
+
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return;
+	}
 
 	strlcat(cc_mode, " DBS", length);
+	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	if (conc_connection_list[0].mac ==
 		conc_connection_list[1].mac) {
 		if (conc_connection_list[0].chan ==
@@ -2950,6 +3025,7 @@ static void cds_dump_dbs_concurrency(char *cc_mode, uint32_t length)
 				length);
 		mac = conc_connection_list[1].mac;
 	}
+	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 	snprintf(buf, sizeof(buf), "%d ", mac);
 	strlcat(cc_mode, buf, length);
 }
@@ -2967,6 +3043,13 @@ static void cds_dump_current_concurrency(void)
 	uint32_t num_connections = 0;
 	char cc_mode[CDS_MAX_CON_STRING_LEN] = {0};
 	uint32_t count = 0;
+	cds_context_type *cds_ctx;
+
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return;
+	}
 
 	num_connections = cds_get_connection_count();
 
@@ -2979,6 +3062,7 @@ static void cds_dump_current_concurrency(void)
 	case 2:
 		count = cds_dump_current_concurrency_two_connection(
 			cc_mode, sizeof(cc_mode));
+		qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 		if (conc_connection_list[0].chan ==
 			conc_connection_list[1].chan) {
 			strlcat(cc_mode, " SCC", sizeof(cc_mode));
@@ -2987,24 +3071,29 @@ static void cds_dump_current_concurrency(void)
 			strlcat(cc_mode, " MCC", sizeof(cc_mode));
 		} else
 			strlcat(cc_mode, " DBS", sizeof(cc_mode));
+		qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 		cds_err("%s", cc_mode);
 		break;
 	case 3:
 		count = cds_dump_current_concurrency_three_connection(
 			cc_mode, sizeof(cc_mode));
+		qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 		if ((conc_connection_list[0].chan ==
 			conc_connection_list[1].chan) &&
 			(conc_connection_list[0].chan ==
 				conc_connection_list[2].chan)){
+			qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 				strlcat(cc_mode, " SCC",
 						sizeof(cc_mode));
 		} else if ((conc_connection_list[0].mac ==
 				conc_connection_list[1].mac)
 				&& (conc_connection_list[0].mac ==
 					conc_connection_list[2].mac)) {
+			qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 					strlcat(cc_mode, " MCC on single MAC",
 						sizeof(cc_mode));
 		} else {
+			qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 			cds_dump_dbs_concurrency(cc_mode, sizeof(cc_mode));
 		}
 		cds_err("%s", cc_mode);
@@ -3084,6 +3173,7 @@ void cds_dump_concurrency_info(void)
 	uint8_t staChannel = 0, p2pChannel = 0, apChannel = 0;
 	const char *p2pMode = "DEV";
 	hdd_context_t *hdd_ctx;
+	cds_context_type *cds_ctx;
 #ifdef QCA_LL_LEGACY_TX_FLOW_CONTROL
 	uint8_t targetChannel = 0;
 	uint8_t preAdapterChannel = 0;
@@ -3097,6 +3187,12 @@ void cds_dump_concurrency_info(void)
 	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
 	if (!hdd_ctx) {
 		cds_err("HDD context is NULL");
+		return;
+	}
+
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
 		return;
 	}
 
@@ -3345,7 +3441,9 @@ void cds_dump_concurrency_info(void)
 		status = hdd_get_next_adapter(hdd_ctx, adapterNode, &pNext);
 		adapterNode = pNext;
 	}
+	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	hdd_ctx->mcc_mode = cds_current_concurrency_is_mcc();
+	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 }
 
 #ifdef FEATURE_WLAN_TDLS
@@ -3671,21 +3769,24 @@ void cds_incr_active_session(enum tQDF_ADAPTER_MODE mode,
 
 	cds_info("No.# of active sessions for mode %d = %d",
 		mode, hdd_ctx->no_of_active_sessions[mode]);
-
 	/*
 	 * Get PCL logic makes use of the connection info structure.
 	 * Let us set the PCL to the FW before updating the connection
 	 * info structure about the new connection.
 	 */
 	if (mode == QDF_STA_MODE) {
+		qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 		/* Set PCL of STA to the FW */
 		cds_pdev_set_pcl(mode);
+		qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 		cds_info("Set PCL of STA to FW");
 	}
 	cds_incr_connection_count(session_id);
 	if ((cds_mode_specific_connection_count(CDS_STA_MODE, NULL) > 0) &&
 		(mode != QDF_STA_MODE)) {
+		qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 		cds_set_pcl_for_existing_combo(CDS_STA_MODE);
+		qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	}
 
 	/* set tdls connection tracker state */
@@ -3711,6 +3812,13 @@ enum cds_conc_next_action cds_need_opportunistic_upgrade(void)
 	uint8_t mac = 0;
 	struct sir_hw_mode_params hw_mode;
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
+	cds_context_type *cds_ctx;
+
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		goto done;
+	}
 
 	if (wma_is_hw_dbs_capable() == false) {
 		cds_err("driver isn't dbs capable, no further action needed");
@@ -3727,6 +3835,7 @@ enum cds_conc_next_action cds_need_opportunistic_upgrade(void)
 		goto done;
 	}
 
+	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	/* Are both mac's still in use */
 	for (conn_index = 0; conn_index < MAX_NUMBER_OF_CONC_CONNECTIONS;
 		conn_index++) {
@@ -3739,13 +3848,17 @@ enum cds_conc_next_action cds_need_opportunistic_upgrade(void)
 		if ((conc_connection_list[conn_index].mac == 0) &&
 			conc_connection_list[conn_index].in_use) {
 			mac |= CDS_MAC0;
-			if (CDS_MAC0_AND_MAC1 == mac)
+			if (CDS_MAC0_AND_MAC1 == mac) {
+				qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 				goto done;
+			}
 		} else if ((conc_connection_list[conn_index].mac == 1) &&
 			conc_connection_list[conn_index].in_use) {
 			mac |= CDS_MAC1;
-			if (CDS_MAC0_AND_MAC1 == mac)
+			if (CDS_MAC0_AND_MAC1 == mac) {
+				qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 				goto done;
+			}
 		}
 	}
 	/* Let's request for single MAC mode */
@@ -3756,9 +3869,11 @@ enum cds_conc_next_action cds_need_opportunistic_upgrade(void)
 		if ((conc_connection_list[conn_index].original_nss == 2) &&
 			conc_connection_list[conn_index].in_use) {
 			upgrade = CDS_SINGLE_MAC_UPGRADE;
+			qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 			goto done;
 		}
 	}
+	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 
 done:
 	return upgrade;
@@ -3792,7 +3907,6 @@ QDF_STATUS cds_get_pcl_for_existing_conn(enum cds_con_mode mode,
 
 	cds_info("get pcl for existing conn:%d", mode);
 
-	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	if (cds_mode_specific_connection_count(mode, NULL) > 0) {
 		/* Check, store and temp delete the mode's parameter */
 		cds_store_and_del_conn_info(mode, &info);
@@ -3802,7 +3916,6 @@ QDF_STATUS cds_get_pcl_for_existing_conn(enum cds_con_mode mode,
 		/* Restore the connection info */
 		cds_restore_deleted_conn_info(&info);
 	}
-	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 	return status;
 }
 
@@ -3843,7 +3956,6 @@ void cds_decr_session_set_pcl(enum tQDF_ADAPTER_MODE mode,
 	 * given to the FW. After setting the PCL, we need to restore
 	 * the entry that we have saved before.
 	 */
-	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	cds_set_pcl_for_existing_combo(CDS_STA_MODE);
 	/* do we need to change the HW mode */
 	if (cds_need_opportunistic_upgrade()) {
@@ -3856,7 +3968,6 @@ void cds_decr_session_set_pcl(enum tQDF_ADAPTER_MODE mode,
 		if (!QDF_IS_STATUS_SUCCESS(qdf_status))
 			cds_err("Failed to start dbs opportunistic timer");
 	}
-	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 
 	return;
 }
@@ -3877,7 +3988,6 @@ void cds_decr_active_session(enum tQDF_ADAPTER_MODE mode,
 				  uint8_t session_id)
 {
 	hdd_context_t *hdd_ctx;
-	cds_context_type *cds_ctx;
 
 	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
 	if (!hdd_ctx) {
@@ -3885,17 +3995,6 @@ void cds_decr_active_session(enum tQDF_ADAPTER_MODE mode,
 		return;
 	}
 
-	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
-	if (!cds_ctx) {
-		cds_err("Invalid CDS Context");
-		return;
-	}
-
-	/*
-	 * Need to aquire mutex as entire functionality in this function
-	 * is in critical section
-	 */
-	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	switch (mode) {
 	case QDF_STA_MODE:
 	case QDF_P2P_CLIENT_MODE:
@@ -3919,7 +4018,6 @@ void cds_decr_active_session(enum tQDF_ADAPTER_MODE mode,
 
 	cds_dump_current_concurrency();
 
-	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 }
 
 /**
@@ -3941,7 +4039,6 @@ static void cds_dbs_opportunistic_timer_handler(void *data)
 		return;
 	}
 
-	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	/* if we still need it */
 	action = cds_need_opportunistic_upgrade();
 	cds_info("action:%d", action);
@@ -3954,7 +4051,6 @@ static void cds_dbs_opportunistic_timer_handler(void *data)
 		cds_next_actions(0, action,
 				SIR_UPDATE_REASON_OPPORTUNISTIC);
 	}
-	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 
 }
 
@@ -4097,6 +4193,14 @@ QDF_STATUS cds_init_policy_mgr(struct cds_sme_cbacks *sme_cbacks)
 static uint32_t cds_get_connection_for_vdev_id(uint32_t vdev_id)
 {
 	uint32_t conn_index = 0;
+	cds_context_type *cds_ctx;
+
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return conn_index;
+	}
+	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	for (conn_index = 0; conn_index < MAX_NUMBER_OF_CONC_CONNECTIONS;
 		 conn_index++) {
 		if ((conc_connection_list[conn_index].vdev_id == vdev_id) &&
@@ -4104,6 +4208,7 @@ static uint32_t cds_get_connection_for_vdev_id(uint32_t vdev_id)
 			break;
 		}
 	}
+	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 	return conn_index;
 }
 
@@ -4317,9 +4422,9 @@ QDF_STATUS cds_update_connection_info(uint32_t vdev_id)
 		}
 		conn_index++;
 	}
+	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 	if (!found) {
 		/* err msg */
-		qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 		cds_err("can't find vdev_id %d in conc_connection_list",
 			vdev_id);
 		return status;
@@ -4329,7 +4434,6 @@ QDF_STATUS cds_update_connection_info(uint32_t vdev_id)
 
 	if (NULL == wma_conn_table_entry) {
 		/* err msg*/
-		qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 		cds_err("can't find vdev_id %d in WMA table", vdev_id);
 		return status;
 	}
@@ -4358,7 +4462,6 @@ QDF_STATUS cds_update_connection_info(uint32_t vdev_id)
 			wma_conn_table_entry->mac_id,
 			chain_mask,
 			nss, vdev_id, true);
-	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 	return QDF_STATUS_SUCCESS;
 }
 
@@ -4378,7 +4481,15 @@ QDF_STATUS cds_decr_connection_count(uint32_t vdev_id)
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	uint32_t conn_index = 0, next_conn_index = 0;
 	bool found = false;
+	cds_context_type *cds_ctx;
 
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return status;
+	}
+
+	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	while (CONC_CONNECTION_LIST_VALID_INDEX(conn_index)) {
 		if (vdev_id == conc_connection_list[conn_index].vdev_id) {
 			/* debug msg */
@@ -4390,6 +4501,7 @@ QDF_STATUS cds_decr_connection_count(uint32_t vdev_id)
 	if (!found) {
 		cds_err("can't find vdev_id %d in conc_connection_list",
 			vdev_id);
+		qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 		return status;
 	}
 	next_conn_index = conn_index + 1;
@@ -4417,6 +4529,7 @@ QDF_STATUS cds_decr_connection_count(uint32_t vdev_id)
 	/* clean up the entry */
 	qdf_mem_zero(&conc_connection_list[next_conn_index - 1],
 		sizeof(*conc_connection_list));
+	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 	return QDF_STATUS_SUCCESS;
 }
 
@@ -4449,6 +4562,13 @@ QDF_STATUS cds_get_connection_channels(uint8_t *channels,
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	uint32_t conn_index = 0, num_channels = 0;
 	uint32_t weight1, weight2;
+	cds_context_type *cds_ctx;
+
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return status;
+	}
 
 	if ((NULL == channels) || (NULL == len)) {
 		cds_err("channels or len is NULL");
@@ -4481,6 +4601,7 @@ QDF_STATUS cds_get_connection_channels(uint8_t *channels,
 		weight2 = WEIGHT_OF_GROUP3_PCL_CHANNELS;
 	}
 
+	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	if (CDS_PCL_ORDER_NONE == order) {
 		while (CONC_CONNECTION_LIST_VALID_INDEX(conn_index)) {
 			if (skip_dfs_channel && CDS_IS_DFS_CH(
@@ -4555,6 +4676,7 @@ QDF_STATUS cds_get_connection_channels(uint8_t *channels,
 		cds_err("unknown order %d", order);
 		status = QDF_STATUS_E_FAILURE;
 	}
+	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 
 	return status;
 }
@@ -5010,6 +5132,14 @@ bool cds_map_concurrency_mode(enum tQDF_ADAPTER_MODE *old_mode,
 uint8_t cds_get_channel(enum cds_con_mode mode, uint32_t *vdev_id)
 {
 	uint32_t idx = 0;
+	uint8_t chan;
+	cds_context_type *cds_ctx;
+
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return 0;
+	}
 
 	if (mode >= CDS_MAX_NUM_OF_MODE) {
 		cds_err("incorrect mode");
@@ -5017,11 +5147,16 @@ uint8_t cds_get_channel(enum cds_con_mode mode, uint32_t *vdev_id)
 	}
 
 	for (idx = 0; idx < MAX_NUMBER_OF_CONC_CONNECTIONS; idx++) {
+		qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 		if ((conc_connection_list[idx].mode == mode) &&
 				(!vdev_id || (*vdev_id ==
 					conc_connection_list[idx].vdev_id))
-				&& conc_connection_list[idx].in_use)
-			return conc_connection_list[idx].chan;
+				&& conc_connection_list[idx].in_use) {
+			chan =  conc_connection_list[idx].chan;
+			qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
+			return chan;
+		}
+		qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 	}
 	return 0;
 }
@@ -5177,6 +5312,14 @@ static bool cds_disallow_mcc(uint8_t channel)
 {
 	uint32_t index = 0;
 	bool match = false;
+	cds_context_type *cds_ctx;
+
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return match;
+	}
+	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	while (CONC_CONNECTION_LIST_VALID_INDEX(index)) {
 		if (wma_is_hw_dbs_capable() == false) {
 			if (conc_connection_list[index].chan !=
@@ -5193,6 +5336,7 @@ static bool cds_disallow_mcc(uint8_t channel)
 		}
 		index++;
 	}
+	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 	return match;
 }
 
@@ -5212,7 +5356,15 @@ static bool cds_allow_new_home_channel(uint8_t channel,
 				       uint32_t num_connections)
 {
 	bool status = true;
+	cds_context_type *cds_ctx;
 
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return false;
+	}
+
+	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	if ((num_connections == 2) &&
 		(conc_connection_list[0].chan != conc_connection_list[1].chan)
 		&&
@@ -5237,6 +5389,7 @@ static bool cds_allow_new_home_channel(uint8_t channel,
 			status = false;
 		}
 	}
+	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 	return status;
 }
 
@@ -5256,11 +5409,19 @@ bool cds_is_ibss_conn_exist(uint8_t *ibss_channel)
 	uint32_t list[MAX_NUMBER_OF_CONC_CONNECTIONS];
 	bool status = false;
 
+	cds_context_type *cds_ctx;
+
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return status;
+	}
 	if (NULL == ibss_channel) {
 		cds_err("Null pointer error");
 		return false;
 	}
 	count = cds_mode_specific_connection_count(CDS_IBSS_MODE, list);
+	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	if (count == 0) {
 		/* No IBSS connection */
 		status = false;
@@ -5272,6 +5433,7 @@ bool cds_is_ibss_conn_exist(uint8_t *ibss_channel)
 		cds_notice("Multiple IBSS connections, picking first one");
 		status = true;
 	}
+	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 	return status;
 }
 
@@ -5288,7 +5450,15 @@ static bool cds_vht160_conn_exist(void)
 {
 	uint32_t conn_index;
 	bool status = false;
+	cds_context_type *cds_ctx;
 
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return status;
+	}
+
+	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	for (conn_index = 0; conn_index < MAX_NUMBER_OF_CONC_CONNECTIONS;
 		conn_index++) {
 		if (conc_connection_list[conn_index].in_use &&
@@ -5300,6 +5470,7 @@ static bool cds_vht160_conn_exist(void)
 			 break;
 		}
 	}
+	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 
 	return status;
 }
@@ -5322,17 +5493,27 @@ static bool cds_is_5g_channel_allowed(uint8_t channel, uint32_t *list,
 				      enum cds_con_mode mode)
 {
 	uint32_t index = 0, count = 0;
+	cds_context_type *cds_ctx;
+
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return false;
+	}
 
 	count = cds_mode_specific_connection_count(mode, list);
+	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	while (index < count) {
 		if (CDS_IS_DFS_CH(conc_connection_list[list[index]].chan) &&
 		    CDS_IS_CHANNEL_5GHZ(channel) &&
 		    (channel != conc_connection_list[list[index]].chan)) {
+			qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 			cds_err("don't allow MCC if SAP/GO on DFS channel");
 			return false;
 		}
 		index++;
 	}
+	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 	return true;
 
 }
@@ -5373,7 +5554,6 @@ bool cds_allow_concurrency(enum cds_con_mode mode,
 		return status;
 	}
 
-	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 
 	qdf_mem_zero(&pcl, sizeof(pcl));
 	ret = cds_get_pcl(mode, pcl.pcl_list, &pcl.pcl_len,
@@ -5452,8 +5632,10 @@ bool cds_allow_concurrency(enum cds_con_mode mode,
 				cds_err("No IBSS, we have concurrent connections already");
 				goto done;
 			}
+			qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 			if (CDS_STA_MODE != conc_connection_list[0].mode) {
 				cds_err("No IBSS, we've a non-STA connection");
+				qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 				goto done;
 			}
 			/*
@@ -5465,9 +5647,11 @@ bool cds_allow_concurrency(enum cds_con_mode mode,
 				(conc_connection_list[0].chan != channel) &&
 				CDS_IS_SAME_BAND_CHANNELS(
 				conc_connection_list[0].chan, channel)) {
+				qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 				cds_err("No IBSS + STA MCC");
 				goto done;
 			}
+			qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 		} else if (num_connections) {
 			cds_err("No IBSS, we have one connection already");
 			goto done;
@@ -5488,9 +5672,11 @@ bool cds_allow_concurrency(enum cds_con_mode mode,
 				cds_err("No 2nd STA, we already have IBSS concurrency");
 				goto done;
 			}
+			qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 			if (channel &&
 				(CDS_IS_DFS_CH(conc_connection_list[0].chan))
 				&& (CDS_IS_CHANNEL_5GHZ(channel))) {
+				qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 				cds_err("No IBSS + STA SCC/MCC, IBSS is on DFS channel");
 				goto done;
 			}
@@ -5503,8 +5689,10 @@ bool cds_allow_concurrency(enum cds_con_mode mode,
 				CDS_IS_SAME_BAND_CHANNELS(
 				conc_connection_list[0].chan, channel)) {
 				cds_err("No IBSS + STA MCC");
+				qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 				goto done;
 			}
+			qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 		} else {
 			cds_err("No STA, we have IBSS connection already");
 			goto done;
@@ -5516,14 +5704,17 @@ bool cds_allow_concurrency(enum cds_con_mode mode,
 		index = 0;
 		count = cds_mode_specific_connection_count(
 						CDS_P2P_GO_MODE, list);
+		qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 		while (index < count) {
 			if (CDS_IS_SAME_BAND_CHANNELS(channel,
 				conc_connection_list[list[index]].chan)) {
 				cds_err("Don't allow P2P GO on same band");
+				qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 				goto done;
 			}
 			index++;
 		}
+		qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 	}
 
 	/* don't allow concurrency on vht160 or vht 80+80 */
@@ -5543,7 +5734,6 @@ bool cds_allow_concurrency(enum cds_con_mode mode,
 	status = true;
 
 done:
-	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 	return status;
 }
 
@@ -5587,7 +5777,15 @@ enum cds_conc_priority_mode cds_get_first_connection_pcl_table_index(void)
 enum cds_one_connection_mode cds_get_second_connection_pcl_table_index(void)
 {
 	enum cds_one_connection_mode index = CDS_MAX_ONE_CONNECTION_MODE;
+	cds_context_type *cds_ctx;
 
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return index;
+	}
+
+	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	if (CDS_STA_MODE == conc_connection_list[0].mode) {
 		if (CDS_IS_CHANNEL_24GHZ(conc_connection_list[0].chan)) {
 			if (CDS_ONE_ONE == conc_connection_list[0].chain_mask)
@@ -5654,6 +5852,7 @@ enum cds_one_connection_mode cds_get_second_connection_pcl_table_index(void)
 		conc_connection_list[0].mode, conc_connection_list[0].chan,
 		conc_connection_list[0].chain_mask, index);
 
+	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 	return index;
 }
 
@@ -5672,7 +5871,15 @@ enum cds_one_connection_mode cds_get_second_connection_pcl_table_index(void)
 enum cds_two_connection_mode cds_get_third_connection_pcl_table_index(void)
 {
 	enum cds_one_connection_mode index = CDS_MAX_TWO_CONNECTION_MODE;
+	cds_context_type *cds_ctx;
 
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return index;
+	}
+
+	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	/* P2P Client + SAP */
 	if (((CDS_P2P_CLIENT_MODE == conc_connection_list[0].mode) &&
 		(CDS_SAP_MODE == conc_connection_list[1].mode)) ||
@@ -5999,6 +6206,7 @@ enum cds_two_connection_mode cds_get_third_connection_pcl_table_index(void)
 		conc_connection_list[0].chan, conc_connection_list[1].chan,
 		conc_connection_list[0].chain_mask, index);
 
+	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 	return index;
 }
 
@@ -6093,7 +6301,6 @@ QDF_STATUS cds_current_connections_update(uint32_t session_id,
 	else
 		band = CDS_BAND_5;
 
-	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	num_connections = cds_get_connection_count();
 
 	cds_debug("num_connections=%d channel=%d",
@@ -6139,7 +6346,6 @@ QDF_STATUS cds_current_connections_update(uint32_t session_id,
 		reason, session_id);
 
 done:
-	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 	return status;
 }
 
@@ -6178,17 +6384,14 @@ static void cds_nss_update_cb(void *context, uint8_t tx_status, uint8_t vdev_id,
 	/*
 	 * Check if we are ok to request for HW mode change now
 	 */
-	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	conn_index = cds_get_connection_for_vdev_id(vdev_id);
 	if (MAX_NUMBER_OF_CONC_CONNECTIONS == conn_index) {
-		qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 		cds_err("connection not found for vdev %d", vdev_id);
 		return;
 	}
 
 	cds_debug("nss update successful for vdev:%d", vdev_id);
 	cds_next_actions(vdev_id, next_action, reason);
-	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 	return;
 }
 
@@ -6217,6 +6420,15 @@ static QDF_STATUS cds_complete_action(uint8_t  new_nss, uint8_t next_action,
 	uint32_t list[MAX_NUMBER_OF_CONC_CONNECTIONS];
 	uint32_t conn_index = 0;
 	hdd_context_t *hdd_ctx;
+	uint32_t vdev_id;
+	uint32_t original_nss;
+	cds_context_type *cds_ctx;
+
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return status;
+	}
 
 	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
 	if (!hdd_ctx) {
@@ -6237,23 +6449,25 @@ static QDF_STATUS cds_complete_action(uint8_t  new_nss, uint8_t next_action,
 	count = cds_mode_specific_connection_count(
 			CDS_P2P_GO_MODE, list);
 	for (index = 0; index < count; index++) {
-		conn_index = cds_get_connection_for_vdev_id(
-				conc_connection_list[list[index]].vdev_id);
+		qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
+		vdev_id = conc_connection_list[list[index]].vdev_id;
+		original_nss = conc_connection_list[list[index]].original_nss;
+		qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
+		conn_index = cds_get_connection_for_vdev_id(vdev_id);
 		if (MAX_NUMBER_OF_CONC_CONNECTIONS == conn_index) {
 			cds_err("connection not found for vdev %d",
-				conc_connection_list[list[index]].vdev_id);
+				vdev_id);
 			continue;
 		}
 
-		if (2 == conc_connection_list[list[index]].original_nss) {
+		if (2 == original_nss) {
 			status = sme_nss_update_request(hdd_ctx->hHal,
-					conc_connection_list
-					[list[index]].vdev_id, new_nss,
+					vdev_id, new_nss,
 					cds_nss_update_cb,
 					next_action, hdd_ctx, reason);
 			if (!QDF_IS_STATUS_SUCCESS(status)) {
 				cds_err("sme_nss_update_request() failed for vdev %d",
-				conc_connection_list[list[index]].vdev_id);
+				vdev_id);
 			}
 		}
 	}
@@ -6261,22 +6475,24 @@ static QDF_STATUS cds_complete_action(uint8_t  new_nss, uint8_t next_action,
 	count = cds_mode_specific_connection_count(
 			CDS_SAP_MODE, list);
 	for (index = 0; index < count; index++) {
-		conn_index = cds_get_connection_for_vdev_id(
-				conc_connection_list[list[index]].vdev_id);
+		qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
+		vdev_id = conc_connection_list[list[index]].vdev_id;
+		original_nss = conc_connection_list[list[index]].original_nss;
+		qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
+		conn_index = cds_get_connection_for_vdev_id(vdev_id);
 		if (MAX_NUMBER_OF_CONC_CONNECTIONS == conn_index) {
 			cds_err("connection not found for vdev %d",
-				conc_connection_list[list[index]].vdev_id);
+				vdev_id);
 			continue;
 		}
-		if (2 == conc_connection_list[list[index]].original_nss) {
+		if (2 == original_nss) {
 			status = sme_nss_update_request(hdd_ctx->hHal,
-					conc_connection_list
-					[list[index]].vdev_id, new_nss,
+					vdev_id, new_nss,
 					cds_nss_update_cb,
 					next_action, hdd_ctx, reason);
 			if (!QDF_IS_STATUS_SUCCESS(status)) {
 				cds_err("sme_nss_update_request() failed for vdev %d",
-				conc_connection_list[list[index]].vdev_id);
+				vdev_id);
 			}
 		}
 	}
@@ -7739,9 +7955,9 @@ QDF_STATUS cds_update_connection_info_utfw(
 		}
 		conn_index++;
 	}
+	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 	if (!found) {
 		/* err msg */
-		qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 		cds_err("can't find vdev_id %d in conc_connection_list",
 			vdev_id);
 		return status;
@@ -7752,7 +7968,6 @@ QDF_STATUS cds_update_connection_info_utfw(
 			cds_get_mode(type, sub_type),
 			channelid, HW_MODE_20_MHZ,
 			mac_id, chain_mask, 0, vdev_id, true);
-	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -7779,11 +7994,9 @@ QDF_STATUS cds_incr_connection_count_utfw(
 		return status;
 	}
 
-	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	conn_index = cds_get_connection_count();
 	if (MAX_NUMBER_OF_CONC_CONNECTIONS <= conn_index) {
 		/* err msg */
-		qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 		cds_err("exceeded max connection limit %d",
 			MAX_NUMBER_OF_CONC_CONNECTIONS);
 		return status;
@@ -7794,7 +8007,6 @@ QDF_STATUS cds_incr_connection_count_utfw(
 				cds_get_mode(type, sub_type),
 				channelid, HW_MODE_20_MHZ,
 				mac_id, chain_mask, 0, vdev_id, true);
-	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -7821,9 +8033,7 @@ QDF_STATUS cds_decr_connection_count_utfw(uint32_t del_all,
 			return QDF_STATUS_E_FAILURE;
 		}
 	} else {
-		qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 		cds_decr_connection_count(vdev_id);
-		qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 	}
 
 	return QDF_STATUS_SUCCESS;
@@ -8193,6 +8403,14 @@ static enum cds_conc_next_action cds_get_current_pref_hw_mode(void)
 	struct sir_hw_mode_params hw_mode;
 	QDF_STATUS status;
 	hdd_context_t *hdd_ctx;
+	enum cds_conc_next_action next_action;
+	cds_context_type *cds_ctx;
+
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return CDS_NOP;
+	}
 
 	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
 	if (!hdd_ctx) {
@@ -8208,6 +8426,7 @@ static enum cds_conc_next_action cds_get_current_pref_hw_mode(void)
 
 	num_connections = cds_get_connection_count();
 
+	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	cds_debug("chan[0]:%d chan[1]:%d chan[2]:%d num_connections:%d dbs:%d",
 		conc_connection_list[0].chan, conc_connection_list[1].chan,
 		conc_connection_list[2].chan, num_connections, hw_mode.dbs_cap);
@@ -8218,34 +8437,45 @@ static enum cds_conc_next_action cds_get_current_pref_hw_mode(void)
 	switch (num_connections) {
 	case 1:
 		/* The driver would already be in the required hw mode */
-		return CDS_NOP;
+		next_action = CDS_NOP;
+		break;
 	case 2:
 		band1 = cds_chan_to_band(conc_connection_list[0].chan);
 		band2 = cds_chan_to_band(conc_connection_list[1].chan);
 		if ((band1 == band2) && (hw_mode.dbs_cap))
-			return CDS_SINGLE_MAC_UPGRADE;
+			next_action = CDS_SINGLE_MAC_UPGRADE;
 		else if ((band1 != band2) && (!hw_mode.dbs_cap))
-			return CDS_DBS_DOWNGRADE;
+			next_action = CDS_DBS_DOWNGRADE;
 		else
-			return CDS_NOP;
+			next_action = CDS_NOP;
+
+		break;
 
 	case 3:
 		band1 = cds_chan_to_band(conc_connection_list[0].chan);
 		band2 = cds_chan_to_band(conc_connection_list[1].chan);
 		band3 = cds_chan_to_band(conc_connection_list[2].chan);
 		if (((band1 == band2) && (band2 == band3)) &&
-		    (hw_mode.dbs_cap))
-			return CDS_SINGLE_MAC_UPGRADE;
-		else if (((band1 != band2) || (band2 != band3) ||
-			(band1 != band3)) && (!hw_mode.dbs_cap))
-			return CDS_DBS_DOWNGRADE;
-		else
-			return CDS_NOP;
+				(hw_mode.dbs_cap)) {
+			next_action = CDS_SINGLE_MAC_UPGRADE;
+		} else if (((band1 != band2) || (band2 != band3) ||
+					(band1 != band3)) &&
+					(!hw_mode.dbs_cap)) {
+			next_action = CDS_DBS_DOWNGRADE;
+		} else {
+			next_action = CDS_NOP;
+		}
+		break;
 	default:
 		cds_err("unexpected num_connections value %d",
 				num_connections);
-		return CDS_NOP;
+		next_action = CDS_NOP;
+		break;
 	}
+
+	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
+	return next_action;
+
 }
 
 /**
@@ -8815,7 +9045,6 @@ QDF_STATUS cds_get_valid_chan_weights(struct sir_pcl_chan_weights *weight)
 	qdf_mem_set(weight->weighed_valid_list, QDF_MAX_NUM_CHAN,
 		    WEIGHT_OF_DISALLOWED_CHANNELS);
 
-	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	if (cds_mode_specific_connection_count(CDS_STA_MODE, NULL) > 0) {
 		/*
 		 * Store the STA mode's parameter and temporarily delete it
@@ -8824,7 +9053,6 @@ QDF_STATUS cds_get_valid_chan_weights(struct sir_pcl_chan_weights *weight)
 		 * allowing to detect the disallowed channels.
 		 */
 		cds_store_and_del_conn_info(CDS_STA_MODE, &info);
-		qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 		/*
 		 * There is a small window between releasing the above lock
 		 * and acquiring the same in cds_allow_concurrency, below!
@@ -8838,11 +9066,9 @@ QDF_STATUS cds_get_valid_chan_weights(struct sir_pcl_chan_weights *weight)
 			}
 		}
 
-		qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 		/* Restore the connection info */
 		cds_restore_deleted_conn_info(&info);
 	}
-	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 
 	for (i = 0; i < weight->saved_num_chan; i++) {
 		for (j = 0; j < weight->pcl_len; j++) {
@@ -8890,8 +9116,6 @@ QDF_STATUS cds_set_hw_mode_on_channel_switch(uint8_t session_id)
 		return status;
 	}
 
-	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
-
 	action = cds_get_current_pref_hw_mode();
 
 	if ((action != CDS_DBS_DOWNGRADE) &&
@@ -8926,7 +9150,6 @@ QDF_STATUS cds_set_hw_mode_on_channel_switch(uint8_t session_id)
 		goto done;
 	}
 done:
-	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 	/* success must be returned only when a set hw mode was done */
 	return status;
 }
@@ -8950,6 +9173,7 @@ void cds_dump_connection_status_info(void)
 		return;
 	}
 
+	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	for (i = 0; i < MAX_NUMBER_OF_CONC_CONNECTIONS; i++) {
 		cds_debug("%d: use:%d vdev:%d mode:%d mac:%d chan:%d orig chainmask:%d orig nss:%d bw:%d",
 				i, conc_connection_list[i].in_use,
@@ -8961,6 +9185,7 @@ void cds_dump_connection_status_info(void)
 				conc_connection_list[i].original_nss,
 				conc_connection_list[i].bw);
 	}
+	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 }
 
 /**
@@ -9160,14 +9385,17 @@ void cds_checkn_update_hw_mode_single_mac_mode(uint8_t channel)
 		return;
 	}
 
+	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	for (i = 0; i < MAX_NUMBER_OF_CONC_CONNECTIONS; i++) {
 		if (conc_connection_list[i].in_use)
 			if (!CDS_IS_SAME_BAND_CHANNELS(channel,
 				conc_connection_list[i].chan)) {
+				qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 				cds_info("DBS required");
 				return;
 			}
 	}
+	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 
 	if (QDF_TIMER_STATE_RUNNING ==
 		cds_ctx->dbs_opportunistic_timer.state)

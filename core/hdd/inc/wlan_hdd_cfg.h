@@ -2851,6 +2851,15 @@ typedef enum {
 
 #endif
 
+/*
+ * This INI item is used to control subsystem restart(SSR) test framework
+ * Set it's value to 1 to enable APPS trigerred SSR testing
+ */
+#define CFG_ENABLE_CRASH_INJECT         "gEnableForceTargetAssert"
+#define CFG_ENABLE_CRASH_INJECT_MIN     (0)
+#define CFG_ENABLE_CRASH_INJECT_MAX     (1)
+#define CFG_ENABLE_CRASH_INJECT_DEFAULT (0)
+
 #ifdef FEATURE_WLAN_FORCE_SAP_SCC
 /*
  * <ini>
@@ -7269,6 +7278,8 @@ struct hdd_config {
 	uint32_t egap_inact_time;
 	uint32_t egap_wait_time;
 #endif
+	/* Flag to indicate crash inject enabled or not */
+	bool crash_inject_enabled;
 	uint8_t force_sap_acs;
 	uint8_t force_sap_acs_st_ch;
 	uint8_t force_sap_acs_end_ch;

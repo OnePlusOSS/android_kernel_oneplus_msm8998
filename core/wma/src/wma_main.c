@@ -2260,6 +2260,8 @@ QDF_STATUS wma_open(void *cds_context,
 			wma_fw_mem_dump_event_handler,
 			WMA_RX_SERIALIZER_CTX);
 
+	wmi_set_tgt_assert(wma_handle->wmi_handle,
+			   cds_cfg->force_target_assert_enabled);
 	/* Firmware debug log */
 	qdf_status = dbglog_init(wma_handle->wmi_handle);
 	if (qdf_status != QDF_STATUS_SUCCESS) {

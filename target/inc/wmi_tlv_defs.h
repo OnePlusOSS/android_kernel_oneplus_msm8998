@@ -755,6 +755,16 @@ typedef enum {
 	WMITLV_TAG_STRUC_wmi_pdev_band_to_mac,
 	WMITLV_TAG_STRUC_wmi_tbtt_offset_info,
 	WMITLV_TAG_STRUC_wmi_tbtt_offset_ext_event_fixed_param,
+	WMITLV_TAG_STRUC_wmi_sar_limits_cmd_fixed_param,
+	WMITLV_TAG_STRUC_wmi_sar_limit_cmd_row,
+	WMITLV_TAG_STRUC_wmi_pdev_dfs_phyerr_offload_enable_cmd_fixed_param,
+	WMITLV_TAG_STRUC_wmi_pdev_dfs_phyerr_offload_disable_cmd_fixed_param,
+	WMITLV_TAG_STRUC_wmi_vdev_adfs_ch_cfg_cmd_fixed_param,
+	WMITLV_TAG_STRUC_wmi_vdev_adfs_ocac_abort_cmd_fixed_param,
+	WMITLV_TAG_STRUC_wmi_pdev_dfs_radar_detection_event_fixed_param,
+	WMITLV_TAG_STRUC_wmi_vdev_adfs_ocac_complete_event_fixed_param,
+	WMITLV_TAG_STRUC_wmi_vdev_dfs_cac_complete_event_fixed_param,
+
 } WMITLV_TAG_ID;
 
 /*
@@ -1059,6 +1069,11 @@ typedef enum {
 	OP(WMI_PDEV_SET_STATS_THRESHOLD_CMDID) \
 	OP(WMI_REQUEST_WLAN_STATS_CMDID) \
 	OP(WMI_VDEV_ENCRYPT_DECRYPT_DATA_REQ_CMDID) \
+	OP(WMI_SAR_LIMITS_CMDID) \
+	OP(WMI_PDEV_DFS_PHYERR_OFFLOAD_ENABLE_CMDID) \
+	OP(WMI_PDEV_DFS_PHYERR_OFFLOAD_DISABLE_CMDID) \
+	OP(WMI_VDEV_ADFS_CH_CFG_CMDID) \
+	OP(WMI_VDEV_ADFS_OCAC_ABORT_CMDID) \
 	/* add new CMD_LIST elements above this line */
 
 /*
@@ -1221,6 +1236,9 @@ typedef enum {
 	OP(WMI_REPORT_RX_AGGR_FAILURE_EVENTID) \
 	OP(WMI_VDEV_ENCRYPT_DECRYPT_DATA_RESP_EVENTID) \
 	OP(WMI_TBTTOFFSET_EXT_UPDATE_EVENTID) \
+	OP(WMI_PDEV_DFS_RADAR_DETECTION_EVENTID) \
+	OP(WMI_VDEV_DFS_CAC_COMPLETE_EVENTID) \
+	OP(WMI_VDEV_ADFS_OCAC_COMPLETE_EVENTID) \
 	/* add new EVT_LIST elements above this line */
 
 /* TLV definitions of WMI commands */
@@ -2068,6 +2086,30 @@ WMITLV_CREATE_PARAM_STRUC(WMI_DFS_PHYERR_FILTER_ENA_CMDID);
 
 WMITLV_CREATE_PARAM_STRUC(WMI_DFS_PHYERR_FILTER_DIS_CMDID);
 
+/* DFS phyerr processing offload enable cmd */
+#define WMITLV_TABLE_WMI_PDEV_DFS_PHYERR_OFFLOAD_ENABLE_CMDID(id, op, buf, len) \
+	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_STRUC_wmi_pdev_dfs_phyerr_offload_enable_cmd_fixed_param, wmi_pdev_dfs_phyerr_offload_enable_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+
+WMITLV_CREATE_PARAM_STRUC(WMI_PDEV_DFS_PHYERR_OFFLOAD_ENABLE_CMDID);
+
+/* DFS phyerr processing offload disble cmd */
+#define WMITLV_TABLE_WMI_PDEV_DFS_PHYERR_OFFLOAD_DISABLE_CMDID(id, op, buf, len) \
+	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_STRUC_wmi_pdev_dfs_phyerr_offload_disable_cmd_fixed_param, wmi_pdev_dfs_phyerr_offload_disable_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+
+WMITLV_CREATE_PARAM_STRUC(WMI_PDEV_DFS_PHYERR_OFFLOAD_DISABLE_CMDID);
+
+/* set ADFS channel config cmd */
+#define WMITLV_TABLE_WMI_VDEV_ADFS_CH_CFG_CMDID(id, op, buf, len) \
+	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_STRUC_wmi_vdev_adfs_ch_cfg_cmd_fixed_param, wmi_vdev_adfs_ch_cfg_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+
+WMITLV_CREATE_PARAM_STRUC(WMI_VDEV_ADFS_CH_CFG_CMDID);
+
+/* DFS abort ADFS ocac currently in progress */
+#define WMITLV_TABLE_WMI_VDEV_ADFS_OCAC_ABORT_CMDID(id, op, buf, len) \
+	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_STRUC_wmi_vdev_adfs_ocac_abort_cmd_fixed_param, wmi_vdev_adfs_ocac_abort_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+
+WMITLV_CREATE_PARAM_STRUC(WMI_VDEV_ADFS_OCAC_ABORT_CMDID);
+
 /* WOW Add Wake Pattern Cmd */
 #define WMITLV_TABLE_WMI_WOW_ADD_WAKE_PATTERN_CMDID(id,op,buf,len) \
 	WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_WMI_WOW_ADD_PATTERN_CMD_fixed_param, WMI_WOW_ADD_PATTERN_CMD_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
@@ -2526,6 +2568,12 @@ WMITLV_CREATE_PARAM_STRUC(WMI_NDP_END_REQ_CMDID);
 #define WMITLV_TABLE_WMI_MODEM_POWER_STATE_CMDID(id,op,buf,len)	\
 	WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_modem_power_state_cmd_param, wmi_modem_power_state_cmd_param, fixed_param, WMITLV_SIZE_FIX)
 WMITLV_CREATE_PARAM_STRUC(WMI_MODEM_POWER_STATE_CMDID);
+
+/* SAR limit update cmd */
+#define WMITLV_TABLE_WMI_SAR_LIMITS_CMDID(id, op, buf, len) \
+	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_STRUC_wmi_sar_limits_cmd_fixed_param, wmi_sar_limits_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
+	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_ARRAY_STRUC, wmi_sar_limit_cmd_row, sar_limits, WMITLV_SIZE_VAR)
+WMITLV_CREATE_PARAM_STRUC(WMI_SAR_LIMITS_CMDID);
 
 /* get estimated link speed cmd */
 #define WMITLV_TABLE_WMI_PEER_GET_ESTIMATED_LINKSPEED_CMDID(id,op,buf,len) \
@@ -3558,6 +3606,18 @@ WMITLV_CREATE_PARAM_STRUC(WMI_PEER_TX_FAIL_CNT_THR_EVENTID);
 #define WMITLV_TABLE_WMI_DFS_RADAR_EVENTID(id,op,buf,len) \
 	WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_dfs_radar_event_fixed_param, wmi_dfs_radar_event_fixed_param, fixed_param, WMITLV_SIZE_FIX)
 WMITLV_CREATE_PARAM_STRUC(WMI_DFS_RADAR_EVENTID);
+
+#define WMITLV_TABLE_WMI_PDEV_DFS_RADAR_DETECTION_EVENTID(id, op, buf, len) \
+	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_STRUC_wmi_pdev_dfs_radar_detection_event_fixed_param, wmi_pdev_dfs_radar_detection_event_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_PDEV_DFS_RADAR_DETECTION_EVENTID);
+
+#define WMITLV_TABLE_WMI_VDEV_ADFS_OCAC_COMPLETE_EVENTID(id, op, buf, len) \
+	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_STRUC_wmi_vdev_adfs_ocac_complete_event_fixed_param, wmi_vdev_adfs_ocac_complete_event_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_VDEV_ADFS_OCAC_COMPLETE_EVENTID);
+
+#define WMITLV_TABLE_WMI_VDEV_DFS_CAC_COMPLETE_EVENTID(id, op, buf, len) \
+	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_STRUC_wmi_vdev_dfs_cac_complete_event_fixed_param, wmi_vdev_dfs_cac_complete_event_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_VDEV_DFS_CAC_COMPLETE_EVENTID);
 
 /* Thermal Event */
 #define WMITLV_TABLE_WMI_THERMAL_MGMT_EVENTID(id,op,buf,len) \

@@ -558,7 +558,9 @@ sch_bcn_process_sta_ibss(tpAniSirGlobal mac_ctx,
 			skip_opmode_update = true;
 
 		if (!skip_opmode_update &&
-		    (operMode != bcn->OperatingMode.chanWidth)) {
+			((operMode != bcn->OperatingMode.chanWidth) ||
+			(pStaDs->vhtSupportedRxNss !=
+			(bcn->OperatingMode.rxNSS + 1)))) {
 			PELOGE(sch_log(mac_ctx, LOGE,
 			       FL("received OpMode Chanwidth %d, staIdx = %d"),
 			       bcn->OperatingMode.chanWidth, pStaDs->staIndex);)
@@ -853,6 +855,13 @@ static void __sch_beacon_process_for_session(tpAniSirGlobal mac_ctx,
 		       FL("sending beacon param change bitmap: 0x%x "),
 		       beaconParams.paramChangeBitmap);)
 		lim_send_beacon_params(mac_ctx, &beaconParams, session);
+	}
+
+	if ((session->pePersona == QDF_P2P_CLIENT_MODE) &&
+		session->send_p2p_conf_frame) {
+		lim_p2p_oper_chan_change_confirm_action_frame(mac_ctx,
+				session->bssId, session);
+		session->send_p2p_conf_frame = false;
 	}
 }
 

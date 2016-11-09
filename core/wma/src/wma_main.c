@@ -2031,6 +2031,7 @@ QDF_STATUS wma_open(void *cds_context,
 	wma_handle->enable_mc_list = cds_cfg->enable_mc_list;
 	wma_handle->bpf_packet_filter_enable =
 		cds_cfg->bpf_packet_filter_enable;
+	wma_handle->link_stats_results = NULL;
 #ifdef FEATURE_WLAN_RA_FILTERING
 	wma_handle->IsRArateLimitEnabled = cds_cfg->is_ra_ratelimit_enabled;
 	wma_handle->RArateLimitInterval = cds_cfg->ra_ratelimit_interval;
@@ -2071,6 +2072,7 @@ QDF_STATUS wma_open(void *cds_context,
 	wma_handle->old_hw_mode_index = WMA_DEFAULT_HW_MODE_INDEX;
 	wma_handle->new_hw_mode_index = WMA_DEFAULT_HW_MODE_INDEX;
 	wma_handle->saved_chan.num_channels = 0;
+	wma_handle->fw_timeout_crash = cds_cfg->fw_timeout_crash;
 
 	qdf_status = qdf_event_create(&wma_handle->wma_ready_event);
 	if (qdf_status != QDF_STATUS_SUCCESS) {
@@ -3533,6 +3535,11 @@ QDF_STATUS wma_close(void *cds_ctx)
 	if (NULL != wma_handle->pGetRssiReq) {
 		qdf_mem_free(wma_handle->pGetRssiReq);
 		wma_handle->pGetRssiReq = NULL;
+	}
+
+	if (wma_handle->link_stats_results) {
+		qdf_mem_free(wma_handle->link_stats_results);
+		wma_handle->link_stats_results = NULL;
 	}
 
 	wma_ndp_unregister_all_event_handlers(wma_handle);

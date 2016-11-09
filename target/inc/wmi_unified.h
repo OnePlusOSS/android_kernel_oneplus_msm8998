@@ -525,6 +525,14 @@ typedef enum {
 	WMI_DFS_PHYERR_FILTER_ENA_CMDID,
 	/** enable DFS phyerr/parse filter offload */
 	WMI_DFS_PHYERR_FILTER_DIS_CMDID,
+	/** enable DFS phyerr processing offload */
+	WMI_PDEV_DFS_PHYERR_OFFLOAD_ENABLE_CMDID,
+	/** disable DFS phyerr processing offload */
+	WMI_PDEV_DFS_PHYERR_OFFLOAD_DISABLE_CMDID,
+	/** set ADFS channel config */
+	WMI_VDEV_ADFS_CH_CFG_CMDID,
+	/** abort ADFS off-channel-availability-check currently in progress */
+	WMI_VDEV_ADFS_OCAC_ABORT_CMDID,
 
 	/* Roaming specific  commands */
 	/** set roam scan mode */
@@ -920,6 +928,7 @@ typedef enum {
 	WMI_COEX_CONFIG_CMDID,
 	WMI_CHAN_AVOID_RPT_ALLOW_CMDID,
 	WMI_COEX_GET_ANTENNA_ISOLATION_CMDID,
+	WMI_SAR_LIMITS_CMDID,
 
 	/**
 	 *  OBSS scan offload enable/disable commands
@@ -1294,7 +1303,12 @@ typedef enum {
 	/*chatter query reply event */
 	WMI_CHATTER_PC_QUERY_EVENTID =
 		WMI_EVT_GRP_START_ID(WMI_GRP_CHATTER),
-
+	/** DFS related events */
+	WMI_PDEV_DFS_RADAR_DETECTION_EVENTID = WMI_EVT_GRP_START_ID(WMI_GRP_DFS),
+	/** Indicate channel-availability-check completion event to host */
+	WMI_VDEV_DFS_CAC_COMPLETE_EVENTID,
+	/** Indicate off-channel-availability-check completion event to host */
+	WMI_VDEV_ADFS_OCAC_COMPLETE_EVENTID,
 	/** echo event in response to echo command */
 	WMI_ECHO_EVENTID = WMI_EVT_GRP_START_ID(WMI_GRP_MISC),
 
@@ -3927,6 +3941,8 @@ typedef enum {
 	WMI_PDEV_PARAM_TX_MPDU_AGGR_ARRAY_LEN,
 	/** set wmi_rx_stats.rx_mpdu_aggr[] array length */
 	WMI_PDEV_PARAM_RX_MPDU_AGGR_ARRAY_LEN,
+	/** Set TX delay value in TX sch module, unit is microseconds */
+	WMI_PDEV_PARAM_TX_SCH_DELAY,
 } WMI_PDEV_PARAM;
 
 typedef enum {
@@ -4812,6 +4828,8 @@ typedef struct {
 	 * tx time per power level stats.
 	 */
 	A_UINT32 power_level_offset;
+	/* radio id for this tx time per power level statistics (if multiple radio supported) */
+	A_UINT32 radio_id;
 	/*
 	 * This TLV will be followed by a TLV containing a variable-length
 	 * array of A_UINT32 with tx time per power level data
@@ -5973,6 +5991,8 @@ typedef struct {
 	/** the DBS policy manager indicates the preferred number of receive streams. */
 	A_UINT32 preferred_rx_streams;
 	A_UINT32 he_ops; /* refer to WMI_HEOPS_xxx macros */
+	A_UINT32 cac_duration_ms;  /* in milliseconds */
+	A_UINT32 regdomain;
 	/* The TLVs follows this structure:
 	 *     wmi_channel chan;   //WMI channel
 	 *     wmi_p2p_noa_descriptor  noa_descriptors[]; //actual p2p NOA descriptor from scan entry
@@ -9380,6 +9400,10 @@ enum {
 	 * to request it.
 	 */
 	WMI_WOW_FLAG_SEND_PM_PME       = 0x00000002,
+	/* Flag to indicate unit test */
+	WMI_WOW_FLAG_UNIT_TEST_ENABLE  = 0x00000004,
+	/* Force HTC wakeup */
+	WMI_WOW_FLAG_DO_HTC_WAKEUP     = 0x00000008,
 };
 
 
@@ -10960,6 +10984,74 @@ typedef struct {
 	A_UINT32 pdev_id;
 } wmi_dfs_phyerr_filter_dis_cmd_fixed_param;
 
+typedef struct {
+	A_UINT32 tlv_header;
+	A_UINT32 pdev_id;
+} wmi_pdev_dfs_phyerr_offload_enable_cmd_fixed_param;
+
+typedef struct {
+	A_UINT32 tlv_header;
+	A_UINT32 pdev_id;
+} wmi_pdev_dfs_phyerr_offload_disable_cmd_fixed_param;
+
+typedef enum {
+	QUICK_OCAC = 0,
+	EXTENSIVE_OCAC,
+} WMI_ADFS_OCAC_MODE;
+
+typedef struct {
+	A_UINT32  tlv_header;
+	A_UINT32  vdev_id;
+	A_UINT32  ocac_mode;  /* WMI_ADFS_OCAC_MODE */
+	A_UINT32  min_duration_ms; /* in milliseconds */
+	A_UINT32  max_duration_ms; /* in milliseconds */
+	A_UINT32  chan_freq;   /* in MHz */
+	A_UINT32  chan_width;  /* in MHz */
+	A_UINT32  center_freq; /* in MHz */
+} wmi_vdev_adfs_ch_cfg_cmd_fixed_param;
+
+typedef struct {
+	A_UINT32 tlv_header;
+	A_UINT32 vdev_id;
+} wmi_vdev_adfs_ocac_abort_cmd_fixed_param;
+
+typedef enum {
+	IN_SERVICE_MODE = 0,
+	OCAC_MODE,
+} WMI_DFS_RADAR_DETECTION_MODE;
+
+typedef struct {
+	A_UINT32 tlv_header;
+	A_UINT32 pdev_id;
+	/* In-service mode or O-CAC mode */
+	A_UINT32 detection_mode; /* WMI_DFS_RADAR_DETECTION_MODE */
+	A_UINT32 chan_freq;  /* in MHz */
+	A_UINT32 chan_width; /* in MHz */
+	A_UINT32 detector_id;
+	A_UINT32 segment_id;
+	A_UINT32 timestamp;
+	A_UINT32 is_chirp;
+} wmi_pdev_dfs_radar_detection_event_fixed_param;
+
+typedef enum {
+	OCAC_COMPLETE = 0,
+	OCAC_ABORT,
+} WMI_VDEV_OCAC_COMPLETE_STATUS;
+
+typedef struct {
+	A_UINT32 tlv_header;
+	A_UINT32 vdev_id;
+	A_UINT32 chan_freq;   /* in MHz */
+	A_UINT32 chan_width;  /* in MHz */
+	A_UINT32 center_freq; /* in MHz */
+	A_UINT32 status;   /* WMI_VDEV_OCAC_COMPLETE_STATUS */
+} wmi_vdev_adfs_ocac_complete_event_fixed_param;
+
+typedef struct {
+	A_UINT32 tlv_header;
+	A_UINT32 vdev_id;
+} wmi_vdev_dfs_cac_complete_event_fixed_param;
+
 /** TDLS COMMANDS */
 
 /* WMI_TDLS_SET_STATE_CMDID */
@@ -12489,6 +12581,16 @@ typedef enum {
 #define wmi_ndp_rsp_code wmi_ndp_rsp_code_PROTOTYPE
 
 /**
+* NDP Channel configuration type
+*/
+typedef enum {
+	WMI_NDP_CHANNEL_NOT_REQUESTED = 0, /* Channel will not configured */
+	WMI_NDP_REQUEST_CHANNEL_SETUP = 1, /* Channel will be provided and is optional/hint */
+	WMI_NDP_FORCE_CHANNEL_SETUP = 2/* NDP must start on the provided channel */
+} wmi_ndp_channel_cfg_PROTOTYPE;
+
+#define wmi_ndp_channel_cfg wmi_ndp_channel_cfg_PROTOTYPE
+/**
  * NDP Initiator requesting a data session
  */
 typedef struct {
@@ -12509,6 +12611,8 @@ typedef struct {
 	A_UINT32 ndp_cfg_len;
 	/* Actual number of bytes in TLV ndp_app_info */
 	A_UINT32 ndp_app_info_len;
+	/** NDP channel configuration type defined in wmi_ndp_channel_cfg */
+	A_UINT32 ndp_channel_cfg;
 	/**
 	 * TLV (tag length value ) parameters follow the ndp_initiator_req
 	 * structure. The TLV's are:
@@ -12692,6 +12796,8 @@ typedef struct {
 	A_UINT32 ndp_instance_id;
 	/* NDI mac address of the peer */
 	wmi_mac_addr peer_ndi_mac_addr;
+	/** Host can create peer if this entry is TRUE */
+	A_UINT32 create_peer;
 } wmi_ndp_responder_rsp_event_fixed_param_PROTOTYPE;
 
 #define wmi_ndp_responder_rsp_event_fixed_param wmi_ndp_responder_rsp_event_fixed_param_PROTOTYPE
@@ -12945,6 +13051,113 @@ enum {
 	WMI_MODEM_STATE_OFF = 0,
 	WMI_MODEM_STATE_ON
 };
+
+/**
+ * This command is sent from WLAN host driver to firmware to
+ * notify the updated Specific Absorption Rate (SAR) limits.
+ * A critical regulation for FCC compliance, OEMs require methods to set
+ * limits on TX power of WLAN/WWAN.
+ * Host would receive instructions on what to set the limits per
+ * band/chain/modulation to, it would then interpret and send the limits
+ * to FW using this WMI message.
+ * Since it is possible to have too many commands to fit into one message,
+ * FW will keep receiving the messages, until it finds one with
+ * commit_limits = 1, at which point it will apply all the received
+ * specifications.
+ */
+
+typedef struct {
+	/** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_sar_limits_cmd_param */
+	A_UINT32 tlv_header;
+
+	/** when set to WMI_SAR_FEATURE_ON, enable SAR feature;
+	 * if set to WMI_SAR_FEATURE_OFF, disable feature;
+	 * if set to WMI_SAR_FEATURE_NO_CHANGE, do not alter state of feature;
+	 */
+
+	A_UINT32 sar_enable;
+
+	/** number of items in sar_limits[] */
+	A_UINT32 num_limit_rows;
+	/** once received and is set to 1, FW will calculate the power limits
+	 * and send set_power command to apply them.
+	 * Otherwise just update local values stored in FW until a future msg
+	 * with commit_limits=1 arrives.
+	 */
+
+	A_UINT32 commit_limits;
+
+	/**
+	 * TLV (tag length value) parameters follow the sar_limit_cmd_row
+	 * structure. The TLV's are:
+	 * wmi_sar_limit_cmd_row sar_limits[];
+	 */
+} wmi_sar_limits_cmd_fixed_param;
+
+enum wmi_sar_feature_state_flags {
+	WMI_SAR_FEATURE_OFF = 0,
+	WMI_SAR_FEATURE_ON_SET_0,
+	WMI_SAR_FEATURE_ON_SET_1,
+	WMI_SAR_FEATURE_ON_SET_2,
+	WMI_SAR_FEATURE_ON_SET_3,
+	WMI_SAR_FEATURE_ON_SET_4,
+	WMI_SAR_FEATURE_NO_CHANGE
+};
+
+typedef struct {
+	A_UINT32    tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_sar_limit_cmd_row */
+
+	/** Current values: WMI_SAR_2G_ID, WMI_SAR_5G_ID. Can be extended by adding
+	 * new band_id values .
+	 */
+	A_UINT32 band_id;
+
+	A_UINT32 chain_id;
+
+	/** Current values: WMI_SAR_MOD_CCK, WMI_SAR_MOD_OFDM */
+	A_UINT32 mod_id;
+
+	/** actual power limit value, in steps of 0.5 dBm */
+	A_UINT32 limit_value;
+
+	/** in case the OEM doesn't care about one of the qualifiers from above,
+	 * the bit for that qualifier within the validity_bitmap can be set to 0
+	 * so that limit is applied to all possible cases of this qualifier
+	 * (i.e. if a qualifier's validity_bitmap flag is 0, the qualifier is
+	 * treated as a wildcard).
+	 * Current masks:
+	 *     WMI_SAR_BAND_ID_VALID_MASK
+	 *     WMI_SAR_CHAIN_ID_VALID_MASK
+	 *     WMI_SAR_MOD_ID_VALID_MASK
+	 * Example: if !WMI_IS_SAR_MOD_ID_VALID(bitmap),
+	 *     it means apply same limit_value to both WMI_SAR_MOD_CCK and
+	 *     WMI_SAR_MOD_OFDM cases.
+	 */
+
+	A_UINT32 validity_bitmap;
+} wmi_sar_limit_cmd_row;
+
+enum wmi_sar_band_id_flags {
+	WMI_SAR_2G_ID = 0,
+	WMI_SAR_5G_ID
+};
+
+enum wmi_sar_mod_id_flags {
+	WMI_SAR_MOD_CCK = 0,
+	WMI_SAR_MOD_OFDM
+};
+
+#define WMI_SAR_BAND_ID_VALID_MASK      (0x1)
+#define WMI_SAR_CHAIN_ID_VALID_MASK     (0x2)
+#define WMI_SAR_MOD_ID_VALID_MASK       (0x4)
+
+#define WMI_SET_SAR_BAND_ID_VALID(bitmap)    ((bitmap) |= WMI_SAR_BAND_ID_VALID_MASK)
+#define WMI_SET_SAR_CHAIN_ID_VALID(bitmap)   ((bitmap) |= WMI_SAR_CHAIN_ID_VALID_MASK)
+#define WMI_SET_SAR_MOD_ID_VALID(bitmap)     ((bitmap) |= WMI_SAR_MOD_ID_VALID_MASK)
+
+#define WMI_IS_SAR_BAND_ID_VALID(bitmap)     ((bitmap) & WMI_SAR_BAND_ID_VALID_MASK)
+#define WMI_IS_SAR_CHAIN_ID_VALID(bitmap)    ((bitmap) & WMI_SAR_CHAIN_ID_VALID_MASK)
+#define WMI_IS_SAR_MOD_ID_VALID(bitmap)      ((bitmap) & WMI_SAR_MOD_ID_VALID_MASK)
 
 #define WMI_ROAM_AUTH_STATUS_CONNECTED       0x1 /** connected, but not authenticated */
 #define WMI_ROAM_AUTH_STATUS_AUTHENTICATED   0x2 /** connected and authenticated */
@@ -17028,6 +17241,8 @@ typedef enum wmi_coex_config_type {
 	 * INQUIRY
 	 */
 	WMI_COEX_CONFIG_INQUIRY_P2P_STA_TDM = 11,
+	/* config wlan total tx power when bt coex (arg1 is wlan_tx_power_limit, in 0.5dbm units) */
+	WMI_COEX_CONFIG_TX_POWER            = 12,
 } WMI_COEX_CONFIG_TYPE;
 
 typedef struct {

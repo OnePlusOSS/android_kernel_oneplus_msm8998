@@ -53,8 +53,6 @@
 
 #define MAX_SUPPORTED_PEERS_WEP 16
 
-static void lim_handle_sme_join_result(tpAniSirGlobal, tSirResultCodes, uint16_t,
-				       tpPESession);
 void lim_process_mlm_join_cnf(tpAniSirGlobal, uint32_t *);
 void lim_process_mlm_auth_cnf(tpAniSirGlobal, uint32_t *);
 void lim_process_mlm_start_cnf(tpAniSirGlobal, uint32_t *);
@@ -1341,8 +1339,7 @@ void lim_process_mlm_set_keys_cnf(tpAniSirGlobal pMac, uint32_t *pMsgBuf)
  *
  * Return: None
  */
-static void
-lim_handle_sme_join_result(tpAniSirGlobal mac_ctx,
+void lim_handle_sme_join_result(tpAniSirGlobal mac_ctx,
 	tSirResultCodes result_code, uint16_t prot_status_code,
 	tpPESession session_entry)
 {
@@ -3175,6 +3172,11 @@ void lim_process_switch_channel_rsp(tpAniSirGlobal pMac, void *body)
 		 * the policy manager connection table needs to be updated.
 		 */
 		cds_update_connection_info(psessionEntry->smeSessionId);
+		if (psessionEntry->pePersona == QDF_P2P_CLIENT_MODE) {
+			lim_log(pMac, LOG1,
+				FL("Send p2p operating channel change conf action frame once first beacon is received on new channel"));
+			psessionEntry->send_p2p_conf_frame = true;
+		}
 		break;
 	case LIM_SWITCH_CHANNEL_SAP_DFS:
 	{

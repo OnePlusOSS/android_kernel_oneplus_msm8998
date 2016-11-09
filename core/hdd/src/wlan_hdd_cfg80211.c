@@ -1907,6 +1907,7 @@ __wlan_hdd_cfg80211_get_supported_features(struct wiphy *wiphy,
 	fset |= WIFI_FEATURE_AP_STA;
 #endif
 	fset |= WIFI_FEATURE_RSSI_MONITOR;
+	fset |= WIFI_FEATURE_TX_TRANSMIT_POWER;
 
 	if (hdd_link_layer_stats_supported())
 		fset |= WIFI_FEATURE_LINK_LAYER_STATS;
@@ -8602,6 +8603,17 @@ const struct wiphy_vendor_command hdd_wiphy_vendor_commands[] = {
 				 WIPHY_VENDOR_CMD_NEED_RUNNING,
 		.doit = wlan_hdd_cfg80211_encrypt_decrypt_msg
 	},
+#endif
+#ifdef FEATURE_WLAN_TDLS
+	{
+		.info.vendor_id = QCA_NL80211_VENDOR_ID,
+		.info.subcmd =
+			QCA_NL80211_VENDOR_SUBCMD_CONFIGURE_TDLS,
+		.flags = WIPHY_VENDOR_CMD_NEED_WDEV |
+			 WIPHY_VENDOR_CMD_NEED_NETDEV |
+			 WIPHY_VENDOR_CMD_NEED_RUNNING,
+		.doit = wlan_hdd_cfg80211_configure_tdls_mode
+	}
 #endif
 };
 

@@ -256,6 +256,16 @@ void wmi_set_is_wow_bus_suspended(wmi_unified_t wmi_handle, A_BOOL val);
 void wmi_tag_crash_inject(wmi_unified_t wmi_handle, A_BOOL flag);
 
 /**
+ *  WMI API to set target assert
+ *
+ *  @wmi_handle      : handle to WMI.
+ *  @val             : target assert config value.
+ *
+ *  @Return          : none.
+ */
+void wmi_set_tgt_assert(wmi_unified_t wmi_handle, bool val);
+
+/**
  * generic function to block unified WMI command
  * @param wmi_handle      : handle to WMI.
  * @return 0  on success and -ve on failure.

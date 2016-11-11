@@ -1499,6 +1499,24 @@ int wma_vdev_stop_resp_handler(void *handle, uint8_t *cmd_param_info,
 				 resp_event->vdev_id);
 			wma_vdev_detach(wma, iface->del_staself_req, 1);
 		}
+	} else if (req_msg->msg_type == WMA_SET_LINK_STATE) {
+		tpLinkStateParams params =
+			(tpLinkStateParams) req_msg->user_data;
+
+		peer = ol_txrx_find_peer_by_addr(pdev, params->bssid, &peer_id);
+		if (peer) {
+			WMA_LOGP(FL("Deleting peer %pM vdev id %d"),
+				 params->bssid, req_msg->vdev_id);
+			wma_remove_peer(wma, params->bssid, req_msg->vdev_id,
+				peer, false);
+		}
+		if (wmi_unified_vdev_down_send(wma->wmi_handle,
+					req_msg->vdev_id) !=
+					QDF_STATUS_SUCCESS) {
+			WMA_LOGE("Failed to send vdev down cmd: vdev %d",
+				req_msg->vdev_id);
+		}
+		wma_send_msg(wma, WMA_SET_LINK_STATE_RSP, (void *)params, 0);
 	}
 free_req_msg:
 	qdf_mc_timer_destroy(&req_msg->event_timeout);
@@ -2596,6 +2614,27 @@ void wma_vdev_resp_timer(void *data)
 	} else if (tgt_req->msg_type == WMA_HIDDEN_SSID_VDEV_RESTART) {
 		WMA_LOGE("Hidden ssid vdev restart Timed Out; vdev_id: %d, type = %d",
 				tgt_req->vdev_id, tgt_req->type);
+	} else if (tgt_req->msg_type == WMA_SET_LINK_STATE) {
+		tpLinkStateParams params =
+			(tpLinkStateParams) tgt_req->user_data;
+
+		peer = ol_txrx_find_peer_by_addr(pdev, params->bssid, &peer_id);
+		if (peer) {
+			WMA_LOGP(FL("Deleting peer %pM vdev id %d"),
+				 params->bssid, tgt_req->vdev_id);
+			wma_remove_peer(wma, params->bssid, tgt_req->vdev_id,
+					peer, false);
+		}
+		if (wmi_unified_vdev_down_send(wma->wmi_handle,
+					tgt_req->vdev_id) !=
+					QDF_STATUS_SUCCESS) {
+			WMA_LOGE("Failed to send vdev down cmd: vdev %d",
+				tgt_req->vdev_id);
+		}
+		params->status = QDF_STATUS_E_TIMEOUT;
+		WMA_LOGA("%s: WMA_SET_LINK_STATE timedout vdev %d", __func__,
+			tgt_req->vdev_id);
+		wma_send_msg(wma, WMA_SET_LINK_STATE_RSP, (void *)params, 0);
 	}
 free_tgt_req:
 	qdf_mc_timer_destroy(&tgt_req->event_timeout);

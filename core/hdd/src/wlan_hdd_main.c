@@ -591,77 +591,6 @@ int wlan_hdd_validate_context(hdd_context_t *hdd_ctx)
 	return 0;
 }
 
-void hdd_checkandupdate_phymode(hdd_context_t *hdd_ctx)
-{
-	hdd_adapter_t *adapter = NULL;
-	hdd_station_ctx_t *pHddStaCtx = NULL;
-	eCsrPhyMode phyMode;
-	struct hdd_config *cfg_param = NULL;
-
-	if (NULL == hdd_ctx) {
-		hdd_alert("HDD Context is null !!");
-		return;
-	}
-
-	adapter = hdd_get_adapter(hdd_ctx, QDF_STA_MODE);
-	if (NULL == adapter) {
-		hdd_alert("adapter is null !!");
-		return;
-	}
-
-	pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
-
-	cfg_param = hdd_ctx->config;
-	if (NULL == cfg_param) {
-		hdd_alert("cfg_params not available !!");
-		return;
-	}
-
-	phyMode = sme_get_phy_mode(WLAN_HDD_GET_HAL_CTX(adapter));
-
-	if (!hdd_ctx->isVHT80Allowed) {
-		if ((eCSR_DOT11_MODE_AUTO == phyMode) ||
-		    (eCSR_DOT11_MODE_11ac == phyMode) ||
-		    (eCSR_DOT11_MODE_11ac_ONLY == phyMode)) {
-			hdd_notice("Setting phymode to 11n!!");
-			sme_set_phy_mode(WLAN_HDD_GET_HAL_CTX(adapter),
-					 eCSR_DOT11_MODE_11n);
-		}
-	} else {
-		/*
-		 * New country Supports 11ac as well resetting value back from
-		 * .ini
-		 */
-		sme_set_phy_mode(WLAN_HDD_GET_HAL_CTX(adapter),
-				 hdd_cfg_xlate_to_csr_phy_mode(cfg_param->
-							       dot11Mode));
-		return;
-	}
-
-	if ((eConnectionState_Associated == pHddStaCtx->conn_info.connState) &&
-	    ((eCSR_CFG_DOT11_MODE_11AC_ONLY == pHddStaCtx->conn_info.dot11Mode)
-	     || (eCSR_CFG_DOT11_MODE_11AC ==
-		 pHddStaCtx->conn_info.dot11Mode))) {
-		QDF_STATUS qdf_status;
-
-		/* need to issue a disconnect to CSR. */
-		INIT_COMPLETION(adapter->disconnect_comp_var);
-		qdf_status = sme_roam_disconnect(WLAN_HDD_GET_HAL_CTX(adapter),
-						 adapter->sessionId,
-						 eCSR_DISCONNECT_REASON_UNSPECIFIED);
-
-		if (QDF_STATUS_SUCCESS == qdf_status) {
-			unsigned long rc;
-
-			rc = wait_for_completion_timeout(
-				&adapter->disconnect_comp_var,
-				msecs_to_jiffies(WLAN_WAIT_TIME_DISCONNECT));
-			if (!rc)
-				hdd_err("failure waiting for disconnect_comp_var");
-		}
-	}
-}
-
 /**
  * hdd_set_ibss_power_save_params() - update IBSS Power Save params to WMA.
  * @hdd_adapter_t Hdd adapter.
@@ -3314,7 +3243,7 @@ hdd_adapter_t *hdd_open_adapter(hdd_context_t *hdd_ctx, uint8_t session_type,
 		status = hdd_register_interface(adapter, rtnl_held);
 		if (QDF_STATUS_SUCCESS != status) {
 			hdd_deinit_adapter(hdd_ctx, adapter, rtnl_held);
-			goto err_lro_cleanup;
+			goto err_free_netdev;
 		}
 
 		/* Stop the Interface TX queue. */
@@ -3411,7 +3340,7 @@ hdd_adapter_t *hdd_open_adapter(hdd_context_t *hdd_ctx, uint8_t session_type,
 		/* Initialize the WoWL service */
 		if (!hdd_init_wowl(adapter)) {
 			hdd_alert("hdd_init_wowl failed");
-			goto err_lro_cleanup;
+			goto err_close_adapter;
 		}
 
 		/* Adapter successfully added. Increment the vdev count */
@@ -3428,11 +3357,11 @@ hdd_adapter_t *hdd_open_adapter(hdd_context_t *hdd_ctx, uint8_t session_type,
 
 	return adapter;
 
-err_lro_cleanup:
-	hdd_lro_disable(hdd_ctx, adapter);
+err_close_adapter:
+	hdd_close_adapter(hdd_ctx, adapter, rtnl_held);
 err_free_netdev:
-	free_netdev(adapter->dev);
 	wlan_hdd_release_intf_addr(hdd_ctx, adapter->macAddressCurrent.bytes);
+	free_netdev(adapter->dev);
 
 	return NULL;
 }

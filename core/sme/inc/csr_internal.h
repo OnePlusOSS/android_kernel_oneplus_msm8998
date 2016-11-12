@@ -377,7 +377,7 @@ typedef struct tagScanCmd {
 		/* tCsrBGScanRequest bgScanRequest is no longer used */
 	} u;
 	/* This flag will be set while aborting the scan due to band change */
-	bool abortScanDueToBandChange;
+	eCsrAbortReason        abort_scan_indication;
 	qdf_mc_timer_t csr_scan_timer;
 } tScanCmd;
 
@@ -1048,7 +1048,6 @@ typedef struct tagCsrRoamStruct {
 	uint32_t deauthRspStatus;
 	uint8_t *pReassocResp;          /* reassociation response from new AP */
 	uint16_t reassocRespLen;        /* length of reassociation response */
-	qdf_mc_timer_t packetdump_timer;
 } tCsrRoamStruct;
 
 #define GET_NEXT_ROAM_ID(pRoamStruct)  (((pRoamStruct)->nextRoamId + 1 == 0) ? \

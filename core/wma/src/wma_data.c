@@ -781,7 +781,7 @@ void wma_set_bss_rate_flags(struct wma_txrx_node *iface,
  */
 int32_t wmi_unified_send_txbf(tp_wma_handle wma, tpAddStaParams params)
 {
-	wmi_vdev_txbf_en txbf_en;
+	wmi_vdev_txbf_en txbf_en = {0};
 
 	/* This is set when Other partner is Bformer
 	 * and we are capable bformee(enabled both in ini and fw)
@@ -789,7 +789,6 @@ int32_t wmi_unified_send_txbf(tp_wma_handle wma, tpAddStaParams params)
 	txbf_en.sutxbfee = params->vhtTxBFCapable;
 	txbf_en.mutxbfee = params->vhtTxMUBformeeCapable;
 	txbf_en.sutxbfer = params->enable_su_tx_bformer;
-	txbf_en.mutxbfer = 0;
 
 	/* When MU TxBfee is set, SU TxBfee must be set by default */
 	if (txbf_en.mutxbfee)
@@ -2831,7 +2830,6 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 			status = QDF_STATUS_E_FAILURE;
 		} else {
 			mgmt_param.desc_id = wmi_desc->desc_id;
-			wmi_desc->vdev_id = vdev_id;
 			status = wmi_mgmt_unified_cmd_send(
 					wma_handle->wmi_handle,
 					&mgmt_param);

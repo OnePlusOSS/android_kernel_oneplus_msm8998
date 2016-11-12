@@ -3888,7 +3888,7 @@ QDF_STATUS wma_enable_wow_in_fw(WMA_HANDLE handle)
 		wmi_set_target_suspend(wma->wmi_handle, false);
 		if (!cds_is_driver_recovering()) {
 			if (pMac->sme.enableSelfRecovery) {
-				cds_trigger_recovery();
+				cds_trigger_recovery(false);
 			} else {
 				QDF_BUG(0);
 			}
@@ -4613,7 +4613,7 @@ static QDF_STATUS wma_send_host_wakeup_ind_to_fw(tp_wma_handle wma)
 			 wmi_get_host_credits(wma->wmi_handle));
 		if (!cds_is_driver_recovering()) {
 			if (pMac->sme.enableSelfRecovery) {
-				cds_trigger_recovery();
+				cds_trigger_recovery(false);
 			} else {
 				QDF_BUG(0);
 			}
@@ -6315,8 +6315,8 @@ void wma_send_regdomain_info_to_fw(uint32_t reg_dmn, uint16_t regdmn2G,
 	if (status == QDF_STATUS_E_NOMEM)
 		return;
 
-	if ((((reg_dmn & ~COUNTRY_ERD_FLAG) == CTRY_JAPAN14) ||
-	     ((reg_dmn & ~COUNTRY_ERD_FLAG) == CTRY_KOREA_ROC)) &&
+	if ((((reg_dmn & ~CTRY_FLAG) == CTRY_JAPAN14) ||
+	     ((reg_dmn & ~CTRY_FLAG) == CTRY_KOREA_ROC)) &&
 	    (true == wma->tx_chain_mask_cck))
 		cck_mask_val = 1;
 
@@ -6552,7 +6552,7 @@ static inline void wma_suspend_target_timeout(bool is_self_recovery_enabled)
 		WMA_LOGE("%s: recovery is in progress, ignore!", __func__);
 	} else {
 		if (is_self_recovery_enabled) {
-			cds_trigger_recovery();
+			cds_trigger_recovery(false);
 		} else {
 			QDF_BUG(0);
 		}
@@ -6566,7 +6566,7 @@ static inline void wma_suspend_target_timeout(bool is_self_recovery_enabled)
 			 __func__);
 	} else {
 		if (is_self_recovery_enabled) {
-			cds_trigger_recovery();
+			cds_trigger_recovery(false);
 		} else {
 			QDF_BUG(0);
 		}
@@ -6742,7 +6742,7 @@ QDF_STATUS wma_resume_target(WMA_HANDLE handle)
 			wmi_get_host_credits(wma->wmi_handle));
 		if (!cds_is_driver_recovering()) {
 			if (pMac->sme.enableSelfRecovery) {
-				cds_trigger_recovery();
+				cds_trigger_recovery(false);
 			} else {
 				QDF_BUG(0);
 			}
@@ -6820,6 +6820,7 @@ int wma_tdls_event_handler(void *handle, uint8_t *event, uint32_t len)
 			WMA_TDLS_CONNECTION_TRACKER_NOTIFICATION_CMD;
 		break;
 	default:
+		qdf_mem_free(tdls_event);
 		WMA_LOGE("%s: Discarding unknown tdls event(%d) from target",
 			 __func__, peer_event->peer_status);
 		return -EINVAL;
@@ -6868,6 +6869,7 @@ int wma_tdls_event_handler(void *handle, uint8_t *event, uint32_t len)
 		break;
 
 	default:
+		qdf_mem_free(tdls_event);
 		WMA_LOGE("%s: unknown reason(%d) in tdls event(%d) from target",
 			 __func__, peer_event->peer_reason,
 			 peer_event->peer_status);

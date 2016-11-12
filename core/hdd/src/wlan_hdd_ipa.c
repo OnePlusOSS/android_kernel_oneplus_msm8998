@@ -1603,8 +1603,7 @@ static void hdd_ipa_uc_offload_enable_disable(hdd_adapter_t *adapter,
 	if (!iface_context || (enable == iface_context->offload_enabled)) {
 		/* IPA offload status is already set as desired */
 		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,
-			    "IPA offload status is already set: \
-			    (offload_type=%d, vdev_id=%d, enable=%d)",
+			    "IPA offload status is already set: (offload_type=%d, vdev_id=%d, enable=%d)",
 			    offload_type, adapter->sessionId, enable);
 		return;
 	}
@@ -1625,11 +1624,11 @@ static void hdd_ipa_uc_offload_enable_disable(hdd_adapter_t *adapter,
 		sme_ipa_offload_enable_disable(WLAN_HDD_GET_HAL_CTX(adapter),
 			adapter->sessionId, &ipa_offload_enable_disable)) {
 		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,
-			"%s: Failure to enable IPA offload \
-			(offload_type=%d, vdev_id=%d, enable=%d)", __func__,
-			ipa_offload_enable_disable.offload_type,
-			ipa_offload_enable_disable.vdev_id,
-			ipa_offload_enable_disable.enable);
+			    "%s: Failure to enable IPA offload (offload_type=%d, vdev_id=%d, enable=%d)",
+			    __func__,
+			    ipa_offload_enable_disable.offload_type,
+			    ipa_offload_enable_disable.vdev_id,
+			    ipa_offload_enable_disable.enable);
 	} else {
 		/* Update the IPA offload status */
 		iface_context->offload_enabled =
@@ -4044,20 +4043,23 @@ static int __hdd_ipa_wlan_evt(hdd_adapter_t *adapter, uint8_t sta_id,
 			return 0;
 		}
 		hdd_ipa->sap_num_connected_sta--;
-		/* Disable IPA UC TX PIPE when last STA disconnected */
-		if (!hdd_ipa->sap_num_connected_sta
-			&& (false == hdd_ipa->resource_unloading)
-			&& (HDD_IPA_UC_NUM_WDI_PIPE ==
-				hdd_ipa->activated_fw_pipe))
-			hdd_ipa_uc_handle_last_discon(hdd_ipa);
 
-		if (hdd_ipa_uc_sta_is_enabled(hdd_ipa->hdd_ctx) &&
-		    hdd_ipa->sta_connected) {
+		/* Disable IPA UC TX PIPE when last STA disconnected */
+		if (!hdd_ipa->sap_num_connected_sta) {
+			if ((false == hdd_ipa->resource_unloading)
+			    && (HDD_IPA_UC_NUM_WDI_PIPE ==
+				hdd_ipa->activated_fw_pipe)) {
+				hdd_ipa_uc_handle_last_discon(hdd_ipa);
+			}
+
 			qdf_mutex_release(&hdd_ipa->event_lock);
-			hdd_ipa_uc_offload_enable_disable(
-				hdd_get_adapter(hdd_ipa->hdd_ctx,
-						QDF_STA_MODE),
-						SIR_STA_RX_DATA_OFFLOAD, 0);
+
+			if (hdd_ipa_uc_sta_is_enabled(hdd_ipa->hdd_ctx) &&
+			    hdd_ipa->sta_connected)
+				hdd_ipa_uc_offload_enable_disable(
+					hdd_get_adapter(hdd_ipa->hdd_ctx,
+							QDF_STA_MODE),
+					SIR_STA_RX_DATA_OFFLOAD, 0);
 		} else {
 			qdf_mutex_release(&hdd_ipa->event_lock);
 		}
@@ -4231,6 +4233,8 @@ QDF_STATUS hdd_ipa_init(hdd_context_t *hdd_ctx)
 		iface_context->adapter = NULL;
 		iface_context->offload_enabled = 0;
 		qdf_spinlock_create(&iface_context->interface_lock);
+	}
+	for (i = 0; i < CSR_ROAM_SESSION_MAX; i++) {
 		vdev_to_iface[i] = CSR_ROAM_SESSION_MAX;
 	}
 

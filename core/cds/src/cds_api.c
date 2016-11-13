@@ -422,6 +422,7 @@ err_bmi_close:
 
 err_sched_close:
 	cds_sched_close(gp_cds_context);
+	cds_shutdown_notifier_purge();
 
 err_concurrency_lock:
 	qdf_mutex_destroy(&cds_ctx->qdf_conc_list_lock);

@@ -930,6 +930,7 @@ EXPORT_SYMBOL(qdf_dp_trace_set_track);
 
 /**
  * dump_hex_trace() - Display the data in buffer
+ * @str:     string to prepend the hexdump with.
  * @buf:     buffer which contains data to be displayed
  * @buf_len: defines the size of the data to be displayed
  *
@@ -953,7 +954,6 @@ static void dump_hex_trace(char *str, uint8_t *buf, uint8_t buf_len)
 		   QDF_TRACE_LEVEL_ERROR, "DPT: %s: %s", str, linebuf);
 	}
 }
-EXPORT_SYMBOL(dump_hex_trace);
 
 /**
  * qdf_dp_code_to_string() - convert dptrace code to string

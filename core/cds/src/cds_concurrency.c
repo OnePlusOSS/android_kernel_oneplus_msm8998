@@ -3790,6 +3790,22 @@ void cds_incr_active_session(enum tQDF_ADAPTER_MODE mode,
 		qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	}
 
+	/**
+	 * Disable LRO if P2P or IBSS or SAP connection has come up or
+	 * there are more than one STA connections
+	 */
+	if ((cds_mode_specific_connection_count(CDS_STA_MODE, NULL) > 1) ||
+	    (cds_mode_specific_connection_count(CDS_SAP_MODE, NULL) > 0) ||
+	    (cds_mode_specific_connection_count(CDS_P2P_CLIENT_MODE, NULL) >
+									0) ||
+	    (cds_mode_specific_connection_count(CDS_P2P_GO_MODE, NULL) > 0) ||
+	    (cds_mode_specific_connection_count(CDS_IBSS_MODE, NULL) > 0)) {
+		if (cds_ctx->hdd_disable_lro_in_concurrency != NULL)
+			cds_ctx->hdd_disable_lro_in_concurrency(hdd_ctx);
+		else
+			cds_warn("hdd_disable_lro_in_concurrency NULL!");
+	};
+
 	/* set tdls connection tracker state */
 	cds_set_tdls_ct_mode(hdd_ctx);
 	cds_dump_current_concurrency();
@@ -3989,6 +4005,13 @@ void cds_decr_active_session(enum tQDF_ADAPTER_MODE mode,
 				  uint8_t session_id)
 {
 	hdd_context_t *hdd_ctx;
+	cds_context_type *cds_ctx;
+
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return;
+	}
 
 	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
 	if (!hdd_ctx) {
@@ -4013,6 +4036,19 @@ void cds_decr_active_session(enum tQDF_ADAPTER_MODE mode,
 		mode, hdd_ctx->no_of_active_sessions[mode]);
 
 	cds_decr_connection_count(session_id);
+
+	/* Enable LRO if there no concurrency */
+	if ((cds_mode_specific_connection_count(CDS_STA_MODE, NULL) == 1) &&
+	    (cds_mode_specific_connection_count(CDS_SAP_MODE, NULL) == 0) &&
+	    (cds_mode_specific_connection_count(CDS_P2P_CLIENT_MODE, NULL) ==
+									0) &&
+	    (cds_mode_specific_connection_count(CDS_P2P_GO_MODE, NULL) == 0) &&
+	    (cds_mode_specific_connection_count(CDS_IBSS_MODE, NULL) == 0)) {
+		if (cds_ctx->hdd_enable_lro_in_concurrency != NULL)
+			cds_ctx->hdd_enable_lro_in_concurrency(hdd_ctx);
+		else
+			cds_warn("hdd_enable_lro_in_concurrency NULL!");
+	};
 
 	/* set tdls connection tracker state */
 	cds_set_tdls_ct_mode(hdd_ctx);

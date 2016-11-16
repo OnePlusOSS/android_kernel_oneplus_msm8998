@@ -588,8 +588,11 @@ enum hdd_lro_rx_status hdd_lro_rx(hdd_context_t *hdd_ctx,
 {
 	enum hdd_lro_rx_status status = HDD_LRO_NO_RX;
 
-	if ((adapter->dev->features & NETIF_F_LRO) &&
-		 QDF_NBUF_CB_RX_TCP_PROTO(skb)) {
+	if (((adapter->dev->features & NETIF_F_LRO) != NETIF_F_LRO) ||
+			qdf_atomic_read(&hdd_ctx->disable_lro_in_concurrency))
+		return status;
+
+	if (QDF_NBUF_CB_RX_TCP_PROTO(skb)) {
 		struct iphdr *iph;
 		struct tcphdr *tcph;
 		struct net_lro_desc *lro_desc = NULL;
@@ -650,4 +653,26 @@ enum hdd_lro_rx_status hdd_lro_rx(hdd_context_t *hdd_ctx,
 void hdd_lro_display_stats(hdd_context_t *hdd_ctx)
 {
 	hdd_err("LRO stats is broken, will fix it");
+}
+
+/**
+ * hdd_enable_lro_in_concurrency() - Enable LRO if concurrency is not active
+ * @hdd_ctx: hdd context
+ *
+ * Return: none
+ */
+void hdd_enable_lro_in_concurrency(hdd_context_t *hdd_ctx)
+{
+	qdf_atomic_set(&hdd_ctx->disable_lro_in_concurrency, 0);
+}
+
+/**
+ * hdd_disable_lro_in_concurrency() - Disable LRO due to concurrency
+ * @hdd_ctx: hdd context
+ *
+ * Return: none
+ */
+void hdd_disable_lro_in_concurrency(hdd_context_t *hdd_ctx)
+{
+	qdf_atomic_set(&hdd_ctx->disable_lro_in_concurrency, 1);
 }

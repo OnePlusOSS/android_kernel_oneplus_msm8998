@@ -245,6 +245,8 @@ typedef struct _cds_msg_wrapper {
 
 } cds_msg_wrapper, *p_cds_msg_wrapper;
 
+/* forward-declare hdd_context_s as it is used ina function type */
+struct hdd_context_s;
 typedef struct _cds_context_type {
 	/* Messages buffers */
 	cds_msg_t aMsgBuffers[CDS_CORE_MAX_MESSAGES];
@@ -310,7 +312,10 @@ typedef struct _cds_context_type {
 	void (*sme_get_nss_for_vdev)(void*, enum tQDF_ADAPTER_MODE,
 		uint8_t *, uint8_t *);
 
+	/* Datapath callback functions */
 	void (*ol_txrx_update_mac_id)(uint8_t , uint8_t);
+	void (*hdd_enable_lro_in_concurrency)(struct hdd_context_s *);
+	void (*hdd_disable_lro_in_concurrency)(struct hdd_context_s *);
 
 	/* This list is not sessionized. This mandatory channel list would be
 	 * as per OEMs preference as per the regulatory/other considerations.

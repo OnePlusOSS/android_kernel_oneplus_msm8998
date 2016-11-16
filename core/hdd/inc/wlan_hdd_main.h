@@ -1114,7 +1114,6 @@ struct hdd_adapter_s {
 	struct hdd_netif_queue_history
 		 queue_oper_history[WLAN_HDD_MAX_HISTORY_ENTRY];
 	struct hdd_netif_queue_stats queue_oper_stats[WLAN_REASON_TYPE_MAX];
-	struct hdd_lro_s lro_info;
 	ol_txrx_tx_fp tx_fn;
 	/* debugfs entry */
 	struct dentry *debugfs_phy;
@@ -1571,6 +1570,7 @@ struct hdd_context_s {
 	bool roaming_in_progress;
 	/* bit map to set/reset TDLS by different sources */
 	unsigned long tdls_source_bitmap;
+	qdf_atomic_t disable_lro_in_concurrency;
 };
 
 /*---------------------------------------------------------------------------

@@ -459,6 +459,10 @@ QDF_STATUS cds_open(void)
 	}
 
 	gp_cds_context->ol_txrx_update_mac_id = ol_txrx_update_mac_id;
+	gp_cds_context->hdd_enable_lro_in_concurrency =
+		hdd_enable_lro_in_concurrency;
+	gp_cds_context->hdd_disable_lro_in_concurrency =
+		hdd_disable_lro_in_concurrency;
 
 	QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_INFO_HIGH,
 		  "%s: CDS successfully Opened", __func__);

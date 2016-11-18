@@ -7837,6 +7837,7 @@ void cds_restart_sap(hdd_adapter_t *ap_adapter)
 			goto end;
 		}
 
+		qdf_event_reset(&hostapd_state->qdf_event);
 		if (wlansap_start_bss(sap_ctx, hdd_hostapd_sap_event_cb,
 				      sap_config,
 				      ap_adapter->dev) != QDF_STATUS_SUCCESS) {

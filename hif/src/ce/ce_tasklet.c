@@ -172,11 +172,13 @@ static void ce_tasklet(unsigned long data)
 		QDF_BUG(0);
 	}
 
+	qdf_spin_lock_bh(&CE_state->lro_unloading_lock);
 	ce_per_engine_service(scn, tasklet_entry->ce_id);
 
 	if (CE_state->lro_flush_cb != NULL) {
 		CE_state->lro_flush_cb(CE_state->lro_data);
 	}
+	qdf_spin_unlock_bh(&CE_state->lro_unloading_lock);
 
 	if (ce_check_rx_pending(CE_state)) {
 		/*
@@ -547,6 +549,13 @@ QDF_STATUS ce_unregister_irq(struct HIF_CE_state *hif_ce_state, uint32_t mask)
 
 	scn = HIF_GET_SOFTC(hif_ce_state);
 	ce_count = scn->ce_count;
+	/* we are removing interrupts, so better stop NAPI */
+	ret = hif_napi_event(GET_HIF_OPAQUE_HDL(scn),
+			     NAPI_EVT_INT_STATE, (void *)0);
+	if (ret != 0)
+		HIF_ERROR("%s: napi_event INT_STATE returned %d",
+			  __func__, ret);
+	/* this is not fatal, continue */
 
 	for (id = 0; id < ce_count; id++) {
 		if ((mask & (1 << id)) && hif_ce_state->tasklets[id].inited) {

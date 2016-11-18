@@ -132,6 +132,10 @@ struct qca_napi_info {
 	uint8_t              id;
 	int                  irq;
 	struct qca_napi_stat stats[NR_CPUS];
+	/* will only be present for data rx CE's */
+	void (*lro_flush_cb)(void *);
+	void                 *lro_ctx;
+	qdf_spinlock_t lro_unloading_lock;
 };
 
 /**
@@ -632,8 +636,10 @@ void hif_crash_shutdown(struct hif_opaque_softc *hif_ctx);
 void hif_get_hw_info(struct hif_opaque_softc *scn, u32 *version, u32 *revision,
 		     const char **target_name);
 void hif_lro_flush_cb_register(struct hif_opaque_softc *scn,
-			       void (handler)(void *), void *data);
-void hif_lro_flush_cb_deregister(struct hif_opaque_softc *scn);
+			       void (lro_flush_handler)(void *),
+			       void *(lro_init_handler)(void));
+void hif_lro_flush_cb_deregister(struct hif_opaque_softc *scn,
+				 void (lro_deinit_cb)(void *));
 bool hif_needs_bmi(struct hif_opaque_softc *scn);
 enum qdf_bus_type hif_get_bus_type(struct hif_opaque_softc *hif_hdl);
 struct hif_target_info *hif_get_target_info_handle(struct hif_opaque_softc *
@@ -668,6 +674,7 @@ void hif_set_bundle_mode(struct hif_opaque_softc *scn, bool enabled,
 				int rx_bundle_cnt);
 int hif_bus_reset_resume(struct hif_opaque_softc *scn);
 
+void *hif_get_lro_info(int ctx_id, struct hif_opaque_softc *hif_hdl);
 #ifdef WLAN_SUSPEND_RESUME_TEST
 typedef void (*hif_fake_resume_callback)(uint32_t val);
 void hif_fake_apps_suspend(struct hif_opaque_softc *hif_ctx,

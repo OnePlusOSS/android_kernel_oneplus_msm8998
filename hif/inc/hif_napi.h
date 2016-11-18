@@ -62,6 +62,7 @@
  * ---------------:------------------:------------------
  * EVT_INI_FILE   : cfg->napi_enable : after ini file processed
  * EVT_CMD_STATE  : cmd arg          : by the vendor cmd
+ * EVT_INT_STATE  : 0                : internal - shut off/disable
  * EVT_CPU_STATE  : (cpu << 16)|state: CPU hotplug events
  * EVT_TPUT_STATE : (high/low)       : tput trigger
  * EVT_USR_SERIAL : num-serial_calls : WMA/ROAMING-START/IND
@@ -71,11 +72,13 @@ enum qca_napi_event {
 	NAPI_EVT_INVALID,
 	NAPI_EVT_INI_FILE,
 	NAPI_EVT_CMD_STATE,
+	NAPI_EVT_INT_STATE,
 	NAPI_EVT_CPU_STATE,
 	NAPI_EVT_TPUT_STATE,
 	NAPI_EVT_USR_SERIAL,
 	NAPI_EVT_USR_NORMAL
 };
+
 
 /**
  * Macros to map ids -returned by ...create()- to pipes and vice versa
@@ -83,7 +86,14 @@ enum qca_napi_event {
 #define NAPI_ID2PIPE(i) ((i)-1)
 #define NAPI_PIPE2ID(p) ((p)+1)
 
+int hif_napi_lro_flush_cb_register(struct hif_opaque_softc *hif_hdl,
+				   void (lro_flush_handler)(void *),
+				   void *(lro_init_handler)(void));
 
+void hif_napi_lro_flush_cb_deregister(struct hif_opaque_softc *hif_hdl,
+				      void (lro_deinit_cb)(void *));
+
+void *hif_napi_get_lro_info(struct hif_opaque_softc *hif_hdl, int napi_id);
 #ifdef FEATURE_NAPI
 
 /**

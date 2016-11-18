@@ -260,11 +260,12 @@ static bool update_load(int cpu)
 
 	WARN_ON_ONCE(!delta_time);
 
-	if (delta_time <= delta_idle) {
+	if (delta_time < delta_idle) {
 		pcpu->load = 0;
 		ignore = true;
 	} else {
-		pcpu->load = 100 * (delta_time - delta_idle) / delta_time;
+		pcpu->load = 100 * (delta_time - delta_idle);
+		do_div(pcpu->load, delta_time);
 	}
 	pcpu->time_in_idle = now_idle;
 	pcpu->time_in_idle_timestamp = now;
@@ -274,7 +275,6 @@ static bool update_load(int cpu)
 
 static void cpufreq_nightmare_timer(unsigned long data)
 {
-	bool ignore = false;
 	struct cpufreq_nightmare_policyinfo *ppol = per_cpu(polinfo, data);
 	struct cpufreq_nightmare_tunables *tunables =
 		ppol->policy->governor_data;
@@ -327,8 +327,7 @@ static void cpufreq_nightmare_timer(unsigned long data)
 	max_cpu = cpumask_first(ppol->policy->cpus);
 	for_each_cpu(i, ppol->policy->cpus) {
 		pcpu = &per_cpu(cpuinfo, i);
-		ignore = update_load(i);
-		if (ignore)
+		if (update_load(i))
 			continue;
 
 		if (pcpu->load > max_load) {

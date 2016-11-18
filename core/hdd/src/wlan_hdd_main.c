@@ -2663,6 +2663,7 @@ QDF_STATUS hdd_init_station_mode(hdd_adapter_t *adapter)
 	if (!rc) {
 		hdd_alert("Session is not opened within timeout period code %ld",
 			rc);
+		adapter->sessionId = HDD_SESSION_ID_INVALID;
 		status = QDF_STATUS_E_FAILURE;
 		goto error_sme_open;
 	}
@@ -8173,10 +8174,12 @@ err_stop_modules:
 	}
 
 err_exit_nl_srv:
+	hdd_green_ap_deinit(hdd_ctx);
 	hdd_exit_netlink_services(hdd_ctx);
 
 	cds_deinit_ini_config();
 err_hdd_free_context:
+	wlan_hdd_deinit_tx_rx_histogram(hdd_ctx);
 	qdf_mc_timer_destroy(&hdd_ctx->iface_change_timer);
 	mutex_destroy(&hdd_ctx->iface_change_lock);
 	hdd_context_destroy(hdd_ctx);

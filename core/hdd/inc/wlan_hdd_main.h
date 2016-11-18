@@ -1573,6 +1573,7 @@ struct hdd_context_s {
 	/* counters for failed suspend reasons */
 	uint32_t suspend_fail_stats[SUSPEND_FAIL_MAX_COUNT];
 	struct hdd_runtime_pm_context runtime_context;
+	bool roaming_in_progress;
 };
 
 /*---------------------------------------------------------------------------
@@ -1990,5 +1991,8 @@ static inline int wlan_hdd_validate_session_id(u8 session_id)
 
 	return -EINVAL;
 }
+
+bool hdd_is_roaming_in_progress(void);
+void hdd_set_roaming_in_progress(bool value);
 
 #endif /* end #if !defined(WLAN_HDD_MAIN_H) */

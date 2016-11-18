@@ -1670,6 +1670,11 @@ static void wlan_hdd_tdls_set_mode(hdd_context_t *pHddCtx,
 			if (eTDLS_SUPPORT_ENABLED == tdls_mode ||
 			    eTDLS_SUPPORT_EXTERNAL_CONTROL == tdls_mode) {
 				wlan_hdd_tdls_implicit_enable(pHddTdlsCtx);
+				/* tdls implicit mode is enabled, so
+				 * enable the connection tracker
+				 */
+				pHddCtx->enable_tdls_connection_tracker =
+					true;
 			} else if ((eTDLS_SUPPORT_DISABLED == tdls_mode) ||
 				   (eTDLS_SUPPORT_EXPLICIT_TRIGGER_ONLY ==
 				    tdls_mode)) {

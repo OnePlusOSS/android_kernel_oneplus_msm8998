@@ -42,8 +42,8 @@ struct cpufreq_alucard_policyinfo {
 	int governor_enabled;
 	struct cpufreq_alucard_tunables *cached_tunables;
 	unsigned long *cpu_busy_times;
-	unsigned int up_rate:1;
-	unsigned int down_rate:1;
+	unsigned int up_rate;
+	unsigned int down_rate;
 };
 
 /* Protected by per-policy load_lock */

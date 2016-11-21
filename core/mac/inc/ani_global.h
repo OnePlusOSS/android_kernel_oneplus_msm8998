@@ -965,7 +965,7 @@ typedef struct sAniSirGlobal {
 	enum auth_tx_ack_status auth_ack_status;
 	uint8_t user_configured_nss;
 	bool sta_prefer_80MHz_over_160MHz;
-	bool is_11d_hint;
+	enum  country_src reg_hint_src;
 } tAniSirGlobal;
 
 typedef enum {

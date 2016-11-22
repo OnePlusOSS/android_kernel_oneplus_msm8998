@@ -4593,22 +4593,23 @@ QDF_STATUS cds_get_connection_channels(uint8_t *channels,
 			if (skip_dfs_channel && CDS_IS_DFS_CH(
 				    conc_connection_list[conn_index].chan)) {
 				conn_index++;
-			} else {
+			} else if (*index < weight_len) {
 				channels[num_channels++] =
 					conc_connection_list[conn_index++].chan;
-				if (*index < weight_len)
-					pcl_weight[(*index)++] = weight1;
+				pcl_weight[(*index)++] = weight1;
+			} else {
+				conn_index++;
 			}
 		}
 		*len = num_channels;
 	} else if (CDS_PCL_ORDER_24G_THEN_5G == order) {
 		while (CONC_CONNECTION_LIST_VALID_INDEX(conn_index)) {
 			if (CDS_IS_CHANNEL_24GHZ(
-				    conc_connection_list[conn_index].chan)) {
+				    conc_connection_list[conn_index].chan)
+				&& (*index < weight_len)) {
 				channels[num_channels++] =
 					conc_connection_list[conn_index++].chan;
-				if (*index < weight_len)
-					pcl_weight[(*index)++] = weight1;
+				pcl_weight[(*index)++] = weight1;
 			} else {
 				conn_index++;
 			}
@@ -4619,11 +4620,11 @@ QDF_STATUS cds_get_connection_channels(uint8_t *channels,
 				    conc_connection_list[conn_index].chan)) {
 				conn_index++;
 			} else if (CDS_IS_CHANNEL_5GHZ(
-				    conc_connection_list[conn_index].chan)) {
+				    conc_connection_list[conn_index].chan)
+				&& (*index < weight_len)) {
 				channels[num_channels++] =
 					conc_connection_list[conn_index++].chan;
-				if (*index < weight_len)
-					pcl_weight[(*index)++] = weight2;
+				pcl_weight[(*index)++] = weight2;
 			} else {
 				conn_index++;
 			}
@@ -4635,11 +4636,11 @@ QDF_STATUS cds_get_connection_channels(uint8_t *channels,
 				conc_connection_list[conn_index].chan)) {
 				conn_index++;
 			} else if (CDS_IS_CHANNEL_5GHZ(
-				    conc_connection_list[conn_index].chan)) {
+				    conc_connection_list[conn_index].chan)
+				&& (*index < weight_len)) {
 				channels[num_channels++] =
 					conc_connection_list[conn_index++].chan;
-				if (*index < weight_len)
-					pcl_weight[(*index)++] = weight1;
+				pcl_weight[(*index)++] = weight1;
 			} else {
 				conn_index++;
 			}
@@ -4647,11 +4648,11 @@ QDF_STATUS cds_get_connection_channels(uint8_t *channels,
 		conn_index = 0;
 		while (CONC_CONNECTION_LIST_VALID_INDEX(conn_index)) {
 			if (CDS_IS_CHANNEL_24GHZ(
-				    conc_connection_list[conn_index].chan)) {
+				    conc_connection_list[conn_index].chan)
+				&& (*index < weight_len)) {
 				channels[num_channels++] =
 					conc_connection_list[conn_index++].chan;
-				if (*index < weight_len)
-					pcl_weight[(*index)++] = weight2;
+				pcl_weight[(*index)++] = weight2;
 
 			} else {
 				conn_index++;
@@ -4770,7 +4771,7 @@ static QDF_STATUS cds_get_channel_list(enum cds_pcl_type pcl,
 				       uint32_t weight_len)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
-	uint32_t num_channels = WNI_CFG_VALID_CHANNEL_LIST_LEN;
+	uint32_t num_channels = 0;
 	uint32_t chan_index = 0, chan_index_24 = 0, chan_index_5 = 0;
 	uint8_t channel_list[QDF_MAX_NUM_CHAN] = {0};
 	uint8_t channel_list_24[QDF_MAX_NUM_CHAN] = {0};
@@ -4885,18 +4886,20 @@ static QDF_STATUS cds_get_channel_list(enum cds_pcl_type pcl,
 	 */
 	switch (pcl) {
 	case CDS_24G:
+		chan_index_24 = QDF_MIN(chan_index_24, weight_len);
 		qdf_mem_copy(pcl_channels, channel_list_24,
 			chan_index_24);
 		*len = chan_index_24;
-		for (i = 0; ((i < *len) && (i < weight_len)); i++)
+		for (i = 0; i < *len; i++)
 			pcl_weights[i] = WEIGHT_OF_GROUP1_PCL_CHANNELS;
 		status = QDF_STATUS_SUCCESS;
 		break;
 	case CDS_5G:
+		chan_index_5 = QDF_MIN(chan_index_5, weight_len);
 		qdf_mem_copy(pcl_channels, channel_list_5,
 			chan_index_5);
 		*len = chan_index_5;
-		for (i = 0; ((i < *len) && (i < weight_len)); i++)
+		for (i = 0; i < *len; i++)
 			pcl_weights[i] = WEIGHT_OF_GROUP1_PCL_CHANNELS;
 		status = QDF_STATUS_SUCCESS;
 		break;
@@ -4918,10 +4921,12 @@ static QDF_STATUS cds_get_channel_list(enum cds_pcl_type pcl,
 			CDS_PCL_GROUP_ID1_ID2);
 		qdf_mem_copy(pcl_channels, channel_list, num_channels);
 		*len = num_channels;
+		chan_index_24 = QDF_MIN((num_channels + chan_index_24),
+					weight_len) - num_channels;
 		qdf_mem_copy(&pcl_channels[num_channels],
 			channel_list_24, chan_index_24);
 		*len += chan_index_24;
-		for (j = 0; ((j < chan_index_24) && (i < weight_len)); i++, j++)
+		for (j = 0; j < chan_index_24; i++, j++)
 			pcl_weights[i] = WEIGHT_OF_GROUP2_PCL_CHANNELS;
 
 		status = QDF_STATUS_SUCCESS;
@@ -4935,19 +4940,22 @@ static QDF_STATUS cds_get_channel_list(enum cds_pcl_type pcl,
 		qdf_mem_copy(pcl_channels, channel_list,
 			num_channels);
 		*len = num_channels;
+		chan_index_5 = QDF_MIN((num_channels + chan_index_5),
+					weight_len) - num_channels;
 		qdf_mem_copy(&pcl_channels[num_channels],
 			channel_list_5, chan_index_5);
 		*len += chan_index_5;
-		for (j = 0; ((j < chan_index_5) && (i < weight_len)); i++, j++)
+		for (j = 0; j < chan_index_5; i++, j++)
 			pcl_weights[i] = WEIGHT_OF_GROUP2_PCL_CHANNELS;
 		status = QDF_STATUS_SUCCESS;
 		break;
 	case CDS_24G_SCC_CH:
 	case CDS_24G_MCC_CH:
+		chan_index_24 = QDF_MIN(chan_index_24, weight_len);
 		qdf_mem_copy(pcl_channels, channel_list_24,
 			chan_index_24);
 		*len = chan_index_24;
-		for (i = 0; ((i < chan_index_24) && (i < weight_len)); i++)
+		for (i = 0; i < chan_index_24; i++)
 			pcl_weights[i] = WEIGHT_OF_GROUP1_PCL_CHANNELS;
 		cds_get_connection_channels(
 			channel_list, &num_channels, CDS_PCL_ORDER_NONE,
@@ -4960,10 +4968,11 @@ static QDF_STATUS cds_get_channel_list(enum cds_pcl_type pcl,
 		break;
 	case CDS_5G_SCC_CH:
 	case CDS_5G_MCC_CH:
+		chan_index_5 = QDF_MIN(chan_index_5, weight_len);
 		qdf_mem_copy(pcl_channels, channel_list_5,
 			chan_index_5);
 		*len = chan_index_5;
-		for (i = 0; ((i < chan_index_5) && (i < weight_len)); i++)
+		for (i = 0; i < chan_index_5; i++)
 			pcl_weights[i] = WEIGHT_OF_GROUP1_PCL_CHANNELS;
 		cds_get_connection_channels(
 			channel_list, &num_channels, CDS_PCL_ORDER_NONE,
@@ -5000,10 +5009,12 @@ static QDF_STATUS cds_get_channel_list(enum cds_pcl_type pcl,
 			CDS_PCL_GROUP_ID1_ID2);
 		qdf_mem_copy(pcl_channels, channel_list, num_channels);
 		*len = num_channels;
+		chan_index_24 = QDF_MIN((num_channels + chan_index_24),
+					weight_len) - num_channels;
 		qdf_mem_copy(&pcl_channels[num_channels],
 			channel_list_24, chan_index_24);
 		*len += chan_index_24;
-		for (j = 0; ((j < chan_index_24) && (i < weight_len)); i++, j++)
+		for (j = 0; j < chan_index_24; i++, j++)
 			pcl_weights[i] = WEIGHT_OF_GROUP3_PCL_CHANNELS;
 		status = QDF_STATUS_SUCCESS;
 		break;
@@ -5014,10 +5025,12 @@ static QDF_STATUS cds_get_channel_list(enum cds_pcl_type pcl,
 			CDS_PCL_GROUP_ID1_ID2);
 		qdf_mem_copy(pcl_channels, channel_list, num_channels);
 		*len = num_channels;
+		chan_index_5 = QDF_MIN((num_channels + chan_index_5),
+					weight_len) - num_channels;
 		qdf_mem_copy(&pcl_channels[num_channels],
 			channel_list_5, chan_index_5);
 		*len += chan_index_5;
-		for (j = 0; ((j < chan_index_5) && (i < weight_len)); i++, j++)
+		for (j = 0; j < chan_index_5; i++, j++)
 			pcl_weights[i] = WEIGHT_OF_GROUP3_PCL_CHANNELS;
 		status = QDF_STATUS_SUCCESS;
 		break;
@@ -5028,10 +5041,12 @@ static QDF_STATUS cds_get_channel_list(enum cds_pcl_type pcl,
 			CDS_PCL_GROUP_ID1_ID2);
 		qdf_mem_copy(pcl_channels, channel_list, num_channels);
 		*len = num_channels;
+		chan_index_24 = QDF_MIN((num_channels + chan_index_24),
+					weight_len) - num_channels;
 		qdf_mem_copy(&pcl_channels[num_channels],
 			channel_list_24, chan_index_24);
 		*len += chan_index_24;
-		for (j = 0; ((j < chan_index_24) && (i < weight_len)); i++, j++)
+		for (j = 0; j < chan_index_24; i++, j++)
 			pcl_weights[i] = WEIGHT_OF_GROUP3_PCL_CHANNELS;
 		status = QDF_STATUS_SUCCESS;
 		break;
@@ -5042,10 +5057,12 @@ static QDF_STATUS cds_get_channel_list(enum cds_pcl_type pcl,
 			CDS_PCL_GROUP_ID1_ID2);
 		qdf_mem_copy(pcl_channels, channel_list, num_channels);
 		*len = num_channels;
+		chan_index_5 = QDF_MIN((num_channels + chan_index_5),
+					weight_len) - num_channels;
 		qdf_mem_copy(&pcl_channels[num_channels],
 			channel_list_5, chan_index_5);
 		*len += chan_index_5;
-		for (j = 0; ((j < chan_index_5) && (i < weight_len)); i++, j++)
+		for (j = 0; j < chan_index_5; i++, j++)
 			pcl_weights[i] = WEIGHT_OF_GROUP3_PCL_CHANNELS;
 		status = QDF_STATUS_SUCCESS;
 		break;

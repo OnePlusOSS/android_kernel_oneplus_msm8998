@@ -3866,6 +3866,27 @@ REG_TABLE_ENTRY g_registry_table[] = {
 			CFG_EDCA_BE_AIFS_VALUE_DEFAULT,
 			CFG_EDCA_BE_AIFS_VALUE_MIN,
 			CFG_EDCA_BE_AIFS_VALUE_MAX),
+
+	REG_VARIABLE_STRING(CFG_ENABLE_TX_SCHED_WRR_VO, WLAN_PARAM_String,
+			struct hdd_config, tx_sched_wrr_vo,
+			VAR_FLAGS_OPTIONAL,
+			(void *) CFG_ENABLE_TX_SCHED_WRR_VO_DEFAULT),
+
+	REG_VARIABLE_STRING(CFG_ENABLE_TX_SCHED_WRR_VI, WLAN_PARAM_String,
+			struct hdd_config, tx_sched_wrr_vi,
+			VAR_FLAGS_OPTIONAL,
+			(void *) CFG_ENABLE_TX_SCHED_WRR_VI_DEFAULT),
+
+	REG_VARIABLE_STRING(CFG_ENABLE_TX_SCHED_WRR_BE, WLAN_PARAM_String,
+			struct hdd_config, tx_sched_wrr_be,
+			VAR_FLAGS_OPTIONAL,
+			(void *) CFG_ENABLE_TX_SCHED_WRR_BE_DEFAULT),
+
+	REG_VARIABLE_STRING(CFG_ENABLE_TX_SCHED_WRR_BK, WLAN_PARAM_String,
+			struct hdd_config, tx_sched_wrr_bk,
+			VAR_FLAGS_OPTIONAL,
+			(void *) CFG_ENABLE_TX_SCHED_WRR_BK_DEFAULT),
+
 #ifdef WLAN_FEATURE_NAN_DATAPATH
 	REG_VARIABLE(CFG_ENABLE_NAN_DATAPATH_NAME, WLAN_PARAM_Integer,
 		struct hdd_config, enable_nan_datapath,
@@ -5701,6 +5722,20 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_info("Name = [%s] Value = [%u]",
 		CFG_EDCA_BE_AIFS_VALUE_NAME,
 		pHddCtx->config->edca_be_aifs);
+
+	hddLog(LOG2, "Name = [%s] Value = [%s]",
+		CFG_ENABLE_TX_SCHED_WRR_VO,
+		pHddCtx->config->tx_sched_wrr_vo);
+	hddLog(LOG2, "Name = [%s] Value = [%s]",
+		CFG_ENABLE_TX_SCHED_WRR_VI,
+		pHddCtx->config->tx_sched_wrr_vi);
+	hddLog(LOG2, "Name = [%s] Value = [%s]",
+		CFG_ENABLE_TX_SCHED_WRR_BK,
+		pHddCtx->config->tx_sched_wrr_bk);
+	hddLog(LOG2, "Name = [%s] Value = [%s]",
+		CFG_ENABLE_TX_SCHED_WRR_BE,
+		pHddCtx->config->tx_sched_wrr_be);
+
 	hdd_info("Name = [%s] Value = [%u]",
 		CFG_ENABLE_DP_TRACE,
 		pHddCtx->config->enable_dp_trace);

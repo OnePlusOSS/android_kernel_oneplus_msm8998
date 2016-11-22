@@ -1632,6 +1632,38 @@ void ol_cfg_set_flow_control_parameters(struct txrx_pdev_cfg_param_t *olCfg,
 }
 #endif
 
+/**
+ * ol_cfg_update_ac_specs_params() - update ac_specs params
+ * @olcfg: cfg handle
+ * @mac_params: mac params
+ *
+ * Return: none
+ */
+void ol_cfg_update_ac_specs_params(struct txrx_pdev_cfg_param_t *olcfg,
+		struct cds_config_info *cds_cfg)
+{
+	int i;
+
+	if (NULL == olcfg)
+		return;
+
+	if (NULL == cds_cfg)
+		return;
+
+	for (i = 0; i < OL_TX_NUM_WMM_AC; i++) {
+		olcfg->ac_specs[i].wrr_skip_weight =
+			cds_cfg->ac_specs[i].wrr_skip_weight;
+		olcfg->ac_specs[i].credit_threshold =
+			cds_cfg->ac_specs[i].credit_threshold;
+		olcfg->ac_specs[i].send_limit =
+			cds_cfg->ac_specs[i].send_limit;
+		olcfg->ac_specs[i].credit_reserve =
+			cds_cfg->ac_specs[i].credit_reserve;
+		olcfg->ac_specs[i].discard_weight =
+			cds_cfg->ac_specs[i].discard_weight;
+	}
+}
+
 #ifdef WLAN_FEATURE_NAN
 /**
  * wma_set_nan_enable() - set nan enable flag in WMA handle
@@ -1966,6 +1998,7 @@ QDF_STATUS wma_open(void *cds_context,
 	olCfg.ce_classify_enabled = cds_cfg->ce_classify_enabled;
 
 	ol_cfg_set_flow_control_parameters(&olCfg, cds_cfg);
+	ol_cfg_update_ac_specs_params(&olCfg, cds_cfg);
 
 	((p_cds_contextType) cds_context)->cfg_ctx =
 		ol_pdev_cfg_attach(((p_cds_contextType) cds_context)->qdf_ctx,

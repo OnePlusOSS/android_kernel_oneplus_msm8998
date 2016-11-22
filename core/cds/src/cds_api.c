@@ -158,6 +158,74 @@ void cds_tdls_tx_rx_mgmt_event(uint8_t event_id, uint8_t tx_rx,
 }
 #endif
 
+/**
+ * vos_set_ac_specs_params() - set ac_specs params in mac open param
+ * @param: Pointer to mac open param
+ * @hdd_ctx: Pointer to hdd context
+ *
+ * Return: none
+ */
+static void cds_set_ac_specs_params(struct cds_config_info *cds_cfg,
+					hdd_context_t *hdd_ctx)
+{
+	uint8_t num_entries = 0;
+	uint8_t tx_sched_wrr_param[TX_SCHED_WRR_PARAMS_NUM];
+	uint8_t *tx_sched_wrr_ac;
+	int i;
+
+	if (NULL == hdd_ctx)
+		return;
+
+	if (NULL == cds_cfg)
+		return;
+
+	if (NULL == hdd_ctx->config) {
+		/* Do nothing if hdd_ctx is invalid */
+		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
+			"%s: Warning: hdd_ctx->cfg_ini is NULL", __func__);
+		return;
+	}
+
+	for (i = 0; i < OL_TX_NUM_WMM_AC; i++) {
+		switch (i) {
+		case OL_TX_WMM_AC_BE:
+			tx_sched_wrr_ac = hdd_ctx->config->tx_sched_wrr_be;
+			break;
+		case OL_TX_WMM_AC_BK:
+			tx_sched_wrr_ac = hdd_ctx->config->tx_sched_wrr_bk;
+			break;
+		case OL_TX_WMM_AC_VI:
+			tx_sched_wrr_ac = hdd_ctx->config->tx_sched_wrr_vi;
+			break;
+		case OL_TX_WMM_AC_VO:
+			tx_sched_wrr_ac = hdd_ctx->config->tx_sched_wrr_vo;
+			break;
+		default:
+			tx_sched_wrr_ac = NULL;
+			break;
+		}
+
+		hdd_string_to_u8_array(tx_sched_wrr_ac,
+				tx_sched_wrr_param,
+				&num_entries,
+				sizeof(tx_sched_wrr_param));
+
+		if (num_entries == TX_SCHED_WRR_PARAMS_NUM) {
+			cds_cfg->ac_specs[i].wrr_skip_weight =
+						tx_sched_wrr_param[0];
+			cds_cfg->ac_specs[i].credit_threshold =
+						tx_sched_wrr_param[1];
+			cds_cfg->ac_specs[i].send_limit =
+						tx_sched_wrr_param[2];
+			cds_cfg->ac_specs[i].credit_reserve =
+						tx_sched_wrr_param[3];
+			cds_cfg->ac_specs[i].discard_weight =
+						tx_sched_wrr_param[4];
+		}
+
+		num_entries = 0;
+	}
+}
 
 /**
  * cds_open() - open the CDS Module
@@ -314,6 +382,8 @@ QDF_STATUS cds_open(void)
 			  "%s: Failed to complete BMI phase", __func__);
 		goto err_htc_close;
 	}
+
+	cds_set_ac_specs_params(cds_cfg, pHddCtx);
 
 	/*Open the WMA module */
 	qdf_status = wma_open(gp_cds_context,

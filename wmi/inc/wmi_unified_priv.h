@@ -1147,6 +1147,9 @@ QDF_STATUS (*send_sar_limit_cmd)(wmi_unified_t wmi_handle,
 				struct sar_limit_cmd_params *params);
 uint16_t (*wmi_set_htc_tx_tag)(wmi_unified_t wmi_handle,
 				wmi_buf_t buf, uint32_t cmd_id);
+
+QDF_STATUS (*send_get_rcpi_cmd)(wmi_unified_t wmi_handle,
+				struct rcpi_req *get_rcpi_param);
 };
 
 struct target_abi_version {

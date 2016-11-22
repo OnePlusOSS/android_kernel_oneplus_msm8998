@@ -1322,4 +1322,14 @@ QDF_STATUS wmi_unified_send_adapt_dwelltime_params_cmd(void *wmi_hdl,
 QDF_STATUS wmi_unified_fw_test_cmd(void *wmi_hdl,
 				   struct set_fwtest_params *wmi_fwtest);
 
+/**
+ * wmi_unified_get_rcpi_cmd() - get rcpi request
+ * @wmi_hdl: wma handle
+ * @get_rcpi_param: rcpi params
+ *
+ * Return: QDF_STATUS_SUCCESS on success and QDF_STATUS_E_FAILURE for failure
+ */
+QDF_STATUS wmi_unified_get_rcpi_cmd(void *wmi_hdl,
+				    struct rcpi_req *get_rcpi_param);
+
 #endif /* _WMI_UNIFIED_API_H_ */

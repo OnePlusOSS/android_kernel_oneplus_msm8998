@@ -12426,6 +12426,50 @@ static uint16_t wmi_set_htc_tx_tag_tlv(wmi_unified_t wmi_handle,
 	return htc_tx_tag;
 }
 
+/**
+ * send_get_rcpi_cmd_tlv() - get rcpi request
+ * @wmi_handle: wmi handle
+ * @get_rcpi_param: rcpi params
+ *
+ * Return: CDF status
+ */
+static QDF_STATUS send_get_rcpi_cmd_tlv(wmi_unified_t wmi_handle,
+					struct rcpi_req  *get_rcpi_param)
+{
+	wmi_buf_t buf;
+	wmi_request_rcpi_cmd_fixed_param *cmd;
+	uint8_t len = sizeof(wmi_request_rcpi_cmd_fixed_param);
+
+	buf = wmi_buf_alloc(wmi_handle, len);
+	if (!buf) {
+		WMI_LOGE("%s: Failed to allocate wmi buffer", __func__);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+
+	cmd = (wmi_request_rcpi_cmd_fixed_param *) wmi_buf_data(buf);
+	WMITLV_SET_HDR(&cmd->tlv_header,
+		       WMITLV_TAG_STRUC_wmi_request_rcpi_cmd_fixed_param,
+		       WMITLV_GET_STRUCT_TLVLEN
+		       (wmi_request_rcpi_cmd_fixed_param));
+
+	cmd->vdev_id = get_rcpi_param->vdev_id;
+	WMI_CHAR_ARRAY_TO_MAC_ADDR(get_rcpi_param->mac_addr,
+				   &cmd->peer_macaddr);
+	cmd->measurement_type = get_rcpi_param->measurement_type;
+	WMI_LOGD("RCPI REQ VDEV_ID:%d-->", cmd->vdev_id);
+	if (wmi_unified_cmd_send(wmi_handle, buf, len,
+				 WMI_REQUEST_RCPI_CMDID)) {
+
+		WMI_LOGE("%s: Failed to send WMI_REQUEST_RCPI_CMDID",
+			 __func__);
+		wmi_buf_free(buf);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
+
 struct wmi_ops tlv_ops =  {
 	.send_vdev_create_cmd = send_vdev_create_cmd_tlv,
 	.send_vdev_delete_cmd = send_vdev_delete_cmd_tlv,
@@ -12683,6 +12727,7 @@ struct wmi_ops tlv_ops =  {
 	.send_sar_limit_cmd = send_sar_limit_cmd_tlv,
 	.send_per_roam_config_cmd = send_per_roam_config_cmd_tlv,
 	.wmi_set_htc_tx_tag = wmi_set_htc_tx_tag_tlv,
+	.send_get_rcpi_cmd = send_get_rcpi_cmd_tlv,
 };
 
 #ifdef WMI_TLV_AND_NON_TLV_SUPPORT
@@ -13027,6 +13072,7 @@ static void populate_tlv_events_id(uint32_t *event_ids)
 				WMI_SOC_HW_MODE_TRANSITION_EVENTID;
 	event_ids[wmi_soc_set_dual_mac_config_resp_event_id] =
 				WMI_SOC_SET_DUAL_MAC_CONFIG_RESP_EVENTID;
+	event_ids[wmi_update_rcpi_event_id] = WMI_UPDATE_RCPI_EVENTID;
 }
 
 /**

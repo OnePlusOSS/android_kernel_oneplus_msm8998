@@ -66,9 +66,6 @@ static struct mutex gov_lock;
 #define FREQ_RESPONSIVENESS			1113600
 #define FREQ_RESPONSIVENESS_MAX		2150400
 
-#define DEC_CPU_LOAD				60
-#define INC_CPU_LOAD				60
-#define INC_CPU_LOAD_AT_MIN_FREQ	40
 #define FREQ_STEP_AT_MIN_FREQ		40
 #define FREQ_STEP					50
 #define FREQ_UP_BRAKE_AT_MIN_FREQ	40
@@ -99,9 +96,6 @@ struct cpufreq_nightmare_tunables {
 	/*
 	 * CPUs frequency scaling
 	 */
-	int inc_cpu_load_at_min_freq;
-	int inc_cpu_load;
-	int dec_cpu_load;
 	int freq_for_responsiveness;
 	int freq_for_responsiveness_max;
 	int freq_up_brake_at_min_freq;
@@ -282,8 +276,7 @@ static void cpufreq_nightmare_timer(unsigned long data)
 	struct cpufreq_govinfo govinfo;
 	unsigned int freq_for_responsiveness = tunables->freq_for_responsiveness;
 	unsigned int freq_for_responsiveness_max = tunables->freq_for_responsiveness_max;
-	int dec_cpu_load = tunables->dec_cpu_load;
-	int inc_cpu_load = tunables->inc_cpu_load;
+	int target_cpu_load;
 	int freq_step = tunables->freq_step;
 	int freq_up_brake = tunables->freq_up_brake;
 	int freq_step_dec = tunables->freq_step_dec;
@@ -316,8 +309,8 @@ static void cpufreq_nightmare_timer(unsigned long data)
 	}
 #endif
 	/* CPUs Online Scale Frequency*/
+	target_cpu_load = (ppol->policy->cur * 100) / ppol->policy->max;
 	if (ppol->policy->cur < freq_for_responsiveness) {
-		inc_cpu_load = tunables->inc_cpu_load_at_min_freq;
 		freq_step = tunables->freq_step_at_min_freq;
 		freq_up_brake = tunables->freq_up_brake_at_min_freq;
 	} else if (ppol->policy->cur > freq_for_responsiveness_max) {
@@ -355,7 +348,7 @@ static void cpufreq_nightmare_timer(unsigned long data)
 
 	/* Check for frequency increase or for frequency decrease */
 	spin_lock_irqsave(&ppol->target_freq_lock, flags);
-	if (max_load >= inc_cpu_load
+	if (max_load >= target_cpu_load
 		 && ppol->policy->cur < ppol->policy->max) {
 		tmp_step = (max_load + freq_step - freq_up_brake) * 1536;
 		if (tmp_step < 0)
@@ -363,7 +356,7 @@ static void cpufreq_nightmare_timer(unsigned long data)
 
 		new_freq = choose_freq(ppol,
 			(ppol->policy->cur + tmp_step));
-	} else if (max_load < dec_cpu_load
+	} else if (max_load < target_cpu_load
 				 && ppol->policy->cur > ppol->policy->min) {
 		tmp_step = (100 - max_load + freq_step_dec) * 1536;
 		if (tmp_step < 0)
@@ -563,88 +556,6 @@ static ssize_t store_io_is_busy(struct cpufreq_nightmare_tunables *tunables,
 	if (ret < 0)
 		return ret;
 	tunables->io_is_busy = val;
-
-	return count;
-}
-
-/* inc_cpu_load_at_min_freq */
-static ssize_t show_inc_cpu_load_at_min_freq(struct cpufreq_nightmare_tunables *tunables,
-		char *buf)
-{
-	return sprintf(buf, "%d\n", tunables->inc_cpu_load_at_min_freq);
-}
-
-static ssize_t store_inc_cpu_load_at_min_freq(struct cpufreq_nightmare_tunables *tunables,
-		const char *buf, size_t count)
-{
-	int input;
-	int ret;
-
-	ret = sscanf(buf, "%d", &input);
-	if (ret != 1) {
-		return -EINVAL;
-	}
-
-	input = min(input, tunables->inc_cpu_load);
-
-	if (input == tunables->inc_cpu_load_at_min_freq)
-		return count;
-
-	tunables->inc_cpu_load_at_min_freq = input;
-
-	return count;
-}
-
-/* inc_cpu_load */
-static ssize_t show_inc_cpu_load(struct cpufreq_nightmare_tunables *tunables,
-		char *buf)
-{
-	return sprintf(buf, "%d\n", tunables->inc_cpu_load);
-}
-
-static ssize_t store_inc_cpu_load(struct cpufreq_nightmare_tunables *tunables,
-		const char *buf, size_t count)
-{
-	int input;
-	int ret;
-
-	ret = sscanf(buf, "%d", &input);
-	if (ret != 1)
-		return -EINVAL;
-
-	input = max(min(input, 100),0);
-
-	if (input == tunables->inc_cpu_load)
-		return count;
-
-	tunables->inc_cpu_load = input;
-
-	return count;
-}
-
-/* dec_cpu_load */
-static ssize_t show_dec_cpu_load(struct cpufreq_nightmare_tunables *tunables,
-		char *buf)
-{
-	return sprintf(buf, "%d\n", tunables->dec_cpu_load);
-}
-
-static ssize_t store_dec_cpu_load(struct cpufreq_nightmare_tunables *tunables,
-		const char *buf, size_t count)
-{
-	int input;
-	int ret;
-
-	ret = sscanf(buf, "%d", &input);
-	if (ret != 1)
-		return -EINVAL;
-
-	input = max(min(input, 95),5);
-
-	if (input == tunables->dec_cpu_load)
-		return count;
-
-	tunables->dec_cpu_load = input;
 
 	return count;
 }
@@ -901,9 +812,6 @@ show_store_gov_pol_sys(timer_rate);
 show_store_gov_pol_sys(timer_slack);
 show_store_gov_pol_sys(io_is_busy);
 show_store_gov_pol_sys(align_windows);
-show_store_gov_pol_sys(inc_cpu_load_at_min_freq);
-show_store_gov_pol_sys(inc_cpu_load);
-show_store_gov_pol_sys(dec_cpu_load);
 show_store_gov_pol_sys(freq_for_responsiveness);
 show_store_gov_pol_sys(freq_for_responsiveness_max);
 show_store_gov_pol_sys(freq_step_at_min_freq);
@@ -929,9 +837,6 @@ gov_sys_pol_attr_rw(timer_rate);
 gov_sys_pol_attr_rw(timer_slack);
 gov_sys_pol_attr_rw(io_is_busy);
 gov_sys_pol_attr_rw(align_windows);
-gov_sys_pol_attr_rw(inc_cpu_load_at_min_freq);
-gov_sys_pol_attr_rw(inc_cpu_load);
-gov_sys_pol_attr_rw(dec_cpu_load);
 gov_sys_pol_attr_rw(freq_for_responsiveness);
 gov_sys_pol_attr_rw(freq_for_responsiveness_max);
 gov_sys_pol_attr_rw(freq_step_at_min_freq);
@@ -947,9 +852,6 @@ static struct attribute *nightmare_attributes_gov_sys[] = {
 	&timer_slack_gov_sys.attr,
 	&io_is_busy_gov_sys.attr,
 	&align_windows_gov_sys.attr,
-	&inc_cpu_load_at_min_freq_gov_sys.attr,
-	&inc_cpu_load_gov_sys.attr,
-	&dec_cpu_load_gov_sys.attr,
 	&freq_for_responsiveness_gov_sys.attr,
 	&freq_for_responsiveness_max_gov_sys.attr,
 	&freq_step_at_min_freq_gov_sys.attr,
@@ -972,9 +874,6 @@ static struct attribute *nightmare_attributes_gov_pol[] = {
 	&timer_slack_gov_pol.attr,
 	&io_is_busy_gov_pol.attr,
 	&align_windows_gov_pol.attr,
-	&inc_cpu_load_at_min_freq_gov_pol.attr,
-	&inc_cpu_load_gov_pol.attr,
-	&dec_cpu_load_gov_pol.attr,
 	&freq_for_responsiveness_gov_pol.attr,
 	&freq_for_responsiveness_max_gov_pol.attr,
 	&freq_step_at_min_freq_gov_pol.attr,
@@ -1017,9 +916,6 @@ static struct cpufreq_nightmare_tunables *alloc_tunable(
 	tunables->timer_rate_prev = DEFAULT_TIMER_RATE;
 #endif
 	tunables->timer_slack_val = DEFAULT_TIMER_SLACK;
-	tunables->inc_cpu_load_at_min_freq = INC_CPU_LOAD_AT_MIN_FREQ;
-	tunables->inc_cpu_load = INC_CPU_LOAD;
-	tunables->dec_cpu_load = DEC_CPU_LOAD;
 	tunables->freq_for_responsiveness = FREQ_RESPONSIVENESS;
 	tunables->freq_for_responsiveness_max = FREQ_RESPONSIVENESS_MAX;
 	tunables->freq_step_at_min_freq = FREQ_STEP_AT_MIN_FREQ;

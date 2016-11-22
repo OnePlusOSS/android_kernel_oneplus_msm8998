@@ -326,11 +326,6 @@ static void cpufreq_alucard_timer(unsigned long data)
 		cpus_up_rate = tunables->cpus_up_rate_at_max_freq;
 		cpus_down_rate = tunables->cpus_down_rate_at_max_freq;
 	}
-	if (ppol->up_rate > cpus_up_rate)
-		ppol->up_rate = 1;
-	if (ppol->down_rate > cpus_down_rate)
-		ppol->down_rate = 1;
-	
 
 	max_cpu = cpumask_first(ppol->policy->cpus);
 	for_each_cpu(i, ppol->policy->cpus) {
@@ -363,6 +358,11 @@ static void cpufreq_alucard_timer(unsigned long data)
 
 	/* Check for frequency increase or for frequency decrease */
 	spin_lock_irqsave(&ppol->target_freq_lock, flags);
+	if (ppol->up_rate > cpus_up_rate)
+		ppol->up_rate = 1;
+	if (ppol->down_rate > cpus_down_rate)
+		ppol->down_rate = 1;
+
 	if (max_load >= target_cpu_load
 		 && ppol->policy->cur < ppol->policy->max) {
 		if (ppol->up_rate % cpus_up_rate == 0) {

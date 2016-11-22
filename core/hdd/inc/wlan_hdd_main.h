@@ -151,6 +151,9 @@
 
 #define WLAN_WAIT_TIME_BPF     1000
 
+/* rcpi request timeout in milli seconds */
+#define WLAN_WAIT_TIME_RCPI 500
+
 #define MAX_NUMBER_OF_ADAPTERS 4
 
 #define MAX_CFG_STRING_LEN  255
@@ -337,6 +340,7 @@ extern spinlock_t hdd_context_lock;
 #define TEMP_CONTEXT_MAGIC  0x74656d70   /* TEMP (temperature) */
 #define BPF_CONTEXT_MAGIC 0x4575354    /* BPF */
 #define POWER_STATS_MAGIC 0x14111990
+#define RCPI_CONTEXT_MAGIC  0x7778888  /* RCPI */
 
 /* MAX OS Q block time value in msec
  * Prevent from permanent stall, resume OS Q if timer expired */
@@ -910,6 +914,16 @@ struct hdd_connect_pm_context {
 #endif
 #endif
 
+/**
+ * struct rcpi_info - rcpi info
+ * @rcpi: computed value in dB
+ * @mac_addr: peer mac addr for which rcpi is computed
+ */
+struct rcpi_info {
+	int32_t rcpi;
+	struct qdf_mac_addr mac_addr;
+};
+
 struct hdd_adapter_s {
 	/* Magic cookie for adapter sanity verification.  Note that this
 	 * needs to be at the beginning of the private data structure so
@@ -1143,6 +1157,9 @@ struct hdd_adapter_s {
 	struct power_stats_response *chip_power_stats;
 
 	bool fast_roaming_allowed;
+
+	/* rcpi information */
+	struct rcpi_info rcpi;
 };
 
 #define WLAN_HDD_GET_STATION_CTX_PTR(pAdapter) (&(pAdapter)->sessionCtx.station)
@@ -1613,6 +1630,7 @@ struct hdd_context_s {
 	scan_reject_states last_scan_reject_reason;
 	unsigned long last_scan_reject_timestamp;
 	uint8_t beacon_probe_rsp_cnt_per_scan;
+	bool rcpi_enabled;
 };
 
 /*---------------------------------------------------------------------------

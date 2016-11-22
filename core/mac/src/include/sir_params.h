@@ -648,7 +648,9 @@ typedef struct sSirMbMsgP2p {
 
 #define SIR_HAL_SET_PER_ROAM_CONFIG_CMD     (SIR_HAL_ITC_MSG_TYPES_BEGIN + 371)
 
-#define SIR_HAL_MSG_TYPES_END                (SIR_HAL_MSG_TYPES_BEGIN + 0x1FF)
+#define SIR_HAL_GET_RCPI_REQ                (SIR_HAL_ITC_MSG_TYPES_BEGIN + 372)
+
+#define SIR_HAL_MSG_TYPES_END               (SIR_HAL_MSG_TYPES_BEGIN + 0x1FF)
 
 /* CFG message types */
 #define SIR_CFG_MSG_TYPES_BEGIN        (SIR_CFG_MODULE_ID << 8)

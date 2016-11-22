@@ -1420,4 +1420,15 @@ static inline QDF_STATUS sme_set_udp_resp_offload(struct udp_resp_offload
 }
 #endif
 
+/**
+ * sme_get_rcpi() - gets the rcpi value for peer mac addr
+ * @hal: handle returned by mac_open
+ * @rcpi: rcpi request containing peer mac addr, callback and related info
+ *
+ * This function posts the rcpi measurement request message to wma queue
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS sme_get_rcpi(tHalHandle hal, struct sme_rcpi_req *rcpi);
+
 #endif /* #if !defined( __SME_API_H ) */

@@ -5863,6 +5863,10 @@ QDF_STATUS hdd_init_ap_mode(hdd_adapter_t *pAdapter)
 	qdf_mem_free(pAdapter->sessionCtx.ap.sapConfig.acs_cfg.ch_list);
 	qdf_mem_zero(&pAdapter->sessionCtx.ap.sapConfig.acs_cfg,
 						sizeof(struct sap_acs_cfg));
+
+	/* rcpi info initialization */
+	qdf_mem_zero(&pAdapter->rcpi, sizeof(pAdapter->rcpi));
+
 	return status;
 
 error_wmm_init:
@@ -8347,4 +8351,30 @@ int wlan_hdd_cfg80211_change_beacon(struct wiphy *wiphy,
 	cds_ssr_unprotect(__func__);
 
 	return ret;
+}
+
+bool hdd_is_peer_associated(hdd_adapter_t *adapter,
+			    struct qdf_mac_addr *mac_addr)
+{
+	uint32_t cnt = 0;
+	hdd_station_info_t *sta_info = NULL;
+
+	if (!adapter || !mac_addr) {
+		hdd_err("Invalid adapter or mac_addr");
+		return false;
+	}
+
+	sta_info = adapter->aStaInfo;
+	spin_lock_bh(&adapter->staInfo_lock);
+	for (cnt = 0; cnt < WLAN_MAX_STA_COUNT; cnt++) {
+		if ((sta_info[cnt].isUsed) &&
+		    !qdf_mem_cmp(&(sta_info[cnt].macAddrSTA), mac_addr,
+		    QDF_MAC_ADDR_SIZE))
+			break;
+	}
+	spin_unlock_bh(&adapter->staInfo_lock);
+	if (cnt != WLAN_MAX_STA_COUNT)
+		return true;
+
+	return false;
 }

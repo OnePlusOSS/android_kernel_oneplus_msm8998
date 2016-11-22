@@ -6883,4 +6883,23 @@ struct udp_resp_offload {
 	char       udp_payload_filter[MAX_LEN_UDP_RESP_OFFLOAD];
 	char       udp_response_payload[MAX_LEN_UDP_RESP_OFFLOAD];
 };
+
+typedef void (*sme_rcpi_callback)(void *context, struct qdf_mac_addr mac_addr,
+				  int32_t rcpi, QDF_STATUS status);
+/**
+ * struct sme_rcpi_req - structure for querying rcpi info
+ * @session_id: session for which rcpi is required
+ * @measurement_type: type of measurement from enum rcpi_measurement_type
+ * @rcpi_callback: callback function to be invoked for rcpi response
+ * @rcpi_context: context info for rcpi callback
+ * @mac_addr: peer addr for which rcpi is required
+ */
+struct sme_rcpi_req {
+	uint32_t session_id;
+	enum rcpi_measurement_type measurement_type;
+	sme_rcpi_callback rcpi_callback;
+	void *rcpi_context;
+	struct qdf_mac_addr mac_addr;
+};
+
 #endif /* __SIR_API_H */

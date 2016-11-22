@@ -1408,6 +1408,7 @@ void hdd_update_tgt_cfg(void *context, void *param)
 		cfg->bpf_enabled, hdd_ctx->config->bpf_packet_filter_enable);
 	hdd_ctx->bpf_enabled = (cfg->bpf_enabled &&
 				hdd_ctx->config->bpf_packet_filter_enable);
+	hdd_ctx->rcpi_enabled = cfg->rcpi_enabled;
 	hdd_update_ra_rate_limit(hdd_ctx, cfg);
 
 	hdd_ctx->fw_mem_dump_enabled = cfg->fw_mem_dump_enabled;
@@ -2720,6 +2721,9 @@ QDF_STATUS hdd_init_station_mode(hdd_adapter_t *adapter)
 	status = hdd_lro_enable(hdd_ctx, adapter);
 	if (status != QDF_STATUS_SUCCESS)
 		goto error_lro_enable;
+
+	/* rcpi info initialization */
+	qdf_mem_zero(&adapter->rcpi, sizeof(adapter->rcpi));
 
 	return QDF_STATUS_SUCCESS;
 

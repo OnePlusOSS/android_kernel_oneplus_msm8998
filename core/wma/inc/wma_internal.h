@@ -1236,4 +1236,26 @@ void wma_lost_link_info_handler(tp_wma_handle wma, uint32_t vdev_id,
 				int32_t rssi);
 int wma_unified_power_debug_stats_event_handler(void *handle,
 			uint8_t *cmd_param_info, uint32_t len);
+
+/**
+ * wma_get_rcpi_req() - get rcpi request
+ * @handle: wma handle
+ * @rcpi_request: rcpi params
+ *
+ * Return: none
+ */
+QDF_STATUS wma_get_rcpi_req(WMA_HANDLE handle,
+			    struct sme_rcpi_req *rcpi_request);
+
+/**
+ * wma_rcpi_event_handler() - rcpi event handler
+ * @handle: wma handle
+ * @cmd_param_info: data from event
+ * @len: length
+ *
+ * Return: 0 for success or error code
+ */
+int wma_rcpi_event_handler(void *handle, uint8_t *cmd_param_info,
+			   uint32_t len);
+
 #endif

@@ -1014,6 +1014,7 @@ typedef struct {
  * @arp_offload_req: cached arp offload request
  * @ns_offload_req: cached ns offload request
  * @wow_stats: stat counters for WoW related events
+ * @rcpi_req: rcpi request
  * It stores parameters per vdev in wma.
  */
 struct wma_txrx_node {
@@ -1093,6 +1094,7 @@ struct wma_txrx_node {
 	tSirHostOffloadReq ns_offload_req;
 	bool is_vdev_valid;
 	struct sir_vdev_wow_stats wow_stats;
+	struct sme_rcpi_req *rcpi_req;
 };
 
 #if defined(QCA_WIFI_FTM)
@@ -1604,6 +1606,7 @@ typedef struct {
 	bool sub_20_support;
 	tp_wma_packetdump_cb wma_mgmt_tx_packetdump_cb;
 	tp_wma_packetdump_cb wma_mgmt_rx_packetdump_cb;
+	bool rcpi_enabled;
 	tSirLLStatsResults *link_stats_results;
 	bool fw_mem_dump_enabled;
 	tSirAddonPsReq ps_setting;

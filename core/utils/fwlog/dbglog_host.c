@@ -81,7 +81,7 @@ module_dbg_print mod_print[WLAN_MODULE_ID_MAX];
 
 A_UINT32 dbglog_process_type = DBGLOG_PROCESS_NET_RAW;
 
-const char *dbglog_get_module_str(A_UINT32 module_id)
+static const char *dbglog_get_module_str(A_UINT32 module_id)
 {
 	switch (module_id) {
 	case WLAN_MODULE_INF:
@@ -1397,6 +1397,7 @@ static char *dbglog_get_msg(A_UINT32 moduleid, A_UINT32 debugid)
 	return unknown_str;
 }
 
+static
 void dbglog_printf(A_UINT32 timestamp, A_UINT16 vap_id, const char *fmt, ...)
 {
 	char buf[128];
@@ -1418,7 +1419,7 @@ void dbglog_printf(A_UINT32 timestamp, A_UINT16 vap_id, const char *fmt, ...)
 	AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s\n", buf));
 }
 
-void
+static void
 dbglog_printf_no_line_break(A_UINT32 timestamp,
 			    A_UINT16 vap_id, const char *fmt, ...)
 {
@@ -1443,7 +1444,7 @@ dbglog_printf_no_line_break(A_UINT32 timestamp,
 
 #define USE_NUMERIC 0
 
-A_BOOL
+static A_BOOL
 dbglog_default_print_handler(A_UINT32 mod_id, A_UINT16 vap_id, A_UINT32 dbg_id,
 			     A_UINT32 timestamp, A_UINT16 numargs,
 			     A_UINT32 *args)
@@ -1607,8 +1608,8 @@ dbglog_debugfs_raw_data(wmi_unified_t wmi_handle, const uint8_t *buf,
  *
  * return: 0 if sent successfully, otherwise error code
  */
-int send_fw_diag_nl_data(const uint8_t *buffer, A_UINT32 len,
-			 A_UINT32 event_type)
+static int send_fw_diag_nl_data(const uint8_t *buffer, A_UINT32 len,
+				A_UINT32 event_type)
 {
 	struct sk_buff *skb_out;
 	struct nlmsghdr *nlh;
@@ -1758,7 +1759,7 @@ send_diag_netlink_data(const uint8_t *buffer, A_UINT32 len, A_UINT32 cmd)
 	return res;
 }
 
-int
+static int
 dbglog_process_netlink_data(wmi_unified_t wmi_handle, const uint8_t *buffer,
 			    A_UINT32 len, A_UINT32 dropped)
 {
@@ -2044,7 +2045,7 @@ void dbglog_reg_modprint(A_UINT32 mod_id, module_dbg_print printfn)
 	}
 }
 
-void
+static void
 dbglog_sm_print(A_UINT32 timestamp,
 		A_UINT16 vap_id,
 		A_UINT16 numargs,
@@ -2120,7 +2121,7 @@ dbglog_sm_print(A_UINT32 timestamp,
 	}
 }
 
-A_BOOL
+static A_BOOL
 dbglog_sta_powersave_print_handler(A_UINT32 mod_id,
 				   A_UINT16 vap_id,
 				   A_UINT32 dbg_id,
@@ -2319,7 +2320,7 @@ enum wlan_ibss_ps_sub_module {
 
 #define WLAN_IBSS_PS_SUB_MODULE_OFFSET  0x1E
 
-A_BOOL
+static A_BOOL
 dbglog_ibss_powersave_print_handler(A_UINT32 mod_id,
 				    A_UINT16 vap_id,
 				    A_UINT32 dbg_id,
@@ -2683,6 +2684,7 @@ dbglog_ibss_powersave_print_handler(A_UINT32 mod_id,
 	return true;
 }
 
+static
 A_BOOL dbglog_ratectrl_print_handler(A_UINT32 mod_id,
 				     A_UINT16 vap_id,
 				     A_UINT32 dbg_id,
@@ -2745,6 +2747,7 @@ A_BOOL dbglog_ratectrl_print_handler(A_UINT32 mod_id,
 	return true;
 }
 
+static
 A_BOOL dbglog_ani_print_handler(A_UINT32 mod_id,
 				A_UINT16 vap_id,
 				A_UINT32 dbg_id,
@@ -2839,7 +2842,7 @@ A_BOOL dbglog_ani_print_handler(A_UINT32 mod_id,
 	return true;
 }
 
-A_BOOL
+static A_BOOL
 dbglog_ap_powersave_print_handler(A_UINT32 mod_id,
 				  A_UINT16 vap_id,
 				  A_UINT32 dbg_id,
@@ -2982,7 +2985,7 @@ dbglog_ap_powersave_print_handler(A_UINT32 mod_id,
 	return true;
 }
 
-A_BOOL
+static A_BOOL
 dbglog_wal_print_handler(A_UINT32 mod_id,
 			 A_UINT16 vap_id,
 			 A_UINT32 dbg_id,
@@ -3137,7 +3140,7 @@ dbglog_wal_print_handler(A_UINT32 mod_id,
 	return true;
 }
 
-A_BOOL
+static A_BOOL
 dbglog_scan_print_handler(A_UINT32 mod_id,
 			  A_UINT16 vap_id,
 			  A_UINT32 dbg_id,
@@ -3175,6 +3178,7 @@ dbglog_scan_print_handler(A_UINT32 mod_id,
 	return true;
 }
 
+static
 A_BOOL dbglog_coex_print_handler(A_UINT32 mod_id,
 				 A_UINT16 vap_id,
 				 A_UINT32 dbg_id,
@@ -3668,7 +3672,7 @@ A_BOOL dbglog_coex_print_handler(A_UINT32 mod_id,
 	return true;
 }
 
-A_BOOL
+static A_BOOL
 dbglog_beacon_print_handler(A_UINT32 mod_id,
 			    A_UINT16 vap_id,
 			    A_UINT32 dbg_id,
@@ -3750,7 +3754,7 @@ dbglog_beacon_print_handler(A_UINT32 mod_id,
 	return true;
 }
 
-A_BOOL
+static A_BOOL
 dbglog_data_txrx_print_handler(A_UINT32 mod_id,
 			       A_UINT16 vap_id,
 			       A_UINT32 dbg_id,
@@ -3771,6 +3775,7 @@ dbglog_data_txrx_print_handler(A_UINT32 mod_id,
 	return true;
 }
 
+static
 A_BOOL dbglog_smps_print_handler(A_UINT32 mod_id,
 				 A_UINT16 vap_id,
 				 A_UINT32 dbg_id,
@@ -3892,7 +3897,7 @@ A_BOOL dbglog_smps_print_handler(A_UINT32 mod_id,
 	return true;
 }
 
-A_BOOL
+static A_BOOL
 dbglog_p2p_print_handler(A_UINT32 mod_id,
 			 A_UINT16 vap_id,
 			 A_UINT32 dbg_id,
@@ -3931,7 +3936,7 @@ dbglog_p2p_print_handler(A_UINT32 mod_id,
 	return true;
 }
 
-A_BOOL
+static A_BOOL
 dbglog_pcielp_print_handler(A_UINT32 mod_id,
 			    A_UINT16 vap_id,
 			    A_UINT32 dbg_id,
@@ -4067,7 +4072,7 @@ static const struct file_operations fops_dbglog_block = {
 	.llseek = default_llseek,
 };
 
-int dbglog_debugfs_init(wmi_unified_t wmi_handle)
+static int dbglog_debugfs_init(wmi_unified_t wmi_handle)
 {
 
 	wmi_handle->debugfs_phy = debugfs_create_dir(CLD_DEBUGFS_DIR, NULL);
@@ -4081,7 +4086,7 @@ int dbglog_debugfs_init(wmi_unified_t wmi_handle)
 	return true;
 }
 
-int dbglog_debugfs_remove(wmi_unified_t wmi_handle)
+static int dbglog_debugfs_remove(wmi_unified_t wmi_handle)
 {
 	debugfs_remove_recursive(wmi_handle->debugfs_phy);
 	return true;
@@ -4099,7 +4104,7 @@ int dbglog_debugfs_remove(wmi_unified_t wmi_handle)
 
    \return - 0 for success, non zero for failure
    --------------------------------------------------------------------------*/
-int cnss_diag_msg_callback(struct sk_buff *skb)
+static int cnss_diag_msg_callback(struct sk_buff *skb)
 {
 	struct nlmsghdr *nlh;
 	struct dbglog_slot *slot;
@@ -4161,7 +4166,7 @@ int cnss_diag_activate_service(void)
 	return 0;
 }
 
-A_BOOL
+static A_BOOL
 dbglog_wow_print_handler(A_UINT32 mod_id,
 			 A_UINT16 vap_id,
 			 A_UINT32 dbg_id,

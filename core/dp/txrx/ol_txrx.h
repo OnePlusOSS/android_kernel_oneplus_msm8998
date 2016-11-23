@@ -128,6 +128,17 @@ ol_txrx_update_last_real_peer(
 }
 #endif
 
+/**
+ * ol_txrx_dump_pkt() - display the data in buffer and buffer's address
+ * @nbuf: buffer which contains data to be displayed
+ * @nbuf_paddr: physical address of the buffer
+ * @len: defines the size of the data to be displayed
+ *
+ * Return: None
+ */
+void
+ol_txrx_dump_pkt(qdf_nbuf_t nbuf, uint32_t nbuf_paddr, int len);
+
 ol_txrx_vdev_handle ol_txrx_get_vdev_from_vdev_id(uint8_t vdev_id);
 
 void htt_pkt_log_init(struct ol_txrx_pdev_t *handle, void *scn);

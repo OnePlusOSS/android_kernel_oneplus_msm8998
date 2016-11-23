@@ -3885,7 +3885,7 @@ hdd_roam_tdls_status_update_handler(hdd_adapter_t *pAdapter,
 					       pRoamInfo->peerMac.bytes,
 					       true);
 		if (!curr_peer) {
-			hdd_err("curr_peer is null");
+			hdd_info("curr_peer is null");
 			status = QDF_STATUS_E_FAILURE;
 		} else {
 			if (eTDLS_LINK_CONNECTED ==
@@ -3925,7 +3925,7 @@ hdd_roam_tdls_status_update_handler(hdd_adapter_t *pAdapter,
 			wlan_hdd_tdls_find_peer(pAdapter,
 						pRoamInfo->peerMac.bytes, true);
 		if (!curr_peer) {
-			hdd_err("curr_peer is null");
+			hdd_info("curr_peer is null");
 			status = QDF_STATUS_E_FAILURE;
 		} else {
 			if (eTDLS_LINK_CONNECTED ==
@@ -3973,7 +3973,7 @@ hdd_roam_tdls_status_update_handler(hdd_adapter_t *pAdapter,
 			wlan_hdd_tdls_find_peer(pAdapter,
 						pRoamInfo->peerMac.bytes, true);
 		if (!curr_peer) {
-			hdd_err("curr_peer is null");
+			hdd_info("curr_peer is null");
 			status = QDF_STATUS_E_FAILURE;
 		} else {
 			if (eTDLS_LINK_CONNECTED ==

@@ -170,6 +170,19 @@ typedef struct {
 	tListElem *pCurEntry;
 } tScanResultList;
 
+/**
+ * csr_scan_for_ssid_context() - Callback context for SSID scan
+ *
+ * @mac_ctx: mac context
+ * @session_id: scan session id
+ * @roam_id: roam Id
+ */
+struct csr_scan_for_ssid_context {
+	tpAniSirGlobal mac_ctx;
+	uint32_t session_id;
+	uint32_t roam_id;
+};
+
 #define CSR_IS_ROAM_REASON(pCmd, reason) ((reason) == (pCmd)->roamCmd.roamReason)
 #define CSR_IS_BETTER_PREFER_VALUE(v1, v2)   ((v1) > (v2))
 #define CSR_IS_EQUAL_PREFER_VALUE(v1, v2)   ((v1) == (v2))

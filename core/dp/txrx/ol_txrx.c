@@ -72,7 +72,10 @@
 #include <ol_txrx.h>
 #include <ol_txrx_types.h>
 #include <cdp_txrx_flow_ctrl_legacy.h>
+#include <cdp_txrx_bus.h>
 #include <cdp_txrx_ipa.h>
+#include <cdp_txrx_lro.h>
+#include <cdp_txrx_pmf.h>
 #include "wma.h"
 #include "hif.h"
 #include <cdp_txrx_peer_ops.h>
@@ -1060,7 +1063,7 @@ void htt_pkt_log_init(struct ol_txrx_pdev_t *handle, void *scn)
  *
  * Return: void
  */
-void htt_pktlogmod_exit(struct ol_txrx_pdev_t *handle, void *scn)
+static void htt_pktlogmod_exit(struct ol_txrx_pdev_t *handle, void *scn)
 {
 	if (scn && cds_get_conparam() != QDF_GLOBAL_FTM_MODE &&
 		!QDF_IS_EPPING_ENABLED(cds_get_conparam()) &&
@@ -1071,7 +1074,7 @@ void htt_pktlogmod_exit(struct ol_txrx_pdev_t *handle, void *scn)
 }
 #else
 void htt_pkt_log_init(ol_txrx_pdev_handle handle, void *ol_sc) { }
-void htt_pktlogmod_exit(ol_txrx_pdev_handle handle, void *sc)  { }
+static void htt_pktlogmod_exit(ol_txrx_pdev_handle handle, void *sc)  { }
 #endif
 
 /**
@@ -3599,7 +3602,7 @@ void ol_txrx_peer_display(ol_txrx_peer_handle peer, int indent)
 #endif /* TXRX_DEBUG_LEVEL */
 
 #if defined(FEATURE_TSO) && defined(FEATURE_TSO_DEBUG)
-void ol_txrx_stats_display_tso(ol_txrx_pdev_handle pdev)
+static void ol_txrx_stats_display_tso(ol_txrx_pdev_handle pdev)
 {
 	int msdu_idx;
 	int seg_idx;
@@ -3632,6 +3635,8 @@ void ol_txrx_stats_display_tso(ol_txrx_pdev_handle pdev)
 			TXRX_STATS_TSO_MSDU_IDX(pdev));
 
 	for (msdu_idx = 0; msdu_idx < NUM_MAX_TSO_MSDUS; msdu_idx++) {
+		if (TXRX_STATS_TSO_MSDU_TOTAL_LEN(pdev, msdu_idx) == 0)
+			continue;
 		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
 			"jumbo pkt idx: %d num segs %d gso_len %d total_len %d nr_frags %d",
 			msdu_idx,
@@ -3664,11 +3669,10 @@ void ol_txrx_stats_display_tso(ol_txrx_pdev_handle pdev)
 				 tso_seg.tso_flags.tcp_seq_num,
 				 tso_seg.tso_flags.ip_id);
 		}
-	 QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR, "\n");
 	}
 }
 #else
-void ol_txrx_stats_display_tso(ol_txrx_pdev_handle pdev)
+static void ol_txrx_stats_display_tso(ol_txrx_pdev_handle pdev)
 {
 	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
 	 "TSO is not supported\n");
@@ -3697,7 +3701,7 @@ ol_txrx_stats(uint8_t vdev_id, char *buffer, unsigned buf_len)
 	}
 
 	len = scnprintf(buffer, buf_len,
-			"\nTXRX stats:\n\nllQueue State : %s\n pause %u unpause %u\n overflow %u\n llQueue timer state : %s\n",
+			"\n\nTXRX stats:\nllQueue State : %s\npause %u unpause %u\noverflow %u\nllQueue timer state : %s",
 			((vdev->ll_pause.is_q_paused == false) ?
 			 "UNPAUSED" : "PAUSED"),
 			vdev->ll_pause.q_pause_cnt,
@@ -4166,44 +4170,21 @@ void ol_txrx_ipa_uc_get_stat(ol_txrx_pdev_handle pdev)
 #endif /* IPA_UC_OFFLOAD */
 
 /**
- * ol_txrx_display_stats_help() - print statistics help
+ * ol_txrx_display_stats() - Display OL TXRX display stats
+ * @value: Module id for which stats needs to be displayed
  *
- * Return: none
+ * Return: QDF_STATUS_SUCCESS on success, QDF_STATUS_E code on failure
  */
-static void ol_txrx_display_stats_help(void)
-{
-	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
-				"iwpriv wlan0 dumpStats [option] - dump statistics");
-	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
-				"iwpriv wlan0 clearStats [option] - clear statistics");
-	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
-				"options:");
-	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
-				"  1 -- TXRX Layer statistics");
-	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
-				"  2 -- Bandwidth compute timer stats");
-	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
-				"  3 -- TSO statistics");
-	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
-				"  4 -- Network queue statistics");
-	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
-				"  5 -- Flow control statistics");
-	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
-				"  6 -- Per Layer statistics");
-	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
-				"  7 -- Copy engine interrupt statistics");
-
-}
-
-void ol_txrx_display_stats(uint16_t value)
+QDF_STATUS ol_txrx_display_stats(uint16_t value)
 {
 	ol_txrx_pdev_handle pdev;
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
 
 	pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 	if (!pdev) {
 		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
 			  "%s: pdev is NULL", __func__);
-		return;
+		return QDF_STATUS_E_NULL_VALUE;
 	}
 
 	switch (value) {
@@ -4240,20 +4221,28 @@ void ol_txrx_display_stats(uint16_t value)
 #endif
 #endif
 	default:
-		ol_txrx_display_stats_help();
+		status = QDF_STATUS_E_INVAL;
 		break;
 	}
+	return status;
 }
 
-void ol_txrx_clear_stats(uint16_t value)
+/**
+ * ol_txrx_clear_stats() - Clear OL TXRX stats
+ * @value: Module id for which stats needs to be cleared
+ *
+ * Return: QDF_STATUS_SUCCESS on success, QDF_STATUS_E code on failure
+ */
+QDF_STATUS ol_txrx_clear_stats(uint16_t value)
 {
 	ol_txrx_pdev_handle pdev;
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
 
 	pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 	if (!pdev) {
 		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
 			  "%s: pdev is NULL", __func__);
-		return;
+		return QDF_STATUS_E_NULL_VALUE;
 	}
 
 	switch (value) {
@@ -4283,9 +4272,11 @@ void ol_txrx_clear_stats(uint16_t value)
 		break;
 #endif
 	default:
-		ol_txrx_display_stats_help();
+		status = QDF_STATUS_E_INVAL;
 		break;
 	}
+
+	return status;
 }
 
 /**
@@ -4603,6 +4594,92 @@ bool ol_txrx_get_ocb_peer(struct ol_txrx_pdev_t *pdev,
 exit:
 	return rc;
 }
+#define MAX_TID		15
+#define MAX_DATARATE	7
+#define OCB_HEADER_VERSION 1
+
+/**
+ * ol_txrx_set_ocb_def_tx_param() - Set the default OCB TX parameters
+ * @vdev: The OCB vdev that will use these defaults.
+ * @_def_tx_param: The default TX parameters.
+ * @def_tx_param_size: The size of the _def_tx_param buffer.
+ *
+ * Return: true if the default parameters were set correctly, false if there
+ * is an error, for example an invalid parameter. In the case that false is
+ * returned, see the kernel log for the error description.
+ */
+bool ol_txrx_set_ocb_def_tx_param(ol_txrx_vdev_handle vdev,
+	void *_def_tx_param, uint32_t def_tx_param_size)
+{
+	struct ocb_tx_ctrl_hdr_t *def_tx_param =
+		(struct ocb_tx_ctrl_hdr_t *)_def_tx_param;
+
+		if (def_tx_param) {
+			/*
+			* Default TX parameters are provided.
+			* Validate the contents and
+			* save them in the vdev.
+			*/
+		if (def_tx_param_size != sizeof(struct ocb_tx_ctrl_hdr_t)) {
+			QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
+			"%sInvalid size of OCB default TX params", __func__);
+			return false;
+		}
+
+		if (def_tx_param->version != OCB_HEADER_VERSION) {
+			QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
+			"%sInvalid version of OCB default TX params", __func__);
+			return false;
+		}
+
+		if (def_tx_param->channel_freq) {
+			int i;
+
+			for (i = 0; i < vdev->ocb_channel_count; i++) {
+				if (vdev->ocb_channel_info[i].chan_freq ==
+					def_tx_param->channel_freq)
+					break;
+			}
+			if (i == vdev->ocb_channel_count) {
+				QDF_TRACE(QDF_MODULE_ID_TXRX,
+				QDF_TRACE_LEVEL_ERROR,
+			"%sInvalid default channel frequency", __func__);
+				return false;
+			}
+		}
+
+		if (def_tx_param->valid_datarate &&
+				def_tx_param->datarate > MAX_DATARATE) {
+			QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
+				"%sInvalid default datarate", __func__);
+			return false;
+		}
+
+		if (def_tx_param->valid_tid &&
+				def_tx_param->ext_tid > MAX_TID) {
+			QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
+				"%sInvalid default TID", __func__);
+			return false;
+		}
+
+		if (vdev->ocb_def_tx_param == NULL)
+			vdev->ocb_def_tx_param =
+				qdf_mem_malloc(sizeof(*vdev->ocb_def_tx_param));
+			qdf_mem_copy(vdev->ocb_def_tx_param, def_tx_param,
+				sizeof(*vdev->ocb_def_tx_param));
+		} else {
+		/*
+		* Default TX parameters are not provided.
+		* Delete the old defaults.
+		*/
+		if (vdev->ocb_def_tx_param) {
+			qdf_mem_free(vdev->ocb_def_tx_param);
+			vdev->ocb_def_tx_param = NULL;
+		}
+	}
+
+	return true;
+}
 
 #ifdef QCA_LL_TX_FLOW_CONTROL_V2
 /**
@@ -4636,9 +4713,9 @@ QDF_STATUS ol_txrx_register_pause_cb(ol_tx_pause_callback_fp pause_cb)
  *
  * Return: none
  */
-void ol_txrx_lro_flush_handler(void *context,
-			       void *rxpkt,
-			       uint16_t staid)
+static void ol_txrx_lro_flush_handler(void *context,
+				      void *rxpkt,
+				      uint16_t staid)
 {
 	ol_txrx_pdev_handle pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 
@@ -4665,7 +4742,7 @@ void ol_txrx_lro_flush_handler(void *context,
  *
  * Return: none
  */
-void ol_txrx_lro_flush(void *data)
+static void ol_txrx_lro_flush(void *data)
 {
 	p_cds_sched_context sched_ctx = get_cds_sched_ctxt();
 	struct cds_ol_rx_pkt *pkt;

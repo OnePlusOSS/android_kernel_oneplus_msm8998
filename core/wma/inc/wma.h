@@ -60,7 +60,7 @@
 #define WMA_SERVICE_READY_EXT_TIMEOUT      6000
 #define WMA_TGT_SUSPEND_COMPLETE_TIMEOUT   6000
 #define WMA_WAKE_LOCK_TIMEOUT              1000
-#define WMA_RESUME_TIMEOUT                 6000
+#define WMA_RESUME_TIMEOUT                 25000
 #define MAX_MEM_CHUNKS                     32
 
 #define WMA_CRASH_INJECT_TIMEOUT           5000
@@ -1351,6 +1351,8 @@ struct extended_caps {
  * @wma_scan_comp_timer: scan completion timer
  * @dfs_phyerr_filter_offload: dfs phy error filter is offloaded or not
  * @suitable_ap_hb_failure: better ap found
+ * @suitable_ap_hb_failure_rssi: record the RSSI when suitable_ap_hb_failure
+ * for later usage to report RSSI at beacon miss scenario
  * @wma_ibss_power_save_params: IBSS Power Save config Parameters
  * @IsRArateLimitEnabled: RA rate limiti s enabled or not
  * @RArateLimitInterval: RA rate limit interval
@@ -1512,6 +1514,7 @@ typedef struct {
 	qdf_mc_timer_t wma_scan_comp_timer;
 	uint8_t dfs_phyerr_filter_offload;
 	bool suitable_ap_hb_failure;
+	uint32_t suitable_ap_hb_failure_rssi;
 	ibss_power_save_params wma_ibss_power_save_params;
 #ifdef FEATURE_WLAN_RA_FILTERING
 	bool IsRArateLimitEnabled;

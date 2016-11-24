@@ -53,6 +53,7 @@ typedef struct sAniSirGlobal *tpAniSirGlobal;
 #include "ani_system_defs.h"
 #include "sir_params.h"
 #include "cds_regdomain.h"
+#include "wmi_unified.h"
 #include "wmi_unified_param.h"
 #include <dot11f.h>
 
@@ -4302,6 +4303,7 @@ typedef struct {
  *			which an exact match is required,
  *			or entries corresponding to hidden ssids
  * @max_number_of_white_listed_ssid: max number of white listed SSIDs
+ * @max_number_of_black_listed_bssid: max number of black listed BSSIDs
  */
 struct ext_scan_capabilities_response {
 	uint32_t requestId;
@@ -4321,6 +4323,7 @@ struct ext_scan_capabilities_response {
 	uint32_t max_number_epno_networks;
 	uint32_t max_number_epno_networks_by_ssid;
 	uint32_t max_number_of_white_listed_ssid;
+	uint32_t max_number_of_black_listed_bssid;
 };
 
 typedef struct {
@@ -4748,6 +4751,7 @@ struct wifi_epno_params {
 	struct wifi_epno_network networks[];
 };
 
+#define SIR_PASSPOINT_LIST_MAX_NETWORKS 8
 #define SIR_PASSPOINT_REALM_LEN 256
 #define SIR_PASSPOINT_ROAMING_CONSORTIUM_ID_NUM 16
 #define SIR_PASSPOINT_PLMN_LEN 3
@@ -5090,7 +5094,7 @@ typedef enum {
 /* per peer statistics */
 typedef struct {
 	/* peer type (AP, TDLS, GO etc.) */
-	tSirWifiPeerType type;
+	enum wmi_peer_type type;
 	/* mac address */
 	struct qdf_mac_addr peerMacAddress;
 	/* peer WIFI_CAPABILITY_XXX */
@@ -5279,6 +5283,21 @@ typedef struct {
 	uint32_t led_x1;        /* led flashing parameter1 */
 } tSirLedFlashingReq, *tpSirLedFlashingReq;
 #endif
+
+/**
+ * struct sir_lost_link_info - lost link information structure.
+ *
+ * @vdev_id: vdev_id from WMA. some modules call sessionId.
+ * @rssi: rssi at disconnection time.
+ *
+ * driver uses this structure to communicate information collected at
+ * disconnection time.
+ */
+struct sir_lost_link_info {
+	uint32_t vdev_id;
+	int32_t rssi;
+};
+
 /* find the size of given member within a structure */
 #ifndef member_size
 #define member_size(type, member) (sizeof(((type *)0)->member))
@@ -5598,8 +5617,8 @@ struct sir_ocb_config_sched {
  * @dcc_ndl_chan_list: array of dcc channel info
  * @dcc_ndl_active_state_list_len: size of the active state array
  * @dcc_ndl_active_state_list: array of active states
- * @adapter: the OCB adapter
- * @dcc_stats_callback: callback for the response event
+ * @def_tx_param: default TX parameters
+ * @def_tx_param_size: size of the default TX parameters
  */
 struct sir_ocb_config {
 	uint8_t session_id;
@@ -5612,6 +5631,8 @@ struct sir_ocb_config {
 	void *dcc_ndl_chan_list;
 	uint32_t dcc_ndl_active_state_list_len;
 	void *dcc_ndl_active_state_list;
+	void *def_tx_param;
+	uint32_t def_tx_param_size;
 };
 
 /* The size of the utc time in bytes. */

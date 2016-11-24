@@ -56,6 +56,7 @@
 #include <htt_internal.h>
 #include <htt_types.h>        /* htc_endpoint */
 #include <cdp_txrx_peer_ops.h>
+#include <cdp_txrx_ipa.h>
 
 int ce_send_fast(struct CE_handle *copyeng, qdf_nbuf_t msdu,
 		 unsigned int transfer_id, uint32_t download_len);
@@ -1159,11 +1160,13 @@ ol_tx_non_std_ll(ol_txrx_vdev_handle vdev,
  * Return: true if ocb parsing is successful
  */
 #define OCB_HEADER_VERSION     1
-bool parse_ocb_tx_header(qdf_nbuf_t msdu,
-			struct ocb_tx_ctrl_hdr_t *tx_ctrl)
+static bool parse_ocb_tx_header(qdf_nbuf_t msdu,
+				struct ocb_tx_ctrl_hdr_t *tx_ctrl,
+				bool *tx_ctrl_header_found)
 {
 	struct ether_header *eth_hdr_p;
 	struct ocb_tx_ctrl_hdr_t *tx_ctrl_hdr;
+	*tx_ctrl_header_found = false;
 
 	/* Check if TX control header is present */
 	eth_hdr_p = (struct ether_header *)qdf_nbuf_data(msdu);
@@ -1178,6 +1181,7 @@ bool parse_ocb_tx_header(qdf_nbuf_t msdu,
 	tx_ctrl_hdr = (struct ocb_tx_ctrl_hdr_t *)qdf_nbuf_data(msdu);
 
 	if (tx_ctrl_hdr->version == OCB_HEADER_VERSION) {
+		*tx_ctrl_header_found = true;
 		if (tx_ctrl)
 			qdf_mem_copy(tx_ctrl, tx_ctrl_hdr,
 				     sizeof(*tx_ctrl_hdr));
@@ -1190,6 +1194,50 @@ bool parse_ocb_tx_header(qdf_nbuf_t msdu,
 	qdf_nbuf_pull_head(msdu, tx_ctrl_hdr->length);
 	return true;
 }
+
+/**
+ * merge_ocb_tx_ctrl_hdr() - merge the default TX ctrl parameters into
+ * @tx_ctrl: The destination TX control header.
+ * @def_ctrl_hdr: The default TX control header.
+ *
+ * For each parameter in tx_ctrl, if the parameter is unspecified, the
+ * equivalent parameter in def_ctrl_hdr will be copied to tx_ctrl.
+ */
+static void merge_ocb_tx_ctrl_hdr(struct ocb_tx_ctrl_hdr_t *tx_ctrl,
+			struct ocb_tx_ctrl_hdr_t *def_ctrl_hdr)
+{
+	if (!tx_ctrl || !def_ctrl_hdr)
+		return;
+
+	if (!tx_ctrl->channel_freq && def_ctrl_hdr->channel_freq)
+		tx_ctrl->channel_freq = def_ctrl_hdr->channel_freq;
+	if (!tx_ctrl->valid_pwr && def_ctrl_hdr->valid_pwr) {
+		tx_ctrl->pwr = def_ctrl_hdr->pwr;
+		tx_ctrl->valid_pwr = 1;
+	}
+	if (!tx_ctrl->valid_datarate && def_ctrl_hdr->valid_datarate) {
+		tx_ctrl->datarate = def_ctrl_hdr->datarate;
+		tx_ctrl->valid_datarate = 1;
+	}
+	if (!tx_ctrl->valid_retries && def_ctrl_hdr->valid_retries) {
+		tx_ctrl->retry_limit = def_ctrl_hdr->retry_limit;
+		tx_ctrl->valid_retries = 1;
+	}
+	if (!tx_ctrl->valid_chain_mask && def_ctrl_hdr->valid_chain_mask) {
+		tx_ctrl->chain_mask = def_ctrl_hdr->chain_mask;
+		tx_ctrl->valid_chain_mask = 1;
+	}
+	if (!tx_ctrl->valid_expire_tsf && def_ctrl_hdr->valid_expire_tsf) {
+		tx_ctrl->expire_tsf_hi = def_ctrl_hdr->expire_tsf_hi;
+		tx_ctrl->expire_tsf_lo = def_ctrl_hdr->expire_tsf_lo;
+		tx_ctrl->valid_expire_tsf = 1;
+	}
+	if (!tx_ctrl->valid_tid && def_ctrl_hdr->valid_tid) {
+		tx_ctrl->ext_tid = def_ctrl_hdr->ext_tid;
+		tx_ctrl->valid_tid = 1;
+	}
+}
+
 
 
 #if defined(CONFIG_HL_SUPPORT) && defined(CONFIG_TX_DESC_HI_PRIO_RESERVE)
@@ -1491,12 +1539,26 @@ ol_tx_hl_base(
 			 * parse the tx control header.
 			 */
 			if (vdev->opmode == wlan_op_mode_ocb) {
-				if (!parse_ocb_tx_header(msdu, &tx_ctrl)) {
+				bool tx_ctrl_header_found = false;
+
+				if (!parse_ocb_tx_header(msdu, &tx_ctrl,
+					&tx_ctrl_header_found)) {
 					/* There was an error parsing
 					 * the header.Skip this packet.
 					 */
 					goto MSDU_LOOP_BOTTOM;
 				}
+			/* If the TX control header was not found,
+			just use the defaults */
+			if (!tx_ctrl_header_found && vdev->ocb_def_tx_param)
+				qdf_mem_copy(&tx_ctrl, vdev->ocb_def_tx_param,
+				sizeof(tx_ctrl));
+			/* If the TX control header was found, merge the
+				defaults into it */
+			else if (tx_ctrl_header_found && vdev->ocb_def_tx_param)
+				merge_ocb_tx_ctrl_hdr(&tx_ctrl,
+						vdev->ocb_def_tx_param);
+
 			}
 
 			txq = ol_tx_classify(vdev, tx_desc, msdu,
@@ -1830,11 +1892,6 @@ ol_txrx_mgmt_send_ext(ol_txrx_vdev_handle vdev,
 						&tx_msdu_info, chanfreq);
 
 	return 0;               /* accepted the tx mgmt frame */
-}
-
-void ol_txrx_sync(ol_txrx_pdev_handle pdev, uint8_t sync_cnt)
-{
-	htt_h2t_sync_msg(pdev->htt_pdev, sync_cnt);
 }
 
 qdf_nbuf_t ol_tx_reinject(struct ol_txrx_vdev_t *vdev,

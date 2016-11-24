@@ -1007,6 +1007,16 @@ sap_mark_leaking_ch(ptSapContext sap_ctx,
 	uint32_t         j = 0;
 	uint32_t         k = 0;
 	uint8_t          dfs_nol_channel;
+	tHalHandle      hal = CDS_GET_HAL_CB(sap_ctx->pvosGCtx);
+	tpAniSirGlobal  mac;
+
+	if (NULL == hal) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			"%s: Invalid hal pointer", __func__);
+		return QDF_STATUS_E_FAULT;
+	}
+
+	mac = PMAC_STRUCT(hal);
 
 
 	/* traverse target_chan_matrix and */
@@ -1051,7 +1061,7 @@ sap_mark_leaking_ch(ptSapContext sap_ctx,
 			 * to NOL channel
 			 */
 			if (target_chan_matrix[k].leak_lvl <=
-					SAP_TX_LEAKAGE_THRES) {
+				mac->sap.SapDfsInfo.tx_leakage_threshold) {
 				/*
 				 * candidate channel will have
 				 * bad leakage in NOL channel,
@@ -1819,6 +1829,8 @@ static void sap_mark_dfs_channels(ptSapContext sapContext, uint8_t *channels,
 	uint8_t nRegDomainDfsChannels;
 	tHalHandle hHal;
 	tpAniSirGlobal pMac;
+	uint64_t time_elapsed_since_last_radar;
+	uint64_t time_when_radar_found;
 
 	hHal = CDS_GET_HAL_CB(sapContext->p_cds_gctx);
 	if (NULL == channels)
@@ -1848,13 +1860,20 @@ static void sap_mark_dfs_channels(ptSapContext sapContext, uint8_t *channels,
 			if (!(psapDfsChannelNolList[j].dfs_channel_number ==
 					channels[i]))
 				continue;
+
+			time_when_radar_found =
+				psapDfsChannelNolList[j].radar_found_timestamp;
+			time_elapsed_since_last_radar = time -
+						time_when_radar_found;
 			/*
 			 * If channel is already in NOL, don't update it again.
 			 * This is useful when marking bonding channels which
 			 * are already unavailable.
 			 */
-			if (psapDfsChannelNolList[j].radar_status_flag ==
-					eSAP_DFS_CHANNEL_UNAVAILABLE) {
+			if ((psapDfsChannelNolList[j].radar_status_flag ==
+				eSAP_DFS_CHANNEL_UNAVAILABLE) &&
+				(time_elapsed_since_last_radar <
+					SAP_DFS_NON_OCCUPANCY_PERIOD)) {
 				QDF_TRACE(QDF_MODULE_ID_SAP,
 						QDF_TRACE_LEVEL_INFO_HIGH,
 						FL("Channel=%d already in NOL"),
@@ -3140,13 +3159,16 @@ static ptSapContext sap_find_valid_concurrent_session(tHalHandle hHal)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 	uint8_t intf = 0;
+	ptSapContext sapContext;
 
 	for (intf = 0; intf < SAP_MAX_NUM_SESSION; intf++) {
 		if (((QDF_SAP_MODE == pMac->sap.sapCtxList[intf].sapPersona)
 		    ||
 		    (QDF_P2P_GO_MODE == pMac->sap.sapCtxList[intf].sapPersona)) &&
 		    pMac->sap.sapCtxList[intf].pSapContext != NULL) {
-			return pMac->sap.sapCtxList[intf].pSapContext;
+			sapContext = pMac->sap.sapCtxList[intf].pSapContext;
+			if (sapContext->sapsMachine != eSAP_DISCONNECTED)
+				return sapContext;
 		}
 	}
 
@@ -3792,13 +3814,13 @@ static QDF_STATUS sap_fsm_state_dfs_cac_wait(ptSapContext sap_ctx,
 
 		for (intf = 0; intf < SAP_MAX_NUM_SESSION; intf++) {
 			ptSapContext t_sap_ctx;
+			t_sap_ctx = mac_ctx->sap.sapCtxList[intf].pSapContext;
 			if (((QDF_SAP_MODE ==
 				 mac_ctx->sap.sapCtxList[intf].sapPersona) ||
 			     (QDF_P2P_GO_MODE ==
 				mac_ctx->sap.sapCtxList[intf].sapPersona)) &&
-			    mac_ctx->sap.sapCtxList[intf].pSapContext != NULL) {
-				t_sap_ctx =
-				    mac_ctx->sap.sapCtxList[intf].pSapContext;
+			    t_sap_ctx != NULL &&
+			    t_sap_ctx->sapsMachine != eSAP_DISCONNECTED) {
 				/* SAP to be moved to DISCONNECTING state */
 				sap_ctx->sapsMachine = eSAP_DISCONNECTING;
 				/*

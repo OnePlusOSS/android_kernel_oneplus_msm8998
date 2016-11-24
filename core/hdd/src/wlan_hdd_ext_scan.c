@@ -112,15 +112,6 @@ static const struct nla_policy wlan_hdd_extscan_config_policy
 				.type = NLA_U32},
 	[QCA_WLAN_VENDOR_ATTR_EXTSCAN_SIGNIFICANT_CHANGE_PARAMS_NUM_AP] = {
 				.type = NLA_U32},
-	[QCA_WLAN_VENDOR_ATTR_PNO_SET_LIST_PARAM_NUM_NETWORKS] = {
-				.type = NLA_U32 },
-	[QCA_WLAN_VENDOR_ATTR_PNO_SET_LIST_PARAM_EPNO_NETWORK_SSID] = {
-				.type = NLA_BINARY,
-				.len = IEEE80211_MAX_SSID_LEN },
-	[QCA_WLAN_VENDOR_ATTR_PNO_SET_LIST_PARAM_EPNO_NETWORK_FLAGS] = {
-				.type = NLA_U8 },
-	[QCA_WLAN_VENDOR_ATTR_PNO_SET_LIST_PARAM_EPNO_NETWORK_AUTH_BIT] = {
-				.type = NLA_U8 },
 	[QCA_WLAN_VENDOR_ATTR_EXTSCAN_SSID_THRESHOLD_PARAM_SSID] = {
 				.type = NLA_BINARY,
 				.len = IEEE80211_MAX_SSID_LEN + 1 },
@@ -136,6 +127,23 @@ static const struct nla_policy wlan_hdd_extscan_config_policy
 				.type = NLA_S32 },
 	[QCA_WLAN_VENDOR_ATTR_EXTSCAN_CONFIGURATION_FLAGS] = {
 				.type = NLA_U32 },
+};
+
+static const struct nla_policy
+wlan_hdd_pno_config_policy[QCA_WLAN_VENDOR_ATTR_PNO_MAX + 1] = {
+	[QCA_WLAN_VENDOR_ATTR_PNO_SET_LIST_PARAM_NUM_NETWORKS] = {
+		.type = NLA_U32
+	},
+	[QCA_WLAN_VENDOR_ATTR_PNO_SET_LIST_PARAM_EPNO_NETWORK_SSID] = {
+		.type = NLA_BINARY,
+		.len = IEEE80211_MAX_SSID_LEN + 1
+	},
+	[QCA_WLAN_VENDOR_ATTR_PNO_SET_LIST_PARAM_EPNO_NETWORK_FLAGS] = {
+		.type = NLA_U8
+	},
+	[QCA_WLAN_VENDOR_ATTR_PNO_SET_LIST_PARAM_EPNO_NETWORK_AUTH_BIT] = {
+		.type = NLA_U8
+	},
 };
 
 static const struct nla_policy
@@ -1596,6 +1604,8 @@ void wlan_hdd_cfg80211_extscan_callback(void *ctx, const uint16_t evType,
 	QCA_WLAN_VENDOR_ATTR_EXTSCAN_RESULTS_CAPABILITIES_MAX_NUM_EPNO_NETS_BY_SSID
 #define MAX_NUM_WHITELISTED_SSID \
 	QCA_WLAN_VENDOR_ATTR_EXTSCAN_RESULTS_CAPABILITIES_MAX_NUM_WHITELISTED_SSID
+#define MAX_NUM_BLACKLISTED_BSSID \
+	QCA_WLAN_VENDOR_ATTR_EXTSCAN_MAX_NUM_BLACKLISTED_BSSID
 
 /**
  * wlan_hdd_send_ext_scan_capability - send ext scan capability to user space
@@ -1630,7 +1640,8 @@ static int wlan_hdd_send_ext_scan_capability(hdd_context_t *hdd_ctx)
 	(sizeof(data->max_hotlist_ssids) + NLA_HDRLEN) +
 	(sizeof(data->max_number_epno_networks) + NLA_HDRLEN) +
 	(sizeof(data->max_number_epno_networks_by_ssid) + NLA_HDRLEN) +
-	(sizeof(data->max_number_of_white_listed_ssid) + NLA_HDRLEN);
+	(sizeof(data->max_number_of_white_listed_ssid) + NLA_HDRLEN) +
+	(sizeof(data->max_number_of_black_listed_bssid) + NLA_HDRLEN);
 
 	skb = cfg80211_vendor_cmd_alloc_reply_skb(hdd_ctx->wiphy, nl_buf_len);
 
@@ -1664,6 +1675,8 @@ static int wlan_hdd_send_ext_scan_capability(hdd_context_t *hdd_ctx)
 					data->max_number_epno_networks_by_ssid);
 	hdd_notice("max_number_of_white_listed_ssid %u",
 					data->max_number_of_white_listed_ssid);
+	hdd_notice("max_number_of_black_listed_bssid (%u)",
+					data->max_number_of_black_listed_bssid);
 
 	if (nla_put_u32(skb, PARAM_REQUEST_ID, data->requestId) ||
 	    nla_put_u32(skb, PARAM_STATUS, data->status) ||
@@ -1686,7 +1699,9 @@ static int wlan_hdd_send_ext_scan_capability(hdd_context_t *hdd_ctx)
 	    nla_put_u32(skb, MAX_NUM_EPNO_NETS_BY_SSID,
 			data->max_number_epno_networks_by_ssid) ||
 	    nla_put_u32(skb, MAX_NUM_WHITELISTED_SSID,
-		data->max_number_of_white_listed_ssid)) {
+		data->max_number_of_white_listed_ssid) ||
+	    nla_put_u32(skb, MAX_NUM_BLACKLISTED_BSSID,
+		data->max_number_of_black_listed_bssid)) {
 			hdd_err("nla put fail");
 			goto nla_put_failure;
 	}
@@ -1716,6 +1731,7 @@ nla_put_failure:
 #undef MAX_NUM_EPNO_NETS
 #undef MAX_NUM_EPNO_NETS_BY_SSID
 #undef MAX_NUM_WHITELISTED_SSID
+#undef MAX_NUM_BLACKLISTED_BSSID
 
 /**
  * __wlan_hdd_cfg80211_extscan_get_capabilities() - get ext scan capabilities
@@ -2448,8 +2464,9 @@ static void hdd_remove_dsrc_channels(struct wiphy *wiphy, uint32_t *chan_list,
  *
  * Return: none
  */
-void hdd_remove_passive_channels(struct wiphy *wiphy, uint32_t *chan_list,
-				 uint8_t *num_channels)
+static void hdd_remove_passive_channels(struct wiphy *wiphy,
+					uint32_t *chan_list,
+					uint8_t *num_channels)
 {
 	uint8_t num_chan_temp = 0;
 	int i, j, k;
@@ -2731,6 +2748,7 @@ static int hdd_extscan_start_fill_bucket_channel_spec(
 	int rem1, rem2;
 	QDF_STATUS status;
 	uint8_t bkt_index, j, num_channels, total_channels = 0;
+	uint32_t expected_buckets;
 	uint32_t chan_list[WNI_CFG_VALID_CHANNEL_LIST_LEN] = {0};
 
 	uint32_t min_dwell_time_active_bucket =
@@ -2742,7 +2760,6 @@ static int hdd_extscan_start_fill_bucket_channel_spec(
 	uint32_t max_dwell_time_passive_bucket =
 		hdd_ctx->config->extscan_passive_max_chn_time;
 
-	bkt_index = 0;
 	req_msg->min_dwell_time_active =
 		req_msg->max_dwell_time_active =
 			hdd_ctx->config->extscan_active_max_chn_time;
@@ -2750,10 +2767,19 @@ static int hdd_extscan_start_fill_bucket_channel_spec(
 	req_msg->min_dwell_time_passive =
 		req_msg->max_dwell_time_passive =
 			hdd_ctx->config->extscan_passive_max_chn_time;
+
+	expected_buckets = req_msg->numBuckets;
 	req_msg->numBuckets = 0;
+	bkt_index = 0;
 
 	nla_for_each_nested(buckets,
 			tb[QCA_WLAN_VENDOR_ATTR_EXTSCAN_BUCKET_SPEC], rem1) {
+
+		if (bkt_index >= expected_buckets) {
+			hdd_warn("ignoring excess buckets");
+			break;
+		}
+
 		if (nla_parse(bucket,
 			QCA_WLAN_VENDOR_ATTR_EXTSCAN_SUBCMD_CONFIG_PARAM_MAX,
 			nla_data(buckets), nla_len(buckets), NULL)) {
@@ -3247,8 +3273,10 @@ __wlan_hdd_cfg80211_extscan_start(struct wiphy *wiphy,
 	if (num_buckets > WLAN_EXTSCAN_MAX_BUCKETS) {
 		hdd_warn("Exceeded MAX number of buckets: %d",
 				WLAN_EXTSCAN_MAX_BUCKETS);
+		num_buckets = WLAN_EXTSCAN_MAX_BUCKETS;
 	}
 	hdd_info("Input: Number of Buckets %d", num_buckets);
+	pReqMsg->numBuckets = num_buckets;
 
 	/* This is optional attribute, if not present set it to 0 */
 	if (!tb[PARAM_CONFIG_FLAGS])
@@ -3757,19 +3785,26 @@ static int hdd_extscan_epno_fill_network_list(
 			struct wifi_epno_params *req_msg,
 			struct nlattr **tb)
 {
-	struct nlattr *network[
-		QCA_WLAN_VENDOR_ATTR_EXTSCAN_SUBCMD_CONFIG_PARAM_MAX + 1];
+	struct nlattr *network[QCA_WLAN_VENDOR_ATTR_PNO_MAX + 1];
 	struct nlattr *networks;
 	int rem1, ssid_len;
 	uint8_t index, *ssid;
+	uint32_t expected_networks;
 
+	expected_networks = req_msg->num_networks;
 	index = 0;
 	nla_for_each_nested(networks,
-		tb[QCA_WLAN_VENDOR_ATTR_PNO_SET_LIST_PARAM_EPNO_NETWORKS_LIST],
-		rem1) {
-		if (nla_parse(network,
-			QCA_WLAN_VENDOR_ATTR_EXTSCAN_SUBCMD_CONFIG_PARAM_MAX,
-			nla_data(networks), nla_len(networks), NULL)) {
+			    tb[QCA_WLAN_VENDOR_ATTR_PNO_SET_LIST_PARAM_EPNO_NETWORKS_LIST],
+			    rem1) {
+
+		if (index == expected_networks) {
+			hdd_warn("ignoring excess networks");
+			break;
+		}
+
+		if (nla_parse(network, QCA_WLAN_VENDOR_ATTR_PNO_MAX,
+			      nla_data(networks), nla_len(networks),
+			      wlan_hdd_pno_config_policy)) {
 			hdd_err("nla_parse failed");
 			return -EINVAL;
 		}
@@ -3781,6 +3816,12 @@ static int hdd_extscan_epno_fill_network_list(
 		}
 		ssid_len = nla_len(
 			network[QCA_WLAN_VENDOR_ATTR_PNO_SET_LIST_PARAM_EPNO_NETWORK_SSID]);
+
+		/* nla_parse will detect overflow but not underflow */
+		if (0 == ssid_len) {
+			hdd_err("zero ssid length");
+			return -EINVAL;
+		}
 
 		/* Decrement by 1, don't count null character */
 		ssid_len--;
@@ -3815,6 +3856,7 @@ static int hdd_extscan_epno_fill_network_list(
 
 		index++;
 	}
+	req_msg->num_networks = index;
 	return 0;
 }
 
@@ -3861,8 +3903,8 @@ static int __wlan_hdd_cfg80211_set_epno_list(struct wiphy *wiphy,
 	}
 
 	if (nla_parse(tb, QCA_WLAN_VENDOR_ATTR_PNO_MAX,
-		data, data_len,
-		wlan_hdd_extscan_config_policy)) {
+		      data, data_len,
+		      wlan_hdd_pno_config_policy)) {
 		hdd_err("Invalid ATTR");
 		return -EINVAL;
 	}
@@ -4046,11 +4088,19 @@ static int hdd_extscan_passpoint_fill_network_list(
 	struct nlattr *networks;
 	int rem1, len;
 	uint8_t index;
+	uint32_t expected_networks;
 
+	expected_networks = req_msg->num_networks;
 	index = 0;
 	nla_for_each_nested(networks,
 		tb[QCA_WLAN_VENDOR_ATTR_PNO_PASSPOINT_LIST_PARAM_NETWORK_ARRAY],
 		rem1) {
+
+		if (index == expected_networks) {
+			hdd_warn("ignoring excess networks");
+			break;
+		}
+
 		if (nla_parse(network,
 			QCA_WLAN_VENDOR_ATTR_PNO_MAX,
 			nla_data(networks), nla_len(networks), NULL)) {
@@ -4109,6 +4159,7 @@ static int hdd_extscan_passpoint_fill_network_list(
 
 		index++;
 	}
+	req_msg->num_networks = index;
 	return 0;
 }
 
@@ -4162,6 +4213,12 @@ static int __wlan_hdd_cfg80211_set_passpoint_list(struct wiphy *wiphy,
 	}
 	num_networks = nla_get_u32(
 		tb[QCA_WLAN_VENDOR_ATTR_PNO_PASSPOINT_LIST_PARAM_NUM]);
+	if (num_networks > SIR_PASSPOINT_LIST_MAX_NETWORKS) {
+		hdd_err("num networks %u exceeds max %u",
+			num_networks, SIR_PASSPOINT_LIST_MAX_NETWORKS);
+		return -EINVAL;
+	}
+
 	hdd_notice("num networks %u", num_networks);
 
 	req_msg = qdf_mem_malloc(sizeof(*req_msg) +

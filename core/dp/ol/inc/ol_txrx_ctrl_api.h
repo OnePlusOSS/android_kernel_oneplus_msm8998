@@ -70,6 +70,7 @@
 #define WLAN_TXRX_DESC_STATS  6
 #define WLAN_HIF_STATS  7
 #define WLAN_LRO_STATS  8
+#define WLAN_NAPI_STATS 9
 #define WLAN_SCHEDULER_STATS        21
 #define WLAN_TX_QUEUE_STATS         22
 #define WLAN_BUNDLE_STATS           23
@@ -604,6 +605,18 @@ void ol_txrx_set_ocb_peer(struct ol_txrx_pdev_t *pdev,
 
 bool ol_txrx_get_ocb_peer(struct ol_txrx_pdev_t *pdev,
 			  struct ol_txrx_peer_t **peer);
+/**
+ * ol_txrx_set_ocb_def_tx_param() - Set the default OCB TX parameters
+ * @vdev: The OCB vdev that will use these defaults.
+ * @_def_tx_param: The default TX parameters.
+ * @def_tx_param_size: The size of the _def_tx_param buffer.
+ *
+ * Return: true if the default parameters were set correctly, false if there
+ * is an error, for example an invalid parameter. In the case that false is
+ * returned, see the kernel log for the error description.
+ */
+bool ol_txrx_set_ocb_def_tx_param(ol_txrx_vdev_handle vdev,
+	void *def_tx_param, uint32_t def_tx_param_size);
 
 void ol_tx_set_is_mgmt_over_wmi_enabled(uint8_t value);
 uint8_t ol_tx_get_is_mgmt_over_wmi_enabled(void);

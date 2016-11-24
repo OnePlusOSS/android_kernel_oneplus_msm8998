@@ -428,6 +428,13 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		     CFG_ENABLE_PS_MIN,
 		     CFG_ENABLE_PS_MAX),
 
+	REG_VARIABLE(CFG_AUTO_PS_ENABLE_TIMER_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, auto_bmps_timer_val,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_AUTO_PS_ENABLE_TIMER_DEFAULT,
+		     CFG_AUTO_PS_ENABLE_TIMER_MIN,
+		     CFG_AUTO_PS_ENABLE_TIMER_MAX),
+
 	REG_VARIABLE(CFG_BMPS_MINIMUM_LI_NAME, WLAN_PARAM_Integer,
 		     struct hdd_config, nBmpsMinListenInterval,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -3979,6 +3986,14 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		     CFG_INDOOR_CHANNEL_SUPPORT_MIN,
 		     CFG_INDOOR_CHANNEL_SUPPORT_MAX),
 
+	REG_VARIABLE(CFG_SAP_TX_LEAKAGE_THRESHOLD_NAME,
+		WLAN_PARAM_Integer,
+		struct hdd_config, sap_tx_leakage_threshold,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_SAP_TX_LEAKAGE_THRESHOLD_DEFAULT,
+		CFG_SAP_TX_LEAKAGE_THRESHOLD_MIN,
+		CFG_SAP_TX_LEAKAGE_THRESHOLD_MAX),
+
 	REG_VARIABLE(CFG_BUG_ON_REINIT_FAILURE_NAME, WLAN_PARAM_Integer,
 		     struct hdd_config, bug_on_reinit_failure,
 		     VAR_FLAGS_OPTIONAL |
@@ -7157,6 +7172,8 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 		pHddCtx->config->prefer_non_dfs_on_radar;
 
 	smeConfig->csrConfig.is_ps_enabled = pHddCtx->config->is_ps_enabled;
+	smeConfig->csrConfig.auto_bmps_timer_val =
+		pHddCtx->config->auto_bmps_timer_val;
 	hdd_set_fine_time_meas_cap(pHddCtx, smeConfig);
 
 	cds_set_multicast_logging(pHddCtx->config->multicast_host_fw_msgs);

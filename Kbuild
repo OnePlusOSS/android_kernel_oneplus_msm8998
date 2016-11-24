@@ -1572,6 +1572,24 @@ ifeq ($(call cc-option-yn, -Wmaybe-uninitialized),y)
 EXTRA_CFLAGS += -Wmaybe-uninitialized
 endif
 
+# If the module name is not "wlan", then the define MULTI_IF_NAME to be the
+# same a the module name. The host driver will then append MULTI_IF_NAME to
+# any string that must be unique for all instances of the driver on the system.
+# This allows multiple instances of the driver with different module names.
+# If the module name is wlan, leave MULTI_IF_NAME undefined and the code will
+# treat the driver as the primary driver.
+ifneq ($(MODNAME), wlan)
+CDEFINES += -DMULTI_IF_NAME=\"$(MODNAME)\"
+endif
+
+# WLAN_HDD_ADAPTER_MAGIC must be unique for all instances of the driver on the
+# system. If it is not defined, then the host driver will use the first 4
+# characters (including NULL) of MULTI_IF_NAME to construct
+# WLAN_HDD_ADAPTER_MAGIC.
+ifdef WLAN_HDD_ADAPTER_MAGIC
+CDEFINES += -DWLAN_HDD_ADAPTER_MAGIC=$(WLAN_HDD_ADAPTER_MAGIC)
+endif
+
 # Module information used by KBuild framework
 obj-$(CONFIG_QCA_CLD_WLAN) += $(MODNAME).o
 $(MODNAME)-y := $(OBJS)

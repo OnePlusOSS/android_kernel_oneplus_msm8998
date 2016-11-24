@@ -1565,8 +1565,10 @@ static QDF_STATUS hdd_dis_connect_handler(hdd_adapter_t *pAdapter,
 							);
 			}
 
-			hdd_info("sent disconnected event to nl80211, rssi: %d",
-				pAdapter->rssi);
+			hdd_info("sent disconnected event to nl80211, reason code %d",
+				(eCSR_ROAM_LOSTLINK == roamStatus) ?
+				pRoamInfo->reasonCode :
+				WLAN_REASON_UNSPECIFIED);
 		}
 		/*
 		 * During the WLAN uninitialization,supplicant is stopped
@@ -2050,10 +2052,11 @@ static int hdd_change_sta_state_authenticated(hdd_adapter_t *adapter,
 	int ret;
 	uint32_t timeout;
 	hdd_station_ctx_t *hddstactx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
+	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 
 	timeout = hddstactx->hdd_ReassocScenario ?
 		AUTO_PS_ENTRY_TIMER_DEFAULT_VALUE :
-		AUTO_DEFERRED_PS_ENTRY_TIMER_DEFAULT_VALUE;
+		hdd_ctx->config->auto_bmps_timer_val * 1000;
 
 	hdd_info("Changing TL state to AUTHENTICATED for StaId= %d",
 		 hddstactx->conn_info.staId[0]);
@@ -4624,6 +4627,7 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 	case eCSR_ROAM_NAPI_OFF:
 		hdd_info("After Roam Synch Comp: NAPI Serialize OFF");
 		hdd_napi_serialize(0);
+		hdd_set_roaming_in_progress(false);
 		break;
 	case eCSR_ROAM_SHOULD_ROAM:
 		/* notify apps that we can't pass traffic anymore */
@@ -4911,6 +4915,7 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 				WLAN_CONTROL_PATH);
 		hdd_napi_serialize(1);
 		cds_set_connection_in_progress(true);
+		hdd_set_roaming_in_progress(true);
 		cds_restart_opportunistic_timer(true);
 		break;
 	case eCSR_ROAM_ABORT:
@@ -4920,6 +4925,7 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 				WLAN_WAKE_ALL_NETIF_QUEUE,
 				WLAN_CONTROL_PATH);
 		cds_set_connection_in_progress(false);
+		hdd_set_roaming_in_progress(false);
 		break;
 
 	default:

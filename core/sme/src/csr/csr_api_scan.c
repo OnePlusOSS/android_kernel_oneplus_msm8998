@@ -2528,8 +2528,7 @@ static void csr_check_n_save_wsc_ie(tpAniSirGlobal pMac,
 	if ((pNewBssDescr->fProbeRsp != pOldBssDescr->fProbeRsp) &&
 	    (0 == pNewBssDescr->WscIeLen)) {
 		idx = 0;
-		len = pOldBssDescr->length - sizeof(tSirBssDescription) +
-		      sizeof(uint16_t) + sizeof(uint32_t) -
+		len = GET_IE_LEN_IN_BSS(pOldBssDescr->length) -
 		      DOT11F_IE_WSCPROBERES_MIN_LEN - 2;
 		pbIe = (uint8_t *) pOldBssDescr->ieFields;
 		/* Save WPS IE if it exists */
@@ -2913,7 +2912,7 @@ csr_remove_from_tmp_list(tpAniSirGlobal mac_ctx,
 		local_ie = (tDot11fBeaconIEs *)(bss_dscp->Result.pvIes);
 		status = csr_get_parsed_bss_description_ies(mac_ctx,
 				&bss_dscp->Result.BssDescriptor, &local_ie);
-		if (!(local_ie || QDF_IS_STATUS_SUCCESS(status))) {
+		if (!local_ie || !QDF_IS_STATUS_SUCCESS(status)) {
 			sms_log(mac_ctx, LOGE, FL("Cannot pared IEs"));
 			csr_free_scan_result_entry(mac_ctx, bss_dscp);
 			continue;
@@ -4172,7 +4171,7 @@ QDF_STATUS csr_get_active_scan_entry(tpAniSirGlobal mac_ctx,
 	}
 	localentry = csr_ll_peek_head(&mac_ctx->sme.smeScanCmdActiveList,
 			LL_ACCESS_NOLOCK);
-	do {
+	 while (localentry) {
 		cmd = GET_BASE_ADDR(localentry, tSmeCmd, Link);
 		if (cmd->command == eSmeCommandScan)
 			cmd_scan_id = cmd->u.scanCmd.u.scanRequest.scan_id;
@@ -4187,7 +4186,7 @@ QDF_STATUS csr_get_active_scan_entry(tpAniSirGlobal mac_ctx,
 		}
 		localentry = csr_ll_next(&mac_ctx->sme.smeScanCmdActiveList,
 				localentry, LL_ACCESS_NOLOCK);
-	} while (localentry);
+	}
 	csr_ll_unlock(&mac_ctx->sme.smeScanCmdActiveList);
 	return status;
 }
@@ -6981,8 +6980,8 @@ QDF_STATUS csr_scan_save_preferred_network_found(tpAniSirGlobal pMac,
 	 * Length of BSS desription is without length of length itself and
 	 * length of pointer that holds the next BSS description
 	 */
-	pBssDescr->length = (uint16_t) (sizeof(tSirBssDescription) -
-		sizeof(uint16_t) - sizeof(uint32_t) + uLen);
+	pBssDescr->length = (uint16_t)(offsetof(tSirBssDescription, ieFields[0])
+					- sizeof(pBssDescr->length) + uLen);
 	if (parsed_frm->dsParamsPresent)
 		pBssDescr->channelId = parsed_frm->channelNumber;
 	else if (parsed_frm->HTInfo.present)

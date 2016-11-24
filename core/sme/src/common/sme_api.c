@@ -3068,6 +3068,12 @@ QDF_STATUS sme_process_msg(tHalHandle hHal, cds_msg_t *pMsg)
 	case eWNI_SME_NDP_PEER_DEPARTED_IND:
 		sme_ndp_msg_processor(pMac, pMsg);
 		break;
+	case eWNI_SME_LOST_LINK_INFO_IND:
+		if (pMac->sme.lost_link_info_cb)
+			pMac->sme.lost_link_info_cb(pMac->hHdd,
+				(struct sir_lost_link_info *)pMsg->bodyptr);
+		qdf_mem_free(pMsg->bodyptr);
+		break;
 	default:
 
 		if ((pMsg->type >= eWNI_SME_MSG_TYPES_BEGIN)
@@ -11280,7 +11286,8 @@ static struct sir_ocb_config *sme_copy_sir_ocb_config(
 		src->channel_count * sizeof(*src->channels) +
 		src->schedule_size * sizeof(*src->schedule) +
 		src->dcc_ndl_chan_list_len +
-		src->dcc_ndl_active_state_list_len;
+		src->dcc_ndl_active_state_list_len +
+		src->def_tx_param_size;
 
 	dst = qdf_mem_malloc(length);
 	if (!dst)
@@ -11307,6 +11314,12 @@ static struct sir_ocb_config *sme_copy_sir_ocb_config(
 	qdf_mem_copy(dst->dcc_ndl_active_state_list,
 		     src->dcc_ndl_active_state_list,
 		     src->dcc_ndl_active_state_list_len);
+	cursor += src->dcc_ndl_active_state_list_len;
+	if (src->def_tx_param && src->def_tx_param_size) {
+		dst->def_tx_param = cursor;
+		qdf_mem_copy(dst->def_tx_param, src->def_tx_param,
+			src->def_tx_param_size);
+	}
 	return dst;
 }
 
@@ -13285,28 +13298,6 @@ QDF_STATUS sme_update_add_ie(tHalHandle hHal,
 	}
 	return status;
 }
-
-/* ---------------------------------------------------------------------------
-    \fn sme_sta_in_middle_of_roaming
-    \brief  This function returns true if STA is in the middle of roaming state
-    \param  hHal - HAL handle for device
-    \param  sessionId - Session Identifier
-   \- return true or false
-    -------------------------------------------------------------------------*/
-bool sme_sta_in_middle_of_roaming(tHalHandle hHal, uint8_t sessionId)
-{
-	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
-	QDF_STATUS status = QDF_STATUS_SUCCESS;
-	bool ret = false;
-
-	status = sme_acquire_global_lock(&pMac->sme);
-	if (QDF_IS_STATUS_SUCCESS(status)) {
-		ret = csr_neighbor_middle_of_roaming(hHal, sessionId);
-		sme_release_global_lock(&pMac->sme);
-	}
-	return ret;
-}
-
 
 /**
  * sme_update_dsc_pto_up_mapping()
@@ -17019,6 +17010,24 @@ QDF_STATUS sme_update_tx_fail_cnt_threshold(tHalHandle hal_handle,
 				FL("Not able to post Tx fail count message to WDA"));
 		qdf_mem_free(tx_fail_cnt);
 	}
+	return status;
+}
 
+QDF_STATUS sme_set_lost_link_info_cb(tHalHandle hal,
+				void (*cb)(void *, struct sir_lost_link_info *))
+{
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	tpAniSirGlobal mac = PMAC_STRUCT(hal);
+
+	status = sme_acquire_global_lock(&mac->sme);
+	if (QDF_IS_STATUS_SUCCESS(status)) {
+		mac->sme.lost_link_info_cb = cb;
+		sme_release_global_lock(&mac->sme);
+		sms_log(mac, LOG1, FL("set lost link info callback"));
+	} else {
+		sms_log(mac, LOGE,
+			FL("sme_acquire_global_lock error status %d"),
+			status);
+	}
 	return status;
 }

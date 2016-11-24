@@ -7004,7 +7004,7 @@ int wlan_hdd_request_pre_cac(uint8_t channel)
 
 	status = wlan_hdd_cfg80211_start_bss(pre_cac_adapter, NULL,
 			PRE_CAC_SSID, qdf_str_len(PRE_CAC_SSID),
-			eHIDDEN_SSID_NOT_IN_USE, false);
+			eHIDDEN_SSID_NOT_IN_USE, false, false);
 	if (QDF_IS_STATUS_ERROR(status)) {
 		hdd_err("start bss failed");
 		goto stop_close_pre_cac_adapter;
@@ -8941,8 +8941,8 @@ int wlan_hdd_cfg80211_init(struct device *dev,
 }
 
 /**
- * wlan_hdd_cfg80211_deinit - Deinit cfg80211
- * @ wiphy: the wiphy to validate against
+ * wlan_hdd_cfg80211_deinit() - Deinit cfg80211
+ * @wiphy: the wiphy to validate against
  *
  * this function deinit cfg80211 and cleanup the
  * memory allocated in wlan_hdd_cfg80211_init also
@@ -8964,15 +8964,81 @@ void wlan_hdd_cfg80211_deinit(struct wiphy *wiphy)
 	hdd_reset_global_reg_params();
 }
 
+/**
+ * wlan_hdd_update_band_cap() - update capabilities for supported bands
+ * @hdd_ctx: HDD context
+ *
+ * this function will update capabilities for supported bands
+ *
+ * Return: void
+ */
+static void wlan_hdd_update_band_cap(hdd_context_t *hdd_ctx)
+{
+	uint32_t val32;
+	uint16_t val16;
+	tSirMacHTCapabilityInfo *ht_cap_info;
+	QDF_STATUS status;
+
+	status = sme_cfg_get_int(hdd_ctx->hHal, WNI_CFG_HT_CAP_INFO, &val32);
+	if (QDF_STATUS_SUCCESS != status) {
+		hdd_err("could not get HT capability info");
+		val32 = 0;
+	}
+	val16 = (uint16_t)val32;
+	ht_cap_info = (tSirMacHTCapabilityInfo *)&val16;
+
+	if (ht_cap_info->txSTBC == true) {
+		if (NULL != hdd_ctx->wiphy->bands[NL80211_BAND_2GHZ])
+			hdd_ctx->wiphy->bands[NL80211_BAND_2GHZ]->ht_cap.cap |=
+						IEEE80211_HT_CAP_TX_STBC;
+		if (NULL != hdd_ctx->wiphy->bands[NL80211_BAND_5GHZ])
+			hdd_ctx->wiphy->bands[NL80211_BAND_5GHZ]->ht_cap.cap |=
+						IEEE80211_HT_CAP_TX_STBC;
+	}
+
+	if (!sme_is_feature_supported_by_fw(DOT11AC)) {
+		hdd_ctx->wiphy->bands[NL80211_BAND_2GHZ]->
+						vht_cap.vht_supported = 0;
+		hdd_ctx->wiphy->bands[NL80211_BAND_2GHZ]->vht_cap.cap = 0;
+		hdd_ctx->wiphy->bands[NL80211_BAND_5GHZ]->
+						vht_cap.vht_supported = 0;
+		hdd_ctx->wiphy->bands[NL80211_BAND_5GHZ]->vht_cap.cap = 0;
+	}
+}
+
 /*
  * In this function, wiphy structure is updated after QDF
  * initialization. In wlan_hdd_cfg80211_init, only the
  * default values will be initialized. The final initialization
  * of all required members can be done here.
  */
-void wlan_hdd_update_wiphy(struct wiphy *wiphy, struct hdd_config *pCfg)
+void wlan_hdd_update_wiphy(hdd_context_t *hdd_ctx)
 {
-	wiphy->max_ap_assoc_sta = pCfg->maxNumberOfPeers;
+	hdd_ctx->wiphy->max_ap_assoc_sta = hdd_ctx->config->maxNumberOfPeers;
+
+	wlan_hdd_update_band_cap(hdd_ctx);
+}
+
+/**
+ * wlan_hdd_update_11n_mode - update 11n mode in hdd cfg
+ * @cfg: hdd cfg
+ *
+ * this function update 11n mode in hdd cfg
+ *
+ * Return: void
+ */
+void wlan_hdd_update_11n_mode(struct hdd_config *cfg)
+{
+	if (sme_is_feature_supported_by_fw(DOT11AC)) {
+		hdd_notice("support 11ac");
+	} else {
+		hdd_notice("not support 11ac");
+		if ((cfg->dot11Mode == eHDD_DOT11_MODE_11ac_ONLY) ||
+		    (cfg->dot11Mode == eHDD_DOT11_MODE_11ac)) {
+			cfg->dot11Mode = eHDD_DOT11_MODE_11n;
+			cfg->sap_p2p_11ac_override = 0;
+		}
+	}
 }
 
 /* In this function we are registering wiphy. */
@@ -8981,7 +9047,6 @@ int wlan_hdd_cfg80211_register(struct wiphy *wiphy)
 	ENTER();
 	/* Register our wiphy dev with cfg80211 */
 	if (0 > wiphy_register(wiphy)) {
-		/* print error */
 		hdd_err("wiphy register failed");
 		return -EIO;
 	}
@@ -10733,7 +10798,7 @@ struct cfg80211_bss *wlan_hdd_cfg80211_inform_bss_frame(hdd_adapter_t *pAdapter,
 	 * send age in units of 1/10 ms.
 	 */
 	qie_age->age =
-		(qdf_mc_timer_get_system_time() - bss_desc->received_time)/10;
+		(uint32_t)(qdf_mc_timer_get_system_time() - bss_desc->received_time)/10;
 	qie_age->tsf_delta = bss_desc->tsf_delta;
 	memcpy(&qie_age->beacon_tsf, bss_desc->timeStamp,
 	       sizeof(qie_age->beacon_tsf));
@@ -10805,7 +10870,7 @@ struct cfg80211_bss *wlan_hdd_cfg80211_inform_bss_frame(hdd_adapter_t *pAdapter,
 	/* Supplicant takes the signal strength in terms of mBm(100*dBm) */
 	rssi = QDF_MIN(rssi, 0) * 100;
 
-	hdd_notice("BSSID: " MAC_ADDRESS_STR " Channel:%d RSSI:%d TSF %u",
+	hdd_log(LOG1, "BSSID: " MAC_ADDRESS_STR " Channel:%d RSSI:%d TSF %u",
 	       MAC_ADDR_ARRAY(mgmt->bssid), chan->center_freq,
 	       (int)(rssi / 100),
 	       bss_desc->timeStamp[0]);

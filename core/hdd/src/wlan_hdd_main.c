@@ -367,7 +367,7 @@ static int __hdd_netdev_notifier_call(struct notifier_block *nb,
 	if ((strncmp(dev->name, "wlan", 4)) && (strncmp(dev->name, "p2p", 3)))
 		return NOTIFY_DONE;
 
-	if ((adapter->magic != WLAN_HDD_ADAPTER_MAGIC) &&
+	if ((adapter->magic != WLAN_HDD_ADAPTER_MAGIC) ||
 	    (adapter->dev != dev)) {
 		hdd_err("device adapter is not matching!!!");
 		return NOTIFY_DONE;
@@ -585,6 +585,11 @@ int wlan_hdd_validate_context(hdd_context_t *hdd_ctx)
 	    hdd_ctx->stop_modules_in_progress) {
 			hdd_err("%pS Start/Stop Modules in progress. Ignore!!!",
 				(void *)_RET_IP_);
+		return -EAGAIN;
+	}
+
+	if (hdd_is_roaming_in_progress()) {
+		hdd_err("Roaming In Progress. Ignore!!!");
 		return -EAGAIN;
 	}
 
@@ -5585,17 +5590,24 @@ void wlan_hdd_display_tx_rx_histogram(hdd_context_t *hdd_ctx)
 	hdd_err("index, total_rx, interval_rx, total_tx, interval_tx, bus_bw_level, RX TP Level, TX TP Level");
 
 	for (i = 0; i < NUM_TX_RX_HISTOGRAM; i++) {
-		hdd_err("%d: %llu, %llu, %llu, %llu, %s, %s, %s",
-			i, hdd_ctx->hdd_txrx_hist[i].total_rx,
-			hdd_ctx->hdd_txrx_hist[i].interval_rx,
-			hdd_ctx->hdd_txrx_hist[i].total_tx,
-			hdd_ctx->hdd_txrx_hist[i].interval_tx,
-			convert_level_to_string(
-				hdd_ctx->hdd_txrx_hist[i].next_vote_level),
-			convert_level_to_string(
-				hdd_ctx->hdd_txrx_hist[i].next_rx_level),
-			convert_level_to_string(
-				hdd_ctx->hdd_txrx_hist[i].next_tx_level));
+		/* using hdd_log to avoid printing function name */
+		if (hdd_ctx->hdd_txrx_hist[i].total_rx != 0 ||
+			hdd_ctx->hdd_txrx_hist[i].total_tx != 0)
+			hdd_log(QDF_TRACE_LEVEL_ERROR,
+				"%d: %llu, %llu, %llu, %llu, %s, %s, %s",
+				i, hdd_ctx->hdd_txrx_hist[i].total_rx,
+				hdd_ctx->hdd_txrx_hist[i].interval_rx,
+				hdd_ctx->hdd_txrx_hist[i].total_tx,
+				hdd_ctx->hdd_txrx_hist[i].interval_tx,
+				convert_level_to_string(
+					hdd_ctx->hdd_txrx_hist[i].
+						next_vote_level),
+				convert_level_to_string(
+					hdd_ctx->hdd_txrx_hist[i].
+						next_rx_level),
+				convert_level_to_string(
+					hdd_ctx->hdd_txrx_hist[i].
+						next_tx_level));
 	}
 	return;
 }
@@ -5632,7 +5644,7 @@ void wlan_hdd_display_netif_queue_history(hdd_context_t *hdd_ctx)
 	while (NULL != adapter_node && QDF_STATUS_SUCCESS == status) {
 		adapter = adapter_node->pAdapter;
 
-		hdd_err("\nNetif queue operation statistics:");
+		hdd_err("Netif queue operation statistics:");
 		hdd_err("Session_id %d device mode %d",
 			adapter->sessionId, adapter->device_mode);
 		hdd_err("Current pause_map value %x", adapter->pause_map);
@@ -5658,7 +5670,9 @@ void wlan_hdd_display_netif_queue_history(hdd_context_t *hdd_ctx)
 			if (adapter->pause_map & (1 << i))
 				pause_delta = delta;
 
-			hdd_err("%s: %d: %d: %ums",
+			/* using hdd_log to avoid printing function name */
+			hdd_log(QDF_TRACE_LEVEL_ERROR,
+				"%s: %d: %d: %ums",
 				hdd_reason_type_to_string(i),
 				adapter->queue_oper_stats[i].pause_count,
 				adapter->queue_oper_stats[i].unpause_count,
@@ -5667,14 +5681,18 @@ void wlan_hdd_display_netif_queue_history(hdd_context_t *hdd_ctx)
 				pause_delta));
 		}
 
-		hdd_err("\nNetif queue operation history:");
+		hdd_err("Netif queue operation history:");
 		hdd_err("Total entries: %d current index %d",
 			WLAN_HDD_MAX_HISTORY_ENTRY, adapter->history_index);
 
 		hdd_err("index: time: action_type: reason_type: pause_map");
 
 		for (i = 0; i < WLAN_HDD_MAX_HISTORY_ENTRY; i++) {
-			hdd_err("%d: %u: %s: %s: %x",
+			/* using hdd_log to avoid printing function name */
+			if (adapter->queue_oper_history[i].time == 0)
+				continue;
+			hdd_log(QDF_TRACE_LEVEL_ERROR,
+				"%d: %u: %s: %s: %x",
 				i, qdf_system_ticks_to_msecs(
 					adapter->queue_oper_history[i].time),
 				hdd_action_type_to_string(
@@ -8038,7 +8056,7 @@ int hdd_wlan_startup(struct device *dev)
 		goto err_exit_nl_srv;
 	}
 
-	wlan_hdd_update_wiphy(hdd_ctx->wiphy, hdd_ctx->config);
+	wlan_hdd_update_wiphy(hdd_ctx);
 
 	hdd_ctx->hHal = cds_get_context(QDF_MODULE_ID_SME);
 
@@ -8092,6 +8110,9 @@ int hdd_wlan_startup(struct device *dev)
 
 	if (hdd_ctx->config->enable_go_cts2self_for_sta)
 		sme_set_cts2self_for_p2p_go(hdd_ctx->hHal);
+
+	wlan_hdd_update_11n_mode(hdd_ctx->config);
+
 #ifdef FEATURE_WLAN_AP_AP_ACS_OPTIMIZE
 	status = qdf_mc_timer_init(&hdd_ctx->skip_acs_scan_timer,
 				   QDF_TIMER_TYPE_SW,
@@ -8124,6 +8145,9 @@ int hdd_wlan_startup(struct device *dev)
 	hdd_runtime_suspend_context_init(hdd_ctx);
 	memdump_init();
 	hdd_driver_memdump_init();
+
+	if (hdd_enable_egap(hdd_ctx))
+		hdd_err("enhance green ap is not enabled");
 
 	if (hdd_ctx->config->fIsImpsEnabled)
 		hdd_set_idle_ps_config(hdd_ctx, true);
@@ -8272,6 +8296,12 @@ int hdd_register_cb(hdd_context_t *hdd_ctx)
 
 	sme_set_link_layer_stats_ind_cb(hdd_ctx->hHal,
 				wlan_hdd_cfg80211_link_layer_stats_callback);
+
+	status = sme_set_lost_link_info_cb(hdd_ctx->hHal,
+					   hdd_lost_link_info_cb);
+	/* print error and not block the startup process */
+	if (!QDF_IS_STATUS_SUCCESS(status))
+		hdd_err("set lost link info callback failed");
 
 	wlan_hdd_dcc_register_for_dcc_stats_event(hdd_ctx);
 
@@ -8782,6 +8812,8 @@ void hdd_stop_bus_bw_compute_timer(hdd_adapter_t *adapter)
 	}
 
 	if (can_stop == true) {
+		/* reset the ipa perf level */
+		hdd_ipa_set_perf_level(hdd_ctx, 0, 0);
 		qdf_mc_timer_stop(&hdd_ctx->bus_bw_timer);
 		hdd_reset_tcp_delack(hdd_ctx);
 	}
@@ -9803,6 +9835,46 @@ int hdd_enable_disable_ca_event(hdd_context_t *hddctx, uint8_t set_value)
 		return -EINVAL;
 	}
 	return 0;
+}
+
+/**
+ * hdd_set_roaming_in_progress() - to set the roaming in progress flag
+ * @value: value to set
+ *
+ * This function will set the passed value to roaming in progress flag.
+ *
+ * Return: None
+ */
+void hdd_set_roaming_in_progress(bool value)
+{
+	hdd_context_t *hdd_ctx;
+
+	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+	if (!hdd_ctx) {
+		hdd_err("HDD context is NULL");
+		return;
+	}
+
+	hdd_ctx->roaming_in_progress = value;
+	hdd_info("Roaming in Progress set to %d", value);
+}
+
+/**
+ * hdd_is_roaming_in_progress() - check if roaming is in progress
+ * @hdd_ctx - HDD context
+ *
+ * Return: true if roaming is in progress else false
+ */
+bool hdd_is_roaming_in_progress(void)
+{
+	hdd_context_t *hdd_ctx;
+
+	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+	if (!hdd_ctx) {
+		hdd_err("HDD context is NULL");
+		return false;
+	}
+	return hdd_ctx->roaming_in_progress;
 }
 
 /* Register the module init/exit functions */

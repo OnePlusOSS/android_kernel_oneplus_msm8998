@@ -48,11 +48,7 @@ struct hdd_context_s;
 int hdd_napi_enabled(int id);
 int hdd_napi_create(void);
 int hdd_napi_destroy(int force);
-
-int hdd_napi_stats(char   *buf,
-		   int     max,
-		   char   *indp,
-		   struct qca_napi_data *napid);
+int hdd_display_napi_stats(void);
 
 /* the following triggers napi_enable/disable as required */
 int hdd_napi_event(enum qca_napi_event event, void *data);
@@ -91,8 +87,7 @@ static inline int hdd_napi_serialize(int is_on)
 static inline int hdd_napi_enabled(int id) { return 0; }
 static inline int hdd_napi_create(void) { return 0; }
 static inline int hdd_napi_destroy(int force) { return 0; }
-static inline int hdd_napi_stats(char *buf, int max, char *indp,
-				 struct qca_napi_data *napid) { return 0; }
+static inline int hdd_display_napi_stats(void) { return 0; }
 static inline int hdd_napi_event(enum qca_napi_event event, void *data)
 {
 	return 0;
@@ -103,6 +98,10 @@ static inline int hdd_napi_apply_throughput_policy(void *hdd_ctx,
 {
 	return 0;
 }
+static inline int hdd_napi_serialize(int is_on)
+{
+	return 0;
+};
 
 #endif /* FEATURE_NAPI */
 

@@ -1175,6 +1175,9 @@ enum qca_wlan_vendor_attr_extscan_config_params {
  *	Unsigned 32bit value, Bit mask of all buckets scanned in the
  *	current EXTSCAN CYCLE. For e.g. If fw scan is going to scan
  *	following buckets 0, 1, 2 in current cycle then it will be (0x111)
+ * @QCA_WLAN_VENDOR_ATTR_EXTSCAN_MAX_NUM_BLACKLISTED_BSSID:
+ *	Unsigned 32bit value; a EXTSCAN Capabilities attribute to send
+ *	maximum umber of blacklist bssid's that firmware can support.
  * @QCA_WLAN_VENDOR_ATTR_EXTSCAN_RESULTS_AFTER_LAST: After last
  * @QCA_WLAN_VENDOR_ATTR_EXTSCAN_RESULTS_MAX: Max value
  */
@@ -1296,6 +1299,8 @@ enum qca_wlan_vendor_attr_extscan_results {
 	 * to indicate number of results.
 	 */
 	QCA_WLAN_VENDOR_ATTR_EXTSCAN_RESULTS_BUCKETS_SCANNED,
+
+	QCA_WLAN_VENDOR_ATTR_EXTSCAN_MAX_NUM_BLACKLISTED_BSSID,
 
 	/* keep last */
 	QCA_WLAN_VENDOR_ATTR_EXTSCAN_RESULTS_AFTER_LAST,
@@ -3177,7 +3182,9 @@ int wlan_hdd_cfg80211_init(struct device *dev,
 
 void wlan_hdd_cfg80211_deinit(struct wiphy *wiphy);
 
-void wlan_hdd_update_wiphy(struct wiphy *wiphy, struct hdd_config *pCfg);
+void wlan_hdd_update_wiphy(hdd_context_t *hdd_ctx);
+
+void wlan_hdd_update_11n_mode(struct hdd_config *cfg);
 
 int wlan_hdd_cfg80211_register(struct wiphy *wiphy);
 void wlan_hdd_cfg80211_register_frames(hdd_adapter_t *pAdapter);
@@ -3349,4 +3356,13 @@ struct cfg80211_bss *wlan_hdd_cfg80211_inform_bss_frame(hdd_adapter_t *pAdapter,
 #define NUM_NL80211_BANDS ((enum nl80211_band)IEEE80211_NUM_BANDS)
 #endif
 
+/**
+ * hdd_lost_link_info_cb() - callback function to get lost link information
+ * @context: HDD context
+ * @lost_link_info: lost link information
+ *
+ * Return: none
+ */
+void hdd_lost_link_info_cb(void *context,
+			struct sir_lost_link_info *lost_link_info);
 #endif

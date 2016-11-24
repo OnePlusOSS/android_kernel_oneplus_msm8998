@@ -805,6 +805,10 @@ QDF_STATUS wma_roam_scan_offload_mode(tp_wma_handle wma_handle,
 						roam_req->assoc_ie.length);
 	}
 
+	WMA_LOGE(FL("my_dbg: qos_caps: %d, qos_enabled: %d"),
+		params->roam_offload_params.qos_caps,
+		params->roam_offload_params.qos_enabled);
+
 	status = wmi_unified_roam_scan_offload_mode_cmd(wma_handle->wmi_handle,
 				scan_cmd_fp, params);
 	if (QDF_IS_STATUS_ERROR(status))
@@ -1917,7 +1921,8 @@ QDF_STATUS wma_process_roaming_config(tp_wma_handle wma_handle,
 			WMA_LOGE("%s: Sending heartbeat failure after preauth failures",
 				__func__);
 			wma_beacon_miss_handler(wma_handle,
-						roam_req->sessionId);
+				roam_req->sessionId,
+				wma_handle->suitable_ap_hb_failure_rssi);
 			wma_handle->suitable_ap_hb_failure = false;
 		}
 		break;
@@ -2531,6 +2536,8 @@ QDF_STATUS wma_roam_scan_fill_self_caps(tp_wma_handle wma_handle,
 	 * populate_dot11f_wmm_caps for more details
 	 */
 	roam_offload_params->qos_caps = (*pCfgValue8) & 0xFF;
+	if (roam_offload_params->qos_caps)
+		roam_offload_params->qos_enabled = true;
 	roam_offload_params->wmm_caps = 0x4 & 0xFF;
 	return QDF_STATUS_SUCCESS;
 }
@@ -3893,6 +3900,8 @@ int wma_extscan_capabilities_event_handler(void *handle,
 				event->num_epno_networks;
 	dest_capab->max_number_of_white_listed_ssid =
 				event->num_roam_ssid_whitelist;
+	dest_capab->max_number_of_black_listed_bssid =
+				event->num_roam_bssid_blacklist;
 	dest_capab->status = 0;
 
 	WMA_LOGD("%s: request_id: %u status: %d",
@@ -3914,11 +3923,13 @@ int wma_extscan_capabilities_event_handler(void *handle,
 
 	WMA_LOGD("%s: Capabilities: max_hotlist_ssids: %d,"
 		 "max_number_epno_networks: %d, max_number_epno_networks_by_ssid: %d,"
-		 "max_number_of_white_listed_ssid: %d",
+		 "max_number_of_white_listed_ssid: %d,"
+		 "max_number_of_black_listed_bssid: %d",
 		 __func__, dest_capab->max_hotlist_ssids,
 		dest_capab->max_number_epno_networks,
 		dest_capab->max_number_epno_networks_by_ssid,
-		dest_capab->max_number_of_white_listed_ssid);
+		dest_capab->max_number_of_white_listed_ssid,
+		dest_capab->max_number_of_black_listed_bssid);
 
 	pMac->sme.pExtScanIndCb(pMac->hHdd,
 				eSIR_EXTSCAN_GET_CAPABILITIES_IND, dest_capab);
@@ -5798,7 +5809,8 @@ int wma_roam_event_callback(WMA_HANDLE handle, uint8_t *event_buf,
 	switch (wmi_event->reason) {
 	case WMI_ROAM_REASON_BMISS:
 		WMA_LOGD("Beacon Miss for vdevid %x", wmi_event->vdev_id);
-		wma_beacon_miss_handler(wma_handle, wmi_event->vdev_id);
+		wma_beacon_miss_handler(wma_handle, wmi_event->vdev_id,
+					wmi_event->rssi);
 		break;
 	case WMI_ROAM_REASON_BETTER_AP:
 		WMA_LOGD("%s:Better AP found for vdevid %x, rssi %d", __func__,
@@ -5808,6 +5820,7 @@ int wma_roam_event_callback(WMA_HANDLE handle, uint8_t *event_buf,
 		break;
 	case WMI_ROAM_REASON_SUITABLE_AP:
 		wma_handle->suitable_ap_hb_failure = true;
+		wma_handle->suitable_ap_hb_failure_rssi = wmi_event->rssi;
 		WMA_LOGD("%s:Bmiss scan AP found for vdevid %x, rssi %d",
 			 __func__, wmi_event->vdev_id, wmi_event->rssi);
 		wma_roam_better_ap_handler(wma_handle, wmi_event->vdev_id);

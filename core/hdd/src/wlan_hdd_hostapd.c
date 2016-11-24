@@ -1205,7 +1205,6 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 						    operatingChannel);
 
 		pHostapdState->bssState = BSS_START;
-		hdd_green_ap_start_bss(pHddCtx);
 
 		/* Set default key index */
 		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_INFO,
@@ -1312,8 +1311,6 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 
 		hdd_hostapd_channel_allow_suspend(pHostapdAdapter,
 						  pHddApCtx->operatingChannel);
-
-		hdd_green_ap_stop_bss(pHddCtx);
 
 		/* Free up Channel List incase if it is set */
 		sap_cleanup_channel_list(
@@ -3135,7 +3132,7 @@ static __iw_softap_setparam(struct net_device *dev,
 	case QCASAP_DUMP_STATS:
 	{
 		hdd_notice("QCASAP_DUMP_STATS val %d", set_value);
-		hdd_wlan_dump_stats(pHostapdAdapter, set_value);
+		ret = hdd_wlan_dump_stats(pHostapdAdapter, set_value);
 		break;
 	}
 	case QCASAP_CLEAR_STATS:
@@ -3160,7 +3157,11 @@ static __iw_softap_setparam(struct net_device *dev,
 			hdd_clear_hif_stats();
 			break;
 		default:
-			ol_txrx_clear_stats(set_value);
+			if (ol_txrx_clear_stats(set_value) ==
+						QDF_STATUS_E_INVAL) {
+				hdd_display_stats_help();
+				ret = EINVAL;
+			}
 		}
 		break;
 	}
@@ -7066,7 +7067,8 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 				       struct cfg80211_beacon_data *params,
 				       const u8 *ssid, size_t ssid_len,
 				       enum nl80211_hidden_ssid hidden_ssid,
-				       bool check_for_concurrency)
+				       bool check_for_concurrency,
+				       bool update_beacon)
 {
 	tsap_Config_t *pConfig;
 	beacon_data_t *pBeacon = NULL;
@@ -7093,7 +7095,7 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 
 	ENTER();
 
-	if (cds_is_connection_in_progress()) {
+	if (!update_beacon && cds_is_connection_in_progress()) {
 		hdd_err("Can't start BSS: connection is in progress");
 		return -EINVAL;
 	}
@@ -7207,6 +7209,9 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 	} else {
 		pConfig->ieee80211d = 0;
 	}
+
+	wlansap_set_tx_leakage_threshold(hHal,
+		iniConfig->sap_tx_leakage_threshold);
 
 	capab_info = pMgmt_frame->u.beacon.capab_info;
 
@@ -7707,6 +7712,9 @@ static int __wlan_hdd_cfg80211_stop_ap(struct wiphy *wiphy,
 	if (0 != ret)
 		return ret;
 
+	if (QDF_SAP_MODE == pAdapter->device_mode)
+		hdd_green_ap_stop_bss(pHddCtx);
+
 	status = hdd_get_front_adapter(pHddCtx, &pAdapterNode);
 	while (NULL != pAdapterNode && QDF_STATUS_SUCCESS == status) {
 		staAdapter = pAdapterNode->pAdapter;
@@ -8008,6 +8016,10 @@ static int __wlan_hdd_cfg80211_start_ap(struct wiphy *wiphy,
 			return -EINVAL;
 		}
 	}
+
+	if (QDF_SAP_MODE == pAdapter->device_mode)
+		hdd_green_ap_start_bss(pHddCtx);
+
 	if (pAdapter->device_mode == QDF_P2P_GO_MODE) {
 		hdd_adapter_t  *p2p_adapter;
 		p2p_adapter = hdd_get_adapter(pHddCtx, QDF_P2P_DEVICE_MODE);
@@ -8072,7 +8084,7 @@ static int __wlan_hdd_cfg80211_start_ap(struct wiphy *wiphy,
 			wlan_hdd_cfg80211_start_bss(pAdapter,
 				&params->beacon,
 				params->ssid, params->ssid_len,
-				params->hidden_ssid, true);
+				params->hidden_ssid, true, false);
 
 		if (pHddCtx->config->sap_max_inactivity_override) {
 			sta_inactivity_timer = qdf_mem_malloc(
@@ -8130,6 +8142,7 @@ static int __wlan_hdd_cfg80211_change_beacon(struct wiphy *wiphy,
 	hdd_context_t *pHddCtx;
 	beacon_data_t *old, *new;
 	int status;
+	bool update_beacon;
 
 	ENTER();
 
@@ -8177,8 +8190,11 @@ static int __wlan_hdd_cfg80211_change_beacon(struct wiphy *wiphy,
 	}
 
 	pAdapter->sessionCtx.ap.beacon = new;
+	update_beacon = (pAdapter->device_mode ==
+			     QDF_P2P_GO_MODE) ? true : false;
+	hdd_info("update beacon for P2P GO: %d", update_beacon);
 	status = wlan_hdd_cfg80211_start_bss(pAdapter, params, NULL,
-						0, 0, true);
+					0, 0, false, update_beacon);
 
 	EXIT();
 	return status;

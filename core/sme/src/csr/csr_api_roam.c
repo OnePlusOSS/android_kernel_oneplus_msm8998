@@ -2477,6 +2477,8 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 
 		pMac->sme.ps_global_info.ps_enabled =
 			pParam->is_ps_enabled;
+		pMac->sme.ps_global_info.auto_bmps_timer_val =
+			pParam->auto_bmps_timer_val;
 		pMac->roam.configParam.ignore_peer_ht_opmode =
 			pParam->ignore_peer_ht_opmode;
 		pMac->fine_time_meas_cap = pParam->fine_time_meas_cap;
@@ -2683,6 +2685,8 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 	pParam->dual_mac_feature_disable =
 		pMac->dual_mac_feature_disable;
 	pParam->is_ps_enabled = pMac->sme.ps_global_info.ps_enabled;
+	pParam->auto_bmps_timer_val =
+		pMac->sme.ps_global_info.auto_bmps_timer_val;
 	pParam->fEnableDebugLog = pMac->fEnableDebugLog;
 	pParam->enable5gEBT = pMac->enable5gEBT;
 	pParam->f_sta_miracast_mcc_rest_time_val =
@@ -4636,36 +4640,6 @@ void csr_roam_ccm_cfg_set_callback(tpAniSirGlobal pMac, int32_t result)
 	if (CSR_IS_ROAM_JOINING(pMac, sessionId)
 	    && CSR_IS_ROAM_SUBSTATE_CONFIG(pMac, sessionId)) {
 		csr_roaming_state_config_cnf_processor(pMac, (uint32_t) result);
-	}
-}
-
-/* This function is very dump. It is here because PE still need WNI_CFG_PHY_MODE */
-uint32_t csr_roam_get_phy_mode_from_dot11_mode(eCsrCfgDot11Mode dot11Mode,
-					       eCsrBand band)
-{
-	if (eCSR_CFG_DOT11_MODE_11B == dot11Mode) {
-		return WNI_CFG_PHY_MODE_11B;
-	} else {
-		if (eCSR_BAND_24 == band)
-			return WNI_CFG_PHY_MODE_11G;
-	}
-	return WNI_CFG_PHY_MODE_11A;
-}
-
-ePhyChanBondState csr_get_htcb_state_from_vhtcb_state(ePhyChanBondState aniCBMode)
-{
-	switch (aniCBMode) {
-	case PHY_QUADRUPLE_CHANNEL_20MHZ_HIGH_40MHZ_LOW:
-	case PHY_QUADRUPLE_CHANNEL_20MHZ_HIGH_40MHZ_CENTERED:
-	case PHY_QUADRUPLE_CHANNEL_20MHZ_HIGH_40MHZ_HIGH:
-		return PHY_DOUBLE_CHANNEL_HIGH_PRIMARY;
-	case PHY_QUADRUPLE_CHANNEL_20MHZ_LOW_40MHZ_LOW:
-	case PHY_QUADRUPLE_CHANNEL_20MHZ_LOW_40MHZ_CENTERED:
-	case PHY_QUADRUPLE_CHANNEL_20MHZ_LOW_40MHZ_HIGH:
-		return PHY_DOUBLE_CHANNEL_LOW_PRIMARY;
-	case PHY_QUADRUPLE_CHANNEL_20MHZ_CENTERED_40MHZ_CENTERED:
-	default:
-		return PHY_SINGLE_CHANNEL_CENTERED;
 	}
 }
 
@@ -8696,21 +8670,6 @@ bool csr_is_roam_command_waiting(tpAniSirGlobal pMac)
 	return fRet;
 }
 
-bool csr_is_command_waiting(tpAniSirGlobal pMac)
-{
-	bool fRet = false;
-	/* alwasy lock active list before locking pending list */
-	csr_ll_lock(&pMac->sme.smeCmdActiveList);
-	fRet = csr_ll_is_list_empty(&pMac->sme.smeCmdActiveList, LL_ACCESS_NOLOCK);
-	if (false == fRet) {
-		fRet =
-			csr_ll_is_list_empty(&pMac->sme.smeCmdPendingList,
-					     LL_ACCESS_LOCK);
-	}
-	csr_ll_unlock(&pMac->sme.smeCmdActiveList);
-	return fRet;
-}
-
 bool csr_is_scan_for_roam_command_active(tpAniSirGlobal pMac)
 {
 	bool fRet = false;
@@ -9395,9 +9354,6 @@ void csr_roaming_state_msg_processor(tpAniSirGlobal pMac, void *pMsgBuf)
 		pSmeRsp->messageType, pSmeRsp->messageType,
 		mac_trace_getcsr_roam_sub_state(
 			pMac->roam.curSubState[pSmeRsp->sessionId]));
-	pSmeRsp->messageType = pSmeRsp->messageType;
-	pSmeRsp->length = pSmeRsp->length;
-	pSmeRsp->statusCode = pSmeRsp->statusCode;
 
 	switch (pSmeRsp->messageType) {
 
@@ -11181,6 +11137,10 @@ csr_roam_chk_lnk_set_ctx_rsp(tpAniSirGlobal mac_ctx, tSirSmeRsp *msg_ptr)
 			tpSirSetActiveModeSetBncFilterReq pMsg;
 			pMsg = qdf_mem_malloc(
 				    sizeof(tSirSetActiveModeSetBncFilterReq));
+			if (NULL == pMsg) {
+				sms_log(mac_ctx, LOGE, FL("Malloc failed"));
+				goto remove_entry_n_process_pending;
+			}
 			pMsg->messageType = eWNI_SME_SET_BCN_FILTER_REQ;
 			pMsg->length = sizeof(tSirSetActiveModeSetBncFilterReq);
 			pMsg->seesionId = sessionId;
@@ -11204,6 +11164,11 @@ csr_roam_chk_lnk_set_ctx_rsp(tpAniSirGlobal mac_ctx, tSirSmeRsp *msg_ptr)
 				struct sme_obss_ht40_scanind_msg *msg;
 				msg = qdf_mem_malloc(sizeof(
 					struct sme_obss_ht40_scanind_msg));
+				if (NULL == msg) {
+					sms_log(mac_ctx, LOGE,
+						FL("Malloc failed"));
+					goto remove_entry_n_process_pending;
+				}
 				msg->msg_type = eWNI_SME_HT40_OBSS_SCAN_IND;
 				msg->length =
 				      sizeof(struct sme_obss_ht40_scanind_msg);
@@ -11241,6 +11206,7 @@ csr_roam_chk_lnk_set_ctx_rsp(tpAniSirGlobal mac_ctx, tSirSmeRsp *msg_ptr)
 		session->isPrevApInfoValid = false;
 	}
 #endif
+remove_entry_n_process_pending:
 	if (csr_ll_remove_entry(&mac_ctx->sme.smeCmdActiveList, entry,
 				LL_ACCESS_LOCK))
 		csr_release_command_set_key(mac_ctx, cmd);
@@ -17792,6 +17758,7 @@ csr_roam_offload_scan(tpAniSirGlobal mac_ctx, uint8_t session_id,
 			req_buf->hi_rssi_scan_rssi_ub);
 
 	if (command != ROAM_SCAN_OFFLOAD_STOP) {
+		req_buf->assoc_ie.length = session->nAddIEAssocLength;
 		qdf_mem_copy(req_buf->assoc_ie.addIEdata,
 				session->pAddIEAssoc,
 				session->nAddIEAssocLength);

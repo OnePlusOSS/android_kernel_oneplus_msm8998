@@ -826,7 +826,6 @@ QDF_STATUS sme_update_dfs_scan_mode(tHalHandle hHal,
 		uint8_t sessionId,
 		uint8_t allowDFSChannelRoam);
 uint8_t sme_get_dfs_scan_mode(tHalHandle hHal);
-bool sme_sta_in_middle_of_roaming(tHalHandle hHal, uint8_t sessionId);
 
 #ifdef FEATURE_WLAN_EXTSCAN
 QDF_STATUS sme_get_valid_channels_by_band(tHalHandle hHal, uint8_t wifiBand,
@@ -1347,4 +1346,13 @@ QDF_STATUS sme_update_long_retry_limit_threshold(tHalHandle hal_handle,
 QDF_STATUS sme_update_sta_inactivity_timeout(tHalHandle hal_handle,
 		struct sme_sta_inactivity_timeout  *sta_inactivity_timer);
 
+/**
+ * sme_set_lost_link_info_cb() - plug in callback function for receiving
+ * @hal: HAL handle
+ * @cb: callback function
+ *
+ * Return: HAL status
+ */
+QDF_STATUS sme_set_lost_link_info_cb(tHalHandle hal,
+		void (*cb)(void *, struct sir_lost_link_info *));
 #endif /* #if !defined( __SME_API_H ) */

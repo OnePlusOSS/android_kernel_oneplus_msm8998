@@ -35,6 +35,7 @@
 #include "regtable.h"
 #include "hif_main.h"
 #include "hif_debug.h"
+#include "hif_napi.h"
 
 #ifdef IPA_OFFLOAD
 #ifdef QCA_WIFI_3_0
@@ -199,9 +200,21 @@ inline void ce_init_ce_desc_event_log(int ce_id, int size)
 bool hif_ce_service_should_yield(struct hif_softc *scn,
 				 struct CE_state *ce_state)
 {
-	bool yield = qdf_system_time_after_eq(qdf_system_ticks(),
-					     ce_state->ce_service_yield_time) ||
-		     hif_max_num_receives_reached(scn, ce_state->receive_count);
+	bool yield, time_limit_reached, rxpkt_thresh_reached = 0;
+
+	time_limit_reached =
+		sched_clock() > ce_state->ce_service_yield_time ? 1 : 0;
+
+	if (!time_limit_reached)
+		rxpkt_thresh_reached = hif_max_num_receives_reached
+					(scn, ce_state->receive_count);
+
+	yield =  time_limit_reached || rxpkt_thresh_reached;
+
+	if (yield)
+		hif_napi_update_yield_stats(ce_state,
+					    time_limit_reached,
+					    rxpkt_thresh_reached);
 	return yield;
 }
 
@@ -259,6 +272,7 @@ ce_completed_send_next_nolock(struct CE_state *CE_state,
 			      unsigned int *sw_idx, unsigned int *hw_idx,
 			      uint32_t *toeplitz_hash_result);
 
+static
 void war_ce_src_ring_write_idx_set(struct hif_softc *scn,
 				   u32 ctrl_addr, unsigned int write_index)
 {
@@ -315,7 +329,7 @@ static void ce_validate_nbytes(uint32_t nbytes, struct CE_state *ce_state)
 }
 #endif
 
-int
+static int
 ce_send_nolock(struct CE_handle *copyeng,
 			   void *per_transfer_context,
 			   qdf_dma_addr_t buffer,
@@ -1082,7 +1096,7 @@ unsigned int ce_recv_entries_avail(struct CE_handle *copyeng)
  * Guts of ce_send_entries_done.
  * The caller takes responsibility for any necessary locking.
  */
-unsigned int
+static unsigned int
 ce_send_entries_done_nolock(struct hif_softc *scn,
 			    struct CE_state *CE_state)
 {
@@ -1114,7 +1128,7 @@ unsigned int ce_send_entries_done(struct CE_handle *copyeng)
  * Guts of ce_recv_entries_done.
  * The caller takes responsibility for any necessary locking.
  */
-unsigned int
+static unsigned int
 ce_recv_entries_done_nolock(struct hif_softc *scn,
 			    struct CE_state *CE_state)
 {
@@ -1152,7 +1166,7 @@ void *ce_debug_cmplsn_context;  /* completed send next context */
  * Guts of ce_completed_recv_next.
  * The caller takes responsibility for any necessary locking.
  */
-int
+static int
 ce_completed_recv_next_nolock(struct CE_state *CE_state,
 			      void **per_CE_contextp,
 			      void **per_transfer_contextp,
@@ -1724,7 +1738,6 @@ more_data:
 						 FAST_RX_SOFTWARE_INDEX_UPDATE,
 						 NULL, NULL, sw_index);
 			dest_ring->sw_index = sw_index;
-
 			ce_fastpath_rx_handle(ce_state, cmpl_msdus,
 					      MSG_FLUSH_NUM, ctrl_addr);
 
@@ -1789,7 +1802,11 @@ static void ce_per_engine_service_fast(struct hif_softc *scn, int ce_id)
 }
 #endif /* WLAN_FEATURE_FASTPATH */
 
-#define CE_PER_ENGINE_SERVICE_MAX_TIME_JIFFIES 2
+/* Maximum amount of time in nano seconds before which the CE per engine service
+ * should yield. ~1 jiffie.
+ */
+#define CE_PER_ENGINE_SERVICE_MAX_YIELD_TIME_NS (10 * 1000 * 1000)
+
 /*
  * Guts of interrupt handler for per-engine interrupts on a particular CE.
  *
@@ -1826,8 +1843,9 @@ int ce_per_engine_service(struct hif_softc *scn, unsigned int CE_id)
 	/* Clear force_break flag and re-initialize receive_count to 0 */
 	CE_state->receive_count = 0;
 	CE_state->force_break = 0;
-	CE_state->ce_service_yield_time = qdf_system_ticks() +
-		CE_PER_ENGINE_SERVICE_MAX_TIME_JIFFIES;
+	CE_state->ce_service_yield_time =
+		sched_clock() +
+		(unsigned long long)CE_PER_ENGINE_SERVICE_MAX_YIELD_TIME_NS;
 
 
 	qdf_spin_lock(&CE_state->ce_index_lock);

@@ -356,7 +356,7 @@ inline void hif_pci_cancel_deferred_target_sleep(struct hif_softc *scn)
  *
  * Return: true if target is awake
  */
-bool hif_targ_is_awake(struct hif_softc *hif_ctx, void *__iomem *mem)
+static bool hif_targ_is_awake(struct hif_softc *hif_ctx, void *__iomem *mem)
 {
 	return true;
 }
@@ -367,7 +367,7 @@ bool hif_targ_is_awake(struct hif_softc *hif_ctx, void *__iomem *mem)
  *
  * Return: true if the targets clocks are on
  */
-bool hif_targ_is_awake(struct hif_softc *scn, void *__iomem *mem)
+static bool hif_targ_is_awake(struct hif_softc *scn, void *__iomem *mem)
 {
 	uint32_t val;
 
@@ -452,7 +452,7 @@ static void hif_pci_device_reset(struct hif_pci_softc *sc)
  * 4. Reset all CEs to clear any pending CE tarnsactions
  * 5. Warm reset CPU
  */
-void hif_pci_device_warm_reset(struct hif_pci_softc *sc)
+static void hif_pci_device_warm_reset(struct hif_pci_softc *sc)
 {
 	void __iomem *mem = sc->mem;
 	int i;
@@ -1448,7 +1448,7 @@ static void hif_register_bmi_callbacks(struct hif_softc *hif_sc)
  * Send an interrupt to the device to wake up the Target CPU
  * so it has an opportunity to notice any changed state.
  */
-void hif_wake_target_cpu(struct hif_softc *scn)
+static void hif_wake_target_cpu(struct hif_softc *scn)
 {
 	QDF_STATUS rv;
 	uint32_t core_ctrl;
@@ -1530,7 +1530,7 @@ static void hif_sleep_entry(void *arg)
 #define HIF_HIA_POLLING_DELAY_MS 10
 
 #ifdef CONFIG_WIN
-void hif_set_hia_extnd(struct hif_softc *scn)
+static void hif_set_hia_extnd(struct hif_softc *scn)
 {
 	struct hif_opaque_softc *hif_hdl = GET_HIF_OPAQUE_HDL(scn);
 	struct hif_target_info *tgt_info = hif_get_target_info_handle(hif_hdl);
@@ -1666,7 +1666,7 @@ void hif_set_hia_extnd(struct hif_softc *scn)
 
 #else
 
-void hif_set_hia_extnd(struct hif_softc *scn)
+static void hif_set_hia_extnd(struct hif_softc *scn)
 {
 }
 
@@ -1683,7 +1683,7 @@ void hif_set_hia_extnd(struct hif_softc *scn)
  *
  * Return: 0 for success.
  */
-int hif_set_hia(struct hif_softc *scn)
+static int hif_set_hia(struct hif_softc *scn)
 {
 	QDF_STATUS rv;
 	uint32_t interconnect_targ_addr = 0;
@@ -2053,9 +2053,9 @@ void hif_pci_close(struct hif_softc *hif_sc)
 
 #define BAR_NUM 0
 
-int hif_enable_pci(struct hif_pci_softc *sc,
-		struct pci_dev *pdev,
-		const struct pci_device_id *id)
+static int hif_enable_pci(struct hif_pci_softc *sc,
+			  struct pci_dev *pdev,
+			  const struct pci_device_id *id)
 {
 	void __iomem *mem;
 	int ret = 0;
@@ -2150,7 +2150,7 @@ err_region:
 	return ret;
 }
 
-void hif_disable_pci(struct hif_pci_softc *sc)
+static void hif_disable_pci(struct hif_pci_softc *sc)
 {
 	struct hif_softc *ol_sc = HIF_GET_SOFTC(sc);
 
@@ -2168,7 +2168,7 @@ void hif_disable_pci(struct hif_pci_softc *sc)
 	pci_disable_device(sc->pdev);
 }
 
-int hif_pci_probe_tgt_wakeup(struct hif_pci_softc *sc)
+static int hif_pci_probe_tgt_wakeup(struct hif_pci_softc *sc)
 {
 	int ret = 0;
 	int targ_awake_limit = 500;
@@ -2236,7 +2236,7 @@ end:
 	return ret;
 }
 
-void wlan_tasklet_msi(unsigned long data)
+static void wlan_tasklet_msi(unsigned long data)
 {
 	struct hif_tasklet_entry *entry = (struct hif_tasklet_entry *)data;
 	struct hif_pci_softc *sc = (struct hif_pci_softc *) entry->hif_handler;
@@ -2268,7 +2268,7 @@ irq_handled:
 
 }
 
-int hif_configure_msi(struct hif_pci_softc *sc)
+static int hif_configure_msi(struct hif_pci_softc *sc)
 {
 	int ret = 0;
 	int num_msi_desired;
@@ -2957,7 +2957,6 @@ void hif_process_runtime_resume_success(struct hif_opaque_softc *hif_ctx)
 		hif_pm_runtime_mark_last_busy(hif_pci_sc->dev);
 	hif_runtime_pm_set_state_on(scn);
 }
-#endif
 
 /**
  * hif_runtime_suspend() - do the bus suspend part of a runtime suspend
@@ -3017,6 +3016,7 @@ int hif_runtime_resume(struct hif_opaque_softc *hif_ctx)
 
 	return status;
 }
+#endif /* #ifdef FEATURE_RUNTIME_PM */
 
 #if CONFIG_PCIE_64BIT_MSI
 static void hif_free_msi_ctx(struct hif_softc *scn)
@@ -3440,7 +3440,7 @@ end:
  *
  * Return: none
  */
-void hif_target_sync(struct hif_softc *scn)
+static void hif_target_sync(struct hif_softc *scn)
 {
 	hif_write32_mb(scn->mem+(SOC_CORE_BASE_ADDRESS |
 				PCIE_INTR_ENABLE_ADDRESS),

@@ -31,9 +31,10 @@
  */
 #ifndef _CDP_TXRX_STATS_H_
 #define _CDP_TXRX_STATS_H_
+#include <qdf_status.h>
 
-void ol_txrx_display_stats(uint16_t bitmap);
-void ol_txrx_clear_stats(uint16_t bitmap);
+QDF_STATUS ol_txrx_display_stats(uint16_t bitmap);
+QDF_STATUS ol_txrx_clear_stats(uint16_t bitmap);
 int ol_txrx_stats(uint8_t vdev_id, char *buffer, unsigned buf_len);
 
 #endif /* _CDP_TXRX_STATS_H_ */

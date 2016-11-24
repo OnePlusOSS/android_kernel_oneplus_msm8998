@@ -513,7 +513,7 @@ static struct service_to_pipe target_service_to_ce_map_wlan_epping[] = {
  *  false (attribute set to false)
  *  true  (attribute set to true);
  */
-bool ce_mark_datapath(struct CE_state *ce_state)
+static bool ce_mark_datapath(struct CE_state *ce_state)
 {
 	struct service_to_pipe *svc_map;
 	size_t map_sz;
@@ -1327,7 +1327,7 @@ hif_get_free_queue_number(struct hif_opaque_softc *hif_ctx, uint8_t pipe)
 }
 
 /* Called by lower (CE) layer when a send to Target completes. */
-void
+static void
 hif_pci_ce_send_done(struct CE_handle *copyeng, void *ce_context,
 		     void *transfer_context, qdf_dma_addr_t CE_data,
 		     unsigned int nbytes, unsigned int transfer_id,
@@ -1395,7 +1395,7 @@ static inline void hif_ce_do_recv(struct hif_msg_callbacks *msg_callbacks,
 }
 
 /* Called by lower (CE) layer when data is received from the Target. */
-void
+static void
 hif_pci_ce_recv_data(struct CE_handle *copyeng, void *ce_context,
 		     void *transfer_context, qdf_dma_addr_t CE_data,
 		     unsigned int nbytes, unsigned int transfer_id,
@@ -1458,7 +1458,7 @@ hif_post_init(struct hif_opaque_softc *hif_ctx, void *unused,
 
 }
 
-int hif_completion_thread_startup(struct HIF_CE_state *hif_state)
+static int hif_completion_thread_startup(struct HIF_CE_state *hif_state)
 {
 	struct CE_handle *ce_diag = hif_state->ce_diag;
 	int pipe_num;
@@ -1738,7 +1738,7 @@ QDF_STATUS hif_start(struct hif_opaque_softc *hif_ctx)
 	return QDF_STATUS_SUCCESS;
 }
 
-void hif_recv_buffer_cleanup_on_pipe(struct HIF_CE_pipe_info *pipe_info)
+static void hif_recv_buffer_cleanup_on_pipe(struct HIF_CE_pipe_info *pipe_info)
 {
 	struct hif_softc *scn;
 	struct CE_handle *ce_hdl;
@@ -1774,7 +1774,7 @@ void hif_recv_buffer_cleanup_on_pipe(struct HIF_CE_pipe_info *pipe_info)
 	}
 }
 
-void hif_send_buffer_cleanup_on_pipe(struct HIF_CE_pipe_info *pipe_info)
+static void hif_send_buffer_cleanup_on_pipe(struct HIF_CE_pipe_info *pipe_info)
 {
 	struct CE_handle *ce_hdl;
 	struct HIF_CE_state *hif_state;
@@ -1837,7 +1837,7 @@ void hif_send_buffer_cleanup_on_pipe(struct HIF_CE_pipe_info *pipe_info)
  * not yet processed are on a completion queue. They
  * are handled when the completion thread shuts down.
  */
-void hif_buffer_cleanup(struct HIF_CE_state *hif_state)
+static void hif_buffer_cleanup(struct HIF_CE_state *hif_state)
 {
 	int pipe_num;
 	struct hif_softc *scn = HIF_GET_SOFTC(hif_state);

@@ -1639,7 +1639,7 @@ void ol_cfg_set_flow_control_parameters(struct txrx_pdev_cfg_param_t *olCfg,
  *
  * Return: none
  */
-void ol_cfg_update_ac_specs_params(struct txrx_pdev_cfg_param_t *olcfg,
+static void ol_cfg_update_ac_specs_params(struct txrx_pdev_cfg_param_t *olcfg,
 		struct cds_config_info *cds_cfg)
 {
 	int i;

@@ -1298,6 +1298,12 @@ static void hdd_ipa_uc_handle_last_discon(struct hdd_ipa_priv *hdd_ipa)
 {
 	p_cds_contextType cds_ctx = hdd_ipa->hdd_ctx->pcds_context;
 
+	if (!cds_ctx || !cds_ctx->pdev_txrx_ctx) {
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR, "txrx context is NULL");
+		QDF_ASSERT(0);
+		return;
+	}
+
 	hdd_ipa->resource_unloading = true;
 	HDD_IPA_LOG(QDF_TRACE_LEVEL_INFO, "%s: Disable FW RX PIPE", __func__);
 	ol_txrx_ipa_uc_set_active(cds_ctx->pdev_txrx_ctx, false, false);
@@ -4150,8 +4156,10 @@ static int __hdd_ipa_wlan_evt(hdd_adapter_t *adapter, uint8_t sta_id,
 	if (hdd_ipa_uc_is_enabled(hdd_ipa->hdd_ctx)) {
 		if (hdd_ipa->resource_loading) {
 			unsigned int pending_event_count;
-
 			struct ipa_uc_pending_event *pending_event = NULL;
+
+			HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR, "IPA resource %s inprogress",
+					hdd_ipa->resource_loading ? "load":"unload");
 
 			hdd_err("IPA resource %s inprogress",
 					hdd_ipa->resource_loading ? "load":"unload");
@@ -4170,7 +4178,8 @@ static int __hdd_ipa_wlan_evt(hdd_adapter_t *adapter, uint8_t sta_id,
 			}
 
 			if (!pending_event) {
-				hdd_err("Pending event memory alloc fail");
+				HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,
+				    "Pending event memory alloc fail");
 				qdf_mutex_release(&hdd_ipa->event_lock);
 				return -ENOMEM;
 			}

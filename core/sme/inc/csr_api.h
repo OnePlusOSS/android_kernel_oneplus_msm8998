@@ -1082,10 +1082,12 @@ enum sta_roam_policy_dfs_mode {
  * struct csr_sta_roam_policy_params - sta roam policy params for station
  * @dfs_mode: tell is DFS channels needs to be skipped while scanning
  * @skip_unsafe_channels: tells if unsafe channels needs to be skip in scanning
+ * @sap_operating_band: Opearting band for SAP
  */
 struct csr_sta_roam_policy_params {
 	enum sta_roam_policy_dfs_mode dfs_mode;
 	bool skip_unsafe_channels;
+	uint8_t sap_operating_band;
 };
 
 typedef struct tagCsrConfigParam {

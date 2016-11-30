@@ -698,6 +698,8 @@ QDF_STATUS csr_update_channel_list(tpAniSirGlobal pMac)
 	}
 
 	for (i = 0; i < pScan->base_channels.numChannels; i++) {
+		struct csr_sta_roam_policy_params *roam_policy =
+			&pMac->roam.configParam.sta_roam_policy;
 		/* Scan is not performed on DSRC channels*/
 		if (pScan->base_channels.channelList[i] >= CDS_MIN_11P_CHANNEL)
 			continue;
@@ -727,7 +729,13 @@ QDF_STATUS csr_update_channel_list(tpAniSirGlobal pMac)
 						break;
 					}
 				}
-				if (is_unsafe_chan) {
+				if ((is_unsafe_chan) &&
+				    ((CDS_IS_CHANNEL_24GHZ(channel) &&
+				      roam_policy->sap_operating_band ==
+					eCSR_BAND_24) ||
+					(CDS_IS_CHANNEL_5GHZ(channel) &&
+					 roam_policy->sap_operating_band ==
+					eCSR_BAND_5G))) {
 					QDF_TRACE(QDF_MODULE_ID_SME,
 					QDF_TRACE_LEVEL_INFO,
 					FL("ignoring unsafe channel %d"),

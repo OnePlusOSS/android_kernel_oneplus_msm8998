@@ -495,32 +495,41 @@ done:
 	return status;
 }
 
-static void dump_csr_command_info(tpAniSirGlobal pMac, tSmeCmd *pCmd)
+static void dump_csr_command_info(tpAniSirGlobal mac_ctx,
+		tSmeCmd *cmd)
 {
-	switch (pCmd->command) {
+	switch (cmd->command) {
 	case eSmeCommandScan:
-		sms_log(pMac, LOGE, " scan command reason is %d",
-			pCmd->u.scanCmd.reason);
+		sms_log(mac_ctx, LOGW, " scan command reason is %d session %d",
+			cmd->u.scanCmd.reason,
+			cmd->sessionId);
 		break;
 
 	case eSmeCommandRoam:
-		sms_log(pMac, LOGE, " roam command reason is %d",
-			pCmd->u.roamCmd.roamReason);
+		sms_log(mac_ctx, LOGW, " roam command reason is %d session %d",
+			cmd->u.roamCmd.roamReason,
+			cmd->sessionId);
 		break;
 
 	case eSmeCommandWmStatusChange:
-		sms_log(pMac, LOGE, " WMStatusChange command type is %d",
-			pCmd->u.wmStatusChangeCmd.Type);
+		sms_log(mac_ctx, LOGW,
+			" WMStatusChange command type is %d session %d",
+			cmd->u.wmStatusChangeCmd.Type,
+			cmd->sessionId);
 		break;
 
 	case eSmeCommandSetKey:
-		sms_log(pMac, LOGE, " setKey command auth(%d) enc(%d)",
-			pCmd->u.setKeyCmd.authType, pCmd->u.setKeyCmd.encType);
+		sms_log(mac_ctx, LOGW,
+			" setKey command auth(%d) enc(%d) session %d",
+			cmd->u.setKeyCmd.authType, cmd->u.setKeyCmd.encType,
+			cmd->sessionId);
 		break;
 
 	default:
-		sms_log(pMac, LOGE, " default: Unhandled command %d",
-			pCmd->command);
+		sms_log(mac_ctx, LOGW,
+			" default: Unhandled command %d session %d",
+			cmd->command,
+			cmd->sessionId);
 		break;
 	}
 }
@@ -828,6 +837,9 @@ static bool sme_process_command(tpAniSirGlobal pMac)
 	csr_ll_lock(&pMac->sme.smeCmdActiveList);
 	if (!csr_ll_is_list_empty(&pMac->sme.smeCmdActiveList,
 				 LL_ACCESS_NOLOCK)) {
+		pEntry = csr_ll_peek_head(&pMac->sme.smeCmdActiveList, false);
+		pCommand = GET_BASE_ADDR(pEntry, tSmeCmd, Link);
+		dump_csr_command_info(pMac, pCommand);
 		csr_ll_unlock(&pMac->sme.smeCmdActiveList);
 		goto process_scan_q;
 	}
@@ -915,6 +927,7 @@ sme_process_cmd:
 	MTRACE(qdf_trace(QDF_MODULE_ID_SME, TRACE_CODE_SME_COMMAND,
 			 pCommand->sessionId, pCommand->command));
 
+	dump_csr_command_info(pMac, pCommand);
 	switch (pCommand->command) {
 	case eSmeCommandScan:
 		csr_ll_unlock(&pMac->sme.smeCmdActiveList);

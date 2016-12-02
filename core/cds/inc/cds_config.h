@@ -81,7 +81,6 @@ struct ol_tx_sched_wrr_ac_specs_t {
  * struct cds_config_info - Place Holder for cds configuration
  * @max_station: Max station supported
  * @max_bssid: Max Bssid Supported
- * @frame_xln_reqd: frame transmission required
  * @powersave_offload_enabled: Indicate if powersave offload is enabled
  * @sta_maxlimod_dtim: station max listen interval
  * @sta_mod_dtim: station mode DTIM
@@ -129,7 +128,6 @@ struct ol_tx_sched_wrr_ac_specs_t {
 struct cds_config_info {
 	uint16_t max_station;
 	uint16_t max_bssid;
-	uint32_t frame_xln_reqd;
 	uint8_t powersave_offload_enabled;
 	uint8_t sta_maxlimod_dtim;
 	uint8_t sta_mod_dtim;

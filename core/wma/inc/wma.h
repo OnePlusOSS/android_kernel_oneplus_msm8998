@@ -1287,7 +1287,6 @@ struct extended_caps {
  * @recovery_event: wma FW recovery event
  * @max_station: max stations
  * @max_bssid: max bssid
- * @frame_xln_reqd: frame transmission required
  * @driver_type: driver type
  * @myaddr: current mac address
  * @hwaddr: mac address from EEPROM
@@ -1421,7 +1420,6 @@ typedef struct {
 	qdf_event_t recovery_event;
 	uint16_t max_station;
 	uint16_t max_bssid;
-	uint32_t frame_xln_reqd;
 	t_wma_drv_type driver_type;
 	uint8_t myaddr[IEEE80211_ADDR_LEN];
 	uint8_t hwaddr[IEEE80211_ADDR_LEN];

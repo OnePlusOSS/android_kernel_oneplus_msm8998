@@ -12805,6 +12805,11 @@ static int __wlan_hdd_cfg80211_disconnect(struct wiphy *wiphy,
 
 	status = wlan_hdd_validate_context(pHddCtx);
 
+	if (hdd_is_roaming_in_progress()) {
+		hdd_err("Roaming In Progress. Ignore!!!");
+		return -EAGAIN;
+	}
+
 	if (0 != status)
 		return status;
 
@@ -13609,7 +13614,7 @@ int __wlan_hdd_cfg80211_del_station(struct wiphy *wiphy,
 							DFS_CAC_IN_PROGRESS)
 						goto fn_end;
 
-					qdf_event_reset(&hapd_state->qdf_event);
+					qdf_event_reset(&hapd_state->qdf_sta_disassoc_event);
 					hdd_softap_sta_disassoc(pAdapter,
 								pDelStaParams);
 					qdf_status =
@@ -13620,7 +13625,7 @@ int __wlan_hdd_cfg80211_del_station(struct wiphy *wiphy,
 						isDeauthInProgress = true;
 						qdf_status =
 							qdf_wait_single_event(
-								&hapd_state->qdf_event,
+								&hapd_state->qdf_sta_disassoc_event,
 								1000);
 						if (!QDF_IS_STATUS_SUCCESS(
 								qdf_status))
@@ -13668,7 +13673,7 @@ int __wlan_hdd_cfg80211_del_station(struct wiphy *wiphy,
 			if (pHddCtx->dev_dfs_cac_status == DFS_CAC_IN_PROGRESS)
 				goto fn_end;
 
-			qdf_event_reset(&hapd_state->qdf_event);
+			qdf_event_reset(&hapd_state->qdf_sta_disassoc_event);
 			sme_send_disassoc_req_frame(WLAN_HDD_GET_HAL_CTX
 					(pAdapter), pAdapter->sessionId,
 					(uint8_t *)&pDelStaParams->peerMacAddr,
@@ -13684,7 +13689,7 @@ int __wlan_hdd_cfg80211_del_station(struct wiphy *wiphy,
 				return -ENOENT;
 			} else {
 				qdf_status = qdf_wait_single_event(
-							&hapd_state->qdf_event,
+							&hapd_state->qdf_sta_disassoc_event,
 							1000);
 				if (!QDF_IS_STATUS_SUCCESS(qdf_status))
 					hdd_err("Deauth wait time expired");

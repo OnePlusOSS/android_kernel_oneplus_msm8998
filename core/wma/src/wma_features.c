@@ -3873,10 +3873,11 @@ void wma_enable_disable_wakeup_event(WMA_HANDLE handle,
 /**
  * wma_enable_wow_in_fw() - wnable wow in fw
  * @wma: wma handle
+ * @wow_flags: bitmap of WMI WOW flags to pass to FW
  *
  * Return: QDF status
  */
-QDF_STATUS wma_enable_wow_in_fw(WMA_HANDLE handle)
+QDF_STATUS wma_enable_wow_in_fw(WMA_HANDLE handle, uint32_t wow_flags)
 {
 	tp_wma_handle wma = handle;
 	int ret;
@@ -3912,6 +3913,7 @@ QDF_STATUS wma_enable_wow_in_fw(WMA_HANDLE handle)
 
 	param.enable = true;
 	param.can_suspend_link = htc_can_suspend_link(wma->htc_handle);
+	param.flags = wow_flags;
 	ret = wmi_unified_wow_enable_send(wma->wmi_handle, &param,
 				   WMA_WILDCARD_PDEV_ID);
 	if (ret) {
@@ -6446,13 +6448,14 @@ failure:
 /**
  * __wma_bus_suspend(): handles bus suspend for wma
  * @type: is this suspend part of runtime suspend or system suspend?
+ * @wow_flags: bitmap of WMI WOW flags to pass to FW
  *
  * Bails if a scan is in progress.
  * Calls the appropriate handlers based on configuration and event.
  *
  * Return: 0 for success or error code
  */
-static int __wma_bus_suspend(enum qdf_suspend_type type)
+static int __wma_bus_suspend(enum qdf_suspend_type type, uint32_t wow_flags)
 {
 	WMA_HANDLE handle = cds_get_context(QDF_MODULE_ID_WMA);
 	if (NULL == handle) {
@@ -6476,7 +6479,7 @@ static int __wma_bus_suspend(enum qdf_suspend_type type)
 				wma_is_wow_mode_selected(handle));
 
 	if (wma_is_wow_mode_selected(handle)) {
-		QDF_STATUS status = wma_enable_wow_in_fw(handle);
+		QDF_STATUS status = wma_enable_wow_in_fw(handle, wow_flags);
 		return qdf_status_to_os_return(status);
 	}
 
@@ -6485,6 +6488,7 @@ static int __wma_bus_suspend(enum qdf_suspend_type type)
 
 /**
  * wma_runtime_suspend() - handles runtime suspend request from hdd
+ * @wow_flags: bitmap of WMI WOW flags to pass to FW
  *
  * Calls the appropriate handler based on configuration and event.
  * Last busy marking should prevent race conditions between processing
@@ -6496,22 +6500,23 @@ static int __wma_bus_suspend(enum qdf_suspend_type type)
  *
  * Return: 0 for success or error code
  */
-int wma_runtime_suspend(void)
+int wma_runtime_suspend(uint32_t wow_flags)
 {
-	return __wma_bus_suspend(QDF_RUNTIME_SUSPEND);
+	return __wma_bus_suspend(QDF_RUNTIME_SUSPEND, wow_flags);
 }
 
 /**
  * wma_bus_suspend() - handles bus suspend request from hdd
+ * @wow_flags: bitmap of WMI WOW flags to pass to FW
  *
  * Calls the appropriate handler based on configuration and event
  *
  * Return: 0 for success or error code
  */
-int wma_bus_suspend(void)
+int wma_bus_suspend(uint32_t wow_flags)
 {
 
-	return __wma_bus_suspend(QDF_SYSTEM_SUSPEND);
+	return __wma_bus_suspend(QDF_SYSTEM_SUSPEND, wow_flags);
 }
 
 /**
@@ -8416,6 +8421,90 @@ int wma_encrypt_decrypt_msg_handler(void *handle, uint8_t *data,
 
 	pmac->sme.encrypt_decrypt_cb(pmac->hHdd, &encrypt_decrypt_rsp_params);
 
+	return 0;
+}
+#endif
+
+/**
+ * wma_unified_power_debug_stats_event_handler() - WMA handler function to
+ * handle Power stats event from firmware
+ * @handle: Pointer to wma handle
+ * @cmd_param_info: Pointer to Power stats event TLV
+ * @len: Length of the cmd_param_info
+ *
+ * Return: 0 on success, error number otherwise
+ */
+#ifdef WLAN_POWER_DEBUGFS
+int wma_unified_power_debug_stats_event_handler(void *handle,
+			uint8_t *cmd_param_info, uint32_t len)
+{
+	WMI_PDEV_CHIP_POWER_STATS_EVENTID_param_tlvs *param_tlvs;
+	struct power_stats_response *power_stats_results;
+	wmi_pdev_chip_power_stats_event_fixed_param *param_buf;
+	uint32_t power_stats_len, stats_registers_len, *debug_registers;
+
+	tpAniSirGlobal mac = (tpAniSirGlobal)cds_get_context(QDF_MODULE_ID_PE);
+	param_tlvs =
+		(WMI_PDEV_CHIP_POWER_STATS_EVENTID_param_tlvs *) cmd_param_info;
+
+	param_buf = (wmi_pdev_chip_power_stats_event_fixed_param *)
+		param_tlvs->fixed_param;
+	if (!mac || !mac->sme.power_stats_resp_callback) {
+		WMA_LOGD("%s: NULL mac ptr or HDD callback is null", __func__);
+		return -EINVAL;
+	}
+
+	if (!param_buf) {
+		WMA_LOGD("%s: NULL power stats event fixed param", __func__);
+		return -EINVAL;
+	}
+
+	debug_registers = param_tlvs->debug_registers;
+	stats_registers_len =
+		(sizeof(uint32_t) * param_buf->num_debug_register);
+	power_stats_len = stats_registers_len + sizeof(*power_stats_results);
+	power_stats_results = qdf_mem_malloc(power_stats_len);
+	if (!power_stats_results) {
+		WMA_LOGD("%s: could not allocate mem for power stats results",
+				__func__);
+		return -ENOMEM;
+	}
+	WMA_LOGD("Cumulative sleep time %d cumulative total on time %d deep sleep enter counter %d last deep sleep enter tstamp ts %d debug registers fmt %d num debug register %d",
+			param_buf->cumulative_sleep_time_ms,
+			param_buf->cumulative_total_on_time_ms,
+			param_buf->deep_sleep_enter_counter,
+			param_buf->last_deep_sleep_enter_tstamp_ms,
+			param_buf->debug_register_fmt,
+			param_buf->num_debug_register);
+
+	power_stats_results->cumulative_sleep_time_ms
+		= param_buf->cumulative_sleep_time_ms;
+	power_stats_results->cumulative_total_on_time_ms
+		= param_buf->cumulative_total_on_time_ms;
+	power_stats_results->deep_sleep_enter_counter
+		= param_buf->deep_sleep_enter_counter;
+	power_stats_results->last_deep_sleep_enter_tstamp_ms
+		= param_buf->last_deep_sleep_enter_tstamp_ms;
+	power_stats_results->debug_register_fmt
+		= param_buf->debug_register_fmt;
+	power_stats_results->num_debug_register
+		= param_buf->num_debug_register;
+
+	power_stats_results->debug_registers
+		= (uint32_t *)(power_stats_results + 1);
+
+	qdf_mem_copy(power_stats_results->debug_registers,
+			debug_registers, stats_registers_len);
+
+	mac->sme.power_stats_resp_callback(power_stats_results,
+			mac->sme.power_debug_stats_context);
+	qdf_mem_free(power_stats_results);
+	return 0;
+}
+#else
+int wma_unified_power_debug_stats_event_handler(void *handle,
+		uint8_t *cmd_param_info, uint32_t len)
+{
 	return 0;
 }
 #endif

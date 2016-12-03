@@ -588,11 +588,6 @@ int wlan_hdd_validate_context(hdd_context_t *hdd_ctx)
 		return -EAGAIN;
 	}
 
-	if (hdd_is_roaming_in_progress()) {
-		hdd_err("Roaming In Progress. Ignore!!!");
-		return -EAGAIN;
-	}
-
 	return 0;
 }
 
@@ -3796,6 +3791,14 @@ QDF_STATUS hdd_reset_all_adapters(hdd_context_t *hdd_ctx)
 			clear_bit(WMM_INIT_DONE, &adapter->event_flags);
 		}
 
+		/*
+		 * If adapter is SAP, set session ID to invalid since SAP
+		 * session will be cleanup during SSR.
+		 */
+		if (adapter->device_mode == QDF_SAP_MODE)
+			wlansap_set_invalid_session(
+				WLAN_HDD_GET_SAP_CTX_PTR(adapter));
+
 		status = hdd_get_next_adapter(hdd_ctx, adapterNode, &pNext);
 		adapterNode = pNext;
 	}
@@ -4658,7 +4661,6 @@ out:
 	return ret;
 }
 
-#ifdef WLAN_FEATURE_HOLD_RX_WAKELOCK
 /**
  * hdd_rx_wake_lock_destroy() - Destroy RX wakelock
  * @hdd_ctx:	HDD context.
@@ -4684,10 +4686,6 @@ static void hdd_rx_wake_lock_create(hdd_context_t *hdd_ctx)
 {
 	qdf_wake_lock_create(&hdd_ctx->rx_wake_lock, "qcom_rx_wakelock");
 }
-#else
-static void hdd_rx_wake_lock_destroy(hdd_context_t *hdd_ctx) { }
-static void hdd_rx_wake_lock_create(hdd_context_t *hdd_ctx) { }
-#endif
 
 /**
  * hdd_roc_context_init() - Init ROC context
@@ -7379,12 +7377,12 @@ static void hdd_initialize_mac_address(hdd_context_t *hdd_ctx)
 
 	hdd_warn("can't update mac config via wlan_mac.bin, using MAC from ini file or auto-gen");
 
-	if (hdd_ctx->update_mac_addr_to_fw)
+	if (hdd_ctx->update_mac_addr_to_fw) {
 		ret = hdd_update_mac_addr_to_fw(hdd_ctx);
-
-	if (ret != 0) {
-		hdd_err("MAC address out-of-sync, ret:%d", ret);
-		QDF_ASSERT(ret);
+		if (ret != 0) {
+			hdd_err("MAC address out-of-sync, ret:%d", ret);
+			QDF_ASSERT(ret);
+		}
 	}
 }
 
@@ -7898,7 +7896,7 @@ int hdd_wlan_stop_modules(hdd_context_t *hdd_ctx)
 
 	ol_cds_free();
 
-	if (!cds_is_driver_recovering()) {
+	if (!cds_is_driver_recovering() && !cds_is_driver_unloading()) {
 		ret = pld_power_off(qdf_ctx->dev);
 		if (ret)
 			hdd_err("CNSS power down failed put device into Low power mode:%d",
@@ -8979,6 +8977,7 @@ void wlan_hdd_start_sap(hdd_adapter_t *ap_adapter)
 		goto end;
 	}
 
+	qdf_event_reset(&hostapd_state->qdf_event);
 	if (wlansap_start_bss(hdd_ap_ctx->sapContext, hdd_hostapd_sap_event_cb,
 			      &hdd_ap_ctx->sapConfig,
 			      ap_adapter->dev)

@@ -7661,6 +7661,12 @@ QDF_STATUS sme_get_cfg_valid_channels(tHalHandle hHal, uint8_t *aValidChannels,
 	return status;
 }
 
+void sme_set_cc_src(tHalHandle hHal, enum country_src cc_src)
+{
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hHal);
+
+	mac_ctx->reg_hint_src = cc_src;
+}
 /* ---------------------------------------------------------------------------
 
     \fn sme_handle_change_country_code
@@ -7816,23 +7822,25 @@ sme_handle_generic_change_country_code(tpAniSirGlobal mac_ctx,
 
 	sms_log(mac_ctx, LOG1, FL(" called"));
 
-	if (!mac_ctx->is_11d_hint) {
-		if (user_ctry_priority)
-			mac_ctx->roam.configParam.Is11dSupportEnabled = false;
-		else {
-			if (mac_ctx->roam.configParam.Is11dSupportEnabled &&
-			    mac_ctx->scan.countryCode11d[0] != 0) {
+	if (SOURCE_11D != mac_ctx->reg_hint_src) {
+		if (SOURCE_DRIVER != mac_ctx->reg_hint_src) {
+			if (user_ctry_priority)
+				mac_ctx->roam.configParam.Is11dSupportEnabled =
+					false;
+			else {
+				if (mac_ctx->roam.configParam.Is11dSupportEnabled &&
+				    mac_ctx->scan.countryCode11d[0] != 0) {
 
-				sms_log(mac_ctx, LOGW,
-					FL("restore 11d"));
+					sms_log(mac_ctx, LOGW,
+						FL("restore 11d"));
 
-				status = csr_get_regulatory_domain_for_country(
-					mac_ctx,
-					mac_ctx->scan.countryCode11d,
-					&reg_domain_id,
-					SOURCE_11D);
-
-				return QDF_STATUS_E_FAILURE;
+					status = csr_get_regulatory_domain_for_country(
+						mac_ctx,
+						mac_ctx->scan.countryCode11d,
+						&reg_domain_id,
+						SOURCE_11D);
+					return QDF_STATUS_E_FAILURE;
+				}
 			}
 		}
 	} else {
@@ -7844,7 +7852,6 @@ sme_handle_generic_change_country_code(tpAniSirGlobal mac_ctx,
 			qdf_mem_copy(mac_ctx->scan.countryCode11d,
 				     msg->countryCode,
 				     WNI_CFG_COUNTRY_CODE_LEN);
-		mac_ctx->is_11d_hint = false;
 	}
 
 	qdf_mem_copy(mac_ctx->scan.countryCodeCurrent,
@@ -7868,6 +7875,8 @@ sme_handle_generic_change_country_code(tpAniSirGlobal mac_ctx,
 	 * Country IE
 	 */
 	mac_ctx->scan.curScanType = eSIR_ACTIVE_SCAN;
+
+	mac_ctx->reg_hint_src = SOURCE_UNKNOWN;
 
 	sme_disconnect_connected_sessions(mac_ctx);
 
@@ -14323,6 +14332,46 @@ QDF_STATUS sme_reset_link_layer_stats_ind_cb(tHalHandle h_hal)
 
 
 #endif /* WLAN_FEATURE_LINK_LAYER_STATS */
+
+#ifdef WLAN_POWER_DEBUGFS
+/**
+ * sme_power_debug_stats_req() - SME API to collect Power debug stats
+ * @callback_fn: Pointer to the callback function for Power stats event
+ * @power_stats_context: Pointer to context
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS sme_power_debug_stats_req(tHalHandle hal, void (*callback_fn)
+				(struct power_stats_response *response,
+				void *context), void *power_stats_context)
+{
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+	cds_msg_t msg;
+
+	status = sme_acquire_global_lock(&mac_ctx->sme);
+	if (QDF_IS_STATUS_SUCCESS(status)) {
+		if (!callback_fn) {
+			sms_log(mac_ctx, LOGE,
+				FL("Indication callback did not registered"));
+			sme_release_global_lock(&mac_ctx->sme);
+			return QDF_STATUS_E_FAILURE;
+		}
+
+		mac_ctx->sme.power_debug_stats_context = power_stats_context;
+		mac_ctx->sme.power_stats_resp_callback = callback_fn;
+		msg.bodyptr = NULL;
+		msg.type = WMA_POWER_DEBUG_STATS_REQ;
+		status = cds_mq_post_message(QDF_MODULE_ID_WMA, &msg);
+		if (!QDF_IS_STATUS_SUCCESS(status)) {
+			sms_log(mac_ctx, LOGE,
+				FL("not able to post WDA_POWER_DEBUG_STATS_REQ"));
+		}
+		sme_release_global_lock(&mac_ctx->sme);
+	}
+	return status;
+}
+#endif
 
 /**
  * sme_fw_mem_dump_register_cb() - Register fw memory dump callback

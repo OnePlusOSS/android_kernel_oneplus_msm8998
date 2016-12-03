@@ -198,6 +198,26 @@ void hdd_softap_tx_resume_cb(void *adapter_context, bool tx_resume)
 
 	return;
 }
+
+static inline struct sk_buff *hdd_skb_orphan(hdd_adapter_t *pAdapter,
+		struct sk_buff *skb)
+{
+	if (pAdapter->tx_flow_low_watermark > 0)
+		skb_orphan(skb);
+	else {
+		skb = skb_unshare(skb, GFP_ATOMIC);
+	}
+
+	return skb;
+}
+
+#else
+
+static inline struct sk_buff *hdd_skb_orphan(hdd_adapter_t *pAdapter,
+		struct sk_buff *skb)
+{
+	return skb_unshare(skb, GFP_ATOMIC);
+}
 #endif /* QCA_LL_LEGACY_TX_FLOW_CONTROL */
 
 /**
@@ -317,10 +337,30 @@ static int __hdd_softap_hard_start_xmit(struct sk_buff *skb,
 #if defined (IPA_OFFLOAD)
 	if (!qdf_nbuf_ipa_owned_get(skb)) {
 #endif
+
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(3, 19, 0))
+		/*
+		* The TCP TX throttling logic is changed a little after
+		* 3.19-rc1 kernel, the TCP sending limit will be smaller,
+		* which will throttle the TCP packets to the host driver.
+		* The TCP UP LINK throughput will drop heavily. In order to
+		* fix this issue, need to orphan the socket buffer asap, which
+		* will call skb's destructor to notify the TCP stack that the
+		* SKB buffer is unowned. And then the TCP stack will pump more
+		* packets to host driver.
+		*
+		* The TX packets might be dropped for UDP case in the iperf
+		* testing. So need to be protected by follow control.
+		*/
+		skb = hdd_skb_orphan(pAdapter, skb);
+#else
 		/* Check if the buffer has enough header room */
 		skb = skb_unshare(skb, GFP_ATOMIC);
+#endif
+
 		if (!skb)
 			goto drop_pkt_accounting;
+
 #if defined (IPA_OFFLOAD)
 	}
 #endif
@@ -621,13 +661,18 @@ QDF_STATUS hdd_softap_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 		sizeof(qdf_nbuf_data(rxBuf)), QDF_RX));
 
 	skb->protocol = eth_type_trans(skb, skb->dev);
-#ifdef WLAN_FEATURE_HOLD_RX_WAKELOCK
-	cds_host_diag_log_work(&pHddCtx->rx_wake_lock,
-			       HDD_WAKE_LOCK_DURATION,
-			       WIFI_POWER_EVENT_WAKELOCK_HOLD_RX);
-	qdf_wake_lock_timeout_acquire(&pHddCtx->rx_wake_lock,
-				      HDD_WAKE_LOCK_DURATION);
-#endif
+
+	/* hold configurable wakelock for unicast traffic */
+	if (pHddCtx->config->rx_wakelock_timeout &&
+	    skb->pkt_type != PACKET_BROADCAST &&
+	    skb->pkt_type != PACKET_MULTICAST) {
+		cds_host_diag_log_work(&pHddCtx->rx_wake_lock,
+				       pHddCtx->config->rx_wakelock_timeout,
+				       WIFI_POWER_EVENT_WAKELOCK_HOLD_RX);
+		qdf_wake_lock_timeout_acquire(&pHddCtx->rx_wake_lock,
+					      pHddCtx->config->
+						      rx_wakelock_timeout);
+	}
 
 	/* Remove SKB from internal tracking table before submitting
 	 * it to stack

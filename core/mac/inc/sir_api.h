@@ -1552,6 +1552,23 @@ typedef struct sSirSmeDisassocCnf {
 } tSirSmeDisassocCnf, *tpSirSmeDisassocCnf,
 	tSirSmeDeauthCnf, *tpSirSmeDeauthCnf;
 
+/**
+ * struct sir_sme_discon_done_ind  - disconnect done indiaction
+ * @message_type: msg type
+ * @length: length of msg
+ * @session_id: session id of the indication
+ * @reason_code: reason for disconnect indication
+ * @peer_mac: peer mac
+ */
+struct sir_sme_discon_done_ind {
+	uint16_t           message_type;
+	uint16_t           length;
+	uint8_t            session_id;
+	tSirResultCodes    reason_code;
+	tSirMacAddr        peer_mac;
+};
+
+
 /* / Definition for Deauthetication request */
 typedef struct sSirSmeDeauthReq {
 	uint16_t messageType;   /* eWNI_SME_DEAUTH_REQ */
@@ -4829,6 +4846,28 @@ typedef struct {
 	uint32_t statsClearReqMask;
 	uint8_t stopReq;
 } tSirLLStatsClearReq, *tpSirLLStatsClearReq;
+
+#ifdef WLAN_POWER_DEBUGFS
+/**
+ * struct power_stats_response - Power stats response
+ * @cumulative_sleep_time_ms: cumulative sleep time in ms
+ * @cumulative_total_on_time_ms: total awake time in ms
+ * @deep_sleep_enter_counter: deep sleep enter counter
+ * @last_deep_sleep_enter_tstamp_ms: last deep sleep enter timestamp
+ * @debug_register_fmt: debug registers format
+ * @num_debug_register: number of debug registers
+ * @debug_registers: Pointer to the debug registers buffer
+ */
+struct power_stats_response {
+	uint32_t cumulative_sleep_time_ms;
+	uint32_t cumulative_total_on_time_ms;
+	uint32_t deep_sleep_enter_counter;
+	uint32_t last_deep_sleep_enter_tstamp_ms;
+	uint32_t debug_register_fmt;
+	uint32_t num_debug_register;
+	uint32_t *debug_registers;
+};
+#endif
 
 typedef struct {
 	uint8_t oui[WIFI_SCANNING_MAC_OUI_LENGTH];

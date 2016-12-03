@@ -27,6 +27,8 @@
 #if !defined(__CDS_CONFIG_H)
 #define __CDS_CONFIG_H
 
+#define TX_WMM_AC_NUM	4
+
 /**
  * enum driver_type - Indicate the driver type to the cds, and based on this
  * do appropriate initialization.
@@ -49,6 +51,30 @@ enum cfg_sub_20_channel_width {
 	WLAN_SUB_20_CH_WIDTH_NONE = 0,
 	WLAN_SUB_20_CH_WIDTH_5 = 1,
 	WLAN_SUB_20_CH_WIDTH_10 = 2,
+};
+
+/**
+ * struct ol_tx_sched_wrr_ac_specs_t - the wrr ac specs params structure
+ * @wrr_skip_weight: map to ol_tx_sched_wrr_adv_category_info_t.specs.
+ *                            wrr_skip_weight
+ * @credit_threshold: map to ol_tx_sched_wrr_adv_category_info_t.specs.
+ *                            credit_threshold
+ * @send_limit: map to ol_tx_sched_wrr_adv_category_info_t.specs.
+ *                            send_limit
+ * @credit_reserve: map to ol_tx_sched_wrr_adv_category_info_t.specs.
+ *                            credit_reserve
+ * @discard_weight: map to ol_tx_sched_wrr_adv_category_info_t.specs.
+ *                            discard_weight
+ *
+ * This structure is for wrr ac specs params set from user, it will update
+ * its content corresponding to the ol_tx_sched_wrr_adv_category_info_t.specs.
+ */
+struct ol_tx_sched_wrr_ac_specs_t {
+	int wrr_skip_weight;
+	uint32_t credit_threshold;
+	uint16_t send_limit;
+	int credit_reserve;
+	int discard_weight;
 };
 
 /**
@@ -150,5 +176,7 @@ struct cds_config_info {
 	bool flow_steering_enabled;
 	bool self_recovery_enabled;
 	bool fw_timeout_crash;
+
+	struct ol_tx_sched_wrr_ac_specs_t ac_specs[TX_WMM_AC_NUM];
 };
 #endif /* !defined( __CDS_CONFIG_H ) */

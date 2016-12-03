@@ -183,7 +183,6 @@ struct qca_napi_cpu {
  *
  * A variable of this type will be stored in hif module context.
  */
-
 struct qca_napi_data {
 	spinlock_t           lock;
 	uint32_t             state;
@@ -195,6 +194,7 @@ struct qca_napi_data {
 	struct qca_napi_cpu  napi_cpu[NR_CPUS];
 	int                  lilcl_head, bigcl_head;
 	enum qca_napi_tput_state napi_mode;
+	struct notifier_block hnc_cpu_notifier;
 };
 
 /**
@@ -225,6 +225,7 @@ struct hif_target_info {
 	uint32_t target_type;
 	uint32_t target_revision;
 	uint32_t soc_version;
+	char *hw_name;
 };
 
 struct hif_opaque_softc {

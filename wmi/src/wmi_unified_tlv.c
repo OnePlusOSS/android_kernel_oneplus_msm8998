@@ -880,6 +880,7 @@ QDF_STATUS send_wow_enable_cmd_tlv(wmi_unified_t wmi_handle,
 		cmd->pause_iface_config = WOW_IFACE_PAUSE_ENABLED;
 	else
 		cmd->pause_iface_config = WOW_IFACE_PAUSE_DISABLED;
+	cmd->flags = param->flags;
 
 	WMI_LOGI("suspend type: %s",
 		cmd->pause_iface_config == WOW_IFACE_PAUSE_ENABLED ?
@@ -3720,6 +3721,7 @@ QDF_STATUS send_setup_install_key_cmd_tlv(wmi_unified_t wmi_handle,
  *
  * Return: QDF_STATUS_SUCCESS for success or error code
  */
+static
 QDF_STATUS send_encrypt_decrypt_send_cmd_tlv(wmi_unified_t wmi_handle,
 		struct encrypt_decrypt_req_params *encrypt_decrypt_params)
 {
@@ -4607,6 +4609,7 @@ QDF_STATUS send_roam_scan_offload_rssi_thresh_cmd_tlv(wmi_unified_t wmi_handle,
  *
  * Return: QDF_STATUS_SUCCESS on success and QDF failure reason code for failure
  */
+static
 QDF_STATUS send_adapt_dwelltime_params_cmd_tlv(wmi_unified_t wmi_handle,
 		struct wmi_adaptive_dwelltime_params *dwelltime_params)
 {
@@ -5348,6 +5351,7 @@ QDF_STATUS send_stop_extscan_cmd_tlv(wmi_unified_t wmi_handle,
  *
  * Return: CDF Status.
  */
+static
 QDF_STATUS wmi_get_buf_extscan_start_cmd(wmi_unified_t wmi_handle,
 			 struct wifi_scan_cmd_req_params *pstart,
 			 wmi_buf_t *buf, int *buf_len)
@@ -9153,7 +9157,7 @@ QDF_STATUS send_process_set_ie_info_cmd_tlv(wmi_unified_t wmi_handle,
 	return ret;
 }
 
-
+static
 void wmi_copy_resource_config(wmi_resource_config *resource_cfg,
 				target_resource_config *tgt_res_cfg)
 {
@@ -9878,6 +9882,7 @@ QDF_STATUS send_pdev_set_hw_mode_cmd_tlv(wmi_unified_t wmi_handle,
  *
  * Return: QDF_STATUS. 0 on success.
  */
+static
 QDF_STATUS send_pdev_set_dual_mac_config_cmd_tlv(wmi_unified_t wmi_handle,
 		struct wmi_dual_mac_config *msg)
 {
@@ -10334,6 +10339,7 @@ QDF_STATUS send_process_roam_synch_complete_cmd_tlv(wmi_unified_t wmi_handle,
  *
  * Return: CDF STATUS
  */
+static
 QDF_STATUS send_fw_test_cmd_tlv(wmi_unified_t wmi_handle,
 			       struct set_fwtest_params *wmi_fwtest)
 {
@@ -10955,6 +10961,7 @@ QDF_STATUS send_get_buf_extscan_hotlist_cmd_tlv(wmi_unified_t wmi_handle,
  *
  * Return: QDF_STATUS_SUCCESS on success, QDF_STATUS_E_** on error
  */
+static
 QDF_STATUS send_power_dbg_cmd_tlv(wmi_unified_t wmi_handle,
 				struct wmi_power_dbg_params *param)
 {
@@ -11128,6 +11135,7 @@ static QDF_STATUS init_cmd_send_tlv(wmi_unified_t wmi_handle,
  * Return: None
  */
 #ifdef WMI_TLV_AND_NON_TLV_SUPPORT
+static
 void save_service_bitmap_tlv(wmi_unified_t wmi_handle, void *evt_buf)
 {
 	WMI_SERVICE_READY_EVENTID_param_tlvs *param_buf;
@@ -11138,6 +11146,7 @@ void save_service_bitmap_tlv(wmi_unified_t wmi_handle, void *evt_buf)
 			(WMI_SERVICE_BM_SIZE * sizeof(uint32_t)));
 }
 #else
+static
 void save_service_bitmap_tlv(wmi_unified_t wmi_handle, void *evt_buf)
 {
 	return;

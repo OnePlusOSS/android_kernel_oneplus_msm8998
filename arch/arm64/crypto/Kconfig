@@ -68,4 +68,11 @@ config CRYPTO_CRC32_ARM64
 	tristate "CRC32 and CRC32C using optional ARMv8 instructions"
 	depends on ARM64
 	select CRYPTO_HASH
+
+config CRYPTO_CHACHA20_NEON
+	tristate "NEON accelerated ChaCha20 symmetric cipher"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_CHACHA20
+
 endif

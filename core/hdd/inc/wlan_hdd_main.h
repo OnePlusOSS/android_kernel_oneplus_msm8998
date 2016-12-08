@@ -1999,5 +1999,14 @@ static inline int wlan_hdd_validate_session_id(u8 session_id)
 
 bool hdd_is_roaming_in_progress(void);
 void hdd_set_roaming_in_progress(bool value);
-
+/**
+ * hdd_check_for_opened_interfaces()- Check for interface up
+ * @hdd_ctx: HDD context
+ *
+ * check  if there are any wlan interfaces before starting the timer
+ * to close the modules
+ *
+ * Return: 0 if interface was opened else false
+ */
+bool hdd_check_for_opened_interfaces(hdd_context_t *hdd_ctx);
 #endif /* end #if !defined(WLAN_HDD_MAIN_H) */

@@ -12032,7 +12032,8 @@ QDF_STATUS sme_notify_ht2040_mode(tHalHandle hHal, uint16_t staId,
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	pHtOpMode->staId = staId,
+	pHtOpMode->dot11_mode = sme_get_wni_dot11_mode(hHal);
+	pHtOpMode->staId = staId;
 	qdf_mem_copy(pHtOpMode->peer_mac, macAddrSTA.bytes,
 		     sizeof(tSirMacAddr));
 	pHtOpMode->smesessionId = sessionId;

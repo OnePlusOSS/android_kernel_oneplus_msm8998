@@ -2595,11 +2595,32 @@ int wma_mgmt_tx_bundle_completion_handler(void *handle, uint8_t *buf,
 void wma_process_update_opmode(tp_wma_handle wma_handle,
 			       tUpdateVHTOpMode *update_vht_opmode)
 {
-	WMA_LOGD("%s: opMode = %d", __func__, update_vht_opmode->opMode);
+	struct wma_txrx_node *iface;
+	uint16_t chan_mode;
+
+
+	iface = &wma_handle->interfaces[update_vht_opmode->smesessionId];
+	if (iface == NULL)
+		return;
+
+	chan_mode = wma_chan_phy_mode(cds_freq_to_chan(iface->mhz),
+				update_vht_opmode->opMode,
+				update_vht_opmode->dot11_mode);
+	if (MODE_UNKNOWN == chan_mode)
+		return;
+
+	WMA_LOGD("%s: opMode = %d, chanMode = %d, dot11mode = %d ",
+			__func__,
+			update_vht_opmode->opMode, chan_mode,
+			update_vht_opmode->dot11_mode);
 
 	wma_set_peer_param(wma_handle, update_vht_opmode->peer_mac,
-			   WMI_PEER_CHWIDTH, update_vht_opmode->opMode,
-			   update_vht_opmode->smesessionId);
+			WMI_PEER_PHYMODE, chan_mode,
+			update_vht_opmode->smesessionId);
+
+	wma_set_peer_param(wma_handle, update_vht_opmode->peer_mac,
+			WMI_PEER_CHWIDTH, update_vht_opmode->opMode,
+			update_vht_opmode->smesessionId);
 }
 
 /**

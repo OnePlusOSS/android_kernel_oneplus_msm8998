@@ -4435,6 +4435,7 @@ static void __lim_process_sme_set_ht2040_mode(tpAniSirGlobal pMac,
 			qdf_mem_copy(pHtOpMode->peer_mac, &pStaDs->staAddr,
 				     sizeof(tSirMacAddr));
 			pHtOpMode->smesessionId = sessionId;
+			pHtOpMode->dot11_mode = psessionEntry->dot11mode;
 
 			msg.type = WMA_UPDATE_OP_MODE;
 			msg.reserved = 0;

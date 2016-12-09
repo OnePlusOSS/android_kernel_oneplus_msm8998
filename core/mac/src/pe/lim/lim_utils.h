@@ -455,8 +455,8 @@ uint32_t lim_get_max_rate_flags(tpAniSirGlobal mac_ctx, tpDphHashNode sta_ds);
 
 bool lim_check_vht_op_mode_change(tpAniSirGlobal pMac,
 		tpPESession psessionEntry,
-		uint8_t chanWidth, uint8_t staId,
-		uint8_t *peerMac);
+		uint8_t chanWidth, uint8_t dot11_mode,
+		uint8_t staId, uint8_t *peerMac);
 bool lim_set_nss_change(tpAniSirGlobal pMac, tpPESession psessionEntry,
 		uint8_t rxNss, uint8_t staId, uint8_t *peerMac);
 bool lim_check_membership_user_position(tpAniSirGlobal pMac,

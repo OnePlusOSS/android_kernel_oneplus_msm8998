@@ -569,8 +569,9 @@ static void __lim_process_operating_mode_action_frame(tpAniSirGlobal mac_ctx,
 				eHT_CHANNEL_WIDTH_20MHZ;
 			ch_bw = eHT_CHANNEL_WIDTH_20MHZ;
 		}
+
 		lim_check_vht_op_mode_change(mac_ctx, session, ch_bw,
-					     sta_ptr->staIndex, mac_hdr->sa);
+			session->dot11mode, sta_ptr->staIndex, mac_hdr->sa);
 	}
 
 	if (sta_ptr->vhtSupportedRxNss !=

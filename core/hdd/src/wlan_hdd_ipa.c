@@ -34,6 +34,9 @@
 
 #ifdef IPA_OFFLOAD
 
+/* denote that this file does not allow legacy hddLog */
+#define HDD_DISALLOW_LEGACY_HDDLOG 1
+
 /* Include Files */
 #include <linux/ipa.h>
 #include <wlan_hdd_includes.h>
@@ -55,6 +58,7 @@
 
 #include "wma.h"
 #include "wma_api.h"
+#include "wal_rx_desc.h"
 
 #include "cdp_txrx_ipa.h"
 
@@ -246,7 +250,6 @@ struct hdd_ipa_iface_context {
 	qdf_spinlock_t interface_lock;
 	uint32_t ifa_address;
 	struct hdd_ipa_iface_stats stats;
-	uint32_t offload_enabled;
 };
 
 struct hdd_ipa_stats {
@@ -347,7 +350,6 @@ struct uc_op_work_struct {
 	struct work_struct work;
 	struct op_msg_type *msg;
 };
-static uint8_t vdev_to_iface[CSR_ROAM_SESSION_MAX];
 
 /**
  * struct uc_rt_debug_info
@@ -448,6 +450,9 @@ struct hdd_ipa_priv {
 	/* IPA UC doorbell registers paddr */
 	qdf_dma_addr_t tx_comp_doorbell_paddr;
 	qdf_dma_addr_t rx_ready_doorbell_paddr;
+
+	uint8_t vdev_to_iface[CSR_ROAM_SESSION_MAX];
+	bool vdev_offload_enabled[CSR_ROAM_SESSION_MAX];
 };
 
 /**
@@ -485,9 +490,6 @@ static uint32_t wlan_hdd_stub_addr_to_priv(void *ptr)
 #define HDD_IPA_UC_WLAN_RX_HDR_LEN      sizeof(struct hdd_ipa_uc_rx_hdr)
 #define HDD_IPA_UC_WLAN_HDR_DES_MAC_OFFSET \
 	(HDD_IPA_WLAN_FRAG_HEADER + HDD_IPA_WLAN_IPA_HEADER)
-
-#define HDD_IPA_FW_RX_DESC_DISCARD_M 0x1
-#define HDD_IPA_FW_RX_DESC_FORWARD_M 0x2
 
 #define HDD_IPA_GET_IFACE_ID(_data) \
 	(((struct hdd_ipa_cld_hdr *) (_data))->iface_id)
@@ -763,14 +765,14 @@ static void hdd_ipa_uc_rt_debug_host_fill(void *ctext)
 }
 
 /**
- * hdd_ipa_uc_rt_debug_host_dump - dump rt debug buffer
+ * __hdd_ipa_uc_rt_debug_host_dump - dump rt debug buffer
  * @hdd_ctx: pointer to hdd context.
  *
  * If rt debug enabled, dump debug buffer contents based on requirement
  *
  * Return: none
  */
-void hdd_ipa_uc_rt_debug_host_dump(hdd_context_t *hdd_ctx)
+static void __hdd_ipa_uc_rt_debug_host_dump(hdd_context_t *hdd_ctx)
 {
 	struct hdd_ipa_priv *hdd_ipa;
 	unsigned int dump_count;
@@ -813,6 +815,22 @@ void hdd_ipa_uc_rt_debug_host_dump(hdd_context_t *hdd_ctx)
 }
 
 /**
+ * hdd_ipa_uc_rt_debug_host_dump - SSR wrapper for
+ * __hdd_ipa_uc_rt_debug_host_dump
+ * @hdd_ctx: pointer to hdd context.
+ *
+ * If rt debug enabled, dump debug buffer contents based on requirement
+ *
+ * Return: none
+ */
+void hdd_ipa_uc_rt_debug_host_dump(hdd_context_t *hdd_ctx)
+{
+	cds_ssr_protect(__func__);
+	__hdd_ipa_uc_rt_debug_host_dump(hdd_ctx);
+	cds_ssr_unprotect(__func__);
+}
+
+/**
  * hdd_ipa_uc_rt_debug_handler - periodic memory health monitor handler
  * @ctext: pointer to hdd context.
  *
@@ -825,11 +843,13 @@ void hdd_ipa_uc_rt_debug_host_dump(hdd_context_t *hdd_ctx)
 static void hdd_ipa_uc_rt_debug_handler(void *ctext)
 {
 	hdd_context_t *hdd_ctx = (hdd_context_t *)ctext;
-	struct hdd_ipa_priv *hdd_ipa = (struct hdd_ipa_priv *)hdd_ctx->hdd_ipa;
+	struct hdd_ipa_priv *hdd_ipa;
 	void *dummy_ptr = NULL;
 
 	if (wlan_hdd_validate_context(hdd_ctx))
 		return;
+
+	hdd_ipa = (struct hdd_ipa_priv *)hdd_ctx->hdd_ipa;
 
 	if (!hdd_ipa_is_rt_debugging_enabled(hdd_ctx)) {
 		HDD_IPA_LOG(QDF_TRACE_LEVEL_INFO,
@@ -886,13 +906,13 @@ static void hdd_ipa_uc_rt_debug_destructor(struct sk_buff *skb)
  */
 static void hdd_ipa_uc_rt_debug_deinit(hdd_context_t *hdd_ctx)
 {
-	struct hdd_ipa_priv *hdd_ipa = (struct hdd_ipa_priv *)hdd_ctx->hdd_ipa;
+	struct hdd_ipa_priv *hdd_ipa;
 
-	if (QDF_TIMER_STATE_STOPPED !=
-		qdf_mc_timer_get_current_state(&hdd_ipa->rt_debug_fill_timer)) {
-		qdf_mc_timer_stop(&hdd_ipa->rt_debug_fill_timer);
-	}
-	qdf_mc_timer_destroy(&hdd_ipa->rt_debug_fill_timer);
+	if (wlan_hdd_validate_context(hdd_ctx))
+		return;
+
+	hdd_ipa = (struct hdd_ipa_priv *)hdd_ctx->hdd_ipa;
+
 	qdf_mutex_destroy(&hdd_ipa->rt_debug_lock);
 
 	if (!hdd_ipa_is_rt_debugging_enabled(hdd_ctx)) {
@@ -900,6 +920,12 @@ static void hdd_ipa_uc_rt_debug_deinit(hdd_context_t *hdd_ctx)
 			"%s: IPA RT debug is not enabled", __func__);
 		return;
 	}
+
+	if (QDF_TIMER_STATE_STOPPED !=
+		qdf_mc_timer_get_current_state(&hdd_ipa->rt_debug_fill_timer)) {
+		qdf_mc_timer_stop(&hdd_ipa->rt_debug_fill_timer);
+	}
+	qdf_mc_timer_destroy(&hdd_ipa->rt_debug_fill_timer);
 
 	if (QDF_TIMER_STATE_STOPPED !=
 		qdf_mc_timer_get_current_state(&hdd_ipa->rt_debug_timer)) {
@@ -918,7 +944,12 @@ static void hdd_ipa_uc_rt_debug_deinit(hdd_context_t *hdd_ctx)
  */
 static void hdd_ipa_uc_rt_debug_init(hdd_context_t *hdd_ctx)
 {
-	struct hdd_ipa_priv *hdd_ipa = (struct hdd_ipa_priv *)hdd_ctx->hdd_ipa;
+	struct hdd_ipa_priv *hdd_ipa;
+
+	if (wlan_hdd_validate_context(hdd_ctx))
+		return;
+
+	hdd_ipa = (struct hdd_ipa_priv *)hdd_ctx->hdd_ipa;
 
 	qdf_mutex_create(&hdd_ipa->rt_debug_lock);
 	hdd_ipa->rt_buf_fill_index = 0;
@@ -951,26 +982,28 @@ static void hdd_ipa_uc_rt_debug_init(hdd_context_t *hdd_ctx)
 }
 
 /**
- * hdd_ipa_uc_stat_query() - Query the IPA stats
+ * __hdd_ipa_uc_stat_query() - Query the IPA stats
  * @hdd_ctx: Global HDD context
- * @ipa_tx_diff: tx packet count diff from previous
- * 		 tx packet count
- * @ipa_rx_diff: rx packet count diff from previous
- * 		 rx packet count
+ * @ipa_tx_diff: tx packet count diff from previous tx packet count
+ * @ipa_rx_diff: rx packet count diff from previous rx packet count
  *
  * Return: true if IPA is enabled, false otherwise
  */
-void hdd_ipa_uc_stat_query(hdd_context_t *pHddCtx,
+static void __hdd_ipa_uc_stat_query(hdd_context_t *hdd_ctx,
 	uint32_t *ipa_tx_diff, uint32_t *ipa_rx_diff)
 {
 	struct hdd_ipa_priv *hdd_ipa;
 
-	hdd_ipa = (struct hdd_ipa_priv *)pHddCtx->hdd_ipa;
 	*ipa_tx_diff = 0;
 	*ipa_rx_diff = 0;
 
-	if (!hdd_ipa_is_enabled(pHddCtx) ||
-		!(hdd_ipa_uc_is_enabled(pHddCtx))) {
+	if (wlan_hdd_validate_context(hdd_ctx))
+		return;
+
+	hdd_ipa = (struct hdd_ipa_priv *)hdd_ctx->hdd_ipa;
+
+	if (!hdd_ipa_is_enabled(hdd_ctx) ||
+	    !(hdd_ipa_uc_is_enabled(hdd_ctx))) {
 		return;
 	}
 
@@ -987,25 +1020,45 @@ void hdd_ipa_uc_stat_query(hdd_context_t *pHddCtx,
 }
 
 /**
- * hdd_ipa_uc_stat_request() - Get IPA stats from IPA.
+ * hdd_ipa_uc_stat_query() - SSR wrapper for __hdd_ipa_uc_stat_query
+ * @hdd_ctx: Global HDD context
+ * @ipa_tx_diff: tx packet count diff from previous tx packet count
+ * @ipa_rx_diff: rx packet count diff from previous rx packet count
+ *
+ * Return: true if IPA is enabled, false otherwise
+ */
+void hdd_ipa_uc_stat_query(hdd_context_t *hdd_ctx,
+	uint32_t *ipa_tx_diff, uint32_t *ipa_rx_diff)
+{
+	cds_ssr_protect(__func__);
+	__hdd_ipa_uc_stat_query(hdd_ctx, ipa_tx_diff, ipa_rx_diff);
+	cds_ssr_unprotect(__func__);
+}
+
+/**
+ * __hdd_ipa_uc_stat_request() - Get IPA stats from IPA.
  * @adapter: network adapter
  * @reason: STAT REQ Reason
  *
  * Return: None
  */
-void hdd_ipa_uc_stat_request(hdd_adapter_t *adapter, uint8_t reason)
+static void __hdd_ipa_uc_stat_request(hdd_adapter_t *adapter, uint8_t reason)
 {
-	hdd_context_t *pHddCtx;
+	hdd_context_t *hdd_ctx;
 	struct hdd_ipa_priv *hdd_ipa;
 
 	if (!adapter) {
 		return;
 	}
 
-	pHddCtx = (hdd_context_t *)adapter->pHddCtx;
-	hdd_ipa = (struct hdd_ipa_priv *)pHddCtx->hdd_ipa;
-	if (!hdd_ipa_is_enabled(pHddCtx) ||
-		!(hdd_ipa_uc_is_enabled(pHddCtx))) {
+	hdd_ctx = (hdd_context_t *)adapter->pHddCtx;
+
+	if (wlan_hdd_validate_context(hdd_ctx))
+		return;
+
+	hdd_ipa = (struct hdd_ipa_priv *)hdd_ctx->hdd_ipa;
+	if (!hdd_ipa_is_enabled(hdd_ctx) ||
+	    !(hdd_ipa_uc_is_enabled(hdd_ctx))) {
 		return;
 	}
 
@@ -1020,6 +1073,20 @@ void hdd_ipa_uc_stat_request(hdd_adapter_t *adapter, uint8_t reason)
 			0, VDEV_CMD);
 	}
 	qdf_mutex_release(&hdd_ipa->ipa_lock);
+}
+
+/**
+ * hdd_ipa_uc_stat_request() - SSR wrapper for __hdd_ipa_uc_stat_request
+ * @adapter: network adapter
+ * @reason: STAT REQ Reason
+ *
+ * Return: None
+ */
+void hdd_ipa_uc_stat_request(hdd_adapter_t *adapter, uint8_t reason)
+{
+	cds_ssr_protect(__func__);
+	__hdd_ipa_uc_stat_request(adapter, reason);
+	cds_ssr_unprotect(__func__);
 }
 
 /**
@@ -1233,6 +1300,12 @@ static int hdd_ipa_uc_handle_first_con(struct hdd_ipa_priv *hdd_ipa)
 static void hdd_ipa_uc_handle_last_discon(struct hdd_ipa_priv *hdd_ipa)
 {
 	p_cds_contextType cds_ctx = hdd_ipa->hdd_ctx->pcds_context;
+
+	if (!cds_ctx || !cds_ctx->pdev_txrx_ctx) {
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR, "txrx context is NULL");
+		QDF_ASSERT(0);
+		return;
+	}
 
 	hdd_ipa->resource_unloading = true;
 	HDD_IPA_LOG(QDF_TRACE_LEVEL_INFO, "%s: Disable FW RX PIPE", __func__);
@@ -1612,21 +1685,31 @@ static void hdd_ipa_uc_op_cb(struct op_msg_type *op_msg, void *usr_ctxt)
  * Return: none
  */
 static void hdd_ipa_uc_offload_enable_disable(hdd_adapter_t *adapter,
-			uint32_t offload_type, uint32_t enable)
+			uint32_t offload_type, bool enable)
 {
+	struct hdd_ipa_priv *hdd_ipa = ghdd_ipa;
 	struct sir_ipa_offload_enable_disable ipa_offload_enable_disable;
 	struct hdd_ipa_iface_context *iface_context = NULL;
+	uint8_t session_id;
 
-	if (!adapter)
+	if (!adapter || !hdd_ipa)
 		return;
 
 	iface_context = adapter->ipa_context;
+	session_id = adapter->sessionId;
 
-	if (!iface_context || (enable == iface_context->offload_enabled)) {
+	if (!iface_context) {
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,
+			    "Interface context is NULL");
+		return;
+	}
+
+	if (enable == hdd_ipa->vdev_offload_enabled[session_id]) {
 		/* IPA offload status is already set as desired */
 		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,
-			    "IPA offload status is already set: (offload_type=%d, vdev_id=%d, enable=%d)",
-			    offload_type, adapter->sessionId, enable);
+			    "%s: (offload_type=%d, vdev_id=%d, enable=%d)",
+			    "IPA offload status is already set",
+			    offload_type, session_id, enable);
 		return;
 	}
 
@@ -1640,7 +1723,7 @@ static void hdd_ipa_uc_offload_enable_disable(hdd_adapter_t *adapter,
 	qdf_mem_zero(&ipa_offload_enable_disable,
 		sizeof(ipa_offload_enable_disable));
 	ipa_offload_enable_disable.offload_type = offload_type;
-	ipa_offload_enable_disable.vdev_id = adapter->sessionId;
+	ipa_offload_enable_disable.vdev_id = session_id;
 	ipa_offload_enable_disable.enable = enable;
 
 	HDD_IPA_LOG(QDF_TRACE_LEVEL_INFO,
@@ -1660,7 +1743,7 @@ static void hdd_ipa_uc_offload_enable_disable(hdd_adapter_t *adapter,
 			    ipa_offload_enable_disable.enable);
 	} else {
 		/* Update the IPA offload status */
-		iface_context->offload_enabled =
+		hdd_ipa->vdev_offload_enabled[session_id] =
 			ipa_offload_enable_disable.enable;
 	}
 }
@@ -1874,7 +1957,7 @@ static QDF_STATUS hdd_ipa_uc_ol_init(hdd_context_t *hdd_ctx)
 }
 
 /**
- * hdd_ipa_uc_force_pipe_shutdown() - Force shutdown IPA pipe
+ * __hdd_ipa_uc_force_pipe_shutdown() - Force shutdown IPA pipe
  * @hdd_ctx: hdd main context
  *
  * Force shutdown IPA pipe
@@ -1884,7 +1967,7 @@ static QDF_STATUS hdd_ipa_uc_ol_init(hdd_context_t *hdd_ctx)
  *
  * Return: NONE
  */
-void hdd_ipa_uc_force_pipe_shutdown(hdd_context_t *hdd_ctx)
+static void __hdd_ipa_uc_force_pipe_shutdown(hdd_context_t *hdd_ctx)
 {
 	struct hdd_ipa_priv *hdd_ipa;
 
@@ -1902,6 +1985,25 @@ void hdd_ipa_uc_force_pipe_shutdown(hdd_context_t *hdd_ctx)
 	}
 
 	return;
+}
+
+/**
+ * hdd_ipa_uc_force_pipe_shutdown() - SSR wrapper for
+ * __hdd_ipa_uc_force_pipe_shutdown
+ * @hdd_ctx: hdd main context
+ *
+ * Force shutdown IPA pipe
+ * Independent of FW pipe status, IPA pipe shutdonw progress
+ * in case, any STA does not leave properly, IPA HW pipe should cleaned up
+ * independent from FW pipe status
+ *
+ * Return: NONE
+ */
+void hdd_ipa_uc_force_pipe_shutdown(hdd_context_t *hdd_ctx)
+{
+	cds_ssr_protect(__func__);
+	__hdd_ipa_uc_force_pipe_shutdown(hdd_ctx);
+	cds_ssr_unprotect(__func__);
 }
 
 /**
@@ -1996,14 +2098,14 @@ static int hdd_ipa_uc_disconnect_client(hdd_context_t *hdd_ctx)
 }
 
 /**
- * hdd_ipa_uc_ssr_deinit() - handle ipa deinit for SSR
+ * __hdd_ipa_uc_ssr_deinit() - handle ipa deinit for SSR
  *
  * Deinit basic IPA UC host side to be in sync reloaded FW during
  * SSR
  *
  * Return: 0 - Success
  */
-int hdd_ipa_uc_ssr_deinit(void)
+static int __hdd_ipa_uc_ssr_deinit(void)
 {
 	struct hdd_ipa_priv *hdd_ipa = ghdd_ipa;
 	int idx;
@@ -2046,14 +2148,33 @@ int hdd_ipa_uc_ssr_deinit(void)
 }
 
 /**
- * hdd_ipa_uc_ssr_reinit() - handle ipa reinit after SSR
+ * hdd_ipa_uc_ssr_deinit() - SSR wrapper for __hdd_ipa_uc_ssr_deinit
+ *
+ * Deinit basic IPA UC host side to be in sync reloaded FW during
+ * SSR
+ *
+ * Return: 0 - Success
+ */
+int hdd_ipa_uc_ssr_deinit(void)
+{
+	int ret;
+
+	cds_ssr_protect(__func__);
+	ret = __hdd_ipa_uc_ssr_deinit();
+	cds_ssr_unprotect(__func__);
+
+	return ret;
+}
+
+/**
+ * __hdd_ipa_uc_ssr_reinit() - handle ipa reinit after SSR
  *
  * Init basic IPA UC host side to be in sync with reloaded FW after
  * SSR to resume IPA UC operations
  *
  * Return: 0 - Success
  */
-int hdd_ipa_uc_ssr_reinit(void)
+static int __hdd_ipa_uc_ssr_reinit(void)
 {
 
 	/* After SSR is complete, IPA UC can resume operation. But now wlan
@@ -2065,7 +2186,26 @@ int hdd_ipa_uc_ssr_reinit(void)
 }
 
 /**
- * hdd_ipa_tx_packet_ipa() - send packet to IPA
+ * hdd_ipa_uc_ssr_reinit() - SSR wrapper for __hdd_ipa_uc_ssr_reinit
+ *
+ * Init basic IPA UC host side to be in sync with reloaded FW after
+ * SSR to resume IPA UC operations
+ *
+ * Return: 0 - Success
+ */
+int hdd_ipa_uc_ssr_reinit(void)
+{
+	int ret;
+
+	cds_ssr_protect(__func__);
+	ret = __hdd_ipa_uc_ssr_reinit();
+	cds_ssr_unprotect(__func__);
+
+	return ret;
+}
+
+/**
+ * __hdd_ipa_tx_packet_ipa() - send packet to IPA
  * @hdd_ctx:    Global HDD context
  * @skb:        skb sent to IPA
  * @session_id: send packet instance session id
@@ -2077,12 +2217,17 @@ int hdd_ipa_uc_ssr_reinit(void)
  *         NULL invalid packet drop
  *         skb packet not sent to IPA. legacy data path should handle
  */
-struct sk_buff *hdd_ipa_tx_packet_ipa(hdd_context_t *hdd_ctx,
+static struct sk_buff *__hdd_ipa_tx_packet_ipa(hdd_context_t *hdd_ctx,
 	struct sk_buff *skb, uint8_t session_id)
 {
 	struct ipa_header *ipa_header;
 	struct frag_header *frag_header;
-	struct hdd_ipa_priv *hdd_ipa = hdd_ctx->hdd_ipa;
+	struct hdd_ipa_priv *hdd_ipa;
+
+	if (wlan_hdd_validate_context(hdd_ctx))
+		return skb;
+
+	hdd_ipa = hdd_ctx->hdd_ipa;
 
 	if (!hdd_ipa_uc_is_enabled(hdd_ctx))
 		return skb;
@@ -2119,6 +2264,31 @@ struct sk_buff *hdd_ipa_tx_packet_ipa(hdd_context_t *hdd_ctx,
 
 	ipa_tx_dp(IPA_CLIENT_WLAN1_CONS, skb, NULL);
 	return NULL;
+}
+
+/**
+ * hdd_ipa_tx_packet_ipa() - SSR wrapper for __hdd_ipa_tx_packet_ipa
+ * @hdd_ctx:    Global HDD context
+ * @skb:        skb sent to IPA
+ * @session_id: send packet instance session id
+ *
+ * Send TX packet which generated by system to IPA.
+ * This routine only will be used for function verification
+ *
+ * Return: NULL packet sent to IPA properly
+ *         NULL invalid packet drop
+ *         skb packet not sent to IPA. legacy data path should handle
+ */
+struct sk_buff *hdd_ipa_tx_packet_ipa(hdd_context_t *hdd_ctx,
+	struct sk_buff *skb, uint8_t session_id)
+{
+	struct sk_buff *ret;
+
+	cds_ssr_protect(__func__);
+	ret = __hdd_ipa_tx_packet_ipa(hdd_ctx, skb, session_id);
+	cds_ssr_unprotect(__func__);
+
+	return ret;
 }
 
 /**
@@ -2369,20 +2539,25 @@ static int hdd_ipa_rm_cons_request(void)
 }
 
 /**
- * hdd_ipa_set_perf_level() - Set IPA performance level
+ * __hdd_ipa_set_perf_level() - Set IPA performance level
  * @hdd_ctx: Global HDD context
  * @tx_packets: Number of packets transmitted in the last sample period
  * @rx_packets: Number of packets received in the last sample period
  *
  * Return: 0 on success, negative errno on error
  */
-int hdd_ipa_set_perf_level(hdd_context_t *hdd_ctx, uint64_t tx_packets,
+static int __hdd_ipa_set_perf_level(hdd_context_t *hdd_ctx, uint64_t tx_packets,
 			   uint64_t rx_packets)
 {
 	uint32_t next_cons_bw, next_prod_bw;
-	struct hdd_ipa_priv *hdd_ipa = hdd_ctx->hdd_ipa;
+	struct hdd_ipa_priv *hdd_ipa;
 	struct ipa_rm_perf_profile profile;
 	int ret;
+
+	if (wlan_hdd_validate_context(hdd_ctx))
+		return 0;
+
+	hdd_ipa = hdd_ctx->hdd_ipa;
 
 	if ((!hdd_ipa_is_enabled(hdd_ctx)) ||
 		(!hdd_ipa_is_clk_scaling_enabled(hdd_ctx)))
@@ -2447,6 +2622,26 @@ int hdd_ipa_set_perf_level(hdd_context_t *hdd_ctx, uint64_t tx_packets,
 	}
 
 	return 0;
+}
+
+/**
+ * hdd_ipa_set_perf_level() - SSR wrapper for __hdd_ipa_set_perf_level
+ * @hdd_ctx: Global HDD context
+ * @tx_packets: Number of packets transmitted in the last sample period
+ * @rx_packets: Number of packets received in the last sample period
+ *
+ * Return: 0 on success, negative errno on error
+ */
+int hdd_ipa_set_perf_level(hdd_context_t *hdd_ctx, uint64_t tx_packets,
+			   uint64_t rx_packets)
+{
+	int ret;
+
+	cds_ssr_protect(__func__);
+	ret = __hdd_ipa_set_perf_level(hdd_ctx, tx_packets, rx_packets);
+	cds_ssr_unprotect(__func__);
+
+	return ret;
 }
 
 /**
@@ -2645,14 +2840,7 @@ static void hdd_ipa_send_skb_to_network(qdf_nbuf_t skb,
 static void hdd_ipa_forward(struct hdd_ipa_priv *hdd_ipa,
 			    hdd_adapter_t *adapter, qdf_nbuf_t skb)
 {
-	qdf_nbuf_t copy;
 	struct hdd_ipa_pm_tx_cb *pm_tx_cb;
-
-	copy = qdf_nbuf_copy(skb);
-	if (!copy) {
-		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR, "copy packet alloc fail");
-		return;
-	}
 
 	qdf_spin_lock_bh(&hdd_ipa->pm_lock);
 	/* WLAN subsystem is in suspend, put int queue */
@@ -2660,25 +2848,73 @@ static void hdd_ipa_forward(struct hdd_ipa_priv *hdd_ipa,
 		qdf_spin_unlock_bh(&hdd_ipa->pm_lock);
 		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,
 			"TX in SUSPEND PUT QUEUE");
-		qdf_mem_set(copy->cb, sizeof(copy->cb), 0);
-		pm_tx_cb = (struct hdd_ipa_pm_tx_cb *)copy->cb;
+		qdf_mem_set(skb->cb, sizeof(skb->cb), 0);
+		pm_tx_cb = (struct hdd_ipa_pm_tx_cb *)skb->cb;
 		pm_tx_cb->exception = true;
 		pm_tx_cb->adapter = adapter;
 		qdf_spin_lock_bh(&hdd_ipa->pm_lock);
-		qdf_nbuf_queue_add(&hdd_ipa->pm_queue_head, copy);
+		qdf_nbuf_queue_add(&hdd_ipa->pm_queue_head, skb);
 		qdf_spin_unlock_bh(&hdd_ipa->pm_lock);
 		hdd_ipa->stats.num_tx_queued++;
 	} else {
 		/* Resume, put packet into WLAN TX */
 		qdf_spin_unlock_bh(&hdd_ipa->pm_lock);
-		if (hdd_softap_hard_start_xmit(copy, adapter->dev)) {
+		if (hdd_softap_hard_start_xmit(skb, adapter->dev)) {
 			HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,
 			    "packet tx fail");
+			hdd_ipa->stats.num_tx_bcmc_err++;
 		} else {
 			hdd_ipa->stats.num_tx_bcmc++;
 			hdd_ipa->ipa_tx_forward++;
 		}
 	}
+}
+
+/**
+ * hdd_ipa_intrabss_forward() - Forward intra bss packets.
+ * @hdd_ipa: pointer to HDD IPA struct
+ * @adapter: hdd adapter pointer
+ * @desc: Firmware descriptor
+ * @skb: Data buffer
+ *
+ * Return:
+ *      HDD_IPA_FORWARD_PKT_NONE
+ *      HDD_IPA_FORWARD_PKT_DISCARD
+ *      HDD_IPA_FORWARD_PKT_LOCAL_STACK
+ *
+ */
+
+static enum hdd_ipa_forward_type hdd_ipa_intrabss_forward(
+		struct hdd_ipa_priv *hdd_ipa,
+		hdd_adapter_t *adapter,
+		uint8_t desc,
+		qdf_nbuf_t skb)
+{
+	int ret = HDD_IPA_FORWARD_PKT_NONE;
+
+	if ((desc & FW_RX_DESC_FORWARD_M)) {
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG,
+				"Forward packet to Tx (fw_desc=%d)", desc);
+		hdd_ipa->ipa_tx_forward++;
+
+		if ((desc & FW_RX_DESC_DISCARD_M)) {
+			hdd_ipa_forward(hdd_ipa, adapter, skb);
+			hdd_ipa->ipa_rx_internel_drop_count++;
+			hdd_ipa->ipa_rx_discard++;
+			ret = HDD_IPA_FORWARD_PKT_DISCARD;
+		} else {
+			struct sk_buff *cloned_skb = skb_clone(skb, GFP_ATOMIC);
+			if (cloned_skb)
+				hdd_ipa_forward(hdd_ipa, adapter, cloned_skb);
+			else
+				HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,
+						"%s: tx skb alloc failed",
+						__func__);
+			ret = HDD_IPA_FORWARD_PKT_LOCAL_STACK;
+		}
+	}
+
+	return ret;
 }
 
 /**
@@ -2704,6 +2940,9 @@ static void __hdd_ipa_w2i_cb(void *priv, enum ipa_dp_evt_type evt,
 
 	hdd_ipa = (struct hdd_ipa_priv *)priv;
 
+	if (!hdd_ipa || wlan_hdd_validate_context(hdd_ipa->hdd_ctx))
+		return;
+
 	switch (evt) {
 	case IPA_RECEIVE:
 		skb = (qdf_nbuf_t) data;
@@ -2723,7 +2962,7 @@ static void __hdd_ipa_w2i_cb(void *priv, enum ipa_dp_evt_type evt,
 
 		if (hdd_ipa_uc_is_enabled(hdd_ipa->hdd_ctx)) {
 			session_id = (uint8_t)skb->cb[0];
-			iface_id = vdev_to_iface[session_id];
+			iface_id = hdd_ipa->vdev_to_iface[session_id];
 			HDD_IPA_DP_LOG(QDF_TRACE_LEVEL_INFO_HIGH,
 				"IPA_RECEIVE: session_id=%u, iface_id=%u",
 				session_id, iface_id);
@@ -2771,19 +3010,10 @@ static void __hdd_ipa_w2i_cb(void *priv, enum ipa_dp_evt_type evt,
 			 * only when DISCARD bit is not set.
 			 */
 			fw_desc = (uint8_t)skb->cb[1];
-			if (fw_desc & HDD_IPA_FW_RX_DESC_FORWARD_M) {
-				HDD_IPA_DP_LOG(
-					QDF_TRACE_LEVEL_DEBUG,
-					"Forward packet to Tx (fw_desc=%d)",
-					fw_desc);
-				hdd_ipa_forward(hdd_ipa, adapter, skb);
-			}
-			if (fw_desc & HDD_IPA_FW_RX_DESC_DISCARD_M) {
-				HDD_IPA_INCREASE_INTERNAL_DROP_COUNT(hdd_ipa);
-				hdd_ipa->ipa_rx_discard++;
-				kfree_skb(skb);
+			if (HDD_IPA_FORWARD_PKT_DISCARD ==
+			    hdd_ipa_intrabss_forward(hdd_ipa, adapter,
+						     fw_desc, skb))
 				break;
-			}
 		} else {
 			HDD_IPA_LOG(QDF_TRACE_LEVEL_INFO_HIGH,
 				"Intra-BSS FWD is disabled-skip forward to Tx");
@@ -2851,7 +3081,6 @@ static void hdd_ipa_send_pkt_to_tl(
 		struct ipa_rx_data *ipa_tx_desc)
 {
 	struct hdd_ipa_priv *hdd_ipa = iface_context->hdd_ipa;
-	uint8_t interface_id;
 	hdd_adapter_t *adapter = NULL;
 	qdf_nbuf_t skb;
 
@@ -2878,7 +3107,6 @@ static void hdd_ipa_send_pkt_to_tl(
 		return;
 	}
 
-	interface_id = adapter->sessionId;
 	++adapter->stats.tx_packets;
 
 	qdf_spin_unlock_bh(&iface_context->interface_lock);
@@ -2987,7 +3215,7 @@ static void hdd_ipa_pm_flush(struct work_struct *work)
 }
 
 /**
- * hdd_ipa_i2w_cb() - IPA to WLAN callback
+ * __hdd_ipa_i2w_cb() - IPA to WLAN callback
  * @priv: pointer to private data registered with IPA (we register a
  *	pointer to the interface-specific IPA context)
  * @evt: the IPA event which triggered the callback
@@ -2995,7 +3223,7 @@ static void hdd_ipa_pm_flush(struct work_struct *work)
  *
  * Return: None
  */
-static void hdd_ipa_i2w_cb(void *priv, enum ipa_dp_evt_type evt,
+static void __hdd_ipa_i2w_cb(void *priv, enum ipa_dp_evt_type evt,
 			   unsigned long data)
 {
 	struct hdd_ipa_priv *hdd_ipa = NULL;
@@ -3006,16 +3234,15 @@ static void hdd_ipa_i2w_cb(void *priv, enum ipa_dp_evt_type evt,
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 
 	iface_context = (struct hdd_ipa_iface_context *)priv;
+	ipa_tx_desc = (struct ipa_rx_data *)data;
+	hdd_ipa = iface_context->hdd_ipa;
+
 	if (evt != IPA_RECEIVE) {
-		skb = (qdf_nbuf_t) data;
-		dev_kfree_skb_any(skb);
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR, "Event is not IPA_RECEIVE");
+		ipa_free_skb(ipa_tx_desc);
 		iface_context->stats.num_tx_drop++;
 		return;
 	}
-
-	ipa_tx_desc = (struct ipa_rx_data *)data;
-
-	hdd_ipa = iface_context->hdd_ipa;
 
 	/*
 	 * When SSR is going on or driver is unloading, just drop the packets.
@@ -3074,15 +3301,37 @@ static void hdd_ipa_i2w_cb(void *priv, enum ipa_dp_evt_type evt,
 	return hdd_ipa_send_pkt_to_tl(iface_context, ipa_tx_desc);
 }
 
+/*
+ * hdd_ipa_i2w_cb() - SSR wrapper for __hdd_ipa_i2w_cb
+ * @priv: pointer to private data registered with IPA (we register a
+ *	pointer to the interface-specific IPA context)
+ * @evt: the IPA event which triggered the callback
+ * @data: data associated with the event
+ *
+ * Return: None
+ */
+static void hdd_ipa_i2w_cb(void *priv, enum ipa_dp_evt_type evt,
+			   unsigned long data)
+{
+	cds_ssr_protect(__func__);
+	__hdd_ipa_i2w_cb(priv, evt, data);
+	cds_ssr_unprotect(__func__);
+}
+
 /**
- * hdd_ipa_suspend() - Suspend IPA
+ * __hdd_ipa_suspend() - Suspend IPA
  * @hdd_ctx: Global HDD context
  *
  * Return: 0 on success, negativer errno on error
  */
-int hdd_ipa_suspend(hdd_context_t *hdd_ctx)
+static int __hdd_ipa_suspend(hdd_context_t *hdd_ctx)
 {
-	struct hdd_ipa_priv *hdd_ipa = hdd_ctx->hdd_ipa;
+	struct hdd_ipa_priv *hdd_ipa;
+
+	if (wlan_hdd_validate_context(hdd_ctx))
+		return 0;
+
+	hdd_ipa = hdd_ctx->hdd_ipa;
 
 	if (!hdd_ipa_is_enabled(hdd_ctx))
 		return 0;
@@ -3112,14 +3361,36 @@ int hdd_ipa_suspend(hdd_context_t *hdd_ctx)
 }
 
 /**
- * hdd_ipa_resume() - Resume IPA following suspend
+ * hdd_ipa_suspend() - SSR wrapper for __hdd_ipa_suspend
+ * @hdd_ctx: Global HDD context
+ *
+ * Return: 0 on success, negativer errno on error
+ */
+int hdd_ipa_suspend(hdd_context_t *hdd_ctx)
+{
+	int ret;
+
+	cds_ssr_protect(__func__);
+	ret = __hdd_ipa_suspend(hdd_ctx);
+	cds_ssr_unprotect(__func__);
+
+	return ret;
+}
+
+/**
+ * __hdd_ipa_resume() - Resume IPA following suspend
  * hdd_ctx: Global HDD context
  *
  * Return: 0 on success, negative errno on error
  */
-int hdd_ipa_resume(hdd_context_t *hdd_ctx)
+static int __hdd_ipa_resume(hdd_context_t *hdd_ctx)
 {
-	struct hdd_ipa_priv *hdd_ipa = hdd_ctx->hdd_ipa;
+	struct hdd_ipa_priv *hdd_ipa;
+
+	if (wlan_hdd_validate_context(hdd_ctx))
+		return 0;
+
+	hdd_ipa = hdd_ctx->hdd_ipa;
 
 	if (!hdd_ipa_is_enabled(hdd_ctx))
 		return 0;
@@ -3131,6 +3402,23 @@ int hdd_ipa_resume(hdd_context_t *hdd_ctx)
 	qdf_spin_unlock_bh(&hdd_ipa->pm_lock);
 
 	return 0;
+}
+
+/**
+ * hdd_ipa_resume() - SSR wrapper for __hdd_ipa_resume
+ * hdd_ctx: Global HDD context
+ *
+ * Return: 0 on success, negative errno on error
+ */
+int hdd_ipa_resume(hdd_context_t *hdd_ctx)
+{
+	int ret;
+
+	cds_ssr_protect(__func__);
+	ret = __hdd_ipa_resume(hdd_ctx);
+	cds_ssr_unprotect(__func__);
+
+	return ret;
 }
 
 /**
@@ -3664,12 +3952,12 @@ end:
 
 #ifndef QCA_LL_TX_FLOW_CONTROL_V2
 /**
- * hdd_ipa_send_mcc_scc_msg() - send IPA WLAN_SWITCH_TO_MCC/SCC message
+ * __hdd_ipa_send_mcc_scc_msg() - send IPA WLAN_SWITCH_TO_MCC/SCC message
  * @mcc_mode: 0=MCC/1=SCC
  *
  * Return: 0 on success, negative errno value on error
  */
-int hdd_ipa_send_mcc_scc_msg(hdd_context_t *pHddCtx, bool mcc_mode)
+static int __hdd_ipa_send_mcc_scc_msg(hdd_context_t *hdd_ctx, bool mcc_mode)
 {
 	hdd_adapter_list_node_t *adapter_node = NULL, *next = NULL;
 	QDF_STATUS status;
@@ -3678,23 +3966,25 @@ int hdd_ipa_send_mcc_scc_msg(hdd_context_t *pHddCtx, bool mcc_mode)
 	struct ipa_wlan_msg *msg;
 	int ret;
 
-	if (!hdd_ipa_uc_sta_is_enabled(pHddCtx))
+	if (wlan_hdd_validate_context(hdd_ctx))
 		return -EINVAL;
 
-	if (!pHddCtx->mcc_mode) {
+	if (!hdd_ipa_uc_sta_is_enabled(hdd_ctx))
+		return -EINVAL;
+
+	if (!hdd_ctx->mcc_mode) {
 		/* Flush TxRx queue for each adapter before switch to SCC */
-		status =  hdd_get_front_adapter(pHddCtx, &adapter_node);
+		status =  hdd_get_front_adapter(hdd_ctx, &adapter_node);
 		while (NULL != adapter_node && QDF_STATUS_SUCCESS == status) {
 			pAdapter = adapter_node->pAdapter;
 			if (pAdapter->device_mode == QDF_STA_MODE ||
-				pAdapter->device_mode == QDF_SAP_MODE) {
-				hddLog(QDF_TRACE_LEVEL_INFO,
-					"MCC->SCC: Flush TxRx queue(d_mode=%d)",
-					pAdapter->device_mode);
+			    pAdapter->device_mode == QDF_SAP_MODE) {
+				hdd_info("MCC->SCC: Flush TxRx queue(d_mode=%d)",
+					 pAdapter->device_mode);
 				hdd_deinit_tx_rx(pAdapter);
 			}
 			status = hdd_get_next_adapter(
-					pHddCtx, adapter_node, &next);
+					hdd_ctx, adapter_node, &next);
 			adapter_node = next;
 		}
 	}
@@ -3703,21 +3993,38 @@ int hdd_ipa_send_mcc_scc_msg(hdd_context_t *pHddCtx, bool mcc_mode)
 	meta.msg_len = sizeof(*msg);
 	msg = qdf_mem_malloc(meta.msg_len);
 	if (msg == NULL) {
-		hddLog(LOGE, "msg allocation failed");
+		hdd_err("msg allocation failed");
 		return -ENOMEM;
 	}
 
 	meta.msg_type = mcc_mode ?
 			WLAN_SWITCH_TO_MCC : WLAN_SWITCH_TO_SCC;
-	hddLog(LOG1, "ipa_send_msg(Evt:%d)", meta.msg_type);
+	hdd_info("ipa_send_msg(Evt:%d)", meta.msg_type);
 
 	ret = ipa_send_msg(&meta, msg, hdd_ipa_msg_free_fn);
 
 	if (ret) {
-		hddLog(LOGE, "ipa_send_msg(Evt:%d) - fail=%d",
+		hdd_err("ipa_send_msg(Evt:%d) - fail=%d",
 			meta.msg_type,  ret);
 		qdf_mem_free(msg);
 	}
+
+	return ret;
+}
+
+/**
+ * hdd_ipa_send_mcc_scc_msg() - SSR wrapper for __hdd_ipa_send_mcc_scc_msg
+ * @mcc_mode: 0=MCC/1=SCC
+ *
+ * Return: 0 on success, negative errno value on error
+ */
+int hdd_ipa_send_mcc_scc_msg(hdd_context_t *hdd_ctx, bool mcc_mode)
+{
+	int ret;
+
+	cds_ssr_protect(__func__);
+	ret = __hdd_ipa_send_mcc_scc_msg(hdd_ctx, mcc_mode);
+	cds_ssr_unprotect(__func__);
 
 	return ret;
 }
@@ -3848,45 +4155,52 @@ static int __hdd_ipa_wlan_evt(hdd_adapter_t *adapter, uint8_t sta_id,
 	 * During IPA UC resource loading/unloading new events can be issued.
 	 * Store the events separately and handle them later.
 	 */
-	if (hdd_ipa_uc_is_enabled(hdd_ipa->hdd_ctx) &&
-		((hdd_ipa->resource_loading) ||
-		(hdd_ipa->resource_unloading))) {
-		unsigned int pending_event_count;
-		struct ipa_uc_pending_event *pending_event = NULL;
+	if (hdd_ipa_uc_is_enabled(hdd_ipa->hdd_ctx)) {
+		if (hdd_ipa->resource_loading) {
+			unsigned int pending_event_count;
+			struct ipa_uc_pending_event *pending_event = NULL;
 
-		hdd_err("IPA resource %s inprogress",
-			hdd_ipa->resource_loading ? "load":"unload");
+			HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR, "IPA resource %s inprogress",
+					hdd_ipa->resource_loading ? "load":"unload");
 
-		qdf_mutex_acquire(&hdd_ipa->event_lock);
+			hdd_err("IPA resource %s inprogress",
+					hdd_ipa->resource_loading ? "load":"unload");
 
-		pending_event_count = qdf_list_size(&hdd_ipa->pending_event);
-		if (pending_event_count >= HDD_IPA_MAX_PENDING_EVENT_COUNT) {
-			hdd_notice("Reached max pending event count");
-			qdf_list_remove_front(&hdd_ipa->pending_event,
-				(qdf_list_node_t **)&pending_event);
-		} else {
-			pending_event =
-				(struct ipa_uc_pending_event *)qdf_mem_malloc(
-					sizeof(struct ipa_uc_pending_event));
-		}
+			qdf_mutex_acquire(&hdd_ipa->event_lock);
 
-		if (!pending_event) {
-			hdd_err("Pending event memory alloc fail");
+			pending_event_count = qdf_list_size(&hdd_ipa->pending_event);
+			if (pending_event_count >= HDD_IPA_MAX_PENDING_EVENT_COUNT) {
+				hdd_notice("Reached max pending event count");
+				qdf_list_remove_front(&hdd_ipa->pending_event,
+						(qdf_list_node_t **)&pending_event);
+			} else {
+				pending_event =
+					(struct ipa_uc_pending_event *)qdf_mem_malloc(
+							sizeof(struct ipa_uc_pending_event));
+			}
+
+			if (!pending_event) {
+				HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,
+				    "Pending event memory alloc fail");
+				qdf_mutex_release(&hdd_ipa->event_lock);
+				return -ENOMEM;
+			}
+
+			pending_event->adapter = adapter;
+			pending_event->sta_id = sta_id;
+			pending_event->type = type;
+			qdf_mem_copy(pending_event->mac_addr,
+					mac_addr,
+					QDF_MAC_ADDR_SIZE);
+			qdf_list_insert_back(&hdd_ipa->pending_event,
+					&pending_event->node);
+
 			qdf_mutex_release(&hdd_ipa->event_lock);
-			return -ENOMEM;
+			return 0;
+		} else if (hdd_ipa->resource_unloading) {
+			hdd_err("%s: IPA resource unload inprogress", __func__);
+			return 0;
 		}
-
-		pending_event->adapter = adapter;
-		pending_event->sta_id = sta_id;
-		pending_event->type = type;
-		qdf_mem_copy(pending_event->mac_addr,
-			mac_addr,
-			QDF_MAC_ADDR_SIZE);
-		qdf_list_insert_back(&hdd_ipa->pending_event,
-				&pending_event->node);
-
-		qdf_mutex_release(&hdd_ipa->event_lock);
-		return 0;
 	}
 
 	hdd_ipa->stats.event[type]++;
@@ -3913,11 +4227,11 @@ static int __hdd_ipa_wlan_evt(hdd_adapter_t *adapter, uint8_t sta_id,
 		    !hdd_ipa->sta_connected) {
 			qdf_mutex_release(&hdd_ipa->event_lock);
 			hdd_ipa_uc_offload_enable_disable(adapter,
-				SIR_STA_RX_DATA_OFFLOAD, 1);
+				SIR_STA_RX_DATA_OFFLOAD, true);
 			qdf_mutex_acquire(&hdd_ipa->event_lock);
 		}
 
-		vdev_to_iface[adapter->sessionId] =
+		hdd_ipa->vdev_to_iface[adapter->sessionId] =
 			((struct hdd_ipa_iface_context *)
 			(adapter->ipa_context))->iface_id;
 
@@ -3952,11 +4266,11 @@ static int __hdd_ipa_wlan_evt(hdd_adapter_t *adapter, uint8_t sta_id,
 		if (hdd_ipa_uc_is_enabled(hdd_ipa->hdd_ctx)) {
 			qdf_mutex_release(&hdd_ipa->event_lock);
 			hdd_ipa_uc_offload_enable_disable(adapter,
-				SIR_AP_RX_DATA_OFFLOAD, 1);
+				SIR_AP_RX_DATA_OFFLOAD, true);
 			qdf_mutex_acquire(&hdd_ipa->event_lock);
 		}
 
-		vdev_to_iface[adapter->sessionId] =
+		hdd_ipa->vdev_to_iface[adapter->sessionId] =
 			((struct hdd_ipa_iface_context *)
 			(adapter->ipa_context))->iface_id;
 
@@ -3992,9 +4306,10 @@ static int __hdd_ipa_wlan_evt(hdd_adapter_t *adapter, uint8_t sta_id,
 		    (hdd_ipa->sap_num_connected_sta > 0)) {
 			qdf_mutex_release(&hdd_ipa->event_lock);
 			hdd_ipa_uc_offload_enable_disable(adapter,
-				SIR_STA_RX_DATA_OFFLOAD, 0);
+				SIR_STA_RX_DATA_OFFLOAD, false);
 			qdf_mutex_acquire(&hdd_ipa->event_lock);
-			vdev_to_iface[adapter->sessionId] = CSR_ROAM_SESSION_MAX;
+			hdd_ipa->vdev_to_iface[adapter->sessionId] =
+				CSR_ROAM_SESSION_MAX;
 		}
 
 		hdd_ipa_cleanup_iface(adapter->ipa_context);
@@ -4034,9 +4349,10 @@ static int __hdd_ipa_wlan_evt(hdd_adapter_t *adapter, uint8_t sta_id,
 		if (hdd_ipa_uc_is_enabled(hdd_ipa->hdd_ctx)) {
 			qdf_mutex_release(&hdd_ipa->event_lock);
 			hdd_ipa_uc_offload_enable_disable(adapter,
-				SIR_AP_RX_DATA_OFFLOAD, 0);
+				SIR_AP_RX_DATA_OFFLOAD, false);
 			qdf_mutex_acquire(&hdd_ipa->event_lock);
-			vdev_to_iface[adapter->sessionId] = CSR_ROAM_SESSION_MAX;
+			hdd_ipa->vdev_to_iface[adapter->sessionId] =
+				CSR_ROAM_SESSION_MAX;
 		}
 
 		hdd_ipa_cleanup_iface(adapter->ipa_context);
@@ -4070,7 +4386,7 @@ static int __hdd_ipa_wlan_evt(hdd_adapter_t *adapter, uint8_t sta_id,
 				hdd_ipa_uc_offload_enable_disable(
 					hdd_get_adapter(hdd_ipa->hdd_ctx,
 							QDF_STA_MODE),
-					SIR_STA_RX_DATA_OFFLOAD, 1);
+					SIR_STA_RX_DATA_OFFLOAD, true);
 				qdf_mutex_acquire(&hdd_ipa->event_lock);
 			}
 
@@ -4088,7 +4404,7 @@ static int __hdd_ipa_wlan_evt(hdd_adapter_t *adapter, uint8_t sta_id,
 						hdd_get_adapter(
 							hdd_ipa->hdd_ctx,
 							QDF_STA_MODE),
-						SIR_STA_RX_DATA_OFFLOAD, 0);
+						SIR_STA_RX_DATA_OFFLOAD, false);
 				} else {
 					qdf_mutex_release(&hdd_ipa->event_lock);
 				}
@@ -4169,7 +4485,7 @@ static int __hdd_ipa_wlan_evt(hdd_adapter_t *adapter, uint8_t sta_id,
 				hdd_ipa_uc_offload_enable_disable(
 					hdd_get_adapter(hdd_ipa->hdd_ctx,
 							QDF_STA_MODE),
-					SIR_STA_RX_DATA_OFFLOAD, 0);
+					SIR_STA_RX_DATA_OFFLOAD, false);
 		} else {
 			qdf_mutex_release(&hdd_ipa->event_lock);
 		}
@@ -4209,7 +4525,7 @@ end:
 }
 
 /**
- * hdd_ipa_wlan_evt() - IPA event handler
+ * hdd_ipa_wlan_evt() - SSR wrapper for __hdd_ipa_wlan_evt
  * @adapter: adapter upon which the event was received
  * @sta_id: station id for the event
  * @hdd_event_type: event enum of type hdd_ipa_wlan_event
@@ -4223,13 +4539,18 @@ int hdd_ipa_wlan_evt(hdd_adapter_t *adapter, uint8_t sta_id,
 	enum hdd_ipa_wlan_event hdd_event_type, uint8_t *mac_addr)
 {
 	enum ipa_wlan_event type = hdd_to_ipa_wlan_event(hdd_event_type);
+	int ret = 0;
+
+	cds_ssr_protect(__func__);
 
 	/* Data path offload only support for STA and SAP mode */
 	if ((QDF_STA_MODE == adapter->device_mode) ||
 	    (QDF_SAP_MODE == adapter->device_mode))
-		return __hdd_ipa_wlan_evt(adapter, sta_id, type, mac_addr);
+		ret = __hdd_ipa_wlan_evt(adapter, sta_id, type, mac_addr);
 
-	return 0;
+	cds_ssr_unprotect(__func__);
+
+	return ret;
 }
 
 /**
@@ -4288,7 +4609,7 @@ static inline char *hdd_ipa_rm_state_to_str(enum hdd_ipa_rm_state state)
 }
 
 /**
- * hdd_ipa_init() - IPA initialization function
+ * __hdd_ipa_init() - IPA initialization function
  * @hdd_ctx: HDD global context
  *
  * Allocate hdd_ipa resources, ipa pipe resource and register
@@ -4296,7 +4617,7 @@ static inline char *hdd_ipa_rm_state_to_str(enum hdd_ipa_rm_state state)
  *
  * Return: QDF_STATUS enumeration
  */
-QDF_STATUS hdd_ipa_init(hdd_context_t *hdd_ctx)
+static QDF_STATUS __hdd_ipa_init(hdd_context_t *hdd_ctx)
 {
 	struct hdd_ipa_priv *hdd_ipa = NULL;
 	int ret, i;
@@ -4341,11 +4662,11 @@ QDF_STATUS hdd_ipa_init(hdd_context_t *hdd_ctx)
 			hdd_ipa_adapter_2_client[i].prod_client;
 		iface_context->iface_id = i;
 		iface_context->adapter = NULL;
-		iface_context->offload_enabled = 0;
 		qdf_spinlock_create(&iface_context->interface_lock);
 	}
 	for (i = 0; i < CSR_ROAM_SESSION_MAX; i++) {
-		vdev_to_iface[i] = CSR_ROAM_SESSION_MAX;
+		hdd_ipa->vdev_to_iface[i] = CSR_ROAM_SESSION_MAX;
+		hdd_ipa->vdev_offload_enabled[i] = false;
 	}
 
 	INIT_WORK(&hdd_ipa->pm_work, hdd_ipa_pm_flush);
@@ -4396,6 +4717,26 @@ fail_return:
 }
 
 /**
+ * hdd_ipa_init() - SSR wrapper for __hdd_ipa_init
+ * @hdd_ctx: HDD global context
+ *
+ * Allocate hdd_ipa resources, ipa pipe resource and register
+ * wlan interface with IPA module.
+ *
+ * Return: QDF_STATUS enumeration
+ */
+QDF_STATUS hdd_ipa_init(hdd_context_t *hdd_ctx)
+{
+	QDF_STATUS ret;
+
+	cds_ssr_protect(__func__);
+	ret = __hdd_ipa_init(hdd_ctx);
+	cds_ssr_unprotect(__func__);
+
+	return ret;
+}
+
+/**
  * hdd_ipa_cleanup_pending_event() - Cleanup IPA pending event list
  * @hdd_ipa: pointer to HDD IPA struct
  *
@@ -4414,12 +4755,12 @@ static void hdd_ipa_cleanup_pending_event(struct hdd_ipa_priv *hdd_ipa)
 }
 
 /**
- * hdd_ipa_cleanup - IPA cleanup function
+ * __hdd_ipa_cleanup - IPA cleanup function
  * @hdd_ctx: HDD global context
  *
  * Return: QDF_STATUS enumeration
  */
-QDF_STATUS hdd_ipa_cleanup(hdd_context_t *hdd_ctx)
+static QDF_STATUS __hdd_ipa_cleanup(hdd_context_t *hdd_ctx)
 {
 	struct hdd_ipa_priv *hdd_ipa = hdd_ctx->hdd_ipa;
 	int i;
@@ -4510,5 +4851,22 @@ QDF_STATUS hdd_ipa_cleanup(hdd_context_t *hdd_ctx)
 	hdd_ctx->hdd_ipa = NULL;
 
 	return QDF_STATUS_SUCCESS;
+}
+
+/**
+ * hdd_ipa_cleanup - SSR wrapper for __hdd_ipa_cleanup
+ * @hdd_ctx: HDD global context
+ *
+ * Return: QDF_STATUS enumeration
+ */
+QDF_STATUS hdd_ipa_cleanup(hdd_context_t *hdd_ctx)
+{
+	QDF_STATUS ret;
+
+	cds_ssr_protect(__func__);
+	ret = __hdd_ipa_cleanup(hdd_ctx);
+	cds_ssr_unprotect(__func__);
+
+	return ret;
 }
 #endif /* IPA_OFFLOAD */

@@ -1479,7 +1479,7 @@ QDF_STATUS cds_mq_post_message_by_priority(CDS_MQ_ID msgQueueId,
 	else
 		cds_mq_put(pTargetMq, pMsgWrapper);
 
-	set_bit(MC_POST_EVENT_MASK, &gp_cds_context->qdf_sched.mcEventFlag);
+	set_bit(MC_POST_EVENT, &gp_cds_context->qdf_sched.mcEventFlag);
 	wake_up_interruptible(&gp_cds_context->qdf_sched.mcWaitQueue);
 
 	return QDF_STATUS_SUCCESS;
@@ -1665,7 +1665,7 @@ bool cds_is_packet_log_enabled(void)
  * Return: none
  */
 
-void cds_config_recovery_work(qdf_device_t qdf_ctx)
+static void cds_config_recovery_work(qdf_device_t qdf_ctx)
 {
 	if (cds_is_driver_recovering()) {
 		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,

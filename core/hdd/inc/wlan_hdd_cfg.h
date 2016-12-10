@@ -2544,6 +2544,7 @@ typedef enum {
 #define CFG_ROAMING_OFFLOAD_DEFAULT             (1)
 #endif
 
+/* IpaUcTxBufCount should be power of 2 */
 #define CFG_IPA_UC_TX_BUF_COUNT_NAME               "IpaUcTxBufCount"
 #define CFG_IPA_UC_TX_BUF_COUNT_MIN                (0)
 #define CFG_IPA_UC_TX_BUF_COUNT_MAX                (2048)
@@ -2554,6 +2555,7 @@ typedef enum {
 #define CFG_IPA_UC_TX_BUF_SIZE_MAX                (4096)
 #define CFG_IPA_UC_TX_BUF_SIZE_DEFAULT            (2048)
 
+/* IpaUcRxIndRingCount should be power of 2 */
 #define CFG_IPA_UC_RX_IND_RING_COUNT_NAME          "IpaUcRxIndRingCount"
 #define CFG_IPA_UC_RX_IND_RING_COUNT_MIN           (0)
 #define CFG_IPA_UC_RX_IND_RING_COUNT_MAX           (2048)
@@ -3589,6 +3591,47 @@ enum dot11p_mode {
  */
 #define CFG_RPS_RX_QUEUE_CPU_MAP_LIST_LEN 30
 
+#ifdef WLAN_FEATURE_WOW_PULSE
+/*
+ * Enable/Disable  WOW PULSE feature
+ * Set the wakeup pulse which FW use to wake up HOST
+ * Default : Disable
+ */
+#define CFG_WOW_PULSE_SUPPORT_NAME     "gwow_pulse_support"
+#define CFG_WOW_PULSE_SUPPORT_MIN      (0)
+#define CFG_WOW_PULSE_SUPPORT_MAX      (1)
+#define CFG_WOW_PULSE_SUPPORT_DEFAULT  (CFG_WOW_PULSE_SUPPORT_MIN)
+
+/*
+ * GPIO PIN for Pulse
+ * Which PIN to send the Pulse
+ */
+#define CFG_WOW_PULSE_PIN_NAME         "gwow_pulse_pin"
+#define CFG_WOW_PULSE_PIN_MIN          (CFG_SET_TSF_GPIO_PIN_MIN)
+#define CFG_WOW_PULSE_PIN_MAX          (CFG_SET_TSF_GPIO_PIN_MAX)
+#define CFG_WOW_PULSE_PIN_DEFAULT      (35)
+
+/*
+ * Pulse interval low
+ * The interval of low level in the pulse
+ * The value which defined by customer should between 160 and 480
+ */
+#define CFG_WOW_PULSE_INTERVAL_LOW_NAME     "gwow_pulse_interval_low"
+#define CFG_WOW_PULSE_INTERVAL_LOW_MIN      (160)
+#define CFG_WOW_PULSE_INTERVAL_LOW_MAX      (480)
+#define CFG_WOW_PULSE_INTERVAL_LOW_DEFAULT  (180)
+
+/*
+ * Pulse interval high
+ * The interval of high level in the pulse
+ * The value which defined by customer should between 20 and 40
+ */
+#define CFG_WOW_PULSE_INTERVAL_HIGH_NAME    "gwow_pulse_interval_high"
+#define CFG_WOW_PULSE_INTERVAL_HIGH_MIN     (20)
+#define CFG_WOW_PULSE_INTERVAL_HIGH_MAX     (40)
+#define CFG_WOW_PULSE_INTERVAL_HIGH_DEFAULT (20)
+#endif
+
 /*
  * Support to start sap in indoor channel
  * Customer can config this item to enable/disable sap in indoor channel
@@ -3657,6 +3700,37 @@ enum dot11p_mode {
 #define CFG_RX_WAKELOCK_TIMEOUT_DEFAULT  (50)
 #define CFG_RX_WAKELOCK_TIMEOUT_MIN      (0)
 #define CFG_RX_WAKELOCK_TIMEOUT_MAX      (100)
+
+#ifdef WLAN_FEATURE_UDP_RESPONSE_OFFLOAD
+/*
+ * Enable/Disable  UDP response offload feature
+ * Default : Disable
+ */
+#define CFG_UDP_RESP_OFFLOAD_SUPPORT_NAME           "gudp_resp_offload_support"
+#define CFG_UDP_RESP_OFFLOAD_SUPPORT_MIN            (0)
+#define CFG_UDP_RESP_OFFLOAD_SUPPORT_MAX            (1)
+#define CFG_UDP_RESP_OFFLOAD_SUPPORT_DEFAULT        (CFG_UDP_RESP_OFFLOAD_SUPPORT_MIN)
+
+/* Dest port of specific UDP packet */
+#define CFG_UDP_RESP_OFFLOAD_DEST_PORT_NAME         "gudp_resp_offload_dest_port"
+#define CFG_UDP_RESP_OFFLOAD_DEST_PORT_MIN          (0)
+#define CFG_UDP_RESP_OFFLOAD_DEST_PORT_MAX          (65535)
+#define CFG_UDP_RESP_OFFLOAD_DEST_PORT_DEFAULT      (CFG_UDP_RESP_OFFLOAD_DEST_PORT_MAX)
+
+/*
+ * Payload filter of specific UDP packet
+ * Firmware will use this filter to identify the specific UDP packet
+ */
+#define CFG_UDP_RESP_OFFLOAD_PAYLOAD_FILTER_NAME       "gudp_resp_offload_payload_filter"
+#define CFG_UDP_RESP_OFFLOAD_PAYLOAD_FILTER_DEFAULT    ""
+
+/*
+ * Payload of the response UDP
+ * The specific response UDP packet payload
+ */
+#define CFG_UDP_RESP_OFFLOAD_RESPONSE_PAYLOAD_NAME     "gudp_resp_offload_response_payload"
+#define CFG_UDP_RESP_OFFLOAD_RESPONSE_PAYLOAD_DEFAULT  "status=off"
+#endif
 
 /*---------------------------------------------------------------------------
    Type declarations
@@ -4257,6 +4331,12 @@ struct hdd_config {
 	bool     tx_chain_mask_cck;
 	uint8_t  tx_chain_mask_1ss;
 	uint16_t  self_gen_frm_pwr;
+#ifdef WLAN_FEATURE_UDP_RESPONSE_OFFLOAD
+	bool udp_resp_offload_support;
+	uint32_t dest_port;
+	char payload_filter[MAX_LEN_UDP_RESP_OFFLOAD];
+	char response_payload[MAX_LEN_UDP_RESP_OFFLOAD];
+#endif
 #ifdef FEATURE_WLAN_SCAN_PNO
 	bool pno_channel_prediction;
 	uint8_t top_k_num_of_channels;
@@ -4342,6 +4422,12 @@ struct hdd_config {
 	uint8_t sap_max_inactivity_override;
 	bool fw_timeout_crash;
 	uint32_t rx_wakelock_timeout;
+#ifdef WLAN_FEATURE_WOW_PULSE
+	bool wow_pulse_support;
+	uint8_t wow_pulse_pin;
+	uint16_t wow_pulse_interval_high;
+	uint16_t wow_pulse_interval_low;
+#endif
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

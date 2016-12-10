@@ -223,6 +223,7 @@ responder_rsp:
  *
  * Return: None
  */
+static
 void lim_ndp_delete_peer_by_addr(tpAniSirGlobal mac_ctx, uint8_t vdev_id,
 				 struct qdf_mac_addr peer_ndi_mac_addr)
 {
@@ -530,8 +531,8 @@ QDF_STATUS lim_handle_ndp_event_message(tpAniSirGlobal mac_ctx, cds_msg_t *msg)
  *
  * Return: Status of operation
  */
-QDF_STATUS lim_process_sme_ndp_initiator_req(tpAniSirGlobal mac_ctx,
-					     void *ndp_msg)
+static QDF_STATUS lim_process_sme_ndp_initiator_req(tpAniSirGlobal mac_ctx,
+						    void *ndp_msg)
 {
 	tSirMsgQ msg;
 	QDF_STATUS status;
@@ -629,6 +630,7 @@ send_failure_rsp:
  *
  * Return: Status of operation
  */
+static
 QDF_STATUS lim_process_sme_ndp_data_end_req(tpAniSirGlobal mac_ctx,
 					    struct sir_sme_ndp_end_req *sme_msg)
 {

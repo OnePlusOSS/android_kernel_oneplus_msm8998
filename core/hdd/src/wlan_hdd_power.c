@@ -1999,14 +1999,14 @@ next_adapter:
 	}
 
 	/* Suspend MC thread */
-	set_bit(MC_SUSPEND_EVENT_MASK, &cds_sched_context->mcEventFlag);
+	set_bit(MC_SUSPEND_EVENT, &cds_sched_context->mcEventFlag);
 	wake_up_interruptible(&cds_sched_context->mcWaitQueue);
 
 	/* Wait for suspend confirmation from MC thread */
 	rc = wait_for_completion_timeout(&pHddCtx->mc_sus_event_var,
 		msecs_to_jiffies(WLAN_WAIT_TIME_MCTHREAD_SUSPEND));
 	if (!rc) {
-		clear_bit(MC_SUSPEND_EVENT_MASK,
+		clear_bit(MC_SUSPEND_EVENT,
 			  &cds_sched_context->mcEventFlag);
 		hdd_err("Failed to stop mc thread");
 		goto resume_tx;
@@ -2016,14 +2016,14 @@ next_adapter:
 
 #ifdef QCA_CONFIG_SMP
 	/* Suspend tlshim rx thread */
-	set_bit(RX_SUSPEND_EVENT_MASK, &cds_sched_context->ol_rx_event_flag);
+	set_bit(RX_SUSPEND_EVENT, &cds_sched_context->ol_rx_event_flag);
 	wake_up_interruptible(&cds_sched_context->ol_rx_wait_queue);
 	rc = wait_for_completion_timeout(&cds_sched_context->
 					 ol_suspend_rx_event,
 					 msecs_to_jiffies
 						 (RX_TLSHIM_SUSPEND_TIMEOUT));
 	if (!rc) {
-		clear_bit(RX_SUSPEND_EVENT_MASK,
+		clear_bit(RX_SUSPEND_EVENT,
 			  &cds_sched_context->ol_rx_event_flag);
 		hdd_err("Failed to stop tl_shim rx thread");
 		goto resume_all;

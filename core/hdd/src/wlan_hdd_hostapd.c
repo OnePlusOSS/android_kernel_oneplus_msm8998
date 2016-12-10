@@ -7060,6 +7060,85 @@ setup_acs_overrides:
 	return 0;
 }
 
+#ifdef WLAN_FEATURE_UDP_RESPONSE_OFFLOAD
+/**
+ * wlan_hdd_set_udp_resp_offload() - get specific udp and response udp info from
+ * ini file
+ * @padapter: hdd adapter pointer
+ * @enable: enable or disable the specific udp and response behaviour
+ *
+ * This function reads specific udp and response udp related info from ini file,
+ * these configurations will be sent to fw through wmi.
+ *
+ * Return: 0 on success, otherwise error value
+ */
+static int wlan_hdd_set_udp_resp_offload(hdd_adapter_t *padapter, bool enable)
+{
+	hdd_context_t *phddctx = WLAN_HDD_GET_CTX(padapter);
+	struct hdd_config *pcfg_ini = phddctx->config;
+	struct udp_resp_offload udp_resp_cmd_info;
+	QDF_STATUS status;
+	uint8_t udp_payload_filter_len;
+	uint8_t udp_response_payload_len;
+
+	hdd_info("udp_resp_offload enable flag is %d", enable);
+
+	/* prepare the request to send to SME */
+	if ((enable == true) &&
+	    (pcfg_ini->udp_resp_offload_support)) {
+		if (pcfg_ini->response_payload[0] != '\0') {
+			udp_resp_cmd_info.vdev_id = padapter->sessionId;
+			udp_resp_cmd_info.enable = 1;
+			udp_resp_cmd_info.dest_port =
+					pcfg_ini->dest_port;
+
+			udp_payload_filter_len =
+				strlen(pcfg_ini->payload_filter);
+			hdd_info("payload_filter[%s]",
+				pcfg_ini->payload_filter);
+			udp_response_payload_len =
+				strlen(pcfg_ini->response_payload);
+			hdd_info("response_payload[%s]",
+				pcfg_ini->response_payload);
+
+			qdf_mem_copy(udp_resp_cmd_info.udp_payload_filter,
+					pcfg_ini->payload_filter,
+					udp_payload_filter_len + 1);
+
+			qdf_mem_copy(udp_resp_cmd_info.udp_response_payload,
+					pcfg_ini->response_payload,
+					udp_response_payload_len + 1);
+
+			status = sme_set_udp_resp_offload(&udp_resp_cmd_info);
+			if (QDF_STATUS_E_FAILURE == status) {
+				hdd_err("sme_set_udp_resp_offload failure!");
+				return -EIO;
+			}
+			hdd_info("sme_set_udp_resp_offload success!");
+		}
+	} else {
+		udp_resp_cmd_info.vdev_id = padapter->sessionId;
+		udp_resp_cmd_info.enable = 0;
+		udp_resp_cmd_info.dest_port = 0;
+		udp_resp_cmd_info.udp_payload_filter[0] = '\0';
+		udp_resp_cmd_info.udp_response_payload[0] = '\0';
+		status = sme_set_udp_resp_offload(&udp_resp_cmd_info);
+		if (QDF_STATUS_E_FAILURE == status) {
+			hdd_err("sme_set_udp_resp_offload failure!");
+			return -EIO;
+		}
+		hdd_info("sme_set_udp_resp_offload success!");
+	}
+	return 0;
+}
+#else
+static inline int wlan_hdd_set_udp_resp_offload(hdd_adapter_t *padapter,
+				bool enable)
+{
+	return 0;
+}
+#endif
+
 /**
  * wlan_hdd_cfg80211_start_bss() - start bss
  * @pHostapdAdapter: Pointer to hostapd adapter
@@ -8106,6 +8185,13 @@ static int __wlan_hdd_cfg80211_start_ap(struct wiphy *wiphy,
 				params->inactivity_timeout;
 			sme_update_sta_inactivity_timeout(WLAN_HDD_GET_HAL_CTX
 					(pAdapter), sta_inactivity_timer);
+		}
+
+		if (status == 0) {
+			if (0 !=
+				wlan_hdd_set_udp_resp_offload(pAdapter, true))
+				hdd_notice("set udp resp cmd failed %d",
+								status);
 		}
 	}
 

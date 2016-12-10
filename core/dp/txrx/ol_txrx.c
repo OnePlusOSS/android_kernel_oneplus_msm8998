@@ -2178,8 +2178,17 @@ ol_txrx_peer_attach(ol_txrx_vdev_handle vdev, uint8_t *peer_mac_addr)
 	/* keep one reference for attach */
 	qdf_atomic_inc(&peer->ref_cnt);
 
-	/* keep one reference for ol_rx_peer_map_handler */
+	/*
+	 * Set a flag to indicate peer create is pending in firmware and
+	 * increment ref_cnt so that peer will not get deleted while
+	 * peer create command is pending in firmware.
+	 * First peer_map event from firmware signifies successful
+	 * peer creation and it will be decremented in peer_map handling.
+	 */
+	qdf_atomic_init(&peer->fw_create_pending);
+	qdf_atomic_set(&peer->fw_create_pending, 1);
 	qdf_atomic_inc(&peer->ref_cnt);
+
 
 	peer->valid = 1;
 
@@ -4807,6 +4816,13 @@ void ol_register_lro_flush_cb(void (lro_flush_cb)(void *),
 	hif_device = (struct hif_opaque_softc *)
 				cds_get_context(QDF_MODULE_ID_HIF);
 
+	if (qdf_unlikely(hif_device == NULL)) {
+		TXRX_PRINT(TXRX_PRINT_LEVEL_ERR,
+			"%s: hif_device NULL!", __func__);
+		qdf_assert(0);
+		goto out;
+	}
+
 	hif_lro_flush_cb_register(hif_device, ol_txrx_lro_flush, lro_init_cb);
 	qdf_atomic_inc(&pdev->lro_info.lro_dev_cnt);
 
@@ -4840,11 +4856,27 @@ void ol_deregister_lro_flush_cb(void (lro_deinit_cb)(void *))
 	hif_device =
 		(struct hif_opaque_softc *)cds_get_context(QDF_MODULE_ID_HIF);
 
+	if (qdf_unlikely(hif_device == NULL)) {
+		TXRX_PRINT(TXRX_PRINT_LEVEL_ERR,
+			"%s: hif_device NULL!", __func__);
+		qdf_assert(0);
+		return;
+	}
+
 	hif_lro_flush_cb_deregister(hif_device, lro_deinit_cb);
 
 	pdev->lro_info.lro_flush_cb = NULL;
 }
 #endif /* FEATURE_LRO */
+
+void
+ol_txrx_dump_pkt(qdf_nbuf_t nbuf, uint32_t nbuf_paddr, int len)
+{
+	qdf_print("%s: Pkt: VA 0x%p PA 0x%llx len %d\n", __func__,
+		  qdf_nbuf_data(nbuf), (unsigned long long int)nbuf_paddr, len);
+	print_hex_dump(KERN_DEBUG, "Pkt:   ", DUMP_PREFIX_ADDRESS, 16, 4,
+		       qdf_nbuf_data(nbuf), len, true);
+}
 
 /**
  * ol_txrx_get_vdev_from_vdev_id() - get vdev from vdev_id

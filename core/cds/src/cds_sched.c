@@ -577,8 +577,8 @@ QDF_STATUS cds_sched_open(void *p_cds_context,
 #ifdef QCA_CONFIG_SMP
 OL_RX_THREAD_START_FAILURE:
 	/* Try and force the Main thread controller to exit */
-	set_bit(MC_SHUTDOWN_EVENT_MASK, &pSchedContext->mcEventFlag);
-	set_bit(MC_POST_EVENT_MASK, &pSchedContext->mcEventFlag);
+	set_bit(MC_SHUTDOWN_EVENT, &pSchedContext->mcEventFlag);
+	set_bit(MC_POST_EVENT, &pSchedContext->mcEventFlag);
 	wake_up_interruptible(&pSchedContext->mcWaitQueue);
 	/* Wait for MC to exit */
 	wait_for_completion_interruptible(&pSchedContext->McShutdown);
@@ -650,9 +650,9 @@ static int cds_mc_thread(void *Arg)
 		/* This implements the execution model algorithm */
 		retWaitStatus =
 			wait_event_interruptible(pSchedContext->mcWaitQueue,
-						 test_bit(MC_POST_EVENT_MASK,
+						 test_bit(MC_POST_EVENT,
 							  &pSchedContext->mcEventFlag)
-						 || test_bit(MC_SUSPEND_EVENT_MASK,
+						 || test_bit(MC_SUSPEND_EVENT,
 							     &pSchedContext->mcEventFlag));
 
 		if (retWaitStatus == -ERESTARTSYS) {
@@ -661,12 +661,12 @@ static int cds_mc_thread(void *Arg)
 				  __func__);
 			QDF_BUG(0);
 		}
-		clear_bit(MC_POST_EVENT_MASK, &pSchedContext->mcEventFlag);
+		clear_bit(MC_POST_EVENT, &pSchedContext->mcEventFlag);
 
 		while (1) {
 			/* Check if MC needs to shutdown */
 			if (test_bit
-				    (MC_SHUTDOWN_EVENT_MASK,
+				    (MC_SHUTDOWN_EVENT,
 				    &pSchedContext->mcEventFlag)) {
 				QDF_TRACE(QDF_MODULE_ID_QDF,
 					  QDF_TRACE_LEVEL_INFO,
@@ -675,9 +675,9 @@ static int cds_mc_thread(void *Arg)
 				shutdown = true;
 				/* Check for any Suspend Indication */
 				if (test_bit
-					    (MC_SUSPEND_EVENT_MASK,
+					    (MC_SUSPEND_EVENT,
 					    &pSchedContext->mcEventFlag)) {
-					clear_bit(MC_SUSPEND_EVENT_MASK,
+					clear_bit(MC_SUSPEND_EVENT,
 						  &pSchedContext->mcEventFlag);
 
 					/* Unblock anyone waiting on suspend */
@@ -822,9 +822,9 @@ static int cds_mc_thread(void *Arg)
 			}
 			/* Check for any Suspend Indication */
 			if (test_bit
-				    (MC_SUSPEND_EVENT_MASK,
+				    (MC_SUSPEND_EVENT,
 				    &pSchedContext->mcEventFlag)) {
-				clear_bit(MC_SUSPEND_EVENT_MASK,
+				clear_bit(MC_SUSPEND_EVENT,
 					  &pSchedContext->mcEventFlag);
 				spin_lock(&pSchedContext->McThreadLock);
 				INIT_COMPLETION(pSchedContext->ResumeMcEvent);
@@ -974,7 +974,7 @@ cds_indicate_rxpkt(p_cds_sched_context pSchedContext,
 	spin_lock_bh(&pSchedContext->ol_rx_queue_lock);
 	list_add_tail(&pkt->list, &pSchedContext->ol_rx_thread_queue);
 	spin_unlock_bh(&pSchedContext->ol_rx_queue_lock);
-	set_bit(RX_POST_EVENT_MASK, &pSchedContext->ol_rx_event_flag);
+	set_bit(RX_POST_EVENT, &pSchedContext->ol_rx_event_flag);
 	wake_up_interruptible(&pSchedContext->ol_rx_wait_queue);
 }
 
@@ -1093,22 +1093,22 @@ static int cds_ol_rx_thread(void *arg)
 	while (!shutdown) {
 		status =
 			wait_event_interruptible(pSchedContext->ol_rx_wait_queue,
-						 test_bit(RX_POST_EVENT_MASK,
+						 test_bit(RX_POST_EVENT,
 							  &pSchedContext->ol_rx_event_flag)
-						 || test_bit(RX_SUSPEND_EVENT_MASK,
+						 || test_bit(RX_SUSPEND_EVENT,
 							     &pSchedContext->ol_rx_event_flag));
 		if (status == -ERESTARTSYS)
 			break;
 
-		clear_bit(RX_POST_EVENT_MASK, &pSchedContext->ol_rx_event_flag);
+		clear_bit(RX_POST_EVENT, &pSchedContext->ol_rx_event_flag);
 		while (true) {
-			if (test_bit(RX_SHUTDOWN_EVENT_MASK,
+			if (test_bit(RX_SHUTDOWN_EVENT,
 				     &pSchedContext->ol_rx_event_flag)) {
-				clear_bit(RX_SHUTDOWN_EVENT_MASK,
+				clear_bit(RX_SHUTDOWN_EVENT,
 					  &pSchedContext->ol_rx_event_flag);
-				if (test_bit(RX_SUSPEND_EVENT_MASK,
+				if (test_bit(RX_SUSPEND_EVENT,
 					     &pSchedContext->ol_rx_event_flag)) {
-					clear_bit(RX_SUSPEND_EVENT_MASK,
+					clear_bit(RX_SUSPEND_EVENT,
 						  &pSchedContext->ol_rx_event_flag);
 					complete
 						(&pSchedContext->ol_suspend_rx_event);
@@ -1122,9 +1122,9 @@ static int cds_ol_rx_thread(void *arg)
 			}
 			cds_rx_from_queue(pSchedContext);
 
-			if (test_bit(RX_SUSPEND_EVENT_MASK,
+			if (test_bit(RX_SUSPEND_EVENT,
 				     &pSchedContext->ol_rx_event_flag)) {
-				clear_bit(RX_SUSPEND_EVENT_MASK,
+				clear_bit(RX_SUSPEND_EVENT,
 					  &pSchedContext->ol_rx_event_flag);
 				spin_lock(&pSchedContext->ol_rx_thread_lock);
 				INIT_COMPLETION
@@ -1166,8 +1166,8 @@ QDF_STATUS cds_sched_close(void *p_cds_context)
 		return QDF_STATUS_E_FAILURE;
 	}
 	/* shut down MC Thread */
-	set_bit(MC_SHUTDOWN_EVENT_MASK, &gp_cds_sched_context->mcEventFlag);
-	set_bit(MC_POST_EVENT_MASK, &gp_cds_sched_context->mcEventFlag);
+	set_bit(MC_SHUTDOWN_EVENT, &gp_cds_sched_context->mcEventFlag);
+	set_bit(MC_POST_EVENT, &gp_cds_sched_context->mcEventFlag);
 	wake_up_interruptible(&gp_cds_sched_context->mcWaitQueue);
 	/* Wait for MC to exit */
 	wait_for_completion(&gp_cds_sched_context->McShutdown);
@@ -1181,8 +1181,8 @@ QDF_STATUS cds_sched_close(void *p_cds_context)
 
 #ifdef QCA_CONFIG_SMP
 	/* Shut down Tlshim Rx thread */
-	set_bit(RX_SHUTDOWN_EVENT_MASK, &gp_cds_sched_context->ol_rx_event_flag);
-	set_bit(RX_POST_EVENT_MASK, &gp_cds_sched_context->ol_rx_event_flag);
+	set_bit(RX_SHUTDOWN_EVENT, &gp_cds_sched_context->ol_rx_event_flag);
+	set_bit(RX_POST_EVENT, &gp_cds_sched_context->ol_rx_event_flag);
 	wake_up_interruptible(&gp_cds_sched_context->ol_rx_wait_queue);
 	wait_for_completion(&gp_cds_sched_context->ol_rx_shutdown);
 	gp_cds_sched_context->ol_rx_thread = NULL;

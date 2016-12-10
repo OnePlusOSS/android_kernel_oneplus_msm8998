@@ -13706,6 +13706,7 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 	uint32_t dwTmp, ucDot11Mode = 0;
 	/* RSN MAX is bigger than WPA MAX */
 	uint8_t wpaRsnIE[DOT11F_IE_RSN_MAX_LEN];
+	uint8_t txBFCsnValue = 0;
 	tSirSmeJoinReq *csr_join_req;
 	tSirMacCapabilityInfo *pAP_capabilityInfo;
 	tAniBool fTmp;
@@ -14214,10 +14215,19 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 				FL("Failed to get CSN beamformee capability"));
 
 		csr_join_req->vht_config.su_beam_formee = value;
-
-		if (value)
-			csr_join_req->vht_config.csnof_beamformer_antSup =
-				(uint8_t)value1;
+		if (value) {
+			txBFCsnValue = (uint8_t)value1;
+			if (IS_BSS_VHT_CAPABLE(pIes->VHTCaps) &&
+					pIes->VHTCaps.numSoundingDim)
+				txBFCsnValue = QDF_MIN(txBFCsnValue,
+						pIes->VHTCaps.numSoundingDim);
+			else if (IS_BSS_VHT_CAPABLE(pIes->vendor_vht_ie.VHTCaps)
+				&& pIes->vendor_vht_ie.VHTCaps.numSoundingDim)
+				txBFCsnValue = QDF_MIN(txBFCsnValue,
+					pIes->vendor_vht_ie.
+					VHTCaps.numSoundingDim);
+		}
+		csr_join_req->vht_config.csnof_beamformer_antSup = txBFCsnValue;
 
 		if (wlan_cfg_get_int(pMac,
 				WNI_CFG_VHT_MU_BEAMFORMEE_CAP, &value)
@@ -19430,7 +19440,6 @@ void csr_roam_synch_callback(tpAniSirGlobal mac_ctx,
 	tCsrRoamInfo *roam_info;
 	tCsrRoamConnectedProfile *conn_profile = NULL;
 	sme_QosAssocInfo assoc_info;
-	struct qdf_mac_addr bcast_mac = QDF_MAC_ADDR_BROADCAST_INITIALIZER;
 	tpAddBssParams add_bss_params;
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	uint16_t len;
@@ -19540,29 +19549,20 @@ void csr_roam_synch_callback(tpAniSirGlobal mac_ctx,
 			session->pCurRoamProfile->negotiatedAuthType,
 			bss_desc, ies_local);
 	roam_info->isESEAssoc = conn_profile->isESEAssoc;
-	if (CSR_IS_ENC_TYPE_STATIC
-		(session->pCurRoamProfile->negotiatedUCEncryptionType) &&
-		!session->pCurRoamProfile->bWPSAssociation) {
-		if (!QDF_IS_STATUS_SUCCESS(
-			csr_roam_issue_set_context_req(mac_ctx,
-				session_id,
-				session->pCurRoamProfile->negotiatedUCEncryptionType,
-				bss_desc,
-				&(bss_desc->bssId),
-				false, true,
-				eSIR_TX_RX, 0, 0, NULL, 0))) {
-			/* NO keys. these key parameters don't matter */
-			sms_log(mac_ctx, LOGE,
-					FL("Set context for unicast fail"));
-			csr_roam_substate_change(mac_ctx,
-					eCSR_ROAM_SUBSTATE_NONE, session_id);
-		}
-		csr_roam_issue_set_context_req(mac_ctx, session_id,
-			session->pCurRoamProfile->negotiatedMCEncryptionType,
-			bss_desc,
-			&bcast_mac.bytes, false, false,
-			eSIR_TX_RX, 0, 0, NULL, 0);
-	}
+
+	/*
+	 * Encryption keys for new connection are obtained as follows:
+	 * authStatus = CSR_ROAM_AUTH_STATUS_AUTHENTICATED
+	 * Open - No keys required.
+	 * Static WEP - Firmware copies keys from old AP to new AP.
+	 * Fast roaming authentications e.g. PSK, FT, CCKM - firmware
+	 *      supplicant obtains them through 4-way handshake.
+	 *
+	 * authStatus = CSR_ROAM_AUTH_STATUS_CONNECTED
+	 * All other authentications - Host supplicant performs EAPOL
+	 *      with AP after this point and sends new keys to the driver.
+	 *      Driver starts wait_for_key timer for that purpose.
+	 */
 	if ((roam_synch_data->authStatus
 				== CSR_ROAM_AUTH_STATUS_AUTHENTICATED)) {
 		QDF_TRACE(QDF_MODULE_ID_SME,

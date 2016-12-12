@@ -522,7 +522,8 @@ static inline void wmi_log_buffer_free(struct wmi_unified *wmi_handle)
 #else
 static inline void wmi_log_buffer_free(struct wmi_unified *wmi_handle)
 {
-	/* Do Nothing */
+	wmi_handle->log_info.wmi_logging_enable = 0;
+	qdf_spinlock_destroy(&wmi_handle->log_info.wmi_record_lock);
 }
 #endif
 
@@ -2253,7 +2254,6 @@ void *wmi_unified_attach(void *scn_handle,
 	INIT_WORK(&wmi_handle->rx_event_work, wmi_rx_event_work);
 #ifdef WMI_INTERFACE_EVENT_LOGGING
 	if (QDF_STATUS_SUCCESS == wmi_log_init(wmi_handle)) {
-		qdf_spinlock_create(&wmi_handle->log_info.wmi_record_lock);
 		wmi_debugfs_init(wmi_handle);
 	}
 #endif

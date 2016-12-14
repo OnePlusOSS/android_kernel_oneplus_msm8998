@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -767,6 +767,9 @@ typedef enum {
 	WMITLV_TAG_STRUC_wmi_vendor_oui,
 	WMITLV_TAG_STRUC_wmi_request_rcpi_cmd_fixed_param,
 	WMITLV_TAG_STRUC_wmi_update_rcpi_event_fixed_param,
+	WMITLV_TAG_STRUC_wmi_request_peer_stats_info_cmd_fixed_param,
+	WMITLV_TAG_STRUC_wmi_peer_stats_info,
+	WMITLV_TAG_STRUC_wmi_peer_stats_info_event_fixed_param,
 } WMITLV_TAG_ID;
 
 /*
@@ -1077,6 +1080,7 @@ typedef enum {
 	OP(WMI_VDEV_ADFS_CH_CFG_CMDID) \
 	OP(WMI_VDEV_ADFS_OCAC_ABORT_CMDID) \
 	OP(WMI_REQUEST_RCPI_CMDID) \
+	OP(WMI_REQUEST_PEER_STATS_INFO_CMDID) \
 	/* add new CMD_LIST elements above this line */
 
 /*
@@ -1243,6 +1247,7 @@ typedef enum {
 	OP(WMI_VDEV_DFS_CAC_COMPLETE_EVENTID) \
 	OP(WMI_VDEV_ADFS_OCAC_COMPLETE_EVENTID) \
 	OP(WMI_UPDATE_RCPI_EVENTID) \
+	OP(WMI_PEER_STATS_INFO_EVENTID) \
 	/* add new EVT_LIST elements above this line */
 
 /* TLV definitions of WMI commands */
@@ -3090,6 +3095,11 @@ WMITLV_CREATE_PARAM_STRUC(WMI_PDEV_SET_STATS_THRESHOLD_CMDID);
 	WMITLV_ELEM(id , op, buf, len, WMITLV_TAG_STRUC_wmi_request_wlan_stats_cmd_fixed_param, wmi_request_wlan_stats_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
 WMITLV_CREATE_PARAM_STRUC(WMI_REQUEST_WLAN_STATS_CMDID);
 
+/* Request peer stats info cmd */
+#define WMITLV_TABLE_WMI_REQUEST_PEER_STATS_INFO_CMDID(id, op, buf, len) \
+	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_STRUC_wmi_request_peer_stats_info_cmd_fixed_param, wmi_request_peer_stats_info_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_REQUEST_PEER_STATS_INFO_CMDID);
+
 /************************** TLV definitions of WMI events *******************************/
 
 /* Service Ready event */
@@ -4121,6 +4131,11 @@ WMITLV_CREATE_PARAM_STRUC(WMI_REPORT_STATS_EVENTID);
 	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_STRUC_wmi_vdev_encrypt_decrypt_data_resp_event_fixed_param, wmi_vdev_encrypt_decrypt_data_resp_event_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
 	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_ARRAY_BYTE, A_UINT8, enc80211_frame, WMITLV_SIZE_VAR)
 WMITLV_CREATE_PARAM_STRUC(WMI_VDEV_ENCRYPT_DECRYPT_DATA_RESP_EVENTID);
+
+#define WMITLV_TABLE_WMI_PEER_STATS_INFO_EVENTID(id, op, buf, len) \
+	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_STRUC_wmi_peer_stats_info_event_fixed_param, wmi_peer_stats_info_event_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
+	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_ARRAY_STRUC, wmi_peer_stats_info, peer_stats_info, WMITLV_SIZE_VAR)
+WMITLV_CREATE_PARAM_STRUC(WMI_PEER_STATS_INFO_EVENTID);
 
 #ifdef __cplusplus
 }

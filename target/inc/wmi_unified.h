@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -721,6 +721,9 @@ typedef enum {
 	/** Request for getting RCPI of peer */
 	WMI_REQUEST_RCPI_CMDID,
 
+	/** One time request for peer stats info */
+	WMI_REQUEST_PEER_STATS_INFO_CMDID,
+
 	/** ARP OFFLOAD REQUEST*/
 	WMI_SET_ARP_NS_OFFLOAD_CMDID =
 		WMI_CMD_GRP_START_ID(WMI_GRP_ARP_NS_OFL),
@@ -1283,6 +1286,10 @@ typedef enum {
 	/** Event indicating RCPI of the peer requested by host in the
 	 * WMI_REQUEST_RCPI_CMDID */
 	WMI_UPDATE_RCPI_EVENTID,
+
+	/** This event is used to respond to WMI_REQUEST_PEER_STATS_INFO_CMDID
+	 *  and report peer stats info to host */
+	WMI_PEER_STATS_INFO_EVENTID,
 
 	/** NLO specific events */
 	/** NLO match event after the first match */
@@ -4012,6 +4019,10 @@ typedef enum {
 	WMI_PDEV_PARAM_ENABLE_RTS_SIFS_BURSTING,
 	/** Set Maximum number of MPDUs in an AMPDU*/
 	WMI_PDEV_PARAM_MAX_MPDUS_IN_AMPDU,
+	/** Enable/disable peer stats info mechanism
+	 * A zero value disables; a non-zero value enables.
+	 */
+	WMI_PDEV_PARAM_PEER_STATS_INFO_ENABLE,
 
 } WMI_PDEV_PARAM;
 
@@ -5610,6 +5621,103 @@ typedef struct {
 	 */
 } wmi_report_stats_event_fixed_param;
 
+typedef struct {
+	/** TLV tag and len; tag equals
+	 *  WMITLV_TAG_STRUC_wmi_peer_stats_info */
+	A_UINT32 tlv_header;
+	/** peer MAC address */
+	wmi_mac_addr peer_macaddr;
+	/** bytes (size of MPDUs) transmitted to this peer */
+	struct {
+		/* lower 32 bits of the tx_bytes value */
+		A_UINT32 low_32;
+		/* upper 32 bits of the tx_bytes value */
+		A_UINT32 high_32;
+	} tx_bytes;
+	/** packets (MSDUs) transmitted to this peer */
+	struct {
+		/* lower 32 bits of the tx_packets value */
+		A_UINT32 low_32;
+		/* upper 32 bits of the tx_packets value */
+		A_UINT32 high_32;
+	} tx_packets;
+	/** bytes (size of MPDUs) received from this peer */
+	struct {
+		/* lower 32 bits of the rx_bytes value */
+		A_UINT32 low_32;
+		/* upper 32 bits of the rx_bytes value */
+		A_UINT32 high_32;
+	} rx_bytes;
+	/** packets (MSDUs) received from this peer */
+	struct {
+		/* lower 32 bits of the rx_packets value */
+		A_UINT32 low_32;
+		/* upper 32 bits of the rx_packets value */
+		A_UINT32 high_32;
+	} rx_packets;
+	/** cumulative retry counts (MPDUs) */
+	A_UINT32 tx_retries;
+	/** number of failed transmissions (MPDUs) (retries exceeded, no ACK) */
+	A_UINT32 tx_failed;
+	/** rate information, it is output of WMI_ASSEMBLE_RATECODE_V1
+	 *  (in format of 0x1000RRRR)
+	 * The rate-code is a 4-bytes field in which,
+	 * for given rate, nss and preamble
+	 *
+	 * b'31-b'29 unused / reserved
+	 * b'28      indicate the version of rate-code (1 = RATECODE_V1)
+	 * b'27-b'11 unused / reserved
+	 * b'10-b'8  indicate the preamble (0 OFDM, 1 CCK, 2 HT, 3 VHT)
+	 * b'7-b'5   indicate the NSS (0 - 1x1, 1 - 2x2, 2 - 3x3, 3 - 4x4)
+	 * b'4-b'0   indicate the rate, which is indicated as follows:
+	 *          OFDM :     0: OFDM 48 Mbps
+	 *                     1: OFDM 24 Mbps
+	 *                     2: OFDM 12 Mbps
+	 *                     3: OFDM 6 Mbps
+	 *                     4: OFDM 54 Mbps
+	 *                     5: OFDM 36 Mbps
+	 *                     6: OFDM 18 Mbps
+	 *                     7: OFDM 9 Mbps
+	 *         CCK (pream == 1)
+	 *                     0: CCK 11 Mbps Long
+	 *                     1: CCK 5.5 Mbps Long
+	 *                     2: CCK 2 Mbps Long
+	 *                     3: CCK 1 Mbps Long
+	 *                     4: CCK 11 Mbps Short
+	 *                     5: CCK 5.5 Mbps Short
+	 *                     6: CCK 2 Mbps Short
+	 *         HT/VHT (pream == 2/3)
+	 *                     0..7: MCS0..MCS7 (HT)
+	 *                     0..9: MCS0..MCS9 (11AC VHT)
+	 *                     0..11: MCS0..MCS11 (11AX VHT)
+	 */
+	/** rate-code of the last transmission */
+	A_UINT32 last_tx_rate_code;
+	/** rate-code of the last received PPDU */
+	A_UINT32 last_rx_rate_code;
+	/** bitrate of the last transmission, in units of kbps */
+	A_UINT32 last_tx_bitrate_kbps;
+	/** bitrate of the last received PPDU, in units of kbps */
+	A_UINT32 last_rx_bitrate_kbps;
+	/** combined RSSI of the last received PPDU, in unit of dBm */
+	A_INT32 peer_rssi;
+} wmi_peer_stats_info;
+
+typedef struct {
+	/** TLV tag and len; tag equals
+	 *  WMITLV_TAG_STRUC_wmi_peer_stats_info_event_fixed_param */
+	A_UINT32 tlv_header;
+	/** VDEV to which the peers belong to */
+	A_UINT32 vdev_id;
+	/** number of peers in peer_stats_info[] */
+	A_UINT32 num_peers;
+	/** flag to indicate if there are more peers which will
+	 *  be sent a following seperate peer_stats_info event */
+	A_UINT32 more_data;
+	/* This TLV is followed by another TLV of array of structs
+	 * wmi_peer_stats_info peer_stats_info[];
+	 */
+} wmi_peer_stats_info_event_fixed_param;
 
 /**
  *  PDEV statistics
@@ -17545,6 +17653,31 @@ typedef struct {
 	A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_request_wlan_stats_cmd_fixed_param */
 	wmi_wlan_stats_id stats_id;
 } wmi_request_wlan_stats_cmd_fixed_param;
+
+typedef enum {
+	WMI_REQUEST_ONE_PEER_STATS_INFO = 0x01, /* request stats of one specified peer */
+	WMI_REQUEST_VDEV_ALL_PEER_STATS_INFO = 0x02, /* request stats of all peers belong to specified VDEV */
+} wmi_peer_stats_info_request_type;
+
+/** It is required to issue WMI_PDEV_PARAM_PEER_STATS_INFO_ENABLE
+*  (with a non-zero value) before issuing the first REQUEST_PEER_STATS_INFO.
+*/
+typedef struct {
+	/** TLV tag and len; tag equals
+	* WMITLV_TAG_STRUC_wmi_request_peer_stats_info_cmd_fixed_param */
+	A_UINT32 tlv_header;
+	/** request_type to indicate if only stats of
+	*  one peer or all peers of the VDEV are requested,
+	*  see wmi_peer_stats_info_request_type.
+	*/
+	A_UINT32 request_type;
+	/** VDEV identifier */
+	A_UINT32 vdev_id;
+	/** this peer_macaddr is only used if request_type == ONE_PEER_STATS_INFO */
+	wmi_mac_addr peer_macaddr;
+	/** flag to indicate if FW needs to reset requested peers stats */
+	A_UINT32 reset_after_request;
+} wmi_request_peer_stats_info_cmd_fixed_param;
 
 typedef enum {
 	    WLAN_2G_CAPABILITY = 0x1,

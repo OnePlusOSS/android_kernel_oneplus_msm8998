@@ -87,6 +87,7 @@
 #include <a_types.h>
 #include "wma_api.h"
 
+#include <htt_internal.h>
 #ifdef CONFIG_HL_SUPPORT
 
 /**
@@ -4359,6 +4360,9 @@ QDF_STATUS ol_txrx_display_stats(uint16_t value)
 		break;
 	case WLAN_TXRX_DESC_STATS:
 		qdf_nbuf_tx_desc_count_display();
+		break;
+	case WLAN_RX_BUF_DEBUG_STATS:
+		htt_display_rx_buf_debug(pdev->htt_pdev);
 		break;
 #ifdef CONFIG_HL_SUPPORT
 	case WLAN_SCHEDULER_STATS:

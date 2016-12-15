@@ -1214,6 +1214,7 @@ static void gesture_judge(struct synaptics_ts_data *ts)
 	}
 
 // carlo@oneplus.net 2015-05-25, begin.
+/*
 	keyCode = UnkownGestrue;
 	// Get key code based on registered gesture.
 	switch (gesture) {
@@ -1251,6 +1252,7 @@ static void gesture_judge(struct synaptics_ts_data *ts)
 			break;
 	}
 // carlo@oneplus.net 2015-05-25, end.
+*/
 
 	TPD_ERR("detect %s gesture\n", gesture == DouTap ? "(double tap)" :
 			gesture == UpVee ? "(V)" :

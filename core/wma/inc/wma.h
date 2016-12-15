@@ -1,4 +1,4 @@
-				/*
+/*
  * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
@@ -2280,6 +2280,7 @@ static inline QDF_STATUS wma_lro_config_cmd(tp_wma_handle wma_handle,
 	return QDF_STATUS_SUCCESS;
 }
 #endif
+bool wma_is_current_hwmode_dbs(void);
 void
 wma_indicate_err(enum ol_rx_err_type err_type,
 	 struct ol_error_info *err_info);
@@ -2319,7 +2320,6 @@ QDF_STATUS wma_create_peer(tp_wma_handle wma, ol_txrx_pdev_handle pdev,
 			   u_int32_t peer_type, u_int8_t vdev_id,
 			   bool roam_synch_in_progress);
 
-#endif
 struct wma_ini_config *wma_get_ini_handle(tp_wma_handle wma_handle);
 WLAN_PHY_MODE wma_chan_phy_mode(u8 chan, enum phy_ch_width chan_width,
 	u8 dot11_mode);
@@ -2340,3 +2340,4 @@ void wma_update_sta_inactivity_timeout(tp_wma_handle wma,
 
 QDF_STATUS wma_send_udp_resp_offload_cmd(tp_wma_handle wma_handle,
 					struct udp_resp_offload *udp_response);
+#endif

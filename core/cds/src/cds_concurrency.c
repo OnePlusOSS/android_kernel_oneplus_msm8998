@@ -2162,8 +2162,8 @@ static void cds_update_conc_list(uint32_t conn_index,
 	conc_connection_list[conn_index].in_use = in_use;
 
 	cds_dump_connection_status_info();
-	if (cds_ctx->ol_txrx_update_mac_id)
-		cds_ctx->ol_txrx_update_mac_id(vdev_id, mac);
+	if (cds_ctx->ol_txrx_update_mac_id_cb)
+		cds_ctx->ol_txrx_update_mac_id_cb(vdev_id, mac);
 
 }
 
@@ -3800,10 +3800,10 @@ void cds_incr_active_session(enum tQDF_ADAPTER_MODE mode,
 									0) ||
 	    (cds_mode_specific_connection_count(CDS_P2P_GO_MODE, NULL) > 0) ||
 	    (cds_mode_specific_connection_count(CDS_IBSS_MODE, NULL) > 0)) {
-		if (cds_ctx->hdd_disable_lro_in_concurrency != NULL)
-			cds_ctx->hdd_disable_lro_in_concurrency(hdd_ctx);
+		if (cds_ctx->hdd_disable_lro_in_cc_cb != NULL)
+			cds_ctx->hdd_disable_lro_in_cc_cb(hdd_ctx);
 		else
-			cds_warn("hdd_disable_lro_in_concurrency NULL!");
+			cds_warn("hdd_disable_lro_in_cc_cb NULL!");
 	};
 
 	/* set tdls connection tracker state */
@@ -4044,8 +4044,8 @@ void cds_decr_active_session(enum tQDF_ADAPTER_MODE mode,
 									0) &&
 	    (cds_mode_specific_connection_count(CDS_P2P_GO_MODE, NULL) == 0) &&
 	    (cds_mode_specific_connection_count(CDS_IBSS_MODE, NULL) == 0)) {
-		if (cds_ctx->hdd_enable_lro_in_concurrency != NULL)
-			cds_ctx->hdd_enable_lro_in_concurrency(hdd_ctx);
+		if (cds_ctx->hdd_en_lro_in_cc_cb != NULL)
+			cds_ctx->hdd_en_lro_in_cc_cb(hdd_ctx);
 		else
 			cds_warn("hdd_enable_lro_in_concurrency NULL!");
 	};

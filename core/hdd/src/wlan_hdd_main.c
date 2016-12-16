@@ -105,7 +105,7 @@
 #include "nan_api.h"
 #include <wlan_hdd_napi.h>
 #include "wlan_hdd_disa.h"
-
+#include "ol_txrx.h"
 #ifdef MODULE
 #define WLAN_MODULE_NAME  module_name(THIS_MODULE)
 #else
@@ -7802,8 +7802,11 @@ int hdd_configure_cds(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 {
 	int ret;
 	QDF_STATUS status;
-	/* structure of function pointers to be used by CDS */
+	/* structure of SME function pointers to be used by CDS */
 	struct cds_sme_cbacks sme_cbacks;
+
+	/* structure of datapath function pointers to be used by CDS */
+	struct cds_dp_cbacks dp_cbacks;
 
 	ret = hdd_pre_enable_configure(hdd_ctx);
 	if (ret) {
@@ -7840,6 +7843,12 @@ int hdd_configure_cds(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 		goto hdd_features_deinit;
 	}
 
+	dp_cbacks.hdd_en_lro_in_cc_cb = hdd_enable_lro_in_concurrency;
+	dp_cbacks.hdd_disble_lro_in_cc_cb = hdd_disable_lro_in_concurrency;
+	dp_cbacks.ol_txrx_update_mac_id_cb = ol_txrx_update_mac_id;
+	if (cds_register_dp_cb(&dp_cbacks) != QDF_STATUS_SUCCESS)
+		hdd_err("Unable to register datapath callbacks in CDS");
+
 	return 0;
 
 hdd_features_deinit:
@@ -7875,6 +7884,12 @@ static int hdd_deconfigure_cds(hdd_context_t *hdd_ctx)
 		hdd_err("Failed to deinit policy manager");
 		/* Proceed and complete the clean up */
 		ret = -EINVAL;
+	}
+
+	qdf_status = cds_deregister_dp_cb();
+	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
+		hdd_err("Failed to deregister datapath callbacks from CDS :%d",
+			qdf_status);
 	}
 
 	qdf_status = cds_disable(hdd_ctx->pcds_context);

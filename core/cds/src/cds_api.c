@@ -458,12 +458,6 @@ QDF_STATUS cds_open(void)
 		goto err_sme_close;
 	}
 
-	gp_cds_context->ol_txrx_update_mac_id = ol_txrx_update_mac_id;
-	gp_cds_context->hdd_enable_lro_in_concurrency =
-		hdd_enable_lro_in_concurrency;
-	gp_cds_context->hdd_disable_lro_in_concurrency =
-		hdd_disable_lro_in_concurrency;
-
 	QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_INFO_HIGH,
 		  "%s: CDS successfully Opened", __func__);
 
@@ -2445,4 +2439,50 @@ inline void cds_pkt_stats_to_logger_thread(void *pl_hdr, void *pkt_dump,
 		return;
 
 	wlan_pkt_stats_to_logger_thread(pl_hdr, pkt_dump, data);
+}
+
+/**
+ * cds_register_dp_cb() - Register datapath callbacks with CDS
+ * @dp_cbs: pointer to cds_dp_cbacks structure
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS cds_register_dp_cb(struct cds_dp_cbacks *dp_cbs)
+{
+	p_cds_contextType cds_ctx;
+
+	cds_ctx = cds_get_global_context();
+	if (!cds_ctx) {
+		cds_err("Invalid CDS context");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	cds_ctx->ol_txrx_update_mac_id_cb = dp_cbs->ol_txrx_update_mac_id_cb;
+	cds_ctx->hdd_en_lro_in_cc_cb = dp_cbs->hdd_en_lro_in_cc_cb;
+	cds_ctx->hdd_disable_lro_in_cc_cb = dp_cbs->hdd_disble_lro_in_cc_cb;
+	return QDF_STATUS_SUCCESS;
+}
+
+/**
+ * cds_deregister_dp_cb() - Deregister datapath callbacks with CDS
+ * @dp_cbs: pointer to cds_dp_cbacks structure
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS cds_deregister_dp_cb(void)
+
+{
+	p_cds_contextType cds_ctx;
+
+	cds_ctx = cds_get_global_context();
+	if (!cds_ctx) {
+		cds_err("Invalid CDS context");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	cds_ctx->ol_txrx_update_mac_id_cb = NULL;
+	cds_ctx->hdd_en_lro_in_cc_cb = NULL;
+	cds_ctx->hdd_disable_lro_in_cc_cb = NULL;
+
+	return QDF_STATUS_SUCCESS;
 }

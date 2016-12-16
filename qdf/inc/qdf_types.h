@@ -273,6 +273,35 @@ typedef enum {
 } QDF_MODULE_ID;
 
 /**
+ * typedef enum QDF_TRACE_LEVEL - Debug Trace level
+ * @QDF_TRACE_LEVEL_NONE: no trace will be logged. This value is in place
+ * for the qdf_trace_setlevel() to allow the user to turn off all traces
+ * @QDF_TRACE_LEVEL_FATAL: enable trace for fatal Error
+ * @QDF_TRACE_LEVEL_ERROR: enable trace for errors
+ * @QDF_TRACE_LEVEL_WARN: enable trace for warnings
+ * @QDF_TRACE_LEVEL_INFO: enable trace for information
+ * @QDF_TRACE_LEVEL_INFO_HIGH: enable high level trace information
+ * @QDF_TRACE_LEVEL_INFO_MED: enable middle level trace information
+ * @QDF_TRACE_LEVEL_INFO_LOW: enable low level trace information
+ * @QDF_TRACE_LEVEL_DEBUG: enable trace for debugging
+ * @QDF_TRACE_LEVEL_ALL: enable all trace
+ * @QDF_TRACE_LEVEL_MAX: enable max level trace
+ */
+typedef enum {
+	QDF_TRACE_LEVEL_NONE = 0,
+	QDF_TRACE_LEVEL_FATAL,
+	QDF_TRACE_LEVEL_ERROR,
+	QDF_TRACE_LEVEL_WARN,
+	QDF_TRACE_LEVEL_INFO,
+	QDF_TRACE_LEVEL_INFO_HIGH,
+	QDF_TRACE_LEVEL_INFO_MED,
+	QDF_TRACE_LEVEL_INFO_LOW,
+	QDF_TRACE_LEVEL_DEBUG,
+	QDF_TRACE_LEVEL_ALL,
+	QDF_TRACE_LEVEL_MAX
+} QDF_TRACE_LEVEL;
+
+/**
  * enum tQDF_ADAPTER_MODE - Concurrency role.
  * @QDF_STA_MODE: STA mode
  * @QDF_SAP_MODE: SAP mode

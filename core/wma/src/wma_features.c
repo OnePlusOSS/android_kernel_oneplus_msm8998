@@ -5428,6 +5428,9 @@ QDF_STATUS wma_process_gtk_offload_req(tp_wma_handle wma,
 
 	WMA_LOGD("%s Enter", __func__);
 
+	WMA_LOGD("%s replay_ctr 0x%llx", __func__,
+		 params->ullKeyReplayCounter);
+
 	/* Get the vdev id */
 	if (!wma_find_vdev_by_bssid(wma, params->bssid.bytes, &vdev_id)) {
 		WMA_LOGE("vdev handle is invalid for %pM", params->bssid.bytes);

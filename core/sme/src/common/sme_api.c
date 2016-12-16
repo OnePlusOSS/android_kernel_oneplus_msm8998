@@ -6364,7 +6364,7 @@ QDF_STATUS sme_set_gtk_offload(tHalHandle hHal,
 	tCsrRoamSession *pSession = CSR_GET_SESSION(pMac, sessionId);
 
 	QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_INFO,
-		  "%s: KeyReplayCounter: %lld", __func__,
+		  "%s: KeyReplayCounter: 0x%llx", __func__,
 		  pGtkOffload->ullKeyReplayCounter);
 
 	if (NULL == pSession) {

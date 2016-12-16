@@ -3775,6 +3775,62 @@ wlan_hdd_cfg80211_get_logger_supp_feature(struct wiphy *wiphy,
 	return ret;
 }
 
+/**
+ * wlan_hdd_save_gtk_offload_params() - Save gtk offload parameters in STA
+ *                                      context for offload operations.
+ * @adapter: Adapter context
+ * @kck_ptr: KCK buffer pointer
+ * @kek_ptr: KEK buffer pointer
+ * @replay_ctr: Pointer to 64 bit long replay counter
+ * @big_endian: true if replay_ctr is in big endian format
+ * @ul_flags: Offload flags
+ *
+ * Return: None
+ */
+#ifdef WLAN_FEATURE_GTK_OFFLOAD
+static void wlan_hdd_save_gtk_offload_params(hdd_adapter_t *adapter,
+					     uint8_t *kck_ptr,
+					     uint8_t *kek_ptr,
+					     uint8_t *replay_ctr,
+					     bool big_endian,
+					     uint32_t ul_flags)
+{
+	hdd_station_ctx_t *hdd_sta_ctx;
+	uint8_t *p;
+	int i;
+
+	hdd_sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
+	memcpy(hdd_sta_ctx->gtkOffloadReqParams.aKCK, kck_ptr,
+	       NL80211_KCK_LEN);
+	memcpy(hdd_sta_ctx->gtkOffloadReqParams.aKEK, kek_ptr,
+	       NL80211_KEK_LEN);
+	qdf_copy_macaddr(&hdd_sta_ctx->gtkOffloadReqParams.bssid,
+			 &hdd_sta_ctx->conn_info.bssId);
+	/*
+	 * changing from big to little endian since driver
+	 * works on little endian format
+	 */
+	p = (uint8_t *)&hdd_sta_ctx->gtkOffloadReqParams.ullKeyReplayCounter;
+
+	for (i = 0; i < 8; i++) {
+		if (big_endian)
+			p[7 - i] = replay_ctr[i];
+		else
+			p[i] = replay_ctr[i];
+	}
+	hdd_sta_ctx->gtkOffloadReqParams.ulFlags = ul_flags;
+}
+#else
+static void wlan_hdd_save_gtk_offload_params(hdd_adapter_t *adapter,
+					     uint8_t *kck_ptr,
+					     uint8_t *kek_ptr,
+					     uint8_t *replay_ctr,
+					     bool big_endian,
+					     uint32_t ul_flags)
+{
+}
+#endif
+
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 /**
  * wlan_hdd_send_roam_auth_event() - Send the roamed and authorized event
@@ -3810,6 +3866,7 @@ int wlan_hdd_send_roam_auth_event(hdd_adapter_t *adapter, uint8_t *bssid,
 	hdd_context_t *hdd_ctx_ptr = WLAN_HDD_GET_CTX(adapter);
 	struct sk_buff *skb = NULL;
 	eCsrAuthType auth_type;
+
 	ENTER();
 
 	if (wlan_hdd_validate_context(hdd_ctx_ptr))
@@ -3874,6 +3931,20 @@ int wlan_hdd_send_roam_auth_event(hdd_adapter_t *adapter, uint8_t *bssid,
 			hdd_err("nla put fail");
 			goto nla_put_failure;
 		}
+
+		/*
+		 * Save the gtk rekey parameters in HDD STA context. They will
+		 * be used next time when host enables GTK offload and goes
+		 * into power save state.
+		 */
+		wlan_hdd_save_gtk_offload_params(adapter, roam_info_ptr->kck,
+						 roam_info_ptr->kek,
+						 roam_info_ptr->replay_ctr,
+						 true,
+						 GTK_OFFLOAD_DISABLE);
+		hdd_info("roam_info_ptr->replay_ctr 0x%llx",
+			*((uint64_t *)roam_info_ptr->replay_ctr));
+
 	} else {
 		hdd_debug("No Auth Params TLV's");
 		if (nla_put_u8(skb, QCA_WLAN_VENDOR_ATTR_ROAM_AUTH_AUTHORIZED,
@@ -14643,6 +14714,10 @@ void wlan_hdd_cfg80211_update_replay_counter_callback(void *callbackContext,
 		}
 	}
 
+	hdd_info("GtkOffloadGetInfoRsp replay counter 0x%llx, value reported to supplicant 0x%llx",
+		pGtkOffloadGetInfoRsp->ullKeyReplayCounter,
+		*((uint64_t *)tempReplayCounter));
+
 	/* Update replay counter to NL */
 	cfg80211_gtk_rekey_notify(pAdapter->dev,
 				  pGtkOffloadGetInfoRsp->bssid.bytes,
@@ -14664,12 +14739,12 @@ int __wlan_hdd_cfg80211_set_rekey_data(struct wiphy *wiphy,
 				       struct net_device *dev,
 				       struct cfg80211_gtk_rekey_data *data)
 {
-	hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
-	hdd_context_t *pHddCtx = wiphy_priv(wiphy);
-	hdd_station_ctx_t *pHddStaCtx;
-	tHalHandle hHal;
+	hdd_adapter_t *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
+	hdd_context_t *hdd_ctx = wiphy_priv(wiphy);
+	hdd_station_ctx_t *hdd_sta_ctx;
+	tHalHandle hal;
 	int result;
-	tSirGtkOffloadParams hddGtkOffloadReqParams;
+	tSirGtkOffloadParams hdd_gtk_offload_req_params;
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 
 	ENTER();
@@ -14679,56 +14754,50 @@ int __wlan_hdd_cfg80211_set_rekey_data(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
-	if (wlan_hdd_validate_session_id(pAdapter->sessionId)) {
-		hdd_err("invalid session id: %d", pAdapter->sessionId);
+	if (wlan_hdd_validate_session_id(adapter->sessionId)) {
+		hdd_err("invalid session id: %d", adapter->sessionId);
 		return -EINVAL;
 	}
 
 	MTRACE(qdf_trace(QDF_MODULE_ID_HDD,
 			 TRACE_CODE_HDD_CFG80211_SET_REKEY_DATA,
-			 pAdapter->sessionId, pAdapter->device_mode));
+			 adapter->sessionId, adapter->device_mode));
 
-	result = wlan_hdd_validate_context(pHddCtx);
+	result = wlan_hdd_validate_context(hdd_ctx);
 
 	if (0 != result)
 		return result;
 
-	pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
-	hHal = WLAN_HDD_GET_HAL_CTX(pAdapter);
-	if (NULL == hHal) {
+	hdd_sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
+	hal = WLAN_HDD_GET_HAL_CTX(adapter);
+	if (NULL == hal) {
 		hdd_err("HAL context is Null!!!");
 		return -EAGAIN;
 	}
 
-	pHddStaCtx->gtkOffloadReqParams.ulFlags = GTK_OFFLOAD_ENABLE;
-	memcpy(pHddStaCtx->gtkOffloadReqParams.aKCK, data->kck,
-	       NL80211_KCK_LEN);
-	memcpy(pHddStaCtx->gtkOffloadReqParams.aKEK, data->kek,
-	       NL80211_KEK_LEN);
-	qdf_copy_macaddr(&pHddStaCtx->gtkOffloadReqParams.bssid,
-			 &pHddStaCtx->conn_info.bssId);
-	{
-		/* changing from big to little endian since driver
-		 * works on little endian format
-		 */
-		uint8_t *p =
-			(uint8_t *) &pHddStaCtx->gtkOffloadReqParams.
-			ullKeyReplayCounter;
-		int i;
+	/*
+	 * Save gtk rekey parameters in HDD STA context. They will be used
+	 * repeatedly when host goes into power save mode.
+	 */
+	wlan_hdd_save_gtk_offload_params(adapter,
+					 (uint8_t *)data->kck,
+					 (uint8_t *)data->kek,
+					 (uint8_t *)data->replay_ctr,
+					 true,
+					 GTK_OFFLOAD_ENABLE);
+	hdd_info("replay counter from supplicant 0x%llx, value stored in ullKeyReplayCounter 0x%llx",
+		*((uint64_t *)data->replay_ctr),
+		hdd_sta_ctx->gtkOffloadReqParams.ullKeyReplayCounter);
 
-		for (i = 0; i < 8; i++) {
-			p[7 - i] = data->replay_ctr[i];
-		}
-	}
 
-	if (true == pHddCtx->hdd_wlan_suspended) {
+	if (hdd_ctx->hdd_wlan_suspended) {
 		/* if wlan is suspended, enable GTK offload directly from here */
-		memcpy(&hddGtkOffloadReqParams,
-		       &pHddStaCtx->gtkOffloadReqParams,
+		memcpy(&hdd_gtk_offload_req_params,
+		       &hdd_sta_ctx->gtkOffloadReqParams,
 		       sizeof(tSirGtkOffloadParams));
 		status =
-			sme_set_gtk_offload(hHal, &hddGtkOffloadReqParams,
-					    pAdapter->sessionId);
+			sme_set_gtk_offload(hal, &hdd_gtk_offload_req_params,
+					    adapter->sessionId);
 
 		if (QDF_STATUS_SUCCESS != status) {
 			hdd_err("sme_set_gtk_offload failed, status(%d)",

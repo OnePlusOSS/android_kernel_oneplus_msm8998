@@ -2099,8 +2099,6 @@ static QDF_STATUS hdd_roam_set_key_complete_handler(hdd_adapter_t *pAdapter,
 	bool fConnected = false;
 	QDF_STATUS qdf_status = QDF_STATUS_E_FAILURE;
 	hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
-	tHalHandle hal_ctx = WLAN_HDD_GET_HAL_CTX(pAdapter);
-	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal_ctx);
 
 	ENTER();
 
@@ -2158,8 +2156,9 @@ static QDF_STATUS hdd_roam_set_key_complete_handler(hdd_adapter_t *pAdapter,
 				 * only if ptk_installed is true. So, make
 				 * ptk_installed to true in case of 11R roaming.
 				 */
-				if (csr_neighbor_roam_is11r_assoc(mac_ctx,
-							pAdapter->sessionId))
+				if (sme_neighbor_roam_is11r_assoc(
+				    WLAN_HDD_GET_HAL_CTX(pAdapter),
+				    pAdapter->sessionId))
 					pHddStaCtx->conn_info.ptk_installed =
 						true;
 			} else {

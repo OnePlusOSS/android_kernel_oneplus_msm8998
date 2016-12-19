@@ -86,6 +86,18 @@ struct cds_sme_cbacks {
 		uint8_t *, uint8_t *);
 };
 
+/**
+ * struct cds_dp_cbacks - list of datapath functions registered with CDS
+ * @ol_txrx_update_mac_id_cb: updates mac_id for vdev
+ * @hdd_en_lro_in_cc_cb: enables LRO if concurrency is not active
+ * @hdd_disble_lro_in_cc_cb: disables LRO due to concurrency
+ */
+struct cds_dp_cbacks {
+	void (*ol_txrx_update_mac_id_cb)(uint8_t , uint8_t);
+	void (*hdd_en_lro_in_cc_cb)(struct hdd_context_s *);
+	void (*hdd_disble_lro_in_cc_cb)(struct hdd_context_s *);
+};
+
 void cds_set_driver_state(enum cds_driver_state);
 void cds_clear_driver_state(enum cds_driver_state);
 enum cds_driver_state cds_get_driver_state(void);
@@ -295,4 +307,6 @@ bool cds_is_10_mhz_enabled(void);
 bool cds_is_sub_20_mhz_enabled(void);
 bool cds_is_self_recovery_enabled(void);
 void cds_pkt_stats_to_logger_thread(void *pl_hdr, void *pkt_dump, void *data);
+QDF_STATUS cds_register_dp_cb(struct cds_dp_cbacks *dp_cbs);
+QDF_STATUS cds_deregister_dp_cb(void);
 #endif /* if !defined __CDS_API_H */

@@ -313,9 +313,9 @@ typedef struct _cds_context_type {
 		uint8_t *, uint8_t *);
 
 	/* Datapath callback functions */
-	void (*ol_txrx_update_mac_id)(uint8_t , uint8_t);
-	void (*hdd_enable_lro_in_concurrency)(struct hdd_context_s *);
-	void (*hdd_disable_lro_in_concurrency)(struct hdd_context_s *);
+	void (*ol_txrx_update_mac_id_cb)(uint8_t , uint8_t);
+	void (*hdd_en_lro_in_cc_cb)(struct hdd_context_s *);
+	void (*hdd_disable_lro_in_cc_cb)(struct hdd_context_s *);
 
 	/* This list is not sessionized. This mandatory channel list would be
 	 * as per OEMs preference as per the regulatory/other considerations.

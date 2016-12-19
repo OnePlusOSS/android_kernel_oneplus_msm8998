@@ -1716,35 +1716,35 @@ static void hdd_ipa_uc_op_cb(struct op_msg_type *op_msg, void *usr_ctxt)
 		/* STATs from host */
 		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
 			  "==== IPA_UC WLAN_HOST CE ====\n"
-			  "CE RING BASE: 0x%llx\n"
+			  "CE RING BASE: %pad\n"
 			  "CE RING SIZE: %d\n"
-			  "CE REG ADDR : 0x%llx",
-			  (unsigned long long)res->ce_sr_base_paddr,
+			  "CE REG ADDR : %pad",
+			  &res->ce_sr_base_paddr,
 			  res->ce_sr_ring_size,
-			  (unsigned long long)res->ce_reg_paddr);
+			  &res->ce_reg_paddr);
 		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
 			  "==== IPA_UC WLAN_HOST TX ====\n"
-			  "COMP RING BASE: 0x%llx\n"
+			  "COMP RING BASE: %pad\n"
 			  "COMP RING SIZE: %d\n"
 			  "NUM ALLOC BUF: %d\n"
-			  "COMP RING DBELL : 0x%llx",
-			  (unsigned long long)res->tx_comp_ring_base_paddr,
+			  "COMP RING DBELL : %pad",
+			  &res->tx_comp_ring_base_paddr,
 			  res->tx_comp_ring_size,
 			  res->tx_num_alloc_buffer,
-			  (unsigned long long)hdd_ipa->tx_comp_doorbell_paddr);
+			  &hdd_ipa->tx_comp_doorbell_paddr);
 		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
 			  "==== IPA_UC WLAN_HOST RX ====\n"
-			  "IND RING BASE: 0x%llx\n"
+			  "IND RING BASE: %pad\n"
 			  "IND RING SIZE: %d\n"
-			  "IND RING DBELL : 0x%llx\n"
-			  "PROC DONE IND ADDR : 0x%llx\n"
+			  "IND RING DBELL : %pad\n"
+			  "PROC DONE IND ADDR : %pad\n"
 			  "NUM EXCP PKT : %llu\n"
 			  "NUM TX FWD OK : %llu\n"
 			  "NUM TX FWD ERR : %llu",
-			  (unsigned long long)res->rx_rdy_ring_base_paddr,
+			  &res->rx_rdy_ring_base_paddr,
 			  res->rx_rdy_ring_size,
-			  (unsigned long long)hdd_ipa->rx_ready_doorbell_paddr,
-			  (unsigned long long)res->rx_proc_done_idx_paddr,
+			  &hdd_ipa->rx_ready_doorbell_paddr,
+			  &res->rx_proc_done_idx_paddr,
 			  hdd_ipa->stats.num_rx_excep,
 			  hdd_ipa->stats.num_tx_fwd_ok,
 			  hdd_ipa->stats.num_tx_fwd_err);

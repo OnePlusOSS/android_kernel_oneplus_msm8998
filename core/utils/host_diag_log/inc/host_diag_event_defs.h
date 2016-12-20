@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -122,6 +122,7 @@ typedef enum {
 	 */
 	EVENT_WLAN_TDLS_TX_RX_MGMT = 0xABA,
 	EVENT_WLAN_LOW_RESOURCE_FAILURE = 0xABB,
+	EVENT_WLAN_POWERSAVE_WOW_STATS = 0xB33,
 
 	EVENT_MAX_ID = 0x0FFF
 } event_id_enum_type;

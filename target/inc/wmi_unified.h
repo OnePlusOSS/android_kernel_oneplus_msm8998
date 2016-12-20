@@ -1392,6 +1392,9 @@ typedef enum {
 	/** event to report rx aggregation failure frame information */
 	WMI_REPORT_RX_AGGR_FAILURE_EVENTID,
 
+	/** event to upload a PKGID to host to identify chip for various products */
+	WMI_PKGID_EVENTID,
+
 	/* GPIO Event */
 	WMI_GPIO_INPUT_EVENTID = WMI_EVT_GRP_START_ID(WMI_GRP_GPIO),
 	/** upload H_CV info WMI event
@@ -18018,6 +18021,20 @@ typedef struct {
 	 */
 	A_UINT32 status;
 } wmi_update_rcpi_event_fixed_param;
+
+/* Definition of mask for various package id */
+#define WMI_PKGID_MASK_AUTO 0x00000080
+
+typedef struct {
+	/** TLV tag and len; tag equals*/
+	A_UINT32 tlv_header;
+	/**
+	 * The value field is filled with WMI_PKGID_MASK values.
+	 * Currently, the only flag used within values is
+	 * WMI_PKGID_MASK_AUTO, where bit7=1 for automotive systems.
+	 */
+	A_UINT32 value;
+} wmi_pkgid_event_fixed_param;
 
 /* ADD NEW DEFS HERE */
 

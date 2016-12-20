@@ -274,7 +274,7 @@ typedef enum {
 	WMI_SERVICE_RCPI_SUPPORT = 114,
 
 	WMI_SERVICE_FW_MEM_DUMP_SUPPORT = 115, /* Support FW Memory dump */
-	WMI_SERVICE_PEER_STATS_INFO = 114, /* support per peer stats info */
+	WMI_SERVICE_PEER_STATS_INFO = 116, /* support per peer stats info */
 
 	/*** ADD NEW SERVICES HERE UNTIL ALL VALUES UP TO 128 ARE USED ***/
 

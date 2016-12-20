@@ -10419,6 +10419,7 @@ typedef enum _WMI_NLO_SSID_BcastNwType {
 #define WMI_NLO_CONFIG_SPOOFED_MAC_IN_PROBE_REQ         (0x1 << 10)
 #define WMI_NLO_CONFIG_RANDOM_SEQ_NO_IN_PROBE_REQ       (0x1 << 11)
 #define WMI_NLO_CONFIG_ENABLE_IE_WHITELIST_IN_PROBE_REQ (0x1 << 12)
+#define WMI_NLO_CONFIG_ENABLE_CNLO_RSSI_CONFIG          (0x1 << 13)
 
 /* Whether directed scan needs to be performed (for hidden SSIDs) */
 #define WMI_ENLO_FLAG_DIRECTED_SCAN      1
@@ -10527,6 +10528,16 @@ typedef struct enlo_candidate_score_params_t {
 	A_UINT32 band5GHz_bonus;
 } enlo_candidate_score_params;
 
+typedef struct connected_nlo_rssi_params_t {
+	A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_connected_nlo_rssi_params */
+	/* Relative rssi threshold (in dB) by which new BSS should have better rssi than
+	 * the current connected BSS.
+	 */
+	A_INT32  relative_rssi;
+	/* The amount of rssi preference (in dB) that can be given to a 5G BSS over 2.4G BSS. */
+	A_INT32  relative_rssi_5g_pref;
+} connected_nlo_rssi_params;
+
 typedef struct wmi_nlo_config {
 	A_UINT32 tlv_header;            /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_nlo_config_cmd_fixed_param */
 	A_UINT32 flags;
@@ -10557,8 +10568,8 @@ typedef struct wmi_nlo_config {
 	 * nlo_channel_prediction_cfg ch_prediction_cfg;
 	 * enlo_candidate_score_params candidate_score_params;
 	 * wmi_vendor_oui vendor_oui[];
+	 * connected_nlo_rssi_params cnlo_rssi_params;
 	 */
-
 } wmi_nlo_config_cmd_fixed_param;
 
 typedef struct wmi_nlo_event {

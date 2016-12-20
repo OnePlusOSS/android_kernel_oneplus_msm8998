@@ -2310,6 +2310,13 @@ void lim_handle_csa_offload_msg(tpAniSirGlobal mac_ctx, tpSirMsgQ msg)
 	}
 	lim_log(mac_ctx, LOG1, FL("new ch width = %d space:%d"),
 			session_entry->gLimChannelSwitch.ch_width, chan_space);
+	if ((session_entry->currentOperChannel == csa_params->channel) &&
+		(session_entry->ch_width ==
+		 session_entry->gLimChannelSwitch.ch_width)) {
+		lim_log(mac_ctx, LOGE, FL(
+				"Ignore CSA, no change in ch and bw"));
+		goto err;
+	}
 
 	lim_prepare_for11h_channel_switch(mac_ctx, session_entry);
 	csa_offload_ind = qdf_mem_malloc(sizeof(tSmeCsaOffloadInd));

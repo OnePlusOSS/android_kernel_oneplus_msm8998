@@ -1407,6 +1407,7 @@ struct extended_caps {
  * @wmi_cmd_rsp_wake_lock: wmi command response wake lock
  * @wmi_cmd_rsp_runtime_lock: wmi command response bus lock
  * @saved_chan: saved channel list sent as part of WMI_SCAN_CHAN_LIST_CMDID
+ * @fw_mem_dump_enabled: Fw memory dump support
  */
 typedef struct {
 	void *wmi_handle;
@@ -1610,6 +1611,7 @@ typedef struct {
 	tp_wma_packetdump_cb wma_mgmt_tx_packetdump_cb;
 	tp_wma_packetdump_cb wma_mgmt_rx_packetdump_cb;
 	tSirLLStatsResults *link_stats_results;
+	bool fw_mem_dump_enabled;
 } t_wma_handle, *tp_wma_handle;
 
 /**

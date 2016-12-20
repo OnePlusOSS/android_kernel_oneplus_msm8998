@@ -1407,6 +1407,8 @@ void hdd_update_tgt_cfg(void *context, void *param)
 				hdd_ctx->config->bpf_packet_filter_enable);
 	hdd_update_ra_rate_limit(hdd_ctx, cfg);
 
+	hdd_ctx->fw_mem_dump_enabled = cfg->fw_mem_dump_enabled;
+
 	/*
 	 * If BPF is enabled, maxWowFilters set to WMA_STA_WOW_DEFAULT_PTRN_MAX
 	 * because we need atleast WMA_STA_WOW_DEFAULT_PTRN_MAX free slots to

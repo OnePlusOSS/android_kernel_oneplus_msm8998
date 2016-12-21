@@ -2514,7 +2514,7 @@ static int wma_process_mgmt_tx_completion(tp_wma_handle wma_handle,
 	if (wmi_desc->ota_post_proc_cb)
 		wmi_desc->ota_post_proc_cb((tpAniSirGlobal)
 						 wma_handle->mac_context,
-						 status);
+						 (status ? 0 : 1));
 
 	wmi_desc_put(wma_handle, wmi_desc);
 	return 0;

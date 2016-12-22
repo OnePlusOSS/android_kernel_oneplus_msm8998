@@ -399,4 +399,20 @@ void wma_peer_debug_log(uint8_t vdev_id, uint8_t op,
 			void *peer_obj, uint32_t val1, uint32_t val2);
 void wma_peer_debug_dump(void);
 
+#ifdef WLAN_FEATURE_LINK_LAYER_STATS
+/**
+ * wma_tx_failure_cb() - TX failure callback
+ * @ctx: txrx context
+ * @num_msdu: number of msdu with the same status
+ * @tid: TID number
+ * @status: failure status
+ */
+void wma_tx_failure_cb(void *ctx, uint32_t num_msdu,
+		       uint8_t tid, enum htt_tx_status status);
+#else
+static inline void wma_tx_failure_cb(void *ctx, uint32_t num_msdu,
+				     uint8_t tid, enum htt_tx_status status)
+{
+}
+#endif
 #endif

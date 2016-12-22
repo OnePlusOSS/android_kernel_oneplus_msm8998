@@ -562,25 +562,25 @@ static void hdd_qdf_trace_enable(QDF_MODULE_ID moduleId, uint32_t bitmask)
 int wlan_hdd_validate_context(hdd_context_t *hdd_ctx)
 {
 	if (NULL == hdd_ctx || NULL == hdd_ctx->config) {
-		hdd_err("%pS HDD context is Null", (void *)_RET_IP_);
+		hdd_info("%pS HDD context is Null", (void *)_RET_IP_);
 		return -ENODEV;
 	}
 
 	if (cds_is_driver_recovering()) {
-		hdd_err("%pS Recovery in Progress. State: 0x%x Ignore!!!",
+		hdd_info("%pS Recovery in Progress. State: 0x%x Ignore!!!",
 			(void *)_RET_IP_, cds_get_driver_state());
 		return -EAGAIN;
 	}
 
 	if (cds_is_load_or_unload_in_progress()) {
-		hdd_err("%pS Unloading/Loading in Progress. Ignore!!!: 0x%x",
+		hdd_info("%pS Unloading/Loading in Progress. Ignore!!!: 0x%x",
 			(void *)_RET_IP_, cds_get_driver_state());
 		return -EAGAIN;
 	}
 
 	if (hdd_ctx->start_modules_in_progress ||
 	    hdd_ctx->stop_modules_in_progress) {
-			hdd_err("%pS Start/Stop Modules in progress. Ignore!!!",
+			hdd_info("%pS Start/Stop Modules in progress. Ignore!!!",
 				(void *)_RET_IP_);
 		return -EAGAIN;
 	}

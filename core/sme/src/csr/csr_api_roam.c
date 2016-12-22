@@ -12680,6 +12680,7 @@ static void csr_populate_supported_rates_from_hostapd(tSirMacRateSet *opr_rates,
  * @pMac:          mac global context
  * @pProfile:      roam profile
  * @pParam:        out param, start bss params
+ * @skip_hostapd_rate: to skip given hostapd's rate
  *
  * This function populates start bss param from roam profile
  *
@@ -12688,7 +12689,8 @@ static void csr_populate_supported_rates_from_hostapd(tSirMacRateSet *opr_rates,
 static void
 csr_roam_get_bss_start_parms(tpAniSirGlobal pMac,
 			     tCsrRoamProfile *pProfile,
-			     tCsrRoamStartBssParams *pParam)
+			     tCsrRoamStartBssParams *pParam,
+			     bool skip_hostapd_rate)
 {
 	eCsrBand band;
 	uint8_t opr_ch = 0;
@@ -12723,8 +12725,8 @@ csr_roam_get_bss_start_parms(tpAniSirGlobal pMac,
 	 * ignore basic and extended rates from hostapd.conf and should
 	 * populate default rates.
 	 */
-	if (pProfile->supported_rates.numRates ||
-			pProfile->extended_rates.numRates) {
+	if (!skip_hostapd_rate && (pProfile->supported_rates.numRates ||
+				   pProfile->extended_rates.numRates)) {
 		csr_populate_supported_rates_from_hostapd(opr_rates,
 				ext_rates, pProfile);
 		pParam->operationChn = tmp_opr_ch;
@@ -13000,7 +13002,8 @@ void csr_roam_prepare_bss_params(tpAniSirGlobal pMac, uint32_t sessionId,
 				&pSession->selfMacAddr);
 		}
 	} else {
-		csr_roam_get_bss_start_parms(pMac, pProfile, &pSession->bssParams);
+		csr_roam_get_bss_start_parms(pMac, pProfile,
+					     &pSession->bssParams, false);
 		/* Use the first SSID */
 		if (pProfile->SSIDs.numOfSSIDs)
 			qdf_mem_copy(&pSession->bssParams.ssId,
@@ -18549,7 +18552,13 @@ QDF_STATUS csr_roam_channel_change_req(tpAniSirGlobal pMac,
 	tSirChanChangeRequest *pMsg;
 	tCsrRoamStartBssParams param;
 
-	csr_roam_get_bss_start_parms(pMac, profile, &param);
+	/*
+	 * while changing the channel, use basic rates given by driver
+	 * and not by hostapd as there is a chance that hostapd might
+	 * give us rates based on original channel which may not be
+	 * suitable for new channel
+	 */
+	csr_roam_get_bss_start_parms(pMac, profile, &param, true);
 	pMsg = qdf_mem_malloc(sizeof(tSirChanChangeRequest));
 	if (!pMsg) {
 		return QDF_STATUS_E_NOMEM;

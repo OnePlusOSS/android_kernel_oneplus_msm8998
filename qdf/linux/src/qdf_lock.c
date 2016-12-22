@@ -636,7 +636,7 @@ EXPORT_SYMBOL(qdf_mutex_destroy);
 /**
  * qdf_spin_trylock_bh_outline() - spin trylock bottomhalf
  * @lock: spinlock object
- * Retrun: int
+ * Return: nonzero if lock is acquired
  */
 int qdf_spin_trylock_bh_outline(qdf_spinlock_t *lock)
 {

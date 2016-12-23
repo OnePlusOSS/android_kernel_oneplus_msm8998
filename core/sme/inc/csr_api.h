@@ -293,6 +293,10 @@ typedef struct tagCsrScanRequest {
 	bool bcnRptReqScan;     /* is Scan issued by Beacon Report Request */
 	uint32_t scan_id;
 	uint32_t timestamp;
+
+	bool enable_scan_randomization;
+	uint8_t mac_addr[QDF_MAC_ADDR_SIZE];
+	uint8_t mac_addr_mask[QDF_MAC_ADDR_SIZE];
 } tCsrScanRequest;
 
 typedef struct tagCsrScanResultInfo {

@@ -76,6 +76,7 @@
 #include "cdp_txrx_flow_ctrl_v2.h"
 #include "pld_common.h"
 #include "wlan_hdd_driver_ops.h"
+#include <wlan_logging_sock_svc.h>
 
 /* Preprocessor definitions and constants */
 #define HDD_SSR_BRING_UP_TIME 30000
@@ -1460,6 +1461,10 @@ QDF_STATUS hdd_wlan_shutdown(void)
 	}
 
 	cds_clear_concurrent_session_count();
+
+	hdd_info("Invoking packetdump deregistration API");
+	wlan_deregister_txrx_packetdump();
+
 	hdd_cleanup_scan_queue(pHddCtx);
 	hdd_ipa_uc_ssr_deinit();
 	hdd_reset_all_adapters(pHddCtx);
@@ -1489,6 +1494,8 @@ QDF_STATUS hdd_wlan_shutdown(void)
 		hdd_err("Failed to close CDS Scheduler");
 		QDF_ASSERT(false);
 	}
+
+	qdf_mc_timer_stop(&pHddCtx->tdls_source_timer);
 
 	hdd_bus_bandwidth_destroy(pHddCtx);
 
@@ -2348,11 +2355,6 @@ static int __wlan_hdd_cfg80211_get_txpower(struct wiphy *wiphy,
 	if (0 != status) {
 		*dbm = 0;
 		return status;
-	}
-
-	if (!adapter) {
-		hdd_err("adapter is NULL");
-		return -ENOENT;
 	}
 
 	/* Validate adapter sessionId */

@@ -32,6 +32,25 @@
  * WLAN Host Device Driver TDLS include file
  */
 
+/*
+ * enum eTDLSSupportMode - TDLS support modes
+ * @eTDLS_SUPPORT_NOT_ENABLED: TDLS support not enabled
+ * @eTDLS_SUPPORT_DISABLED: suppress implicit trigger and not respond
+ *     to the peer
+ * @eTDLS_SUPPORT_EXPLICIT_TRIGGER_ONLY: suppress implicit trigger,
+ *     but respond to the peer
+ * @eTDLS_SUPPORT_ENABLED: implicit trigger
+ * @eTDLS_SUPPORT_EXTERNAL_CONTROL: implicit trigger but only to a
+ *     peer mac configured by user space.
+ */
+typedef enum {
+	eTDLS_SUPPORT_NOT_ENABLED = 0,
+	eTDLS_SUPPORT_DISABLED,
+	eTDLS_SUPPORT_EXPLICIT_TRIGGER_ONLY,
+	eTDLS_SUPPORT_ENABLED,
+	eTDLS_SUPPORT_EXTERNAL_CONTROL,
+} eTDLSSupportMode;
+
 #ifdef FEATURE_WLAN_TDLS
 
 /*
@@ -68,6 +87,22 @@
 #define EXTTDLS_EVENT_BUF_SIZE (4096)
 
 #define TDLS_CT_MAC_MAX_TABLE_SIZE 8
+
+/**
+ * enum tdls_disable_source - TDLS disable sources
+ * @HDD_SET_TDLS_MODE_SOURCE_USER: disable from user
+ * @HDD_SET_TDLS_MODE_SOURCE_SCAN: disable during scan
+ * @HDD_SET_TDLS_MODE_SOURCE_OFFCHANNEL: disable during offchannel
+ * @HDD_SET_TDLS_MODE_SOURCE_BTC: disable during bluetooth
+ * @HDD_SET_TDLS_MODE_SOURCE_P2P: disable during p2p
+ */
+enum tdls_disable_source {
+	HDD_SET_TDLS_MODE_SOURCE_USER = 0,
+	HDD_SET_TDLS_MODE_SOURCE_SCAN,
+	HDD_SET_TDLS_MODE_SOURCE_OFFCHANNEL,
+	HDD_SET_TDLS_MODE_SOURCE_BTC,
+	HDD_SET_TDLS_MODE_SOURCE_P2P,
+};
 
 /**
  * struct tdls_config_params_t - tdls config params
@@ -113,26 +148,6 @@ typedef struct {
 	int reject;
 	struct delayed_work tdls_scan_work;
 } tdls_scan_context_t;
-
-/**
- * enum eTDLSSupportMode - tdls support mode
- *
- * @eTDLS_SUPPORT_NOT_ENABLED: tdls support not enabled
- * @eTDLS_SUPPORT_DISABLED: suppress implicit trigger and not
- *			respond to the peer
- * @eTDLS_SUPPORT_EXPLICIT_TRIGGER_ONLY: suppress implicit trigger,
- *			but respond to the peer
- * @eTDLS_SUPPORT_ENABLED: implicit trigger
- * @eTDLS_SUPPORT_EXTERNAL_CONTROL: External control means implicit
- *     trigger but only to a peer mac configured by user space.
- */
-typedef enum {
-	eTDLS_SUPPORT_NOT_ENABLED = 0,
-	eTDLS_SUPPORT_DISABLED,
-	eTDLS_SUPPORT_EXPLICIT_TRIGGER_ONLY,
-	eTDLS_SUPPORT_ENABLED,
-	eTDLS_SUPPORT_EXTERNAL_CONTROL,
-} eTDLSSupportMode;
 
 /**
  * enum tdls_spatial_streams - TDLS spatial streams
@@ -734,6 +749,9 @@ void wlan_hdd_tdls_notify_connect(hdd_adapter_t *adapter,
  * Return: None
  */
 void wlan_hdd_tdls_notify_disconnect(hdd_adapter_t *adapter);
+void wlan_hdd_change_tdls_mode(void *hdd_ctx);
+void hdd_restart_tdls_source_timer(hdd_context_t *pHddCtx,
+				      eTDLSSupportMode tdls_mode);
 
 /**
  * wlan_hdd_cfg80211_configure_tdls_mode() - configure tdls mode
@@ -799,6 +817,14 @@ static inline int wlan_hdd_cfg80211_configure_tdls_mode(struct wiphy *wiphy,
 	return 0;
 }
 
+static inline void wlan_hdd_change_tdls_mode(void *hdd_ctx)
+{
+}
+static inline void
+hdd_restart_tdls_source_timer(hdd_context_t *pHddCtx,
+			      eTDLSSupportMode tdls_mode)
+{
+}
 #endif /* End of FEATURE_WLAN_TDLS */
 
 #ifdef FEATURE_WLAN_DIAG_SUPPORT

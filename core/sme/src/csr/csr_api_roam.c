@@ -57,6 +57,7 @@
 #include "cds_concurrency.h"
 #include "sme_nan_datapath.h"
 #include "pld_common.h"
+#include <wlan_logging_sock_svc.h>
 
 #define MAX_PWR_FCC_CHAN_12 8
 #define MAX_PWR_FCC_CHAN_13 2
@@ -85,6 +86,10 @@
 #define MAX_CB_VALUE_IN_INI (2)
 
 #define MAX_SOCIAL_CHANNELS  3
+
+/* packet dump timer duration of 60 secs */
+#define PKT_DUMP_TIMER_DURATION 60
+
 /* Choose the largest possible value that can be accomodates in 8 bit signed */
 /* variable. */
 #define SNR_HACK_BMPS                         (127)
@@ -956,6 +961,58 @@ void csr_set_global_cfgs(tpAniSirGlobal pMac)
 	csr_set_default_dot11_mode(pMac);
 }
 
+/**
+ * csr_packetdump_timer_handler() - packet dump timer
+ * handler
+ * @pv: user data
+ *
+ * This function is used to handle packet dump timer
+ *
+ * Return: None
+ *
+ */
+static void csr_packetdump_timer_handler(void *pv)
+{
+	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
+			"%s Invoking packetdump deregistration API", __func__);
+	wlan_deregister_txrx_packetdump();
+}
+
+/**
+ * csr_packetdump_timer_stop() - stops packet dump timer
+ *
+ * This function is used to stop packet dump timer
+ *
+ * Return: None
+ *
+ */
+void csr_packetdump_timer_stop(void)
+{
+	QDF_STATUS status;
+	tHalHandle hal;
+	tpAniSirGlobal mac;
+	v_CONTEXT_t vos_ctx_ptr;
+
+	/* get the global voss context */
+	vos_ctx_ptr = cds_get_global_context();
+	if (vos_ctx_ptr == NULL) {
+		QDF_ASSERT(0);
+		return;
+	}
+
+	hal = cds_get_context(QDF_MODULE_ID_SME);
+	if (hal == NULL) {
+		QDF_ASSERT(0);
+		return;
+	}
+
+	mac = PMAC_STRUCT(hal);
+	status = qdf_mc_timer_stop(&mac->roam.packetdump_timer);
+	if (!QDF_IS_STATUS_SUCCESS(status)) {
+		sms_log(mac, LOGE, FL("cannot stop packetdump timer"));
+	}
+}
+
 QDF_STATUS csr_roam_open(tpAniSirGlobal pMac)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
@@ -982,6 +1039,14 @@ QDF_STATUS csr_roam_open(tpAniSirGlobal pMac)
 					("cannot allocate memory for WaitForKey time out timer"));
 			break;
 		}
+		status = qdf_mc_timer_init(&pMac->roam.packetdump_timer,
+				QDF_TIMER_TYPE_SW, csr_packetdump_timer_handler,
+				pMac);
+		if (!QDF_IS_STATUS_SUCCESS(status)) {
+			sms_log(pMac, LOGE,
+			   FL("cannot allocate memory for packetdump timer"));
+			break;
+		}
 		status =
 			qdf_mc_timer_init(&pMac->roam.tlStatsReqInfo.hTlStatsTimer,
 					  QDF_TIMER_TYPE_SW,
@@ -1006,6 +1071,8 @@ QDF_STATUS csr_roam_close(tpAniSirGlobal pMac)
 	qdf_mc_timer_destroy(&pMac->roam.hTimerWaitForKey);
 	qdf_mc_timer_stop(&pMac->roam.tlStatsReqInfo.hTlStatsTimer);
 	qdf_mc_timer_destroy(&pMac->roam.tlStatsReqInfo.hTlStatsTimer);
+	qdf_mc_timer_stop(&pMac->roam.packetdump_timer);
+	qdf_mc_timer_destroy(&pMac->roam.packetdump_timer);
 	return QDF_STATUS_SUCCESS;
 }
 
@@ -12613,6 +12680,7 @@ static void csr_populate_supported_rates_from_hostapd(tSirMacRateSet *opr_rates,
  * @pMac:          mac global context
  * @pProfile:      roam profile
  * @pParam:        out param, start bss params
+ * @skip_hostapd_rate: to skip given hostapd's rate
  *
  * This function populates start bss param from roam profile
  *
@@ -12621,7 +12689,8 @@ static void csr_populate_supported_rates_from_hostapd(tSirMacRateSet *opr_rates,
 static void
 csr_roam_get_bss_start_parms(tpAniSirGlobal pMac,
 			     tCsrRoamProfile *pProfile,
-			     tCsrRoamStartBssParams *pParam)
+			     tCsrRoamStartBssParams *pParam,
+			     bool skip_hostapd_rate)
 {
 	eCsrBand band;
 	uint8_t opr_ch = 0;
@@ -12656,8 +12725,8 @@ csr_roam_get_bss_start_parms(tpAniSirGlobal pMac,
 	 * ignore basic and extended rates from hostapd.conf and should
 	 * populate default rates.
 	 */
-	if (pProfile->supported_rates.numRates ||
-			pProfile->extended_rates.numRates) {
+	if (!skip_hostapd_rate && (pProfile->supported_rates.numRates ||
+				   pProfile->extended_rates.numRates)) {
 		csr_populate_supported_rates_from_hostapd(opr_rates,
 				ext_rates, pProfile);
 		pParam->operationChn = tmp_opr_ch;
@@ -12933,7 +13002,8 @@ void csr_roam_prepare_bss_params(tpAniSirGlobal pMac, uint32_t sessionId,
 				&pSession->selfMacAddr);
 		}
 	} else {
-		csr_roam_get_bss_start_parms(pMac, pProfile, &pSession->bssParams);
+		csr_roam_get_bss_start_parms(pMac, pProfile,
+					     &pSession->bssParams, false);
 		/* Use the first SSID */
 		if (pProfile->SSIDs.numOfSSIDs)
 			qdf_mem_copy(&pSession->bssParams.ssId,
@@ -13716,6 +13786,7 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 	uint8_t ese_config = 0;
 	tpCsrNeighborRoamControlInfo neigh_roam_info;
 	uint32_t value = 0, value1 = 0;
+	QDF_STATUS packetdump_timer_status;
 
 	if (!pSession) {
 		sms_log(pMac, LOGE, FL("  session %d not found "), sessionId);
@@ -14369,6 +14440,25 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 			csr_join_req = NULL;
 			break;
 		} else {
+			if (pProfile->csrPersona == QDF_STA_MODE) {
+				sms_log(pMac, LOG1,
+				    FL(" Invoking packetdump register API"));
+				wlan_register_txrx_packetdump();
+				packetdump_timer_status =
+					qdf_mc_timer_start(
+					&pMac->roam.packetdump_timer,
+					(PKT_DUMP_TIMER_DURATION *
+					QDF_MC_TIMER_TO_SEC_UNIT)/
+					QDF_MC_TIMER_TO_MS_UNIT);
+				if (!QDF_IS_STATUS_SUCCESS(
+						packetdump_timer_status)) {
+					sms_log(pMac, LOGE,
+					   FL("cannot start packetdump timer"));
+					sms_log(pMac, LOGE,
+					   FL("packetdump_timer_status: %d"),
+					   packetdump_timer_status);
+				}
+			}
 #ifndef WLAN_MDM_CODE_REDUCTION_OPT
 			if (eWNI_SME_JOIN_REQ == messageType) {
 				/* Notify QoS module that join happening */
@@ -17485,6 +17575,54 @@ static void csr_append_assoc_ies(tpAniSirGlobal mac_ctx,
 	assoc_ie->length += (ie_len + 2);
 }
 
+#ifdef FEATURE_WLAN_ESE
+/**
+ * ese_populate_addtional_ies() - add IEs to reassoc frame
+ * @mac_ctx: Pointer to global mac structure
+ * @session: pointer to CSR session
+ * @req_buf: Pointer to Roam offload scan request
+ *
+ * This function populates the TSPEC ie and appends the info
+ * to assoc buffer.
+ *
+ * Return: None
+ */
+static void ese_populate_addtional_ies(tpAniSirGlobal mac_ctx,
+				tCsrRoamSession *session,
+				tSirRoamOffloadScanReq *req_buf) {
+
+	uint8_t tspec_ie_hdr[SIR_MAC_OUI_WME_HDR_MIN]
+			= { 0x00, 0x50, 0xf2, 0x02, 0x02, 0x01 };
+	uint8_t tspec_ie_buf[DOT11F_IE_WMMTSPEC_MAX_LEN], j;
+	ese_wmm_tspec_ie *tspec_ie;
+	tESETspecInfo ese_tspec;
+
+	tspec_ie = (ese_wmm_tspec_ie *)(tspec_ie_buf + SIR_MAC_OUI_WME_HDR_MIN);
+	if (csr_is_wmm_supported(mac_ctx) &&
+		mac_ctx->roam.configParam.isEseIniFeatureEnabled &&
+		csr_roam_is_ese_assoc(mac_ctx, session->sessionId)) {
+		ese_tspec.numTspecs = sme_qos_ese_retrieve_tspec_info(mac_ctx,
+					session->sessionId,
+					(tTspecInfo *) &ese_tspec.tspec[0]);
+		qdf_mem_copy(tspec_ie_buf, tspec_ie_hdr,
+			SIR_MAC_OUI_WME_HDR_MIN);
+		for (j = 0; j < ese_tspec.numTspecs; j++) {
+			/* Populate the tspec_ie */
+			ese_populate_wmm_tspec(&ese_tspec.tspec[j].tspec,
+				tspec_ie);
+			csr_append_assoc_ies(mac_ctx, req_buf,
+					IEEE80211_ELEMID_VENDOR,
+					DOT11F_IE_WMMTSPEC_MAX_LEN,
+					tspec_ie_buf);
+		}
+	}
+
+}
+#else
+static inline void ese_populate_addtional_ies(tpAniSirGlobal mac_ctx,
+		tCsrRoamSession *session, tSirRoamOffloadScanReq *req_buf) {
+}
+#endif
 /**
  * csr_update_driver_assoc_ies() - Append driver built IE's to assoc IE's
  * @mac_ctx: Pointer to global mac structure
@@ -17550,6 +17688,8 @@ static void csr_update_driver_assoc_ies(tpAniSirGlobal mac_ctx,
 					DOT11F_IE_POWERCAPS_MAX_LEN,
 					power_cap_ie_data);
 	}
+	ese_populate_addtional_ies(mac_ctx, session, req_buf);
+
 }
 
 /**
@@ -17585,8 +17725,10 @@ csr_roam_offload_scan(tpAniSirGlobal mac_ctx, uint8_t session_id,
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	if ((ROAM_SCAN_OFFLOAD_START == command) && session->pCurRoamProfile &&
-	    session->pCurRoamProfile->do_not_roam) {
+	if ((ROAM_SCAN_OFFLOAD_START == command) &&
+	    ((session->pCurRoamProfile &&
+	      session->pCurRoamProfile->do_not_roam) ||
+	      !session->fast_roam_enabled)) {
 		sms_log(mac_ctx, LOGE,
 			FL("Supplicant disabled driver roaming"));
 		return QDF_STATUS_E_FAILURE;
@@ -18410,7 +18552,13 @@ QDF_STATUS csr_roam_channel_change_req(tpAniSirGlobal pMac,
 	tSirChanChangeRequest *pMsg;
 	tCsrRoamStartBssParams param;
 
-	csr_roam_get_bss_start_parms(pMac, profile, &param);
+	/*
+	 * while changing the channel, use basic rates given by driver
+	 * and not by hostapd as there is a chance that hostapd might
+	 * give us rates based on original channel which may not be
+	 * suitable for new channel
+	 */
+	csr_roam_get_bss_start_parms(pMac, profile, &param, true);
 	pMsg = qdf_mem_malloc(sizeof(tSirChanChangeRequest));
 	if (!pMsg) {
 		return QDF_STATUS_E_NOMEM;
@@ -19530,6 +19678,7 @@ void csr_roam_synch_callback(tpAniSirGlobal mac_ctx,
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 			FL("LFR3: Mem Alloc failed for roam info"));
 		session->roam_synch_in_progress = false;
+		qdf_mem_free(ies_local);
 		sme_release_global_lock(&mac_ctx->sme);
 		return;
 	}
@@ -19600,6 +19749,7 @@ void csr_roam_synch_callback(tpAniSirGlobal mac_ctx,
 		session->roam_synch_in_progress = false;
 		if (roam_info)
 			qdf_mem_free(roam_info);
+		qdf_mem_free(ies_local);
 		sme_release_global_lock(&mac_ctx->sme);
 		return;
 	}
@@ -19717,6 +19867,7 @@ void csr_roam_synch_callback(tpAniSirGlobal mac_ctx,
 	session->roam_synch_in_progress = false;
 	qdf_mem_free(roam_info->pbFrames);
 	qdf_mem_free(roam_info);
+	qdf_mem_free(ies_local);
 	sme_release_global_lock(&mac_ctx->sme);
 }
 #endif

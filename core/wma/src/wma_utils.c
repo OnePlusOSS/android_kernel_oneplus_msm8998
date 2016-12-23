@@ -311,7 +311,6 @@ static struct wma_target_req *wma_peek_vdev_req(tp_wma_handle wma,
 	if (QDF_STATUS_SUCCESS != qdf_list_peek_front(&wma->vdev_resp_queue,
 							&node2)) {
 		qdf_spin_unlock_bh(&wma->vdev_respq_lock);
-		WMA_LOGE(FL("unable to get target req from vdev resp queue"));
 		return NULL;
 	}
 
@@ -3286,6 +3285,26 @@ QDF_STATUS wma_get_current_hw_mode(struct sir_hw_mode_params *hw_mode)
 		return QDF_STATUS_E_FAILURE;
 	}
 	return QDF_STATUS_SUCCESS;
+}
+
+/**
+ * wma_is_current_hwmode_dbs() - Check if current hw mode is DBS
+ *
+ * Checks if current hardware mode of the system is DBS or no
+ *
+ * Return: true or false
+ */
+bool wma_is_current_hwmode_dbs(void)
+{
+	struct sir_hw_mode_params hw_mode;
+
+	if (!wma_is_hw_dbs_capable())
+		return false;
+	if (QDF_STATUS_SUCCESS != wma_get_current_hw_mode(&hw_mode))
+		return false;
+	if (hw_mode.dbs_cap)
+		return true;
+	return false;
 }
 
 /**

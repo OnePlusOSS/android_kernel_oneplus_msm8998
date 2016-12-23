@@ -32,9 +32,6 @@
  *
  */
 
-/* denote that this file does not allow legacy hddLog */
-#define HDD_DISALLOW_LEGACY_HDDLOG 1
-
 /* Include Files */
 #include <wlan_hdd_includes.h>
 #include <cds_api.h>
@@ -108,7 +105,7 @@
 #include "nan_api.h"
 #include <wlan_hdd_napi.h>
 #include "wlan_hdd_disa.h"
-
+#include "ol_txrx.h"
 #ifdef MODULE
 #define WLAN_MODULE_NAME  module_name(THIS_MODULE)
 #else
@@ -2681,6 +2678,9 @@ QDF_STATUS hdd_init_station_mode(hdd_adapter_t *adapter)
 	hdd_notice("Set HDD connState to eConnectionState_NotConnected");
 	pHddStaCtx->conn_info.connState = eConnectionState_NotConnected;
 
+	/* set fast roaming capability in sme session */
+	status = sme_config_fast_roaming(hdd_ctx->hHal, adapter->sessionId,
+					 adapter->fast_roaming_allowed);
 	/* Set the default operation channel */
 	pHddStaCtx->conn_info.operationChannel =
 		hdd_ctx->config->OperatingChannel;
@@ -3656,8 +3656,8 @@ QDF_STATUS hdd_stop_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 						qdf_stop_bss_event);
 				qdf_status =
 					qdf_wait_single_event(&hostapd_state->
-							qdf_stop_bss_event,
-							BSS_WAIT_TIMEOUT);
+					qdf_stop_bss_event,
+					SME_CMD_TIMEOUT_VALUE);
 
 				if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 					hdd_err("failure waiting for wlansap_stop_bss %d",
@@ -4761,6 +4761,8 @@ static void hdd_context_destroy(hdd_context_t *hdd_ctx)
 	if (QDF_GLOBAL_FTM_MODE != hdd_get_conparam())
 		hdd_logging_sock_deactivate_svc(hdd_ctx);
 
+	wlan_hdd_deinit_tx_rx_histogram(hdd_ctx);
+
 	hdd_context_deinit(hdd_ctx);
 
 	qdf_mem_free(hdd_ctx->config);
@@ -4798,6 +4800,8 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 
 
 	hdd_unregister_notifiers(hdd_ctx);
+
+	qdf_mc_timer_destroy(&hdd_ctx->tdls_source_timer);
 
 	hdd_bus_bandwidth_destroy(hdd_ctx);
 
@@ -4886,7 +4890,6 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 	cds_flush_work(&hdd_ctx->roc_req_work);
 
 	wlansap_global_deinit();
-	wlan_hdd_deinit_tx_rx_histogram(hdd_ctx);
 	wiphy_unregister(wiphy);
 	wlan_hdd_cfg80211_deinit(wiphy);
 
@@ -6835,6 +6838,9 @@ static hdd_adapter_t *hdd_open_interfaces(hdd_context_t *hdd_ctx,
 
 	if (adapter == NULL)
 		return ERR_PTR(-ENOSPC);
+	/* fast roaming is allowed only on first STA, i.e. wlan adapter */
+	adapter->fast_roaming_allowed = true;
+
 	ret = hdd_open_p2p_interface(hdd_ctx, rtnl_held);
 	if (ret)
 		goto err_close_adapter;
@@ -6967,10 +6973,6 @@ static int hdd_update_cds_config(hdd_context_t *hdd_ctx)
 		return -ENOMEM;
 	}
 
-	/* UMA is supported in hardware for performing the
-	 * frame translation 802.11 <-> 802.3
-	 */
-	cds_cfg->frame_xln_reqd = 1;
 	cds_cfg->driver_type = DRIVER_TYPE_PRODUCTION;
 	cds_cfg->powersave_offload_enabled =
 		hdd_ctx->config->enablePowersaveOffload;
@@ -7802,8 +7804,11 @@ int hdd_configure_cds(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 {
 	int ret;
 	QDF_STATUS status;
-	/* structure of function pointers to be used by CDS */
+	/* structure of SME function pointers to be used by CDS */
 	struct cds_sme_cbacks sme_cbacks;
+
+	/* structure of datapath function pointers to be used by CDS */
+	struct cds_dp_cbacks dp_cbacks;
 
 	ret = hdd_pre_enable_configure(hdd_ctx);
 	if (ret) {
@@ -7840,6 +7845,12 @@ int hdd_configure_cds(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 		goto hdd_features_deinit;
 	}
 
+	dp_cbacks.hdd_en_lro_in_cc_cb = hdd_enable_lro_in_concurrency;
+	dp_cbacks.hdd_disble_lro_in_cc_cb = hdd_disable_lro_in_concurrency;
+	dp_cbacks.ol_txrx_update_mac_id_cb = ol_txrx_update_mac_id;
+	if (cds_register_dp_cb(&dp_cbacks) != QDF_STATUS_SUCCESS)
+		hdd_err("Unable to register datapath callbacks in CDS");
+
 	return 0;
 
 hdd_features_deinit:
@@ -7875,6 +7886,12 @@ static int hdd_deconfigure_cds(hdd_context_t *hdd_ctx)
 		hdd_err("Failed to deinit policy manager");
 		/* Proceed and complete the clean up */
 		ret = -EINVAL;
+	}
+
+	qdf_status = cds_deregister_dp_cb();
+	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
+		hdd_err("Failed to deregister datapath callbacks from CDS :%d",
+			qdf_status);
 	}
 
 	qdf_status = cds_disable(hdd_ctx->pcds_context);
@@ -8209,6 +8226,11 @@ int hdd_wlan_startup(struct device *dev)
 	qdf_spinlock_create(&hdd_ctx->acs_skip_lock);
 #endif
 
+	qdf_mc_timer_init(&hdd_ctx->tdls_source_timer,
+			  QDF_TIMER_TYPE_SW,
+			  wlan_hdd_change_tdls_mode,
+			  hdd_ctx);
+
 	hdd_bus_bandwidth_init(hdd_ctx);
 
 	hdd_lpass_notify_start(hdd_ctx);
@@ -8289,7 +8311,6 @@ err_exit_nl_srv:
 
 	cds_deinit_ini_config();
 err_hdd_free_context:
-	wlan_hdd_deinit_tx_rx_histogram(hdd_ctx);
 	qdf_mc_timer_destroy(&hdd_ctx->iface_change_timer);
 	mutex_destroy(&hdd_ctx->iface_change_lock);
 	hdd_context_destroy(hdd_ctx);
@@ -9002,8 +9023,8 @@ void wlan_hdd_stop_sap(hdd_adapter_t *ap_adapter)
 		if (QDF_STATUS_SUCCESS == wlansap_stop_bss(hdd_ap_ctx->
 							sapContext)) {
 			qdf_status = qdf_wait_single_event(&hostapd_state->
-							   qdf_stop_bss_event,
-							   BSS_WAIT_TIMEOUT);
+					qdf_stop_bss_event,
+					SME_CMD_TIMEOUT_VALUE);
 			if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 				mutex_unlock(&hdd_ctx->sap_lock);
 				hdd_err("SAP Stop Failed");
@@ -9074,14 +9095,15 @@ void wlan_hdd_start_sap(hdd_adapter_t *ap_adapter)
 
 	hdd_info("Waiting for SAP to start");
 	qdf_status = qdf_wait_single_event(&hostapd_state->qdf_event,
-					BSS_WAIT_TIMEOUT);
+					SME_CMD_TIMEOUT_VALUE);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 		hdd_err("SAP Start failed");
 		goto end;
 	}
 	hdd_info("SAP Start Success");
 	set_bit(SOFTAP_BSS_STARTED, &ap_adapter->event_flags);
-	cds_incr_active_session(ap_adapter->device_mode,
+	if (hostapd_state->bssState == BSS_START)
+		cds_incr_active_session(ap_adapter->device_mode,
 					ap_adapter->sessionId);
 	hostapd_state->bCommit = true;
 

@@ -1017,6 +1017,8 @@ ol_txrx_pdev_attach(ol_pdev_handle ctrl_pdev,
 	if (!pdev->htt_pdev)
 		goto fail3;
 
+	htt_register_rx_pkt_dump_callback(pdev->htt_pdev,
+			ol_rx_pkt_dump_call);
 	return pdev;
 
 fail3:
@@ -1660,6 +1662,7 @@ void ol_txrx_pdev_detach(ol_txrx_pdev_handle pdev, int force)
 		htt_tx_desc_free(pdev->htt_pdev, htt_tx_desc);
 	}
 
+	htt_deregister_rx_pkt_dump_callback(pdev->htt_pdev);
 	ol_tx_deregister_flow_control(pdev);
 	/* Stop the communication between HTT and target at first */
 	htt_detach_target(pdev->htt_pdev);
@@ -2561,6 +2564,7 @@ QDF_STATUS ol_txrx_peer_state_update(struct ol_txrx_pdev_t *pdev,
 				     enum ol_txrx_peer_state state)
 {
 	struct ol_txrx_peer_t *peer;
+	int    peer_ref_cnt;
 
 	if (qdf_unlikely(!pdev)) {
 		TXRX_PRINT(TXRX_PRINT_LEVEL_ERR, "Pdev is NULL");
@@ -2586,10 +2590,11 @@ QDF_STATUS ol_txrx_peer_state_update(struct ol_txrx_pdev_t *pdev,
 			   "%s: no state change, returns directly\n",
 			   __func__);
 #endif
-		qdf_atomic_dec(&peer->ref_cnt);
+		peer_ref_cnt = ol_txrx_peer_unref_delete(peer);
 		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_HIGH,
-			 "%s: peer %p peer->ref_cnt %d", __func__, peer,
-			 qdf_atomic_read(&peer->ref_cnt));
+			  "%s: peer %p peer->ref_cnt %d",
+			  __func__, peer, peer_ref_cnt);
+
 		return QDF_STATUS_SUCCESS;
 	}
 
@@ -2619,13 +2624,20 @@ QDF_STATUS ol_txrx_peer_state_update(struct ol_txrx_pdev_t *pdev,
 				ol_txrx_peer_tid_unpause(peer, tid);
 		}
 	}
-	qdf_atomic_dec(&peer->ref_cnt);
+	peer_ref_cnt = ol_txrx_peer_unref_delete(peer);
 	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_HIGH,
-		 "%s: peer %p peer->ref_cnt %d", __func__, peer,
-		 qdf_atomic_read(&peer->ref_cnt));
-	/* Set the state after the Pause to avoid the race condiction
-	   with ADDBA check in tx path */
-	peer->state = state;
+		 "%s: peer %p peer->ref_cnt %d",
+		 __func__, peer, peer_ref_cnt);
+	/*
+	 * after ol_txrx_peer_unref_delete, peer object cannot be accessed
+	 * if the return code was 0
+	 */
+	if (peer_ref_cnt)
+		/*
+		 * Set the state after the Pause to avoid the race condiction
+		 * with ADDBA check in tx path
+		 */
+		peer->state = state;
 	return QDF_STATUS_SUCCESS;
 }
 
@@ -2642,6 +2654,7 @@ ol_txrx_peer_update(ol_txrx_vdev_handle vdev,
 		    enum ol_txrx_peer_update_select_t select)
 {
 	struct ol_txrx_peer_t *peer;
+	int    peer_ref_cnt;
 
 	peer = ol_txrx_peer_find_hash_find(vdev->pdev, peer_mac, 0, 1);
 	if (!peer) {
@@ -2723,11 +2736,11 @@ ol_txrx_peer_update(ol_txrx_vdev_handle vdev,
 			  __func__);
 		break;
 	}
-	}
-	qdf_atomic_dec(&peer->ref_cnt);
+	} /* switch */
+	peer_ref_cnt = ol_txrx_peer_unref_delete(peer);
 	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_HIGH,
-		 "%s: peer %p peer->ref_cnt %d", __func__, peer,
-		 qdf_atomic_read(&peer->ref_cnt));
+		 "%s: peer %p peer->ref_cnt %d",
+		 __func__, peer, peer_ref_cnt);
 }
 
 uint8_t
@@ -2752,8 +2765,9 @@ ol_txrx_peer_qoscapable_get(struct ol_txrx_pdev_t *txrx_pdev, uint16_t peer_id)
 	return 0;
 }
 
-void ol_txrx_peer_unref_delete(ol_txrx_peer_handle peer)
+int ol_txrx_peer_unref_delete(ol_txrx_peer_handle peer)
 {
+	int    rc;
 	struct ol_txrx_vdev_t *vdev;
 	struct ol_txrx_pdev_t *pdev;
 	int i;
@@ -2765,29 +2779,16 @@ void ol_txrx_peer_unref_delete(ol_txrx_peer_handle peer)
 	if (NULL == vdev) {
 		TXRX_PRINT(TXRX_PRINT_LEVEL_INFO1,
 			   "The vdev is not present anymore\n");
-		return;
+		return -EINVAL;
 	}
 
 	pdev = vdev->pdev;
 	if (NULL == pdev) {
 		TXRX_PRINT(TXRX_PRINT_LEVEL_INFO1,
 			   "The pdev is not present anymore\n");
-		return;
+		return -EINVAL;
 	}
 
-	/*
-	 * Check for the reference count before deleting the peer
-	 * as we noticed that sometimes we are re-entering this
-	 * function again which is leading to dead-lock.
-	 * (A double-free should never happen, so assert if it does.)
-	 */
-
-	if (0 == qdf_atomic_read(&(peer->ref_cnt))) {
-		TXRX_PRINT(TXRX_PRINT_LEVEL_ERR,
-			   "The Peer is not present anymore\n");
-		qdf_assert(0);
-		return;
-	}
 
 	/*
 	 * Hold the lock all the way from checking if the peer ref count
@@ -2800,6 +2801,29 @@ void ol_txrx_peer_unref_delete(ol_txrx_peer_handle peer)
 	 * concurrently with the empty check.
 	 */
 	qdf_spin_lock_bh(&pdev->peer_ref_mutex);
+
+	/*
+	 * Check for the reference count before deleting the peer
+	 * as we noticed that sometimes we are re-entering this
+	 * function again which is leading to dead-lock.
+	 * (A double-free should never happen, so assert if it does.)
+	 */
+
+	rc = qdf_atomic_read(&(peer->ref_cnt));
+	if (rc == 0) {
+		qdf_spin_unlock_bh(&pdev->peer_ref_mutex);
+		TXRX_PRINT(TXRX_PRINT_LEVEL_ERR,
+			   "The Peer is not present anymore\n");
+		qdf_assert(0);
+		return -EACCES;
+	}
+	/*
+	 * now decrement rc; this will be the return code.
+	 * 0 : peer deleted
+	 * >0: peer ref removed, but still has other references
+	 * <0: sanity failed - no changes to the state of the peer
+	 */
+	rc--;
 
 	if (qdf_atomic_dec_and_test(&peer->ref_cnt)) {
 		u_int16_t peer_id;
@@ -2896,11 +2920,13 @@ void ol_txrx_peer_unref_delete(ol_txrx_peer_handle peer)
 
 		qdf_mem_free(peer);
 	} else {
-		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_HIGH,
-			 "%s: peer %p peer->ref_cnt = %d", __func__, peer,
-			 qdf_atomic_read(&peer->ref_cnt));
 		qdf_spin_unlock_bh(&pdev->peer_ref_mutex);
+		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_HIGH,
+			  "%s: peer %p peer->ref_cnt = %d",
+			  __func__, peer, rc);
 	}
+
+	return rc;
 }
 
 /**
@@ -4877,6 +4903,33 @@ ol_txrx_dump_pkt(qdf_nbuf_t nbuf, uint32_t nbuf_paddr, int len)
 	print_hex_dump(KERN_DEBUG, "Pkt:   ", DUMP_PREFIX_ADDRESS, 16, 4,
 		       qdf_nbuf_data(nbuf), len, true);
 }
+
+#ifdef QCA_LL_TX_FLOW_CONTROL_V2
+bool
+ol_txrx_fwd_desc_thresh_check(struct ol_txrx_vdev_t *vdev)
+{
+	struct ol_tx_flow_pool_t *pool;
+	bool enough_desc_flag;
+
+	if (!vdev)
+		return true;
+
+	pool = vdev->pool;
+
+	qdf_spin_lock_bh(&pool->flow_pool_lock);
+	enough_desc_flag = (pool->avail_desc < (pool->stop_th +
+						OL_TX_NON_FWD_RESERVE))
+			   ? false : true;
+	qdf_spin_unlock_bh(&pool->flow_pool_lock);
+	return enough_desc_flag;
+}
+#else
+bool ol_txrx_fwd_desc_thresh_check(struct ol_txrx_vdev_t *vdev)
+{
+	return true;
+}
+#endif
+
 
 /**
  * ol_txrx_get_vdev_from_vdev_id() - get vdev from vdev_id

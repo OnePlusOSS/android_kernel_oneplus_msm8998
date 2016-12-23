@@ -477,7 +477,7 @@ static void nl_srv_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	if (nl_srv_msg_handler[type] != NULL) {
 		(nl_srv_msg_handler[type])(skb);
 	} else {
-		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_WARN,
+		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_INFO,
 			  "NLINK: No handler for Netlink Msg [0x%X]", type);
 	}
 }

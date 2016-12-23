@@ -359,6 +359,27 @@ typedef enum {
 #endif
 
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
+/*
+ * <ini>
+ * gWlanMccToSccSwitchMode - Control SAP channel.
+ * @Min: 0
+ * @Max: 2
+ * @Default: 0
+ *
+ * This ini is used to override SAP channel.
+ * If gWlanMccToSccSwitchMode = 0: disabled.
+ * If gWlanMccToSccSwitchMode = 1: override to SCC if channel overlap in
+ * same band.
+ * If gWlanMccToSccSwitchMode = 2: force to SCC in same band.
+ *
+ * Related: None.
+ *
+ * Supported Feature: Concurrency
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_WLAN_MCC_TO_SCC_SWITCH_MODE          "gWlanMccToSccSwitchMode"
 #define CFG_WLAN_MCC_TO_SCC_SWITCH_MODE_MIN      (QDF_MCC_TO_SCC_SWITCH_DISABLE)
 #define CFG_WLAN_MCC_TO_SCC_SWITCH_MODE_MAX \
@@ -450,44 +471,165 @@ typedef enum {
 #define CFG_RETRY_LIMIT_TWO_DEFAULT    (15)
 
 #ifdef WLAN_AP_STA_CONCURRENCY
-
+/*
+ * <ini>
+ * gPassiveMaxChannelTimeConc - Maximum passive scan time in milliseconds.
+ * @Min: 0
+ * @Max: 10000
+ * @Default: 110
+ *
+ * This ini is used to set maximum passive scan time in STA+SAP concurrent
+ * mode.
+ *
+ * Related: None.
+ *
+ * Supported Feature: Concurrency
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_PASSIVE_MAX_CHANNEL_TIME_CONC_NAME      "gPassiveMaxChannelTimeConc"
 #define CFG_PASSIVE_MAX_CHANNEL_TIME_CONC_MIN       (0)
 #define CFG_PASSIVE_MAX_CHANNEL_TIME_CONC_MAX       (10000)
 #define CFG_PASSIVE_MAX_CHANNEL_TIME_CONC_DEFAULT   (110)
 
+/*
+ * <ini>
+ * gPassiveMinChannelTimeConc - Minimum passive scan time in milliseconds.
+ * @Min: 0
+ * @Max: 10000
+ * @Default: 60
+ *
+ * This ini is used to set minimum passive scan time in STA+SAP concurrent
+ * mode.
+ *
+ * Related: None.
+ *
+ * Supported Feature: Concurrency
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_PASSIVE_MIN_CHANNEL_TIME_CONC_NAME      "gPassiveMinChannelTimeConc"
 #define CFG_PASSIVE_MIN_CHANNEL_TIME_CONC_MIN       (0)
 #define CFG_PASSIVE_MIN_CHANNEL_TIME_CONC_MAX       (10000)
 #define CFG_PASSIVE_MIN_CHANNEL_TIME_CONC_DEFAULT   (60)
 
+/*
+ * <ini>
+ * gActiveMaxChannelTimeConc - Maximum active scan time in milliseconds.
+ * @Min: 0
+ * @Max: 10000
+ * @Default: 40
+ *
+ * This ini is used to set maximum active scan time in STA+SAP concurrent
+ * mode.
+ *
+ * Related: None.
+ *
+ * Supported Feature: Concurrency
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_ACTIVE_MAX_CHANNEL_TIME_CONC_NAME       "gActiveMaxChannelTimeConc"
 #define CFG_ACTIVE_MAX_CHANNEL_TIME_CONC_MIN        (0)
 #define CFG_ACTIVE_MAX_CHANNEL_TIME_CONC_MAX        (10000)
 #define CFG_ACTIVE_MAX_CHANNEL_TIME_CONC_DEFAULT    (40)
 
+/*
+ * <ini>
+ * gActiveMinChannelTimeConc - Minimum active scan time in milliseconds..
+ * @Min: 0
+ * @Max: 10000
+ * @Default: 20
+ *
+ * This ini is used to set minimum active scan time in STA+SAP concurrent
+ * mode.
+ *
+ * Related: None.
+ *
+ * Supported Feature: Concurrency
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_ACTIVE_MIN_CHANNEL_TIME_CONC_NAME       "gActiveMinChannelTimeConc"
 #define CFG_ACTIVE_MIN_CHANNEL_TIME_CONC_MIN        (0)
 #define CFG_ACTIVE_MIN_CHANNEL_TIME_CONC_MAX        (10000)
 #define CFG_ACTIVE_MIN_CHANNEL_TIME_CONC_DEFAULT    (20)
 
+/*
+ * <ini>
+ * gRestTimeConc - Rest time before moving to a new channel to scan.
+ * @Min: 0
+ * @Max: 10000
+ * @Default: 100
+ *
+ * This ini is used to configure rest time.
+ *
+ * Related: None.
+ *
+ * Supported Feature: Concurrency
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_REST_TIME_CONC_NAME                     "gRestTimeConc"
 #define CFG_REST_TIME_CONC_MIN                      (0)
 #define CFG_REST_TIME_CONC_MAX                      (10000)
 #define CFG_REST_TIME_CONC_DEFAULT                  (100)
 
-/* Mininum time spent on home channel before moving to a new channel to scan */
+/*
+ * <ini>
+ * gMinRestTimeConc - Mininum time spent on home channel before moving to a
+ * new channel to scan.
+ * @Min: 0
+ * @Max: 50
+ * @Default: 50
+ *
+ * This ini is used to configure minimum time spent on home channel before
+ * moving to a new channel to scan.
+ *
+ * Related: None.
+ *
+ * Supported Feature: Concurrency
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_MIN_REST_TIME_NAME                      "gMinRestTimeConc"
 #define CFG_MIN_REST_TIME_MIN                       (0)
 #define CFG_MIN_REST_TIME_MAX                       (50)
 #define CFG_MIN_REST_TIME_DEFAULT                   (50)
 
-/* Data inactivity time in msec on bss channel that will be used
- * by scan engine in firmware.
- * for example if this value is 25ms then firmware will check for
- * data inactivity every 25ms till gRestTimeConc is reached.
- * If inactive then scan engine will move from home channel to
- * scan the next frequency.
+/*
+ * <ini>
+ * gIdleTimeConc - Data inactivity time in msec.
+ * @Min: 0
+ * @Max: 25
+ * @Default: 25
+ *
+ * This ini is used to configure data inactivity time in msec on bss channel
+ * that will be used by scan engine in firmware.
+ * For example if this value is 25ms then firmware will check for data
+ * inactivity every 25ms till gRestTimeConc is reached.
+ * If inactive then scan engine will move from home channel to scan the next
+ * frequency.
+ *
+ * Related: None.
+ *
+ * Supported Feature: Concurrency
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
  */
 #define CFG_IDLE_TIME_NAME                          "gIdleTimeConc"
 #define CFG_IDLE_TIME_MIN                           (0)
@@ -495,11 +637,49 @@ typedef enum {
 #define CFG_IDLE_TIME_DEFAULT                       (25)
 
 
+/*
+ * <ini>
+ * gNumStaChanCombinedConc - Number of channels combined for STA in each
+ * split scan operation.
+ * @Min: 1
+ * @Max: 255
+ * @Default: 3
+ *
+ * This ini is used to configure the number of channels combined for STA in
+ * each split scan operation.
+ *
+ * Related: None.
+ *
+ * Supported Feature: Concurrency
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_NUM_STA_CHAN_COMBINED_CONC_NAME             "gNumStaChanCombinedConc"
 #define CFG_NUM_STA_CHAN_COMBINED_CONC_MIN              (1)
 #define CFG_NUM_STA_CHAN_COMBINED_CONC_MAX              (255)
 #define CFG_NUM_STA_CHAN_COMBINED_CONC_DEFAULT          (3)
 
+/*
+ * <ini>
+ * gNumP2PChanCombinedConc - Number of channels combined for P2P in each
+ * split scan operation.
+ * @Min: 1
+ * @Max: 255
+ * @Default: 1
+ *
+ * This ini is used to configure the number of channels combined for P2P in
+ * each split scan operation.
+ *
+ * Related: None.
+ *
+ * Supported Feature: Concurrency
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_NUM_P2P_CHAN_COMBINED_CONC_NAME             "gNumP2PChanCombinedConc"
 #define CFG_NUM_P2P_CHAN_COMBINED_CONC_MIN              (1)
 #define CFG_NUM_P2P_CHAN_COMBINED_CONC_MAX              (255)
@@ -561,16 +741,46 @@ typedef enum {
 #define CFG_FW_RSSI_MONITORING_MAX             (1)
 #define CFG_FW_RSSI_MONITORING_DEFAULT         (1)
 
-/* enable use of long duration RTS-CTS protection when SAP goes off channel
- * in MCC mode
+/*
+ * <ini>
+ * gFWMccRtsCtsProtection - RTS-CTS protection in MCC.
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to enable/disable use of long duration RTS-CTS protection
+ * when SAP goes off channel in MCC mode.
+ *
+ * Related: None.
+ *
+ * Supported Feature: Concurrency
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
  */
 #define CFG_FW_MCC_RTS_CTS_PROT_NAME           "gFWMccRtsCtsProtection"
 #define CFG_FW_MCC_RTS_CTS_PROT_MIN            (0)
 #define CFG_FW_MCC_RTS_CTS_PROT_MAX            (1)
 #define CFG_FW_MCC_RTS_CTS_PROT_DEFAULT        (0)
 
-/* Enable use of broadcast probe response to increase the detectability of
- * SAP in MCC mode
+/*
+ * <ini>
+ * gFWMccBCastProbeResponse - Broadcast Probe Response in MCC.
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to enable/disable use of broadcast probe response to
+ * increase the detectability of SAP in MCC mode.
+ *
+ * Related: None.
+ *
+ * Supported Feature: Concurrency
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
  */
 #define CFG_FW_MCC_BCAST_PROB_RESP_NAME        "gFWMccBCastProbeResponse"
 #define CFG_FW_MCC_BCAST_PROB_RESP_MIN         (0)
@@ -1341,6 +1551,24 @@ typedef enum {
 #endif
 
 #ifdef FEATURE_WLAN_FORCE_SAP_SCC
+/*
+ * <ini>
+ * gSapSccChanAvoidance - Channel avoidance for SAP in SCC.
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to enable/disable channel avoidance for SAP in SCC
+ * scenario.
+ *
+ * Related: None.
+ *
+ * Supported Feature: Concurrency
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_SAP_SCC_CHAN_AVOIDANCE         "gSapSccChanAvoidance"
 #define CFG_SAP_SCC_CHAN_AVOIDANCE_MIN     (0)
 #define CFG_SAP_SCC_CHAN_AVOIDANCE_MAX     (1)
@@ -1473,8 +1701,21 @@ typedef enum {
 #define CFG_SHORT_GI_40MHZ_DEFAULT             1
 
 /*
- * Enable / Disable MCC feature
- * Default: Enable
+ * <ini>
+ * gEnableMCCMode - Enable/Disable MCC feature.
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This ini is used to enable/disable MCC feature.
+ *
+ * Related: None.
+ *
+ * Supported Feature: Concurrency
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
  */
 #define CFG_ENABLE_MCC_ENABLED_NAME             "gEnableMCCMode"
 #define CFG_ENABLE_MCC_ENABLED_MIN              (0)
@@ -1482,21 +1723,36 @@ typedef enum {
 #define CFG_ENABLE_MCC_ENABLED_DEFAULT          (1)
 
 /*
- * Allow GO in MCC mode to accept different beacon interval than STA's.
+ * <ini>
+ * gAllowMCCGODiffBI - Allow GO in MCC mode to accept different beacon interval
+ * than STA's.
+ * @Min: 0
+ * @Max: 4
+ * @Default: 4
+ *
+ * This ini is used to allow GO in MCC mode to accept different beacon interval
+ * than STA's.
  * Added for Wi-Fi Cert. 5.1.12
- * Default: gAllowMCCGODiffBI = 2
- * If gAllowMCCGODiffBI = 1  // Set to 1 for WFA certification. GO Beacon
- *                              interval is not changed. MCC GO
- *                              doesn't work well in optimized way.
- *                              In worst scenario, it may invite STA
- *                              disconnection.
- * gAllowMCCGODiffBI = 2     //If set to 2 workaround 1 disassoc all the clients
- *                             and update beacon Interval
- * gAllowMCCGODiffBI = 3     //If set to 3 tear down the P2P link in auto/
- *                             Non-autonomous -GO case
- * gAllowMCCGODiffBI = 4     //If set to 4 don't disconnect the P2P client
- *                             in autonomous/Non-autonomous -GO case update
- *                             the BI dynamically
+ * If gAllowMCCGODiffBI = 1
+ *	Set to 1 for WFA certification. GO Beacon interval is not changed.
+ *	MCC GO doesn't work well in optimized way. In worst scenario, it may
+ *	invite STA disconnection.
+ * If gAllowMCCGODiffBI = 2
+ *	If set to 2 workaround 1 disassoc all the clients and update beacon
+ *	Interval.
+ * If gAllowMCCGODiffBI = 3
+ *	If set to 3 tear down the P2P link in auto/Non-autonomous -GO case.
+ * If gAllowMCCGODiffBI = 4
+ *	If set to 4 don't disconnect the P2P client in autonomous/Non-auto-
+ *	nomous -GO case update the BI dynamically
+ *
+ * Related: None.
+ *
+ * Supported Feature: Concurrency
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
  */
 #define CFG_ALLOW_MCC_GO_DIFF_BI_NAME           "gAllowMCCGODiffBI"
 #define CFG_ALLOW_MCC_GO_DIFF_BI_MIN            (0)
@@ -1760,37 +2016,149 @@ typedef enum {
 #endif
 
 #ifdef FEATURE_WLAN_TDLS
+/*
+ * <ini>
+ * gEnableTDLSSupport - Enable support for TDLS.
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to enable/disable TDLS support.
+ *
+ * Related: None.
+ *
+ * Supported Feature: TDLS
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_TDLS_SUPPORT_ENABLE                     "gEnableTDLSSupport"
 #define CFG_TDLS_SUPPORT_ENABLE_MIN                 (0)
 #define CFG_TDLS_SUPPORT_ENABLE_MAX                 (1)
 #define CFG_TDLS_SUPPORT_ENABLE_DEFAULT             (0)
 
+/*
+ * <ini>
+ * gEnableTDLSImplicitTrigger - Enable Implicit TDLS.
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to enable/disable implicit TDLS.
+ * CLD driver initiates TDLS Discovery towards a peer whenever TDLS Setup
+ * criteria (throughput and RSSI thresholds) is met and then it tears down
+ * TDLS when teardown criteria (idle packet count and RSSI) is met.
+ *
+ * Related: gEnableTDLSSupport.
+ *
+ * Supported Feature: TDLS
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_TDLS_IMPLICIT_TRIGGER                   "gEnableTDLSImplicitTrigger"
 #define CFG_TDLS_IMPLICIT_TRIGGER_MIN               (0)
 #define CFG_TDLS_IMPLICIT_TRIGGER_MAX               (1)
 #define CFG_TDLS_IMPLICIT_TRIGGER_DEFAULT           (0)
 
+/*
+ * <ini>
+ * gTDLSTxStatsPeriod - TDLS TX statistics time period.
+ * @Min: 1000
+ * @Max: 4294967295
+ * @Default: 2000
+ *
+ * This ini is used to configure the time period (in ms) to evaluate whether
+ * the number of Tx/Rx packets exceeds TDLSTxPacketThreshold and triggers a
+ * TDLS Discovery request.
+ *
+ * Related: gEnableTDLSSupport.
+ *
+ * Supported Feature: TDLS
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_TDLS_TX_STATS_PERIOD                    "gTDLSTxStatsPeriod"
 #define CFG_TDLS_TX_STATS_PERIOD_MIN                (1000)
 #define CFG_TDLS_TX_STATS_PERIOD_MAX                (4294967295UL)
 #define CFG_TDLS_TX_STATS_PERIOD_DEFAULT            (2000)
 
+/*
+ * <ini>
+ * gTDLSTxPacketThreshold - Tx/Rx Packet threshold for initiating TDLS.
+ * @Min: 0
+ * @Max: 4294967295
+ * @Default: 40
+ *
+ * This ini is used to configure the number of Tx/Rx packets during the
+ * period of gTDLSTxStatsPeriod when exceeded, a TDLS Discovery request
+ * is triggered.
+ * Related: gEnableTDLSSupport.
+ *
+ * Supported Feature: TDLS
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_TDLS_TX_PACKET_THRESHOLD                "gTDLSTxPacketThreshold"
 #define CFG_TDLS_TX_PACKET_THRESHOLD_MIN            (0)
 #define CFG_TDLS_TX_PACKET_THRESHOLD_MAX            (4294967295UL)
 #define CFG_TDLS_TX_PACKET_THRESHOLD_DEFAULT        (40)
 
+/*
+ * <ini>
+ * gTDLSMaxDiscoveryAttempt - Attempts for sending TDLS discovery requests.
+ * @Min: 1
+ * @Max: 100
+ * @Default: 5
+ *
+ * This ini is used to configure the number of failures of discover request,
+ * when exceeded, the peer is assumed to be not TDLS capable and no further
+ * TDLS Discovery request is made.
+ *
+ * Related: gEnableTDLSSupport.
+ *
+ * Supported Feature: TDLS
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_TDLS_MAX_DISCOVERY_ATTEMPT              "gTDLSMaxDiscoveryAttempt"
 #define CFG_TDLS_MAX_DISCOVERY_ATTEMPT_MIN          (1)
 #define CFG_TDLS_MAX_DISCOVERY_ATTEMPT_MAX          (100)
 #define CFG_TDLS_MAX_DISCOVERY_ATTEMPT_DEFAULT      (5)
 
-/*  teardown notification interval (gTDLSIdleTimeout) should be multiple of
- *  setup notification (gTDLSTxStatsPeriod) interval.
- *  e.g.
- *       if setup notification (gTDLSTxStatsPeriod) interval = 500, then
- *       teardown notification (gTDLSIdleTimeout) interval should be 1000,
- *       1500, 2000, 2500...
+/*
+ * <ini>
+ * gTDLSIdleTimeout - Duration within which number of TX / RX frames meet the
+ * criteria for TDLS teardown.
+ * @Min: 500
+ * @Max: 40000
+ * @Default: 5000
+ *
+ * This ini is used to configure the time period (in ms) to evaluate whether
+ * the number of Tx/Rx packets exceeds gTDLSIdlePacketThreshold and thus meets
+ * criteria for TDLS teardown.
+ * Teardown notification interval (gTDLSIdleTimeout) should be multiple of
+ * setup notification (gTDLSTxStatsPeriod) interval.
+ * e.g.
+ *      if setup notification (gTDLSTxStatsPeriod) interval = 500, then
+ *      teardown notification (gTDLSIdleTimeout) interval should be 1000,
+ *      1500, 2000, 2500...
+ *
+ * Related: gEnableTDLSSupport.
+ *
+ * Supported Feature: TDLS
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
  */
 #define CFG_TDLS_IDLE_TIMEOUT                       "gTDLSIdleTimeout"
 #define CFG_TDLS_IDLE_TIMEOUT_MIN                   (500)
@@ -1798,83 +2166,366 @@ typedef enum {
 #define CFG_TDLS_IDLE_TIMEOUT_DEFAULT               (5000)
 
 
+/*
+ * <ini>
+ * gTDLSIdlePacketThreshold - Number of idle packet.
+ * @Min: 0
+ * @Max: 40000
+ * @Default: 3
+ *
+ * This ini is used to configure the number of Tx/Rx packet, below which
+ * within last gTDLSTxStatsPeriod period is considered as idle condition.
+ *
+ * Related: gEnableTDLSSupport.
+ *
+ * Supported Feature: TDLS
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_TDLS_IDLE_PACKET_THRESHOLD              "gTDLSIdlePacketThreshold"
 #define CFG_TDLS_IDLE_PACKET_THRESHOLD_MIN          (0)
 #define CFG_TDLS_IDLE_PACKET_THRESHOLD_MAX          (40000)
 #define CFG_TDLS_IDLE_PACKET_THRESHOLD_DEFAULT      (3)
 
+/*
+ * <ini>
+ * gTDLSRSSITriggerThreshold - RSSI threshold for TDLS connection.
+ * @Min: -120
+ * @Max: 0
+ * @Default: -75
+ *
+ * This ini is used to configure the absolute value (in dB) of the peer RSSI,
+ * below which a TDLS setup request is triggered.
+ *
+ * Related: gEnableTDLSSupport.
+ *
+ * Supported Feature: TDLS
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_TDLS_RSSI_TRIGGER_THRESHOLD             "gTDLSRSSITriggerThreshold"
 #define CFG_TDLS_RSSI_TRIGGER_THRESHOLD_MIN         (-120)
 #define CFG_TDLS_RSSI_TRIGGER_THRESHOLD_MAX         (0)
 #define CFG_TDLS_RSSI_TRIGGER_THRESHOLD_DEFAULT     (-75)
 
+/*
+ * <ini>
+ * gTDLSRSSITeardownThreshold - RSSI threshold for TDLS teardown.
+ * @Min: -120
+ * @Max: 0
+ * @Default: -75
+ *
+ * This ini is used to configure the absolute value (in dB) of the peer RSSI,
+ * when exceed, a TDLS teardown is triggered.
+ *
+ * Related: gEnableTDLSSupport.
+ *
+ * Supported Feature: TDLS
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_TDLS_RSSI_TEARDOWN_THRESHOLD            "gTDLSRSSITeardownThreshold"
 #define CFG_TDLS_RSSI_TEARDOWN_THRESHOLD_MIN        (-120)
 #define CFG_TDLS_RSSI_TEARDOWN_THRESHOLD_MAX        (0)
 #define CFG_TDLS_RSSI_TEARDOWN_THRESHOLD_DEFAULT    (-75)
 
+/*
+ * <ini>
+ * gTDLSRSSIDelta - Delta value for the peer RSSI that can trigger teardown.
+ * @Min: -30
+ * @Max: 0
+ * @Default: -20
+ *
+ * This ini is used to .
+ * This ini is used to configure delta for peer RSSI such that if Peer RSSI
+ * is less than AP RSSI plus delta will trigger a teardown.
+ *
+ * Related: gEnableTDLSSupport.
+ *
+ * Supported Feature: TDLS
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_TDLS_RSSI_DELTA                         "gTDLSRSSIDelta"
 #define CFG_TDLS_RSSI_DELTA_MIN                     (-30)
 #define CFG_TDLS_RSSI_DELTA_MAX                     (0)
 #define CFG_TDLS_RSSI_DELTA_DEFAULT                 (-20)
 
-#define CFG_TDLS_QOS_WMM_UAPSD_MASK_NAME            "gTDLSUapsdMask"    /* ACs to setup U-APSD for TDLS Sta */
+/*
+ * <ini>
+ * gTDLSUapsdMask - ACs to setup U-APSD for TDLS Sta.
+ * @Min: 0
+ * @Max: 0x0F
+ * @Default: 0x0F
+ *
+ * This ini is used to configure the ACs for which mask needs to be enabled.
+ * 0x1: Background	0x2: Best effort
+ * 0x4: Video		0x8:Voice
+ *
+ * Related: gEnableTDLSSupport.
+ *
+ * Supported Feature: TDLS
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+#define CFG_TDLS_QOS_WMM_UAPSD_MASK_NAME            "gTDLSUapsdMask"
 #define CFG_TDLS_QOS_WMM_UAPSD_MASK_MIN             (0)
 #define CFG_TDLS_QOS_WMM_UAPSD_MASK_MAX             (0x0F)
 #define CFG_TDLS_QOS_WMM_UAPSD_MASK_DEFAULT         (0x0F)
 
+/*
+ * <ini>
+ * gEnableTDLSBufferSta - Controls the TDLS buffer.
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This ini is used to control the TDLS buffer.
+ * Buffer STA is not enabled in CLD 2.0 yet.
+ *
+ * Related: gEnableTDLSSupport.
+ *
+ * Supported Feature: TDLS
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_TDLS_BUFFER_STA_SUPPORT_ENABLE          "gEnableTDLSBufferSta"
 #define CFG_TDLS_BUFFER_STA_SUPPORT_ENABLE_MIN      (0)
 #define CFG_TDLS_BUFFER_STA_SUPPORT_ENABLE_MAX      (1)
-/* Buffer STA is not enabled in CLD 2.0 yet */
 #define CFG_TDLS_BUFFER_STA_SUPPORT_ENABLE_DEFAULT  (1)
 
+/*
+ * <ini>
+ * gTDLSPuapsdInactivityTime - Peer UAPSD Inactivity time.
+ * @Min: 0
+ * @Max: 10
+ * @Default: 0
+ *
+ * This ini is used to configure peer uapsd inactivity time.
+ *
+ * Related: gEnableTDLSSupport.
+ *
+ * Supported Feature: TDLS
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_TDLS_PUAPSD_INACTIVITY_TIME             "gTDLSPuapsdInactivityTime"
 #define CFG_TDLS_PUAPSD_INACTIVITY_TIME_MIN         (0)
 #define CFG_TDLS_PUAPSD_INACTIVITY_TIME_MAX         (10)
 #define CFG_TDLS_PUAPSD_INACTIVITY_TIME_DEFAULT     (0)
 
+/*
+ * <ini>
+ * gTDLSPuapsdRxFrameThreshold - Peer UAPSD Rx frame threshold.
+ * @Min: 10
+ * @Max: 20
+ * @Default: 10
+ *
+ * This ini is used to configure maximum Rx frame during SP.
+ *
+ * Related: gEnableTDLSSupport.
+ *
+ * Supported Feature: TDLS
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_TDLS_PUAPSD_RX_FRAME_THRESHOLD          "gTDLSPuapsdRxFrameThreshold"
 #define CFG_TDLS_PUAPSD_RX_FRAME_THRESHOLD_MIN      (10)
 #define CFG_TDLS_PUAPSD_RX_FRAME_THRESHOLD_MAX      (20)
 #define CFG_TDLS_PUAPSD_RX_FRAME_THRESHOLD_DEFAULT  (10)
 
+/*
+ * <ini>
+ * gTDLSPuapsdPTIWindow - This ini is used to configure peer traffic indication
+ * window.
+ * @Min: 1
+ * @Max: 5
+ * @Default: 2
+ *
+ * This ini is used to configure buffering time in number of beacon intervals.
+ *
+ * Related: gEnableTDLSSupport.
+ *
+ * Supported Feature: TDLS
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_TDLS_PUAPSD_PEER_TRAFFIC_IND_WINDOW          "gTDLSPuapsdPTIWindow"
 #define CFG_TDLS_PUAPSD_PEER_TRAFFIC_IND_WINDOW_MIN      (1)
 #define CFG_TDLS_PUAPSD_PEER_TRAFFIC_IND_WINDOW_MAX      (5)
 #define CFG_TDLS_PUAPSD_PEER_TRAFFIC_IND_WINDOW_DEFAULT  (2)
 
+/*
+ * <ini>
+ * gTDLSPuapsdPTRTimeout - Peer Traffic Response timer duration in ms.
+ * @Min: 0
+ * @Max: 10000
+ * @Default: 5000
+ *
+ * This ini is used to configure the peer traffic response timer duration
+ * in ms.
+ *
+ * Related: gEnableTDLSSupport.
+ *
+ * Supported Feature: TDLS
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_TDLS_PUAPSD_PEER_TRAFFIC_RSP_TIMEOUT         "gTDLSPuapsdPTRTimeout"
 #define CFG_TDLS_PUAPSD_PEER_TRAFFIC_RSP_TIMEOUT_MIN     (0)
 #define CFG_TDLS_PUAPSD_PEER_TRAFFIC_RSP_TIMEOUT_MAX     (10000)
 #define CFG_TDLS_PUAPSD_PEER_TRAFFIC_RSP_TIMEOUT_DEFAULT (5000)
 
+/*
+ * <ini>
+ * gTDLSExternalControl - Enable external TDLS control.
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This ini is used to enable/disable external TDLS control.
+ * TDLS external control works with TDLS implicit trigger. TDLS external
+ * control allows a user to add a MAC address of potential TDLS peers so
+ * that the CLD driver can initiate implicit TDLS setup to only those peers
+ * when criteria for TDLS setup (throughput and RSSI threshold) is met.
+ *
+ * Related: gEnableTDLSSupport, gEnableTDLSImplicitTrigger.
+ *
+ * Supported Feature: TDLS
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_TDLS_EXTERNAL_CONTROL                   "gTDLSExternalControl"
 #define CFG_TDLS_EXTERNAL_CONTROL_MIN               (0)
 #define CFG_TDLS_EXTERNAL_CONTROL_MAX               (1)
 #define CFG_TDLS_EXTERNAL_CONTROL_DEFAULT           (1)
 
+/*
+ * <ini>
+ * gEnableTDLSOffChannel - Enables off-channel support for TDLS link.
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to enable/disable off-channel support for TDLS link.
+ *
+ * Related: gEnableTDLSSupport.
+ *
+ * Supported Feature: TDLS
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_TDLS_OFF_CHANNEL_SUPPORT_ENABLE          "gEnableTDLSOffChannel"
 #define CFG_TDLS_OFF_CHANNEL_SUPPORT_ENABLE_MIN      (0)
 #define CFG_TDLS_OFF_CHANNEL_SUPPORT_ENABLE_MAX      (1)
 #define CFG_TDLS_OFF_CHANNEL_SUPPORT_ENABLE_DEFAULT  (0)
 
+/*
+ * <ini>
+ * gEnableTDLSWmmMode - Enables WMM support over TDLS link.
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This ini is used to enable/disable WMM support over TDLS link.
+ * This is required to be set to 1 for any TDLS and uAPSD functionality.
+ *
+ * Related: gEnableTDLSSupport.
+ *
+ * Supported Feature: TDLS
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_TDLS_WMM_MODE_ENABLE                     "gEnableTDLSWmmMode"
 #define CFG_TDLS_WMM_MODE_ENABLE_MIN                 (0)
 #define CFG_TDLS_WMM_MODE_ENABLE_MAX                 (1)
 #define CFG_TDLS_WMM_MODE_ENABLE_DEFAULT             (1)
 
+/*
+ * <ini>
+ * gTDLSPrefOffChanNum - Preferred TDLS channel number when off-channel support
+ * is enabled.
+ * @Min: 1
+ * @Max: 165
+ * @Default: 36
+ *
+ * This ini is used to configure preferred TDLS channel number when off-channel
+ * support is enabled.
+ *
+ * Related: gEnableTDLSSupport, gEnableTDLSOffChannel.
+ *
+ * Supported Feature: TDLS
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_TDLS_PREFERRED_OFF_CHANNEL_NUM          "gTDLSPrefOffChanNum"
 #define CFG_TDLS_PREFERRED_OFF_CHANNEL_NUM_MIN      (1)
 #define CFG_TDLS_PREFERRED_OFF_CHANNEL_NUM_MAX      (165)
 #define CFG_TDLS_PREFERRED_OFF_CHANNEL_NUM_DEFAULT  (36)
 
+/*
+ * <ini>
+ * gTDLSPrefOffChanBandwidth - Preferred TDLS channel bandwidth when
+ * off-channel support is enabled.
+ * @Min: 0
+ * @Max: 0x0F
+ * @Default: 0x07
+ *
+ * This ini is used to configure preferred TDLS channel bandwidth when
+ * off-channel support is enabled.
+ * 0x1: 20 MHz	0x2: 40 MHz	0x4: 80 MHz	0x8: 160 MHz
+ * When more than one bits are set then firmware starts from the highest and
+ * selects one based on capability of peer.
+ *
+ * Related: gEnableTDLSSupport, gEnableTDLSOffChannel.
+ *
+ * Supported Feature: TDLS
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_TDLS_PREFERRED_OFF_CHANNEL_BW           "gTDLSPrefOffChanBandwidth"
 #define CFG_TDLS_PREFERRED_OFF_CHANNEL_BW_MIN      (0)
 #define CFG_TDLS_PREFERRED_OFF_CHANNEL_BW_MAX      (0x0F)
 #define CFG_TDLS_PREFERRED_OFF_CHANNEL_BW_DEFAULT  (0x07)
 
-/* Enable TDLS Scan: Allow scan and maintain TDLS link.
+/*
+ * <ini>
+ * gEnableTDLSScan - Allow scan and maintain TDLS link.
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to enable/disable TDLS scan.
  *  0: If peer is not buffer STA capable and device is not sleep STA
  *     capable, then teardown TDLS link when scan is initiated. If peer
  *     is buffer STA and we can be sleep STA then TDLS link is maintained
@@ -1884,19 +2535,42 @@ typedef enum {
  *     Rx pkts since peer would not know when device moves away from tdls
  *     channel. Tx on TDLS link would stop when device moves away from tdls
  *     channel.
+ *
+ * Related: gEnableTDLSSupport.
+ *
+ * Supported Feature: TDLS
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
  */
 #define CFG_TDLS_SCAN_ENABLE                       "gEnableTDLSScan"
 #define CFG_TDLS_SCAN_ENABLE_MIN                   (0)
 #define CFG_TDLS_SCAN_ENABLE_MAX                   (1)
 #define CFG_TDLS_SCAN_ENABLE_DEFAULT               (0)
 
-/* TDLS peer kickout threshold to fw
+/*
+ * <ini>
+ * gTDLSPeerKickoutThreshold - TDLS peer kickout threshold to firmware.
+ * @Min: 10
+ * @Max: 5000
+ * @Default: 96
+ *
+ * This ini is used to configure TDLS peer kickout threshold to firmware.
  *     Firmware will use this value to determine, when to send TDLS
  *     peer kick out event to host.
  *     E.g.
  *        if peer kick out threshold is 10, then firmware will wait for 10
  *        consecutive packet failures and then send TDLS kickout
  *        notification to host driver
+ *
+ * Related: gEnableTDLSSupport.
+ *
+ * Supported Feature: TDLS
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
  */
 #define CFG_TDLS_PEER_KICKOUT_THRESHOLD            "gTDLSPeerKickoutThreshold"
 #define CFG_TDLS_PEER_KICKOUT_THRESHOLD_MIN        (10)
@@ -1904,6 +2578,29 @@ typedef enum {
 #define CFG_TDLS_PEER_KICKOUT_THRESHOLD_DEFAULT    (96)
 
 #endif
+
+/*
+ * <ini>
+ * gTDLSEnableDeferTime - Timer to defer for enabling TDLS on P2P listen.
+ * @Min: 2000
+ * @Max: 6000
+ * @Default: 5000
+ *
+ * This ini is used to set the timer to defer for enabling TDLS on P2P
+ * listen (value in milliseconds).
+ *
+ * Related: gEnableTDLSSupport.
+ *
+ * Supported Feature: TDLS
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+#define CFG_TDLS_ENABLE_DEFER_TIMER                "gTDLSEnableDeferTime"
+#define CFG_TDLS_ENABLE_DEFER_TIMER_MIN            (2000)
+#define CFG_TDLS_ENABLE_DEFER_TIMER_MAX            (6000)
+#define CFG_TDLS_ENABLE_DEFER_TIMER_DEFAULT        (5000)
 
 /* Enable/Disable LPWR Image(cMEM uBSP) Transition */
 #define CFG_ENABLE_LPWR_IMG_TRANSITION_NAME        "gEnableLpwrImgTransition"
@@ -1930,8 +2627,21 @@ typedef enum {
 #define CFG_TX_LDPC_ENABLE_FEATURE_DEFAULT (3)
 
 /*
- * Enable / Disable MCC Adaptive Scheduler feature
- * Default: Enable
+ * <ini>
+ * gEnableMCCAdaptiveScheduler - MCC Adaptive Scheduler feature.
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This ini is used to enable/disable MCC Adaptive Scheduler feature.
+ *
+ * Related: None.
+ *
+ * Supported Feature: Concurrency
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
  */
 #define CFG_ENABLE_MCC_ADATIVE_SCHEDULER_ENABLED_NAME             "gEnableMCCAdaptiveScheduler"
 #define CFG_ENABLE_MCC_ADATIVE_SCHEDULER_ENABLED_MIN              (0)
@@ -2101,6 +2811,23 @@ typedef enum {
 #define CFG_POWERSAVE_OFFLOAD_DEFAULT             (CFG_POWERSAVE_OFFLOAD_MIN)
 
 #ifdef WLAN_FEATURE_FASTPATH
+
+/*
+ * <ini>
+ * gEnableFastPath - Control to enable fastpath feature
+ *
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to enable fastpath feature
+ *
+ * Supported Feature: Wlan Fastpath Feature
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
 #define CFG_ENABLE_FASTPATH                      "gEnableFastPath"
 #define CFG_ENABLE_FASTPATH_MIN                  (0)
 #define CFG_ENABLE_FASTPATH_MAX                  (1)
@@ -2321,52 +3048,252 @@ typedef enum {
 #define CFG_SET_TXPOWER_LIMIT5G_DEFAULT            (30)
 
 #ifdef QCA_LL_LEGACY_TX_FLOW_CONTROL
+
+/*
+ * <ini>
+ * TxFlowLowWaterMark - Low watermark for pausing network queues
+ *
+ * @Min: 0
+ * @Max: 1000
+ * @Default: 300
+ *
+ * This ini specifies the low watermark of data packets transmitted
+ * before pausing netif queues in tx flow path. It is only applicable
+ * where legacy flow control is used i.e.for Rome.
+ *
+ * Related: TxFlowHighWaterMarkOffset, TxFlowMaxQueueDepth,
+ *          TxLbwFlowLowWaterMark, TxLbwFlowHighWaterMarkOffset,
+ *          TxLbwFlowMaxQueueDepth, TxHbwFlowLowWaterMark,
+ *          TxHbwFlowHighWaterMarkOffset, TxHbwFlowMaxQueueDepth
+ *
+ * Supported Feature: Dynamic Flow Control
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
 #define CFG_LL_TX_FLOW_LWM                         "TxFlowLowWaterMark"
 #define CFG_LL_TX_FLOW_LWM_MIN                     (0)
 #define CFG_LL_TX_FLOW_LWM_MAX                     (1000)
-
 #define CFG_LL_TX_FLOW_LWM_DEFAULT                 (300)
 
+/*
+ * <ini>
+ * TxFlowHighWaterMarkOffset - High Watermark offset to unpause Netif queues
+ * @Min: 0
+ * @Max: 300
+ * @Default: 94
+ *
+ * This ini specifies the offset to upause the netif queues
+ * when they are paused due to insufficient descriptors as guided by
+ * ini TxFlowLowWaterMark. It is only applicable where legacy flow control
+ * is used i.e.for Rome.
+ *
+ * Related: TxFlowLowWaterMark, TxFlowMaxQueueDepth,
+ *          TxLbwFlowLowWaterMark, TxLbwFlowHighWaterMarkOffset,
+ *          TxLbwFlowMaxQueueDepth, TxHbwFlowLowWaterMark,
+ *          TxHbwFlowHighWaterMarkOffset, TxHbwFlowMaxQueueDepth
+ *
+ * Supported Feature: Dynamic Flow Control
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
 #define CFG_LL_TX_FLOW_HWM_OFFSET                  "TxFlowHighWaterMarkOffset"
 #define CFG_LL_TX_FLOW_HWM_OFFSET_MIN              (0)
 #define CFG_LL_TX_FLOW_HWM_OFFSET_MAX              (300)
-
 #define CFG_LL_TX_FLOW_HWM_OFFSET_DEFAULT          (94)
 
+/*
+ * <ini>
+ * TxFlowMaxQueueDepth - Max pause queue depth.
+ *
+ * @Min: 400
+ * @Max: 3500
+ * @Default: 1500
+ *
+ * This ini specifies the max queue pause depth.It is only applicable
+ * where legacy flow control is used i.e.for Rome.
+ *
+ * Related: TxFlowLowWaterMark, TxFlowHighWaterMarkOffset,
+ *          TxLbwFlowLowWaterMark, TxLbwFlowHighWaterMarkOffset,
+ *          TxLbwFlowMaxQueueDepth, TxHbwFlowLowWaterMark,
+ *          TxHbwFlowHighWaterMarkOffset, TxHbwFlowMaxQueueDepth
+ *
+ * Supported Feature: Dynamic Flow Control
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
 #define CFG_LL_TX_FLOW_MAX_Q_DEPTH                 "TxFlowMaxQueueDepth"
 #define CFG_LL_TX_FLOW_MAX_Q_DEPTH_MIN             (400)
 #define CFG_LL_TX_FLOW_MAX_Q_DEPTH_MAX             (3500)
 #define CFG_LL_TX_FLOW_MAX_Q_DEPTH_DEFAULT         (1500)
 
+/*
+ * <ini>
+ * TxLbwFlowLowWaterMark - Low watermark for pausing network queues
+ *                         in low bandwidth band
+ * @Min: 0
+ * @Max: 1000
+ * @Default: 450
+ *
+ * This ini specifies the low watermark of data packets transmitted
+ * before pausing netif queues in tx flow path in low bandwidth band.
+ * It is only applicable where legacy flow control is used i.e.for Rome.
+ *
+ * Related: TxFlowLowWaterMark, TxFlowHighWaterMarkOffset,
+ *          TxFlowMaxQueueDepth, TxLbwFlowHighWaterMarkOffset,
+ *          TxLbwFlowMaxQueueDepth, TxHbwFlowLowWaterMark,
+ *          TxHbwFlowHighWaterMarkOffset, TxHbwFlowMaxQueueDepth
+ *
+ * Supported Feature: Dynamic Flow Control
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
 #define CFG_LL_TX_LBW_FLOW_LWM                     "TxLbwFlowLowWaterMark"
 #define CFG_LL_TX_LBW_FLOW_LWM_MIN                 (0)
 #define CFG_LL_TX_LBW_FLOW_LWM_MAX                 (1000)
-
 #define CFG_LL_TX_LBW_FLOW_LWM_DEFAULT             (450)
 
+/*
+ * <ini>
+ * TxLbwFlowHighWaterMarkOffset - High Watermark offset to unpause Netif queues
+ *                                in low bandwidth band.
+ * @Min: 0
+ * @Max: 300
+ * @Default: 50
+ *
+ * This ini specifies the offset to upause the netif queues
+ * when they are paused due to insufficient descriptors as guided by
+ * ini TxLbwFlowLowWaterMark in low bandwidth band. It is only applicable
+ * where legacy flow control is used i.e.for Rome.
+ *
+ * Related: TxFlowLowWaterMark, TxFlowHighWaterMarkOffset,
+ *          TxFlowMaxQueueDepth, TxLbwFlowLowWaterMark,
+ *          TxLbwFlowMaxQueueDepth, TxHbwFlowLowWaterMark,
+ *          TxHbwFlowHighWaterMarkOffset, TxHbwFlowMaxQueueDepth
+ *
+ * Supported Feature: Dynamic Flow Control
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
 #define CFG_LL_TX_LBW_FLOW_HWM_OFFSET              "TxLbwFlowHighWaterMarkOffset"
 #define CFG_LL_TX_LBW_FLOW_HWM_OFFSET_MIN          (0)
 #define CFG_LL_TX_LBW_FLOW_HWM_OFFSET_MAX          (300)
-
 #define CFG_LL_TX_LBW_FLOW_HWM_OFFSET_DEFAULT      (50)
 
+/*
+ * <ini>
+ * TxLbwFlowMaxQueueDepth - Max pause queue depth in low bandwidth band
+ *
+ * @Min: 400
+ * @Max: 3500
+ * @Default: 750
+ *
+ * This ini specifies the max queue pause depth in low bandwidth band.
+ * It is only applicable where legacy flow control is used i.e.for Rome.
+ *
+ * Related: TxFlowLowWaterMark, TxFlowHighWaterMarkOffset,
+ *          TxFlowMaxQueueDepth, TxLbwFlowLowWaterMark,
+ *          TxLbwFlowHighWaterMarkOffset, TxHbwFlowLowWaterMark,
+ *          TxHbwFlowHighWaterMarkOffset, TxHbwFlowMaxQueueDepth
+ *
+ * Supported Feature: Dynamic Flow Control
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
 #define CFG_LL_TX_LBW_FLOW_MAX_Q_DEPTH             "TxLbwFlowMaxQueueDepth"
 #define CFG_LL_TX_LBW_FLOW_MAX_Q_DEPTH_MIN         (400)
 #define CFG_LL_TX_LBW_FLOW_MAX_Q_DEPTH_MAX         (3500)
 #define CFG_LL_TX_LBW_FLOW_MAX_Q_DEPTH_DEFAULT     (750)
 
+/*
+ * <ini>
+ * TxHbwFlowLowWaterMark - Low watermark for pausing network queues
+ *                         in high bandwidth band
+ * @Min: 0
+ * @Max: 1000
+ * @Default: 406
+ *
+ * This ini specifies the threshold of data packets transmitted
+ * before pausing netif queues.It is only applicable where
+ * legacy flow control is used i.e.for Rome.
+ *
+ * Related: TxFlowLowWaterMark, TxFlowHighWaterMarkOffset,
+ *          TxFlowMaxQueueDepth, TxLbwFlowLowWaterMark,
+ *          TxLbwFlowHighWaterMarkOffset, TxLbwFlowMaxQueueDepth,
+ *          TxHbwFlowHighWaterMarkOffset, TxHbwFlowMaxQueueDepth
+ *
+ * Supported Feature: Dynamic Flow Control
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
 #define CFG_LL_TX_HBW_FLOW_LWM                     "TxHbwFlowLowWaterMark"
 #define CFG_LL_TX_HBW_FLOW_LWM_MIN                 (0)
 #define CFG_LL_TX_HBW_FLOW_LWM_MAX                 (1000)
-
 #define CFG_LL_TX_HBW_FLOW_LWM_DEFAULT             (406)
 
+/*
+ * <ini>
+ * TxHbwFlowHighWaterMarkOffset - High Watermark offset to unpause Netif queues
+ *                                in high bandwidth band.
+ * @Min: 0
+ * @Max: 300
+ * @Default: 94
+ *
+ * This ini specifies the offset to upause the netif queues
+ * when they are paused due to insufficient descriptors as guided by
+ * ini TxHbwFlowLowWaterMark in high bandwidth band. It is only applicable
+ * where legacy flow control is used i.e.for Rome.
+ *
+ * Related: TxFlowLowWaterMark, TxFlowHighWaterMarkOffset,
+ *          TxFlowMaxQueueDepth, TxLbwFlowLowWaterMark,
+ *          TxLbwFlowHighWaterMarkOffset, TxLbwFlowMaxQueueDepth,
+ *          TxHbwFlowLowWaterMark, TxHbwFlowMaxQueueDepth
+ *
+ * Supported Feature: Dynamic Flow Control
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
 #define CFG_LL_TX_HBW_FLOW_HWM_OFFSET              "TxHbwFlowHighWaterMarkOffset"
 #define CFG_LL_TX_HBW_FLOW_HWM_OFFSET_MIN          (0)
 #define CFG_LL_TX_HBW_FLOW_HWM_OFFSET_MAX          (300)
-
 #define CFG_LL_TX_HBW_FLOW_HWM_OFFSET_DEFAULT      (94)
 
+/*
+ * <ini>
+ * TxHbwFlowMaxQueueDepth - Max pause queue depth in high bandwidth band
+ * @Min: 4000
+ * @Max: 3500
+ * @Default: 1500
+ *
+ * This ini specifies the max queue pause depth in high bandwidth band.
+ * It is only applicable where legacy flow control is used i.e.for Rome.
+ *
+ * Related: TxFlowLowWaterMark, TxFlowHighWaterMarkOffset,
+ *          TxFlowMaxQueueDepth, TxLbwFlowLowWaterMark,
+ *          TxLbwFlowHighWaterMarkOffset, TxLbwFlowMaxQueueDepth,
+ *          TxHbwFlowLowWaterMark, TxHbwFlowHighWaterMarkOffset
+ *
+ * Supported Feature: Dynamic Flow Control
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
 #define CFG_LL_TX_HBW_FLOW_MAX_Q_DEPTH             "TxHbwFlowMaxQueueDepth"
 #define CFG_LL_TX_HBW_FLOW_MAX_Q_DEPTH_MIN         (400)
 #define CFG_LL_TX_HBW_FLOW_MAX_Q_DEPTH_MAX         (3500)
@@ -2375,15 +3302,54 @@ typedef enum {
 
 #ifdef QCA_LL_TX_FLOW_CONTROL_V2
 
-#define CFG_LL_TX_FLOW_STOP_QUEUE_TH		   "TxFlowStopQueueThreshold"
-#define CFG_LL_TX_FLOW_STOP_QUEUE_TH_DEFAULT	   (15)
-#define CFG_LL_TX_FLOW_STOP_QUEUE_TH_MIN	   (0)
-#define CFG_LL_TX_FLOW_STOP_QUEUE_TH_MAX	   (50)
+/*
+ * <ini>
+ * TxFlowStopQueueThreshold - Stop queue Threshold to pause
+ *                            Netif queues when it reaches
+ * @Min: 0
+ * @Max: 50
+ * @Default: 15
+ *
+ * This ini specifies the threshold of data packets transmitted
+ * before pausing netif queues.
+ *
+ * Related: TxFlowStartQueueOffset
+ *
+ * Supported Feature: Dynamic Flow Control
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+#define CFG_LL_TX_FLOW_STOP_QUEUE_TH               "TxFlowStopQueueThreshold"
+#define CFG_LL_TX_FLOW_STOP_QUEUE_TH_DEFAULT       (15)
+#define CFG_LL_TX_FLOW_STOP_QUEUE_TH_MIN           (0)
+#define CFG_LL_TX_FLOW_STOP_QUEUE_TH_MAX           (50)
 
-#define CFG_LL_TX_FLOW_START_QUEUE_OFFSET	   "TxFlowStartQueueOffset"
+/*
+ * <ini>
+ * TxFlowStartQueueOffset - Start queue offset to unpause
+ *                          Netif queues
+ * @Min: 0
+ * @Max: 30
+ * @Default: 11
+ *
+ * This ini specifies the offset to upause the netif queues
+ * when they are paused due to insufficient descriptors as guided by
+ * ini TxFlowStopQueueThreshold.
+ *
+ * Related: TxFlowStopQueueThreshold
+ *
+ * Supported Feature: Dynamic Flow Control
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+#define CFG_LL_TX_FLOW_START_QUEUE_OFFSET          "TxFlowStartQueueOffset"
 #define CFG_LL_TX_FLOW_START_QUEUE_OFFSET_DEFAULT  (10)
-#define CFG_LL_TX_FLOW_START_QUEUE_OFFSET_MIN	   (0)
-#define CFG_LL_TX_FLOW_START_QUEUE_OFFSET_MAX	   (30)
+#define CFG_LL_TX_FLOW_START_QUEUE_OFFSET_MIN      (0)
+#define CFG_LL_TX_FLOW_START_QUEUE_OFFSET_MAX      (30)
 
 #endif /* QCA_LL_TX_FLOW_CONTROL_V2 */
 
@@ -2462,37 +3428,121 @@ typedef enum {
 #define CFG_BUS_BANDWIDTH_COMPUTE_INTERVAL_MAX     (10000)
 
 /*
- * Dynamic configuration of tcp delack is enabled by default.
- * User can set gTcpDelAckEnable flag to 0 in the INI file to disable dynamic
- * reconfiguration of tcp delack. This does not disable the update of receive
- * histogram
+ * <ini>
+ * gTcpDelAckEnable - Control to enable Dynamic Configuration of Tcp Delayed Ack
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This ini is used to enable Dynamic Configuration of Tcp Delayed Ack
+ *
+ * Related: gTcpDelAckThresholdHigh, gTcpDelAckThresholdLow,
+ *          gTcpDelAckTimerCount
+ *
+ * Supported Feature: Tcp Delayed Ack
+ *
+ * Usage: Internal
+ *
+ * </ini>
  */
 #define CFG_ENABLE_TCP_DELACK                      "gTcpDelAckEnable"
 #define CFG_ENABLE_TCP_DELACK_DEFAULT              (1)
 #define CFG_ENABLE_TCP_DELACK_MIN                  (0)
 #define CFG_ENABLE_TCP_DELACK_MAX                  (1)
 
+
+/*
+ * <ini>
+ * gTcpDelAckThresholdHigh - High Threshold inorder to trigger TCP Del Ack
+ *                                          indication
+ * @Min: 0
+ * @Max: 16000
+ * @Default: 500
+ *
+ * This ini is used to mention the High Threshold inorder to trigger TCP Del Ack
+ * indication i.e the threshold of packets received over a period of 100 ms.
+ * i.e to have a low RX throughput requirement
+ * Related: gTcpDelAckEnable, gTcpDelAckThresholdLow, gTcpDelAckTimerCount
+ *
+ * Supported Feature: Tcp Delayed Ack
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
 #define CFG_TCP_DELACK_THRESHOLD_HIGH              "gTcpDelAckThresholdHigh"
 #define CFG_TCP_DELACK_THRESHOLD_HIGH_DEFAULT      (500)
 #define CFG_TCP_DELACK_THRESHOLD_HIGH_MIN          (0)
 #define CFG_TCP_DELACK_THRESHOLD_HIGH_MAX          (16000)
 
+/*
+ * <ini>
+ * gTcpDelAckThresholdLow - Low Threshold inorder to trigger TCP Del Ack
+ *                                          indication
+ * @Min: 0
+ * @Max: 10000
+ * @Default: 1000
+ *
+ * This ini is used to mention the Low Threshold inorder to trigger TCP Del Ack
+ * indication i.e the threshold of packets received over a period of 100 ms.
+ * i.e to have a low RX throughput requirement
+ *
+ * Related: gTcpDelAckEnable, gTcpDelAckThresholdHigh, gTcpDelAckTimerCount
+ *
+ * Supported Feature: Tcp Delayed Ack
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
 #define CFG_TCP_DELACK_THRESHOLD_LOW               "gTcpDelAckThresholdLow"
 #define CFG_TCP_DELACK_THRESHOLD_LOW_DEFAULT       (1000)
 #define CFG_TCP_DELACK_THRESHOLD_LOW_MIN           (0)
 #define CFG_TCP_DELACK_THRESHOLD_LOW_MAX           (10000)
 
+/*
+ * <ini>
+ * gTcpDelAckTimerCount - Del Ack Timer Count  inorder to trigger TCP Del Ack
+ *                                      indication
+ * @Min: 1
+ * @Max: 1000
+ * @Default: 30
+ *
+ * This ini is used to mention the Del Ack Timer Count inorder to
+ * trigger TCP Del Ack indication i.e number of 100 ms periods
+ *
+ * Related: gTcpDelAckEnable, gTcpDelAckThresholdHigh, gTcpDelAckThresholdLow
+ *
+ * Supported Feature: Tcp Delayed Ack
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
 #define CFG_TCP_DELACK_TIMER_COUNT                 "gTcpDelAckTimerCount"
 #define CFG_TCP_DELACK_TIMER_COUNT_DEFAULT         (30)
 #define CFG_TCP_DELACK_TIMER_COUNT_MIN             (1)
 #define CFG_TCP_DELACK_TIMER_COUNT_MAX             (1000)
 
 
-/* TCP_TX_HIGH_TPUT_THRESHOLD specifies the threshold of packets transmitted
+/*
+ * <ini>
+ * gTcpTxHighTputThreshold - High Threshold inorder to trigger High
+ *                                          Tx Throughput requirement.
+ * @Min: 0
+ * @Max: 16000
+ * @Default: 500
+ *
+ * This ini specifies the threshold of packets transmitted
  * over a period of 100 ms beyond which TCP can be considered to have a high
  * TX throughput requirement. The driver uses this condition to tweak TCP TX
- * specific parameters (via cnss-daemon).
- * default  - 500
+ * specific parameters (via cnss-daemon)
+ *
+ * Supported Feature: To tweak TCP TX n/w parameters
+ *
+ * Usage: Internal
+ *
+ * </ini>
  */
 #define CFG_TCP_TX_HIGH_TPUT_THRESHOLD_NAME         "gTcpTxHighTputThreshold"
 #define CFG_TCP_TX_HIGH_TPUT_THRESHOLD_DEFAULT      (500)
@@ -2513,6 +3563,23 @@ typedef enum {
 #define CFG_PMF_SA_QUERY_RETRY_INTERVAL_MAX        (2000)
 #endif
 
+/*
+ * <ini>
+ * gMaxConcurrentActiveSessions - Maximum number of concurrent connections.
+ * @Min: 1
+ * @Max: 4
+ * @Default: 3
+ *
+ * This ini is used to configure the maximum number of concurrent connections.
+ *
+ * Related: None.
+ *
+ * Supported Feature: Concurrency
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_MAX_CONCURRENT_CONNECTIONS_NAME        "gMaxConcurrentActiveSessions"
 #define CFG_MAX_CONCURRENT_CONNECTIONS_DEFAULT     (3)
 #define CFG_MAX_CONCURRENT_CONNECTIONS_MIN         (1)
@@ -2707,15 +3774,50 @@ typedef enum {
 #define CFG_ENABLE_DEAUTH_BEFORE_CONNECTION_DEFAULT          (0)
 
 /*
- * Custom concurrency rule1:
- * If SAP comes up first and STA comes up later then SAP
- * needs to follow STA's channel.
+ * <ini>
+ * gEnableCustomConcRule1 - Enable custom concurrency rule1.
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to enable/disable custom concurrency rule1.
+ * If SAP comes up first and STA comes up later then SAP needs to follow STA's
+ * channel.
+ *
+ * Related: None.
+ *
+ * Supported Feature: Concurrency
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
  */
 #define CFG_ENABLE_CUSTOM_CONC_RULE1_NAME         "gEnableCustomConcRule1"
 #define CFG_ENABLE_CUSTOM_CONC_RULE1_NAME_MIN     (0)
 #define CFG_ENABLE_CUSTOM_CONC_RULE1_NAME_MAX     (1)
 #define CFG_ENABLE_CUSTOM_CONC_RULE1_NAME_DEFAULT (0)
 
+/*
+ * <ini>
+ * gEnableCustomConcRule2 - Enable custom concurrency rule2.
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to enable/disable custom concurrency rule2.
+ * If P2PGO comes up first and STA comes up later then P2PGO need to follow
+ * STA's channel in 5Ghz. In following if condition we are just adding sanity
+ * check to make sure that by this time P2PGO's channel is same as STA's
+ * channel.
+ *
+ * Related: None.
+ *
+ * Supported Feature: Concurrency
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_ENABLE_CUSTOM_CONC_RULE2_NAME         "gEnableCustomConcRule2"
 #define CFG_ENABLE_CUSTOM_CONC_RULE2_NAME_MIN     (0)
 #define CFG_ENABLE_CUSTOM_CONC_RULE2_NAME_MAX     (1)
@@ -2736,12 +3838,47 @@ typedef enum {
 #define CFG_P2P_LISTEN_DEFER_INTERVAL_MAX         (200)
 #define CFG_P2P_LISTEN_DEFER_INTERVAL_DEFAULT     (100)
 
+/*
+ * <ini>
+ * gStaMiracastMccRestTimeVal - Rest time when Miracast is running.
+ * @Min: 100
+ * @Max: 500
+ * @Default: 400
+ *
+ * This ini is used to set rest time for home channel for Miracast before
+ * going for scan.
+ *
+ * Related: None.
+ *
+ * Supported Feature: Concurrency
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_STA_MIRACAST_MCC_REST_TIME_VAL          "gStaMiracastMccRestTimeVal"
 #define CFG_STA_MIRACAST_MCC_REST_TIME_VAL_MIN     (100)
 #define CFG_STA_MIRACAST_MCC_REST_TIME_VAL_MAX     (500)
 #define CFG_STA_MIRACAST_MCC_REST_TIME_VAL_DEFAULT (400)
 
 #ifdef FEATURE_AP_MCC_CH_AVOIDANCE
+/*
+ * <ini>
+ * gSapChannelAvoidance - SAP MCC channel avoidance.
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to sets sap mcc channel avoidance.
+ *
+ * Related: None.
+ *
+ * Supported Feature: Concurrency
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_SAP_MCC_CHANNEL_AVOIDANCE_NAME         "gSapChannelAvoidance"
 #define CFG_SAP_MCC_CHANNEL_AVOIDANCE_MIN          (0)
 #define CFG_SAP_MCC_CHANNEL_AVOIDANCE_MAX          (1)
@@ -2778,15 +3915,42 @@ typedef enum {
 #define CFG_CONC_SYSTEM_PREF_MAX           (2)
 #define CFG_CONC_SYSTEM_PREF_DEFAULT       (0)
 
+/*
+ * <ini>
+ * TSOEnable - Control to enable tso feature
+ *
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to enable TSO feature
+ *
+ * Supported Feature: TSO Feature
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
 #define CFG_TSO_ENABLED_NAME           "TSOEnable"
 #define CFG_TSO_ENABLED_MIN            (0)
 #define CFG_TSO_ENABLED_MAX            (1)
 #define CFG_TSO_ENABLED_DEFAULT        (0)
 
 /*
- * Configuration option to enable or disable LRO (Large Receive Offload)
- *  in the WLAN driver
- *  Set 1 - enable, 0 - disable
+ * <ini>
+ * LROEnable - Control to enable lro feature
+ *
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to enable LRO feature
+ *
+ * Supported Feature: LRO
+ *
+ * Usage: Internal
+ *
+ * </ini>
  */
 #define CFG_LRO_ENABLED_NAME           "LROEnable"
 #define CFG_LRO_ENABLED_MIN            (0)
@@ -3388,7 +4552,7 @@ enum dot11p_mode {
 #define CFG_ADAPTIVE_DWELL_MODE_ENABLED_NAME      "adaptive_dwell_mode_enabled"
 #define CFG_ADAPTIVE_DWELL_MODE_ENABLED_MIN       (0)
 #define CFG_ADAPTIVE_DWELL_MODE_ENABLED_MAX       (1)
-#define CFG_ADAPTIVE_DWELL_MODE_ENABLED_DEFAULT   (0)
+#define CFG_ADAPTIVE_DWELL_MODE_ENABLED_DEFAULT   (1)
 
 /*
  * This parameter will set default adaptive mode, will be used if any of the
@@ -3398,7 +4562,7 @@ enum dot11p_mode {
 #define CFG_GLOBAL_ADAPTIVE_DWELL_MODE_NAME       "global_adapt_dwelltime_mode"
 #define CFG_GLOBAL_ADAPTIVE_DWELL_MODE_MIN        (0)
 #define CFG_GLOBAL_ADAPTIVE_DWELL_MODE_MAX        (4)
-#define CFG_GLOBAL_ADAPTIVE_DWELL_MODE_DEFAULT    (0)
+#define CFG_GLOBAL_ADAPTIVE_DWELL_MODE_DEFAULT    (1)
 
 /*
  * This parameter will set the weight to calculate the average low pass
@@ -3532,11 +4696,22 @@ enum dot11p_mode {
 #define CFG_SAP_MAX_INACTIVITY_OVERRIDE_DEFAULT  (0)
 
 /*
- * This parameter determines that which defered method will be use in rx path
- * If no bits are set then rx path processing will happen in tasklet context.
- * Bit 0: rx_thread enable
- * Bit 1: RPS enable
- * Bit 2: NAPI enable
+ * <ini>
+ * rx_mode - Control to decide rx mode
+ *
+ * @Min: 0
+ * @Max: (CFG_ENABLE_RX_THREAD | CFG_ENABLE_RPS | CFG_ENABLE_NAPI)
+ * @Default: MDM_PLATFORM   -  0
+ *           HELIUMPLUS     -  CFG_ENABLE_NAPI
+ *           Other cases    -  (CFG_ENABLE_RX_THREAD | CFG_ENABLE_NAPI)
+ *
+ * This ini is used to decide mode for the rx path
+ *
+ * Supported Feature: NAPI
+ *
+ * Usage: Internal
+ *
+ * </ini>
  */
 #define CFG_RX_MODE_NAME     "rx_mode"
 #define CFG_RX_MODE_MIN      (0)
@@ -4311,6 +5486,8 @@ struct hdd_config {
 	bool flow_steering_enable;
 	bool active_mode_offload;
 	bool bpf_packet_filter_enable;
+	/* parameter for defer timer for enabling TDLS on p2p listen */
+	uint16_t tdls_enable_defer_time;
 	uint32_t fine_time_meas_cap;
 	uint8_t max_scan_count;
 #ifdef WLAN_FEATURE_FASTPATH

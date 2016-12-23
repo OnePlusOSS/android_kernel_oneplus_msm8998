@@ -31,9 +31,6 @@
  * WLAN Host Device Driver implementation
  */
 
-/* denote that this file does not allow legacy hddLog */
-#define HDD_DISALLOW_LEGACY_HDDLOG 1
-
 /* Include Files */
 
 #include <linux/version.h>
@@ -237,16 +234,25 @@ void hdd_sap_context_destroy(hdd_context_t *hdd_ctx)
 static int __hdd_hostapd_open(struct net_device *dev)
 {
 	hdd_adapter_t *pAdapter = netdev_priv(dev);
+	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(pAdapter);
+	int ret;
 
 	ENTER_DEV(dev);
 
 	MTRACE(qdf_trace(QDF_MODULE_ID_HDD,
 			 TRACE_CODE_HDD_HOSTAPD_OPEN_REQUEST, NO_SESSION, 0));
 
-	if (cds_is_load_or_unload_in_progress()) {
-		hdd_err("Driver load/unload in progress, ignore, state: 0x%x",
-			cds_get_driver_state());
-		goto done;
+	ret = wlan_hdd_validate_context(hdd_ctx);
+	if (ret)
+		return ret;
+	/*
+	 * Check statemachine state and also stop iface change timer if running
+	 */
+	ret = hdd_wlan_start_modules(hdd_ctx, pAdapter, false);
+
+	if (ret) {
+		hdd_err("Failed to start WLAN modules return");
+		return ret;
 	}
 
 	set_bit(DEVICE_IFACE_OPENED, &pAdapter->event_flags);
@@ -255,7 +261,6 @@ static int __hdd_hostapd_open(struct net_device *dev)
 	wlan_hdd_netif_queue_control(pAdapter,
 				   WLAN_START_ALL_NETIF_QUEUE_N_CARRIER,
 				   WLAN_CONTROL_PATH);
-done:
 	EXIT();
 	return 0;
 }
@@ -900,6 +905,8 @@ void wlan_hdd_sap_pre_cac_failure(void *data)
 	}
 
 	cds_ssr_protect(__func__);
+	wlan_hdd_release_intf_addr(hdd_ctx,
+				   pHostapdAdapter->macAddressCurrent.bytes);
 	hdd_stop_adapter(hdd_ctx, pHostapdAdapter, true);
 	hdd_close_adapter(hdd_ctx, pHostapdAdapter, false);
 	cds_ssr_unprotect(__func__);
@@ -1129,6 +1136,7 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 			 * wait till 10 secs and no other connection will
 			 * go through before that.
 			 */
+			pHostapdState->bssState = BSS_STOP;
 			qdf_event_set(&pHostapdState->qdf_event);
 			goto stopbss;
 		} else {
@@ -2087,6 +2095,8 @@ stopbss:
 		we_custom_event_generic = we_custom_event;
 		wireless_send_event(dev, we_event, &wrqu,
 				    (char *)we_custom_event_generic);
+		cds_decr_session_set_pcl(pHostapdAdapter->device_mode,
+					 pHostapdAdapter->sessionId);
 		cds_dump_concurrency_info();
 		/* Send SCC/MCC Switching event to IPA */
 		hdd_ipa_send_mcc_scc_msg(pHddCtx, pHddCtx->mcc_mode);
@@ -3107,12 +3117,14 @@ static __iw_softap_setparam(struct net_device *dev,
 			hdd_ipa_uc_stat_request(pHostapdAdapter, set_value);
 			break;
 		case 3:
-			hdd_ipa_uc_rt_debug_host_dump(
-					WLAN_HDD_GET_CTX(pHostapdAdapter));
+			hdd_ipa_uc_rt_debug_host_dump(hdd_ctx);
+			break;
+		case 4:
+			hdd_ipa_dump_info(hdd_ctx);
 			break;
 		default:
 			/* place holder for stats clean up
-			 * Stats clean not implemented yet on firmware and ipa
+			 * Stats clean not implemented yet on FW and IPA
 			 */
 			break;
 		}
@@ -4767,8 +4779,8 @@ __iw_softap_stopbss(struct net_device *dev,
 		if (QDF_IS_STATUS_SUCCESS(status)) {
 			qdf_status =
 				qdf_wait_single_event(&pHostapdState->
-						      qdf_stop_bss_event,
-						      10000);
+					qdf_stop_bss_event,
+					SME_CMD_TIMEOUT_VALUE);
 
 			if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 				hdd_err("wait for single_event failed!!");
@@ -7533,7 +7545,8 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 			acl_entry++;
 		}
 	}
-	if (!pHddCtx->config->force_sap_acs) {
+	if (!pHddCtx->config->force_sap_acs &&
+	    (0 != qdf_mem_cmp(ssid, PRE_CAC_SSID, ssid_len))) {
 		pIe = wlan_hdd_cfg80211_get_ie_ptr(
 				&pMgmt_frame->u.beacon.variable[0],
 				pBeacon->head_len, WLAN_EID_SUPP_RATES);
@@ -7695,7 +7708,8 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 
 	hdd_notice("Waiting for Scan to complete(auto mode) and BSS to start");
 
-	qdf_status = qdf_wait_single_event(&pHostapdState->qdf_event, 10000);
+	qdf_status = qdf_wait_single_event(&pHostapdState->qdf_event,
+						SME_CMD_TIMEOUT_VALUE);
 
 	wlansap_reset_sap_config_add_ie(pConfig, eUPDATE_IE_ALL);
 
@@ -7712,8 +7726,9 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 	set_bit(SOFTAP_BSS_STARTED, &pHostapdAdapter->event_flags);
 	/* Initialize WMM configuation */
 	hdd_wmm_init(pHostapdAdapter);
-	cds_incr_active_session(pHostapdAdapter->device_mode,
-					 pHostapdAdapter->sessionId);
+	if (pHostapdState->bssState == BSS_START)
+		cds_incr_active_session(pHostapdAdapter->device_mode,
+					pHostapdAdapter->sessionId);
 #ifdef DHCP_SERVER_OFFLOAD
 	if (iniConfig->enableDHCPServerOffload)
 		wlan_hdd_set_dhcp_server_offload(pHostapdAdapter);
@@ -7871,8 +7886,8 @@ static int __wlan_hdd_cfg80211_stop_ap(struct wiphy *wiphy,
 		if (QDF_IS_STATUS_SUCCESS(status)) {
 			qdf_status =
 				qdf_wait_single_event(&pHostapdState->
-						      qdf_stop_bss_event,
-						      10000);
+					qdf_stop_bss_event,
+					SME_CMD_TIMEOUT_VALUE);
 
 			if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 				hdd_err("HDD qdf wait for single_event failed!!");

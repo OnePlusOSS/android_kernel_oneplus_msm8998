@@ -1525,6 +1525,14 @@ static int wlan_hdd_tdls_check_config(tdls_config_params_t *config)
 			CFG_TDLS_RSSI_TEARDOWN_THRESHOLD_MAX);
 		return -EINVAL;
 	}
+	if (config->rssi_delta < CFG_TDLS_RSSI_DELTA_MIN
+	    || config->rssi_delta > CFG_TDLS_RSSI_DELTA_MAX) {
+		hdd_err("Invalid 11th argument %d. <%d...%d>",
+			config->rssi_delta,
+			CFG_TDLS_RSSI_DELTA_MIN,
+			CFG_TDLS_RSSI_DELTA_MAX);
+		return -EINVAL;
+	}
 	return 0;
 }
 
@@ -1593,11 +1601,14 @@ static void wlan_hdd_tdls_implicit_enable(tdlsCtx_t *pHddTdlsCtx)
  * @bUpdateLast: Switch on if to set pHddCtx->tdls_mode_last to tdls_mode.
  *               If 1, set pHddCtx->tdls_mode_last to tdls_mode, otherwise
  *               set pHddCtx->tdls_mode_last to pHddCtx->tdls_mode
+ * @source: TDLS disable source enum values
  *
  * Return: Void
  */
 static void wlan_hdd_tdls_set_mode(hdd_context_t *pHddCtx,
-				   eTDLSSupportMode tdls_mode, bool bUpdateLast)
+				   eTDLSSupportMode tdls_mode,
+				   bool bUpdateLast,
+				   enum tdls_disable_source source)
 {
 	hdd_adapter_list_node_t *pAdapterNode = NULL, *pNext = NULL;
 	QDF_STATUS status;
@@ -1613,9 +1624,28 @@ static void wlan_hdd_tdls_set_mode(hdd_context_t *pHddCtx,
 
 	mutex_lock(&pHddCtx->tdls_lock);
 
+	if (bUpdateLast)
+		pHddCtx->tdls_mode_last = tdls_mode;
+
 	if (pHddCtx->tdls_mode == tdls_mode) {
 		mutex_unlock(&pHddCtx->tdls_lock);
 		hdd_notice("already in mode %d", (int)tdls_mode);
+
+		/* TDLS is already disabled hence set source mask, return */
+		if (eTDLS_SUPPORT_DISABLED == tdls_mode) {
+			set_bit((unsigned long)source,
+				&pHddCtx->tdls_source_bitmap);
+			hdd_notice("set source mask:%d", source);
+			return;
+		}
+
+		/* TDLS is already enabled hence clear source mask, return */
+		if (eTDLS_SUPPORT_ENABLED == tdls_mode) {
+			clear_bit((unsigned long)source,
+				  &pHddCtx->tdls_source_bitmap);
+			hdd_notice("clear source mask:%d", source);
+			return;
+		}
 		return;
 	}
 
@@ -1627,32 +1657,64 @@ static void wlan_hdd_tdls_set_mode(hdd_context_t *pHddCtx,
 		if (NULL != pHddTdlsCtx) {
 			if (eTDLS_SUPPORT_ENABLED == tdls_mode ||
 			    eTDLS_SUPPORT_EXTERNAL_CONTROL == tdls_mode) {
+				clear_bit((unsigned long)source,
+					  &pHddCtx->tdls_source_bitmap);
+
+				/*
+				 * Check if any TDLS source bit is set and if
+				 * bitmap is not zero then we should not
+				 * enable TDLS
+				 */
+				if (pHddCtx->tdls_source_bitmap) {
+					mutex_unlock(&pHddCtx->tdls_lock);
+					hdd_notice("Don't enable TDLS, source"
+						"bitmap: %lu",
+						pHddCtx->tdls_source_bitmap);
+					return;
+				}
 				wlan_hdd_tdls_implicit_enable(pHddTdlsCtx);
 				/* tdls implicit mode is enabled, so
 				 * enable the connection tracker
 				 */
 				pHddCtx->enable_tdls_connection_tracker =
 					true;
-			} else if ((eTDLS_SUPPORT_DISABLED == tdls_mode) ||
-				   (eTDLS_SUPPORT_EXPLICIT_TRIGGER_ONLY ==
-				    tdls_mode)) {
+			} else if (eTDLS_SUPPORT_DISABLED == tdls_mode) {
+				set_bit((unsigned long)source,
+					&pHddCtx->tdls_source_bitmap);
 				wlan_hdd_tdls_implicit_disable(pHddTdlsCtx);
-
 				/* If tdls implicit mode is disabled, then
 				 * stop the connection tracker.
 				 */
 				pHddCtx->enable_tdls_connection_tracker =
 					false;
+			} else if (eTDLS_SUPPORT_EXPLICIT_TRIGGER_ONLY ==
+				   tdls_mode) {
+				clear_bit((unsigned long)source,
+					  &pHddCtx->tdls_source_bitmap);
+				wlan_hdd_tdls_implicit_disable(pHddTdlsCtx);
+				/* If tdls implicit mode is disabled, then
+				 * stop the connection tracker.
+				 */
+				pHddCtx->enable_tdls_connection_tracker =
+					false;
+
+				/*
+				 * Check if any TDLS source bit is set and if
+				 * bitmap is not zero then we should not
+				 * enable TDLS
+				 */
+				if (pHddCtx->tdls_source_bitmap) {
+					mutex_unlock(&pHddCtx->tdls_lock);
+					return;
+				}
 			}
 		}
 		status = hdd_get_next_adapter(pHddCtx, pAdapterNode, &pNext);
 		pAdapterNode = pNext;
 	}
-	if (bUpdateLast) {
-		pHddCtx->tdls_mode_last = tdls_mode;
-	} else {
+	if (!bUpdateLast)
 		pHddCtx->tdls_mode_last = pHddCtx->tdls_mode;
-	}
+
 	pHddCtx->tdls_mode = tdls_mode;
 
 	mutex_unlock(&pHddCtx->tdls_lock);
@@ -1708,7 +1770,8 @@ int wlan_hdd_tdls_set_params(struct net_device *dev,
 		config->rssi_trigger_threshold,
 		config->rssi_teardown_threshold);
 
-	wlan_hdd_tdls_set_mode(pHddCtx, req_tdls_mode, true);
+	wlan_hdd_tdls_set_mode(pHddCtx, req_tdls_mode, true,
+			       HDD_SET_TDLS_MODE_SOURCE_USER);
 
 	tdlsParams = qdf_mem_malloc(sizeof(tdlsInfo_t));
 	if (NULL == tdlsParams) {
@@ -2776,7 +2839,8 @@ int wlan_hdd_tdls_scan_callback(hdd_adapter_t *pAdapter, struct wiphy *wiphy,
 		 eTDLS_SUPPORT_EXTERNAL_CONTROL == pHddCtx->tdls_mode ||
 		 eTDLS_SUPPORT_EXPLICIT_TRIGGER_ONLY == pHddCtx->tdls_mode) {
 		/* disable implicit trigger logic & tdls operatoin */
-		wlan_hdd_tdls_set_mode(pHddCtx, eTDLS_SUPPORT_DISABLED, false);
+		wlan_hdd_tdls_set_mode(pHddCtx, eTDLS_SUPPORT_DISABLED, false,
+				       HDD_SET_TDLS_MODE_SOURCE_SCAN);
 		/* indicate the teardown all connected to peer */
 		connectedTdlsPeers = wlan_hdd_tdls_connected_peers(pAdapter);
 		if (connectedTdlsPeers) {
@@ -2898,7 +2962,8 @@ void wlan_hdd_tdls_scan_done_callback(hdd_adapter_t *pAdapter)
 		hdd_notice("revert tdls mode %d",
 			   pHddCtx->tdls_mode_last);
 
-		wlan_hdd_tdls_set_mode(pHddCtx, pHddCtx->tdls_mode_last, false);
+		wlan_hdd_tdls_set_mode(pHddCtx, pHddCtx->tdls_mode_last, false,
+				       HDD_SET_TDLS_MODE_SOURCE_SCAN);
 	}
 	EXIT();
 }
@@ -3307,7 +3372,8 @@ __wlan_hdd_cfg80211_configure_tdls_mode(struct wiphy *wiphy,
 		hdd_err("Invalid TDLS trigger mode");
 		return -EINVAL;
 	}
-	wlan_hdd_tdls_set_mode(hdd_ctx, tdls_mode, false);
+	wlan_hdd_tdls_set_mode(hdd_ctx, tdls_mode, false,
+			HDD_SET_TDLS_MODE_SOURCE_USER);
 
 	mutex_lock(&hdd_ctx->tdls_lock);
 
@@ -5949,3 +6015,45 @@ int wlan_hdd_tdls_antenna_switch(hdd_context_t *hdd_ctx,
 tdls_ant_sw_done:
 	return 0;
 }
+
+/**
+ * wlan_hdd_change_tdls_mode - Change TDLS mode
+ * @data: void pointer
+ *
+ * Return: None
+ */
+void wlan_hdd_change_tdls_mode(void *data)
+{
+	hdd_context_t *hdd_ctx = (hdd_context_t *)data;
+
+	wlan_hdd_tdls_set_mode(hdd_ctx, eTDLS_SUPPORT_ENABLED, false,
+			       HDD_SET_TDLS_MODE_SOURCE_OFFCHANNEL);
+}
+
+/**
+ * hdd_restart_tdls_source_timer - Restart TDLS source timer
+ * @pHddCtx: ptr to hdd context.
+ * @tdls_mode: value for TDLS support mode.
+ *
+ * This timer is the handler for avoiding overlapping for P2P listen
+ * and TDLS operation. This handler will start the source timer for
+ * the duration of tdls_enable_defer_time after P2P listen ends and
+ * before enabling TDLS again.
+ *
+ * Return: None
+ */
+void hdd_restart_tdls_source_timer(hdd_context_t *pHddCtx,
+				eTDLSSupportMode tdls_mode)
+{
+	qdf_mc_timer_stop(&pHddCtx->tdls_source_timer);
+
+	if (tdls_mode == eTDLS_SUPPORT_DISABLED)
+		wlan_hdd_tdls_set_mode(pHddCtx, tdls_mode, false,
+				HDD_SET_TDLS_MODE_SOURCE_OFFCHANNEL);
+
+	qdf_mc_timer_start(&pHddCtx->tdls_source_timer,
+			   pHddCtx->config->tdls_enable_defer_time);
+
+	return;
+}
+

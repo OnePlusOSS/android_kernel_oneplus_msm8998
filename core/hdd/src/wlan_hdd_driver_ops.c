@@ -25,9 +25,6 @@
  * to the Linux Foundation.
  */
 
-/* denote that this file does not allow legacy hddLog */
-#define HDD_DISALLOW_LEGACY_HDDLOG 1
-
 #include <linux/platform_device.h>
 #include <linux/pci.h>
 #include "cds_api.h"
@@ -438,6 +435,11 @@ static void wlan_hdd_remove(struct device *dev)
 static void wlan_hdd_shutdown(void)
 {
 	void *hif_ctx = cds_get_context(QDF_MODULE_ID_HIF);
+
+	if (NULL == hif_ctx) {
+		hdd_err("HIF context NULL");
+		return;
+	}
 
 	if (cds_is_load_or_unload_in_progress()) {
 		hdd_err("Load/unload in progress, ignore SSR shutdown");

@@ -2359,6 +2359,16 @@ static const u8 *wma_wow_wake_reason_str(A_INT32 wake_reason)
 		return "ACTION_FRAME_RECV";
 	case WOW_REASON_BPF_ALLOW:
 		return "WOW_REASON_BPF_ALLOW";
+	case WOW_REASON_NAN_DATA:
+		return "WOW_REASON_NAN_DATA";
+	case WOW_REASON_TDLS_CONN_TRACKER_EVENT:
+		return "WOW_REASON_TDLS_CONN_TRACKER_EVENT";
+	case WOW_REASON_CRITICAL_LOG:
+		return "WOW_REASON_CRITICAL_LOG";
+	case WOW_REASON_P2P_LISTEN_OFFLOAD:
+		return "WOW_REASON_P2P_LISTEN_OFFLOAD";
+	case WOW_REASON_NAN_EVENT_WAKE_HOST:
+		return "WOW_REASON_NAN_EVENT_WAKE_HOST";
 	}
 	return "unknown";
 }
@@ -5547,6 +5557,8 @@ QDF_STATUS wma_process_get_peer_info_req
 
 	ret = wmi_unified_cmd_send(wma->wmi_handle, buf, len,
 				   WMI_PEER_INFO_REQ_CMDID);
+	if (ret != QDF_STATUS_SUCCESS)
+		wmi_buf_free(buf);
 
 	WMA_LOGE("IBSS get peer info cmd sent len: %d, vdev %d"
 		 " command id: %d, status: %d", len,
@@ -5638,6 +5650,8 @@ QDF_STATUS wma_process_rmc_enable_ind(tp_wma_handle wma)
 
 	ret = wmi_unified_cmd_send(wma->wmi_handle, buf, len,
 				   WMI_RMC_SET_MODE_CMDID);
+	if (ret != QDF_STATUS_SUCCESS)
+		wmi_buf_free(buf);
 
 	WMA_LOGE("Enable RMC cmd sent len: %d, vdev %d" " command id: %d,"
 		 " status: %d", len, vdev_id, WMI_RMC_SET_MODE_CMDID, ret);
@@ -5688,6 +5702,8 @@ QDF_STATUS wma_process_rmc_disable_ind(tp_wma_handle wma)
 
 	ret = wmi_unified_cmd_send(wma->wmi_handle, buf, len,
 				   WMI_RMC_SET_MODE_CMDID);
+	if (ret != QDF_STATUS_SUCCESS)
+		wmi_buf_free(buf);
 
 	WMA_LOGE("Disable RMC cmd sent len: %d, vdev %d" " command id: %d,"
 		 " status: %d", len, vdev_id, WMI_RMC_SET_MODE_CMDID, ret);
@@ -5751,6 +5767,8 @@ QDF_STATUS wma_process_rmc_action_period_ind(tp_wma_handle wma)
 
 	ret = wmi_unified_cmd_send(wma->wmi_handle, buf, len,
 				   WMI_RMC_SET_ACTION_PERIOD_CMDID);
+	if (ret != QDF_STATUS_SUCCESS)
+		wmi_buf_free(buf);
 
 	WMA_LOGE("RMC action period %d cmd sent len: %d, vdev %d"
 		 " command id: %d, status: %d", periodicity_msec,
@@ -8316,6 +8334,30 @@ QDF_STATUS wma_enable_disable_caevent_ind(tp_wma_handle wma, uint8_t val)
 	}
 
 	return QDF_STATUS_SUCCESS;
+}
+
+QDF_STATUS wma_set_sar_limit(WMA_HANDLE handle,
+		struct sar_limit_cmd_params *sar_limit_params)
+{
+	int ret;
+	tp_wma_handle wma = (tp_wma_handle) handle;
+
+	if (!wma || !wma->wmi_handle) {
+		WMA_LOGE("%s: WMA is closed, can not issue set sar limit msg",
+			__func__);
+		return QDF_STATUS_E_INVAL;
+	}
+
+	if (sar_limit_params == NULL) {
+		WMA_LOGE("%s: set sar limit ptr NULL",
+			__func__);
+		return QDF_STATUS_E_INVAL;
+	}
+
+	ret = wmi_unified_send_sar_limit_cmd(wma->wmi_handle,
+				sar_limit_params);
+
+	return ret;
 }
 
 #ifdef WLAN_FEATURE_DISA

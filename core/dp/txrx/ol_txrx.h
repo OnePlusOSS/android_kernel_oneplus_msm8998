@@ -32,7 +32,14 @@
 #include <cdp_txrx_cmn.h>       /* ol_txrx_vdev_t, etc. */
 #include "cds_sched.h"
 
-void ol_txrx_peer_unref_delete(struct ol_txrx_peer_t *peer);
+/*
+ * Pool of tx descriptors reserved for
+ * high-priority traffic, such as ARP/EAPOL etc
+ * only for forwarding path.
+ */
+#define OL_TX_NON_FWD_RESERVE	100
+
+int ol_txrx_peer_unref_delete(struct ol_txrx_peer_t *peer);
 
 /**
  * ol_tx_desc_pool_size_hl() - allocate tx descriptor pool size for HL systems
@@ -138,6 +145,27 @@ ol_txrx_update_last_real_peer(
  */
 void
 ol_txrx_dump_pkt(qdf_nbuf_t nbuf, uint32_t nbuf_paddr, int len);
+
+/**
+ * ol_txrx_fwd_desc_thresh_check() - check to forward packet to tx path
+ * @vdev: which virtual device the frames were addressed to
+ *
+ * This API is to check whether enough descriptors are available or not
+ * to forward packet to tx path. If not enough descriptors left,
+ * start dropping tx-path packets.
+ * Do not pause netif queues as still a pool of descriptors is reserved
+ * for high-priority traffic such as EAPOL/ARP etc.
+ * In case of intra-bss forwarding, it could be possible that tx-path can
+ * consume all the tx descriptors and pause netif queues. Due to this,
+ * there would be some left for stack triggered packets such as ARP packets
+ * which could lead to disconnection of device. To avoid this, reserved
+ * a pool of descriptors for high-priority packets, i.e., reduce the
+ * threshold of drop in the intra-bss forwarding path.
+ *
+ * Return: true ; forward the packet, i.e., below threshold
+ *         false; not enough descriptors, drop the packet
+ */
+bool ol_txrx_fwd_desc_thresh_check(struct ol_txrx_vdev_t *vdev);
 
 ol_txrx_vdev_handle ol_txrx_get_vdev_from_vdev_id(uint8_t vdev_id);
 

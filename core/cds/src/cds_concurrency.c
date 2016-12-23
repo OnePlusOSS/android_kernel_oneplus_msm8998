@@ -2162,8 +2162,8 @@ static void cds_update_conc_list(uint32_t conn_index,
 	conc_connection_list[conn_index].in_use = in_use;
 
 	cds_dump_connection_status_info();
-	if (cds_ctx->ol_txrx_update_mac_id)
-		cds_ctx->ol_txrx_update_mac_id(vdev_id, mac);
+	if (cds_ctx->ol_txrx_update_mac_id_cb)
+		cds_ctx->ol_txrx_update_mac_id_cb(vdev_id, mac);
 
 }
 
@@ -3494,6 +3494,7 @@ void cds_set_tdls_ct_mode(hdd_context_t *hdd_ctx)
 	}
 
 	if (eTDLS_SUPPORT_DISABLED == hdd_ctx->tdls_mode ||
+	    eTDLS_SUPPORT_NOT_ENABLED == hdd_ctx->tdls_mode ||
 	    (!hdd_ctx->config->fEnableTDLSImplicitTrigger)) {
 		state = false;
 		goto set_state;
@@ -3789,6 +3790,22 @@ void cds_incr_active_session(enum tQDF_ADAPTER_MODE mode,
 		qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	}
 
+	/**
+	 * Disable LRO if P2P or IBSS or SAP connection has come up or
+	 * there are more than one STA connections
+	 */
+	if ((cds_mode_specific_connection_count(CDS_STA_MODE, NULL) > 1) ||
+	    (cds_mode_specific_connection_count(CDS_SAP_MODE, NULL) > 0) ||
+	    (cds_mode_specific_connection_count(CDS_P2P_CLIENT_MODE, NULL) >
+									0) ||
+	    (cds_mode_specific_connection_count(CDS_P2P_GO_MODE, NULL) > 0) ||
+	    (cds_mode_specific_connection_count(CDS_IBSS_MODE, NULL) > 0)) {
+		if (cds_ctx->hdd_disable_lro_in_cc_cb != NULL)
+			cds_ctx->hdd_disable_lro_in_cc_cb(hdd_ctx);
+		else
+			cds_warn("hdd_disable_lro_in_cc_cb NULL!");
+	};
+
 	/* set tdls connection tracker state */
 	cds_set_tdls_ct_mode(hdd_ctx);
 	cds_dump_current_concurrency();
@@ -3988,6 +4005,13 @@ void cds_decr_active_session(enum tQDF_ADAPTER_MODE mode,
 				  uint8_t session_id)
 {
 	hdd_context_t *hdd_ctx;
+	cds_context_type *cds_ctx;
+
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return;
+	}
 
 	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
 	if (!hdd_ctx) {
@@ -4012,6 +4036,19 @@ void cds_decr_active_session(enum tQDF_ADAPTER_MODE mode,
 		mode, hdd_ctx->no_of_active_sessions[mode]);
 
 	cds_decr_connection_count(session_id);
+
+	/* Enable LRO if there no concurrency */
+	if ((cds_mode_specific_connection_count(CDS_STA_MODE, NULL) == 1) &&
+	    (cds_mode_specific_connection_count(CDS_SAP_MODE, NULL) == 0) &&
+	    (cds_mode_specific_connection_count(CDS_P2P_CLIENT_MODE, NULL) ==
+									0) &&
+	    (cds_mode_specific_connection_count(CDS_P2P_GO_MODE, NULL) == 0) &&
+	    (cds_mode_specific_connection_count(CDS_IBSS_MODE, NULL) == 0)) {
+		if (cds_ctx->hdd_en_lro_in_cc_cb != NULL)
+			cds_ctx->hdd_en_lro_in_cc_cb(hdd_ctx);
+		else
+			cds_warn("hdd_enable_lro_in_concurrency NULL!");
+	};
 
 	/* set tdls connection tracker state */
 	cds_set_tdls_ct_mode(hdd_ctx);
@@ -7834,8 +7871,8 @@ void cds_restart_sap(hdd_adapter_t *ap_adapter)
 		if (QDF_STATUS_SUCCESS == wlansap_stop_bss(sap_ctx)) {
 			qdf_status =
 				qdf_wait_single_event(&hostapd_state->
-						qdf_stop_bss_event,
-						BSS_WAIT_TIMEOUT);
+					qdf_stop_bss_event,
+					SME_CMD_TIMEOUT_VALUE);
 
 			if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 				cds_err("SAP Stop Failed");
@@ -7867,7 +7904,7 @@ void cds_restart_sap(hdd_adapter_t *ap_adapter)
 		cds_info("Waiting for SAP to start");
 		qdf_status =
 			qdf_wait_single_event(&hostapd_state->qdf_event,
-					BSS_WAIT_TIMEOUT);
+					SME_CMD_TIMEOUT_VALUE);
 		wlansap_reset_sap_config_add_ie(sap_config,
 				eUPDATE_IE_ALL);
 		if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
@@ -7876,8 +7913,9 @@ void cds_restart_sap(hdd_adapter_t *ap_adapter)
 		}
 		cds_err("SAP Start Success");
 		set_bit(SOFTAP_BSS_STARTED, &ap_adapter->event_flags);
-		cds_incr_active_session(ap_adapter->device_mode,
-					 ap_adapter->sessionId);
+		if (hostapd_state->bssState == BSS_START)
+			cds_incr_active_session(ap_adapter->device_mode,
+						ap_adapter->sessionId);
 		hostapd_state->bCommit = true;
 	}
 end:
@@ -8664,6 +8702,42 @@ bool cds_is_any_nondfs_chnl_present(uint8_t *channel)
 			conn_index++) {
 		if (conc_connection_list[conn_index].in_use &&
 		    !CDS_IS_DFS_CH(conc_connection_list[conn_index].chan)) {
+			*channel = conc_connection_list[conn_index].chan;
+			status = true;
+		}
+	}
+	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
+	return status;
+}
+
+/**
+ * cds_is_any_dfs_beaconing_session_present() - to find if any DFS session
+ * @channel: pointer to channel number that needs to filled
+ *
+ * If any beaconing session such as SAP or GO present and it is on DFS channel
+ * then this function will return true
+ *
+ * Return: true if session is on DFS or false if session is on non-dfs channel
+ */
+bool cds_is_any_dfs_beaconing_session_present(uint8_t *channel)
+{
+	cds_context_type *cds_ctx;
+	struct cds_conc_connection_info *conn_info;
+	bool status = false;
+	uint32_t conn_index = 0;
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return false;
+	}
+	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
+	for (conn_index = 0; conn_index < MAX_NUMBER_OF_CONC_CONNECTIONS;
+			conn_index++) {
+		conn_info = &conc_connection_list[conn_index];
+		if (conn_info->in_use && CDS_IS_DFS_CH(conn_info->chan) &&
+		    (CDS_SAP_MODE == conn_info->mode ||
+		     CDS_P2P_GO_MODE == conn_info->mode)) {
 			*channel = conc_connection_list[conn_index].chan;
 			status = true;
 		}

@@ -1,4 +1,4 @@
-				/*
+/*
  * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
@@ -510,6 +510,9 @@ typedef void (*txFailIndCallback)(uint8_t *peer_mac, uint8_t seqNo);
 typedef void (*encrypt_decrypt_cb)(struct sir_encrypt_decrypt_rsp_params
 		*encrypt_decrypt_rsp_params);
 
+
+typedef void (*tp_wma_packetdump_cb)(qdf_nbuf_t netbuf,
+			uint8_t status, uint8_t vdev_id, uint8_t type);
 
 /**
  * enum t_wma_drv_type - wma driver type
@@ -1190,6 +1193,7 @@ struct wmi_desc_t {
 	pWMAAckFnTxComp  ota_post_proc_cb;
 	qdf_nbuf_t	 nbuf;
 	uint32_t	 desc_id;
+	uint8_t vdev_id;
 };
 
 /**
@@ -1283,7 +1287,6 @@ struct extended_caps {
  * @recovery_event: wma FW recovery event
  * @max_station: max stations
  * @max_bssid: max bssid
- * @frame_xln_reqd: frame transmission required
  * @driver_type: driver type
  * @myaddr: current mac address
  * @hwaddr: mac address from EEPROM
@@ -1417,7 +1420,6 @@ typedef struct {
 	qdf_event_t recovery_event;
 	uint16_t max_station;
 	uint16_t max_bssid;
-	uint32_t frame_xln_reqd;
 	t_wma_drv_type driver_type;
 	uint8_t myaddr[IEEE80211_ADDR_LEN];
 	uint8_t hwaddr[IEEE80211_ADDR_LEN];
@@ -1605,6 +1607,8 @@ typedef struct {
 					   cds_msg_t *msg);
 	bool fw_timeout_crash;
 	bool sub_20_support;
+	tp_wma_packetdump_cb wma_mgmt_tx_packetdump_cb;
+	tp_wma_packetdump_cb wma_mgmt_rx_packetdump_cb;
 	tSirLLStatsResults *link_stats_results;
 } t_wma_handle, *tp_wma_handle;
 
@@ -2276,6 +2280,7 @@ static inline QDF_STATUS wma_lro_config_cmd(tp_wma_handle wma_handle,
 	return QDF_STATUS_SUCCESS;
 }
 #endif
+bool wma_is_current_hwmode_dbs(void);
 void
 wma_indicate_err(enum ol_rx_err_type err_type,
 	 struct ol_error_info *err_info);
@@ -2315,7 +2320,6 @@ QDF_STATUS wma_create_peer(tp_wma_handle wma, ol_txrx_pdev_handle pdev,
 			   u_int32_t peer_type, u_int8_t vdev_id,
 			   bool roam_synch_in_progress);
 
-#endif
 struct wma_ini_config *wma_get_ini_handle(tp_wma_handle wma_handle);
 WLAN_PHY_MODE wma_chan_phy_mode(u8 chan, enum phy_ch_width chan_width,
 	u8 dot11_mode);
@@ -2327,8 +2331,13 @@ QDF_STATUS wma_start_oem_data_req(tp_wma_handle wma_handle,
 
 QDF_STATUS wma_enable_disable_caevent_ind(tp_wma_handle wma_handle,
 				uint8_t val);
+void wma_register_packetdump_callback(
+		tp_wma_packetdump_cb wma_mgmt_tx_packetdump_cb,
+		tp_wma_packetdump_cb wma_mgmt_rx_packetdump_cb);
+void wma_deregister_packetdump_callback(void);
 void wma_update_sta_inactivity_timeout(tp_wma_handle wma,
 		struct sme_sta_inactivity_timeout  *sta_inactivity_timer);
 
 QDF_STATUS wma_send_udp_resp_offload_cmd(tp_wma_handle wma_handle,
 					struct udp_resp_offload *udp_response);
+#endif

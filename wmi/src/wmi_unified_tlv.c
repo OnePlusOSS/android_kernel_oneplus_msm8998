@@ -1496,6 +1496,18 @@ QDF_STATUS send_scan_start_cmd_tlv(wmi_unified_t wmi_handle,
 	cmd->num_ssids = params->num_ssids;
 	cmd->ie_len = params->ie_len;
 	cmd->n_probes = params->n_probes;
+
+	/* mac randomization attributes */
+	if (params->enable_scan_randomization) {
+		cmd->scan_ctrl_flags |= WMI_SCAN_ADD_SPOOFED_MAC_IN_PROBE_REQ |
+					WMI_SCAN_RANDOM_SEQ_NO_IN_PROBE_REQ;
+		WMI_CHAR_ARRAY_TO_MAC_ADDR(params->mac_addr, &cmd->mac_addr);
+		WMI_CHAR_ARRAY_TO_MAC_ADDR(params->mac_addr_mask,
+					   &cmd->mac_mask);
+	}
+
+	WMI_LOGI("scan_ctrl_flags = %x", cmd->scan_ctrl_flags);
+
 	buf_ptr += sizeof(*cmd);
 	tmp_ptr = (uint32_t *) (buf_ptr + WMI_TLV_HDR_SIZE);
 	for (i = 0; i < params->num_chan; ++i)
@@ -4107,6 +4119,13 @@ QDF_STATUS send_scan_probe_setoui_cmd_tlv(wmi_unified_t wmi_handle,
 	WMI_LOGD("%s: wmi:oui received from hdd %08x", __func__,
 		 cmd->prob_req_oui);
 
+	cmd->vdev_id = psetoui->vdev_id;
+	cmd->flags = WMI_SCAN_PROBE_OUI_SPOOFED_MAC_IN_PROBE_REQ;
+	if (psetoui->enb_probe_req_sno_randomization)
+		cmd->flags |= WMI_SCAN_PROBE_OUI_RANDOM_SEQ_NO_IN_PROBE_REQ;
+
+	WMI_LOGI(FL("vdev_id = %d, flags = %x"), cmd->vdev_id, cmd->flags);
+
 	if (wmi_unified_cmd_send(wmi_handle, wmi_buf, len,
 				 WMI_SCAN_PROB_REQ_OUI_CMDID)) {
 		WMI_LOGE("%s: failed to send command", __func__);
@@ -6074,6 +6093,16 @@ QDF_STATUS send_pno_start_cmd_tlv(wmi_unified_t wmi_handle,
 	/** TODO: Discrete firmware doesn't have command/option to configure
 	 * App IE which comes from wpa_supplicant as of part PNO start request.
 	 */
+
+	/* mac randomization attributes */
+	if (pno->enable_pno_scan_randomization) {
+		cmd->flags |= WMI_NLO_CONFIG_SPOOFED_MAC_IN_PROBE_REQ |
+			      WMI_NLO_CONFIG_RANDOM_SEQ_NO_IN_PROBE_REQ;
+		WMI_CHAR_ARRAY_TO_MAC_ADDR(pno->mac_addr, &cmd->mac_addr);
+		WMI_CHAR_ARRAY_TO_MAC_ADDR(pno->mac_addr_mask, &cmd->mac_mask);
+	}
+	WMI_LOGI("pno flags = %x", cmd->flags);
+
 	ret = wmi_unified_cmd_send(wmi_handle, buf, len,
 				   WMI_NETWORK_LIST_OFFLOAD_CONFIG_CMDID);
 	if (ret) {

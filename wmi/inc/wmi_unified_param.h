@@ -998,6 +998,11 @@ struct ap_ps_params {
  * @bssid_list: Lisst of bssid to scan
  * @ie_data: IE data buffer pointer
  * @passive_flag: Is this passive scan
+ * @enable_scan_randomization: enable scan randomization feature
+ * @mac_addr: MAC address used with randomization
+ * @mac_addr_mask: MAC address mask used with randomization, bits that
+ *	are 0 in the mask should be randomized, bits that are 1 should
+ *	be taken from the @mac_addr
  */
 struct scan_start_params {
 	uint32_t scan_id;
@@ -1040,6 +1045,10 @@ struct scan_start_params {
 	uint8_t *ie_data;
 	int passive_flag;
 #endif
+	/* mac address randomization attributes */
+	bool enable_scan_randomization;
+	uint8_t mac_addr[QDF_MAC_ADDR_SIZE];
+	uint8_t mac_addr_mask[QDF_MAC_ADDR_SIZE];
 };
 
 /**
@@ -1610,9 +1619,14 @@ struct rssi_monitor_param {
 /**
  * struct scan_mac_oui - oui paramters
  * @oui: oui parameters
+ * @vdev_id: session id
+ * @enb_probe_req_sno_randomization: set to true for enabling
+ *	seq number randomization of probe req frames
  */
 struct scan_mac_oui {
 	uint8_t oui[WMI_WIFI_SCANNING_MAC_OUI_LENGTH];
+	uint32_t vdev_id;
+	bool enb_probe_req_sno_randomization;
 };
 
 #define WMI_PASSPOINT_REALM_LEN 256
@@ -2029,6 +2043,11 @@ struct pno_nw_type {
  * @pnoscan_adaptive_dwell_mode: adaptive dwelltime mode for pno scan
  * @channel_prediction_full_scan: periodic timer upon which a full scan needs
  * to be triggered.
+ * @enable_pno_scan_randomization: enable pno scan randomization feature
+ * @mac_addr: MAC address used with randomization
+ * @mac_addr_mask: MAC address mask used with randomization, bits that
+ *	are 0 in the mask should be randomized, bits that are 1 should
+ *	be taken from the @mac_addr
  */
 struct pno_scan_req_params {
 	uint8_t enable;
@@ -2055,6 +2074,10 @@ struct pno_scan_req_params {
 	enum wmi_dwelltime_adaptive_mode pnoscan_adaptive_dwell_mode;
 	uint32_t channel_prediction_full_scan;
 #endif
+	/* mac address randomization attributes */
+	bool enable_pno_scan_randomization;
+	uint8_t mac_addr[QDF_MAC_ADDR_SIZE];
+	uint8_t mac_addr_mask[QDF_MAC_ADDR_SIZE];
 };
 
 

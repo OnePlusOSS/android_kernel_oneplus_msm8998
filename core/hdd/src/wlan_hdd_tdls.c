@@ -771,7 +771,7 @@ int wlan_hdd_tdls_init(hdd_adapter_t *pAdapter)
 
 	pHddTdlsCtx->curr_candidate = NULL;
 	pHddTdlsCtx->magic = 0;
-	pHddTdlsCtx->valid_mac_entries = 0;
+	pHddCtx->valid_mac_entries = 0;
 
 	/* remember configuration even if it is not used right now. it could be used later */
 	pHddTdlsCtx->threshold_config.tx_period_t =
@@ -5200,20 +5200,20 @@ static void wlan_hdd_tdls_ct_sampling_tx_rx(hdd_adapter_t *adapter,
 
 	qdf_spin_lock_bh(&hdd_ctx->tdls_ct_spinlock);
 
-	if (0 == tdls_ctx->valid_mac_entries) {
+	if (0 == hdd_ctx->valid_mac_entries) {
 		qdf_spin_unlock_bh(&hdd_ctx->tdls_ct_spinlock);
 		return;
 	}
 
-	valid_mac_entries = tdls_ctx->valid_mac_entries;
+	valid_mac_entries = hdd_ctx->valid_mac_entries;
 
-	memcpy(ct_peer_mac_table, tdls_ctx->ct_peer_mac_table,
+	memcpy(ct_peer_mac_table, hdd_ctx->ct_peer_mac_table,
 	       (sizeof(struct tdls_ct_mac_table)) * valid_mac_entries);
 
-	memset(tdls_ctx->ct_peer_mac_table, 0,
+	memset(hdd_ctx->ct_peer_mac_table, 0,
 	       (sizeof(struct tdls_ct_mac_table)) * valid_mac_entries);
 
-	tdls_ctx->valid_mac_entries = 0;
+	hdd_ctx->valid_mac_entries = 0;
 
 	qdf_spin_unlock_bh(&hdd_ctx->tdls_ct_spinlock);
 
@@ -5250,7 +5250,6 @@ void wlan_hdd_tdls_update_rx_pkt_cnt(hdd_adapter_t *adapter,
 {
 	hdd_context_t *hdd_ctx;
 	hdd_station_ctx_t *hdd_sta_ctx;
-	tdlsCtx_t *tdls_ctx;
 	uint8_t mac_cnt;
 	uint8_t valid_mac_entries;
 	struct qdf_mac_addr *mac_addr;
@@ -5269,15 +5268,14 @@ void wlan_hdd_tdls_update_rx_pkt_cnt(hdd_adapter_t *adapter,
 			mac_addr, QDF_MAC_ADDR_SIZE) == 0)
 		return;
 
-	tdls_ctx = adapter->sessionCtx.station.pHddTdlsCtx;
 
 	qdf_spin_lock_bh(&hdd_ctx->tdls_ct_spinlock);
-	valid_mac_entries = tdls_ctx->valid_mac_entries;
+	valid_mac_entries = hdd_ctx->valid_mac_entries;
 
 	for (mac_cnt = 0; mac_cnt < valid_mac_entries; mac_cnt++) {
-		if (memcmp(tdls_ctx->ct_peer_mac_table[mac_cnt].mac_address.bytes,
+		if (memcmp(hdd_ctx->ct_peer_mac_table[mac_cnt].mac_address.bytes,
 		    mac_addr, QDF_MAC_ADDR_SIZE) == 0) {
-			tdls_ctx->ct_peer_mac_table[mac_cnt].rx_packet_cnt++;
+			hdd_ctx->ct_peer_mac_table[mac_cnt].rx_packet_cnt++;
 			goto rx_cnt_return;
 		}
 	}
@@ -5286,10 +5284,10 @@ void wlan_hdd_tdls_update_rx_pkt_cnt(hdd_adapter_t *adapter,
 	 *  stop tracking till the old entries are removed
 	 */
 	if (mac_cnt < TDLS_CT_MAC_MAX_TABLE_SIZE) {
-		memcpy(tdls_ctx->ct_peer_mac_table[mac_cnt].mac_address.bytes,
+		memcpy(hdd_ctx->ct_peer_mac_table[mac_cnt].mac_address.bytes,
 		       mac_addr, QDF_MAC_ADDR_SIZE);
-		tdls_ctx->valid_mac_entries = mac_cnt+1;
-		tdls_ctx->ct_peer_mac_table[mac_cnt].rx_packet_cnt = 1;
+		hdd_ctx->valid_mac_entries = mac_cnt+1;
+		hdd_ctx->ct_peer_mac_table[mac_cnt].rx_packet_cnt = 1;
 	}
 
 rx_cnt_return:
@@ -5339,12 +5337,12 @@ void wlan_hdd_tdls_update_tx_pkt_cnt(hdd_adapter_t *adapter,
 	tdls_ctx = adapter->sessionCtx.station.pHddTdlsCtx;
 
 	qdf_spin_lock_bh(&hdd_ctx->tdls_ct_spinlock);
-	valid_mac_entries = tdls_ctx->valid_mac_entries;
+	valid_mac_entries = hdd_ctx->valid_mac_entries;
 
 	for (mac_cnt = 0; mac_cnt < valid_mac_entries; mac_cnt++) {
-		if (memcmp(tdls_ctx->ct_peer_mac_table[mac_cnt].mac_address.bytes,
+		if (memcmp(hdd_ctx->ct_peer_mac_table[mac_cnt].mac_address.bytes,
 		    mac_addr, QDF_MAC_ADDR_SIZE) == 0) {
-			tdls_ctx->ct_peer_mac_table[mac_cnt].tx_packet_cnt++;
+			hdd_ctx->ct_peer_mac_table[mac_cnt].tx_packet_cnt++;
 			goto tx_cnt_return;
 		}
 	}
@@ -5353,10 +5351,10 @@ void wlan_hdd_tdls_update_tx_pkt_cnt(hdd_adapter_t *adapter,
 	 *  stop tracking till the old entries are removed
 	 */
 	if (mac_cnt < TDLS_CT_MAC_MAX_TABLE_SIZE) {
-		memcpy(tdls_ctx->ct_peer_mac_table[mac_cnt].mac_address.bytes,
+		memcpy(hdd_ctx->ct_peer_mac_table[mac_cnt].mac_address.bytes,
 			mac_addr, QDF_MAC_ADDR_SIZE);
-		tdls_ctx->ct_peer_mac_table[mac_cnt].tx_packet_cnt = 1;
-		tdls_ctx->valid_mac_entries++;
+		hdd_ctx->ct_peer_mac_table[mac_cnt].tx_packet_cnt = 1;
+		hdd_ctx->valid_mac_entries++;
 	}
 
 tx_cnt_return:
@@ -5788,6 +5786,7 @@ static void wlan_hdd_tdls_ct_handler(void *user_data)
 	if (0 != (wlan_hdd_validate_context(hdd_ctx)))
 		return;
 
+	mutex_lock(&hdd_ctx->tdls_lock);
 	hdd_tdls_ctx = adapter->sessionCtx.station.pHddTdlsCtx;
 
 	if (NULL == hdd_tdls_ctx) {
@@ -5799,7 +5798,7 @@ static void wlan_hdd_tdls_ct_handler(void *user_data)
 	if (!hdd_ctx->enable_tdls_connection_tracker)
 		goto restart_return;
 
-	mutex_lock(&hdd_ctx->tdls_lock);
+
 
 	/* Update tx rx traffic sample in tdls data structures */
 	wlan_hdd_tdls_ct_sampling_tx_rx(adapter, hdd_ctx,
@@ -5816,12 +5815,12 @@ static void wlan_hdd_tdls_ct_handler(void *user_data)
 		}
 	}
 
-	mutex_unlock(&hdd_ctx->tdls_lock);
 
 restart_return:
 	wlan_hdd_tdls_timer_restart(hdd_tdls_ctx->pAdapter,
 				    &hdd_tdls_ctx->peer_update_timer,
 				    hdd_tdls_ctx->threshold_config.tx_period_t);
+	mutex_unlock(&hdd_ctx->tdls_lock);
 }
 
 /**

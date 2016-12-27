@@ -1421,6 +1421,36 @@ QDF_STATUS send_peer_assoc_cmd_tlv(wmi_unified_t wmi_handle,
 	return ret;
 }
 
+/*
+ * wmi_fill_vendor_oui() - fill vendor OUIs
+ * @buf_ptr: pointer to wmi tlv buffer
+ * @num_vendor_oui: number of vendor OUIs to be filled
+ * @param_voui: pointer to OUI buffer
+ *
+ * This function populates the wmi tlv buffer when vendor specific OUIs are
+ * present.
+ *
+ * Return: None
+ */
+static void wmi_fill_vendor_oui(uint8_t *buf_ptr, uint32_t num_vendor_oui,
+				void *param_voui)
+{
+	wmi_vendor_oui *voui = NULL;
+	struct vendor_oui *pvoui = NULL;
+	uint32_t i;
+
+	voui = (wmi_vendor_oui *)buf_ptr;
+	pvoui = (struct vendor_oui *)param_voui;
+
+	for (i = 0; i < num_vendor_oui; i++) {
+		WMITLV_SET_HDR(&voui[i].tlv_header,
+			       WMITLV_TAG_STRUC_wmi_vendor_oui,
+			       WMITLV_GET_STRUCT_TLVLEN(wmi_vendor_oui));
+		voui[i].oui_type_subtype = pvoui[i].oui_type |
+						(pvoui[i].oui_subtype << 24);
+	}
+}
+
 /**
  *  send_scan_start_cmd_tlv() - WMI scan start function
  *  @param wmi_handle      : handle to WMI.
@@ -1460,6 +1490,10 @@ QDF_STATUS send_scan_start_cmd_tlv(wmi_unified_t wmi_handle,
 	len += WMI_TLV_HDR_SIZE;
 	if (params->ie_len)
 		len += roundup(params->ie_len, sizeof(uint32_t));
+
+	len += WMI_TLV_HDR_SIZE; /* Length of TLV for array of wmi_vendor_oui */
+	if (params->num_vendor_oui)
+		len += params->num_vendor_oui * sizeof(wmi_vendor_oui);
 
 	/* Allocate the memory */
 	wmi_buf = wmi_buf_alloc(wmi_handle, len);
@@ -1506,6 +1540,15 @@ QDF_STATUS send_scan_start_cmd_tlv(wmi_unified_t wmi_handle,
 					   &cmd->mac_mask);
 	}
 
+	if (params->ie_whitelist) {
+		cmd->scan_ctrl_flags |=
+				WMI_SCAN_ENABLE_IE_WHTELIST_IN_PROBE_REQ;
+		for (i = 0; i < PROBE_REQ_BITMAP_LEN; i++)
+			cmd->ie_bitmap[i] = params->probe_req_ie_bitmap[i];
+
+		cmd->num_vendor_oui = params->num_vendor_oui;
+	}
+
 	WMI_LOGI("scan_ctrl_flags = %x", cmd->scan_ctrl_flags);
 
 	buf_ptr += sizeof(*cmd);
@@ -1549,6 +1592,17 @@ QDF_STATUS send_scan_start_cmd_tlv(wmi_unified_t wmi_handle,
 			     (params->uie_fieldOffset), params->ie_len);
 	}
 	buf_ptr += WMI_TLV_HDR_SIZE + params->ie_len_with_pad;
+
+	/* probe req ie whitelisting */
+	WMITLV_SET_HDR(buf_ptr, WMITLV_TAG_ARRAY_STRUC,
+		       params->num_vendor_oui * sizeof(wmi_vendor_oui));
+
+	buf_ptr += WMI_TLV_HDR_SIZE;
+
+	if (cmd->num_vendor_oui != 0) {
+		wmi_fill_vendor_oui(buf_ptr, cmd->num_vendor_oui, params->voui);
+		buf_ptr += cmd->num_vendor_oui * sizeof(wmi_vendor_oui);
+	}
 
 	ret = wmi_unified_cmd_send(wmi_handle, wmi_buf,
 				      len, WMI_START_SCAN_CMDID);
@@ -4100,8 +4154,11 @@ QDF_STATUS send_scan_probe_setoui_cmd_tlv(wmi_unified_t wmi_handle,
 	uint32_t len;
 	uint8_t *buf_ptr;
 	uint32_t *oui_buf;
+	uint32_t i = 0;
 
-	len = sizeof(*cmd);
+	len = sizeof(*cmd) + WMI_TLV_HDR_SIZE +
+		psetoui->num_vendor_oui * sizeof(wmi_vendor_oui);
+
 	wmi_buf = wmi_buf_alloc(wmi_handle, len);
 	if (!wmi_buf) {
 		WMI_LOGE("%s: wmi_buf_alloc failed", __func__);
@@ -4126,7 +4183,26 @@ QDF_STATUS send_scan_probe_setoui_cmd_tlv(wmi_unified_t wmi_handle,
 	if (psetoui->enb_probe_req_sno_randomization)
 		cmd->flags |= WMI_SCAN_PROBE_OUI_RANDOM_SEQ_NO_IN_PROBE_REQ;
 
+	if (psetoui->ie_whitelist) {
+		cmd->flags |=
+			WMI_SCAN_PROBE_OUI_ENABLE_IE_WHITELIST_IN_PROBE_REQ;
+		cmd->num_vendor_oui = psetoui->num_vendor_oui;
+		for (i = 0; i < PROBE_REQ_BITMAP_LEN; i++)
+			cmd->ie_bitmap[i] = psetoui->probe_req_ie_bitmap[i];
+	}
+
 	WMI_LOGI(FL("vdev_id = %d, flags = %x"), cmd->vdev_id, cmd->flags);
+
+	buf_ptr += sizeof(*cmd);
+	WMITLV_SET_HDR(buf_ptr, WMITLV_TAG_ARRAY_STRUC,
+		       psetoui->num_vendor_oui * sizeof(wmi_vendor_oui));
+	buf_ptr += WMI_TLV_HDR_SIZE;
+
+	if (cmd->num_vendor_oui != 0) {
+		wmi_fill_vendor_oui(buf_ptr, cmd->num_vendor_oui,
+				    psetoui->voui);
+		buf_ptr += cmd->num_vendor_oui * sizeof(wmi_vendor_oui);
+	}
 
 	if (wmi_unified_cmd_send(wmi_handle, wmi_buf, len,
 				 WMI_SCAN_PROB_REQ_OUI_CMDID)) {
@@ -5983,15 +6059,19 @@ QDF_STATUS send_pno_start_cmd_tlv(wmi_unified_t wmi_handle,
 	 * TLV place holder for array nlo_configured_parameters(nlo_list)
 	 * TLV place holder for array of uint32_t channel_list
 	 * TLV place holder for chnnl prediction cfg
+	 * TLV place holder for array of wmi_vendor_oui
 	 */
 	len = sizeof(*cmd) +
-		WMI_TLV_HDR_SIZE + WMI_TLV_HDR_SIZE + WMI_TLV_HDR_SIZE;
+		WMI_TLV_HDR_SIZE + WMI_TLV_HDR_SIZE + WMI_TLV_HDR_SIZE +
+		WMI_TLV_HDR_SIZE;
 
 	len += sizeof(uint32_t) * QDF_MIN(pno->aNetworks[0].ucChannelCount,
 					  WMI_NLO_MAX_CHAN);
 	len += sizeof(nlo_configured_parameters) *
 	       QDF_MIN(pno->ucNetworksCount, WMI_NLO_MAX_SSIDS);
 	len += sizeof(nlo_channel_prediction_cfg);
+	len += sizeof(enlo_candidate_score_params);
+	len += sizeof(wmi_vendor_oui) * pno->num_vendor_oui;
 
 	buf = wmi_buf_alloc(wmi_handle, len);
 	if (!buf) {
@@ -6091,10 +6171,14 @@ QDF_STATUS send_pno_start_cmd_tlv(wmi_unified_t wmi_handle,
 			sizeof(nlo_channel_prediction_cfg));
 	buf_ptr += WMI_TLV_HDR_SIZE;
 	wmi_set_pno_channel_prediction(buf_ptr, pno);
-	buf_ptr += WMI_TLV_HDR_SIZE;
+	buf_ptr += sizeof(nlo_channel_prediction_cfg);
 	/** TODO: Discrete firmware doesn't have command/option to configure
 	 * App IE which comes from wpa_supplicant as of part PNO start request.
 	 */
+
+	WMITLV_SET_HDR(buf_ptr, WMITLV_TAG_STRUC_enlo_candidate_score_param,
+		       WMITLV_GET_STRUCT_TLVLEN(enlo_candidate_score_params));
+	buf_ptr += sizeof(enlo_candidate_score_params);
 
 	/* mac randomization attributes */
 	if (pno->enable_pno_scan_randomization) {
@@ -6103,7 +6187,24 @@ QDF_STATUS send_pno_start_cmd_tlv(wmi_unified_t wmi_handle,
 		WMI_CHAR_ARRAY_TO_MAC_ADDR(pno->mac_addr, &cmd->mac_addr);
 		WMI_CHAR_ARRAY_TO_MAC_ADDR(pno->mac_addr_mask, &cmd->mac_mask);
 	}
+	if (pno->ie_whitelist) {
+		cmd->flags |= WMI_NLO_CONFIG_ENABLE_IE_WHITELIST_IN_PROBE_REQ;
+		cmd->num_vendor_oui = pno->num_vendor_oui;
+		for (i = 0; i < PROBE_REQ_BITMAP_LEN; i++)
+			cmd->ie_bitmap[i] = pno->probe_req_ie_bitmap[i];
+	}
 	WMI_LOGI("pno flags = %x", cmd->flags);
+
+	/* ie white list */
+	WMITLV_SET_HDR(buf_ptr, WMITLV_TAG_ARRAY_STRUC, pno->num_vendor_oui *
+		       sizeof(wmi_vendor_oui));
+
+	buf_ptr += WMI_TLV_HDR_SIZE;
+
+	if (cmd->num_vendor_oui != 0) {
+		wmi_fill_vendor_oui(buf_ptr, cmd->num_vendor_oui, pno->voui);
+		buf_ptr += cmd->num_vendor_oui * sizeof(wmi_vendor_oui);
+	}
 
 	ret = wmi_unified_cmd_send(wmi_handle, buf, len,
 				   WMI_NETWORK_LIST_OFFLOAD_CONFIG_CMDID);

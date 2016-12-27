@@ -215,6 +215,8 @@
 #define WMI_HOST_MAX_NUM_CHAINS	4
 #define WMI_MAX_NUM_OF_RATE_THRESH   4
 
+#define PROBE_REQ_BITMAP_LEN 8
+
 #include "qdf_atomic.h"
 
 #ifdef BIG_ENDIAN_HOST
@@ -953,6 +955,16 @@ struct ap_ps_params {
 	uint32_t value;
 };
 
+/**
+ * struct vendor_oui - probe request ie vendor oui information
+ * @oui_type: type of the vendor oui (3 valid octets)
+ * @oui_subtype: subtype of the vendor oui (1 valid octet)
+ */
+struct vendor_oui {
+	uint32_t oui_type;
+	uint32_t oui_subtype;
+};
+
 #define WMI_HOST_SCAN_CHAN_FREQ_SHIFT	0
 #define WMI_HOST_SCAN_CHAN_FREQ_MASK	0xffff
 #define WMI_HOST_SCAN_CHAN_MODE_SHIFT	16
@@ -1003,6 +1015,11 @@ struct ap_ps_params {
  * @mac_addr_mask: MAC address mask used with randomization, bits that
  *	are 0 in the mask should be randomized, bits that are 1 should
  *	be taken from the @mac_addr
+ * @ie_whitelist: set to true for enabling ie whitelisting
+ * @probe_req_ie_bitmap: contains IEs to be included in probe req
+ * @num_vendor_oui: number of vendor OUIs
+ * @oui_field_len: size of total number of OUIs
+ * @voui: pointer to OUI buffer
  */
 struct scan_start_params {
 	uint32_t scan_id;
@@ -1049,6 +1066,13 @@ struct scan_start_params {
 	bool enable_scan_randomization;
 	uint8_t mac_addr[QDF_MAC_ADDR_SIZE];
 	uint8_t mac_addr_mask[QDF_MAC_ADDR_SIZE];
+
+	/* probe req ie whitelisting attrs */
+	bool ie_whitelist;
+	uint32_t probe_req_ie_bitmap[PROBE_REQ_BITMAP_LEN];
+	uint32_t num_vendor_oui;
+	uint32_t oui_field_len;
+	uint8_t *voui;
 };
 
 /**
@@ -1622,11 +1646,22 @@ struct rssi_monitor_param {
  * @vdev_id: session id
  * @enb_probe_req_sno_randomization: set to true for enabling
  *	seq number randomization of probe req frames
+ * @ie_whitelist: set to true for enabling ie whitelisting
+ * @probe_req_ie_bitmap: contains IEs to be included in probe req
+ * @num_vendor_oui: number of vendor OUIs
+ * @oui_field_len: size of total number of OUIs
+ * @voui: pointer to OUI buffer
  */
 struct scan_mac_oui {
 	uint8_t oui[WMI_WIFI_SCANNING_MAC_OUI_LENGTH];
 	uint32_t vdev_id;
 	bool enb_probe_req_sno_randomization;
+	/* probe req ie whitelisting attrs */
+	bool ie_whitelist;
+	uint32_t probe_req_ie_bitmap[PROBE_REQ_BITMAP_LEN];
+	uint32_t num_vendor_oui;
+	uint32_t oui_field_len;
+	uint8_t *voui;
 };
 
 #define WMI_PASSPOINT_REALM_LEN 256
@@ -2048,6 +2083,11 @@ struct pno_nw_type {
  * @mac_addr_mask: MAC address mask used with randomization, bits that
  *	are 0 in the mask should be randomized, bits that are 1 should
  *	be taken from the @mac_addr
+ * @ie_whitelist: set to true for enabling ie whitelisting
+ * @probe_req_ie_bitmap: contains IEs to be included in probe req
+ * @num_vendor_oui: number of vendor OUIs
+ * @oui_field_len: size of total number of OUIs
+ * @voui: pointer to OUI buffer
  */
 struct pno_scan_req_params {
 	uint8_t enable;
@@ -2078,8 +2118,14 @@ struct pno_scan_req_params {
 	bool enable_pno_scan_randomization;
 	uint8_t mac_addr[QDF_MAC_ADDR_SIZE];
 	uint8_t mac_addr_mask[QDF_MAC_ADDR_SIZE];
-};
 
+	/* probe req ie whitelisting attrs */
+	bool ie_whitelist;
+	uint32_t probe_req_ie_bitmap[PROBE_REQ_BITMAP_LEN];
+	uint32_t num_vendor_oui;
+	uint32_t oui_field_len;
+	uint8_t *voui;
+};
 
 #define WMI_WLAN_EXTSCAN_MAX_CHANNELS                 36
 #define WMI_WLAN_EXTSCAN_MAX_BUCKETS                  16

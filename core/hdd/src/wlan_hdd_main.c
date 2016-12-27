@@ -4719,6 +4719,7 @@ static void hdd_roc_context_destroy(hdd_context_t *hdd_ctx)
 {
 	flush_delayed_work(&hdd_ctx->roc_req_work);
 	qdf_list_destroy(&hdd_ctx->hdd_roc_req_q);
+	qdf_spinlock_destroy(&hdd_ctx->hdd_roc_req_q_lock);
 }
 
 /**

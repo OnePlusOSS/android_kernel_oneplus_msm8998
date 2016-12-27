@@ -628,6 +628,29 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		     CFG_ENABLE_LTE_COEX_DEFAULT,
 		     CFG_ENABLE_LTE_COEX_MIN,
 		     CFG_ENABLE_LTE_COEX_MAX),
+/*
+ * <ini>
+ * gApAutoChannelSelection - Force ACS from ini
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to set to enable force acs from driver.
+ * If enabled, channel/ hw config from hostapd is ignored.
+ * Driver uses INI params dot11Mode, channel bonding mode and vht chan width
+ * to derive ACS HW mode and operating BW.
+ *
+ * Non android platforms shall not use force ACS method and rely on hostapd
+ * driven ACS method for concurrent SAP ACS configuration, OBSS etc.
+ *
+ * Related: Only applicable if gCoalesingInIBSS is 0
+ *
+ * Supported Feature: SAP
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 	REG_VARIABLE(CFG_FORCE_SAP_ACS, WLAN_PARAM_Integer,
 		struct hdd_config, force_sap_acs,
 		VAR_FLAGS_DYNAMIC_CFG |
@@ -636,6 +659,25 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		CFG_FORCE_SAP_ACS_MIN,
 		CFG_FORCE_SAP_ACS_MAX),
 
+/*
+ * <ini>
+ * gAPChannelSelectStartChannel - start channel for ACS
+ * @Min: 0
+ * @Max: 0xFF
+ * @Default: 1
+ *
+ * This ini is used to set start channel for ACS.
+ * ACS scan will choose channel between force_sap_acs_st_ch
+ * and force_sap_acs_end_ch
+ *
+ * Related: Only applicable gAPChannelSelectEndChannel is set
+ *
+ * Supported Feature: SAP
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 	REG_VARIABLE(CFG_FORCE_SAP_ACS_START_CH, WLAN_PARAM_Integer,
 		struct hdd_config, force_sap_acs_st_ch,
 		VAR_FLAGS_DYNAMIC_CFG |
@@ -644,6 +686,25 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		CFG_FORCE_SAP_ACS_START_CH_MIN,
 		CFG_FORCE_SAP_ACS_START_CH_MAX),
 
+/*
+ * <ini>
+ * gAPChannelSelectEndChannel - end channel for ACS
+ * @Min: 0
+ * @Max: 0xFF
+ * @Default: 11
+ *
+ * This ini is used to set end channel for ACS.
+ * ACS scan will choose channel between force_sap_acs_st_ch
+ * and force_sap_acs_end_ch
+ *
+ * Related: Only applicable if gAPChannelSelectStartChannel is set
+ *
+ * Supported Feature: SAP
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 	REG_VARIABLE(CFG_FORCE_SAP_ACS_END_CH, WLAN_PARAM_Integer,
 		struct hdd_config, force_sap_acs_end_ch,
 		VAR_FLAGS_DYNAMIC_CFG |

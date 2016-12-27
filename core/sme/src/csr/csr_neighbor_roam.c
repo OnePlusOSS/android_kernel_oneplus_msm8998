@@ -1045,8 +1045,7 @@ static void csr_neighbor_roam_info_ctx_init(
 	/* Initialize all the data structures needed for the 11r FT Preauth */
 	ngbr_roam_info->FTRoamInfo.currentNeighborRptRetryNum = 0;
 	csr_neighbor_roam_purge_preauth_failed_list(pMac);
-	if (!cds_is_multiple_active_sta_sessions() &&
-		csr_roam_is_roam_offload_scan_enabled(pMac)) {
+	if (csr_roam_is_roam_offload_scan_enabled(pMac)) {
 		/*
 		 * If this is not a INFRA type BSS, then do not send the command
 		 * down to firmware.Do not send the START command for

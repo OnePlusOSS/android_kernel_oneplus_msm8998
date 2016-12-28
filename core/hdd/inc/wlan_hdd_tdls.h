@@ -88,6 +88,9 @@ typedef enum {
 
 #define TDLS_CT_MAC_MAX_TABLE_SIZE 8
 
+/* Define the interval for 5 minutes */
+#define TDLS_ENABLE_CDS_FLUSH_INTERVAL      300000000
+
 /**
  * enum tdls_disable_source - TDLS disable sources
  * @HDD_SET_TDLS_MODE_SOURCE_USER: disable from user
@@ -368,6 +371,7 @@ struct tdls_set_state_info {
  * @ap_rssi: ap rssi
  * @curr_candidate: current candidate
  * @magic: magic
+ * @last_flush_ts: last timestamp when flush logs was displayed.
  *
  */
 typedef struct {
@@ -381,6 +385,7 @@ typedef struct {
 	int8_t ap_rssi;
 	struct _hddTdlsPeer_t *curr_candidate;
 	uint32_t magic;
+	uint64_t last_flush_ts;
 } tdlsCtx_t;
 
 /**

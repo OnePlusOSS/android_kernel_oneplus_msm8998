@@ -1803,7 +1803,7 @@ QDF_STATUS wlan_hdd_get_rssi(hdd_adapter_t *pAdapter, int8_t *rssi_value)
 		return QDF_STATUS_E_FAULT;
 	}
 	if (cds_is_driver_recovering()) {
-		hdd_err("Recovery in Progress. State: 0x%x Ignore!!!",
+		hdd_warn("Recovery in Progress. State: 0x%x Ignore!!!",
 			cds_get_driver_state());
 		/* return a cached value */
 		*rssi_value = pAdapter->rssi;
@@ -2463,7 +2463,7 @@ int hdd_set_rx_stbc(hdd_adapter_t *adapter, int value)
 	tHalHandle hal = WLAN_HDD_GET_HAL_CTX(adapter);
 	int ret;
 
-	hdd_alert("%d", value);
+	hdd_alert("set rx_stbc : %d", value);
 	if (value) {
 		/* make sure HT capabilities allow this */
 		QDF_STATUS status;
@@ -4227,7 +4227,7 @@ QDF_STATUS wlan_hdd_get_class_astats(hdd_adapter_t *pAdapter)
 		return QDF_STATUS_E_FAULT;
 	}
 	if (cds_is_driver_recovering()) {
-		hdd_err("Recovery in Progress. State: 0x%x Ignore!!!",
+		hdd_warn("Recovery in Progress. State: 0x%x Ignore!!!",
 			 cds_get_driver_state());
 		return QDF_STATUS_SUCCESS;
 	}
@@ -5326,7 +5326,7 @@ static int __iw_set_mlme(struct net_device *dev,
 					WLAN_CONTROL_PATH);
 
 		} else {
-			hdd_err("%d Command Disassociate/Deauthenticate called but station is not in associated state",
+			hdd_warn("%d Command Disassociate/Deauthenticate called but station is not in associated state",
 				(int)mlme->cmd);
 		}
 		break;
@@ -5808,7 +5808,7 @@ static int __iw_setint_getnone(struct net_device *dev,
 		case 0x03:
 			enable_mp = (set_value & 0x01) ? 1 : 0;
 			enable_pbm = (set_value & 0x02) ? 1 : 0;
-			hdd_err("magic packet ? = %s pattern byte matching ? = %s",
+			hdd_notice("magic packet ? = %s pattern byte matching ? = %s",
 			       (enable_mp ? "YES" : "NO"),
 			       (enable_pbm ? "YES" : "NO"));
 			hdd_enter_wowl(pAdapter, enable_mp, enable_pbm);
@@ -7031,7 +7031,7 @@ static int __iw_setchar_getnone(struct net_device *dev,
 	}
 	break;
 	case WE_SET_AP_WPS_IE:
-		hdd_err("Received WE_SET_AP_WPS_IE");
+		hdd_notice("Received WE_SET_AP_WPS_IE");
 		sme_update_p2p_ie(WLAN_HDD_GET_HAL_CTX(pAdapter), pBuffer,
 				  s_priv_data.length);
 		break;
@@ -8055,7 +8055,7 @@ static int __iw_get_char_setnone(struct net_device *dev,
 #ifdef WLAN_FEATURE_11W
 	case WE_GET_11W_INFO:
 	{
-		hdd_err("WE_GET_11W_ENABLED = %d",
+		hdd_notice("WE_GET_11W_ENABLED = %d",
 		       pWextState->roamProfile.MFPEnabled);
 
 		snprintf(extra, WE_MAX_STR_LEN,
@@ -8486,7 +8486,7 @@ static int __iw_set_var_ints_getnone(struct net_device *dev,
 
 	case WE_POLICY_MANAGER_CLIST_CMD:
 	{
-		hdd_err("<iwpriv wlan0 pm_clist> is called");
+		hdd_notice("<iwpriv wlan0 pm_clist> is called");
 		cds_incr_connection_count_utfw(apps_args[0],
 			apps_args[1], apps_args[2], apps_args[3],
 			apps_args[4], apps_args[5], apps_args[6],
@@ -8496,7 +8496,7 @@ static int __iw_set_var_ints_getnone(struct net_device *dev,
 
 	case WE_POLICY_MANAGER_DLIST_CMD:
 	{
-		hdd_err("<iwpriv wlan0 pm_dlist> is called");
+		hdd_notice("<iwpriv wlan0 pm_dlist> is called");
 		cds_decr_connection_count_utfw(apps_args[0],
 			apps_args[1]);
 	}
@@ -8504,7 +8504,7 @@ static int __iw_set_var_ints_getnone(struct net_device *dev,
 
 	case WE_POLICY_MANAGER_ULIST_CMD:
 	{
-		hdd_err("<iwpriv wlan0 pm_ulist> is called");
+		hdd_notice("<iwpriv wlan0 pm_ulist> is called");
 		cds_update_connection_info_utfw(apps_args[0],
 			apps_args[1], apps_args[2], apps_args[3],
 			apps_args[4], apps_args[5], apps_args[6],
@@ -8514,7 +8514,7 @@ static int __iw_set_var_ints_getnone(struct net_device *dev,
 
 	case WE_POLICY_MANAGER_DBS_CMD:
 	{
-		hdd_err("<iwpriv wlan0 pm_dbs> is called");
+		hdd_notice("<iwpriv wlan0 pm_dbs> is called");
 		if (apps_args[0] == 0)
 			wma_set_dbs_capability_ut(0);
 		else
@@ -8534,7 +8534,7 @@ static int __iw_set_var_ints_getnone(struct net_device *dev,
 		uint8_t weight_list[QDF_MAX_NUM_CHAN] = {0};
 		uint32_t pcl_len = 0, i = 0;
 
-		hdd_err("<iwpriv wlan0 pm_pcl> is called");
+		hdd_notice("<iwpriv wlan0 pm_pcl> is called");
 
 		cds_get_pcl(apps_args[0],
 				pcl, &pcl_len,
@@ -8551,7 +8551,7 @@ static int __iw_set_var_ints_getnone(struct net_device *dev,
 		struct cds_conc_connection_info *conn_info;
 		uint32_t i = 0, len = 0;
 
-		hdd_err("<iwpriv wlan0 pm_cinfo> is called");
+		hdd_notice("<iwpriv wlan0 pm_cinfo> is called");
 		conn_info = cds_get_conn_info(&len);
 		pr_info("+-----------------------------+\n");
 		for (i = 0; i < len; i++) {
@@ -8599,7 +8599,7 @@ static int __iw_set_var_ints_getnone(struct net_device *dev,
 	case WE_POLICY_MANAGER_QUERY_ACTION_CMD:
 	{
 		enum cds_conc_next_action action;
-		hdd_err("<iwpriv wlan0 pm_query_action> is called");
+		hdd_notice("<iwpriv wlan0 pm_query_action> is called");
 		action = cds_current_connections_update(pAdapter->sessionId,
 						apps_args[0],
 						SIR_UPDATE_REASON_UT);
@@ -8609,7 +8609,7 @@ static int __iw_set_var_ints_getnone(struct net_device *dev,
 	case WE_POLICY_MANAGER_QUERY_ALLOW_CMD:
 	{
 		bool allow;
-		hdd_err("<iwpriv wlan0 pm_query_allow> is called");
+		hdd_notice("<iwpriv wlan0 pm_query_allow> is called");
 		allow = cds_allow_concurrency(
 				apps_args[0], apps_args[1], apps_args[2]);
 		pr_info("allow %d {0 = don't allow, 1 = allow}", allow);
@@ -9753,7 +9753,7 @@ static int wlan_hdd_set_filter(hdd_context_t *hdd_ctx,
 	int i = 0;
 
 	if (hdd_ctx->config->disablePacketFilter) {
-		hdd_err("packet filtering disabled in ini returning");
+		hdd_warn("packet filtering disabled in ini returning");
 		return 0;
 	}
 
@@ -10658,7 +10658,7 @@ static int __iw_set_two_ints_getnone(struct net_device *dev,
 		break;
 #ifdef WLAN_DEBUG
 	case WE_SET_FW_CRASH_INJECT:
-		hdd_err("WE_SET_FW_CRASH_INJECT: %d %d",
+		hdd_notice("WE_SET_FW_CRASH_INJECT: %d %d",
 		       value[1], value[2]);
 		pr_err("SSR is triggered by iwpriv CRASH_INJECT: %d %d\n",
 			   value[1], value[2]);

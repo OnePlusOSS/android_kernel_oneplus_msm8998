@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -707,7 +707,7 @@ int wlan_hdd_tdls_init(hdd_adapter_t *pAdapter)
 		pHddCtx->tdls_mode = eTDLS_SUPPORT_NOT_ENABLED;
 		pAdapter->sessionCtx.station.pHddTdlsCtx = NULL;
 		mutex_unlock(&pHddCtx->tdls_lock);
-		hdd_err("TDLS not enabled (%d) or FW doesn't support",
+		hdd_warn("TDLS not enabled (%d) or FW doesn't support",
 			pHddCtx->config->fEnableTDLSSupport);
 		return 0;
 	}
@@ -1722,7 +1722,7 @@ int wlan_hdd_tdls_set_params(struct net_device *dev,
 	/* config->tdls is mapped to 0->1, 1->2, 2->3 */
 	req_tdls_mode = config->tdls + 1;
 	if (pHddCtx->tdls_mode == req_tdls_mode) {
-		hdd_err("Already in mode %d", config->tdls);
+		hdd_warn("Already in mode %d", config->tdls);
 		return -EINVAL;
 	}
 
@@ -1733,7 +1733,7 @@ int wlan_hdd_tdls_set_params(struct net_device *dev,
 		       sizeof(tdls_config_params_t));
 	}
 
-	hdd_err("iw set tdls params: %d %d %d %d %d %d %d",
+	hdd_notice("iw set tdls params: %d %d %d %d %d %d %d",
 		config->tdls,
 		config->tx_period_t,
 		config->tx_packet_n,
@@ -2962,7 +2962,7 @@ void wlan_hdd_tdls_timer_restart(hdd_adapter_t *pAdapter,
 
 	/* Check whether driver load unload is in progress */
 	if (cds_is_load_or_unload_in_progress()) {
-		hdd_err("Driver load/unload is in progress.");
+		hdd_warn("Driver load/unload is in progress.");
 		return;
 	}
 
@@ -3109,7 +3109,7 @@ int wlan_hdd_tdls_get_status(hdd_adapter_t *pAdapter,
 	}
 	if (pHddCtx->config->fTDLSExternalControl &&
 		(false == curr_peer->isForcedPeer)) {
-		hdd_err("curr_peer is not Forced");
+		hdd_notice("curr_peer is not Forced");
 		*state = QCA_WIFI_HAL_TDLS_DISABLED;
 		*reason = eTDLS_LINK_UNSPECIFIED;
 	} else {
@@ -3211,7 +3211,7 @@ __wlan_hdd_cfg80211_exttdls_get_status(struct wiphy *wiphy,
 	ENTER_DEV(dev);
 
 	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
-		hdd_err("Command not allowed in FTM mode");
+		hdd_warn("Command not allowed in FTM mode");
 		return -EPERM;
 	}
 
@@ -3300,7 +3300,7 @@ __wlan_hdd_cfg80211_configure_tdls_mode(struct wiphy *wiphy,
 	ENTER_DEV(dev);
 
 	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
-		hdd_err("Command not allowed in FTM mode");
+		hdd_warn("Command not allowed in FTM mode");
 		return -EPERM;
 	}
 
@@ -3542,7 +3542,7 @@ __wlan_hdd_cfg80211_exttdls_enable(struct wiphy *wiphy,
 	ENTER_DEV(dev);
 
 	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
-		hdd_err("Command not allowed in FTM mode");
+		hdd_warn("Command not allowed in FTM mode");
 		return -EPERM;
 	}
 
@@ -3663,7 +3663,7 @@ static int __wlan_hdd_cfg80211_exttdls_disable(struct wiphy *wiphy,
 	ENTER_DEV(dev);
 
 	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
-		hdd_err("Command not allowed in FTM mode");
+		hdd_warn("Command not allowed in FTM mode");
 		return -EPERM;
 	}
 
@@ -3973,7 +3973,7 @@ static int __wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy,
 #endif
 
 	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
-		hdd_err("Command not allowed in FTM mode");
+		hdd_warn("Command not allowed in FTM mode");
 		return -EINVAL;
 	}
 
@@ -4189,13 +4189,13 @@ static int __wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy,
 			rc, pAdapter->mgmtTxCompletionStatus);
 
 		if (cds_is_driver_recovering()) {
-			hdd_err("Recovery in Progress. State: 0x%x Ignore!!!",
+			hdd_warn("Recovery in Progress. State: 0x%x Ignore!!!",
 				cds_get_driver_state());
 			return -EAGAIN;
 		}
 
 		if (cds_is_driver_unloading()) {
-			hdd_err("Unload in progress. State: 0x%x Ignore!!!",
+			hdd_warn("Unload in progress. State: 0x%x Ignore!!!",
 				cds_get_driver_state());
 			return -EAGAIN;
 		}
@@ -4484,7 +4484,7 @@ static int __wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy,
 	ENTER();
 
 	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
-		hdd_err("Command not allowed in FTM mode");
+		hdd_warn("Command not allowed in FTM mode");
 		return -EINVAL;
 	}
 
@@ -4793,7 +4793,7 @@ static int __wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy,
 			return -EINVAL;
 		}
 
-		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_INFO,
 			  "%s: NL80211_TDLS_DISABLE_LINK for peer "
 			  MAC_ADDRESS_STR " link_status: %d",
 			  __func__, MAC_ADDR_ARRAY(peer),
@@ -5013,7 +5013,7 @@ int hdd_set_tdls_offchannel(hdd_context_t *hdd_ctx, int offchannel)
 			return -EINVAL;
 		}
 	} else {
-		hdd_err("Either TDLS or TDLS Off-channel is not enabled");
+		hdd_warn("Either TDLS or TDLS Off-channel is not enabled");
 		return  -ENOTSUPP;
 	}
 	hdd_notice("change tdls off channel from %d to %d",
@@ -5059,7 +5059,7 @@ int hdd_set_tdls_secoffchanneloffset(hdd_context_t *hdd_ctx, int offchanoffset)
 			return -EINVAL;
 		} /* end switch */
 	} else {
-		hdd_err("Either TDLS or TDLS Off-channel is not enabled");
+		hdd_warn("Either TDLS or TDLS Off-channel is not enabled");
 		return  -ENOTSUPP;
 	}
 	hdd_notice("change tdls secondary off channel offset to 0x%x",

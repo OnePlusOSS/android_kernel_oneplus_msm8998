@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -3441,6 +3441,18 @@ QDF_STATUS wmi_unified_roam_scan_offload_rssi_change_cmd(void *wmi_hdl,
 		return wmi_handle->ops->send_roam_scan_offload_rssi_change_cmd(wmi_handle,
 				  vdev_id, rssi_change_thresh,
 				  bcn_rssi_weight, hirssi_delay_btw_scans);
+
+	return QDF_STATUS_E_FAILURE;
+}
+
+QDF_STATUS wmi_unified_set_per_roam_config(void *wmi_hdl,
+		struct wmi_per_roam_config_req *req_buf)
+{
+	wmi_unified_t wmi_handle = (wmi_unified_t) wmi_hdl;
+
+	if (wmi_handle->ops->send_per_roam_config_cmd)
+		return wmi_handle->ops->send_per_roam_config_cmd(wmi_handle,
+					req_buf);
 
 	return QDF_STATUS_E_FAILURE;
 }

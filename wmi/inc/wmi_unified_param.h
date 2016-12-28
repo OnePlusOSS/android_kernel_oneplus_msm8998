@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -6540,6 +6540,45 @@ struct wmi_adaptive_dwelltime_params {
 	uint8_t lpf_weight;
 	uint8_t passive_mon_intval;
 	uint8_t wifi_act_threshold;
+};
+
+/**
+ * struct wmi_per_roam_config - per based roaming parameters
+ * @enable: if PER based roaming is enabled/disabled
+ * @tx_high_rate_thresh: high rate threshold at which PER based
+ *     roam will stop in tx path
+ * @rx_high_rate_thresh: high rate threshold at which PER based
+ *     roam will stop in rx path
+ * @tx_low_rate_thresh: rate below which traffic will be considered
+ *     for PER based roaming in Tx path
+ * @rx_low_rate_thresh: rate below which traffic will be considered
+ *     for PER based roaming in Tx path
+ * @tx_rate_thresh_percnt: % above which when traffic is below low_rate_thresh
+ *     will be considered for PER based scan in tx path
+ * @rx_rate_thresh_percnt: % above which when traffic is below low_rate_thresh
+ *     will be considered for PER based scan in rx path
+ * @per_rest_time: time for which PER based roam will wait once it
+ *     issues a roam scan.
+ */
+struct wmi_per_roam_config {
+	uint32_t enable;
+	uint32_t tx_high_rate_thresh;
+	uint32_t rx_high_rate_thresh;
+	uint32_t tx_low_rate_thresh;
+	uint32_t rx_low_rate_thresh;
+	uint32_t tx_rate_thresh_percnt;
+	uint32_t rx_rate_thresh_percnt;
+	uint32_t per_rest_time;
+};
+
+/**
+ * struct wmi_per_roam_config_req: PER based roaming config request
+ * @vdev_id: vdev id on which config needs to be set
+ * @per_config: PER config
+ */
+struct wmi_per_roam_config_req {
+	uint8_t vdev_id;
+	struct wmi_per_roam_config per_config;
 };
 
 /**

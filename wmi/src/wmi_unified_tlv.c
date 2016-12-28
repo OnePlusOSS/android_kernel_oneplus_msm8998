@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -10867,6 +10867,67 @@ error:
 	return status;
 }
 
+QDF_STATUS send_per_roam_config_cmd_tlv(wmi_unified_t wmi_handle,
+			struct wmi_per_roam_config_req *req_buf)
+{
+	wmi_buf_t buf = NULL;
+	QDF_STATUS status;
+	int len;
+	uint8_t *buf_ptr;
+	wmi_roam_per_config_fixed_param *wmi_per_config;
+
+	len = sizeof(wmi_roam_per_config_fixed_param);
+	buf = wmi_buf_alloc(wmi_handle, len);
+	if (!buf) {
+		WMI_LOGE("%s : wmi_buf_alloc failed", __func__);
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	buf_ptr = (uint8_t *) wmi_buf_data(buf);
+	wmi_per_config =
+		(wmi_roam_per_config_fixed_param *) buf_ptr;
+	WMITLV_SET_HDR(&wmi_per_config->tlv_header,
+		       WMITLV_TAG_STRUC_wmi_roam_per_config_fixed_param,
+		       WMITLV_GET_STRUCT_TLVLEN
+			       (wmi_roam_per_config_fixed_param));
+
+	/* fill in per roam config values */
+	wmi_per_config->vdev_id = req_buf->vdev_id;
+	if (req_buf->per_config.enable) {
+		/* Enable for both Tx and Rx*/
+		req_buf->per_config.enable = 3;
+	}
+
+	wmi_per_config->enable = req_buf->per_config.enable;
+	wmi_per_config->high_rate_thresh =
+			(req_buf->per_config.tx_high_rate_thresh << 16) |
+			(req_buf->per_config.rx_high_rate_thresh & 0x0000ffff);
+	wmi_per_config->low_rate_thresh =
+			(req_buf->per_config.tx_low_rate_thresh << 16) |
+			(req_buf->per_config.rx_low_rate_thresh & 0x0000ffff);
+	wmi_per_config->pkt_err_rate_thresh_pct =
+		(req_buf->per_config.tx_rate_thresh_percnt << 16) |
+		(req_buf->per_config.rx_rate_thresh_percnt & 0x0000ffff);
+	wmi_per_config->per_rest_time = req_buf->per_config.per_rest_time;
+
+	/* Send per roam config parameters */
+	status = wmi_unified_cmd_send(wmi_handle, buf,
+				      len, WMI_ROAM_PER_CONFIG_CMDID);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		WMI_LOGE("WMI_ROAM_PER_CONFIG_CMDID failed, Error %d",
+			status);
+		goto error;
+	}
+
+	WMI_LOGI(FL("per roam enable=%d, vdev=%d"),
+		req_buf->per_config.enable, req_buf->vdev_id);
+	return QDF_STATUS_SUCCESS;
+error:
+	wmi_buf_free(buf);
+
+	return status;
+}
+
 /**
  * send_roam_scan_offload_rssi_change_cmd_tlv() - set roam offload RSSI th
  * @wmi_handle: wmi handle
@@ -12507,6 +12568,7 @@ struct wmi_ops tlv_ops =  {
 	.send_encrypt_decrypt_send_cmd =
 				send_encrypt_decrypt_send_cmd_tlv,
 	.send_sar_limit_cmd = send_sar_limit_cmd_tlv,
+	.send_per_roam_config_cmd = send_per_roam_config_cmd_tlv,
 };
 
 #ifdef WMI_TLV_AND_NON_TLV_SUPPORT

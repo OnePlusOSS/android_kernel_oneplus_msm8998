@@ -122,6 +122,11 @@ extern "C" {
 	(((num_entries) / (32 / (bits_per_entry))) +            \
 	(((num_entries) % (32 / (bits_per_entry))) ? 1 : 0))
 
+#define WMI_RETURN_STRING(str) do { \
+		case ((str)): \
+		return (uint8_t *)(# str); \
+	} while (0)
+
 static INLINE A_UINT32 wmi_packed_arr_get_bits(A_UINT32 *arr,
 			A_UINT32 entry_index, A_UINT32 bits_per_entry)
 {
@@ -17984,6 +17989,606 @@ typedef struct {
 	 * wmi_scan_adaptive_dwell_parameters_tlv param[]; (0 or 1 elements)
 	 */
 } wmi_scan_adaptive_dwell_config_fixed_param;
+
+typedef enum {
+	WMI_REG_EXT_FCC_MIDBAND = 0,
+	WMI_REG_EXT_JAPAN_MIDBAND = 1,
+	WMI_REG_EXT_FCC_DFS_HT40 = 2,
+	WMI_REG_EXT_JAPAN_NONDFS_HT40 = 3,
+	WMI_REG_EXT_JAPAN_DFS_HT40 = 4,
+	WMI_REG_EXT_FCC_CH_144 = 5,
+} WMI_REG_EXT_BITMAP;
+
+#ifdef WMI_CMD_STRINGS
+static INLINE A_UINT8 *wmi_id_to_name(A_UINT32 wmi_command)
+{
+	switch (wmi_command) {
+		/* initialize the wlan sub system */
+		WMI_RETURN_STRING(WMI_INIT_CMDID);
+
+		/* Scan specific commands */
+
+		/* start scan request to FW  */
+		WMI_RETURN_STRING(WMI_START_SCAN_CMDID);
+		/* stop scan request to FW  */
+		WMI_RETURN_STRING(WMI_STOP_SCAN_CMDID);
+		/* full list of channels as defined by the regulatory
+		* that will be used by scanner   */
+		WMI_RETURN_STRING(WMI_SCAN_CHAN_LIST_CMDID);
+		/* overwrite default priority table in scan scheduler */
+		WMI_RETURN_STRING(WMI_SCAN_SCH_PRIO_TBL_CMDID);
+		/* This command to adjust the priority and min.max_rest_time
+		* of an on ongoing scan request.
+		*/
+		WMI_RETURN_STRING(WMI_SCAN_UPDATE_REQUEST_CMDID);
+
+		/* PDEV(physical device) specific commands */
+		/* set regulatorty ctl id used by FW to determine the exact
+		* ctl power limits */
+		WMI_RETURN_STRING(WMI_PDEV_SET_REGDOMAIN_CMDID);
+		/* set channel. mainly used for supporting monitor mode */
+		WMI_RETURN_STRING(WMI_PDEV_SET_CHANNEL_CMDID);
+		/* set pdev specific parameters */
+		WMI_RETURN_STRING(WMI_PDEV_SET_PARAM_CMDID);
+		/* enable packet log */
+		WMI_RETURN_STRING(WMI_PDEV_PKTLOG_ENABLE_CMDID);
+		/* disable packet log*/
+		WMI_RETURN_STRING(WMI_PDEV_PKTLOG_DISABLE_CMDID);
+		/* set wmm parameters */
+		WMI_RETURN_STRING(WMI_PDEV_SET_WMM_PARAMS_CMDID);
+		/* set HT cap ie that needs to be carried probe requests
+		* HT/VHT channels */
+		WMI_RETURN_STRING(WMI_PDEV_SET_HT_CAP_IE_CMDID);
+		/* set VHT cap ie that needs to be carried on probe
+		* requests on VHT channels */
+		WMI_RETURN_STRING(WMI_PDEV_SET_VHT_CAP_IE_CMDID);
+
+		/* Command to send the DSCP-to-TID map to the target */
+		WMI_RETURN_STRING(WMI_PDEV_SET_DSCP_TID_MAP_CMDID);
+		/* set quiet ie parameters. primarily used in AP mode */
+		WMI_RETURN_STRING(WMI_PDEV_SET_QUIET_MODE_CMDID);
+		/* Enable/Disable Green AP Power Save  */
+		WMI_RETURN_STRING(WMI_PDEV_GREEN_AP_PS_ENABLE_CMDID);
+		/* get TPC config for the current operating channel */
+		WMI_RETURN_STRING(WMI_PDEV_GET_TPC_CONFIG_CMDID);
+
+		/* set the base MAC address for the physical device before
+		* a VDEV is created. For firmware that does not support
+		* this feature and this command, the pdev MAC address will
+		* not be changed. */
+		WMI_RETURN_STRING(WMI_PDEV_SET_BASE_MACADDR_CMDID);
+
+		/* eeprom content dump , the same to bdboard data */
+		WMI_RETURN_STRING(WMI_PDEV_DUMP_CMDID);
+
+		/* VDEV(virtual device) specific commands */
+		/* vdev create */
+		WMI_RETURN_STRING(WMI_VDEV_CREATE_CMDID);
+		/* vdev delete */
+		WMI_RETURN_STRING(WMI_VDEV_DELETE_CMDID);
+		/* vdev start request */
+		WMI_RETURN_STRING(WMI_VDEV_START_REQUEST_CMDID);
+		/* vdev restart request (RX only, NO TX, used for CAC period)*/
+		WMI_RETURN_STRING(WMI_VDEV_RESTART_REQUEST_CMDID);
+		/* vdev up request */
+		WMI_RETURN_STRING(WMI_VDEV_UP_CMDID);
+		/* vdev stop request */
+		WMI_RETURN_STRING(WMI_VDEV_STOP_CMDID);
+		/* vdev down request */
+		WMI_RETURN_STRING(WMI_VDEV_DOWN_CMDID);
+		/* set a vdev param */
+		WMI_RETURN_STRING(WMI_VDEV_SET_PARAM_CMDID);
+		/* set a key (used for setting per peer unicast
+		* and per vdev multicast) */
+		WMI_RETURN_STRING(WMI_VDEV_INSTALL_KEY_CMDID);
+
+		/* wnm sleep mode command */
+		WMI_RETURN_STRING(WMI_VDEV_WNM_SLEEPMODE_CMDID);
+		WMI_RETURN_STRING(WMI_VDEV_WMM_ADDTS_CMDID);
+		WMI_RETURN_STRING(WMI_VDEV_WMM_DELTS_CMDID);
+		WMI_RETURN_STRING(WMI_VDEV_SET_WMM_PARAMS_CMDID);
+		WMI_RETURN_STRING(WMI_VDEV_SET_GTX_PARAMS_CMDID);
+		WMI_RETURN_STRING(WMI_VDEV_IPSEC_NATKEEPALIVE_FILTER_CMDID);
+
+		WMI_RETURN_STRING(WMI_VDEV_PLMREQ_START_CMDID);
+		WMI_RETURN_STRING(WMI_VDEV_PLMREQ_STOP_CMDID);
+		WMI_RETURN_STRING(WMI_VDEV_TSF_TSTAMP_ACTION_CMDID);
+		WMI_RETURN_STRING(WMI_VDEV_SET_IE_CMDID);
+
+		/* peer specific commands */
+
+		/** create a peer */
+		WMI_RETURN_STRING(WMI_PEER_CREATE_CMDID);
+		/** delete a peer */
+		WMI_RETURN_STRING(WMI_PEER_DELETE_CMDID);
+		/** flush specific  tid queues of a peer */
+		WMI_RETURN_STRING(WMI_PEER_FLUSH_TIDS_CMDID);
+		/** set a parameter of a peer */
+		WMI_RETURN_STRING(WMI_PEER_SET_PARAM_CMDID);
+		/* set peer to associated state. will cary all parameters
+		* determined during assocication time */
+		WMI_RETURN_STRING(WMI_PEER_ASSOC_CMDID);
+		/* add a wds  (4 address ) entry. used only for testing
+		* WDS feature on AP products */
+		WMI_RETURN_STRING(WMI_PEER_ADD_WDS_ENTRY_CMDID);
+		/* remove wds  (4 address ) entry. used only for testing WDS
+		* feature on AP products */
+		WMI_RETURN_STRING(WMI_PEER_REMOVE_WDS_ENTRY_CMDID);
+		/* set up mcast info for multicast to unicast conversion */
+		WMI_RETURN_STRING(WMI_PEER_MCAST_GROUP_CMDID);
+		/* request peer info from FW to get PEER_INFO_EVENTID */
+		WMI_RETURN_STRING(WMI_PEER_INFO_REQ_CMDID);
+
+		/* beacon/management specific commands */
+
+		/* transmit beacon by reference. used for transmitting beacon
+		* on low latency interface like pcie */
+		WMI_RETURN_STRING(WMI_BCN_TX_CMDID);
+		/* transmit beacon by value */
+		WMI_RETURN_STRING(WMI_PDEV_SEND_BCN_CMDID);
+		/* set the beacon template. used in beacon offload mode to setup
+		* the common beacon template with the FW to be used by FW to
+		* generate beacons */
+		WMI_RETURN_STRING(WMI_BCN_TMPL_CMDID);
+		/* set beacon filter with FW */
+		WMI_RETURN_STRING(WMI_BCN_FILTER_RX_CMDID);
+		/* enable/disable filtering of probe requests in the firmware */
+		WMI_RETURN_STRING(WMI_PRB_REQ_FILTER_RX_CMDID);
+		/* transmit management frame by value. will be deprecated */
+		WMI_RETURN_STRING(WMI_MGMT_TX_CMDID);
+		/* set the probe response template. used in beacon offload mode
+		* to setup the common probe response template with the FW to
+		* be used by FW to generate probe responses */
+		WMI_RETURN_STRING(WMI_PRB_TMPL_CMDID);
+
+		/* commands to directly control ba negotiation directly from
+		* host. only used in test mode */
+
+		/* turn off FW Auto addba mode and let host control addba */
+		WMI_RETURN_STRING(WMI_ADDBA_CLEAR_RESP_CMDID);
+		/* send add ba request */
+		WMI_RETURN_STRING(WMI_ADDBA_SEND_CMDID);
+		WMI_RETURN_STRING(WMI_ADDBA_STATUS_CMDID);
+		/* send del ba */
+		WMI_RETURN_STRING(WMI_DELBA_SEND_CMDID);
+		/* set add ba response will be used by FW to generate
+		* addba response*/
+		WMI_RETURN_STRING(WMI_ADDBA_SET_RESP_CMDID);
+		/* send single VHT MPDU with AMSDU */
+		WMI_RETURN_STRING(WMI_SEND_SINGLEAMSDU_CMDID);
+
+		/* Station power save specific config */
+		/* enable/disable station powersave */
+		WMI_RETURN_STRING(WMI_STA_POWERSAVE_MODE_CMDID);
+		/* set station power save specific parameter */
+		WMI_RETURN_STRING(WMI_STA_POWERSAVE_PARAM_CMDID);
+		/* set station mimo powersave mode */
+		WMI_RETURN_STRING(WMI_STA_MIMO_PS_MODE_CMDID);
+
+		/* DFS-specific commands */
+		/* enable DFS (radar detection)*/
+		WMI_RETURN_STRING(WMI_PDEV_DFS_ENABLE_CMDID);
+		/* disable DFS (radar detection)*/
+		WMI_RETURN_STRING(WMI_PDEV_DFS_DISABLE_CMDID);
+		/* enable DFS phyerr/parse filter offload */
+		WMI_RETURN_STRING(WMI_DFS_PHYERR_FILTER_ENA_CMDID);
+		/* enable DFS phyerr/parse filter offload */
+		WMI_RETURN_STRING(WMI_DFS_PHYERR_FILTER_DIS_CMDID);
+
+		/* Roaming specific  commands */
+		/* set roam scan mode */
+		WMI_RETURN_STRING(WMI_ROAM_SCAN_MODE);
+		/* set roam scan rssi threshold below which roam
+		* scan is enabled  */
+		WMI_RETURN_STRING(WMI_ROAM_SCAN_RSSI_THRESHOLD);
+		/* set roam scan period for periodic roam scan mode  */
+		WMI_RETURN_STRING(WMI_ROAM_SCAN_PERIOD);
+		/* set roam scan trigger rssi change threshold   */
+		WMI_RETURN_STRING(WMI_ROAM_SCAN_RSSI_CHANGE_THRESHOLD);
+		/* set roam AP profile   */
+		WMI_RETURN_STRING(WMI_ROAM_AP_PROFILE);
+		/* set channel list for roam scans */
+		WMI_RETURN_STRING(WMI_ROAM_CHAN_LIST);
+		/* offload scan specific commands */
+		/* set offload scan AP profile   */
+		WMI_RETURN_STRING(WMI_OFL_SCAN_ADD_AP_PROFILE);
+		/* remove offload scan AP profile   */
+		WMI_RETURN_STRING(WMI_OFL_SCAN_REMOVE_AP_PROFILE);
+		/* set offload scan period   */
+		WMI_RETURN_STRING(WMI_OFL_SCAN_PERIOD);
+
+		/* P2P specific commands */
+		/* set P2P device info. FW will used by FW to create P2P IE
+		* to be carried in probe response generated during p2p listen
+		* and for p2p discoverability  */
+		WMI_RETURN_STRING(WMI_P2P_DEV_SET_DEVICE_INFO);
+		/* enable/disable p2p discoverability on STA/AP VDEVs  */
+		WMI_RETURN_STRING(WMI_P2P_DEV_SET_DISCOVERABILITY);
+		/* set p2p ie to be carried in beacons generated by FW for GO */
+		WMI_RETURN_STRING(WMI_P2P_GO_SET_BEACON_IE);
+		/* set p2p ie to be carried in probe response frames generated
+		* by FW for GO  */
+		WMI_RETURN_STRING(WMI_P2P_GO_SET_PROBE_RESP_IE);
+		/* set the vendor specific p2p ie data.
+		* FW will use this to parse the P2P NoA
+		* attribute in the beacons/probe responses received.
+		*/
+		WMI_RETURN_STRING(WMI_P2P_SET_VENDOR_IE_DATA_CMDID);
+		/* set the configure of p2p find offload */
+		WMI_RETURN_STRING(WMI_P2P_DISC_OFFLOAD_CONFIG_CMDID);
+		/* set the vendor specific p2p ie data for p2p find offload */
+		WMI_RETURN_STRING(WMI_P2P_DISC_OFFLOAD_APPIE_CMDID);
+		/* set the BSSID/device name pattern of p2p find offload */
+		WMI_RETURN_STRING(WMI_P2P_DISC_OFFLOAD_PATTERN_CMDID);
+		/* set OppPS related parameters **/
+		WMI_RETURN_STRING(WMI_P2P_SET_OPPPS_PARAM_CMDID);
+
+		/* AP power save specific config
+		* set AP power save specific param */
+		WMI_RETURN_STRING(WMI_AP_PS_PEER_PARAM_CMDID);
+		/* set AP UAPSD coex pecific param */
+		WMI_RETURN_STRING(WMI_AP_PS_PEER_UAPSD_COEX_CMDID);
+
+		/* Rate-control specific commands */
+		WMI_RETURN_STRING(WMI_PEER_RATE_RETRY_SCHED_CMDID);
+
+		/* WLAN Profiling commands. */
+		WMI_RETURN_STRING(WMI_WLAN_PROFILE_TRIGGER_CMDID);
+		WMI_RETURN_STRING(WMI_WLAN_PROFILE_SET_HIST_INTVL_CMDID);
+		WMI_RETURN_STRING(WMI_WLAN_PROFILE_GET_PROFILE_DATA_CMDID);
+		WMI_RETURN_STRING(WMI_WLAN_PROFILE_ENABLE_PROFILE_ID_CMDID);
+		WMI_RETURN_STRING(WMI_WLAN_PROFILE_LIST_PROFILE_ID_CMDID);
+
+		/* Suspend resume command Ids */
+		WMI_RETURN_STRING(WMI_PDEV_SUSPEND_CMDID);
+		WMI_RETURN_STRING(WMI_PDEV_RESUME_CMDID);
+
+		/* Beacon filter commands */
+		/* add a beacon filter */
+		WMI_RETURN_STRING(WMI_ADD_BCN_FILTER_CMDID);
+		/* remove a  beacon filter */
+		WMI_RETURN_STRING(WMI_RMV_BCN_FILTER_CMDID);
+
+		/* WOW Specific WMI commands */
+		/* add pattern for awake */
+		WMI_RETURN_STRING(WMI_WOW_ADD_WAKE_PATTERN_CMDID);
+		/* deleta a wake pattern */
+		WMI_RETURN_STRING(WMI_WOW_DEL_WAKE_PATTERN_CMDID);
+		/* enable/deisable wake event  */
+		WMI_RETURN_STRING(WMI_WOW_ENABLE_DISABLE_WAKE_EVENT_CMDID);
+		/* enable WOW  */
+		WMI_RETURN_STRING(WMI_WOW_ENABLE_CMDID);
+		/* host woke up from sleep event to FW. Generated in response
+		* to WOW Hardware event */
+		WMI_RETURN_STRING(WMI_WOW_HOSTWAKEUP_FROM_SLEEP_CMDID);
+
+		/* RTT measurement related cmd */
+		/* reques to make an RTT measurement */
+		WMI_RETURN_STRING(WMI_RTT_MEASREQ_CMDID);
+		/* reques to report a tsf measurement */
+		WMI_RETURN_STRING(WMI_RTT_TSF_CMDID);
+
+		/* spectral scan command */
+		/* configure spectral scan */
+		WMI_RETURN_STRING(WMI_VDEV_SPECTRAL_SCAN_CONFIGURE_CMDID);
+		/* enable/disable spectral scan and trigger */
+		WMI_RETURN_STRING(WMI_VDEV_SPECTRAL_SCAN_ENABLE_CMDID);
+
+		/* F/W stats */
+		/* one time request for stats */
+		WMI_RETURN_STRING(WMI_REQUEST_STATS_CMDID);
+		/* Push MCC Adaptive Scheduler Stats to Firmware */
+		WMI_RETURN_STRING(WMI_MCC_SCHED_TRAFFIC_STATS_CMDID);
+
+		/* ARP OFFLOAD REQUEST*/
+		WMI_RETURN_STRING(WMI_SET_ARP_NS_OFFLOAD_CMDID);
+
+		/* Proactive ARP Response Add Pattern Command*/
+		WMI_RETURN_STRING(WMI_ADD_PROACTIVE_ARP_RSP_PATTERN_CMDID);
+
+		/* Proactive ARP Response Del Pattern Command*/
+		WMI_RETURN_STRING(WMI_DEL_PROACTIVE_ARP_RSP_PATTERN_CMDID);
+
+		/* NS offload confid*/
+		WMI_RETURN_STRING(WMI_NETWORK_LIST_OFFLOAD_CONFIG_CMDID);
+
+		/* GTK offload Specific WMI commands */
+		WMI_RETURN_STRING(WMI_GTK_OFFLOAD_CMDID);
+
+		/* CSA offload Specific WMI commands */
+		/* csa offload enable */
+		WMI_RETURN_STRING(WMI_CSA_OFFLOAD_ENABLE_CMDID);
+		/* chan switch command */
+		WMI_RETURN_STRING(WMI_CSA_OFFLOAD_CHANSWITCH_CMDID);
+
+		/* Chatter commands */
+		/* Change chatter mode of operation */
+		WMI_RETURN_STRING(WMI_CHATTER_SET_MODE_CMDID);
+		/* chatter add coalescing filter command */
+		WMI_RETURN_STRING(WMI_CHATTER_ADD_COALESCING_FILTER_CMDID);
+		/* chatter delete coalescing filter command */
+		WMI_RETURN_STRING(WMI_CHATTER_DELETE_COALESCING_FILTER_CMDID);
+		/* chatter coalecing query command */
+		WMI_RETURN_STRING(WMI_CHATTER_COALESCING_QUERY_CMDID);
+
+		/* addba specific commands */
+		/* start the aggregation on this TID */
+		WMI_RETURN_STRING(WMI_PEER_TID_ADDBA_CMDID);
+		/* stop the aggregation on this TID */
+		WMI_RETURN_STRING(WMI_PEER_TID_DELBA_CMDID);
+
+		/* set station mimo powersave method */
+		WMI_RETURN_STRING(WMI_STA_DTIM_PS_METHOD_CMDID);
+		/* Configure the Station UAPSD AC Auto Trigger Parameters */
+		WMI_RETURN_STRING(WMI_STA_UAPSD_AUTO_TRIG_CMDID);
+		/* Configure the Keep Alive Parameters */
+		WMI_RETURN_STRING(WMI_STA_KEEPALIVE_CMDID);
+
+		/* Request ssn from target for a sta/tid pair */
+		WMI_RETURN_STRING(WMI_BA_REQ_SSN_CMDID);
+		/* misc command group */
+		/* echo command mainly used for testing */
+		WMI_RETURN_STRING(WMI_ECHO_CMDID);
+
+		/* !!IMPORTANT!!
+		* If you need to add a new WMI command to the
+		* WMI_RETURN_STRING(WMI_GRP_MISC) sub-group,
+		* please make sure you add it BEHIND
+		* WMI_RETURN_STRING(WMI_PDEV_UTF_CMDID);
+		* as we MUST have a fixed value here to maintain compatibility between
+		* UTF and the ART2 driver
+		*/
+		/* UTF WMI commands */
+		WMI_RETURN_STRING(WMI_PDEV_UTF_CMDID);
+
+		/* set debug log config */
+		WMI_RETURN_STRING(WMI_DBGLOG_CFG_CMDID);
+		/* QVIT specific command id */
+		WMI_RETURN_STRING(WMI_PDEV_QVIT_CMDID);
+		/* Factory Testing Mode request command
+		* used for integrated chipsets */
+		WMI_RETURN_STRING(WMI_PDEV_FTM_INTG_CMDID);
+		/* set and get keepalive parameters command */
+		WMI_RETURN_STRING(WMI_VDEV_SET_KEEPALIVE_CMDID);
+		WMI_RETURN_STRING(WMI_VDEV_GET_KEEPALIVE_CMDID);
+		/* For fw recovery test command */
+		WMI_RETURN_STRING(WMI_FORCE_FW_HANG_CMDID);
+		/* Set Mcast/Bdcast filter */
+		WMI_RETURN_STRING(WMI_SET_MCASTBCAST_FILTER_CMDID);
+		/* set thermal management params */
+		WMI_RETURN_STRING(WMI_THERMAL_MGMT_CMDID);
+		WMI_RETURN_STRING(WMI_RSSI_BREACH_MONITOR_CONFIG_CMDID);
+		WMI_RETURN_STRING(WMI_LRO_CONFIG_CMDID);
+		WMI_RETURN_STRING(WMI_TRANSFER_DATA_TO_FLASH_CMDID);
+		WMI_RETURN_STRING(WMI_CONFIG_ENHANCED_MCAST_FILTER_CMDID);
+		WMI_RETURN_STRING(WMI_VDEV_WISA_CMDID);
+		WMI_RETURN_STRING(WMI_SCAN_ADAPTIVE_DWELL_CONFIG_CMDID);
+		WMI_RETURN_STRING(WMI_WOW_SET_ACTION_WAKE_UP_CMDID);
+		WMI_RETURN_STRING(WMI_MAWC_SENSOR_REPORT_IND_CMDID);
+		WMI_RETURN_STRING(WMI_ROAM_CONFIGURE_MAWC_CMDID);
+		WMI_RETURN_STRING(WMI_NLO_CONFIGURE_MAWC_CMDID);
+		WMI_RETURN_STRING(WMI_EXTSCAN_CONFIGURE_MAWC_CMDID);
+		/* GPIO Configuration */
+		WMI_RETURN_STRING(WMI_GPIO_CONFIG_CMDID);
+		WMI_RETURN_STRING(WMI_GPIO_OUTPUT_CMDID);
+
+		/* Txbf configuration command */
+		WMI_RETURN_STRING(WMI_TXBF_CMDID);
+
+		/* FWTEST Commands */
+		WMI_RETURN_STRING(WMI_FWTEST_VDEV_MCC_SET_TBTT_MODE_CMDID);
+		/* set NoA descs */
+		WMI_RETURN_STRING(WMI_FWTEST_P2P_SET_NOA_PARAM_CMDID);
+
+		/* TDLS Configuration */
+		/* enable/disable TDLS */
+		WMI_RETURN_STRING(WMI_TDLS_SET_STATE_CMDID);
+		/* set tdls peer state */
+		WMI_RETURN_STRING(WMI_TDLS_PEER_UPDATE_CMDID);
+
+		/* Resmgr Configuration */
+		/* Adaptive OCS is enabled by default in the FW.
+		* This command is used to disable FW based adaptive OCS.
+		*/
+		WMI_RETURN_STRING
+			(WMI_RESMGR_ADAPTIVE_OCS_ENABLE_DISABLE_CMDID);
+		/* set the requested channel time quota for the home channels */
+		WMI_RETURN_STRING(WMI_RESMGR_SET_CHAN_TIME_QUOTA_CMDID);
+		/* set the requested latency for the home channels */
+		WMI_RETURN_STRING(WMI_RESMGR_SET_CHAN_LATENCY_CMDID);
+
+		/* STA SMPS Configuration */
+		/* force SMPS mode */
+		WMI_RETURN_STRING(WMI_STA_SMPS_FORCE_MODE_CMDID);
+		/* set SMPS parameters */
+		WMI_RETURN_STRING(WMI_STA_SMPS_PARAM_CMDID);
+
+		/* Wlan HB commands */
+		/* enalbe/disable wlan HB */
+		WMI_RETURN_STRING(WMI_HB_SET_ENABLE_CMDID);
+		/* set tcp parameters for wlan HB */
+		WMI_RETURN_STRING(WMI_HB_SET_TCP_PARAMS_CMDID);
+		/* set tcp pkt filter for wlan HB */
+		WMI_RETURN_STRING(WMI_HB_SET_TCP_PKT_FILTER_CMDID);
+		/* set udp parameters for wlan HB */
+		WMI_RETURN_STRING(WMI_HB_SET_UDP_PARAMS_CMDID);
+		/* set udp pkt filter for wlan HB */
+		WMI_RETURN_STRING(WMI_HB_SET_UDP_PKT_FILTER_CMDID);
+
+		/* Wlan RMC commands*/
+		/* enable/disable RMC */
+		WMI_RETURN_STRING(WMI_RMC_SET_MODE_CMDID);
+		/* configure action frame period */
+		WMI_RETURN_STRING(WMI_RMC_SET_ACTION_PERIOD_CMDID);
+		/* For debug/future enhancement purposes only,
+		* configures/finetunes RMC algorithms */
+		WMI_RETURN_STRING(WMI_RMC_CONFIG_CMDID);
+
+		/* WLAN MHF offload commands */
+		/* enable/disable MHF offload */
+		WMI_RETURN_STRING(WMI_MHF_OFFLOAD_SET_MODE_CMDID);
+		/* Plumb routing table for MHF offload */
+		WMI_RETURN_STRING(WMI_MHF_OFFLOAD_PLUMB_ROUTING_TBL_CMDID);
+
+		/* location scan commands */
+		/* start batch scan */
+		WMI_RETURN_STRING(WMI_BATCH_SCAN_ENABLE_CMDID);
+		/* stop batch scan */
+		WMI_RETURN_STRING(WMI_BATCH_SCAN_DISABLE_CMDID);
+		/* get batch scan result */
+		WMI_RETURN_STRING(WMI_BATCH_SCAN_TRIGGER_RESULT_CMDID);
+		/* OEM related cmd */
+		WMI_RETURN_STRING(WMI_OEM_REQ_CMDID);
+		WMI_RETURN_STRING(WMI_OEM_REQUEST_CMDID);
+		/* NAN request cmd */
+		WMI_RETURN_STRING(WMI_NAN_CMDID);
+		/* Modem power state cmd */
+		WMI_RETURN_STRING(WMI_MODEM_POWER_STATE_CMDID);
+		WMI_RETURN_STRING(WMI_REQUEST_STATS_EXT_CMDID);
+		WMI_RETURN_STRING(WMI_OBSS_SCAN_ENABLE_CMDID);
+		WMI_RETURN_STRING(WMI_OBSS_SCAN_DISABLE_CMDID);
+		WMI_RETURN_STRING(WMI_PEER_GET_ESTIMATED_LINKSPEED_CMDID);
+		WMI_RETURN_STRING(WMI_ROAM_SCAN_CMD);
+		WMI_RETURN_STRING(WMI_PDEV_SET_LED_CONFIG_CMDID);
+		WMI_RETURN_STRING(WMI_HOST_AUTO_SHUTDOWN_CFG_CMDID);
+		WMI_RETURN_STRING(WMI_CHAN_AVOID_UPDATE_CMDID);
+		WMI_RETURN_STRING(WMI_COEX_CONFIG_CMDID);
+		WMI_RETURN_STRING(WMI_WOW_IOAC_ADD_KEEPALIVE_CMDID);
+		WMI_RETURN_STRING(WMI_WOW_IOAC_DEL_KEEPALIVE_CMDID);
+		WMI_RETURN_STRING(WMI_WOW_IOAC_ADD_WAKE_PATTERN_CMDID);
+		WMI_RETURN_STRING(WMI_WOW_IOAC_DEL_WAKE_PATTERN_CMDID);
+		WMI_RETURN_STRING(WMI_REQUEST_LINK_STATS_CMDID);
+		WMI_RETURN_STRING(WMI_START_LINK_STATS_CMDID);
+		WMI_RETURN_STRING(WMI_CLEAR_LINK_STATS_CMDID);
+		WMI_RETURN_STRING(WMI_GET_FW_MEM_DUMP_CMDID);
+		WMI_RETURN_STRING(WMI_LPI_MGMT_SNOOPING_CONFIG_CMDID);
+		WMI_RETURN_STRING(WMI_LPI_START_SCAN_CMDID);
+		WMI_RETURN_STRING(WMI_LPI_STOP_SCAN_CMDID);
+		WMI_RETURN_STRING(WMI_EXTSCAN_START_CMDID);
+		WMI_RETURN_STRING(WMI_EXTSCAN_STOP_CMDID);
+		WMI_RETURN_STRING(WMI_EXTSCAN_CONFIGURE_WLAN_CHANGE_MONITOR_CMDID);
+		WMI_RETURN_STRING(WMI_EXTSCAN_CONFIGURE_HOTLIST_MONITOR_CMDID);
+		WMI_RETURN_STRING(WMI_EXTSCAN_GET_CACHED_RESULTS_CMDID);
+		WMI_RETURN_STRING(WMI_EXTSCAN_GET_WLAN_CHANGE_RESULTS_CMDID);
+		WMI_RETURN_STRING(WMI_EXTSCAN_SET_CAPABILITIES_CMDID);
+		WMI_RETURN_STRING(WMI_EXTSCAN_GET_CAPABILITIES_CMDID);
+		WMI_RETURN_STRING(WMI_EXTSCAN_CONFIGURE_HOTLIST_SSID_MONITOR_CMDID);
+		WMI_RETURN_STRING(WMI_ROAM_SYNCH_COMPLETE);
+		WMI_RETURN_STRING(WMI_D0_WOW_ENABLE_DISABLE_CMDID);
+		WMI_RETURN_STRING(WMI_EXTWOW_ENABLE_CMDID);
+		WMI_RETURN_STRING(WMI_EXTWOW_SET_APP_TYPE1_PARAMS_CMDID);
+		WMI_RETURN_STRING(WMI_EXTWOW_SET_APP_TYPE2_PARAMS_CMDID);
+		WMI_RETURN_STRING(WMI_UNIT_TEST_CMDID);
+		WMI_RETURN_STRING(WMI_ROAM_SET_RIC_REQUEST_CMDID);
+		WMI_RETURN_STRING(WMI_PDEV_GET_TEMPERATURE_CMDID);
+		WMI_RETURN_STRING(WMI_SET_DHCP_SERVER_OFFLOAD_CMDID);
+		WMI_RETURN_STRING(WMI_TPC_CHAINMASK_CONFIG_CMDID);
+		WMI_RETURN_STRING(WMI_IPA_OFFLOAD_ENABLE_DISABLE_CMDID);
+		WMI_RETURN_STRING(WMI_SCAN_PROB_REQ_OUI_CMDID);
+		WMI_RETURN_STRING(WMI_TDLS_SET_OFFCHAN_MODE_CMDID);
+		WMI_RETURN_STRING(WMI_PDEV_SET_LED_FLASHING_CMDID);
+		WMI_RETURN_STRING(WMI_MDNS_OFFLOAD_ENABLE_CMDID);
+		WMI_RETURN_STRING(WMI_MDNS_SET_FQDN_CMDID);
+		WMI_RETURN_STRING(WMI_MDNS_SET_RESPONSE_CMDID);
+		WMI_RETURN_STRING(WMI_MDNS_GET_STATS_CMDID);
+		WMI_RETURN_STRING(WMI_ROAM_INVOKE_CMDID);
+		WMI_RETURN_STRING(WMI_SET_ANTENNA_DIVERSITY_CMDID);
+		WMI_RETURN_STRING(WMI_SAP_OFL_ENABLE_CMDID);
+		WMI_RETURN_STRING(WMI_APFIND_CMDID);
+		WMI_RETURN_STRING(WMI_PASSPOINT_LIST_CONFIG_CMDID);
+		WMI_RETURN_STRING(WMI_OCB_SET_SCHED_CMDID);
+		WMI_RETURN_STRING(WMI_OCB_SET_CONFIG_CMDID);
+		WMI_RETURN_STRING(WMI_OCB_SET_UTC_TIME_CMDID);
+		WMI_RETURN_STRING(WMI_OCB_START_TIMING_ADVERT_CMDID);
+		WMI_RETURN_STRING(WMI_OCB_STOP_TIMING_ADVERT_CMDID);
+		WMI_RETURN_STRING(WMI_OCB_GET_TSF_TIMER_CMDID);
+		WMI_RETURN_STRING(WMI_DCC_GET_STATS_CMDID);
+		WMI_RETURN_STRING(WMI_DCC_CLEAR_STATS_CMDID);
+		WMI_RETURN_STRING(WMI_DCC_UPDATE_NDL_CMDID);
+		WMI_RETURN_STRING(WMI_ROAM_FILTER_CMDID);
+		WMI_RETURN_STRING(WMI_ROAM_SUBNET_CHANGE_CONFIG_CMDID);
+		WMI_RETURN_STRING(WMI_DEBUG_MESG_FLUSH_CMDID);
+		WMI_RETURN_STRING(WMI_PEER_SET_RATE_REPORT_CONDITION_CMDID);
+		WMI_RETURN_STRING(WMI_SOC_SET_PCL_CMDID);
+		WMI_RETURN_STRING(WMI_SOC_SET_HW_MODE_CMDID);
+		WMI_RETURN_STRING(WMI_SOC_SET_DUAL_MAC_CONFIG_CMDID);
+		WMI_RETURN_STRING(WMI_WOW_ENABLE_ICMPV6_NA_FLT_CMDID);
+		WMI_RETURN_STRING(WMI_DIAG_EVENT_LOG_CONFIG_CMDID);
+		WMI_RETURN_STRING(WMI_PACKET_FILTER_CONFIG_CMDID);
+		WMI_RETURN_STRING(WMI_PACKET_FILTER_ENABLE_CMDID);
+		WMI_RETURN_STRING(WMI_SAP_SET_BLACKLIST_PARAM_CMDID);
+		WMI_RETURN_STRING(WMI_WOW_UDP_SVC_OFLD_CMDID);
+		WMI_RETURN_STRING(WMI_MGMT_TX_SEND_CMDID);
+		WMI_RETURN_STRING(WMI_SOC_SET_ANTENNA_MODE_CMDID);
+		WMI_RETURN_STRING(WMI_WOW_HOSTWAKEUP_GPIO_PIN_PATTERN_CONFIG_CMDID);
+		WMI_RETURN_STRING(WMI_AP_PS_EGAP_PARAM_CMDID);
+		WMI_RETURN_STRING(WMI_PMF_OFFLOAD_SET_SA_QUERY_CMDID);
+		WMI_RETURN_STRING(WMI_BPF_GET_CAPABILITY_CMDID);
+		WMI_RETURN_STRING(WMI_BPF_GET_VDEV_STATS_CMDID);
+		WMI_RETURN_STRING(WMI_BPF_SET_VDEV_INSTRUCTIONS_CMDID);
+		WMI_RETURN_STRING(WMI_BPF_DEL_VDEV_INSTRUCTIONS_CMDID);
+		WMI_RETURN_STRING(WMI_NDI_GET_CAP_REQ_CMDID);
+		WMI_RETURN_STRING(WMI_NDP_INITIATOR_REQ_CMDID);
+		WMI_RETURN_STRING(WMI_NDP_RESPONDER_REQ_CMDID);
+		WMI_RETURN_STRING(WMI_NDP_END_REQ_CMDID);
+		WMI_RETURN_STRING(WMI_PEER_UPDATE_WDS_ENTRY_CMDID);
+		WMI_RETURN_STRING(WMI_PEER_ADD_PROXY_STA_ENTRY_CMDID);
+		WMI_RETURN_STRING(WMI_PDEV_FIPS_CMDID);
+		WMI_RETURN_STRING(WMI_PDEV_SMART_ANT_ENABLE_CMDID);
+		WMI_RETURN_STRING(WMI_PDEV_SMART_ANT_SET_RX_ANTENNA_CMDID);
+		WMI_RETURN_STRING(WMI_PDEV_SET_ANTENNA_SWITCH_TABLE_CMDID);
+		WMI_RETURN_STRING(WMI_PDEV_SET_CTL_TABLE_CMDID);
+		WMI_RETURN_STRING(WMI_PDEV_SET_MIMOGAIN_TABLE_CMDID);
+		WMI_RETURN_STRING(WMI_PDEV_GET_TPC_CMDID);
+		WMI_RETURN_STRING(WMI_MIB_STATS_ENABLE_CMDID);
+		WMI_RETURN_STRING(WMI_PDEV_GET_ANI_CCK_CONFIG_CMDID);
+		WMI_RETURN_STRING(WMI_PDEV_GET_ANI_OFDM_CONFIG_CMDID);
+		WMI_RETURN_STRING(WMI_VDEV_RATEMASK_CMDID);
+		WMI_RETURN_STRING(WMI_VDEV_ATF_REQUEST_CMDID);
+		WMI_RETURN_STRING(WMI_VDEV_SET_DSCP_TID_MAP_CMDID);
+		WMI_RETURN_STRING(WMI_VDEV_FILTER_NEIGHBOR_RX_PACKETS_CMDID);
+		WMI_RETURN_STRING(WMI_VDEV_SET_QUIET_MODE_CMDID);
+		WMI_RETURN_STRING(WMI_PEER_SMART_ANT_SET_TX_ANTENNA_CMDID);
+		WMI_RETURN_STRING(WMI_PEER_SMART_ANT_SET_TRAIN_INFO_CMDID);
+		WMI_RETURN_STRING(WMI_PEER_SMART_ANT_SET_NODE_CONFIG_OPS_CMDID);
+		WMI_RETURN_STRING(WMI_PEER_ATF_REQUEST_CMDID);
+		WMI_RETURN_STRING(WMI_FWTEST_CMDID);
+		WMI_RETURN_STRING(WMI_QBOOST_CFG_CMDID);
+		WMI_RETURN_STRING(WMI_PDEV_GET_NFCAL_POWER_CMDID);
+		WMI_RETURN_STRING(WMI_PDEV_SET_PCL_CMDID);
+		WMI_RETURN_STRING(WMI_PDEV_SET_HW_MODE_CMDID);
+		WMI_RETURN_STRING(WMI_PDEV_SET_MAC_CONFIG_CMDID);
+		WMI_RETURN_STRING(WMI_PDEV_SET_ANTENNA_MODE_CMDID);
+		WMI_RETURN_STRING(WMI_ROAM_SET_MBO_PARAM_CMDID);
+		WMI_RETURN_STRING(WMI_CHAN_AVOID_RPT_ALLOW_CMDID);
+		WMI_RETURN_STRING(WMI_SET_PERIODIC_CHANNEL_STATS_CONFIG_CMDID);
+		WMI_RETURN_STRING(WMI_VDEV_SET_CUSTOM_AGGR_SIZE_CMDID);
+		WMI_RETURN_STRING(WMI_PDEV_WAL_POWER_DEBUG_CMDID);
+		WMI_RETURN_STRING(WMI_PEER_BWF_REQUEST_CMDID);
+		WMI_RETURN_STRING(WMI_DBGLOG_TIME_STAMP_SYNC_CMDID);
+		WMI_RETURN_STRING(WMI_P2P_LISTEN_OFFLOAD_START_CMDID);
+		WMI_RETURN_STRING(WMI_P2P_LISTEN_OFFLOAD_STOP_CMDID);
+		WMI_RETURN_STRING(WMI_PEER_REORDER_QUEUE_SETUP_CMDID);
+		WMI_RETURN_STRING(WMI_PEER_REORDER_QUEUE_REMOVE_CMDID);
+		WMI_RETURN_STRING(WMI_SET_MULTIPLE_MCAST_FILTER_CMDID);
+		WMI_RETURN_STRING(WMI_READ_DATA_FROM_FLASH_CMDID);
+		WMI_RETURN_STRING(WMI_PDEV_SET_REORDER_TIMEOUT_VAL_CMDID);
+		WMI_RETURN_STRING(WMI_PEER_SET_RX_BLOCKSIZE_CMDID);
+		WMI_RETURN_STRING(WMI_PDEV_SET_WAKEUP_CONFIG_CMDID);
+		WMI_RETURN_STRING(WMI_PDEV_GET_ANTDIV_STATUS_CMDID);
+		WMI_RETURN_STRING(WMI_PEER_ANTDIV_INFO_REQ_CMDID);
+		WMI_RETURN_STRING(WMI_MNT_FILTER_CMDID);
+		WMI_RETURN_STRING(WMI_PDEV_GET_CHIP_POWER_STATS_CMDID);
+		WMI_RETURN_STRING(WMI_COEX_GET_ANTENNA_ISOLATION_CMDID);
+		WMI_RETURN_STRING(WMI_PDEV_SET_STATS_THRESHOLD_CMDID);
+		WMI_RETURN_STRING(WMI_REQUEST_WLAN_STATS_CMDID);
+		WMI_RETURN_STRING(WMI_VDEV_ENCRYPT_DECRYPT_DATA_REQ_CMDID);
+	}
+
+	return "Invalid WMI cmd";
+}
+#endif /* WMI_CMD_STRINGS */
+
 /**  WMI commands/events for the regulatory offload  */
 
 /** Host indicating current country code to FW */

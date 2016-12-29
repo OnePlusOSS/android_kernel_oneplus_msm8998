@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014, 2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -32,6 +32,7 @@
  * Support for Copy Engine over PCI.
  * Structures shared between Host software and Target firmware.
  */
+#include <a_types.h> /* A_UINT32 */
 
 /*
  * Total number of PCIe MSI interrupts requested for all interrupt sources.

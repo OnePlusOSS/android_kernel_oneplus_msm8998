@@ -236,6 +236,7 @@ typedef enum {
 	WMI_GRP_NAN_DATA,             /* 0x37 */
 	WMI_GRP_PROTOTYPE,            /* 0x38 */
 	WMI_GRP_MONITOR,              /* 0x39 */
+	WMI_GRP_REGULATORY,           /* 0x3a */
 } WMI_GRP_ID;
 
 #define WMI_CMD_GRP_START_ID(grp_id) (((grp_id) << 12) | 0x1)
@@ -1022,6 +1023,11 @@ typedef enum {
 	/** WMI commands related to monitor mode. */
 	WMI_MNT_FILTER_CMDID = WMI_CMD_GRP_START_ID(WMI_GRP_MONITOR),
 
+	/** WMI commands related to regulatory offload */
+	WMI_SET_CURRENT_COUNTRY_CMDID = WMI_CMD_GRP_START_ID(WMI_GRP_REGULATORY),
+	WMI_11D_SCAN_START_CMDID,
+	WMI_11D_SCAN_STOP_CMDID,
+
 	/**
 	 * Nan Data commands
 	 * NDI - NAN Data Interface
@@ -1480,6 +1486,10 @@ typedef enum {
 	/** pkt filter (BPF) offload relevant events */
 	WMI_BPF_CAPABILIY_INFO_EVENTID = WMI_EVT_GRP_START_ID(WMI_GRP_BPF_OFFLOAD),
 	WMI_BPF_VDEV_STATS_INFO_EVENTID,
+
+	/** WMI events related to regulatory offload */
+	WMI_REG_CHAN_LIST_CC_EVENTID = WMI_EVT_GRP_START_ID(WMI_GRP_REGULATORY),
+	WMI_11D_NEW_COUNTRY_EVENTID,
 
 	/* Events in Prototyping phase */
 	WMI_NDI_CAP_RSP_EVENTID = WMI_EVT_GRP_START_ID(WMI_GRP_PROTOTYPE),
@@ -17974,6 +17984,96 @@ typedef struct {
 	 * wmi_scan_adaptive_dwell_parameters_tlv param[]; (0 or 1 elements)
 	 */
 } wmi_scan_adaptive_dwell_config_fixed_param;
+/**  WMI commands/events for the regulatory offload  */
+
+/** Host indicating current country code to FW */
+typedef struct {
+	A_UINT32  tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_set_current_country_cmd_fixed_param */
+	A_UINT32  new_alpha2; /** alpha2 characters representing the country code */
+} wmi_set_current_country_cmd_fixed_param;
+
+/* Freq units in MHz */
+#define WMI_REG_RULE_START_FREQ_GET(freq_info)                     WMI_GET_BITS(freq_info, 0, 16)
+#define WMI_REG_RULE_START_FREQ_SET(freq_info, value)              WMI_SET_BITS(freq_info, 0, 16, value)
+#define WMI_REG_RULE_END_FREQ_GET(freq_info)                       WMI_GET_BITS(freq_info, 16, 16)
+#define WMI_REG_RULE_END_FREQ_SET(freq_info, value)                WMI_SET_BITS(freq_info, 16, 16, value)
+
+/* BW in MHz */
+#define WMI_REG_RULE_MAX_BW_GET(bw_info)                           WMI_GET_BITS(bw_info, 0, 16)
+#define WMI_REG_RULE_MAX_BW_SET(bw_info, value)                    WMI_SET_BITS(bw_info, 0, 16, value)
+/* regpower in dBm */
+#define WMI_REG_RULE_REG_POWER_GET(bw_info)                        WMI_GET_BITS(bw_info, 16, 8)
+#define WMI_REG_RULE_REG_POWER_SET(bw_info, value)                 WMI_SET_BITS(bw_info, 16, 8, value)
+
+typedef enum {
+	WMI_REG_FLAG_CHAN_NO_IR           = 0x0001, /* passive channel */
+	WMI_REG_FLAG_CHAN_RADAR           = 0x0002, /* dfs channel */
+	WMI_REG_FLAG_CHAN_NO_OFDM         = 0x0004, /* no ofdm channel */
+	WMI_REG_FLAG_CHAN_INDOOR_ONLY     = 0x0008, /* indoor only channel */
+} WMI_REGULATORY_FLAGS;
+
+#define WMI_REG_RULE_FLAGS_GET(flag_info)                    WMI_GET_BITS(flag_info, 0, 16)
+#define WMI_REG_RULE_FLAGS_SET(flag_info, value)             WMI_SET_BITS(flag_info, 0, 16, value)
+
+typedef struct {
+	A_UINT32  tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_regulatory_rule_struct */
+	A_UINT32  freq_info;       /* u16 start_freq, u16 end_freq */
+	A_UINT32  bw_info;         /* u16 max_bw, u8 reg_power, u8 reserved */
+	A_UINT32  power_flag_info; /* u16 flags, u16 reserved */
+} wmi_regulatory_rule_struct;
+
+typedef enum {
+	WMI_REG_DFS_UNINIT_REGION = 0,
+	WMI_REG_DFS_FCC_REGION    = 1,
+	WMI_REG_DFS_ETSI_REGION   = 2,
+	WMI_REG_DFS_MKK_REGION    = 3,
+	WMI_REG_DFS_CN_REGION     = 4,
+	WMI_REG_DFS_KR_REGION     = 5,
+
+	/* Add new items above */
+	WMI_REG_DFS_UNDEF_REGION = 0xFFFF,
+} WMI_REG_DFS_REGION;
+
+typedef enum {
+	WMI_REGULATORY_PHYMODE_NO11A    = 0x0001,  /* NO 11A */
+	WMI_REGULATORY_PHYMODE_NO11B    = 0x0002,  /* NO 11B */
+	WMI_REGULATORY_PHYMODE_NO11G    = 0x0004,  /* NO 11G */
+	WMI_REGULATORY_PHYMODE_NO11N    = 0x0008,  /* NO 11N */
+	WMI_REGULATORY_PHYMODE_NO11AC   = 0x0010,  /* NO 11AC */
+	WMI_REGULATORY_PHYMODE_NO11AX   = 0x0020,  /* NO 11AX */
+} WMI_REGULATORY_PHYBITMAP;
+
+typedef struct {
+	A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_reg_chan_list_cc_event_fixed_param */
+	A_UINT32 alpha2;
+	A_UINT32 dfs_region;  /* WMI_REG_DFS_REGION */
+	A_UINT32 phybitmap;   /* WMI_REGULATORY_PHYBITMAP */
+	A_UINT32 min_bw_2g;   /* BW in MHz */
+	A_UINT32 max_bw_2g;   /* BW in MHz */
+	A_UINT32 min_bw_5g;   /* BW in MHz */
+	A_UINT32 max_bw_5g;   /* BW in MHz */
+	A_UINT32 num_2g_reg_rules;
+	A_UINT32 num_5g_reg_rules;
+/* followed by wmi_regulatory_rule_struct TLV array. First 2G and then 5G */
+} wmi_reg_chan_list_cc_event_fixed_param;
+
+typedef struct {
+	A_UINT32  tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_11d_scan_start_cmd_fixed_param */
+	A_UINT32  vdev_id;
+	A_UINT32  scan_period_msec;   /** scan duration in milli-seconds */
+	A_UINT32  start_interval_msec; /** offset duration to start the scan in milli-seconds */
+} wmi_11d_scan_start_cmd_fixed_param;
+
+typedef struct {
+	A_UINT32  tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_11d_scan_stop_cmd_fixed_param */
+	A_UINT32  vdev_id;
+} wmi_11d_scan_stop_cmd_fixed_param;
+
+/** FW indicating new current country code to Host */
+typedef struct {
+	A_UINT32  tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_11d_new_country_event_fixed_param */
+	A_UINT32  new_alpha2; /** alpha2 characters representing the country code */
+} wmi_11d_new_country_event_fixed_param;
 
 typedef struct {
 	/** TLV tag and len; tag equals

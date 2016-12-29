@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -5500,6 +5500,134 @@ enum dot11p_mode {
 #define CFG_UDP_RESP_OFFLOAD_RESPONSE_PAYLOAD_DEFAULT  "status=off"
 #endif
 
+/*
+ * <ini>
+ * gper_roam_enabled - To enabled/disable PER based roaming in FW
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This ini is used to enable/disable Packet error based roaming, enabling this
+ * will cause DUT to monitor Tx and Rx traffic and roam to a better candidate
+ * if current is not good enough.
+ *
+ * Related: gper_roam_high_rate_th, gper_roam_low_rate_th,
+ *          gper_roam_th_percent, gper_roam_rest_time
+ *
+ * Supported Feature: LFR-3.0
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+#define CFG_PER_ROAM_ENABLE_NAME           "gper_roam_enabled"
+#define CFG_PER_ROAM_ENABLE_MIN            (0)
+#define CFG_PER_ROAM_ENABLE_MAX            (1)
+#define CFG_PER_ROAM_ENABLE_DEFAULT        (CFG_PER_ROAM_ENABLE_MAX)
+
+/*
+ * <ini>
+ * gper_roam_high_rate_th - Rate at which PER based roam will stop
+ * @Min: 1 Mbps
+ * @Max: 0xffffffff
+ * @Default: 40 Mbps
+ *
+ * This ini is used to define the data rate in mbps*10 at which FW will stop
+ * monitoring the traffic for PER based roam.
+ *
+ * Related: gper_roam_enabled, gper_roam_low_rate_th,
+ *          gper_roam_th_percent, gper_roam_rest_time
+ *
+ * Supported Feature: LFR-3.0
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+#define CFG_PER_ROAM_CONFIG_HIGH_RATE_TH_NAME    "gper_roam_high_rate_th"
+#define CFG_PER_ROAM_CONFIG_HIGH_RATE_TH_MIN     (10)
+#define CFG_PER_ROAM_CONFIG_HIGH_RATE_TH_MAX     (0xffffffff)
+#define CFG_PER_ROAM_CONFIG_HIGH_RATE_TH_DEFAULT (400)
+
+/*
+ * <ini>
+ * gper_roam_low_rate_th - Rate at which FW starts considering traffic for PER
+ * based roam.
+ *
+ * @Min: 1 Mbps
+ * @Max: 0xffffffff
+ * @Default: 20 Mbps
+ *
+ * This ini is used to define the rate in mbps*10 at which FW starts considering
+ * traffic for PER based roam, if gper_roam_th_percent of data is below this
+ * rate, FW will issue a roam scan.
+ *
+ * Related: gper_roam_enabled, gper_roam_high_rate_th,
+ *          gper_roam_th_percent, gper_roam_rest_time
+ *
+ * Supported Feature: LFR-3.0
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+#define CFG_PER_ROAM_CONFIG_LOW_RATE_TH_NAME    "gper_roam_low_rate_th"
+#define CFG_PER_ROAM_CONFIG_LOW_RATE_TH_MIN     (10)
+#define CFG_PER_ROAM_CONFIG_LOW_RATE_TH_MAX     (0xffffffff)
+#define CFG_PER_ROAM_CONFIG_LOW_RATE_TH_DEFAULT (200)
+
+/*
+ * <ini>
+ * gper_roam_th_percent - Percentage at which FW will issue a roam scan if
+ * traffic is below gper_roam_low_rate_th rate.
+ *
+ * @Min: 10%
+ * @Max: 100%
+ * @Default: 60%
+ *
+ * This ini is used to define the percentage at which FW will issue a roam scan
+ * if traffic is below gper_roam_low_rate_th rate.
+ *
+ * Related: gper_roam_enabled, gper_roam_high_rate_th,
+ *          gper_roam_high_rate_th, gper_roam_rest_time
+ *
+ * Supported Feature: LFR-3.0
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+#define CFG_PER_ROAM_CONFIG_RATE_TH_PERCENT_NAME      "gper_roam_th_percent"
+#define CFG_PER_ROAM_CONFIG_RATE_TH_PERCENT_MIN       (10)
+#define CFG_PER_ROAM_CONFIG_RATE_TH_PERCENT_MAX       (100)
+#define CFG_PER_ROAM_CONFIG_RATE_TH_PERCENT_DEFAULT   (60)
+
+/*
+ * <ini>
+ * gper_roam_rest_time - Time for which FW will wait once it issues a
+ * roam scan.
+ *
+ * @Min: 10 seconds
+ * @Max: 3600 seconds
+ * @Default: 300 seconds
+ *
+ * This ini is used to define the time for which FW will wait once it issues a
+ * PER based roam scan.
+ *
+ * Related: gper_roam_enabled, gper_roam_high_rate_th,
+ *          gper_roam_high_rate_th, gper_roam_th_percent
+ *
+ * Supported Feature: LFR-3.0
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+#define CFG_PER_ROAM_REST_TIME_NAME     "gper_roam_rest_time"
+#define CFG_PER_ROAM_REST_TIME_MIN      (10)
+#define CFG_PER_ROAM_REST_TIME_MAX      (3600)
+#define CFG_PER_ROAM_REST_TIME_DEFAULT  (300)
+
 /*---------------------------------------------------------------------------
    Type declarations
    -------------------------------------------------------------------------*/
@@ -6198,6 +6326,11 @@ struct hdd_config {
 	uint16_t wow_pulse_interval_high;
 	uint16_t wow_pulse_interval_low;
 #endif
+	bool is_per_roam_enabled;
+	uint32_t per_roam_high_rate_threshold;
+	uint32_t per_roam_low_rate_threshold;
+	uint32_t per_roam_th_percent;
+	uint32_t per_roam_rest_time;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1312,6 +1312,7 @@ typedef struct tagCsrConfigParam {
 	struct csr_sta_roam_policy_params sta_roam_policy_params;
 	uint32_t tx_aggregation_size;
 	uint32_t rx_aggregation_size;
+	struct wmi_per_roam_config per_roam_config;
 } tCsrConfigParam;
 
 /* Tush */

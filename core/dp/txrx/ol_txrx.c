@@ -4202,6 +4202,17 @@ void ol_txrx_ipa_uc_get_stat(ol_txrx_pdev_handle pdev)
 {
 	htt_h2t_ipa_uc_get_stats(pdev->htt_pdev);
 }
+
+void ol_txrx_ipa_uc_get_share_stats(ol_txrx_pdev_handle pdev,
+				   uint8_t reset_stats)
+{
+	htt_h2t_ipa_uc_get_share_stats(pdev->htt_pdev, reset_stats);
+}
+
+void ol_txrx_ipa_uc_set_quota(ol_txrx_pdev_handle pdev, uint64_t quota_bytes)
+{
+	htt_h2t_ipa_uc_set_quota(pdev->htt_pdev, quota_bytes);
+}
 #endif /* IPA_UC_OFFLOAD */
 
 /**

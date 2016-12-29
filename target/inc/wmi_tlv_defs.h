@@ -778,6 +778,9 @@ typedef enum {
 	WMITLV_TAG_STRUC_wmi_11d_scan_start_cmd_fixed_param,
 	WMITLV_TAG_STRUC_wmi_11d_scan_stop_cmd_fixed_param,
 	WMITLV_TAG_STRUC_wmi_11d_new_country_event_fixed_param,
+	WMITLV_TAG_STRUC_wmi_request_radio_chan_stats_cmd_fixed_param,
+	WMITLV_TAG_STRUC_wmi_radio_chan_stats,
+	WMITLV_TAG_STRUC_wmi_radio_chan_stats_event_fixed_param,
 } WMITLV_TAG_ID;
 
 /*
@@ -1092,6 +1095,7 @@ typedef enum {
 	OP(WMI_SET_CURRENT_COUNTRY_CMDID) \
 	OP(WMI_11D_SCAN_START_CMDID) \
 	OP(WMI_11D_SCAN_STOP_CMDID) \
+	OP(WMI_REQUEST_RADIO_CHAN_STATS_CMDID) \
 	/* add new CMD_LIST elements above this line */
 
 /*
@@ -1262,6 +1266,7 @@ typedef enum {
 	OP(WMI_PKGID_EVENTID) \
 	OP(WMI_REG_CHAN_LIST_CC_EVENTID) \
 	OP(WMI_11D_NEW_COUNTRY_EVENTID) \
+	OP(WMI_RADIO_CHAN_STATS_EVENTID) \
 	/* add new EVT_LIST elements above this line */
 
 /* TLV definitions of WMI commands */
@@ -3130,6 +3135,11 @@ WMITLV_CREATE_PARAM_STRUC(WMI_11D_SCAN_START_CMDID);
 	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_STRUC_wmi_11d_scan_stop_cmd_fixed_param, wmi_11d_scan_stop_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
 WMITLV_CREATE_PARAM_STRUC(WMI_11D_SCAN_STOP_CMDID);
 
+/* Request radio channel stats cmd */
+#define WMITLV_TABLE_WMI_REQUEST_RADIO_CHAN_STATS_CMDID(id, op, buf, len) \
+	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_STRUC_wmi_request_radio_chan_stats_cmd_fixed_param, wmi_request_radio_chan_stats_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_REQUEST_RADIO_CHAN_STATS_CMDID);
+
 /************************** TLV definitions of WMI events *******************************/
 
 /* Service Ready event */
@@ -4177,6 +4187,12 @@ WMITLV_CREATE_PARAM_STRUC(WMI_VDEV_ENCRYPT_DECRYPT_DATA_RESP_EVENTID);
 	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_STRUC_wmi_peer_stats_info_event_fixed_param, wmi_peer_stats_info_event_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
 	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_ARRAY_STRUC, wmi_peer_stats_info, peer_stats_info, WMITLV_SIZE_VAR)
 WMITLV_CREATE_PARAM_STRUC(WMI_PEER_STATS_INFO_EVENTID);
+
+#define WMITLV_TABLE_WMI_RADIO_CHAN_STATS_EVENTID(id, op, buf, len) \
+	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_STRUC_wmi_radio_chan_stats_event_fixed_param, wmi_radio_chan_stats_event_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
+	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_ARRAY_STRUC, wmi_radio_chan_stats, radio_chan_stats, WMITLV_SIZE_VAR)
+WMITLV_CREATE_PARAM_STRUC(WMI_RADIO_CHAN_STATS_EVENTID);
+
 
 #define WMITLV_TABLE_WMI_PKGID_EVENTID(id, op, buf, len) \
 	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_STRUC_wmi_pkgid_event_fixed_param, wmi_pkgid_event_fixed_param, fixed_param, WMITLV_SIZE_FIX)

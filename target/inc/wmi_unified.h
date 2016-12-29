@@ -4042,6 +4042,13 @@ typedef enum {
 	 */
 	WMI_PDEV_PARAM_PEER_STATS_INFO_ENABLE,
 
+	/** Configure Fast PWR Transition mode
+	 * 0x0 -> inidcates Fast PWR transition disabled
+	 * 0x1 -> indicates Static mode enabled
+	 * 0x2 -> indicates Dynamic mode enabled
+	 */
+	WMI_PDEV_PARAM_FAST_PWR_TRANSITION,
+
 } WMI_PDEV_PARAM;
 
 typedef enum {

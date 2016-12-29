@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -924,7 +924,7 @@ static const char *hif_pm_runtime_state_to_string(uint32_t state)
  *
  * Return: void
  */
-void hif_pci_runtime_pm_warn(struct hif_pci_softc *sc, const char *msg)
+static void hif_pci_runtime_pm_warn(struct hif_pci_softc *sc, const char *msg)
 {
 	struct hif_pm_runtime_lock *ctx;
 

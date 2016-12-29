@@ -1612,6 +1612,7 @@ typedef struct {
 	tp_wma_packetdump_cb wma_mgmt_rx_packetdump_cb;
 	tSirLLStatsResults *link_stats_results;
 	bool fw_mem_dump_enabled;
+	tSirAddonPsReq ps_setting;
 } t_wma_handle, *tp_wma_handle;
 
 /**

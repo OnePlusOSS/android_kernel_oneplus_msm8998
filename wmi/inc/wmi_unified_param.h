@@ -6648,5 +6648,21 @@ struct sar_limit_cmd_params {
 };
 
 
+#define WMI_SUPPORTED_ACTION_CATEGORY           256
+#define WMI_SUPPORTED_ACTION_CATEGORY_ELE_LIST  (WMI_SUPPORTED_ACTION_CATEGORY/32)
+
+/**
+ * struct action_wakeup_set_param - action wakeup set params
+ * @vdev_id: virtual device id
+ * @operation: 0 reset to fw default, 1 set the bits,
+ *    2 add the setting bits, 3 delete the setting bits
+ * @action_category_map: bit mapping.
+ */
+struct action_wakeup_set_param {
+	uint32_t vdev_id;
+	uint32_t operation;
+	uint32_t action_category_map[WMI_SUPPORTED_ACTION_CATEGORY_ELE_LIST];
+};
+
 #endif /* _WMI_UNIFIED_PARAM_H_ */
 

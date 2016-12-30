@@ -444,7 +444,7 @@ static int hdd_ndi_delete_req_handler(hdd_context_t *hdd_ctx,
 	if (ret < 0)
 		hdd_err("NDI delete request failed");
 	else
-		hdd_err("NDI delete request successfully issued");
+		hdd_notice("NDI delete request successfully issued");
 
 	return ret;
 }
@@ -913,7 +913,7 @@ static void hdd_ndp_iface_create_rsp_handler(hdd_adapter_t *adapter,
 	cfg80211_vendor_event(vendor_event, GFP_KERNEL);
 
 	if (!create_fail && ndi_rsp->status == QDF_STATUS_SUCCESS) {
-		hdd_err("NDI interface successfully created");
+		hdd_notice("NDI interface successfully created");
 		ndp_ctx->ndp_create_transaction_id = 0;
 		ndp_ctx->state = NAN_DATA_NDI_CREATED_STATE;
 		wlan_hdd_netif_queue_control(adapter,
@@ -969,7 +969,7 @@ static void hdd_ndp_iface_delete_rsp_handler(hdd_adapter_t *adapter,
 	}
 
 	if (ndi_rsp->status == NDP_RSP_STATUS_SUCCESS)
-		hdd_err("NDI BSS successfully stopped");
+		hdd_notice("NDI BSS successfully stopped");
 	else
 		hdd_err("NDI BSS stop failed with reason %d", ndi_rsp->reason);
 
@@ -1199,7 +1199,7 @@ static void hdd_ndp_new_peer_ind_handler(hdd_adapter_t *adapter,
 	/* save peer in ndp ctx */
 	if (false == hdd_save_peer(sta_ctx, new_peer_ind->sta_id,
 				   &new_peer_ind->peer_mac_addr)) {
-		hdd_err("Ndp peer table full. cannot save new peer");
+		hdd_warn("Ndp peer table full. cannot save new peer");
 		return;
 	}
 
@@ -1293,7 +1293,7 @@ static void hdd_ndp_confirm_ind_handler(hdd_adapter_t *adapter,
 	/* ndp_confirm is called each time user generated ndp req succeeds */
 	idx = hdd_get_peer_idx(sta_ctx, &ndp_confirm->peer_ndi_mac_addr);
 	if (idx == INVALID_PEER_IDX)
-		hdd_err("can't find addr: %pM in vdev_id: %d, peer table.",
+		hdd_warn("can't find addr: %pM in vdev_id: %d, peer table.",
 			&ndp_confirm->peer_ndi_mac_addr, adapter->sessionId);
 	else if (ndp_confirm->rsp_code == NDP_RESPONSE_ACCEPT)
 		ndp_ctx->active_ndp_sessions[idx]++;
@@ -1709,20 +1709,20 @@ static void hdd_ndp_end_ind_handler(hdd_adapter_t *adapter,
 		ndi_adapter = hdd_get_adapter_by_vdev(hdd_ctx,
 					end_ind->ndp_map[i].vdev_id);
 		if (ndi_adapter == NULL) {
-			hdd_err("Adapter not found for vdev_id: %d",
+			hdd_warn("Adapter not found for vdev_id: %d",
 				end_ind->ndp_map[i].vdev_id);
 			continue;
 		}
 		ndp_ctx = WLAN_HDD_GET_NDP_CTX_PTR(ndi_adapter);
 		if (!ndp_ctx) {
-			hdd_err("ndp_ctx is NULL for vdev id: %d",
+			hdd_warn("ndp_ctx is NULL for vdev id: %d",
 				end_ind->ndp_map[i].vdev_id);
 			continue;
 		}
 		idx = hdd_get_peer_idx(sta_ctx,
 				&end_ind->ndp_map[i].peer_ndi_mac_addr);
 		if (idx == INVALID_PEER_IDX) {
-			hdd_err("can't find addr: %pM in sta_ctx.",
+			hdd_warn("can't find addr: %pM in sta_ctx.",
 				&end_ind->ndp_map[i].peer_ndi_mac_addr);
 			continue;
 		}
@@ -1885,10 +1885,10 @@ static int __wlan_hdd_cfg80211_process_ndp_cmd(struct wiphy *wiphy,
 
 	if (tb[QCA_WLAN_VENDOR_ATTR_NDP_IFACE_STR]) {
 		iface_name = nla_data(tb[QCA_WLAN_VENDOR_ATTR_NDP_IFACE_STR]);
-		hdd_err("Transaction Id: %d NDP Cmd: %d iface_name: %s",
+		hdd_notice("Transaction Id: %d NDP Cmd: %d iface_name: %s",
 			transaction_id, ndp_cmd_type, iface_name);
 	} else {
-		hdd_err("Transaction Id: %d NDP Cmd: %d iface_name: unspecified",
+		hdd_notice("Transaction Id: %d NDP Cmd: %d iface_name: unspecified",
 			transaction_id, ndp_cmd_type);
 	}
 

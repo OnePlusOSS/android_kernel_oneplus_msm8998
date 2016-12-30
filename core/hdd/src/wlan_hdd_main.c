@@ -495,7 +495,7 @@ enum phy_ch_width hdd_map_nl_chan_width(enum nl80211_chan_width ch_width)
 	case NL80211_CHAN_WIDTH_10:
 		return CH_WIDTH_10MHZ;
 	default:
-		hdd_err("Invalid channel width %d, setting to default",
+		hdd_warn("Invalid channel width %d, setting to default",
 				ch_width);
 		return CH_WIDTH_INVALID;
 	}
@@ -1320,7 +1320,7 @@ void hdd_update_tgt_cfg(void *context, void *param)
 	if (cds_cfg) {
 		if (hdd_ctx->config->enable_sub_20_channel_width !=
 			WLAN_SUB_20_CH_WIDTH_NONE && !cfg->sub_20_support) {
-			hdd_err("User requested sub 20 MHz channel width but unsupported by FW.");
+			hdd_warn("User requested sub 20 MHz channel width but unsupported by FW.");
 			cds_cfg->sub_20_channel_width =
 				WLAN_SUB_20_CH_WIDTH_NONE;
 		} else {
@@ -1363,12 +1363,12 @@ void hdd_update_tgt_cfg(void *context, void *param)
 		if (qdf_is_macaddr_equal(&hdd_ctx->config->intfMacAddr[0],
 					 &default_mac_addr)) {
 			if (hdd_generate_macaddr_auto(hdd_ctx) != 0)
-				hdd_err("Fail to auto-generate MAC, using MAC from ini file "
+				hdd_warn("Fail to auto-generate MAC, using MAC from ini file "
 					MAC_ADDRESS_STR,
 					MAC_ADDR_ARRAY(hdd_ctx->config->
 						       intfMacAddr[0].bytes));
 		} else {
-			hdd_err("Invalid MAC passed from target, using MAC from ini file "
+			hdd_warn("Invalid MAC passed from target, using MAC from ini file "
 				MAC_ADDRESS_STR,
 				MAC_ADDR_ARRAY(hdd_ctx->config->
 					       intfMacAddr[0].bytes));
@@ -2980,7 +2980,7 @@ static void hdd_set_fw_log_params(hdd_context_t *hdd_ctx,
 			hdd_ctx->config->enableFwLogType,
 			DBG_CMD);
 	if (ret != 0)
-		hdd_err("Failed to enable FW log type ret %d",
+		hdd_warn("Failed to enable FW log type ret %d",
 			ret);
 
 	hdd_ctx->fw_log_settings.dl_loglevel =
@@ -2990,7 +2990,7 @@ static void hdd_set_fw_log_params(hdd_context_t *hdd_ctx,
 			hdd_ctx->config->enableFwLogLevel,
 			DBG_CMD);
 	if (ret != 0)
-		hdd_err("Failed to enable FW log level ret %d",
+		hdd_warn("Failed to enable FW log level ret %d",
 			ret);
 
 	hdd_string_to_u8_array(
@@ -3597,10 +3597,10 @@ QDF_STATUS hdd_stop_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 					msecs_to_jiffies
 						(WLAN_WAIT_TIME_DISCONNECT));
 				if (!rc) {
-					hdd_err("wait on disconnect_comp_var failed");
+					hdd_warn("wait on disconnect_comp_var failed");
 				}
 			} else {
-				hdd_err("failed to post disconnect event to SME");
+				hdd_warn("failed to post disconnect event to SME");
 			}
 			memset(&wrqu, '\0', sizeof(wrqu));
 			wrqu.ap_addr.sa_family = ARPHRD_ETHER;
@@ -4068,10 +4068,10 @@ QDF_STATUS hdd_start_all_adapters(hdd_context_t *hdd_ctx)
 
 		case QDF_P2P_GO_MODE:
 #ifdef MSM_PLATFORM
-			hdd_err("[SSR] send stop ap to supplicant");
+			hdd_notice("[SSR] send stop ap to supplicant");
 			cfg80211_ap_stopped(adapter->dev, GFP_KERNEL);
 #else
-			hdd_err("[SSR] send restart supplicant");
+			hdd_notice("[SSR] send restart supplicant");
 			/* event supplicant to restart */
 			cfg80211_del_sta(adapter->dev,
 					 (const u8 *)&bcastMac.bytes[0],
@@ -5341,7 +5341,7 @@ static void hdd_pld_request_bus_bandwidth(hdd_context_t *hdd_ctx,
 				hdd_ctx->hbw_requested = false;
 			}
 			if (cds_sched_handle_throughput_req(false))
-				hdd_err("low bandwidth set rx affinity fail");
+				hdd_warn("low bandwidth set rx affinity fail");
 		 } else {
 			if (!hdd_ctx->hbw_requested) {
 				pld_request_pm_qos(hdd_ctx->parent_dev, 1);
@@ -5349,7 +5349,7 @@ static void hdd_pld_request_bus_bandwidth(hdd_context_t *hdd_ctx,
 			}
 
 			if (cds_sched_handle_throughput_req(true))
-				hdd_err("high bandwidth set rx affinity fail");
+				hdd_warn("high bandwidth set rx affinity fail");
 		 }
 		hdd_napi_apply_throughput_policy(hdd_ctx, tx_packets, rx_packets);
 	}
@@ -5646,25 +5646,25 @@ void wlan_hdd_display_tx_rx_histogram(hdd_context_t *hdd_ctx)
 	int i;
 
 #ifdef MSM_PLATFORM
-	hdd_err("BW compute Interval: %dms",
+	hdd_notice("BW compute Interval: %dms",
 		hdd_ctx->config->busBandwidthComputeInterval);
-	hdd_err("BW High TH: %d BW Med TH: %d BW Low TH: %d",
+	hdd_notice("BW High TH: %d BW Med TH: %d BW Low TH: %d",
 		hdd_ctx->config->busBandwidthHighThreshold,
 		hdd_ctx->config->busBandwidthMediumThreshold,
 		hdd_ctx->config->busBandwidthLowThreshold);
-	hdd_err("Enable TCP DEL ACK: %d",
+	hdd_notice("Enable TCP DEL ACK: %d",
 		hdd_ctx->config->enable_tcp_delack);
-	hdd_err("TCP DEL High TH: %d TCP DEL Low TH: %d",
+	hdd_notice("TCP DEL High TH: %d TCP DEL Low TH: %d",
 		hdd_ctx->config->tcpDelackThresholdHigh,
 		hdd_ctx->config->tcpDelackThresholdLow);
-	hdd_err("TCP TX HIGH TP TH: %d (Use to set tcp_output_bytes_limit)",
+	hdd_notice("TCP TX HIGH TP TH: %d (Use to set tcp_output_bytes_limit)",
 		hdd_ctx->config->tcp_tx_high_tput_thres);
 #endif
 
-	hdd_err("Total entries: %d Current index: %d",
+	hdd_notice("Total entries: %d Current index: %d",
 		NUM_TX_RX_HISTOGRAM, hdd_ctx->hdd_txrx_hist_idx);
 
-	hdd_err("[index][timestamp]: interval_rx, interval_tx, bus_bw_level, RX TP Level, TX TP Level");
+	hdd_notice("[index][timestamp]: interval_rx, interval_tx, bus_bw_level, RX TP Level, TX TP Level");
 
 	for (i = 0; i < NUM_TX_RX_HISTOGRAM; i++) {
 		/* using hdd_log to avoid printing function name */
@@ -5719,10 +5719,10 @@ void wlan_hdd_display_netif_queue_history(hdd_context_t *hdd_ctx)
 	while (NULL != adapter_node && QDF_STATUS_SUCCESS == status) {
 		adapter = adapter_node->pAdapter;
 
-		hdd_err("Netif queue operation statistics:");
-		hdd_err("Session_id %d device mode %d",
+		hdd_notice("Netif queue operation statistics:");
+		hdd_notice("Session_id %d device mode %d",
 			adapter->sessionId, adapter->device_mode);
-		hdd_err("Current pause_map value %x", adapter->pause_map);
+		hdd_notice("Current pause_map value %x", adapter->pause_map);
 		curr_time = qdf_system_ticks();
 		total = curr_time - adapter->start_time;
 		delta = curr_time - adapter->last_time;
@@ -5733,11 +5733,11 @@ void wlan_hdd_display_netif_queue_history(hdd_context_t *hdd_ctx)
 			unpause = adapter->total_unpause_time + delta;
 			pause = adapter->total_pause_time;
 		}
-		hdd_err("Total: %ums Pause: %ums Unpause: %ums",
+		hdd_notice("Total: %ums Pause: %ums Unpause: %ums",
 			qdf_system_ticks_to_msecs(total),
 			qdf_system_ticks_to_msecs(pause),
 			qdf_system_ticks_to_msecs(unpause));
-		hdd_err("reason_type: pause_cnt: unpause_cnt: pause_time");
+		hdd_info("reason_type: pause_cnt: unpause_cnt: pause_time");
 
 		for (i = WLAN_CONTROL_PATH; i < WLAN_REASON_TYPE_MAX; i++) {
 			qdf_time_t pause_delta = 0;
@@ -5756,11 +5756,11 @@ void wlan_hdd_display_netif_queue_history(hdd_context_t *hdd_ctx)
 				pause_delta));
 		}
 
-		hdd_err("Netif queue operation history:");
-		hdd_err("Total entries: %d current index %d",
+		hdd_notice("Netif queue operation history:");
+		hdd_notice("Total entries: %d current index %d",
 			WLAN_HDD_MAX_HISTORY_ENTRY, adapter->history_index);
 
-		hdd_err("index: time: action_type: reason_type: pause_map");
+		hdd_notice("index: time: action_type: reason_type: pause_map");
 
 		for (i = 0; i < WLAN_HDD_MAX_HISTORY_ENTRY; i++) {
 			/* using hdd_log to avoid printing function name */
@@ -7094,7 +7094,7 @@ static int hdd_update_cds_config(hdd_context_t *hdd_ctx)
 	cds_cfg->uc_offload_enabled = hdd_ipa_uc_is_enabled(hdd_ctx);
 	if (!is_power_of_2(hdd_ctx->config->IpaUcTxBufCount)) {
 		/* IpaUcTxBufCount should be power of 2 */
-		hdd_err("Round down IpaUcTxBufCount %d to nearest power of 2",
+		hdd_warn("Round down IpaUcTxBufCount %d to nearest power of 2",
 			hdd_ctx->config->IpaUcTxBufCount);
 		hdd_ctx->config->IpaUcTxBufCount =
 			rounddown_pow_of_two(
@@ -7103,14 +7103,14 @@ static int hdd_update_cds_config(hdd_context_t *hdd_ctx)
 			hdd_err("Failed to round down IpaUcTxBufCount");
 			return -EINVAL;
 		}
-		hdd_err("IpaUcTxBufCount rounded down to %d",
+		hdd_warn("IpaUcTxBufCount rounded down to %d",
 			hdd_ctx->config->IpaUcTxBufCount);
 	}
 	cds_cfg->uc_txbuf_count = hdd_ctx->config->IpaUcTxBufCount;
 	cds_cfg->uc_txbuf_size = hdd_ctx->config->IpaUcTxBufSize;
 	if (!is_power_of_2(hdd_ctx->config->IpaUcRxIndRingCount)) {
 		/* IpaUcRxIndRingCount should be power of 2 */
-		hdd_err("Round down IpaUcRxIndRingCount %d to nearest power of 2",
+		hdd_warn("Round down IpaUcRxIndRingCount %d to nearest power of 2",
 			hdd_ctx->config->IpaUcRxIndRingCount);
 		hdd_ctx->config->IpaUcRxIndRingCount =
 			rounddown_pow_of_two(
@@ -7119,7 +7119,7 @@ static int hdd_update_cds_config(hdd_context_t *hdd_ctx)
 			hdd_err("Failed to round down IpaUcRxIndRingCount");
 			return -EINVAL;
 		}
-		hdd_err("IpaUcRxIndRingCount rounded down to %d",
+		hdd_info("IpaUcRxIndRingCount rounded down to %d",
 			hdd_ctx->config->IpaUcRxIndRingCount);
 	}
 	cds_cfg->uc_rxind_ringcount =
@@ -7810,10 +7810,10 @@ static int hdd_features_init(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 		hdd_set_idle_ps_config(hdd_ctx, false);
 
 	if (hdd_lro_init(hdd_ctx))
-		hdd_err("Unable to initialize LRO in fw");
+		hdd_warn("Unable to initialize LRO in fw");
 
 	if (hdd_adaptive_dwelltime_init(hdd_ctx))
-		hdd_err("Unable to send adaptive dwelltime setting to FW");
+		hdd_warn("Unable to send adaptive dwelltime setting to FW");
 
 	ret = hdd_init_thermal_info(hdd_ctx);
 	if (ret) {
@@ -8338,7 +8338,7 @@ int hdd_wlan_startup(struct device *dev)
 	hdd_driver_memdump_init();
 
 	if (hdd_enable_egap(hdd_ctx))
-		hdd_err("enhance green ap is not enabled");
+		hdd_warn("enhance green ap is not enabled");
 
 	if (hdd_ctx->config->fIsImpsEnabled)
 		hdd_set_idle_ps_config(hdd_ctx, true);
@@ -8523,13 +8523,13 @@ void hdd_deregister_cb(hdd_context_t *hdd_ctx)
 	sme_reset_link_layer_stats_ind_cb(hdd_ctx->hHal);
 	status = sme_bpf_offload_deregister_callback(hdd_ctx->hHal);
 	if (!QDF_IS_STATUS_SUCCESS(status))
-		hdd_err("De-register bpf offload callback failed: %d",
+		hdd_warn("De-register bpf offload callback failed: %d",
 			status);
 	sme_reset_rssi_threshold_breached_cb(hdd_ctx->hHal);
 
 	status = cds_deregister_sap_restart_channel_switch_cb();
 	if (!QDF_IS_STATUS_SUCCESS(status))
-		hdd_err("De-register restart cb registration failed: %d",
+		hdd_warn("De-register restart cb registration failed: %d",
 			status);
 
 	sme_stats_ext_register_callback(hdd_ctx->hHal,
@@ -8596,7 +8596,7 @@ void hdd_softap_sta_disassoc(hdd_adapter_t *adapter,
 {
 	ENTER();
 
-	hdd_err("hdd_softap_sta_disassoc:(%p, false)",
+	hdd_notice("hdd_softap_sta_disassoc:(%p, false)",
 	       (WLAN_HDD_GET_CTX(adapter))->pcds_context);
 
 	/* Ignore request to disassoc bcmc station */
@@ -8612,7 +8612,7 @@ void hdd_softap_tkip_mic_fail_counter_measure(hdd_adapter_t *adapter,
 {
 	ENTER();
 
-	hdd_err("hdd_softap_tkip_mic_fail_counter_measure:(%p, false)",
+	hdd_notice("hdd_softap_tkip_mic_fail_counter_measure:(%p, false)",
 	       (WLAN_HDD_GET_CTX(adapter))->pcds_context);
 
 	wlansap_set_counter_measure(WLAN_HDD_GET_SAP_CTX_PTR(adapter),
@@ -8832,7 +8832,7 @@ void wlan_hdd_auto_shutdown_cb(void)
 	if (!hdd_ctx)
 		return;
 
-	hdd_err("Wlan Idle. Sending Shutdown event..");
+	hdd_notice("Wlan Idle. Sending Shutdown event..");
 	wlan_hdd_send_svc_nlink_msg(hdd_ctx->radio_index,
 			WLAN_SVC_WLAN_AUTO_SHUTDOWN_IND, NULL, 0);
 }

@@ -178,7 +178,7 @@ int hdd_napi_destroy(int force)
 						rc++;
 						hdd_napi_map &= ~(0x01 << i);
 					} else
-						hdd_err("cannot destroy napi %d: (pipe:%d), f=%d\n",
+						hdd_warn("cannot destroy napi %d: (pipe:%d), f=%d\n",
 							i,
 							NAPI_PIPE2ID(i), force);
 				}

@@ -2234,6 +2234,12 @@ static void __hdd_set_multicast_list(struct net_device *dev)
 	if (0 != status)
 		return;
 
+	if (!hdd_ctx->config->fEnableMCAddrList) {
+		hdd_info("gMCAddrListEnable ini param not enabled");
+		adapter->mc_addr_list.mc_cnt = 0;
+		return;
+	}
+
 	if (dev->flags & IFF_ALLMULTI) {
 		hdd_notice("allow all multicast frames");
 		adapter->mc_addr_list.mc_cnt = 0;
@@ -2244,7 +2250,10 @@ static void __hdd_set_multicast_list(struct net_device *dev)
 		if (mc_count > WLAN_HDD_MAX_MC_ADDR_LIST) {
 			hdd_notice("Exceeded max MC filter addresses (%d). Allowing all MC frames by disabling MC address filtering",
 				   WLAN_HDD_MAX_MC_ADDR_LIST);
-			wlan_hdd_set_mc_addr_list(adapter, false);
+
+			if (wlan_hdd_set_mc_addr_list(adapter, false))
+				hdd_info("failed to clear mc addr list");
+
 			adapter->mc_addr_list.mc_cnt = 0;
 			return;
 		}
@@ -2285,7 +2294,8 @@ static void __hdd_set_multicast_list(struct net_device *dev)
 	}
 	if (hdd_ctx->config->active_mode_offload) {
 		hdd_info("enable mc filtering");
-		wlan_hdd_set_mc_addr_list(adapter, true);
+		if (wlan_hdd_set_mc_addr_list(adapter, true))
+			hdd_err("Failed: to set mc addr list");
 	} else {
 		hdd_info("skip mc filtering enable it during cfg80211 suspend");
 	}

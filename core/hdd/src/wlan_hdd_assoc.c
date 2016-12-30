@@ -4698,7 +4698,8 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 		/* Call to clear any MC Addr List filter applied after
 		 * successful connection.
 		 */
-		wlan_hdd_set_mc_addr_list(pAdapter, false);
+		if (wlan_hdd_set_mc_addr_list(pAdapter, false))
+			hdd_err("Failed: to clear mc addr list");
 	}
 	break;
 	case eCSR_ROAM_IBSS_LEAVE:

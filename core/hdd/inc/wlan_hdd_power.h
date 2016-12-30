@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2014-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012, 2014-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -152,7 +152,7 @@ QDF_STATUS hdd_conf_arp_offload(hdd_adapter_t *pAdapter, bool fenable);
 void hdd_conf_hostoffload(hdd_adapter_t *pAdapter, bool fenable);
 
 #ifdef WLAN_FEATURE_PACKET_FILTERING
-void wlan_hdd_set_mc_addr_list(hdd_adapter_t *pAdapter, uint8_t set);
+int wlan_hdd_set_mc_addr_list(hdd_adapter_t *pAdapter, uint8_t set);
 #else
 static inline void
 wlan_hdd_set_mc_addr_list(hdd_adapter_t *pAdapter, uint8_t set)

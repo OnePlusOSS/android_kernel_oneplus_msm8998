@@ -47,26 +47,16 @@ typedef void *WMA_HANDLE;
  * enum GEN_PARAM - general parameters
  * @GEN_VDEV_PARAM_AMPDU: Set ampdu size
  * @GEN_VDEV_PARAM_AMSDU: Set amsdu size
- * @GEN_PARAM_DUMP_AGC_START: dump agc start
- * @GEN_PARAM_DUMP_AGC: dump agc
- * @GEN_PARAM_DUMP_CHANINFO_START: dump channel info start
- * @GEN_PARAM_DUMP_CHANINFO: dump channel info
  * @GEN_PARAM_CRASH_INJECT: inject crash
- * @GEN_PARAM_DUMP_PCIE_ACCESS_LOG: dump pcie access log
- * @GEN_PARAM_TX_CHAIN_MASK_CCK: cck tx chain mask
+ * @GEN_PARAM_MODULATED_DTIM: moduled dtim
+ * @GEN_PARAM_CAPTURE_TSF: read tsf
+ * @GEN_PARAM_RESET_TSF_GPIO: reset tsf gpio
+ * @GEN_VDEV_ROAM_SYNCH_DELAY: roam sync delay
  */
 typedef enum {
 	GEN_VDEV_PARAM_AMPDU = 0x1,
 	GEN_VDEV_PARAM_AMSDU,
-	GEN_PARAM_DUMP_AGC_START,
-	GEN_PARAM_DUMP_AGC,
-	GEN_PARAM_DUMP_CHANINFO_START,
-	GEN_PARAM_DUMP_CHANINFO,
-	GEN_PARAM_DUMP_WATCHDOG,
 	GEN_PARAM_CRASH_INJECT,
-#ifdef CONFIG_ATH_PCIE_ACCESS_DEBUG
-	GEN_PARAM_DUMP_PCIE_ACCESS_LOG,
-#endif
 	GEN_PARAM_MODULATED_DTIM,
 	GEN_PARAM_CAPTURE_TSF,
 	GEN_PARAM_RESET_TSF_GPIO,
@@ -182,6 +172,9 @@ void wma_enable_disable_wakeup_event(WMA_HANDLE handle,
 void wma_register_wow_wakeup_events(WMA_HANDLE handle, uint8_t vdev_id,
 					uint8_t vdev_type, uint8_t sub_type);
 void wma_register_wow_default_patterns(WMA_HANDLE handle, uint8_t vdev_id);
+QDF_STATUS wma_register_action_frame_patterns(WMA_HANDLE handle,
+					uint8_t vdev_id);
+
 int8_t wma_get_hw_mode_idx_from_dbs_hw_list(enum hw_mode_ss_config mac0_ss,
 		enum hw_mode_bandwidth mac0_bw,
 		enum hw_mode_ss_config mac1_ss,

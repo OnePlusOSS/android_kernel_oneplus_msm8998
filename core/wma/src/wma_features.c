@@ -3686,6 +3686,53 @@ static QDF_STATUS wma_configure_ssdp(tp_wma_handle wma, uint8_t vdev_id)
 }
 
 /**
+ * wma_register_action_frame_patterns() - register action frame map to fw
+ * @handle: Pointer to wma handle
+ * @vdev_id: VDEV ID
+ *
+ * This is called to push action frames wow patterns from local
+ * cache to firmware.
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS wma_register_action_frame_patterns(WMA_HANDLE handle,
+						uint8_t vdev_id)
+{
+	tp_wma_handle wma = handle;
+	struct action_wakeup_set_param cmd = {0};
+	int32_t err;
+	int i = 0;
+
+	cmd.vdev_id = vdev_id;
+	cmd.operation = WOW_ACTION_WAKEUP_OPERATION_SET;
+
+	cmd.action_category_map[i++] = ALLOWED_ACTION_FRAMES_BITMAP0;
+	cmd.action_category_map[i++] = ALLOWED_ACTION_FRAMES_BITMAP1;
+	cmd.action_category_map[i++] = ALLOWED_ACTION_FRAMES_BITMAP2;
+	cmd.action_category_map[i++] = ALLOWED_ACTION_FRAMES_BITMAP3;
+	cmd.action_category_map[i++] = ALLOWED_ACTION_FRAMES_BITMAP4;
+	cmd.action_category_map[i++] = ALLOWED_ACTION_FRAMES_BITMAP5;
+	cmd.action_category_map[i++] = ALLOWED_ACTION_FRAMES_BITMAP6;
+	cmd.action_category_map[i++] = ALLOWED_ACTION_FRAMES_BITMAP7;
+
+	for (i = 0; i < WMI_SUPPORTED_ACTION_CATEGORY_ELE_LIST; i++) {
+		if (i < ALLOWED_ACTION_FRAME_MAP_WORDS)
+			WMA_LOGD("%s: %d action Wakeup pattern 0x%x in fw",
+				__func__, i, cmd.action_category_map[i]);
+		else
+			cmd.action_category_map[i] = 0;
+	}
+
+	err = wmi_unified_action_frame_patterns_cmd(wma->wmi_handle, &cmd);
+	if (err) {
+		WMA_LOGE("Failed to config wow action frame map, ret %d", err);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
+
+/**
  * wma_wow_sta() - set WOW patterns in sta mode
  * @wma: wma handle
  * @vdev_id: vdev id
@@ -3911,15 +3958,6 @@ QDF_STATUS wma_enable_wow_in_fw(WMA_HANDLE handle, uint32_t wow_flags)
 
 	WMA_LOGD("Credits:%d; Pending_Cmds: %d",
 		 host_credits, wmi_pending_cmds);
-
-	if (host_credits < WMI_WOW_REQUIRED_CREDITS) {
-		WMA_LOGE("%s: Host Doesn't have enough credits to Post WMI_WOW_ENABLE_CMDID! "
-			"Credits:%d, pending_cmds:%d\n", __func__, host_credits,
-			wmi_pending_cmds);
-#ifndef QCA_WIFI_3_0_EMU
-		goto error;
-#endif
-	}
 
 	param.enable = true;
 	param.can_suspend_link = htc_can_suspend_link(wma->htc_handle);

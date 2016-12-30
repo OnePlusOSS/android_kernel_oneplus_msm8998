@@ -752,6 +752,40 @@ static int32_t wma_set_priv_cfg(tp_wma_handle wma_handle,
 	}
 		break;
 
+	case WMA_VDEV_TXRX_GET_IPA_UC_SHARING_STATS_CMDID:
+	{
+		ol_txrx_pdev_handle pdev;
+		uint8_t reset_stats = privcmd->param_value;
+
+		WMA_LOGE("%s: reset_stats=%d",
+			 "WMA_VDEV_TXRX_GET_IPA_UC_SHARING_STATS_CMDID",
+			 reset_stats);
+		pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+		if (!pdev) {
+			WMA_LOGE("pdev NULL for uc stat");
+			return -EINVAL;
+		}
+		ol_txrx_ipa_uc_get_share_stats(pdev, reset_stats);
+	}
+		break;
+
+	case WMA_VDEV_TXRX_SET_IPA_UC_QUOTA_CMDID:
+	{
+		ol_txrx_pdev_handle pdev;
+		uint64_t quota_bytes = privcmd->param_value;
+
+		WMA_LOGE("%s: quota_bytes=%llu",
+			 "WMA_VDEV_TXRX_SET_IPA_UC_QUOTA_CMDID",
+			 quota_bytes);
+		pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+		if (!pdev) {
+			WMA_LOGE("pdev NULL for uc stat");
+			return -EINVAL;
+		}
+		ol_txrx_ipa_uc_set_quota(pdev, quota_bytes);
+	}
+		break;
+
 	default:
 		WMA_LOGE("Invalid wma config command id:%d", privcmd->param_id);
 		ret = -EINVAL;
@@ -943,21 +977,6 @@ static void wma_process_cli_set_cmd(tp_wma_handle wma,
 				intr[privcmd->param_vdev_id].config.
 				amsdu = privcmd->param_value;
 			break;
-		case GEN_PARAM_DUMP_AGC_START:
-			htc_dump(wma->htc_handle, AGC_DUMP, true);
-			break;
-		case GEN_PARAM_DUMP_AGC:
-			htc_dump(wma->htc_handle, AGC_DUMP, false);
-			break;
-		case GEN_PARAM_DUMP_CHANINFO_START:
-			htc_dump(wma->htc_handle, CHAN_DUMP, true);
-			break;
-		case GEN_PARAM_DUMP_CHANINFO:
-			htc_dump(wma->htc_handle, CHAN_DUMP, false);
-			break;
-		case GEN_PARAM_DUMP_WATCHDOG:
-			htc_dump(wma->htc_handle, WD_DUMP, false);
-			break;
 		case GEN_PARAM_CRASH_INJECT:
 			if (QDF_GLOBAL_FTM_MODE  == cds_get_conparam())
 				WMA_LOGE("Crash inject not allowed in FTM mode");
@@ -972,11 +991,6 @@ static void wma_process_cli_set_cmd(tp_wma_handle wma,
 		case GEN_PARAM_RESET_TSF_GPIO:
 			ret = wma_reset_tsf_gpio(wma, privcmd->param_value);
 			break;
-#ifdef CONFIG_ATH_PCIE_ACCESS_DEBUG
-		case GEN_PARAM_DUMP_PCIE_ACCESS_LOG:
-			htc_dump(wma->htc_handle, PCIE_DUMP, false);
-			break;
-#endif /* CONFIG_ATH_PCIE_ACCESS_DEBUG */
 		case GEN_PARAM_MODULATED_DTIM:
 			wma_set_modulated_dtim(wma, privcmd);
 			break;
@@ -4281,7 +4295,7 @@ static void wma_update_hdd_cfg(tp_wma_handle wma_handle)
 	tgt_cfg.wmi_max_len = wmi_get_max_msg_len(wma_handle->wmi_handle)
 			      - WMI_TLV_HEADROOM;
 	wma_setup_egap_support(&tgt_cfg, wma_handle);
-
+	tgt_cfg.fw_mem_dump_enabled = wma_handle->fw_mem_dump_enabled;
 	wma_update_hdd_cfg_ndp(wma_handle, &tgt_cfg);
 	wma_handle->tgt_cfg_update_cb(hdd_ctx, &tgt_cfg);
 }
@@ -4683,6 +4697,12 @@ int wma_rx_service_ready_event(void *handle, uint8_t *cmd_param_info,
 		}
 	}
 #endif /* WLAN_FEATURE_GTK_OFFLOAD */
+
+	if (WMI_SERVICE_IS_ENABLED(wma_handle->wmi_service_bitmap,
+				   WMI_SERVICE_FW_MEM_DUMP_SUPPORT))
+		wma_handle->fw_mem_dump_enabled = true;
+	else
+		wma_handle->fw_mem_dump_enabled = false;
 
 	status = wmi_unified_register_event_handler(wma_handle->wmi_handle,
 						    WMI_P2P_NOA_EVENTID,

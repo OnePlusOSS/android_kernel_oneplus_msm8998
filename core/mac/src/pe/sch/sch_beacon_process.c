@@ -609,7 +609,8 @@ sch_bcn_process_sta_ibss(tpAniSirGlobal mac_ctx,
 				chWidth = eHT_CHANNEL_WIDTH_20MHZ;
 			}
 			lim_check_vht_op_mode_change(mac_ctx, session,
-					chWidth, pStaDs->staIndex, pMh->sa);
+					chWidth, session->dot11mode,
+					pStaDs->staIndex, pMh->sa);
 			update_nss(mac_ctx, pStaDs, bcn, session, pMh);
 		}
 		return;
@@ -671,8 +672,9 @@ sch_bcn_process_sta_ibss(tpAniSirGlobal mac_ctx,
 				chWidth = eHT_CHANNEL_WIDTH_20MHZ;
 			}
 		}
-		lim_check_vht_op_mode_change(mac_ctx, session, chWidth,
-						pStaDs->staIndex, pMh->sa);
+		lim_check_vht_op_mode_change(mac_ctx, session,
+					chWidth, session->dot11mode,
+					pStaDs->staIndex, pMh->sa);
 	}
 	return;
 }

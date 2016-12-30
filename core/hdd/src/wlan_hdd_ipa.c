@@ -96,6 +96,11 @@ typedef enum {
 	HDD_IPA_UC_OPCODE_RX_SUSPEND = 2,
 	HDD_IPA_UC_OPCODE_RX_RESUME = 3,
 	HDD_IPA_UC_OPCODE_STATS = 4,
+#ifdef FEATURE_METERING
+	HDD_IPA_UC_OPCODE_SHARING_STATS = 5,
+	HDD_IPA_UC_OPCODE_QUOTA_RSP = 6,
+	HDD_IPA_UC_OPCODE_QUOTA_IND = 7,
+#endif
 	/* keep this last */
 	HDD_IPA_UC_OPCODE_MAX
 } hdd_ipa_uc_op_code;
@@ -271,8 +276,9 @@ struct hdd_ipa_stats {
 	uint64_t num_rx_ipa_write_done;
 	uint64_t num_max_ipa_tx_mul;
 	uint64_t num_rx_ipa_hw_maxed_out;
-	uint64_t max_pend_q_cnt;
 
+	uint64_t num_tx_desc_q_cnt;
+	uint64_t num_tx_desc_error;
 	uint64_t num_tx_comp_cnt;
 	uint64_t num_tx_queued;
 	uint64_t num_tx_dequeued;
@@ -373,6 +379,44 @@ struct uc_rt_debug_info {
 	uint64_t rx_destructor_call;
 };
 
+/**
+ * struct hdd_ipa_tx_desc
+ * @link: link to list head
+ * @priv: pointer to priv list entry
+ * @id: Tx desc idex
+ * @ipa_tx_desc_ptr: pointer to IPA Tx descriptor
+ */
+struct hdd_ipa_tx_desc {
+	struct list_head link;
+	void *priv;
+	uint32_t id;
+	struct ipa_rx_data *ipa_tx_desc_ptr;
+};
+
+#ifdef FEATURE_METERING
+struct ipa_uc_sharing_stats {
+	uint64_t ipv4_rx_packets;
+	uint64_t ipv4_rx_bytes;
+	uint64_t ipv6_rx_packets;
+	uint64_t ipv6_rx_bytes;
+	uint64_t ipv4_tx_packets;
+	uint64_t ipv4_tx_bytes;
+	uint64_t ipv6_tx_packets;
+	uint64_t ipv6_tx_bytes;
+};
+
+struct ipa_uc_quota_rsp {
+	uint8_t success;
+	uint8_t reserved[3];
+	uint32_t quota_lo;		/* quota limit low bytes */
+	uint32_t quota_hi;		/* quota limit high bytes */
+};
+
+struct ipa_uc_quota_ind {
+	uint64_t quota_bytes;		/* quota limit in bytes */
+};
+#endif
+
 struct hdd_ipa_priv {
 	struct hdd_ipa_sys_pipe sys_pipe[HDD_IPA_MAX_SYSBAM_PIPE];
 	struct hdd_ipa_iface_context iface_context[HDD_IPA_MAX_IFACE];
@@ -398,14 +442,11 @@ struct hdd_ipa_priv {
 	qdf_spinlock_t pm_lock;
 	bool suspended;
 
-	uint32_t pending_hw_desc_cnt;
-	uint32_t hw_desc_cnt;
-	spinlock_t q_lock;
-	uint32_t freeq_cnt;
-	struct list_head free_desc_head;
+	qdf_spinlock_t q_lock;
 
-	uint32_t pend_q_cnt;
 	struct list_head pend_desc_head;
+	struct hdd_ipa_tx_desc *tx_desc_list;
+	struct list_head free_tx_desc_head;
 
 	hdd_context_t *hdd_ctx;
 
@@ -448,35 +489,16 @@ struct hdd_ipa_priv {
 	/* IPA UC doorbell registers paddr */
 	qdf_dma_addr_t tx_comp_doorbell_paddr;
 	qdf_dma_addr_t rx_ready_doorbell_paddr;
-
 	uint8_t vdev_to_iface[CSR_ROAM_SESSION_MAX];
 	bool vdev_offload_enabled[CSR_ROAM_SESSION_MAX];
+#ifdef FEATURE_METERING
+	struct ipa_uc_sharing_stats ipa_sharing_stats;
+	struct ipa_uc_quota_rsp ipa_quota_rsp;
+	struct ipa_uc_quota_ind ipa_quota_ind;
+	struct completion ipa_uc_sharing_stats_comp;
+	struct completion ipa_uc_set_quota_comp;
+#endif
 };
-
-/**
- * FIXME: The following conversion routines are just stubs.
- *        They will be implemented fully by another update.
- *        The stubs will let the compile go ahead, and functionality
- *        is broken.
- * This should be OK and IPA is not enabled yet
- */
-static void *wlan_hdd_stub_priv_to_addr(uint32_t priv)
-{
-	void    *vaddr;
-	uint32_t ipa_priv = priv;
-
-	vaddr = &ipa_priv; /* just to use the var */
-	vaddr = NULL;
-	return vaddr;
-}
-
-static uint32_t wlan_hdd_stub_addr_to_priv(void *ptr)
-{
-	uint32_t       ipa_priv = 0;
-
-	BUG_ON(ptr == NULL);
-	return ipa_priv;
-}
 
 #define HDD_IPA_WLAN_FRAG_HEADER        sizeof(struct frag_header)
 #define HDD_IPA_WLAN_IPA_HEADER         sizeof(struct ipa_header)
@@ -598,6 +620,11 @@ static const char *op_string[] = {
 	"STATS",
 };
 
+#ifdef FEATURE_METERING
+#define IPA_UC_SHARING_STATES_WAIT_TIME	500
+#define IPA_UC_SET_QUOTA_WAIT_TIME	500
+#endif
+
 static struct hdd_ipa_priv *ghdd_ipa;
 
 /* Local Function Prototypes */
@@ -648,20 +675,13 @@ static inline bool hdd_ipa_uc_sta_is_enabled(hdd_context_t *hdd_ctx)
  *
  * Return: None
  */
-#ifdef IPA_UC_STA_OFFLOAD
 static inline void hdd_ipa_uc_sta_reset_sta_connected(
 		struct hdd_ipa_priv *hdd_ipa)
 {
-	vos_lock_acquire(&hdd_ipa->event_lock);
+	qdf_mutex_acquire(&hdd_ipa->ipa_lock);
 	hdd_ipa->sta_connected = 0;
-	vos_lock_release(&hdd_ipa->event_lock);
+	qdf_mutex_release(&hdd_ipa->ipa_lock);
 }
-#else
-static inline void hdd_ipa_uc_sta_reset_sta_connected(
-		struct hdd_ipa_priv *hdd_ipa)
-{
-}
-#endif
 
 /**
  * hdd_ipa_is_pre_filter_enabled() - Is IPA pre-filter enabled?
@@ -866,7 +886,8 @@ static void hdd_ipa_uc_rt_debug_handler(void *ctext)
 		hdd_alert("Dummy alloc fail");
 		hdd_ipa_uc_rt_debug_host_dump(hdd_ctx);
 		hdd_ipa_uc_stat_request(
-			hdd_get_adapter(hdd_ctx, QDF_SAP_MODE), 1);
+			hdd_get_adapter(hdd_ctx, QDF_SAP_MODE),
+			HDD_IPA_UC_STAT_REASON_DEBUG);
 	} else {
 		kfree(dummy_ptr);
 	}
@@ -1025,14 +1046,7 @@ static void hdd_ipa_dump_hdd_ipa(struct hdd_ipa_priv *hdd_ipa)
 		&hdd_ipa->pm_work,
 		&hdd_ipa->pm_lock,
 		hdd_ipa->suspended);
-	hdd_err("\npending_hw_desc_cnt: %d\n"
-		"hw_desc_cnt: %d\n"
-		"q_lock: %p\n"
-		"freeq_cnt: %d\n"
-		"free_desc_head----\n"
-		"\tnext: %p\n"
-		"\tprev: %p\n"
-		"pend_q_cnt: %d\n"
+	hdd_err("\nq_lock: %p\n"
 		"pend_desc_head----\n"
 		"\tnext: %p\n"
 		"\tprev: %p\n"
@@ -1045,13 +1059,7 @@ static void hdd_ipa_dump_hdd_ipa(struct hdd_ipa_priv *hdd_ipa)
 		"activated_fw_pipe: %d\n"
 		"sap_num_connected_sta: %d\n"
 		"sta_connected: %d\n",
-		hdd_ipa->pending_hw_desc_cnt,
-		hdd_ipa->hw_desc_cnt,
 		&hdd_ipa->q_lock,
-		hdd_ipa->freeq_cnt,
-		hdd_ipa->free_desc_head.next,
-		hdd_ipa->free_desc_head.prev,
-		hdd_ipa->pend_q_cnt,
 		hdd_ipa->pend_desc_head.next,
 		hdd_ipa->pend_desc_head.prev,
 		hdd_ipa->hdd_ctx,
@@ -1287,9 +1295,8 @@ static void __hdd_ipa_uc_stat_request(hdd_adapter_t *adapter, uint8_t reason)
 	hdd_context_t *hdd_ctx;
 	struct hdd_ipa_priv *hdd_ipa;
 
-	if (!adapter) {
+	if (!adapter)
 		return;
-	}
 
 	hdd_ctx = (hdd_context_t *)adapter->pHddCtx;
 
@@ -1307,12 +1314,14 @@ static void __hdd_ipa_uc_stat_request(hdd_adapter_t *adapter, uint8_t reason)
 	if ((HDD_IPA_UC_NUM_WDI_PIPE == hdd_ipa->activated_fw_pipe) &&
 		(false == hdd_ipa->resource_loading)) {
 		hdd_ipa->stat_req_reason = reason;
+		qdf_mutex_release(&hdd_ipa->ipa_lock);
 		wma_cli_set_command(
 			(int)adapter->sessionId,
 			(int)WMA_VDEV_TXRX_GET_IPA_UC_FW_STATS_CMDID,
 			0, VDEV_CMD);
+	} else {
+		qdf_mutex_release(&hdd_ipa->ipa_lock);
 	}
-	qdf_mutex_release(&hdd_ipa->ipa_lock);
 }
 
 /**
@@ -1328,6 +1337,85 @@ void hdd_ipa_uc_stat_request(hdd_adapter_t *adapter, uint8_t reason)
 	__hdd_ipa_uc_stat_request(adapter, reason);
 	cds_ssr_unprotect(__func__);
 }
+
+#ifdef FEATURE_METERING
+/**
+ * hdd_ipa_uc_sharing_stats_request() - Get IPA stats from IPA.
+ * @adapter: network adapter
+ * @reset_stats: reset stat countis after response
+ *
+ * Return: None
+ */
+void hdd_ipa_uc_sharing_stats_request(hdd_adapter_t *adapter,
+				      uint8_t reset_stats)
+{
+	hdd_context_t *pHddCtx;
+	struct hdd_ipa_priv *hdd_ipa;
+
+	if (!adapter)
+		return;
+
+	pHddCtx = adapter->pHddCtx;
+	hdd_ipa = pHddCtx->hdd_ipa;
+	if (!hdd_ipa_is_enabled(pHddCtx) ||
+		!(hdd_ipa_uc_is_enabled(pHddCtx))) {
+		return;
+	}
+
+	HDD_IPA_LOG(LOG1, "SHARING_STATS: reset_stats=%d", reset_stats);
+	qdf_mutex_acquire(&hdd_ipa->ipa_lock);
+	if ((HDD_IPA_UC_NUM_WDI_PIPE == hdd_ipa->activated_fw_pipe) &&
+		(false == hdd_ipa->resource_loading)) {
+		qdf_mutex_release(&hdd_ipa->ipa_lock);
+		wma_cli_set_command(
+			(int)adapter->sessionId,
+			(int)WMA_VDEV_TXRX_GET_IPA_UC_SHARING_STATS_CMDID,
+			reset_stats, VDEV_CMD);
+	} else {
+		qdf_mutex_release(&hdd_ipa->ipa_lock);
+	}
+}
+
+/**
+ * hdd_ipa_uc_set_quota() - Set quota limit bytes from IPA.
+ * @adapter: network adapter
+ * @set_quota: when 1, FW starts quota monitoring
+ * @quota_bytes: quota limit in bytes
+ *
+ * Return: None
+ */
+void hdd_ipa_uc_set_quota(hdd_adapter_t *adapter, uint8_t set_quota,
+			  uint64_t quota_bytes)
+{
+	hdd_context_t *pHddCtx;
+	struct hdd_ipa_priv *hdd_ipa;
+
+	if (!adapter)
+		return;
+
+	pHddCtx = adapter->pHddCtx;
+	hdd_ipa = pHddCtx->hdd_ipa;
+	if (!hdd_ipa_is_enabled(pHddCtx) ||
+		!(hdd_ipa_uc_is_enabled(pHddCtx))) {
+		return;
+	}
+
+	HDD_IPA_LOG(LOG1, "SET_QUOTA: set_quota=%d, quota_bytes=%llu",
+		    set_quota, quota_bytes);
+
+	qdf_mutex_acquire(&hdd_ipa->ipa_lock);
+	if ((HDD_IPA_UC_NUM_WDI_PIPE == hdd_ipa->activated_fw_pipe) &&
+		(false == hdd_ipa->resource_loading)) {
+		qdf_mutex_release(&hdd_ipa->ipa_lock);
+		wma_cli_set_command(
+			(int)adapter->sessionId,
+			(int)WMA_VDEV_TXRX_SET_IPA_UC_QUOTA_CMDID,
+			(set_quota ? quota_bytes : 0), VDEV_CMD);
+	} else {
+		qdf_mutex_release(&hdd_ipa->ipa_lock);
+	}
+}
+#endif
 
 /**
  * hdd_ipa_uc_find_add_assoc_sta() - Find associated station
@@ -1637,6 +1725,97 @@ static void hdd_ipa_uc_rm_notify_defer(struct work_struct *work)
 }
 
 /**
+ * hdd_ipa_uc_op_metering() - IPA uC operation for stats and quota limit
+ * @hdd_ctx: Global HDD context
+ * @op_msg: operation message received from firmware
+ *
+ * Return: QDF_STATUS enumeration
+ */
+#ifdef FEATURE_METERING
+static QDF_STATUS hdd_ipa_uc_op_metering(hdd_context_t *hdd_ctx,
+					 struct op_msg_type *op_msg)
+{
+	struct op_msg_type *msg = op_msg;
+	struct ipa_uc_sharing_stats *uc_sharing_stats;
+	struct ipa_uc_quota_rsp *uc_quota_rsp;
+	struct ipa_uc_quota_ind *uc_quota_ind;
+	struct hdd_ipa_priv *hdd_ipa;
+	hdd_adapter_t *adapter;
+
+	hdd_ipa = (struct hdd_ipa_priv *)hdd_ctx->hdd_ipa;
+
+	if (HDD_IPA_UC_OPCODE_SHARING_STATS == msg->op_code) {
+		/* fill-up ipa_uc_sharing_stats structure from FW */
+		uc_sharing_stats = (struct ipa_uc_sharing_stats *)
+			     ((uint8_t *)op_msg + sizeof(struct op_msg_type));
+
+		memcpy(&(hdd_ipa->ipa_sharing_stats), uc_sharing_stats,
+		       sizeof(struct ipa_uc_sharing_stats));
+
+		complete(&hdd_ipa->ipa_uc_sharing_stats_comp);
+
+		HDD_IPA_DP_LOG(QDF_TRACE_LEVEL_DEBUG,
+			       "%s: %llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu",
+			       "HDD_IPA_UC_OPCODE_SHARING_STATS",
+			       hdd_ipa->ipa_sharing_stats.ipv4_rx_packets,
+			       hdd_ipa->ipa_sharing_stats.ipv4_rx_bytes,
+			       hdd_ipa->ipa_sharing_stats.ipv6_rx_packets,
+			       hdd_ipa->ipa_sharing_stats.ipv6_rx_bytes,
+			       hdd_ipa->ipa_sharing_stats.ipv4_tx_packets,
+			       hdd_ipa->ipa_sharing_stats.ipv4_tx_bytes,
+			       hdd_ipa->ipa_sharing_stats.ipv6_tx_packets,
+			       hdd_ipa->ipa_sharing_stats.ipv6_tx_bytes);
+	} else if (HDD_IPA_UC_OPCODE_QUOTA_RSP == msg->op_code) {
+		/* received set quota response */
+		uc_quota_rsp = (struct ipa_uc_quota_rsp *)
+			     ((uint8_t *)op_msg + sizeof(struct op_msg_type));
+
+		memcpy(&(hdd_ipa->ipa_quota_rsp), uc_quota_rsp,
+			   sizeof(struct ipa_uc_quota_rsp));
+
+		complete(&hdd_ipa->ipa_uc_set_quota_comp);
+		HDD_IPA_DP_LOG(QDF_TRACE_LEVEL_DEBUG,
+			      "%s: success=%d, quota_bytes=%llu",
+			      "HDD_IPA_UC_OPCODE_QUOTA_RSP",
+			      hdd_ipa->ipa_quota_rsp.success,
+			      ((uint64_t)(hdd_ipa->ipa_quota_rsp.quota_hi)<<32)|
+			      hdd_ipa->ipa_quota_rsp.quota_lo);
+	} else if (HDD_IPA_UC_OPCODE_QUOTA_IND == msg->op_code) {
+		/* hit quota limit */
+		uc_quota_ind = (struct ipa_uc_quota_ind *)
+			     ((uint8_t *)op_msg + sizeof(struct op_msg_type));
+
+		hdd_ipa->ipa_quota_ind.quota_bytes =
+					uc_quota_ind->quota_bytes;
+
+		/* send quota exceeded indication to IPA */
+		HDD_IPA_DP_LOG(QDF_TRACE_LEVEL_DEBUG,
+			"OPCODE_QUOTA_IND: quota exceed! (quota_bytes=%llu)",
+			hdd_ipa->ipa_quota_ind.quota_bytes);
+
+		adapter = hdd_get_adapter(hdd_ipa->hdd_ctx, QDF_STA_MODE);
+		if (adapter)
+			ipa_broadcast_wdi_quota_reach_ind(
+						adapter->dev->ifindex,
+						uc_quota_ind->quota_bytes);
+		else
+			HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,
+					"Failed quota_reach_ind: NULL adapter");
+	} else {
+		return QDF_STATUS_E_INVAL;
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
+#else
+static QDF_STATUS hdd_ipa_uc_op_metering(hdd_context_t *hdd_ctx,
+					 struct op_msg_type *op_msg)
+{
+	return QDF_STATUS_E_INVAL;
+}
+#endif
+
+/**
  * hdd_ipa_uc_op_cb() - IPA uC operation callback
  * @op_msg: operation message received from firmware
  * @usr_ctxt: user context registered with TL (we register the HDD Global
@@ -1678,7 +1857,7 @@ static void hdd_ipa_uc_op_cb(struct op_msg_type *op_msg, void *usr_ctxt)
 	hdd_ipa = (struct hdd_ipa_priv *)hdd_ctx->hdd_ipa;
 
 	HDD_IPA_DP_LOG(QDF_TRACE_LEVEL_DEBUG,
-		    "%s, OPCODE %s", __func__, op_string[msg->op_code]);
+		       "OPCODE %s", op_string[msg->op_code]);
 
 	if ((HDD_IPA_UC_OPCODE_TX_RESUME == msg->op_code) ||
 	    (HDD_IPA_UC_OPCODE_RX_RESUME == msg->op_code)) {
@@ -1911,7 +2090,7 @@ static void hdd_ipa_uc_op_cb(struct op_msg_type *op_msg, void *usr_ctxt)
 			uc_fw_stat->rx_num_ind_drop_no_buf +
 			uc_fw_stat->rx_num_pkts_indicated);
 		qdf_mutex_release(&hdd_ipa->ipa_lock);
-	} else {
+	} else if (hdd_ipa_uc_op_metering(hdd_ctx, op_msg)) {
 		HDD_IPA_LOG(LOGE, "Invalid message: op_code=%d, reason=%d",
 			    msg->op_code, hdd_ipa->stat_req_reason);
 	}
@@ -2070,11 +2249,164 @@ end:
  * Return: none
  */
 static void hdd_ipa_init_uc_op_work(struct work_struct *work,
-					work_func_t work_handler)
+				    work_func_t work_handler)
 {
 	INIT_WORK(work, work_handler);
 }
 
+#ifdef FEATURE_METERING
+/**
+ * __hdd_ipa_wdi_meter_notifier_cb() - WLAN to IPA callback handler.
+ * IPA calls to get WLAN stats or set quota limit.
+ * @priv: pointer to private data registered with IPA (we register a
+ *»       pointer to the global IPA context)
+ * @evt: the IPA event which triggered the callback
+ * @data: data associated with the event
+ *
+ * Return: None
+ */
+static void __hdd_ipa_wdi_meter_notifier_cb(enum ipa_wdi_meter_evt_type evt,
+					  void *data)
+{
+	struct hdd_ipa_priv *hdd_ipa = ghdd_ipa;
+	hdd_adapter_t *adapter = NULL;
+	struct ipa_get_wdi_sap_stats *wdi_sap_stats;
+	struct ipa_set_wifi_quota *ipa_set_quota;
+	int ret = 0;
+
+	if (wlan_hdd_validate_context(hdd_ipa->hdd_ctx))
+		return;
+
+	adapter = hdd_get_adapter(hdd_ipa->hdd_ctx, QDF_STA_MODE);
+
+	HDD_IPA_LOG(QDF_TRACE_LEVEL_INFO, "event=%d", evt);
+
+	switch (evt) {
+	case IPA_GET_WDI_SAP_STATS:
+		/* fill-up ipa_get_wdi_sap_stats structure after getting
+		   ipa_uc_fw_stats from FW */
+		wdi_sap_stats = data;
+
+		if (!adapter) {
+			HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,
+				"IPA uC share stats failed - no adapter");
+			wdi_sap_stats->stats_valid = 0;
+			return;
+		}
+
+		INIT_COMPLETION(hdd_ipa->ipa_uc_sharing_stats_comp);
+		INIT_COMPLETION(hdd_ipa->ipa_uc_set_quota_comp);
+		hdd_ipa_uc_sharing_stats_request(adapter,
+					     wdi_sap_stats->reset_stats);
+		ret = wait_for_completion_timeout(
+			&hdd_ipa->ipa_uc_sharing_stats_comp,
+			msecs_to_jiffies(IPA_UC_SHARING_STATES_WAIT_TIME));
+		if (!ret) {
+			HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,
+					"IPA uC share stats request timed out");
+			wdi_sap_stats->stats_valid = 0;
+		} else {
+			wdi_sap_stats->stats_valid = 1;
+
+			wdi_sap_stats->ipv4_rx_packets =
+				hdd_ipa->ipa_sharing_stats.ipv4_rx_packets;
+			wdi_sap_stats->ipv4_rx_bytes =
+				hdd_ipa->ipa_sharing_stats.ipv4_rx_bytes;
+			wdi_sap_stats->ipv6_rx_packets =
+				hdd_ipa->ipa_sharing_stats.ipv6_rx_packets;
+			wdi_sap_stats->ipv6_rx_bytes =
+				hdd_ipa->ipa_sharing_stats.ipv6_rx_bytes;
+			wdi_sap_stats->ipv4_tx_packets =
+				hdd_ipa->ipa_sharing_stats.ipv4_tx_packets;
+			wdi_sap_stats->ipv4_tx_bytes =
+				hdd_ipa->ipa_sharing_stats.ipv4_tx_bytes;
+			wdi_sap_stats->ipv6_tx_packets =
+				hdd_ipa->ipa_sharing_stats.ipv6_tx_packets;
+			wdi_sap_stats->ipv6_tx_bytes =
+				hdd_ipa->ipa_sharing_stats.ipv6_tx_bytes;
+			HDD_IPA_DP_LOG(QDF_TRACE_LEVEL_DEBUG,
+				"%s:%d,%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu",
+				"IPA_GET_WDI_SAP_STATS",
+				wdi_sap_stats->stats_valid,
+				wdi_sap_stats->ipv4_rx_packets,
+				wdi_sap_stats->ipv4_rx_bytes,
+				wdi_sap_stats->ipv6_rx_packets,
+				wdi_sap_stats->ipv6_rx_bytes,
+				wdi_sap_stats->ipv4_tx_packets,
+				wdi_sap_stats->ipv4_tx_bytes,
+				wdi_sap_stats->ipv6_tx_packets,
+				wdi_sap_stats->ipv6_tx_bytes);
+		}
+		break;
+	case IPA_SET_WIFI_QUOTA:
+		/* get ipa_set_wifi_quota structure from IPA and pass to FW
+		   through quota_exceeded field in ipa_uc_fw_stats */
+		ipa_set_quota = data;
+
+		if (!adapter) {
+			HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,
+				"IPA uC set quota failed - no adapter");
+			ipa_set_quota->set_valid = 0;
+			return;
+		}
+
+		hdd_ipa_uc_set_quota(adapter, ipa_set_quota->set_quota,
+				     ipa_set_quota->quota_bytes);
+
+		ret = wait_for_completion_timeout(
+				&hdd_ipa->ipa_uc_set_quota_comp,
+				msecs_to_jiffies(IPA_UC_SET_QUOTA_WAIT_TIME));
+		if (!ret) {
+			HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,
+					"IPA uC set quota request timed out");
+			ipa_set_quota->set_valid = 0;
+		} else {
+			ipa_set_quota->quota_bytes =
+				((uint64_t)(hdd_ipa->ipa_quota_rsp.quota_hi)
+				  <<32)|hdd_ipa->ipa_quota_rsp.quota_lo;
+			ipa_set_quota->set_valid =
+				hdd_ipa->ipa_quota_rsp.success;
+		}
+
+		HDD_IPA_DP_LOG(QDF_TRACE_LEVEL_DEBUG, "SET_QUOTA: %llu, %d",
+			       ipa_set_quota->quota_bytes,
+			       ipa_set_quota->set_valid);
+		break;
+	}
+}
+
+/**
+ * hdd_ipa_wdi_meter_notifier_cb() - WLAN to IPA callback handler.
+ * IPA calls to get WLAN stats or set quota limit.
+ * @priv: pointer to private data registered with IPA (we register a
+ *»       pointer to the global IPA context)
+ * @evt: the IPA event which triggered the callback
+ * @data: data associated with the event
+ *
+ * Return: None
+ */
+static void hdd_ipa_wdi_meter_notifier_cb(enum ipa_wdi_meter_evt_type evt,
+					  void *data)
+{
+	cds_ssr_protect(__func__);
+	__hdd_ipa_wdi_meter_notifier_cb(evt, data);
+	cds_ssr_unprotect(__func__);
+}
+
+static void hdd_ipa_init_metering(struct hdd_ipa_priv *ipa_ctxt,
+				  struct ipa_wdi_in_params *pipe_in)
+{
+	pipe_in->wdi_notify = hdd_ipa_wdi_meter_notifier_cb;
+
+	init_completion(&ipa_ctxt->ipa_uc_sharing_stats_comp);
+	init_completion(&ipa_ctxt->ipa_uc_set_quota_comp);
+}
+#else
+static void hdd_ipa_init_metering(struct hdd_ipa_priv *ipa_ctxt,
+				  struct ipa_wdi_in_params *pipe_in)
+{
+}
+#endif
 
 /**
  * hdd_ipa_uc_ol_init() - Initialize IPA uC offload
@@ -2131,12 +2463,14 @@ static QDF_STATUS hdd_ipa_uc_ol_init(hdd_context_t *hdd_ctx)
 
 	/* Connect WDI IPA PIPE */
 	ipa_connect_wdi_pipe(&pipe_in, &pipe_out);
+
 	/* Micro Controller Doorbell register */
 	HDD_IPA_LOG(QDF_TRACE_LEVEL_INFO_HIGH,
 		"%s CONS DB pipe out 0x%x TX PIPE Handle 0x%x",
 		__func__, (unsigned int)pipe_out.uc_door_bell_pa,
 		ipa_ctxt->tx_pipe_handle);
 	ipa_ctxt->tx_comp_doorbell_paddr = pipe_out.uc_door_bell_pa;
+
 	/* WLAN TX PIPE Handle */
 	ipa_ctxt->tx_pipe_handle = pipe_out.clnt_hdl;
 	HDD_IPA_LOG(QDF_TRACE_LEVEL_INFO_HIGH,
@@ -2173,7 +2507,11 @@ static QDF_STATUS hdd_ipa_uc_ol_init(hdd_context_t *hdd_ctx)
 	pipe_in.u.ul.rdy_ring_rp_pa =
 		 ipa_ctxt->ipa_resource.rx_proc_done_idx_paddr;
 	HDD_IPA_WDI2_SET(pipe_in, ipa_ctxt);
+
+	hdd_ipa_init_metering(ipa_ctxt, &pipe_in);
+
 	ipa_connect_wdi_pipe(&pipe_in, &pipe_out);
+
 	ipa_ctxt->rx_ready_doorbell_paddr = pipe_out.uc_door_bell_pa;
 	ipa_ctxt->rx_pipe_handle = pipe_out.clnt_hdl;
 	HDD_IPA_LOG(QDF_TRACE_LEVEL_INFO_HIGH,
@@ -2630,14 +2968,6 @@ static int hdd_ipa_rm_try_release(struct hdd_ipa_priv *hdd_ipa)
 
 	if (atomic_read(&hdd_ipa->tx_ref_cnt))
 		return -EAGAIN;
-
-	spin_lock_bh(&hdd_ipa->q_lock);
-	if (!hdd_ipa_uc_sta_is_enabled(hdd_ipa->hdd_ctx) &&
-		(hdd_ipa->pending_hw_desc_cnt || hdd_ipa->pend_q_cnt)) {
-		spin_unlock_bh(&hdd_ipa->q_lock);
-		return -EAGAIN;
-	}
-	spin_unlock_bh(&hdd_ipa->q_lock);
 
 	qdf_spin_lock_bh(&hdd_ipa->pm_lock);
 
@@ -3165,7 +3495,7 @@ static enum hdd_ipa_forward_type hdd_ipa_intrabss_forward(
 }
 
 /**
- * hdd_ipa_w2i_cb() - WLAN to IPA callback handler
+ * __hdd_ipa_w2i_cb() - WLAN to IPA callback handler
  * @priv: pointer to private data registered with IPA (we register a
  *	pointer to the global IPA context)
  * @evt: the IPA event which triggered the callback
@@ -3304,12 +3634,31 @@ static void hdd_ipa_w2i_cb(void *priv, enum ipa_dp_evt_type evt,
 void hdd_ipa_nbuf_cb(qdf_nbuf_t skb)
 {
 	struct hdd_ipa_priv *hdd_ipa = ghdd_ipa;
+	struct ipa_rx_data *ipa_tx_desc;
+	struct hdd_ipa_tx_desc *tx_desc;
+	uint16_t id;
 
-	HDD_IPA_DP_LOG(QDF_TRACE_LEVEL_DEBUG, "%p",
-		wlan_hdd_stub_priv_to_addr(QDF_NBUF_CB_TX_IPA_PRIV(skb)));
-	/* FIXME: This is broken; PRIV_DATA is now 31 bits */
-	ipa_free_skb((struct ipa_rx_data *)
-		wlan_hdd_stub_priv_to_addr(QDF_NBUF_CB_TX_IPA_PRIV(skb)));
+	HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "%x", QDF_NBUF_CB_TX_IPA_PRIV(skb));
+
+	if (!qdf_nbuf_ipa_owned_get(skb)) {
+		dev_kfree_skb_any(skb);
+		return;
+	}
+
+	/* Get Tx desc pointer from SKB CB */
+	id = QDF_NBUF_CB_TX_IPA_PRIV(skb);
+	tx_desc = hdd_ipa->tx_desc_list + id;
+	ipa_tx_desc = tx_desc->ipa_tx_desc_ptr;
+
+	/* Return Tx Desc to IPA */
+	ipa_free_skb(ipa_tx_desc);
+
+	/* Return to free tx desc list */
+	qdf_spin_lock_bh(&hdd_ipa->q_lock);
+	tx_desc->ipa_tx_desc_ptr = NULL;
+	list_add_tail(&tx_desc->link, &hdd_ipa->free_tx_desc_head);
+	hdd_ipa->stats.num_tx_desc_q_cnt--;
+	qdf_spin_unlock_bh(&hdd_ipa->q_lock);
 
 	hdd_ipa->stats.num_tx_comp_cnt++;
 
@@ -3332,6 +3681,7 @@ static void hdd_ipa_send_pkt_to_tl(
 	struct hdd_ipa_priv *hdd_ipa = iface_context->hdd_ipa;
 	hdd_adapter_t *adapter = NULL;
 	qdf_nbuf_t skb;
+	struct hdd_ipa_tx_desc *tx_desc;
 
 	qdf_spin_lock_bh(&iface_context->interface_lock);
 	adapter = iface_context->adapter;
@@ -3363,9 +3713,9 @@ static void hdd_ipa_send_pkt_to_tl(
 	skb = ipa_tx_desc->skb;
 
 	qdf_mem_set(skb->cb, sizeof(skb->cb), 0);
+
+	/* Store IPA Tx buffer ownership into SKB CB */
 	qdf_nbuf_ipa_owned_set(skb);
-	/* FIXME: This is broken. No such field in cb any more:
-	   NBUF_CALLBACK_FN(skb) = hdd_ipa_nbuf_cb; */
 	if (hdd_ipa_uc_sta_is_enabled(hdd_ipa->hdd_ctx)) {
 		qdf_nbuf_mapped_paddr_set(skb,
 					  ipa_tx_desc->dma_addr
@@ -3376,8 +3726,25 @@ static void hdd_ipa_send_pkt_to_tl(
 	} else
 		qdf_nbuf_mapped_paddr_set(skb, ipa_tx_desc->dma_addr);
 
-	/* FIXME: This is broken: priv_data is 31 bits */
-	qdf_nbuf_ipa_priv_set(skb, wlan_hdd_stub_addr_to_priv(ipa_tx_desc));
+	qdf_spin_lock_bh(&hdd_ipa->q_lock);
+	/* get free Tx desc and assign ipa_tx_desc pointer */
+	if (!list_empty(&hdd_ipa->free_tx_desc_head)) {
+		tx_desc = list_first_entry(&hdd_ipa->free_tx_desc_head,
+					   struct hdd_ipa_tx_desc, link);
+		list_del(&tx_desc->link);
+		tx_desc->ipa_tx_desc_ptr = ipa_tx_desc;
+		hdd_ipa->stats.num_tx_desc_q_cnt++;
+		qdf_spin_unlock_bh(&hdd_ipa->q_lock);
+		/* Store Tx Desc index into SKB CB */
+		QDF_NBUF_CB_TX_IPA_PRIV(skb) = tx_desc->id;
+	} else {
+		hdd_ipa->stats.num_tx_desc_error++;
+		qdf_spin_unlock_bh(&hdd_ipa->q_lock);
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR, "No free Tx desc!");
+		ipa_free_skb(ipa_tx_desc);
+		hdd_ipa_rm_try_release(hdd_ipa);
+		return;
+	}
 
 	adapter->stats.tx_bytes += ipa_tx_desc->skb->len;
 
@@ -3394,7 +3761,6 @@ static void hdd_ipa_send_pkt_to_tl(
 	atomic_inc(&hdd_ipa->tx_ref_cnt);
 
 	iface_context->stats.num_tx++;
-
 }
 
 /**
@@ -3672,6 +4038,49 @@ int hdd_ipa_resume(hdd_context_t *hdd_ctx)
 }
 
 /**
+ * hdd_ipa_alloc_tx_desc_list() - Allocate IPA Tx desc list
+ * @hdd_ipa: Global HDD IPA context
+ *
+ * Return: 0 on success, negative errno on error
+ */
+static int hdd_ipa_alloc_tx_desc_list(struct hdd_ipa_priv *hdd_ipa)
+{
+	int i;
+	uint32_t max_desc_cnt;
+	struct hdd_ipa_tx_desc *tmp_desc;
+
+	max_desc_cnt = hdd_ipa->hdd_ctx->config->IpaUcTxBufCount;
+
+	INIT_LIST_HEAD(&hdd_ipa->free_tx_desc_head);
+
+	tmp_desc = qdf_mem_malloc(sizeof(struct hdd_ipa_tx_desc)*max_desc_cnt);
+
+	if (!tmp_desc) {
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,
+			    "Free Tx descriptor allocation failed");
+		return -ENOMEM;
+	}
+
+	hdd_ipa->tx_desc_list = tmp_desc;
+
+	qdf_spin_lock_bh(&hdd_ipa->q_lock);
+	for (i = 0; i < max_desc_cnt; i++) {
+		tmp_desc->id = i;
+		tmp_desc->ipa_tx_desc_ptr = NULL;
+		list_add_tail(&tmp_desc->link,
+			      &hdd_ipa->free_tx_desc_head);
+		tmp_desc++;
+	}
+
+	hdd_ipa->stats.num_tx_desc_q_cnt = 0;
+	hdd_ipa->stats.num_tx_desc_error = 0;
+
+	qdf_spin_unlock_bh(&hdd_ipa->q_lock);
+
+	return 0;
+}
+
+/**
  * hdd_ipa_setup_sys_pipe() - Setup all IPA Sys pipes
  * @hdd_ipa: Global HDD IPA context
  *
@@ -3763,6 +4172,11 @@ static int hdd_ipa_setup_sys_pipe(struct hdd_ipa_priv *hdd_ipa)
 		hdd_ipa->sys_pipe[HDD_IPA_RX_PIPE].conn_hdl_valid = 1;
 	}
 
+       /* Allocate free Tx desc list */
+	ret = hdd_ipa_alloc_tx_desc_list(hdd_ipa);
+	if (ret)
+		goto setup_sys_pipe_fail;
+
 	return ret;
 
 setup_sys_pipe_fail:
@@ -3785,6 +4199,10 @@ setup_sys_pipe_fail:
 static void hdd_ipa_teardown_sys_pipe(struct hdd_ipa_priv *hdd_ipa)
 {
 	int ret = 0, i;
+	uint32_t max_desc_cnt;
+	struct hdd_ipa_tx_desc *tmp_desc;
+	struct ipa_rx_data *ipa_tx_desc;
+
 	for (i = 0; i < HDD_IPA_MAX_SYSBAM_PIPE; i++) {
 		if (hdd_ipa->sys_pipe[i].conn_hdl_valid) {
 			ret =
@@ -3796,6 +4214,24 @@ static void hdd_ipa_teardown_sys_pipe(struct hdd_ipa_priv *hdd_ipa)
 
 			hdd_ipa->sys_pipe[i].conn_hdl_valid = 0;
 		}
+	}
+
+	if (hdd_ipa->tx_desc_list) {
+		max_desc_cnt = hdd_ipa->hdd_ctx->config->IpaUcTxBufCount;
+
+		qdf_spin_lock_bh(&hdd_ipa->q_lock);
+		for (i = 0; i < max_desc_cnt; i++) {
+			tmp_desc = hdd_ipa->tx_desc_list + i;
+			ipa_tx_desc = tmp_desc->ipa_tx_desc_ptr;
+			if (ipa_tx_desc)
+				ipa_free_skb(ipa_tx_desc);
+		}
+		tmp_desc = hdd_ipa->tx_desc_list;
+		hdd_ipa->tx_desc_list = NULL;
+		hdd_ipa->stats.num_tx_desc_q_cnt = 0;
+		hdd_ipa->stats.num_tx_desc_error = 0;
+		qdf_spin_unlock_bh(&hdd_ipa->q_lock);
+		qdf_mem_free(tmp_desc);
 	}
 }
 
@@ -3898,6 +4334,9 @@ static int hdd_ipa_register_interface(struct hdd_ipa_priv *hdd_ipa,
 
 	/* Call the ipa api to register interface */
 	ret = ipa_register_intf(ifname, &tx_intf, &rx_intf);
+
+	/* Register IPA Tx desc free callback */
+	qdf_nbuf_reg_free_cb(hdd_ipa_nbuf_cb);
 
 register_interface_fail:
 	qdf_mem_free(tx_prop);
@@ -4956,6 +5395,7 @@ static QDF_STATUS __hdd_ipa_init(hdd_context_t *hdd_ctx)
 
 	INIT_WORK(&hdd_ipa->pm_work, hdd_ipa_pm_flush);
 	qdf_spinlock_create(&hdd_ipa->pm_lock);
+	qdf_spinlock_create(&hdd_ipa->q_lock);
 	qdf_nbuf_queue_init(&hdd_ipa->pm_queue_head);
 
 	ret = hdd_ipa_setup_rm(hdd_ipa);
@@ -5085,6 +5525,7 @@ static QDF_STATUS __hdd_ipa_cleanup(hdd_context_t *hdd_ctx)
 	qdf_spin_unlock_bh(&hdd_ipa->pm_lock);
 
 	qdf_spinlock_destroy(&hdd_ipa->pm_lock);
+	qdf_spinlock_destroy(&hdd_ipa->q_lock);
 
 	/* destory the interface lock */
 	for (i = 0; i < HDD_IPA_MAX_IFACE; i++) {
@@ -5092,24 +5533,6 @@ static QDF_STATUS __hdd_ipa_cleanup(hdd_context_t *hdd_ctx)
 		qdf_spinlock_destroy(&iface_context->interface_lock);
 	}
 
-	/* This should never hit but still make sure that there are no pending
-	 * descriptor in IPA hardware
-	 */
-	if (hdd_ipa->pending_hw_desc_cnt != 0) {
-		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,
-			    "IPA Pending write done: %d Waiting!",
-			    hdd_ipa->pending_hw_desc_cnt);
-
-		for (i = 0; hdd_ipa->pending_hw_desc_cnt != 0 && i < 10; i++) {
-			usleep_range(100, 100);
-		}
-
-		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,
-			    "IPA Pending write done: desc: %d %s(%d)!",
-			    hdd_ipa->pending_hw_desc_cnt,
-			    hdd_ipa->pending_hw_desc_cnt == 0 ? "completed"
-			    : "leak", i);
-	}
 	if (hdd_ipa_uc_is_enabled(hdd_ctx)) {
 		hdd_ipa_uc_rt_debug_deinit(hdd_ctx);
 		HDD_IPA_LOG(QDF_TRACE_LEVEL_INFO,

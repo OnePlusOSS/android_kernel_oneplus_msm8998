@@ -430,8 +430,8 @@ ol_rx_reorder_store_frag(ol_txrx_pdev_handle pdev,
 	more_frag = mac_hdr->i_fc[1] & IEEE80211_FC1_MORE_FRAG;
 
 	if ((!more_frag) && (!fragno) && (!rx_reorder_array_elem->head)) {
-		rx_reorder_array_elem->head = frag;
-		rx_reorder_array_elem->tail = frag;
+	ol_rx_fraglist_insert(htt_pdev, &rx_reorder_array_elem->head,
+		&rx_reorder_array_elem->tail, frag, &all_frag_present);
 		qdf_nbuf_set_next(frag, NULL);
 		ol_rx_defrag(pdev, peer, tid, rx_reorder_array_elem->head);
 		rx_reorder_array_elem->head = NULL;

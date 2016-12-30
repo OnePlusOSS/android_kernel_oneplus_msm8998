@@ -3910,8 +3910,7 @@ end:
 			       smesessionId, smetransactionId);
 }
 
-static void lim_process_sme_addts_rsp_timeout(tpAniSirGlobal pMac,
-					      uint32_t param)
+void lim_process_sme_addts_rsp_timeout(tpAniSirGlobal pMac, uint32_t param)
 {
 	/* fetch the sessionEntry based on the sessionId */
 	tpPESession psessionEntry;
@@ -4436,6 +4435,7 @@ static void __lim_process_sme_set_ht2040_mode(tpAniSirGlobal pMac,
 			qdf_mem_copy(pHtOpMode->peer_mac, &pStaDs->staAddr,
 				     sizeof(tSirMacAddr));
 			pHtOpMode->smesessionId = sessionId;
+			pHtOpMode->dot11_mode = psessionEntry->dot11mode;
 
 			msg.type = WMA_UPDATE_OP_MODE;
 			msg.reserved = 0;

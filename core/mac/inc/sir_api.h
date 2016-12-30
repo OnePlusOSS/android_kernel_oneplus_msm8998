@@ -2961,6 +2961,59 @@ typedef struct {
 } tSirPrefNetworkFoundInd, *tpSirPrefNetworkFoundInd;
 #endif /* FEATURE_WLAN_SCAN_PNO */
 
+/*
+ * ALLOWED_ACTION_FRAMES_BITMAP
+ *
+ * Bitmask is based on the below. The frames with 0's
+ * set to their corresponding bit can be dropped in FW.
+ *
+ * -----------------------------+-----+-------+
+ *         Type                 | Bit | Allow |
+ * -----------------------------+-----+-------+
+ * SIR_MAC_ACTION_SPECTRUM_MGMT    0      1
+ * SIR_MAC_ACTION_QOS_MGMT         1      1
+ * SIR_MAC_ACTION_DLP              2      0
+ * SIR_MAC_ACTION_BLKACK           3      0
+ * SIR_MAC_ACTION_PUBLIC_USAGE     4      1
+ * SIR_MAC_ACTION_RRM              5      1
+ * SIR_MAC_ACTION_FAST_BSS_TRNST   6      0
+ * SIR_MAC_ACTION_HT               7      0
+ * SIR_MAC_ACTION_SA_QUERY         8      1
+ * SIR_MAC_ACTION_PROT_DUAL_PUB    9      1
+ * SIR_MAC_ACTION_WNM             10      1
+ * SIR_MAC_ACTION_UNPROT_WNM      11      0
+ * SIR_MAC_ACTION_TDLS            12      0
+ * SIR_MAC_ACITON_MESH            13      0
+ * SIR_MAC_ACTION_MHF             14      0
+ * SIR_MAC_SELF_PROTECTED         15      0
+ * SIR_MAC_ACTION_WME             17      1
+ * SIR_MAC_ACTION_FST             18      1
+ * SIR_MAC_ACTION_VHT             21      1
+ * ----------------------------+------+-------+
+ */
+#define ALLOWED_ACTION_FRAMES_BITMAP0 \
+		((1 << SIR_MAC_ACTION_SPECTRUM_MGMT) | \
+		 (1 << SIR_MAC_ACTION_QOS_MGMT) | \
+		 (1 << SIR_MAC_ACTION_PUBLIC_USAGE) | \
+		 (1 << SIR_MAC_ACTION_RRM) | \
+		 (1 << SIR_MAC_ACTION_SA_QUERY) | \
+		 (1 << SIR_MAC_ACTION_PROT_DUAL_PUB) | \
+		 (1 << SIR_MAC_ACTION_WNM) | \
+		 (1 << SIR_MAC_ACTION_WME) | \
+		 (1 << SIR_MAC_ACTION_FST) | \
+		 (1 << SIR_MAC_ACTION_VHT))
+
+#define ALLOWED_ACTION_FRAMES_BITMAP1   0x0
+#define ALLOWED_ACTION_FRAMES_BITMAP2   0x0
+#define ALLOWED_ACTION_FRAMES_BITMAP3   0x0
+#define ALLOWED_ACTION_FRAMES_BITMAP4   0x0
+#define ALLOWED_ACTION_FRAMES_BITMAP5   0x0
+#define ALLOWED_ACTION_FRAMES_BITMAP6   0x0
+#define ALLOWED_ACTION_FRAMES_BITMAP7   0x0
+
+#define ALLOWED_ACTION_FRAME_MAP_WORDS (SIR_MAC_ACTION_MAX / 32)
+
+
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 typedef struct {
 	uint8_t acvo_uapsd:1;
@@ -6358,6 +6411,7 @@ struct ndi_delete_rsp {
  * @transaction_id: unique identifier
  * @vdev_id: session id of the interface over which ndp is being created
  * @channel: suggested channel for ndp creation
+ * @channel_cfg: channel config, 0=no channel, 1=optional, 2=mandatory
  * @service_instance_id: Service identifier
  * @peer_discovery_mac_addr: Peer's discovery mac address
  * @self_ndi_mac_addr: self NDI mac address
@@ -6369,6 +6423,7 @@ struct ndp_initiator_req {
 	uint32_t transaction_id;
 	uint32_t vdev_id;
 	uint32_t channel;
+	uint32_t channel_cfg;
 	uint32_t service_instance_id;
 	struct qdf_mac_addr peer_discovery_mac_addr;
 	struct qdf_mac_addr self_ndi_mac_addr;

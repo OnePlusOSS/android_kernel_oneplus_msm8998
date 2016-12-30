@@ -1407,6 +1407,7 @@ struct extended_caps {
  * @wmi_cmd_rsp_wake_lock: wmi command response wake lock
  * @wmi_cmd_rsp_runtime_lock: wmi command response bus lock
  * @saved_chan: saved channel list sent as part of WMI_SCAN_CHAN_LIST_CMDID
+ * @fw_mem_dump_enabled: Fw memory dump support
  */
 typedef struct {
 	void *wmi_handle;
@@ -1610,6 +1611,8 @@ typedef struct {
 	tp_wma_packetdump_cb wma_mgmt_tx_packetdump_cb;
 	tp_wma_packetdump_cb wma_mgmt_rx_packetdump_cb;
 	tSirLLStatsResults *link_stats_results;
+	bool fw_mem_dump_enabled;
+	tSirAddonPsReq ps_setting;
 } t_wma_handle, *tp_wma_handle;
 
 /**
@@ -1822,6 +1825,8 @@ typedef struct {
  * @WMA_VDEV_IBSS_PS_SET_1RX_CHAIN_IN_ATIM_WINDOW: set IBSS power save ATIM
  * @WMA_VDEV_DFS_CONTROL_CMDID: DFS control command
  * @WMA_VDEV_TXRX_GET_IPA_UC_FW_STATS_CMDID: get IPA microcontroller fw stats
+ * @WMA_VDEV_TXRX_GET_IPA_UC_SHARING_STATS_CMDID: get IPA uC wifi-sharing stats
+ * @WMA_VDEV_TXRX_SET_IPA_UC_QUOTA_CMDID: set IPA uC quota limit
  *
  * wma command ids for configuration request which
  * does not involve sending a wmi command.
@@ -1841,6 +1846,8 @@ enum wma_cfg_cmd_id {
 	WMA_VDEV_IBSS_PS_SET_1RX_CHAIN_IN_ATIM_WINDOW,
 	WMA_VDEV_DFS_CONTROL_CMDID,
 	WMA_VDEV_TXRX_GET_IPA_UC_FW_STATS_CMDID,
+	WMA_VDEV_TXRX_GET_IPA_UC_SHARING_STATS_CMDID,
+	WMA_VDEV_TXRX_SET_IPA_UC_QUOTA_CMDID,
 	WMA_CMD_ID_MAX
 };
 

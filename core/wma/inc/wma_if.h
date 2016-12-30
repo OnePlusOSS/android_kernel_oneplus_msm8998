@@ -800,6 +800,7 @@ typedef struct {
  */
 typedef struct {
 	uint16_t opMode;
+	uint16_t dot11_mode;
 	uint16_t staId;
 	uint16_t smesessionId;
 	tSirMacAddr peer_mac;

@@ -271,13 +271,36 @@ static const hdd_freq_chan_map_t freq_chan_map[] = {
 #define WE_CLEAR_STATS                        86
 /* Private sub ioctl for starting/stopping the profiling */
 #define WE_START_FW_PROFILE                      87
+/*
+ * <ioctl>
+ * setChanChange - Initiate channel change
+ *
+ * @INPUT: channel number to switch to.
+ *
+ * @OUTPUT: None
+ *
+ * This IOCTL is used to initiate a channel change.
+ * If called on STA/CLI interface it will send the
+ * ECSA action frame to the connected SAP/GO asking to
+ * initiate the ECSA, if supported.
+ * If called on SAP/GO interface it will initiate
+ * ECSA and ask connected peers to move to new channel.
+ *
+ * @E.g: iwpriv wlan0 setChanChange <channel>
+ * iwpriv wlan0 setChanChange 1
+ *
+ * Supported Feature: ECSA
+ *
+ * Usage: Internal/External
+ *
+ * </ioctl>
+ */
 #define WE_SET_CHANNEL                        88
 #define WE_SET_CONC_SYSTEM_PREF               89
 
 /* Private ioctls and their sub-ioctls */
 #define WLAN_PRIV_SET_NONE_GET_INT    (SIOCIWFIRSTPRIV + 1)
 #define WE_GET_11D_STATE     1
-#define WE_IBSS_STATUS       2
 #define WE_SET_SAP_CHANNELS  3
 #define WE_GET_WLAN_DBG      4
 #define WE_GET_MAX_ASSOC     6
@@ -385,12 +408,78 @@ static const hdd_freq_chan_map_t freq_chan_map[] = {
 #define WE_GET_CHANNEL_LIST  5
 #define WE_GET_RSSI          6
 #ifdef FEATURE_WLAN_TDLS
+/*
+ * <ioctl>
+ * getTdlsPeers - Get all TDLS peers.
+ *
+ * @INPUT: None
+ *
+ * @OUTPUT: Returns the MAC address of all the TDLS peers
+ * wlan0     getTdlsPeers:
+ * MAC               Id cap up RSSI
+ * ---------------------------------
+ * 00:0a:f5:0e:bd:18  2   Y  Y  -44
+ * 00:0a:f5:bf:0e:12  0   N  N    0
+ *
+ * This IOCTL is used to get all TDLS peers.
+ *
+ * @E.g: iwpriv wlan0 getTdlsPeers
+ *
+ * Supported Feature: TDLS
+ *
+ * Usage: Internal/External
+ *
+ * </ioctl>
+ */
 #define WE_GET_TDLS_PEERS    8
 #endif
 #ifdef WLAN_FEATURE_11W
+/*
+ * <ioctl>
+ * getPMFInfo - get the PMF info of the connected session
+ *
+ * @INPUT: None
+ *
+ * @OUTPUT:
+ *  wlan0     getPMFInfo:
+ *  BSSID E4:F4:C6:0A:E0:36, Is PMF Assoc? 0
+ *  Number of Unprotected Disassocs 0
+ *  Number of Unprotected Deauths 0
+ *
+ * This IOCTL is used to get the PMF stats/status of the current
+ * connection.
+ *
+ * @e.g:iwpriv wlan0 getPMFInfo
+ *
+ * Supported Feature: PMF
+ *
+ * Usage: Internal/External
+ *
+ * </ioctl>
+ */
 #define WE_GET_11W_INFO      9
 #endif
 #define WE_GET_STATES        10
+/*
+ * <ioctl>
+ * getIbssSTAs - get ibss sta info
+ *
+ * @INPUT: None
+ *
+ * @OUTPUT: Give the MAC of the IBSS STA
+ *  wlan0     getIbssSTAs:
+ *  1 .8c:fd:f0:01:9c:bf
+ *
+ * This IOCTL is used to get ibss sta info
+ *
+ * @E.g: iwpriv wlan0 getIbssSTAs
+ *
+ * Supported Feature: IBSS
+ *
+ * Usage: Internal/External
+ *
+ * </ioctl>
+ */
 #define WE_GET_IBSS_STA_INFO 11
 #define WE_GET_PHYMODE       12
 #ifdef FEATURE_OEM_DATA_SUPPORT
@@ -402,15 +491,29 @@ static const hdd_freq_chan_map_t freq_chan_map[] = {
 /* Private ioctls and their sub-ioctls */
 #define WLAN_PRIV_SET_NONE_GET_NONE   (SIOCIWFIRSTPRIV + 6)
 #define WE_SET_REASSOC_TRIGGER     8
+/*
+ * <ioctl>
+ * ibssPeerInfoAll - Print the ibss peers's MAC, rate and RSSI
+ *
+ * @INPUT: None
+ *
+ * @OUTPUT: print ibss peer in info logs
+ *  pPeerInfo->numIBSSPeers = 1
+ *  PEER ADDR : 8c:fd:f0:01:9c:bf TxRate: 1 Mbps RSSI: -35
+ *
+ * This IOCTL is used to rint the ibss peers's MAC, rate and RSSI
+ * in info logs
+ *
+ * @E.g: iwpriv wlan0 ibssPeerInfoAll
+ *
+ * Supported Feature: IBSS
+ *
+ * Usage: Internal/External
+ *
+ * </ioctl>
+ */
 #define WE_IBSS_GET_PEER_INFO_ALL 10
-#define WE_DUMP_AGC_START          11
-#define WE_DUMP_AGC                12
-#define WE_DUMP_CHANINFO_START     13
-#define WE_DUMP_CHANINFO           14
-#define WE_DUMP_WATCHDOG           15
-#ifdef CONFIG_ATH_PCIE_ACCESS_DEBUG
-#define WE_DUMP_PCIE_LOG           16
-#endif
+/* Sub ioctls 11 to 16 are not used */
 #define WE_GET_RECOVERY_STAT       17
 #define WE_GET_FW_PROFILE_DATA     18
 #define WE_STOP_OBSS_SCAN          19
@@ -424,8 +527,64 @@ static const hdd_freq_chan_map_t freq_chan_map[] = {
 #define WE_MAC_PWR_DEBUG_CMD 4
 
 #ifdef FEATURE_WLAN_TDLS
+/*
+ * <ioctl>
+ * setTdlsConfig - Set TDLS configuration parameters.
+ *
+ * @INPUT: 11 TDLS configuration parameters
+ *	@args[0]: tdls: [0..2]
+ *	@args[1]: tx_period_t: [1000..4294967295UL]
+ *	@args[2]: tx_packet_n: [0..4294967295UL]
+ *	@args[3]: [discovery_period is not used anymore]
+ *	@args[4]: discovery_tries_n: [1..100]
+ *	@args[5]: [idle_timeout is not used anymore]
+ *	@args[6]: idle_packet_n: [0..40000]
+ *	@args[7]: [rssi_hysteresis is not used anymore]
+ *	@args[8]: rssi_trigger_threshold: [-120..0]
+ *	@args[9]: rssi_teardown_threshold: [-120..0]
+ *	@args[10]: rssi_delta: [-30..0]
+ *
+ * @OUTPUT: None
+ *
+ * This IOCTL is used to set the TDLS configuration parameters.
+ *
+ * @E.g: iwpriv wlan0 setTdlsConfig tdls tx_period_t tx_packet_n
+ *		discovery_period discovery_tries_n idle_timeout
+ *		idle_packet_n rssi_hysteresis rssi_trigger_threshold
+ *		rssi_teardown_threshold rssi_delta
+ * iwpriv wlan0 setTdlsConfig 1 1500 40 1 5 1 5 0 -70 -70 -10
+ *
+ * Supported Feature: TDLS
+ *
+ * Usage: Internal/External
+ *
+ * </ioctl>
+ */
+
+
 #define WE_TDLS_CONFIG_PARAMS   5
 #endif
+/*
+ * <ioctl>
+ * ibssPeerInfo - Print the ibss peers's MAC, rate and RSSI
+ *
+ * @INPUT: staid
+ *
+ * @OUTPUT: print ibss peer corresponding to staid in info logs
+ *  PEER ADDR : 8c:fd:f0:01:9c:bf TxRate: 1 Mbps RSSI: -35
+ *
+ * This IOCTL is used to print the specific ibss peers's MAC,
+ * rate and RSSI in info logs
+ *
+ * @E.g: iwpriv wlan0 ibssPeerInfo <sta_id>
+ *  iwpriv wlan0 ibssPeerInfo 0
+ *
+ * Supported Feature: IBSS
+ *
+ * Usage: Internal/External
+ *
+ * </ioctl>
+ */
 #define WE_IBSS_GET_PEER_INFO   6
 #define WE_UNIT_TEST_CMD   7
 
@@ -437,18 +596,310 @@ static const hdd_freq_chan_map_t freq_chan_map[] = {
 #define WE_LED_FLASHING_PARAM    10
 #endif
 
+/*
+ * <ioctl>
+ * pm_clist - Increments the index value of the concurrent connection list
+ * and update with the input parameters provided.
+ *
+ * @INPUT: Following 8 arguments:
+ * @vdev_id: vdev id
+ * @tx_streams: TX streams
+ * @rx_streams: RX streams
+ * @chain_mask: Chain mask
+ * @type: vdev_type
+ *    AP:1    STA:2    IBSS:3    Monitor:4    NAN:5    OCB:6    NDI:7
+ * @sub_type: vdev_subtype
+ *    P2P_Device:1    P2P_Client:2     P2P_GO:3
+ *    Proxy_STA:4     Mesh:5           Mesh_11s:6
+ * @channel: Channel
+ * @mac: Mac id
+ *
+ * @OUTPUT: None
+ *
+ * This IOCTL is used to increments the index value of the concurrent connection
+ * list and update with the input parameters provided.
+ *
+ * @E.g: iwpriv wlan0 pm_clist vdev_id tx_streams rx_streams chain_mask type
+ *                    sub_type channel mac
+ * iwpriv wlan0 pm_clist 1 2 2 1 2 3 10 1
+ *
+ * Supported Feature: DBS
+ *
+ * Usage: Internal/External
+ *
+ * </ioctl>
+ */
 #define WE_POLICY_MANAGER_CLIST_CMD    11
+
+/*
+ * <ioctl>
+ * pm_dlist - Delete the index from the concurrent connection list that is
+ * present in the given vdev_id.
+ *
+ * @INPUT: delete_all, vdev_id
+ * @delete_all: delete all indices
+ * @vdev_id: vdev id
+ *
+ * @OUTPUT: None
+ *
+ * This IOCTL is used to delete the index from the concurrent connection list
+ * that is present in the given vdev_id.
+ *
+ * @E.g: iwpriv wlan0 pm_dlist delete_all vdev_id
+ * iwpriv wlan0 pm_dlist 0 1
+ *
+ * Supported Feature: DBS
+ *
+ * Usage: Internal/External
+ *
+ * </ioctl>
+ */
 #define WE_POLICY_MANAGER_DLIST_CMD    12
+
+/*
+ * <ioctl>
+ * pm_dbs - Set dbs capability and system preference
+ *
+ * @INPUT: dbs, system_pref
+ * @dbs: Value of DBS capability to be set
+ * @system_pref: System preference
+ *     0:CDS_THROUGHPUT 1: CDS_POWERSAVE 2: CDS_LATENCY
+ *
+ * @OUTPUT: None
+ *
+ * This IOCTL is used to set dbs capability and system preference.
+ *
+ * @E.g: iwpriv wlan0 pm_dbs dbs system_pref
+ * iwpriv wlan0 pm_dbs 1 0
+ *
+ * Supported Feature: DBS
+ *
+ * Usage: Internal/External
+ *
+ * </ioctl>
+ */
 #define WE_POLICY_MANAGER_DBS_CMD      13
+
+/*
+ * <ioctl>
+ * pm_pcl - Set pcl for concurrency mode.
+ *
+ * @INPUT: cds_con_mode
+ * @cds_con_mode: concurrency mode for PCL table
+ *     0:STA  1:SAP  2:P2P_Client  3:P2P_GO  4:IBSS
+ *
+ * @OUTPUT: None
+ *
+ * This IOCTL is used to set pcl for concurrency mode.
+ *
+ * @E.g: iwpriv wlan0 pm_pcl cds_con_mode
+ * iwpriv wlan0 pm_pcl 0
+ *
+ * Supported Feature: DBS
+ *
+ * Usage: Internal/External
+ *
+ * </ioctl>
+ */
 #define WE_POLICY_MANAGER_PCL_CMD      14
+
+/*
+ * <ioctl>
+ * pm_cinfo - Shows the concurrent connection list.
+ *
+ * @INPUT: None
+ *
+ * @OUTPUT: None
+ *
+ * This IOCTL is used to show the concurrent connection list.
+ *
+ * @E.g: iwpriv wlan0 pm_cinfo
+ *
+ * Supported Feature: DBS
+ *
+ * Usage: Internal/External
+ *
+ * </ioctl>
+ */
 #define WE_POLICY_MANAGER_CINFO_CMD    15
+
+/*
+ * <ioctl>
+ * pm_ulist - Updates the index value of the concurrent connection list
+ * with the input parameters provided.
+ *
+ * @INPUT: Following 8 arguments:
+ * @vdev_id: vdev id
+ * @tx_streams: TX streams
+ * @rx_streams: RX streams
+ * @chain_mask: Chain mask
+ * @type: vdev_type
+ *    AP:1    STA:2    IBSS:3    Monitor:4    NAN:5    OCB:6    NDI:7
+ * @sub_type: vdev_subtype
+ *    P2P_Device:1    P2P_Client:2     P2P_GO:3
+ *    Proxy_STA:4     Mesh:5           Mesh_11s:6
+ * @channel: Channel
+ * @mac: Mac id
+ *
+ * @OUTPUT: None
+ *
+ * This IOCTL is used to updates the index value of the concurrent
+ * connection list with the input parameters provided.
+ *
+ * @E.g: iwpriv wlan0 pm_ulist vdev_id tx_streams rx_streams chain_mask type
+ *                    sub_type channel mac
+ * iwpriv wlan0 pm_ulist 1 2 2 1 2 3 10 1
+ *
+ * Supported Feature: DBS
+ *
+ * Usage: Internal/External
+ *
+ * </ioctl>
+ */
 #define WE_POLICY_MANAGER_ULIST_CMD    16
+
+/*
+ * <ioctl>
+ * pm_query_action - Initiate actions needed on current connections as
+ * per the channel provided.
+ *
+ * @INPUT: channel
+ * @channel: Channel on which new connection will be.
+ *
+ * @OUTPUT: None
+ *
+ * This IOCTL is used to initiate actions needed on current connections
+ * as per the channel provided.
+ *
+ * @E.g: iwpriv wlan0 pm_query_action channel
+ * iwpriv wlan0 pm_query_action 6
+ *
+ * Supported Feature: DBS
+ *
+ * Usage: Internal/External
+ *
+ * </ioctl>
+ */
 #define WE_POLICY_MANAGER_QUERY_ACTION_CMD    17
+
+/*
+ * <ioctl>
+ * pm_query_allow - Checks for allowed concurrency combination
+ *
+ * @INPUT: mode, channel, bandwidth
+ * @mode:	new connection mode
+ *     0:STA  1:SAP  2:P2P_Client  3:P2P_GO  4:IBSS
+ * @channel: channel on which new connection is coming up
+ * @bandwidth: Bandwidth requested by the connection
+ *     0:None    1:5MHz    2:10MHz      3:20MHz
+ *     4:40MHz   5:80MHz   6:80+80MHz   7:160MHz
+ *
+ * @OUTPUT: None
+ *
+ * This IOCTL is used to checks for allowed concurrency combination.
+ *
+ * @E.g: iwpriv wlan0 pm_query_allow mode channel bandwidth
+ * iwpriv wlan0 pm_query_allow 0 6 4
+ *
+ * Supported Feature: DBS
+ *
+ * Usage: Internal/External
+ *
+ * </ioctl>
+ */
 #define WE_POLICY_MANAGER_QUERY_ALLOW_CMD    18
+
+/*
+ * <ioctl>
+ * pm_run_scenario - Create scenario with number of connections provided.
+ *
+ * @INPUT: num_of_conn
+ * @num_of_conn: the number of connections (values: 1~3)
+ *
+ * @OUTPUT: None
+ *
+ * This IOCTL is used to create scenario with the number of connections
+ * provided.
+ *
+ * @E.g: iwpriv wlan0 pm_run_scenario num_of_conn
+ * iwpriv wlan0 pm_run_scenario 1
+ *
+ * Supported Feature: DBS
+ *
+ * Usage: Internal/External
+ *
+ * </ioctl>
+ */
 #define WE_POLICY_MANAGER_SCENARIO_CMD 19
+
+/*
+ * <ioctl>
+ * pm_set_hw_mode - Set hardware for single/dual mac.
+ *
+ * @INPUT: hw_mode
+ *     0:single mac     1:dual mac
+ *
+ * @OUTPUT: None
+ *
+ * This IOCTL is used to set hardware for single/dual mac.
+ *
+ * @E.g: iwpriv wlan0 pm_set_hw_mode hw_mode
+ * iwpriv wlan0 pm_set_hw_mode 1
+ *
+ * Supported Feature: DBS
+ *
+ * Usage: Internal/External
+ *
+ * </ioctl>
+ */
 #define WE_POLICY_SET_HW_MODE_CMD 20
 
+/*
+ * <ioctl>
+ * set_scan_cfg - Set dual MAC scan config parameters.
+ *
+ * @INPUT: dbs, dbs_plus_agile_scan, single_mac_scan_with_dbs
+ * @dbs: Value of DBS bit
+ * @dbs_plus_agile_scan: Value of DBS plus agile scan bit
+ * @single_mac_scan_with_dbs: Value of Single MAC scan with DBS
+ *
+ * @OUTPUT: None
+ *
+ * This IOCTL is used to set the dual MAC scan config.
+ *
+ * @E.g: iwpriv wlan0 set_scan_cfg dbs dbs_plus_agile_scan
+ *                    single_mac_scan_with_dbs
+ * iwpriv wlan0 set_scan_cfg 1 0 1
+ *
+ * Supported Feature: DBS
+ *
+ * Usage: Internal/External
+ *
+ * </ioctl>
+ */
 #define WE_SET_DUAL_MAC_SCAN_CONFIG    21
+
+/*
+ * <ioctl>
+ * set_fw_mode_cfg - Sets the dual mac FW mode config
+ *
+ * @INPUT: dbs, dfs
+ * @dbs: DBS bit
+ * @dfs: Agile DFS bit
+ *
+ * @OUTPUT: None
+ *
+ * This IOCTL is used to set the dual mac FW mode config.
+ *
+ * @E.g: iwpriv wlan0 set_fw_mode_cfg dbs dfs
+ * iwpriv wlan0 set_fw_mode_cfg 1 1
+ *
+ * Supported Feature: DBS
+ *
+ * Usage: Internal/External
+ *
+ * </ioctl>
+ */
 #define WE_SET_DUAL_MAC_FW_MODE_CONFIG 22
 #define WE_SET_MON_MODE_CHAN 23
 
@@ -6636,10 +7087,6 @@ static int __iw_setnone_getint(struct net_device *dev,
 		break;
 	}
 
-	case WE_IBSS_STATUS:
-		hdd_notice("****Return IBSS Status*****");
-		break;
-
 	case WE_GET_WLAN_DBG:
 	{
 		qdf_trace_display();
@@ -7878,57 +8325,6 @@ static int __iw_setnone_getnone(struct net_device *dev,
 		return 0;
 	}
 
-	case WE_DUMP_AGC_START:
-	{
-		hdd_notice("WE_DUMP_AGC_START");
-		ret = wma_cli_set_command(adapter->sessionId,
-					  GEN_PARAM_DUMP_AGC_START,
-					  0, GEN_CMD);
-		break;
-	}
-	case WE_DUMP_AGC:
-	{
-		hdd_notice("WE_DUMP_AGC");
-		ret = wma_cli_set_command(adapter->sessionId,
-					  GEN_PARAM_DUMP_AGC,
-					  0, GEN_CMD);
-		break;
-	}
-
-	case WE_DUMP_CHANINFO_START:
-	{
-		hdd_notice("WE_DUMP_CHANINFO_START");
-		ret = wma_cli_set_command(adapter->sessionId,
-					  GEN_PARAM_DUMP_CHANINFO_START,
-					  0, GEN_CMD);
-		break;
-	}
-	case WE_DUMP_CHANINFO:
-	{
-		hdd_notice("WE_DUMP_CHANINFO_START");
-		ret = wma_cli_set_command(adapter->sessionId,
-					  GEN_PARAM_DUMP_CHANINFO,
-					  0, GEN_CMD);
-		break;
-	}
-	case WE_DUMP_WATCHDOG:
-	{
-		hdd_notice("WE_DUMP_WATCHDOG");
-		ret = wma_cli_set_command(adapter->sessionId,
-					  GEN_PARAM_DUMP_WATCHDOG,
-					  0, GEN_CMD);
-		break;
-	}
-#ifdef CONFIG_ATH_PCIE_ACCESS_DEBUG
-	case WE_DUMP_PCIE_LOG:
-	{
-		hdd_err("WE_DUMP_PCIE_LOG");
-		ret = wma_cli_set_command(adapter->sessionId,
-					  GEN_PARAM_DUMP_PCIE_ACCESS_LOG,
-					  0, GEN_CMD);
-		break;
-	}
-#endif
 	case WE_STOP_OBSS_SCAN:
 	{
 		/*
@@ -10555,11 +10951,6 @@ static const struct iw_priv_args we_private_args[] = {
 	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
 	 "get11Dstate"},
 
-	{WE_IBSS_STATUS,
-	 0,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 "getAdhocStatus"},
-
 	{WE_GET_WLAN_DBG,
 	 0,
 	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
@@ -10984,36 +11375,6 @@ static const struct iw_priv_args we_private_args[] = {
 	0,
 	"reassoc"},
 
-	{WE_DUMP_AGC_START,
-	 0,
-	 0,
-	 "dump_agc_start"},
-
-	{WE_DUMP_AGC,
-	 0,
-	 0,
-	 "dump_agc"},
-
-	{WE_DUMP_CHANINFO_START,
-	 0,
-	 0,
-	 "dump_chninfo_en"},
-
-	{WE_DUMP_CHANINFO,
-	 0,
-	 0,
-	 "dump_chninfo"},
-
-	{WE_DUMP_WATCHDOG,
-	 0,
-	 0,
-	 "dump_watchdog"},
-#ifdef CONFIG_ATH_PCIE_ACCESS_DEBUG
-	{WE_DUMP_PCIE_LOG,
-	 0,
-	 0,
-	 "dump_pcie_log"},
-#endif
 	{WE_STOP_OBSS_SCAN,
 	 0,
 	 0,

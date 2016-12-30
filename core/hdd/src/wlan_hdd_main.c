@@ -1407,6 +1407,8 @@ void hdd_update_tgt_cfg(void *context, void *param)
 				hdd_ctx->config->bpf_packet_filter_enable);
 	hdd_update_ra_rate_limit(hdd_ctx, cfg);
 
+	hdd_ctx->fw_mem_dump_enabled = cfg->fw_mem_dump_enabled;
+
 	/*
 	 * If BPF is enabled, maxWowFilters set to WMA_STA_WOW_DEFAULT_PTRN_MAX
 	 * because we need atleast WMA_STA_WOW_DEFAULT_PTRN_MAX free slots to
@@ -4717,6 +4719,7 @@ static void hdd_roc_context_destroy(hdd_context_t *hdd_ctx)
 {
 	flush_delayed_work(&hdd_ctx->roc_req_work);
 	qdf_list_destroy(&hdd_ctx->hdd_roc_req_q);
+	qdf_spinlock_destroy(&hdd_ctx->hdd_roc_req_q_lock);
 }
 
 /**
@@ -9200,10 +9203,10 @@ int hdd_init(void)
 	v_CONTEXT_t p_cds_context = NULL;
 	int ret = 0;
 
+	p_cds_context = cds_init();
 #ifdef WLAN_LOGGING_SOCK_SVC_ENABLE
 	wlan_logging_sock_init_svc();
 #endif
-	p_cds_context = cds_init();
 
 	if (p_cds_context == NULL) {
 		hdd_alert("Failed to allocate CDS context");

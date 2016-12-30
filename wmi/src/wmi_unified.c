@@ -1680,6 +1680,7 @@ static bool wmi_is_runtime_pm_cmd(uint32_t cmd_id)
 	case WMI_WOW_HOSTWAKEUP_FROM_SLEEP_CMDID:
 	case WMI_PDEV_RESUME_CMDID:
 	case WMI_WOW_DEL_WAKE_PATTERN_CMDID:
+	case WMI_WOW_SET_ACTION_WAKE_UP_CMDID:
 	case WMI_D0_WOW_ENABLE_DISABLE_CMDID:
 		return true;
 

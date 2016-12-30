@@ -79,6 +79,11 @@ void ol_txrx_ipa_uc_register_op_cb(ol_txrx_pdev_handle pdev,
 
 void ol_txrx_ipa_uc_get_stat(ol_txrx_pdev_handle pdev);
 
+void ol_txrx_ipa_uc_get_share_stats(ol_txrx_pdev_handle pdev,
+				   uint8_t reset_stats);
+
+void ol_txrx_ipa_uc_set_quota(ol_txrx_pdev_handle pdev, uint64_t quota_bytes);
+
 qdf_nbuf_t ol_tx_send_ipa_data_frame(void *vdev, qdf_nbuf_t skb);
 #else
 
@@ -115,6 +120,18 @@ ol_txrx_ipa_uc_register_op_cb(ol_txrx_pdev_handle pdev,
 				   void (*ipa_uc_op_cb_type)(uint8_t *op_msg,
 							     void *osif_ctxt),
 				   void *osif_dev)
+{
+	return;
+}
+
+static inline void ol_txrx_ipa_uc_get_share_stats(ol_txrx_pdev_handle pdev,
+						 uint8_t reset_stats)
+{
+	return;
+}
+
+static inline void ol_txrx_ipa_uc_set_quota(ol_txrx_pdev_handle pdev,
+						 uint64_t quota_bytes)
 {
 	return;
 }

@@ -1987,7 +1987,10 @@ __wlan_hdd_cfg80211_set_scanning_mac_oui(struct wiphy *wiphy,
 		hdd_err("Invalid ATTR");
 		return -EINVAL;
 	}
-	pReqMsg = qdf_mem_malloc(sizeof(*pReqMsg));
+	pReqMsg = qdf_mem_malloc(sizeof(*pReqMsg) +
+			(pHddCtx->no_of_probe_req_ouis) *
+			(sizeof(struct vendor_oui)));
+
 	if (!pReqMsg) {
 		hdd_err("qdf_mem_malloc failed");
 		return -ENOMEM;
@@ -2006,6 +2009,15 @@ __wlan_hdd_cfg80211_set_scanning_mac_oui(struct wiphy *wiphy,
 
 	hdd_debug("Oui (%02x:%02x:%02x), vdev_id = %d", pReqMsg->oui[0],
 		   pReqMsg->oui[1], pReqMsg->oui[2], pReqMsg->vdev_id);
+
+	if (pHddCtx->config->probe_req_ie_whitelist)
+		wlan_hdd_fill_whitelist_ie_attrs(&pReqMsg->ie_whitelist,
+				pReqMsg->probe_req_ie_bitmap,
+				&pReqMsg->num_vendor_oui,
+				(struct vendor_oui *)((uint8_t *)pReqMsg +
+				sizeof(*pReqMsg)),
+				pHddCtx);
+
 	status = sme_set_scanning_mac_oui(pHddCtx->hHal, pReqMsg);
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		hdd_err("sme_set_scanning_mac_oui failed(err=%d)", status);

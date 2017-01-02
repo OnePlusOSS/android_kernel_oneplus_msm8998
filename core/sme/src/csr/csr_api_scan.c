@@ -5066,7 +5066,8 @@ static QDF_STATUS csr_send_mb_scan_req(tpAniSirGlobal pMac, uint16_t sessionId,
 		 sizeof(pMsg->channelList.channelNumber) +
 		 (sizeof(pMsg->channelList.channelNumber) *
 		 pScanReq->ChannelInfo.numOfChannels)) +
-		 (pScanReq->uIEFieldLen);
+		 (pScanReq->uIEFieldLen) +
+		 pScanReq->num_vendor_oui * sizeof(*pScanReq->voui);
 
 	pMsg = qdf_mem_malloc(msgLen);
 	if (NULL == pMsg) {
@@ -5235,6 +5236,26 @@ static QDF_STATUS csr_send_mb_scan_req(tpAniSirGlobal pMac, uint16_t sessionId,
 			     QDF_MAC_ADDR_SIZE);
 		qdf_mem_copy(pMsg->mac_addr_mask, pScanReq->mac_addr_mask,
 			     QDF_MAC_ADDR_SIZE);
+	}
+
+	pMsg->ie_whitelist = pScanReq->ie_whitelist;
+	if (pMsg->ie_whitelist)
+		qdf_mem_copy(pMsg->probe_req_ie_bitmap,
+			     pScanReq->probe_req_ie_bitmap,
+			     PROBE_REQ_BITMAP_LEN * sizeof(uint32_t));
+		pMsg->num_vendor_oui = pScanReq->num_vendor_oui;
+		pMsg->oui_field_len = pScanReq->num_vendor_oui *
+				      sizeof(*pScanReq->voui);
+		pMsg->oui_field_offset = (sizeof(tSirSmeScanReq) -
+				sizeof(pMsg->channelList.channelNumber) +
+				(sizeof(pMsg->channelList.channelNumber) *
+				pScanReq->ChannelInfo.numOfChannels)) +
+				pScanReq->uIEFieldLen;
+
+	if (pScanReq->num_vendor_oui != 0) {
+		qdf_mem_copy((uint8_t *)pMsg + pMsg->oui_field_offset,
+			     (uint8_t *)(pScanReq->voui),
+			     pMsg->oui_field_len);
 	}
 
 send_scan_req:
@@ -5652,6 +5673,7 @@ QDF_STATUS csr_scan_copy_request(tpAniSirGlobal mac_ctx,
 	dst_req->pIEField = NULL;
 	dst_req->ChannelInfo.ChannelList = NULL;
 	dst_req->SSIDs.SSIDList = NULL;
+	dst_req->voui = NULL;
 
 	if (src_req->uIEFieldLen) {
 		dst_req->pIEField =
@@ -5809,6 +5831,29 @@ QDF_STATUS csr_scan_copy_request(tpAniSirGlobal mac_ctx,
 	dst_req->scan_id = src_req->scan_id;
 	dst_req->timestamp = src_req->timestamp;
 
+	if (src_req->num_vendor_oui == 0) {
+		dst_req->num_vendor_oui = 0;
+		dst_req->voui = NULL;
+	} else {
+		dst_req->voui = qdf_mem_malloc(src_req->num_vendor_oui *
+					       sizeof(*dst_req->voui));
+		if (!dst_req->voui)
+			status = QDF_STATUS_E_NOMEM;
+		else
+			status = QDF_STATUS_SUCCESS;
+
+		if (QDF_IS_STATUS_SUCCESS(status)) {
+			dst_req->num_vendor_oui = src_req->num_vendor_oui;
+			qdf_mem_copy(dst_req->voui,
+				     src_req->voui,
+				     src_req->num_vendor_oui *
+				     sizeof(*dst_req->voui));
+		} else {
+			dst_req->num_vendor_oui = 0;
+			sms_log(mac_ctx, LOGE, FL("No memory for voui"));
+		}
+	}
+
 complete:
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		csr_scan_free_request(mac_ctx, dst_req);
@@ -5835,6 +5880,12 @@ QDF_STATUS csr_scan_free_request(tpAniSirGlobal pMac, tCsrScanRequest *pReq)
 		pReq->SSIDs.SSIDList = NULL;
 	}
 	pReq->SSIDs.numOfSSIDs = 0;
+
+	if (pReq->voui) {
+		qdf_mem_free(pReq->voui);
+		pReq->voui = NULL;
+	}
+	pReq->num_vendor_oui = 0;
 
 	return QDF_STATUS_SUCCESS;
 }

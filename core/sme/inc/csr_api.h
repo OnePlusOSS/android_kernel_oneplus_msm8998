@@ -297,6 +297,12 @@ typedef struct tagCsrScanRequest {
 	bool enable_scan_randomization;
 	uint8_t mac_addr[QDF_MAC_ADDR_SIZE];
 	uint8_t mac_addr_mask[QDF_MAC_ADDR_SIZE];
+
+	/* probe req ie whitelisting attrs */
+	bool ie_whitelist;
+	uint32_t probe_req_ie_bitmap[PROBE_REQ_BITMAP_LEN];
+	uint32_t num_vendor_oui;
+	struct vendor_oui *voui;
 } tCsrScanRequest;
 
 typedef struct tagCsrScanResultInfo {

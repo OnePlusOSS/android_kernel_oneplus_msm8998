@@ -1673,6 +1673,8 @@ err_wiphy_unregister:
 		ptt_sock_deactivate_svc();
 		nl_srv_exit();
 
+		hdd_free_probe_req_ouis(pHddCtx);
+
 		/* Free up dynamically allocated members inside HDD Adapter */
 		qdf_mem_free(pHddCtx->config);
 		pHddCtx->config = NULL;

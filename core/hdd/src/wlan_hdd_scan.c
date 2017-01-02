@@ -1557,6 +1557,7 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 	hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
 	hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
 	hdd_wext_state_t *pwextBuf = WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
+	hdd_station_ctx_t *station_ctx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
 	struct hdd_config *cfg_param = NULL;
 	tCsrScanRequest scan_req;
 	uint8_t *channelList = NULL, i;
@@ -1970,6 +1971,27 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 	wlan_hdd_update_scan_rand_attrs((void *)&scan_req, (void *)request,
 					WLAN_HDD_HOST_SCAN);
 
+	if (!hdd_conn_is_connected(station_ctx) &&
+	    (pHddCtx->config->probe_req_ie_whitelist)) {
+		if (pHddCtx->no_of_probe_req_ouis != 0) {
+			scan_req.voui = qdf_mem_malloc(
+						pHddCtx->no_of_probe_req_ouis *
+						sizeof(struct vendor_oui));
+			if (!scan_req.voui) {
+				hdd_info("Not enough memory for voui");
+				scan_req.num_vendor_oui = 0;
+				status = -ENOMEM;
+				goto free_mem;
+			}
+		}
+
+		wlan_hdd_fill_whitelist_ie_attrs(&scan_req.ie_whitelist,
+						scan_req.probe_req_ie_bitmap,
+						&scan_req.num_vendor_oui,
+						scan_req.voui,
+						pHddCtx);
+	}
+
 	qdf_runtime_pm_prevent_suspend(&pHddCtx->runtime_context.scan);
 	status = sme_scan_request(WLAN_HDD_GET_HAL_CTX(pAdapter),
 				pAdapter->sessionId, &scan_req,
@@ -2004,6 +2026,9 @@ free_mem:
 
 	if (status == 0)
 		scan_ebusy_cnt = 0;
+
+	if (scan_req.voui)
+		qdf_mem_free(scan_req.voui);
 
 	EXIT();
 	return status;
@@ -2796,6 +2821,7 @@ static int __wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
 	hdd_scaninfo_t *pScanInfo = &pAdapter->scan_info;
 	struct hdd_config *config = NULL;
 	uint32_t num_ignore_dfs_ch = 0;
+	hdd_station_ctx_t *station_ctx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
 
 	ENTER();
 
@@ -2853,7 +2879,15 @@ static int __wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
 		}
 	}
 
-	pPnoRequest = (tpSirPNOScanReq) qdf_mem_malloc(sizeof(tSirPNOScanReq));
+	if (!hdd_conn_is_connected(station_ctx) &&
+	    (pHddCtx->config->probe_req_ie_whitelist))
+		pPnoRequest =
+			(tpSirPNOScanReq)qdf_mem_malloc(sizeof(tSirPNOScanReq) +
+				(pHddCtx->no_of_probe_req_ouis) *
+				(sizeof(struct vendor_oui)));
+	else
+		pPnoRequest = qdf_mem_malloc(sizeof(tSirPNOScanReq));
+
 	if (NULL == pPnoRequest) {
 		hdd_err("qdf_mem_malloc failed");
 		return -ENOMEM;
@@ -3012,6 +3046,16 @@ static int __wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
 
 	wlan_hdd_update_scan_rand_attrs((void *)pPnoRequest, (void *)request,
 					WLAN_HDD_PNO_SCAN);
+
+	if (pHddCtx->config->probe_req_ie_whitelist &&
+	    !hdd_conn_is_connected(station_ctx))
+		wlan_hdd_fill_whitelist_ie_attrs(&pPnoRequest->ie_whitelist,
+					pPnoRequest->probe_req_ie_bitmap,
+					&pPnoRequest->num_vendor_oui,
+					(struct vendor_oui *)(
+					(uint8_t *)pPnoRequest +
+					sizeof(*pPnoRequest)),
+					pHddCtx);
 
 	status = sme_set_preferred_network_list(WLAN_HDD_GET_HAL_CTX(pAdapter),
 						pPnoRequest,
@@ -3321,4 +3365,34 @@ int hdd_scan_context_init(hdd_context_t *hdd_ctx)
 	qdf_list_create(&hdd_ctx->hdd_scan_req_q, CFG_MAX_SCAN_COUNT_MAX);
 
 	return 0;
+}
+
+void wlan_hdd_fill_whitelist_ie_attrs(bool *ie_whitelist,
+				      uint32_t *probe_req_ie_bitmap,
+				      uint32_t *num_vendor_oui,
+				      struct vendor_oui *voui,
+				      hdd_context_t *hdd_ctx)
+{
+	uint32_t i = 0;
+
+	*ie_whitelist = true;
+	probe_req_ie_bitmap[0] = hdd_ctx->config->probe_req_ie_bitmap_0;
+	probe_req_ie_bitmap[1] = hdd_ctx->config->probe_req_ie_bitmap_1;
+	probe_req_ie_bitmap[2] = hdd_ctx->config->probe_req_ie_bitmap_2;
+	probe_req_ie_bitmap[3] = hdd_ctx->config->probe_req_ie_bitmap_3;
+	probe_req_ie_bitmap[4] = hdd_ctx->config->probe_req_ie_bitmap_4;
+	probe_req_ie_bitmap[5] = hdd_ctx->config->probe_req_ie_bitmap_5;
+	probe_req_ie_bitmap[6] = hdd_ctx->config->probe_req_ie_bitmap_6;
+	probe_req_ie_bitmap[7] = hdd_ctx->config->probe_req_ie_bitmap_7;
+
+	*num_vendor_oui = 0;
+
+	if ((hdd_ctx->no_of_probe_req_ouis != 0) && (voui != NULL)) {
+		*num_vendor_oui = hdd_ctx->no_of_probe_req_ouis;
+		for (i = 0; i < hdd_ctx->no_of_probe_req_ouis; i++) {
+			voui[i].oui_type = hdd_ctx->probe_req_voui[i].oui_type;
+			voui[i].oui_subtype =
+					hdd_ctx->probe_req_voui[i].oui_subtype;
+		}
+	}
 }

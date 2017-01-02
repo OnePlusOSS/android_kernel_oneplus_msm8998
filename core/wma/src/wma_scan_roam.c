@@ -283,6 +283,17 @@ QDF_STATUS wma_get_buf_start_scan_cmd(tp_wma_handle wma_handle,
 	qdf_mem_copy(cmd->mac_addr_mask, scan_req->mac_addr_mask,
 		     QDF_MAC_ADDR_SIZE);
 
+	/* probe req ie whitelisting attributes */
+	cmd->ie_whitelist = scan_req->ie_whitelist;
+	if (cmd->ie_whitelist) {
+		for (i = 0; i < PROBE_REQ_BITMAP_LEN; i++)
+			cmd->probe_req_ie_bitmap[i] =
+					scan_req->probe_req_ie_bitmap[i];
+		cmd->num_vendor_oui = scan_req->num_vendor_oui;
+		cmd->oui_field_len = scan_req->oui_field_len;
+		cmd->voui = (uint8_t *)scan_req + scan_req->oui_field_offset;
+	}
+
 	if (!scan_req->p2pScanType) {
 		WMA_LOGD("Normal Scan request");
 		cmd->scan_ctrl_flags |= WMI_SCAN_ADD_CCK_RATES;
@@ -3174,6 +3185,18 @@ QDF_STATUS wma_pno_start(tp_wma_handle wma, tpSirPNOScanReq pno)
 	params->band_rssi_pref.band = pno->band_rssi_pref.band;
 	params->band_rssi_pref.rssi = pno->band_rssi_pref.rssi;
 
+	/* probe req ie whitelisting attributes */
+	params->ie_whitelist = pno->ie_whitelist;
+	if (params->ie_whitelist) {
+		for (i = 0; i < PROBE_REQ_BITMAP_LEN; i++)
+			params->probe_req_ie_bitmap[i] =
+					pno->probe_req_ie_bitmap[i];
+		params->num_vendor_oui = pno->num_vendor_oui;
+		params->oui_field_len = pno->num_vendor_oui *
+					sizeof(struct vendor_oui);
+		params->voui = (uint8_t *)pno;
+	}
+
 	status = wmi_unified_pno_start_cmd(wma->wmi_handle,
 					params, channel_list);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
@@ -5599,6 +5622,7 @@ QDF_STATUS wma_reset_passpoint_network_list(tp_wma_handle wma,
 QDF_STATUS wma_scan_probe_setoui(tp_wma_handle wma, tSirScanMacOui *psetoui)
 {
 	struct scan_mac_oui set_oui;
+	uint32_t i = 0;
 
 	qdf_mem_set(&set_oui, sizeof(struct scan_mac_oui), 0);
 
@@ -5613,6 +5637,18 @@ QDF_STATUS wma_scan_probe_setoui(tp_wma_handle wma, tSirScanMacOui *psetoui)
 	set_oui.vdev_id = psetoui->vdev_id;
 	set_oui.enb_probe_req_sno_randomization =
 				psetoui->enb_probe_req_sno_randomization;
+
+	/* probe req ie whitelisting attributes */
+	set_oui.ie_whitelist = psetoui->ie_whitelist;
+	if (set_oui.ie_whitelist) {
+		for (i = 0; i < PROBE_REQ_BITMAP_LEN; i++)
+			set_oui.probe_req_ie_bitmap[i] =
+						psetoui->probe_req_ie_bitmap[i];
+		set_oui.num_vendor_oui = psetoui->num_vendor_oui;
+		set_oui.oui_field_len = psetoui->num_vendor_oui *
+					sizeof(struct vendor_oui);
+		set_oui.voui = (uint8_t *)psetoui;
+	}
 
 	return wmi_unified_scan_probe_setoui_cmd(wma->wmi_handle,
 						&set_oui);

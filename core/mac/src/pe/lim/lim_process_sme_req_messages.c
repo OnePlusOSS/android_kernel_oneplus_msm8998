@@ -1222,7 +1222,6 @@ static QDF_STATUS lim_send_hal_start_scan_offload_req(tpAniSirGlobal pMac,
 	uint8_t *p;
 	tSirMsgQ msg;
 	uint16_t i, len;
-	uint16_t addn_ie_len = 0;
 	tSirRetStatus status, rc = eSIR_SUCCESS;
 	tDot11fIEExtCap extracted_extcap = {0};
 	bool extcap_present = true;
@@ -1255,7 +1254,7 @@ static QDF_STATUS lim_send_hal_start_scan_offload_req(tpAniSirGlobal pMac,
 	 */
 	len = sizeof(tSirScanOffloadReq) +
 		(pScanReq->channelList.numChannels - 1) +
-		pScanReq->uIEFieldLen;
+		pScanReq->uIEFieldLen + pScanReq->oui_field_len;
 
 	pScanOffloadReq = qdf_mem_malloc(len);
 	if (NULL == pScanOffloadReq) {
@@ -1335,8 +1334,8 @@ static QDF_STATUS lim_send_hal_start_scan_offload_req(tpAniSirGlobal pMac,
 		p[i] = pScanReq->channelList.channelNumber[i];
 
 	pScanOffloadReq->uIEFieldLen = pScanReq->uIEFieldLen;
-	pScanOffloadReq->uIEFieldOffset = len - addn_ie_len -
-						pScanOffloadReq->uIEFieldLen;
+	pScanOffloadReq->uIEFieldOffset = len - pScanOffloadReq->uIEFieldLen -
+						pScanReq->oui_field_len;
 	qdf_mem_copy((uint8_t *) pScanOffloadReq +
 		     pScanOffloadReq->uIEFieldOffset,
 		     (uint8_t *) pScanReq + pScanReq->uIEFieldOffset,
@@ -1349,6 +1348,23 @@ static QDF_STATUS lim_send_hal_start_scan_offload_req(tpAniSirGlobal pMac,
 			     QDF_MAC_ADDR_SIZE);
 		qdf_mem_copy(pScanOffloadReq->mac_addr_mask,
 			     pScanReq->mac_addr_mask, QDF_MAC_ADDR_SIZE);
+	}
+
+	pScanOffloadReq->oui_field_len = pScanReq->oui_field_len;
+	pScanOffloadReq->num_vendor_oui = pScanReq->num_vendor_oui;
+	pScanOffloadReq->ie_whitelist = pScanReq->ie_whitelist;
+	if (pScanOffloadReq->ie_whitelist)
+		qdf_mem_copy(pScanOffloadReq->probe_req_ie_bitmap,
+			     pScanReq->probe_req_ie_bitmap,
+			     PROBE_REQ_BITMAP_LEN * sizeof(uint32_t));
+	pScanOffloadReq->oui_field_offset = sizeof(tSirScanOffloadReq) +
+				(pScanOffloadReq->channelList.numChannels - 1) +
+				pScanOffloadReq->uIEFieldLen;
+	if (pScanOffloadReq->num_vendor_oui != 0) {
+		qdf_mem_copy(
+		(uint8_t *) pScanOffloadReq + pScanOffloadReq->oui_field_offset,
+		(uint8_t *) pScanReq + pScanReq->oui_field_offset,
+		pScanReq->oui_field_len);
 	}
 
 	rc = wma_post_ctrl_msg(pMac, &msg);

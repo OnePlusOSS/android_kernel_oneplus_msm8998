@@ -285,6 +285,8 @@ typedef enum {
 	eHDD_SAP_EAPOL_IN_PROGRESS,
 } scan_reject_states;
 
+#define MAX_PROBE_REQ_OUIS 16
+
 /*
  * Generic asynchronous request/response support
  *
@@ -1658,6 +1660,9 @@ struct hdd_context_s {
 	bool rcpi_enabled;
 	bool imps_enabled;
 	int user_configured_pkt_filter_rules;
+
+	uint32_t no_of_probe_req_ouis;
+	struct vendor_oui *probe_req_voui;
 };
 
 /*---------------------------------------------------------------------------

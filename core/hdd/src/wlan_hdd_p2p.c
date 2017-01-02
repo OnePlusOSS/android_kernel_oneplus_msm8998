@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1130,7 +1130,7 @@ __wlan_hdd_cfg80211_cancel_remain_on_channel(struct wiphy *wiphy,
 	    (cfgState->remain_on_chan_ctx->cookie != cookie)) {
 		mutex_unlock(&cfgState->remain_on_chan_ctx_lock);
 		hdd_err("No Remain on channel pending with specified cookie value");
-		return -EINVAL;
+		return 0;
 	}
 
 	if (NULL != cfgState->remain_on_chan_ctx) {
@@ -1553,14 +1553,11 @@ send_frame:
 
 		mutex_lock(&cfgState->remain_on_chan_ctx_lock);
 
-		if (cfgState->remain_on_chan_ctx) {
-			cfgState->action_cookie =
-				cfgState->remain_on_chan_ctx->cookie;
-			*cookie = cfgState->action_cookie;
-		} else {
-			*cookie = (uintptr_t) cfgState->buf;
-			cfgState->action_cookie = *cookie;
-		}
+		*cookie = (uintptr_t) cfgState->buf;
+		cfgState->action_cookie = *cookie;
+		if (cfgState->remain_on_chan_ctx)
+			cfgState->remain_on_chan_ctx->cookie =
+				cfgState->action_cookie;
 
 		mutex_unlock(&cfgState->remain_on_chan_ctx_lock);
 	}

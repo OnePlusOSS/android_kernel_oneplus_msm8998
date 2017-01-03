@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -17715,9 +17715,8 @@ csr_roam_offload_scan(tpAniSirGlobal mac_ctx, uint8_t session_id,
 	}
 
 	if ((ROAM_SCAN_OFFLOAD_START == command) &&
-	    ((session->pCurRoamProfile &&
-	      session->pCurRoamProfile->do_not_roam) ||
-	      !session->fast_roam_enabled)) {
+	    (session->pCurRoamProfile &&
+	     session->pCurRoamProfile->do_not_roam)) {
 		sms_log(mac_ctx, LOGE,
 			FL("Supplicant disabled driver roaming"));
 		return QDF_STATUS_E_FAILURE;

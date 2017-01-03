@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1003,7 +1003,6 @@ typedef struct tagCsrRoamSession {
 	bool dhcp_done;
 	uint8_t disconnect_reason;
 	uint8_t uapsd_mask;
-	bool fast_roam_enabled;
 } tCsrRoamSession;
 
 typedef struct tagCsrRoamStruct {

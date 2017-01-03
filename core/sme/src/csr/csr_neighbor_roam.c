@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -149,7 +149,6 @@ QDF_STATUS csr_neighbor_roam_update_fast_roaming_enabled(tpAniSirGlobal mac_ctx,
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
 	tpCsrNeighborRoamControlInfo neighbor_roam_info =
 		&mac_ctx->roam.neighborRoamInfo[session_id];
-	tCsrRoamSession *session = CSR_GET_SESSION(mac_ctx, session_id);
 
 	switch (neighbor_roam_info->neighborRoamState) {
 	case eCSR_NEIGHBOR_ROAM_STATE_CONNECTED:
@@ -177,7 +176,6 @@ QDF_STATUS csr_neighbor_roam_update_fast_roaming_enabled(tpAniSirGlobal mac_ctx,
 		qdf_status = QDF_STATUS_E_FAILURE;
 		break;
 	}
-	session->fast_roam_enabled = fast_roam_enabled;
 	return qdf_status;
 }
 QDF_STATUS csr_neighbor_roam_update_config(tpAniSirGlobal mac_ctx,

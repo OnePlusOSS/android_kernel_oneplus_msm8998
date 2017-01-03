@@ -14974,6 +14974,12 @@ static int __wlan_hdd_cfg80211_testmode(struct wiphy *wiphy,
 			timePeriodSec == 0))
 			return -EINVAL;
 
+		if (buf_len > sizeof(*hb_params)) {
+			hdd_err("buf_len=%d exceeded hb_params size limit",
+				buf_len);
+			return -ERANGE;
+		}
+
 		hb_params =
 			(tSirLPHBReq *) qdf_mem_malloc(sizeof(tSirLPHBReq));
 		if (NULL == hb_params) {

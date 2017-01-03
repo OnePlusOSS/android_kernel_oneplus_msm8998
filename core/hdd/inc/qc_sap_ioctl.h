@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -186,6 +186,46 @@ typedef struct {
 
 #define RC_2_RATE_IDX_11AC(_rc)         ((_rc) & 0xf)
 #define HT_RC_2_STREAMS_11AC(_rc)       ((((_rc) & 0x30) >> 4) + 1)
+
+/*
+ * <ioctl>
+ * setRadar - simulate a radar event
+ *
+ * @INPUT: None
+ *
+ * @OUTPUT: None
+ *
+ * This IOCTL is used to simulate a radar event, state machines for
+ * SAP will behave as same way in which a radar event is reported by WMA
+ *
+ * @E.g: iwpriv wlan0 setRadar
+ *
+ * Supported Feature: DFS
+ *
+ * Usage: Internal
+ *
+ * </ioctl>
+ */
+
+/*
+ * <ioctl>
+ * setRadarDbg - enable/disable radar specific logs
+ *
+ * @INPUT: 1/0
+ *
+ * @OUTPUT: None
+ *
+ * This IOCTL is enable radar phyerror info in wma
+ *
+ * @E.g: iwpriv wlan0 setRadarDbg <enable>
+ *  iwpriv wlan0 setRadarDbg 1
+ *
+ * Supported Feature: DFS
+ *
+ * Usage: Internal
+ *
+ * </ioctl>
+ */
 
 enum {
 	QCSAP_PARAM_MAX_ASSOC = 1,

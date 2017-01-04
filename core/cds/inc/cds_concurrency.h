@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -600,7 +600,8 @@ struct cds_conc_connection_info {
 	bool          in_use;
 };
 
-bool cds_is_connection_in_progress(void);
+bool cds_is_connection_in_progress(uint8_t *session_id,
+				scan_reject_states *reason);
 void cds_dump_concurrency_info(void);
 
 #ifdef FEATURE_WLAN_TDLS

@@ -6552,6 +6552,7 @@ struct ndp_responder_rsp_event {
 	uint32_t status;
 	uint32_t reason;
 	struct qdf_mac_addr peer_mac_addr;
+	bool create_peer;
 };
 
 /**

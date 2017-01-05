@@ -2483,8 +2483,19 @@ hdd_sched_scan_callback(void *callbackContext,
 
 	ret = wlan_hdd_cfg80211_update_bss(pHddCtx->wiphy, pAdapter, 0);
 
-	if (0 > ret)
+	if (ret < 0) {
 		hdd_notice("NO SCAN result");
+	} else {
+		/*
+		 * Acquire wakelock to handle the case where APP's tries to
+		 * suspend immediately after the driver gets connect
+		 * request(i.e after pno) from supplicant, this result in
+		 * app's is suspending and not able to process the connect
+		 * request to AP
+		 */
+		hdd_prevent_suspend_timeout(1000,
+					    WIFI_POWER_EVENT_WAKELOCK_SCAN);
+	}
 
 	cfg80211_sched_scan_results(pHddCtx->wiphy);
 	hdd_notice("cfg80211 scan result database updated");

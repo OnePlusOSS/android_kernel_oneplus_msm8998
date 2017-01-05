@@ -1600,6 +1600,7 @@ struct hdd_context_s {
 	uint8_t last_scan_reject_session_id;
 	scan_reject_states last_scan_reject_reason;
 	unsigned long last_scan_reject_timestamp;
+	uint8_t beacon_probe_rsp_cnt_per_scan;
 };
 
 /*---------------------------------------------------------------------------

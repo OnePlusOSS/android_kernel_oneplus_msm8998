@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -5607,7 +5607,7 @@ bool cds_allow_concurrency(enum cds_con_mode mode,
 	num_connections = cds_get_connection_count();
 
 	if (num_connections && cds_is_sub_20_mhz_enabled()) {
-		/* dont allow concurrency if Sub 20 MHz is enabled */
+		cds_err("dont allow concurrency if Sub 20 MHz is enabled");
 		status = false;
 		goto done;
 	}

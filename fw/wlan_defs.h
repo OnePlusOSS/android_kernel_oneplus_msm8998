@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -359,6 +359,7 @@ typedef struct {
 
 #define MAX_IBSS_PEERS 32
 
+#ifdef NUM_SPATIAL_STREAM
 /*
  * RC_TX_RATE_SCHEDULE and RC_TX_RATE_INFO defs are used only in the target.
  * (Host-based rate control is no longer applicable.)
@@ -440,6 +441,7 @@ typedef struct {
       A_UINT8     dd_profile;
   } RC_TX_RATE_INFO;
 #endif /* !((NUM_SPATIAL_STREAM > 4) || SUPPORT_11AX) */
+#endif
 
 /*
  * Temporarily continue to provide the WHAL_RC_INIT_RC_MASKS def in wlan_defs.h

@@ -57,6 +57,8 @@ typedef struct sAniSirGlobal *tpAniSirGlobal;
 #include "wmi_unified_param.h"
 #include <dot11f.h>
 
+#define MAX_PEERS 32
+
 #define OFFSET_OF(structType, fldName)   (&((structType *)0)->fldName)
 
 /* / Max supported channel list */

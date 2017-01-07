@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -113,6 +113,49 @@ static const uint8_t arp_mask[] = {0xff, 0xff};
 static const uint8_t ns_ptrn[] = {0x86, 0xDD};
 static const uint8_t discvr_ptrn[] = {0xe0, 0x00, 0x00, 0xf8};
 static const uint8_t discvr_mask[] = {0xf0, 0x00, 0x00, 0xf8};
+
+#ifdef FEATURE_WLAN_DIAG_SUPPORT
+/**
+ * qdf_wma_wow_wakeup_stats_event()- send wow wakeup stats
+ * @tp_wma_handle wma: WOW wakeup packet counter
+ *
+ * This function sends wow wakeup stats diag event
+ *
+ * Return: void.
+ */
+static void qdf_wma_wow_wakeup_stats_event(tp_wma_handle wma)
+{
+	WLAN_HOST_DIAG_EVENT_DEF(WowStats,
+	struct host_event_wlan_powersave_wow_stats);
+	qdf_mem_zero(&WowStats, sizeof(WowStats));
+
+	WowStats.wow_bcast_wake_up_count = wma->wow_bcast_wake_up_count;
+	WowStats.wow_ipv4_mcast_wake_up_count =
+					wma->wow_ipv4_mcast_wake_up_count;
+	WowStats.wow_ipv6_mcast_wake_up_count =
+					wma->wow_ipv6_mcast_wake_up_count;
+	WowStats.wow_ipv6_mcast_ra_stats = wma->wow_ipv6_mcast_ra_stats;
+	WowStats.wow_ipv6_mcast_ns_stats = wma->wow_ipv6_mcast_ns_stats;
+	WowStats.wow_ipv6_mcast_na_stats = wma->wow_ipv6_mcast_na_stats;
+	WowStats.wow_pno_match_wake_up_count = wma->wow_pno_match_wake_up_count;
+	WowStats.wow_pno_complete_wake_up_count =
+					wma->wow_pno_complete_wake_up_count;
+	WowStats.wow_gscan_wake_up_count = wma->wow_gscan_wake_up_count;
+	WowStats.wow_low_rssi_wake_up_count =  wma->wow_low_rssi_wake_up_count;
+	WowStats.wow_rssi_breach_wake_up_count =
+					wma->wow_rssi_breach_wake_up_count;
+	WowStats.wow_icmpv4_count = wma->wow_icmpv4_count;
+	WowStats.wow_icmpv6_count = wma->wow_icmpv6_count;
+	WowStats.wow_oem_response_wake_up_count =
+					wma->wow_oem_response_wake_up_count;
+	WLAN_HOST_DIAG_EVENT_REPORT(&WowStats, EVENT_WLAN_POWERSAVE_WOW_STATS);
+}
+#else
+static void qdf_wma_wow_wakeup_stats_event(tp_wma_handle wma)
+{
+	return;
+}
+#endif
 
 #ifdef FEATURE_WLAN_AUTO_SHUTDOWN
 /**
@@ -1622,8 +1665,7 @@ int wma_csa_offload_handler(void *handle, uint8_t *event, uint32_t len)
 	 * basic sanity check: requested channel should not be 0
 	 * and equal to home channel
 	 */
-	if ((0 == csa_offload_event->channel) ||
-	    (cur_chan == csa_offload_event->channel)) {
+	if (0 == csa_offload_event->channel) {
 		WMA_LOGE("CSA Event with channel %d. Ignore !!",
 			 csa_offload_event->channel);
 		qdf_mem_free(csa_offload_event);
@@ -3177,6 +3219,7 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 			 wma_wow_wake_reason_str(wake_info->wake_reason),
 			 wake_info->wake_reason, wake_info->vdev_id);
 		qdf_wow_wakeup_host_event(wake_info->wake_reason);
+		qdf_wma_wow_wakeup_stats_event(wma);
 	}
 
 	qdf_event_set(&wma->wma_resume_event);
@@ -8299,6 +8342,16 @@ QDF_STATUS wma_get_wakelock_stats(struct sir_wake_lock_stats *wake_lock_stats)
 	wake_lock_stats->wow_icmpv4_count = wma_handle->wow_icmpv4_count;
 	wake_lock_stats->wow_icmpv6_count =
 			wma_handle->wow_icmpv6_count;
+	wake_lock_stats->wow_rssi_breach_wake_up_count =
+			wma_handle->wow_rssi_breach_wake_up_count;
+	wake_lock_stats->wow_low_rssi_wake_up_count =
+			wma_handle->wow_low_rssi_wake_up_count;
+	wake_lock_stats->wow_gscan_wake_up_count =
+			wma_handle->wow_gscan_wake_up_count;
+	wake_lock_stats->wow_pno_complete_wake_up_count =
+			wma_handle->wow_pno_complete_wake_up_count;
+	wake_lock_stats->wow_pno_match_wake_up_count =
+			wma_handle->wow_pno_match_wake_up_count;
 
 	return QDF_STATUS_SUCCESS;
 }

@@ -365,8 +365,6 @@ struct tdls_set_state_info {
  * @discovery_sent_cnt: discovery sent count
  * @ap_rssi: ap rssi
  * @curr_candidate: current candidate
- * @ct_peer_mac_table: linear mac address table for counting the packets
- * @valid_mac_entries: number of valid mac entry in @ct_peer_mac_table
  * @magic: magic
  *
  */
@@ -380,8 +378,6 @@ typedef struct {
 	uint32_t discovery_sent_cnt;
 	int8_t ap_rssi;
 	struct _hddTdlsPeer_t *curr_candidate;
-	struct tdls_ct_mac_table ct_peer_mac_table[TDLS_CT_MAC_MAX_TABLE_SIZE];
-	uint8_t valid_mac_entries;
 	uint32_t magic;
 } tdlsCtx_t;
 
@@ -509,12 +505,7 @@ int wlan_hdd_tdls_init(hdd_adapter_t *pAdapter);
 
 void wlan_hdd_tdls_exit(hdd_adapter_t *pAdapter);
 
-void wlan_hdd_tdls_extract_da(struct sk_buff *skb, uint8_t *mac);
-
 void wlan_hdd_tdls_extract_sa(struct sk_buff *skb, uint8_t *mac);
-
-int wlan_hdd_tdls_increment_pkt_count(hdd_adapter_t *pAdapter,
-				      const uint8_t *mac, uint8_t tx);
 
 int wlan_hdd_tdls_set_sta_id(hdd_adapter_t *pAdapter, const uint8_t *mac,
 			     uint8_t staId);

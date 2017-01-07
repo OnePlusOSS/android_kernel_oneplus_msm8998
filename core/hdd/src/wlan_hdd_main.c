@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -562,25 +562,25 @@ static void hdd_qdf_trace_enable(QDF_MODULE_ID moduleId, uint32_t bitmask)
 int wlan_hdd_validate_context(hdd_context_t *hdd_ctx)
 {
 	if (NULL == hdd_ctx || NULL == hdd_ctx->config) {
-		hdd_err("%pS HDD context is Null", (void *)_RET_IP_);
+		hdd_info("%pS HDD context is Null", (void *)_RET_IP_);
 		return -ENODEV;
 	}
 
 	if (cds_is_driver_recovering()) {
-		hdd_err("%pS Recovery in Progress. State: 0x%x Ignore!!!",
+		hdd_info("%pS Recovery in Progress. State: 0x%x Ignore!!!",
 			(void *)_RET_IP_, cds_get_driver_state());
 		return -EAGAIN;
 	}
 
 	if (cds_is_load_or_unload_in_progress()) {
-		hdd_err("%pS Unloading/Loading in Progress. Ignore!!!: 0x%x",
+		hdd_info("%pS Unloading/Loading in Progress. Ignore!!!: 0x%x",
 			(void *)_RET_IP_, cds_get_driver_state());
 		return -EAGAIN;
 	}
 
 	if (hdd_ctx->start_modules_in_progress ||
 	    hdd_ctx->stop_modules_in_progress) {
-			hdd_err("%pS Start/Stop Modules in progress. Ignore!!!",
+			hdd_info("%pS Start/Stop Modules in progress. Ignore!!!",
 				(void *)_RET_IP_);
 		return -EAGAIN;
 	}
@@ -1933,10 +1933,7 @@ static int __hdd_stop(struct net_device *dev)
 {
 	hdd_adapter_t *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
 	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
-	hdd_adapter_list_node_t *adapternode = NULL, *next = NULL;
 	int ret;
-	bool close_modules = true;
-	QDF_STATUS status;
 
 	ENTER_DEV(dev);
 
@@ -1997,20 +1994,7 @@ static int __hdd_stop(struct net_device *dev)
 	 * Find if any iface is up. If any iface is up then can't put device to
 	 * sleep/power save mode
 	 */
-	status = hdd_get_front_adapter(hdd_ctx, &adapternode);
-	while ((NULL != adapternode) && (QDF_STATUS_SUCCESS == status)) {
-		if (test_bit(DEVICE_IFACE_OPENED,
-			     &adapternode->pAdapter->event_flags)) {
-			hdd_info("Still other ifaces are up cannot close modules");
-			close_modules = false;
-			break;
-		}
-		status = hdd_get_next_adapter(hdd_ctx, adapternode, &next);
-		adapternode = next;
-
-	}
-
-	if (close_modules) {
+	if (hdd_check_for_opened_interfaces(hdd_ctx)) {
 		hdd_info("Closing all modules from the hdd_stop");
 		qdf_mc_timer_start(&hdd_ctx->iface_change_timer,
 				   hdd_ctx->config->iface_change_wait_time
@@ -2250,6 +2234,12 @@ static void __hdd_set_multicast_list(struct net_device *dev)
 	if (0 != status)
 		return;
 
+	if (!hdd_ctx->config->fEnableMCAddrList) {
+		hdd_info("gMCAddrListEnable ini param not enabled");
+		adapter->mc_addr_list.mc_cnt = 0;
+		return;
+	}
+
 	if (dev->flags & IFF_ALLMULTI) {
 		hdd_notice("allow all multicast frames");
 		adapter->mc_addr_list.mc_cnt = 0;
@@ -2260,7 +2250,10 @@ static void __hdd_set_multicast_list(struct net_device *dev)
 		if (mc_count > WLAN_HDD_MAX_MC_ADDR_LIST) {
 			hdd_notice("Exceeded max MC filter addresses (%d). Allowing all MC frames by disabling MC address filtering",
 				   WLAN_HDD_MAX_MC_ADDR_LIST);
-			wlan_hdd_set_mc_addr_list(adapter, false);
+
+			if (wlan_hdd_set_mc_addr_list(adapter, false))
+				hdd_info("failed to clear mc addr list");
+
 			adapter->mc_addr_list.mc_cnt = 0;
 			return;
 		}
@@ -2301,7 +2294,8 @@ static void __hdd_set_multicast_list(struct net_device *dev)
 	}
 	if (hdd_ctx->config->active_mode_offload) {
 		hdd_info("enable mc filtering");
-		wlan_hdd_set_mc_addr_list(adapter, true);
+		if (wlan_hdd_set_mc_addr_list(adapter, true))
+			hdd_err("Failed: to set mc addr list");
 	} else {
 		hdd_info("skip mc filtering enable it during cfg80211 suspend");
 	}
@@ -3810,6 +3804,27 @@ QDF_STATUS hdd_reset_all_adapters(hdd_context_t *hdd_ctx)
 	return QDF_STATUS_SUCCESS;
 }
 
+bool hdd_check_for_opened_interfaces(hdd_context_t *hdd_ctx)
+{
+	hdd_adapter_list_node_t *adapter_node = NULL, *next = NULL;
+	QDF_STATUS status;
+	bool close_modules = true;
+
+	status = hdd_get_front_adapter(hdd_ctx, &adapter_node);
+	while ((NULL != adapter_node) && (QDF_STATUS_SUCCESS == status)) {
+		if (test_bit(DEVICE_IFACE_OPENED,
+		    &adapter_node->pAdapter->event_flags)) {
+			hdd_info("Still other ifaces are up cannot close modules");
+			close_modules = false;
+			break;
+		}
+		status = hdd_get_next_adapter(hdd_ctx, adapter_node, &next);
+		adapter_node = next;
+	}
+
+	return close_modules;
+}
+
 /**
  * hdd_is_interface_up()- Checkfor interface up before ssr
  * @hdd_ctx: HDD context
@@ -3827,10 +3842,8 @@ static bool hdd_is_interface_up(hdd_adapter_t *adapter)
 		return false;
 }
 
-#if defined CFG80211_CONNECT_BSS
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 0)) \
-	&& !defined(WITH_BACKPORTS) && !defined(IEEE80211_PRIVACY)
-static
+	&& !defined(WITH_BACKPORTS)
 struct cfg80211_bss *hdd_cfg80211_get_bss(struct wiphy *wiphy,
 					  struct ieee80211_channel *channel,
 					  const u8 *bssid, const u8 *ssid,
@@ -3842,7 +3855,6 @@ struct cfg80211_bss *hdd_cfg80211_get_bss(struct wiphy *wiphy,
 				WLAN_CAPABILITY_ESS);
 }
 #else
-static
 struct cfg80211_bss *hdd_cfg80211_get_bss(struct wiphy *wiphy,
 					  struct ieee80211_channel *channel,
 					  const u8 *bssid, const u8 *ssid,
@@ -3853,7 +3865,6 @@ struct cfg80211_bss *hdd_cfg80211_get_bss(struct wiphy *wiphy,
 				IEEE80211_BSS_TYPE_ESS,
 				IEEE80211_PRIVACY_ANY);
 }
-#endif
 #endif
 
 #if defined CFG80211_CONNECT_BSS
@@ -9345,30 +9356,51 @@ static void __hdd_module_exit(void)
  * Return: 'count' on success or a negative error code in case of failure
  */
 static ssize_t wlan_boot_cb(struct kobject *kobj,
-				struct kobj_attribute *attr,
-				const char *buf,
-				size_t count)
+			    struct kobj_attribute *attr,
+			    const char *buf,
+			    size_t count)
 {
 
-	int ret = 0;
-
 	if (wlan_loader->loaded_state) {
-		pr_info("Wlan driver already initialized");
-		return 0;
+		pr_err("%s: wlan driver already initialized\n", __func__);
+		return -EALREADY;
 	}
 
-
-	pr_err("%s: Loading driver v%s\n", WLAN_MODULE_NAME,
-		QWLAN_VERSIONSTR TIMER_MANAGER_STR MEMORY_DEBUG_STR);
-
 	if (__hdd_module_init()) {
-		pr_err("%s: Failed to register handler\n", __func__);
-		ret = -EINVAL;
-	} else
-		wlan_loader->loaded_state = MODULE_INITIALIZED;
+		pr_err("%s: wlan driver initialization failed\n", __func__);
+		return -EIO;
+	}
+
+	wlan_loader->loaded_state = MODULE_INITIALIZED;
 
 	return count;
 
+}
+
+/**
+ * hdd_sysfs_cleanup() - cleanup sysfs
+ *
+ * Return: None
+ *
+ */
+static void hdd_sysfs_cleanup(void)
+{
+
+	/* remove from group */
+	if (wlan_loader->boot_wlan_obj && wlan_loader->attr_group)
+		sysfs_remove_group(wlan_loader->boot_wlan_obj,
+				   wlan_loader->attr_group);
+
+	/* unlink the object from parent */
+	kobject_del(wlan_loader->boot_wlan_obj);
+
+	/* free the object */
+	kobject_put(wlan_loader->boot_wlan_obj);
+
+	kfree(wlan_loader->attr_group);
+	kfree(wlan_loader);
+
+	wlan_loader = NULL;
 }
 
 /**
@@ -9378,17 +9410,19 @@ static ssize_t wlan_boot_cb(struct kobject *kobj,
  * This is creates the syfs entry boot_wlan. Which shall be invoked
  * when the filesystem is ready.
  *
+ * QDF API cannot be used here since this function is called even before
+ * initializing WLAN driver.
+ *
  * Return: 0 for success, errno on failure
  */
 static int wlan_init_sysfs(void)
 {
-	int ret = -EINVAL;
+	int ret = -ENOMEM;
 
 	wlan_loader = kzalloc(sizeof(*wlan_loader), GFP_KERNEL);
 	if (!wlan_loader) {
 		pr_err("%s: memory alloc failed\n", __func__);
-		ret = -ENOMEM;
-		return ret;
+		return -ENOMEM;
 	}
 
 	wlan_loader->boot_wlan_obj = NULL;
@@ -9396,7 +9430,6 @@ static int wlan_init_sysfs(void)
 					  GFP_KERNEL);
 	if (!wlan_loader->attr_group) {
 		pr_err("%s: malloc attr_group failed\n", __func__);
-		ret = -ENOMEM;
 		goto error_return;
 	}
 
@@ -9407,7 +9440,6 @@ static int wlan_init_sysfs(void)
 							    kernel_kobj);
 	if (!wlan_loader->boot_wlan_obj) {
 		pr_err("%s: sysfs create and add failed\n", __func__);
-		ret = -ENOMEM;
 		goto error_return;
 	}
 
@@ -9421,11 +9453,7 @@ static int wlan_init_sysfs(void)
 	return 0;
 
 error_return:
-
-	if (wlan_loader->boot_wlan_obj) {
-		kobject_del(wlan_loader->boot_wlan_obj);
-		wlan_loader->boot_wlan_obj = NULL;
-	}
+	hdd_sysfs_cleanup();
 
 	return ret;
 }
@@ -9437,23 +9465,16 @@ error_return:
  */
 static int wlan_deinit_sysfs(void)
 {
-
 	if (!wlan_loader) {
 		hdd_alert("wlan loader context is Null!");
 		return -EINVAL;
 	}
 
-	if (wlan_loader->boot_wlan_obj) {
-		sysfs_remove_group(wlan_loader->boot_wlan_obj,
-				   wlan_loader->attr_group);
-		kobject_del(wlan_loader->boot_wlan_obj);
-		wlan_loader->boot_wlan_obj = NULL;
-	}
-
+	hdd_sysfs_cleanup();
 	return 0;
 }
 
-#endif
+#endif /* MODULE */
 
 #ifdef MODULE
 /**

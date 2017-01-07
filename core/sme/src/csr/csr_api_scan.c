@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -5388,7 +5388,19 @@ static void csr_scan_copy_request_valid_channels_only(tpAniSirGlobal mac_ctx,
 						break;
 					}
 				}
-				if (is_unsafe_chan) {
+				if (is_unsafe_chan &&
+					((CSR_IS_CHANNEL_24GHZ(
+						src_req->ChannelInfo.
+						ChannelList[index]) &&
+					mac_ctx->roam.configParam.
+					sta_roam_policy.sap_operating_band ==
+						eCSR_BAND_24) ||
+						(CDS_IS_CHANNEL_5GHZ(
+							src_req->ChannelInfo.
+							ChannelList[index]) &&
+					mac_ctx->roam.configParam.
+					sta_roam_policy.sap_operating_band ==
+						eCSR_BAND_5G))) {
 					QDF_TRACE(QDF_MODULE_ID_SME,
 						QDF_TRACE_LEVEL_INFO,
 					      FL("ignoring unsafe channel %d"),
@@ -5722,9 +5734,19 @@ void csr_scan_call_callback(tpAniSirGlobal pMac, tSmeCmd *pCommand,
 			    eCsrScanStatus scanStatus)
 {
 	if (pCommand->u.scanCmd.callback) {
+		/*
+		 * In case of eCsrScanForSsid scan, scan is aborted as host gets
+		 * the desired AP, this doesn't necessaryly mean that scan is
+		 * failed, send abort indication to upper layers only if scan
+		 * status is not success
+		 */
 		if (pCommand->u.scanCmd.abort_scan_indication) {
-			sms_log(pMac, LOG1, FL("scanDone due to abort"));
-			scanStatus = eCSR_SCAN_ABORT;
+			if ((pCommand->u.scanCmd.reason != eCsrScanForSsid) ||
+			   (scanStatus != eCSR_SCAN_SUCCESS)) {
+				sms_log(pMac, LOG1,
+				       FL("scanDone due to abort"));
+				scanStatus = eCSR_SCAN_ABORT;
+			}
 		}
 		pCommand->u.scanCmd.callback(pMac, pCommand->u.scanCmd.pContext,
 					     pCommand->sessionId,
@@ -6206,6 +6228,42 @@ static void csr_roam_copy_channellist(tpAniSirGlobal mac_ctx,
 }
 
 /**
+ * csr_ssid_scan_done_callback() - Callback to indicate
+ *                            scan is done for ssid scan
+ * @halHandle: handle to hal
+ * @context: SSID scan context
+ * @scanId: Scan id for the scheduled scan
+ * @status: scan done status
+ *
+ * Return - QDF_STATUS
+ */
+static QDF_STATUS csr_ssid_scan_done_callback(tHalHandle halHandle,
+		void *context,
+		uint8_t sessionId,
+		uint32_t scanId,
+		eCsrScanStatus status)
+{
+	struct csr_scan_for_ssid_context *scan_context =
+		(struct csr_scan_for_ssid_context *)context;
+
+	if (NULL == scan_context) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+				FL("scan for ssid context not found"));
+		return QDF_STATUS_E_INVAL;
+	}
+
+	if (eCSR_SCAN_ABORT == status)
+		csr_roam_call_callback(scan_context->mac_ctx,
+				scan_context->session_id,
+				NULL, scan_context->roam_id,
+				eCSR_ROAM_ASSOCIATION_FAILURE,
+				eCSR_ROAM_RESULT_SCAN_FOR_SSID_FAILURE);
+	qdf_mem_free(scan_context);
+	return QDF_STATUS_SUCCESS;
+}
+
+
+/**
  * csr_scan_for_ssid() -  Function usually used for BSSs that suppresses SSID
  * @mac_ctx: Pointer to Global Mac structure
  * @profile: pointer to tCsrRoamProfile
@@ -6229,6 +6287,7 @@ QDF_STATUS csr_scan_for_ssid(tpAniSirGlobal mac_ctx, uint32_t session_id,
 	tpCsrNeighborRoamControlInfo neighbor_roaminfo =
 		&mac_ctx->roam.neighborRoamInfo[session_id];
 	tCsrSSIDs *ssids = NULL;
+	struct csr_scan_for_ssid_context *context;
 
 	sms_log(mac_ctx, LOG2, FL("called"));
 
@@ -6258,14 +6317,24 @@ QDF_STATUS csr_scan_for_ssid(tpAniSirGlobal mac_ctx, uint32_t session_id,
 					scan_cmd->u.scanCmd.pToRoamProfile,
 					profile);
 
+	context = qdf_mem_malloc(sizeof(*context));
+	if (NULL == context) {
+		sms_log(mac_ctx, LOGE,
+			"Failed to allocate memory for ssid scan context");
+		goto error;
+	}
+	context->mac_ctx = mac_ctx;
+	context->session_id = session_id;
+	context->roam_id = roam_id;
+
 	if (!QDF_IS_STATUS_SUCCESS(status))
 		goto error;
 
 	scan_cmd->u.scanCmd.roamId = roam_id;
 	scan_cmd->command = eSmeCommandScan;
 	scan_cmd->sessionId = (uint8_t) session_id;
-	scan_cmd->u.scanCmd.callback = NULL;
-	scan_cmd->u.scanCmd.pContext = NULL;
+	scan_cmd->u.scanCmd.callback = csr_ssid_scan_done_callback;
+	scan_cmd->u.scanCmd.pContext = context;
 	scan_cmd->u.scanCmd.reason = eCsrScanForSsid;
 
 	/* let it wrap around */

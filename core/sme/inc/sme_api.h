@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1258,7 +1258,7 @@ QDF_STATUS sme_update_access_policy_vendor_ie(tHalHandle hal,
 QDF_STATUS sme_update_sta_roam_policy(tHalHandle hal,
 		enum sta_roam_policy_dfs_mode dfs_mode,
 		bool skip_unsafe_channels,
-		uint8_t session_id);
+		uint8_t session_id, uint8_t sap_operating_band);
 QDF_STATUS sme_enable_disable_chanavoidind_event(tHalHandle hal,
 					uint8_t set_value);
 QDF_STATUS sme_set_default_scan_ie(tHalHandle hal, uint16_t session_id,
@@ -1333,7 +1333,28 @@ QDF_STATUS sme_update_short_retry_limit_threshold(tHalHandle hal_handle,
 		struct sme_short_retry_limit *short_retry_limit_th);
 QDF_STATUS sme_update_long_retry_limit_threshold(tHalHandle hal_handle,
 		struct sme_long_retry_limit  *long_retry_limit_th);
-
+/**
+ * sme_roam_is_ese_assoc() - Check if association type is ESE
+ * @roam_info: Pointer to roam info
+ *
+ * Return: true if ESE Association, false otherwise.
+ */
+#ifdef FEATURE_WLAN_ESE
+bool sme_roam_is_ese_assoc(tCsrRoamInfo *roam_info);
+#else
+static inline bool sme_roam_is_ese_assoc(tCsrRoamInfo *roam_info)
+{
+	return false;
+}
+#endif
+/**
+ * sme_neighbor_roam_is11r_assoc() - Check if association type is 11R
+ * @hal_ctx: HAL handle
+ * @session_id: session id
+ *
+ * Return: true if 11r Association, false otherwise.
+ */
+bool sme_neighbor_roam_is11r_assoc(tHalHandle hal_ctx, uint8_t session_id);
 /**
  * sme_update_sta_inactivity_timeout(): Update sta_inactivity_timeout to FW
  * @hal: Handle returned by mac_open

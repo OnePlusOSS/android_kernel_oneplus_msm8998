@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -933,19 +933,18 @@ hdd_send_ft_assoc_response(struct net_device *dev,
 		   (unsigned int)pFTAssocRsp[1]);
 
 	/* We need to send the IEs to the supplicant. */
-	buff = kmalloc(IW_GENERIC_IE_MAX, GFP_ATOMIC);
+	buff = qdf_mem_malloc(IW_GENERIC_IE_MAX);
 	if (buff == NULL) {
-		hdd_err("kmalloc unable to allocate memory");
+		hdd_err("unable to allocate memory");
 		return;
 	}
 	/* Send the Assoc Resp, the supplicant needs this for initial Auth. */
 	len = pCsrRoamInfo->nAssocRspLength - FT_ASSOC_RSP_IES_OFFSET;
 	wrqu.data.length = len;
-	memset(buff, 0, IW_GENERIC_IE_MAX);
 	memcpy(buff, pFTAssocRsp, len);
 	wireless_send_event(dev, IWEVASSOCRESPIE, &wrqu, buff);
 
-	kfree(buff);
+	qdf_mem_free(buff);
 }
 
 /**
@@ -1018,12 +1017,11 @@ static void hdd_send_ft_event(hdd_adapter_t *pAdapter)
 
 #else
 	/* We need to send the IEs to the supplicant */
-	buff = kmalloc(IW_CUSTOM_MAX, GFP_ATOMIC);
+	buff = qdf_mem_malloc(IW_CUSTOM_MAX);
 	if (buff == NULL) {
-		hdd_err("kmalloc unable to allocate memory");
+		hdd_err("unable to allocate memory");
 		return;
 	}
-	qdf_mem_zero(buff, IW_CUSTOM_MAX);
 
 	/* Sme needs to send the RIC IEs first */
 	str_len = strlcpy(buff, "RIC=", IW_CUSTOM_MAX);
@@ -1045,7 +1043,7 @@ static void hdd_send_ft_event(hdd_adapter_t *pAdapter)
 				     (IW_CUSTOM_MAX - str_len), &auth_resp_len);
 
 	if (auth_resp_len == 0) {
-		kfree(buff);
+		qdf_mem_free(buff);
 		hdd_err("AuthRsp FTIES is of length 0");
 		return;
 	}
@@ -1053,7 +1051,7 @@ static void hdd_send_ft_event(hdd_adapter_t *pAdapter)
 	wrqu.data.length = str_len + auth_resp_len;
 	wireless_send_event(pAdapter->dev, IWEVCUSTOM, &wrqu, buff);
 
-	kfree(buff);
+	qdf_mem_free(buff);
 #endif
 }
 
@@ -1133,12 +1131,11 @@ hdd_send_update_beacon_ies_event(hdd_adapter_t *pAdapter,
 		   pCsrRoamInfo->nBeaconLength - BEACON_FRAME_IES_OFFSET);
 
 	/* We need to send the IEs to the supplicant. */
-	buff = kmalloc(IW_CUSTOM_MAX, GFP_ATOMIC);
+	buff = qdf_mem_malloc(IW_CUSTOM_MAX);
 	if (buff == NULL) {
-		hdd_err("kmalloc unable to allocate memory");
+		hdd_err("unable to allocate memory");
 		return;
 	}
-	qdf_mem_zero(buff, IW_CUSTOM_MAX);
 
 	strLen = strlcpy(buff, "BEACONIEs=", IW_CUSTOM_MAX);
 	currentLen = strLen + 1;
@@ -1168,7 +1165,7 @@ hdd_send_update_beacon_ies_event(hdd_adapter_t *pAdapter,
 		wireless_send_event(pAdapter->dev, IWEVCUSTOM, &wrqu, buff);
 	} while (totalIeLen > 0);
 
-	kfree(buff);
+	qdf_mem_free(buff);
 }
 
 /**
@@ -1199,9 +1196,12 @@ static void hdd_send_association_event(struct net_device *dev,
 	we_event = SIOCGIWAP;
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 	if (NULL != pCsrRoamInfo)
-		if (pCsrRoamInfo->roamSynchInProgress)
+		if (pCsrRoamInfo->roamSynchInProgress) {
 			/* change logging before release */
 			hdd_info("LFR3:hdd_send_association_event");
+			/* Update tdls module about the disconnection event */
+			wlan_hdd_tdls_notify_disconnect(pAdapter);
+		}
 #endif
 	if (eConnectionState_Associated == pHddStaCtx->conn_info.connState) {
 		tSirSmeChanInfo chan_info;
@@ -1892,8 +1892,8 @@ static void hdd_send_re_assoc_event(struct net_device *dev,
 {
 	unsigned int len = 0;
 	u8 *pFTAssocRsp = NULL;
-	uint8_t *rspRsnIe = kmalloc(IW_GENERIC_IE_MAX, GFP_KERNEL);
-	uint8_t *assoc_req_ies = kmalloc(IW_GENERIC_IE_MAX, GFP_KERNEL);
+	uint8_t *rspRsnIe = qdf_mem_malloc(IW_GENERIC_IE_MAX);
+	uint8_t *assoc_req_ies = qdf_mem_malloc(IW_GENERIC_IE_MAX);
 	uint32_t rspRsnLength = 0;
 	struct ieee80211_channel *chan;
 	uint8_t buf_ssid_ie[2 + SIR_MAC_SSID_EID_MAX]; /* 2 bytes-EID and len */
@@ -1955,17 +1955,14 @@ static void hdd_send_re_assoc_event(struct net_device *dev,
 	qdf_mem_zero(rspRsnIe + len, IW_GENERIC_IE_MAX - len);
 
 	chan = ieee80211_get_channel(pAdapter->wdev.wiphy,
-				     (int)pCsrRoamInfo->pBssDesc->channelId);
+			(int)pCsrRoamInfo->pBssDesc->channelId);
 	sme_roam_get_connect_profile(hal_handle, pAdapter->sessionId,
 		&roam_profile);
-	bss = cfg80211_get_bss(pAdapter->wdev.wiphy, chan,
-			pCsrRoamInfo->bssid.bytes,
-			&roam_profile.SSID.ssId[0], roam_profile.SSID.length,
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 0)) && !defined(WITH_BACKPORTS)
-			WLAN_CAPABILITY_ESS, WLAN_CAPABILITY_ESS);
-#else
-			IEEE80211_BSS_TYPE_ESS, IEEE80211_PRIVACY_ANY);
-#endif
+
+	bss = hdd_cfg80211_get_bss(pAdapter->wdev.wiphy,
+			chan, pCsrRoamInfo->bssid.bytes,
+			&roam_profile.SSID.ssId[0],
+			roam_profile.SSID.length);
 
 	if (bss == NULL)
 		hdd_err("Get BSS returned NULL");
@@ -1980,7 +1977,7 @@ static void hdd_send_re_assoc_event(struct net_device *dev,
 	hdd_notice("SSIDIE:");
 	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_DEBUG,
 			   buf_ssid_ie, ssid_ie_len);
-	final_req_ie = kmalloc(IW_GENERIC_IE_MAX, GFP_KERNEL);
+	final_req_ie = qdf_mem_malloc(IW_GENERIC_IE_MAX);
 	if (final_req_ie == NULL)
 		goto done;
 	buf_ptr = final_req_ie;
@@ -2012,9 +2009,9 @@ static void hdd_send_re_assoc_event(struct net_device *dev,
 done:
 	sme_roam_free_connect_profile(&roam_profile);
 	if (final_req_ie)
-		kfree(final_req_ie);
-	kfree(rspRsnIe);
-	kfree(assoc_req_ies);
+		qdf_mem_free(final_req_ie);
+	qdf_mem_free(rspRsnIe);
+	qdf_mem_free(assoc_req_ies);
 }
 
 /**
@@ -2099,8 +2096,6 @@ static QDF_STATUS hdd_roam_set_key_complete_handler(hdd_adapter_t *pAdapter,
 	bool fConnected = false;
 	QDF_STATUS qdf_status = QDF_STATUS_E_FAILURE;
 	hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
-	tHalHandle hal_ctx = WLAN_HDD_GET_HAL_CTX(pAdapter);
-	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal_ctx);
 
 	ENTER();
 
@@ -2158,8 +2153,9 @@ static QDF_STATUS hdd_roam_set_key_complete_handler(hdd_adapter_t *pAdapter,
 				 * only if ptk_installed is true. So, make
 				 * ptk_installed to true in case of 11R roaming.
 				 */
-				if (csr_neighbor_roam_is11r_assoc(mac_ctx,
-							pAdapter->sessionId))
+				if (sme_neighbor_roam_is11r_assoc(
+				    WLAN_HDD_GET_HAL_CTX(pAdapter),
+				    pAdapter->sessionId))
 					pHddStaCtx->conn_info.ptk_installed =
 						true;
 			} else {
@@ -2496,6 +2492,8 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 
 				if (ft_carrier_on) {
 					if (!hddDisconInProgress) {
+						struct cfg80211_bss *roam_bss;
+
 						/*
 						 * After roaming is completed,
 						 * active session count is
@@ -2532,10 +2530,17 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 							QDF_TRACE_LEVEL_DEBUG,
 							pFTAssocReq,
 							assocReqlen);
-
-						cfg80211_roamed(dev, chan,
-								pRoamInfo->
-								bssid.bytes,
+						roam_bss =
+							hdd_cfg80211_get_bss(
+								pAdapter->wdev.wiphy,
+								chan,
+								pRoamInfo->bssid.bytes,
+								pRoamInfo->u.
+								pConnectedProfile->SSID.ssId,
+								pRoamInfo->u.
+								pConnectedProfile->SSID.length);
+						cfg80211_roamed_bss(dev,
+								roam_bss,
 								pFTAssocReq,
 								assocReqlen,
 								pFTAssocRsp,
@@ -4699,7 +4704,8 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 		/* Call to clear any MC Addr List filter applied after
 		 * successful connection.
 		 */
-		wlan_hdd_set_mc_addr_list(pAdapter, false);
+		if (wlan_hdd_set_mc_addr_list(pAdapter, false))
+			hdd_err("Failed: to clear mc addr list");
 	}
 	break;
 	case eCSR_ROAM_IBSS_LEAVE:

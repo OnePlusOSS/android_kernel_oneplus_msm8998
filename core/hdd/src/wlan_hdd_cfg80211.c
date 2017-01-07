@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -7236,6 +7236,43 @@ static enum sta_roam_policy_dfs_mode wlan_hdd_get_sta_roam_dfs_mode(
 	}
 }
 
+/*
+ * hdd_get_sap_operating_band:  Get current operating channel
+ * for sap.
+ * @hdd_ctx: hdd context
+ *
+ * Return : Corresponding band for SAP operating channel
+ */
+uint8_t hdd_get_sap_operating_band(hdd_context_t *hdd_ctx)
+{
+	hdd_adapter_list_node_t *adapter_node = NULL, *next = NULL;
+	QDF_STATUS status;
+	hdd_adapter_t *adapter;
+	uint8_t  operating_channel = 0;
+	uint8_t sap_operating_band = 0;
+	status = hdd_get_front_adapter(hdd_ctx, &adapter_node);
+	while (NULL != adapter_node && QDF_STATUS_SUCCESS == status) {
+		adapter = adapter_node->pAdapter;
+
+		if (!(adapter && (QDF_SAP_MODE == adapter->device_mode))) {
+			status = hdd_get_next_adapter(hdd_ctx, adapter_node,
+					&next);
+			adapter_node = next;
+			continue;
+		}
+		operating_channel = adapter->sessionCtx.ap.operatingChannel;
+		if (IS_24G_CH(operating_channel))
+			sap_operating_band = eCSR_BAND_24;
+		else if (IS_5G_CH(operating_channel))
+			sap_operating_band = eCSR_BAND_5G;
+		else
+			sap_operating_band = eCSR_BAND_ALL;
+		status = hdd_get_next_adapter(hdd_ctx, adapter_node,
+				&next);
+	}
+	return sap_operating_band;
+}
+
 static const struct nla_policy
 wlan_hdd_set_sta_roam_config_policy[
 QCA_WLAN_VENDOR_ATTR_STA_CONNECT_ROAM_POLICY_MAX + 1] = {
@@ -7274,6 +7311,7 @@ __wlan_hdd_cfg80211_sta_roam_policy(struct wiphy *wiphy,
 	enum dfs_mode mode = DFS_MODE_NONE;
 	bool skip_unsafe_channels = false;
 	QDF_STATUS status;
+	uint8_t sap_operating_band;
 
 	ENTER_DEV(dev);
 
@@ -7303,9 +7341,10 @@ __wlan_hdd_cfg80211_sta_roam_policy(struct wiphy *wiphy,
 	if (tb[QCA_WLAN_VENDOR_ATTR_STA_SKIP_UNSAFE_CHANNEL])
 		skip_unsafe_channels = nla_get_u8(
 			tb[QCA_WLAN_VENDOR_ATTR_STA_SKIP_UNSAFE_CHANNEL]);
-
+	sap_operating_band = hdd_get_sap_operating_band(hdd_ctx);
 	status = sme_update_sta_roam_policy(hdd_ctx->hHal, sta_roam_dfs_mode,
-			skip_unsafe_channels, adapter->sessionId);
+			skip_unsafe_channels, adapter->sessionId,
+			sap_operating_band);
 
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		hdd_err("sme_update_sta_roam_policy (err=%d)", status);
@@ -7616,6 +7655,17 @@ static int wlan_hdd_cfg80211_sap_configuration_set(struct wiphy *wiphy,
 		QCA_WLAN_VENDOR_ATTR_ICMP6_RX_MULTICAST_CNT
 #define PARAM_OTHER_RX_MULTICAST_CNT \
 		QCA_WLAN_VENDOR_ATTR_OTHER_RX_MULTICAST_CNT
+#define PARAM_RSSI_BREACH_CNT \
+		QCA_WLAN_VENDOR_ATTR_RSSI_BREACH_CNT
+#define PARAM_LOW_RSSI_CNT \
+		QCA_WLAN_VENDOR_ATTR_LOW_RSSI_CNT
+#define PARAM_GSCAN_CNT \
+		QCA_WLAN_VENDOR_ATTR_GSCAN_CNT
+#define PARAM_PNO_COMPLETE_CNT \
+		QCA_WLAN_VENDOR_ATTR_PNO_COMPLETE_CNT
+#define PARAM_PNO_MATCH_CNT \
+		QCA_WLAN_VENDOR_ATTR_PNO_MATCH_CNT
+
 
 
 /**
@@ -7667,6 +7717,16 @@ static uint32_t hdd_send_wakelock_stats(hdd_context_t *hdd_ctx,
 	hdd_info("wow_icmpv4_count %d", data->wow_icmpv4_count);
 	hdd_info("wow_icmpv6_count %d",
 			data->wow_icmpv6_count);
+	hdd_info("wow_rssi_breach_wake_up_count %d",
+			data->wow_rssi_breach_wake_up_count);
+	hdd_info("wow_low_rssi_wake_up_count %d",
+			data->wow_low_rssi_wake_up_count);
+	hdd_info("wow_gscan_wake_up_count %d",
+			data->wow_gscan_wake_up_count);
+	hdd_info("wow_pno_complete_wake_up_count %d",
+			data->wow_pno_complete_wake_up_count);
+	hdd_info("wow_pno_match_wake_up_count %d",
+			data->wow_pno_match_wake_up_count);
 
 	ipv6_rx_multicast_addr_cnt =
 		data->wow_ipv6_mcast_wake_up_count;
@@ -7711,7 +7771,17 @@ static uint32_t hdd_send_wakelock_stats(hdd_context_t *hdd_ctx,
 				data->wow_ipv4_mcast_wake_up_count) ||
 	    nla_put_u32(skb, PARAM_ICMP6_RX_MULTICAST_CNT,
 				ipv6_rx_multicast_addr_cnt) ||
-	    nla_put_u32(skb, PARAM_OTHER_RX_MULTICAST_CNT, 0)) {
+	    nla_put_u32(skb, PARAM_OTHER_RX_MULTICAST_CNT, 0) ||
+	    nla_put_u32(skb, PARAM_RSSI_BREACH_CNT,
+				data->wow_rssi_breach_wake_up_count) ||
+	    nla_put_u32(skb, PARAM_LOW_RSSI_CNT,
+				data->wow_low_rssi_wake_up_count) ||
+	    nla_put_u32(skb, PARAM_GSCAN_CNT,
+				data->wow_gscan_wake_up_count) ||
+	    nla_put_u32(skb, PARAM_PNO_COMPLETE_CNT,
+				data->wow_pno_complete_wake_up_count) ||
+	    nla_put_u32(skb, PARAM_PNO_MATCH_CNT,
+				data->wow_pno_match_wake_up_count)) {
 		hdd_err("nla put fail");
 		goto nla_put_failure;
 	}
@@ -10977,43 +11047,6 @@ static int wlan_hdd_cfg80211_set_default_key(struct wiphy *wiphy,
 }
 
 /*
- * wlan_hdd_cfg80211_get_bss :to get the bss from kernel cache.
- * @wiphy: wiphy pointer
- * @channel: channel of the BSS
- * @bssid: Bssid of BSS
- * @ssid: Ssid of the BSS
- * @ssid_len: ssid length
- *
- * Return: bss found in kernel cache
- */
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 0)) && !defined(WITH_BACKPORTS)
-static
-struct cfg80211_bss *wlan_hdd_cfg80211_get_bss(struct wiphy *wiphy,
-	struct ieee80211_channel *channel, const u8 *bssid,
-	const u8 *ssid, size_t ssid_len)
-{
-	return cfg80211_get_bss(wiphy, channel, bssid,
-			ssid,
-			ssid_len,
-			WLAN_CAPABILITY_ESS,
-			WLAN_CAPABILITY_ESS);
-}
-#else
-static
-struct cfg80211_bss *wlan_hdd_cfg80211_get_bss(struct wiphy *wiphy,
-	struct ieee80211_channel *channel, const u8 *bssid,
-	const u8 *ssid, size_t ssid_len)
-{
-	return cfg80211_get_bss(wiphy, channel, bssid,
-				ssid,
-				ssid_len,
-				IEEE80211_BSS_TYPE_ESS,
-				IEEE80211_PRIVACY_ANY);
-}
-#endif
-
-
-/*
  * wlan_hdd_cfg80211_update_bss_list :to inform nl80211
  * interface that BSS might have been lost.
  * @pAdapter: adaptor
@@ -11029,7 +11062,7 @@ struct cfg80211_bss *wlan_hdd_cfg80211_update_bss_list(
 	struct wiphy *wiphy = wdev->wiphy;
 	struct cfg80211_bss *bss = NULL;
 
-	bss = wlan_hdd_cfg80211_get_bss(wiphy, NULL, bssid,
+	bss = hdd_cfg80211_get_bss(wiphy, NULL, bssid,
 			NULL, 0);
 	if (bss == NULL) {
 		hdd_err("BSS not present");
@@ -11093,7 +11126,7 @@ struct cfg80211_bss *wlan_hdd_cfg80211_inform_bss_frame(hdd_adapter_t *pAdapter,
 		return NULL;
 
 	cfg_param = pHddCtx->config;
-	mgmt = kzalloc((sizeof(struct ieee80211_mgmt) + ie_length), GFP_KERNEL);
+	mgmt = qdf_mem_malloc((sizeof(struct ieee80211_mgmt) + ie_length));
 	if (!mgmt) {
 		hdd_err("memory allocation failed");
 		return NULL;
@@ -11157,7 +11190,7 @@ struct cfg80211_bss *wlan_hdd_cfg80211_inform_bss_frame(hdd_adapter_t *pAdapter,
 						       NL80211_BAND_5GHZ);
 	} else {
 		hdd_err("Invalid chan_no %d", chan_no);
-		kfree(mgmt);
+		qdf_mem_free(mgmt);
 		return NULL;
 	}
 
@@ -11186,7 +11219,7 @@ struct cfg80211_bss *wlan_hdd_cfg80211_inform_bss_frame(hdd_adapter_t *pAdapter,
 	if (chan == NULL) {
 		hdd_err("chan pointer is NULL, chan_no: %d freq: %d",
 			chan_no, freq);
-		kfree(mgmt);
+		qdf_mem_free(mgmt);
 		return NULL;
 	}
 
@@ -11208,7 +11241,7 @@ struct cfg80211_bss *wlan_hdd_cfg80211_inform_bss_frame(hdd_adapter_t *pAdapter,
 	bss_status =
 		cfg80211_inform_bss_frame(wiphy, chan, mgmt, frame_len, rssi,
 					  GFP_KERNEL);
-	kfree(mgmt);
+	qdf_mem_free(mgmt);
 	return bss_status;
 }
 
@@ -14940,6 +14973,12 @@ static int __wlan_hdd_cfg80211_testmode(struct wiphy *wiphy,
 		    && (hb_params_temp->params.lphbTcpParamReq.
 			timePeriodSec == 0))
 			return -EINVAL;
+
+		if (buf_len > sizeof(*hb_params)) {
+			hdd_err("buf_len=%d exceeded hb_params size limit",
+				buf_len);
+			return -ERANGE;
+		}
 
 		hb_params =
 			(tSirLPHBReq *) qdf_mem_malloc(sizeof(tSirLPHBReq));

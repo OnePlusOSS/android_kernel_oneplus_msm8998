@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1027,10 +1027,13 @@ void hdd_conf_mcastbcast_filter(hdd_context_t *pHddCtx, bool setfilter)
  * wlan_hdd_set_mc_addr_list() - set MC address list in FW
  * @pAdapter: adapter whose MC list is being set
  * @set: flag which indicates if addresses are being set or cleared
+ *
+ * Returns: 0 on success, errno on failure
  */
-void wlan_hdd_set_mc_addr_list(hdd_adapter_t *pAdapter, uint8_t set)
+int wlan_hdd_set_mc_addr_list(hdd_adapter_t *pAdapter, uint8_t set)
 {
 	uint8_t i;
+	int ret = 0;
 	tpSirRcvFltMcAddrList pMulticastAddrs = NULL;
 	tHalHandle hHal = NULL;
 	hdd_context_t *pHddCtx = (hdd_context_t *) pAdapter->pHddCtx;
@@ -1038,30 +1041,31 @@ void wlan_hdd_set_mc_addr_list(hdd_adapter_t *pAdapter, uint8_t set)
 
 	ENTER();
 
-	if (wlan_hdd_validate_context(pHddCtx))
-		return;
+	ret = wlan_hdd_validate_context(pHddCtx);
+	if (0 != ret)
+		return ret;
 
 	hHal = pHddCtx->hHal;
 
 	if (NULL == hHal) {
 		hdd_err("HAL Handle is NULL");
-		return;
+		return -EINVAL;
 	}
 
 	if (!sta_ctx) {
 		hdd_err("sta_ctx is NULL");
-		return;
+		return -EINVAL;
 	}
 
 	/* Check if INI is enabled or not, other wise just return */
 	if (!pHddCtx->config->fEnableMCAddrList) {
 		hdd_notice("gMCAddrListEnable is not enabled in INI");
-		return;
+		return -EINVAL;
 	}
 	pMulticastAddrs = qdf_mem_malloc(sizeof(tSirRcvFltMcAddrList));
 	if (NULL == pMulticastAddrs) {
 		hdd_err("Could not allocate Memory");
-		return;
+		return -EINVAL;
 	}
 	pMulticastAddrs->action = set;
 
@@ -1121,7 +1125,8 @@ void wlan_hdd_set_mc_addr_list(hdd_adapter_t *pAdapter, uint8_t set)
 	qdf_mem_free(pMulticastAddrs);
 
 	EXIT();
-	return;
+
+	return ret;
 }
 #endif
 
@@ -1613,7 +1618,7 @@ err_wiphy_unregister:
 		nl_srv_exit();
 
 		/* Free up dynamically allocated members inside HDD Adapter */
-		kfree(pHddCtx->config);
+		qdf_mem_free(pHddCtx->config);
 		pHddCtx->config = NULL;
 		wlan_hdd_deinit_tx_rx_histogram(pHddCtx);
 		wiphy_unregister(pHddCtx->wiphy);
@@ -2493,6 +2498,8 @@ static void __hdd_wlan_fake_apps_resume(struct wiphy *wiphy,
 	QDF_BUG(resume_err == 0);
 
 	dev->watchdog_timeo = HDD_TX_TIMEOUT;
+
+	hdd_info("Unit-test resume succeeded");
 }
 
 /**
@@ -2559,6 +2566,7 @@ int hdd_wlan_fake_apps_suspend(struct wiphy *wiphy, struct net_device *dev)
 	 */
 	dev->watchdog_timeo = INT_MAX;
 
+	hdd_info("Unit-test suspend succeeded");
 	return 0;
 
 enable_irqs_and_bus_resume:

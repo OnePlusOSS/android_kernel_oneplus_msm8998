@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -698,6 +698,8 @@ QDF_STATUS csr_update_channel_list(tpAniSirGlobal pMac)
 	}
 
 	for (i = 0; i < pScan->base_channels.numChannels; i++) {
+		struct csr_sta_roam_policy_params *roam_policy =
+			&pMac->roam.configParam.sta_roam_policy;
 		/* Scan is not performed on DSRC channels*/
 		if (pScan->base_channels.channelList[i] >= CDS_MIN_11P_CHANNEL)
 			continue;
@@ -727,7 +729,13 @@ QDF_STATUS csr_update_channel_list(tpAniSirGlobal pMac)
 						break;
 					}
 				}
-				if (is_unsafe_chan) {
+				if ((is_unsafe_chan) &&
+				    ((CDS_IS_CHANNEL_24GHZ(channel) &&
+				      roam_policy->sap_operating_band ==
+					eCSR_BAND_24) ||
+					(CDS_IS_CHANNEL_5GHZ(channel) &&
+					 roam_policy->sap_operating_band ==
+					eCSR_BAND_5G))) {
 					QDF_TRACE(QDF_MODULE_ID_SME,
 					QDF_TRACE_LEVEL_INFO,
 					FL("ignoring unsafe channel %d"),
@@ -2521,6 +2529,23 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 		pMac->roam.configParam.roamscan_adaptive_dwell_mode =
 			pParam->roamscan_adaptive_dwell_mode;
 
+		pMac->roam.configParam.per_roam_config.enable =
+			pParam->per_roam_config.enable;
+		pMac->roam.configParam.per_roam_config.tx_high_rate_thresh =
+			pParam->per_roam_config.tx_high_rate_thresh;
+		pMac->roam.configParam.per_roam_config.rx_high_rate_thresh =
+			pParam->per_roam_config.rx_high_rate_thresh;
+		pMac->roam.configParam.per_roam_config.tx_low_rate_thresh =
+			pParam->per_roam_config.tx_low_rate_thresh;
+		pMac->roam.configParam.per_roam_config.rx_low_rate_thresh =
+			pParam->per_roam_config.rx_low_rate_thresh;
+		pMac->roam.configParam.per_roam_config.tx_rate_thresh_percnt =
+			pParam->per_roam_config.tx_rate_thresh_percnt;
+		pMac->roam.configParam.per_roam_config.rx_rate_thresh_percnt =
+			pParam->per_roam_config.rx_rate_thresh_percnt;
+		pMac->roam.configParam.per_roam_config.per_rest_time =
+			pParam->per_roam_config.per_rest_time;
+
 		/* update p2p offload status */
 		pMac->pnoOffload = pParam->pnoOffload;
 
@@ -2731,6 +2756,23 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 			cfg_params->scan_adaptive_dwell_mode;
 	pParam->roamscan_adaptive_dwell_mode =
 			cfg_params->roamscan_adaptive_dwell_mode;
+
+	pParam->per_roam_config.enable = cfg_params->per_roam_config.enable;
+	pParam->per_roam_config.tx_high_rate_thresh =
+			cfg_params->per_roam_config.tx_high_rate_thresh;
+	pParam->per_roam_config.rx_high_rate_thresh =
+			cfg_params->per_roam_config.rx_high_rate_thresh;
+	pParam->per_roam_config.tx_low_rate_thresh =
+			cfg_params->per_roam_config.tx_low_rate_thresh;
+	pParam->per_roam_config.rx_low_rate_thresh =
+			cfg_params->per_roam_config.rx_low_rate_thresh;
+	pParam->per_roam_config.tx_rate_thresh_percnt =
+			cfg_params->per_roam_config.tx_rate_thresh_percnt;
+	pParam->per_roam_config.rx_rate_thresh_percnt =
+			cfg_params->per_roam_config.rx_rate_thresh_percnt;
+	pParam->per_roam_config.per_rest_time =
+			cfg_params->per_roam_config.per_rest_time;
+
 	pParam->conc_custom_rule1 = cfg_params->conc_custom_rule1;
 	pParam->conc_custom_rule2 = cfg_params->conc_custom_rule2;
 	pParam->is_sta_connection_in_5gz_enabled =
@@ -14950,15 +14992,9 @@ QDF_STATUS csr_send_mb_set_context_req_msg(tpAniSirGlobal pMac,
 		/* 0 is Supplicant */
 		pMsg->keyMaterial.key[0].paeRole = paeRole;
 		pMsg->keyMaterial.key[0].keyLength = keyLength;
-		if (keyLength && pKey) {
+		if (keyLength && pKey)
 			qdf_mem_copy(pMsg->keyMaterial.key[0].key,
 					pKey, keyLength);
-			sms_log(pMac, LOG1,
-				FL("SME set keyIndx (%d) encType (%d) key"),
-				keyId, edType);
-			sir_dump_buf(pMac, SIR_SMS_MODULE_ID, LOG1, pKey,
-				     keyLength);
-		}
 		status = cds_send_mb_message_to_mac(pMsg);
 	} while (0);
 	return status;
@@ -17682,6 +17718,104 @@ static void csr_update_driver_assoc_ies(tpAniSirGlobal mac_ctx,
 }
 
 /**
+ * csr_create_per_roam_request() - create PER roam offload scan request
+ *
+ * parameters
+ * @mac_ctx: global mac ctx
+ * @session_id: session id
+ *
+ * Return: per roam config request packet buffer
+ */
+static struct wmi_per_roam_config_req *
+csr_create_per_roam_request(tpAniSirGlobal mac_ctx, uint8_t session_id)
+{
+	struct wmi_per_roam_config_req *req_buf = NULL;
+
+	req_buf = qdf_mem_malloc(sizeof(struct wmi_per_roam_config_req));
+	if (!req_buf) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			  FL("Mem alloc for per roam req failed."));
+		return NULL;
+	}
+	req_buf->vdev_id = session_id;
+	req_buf->per_config.enable =
+		mac_ctx->roam.configParam.per_roam_config.enable;
+	req_buf->per_config.tx_high_rate_thresh =
+		mac_ctx->roam.configParam.per_roam_config.tx_high_rate_thresh;
+	req_buf->per_config.rx_high_rate_thresh =
+		mac_ctx->roam.configParam.per_roam_config.rx_high_rate_thresh;
+	req_buf->per_config.tx_low_rate_thresh =
+		mac_ctx->roam.configParam.per_roam_config.tx_low_rate_thresh;
+	req_buf->per_config.rx_low_rate_thresh =
+		mac_ctx->roam.configParam.per_roam_config.rx_low_rate_thresh;
+	req_buf->per_config.per_rest_time =
+		mac_ctx->roam.configParam.per_roam_config.per_rest_time;
+	req_buf->per_config.tx_rate_thresh_percnt =
+		mac_ctx->roam.configParam.per_roam_config.tx_rate_thresh_percnt;
+	req_buf->per_config.rx_rate_thresh_percnt =
+		mac_ctx->roam.configParam.per_roam_config.rx_rate_thresh_percnt;
+
+	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
+		  FL("PER based roaming configuaration enable=%d vdev=%d high_rate_thresh=%d low_rate_thresh=%d rate_thresh_percnt=%d per_rest_time=%d"),
+			  req_buf->per_config.enable, session_id,
+			  req_buf->per_config.tx_high_rate_thresh,
+			  req_buf->per_config.tx_low_rate_thresh,
+			  req_buf->per_config.tx_rate_thresh_percnt,
+			  req_buf->per_config.per_rest_time);
+	return req_buf;
+}
+
+/**
+ * csr_roam_offload_per_scan() - populates roam offload scan request and sends
+ * to WMA
+ *
+ * parameters
+ * @mac_ctx:      global mac ctx
+ * @session_id:   session id
+ *
+ * Return: result of operation
+ */
+static QDF_STATUS
+csr_roam_offload_per_scan(tpAniSirGlobal mac_ctx, uint8_t session_id)
+{
+	tpCsrNeighborRoamControlInfo roam_info =
+		&mac_ctx->roam.neighborRoamInfo[session_id];
+	struct wmi_per_roam_config_req *req_buf;
+	cds_msg_t msg;
+
+	/*
+	 * No need to update in case of stop command, FW takes care of stopping
+	 * this internally
+	 */
+	if (roam_info->last_sent_cmd == ROAM_SCAN_OFFLOAD_STOP)
+		return QDF_STATUS_SUCCESS;
+
+	if (!mac_ctx->roam.configParam.per_roam_config.enable) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
+			  FL("PER based roaming is disabled in configuration"));
+		return QDF_STATUS_SUCCESS;
+	}
+
+	req_buf = csr_create_per_roam_request(mac_ctx, session_id);
+	if (!req_buf) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			  FL("Failed to create req packet"));
+		return QDF_STATUS_E_FAILURE;
+	}
+	msg.type = WMA_SET_PER_ROAM_CONFIG_CMD;
+	msg.reserved = 0;
+	msg.bodyptr = req_buf;
+	if (!QDF_IS_STATUS_SUCCESS(cds_mq_post_message(QDF_MODULE_ID_WMA,
+						       &msg))) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
+			"%s: Unable to post WMA_SET_PER_ROAM_CONFIG_CMD to WMA",
+			__func__);
+		qdf_mem_free(req_buf);
+	}
+	return QDF_STATUS_SUCCESS;
+}
+
+/**
  * csr_roam_offload_scan() - populates roam offload scan request and sends to
  * WMA
  *
@@ -17715,9 +17849,8 @@ csr_roam_offload_scan(tpAniSirGlobal mac_ctx, uint8_t session_id,
 	}
 
 	if ((ROAM_SCAN_OFFLOAD_START == command) &&
-	    ((session->pCurRoamProfile &&
-	      session->pCurRoamProfile->do_not_roam) ||
-	      !session->fast_roam_enabled)) {
+	    (session->pCurRoamProfile &&
+	     session->pCurRoamProfile->do_not_roam)) {
 		sms_log(mac_ctx, LOGE,
 			FL("Supplicant disabled driver roaming"));
 		return QDF_STATUS_E_FAILURE;
@@ -17910,6 +18043,8 @@ csr_roam_offload_scan(tpAniSirGlobal mac_ctx, uint8_t session_id,
 
 	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 		  "Roam Scan Offload Command %d, Reason %d", command, reason);
+	/* Update PER config to FW after sending the command */
+	csr_roam_offload_per_scan(mac_ctx, session_id);
 	return status;
 }
 

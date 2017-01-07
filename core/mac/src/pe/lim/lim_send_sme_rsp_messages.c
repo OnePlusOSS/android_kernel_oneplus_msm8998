@@ -1181,6 +1181,9 @@ lim_send_sme_tdls_del_sta_ind(tpAniSirGlobal pMac, tpDphHashNode pStaDs,
 				("AllocateMemory failed for eWNI_SME_TDLS_DEL_STA_IND "));
 		return;
 	}
+	lim_log(pMac, LOG1, FL("Delete TDLS Peer "MAC_ADDRESS_STR
+				  "with reason code %d"),
+			MAC_ADDR_ARRAY(pStaDs->staAddr), reasonCode);
 	/* messageType */
 	pSirTdlsDelStaInd->messageType = eWNI_SME_TDLS_DEL_STA_IND;
 	pSirTdlsDelStaInd->length = sizeof(tSirTdlsDelStaInd);
@@ -1274,7 +1277,8 @@ lim_send_sme_tdls_delete_all_peer_ind(tpAniSirGlobal pMac, tpPESession psessionE
  */
 void
 lim_send_sme_mgmt_tx_completion(tpAniSirGlobal pMac,
-				tpPESession psessionEntry, uint32_t txCompleteStatus)
+				uint32_t sme_session_id,
+				uint32_t txCompleteStatus)
 {
 	tSirMsgQ mmhMsg;
 	tSirMgmtTxCompletionInd *pSirMgmtTxCompletionInd;
@@ -1293,7 +1297,7 @@ lim_send_sme_mgmt_tx_completion(tpAniSirGlobal pMac,
 	pSirMgmtTxCompletionInd->length = sizeof(tSirMgmtTxCompletionInd);
 
 	/* sessionId */
-	pSirMgmtTxCompletionInd->sessionId = psessionEntry->smeSessionId;
+	pSirMgmtTxCompletionInd->sessionId = sme_session_id;
 
 	pSirMgmtTxCompletionInd->txCompleteStatus = txCompleteStatus;
 
@@ -2307,6 +2311,13 @@ void lim_handle_csa_offload_msg(tpAniSirGlobal mac_ctx, tpSirMsgQ msg)
 	}
 	lim_log(mac_ctx, LOG1, FL("new ch width = %d space:%d"),
 			session_entry->gLimChannelSwitch.ch_width, chan_space);
+	if ((session_entry->currentOperChannel == csa_params->channel) &&
+		(session_entry->ch_width ==
+		 session_entry->gLimChannelSwitch.ch_width)) {
+		lim_log(mac_ctx, LOGE, FL(
+				"Ignore CSA, no change in ch and bw"));
+		goto err;
+	}
 
 	lim_prepare_for11h_channel_switch(mac_ctx, session_entry);
 	csa_offload_ind = qdf_mem_malloc(sizeof(tSmeCsaOffloadInd));

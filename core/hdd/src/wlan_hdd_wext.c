@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -490,6 +490,25 @@ static const hdd_freq_chan_map_t freq_chan_map[] = {
 
 /* Private ioctls and their sub-ioctls */
 #define WLAN_PRIV_SET_NONE_GET_NONE   (SIOCIWFIRSTPRIV + 6)
+
+/*
+ * <ioctl>
+ * reassoc - Trigger STA re-association to the connected AP
+ *
+ * @INPUT: None
+ *
+ * @OUTPUT: None
+ *
+ * This IOCTL is used to trigger STA reassociation to the connected AP.
+ *
+ * @E.g: iwpriv wlan0 reassoc
+ *
+ * Supported Feature: Roaming
+ *
+ * Usage: Internal
+ *
+ * </ioctl>
+ */
 #define WE_SET_REASSOC_TRIGGER     8
 /*
  * <ioctl>
@@ -951,8 +970,8 @@ static const hdd_freq_chan_map_t freq_chan_map[] = {
 
 #define WLAN_SET_BAND_CONFIG  (SIOCIWFIRSTPRIV + 25)
 
-/* (SIOCIWFIRSTPRIV + 26) is currently unused */
-/* (SIOCIWFIRSTPRIV + 27) is currently unused */
+#define WLAN_PRIV_SET_MCBC_FILTER   (SIOCIWFIRSTPRIV + 26)
+#define WLAN_PRIV_CLEAR_MCBC_FILTER (SIOCIWFIRSTPRIV + 27)
 
 /* Private ioctls and their sub-ioctls */
 #define WLAN_PRIV_SET_TWO_INT_GET_NONE   (SIOCIWFIRSTPRIV + 28)
@@ -1052,7 +1071,7 @@ void *mem_alloc_copy_from_user_helper(const __user void *wrqu_data, size_t len)
 		return NULL;
 	}
 
-	ptr = kmalloc(len + 1, GFP_KERNEL);
+	ptr = qdf_mem_malloc(len + 1);
 	if (NULL == ptr) {
 		hdd_err("unable to allocate memory");
 		return NULL;
@@ -1060,7 +1079,7 @@ void *mem_alloc_copy_from_user_helper(const __user void *wrqu_data, size_t len)
 
 	if (copy_from_user(ptr, wrqu_data, len)) {
 		hdd_err("failed to copy data to user buffer");
-		kfree(ptr);
+		qdf_mem_free(ptr);
 		return NULL;
 	}
 	ptr[len] = '\0';
@@ -1784,7 +1803,7 @@ QDF_STATUS wlan_hdd_get_rssi(hdd_adapter_t *pAdapter, int8_t *rssi_value)
 		return QDF_STATUS_E_FAULT;
 	}
 	if (cds_is_driver_recovering()) {
-		hdd_err("Recovery in Progress. State: 0x%x Ignore!!!",
+		hdd_warn("Recovery in Progress. State: 0x%x Ignore!!!",
 			cds_get_driver_state());
 		/* return a cached value */
 		*rssi_value = pAdapter->rssi;
@@ -2444,7 +2463,7 @@ int hdd_set_rx_stbc(hdd_adapter_t *adapter, int value)
 	tHalHandle hal = WLAN_HDD_GET_HAL_CTX(adapter);
 	int ret;
 
-	hdd_alert("%d", value);
+	hdd_alert("set rx_stbc : %d", value);
 	if (value) {
 		/* make sure HT capabilities allow this */
 		QDF_STATUS status;
@@ -3425,7 +3444,7 @@ static int __iw_set_genie(struct net_device *dev,
 	}
 exit:
 	EXIT();
-	kfree(base_genie);
+	qdf_mem_free(base_genie);
 	return ret;
 }
 
@@ -4208,7 +4227,7 @@ QDF_STATUS wlan_hdd_get_class_astats(hdd_adapter_t *pAdapter)
 		return QDF_STATUS_E_FAULT;
 	}
 	if (cds_is_driver_recovering()) {
-		hdd_err("Recovery in Progress. State: 0x%x Ignore!!!",
+		hdd_warn("Recovery in Progress. State: 0x%x Ignore!!!",
 			 cds_get_driver_state());
 		return QDF_STATUS_SUCCESS;
 	}
@@ -5307,7 +5326,7 @@ static int __iw_set_mlme(struct net_device *dev,
 					WLAN_CONTROL_PATH);
 
 		} else {
-			hdd_err("%d Command Disassociate/Deauthenticate called but station is not in associated state",
+			hdd_warn("%d Command Disassociate/Deauthenticate called but station is not in associated state",
 				(int)mlme->cmd);
 		}
 		break;
@@ -5789,7 +5808,7 @@ static int __iw_setint_getnone(struct net_device *dev,
 		case 0x03:
 			enable_mp = (set_value & 0x01) ? 1 : 0;
 			enable_pbm = (set_value & 0x02) ? 1 : 0;
-			hdd_err("magic packet ? = %s pattern byte matching ? = %s",
+			hdd_notice("magic packet ? = %s pattern byte matching ? = %s",
 			       (enable_mp ? "YES" : "NO"),
 			       (enable_pbm ? "YES" : "NO"));
 			hdd_enter_wowl(pAdapter, enable_mp, enable_pbm);
@@ -7012,7 +7031,7 @@ static int __iw_setchar_getnone(struct net_device *dev,
 	}
 	break;
 	case WE_SET_AP_WPS_IE:
-		hdd_err("Received WE_SET_AP_WPS_IE");
+		hdd_notice("Received WE_SET_AP_WPS_IE");
 		sme_update_p2p_ie(WLAN_HDD_GET_HAL_CTX(pAdapter), pBuffer,
 				  s_priv_data.length);
 		break;
@@ -7030,7 +7049,7 @@ static int __iw_setchar_getnone(struct net_device *dev,
 		break;
 	}
 	}
-	kfree(pBuffer);
+	qdf_mem_free(pBuffer);
 	EXIT();
 	return ret;
 }
@@ -8036,7 +8055,7 @@ static int __iw_get_char_setnone(struct net_device *dev,
 #ifdef WLAN_FEATURE_11W
 	case WE_GET_11W_INFO:
 	{
-		hdd_err("WE_GET_11W_ENABLED = %d",
+		hdd_notice("WE_GET_11W_ENABLED = %d",
 		       pWextState->roamProfile.MFPEnabled);
 
 		snprintf(extra, WE_MAX_STR_LEN,
@@ -8467,7 +8486,7 @@ static int __iw_set_var_ints_getnone(struct net_device *dev,
 
 	case WE_POLICY_MANAGER_CLIST_CMD:
 	{
-		hdd_err("<iwpriv wlan0 pm_clist> is called");
+		hdd_notice("<iwpriv wlan0 pm_clist> is called");
 		cds_incr_connection_count_utfw(apps_args[0],
 			apps_args[1], apps_args[2], apps_args[3],
 			apps_args[4], apps_args[5], apps_args[6],
@@ -8477,7 +8496,7 @@ static int __iw_set_var_ints_getnone(struct net_device *dev,
 
 	case WE_POLICY_MANAGER_DLIST_CMD:
 	{
-		hdd_err("<iwpriv wlan0 pm_dlist> is called");
+		hdd_notice("<iwpriv wlan0 pm_dlist> is called");
 		cds_decr_connection_count_utfw(apps_args[0],
 			apps_args[1]);
 	}
@@ -8485,7 +8504,7 @@ static int __iw_set_var_ints_getnone(struct net_device *dev,
 
 	case WE_POLICY_MANAGER_ULIST_CMD:
 	{
-		hdd_err("<iwpriv wlan0 pm_ulist> is called");
+		hdd_notice("<iwpriv wlan0 pm_ulist> is called");
 		cds_update_connection_info_utfw(apps_args[0],
 			apps_args[1], apps_args[2], apps_args[3],
 			apps_args[4], apps_args[5], apps_args[6],
@@ -8495,7 +8514,7 @@ static int __iw_set_var_ints_getnone(struct net_device *dev,
 
 	case WE_POLICY_MANAGER_DBS_CMD:
 	{
-		hdd_err("<iwpriv wlan0 pm_dbs> is called");
+		hdd_notice("<iwpriv wlan0 pm_dbs> is called");
 		if (apps_args[0] == 0)
 			wma_set_dbs_capability_ut(0);
 		else
@@ -8515,7 +8534,7 @@ static int __iw_set_var_ints_getnone(struct net_device *dev,
 		uint8_t weight_list[QDF_MAX_NUM_CHAN] = {0};
 		uint32_t pcl_len = 0, i = 0;
 
-		hdd_err("<iwpriv wlan0 pm_pcl> is called");
+		hdd_notice("<iwpriv wlan0 pm_pcl> is called");
 
 		cds_get_pcl(apps_args[0],
 				pcl, &pcl_len,
@@ -8532,7 +8551,7 @@ static int __iw_set_var_ints_getnone(struct net_device *dev,
 		struct cds_conc_connection_info *conn_info;
 		uint32_t i = 0, len = 0;
 
-		hdd_err("<iwpriv wlan0 pm_cinfo> is called");
+		hdd_notice("<iwpriv wlan0 pm_cinfo> is called");
 		conn_info = cds_get_conn_info(&len);
 		pr_info("+-----------------------------+\n");
 		for (i = 0; i < len; i++) {
@@ -8580,7 +8599,7 @@ static int __iw_set_var_ints_getnone(struct net_device *dev,
 	case WE_POLICY_MANAGER_QUERY_ACTION_CMD:
 	{
 		enum cds_conc_next_action action;
-		hdd_err("<iwpriv wlan0 pm_query_action> is called");
+		hdd_notice("<iwpriv wlan0 pm_query_action> is called");
 		action = cds_current_connections_update(pAdapter->sessionId,
 						apps_args[0],
 						SIR_UPDATE_REASON_UT);
@@ -8590,7 +8609,7 @@ static int __iw_set_var_ints_getnone(struct net_device *dev,
 	case WE_POLICY_MANAGER_QUERY_ALLOW_CMD:
 	{
 		bool allow;
-		hdd_err("<iwpriv wlan0 pm_query_allow> is called");
+		hdd_notice("<iwpriv wlan0 pm_query_allow> is called");
 		allow = cds_allow_concurrency(
 				apps_args[0], apps_args[1], apps_args[2]);
 		pr_info("allow %d {0 = don't allow, 1 = allow}", allow);
@@ -9219,6 +9238,307 @@ static int iw_set_fties(struct net_device *dev,
 	return ret;
 }
 
+#ifdef WLAN_FEATURE_PACKET_FILTERING
+static int iw_set_mc_filter_list(hdd_adapter_t *adapter,
+				 struct pkt_filter_mc_addr_list *req)
+{
+	int exit_code;
+	QDF_STATUS status;
+	tHalHandle hal;
+	tSirRcvFltMcAddrList *mc_addr_list;
+	int i;
+
+	ENTER();
+
+	mc_addr_list = qdf_mem_malloc(sizeof(*mc_addr_list));
+	if (!mc_addr_list) {
+		hdd_err("Out of memory");
+		exit_code = -ENOMEM;
+		goto exit_with_code;
+	}
+
+	mc_addr_list->action = HDD_SET_MCBC_FILTERS_TO_FW;
+	mc_addr_list->ulMulticastAddrCnt =
+		min(req->mc_addr_cnt, (uint8_t)HDD_MC_FILTER_MAX_MC_ADDRS);
+
+	hdd_info("Configuring %u MC addrs (originally %u)",
+		 mc_addr_list->ulMulticastAddrCnt, req->mc_addr_cnt);
+
+	for (i = 0; i < mc_addr_list->ulMulticastAddrCnt; i++) {
+		memcpy(&mc_addr_list->multicastAddr[i], req->mc_addrs[i],
+		       QDF_MAC_ADDR_SIZE);
+
+		hdd_info("MC addr %d: " MAC_ADDRESS_STR,
+			 i, MAC_ADDR_ARRAY(req->mc_addrs[i]));
+	}
+
+	hal = WLAN_HDD_GET_HAL_CTX(adapter);
+	status = sme_8023_multicast_list(hal, adapter->sessionId, mc_addr_list);
+	qdf_mem_free(mc_addr_list);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		hdd_err("Failed to configure MC address list");
+		exit_code = -EINVAL;
+		goto exit_with_code;
+	}
+
+	exit_code = 0;
+
+exit_with_code:
+	EXIT();
+	return exit_code;
+}
+
+static int iw_clear_mc_filter_list(hdd_adapter_t *adapter)
+{
+	int exit_code;
+	QDF_STATUS status;
+	tHalHandle hal;
+	tSirRcvFltMcAddrList *mc_addr_list;
+
+	ENTER();
+
+	mc_addr_list = qdf_mem_malloc(sizeof(*mc_addr_list));
+	if (!mc_addr_list) {
+		hdd_err("Out of memory");
+		exit_code = -ENOMEM;
+		goto exit_with_code;
+	}
+
+	mc_addr_list->action = HDD_DELETE_MCBC_FILTERS_FROM_FW;
+
+	hal = WLAN_HDD_GET_HAL_CTX(adapter);
+	status = sme_8023_multicast_list(hal, adapter->sessionId, mc_addr_list);
+	qdf_mem_free(mc_addr_list);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		hdd_err("Failed to clear MC address list");
+		exit_code = -EINVAL;
+		goto exit_with_code;
+	}
+
+	exit_code = 0;
+
+exit_with_code:
+	EXIT();
+	return exit_code;
+}
+#else
+static inline int iw_set_mc_filter_list(hdd_adapter_t *adapter,
+					struct pkt_filter_mc_addr_list *req)
+{
+	return 0;
+}
+
+static inline int iw_clear_mc_filter_list(hdd_adapter_t *adapter)
+{
+	return 0;
+}
+#endif /* WLAN_FEATURE_PACKET_FILTERING */
+
+static int iw_configure_mcbc_filter(hdd_adapter_t *adapter,
+				    struct pkt_filter_mc_addr_list *req)
+{
+	int exit_code;
+	QDF_STATUS status;
+	hdd_context_t *hdd_ctx;
+	tSirWlanSetRxpFilters *req_params;
+	tHalHandle hal;
+
+	ENTER();
+
+	hdd_info("Configuring mc/bc filter; setting:%u",
+		 req->mcbc_filter_setting);
+
+	req_params = qdf_mem_malloc(sizeof(*req_params));
+	if (!req_params) {
+		hdd_err("Out of memory");
+		exit_code = -ENOMEM;
+		goto exit_with_code;
+	}
+
+	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+	hdd_ctx->configuredMcastBcastFilter = req->mcbc_filter_setting;
+	hdd_conf_hostoffload(adapter, true);
+
+	req_params->configuredMcstBcstFilterSetting = req->mcbc_filter_setting;
+	req_params->setMcstBcstFilter = true;
+
+	hal = WLAN_HDD_GET_HAL_CTX(adapter);
+	status = sme_configure_rxp_filter(hal, req_params);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		hdd_err("Failed to configure HW MC/BC filter");
+		qdf_mem_free(req_params);
+		return -EINVAL;
+	}
+
+	if (hdd_ctx->sus_res_mcastbcast_filter_valid)
+		hdd_ctx->sus_res_mcastbcast_filter = req->mcbc_filter_setting;
+
+	exit_code = 0;
+
+exit_with_code:
+	EXIT();
+	return exit_code;
+}
+
+/**
+ * __iw_set_dynamic_mcbc_filter() - Set Dynamic MCBC Filter ioctl handler
+ * @dev: device upon which the ioctl was received
+ * @info: ioctl request information
+ * @wrqu: ioctl request data
+ * @extra: ioctl extra data
+ *
+ * Return: 0 on success, non-zero on error
+ */
+static int __iw_set_dynamic_mcbc_filter(struct net_device *dev,
+					struct iw_request_info *info,
+					union iwreq_data *wrqu,
+					char *extra)
+{
+	int exit_code;
+	hdd_adapter_t *adapter;
+	struct pkt_filter_mc_addr_list *req;
+
+	ENTER();
+
+	req = (struct pkt_filter_mc_addr_list *)extra;
+	if (req->mcbc_filter_setting > HDD_MULTICAST_FILTER_LIST_CLEAR) {
+		hdd_err("Invalid filter setting: %u", req->mcbc_filter_setting);
+		exit_code = -EINVAL;
+		goto exit_with_code;
+	}
+
+	adapter = WLAN_HDD_GET_PRIV_PTR(dev);
+
+	if (req->mcbc_filter_setting == HDD_MULTICAST_FILTER_LIST) {
+		exit_code = iw_set_mc_filter_list(adapter, req);
+		goto exit_with_code;
+	}
+
+	if (req->mcbc_filter_setting == HDD_MULTICAST_FILTER_LIST_CLEAR) {
+		exit_code = iw_clear_mc_filter_list(adapter);
+		goto exit_with_code;
+	}
+
+	exit_code = iw_configure_mcbc_filter(adapter, req);
+
+exit_with_code:
+	EXIT();
+	return exit_code;
+}
+
+/**
+ * iw_set_dynamic_mcbc_filter() - Set Dynamic MCBC Filter ioctl handler
+ * @dev: device upon which the ioctl was received
+ * @info: ioctl request information
+ * @wrqu: ioctl request data
+ * @extra: ioctl extra data
+ *
+ * Return: 0 on success, non-zero on error
+ */
+static int iw_set_dynamic_mcbc_filter(struct net_device *dev,
+				      struct iw_request_info *info,
+				      union iwreq_data *wrqu,
+				      char *extra)
+{
+	int ret;
+
+	cds_ssr_protect(__func__);
+	ret = __iw_set_dynamic_mcbc_filter(dev, info, wrqu, extra);
+	cds_ssr_unprotect(__func__);
+
+	return ret;
+}
+
+/**
+ * __iw_clear_dynamic_mcbc_filter() - Clear Dynamic MCBC Filter ioctl handler
+ * @dev: device upon which the ioctl was received
+ * @info: ioctl request information
+ * @wrqu: ioctl request data
+ * @extra: ioctl extra data
+ *
+ * Return: 0 on success, non-zero on error
+ */
+static int __iw_clear_dynamic_mcbc_filter(struct net_device *dev,
+					  struct iw_request_info *info,
+					  union iwreq_data *wrqu,
+					  char *extra)
+{
+	int exit_code;
+	QDF_STATUS status;
+	hdd_adapter_t *adapter;
+	hdd_context_t *hdd_ctx;
+	tHalHandle hal;
+	tSirWlanSetRxpFilters *set_params;
+	uint8_t ini_filter_setting;
+
+	ENTER();
+
+	if (!capable(CAP_NET_ADMIN)) {
+		hdd_err("Net Admin permissions required");
+		exit_code = -EPERM;
+		goto exit_with_code;
+	}
+
+	set_params = qdf_mem_malloc(sizeof(*set_params));
+	if (!set_params) {
+		hdd_err("Out of memory");
+		exit_code = -ENOMEM;
+		goto exit_with_code;
+	}
+
+	/* clear basically means: reset to ini filter settings */
+	adapter = WLAN_HDD_GET_PRIV_PTR(dev);
+	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+	ini_filter_setting = hdd_ctx->config->mcastBcastFilterSetting;
+
+	hdd_ctx->configuredMcastBcastFilter = ini_filter_setting;
+	hdd_conf_hostoffload(adapter, true);
+
+	set_params->configuredMcstBcstFilterSetting = ini_filter_setting;
+	set_params->setMcstBcstFilter = true;
+
+	hal = WLAN_HDD_GET_HAL_CTX(adapter);
+	status = sme_configure_rxp_filter(hal, set_params);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		hdd_err("Failed to clear HW mc/bc filter");
+		qdf_mem_free(set_params);
+		exit_code = -EINVAL;
+		goto exit_with_code;
+	}
+
+	if (hdd_ctx->sus_res_mcastbcast_filter_valid)
+		hdd_ctx->sus_res_mcastbcast_filter = ini_filter_setting;
+
+	exit_code = 0;
+
+exit_with_code:
+	EXIT();
+	return exit_code;
+}
+
+/**
+ * iw_clear_dynamic_mcbc_filter() - Clear Dynamic MCBC Filter ioctl handler
+ * @dev: device upon which the ioctl was received
+ * @info: ioctl request information
+ * @wrqu: ioctl request data
+ * @extra: ioctl extra data
+ *
+ * Return: 0 on success, non-zero on error
+ */
+static int iw_clear_dynamic_mcbc_filter(struct net_device *dev,
+					struct iw_request_info *info,
+					union iwreq_data *wrqu,
+					char *extra)
+{
+	int ret;
+
+	cds_ssr_protect(__func__);
+	ret = __iw_clear_dynamic_mcbc_filter(dev, info, wrqu, extra);
+	cds_ssr_unprotect(__func__);
+
+	return ret;
+}
+
 /**
  * iw_set_host_offload - Set host offload ioctl handler
  * @dev: device upon which the ioctl was received
@@ -9433,7 +9753,7 @@ static int wlan_hdd_set_filter(hdd_context_t *hdd_ctx,
 	int i = 0;
 
 	if (hdd_ctx->config->disablePacketFilter) {
-		hdd_err("packet filtering disabled in ini returning");
+		hdd_warn("packet filtering disabled in ini returning");
 		return 0;
 	}
 
@@ -9606,7 +9926,7 @@ static int __iw_set_packet_filter_params(struct net_device *dev,
 
 	ret = wlan_hdd_set_filter(hdd_ctx, request, adapter->sessionId);
 
-	kfree(request);
+	qdf_mem_free(request);
 	EXIT();
 	return ret;
 }
@@ -10338,7 +10658,7 @@ static int __iw_set_two_ints_getnone(struct net_device *dev,
 		break;
 #ifdef WLAN_DEBUG
 	case WE_SET_FW_CRASH_INJECT:
-		hdd_err("WE_SET_FW_CRASH_INJECT: %d %d",
+		hdd_notice("WE_SET_FW_CRASH_INJECT: %d %d",
 		       value[1], value[2]);
 		pr_err("SSR is triggered by iwpriv CRASH_INJECT: %d %d\n",
 			   value[1], value[2]);
@@ -10500,6 +10820,10 @@ static const iw_handler we_private[] = {
 	[WLAN_SET_PNO - SIOCIWFIRSTPRIV] = iw_set_pno,
 #endif
 	[WLAN_SET_BAND_CONFIG - SIOCIWFIRSTPRIV] = iw_set_band_config,
+	[WLAN_PRIV_SET_MCBC_FILTER - SIOCIWFIRSTPRIV] =
+		iw_set_dynamic_mcbc_filter,
+	[WLAN_PRIV_CLEAR_MCBC_FILTER - SIOCIWFIRSTPRIV] =
+		iw_clear_dynamic_mcbc_filter,
 	[WLAN_GET_LINK_SPEED - SIOCIWFIRSTPRIV] = iw_get_linkspeed,
 	[WLAN_PRIV_SET_TWO_INT_GET_NONE - SIOCIWFIRSTPRIV] =
 		iw_set_two_ints_getnone,
@@ -11549,6 +11873,21 @@ static const struct iw_priv_args we_private_args[] = {
 		"SETBAND"
 	}
 	,
+	{
+		WLAN_PRIV_SET_MCBC_FILTER,
+		IW_PRIV_TYPE_BYTE | sizeof(struct pkt_filter_mc_addr_list),
+		0,
+		"setMCBCFilter"
+	}
+	,
+	{
+		WLAN_PRIV_CLEAR_MCBC_FILTER,
+		0,
+		0,
+		"clearMCBCFilter"
+	}
+	,
+
 	{
 		WLAN_GET_LINK_SPEED,
 		IW_PRIV_TYPE_CHAR | 18,

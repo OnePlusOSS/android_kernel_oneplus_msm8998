@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -16750,6 +16750,7 @@ void sme_get_vdev_type_nss(tHalHandle hal, enum tQDF_ADAPTER_MODE dev_mode,
  * @skip_unsafe_channels: Param to tell if driver needs to
  * skip unsafe channels or not.
  * @param session_id: sme_session_id
+ * @sap_operating_band: Band on which SAP is operating
  *
  * sme_update_sta_roam_policy update sta rome policies to csr
  * this function will call csrUpdateChannelList as well
@@ -16760,7 +16761,7 @@ void sme_get_vdev_type_nss(tHalHandle hal, enum tQDF_ADAPTER_MODE dev_mode,
 QDF_STATUS sme_update_sta_roam_policy(tHalHandle hal_handle,
 		enum sta_roam_policy_dfs_mode dfs_mode,
 		bool skip_unsafe_channels,
-		uint8_t session_id)
+		uint8_t session_id, uint8_t sap_operating_band)
 {
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal_handle);
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
@@ -16778,6 +16779,8 @@ QDF_STATUS sme_update_sta_roam_policy(tHalHandle hal_handle,
 		dfs_mode;
 	sme_config.csrConfig.sta_roam_policy_params.skip_unsafe_channels =
 		skip_unsafe_channels;
+	sme_config.csrConfig.sta_roam_policy_params.sap_operating_band =
+		sap_operating_band;
 
 	sme_update_config(hal_handle, &sme_config);
 
@@ -17088,6 +17091,20 @@ QDF_STATUS sme_set_lost_link_info_cb(tHalHandle hal,
 			status);
 	}
 	return status;
+}
+#ifdef FEATURE_WLAN_ESE
+bool sme_roam_is_ese_assoc(tCsrRoamInfo *roam_info)
+{
+	return roam_info->isESEAssoc;
+}
+#endif
+
+bool sme_neighbor_roam_is11r_assoc(tHalHandle hal_ctx,
+			uint8_t session_id)
+{
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal_ctx);
+	return csr_neighbor_roam_is11r_assoc(mac_ctx, session_id);
+
 }
 
 #ifdef WLAN_FEATURE_WOW_PULSE

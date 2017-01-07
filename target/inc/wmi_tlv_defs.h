@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -767,6 +767,21 @@ typedef enum {
 	WMITLV_TAG_STRUC_wmi_vendor_oui,
 	WMITLV_TAG_STRUC_wmi_request_rcpi_cmd_fixed_param,
 	WMITLV_TAG_STRUC_wmi_update_rcpi_event_fixed_param,
+	WMITLV_TAG_STRUC_wmi_request_peer_stats_info_cmd_fixed_param,
+	WMITLV_TAG_STRUC_wmi_peer_stats_info,
+	WMITLV_TAG_STRUC_wmi_peer_stats_info_event_fixed_param,
+	WMITLV_TAG_STRUC_wmi_pkgid_event_fixed_param,
+	WMITLV_TAG_STRUC_wmi_connected_nlo_rssi_params,
+	WMITLV_TAG_STRUC_wmi_set_current_country_cmd_fixed_param,
+	WMITLV_TAG_STRUC_wmi_regulatory_rule_struct,
+	WMITLV_TAG_STRUC_wmi_reg_chan_list_cc_event_fixed_param,
+	WMITLV_TAG_STRUC_wmi_11d_scan_start_cmd_fixed_param,
+	WMITLV_TAG_STRUC_wmi_11d_scan_stop_cmd_fixed_param,
+	WMITLV_TAG_STRUC_wmi_11d_new_country_event_fixed_param,
+	WMITLV_TAG_STRUC_wmi_request_radio_chan_stats_cmd_fixed_param,
+	WMITLV_TAG_STRUC_wmi_radio_chan_stats,
+	WMITLV_TAG_STRUC_wmi_radio_chan_stats_event_fixed_param,
+	WMITLV_TAG_STRUC_wmi_roam_per_config_fixed_param,
 } WMITLV_TAG_ID;
 
 /*
@@ -1077,6 +1092,12 @@ typedef enum {
 	OP(WMI_VDEV_ADFS_CH_CFG_CMDID) \
 	OP(WMI_VDEV_ADFS_OCAC_ABORT_CMDID) \
 	OP(WMI_REQUEST_RCPI_CMDID) \
+	OP(WMI_REQUEST_PEER_STATS_INFO_CMDID) \
+	OP(WMI_SET_CURRENT_COUNTRY_CMDID) \
+	OP(WMI_11D_SCAN_START_CMDID) \
+	OP(WMI_11D_SCAN_STOP_CMDID) \
+	OP(WMI_REQUEST_RADIO_CHAN_STATS_CMDID) \
+	OP(WMI_ROAM_PER_CONFIG_CMDID) \
 	/* add new CMD_LIST elements above this line */
 
 /*
@@ -1243,6 +1264,11 @@ typedef enum {
 	OP(WMI_VDEV_DFS_CAC_COMPLETE_EVENTID) \
 	OP(WMI_VDEV_ADFS_OCAC_COMPLETE_EVENTID) \
 	OP(WMI_UPDATE_RCPI_EVENTID) \
+	OP(WMI_PEER_STATS_INFO_EVENTID) \
+	OP(WMI_PKGID_EVENTID) \
+	OP(WMI_REG_CHAN_LIST_CC_EVENTID) \
+	OP(WMI_11D_NEW_COUNTRY_EVENTID) \
+	OP(WMI_RADIO_CHAN_STATS_EVENTID) \
 	/* add new EVT_LIST elements above this line */
 
 /* TLV definitions of WMI commands */
@@ -1411,6 +1437,13 @@ WMITLV_CREATE_PARAM_STRUC(WMI_ROAM_SCAN_CMD);
 	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_ARRAY_BYTE, A_UINT8, non_prefer_ch_attr, WMITLV_SIZE_VAR)
 
 WMITLV_CREATE_PARAM_STRUC(WMI_ROAM_SET_MBO_PARAM_CMDID);
+
+/* Roam PER configure cmd */
+#define WMITLV_TABLE_WMI_ROAM_PER_CONFIG_CMDID(id, op, buf, len) \
+	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_STRUC_wmi_roam_per_config_fixed_param, wmi_roam_per_config_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+
+WMITLV_CREATE_PARAM_STRUC(WMI_ROAM_PER_CONFIG_CMDID);
+
 
 #define WMITLV_TABLE_WMI_VDEV_PLMREQ_START_CMDID(id,op,buf,len)	\
 	WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_vdev_plmreq_start_cmd_fixed_param, wmi_vdev_plmreq_start_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)	\
@@ -1819,7 +1852,8 @@ WMITLV_CREATE_PARAM_STRUC(WMI_REQUEST_LINK_STATS_CMDID);
 	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_ARRAY_UINT32, A_UINT32, channel_list, WMITLV_SIZE_VAR) \
 	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_ARRAY_STRUC, nlo_channel_prediction_cfg, channel_prediction_param, WMITLV_SIZE_VAR) \
 	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_STRUC_enlo_candidate_score_param, enlo_candidate_score_params, candidate_score_params, WMITLV_SIZE_FIX) \
-	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_ARRAY_STRUC, wmi_vendor_oui, vendor_oui, WMITLV_SIZE_VAR)
+	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_ARRAY_STRUC, wmi_vendor_oui, vendor_oui, WMITLV_SIZE_VAR) \
+	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_STRUC_wmi_connected_nlo_rssi_params, connected_nlo_rssi_params, cnlo_rssi_params, WMITLV_SIZE_FIX)
 
 WMITLV_CREATE_PARAM_STRUC(WMI_NETWORK_LIST_OFFLOAD_CONFIG_CMDID);
 
@@ -3090,6 +3124,31 @@ WMITLV_CREATE_PARAM_STRUC(WMI_PDEV_SET_STATS_THRESHOLD_CMDID);
 	WMITLV_ELEM(id , op, buf, len, WMITLV_TAG_STRUC_wmi_request_wlan_stats_cmd_fixed_param, wmi_request_wlan_stats_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
 WMITLV_CREATE_PARAM_STRUC(WMI_REQUEST_WLAN_STATS_CMDID);
 
+/* Request peer stats info cmd */
+#define WMITLV_TABLE_WMI_REQUEST_PEER_STATS_INFO_CMDID(id, op, buf, len) \
+	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_STRUC_wmi_request_peer_stats_info_cmd_fixed_param, wmi_request_peer_stats_info_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_REQUEST_PEER_STATS_INFO_CMDID);
+
+/* Host sets the current country code */
+#define WMITLV_TABLE_WMI_SET_CURRENT_COUNTRY_CMDID(id, op, buf, len) \
+	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_STRUC_wmi_set_current_country_cmd_fixed_param, wmi_set_current_country_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_SET_CURRENT_COUNTRY_CMDID);
+
+/* Start 11d scan in FW */
+#define WMITLV_TABLE_WMI_11D_SCAN_START_CMDID(id, op, buf, len) \
+	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_STRUC_wmi_11d_scan_start_cmd_fixed_param, wmi_11d_scan_start_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_11D_SCAN_START_CMDID);
+
+/* Stop 11d scan in FW */
+#define WMITLV_TABLE_WMI_11D_SCAN_STOP_CMDID(id, op, buf, len) \
+	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_STRUC_wmi_11d_scan_stop_cmd_fixed_param, wmi_11d_scan_stop_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_11D_SCAN_STOP_CMDID);
+
+/* Request radio channel stats cmd */
+#define WMITLV_TABLE_WMI_REQUEST_RADIO_CHAN_STATS_CMDID(id, op, buf, len) \
+	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_STRUC_wmi_request_radio_chan_stats_cmd_fixed_param, wmi_request_radio_chan_stats_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_REQUEST_RADIO_CHAN_STATS_CMDID);
+
 /************************** TLV definitions of WMI events *******************************/
 
 /* Service Ready event */
@@ -3928,10 +3987,21 @@ WMITLV_CREATE_PARAM_STRUC(WMI_BPF_CAPABILIY_INFO_EVENTID);
 	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_STRUC_wmi_bpf_vdev_stats_info_evt_fixed_param, wmi_bpf_vdev_stats_info_evt_fixed_param, fixed_param, WMITLV_SIZE_FIX)
 WMITLV_CREATE_PARAM_STRUC(WMI_BPF_VDEV_STATS_INFO_EVENTID);
 
+/* Indicate new country code to host from 11d scan */
+#define WMITLV_TABLE_WMI_11D_NEW_COUNTRY_EVENTID(id, op, buf, len) \
+	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_STRUC_wmi_11d_new_country_event_fixed_param, wmi_11d_new_country_event_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_11D_NEW_COUNTRY_EVENTID);
+
+/* Regulatory channel list of current country code */
+#define WMITLV_TABLE_WMI_REG_CHAN_LIST_CC_EVENTID(id, op, buf, len) \
+	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_STRUC_wmi_reg_chan_list_cc_event_fixed_param, wmi_reg_chan_list_cc_event_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
+	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_ARRAY_STRUC, wmi_regulatory_rule_struct, reg_rule_array, WMITLV_SIZE_VAR)
+WMITLV_CREATE_PARAM_STRUC(WMI_REG_CHAN_LIST_CC_EVENTID);
+
 /* FIPS event */
 #define WMITLV_TABLE_WMI_PDEV_FIPS_EVENTID(id, op, buf, len) \
 	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_STRUC_wmi_pdev_fips_event_fixed_param, wmi_pdev_fips_event_fixed_param, fixed_param, WMITLV_SIZE_FIX)   \
-WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_ARRAY_UINT32, A_UINT32, data, WMITLV_SIZE_VAR)
+WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_ARRAY_BYTE, A_UINT8, data, WMITLV_SIZE_VAR)
 WMITLV_CREATE_PARAM_STRUC(WMI_PDEV_FIPS_EVENTID);
 
 #define WMITLV_TABLE_WMI_PDEV_CHANNEL_HOPPING_EVENTID(id, op, buf, len) \
@@ -4121,6 +4191,22 @@ WMITLV_CREATE_PARAM_STRUC(WMI_REPORT_STATS_EVENTID);
 	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_STRUC_wmi_vdev_encrypt_decrypt_data_resp_event_fixed_param, wmi_vdev_encrypt_decrypt_data_resp_event_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
 	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_ARRAY_BYTE, A_UINT8, enc80211_frame, WMITLV_SIZE_VAR)
 WMITLV_CREATE_PARAM_STRUC(WMI_VDEV_ENCRYPT_DECRYPT_DATA_RESP_EVENTID);
+
+#define WMITLV_TABLE_WMI_PEER_STATS_INFO_EVENTID(id, op, buf, len) \
+	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_STRUC_wmi_peer_stats_info_event_fixed_param, wmi_peer_stats_info_event_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
+	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_ARRAY_STRUC, wmi_peer_stats_info, peer_stats_info, WMITLV_SIZE_VAR)
+WMITLV_CREATE_PARAM_STRUC(WMI_PEER_STATS_INFO_EVENTID);
+
+#define WMITLV_TABLE_WMI_RADIO_CHAN_STATS_EVENTID(id, op, buf, len) \
+	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_STRUC_wmi_radio_chan_stats_event_fixed_param, wmi_radio_chan_stats_event_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
+	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_ARRAY_STRUC, wmi_radio_chan_stats, radio_chan_stats, WMITLV_SIZE_VAR)
+WMITLV_CREATE_PARAM_STRUC(WMI_RADIO_CHAN_STATS_EVENTID);
+
+
+#define WMITLV_TABLE_WMI_PKGID_EVENTID(id, op, buf, len) \
+	WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_STRUC_wmi_pkgid_event_fixed_param, wmi_pkgid_event_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_PKGID_EVENTID);
+
 
 #ifdef __cplusplus
 }

@@ -345,6 +345,77 @@ htt_rx_msdu_first_msdu_flag_ll(htt_pdev_handle pdev, void *msdu_desc)
 
 #ifndef CONFIG_HL_SUPPORT
 
+static qdf_dma_addr_t
+htt_rx_paddr_mark_high_bits(qdf_dma_addr_t paddr)
+{
+#ifdef HELIUMPLUS_PADDR64
+	if (sizeof(qdf_dma_addr_t) > 4) {
+		/*
+		 * the use of higher bits:
+		 * 6   5         4         3
+		 * 32109876543210987654321098765432
+		 *  0x0 0xF 0xD 0xE 0xA 0xD000HHHHH
+		 * H: higher bits of 37 bits of physical address
+		 * 0/1: binary literal
+		 * 0x<n>: hex digit (4 bits)
+		 */
+		paddr &= 0x01FFFFFFFFF; /* clean high bits first */
+		paddr |= (((uint64_t)0x0FDEAD00) << 32);
+	}
+#endif
+	return paddr;
+}
+
+#ifdef HELIUMPLUS_PADDR64
+static qdf_dma_addr_t
+htt_rx_paddr_unmark_high_bits(qdf_dma_addr_t paddr)
+{
+	uint32_t markings;
+
+	if (sizeof(qdf_dma_addr_t) > 4) {
+		markings = (uint32_t)(paddr >> 32);
+		/*
+		 * check if it is marked correctly:
+		 * See the mark_high_bits function above for the expected
+		 * pattern.
+		 * the LS 5 bits are the high bits of physical address
+		 * padded (with 0b0) to 8 bits
+		 */
+		if ((markings & 0xFFFFFF00) != 0x0FDEAD00) {
+			qdf_print("%s: paddr not marked correctly: 0x%llx!\n",
+				  __func__, paddr);
+			HTT_ASSERT_ALWAYS(0);
+		}
+
+		/* clear markings  for further use */
+		paddr &= (uint64_t)0x1Fffffffff; /* LS 37 bits */
+	}
+	return paddr;
+}
+
+static qdf_dma_addr_t
+htt_rx_in_ord_paddr_get(uint32_t *u32p)
+{
+	qdf_dma_addr_t paddr = 0;
+
+	paddr = (qdf_dma_addr_t)HTT_RX_IN_ORD_PADDR_IND_PADDR_GET(*u32p);
+	if (sizeof(qdf_dma_addr_t) > 4) {
+		u32p++;
+		paddr |= ((qdf_dma_addr_t)
+			  HTT_RX_IN_ORD_PADDR_IND_PADDR_GET(*u32p) << 32);
+	}
+	paddr = htt_rx_paddr_unmark_high_bits(paddr);
+
+	return paddr;
+}
+#else
+static inline qdf_dma_addr_t
+htt_rx_in_ord_paddr_get(uint32_t *u32p)
+{
+	return HTT_RX_IN_ORD_PADDR_IND_PADDR_GET(*u32p);
+}
+#endif
+
 static int htt_rx_ring_size(struct htt_pdev_t *pdev)
 {
 	int size;
@@ -480,10 +551,10 @@ moretofill:
 			goto fail;
 		}
 		paddr = qdf_nbuf_get_frag_paddr(rx_netbuf, 0);
+		paddr = htt_rx_paddr_mark_high_bits(paddr);
 		if (pdev->cfg.is_full_reorder_offload) {
-			if (qdf_unlikely
-				    (htt_rx_hash_list_insert(pdev, paddr,
-							     rx_netbuf))) {
+			if (qdf_unlikely(htt_rx_hash_list_insert(
+					pdev, (uint32_t)paddr, rx_netbuf))) {
 				qdf_print("%s: hash insert failed!\n",
 					  __func__);
 #ifdef DEBUG_DMA_DONE
@@ -500,9 +571,6 @@ moretofill:
 		} else {
 			pdev->rx_ring.buf.netbufs_ring[idx] = rx_netbuf;
 		}
-#if HTT_PADDR64
-		paddr &= 0x1fffffffff; /* trim out higher than 37 bits */
-#endif /* HTT_PADDR64 */
 		pdev->rx_ring.buf.paddrs_ring[idx] = paddr;
 		pdev->rx_ring.fill_cnt++;
 
@@ -854,11 +922,11 @@ static inline qdf_nbuf_t htt_rx_netbuf_pop(htt_pdev_handle pdev)
 }
 
 static inline qdf_nbuf_t
-htt_rx_in_order_netbuf_pop(htt_pdev_handle pdev, uint32_t paddr)
+htt_rx_in_order_netbuf_pop(htt_pdev_handle pdev, qdf_dma_addr_t paddr)
 {
 	HTT_ASSERT1(htt_rx_in_order_ring_elems(pdev) != 0);
 	pdev->rx_ring.fill_cnt--;
-	return htt_rx_hash_list_lookup(pdev, paddr);
+	return htt_rx_hash_list_lookup(pdev, (uint32_t)(paddr & 0xffffffff));
 }
 
 /* FIX ME: this function applies only to LL rx descs.
@@ -1406,11 +1474,11 @@ htt_rx_offload_paddr_msdu_pop_ll(htt_pdev_handle pdev,
 	qdf_nbuf_t buf;
 	uint32_t *msdu_hdr, msdu_len;
 	uint32_t *curr_msdu;
-	uint32_t paddr;
+	qdf_dma_addr_t paddr;
 
 	curr_msdu =
 		msg_word + (msdu_iter * HTT_RX_IN_ORD_PADDR_IND_MSDU_DWORDS);
-	paddr = HTT_RX_IN_ORD_PADDR_IND_PADDR_GET(*curr_msdu);
+	paddr = htt_rx_in_ord_paddr_get(curr_msdu);
 	*head_buf = *tail_buf = buf = htt_rx_in_order_netbuf_pop(pdev, paddr);
 
 	if (qdf_unlikely(NULL == buf)) {
@@ -1479,10 +1547,11 @@ int htt_mon_rx_handle_amsdu_packet(qdf_nbuf_t msdu, htt_pdev_handle pdev,
 	qdf_nbuf_t prev_frag_nbuf;
 	uint32_t len;
 	uint32_t last_frag;
+	qdf_dma_addr_t paddr;
 
 	*msg_word += HTT_RX_IN_ORD_PADDR_IND_MSDU_DWORDS;
-	frag_nbuf = htt_rx_in_order_netbuf_pop(pdev,
-				HTT_RX_IN_ORD_PADDR_IND_PADDR_GET(**msg_word));
+	paddr = htt_rx_in_ord_paddr_get(*msg_word);
+	frag_nbuf = htt_rx_in_order_netbuf_pop(pdev, paddr);
 	if (qdf_unlikely(NULL == frag_nbuf)) {
 		qdf_print("%s: netbuf pop failed!\n", __func__);
 		return 0;
@@ -1504,8 +1573,8 @@ int htt_mon_rx_handle_amsdu_packet(qdf_nbuf_t msdu, htt_pdev_handle pdev,
 	prev_frag_nbuf = frag_nbuf;
 	while (!last_frag) {
 		*msg_word += HTT_RX_IN_ORD_PADDR_IND_MSDU_DWORDS;
-		frag_nbuf = htt_rx_in_order_netbuf_pop(pdev,
-				HTT_RX_IN_ORD_PADDR_IND_PADDR_GET(**msg_word));
+		paddr = htt_rx_in_ord_paddr_get(*msg_word);
+		frag_nbuf = htt_rx_in_order_netbuf_pop(pdev, paddr);
 		last_frag = ((struct htt_rx_in_ord_paddr_ind_msdu_t *)
 			     *msg_word)->msdu_info;
 
@@ -1792,6 +1861,7 @@ static int htt_rx_mon_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 	uint32_t amsdu_len;
 	uint32_t len;
 	uint32_t last_frag;
+	qdf_dma_addr_t paddr;
 
 	HTT_ASSERT1(htt_rx_in_order_ring_elems(pdev) != 0);
 
@@ -1809,9 +1879,8 @@ static int htt_rx_mon_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 
 	msg_word = (uint32_t *)(rx_ind_data +
 				 HTT_RX_IN_ORD_PADDR_IND_HDR_BYTES);
-
-	(*head_msdu) = msdu = htt_rx_in_order_netbuf_pop(pdev,
-				HTT_RX_IN_ORD_PADDR_IND_PADDR_GET(*msg_word));
+	paddr = htt_rx_in_ord_paddr_get(msg_word);
+	(*head_msdu) = msdu = htt_rx_in_order_netbuf_pop(pdev, paddr);
 
 	if (qdf_unlikely(NULL == msdu)) {
 		qdf_print("%s: netbuf pop failed!\n", __func__);
@@ -1885,8 +1954,8 @@ static int htt_rx_mon_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 		/* check if this is the last msdu */
 		if (msdu_count) {
 			msg_word += HTT_RX_IN_ORD_PADDR_IND_MSDU_DWORDS;
-			next = htt_rx_in_order_netbuf_pop(pdev,
-				HTT_RX_IN_ORD_PADDR_IND_PADDR_GET(*msg_word));
+			paddr = htt_rx_in_ord_paddr_get(msg_word);
+			next = htt_rx_in_order_netbuf_pop(pdev, paddr);
 			if (qdf_unlikely(NULL == next)) {
 				qdf_print("%s: netbuf pop failed!\n",
 					     __func__);
@@ -1943,6 +2012,7 @@ htt_rx_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 	uint8_t peer_id;
 	struct htt_host_rx_desc_base *rx_desc;
 	enum rx_pkt_fate status = RX_PKT_FATE_SUCCESS;
+	qdf_dma_addr_t paddr;
 
 	HTT_ASSERT1(htt_rx_in_order_ring_elems(pdev) != 0);
 
@@ -1971,9 +2041,8 @@ htt_rx_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 		return 0;
 	}
 
-	(*head_msdu) = msdu = htt_rx_in_order_netbuf_pop(
-		pdev,
-		HTT_RX_IN_ORD_PADDR_IND_PADDR_GET(*msg_word));
+	paddr = htt_rx_in_ord_paddr_get(msg_word);
+	(*head_msdu) = msdu = htt_rx_in_order_netbuf_pop(pdev, paddr);
 
 	if (qdf_unlikely(NULL == msdu)) {
 		qdf_print("%s: netbuf pop failed!\n", __func__);
@@ -2065,10 +2134,8 @@ htt_rx_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 			} else { /* if this is not the last msdu */
 				/* get the next msdu */
 				msg_word += HTT_RX_IN_ORD_PADDR_IND_MSDU_DWORDS;
-				next = htt_rx_in_order_netbuf_pop(
-					pdev,
-					HTT_RX_IN_ORD_PADDR_IND_PADDR_GET(
-						*msg_word));
+				paddr = htt_rx_in_ord_paddr_get(msg_word);
+				next = htt_rx_in_order_netbuf_pop(pdev, paddr);
 				if (qdf_unlikely(NULL == next)) {
 					qdf_print("%s: netbuf pop failed!\n",
 								 __func__);
@@ -2098,9 +2165,9 @@ htt_rx_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 		/* check if this is the last msdu */
 		if (msdu_count) {
 			msg_word += HTT_RX_IN_ORD_PADDR_IND_MSDU_DWORDS;
-			next = htt_rx_in_order_netbuf_pop(
-				pdev,
-				HTT_RX_IN_ORD_PADDR_IND_PADDR_GET(*msg_word));
+			paddr = htt_rx_in_ord_paddr_get(msg_word);
+			next = htt_rx_in_order_netbuf_pop(pdev, paddr);
+			/* HTT_RX_IN_ORD_PADDR_IND_PADDR_GET(*msg_word)); */
 			if (qdf_unlikely(NULL == next)) {
 				qdf_print("%s: netbuf pop failed!\n",
 					  __func__);

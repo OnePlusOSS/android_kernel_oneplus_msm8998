@@ -6676,6 +6676,27 @@ enum dot11p_mode {
 #define CFG_EXTWOW_TCP_RX_TIMEOUT_DEFAULT          (200)
 #endif
 
+/*
+ * <ini>
+ * gEnableFastPwrTransition - Configuration for fast power transition
+ * @Min: 0
+ * @Max: 2
+ * @Default: 0
+ *
+ * This ini supported values:
+ * 0x0: Phy register retention disabled (Higher timeline, Good for power)
+ * 0x1: Phy register retention statically enabled
+ * 0x2: Phy register retention enabled/disabled dynamically
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+#define CFG_ENABLE_PHY_REG_NAME         "gEnableFastPwrTransition"
+#define CFG_PHY_REG_DEFAULT         (0x0)
+#define CFG_PHY_REG_MIN             (0x0)
+#define CFG_PHY_REG_MAX             (0x2)
+
 /*---------------------------------------------------------------------------
    Type declarations
    -------------------------------------------------------------------------*/
@@ -7381,6 +7402,7 @@ struct hdd_config {
 	uint32_t per_roam_rest_time;
 	uint32_t max_sched_scan_plan_interval;
 	uint32_t max_sched_scan_plan_iterations;
+	uint8_t enable_phy_reg_retention;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

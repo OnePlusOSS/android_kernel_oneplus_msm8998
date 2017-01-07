@@ -7902,6 +7902,10 @@ int hdd_configure_cds(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 	if (cds_register_dp_cb(&dp_cbacks) != QDF_STATUS_SUCCESS)
 		hdd_err("Unable to register datapath callbacks in CDS");
 
+	if (hdd_ctx->config->enable_phy_reg_retention)
+		wma_cli_set_command(0, WMI_PDEV_PARAM_FAST_PWR_TRANSITION,
+			hdd_ctx->config->enable_phy_reg_retention, PDEV_CMD);
+
 	return 0;
 
 hdd_features_deinit:

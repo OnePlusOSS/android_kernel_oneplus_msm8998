@@ -45,35 +45,6 @@
 
 #define FL(x)    "%s: %d: " x, __func__, __LINE__
 
-/**
- * typedef enum QDF_TRACE_LEVEL - Debug Trace level
- * @QDF_TRACE_LEVEL_NONE: no trace will be logged. This value is in place
- * for the qdf_trace_setlevel() to allow the user to turn off all traces
- * @QDF_TRACE_LEVEL_FATAL: enable trace for fatal Error
- * @QDF_TRACE_LEVEL_ERROR: enable trace for errors
- * @QDF_TRACE_LEVEL_WARN: enable trace for warnings
- * @QDF_TRACE_LEVEL_INFO: enable trace for information
- * @QDF_TRACE_LEVEL_INFO_HIGH: enable high level trace information
- * @QDF_TRACE_LEVEL_INFO_MED: enable middle level trace information
- * @QDF_TRACE_LEVEL_INFO_LOW: enable low level trace information
- * @QDF_TRACE_LEVEL_DEBUG: enable trace for debugging
- * @QDF_TRACE_LEVEL_ALL: enable all trace
- * @QDF_TRACE_LEVEL_MAX: enable max level trace
- */
-typedef enum {
-	QDF_TRACE_LEVEL_NONE = 0,
-	QDF_TRACE_LEVEL_FATAL,
-	QDF_TRACE_LEVEL_ERROR,
-	QDF_TRACE_LEVEL_WARN,
-	QDF_TRACE_LEVEL_INFO,
-	QDF_TRACE_LEVEL_INFO_HIGH,
-	QDF_TRACE_LEVEL_INFO_MED,
-	QDF_TRACE_LEVEL_INFO_LOW,
-	QDF_TRACE_LEVEL_DEBUG,
-	QDF_TRACE_LEVEL_ALL,
-	QDF_TRACE_LEVEL_MAX
-} QDF_TRACE_LEVEL;
-
 /*
  * Log levels
  */
@@ -466,27 +437,6 @@ void qdf_dp_trace_clear_buffer(void)
 
 #endif
 
-
-/**
- * qdf_trace_msg()- logging API
- * @module: Module identifier. A member of the QDF_MODULE_ID enumeration that
- *	    identifies the module issuing the trace message.
- * @level: Trace level. A member of the QDF_TRACE_LEVEL enumeration indicating
- *	   the severity of the condition causing the trace message to be issued.
- *	   More severe conditions are more likely to be logged.
- * @str_format: Format string. The message to be logged. This format string
- *	       contains printf-like replacement parameters, which follow this
- *	       parameter in the variable argument list.
- *
- * Users wishing to add tracing information to their code should use
- * QDF_TRACE.  QDF_TRACE() will compile into a call to qdf_trace_msg() when
- * tracing is enabled.
- *
- * Return: nothing
- *
- */
-void __printf(3, 4) qdf_trace_msg(QDF_MODULE_ID module, QDF_TRACE_LEVEL level,
-		   char *str_format, ...);
 
 void qdf_trace_hex_dump(QDF_MODULE_ID module, QDF_TRACE_LEVEL level,
 			void *data, int buf_len);

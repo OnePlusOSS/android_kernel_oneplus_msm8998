@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -522,7 +522,8 @@ static inline void wmi_log_buffer_free(struct wmi_unified *wmi_handle)
 #else
 static inline void wmi_log_buffer_free(struct wmi_unified *wmi_handle)
 {
-	/* Do Nothing */
+	wmi_handle->log_info.wmi_logging_enable = 0;
+	qdf_spinlock_destroy(&wmi_handle->log_info.wmi_record_lock);
 }
 #endif
 
@@ -1645,6 +1646,12 @@ static uint8_t *wmi_id_to_name(uint32_t wmi_command)
 		CASE_RETURN_STRING(WMI_VDEV_ADFS_OCAC_ABORT_CMDID);
 		CASE_RETURN_STRING(WMI_SAR_LIMITS_CMDID);
 		CASE_RETURN_STRING(WMI_REQUEST_RCPI_CMDID);
+		CASE_RETURN_STRING(WMI_REQUEST_PEER_STATS_INFO_CMDID);
+		CASE_RETURN_STRING(WMI_SET_CURRENT_COUNTRY_CMDID);
+		CASE_RETURN_STRING(WMI_11D_SCAN_START_CMDID);
+		CASE_RETURN_STRING(WMI_11D_SCAN_STOP_CMDID);
+		CASE_RETURN_STRING(WMI_REQUEST_RADIO_CHAN_STATS_CMDID);
+		CASE_RETURN_STRING(WMI_ROAM_PER_CONFIG_CMDID);
 	}
 
 	return "Invalid WMI cmd";
@@ -2253,7 +2260,6 @@ void *wmi_unified_attach(void *scn_handle,
 	INIT_WORK(&wmi_handle->rx_event_work, wmi_rx_event_work);
 #ifdef WMI_INTERFACE_EVENT_LOGGING
 	if (QDF_STATUS_SUCCESS == wmi_log_init(wmi_handle)) {
-		qdf_spinlock_create(&wmi_handle->log_info.wmi_record_lock);
 		wmi_debugfs_init(wmi_handle);
 	}
 #endif

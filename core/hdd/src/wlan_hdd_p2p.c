@@ -1130,7 +1130,7 @@ __wlan_hdd_cfg80211_cancel_remain_on_channel(struct wiphy *wiphy,
 	    (cfgState->remain_on_chan_ctx->cookie != cookie)) {
 		mutex_unlock(&cfgState->remain_on_chan_ctx_lock);
 		hdd_err("No Remain on channel pending with specified cookie value");
-		return 0;
+		return -EINVAL;
 	}
 
 	if (NULL != cfgState->remain_on_chan_ctx) {
@@ -1553,11 +1553,14 @@ send_frame:
 
 		mutex_lock(&cfgState->remain_on_chan_ctx_lock);
 
-		*cookie = (uintptr_t) cfgState->buf;
-		cfgState->action_cookie = *cookie;
-		if (cfgState->remain_on_chan_ctx)
-			cfgState->remain_on_chan_ctx->cookie =
-				cfgState->action_cookie;
+		if (cfgState->remain_on_chan_ctx) {
+			cfgState->action_cookie =
+				cfgState->remain_on_chan_ctx->cookie;
+			*cookie = cfgState->action_cookie;
+		} else {
+			*cookie = (uintptr_t) cfgState->buf;
+			cfgState->action_cookie = *cookie;
+		}
 
 		mutex_unlock(&cfgState->remain_on_chan_ctx_lock);
 	}

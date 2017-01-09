@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -634,6 +634,8 @@ static int __wlan_hdd_bus_suspend_noirq(void)
 	err = wma_is_target_wake_up_received();
 	if (err)
 		goto resume_hif_noirq;
+
+	hdd_ctx->suspend_resume_stats.suspends++;
 
 	hdd_info("suspend_noirq done");
 	return 0;

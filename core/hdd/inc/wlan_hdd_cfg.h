@@ -3268,30 +3268,159 @@ typedef enum {
 	eHDD_LINK_SPEED_REPORT_MAX = 1,
 	eHDD_LINK_SPEED_REPORT_MAX_SCALED = 2,
 } eHddLinkSpeedReportType;
+
+/*
+ * <ini>
+ * gVhtChannelWidth - Channel width capability for 11ac
+ * @Min: 0
+ * @Max: 4
+ * @Default: 3
+ *
+ * This ini is  used to set channel width capability for 11AC.
+ * eHT_CHANNEL_WIDTH_20MHZ = 0,
+ * eHT_CHANNEL_WIDTH_40MHZ = 1,
+ * eHT_CHANNEL_WIDTH_80MHZ = 2,
+ * eHT_CHANNEL_WIDTH_160MHZ = 3,
+ * eHT_CHANNEL_WIDTH_80P80MHZ = 4,
+ *
+ * Related: NA
+ *
+ * Supported Feature: 11AC
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
 #define CFG_VHT_CHANNEL_WIDTH                "gVhtChannelWidth"
 #define CFG_VHT_CHANNEL_WIDTH_MIN            (0)
 #define CFG_VHT_CHANNEL_WIDTH_MAX            (4)
 #define CFG_VHT_CHANNEL_WIDTH_DEFAULT        (3)
+
+/*
+* <ini>
+* gVhtRxMCS - VHT Rx MCS capability for 1x1 mode
+* @Min: 0
+* @Max: 2
+* @Default: 0
+*
+* This ini is  used to set VHT Rx MCS capability for 1x1 mode.
+* 0, MCS0-7
+* 1, MCS0-8
+* 2, MCS0-9
+*
+* Related: NA
+*
+* Supported Feature: 11AC
+*
+* Usage: Internal/External
+*
+* </ini>
+*/
 
 #define CFG_VHT_ENABLE_RX_MCS_8_9               "gVhtRxMCS"
 #define CFG_VHT_ENABLE_RX_MCS_8_9_MIN           (0)
 #define CFG_VHT_ENABLE_RX_MCS_8_9_MAX           (2)
 #define CFG_VHT_ENABLE_RX_MCS_8_9_DEFAULT       (0)
 
+/*
+ * <ini>
+ * gVhtTxMCS - VHT Tx MCS capability for 1x1 mode
+ * @Min: 0
+ * @Max: 2
+ * @Default: 0
+ *
+ * This ini is  used to set VHT Tx MCS capability for 1x1 mode.
+ * 0, MCS0-7
+ * 1, MCS0-8
+ * 2, MCS0-9
+ *
+ * Related: NA
+ *
+ * Supported Feature: 11AC
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+
 #define CFG_VHT_ENABLE_TX_MCS_8_9               "gVhtTxMCS"
 #define CFG_VHT_ENABLE_TX_MCS_8_9_MIN           (0)
 #define CFG_VHT_ENABLE_TX_MCS_8_9_MAX           (2)
 #define CFG_VHT_ENABLE_TX_MCS_8_9_DEFAULT       (0)
+
+/*
+ * <ini>
+ * gVhtRxMCS2x2 - VHT Rx MCS capability for 2x2 mode
+ * @Min: 0
+ * @Max: 2
+ * @Default: 0
+ *
+ * This ini is  used to set VHT Rx MCS capability for 2x2 mode.
+ * 0, MCS0-7
+ * 1, MCS0-8
+ * 2, MCS0-9
+ *
+ * Related: NA
+ *
+ * Supported Feature: 11AC
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
 
 #define CFG_VHT_ENABLE_RX_MCS2x2_8_9               "gVhtRxMCS2x2"
 #define CFG_VHT_ENABLE_RX_MCS2x2_8_9_MIN           (0)
 #define CFG_VHT_ENABLE_RX_MCS2x2_8_9_MAX           (2)
 #define CFG_VHT_ENABLE_RX_MCS2x2_8_9_DEFAULT       (0)
 
+/*
+ * <ini>
+ * gVhtTxMCS2x2 - VHT Tx MCS capability for 2x2 mode
+ * @Min: 0
+ * @Max: 2
+ * @Default: 0
+ *
+ * This ini is  used to set VHT Tx MCS capability for 2x2 mode.
+ * 0, MCS0-7
+ * 1, MCS0-8
+ * 2, MCS0-9
+ *
+ * Related: NA
+ *
+ * Supported Feature: 11AC
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+
 #define CFG_VHT_ENABLE_TX_MCS2x2_8_9               "gVhtTxMCS2x2"
 #define CFG_VHT_ENABLE_TX_MCS2x2_8_9_MIN           (0)
 #define CFG_VHT_ENABLE_TX_MCS2x2_8_9_MAX           (2)
 #define CFG_VHT_ENABLE_TX_MCS2x2_8_9_DEFAULT       (0)
+
+/*
+ * <ini>
+ * gEnable2x2 - Enables/disables VHT Tx/Rx MCS values for 2x2
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini disables/enables 2x2 mode. If this is zero then DUT operates as
+ * 1x1.
+ *
+ * 0, Disable.
+ * 1, Enable
+ *
+ * Related: NA
+ *
+ * Supported Feature: 11AC
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
 
 #define CFG_VHT_ENABLE_2x2_CAP_FEATURE         "gEnable2x2"
 #define CFG_VHT_ENABLE_2x2_CAP_FEATURE_MIN     (0)
@@ -3300,20 +3429,21 @@ typedef enum {
 
 /*
  * <ini>
- * gStaPrefer80MHzOver160MHz - Set prefer range for sta
+ * gStaPrefer80MHzOver160MHz - set Sta perferance to connect in 80HZ/160HZ
  * @Min: 0
  * @Max: 1
  * @Default: 1
  *
- * This ini is used to set default range for sta
+ * This ini is  used to set Sta perferance to connect in 80HZ/160HZ
+ *
  * 0 - Connects in 160MHz 1x1 when AP is 160MHz 2x2
  * 1 - Connects in 80MHz 2x2 when AP is 160MHz 2x2
  *
- * Related: None
+ * Related: NA
  *
- * Supported Feature: STA
+ * Supported Feature: 11AC
  *
- * Usage: Internal/External
+ * Usage: External
  *
  * </ini>
  */
@@ -3325,12 +3455,27 @@ typedef enum {
 
 /*
  * <ini>
- * gVdevTypeNss_2g - Select the value for each two bit configuration
+ * gVdevTypeNss_2g - set Number of streams per VDEV for 2G band.
  * @Min: 0x5555
  * @Max: 0xAAAA
  * @Default: 0xAAAA
  *
- * This ini is used to set NSS cfg bit in 2g definition.
+ * This ini is  used to set Number of streams per VDEV for 2G band
+ *
+ * These Nss parameters will have 32-bit configuration value, 2 bits are
+ * allocated for each vdev.
+ * Valid values are:
+ * Min value – 0x5555
+ * Max value – 0xAAAA
+ * Default value will be 0xAAAA for both the parameters.
+ * Value 0x5555 will configure all vdevs in 1x1 mode in 2.4G band.
+ * Value 0xAAAA will configure all vdevs in 2x2 mode in 2.4G band.
+ *
+ * The max value is defined based on the valid max Nss of the vdev, the valid
+ * values for each vdev 2-bits are 0x1 and 0x2. 0x3 and 0x0 are not valid vdev
+ * Nss values.
+ *
+ * NSS cfg bit definition.
  * STA          BIT[0:1]
  * SAP          BIT[2:3]
  * P2P_GO       BIT[4:5]
@@ -3340,11 +3485,11 @@ typedef enum {
  * P2P_DEVICE   BIT[12:13]
  * OCB          BIT[14:15]
  *
- * Related: None
+ * Related: NA
  *
- * Supported Feature: STA
+ * Supported Feature: Antenna Sharing
  *
- * Usage: Internal/External
+ * Usage: External
  *
  * </ini>
  */
@@ -3356,12 +3501,27 @@ typedef enum {
 
 /*
  * <ini>
- * gVdevTypeNss_5g - Select the value for each two bit configuration
+ * gVdevTypeNss_5g - set Number of streams per VDEV for 5G band.
  * @Min: 0x5555
  * @Max: 0xAAAA
  * @Default: 0xAAAA
  *
- * This ini is used to set NSS cfg bit in 5g definition
+ * This ini is  used to set Number of streams per VDEV for 5G band
+ *
+ * These Nss parameters will have 32-bit configuration value, 2 bits are
+ * allocated for each vdev.
+ * Valid values are:
+ * Min value – 0x5555
+ * Max value – 0xAAAA
+ * Default value will be 0xAAAA for both the parameters.
+ * Value 0x5555 will configure all vdevs in 1x1 mode in 5 band.
+ * Value 0xAAAA will configure all vdevs in 2x2 mode in 5 band.
+ *
+ * The max value is defined based on the valid max Nss of the vdev, the valid
+ * values for each vdev 2-bits are 0x1 and 0x2. 0x3 and 0x0 are not valid vdev
+ * Nss values.
+ *
+ * NSS cfg bit definition.
  * STA          BIT[0:1]
  * SAP          BIT[2:3]
  * P2P_GO       BIT[4:5]
@@ -3371,11 +3531,11 @@ typedef enum {
  * P2P_DEVICE   BIT[12:13]
  * OCB          BIT[14:15]
  *
- * Related: None
+ * Related: NA
  *
- * Supported Feature: STA
+ * Supported Feature: Antenna Sharing
  *
- * Usage: Internal/External
+ * Usage: External
  *
  * </ini>
  */
@@ -3384,6 +3544,28 @@ typedef enum {
 #define CFG_VDEV_TYPE_NSS_5G_MIN     (0x5555)
 #define CFG_VDEV_TYPE_NSS_5G_MAX     (0xAAAA)
 #define CFG_VDEV_TYPE_NSS_5G_DEFAULT (0xAAAA)
+
+/*
+ * <ini>
+ * gEnableMuBformee - Enables/disables multi-user (MU) beam formee capability
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini enables/disables multi-user (MU) beam formee
+ * capability
+ *
+ * Change MU Bformee only when  gTxBFEnable is enabled.
+ * When gTxBFEnable and gEnableMuBformee are set, MU beam formee capability is
+ * enabled.
+ * Related:  gTxBFEnable
+ *
+ * Supported Feature: 11AC
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
 
 #define CFG_VHT_ENABLE_MU_BFORMEE_CAP_FEATURE         "gEnableMuBformee"
 #define CFG_VHT_ENABLE_MU_BFORMEE_CAP_FEATURE_MIN     (0)
@@ -3400,10 +3582,56 @@ typedef enum {
 #define CFG_VHT_ENABLE_GID_FEATURE_MAX          (1)
 #define CFG_VHT_ENABLE_GID_FEATURE_DEFAULT      (0)
 
+/*
+ * <ini>
+ * gSetTxChainmask1x1 - sets Transmit chain mask.
+ * @Min: 1
+ * @Max: 2
+ * @Default: 1
+ *
+ * This ini sets Transmit chain mask.
+ *
+ * If gEnable2x2 is disabled, gSetTxChainmask1x1 and gSetRxChainmask1x1 values
+ * are taken into account. If chainmask value exceeds the maximum number of
+ * chains supported by target, the max number of chains is used. By default,
+ * chain0 is selected for both Tx and Rx.
+ * gSetTxChainmask1x1=1 or gSetRxChainmask1x1=1 to select chain0.
+ * gSetTxChainmask1x1=2 or gSetRxChainmask1x1=2 to select chain1.
+ *
+ * Supported Feature: 11AC
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+
 #define CFG_VHT_ENABLE_1x1_TX_CHAINMASK         "gSetTxChainmask1x1"
 #define CFG_VHT_ENABLE_1x1_TX_CHAINMASK_MIN     (1)
 #define CFG_VHT_ENABLE_1x1_TX_CHAINMASK_MAX     (2)
 #define CFG_VHT_ENABLE_1x1_TX_CHAINMASK_DEFAULT (1)
+
+/*
+ * <ini>
+ * gSetRxChainmask1x1 - Sets Receive chain mask.
+ * @Min: 1
+ * @Max: 2
+ * @Default: 1
+ *
+ * This ini is  used to set Receive chain mask.
+ *
+ * If gEnable2x2 is disabled, gSetTxChainmask1x1 and gSetRxChainmask1x1 values
+ * are taken into account. If chainmask value exceeds the maximum number of
+ * chains supported by target, the max number of chains is used. By default,
+ * chain0 is selected for both Tx and Rx.
+ * gSetTxChainmask1x1=1 or gSetRxChainmask1x1=1 to select chain0.
+ * gSetTxChainmask1x1=2 or gSetRxChainmask1x1=2 to select chain1.
+ *
+ * Supported Feature: 11AC
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
 
 #define CFG_VHT_ENABLE_1x1_RX_CHAINMASK         "gSetRxChainmask1x1"
 #define CFG_VHT_ENABLE_1x1_RX_CHAINMASK_MIN     (1)

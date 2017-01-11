@@ -4884,13 +4884,10 @@ static int __hdd_ipa_wlan_evt(hdd_adapter_t *adapter, uint8_t sta_id,
 			unsigned int pending_event_count;
 			struct ipa_uc_pending_event *pending_event = NULL;
 
-			HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR, "IPA resource %s inprogress",
-					hdd_ipa->resource_loading ? "load":"unload");
+			HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,
+				    "IPA resource load inprogress");
 
-			hdd_err("IPA resource %s inprogress",
-					hdd_ipa->resource_loading ? "load":"unload");
-
-			qdf_mutex_acquire(&hdd_ipa->event_lock);
+			qdf_mutex_acquire(&hdd_ipa->ipa_lock);
 
 			pending_event_count = qdf_list_size(&hdd_ipa->pending_event);
 			if (pending_event_count >= HDD_IPA_MAX_PENDING_EVENT_COUNT) {
@@ -4906,7 +4903,7 @@ static int __hdd_ipa_wlan_evt(hdd_adapter_t *adapter, uint8_t sta_id,
 			if (!pending_event) {
 				HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,
 				    "Pending event memory alloc fail");
-				qdf_mutex_release(&hdd_ipa->event_lock);
+				qdf_mutex_release(&hdd_ipa->ipa_lock);
 				return -ENOMEM;
 			}
 
@@ -4919,7 +4916,7 @@ static int __hdd_ipa_wlan_evt(hdd_adapter_t *adapter, uint8_t sta_id,
 			qdf_list_insert_back(&hdd_ipa->pending_event,
 					&pending_event->node);
 
-			qdf_mutex_release(&hdd_ipa->event_lock);
+			qdf_mutex_release(&hdd_ipa->ipa_lock);
 			return 0;
 		} else if (hdd_ipa->resource_unloading) {
 			hdd_err("%s: IPA resource unload inprogress", __func__);

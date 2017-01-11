@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1178,7 +1178,12 @@ cgstatic cfg_static[CFG_PARAM_MAX_NUM] = {
 	CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_INT,
 	WNI_CFG_TGT_GTX_USR_CFG_STAMIN,
 	WNI_CFG_TGT_GTX_USR_CFG_STAMAX,
-	WNI_CFG_TGT_GTX_USR_CFG_STADEF}
+	WNI_CFG_TGT_GTX_USR_CFG_STADEF},
+	{WNI_CFG_MAX_HT_MCS_TX_DATA,
+	CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_INT,
+	WNI_CFG_MAX_HT_MCS_TX_DATA_STAMIN,
+	WNI_CFG_MAX_HT_MCS_TX_DATA_STAMAX,
+	WNI_CFG_MAX_HT_MCS_TX_DATA_STADEF}
 };
 
 

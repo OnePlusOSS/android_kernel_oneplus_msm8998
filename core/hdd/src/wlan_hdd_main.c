@@ -1997,8 +1997,7 @@ static int __hdd_stop(struct net_device *dev)
 	if (hdd_check_for_opened_interfaces(hdd_ctx)) {
 		hdd_info("Closing all modules from the hdd_stop");
 		qdf_mc_timer_start(&hdd_ctx->iface_change_timer,
-				   hdd_ctx->config->iface_change_wait_time
-				   * 50000);
+				   hdd_ctx->config->iface_change_wait_time);
 	}
 
 	EXIT();
@@ -6590,6 +6589,7 @@ static hdd_context_t *hdd_context_create(struct device *dev)
 
 	hdd_ctx->pcds_context = p_cds_context;
 	hdd_ctx->parent_dev = dev;
+	hdd_ctx->last_scan_reject_session_id = 0xFF;
 
 	hdd_ctx->config = qdf_mem_malloc(sizeof(struct hdd_config));
 	if (hdd_ctx->config == NULL) {
@@ -8284,7 +8284,7 @@ int hdd_wlan_startup(struct device *dev)
 	}
 
 	qdf_mc_timer_start(&hdd_ctx->iface_change_timer,
-			   hdd_ctx->config->iface_change_wait_time * 5000);
+			   hdd_ctx->config->iface_change_wait_time);
 
 	if (hdd_ctx->config->goptimize_chan_avoid_event) {
 		status = sme_enable_disable_chanavoidind_event(

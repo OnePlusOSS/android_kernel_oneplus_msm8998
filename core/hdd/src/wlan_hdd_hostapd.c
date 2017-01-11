@@ -943,6 +943,8 @@ static void wlan_hdd_sap_pre_cac_success(void *data)
 	}
 
 	cds_ssr_protect(__func__);
+	wlan_hdd_release_intf_addr(hdd_ctx,
+				   pHostapdAdapter->macAddressCurrent.bytes);
 	hdd_stop_adapter(hdd_ctx, pHostapdAdapter, true);
 	hdd_close_adapter(hdd_ctx, pHostapdAdapter, false);
 	cds_ssr_unprotect(__func__);
@@ -6972,7 +6974,13 @@ static int wlan_hdd_setup_driver_overrides(hdd_adapter_t *ap_adapter)
 	 *
 	 * Default override enabled (for android). MDM shall disable this in ini
 	 */
-	if (hdd_ctx->config->sap_p2p_11ac_override &&
+	/*
+	 * sub_20 MHz channel width is incompatible with 11AC rates, hence do
+	 * not allow 11AC rates or more than 20 MHz channel width when
+	 * enable_sub_20_channel_width is non zero
+	 */
+	if (!hdd_ctx->config->enable_sub_20_channel_width &&
+			hdd_ctx->config->sap_p2p_11ac_override &&
 			(sap_cfg->SapHw_mode == eCSR_DOT11_MODE_11n ||
 			sap_cfg->SapHw_mode == eCSR_DOT11_MODE_11ac ||
 			sap_cfg->SapHw_mode == eCSR_DOT11_MODE_11ac_ONLY) &&
@@ -7194,7 +7202,7 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 
 	ENTER();
 
-	if (!update_beacon && cds_is_connection_in_progress()) {
+	if (!update_beacon && cds_is_connection_in_progress(NULL, NULL)) {
 		hdd_err("Can't start BSS: connection is in progress");
 		return -EINVAL;
 	}
@@ -8042,12 +8050,12 @@ static int __wlan_hdd_cfg80211_start_ap(struct wiphy *wiphy,
 	if (0 != status)
 		return status;
 
-	hdd_info("pAdapter = %p, Device mode %s(%d)", pAdapter,
-	       hdd_device_mode_to_string(pAdapter->device_mode),
-	       pAdapter->device_mode);
+	hdd_info("pAdapter = %p, Device mode %s(%d) sub20 %d",
+		pAdapter, hdd_device_mode_to_string(pAdapter->device_mode),
+		pAdapter->device_mode, cds_is_sub_20_mhz_enabled());
 
 
-	if (cds_is_connection_in_progress()) {
+	if (cds_is_connection_in_progress(NULL, NULL)) {
 		hdd_err("Can't start BSS: connection is in progress");
 		return -EBUSY;
 	}

@@ -490,8 +490,8 @@ static void wlan_hdd_tdls_schedule_scan(struct work_struct *work)
 
 	scan_ctx->attempt++;
 
-	wlan_hdd_cfg80211_scan(scan_ctx->wiphy,
-			       scan_ctx->scan_request);
+	wlan_hdd_cfg80211_tdls_scan(scan_ctx->wiphy,
+			       scan_ctx->scan_request, scan_ctx->source);
 }
 
 /**
@@ -637,6 +637,7 @@ void hdd_tdls_context_init(hdd_context_t *hdd_ctx)
 	hdd_ctx->tdls_scan_ctxt.magic = 0;
 	hdd_ctx->tdls_scan_ctxt.attempt = 0;
 	hdd_ctx->tdls_scan_ctxt.reject = 0;
+	hdd_ctx->tdls_scan_ctxt.source = 0;
 	hdd_ctx->tdls_scan_ctxt.scan_request = NULL;
 	hdd_ctx->tdls_external_peer_count = 0;
 	hdd_ctx->set_state_info.set_state_cnt = 0;
@@ -2714,18 +2715,20 @@ int wlan_hdd_tdls_copy_scan_context(hdd_context_t *pHddCtx,
  * @dev: net device
  * @request: scan request
  * @delay: delay value to pass to the work scheduling
+ * @source: scan request source(NL/Vendor scan)
  *
  * Return: Void
  */
 static void wlan_hdd_tdls_scan_init_work(hdd_context_t *pHddCtx,
 					 struct wiphy *wiphy,
 					 struct cfg80211_scan_request *request,
-					 unsigned long delay)
+					 unsigned long delay, uint8_t source)
 {
 	if (TDLS_CTX_MAGIC != pHddCtx->tdls_scan_ctxt.magic) {
 		wlan_hdd_tdls_copy_scan_context(pHddCtx, wiphy, request);
 		pHddCtx->tdls_scan_ctxt.attempt = 0;
 		pHddCtx->tdls_scan_ctxt.magic = TDLS_CTX_MAGIC;
+		pHddCtx->tdls_scan_ctxt.source = source;
 	}
 	schedule_delayed_work(&pHddCtx->tdls_scan_ctxt.tdls_scan_work, delay);
 }
@@ -2742,7 +2745,8 @@ static void wlan_hdd_tdls_scan_init_work(hdd_context_t *pHddCtx,
  *         1 = caller can continue to scan
  */
 int wlan_hdd_tdls_scan_callback(hdd_adapter_t *pAdapter, struct wiphy *wiphy,
-				struct cfg80211_scan_request *request)
+				struct cfg80211_scan_request *request,
+				uint8_t source)
 {
 	hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
 	u16 connectedTdlsPeers;
@@ -2795,7 +2799,8 @@ int wlan_hdd_tdls_scan_callback(hdd_adapter_t *pAdapter, struct wiphy *wiphy,
 
 			wlan_hdd_tdls_scan_init_work(pHddCtx, wiphy,
 						     request,
-						     msecs_to_jiffies(delay));
+						     msecs_to_jiffies(delay),
+						     source);
 			/* scan should not continue */
 			return 0;
 		}
@@ -2891,7 +2896,8 @@ int wlan_hdd_tdls_scan_callback(hdd_adapter_t *pAdapter, struct wiphy *wiphy,
 
 			wlan_hdd_tdls_scan_init_work(pHddCtx, wiphy,
 						     request,
-						     msecs_to_jiffies(delay));
+						     msecs_to_jiffies(delay),
+						     source);
 			/* scan should not continue */
 			return 0;
 		}
@@ -6019,9 +6025,11 @@ void hdd_restart_tdls_source_timer(hdd_context_t *pHddCtx,
 {
 	qdf_mc_timer_stop(&pHddCtx->tdls_source_timer);
 
-	if (tdls_mode == eTDLS_SUPPORT_DISABLED)
+	if (tdls_mode == eTDLS_SUPPORT_DISABLED) {
 		wlan_hdd_tdls_set_mode(pHddCtx, tdls_mode, false,
 				HDD_SET_TDLS_MODE_SOURCE_OFFCHANNEL);
+		wlan_hdd_tdls_disable_offchan_and_teardown_links(pHddCtx);
+	}
 
 	qdf_mc_timer_start(&pHddCtx->tdls_source_timer,
 			   pHddCtx->config->tdls_enable_defer_time);

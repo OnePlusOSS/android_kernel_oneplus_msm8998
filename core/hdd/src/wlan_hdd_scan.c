@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1485,6 +1485,8 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 	uint16_t con_dfs_ch;
 	uint8_t num_chan = 0;
 	bool is_p2p_scan = false;
+	uint8_t curr_session_id;
+	scan_reject_states curr_reason;
 
 	ENTER();
 
@@ -1575,7 +1577,7 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 	 * (return -EBUSY)
 	 */
 	status = wlan_hdd_tdls_scan_callback(pAdapter, wiphy,
-					request);
+					request, source);
 	if (status <= 0) {
 		if (!status)
 			hdd_err("TDLS in progress.scan rejected %d",
@@ -1589,10 +1591,41 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 #endif
 
 	/* Check if scan is allowed at this point of time */
-	if (cds_is_connection_in_progress()) {
+	if (cds_is_connection_in_progress(&curr_session_id, &curr_reason)) {
 		hdd_err("Scan not allowed");
+		if (pHddCtx->last_scan_reject_session_id != curr_session_id ||
+		    pHddCtx->last_scan_reject_reason != curr_reason ||
+		    !pHddCtx->last_scan_reject_timestamp) {
+			pHddCtx->last_scan_reject_session_id = curr_session_id;
+			pHddCtx->last_scan_reject_reason = curr_reason;
+			pHddCtx->last_scan_reject_timestamp =
+				jiffies_to_msecs(jiffies);
+		} else {
+			hdd_err("curr_session id %d curr_reason %d time delta %lu",
+				curr_session_id, curr_reason,
+				(jiffies_to_msecs(jiffies) -
+				 pHddCtx->last_scan_reject_timestamp));
+			if ((jiffies_to_msecs(jiffies) -
+			    pHddCtx->last_scan_reject_timestamp) >=
+			    SCAN_REJECT_THRESHOLD_TIME) {
+				pHddCtx->last_scan_reject_timestamp = 0;
+				if (pHddCtx->config->enable_fatal_event) {
+					cds_flush_logs(WLAN_LOG_TYPE_FATAL,
+					    WLAN_LOG_INDICATOR_HOST_DRIVER,
+					    WLAN_LOG_REASON_SCAN_NOT_ALLOWED,
+					    false, true);
+				} else {
+					hdd_err("Triggering SSR due to scan stuck");
+					cds_trigger_recovery(false);
+				}
+			}
+		}
 		return -EBUSY;
 	}
+	pHddCtx->last_scan_reject_timestamp = 0;
+	pHddCtx->last_scan_reject_session_id = 0xFF;
+	pHddCtx->last_scan_reject_reason = 0;
+
 	/* Check whether SAP scan can be skipped or not */
 	if (pAdapter->device_mode == QDF_SAP_MODE &&
 	   wlan_hdd_sap_skip_scan_check(pHddCtx, request)) {
@@ -1879,6 +1912,30 @@ int wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 	cds_ssr_protect(__func__);
 	ret = __wlan_hdd_cfg80211_scan(wiphy,
 				request, NL_SCAN);
+	cds_ssr_unprotect(__func__);
+	return ret;
+}
+
+/**
+ * wlan_hdd_cfg80211_tdls_scan() - API to process cfg80211 scan request
+ * @wiphy: Pointer to wiphy
+ * @request: Pointer to scan request
+ * @source: scan request source(NL/Vendor scan)
+ *
+ * This API responds to scan trigger and update cfg80211 scan database
+ * later, scan dump command can be used to recieve scan results. This
+ * function gets called when tdls module queues the scan request.
+ *
+ * Return: 0 for success, non zero for failure.
+ */
+int wlan_hdd_cfg80211_tdls_scan(struct wiphy *wiphy,
+				struct cfg80211_scan_request *request,
+				uint8_t source)
+{
+	int ret;
+	cds_ssr_protect(__func__);
+	ret = __wlan_hdd_cfg80211_scan(wiphy,
+				request, source);
 	cds_ssr_unprotect(__func__);
 	return ret;
 }
@@ -2317,6 +2374,70 @@ static QDF_STATUS wlan_hdd_is_pno_allowed(hdd_adapter_t *adapter)
 
 }
 
+#if ((LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)) || \
+	defined(CFG80211_MULTI_SCAN_PLAN_BACKPORT)) && \
+	defined(FEATURE_WLAN_SCAN_PNO)
+/**
+ * hdd_config_sched_scan_plan() - configures the sched scan plans
+ *   from the framework.
+ * @pno_req: pointer to PNO scan request
+ * @request: pointer to scan request from framework
+ *
+ * Return: None
+ */
+static void hdd_config_sched_scan_plan(tpSirPNOScanReq pno_req,
+			       struct cfg80211_sched_scan_request *request,
+			       hdd_context_t *hdd_ctx)
+{
+	/*
+	 * As of now max 2 scan plans were supported by firmware
+	 * if number of scan plan supported by firmware increased below logic
+	 * must change.
+	 */
+	if (request->n_scan_plans == SIR_PNO_MAX_PLAN_REQUEST) {
+		pno_req->fast_scan_period =
+			request->scan_plans[0].interval * MSEC_PER_SEC;
+		pno_req->fast_scan_max_cycles =
+			request->scan_plans[0].iterations;
+		pno_req->slow_scan_period =
+			request->scan_plans[1].interval * MSEC_PER_SEC;
+		hdd_notice("Base scan interval: %d sec, scan cycles: %d, slow scan interval %d",
+			   request->scan_plans[0].interval,
+			   request->scan_plans[0].iterations,
+			   request->scan_plans[1].interval);
+	} else if (request->n_scan_plans == 1) {
+		pno_req->fast_scan_period =
+			request->scan_plans[0].interval * MSEC_PER_SEC;
+		/*
+		 * if only one scan plan is configured from framework
+		 * then both fast and slow scan should be configured with the
+		 * same value that is why fast scan cycles are hardcoded to one
+		 */
+		pno_req->fast_scan_max_cycles = 1;
+		pno_req->slow_scan_period =
+			request->scan_plans[0].interval * MSEC_PER_SEC;
+	} else {
+		hdd_err("Invalid number of scan plans %d !!",
+			request->n_scan_plans);
+	}
+}
+#else
+static void hdd_config_sched_scan_plan(tpSirPNOScanReq pno_req,
+			       struct cfg80211_sched_scan_request *request,
+			       hdd_context_t *hdd_ctx)
+{
+	pno_req->fast_scan_period = request->interval;
+	pno_req->fast_scan_max_cycles =
+		hdd_ctx->config->configPNOScanTimerRepeatValue;
+	pno_req->slow_scan_period =
+		hdd_ctx->config->pno_slow_scan_multiplier *
+		pno_req->fast_scan_period;
+	hdd_notice("Base scan interval: %d sec PNOScanTimerRepeatValue: %d",
+		   (request->interval / 1000),
+		   hdd_ctx->config->configPNOScanTimerRepeatValue);
+}
+#endif
+
 /**
  * __wlan_hdd_cfg80211_sched_scan_start() - cfg80211 scheduled scan(pno) start
  * @wiphy: Pointer to wiphy
@@ -2543,27 +2664,7 @@ static int __wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
 	 *   switches slow_scan_period. This is less frequent scans and firmware
 	 *   shall be in slow_scan_period mode until next PNO Start.
 	 */
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)) || defined(WITH_BACKPORTS)
-	if (WARN_ON(request->n_scan_plans > SIR_PNO_MAX_PLAN_REQUEST)) {
-		ret = -EINVAL;
-		goto error;
-	}
-
-	/* TBD: only one sched_scan plan we can support now, so we only
-	 * retrieve the first plan and ignore the rest of them.
-	 * If there are more than 1 sched_pan request we can support, the
-	 * PnoRequet structure will also need to be revised.
-	 */
-	pPnoRequest->fast_scan_period = request->scan_plans[0].interval *
-						MSEC_PER_SEC;
-#else
-	pPnoRequest->fast_scan_period = request->interval;
-#endif
-	pPnoRequest->fast_scan_max_cycles =
-				config->configPNOScanTimerRepeatValue;
-	pPnoRequest->slow_scan_period =
-			config->pno_slow_scan_multiplier *
-				pPnoRequest->fast_scan_period;
+	hdd_config_sched_scan_plan(pPnoRequest, request, pHddCtx);
 
 	hdd_info("Base scan interval: %d sec PNOScanTimerRepeatValue: %d",
 			(pPnoRequest->fast_scan_period / 1000),

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -138,14 +138,16 @@ typedef struct {
  * @magic: magic
  * @attempt: attempt
  * @reject: reject
+ * @source: scan request source(NL/Vendor scan)
  * @tdls_scan_work: delayed tdls scan work
  */
 typedef struct {
 	struct wiphy *wiphy;
 	struct cfg80211_scan_request *scan_request;
-	int magic;
+	uint32_t magic;
 	int attempt;
 	int reject;
+	uint8_t source;
 	struct delayed_work tdls_scan_work;
 } tdls_scan_context_t;
 
@@ -584,7 +586,8 @@ int wlan_hdd_tdls_copy_scan_context(hdd_context_t *pHddCtx,
 				    struct cfg80211_scan_request *request);
 
 int wlan_hdd_tdls_scan_callback(hdd_adapter_t *pAdapter, struct wiphy *wiphy,
-				struct cfg80211_scan_request *request);
+				struct cfg80211_scan_request *request,
+				uint8_t source);
 
 void wlan_hdd_tdls_scan_done_callback(hdd_adapter_t *pAdapter);
 

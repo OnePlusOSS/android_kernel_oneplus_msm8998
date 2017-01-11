@@ -265,6 +265,23 @@
 /* session ID invalid */
 #define HDD_SESSION_ID_INVALID    0xFF
 
+#define SCAN_REJECT_THRESHOLD_TIME 300000 /* Time is in msec, equal to 5 mins */
+
+/*
+ * @eHDD_SCAN_REJECT_DEFAULT: default value
+ * @eHDD_CONNECTION_IN_PROGRESS: connection is in progress
+ * @eHDD_REASSOC_IN_PROGRESS: reassociation is in progress
+ * @eHDD_EAPOL_IN_PROGRESS: STA/P2P-CLI is in middle of EAPOL/WPS exchange
+ * @eHDD_SAP_EAPOL_IN_PROGRESS: SAP/P2P-GO is in middle of EAPOL/WPS exchange
+ */
+typedef enum {
+	eHDD_SCAN_REJECT_DEFAULT = 0,
+	eHDD_CONNECTION_IN_PROGRESS,
+	eHDD_REASSOC_IN_PROGRESS,
+	eHDD_EAPOL_IN_PROGRESS,
+	eHDD_SAP_EAPOL_IN_PROGRESS,
+} scan_reject_states;
+
 /*
  * Generic asynchronous request/response support
  *
@@ -1578,6 +1595,9 @@ struct hdd_context_s {
 	qdf_mc_timer_t tdls_source_timer;
 	qdf_atomic_t disable_lro_in_concurrency;
 	bool fw_mem_dump_enabled;
+	uint8_t last_scan_reject_session_id;
+	scan_reject_states last_scan_reject_reason;
+	unsigned long last_scan_reject_timestamp;
 };
 
 /*---------------------------------------------------------------------------

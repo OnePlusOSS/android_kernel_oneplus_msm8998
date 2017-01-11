@@ -9017,6 +9017,40 @@ const struct wiphy_vendor_command hdd_wiphy_vendor_commands[] = {
 	},
 };
 
+#if ((LINUX_VERSION_CODE > KERNEL_VERSION(4, 4, 0)) || \
+	defined(CFG80211_MULTI_SCAN_PLAN_BACKPORT)) && \
+	defined(FEATURE_WLAN_SCAN_PNO)
+/**
+ * hdd_config_sched_scan_plans_to_wiphy() - configure sched scan plans to wiphy
+ * @wiphy: pointer to wiphy
+ * @config: pointer to config
+ *
+ * Return: None
+ */
+static void hdd_config_sched_scan_plans_to_wiphy(struct wiphy *wiphy,
+						 struct hdd_config *config)
+{
+	if (config->configPNOScanSupport) {
+		wiphy->flags |= WIPHY_FLAG_SUPPORTS_SCHED_SCAN;
+		wiphy->max_sched_scan_ssids = SIR_PNO_MAX_SUPP_NETWORKS;
+		wiphy->max_match_sets = SIR_PNO_MAX_SUPP_NETWORKS;
+		wiphy->max_sched_scan_ie_len = SIR_MAC_MAX_IE_LENGTH;
+		wiphy->max_sched_scan_plans = SIR_PNO_MAX_PLAN_REQUEST;
+		if (config->max_sched_scan_plan_interval)
+			wiphy->max_sched_scan_plan_interval =
+				config->max_sched_scan_plan_interval;
+		if (config->max_sched_scan_plan_iterations)
+			wiphy->max_sched_scan_plan_iterations =
+				config->max_sched_scan_plan_iterations;
+	}
+}
+#else
+static void hdd_config_sched_scan_plans_to_wiphy(struct wiphy *wiphy,
+						 struct hdd_config *config)
+{
+}
+#endif
+
 /**
  * hdd_cfg80211_wiphy_alloc() - Allocate wiphy context
  * @priv_size:         Size of the hdd context.
@@ -9163,17 +9197,7 @@ int wlan_hdd_cfg80211_init(struct device *dev,
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_VHT_IBSS);
 #endif
 
-#ifdef FEATURE_WLAN_SCAN_PNO
-	if (pCfg->configPNOScanSupport) {
-		wiphy->flags |= WIPHY_FLAG_SUPPORTS_SCHED_SCAN;
-		wiphy->max_sched_scan_ssids = SIR_PNO_MAX_SUPP_NETWORKS;
-		wiphy->max_match_sets = SIR_PNO_MAX_SUPP_NETWORKS;
-		wiphy->max_sched_scan_ie_len = SIR_MAC_MAX_IE_LENGTH;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)) || defined(WITH_BACKPORTS)
-		wiphy->max_sched_scan_plans = SIR_PNO_MAX_PLAN_REQUEST;
-#endif
-	}
-#endif /*FEATURE_WLAN_SCAN_PNO */
+	hdd_config_sched_scan_plans_to_wiphy(wiphy, pCfg);
 
 #if  defined QCA_WIFI_FTM
 	if (cds_get_conparam() != QDF_GLOBAL_FTM_MODE) {
@@ -11936,7 +11960,7 @@ static int wlan_hdd_cfg80211_connect_start(hdd_adapter_t *pAdapter,
 			return -EINVAL;
 		}
 
-		if (true == cds_is_connection_in_progress()) {
+		if (true == cds_is_connection_in_progress(NULL, NULL)) {
 			hdd_err("Connection refused: conn in progress");
 			return -EINVAL;
 		}

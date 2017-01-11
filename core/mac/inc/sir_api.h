@@ -2873,7 +2873,7 @@ typedef struct sAniIbssRouteTable {
 
 
 /* Set PNO */
-#define SIR_PNO_MAX_PLAN_REQUEST   1
+#define SIR_PNO_MAX_PLAN_REQUEST   2
 #define SIR_PNO_MAX_NETW_CHANNELS  26
 #define SIR_PNO_MAX_NETW_CHANNELS_EX  60
 #define SIR_PNO_MAX_SUPP_NETWORKS  16
@@ -6552,6 +6552,7 @@ struct ndp_responder_rsp_event {
 	uint32_t status;
 	uint32_t reason;
 	struct qdf_mac_addr peer_mac_addr;
+	bool create_peer;
 };
 
 /**

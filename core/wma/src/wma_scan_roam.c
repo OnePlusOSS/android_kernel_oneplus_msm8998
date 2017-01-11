@@ -265,6 +265,9 @@ QDF_STATUS wma_get_buf_start_scan_cmd(tp_wma_handle wma_handle,
 	else
 		WMA_LOGD("OFDM_RATES not included in 11B mode");
 
+	if (scan_req->p2pScanType)
+		scan_req->scan_adaptive_dwell_mode = WMI_DWELL_MODE_STATIC;
+
 	WMI_SCAN_SET_DWELL_MODE(cmd->scan_ctrl_flags,
 			scan_req->scan_adaptive_dwell_mode);
 

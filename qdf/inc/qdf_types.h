@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -487,6 +487,7 @@ struct qdf_tso_frag_t {
 };
 
 #define FRAG_NUM_MAX 6
+#define TSO_SEG_MAGIC_COOKIE 0x7EED
 
 /**
  * struct qdf_tso_flags_t - TSO specific flags
@@ -563,6 +564,8 @@ struct qdf_tso_seg_t {
  */
 struct qdf_tso_seg_elem_t {
 	struct qdf_tso_seg_t seg;
+	uint16_t cookie:15,
+		on_freelist:1;
 	struct qdf_tso_seg_elem_t *next;
 };
 

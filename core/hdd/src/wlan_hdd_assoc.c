@@ -1634,8 +1634,7 @@ static QDF_STATUS hdd_dis_connect_handler(hdd_adapter_t *pAdapter,
 		sta_id = pHddStaCtx->conn_info.staId[0];
 
 		/* clear scan cache for Link Lost */
-		if (pRoamInfo && !pRoamInfo->reasonCode &&
-		   (eCSR_ROAM_RESULT_DEAUTH_IND == roamResult ||
+		if ((eCSR_ROAM_RESULT_DEAUTH_IND == roamResult ||
 		    eCSR_ROAM_RESULT_DISASSOC_IND == roamResult)) {
 			wlan_hdd_cfg80211_update_bss_list(pAdapter,
 				pHddStaCtx->conn_info.bssId.bytes);

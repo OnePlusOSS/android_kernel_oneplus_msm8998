@@ -1522,6 +1522,8 @@ ol_txrx_pdev_post_attach(ol_txrx_pdev_handle pdev)
 
 	ol_tso_seg_list_init(pdev, desc_pool_size);
 
+	ol_tso_num_seg_list_init(pdev, desc_pool_size);
+
 	ol_tx_register_flow_control(pdev);
 
 	return 0;            /* success */
@@ -1618,6 +1620,7 @@ void ol_txrx_pdev_detach(ol_txrx_pdev_handle pdev, int force)
 #endif
 #endif
 	ol_tso_seg_list_deinit(pdev);
+	ol_tso_num_seg_list_deinit(pdev);
 
 	if (force) {
 		/*

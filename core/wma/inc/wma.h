@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1013,6 +1013,7 @@ typedef struct {
  * @wep_default_key_idx: wep default index for group key
  * @arp_offload_req: cached arp offload request
  * @ns_offload_req: cached ns offload request
+ * @wow_stats: stat counters for WoW related events
  * It stores parameters per vdev in wma.
  */
 struct wma_txrx_node {
@@ -1091,6 +1092,7 @@ struct wma_txrx_node {
 	tSirHostOffloadReq arp_offload_req;
 	tSirHostOffloadReq ns_offload_req;
 	bool is_vdev_valid;
+	struct sir_vdev_wow_stats wow_stats;
 };
 
 #if defined(QCA_WIFI_FTM)
@@ -1554,21 +1556,7 @@ typedef struct {
 	qdf_atomic_t scan_id_counter;
 	qdf_atomic_t num_pending_scans;
 	wma_peer_authorized_fp peer_authorized_cb;
-	uint32_t wow_pno_match_wake_up_count;
-	uint32_t wow_pno_complete_wake_up_count;
-	uint32_t wow_gscan_wake_up_count;
-	uint32_t wow_low_rssi_wake_up_count;
-	uint32_t wow_rssi_breach_wake_up_count;
-	uint32_t wow_ucast_wake_up_count;
-	uint32_t wow_bcast_wake_up_count;
-	uint32_t wow_ipv4_mcast_wake_up_count;
-	uint32_t wow_ipv6_mcast_wake_up_count;
-	uint32_t wow_ipv6_mcast_ra_stats;
-	uint32_t wow_ipv6_mcast_ns_stats;
-	uint32_t wow_ipv6_mcast_na_stats;
-	uint32_t wow_icmpv4_count;
-	uint32_t wow_icmpv6_count;
-	uint32_t wow_oem_response_wake_up_count;
+	uint32_t wow_unspecified_wake_count;
 
 	/* OCB request contexts */
 	struct sir_ocb_config *ocb_config_req;

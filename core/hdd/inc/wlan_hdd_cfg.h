@@ -6799,6 +6799,30 @@ enum dot11p_mode {
 #define CFG_PHY_REG_MIN             (0x0)
 #define CFG_PHY_REG_MAX             (0x2)
 
+/*
+ * <ini>
+ * gActiveBpfMode - Control active BPF mode
+ * @Min: 0 (disabled)
+ * @Max: 2 (adaptive)
+ * @Default: 0 (disabled)
+ *
+ * This config item is used to control BPF in active mode. There are 3 modes:
+ *	0) disabled - BPF is disabled in active mode
+ *	1) enabled - BPF is enabled for all packets in active mode
+ *	2) adaptive - BPF is enabled for packets up to some throughput threshold
+ *
+ * Related: N/A
+ *
+ * Supported Feature: Active Mode BPF
+ *
+ * Usage: Internal/External
+ * </ini>
+ */
+#define CFG_ACTIVE_BPF_MODE_NAME    "gActiveBpfMode"
+#define CFG_ACTIVE_BPF_MODE_MIN     (ACTIVE_BPF_DISABLED)
+#define CFG_ACTIVE_BPF_MODE_MAX     (ACTIVE_BPF_MODE_COUNT - 1)
+#define CFG_ACTIVE_BPF_MODE_DEFAULT (ACTIVE_BPF_DISABLED)
+
 /*---------------------------------------------------------------------------
    Type declarations
    -------------------------------------------------------------------------*/
@@ -7507,6 +7531,7 @@ struct hdd_config {
 	uint32_t max_sched_scan_plan_interval;
 	uint32_t max_sched_scan_plan_iterations;
 	uint8_t enable_phy_reg_retention;
+	enum active_bpf_mode active_bpf_mode;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

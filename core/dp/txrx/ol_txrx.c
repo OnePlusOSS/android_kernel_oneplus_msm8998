@@ -2214,7 +2214,6 @@ ol_txrx_peer_attach(ol_txrx_vdev_handle vdev, uint8_t *peer_mac_addr)
 	qdf_atomic_set(&peer->fw_create_pending, 1);
 	qdf_atomic_inc(&peer->ref_cnt);
 
-
 	peer->valid = 1;
 
 	ol_txrx_peer_find_hash_add(pdev, peer);
@@ -2878,6 +2877,11 @@ int ol_txrx_peer_unref_delete(ol_txrx_peer_handle peer)
 			vdev->wait_on_peer_id = OL_TXRX_INVALID_LOCAL_PEER_ID;
 		}
 
+		if (vdev->opmode == wlan_op_mode_sta) {
+			qdf_mc_timer_stop(&peer->peer_unmap_timer);
+			qdf_mc_timer_destroy(&peer->peer_unmap_timer);
+		}
+
 		/* check whether the parent vdev has no peers left */
 		if (TAILQ_EMPTY(&vdev->peer_list)) {
 			/*
@@ -3007,6 +3011,27 @@ QDF_STATUS ol_txrx_clear_peer(uint8_t sta_id)
 }
 
 /**
+ * peer_unmap_timer() - peer unmap timer function
+ * @data: peer object pointer
+ *
+ * Return: none
+ */
+void peer_unmap_timer_handler(void *data)
+{
+	ol_txrx_peer_handle peer = (ol_txrx_peer_handle)data;
+
+	WMA_LOGE("%s: all unmap events not received for peer %p, ref_cnt %d",
+		 __func__, peer, qdf_atomic_read(&peer->ref_cnt));
+	WMA_LOGE("%s: peer %p (%02x:%02x:%02x:%02x:%02x:%02x)",
+		 __func__, peer,
+		 peer->mac_addr.raw[0], peer->mac_addr.raw[1],
+		 peer->mac_addr.raw[2], peer->mac_addr.raw[3],
+		 peer->mac_addr.raw[4], peer->mac_addr.raw[5]);
+	QDF_BUG(0);
+}
+
+
+/**
  * ol_txrx_peer_detach() - Delete a peer's data object.
  * @peer - the object to detach
  *
@@ -3056,6 +3081,19 @@ void ol_txrx_peer_detach(ol_txrx_peer_handle peer)
 	 * is waiting for unmap massage for this peer
 	 */
 	qdf_atomic_set(&peer->delete_in_progress, 1);
+
+	/*
+	 * Create a timer to track unmap events when the sta peer gets deleted.
+	 */
+	if (vdev->opmode == wlan_op_mode_sta) {
+		qdf_mc_timer_init(&peer->peer_unmap_timer, QDF_TIMER_TYPE_SW,
+				  peer_unmap_timer_handler, peer);
+		qdf_mc_timer_start(&peer->peer_unmap_timer,
+				   OL_TXRX_PEER_UNMAP_TIMEOUT);
+		TXRX_PRINT(TXRX_PRINT_LEVEL_ERR,
+			   "%s: started peer_unmap_timer for peer %p",
+			   __func__, peer);
+	}
 
 	/*
 	 * Remove the reference added during peer_attach.

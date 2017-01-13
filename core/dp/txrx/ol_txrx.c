@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -2063,6 +2063,25 @@ void ol_txrx_flush_rx_frames(struct ol_txrx_peer_t *peer,
 	qdf_spin_unlock_bh(&peer->bufq_lock);
 	qdf_atomic_dec(&peer->flush_in_progress);
 }
+
+void ol_txrx_flush_cache_rx_queue(void)
+{
+	uint8_t sta_id;
+	struct ol_txrx_peer_t *peer;
+	struct ol_txrx_pdev_t *pdev;
+
+	pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+	if (!pdev)
+		return;
+
+	for (sta_id = 0; sta_id < WLAN_MAX_STA_COUNT; sta_id++) {
+		peer = ol_txrx_peer_find_by_local_id(pdev, sta_id);
+		if (!peer)
+			continue;
+		ol_txrx_flush_rx_frames(peer, 1);
+	}
+}
+
 
 /**
  * ol_txrx_peer_attach - Allocate and set up references for a

@@ -10200,6 +10200,8 @@ csr_roam_prepare_filter_from_profile(tpAniSirGlobal mac_ctx,
 		scan_fltr->MDID.mdiePresent = 1;
 		scan_fltr->MDID.mobilityDomain = profile->MDID.mobilityDomain;
 	}
+	qdf_mem_copy(scan_fltr->bssid_hint.bytes,
+		profile->bssid_hint.bytes, QDF_MAC_ADDR_SIZE);
 
 #ifdef WLAN_FEATURE_11W
 	/* Management Frame Protection */
@@ -15780,6 +15782,8 @@ QDF_STATUS csr_roam_close_session(tpAniSirGlobal pMac, uint32_t sessionId,
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	if (CSR_IS_SESSION_VALID(pMac, sessionId)) {
 		tCsrRoamSession *pSession = CSR_GET_SESSION(pMac, sessionId);
+		/* Vdev going down stop roaming */
+		pSession->fCancelRoaming = true;
 		if (fSync) {
 			csr_cleanup_session(pMac, sessionId);
 		} else {

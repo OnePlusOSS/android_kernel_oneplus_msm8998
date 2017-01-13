@@ -2317,6 +2317,9 @@ void hdd_clear_roam_profile_ie(hdd_adapter_t *pAdapter)
 	pWextState->roamProfile.AuthType.authType[0] =
 		eCSR_AUTH_TYPE_OPEN_SYSTEM;
 
+	qdf_mem_zero(pWextState->roamProfile.bssid_hint.bytes,
+		QDF_MAC_ADDR_SIZE);
+
 #ifdef WLAN_FEATURE_11W
 	pWextState->roamProfile.MFPEnabled = false;
 	pWextState->roamProfile.MFPRequired = 0;
@@ -3447,6 +3450,13 @@ static int __iw_set_genie(struct net_device *dev,
 
 		hdd_notice("IE[0x%X], LEN[%d]", elementId, eLen);
 
+		if (remLen < eLen) {
+			hdd_err("Remaining len: %u less than ie len: %u",
+				remLen, eLen);
+			ret = -EINVAL;
+			goto exit;
+		}
+
 		switch (elementId) {
 		case IE_EID_VENDOR:
 			if ((IE_LEN_SIZE + IE_EID_SIZE + IE_VENDOR_OUI_SIZE) > eLen) {  /* should have at least OUI */
@@ -3526,8 +3536,11 @@ static int __iw_set_genie(struct net_device *dev,
 			hdd_err("Set UNKNOWN IE %X", elementId);
 			goto exit;
 		}
-		genie += eLen;
 		remLen -= eLen;
+
+		/* Move genie only if next element is present */
+		if (remLen >= 2)
+			genie += eLen;
 	}
 exit:
 	EXIT();

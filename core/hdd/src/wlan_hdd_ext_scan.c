@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -4534,6 +4534,12 @@ __wlan_hdd_cfg80211_extscan_set_ssid_hotlist(struct wiphy *wiphy,
 		ssid_str_len = nla_strlcpy(ssid_string,
 			   tb2[PARAM_SSID],
 			   sizeof(ssid_string));
+		/* nla_parse will detect overflow but not underflow */
+		if (0 == ssid_str_len) {
+			hdd_err("zero ssid length");
+			goto fail;
+		}
+
 		if (ssid_str_len > SIR_MAC_MAX_SSID_LENGTH) {
 			hdd_err("Invalid length exceeds max ssid length");
 			goto fail;

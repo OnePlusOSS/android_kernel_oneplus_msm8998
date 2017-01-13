@@ -1676,7 +1676,8 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 		}
 		/* set the scan type to active */
 		scan_req.scanType = eSIR_ACTIVE_SCAN;
-	} else if (QDF_P2P_GO_MODE == pAdapter->device_mode) {
+	} else if (QDF_P2P_GO_MODE == pAdapter->device_mode ||
+		   QDF_SAP_MODE == pAdapter->device_mode) {
 		/* set the scan type to active */
 		scan_req.scanType = eSIR_ACTIVE_SCAN;
 	} else {
@@ -1689,8 +1690,13 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 		else
 			scan_req.scanType = pHddCtx->ioctl_scan_mode;
 	}
-	scan_req.minChnTime = cfg_param->nActiveMinChnTime;
-	scan_req.maxChnTime = cfg_param->nActiveMaxChnTime;
+	if (scan_req.scanType == eSIR_PASSIVE_SCAN) {
+		scan_req.minChnTime = cfg_param->nPassiveMinChnTime;
+		scan_req.maxChnTime = cfg_param->nPassiveMaxChnTime;
+	} else {
+		scan_req.minChnTime = cfg_param->nActiveMinChnTime;
+		scan_req.maxChnTime = cfg_param->nActiveMaxChnTime;
+	}
 
 	wlan_hdd_copy_bssid_scan_request(&scan_req, request);
 
@@ -2627,6 +2633,11 @@ static int __wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
 		pPnoRequest->aNetworks[i].rssiThreshold =
 			request->match_sets[i].rssi_thold;
 	}
+	 /* set scan to passive if no SSIDs are specified in the request */
+	if (0 == request->n_ssids)
+		pPnoRequest->do_passive_scan = true;
+	else
+		pPnoRequest->do_passive_scan = false;
 
 	for (i = 0; i < request->n_ssids; i++) {
 		j = 0;

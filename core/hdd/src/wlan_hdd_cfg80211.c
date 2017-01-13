@@ -8434,14 +8434,15 @@ const struct wiphy_vendor_command hdd_wiphy_vendor_commands[] = {
 	{
 		.info.vendor_id = QCA_NL80211_VENDOR_ID,
 		.info.subcmd = QCA_NL80211_VENDOR_SUBCMD_EXTSCAN_GET_VALID_CHANNELS,
-		.flags = WIPHY_VENDOR_CMD_NEED_WDEV | WIPHY_VENDOR_CMD_NEED_NETDEV,
+		.flags = WIPHY_VENDOR_CMD_NEED_WDEV |
+			 WIPHY_VENDOR_CMD_NEED_NETDEV | WIPHY_VENDOR_CMD_NEED_RUNNING,
 		.doit = wlan_hdd_cfg80211_extscan_get_valid_channels
 	},
 	{
 		.info.vendor_id = QCA_NL80211_VENDOR_ID,
 		.info.subcmd = QCA_NL80211_VENDOR_SUBCMD_EXTSCAN_GET_CAPABILITIES,
 		.flags = WIPHY_VENDOR_CMD_NEED_WDEV |
-			 WIPHY_VENDOR_CMD_NEED_NETDEV | WIPHY_VENDOR_CMD_NEED_RUNNING,
+			 WIPHY_VENDOR_CMD_NEED_NETDEV,
 		.doit = wlan_hdd_cfg80211_extscan_get_capabilities
 	},
 	{
@@ -8967,8 +8968,7 @@ const struct wiphy_vendor_command hdd_wiphy_vendor_commands[] = {
 		.info.vendor_id = QCA_NL80211_VENDOR_ID,
 		.info.subcmd = QCA_NL80211_VENDOR_SUBCMD_GET_BUS_SIZE,
 		.flags = WIPHY_VENDOR_CMD_NEED_WDEV |
-			 WIPHY_VENDOR_CMD_NEED_NETDEV |
-			 WIPHY_VENDOR_CMD_NEED_RUNNING,
+			 WIPHY_VENDOR_CMD_NEED_NETDEV,
 		.doit = wlan_hdd_cfg80211_get_bus_size
 	},
 	{
@@ -11819,6 +11819,12 @@ static int wlan_hdd_cfg80211_connect_start(hdd_adapter_t *pAdapter,
 			     ssid, ssid_len);
 
 		pRoamProfile->do_not_roam = !pAdapter->fast_roaming_allowed;
+		/* cleanup bssid hint */
+		qdf_mem_zero(pRoamProfile->bssid_hint.bytes,
+			QDF_MAC_ADDR_SIZE);
+		qdf_mem_zero((void *)(pRoamProfile->BSSIDs.bssid),
+			QDF_MAC_ADDR_SIZE);
+
 		if (bssid) {
 			pRoamProfile->BSSIDs.numOfBSSIDs = 1;
 			pRoamProfile->do_not_roam = true;
@@ -11834,9 +11840,8 @@ static int wlan_hdd_cfg80211_connect_start(hdd_adapter_t *pAdapter,
 					bssid, QDF_MAC_ADDR_SIZE);
 			hdd_info("bssid is given by upper layer %pM", bssid);
 		} else if (bssid_hint) {
-			pRoamProfile->BSSIDs.numOfBSSIDs = 1;
-			qdf_mem_copy((void *)(pRoamProfile->BSSIDs.bssid),
-						bssid_hint, QDF_MAC_ADDR_SIZE);
+			qdf_mem_copy(pRoamProfile->bssid_hint.bytes,
+				bssid_hint, QDF_MAC_ADDR_SIZE);
 			/*
 			 * Save BSSID in a separate variable as
 			 * pRoamProfile's BSSID is getting zeroed out in the
@@ -11847,10 +11852,6 @@ static int wlan_hdd_cfg80211_connect_start(hdd_adapter_t *pAdapter,
 					bssid_hint, QDF_MAC_ADDR_SIZE);
 			hdd_info("bssid_hint is given by upper layer %pM",
 					bssid_hint);
-		} else {
-			qdf_mem_zero((void *)(pRoamProfile->BSSIDs.bssid),
-				     QDF_MAC_ADDR_SIZE);
-			hdd_info("no bssid given by upper layer");
 		}
 
 		hdd_notice("Connect to SSID: %.*s operating Channel: %u",

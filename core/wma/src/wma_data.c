@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -2588,6 +2588,7 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 
 				cds_packet_free((void *)tx_frame);
 				tx_frame = pPacket;
+				pData = pFrame;
 				frmLen = newFrmLen;
 				pFc = (tpSirMacFrameCtl)
 						(qdf_nbuf_data(tx_frame));
@@ -2629,6 +2630,7 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 			}
 			cds_packet_free((void *)tx_frame);
 			tx_frame = pPacket;
+			pData = pFrame;
 			frmLen = newFrmLen;
 			pFc = (tpSirMacFrameCtl) (qdf_nbuf_data(tx_frame));
 		}

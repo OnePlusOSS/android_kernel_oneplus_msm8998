@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -2463,8 +2463,6 @@ void *hif_ce_get_lro_ctx(struct hif_opaque_softc *hif_hdl, int ctx_id)
 {
 	struct CE_state *ce_state;
 	struct hif_softc *scn = HIF_GET_SOFTC(hif_hdl);
-
-	QDF_ASSERT(scn != NULL);
 
 	ce_state = scn->ce_id_to_state[ctx_id];
 

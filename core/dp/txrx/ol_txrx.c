@@ -4816,6 +4816,12 @@ static void ol_txrx_lro_flush(void *data)
 	if (qdf_unlikely(!sched_ctx))
 		return;
 
+	if (qdf_unlikely(!pdev)) {
+		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
+			  "Pdev is NULL");
+		return;
+	}
+
 	if (!ol_cfg_is_rx_thread_enabled(pdev->ctrl_pdev)) {
 		ol_txrx_lro_flush_handler(data, NULL, 0);
 	} else {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -7235,6 +7235,20 @@ static bool is_management_record_non_tlv(uint32_t cmd_id)
 }
 #endif
 
+/**
+ * wmi_set_htc_tx_tag_non_tlv() - set HTC TX tag for WMI commands
+ * @wmi_handle: WMI handle
+ * @buf:	WMI buffer
+ * @cmd_id:	WMI command Id
+ *
+ * Return htc_tx_tag
+ */
+static uint16_t wmi_set_htc_tx_tag_non_tlv(wmi_unified_t wmi_handle,
+			wmi_buf_t buf, uint32_t cmd_id)
+{
+	return 0;
+}
+
 struct wmi_ops non_tlv_ops =  {
 	.send_vdev_create_cmd = send_vdev_create_cmd_non_tlv,
 	.send_vdev_delete_cmd = send_vdev_delete_cmd_non_tlv,
@@ -7425,6 +7439,7 @@ struct wmi_ops non_tlv_ops =  {
 	.extract_fips_event_data = extract_fips_event_data_non_tlv,
 	.extract_fips_event_error_status =
 				extract_fips_event_error_status_non_tlv,
+	.wmi_set_htc_tx_tag = wmi_set_htc_tx_tag_non_tlv,
 };
 
 /**

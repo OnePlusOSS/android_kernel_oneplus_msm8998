@@ -10448,8 +10448,9 @@ static int __iw_set_pno(struct net_device *dev,
 	hdd_context_t *hdd_ctx;
 	int ret;
 	int offset;
-	char *ptr;
+	char *ptr, *data;
 	uint8_t i, j, params, mode;
+	size_t len;
 
 	/* request is a large struct, so we make it static to avoid
 	 * stack overflow.  This API is only invoked via ioctl, so it
@@ -10467,13 +10468,24 @@ static int __iw_set_pno(struct net_device *dev,
 
 	hdd_notice("PNO data len %d data %s", wrqu->data.length, extra);
 
+	/* making sure argument string ends with '\0' */
+	len = (wrqu->data.length + 1);
+	data = qdf_mem_malloc(len);
+	if (NULL == data) {
+		hdd_err("fail to allocate memory %zu", len);
+		return -EINVAL;
+	}
+	qdf_mem_zero(data, len);
+	qdf_mem_copy(data, extra, (len-1));
+	data[len] = '\0';
+	ptr = data;
+
 	request.enable = 0;
 	request.ucNetworksCount = 0;
 
-	ptr = extra;
-
-	if (1 != sscanf(ptr, "%hhu%n", &(request.enable), &offset)) {
+	if (1 != sscanf(ptr, " %hhu%n", &(request.enable), &offset)) {
 		hdd_err("PNO enable input is not valid %s", ptr);
+		qdf_mem_free(data);
 		return -EINVAL;
 	}
 
@@ -10483,14 +10495,16 @@ static int __iw_set_pno(struct net_device *dev,
 		sme_set_preferred_network_list(WLAN_HDD_GET_HAL_CTX(adapter),
 					       &request, adapter->sessionId,
 					       found_pref_network_cb, adapter);
+		qdf_mem_free(data);
 		return 0;
 	}
 
 	ptr += offset;
 
 	if (1 !=
-	    sscanf(ptr, "%hhu %n", &(request.ucNetworksCount), &offset)) {
+	    sscanf(ptr, " %hhu %n", &(request.ucNetworksCount), &offset)) {
 		hdd_err("PNO count input not valid %s", ptr);
+		qdf_mem_free(data);
 		return -EINVAL;
 
 	}
@@ -10502,6 +10516,7 @@ static int __iw_set_pno(struct net_device *dev,
 	    (request.ucNetworksCount > SIR_PNO_MAX_SUPP_NETWORKS)) {
 		hdd_err("Network count %d invalid",
 			request.ucNetworksCount);
+		qdf_mem_free(data);
 		return -EINVAL;
 	}
 
@@ -10511,12 +10526,13 @@ static int __iw_set_pno(struct net_device *dev,
 
 		request.aNetworks[i].ssId.length = 0;
 
-		params = sscanf(ptr, "%hhu %n",
+		params = sscanf(ptr, " %hhu %n",
 				  &(request.aNetworks[i].ssId.length),
 				  &offset);
 
 		if (1 != params) {
 			hdd_err("PNO ssid length input is not valid %s", ptr);
+			qdf_mem_free(data);
 			return -EINVAL;
 		}
 
@@ -10524,6 +10540,7 @@ static int __iw_set_pno(struct net_device *dev,
 		    (request.aNetworks[i].ssId.length > 32)) {
 			hdd_err("SSID Len %d is not correct for network %d",
 				  request.aNetworks[i].ssId.length, i);
+			qdf_mem_free(data);
 			return -EINVAL;
 		}
 
@@ -10534,7 +10551,7 @@ static int __iw_set_pno(struct net_device *dev,
 		       request.aNetworks[i].ssId.length);
 		ptr += request.aNetworks[i].ssId.length;
 
-		params = sscanf(ptr, "%u %u %hhu %n",
+		params = sscanf(ptr, " %u %u %hhu %n",
 				  &(request.aNetworks[i].authentication),
 				  &(request.aNetworks[i].encryption),
 				  &(request.aNetworks[i].ucChannelCount),
@@ -10542,6 +10559,7 @@ static int __iw_set_pno(struct net_device *dev,
 
 		if (3 != params) {
 			hdd_warn("Incorrect cmd %s", ptr);
+			qdf_mem_free(data);
 			return -EINVAL;
 		}
 
@@ -10559,6 +10577,7 @@ static int __iw_set_pno(struct net_device *dev,
 		if (SIR_PNO_MAX_NETW_CHANNELS <
 		    request.aNetworks[i].ucChannelCount) {
 			hdd_warn("Incorrect number of channels");
+			qdf_mem_free(data);
 			return -EINVAL;
 		}
 
@@ -10566,11 +10585,19 @@ static int __iw_set_pno(struct net_device *dev,
 			for (j = 0; j < request.aNetworks[i].ucChannelCount;
 			     j++) {
 				if (1 !=
-				    sscanf(ptr, "%hhu %n",
+				    sscanf(ptr, " %hhu %n",
 					   &(request.aNetworks[i].
 					     aChannels[j]), &offset)) {
 					hdd_err("PNO network channel input is not valid %s",
 						  ptr);
+					qdf_mem_free(data);
+					return -EINVAL;
+				}
+				if (!IS_CHANNEL_VALID(
+					request.aNetworks[i].aChannels[j])) {
+					hdd_err("invalid channel: %hhu",
+					request.aNetworks[i].aChannels[j]);
+					qdf_mem_free(data);
 					return -EINVAL;
 				}
 				/* Advance to next channel number */
@@ -10578,11 +10605,18 @@ static int __iw_set_pno(struct net_device *dev,
 			}
 		}
 
-		if (1 != sscanf(ptr, "%u %n",
+		if (1 != sscanf(ptr, " %u %n",
 				&(request.aNetworks[i].bcastNetwType),
 				&offset)) {
 			hdd_err("PNO broadcast network type input is not valid %s",
 				  ptr);
+			qdf_mem_free(data);
+			return -EINVAL;
+		}
+		if (request.aNetworks[i].bcastNetwType > 2) {
+			hdd_err("invalid bcast nw type: %u",
+				request.aNetworks[i].bcastNetwType);
+			qdf_mem_free(data);
 			return -EINVAL;
 		}
 
@@ -10591,11 +10625,12 @@ static int __iw_set_pno(struct net_device *dev,
 
 		/* Advance to rssi Threshold */
 		ptr += offset;
-		if (1 != sscanf(ptr, "%d %n",
+		if (1 != sscanf(ptr, " %d %n",
 				&(request.aNetworks[i].rssiThreshold),
 				&offset)) {
 			hdd_err("PNO rssi threshold input is not valid %s",
 				  ptr);
+			qdf_mem_free(data);
 			return -EINVAL;
 		}
 		hdd_notice("PNO rssi %d offset %d",
@@ -10605,17 +10640,32 @@ static int __iw_set_pno(struct net_device *dev,
 	} /* For ucNetworkCount */
 
 	request.fast_scan_period = 0;
-	if (sscanf(ptr, "%u %n", &(request.fast_scan_period), &offset) > 0) {
+	if (sscanf(ptr, " %u %n", &(request.fast_scan_period), &offset) > 0) {
 		request.fast_scan_period *= MSEC_PER_SEC;
 		ptr += offset;
 	}
+	if (request.fast_scan_period == 0) {
+		hdd_err("invalid fast scan period %u",
+			request.fast_scan_period);
+		qdf_mem_free(data);
+		return -EINVAL;
+	}
 
 	request.fast_scan_max_cycles = 0;
-	if (sscanf(ptr, "%hhu %n", &(request.fast_scan_max_cycles),
+	if (sscanf(ptr, " %hhu %n", &(request.fast_scan_max_cycles),
 		   &offset) > 0)
 		ptr += offset;
+	if (request.fast_scan_max_cycles <
+			CFG_PNO_SCAN_TIMER_REPEAT_VALUE_MIN ||
+			request.fast_scan_max_cycles >
+			CFG_PNO_SCAN_TIMER_REPEAT_VALUE_MAX) {
+		hdd_err("invalid fast scan max cycles %hhu",
+			request.fast_scan_max_cycles);
+		qdf_mem_free(data);
+		return -EINVAL;
+	}
 
-	params = sscanf(ptr, "%hhu %n", &(mode), &offset);
+	params = sscanf(ptr, " %hhu %n", &(mode), &offset);
 
 	request.modePNO = mode;
 	/* for LA we just expose suspend option */
@@ -10628,6 +10678,7 @@ static int __iw_set_pno(struct net_device *dev,
 				       adapter->sessionId,
 				       found_pref_network_cb, adapter);
 
+	qdf_mem_free(data);
 	return 0;
 }
 

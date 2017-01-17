@@ -622,6 +622,11 @@ static const char *op_string[] = {
 	"RX_SUSPEND",
 	"RX_RESUME",
 	"STATS",
+#ifdef FEATURE_METERING
+	"SHARING_STATS",
+	"QUOTA_RSP",
+	"QUOTA_IND",
+#endif
 };
 
 #ifdef FEATURE_METERING

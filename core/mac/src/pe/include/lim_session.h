@@ -90,6 +90,12 @@ typedef struct {
 	uint8_t gHTObssMode;
 } tBeaconParams, *tpBeaconParams;
 
+typedef struct join_params {
+	uint16_t prot_status_code;
+	uint16_t pe_session_id;
+	tSirResultCodes result_code;
+} join_params;
+
 typedef struct sPESession       /* Added to Support BT-AMP */
 {
 	/* To check session table is in use or free */

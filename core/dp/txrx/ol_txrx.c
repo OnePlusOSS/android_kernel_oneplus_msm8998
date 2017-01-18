@@ -5002,9 +5002,12 @@ ol_txrx_fwd_desc_thresh_check(struct ol_txrx_vdev_t *vdev)
 	bool enough_desc_flag;
 
 	if (!vdev)
-		return true;
+		return false;
 
 	pool = vdev->pool;
+
+	if (!pool)
+		return false;
 
 	qdf_spin_lock_bh(&pool->flow_pool_lock);
 	enough_desc_flag = (pool->avail_desc < (pool->stop_th +

@@ -10477,7 +10477,6 @@ static int __iw_set_pno(struct net_device *dev,
 	}
 	qdf_mem_zero(data, len);
 	qdf_mem_copy(data, extra, (len-1));
-	data[len] = '\0';
 	ptr = data;
 
 	request.enable = 0;

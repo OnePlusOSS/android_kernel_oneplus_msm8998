@@ -1149,9 +1149,11 @@ ol_txrx_pdev_post_attach(ol_txrx_pdev_handle pdev)
 		goto ol_attach_fail;
 
 	/* Attach micro controller data path offload resource */
-	if (ol_cfg_ipa_uc_offload_enabled(pdev->ctrl_pdev))
-		if (htt_ipa_uc_attach(pdev->htt_pdev))
+	if (ol_cfg_ipa_uc_offload_enabled(pdev->ctrl_pdev)) {
+		ret = htt_ipa_uc_attach(pdev->htt_pdev);
+		if (ret)
 			goto uc_attach_fail;
+	}
 
 	/* Calculate single element reserved size power of 2 */
 	pdev->tx_desc.desc_reserved_size = qdf_get_pwr2(desc_element_size);
@@ -1161,6 +1163,7 @@ ol_txrx_pdev_post_attach(ol_txrx_pdev_handle pdev)
 		(NULL == pdev->tx_desc.desc_pages.cacheable_pages)) {
 		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
 			"Page alloc fail");
+		ret = -ENOMEM;
 		goto page_alloc_fail;
 	}
 	desc_per_page = pdev->tx_desc.desc_pages.num_element_per_page;
@@ -1207,6 +1210,7 @@ ol_txrx_pdev_post_attach(ol_txrx_pdev_handle pdev)
 				  "%s: failed to alloc HTT tx desc (%d of %d)",
 				__func__, i, desc_pool_size);
 			fail_idx = i;
+			ret = -ENOMEM;
 			goto desc_alloc_fail;
 		}
 
@@ -1262,6 +1266,7 @@ ol_txrx_pdev_post_attach(ol_txrx_pdev_handle pdev)
 		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
 			  "%s Invalid standard frame type: %d",
 			  __func__, pdev->frame_format);
+		ret = -EINVAL;
 		goto control_init_fail;
 	}
 
@@ -1330,6 +1335,7 @@ ol_txrx_pdev_post_attach(ol_txrx_pdev_handle pdev)
 			  "Invalid std frame type; [en/de]cap: f:%x t:%x r:%x",
 			  pdev->frame_format,
 			  pdev->target_tx_tran_caps, pdev->target_rx_tran_caps);
+		ret = -EINVAL;
 		goto control_init_fail;
 	}
 #endif
@@ -1380,6 +1386,7 @@ ol_txrx_pdev_post_attach(ol_txrx_pdev_handle pdev)
 					  QDF_TRACE_LEVEL_ERROR,
 					  "%s: %s", __func__, TRACESTR01);
 #undef TRACESTR01
+				ret = -EINVAL;
 				goto control_init_fail;
 			}
 		} else {
@@ -1408,11 +1415,15 @@ ol_txrx_pdev_post_attach(ol_txrx_pdev_handle pdev)
 	qdf_spinlock_create(&pdev->peer_map_unmap_lock);
 	OL_TXRX_PEER_STATS_MUTEX_INIT(pdev);
 
-	if (OL_RX_REORDER_TRACE_ATTACH(pdev) != A_OK)
+	if (OL_RX_REORDER_TRACE_ATTACH(pdev) != A_OK) {
+		ret = -ENOMEM;
 		goto reorder_trace_attach_fail;
+	}
 
-	if (OL_RX_PN_TRACE_ATTACH(pdev) != A_OK)
+	if (OL_RX_PN_TRACE_ATTACH(pdev) != A_OK) {
+		ret = -ENOMEM;
 		goto pn_trace_attach_fail;
+	}
 
 #ifdef PERE_IP_HDR_ALIGNMENT_WAR
 	pdev->host_80211_enable = ol_scn_host_80211_enable_get(pdev->ctrl_pdev);

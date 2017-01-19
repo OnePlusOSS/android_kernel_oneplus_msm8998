@@ -9544,6 +9544,28 @@ enum dot11p_mode {
 #define CFG_HW_FILTER_MIN             (0)
 #define CFG_HW_FILTER_MAX             (1)
 
+/*
+ * <ini>
+ * g_enable_bcast_probe_rsp - Enable Broadcast probe response.
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to enable/disable broadcast probe response
+ *
+ * Related: None
+ *
+ * Supported Feature: FILS
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ENABLE_BCAST_PROBE_RESP_NAME    "g_enable_bcast_probe_rsp"
+#define CFG_ENABLE_BCAST_PROBE_RESP_MIN     (0)
+#define CFG_ENABLE_BCAST_PROBE_RESP_MAX     (1)
+#define CFG_ENABLE_BCAST_PROBE_RESP_DEFAULT (0)
+
 /*---------------------------------------------------------------------------
    Type declarations
    -------------------------------------------------------------------------*/
@@ -10251,6 +10273,7 @@ struct hdd_config {
 	enum active_bpf_mode active_bpf_mode;
 	bool hw_broadcast_filter;
 	bool sap_internal_restart;
+	bool enable_bcast_probe_rsp;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

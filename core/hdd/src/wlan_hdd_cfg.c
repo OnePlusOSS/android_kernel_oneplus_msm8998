@@ -4250,7 +4250,6 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		CFG_MAX_SCHED_SCAN_PLAN_ITRNS_DEFAULT,
 		CFG_MAX_SCHED_SCAN_PLAN_ITRNS_MIN,
 		CFG_MAX_SCHED_SCAN_PLAN_ITRNS_MAX),
-
 	REG_VARIABLE(CFG_ACTIVE_BPF_MODE_NAME, WLAN_PARAM_Integer,
 		struct hdd_config, active_bpf_mode,
 		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -4271,6 +4270,12 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		CFG_SAP_INTERNAL_RESTART_DEFAULT,
 		CFG_SAP_INTERNAL_RESTART_MIN,
 		CFG_SAP_INTERNAL_RESTART_MAX),
+	REG_VARIABLE(CFG_ENABLE_BCAST_PROBE_RESP_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, enable_bcast_probe_rsp,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_ENABLE_BCAST_PROBE_RESP_DEFAULT,
+		CFG_ENABLE_BCAST_PROBE_RESP_MIN,
+		CFG_ENABLE_BCAST_PROBE_RESP_MAX),
 };
 
 /**
@@ -7295,6 +7300,8 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 			pHddCtx->config->tx_aggregation_size;
 	smeConfig->csrConfig.rx_aggregation_size =
 			pHddCtx->config->rx_aggregation_size;
+	smeConfig->csrConfig.enable_bcast_probe_rsp =
+			pHddCtx->config->enable_bcast_probe_rsp;
 
 	status = sme_update_config(pHddCtx->hHal, smeConfig);
 	if (!QDF_IS_STATUS_SUCCESS(status)) {

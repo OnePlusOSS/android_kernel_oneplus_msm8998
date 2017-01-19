@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -137,7 +137,7 @@ struct hif_pci_softc {
 	struct timer_list runtime_timer;
 	struct list_head prevent_suspend_list;
 	unsigned long runtime_timer_expires;
-	struct hif_pm_runtime_lock *prevent_linkdown_lock;
+	qdf_runtime_lock_t prevent_linkdown_lock;
 #ifdef WLAN_OPEN_SOURCE
 	struct dentry *pm_dentry;
 #endif

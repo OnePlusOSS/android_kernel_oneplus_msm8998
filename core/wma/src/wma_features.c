@@ -4147,7 +4147,7 @@ QDF_STATUS wma_resume_req(tp_wma_handle wma, enum qdf_suspend_type type)
 	wmi_set_runtime_pm_inprogress(wma->wmi_handle, false);
 
 	if (type == QDF_RUNTIME_SUSPEND)
-		qdf_runtime_pm_allow_suspend(wma->wma_runtime_resume_lock);
+		qdf_runtime_pm_allow_suspend(&wma->wma_runtime_resume_lock);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -6538,7 +6538,7 @@ static QDF_STATUS wma_post_runtime_resume_msg(WMA_HANDLE handle)
 	QDF_STATUS status;
 	tp_wma_handle wma = (tp_wma_handle) handle;
 
-	qdf_runtime_pm_prevent_suspend(wma->wma_runtime_resume_lock);
+	qdf_runtime_pm_prevent_suspend(&wma->wma_runtime_resume_lock);
 
 	resume_msg.bodyptr = NULL;
 	resume_msg.type    = WMA_RUNTIME_PM_RESUME_IND;
@@ -6547,7 +6547,7 @@ static QDF_STATUS wma_post_runtime_resume_msg(WMA_HANDLE handle)
 
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		WMA_LOGE("Failed to post Runtime PM Resume IND to VOS");
-		qdf_runtime_pm_allow_suspend(wma->wma_runtime_resume_lock);
+		qdf_runtime_pm_allow_suspend(&wma->wma_runtime_resume_lock);
 	}
 
 	return status;

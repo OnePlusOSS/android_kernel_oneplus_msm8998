@@ -471,6 +471,28 @@ QDF_STATUS sme_roam_update_apwparsni_es(tHalHandle hHal, uint8_t sessionId,
 QDF_STATUS sme_change_mcc_beacon_interval(tHalHandle hHal, uint8_t sessionId);
 QDF_STATUS sme_set_host_offload(tHalHandle hHal, uint8_t sessionId,
 		tpSirHostOffloadReq pRequest);
+
+/**
+ * sme_enable_non_arp_broadcast_filter(): API to enable Broadcast filter
+ * when target goes to wow suspend/resume mode
+ * @hal: The handle returned by mac_open.
+ * @session_id: Session Identifier
+ *
+ * Return QDF_STATUS
+ */
+QDF_STATUS sme_enable_non_arp_broadcast_filter(tHalHandle hal,
+						uint8_t session_id);
+/**
+ * sme_disable_nonarp_broadcast_filter(): API to disable Broadcast filter
+ * when target goes to wow suspend/resume mode
+ * @hal: The handle returned by mac_open.
+ * @session_id: Session Identifier
+ *
+ * Return QDF_STATUS
+ */
+QDF_STATUS sme_disable_nonarp_broadcast_filter(tHalHandle hal,
+						uint8_t session_id);
+
 QDF_STATUS sme_set_keep_alive(tHalHandle hHal, uint8_t sessionId,
 		tpSirKeepAliveReq pRequest);
 QDF_STATUS sme_get_operation_channel(tHalHandle hHal, uint32_t *pChannel,

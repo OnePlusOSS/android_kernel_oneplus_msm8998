@@ -6368,6 +6368,118 @@ QDF_STATUS sme_set_host_offload(tHalHandle hHal, uint8_t sessionId,
 	return status;
 }
 
+QDF_STATUS sme_enable_non_arp_broadcast_filter(tHalHandle hal,
+						uint8_t session_id)
+{
+	struct broadcast_filter_request *request_buf;
+	cds_msg_t msg;
+
+	tpAniSirGlobal pMac = PMAC_STRUCT(hal);
+	QDF_STATUS status = QDF_STATUS_E_FAILURE;
+
+	status = sme_acquire_global_lock(&pMac->sme);
+
+	if (QDF_IS_STATUS_SUCCESS(status)) {
+		tCsrRoamSession *session = CSR_GET_SESSION(pMac, session_id);
+
+		if (NULL == session) {
+			sme_release_global_lock(&pMac->sme);
+			sms_log(pMac, LOGE, FL("Session not found "));
+			return QDF_STATUS_E_FAILURE;
+		}
+
+		request_buf = qdf_mem_malloc(sizeof(*request_buf));
+		if (NULL == request_buf) {
+			sme_release_global_lock(&pMac->sme);
+			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+				FL("Not able to allocate memory for bc filter request"));
+			return QDF_STATUS_E_NOMEM;
+		}
+
+		qdf_copy_macaddr(&request_buf->bssid,
+					 &session->connectedProfile.bssid);
+
+		request_buf->enable = true;
+
+		msg.type = WMA_ENABLE_BCAST_FILTER;
+		msg.reserved = 0;
+		msg.bodyptr = request_buf;
+		MTRACE(qdf_trace(QDF_MODULE_ID_SME, TRACE_CODE_SME_TX_WMA_MSG,
+				 session_id, msg.type));
+		if (QDF_STATUS_SUCCESS !=
+			cds_mq_post_message(QDF_MODULE_ID_WMA, &msg)) {
+			sme_release_global_lock(&pMac->sme);
+			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			FL("Not able to post WMA_ENABLE_BCAST_FILTER message to HAL"));
+			qdf_mem_free(request_buf);
+			return QDF_STATUS_E_FAILURE;
+		}
+
+		sme_release_global_lock(&pMac->sme);
+	} else {
+		sms_log(pMac, LOGE, FL("sme_acquire_global_lock failed"));
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	return status;
+}
+
+QDF_STATUS sme_disable_nonarp_broadcast_filter(tHalHandle hal,
+						uint8_t session_id)
+{
+	struct broadcast_filter_request *request_buf;
+	cds_msg_t msg;
+
+	tpAniSirGlobal pMac = PMAC_STRUCT(hal);
+	QDF_STATUS status = QDF_STATUS_E_FAILURE;
+
+	status = sme_acquire_global_lock(&pMac->sme);
+
+	if (QDF_IS_STATUS_SUCCESS(status)) {
+		tCsrRoamSession *session = CSR_GET_SESSION(pMac, session_id);
+
+		if (NULL == session) {
+			sme_release_global_lock(&pMac->sme);
+			sms_log(pMac, LOGE, FL("Session not found "));
+			return QDF_STATUS_E_FAILURE;
+		}
+
+		request_buf = qdf_mem_malloc(sizeof(*request_buf));
+		if (NULL == request_buf) {
+			sme_release_global_lock(&pMac->sme);
+			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+				FL("Not able to allocate memory for bc filter request"));
+			return QDF_STATUS_E_NOMEM;
+		}
+
+		qdf_copy_macaddr(&request_buf->bssid,
+					&session->connectedProfile.bssid);
+
+		request_buf->enable = false;
+
+		msg.type = WMA_DISABLE_HW_BCAST_FILTER;
+		msg.reserved = 0;
+		msg.bodyptr = request_buf;
+		MTRACE(qdf_trace(QDF_MODULE_ID_SME, TRACE_CODE_SME_TX_WMA_MSG,
+				 session_id, msg.type));
+		if (QDF_STATUS_SUCCESS !=
+			cds_mq_post_message(QDF_MODULE_ID_WMA, &msg)) {
+			sme_release_global_lock(&pMac->sme);
+			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			FL("Not able to post WMA_DISABLE_HW_BCAST_FILTER message to HAL"));
+			qdf_mem_free(request_buf);
+			return QDF_STATUS_E_FAILURE;
+		}
+
+		sme_release_global_lock(&pMac->sme);
+	} else {
+		sms_log(pMac, LOGE, FL("sme_acquire_global_lock failed"));
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	return status;
+}
+
 #ifdef WLAN_FEATURE_GTK_OFFLOAD
 /**
  * sme_set_gtk_offload(): API to set GTK offload information.

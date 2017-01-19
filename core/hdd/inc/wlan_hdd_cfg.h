@@ -7027,6 +7027,25 @@ enum dot11p_mode {
 #define CFG_ACTIVE_BPF_MODE_MAX     (ACTIVE_BPF_MODE_COUNT - 1)
 #define CFG_ACTIVE_BPF_MODE_DEFAULT (ACTIVE_BPF_DISABLED)
 
+/*
+ * <ini>
+ * g_enable_non_arp_bc_hw_filter - Enable HW broadcast filtering
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini support to dynamically enable/disable Broadast filter
+ * when target goes to wow suspend/resume mode
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_HW_BC_FILTER_NAME     "g_enable_non_arp_bc_hw_filter"
+#define CFG_HW_FILTER_DEFAULT         (0)
+#define CFG_HW_FILTER_MIN             (0)
+#define CFG_HW_FILTER_MAX             (1)
+
 /*---------------------------------------------------------------------------
    Type declarations
    -------------------------------------------------------------------------*/
@@ -7736,6 +7755,7 @@ struct hdd_config {
 	uint32_t max_sched_scan_plan_iterations;
 	uint8_t enable_phy_reg_retention;
 	enum active_bpf_mode active_bpf_mode;
+	bool hw_broadcast_filter;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

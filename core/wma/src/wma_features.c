@@ -5580,6 +5580,40 @@ QDF_STATUS wma_enable_arp_ns_offload(tp_wma_handle wma,
 	return QDF_STATUS_SUCCESS;
 }
 
+QDF_STATUS wma_configure_non_arp_broadcast_filter(tp_wma_handle wma,
+				struct broadcast_filter_request *bcast_filter)
+{
+	int32_t res;
+	uint8_t vdev_id;
+
+	/* Get the vdev id */
+	if (!wma_find_vdev_by_bssid(wma, bcast_filter->bssid.bytes,
+					&vdev_id)) {
+		WMA_LOGE("vdev handle is invalid for %pM",
+			 bcast_filter->bssid.bytes);
+		qdf_mem_free(bcast_filter);
+		return QDF_STATUS_E_INVAL;
+	}
+
+	if (!wma->interfaces[vdev_id].vdev_up) {
+		WMA_LOGE("vdev %d is not up skipping enable Broadcast Filter",
+			 vdev_id);
+		qdf_mem_free(bcast_filter);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	res = wmi_unified_configure_broadcast_filter_cmd(wma->wmi_handle,
+				vdev_id, bcast_filter->enable);
+
+	if (res) {
+		WMA_LOGE("Failed to enable/disable Broadcast Filter");
+		qdf_mem_free(bcast_filter);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	qdf_mem_free(bcast_filter);
+	return QDF_STATUS_SUCCESS;
+}
 
 /**
  * wma_process_cesium_enable_ind() - enables cesium functionality in target

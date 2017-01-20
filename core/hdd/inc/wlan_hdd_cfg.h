@@ -6104,12 +6104,18 @@ enum dot11p_mode {
  * <ini>
  * gper_roam_enabled - To enabled/disable PER based roaming in FW
  * @Min: 0
- * @Max: 1
- * @Default: 1
+ * @Max: 3
+ * @Default: 0
  *
  * This ini is used to enable/disable Packet error based roaming, enabling this
  * will cause DUT to monitor Tx and Rx traffic and roam to a better candidate
  * if current is not good enough.
+ *
+ * Values supported:
+ * 0: disabled
+ * 1: enabled for Rx traffic
+ * 2: enabled for Tx traffic
+ * 3: enabled for Tx and Rx traffic
  *
  * Related: gper_roam_high_rate_th, gper_roam_low_rate_th,
  *          gper_roam_th_percent, gper_roam_rest_time
@@ -6122,8 +6128,8 @@ enum dot11p_mode {
  */
 #define CFG_PER_ROAM_ENABLE_NAME           "gper_roam_enabled"
 #define CFG_PER_ROAM_ENABLE_MIN            (0)
-#define CFG_PER_ROAM_ENABLE_MAX            (1)
-#define CFG_PER_ROAM_ENABLE_DEFAULT        (CFG_PER_ROAM_ENABLE_MAX)
+#define CFG_PER_ROAM_ENABLE_MAX            (3)
+#define CFG_PER_ROAM_ENABLE_DEFAULT        (0)
 
 /*
  * <ini>
@@ -7493,7 +7499,7 @@ struct hdd_config {
 	uint16_t wow_pulse_interval_high;
 	uint16_t wow_pulse_interval_low;
 #endif
-	bool is_per_roam_enabled;
+	uint8_t is_per_roam_enabled;
 	uint32_t per_roam_high_rate_threshold;
 	uint32_t per_roam_low_rate_threshold;
 	uint32_t per_roam_th_percent;

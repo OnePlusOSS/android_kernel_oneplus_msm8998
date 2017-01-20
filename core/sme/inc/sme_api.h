@@ -1451,4 +1451,19 @@ static inline QDF_STATUS sme_set_udp_resp_offload(struct udp_resp_offload
  */
 QDF_STATUS sme_get_rcpi(tHalHandle hal, struct sme_rcpi_req *rcpi);
 
+/**
+ * sme_get_beacon_frm() - gets the bss descriptor from scan cache and prepares
+ * beacon frame
+ * @hal: handle returned by mac_open
+ * @profile: current connected profile
+ * @bssid: bssid to look for in scan cache
+ * @frame_buf: frame buffer to populate
+ * @frame_len: length of constructed frame
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS sme_get_beacon_frm(tHalHandle hal, tCsrRoamProfile *profile,
+			    const tSirMacAddr bssid,
+			    uint8_t **frame_buf, uint32_t *frame_len);
+
 #endif /* #if !defined( __SME_API_H ) */

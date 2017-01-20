@@ -2626,6 +2626,8 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 			pParam->enable_bcast_probe_rsp;
 		pMac->roam.configParam.qcn_ie_support =
 			pParam->qcn_ie_support;
+		pMac->roam.configParam.fils_max_chan_guard_time =
+			pParam->fils_max_chan_guard_time;
 
 	}
 	return status;
@@ -2864,6 +2866,8 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 		pMac->roam.configParam.enable_bcast_probe_rsp;
 	pParam->qcn_ie_support =
 		pMac->roam.configParam.qcn_ie_support;
+	pParam->fils_max_chan_guard_time =
+		pMac->roam.configParam.fils_max_chan_guard_time;
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -15409,6 +15413,8 @@ QDF_STATUS csr_process_add_sta_session_command(tpAniSirGlobal pMac,
 			pMac->roam.configParam.rx_aggregation_size;
 	add_sta_self_req->enable_bcast_probe_rsp =
 			pMac->roam.configParam.enable_bcast_probe_rsp;
+	add_sta_self_req->fils_max_chan_guard_time =
+			pMac->roam.configParam.fils_max_chan_guard_time;
 
 	msg.type = WMA_ADD_STA_SELF_REQ;
 	msg.reserved = 0;

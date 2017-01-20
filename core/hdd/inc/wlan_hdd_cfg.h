@@ -9620,6 +9620,28 @@ enum dot11p_mode {
 #define CFG_QCN_IE_SUPPORT_MAX      1
 #define CFG_QCN_IE_SUPPORT_DEFAULT  0
 
+/*
+ * <ini>
+ * g_fils_max_chan_guard_time - Set maximum channel guard time(ms)
+ * @Min: 0
+ * @Max: 10
+ * @Default: 0
+ *
+ * This ini is used to set maximum channel guard time in milli seconds
+ *
+ * Related: None
+ *
+ * Supported Feature: FILS
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_FILS_MAX_CHAN_GUARD_TIME_NAME    "g_fils_max_chan_guard_time"
+#define CFG_FILS_MAX_CHAN_GUARD_TIME_MIN     (0)
+#define CFG_FILS_MAX_CHAN_GUARD_TIME_MAX     (10)
+#define CFG_FILS_MAX_CHAN_GUARD_TIME_DEFAULT (0)
+
 /*---------------------------------------------------------------------------
    Type declarations
    -------------------------------------------------------------------------*/
@@ -10330,6 +10352,7 @@ struct hdd_config {
 	bool sap_internal_restart;
 	bool enable_bcast_probe_rsp;
 	bool qcn_ie_support;
+	uint8_t fils_max_chan_guard_time;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

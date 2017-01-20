@@ -4291,6 +4291,12 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		CFG_QCN_IE_SUPPORT_DEFAULT,
 		CFG_QCN_IE_SUPPORT_MIN,
 		CFG_QCN_IE_SUPPORT_MAX),
+	REG_VARIABLE(CFG_FILS_MAX_CHAN_GUARD_TIME_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, fils_max_chan_guard_time,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_FILS_MAX_CHAN_GUARD_TIME_DEFAULT,
+		CFG_FILS_MAX_CHAN_GUARD_TIME_MIN,
+		CFG_FILS_MAX_CHAN_GUARD_TIME_MAX),
 };
 
 /**
@@ -7327,6 +7333,8 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 			pHddCtx->config->enable_bcast_probe_rsp;
 	smeConfig->csrConfig.qcn_ie_support =
 			pHddCtx->config->qcn_ie_support;
+	smeConfig->csrConfig.fils_max_chan_guard_time =
+			pHddCtx->config->fils_max_chan_guard_time;
 
 	status = sme_update_config(pHddCtx->hHal, smeConfig);
 	if (!QDF_IS_STATUS_SUCCESS(status)) {

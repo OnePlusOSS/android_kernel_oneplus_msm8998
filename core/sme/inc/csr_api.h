@@ -1315,6 +1315,7 @@ typedef struct tagCsrConfigParam {
 	struct wmi_per_roam_config per_roam_config;
 	bool enable_bcast_probe_rsp;
 	bool qcn_ie_support;
+	uint8_t fils_max_chan_guard_time;
 } tCsrConfigParam;
 
 /* Tush */

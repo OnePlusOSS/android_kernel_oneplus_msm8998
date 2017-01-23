@@ -7926,8 +7926,11 @@ int hdd_configure_cds(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 		goto hdd_features_deinit;
 	}
 
-	dp_cbacks.hdd_en_lro_in_cc_cb = hdd_enable_lro_in_concurrency;
-	dp_cbacks.hdd_disble_lro_in_cc_cb = hdd_disable_lro_in_concurrency;
+	if (hdd_ctx->config->lro_enable) {
+		dp_cbacks.hdd_en_lro_in_cc_cb = hdd_enable_lro_in_concurrency;
+		dp_cbacks.hdd_disble_lro_in_cc_cb =
+						hdd_disable_lro_in_concurrency;
+	}
 	dp_cbacks.ol_txrx_update_mac_id_cb = ol_txrx_update_mac_id;
 	if (cds_register_dp_cb(&dp_cbacks) != QDF_STATUS_SUCCESS)
 		hdd_err("Unable to register datapath callbacks in CDS");

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -536,6 +536,11 @@ int hdd_lro_enable(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 	ol_register_lro_flush_cb(hdd_lro_flush, hdd_init_lro_mgr);
 	adapter->dev->features |= NETIF_F_LRO;
 
+	if (hdd_ctx->config->enable_tcp_delack) {
+		hdd_ctx->config->enable_tcp_delack = 0;
+		hdd_reset_tcp_delack(hdd_ctx);
+	}
+
 	hdd_info("LRO Enabled");
 
 	return 0;
@@ -662,6 +667,11 @@ void hdd_lro_display_stats(hdd_context_t *hdd_ctx)
  */
 void hdd_enable_lro_in_concurrency(hdd_context_t *hdd_ctx)
 {
+	if (hdd_ctx->config->enable_tcp_delack) {
+		hdd_info("Disable TCP delack as LRO is enabled");
+		hdd_ctx->config->enable_tcp_delack = 0;
+		hdd_reset_tcp_delack(hdd_ctx);
+	}
 	qdf_atomic_set(&hdd_ctx->disable_lro_in_concurrency, 0);
 }
 
@@ -673,5 +683,12 @@ void hdd_enable_lro_in_concurrency(hdd_context_t *hdd_ctx)
  */
 void hdd_disable_lro_in_concurrency(hdd_context_t *hdd_ctx)
 {
+	if (!hdd_ctx->config->enable_tcp_delack) {
+		hdd_info("Enable TCP delack as LRO disabled in concurrency");
+		wlan_hdd_send_svc_nlink_msg(hdd_ctx->radio_index,
+			WLAN_SVC_WLAN_TP_IND, &hdd_ctx->cur_rx_level,
+			sizeof(hdd_ctx->cur_rx_level));
+		hdd_ctx->config->enable_tcp_delack = 1;
+	}
 	qdf_atomic_set(&hdd_ctx->disable_lro_in_concurrency, 1);
 }

@@ -1141,18 +1141,18 @@ void wma_remove_peer(tp_wma_handle wma, uint8_t *bssid,
 	struct peer_flush_params param = {0};
 	uint8_t *peer_mac_addr;
 
+	peer_mac_addr = ol_txrx_peer_get_peer_mac_addr(peer);
+	if (peer_mac_addr == NULL) {
+		WMA_LOGE("%s: peer mac addr is NULL, Can't remove peer, vdevid %d peer_count %d",
+			 __func__, vdev_id,
+			 wma->interfaces[vdev_id].peer_count);
+		return;
+	}
+
 	if (!wma->interfaces[vdev_id].peer_count) {
 		WMA_LOGE("%s: Can't remove peer with peer_addr %pM vdevid %d peer_count %d",
 			__func__, bssid, vdev_id,
 			wma->interfaces[vdev_id].peer_count);
-		return;
-	}
-
-	peer_mac_addr = ol_txrx_peer_get_peer_mac_addr(peer);
-	if (peer_mac_addr == NULL) {
-		WMA_LOGE("%s: peer mac addr is NULL, Can't remove peer with peer_addr %pM vdevid %d peer_count %d",
-			 __func__, bssid, vdev_id,
-			 wma->interfaces[vdev_id].peer_count);
 		return;
 	}
 
@@ -1175,6 +1175,10 @@ void wma_remove_peer(tp_wma_handle wma, uint8_t *bssid,
 						vdev_id);
 
 peer_detach:
+	WMA_LOGE("%s: Remove peer %p with peer_addr %pM vdevid %d peer_count %d",
+		 __func__, peer, bssid, vdev_id,
+		 wma->interfaces[vdev_id].peer_count);
+
 	if (peer) {
 		if (roam_synch_in_progress)
 			ol_txrx_peer_detach_force_delete(peer);
@@ -1183,9 +1187,6 @@ peer_detach:
 	}
 
 	wma->interfaces[vdev_id].peer_count--;
-	WMA_LOGE("%s: Removed peer %p with peer_addr %pM vdevid %d peer_count %d",
-		 __func__, peer, bssid, vdev_id,
-		 wma->interfaces[vdev_id].peer_count);
 #undef PEER_ALL_TID_BITMASK
 }
 

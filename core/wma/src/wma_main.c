@@ -7118,11 +7118,9 @@ QDF_STATUS wma_mc_process_msg(void *cds_context, cds_msg_t *msg)
 		qdf_mem_free(msg->bodyptr);
 		break;
 	default:
-		WMA_LOGD("unknown msg type %x", msg->type);
-		/* Do Nothing? MSG Body should be freed at here */
-		if (NULL != msg->bodyptr) {
+		WMA_LOGE("Unhandled WMA message of type %d", msg->type);
+		if (msg->bodyptr)
 			qdf_mem_free(msg->bodyptr);
-		}
 	}
 end:
 	return qdf_status;

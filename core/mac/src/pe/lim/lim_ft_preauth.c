@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -299,7 +299,7 @@ void lim_perform_ft_pre_auth(tpAniSirGlobal pMac, QDF_STATUS status,
 
 	lim_send_auth_mgmt_frame(pMac, &authFrame,
 		 psessionEntry->ftPEContext.pFTPreAuthReq->preAuthbssId,
-		 LIM_NO_WEP_IN_FC, psessionEntry, false);
+		 LIM_NO_WEP_IN_FC, psessionEntry);
 
 	return;
 

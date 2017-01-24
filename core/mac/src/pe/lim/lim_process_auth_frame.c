@@ -140,7 +140,7 @@ static void lim_process_auth_shared_system_algo(tpAniSirGlobal mac_ctx,
 
 		lim_send_auth_mgmt_frame(mac_ctx, auth_frame,
 				mac_hdr->sa, LIM_NO_WEP_IN_FC,
-				pe_session, false);
+				pe_session);
 		return;
 	} else {
 		/* Create entry for this STA in pre-auth list */
@@ -188,7 +188,7 @@ static void lim_process_auth_shared_system_algo(tpAniSirGlobal mac_ctx,
 
 			lim_send_auth_mgmt_frame(mac_ctx, auth_frame,
 				mac_hdr->sa, LIM_NO_WEP_IN_FC,
-				pe_session, false);
+				pe_session);
 			lim_delete_pre_auth_node(mac_ctx, mac_hdr->sa);
 			return;
 		}
@@ -220,7 +220,7 @@ static void lim_process_auth_shared_system_algo(tpAniSirGlobal mac_ctx,
 				SIR_MAC_AUTH_CHALLENGE_LENGTH);
 		lim_send_auth_mgmt_frame(mac_ctx, auth_frame,
 				mac_hdr->sa, LIM_NO_WEP_IN_FC,
-				pe_session, false);
+				pe_session);
 	}
 }
 
@@ -264,7 +264,7 @@ static void lim_process_auth_open_system_algo(tpAniSirGlobal mac_ctx,
 	auth_frame->authStatusCode = eSIR_MAC_SUCCESS_STATUS;
 	lim_send_auth_mgmt_frame(mac_ctx, auth_frame, mac_hdr->sa,
 					LIM_NO_WEP_IN_FC,
-					pe_session, false);
+					pe_session);
 }
 
 static void lim_process_auth_frame_type1(tpAniSirGlobal mac_ctx,
@@ -430,7 +430,7 @@ static void lim_process_auth_frame_type1(tpAniSirGlobal mac_ctx,
 
 		lim_send_auth_mgmt_frame(mac_ctx, auth_frame,
 				mac_hdr->sa, LIM_NO_WEP_IN_FC,
-				pe_session, false);
+				pe_session);
 		return;
 	}
 	/* No Pre-auth context exists for the STA. */
@@ -449,7 +449,7 @@ static void lim_process_auth_frame_type1(tpAniSirGlobal mac_ctx,
 
 			lim_send_auth_mgmt_frame(mac_ctx, auth_frame,
 				mac_hdr->sa, LIM_NO_WEP_IN_FC,
-				pe_session, false);
+				pe_session);
 			return;
 		}
 
@@ -486,7 +486,7 @@ static void lim_process_auth_frame_type1(tpAniSirGlobal mac_ctx,
 				eSIR_MAC_AUTH_ALGO_NOT_SUPPORTED_STATUS;
 			lim_send_auth_mgmt_frame(mac_ctx, auth_frame,
 				mac_hdr->sa, LIM_NO_WEP_IN_FC,
-				pe_session, false);
+				pe_session);
 			return;
 		}
 	} else {
@@ -510,7 +510,7 @@ static void lim_process_auth_frame_type1(tpAniSirGlobal mac_ctx,
 		lim_send_auth_mgmt_frame(mac_ctx, auth_frame,
 				mac_hdr->sa,
 				LIM_NO_WEP_IN_FC,
-				pe_session, false);
+				pe_session);
 		return;
 	}
 }
@@ -691,7 +691,7 @@ static void lim_process_auth_frame_type2(tpAniSirGlobal mac_ctx,
 				eSIR_MAC_AUTH_ALGO_NOT_SUPPORTED_STATUS;
 			lim_send_auth_mgmt_frame(mac_ctx, auth_frame,
 					mac_hdr->sa, LIM_NO_WEP_IN_FC,
-					pe_session, false);
+					pe_session);
 			return;
 		}
 		if (rx_auth_frm_body->type != SIR_MAC_CHALLENGE_TEXT_EID) {
@@ -725,7 +725,7 @@ static void lim_process_auth_frame_type2(tpAniSirGlobal mac_ctx,
 			lim_send_auth_mgmt_frame(mac_ctx,
 					auth_frame, mac_hdr->sa,
 					LIM_NO_WEP_IN_FC,
-					pe_session, false);
+					pe_session);
 			lim_restore_from_auth_state(mac_ctx,
 					eSIR_SME_INVALID_WEP_DEFAULT_KEY,
 					eSIR_MAC_UNSPEC_FAILURE_REASON,
@@ -759,7 +759,7 @@ static void lim_process_auth_frame_type2(tpAniSirGlobal mac_ctx,
 		lim_send_auth_mgmt_frame(mac_ctx,
 				(tpSirMacAuthFrameBody)encr_auth_frame,
 				mac_hdr->sa, LIM_WEP_IN_FC,
-				pe_session, false);
+				pe_session);
 
 		return;
 	}
@@ -791,7 +791,7 @@ static void lim_process_auth_frame_type3(tpAniSirGlobal mac_ctx,
 			eSIR_MAC_AUTH_FRAME_OUT_OF_SEQ_STATUS;
 		lim_send_auth_mgmt_frame(mac_ctx, auth_frame,
 			mac_hdr->sa, LIM_NO_WEP_IN_FC,
-			pe_session, false);
+			pe_session);
 		return;
 	}
 
@@ -816,7 +816,7 @@ static void lim_process_auth_frame_type3(tpAniSirGlobal mac_ctx,
 			lim_send_auth_mgmt_frame(mac_ctx, auth_frame,
 					mac_hdr->sa,
 					LIM_NO_WEP_IN_FC,
-					pe_session, false);
+					pe_session);
 			return;
 		}
 
@@ -838,7 +838,7 @@ static void lim_process_auth_frame_type3(tpAniSirGlobal mac_ctx,
 				eSIR_MAC_AUTH_FRAME_OUT_OF_SEQ_STATUS;
 			lim_send_auth_mgmt_frame(mac_ctx, auth_frame,
 				mac_hdr->sa, LIM_NO_WEP_IN_FC,
-				pe_session, false);
+				pe_session);
 			return;
 		}
 
@@ -860,7 +860,7 @@ static void lim_process_auth_frame_type3(tpAniSirGlobal mac_ctx,
 
 			lim_send_auth_mgmt_frame(mac_ctx, auth_frame,
 				mac_hdr->sa, LIM_NO_WEP_IN_FC,
-				pe_session, false);
+				pe_session);
 			/* Delete pre-auth context of STA */
 			lim_delete_pre_auth_node(mac_ctx, mac_hdr->sa);
 			return;
@@ -906,7 +906,7 @@ static void lim_process_auth_frame_type3(tpAniSirGlobal mac_ctx,
 				eSIR_MAC_SUCCESS_STATUS;
 			lim_send_auth_mgmt_frame(mac_ctx, auth_frame,
 				mac_hdr->sa, LIM_NO_WEP_IN_FC,
-				pe_session, false);
+				pe_session);
 			return;
 		} else {
 			lim_log(mac_ctx, LOGW,
@@ -927,7 +927,7 @@ static void lim_process_auth_frame_type3(tpAniSirGlobal mac_ctx,
 				eSIR_MAC_CHALLENGE_FAILURE_STATUS;
 			lim_send_auth_mgmt_frame(mac_ctx, auth_frame,
 				mac_hdr->sa, LIM_NO_WEP_IN_FC,
-				pe_session, false);
+				pe_session);
 			return;
 		}
 	}
@@ -1173,7 +1173,7 @@ lim_process_auth_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 				GET_LIM_SYSTEM_ROLE(pe_session), mac_hdr->sa);
 			lim_send_auth_mgmt_frame(mac_ctx, &auth_frame,
 				mac_hdr->sa, LIM_NO_WEP_IN_FC,
-				pe_session, false);
+				pe_session);
 			return;
 		}
 
@@ -1219,7 +1219,7 @@ lim_process_auth_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 				eSIR_MAC_CHALLENGE_FAILURE_STATUS;
 			lim_send_auth_mgmt_frame(mac_ctx, &auth_frame,
 				mac_hdr->sa, LIM_NO_WEP_IN_FC,
-				pe_session, false);
+				pe_session);
 			return;
 		}
 
@@ -1247,7 +1247,7 @@ lim_process_auth_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 				eSIR_MAC_AUTH_FRAME_OUT_OF_SEQ_STATUS;
 			lim_send_auth_mgmt_frame(mac_ctx, &auth_frame,
 				mac_hdr->sa, LIM_NO_WEP_IN_FC,
-				pe_session, false);
+				pe_session);
 			return;
 		}
 		/* Change the auth-response timeout */
@@ -1277,7 +1277,7 @@ lim_process_auth_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 
 			lim_send_auth_mgmt_frame(mac_ctx, &auth_frame,
 				mac_hdr->sa, LIM_NO_WEP_IN_FC,
-				pe_session, false);
+				pe_session);
 			return;
 		}
 
@@ -1306,7 +1306,7 @@ lim_process_auth_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 				eSIR_MAC_CHALLENGE_FAILURE_STATUS;
 			lim_send_auth_mgmt_frame(mac_ctx, &auth_frame,
 				mac_hdr->sa, LIM_NO_WEP_IN_FC,
-				pe_session, false);
+				pe_session);
 			return;
 		}
 
@@ -1330,7 +1330,7 @@ lim_process_auth_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 
 			lim_send_auth_mgmt_frame(mac_ctx, &auth_frame,
 				mac_hdr->sa, LIM_NO_WEP_IN_FC,
-				pe_session, false);
+				pe_session);
 			return;
 		}
 		if ((sir_convert_auth_frame2_struct(mac_ctx, plainbody,

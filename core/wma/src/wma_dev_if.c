@@ -784,6 +784,56 @@ void wma_find_mcc_ap(tp_wma_handle wma, uint8_t vdev_id, bool add)
 }
 #endif /* FEATURE_AP_MCC_CH_AVOIDANCE */
 
+static const wmi_channel_width mode_to_width[MODE_MAX] = {
+	[MODE_11A]           = WMI_CHAN_WIDTH_20,
+	[MODE_11G]           = WMI_CHAN_WIDTH_20,
+	[MODE_11B]           = WMI_CHAN_WIDTH_20,
+	[MODE_11GONLY]       = WMI_CHAN_WIDTH_20,
+	[MODE_11NA_HT20]     = WMI_CHAN_WIDTH_20,
+	[MODE_11NG_HT20]     = WMI_CHAN_WIDTH_20,
+	[MODE_11AC_VHT20]    = WMI_CHAN_WIDTH_20,
+	[MODE_11AC_VHT20_2G] = WMI_CHAN_WIDTH_20,
+	[MODE_11NA_HT40]     = WMI_CHAN_WIDTH_40,
+	[MODE_11NG_HT40]     = WMI_CHAN_WIDTH_40,
+	[MODE_11AC_VHT40]    = WMI_CHAN_WIDTH_40,
+	[MODE_11AC_VHT40_2G] = WMI_CHAN_WIDTH_40,
+	[MODE_11AC_VHT80]    = WMI_CHAN_WIDTH_80,
+	[MODE_11AC_VHT80_2G] = WMI_CHAN_WIDTH_80,
+#if CONFIG_160MHZ_SUPPORT
+	[MODE_11AC_VHT80_80] = WMI_CHAN_WIDTH_80P80,
+	[MODE_11AC_VHT160]   = WMI_CHAN_WIDTH_160,
+#endif
+
+#if SUPPORT_11AX
+	[MODE_11AX_HE20]     = WMI_CHAN_WIDTH_20,
+	[MODE_11AX_HE40]     = WMI_CHAN_WIDTH_40,
+	[MODE_11AX_HE80]     = WMI_CHAN_WIDTH_80,
+	[MODE_11AX_HE80_80]  = WMI_CHAN_WIDTH_80P80,
+	[MODE_11AX_HE160]    = WMI_CHAN_WIDTH_160,
+	[MODE_11AX_HE20_2G]  = WMI_CHAN_WIDTH_20,
+	[MODE_11AX_HE40_2G]  = WMI_CHAN_WIDTH_40,
+	[MODE_11AX_HE80_2G]  = WMI_CHAN_WIDTH_80,
+#endif
+};
+
+/**
+ * chanmode_to_chanwidth() - get channel width through channel mode
+ * @chanmode:   channel phy mode
+ *
+ * Return: channel width
+ */
+static wmi_channel_width chanmode_to_chanwidth(WLAN_PHY_MODE chanmode)
+{
+	wmi_channel_width chan_width;
+
+	if (chanmode >= MODE_11A && chanmode < MODE_MAX)
+		chan_width = mode_to_width[chanmode];
+	else
+		chan_width = WMI_CHAN_WIDTH_20;
+
+	return chan_width;
+}
+
 /**
  * wma_vdev_start_resp_handler() - vdev start response handler
  * @handle: wma handle
@@ -802,6 +852,8 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 	struct wma_txrx_node *iface;
 	struct vdev_up_params param = {0};
 	QDF_STATUS status;
+	int err;
+	wmi_channel_width chanwidth;
 
 #ifdef FEATURE_AP_MCC_CH_AVOIDANCE
 	tpAniSirGlobal mac_ctx = cds_get_context(QDF_MODULE_ID_PE);
@@ -942,6 +994,23 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 			(iface->type == WMI_VDEV_TYPE_STA)) ||
 			((resp_event->resp_type == WMI_VDEV_START_RESP_EVENT) &&
 			 (iface->type == WMI_VDEV_TYPE_MONITOR))) {
+			err = wma_set_peer_param(wma, iface->bssid,
+					WMI_PEER_PHYMODE, iface->chanmode,
+					resp_event->vdev_id);
+
+			WMA_LOGD("%s:vdev_id %d chanmode %d status %d",
+				__func__, resp_event->vdev_id,
+				iface->chanmode, err);
+
+			chanwidth = chanmode_to_chanwidth(iface->chanmode);
+			err = wma_set_peer_param(wma, iface->bssid,
+					WMI_PEER_CHWIDTH, chanwidth,
+					resp_event->vdev_id);
+
+			WMA_LOGD("%s:vdev_id %d chanwidth %d status %d",
+				__func__, resp_event->vdev_id,
+				chanwidth, err);
+
 			param.vdev_id = resp_event->vdev_id;
 			param.assoc_id = iface->aid;
 			status = wmi_unified_vdev_up_send(wma->wmi_handle,
@@ -4288,6 +4357,8 @@ void wma_delete_sta(tp_wma_handle wma, tpDeleteStaParams del_sta)
 	if (del_sta->staType == STA_ENTRY_NDI_PEER)
 		oper_mode = BSS_OPERATIONAL_MODE_NDI;
 
+	WMA_LOGD(FL("oper_mode %d"), oper_mode);
+
 	switch (oper_mode) {
 	case BSS_OPERATIONAL_MODE_STA:
 		wma_delete_sta_req_sta_mode(wma, del_sta);
@@ -4390,6 +4461,14 @@ void wma_delete_bss_ho_fail(tp_wma_handle wma, tpDeleteBssParams params)
 		qdf_mem_free(iface->psnr_req);
 		iface->psnr_req = NULL;
 	}
+
+	if (iface->rcpi_req) {
+		struct sme_rcpi_req *rcpi_req = iface->rcpi_req;
+
+		iface->rcpi_req = NULL;
+		qdf_mem_free(rcpi_req);
+	}
+
 	qdf_mem_zero(&iface->ns_offload_req,
 			sizeof(iface->ns_offload_req));
 	qdf_mem_zero(&iface->arp_offload_req,
@@ -4501,6 +4580,13 @@ void wma_delete_bss(tp_wma_handle wma, tpDeleteBssParams params)
 	if (iface->psnr_req) {
 		qdf_mem_free(iface->psnr_req);
 		iface->psnr_req = NULL;
+	}
+
+	if (iface->rcpi_req) {
+		struct sme_rcpi_req *rcpi_req = iface->rcpi_req;
+
+		iface->rcpi_req = NULL;
+		qdf_mem_free(rcpi_req);
 	}
 
 	if (wlan_op_mode_ibss == ol_txrx_get_opmode(txrx_vdev))

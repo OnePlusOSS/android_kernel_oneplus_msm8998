@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -3809,4 +3809,161 @@ bool wma_is_p2p_lo_capable(void)
 		return true;
 
 	return false;
+}
+
+QDF_STATUS wma_get_rcpi_req(WMA_HANDLE handle,
+			    struct sme_rcpi_req *rcpi_request)
+{
+	tp_wma_handle wma_handle = (tp_wma_handle) handle;
+	struct rcpi_req  cmd = {0};
+	struct wma_txrx_node *iface;
+	struct sme_rcpi_req *node_rcpi_req = NULL;
+
+	WMA_LOGD("%s: Enter", __func__);
+	iface = &wma_handle->interfaces[rcpi_request->session_id];
+	/* command is in progress */
+	if (iface->rcpi_req != NULL) {
+		WMA_LOGE("%s : previous rcpi request is pending", __func__);
+		return QDF_STATUS_SUCCESS;
+	}
+
+	node_rcpi_req = qdf_mem_malloc(sizeof(*node_rcpi_req));
+	if (!node_rcpi_req) {
+		WMA_LOGE("Failed to allocate memory for rcpi_request");
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	node_rcpi_req->session_id = rcpi_request->session_id;
+	node_rcpi_req->measurement_type = rcpi_request->measurement_type;
+	node_rcpi_req->rcpi_callback = rcpi_request->rcpi_callback;
+	node_rcpi_req->rcpi_context = rcpi_request->rcpi_context;
+	node_rcpi_req->mac_addr = rcpi_request->mac_addr;
+	iface->rcpi_req = node_rcpi_req;
+
+	cmd.vdev_id = rcpi_request->session_id;
+	qdf_mem_copy(cmd.mac_addr, &rcpi_request->mac_addr, QDF_MAC_ADDR_SIZE);
+
+	switch (rcpi_request->measurement_type) {
+
+	case RCPI_MEASUREMENT_TYPE_AVG_MGMT:
+		cmd.measurement_type = WMI_RCPI_MEASUREMENT_TYPE_AVG_MGMT;
+		break;
+
+	case RCPI_MEASUREMENT_TYPE_AVG_DATA:
+		cmd.measurement_type = WMI_RCPI_MEASUREMENT_TYPE_AVG_DATA;
+		break;
+
+	case RCPI_MEASUREMENT_TYPE_LAST_MGMT:
+		cmd.measurement_type = WMI_RCPI_MEASUREMENT_TYPE_LAST_MGMT;
+		break;
+
+	case RCPI_MEASUREMENT_TYPE_LAST_DATA:
+		cmd.measurement_type = WMI_RCPI_MEASUREMENT_TYPE_LAST_DATA;
+		break;
+
+	default:
+		/*
+		 * invalid rcpi measurement type, fall back to
+		 * RCPI_MEASUREMENT_TYPE_AVG_MGMT
+		 */
+		cmd.measurement_type = WMI_RCPI_MEASUREMENT_TYPE_AVG_MGMT;
+		break;
+	}
+
+	if (wmi_unified_get_rcpi_cmd(wma_handle->wmi_handle, &cmd)) {
+		WMA_LOGE("%s: Failed to send WMI_REQUEST_RCPI_CMDID",
+			 __func__);
+		iface->rcpi_req = NULL;
+		qdf_mem_free(node_rcpi_req);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	WMA_LOGD("%s: Exit", __func__);
+
+	return QDF_STATUS_SUCCESS;
+}
+
+int wma_rcpi_event_handler(void *handle, uint8_t *cmd_param_info,
+			    uint32_t len)
+{
+	WMI_UPDATE_RCPI_EVENTID_param_tlvs *param_buf;
+	wmi_update_rcpi_event_fixed_param *event;
+	struct sme_rcpi_req *rcpi_req;
+	uint8_t mac_addr[QDF_MAC_ADDR_SIZE];
+	struct qdf_mac_addr qdf_mac;
+	struct wma_txrx_node *iface;
+	enum rcpi_measurement_type msmt_type;
+	QDF_STATUS rcpi_status = QDF_STATUS_SUCCESS;
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	tp_wma_handle wma = (tp_wma_handle)handle;
+
+	param_buf = (WMI_UPDATE_RCPI_EVENTID_param_tlvs *)cmd_param_info;
+	if (!param_buf) {
+		WMA_LOGA("%s: Invalid rcpi event", __func__);
+		return -EINVAL;
+	}
+
+	event = param_buf->fixed_param;
+	iface = &wma->interfaces[event->vdev_id];
+
+	if (!iface->rcpi_req) {
+		WMI_LOGE("rcpi_req buffer not available");
+		return 0;
+	}
+
+	rcpi_req = iface->rcpi_req;
+	if (!rcpi_req->rcpi_callback) {
+		iface->rcpi_req = NULL;
+		qdf_mem_free(rcpi_req);
+		return 0;
+	}
+	WMI_MAC_ADDR_TO_CHAR_ARRAY(&event->peer_macaddr, mac_addr);
+
+	switch (event->measurement_type) {
+	case WMI_RCPI_MEASUREMENT_TYPE_AVG_MGMT:
+		msmt_type = RCPI_MEASUREMENT_TYPE_AVG_MGMT;
+		break;
+
+	case WMI_RCPI_MEASUREMENT_TYPE_AVG_DATA:
+		msmt_type = RCPI_MEASUREMENT_TYPE_AVG_DATA;
+		break;
+
+	case WMI_RCPI_MEASUREMENT_TYPE_LAST_MGMT:
+		msmt_type = RCPI_MEASUREMENT_TYPE_LAST_MGMT;
+		break;
+
+	case WMI_RCPI_MEASUREMENT_TYPE_LAST_DATA:
+		msmt_type = RCPI_MEASUREMENT_TYPE_LAST_DATA;
+		break;
+
+	default:
+		WMI_LOGE("Invalid rcpi measurement type from firmware");
+		rcpi_status = QDF_STATUS_E_INVAL;
+		break;
+	}
+
+
+	if (!QDF_IS_STATUS_SUCCESS(rcpi_status) ||
+	    (event->vdev_id != rcpi_req->session_id) ||
+	    (msmt_type != rcpi_req->measurement_type) ||
+	    (qdf_mem_cmp(mac_addr, &rcpi_req->mac_addr, QDF_MAC_ADDR_SIZE))) {
+		WMI_LOGE("invalid rcpi_req for specified rcpi_req");
+		iface->rcpi_req = NULL;
+		qdf_mem_free(rcpi_req);
+		return 0;
+	}
+
+	qdf_mem_copy(&qdf_mac, mac_addr, QDF_MAC_ADDR_SIZE);
+
+	if (event->status)
+		status = QDF_STATUS_E_FAILURE;
+	else
+		status = QDF_STATUS_SUCCESS;
+
+	(rcpi_req->rcpi_callback)(rcpi_req->rcpi_context, qdf_mac, event->rcpi,
+				  status);
+	iface->rcpi_req = NULL;
+	qdf_mem_free(rcpi_req);
+
+	return 0;
 }

@@ -52,6 +52,8 @@
 #include "rrm_global.h"
 #include "rrm_api.h"
 
+#define MAX_RRM_TX_PWR_CAP 22
+
 uint8_t
 rrm_get_min_of_max_tx_power(tpAniSirGlobal pMac,
 			    int8_t regMax, int8_t apTxPower)
@@ -90,7 +92,7 @@ void
 rrm_cache_mgmt_tx_power(tpAniSirGlobal pMac, int8_t txPower,
 			tpPESession pSessionEntry)
 {
-	lim_log(pMac, LOG3, "Cache Mgmt Tx Power = %d", txPower);
+	lim_log(pMac, LOG1, "Cache Mgmt Tx Power = %d", txPower);
 
 	if (pSessionEntry == NULL) {
 		lim_log(pMac, LOG3, "%s: pSessionEntry is NULL", __func__);
@@ -116,13 +118,13 @@ rrm_cache_mgmt_tx_power(tpAniSirGlobal pMac, int8_t txPower,
  */
 int8_t rrm_get_mgmt_tx_power(tpAniSirGlobal pMac, tpPESession pSessionEntry)
 {
-	lim_log(pMac, LOG3, "RrmGetMgmtTxPower called");
-
 	if (pSessionEntry == NULL) {
 		lim_log(pMac, LOG3, "%s: txpower from rrmPEContext: %d",
 			__func__, pMac->rrm.rrmPEContext.txMgmtPower);
 		return pMac->rrm.rrmPEContext.txMgmtPower;
 	}
+
+	lim_log(pMac, LOG1, FL("tx mgmt pwr %d"), pSessionEntry->txMgmtPower);
 
 	return pSessionEntry->txMgmtPower;
 }
@@ -282,7 +284,7 @@ rrm_process_link_measurement_request(tpAniSirGlobal pMac,
 	pHdr = WMA_GET_RX_MAC_HEADER(pRxPacketInfo);
 
 	LinkReport.txPower = lim_get_max_tx_power(pLinkReq->MaxTxPower.maxTxPower,
-						  pLinkReq->MaxTxPower.maxTxPower,
+						  MAX_RRM_TX_PWR_CAP,
 						  pMac->roam.configParam.
 						  nTxPowerCap);
 
@@ -578,7 +580,7 @@ rrm_process_beacon_report_req(tpAniSirGlobal pMac,
 
 	measDuration = pBeaconReq->measurement_request.Beacon.meas_duration;
 
-	lim_log(pMac, LOG3,
+	lim_log(pMac, LOG1,
 		"maxDuration = %d sign = %d maxMeasduration = %d measDuration = %d",
 		maxDuration, sign, maxMeasduration, measDuration);
 
@@ -954,6 +956,9 @@ static void rrm_process_beacon_request_failure(tpAniSirGlobal pMac,
 	}
 	pReport->token = pCurrentReq->token;
 	pReport->type = SIR_MAC_RRM_BEACON_TYPE;
+
+	lim_log(pMac, LOG1,
+			FL("status %d token %d"), status, pReport->token);
 
 	switch (status) {
 	case eRRM_REFUSED:

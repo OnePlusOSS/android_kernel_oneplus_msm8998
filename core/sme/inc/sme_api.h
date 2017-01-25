@@ -508,8 +508,20 @@ uint16_t sme_check_concurrent_channel_overlap(tHalHandle hHal, uint16_t sap_ch,
 		eCsrPhyMode sapPhyMode,
 		uint8_t cc_switch_mode);
 #endif
+/**
+ * sme_abort_mac_scan() - API to cancel MAC scan
+ * @hHal: The handle returned by mac_open
+ * @sessionId: sessionId on which we need to abort scan
+ * @scan_id: scan id on which we need to abort scan
+ * @reason: Reason to abort the scan
+ *
+ * This function aborts MAC scan.
+ *
+ * Return: QDF_STATUS_E_FAILURE for failure, QDF_STATUS_SUCCESS for
+ * success
+ */
 QDF_STATUS sme_abort_mac_scan(tHalHandle hHal, uint8_t sessionId,
-		eCsrAbortReason reason);
+		uint32_t scan_id, eCsrAbortReason reason);
 QDF_STATUS sme_get_cfg_valid_channels(tHalHandle hHal, uint8_t *aValidChannels,
 		uint32_t *len);
 #ifdef FEATURE_WLAN_SCAN_PNO
@@ -862,9 +874,6 @@ QDF_STATUS sme_set_passpoint_list(tHalHandle hal,
 					struct wifi_passpoint_req *req_msg);
 QDF_STATUS sme_reset_passpoint_list(tHalHandle hal,
 					struct wifi_passpoint_req *req_msg);
-QDF_STATUS
-sme_set_ssid_hotlist(tHalHandle hal,
-		     struct sir_set_ssid_hotlist_request *request);
 
 QDF_STATUS sme_ext_scan_register_callback(tHalHandle hHal,
 		void (*pExtScanIndCb)(void *, const uint16_t, void *));
@@ -1410,5 +1419,16 @@ static inline QDF_STATUS sme_set_udp_resp_offload(struct udp_resp_offload
 	return QDF_STATUS_E_FAILURE;
 }
 #endif
+
+/**
+ * sme_get_rcpi() - gets the rcpi value for peer mac addr
+ * @hal: handle returned by mac_open
+ * @rcpi: rcpi request containing peer mac addr, callback and related info
+ *
+ * This function posts the rcpi measurement request message to wma queue
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS sme_get_rcpi(tHalHandle hal, struct sme_rcpi_req *rcpi);
 
 #endif /* #if !defined( __SME_API_H ) */

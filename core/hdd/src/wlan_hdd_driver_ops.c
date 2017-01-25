@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -421,6 +421,8 @@ static void wlan_hdd_remove(struct device *dev)
 		__hdd_wlan_exit();
 	}
 
+	cds_set_unload_in_progress(false);
+
 	pr_info("%s: Driver De-initialized\n", WLAN_MODULE_NAME);
 }
 
@@ -435,11 +437,6 @@ static void wlan_hdd_remove(struct device *dev)
 static void wlan_hdd_shutdown(void)
 {
 	void *hif_ctx = cds_get_context(QDF_MODULE_ID_HIF);
-
-	if (NULL == hif_ctx) {
-		hdd_err("HIF context NULL");
-		return;
-	}
 
 	if (cds_is_load_or_unload_in_progress()) {
 		hdd_err("Load/unload in progress, ignore SSR shutdown");
@@ -634,6 +631,8 @@ static int __wlan_hdd_bus_suspend_noirq(void)
 	err = wma_is_target_wake_up_received();
 	if (err)
 		goto resume_hif_noirq;
+
+	hdd_ctx->suspend_resume_stats.suspends++;
 
 	hdd_info("suspend_noirq done");
 	return 0;

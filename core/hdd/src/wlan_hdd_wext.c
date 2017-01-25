@@ -92,6 +92,7 @@
 #include "pld_common.h"
 #endif
 #include "wlan_hdd_lro.h"
+#include "cds_utils.h"
 
 #define HDD_FINISH_ULA_TIME_OUT         800
 #define HDD_SET_MCBC_FILTERS_TO_FW      1
@@ -407,6 +408,29 @@ static const hdd_freq_chan_map_t freq_chan_map[] = {
 #define WE_GET_WMM_STATUS    4
 #define WE_GET_CHANNEL_LIST  5
 #define WE_GET_RSSI          6
+
+/*
+ * <ioctl>
+ * getSuspendStats - Get suspend/resume stats
+ *
+ * @INPUT: None
+ *
+ * @OUTPUT: character string containing formatted suspend/resume stats
+ *
+ * This ioctl is used to get suspend/resume stats formatted for display.
+ * Currently it includes suspend/resume counts, wow wake up reasons, and
+ * suspend fail reasons.
+ *
+ * @E.g: iwpriv wlan0 getSuspendStats
+ * iwpriv wlan0 getSuspendStats
+ *
+ * Supported Feature: suspend/resume
+ *
+ * Usage: Internal
+ *
+ * </ioctl>
+ */
+#define WE_GET_SUSPEND_RESUME_STATS 7
 #ifdef FEATURE_WLAN_TDLS
 /*
  * <ioctl>
@@ -1289,6 +1313,81 @@ void hdd_wlan_get_stats(hdd_adapter_t *pAdapter, uint16_t *length,
 	len += ol_txrx_stats(pAdapter->sessionId,
 		&buffer[len], (buf_len - len));
 	*length = len + 1;
+}
+
+/**
+ * wlan_hdd_write_suspend_resume_stats() - Writes suspend/resume stats to buffer
+ * @hdd_ctx: The Hdd context owning the stats to be written
+ * @buffer: The char buffer to write to
+ * @max_len: The maximum number of chars to write
+ *
+ * This assumes hdd_ctx has already been validated, and buffer is not NULL.
+ *
+ * Return - length of written content, negative number on error
+ */
+static int wlan_hdd_write_suspend_resume_stats(hdd_context_t *hdd_ctx,
+					       char *buffer, uint16_t max_len)
+{
+	QDF_STATUS status;
+	struct suspend_resume_stats *sr_stats;
+	struct sir_wake_lock_stats wow_stats;
+
+	sr_stats = &hdd_ctx->suspend_resume_stats;
+
+	status = wma_get_wakelock_stats(&wow_stats);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		hdd_err("Failed to get WoW stats");
+		return qdf_status_to_os_return(status);
+	}
+
+	return scnprintf(buffer, max_len,
+			"\n"
+			"Suspends: %u\n"
+			"Resumes: %u\n"
+			"\n"
+			"Suspend Fail Reasons\n"
+			"\tIPA: %u\n"
+			"\tRadar: %u\n"
+			"\tRoam: %u\n"
+			"\tScan: %u\n"
+			"\tInitial Wakeup: %u\n"
+			"\n"
+			"WoW Wake Reasons\n"
+			"\tunicast: %u\n"
+			"\tbroadcast: %u\n"
+			"\tIPv4 multicast: %u\n"
+			"\tIPv6 multicast: %u\n"
+			"\tIPv6 multicast RA: %u\n"
+			"\tIPv6 multicast NS: %u\n"
+			"\tIPv6 multicast NA: %u\n"
+			"\tICMPv4: %u\n"
+			"\tICMPv6: %u\n"
+			"\tRSSI Breach: %u\n"
+			"\tLow RSSI: %u\n"
+			"\tG-Scan: %u\n"
+			"\tPNO Complete: %u\n"
+			"\tPNO Match: %u\n",
+			sr_stats->suspends,
+			sr_stats->resumes,
+			sr_stats->suspend_fail[SUSPEND_FAIL_IPA],
+			sr_stats->suspend_fail[SUSPEND_FAIL_RADAR],
+			sr_stats->suspend_fail[SUSPEND_FAIL_ROAM],
+			sr_stats->suspend_fail[SUSPEND_FAIL_SCAN],
+			sr_stats->suspend_fail[SUSPEND_FAIL_INITIAL_WAKEUP],
+			wow_stats.wow_ucast_wake_up_count,
+			wow_stats.wow_bcast_wake_up_count,
+			wow_stats.wow_ipv4_mcast_wake_up_count,
+			wow_stats.wow_ipv6_mcast_wake_up_count,
+			wow_stats.wow_ipv6_mcast_ra_stats,
+			wow_stats.wow_ipv6_mcast_ns_stats,
+			wow_stats.wow_ipv6_mcast_na_stats,
+			wow_stats.wow_icmpv4_count,
+			wow_stats.wow_icmpv6_count,
+			wow_stats.wow_rssi_breach_wake_up_count,
+			wow_stats.wow_low_rssi_wake_up_count,
+			wow_stats.wow_gscan_wake_up_count,
+			wow_stats.wow_pno_complete_wake_up_count,
+			wow_stats.wow_pno_match_wake_up_count);
 }
 
 /**
@@ -6429,6 +6528,9 @@ static int __iw_setint_getnone(struct net_device *dev,
 		ret = wma_cli_set_command(pAdapter->sessionId,
 					  GEN_VDEV_PARAM_AMSDU,
 					  set_value, GEN_CMD);
+		/* Update the stored ini value */
+		if (!ret)
+			hdd_ctx->config->max_amsdu_num = set_value;
 		break;
 	}
 
@@ -7870,6 +7972,18 @@ static int __iw_get_char_setnone(struct net_device *dev,
 		break;
 	}
 
+	case WE_GET_SUSPEND_RESUME_STATS:
+	{
+		ret = wlan_hdd_write_suspend_resume_stats(hdd_ctx, extra,
+							  WE_MAX_STR_LEN);
+		if (ret >= 0) {
+			wrqu->data.length = ret;
+			ret = 0;
+		}
+
+		break;
+	}
+
 	case WE_LIST_FW_PROFILE:
 		hdd_wlan_list_fw_profile(&(wrqu->data.length),
 					extra, WE_MAX_STR_LEN);
@@ -8218,16 +8332,25 @@ static int __iw_get_char_setnone(struct net_device *dev,
 		tHalHandle hal = WLAN_HDD_GET_HAL_CTX(pAdapter);
 		eCsrPhyMode phymode;
 		eCsrBand currBand;
-		tSmeConfigParams smeconfig;
+		tSmeConfigParams *sme_config;
 
-		sme_get_config_param(hal, &smeconfig);
+		sme_config = qdf_mem_malloc(sizeof(*sme_config));
+		if (!sme_config) {
+			hdd_err("Out of memory");
+			ret = -ENOMEM;
+			break;
+		}
+
+		sme_get_config_param(hal, sme_config);
 		if (WNI_CFG_CHANNEL_BONDING_MODE_DISABLE !=
-		    smeconfig.csrConfig.channelBondingMode24GHz)
+		    sme_config->csrConfig.channelBondingMode24GHz)
 			ch_bond24 = true;
 
 		if (WNI_CFG_CHANNEL_BONDING_MODE_DISABLE !=
-		    smeconfig.csrConfig.channelBondingMode5GHz)
+		    sme_config->csrConfig.channelBondingMode5GHz)
 			ch_bond5g = true;
+
+		qdf_mem_free(sme_config);
 
 		phymode = sme_get_phy_mode(hal);
 		if ((QDF_STATUS_SUCCESS !=
@@ -8337,8 +8460,9 @@ static int __iw_get_char_setnone(struct net_device *dev,
 		break;
 	}
 	}
+
 	EXIT();
-	return 0;
+	return ret;
 }
 
 static int iw_get_char_setnone(struct net_device *dev,
@@ -8484,6 +8608,176 @@ static int iw_setnone_getnone(struct net_device *dev,
 	return ret;
 }
 
+#ifdef MPC_UT_FRAMEWORK
+static int iw_get_policy_manager_ut_ops(hdd_context_t *hdd_ctx,
+			hdd_adapter_t *adapter, int sub_cmd, int *apps_args)
+{
+	switch(sub_cmd) {
+	case WE_POLICY_MANAGER_CLIST_CMD:
+	{
+		hdd_notice("<iwpriv wlan0 pm_clist> is called");
+		cds_incr_connection_count_utfw(apps_args[0],
+			apps_args[1], apps_args[2], apps_args[3],
+			apps_args[4], apps_args[5], apps_args[6],
+			apps_args[7]);
+	}
+	break;
+
+	case WE_POLICY_MANAGER_DLIST_CMD:
+	{
+		hdd_notice("<iwpriv wlan0 pm_dlist> is called");
+		cds_decr_connection_count_utfw(apps_args[0],
+			apps_args[1]);
+	}
+	break;
+
+	case WE_POLICY_MANAGER_ULIST_CMD:
+	{
+		hdd_notice("<iwpriv wlan0 pm_ulist> is called");
+		cds_update_connection_info_utfw(apps_args[0],
+			apps_args[1], apps_args[2], apps_args[3],
+			apps_args[4], apps_args[5], apps_args[6],
+			apps_args[7]);
+	}
+	break;
+
+	case WE_POLICY_MANAGER_DBS_CMD:
+	{
+		hdd_notice("<iwpriv wlan0 pm_dbs> is called");
+		if (apps_args[0] == 0)
+			wma_set_dbs_capability_ut(0);
+		else
+			wma_set_dbs_capability_ut(1);
+
+		if (apps_args[1] >= CDS_THROUGHPUT &&
+			apps_args[1] <= CDS_LATENCY) {
+			pr_info("setting system pref to [%d]\n", apps_args[1]);
+			hdd_ctx->config->conc_system_pref = apps_args[1];
+		}
+	}
+	break;
+
+	case WE_POLICY_MANAGER_PCL_CMD:
+	{
+		uint8_t pcl[QDF_MAX_NUM_CHAN] = {0};
+		uint8_t weight_list[QDF_MAX_NUM_CHAN] = {0};
+		uint32_t pcl_len = 0, i = 0;
+
+		hdd_notice("<iwpriv wlan0 pm_pcl> is called");
+
+		cds_get_pcl(apps_args[0],
+				pcl, &pcl_len,
+				weight_list, QDF_ARRAY_SIZE(weight_list));
+		pr_info("PCL list for role[%d] is {", apps_args[0]);
+		for (i = 0 ; i < pcl_len; i++)
+			pr_info(" %d, ", pcl[i]);
+		pr_info("}--------->\n");
+	}
+	break;
+
+	case WE_POLICY_SET_HW_MODE_CMD:
+	{
+		if (apps_args[0] == 0) {
+			hdd_err("set hw mode for single mac");
+			cds_pdev_set_hw_mode(
+					adapter->sessionId,
+					HW_MODE_SS_2x2,
+					HW_MODE_80_MHZ,
+					HW_MODE_SS_0x0, HW_MODE_BW_NONE,
+					HW_MODE_DBS_NONE,
+					HW_MODE_AGILE_DFS_NONE,
+					HW_MODE_SBS_NONE,
+					SIR_UPDATE_REASON_UT);
+		} else if (apps_args[0] == 1) {
+			hdd_err("set hw mode for dual mac");
+			cds_pdev_set_hw_mode(
+					adapter->sessionId,
+					HW_MODE_SS_1x1,
+					HW_MODE_80_MHZ,
+					HW_MODE_SS_1x1, HW_MODE_40_MHZ,
+					HW_MODE_DBS,
+					HW_MODE_AGILE_DFS_NONE,
+					HW_MODE_SBS_NONE,
+					SIR_UPDATE_REASON_UT);
+		}
+	}
+	break;
+
+	case WE_POLICY_MANAGER_QUERY_ACTION_CMD:
+	{
+		enum cds_conc_next_action action;
+		hdd_notice("<iwpriv wlan0 pm_query_action> is called");
+		action = cds_current_connections_update(adapter->sessionId,
+						apps_args[0],
+						SIR_UPDATE_REASON_UT);
+		pr_info("next action is %d {HDD_NOP = 0, HDD_DBS, HDD_DBS_DOWNGRADE, HDD_MCC, HDD_MCC_UPGRADE}", action);
+	}
+	break;
+
+	case WE_POLICY_MANAGER_QUERY_ALLOW_CMD:
+	{
+		bool allow;
+		hdd_notice("<iwpriv wlan0 pm_query_allow> is called");
+		allow = cds_allow_concurrency(
+				apps_args[0], apps_args[1], apps_args[2]);
+		pr_info("allow %d {0 = don't allow, 1 = allow}", allow);
+	}
+	break;
+
+	case WE_POLICY_MANAGER_SCENARIO_CMD:
+	{
+		clean_report(hdd_ctx);
+		if (apps_args[0] == 1) {
+			wlan_hdd_one_connection_scenario(hdd_ctx);
+		} else if (apps_args[0] == 2) {
+			wlan_hdd_two_connections_scenario(hdd_ctx,
+				6, CDS_TWO_TWO);
+			wlan_hdd_two_connections_scenario(hdd_ctx,
+				36, CDS_TWO_TWO);
+			wlan_hdd_two_connections_scenario(hdd_ctx,
+				6, CDS_ONE_ONE);
+			wlan_hdd_two_connections_scenario(hdd_ctx,
+				36, CDS_ONE_ONE);
+		} else if (apps_args[0] == 3) {
+			/* MCC on same band with 2x2 same mac*/
+			wlan_hdd_three_connections_scenario(hdd_ctx,
+				6, 11, CDS_TWO_TWO, 0);
+			/* MCC on diff band with 2x2 same mac*/
+			wlan_hdd_three_connections_scenario(hdd_ctx,
+				6, 36, CDS_TWO_TWO, 0);
+			/* MCC on diff band with 1x1 diff mac */
+			wlan_hdd_three_connections_scenario(hdd_ctx,
+				36, 6, CDS_ONE_ONE, 0);
+			/* MCC on diff band with 1x1 same mac */
+			wlan_hdd_three_connections_scenario(hdd_ctx,
+				36, 6, CDS_ONE_ONE, 1);
+			/* SCC on same band with 2x2 same mac */
+			wlan_hdd_three_connections_scenario(hdd_ctx,
+				36, 36, CDS_TWO_TWO, 0);
+			/* SCC on same band with 1x1 same mac */
+			wlan_hdd_three_connections_scenario(hdd_ctx,
+				36, 36, CDS_ONE_ONE, 1);
+			/* MCC on same band with 2x2 same mac */
+			wlan_hdd_three_connections_scenario(hdd_ctx,
+				36, 149, CDS_TWO_TWO, 0);
+			/* MCC on same band with 1x1 same mac */
+			wlan_hdd_three_connections_scenario(hdd_ctx,
+				36, 149, CDS_ONE_ONE, 1);
+		}
+		print_report(hdd_ctx);
+	}
+	break;
+	}
+	return 0;
+}
+#else
+static int iw_get_policy_manager_ut_ops(hdd_context_t *hdd_ctx,
+			hdd_adapter_t *adapter, int sub_cmd, int *apps_args)
+{
+	return 0;
+}
+#endif
+
 /**
  * __iw_set_var_ints_getnone - Generic "set many" private ioctl handler
  * @dev: device upon which the ioctl was received
@@ -8584,181 +8878,28 @@ static int __iw_set_var_ints_getnone(struct net_device *dev,
 	}
 	break;
 
-	case WE_POLICY_MANAGER_CLIST_CMD:
-	{
-		hdd_notice("<iwpriv wlan0 pm_clist> is called");
-		cds_incr_connection_count_utfw(apps_args[0],
-			apps_args[1], apps_args[2], apps_args[3],
-			apps_args[4], apps_args[5], apps_args[6],
-			apps_args[7]);
-	}
-	break;
-
-	case WE_POLICY_MANAGER_DLIST_CMD:
-	{
-		hdd_notice("<iwpriv wlan0 pm_dlist> is called");
-		cds_decr_connection_count_utfw(apps_args[0],
-			apps_args[1]);
-	}
-	break;
-
-	case WE_POLICY_MANAGER_ULIST_CMD:
-	{
-		hdd_notice("<iwpriv wlan0 pm_ulist> is called");
-		cds_update_connection_info_utfw(apps_args[0],
-			apps_args[1], apps_args[2], apps_args[3],
-			apps_args[4], apps_args[5], apps_args[6],
-			apps_args[7]);
-	}
-	break;
-
-	case WE_POLICY_MANAGER_DBS_CMD:
-	{
-		hdd_notice("<iwpriv wlan0 pm_dbs> is called");
-		if (apps_args[0] == 0)
-			wma_set_dbs_capability_ut(0);
-		else
-			wma_set_dbs_capability_ut(1);
-
-		if (apps_args[1] >= CDS_THROUGHPUT &&
-			apps_args[1] <= CDS_LATENCY) {
-			pr_info("setting system pref to [%d]\n", apps_args[1]);
-			hdd_ctx->config->conc_system_pref = apps_args[1];
-		}
-	}
-	break;
-
-	case WE_POLICY_MANAGER_PCL_CMD:
-	{
-		uint8_t pcl[QDF_MAX_NUM_CHAN] = {0};
-		uint8_t weight_list[QDF_MAX_NUM_CHAN] = {0};
-		uint32_t pcl_len = 0, i = 0;
-
-		hdd_notice("<iwpriv wlan0 pm_pcl> is called");
-
-		cds_get_pcl(apps_args[0],
-				pcl, &pcl_len,
-				weight_list, QDF_ARRAY_SIZE(weight_list));
-		pr_info("PCL list for role[%d] is {", apps_args[0]);
-		for (i = 0 ; i < pcl_len; i++)
-			pr_info(" %d, ", pcl[i]);
-		pr_info("}--------->\n");
-	}
-	break;
-
 	case WE_POLICY_MANAGER_CINFO_CMD:
 	{
 		struct cds_conc_connection_info *conn_info;
 		uint32_t i = 0, len = 0;
 
-		hdd_notice("<iwpriv wlan0 pm_cinfo> is called");
+		hdd_info("<iwpriv wlan0 pm_cinfo> is called");
 		conn_info = cds_get_conn_info(&len);
-		pr_info("+-----------------------------+\n");
+		pr_info("+--------------------------+\n");
 		for (i = 0; i < len; i++) {
-			pr_info("|table_index[%d]\t\t|\n", i);
-			pr_info("|\t|vdev_id - %d\t\t|\n", conn_info->vdev_id);
-			pr_info("|\t|chan - %d\t\t|\n", conn_info->chan);
-			pr_info("|\t|bw - %d\t\t|\n", conn_info->bw);
-			pr_info("|\t|mode - %d\t\t|\n", conn_info->mode);
-			pr_info("|\t|mac - %d\t\t|\n", conn_info->mac);
-			pr_info("|\t|in_use - %d\t\t|\n", conn_info->in_use);
-			pr_info("+-----------------------------+\n");
-			conn_info++;
+		     pr_info("|table_index[%d]\t\t\n", i);
+		     pr_info("|\t|vdev_id - %-10d|\n", conn_info->vdev_id);
+		     pr_info("|\t|chan    - %-10d|\n", conn_info->chan);
+		     pr_info("|\t|bw      - %-10d|\n", conn_info->bw);
+		     pr_info("|\t|mode    - %-10d|\n", conn_info->mode);
+		     pr_info("|\t|mac     - %-10d|\n", conn_info->mac);
+		     pr_info("|\t|in_use  - %-10d|\n", conn_info->in_use);
+		     pr_info("+--------------------------+\n");
+		     conn_info++;
 		}
 	}
 	break;
 
-	case WE_POLICY_SET_HW_MODE_CMD:
-	{
-		if (apps_args[0] == 0) {
-			hdd_err("set hw mode for single mac");
-			cds_pdev_set_hw_mode(
-					pAdapter->sessionId,
-					HW_MODE_SS_2x2,
-					HW_MODE_80_MHZ,
-					HW_MODE_SS_0x0, HW_MODE_BW_NONE,
-					HW_MODE_DBS_NONE,
-					HW_MODE_AGILE_DFS_NONE,
-					HW_MODE_SBS_NONE,
-					SIR_UPDATE_REASON_UT);
-		} else if (apps_args[0] == 1) {
-			hdd_err("set hw mode for dual mac");
-			cds_pdev_set_hw_mode(
-					pAdapter->sessionId,
-					HW_MODE_SS_1x1,
-					HW_MODE_80_MHZ,
-					HW_MODE_SS_1x1, HW_MODE_40_MHZ,
-					HW_MODE_DBS,
-					HW_MODE_AGILE_DFS_NONE,
-					HW_MODE_SBS_NONE,
-					SIR_UPDATE_REASON_UT);
-		}
-	}
-	break;
-
-	case WE_POLICY_MANAGER_QUERY_ACTION_CMD:
-	{
-		enum cds_conc_next_action action;
-		hdd_notice("<iwpriv wlan0 pm_query_action> is called");
-		action = cds_current_connections_update(pAdapter->sessionId,
-						apps_args[0],
-						SIR_UPDATE_REASON_UT);
-		pr_info("next action is %d {HDD_NOP = 0, HDD_DBS, HDD_DBS_DOWNGRADE, HDD_MCC, HDD_MCC_UPGRADE}", action);
-	}
-	break;
-	case WE_POLICY_MANAGER_QUERY_ALLOW_CMD:
-	{
-		bool allow;
-		hdd_notice("<iwpriv wlan0 pm_query_allow> is called");
-		allow = cds_allow_concurrency(
-				apps_args[0], apps_args[1], apps_args[2]);
-		pr_info("allow %d {0 = don't allow, 1 = allow}", allow);
-	}
-	break;
-
-	case WE_POLICY_MANAGER_SCENARIO_CMD:
-	{
-		clean_report(hdd_ctx);
-		if (apps_args[0] == 1) {
-			wlan_hdd_one_connection_scenario(hdd_ctx);
-		} else if (apps_args[0] == 2) {
-			wlan_hdd_two_connections_scenario(hdd_ctx,
-				6, CDS_TWO_TWO);
-			wlan_hdd_two_connections_scenario(hdd_ctx,
-				36, CDS_TWO_TWO);
-			wlan_hdd_two_connections_scenario(hdd_ctx,
-				6, CDS_ONE_ONE);
-			wlan_hdd_two_connections_scenario(hdd_ctx,
-				36, CDS_ONE_ONE);
-		} else if (apps_args[0] == 3) {
-			/* MCC on same band with 2x2 same mac*/
-			wlan_hdd_three_connections_scenario(hdd_ctx,
-				6, 11, CDS_TWO_TWO, 0);
-			/* MCC on diff band with 2x2 same mac*/
-			wlan_hdd_three_connections_scenario(hdd_ctx,
-				6, 36, CDS_TWO_TWO, 0);
-			/* MCC on diff band with 1x1 diff mac */
-			wlan_hdd_three_connections_scenario(hdd_ctx,
-				36, 6, CDS_ONE_ONE, 0);
-			/* MCC on diff band with 1x1 same mac */
-			wlan_hdd_three_connections_scenario(hdd_ctx,
-				36, 6, CDS_ONE_ONE, 1);
-			/* SCC on same band with 2x2 same mac */
-			wlan_hdd_three_connections_scenario(hdd_ctx,
-				36, 36, CDS_TWO_TWO, 0);
-			/* SCC on same band with 1x1 same mac */
-			wlan_hdd_three_connections_scenario(hdd_ctx,
-				36, 36, CDS_ONE_ONE, 1);
-			/* MCC on same band with 2x2 same mac */
-			wlan_hdd_three_connections_scenario(hdd_ctx,
-				36, 149, CDS_TWO_TWO, 0);
-			/* MCC on same band with 1x1 same mac */
-			wlan_hdd_three_connections_scenario(hdd_ctx,
-				36, 149, CDS_ONE_ONE, 1);
-		}
-		print_report(hdd_ctx);
-	}
-	break;
 
 #ifdef FEATURE_WLAN_TDLS
 	case WE_TDLS_CONFIG_PARAMS:
@@ -8894,6 +9035,20 @@ static int __iw_set_var_ints_getnone(struct net_device *dev,
 						    &mac_pwr_dbg_args)) {
 			return -EINVAL;
 		}
+	}
+	break;
+	case WE_POLICY_MANAGER_CLIST_CMD:
+	case WE_POLICY_MANAGER_DLIST_CMD:
+	case WE_POLICY_MANAGER_ULIST_CMD:
+	case WE_POLICY_MANAGER_DBS_CMD:
+	case WE_POLICY_MANAGER_PCL_CMD:
+	case WE_POLICY_SET_HW_MODE_CMD:
+	case WE_POLICY_MANAGER_QUERY_ACTION_CMD:
+	case WE_POLICY_MANAGER_QUERY_ALLOW_CMD:
+	case WE_POLICY_MANAGER_SCENARIO_CMD:
+	{
+		iw_get_policy_manager_ut_ops(hdd_ctx, pAdapter,
+					     sub_cmd, apps_args);
 	}
 	break;
 	default:
@@ -10305,8 +10460,9 @@ static int __iw_set_pno(struct net_device *dev,
 	hdd_context_t *hdd_ctx;
 	int ret;
 	int offset;
-	char *ptr;
+	char *ptr, *data;
 	uint8_t i, j, params, mode;
+	size_t len;
 
 	/* request is a large struct, so we make it static to avoid
 	 * stack overflow.  This API is only invoked via ioctl, so it
@@ -10324,13 +10480,23 @@ static int __iw_set_pno(struct net_device *dev,
 
 	hdd_notice("PNO data len %d data %s", wrqu->data.length, extra);
 
+	/* making sure argument string ends with '\0' */
+	len = (wrqu->data.length + 1);
+	data = qdf_mem_malloc(len);
+	if (NULL == data) {
+		hdd_err("fail to allocate memory %zu", len);
+		return -EINVAL;
+	}
+	qdf_mem_zero(data, len);
+	qdf_mem_copy(data, extra, (len-1));
+	ptr = data;
+
 	request.enable = 0;
 	request.ucNetworksCount = 0;
 
-	ptr = extra;
-
-	if (1 != sscanf(ptr, "%hhu%n", &(request.enable), &offset)) {
+	if (1 != sscanf(ptr, " %hhu%n", &(request.enable), &offset)) {
 		hdd_err("PNO enable input is not valid %s", ptr);
+		qdf_mem_free(data);
 		return -EINVAL;
 	}
 
@@ -10340,14 +10506,16 @@ static int __iw_set_pno(struct net_device *dev,
 		sme_set_preferred_network_list(WLAN_HDD_GET_HAL_CTX(adapter),
 					       &request, adapter->sessionId,
 					       found_pref_network_cb, adapter);
+		qdf_mem_free(data);
 		return 0;
 	}
 
 	ptr += offset;
 
 	if (1 !=
-	    sscanf(ptr, "%hhu %n", &(request.ucNetworksCount), &offset)) {
+	    sscanf(ptr, " %hhu %n", &(request.ucNetworksCount), &offset)) {
 		hdd_err("PNO count input not valid %s", ptr);
+		qdf_mem_free(data);
 		return -EINVAL;
 
 	}
@@ -10359,6 +10527,7 @@ static int __iw_set_pno(struct net_device *dev,
 	    (request.ucNetworksCount > SIR_PNO_MAX_SUPP_NETWORKS)) {
 		hdd_err("Network count %d invalid",
 			request.ucNetworksCount);
+		qdf_mem_free(data);
 		return -EINVAL;
 	}
 
@@ -10368,12 +10537,13 @@ static int __iw_set_pno(struct net_device *dev,
 
 		request.aNetworks[i].ssId.length = 0;
 
-		params = sscanf(ptr, "%hhu %n",
+		params = sscanf(ptr, " %hhu %n",
 				  &(request.aNetworks[i].ssId.length),
 				  &offset);
 
 		if (1 != params) {
 			hdd_err("PNO ssid length input is not valid %s", ptr);
+			qdf_mem_free(data);
 			return -EINVAL;
 		}
 
@@ -10381,6 +10551,7 @@ static int __iw_set_pno(struct net_device *dev,
 		    (request.aNetworks[i].ssId.length > 32)) {
 			hdd_err("SSID Len %d is not correct for network %d",
 				  request.aNetworks[i].ssId.length, i);
+			qdf_mem_free(data);
 			return -EINVAL;
 		}
 
@@ -10391,7 +10562,7 @@ static int __iw_set_pno(struct net_device *dev,
 		       request.aNetworks[i].ssId.length);
 		ptr += request.aNetworks[i].ssId.length;
 
-		params = sscanf(ptr, "%u %u %hhu %n",
+		params = sscanf(ptr, " %u %u %hhu %n",
 				  &(request.aNetworks[i].authentication),
 				  &(request.aNetworks[i].encryption),
 				  &(request.aNetworks[i].ucChannelCount),
@@ -10399,6 +10570,7 @@ static int __iw_set_pno(struct net_device *dev,
 
 		if (3 != params) {
 			hdd_warn("Incorrect cmd %s", ptr);
+			qdf_mem_free(data);
 			return -EINVAL;
 		}
 
@@ -10416,6 +10588,7 @@ static int __iw_set_pno(struct net_device *dev,
 		if (SIR_PNO_MAX_NETW_CHANNELS <
 		    request.aNetworks[i].ucChannelCount) {
 			hdd_warn("Incorrect number of channels");
+			qdf_mem_free(data);
 			return -EINVAL;
 		}
 
@@ -10423,11 +10596,19 @@ static int __iw_set_pno(struct net_device *dev,
 			for (j = 0; j < request.aNetworks[i].ucChannelCount;
 			     j++) {
 				if (1 !=
-				    sscanf(ptr, "%hhu %n",
+				    sscanf(ptr, " %hhu %n",
 					   &(request.aNetworks[i].
 					     aChannels[j]), &offset)) {
 					hdd_err("PNO network channel input is not valid %s",
 						  ptr);
+					qdf_mem_free(data);
+					return -EINVAL;
+				}
+				if (!IS_CHANNEL_VALID(
+					request.aNetworks[i].aChannels[j])) {
+					hdd_err("invalid channel: %hhu",
+					request.aNetworks[i].aChannels[j]);
+					qdf_mem_free(data);
 					return -EINVAL;
 				}
 				/* Advance to next channel number */
@@ -10435,11 +10616,18 @@ static int __iw_set_pno(struct net_device *dev,
 			}
 		}
 
-		if (1 != sscanf(ptr, "%u %n",
+		if (1 != sscanf(ptr, " %u %n",
 				&(request.aNetworks[i].bcastNetwType),
 				&offset)) {
 			hdd_err("PNO broadcast network type input is not valid %s",
 				  ptr);
+			qdf_mem_free(data);
+			return -EINVAL;
+		}
+		if (request.aNetworks[i].bcastNetwType > 2) {
+			hdd_err("invalid bcast nw type: %u",
+				request.aNetworks[i].bcastNetwType);
+			qdf_mem_free(data);
 			return -EINVAL;
 		}
 
@@ -10448,11 +10636,12 @@ static int __iw_set_pno(struct net_device *dev,
 
 		/* Advance to rssi Threshold */
 		ptr += offset;
-		if (1 != sscanf(ptr, "%d %n",
+		if (1 != sscanf(ptr, " %d %n",
 				&(request.aNetworks[i].rssiThreshold),
 				&offset)) {
 			hdd_err("PNO rssi threshold input is not valid %s",
 				  ptr);
+			qdf_mem_free(data);
 			return -EINVAL;
 		}
 		hdd_notice("PNO rssi %d offset %d",
@@ -10462,17 +10651,32 @@ static int __iw_set_pno(struct net_device *dev,
 	} /* For ucNetworkCount */
 
 	request.fast_scan_period = 0;
-	if (sscanf(ptr, "%u %n", &(request.fast_scan_period), &offset) > 0) {
+	if (sscanf(ptr, " %u %n", &(request.fast_scan_period), &offset) > 0) {
 		request.fast_scan_period *= MSEC_PER_SEC;
 		ptr += offset;
 	}
+	if (request.fast_scan_period == 0) {
+		hdd_err("invalid fast scan period %u",
+			request.fast_scan_period);
+		qdf_mem_free(data);
+		return -EINVAL;
+	}
 
 	request.fast_scan_max_cycles = 0;
-	if (sscanf(ptr, "%hhu %n", &(request.fast_scan_max_cycles),
+	if (sscanf(ptr, " %hhu %n", &(request.fast_scan_max_cycles),
 		   &offset) > 0)
 		ptr += offset;
+	if (request.fast_scan_max_cycles <
+			CFG_PNO_SCAN_TIMER_REPEAT_VALUE_MIN ||
+			request.fast_scan_max_cycles >
+			CFG_PNO_SCAN_TIMER_REPEAT_VALUE_MAX) {
+		hdd_err("invalid fast scan max cycles %hhu",
+			request.fast_scan_max_cycles);
+		qdf_mem_free(data);
+		return -EINVAL;
+	}
 
-	params = sscanf(ptr, "%hhu %n", &(mode), &offset);
+	params = sscanf(ptr, " %hhu %n", &(mode), &offset);
 
 	request.modePNO = mode;
 	/* for LA we just expose suspend option */
@@ -10485,6 +10689,7 @@ static int __iw_set_pno(struct net_device *dev,
 				       adapter->sessionId,
 				       found_pref_network_cb, adapter);
 
+	qdf_mem_free(data);
 	return 0;
 }
 
@@ -10572,6 +10777,7 @@ int hdd_set_band(struct net_device *dev, u8 ui_band)
 			pAdapter = pAdapterNode->pAdapter;
 			hHal = WLAN_HDD_GET_HAL_CTX(pAdapter);
 			hdd_abort_mac_scan(pHddCtx, pAdapter->sessionId,
+					   INVALID_SCAN_ID,
 					   eCSR_SCAN_ABORT_DUE_TO_BAND_CHANGE);
 			connectedBand =
 				hdd_conn_get_connected_band
@@ -10762,6 +10968,10 @@ static int __iw_set_two_ints_getnone(struct net_device *dev,
 		       value[1], value[2]);
 		pr_err("SSR is triggered by iwpriv CRASH_INJECT: %d %d\n",
 			   value[1], value[2]);
+		if (!hdd_ctx->config->crash_inject_enabled) {
+			hdd_err("Crash Inject ini disabled, Ignore Crash Inject");
+			return 0;
+		}
 		ret = wma_cli_set2_command(pAdapter->sessionId,
 					   GEN_PARAM_CRASH_INJECT,
 					   value[1], value[2], GEN_CMD);
@@ -11708,6 +11918,10 @@ static const struct iw_priv_args we_private_args[] = {
 	 0,
 	 IW_PRIV_TYPE_CHAR | WE_MAX_STR_LEN,
 	 "getStats"},
+	{WE_GET_SUSPEND_RESUME_STATS,
+	 0,
+	 IW_PRIV_TYPE_CHAR | WE_MAX_STR_LEN,
+	 "getSuspendStats"},
 	{WE_LIST_FW_PROFILE,
 	 0,
 	 IW_PRIV_TYPE_CHAR | WE_MAX_STR_LEN,
@@ -11825,6 +12039,12 @@ static const struct iw_priv_args we_private_args[] = {
 	 IW_PRIV_TYPE_INT | MAX_VAR_ARGS,
 	 0,
 	 "dumplog"},
+
+	{WE_POLICY_MANAGER_CINFO_CMD,
+	 IW_PRIV_TYPE_INT | MAX_VAR_ARGS,
+	 0,
+	 "pm_cinfo"},
+
 #ifdef MPC_UT_FRAMEWORK
 	{WE_POLICY_MANAGER_CLIST_CMD,
 	 IW_PRIV_TYPE_INT | MAX_VAR_ARGS,
@@ -11845,11 +12065,6 @@ static const struct iw_priv_args we_private_args[] = {
 	 IW_PRIV_TYPE_INT | MAX_VAR_ARGS,
 	 0,
 	 "pm_pcl"},
-
-	{WE_POLICY_MANAGER_CINFO_CMD,
-	 IW_PRIV_TYPE_INT | MAX_VAR_ARGS,
-	 0,
-	 "pm_cinfo"},
 
 	{WE_POLICY_MANAGER_ULIST_CMD,
 	 IW_PRIV_TYPE_INT | MAX_VAR_ARGS,

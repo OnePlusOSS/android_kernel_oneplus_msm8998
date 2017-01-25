@@ -285,6 +285,13 @@ void wlan_hdd_tdls_disable_offchan_and_teardown_links(hdd_context_t *hddctx)
  */
 void hdd_tdls_notify_mode_change(hdd_adapter_t *adapter, hdd_context_t *hddctx)
 {
+	/*
+	 * Disable tdls connection tracker, when interface
+	 * change happens in the system.
+	 */
+	mutex_lock(&hddctx->tdls_lock);
+	hddctx->enable_tdls_connection_tracker = false;
+	mutex_unlock(&hddctx->tdls_lock);
 	wlan_hdd_tdls_disable_offchan_and_teardown_links(hddctx);
 }
 
@@ -773,6 +780,7 @@ int wlan_hdd_tdls_init(hdd_adapter_t *pAdapter)
 	pHddTdlsCtx->curr_candidate = NULL;
 	pHddTdlsCtx->magic = 0;
 	pHddCtx->valid_mac_entries = 0;
+	pHddTdlsCtx->last_flush_ts = 0;
 
 	/* remember configuration even if it is not used right now. it could be used later */
 	pHddTdlsCtx->threshold_config.tx_period_t =
@@ -904,10 +912,13 @@ static void wlan_hdd_tdls_peer_idle_timers_destroy(tdlsCtx_t *hdd_tdls_ctx)
 		head = &hdd_tdls_ctx->peer_list[i];
 		list_for_each(pos, head) {
 			curr_peer = list_entry(pos, hddTdlsPeer_t, node);
-			hdd_info(MAC_ADDRESS_STR ": destroy idle timer",
+			if (curr_peer != NULL &&
+			    curr_peer->is_peer_idle_timer_initialised) {
+				hdd_info(MAC_ADDRESS_STR ": destroy idle timer",
 				 MAC_ADDR_ARRAY(curr_peer->peerMac));
-			qdf_mc_timer_stop(&curr_peer->peer_idle_timer);
-			qdf_mc_timer_destroy(&curr_peer->peer_idle_timer);
+				qdf_mc_timer_stop(&curr_peer->peer_idle_timer);
+				qdf_mc_timer_destroy(&curr_peer->peer_idle_timer);
+			}
 		}
 	}
 }
@@ -2007,6 +2018,7 @@ void wlan_hdd_tdls_notify_connect(hdd_adapter_t *adapter,
  * wlan_hdd_tdls_notify_disconnect() - Update tdls state for every
  * disconnect event.
  * @adapter: hdd adapter
+ * @lfr_roam: roaming case
  *
  * After every disconnect event in the system, check whether TDLS
  * can be disabled/enabled in the system and update the
@@ -2014,7 +2026,7 @@ void wlan_hdd_tdls_notify_connect(hdd_adapter_t *adapter,
  *
  * Return: None
  */
-void wlan_hdd_tdls_notify_disconnect(hdd_adapter_t *adapter)
+void wlan_hdd_tdls_notify_disconnect(hdd_adapter_t *adapter, bool lfr_roam)
 {
 	hdd_adapter_t *temp_adapter;
 	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
@@ -2032,7 +2044,7 @@ void wlan_hdd_tdls_notify_disconnect(hdd_adapter_t *adapter)
 	 * check, whether TDLS could be enabled in the
 	 * system after this disassoc event.
 	 */
-	if (!hdd_ctx->concurrency_marked) {
+	if (!lfr_roam && !hdd_ctx->concurrency_marked) {
 		temp_adapter = wlan_hdd_tdls_get_adapter(
 					hdd_ctx);
 		if (NULL != temp_adapter)
@@ -3965,6 +3977,7 @@ static int __wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy,
 	hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
 	hdd_context_t *pHddCtx = wiphy_priv(wiphy);
 	hdd_station_ctx_t *hdd_sta_ctx;
+	tdlsCtx_t *hdd_tdls_ctx;
 	u8 peerMac[QDF_MAC_ADDR_SIZE];
 	QDF_STATUS status;
 	int max_sta_failed = 0;
@@ -4205,11 +4218,27 @@ static int __wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy,
 				cds_get_driver_state());
 			return -EAGAIN;
 		}
-		if (rc <= 0)
-			cds_flush_logs(WLAN_LOG_TYPE_FATAL,
-				WLAN_LOG_INDICATOR_HOST_DRIVER,
-				WLAN_LOG_REASON_HDD_TIME_OUT,
-				true, false);
+
+		mutex_lock(&pHddCtx->tdls_lock);
+		hdd_tdls_ctx = WLAN_HDD_GET_TDLS_CTX_PTR(pAdapter);
+		if (hdd_tdls_ctx) {
+			if (rc <= 0 &&
+			    (((qdf_get_monotonic_boottime() -
+			       hdd_tdls_ctx->last_flush_ts) >
+			      TDLS_ENABLE_CDS_FLUSH_INTERVAL)
+			     || !(hdd_tdls_ctx->last_flush_ts))) {
+				hdd_tdls_ctx->last_flush_ts =
+					qdf_get_monotonic_boottime();
+				mutex_unlock(&pHddCtx->tdls_lock);
+				cds_flush_logs(WLAN_LOG_TYPE_FATAL,
+					       WLAN_LOG_INDICATOR_HOST_DRIVER,
+					       WLAN_LOG_REASON_HDD_TIME_OUT,
+					       true, false);
+			} else
+				mutex_unlock(&pHddCtx->tdls_lock);
+		} else
+			mutex_unlock(&pHddCtx->tdls_lock);
+
 		pAdapter->mgmtTxCompletionStatus = false;
 		return -EINVAL;
 	}

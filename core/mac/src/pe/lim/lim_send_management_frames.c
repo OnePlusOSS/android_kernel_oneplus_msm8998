@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -2484,35 +2484,26 @@ QDF_STATUS lim_send_disassoc_cnf(tpAniSirGlobal mac_ctx)
 			lim_log(mac_ctx, LOGE, FL("cleanup_rx_path error"));
 			goto end;
 		}
-		if (LIM_IS_STA_ROLE(pe_session) && (
-#ifdef FEATURE_WLAN_ESE
-			    (pe_session->isESEconnection) ||
-#endif
-			    (pe_session->isFastRoamIniFeatureEnabled) ||
-			    (pe_session->is11Rconnection)) &&
-			    (disassoc_req->reasonCode !=
+		if (LIM_IS_STA_ROLE(pe_session) &&
+			(disassoc_req->reasonCode !=
 				eSIR_MAC_DISASSOC_DUE_TO_FTHANDOFF_REASON)) {
 			lim_log(mac_ctx, LOG1,
-				FL("FT Preauth Session (%p,%d) Clean up"),
-				pe_session, pe_session->peSessionId);
-
-			/* Delete FT session if there exists one */
-			lim_ft_cleanup_pre_auth_info(mac_ctx, pe_session);
-		} else {
-			lim_log(mac_ctx, LOGE,
-				FL("No FT Preauth Session Clean up in role %d"
+				FL("FT Preauth Session (%p,%d) Clean up"
 #ifdef FEATURE_WLAN_ESE
 				" isESE %d"
 #endif
 				" isLFR %d"
 				" is11r %d reason %d"),
-				GET_LIM_SYSTEM_ROLE(pe_session),
+				pe_session, pe_session->peSessionId,
 #ifdef FEATURE_WLAN_ESE
 				pe_session->isESEconnection,
 #endif
 				pe_session->isFastRoamIniFeatureEnabled,
 				pe_session->is11Rconnection,
 				disassoc_req->reasonCode);
+
+			/* Delete FT session if there exists one */
+			lim_ft_cleanup_pre_auth_info(mac_ctx, pe_session);
 		}
 		/* Free up buffer allocated for mlmDisassocReq */
 		qdf_mem_free(disassoc_req);
@@ -4176,6 +4167,9 @@ lim_send_radio_measure_report_action_frame(tpAniSirGlobal pMac,
 		qdf_mem_free(frm);
 		return eSIR_FAILURE;
 	}
+
+	lim_log(pMac, LOG1, FL("dialog_token %d num_report %d"),
+			dialog_token, num_report);
 
 	frm->Category.category = SIR_MAC_ACTION_RRM;
 	frm->Action.action = SIR_MAC_RRM_RADIO_MEASURE_RPT;

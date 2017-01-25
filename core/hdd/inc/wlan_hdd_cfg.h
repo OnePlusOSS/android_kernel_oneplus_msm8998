@@ -2720,6 +2720,26 @@ typedef enum {
 #define CFG_P2P_DEVICE_ADDRESS_ADMINISTRATED_MAX                 (1)
 #define CFG_P2P_DEVICE_ADDRESS_ADMINISTRATED_DEFAULT             (1)
 
+/*
+ * <ini>
+ * gEnableSSR - Enable/Disable SSR
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This ini is used to enable/disable System Self Recovery at the times of
+ * System crash or fatal errors
+ * gEnableSSR = 0 Disabled
+ * gEnableSSR = 1 wlan shutdown and re-init happens
+ *
+ * Related: None
+ *
+ * Supported Feature: SSR
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_ENABLE_SSR                      "gEnableSSR"
 #define CFG_ENABLE_SSR_MIN                  (0)
 #define CFG_ENABLE_SSR_MAX                  (1)
@@ -2830,6 +2850,15 @@ typedef enum {
 /* end Enhanced Green AP flags/params */
 
 #endif
+
+/*
+ * This INI item is used to control subsystem restart(SSR) test framework
+ * Set it's value to 1 to enable APPS trigerred SSR testing
+ */
+#define CFG_ENABLE_CRASH_INJECT         "gEnableForceTargetAssert"
+#define CFG_ENABLE_CRASH_INJECT_MIN     (0)
+#define CFG_ENABLE_CRASH_INJECT_MAX     (1)
+#define CFG_ENABLE_CRASH_INJECT_DEFAULT (0)
 
 #ifdef FEATURE_WLAN_FORCE_SAP_SCC
 /*
@@ -4033,10 +4062,26 @@ typedef enum {
 #define CFG_PNO_SLOW_SCAN_MULTIPLIER_MAX             (30)
 #endif
 
-#define CFG_AMSDU_SUPPORT_IN_AMPDU_NAME                "gAmsduSupportInAMPDU"
-#define CFG_AMSDU_SUPPORT_IN_AMPDU_MIN                 (0)
-#define CFG_AMSDU_SUPPORT_IN_AMPDU_MAX                 (1)
-#define CFG_AMSDU_SUPPORT_IN_AMPDU_DEFAULT             (0)      /* disabled */
+/*
+ * <ini>
+ * gMaxAmsduNum - Max number of MSDU's in aggregate
+ * @Min: 0
+ * @Max: 3
+ * @Default: 1
+ * gMaxAmsduNum is the number of MSDU's transmitted in the 11n aggregate
+ * frame. Setting it to a value larger than 1 enables transmit aggregation.
+ * It is a PHY parameter that applies to all vdev's in firmware.
+ *
+ * Supported Feature: 11n aggregation
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+#define CFG_MAX_AMSDU_NUM_NAME                "gMaxAmsduNum"
+#define CFG_MAX_AMSDU_NUM_MIN                 (0)
+#define CFG_MAX_AMSDU_NUM_MAX                 (3)
+#define CFG_MAX_AMSDU_NUM_DEFAULT             (1)
 
 /* It enables IP, TCP and UDP checksum offload in hardware
  * and also advertise same to network stack.
@@ -4127,8 +4172,26 @@ typedef enum {
 #endif
 
 /*
- * Enable/Disable SSR for USB
+ * <ini>
+ * gEnableFwSelfRecovery - Enable/disable FW self-recovery for USB
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to enable/disable FW self-recovery
+ * gEnableFwSelfRecovery = 0: Disabled
+ * gEnableFwSelfRecovery = 1: Driver triggers SSR instead of triggering
+ * kernel  panic after firmware crash.
+ *
+ * Related: gEnableSSR
+ *
+ * Supported Feature: SSR
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
  */
+
 #define CFG_ENABLE_FW_SELF_RECOVERY_NAME         "gEnableFwSelfRecovery"
 #define CFG_ENABLE_FW_SELF_RECOVERY_DISABLE      (0)
 #define CFG_ENABLE_FW_SELF_RECOVERY_ENABLE       (1)
@@ -5678,11 +5741,25 @@ enum dot11p_mode {
 #define CFG_ADAPTIVE_EXTSCAN_DWELL_MODE_DEFAULT  (0)
 
 /*
- * This parameter will help to debug ssr reinit failure issues
- * by raising vos bug so dumps can be collected. If OEM
- * wants to avoid this crash, just disable this parameter.
- * wlan driver will only recover after driver unload and load.
- * Default: Enable
+ * <ini>
+ * g_bug_on_reinit_failure  - Enable/Disable bug on reinit
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This ini is used to debug ssr reinit failure issues by raising vos bug so
+ * dumps can be collected.
+ * g_bug_on_reinit_failure = 0 wlan driver will only recover after driver
+ * unload and load
+ * g_bug_on_reinit_failure = 1 raise vos bug to collect dumps
+ *
+ * Related: gEnableSSR
+ *
+ * Supported Feature: SSR
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
  */
 #define CFG_BUG_ON_REINIT_FAILURE_NAME     "g_bug_on_reinit_failure"
 #define CFG_BUG_ON_REINIT_FAILURE_MIN      (0)
@@ -5918,7 +5995,26 @@ enum dot11p_mode {
 #define CFG_OPTIMIZE_CA_EVENT_ENABLE     (1)
 #define CFG_OPTIMIZE_CA_EVENT_DEFAULT    (0)
 
-/* Trigger BUG ON when firmware fails to send response */
+/*
+ * <ini>
+ * fw_timeout_crash - Enable/Disable BUG ON
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to Trigger host crash when firmware fails to send the
+ * response to host
+ * fw_timeout_crash = 0 Disabled
+ * fw_timeout_crash = 1 Trigger host crash
+ *
+ * Related: None
+ *
+ * Supported Feature: SSR
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_CRASH_FW_TIMEOUT_NAME       "fw_timeout_crash"
 #define CFG_CRASH_FW_TIMEOUT_DISABLE    (0)
 #define CFG_CRASH_FW_TIMEOUT_ENABLE     (1)
@@ -7078,7 +7174,7 @@ struct hdd_config {
 	uint32_t configPNOScanTimerRepeatValue;
 	uint32_t pno_slow_scan_multiplier;
 #endif
-	uint8_t isAmsduSupportInAMPDU;
+	uint8_t max_amsdu_num;
 	uint8_t nSelect5GHzMargin;
 	uint8_t isCoalesingInIBSSAllowed;
 
@@ -7198,6 +7294,8 @@ struct hdd_config {
 	uint32_t egap_inact_time;
 	uint32_t egap_wait_time;
 #endif
+	/* Flag to indicate crash inject enabled or not */
+	bool crash_inject_enabled;
 	uint8_t force_sap_acs;
 	uint8_t force_sap_acs_st_ch;
 	uint8_t force_sap_acs_end_ch;

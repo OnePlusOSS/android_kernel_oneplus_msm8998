@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -626,7 +626,6 @@ uint8_t *mac_trace_get_wma_msg_string(uint16_t wma_msg)
 		CASE_RETURN_STRING(WMA_SET_EPNO_LIST_REQ);
 		CASE_RETURN_STRING(WMA_SET_PASSPOINT_LIST_REQ);
 		CASE_RETURN_STRING(WMA_RESET_PASSPOINT_LIST_REQ);
-		CASE_RETURN_STRING(WMA_EXTSCAN_SET_SSID_HOTLIST_REQ);
 #endif /* FEATURE_WLAN_EXTSCAN */
 #ifdef WLAN_FEATURE_LINK_LAYER_STATS
 		CASE_RETURN_STRING(WMA_LINK_LAYER_STATS_CLEAR_REQ);
@@ -645,6 +644,7 @@ uint8_t *mac_trace_get_wma_msg_string(uint16_t wma_msg)
 		CASE_RETURN_STRING(WMA_SET_RSSI_MONITOR_REQ);
 		CASE_RETURN_STRING(WMA_FW_MEM_DUMP_REQ);
 		CASE_RETURN_STRING(WMA_SET_WISA_PARAMS);
+		CASE_RETURN_STRING(WMA_GET_RCPI_REQ);
 	default:
 		return (uint8_t *) "UNKNOWN";
 		break;

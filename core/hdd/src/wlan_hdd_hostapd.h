@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -121,4 +121,18 @@ int wlan_hdd_cfg80211_change_beacon(struct wiphy *wiphy,
 				    struct cfg80211_beacon_data *params);
 
 QDF_STATUS wlan_hdd_config_acs(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter);
+
+/**
+ * hdd_is_peer_associated - is peer connected to softap
+ * @adapter: pointer to softap adapter
+ * @mac_addr: address to check in peer list
+ *
+ * This function has to be invoked only when bss is started and is used
+ * to check whether station with specified addr is peer or not
+ *
+ * Return: true if peer mac, else false
+ */
+bool hdd_is_peer_associated(hdd_adapter_t *adapter,
+			    struct qdf_mac_addr *mac_addr);
+
 #endif /* end #if !defined(WLAN_HDD_HOSTAPD_H) */

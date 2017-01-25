@@ -57,6 +57,8 @@ typedef struct sAniSirGlobal *tpAniSirGlobal;
 #include "wmi_unified_param.h"
 #include <dot11f.h>
 
+#define MAX_PEERS 32
+
 #define OFFSET_OF(structType, fldName)   (&((structType *)0)->fldName)
 
 /* / Max supported channel list */
@@ -103,7 +105,6 @@ typedef uint8_t tSirVersionString[SIR_VERSION_STRING_LEN];
 #define WLAN_EXTSCAN_MAX_BUCKETS                  16
 #define WLAN_EXTSCAN_MAX_HOTLIST_APS              128
 #define WLAN_EXTSCAN_MAX_SIGNIFICANT_CHANGE_APS   64
-#define WLAN_EXTSCAN_MAX_HOTLIST_SSIDS            8
 
 /* This should not be greater than MAX_NUMBER_OF_CONC_CONNECTIONS */
 #define MAX_VDEV_SUPPORTED                        4
@@ -165,7 +166,6 @@ typedef enum {
 	eSIR_PASSPOINT_NETWORK_FOUND_IND,
 	eSIR_EXTSCAN_SET_SSID_HOTLIST_RSP,
 	eSIR_EXTSCAN_RESET_SSID_HOTLIST_RSP,
-	eSIR_EXTSCAN_HOTLIST_SSID_MATCH_IND,
 
 	/* Keep this last */
 	eSIR_EXTSCAN_CALLBACK_TYPE_MAX,
@@ -713,7 +713,7 @@ typedef struct sSirBssDescription {
 	/* offset of the ieFields from bssId. */
 	uint16_t length;
 	tSirMacAddr bssId;
-	unsigned long scanSysTimeMsec;
+	unsigned long scansystimensec;
 	uint32_t timeStamp[2];
 	uint16_t beaconInterval;
 	uint16_t capabilityInfo;
@@ -1187,7 +1187,7 @@ typedef struct sSirSmeJoinReq {
 	uint8_t htSmps;
 	bool send_smps_action;
 
-	uint8_t isAmsduSupportInAMPDU;
+	uint8_t max_amsdu_num;
 	tAniBool isWMEenabled;
 	tAniBool isQosEnabled;
 	tAniBool isOSENConnection;
@@ -4727,36 +4727,6 @@ struct sir_wisa_params {
 	bool mode;
 	uint8_t vdev_id;
 };
-/**
- * struct sir_ssid_hotlist_param - param for SSID Hotlist
- * @ssid: SSID which is being hotlisted
- * @band: Band in which the given SSID should be scanned
- * @rssi_low: Low bound on RSSI
- * @rssi_high: High bound on RSSI
- */
-struct sir_ssid_hotlist_param {
-	tSirMacSSid ssid;
-	uint8_t band;
-	int32_t rssi_low;
-	int32_t rssi_high;
-};
-
-/**
- * struct sir_set_ssid_hotlist_request - set SSID hotlist request struct
- * @request_id: ID of the request
- * @session_id: ID of the session
- * @lost_ssid_sample_size: Number of consecutive scans in which the SSID
- *	must not be seen in order to consider the SSID "lost"
- * @ssid_count: Number of valid entries in the @ssids array
- * @ssids: Array that defines the SSIDs that are in the hotlist
- */
-struct sir_set_ssid_hotlist_request {
-	uint32_t request_id;
-	uint8_t session_id;
-	uint32_t lost_ssid_sample_size;
-	uint32_t ssid_count;
-	struct sir_ssid_hotlist_param ssids[WLAN_EXTSCAN_MAX_HOTLIST_SSIDS];
-};
 
 typedef struct {
 	uint32_t requestId;
@@ -6178,6 +6148,7 @@ struct sir_bpf_get_offload {
 
 /**
  * struct sir_wake_lock_stats - wake lock stats structure
+ * @wow_unspecified_wake_up_count: number of non-wow related wake ups
  * @wow_ucast_wake_up_count: Unicast wakeup count
  * @wow_bcast_wake_up_count: Broadcast wakeup count
  * @wow_ipv4_mcast_wake_up_count: ipv4 multicast wakeup count
@@ -6192,8 +6163,10 @@ struct sir_bpf_get_offload {
  * @wow_gscan_wake_up_count: gscan wakeup count
  * @wow_pno_complete_wake_up_count: pno complete wakeup count
  * @wow_pno_match_wake_up_count: pno match wakeup count
+ * @wow_oem_response_wake_up_count: oem response wakeup count
  */
 struct sir_wake_lock_stats {
+	uint32_t wow_unspecified_wake_up_count;
 	uint32_t wow_ucast_wake_up_count;
 	uint32_t wow_bcast_wake_up_count;
 	uint32_t wow_ipv4_mcast_wake_up_count;
@@ -6208,6 +6181,43 @@ struct sir_wake_lock_stats {
 	uint32_t wow_gscan_wake_up_count;
 	uint32_t wow_pno_complete_wake_up_count;
 	uint32_t wow_pno_match_wake_up_count;
+	uint32_t wow_oem_response_wake_up_count;
+};
+
+/**
+ * struct sir_vdev_wow_stats - container for per vdev wow related stat counters
+ * @ucast: Unicast wakeup count
+ * @bcast: Broadcast wakeup count
+ * @ipv4_mcast: ipv4 multicast wakeup count
+ * @ipv6_mcast: ipv6 multicast wakeup count
+ * @ipv6_mcast_ra: ipv6 multicast ra stats
+ * @ipv6_mcast_ns: ipv6 multicast ns stats
+ * @ipv6_mcast_na: ipv6 multicast na stats
+ * @icmpv4: ipv4 icmp packet count
+ * @icmpv6: ipv6 icmp packet count
+ * @rssi_breach: rssi breach wakeup count
+ * @low_rssi: low rssi wakeup count
+ * @gscan: gscan wakeup count
+ * @pno_complete: pno complete wakeup count
+ * @pno_match: pno match wakeup count
+ * @oem_response: oem response wakeup count
+ */
+struct sir_vdev_wow_stats {
+	uint32_t ucast;
+	uint32_t bcast;
+	uint32_t ipv4_mcast;
+	uint32_t ipv6_mcast;
+	uint32_t ipv6_mcast_ra;
+	uint32_t ipv6_mcast_ns;
+	uint32_t ipv6_mcast_na;
+	uint32_t icmpv4;
+	uint32_t icmpv6;
+	uint32_t rssi_breach;
+	uint32_t low_rssi;
+	uint32_t gscan;
+	uint32_t pno_complete;
+	uint32_t pno_match;
+	uint32_t oem_response;
 };
 
 /**
@@ -6873,4 +6883,23 @@ struct udp_resp_offload {
 	char       udp_payload_filter[MAX_LEN_UDP_RESP_OFFLOAD];
 	char       udp_response_payload[MAX_LEN_UDP_RESP_OFFLOAD];
 };
+
+typedef void (*sme_rcpi_callback)(void *context, struct qdf_mac_addr mac_addr,
+				  int32_t rcpi, QDF_STATUS status);
+/**
+ * struct sme_rcpi_req - structure for querying rcpi info
+ * @session_id: session for which rcpi is required
+ * @measurement_type: type of measurement from enum rcpi_measurement_type
+ * @rcpi_callback: callback function to be invoked for rcpi response
+ * @rcpi_context: context info for rcpi callback
+ * @mac_addr: peer addr for which rcpi is required
+ */
+struct sme_rcpi_req {
+	uint32_t session_id;
+	enum rcpi_measurement_type measurement_type;
+	sme_rcpi_callback rcpi_callback;
+	void *rcpi_context;
+	struct qdf_mac_addr mac_addr;
+};
+
 #endif /* __SIR_API_H */

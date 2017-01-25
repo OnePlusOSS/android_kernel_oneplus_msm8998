@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -99,6 +99,7 @@ enum cfg_sub_20_channel_width {
  * @sub_20_channel_width: Sub 20 MHz ch width, ini intersected with fw cap
  * @flow_steering_enabled: Receive flow steering.
  * @is_fw_timeout: Indicate whether crash host when fw timesout or not
+ * @force_target_assert_enabled: Indicate whether target assert enabled or not
  * Structure for holding cds ini parameters.
  */
 
@@ -153,5 +154,7 @@ struct cds_config_info {
 	bool fw_timeout_crash;
 
 	struct ol_tx_sched_wrr_ac_specs_t ac_specs[TX_WMM_AC_NUM];
+
+	bool force_target_assert_enabled;
 };
 #endif /* !defined( __CDS_CONFIG_H ) */

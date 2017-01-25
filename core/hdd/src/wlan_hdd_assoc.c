@@ -1200,7 +1200,7 @@ static void hdd_send_association_event(struct net_device *dev,
 			/* change logging before release */
 			hdd_info("LFR3:hdd_send_association_event");
 			/* Update tdls module about the disconnection event */
-			wlan_hdd_tdls_notify_disconnect(pAdapter);
+			wlan_hdd_tdls_notify_disconnect(pAdapter, true);
 		}
 #endif
 	if (eConnectionState_Associated == pHddStaCtx->conn_info.connState) {
@@ -1325,7 +1325,7 @@ static void hdd_send_association_event(struct net_device *dev,
 		}
 		hdd_lpass_notify_disconnect(pAdapter);
 		/* Update tdls module about the disconnection event */
-		wlan_hdd_tdls_notify_disconnect(pAdapter);
+		wlan_hdd_tdls_notify_disconnect(pAdapter, false);
 
 #ifdef MSM_PLATFORM
 		/* stop timer in sta/p2p_cli */
@@ -1634,8 +1634,7 @@ static QDF_STATUS hdd_dis_connect_handler(hdd_adapter_t *pAdapter,
 		sta_id = pHddStaCtx->conn_info.staId[0];
 
 		/* clear scan cache for Link Lost */
-		if (pRoamInfo && !pRoamInfo->reasonCode &&
-		   (eCSR_ROAM_RESULT_DEAUTH_IND == roamResult ||
+		if ((eCSR_ROAM_RESULT_DEAUTH_IND == roamResult ||
 		    eCSR_ROAM_RESULT_DISASSOC_IND == roamResult)) {
 			wlan_hdd_cfg80211_update_bss_list(pAdapter,
 				pHddStaCtx->conn_info.bssId.bytes);

@@ -6364,7 +6364,7 @@ QDF_STATUS sme_set_gtk_offload(tHalHandle hHal,
 	tCsrRoamSession *pSession = CSR_GET_SESSION(pMac, sessionId);
 
 	QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_INFO,
-		  "%s: KeyReplayCounter: %lld", __func__,
+		  "%s: KeyReplayCounter: 0x%llx", __func__,
 		  pGtkOffload->ullKeyReplayCounter);
 
 	if (NULL == pSession) {
@@ -6560,18 +6560,8 @@ QDF_STATUS sme_set_preferred_network_list(tHalHandle hHal,
 
 #endif /* FEATURE_WLAN_SCAN_PNO */
 
-/* ---------------------------------------------------------------------------
-    \fn sme_abort_mac_scan
-    \brief  API to cancel MAC scan.
-    \param  hHal - The handle returned by mac_open.
-    \param  sessionId - sessionId on which we need to abort scan.
-    \param  reason - Reason to abort the scan.
-    \return QDF_STATUS
-	    QDF_STATUS_E_FAILURE - failure
-	    QDF_STATUS_SUCCESS  success
-   ---------------------------------------------------------------------------*/
 QDF_STATUS sme_abort_mac_scan(tHalHandle hHal, uint8_t sessionId,
-			      eCsrAbortReason reason)
+			      uint32_t scan_id, eCsrAbortReason reason)
 {
 	QDF_STATUS status;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
@@ -6580,7 +6570,8 @@ QDF_STATUS sme_abort_mac_scan(tHalHandle hHal, uint8_t sessionId,
 			 TRACE_CODE_SME_RX_HDD_ABORT_MACSCAN, NO_SESSION, 0));
 	status = sme_acquire_global_lock(&pMac->sme);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
-		status = csr_scan_abort_mac_scan(pMac, sessionId, reason);
+		status = csr_scan_abort_mac_scan(pMac, sessionId,
+						 scan_id, reason);
 
 		sme_release_global_lock(&pMac->sme);
 	}
@@ -14041,50 +14032,6 @@ QDF_STATUS sme_reset_passpoint_list(tHalHandle hal,
 	return status;
 }
 
-/**
- * sme_set_ssid_hotlist() - Set the SSID hotlist
- * @hal: SME handle
- * @request: set ssid hotlist request
- *
- * Return: QDF_STATUS
- */
-QDF_STATUS
-sme_set_ssid_hotlist(tHalHandle hal,
-		     struct sir_set_ssid_hotlist_request *request)
-{
-	QDF_STATUS status   = QDF_STATUS_SUCCESS;
-	tpAniSirGlobal mac = PMAC_STRUCT(hal);
-	cds_msg_t cds_message;
-	struct sir_set_ssid_hotlist_request *set_req;
-
-	set_req = qdf_mem_malloc(sizeof(*set_req));
-	if (!set_req) {
-		sms_log(mac, LOGE, FL("qdf_mem_malloc failed"));
-		return QDF_STATUS_E_FAILURE;
-	}
-
-	*set_req = *request;
-	status = sme_acquire_global_lock(&mac->sme);
-	if (QDF_STATUS_SUCCESS == status) {
-		/* Serialize the req through MC thread */
-		cds_message.bodyptr = set_req;
-		cds_message.type    = WMA_EXTSCAN_SET_SSID_HOTLIST_REQ;
-		status = cds_mq_post_message(CDS_MQ_ID_WMA, &cds_message);
-		sme_release_global_lock(&mac->sme);
-		if (!QDF_IS_STATUS_SUCCESS(status)) {
-			qdf_mem_free(set_req);
-			status = QDF_STATUS_E_FAILURE;
-		}
-	} else {
-		sms_log(mac, LOGE,
-			FL("sme_acquire_global_lock failed!(status=%d)"),
-			status);
-		qdf_mem_free(set_req);
-		status = QDF_STATUS_E_FAILURE;
-	}
-	return status;
-}
-
 QDF_STATUS sme_ext_scan_register_callback(tHalHandle hHal,
 					  void (*pExtScanIndCb)(void *,
 								const uint16_t,
@@ -17212,3 +17159,40 @@ QDF_STATUS sme_set_udp_resp_offload(struct udp_resp_offload *pudp_resp_cmd)
 	return status;
 }
 #endif
+
+QDF_STATUS sme_get_rcpi(tHalHandle hal, struct sme_rcpi_req *rcpi)
+{
+	QDF_STATUS status = QDF_STATUS_E_FAILURE;
+	tpAniSirGlobal pMac = PMAC_STRUCT(hal);
+	cds_msg_t cds_msg;
+	struct sme_rcpi_req *rcpi_req;
+
+	rcpi_req = qdf_mem_malloc(sizeof(*rcpi_req));
+	if (rcpi_req == NULL) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			  "%s: Not able to allocate memory for rcpi req",
+			  __func__);
+		return QDF_STATUS_E_NOMEM;
+	}
+	qdf_mem_copy(rcpi_req, rcpi, sizeof(*rcpi_req));
+
+	status = sme_acquire_global_lock(&pMac->sme);
+	if (QDF_IS_STATUS_SUCCESS(status)) {
+		cds_msg.bodyptr = rcpi_req;
+		cds_msg.type = WMA_GET_RCPI_REQ;
+		status = cds_mq_post_message(QDF_MODULE_ID_WMA, &cds_msg);
+		sme_release_global_lock(&pMac->sme);
+		if (!QDF_IS_STATUS_SUCCESS(status)) {
+			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+				  FL("post get rcpi req failed"));
+			status = QDF_STATUS_E_FAILURE;
+			qdf_mem_free(rcpi_req);
+		}
+	} else {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			  FL("sme_acquire_global_lock failed"));
+		qdf_mem_free(rcpi_req);
+	}
+
+	return status;
+}

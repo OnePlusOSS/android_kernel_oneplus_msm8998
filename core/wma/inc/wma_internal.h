@@ -347,10 +347,6 @@ int wma_passpoint_match_event_handler(void *handle,
 				     uint8_t  *cmd_param_info,
 				     uint32_t len);
 
-int
-wma_extscan_hotlist_ssid_match_event_handler(void *handle,
-					     uint8_t *cmd_param_info,
-					     uint32_t len);
 #endif
 
 void wma_register_extscan_event_handler(tp_wma_handle wma_handle);
@@ -406,9 +402,6 @@ QDF_STATUS wma_set_passpoint_network_list(tp_wma_handle wma,
 
 QDF_STATUS wma_reset_passpoint_network_list(tp_wma_handle wma,
 					struct wifi_passpoint_req *req);
-QDF_STATUS
-wma_set_ssid_hotlist(tp_wma_handle wma,
-		     struct sir_set_ssid_hotlist_request *request);
 #endif
 
 QDF_STATUS  wma_ipa_offload_enable_disable(tp_wma_handle wma,
@@ -1243,4 +1236,26 @@ void wma_lost_link_info_handler(tp_wma_handle wma, uint32_t vdev_id,
 				int32_t rssi);
 int wma_unified_power_debug_stats_event_handler(void *handle,
 			uint8_t *cmd_param_info, uint32_t len);
+
+/**
+ * wma_get_rcpi_req() - get rcpi request
+ * @handle: wma handle
+ * @rcpi_request: rcpi params
+ *
+ * Return: none
+ */
+QDF_STATUS wma_get_rcpi_req(WMA_HANDLE handle,
+			    struct sme_rcpi_req *rcpi_request);
+
+/**
+ * wma_rcpi_event_handler() - rcpi event handler
+ * @handle: wma handle
+ * @cmd_param_info: data from event
+ * @len: length
+ *
+ * Return: 0 for success or error code
+ */
+int wma_rcpi_event_handler(void *handle, uint8_t *cmd_param_info,
+			   uint32_t len);
+
 #endif

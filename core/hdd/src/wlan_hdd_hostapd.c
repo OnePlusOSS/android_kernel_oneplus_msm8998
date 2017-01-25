@@ -1661,6 +1661,7 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 		/* Lets do abort scan to ensure smooth authentication for client */
 		if ((pScanInfo != NULL) && pScanInfo->mScanPending) {
 			hdd_abort_mac_scan(pHddCtx, pHostapdAdapter->sessionId,
+					   INVALID_SCAN_ID,
 					   eCSR_SCAN_ABORT_DEFAULT);
 		}
 		if (pHostapdAdapter->device_mode == QDF_P2P_GO_MODE) {
@@ -2073,7 +2074,10 @@ stopbss:
 
 		/* Stop the pkts from n/w stack as we are going to free all of
 		 * the TX WMM queues for all STAID's */
-		hdd_hostapd_stop(dev);
+		hdd_notice("Disabling queues");
+		wlan_hdd_netif_queue_control(pHostapdAdapter,
+					     WLAN_NETIF_TX_DISABLE_N_CARRIER,
+					     WLAN_CONTROL_PATH);
 
 		/* reclaim all resources allocated to the BSS */
 		qdf_status = hdd_softap_stop_bss(pHostapdAdapter);
@@ -2455,6 +2459,10 @@ static int __iw_softap_set_two_ints_getnone(struct net_device *dev,
 	case QCSAP_IOCTL_SET_FW_CRASH_INJECT:
 		hdd_err("WE_SET_FW_CRASH_INJECT: %d %d",
 		       value[1], value[2]);
+		if (!hdd_ctx->config->crash_inject_enabled) {
+			hdd_err("Crash Inject ini disabled, Ignore Crash Inject");
+			return 0;
+		}
 		ret = wma_cli_set2_command(adapter->sessionId,
 					   GEN_PARAM_CRASH_INJECT,
 					   value[1], value[2],
@@ -5858,6 +5866,10 @@ QDF_STATUS hdd_init_ap_mode(hdd_adapter_t *pAdapter)
 	qdf_mem_free(pAdapter->sessionCtx.ap.sapConfig.acs_cfg.ch_list);
 	qdf_mem_zero(&pAdapter->sessionCtx.ap.sapConfig.acs_cfg,
 						sizeof(struct sap_acs_cfg));
+
+	/* rcpi info initialization */
+	qdf_mem_zero(&pAdapter->rcpi, sizeof(pAdapter->rcpi));
+
 	return status;
 
 error_wmm_init:
@@ -7554,7 +7566,7 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 		}
 	}
 	if (!pHddCtx->config->force_sap_acs &&
-	    (0 != qdf_mem_cmp(ssid, PRE_CAC_SSID, ssid_len))) {
+	    !(ssid && (0 == qdf_mem_cmp(ssid, PRE_CAC_SSID, ssid_len)))) {
 		pIe = wlan_hdd_cfg80211_get_ie_ptr(
 				&pMgmt_frame->u.beacon.variable[0],
 				pBeacon->head_len, WLAN_EID_SUPP_RATES);
@@ -7589,7 +7601,9 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 		}
 	}
 
-	wlan_hdd_set_sap_hwmode(pHostapdAdapter);
+	if (!cds_is_sub_20_mhz_enabled())
+		wlan_hdd_set_sap_hwmode(pHostapdAdapter);
+
 	if (pHddCtx->config->sap_force_11n_for_11ac) {
 		if (pConfig->SapHw_mode == eCSR_DOT11_MODE_11ac ||
 		    pConfig->SapHw_mode == eCSR_DOT11_MODE_11ac_ONLY)
@@ -7840,6 +7854,7 @@ static int __wlan_hdd_cfg80211_stop_ap(struct wiphy *wiphy,
 				INIT_COMPLETION(pScanInfo->abortscan_event_var);
 				hdd_abort_mac_scan(staAdapter->pHddCtx,
 						   staAdapter->sessionId,
+						   INVALID_SCAN_ID,
 						   eCSR_SCAN_ABORT_DEFAULT);
 				rc = wait_for_completion_timeout(
 					&pScanInfo->abortscan_event_var,
@@ -7872,7 +7887,10 @@ static int __wlan_hdd_cfg80211_stop_ap(struct wiphy *wiphy,
 	wlan_hdd_undo_acs(pAdapter);
 	qdf_mem_zero(&pAdapter->sessionCtx.ap.sapConfig.acs_cfg,
 						sizeof(struct sap_acs_cfg));
-	hdd_hostapd_stop(dev);
+	/* Stop all tx queues */
+	hdd_notice("Disabling queues");
+	wlan_hdd_netif_queue_control(pAdapter, WLAN_NETIF_TX_DISABLE_N_CARRIER,
+				     WLAN_CONTROL_PATH);
 
 	old = pAdapter->sessionCtx.ap.beacon;
 	if (!old) {
@@ -8067,6 +8085,8 @@ static int __wlan_hdd_cfg80211_start_ap(struct wiphy *wiphy,
 	if (cds_is_sub_20_mhz_enabled()) {
 		enum channel_state ch_state;
 		enum phy_ch_width sub_20_ch_width = CH_WIDTH_INVALID;
+		tsap_Config_t *sap_cfg = &pAdapter->sessionCtx.ap.sapConfig;
+
 		/* Avoid ACS/DFS, and overwrite ch wd to 20 */
 		if (channel == 0) {
 			hdd_err("Can't start SAP-ACS (channel=0) with sub 20 MHz ch width.");
@@ -8095,6 +8115,7 @@ static int __wlan_hdd_cfg80211_start_ap(struct wiphy *wiphy,
 			hdd_err("Given ch width not supported by reg domain.");
 			return -EINVAL;
 		}
+		sap_cfg->SapHw_mode = eCSR_DOT11_MODE_abg;
 	}
 
 	/* check if concurrency is allowed */
@@ -8336,4 +8357,30 @@ int wlan_hdd_cfg80211_change_beacon(struct wiphy *wiphy,
 	cds_ssr_unprotect(__func__);
 
 	return ret;
+}
+
+bool hdd_is_peer_associated(hdd_adapter_t *adapter,
+			    struct qdf_mac_addr *mac_addr)
+{
+	uint32_t cnt = 0;
+	hdd_station_info_t *sta_info = NULL;
+
+	if (!adapter || !mac_addr) {
+		hdd_err("Invalid adapter or mac_addr");
+		return false;
+	}
+
+	sta_info = adapter->aStaInfo;
+	spin_lock_bh(&adapter->staInfo_lock);
+	for (cnt = 0; cnt < WLAN_MAX_STA_COUNT; cnt++) {
+		if ((sta_info[cnt].isUsed) &&
+		    !qdf_mem_cmp(&(sta_info[cnt].macAddrSTA), mac_addr,
+		    QDF_MAC_ADDR_SIZE))
+			break;
+	}
+	spin_unlock_bh(&adapter->staInfo_lock);
+	if (cnt != WLAN_MAX_STA_COUNT)
+		return true;
+
+	return false;
 }

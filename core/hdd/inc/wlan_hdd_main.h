@@ -151,6 +151,9 @@
 
 #define WLAN_WAIT_TIME_BPF     1000
 
+/* rcpi request timeout in milli seconds */
+#define WLAN_WAIT_TIME_RCPI 500
+
 #define MAX_NUMBER_OF_ADAPTERS 4
 
 #define MAX_CFG_STRING_LEN  255
@@ -337,6 +340,7 @@ extern spinlock_t hdd_context_lock;
 #define TEMP_CONTEXT_MAGIC  0x74656d70   /* TEMP (temperature) */
 #define BPF_CONTEXT_MAGIC 0x4575354    /* BPF */
 #define POWER_STATS_MAGIC 0x14111990
+#define RCPI_CONTEXT_MAGIC  0x7778888  /* RCPI */
 
 /* MAX OS Q block time value in msec
  * Prevent from permanent stall, resume OS Q if timer expired */
@@ -910,6 +914,16 @@ struct hdd_connect_pm_context {
 #endif
 #endif
 
+/**
+ * struct rcpi_info - rcpi info
+ * @rcpi: computed value in dB
+ * @mac_addr: peer mac addr for which rcpi is computed
+ */
+struct rcpi_info {
+	int32_t rcpi;
+	struct qdf_mac_addr mac_addr;
+};
+
 struct hdd_adapter_s {
 	/* Magic cookie for adapter sanity verification.  Note that this
 	 * needs to be at the beginning of the private data structure so
@@ -1143,6 +1157,9 @@ struct hdd_adapter_s {
 	struct power_stats_response *chip_power_stats;
 
 	bool fast_roaming_allowed;
+
+	/* rcpi information */
+	struct rcpi_info rcpi;
 };
 
 #define WLAN_HDD_GET_STATION_CTX_PTR(pAdapter) (&(pAdapter)->sessionCtx.station)
@@ -1310,6 +1327,18 @@ enum suspend_fail_reason {
 	SUSPEND_FAIL_MAX_COUNT
 };
 
+/**
+ * suspend_resume_stats - Collection of counters for suspend/resume events
+ * @suspends: number of suspends completed
+ * @resumes: number of resumes completed
+ * @suspend_fail: counters for failed suspend reasons
+ */
+struct suspend_resume_stats {
+	uint32_t suspends;
+	uint32_t resumes;
+	uint32_t suspend_fail[SUSPEND_FAIL_MAX_COUNT];
+};
+
 /** Adapter structure definition */
 struct hdd_context_s {
 	/** Global CDS context  */
@@ -1435,8 +1464,9 @@ struct hdd_context_s {
 	/* DDR bus bandwidth compute timer
 	 */
 	qdf_timer_t bus_bw_timer;
-	bool bus_bw_timer_started;
-	struct work_struct  bus_bw_work;
+	bool bus_bw_timer_running;
+	qdf_spinlock_t bus_bw_timer_lock;
+	struct work_struct bus_bw_work;
 	int cur_vote_level;
 	spinlock_t bus_bw_lock;
 	int cur_rx_level;
@@ -1587,8 +1617,7 @@ struct hdd_context_s {
 	bool update_mac_addr_to_fw;
 	struct acs_dfs_policy acs_policy;
 	uint16_t wmi_max_len;
-	/* counters for failed suspend reasons */
-	uint32_t suspend_fail_stats[SUSPEND_FAIL_MAX_COUNT];
+	struct suspend_resume_stats suspend_resume_stats;
 	struct hdd_runtime_pm_context runtime_context;
 	bool roaming_in_progress;
 	/* bit map to set/reset TDLS by different sources */
@@ -1600,6 +1629,8 @@ struct hdd_context_s {
 	uint8_t last_scan_reject_session_id;
 	scan_reject_states last_scan_reject_reason;
 	unsigned long last_scan_reject_timestamp;
+	uint8_t beacon_probe_rsp_cnt_per_scan;
+	bool rcpi_enabled;
 };
 
 /*---------------------------------------------------------------------------
@@ -1665,7 +1696,7 @@ void hdd_set_conparam(uint32_t con_param);
 enum tQDF_GLOBAL_CON_MODE hdd_get_conparam(void);
 
 void hdd_abort_mac_scan(hdd_context_t *pHddCtx, uint8_t sessionId,
-			eCsrAbortReason reason);
+			uint32_t scan_id, eCsrAbortReason reason);
 void hdd_cleanup_actionframe(hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter);
 
 void crda_regulatory_entry_default(uint8_t *countryCode, int domain_id);

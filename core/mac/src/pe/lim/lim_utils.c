@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -2936,6 +2936,10 @@ uint8_t lim_get_ht_capability(tpAniSirGlobal pMac,
 
 	case eHT_MAX_AMSDU_LENGTH:
 		retVal = (uint8_t) macHTCapabilityInfo.maximalAMSDUsize;
+		break;
+
+	case eHT_MAX_AMSDU_NUM:
+		retVal = (uint8_t) psessionEntry->max_amsdu_num;
 		break;
 
 	case eHT_RX_STBC:

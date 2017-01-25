@@ -969,13 +969,20 @@ static void wma_process_cli_set_cmd(tp_wma_handle wma,
 							 privcmd->param_value;
 			break;
 		case GEN_VDEV_PARAM_AMSDU:
-			ret = ol_txrx_aggr_cfg(vdev, 0, privcmd->param_value);
-			if (ret)
-				WMA_LOGE("ol_txrx_aggr_cfg set amsdu failed ret %d",
-					 ret);
-			else
-				intr[privcmd->param_vdev_id].config.
-				amsdu = privcmd->param_value;
+			/*
+			 * Firmware currently does not support set operation
+			 * for AMSDU. It may cause crash if the configuration
+			 * is sent to firmware.
+			 * Firmware enhancement will advertise a service bit
+			 * to enable AMSDU configuration through WMI. Then
+			 * add the WMI command to configure AMSDU parameter.
+			 * For the older chipset that does not advertise the
+			 * service bit, enable the following legacy code:
+			 *    ol_txrx_aggr_cfg(vdev, 0, privcmd->param_value);
+			 *    intr[privcmd->param_vdev_id].config.amsdu =
+			 *            privcmd->param_value;
+			 */
+			WMA_LOGE("SET GEN_VDEV_PARAM_AMSDU command is currently not supported");
 			break;
 		case GEN_PARAM_CRASH_INJECT:
 			if (QDF_GLOBAL_FTM_MODE  == cds_get_conparam())
@@ -1750,119 +1757,99 @@ struct wma_version_info g_wmi_version_info;
  */
 static void wma_state_info_dump(char **buf_ptr, uint16_t *size)
 {
-	tp_wma_handle wma_handle;
+	t_wma_handle *wma;
+	struct sir_vdev_wow_stats *stats;
 	uint16_t len = 0;
 	char *buf = *buf_ptr;
 	struct wma_txrx_node *iface;
 	uint8_t vdev_id;
 
-	wma_handle = cds_get_context(QDF_MODULE_ID_WMA);
-	if (!wma_handle) {
+	wma = cds_get_context(QDF_MODULE_ID_WMA);
+	if (!wma) {
 		WMA_LOGE("%s: WMA context is invald!", __func__);
 		return;
 	}
 
 	WMA_LOGI("%s: size of buffer: %d", __func__, *size);
 
-	len += qdf_scnprintf(buf + len, *size - len,
-		"\n wow_pno_match_wake_up_count %d",
-		wma_handle->wow_pno_match_wake_up_count);
-	len += qdf_scnprintf(buf + len, *size - len,
-		"\n wow_pno_complete_wake_up_count %d",
-		wma_handle->wow_pno_complete_wake_up_count);
-	len += qdf_scnprintf(buf + len, *size - len,
-		"\n wow_gscan_wake_up_count %d",
-		wma_handle->wow_gscan_wake_up_count);
-	len += qdf_scnprintf(buf + len, *size - len,
-		"\n wow_low_rssi_wake_up_count %d",
-		wma_handle->wow_low_rssi_wake_up_count);
-	len += qdf_scnprintf(buf + len, *size - len,
-		"\n wow_rssi_breach_wake_up_count %d",
-		wma_handle->wow_rssi_breach_wake_up_count);
-	len += qdf_scnprintf(buf + len, *size - len,
-		"\n wow_ucast_wake_up_count %d",
-		wma_handle->wow_ucast_wake_up_count);
-	len += qdf_scnprintf(buf + len, *size - len,
-		"\n wow_bcast_wake_up_count %d",
-		wma_handle->wow_bcast_wake_up_count);
-	len += qdf_scnprintf(buf + len, *size - len,
-		"\n wow_ipv4_mcast_wake_up_count %d",
-		wma_handle->wow_ipv4_mcast_wake_up_count);
-	len += qdf_scnprintf(buf + len, *size - len,
-		"\n wow_ipv6_mcast_ra_stats %d",
-		wma_handle->wow_ipv6_mcast_ra_stats);
-	len += qdf_scnprintf(buf + len, *size - len,
-		"\n wow_ipv6_mcast_ns_stats %d",
-		wma_handle->wow_ipv6_mcast_ns_stats);
-	len += qdf_scnprintf(buf + len, *size - len,
-		"\n wow_ipv6_mcast_na_stats %d",
-		wma_handle->wow_ipv6_mcast_na_stats);
-
-	for (vdev_id = 0; vdev_id < wma_handle->max_bssid; vdev_id++) {
-		if (!wma_handle->interfaces[vdev_id].handle)
+	for (vdev_id = 0; vdev_id < wma->max_bssid; vdev_id++) {
+		iface = &wma->interfaces[vdev_id];
+		if (!iface->handle)
 			continue;
 
-		iface = &wma_handle->interfaces[vdev_id];
-
+		stats = &iface->wow_stats;
 		len += qdf_scnprintf(buf + len, *size - len,
-			"\n vdev_id %d",
-			vdev_id);
-		len += qdf_scnprintf(buf + len, *size - len,
-			"\n conn_state %d",
-			iface->conn_state);
-		len += qdf_scnprintf(buf + len, *size - len,
-			"\n dtimPeriod %d",
-			iface->dtimPeriod);
-		len += qdf_scnprintf(buf + len, *size - len,
-			"\n chanmode %d",
-			iface->chanmode);
-		len += qdf_scnprintf(buf + len, *size - len,
-			"\n vht_capable %d",
-			iface->vht_capable);
-		len += qdf_scnprintf(buf + len, *size - len,
-			"\n ht_capable %d",
-			iface->ht_capable);
-		len += qdf_scnprintf(buf + len, *size - len,
-			"\n chan_width %d",
-			iface->chan_width);
-		len += qdf_scnprintf(buf + len, *size - len,
-			"\n vdev_active %d",
-			iface->vdev_active);
-		len += qdf_scnprintf(buf + len, *size - len,
-			"\n vdev_up %d",
-			iface->vdev_up);
-		len += qdf_scnprintf(buf + len, *size - len,
-			"\n aid %d",
-			iface->aid);
-		len += qdf_scnprintf(buf + len, *size - len,
-			"\n rate_flags %d",
-			iface->rate_flags);
-		len += qdf_scnprintf(buf + len, *size - len,
-			"\n nss %d",
-			iface->nss);
-		len += qdf_scnprintf(buf + len, *size - len,
-			"\n tx_power %d",
-			iface->tx_power);
-		len += qdf_scnprintf(buf + len, *size - len,
-			"\n max_tx_power %d",
-			iface->max_tx_power);
-		len += qdf_scnprintf(buf + len, *size - len,
-			"\n nwType %d",
-			iface->nwType);
-		len += qdf_scnprintf(buf + len, *size - len,
-			"\n tx_streams %d",
-			iface->tx_streams);
-		len += qdf_scnprintf(buf + len, *size - len,
-			"\n rx_streams %d",
-			iface->rx_streams);
-		len += qdf_scnprintf(buf + len, *size - len,
-			"\n chain_mask %d",
-			iface->chain_mask);
-		len += qdf_scnprintf(buf + len, *size - len,
-			"\n nss_2g %d",
-			iface->nss_2g);
-		len += qdf_scnprintf(buf + len, *size - len,
-			"\n nss_5g %d",
+			"\n"
+			"vdev_id %d\n"
+			"WoW Stats\n"
+			"\tpno_match %u\n"
+			"\tpno_complete %u\n"
+			"\tgscan %u\n"
+			"\tlow_rssi %u\n"
+			"\trssi_breach %u\n"
+			"\tucast %u\n"
+			"\tbcast %u\n"
+			"\ticmpv4 %u\n"
+			"\ticmpv6 %u\n"
+			"\tipv4_mcast %u\n"
+			"\tipv6_mcast %u\n"
+			"\tipv6_mcast_ra %u\n"
+			"\tipv6_mcast_ns %u\n"
+			"\tipv6_mcast_na %u\n"
+			"\toem_response %u\n"
+			"conn_state %d\n"
+			"dtimPeriod %d\n"
+			"chanmode %d\n"
+			"vht_capable %d\n"
+			"ht_capable %d\n"
+			"chan_width %d\n"
+			"vdev_active %d\n"
+			"vdev_up %d\n"
+			"aid %d\n"
+			"rate_flags %d\n"
+			"nss %d\n"
+			"tx_power %d\n"
+			"max_tx_power %d\n"
+			"nwType %d\n"
+			"tx_streams %d\n"
+			"rx_streams %d\n"
+			"chain_mask %d\n"
+			"nss_2g %d\n"
+			"nss_5g %d",
+			vdev_id,
+			stats->pno_match,
+			stats->pno_complete,
+			stats->gscan,
+			stats->low_rssi,
+			stats->rssi_breach,
+			stats->ucast,
+			stats->bcast,
+			stats->icmpv4,
+			stats->icmpv6,
+			stats->ipv4_mcast,
+			stats->ipv6_mcast,
+			stats->ipv6_mcast_ra,
+			stats->ipv6_mcast_ns,
+			stats->ipv6_mcast_na,
+			stats->oem_response,
+			iface->conn_state,
+			iface->dtimPeriod,
+			iface->chanmode,
+			iface->vht_capable,
+			iface->ht_capable,
+			iface->chan_width,
+			iface->vdev_active,
+			iface->vdev_up,
+			iface->aid,
+			iface->rate_flags,
+			iface->nss,
+			iface->tx_power,
+			iface->max_tx_power,
+			iface->nwType,
+			iface->tx_streams,
+			iface->rx_streams,
+			iface->chain_mask,
+			iface->nss_2g,
 			iface->nss_5g);
 	}
 
@@ -2280,6 +2267,8 @@ QDF_STATUS wma_open(void *cds_context,
 			wma_fw_mem_dump_event_handler,
 			WMA_RX_SERIALIZER_CTX);
 
+	wmi_set_tgt_assert(wma_handle->wmi_handle,
+			   cds_cfg->force_target_assert_enabled);
 	/* Firmware debug log */
 	qdf_status = dbglog_init(wma_handle->wmi_handle);
 	if (qdf_status != QDF_STATUS_SUCCESS) {
@@ -4289,6 +4278,7 @@ static void wma_update_hdd_cfg(tp_wma_handle wma_handle)
 #endif /* WLAN_FEATURE_LPSS */
 	tgt_cfg.ap_arpns_support = wma_handle->ap_arpns_support;
 	tgt_cfg.bpf_enabled = wma_handle->bpf_enabled;
+	tgt_cfg.rcpi_enabled = wma_handle->rcpi_enabled;
 	wma_update_ra_rate_limit(wma_handle, &tgt_cfg);
 	tgt_cfg.fine_time_measurement_cap =
 		wma_handle->fine_time_measurement_cap;
@@ -4720,6 +4710,21 @@ int wma_rx_service_ready_event(void *handle, uint8_t *cmd_param_info,
 		WMA_LOGE
 			("Failed to register WMI_TBTTOFFSET_UPDATE_EVENTID callback");
 		return -EINVAL;
+	}
+
+	if (WMI_SERVICE_IS_ENABLED(wma_handle->wmi_service_bitmap,
+				   WMI_SERVICE_RCPI_SUPPORT)) {
+		/* register for rcpi response event */
+		status = wmi_unified_register_event_handler(
+							wma_handle->wmi_handle,
+							WMI_UPDATE_RCPI_EVENTID,
+							wma_rcpi_event_handler,
+							WMA_RX_SERIALIZER_CTX);
+		if (status) {
+			WMA_LOGE("Failed to register RCPI event handler");
+			return -EINVAL;
+		}
+		wma_handle->rcpi_enabled = true;
 	}
 
 	/* mac_id is replaced with pdev_id in converged firmware to have
@@ -6819,11 +6824,6 @@ QDF_STATUS wma_mc_process_msg(void *cds_context, cds_msg_t *msg)
 		wma_reset_passpoint_network_list(wma_handle,
 			(struct wifi_passpoint_req *)msg->bodyptr);
 		break;
-	case WMA_EXTSCAN_SET_SSID_HOTLIST_REQ:
-		wma_set_ssid_hotlist(wma_handle,
-			(struct sir_set_ssid_hotlist_request *)msg->bodyptr);
-		qdf_mem_free(msg->bodyptr);
-		break;
 #endif /* FEATURE_WLAN_EXTSCAN */
 	case WMA_SET_SCAN_MAC_OUI_REQ:
 		wma_scan_probe_setoui(wma_handle, msg->bodyptr);
@@ -7109,6 +7109,11 @@ QDF_STATUS wma_mc_process_msg(void *cds_context, cds_msg_t *msg)
 	case WMA_SET_WOW_PULSE_CMD:
 		wma_send_wow_pulse_cmd(wma_handle,
 			(struct wow_pulse_mode *)msg->bodyptr);
+		qdf_mem_free(msg->bodyptr);
+		break;
+	case WMA_GET_RCPI_REQ:
+		wma_get_rcpi_req(wma_handle,
+				 (struct sme_rcpi_req *)msg->bodyptr);
 		qdf_mem_free(msg->bodyptr);
 		break;
 	default:

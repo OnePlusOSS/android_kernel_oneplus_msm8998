@@ -2550,12 +2550,12 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		     CFG_PNO_SLOW_SCAN_MULTIPLIER_MIN,
 		     CFG_PNO_SLOW_SCAN_MULTIPLIER_MAX),
 #endif
-	REG_VARIABLE(CFG_AMSDU_SUPPORT_IN_AMPDU_NAME, WLAN_PARAM_Integer,
-		     struct hdd_config, isAmsduSupportInAMPDU,
+	REG_VARIABLE(CFG_MAX_AMSDU_NUM_NAME , WLAN_PARAM_Integer,
+		     struct hdd_config, max_amsdu_num,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
-		     CFG_AMSDU_SUPPORT_IN_AMPDU_DEFAULT,
-		     CFG_AMSDU_SUPPORT_IN_AMPDU_MIN,
-		     CFG_AMSDU_SUPPORT_IN_AMPDU_MAX),
+		     CFG_MAX_AMSDU_NUM_DEFAULT,
+		     CFG_MAX_AMSDU_NUM_MIN,
+		     CFG_MAX_AMSDU_NUM_MAX),
 
 	REG_VARIABLE(CFG_STRICT_5GHZ_PREF_BY_MARGIN, WLAN_PARAM_Integer,
 		     struct hdd_config, nSelect5GHzMargin,
@@ -3132,6 +3132,13 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		     CFG_ENABLE_EGAP_FLAGS_FEATURE_MIN,
 		     CFG_ENABLE_EGAP_FLAGS_FEATURE_MAX),
 #endif
+
+	REG_VARIABLE(CFG_ENABLE_CRASH_INJECT, WLAN_PARAM_Integer,
+		     struct hdd_config, crash_inject_enabled,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ENABLE_CRASH_INJECT_DEFAULT,
+		     CFG_ENABLE_CRASH_INJECT_MIN,
+		     CFG_ENABLE_CRASH_INJECT_MAX),
 
 	REG_VARIABLE(CFG_IGNORE_CAC_NAME, WLAN_PARAM_Integer,
 		     struct hdd_config, ignoreCAC,
@@ -5315,8 +5322,8 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 		  pHddCtx->config->goKeepAlivePeriod);
 	hdd_info("Name = [gApKeepAlivePeriod]Value = [%u]",
 		  pHddCtx->config->apKeepAlivePeriod);
-	hdd_info("Name = [gAmsduSupportInAMPDU] Value = [%u] ",
-		  pHddCtx->config->isAmsduSupportInAMPDU);
+	hdd_info("Name = [max_amsdu_num] Value = [%u] ",
+		 pHddCtx->config->max_amsdu_num);
 	hdd_info("Name = [nSelect5GHzMargin] Value = [%u] ",
 		  pHddCtx->config->nSelect5GHzMargin);
 	hdd_info("Name = [gCoalesingInIBSS] Value = [%u] ",
@@ -5989,6 +5996,9 @@ config_exit:
  */
 eCsrPhyMode hdd_cfg_xlate_to_csr_phy_mode(eHddDot11Mode dot11Mode)
 {
+	if (cds_is_sub_20_mhz_enabled())
+		return eCSR_DOT11_MODE_abg;
+
 	switch (dot11Mode) {
 	case (eHDD_DOT11_MODE_abg):
 		return eCSR_DOT11_MODE_abg;
@@ -7086,8 +7096,7 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 	smeConfig->csrConfig.cc_switch_mode = pConfig->WlanMccToSccSwitchMode;
 #endif
 
-	smeConfig->csrConfig.isAmsduSupportInAMPDU =
-		pConfig->isAmsduSupportInAMPDU;
+	smeConfig->csrConfig.max_amsdu_num = pConfig->max_amsdu_num;
 	smeConfig->csrConfig.nSelect5GHzMargin = pConfig->nSelect5GHzMargin;
 
 	smeConfig->csrConfig.isCoalesingInIBSSAllowed =

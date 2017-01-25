@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -522,6 +522,9 @@ void lim_process_sta_mlm_add_bss_rsp_ft(tpAniSirGlobal pMac,
 					      psessionEntry);
 		pAddStaParams->maxAmsduSize =
 			lim_get_ht_capability(pMac, eHT_MAX_AMSDU_LENGTH,
+					      psessionEntry);
+		pAddStaParams->max_amsdu_num =
+			lim_get_ht_capability(pMac, eHT_MAX_AMSDU_NUM,
 					      psessionEntry);
 		pAddStaParams->fDsssCckMode40Mhz =
 			lim_get_ht_capability(pMac, eHT_DSSS_CCK_MODE_40MHZ,

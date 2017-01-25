@@ -2332,6 +2332,10 @@ static void cds_update_hw_mode_conn_info(uint32_t num_vdev_mac_entries,
 			cds_info("vdev:%d, mac:%d",
 			  conc_connection_list[conn_index].vdev_id,
 			  conc_connection_list[conn_index].mac);
+			if (cds_ctx->ol_txrx_update_mac_id_cb)
+				cds_ctx->ol_txrx_update_mac_id_cb(
+					vdev_mac_map[i].vdev_id,
+					vdev_mac_map[i].mac_id);
 		}
 	}
 	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
@@ -3579,9 +3583,6 @@ void cds_set_concurrency_mode(enum tQDF_ADAPTER_MODE mode)
 		break;
 	}
 
-	/* set tdls connection tracker state */
-	cds_set_tdls_ct_mode(hdd_ctx);
-
 	cds_info("concurrency_mode = 0x%x Number of open sessions for mode %d = %d",
 		hdd_ctx->concurrency_mode, mode,
 		hdd_ctx->no_of_open_sessions[mode]);
@@ -3620,9 +3621,6 @@ void cds_clear_concurrency_mode(enum tQDF_ADAPTER_MODE mode)
 	default:
 		break;
 	}
-
-	/* set tdls connection tracker state */
-	cds_set_tdls_ct_mode(hdd_ctx);
 
 	cds_info("concurrency_mode = 0x%x Number of open sessions for mode %d = %d",
 		hdd_ctx->concurrency_mode, mode,
@@ -7990,6 +7988,15 @@ void cds_check_and_restart_sap_with_non_dfs_acs(void)
 	}
 }
 #endif
+
+struct cds_conc_connection_info *cds_get_conn_info(uint32_t *len)
+{
+	struct cds_conc_connection_info *conn_ptr = &conc_connection_list[0];
+	*len = MAX_NUMBER_OF_CONC_CONNECTIONS;
+
+	return conn_ptr;
+}
+
 #ifdef MPC_UT_FRAMEWORK
 QDF_STATUS cds_update_connection_info_utfw(
 		uint32_t vdev_id, uint32_t tx_streams, uint32_t rx_streams,
@@ -8097,14 +8104,6 @@ QDF_STATUS cds_decr_connection_count_utfw(uint32_t del_all,
 	}
 
 	return QDF_STATUS_SUCCESS;
-}
-
-struct cds_conc_connection_info *cds_get_conn_info(uint32_t *len)
-{
-	struct cds_conc_connection_info *conn_ptr = &conc_connection_list[0];
-	*len = MAX_NUMBER_OF_CONC_CONNECTIONS;
-
-	return conn_ptr;
 }
 
 enum cds_pcl_type get_pcl_from_first_conn_table(enum cds_con_mode type,

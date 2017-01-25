@@ -1149,9 +1149,11 @@ ol_txrx_pdev_post_attach(ol_txrx_pdev_handle pdev)
 		goto ol_attach_fail;
 
 	/* Attach micro controller data path offload resource */
-	if (ol_cfg_ipa_uc_offload_enabled(pdev->ctrl_pdev))
-		if (htt_ipa_uc_attach(pdev->htt_pdev))
+	if (ol_cfg_ipa_uc_offload_enabled(pdev->ctrl_pdev)) {
+		ret = htt_ipa_uc_attach(pdev->htt_pdev);
+		if (ret)
 			goto uc_attach_fail;
+	}
 
 	/* Calculate single element reserved size power of 2 */
 	pdev->tx_desc.desc_reserved_size = qdf_get_pwr2(desc_element_size);
@@ -1161,6 +1163,7 @@ ol_txrx_pdev_post_attach(ol_txrx_pdev_handle pdev)
 		(NULL == pdev->tx_desc.desc_pages.cacheable_pages)) {
 		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
 			"Page alloc fail");
+		ret = -ENOMEM;
 		goto page_alloc_fail;
 	}
 	desc_per_page = pdev->tx_desc.desc_pages.num_element_per_page;
@@ -1207,6 +1210,7 @@ ol_txrx_pdev_post_attach(ol_txrx_pdev_handle pdev)
 				  "%s: failed to alloc HTT tx desc (%d of %d)",
 				__func__, i, desc_pool_size);
 			fail_idx = i;
+			ret = -ENOMEM;
 			goto desc_alloc_fail;
 		}
 
@@ -1262,6 +1266,7 @@ ol_txrx_pdev_post_attach(ol_txrx_pdev_handle pdev)
 		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
 			  "%s Invalid standard frame type: %d",
 			  __func__, pdev->frame_format);
+		ret = -EINVAL;
 		goto control_init_fail;
 	}
 
@@ -1330,6 +1335,7 @@ ol_txrx_pdev_post_attach(ol_txrx_pdev_handle pdev)
 			  "Invalid std frame type; [en/de]cap: f:%x t:%x r:%x",
 			  pdev->frame_format,
 			  pdev->target_tx_tran_caps, pdev->target_rx_tran_caps);
+		ret = -EINVAL;
 		goto control_init_fail;
 	}
 #endif
@@ -1380,6 +1386,7 @@ ol_txrx_pdev_post_attach(ol_txrx_pdev_handle pdev)
 					  QDF_TRACE_LEVEL_ERROR,
 					  "%s: %s", __func__, TRACESTR01);
 #undef TRACESTR01
+				ret = -EINVAL;
 				goto control_init_fail;
 			}
 		} else {
@@ -1408,11 +1415,15 @@ ol_txrx_pdev_post_attach(ol_txrx_pdev_handle pdev)
 	qdf_spinlock_create(&pdev->peer_map_unmap_lock);
 	OL_TXRX_PEER_STATS_MUTEX_INIT(pdev);
 
-	if (OL_RX_REORDER_TRACE_ATTACH(pdev) != A_OK)
+	if (OL_RX_REORDER_TRACE_ATTACH(pdev) != A_OK) {
+		ret = -ENOMEM;
 		goto reorder_trace_attach_fail;
+	}
 
-	if (OL_RX_PN_TRACE_ATTACH(pdev) != A_OK)
+	if (OL_RX_PN_TRACE_ATTACH(pdev) != A_OK) {
+		ret = -ENOMEM;
 		goto pn_trace_attach_fail;
+	}
 
 #ifdef PERE_IP_HDR_ALIGNMENT_WAR
 	pdev->host_80211_enable = ol_scn_host_80211_enable_get(pdev->ctrl_pdev);
@@ -1522,6 +1533,8 @@ ol_txrx_pdev_post_attach(ol_txrx_pdev_handle pdev)
 
 	ol_tso_seg_list_init(pdev, desc_pool_size);
 
+	ol_tso_num_seg_list_init(pdev, desc_pool_size);
+
 	ol_tx_register_flow_control(pdev);
 
 	return 0;            /* success */
@@ -1618,6 +1631,7 @@ void ol_txrx_pdev_detach(ol_txrx_pdev_handle pdev, int force)
 #endif
 #endif
 	ol_tso_seg_list_deinit(pdev);
+	ol_tso_num_seg_list_deinit(pdev);
 
 	if (force) {
 		/*
@@ -2210,7 +2224,6 @@ ol_txrx_peer_attach(ol_txrx_vdev_handle vdev, uint8_t *peer_mac_addr)
 	qdf_atomic_init(&peer->fw_create_pending);
 	qdf_atomic_set(&peer->fw_create_pending, 1);
 	qdf_atomic_inc(&peer->ref_cnt);
-
 
 	peer->valid = 1;
 
@@ -2875,6 +2888,11 @@ int ol_txrx_peer_unref_delete(ol_txrx_peer_handle peer)
 			vdev->wait_on_peer_id = OL_TXRX_INVALID_LOCAL_PEER_ID;
 		}
 
+		if (vdev->opmode == wlan_op_mode_sta) {
+			qdf_mc_timer_stop(&peer->peer_unmap_timer);
+			qdf_mc_timer_destroy(&peer->peer_unmap_timer);
+		}
+
 		/* check whether the parent vdev has no peers left */
 		if (TAILQ_EMPTY(&vdev->peer_list)) {
 			/*
@@ -3004,6 +3022,27 @@ QDF_STATUS ol_txrx_clear_peer(uint8_t sta_id)
 }
 
 /**
+ * peer_unmap_timer() - peer unmap timer function
+ * @data: peer object pointer
+ *
+ * Return: none
+ */
+void peer_unmap_timer_handler(void *data)
+{
+	ol_txrx_peer_handle peer = (ol_txrx_peer_handle)data;
+
+	WMA_LOGE("%s: all unmap events not received for peer %p, ref_cnt %d",
+		 __func__, peer, qdf_atomic_read(&peer->ref_cnt));
+	WMA_LOGE("%s: peer %p (%02x:%02x:%02x:%02x:%02x:%02x)",
+		 __func__, peer,
+		 peer->mac_addr.raw[0], peer->mac_addr.raw[1],
+		 peer->mac_addr.raw[2], peer->mac_addr.raw[3],
+		 peer->mac_addr.raw[4], peer->mac_addr.raw[5]);
+	QDF_BUG(0);
+}
+
+
+/**
  * ol_txrx_peer_detach() - Delete a peer's data object.
  * @peer - the object to detach
  *
@@ -3053,6 +3092,19 @@ void ol_txrx_peer_detach(ol_txrx_peer_handle peer)
 	 * is waiting for unmap massage for this peer
 	 */
 	qdf_atomic_set(&peer->delete_in_progress, 1);
+
+	/*
+	 * Create a timer to track unmap events when the sta peer gets deleted.
+	 */
+	if (vdev->opmode == wlan_op_mode_sta) {
+		qdf_mc_timer_init(&peer->peer_unmap_timer, QDF_TIMER_TYPE_SW,
+				  peer_unmap_timer_handler, peer);
+		qdf_mc_timer_start(&peer->peer_unmap_timer,
+				   OL_TXRX_PEER_UNMAP_TIMEOUT);
+		TXRX_PRINT(TXRX_PRINT_LEVEL_ERR,
+			   "%s: started peer_unmap_timer for peer %p",
+			   __func__, peer);
+	}
 
 	/*
 	 * Remove the reference added during peer_attach.
@@ -3120,16 +3172,18 @@ ol_txrx_peer_find_by_addr(struct ol_txrx_pdev_t *pdev, uint8_t *peer_mac_addr)
 static void ol_txrx_dump_tx_desc(ol_txrx_pdev_handle pdev_handle)
 {
 	struct ol_txrx_pdev_t *pdev = (ol_txrx_pdev_handle) pdev_handle;
-	uint32_t total;
+	uint32_t total, num_free;
 
 	if (ol_cfg_is_high_latency(pdev->ctrl_pdev))
 		total = qdf_atomic_read(&pdev->orig_target_tx_credit);
 	else
 		total = ol_tx_get_desc_global_pool_size(pdev);
 
+	num_free = ol_tx_get_total_free_desc(pdev);
+
 	TXRX_PRINT(TXRX_PRINT_LEVEL_ERR,
 		   "total tx credit %d num_free %d",
-		   total, pdev->tx_desc.num_free);
+		   total, num_free);
 
 	return;
 }
@@ -4816,6 +4870,12 @@ static void ol_txrx_lro_flush(void *data)
 	if (qdf_unlikely(!sched_ctx))
 		return;
 
+	if (qdf_unlikely(!pdev)) {
+		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
+			  "Pdev is NULL");
+		return;
+	}
+
 	if (!ol_cfg_is_rx_thread_enabled(pdev->ctrl_pdev)) {
 		ol_txrx_lro_flush_handler(data, NULL, 0);
 	} else {
@@ -4942,9 +5002,12 @@ ol_txrx_fwd_desc_thresh_check(struct ol_txrx_vdev_t *vdev)
 	bool enough_desc_flag;
 
 	if (!vdev)
-		return true;
+		return false;
 
 	pool = vdev->pool;
+
+	if (!pool)
+		return false;
 
 	qdf_spin_lock_bh(&pool->flow_pool_lock);
 	enough_desc_flag = (pool->avail_desc < (pool->stop_th +

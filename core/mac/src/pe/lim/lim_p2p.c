@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014,2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -411,7 +411,7 @@ QDF_STATUS lim_p2p_action_cnf(tpAniSirGlobal pMac, uint32_t tx_status)
 {
 	QDF_STATUS status;
 	uint32_t mgmt_frame_sessionId;
-	bool tx_complete_ack = (tx_status) ? false : true;
+	bool tx_complete_ack = (tx_status) ? true : false;
 
 	status = pe_acquire_global_lock(&pMac->lim);
 	if (QDF_IS_STATUS_SUCCESS(status)) {

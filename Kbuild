@@ -1612,6 +1612,10 @@ EXTRA_CFLAGS += -Wmaybe-uninitialized
 endif
 EXTRA_CFLAGS += -Wmissing-prototypes
 
+ifeq ($(call cc-option-yn, -Wheader-guard),y)
+EXTRA_CFLAGS += -Wheader-guard
+endif
+
 # If the module name is not "wlan", then the define MULTI_IF_NAME to be the
 # same a the module name. The host driver will then append MULTI_IF_NAME to
 # any string that must be unique for all instances of the driver on the system.

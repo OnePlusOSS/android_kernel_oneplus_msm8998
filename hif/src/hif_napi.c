@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -257,6 +257,7 @@ int hif_napi_destroy(struct hif_opaque_softc *hif_ctx,
 				   napii->netdev.napi_list.prev,
 				   napii->netdev.napi_list.next);
 
+			qdf_spinlock_destroy(&napii->lro_unloading_lock);
 			netif_napi_del(&(napii->napi));
 
 			napid->ce_map &= ~(0x01 << ce);
@@ -363,8 +364,6 @@ void hif_napi_lro_flush_cb_deregister(struct hif_opaque_softc *hif_hdl,
 				lro_deinit_cb(napii->lro_ctx);
 				napii->lro_ctx = NULL;
 				qdf_spin_unlock_bh(
-					&napii->lro_unloading_lock);
-				qdf_spinlock_destroy(
 					&napii->lro_unloading_lock);
 			}
 		}

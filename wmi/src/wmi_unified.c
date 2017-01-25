@@ -2476,6 +2476,18 @@ void wmi_set_is_wow_bus_suspended(wmi_unified_t wmi_handle, A_BOOL val)
 	qdf_atomic_set(&wmi_handle->is_wow_bus_suspended, val);
 }
 
+/**
+ * wmi_set_tgt_assert() - set target assert configuration
+ *
+ * @wmi_handle      : handle to WMI.
+ * @val             : target assert config value
+ *
+ * @Return: none.
+ */
+void wmi_set_tgt_assert(wmi_unified_t wmi_handle, bool val)
+{
+	wmi_handle->tgt_force_assert_enable = val;
+}
 #ifdef WMI_NON_TLV_SUPPORT
 /**
  * API to flush all the previous packets  associated with the wmi endpoint

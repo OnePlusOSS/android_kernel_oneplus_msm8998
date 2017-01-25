@@ -1147,6 +1147,9 @@ QDF_STATUS (*send_sar_limit_cmd)(wmi_unified_t wmi_handle,
 				struct sar_limit_cmd_params *params);
 uint16_t (*wmi_set_htc_tx_tag)(wmi_unified_t wmi_handle,
 				wmi_buf_t buf, uint32_t cmd_id);
+
+QDF_STATUS (*send_get_rcpi_cmd)(wmi_unified_t wmi_handle,
+				struct rcpi_req *get_rcpi_param);
 };
 
 struct target_abi_version {
@@ -1213,6 +1216,7 @@ struct wmi_unified {
 #endif
 	qdf_atomic_t is_wow_bus_suspended;
 	bool tag_crash_inject;
+	bool tgt_force_assert_enable;
 	enum wmi_target_type target_type;
 	struct wmi_rx_ops rx_ops;
 	struct wmi_ops *ops;

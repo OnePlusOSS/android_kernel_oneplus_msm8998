@@ -256,6 +256,16 @@ void wmi_set_is_wow_bus_suspended(wmi_unified_t wmi_handle, A_BOOL val);
 void wmi_tag_crash_inject(wmi_unified_t wmi_handle, A_BOOL flag);
 
 /**
+ *  WMI API to set target assert
+ *
+ *  @wmi_handle      : handle to WMI.
+ *  @val             : target assert config value.
+ *
+ *  @Return          : none.
+ */
+void wmi_set_tgt_assert(wmi_unified_t wmi_handle, bool val);
+
+/**
  * generic function to block unified WMI command
  * @param wmi_handle      : handle to WMI.
  * @return 0  on success and -ve on failure.
@@ -1311,5 +1321,15 @@ QDF_STATUS wmi_unified_send_adapt_dwelltime_params_cmd(void *wmi_hdl,
 				   wmi_param);
 QDF_STATUS wmi_unified_fw_test_cmd(void *wmi_hdl,
 				   struct set_fwtest_params *wmi_fwtest);
+
+/**
+ * wmi_unified_get_rcpi_cmd() - get rcpi request
+ * @wmi_hdl: wma handle
+ * @get_rcpi_param: rcpi params
+ *
+ * Return: QDF_STATUS_SUCCESS on success and QDF_STATUS_E_FAILURE for failure
+ */
+QDF_STATUS wmi_unified_get_rcpi_cmd(void *wmi_hdl,
+				    struct rcpi_req *get_rcpi_param);
 
 #endif /* _WMI_UNIFIED_API_H_ */

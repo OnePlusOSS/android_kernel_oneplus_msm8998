@@ -6194,3 +6194,22 @@ QDF_STATUS wmi_unified_encrypt_decrypt_send_cmd(void *wmi_hdl,
 
 	return QDF_STATUS_E_FAILURE;
 }
+
+/**
+ * wmi_unified_get_rcpi_cmd() - get rcpi request
+ * @wmi_hdl: wma handle
+ * @get_rcpi_param: rcpi params
+ *
+ * Return: QDF_STATUS_SUCCESS on success and QDF_STATUS_E_FAILURE for failure
+ */
+QDF_STATUS wmi_unified_get_rcpi_cmd(void *wmi_hdl,
+				    struct rcpi_req *get_rcpi_param)
+{
+	wmi_unified_t wmi_handle = (wmi_unified_t) wmi_hdl;
+
+	if (wmi_handle->ops->send_get_rcpi_cmd)
+		return wmi_handle->ops->send_get_rcpi_cmd(wmi_handle,
+			   get_rcpi_param);
+
+	return QDF_STATUS_E_FAILURE;
+}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -38,9 +38,18 @@
 #include <qdf_time.h>
 #include <i_qdf_trace.h>
 
+#ifndef QDF_LOCK_STATS
 #define QDF_LOCK_STATS 0
+#endif
+#ifndef QDF_LOCK_STATS_DESTROY_PRINT
 #define QDF_LOCK_STATS_DESTROY_PRINT 0
+#endif
+#ifndef QDF_LOCK_STATS_BUG_ON
 #define QDF_LOCK_STATS_BUG_ON 0
+#endif
+#ifndef QDF_LOCK_STATS_LIST
+#define QDF_LOCK_STATS_LIST 0
+#endif
 
 #define QDF_MAX_HOLD_TIME_ALOWED_SPINLOCK_IRQ 1000
 #define QDF_MAX_HOLD_TIME_ALOWED_SPINLOCK_BH  5000
@@ -50,12 +59,20 @@
 struct lock_stats {};
 #define BEFORE_LOCK(x...) do {} while (0)
 #define AFTER_LOCK(x...) do {} while (0)
+#define BEFORE_TRYLOCK(x...) do {} while (0)
+#define AFTER_TRYLOCK(x...) do {} while (0)
 #define BEFORE_UNLOCK(x...) do {} while (0)
 #define qdf_lock_stats_create(x...) do {} while (0)
 #define qdf_lock_stats_destroy(x...) do {} while (0)
+#define qdf_lock_stats_init(x...) do {} while (0)
+#define qdf_lock_stats_deinit(x...) do {} while (0)
 #else
+void qdf_lock_stats_init(void);
+void qdf_lock_stats_deinit(void);
+struct qdf_lock_cookie;
 struct lock_stats {
 	const char *initialization_fn;
+	const char *acquired_by;
 	int line;
 	int acquired;
 	int contended;
@@ -67,11 +84,12 @@ struct lock_stats {
 	uint64_t max_held_time;
 	int num_large_contentions;
 	int num_large_holds;
+	struct qdf_lock_cookie *cookie;
 };
 #define LARGE_CONTENTION QDF_LOG_TIMESTAMP_CYCLES_PER_10_US
 
 #define BEFORE_LOCK(lock, was_locked) \
-{ \
+do { \
 	uint64_t BEFORE_LOCK_time; \
 	uint64_t AFTER_LOCK_time;  \
 	bool BEFORE_LOCK_is_locked = was_locked; \
@@ -79,7 +97,8 @@ struct lock_stats {
 	do {} while (0)
 
 
-#define AFTER_LOCK(lock) \
+#define AFTER_LOCK(lock, func) \
+	lock->stats.acquired_by = func; \
 	AFTER_LOCK_time = qdf_get_log_timestamp(); \
 	lock->stats.acquired++; \
 	lock->stats.last_acquired = AFTER_LOCK_time; \
@@ -99,7 +118,25 @@ struct lock_stats {
 	    lock->stats.max_contention_wait) \
 		lock->stats.max_contention_wait = \
 			AFTER_LOCK_time - BEFORE_LOCK_time; \
-}
+} while (0)
+
+#define BEFORE_TRYLOCK(lock) \
+do { \
+	uint64_t BEFORE_LOCK_time; \
+	uint64_t AFTER_LOCK_time;  \
+	BEFORE_LOCK_time = qdf_get_log_timestamp(); \
+	do {} while (0)
+
+#define AFTER_TRYLOCK(lock, trylock_return, func) \
+	AFTER_LOCK_time = qdf_get_log_timestamp(); \
+	if (trylock_return) { \
+		lock->stats.acquired++; \
+		lock->stats.last_acquired = AFTER_LOCK_time; \
+		lock->stats.non_contention_time += \
+			(AFTER_LOCK_time - BEFORE_LOCK_time); \
+		lock->stats.acquired_by = func; \
+	} \
+} while (0)
 
 /* max_hold_time in US */
 #define BEFORE_UNLOCK(lock, max_hold_time) \
@@ -119,9 +156,12 @@ do {\
 		       qdf_log_timestamp_to_usecs(held_time)); \
 		QDF_BUG(0); \
 	} \
+	lock->stats.acquired_by = NULL; \
 } while (0)
 
-
+void qdf_lock_stats_cookie_destroy(struct lock_stats *stats);
+void qdf_lock_stats_cookie_create(struct lock_stats *stats,
+				  const char *func, int line);
 
 static inline void qdf_lock_stats_destroy(struct lock_stats *stats)
 {
@@ -139,14 +179,27 @@ static inline void qdf_lock_stats_destroy(struct lock_stats *stats)
 			qdf_log_timestamp_to_usecs(stats->held_time),
 			qdf_log_timestamp_to_usecs(stats->max_held_time));
 	}
+
+	if (QDF_LOCK_STATS_LIST)
+		qdf_lock_stats_cookie_destroy(stats);
 }
 
+#ifndef MEMORY_DEBUG
+#define qdf_mem_malloc_debug(x, y, z) qdf_mem_malloc(x)
+#endif
+
+/* qdf_lock_stats_create() - initialize the lock stats structure
+ *
+ */
 static inline void qdf_lock_stats_create(struct lock_stats *stats,
 					 const char *func, int line)
 {
 	qdf_mem_zero(stats, sizeof(*stats));
 	stats->initialization_fn = func;
 	stats->line = line;
+
+	if (QDF_LOCK_STATS_LIST)
+		qdf_lock_stats_cookie_create(stats, func, line);
 }
 #endif
 
@@ -204,6 +257,8 @@ static inline void qdf_spinlock_create(qdf_spinlock_t *lock, const char *func,
 				       int line)
 {
 	__qdf_spinlock_create(&lock->lock);
+
+	/* spinlock stats create relies on the spinlock working allread */
 	qdf_lock_stats_create(&lock->stats, func, line);
 }
 
@@ -237,10 +292,16 @@ static inline int qdf_spin_is_locked(qdf_spinlock_t *lock)
  *
  * Return: nonzero if lock is acquired
  */
-static inline int qdf_spin_trylock_bh(qdf_spinlock_t *lock)
+static inline int qdf_spin_trylock_bh(qdf_spinlock_t *lock, const char *func)
 {
-	return __qdf_spin_trylock_bh(&lock->lock);
+	int trylock_return;
+	BEFORE_TRYLOCK(lock);
+	trylock_return = __qdf_spin_trylock_bh(&lock->lock);
+	AFTER_TRYLOCK(lock, trylock_return, func);
+
+	return trylock_return;
 }
+#define qdf_spin_trylock_bh(lock) qdf_spin_trylock_bh(lock, __func__)
 
 int qdf_spin_trylock_bh_outline(qdf_spinlock_t *lock);
 
@@ -249,12 +310,14 @@ int qdf_spin_trylock_bh_outline(qdf_spinlock_t *lock);
  * @lock: spinlock object pointer
  * Return: none
  */
-static inline void qdf_spin_lock_bh(qdf_spinlock_t *lock)
+static inline void qdf_spin_lock_bh(qdf_spinlock_t *lock, const char *func)
 {
 	BEFORE_LOCK(lock, qdf_spin_is_locked(lock));
 	__qdf_spin_lock_bh(&lock->lock);
-	AFTER_LOCK(lock);
+	AFTER_LOCK(lock, func);
 }
+
+#define qdf_spin_lock_bh(lock) qdf_spin_lock_bh(lock, __func__)
 
 void qdf_spin_lock_bh_outline(qdf_spinlock_t *lock);
 
@@ -293,12 +356,13 @@ static inline bool qdf_spinlock_irq_exec(qdf_handle_t hdl,
  *
  * Return: none
  */
-static inline void qdf_spin_lock(qdf_spinlock_t *lock)
+static inline void qdf_spin_lock(qdf_spinlock_t *lock, const char *func)
 {
 	BEFORE_LOCK(lock, qdf_spin_is_locked(lock));
 	__qdf_spin_lock(&lock->lock);
-	AFTER_LOCK(lock);
+	AFTER_LOCK(lock, func);
 }
+#define qdf_spin_lock(lock) qdf_spin_lock(lock, __func__)
 
 /**
  * qdf_spin_unlock() - Unlock the spinlock and enables the Preemption
@@ -319,12 +383,14 @@ static inline void qdf_spin_unlock(qdf_spinlock_t *lock)
  *
  * Return: none
  */
-static inline void qdf_spin_lock_irq(qdf_spinlock_t *lock, unsigned long flags)
+static inline void qdf_spin_lock_irq(qdf_spinlock_t *lock, unsigned long flags,
+				     const char *func)
 {
 	BEFORE_LOCK(lock, qdf_spin_is_locked(lock));
 	__qdf_spin_lock_irq(&lock->lock.spinlock, flags);
-	AFTER_LOCK(lock);
+	AFTER_LOCK(lock, func);
 }
+#define qdf_spin_lock_irq(lock, flags) qdf_spin_lock_irq(lock, flags, __func__)
 
 /**
  * qdf_spin_lock_irqsave() - Acquire a Spinlock (SMP) & disable Preemption
@@ -333,12 +399,13 @@ static inline void qdf_spin_lock_irq(qdf_spinlock_t *lock, unsigned long flags)
  *
  * Return: none
  */
-static inline void qdf_spin_lock_irqsave(qdf_spinlock_t *lock)
+static inline void qdf_spin_lock_irqsave(qdf_spinlock_t *lock, const char *func)
 {
 	BEFORE_LOCK(lock, qdf_spin_is_locked(lock));
 	__qdf_spin_lock_irqsave(&lock->lock);
-	AFTER_LOCK(lock);
+	AFTER_LOCK(lock, func);
 }
+#define qdf_spin_lock_irqsave(lock) qdf_spin_lock_irqsave(lock, __func__)
 
 /**
  * qdf_spin_unlock_irqrestore() - Unlock the spinlock and enables the
@@ -433,5 +500,4 @@ void qdf_runtime_lock_deinit(qdf_runtime_lock_t lock);
 QDF_STATUS qdf_spinlock_acquire(qdf_spinlock_t *lock);
 
 QDF_STATUS qdf_spinlock_release(qdf_spinlock_t *lock);
-
 #endif /* _QDF_LOCK_H */

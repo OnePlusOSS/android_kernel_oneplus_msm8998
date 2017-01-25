@@ -4776,6 +4776,7 @@ typedef enum {
 	wmi_soc_hw_mode_transition_event_id,
 	wmi_soc_set_dual_mac_config_resp_event_id,
 	wmi_tx_data_traffic_ctrl_event_id,
+	wmi_update_rcpi_event_id,
 
 	wmi_events_max,
 } wmi_conv_event_id;
@@ -6688,6 +6689,32 @@ struct sar_limit_cmd_params {
 	struct sar_limit_cmd_row *sar_limit_row_list;
 };
 
+/**
+ * enum rcpi_measurement_type - for identifying type of rcpi measurement
+ * @RCPI_MEASUREMENT_TYPE_AVG_MGMT: avg rcpi of mgmt frames
+ * @RCPI_MEASUREMENT_TYPE_AVG_DATA: avg rcpi of data frames
+ * @RCPI_MEASUREMENT_TYPE_LAST_MGMT: rcpi of last mgmt frame
+ * @RCPI_MEASUREMENT_TYPE_LAST_DATA: rcpi of last data frame
+ *
+ */
+enum rcpi_measurement_type {
+	RCPI_MEASUREMENT_TYPE_AVG_MGMT  = 0x1,
+	RCPI_MEASUREMENT_TYPE_AVG_DATA  = 0x2,
+	RCPI_MEASUREMENT_TYPE_LAST_MGMT = 0x3,
+	RCPI_MEASUREMENT_TYPE_LAST_DATA = 0x4,
+};
+
+/**
+ * struct rcpi_req - rcpi parameter
+ * @vdev_id: virtual device id
+ * @measurement_type: type of rcpi from enum wmi_rcpi_measurement_type
+ * @mac_addr: peer mac addr for which measurement is required
+ */
+struct rcpi_req {
+	uint32_t vdev_id;
+	enum rcpi_measurement_type measurement_type;
+	uint8_t mac_addr[IEEE80211_ADDR_LEN];
+};
 
 #define WMI_SUPPORTED_ACTION_CATEGORY           256
 #define WMI_SUPPORTED_ACTION_CATEGORY_ELE_LIST  (WMI_SUPPORTED_ACTION_CATEGORY/32)

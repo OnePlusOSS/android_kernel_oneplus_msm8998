@@ -6671,9 +6671,6 @@ static hdd_context_t *hdd_context_create(struct device *dev)
 		goto err_free_config;
 	}
 
-	hdd_ctx->configuredMcastBcastFilter =
-		hdd_ctx->config->mcastBcastFilterSetting;
-
 	hdd_notice("Setting configuredMcastBcastFilter: %d",
 		   hdd_ctx->config->mcastBcastFilterSetting);
 

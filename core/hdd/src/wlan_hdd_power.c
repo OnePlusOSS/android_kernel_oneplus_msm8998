@@ -419,7 +419,6 @@ static void hdd_enable_ns_offload(hdd_adapter_t *adapter)
 	uint8_t ipv6_addr[SIR_MAC_NUM_TARGET_IPV6_NS_OFFLOAD_NA]
 					[SIR_MAC_IPV6_ADDR_LEN] = { {0,} };
 	uint8_t ipv6_addr_type[SIR_MAC_NUM_TARGET_IPV6_NS_OFFLOAD_NA] = { 0 };
-	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 	tSirHostOffloadReq offloadReq;
 	QDF_STATUS status;
 	uint32_t count = 0;
@@ -490,8 +489,6 @@ static void hdd_enable_ns_offload(hdd_adapter_t *adapter)
 			&offloadReq.nsOffloadInfo.targetIPv6Addr[i], i);
 	}
 
-	hdd_info("configuredMcastBcastFilter: %d",
-		hdd_ctx->configuredMcastBcastFilter);
 	hdd_wlan_offload_event(SIR_IPV6_NS_OFFLOAD, SIR_OFFLOAD_ENABLE);
 	offloadReq.offloadType =  SIR_IPV6_NS_OFFLOAD;
 	offloadReq.enableOrDisable = SIR_OFFLOAD_ENABLE;
@@ -579,12 +576,6 @@ static void __hdd_ipv6_notifier_work_queue(struct work_struct *work)
 		return;
 	}
 
-	if (false == pHddCtx->sus_res_mcastbcast_filter_valid) {
-		pHddCtx->sus_res_mcastbcast_filter =
-			pHddCtx->configuredMcastBcastFilter;
-		pHddCtx->sus_res_mcastbcast_filter_valid = true;
-	}
-
 	/* check if the device is in NAN data mode */
 	if (WLAN_HDD_IS_NDI(pAdapter))
 		ndi_connected = WLAN_HDD_IS_NDI_CONNECTED(pAdapter);
@@ -662,6 +653,7 @@ void hdd_conf_hostoffload(hdd_adapter_t *pAdapter, bool fenable)
 		    pHddCtx->ns_offload_enable)
 			hdd_conf_ns_offload(pAdapter, fenable);
 	}
+
 	EXIT();
 	return;
 }
@@ -695,12 +687,6 @@ static void __hdd_ipv4_notifier_work_queue(struct work_struct *work)
 	if (!pHddCtx->config->active_mode_offload) {
 		hdd_err("Active mode offload is disabled");
 		return;
-	}
-
-	if (false == pHddCtx->sus_res_mcastbcast_filter_valid) {
-		pHddCtx->sus_res_mcastbcast_filter =
-			pHddCtx->configuredMcastBcastFilter;
-		pHddCtx->sus_res_mcastbcast_filter_valid = true;
 	}
 
 	/* check if the device is in NAN data mode */
@@ -875,24 +861,9 @@ QDF_STATUS hdd_conf_arp_offload(hdd_adapter_t *pAdapter, bool fenable)
 			offLoadRequest.offloadType = SIR_IPV4_ARP_REPLY_OFFLOAD;
 			offLoadRequest.enableOrDisable = SIR_OFFLOAD_ENABLE;
 			hdd_wlan_offload_event(SIR_IPV4_ARP_REPLY_OFFLOAD,
-				SIR_OFFLOAD_ENABLE);
+					       SIR_OFFLOAD_ENABLE);
 
-			hdd_notice("Enabled");
-
-			if (((HDD_MCASTBCASTFILTER_FILTER_ALL_BROADCAST ==
-			      pHddCtx->sus_res_mcastbcast_filter) ||
-			     (HDD_MCASTBCASTFILTER_FILTER_ALL_MULTICAST_BROADCAST
-			      == pHddCtx->sus_res_mcastbcast_filter))
-			    && (true ==
-				pHddCtx->sus_res_mcastbcast_filter_valid)) {
-				offLoadRequest.enableOrDisable =
-					SIR_OFFLOAD_ARP_AND_BCAST_FILTER_ENABLE;
-				hdd_notice("offload: inside arp offload conditional check");
-			}
-			hdd_wlan_offload_event(
-				SIR_OFFLOAD_ARP_AND_BCAST_FILTER_ENABLE,
-				SIR_OFFLOAD_ENABLE);
-			hdd_notice("offload: arp filter programmed = %d",
+			hdd_notice("Enable ARP offload: filter programmed = %d",
 			       offLoadRequest.enableOrDisable);
 
 			/* converting u32 to IPV4 address */
@@ -1045,23 +1016,6 @@ int wlan_hdd_set_mc_addr_list(hdd_adapter_t *pAdapter, uint8_t set)
 #endif
 
 /**
- * hdd_update_mcastbcast_filter(): cache multi and broadcast filter for suspend
- * @hdd_ctx: hdd context
- *
- * Cache the configured filter to be used in suspend resume.
- */
-static void hdd_update_mcastbcast_filter(hdd_context_t *hdd_ctx)
-{
-	if (false == hdd_ctx->sus_res_mcastbcast_filter_valid) {
-		hdd_ctx->sus_res_mcastbcast_filter =
-			hdd_ctx->configuredMcastBcastFilter;
-		hdd_ctx->sus_res_mcastbcast_filter_valid = true;
-		hdd_info("configuredMCastBcastFilter saved = %d",
-			hdd_ctx->configuredMcastBcastFilter);
-	}
-}
-
-/**
  * hdd_conf_suspend_ind() - Send Suspend notification
  * @pHddCtx: HDD Global context
  * @pAdapter: adapter being suspended
@@ -1084,12 +1038,9 @@ static void hdd_send_suspend_ind(hdd_context_t *pHddCtx,
 		sme_configure_suspend_ind(pHddCtx->hHal, conn_state_mask,
 					  callback, callbackContext);
 
-	if (QDF_STATUS_SUCCESS == qdf_ret_status) {
-		pHddCtx->hdd_mcastbcast_filter_set = true;
-	} else {
+	if (QDF_STATUS_SUCCESS != qdf_ret_status)
 		hdd_err("sme_configure_suspend_ind returned failure %d",
 		       qdf_ret_status);
-	}
 }
 
 /**
@@ -1113,17 +1064,6 @@ static void hdd_conf_resume_ind(hdd_adapter_t *pAdapter)
 	hdd_notice("send wlan resume indication");
 	/* Disable supported OffLoads */
 	hdd_conf_hostoffload(pAdapter, false);
-	pHddCtx->hdd_mcastbcast_filter_set = false;
-
-	if (true == pHddCtx->sus_res_mcastbcast_filter_valid) {
-		pHddCtx->configuredMcastBcastFilter =
-			pHddCtx->sus_res_mcastbcast_filter;
-		pHddCtx->sus_res_mcastbcast_filter_valid = false;
-	}
-
-	hdd_notice("offload: in hdd_conf_resume_ind, restoring configuredMcastBcastFilter");
-	hdd_notice("configuredMcastBcastFilter = %d",
-	       pHddCtx->configuredMcastBcastFilter);
 }
 
 /**
@@ -1178,8 +1118,6 @@ hdd_suspend_wlan(void (*callback)(void *callbackContext, bool suspended),
 			 cds_get_driver_state());
 		return;
 	}
-
-	hdd_update_mcastbcast_filter(pHddCtx);
 
 	status = hdd_get_front_adapter(pHddCtx, &pAdapterNode);
 	while (NULL != pAdapterNode && QDF_STATUS_SUCCESS == status) {
@@ -1502,7 +1440,6 @@ QDF_STATUS hdd_wlan_re_init(void)
 	pHddCtx->last_scan_reject_reason = 0;
 	pHddCtx->last_scan_reject_timestamp = 0;
 
-	pHddCtx->hdd_mcastbcast_filter_set = false;
 	pHddCtx->btCoexModeSet = false;
 
 	/* Allow the phone to go to sleep */

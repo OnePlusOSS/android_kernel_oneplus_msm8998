@@ -239,12 +239,64 @@ qdf_nbuf_t ol_tx_send_ipa_data_frame(void *vdev,
 }
 #endif
 
+#if defined(FEATURE_TSO)
+/**
+ * ol_tx_tso_update_stats() - update TSO stats
+ * @pdev: pointer to ol_txrx_pdev_t structure
+ * @msdu_info: tso msdu_info for the msdu
+ * @msdu: tso mdsu for which stats are updated
+ * @tso_msdu_idx: stats index in the global TSO stats array where stats will be
+ *                updated
+ *
+ * Return: None
+ */
+static inline void ol_tx_tso_update_stats(struct ol_txrx_pdev_t *pdev ,
+					struct qdf_tso_info_t  *tso_info,
+					qdf_nbuf_t msdu,
+					uint32_t tso_msdu_idx)
+{
+	TXRX_STATS_TSO_HISTOGRAM(pdev,  tso_info->num_segs);
+	TXRX_STATS_TSO_GSO_SIZE_UPDATE(pdev, tso_msdu_idx,
+					qdf_nbuf_tcp_tso_size(msdu));
+	TXRX_STATS_TSO_TOTAL_LEN_UPDATE(pdev,
+					tso_msdu_idx, qdf_nbuf_len(msdu));
+	TXRX_STATS_TSO_NUM_FRAGS_UPDATE(pdev, tso_msdu_idx,
+					qdf_nbuf_get_nr_frags(msdu));
+}
+
+/**
+ * ol_tx_tso_get_stats_idx() - retrieve global TSO stats index and increment it
+ * @pdev: pointer to ol_txrx_pdev_t structure
+ *
+ * Retreive  the current value of the global variable and increment it. This is
+ * done in a spinlock as the global TSO stats may be accessed in parallel by
+ * multiple TX streams.
+ *
+ * Return: The current value of TSO stats index.
+ */
+static uint32_t ol_tx_tso_get_stats_idx(struct ol_txrx_pdev_t *pdev)
+{
+	uint32_t msdu_stats_idx = 0;
+
+	qdf_spin_lock_bh(&pdev->stats.pub.tx.tso.tso_stats_lock);
+	msdu_stats_idx = pdev->stats.pub.tx.tso.tso_info.tso_msdu_idx;
+	pdev->stats.pub.tx.tso.tso_info.tso_msdu_idx++;
+	pdev->stats.pub.tx.tso.tso_info.tso_msdu_idx &=
+					NUM_MAX_TSO_MSDUS_MASK;
+	qdf_spin_unlock_bh(&pdev->stats.pub.tx.tso.tso_stats_lock);
+
+	TXRX_STATS_TSO_RESET_MSDU(pdev, msdu_stats_idx);
+
+	return msdu_stats_idx;
+}
+#endif
 
 #if defined(FEATURE_TSO)
 qdf_nbuf_t ol_tx_ll(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list)
 {
 	qdf_nbuf_t msdu = msdu_list;
 	struct ol_txrx_msdu_info_t msdu_info;
+	uint32_t tso_msdu_stats_idx = 0;
 
 	msdu_info.htt.info.l2_hdr_type = vdev->pdev->htt_pkt_type;
 	msdu_info.htt.action.tx_comp_req = 0;
@@ -270,14 +322,15 @@ qdf_nbuf_t ol_tx_ll(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list)
 		}
 
 		segments = msdu_info.tso_info.num_segs;
-		TXRX_STATS_TSO_HISTOGRAM(vdev->pdev, segments);
-		TXRX_STATS_TSO_GSO_SIZE_UPDATE(vdev->pdev,
-					 qdf_nbuf_tcp_tso_size(msdu));
-		TXRX_STATS_TSO_TOTAL_LEN_UPDATE(vdev->pdev,
-					 qdf_nbuf_len(msdu));
-		TXRX_STATS_TSO_NUM_FRAGS_UPDATE(vdev->pdev,
-					 qdf_nbuf_get_nr_frags(msdu));
 
+		if (msdu_info.tso_info.is_tso) {
+			tso_msdu_stats_idx =
+					ol_tx_tso_get_stats_idx(vdev->pdev);
+			msdu_info.tso_info.msdu_stats_idx = tso_msdu_stats_idx;
+			ol_tx_tso_update_stats(vdev->pdev,
+						&(msdu_info.tso_info),
+						msdu, tso_msdu_stats_idx);
+		}
 
 		/*
 		 * The netbuf may get linked into a different list inside the
@@ -324,16 +377,14 @@ qdf_nbuf_t ol_tx_ll(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list)
 			qdf_nbuf_reset_num_frags(msdu);
 
 			if (msdu_info.tso_info.is_tso) {
-				TXRX_STATS_TSO_INC_SEG(vdev->pdev);
-				TXRX_STATS_TSO_INC_SEG_IDX(vdev->pdev);
+				TXRX_STATS_TSO_INC_SEG(vdev->pdev,
+					tso_msdu_stats_idx);
+				TXRX_STATS_TSO_INC_SEG_IDX(vdev->pdev,
+					tso_msdu_stats_idx);
 			}
 		} /* while segments */
 
 		msdu = next;
-		if (msdu_info.tso_info.is_tso) {
-			TXRX_STATS_TSO_INC_MSDU_IDX(vdev->pdev);
-			TXRX_STATS_TSO_RESET_MSDU(vdev->pdev);
-		}
 	} /* while msdus */
 	return NULL;            /* all MSDUs were accepted */
 }
@@ -466,6 +517,7 @@ ol_tx_prepare_ll_fast(struct ol_txrx_pdev_t *pdev,
 		htt_tx_desc_fill_tso_info(pdev->htt_pdev,
 			 tx_desc->htt_frag_desc, &msdu_info->tso_info);
 		TXRX_STATS_TSO_SEG_UPDATE(pdev,
+			 msdu_info->tso_info.msdu_stats_idx,
 			 msdu_info->tso_info.curr_seg->seg);
 	} else {
 		for (i = 1; i < num_frags; i++) {
@@ -542,6 +594,7 @@ ol_tx_ll_fast(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list)
 		((struct htt_pdev_t *)(pdev->htt_pdev))->download_len;
 	uint32_t ep_id = HTT_EPID_GET(pdev->htt_pdev);
 	struct ol_txrx_msdu_info_t msdu_info;
+	uint32_t tso_msdu_stats_idx = 0;
 
 	msdu_info.htt.info.l2_hdr_type = vdev->pdev->htt_pkt_type;
 	msdu_info.htt.action.tx_comp_req = 0;
@@ -567,13 +620,15 @@ ol_tx_ll_fast(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list)
 		}
 
 		segments = msdu_info.tso_info.num_segs;
-		TXRX_STATS_TSO_HISTOGRAM(vdev->pdev, segments);
-		TXRX_STATS_TSO_GSO_SIZE_UPDATE(vdev->pdev,
-				 qdf_nbuf_tcp_tso_size(msdu));
-		TXRX_STATS_TSO_TOTAL_LEN_UPDATE(vdev->pdev,
-				 qdf_nbuf_len(msdu));
-		TXRX_STATS_TSO_NUM_FRAGS_UPDATE(vdev->pdev,
-				 qdf_nbuf_get_nr_frags(msdu));
+
+		if (msdu_info.tso_info.is_tso) {
+			tso_msdu_stats_idx =
+					ol_tx_tso_get_stats_idx(vdev->pdev);
+			msdu_info.tso_info.msdu_stats_idx = tso_msdu_stats_idx;
+			ol_tx_tso_update_stats(vdev->pdev,
+						&(msdu_info.tso_info),
+						msdu, tso_msdu_stats_idx);
+		}
 
 		/*
 		 * The netbuf may get linked into a different list
@@ -660,8 +715,10 @@ ol_tx_ll_fast(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list)
 
 				if (msdu_info.tso_info.is_tso) {
 					qdf_nbuf_reset_num_frags(msdu);
-					TXRX_STATS_TSO_INC_SEG(vdev->pdev);
-					TXRX_STATS_TSO_INC_SEG_IDX(vdev->pdev);
+					TXRX_STATS_TSO_INC_SEG(vdev->pdev,
+						tso_msdu_stats_idx);
+					TXRX_STATS_TSO_INC_SEG_IDX(vdev->pdev,
+						tso_msdu_stats_idx);
 				}
 			} else {
 				TXRX_STATS_MSDU_LIST_INCR(
@@ -672,10 +729,6 @@ ol_tx_ll_fast(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list)
 		} /* while segments */
 
 		msdu = next;
-		if (msdu_info.tso_info.is_tso) {
-			TXRX_STATS_TSO_INC_MSDU_IDX(vdev->pdev);
-			TXRX_STATS_TSO_RESET_MSDU(vdev->pdev);
-		}
 	} /* while msdus */
 	return NULL; /* all MSDUs were accepted */
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2010, 2013-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -24,7 +24,6 @@
  * under proprietary terms before Copyright ownership was assigned
  * to the Linux Foundation.
  */
-
 #ifndef __WLAN_DEFS_H__
 #define __WLAN_DEFS_H__
 
@@ -64,6 +63,16 @@
  * and in case some old code is using it
  */
 #define MAX_SPATIAL_STREAM_ANY MAX_SPATIAL_STREAM_ANY_V2 /* DEPRECATED */
+
+/* defines to set Packet extension values whic can be 0 us, 8 usec or 16 usec */
+/* NOTE: Below values cannot be changed without breaking WMI Compatibility */
+#define MAX_HE_NSS               8
+#define MAX_HE_MODULATION        8
+#define MAX_HE_RU                4
+#define HE_MODULATION_NONE       7
+#define HE_PET_0_USEC            0
+#define HE_PET_8_USEC            1
+#define HE_PET_16_USEC           2
 
 typedef enum {
     MODE_11A        = 0,   /* 11a Mode */
@@ -143,29 +152,6 @@ typedef enum {
     WLAN_11G_CAPABILITY   = 2,
     WLAN_11AG_CAPABILITY  = 3,
 } WLAN_CAPABILITY;
-
-#if (NUM_SPATIAL_STREAM > 4) || SUPPORT_11AX
-  typedef struct {
-      A_UINT64 mask_l;
-      A_UINT64 mask_h;
-  } A_RATEMASK;
-#elif (NUM_SPATIAL_STREAM > 3)
-  #define A_RATEMASK A_UINT64
-#else
-  #define A_RATEMASK A_UINT32
-#endif
-
-#if (NUM_SPATIAL_STREAM > 4) || SUPPORT_11AX
-  typedef A_UINT16 A_RATE;
-  typedef A_UINT16 A_RATECODE;
-#else
-  typedef A_UINT8 A_RATE;
-  typedef A_UINT8 A_RATECODE;
-#endif
-
-#define A_RATEMASK_NUM_OCTET (sizeof (A_RATEMASK))
-#define A_RATEMASK_NUM_BITS ((sizeof (A_RATEMASK)) << 3)
-
 
 #if CONFIG_160MHZ_SUPPORT
 #define IS_MODE_VHT(mode) (((mode) == MODE_11AC_VHT20) || \
@@ -271,11 +257,38 @@ typedef struct {
     A_UINT32 high_5ghz_chan;
 } HAL_REG_CAPABILITIES;
 
+#ifdef NUM_SPATIAL_STREAM
+/*
+ * The rate control definitions below are only used in the target.
+ * (Host-based rate control is no longer applicable.)
+ * Maintain the defs in wlanfw_cmn for the sake of existing Rome / Helium
+ * targets, but for Lithium targets remove them from wlanfw_cmn and define
+ * them in a target-only location instead.
+ * SUPPORT_11AX is essentially used as a condition to identify Lithium targets.
+ * Some host drivers would also have SUPPORT_11AX defined, and thus would lose
+ * the definition of RATE_CODE, RC_TX_DONE_PARAMS, and related macros, but
+ * that's okay because the host should have no references to these
+ * target-only data structures.
+ */
+#if !((NUM_SPATIAL_STREAM > 4) || SUPPORT_11AX) /* following N/A for Lithium */
+
 /*
  * Used to update rate-control logic with the status of the tx-completion.
  * In host-based implementation of the rate-control feature, this struture is used to
  * create the payload for HTT message/s from target to host.
  */
+
+#if (NUM_SPATIAL_STREAM > 3)
+  #define A_RATEMASK A_UINT64
+#else
+  #define A_RATEMASK A_UINT32
+#endif
+ 
+typedef A_UINT8 A_RATE;
+typedef A_UINT8 A_RATECODE;
+ 
+#define A_RATEMASK_NUM_OCTET (sizeof (A_RATEMASK))
+#define A_RATEMASK_NUM_BITS ((sizeof (A_RATEMASK)) << 3)
 
 typedef struct {
     A_RATECODE rateCode;
@@ -323,6 +336,9 @@ typedef struct {
         (_dst).flags           |= (_f);                                 \
     } while (0)
 
+#endif /* !((NUM_SPATIAL_STREAM > 4) || SUPPORT_11AX) */ /* above N/A for Lithium */
+#endif /* NUM_SPATIAL_STREAM */
+
 /* NOTE: NUM_DYN_BW and NUM_SCHED_ENTRIES cannot be changed without breaking WMI Compatibility */
 #define NUM_SCHED_ENTRIES           2
 #define NUM_DYN_BW_MAX              4
@@ -343,6 +359,7 @@ typedef struct {
 
 #define MAX_IBSS_PEERS 32
 
+#ifdef NUM_SPATIAL_STREAM
 /*
  * RC_TX_RATE_SCHEDULE and RC_TX_RATE_INFO defs are used only in the target.
  * (Host-based rate control is no longer applicable.)
@@ -374,7 +391,7 @@ typedef struct {
       A_UINT8     max_bw[NUM_SCHED_ENTRIES];
       A_UINT8     num_sched_entries;
       A_UINT8     paprd_mask;
-      A_UINT8     rts_rix;
+      A_RATE      rts_rix;
       A_UINT8     sh_pream;
       A_UINT8     min_spacing_1_4_us;
       A_UINT8     fixed_delims;
@@ -397,7 +414,7 @@ typedef struct {
       A_UINT8     tries[NUM_SCHED_ENTRIES];
       A_UINT8     num_valid_rates;
       A_UINT8     paprd_mask;
-      A_UINT8     rts_rix;
+      A_RATE      rts_rix;
       A_UINT8     sh_pream;
       A_UINT8     min_spacing_1_4_us;
       A_UINT8     fixed_delims;
@@ -417,13 +434,14 @@ typedef struct {
   #endif
       A_UINT8     tries[NUM_SCHED_ENTRIES];
       A_UINT8     num_valid_rates;
-      A_UINT8     rts_rix;
+      A_RATE      rts_rix;
       A_UINT8     sh_pream;
       A_UINT8     bw_in_service;
       A_RATE      probe_rix;
       A_UINT8     dd_profile;
   } RC_TX_RATE_INFO;
 #endif /* !((NUM_SPATIAL_STREAM > 4) || SUPPORT_11AX) */
+#endif
 
 /*
  * Temporarily continue to provide the WHAL_RC_INIT_RC_MASKS def in wlan_defs.h

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012,2014, 2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -25,29 +25,20 @@
  * to the Linux Foundation.
  */
 
-#ifndef __TARGCFG_H__
-#define __TARGCFG_H__
+#ifndef BIN_SIGN_H_
+#define BIN_SIGN_H_
 
-#if defined(ATH_TARGET)
-#include <osapi.h>              /* A_UINT32 */
-#else
-#include <a_types.h>            /* A_UINT32 */
-#endif
 
-typedef struct _targcfg_t {
-	A_UINT32 num_vdev;
-	A_UINT32 num_peers;
-	A_UINT32 num_peer_ast;
-	A_UINT32 num_peer_keys;
-	A_UINT32 num_peer_tid;
-	A_UINT32 num_mcast_keys;
-	A_UINT32 num_tx;
-	A_UINT32 num_rx;
-	A_UINT32 num_mgmt_tx;
-	A_UINT32 num_mgmt_rx;
-	A_UINT32 tx_chain_mask;
-	A_UINT32 rx_chain_mask;
-	A_UINT32 override;      /* Override target with the values supplied above */
-} targcfg_t;
+/* Signed binary MetaData */
+typedef struct {
+	unsigned int magic_num;
+	unsigned int total_len;
+	unsigned int rampatch_len;
+	unsigned int product_id;
+	unsigned int patch_ver;
+	unsigned short sign_format_ver;
+	unsigned short sign_algorithm;
+	unsigned char reserved[8];
+} SIGN_HEADER_T;
 
-#endif /* __TARGCFG_H__ */
+#endif /*  BIN_SIGN_H_ */

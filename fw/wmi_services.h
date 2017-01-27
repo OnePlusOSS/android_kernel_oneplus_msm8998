@@ -25,13 +25,6 @@
  * to the Linux Foundation.
  */
 
-/**
- * This file defines WMI services bitmap and the set of WMI services .
- * defines macrso to set/clear/get different service bits from the bitmap.
- * the service bitmap is sent up to the host via WMI_READY command.
- *
- */
-
 #ifndef _WMI_SERVICES_H_
 #define _WMI_SERVICES_H_
 
@@ -179,6 +172,20 @@ typedef  enum  {
      */
     WMI_SERVICE_FLASH_RDWR_SUPPORT=110,
     WMI_SERVICE_WLAN_STATS_REPORT=111, /* support WLAN stats report */
+    /* WMI_SERVICE_TX_MSDU_ID_NEW_PARTITION_SUPPORT -
+     * FW supports bigger MSDU ID partition which is defined as HTT_TX_IPA_NEW_MSDU_ID_SPACE_BEGIN
+     * When both host and FW support new partition, FW uses HTT_TX_IPA_NEW_MSDU_ID_SPACE_BEGIN
+     * If host doesn't support, FW falls back to HTT_TX_IPA_MSDU_ID_SPACE_BEGIN
+     * Handshaking is done through WMI_INIT and WMI service ready
+     */
+    WMI_SERVICE_TX_MSDU_ID_NEW_PARTITION_SUPPORT=112, /* support bigger MSDU ID partition */
+    WMI_SERVICE_DFS_PHYERR_OFFLOAD=113,
+    WMI_SERVICE_RCPI_SUPPORT=114,
+    WMI_SERVICE_FW_MEM_DUMP_SUPPORT=115, /* Support FW Memory dump */
+    WMI_SERVICE_PEER_STATS_INFO=116, /* support per peer stats info */
+    WMI_SERVICE_REGULATORY_DB=117, /* support regulatory database in FW */
+    WMI_SERVICE_11D_OFFLOAD=118, /* support 11D scan offload in FW */
+    WMI_SERVICE_HW_DATA_FILTERING=119,
 
 
     /******* ADD NEW SERVICES HERE UNTIL ALL VALUES UP TO 128 ARE USED *******/

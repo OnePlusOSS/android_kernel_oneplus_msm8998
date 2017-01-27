@@ -1896,6 +1896,16 @@ uint8_t cds_is_multicast_logging(void)
 	return cds_multicast_logging;
 }
 
+static void cds_reset_log_completion(p_cds_contextType p_cds_context)
+{
+	/* reset */
+	p_cds_context->log_complete.indicator = WLAN_LOG_INDICATOR_UNUSED;
+	p_cds_context->log_complete.is_fatal = WLAN_LOG_TYPE_NON_FATAL;
+	p_cds_context->log_complete.is_report_in_progress = false;
+	p_cds_context->log_complete.reason_code = WLAN_LOG_REASON_CODE_UNUSED;
+	p_cds_context->log_complete.recovery_needed = false;
+
+}
 /*
  * cds_init_log_completion() - Initialize log param structure
  *
@@ -1919,9 +1929,6 @@ void cds_init_log_completion(void)
 	p_cds_context->log_complete.indicator = WLAN_LOG_INDICATOR_UNUSED;
 	p_cds_context->log_complete.reason_code = WLAN_LOG_REASON_CODE_UNUSED;
 	p_cds_context->log_complete.is_report_in_progress = false;
-	/* Attempting to initialize an already initialized lock
-	 * results in a failure. This must be ok here.
-	 */
 	qdf_spinlock_create(&p_cds_context->bug_report_lock);
 }
 
@@ -2013,14 +2020,9 @@ void cds_get_and_reset_log_completion(uint32_t *is_fatal,
 	*indicator = p_cds_context->log_complete.indicator;
 	*reason_code = p_cds_context->log_complete.reason_code;
 	*recovery_needed = p_cds_context->log_complete.recovery_needed;
-
-	/* reset */
-	p_cds_context->log_complete.indicator = WLAN_LOG_INDICATOR_UNUSED;
-	p_cds_context->log_complete.is_fatal = WLAN_LOG_TYPE_NON_FATAL;
-	p_cds_context->log_complete.is_report_in_progress = false;
-	p_cds_context->log_complete.reason_code = WLAN_LOG_REASON_CODE_UNUSED;
-	p_cds_context->log_complete.recovery_needed = false;
+	cds_reset_log_completion(p_cds_context);
 	qdf_spinlock_release(&p_cds_context->bug_report_lock);
+
 }
 
 /**
@@ -2181,7 +2183,7 @@ QDF_STATUS cds_flush_logs(uint32_t is_fatal,
 	if (0 != ret) {
 		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
 				"%s: Failed to send flush FW log", __func__);
-		cds_init_log_completion();
+		cds_reset_log_completion(p_cds_context);
 		return QDF_STATUS_E_FAILURE;
 	}
 

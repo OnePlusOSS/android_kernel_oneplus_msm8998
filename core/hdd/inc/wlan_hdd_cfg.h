@@ -3508,6 +3508,23 @@ typedef enum {
 #define CFG_LINK_SPEED_RSSI_LOW_MAX                (0)
 #define CFG_LINK_SPEED_RSSI_LOW_DEFAULT            (-80)
 
+/*
+ * <ini>
+ * isP2pDeviceAddrAdministrated - Enables to derive the P2P MAC address from
+ * the primary MAC address
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This ini is used to enable/disable to derive the P2P MAC address from the
+ * primary MAC address.
+ *
+ * Supported Feature: P2P
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_P2P_DEVICE_ADDRESS_ADMINISTRATED_NAME                "isP2pDeviceAddrAdministrated"
 #define CFG_P2P_DEVICE_ADDRESS_ADMINISTRATED_MIN                 (0)
 #define CFG_P2P_DEVICE_ADDRESS_ADMINISTRATED_MAX                 (1)
@@ -3848,10 +3865,24 @@ typedef enum {
 #define CFG_FORCE_SAP_ACS_END_CH_DEFAULT   (11)
 
 /*
- * Skip DFS Channel in case of P2P Search
- * Options
+ * <ini>
+ * gSkipDfsChannelInP2pSearch - Skip DFS Channel in case of P2P Search
+ * options
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This ini is used to decide if DFS channels should be skipped in p2p
+ * search or not.
  * 0 - Don't Skip DFS Channel in case of P2P Search
  * 1 - Skip DFS Channel in case of P2P Search
+ *
+ * Supported Feature: P2P, Scan
+ *
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
  */
 #define CFG_ENABLE_SKIP_DFS_IN_P2P_SEARCH_NAME       "gSkipDfsChannelInP2pSearch"
 #define CFG_ENABLE_SKIP_DFS_IN_P2P_SEARCH_MIN        (0)
@@ -3859,10 +3890,24 @@ typedef enum {
 #define CFG_ENABLE_SKIP_DFS_IN_P2P_SEARCH_DEFAULT    (1)
 
 /*
- * Ignore Dynamic Dtim in case of P2P
- * Options
+ * <ini>
+ * gIgnoreDynamicDtimInP2pMode - Ignore Dynamic Dtim in case of P2P
+ * Options.
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to decide if Dynamic Dtim needs to be consider or
+ * not in case of P2P.
  * 0 - Consider Dynamic Dtim incase of P2P
  * 1 - Ignore Dynamic Dtim incase of P2P
+ *
+ * Supported Feature: P2P
+ *
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
  */
 #define CFG_IGNORE_DYNAMIC_DTIM_IN_P2P_MODE_NAME       "gIgnoreDynamicDtimInP2pMode"
 #define CFG_IGNORE_DYNAMIC_DTIM_IN_P2P_MODE_MIN        (0)
@@ -6270,7 +6315,30 @@ typedef enum {
 #define CFG_SAP_MCC_CHANNEL_AVOIDANCE_MAX          (1)
 #define CFG_SAP_MCC_CHANNEL_AVOIDANCE_DEFAULT      (0)
 #endif /* FEATURE_AP_MCC_CH_AVOIDANCE */
-
+/*
+ * <ini>
+ * gAP11ACOverride - Override 11AC when GO follow SAP channel
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This ini is used to enable/disable 11AC override.
+ * 1. P2P GO also follows start_bss and since p2p GO could not be
+ *    configured to setup VHT channel width in wpa_supplicant, driver
+ *    can override 11AC.
+ * 2. Android UI does not provide advanced configuration options
+ *    for SoftAP
+ *    Default override enabled for android. MDM shall
+ *    disable it in ini
+ *
+ *
+ * Supported Feature: P2P
+ *
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_SAP_P2P_11AC_OVERRIDE_NAME             "gAP11ACOverride"
 #define CFG_SAP_P2P_11AC_OVERRIDE_MIN              (0)
 #define CFG_SAP_P2P_11AC_OVERRIDE_MAX              (1)
@@ -6606,11 +6674,26 @@ enum dot11p_mode {
 #define CFG_EXTSCAN_ACTIVE_MIN_CHANNEL_TIME_MAX        (110)
 #define CFG_EXTSCAN_ACTIVE_MIN_CHANNEL_TIME_DEFAULT    (20)
 #endif
-
-/* When gEnable_go_cts2self_for_sta is
+/*
+ * <ini>
+ * gEnable_go_cts2self_for_sta - Indicate firmware to stop NOA and
+ * start using cts2self
+ * @Min: 1
+ * @Max: 1
+ * @Default: 0
+ *
+ * When gEnable_go_cts2self_for_sta is
  * enabled  then if a legacy client connects to P2P GO,
  * Host will send a WMI VDEV command to FW to stop using NOA for P2P GO
  * and start using CTS2SELF.
+ *
+ *
+ * Supported Feature: P2P
+ *
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
  */
 #define CFG_ENABLE_GO_CTS2SELF_FOR_STA   "gEnable_go_cts2self_for_sta"
 #define CFG_ENABLE_GO_CTS2SELF_FOR_STA_DEFAULT  (0)
@@ -6954,6 +7037,30 @@ enum dot11p_mode {
 #define CFG_EDCA_BE_CWMIN_VALUE_MIN       (0x0)
 #define CFG_EDCA_BE_CWMIN_VALUE_MAX       (15)
 #define CFG_EDCA_BE_CWMIN_VALUE_DEFAULT   (4)
+/*
+ * <ini>
+ * gP2PListenDeferInterval - Defer Remain on channel for some duration
+ * @Min: 100
+ * @Max: 200
+ * @Default: 100
+ *
+ * This ini is used to defer back to back RoC request when sta is
+ * connected.
+ * If back to back listen received when sta is connected then fw is
+ * not getting enough time to spend on home channel so it leading to
+ * heartbeat failure.
+ *
+ * Supported Feature: P2P
+ *
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+#define CFG_P2P_LISTEN_DEFER_INTERVAL_NAME        "gP2PListenDeferInterval"
+#define CFG_P2P_LISTEN_DEFER_INTERVAL_MIN         (100)
+#define CFG_P2P_LISTEN_DEFER_INTERVAL_MAX         (200)
+#define CFG_P2P_LISTEN_DEFER_INTERVAL_DEFAULT     (100)
 
 /*
  * <ini>

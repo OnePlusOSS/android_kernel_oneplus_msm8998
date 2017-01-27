@@ -6153,22 +6153,42 @@ QDF_STATUS sme_open_session(tHalHandle hHal, csr_roam_completeCallback callback,
 			    uint8_t *pSelfMacAddr, uint8_t *pbSessionId,
 			    uint32_t type, uint32_t subType)
 {
-	QDF_STATUS status;
+	QDF_STATUS status = QDF_STATUS_E_INVAL;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+	ol_txrx_pdev_handle pdev;
+	ol_txrx_peer_handle peer;
+	uint8_t peer_id;
 
 	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
 		  "%s: type=%d, subType=%d addr:%pM",
 		  __func__, type, subType, pSelfMacAddr);
 
-	if (NULL == pbSessionId) {
-		status = QDF_STATUS_E_INVAL;
-	} else {
+	pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+
+	if (NULL == pdev) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			  "%s: Failed to get pdev handler", __func__);
+		return status;
+	}
+
+	if (pbSessionId) {
 		status = sme_acquire_global_lock(&pMac->sme);
 		if (QDF_IS_STATUS_SUCCESS(status)) {
-			status = csr_roam_open_session(pMac, callback, pContext,
-						       pSelfMacAddr,
-						       pbSessionId, type,
-						       subType);
+			peer = ol_txrx_find_peer_by_addr(pdev, pSelfMacAddr,
+							 &peer_id);
+			if (peer) {
+
+				QDF_TRACE(QDF_MODULE_ID_SAP,
+					  QDF_TRACE_LEVEL_ERROR,
+					  "%s: Peer=%d exist with same MAC",
+					  __func__, peer_id);
+
+				status = QDF_STATUS_E_INVAL;
+
+			} else {
+				status = csr_roam_open_session(pMac, callback, pContext,
+						pSelfMacAddr, pbSessionId, type, subType);
+			}
 
 			sme_release_global_lock(&pMac->sme);
 		}

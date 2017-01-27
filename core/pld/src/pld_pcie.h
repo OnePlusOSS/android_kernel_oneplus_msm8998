@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -64,7 +64,7 @@ static inline int pld_pcie_wlan_disable(enum pld_driver_mode mode)
 {
 	return 0;
 }
-static inline int pld_pcie_set_fw_debug_mode(bool enablefwlog)
+static inline int pld_pcie_set_fw_log_mode(u8 fw_log_mode)
 {
 	return 0;
 }
@@ -76,9 +76,9 @@ static inline void pld_pcie_intr_notify_q6(void)
 int pld_pcie_wlan_enable(struct pld_wlan_enable_cfg *config,
 			 enum pld_driver_mode mode, const char *host_version);
 int pld_pcie_wlan_disable(enum pld_driver_mode mode);
-static inline int pld_pcie_set_fw_debug_mode(bool enablefwlog)
+static inline int pld_pcie_set_fw_log_mode(u8 fw_log_mode)
 {
-	return cnss_set_fw_debug_mode(enablefwlog);
+	return cnss_set_fw_debug_mode(fw_log_mode);
 }
 static inline void pld_pcie_intr_notify_q6(void)
 {

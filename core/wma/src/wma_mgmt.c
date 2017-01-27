@@ -3192,12 +3192,6 @@ static int wma_mgmt_rx_process(void *handle, uint8_t *data,
 		return -EINVAL;
 	}
 
-	rx_pkt = qdf_mem_malloc(sizeof(*rx_pkt));
-	if (!rx_pkt) {
-		WMA_LOGE("Failed to allocate rx packet");
-		return -ENOMEM;
-	}
-
 	if (cds_is_load_or_unload_in_progress()) {
 		WMA_LOGW(FL("Load/Unload in progress"));
 		return -EINVAL;
@@ -3206,6 +3200,12 @@ static int wma_mgmt_rx_process(void *handle, uint8_t *data,
 	if (cds_is_driver_recovering()) {
 		WMA_LOGW(FL("Recovery in progress"));
 		return -EINVAL;
+	}
+
+	rx_pkt = qdf_mem_malloc(sizeof(*rx_pkt));
+	if (!rx_pkt) {
+		WMA_LOGE("Failed to allocate rx packet");
+		return -ENOMEM;
 	}
 
 	qdf_mem_zero(rx_pkt, sizeof(*rx_pkt));

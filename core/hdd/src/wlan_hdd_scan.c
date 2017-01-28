@@ -1455,6 +1455,88 @@ static int wlan_hdd_update_scan_ies(hdd_adapter_t *adapter,
 	return 0;
 }
 
+#if defined(CFG80211_SCAN_RANDOM_MAC_ADDR) || \
+	(LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
+/**
+ * wlan_hdd_update_scan_rand_attrs - fill the host/pno scan rand attrs
+ * @scan_req: pointer to scan_req containing destination mac addr and mac mask
+ * @cfg_scan_req: pointer to cfg scan containing to source mac addr and mac mask
+ * @scan_type: type of scan from enum wlan_hdd_scan_type
+ *
+ * If scan randomize flag is set in cfg scan request flags, this function
+ * copies mac addr and mac mask in cfg80211 scan/sched scan request to
+ * randomization attributes in tCsrScanRequest (normal scan) or
+ * tpSirPNOScanReq (sched scan). Based on the type of scan, scan_req and
+ * cfg_scan_req are type casted accordingly.
+ *
+ * Return: None
+ */
+static void wlan_hdd_update_scan_rand_attrs(void *scan_req,
+					    void *cfg_scan_req,
+					    uint32_t scan_type)
+{
+	uint32_t flags = 0;
+	uint8_t *cfg_mac_addr = NULL;
+	uint8_t *cfg_mac_addr_mask = NULL;
+	bool *scan_randomization = NULL;
+	uint8_t *scan_mac_addr = NULL;
+	uint8_t *scan_mac_addr_mask = NULL;
+
+	if (scan_type == WLAN_HDD_HOST_SCAN) {
+		tCsrScanRequest *csr_scan_req = NULL;
+		struct cfg80211_scan_request *request = NULL;
+
+		csr_scan_req = (tCsrScanRequest *)scan_req;
+		request = (struct cfg80211_scan_request *)cfg_scan_req;
+
+		flags = request->flags;
+		if (!(flags & NL80211_SCAN_FLAG_RANDOM_ADDR))
+			return;
+
+		cfg_mac_addr = request->mac_addr;
+		cfg_mac_addr_mask = request->mac_addr_mask;
+		scan_randomization = &csr_scan_req->enable_scan_randomization;
+		scan_mac_addr = csr_scan_req->mac_addr;
+		scan_mac_addr_mask = csr_scan_req->mac_addr_mask;
+	} else if (scan_type == WLAN_HDD_PNO_SCAN) {
+		tpSirPNOScanReq pno_scan_req = NULL;
+		struct cfg80211_sched_scan_request *request = NULL;
+
+		pno_scan_req = (tpSirPNOScanReq)scan_req;
+		request = (struct cfg80211_sched_scan_request *)cfg_scan_req;
+
+		flags = request->flags;
+		if (!(flags & NL80211_SCAN_FLAG_RANDOM_ADDR))
+			return;
+
+		cfg_mac_addr = request->mac_addr;
+		cfg_mac_addr_mask = request->mac_addr_mask;
+		scan_randomization =
+				&pno_scan_req->enable_pno_scan_randomization;
+		scan_mac_addr = pno_scan_req->mac_addr;
+		scan_mac_addr_mask = pno_scan_req->mac_addr_mask;
+	} else {
+		hdd_err("invalid scan type for randomization");
+		return;
+	}
+
+	/* enable mac randomization */
+	*scan_randomization = true;
+	memcpy(scan_mac_addr, cfg_mac_addr, QDF_MAC_ADDR_SIZE);
+	memcpy(scan_mac_addr_mask, cfg_mac_addr_mask, QDF_MAC_ADDR_SIZE);
+
+	hdd_info("Mac Addr: "MAC_ADDRESS_STR " and Mac Mask: " MAC_ADDRESS_STR,
+		 MAC_ADDR_ARRAY(scan_mac_addr),
+		 MAC_ADDR_ARRAY(scan_mac_addr_mask));
+}
+#else
+static void wlan_hdd_update_scan_rand_attrs(void *scan_req,
+					    void *cfg_scan_req,
+					    uint32_t scan_type)
+{
+}
+#endif
+
 /**
  * __wlan_hdd_cfg80211_scan() - API to process cfg80211 scan request
  * @wiphy: Pointer to wiphy
@@ -1867,6 +1949,9 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 	if (request->flags & NL80211_SCAN_FLAG_FLUSH)
 		sme_scan_flush_result(WLAN_HDD_GET_HAL_CTX(pAdapter));
 #endif
+	wlan_hdd_update_scan_rand_attrs((void *)&scan_req, (void *)request,
+					WLAN_HDD_HOST_SCAN);
+
 	qdf_runtime_pm_prevent_suspend(pHddCtx->runtime_context.scan);
 	status = sme_scan_request(WLAN_HDD_GET_HAL_CTX(pAdapter),
 				pAdapter->sessionId, &scan_req,
@@ -2053,6 +2138,69 @@ static inline void wlan_hdd_copy_bssid(struct cfg80211_scan_request *request,
 }
 #endif
 
+#if defined(CFG80211_SCAN_RANDOM_MAC_ADDR) || \
+	(LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
+/**
+ * wlan_hdd_vendor_scan_random_attr() - check and fill scan randomization attrs
+ * @wiphy: Pointer to wiphy
+ * @request: Pointer to scan request
+ * @wdev: Pointer to wireless device
+ * @tb: Pointer to nl attributes
+ *
+ * This function is invoked to check whether vendor scan needs
+ * probe req source addr , if so populates mac_addr and mac_addr_mask
+ * in scan request with nl attrs.
+ *
+ * Return: 0 - on success, negative value on failure
+ */
+
+static int wlan_hdd_vendor_scan_random_attr(struct wiphy *wiphy,
+					struct cfg80211_scan_request *request,
+					struct wireless_dev *wdev,
+					struct nlattr **tb)
+{
+	uint32_t i;
+
+	if (!(request->flags & NL80211_SCAN_FLAG_RANDOM_ADDR))
+		return 0;
+
+	if (!(wiphy->features & NL80211_FEATURE_SCAN_RANDOM_MAC_ADDR) ||
+	    (wdev->current_bss)) {
+		hdd_err("SCAN RANDOMIZATION not supported");
+		return -EOPNOTSUPP;
+	}
+
+	if (!tb[QCA_WLAN_VENDOR_ATTR_SCAN_MAC] ||
+	    !tb[QCA_WLAN_VENDOR_ATTR_SCAN_MAC_MASK])
+		return -EINVAL;
+
+	qdf_mem_copy(request->mac_addr,
+		     nla_data(tb[QCA_WLAN_VENDOR_ATTR_SCAN_MAC]),
+		     QDF_MAC_ADDR_SIZE);
+	qdf_mem_copy(request->mac_addr_mask,
+		     nla_data(tb[QCA_WLAN_VENDOR_ATTR_SCAN_MAC_MASK]),
+		     QDF_MAC_ADDR_SIZE);
+
+	/* avoid configure on multicast address */
+	if (!qdf_is_group_addr(request->mac_addr_mask) ||
+	    qdf_is_group_addr(request->mac_addr))
+		return -EINVAL;
+
+	for (i = 0; i < ETH_ALEN; i++)
+		request->mac_addr[i] &= request->mac_addr_mask[i];
+
+	return 0;
+}
+#else
+static int wlan_hdd_vendor_scan_random_attr(struct wiphy *wiphy,
+					struct cfg80211_scan_request *request,
+					struct wireless_dev *wdev,
+					struct nlattr **tb)
+{
+	return 0;
+}
+#endif
+
 /**
  * __wlan_hdd_cfg80211_vendor_scan() - API to process venor scan request
  * @wiphy: Pointer to wiphy
@@ -2222,6 +2370,9 @@ static int __wlan_hdd_cfg80211_vendor_scan(struct wiphy *wiphy,
 			hdd_err("LOW PRIORITY SCAN not supported");
 			goto error;
 		}
+
+		if (wlan_hdd_vendor_scan_random_attr(wiphy, request, wdev, tb))
+			goto error;
 	}
 
 	if (tb[QCA_WLAN_VENDOR_ATTR_SCAN_BSSID]) {
@@ -2483,8 +2634,19 @@ hdd_sched_scan_callback(void *callbackContext,
 
 	ret = wlan_hdd_cfg80211_update_bss(pHddCtx->wiphy, pAdapter, 0);
 
-	if (0 > ret)
+	if (ret < 0) {
 		hdd_notice("NO SCAN result");
+	} else {
+		/*
+		 * Acquire wakelock to handle the case where APP's tries to
+		 * suspend immediately after the driver gets connect
+		 * request(i.e after pno) from supplicant, this result in
+		 * app's is suspending and not able to process the connect
+		 * request to AP
+		 */
+		hdd_prevent_suspend_timeout(1000,
+					    WIFI_POWER_EVENT_WAKELOCK_SCAN);
+	}
 
 	cfg80211_sched_scan_results(pHddCtx->wiphy);
 	hdd_notice("cfg80211 scan result database updated");
@@ -2820,6 +2982,9 @@ static int __wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
 
 	hdd_info("SessionId %d, enable %d, modePNO %d",
 		pAdapter->sessionId, pPnoRequest->enable, pPnoRequest->modePNO);
+
+	wlan_hdd_update_scan_rand_attrs((void *)pPnoRequest, (void *)request,
+					WLAN_HDD_PNO_SCAN);
 
 	status = sme_set_preferred_network_list(WLAN_HDD_GET_HAL_CTX(pAdapter),
 						pPnoRequest,

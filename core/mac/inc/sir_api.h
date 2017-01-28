@@ -904,6 +904,11 @@ typedef struct sSirSmeScanReq {
 	uint16_t uIEFieldLen;
 	uint16_t uIEFieldOffset;
 
+	/* mac address randomization attributes */
+	bool enable_scan_randomization;
+	uint8_t mac_addr[QDF_MAC_ADDR_SIZE];
+	uint8_t mac_addr_mask[QDF_MAC_ADDR_SIZE];
+
 	/* channelList MUST be the last field of this structure */
 	tSirChannelList channelList;
 	/*-----------------------------
@@ -2943,6 +2948,11 @@ typedef struct sSirPNOScanReq {
 	enum wmi_dwelltime_adaptive_mode pnoscan_adaptive_dwell_mode;
 	uint32_t channel_prediction_full_scan;
 #endif
+
+	/* mac address randomization attributes */
+	bool enable_pno_scan_randomization;
+	uint8_t mac_addr[QDF_MAC_ADDR_SIZE];
+	uint8_t mac_addr_mask[QDF_MAC_ADDR_SIZE];
 } tSirPNOScanReq, *tpSirPNOScanReq;
 
 /* Preferred Network Found Indication */
@@ -3770,6 +3780,12 @@ typedef struct sSirScanOffloadReq {
 	enum wmi_dwelltime_adaptive_mode scan_adaptive_dwell_mode;
 	uint16_t uIEFieldLen;
 	uint16_t uIEFieldOffset;
+
+	/* mac address randomization attributes */
+	bool enable_scan_randomization;
+	uint8_t mac_addr[QDF_MAC_ADDR_SIZE];
+	uint8_t mac_addr_mask[QDF_MAC_ADDR_SIZE];
+
 	tSirChannelList channelList;
 	/*-----------------------------
 	  sSirScanOffloadReq....
@@ -4928,6 +4944,8 @@ struct power_stats_response {
 
 typedef struct {
 	uint8_t oui[WIFI_SCANNING_MAC_OUI_LENGTH];
+	uint32_t vdev_id;
+	bool enb_probe_req_sno_randomization;
 } tSirScanMacOui, *tpSirScanMacOui;
 
 enum {

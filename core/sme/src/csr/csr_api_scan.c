@@ -5188,6 +5188,15 @@ static QDF_STATUS csr_send_mb_scan_req(tpAniSirGlobal pMac, uint16_t sessionId,
 	pMsg->p2pSearch = pScanReq->p2pSearch;
 	pMsg->scan_id = pScanReq->scan_id;
 
+	pMsg->enable_scan_randomization =
+					pScanReq->enable_scan_randomization;
+	if (pMsg->enable_scan_randomization) {
+		qdf_mem_copy(pMsg->mac_addr, pScanReq->mac_addr,
+			     QDF_MAC_ADDR_SIZE);
+		qdf_mem_copy(pMsg->mac_addr_mask, pScanReq->mac_addr_mask,
+			     QDF_MAC_ADDR_SIZE);
+	}
+
 send_scan_req:
 	sms_log(pMac, LOG1,
 		FL("scanId %d domainIdCurrent %d scanType %s (%d) bssType %s (%d) requestType %s (%d) numChannels %d"),

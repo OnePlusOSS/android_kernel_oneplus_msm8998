@@ -277,6 +277,12 @@ QDF_STATUS wma_get_buf_start_scan_cmd(tp_wma_handle wma_handle,
 	 */
 	cmd->burst_duration = 0;
 
+	/* mac randomization attributes */
+	cmd->enable_scan_randomization = scan_req->enable_scan_randomization;
+	qdf_mem_copy(cmd->mac_addr, scan_req->mac_addr, QDF_MAC_ADDR_SIZE);
+	qdf_mem_copy(cmd->mac_addr_mask, scan_req->mac_addr_mask,
+		     QDF_MAC_ADDR_SIZE);
+
 	if (!scan_req->p2pScanType) {
 		WMA_LOGD("Normal Scan request");
 		cmd->scan_ctrl_flags |= WMI_SCAN_ADD_CCK_RATES;
@@ -3079,6 +3085,12 @@ QDF_STATUS wma_pno_start(tp_wma_handle wma, tpSirPNOScanReq pno)
 				WMI_MAC_MAX_SSID_LENGTH);
 	}
 
+	params->enable_pno_scan_randomization =
+					pno->enable_pno_scan_randomization;
+	qdf_mem_copy(params->mac_addr, pno->mac_addr, QDF_MAC_ADDR_SIZE);
+	qdf_mem_copy(params->mac_addr_mask, pno->mac_addr_mask,
+		     QDF_MAC_ADDR_SIZE);
+
 	status = wmi_unified_pno_start_cmd(wma->wmi_handle,
 					params, channel_list);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
@@ -5520,6 +5532,10 @@ QDF_STATUS wma_scan_probe_setoui(tp_wma_handle wma, tSirScanMacOui *psetoui)
 
 	qdf_mem_copy(set_oui.oui, psetoui->oui,
 				WMI_WIFI_SCANNING_MAC_OUI_LENGTH);
+
+	set_oui.vdev_id = psetoui->vdev_id;
+	set_oui.enb_probe_req_sno_randomization =
+				psetoui->enb_probe_req_sno_randomization;
 
 	return wmi_unified_scan_probe_setoui_cmd(wma->wmi_handle,
 						&set_oui);

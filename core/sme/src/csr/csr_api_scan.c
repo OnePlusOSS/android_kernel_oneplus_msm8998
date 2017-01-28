@@ -4051,6 +4051,7 @@ csr_handle_nxt_cmd(tpAniSirGlobal mac_ctx, tSmeCmd *pCommand,
 {
 	QDF_STATUS status, ret;
 	tSmeCmd *save_cmd = NULL;
+	tSmeCmd *saved_scan_cmd;
 
 	switch (*nxt_cmd) {
 	case eCsrNext11dScan1Success:
@@ -4115,9 +4116,30 @@ csr_handle_nxt_cmd(tpAniSirGlobal mac_ctx, tSmeCmd *pCommand,
 					SIR_UPDATE_REASON_HIDDEN_STA);
 		sms_log(mac_ctx, LOG1, FL("chan: %d session: %d status: %d"),
 					chan, pCommand->sessionId, ret);
-		if (mac_ctx->sme.saved_scan_cmd) {
-			qdf_mem_free(mac_ctx->sme.saved_scan_cmd);
-			mac_ctx->sme.saved_scan_cmd = NULL;
+		saved_scan_cmd = (tSmeCmd *)mac_ctx->sme.saved_scan_cmd;
+		if (saved_scan_cmd) {
+			csr_release_profile(mac_ctx, saved_scan_cmd->u.scanCmd.
+					    pToRoamProfile);
+			if (saved_scan_cmd->u.scanCmd.pToRoamProfile) {
+				qdf_mem_free(saved_scan_cmd->u.scanCmd.
+					     pToRoamProfile);
+				saved_scan_cmd->u.scanCmd.
+					pToRoamProfile = NULL;
+			}
+			if (saved_scan_cmd->u.scanCmd.u.scanRequest.SSIDs.
+			    SSIDList) {
+				qdf_mem_free(saved_scan_cmd->u.scanCmd.u.
+					     scanRequest.SSIDs.SSIDList);
+				saved_scan_cmd->u.scanCmd.u.scanRequest.SSIDs.
+					SSIDList = NULL;
+			}
+			if (saved_scan_cmd->u.roamCmd.pRoamBssEntry) {
+				qdf_mem_free(saved_scan_cmd->u.roamCmd.
+					     pRoamBssEntry);
+				saved_scan_cmd->u.roamCmd.pRoamBssEntry = NULL;
+			}
+			qdf_mem_free(saved_scan_cmd);
+			saved_scan_cmd = NULL;
 			sms_log(mac_ctx, LOGE,
 				FL("memory should have been free. Check!"));
 		}

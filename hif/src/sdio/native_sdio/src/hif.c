@@ -2550,7 +2550,6 @@ static struct hif_sdio_dev *add_hif_device(struct sdio_func *func)
 	hifdevice = (struct hif_sdio_dev *) qdf_mem_malloc(sizeof(
 							struct hif_sdio_dev));
 	AR_DEBUG_ASSERT(hifdevice != NULL);
-	qdf_mem_zero(hifdevice, sizeof(*hifdevice));
 #if HIF_USE_DMA_BOUNCE_BUFFER
 	hifdevice->dma_buffer = qdf_mem_malloc(HIF_DMA_BUFFER_SIZE);
 	AR_DEBUG_ASSERT(hifdevice->dma_buffer != NULL);

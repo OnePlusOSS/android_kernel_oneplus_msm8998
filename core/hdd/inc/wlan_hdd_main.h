@@ -1832,7 +1832,7 @@ QDF_STATUS wlan_hdd_check_custom_con_channel_rules(hdd_adapter_t *sta_adapter,
 						  tScanResultHandle *scan_cache,
 						  bool *concurrent_chnl_same);
 void wlan_hdd_stop_sap(hdd_adapter_t *ap_adapter);
-void wlan_hdd_start_sap(hdd_adapter_t *ap_adapter);
+void wlan_hdd_start_sap(hdd_adapter_t *ap_adapter, bool reinit);
 
 void wlan_hdd_soc_set_antenna_mode_cb(enum set_antenna_mode_status status);
 
@@ -2093,4 +2093,5 @@ void hdd_set_roaming_in_progress(bool value);
  * Return: 0 if interface was opened else false
  */
 bool hdd_check_for_opened_interfaces(hdd_context_t *hdd_ctx);
+void wlan_hdd_start_sap(hdd_adapter_t *ap_adapter, bool reinit);
 #endif /* end #if !defined(WLAN_HDD_MAIN_H) */

@@ -7353,6 +7353,11 @@ enum dot11p_mode {
 #define CFG_TGT_GTX_USR_CFG_MAX     (32)
 #define CFG_TGT_GTX_USR_CFG_DEFAULT (32)
 
+#define CFG_SAP_INTERNAL_RESTART_NAME    "gEnableSapInternalRestart"
+#define CFG_SAP_INTERNAL_RESTART_MIN     (0)
+#define CFG_SAP_INTERNAL_RESTART_MAX     (1)
+#define CFG_SAP_INTERNAL_RESTART_DEFAULT (1)
+
 /*
  * This parameter will avoid updating ap_sta_inactivity from hostapd.conf
  * file. If a station does not send anything in ap_max_inactivity seconds, an
@@ -9094,6 +9099,7 @@ struct hdd_config {
 	uint8_t enable_phy_reg_retention;
 	enum active_bpf_mode active_bpf_mode;
 	bool hw_broadcast_filter;
+	bool sap_internal_restart;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

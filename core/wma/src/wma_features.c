@@ -3413,6 +3413,9 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 		 * WMI_ROAM_REASON_SUITABLE_AP will be handled by
 		 * wma_roam_event_callback().
 		 */
+		wma_peer_debug_log(wake_info->vdev_id, DEBUG_WOW_ROAM_EVENT,
+				   DEBUG_INVALID_PEER_ID, NULL, NULL,
+				   WOW_REASON_LOW_RSSI, 0);
 		WMA_LOGD("Host woken up because of roam event");
 		if (param_buf->wow_packet_buffer) {
 			/* Roam event is embedded in wow_packet_buffer */
@@ -6664,6 +6667,10 @@ static int __wma_bus_suspend(enum qdf_suspend_type type, uint32_t wow_flags)
 		return qdf_status_to_os_return(status);
 	}
 
+	wma_peer_debug_log(DEBUG_INVALID_VDEV_ID, DEBUG_BUS_SUSPEND,
+			   DEBUG_INVALID_PEER_ID, NULL, NULL,
+			   0, 0);
+
 	return wma_suspend_target(handle, 0);
 }
 
@@ -6714,6 +6721,10 @@ static int __wma_bus_resume(WMA_HANDLE handle)
 	QDF_STATUS status;
 
 	WMA_LOGI("%s: wow mode %d", __func__, wow_mode);
+
+	wma_peer_debug_log(DEBUG_INVALID_VDEV_ID, DEBUG_BUS_RESUME,
+			   DEBUG_INVALID_PEER_ID, NULL, NULL,
+			   0, 0);
 
 	wma->wow_initial_wake_up = false;
 

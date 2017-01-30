@@ -2373,6 +2373,15 @@ QDF_STATUS wma_open(void *cds_context,
 	wma_ndp_register_all_event_handlers(wma_handle);
 	wma_register_debug_callback();
 
+	wma_handle->peer_dbg = qdf_mem_malloc(sizeof(*wma_handle->peer_dbg));
+	if (!wma_handle->peer_dbg) {
+		WMA_LOGP("%s: failed to peer debug info table", __func__);
+		qdf_status = QDF_STATUS_E_NOMEM;
+		goto err_dbglog_init;
+	}
+	qdf_atomic_init(&wma_handle->peer_dbg->index);
+	qdf_atomic_set(&wma_handle->peer_dbg->index, -1);
+
 	return QDF_STATUS_SUCCESS;
 
 err_dbglog_init:
@@ -3581,6 +3590,11 @@ QDF_STATUS wma_close(void *cds_ctx)
 	if (WMI_SERVICE_IS_ENABLED(wma_handle->wmi_service_bitmap,
 				   WMI_SERVICE_MGMT_TX_WMI)) {
 		wmi_desc_pool_deinit(wma_handle);
+	}
+
+	if (wma_handle->peer_dbg) {
+		qdf_mem_free(wma_handle->peer_dbg);
+		wma_handle->peer_dbg = NULL;
 	}
 
 	WMA_LOGD("%s: Exit", __func__);

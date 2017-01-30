@@ -43,6 +43,7 @@
 #include <ol_txrx.h>            /* ol_txrx_peer_unref_delete */
 #include <ol_txrx_peer_find.h>  /* ol_txrx_peer_find_attach, etc. */
 #include <ol_tx_queue.h>
+#include "wma_api.h"
 
 /*=== misc. / utility function definitions ==================================*/
 
@@ -341,6 +342,8 @@ static inline void ol_txrx_peer_find_add_id(struct ol_txrx_pdev_t *pdev,
 	struct ol_txrx_peer_t *peer;
 	int status;
 	int i;
+	uint32_t peer_id_ref_cnt;
+	uint32_t peer_ref_cnt;
 
 	/* check if there's already a peer object with this MAC address */
 	peer =
@@ -396,13 +399,19 @@ static inline void ol_txrx_peer_find_add_id(struct ol_txrx_pdev_t *pdev,
 
 	qdf_spin_unlock(&pdev->peer_map_unmap_lock);
 
+	peer_id_ref_cnt = qdf_atomic_read(&pdev->
+				peer_id_to_obj_map[peer_id].peer_id_ref_cnt);
+	peer_ref_cnt = qdf_atomic_read(&peer->ref_cnt);
 	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
 	   "%s: peer %p ID %d peer_id[%d] peer_id_ref_cnt %d peer->ref_cnt %d",
 	   __func__, peer, peer_id, i,
-	   qdf_atomic_read(&pdev->
-				peer_id_to_obj_map[peer_id].
-				peer_id_ref_cnt),
-	   qdf_atomic_read(&peer->ref_cnt));
+	   peer_id_ref_cnt, peer_ref_cnt);
+
+	wma_peer_debug_log(DEBUG_INVALID_VDEV_ID, DEBUG_PEER_MAP_EVENT,
+			   peer_id, &peer->mac_addr.raw, peer,
+			   peer_id_ref_cnt,
+			   peer_ref_cnt);
+
 
 	if (status) {
 		/* TBDXXX: assert for now */
@@ -554,7 +563,6 @@ void ol_rx_peer_unmap_handler(ol_txrx_pdev_handle pdev, uint16_t peer_id)
 		return;
 	}
 	peer = pdev->peer_id_to_obj_map[peer_id].peer;
-
 	if (peer == NULL) {
 		/*
 		 * Currently peer IDs are assigned for vdevs as well as peers.
@@ -583,6 +591,10 @@ void ol_rx_peer_unmap_handler(ol_txrx_pdev_handle pdev, uint16_t peer_id)
 		(&pdev->peer_id_to_obj_map[peer_id].peer_id_ref_cnt);
 
 	qdf_spin_unlock_bh(&pdev->peer_map_unmap_lock);
+
+	wma_peer_debug_log(DEBUG_INVALID_VDEV_ID, DEBUG_PEER_UNMAP_EVENT,
+			   peer_id, &peer->mac_addr.raw, peer, ref_cnt,
+			   qdf_atomic_read(&peer->ref_cnt));
 
 	/*
 	 * Remove a reference to the peer.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -89,6 +89,44 @@ struct wma_caps_per_phy {
 #define PPS_CMD  5
 #define QPOWER_CMD 6
 #define GTX_CMD  7
+
+/**
+ * @DEBUG_PEER_CREATE_SEND: sent peer_create command to firmware
+ * @DEBUG_PEER_CREATE_RESP: received peer create response
+ * @DEBUG_PEER_DELETE_SEND: sent peer delete command to firmware
+ * @DEBUG_PEER_DELETE_RESP: received peer delete response
+ * @DEBUG_PEER_MAP_EVENT: received peer map event
+ * @DEBUG_PEER_UNMAP_EVENT: received peer unmap event
+ * @DEBUG_PEER_UNREF_DELETE: peer reference is decremented
+ * @DEBUG_DELETING_PEER_OBJ: peer object is deleted
+ * @DEBUG_ROAM_SYNCH_IND: received roam offload sync indication
+ * @DEBUG_ROAM_SYNCH_CNF: sent roam offload sync confirmation
+ * @DEBUG_ROAM_SYNCH_FAIL: received roam sync failure indication
+ * @DEBUG_ROAM_EVENT: received roam event
+ * @DEBUG_BUS_SUSPEND: host going into suspend mode
+ * @DEBUG_BUS_RESUME: host operation resumed
+ */
+
+enum peer_debug_op {
+	DEBUG_PEER_CREATE_SEND = 0,
+	DEBUG_PEER_CREATE_RESP,
+	DEBUG_PEER_DELETE_SEND,
+	DEBUG_PEER_DELETE_RESP,
+	DEBUG_PEER_MAP_EVENT,
+	DEBUG_PEER_UNMAP_EVENT,
+	DEBUG_PEER_UNREF_DELETE,
+	DEBUG_DELETING_PEER_OBJ,
+	DEBUG_ROAM_SYNCH_IND,
+	DEBUG_ROAM_SYNCH_CNF,
+	DEBUG_ROAM_SYNCH_FAIL,
+	DEBUG_ROAM_EVENT,
+	DEBUG_WOW_ROAM_EVENT,
+	DEBUG_BUS_SUSPEND,
+	DEBUG_BUS_RESUME
+};
+
+#define DEBUG_INVALID_PEER_ID 0xffff
+#define DEBUG_INVALID_VDEV_ID 0xff
 
 typedef void (*wma_peer_authorized_fp) (uint32_t vdev_id);
 
@@ -337,4 +375,22 @@ QDF_STATUS wma_set_sar_limit(WMA_HANDLE handle,
  * Return: QDF_STATUS_SUCCESS on success, error number otherwise
  */
 QDF_STATUS wma_set_qpower_config(uint8_t vdev_id, uint8_t qpower);
+
+/**
+ * wma_peer_debug_log() - Add a debug log entry into peer debug records
+ * @vdev_id: vdev identifier
+ * @op: operation identifier
+ * @peer_id: peer id
+ * @mac_addr: mac address of peer, can be NULL
+ * @peer_obj: peer object address, can be NULL
+ * @arg1: extra argument #1
+ * @arg2: extra argument #2
+ *
+ * Return: none
+ */
+void wma_peer_debug_log(uint8_t vdev_id, uint8_t op,
+			uint16_t peer_id, void *mac_addr,
+			void *peer_obj, uint32_t val1, uint32_t val2);
+void wma_peer_debug_dump(void);
+
 #endif

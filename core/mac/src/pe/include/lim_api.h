@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -327,5 +327,7 @@ static inline void lim_fill_join_rsp_ht_caps(tpPESession session,
 #endif
 QDF_STATUS lim_update_ext_cap_ie(tpAniSirGlobal mac_ctx,
 	uint8_t *ie_data, uint8_t *local_ie_buf, uint16_t *local_ie_len);
+QDF_STATUS lim_add_qcn_ie(tpAniSirGlobal mac_ctx, uint8_t *ie_data,
+							uint16_t *ie_len);
 /************************************************************/
 #endif /* __LIM_API_H */

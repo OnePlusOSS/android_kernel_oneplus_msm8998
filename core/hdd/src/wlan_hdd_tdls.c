@@ -1155,14 +1155,13 @@ void wlan_hdd_tdls_set_link_status(hdd_adapter_t *pAdapter,
 	if (wlan_hdd_validate_context(pHddCtx))
 		return;
 
-	curr_peer = wlan_hdd_tdls_find_peer(pAdapter, mac, true);
+	curr_peer = wlan_hdd_tdls_find_peer(pAdapter, mac, false);
 	if (curr_peer == NULL) {
 		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
 			  FL("curr_peer is NULL"));
 		return;
 	}
 
-	mutex_lock(&pHddCtx->tdls_lock);
 	curr_peer->link_status = linkStatus;
 
 	/* If TDLS link status is already passed the discovery state
@@ -1171,7 +1170,7 @@ void wlan_hdd_tdls_set_link_status(hdd_adapter_t *pAdapter,
 	if (linkStatus >= eTDLS_LINK_DISCOVERED) {
 		curr_peer->discovery_attempt = 0;
 	}
-	mutex_unlock(&pHddCtx->tdls_lock);
+
 	if (curr_peer->isForcedPeer && curr_peer->state_change_notification) {
 		uint32_t opclass;
 		uint32_t channel;
@@ -3850,6 +3849,7 @@ int wlan_hdd_tdls_add_station(struct wiphy *wiphy,
 	hdd_context_t *pHddCtx = wiphy_priv(wiphy);
 	QDF_STATUS status;
 	hddTdlsPeer_t *pTdlsPeer;
+	tTDLSLinkStatus link_status;
 	uint16_t numCurrTdlsPeers;
 	unsigned long rc;
 	int ret;
@@ -3868,14 +3868,18 @@ int wlan_hdd_tdls_add_station(struct wiphy *wiphy,
 		return -ENOTSUPP;
 	}
 
-	pTdlsPeer = wlan_hdd_tdls_get_peer(pAdapter, mac, true);
+	mutex_lock(&pHddCtx->tdls_lock);
+	pTdlsPeer = wlan_hdd_tdls_get_peer(pAdapter, mac, false);
 
 	if (NULL == pTdlsPeer) {
+		mutex_unlock(&pHddCtx->tdls_lock);
 		hdd_err(MAC_ADDRESS_STR " update %d not exist. return invalid",
 			MAC_ADDR_ARRAY(mac), update);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto rel_lock;
 	}
 
+	link_status = pTdlsPeer->link_status;
 	/* in add station, we accept existing valid staId if there is */
 	if ((0 == update) &&
 	    ((pTdlsPeer->link_status >= eTDLS_LINK_CONNECTING) ||
@@ -3883,7 +3887,8 @@ int wlan_hdd_tdls_add_station(struct wiphy *wiphy,
 		hdd_notice(MAC_ADDRESS_STR " link_status %d. staId %d. add station ignored.",
 			   MAC_ADDR_ARRAY(mac), pTdlsPeer->link_status,
 			   pTdlsPeer->staId);
-		return 0;
+		ret = 0;
+		goto rel_lock;
 	}
 	/* in change station, we accept only when staId is valid */
 	if ((1 == update) &&
@@ -3894,13 +3899,16 @@ int wlan_hdd_tdls_add_station(struct wiphy *wiphy,
 			pTdlsPeer->staId,
 			(TDLS_STA_INDEX_VALID(pTdlsPeer->staId)) ? "ignored" :
 			"declined");
-		return (TDLS_STA_INDEX_VALID(pTdlsPeer->staId)) ? 0 : -EPERM;
+		ret = (TDLS_STA_INDEX_VALID(pTdlsPeer->staId)) ? 0 : -EPERM;
+		goto rel_lock;
 	}
 
 	/* when others are on-going, we want to change link_status to idle */
-	if (NULL != wlan_hdd_tdls_is_progress(pHddCtx, mac, true, true)) {
+	if (NULL != wlan_hdd_tdls_is_progress(pHddCtx, mac, true, false)) {
+		mutex_unlock(&pHddCtx->tdls_lock);
 		hdd_notice(MAC_ADDRESS_STR " TDLS setup is ongoing. Request declined.",
 			   MAC_ADDR_ARRAY(mac));
+		ret = -EPERM;
 		goto error;
 	}
 
@@ -3915,16 +3923,25 @@ int wlan_hdd_tdls_add_station(struct wiphy *wiphy,
 			  " Num of peers (%d), Max allowed (%d).",
 			  __func__, MAC_ADDR_ARRAY(mac), numCurrTdlsPeers,
 			  pHddCtx->max_num_tdls_sta);
+		mutex_unlock(&pHddCtx->tdls_lock);
+		ret = -EPERM;
 		goto error;
 	} else {
 		hddTdlsPeer_t *pTdlsPeer;
-		pTdlsPeer = wlan_hdd_tdls_find_peer(pAdapter, mac, true);
-		if (pTdlsPeer && TDLS_IS_CONNECTED(pTdlsPeer)) {
-			QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
-				  "%s: " MAC_ADDRESS_STR
-				  " already connected. Request declined.",
-				  __func__, MAC_ADDR_ARRAY(mac));
-			return -EPERM;
+		pTdlsPeer = wlan_hdd_tdls_find_peer(pAdapter, mac, false);
+		if (pTdlsPeer) {
+			link_status = pTdlsPeer->link_status;
+			if (TDLS_IS_CONNECTED(pTdlsPeer)) {
+				mutex_unlock(&pHddCtx->tdls_lock);
+				QDF_TRACE(QDF_MODULE_ID_HDD,
+					  QDF_TRACE_LEVEL_ERROR,
+					  "%s: " MAC_ADDRESS_STR
+					  " already connected. "
+					  "Request declined.",
+					  __func__, MAC_ADDR_ARRAY(mac));
+				ret = -EPERM;
+				goto ret_status;
+			}
 		}
 	}
 	if (0 == update)
@@ -3961,8 +3978,10 @@ int wlan_hdd_tdls_add_station(struct wiphy *wiphy,
 				   StaParams->supported_rates[rate_idx]);
 	} /* end debug code */
 	else if ((1 == update) && (NULL == StaParams)) {
+		mutex_unlock(&pHddCtx->tdls_lock);
 		hdd_err("update is true, but staParams is NULL. Error!");
-		return -EPERM;
+		ret = -EPERM;
+		goto ret_status;
 	}
 
 	INIT_COMPLETION(pAdapter->tdls_add_station_comp);
@@ -3971,11 +3990,12 @@ int wlan_hdd_tdls_add_station(struct wiphy *wiphy,
 	if ((NULL != StaParams) && (StaParams->htcap_present)) {
 		hddTdlsPeer_t *tdls_peer;
 
-		tdls_peer = wlan_hdd_tdls_find_peer(pAdapter, mac, true);
+		tdls_peer = wlan_hdd_tdls_find_peer(pAdapter, mac, false);
 		if (NULL != tdls_peer)
 			tdls_peer->spatial_streams =
 			StaParams->HTCap.suppMcsSet[1];
 	}
+	mutex_unlock(&pHddCtx->tdls_lock);
 
 	if (!update) {
 		status = sme_add_tdls_peer_sta(WLAN_HDD_GET_HAL_CTX(pAdapter),
@@ -3992,24 +4012,29 @@ int wlan_hdd_tdls_add_station(struct wiphy *wiphy,
 
 	if (!rc) {
 		hdd_err("timeout waiting for tdls add station indication %ld  peer link status %u",
-			rc, pTdlsPeer->link_status);
+			rc, link_status);
+		ret = -EPERM;
 		goto error;
 	}
 
 	if (QDF_STATUS_SUCCESS != pAdapter->tdlsAddStaStatus) {
 		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
 			  "%s: Add Station is unsuccessful", __func__);
+		ret = -EPERM;
 		goto error;
 	}
 
-	return 0;
+	goto ret_status;
 
 error:
 	wlan_hdd_tdls_set_link_status(pAdapter,
 				      mac,
 				      eTDLS_LINK_IDLE, eTDLS_LINK_UNSPECIFIED);
-	return -EPERM;
-
+	goto ret_status;
+rel_lock:
+	mutex_unlock(&pHddCtx->tdls_lock);
+ret_status:
+	return ret;
 }
 
 #if TDLS_MGMT_VERSION2

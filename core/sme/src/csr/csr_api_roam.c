@@ -2620,6 +2620,8 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 			pParam->rx_aggregation_size;
 		pMac->roam.configParam.enable_bcast_probe_rsp =
 			pParam->enable_bcast_probe_rsp;
+		pMac->roam.configParam.qcn_ie_support =
+			pParam->qcn_ie_support;
 
 	}
 	return status;
@@ -2852,6 +2854,8 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 		pMac->roam.configParam.rx_aggregation_size;
 	pParam->enable_bcast_probe_rsp =
 		pMac->roam.configParam.enable_bcast_probe_rsp;
+	pParam->qcn_ie_support =
+		pMac->roam.configParam.qcn_ie_support;
 
 	return QDF_STATUS_SUCCESS;
 }

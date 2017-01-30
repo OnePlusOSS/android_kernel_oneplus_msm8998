@@ -664,6 +664,7 @@ typedef struct tagCsrConfig {
 	uint32_t rx_aggregation_size;
 	struct wmi_per_roam_config per_roam_config;
 	bool enable_bcast_probe_rsp;
+	bool qcn_ie_support;
 } tCsrConfig;
 
 typedef struct tagCsrChannelPowerInfo {

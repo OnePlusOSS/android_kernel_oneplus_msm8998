@@ -345,7 +345,8 @@ lim_send_probe_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 		populate_dot11f_ext_cap(mac_ctx, is_vht_enabled, &pr.ExtCap,
 			pesession);
 
-	populate_dot11f_qcn_ie(&pr.QCN_IE);
+	if (mac_ctx->roam.configParam.qcn_ie_support)
+		populate_dot11f_qcn_ie(&pr.QCN_IE);
 
 	if (addn_ielen) {
 		qdf_mem_zero((uint8_t *)&extracted_ext_cap,
@@ -1905,7 +1906,8 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 		populate_dot11f_ext_cap(mac_ctx, vht_enabled,
 				&frm->ExtCap, pe_session);
 
-	populate_dot11f_qcn_ie(&frm->QCN_IE);
+	if (mac_ctx->roam.configParam.qcn_ie_support)
+		populate_dot11f_qcn_ie(&frm->QCN_IE);
 
 	if (pe_session->pLimJoinReq->is11Rconnection) {
 		tSirBssDescription *bssdescr;

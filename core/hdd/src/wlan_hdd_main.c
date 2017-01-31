@@ -7884,7 +7884,7 @@ int hdd_configure_cds(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 	struct cds_sme_cbacks sme_cbacks;
 
 	/* structure of datapath function pointers to be used by CDS */
-	struct cds_dp_cbacks dp_cbacks;
+	struct cds_dp_cbacks dp_cbacks = {0};
 
 	ret = hdd_pre_enable_configure(hdd_ctx);
 	if (ret) {

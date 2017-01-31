@@ -9363,7 +9363,8 @@ static int __hdd_module_init(void)
 
 	if (!rc) {
 		hdd_alert("Timed-out waiting for wlan_hdd_register_driver");
-		QDF_BUG(0);
+		ret = -ETIMEDOUT;
+		wlan_hdd_unregister_driver();
 		goto out;
 	}
 

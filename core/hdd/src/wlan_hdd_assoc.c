@@ -3762,8 +3762,7 @@ hdd_roam_tdls_status_update_handler(hdd_adapter_t *pAdapter,
 						pRoamInfo->peerMac.bytes,
 						false);
 		wlan_hdd_tdls_indicate_teardown(pAdapter, curr_peer,
-						pRoamInfo->reasonCode,
-						false);
+						pRoamInfo->reasonCode);
 		hdd_send_wlan_tdls_teardown_event(eTDLS_TEARDOWN_BSS_DISCONNECT,
 						curr_peer->peerMac);
 		mutex_unlock(&pHddCtx->tdls_lock);
@@ -3961,7 +3960,7 @@ hdd_roam_tdls_status_update_handler(hdd_adapter_t *pAdapter,
 
 				wlan_hdd_tdls_indicate_teardown
 					(pHddTdlsCtx->pAdapter, curr_peer,
-					reason, false);
+					reason);
 				hdd_send_wlan_tdls_teardown_event(
 					eTDLS_TEARDOWN_BSS_DISCONNECT,
 					curr_peer->peerMac);
@@ -4020,7 +4019,7 @@ hdd_roam_tdls_status_update_handler(hdd_adapter_t *pAdapter,
 
 				wlan_hdd_tdls_indicate_teardown
 					(pHddTdlsCtx->pAdapter, curr_peer,
-					reason, false);
+					reason);
 				hdd_send_wlan_tdls_teardown_event(
 					eTDLS_TEARDOWN_BSS_DISCONNECT,
 					curr_peer->peerMac);

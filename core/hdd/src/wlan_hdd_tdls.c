@@ -258,6 +258,7 @@ void wlan_hdd_tdls_disable_offchan_and_teardown_links(hdd_context_t *hddctx)
 		if (!hddctx->tdlsConnInfo[staidx].staId)
 			continue;
 
+		mutex_lock(&hddctx->tdls_lock);
 		curr_peer = wlan_hdd_tdls_find_all_peer(hddctx,
 				hddctx->tdlsConnInfo[staidx].peerMac.bytes);
 
@@ -271,9 +272,10 @@ void wlan_hdd_tdls_disable_offchan_and_teardown_links(hdd_context_t *hddctx)
 					curr_peer->pHddTdlsCtx->pAdapter,
 					curr_peer,
 					eSIR_MAC_TDLS_TEARDOWN_UNSPEC_REASON,
-					true);
+					false);
 		hdd_send_wlan_tdls_teardown_event(eTDLS_TEARDOWN_CONCURRENCY,
 			curr_peer->peerMac);
+		mutex_unlock(&hddctx->tdls_lock);
 	}
 }
 
@@ -2338,8 +2340,6 @@ hddTdlsPeer_t *wlan_hdd_tdls_find_all_peer(hdd_context_t *pHddCtx,
 	hddTdlsPeer_t *curr_peer = NULL;
 	QDF_STATUS status = 0;
 
-	mutex_lock(&pHddCtx->tdls_lock);
-
 	status = hdd_get_front_adapter(pHddCtx, &pAdapterNode);
 	while (NULL != pAdapterNode && QDF_STATUS_SUCCESS == status) {
 		pAdapter = pAdapterNode->pAdapter;
@@ -2349,14 +2349,12 @@ hddTdlsPeer_t *wlan_hdd_tdls_find_all_peer(hdd_context_t *pHddCtx,
 			curr_peer =
 				wlan_hdd_tdls_find_peer(pAdapter, mac, false);
 			if (curr_peer) {
-				mutex_unlock(&pHddCtx->tdls_lock);
 				return curr_peer;
 			}
 		}
 		status = hdd_get_next_adapter(pHddCtx, pAdapterNode, &pNext);
 		pAdapterNode = pNext;
 	}
-	mutex_unlock(&pHddCtx->tdls_lock);
 	return curr_peer;
 }
 
@@ -2966,6 +2964,7 @@ int wlan_hdd_tdls_scan_callback(hdd_adapter_t *pAdapter, struct wiphy *wiphy,
 			for (staIdx = 0; staIdx < pHddCtx->max_num_tdls_sta;
 			     staIdx++) {
 				if (pHddCtx->tdlsConnInfo[staIdx].staId) {
+					mutex_lock(&pHddCtx->tdls_lock);
 					curr_peer =
 						wlan_hdd_tdls_find_all_peer(pHddCtx,
 									    pHddCtx->
@@ -2979,6 +2978,7 @@ int wlan_hdd_tdls_scan_callback(hdd_adapter_t *pAdapter, struct wiphy *wiphy,
 						if (!(curr_peer->isBufSta))
 							allPeersBufStas = 0;
 					}
+					mutex_unlock(&pHddCtx->tdls_lock);
 				}
 			}
 
@@ -6137,15 +6137,20 @@ static int wlan_hdd_tdls_teardown_links(hdd_context_t *hddctx,
 		if (!hddctx->tdlsConnInfo[staidx].staId)
 			continue;
 
+		mutex_lock(&hddctx->tdls_lock);
 		curr_peer = wlan_hdd_tdls_find_all_peer(hddctx,
 			hddctx->tdlsConnInfo[staidx].peerMac.bytes);
 
-		if (!curr_peer)
+		if (!curr_peer) {
+			mutex_unlock(&hddctx->tdls_lock);
 			continue;
+		}
 
 		/* Check if connected peer supports more than one stream */
-		if (curr_peer->spatial_streams == TDLS_NSS_1x1_MODE)
+		if (curr_peer->spatial_streams == TDLS_NSS_1x1_MODE) {
+			mutex_unlock(&hddctx->tdls_lock);
 			continue;
+		}
 
 		hdd_info("Indicate TDLS teardown (staId %d)",
 			 curr_peer->staId);
@@ -6154,8 +6159,7 @@ static int wlan_hdd_tdls_teardown_links(hdd_context_t *hddctx,
 					curr_peer->pHddTdlsCtx->pAdapter,
 					curr_peer,
 					eSIR_MAC_TDLS_TEARDOWN_UNSPEC_REASON,
-					true);
-		mutex_lock(&hddctx->tdls_lock);
+					false);
 		hddctx->tdls_teardown_peers_cnt++;
 		mutex_unlock(&hddctx->tdls_lock);
 	}

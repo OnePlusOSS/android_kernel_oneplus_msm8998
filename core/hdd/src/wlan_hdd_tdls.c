@@ -1786,15 +1786,10 @@ int wlan_hdd_tdls_set_params(struct net_device *dev,
 {
 	hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
 	hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
-	tdlsCtx_t *pHddTdlsCtx = WLAN_HDD_GET_TDLS_CTX_PTR(pAdapter);
+	tdlsCtx_t *pHddTdlsCtx;
 	eTDLSSupportMode req_tdls_mode;
 	tdlsInfo_t *tdlsParams;
 	QDF_STATUS qdf_ret_status = QDF_STATUS_E_FAILURE;
-
-	if (NULL == pHddTdlsCtx) {
-		hdd_err("TDLS not enabled!");
-		return -EINVAL;
-	}
 
 	if (wlan_hdd_tdls_check_config(config) != 0) {
 		return -EINVAL;
@@ -1807,12 +1802,23 @@ int wlan_hdd_tdls_set_params(struct net_device *dev,
 		return -EINVAL;
 	}
 
+	mutex_lock(&pHddCtx->tdls_lock);
+
+	pHddTdlsCtx = WLAN_HDD_GET_TDLS_CTX_PTR(pAdapter);
+	if (NULL == pHddTdlsCtx) {
+		mutex_unlock(&pHddCtx->tdls_lock);
+		hdd_err("pHddTdlsCtx is NULL");
+			return -EINVAL;
+	}
+
 	/* copy the configuration only when given tdls mode is implicit trigger enable */
 	if (eTDLS_SUPPORT_ENABLED == req_tdls_mode ||
 	    eTDLS_SUPPORT_EXTERNAL_CONTROL == req_tdls_mode) {
 		memcpy(&pHddTdlsCtx->threshold_config, config,
 		       sizeof(tdls_config_params_t));
 	}
+
+	mutex_unlock(&pHddCtx->tdls_lock);
 
 	hdd_notice("iw set tdls params: %d %d %d %d %d %d %d",
 		config->tdls,
@@ -1916,15 +1922,9 @@ void wlan_hdd_update_tdls_info(hdd_adapter_t *adapter, bool tdls_prohibited,
 				bool tdls_chan_swit_prohibited)
 {
 	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
-	tdlsCtx_t *hdd_tdls_ctx = WLAN_HDD_GET_TDLS_CTX_PTR(adapter);
+	tdlsCtx_t *hdd_tdls_ctx;
 	tdlsInfo_t *tdls_param;
 	QDF_STATUS qdf_ret_status = QDF_STATUS_E_FAILURE;
-
-	if (!hdd_tdls_ctx) {
-		/* may be TDLS is not applicable for this adapter */
-		hdd_err("HDD TDLS context is null");
-		goto done;
-	}
 
 	/* If TDLS support is disabled then no need to update target */
 	if (false == hdd_ctx->config->fEnableTDLSSupport) {
@@ -1936,6 +1936,14 @@ void wlan_hdd_update_tdls_info(hdd_adapter_t *adapter, bool tdls_prohibited,
 		 tdls_prohibited, tdls_chan_swit_prohibited);
 
 	mutex_lock(&hdd_ctx->tdls_lock);
+
+	hdd_tdls_ctx = WLAN_HDD_GET_TDLS_CTX_PTR(adapter);
+	if (!hdd_tdls_ctx) {
+		mutex_unlock(&hdd_ctx->tdls_lock);
+		/* may be TDLS is not applicable for this adapter */
+		hdd_err("HDD TDLS context is null");
+		goto done;
+	}
 
 	if (hdd_ctx->set_state_info.set_state_cnt == 0 &&
 	    tdls_prohibited) {
@@ -1986,8 +1994,6 @@ void wlan_hdd_update_tdls_info(hdd_adapter_t *adapter, bool tdls_prohibited,
 		tdls_param->vdev_id = adapter->sessionId;
 	}
 
-	mutex_unlock(&hdd_ctx->tdls_lock);
-
 	tdls_param->tdls_state = hdd_ctx->tdls_mode;
 	tdls_param->notification_interval_ms =
 	hdd_tdls_ctx->threshold_config.tx_period_t;
@@ -2000,6 +2006,8 @@ void wlan_hdd_update_tdls_info(hdd_adapter_t *adapter, bool tdls_prohibited,
 	tdls_param->rssi_delta = hdd_tdls_ctx->threshold_config.rssi_delta;
 
 	tdls_param->tdls_options = 0;
+
+	mutex_unlock(&hdd_ctx->tdls_lock);
 
 	/* Do not enable TDLS offchannel, if AP prohibited TDLS channel switch */
 	if ((hdd_ctx->config->fEnableTDLSOffChannel) &&
@@ -3429,10 +3437,6 @@ __wlan_hdd_cfg80211_configure_tdls_mode(struct wiphy *wiphy,
 	if (NULL == adapter)
 		return -EINVAL;
 
-	hdd_tdls_ctx = adapter->sessionCtx.station.pHddTdlsCtx;
-	if (NULL == hdd_tdls_ctx)
-		return -EINVAL;
-
 	if (nla_parse(tb, QCA_WLAN_VENDOR_ATTR_TDLS_CONFIG_MAX,
 		      data, data_len,
 		      wlan_hdd_tdls_mode_configuration_policy)) {
@@ -3465,6 +3469,12 @@ __wlan_hdd_cfg80211_configure_tdls_mode(struct wiphy *wiphy,
 			HDD_SET_TDLS_MODE_SOURCE_USER);
 
 	mutex_lock(&hdd_ctx->tdls_lock);
+
+	hdd_tdls_ctx = adapter->sessionCtx.station.pHddTdlsCtx;
+	if (NULL == hdd_tdls_ctx) {
+		mutex_unlock(&hdd_ctx->tdls_lock);
+		return -EINVAL;
+	}
 
 	if (tb[QCA_WLAN_VENDOR_ATTR_TDLS_CONFIG_TX_STATS_PERIOD]) {
 		hdd_tdls_ctx->threshold_config.tx_period_t = nla_get_u32(

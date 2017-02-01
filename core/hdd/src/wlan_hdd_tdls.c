@@ -4186,14 +4186,17 @@ static int __wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy,
 	}
 
 	if (WLAN_IS_TDLS_SETUP_ACTION(action_code)) {
+		mutex_lock(&pHddCtx->tdls_lock);
 		if (NULL != wlan_hdd_tdls_is_progress(pHddCtx, peer,
-		    true, true)) {
+		    true, false)) {
+			mutex_unlock(&pHddCtx->tdls_lock);
 			QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
 				  "%s: " MAC_ADDRESS_STR
 				  " TDLS setup is ongoing. action %d declined.",
 				  __func__, MAC_ADDR_ARRAY(peer), action_code);
 			return -EPERM;
 		}
+		mutex_unlock(&pHddCtx->tdls_lock);
 	}
 	/* Discard TDLS Discovery request and setup confirm if violates
 	   ACM rules */
@@ -4732,6 +4735,9 @@ static int __wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy,
 	tSmeTdlsPeerStateParams smeTdlsPeerStateParams;
 	QDF_STATUS qdf_ret_status = QDF_STATUS_E_FAILURE;
 	hddTdlsPeer_t *pTdlsPeer;
+	tTDLSLinkStatus peer_status = eTDLS_LINK_IDLE;
+	uint16_t peer_staid;
+	uint8_t peer_offchannelsupp;
 
 	ENTER();
 
@@ -4777,10 +4783,12 @@ static int __wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy,
 		tCsrTdlsLinkEstablishParams tdlsLinkEstablishParams = { {0}, 0,
 						0, 0, 0, 0, 0, {0}, 0, {0} };
 
+		mutex_lock(&pHddCtx->tdls_lock);
 		pTdlsPeer =
-			wlan_hdd_tdls_find_peer(pAdapter, peer, true);
+			wlan_hdd_tdls_find_peer(pAdapter, peer, false);
 
 		if (NULL == pTdlsPeer) {
+			mutex_unlock(&pHddCtx->tdls_lock);
 			QDF_TRACE(QDF_MODULE_ID_HDD,
 				  QDF_TRACE_LEVEL_ERROR,
 				  "%s: peer matching " MAC_ADDRESS_STR
@@ -4803,14 +4811,19 @@ static int __wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy,
 				  " TDLS_ENABLE_LINK failed", __func__,
 				  pTdlsPeer->staId,
 				  MAC_ADDR_ARRAY(peer));
+			mutex_unlock(&pHddCtx->tdls_lock);
 			return -EINVAL;
 		}
+		peer_status = pTdlsPeer->link_status;
+		peer_offchannelsupp = pTdlsPeer->isOffChannelSupported;
+		mutex_unlock(&pHddCtx->tdls_lock);
+
 		wlan_hdd_tdls_set_cap(pAdapter, peer, eTDLS_CAP_SUPPORTED);
 
 		qdf_mem_set(&tdlsLinkEstablishParams,
 			sizeof(tdlsLinkEstablishParams), 0);
 
-		if (eTDLS_LINK_CONNECTED != pTdlsPeer->link_status) {
+		if (eTDLS_LINK_CONNECTED != peer_status) {
 			if (IS_ADVANCE_TDLS_ENABLE) {
 
 				hdd_info("Advance TDLS is enabled");
@@ -4844,10 +4857,28 @@ static int __wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy,
 					return -EINVAL;
 				}
 			}
+
+			mutex_lock(&pHddCtx->tdls_lock);
+			pTdlsPeer =
+				wlan_hdd_tdls_find_peer(pAdapter, peer, false);
+
+			if (NULL == pTdlsPeer) {
+				mutex_unlock(&pHddCtx->tdls_lock);
+				QDF_TRACE(QDF_MODULE_ID_HDD,
+					  QDF_TRACE_LEVEL_ERROR,
+					  "%s: peer matching " MAC_ADDRESS_STR
+					  " (oper %d) peer got freed in other"
+					  "context. ignored",
+					  __func__, MAC_ADDR_ARRAY(peer),
+					  (int)oper);
+				return -EINVAL;
+			}
+
 			wlan_hdd_tdls_set_peer_link_status(pTdlsPeer,
 							   eTDLS_LINK_CONNECTED,
 							   eTDLS_LINK_SUCCESS,
-							   true);
+							   false);
+			peer_staid = pTdlsPeer->staId;
 
 			hdd_notice("%s: tdlsLinkEstablishParams of peer "
 				MAC_ADDRESS_STR "uapsdQueues: %d"
@@ -4985,6 +5016,7 @@ static int __wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy,
 						pTdlsPeer->
 						supported_oper_classes[i];
 				}
+				mutex_unlock(&pHddCtx->tdls_lock);
 
 				qdf_ret_status =
 					sme_update_tdls_peer_state(pHddCtx->
@@ -5002,7 +5034,8 @@ static int __wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy,
 				}
 				wlan_hdd_tdls_increment_peer_count
 					(pAdapter);
-			}
+			} else
+				mutex_unlock(&pHddCtx->tdls_lock);
 
 			/* Update TL about the UAPSD masks , to route the packets to firmware */
 			if ((true ==
@@ -5018,7 +5051,7 @@ static int __wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy,
 				for (ac = 0; ac < 4; ac++) {
 					status = sme_enable_uapsd_for_ac(
 						 (WLAN_HDD_GET_CTX(pAdapter))->pcds_context,
-						 pTdlsPeer->staId, ucAc[ac],
+						 peer_staid, ucAc[ac],
 						 tlTid[ac], tlTid[ac], 0, 0,
 						 SME_BI_DIR, 1,
 						 pAdapter->sessionId,
@@ -5027,16 +5060,18 @@ static int __wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy,
 			}
 		}
 		hdd_wlan_tdls_enable_link_event(peer,
-			pTdlsPeer->isOffChannelSupported,
+			peer_offchannelsupp,
 			0, 0);
 	}
 	break;
 	case NL80211_TDLS_DISABLE_LINK:
 	{
+		mutex_lock(&pHddCtx->tdls_lock);
 		pTdlsPeer =
-			wlan_hdd_tdls_find_peer(pAdapter, peer, true);
+			wlan_hdd_tdls_find_peer(pAdapter, peer, false);
 
 		if (NULL == pTdlsPeer) {
+			mutex_unlock(&pHddCtx->tdls_lock);
 			QDF_TRACE(QDF_MODULE_ID_HDD,
 				  QDF_TRACE_LEVEL_ERROR,
 				  "%s: peer matching " MAC_ADDRESS_STR
@@ -5050,8 +5085,10 @@ static int __wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy,
 			  MAC_ADDRESS_STR " link_status: %d",
 			  __func__, MAC_ADDR_ARRAY(peer),
 			  pTdlsPeer->link_status);
+		peer_staid = pTdlsPeer->staId;
+		mutex_unlock(&pHddCtx->tdls_lock);
 
-		if (TDLS_STA_INDEX_VALID(pTdlsPeer->staId)) {
+		if (TDLS_STA_INDEX_VALID(peer_staid)) {
 			unsigned long rc;
 
 			INIT_COMPLETION(pAdapter->
@@ -5073,13 +5110,31 @@ static int __wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy,
 					  __func__);
 				return -EPERM;
 			}
+
+			mutex_lock(&pHddCtx->tdls_lock);
+			pTdlsPeer =
+				wlan_hdd_tdls_find_peer(pAdapter, peer,
+							false);
+			if (NULL == pTdlsPeer) {
+				mutex_unlock(&pHddCtx->tdls_lock);
+				QDF_TRACE(QDF_MODULE_ID_HDD,
+					  QDF_TRACE_LEVEL_ERROR,
+					  "%s: peer matching " MAC_ADDRESS_STR
+					  " (oper %d) peer got freed in other"
+					  " context. ignored",
+					  __func__, MAC_ADDR_ARRAY(peer),
+					  (int)oper);
+				return -EINVAL;
+			}
+
 			wlan_hdd_tdls_set_peer_link_status(pTdlsPeer,
 						eTDLS_LINK_IDLE,
 						(pTdlsPeer->link_status ==
 							eTDLS_LINK_TEARING) ?
 						eTDLS_LINK_UNSPECIFIED :
 						eTDLS_LINK_DROPPED_BY_REMOTE,
-						true);
+						false);
+			mutex_unlock(&pHddCtx->tdls_lock);
 		} else {
 			QDF_TRACE(QDF_MODULE_ID_HDD,
 				  QDF_TRACE_LEVEL_ERROR,

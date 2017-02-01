@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011,2013-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011,2013-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -183,6 +183,7 @@ static const struct reg_dmn_pair g_reg_dmn_pairs[] = {
 	{APL4_WORLD, APL4, WORLD, CTRY_DEFAULT},
 	{APL2_WORLD, APL2, WORLD, CTRY_DEFAULT},
 	{APL2_FCCA, APL2, FCCA, CTRY_DEFAULT},
+	{APL2_ETSIC, APL2, ETSIC, CTRY_DEFAULT},
 	{APL1_WORLD, APL1, WORLD, CTRY_DEFAULT},
 	{APL1_ETSIC, APL1, ETSIC, CTRY_DEFAULT},
 	{APL6_WORLD, APL6, WORLD, CTRY_DEFAULT},

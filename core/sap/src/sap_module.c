@@ -507,7 +507,8 @@ QDF_STATUS wlansap_clean_cb(ptSapContext pSapCtx, uint32_t freeFlag      /* 0 / 
 	if (eSAP_TRUE == pSapCtx->isSapSessionOpen && hal) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
 				"close existing SAP session");
-		sap_close_session(hal, pSapCtx, NULL, false);
+		sap_close_session(hal, pSapCtx, sap_roam_session_close_callback,
+					pSapCtx);
 	}
 
 	qdf_mem_zero(pSapCtx, sizeof(tSapContext));

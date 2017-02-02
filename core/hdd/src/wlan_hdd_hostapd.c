@@ -249,10 +249,18 @@ static int __hdd_hostapd_open(struct net_device *dev)
 	 * Check statemachine state and also stop iface change timer if running
 	 */
 	ret = hdd_wlan_start_modules(hdd_ctx, pAdapter, false);
-
 	if (ret) {
 		hdd_err("Failed to start WLAN modules return");
 		return ret;
+	}
+
+	if (!test_bit(SME_SESSION_OPENED, &pAdapter->event_flags)) {
+		ret = hdd_start_adapter(pAdapter);
+		if (ret) {
+			hdd_err("Failed to start adapter :%d",
+				pAdapter->device_mode);
+			return ret;
+		}
 	}
 
 	set_bit(DEVICE_IFACE_OPENED, &pAdapter->event_flags);
@@ -293,8 +301,27 @@ static int hdd_hostapd_open(struct net_device *dev)
 static int __hdd_hostapd_stop(struct net_device *dev)
 {
 	hdd_adapter_t *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
+	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+	ptSapContext sap_ctx = adapter->sessionCtx.ap.sapContext;
 
 	ENTER_DEV(dev);
+
+	if (NULL == hdd_ctx) {
+		hdd_info("%pS HDD context is Null", (void *)_RET_IP_);
+		return -ENODEV;
+	}
+
+	if (!test_bit(DEVICE_IFACE_OPENED, &adapter->event_flags)) {
+		hdd_info("iface is not in open state, flags: %lu",
+			adapter->event_flags);
+		return 0;
+	}
+	if (!sap_ctx) {
+		hdd_err("invalid sap ctx : %p", sap_ctx);
+		return -ENODEV;
+	}
+
+	hdd_stop_adapter(hdd_ctx, adapter, true);
 
 	clear_bit(DEVICE_IFACE_OPENED, &adapter->event_flags);
 	/* Stop all tx queues */
@@ -1319,6 +1346,7 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 		       pSapEvent->sapevt.sapStopBssCompleteEvent.
 		       status ? "eSAP_STATUS_FAILURE" : "eSAP_STATUS_SUCCESS");
 
+		clear_bit(SME_SESSION_OPENED, &pHostapdAdapter->event_flags);
 		hdd_hostapd_channel_allow_suspend(pHostapdAdapter,
 						  pHddApCtx->operatingChannel);
 
@@ -5815,6 +5843,7 @@ QDF_STATUS hdd_init_ap_mode(hdd_adapter_t *pAdapter, bool reinit)
 		return status;
 	}
 	pAdapter->sessionId = session_id;
+	set_bit(SME_SESSION_OPENED, &pAdapter->event_flags);
 
 	/* Allocate the Wireless Extensions state structure */
 	phostapdBuf = WLAN_HDD_GET_HOSTAP_STATE_PTR(pAdapter);
@@ -6044,7 +6073,7 @@ QDF_STATUS hdd_register_hostapd(hdd_adapter_t *pAdapter,
  *
  * Return: QDF_STATUS enumaration
  */
-QDF_STATUS hdd_unregister_hostapd(hdd_adapter_t *pAdapter, bool rtnl_held)
+int hdd_unregister_hostapd(hdd_adapter_t *pAdapter, bool rtnl_held)
 {
 	QDF_STATUS status;
 	void *sapContext = WLAN_HDD_GET_SAP_CTX_PTR(pAdapter);
@@ -6053,6 +6082,10 @@ QDF_STATUS hdd_unregister_hostapd(hdd_adapter_t *pAdapter, bool rtnl_held)
 
 	hdd_softap_deinit_tx_rx(pAdapter);
 
+	if (!test_bit(DEVICE_IFACE_OPENED, &pAdapter->event_flags)) {
+		hdd_info("iface is not opened");
+		return 0;
+	}
 	/* if we are being called during driver unload,
 	 * then the dev has already been invalidated.
 	 * if we are being called at other times, then we can

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -2665,7 +2665,7 @@ static QDF_STATUS sap_goto_disconnecting(ptSapContext sapContext)
 	return QDF_STATUS_SUCCESS;
 }
 
-static QDF_STATUS sap_roam_session_close_callback(void *pContext)
+QDF_STATUS sap_roam_session_close_callback(void *pContext)
 {
 	ptSapContext sapContext = (ptSapContext) pContext;
 	QDF_STATUS status;

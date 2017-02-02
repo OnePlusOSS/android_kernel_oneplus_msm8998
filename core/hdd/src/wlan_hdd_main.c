@@ -3557,6 +3557,7 @@ QDF_STATUS hdd_stop_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 	tSirUpdateIE updateIE;
 	unsigned long rc;
 	hdd_scaninfo_t *scan_info = NULL;
+	void *sap_ctx;
 
 	ENTER();
 
@@ -3717,6 +3718,16 @@ QDF_STATUS hdd_stop_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 		mutex_unlock(&hdd_ctx->sap_lock);
 		if (true == bCloseSession)
 			hdd_wait_for_sme_close_sesion(hdd_ctx, adapter);
+
+		sap_ctx = WLAN_HDD_GET_SAP_CTX_PTR(adapter);
+		if (wlansap_stop(sap_ctx) != QDF_STATUS_SUCCESS)
+			hdd_err("Failed:wlansap_stop");
+
+		if (wlansap_close(sap_ctx) != QDF_STATUS_SUCCESS)
+			hdd_err("Failed:WLANSAP_close");
+
+		adapter->sessionCtx.ap.sapContext = NULL;
+
 		break;
 	case QDF_OCB_MODE:
 		ol_txrx_clear_peer(WLAN_HDD_GET_STATION_CTX_PTR(adapter)->

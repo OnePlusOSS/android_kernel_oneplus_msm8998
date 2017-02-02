@@ -5386,6 +5386,8 @@ static void hdd_pld_request_bus_bandwidth(hdd_context_t *hdd_ctx,
 	}
 
 	if (hdd_ctx->cur_rx_level != next_rx_level) {
+		struct wlan_rx_tp_data rx_tp_data = {0};
+
 		hdd_debug("TCP DELACK trigger level %d, average_rx: %llu",
 		       next_rx_level, temp_rx);
 		hdd_ctx->cur_rx_level = next_rx_level;
@@ -5396,10 +5398,13 @@ static void hdd_pld_request_bus_bandwidth(hdd_context_t *hdd_ctx,
 		 * dynamic delayed ack mechanism across the system
 		 */
 		if (hdd_ctx->config->enable_tcp_delack)
-			wlan_hdd_send_svc_nlink_msg(hdd_ctx->radio_index,
-					WLAN_SVC_WLAN_TP_IND,
-					    &next_rx_level,
-					    sizeof(next_rx_level));
+			rx_tp_data.rx_tp_flags |= TCP_DEL_ACK_IND;
+
+		rx_tp_data.rx_tp_flags |= TCP_ADV_WIN_SCL;
+		rx_tp_data.level = next_rx_level;
+		wlan_hdd_send_svc_nlink_msg(hdd_ctx->radio_index,
+				WLAN_SVC_WLAN_TP_IND, &rx_tp_data,
+				sizeof(rx_tp_data));
 	}
 
 	/* fine-tuning parameters for TX Flows */

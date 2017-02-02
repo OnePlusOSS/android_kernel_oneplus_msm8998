@@ -2104,7 +2104,7 @@ typedef enum {
 #define CFG_INFRA_STA_KEEP_ALIVE_PERIOD_NAME          "gStaKeepAlivePeriod"
 #define CFG_INFRA_STA_KEEP_ALIVE_PERIOD_MIN           (0)
 #define CFG_INFRA_STA_KEEP_ALIVE_PERIOD_MAX           (65535)
-#define CFG_INFRA_STA_KEEP_ALIVE_PERIOD_DEFAULT       (30)
+#define CFG_INFRA_STA_KEEP_ALIVE_PERIOD_DEFAULT       (90)
 
 /* WMM configuration */
 /*

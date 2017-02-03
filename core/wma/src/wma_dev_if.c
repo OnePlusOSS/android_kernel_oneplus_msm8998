@@ -60,7 +60,6 @@
 #endif /* REMOVE_PKT_LOG */
 
 #include "dbglog_host.h"
-/* FIXME: Inclusion of .c looks odd but this is how it is in internal codebase */
 #include "csr_api.h"
 
 #include "dfs.h"
@@ -571,7 +570,7 @@ static QDF_STATUS wma_handle_vdev_detach(tp_wma_handle wma_handle,
 					 &wma_handle->wmi_cmd_rsp_wake_lock,
 					 WMA_FW_RSP_EVENT_WAKE_LOCK_DURATION);
 		qdf_runtime_pm_prevent_suspend(
-					wma_handle->wmi_cmd_rsp_runtime_lock);
+					&wma_handle->wmi_cmd_rsp_runtime_lock);
 	}
 	WMA_LOGD("Call txrx detach with callback for vdev %d", vdev_id);
 	ol_txrx_vdev_detach(iface->handle, NULL, NULL);
@@ -1413,6 +1412,42 @@ static void wma_cleanup_target_req_param(struct wma_target_req *tgt_req)
 }
 
 /**
+ * wma_config_active_bpf_mode() - Config active BPF mode in FW
+ * @wma: the WMA handle
+ * @vdev_id: the Id of the vdev for which the configuration should be applied
+ *
+ * Return: QDF status
+ */
+static QDF_STATUS wma_config_active_bpf_mode(t_wma_handle *wma, uint8_t vdev_id)
+{
+	const FW_ACTIVE_BPF_MODE mcbc_mode = FW_ACTIVE_BPF_MODE_FORCE_ENABLE;
+	FW_ACTIVE_BPF_MODE uc_mode;
+
+	WMA_LOGI("Configuring Active BPF Mode %d for vdev %u",
+		 wma->active_bpf_mode, vdev_id);
+
+	switch (wma->active_bpf_mode) {
+	case ACTIVE_BPF_DISABLED:
+		uc_mode = FW_ACTIVE_BPF_MODE_DISABLE;
+		break;
+	case ACTIVE_BPF_ENABLED:
+		uc_mode = FW_ACTIVE_BPF_MODE_FORCE_ENABLE;
+		break;
+	case ACTIVE_BPF_ADAPTIVE:
+		uc_mode = FW_ACTIVE_BPF_MODE_ADAPTIVE_ENABLE;
+		break;
+	default:
+		WMA_LOGE("Invalid Active BPF Mode %d; Using 'disabled'",
+			 wma->active_bpf_mode);
+		uc_mode = FW_ACTIVE_BPF_MODE_DISABLE;
+		break;
+	}
+
+	return wmi_unified_set_active_bpf_mode_cmd(wma->wmi_handle, vdev_id,
+						   uc_mode, mcbc_mode);
+}
+
+/**
  * wma_vdev_stop_resp_handler() - vdev stop response handler
  * @handle: wma handle
  * @cmd_param_info: event buffer
@@ -1875,6 +1910,13 @@ ol_txrx_vdev_handle wma_vdev_attach(tp_wma_handle wma_handle,
 					self_sta_req->session_id);
 	wma_register_wow_default_patterns(wma_handle, self_sta_req->session_id);
 
+	if (self_sta_req->type == WMI_VDEV_TYPE_STA) {
+		status = wma_config_active_bpf_mode(wma_handle,
+						    self_sta_req->session_id);
+		if (QDF_IS_STATUS_ERROR(status))
+			WMA_LOGE("Failed to configure active BPF mode");
+	}
+
 end:
 	self_sta_req->status = status;
 
@@ -2272,7 +2314,7 @@ int wma_vdev_delete_handler(void *handle, uint8_t *cmd_param_info,
 	}
 	qdf_wake_lock_release(&wma->wmi_cmd_rsp_wake_lock,
 				WIFI_POWER_EVENT_WAKELOCK_WMI_CMD_RSP);
-	qdf_runtime_pm_allow_suspend(wma->wmi_cmd_rsp_runtime_lock);
+	qdf_runtime_pm_allow_suspend(&wma->wmi_cmd_rsp_runtime_lock);
 	/* Send response to upper layers */
 	wma_vdev_detach_callback(req_msg->user_data);
 	qdf_mc_timer_stop(&req_msg->event_timeout);
@@ -2325,7 +2367,7 @@ int wma_peer_delete_handler(void *handle, uint8_t *cmd_param_info,
 
 	qdf_wake_lock_release(&wma->wmi_cmd_rsp_wake_lock,
 				WIFI_POWER_EVENT_WAKELOCK_WMI_CMD_RSP);
-	qdf_runtime_pm_allow_suspend(wma->wmi_cmd_rsp_runtime_lock);
+	qdf_runtime_pm_allow_suspend(&wma->wmi_cmd_rsp_runtime_lock);
 		/* Cleanup timeout handler */
 	qdf_mc_timer_stop(&req_msg->event_timeout);
 	qdf_mc_timer_destroy(&req_msg->event_timeout);
@@ -2668,7 +2710,7 @@ void wma_vdev_resp_timer(void *data)
 			qdf_wake_lock_release(&wma->wmi_cmd_rsp_wake_lock,
 				WIFI_POWER_EVENT_WAKELOCK_WMI_CMD_RSP);
 			qdf_runtime_pm_allow_suspend(
-				wma->wmi_cmd_rsp_runtime_lock);
+				&wma->wmi_cmd_rsp_runtime_lock);
 		}
 		params->status = QDF_STATUS_E_TIMEOUT;
 
@@ -4202,7 +4244,7 @@ static void wma_delete_sta_req_ap_mode(tp_wma_handle wma,
 				      WIFI_POWER_EVENT_WAKELOCK_WMI_CMD_RSP);
 		qdf_wake_lock_timeout_acquire(&wma->wmi_cmd_rsp_wake_lock,
 				      WMA_FW_RSP_EVENT_WAKE_LOCK_DURATION);
-		qdf_runtime_pm_prevent_suspend(wma->wmi_cmd_rsp_runtime_lock);
+		qdf_runtime_pm_prevent_suspend(&wma->wmi_cmd_rsp_runtime_lock);
 		return;
 	}
 

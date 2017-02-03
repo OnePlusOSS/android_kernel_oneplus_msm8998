@@ -1989,9 +1989,10 @@ static void hdd_send_re_assoc_event(struct net_device *dev,
 	hdd_notice("Req RSN IE:");
 	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_DEBUG,
 			   final_req_ie, (ssid_ie_len + reqRsnLength));
-	cfg80211_roamed_bss(dev, bss,
-			final_req_ie, (ssid_ie_len + reqRsnLength),
-			rspRsnIe, rspRsnLength, GFP_KERNEL);
+	if (!pAdapter->defer_disconnect)
+		cfg80211_roamed_bss(dev, bss,
+				final_req_ie, (ssid_ie_len + reqRsnLength),
+				rspRsnIe, rspRsnLength, GFP_KERNEL);
 
 	qdf_mem_copy(assoc_req_ies,
 		(u8 *)pCsrRoamInfo->pbFrames + pCsrRoamInfo->nBeaconLength,
@@ -2538,7 +2539,8 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 								pConnectedProfile->SSID.ssId,
 								pRoamInfo->u.
 								pConnectedProfile->SSID.length);
-						cfg80211_roamed_bss(dev,
+						if (!pAdapter->defer_disconnect)
+							cfg80211_roamed_bss(dev,
 								roam_bss,
 								pFTAssocReq,
 								assocReqlen,
@@ -4570,7 +4572,6 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 	hdd_wext_state_t *pWextState = NULL;
 	hdd_station_ctx_t *pHddStaCtx = NULL;
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
-	hdd_context_t *pHddCtx = NULL;
 	struct cfg80211_bss *bss_status;
 
 	hdd_info("CSR Callback: status= %d result= %d roamID=%d",
@@ -4607,15 +4608,6 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 		qdf_ret_status =
 			hdd_dis_connect_handler(pAdapter, pRoamInfo, roamId,
 						roamStatus, roamResult);
-		/*
-		 * Check if Mcast/Bcast Filters are set, if yes
-		 * clear the filters here.
-		 */
-		if ((WLAN_HDD_GET_CTX(pAdapter))->hdd_mcastbcast_filter_set ==
-		    true) {
-			(WLAN_HDD_GET_CTX(pAdapter))->
-			hdd_mcastbcast_filter_set = false;
-		}
 		pHddStaCtx->ft_carrier_on = false;
 		pHddStaCtx->hdd_ReassocScenario = false;
 		hdd_info("hdd_ReassocScenario set to: %d, ReAssoc Failed, session: %d",
@@ -4651,6 +4643,8 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 		hdd_info("After Roam Synch Comp: NAPI Serialize OFF");
 		hdd_napi_serialize(0);
 		hdd_set_roaming_in_progress(false);
+		if (pAdapter->defer_disconnect)
+			hdd_process_defer_disconnect(pAdapter);
 		break;
 	case eCSR_ROAM_SHOULD_ROAM:
 		/* notify apps that we can't pass traffic anymore */
@@ -4679,27 +4673,6 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 		qdf_ret_status =
 			hdd_dis_connect_handler(pAdapter, pRoamInfo, roamId,
 						roamStatus, roamResult);
-		/* Check if Mcast/Bcast Filters are set, if yes clear the filters here */
-		pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
-		if (pHddCtx->hdd_mcastbcast_filter_set == true) {
-			hdd_conf_mcastbcast_filter(pHddCtx, false);
-
-			if (true ==
-			    pHddCtx->sus_res_mcastbcast_filter_valid) {
-				pHddCtx->configuredMcastBcastFilter =
-					pHddCtx->sus_res_mcastbcast_filter;
-				pHddCtx->
-				sus_res_mcastbcast_filter_valid =
-					false;
-			}
-
-			hdd_info("offload: disassociation happening, restoring configuredMcastBcastFilter");
-			hdd_info("McastBcastFilter = %d",
-				 pHddCtx->configuredMcastBcastFilter);
-			hdd_info("offload: already called mcastbcast filter");
-			(WLAN_HDD_GET_CTX(pAdapter))->
-			hdd_mcastbcast_filter_set = false;
-		}
 		/* Call to clear any MC Addr List filter applied after
 		 * successful connection.
 		 */
@@ -4931,6 +4904,11 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 				WLAN_CONTROL_PATH);
 		cds_set_connection_in_progress(false);
 		hdd_set_roaming_in_progress(false);
+		/*
+		 * If disconnect operation is in deferred state, do it now.
+		 */
+		if (pAdapter->defer_disconnect)
+			hdd_process_defer_disconnect(pAdapter);
 		break;
 
 	default:

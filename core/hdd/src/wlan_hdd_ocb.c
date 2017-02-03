@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -280,7 +280,7 @@ static int hdd_ocb_register_sta(hdd_adapter_t *adapter)
 
 	if (pHddStaCtx->conn_info.staId[0] != 0 &&
 	     pHddStaCtx->conn_info.staId[0] != peer_id) {
-		hdd_err("The ID for the OCB station has changed.");
+		hdd_warn("The ID for the OCB station has changed.");
 	}
 
 	pHddStaCtx->conn_info.staId[0] = peer_id;
@@ -364,7 +364,7 @@ static void hdd_ocb_set_config_callback(void *context_ptr, void *response_ptr)
 		return;
 
 	if (resp && resp->status)
-		hdd_err("Operation failed: %d", resp->status);
+		hdd_warn("Operation failed: %d", resp->status);
 
 	spin_lock(&hdd_context_lock);
 	if (context->magic == HDD_OCB_MAGIC) {
@@ -1411,7 +1411,7 @@ __wlan_hdd_cfg80211_ocb_get_tsf_timer(struct wiphy *wiphy,
 		goto end;
 	}
 
-	hdd_err("Got TSF timer response, high=%d, low=%d",
+	hdd_notice("Got TSF timer response, high=%d, low=%d",
 	       adapter->ocb_get_tsf_timer_resp.timer_high,
 	       adapter->ocb_get_tsf_timer_resp.timer_low);
 

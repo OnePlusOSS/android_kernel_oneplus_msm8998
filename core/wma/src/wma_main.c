@@ -1959,8 +1959,7 @@ QDF_STATUS wma_open(void *cds_context,
 	wma_handle->qdf_dev = qdf_dev;
 	wma_handle->max_scan = cds_cfg->max_scan;
 
-	wma_handle->wma_runtime_resume_lock =
-		qdf_runtime_lock_init("wma_runtime_resume");
+	qdf_runtime_lock_init(&wma_handle->wma_runtime_resume_lock);
 
 	/* Initialize max_no_of_peers for wma_get_number_of_peers_supported() */
 	wma_init_max_no_of_peers(wma_handle, cds_cfg->max_station);
@@ -2063,6 +2062,7 @@ QDF_STATUS wma_open(void *cds_context,
 	wma_handle->enable_mc_list = cds_cfg->enable_mc_list;
 	wma_handle->bpf_packet_filter_enable =
 		cds_cfg->bpf_packet_filter_enable;
+	wma_handle->active_bpf_mode = cds_cfg->active_bpf_mode;
 	wma_handle->link_stats_results = NULL;
 #ifdef FEATURE_WLAN_RA_FILTERING
 	wma_handle->IsRArateLimitEnabled = cds_cfg->is_ra_ratelimit_enabled;
@@ -2347,8 +2347,7 @@ QDF_STATUS wma_open(void *cds_context,
 
 	qdf_wake_lock_create(&wma_handle->wmi_cmd_rsp_wake_lock,
 					"wlan_fw_rsp_wakelock");
-	wma_handle->wmi_cmd_rsp_runtime_lock =
-			qdf_runtime_lock_init("wlan_fw_rsp_runtime_lock");
+	qdf_runtime_lock_init(&wma_handle->wmi_cmd_rsp_runtime_lock);
 
 	/* Register peer assoc conf event handler */
 	wmi_unified_register_event_handler(wma_handle->wmi_handle,
@@ -2378,7 +2377,7 @@ QDF_STATUS wma_open(void *cds_context,
 
 err_dbglog_init:
 	qdf_wake_lock_destroy(&wma_handle->wmi_cmd_rsp_wake_lock);
-	qdf_runtime_lock_deinit(wma_handle->wmi_cmd_rsp_runtime_lock);
+	qdf_runtime_lock_deinit(&wma_handle->wmi_cmd_rsp_runtime_lock);
 	qdf_spinlock_destroy(&wma_handle->vdev_respq_lock);
 	qdf_spinlock_destroy(&wma_handle->wma_hold_req_q_lock);
 err_event_init:
@@ -2406,7 +2405,7 @@ err_wma_handle:
 		qdf_wake_lock_destroy(&wma_handle->wow_wake_lock);
 	}
 
-	qdf_runtime_lock_deinit(wma_handle->wma_runtime_resume_lock);
+	qdf_runtime_lock_deinit(&wma_handle->wma_runtime_resume_lock);
 	cds_free_context(cds_context, QDF_MODULE_ID_WMA, wma_handle);
 
 	WMA_LOGD("%s: Exit", __func__);
@@ -3382,6 +3381,11 @@ QDF_STATUS wma_wmi_service_close(void *cds_ctx)
 			qdf_mem_free(wma_handle->interfaces[i].del_staself_req);
 			wma_handle->interfaces[i].del_staself_req = NULL;
 		}
+
+		if (wma_handle->interfaces[i].stats_rsp) {
+			qdf_mem_free(wma_handle->interfaces[i].stats_rsp);
+			wma_handle->interfaces[i].stats_rsp = NULL;
+		}
 	}
 
 	qdf_mem_free(wma_handle->interfaces);
@@ -3539,7 +3543,7 @@ QDF_STATUS wma_close(void *cds_ctx)
 	wma_cleanup_vdev_resp(wma_handle);
 	wma_cleanup_hold_req(wma_handle);
 	qdf_wake_lock_destroy(&wma_handle->wmi_cmd_rsp_wake_lock);
-	qdf_runtime_lock_deinit(wma_handle->wmi_cmd_rsp_runtime_lock);
+	qdf_runtime_lock_deinit(&wma_handle->wmi_cmd_rsp_runtime_lock);
 	for (idx = 0; idx < wma_handle->num_mem_chunks; ++idx) {
 		qdf_mem_free_consistent(wma_handle->qdf_dev,
 					wma_handle->qdf_dev->dev,
@@ -7115,13 +7119,18 @@ QDF_STATUS wma_mc_process_msg(void *cds_context, cds_msg_t *msg)
 		wma_get_rcpi_req(wma_handle,
 				 (struct sme_rcpi_req *)msg->bodyptr);
 		qdf_mem_free(msg->bodyptr);
+	case WMA_ENABLE_BCAST_FILTER:
+		wma_configure_non_arp_broadcast_filter(wma_handle,
+			(struct broadcast_filter_request *) msg->bodyptr);
+		break;
+	case WMA_DISABLE_HW_BCAST_FILTER:
+		wma_configure_non_arp_broadcast_filter(wma_handle,
+			(struct broadcast_filter_request *) msg->bodyptr);
 		break;
 	default:
-		WMA_LOGD("unknown msg type %x", msg->type);
-		/* Do Nothing? MSG Body should be freed at here */
-		if (NULL != msg->bodyptr) {
+		WMA_LOGE("Unhandled WMA message of type %d", msg->type);
+		if (msg->bodyptr)
 			qdf_mem_free(msg->bodyptr);
-		}
 	}
 end:
 	return qdf_status;

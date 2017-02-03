@@ -1038,6 +1038,18 @@ QDF_STATUS wma_enable_arp_ns_offload(tp_wma_handle wma,
 				     tpSirHostOffloadReq pHostOffloadParams,
 				     bool bArpOnly);
 
+/**
+ * wma_configure_non_arp_broadcast_filter() - API to Enable/Disable Broadcast
+ * filter
+ * when target goes to wow suspend/resume mode
+ * @wma: wma handle
+ * @bcastFilter: broadcast filter request
+ *
+ * Return: QDF Status
+ */
+QDF_STATUS wma_configure_non_arp_broadcast_filter(tp_wma_handle wma,
+				struct broadcast_filter_request *bcast_filter);
+
 QDF_STATUS wma_process_cesium_enable_ind(tp_wma_handle wma);
 
 QDF_STATUS wma_process_get_peer_info_req

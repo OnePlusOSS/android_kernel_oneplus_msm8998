@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -178,7 +178,7 @@ int hdd_napi_destroy(int force)
 						rc++;
 						hdd_napi_map &= ~(0x01 << i);
 					} else
-						hdd_err("cannot destroy napi %d: (pipe:%d), f=%d\n",
+						hdd_warn("cannot destroy napi %d: (pipe:%d), f=%d\n",
 							i,
 							NAPI_PIPE2ID(i), force);
 				}
@@ -408,7 +408,7 @@ int hdd_display_napi_stats(void)
 	}
 	qdf_print("[NAPI %u][BL %d]:  scheds   polls   comps    done t-lim p-lim  corr napi-buckets(%d)",
 		  napid->napi_mode,
-		  hif_napi_cpu_blacklist(napid->flags, BLACKLIST_QUERY),
+		  hif_napi_cpu_blacklist(napid, BLACKLIST_QUERY),
 		  QCA_NAPI_NUM_BUCKETS);
 
 	for (i = 0; i < CE_COUNT_MAX; i++)

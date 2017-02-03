@@ -290,7 +290,17 @@ static void csr_roam_init_globals(tpAniSirGlobal pMac)
 
 static void csr_roam_de_init_globals(tpAniSirGlobal pMac)
 {
+	uint8_t i;
 	if (pMac) {
+		for (i = 0; i < CSR_ROAM_SESSION_MAX; i++) {
+			if (pMac->roam.roamSession[i].pCurRoamProfile)
+				csr_release_profile(pMac,
+						    pMac->roam.roamSession[i].
+						    pCurRoamProfile);
+			csr_release_profile(pMac,
+					    &pMac->roam.roamSession[i].
+					    stored_roam_profile.profile);
+		}
 		pMac->roam.roamSession = NULL;
 	}
 	return;
@@ -428,15 +438,33 @@ QDF_STATUS csr_set_channels(tHalHandle hHal, tCsrConfigParam *pParam)
 QDF_STATUS csr_close(tpAniSirGlobal pMac)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	tSmeCmd *saved_scan_cmd;
 
 	csr_roam_close(pMac);
 	csr_scan_close(pMac);
 	csr_ll_close(&pMac->roam.statsClientReqList);
 	csr_ll_close(&pMac->roam.peStatsReqList);
 	csr_ll_close(&pMac->roam.roamCmdPendingList);
-	if (pMac->sme.saved_scan_cmd) {
-		qdf_mem_free(pMac->sme.saved_scan_cmd);
-		pMac->sme.saved_scan_cmd = NULL;
+	saved_scan_cmd = (tSmeCmd *)pMac->sme.saved_scan_cmd;
+	if (saved_scan_cmd) {
+		csr_release_profile(pMac, saved_scan_cmd->u.scanCmd.
+				    pToRoamProfile);
+		if (saved_scan_cmd->u.scanCmd.pToRoamProfile) {
+			qdf_mem_free(saved_scan_cmd->u.scanCmd.pToRoamProfile);
+			saved_scan_cmd->u.scanCmd.pToRoamProfile = NULL;
+		}
+		if (saved_scan_cmd->u.scanCmd.u.scanRequest.SSIDs.SSIDList) {
+			qdf_mem_free(saved_scan_cmd->u.scanCmd.u.scanRequest.
+				     SSIDs.SSIDList);
+			saved_scan_cmd->u.scanCmd.u.scanRequest.SSIDs.
+				SSIDList = NULL;
+		}
+		if (saved_scan_cmd->u.roamCmd.pRoamBssEntry) {
+			qdf_mem_free(saved_scan_cmd->u.roamCmd.pRoamBssEntry);
+			saved_scan_cmd->u.roamCmd.pRoamBssEntry = NULL;
+		}
+		qdf_mem_free(saved_scan_cmd);
+		saved_scan_cmd = NULL;
 	}
 	/* DeInit Globals */
 	csr_roam_de_init_globals(pMac);
@@ -14335,14 +14363,16 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 		if (value) {
 			txBFCsnValue = (uint8_t)value1;
 			if (IS_BSS_VHT_CAPABLE(pIes->VHTCaps) &&
-					pIes->VHTCaps.numSoundingDim)
+			    pIes->VHTCaps.csnofBeamformerAntSup)
 				txBFCsnValue = QDF_MIN(txBFCsnValue,
-						pIes->VHTCaps.numSoundingDim);
-			else if (IS_BSS_VHT_CAPABLE(pIes->vendor_vht_ie.VHTCaps)
-				&& pIes->vendor_vht_ie.VHTCaps.numSoundingDim)
+					pIes->VHTCaps.csnofBeamformerAntSup);
+			else if (IS_BSS_VHT_CAPABLE(
+				 pIes->vendor_vht_ie.VHTCaps)
+				 && pIes->vendor_vht_ie.VHTCaps.
+				 csnofBeamformerAntSup)
 				txBFCsnValue = QDF_MIN(txBFCsnValue,
 					pIes->vendor_vht_ie.
-					VHTCaps.numSoundingDim);
+					VHTCaps.csnofBeamformerAntSup);
 		}
 		csr_join_req->vht_config.csnof_beamformer_antSup = txBFCsnValue;
 
@@ -17884,19 +17914,6 @@ csr_roam_offload_scan(tpAniSirGlobal mac_ctx, uint8_t session_id,
 			FL("Supplicant disabled driver roaming"));
 		return QDF_STATUS_E_FAILURE;
 	}
-#ifdef WLAN_FEATURE_ROAM_OFFLOAD
-	if (session->roam_synch_in_progress
-	    && (ROAM_SCAN_OFFLOAD_STOP == command)) {
-		/*
-		 * When roam synch is in progress for propagation, there is no
-		 * need to send down the STOP command since the firmware is not
-		 * expecting any WMI commands when the roam synch is in progress
-		 */
-		b_roam_scan_offload_started = false;
-		sms_log(mac_ctx, LOG1, FL("Roam sync in progress"));
-		return QDF_STATUS_SUCCESS;
-	}
-#endif
 	if (0 == csr_roam_is_roam_offload_scan_enabled(mac_ctx)) {
 		sms_log(mac_ctx, LOGE, "isRoamOffloadScanEnabled not set");
 		return QDF_STATUS_E_FAILURE;

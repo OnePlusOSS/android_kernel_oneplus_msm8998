@@ -89,6 +89,7 @@ void cds_sys_probe_thread_cback(void *pUserData);
 v_CONTEXT_t cds_init(void)
 {
 	qdf_debugfs_init();
+	qdf_lock_stats_init();
 	qdf_mem_init();
 	qdf_mc_timer_manager_init();
 
@@ -121,6 +122,7 @@ void cds_deinit(void)
 
 	qdf_mc_timer_manager_exit();
 	qdf_mem_exit();
+	qdf_lock_stats_deinit();
 	qdf_debugfs_exit();
 
 	gp_cds_context->qdf_ctx = NULL;
@@ -1672,14 +1674,14 @@ void cds_trigger_recovery(bool skip_crash_inject)
 		return;
 	}
 
-	recovery_lock = qdf_runtime_lock_init("cds_recovery");
-	if (!recovery_lock) {
+	status = qdf_runtime_lock_init(&recovery_lock);
+	if (QDF_STATUS_SUCCESS != status) {
 		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
-			"Could not acquire runtime pm lock!");
+			"Could not acquire runtime pm lock: %d!", status);
 		return;
 	}
 
-	qdf_runtime_pm_prevent_suspend(recovery_lock);
+	qdf_runtime_pm_prevent_suspend(&recovery_lock);
 
 	/*
 	 * If force assert thru platform is available, trigger that interface.
@@ -1711,8 +1713,8 @@ void cds_trigger_recovery(bool skip_crash_inject)
 	}
 
 out:
-	qdf_runtime_pm_allow_suspend(recovery_lock);
-	qdf_runtime_lock_deinit(recovery_lock);
+	qdf_runtime_pm_allow_suspend(&recovery_lock);
+	qdf_runtime_lock_deinit(&recovery_lock);
 }
 
 /**

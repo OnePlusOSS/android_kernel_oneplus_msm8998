@@ -2684,10 +2684,6 @@ typedef struct sSirUpdateAPWPARSNIEsReq {
 #define SIR_IPV6_NS_OFFLOAD                         2
 #define SIR_OFFLOAD_DISABLE                         0
 #define SIR_OFFLOAD_ENABLE                          1
-#define SIR_OFFLOAD_BCAST_FILTER_ENABLE             0x2
-#define SIR_OFFLOAD_MCAST_FILTER_ENABLE             0x4
-#define SIR_OFFLOAD_ARP_AND_BCAST_FILTER_ENABLE     (SIR_OFFLOAD_ENABLE|SIR_OFFLOAD_BCAST_FILTER_ENABLE)
-#define SIR_OFFLOAD_NS_AND_MCAST_FILTER_ENABLE      (SIR_OFFLOAD_ENABLE|SIR_OFFLOAD_MCAST_FILTER_ENABLE)
 
 #ifdef WLAN_NS_OFFLOAD
 typedef struct sSirNsOffloadReq {
@@ -2701,6 +2697,16 @@ typedef struct sSirNsOffloadReq {
 	uint8_t slotIdx;
 } tSirNsOffloadReq, *tpSirNsOffloadReq;
 #endif /* WLAN_NS_OFFLOAD */
+
+/**
+ * struct broadcast_filter_request - For enable/disable HW Broadcast Filter
+ * @enable: value to enable disable feature
+ * @bss_id: bss_id for get session.
+ */
+struct broadcast_filter_request {
+	bool enable;
+	struct qdf_mac_addr bssid;
+};
 
 typedef struct sSirHostOffloadReq {
 	uint8_t offloadType;
@@ -2851,12 +2857,6 @@ typedef struct {
 	uint32_t tcp_rx_timeout_val;
 } tSirAppType2Params, *tpSirAppType2Params;
 #endif
-
-typedef struct sSirWlanSetRxpFilters {
-	uint8_t configuredMcstBcstFilterSetting;
-	uint8_t setMcstBcstFilter;
-} tSirWlanSetRxpFilters, *tpSirWlanSetRxpFilters;
-
 
 #define ANI_MAX_IBSS_ROUTE_TABLE_ENTRY   100
 

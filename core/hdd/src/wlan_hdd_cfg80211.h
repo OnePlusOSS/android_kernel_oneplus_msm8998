@@ -3507,4 +3507,18 @@ void hdd_lost_link_info_cb(void *context,
  * Return : Corresponding band for SAP operating channel
  */
 uint8_t hdd_get_sap_operating_band(hdd_context_t *hdd_ctx);
+
+/**
+ * hdd_process_defer_disconnect() - Handle the deferred disconnect
+ * @adapter: HDD Adapter
+ *
+ * If roaming is in progress and there is a request to
+ * disconnect the session, then it is deferred. Once
+ * roaming is complete/aborted, then this routine is
+ * used to resume the disconnect that was deferred
+ *
+ * Return: None
+ */
+void hdd_process_defer_disconnect(hdd_adapter_t *adapter);
+
 #endif

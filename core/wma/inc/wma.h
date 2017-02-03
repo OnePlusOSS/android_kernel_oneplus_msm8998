@@ -317,11 +317,12 @@ enum ds_mode {
 #define WMA_ASSOC_REQ_RECV_WAKE_LOCK_DURATION   (5 * 1000)     /* in msec */
 #define WMA_DEAUTH_RECV_WAKE_LOCK_DURATION      (5 * 1000)     /* in msec */
 #define WMA_DISASSOC_RECV_WAKE_LOCK_DURATION    (5 * 1000)     /* in msec */
+#define WMA_ROAM_HO_WAKE_LOCK_DURATION          (500)          /* in msec */
 #ifdef FEATURE_WLAN_AUTO_SHUTDOWN
 #define WMA_AUTO_SHUTDOWN_WAKE_LOCK_DURATION    (5 * 1000)     /* in msec */
 #endif
 #define WMA_BMISS_EVENT_WAKE_LOCK_DURATION      (4 * 1000)     /* in msec */
-#define WMA_FW_RSP_EVENT_WAKE_LOCK_DURATION      (3 * 1000)  /* in msec */
+#define WMA_FW_RSP_EVENT_WAKE_LOCK_DURATION     (3 * 1000)     /* in msec */
 
 #define WMA_TXMIC_LEN 8
 #define WMA_RXMIC_LEN 8
@@ -1412,7 +1413,8 @@ struct extended_caps {
  * It contains global wma module parameters and
  * handle of other modules.
  * @saved_wmi_init_cmd: Saved WMI INIT command
- * @bool bpf_packet_filter_enable: BPF filter enabled or not
+ * @bpf_packet_filter_enable: BPF filter enabled or not
+ * @active_bpf_mode: Setting that determines how BPF is applied in active mode
  * @service_ready_ext_evt: Wait event for service ready ext
  * @wmi_cmd_rsp_wake_lock: wmi command response wake lock
  * @wmi_cmd_rsp_runtime_lock: wmi command response bus lock
@@ -1596,6 +1598,7 @@ typedef struct {
 	uint32_t fine_time_measurement_cap;
 	bool bpf_enabled;
 	bool bpf_packet_filter_enable;
+	enum active_bpf_mode active_bpf_mode;
 	struct wma_ini_config ini_config;
 	struct wma_valid_channels saved_chan;
 	/* NAN datapath support enabled in firmware */

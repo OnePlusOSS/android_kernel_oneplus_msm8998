@@ -242,6 +242,7 @@ typedef enum {
 	WMI_GRP_PROTOTYPE,            /* 0x38 */
 	WMI_GRP_MONITOR,              /* 0x39 */
 	WMI_GRP_REGULATORY,           /* 0x3a */
+	WMI_GRP_HW_DATA_FILTER,       /* 0x3b */
 } WMI_GRP_ID;
 
 #define WMI_CMD_GRP_START_ID(grp_id) (((grp_id) << 12) | 0x1)
@@ -418,6 +419,8 @@ typedef enum {
 
 	/* DISA feature: Encrypt-decrypt data request */
 	WMI_VDEV_ENCRYPT_DECRYPT_DATA_REQ_CMDID,
+	/** Command to enable mac randomizaton **/
+	WMI_VDEV_ADD_MAC_ADDR_TO_RX_FILTER_CMDID,
 
 	/* peer specific commands */
 
@@ -1029,6 +1032,7 @@ typedef enum {
 	WMI_BPF_GET_VDEV_STATS_CMDID,
 	WMI_BPF_SET_VDEV_INSTRUCTIONS_CMDID,
 	WMI_BPF_DEL_VDEV_INSTRUCTIONS_CMDID,
+	WMI_BPF_SET_VDEV_ACTIVE_MODE_CMDID,
 
 	/** WMI commands related to monitor mode. */
 	WMI_MNT_FILTER_CMDID = WMI_CMD_GRP_START_ID(WMI_GRP_MONITOR),
@@ -1048,6 +1052,10 @@ typedef enum {
 	WMI_NDP_INITIATOR_REQ_CMDID,
 	WMI_NDP_RESPONDER_REQ_CMDID,
 	WMI_NDP_END_REQ_CMDID,
+
+	/** WMI commands related to HW data filtering **/
+	WMI_HW_DATA_FILTER_CMDID = WMI_CMD_GRP_START_ID(WMI_GRP_HW_DATA_FILTER),
+
 } WMI_CMD_ID;
 
 typedef enum {
@@ -1150,6 +1158,8 @@ typedef enum {
 	 * 802.11 DISA frame
 	 */
 	WMI_VDEV_ENCRYPT_DECRYPT_DATA_RESP_EVENTID,
+	/** event to report mac randomization success **/
+	WMI_VDEV_ADD_MAC_ADDR_TO_RX_FILTER_STATUS_EVENTID,
 
 	/* peer specific events */
 	/** FW reauet to kick out the station for reasons like inactivity,lack of response ..etc */
@@ -4067,6 +4077,11 @@ typedef enum {
 	 *  A zero value disables; a non-zero value enables.
 	 */
 	WMI_PDEV_PARAM_RADIO_DIAGNOSIS_ENABLE,
+	/** Enable/Disable mesh mcast traffic
+	* 1 - Allow mesh mcast traffic
+	* 0 - Disallow mesh mcast traffic
+	*/
+	WMI_PDEV_PARAM_MESH_MCAST_ENABLE,
 
 } WMI_PDEV_PARAM;
 
@@ -8767,6 +8782,13 @@ typedef struct {
 	A_UINT32 rsn_mcastcipherset;
 	/** mcast/group management frames cipher set */
 	A_UINT32 rsn_mcastmgmtcipherset;
+	/**
+	* rssi_abs_thresold value: the value of the candidate AP should
+	* higher than this absolute RSSI threshold.
+	* Zero means no absolute minimum RSSI is required.
+	* units are the offset from the noise floor in dB.
+	*/
+	A_UINT32 rssi_abs_thresh;
 } wmi_ap_profile;
 
 /** Support early stop roaming scanning when finding a strong candidate AP
@@ -9122,6 +9144,7 @@ typedef struct {
 #define WMI_ROAM_INVOKE_SCAN_MODE_FIXED_CH      0   /* scan given channel only */
 #define WMI_ROAM_INVOKE_SCAN_MODE_CACHE_LIST    1   /* scan cached channel list */
 #define WMI_ROAM_INVOKE_SCAN_MODE_FULL_CH       2   /* scan full channel */
+#define WMI_ROAM_INVOKE_SCAN_MODE_SKIP          3   /* no scan is performed. use beacon/probe resp given by the host */
 
 #define WMI_ROAM_INVOKE_AP_SEL_FIXED_BSSID      0   /* roam to given BSSID only */
 #define WMI_ROAM_INVOKE_AP_SEL_ANY_BSSID        1   /* roam to any BSSID */
@@ -9148,11 +9171,14 @@ typedef struct {
 	A_UINT32 roam_delay; /** 0 = immediate roam, 1-2^32 = roam after this delay (msec) */
 	A_UINT32 num_chan; /** # if channels to scan. In the TLV channel_list[] */
 	A_UINT32 num_bssid;  /** number of bssids. In the TLV bssid_list[] */
+	A_UINT32 num_buf; /** number of buffers In the TLV bcn_prb_buf_list[] */
 	/**
 	 * TLV (tag length value ) parameters follows roam_invoke_req
 	 * The TLV's are:
 	 *     A_UINT32 channel_list[];
 	 *     wmi_mac_addr bssid_list[];
+	 *     wmi_tlv_buf_len_param bcn_prb_buf_list[];
+	 *     A_UINT8 bcn_prb_frm[];
 	 */
 } wmi_roam_invoke_cmd_fixed_param;
 
@@ -16848,6 +16874,12 @@ typedef struct {
 	 */
 } wmi_scpc_event_fixed_param;
 
+typedef enum {
+FW_ACTIVE_BPF_MODE_DISABLE =         (1 << 1),
+FW_ACTIVE_BPF_MODE_FORCE_ENABLE =    (1 << 2),
+FW_ACTIVE_BPF_MODE_ADAPTIVE_ENABLE = (1 << 3),
+} FW_ACTIVE_BPF_MODE;
+
 /* bpf interface structure */
 typedef struct wmi_bpf_get_capability_cmd_s {
 	A_UINT32 tlv_header;
@@ -16859,6 +16891,8 @@ typedef struct wmi_bpf_capability_info_evt_s {
 	A_UINT32 bpf_version; /* fw's implement version */
 	A_UINT32 max_bpf_filters; /* max filters that fw supports */
 	A_UINT32 max_bytes_for_bpf_inst; /* the maximum bytes that can be used as bpf instructions */
+	A_UINT32 fw_active_bpf_support_mcbc_modes; /* multicast/broadcast - refer to FW_ACTIVE_BPF_MODE, it can be 'or' of them */
+	A_UINT32 fw_active_bpf_support_uc_modes; /* unicast - refer to FW_ACTIVE_BPF_MODE, it can be 'or' of them */
 } wmi_bpf_capability_info_evt_fixed_param;
 
 /* bit 0 of flags: report counters */
@@ -16898,6 +16932,14 @@ typedef struct wmi_bpf_del_vdev_instructions_cmd_s {
 	A_UINT32 vdev_id;
 	A_UINT32 filter_id;  /* BPF_FILTER_ID_ALL means delete all */
 } wmi_bpf_del_vdev_instructions_cmd_fixed_param;
+
+typedef struct wmi_bpf_set_vdev_active_mode_cmd_s {
+	A_UINT32 tlv_header;
+	A_UINT32 vdev_id;
+	A_UINT32 mcbc_mode; /* refer to FW_ACTIVE_BPF_MODE */
+	A_UINT32 uc_mode; /* refer to FW_ACTIVE_BPF_MODE */
+} wmi_bpf_set_vdev_active_mode_cmd_fixed_param;
+
 
 #define AES_BLOCK_LEN           16  /* in bytes */
 #define FIPS_KEY_LENGTH_128     16  /* in bytes */
@@ -18714,6 +18756,9 @@ static INLINE A_UINT8 *wmi_id_to_name(A_UINT32 wmi_command)
 		WMI_RETURN_STRING(WMI_REQUEST_PEER_STATS_INFO_CMDID);
 		WMI_RETURN_STRING(WMI_REQUEST_RADIO_CHAN_STATS_CMDID);
 		WMI_RETURN_STRING(WMI_ROAM_PER_CONFIG_CMDID);
+		WMI_RETURN_STRING(WMI_VDEV_ADD_MAC_ADDR_TO_RX_FILTER_CMDID);
+		WMI_RETURN_STRING(WMI_BPF_SET_VDEV_ACTIVE_MODE_CMDID);
+		WMI_RETURN_STRING(WMI_HW_DATA_FILTER_CMDID);
 	}
 
 	return "Invalid WMI cmd";
@@ -18882,6 +18927,35 @@ typedef struct {
 	 */
 	A_UINT32 value;
 } wmi_pkgid_event_fixed_param;
+typedef struct {
+	 A_UINT32 tlv_header; /* TLV tag and len; tag equals
+WMITLV_TAG_STRUC_wmi_vdev_add_mac_addr_to_rx_filter_cmd_fixed_params */
+	A_UINT32 vdev_id; /* vdev id whose mac to be randomized */
+	/* enable is set to 1 if mac randomization to be enabled */
+	A_UINT32 enable;
+	/* randomization mac address if randomization is enabled */
+	wmi_mac_addr mac_addr;
+} wmi_vdev_add_mac_addr_to_rx_filter_cmd_fixed_param;
+
+typedef struct {
+	A_UINT32 tlv_header; /* TLV tag and len; tag equals
+WMITLV_TAG_STRUC_wmi_vdev_add_mac_addr_to_rx_filter_event_fixed_params */
+	A_UINT32 vdev_id; /* vdev of id whose mac address was randomized */
+	A_UINT32 status; /* status is 1 if success and 0 if failed */
+} wmi_vdev_add_mac_addr_to_rx_filter_status_event_fixed_param;
+
+/* Definition of HW data filtering */
+typedef enum {
+	WMI_HW_DATA_FILTER_DROP_NON_ARP_BC = 0x01,
+	WMI_HW_DATA_FILTER_DROP_NON_ICMPV6_MC = 0x02,
+} WMI_HW_DATA_FILTER_BITMAP_TYPE;
+
+typedef struct {
+	A_UINT32 tlv_header;
+	A_UINT32 vdev_id;
+	A_UINT32 enable;  /* 1 . enable, 0- disable */
+	A_UINT32 hw_filter_bitmap; /* see WMI_HW_DATA_FILTER_BITMAP_TYPE */
+		} wmi_hw_data_filter_cmd_fixed_param;
 
 /* ADD NEW DEFS HERE */
 
@@ -18894,6 +18968,7 @@ typedef struct {
 
 /* NOTE: Make sure these data structures are identical to those	9235
 * defined in sirApi.h */
+
 
 typedef struct {
 	/** Arbitration Inter-Frame Spacing. Range: 2-15 */

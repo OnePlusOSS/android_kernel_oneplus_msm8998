@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -437,6 +437,38 @@ static void lim_process_auth_frame_type1(tpAniSirGlobal mac_ctx,
 	if (lim_is_auth_algo_supported(mac_ctx,
 			(tAniAuthType) rx_auth_frm_body->authAlgoNumber,
 			pe_session)) {
+		int i = 0;
+		tCsrRoamSession *session;
+
+		for (i = 0; i < mac_ctx->sme.max_intf_count; i++) {
+
+			if (!CSR_IS_SESSION_VALID(mac_ctx, i))
+				continue;
+
+			session = CSR_GET_SESSION(mac_ctx, i);
+			if (!session || qdf_mem_cmp(&session->selfMacAddr,
+			    mac_hdr->sa, sizeof(tSirMacAddr))) {
+				continue;
+			}
+
+			lim_log(mac_ctx, LOGE,
+				FL("vdev with id %d exist with same MAC "
+				MAC_ADDRESS_STR), session->sessionId,
+				MAC_ADDR_ARRAY(mac_hdr->sa));
+
+			auth_frame->authAlgoNumber =
+				rx_auth_frm_body->authAlgoNumber;
+			auth_frame->authTransactionSeqNumber =
+				rx_auth_frm_body->authTransactionSeqNumber + 1;
+			auth_frame->authStatusCode =
+				eSIR_MAC_WME_INVALID_PARAMS_STATUS;
+
+			lim_send_auth_mgmt_frame(mac_ctx, auth_frame,
+				mac_hdr->sa, LIM_NO_WEP_IN_FC,
+				pe_session, false);
+			return;
+		}
+
 		switch (rx_auth_frm_body->authAlgoNumber) {
 		case eSIR_OPEN_SYSTEM:
 			lim_process_auth_open_system_algo(mac_ctx, mac_hdr,

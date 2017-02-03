@@ -4216,6 +4216,20 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		CFG_MAX_SCHED_SCAN_PLAN_ITRNS_DEFAULT,
 		CFG_MAX_SCHED_SCAN_PLAN_ITRNS_MIN,
 		CFG_MAX_SCHED_SCAN_PLAN_ITRNS_MAX),
+
+	REG_VARIABLE(CFG_ACTIVE_BPF_MODE_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, active_bpf_mode,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_ACTIVE_BPF_MODE_DEFAULT,
+		CFG_ACTIVE_BPF_MODE_MIN,
+		CFG_ACTIVE_BPF_MODE_MAX),
+
+	REG_VARIABLE(CFG_HW_BC_FILTER_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, hw_broadcast_filter,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_HW_FILTER_DEFAULT,
+		CFG_HW_FILTER_MIN,
+		CFG_HW_FILTER_MAX),
 };
 
 /**
@@ -5692,6 +5706,9 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_info("Name = [%s] Value = [%u]",
 		CFG_ENABLE_PHY_REG_NAME,
 		pHddCtx->config->enable_phy_reg_retention);
+	hdd_err("Name = [%s] Value = [%u]",
+		CFG_HW_BC_FILTER_NAME,
+		pHddCtx->config->hw_broadcast_filter);
 	hdd_per_roam_print_ini_config(pHddCtx);
 }
 

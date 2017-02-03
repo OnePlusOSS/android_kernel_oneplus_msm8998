@@ -154,7 +154,7 @@ static void hdd_hostapd_channel_allow_suspend(hdd_adapter_t *pAdapter,
 		hdd_err("DFS: allowing suspend (chan %d)", channel);
 		qdf_wake_lock_release(&pHddCtx->sap_dfs_wakelock,
 				      WIFI_POWER_EVENT_WAKELOCK_DFS);
-		qdf_runtime_pm_allow_suspend(pHddCtx->runtime_context.dfs);
+		qdf_runtime_pm_allow_suspend(&pHddCtx->runtime_context.dfs);
 
 	}
 }
@@ -190,7 +190,7 @@ static void hdd_hostapd_channel_prevent_suspend(hdd_adapter_t *pAdapter,
 	/* Acquire wakelock if we have at least one DFS channel in use */
 	if (atomic_inc_return(&pHddCtx->sap_dfs_ref_cnt) == 1) {
 		hdd_err("DFS: preventing suspend (chan %d)", channel);
-		qdf_runtime_pm_prevent_suspend(pHddCtx->runtime_context.dfs);
+		qdf_runtime_pm_prevent_suspend(&pHddCtx->runtime_context.dfs);
 		qdf_wake_lock_acquire(&pHddCtx->sap_dfs_wakelock,
 				      WIFI_POWER_EVENT_WAKELOCK_DFS);
 	}
@@ -4977,6 +4977,12 @@ static int __iw_set_ap_genie(struct net_device *dev,
 	if (!wrqu->data.length) {
 		EXIT();
 		return 0;
+	}
+
+	if (wrqu->data.length > DOT11F_IE_RSN_MAX_LEN) {
+		hdd_err("%s: WPARSN Ie input length is more than max[%d]",
+			__func__, wrqu->data.length);
+		return QDF_STATUS_E_INVAL;
 	}
 
 	switch (genie[0]) {

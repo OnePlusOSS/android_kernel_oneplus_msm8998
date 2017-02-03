@@ -650,6 +650,9 @@ typedef struct sSirMbMsgP2p {
 
 #define SIR_HAL_GET_RCPI_REQ                (SIR_HAL_ITC_MSG_TYPES_BEGIN + 372)
 
+#define SIR_HAL_ENABLE_BCAST_FILTER         (SIR_HAL_ITC_MSG_TYPES_BEGIN + 373)
+#define SIR_HAL_DISABLE_BCAST_FILTER        (SIR_HAL_ITC_MSG_TYPES_BEGIN + 374)
+
 #define SIR_HAL_MSG_TYPES_END               (SIR_HAL_MSG_TYPES_BEGIN + 0x1FF)
 
 /* CFG message types */

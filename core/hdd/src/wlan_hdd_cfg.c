@@ -6123,16 +6123,25 @@ eCsrPhyMode hdd_cfg_xlate_to_csr_phy_mode(eHddDot11Mode dot11Mode)
  * Return: QDF_STATUS_SUCCESS if command set correctly,
  *		otherwise the QDF_STATUS return from SME layer
  */
-QDF_STATUS hdd_set_idle_ps_config(hdd_context_t *pHddCtx, uint32_t val)
+QDF_STATUS hdd_set_idle_ps_config(hdd_context_t *pHddCtx, bool val)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 
+	if (pHddCtx->imps_enabled == val) {
+		hdd_notice("Already in the requested power state:%d", val);
+		return QDF_STATUS_SUCCESS;
+	}
+
 	hdd_notice("hdd_set_idle_ps_config: Enter Val %d", val);
 
-	status = sme_set_idle_powersave_config(pHddCtx->pcds_context,
-			pHddCtx->hHal, val);
-	if (QDF_STATUS_SUCCESS != status)
+	status = sme_set_idle_powersave_config(val);
+	if (QDF_STATUS_SUCCESS != status) {
 		hdd_err("Fail to Set Idle PS Config val %d", val);
+		return status;
+	}
+
+	pHddCtx->imps_enabled = val;
+
 	return status;
 }
 

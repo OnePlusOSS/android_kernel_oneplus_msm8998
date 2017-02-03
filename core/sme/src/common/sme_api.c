@@ -12212,11 +12212,9 @@ QDF_STATUS sme_set_ht2040_mode(tHalHandle hHal, uint8_t sessionId,
  * This should be called only if powersave offload
  * is enabled
  */
-QDF_STATUS sme_set_idle_powersave_config(void *cds_context,
-				tHalHandle hHal, uint32_t value)
+QDF_STATUS sme_set_idle_powersave_config(bool value)
 {
 	void *wmaContext = cds_get_context(QDF_MODULE_ID_WMA);
-	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 
 	if (NULL == wmaContext) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
@@ -12226,14 +12224,11 @@ QDF_STATUS sme_set_idle_powersave_config(void *cds_context,
 	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 		  " Idle Ps Set Value %d", value);
 
-	pMac->imps_enabled = false;
 	if (QDF_STATUS_SUCCESS != wma_set_idle_ps_config(wmaContext, value)) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 			  " Failed to Set Idle Ps Value %d", value);
 		return QDF_STATUS_E_FAILURE;
 	}
-	if (value)
-		pMac->imps_enabled = true;
 	return QDF_STATUS_SUCCESS;
 }
 

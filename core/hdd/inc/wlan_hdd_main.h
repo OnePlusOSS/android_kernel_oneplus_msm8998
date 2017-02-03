@@ -1655,6 +1655,7 @@ struct hdd_context_s {
 	unsigned long last_scan_reject_timestamp;
 	uint8_t beacon_probe_rsp_cnt_per_scan;
 	bool rcpi_enabled;
+	bool imps_enabled;
 };
 
 /*---------------------------------------------------------------------------

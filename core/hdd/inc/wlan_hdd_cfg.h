@@ -9224,7 +9224,7 @@ QDF_STATUS hdd_execute_global_config_command(hdd_context_t *pHddCtx,
 					     char *command);
 
 bool hdd_is_okc_mode_enabled(hdd_context_t *pHddCtx);
-QDF_STATUS hdd_set_idle_ps_config(hdd_context_t *pHddCtx, uint32_t val);
+QDF_STATUS hdd_set_idle_ps_config(hdd_context_t *pHddCtx, bool val);
 
 void hdd_update_tgt_cfg(void *context, void *param);
 bool hdd_dfs_indicate_radar(void *context, void *param);

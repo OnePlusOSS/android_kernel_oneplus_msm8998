@@ -931,8 +931,6 @@ typedef struct sAniSirGlobal {
 
 	uint8_t isCoalesingInIBSSAllowed;
 
-	bool imps_enabled;
-
 	/* PNO offload */
 	bool pnoOffload;
 

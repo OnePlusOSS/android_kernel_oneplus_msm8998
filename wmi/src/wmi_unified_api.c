@@ -3177,6 +3177,18 @@ QDF_STATUS wmi_unified_enable_arp_ns_offload_cmd(void *wmi_hdl,
 	return QDF_STATUS_E_FAILURE;
 }
 
+QDF_STATUS wmi_unified_configure_broadcast_filter_cmd(void *wmi_hdl,
+			   uint8_t vdev_id, bool bc_filter)
+{
+	wmi_unified_t wmi_handle = (wmi_unified_t) wmi_hdl;
+
+	if (wmi_handle->ops->send_enable_broadcast_filter_cmd)
+		return wmi_handle->ops->send_enable_broadcast_filter_cmd(
+				wmi_handle, vdev_id, bc_filter);
+
+	return QDF_STATUS_E_FAILURE;
+}
+
 /**
  * wmi_unified_set_led_flashing_cmd() - set led flashing in fw
  * @wmi_hdl: wmi handle
@@ -3479,6 +3491,24 @@ QDF_STATUS wmi_unified_get_buf_extscan_hotlist_cmd(void *wmi_hdl,
 				  photlist, buf_len);
 
 	return QDF_STATUS_E_FAILURE;
+}
+
+QDF_STATUS
+wmi_unified_set_active_bpf_mode_cmd(void *wmi_hdl,
+				    uint8_t vdev_id,
+				    FW_ACTIVE_BPF_MODE ucast_mode,
+				    FW_ACTIVE_BPF_MODE mcast_bcast_mode)
+{
+	wmi_unified_t wmi = (wmi_unified_t)wmi_hdl;
+
+	if (!wmi->ops->send_set_active_bpf_mode_cmd) {
+		WMI_LOGI("send_set_active_bpf_mode_cmd op is NULL");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	return wmi->ops->send_set_active_bpf_mode_cmd(wmi, vdev_id,
+						      ucast_mode,
+						      mcast_bcast_mode);
 }
 
 /**

@@ -470,7 +470,7 @@ EXPORT_SYMBOL(qdf_runtime_pm_put);
  *
  * return: QDF_STATUS_SUCCESS or failure code.
  */
-QDF_STATUS qdf_runtime_pm_prevent_suspend(qdf_runtime_lock_t lock)
+QDF_STATUS qdf_runtime_pm_prevent_suspend(qdf_runtime_lock_t *lock)
 {
 	void *ol_sc;
 	int ret;
@@ -484,7 +484,7 @@ QDF_STATUS qdf_runtime_pm_prevent_suspend(qdf_runtime_lock_t lock)
 		return QDF_STATUS_E_INVAL;
 	}
 
-	ret = hif_pm_runtime_prevent_suspend(ol_sc, lock);
+	ret = hif_pm_runtime_prevent_suspend(ol_sc, lock->lock);
 
 	if (ret)
 		return QDF_STATUS_E_FAILURE;
@@ -493,14 +493,14 @@ QDF_STATUS qdf_runtime_pm_prevent_suspend(qdf_runtime_lock_t lock)
 EXPORT_SYMBOL(qdf_runtime_pm_prevent_suspend);
 
 /**
- * qdf_runtime_pm_prevent_suspend() - prevent a runtime bus suspend
+ * qdf_runtime_pm_allow_suspend() - prevent a runtime bus suspend
  * @lock: an opaque context for tracking
  *
  * The lock can only be acquired once per lock context and is tracked.
  *
  * return: QDF_STATUS_SUCCESS or failure code.
  */
-QDF_STATUS qdf_runtime_pm_allow_suspend(qdf_runtime_lock_t lock)
+QDF_STATUS qdf_runtime_pm_allow_suspend(qdf_runtime_lock_t *lock)
 {
 	void *ol_sc;
 	int ret;
@@ -513,7 +513,7 @@ QDF_STATUS qdf_runtime_pm_allow_suspend(qdf_runtime_lock_t lock)
 		return QDF_STATUS_E_INVAL;
 	}
 
-	ret = hif_pm_runtime_allow_suspend(ol_sc, lock);
+	ret = hif_pm_runtime_allow_suspend(ol_sc, lock->lock);
 	if (ret)
 		return QDF_STATUS_E_FAILURE;
 	return QDF_STATUS_SUCCESS;
@@ -530,11 +530,16 @@ EXPORT_SYMBOL(qdf_runtime_pm_allow_suspend);
  *
  * Return: runtime_pm_lock_t
  */
-qdf_runtime_lock_t qdf_runtime_lock_init(const char *name)
+QDF_STATUS __qdf_runtime_lock_init(qdf_runtime_lock_t *lock, const char *name)
 {
-	return hif_runtime_lock_init(name);
+	int ret = hif_runtime_lock_init(lock, name);
+
+	if (ret)
+		return QDF_STATUS_E_NOMEM;
+
+	return QDF_STATUS_SUCCESS;
 }
-EXPORT_SYMBOL(qdf_runtime_lock_init);
+EXPORT_SYMBOL(__qdf_runtime_lock_init);
 
 /**
  * qdf_runtime_lock_deinit() - deinitialize runtime pm lock
@@ -544,10 +549,10 @@ EXPORT_SYMBOL(qdf_runtime_lock_init);
  *
  * Return: void
  */
-void qdf_runtime_lock_deinit(qdf_runtime_lock_t lock)
+void qdf_runtime_lock_deinit(qdf_runtime_lock_t *lock)
 {
 	void *hif_ctx = cds_get_context(QDF_MODULE_ID_HIF);
-	hif_runtime_lock_deinit(hif_ctx, lock);
+	hif_runtime_lock_deinit(hif_ctx, lock->lock);
 }
 EXPORT_SYMBOL(qdf_runtime_lock_deinit);
 

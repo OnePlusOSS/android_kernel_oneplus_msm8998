@@ -529,6 +529,19 @@ QDF_STATUS send_enable_arp_ns_offload_cmd_tlv(wmi_unified_t wmi_handle,
 			   bool arp_only,
 			   uint8_t vdev_id);
 
+/**
+ * send_enable_broadcast_filter_cmd_tlv() - Enable/Disable Broadcast filter
+ * when target goes to wow suspend/resume mode
+ * @wma: wmi handle
+ * @vdev_id: device identifier
+ * @enable: enable/disable broadcast filter
+ *
+ *
+ * Return: QDF Status
+ */
+QDF_STATUS send_enable_broadcast_filter_cmd_tlv(wmi_unified_t wmi_handle,
+			   uint8_t vdev_id, bool enable);
+
 QDF_STATUS send_set_led_flashing_cmd_tlv(wmi_unified_t wmi_handle,
 				struct flashing_req_params *flashing);
 
@@ -585,5 +598,21 @@ QDF_STATUS send_per_roam_config_cmd_tlv(wmi_unified_t wmi_handle,
 QDF_STATUS send_get_buf_extscan_hotlist_cmd_tlv(wmi_unified_t wmi_handle,
 				   struct ext_scan_setbssi_hotlist_params *
 				   photlist, int *buf_len);
+
+/**
+ * send_set_active_bpf_mode_cmd_tlv() - configure active BPF mode in FW
+ * @wmi_handle: the WMI handle
+ * @vdev_id: the Id of the vdev to apply the configuration to
+ * @ucast_mode: the active BPF mode to configure for unicast packets
+ * @mcast_bcast_mode: the active BPF mode to configure for multicast/broadcast
+ *	packets
+ *
+ * Return: QDF status
+ */
+QDF_STATUS
+send_set_active_bpf_mode_cmd_tlv(wmi_unified_t wmi_handle,
+				 uint8_t vdev_id,
+				 FW_ACTIVE_BPF_MODE ucast_mode,
+				 FW_ACTIVE_BPF_MODE mcast_bcast_mode);
 #endif
 

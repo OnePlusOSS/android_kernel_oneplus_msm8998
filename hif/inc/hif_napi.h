@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -173,7 +173,7 @@ enum qca_blacklist_op {
 	BLACKLIST_ON
 };
 
-int hif_napi_cpu_blacklist(uint8_t flags, enum qca_blacklist_op op);
+int hif_napi_cpu_blacklist(struct qca_napi_data *napid, enum qca_blacklist_op op);
 /**
  * Local interface to HIF implemented functions of NAPI CPU affinity management.
  * Note:

@@ -1180,8 +1180,7 @@ static void hif_pm_runtime_open(struct hif_pci_softc *sc)
 	spin_lock_init(&sc->runtime_lock);
 
 	qdf_atomic_init(&sc->pm_state);
-	sc->prevent_linkdown_lock =
-		hif_runtime_lock_init("linkdown suspend disabled");
+	qdf_runtime_lock_init(&sc->prevent_linkdown_lock);
 	qdf_atomic_set(&sc->pm_state, HIF_PM_RUNTIME_STATE_NONE);
 	INIT_LIST_HEAD(&sc->prevent_suspend_list);
 }
@@ -1262,8 +1261,8 @@ static void hif_pm_runtime_close(struct hif_pci_softc *sc)
 
 	if (qdf_atomic_read(&sc->pm_state) == HIF_PM_RUNTIME_STATE_NONE)
 		return;
-	else
-		hif_pm_runtime_stop(sc);
+
+	hif_pm_runtime_stop(sc);
 
 	hif_is_recovery_in_progress(scn) ?
 		hif_pm_runtime_sanitize_on_ssr_exit(sc) :
@@ -2539,11 +2538,9 @@ static void hif_runtime_prevent_linkdown(struct hif_softc *scn, bool flag)
 	struct hif_opaque_softc *hif_hdl = GET_HIF_OPAQUE_HDL(scn);
 
 	if (flag)
-		hif_pm_runtime_prevent_suspend(hif_hdl,
-					sc->prevent_linkdown_lock);
+		qdf_runtime_pm_prevent_suspend(&sc->prevent_linkdown_lock);
 	else
-		hif_pm_runtime_allow_suspend(hif_hdl,
-					sc->prevent_linkdown_lock);
+		qdf_runtime_pm_allow_suspend(&sc->prevent_linkdown_lock);
 }
 #else
 static void hif_runtime_prevent_linkdown(struct hif_softc *scn, bool flag)
@@ -4064,21 +4061,23 @@ int hif_pm_runtime_prevent_suspend_timeout(struct hif_opaque_softc *ol_sc,
  * This API initalizes the Runtime PM context of the caller and
  * return the pointer.
  *
- * Return: void *
+ * Return: None
  */
-struct hif_pm_runtime_lock *hif_runtime_lock_init(const char *name)
+int hif_runtime_lock_init(qdf_runtime_lock_t *lock, const char *name)
 {
 	struct hif_pm_runtime_lock *context;
 
 	context = qdf_mem_malloc(sizeof(*context));
 	if (!context) {
 		HIF_ERROR("%s: No memory for Runtime PM wakelock context\n",
-				__func__);
-		return NULL;
+			  __func__);
+		return -ENOMEM;
 	}
 
 	context->name = name ? name : "Default";
-	return context;
+	lock->lock = context;
+
+	return 0;
 }
 
 /**

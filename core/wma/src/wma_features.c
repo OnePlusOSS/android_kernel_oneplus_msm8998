@@ -2707,6 +2707,9 @@ static int wow_get_wmi_eventid(int32_t reason, uint32_t tag)
 	case WOW_REASON_TDLS_CONN_TRACKER_EVENT:
 		event_id = WOW_TDLS_CONN_TRACKER_EVENT;
 		break;
+	case WOW_REASON_ROAM_HO:
+		event_id = WMI_ROAM_EVENTID;
+		break;
 	default:
 		WMA_LOGD(FL("Unexpected WOW reason : %s(%d)"),
 			 wma_wow_wake_reason_str(reason), reason);
@@ -3420,14 +3423,16 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 		break;
 
 	case WOW_REASON_LOW_RSSI:
-		/* WOW_REASON_LOW_RSSI is used for all roaming events.
+	case WOW_REASON_ROAM_HO:
+		/*
+		 * WOW_REASON_LOW_RSSI is used for following roaming events -
 		 * WMI_ROAM_REASON_BETTER_AP, WMI_ROAM_REASON_BMISS,
 		 * WMI_ROAM_REASON_SUITABLE_AP will be handled by
 		 * wma_roam_event_callback().
+		 * WOW_REASON_ROAM_HO is associated with
+		 * WMI_ROAM_REASON_HO_FAILED event and it will be handled by
+		 * wma_roam_event_callback().
 		 */
-		wma_peer_debug_log(wake_info->vdev_id, DEBUG_WOW_ROAM_EVENT,
-				   DEBUG_INVALID_PEER_ID, NULL, NULL,
-				   WOW_REASON_LOW_RSSI, 0);
 		WMA_LOGD("Host woken up because of roam event");
 		if (param_buf->wow_packet_buffer) {
 			/* Roam event is embedded in wow_packet_buffer */

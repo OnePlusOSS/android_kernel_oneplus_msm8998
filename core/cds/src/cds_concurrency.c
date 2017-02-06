@@ -6934,6 +6934,14 @@ static bool cds_sta_p2pgo_concur_handle(hdd_adapter_t *sta_adapter,
 					sta_adapter->sessionId);
 			if (true != ret) {
 				cds_err("sme_store_joinreq_param failed");
+				status = sme_scan_result_purge(
+						WLAN_HDD_GET_HAL_CTX(
+							sta_adapter),
+						scan_cache);
+				if (QDF_STATUS_SUCCESS != status) {
+					cds_err("sme_scan_result_purge failed");
+					/* Not returning */
+				}
 				/* Not returning */
 			}
 			cds_change_sta_conn_pending_status(true);

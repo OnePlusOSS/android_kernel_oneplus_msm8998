@@ -5310,7 +5310,7 @@ static void csr_roam_join_handle_profile(tpAniSirGlobal mac_ctx,
 		} else {
 			cmd->u.roamCmd.roamProfile.uapsd_mask = 0;
 		}
-		if (ies_local && !result->pvIes)
+		if (ies_local && !scan_result->Result.pvIes)
 			qdf_mem_free(ies_local);
 		roam_info_ptr->pProfile = profile;
 		session->bRefAssocStartCnt++;
@@ -9395,6 +9395,8 @@ void csr_roam_roaming_state_disassoc_rsp_processor(tpAniSirGlobal pMac,
 			csr_free_scan_filter(pMac, pScanFilter);
 			qdf_mem_free(pScanFilter);
 			return;
+		} else {
+			csr_scan_result_purge(pMac, hBSSList);
 		}
 
 POST_ROAM_FAILURE:

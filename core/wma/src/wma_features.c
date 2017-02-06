@@ -2716,6 +2716,9 @@ static int wow_get_wmi_eventid(int32_t reason, uint32_t tag)
 		event_id = 0;
 		break;
 	}
+	wma_peer_debug_log(WMA_INVALID_VDEV_ID, DEBUG_WOW_REASON,
+			   DEBUG_INVALID_PEER_ID, NULL, NULL,
+			   reason, event_id);
 
 	return event_id;
 }
@@ -3433,6 +3436,9 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 		 * WMI_ROAM_REASON_HO_FAILED event and it will be handled by
 		 * wma_roam_event_callback().
 		 */
+		wma_peer_debug_log(wake_info->vdev_id, DEBUG_WOW_ROAM_EVENT,
+				   DEBUG_INVALID_PEER_ID, NULL, NULL,
+				   wake_info->wake_reason, 0);
 		WMA_LOGD("Host woken up because of roam event");
 		if (param_buf->wow_packet_buffer) {
 			/* Roam event is embedded in wow_packet_buffer */
@@ -6669,6 +6675,10 @@ static int __wma_bus_suspend(enum qdf_suspend_type type, uint32_t wow_flags)
 		return -EBUSY;
 	}
 
+	wma_peer_debug_log(DEBUG_INVALID_VDEV_ID, DEBUG_BUS_SUSPEND,
+			   DEBUG_INVALID_PEER_ID, NULL, NULL,
+			   type, wow_flags);
+
 	if (type == QDF_RUNTIME_SUSPEND) {
 		QDF_STATUS status = wma_post_runtime_suspend_msg(handle);
 		if (status)
@@ -6683,10 +6693,6 @@ static int __wma_bus_suspend(enum qdf_suspend_type type, uint32_t wow_flags)
 		QDF_STATUS status = wma_enable_wow_in_fw(handle, wow_flags);
 		return qdf_status_to_os_return(status);
 	}
-
-	wma_peer_debug_log(DEBUG_INVALID_VDEV_ID, DEBUG_BUS_SUSPEND,
-			   DEBUG_INVALID_PEER_ID, NULL, NULL,
-			   0, 0);
 
 	return wma_suspend_target(handle, 0);
 }

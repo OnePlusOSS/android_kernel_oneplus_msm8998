@@ -573,6 +573,10 @@ void ol_rx_peer_unmap_handler(ol_txrx_pdev_handle pdev, uint16_t peer_id)
 		TXRX_PRINT(TXRX_PRINT_LEVEL_ERR,
 			   "%s: peer not found for peer_id %d",
 			   __func__, peer_id);
+		wma_peer_debug_log(DEBUG_INVALID_VDEV_ID,
+				   DEBUG_PEER_UNMAP_EVENT,
+				   peer_id, NULL, NULL, 0, 0);
+
 		return;
 	}
 

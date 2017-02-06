@@ -2333,7 +2333,9 @@ int wma_roam_synch_event_handler(void *handle, uint8_t *event,
 	}
 
 	wma_peer_debug_log(synch_event->vdev_id, DEBUG_ROAM_SYNCH_IND,
-			   DEBUG_INVALID_PEER_ID, NULL, NULL, 0, 0);
+			   DEBUG_INVALID_PEER_ID, NULL, NULL,
+			   synch_event->bssid.mac_addr31to0,
+			   synch_event->bssid.mac_addr47to32);
 
 	DPTRACE(qdf_dp_trace_record_event(QDF_DP_TRACE_EVENT_RECORD,
 		synch_event->vdev_id, QDF_PROTO_TYPE_EVENT, QDF_ROAM_SYNCH));
@@ -5725,6 +5727,12 @@ int wma_roam_event_callback(WMA_HANDLE handle, uint8_t *event_buf,
 	WMA_LOGD("%s: Reason %x, Notif %x for vdevid %x, rssi %d",
 		 __func__, wmi_event->reason, wmi_event->notif,
 		 wmi_event->vdev_id, wmi_event->rssi);
+	wma_peer_debug_log(wmi_event->vdev_id, DEBUG_ROAM_EVENT,
+			   DEBUG_INVALID_PEER_ID, NULL, NULL,
+			   wmi_event->reason,
+			   (wmi_event->reason == WMI_ROAM_REASON_INVALID) ?
+				wmi_event->notif : wmi_event->rssi);
+
 
 	DPTRACE(qdf_dp_trace_record_event(QDF_DP_TRACE_EVENT_RECORD,
 		wmi_event->vdev_id, QDF_PROTO_TYPE_EVENT, QDF_ROAM_EVENTID));

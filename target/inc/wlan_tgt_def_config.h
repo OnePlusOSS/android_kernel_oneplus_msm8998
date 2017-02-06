@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2014-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011, 2014-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -198,7 +198,7 @@
 /*
  * number of peers that each Tdls vdev can track
  */
-#define CFG_TGT_NUM_TDLS_CONN_TABLE_ENTRIES    32
+#define CFG_TGT_NUM_TDLS_CONN_TABLE_ENTRIES    8
 
 /*
  * number of TDLS concurrent sleep STAs

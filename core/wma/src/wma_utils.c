@@ -3967,3 +3967,148 @@ int wma_rcpi_event_handler(void *handle, uint8_t *cmd_param_info,
 
 	return 0;
 }
+
+/**
+ * wma_next_peer_log_index() - atomically increment and wrap around index value
+ * @index: address of index to increment
+ * @size: wrap around this value
+ *
+ * Return: new value of index
+ */
+static int wma_next_peer_log_index(qdf_atomic_t *index, int size)
+{
+	int i = qdf_atomic_inc_return(index);
+
+	if (i == WMA_PEER_DEBUG_MAX_REC)
+		qdf_atomic_sub(WMA_PEER_DEBUG_MAX_REC, index);
+	while (i >= size)
+		i -= WMA_PEER_DEBUG_MAX_REC;
+
+	return i;
+}
+
+/**
+ * wma_peer_debug_log() - Add a debug log entry into peer debug records
+ * @vdev_id: vdev identifier
+ * @op: operation identifier
+ * @peer_id: peer id
+ * @mac_addr: mac address of peer, can be NULL
+ * @peer_obj: peer object address, can be NULL
+ * @arg1: extra argument #1
+ * @arg2: extra argument #2
+ *
+ * Return: none
+ */
+void wma_peer_debug_log(uint8_t vdev_id, uint8_t op,
+			uint16_t peer_id, void *mac_addr,
+			void *peer_obj, uint32_t arg1, uint32_t arg2)
+{
+	tp_wma_handle wma = cds_get_context(QDF_MODULE_ID_WMA);
+	uint32_t i;
+	struct peer_debug_rec *rec;
+
+	i = wma_next_peer_log_index(&wma->peer_dbg->index,
+				    WMA_PEER_DEBUG_MAX_REC);
+	rec = &wma->peer_dbg->rec[i];
+	rec->time = qdf_get_log_timestamp();
+	rec->operation = op;
+	rec->vdev_id = vdev_id;
+	rec->peer_id = peer_id;
+	if (mac_addr)
+		qdf_mem_copy(rec->mac_addr.bytes, mac_addr,
+			     IEEE80211_ADDR_LEN);
+	else
+		qdf_mem_zero(rec->mac_addr.bytes,
+			     IEEE80211_ADDR_LEN);
+	rec->peer_obj = peer_obj;
+	rec->arg1 = arg1;
+	rec->arg2 = arg2;
+}
+
+/**
+ * wma_peer_debug_string() - convert operation value to printable string
+ * @op: operation identifier
+ *
+ * Return: printable string for the operation
+ */
+static char *wma_peer_debug_string(uint32_t op)
+{
+	switch (op) {
+	case DEBUG_PEER_CREATE_SEND:
+		return "peer_create_send";
+	case DEBUG_PEER_CREATE_RESP:
+		return "peer_create_resp_event";
+	case DEBUG_PEER_DELETE_SEND:
+		return "peer_delete_send";
+	case DEBUG_PEER_DELETE_RESP:
+		return "peer_delete_resp_event";
+	case DEBUG_PEER_MAP_EVENT:
+		return "peer_map_event";
+	case DEBUG_PEER_UNMAP_EVENT:
+		return "peer_unmap_event";
+	case DEBUG_PEER_UNREF_DELETE:
+		return "peer_unref_delete";
+	case DEBUG_DELETING_PEER_OBJ:
+		return "peer obj deleted";
+	case DEBUG_ROAM_SYNCH_IND:
+		return "roam synch ind event";
+	case DEBUG_ROAM_SYNCH_CNF:
+		return "roam sync conf sent";
+	case DEBUG_ROAM_SYNCH_FAIL:
+		return "roam sync fail event";
+	case DEBUG_ROAM_EVENT:
+		return "roam event";
+	case DEBUG_WOW_ROAM_EVENT:
+		return "wow wakeup roam event";
+	case DEBUG_BUS_SUSPEND:
+		return "host suspend";
+	case DEBUG_BUS_RESUME:
+		return "host wakeup";
+	default:
+		return "Unknown";
+	}
+}
+
+/**
+ * wma_peer_debug_dump() - Print the peer debug log records
+ * print all the valid debug records in the order of timestamp
+ *
+ * Return: none
+ */
+void wma_peer_debug_dump(void)
+{
+	tp_wma_handle wma = cds_get_context(QDF_MODULE_ID_WMA);
+	uint32_t i;
+	uint32_t current_index;
+	struct peer_debug_rec *dbg_rec;
+
+	current_index = qdf_atomic_read(&wma->peer_dbg->index);
+	if (current_index < 0) {
+		WMA_LOGE("%s: No records to dump", __func__);
+		return;
+	} else {
+		WMA_LOGE("%s: Dumping all records. current index %d",
+			 __func__, current_index);
+	}
+	WMA_LOGE("Index Time               Info                     vdev "
+		 "mac_addr          peer               peer_id arg1       arg2");
+	i = current_index;
+	do {
+		/* wrap around */
+		i = (i + 1) % WMA_PEER_DEBUG_MAX_REC;
+		dbg_rec = &wma->peer_dbg->rec[i];
+		/* skip unused entry */
+		if (dbg_rec->time == 0)
+			continue;
+		WMA_LOGE("%5d 0x%016llx %-24s %-4d %pM 0x%p %-4d    0x%-8x 0x%-8x",
+			 i,
+			 dbg_rec->time,
+			 wma_peer_debug_string(dbg_rec->operation),
+			 (int8_t) dbg_rec->vdev_id,
+			 dbg_rec->mac_addr.bytes,
+			 dbg_rec->peer_obj,
+			 (int8_t) dbg_rec->peer_id,
+			 dbg_rec->arg1,
+			 dbg_rec->arg2);
+	} while (i != current_index);
+}

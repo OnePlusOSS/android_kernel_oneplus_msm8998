@@ -85,6 +85,7 @@
 #include <cds_concurrency.h>
 #include "epping_main.h"
 #include <a_types.h>
+#include "wma_api.h"
 
 #ifdef CONFIG_HL_SUPPORT
 
@@ -2278,6 +2279,7 @@ ol_txrx_peer_attach(ol_txrx_vdev_handle vdev, uint8_t *peer_mac_addr)
 				"error waiting for peer(%d) deletion, status %d\n",
 				vdev->wait_on_peer_id, (int) rc);
 			/* Added for debugging only */
+			wma_peer_debug_dump();
 			QDF_BUG(0);
 			vdev->wait_on_peer_id = OL_TXRX_INVALID_LOCAL_PEER_ID;
 			return NULL;
@@ -2930,6 +2932,9 @@ int ol_txrx_peer_unref_delete(ol_txrx_peer_handle peer)
 		return -EINVAL;
 	}
 
+	wma_peer_debug_log(vdev->vdev_id, DEBUG_PEER_UNREF_DELETE,
+			   DEBUG_INVALID_PEER_ID, &peer->mac_addr.raw, peer, 0,
+			   qdf_atomic_read(&peer->ref_cnt));
 
 	/*
 	 * Hold the lock all the way from checking if the peer ref count
@@ -2975,6 +2980,11 @@ int ol_txrx_peer_unref_delete(ol_txrx_peer_handle peer)
 			   peer->mac_addr.raw,
 			   qdf_atomic_read(&peer->ref_cnt));
 
+		wma_peer_debug_log(vdev->vdev_id, DEBUG_DELETING_PEER_OBJ,
+				   DEBUG_INVALID_PEER_ID,
+				   &peer->mac_addr.raw, peer, 0,
+				   qdf_atomic_read(&peer->ref_cnt));
+
 		peer_id = peer->local_id;
 		/* remove the reference to the peer from the hash table */
 		ol_txrx_peer_find_hash_remove(pdev, peer);
@@ -3001,7 +3011,6 @@ int ol_txrx_peer_unref_delete(ol_txrx_peer_handle peer)
 			qdf_mc_timer_stop(&peer->peer_unmap_timer);
 			qdf_mc_timer_destroy(&peer->peer_unmap_timer);
 		}
-
 		/* check whether the parent vdev has no peers left */
 		if (TAILQ_EMPTY(&vdev->peer_list)) {
 			/*
@@ -3147,6 +3156,7 @@ void peer_unmap_timer_handler(void *data)
 		 peer->mac_addr.raw[0], peer->mac_addr.raw[1],
 		 peer->mac_addr.raw[2], peer->mac_addr.raw[3],
 		 peer->mac_addr.raw[4], peer->mac_addr.raw[5]);
+	wma_peer_debug_dump();
 	QDF_BUG(0);
 }
 

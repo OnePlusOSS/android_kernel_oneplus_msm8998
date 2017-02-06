@@ -1287,6 +1287,41 @@ struct extended_caps {
 };
 
 /**
+ * struct peer_debug_rec - peer debug information record definition
+ * @time: timestamp when record was added
+ * @operation: identifier for operation, command, event, etc.
+ * @vdev_id: vdev identifier
+ * @peer_id: peer_id. Range 0 - 255, 0xffff is invalid peer_id.
+ * @mac_addr: mac address of peer
+ * @peer_obj: pointer to peer object
+ * @arg1: Optional argument #1
+ * @arg2: Opttional argument #2
+ */
+struct peer_debug_rec {
+	uint64_t time;
+	uint8_t operation;
+	uint8_t vdev_id;
+	uint16_t peer_id;
+	struct qdf_mac_addr mac_addr;
+	void *peer_obj;
+	uint32_t arg1;
+	uint32_t arg2;
+};
+
+#define WMA_PEER_DEBUG_MAX_REC 256
+/**
+ * struct peer_debug_info - Buffer to store the peer debug records
+ * @index: index of the most recent entry in the circular buffer
+ * @num_max_rec: maximum records stored in the records array
+ * @rec: array to store peer debug records, used in circular fashion
+ */
+struct peer_debug_info {
+	qdf_atomic_t index;
+	uint32_t num_max_rec;
+	struct peer_debug_rec rec[WMA_PEER_DEBUG_MAX_REC];
+};
+
+/**
  * struct t_wma_handle - wma context
  * @wmi_handle: wmi handle
  * @htc_handle: htc handle
@@ -1613,6 +1648,7 @@ typedef struct {
 	tSirLLStatsResults *link_stats_results;
 	bool fw_mem_dump_enabled;
 	tSirAddonPsReq ps_setting;
+	struct peer_debug_info *peer_dbg;
 } t_wma_handle, *tp_wma_handle;
 
 /**
@@ -2162,11 +2198,15 @@ typedef struct wma_unit_test_cmd {
  * @vdev_id: vdev id
  * @bssid: mac address
  * @channel: channel
+ * @frame_len: frame length, includs mac header, fixed params and ies
+ * @frame_buf: buffer contaning probe response or beacon
  */
 struct wma_roam_invoke_cmd {
 	uint32_t vdev_id;
 	uint8_t bssid[IEEE80211_ADDR_LEN];
 	uint32_t channel;
+	uint32_t frame_len;
+	uint8_t *frame_buf;
 };
 
 /**

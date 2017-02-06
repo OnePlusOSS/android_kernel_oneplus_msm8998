@@ -2513,6 +2513,20 @@ static void hdd_runtime_suspend_context_deinit(hdd_context_t *hdd_ctx) {}
 static inline void hdd_adapter_runtime_suspend_init(hdd_adapter_t *adapter) {}
 static inline void hdd_adapter_runtime_suspend_denit(hdd_adapter_t *adapter) {}
 #endif /* FEATURE_RUNTIME_PM */
+
+/**
+ * hdd_adapter_init_action_frame_random_mac() - Initialze attributes needed for
+ * randomization of SA in management action frames
+ * @adapter: Pointer to adapter
+ *
+ * Return: None
+ */
+static void hdd_adapter_init_action_frame_random_mac(hdd_adapter_t *adapter)
+{
+	spin_lock_init(&adapter->random_mac_lock);
+	qdf_mem_zero(adapter->random_mac, sizeof(adapter->random_mac));
+}
+
 /**
  * hdd_alloc_station_adapter() - allocate the station hdd adapter
  * @hdd_ctx: global hdd context
@@ -3332,6 +3346,9 @@ hdd_adapter_t *hdd_open_adapter(hdd_context_t *hdd_ctx, uint8_t session_type,
 			if (QDF_STATUS_SUCCESS != status)
 				goto err_free_netdev;
 		}
+
+		/* initialize action frame random mac info */
+		hdd_adapter_init_action_frame_random_mac(adapter);
 
 		/*
 		 * Workqueue which gets scheduled in IPv4 notification
@@ -10733,6 +10750,25 @@ bool hdd_is_roaming_in_progress(hdd_adapter_t *adapter)
 	ret_status = ((adapter->device_mode == QDF_STA_MODE) &&
 			hdd_ctx->roaming_in_progress);
 	return ret_status;
+}
+
+hdd_adapter_t *hdd_get_adapter_by_rand_macaddr(hdd_context_t *hdd_ctx,
+						tSirMacAddr mac_addr)
+{
+	hdd_adapter_list_node_t *adapter_node = NULL, *next = NULL;
+	hdd_adapter_t *adapter;
+	QDF_STATUS status;
+
+	status = hdd_get_front_adapter(hdd_ctx, &adapter_node);
+	while (adapter_node && status == QDF_STATUS_SUCCESS) {
+		adapter = adapter_node->pAdapter;
+		if (adapter && hdd_check_random_mac(adapter, mac_addr))
+			return adapter;
+		status = hdd_get_next_adapter(hdd_ctx, adapter_node, &next);
+		adapter_node = next;
+	}
+
+	return NULL;
 }
 
 /* Register the module init/exit functions */

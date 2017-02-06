@@ -1991,6 +1991,60 @@ static int wma_flush_complete_evt_handler(void *handle,
 }
 
 /**
+ * wma_action_frame_filter_mac_event_handler() - action frame filter evt handler
+ * @handle: wma handle
+ * @event_buf: event handler data
+ * @len: length of @event_buf
+ *
+ * this function will handle the
+ * WMI_VDEV_ADD_MAC_ADDR_TO_RX_FILTER_STATUS_EVENTID
+ *
+ * Return: int
+ */
+static int
+wma_action_frame_filter_mac_event_handler(void *handle, u_int8_t *event_buf,
+						u_int32_t len)
+{
+	tp_wma_handle wma_handle = (tp_wma_handle)handle;
+	WMI_VDEV_ADD_MAC_ADDR_TO_RX_FILTER_STATUS_EVENTID_param_tlvs *param_buf;
+	wmi_vdev_add_mac_addr_to_rx_filter_status_event_fixed_param *event;
+		struct action_frame_random_filter *filter;
+	struct wma_txrx_node *intr;
+	bool status = false;
+
+	WMA_LOGD("%s: Enter", __func__);
+
+	param_buf =
+		(WMI_VDEV_ADD_MAC_ADDR_TO_RX_FILTER_STATUS_EVENTID_param_tlvs *)
+		event_buf;
+	if (!param_buf) {
+		WMA_LOGA(FL("Invalid action frame filter mac event"));
+		return -EINVAL;
+	}
+	event = param_buf->fixed_param;
+	if (!event) {
+		WMA_LOGA(FL("Invalid fixed param"));
+		return -EINVAL;
+	}
+
+	intr = &wma_handle->interfaces[event->vdev_id];
+	/* command is in progress */
+	if (!intr->action_frame_filter) {
+		WMA_LOGE(FL("no action frame req is pending - invalid event"));
+		return -EPERM;
+	}
+	filter = intr->action_frame_filter;
+	if (event->status)
+		status = true;
+
+	(filter->callback)(status, filter->context);
+	intr->action_frame_filter = NULL;
+	qdf_mem_free(filter);
+
+	return 0;
+}
+
+/**
  * wma_open() - Allocate wma context and initialize it.
  * @cds_context:  cds context
  * @wma_tgt_cfg_cb: tgt config callback fun
@@ -2505,6 +2559,11 @@ QDF_STATUS wma_open(void *cds_context,
 				WMI_DEBUG_MESG_FLUSH_COMPLETE_EVENTID,
 				wma_flush_complete_evt_handler,
 				WMA_RX_WORK_CTX);
+
+	wmi_unified_register_event_handler(wma_handle->wmi_handle,
+			WMI_VDEV_ADD_MAC_ADDR_TO_RX_FILTER_STATUS_EVENTID,
+			wma_action_frame_filter_mac_event_handler,
+			WMA_RX_SERIALIZER_CTX);
 
 	wma_ndp_register_all_event_handlers(wma_handle);
 	wma_register_debug_callback();
@@ -6385,6 +6444,98 @@ static void wma_get_arp_req_stats(WMA_HANDLE handle,
 }
 
 /**
+ * wma_process_action_frame_random_mac() - set/clear action frame random mac
+ * @wma_handle: pointer to wma handle
+ * @filter: pointer to buffer containing random mac, session_id and callback
+ *
+ * Return: QDF_STATUS_SUCCESS for success or error code.
+ */
+static QDF_STATUS
+wma_process_action_frame_random_mac(tp_wma_handle wma_handle,
+				    struct action_frame_random_filter *filter)
+{
+	wmi_vdev_add_mac_addr_to_rx_filter_cmd_fixed_param *cmd;
+	uint32_t len;
+	wmi_buf_t buf;
+	int ret;
+	struct action_frame_random_filter *filter_bkup = NULL;
+	struct wma_txrx_node *intr = NULL;
+
+	if (!filter) {
+		WMA_LOGE(FL("invalid pointer"));
+		return QDF_STATUS_E_INVAL;
+	}
+
+	if (!wma_handle) {
+		WMA_LOGE(FL("WMA context is invald!"));
+		return QDF_STATUS_E_INVAL;
+	}
+
+	if (filter->filter_type == SME_ACTION_FRAME_RANDOM_MAC_SET) {
+		intr = &wma_handle->interfaces[filter->session_id];
+		/* command is in progress */
+		if (intr->action_frame_filter != NULL) {
+			WMA_LOGE(FL("previous action frame req is pending"));
+			return QDF_STATUS_SUCCESS;
+		}
+
+		filter_bkup = qdf_mem_malloc(sizeof(*filter));
+			if (!filter_bkup) {
+				WMA_LOGE(
+				FL("action frame filter mem alloc failed"));
+				return QDF_STATUS_E_FAILURE;
+			}
+
+		filter_bkup->session_id = filter->session_id;
+		filter_bkup->callback = filter->callback;
+		filter_bkup->filter_type = filter->filter_type;
+		filter_bkup->context = filter->context;
+		filter_bkup->freq = filter->freq;
+
+		qdf_mem_copy(filter_bkup->mac_addr, filter->mac_addr,
+			     QDF_MAC_ADDR_SIZE);
+		intr->action_frame_filter = (void *)filter_bkup;
+	}
+
+	len = sizeof(*cmd);
+	buf = wmi_buf_alloc(wma_handle->wmi_handle, len);
+
+	if (!buf) {
+		WMA_LOGE(FL("Failed allocate wmi buffer"));
+		return QDF_STATUS_E_NOMEM;
+	}
+	cmd = (wmi_vdev_add_mac_addr_to_rx_filter_cmd_fixed_param *)
+		wmi_buf_data(buf);
+
+	WMITLV_SET_HDR(&cmd->tlv_header,
+	WMITLV_TAG_STRUC_wmi_vdev_add_mac_addr_to_rx_filter_cmd_fixed_param,
+	WMITLV_GET_STRUCT_TLVLEN(
+			wmi_vdev_add_mac_addr_to_rx_filter_cmd_fixed_param));
+
+	cmd->vdev_id = filter->session_id;
+	cmd->freq = filter->freq;
+	WMI_CHAR_ARRAY_TO_MAC_ADDR(filter->mac_addr, &cmd->mac_addr);
+	if (filter->filter_type == SME_ACTION_FRAME_RANDOM_MAC_SET)
+		cmd->enable = 1;
+	else
+		cmd->enable = 0;
+
+	ret = wmi_unified_cmd_send(wma_handle->wmi_handle, buf, len,
+			WMI_VDEV_ADD_MAC_ADDR_TO_RX_FILTER_CMDID);
+	if (ret) {
+		WMA_LOGE(FL("Failed to send action frame random mac cmd"));
+		wmi_buf_free(buf);
+		if (filter->filter_type == SME_ACTION_FRAME_RANDOM_MAC_SET) {
+			qdf_mem_free(filter_bkup);
+			intr->action_frame_filter = NULL;
+		}
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
+
+/**
  * wma_mc_process_msg() - process wma messages and call appropriate function.
  * @cds_context: cds context
  * @msg: message
@@ -7246,6 +7397,11 @@ QDF_STATUS wma_mc_process_msg(void *cds_context, cds_msg_t *msg)
 	case WMA_GET_ARP_STATS_REQ:
 		wma_get_arp_req_stats(wma_handle,
 			(struct get_arp_stats_params *)msg->bodyptr);
+		qdf_mem_free(msg->bodyptr);
+		break;
+	case WDA_ACTION_FRAME_RANDOM_MAC:
+		wma_process_action_frame_random_mac(wma_handle,
+		     (struct action_frame_random_filter *)msg->bodyptr);
 		qdf_mem_free(msg->bodyptr);
 		break;
 	default:

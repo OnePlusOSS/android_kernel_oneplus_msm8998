@@ -1101,6 +1101,7 @@ struct wma_txrx_node {
 	bool is_vdev_valid;
 	struct sir_vdev_wow_stats wow_stats;
 	struct sme_rcpi_req *rcpi_req;
+	struct action_frame_random_filter *action_frame_filter;
 };
 
 #if defined(QCA_WIFI_FTM)

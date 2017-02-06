@@ -10185,6 +10185,29 @@ static void wlan_hdd_cfg80211_scan_randomization_init(struct wiphy *wiphy)
  */
 #define WLAN_HDD_MAX_NUM_CSA_COUNTERS 2
 
+#ifdef CFG80211_RAND_TA_FOR_PUBLIC_ACTION_FRAME
+/**
+ * wlan_hdd_cfg80211_action_frame_randomization_init() - Randomize SA of MA
+ * frames
+ * @wiphy: Pointer to wiphy
+ *
+ * This function is used to indicate the support of source mac address
+ * randomization of management action frames
+ *
+ * Return: None
+ */
+static void
+wlan_hdd_cfg80211_action_frame_randomization_init(struct wiphy *wiphy)
+{
+	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_MGMT_TX_RANDOM_TA);
+}
+#else
+static void
+wlan_hdd_cfg80211_action_frame_randomization_init(struct wiphy *wiphy)
+{
+}
+#endif
+
 /*
  * FUNCTION: wlan_hdd_cfg80211_init
  * This function is called by hdd_wlan_startup()
@@ -10420,6 +10443,7 @@ int wlan_hdd_cfg80211_init(struct device *dev,
 	hdd_add_channel_switch_support(&wiphy->flags);
 	wiphy->max_num_csa_counters = WLAN_HDD_MAX_NUM_CSA_COUNTERS;
 	wlan_hdd_cfg80211_scan_randomization_init(wiphy);
+	wlan_hdd_cfg80211_action_frame_randomization_init(wiphy);
 
 	EXIT();
 	return 0;

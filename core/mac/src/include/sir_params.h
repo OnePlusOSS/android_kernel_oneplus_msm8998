@@ -655,6 +655,8 @@ typedef struct sSirMbMsgP2p {
 #define SIR_HAL_SET_ARP_STATS_REQ           (SIR_HAL_ITC_MSG_TYPES_BEGIN + 375)
 #define SIR_HAL_GET_ARP_STATS_REQ           (SIR_HAL_ITC_MSG_TYPES_BEGIN + 376)
 
+#define SIR_HAL_ACTION_FRAME_RANDOM_MAC     (SIR_HAL_ITC_MSG_TYPES_BEGIN + 377)
+
 #define SIR_HAL_MSG_TYPES_END               (SIR_HAL_MSG_TYPES_BEGIN + 0x1FF)
 
 /* CFG message types */

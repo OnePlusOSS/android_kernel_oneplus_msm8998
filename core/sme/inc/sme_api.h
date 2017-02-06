@@ -1552,4 +1552,39 @@ tCsrScanResultInfo *sme_scan_get_result_for_bssid(tHalHandle hal_handle,
 
 QDF_STATUS sme_delete_all_tdls_peers(tHalHandle hal, uint8_t session_id);
 
+/**
+ * sme_set_random_mac() - Set random mac address filter
+ * @hal: hal handle for getting global mac struct
+ * @callback: callback to be invoked for response from firmware
+ * @session_id: interface id
+ * @random_mac: random mac address to be set
+ * @freq: Channel frequency
+ * @context: parameter to callback
+ *
+ * This function is used to set random mac address filter for action frames
+ * which are send with the same address, callback is invoked when corresponding
+ * event from firmware has come.
+ *
+ * Return: eHalStatus enumeration.
+ */
+QDF_STATUS sme_set_random_mac(tHalHandle hal,
+			      action_frame_random_filter_callback callback,
+			      uint32_t session_id, uint8_t *random_mac,
+			      uint32_t freq, void *context);
+
+/**
+ * sme_clear_random_mac() - clear random mac address filter
+ * @hal: HAL handle
+ * @session_id: interface id
+ * @random_mac: random mac address to be cleared
+ * @freq: Channel frequency
+ *
+ * This function is used to clear the randmom mac address filters
+ * which are set with sme_set_random_mac
+ *
+ * Return: QDF_STATUS enumeration.
+ */
+QDF_STATUS sme_clear_random_mac(tHalHandle hal, uint32_t session_id,
+				uint8_t *random_mac, uint32_t freq);
+
 #endif /* #if !defined( __SME_API_H ) */

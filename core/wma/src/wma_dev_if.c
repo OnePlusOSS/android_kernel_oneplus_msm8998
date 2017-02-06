@@ -4696,6 +4696,14 @@ void wma_delete_bss(tp_wma_handle wma, tpDeleteBssParams params)
 		qdf_mem_free(rcpi_req);
 	}
 
+	if (wma->interfaces[params->smesessionId].action_frame_filter) {
+		struct action_frame_random_filter *action_frame_filter =
+		      wma->interfaces[params->smesessionId].action_frame_filter;
+		wma->interfaces[params->smesessionId].action_frame_filter =
+									NULL;
+		qdf_mem_free(action_frame_filter);
+	}
+
 	if (wlan_op_mode_ibss == ol_txrx_get_opmode(txrx_vdev))
 		wma->ibss_started = 0;
 

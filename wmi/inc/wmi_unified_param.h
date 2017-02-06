@@ -3314,11 +3314,15 @@ struct wmi_unit_test_cmd {
  * @vdev_id: vdev id
  * @bssid: mac address
  * @channel: channel
+ * @frame_len: frame length, includs mac header, fixed params and ies
+ * @frame_buf: buffer contaning probe response or beacon
  */
 struct wmi_roam_invoke_cmd {
 	uint32_t vdev_id;
 	uint8_t bssid[IEEE80211_ADDR_LEN];
 	uint32_t channel;
+	uint32_t frame_len;
+	uint8_t *frame_buf;
 };
 
 /**
@@ -5241,6 +5245,28 @@ typedef struct {
 	uint32_t	default_dbs_hw_mode_index;
 	uint32_t	num_msdu_desc;
 } target_capability_info;
+
+/**
+ * enum WMI_DBG_PARAM - Debug params
+ * @WMI_DBGLOG_LOG_LEVEL: Set the loglevel
+ * @WMI_DBGLOG_VAP_ENABLE:  Enable VAP level debug
+ * @WMI_DBGLOG_VAP_DISABLE: Disable VAP level debug
+ * @WMI_DBGLOG_MODULE_ENABLE: Enable MODULE level debug
+ * @WMI_DBGLOG_MODULE_DISABLE: Disable MODULE level debug
+ * @WMI_DBGLOG_MOD_LOG_LEVEL: Enable MODULE level debug
+ * @WMI_DBGLOG_TYPE: set type of the debug output
+ * @WMI_DBGLOG_REPORT_ENABLE: Enable Disable debug
+ */
+typedef enum {
+	WMI_DBGLOG_LOG_LEVEL = 0x1,
+	WMI_DBGLOG_VAP_ENABLE,
+	WMI_DBGLOG_VAP_DISABLE,
+	WMI_DBGLOG_MODULE_ENABLE,
+	WMI_DBGLOG_MODULE_DISABLE,
+	WMI_DBGLOG_MOD_LOG_LEVEL,
+	WMI_DBGLOG_TYPE,
+	WMI_DBGLOG_REPORT_ENABLE
+} WMI_DBG_PARAM;
 
 /**
  * struct wmi_host_fw_ver - FW version in non-tlv target

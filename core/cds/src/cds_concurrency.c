@@ -3758,6 +3758,7 @@ void cds_incr_active_session(enum tQDF_ADAPTER_MODE mode,
 {
 	hdd_context_t *hdd_ctx;
 	cds_context_type *cds_ctx;
+	hdd_adapter_t *sap_adapter;
 
 	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
 	if (!hdd_ctx) {
@@ -3825,6 +3826,19 @@ void cds_incr_active_session(enum tQDF_ADAPTER_MODE mode,
 			cds_ctx->hdd_disable_lro_in_cc_cb(hdd_ctx);
 		else
 			cds_warn("hdd_disable_lro_in_cc_cb NULL!");
+	};
+
+	/* Enable RPS if SAP interface has come up */
+	if (cds_mode_specific_connection_count(CDS_SAP_MODE, NULL) == 1) {
+		if (cds_ctx->hdd_set_rx_mode_rps_cb != NULL) {
+			sap_adapter = hdd_get_adapter(hdd_ctx, QDF_SAP_MODE);
+			if (sap_adapter != NULL)
+				cds_ctx->hdd_set_rx_mode_rps_cb(hdd_ctx,
+								sap_adapter,
+								true);
+		} else {
+			cds_warn("hdd_set_rx_mode_rps_cb NULL!");
+		}
 	};
 
 	/* set tdls connection tracker state */
@@ -4027,6 +4041,7 @@ void cds_decr_active_session(enum tQDF_ADAPTER_MODE mode,
 {
 	hdd_context_t *hdd_ctx;
 	cds_context_type *cds_ctx;
+	hdd_adapter_t *sap_adapter;
 
 	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
 	if (!cds_ctx) {
@@ -4069,13 +4084,25 @@ void cds_decr_active_session(enum tQDF_ADAPTER_MODE mode,
 			cds_ctx->hdd_en_lro_in_cc_cb(hdd_ctx);
 		else
 			cds_warn("hdd_enable_lro_in_concurrency NULL!");
-	};
+	}
+
+	/* Disable RPS if SAP interface has come up */
+	if (cds_mode_specific_connection_count(CDS_SAP_MODE, NULL) == 0) {
+		if (cds_ctx->hdd_set_rx_mode_rps_cb != NULL) {
+			sap_adapter = hdd_get_adapter(hdd_ctx, QDF_SAP_MODE);
+			if (sap_adapter != NULL)
+				cds_ctx->hdd_set_rx_mode_rps_cb(hdd_ctx,
+								sap_adapter,
+								false);
+		} else {
+			cds_warn("hdd_set_rx_mode_rps_cb NULL!");
+		}
+	}
 
 	/* set tdls connection tracker state */
 	cds_set_tdls_ct_mode(hdd_ctx);
 
 	cds_dump_current_concurrency();
-
 }
 
 /**

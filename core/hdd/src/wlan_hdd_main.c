@@ -7896,6 +7896,30 @@ out:
 
 
 /**
+ * hdd_set_rx_mode_rps() - Enable/disable RPS in SAP mode
+ * @hdd_context_t *hdd_ctx
+ * @hdd_adapter_t *padapter
+ * @bool enble
+ *
+ * Return: none
+ */
+void hdd_set_rx_mode_rps(hdd_context_t *hdd_ctx, void *padapter,
+			 bool enable)
+{
+	struct cds_config_info *cds_cfg = cds_get_ini_config();
+	hdd_adapter_t *adapter = padapter;
+
+	if (adapter && hdd_ctx &&
+	    !hdd_ctx->rps && cds_cfg->uc_offload_enabled) {
+		if (enable && !cds_cfg->rps_enabled)
+			hdd_send_rps_ind(adapter);
+		else if (!enable && cds_cfg->rps_enabled)
+			hdd_send_rps_disable_ind(adapter);
+	}
+}
+
+
+/**
  * hdd_configure_cds() - Configure cds modules
  * @hdd_ctx:	HDD context
  * @adapter:	Primary adapter context
@@ -7954,6 +7978,9 @@ int hdd_configure_cds(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 		dp_cbacks.hdd_disble_lro_in_cc_cb =
 						hdd_disable_lro_in_concurrency;
 	}
+
+	dp_cbacks.hdd_set_rx_mode_rps_cb = hdd_set_rx_mode_rps;
+
 	dp_cbacks.ol_txrx_update_mac_id_cb = ol_txrx_update_mac_id;
 	if (cds_register_dp_cb(&dp_cbacks) != QDF_STATUS_SUCCESS)
 		hdd_err("Unable to register datapath callbacks in CDS");

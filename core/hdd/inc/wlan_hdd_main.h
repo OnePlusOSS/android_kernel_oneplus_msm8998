@@ -2110,4 +2110,5 @@ void hdd_set_roaming_in_progress(bool value);
  */
 bool hdd_check_for_opened_interfaces(hdd_context_t *hdd_ctx);
 void wlan_hdd_start_sap(hdd_adapter_t *ap_adapter, bool reinit);
+void hdd_set_rx_mode_rps(hdd_context_t *hdd_ctx, void *padapter, bool enable);
 #endif /* end #if !defined(WLAN_HDD_MAIN_H) */

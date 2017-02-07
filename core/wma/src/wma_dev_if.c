@@ -1178,7 +1178,7 @@ void wma_remove_peer(tp_wma_handle wma, uint8_t *bssid,
 						vdev_id);
 
 peer_detach:
-	WMA_LOGE("%s: Remove peer %p with peer_addr %pM vdevid %d peer_count %d",
+	WMA_LOGI("%s: Remove peer %p with peer_addr %pM vdevid %d peer_count %d",
 		 __func__, peer, bssid, vdev_id,
 		 wma->interfaces[vdev_id].peer_count);
 

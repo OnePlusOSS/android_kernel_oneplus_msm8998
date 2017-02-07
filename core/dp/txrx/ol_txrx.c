@@ -2975,7 +2975,7 @@ int ol_txrx_peer_unref_delete(ol_txrx_peer_handle peer)
 	if (qdf_atomic_dec_and_test(&peer->ref_cnt)) {
 		u_int16_t peer_id;
 
-		TXRX_PRINT(TXRX_PRINT_LEVEL_ERR,
+		TXRX_PRINT(TXRX_PRINT_LEVEL_INFO1,
 			   "Deleting peer %p (%pM) ref_cnt %d\n",
 			   peer,
 			   peer->mac_addr.raw,
@@ -3189,7 +3189,7 @@ void ol_txrx_peer_detach(ol_txrx_peer_handle peer)
 	/* debug print to dump rx reorder state */
 	/* htt_rx_reorder_log_print(vdev->pdev->htt_pdev); */
 
-	TXRX_PRINT(TXRX_PRINT_LEVEL_ERR,
+	TXRX_PRINT(TXRX_PRINT_LEVEL_INFO1,
 		   "%s:peer %p (%02x:%02x:%02x:%02x:%02x:%02x)",
 		   __func__, peer,
 		   peer->mac_addr.raw[0], peer->mac_addr.raw[1],

@@ -88,7 +88,8 @@
 #include "wma_api.h"
 
 #include <htt_internal.h>
-#ifdef CONFIG_HL_SUPPORT
+
+#if defined(CONFIG_HL_SUPPORT) && defined(FEATURE_WLAN_TDLS)
 
 /**
  * ol_txrx_copy_mac_addr_raw() - copy raw mac addr

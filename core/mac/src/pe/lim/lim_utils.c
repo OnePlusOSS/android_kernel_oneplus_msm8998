@@ -7308,3 +7308,34 @@ void lim_update_last_processed_frame(last_processed_msg *last_processed_frm,
 	qdf_mem_copy(last_processed_frm->sa, pHdr->sa, ETH_ALEN);
 	last_processed_frm->seq_num = seq_num;
 }
+
+tCsrRoamSession *lim_get_session_by_macaddr(tpAniSirGlobal mac_ctx,
+		tSirMacAddr self_mac)
+{
+	int i = 0;
+	tCsrRoamSession *session;
+
+	if (!mac_ctx || !self_mac) {
+		QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_ERROR,
+			  FL("Invalid arguments"));
+		return NULL;
+	}
+
+	for (i = 0; i < mac_ctx->sme.max_intf_count; i++) {
+		session = CSR_GET_SESSION(mac_ctx, i);
+		if (!session)
+			continue;
+		else if (!qdf_mem_cmp(&session->selfMacAddr,
+			 self_mac, sizeof(tSirMacAddr))) {
+
+			QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_INFO,
+				  FL("session %d exists with mac address "
+				  MAC_ADDRESS_STR), session->sessionId,
+				  MAC_ADDR_ARRAY(self_mac));
+
+			return session;
+		}
+	}
+
+	return NULL;
+}

@@ -1465,4 +1465,16 @@ QDF_STATUS sme_get_beacon_frm(tHalHandle hal, tCsrRoamProfile *profile,
 			    const tSirMacAddr bssid,
 			    uint8_t **frame_buf, uint32_t *frame_len);
 
+/**
+ * sme_rso_cmd_status_cb() - Set RSO cmd status callback
+ * @hal: HAL Handle
+ * @cb: HDD Callback to rso comman status read
+ *
+ * This function is used to save HDD RSO Command status callback in MAC
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS sme_rso_cmd_status_cb(tHalHandle hal,
+		void (*cb)(void *, struct rso_cmd_status *));
+
 #endif /* #if !defined( __SME_API_H ) */

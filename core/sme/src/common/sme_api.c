@@ -3082,6 +3082,11 @@ QDF_STATUS sme_process_msg(tHalHandle hHal, cds_msg_t *pMsg)
 				(struct sir_lost_link_info *)pMsg->bodyptr);
 		qdf_mem_free(pMsg->bodyptr);
 		break;
+	case eWNI_SME_RSO_CMD_STATUS_IND:
+		if (pMac->sme.rso_cmd_status_cb)
+			pMac->sme.rso_cmd_status_cb(pMac->hHdd, pMsg->bodyptr);
+		qdf_mem_free(pMsg->bodyptr);
+		break;
 	default:
 
 		if ((pMsg->type >= eWNI_SME_MSG_TYPES_BEGIN)
@@ -17249,6 +17254,7 @@ QDF_STATUS sme_set_udp_resp_offload(struct udp_resp_offload *pudp_resp_cmd)
 
 	return status;
 }
+
 #endif
 
 QDF_STATUS sme_get_rcpi(tHalHandle hal, struct sme_rcpi_req *rcpi)
@@ -17284,7 +17290,17 @@ QDF_STATUS sme_get_rcpi(tHalHandle hal, struct sme_rcpi_req *rcpi)
 			  FL("sme_acquire_global_lock failed"));
 		qdf_mem_free(rcpi_req);
 	}
+	return status;
+}
 
+QDF_STATUS sme_rso_cmd_status_cb(tHalHandle hal,
+		void (*cb)(void *, struct rso_cmd_status *))
+{
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	tpAniSirGlobal mac = PMAC_STRUCT(hal);
+
+	mac->sme.rso_cmd_status_cb = cb;
+	sms_log(mac, LOG1, FL("Registered RSO command status callback"));
 	return status;
 }
 

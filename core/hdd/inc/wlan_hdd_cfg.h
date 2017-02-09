@@ -1486,25 +1486,29 @@ typedef enum {
 
 /*
  * <ini>
- * OkcEnabled - Enable OKC(Oppurtunistic Key Caching)
+ * pmkidModes - Enable PMKID modes
  * @Min: 0
- * @Max: 1
- * @Default: 1
+ * @Max: 3
+ * @Default: 3
  *
- * This INI is used to enable OKC feature
+ * This INI is used to enable PMKID feature options
+ * Bit 0 = Enable Opportunistic key caching
+ * Bit 1 = Enable PMKSA caching
  *
  * Related: None
  *
- * Supported Feature: Roaming
+ * Supported Feature: Firmware based roaming
  *
- * Usage: External
+ * Usage: Internal
  *
  * </ini>
  */
-#define CFG_OKC_FEATURE_ENABLED_NAME                       "OkcEnabled"
-#define CFG_OKC_FEATURE_ENABLED_MIN                        (0)
-#define CFG_OKC_FEATURE_ENABLED_MAX                        (1)
-#define CFG_OKC_FEATURE_ENABLED_DEFAULT                    (1)
+#define CFG_PMKID_MODES_NAME                       "pmkidModes"
+#define CFG_PMKID_MODES_MIN                        (0x0)
+#define CFG_PMKID_MODES_MAX                        (0x3)
+#define CFG_PMKID_MODES_DEFAULT                    (0x3)
+#define CFG_PMKID_MODES_OKC                        (0x1)
+#define CFG_PMKID_MODES_PMKSA_CACHING              (0x2)
 
 /*
  * <ini>
@@ -9685,7 +9689,7 @@ struct hdd_config {
 	bool isFastTransitionEnabled;
 	uint8_t RoamRssiDiff;
 	bool isWESModeEnabled;
-	bool isOkcIniFeatureEnabled;
+	uint32_t pmkid_modes;
 	bool isRoamOffloadScanEnabled;
 	bool bImplicitQosEnabled;
 
@@ -10370,8 +10374,9 @@ eCsrPhyMode hdd_cfg_xlate_to_csr_phy_mode(eHddDot11Mode dot11Mode);
 QDF_STATUS hdd_execute_global_config_command(hdd_context_t *pHddCtx,
 					     char *command);
 
-bool hdd_is_okc_mode_enabled(hdd_context_t *pHddCtx);
 QDF_STATUS hdd_set_idle_ps_config(hdd_context_t *pHddCtx, bool val);
+void hdd_get_pmkid_modes(hdd_context_t *pHddCtx,
+			 struct pmkid_mode_bits *pmkid_modes);
 
 void hdd_update_tgt_cfg(void *context, void *param);
 bool hdd_dfs_indicate_radar(void *context, void *param);

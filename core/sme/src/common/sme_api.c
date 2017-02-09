@@ -14525,15 +14525,15 @@ QDF_STATUS sme_update_roam_offload_enabled(tHalHandle hHal,
  * @hal_ctx: The handle returned by mac_open.
  * @session_id: Session Identifier
  * @key_mgmt_offload_enabled: key mgmt enable/disable flag
- * @okc_enabled: Opportunistic key caching enable/disable flag
+ * @pmkid_modes: PMKID modes of PMKSA caching and OKC
  * Return: QDF_STATUS_SUCCESS - SME updated config successfully.
  * Other status means SME is failed to update.
  */
 
 QDF_STATUS sme_update_roam_key_mgmt_offload_enabled(tHalHandle hal_ctx,
-						uint8_t session_id,
-						bool key_mgmt_offload_enabled,
-						bool okc_enabled)
+					uint8_t session_id,
+					bool key_mgmt_offload_enabled,
+					struct pmkid_mode_bits *pmkid_modes)
 {
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal_ctx);
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
@@ -14547,7 +14547,7 @@ QDF_STATUS sme_update_roam_key_mgmt_offload_enabled(tHalHandle hal_ctx,
 			status = csr_roam_set_key_mgmt_offload(mac_ctx,
 						session_id,
 						key_mgmt_offload_enabled,
-						okc_enabled);
+						pmkid_modes);
 		} else {
 			status = QDF_STATUS_E_INVAL;
 		}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -60,6 +60,8 @@ static void hif_intialize_default_ops(struct hif_softc *hif_sc)
 	bus_ops->hif_bus_reset_resume = &hif_dummy_bus_reset_resume;
 	bus_ops->hif_bus_suspend_noirq = &hif_dummy_bus_suspend_noirq;
 	bus_ops->hif_bus_resume_noirq = &hif_dummy_bus_resume_noirq;
+	bus_ops->hif_bus_early_suspend = &hif_dummy_bus_suspend;
+	bus_ops->hif_bus_late_resume = &hif_dummy_bus_resume;
 }
 
 #define NUM_OPS (sizeof(struct hif_bus_ops) / sizeof(void *))
@@ -184,6 +186,18 @@ void hif_reset_soc(struct hif_opaque_softc *hif_ctx)
 {
 	struct hif_softc *hif_sc = HIF_GET_SOFTC(hif_ctx);
 	hif_sc->bus_ops.hif_reset_soc(hif_sc);
+}
+
+int hif_bus_early_suspend(struct hif_opaque_softc *hif_ctx)
+{
+	struct hif_softc *hif_sc = HIF_GET_SOFTC(hif_ctx);
+	return hif_sc->bus_ops.hif_bus_early_suspend(hif_sc);
+}
+
+int hif_bus_late_resume(struct hif_opaque_softc *hif_ctx)
+{
+	struct hif_softc *hif_sc = HIF_GET_SOFTC(hif_ctx);
+	return hif_sc->bus_ops.hif_bus_late_resume(hif_sc);
 }
 
 int hif_bus_suspend(struct hif_opaque_softc *hif_ctx)

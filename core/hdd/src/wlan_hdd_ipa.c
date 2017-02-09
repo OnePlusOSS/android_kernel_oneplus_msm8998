@@ -2642,7 +2642,7 @@ static void hdd_ipa_init_metering(struct hdd_ipa_priv *ipa_ctxt,
  *
  * Return: QDF_STATUS
  */
-static QDF_STATUS hdd_ipa_uc_ol_init(hdd_context_t *hdd_ctx)
+QDF_STATUS hdd_ipa_uc_ol_init(hdd_context_t *hdd_ctx)
 {
 	struct ipa_wdi_in_params pipe_in;
 	struct ipa_wdi_out_params pipe_out;
@@ -2660,7 +2660,16 @@ static QDF_STATUS hdd_ipa_uc_ol_init(hdd_context_t *hdd_ctx)
 		stat = QDF_STATUS_E_FAILURE;
 		goto fail_return;
 	}
-
+	ol_txrx_ipa_uc_get_resource(pdev, &ipa_ctxt->ipa_resource);
+	if ((ipa_ctxt->ipa_resource.ce_sr_base_paddr == 0) ||
+	    (ipa_ctxt->ipa_resource.tx_comp_ring_base_paddr == 0) ||
+	    (ipa_ctxt->ipa_resource.rx_rdy_ring_base_paddr == 0) ||
+	    (ipa_ctxt->ipa_resource.rx2_rdy_ring_base_paddr == 0)) {
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_FATAL,
+			"IPA UC resource alloc fail");
+		stat = QDF_STATUS_E_FAILURE;
+		goto fail_return;
+	}
 	qdf_mem_zero(&ipa_ctxt->cons_pipe_in, sizeof(struct ipa_wdi_in_params));
 	qdf_mem_zero(&ipa_ctxt->prod_pipe_in, sizeof(struct ipa_wdi_in_params));
 	qdf_mem_zero(&pipe_in, sizeof(struct ipa_wdi_in_params));
@@ -3147,28 +3156,9 @@ static int __hdd_ipa_uc_ssr_reinit(hdd_context_t *hdd_ctx)
 	struct hdd_ipa_priv *hdd_ipa = ghdd_ipa;
 	int i;
 	struct hdd_ipa_iface_context *iface_context = NULL;
-	struct ol_txrx_pdev_t *pdev = NULL;
 
 	if (!hdd_ipa || !hdd_ipa_uc_is_enabled(hdd_ctx))
 		return 0;
-
-	pdev = cds_get_context(QDF_MODULE_ID_TXRX);
-	if (!pdev) {
-		HDD_IPA_LOG(QDF_TRACE_LEVEL_FATAL, "pdev is NULL");
-		return -EINVAL;
-	}
-			HDD_IPA_LOG(QDF_TRACE_LEVEL_FATAL, "dbg2");
-
-	ol_txrx_ipa_uc_get_resource(pdev, &hdd_ipa->ipa_resource);
-	if ((hdd_ipa->ipa_resource.ce_sr_base_paddr == 0) ||
-	    (hdd_ipa->ipa_resource.tx_comp_ring_base_paddr == 0) ||
-	    (hdd_ipa->ipa_resource.rx_rdy_ring_base_paddr == 0) ||
-	    (hdd_ipa->ipa_resource.rx2_rdy_ring_base_paddr == 0)) {
-		HDD_IPA_LOG(QDF_TRACE_LEVEL_FATAL,
-			"IPA UC resource alloc fail");
-		return -EINVAL;
-	}
-			HDD_IPA_LOG(QDF_TRACE_LEVEL_FATAL, "dbg2");
 
 	/* Create the interface context */
 	for (i = 0; i < HDD_IPA_MAX_IFACE; i++) {
@@ -3192,13 +3182,6 @@ static int __hdd_ipa_uc_ssr_reinit(hdd_context_t *hdd_ctx)
 		hdd_ipa->sta_connected = 0;
 		hdd_ipa->ipa_pipes_down = true;
 		hdd_ipa->uc_loaded = true;
-
-		if (hdd_ipa_uc_ol_init(hdd_ctx)) {
-			HDD_IPA_LOG(QDF_TRACE_LEVEL_FATAL,
-				    "Failed to setup pipes");
-			return -EINVAL;
-		}
-
 	}
 
 	return 0;
@@ -5809,15 +5792,6 @@ static QDF_STATUS __hdd_ipa_init(hdd_context_t *hdd_ctx)
 	ghdd_ipa = hdd_ipa;
 	hdd_ipa->hdd_ctx = hdd_ctx;
 	hdd_ipa->num_iface = 0;
-	ol_txrx_ipa_uc_get_resource(pdev, &hdd_ipa->ipa_resource);
-	if ((0 == hdd_ipa->ipa_resource.ce_sr_base_paddr) ||
-	    (0 == hdd_ipa->ipa_resource.tx_comp_ring_base_paddr) ||
-	    (0 == hdd_ipa->ipa_resource.rx_rdy_ring_base_paddr) ||
-	    (0 == hdd_ipa->ipa_resource.rx2_rdy_ring_base_paddr)) {
-		HDD_IPA_LOG(QDF_TRACE_LEVEL_FATAL,
-			"IPA UC resource alloc fail");
-		goto fail_get_resource;
-	}
 
 	/* Create the interface context */
 	for (i = 0; i < HDD_IPA_MAX_IFACE; i++) {
@@ -5866,8 +5840,6 @@ static QDF_STATUS __hdd_ipa_init(hdd_context_t *hdd_ctx)
 		if (hdd_ipa_uc_register_uc_ready(hdd_ipa))
 			goto fail_create_sys_pipe;
 
-		if (hdd_ipa_uc_ol_init(hdd_ctx))
-			goto fail_ol_init;
 	} else {
 		ret = hdd_ipa_setup_sys_pipe(hdd_ipa);
 		if (ret)
@@ -5877,13 +5849,10 @@ static QDF_STATUS __hdd_ipa_init(hdd_context_t *hdd_ctx)
 	EXIT();
 	return QDF_STATUS_SUCCESS;
 
-fail_ol_init:
-	hdd_ipa_teardown_sys_pipe(hdd_ipa);
 fail_create_sys_pipe:
 	hdd_ipa_destroy_rm_resource(hdd_ipa);
 fail_setup_rm:
 	qdf_spinlock_destroy(&hdd_ipa->pm_lock);
-fail_get_resource:
 	qdf_mem_free(hdd_ipa);
 	hdd_ctx->hdd_ipa = NULL;
 	ghdd_ipa = NULL;

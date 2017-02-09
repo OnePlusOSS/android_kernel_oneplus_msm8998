@@ -539,10 +539,16 @@ static int __wlan_hdd_bus_suspend(pm_message_t state, uint32_t wow_flags)
 		goto done;
 	}
 
+	err = hif_bus_early_suspend(hif_ctx);
+	if (err) {
+		hdd_err("Failed hif bus early suspend");
+		goto resume_oltxrx;
+	}
+
 	err = wma_bus_suspend(wow_flags);
 	if (err) {
 		hdd_err("Failed wma bus suspend");
-		goto resume_oltxrx;
+		goto late_hif_resume;
 	}
 
 	err = hif_bus_suspend(hif_ctx);
@@ -556,6 +562,9 @@ static int __wlan_hdd_bus_suspend(pm_message_t state, uint32_t wow_flags)
 
 resume_wma:
 	status = wma_bus_resume();
+	QDF_BUG(!status);
+late_hif_resume:
+	status = hif_bus_late_resume(hif_ctx);
 	QDF_BUG(!status);
 resume_oltxrx:
 	status = ol_txrx_bus_resume();
@@ -714,6 +723,12 @@ static int __wlan_hdd_bus_resume(void)
 	status = wma_bus_resume();
 	if (status) {
 		hdd_err("Failed wma bus resume");
+		goto out;
+	}
+
+	status = hif_bus_late_resume(hif_ctx);
+	if (status) {
+		hdd_err("Failed hif bus late resume");
 		goto out;
 	}
 

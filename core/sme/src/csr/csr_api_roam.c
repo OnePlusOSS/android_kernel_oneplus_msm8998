@@ -19430,6 +19430,7 @@ void csr_process_set_hw_mode(tpAniSirGlobal mac, tSmeCmd *command)
 	QDF_STATUS status;
 	tSirMsgQ msg;
 	struct sir_set_hw_mode_resp *param;
+	enum cds_hw_mode_change cds_hw_mode;
 
 	/* Setting HW mode is for the entire system.
 	 * So, no need to check session
@@ -19463,6 +19464,22 @@ void csr_process_set_hw_mode(tpAniSirGlobal mac, tSmeCmd *command)
 		}
 	}
 
+	if ((SIR_UPDATE_REASON_OPPORTUNISTIC ==
+	     command->u.set_hw_mode_cmd.reason) &&
+	    (true == cds_is_connection_in_progress(NULL, NULL))) {
+		sms_log(mac, LOGE, FL("Set HW mode refused: conn in progress"));
+		cds_restart_opportunistic_timer(false);
+		goto fail;
+	}
+
+	cds_hw_mode = wma_get_cds_hw_mode_change_from_hw_mode_index(
+				command->u.set_hw_mode_cmd.hw_mode_index);
+
+	if (CDS_HW_MODE_NOT_IN_PROGRESS == cds_hw_mode)
+		goto fail;
+
+	cds_set_hw_mode_change_in_progress(cds_hw_mode);
+
 	cmd->messageType = eWNI_SME_SET_HW_MODE_REQ;
 	cmd->length = len;
 	cmd->set_hw.hw_mode_index = command->u.set_hw_mode_cmd.hw_mode_index;
@@ -19480,6 +19497,7 @@ void csr_process_set_hw_mode(tpAniSirGlobal mac, tSmeCmd *command)
 
 	status = cds_send_mb_message_to_mac(cmd);
 	if (QDF_STATUS_SUCCESS != status) {
+		cds_set_hw_mode_change_in_progress(CDS_HW_MODE_NOT_IN_PROGRESS);
 		sms_log(mac, LOGE, FL("Posting to PE failed"));
 		return;
 	}

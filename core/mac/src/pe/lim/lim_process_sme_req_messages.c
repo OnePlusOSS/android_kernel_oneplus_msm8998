@@ -1195,6 +1195,11 @@ static QDF_STATUS lim_send_hal_start_scan_offload_req(tpAniSirGlobal pMac,
 	tSirRetStatus status, rc = eSIR_SUCCESS;
 	tDot11fIEExtCap extracted_extcap = {0};
 	bool extcap_present = true;
+	uint16_t qcn_ie_len = 0;
+
+	/* qcn_ie_len is IE max length + 2(for IE ID, IE length fields) */
+	if (pMac->roam.configParam.qcn_ie_support)
+		qcn_ie_len = DOT11F_IE_QCN_IE_MAX_LEN + 2;
 
 	if (pScanReq->uIEFieldLen) {
 		status = lim_strip_extcap_update_struct(pMac,
@@ -1221,7 +1226,8 @@ static QDF_STATUS lim_send_hal_start_scan_offload_req(tpAniSirGlobal pMac,
 	 */
 	len = sizeof(tSirScanOffloadReq) +
 		(pScanReq->channelList.numChannels - 1) +
-		pScanReq->uIEFieldLen + pScanReq->oui_field_len;
+		pScanReq->uIEFieldLen + pScanReq->oui_field_len
+		+ qcn_ie_len;
 
 	pScanOffloadReq = qdf_mem_malloc(len);
 	if (NULL == pScanOffloadReq) {
@@ -1300,11 +1306,17 @@ static QDF_STATUS lim_send_hal_start_scan_offload_req(tpAniSirGlobal pMac,
 
 	pScanOffloadReq->uIEFieldLen = pScanReq->uIEFieldLen;
 	pScanOffloadReq->uIEFieldOffset = len - pScanOffloadReq->uIEFieldLen -
-						pScanReq->oui_field_len;
+						pScanReq->oui_field_len -
+						qcn_ie_len;
 	qdf_mem_copy((uint8_t *) pScanOffloadReq +
 		     pScanOffloadReq->uIEFieldOffset,
 		     (uint8_t *) pScanReq + pScanReq->uIEFieldOffset,
 		     pScanReq->uIEFieldLen);
+
+	if (pMac->roam.configParam.qcn_ie_support)
+		lim_add_qcn_ie(pMac, (uint8_t *) pScanOffloadReq +
+				pScanOffloadReq->uIEFieldOffset,
+				&pScanOffloadReq->uIEFieldLen);
 
 	pScanOffloadReq->enable_scan_randomization =
 					pScanReq->enable_scan_randomization;

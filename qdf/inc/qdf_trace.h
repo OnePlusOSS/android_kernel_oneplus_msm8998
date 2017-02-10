@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -173,7 +173,8 @@ typedef struct s_qdf_trace_data {
  * @QDF_DP_TRACE_HIF_PACKET_PTR_RECORD - hif packet ptr record
  * @QDF_DP_TRACE_RX_TXRX_PACKET_PTR_RECORD - txrx packet ptr record
  * @QDF_DP_TRACE_MED_VERBOSITY - below this are part of med verbosity
- * @QDF_DP_TRACE_HDD_TX_PACKET_RECORD - record 32 bytes at HDD
+ * @QDF_DP_TRACE_HDD_TX_PACKET_RECORD - record 32 bytes of tx pkt at HDD
+ * @QDF_DP_TRACE_HDD_RX_PACKET_RECORD - record 32 bytes of rx pkt at HDD
  * @QDF_DP_TRACE_HIGH_VERBOSITY - below this are part of high verbosity
  */
 enum  QDF_DP_TRACE_ID {
@@ -204,6 +205,7 @@ enum  QDF_DP_TRACE_ID {
 	QDF_DP_TRACE_RX_TXRX_PACKET_PTR_RECORD,
 	QDF_DP_TRACE_MED_VERBOSITY,
 	QDF_DP_TRACE_HDD_TX_PACKET_RECORD,
+	QDF_DP_TRACE_HDD_RX_PACKET_RECORD,
 	QDF_DP_TRACE_HIGH_VERBOSITY,
 	QDF_DP_TRACE_MAX
 };

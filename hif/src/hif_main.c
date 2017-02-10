@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -850,10 +850,8 @@ int hif_get_rx_ctx_id(int ctx_id, struct hif_opaque_softc *hif_hdl)
 void hif_lro_flush_cb_deregister(struct hif_opaque_softc *hif_hdl,
 				 void (lro_deinit_cb)(void *))
 {
-	if (hif_napi_enabled(hif_hdl, -1))
-		hif_napi_lro_flush_cb_deregister(hif_hdl, lro_deinit_cb);
-	else
-		ce_lro_flush_cb_deregister(hif_hdl, lro_deinit_cb);
+	hif_napi_lro_flush_cb_deregister(hif_hdl, lro_deinit_cb);
+	ce_lro_flush_cb_deregister(hif_hdl, lro_deinit_cb);
 }
 #else /* !defined(FEATURE_LRO) */
 int hif_get_rx_ctx_id(int ctx_id, struct hif_opaque_softc *hif_hdl)

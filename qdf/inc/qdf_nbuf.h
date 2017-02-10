@@ -196,6 +196,10 @@ struct mon_rx_status {
 #define ICMPV6_SUBTYPE_OFFSET         54
 #define ICMPV6_REQUEST                0x80
 #define ICMPV6_RESPONSE               0x81
+#define ICMPV6_RS                     0x85
+#define ICMPV6_RA                     0x86
+#define ICMPV6_NS                     0x87
+#define ICMPV6_NA                     0x88
 
 #define QDF_NBUF_IPA_CHECK_MASK		0x80000000
 
@@ -236,6 +240,10 @@ enum qdf_proto_type {
  * @QDF_PROTO_ICMP_RES - icmp response
  * @QDF_PROTO_ICMPV6_REQ - icmpv6 request
  * @QDF_PROTO_ICMPV6_RES - icmpv6 response
+ * @QDF_PROTO_ICMPV6_RS - icmpv6 rs packet
+ * @QDF_PROTO_ICMPV6_RA - icmpv6 ra packet
+ * @QDF_PROTO_ICMPV6_NS - icmpv6 ns packet
+ * @QDF_PROTO_ICMPV6_NA - icmpv6 na packet
  * @QDF_PROTO_IPV4_UDP - ipv4 udp
  * @QDF_PROTO_IPV4_TCP - ipv4 tcp
  * @QDF_PROTO_IPV6_UDP - ipv6 udp
@@ -268,6 +276,10 @@ enum qdf_proto_subtype {
 	QDF_PROTO_ICMP_RES,
 	QDF_PROTO_ICMPV6_REQ,
 	QDF_PROTO_ICMPV6_RES,
+	QDF_PROTO_ICMPV6_RS,
+	QDF_PROTO_ICMPV6_RA,
+	QDF_PROTO_ICMPV6_NS,
+	QDF_PROTO_ICMPV6_NA,
 	QDF_PROTO_IPV4_UDP,
 	QDF_PROTO_IPV4_TCP,
 	QDF_PROTO_IPV6_UDP,
@@ -613,6 +625,65 @@ static inline void qdf_nbuf_free(qdf_nbuf_t net_buf)
 	__qdf_nbuf_free(net_buf);
 }
 
+#define qdf_nbuf_clone(buf)     \
+	qdf_nbuf_clone_debug(buf, __FILE__, __LINE__)
+
+/**
+ * qdf_nbuf_clone_debug() - clone the nbuf (copy is readonly)
+ * @buf: nbuf to clone from
+ * @file_name: pointer to file name
+ * @line_num: line number
+ *
+ * This function clones the nbuf and creates a memory tracking
+ * node corresponding to that cloned skbuff structure.
+ *
+ * Return: cloned buffer
+ */
+static inline qdf_nbuf_t
+qdf_nbuf_clone_debug(qdf_nbuf_t buf, uint8_t *file_name,
+			uint32_t line_num)
+{
+	qdf_nbuf_t cloned_buf;
+
+	cloned_buf = __qdf_nbuf_clone(buf);
+
+	/* Store SKB in internal QDF tracking table */
+	if (qdf_likely(cloned_buf))
+		qdf_net_buf_debug_add_node(cloned_buf, 0, file_name, line_num);
+
+	return cloned_buf;
+}
+
+#define qdf_nbuf_copy(buf)     \
+	qdf_nbuf_copy_debug(buf, __FILE__, __LINE__)
+
+/**
+ * qdf_nbuf_copy_debug() - returns a private copy of the buf
+ * @buf: nbuf to copy from
+ * @file_name: pointer to file name
+ * @line_num: line number
+ *
+ * This API returns a private copy of the buf, the buf returned is completely
+ * modifiable by callers. It also creates a memory tracking node corresponding
+ * to that new skbuff structure.
+ *
+ * Return: copied buffer
+ */
+static inline qdf_nbuf_t
+qdf_nbuf_copy_debug(qdf_nbuf_t buf, uint8_t *file_name,
+			uint32_t line_num)
+{
+	qdf_nbuf_t copied_buf;
+
+	copied_buf = __qdf_nbuf_copy(buf);
+
+	/* Store SKB in internal QDF tracking table */
+	if (qdf_likely(copied_buf))
+		qdf_net_buf_debug_add_node(copied_buf, 0, file_name, line_num);
+
+	return copied_buf;
+}
+
 #else
 
 static inline void qdf_net_buf_debug_release_skb(qdf_nbuf_t net_buf)
@@ -632,6 +703,34 @@ qdf_nbuf_alloc(qdf_device_t osdev,
 static inline void qdf_nbuf_free(qdf_nbuf_t buf)
 {
 	__qdf_nbuf_free(buf);
+}
+
+/**
+ * qdf_nbuf_clone() - clone the nbuf (copy is readonly)
+ * @buf: Pointer to network buffer
+ *
+ * This function clones the nbuf and returns new sk_buff
+ * structure.
+ *
+ * Return: cloned skb
+ */
+static inline qdf_nbuf_t qdf_nbuf_clone(qdf_nbuf_t buf)
+{
+	return __qdf_nbuf_clone(buf);
+}
+
+/**
+ * qdf_nbuf_copy() - returns a private copy of the buf
+ * @buf: Pointer to network buffer
+ *
+ * This API returns a private copy of the buf, the buf returned is completely
+ *  modifiable by callers
+ *
+ * Return: skb or NULL
+ */
+static inline qdf_nbuf_t qdf_nbuf_copy(qdf_nbuf_t buf)
+{
+	return __qdf_nbuf_copy(buf);
 }
 
 #endif
@@ -668,11 +767,6 @@ static inline int qdf_nbuf_shared(qdf_nbuf_t buf)
 	return __qdf_nbuf_shared(buf);
 }
 
-static inline qdf_nbuf_t qdf_nbuf_copy(qdf_nbuf_t buf)
-{
-	return __qdf_nbuf_copy(buf);
-}
-
 static inline QDF_STATUS qdf_nbuf_cat(qdf_nbuf_t dst, qdf_nbuf_t src)
 {
 	return __qdf_nbuf_cat(dst, src);
@@ -693,16 +787,6 @@ qdf_nbuf_copy_bits(qdf_nbuf_t nbuf, uint32_t offset, uint32_t len, void *to)
 	return __qdf_nbuf_copy_bits(nbuf, offset, len, to);
 }
 
-/**
- * qdf_nbuf_clone() - clone the nbuf (copy is readonly)
- * @buf: nbuf to clone from
- *
- * Return: cloned buffer
- */
-static inline qdf_nbuf_t qdf_nbuf_clone(qdf_nbuf_t buf)
-{
-	return __qdf_nbuf_clone(buf);
-}
 
 /* nbuf manipulation routines */
 

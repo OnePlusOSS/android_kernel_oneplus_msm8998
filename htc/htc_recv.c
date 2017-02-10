@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -114,6 +114,7 @@ static void do_recv_completion(HTC_ENDPOINT *pEndpoint,
 							("HTC ep %d has NULL recv callback on packet %p\n",
 							 pEndpoint->Id,
 							 pPacket));
+					qdf_nbuf_free(pPacket->pPktContext);
 					continue;
 				}
 				AR_DEBUG_PRINTF(ATH_DEBUG_RECV,

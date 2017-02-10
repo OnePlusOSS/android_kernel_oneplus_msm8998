@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -71,6 +71,7 @@
 #define WLAN_HIF_STATS  7
 #define WLAN_LRO_STATS  8
 #define WLAN_NAPI_STATS 9
+#define WLAN_RX_BUF_DEBUG_STATS 10
 #define WLAN_SCHEDULER_STATS        21
 #define WLAN_TX_QUEUE_STATS         22
 #define WLAN_BUNDLE_STATS           23

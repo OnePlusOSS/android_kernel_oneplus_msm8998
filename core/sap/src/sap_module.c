@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -507,7 +507,8 @@ QDF_STATUS wlansap_clean_cb(ptSapContext pSapCtx, uint32_t freeFlag      /* 0 / 
 	if (eSAP_TRUE == pSapCtx->isSapSessionOpen && hal) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
 				"close existing SAP session");
-		sap_close_session(hal, pSapCtx, NULL, false);
+		sap_close_session(hal, pSapCtx, sap_roam_session_close_callback,
+					pSapCtx);
 	}
 
 	qdf_mem_zero(pSapCtx, sizeof(tSapContext));
@@ -2916,6 +2917,18 @@ wlansap_set_dfs_restrict_japan_w53(tHalHandle hHal, uint8_t disable_Dfs_W53)
 	}
 
 	return status;
+}
+
+bool sap_is_auto_channel_select(void *pvos_gctx)
+{
+	ptSapContext sapcontext = CDS_GET_SAP_CB(pvos_gctx);
+
+	if (NULL == sapcontext) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			"%s: Invalid SAP pointer", __func__);
+		return 0;
+	}
+	return sapcontext->channel == AUTO_CHANNEL_SELECT;
 }
 
 #ifdef FEATURE_AP_MCC_CH_AVOIDANCE

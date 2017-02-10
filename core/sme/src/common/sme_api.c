@@ -9075,15 +9075,25 @@ QDF_STATUS sme_config_fast_roaming(tHalHandle hal, uint8_t session_id,
 	tCsrRoamSession *session = CSR_GET_SESSION(mac_ctx, session_id);
 	QDF_STATUS status;
 
+	/* do_not_roam flag is set in wlan_hdd_cfg80211_connect_start
+	 * when supplicant initiate connect request with BSSID.
+	 * This flag reset when supplicant sends vendor command to enable
+	 * roaming after association.
+	 *
+	 * This request from wpa_supplicant will be skipped in this function
+	 * if roaming is disabled using driver command or INI and do_not_roam
+	 * flag remains set. So make sure to set do_not_roam flag as per
+	 * wpa_supplicant even if roam request from wpa_supplicant ignored.
+	 */
+	if (session && session->pCurRoamProfile)
+		session->pCurRoamProfile->do_not_roam = !is_fast_roam_enabled;
+
 	if (!mac_ctx->roam.configParam.isFastRoamIniFeatureEnabled) {
 		sms_log(mac_ctx, LOGE, FL("Fast roam is disabled through ini"));
 		if (!is_fast_roam_enabled)
 			return QDF_STATUS_SUCCESS;
 		return  QDF_STATUS_E_FAILURE;
 	}
-
-	if (session && session->pCurRoamProfile)
-		session->pCurRoamProfile->do_not_roam = !is_fast_roam_enabled;
 
 	status = csr_neighbor_roam_update_fast_roaming_enabled(mac_ctx,
 					 session_id, is_fast_roam_enabled);
@@ -12202,11 +12212,9 @@ QDF_STATUS sme_set_ht2040_mode(tHalHandle hHal, uint8_t sessionId,
  * This should be called only if powersave offload
  * is enabled
  */
-QDF_STATUS sme_set_idle_powersave_config(void *cds_context,
-				tHalHandle hHal, uint32_t value)
+QDF_STATUS sme_set_idle_powersave_config(bool value)
 {
 	void *wmaContext = cds_get_context(QDF_MODULE_ID_WMA);
-	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 
 	if (NULL == wmaContext) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
@@ -12216,14 +12224,11 @@ QDF_STATUS sme_set_idle_powersave_config(void *cds_context,
 	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 		  " Idle Ps Set Value %d", value);
 
-	pMac->imps_enabled = false;
 	if (QDF_STATUS_SUCCESS != wma_set_idle_ps_config(wmaContext, value)) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 			  " Failed to Set Idle Ps Value %d", value);
 		return QDF_STATUS_E_FAILURE;
 	}
-	if (value)
-		pMac->imps_enabled = true;
 	return QDF_STATUS_SUCCESS;
 }
 
@@ -17296,7 +17301,7 @@ QDF_STATUS sme_get_rcpi(tHalHandle hal, struct sme_rcpi_req *rcpi)
 static void sme_prepare_beacon_from_bss_descp(uint8_t *frame_buf,
 					      tSirBssDescription *bss_descp,
 					      const tSirMacAddr bssid,
-					      uint8_t ie_len)
+					      uint32_t ie_len)
 {
 	tDot11fBeacon1 *bcn_fixed;
 	tpSirMacMgmtHdr mac_hdr = (tpSirMacMgmtHdr)frame_buf;
@@ -17403,6 +17408,8 @@ free_scan_flter:
 		csr_free_scan_filter(mac_ctx, scan_filter);
 		qdf_mem_free(scan_filter);
 	}
+	if (result_handle)
+		csr_scan_result_purge(mac_ctx, result_handle);
 
 	return QDF_STATUS_SUCCESS;
 }

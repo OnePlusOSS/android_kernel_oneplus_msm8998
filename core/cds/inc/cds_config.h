@@ -115,6 +115,7 @@ enum active_bpf_mode {
  * @is_fw_timeout: Indicate whether crash host when fw timesout or not
  * @force_target_assert_enabled: Indicate whether target assert enabled or not
  * @active_bpf_mode: Setting that determines how BPF is applied in active mode
+ * @rps_enabled: RPS enabled in SAP mode
  * Structure for holding cds ini parameters.
  */
 
@@ -172,5 +173,6 @@ struct cds_config_info {
 
 	bool force_target_assert_enabled;
 	enum active_bpf_mode active_bpf_mode;
+	bool rps_enabled;
 };
 #endif /* !defined( __CDS_CONFIG_H ) */

@@ -1590,8 +1590,8 @@ int wma_nan_rsp_event_handler(void *handle, uint8_t *event_buf,
 	return 0;
 }
 #else
-int wma_nan_rsp_event_handler(void *handle, uint8_t *event_buf,
-			      uint32_t len)
+static int wma_nan_rsp_event_handler(void *handle, uint8_t *event_buf,
+				     uint32_t len)
 {
 	return 0;
 }
@@ -2707,12 +2707,18 @@ static int wow_get_wmi_eventid(int32_t reason, uint32_t tag)
 	case WOW_REASON_TDLS_CONN_TRACKER_EVENT:
 		event_id = WOW_TDLS_CONN_TRACKER_EVENT;
 		break;
+	case WOW_REASON_ROAM_HO:
+		event_id = WMI_ROAM_EVENTID;
+		break;
 	default:
 		WMA_LOGD(FL("Unexpected WOW reason : %s(%d)"),
 			 wma_wow_wake_reason_str(reason), reason);
 		event_id = 0;
 		break;
 	}
+	wma_peer_debug_log(WMA_INVALID_VDEV_ID, DEBUG_WOW_REASON,
+			   DEBUG_INVALID_PEER_ID, NULL, NULL,
+			   reason, event_id);
 
 	return event_id;
 }
@@ -2795,6 +2801,14 @@ wma_pkt_proto_subtype_to_string(enum qdf_proto_subtype proto_subtype)
 		return "ICMPV6 REQUEST";
 	case QDF_PROTO_ICMPV6_RES:
 		return "ICMPV6 RESPONSE";
+	case QDF_PROTO_ICMPV6_RS:
+		return "ICMPV6 RS";
+	case QDF_PROTO_ICMPV6_RA:
+		return "ICMPV6 RA";
+	case QDF_PROTO_ICMPV6_NS:
+		return "ICMPV6 NS";
+	case QDF_PROTO_ICMPV6_NA:
+		return "ICMPV6 NA";
 	case QDF_PROTO_IPV4_UDP:
 		return "IPV4 UDP Packet";
 	case QDF_PROTO_IPV4_TCP:
@@ -2987,6 +3001,10 @@ static void wma_wow_parse_data_pkt_buffer(uint8_t *data,
 
 	case QDF_PROTO_ICMPV6_REQ:
 	case QDF_PROTO_ICMPV6_RES:
+	case QDF_PROTO_ICMPV6_RS:
+	case QDF_PROTO_ICMPV6_RA:
+	case QDF_PROTO_ICMPV6_NS:
+	case QDF_PROTO_ICMPV6_NA:
 		WMA_LOGD("WOW Wakeup: %s rcvd",
 			wma_pkt_proto_subtype_to_string(proto_subtype));
 		if (buf_len >= WMA_IPV6_PKT_INFO_GET_MIN_LEN) {
@@ -3408,14 +3426,19 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 		break;
 
 	case WOW_REASON_LOW_RSSI:
-		/* WOW_REASON_LOW_RSSI is used for all roaming events.
+	case WOW_REASON_ROAM_HO:
+		/*
+		 * WOW_REASON_LOW_RSSI is used for following roaming events -
 		 * WMI_ROAM_REASON_BETTER_AP, WMI_ROAM_REASON_BMISS,
 		 * WMI_ROAM_REASON_SUITABLE_AP will be handled by
+		 * wma_roam_event_callback().
+		 * WOW_REASON_ROAM_HO is associated with
+		 * WMI_ROAM_REASON_HO_FAILED event and it will be handled by
 		 * wma_roam_event_callback().
 		 */
 		wma_peer_debug_log(wake_info->vdev_id, DEBUG_WOW_ROAM_EVENT,
 				   DEBUG_INVALID_PEER_ID, NULL, NULL,
-				   WOW_REASON_LOW_RSSI, 0);
+				   wake_info->wake_reason, 0);
 		WMA_LOGD("Host woken up because of roam event");
 		if (param_buf->wow_packet_buffer) {
 			/* Roam event is embedded in wow_packet_buffer */
@@ -6652,6 +6675,10 @@ static int __wma_bus_suspend(enum qdf_suspend_type type, uint32_t wow_flags)
 		return -EBUSY;
 	}
 
+	wma_peer_debug_log(DEBUG_INVALID_VDEV_ID, DEBUG_BUS_SUSPEND,
+			   DEBUG_INVALID_PEER_ID, NULL, NULL,
+			   type, wow_flags);
+
 	if (type == QDF_RUNTIME_SUSPEND) {
 		QDF_STATUS status = wma_post_runtime_suspend_msg(handle);
 		if (status)
@@ -6666,10 +6693,6 @@ static int __wma_bus_suspend(enum qdf_suspend_type type, uint32_t wow_flags)
 		QDF_STATUS status = wma_enable_wow_in_fw(handle, wow_flags);
 		return qdf_status_to_os_return(status);
 	}
-
-	wma_peer_debug_log(DEBUG_INVALID_VDEV_ID, DEBUG_BUS_SUSPEND,
-			   DEBUG_INVALID_PEER_ID, NULL, NULL,
-			   0, 0);
 
 	return wma_suspend_target(handle, 0);
 }
@@ -6783,34 +6806,19 @@ int wma_bus_resume(void)
  *
  * Return: NONE
  */
-#ifdef QCA_WIFI_3_0_ADRASTEA
 static inline void wma_suspend_target_timeout(bool is_self_recovery_enabled)
 {
-	if (cds_is_driver_recovering()) {
-		WMA_LOGE("%s: recovery is in progress, ignore!", __func__);
-	} else {
-		if (is_self_recovery_enabled) {
-			cds_trigger_recovery(false);
-		} else {
-			QDF_BUG(0);
-		}
-	}
-}
-#else /* ROME chipset */
-static inline void wma_suspend_target_timeout(bool is_self_recovery_enabled)
-{
-	if (cds_is_load_or_unload_in_progress() || cds_is_driver_recovering()) {
-		WMA_LOGE("%s: Unloading/Loading/recovery is in progress, Ignore!",
+	if (cds_is_load_or_unload_in_progress())
+		WMA_LOGE("%s: Module (un)loading; Ignoring suspend timeout",
 			 __func__);
-	} else {
-		if (is_self_recovery_enabled) {
-			cds_trigger_recovery(false);
-		} else {
-			QDF_BUG(0);
-		}
-	}
+	else if (cds_is_driver_recovering())
+		WMA_LOGE("%s: Module recovering; Ignoring suspend timeout",
+			 __func__);
+	else if (is_self_recovery_enabled)
+		cds_trigger_recovery(false);
+	else
+		QDF_BUG(0);
 }
-#endif
 
 /**
  * wma_suspend_target() - suspend target

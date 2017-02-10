@@ -2667,8 +2667,11 @@ static QDF_STATUS hdd_ipa_uc_ol_init(hdd_context_t *hdd_ctx)
 	qdf_mem_zero(&pipe_out, sizeof(struct ipa_wdi_out_params));
 
 	qdf_list_create(&ipa_ctxt->pending_event, 1000);
-	qdf_mutex_create(&ipa_ctxt->event_lock);
-	qdf_mutex_create(&ipa_ctxt->ipa_lock);
+
+	if (!cds_is_driver_recovering()) {
+		qdf_mutex_create(&ipa_ctxt->event_lock);
+		qdf_mutex_create(&ipa_ctxt->ipa_lock);
+	}
 
 	/* TX PIPE */
 	pipe_in.sys.ipa_ep_cfg.nat.nat_en = IPA_BYPASS_NAT;
@@ -3058,12 +3061,17 @@ static int __hdd_ipa_uc_ssr_deinit(void)
 	struct hdd_ipa_priv *hdd_ipa = ghdd_ipa;
 	int idx;
 	struct hdd_ipa_iface_context *iface_context;
+	hdd_context_t *hdd_ctx;
 
-	if ((!hdd_ipa) || (!hdd_ipa_uc_is_enabled(hdd_ipa->hdd_ctx)))
+	if (!hdd_ipa)
+		return 0;
+
+	hdd_ctx = hdd_ipa->hdd_ctx;
+	if (!hdd_ipa_uc_is_enabled(hdd_ctx))
 		return 0;
 
 	/* send disconnect to ipa driver */
-	hdd_ipa_uc_disconnect(hdd_ipa->hdd_ctx);
+	hdd_ipa_uc_disconnect(hdd_ctx);
 
 	/* Clean up HDD IPA interfaces */
 	for (idx = 0; (hdd_ipa->num_iface > 0) &&
@@ -3086,6 +3094,16 @@ static int __hdd_ipa_uc_ssr_deinit(void)
 		hdd_ipa->assoc_stas_map[idx].sta_id = 0xFF;
 	}
 	qdf_mutex_release(&hdd_ipa->ipa_lock);
+
+	HDD_IPA_LOG(QDF_TRACE_LEVEL_INFO,
+		    "%s: Disconnect TX PIPE tx_pipe_handle=0x%x",
+		    __func__, hdd_ipa->tx_pipe_handle);
+	ipa_disconnect_wdi_pipe(hdd_ipa->tx_pipe_handle);
+
+	HDD_IPA_LOG(QDF_TRACE_LEVEL_INFO,
+		    "%s: Disconnect RX PIPE rx_pipe_handle=0x%x",
+		    __func__, hdd_ipa->rx_pipe_handle);
+	ipa_disconnect_wdi_pipe(hdd_ipa->rx_pipe_handle);
 
 	if (hdd_ipa_uc_sta_is_enabled(hdd_ipa->hdd_ctx))
 		hdd_ipa_uc_sta_reset_sta_connected(hdd_ipa);
@@ -3123,14 +3141,66 @@ int hdd_ipa_uc_ssr_deinit(void)
  *
  * Return: 0 - Success
  */
-static int __hdd_ipa_uc_ssr_reinit(void)
+static int __hdd_ipa_uc_ssr_reinit(hdd_context_t *hdd_ctx)
 {
 
-	/* After SSR is complete, IPA UC can resume operation. But now wlan
-	 * driver will be unloaded and reloaded, which takes care of IPA cleanup
-	 * and initialization. This is a placeholder func if IPA has to resume
-	 * operations without driver reload.
-	 */
+	struct hdd_ipa_priv *hdd_ipa = ghdd_ipa;
+	int i;
+	struct hdd_ipa_iface_context *iface_context = NULL;
+	struct ol_txrx_pdev_t *pdev = NULL;
+
+	if (!hdd_ipa || !hdd_ipa_uc_is_enabled(hdd_ctx))
+		return 0;
+
+	pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+	if (!pdev) {
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_FATAL, "pdev is NULL");
+		return -EINVAL;
+	}
+			HDD_IPA_LOG(QDF_TRACE_LEVEL_FATAL, "dbg2");
+
+	ol_txrx_ipa_uc_get_resource(pdev, &hdd_ipa->ipa_resource);
+	if ((hdd_ipa->ipa_resource.ce_sr_base_paddr == 0) ||
+	    (hdd_ipa->ipa_resource.tx_comp_ring_base_paddr == 0) ||
+	    (hdd_ipa->ipa_resource.rx_rdy_ring_base_paddr == 0) ||
+	    (hdd_ipa->ipa_resource.rx2_rdy_ring_base_paddr == 0)) {
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_FATAL,
+			"IPA UC resource alloc fail");
+		return -EINVAL;
+	}
+			HDD_IPA_LOG(QDF_TRACE_LEVEL_FATAL, "dbg2");
+
+	/* Create the interface context */
+	for (i = 0; i < HDD_IPA_MAX_IFACE; i++) {
+		iface_context = &hdd_ipa->iface_context[i];
+		iface_context->hdd_ipa = hdd_ipa;
+		iface_context->cons_client =
+			hdd_ipa_adapter_2_client[i].cons_client;
+		iface_context->prod_client =
+			hdd_ipa_adapter_2_client[i].prod_client;
+		iface_context->iface_id = i;
+		iface_context->adapter = NULL;
+	}
+	for (i = 0; i < CSR_ROAM_SESSION_MAX; i++) {
+		hdd_ipa->vdev_to_iface[i] = CSR_ROAM_SESSION_MAX;
+		hdd_ipa->vdev_offload_enabled[i] = false;
+	}
+
+	if (hdd_ipa_uc_is_enabled(hdd_ipa->hdd_ctx)) {
+		hdd_ipa->resource_loading = false;
+		hdd_ipa->resource_unloading = false;
+		hdd_ipa->sta_connected = 0;
+		hdd_ipa->ipa_pipes_down = true;
+		hdd_ipa->uc_loaded = true;
+
+		if (hdd_ipa_uc_ol_init(hdd_ctx)) {
+			HDD_IPA_LOG(QDF_TRACE_LEVEL_FATAL,
+				    "Failed to setup pipes");
+			return -EINVAL;
+		}
+
+	}
+
 	return 0;
 }
 
@@ -3142,12 +3212,12 @@ static int __hdd_ipa_uc_ssr_reinit(void)
  *
  * Return: 0 - Success
  */
-int hdd_ipa_uc_ssr_reinit(void)
+int hdd_ipa_uc_ssr_reinit(hdd_context_t *hdd_ctx)
 {
 	int ret;
 
 	cds_ssr_protect(__func__);
-	ret = __hdd_ipa_uc_ssr_reinit();
+	ret = __hdd_ipa_uc_ssr_reinit(hdd_ctx);
 	cds_ssr_unprotect(__func__);
 
 	return ret;
@@ -5842,6 +5912,7 @@ QDF_STATUS hdd_ipa_init(hdd_context_t *hdd_ctx)
 	return ret;
 }
 
+
 /**
  * hdd_ipa_cleanup_pending_event() - Cleanup IPA pending event list
  * @hdd_ipa: pointer to HDD IPA struct
@@ -5915,6 +5986,9 @@ static QDF_STATUS __hdd_ipa_cleanup(hdd_context_t *hdd_ctx)
 	}
 
 	if (hdd_ipa_uc_is_enabled(hdd_ctx)) {
+		if (ipa_uc_dereg_rdyCB())
+			HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,
+					"UC Ready CB deregister fail");
 		hdd_ipa_uc_rt_debug_deinit(hdd_ctx);
 		if (true == hdd_ipa->uc_loaded) {
 			HDD_IPA_LOG(QDF_TRACE_LEVEL_INFO,

@@ -3758,6 +3758,7 @@ void cds_incr_active_session(enum tQDF_ADAPTER_MODE mode,
 {
 	hdd_context_t *hdd_ctx;
 	cds_context_type *cds_ctx;
+	hdd_adapter_t *sap_adapter;
 
 	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
 	if (!hdd_ctx) {
@@ -3825,6 +3826,19 @@ void cds_incr_active_session(enum tQDF_ADAPTER_MODE mode,
 			cds_ctx->hdd_disable_lro_in_cc_cb(hdd_ctx);
 		else
 			cds_warn("hdd_disable_lro_in_cc_cb NULL!");
+	};
+
+	/* Enable RPS if SAP interface has come up */
+	if (cds_mode_specific_connection_count(CDS_SAP_MODE, NULL) == 1) {
+		if (cds_ctx->hdd_set_rx_mode_rps_cb != NULL) {
+			sap_adapter = hdd_get_adapter(hdd_ctx, QDF_SAP_MODE);
+			if (sap_adapter != NULL)
+				cds_ctx->hdd_set_rx_mode_rps_cb(hdd_ctx,
+								sap_adapter,
+								true);
+		} else {
+			cds_warn("hdd_set_rx_mode_rps_cb NULL!");
+		}
 	};
 
 	/* set tdls connection tracker state */
@@ -4027,6 +4041,7 @@ void cds_decr_active_session(enum tQDF_ADAPTER_MODE mode,
 {
 	hdd_context_t *hdd_ctx;
 	cds_context_type *cds_ctx;
+	hdd_adapter_t *sap_adapter;
 
 	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
 	if (!cds_ctx) {
@@ -4069,13 +4084,25 @@ void cds_decr_active_session(enum tQDF_ADAPTER_MODE mode,
 			cds_ctx->hdd_en_lro_in_cc_cb(hdd_ctx);
 		else
 			cds_warn("hdd_enable_lro_in_concurrency NULL!");
-	};
+	}
+
+	/* Disable RPS if SAP interface has come up */
+	if (cds_mode_specific_connection_count(CDS_SAP_MODE, NULL) == 0) {
+		if (cds_ctx->hdd_set_rx_mode_rps_cb != NULL) {
+			sap_adapter = hdd_get_adapter(hdd_ctx, QDF_SAP_MODE);
+			if (sap_adapter != NULL)
+				cds_ctx->hdd_set_rx_mode_rps_cb(hdd_ctx,
+								sap_adapter,
+								false);
+		} else {
+			cds_warn("hdd_set_rx_mode_rps_cb NULL!");
+		}
+	}
 
 	/* set tdls connection tracker state */
 	cds_set_tdls_ct_mode(hdd_ctx);
 
 	cds_dump_current_concurrency();
-
 }
 
 /**
@@ -6714,7 +6741,7 @@ static void cds_sap_restart_handle(struct work_struct *work)
 		cds_ssr_unprotect(__func__);
 		return;
 	}
-	wlan_hdd_start_sap(sap_adapter);
+	wlan_hdd_start_sap(sap_adapter, false);
 
 	cds_change_sap_restart_required_status(false);
 	cds_ssr_unprotect(__func__);
@@ -6934,6 +6961,14 @@ static bool cds_sta_p2pgo_concur_handle(hdd_adapter_t *sta_adapter,
 					sta_adapter->sessionId);
 			if (true != ret) {
 				cds_err("sme_store_joinreq_param failed");
+				status = sme_scan_result_purge(
+						WLAN_HDD_GET_HAL_CTX(
+							sta_adapter),
+						scan_cache);
+				if (QDF_STATUS_SUCCESS != status) {
+					cds_err("sme_scan_result_purge failed");
+					/* Not returning */
+				}
 				/* Not returning */
 			}
 			cds_change_sta_conn_pending_status(true);
@@ -7344,9 +7379,13 @@ static void cds_check_sta_ap_concurrent_ch_intf(void *data)
 	if (intf_ch == 0)
 		return;
 
+	cds_info("SAP restarts due to MCC->SCC switch, orig chan: %d, new chan: %d",
+		hdd_ap_ctx->sapConfig.channel, intf_ch);
+
 	hdd_ap_ctx->sapConfig.channel = intf_ch;
 	hdd_ap_ctx->sapConfig.ch_params.ch_width =
 		hdd_ap_ctx->sapConfig.ch_width_orig;
+	hdd_ap_ctx->bss_stop_reason = BSS_STOP_DUE_TO_MCC_SCC_SWITCH;
 	cds_set_channel_params(hdd_ap_ctx->sapConfig.channel,
 			hdd_ap_ctx->sapConfig.sec_ch,
 			&hdd_ap_ctx->sapConfig.ch_params);

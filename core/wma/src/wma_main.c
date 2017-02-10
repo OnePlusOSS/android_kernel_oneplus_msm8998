@@ -7133,6 +7133,7 @@ QDF_STATUS wma_mc_process_msg(void *cds_context, cds_msg_t *msg)
 		wma_get_rcpi_req(wma_handle,
 				 (struct sme_rcpi_req *)msg->bodyptr);
 		qdf_mem_free(msg->bodyptr);
+		break;
 	case WMA_ENABLE_BCAST_FILTER:
 		wma_configure_non_arp_broadcast_filter(wma_handle,
 			(struct broadcast_filter_request *) msg->bodyptr);

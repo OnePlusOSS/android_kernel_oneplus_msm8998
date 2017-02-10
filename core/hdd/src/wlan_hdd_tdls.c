@@ -748,6 +748,11 @@ int wlan_hdd_tdls_init(hdd_adapter_t *pAdapter)
 	 */
 	if (0 == WLAN_HDD_IS_TDLS_SUPPORTED_ADAPTER(pAdapter)) {
 		mutex_unlock(&pHddCtx->tdls_lock);
+		/* Check whether connection tracker can be enabled in
+		 * the system.
+		 */
+		if (pAdapter->device_mode == QDF_P2P_DEVICE_MODE)
+			cds_set_tdls_ct_mode(pHddCtx);
 		return 0;
 	}
 	/* Check for the valid pHddTdlsCtx. If valid do not further
@@ -851,17 +856,6 @@ void wlan_hdd_tdls_exit(hdd_adapter_t *pAdapter)
 	if (!test_bit(TDLS_INIT_DONE, &pAdapter->event_flags)) {
 		hdd_info("TDLS init was not done, exit");
 		return;
-	}
-
-	pHddTdlsCtx = WLAN_HDD_GET_TDLS_CTX_PTR(pAdapter);
-	if (NULL == pHddTdlsCtx) {
-		/* TDLS context can be null and might have been freed up during
-		 * cleanup for STA adapter
-		 */
-		hdd_info("pHddTdlsCtx is NULL, adapter device mode: %s(%d)",
-			 hdd_device_mode_to_string(pAdapter->device_mode),
-			 pAdapter->device_mode);
-		goto done;
 	}
 
 	cds_flush_delayed_work(&pHddCtx->tdls_scan_ctxt.tdls_scan_work);
@@ -2057,10 +2051,15 @@ void wlan_hdd_tdls_notify_disconnect(hdd_adapter_t *adapter, bool lfr_roam)
 	if (!lfr_roam && !hdd_ctx->concurrency_marked) {
 		temp_adapter = wlan_hdd_tdls_get_adapter(
 					hdd_ctx);
-		if (NULL != temp_adapter)
+		if (NULL != temp_adapter) {
 			wlan_hdd_update_tdls_info(temp_adapter,
 						  false,
 						  false);
+			/* Enable connection tracker, if it is implicit and
+			 * external control mode.
+			 */
+			cds_set_tdls_ct_mode(hdd_ctx);
+		}
 	}
 }
 
@@ -2506,7 +2505,6 @@ void wlan_hdd_tdls_disconnection_callback(hdd_adapter_t *pAdapter)
 	wlan_hdd_tdls_check_power_save_prohibited(pHddTdlsCtx->pAdapter);
 
 	wlan_hdd_tdls_timers_stop(pHddTdlsCtx);
-	wlan_hdd_tdls_free_list(pHddTdlsCtx);
 
 	pHddTdlsCtx->curr_candidate = NULL;
 

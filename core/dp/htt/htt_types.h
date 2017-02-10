@@ -415,7 +415,19 @@ struct htt_pdev_t {
 	struct rx_buf_debug *rx_buff_list;
 	qdf_spinlock_t       rx_buff_list_lock;
 	int rx_buff_index;
+	int rx_buff_posted_cum;
+	int rx_buff_recvd_cum;
+	int rx_buff_recvd_err;
 #endif
+	/*
+	 * Counters below are being invoked from functions defined outside of
+	 * DEBUG_RX_RING_BUFFER
+	 */
+	int rx_buff_debt_invoked;
+	int rx_buff_fill_n_invoked;
+	int refill_retry_timer_starts;
+	int refill_retry_timer_calls;
+	int refill_retry_timer_doubles;
 
 	/* callback function for packetdump */
 	tp_rx_pkt_dump_cb rx_pkt_dump_cb;

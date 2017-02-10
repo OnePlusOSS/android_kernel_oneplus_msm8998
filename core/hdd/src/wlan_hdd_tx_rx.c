@@ -582,7 +582,11 @@ static int __hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	wlan_hdd_tdls_update_tx_pkt_cnt(pAdapter, skb);
 
-	++pAdapter->stats.tx_packets;
+	if (qdf_nbuf_is_tso(skb))
+		pAdapter->stats.tx_packets += qdf_nbuf_get_tso_num_seg(skb);
+	else {
+		++pAdapter->stats.tx_packets;
+	}
 
 	hdd_event_eapol_log(skb, QDF_TX);
 	qdf_dp_trace_log_pkt(pAdapter->sessionId, skb, QDF_TX);
@@ -591,7 +595,8 @@ static int __hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	qdf_dp_trace_set_track(skb, QDF_TX);
 	DPTRACE(qdf_dp_trace(skb, QDF_DP_TRACE_HDD_TX_PACKET_PTR_RECORD,
-			(uint8_t *)&skb->data, sizeof(skb->data), QDF_TX));
+			qdf_nbuf_data_addr(skb), sizeof(qdf_nbuf_data(skb)),
+			QDF_TX));
 	DPTRACE(qdf_dp_trace(skb, QDF_DP_TRACE_HDD_TX_PACKET_RECORD,
 			(uint8_t *)skb->data, qdf_nbuf_len(skb), QDF_TX));
 	if (qdf_nbuf_len(skb) > QDF_DP_TRACE_RECORD_SIZE) {
@@ -1041,10 +1046,16 @@ QDF_STATUS hdd_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 	}
 
 	hdd_event_eapol_log(skb, QDF_RX);
-	DPTRACE(qdf_dp_trace(rxBuf,
+	DPTRACE(qdf_dp_trace(skb,
 		QDF_DP_TRACE_RX_HDD_PACKET_PTR_RECORD,
-		qdf_nbuf_data_addr(rxBuf),
-		sizeof(qdf_nbuf_data(rxBuf)), QDF_RX));
+		qdf_nbuf_data_addr(skb),
+		sizeof(qdf_nbuf_data(skb)), QDF_RX));
+	DPTRACE(qdf_dp_trace(skb, QDF_DP_TRACE_HDD_RX_PACKET_RECORD,
+		(uint8_t *)skb->data, qdf_nbuf_len(skb), QDF_RX));
+	if (qdf_nbuf_len(skb) > QDF_DP_TRACE_RECORD_SIZE)
+		DPTRACE(qdf_dp_trace(skb, QDF_DP_TRACE_HDD_RX_PACKET_RECORD,
+			(uint8_t *)&skb->data[QDF_DP_TRACE_RECORD_SIZE],
+			(qdf_nbuf_len(skb)-QDF_DP_TRACE_RECORD_SIZE), QDF_RX));
 
 	wlan_hdd_tdls_update_rx_pkt_cnt(pAdapter, skb);
 
@@ -1445,9 +1456,17 @@ void hdd_send_rps_ind(hdd_adapter_t *adapter)
 	uint8_t cpu_map_list_len = 0;
 	hdd_context_t *hdd_ctxt = NULL;
 	struct wlan_rps_data rps_data;
+	struct cds_config_info *cds_cfg;
+
+	cds_cfg = cds_get_ini_config();
 
 	if (!adapter) {
 		hdd_err("adapter is NULL");
+		return;
+	}
+
+	if (!cds_cfg) {
+		hdd_err("cds_cfg is NULL");
 		return;
 	}
 
@@ -1486,10 +1505,58 @@ void hdd_send_rps_ind(hdd_adapter_t *adapter)
 				WLAN_SVC_RPS_ENABLE_IND,
 				&rps_data, sizeof(rps_data));
 
+	cds_cfg->rps_enabled = true;
+
+	return;
+
 err:
 	hdd_err("Wrong RPS configuration. enabling rx_thread");
-	hdd_ctxt->rps = false;
-	hdd_ctxt->enableRxThread = true;
+	cds_cfg->rps_enabled = false;
+}
+
+/**
+ * hdd_send_rps_disable_ind() - send rps disable indication to daemon
+ * @adapter: adapter context
+ *
+ * Return: none
+ */
+void hdd_send_rps_disable_ind(hdd_adapter_t *adapter)
+{
+	uint8_t cpu_map_list_len = 0;
+	hdd_context_t *hdd_ctxt = NULL;
+	struct wlan_rps_data rps_data;
+	struct cds_config_info *cds_cfg;
+
+	cds_cfg = cds_get_ini_config();
+
+	if (!adapter) {
+		hdd_err("adapter is NULL");
+		return;
+	}
+
+	if (!cds_cfg) {
+		hdd_err("cds_cfg is NULL");
+		return;
+	}
+
+	hdd_ctxt = WLAN_HDD_GET_CTX(adapter);
+	rps_data.num_queues = NUM_TX_QUEUES;
+
+	hdd_info("Set cpu_map_list 0");
+
+	qdf_mem_zero(&rps_data.cpu_map_list, sizeof(rps_data.cpu_map_list));
+	cpu_map_list_len = 0;
+	rps_data.num_queues =
+		(cpu_map_list_len < rps_data.num_queues) ?
+				cpu_map_list_len : rps_data.num_queues;
+
+	strlcpy(rps_data.ifname, adapter->dev->name,
+			sizeof(rps_data.ifname));
+	wlan_hdd_send_svc_nlink_msg(hdd_ctxt->radio_index,
+				WLAN_SVC_RPS_ENABLE_IND,
+				&rps_data, sizeof(rps_data));
+
+	cds_cfg->rps_enabled = false;
 }
 
 #ifdef MSM_PLATFORM
@@ -1503,10 +1570,14 @@ err:
  */
 void hdd_reset_tcp_delack(hdd_context_t *hdd_ctx)
 {
-	enum pld_bus_width_type next_level = PLD_BUS_WIDTH_LOW;
+	enum pld_bus_width_type next_level = WLAN_SVC_TP_LOW;
+	struct wlan_rx_tp_data rx_tp_data = {0};
 
+	rx_tp_data.rx_tp_flags |= TCP_DEL_ACK_IND;
+	rx_tp_data.rx_tp_flags |= TCP_ADV_WIN_SCL;
+	rx_tp_data.level = next_level;
 	hdd_ctx->rx_high_ind_cnt = 0;
 	wlan_hdd_send_svc_nlink_msg(hdd_ctx->radio_index, WLAN_SVC_WLAN_TP_IND,
-				    &next_level, sizeof(next_level));
+				    &rx_tp_data, sizeof(rx_tp_data));
 }
 #endif /* MSM_PLATFORM */

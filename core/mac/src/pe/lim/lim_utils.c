@@ -6646,7 +6646,7 @@ QDF_STATUS lim_send_ext_cap_ie(tpAniSirGlobal mac_ctx,
 	if (merge && NULL != extra_extcap && extra_extcap->num_bytes > 0) {
 		if (extra_extcap->num_bytes > ext_cap_data.num_bytes)
 			num_bytes = extra_extcap->num_bytes;
-		lim_merge_extcap_struct(&ext_cap_data, extra_extcap);
+		lim_merge_extcap_struct(&ext_cap_data, extra_extcap, true);
 	}
 
 	/* Allocate memory for the WMI request, and copy the parameter */
@@ -6808,10 +6808,10 @@ void lim_update_extcap_struct(tpAniSirGlobal mac_ctx,
 	}
 
 	qdf_mem_set((uint8_t *)&out[0], DOT11F_IE_EXTCAP_MAX_LEN, 0);
-	qdf_mem_copy(&out[0], &buf[2], DOT11F_IE_EXTCAP_MAX_LEN);
+	qdf_mem_copy(&out[0], &buf[2], buf[1]);
 
 	if (DOT11F_PARSE_SUCCESS != dot11f_unpack_ie_ext_cap(mac_ctx, &out[0],
-					DOT11F_IE_EXTCAP_MAX_LEN, dst))
+					buf[1], dst))
 		lim_log(mac_ctx, LOGE, FL("dot11f_unpack Parse Error "));
 }
 
@@ -6854,24 +6854,43 @@ tSirRetStatus lim_strip_extcap_update_struct(tpAniSirGlobal mac_ctx,
  * lim_merge_extcap_struct() - merge extended capabilities info
  * @dst: destination extended capabilities
  * @src: source extended capabilities
+ * @add: true if add the capabilites, false if strip the capabilites.
  *
- * This function is used to take @src info and merge it with @dst
- * extended capabilities info.
+ * This function is used to take @src info and add/strip it to/from
+ * @dst extended capabilities info.
  *
  * Return: None
  */
 void lim_merge_extcap_struct(tDot11fIEExtCap *dst,
-			     tDot11fIEExtCap *src)
+			     tDot11fIEExtCap *src,
+			     bool add)
 {
 	uint8_t *tempdst = (uint8_t *)dst->bytes;
 	uint8_t *tempsrc = (uint8_t *)src->bytes;
 	uint8_t structlen = member_size(tDot11fIEExtCap, bytes);
 
+	/* Return if @src not present */
+	if (!src->present)
+		return;
+
+	/* Return if strip the capabilites from @dst which not present */
+	if (!dst->present && !add)
+		return;
+
+	/* Merge the capabilites info in other cases */
 	while (tempdst && tempsrc && structlen--) {
-		*tempdst |= *tempsrc;
+		if (add)
+			*tempdst |= *tempsrc;
+		else
+			*tempdst &= *tempsrc;
 		tempdst++;
 		tempsrc++;
 	}
+	dst->num_bytes = lim_compute_ext_cap_ie_length(dst);
+	if (dst->num_bytes == 0)
+		dst->present = 0;
+	else
+		dst->present = 1;
 }
 
 /**
@@ -7128,24 +7147,23 @@ bool lim_is_robust_mgmt_action_frame(uint8_t action_category)
 }
 
 /**
- * lim_is_ext_cap_ie_present - checks if ext ie is present
+ * lim_compute_ext_cap_ie_length - compute the length of ext cap ie
+ * based on the bits set
  * @ext_cap: extended IEs structure
  *
- * Return: true if ext IEs are present else false
+ * Return: length of the ext cap ie, 0 means should not present
  */
-bool lim_is_ext_cap_ie_present (struct s_ext_cap *ext_cap)
+uint8_t lim_compute_ext_cap_ie_length(tDot11fIEExtCap *ext_cap)
 {
-	int i, size;
-	uint8_t *tmp_buf;
+	uint8_t i = DOT11F_IE_EXTCAP_MAX_LEN;
 
-	tmp_buf = (uint8_t *) ext_cap;
-	size = sizeof(*ext_cap);
+	while (i) {
+		if (ext_cap->bytes[i-1])
+			break;
+		i--;
+	}
 
-	for (i = 0; i < size; i++)
-		if (tmp_buf[i])
-			return true;
-
-	return false;
+	return i;
 }
 
 /**
@@ -7289,4 +7307,35 @@ void lim_update_last_processed_frame(last_processed_msg *last_processed_frm,
 
 	qdf_mem_copy(last_processed_frm->sa, pHdr->sa, ETH_ALEN);
 	last_processed_frm->seq_num = seq_num;
+}
+
+tCsrRoamSession *lim_get_session_by_macaddr(tpAniSirGlobal mac_ctx,
+		tSirMacAddr self_mac)
+{
+	int i = 0;
+	tCsrRoamSession *session;
+
+	if (!mac_ctx || !self_mac) {
+		QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_ERROR,
+			  FL("Invalid arguments"));
+		return NULL;
+	}
+
+	for (i = 0; i < mac_ctx->sme.max_intf_count; i++) {
+		session = CSR_GET_SESSION(mac_ctx, i);
+		if (!session)
+			continue;
+		else if (!qdf_mem_cmp(&session->selfMacAddr,
+			 self_mac, sizeof(tSirMacAddr))) {
+
+			QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_INFO,
+				  FL("session %d exists with mac address "
+				  MAC_ADDRESS_STR), session->sessionId,
+				  MAC_ADDR_ARRAY(self_mac));
+
+			return session;
+		}
+	}
+
+	return NULL;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006-2007, 2014-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2006-2007, 2014-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -2270,7 +2270,7 @@ IE ChannelSwitchWrapper (EID_CHANNEL_SWITCH_WRAPPER)
 }
 IE ExtCap (EID_EXT_CAP)
 {
-    bytes[8..9];
+    bytes[1..9];
 }
 
 IE HTCaps (EID_HT_CAPABILITIES)

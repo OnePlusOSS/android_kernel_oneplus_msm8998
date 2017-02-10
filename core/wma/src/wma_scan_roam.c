@@ -2333,7 +2333,9 @@ int wma_roam_synch_event_handler(void *handle, uint8_t *event,
 	}
 
 	wma_peer_debug_log(synch_event->vdev_id, DEBUG_ROAM_SYNCH_IND,
-			   DEBUG_INVALID_PEER_ID, NULL, NULL, 0, 0);
+			   DEBUG_INVALID_PEER_ID, NULL, NULL,
+			   synch_event->bssid.mac_addr31to0,
+			   synch_event->bssid.mac_addr47to32);
 
 	DPTRACE(qdf_dp_trace_record_event(QDF_DP_TRACE_EVENT_RECORD,
 		synch_event->vdev_id, QDF_PROTO_TYPE_EVENT, QDF_ROAM_SYNCH));
@@ -2914,15 +2916,6 @@ void wma_set_channel(tp_wma_handle wma, tpSwitchChannelParams params)
 
 	qdf_mem_zero(&req, sizeof(req));
 	req.vdev_id = vdev_id;
-	msg = wma_fill_vdev_req(wma, req.vdev_id, WMA_CHNL_SWITCH_REQ,
-				WMA_TARGET_REQ_TYPE_VDEV_START, params,
-				WMA_VDEV_START_REQUEST_TIMEOUT);
-	if (!msg) {
-		WMA_LOGP("%s: Failed to fill channel switch request for vdev %d",
-			__func__, req.vdev_id);
-		status = QDF_STATUS_E_NOMEM;
-		goto send_resp;
-	}
 	req.chan = params->channelNumber;
 	req.chan_width = params->ch_width;
 
@@ -2969,6 +2962,16 @@ void wma_set_channel(tp_wma_handle wma, tpSwitchChannelParams params)
 
 		ol_htt_mon_note_chan(pdev, req.chan);
 	} else {
+
+		msg = wma_fill_vdev_req(wma, req.vdev_id, WMA_CHNL_SWITCH_REQ,
+				WMA_TARGET_REQ_TYPE_VDEV_START, params,
+				WMA_VDEV_START_REQUEST_TIMEOUT);
+		if (!msg) {
+			WMA_LOGP("%s: Failed to fill channel switch request for vdev %d",
+				__func__, req.vdev_id);
+			status = QDF_STATUS_E_NOMEM;
+			goto send_resp;
+		}
 		status = wma_vdev_start(wma, &req,
 				wma->interfaces[req.vdev_id].is_channel_switch);
 		if (status != QDF_STATUS_SUCCESS) {
@@ -5280,12 +5283,6 @@ QDF_STATUS  wma_ipa_offload_enable_disable(tp_wma_handle wma,
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	if (cds_is_driver_recovering()) {
-		WMA_LOGE("%s Recovery in Progress. State: 0x%x Ignore!!!",
-			__func__, cds_get_driver_state());
-		return QDF_STATUS_E_FAILURE;
-	}
-
 	if (ipa_offload->offload_type > STA_RX_DATA_OFFLOAD) {
 		return QDF_STATUS_E_INVAL;
 	}
@@ -5731,6 +5728,12 @@ int wma_roam_event_callback(WMA_HANDLE handle, uint8_t *event_buf,
 	WMA_LOGD("%s: Reason %x, Notif %x for vdevid %x, rssi %d",
 		 __func__, wmi_event->reason, wmi_event->notif,
 		 wmi_event->vdev_id, wmi_event->rssi);
+	wma_peer_debug_log(wmi_event->vdev_id, DEBUG_ROAM_EVENT,
+			   DEBUG_INVALID_PEER_ID, NULL, NULL,
+			   wmi_event->reason,
+			   (wmi_event->reason == WMI_ROAM_REASON_INVALID) ?
+				wmi_event->notif : wmi_event->rssi);
+
 
 	DPTRACE(qdf_dp_trace_record_event(QDF_DP_TRACE_EVENT_RECORD,
 		wmi_event->vdev_id, QDF_PROTO_TYPE_EVENT, QDF_ROAM_EVENTID));

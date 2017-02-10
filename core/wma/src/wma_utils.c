@@ -4035,19 +4035,19 @@ static char *wma_peer_debug_string(uint32_t op)
 {
 	switch (op) {
 	case DEBUG_PEER_CREATE_SEND:
-		return "peer_create_send";
+		return "peer create send";
 	case DEBUG_PEER_CREATE_RESP:
-		return "peer_create_resp_event";
+		return "peer create resp_event";
 	case DEBUG_PEER_DELETE_SEND:
-		return "peer_delete_send";
+		return "peer delete send";
 	case DEBUG_PEER_DELETE_RESP:
-		return "peer_delete_resp_event";
+		return "peer delete resp_event";
 	case DEBUG_PEER_MAP_EVENT:
-		return "peer_map_event";
+		return "peer map event";
 	case DEBUG_PEER_UNMAP_EVENT:
-		return "peer_unmap_event";
+		return "peer unmap event";
 	case DEBUG_PEER_UNREF_DELETE:
-		return "peer_unref_delete";
+		return "peer unref delete";
 	case DEBUG_DELETING_PEER_OBJ:
 		return "peer obj deleted";
 	case DEBUG_ROAM_SYNCH_IND:
@@ -4064,8 +4064,10 @@ static char *wma_peer_debug_string(uint32_t op)
 		return "host suspend";
 	case DEBUG_BUS_RESUME:
 		return "host wakeup";
+	case DEBUG_WOW_REASON:
+		return "wow wakeup reason";
 	default:
-		return "Unknown";
+		return "unknown";
 	}
 }
 
@@ -4081,6 +4083,9 @@ void wma_peer_debug_dump(void)
 	uint32_t i;
 	uint32_t current_index;
 	struct peer_debug_rec *dbg_rec;
+	uint64_t startt = 0;
+
+#define DEBUG_CLOCK_TICKS_PER_MSEC 19200
 
 	current_index = qdf_atomic_read(&wma->peer_dbg->index);
 	if (current_index < 0) {
@@ -4090,8 +4095,7 @@ void wma_peer_debug_dump(void)
 		WMA_LOGE("%s: Dumping all records. current index %d",
 			 __func__, current_index);
 	}
-	WMA_LOGE("Index Time               Info                     vdev "
-		 "mac_addr          peer               peer_id arg1       arg2");
+
 	i = current_index;
 	do {
 		/* wrap around */
@@ -4100,9 +4104,17 @@ void wma_peer_debug_dump(void)
 		/* skip unused entry */
 		if (dbg_rec->time == 0)
 			continue;
-		WMA_LOGE("%5d 0x%016llx %-24s %-4d %pM 0x%p %-4d    0x%-8x 0x%-8x",
+		if (startt == 0)
+			startt = dbg_rec->time;
+
+		WMA_LOGE("index = %5d timestamp = 0x%016llx delta ms = %-9d "
+			 "info = %-24s vdev_id = %-3d mac addr = %pM "
+			 "peer obj = 0x%p peer_id = %-4d "
+			 "arg1 = 0x%-8x arg2 = 0x%-8x",
 			 i,
 			 dbg_rec->time,
+			 ((int32_t) ((dbg_rec->time - startt) & 0xffffffff)) /
+				DEBUG_CLOCK_TICKS_PER_MSEC,
 			 wma_peer_debug_string(dbg_rec->operation),
 			 (int8_t) dbg_rec->vdev_id,
 			 dbg_rec->mac_addr.bytes,

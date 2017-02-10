@@ -720,6 +720,20 @@ typedef struct hdd_hostapd_state_s {
 
 } hdd_hostapd_state_t;
 
+/**
+ * enum bss_stop_reason - reasons why a BSS is stopped.
+ * @BSS_STOP_REASON_INVALID: no reason specified explicitly.
+ * @BSS_STOP_DUE_TO_MCC_SCC_SWITCH: BSS stopped due to host
+ *  driver is trying to switch AP role to a different channel
+ *  to maintain SCC mode with the STA role on the same card.
+ *  this usually happens when STA is connected to an external
+ *  AP that runs on a different channel
+ */
+enum bss_stop_reason {
+	BSS_STOP_REASON_INVALID = 0,
+	BSS_STOP_DUE_TO_MCC_SCC_SWITCH = 1,
+};
+
 /*
  * Per station structure kept in HDD for multiple station support for SoftAP
  */
@@ -799,6 +813,8 @@ struct hdd_ap_ctx_s {
 	void *sapContext;
 
 	bool dfs_cac_block_tx;
+
+	enum bss_stop_reason bss_stop_reason;
 };
 
 typedef struct hdd_scaninfo_s {
@@ -1639,6 +1655,7 @@ struct hdd_context_s {
 	unsigned long last_scan_reject_timestamp;
 	uint8_t beacon_probe_rsp_cnt_per_scan;
 	bool rcpi_enabled;
+	bool imps_enabled;
 };
 
 /*---------------------------------------------------------------------------
@@ -1832,7 +1849,7 @@ QDF_STATUS wlan_hdd_check_custom_con_channel_rules(hdd_adapter_t *sta_adapter,
 						  tScanResultHandle *scan_cache,
 						  bool *concurrent_chnl_same);
 void wlan_hdd_stop_sap(hdd_adapter_t *ap_adapter);
-void wlan_hdd_start_sap(hdd_adapter_t *ap_adapter);
+void wlan_hdd_start_sap(hdd_adapter_t *ap_adapter, bool reinit);
 
 void wlan_hdd_soc_set_antenna_mode_cb(enum set_antenna_mode_status status);
 
@@ -2093,4 +2110,6 @@ void hdd_set_roaming_in_progress(bool value);
  * Return: 0 if interface was opened else false
  */
 bool hdd_check_for_opened_interfaces(hdd_context_t *hdd_ctx);
+void wlan_hdd_start_sap(hdd_adapter_t *ap_adapter, bool reinit);
+void hdd_set_rx_mode_rps(hdd_context_t *hdd_ctx, void *padapter, bool enable);
 #endif /* end #if !defined(WLAN_HDD_MAIN_H) */

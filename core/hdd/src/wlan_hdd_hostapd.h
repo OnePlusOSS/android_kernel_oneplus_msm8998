@@ -54,7 +54,7 @@ hdd_adapter_t *hdd_wlan_create_ap_dev(hdd_context_t *pHddCtx,
 
 QDF_STATUS hdd_register_hostapd(hdd_adapter_t *pAdapter, uint8_t rtnl_held);
 
-QDF_STATUS hdd_unregister_hostapd(hdd_adapter_t *pAdapter, bool rtnl_held);
+int hdd_unregister_hostapd(hdd_adapter_t *pAdapter, bool rtnl_held);
 
 eCsrAuthType
 hdd_translate_rsn_to_csr_auth_type(uint8_t auth_suite[4]);
@@ -95,7 +95,7 @@ int hdd_softap_unpack_ie(tHalHandle halHandle,
 
 QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 				    void *usrDataForCallback);
-QDF_STATUS hdd_init_ap_mode(hdd_adapter_t *pAdapter);
+QDF_STATUS hdd_init_ap_mode(hdd_adapter_t *pAdapter, bool reinit);
 void hdd_set_ap_ops(struct net_device *pWlanHostapdDev);
 int hdd_hostapd_stop(struct net_device *dev);
 int hdd_sap_context_init(hdd_context_t *hdd_ctx);
@@ -134,5 +134,6 @@ QDF_STATUS wlan_hdd_config_acs(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter);
  */
 bool hdd_is_peer_associated(hdd_adapter_t *adapter,
 			    struct qdf_mac_addr *mac_addr);
-
+void hdd_sap_indicate_disconnect_for_sta(hdd_adapter_t *adapter);
+void hdd_sap_destroy_events(hdd_adapter_t *adapter);
 #endif /* end #if !defined(WLAN_HDD_HOSTAPD_H) */

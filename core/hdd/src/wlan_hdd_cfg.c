@@ -4291,6 +4291,13 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		CFG_HW_FILTER_DEFAULT,
 		CFG_HW_FILTER_MIN,
 		CFG_HW_FILTER_MAX),
+
+	REG_VARIABLE(CFG_SAP_INTERNAL_RESTART_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, sap_internal_restart,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_SAP_INTERNAL_RESTART_DEFAULT,
+		CFG_SAP_INTERNAL_RESTART_MIN,
+		CFG_SAP_INTERNAL_RESTART_MAX),
 };
 
 /**
@@ -5771,6 +5778,9 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 		CFG_HW_BC_FILTER_NAME,
 		pHddCtx->config->hw_broadcast_filter);
 	hdd_per_roam_print_ini_config(pHddCtx);
+	hdd_info("Name = [%s] Value = [%d]",
+		CFG_SAP_INTERNAL_RESTART_NAME,
+		pHddCtx->config->sap_internal_restart);
 }
 
 
@@ -6113,16 +6123,25 @@ eCsrPhyMode hdd_cfg_xlate_to_csr_phy_mode(eHddDot11Mode dot11Mode)
  * Return: QDF_STATUS_SUCCESS if command set correctly,
  *		otherwise the QDF_STATUS return from SME layer
  */
-QDF_STATUS hdd_set_idle_ps_config(hdd_context_t *pHddCtx, uint32_t val)
+QDF_STATUS hdd_set_idle_ps_config(hdd_context_t *pHddCtx, bool val)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 
+	if (pHddCtx->imps_enabled == val) {
+		hdd_notice("Already in the requested power state:%d", val);
+		return QDF_STATUS_SUCCESS;
+	}
+
 	hdd_notice("hdd_set_idle_ps_config: Enter Val %d", val);
 
-	status = sme_set_idle_powersave_config(pHddCtx->pcds_context,
-			pHddCtx->hHal, val);
-	if (QDF_STATUS_SUCCESS != status)
+	status = sme_set_idle_powersave_config(val);
+	if (QDF_STATUS_SUCCESS != status) {
 		hdd_err("Fail to Set Idle PS Config val %d", val);
+		return status;
+	}
+
+	pHddCtx->imps_enabled = val;
+
 	return status;
 }
 

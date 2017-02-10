@@ -4746,7 +4746,7 @@ typedef enum {
  * <ini>
  * gTDLSPrefOffChanBandwidth - Preferred TDLS channel bandwidth when
  * off-channel support is enabled.
- * @Min: 0
+ * @Min: 0x01
  * @Max: 0x0F
  * @Default: 0x07
  *
@@ -4765,7 +4765,7 @@ typedef enum {
  * </ini>
  */
 #define CFG_TDLS_PREFERRED_OFF_CHANNEL_BW           "gTDLSPrefOffChanBandwidth"
-#define CFG_TDLS_PREFERRED_OFF_CHANNEL_BW_MIN      (0)
+#define CFG_TDLS_PREFERRED_OFF_CHANNEL_BW_MIN      (0x01)
 #define CFG_TDLS_PREFERRED_OFF_CHANNEL_BW_MAX      (0x0F)
 #define CFG_TDLS_PREFERRED_OFF_CHANNEL_BW_DEFAULT  (0x07)
 
@@ -6622,6 +6622,24 @@ enum dot11p_mode {
 #define CFG_CE_CLASSIFY_ENABLE_MAX	(1)
 #define CFG_CE_CLASSIFY_ENABLE_DEFAULT	(1)
 
+/*
+ * <ini>
+ * gDualMacFeatureDisable - Disable Dual MAC feature.
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to enable/disable dual MAC feature.
+ * 0 - enable DBS  1 - disable DBS
+ *
+ * Related: None.
+ *
+ * Supported Feature: DBS
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_DUAL_MAC_FEATURE_DISABLE               "gDualMacFeatureDisable"
 #define CFG_DUAL_MAC_FEATURE_DISABLE_MIN          (0)
 #define CFG_DUAL_MAC_FEATURE_DISABLE_MAX          (1)
@@ -7334,6 +7352,11 @@ enum dot11p_mode {
 #define CFG_TGT_GTX_USR_CFG_MIN     (0)
 #define CFG_TGT_GTX_USR_CFG_MAX     (32)
 #define CFG_TGT_GTX_USR_CFG_DEFAULT (32)
+
+#define CFG_SAP_INTERNAL_RESTART_NAME    "gEnableSapInternalRestart"
+#define CFG_SAP_INTERNAL_RESTART_MIN     (0)
+#define CFG_SAP_INTERNAL_RESTART_MAX     (1)
+#define CFG_SAP_INTERNAL_RESTART_DEFAULT (1)
 
 /*
  * This parameter will avoid updating ap_sta_inactivity from hostapd.conf
@@ -9076,6 +9099,7 @@ struct hdd_config {
 	uint8_t enable_phy_reg_retention;
 	enum active_bpf_mode active_bpf_mode;
 	bool hw_broadcast_filter;
+	bool sap_internal_restart;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))
@@ -9200,7 +9224,7 @@ QDF_STATUS hdd_execute_global_config_command(hdd_context_t *pHddCtx,
 					     char *command);
 
 bool hdd_is_okc_mode_enabled(hdd_context_t *pHddCtx);
-QDF_STATUS hdd_set_idle_ps_config(hdd_context_t *pHddCtx, uint32_t val);
+QDF_STATUS hdd_set_idle_ps_config(hdd_context_t *pHddCtx, bool val);
 
 void hdd_update_tgt_cfg(void *context, void *param);
 bool hdd_dfs_indicate_radar(void *context, void *param);

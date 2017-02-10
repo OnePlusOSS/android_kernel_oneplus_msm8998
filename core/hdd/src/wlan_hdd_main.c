@@ -3606,6 +3606,12 @@ QDF_STATUS hdd_stop_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 
 	ENTER();
 
+	if (!test_bit(DEVICE_IFACE_OPENED, &adapter->event_flags)) {
+		hdd_info("interface %d is not up %lu",
+			adapter->device_mode, adapter->event_flags);
+		return -ENODEV;
+	}
+
 	scan_info = &adapter->scan_info;
 	hdd_notice("Disabling queues");
 	wlan_hdd_netif_queue_control(adapter, WLAN_NETIF_TX_DISABLE_N_CARRIER,

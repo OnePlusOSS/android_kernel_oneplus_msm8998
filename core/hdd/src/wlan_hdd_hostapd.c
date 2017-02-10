@@ -311,11 +311,6 @@ static int __hdd_hostapd_stop(struct net_device *dev)
 		return -ENODEV;
 	}
 
-	if (!test_bit(DEVICE_IFACE_OPENED, &adapter->event_flags)) {
-		hdd_info("iface is not in open state, flags: %lu",
-			adapter->event_flags);
-		return 0;
-	}
 	if (!sap_ctx) {
 		hdd_err("invalid sap ctx : %p", sap_ctx);
 		return -ENODEV;

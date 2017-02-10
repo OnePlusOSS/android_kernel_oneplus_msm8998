@@ -5764,7 +5764,7 @@ QDF_STATUS csr_roam_process_command(tpAniSirGlobal pMac, tSmeCmd *pCommand)
 				sessionId);
 		csr_roam_substate_change(pMac, eCSR_ROAM_SUBSTATE_DISASSOC_REQ,
 				sessionId);
-		sms_log(pMac, LOG1, FL("Diassociate issued with reason: %d"),
+		sms_log(pMac, LOG1, FL("Disassociate issued with reason: %d"),
 			pCommand->u.roamCmd.reason);
 		status = csr_send_mb_disassoc_req_msg(pMac, sessionId,
 				pCommand->u.roamCmd.peerMac,

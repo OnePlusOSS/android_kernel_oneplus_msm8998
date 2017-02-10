@@ -104,6 +104,7 @@
 #define DEVICE_IFACE_OPENED    (5)
 #define TDLS_INIT_DONE         (6)
 #define ACS_PENDING            (7)
+#define SOFTAP_INIT_DONE       (8)
 
 /* HDD global event flags */
 #define ACS_IN_PROGRESS        (0)

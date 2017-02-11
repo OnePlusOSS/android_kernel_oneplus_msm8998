@@ -134,6 +134,8 @@ typedef void (*wma_peer_authorized_fp) (uint32_t vdev_id);
 
 QDF_STATUS wma_pre_start(void *cds_context);
 
+void wma_mc_discard_msg(cds_msg_t *msg);
+
 QDF_STATUS wma_mc_process_msg(void *cds_context, cds_msg_t *msg);
 
 QDF_STATUS wma_start(void *cds_context);

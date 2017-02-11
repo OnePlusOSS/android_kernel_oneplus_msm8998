@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1321,14 +1321,8 @@ void cds_sched_flush_mc_mqs(p_cds_sched_context pSchedContext)
 			QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_INFO,
 				  "%s: Freeing MC WMA MSG message type %d",
 				  __func__, pMsgWrapper->pVosMsg->type);
-			if (pMsgWrapper->pVosMsg->bodyptr) {
-				qdf_mem_free((void *)pMsgWrapper->
-					     pVosMsg->bodyptr);
-			}
 
-			pMsgWrapper->pVosMsg->bodyptr = NULL;
-			pMsgWrapper->pVosMsg->bodyval = 0;
-			pMsgWrapper->pVosMsg->type = 0;
+			wma_mc_discard_msg(pMsgWrapper->pVosMsg);
 		}
 		cds_core_return_msg(pSchedContext->pVContext, pMsgWrapper);
 	}

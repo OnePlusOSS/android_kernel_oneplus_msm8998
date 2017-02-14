@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -487,4 +487,7 @@ int ce_lro_flush_cb_register(struct hif_opaque_softc *scn,
 int ce_lro_flush_cb_deregister(struct hif_opaque_softc *hif_hdl,
 			       void (lro_deinit_cb)(void *));
 #endif
+
+int hif_ce_bus_early_suspend(struct hif_softc *scn);
+int hif_ce_bus_late_resume(struct hif_softc *scn);
 #endif /* __COPY_ENGINE_API_H__ */

@@ -6288,6 +6288,24 @@ static QDF_STATUS wma_process_power_debug_stats_req(tp_wma_handle wma_handle)
 }
 #endif
 
+void wma_mc_discard_msg(cds_msg_t *msg)
+{
+	switch (msg->type) {
+	case WMA_PROCESS_FW_EVENT:
+		qdf_nbuf_free(((wma_process_fw_event_params *)msg->bodyptr)->
+			      evt_buf);
+	break;
+	}
+
+	if (msg->bodyptr) {
+		qdf_mem_free(msg->bodyptr);
+	}
+
+	msg->bodyptr = NULL;
+	msg->bodyval = 0;
+	msg->type = 0;
+}
+
 /**
  * wma_mc_process_msg() - process wma messages and call appropriate function.
  * @cds_context: cds context

@@ -491,6 +491,18 @@ static void wlan_hdd_notify_handler(int state)
 }
 
 /**
+ * wlan_hdd_update_status() - update driver status
+ * @status: driver status
+ *
+ * Return: void
+ */
+static void wlan_hdd_update_status(uint32_t status)
+{
+	if (status == PLD_RECOVERY)
+		cds_set_recovery_in_progress(true);
+}
+
+/**
  * __wlan_hdd_bus_suspend() - handles platform supsend
  * @state: suspend message from the kernel
  * @wow_flags: bitmap of WMI WOW flags to pass to FW
@@ -539,10 +551,16 @@ static int __wlan_hdd_bus_suspend(pm_message_t state, uint32_t wow_flags)
 		goto done;
 	}
 
+	err = hif_bus_early_suspend(hif_ctx);
+	if (err) {
+		hdd_err("Failed hif bus early suspend");
+		goto resume_oltxrx;
+	}
+
 	err = wma_bus_suspend(wow_flags);
 	if (err) {
 		hdd_err("Failed wma bus suspend");
-		goto resume_oltxrx;
+		goto late_hif_resume;
 	}
 
 	err = hif_bus_suspend(hif_ctx);
@@ -556,6 +574,9 @@ static int __wlan_hdd_bus_suspend(pm_message_t state, uint32_t wow_flags)
 
 resume_wma:
 	status = wma_bus_resume();
+	QDF_BUG(!status);
+late_hif_resume:
+	status = hif_bus_late_resume(hif_ctx);
 	QDF_BUG(!status);
 resume_oltxrx:
 	status = ol_txrx_bus_resume();
@@ -714,6 +735,12 @@ static int __wlan_hdd_bus_resume(void)
 	status = wma_bus_resume();
 	if (status) {
 		hdd_err("Failed wma bus resume");
+		goto out;
+	}
+
+	status = hif_bus_late_resume(hif_ctx);
+	if (status) {
+		hdd_err("Failed hif bus late resume");
 		goto out;
 	}
 
@@ -1137,6 +1164,18 @@ static void wlan_hdd_pld_notify_handler(struct device *dev,
 	wlan_hdd_notify_handler(state);
 }
 
+/**
+ * wlan_hdd_pld_update_status() - update driver status
+ * @dev: device
+ * @status: driver status
+ *
+ * Return: void
+ */
+static void wlan_hdd_pld_update_status(struct device *dev, uint32_t status)
+{
+	wlan_hdd_update_status(status);
+}
+
 #ifdef FEATURE_RUNTIME_PM
 /**
  * wlan_hdd_pld_runtime_suspend() - runtime suspend function registered to PLD
@@ -1177,6 +1216,7 @@ struct pld_driver_ops wlan_drv_ops = {
 	.resume_noirq  = wlan_hdd_pld_resume_noirq,
 	.reset_resume = wlan_hdd_pld_reset_resume,
 	.modem_status = wlan_hdd_pld_notify_handler,
+	.update_status = wlan_hdd_pld_update_status,
 #ifdef FEATURE_RUNTIME_PM
 	.runtime_suspend = wlan_hdd_pld_runtime_suspend,
 	.runtime_resume = wlan_hdd_pld_runtime_resume,

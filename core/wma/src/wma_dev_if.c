@@ -1243,7 +1243,7 @@ QDF_STATUS wma_create_peer(tp_wma_handle wma, ol_txrx_pdev_handle pdev,
 		ol_txrx_peer_detach(peer);
 		goto err;
 	}
-	WMA_LOGE("%s: Created peer %p ref_cnt %d with peer_addr %pM vdev_id %d, peer_count - %d",
+	WMA_LOGI("%s: Created peer %p ref_cnt %d with peer_addr %pM vdev_id %d, peer_count - %d",
 		  __func__, peer, qdf_atomic_read(&peer->ref_cnt),
 		  peer_addr, vdev_id,
 		  wma->interfaces[vdev_id].peer_count);

@@ -1230,7 +1230,7 @@ ol_tx_non_std_ll(ol_txrx_vdev_handle vdev,
 			ol_tx_desc_frame_free_nonstd(pdev, tx_desc, 1);	\
 			if (tx_msdu_info.peer) { \
 				/* remove the peer reference added above */ \
-				ol_txrx_peer_unref_delete(tx_msdu_info.peer); \
+				OL_TXRX_PEER_UNREF_DELETE(tx_msdu_info.peer); \
 			} \
 			goto MSDU_LOOP_BOTTOM; \
 		} \
@@ -1440,7 +1440,7 @@ int ol_txrx_mgmt_send_frame(
 					     1 /* error */);
 		if (tx_msdu_info->peer) {
 			/* remove the peer reference added above */
-			ol_txrx_peer_unref_delete(tx_msdu_info->peer);
+			OL_TXRX_PEER_UNREF_DELETE(tx_msdu_info->peer);
 		}
 		return 1; /* can't accept the tx mgmt frame */
 	}
@@ -1464,7 +1464,7 @@ int ol_txrx_mgmt_send_frame(
 	ol_tx_enqueue(vdev->pdev, txq, tx_desc, tx_msdu_info);
 	if (tx_msdu_info->peer) {
 		/* remove the peer reference added above */
-		ol_txrx_peer_unref_delete(tx_msdu_info->peer);
+		OL_TXRX_PEER_UNREF_DELETE(tx_msdu_info->peer);
 	}
 	ol_tx_sched(vdev->pdev);
 
@@ -1666,7 +1666,7 @@ ol_tx_hl_base(
 				if (tx_msdu_info.peer) {
 					/* remove the peer reference
 					 * added above */
-					ol_txrx_peer_unref_delete(
+					OL_TXRX_PEER_UNREF_DELETE(
 							tx_msdu_info.peer);
 				}
 				goto MSDU_LOOP_BOTTOM;
@@ -1682,7 +1682,7 @@ ol_tx_hl_base(
 					ol_tx_desc_frame_free_nonstd(pdev,
 								     tx_desc,
 								     1);
-					ol_txrx_peer_unref_delete(
+					OL_TXRX_PEER_UNREF_DELETE(
 							tx_msdu_info.peer);
 					msdu = next;
 					continue;
@@ -1698,7 +1698,7 @@ ol_tx_hl_base(
 						ol_tx_desc_frame_free_nonstd(
 								pdev,
 								tx_desc, 1);
-						ol_txrx_peer_unref_delete(
+						OL_TXRX_PEER_UNREF_DELETE(
 							tx_msdu_info.peer);
 						msdu = next;
 						continue;
@@ -1746,7 +1746,7 @@ ol_tx_hl_base(
 				OL_TX_PEER_STATS_UPDATE(tx_msdu_info.peer,
 							msdu);
 				/* remove the peer reference added above */
-				ol_txrx_peer_unref_delete(tx_msdu_info.peer);
+				OL_TXRX_PEER_UNREF_DELETE(tx_msdu_info.peer);
 			}
 MSDU_LOOP_BOTTOM:
 			msdu = next;

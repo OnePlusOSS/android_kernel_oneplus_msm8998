@@ -357,7 +357,7 @@ struct ol_txrx_peer_t *ol_tx_tdls_peer_find(struct ol_txrx_pdev_t *pdev,
 			peer = NULL;
 		} else {
 			if (peer)
-				qdf_atomic_inc(&peer->ref_cnt);
+				OL_TXRX_PEER_INC_REF_CNT(peer);
 		}
 	}
 	if (!peer)
@@ -588,11 +588,8 @@ ol_tx_classify(
 		 */
 		if (tx_msdu_info->htt.info.peer_id == HTT_INVALID_PEER_ID) {
 			if (peer) {
-				TXRX_PRINT(TXRX_PRINT_LEVEL_ERR,
-					   "%s: remove the peer for invalid peer_id %p\n",
-					   __func__, peer);
 				/* remove the peer reference added above */
-				ol_txrx_peer_unref_delete(peer);
+				OL_TXRX_PEER_UNREF_DELETE(peer);
 				tx_msdu_info->peer = NULL;
 			}
 			return NULL;
@@ -615,7 +612,7 @@ ol_tx_classify(
 			   "%s: remove the peer reference %p\n",
 			   __func__, peer);
 		/* remove the peer reference added above */
-		ol_txrx_peer_unref_delete(tx_msdu_info->peer);
+		OL_TXRX_PEER_UNREF_DELETE(tx_msdu_info->peer);
 		/* Making peer NULL in case if multicast non STA mode */
 		tx_msdu_info->peer = NULL;
 	}
@@ -692,11 +689,7 @@ ol_tx_classify_mgmt(
 				if (ol_txrx_peer_find_mac_addr_cmp(
 							mac_addr,
 							&peer->mac_addr) != 0) {
-					rcnt = ol_txrx_peer_unref_delete(peer);
-					QDF_TRACE(QDF_MODULE_ID_TXRX,
-						 QDF_TRACE_LEVEL_INFO_HIGH,
-						 "%s: peer %p peer->ref_cnt %d",
-						 __func__, peer, rcnt);
+					rcnt = OL_TXRX_PEER_UNREF_DELETE(peer);
 					peer = NULL;
 				}
 			}

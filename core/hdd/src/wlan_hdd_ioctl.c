@@ -6934,6 +6934,7 @@ static const hdd_drv_cmd_t hdd_drv_cmds[] = {
 	{"CHANNEL_SWITCH",            drv_cmd_set_channel_switch},
 	{"SETANTENNAMODE",            drv_cmd_set_antenna_mode},
 	{"GETANTENNAMODE",            drv_cmd_get_antenna_mode},
+	{"STOP",                      drv_cmd_dummy},
 };
 
 /**

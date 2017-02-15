@@ -303,13 +303,12 @@ static int __hdd_hostapd_stop(struct net_device *dev)
 	hdd_adapter_t *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
 	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 	ptSapContext sap_ctx = adapter->sessionCtx.ap.sapContext;
+	int ret;
 
 	ENTER_DEV(dev);
-
-	if (NULL == hdd_ctx) {
-		hdd_info("%pS HDD context is Null", (void *)_RET_IP_);
-		return -ENODEV;
-	}
+	ret = wlan_hdd_validate_context(hdd_ctx);
+	if (ret)
+		return ret;
 
 	if (!sap_ctx) {
 		hdd_err("invalid sap ctx : %p", sap_ctx);

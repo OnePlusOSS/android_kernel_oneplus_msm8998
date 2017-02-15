@@ -3195,11 +3195,46 @@ typedef enum {
 #define CFG_ENABLE_BYPASS_11D_MAX                  (1)
 #define CFG_ENABLE_BYPASS_11D_DEFAULT              (1)
 
+/*
+ * <ini>
+ * gEnableDFSChnlScan - enable dfs channel scan.
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This ini is used to enable/disable dfs channels in scan, enabling this
+ * will enable driver to include dfs channels in its scan list.
+ * Related: NA
+ *
+ * Supported Feature: DFS, Scan
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_ENABLE_DFS_CHNL_SCAN_NAME              "gEnableDFSChnlScan"
 #define CFG_ENABLE_DFS_CHNL_SCAN_MIN               (0)
 #define CFG_ENABLE_DFS_CHNL_SCAN_MAX               (1)
 #define CFG_ENABLE_DFS_CHNL_SCAN_DEFAULT           (1)
 
+/*
+ * <ini>
+ * gEnableDFSPnoChnlScan - enable dfs channels in PNO scan
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This ini is used to enable/disable dfs channels in PNO scan request,
+ * enabling this ini enables driver to include dfs channels in its
+ * PNO scan request
+ * Related: NA
+ *
+ * Supported Feature: DFS, PNO
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_ENABLE_DFS_PNO_CHNL_SCAN_NAME              "gEnableDFSPnoChnlScan"
 #define CFG_ENABLE_DFS_PNO_CHNL_SCAN_MIN               (0)
 #define CFG_ENABLE_DFS_PNO_CHNL_SCAN_MAX               (1)
@@ -3233,30 +3268,159 @@ typedef enum {
 	eHDD_LINK_SPEED_REPORT_MAX = 1,
 	eHDD_LINK_SPEED_REPORT_MAX_SCALED = 2,
 } eHddLinkSpeedReportType;
+
+/*
+ * <ini>
+ * gVhtChannelWidth - Channel width capability for 11ac
+ * @Min: 0
+ * @Max: 4
+ * @Default: 3
+ *
+ * This ini is  used to set channel width capability for 11AC.
+ * eHT_CHANNEL_WIDTH_20MHZ = 0,
+ * eHT_CHANNEL_WIDTH_40MHZ = 1,
+ * eHT_CHANNEL_WIDTH_80MHZ = 2,
+ * eHT_CHANNEL_WIDTH_160MHZ = 3,
+ * eHT_CHANNEL_WIDTH_80P80MHZ = 4,
+ *
+ * Related: NA
+ *
+ * Supported Feature: 11AC
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
 #define CFG_VHT_CHANNEL_WIDTH                "gVhtChannelWidth"
 #define CFG_VHT_CHANNEL_WIDTH_MIN            (0)
 #define CFG_VHT_CHANNEL_WIDTH_MAX            (4)
 #define CFG_VHT_CHANNEL_WIDTH_DEFAULT        (3)
+
+/*
+* <ini>
+* gVhtRxMCS - VHT Rx MCS capability for 1x1 mode
+* @Min: 0
+* @Max: 2
+* @Default: 0
+*
+* This ini is  used to set VHT Rx MCS capability for 1x1 mode.
+* 0, MCS0-7
+* 1, MCS0-8
+* 2, MCS0-9
+*
+* Related: NA
+*
+* Supported Feature: 11AC
+*
+* Usage: Internal/External
+*
+* </ini>
+*/
 
 #define CFG_VHT_ENABLE_RX_MCS_8_9               "gVhtRxMCS"
 #define CFG_VHT_ENABLE_RX_MCS_8_9_MIN           (0)
 #define CFG_VHT_ENABLE_RX_MCS_8_9_MAX           (2)
 #define CFG_VHT_ENABLE_RX_MCS_8_9_DEFAULT       (0)
 
+/*
+ * <ini>
+ * gVhtTxMCS - VHT Tx MCS capability for 1x1 mode
+ * @Min: 0
+ * @Max: 2
+ * @Default: 0
+ *
+ * This ini is  used to set VHT Tx MCS capability for 1x1 mode.
+ * 0, MCS0-7
+ * 1, MCS0-8
+ * 2, MCS0-9
+ *
+ * Related: NA
+ *
+ * Supported Feature: 11AC
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+
 #define CFG_VHT_ENABLE_TX_MCS_8_9               "gVhtTxMCS"
 #define CFG_VHT_ENABLE_TX_MCS_8_9_MIN           (0)
 #define CFG_VHT_ENABLE_TX_MCS_8_9_MAX           (2)
 #define CFG_VHT_ENABLE_TX_MCS_8_9_DEFAULT       (0)
+
+/*
+ * <ini>
+ * gVhtRxMCS2x2 - VHT Rx MCS capability for 2x2 mode
+ * @Min: 0
+ * @Max: 2
+ * @Default: 0
+ *
+ * This ini is  used to set VHT Rx MCS capability for 2x2 mode.
+ * 0, MCS0-7
+ * 1, MCS0-8
+ * 2, MCS0-9
+ *
+ * Related: NA
+ *
+ * Supported Feature: 11AC
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
 
 #define CFG_VHT_ENABLE_RX_MCS2x2_8_9               "gVhtRxMCS2x2"
 #define CFG_VHT_ENABLE_RX_MCS2x2_8_9_MIN           (0)
 #define CFG_VHT_ENABLE_RX_MCS2x2_8_9_MAX           (2)
 #define CFG_VHT_ENABLE_RX_MCS2x2_8_9_DEFAULT       (0)
 
+/*
+ * <ini>
+ * gVhtTxMCS2x2 - VHT Tx MCS capability for 2x2 mode
+ * @Min: 0
+ * @Max: 2
+ * @Default: 0
+ *
+ * This ini is  used to set VHT Tx MCS capability for 2x2 mode.
+ * 0, MCS0-7
+ * 1, MCS0-8
+ * 2, MCS0-9
+ *
+ * Related: NA
+ *
+ * Supported Feature: 11AC
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+
 #define CFG_VHT_ENABLE_TX_MCS2x2_8_9               "gVhtTxMCS2x2"
 #define CFG_VHT_ENABLE_TX_MCS2x2_8_9_MIN           (0)
 #define CFG_VHT_ENABLE_TX_MCS2x2_8_9_MAX           (2)
 #define CFG_VHT_ENABLE_TX_MCS2x2_8_9_DEFAULT       (0)
+
+/*
+ * <ini>
+ * gEnable2x2 - Enables/disables VHT Tx/Rx MCS values for 2x2
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini disables/enables 2x2 mode. If this is zero then DUT operates as
+ * 1x1.
+ *
+ * 0, Disable.
+ * 1, Enable
+ *
+ * Related: NA
+ *
+ * Supported Feature: 11AC
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
 
 #define CFG_VHT_ENABLE_2x2_CAP_FEATURE         "gEnable2x2"
 #define CFG_VHT_ENABLE_2x2_CAP_FEATURE_MIN     (0)
@@ -3265,20 +3429,21 @@ typedef enum {
 
 /*
  * <ini>
- * gStaPrefer80MHzOver160MHz - Set prefer range for sta
+ * gStaPrefer80MHzOver160MHz - set Sta perferance to connect in 80HZ/160HZ
  * @Min: 0
  * @Max: 1
  * @Default: 1
  *
- * This ini is used to set default range for sta
+ * This ini is  used to set Sta perferance to connect in 80HZ/160HZ
+ *
  * 0 - Connects in 160MHz 1x1 when AP is 160MHz 2x2
  * 1 - Connects in 80MHz 2x2 when AP is 160MHz 2x2
  *
- * Related: None
+ * Related: NA
  *
- * Supported Feature: STA
+ * Supported Feature: 11AC
  *
- * Usage: Internal/External
+ * Usage: External
  *
  * </ini>
  */
@@ -3290,12 +3455,27 @@ typedef enum {
 
 /*
  * <ini>
- * gVdevTypeNss_2g - Select the value for each two bit configuration
+ * gVdevTypeNss_2g - set Number of streams per VDEV for 2G band.
  * @Min: 0x5555
  * @Max: 0xAAAA
  * @Default: 0xAAAA
  *
- * This ini is used to set NSS cfg bit in 2g definition.
+ * This ini is  used to set Number of streams per VDEV for 2G band
+ *
+ * These Nss parameters will have 32-bit configuration value, 2 bits are
+ * allocated for each vdev.
+ * Valid values are:
+ * Min value – 0x5555
+ * Max value – 0xAAAA
+ * Default value will be 0xAAAA for both the parameters.
+ * Value 0x5555 will configure all vdevs in 1x1 mode in 2.4G band.
+ * Value 0xAAAA will configure all vdevs in 2x2 mode in 2.4G band.
+ *
+ * The max value is defined based on the valid max Nss of the vdev, the valid
+ * values for each vdev 2-bits are 0x1 and 0x2. 0x3 and 0x0 are not valid vdev
+ * Nss values.
+ *
+ * NSS cfg bit definition.
  * STA          BIT[0:1]
  * SAP          BIT[2:3]
  * P2P_GO       BIT[4:5]
@@ -3305,11 +3485,11 @@ typedef enum {
  * P2P_DEVICE   BIT[12:13]
  * OCB          BIT[14:15]
  *
- * Related: None
+ * Related: NA
  *
- * Supported Feature: STA
+ * Supported Feature: Antenna Sharing
  *
- * Usage: Internal/External
+ * Usage: External
  *
  * </ini>
  */
@@ -3321,12 +3501,27 @@ typedef enum {
 
 /*
  * <ini>
- * gVdevTypeNss_5g - Select the value for each two bit configuration
+ * gVdevTypeNss_5g - set Number of streams per VDEV for 5G band.
  * @Min: 0x5555
  * @Max: 0xAAAA
  * @Default: 0xAAAA
  *
- * This ini is used to set NSS cfg bit in 5g definition
+ * This ini is  used to set Number of streams per VDEV for 5G band
+ *
+ * These Nss parameters will have 32-bit configuration value, 2 bits are
+ * allocated for each vdev.
+ * Valid values are:
+ * Min value – 0x5555
+ * Max value – 0xAAAA
+ * Default value will be 0xAAAA for both the parameters.
+ * Value 0x5555 will configure all vdevs in 1x1 mode in 5 band.
+ * Value 0xAAAA will configure all vdevs in 2x2 mode in 5 band.
+ *
+ * The max value is defined based on the valid max Nss of the vdev, the valid
+ * values for each vdev 2-bits are 0x1 and 0x2. 0x3 and 0x0 are not valid vdev
+ * Nss values.
+ *
+ * NSS cfg bit definition.
  * STA          BIT[0:1]
  * SAP          BIT[2:3]
  * P2P_GO       BIT[4:5]
@@ -3336,11 +3531,11 @@ typedef enum {
  * P2P_DEVICE   BIT[12:13]
  * OCB          BIT[14:15]
  *
- * Related: None
+ * Related: NA
  *
- * Supported Feature: STA
+ * Supported Feature: Antenna Sharing
  *
- * Usage: Internal/External
+ * Usage: External
  *
  * </ini>
  */
@@ -3349,6 +3544,28 @@ typedef enum {
 #define CFG_VDEV_TYPE_NSS_5G_MIN     (0x5555)
 #define CFG_VDEV_TYPE_NSS_5G_MAX     (0xAAAA)
 #define CFG_VDEV_TYPE_NSS_5G_DEFAULT (0xAAAA)
+
+/*
+ * <ini>
+ * gEnableMuBformee - Enables/disables multi-user (MU) beam formee capability
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini enables/disables multi-user (MU) beam formee
+ * capability
+ *
+ * Change MU Bformee only when  gTxBFEnable is enabled.
+ * When gTxBFEnable and gEnableMuBformee are set, MU beam formee capability is
+ * enabled.
+ * Related:  gTxBFEnable
+ *
+ * Supported Feature: 11AC
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
 
 #define CFG_VHT_ENABLE_MU_BFORMEE_CAP_FEATURE         "gEnableMuBformee"
 #define CFG_VHT_ENABLE_MU_BFORMEE_CAP_FEATURE_MIN     (0)
@@ -3365,10 +3582,56 @@ typedef enum {
 #define CFG_VHT_ENABLE_GID_FEATURE_MAX          (1)
 #define CFG_VHT_ENABLE_GID_FEATURE_DEFAULT      (0)
 
+/*
+ * <ini>
+ * gSetTxChainmask1x1 - sets Transmit chain mask.
+ * @Min: 1
+ * @Max: 2
+ * @Default: 1
+ *
+ * This ini sets Transmit chain mask.
+ *
+ * If gEnable2x2 is disabled, gSetTxChainmask1x1 and gSetRxChainmask1x1 values
+ * are taken into account. If chainmask value exceeds the maximum number of
+ * chains supported by target, the max number of chains is used. By default,
+ * chain0 is selected for both Tx and Rx.
+ * gSetTxChainmask1x1=1 or gSetRxChainmask1x1=1 to select chain0.
+ * gSetTxChainmask1x1=2 or gSetRxChainmask1x1=2 to select chain1.
+ *
+ * Supported Feature: 11AC
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+
 #define CFG_VHT_ENABLE_1x1_TX_CHAINMASK         "gSetTxChainmask1x1"
 #define CFG_VHT_ENABLE_1x1_TX_CHAINMASK_MIN     (1)
 #define CFG_VHT_ENABLE_1x1_TX_CHAINMASK_MAX     (2)
 #define CFG_VHT_ENABLE_1x1_TX_CHAINMASK_DEFAULT (1)
+
+/*
+ * <ini>
+ * gSetRxChainmask1x1 - Sets Receive chain mask.
+ * @Min: 1
+ * @Max: 2
+ * @Default: 1
+ *
+ * This ini is  used to set Receive chain mask.
+ *
+ * If gEnable2x2 is disabled, gSetTxChainmask1x1 and gSetRxChainmask1x1 values
+ * are taken into account. If chainmask value exceeds the maximum number of
+ * chains supported by target, the max number of chains is used. By default,
+ * chain0 is selected for both Tx and Rx.
+ * gSetTxChainmask1x1=1 or gSetRxChainmask1x1=1 to select chain0.
+ * gSetTxChainmask1x1=2 or gSetRxChainmask1x1=2 to select chain1.
+ *
+ * Supported Feature: 11AC
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
 
 #define CFG_VHT_ENABLE_1x1_RX_CHAINMASK         "gSetRxChainmask1x1"
 #define CFG_VHT_ENABLE_1x1_RX_CHAINMASK_MIN     (1)
@@ -3408,26 +3671,115 @@ typedef enum {
 #define CFG_HT_SMPS_CAP_FEATURE_MAX             (3)
 #define CFG_HT_SMPS_CAP_FEATURE_DEFAULT         (3)
 
+/*
+ * <ini>
+ * gDisableDFSChSwitch - Disable channel switch if radar is found
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to disable channel switch if radar is found
+ * on that channel.
+ * Related: NA.
+ *
+ * Supported Feature: DFS
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
 #define CFG_DISABLE_DFS_CH_SWITCH                 "gDisableDFSChSwitch"
 #define CFG_DISABLE_DFS_CH_SWITCH_MIN             (0)
 #define CFG_DISABLE_DFS_CH_SWITCH_MAX             (1)
 #define CFG_DISABLE_DFS_CH_SWITCH_DEFAULT         (0)
 
+/*
+ * <ini>
+ * gEnableDFSMasterCap - Enable DFS master capability
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to enable/disable the DFS master capability.
+ * Disabling it will cause driver to not advertise the spectrum
+ * management capability
+ * Related: NA.
+ *
+ * Supported Feature: DFS
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_ENABLE_DFS_MASTER_CAPABILITY               "gEnableDFSMasterCap"
 #define CFG_ENABLE_DFS_MASTER_CAPABILITY_MIN           (0)
 #define CFG_ENABLE_DFS_MASTER_CAPABILITY_MAX           (1)
 #define CFG_ENABLE_DFS_MASTER_CAPABILITY_DEFAULT       (0)
 
+/*
+ * <ini>
+ * gSapPreferredChanLocation - Restrict channel switches between ondoor and
+ * outdoor.
+ * @Min: 0
+ * @Max: 2
+ * @Default: 0
+ *
+ * This ini is used for restricting channel switches between Indoor and outdoor
+ * channels after radar detection.
+ * 0- No preferred channel location
+ * 1- Use indoor channels only
+ * 2- Use outdoor channels only
+ * Related: NA.
+ *
+ * Supported Feature: DFS
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_SAP_PREFERRED_CHANNEL_LOCATION          "gSapPreferredChanLocation"
 #define CFG_SAP_PREFERRED_CHANNEL_LOCATION_MIN      (0)
 #define CFG_SAP_PREFERRED_CHANNEL_LOCATION_MAX      (2)
 #define CFG_SAP_PREFERRED_CHANNEL_LOCATION_DEFAULT  (0)
 
+/*
+ * <ini>
+ * gDisableDfsJapanW53 - Block W53 channels in random channel selection
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to block W53 Japan channel in random channel selection
+ * Related: NA.
+ *
+ * Supported Feature: DFS
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_DISABLE_DFS_JAPAN_W53                      "gDisableDfsJapanW53"
 #define CFG_DISABLE_DFS_JAPAN_W53_MIN                  (0)
 #define CFG_DISABLE_DFS_JAPAN_W53_MAX                  (1)
 #define CFG_DISABLE_DFS_JAPAN_W53_DEFAULT              (0)
 
+/*
+ * <ini>
+ * gDisableDfsJapanW53 - Enable dfs phyerror filtering offload in FW
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This ini is used to to enable dfs phyerror filtering offload to firmware
+ * Enabling it will cause basic phy error to be discarding in firmware.
+ * Related: NA.
+ *
+ * Supported Feature: DFS
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_ENABLE_DFS_PHYERR_FILTEROFFLOAD_NAME       "dfsPhyerrFilterOffload"
 #define CFG_ENABLE_DFS_PHYERR_FILTEROFFLOAD_MIN        (0)
 #define CFG_ENABLE_DFS_PHYERR_FILTEROFFLOAD_MAX        (1)
@@ -3508,6 +3860,23 @@ typedef enum {
 #define CFG_LINK_SPEED_RSSI_LOW_MAX                (0)
 #define CFG_LINK_SPEED_RSSI_LOW_DEFAULT            (-80)
 
+/*
+ * <ini>
+ * isP2pDeviceAddrAdministrated - Enables to derive the P2P MAC address from
+ * the primary MAC address
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This ini is used to enable/disable to derive the P2P MAC address from the
+ * primary MAC address.
+ *
+ * Supported Feature: P2P
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_P2P_DEVICE_ADDRESS_ADMINISTRATED_NAME                "isP2pDeviceAddrAdministrated"
 #define CFG_P2P_DEVICE_ADDRESS_ADMINISTRATED_MIN                 (0)
 #define CFG_P2P_DEVICE_ADDRESS_ADMINISTRATED_MAX                 (1)
@@ -3848,10 +4217,40 @@ typedef enum {
 #define CFG_FORCE_SAP_ACS_END_CH_DEFAULT   (11)
 
 /*
- * Skip DFS Channel in case of P2P Search
- * Options
+ * <ini>
+ * gSkipDfsChannelInP2pSearch - Skip DFS Channel in case of P2P Search
+ * options
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This ini is used to decide if DFS channels should be skipped in p2p
+ * search or not.
  * 0 - Don't Skip DFS Channel in case of P2P Search
  * 1 - Skip DFS Channel in case of P2P Search
+ *
+ * Supported Feature: P2P, Scan
+ *
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+/*
+ * <ini>
+ * gSkipDfsChannelInP2pSearch - Skip DFS Channel in case of P2P Search
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This ini is used to to disable(skip) dfs channel in p2p search.
+ * Related: NA.
+ *
+ * Supported Feature: DFS P2P
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
  */
 #define CFG_ENABLE_SKIP_DFS_IN_P2P_SEARCH_NAME       "gSkipDfsChannelInP2pSearch"
 #define CFG_ENABLE_SKIP_DFS_IN_P2P_SEARCH_MIN        (0)
@@ -3859,10 +4258,24 @@ typedef enum {
 #define CFG_ENABLE_SKIP_DFS_IN_P2P_SEARCH_DEFAULT    (1)
 
 /*
- * Ignore Dynamic Dtim in case of P2P
- * Options
+ * <ini>
+ * gIgnoreDynamicDtimInP2pMode - Ignore Dynamic Dtim in case of P2P
+ * Options.
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to decide if Dynamic Dtim needs to be consider or
+ * not in case of P2P.
  * 0 - Consider Dynamic Dtim incase of P2P
  * 1 - Ignore Dynamic Dtim incase of P2P
+ *
+ * Supported Feature: P2P
+ *
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
  */
 #define CFG_IGNORE_DYNAMIC_DTIM_IN_P2P_MODE_NAME       "gIgnoreDynamicDtimInP2pMode"
 #define CFG_IGNORE_DYNAMIC_DTIM_IN_P2P_MODE_MIN        (0)
@@ -6270,7 +6683,30 @@ typedef enum {
 #define CFG_SAP_MCC_CHANNEL_AVOIDANCE_MAX          (1)
 #define CFG_SAP_MCC_CHANNEL_AVOIDANCE_DEFAULT      (0)
 #endif /* FEATURE_AP_MCC_CH_AVOIDANCE */
-
+/*
+ * <ini>
+ * gAP11ACOverride - Override 11AC when GO follow SAP channel
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This ini is used to enable/disable 11AC override.
+ * 1. P2P GO also follows start_bss and since p2p GO could not be
+ *    configured to setup VHT channel width in wpa_supplicant, driver
+ *    can override 11AC.
+ * 2. Android UI does not provide advanced configuration options
+ *    for SoftAP
+ *    Default override enabled for android. MDM shall
+ *    disable it in ini
+ *
+ *
+ * Supported Feature: P2P
+ *
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_SAP_P2P_11AC_OVERRIDE_NAME             "gAP11ACOverride"
 #define CFG_SAP_P2P_11AC_OVERRIDE_MIN              (0)
 #define CFG_SAP_P2P_11AC_OVERRIDE_MAX              (1)
@@ -6606,11 +7042,26 @@ enum dot11p_mode {
 #define CFG_EXTSCAN_ACTIVE_MIN_CHANNEL_TIME_MAX        (110)
 #define CFG_EXTSCAN_ACTIVE_MIN_CHANNEL_TIME_DEFAULT    (20)
 #endif
-
-/* When gEnable_go_cts2self_for_sta is
+/*
+ * <ini>
+ * gEnable_go_cts2self_for_sta - Indicate firmware to stop NOA and
+ * start using cts2self
+ * @Min: 1
+ * @Max: 1
+ * @Default: 0
+ *
+ * When gEnable_go_cts2self_for_sta is
  * enabled  then if a legacy client connects to P2P GO,
  * Host will send a WMI VDEV command to FW to stop using NOA for P2P GO
  * and start using CTS2SELF.
+ *
+ *
+ * Supported Feature: P2P
+ *
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
  */
 #define CFG_ENABLE_GO_CTS2SELF_FOR_STA   "gEnable_go_cts2self_for_sta"
 #define CFG_ENABLE_GO_CTS2SELF_FOR_STA_DEFAULT  (0)
@@ -6954,6 +7405,30 @@ enum dot11p_mode {
 #define CFG_EDCA_BE_CWMIN_VALUE_MIN       (0x0)
 #define CFG_EDCA_BE_CWMIN_VALUE_MAX       (15)
 #define CFG_EDCA_BE_CWMIN_VALUE_DEFAULT   (4)
+/*
+ * <ini>
+ * gP2PListenDeferInterval - Defer Remain on channel for some duration
+ * @Min: 100
+ * @Max: 200
+ * @Default: 100
+ *
+ * This ini is used to defer back to back RoC request when sta is
+ * connected.
+ * If back to back listen received when sta is connected then fw is
+ * not getting enough time to spend on home channel so it leading to
+ * heartbeat failure.
+ *
+ * Supported Feature: P2P
+ *
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+#define CFG_P2P_LISTEN_DEFER_INTERVAL_NAME        "gP2PListenDeferInterval"
+#define CFG_P2P_LISTEN_DEFER_INTERVAL_MIN         (100)
+#define CFG_P2P_LISTEN_DEFER_INTERVAL_MAX         (200)
+#define CFG_P2P_LISTEN_DEFER_INTERVAL_DEFAULT     (100)
 
 /*
  * <ini>

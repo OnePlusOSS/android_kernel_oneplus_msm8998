@@ -3522,4 +3522,13 @@ uint8_t hdd_get_sap_operating_band(hdd_context_t *hdd_ctx);
  */
 void hdd_process_defer_disconnect(hdd_adapter_t *adapter);
 
+/**
+ * wlan_hdd_try_disconnect() - try disconnnect from previous connection
+ * @adapter: Pointer to adapter
+ *
+ * This function is used to disconnect from previous connection
+ *
+ * Return: 0 for success, non-zero for failure
+ */
+int wlan_hdd_try_disconnect(hdd_adapter_t *adapter);
 #endif

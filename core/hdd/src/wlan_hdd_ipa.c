@@ -528,8 +528,8 @@ struct hdd_ipa_priv {
 
 #define HDD_IPA_DBG_DUMP(_lvl, _prefix, _buf, _len) \
 	do { \
-		QDF_TRACE(QDF_MODULE_ID_HDD, _lvl, "%s:", _prefix); \
-		QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_HDD, _lvl, _buf, _len); \
+		QDF_TRACE(QDF_MODULE_ID_HDD_DATA, _lvl, "%s:", _prefix); \
+		QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_HDD_DATA, _lvl, _buf, _len); \
 	} while (0)
 
 #define HDD_IPA_IS_CONFIG_ENABLED(_hdd_ctx, _mask) \
@@ -614,19 +614,6 @@ static struct hdd_ipa_tx_hdr ipa_tx_hdr = {
 		0x0008          /* type value(2 bytes) ,filled by wlan  */
 		/* 0x0800 - IPV4, 0x86dd - IPV6 */
 	}
-};
-
-static const char *op_string[] = {
-	"TX_SUSPEND",
-	"TX_RESUME",
-	"RX_SUSPEND",
-	"RX_RESUME",
-	"STATS",
-#ifdef FEATURE_METERING
-	"SHARING_STATS",
-	"QUOTA_RSP",
-	"QUOTA_IND",
-#endif
 };
 
 #ifdef FEATURE_METERING
@@ -2070,7 +2057,7 @@ static void hdd_ipa_uc_op_cb(struct op_msg_type *op_msg, void *usr_ctxt)
 	hdd_ipa = (struct hdd_ipa_priv *)hdd_ctx->hdd_ipa;
 
 	HDD_IPA_DP_LOG(QDF_TRACE_LEVEL_DEBUG,
-		       "OPCODE %s", op_string[msg->op_code]);
+		       "OPCODE=%d", msg->op_code);
 
 	if ((HDD_IPA_UC_OPCODE_TX_RESUME == msg->op_code) ||
 	    (HDD_IPA_UC_OPCODE_RX_RESUME == msg->op_code)) {
@@ -3575,9 +3562,11 @@ static int __hdd_ipa_set_perf_level(hdd_context_t *hdd_ctx, uint64_t tx_packets,
 	else
 		next_prod_bw = hdd_ctx->config->IpaLowBandwidthMbps;
 
-	hdd_info("CONS perf curr: %d, next: %d",
+	HDD_IPA_DP_LOG(QDF_TRACE_LEVEL_DEBUG,
+		"CONS perf curr: %d, next: %d",
 		hdd_ipa->curr_cons_bw, next_cons_bw);
-	hdd_info("PROD perf curr: %d, next: %d",
+	HDD_IPA_DP_LOG(QDF_TRACE_LEVEL_DEBUG,
+		"PROD perf curr: %d, next: %d",
 		hdd_ipa->curr_prod_bw, next_prod_bw);
 
 	if (hdd_ipa->curr_cons_bw != next_cons_bw) {

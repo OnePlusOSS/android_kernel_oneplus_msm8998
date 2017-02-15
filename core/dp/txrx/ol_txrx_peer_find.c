@@ -366,6 +366,9 @@ static inline void ol_txrx_peer_find_add_id(struct ol_txrx_pdev_t *pdev,
 		TXRX_PRINT(TXRX_PRINT_LEVEL_ERR,
 			  "%s: peer not found or peer ID is %d invalid",
 			  __func__, peer_id);
+		wma_peer_debug_log(DEBUG_INVALID_VDEV_ID, DEBUG_PEER_MAP_EVENT,
+				   peer_id, peer_mac_addr, peer, 0, 0);
+
 		return;
 	}
 
@@ -548,9 +551,13 @@ void ol_rx_peer_unmap_handler(ol_txrx_pdev_handle pdev, uint16_t peer_id)
 	int i = 0;
 	int32_t ref_cnt;
 
+
 	if (peer_id == HTT_INVALID_PEER) {
 		TXRX_PRINT(TXRX_PRINT_LEVEL_ERR,
 		   "%s: invalid peer ID %d\n", __func__, peer_id);
+		wma_peer_debug_log(DEBUG_INVALID_VDEV_ID,
+				   DEBUG_PEER_UNMAP_EVENT,
+				   peer_id, NULL, NULL, 0, 0x100);
 		return;
 	}
 
@@ -564,6 +571,9 @@ void ol_rx_peer_unmap_handler(ol_txrx_pdev_handle pdev, uint16_t peer_id)
 		ref_cnt = qdf_atomic_read(&pdev->peer_id_to_obj_map[peer_id].
 							del_peer_id_ref_cnt);
 		qdf_spin_unlock_bh(&pdev->peer_map_unmap_lock);
+		wma_peer_debug_log(DEBUG_INVALID_VDEV_ID,
+				   DEBUG_PEER_UNMAP_EVENT,
+				   peer_id, NULL, NULL, ref_cnt, 0x101);
 		TXRX_PRINT(TXRX_PRINT_LEVEL_INFO1,
 			   "%s: Remove the ID %d reference to deleted peer. del_peer_id_ref_cnt %d",
 			   __func__, peer_id, ref_cnt);
@@ -582,7 +592,7 @@ void ol_rx_peer_unmap_handler(ol_txrx_pdev_handle pdev, uint16_t peer_id)
 			   __func__, peer_id);
 		wma_peer_debug_log(DEBUG_INVALID_VDEV_ID,
 				   DEBUG_PEER_UNMAP_EVENT,
-				   peer_id, NULL, NULL, 0, 0);
+				   peer_id, NULL, NULL, 0, 0x102);
 
 		return;
 	}

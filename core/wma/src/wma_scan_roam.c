@@ -5746,10 +5746,6 @@ int wma_roam_event_callback(WMA_HANDLE handle, uint8_t *event_buf,
 	DPTRACE(qdf_dp_trace_record_event(QDF_DP_TRACE_EVENT_RECORD,
 		wmi_event->vdev_id, QDF_PROTO_TYPE_EVENT, QDF_ROAM_EVENTID));
 
-	wma_peer_debug_log(wmi_event->vdev_id, DEBUG_ROAM_EVENT,
-			   DEBUG_INVALID_PEER_ID, NULL, NULL,
-			   wmi_event->reason, wmi_event->rssi);
-
 	switch (wmi_event->reason) {
 	case WMI_ROAM_REASON_BMISS:
 		WMA_LOGD("Beacon Miss for vdevid %x", wmi_event->vdev_id);

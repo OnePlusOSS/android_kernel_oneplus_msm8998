@@ -4164,6 +4164,7 @@ void wma_peer_debug_dump(void)
 	uint32_t current_index;
 	struct peer_debug_rec *dbg_rec;
 	uint64_t startt = 0;
+	uint32_t delta;
 
 	if (!wma) {
 		WMA_LOGD("%s: WMA handle NULL. Exiting", __func__);
@@ -4192,14 +4193,22 @@ void wma_peer_debug_dump(void)
 		if (startt == 0)
 			startt = dbg_rec->time;
 
-		WMA_LOGE("index = %5d timestamp = 0x%016llx delta ms = %-9d "
+		/*
+		 * Divide by 19200 == right shift 8 bits, then divide by 75
+		 * 32 bit computation keeps both 32 and 64 bit compilers happy.
+		 * The value will roll over after approx. 33554 seconds.
+		 */
+		delta = (uint32_t) (((dbg_rec->time - startt) >> 8) &
+				    0xffffffff);
+		delta = delta / (DEBUG_CLOCK_TICKS_PER_MSEC >> 8);
+
+		WMA_LOGE("index = %5d timestamp = 0x%016llx delta ms = %-12u "
 			 "info = %-24s vdev_id = %-3d mac addr = %pM "
 			 "peer obj = 0x%p peer_id = %-4d "
 			 "arg1 = 0x%-8x arg2 = 0x%-8x",
 			 i,
 			 dbg_rec->time,
-			 ((int32_t) ((dbg_rec->time - startt) & 0xffffffff)) /
-				DEBUG_CLOCK_TICKS_PER_MSEC,
+			 delta,
 			 wma_peer_debug_string(dbg_rec->operation),
 			 (int8_t) dbg_rec->vdev_id,
 			 dbg_rec->mac_addr.bytes,

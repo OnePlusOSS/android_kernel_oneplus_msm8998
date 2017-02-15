@@ -3439,7 +3439,9 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 		 */
 		wma_peer_debug_log(wake_info->vdev_id, DEBUG_WOW_ROAM_EVENT,
 				   DEBUG_INVALID_PEER_ID, NULL, NULL,
-				   wake_info->wake_reason, 0);
+				   wake_info->wake_reason,
+				   ((uint64_t) param_buf->wow_packet_buffer) &
+					0xffffffff);
 		WMA_LOGD("Host woken up because of roam event");
 		if (param_buf->wow_packet_buffer) {
 			/* Roam event is embedded in wow_packet_buffer */

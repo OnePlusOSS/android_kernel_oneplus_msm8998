@@ -908,6 +908,8 @@ typedef enum {
     /* OEM related cmd */
     WMI_OEM_REQ_CMDID = WMI_CMD_GRP_START_ID(WMI_GRP_OEM),
     WMI_OEM_REQUEST_CMDID, /* UNUSED */
+    /* OEM related cmd used for Low Power ranging */
+    WMI_LPI_OEM_REQ_CMDID,
 
     /** Nan Request */
     WMI_NAN_CMDID = WMI_CMD_GRP_START_ID(WMI_GRP_NAN),
@@ -3063,6 +3065,11 @@ typedef struct {
      */
     A_UINT32 rx_tsf_u32;
 
+    /** pdev_id for identifying the MAC the rx mgmt frame was received by
+     * See macros starting with WMI_PDEV_ID_ for values.
+     */
+    A_UINT32 pdev_id;
+
 /* This TLV is followed by array of bytes:
  *   A_UINT8 bufp[]; <-- management frame buffer
  */
@@ -4055,6 +4062,10 @@ typedef struct {
     A_UINT32    tlv_header;
     A_UINT32    desc_id; /* from tx_send_cmd */
     A_UINT32    status;  /* WMI_MGMT_TX_COMP_STATUS_TYPE */
+    /** pdev_id for identifying the MAC that transmitted the mgmt frame
+     * See macros starting with WMI_PDEV_ID_ for values.
+     */
+    A_UINT32    pdev_id;
 } wmi_mgmt_tx_compl_event_fixed_param;
 
 typedef struct {
@@ -8478,7 +8489,8 @@ typedef struct {
 
 /* flags for 11i offload */
 #define WMI_ROAM_OFFLOAD_FLAG_OKC_ENABLED       0   /* okc is enabled */
-/* from bit 1 to bit 31 are reserved */
+#define WMI_ROAM_OFFLOAD_FLAG_PMK_CACHE_DISABLED 1  /* pmk caching is disabled */
+/* from bit 2 to bit 31 are reserved */
 
 #define WMI_SET_ROAM_OFFLOAD_OKC_ENABLED(flag) do { \
         (flag) |=  (1 << WMI_ROAM_OFFLOAD_FLAG_OKC_ENABLED);      \
@@ -8490,6 +8502,21 @@ typedef struct {
 
 #define WMI_GET_ROAM_OFFLOAD_OKC_ENABLED(flag)   \
         ((flag) & (1 << WMI_ROAM_OFFLOAD_FLAG_OKC_ENABLED))
+
+
+#define WMI_SET_ROAM_OFFLOAD_PMK_CACHE_ENABLED(flag) \
+    do { \
+        (flag) &=  ~(1 << WMI_ROAM_OFFLOAD_FLAG_PMK_CACHE_DISABLED); \
+    } while (0)
+
+#define WMI_SET_ROAM_OFFLOAD_PMK_CACHE_DISABLED(flag) \
+    do { \
+        (flag) |=  (1 << WMI_ROAM_OFFLOAD_FLAG_PMK_CACHE_DISABLED); \
+    } while (0)
+
+#define WMI_GET_ROAM_OFFLOAD_PMK_CACHE_DISABLED(flag) \
+    ((flag) & (1 << WMI_ROAM_OFFLOAD_FLAG_PMK_CACHE_DISABLED))
+
 
 /* This TLV will be  filled only in case of wpa-psk/wpa2-psk */
 typedef struct {
@@ -17700,6 +17727,7 @@ static INLINE A_UINT8 *wmi_id_to_name(A_UINT32 wmi_command)
         WMI_RETURN_STRING(WMI_BPF_SET_VDEV_ACTIVE_MODE_CMDID);
         WMI_RETURN_STRING(WMI_HW_DATA_FILTER_CMDID);
         WMI_RETURN_STRING(MI_PDEV_MULTIPLE_VDEV_RESTART_REQUEST_CMDID);
+        WMI_RETURN_STRING(WMI_LPI_OEM_REQ_CMDID);
     }
 
     return "Invalid WMI cmd";

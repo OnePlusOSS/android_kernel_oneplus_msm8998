@@ -1119,6 +1119,7 @@ typedef enum {
     OP(WMI_BPF_SET_VDEV_ACTIVE_MODE_CMDID) \
     OP(WMI_HW_DATA_FILTER_CMDID) \
     OP(WMI_PDEV_MULTIPLE_VDEV_RESTART_REQUEST_CMDID) \
+    OP(WMI_LPI_OEM_REQ_CMDID) \
     /* add new CMD_LIST elements above this line */
 
 
@@ -1307,7 +1308,7 @@ typedef enum {
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_resource_config, wmi_resource_config, resource_config, WMITLV_SIZE_FIX)\
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wlan_host_memory_chunk, host_mem_chunks, WMITLV_SIZE_VAR) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_pdev_set_hw_mode_cmd_fixed_param, wmi_pdev_set_hw_mode_cmd_fixed_param, hw_mode, WMITLV_SIZE_FIX) \
-    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_pdev_band_to_mac, wmi_pdev_band_to_mac, band_to_mac, WMITLV_SIZE_VAR)
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_pdev_band_to_mac, band_to_mac, WMITLV_SIZE_VAR)
 
 WMITLV_CREATE_PARAM_STRUC(WMI_INIT_CMDID);
 
@@ -1815,6 +1816,12 @@ WMITLV_CREATE_PARAM_STRUC(WMI_OEM_REQ_CMDID);
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_BYTE, A_UINT8, data, WMITLV_SIZE_VAR)
 
 WMITLV_CREATE_PARAM_STRUC(WMI_OEM_REQUEST_CMDID);
+
+/* RTT OEM req Cmd through LPASS */
+#define WMITLV_TABLE_WMI_LPI_OEM_REQ_CMDID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_BYTE, A_UINT8, data, WMITLV_SIZE_VAR)
+ 
+WMITLV_CREATE_PARAM_STRUC(WMI_LPI_OEM_REQ_CMDID);
 
 /* Spectral scan configure Cmd */
 #define WMITLV_TABLE_WMI_VDEV_SPECTRAL_SCAN_CONFIGURE_CMDID(id,op,buf,len) \

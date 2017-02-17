@@ -1705,6 +1705,7 @@ A_STATUS ol_txrx_pdev_attach_target(ol_txrx_pdev_handle pdev)
 void ol_txrx_pdev_detach(ol_txrx_pdev_handle pdev, int force)
 {
 	int i;
+	int num_freed_tx_desc = 0;
 	struct hif_opaque_softc *osc =  cds_get_context(QDF_MODULE_ID_HIF);
 
 	/*checking to ensure txrx pdev structure is not NULL */
@@ -1775,10 +1776,16 @@ void ol_txrx_pdev_detach(ol_txrx_pdev_handle pdev, int force)
 				   "Warning: freeing tx frame (no compltn)\n");
 			ol_tx_desc_frame_free_nonstd(pdev,
 						     tx_desc, 1);
+			num_freed_tx_desc++;
 		}
 		htt_tx_desc = tx_desc->htt_tx_desc;
 		htt_tx_desc_free(pdev->htt_pdev, htt_tx_desc);
 	}
+
+	if (num_freed_tx_desc)
+		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO,
+		"freed %d tx frames for which no resp from target",
+		num_freed_tx_desc);
 
 	htt_deregister_rx_pkt_dump_callback(pdev->htt_pdev);
 	ol_tx_deregister_flow_control(pdev);

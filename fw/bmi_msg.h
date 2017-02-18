@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014, 2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, 2016-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -267,8 +267,6 @@ PREPACK struct bmi_target_info {
 #define TARGET_TYPE_QCA9888   17
 /* For Adrastea target */
 #define TARGET_TYPE_ADRASTEA  19
-
-extern void target_register_tbl_attach(A_UINT32 target_type);
 
 #define BMI_ROMPATCH_INSTALL               9
 /*

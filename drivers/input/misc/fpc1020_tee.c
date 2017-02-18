@@ -481,7 +481,7 @@ static int fb_notifier_callback(struct notifier_block *self, unsigned long event
 			sysfs_notify(&fpc1020->dev->kobj, NULL, dev_attr_screen_state.attr.name);
 
 		} else if( *blank == FB_BLANK_POWERDOWN && (event == FB_EARLY_EVENT_BLANK/*FB_EVENT_BLANK*/ )) {
-			set_fingerprintd_nice(MIN_NICE);
+			set_fingerprintd_nice(-1);
 			dev_err(fpc1020->dev, "%s screen off\n", __func__);
 			fpc1020->screen_state = 0;
 			sysfs_notify(&fpc1020->dev->kobj, NULL, dev_attr_screen_state.attr.name);

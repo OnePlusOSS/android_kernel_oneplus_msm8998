@@ -2745,6 +2745,7 @@ static bool tlv_check_required(int32_t reason)
 	case WOW_REASON_RSSI_BREACH_EVENT:
 	case WOW_REASON_NAN_EVENT:
 	case WOW_REASON_NAN_DATA:
+	case WOW_REASON_ROAM_HO:
 		return true;
 	default:
 		return false;

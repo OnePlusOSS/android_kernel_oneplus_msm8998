@@ -1457,14 +1457,6 @@ static void init_config_param(tpAniSirGlobal pMac)
 	pMac->roam.configParam.WMMSupportMode = eCsrRoamWmmAuto;
 	pMac->roam.configParam.ProprietaryRatesEnabled = true;
 	pMac->roam.configParam.TxRate = eCSR_TX_RATE_AUTO;
-	pMac->roam.configParam.scanAgeTimeNCNPS =
-		CSR_SCAN_AGING_TIME_NOT_CONNECT_NO_PS;
-	pMac->roam.configParam.scanAgeTimeNCPS =
-		CSR_SCAN_AGING_TIME_NOT_CONNECT_W_PS;
-	pMac->roam.configParam.scanAgeTimeCNPS =
-		CSR_SCAN_AGING_TIME_CONNECT_NO_PS;
-	pMac->roam.configParam.scanAgeTimeCPS =
-		CSR_SCAN_AGING_TIME_CONNECT_W_PS;
 	for (i = 0; i < CSR_NUM_RSSI_CAT; i++) {
 		pMac->roam.configParam.BssPreferValue[i] = i;
 	}
@@ -2320,22 +2312,6 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 			pMac->roam.configParam.agingCount =
 				pParam->nScanResultAgeCount;
 		}
-		if (pParam->scanAgeTimeNCNPS) {
-			pMac->roam.configParam.scanAgeTimeNCNPS =
-				pParam->scanAgeTimeNCNPS;
-		}
-		if (pParam->scanAgeTimeNCPS) {
-			pMac->roam.configParam.scanAgeTimeNCPS =
-				pParam->scanAgeTimeNCPS;
-		}
-		if (pParam->scanAgeTimeCNPS) {
-			pMac->roam.configParam.scanAgeTimeCNPS =
-				pParam->scanAgeTimeCNPS;
-		}
-		if (pParam->scanAgeTimeCPS) {
-			pMac->roam.configParam.scanAgeTimeCPS =
-				pParam->scanAgeTimeCPS;
-		}
 		if (pParam->obss_width_interval) {
 			pMac->roam.configParam.obss_width_interval =
 				pParam->obss_width_interval;
@@ -2694,10 +2670,6 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 #endif
 	pParam->eBand = cfg_params->eBand;
 	pParam->nScanResultAgeCount = cfg_params->agingCount;
-	pParam->scanAgeTimeNCNPS = cfg_params->scanAgeTimeNCNPS;
-	pParam->scanAgeTimeNCPS = cfg_params->scanAgeTimeNCPS;
-	pParam->scanAgeTimeCNPS = cfg_params->scanAgeTimeCNPS;
-	pParam->scanAgeTimeCPS = cfg_params->scanAgeTimeCPS;
 	pParam->bCatRssiOffset = cfg_params->bCatRssiOffset;
 	pParam->fSupplicantCountryCodeHasPriority =
 		cfg_params->fSupplicantCountryCodeHasPriority;
@@ -17728,8 +17700,11 @@ static void csr_update_driver_assoc_ies(tpAniSirGlobal mac_ctx,
 			= {MIN_TX_PWR_CAP, MAX_TX_PWR_CAP};
 	uint8_t max_tx_pwr_cap = 0;
 	uint8_t supp_chan_ie[DOT11F_IE_SUPPCHANNELS_MAX_LEN], supp_chan_ie_len;
+
+#ifdef FEATURE_WLAN_ESE
 	uint8_t ese_ie[DOT11F_IE_ESEVERSION_MAX_LEN]
 			= { 0x0, 0x40, 0x96, 0x3, ESE_VERSION_SUPPORTED};
+#endif
 
 	if (session->pConnectBssDesc)
 		max_tx_pwr_cap = csr_get_cfg_max_tx_power(mac_ctx,
@@ -17755,11 +17730,13 @@ static void csr_update_driver_assoc_ies(tpAniSirGlobal mac_ctx,
 					supp_chan_ie_len, supp_chan_ie);
 	}
 
+#ifdef FEATURE_WLAN_ESE
 	/* Append ESE version IE if isEseIniFeatureEnabled INI is enabled */
 	if (mac_ctx->roam.configParam.isEseIniFeatureEnabled)
 		csr_append_assoc_ies(mac_ctx, req_buf, IEEE80211_ELEMID_VENDOR,
 					DOT11F_IE_ESEVERSION_MAX_LEN,
 					ese_ie);
+#endif
 
 	if (mac_ctx->rrm.rrmPEContext.rrmEnable) {
 		/* Append RRM IE */
@@ -19430,6 +19407,7 @@ void csr_process_set_hw_mode(tpAniSirGlobal mac, tSmeCmd *command)
 	QDF_STATUS status;
 	tSirMsgQ msg;
 	struct sir_set_hw_mode_resp *param;
+	enum cds_hw_mode_change cds_hw_mode;
 
 	/* Setting HW mode is for the entire system.
 	 * So, no need to check session
@@ -19463,6 +19441,22 @@ void csr_process_set_hw_mode(tpAniSirGlobal mac, tSmeCmd *command)
 		}
 	}
 
+	if ((SIR_UPDATE_REASON_OPPORTUNISTIC ==
+	     command->u.set_hw_mode_cmd.reason) &&
+	    (true == cds_is_connection_in_progress(NULL, NULL))) {
+		sms_log(mac, LOGE, FL("Set HW mode refused: conn in progress"));
+		cds_restart_opportunistic_timer(false);
+		goto fail;
+	}
+
+	cds_hw_mode = wma_get_cds_hw_mode_change_from_hw_mode_index(
+				command->u.set_hw_mode_cmd.hw_mode_index);
+
+	if (CDS_HW_MODE_NOT_IN_PROGRESS == cds_hw_mode)
+		goto fail;
+
+	cds_set_hw_mode_change_in_progress(cds_hw_mode);
+
 	cmd->messageType = eWNI_SME_SET_HW_MODE_REQ;
 	cmd->length = len;
 	cmd->set_hw.hw_mode_index = command->u.set_hw_mode_cmd.hw_mode_index;
@@ -19480,6 +19474,7 @@ void csr_process_set_hw_mode(tpAniSirGlobal mac, tSmeCmd *command)
 
 	status = cds_send_mb_message_to_mac(cmd);
 	if (QDF_STATUS_SUCCESS != status) {
+		cds_set_hw_mode_change_in_progress(CDS_HW_MODE_NOT_IN_PROGRESS);
 		sms_log(mac, LOGE, FL("Posting to PE failed"));
 		return;
 	}
@@ -19874,7 +19869,10 @@ void csr_roam_synch_callback(tpAniSirGlobal mac_ctx,
 	csr_roam_save_security_rsp_ie(mac_ctx, session_id,
 			session->pCurRoamProfile->negotiatedAuthType,
 			bss_desc, ies_local);
+
+#ifdef FEATURE_WLAN_ESE
 	roam_info->isESEAssoc = conn_profile->isESEAssoc;
+#endif
 
 	/*
 	 * Encryption keys for new connection are obtained as follows:
@@ -19946,12 +19944,18 @@ void csr_roam_synch_callback(tpAniSirGlobal mac_ctx,
 			FL("LFR3:Clear Connected info"));
 	csr_roam_free_connected_info(mac_ctx,
 			&session->connectedInfo);
-	len = roam_synch_data->join_rsp->parsedRicRspLen +
-		roam_synch_data->join_rsp->tspecIeLen;
+	len = roam_synch_data->join_rsp->parsedRicRspLen;
+
+#ifdef FEATURE_WLAN_ESE
+	len += roam_synch_data->join_rsp->tspecIeLen;
 	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-		FL("LFR3: RIC length - %d tspecLen %d"),
-		roam_synch_data->join_rsp->parsedRicRspLen,
+		FL("LFR3: tspecLen %d"),
 		roam_synch_data->join_rsp->tspecIeLen);
+#endif
+
+	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
+		FL("LFR3: RIC length - %d"),
+		roam_synch_data->join_rsp->parsedRicRspLen);
 	if (len) {
 		session->connectedInfo.pbFrames =
 			qdf_mem_malloc(len);
@@ -19960,8 +19964,11 @@ void csr_roam_synch_callback(tpAniSirGlobal mac_ctx,
 				roam_synch_data->join_rsp->frames, len);
 			session->connectedInfo.nRICRspLength =
 				roam_synch_data->join_rsp->parsedRicRspLen;
+
+#ifdef FEATURE_WLAN_ESE
 			session->connectedInfo.nTspecIeLength =
 				roam_synch_data->join_rsp->tspecIeLen;
+#endif
 		}
 	}
 	conn_profile->vht_channel_width =

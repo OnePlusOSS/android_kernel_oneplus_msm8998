@@ -1843,7 +1843,7 @@ int hdd_wlan_start_modules(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 		if (reinit) {
 			if (hdd_ipa_uc_ssr_reinit(hdd_ctx)) {
 				hdd_err("HDD IPA UC reinit failed");
-				goto close;
+				goto post_disable;
 			}
 		}
 
@@ -1851,7 +1851,7 @@ int hdd_wlan_start_modules(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 	case DRIVER_MODULES_OPENED:
 		if (!adapter) {
 			hdd_alert("adapter is Null");
-			goto close;
+			goto post_disable;
 		}
 		if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
 			hdd_err("in ftm mode, no need to configure cds modules");
@@ -1859,7 +1859,7 @@ int hdd_wlan_start_modules(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 		}
 		if (hdd_configure_cds(hdd_ctx, adapter)) {
 			hdd_err("Failed to Enable cds modules");
-			goto close;
+			goto post_disable;
 		}
 		hdd_enable_power_management();
 		hdd_info("Driver Modules Successfully Enabled");
@@ -1878,7 +1878,11 @@ int hdd_wlan_start_modules(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 	EXIT();
 	return 0;
 
+post_disable:
+	cds_post_disable();
+
 close:
+	hdd_ctx->driver_status = DRIVER_MODULES_CLOSED;
 	cds_close(p_cds_context);
 
 ol_cds_free:
@@ -1893,6 +1897,7 @@ release_lock:
 	hdd_ctx->start_modules_in_progress = false;
 	mutex_unlock(&hdd_ctx->iface_change_lock);
 	EXIT();
+
 	return -EINVAL;
 }
 
@@ -8010,11 +8015,9 @@ int hdd_configure_cds(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 	 * IPA module before configuring them to FW. Sequence required as crash
 	 * observed otherwise.
 	 */
-	if (hdd_ipa_uc_is_enabled(hdd_ctx)) {
-		if (hdd_ipa_uc_ol_init(hdd_ctx)) {
-			hdd_err("Failed to setup pipes");
-			goto out;
-		}
+	if (hdd_ipa_uc_ol_init(hdd_ctx)) {
+		hdd_err("Failed to setup pipes");
+		goto out;
 	}
 
 	/*
@@ -8182,7 +8185,7 @@ int hdd_wlan_stop_modules(hdd_context_t *hdd_ctx)
 		goto done;
 	}
 
-	qdf_status = cds_post_disable(hdd_ctx->pcds_context);
+	qdf_status = cds_post_disable();
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 		hdd_err("Failed to process post CDS disable Modules! :%d",
 			qdf_status);

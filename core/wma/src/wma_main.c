@@ -772,7 +772,10 @@ static int32_t wma_set_priv_cfg(tp_wma_handle wma_handle,
 	case WMA_VDEV_TXRX_SET_IPA_UC_QUOTA_CMDID:
 	{
 		ol_txrx_pdev_handle pdev;
-		uint64_t quota_bytes = privcmd->param_value;
+		uint64_t quota_bytes = privcmd->param_sec_value;
+
+		quota_bytes <<= 32;
+		quota_bytes |= privcmd->param_value;
 
 		WMA_LOGE("%s: quota_bytes=%llu",
 			 "WMA_VDEV_TXRX_SET_IPA_UC_QUOTA_CMDID",
@@ -1726,6 +1729,42 @@ static void wma_init_max_no_of_peers(tp_wma_handle wma_handle,
 }
 
 /**
+ * wma_cleanup_vdev_resp_queue() - cleanup vdev response queue
+ * @wma: wma handle
+ *
+ * Return: none
+ */
+static void wma_cleanup_vdev_resp_queue(tp_wma_handle wma)
+{
+	struct wma_target_req *req_msg = NULL;
+	qdf_list_node_t *node1 = NULL;
+	QDF_STATUS status;
+
+	qdf_spin_lock_bh(&wma->vdev_respq_lock);
+	if (!qdf_list_size(&wma->vdev_resp_queue)) {
+		qdf_spin_unlock_bh(&wma->vdev_respq_lock);
+		WMA_LOGI(FL("request queue maybe empty"));
+		return;
+	}
+
+	while (qdf_list_peek_front(&wma->vdev_resp_queue, &node1) !=
+				   QDF_STATUS_SUCCESS) {
+		req_msg = qdf_container_of(node1, struct wma_target_req, node);
+		status = qdf_list_remove_node(&wma->vdev_resp_queue, node1);
+		qdf_spin_unlock_bh(&wma->vdev_respq_lock);
+		if (status != QDF_STATUS_SUCCESS) {
+			WMA_LOGE(FL("Failed to remove req vdev_id %d type %d"),
+				 req_msg->vdev_id, req_msg->type);
+			return;
+		}
+		qdf_mc_timer_destroy(&req_msg->event_timeout);
+		qdf_mem_free(req_msg);
+		qdf_spin_lock_bh(&wma->vdev_respq_lock);
+	}
+	qdf_spin_unlock_bh(&wma->vdev_respq_lock);
+}
+
+/**
  * wma_shutdown_notifier_cb - Shutdown notifer call back
  * @priv : WMA handle
  *
@@ -1742,6 +1781,7 @@ static void wma_shutdown_notifier_cb(void *priv)
 	tp_wma_handle wma_handle = priv;
 
 	qdf_event_set(&wma_handle->wma_resume_event);
+	wma_cleanup_vdev_resp_queue(wma_handle);
 }
 
 struct wma_version_info g_wmi_version_info;
@@ -1864,6 +1904,71 @@ static void wma_state_info_dump(char **buf_ptr, uint16_t *size)
 static void wma_register_debug_callback(void)
 {
 	qdf_register_debug_callback(QDF_MODULE_ID_WMA, &wma_state_info_dump);
+}
+
+/**
+ * wma_flush_complete_evt_handler() - FW log flush complete event handler
+ * @handle: WMI handle
+ * @event:  Event recevied from FW
+ * @len:    Length of the event
+ *
+ */
+static int wma_flush_complete_evt_handler(void *handle,
+		u_int8_t *event,
+		u_int32_t len)
+{
+	QDF_STATUS status;
+	tp_wma_handle wma = (tp_wma_handle) handle;
+
+	WMI_DEBUG_MESG_FLUSH_COMPLETE_EVENTID_param_tlvs *param_buf;
+	wmi_debug_mesg_flush_complete_fixed_param *wmi_event;
+	uint32_t reason_code;
+
+	param_buf = (WMI_DEBUG_MESG_FLUSH_COMPLETE_EVENTID_param_tlvs *) event;
+	if (!param_buf) {
+		WMA_LOGE("Invalid log flush complete event buffer");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	wmi_event = param_buf->fixed_param;
+	reason_code = wmi_event->reserved0;
+
+	/*
+	 * reason_code = 0; Flush event in response to flush command
+	 * reason_code = other value; Asynchronous flush event for fatal events
+	 */
+	if (!reason_code && (cds_is_log_report_in_progress() == false)) {
+		WMA_LOGE("Received WMI flush event without sending CMD");
+		return -EINVAL;
+	} else if (!reason_code && cds_is_log_report_in_progress() == true) {
+		/* Flush event in response to flush command */
+		WMA_LOGI("Received WMI flush event in response to flush CMD");
+		status = qdf_mc_timer_stop(&wma->log_completion_timer);
+		if (status != QDF_STATUS_SUCCESS)
+			WMA_LOGE("Failed to stop the log completion timeout");
+		cds_logging_set_fw_flush_complete();
+	} else if (reason_code && cds_is_log_report_in_progress() == false) {
+		/* Asynchronous flush event for fatal events */
+		status = cds_set_log_completion(WLAN_LOG_TYPE_FATAL,
+				WLAN_LOG_INDICATOR_FIRMWARE,
+				reason_code, false);
+		if (QDF_STATUS_SUCCESS != status) {
+			WMA_LOGE("%s: Failed to set log trigger params",
+					__func__);
+			return QDF_STATUS_E_FAILURE;
+		}
+		cds_logging_set_fw_flush_complete();
+		return status;
+	} else {
+		/* Asynchronous flush event for fatal event,
+		 * but, report in progress already
+		 */
+		WMA_LOGI("%s: Bug report already in progress - dropping! type:%d, indicator=%d reason_code=%d",
+				__func__, WLAN_LOG_TYPE_FATAL,
+				WLAN_LOG_INDICATOR_FIRMWARE, reason_code);
+		return QDF_STATUS_E_FAILURE;
+	}
+	return 0;
 }
 
 /**
@@ -2370,6 +2475,11 @@ QDF_STATUS wma_open(void *cds_context,
 				WMI_VDEV_ENCRYPT_DECRYPT_DATA_RESP_EVENTID,
 				wma_encrypt_decrypt_msg_handler,
 				WMA_RX_SERIALIZER_CTX);
+	wmi_unified_register_event_handler(wma_handle->wmi_handle,
+				WMI_DEBUG_MESG_FLUSH_COMPLETE_EVENTID,
+				wma_flush_complete_evt_handler,
+				WMA_RX_WORK_CTX);
+
 	wma_ndp_register_all_event_handlers(wma_handle);
 	wma_register_debug_callback();
 
@@ -2543,73 +2653,6 @@ static int wma_log_supported_evt_handler(void *handle,
 				event, len))
 		return -EINVAL;
 
-	return 0;
-}
-
-/**
- * wma_flush_complete_evt_handler() - FW log flush complete event handler
- * @handle: WMI handle
- * @event:  Event recevied from FW
- * @len:    Length of the event
- *
- */
-static int wma_flush_complete_evt_handler(void *handle,
-		u_int8_t *event,
-		u_int32_t len)
-{
-	QDF_STATUS status;
-	tp_wma_handle wma = (tp_wma_handle) handle;
-
-	WMI_DEBUG_MESG_FLUSH_COMPLETE_EVENTID_param_tlvs *param_buf;
-	wmi_debug_mesg_flush_complete_fixed_param *wmi_event;
-	uint32_t reason_code;
-
-	param_buf = (WMI_DEBUG_MESG_FLUSH_COMPLETE_EVENTID_param_tlvs *) event;
-	if (!param_buf) {
-		WMA_LOGE("Invalid log flush complete event buffer");
-		return QDF_STATUS_E_FAILURE;
-	}
-
-	wmi_event = param_buf->fixed_param;
-	reason_code = wmi_event->reserved0;
-
-	/*
-	 * reason_code = 0; Flush event in response to flush command
-	 * reason_code = other value; Asynchronous flush event for fatal events
-	 */
-	if (!reason_code && (cds_is_log_report_in_progress() == false)) {
-		WMA_LOGE("Received WMI flush event without sending CMD");
-		return -EINVAL;
-	} else if (!reason_code && cds_is_log_report_in_progress() == true) {
-		/* Flush event in response to flush command */
-		WMA_LOGI("Received WMI flush event in response to flush CMD");
-		status = qdf_mc_timer_stop(&wma->log_completion_timer);
-		if (status != QDF_STATUS_SUCCESS)
-			WMA_LOGE("Failed to stop the log completion timeout");
-		cds_logging_set_fw_flush_complete();
-	} else if (reason_code && cds_is_log_report_in_progress() == false) {
-		/* Asynchronous flush event for fatal events */
-		WMA_LOGE("Received asynchronous WMI flush event: reason=%d",
-				reason_code);
-		status = cds_set_log_completion(WLAN_LOG_TYPE_FATAL,
-				WLAN_LOG_INDICATOR_FIRMWARE,
-				reason_code, false);
-		if (QDF_STATUS_SUCCESS != status) {
-			WMA_LOGE("%s: Failed to set log trigger params",
-					__func__);
-			return QDF_STATUS_E_FAILURE;
-		}
-		cds_logging_set_fw_flush_complete();
-		return status;
-	} else {
-		/* Asynchronous flush event for fatal event,
-		 * but, report in progress already
-		 */
-		WMA_LOGI("%s: Bug report already in progress - dropping! type:%d, indicator=%d reason_code=%d",
-				__func__, WLAN_LOG_TYPE_FATAL,
-				WLAN_LOG_INDICATOR_FIRMWARE, reason_code);
-		return QDF_STATUS_E_FAILURE;
-	}
 	return 0;
 }
 
@@ -3136,17 +3179,6 @@ QDF_STATUS wma_start(void *cds_ctx)
 		goto end;
 	}
 
-	/* Initialize the log flush complete event handler */
-	status = wmi_unified_register_event_handler(wma_handle->wmi_handle,
-			WMI_DEBUG_MESG_FLUSH_COMPLETE_EVENTID,
-			wma_flush_complete_evt_handler,
-			WMA_RX_SERIALIZER_CTX);
-	if (status != QDF_STATUS_SUCCESS) {
-		WMA_LOGE("Failed to register log flush complete event cb");
-		qdf_status = QDF_STATUS_E_FAILURE;
-		goto end;
-	}
-
 	/* Initialize the wma_pdev_set_hw_mode_resp_evt_handler event handler */
 	status = wmi_unified_register_event_handler(wma_handle->wmi_handle,
 			WMI_PDEV_SET_HW_MODE_RESP_EVENTID,
@@ -3293,41 +3325,6 @@ static void wma_cleanup_hold_req(tp_wma_handle wma)
 		qdf_mem_free(req_msg);
 	}
 	qdf_spin_unlock_bh(&wma->wma_hold_req_q_lock);
-}
-
-/**
- * wma_cleanup_vdev_resp() - cleanup vdev response queue
- * @wma: wma handle
- *
- * Return: none
- */
-static void wma_cleanup_vdev_resp(tp_wma_handle wma)
-{
-	struct wma_target_req *req_msg = NULL;
-	qdf_list_node_t *node1 = NULL;
-	QDF_STATUS status;
-
-	qdf_spin_lock_bh(&wma->vdev_respq_lock);
-	if (!qdf_list_size(&wma->vdev_resp_queue)) {
-		qdf_spin_unlock_bh(&wma->vdev_respq_lock);
-		WMA_LOGI(FL("request queue maybe empty"));
-		return;
-	}
-
-	while (QDF_STATUS_SUCCESS != qdf_list_peek_front(&wma->vdev_resp_queue,
-						      &node1)) {
-		req_msg = qdf_container_of(node1, struct wma_target_req, node);
-		status = qdf_list_remove_node(&wma->vdev_resp_queue, node1);
-		if (QDF_STATUS_SUCCESS != status) {
-			qdf_spin_unlock_bh(&wma->vdev_respq_lock);
-			WMA_LOGE(FL("Failed to remove request for vdev_id %d type %d"),
-				 req_msg->vdev_id, req_msg->type);
-			return;
-		}
-		qdf_mc_timer_destroy(&req_msg->event_timeout);
-		qdf_mem_free(req_msg);
-	}
-	qdf_spin_unlock_bh(&wma->vdev_respq_lock);
 }
 
 /**
@@ -3549,7 +3546,7 @@ QDF_STATUS wma_close(void *cds_ctx)
 	qdf_event_destroy(&wma_handle->recovery_event);
 	qdf_event_destroy(&wma_handle->tx_frm_download_comp_event);
 	qdf_event_destroy(&wma_handle->tx_queue_empty_event);
-	wma_cleanup_vdev_resp(wma_handle);
+	wma_cleanup_vdev_resp_queue(wma_handle);
 	wma_cleanup_hold_req(wma_handle);
 	qdf_wake_lock_destroy(&wma_handle->wmi_cmd_rsp_wake_lock);
 	qdf_runtime_lock_deinit(&wma_handle->wmi_cmd_rsp_runtime_lock);

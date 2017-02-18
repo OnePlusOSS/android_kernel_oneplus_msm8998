@@ -303,13 +303,12 @@ static int __hdd_hostapd_stop(struct net_device *dev)
 	hdd_adapter_t *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
 	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 	ptSapContext sap_ctx = adapter->sessionCtx.ap.sapContext;
+	int ret;
 
 	ENTER_DEV(dev);
-
-	if (NULL == hdd_ctx) {
-		hdd_info("%pS HDD context is Null", (void *)_RET_IP_);
-		return -ENODEV;
-	}
+	ret = wlan_hdd_validate_context(hdd_ctx);
+	if (ret)
+		return ret;
 
 	if (!sap_ctx) {
 		hdd_err("invalid sap ctx : %p", sap_ctx);
@@ -7277,6 +7276,14 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 		return -EINVAL;
 	}
 
+	if (cds_is_hw_mode_change_in_progress()) {
+		status = qdf_wait_for_connection_update();
+		if (!QDF_IS_STATUS_SUCCESS(status)) {
+			hdd_err("qdf wait for event failed!!");
+			return -EINVAL;
+		}
+	}
+
 	iniConfig = pHddCtx->config;
 	pHostapdState = WLAN_HDD_GET_HOSTAP_STATE_PTR(pHostapdAdapter);
 
@@ -8142,6 +8149,14 @@ static int __wlan_hdd_cfg80211_start_ap(struct wiphy *wiphy,
 	if (cds_is_connection_in_progress(NULL, NULL)) {
 		hdd_err("Can't start BSS: connection is in progress");
 		return -EBUSY;
+	}
+
+	if (cds_is_hw_mode_change_in_progress()) {
+		status = qdf_wait_for_connection_update();
+		if (!QDF_IS_STATUS_SUCCESS(status)) {
+			hdd_err("qdf wait for event failed!!");
+			return -EINVAL;
+		}
 	}
 
 	channel_width = wlan_hdd_get_channel_bw(params->chandef.width);

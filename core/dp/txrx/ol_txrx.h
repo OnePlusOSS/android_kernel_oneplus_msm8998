@@ -38,8 +38,13 @@
  * only for forwarding path.
  */
 #define OL_TX_NON_FWD_RESERVE	100
+#define OL_TXRX_PEER_UNREF_DELETE(peer) \
+	ol_txrx_peer_unref_delete(peer, __func__, __LINE__);
 
-int ol_txrx_peer_unref_delete(struct ol_txrx_peer_t *peer);
+int ol_txrx_peer_unref_delete(ol_txrx_peer_handle peer,
+					      const char *fname,
+					      int line);
+
 
 /**
  * ol_tx_desc_pool_size_hl() - allocate tx descriptor pool size for HL systems
@@ -85,8 +90,7 @@ ol_txrx_hl_tdls_flag_reset(struct ol_txrx_vdev_t *vdev, bool flag)
 }
 #endif
 
-#ifdef CONFIG_HL_SUPPORT
-
+#if defined(CONFIG_HL_SUPPORT) && defined(FEATURE_WLAN_TDLS)
 void
 ol_txrx_copy_mac_addr_raw(ol_txrx_vdev_handle vdev, uint8_t *bss_addr);
 

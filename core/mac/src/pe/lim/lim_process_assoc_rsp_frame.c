@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -853,13 +853,14 @@ lim_process_assoc_rsp_frame(tpAniSirGlobal mac_ctx,
 			return;
 		}
 	}
+
+	lim_diag_event_report(mac_ctx, WLAN_PE_DIAG_ROAM_ASSOC_COMP_EVENT,
+		session_entry, assoc_rsp->statusCode ? eSIR_FAILURE :
+		eSIR_SUCCESS, assoc_rsp->statusCode);
+
 	if (subtype == LIM_REASSOC) {
 		lim_log
 		(mac_ctx, LOG1, FL("Successfully Reassociated with BSS"));
-#ifdef FEATURE_WLAN_DIAG_SUPPORT
-	lim_diag_event_report(mac_ctx, WLAN_PE_DIAG_ROAM_ASSOC_COMP_EVENT,
-			      session_entry, eSIR_SUCCESS, eSIR_SUCCESS);
-#endif
 #ifdef FEATURE_WLAN_ESE
 	if (assoc_rsp->tsmPresent)
 		lim_update_ese_tsm(mac_ctx, session_entry, assoc_rsp);

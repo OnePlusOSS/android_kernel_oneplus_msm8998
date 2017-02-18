@@ -476,7 +476,21 @@ bool lim_check_membership_user_position(tpAniSirGlobal pMac,
 		uint32_t membership, uint32_t userPosition,
 		uint8_t staId);
 
-#ifdef FEATURE_WLAN_DIAG_SUPPORT
+/**
+ * enum ack_status - Indicate TX status of ASSOC/AUTH
+ * @ACKED : Ack is received.
+ * @NOT_ACKED : No Ack received.
+ * @SENT_FAIL : Failure while sending.
+ *
+ * Indicate if driver is waiting for ACK status of assoc/auth or ACK received
+ * for ASSOC/AUTH OR NO ACK is received for the assoc/auth sent or assoc/auth
+ * sent failed.
+ */
+enum assoc_ack_status {
+	ACKED,
+	NOT_ACKED,
+	SENT_FAIL,
+};
 
 typedef enum {
 	WLAN_PE_DIAG_SCAN_REQ_EVENT = 0,
@@ -555,11 +569,20 @@ typedef enum {
 	WLAN_PE_DIAG_SCAN_RESULT_FOUND_EVENT,
 	WLAN_PE_DIAG_ASSOC_TIMEOUT,
 	WLAN_PE_DIAG_AUTH_TIMEOUT,
+	WLAN_PE_DIAG_DEAUTH_FRAME_EVENT,
+	WLAN_PE_DIAG_DISASSOC_FRAME_EVENT,
+	WLAN_PE_DIAG_AUTH_ACK_EVENT,
+	WLAN_PE_DIAG_ASSOC_ACK_EVENT,
 } WLAN_PE_DIAG_EVENT_TYPE;
 
+#ifdef FEATURE_WLAN_DIAG_SUPPORT
 void lim_diag_event_report(tpAniSirGlobal pMac, uint16_t eventType,
 		tpPESession pSessionEntry, uint16_t status,
 		uint16_t reasonCode);
+#else
+static inline void lim_diag_event_report(tpAniSirGlobal pMac, uint16_t
+		eventType, tpPESession pSessionEntry, uint16_t status,
+		uint16_t reasonCode) {}
 #endif /* FEATURE_WLAN_DIAG_SUPPORT */
 
 void pe_set_resume_channel(tpAniSirGlobal pMac, uint16_t channel,
@@ -618,6 +641,23 @@ tSirRetStatus lim_strip_extcap_update_struct(tpAniSirGlobal mac_ctx,
 void lim_merge_extcap_struct(tDot11fIEExtCap *dst, tDot11fIEExtCap *src,
 		bool add);
 
+/**
+ * lim_strip_op_class_update_struct - strip sup op class IE and populate
+ *				  the dot11f structure
+ * @mac_ctx: global MAC context
+ * @addn_ie: Additional IE buffer
+ * @addn_ielen: Length of additional IE
+ * @dst: Supp operating class IE structure to be updated
+ *
+ * This function is used to strip supp op class IE from IE buffer and
+ * update the passed structure.
+ *
+ * Return: tSirRetStatus
+ */
+tSirRetStatus lim_strip_supp_op_class_update_struct(tpAniSirGlobal mac_ctx,
+		uint8_t *addn_ie, uint16_t *addn_ielen,
+		tDot11fIESuppOperatingClasses *dst);
+
 uint8_t lim_get_80Mhz_center_channel(uint8_t primary_channel);
 void lim_update_obss_scanparams(tpPESession session,
 			tDot11fIEOBSSScanParameters *scan_params);
@@ -651,5 +691,6 @@ void lim_send_set_dtim_period(tpAniSirGlobal mac_ctx, uint8_t dtim_period,
 tSirRetStatus lim_strip_ie(tpAniSirGlobal mac_ctx,
 		uint8_t *addn_ie, uint16_t *addn_ielen,
 		uint8_t eid, eSizeOfLenField size_of_len_field,
-		uint8_t *oui, uint8_t out_len, uint8_t *extracted_ie);
+		uint8_t *oui, uint8_t out_len, uint8_t *extracted_ie,
+		uint32_t eid_max_len);
 #endif /* __LIM_UTILS_H */

@@ -9445,6 +9445,14 @@ int wlan_hdd_cfg80211_init(struct device *dev,
 	wiphy->features |= NL80211_FEATURE_AP_MODE_CHAN_WIDTH_CHANGE;
 #endif
 	wiphy->features |= NL80211_FEATURE_INACTIVITY_TIMER;
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 8, 0)) || \
+	defined(CFG80211_BEACON_TX_RATE_CUSTOM_BACKPORT)
+	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_BEACON_RATE_LEGACY);
+	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_BEACON_RATE_HT);
+	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_BEACON_RATE_VHT);
+#endif
+
 	hdd_add_channel_switch_support(&wiphy->flags);
 	wlan_hdd_cfg80211_scan_randomization_init(wiphy);
 
@@ -11912,11 +11920,18 @@ static int wlan_hdd_cfg80211_connect_start(hdd_adapter_t *pAdapter,
 
 	status = wlan_hdd_validate_context(pHddCtx);
 	if (status)
-		return status;
+		goto ret_status;
 
 	if (SIR_MAC_MAX_SSID_LENGTH < ssid_len) {
 		hdd_err("wrong SSID len");
-		return -EINVAL;
+		status = -EINVAL;
+		goto ret_status;
+	}
+
+	if (true == cds_is_connection_in_progress(NULL, NULL)) {
+		hdd_err("Connection refused: conn in progress");
+		status = -EINVAL;
+		goto ret_status;
 	}
 
 	pRoamProfile = &pWextState->roamProfile;
@@ -11926,6 +11941,24 @@ static int wlan_hdd_cfg80211_connect_start(hdd_adapter_t *pAdapter,
 	if (pRoamProfile) {
 		hdd_station_ctx_t *pHddStaCtx;
 		pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
+
+		/* Restart the opportunistic timer
+		 *
+		 * If hw_mode_change_in_progress is true, then wait
+		 * till firmware sends the callback for hw_mode change.
+		 *
+		 * Else set connect_in_progress as true and proceed.
+		 */
+		cds_restart_opportunistic_timer(false);
+		if (cds_is_hw_mode_change_in_progress()) {
+			status = qdf_wait_for_connection_update();
+			if (!QDF_IS_STATUS_SUCCESS(status)) {
+				hdd_err("qdf wait for event failed!!");
+				status = -EINVAL;
+				goto ret_status;
+			}
+		}
+		cds_set_connection_in_progress(true);
 
 		if (HDD_WMM_USER_MODE_NO_QOS ==
 		    (WLAN_HDD_GET_CTX(pAdapter))->config->WmmMode) {
@@ -12058,7 +12091,8 @@ static int wlan_hdd_cfg80211_connect_start(hdd_adapter_t *pAdapter,
 
 			if (QDF_STATUS_SUCCESS != status) {
 				hdd_err("Set IBSS Power Save Params Failed");
-				return -EINVAL;
+				status = -EINVAL;
+				goto conn_failure;
 			}
 			pRoamProfile->ch_params.ch_width =
 				hdd_map_nl_chan_width(ch_width);
@@ -12084,12 +12118,8 @@ static int wlan_hdd_cfg80211_connect_start(hdd_adapter_t *pAdapter,
 					pWextState->roamProfile.MFPEnabled,
 					pWextState->roamProfile.MFPRequired,
 					pWextState->roamProfile.MFPCapable);
-			return -EINVAL;
-		}
-
-		if (true == cds_is_connection_in_progress(NULL, NULL)) {
-			hdd_err("Connection refused: conn in progress");
-			return -EINVAL;
+			status = -EINVAL;
+			goto conn_failure;
 		}
 
 		/*
@@ -12116,8 +12146,10 @@ static int wlan_hdd_cfg80211_connect_start(hdd_adapter_t *pAdapter,
 		if (wma_is_hw_dbs_capable() == false) {
 			cds_handle_conc_rule1(pAdapter, pRoamProfile);
 			if (true != cds_handle_conc_rule2(
-					pAdapter, pRoamProfile, &roamId))
-				return 0;
+					pAdapter, pRoamProfile, &roamId)) {
+				status = 0;
+				goto conn_failure;
+			}
 		}
 
 		if ((wma_is_hw_dbs_capable() == true) &&
@@ -12126,7 +12158,8 @@ static int wlan_hdd_cfg80211_connect_start(hdd_adapter_t *pAdapter,
 			hdd_err("sap-sta conc will fail, can't allow sta");
 			hdd_conn_set_connection_state(pAdapter,
 					eConnectionState_NotConnected);
-			return -ENOMEM;
+			status = -ENOMEM;
+			goto conn_failure;
 		}
 
 		sme_config = qdf_mem_malloc(sizeof(*sme_config));
@@ -12134,7 +12167,8 @@ static int wlan_hdd_cfg80211_connect_start(hdd_adapter_t *pAdapter,
 			hdd_err("unable to allocate sme_config");
 			hdd_conn_set_connection_state(pAdapter,
 					eConnectionState_NotConnected);
-			return -ENOMEM;
+			status = -ENOMEM;
+			goto conn_failure;
 		}
 		sme_get_config_param(pHddCtx->hHal, sme_config);
 		/* These values are not sessionized. So, any change in these SME
@@ -12192,6 +12226,9 @@ static int wlan_hdd_cfg80211_connect_start(hdd_adapter_t *pAdapter,
 						     connect);
 		}
 
+		/* Reset connect_in_progress */
+		cds_set_connection_in_progress(false);
+
 		pRoamProfile->ChannelInfo.ChannelList = NULL;
 		pRoamProfile->ChannelInfo.numOfChannels = 0;
 
@@ -12206,8 +12243,15 @@ static int wlan_hdd_cfg80211_connect_start(hdd_adapter_t *pAdapter,
 
 	} else {
 		hdd_err("No valid Roam profile");
-		return -EINVAL;
+		status = -EINVAL;
 	}
+	goto ret_status;
+
+conn_failure:
+	/* Reset connect_in_progress */
+	cds_set_connection_in_progress(false);
+
+ret_status:
 	EXIT();
 	return status;
 }

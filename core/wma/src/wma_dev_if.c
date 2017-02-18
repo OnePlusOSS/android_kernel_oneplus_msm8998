@@ -1243,7 +1243,7 @@ QDF_STATUS wma_create_peer(tp_wma_handle wma, ol_txrx_pdev_handle pdev,
 		ol_txrx_peer_detach(peer);
 		goto err;
 	}
-	WMA_LOGE("%s: Created peer %p ref_cnt %d with peer_addr %pM vdev_id %d, peer_count - %d",
+	WMA_LOGI("%s: Created peer %p ref_cnt %d with peer_addr %pM vdev_id %d, peer_count - %d",
 		  __func__, peer, qdf_atomic_read(&peer->ref_cnt),
 		  peer_addr, vdev_id,
 		  wma->interfaces[vdev_id].peer_count);
@@ -2402,6 +2402,14 @@ int wma_peer_delete_handler(void *handle, uint8_t *cmd_param_info,
 	return status;
 }
 
+static inline bool wma_crash_on_fw_timeout(bool crash_enabled)
+{
+	/* Discard FW timeouts and dont crash during SSR */
+	if (cds_is_driver_recovering())
+		return false;
+
+	return crash_enabled;
+}
 
 /**
  * wma_hold_req_timer() - wma hold request timeout function
@@ -2437,8 +2445,8 @@ void wma_hold_req_timer(void *data)
 		WMA_LOGA(FL("WMA_ADD_STA_REQ timed out"));
 		WMA_LOGD(FL("Sending add sta rsp to umac (mac:%pM, status:%d)"),
 			 params->staMac, params->status);
-		if (wma->fw_timeout_crash == true)
-			BUG_ON(1);
+		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true)
+			QDF_BUG(0);
 		else
 			wma_send_msg(wma, WMA_ADD_STA_RSP, (void *)params, 0);
 	} else if (tgt_req->msg_type == WMA_ADD_BSS_REQ) {
@@ -2447,8 +2455,8 @@ void wma_hold_req_timer(void *data)
 		WMA_LOGA(FL("WMA_ADD_BSS_REQ timed out"));
 		WMA_LOGD(FL("Sending add bss rsp to umac (mac:%pM, status:%d)"),
 			params->selfMacAddr, params->status);
-		if (wma->fw_timeout_crash == true)
-			BUG_ON(1);
+		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true)
+			QDF_BUG(0);
 		else
 			wma_send_msg(wma, WMA_ADD_BSS_RSP, (void *)params, 0);
 	} else if ((tgt_req->msg_type == WMA_DELETE_STA_REQ) &&
@@ -2460,8 +2468,8 @@ void wma_hold_req_timer(void *data)
 		WMA_LOGP(FL("Sending del sta rsp to umac (mac:%pM, status:%d)"),
 			 params->staMac, params->status);
 
-		if (wma->fw_timeout_crash == true) {
-			BUG_ON(1);
+		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true) {
+			QDF_BUG(0);
 		} else {
 			/*
 			 * Assert in development build only.
@@ -2617,8 +2625,8 @@ void wma_vdev_resp_timer(void *data)
 		WMA_LOGA("%s: WMA_SWITCH_CHANNEL_REQ timedout", __func__);
 
 		/* Trigger host crash if the flag is set */
-		if (wma->fw_timeout_crash == true)
-			BUG_ON(1);
+		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true)
+			QDF_BUG(0);
 		else
 			wma_send_msg(wma, WMA_SWITCH_CHANNEL_RSP,
 				    (void *)params, 0);
@@ -2649,8 +2657,8 @@ void wma_vdev_resp_timer(void *data)
 			goto free_tgt_req;
 		}
 		/* Trigger host crash when vdev response timesout */
-		if (wma->fw_timeout_crash == true) {
-			BUG_ON(1);
+		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true) {
+			QDF_BUG(0);
 			return;
 		}
 
@@ -2726,8 +2734,8 @@ void wma_vdev_resp_timer(void *data)
 		params->status = QDF_STATUS_E_TIMEOUT;
 
 		WMA_LOGA("%s: WMA_DEL_STA_SELF_REQ timedout", __func__);
-		if (wma->fw_timeout_crash == true) {
-			BUG_ON(1);
+		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true) {
+			QDF_BUG(0);
 		} else {
 			sme_msg.type = eWNI_SME_DEL_STA_SELF_RSP;
 			sme_msg.bodyptr = iface->del_staself_req;
@@ -2751,8 +2759,8 @@ void wma_vdev_resp_timer(void *data)
 		WMA_LOGA("%s: WMA_ADD_BSS_REQ timedout", __func__);
 		WMA_LOGI("%s: bssid %pM vdev_id %d", __func__, params->bssId,
 			 tgt_req->vdev_id);
-		if (wma->fw_timeout_crash == true) {
-			BUG_ON(1);
+		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true) {
+			QDF_BUG(0);
 		} else {
 			wma_send_msg(wma, WMA_ADD_BSS_RSP, (void *)params, 0);
 			QDF_ASSERT(0);

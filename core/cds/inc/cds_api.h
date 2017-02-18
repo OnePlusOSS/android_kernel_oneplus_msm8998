@@ -221,7 +221,7 @@ QDF_STATUS cds_enable(v_CONTEXT_t cds_context);
 
 QDF_STATUS cds_disable(v_CONTEXT_t cds_context);
 
-QDF_STATUS cds_post_disable(v_CONTEXT_t cds_context);
+QDF_STATUS cds_post_disable(void);
 
 QDF_STATUS cds_close(v_CONTEXT_t cds_context);
 

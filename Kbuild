@@ -224,7 +224,7 @@ endif
 endif
 
 # If not set, assume, Common driver is with in the build tree
-WLAN_COMMON_ROOT ?= qca-wifi-host-cmn
+WLAN_COMMON_ROOT ?= ../qca-wifi-host-cmn
 WLAN_COMMON_INC ?= $(WLAN_ROOT)/$(WLAN_COMMON_ROOT)
 
 ifneq ($(CONFIG_MOBILE_ROUTER), y)
@@ -275,6 +275,11 @@ endif
 ifeq ($(CONFIG_ROME_IF),usb)
 	CONFIG_HIF_USB := 1
 	CONFIG_PLD_USB_CNSS := y
+endif
+
+#Enable SDIO specific APIS
+ifeq ($(CONFIG_ROME_IF),sdio)
+	CONFIG_HIF_SDIO := 1
 endif
 
 #Enable pci read/write config functions
@@ -1647,4 +1652,3 @@ endif
 # Module information used by KBuild framework
 obj-$(CONFIG_QCA_CLD_WLAN) += $(MODNAME).o
 $(MODNAME)-y := $(OBJS)
-

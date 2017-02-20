@@ -17768,3 +17768,60 @@ QDF_STATUS sme_set_dbs_scan_selection_config(tHalHandle hal,
 
 	return status;
 }
+
+QDF_STATUS sme_get_chain_rssi(tHalHandle phal,
+	struct get_chain_rssi_req_params *input)
+{
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	QDF_STATUS cds_status = QDF_STATUS_SUCCESS;
+	tpAniSirGlobal pmac = PMAC_STRUCT(phal);
+	cds_msg_t cds_message;
+	struct get_chain_rssi_req_params *req_msg;
+
+	req_msg = qdf_mem_malloc(sizeof(*req_msg));
+	if (!req_msg) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			"%s: Not able to allocate memory", __func__);
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	*req_msg = *input;
+
+	status = sme_acquire_global_lock(&pmac->sme);
+	if (QDF_STATUS_SUCCESS == status) {
+		/* serialize the req through MC thread */
+		cds_message.bodyptr = req_msg;
+		cds_message.type    = SIR_HAL_GET_CHAIN_RSSI_REQ;
+		cds_status = cds_mq_post_message(CDS_MQ_ID_WMA, &cds_message);
+		if (!QDF_IS_STATUS_SUCCESS(cds_status)) {
+			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+				FL("Post Get Chain Rssi msg fail"));
+			status = QDF_STATUS_E_FAILURE;
+		}
+		sme_release_global_lock(&pmac->sme);
+	}
+
+	return status;
+}
+
+/**
+ * sme_chain_rssi_register_callback - chain rssi callback
+ * @hal: global hal handle
+ * @pchain_rssi_ind_cb: callback function pointer
+ *
+ * Return: QDF_STATUS enumeration.
+ */
+QDF_STATUS sme_chain_rssi_register_callback(tHalHandle phal,
+			void (*pchain_rssi_ind_cb)(void *, void *))
+{
+	QDF_STATUS status;
+	tpAniSirGlobal pmac = PMAC_STRUCT(phal);
+
+	status = sme_acquire_global_lock(&pmac->sme);
+	if (QDF_STATUS_SUCCESS == status) {
+		pmac->sme.pchain_rssi_ind_cb = pchain_rssi_ind_cb;
+		sme_release_global_lock(&pmac->sme);
+	}
+
+	return status;
+}

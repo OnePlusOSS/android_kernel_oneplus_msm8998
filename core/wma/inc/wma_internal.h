@@ -1397,4 +1397,19 @@ struct wma_beacon_interval_reset_req {
  */
 int wma_fill_beacon_interval_reset_req(tp_wma_handle wma, uint8_t vdev_id,
 				uint16_t beacon_interval, uint32_t timeout);
+
+/**
+ * wma_peer_ant_info_evt_handler - event handler to handle antenna info
+ * @handle: the wma handle
+ * @event: buffer with event
+ * @len: buffer length
+ *
+ * This function receives antenna info from firmware and passes the event
+ * to upper layer
+ *
+ * Return: 0 on success
+ */
+int wma_peer_ant_info_evt_handler(void *handle, u_int8_t *event,
+	u_int32_t len);
+
 #endif

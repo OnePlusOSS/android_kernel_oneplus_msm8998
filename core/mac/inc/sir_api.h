@@ -7692,4 +7692,24 @@ struct action_frame_random_filter {
 	uint8_t mac_addr[QDF_MAC_ADDR_SIZE];
 	uint32_t freq;
 };
+
+/**
+ * struct chain_rssi_result - chain rssi result
+ * @chain_rssi: chain rssi result
+ */
+struct chain_rssi_result {
+	#define CHAIN_RSSI_NUM  8
+	uint32_t chain_rssi[CHAIN_RSSI_NUM];
+};
+
+/**
+ * struct get_chain_rssi_req_params - get chain rssi req params
+ * @peer_macaddr: specific peer mac address
+ * @session_id: session id
+ */
+struct get_chain_rssi_req_params {
+	struct qdf_mac_addr peer_macaddr;
+	uint8_t session_id;
+};
+
 #endif /* __SIR_API_H */

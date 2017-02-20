@@ -1600,6 +1600,25 @@ QDF_STATUS sme_clear_random_mac(tHalHandle hal, uint32_t session_id,
  */
 QDF_STATUS sme_set_chip_pwr_save_fail_cb(tHalHandle hal, void (*cb)(void *,
 				 struct chip_pwr_save_fail_detected_params *));
+/**
+ * sme_get_chain_rssi - sme api to get chain rssi
+ * @phal: global hal handle
+ * @input: get chain rssi req params
+ *
+ * Return: QDF_STATUS enumeration.
+ */
+QDF_STATUS sme_get_chain_rssi(tHalHandle phal,
+	struct get_chain_rssi_req_params *input);
+
+/**
+ * sme_chain_rssi_register_callback - chain rssi callback
+ * @phal: global hal handle
+ * @pchain_rssi_ind_cb: callback function pointer
+ *
+ * Return: QDF_STATUS enumeration.
+ */
+QDF_STATUS sme_chain_rssi_register_callback(tHalHandle phal,
+			void (*pchain_rssi_ind_cb)(void *ctx, void *pmsg));
 
 /**
  * sme_process_msg_callback() - process callback message from LIM

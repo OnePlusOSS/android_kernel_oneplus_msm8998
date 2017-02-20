@@ -662,6 +662,8 @@ typedef struct sSirMbMsgP2p {
 #endif
 #define SIR_HAL_SET_DBS_SCAN_SEL_PARAMS     (SIR_HAL_ITC_MSG_TYPES_BEGIN + 379)
 
+#define SIR_HAL_GET_CHAIN_RSSI_REQ          (SIR_HAL_ITC_MSG_TYPES_BEGIN + 380)
+
 #define SIR_HAL_MSG_TYPES_END               (SIR_HAL_MSG_TYPES_BEGIN + 0x1FF)
 /* CFG message types */
 #define SIR_CFG_MSG_TYPES_BEGIN        (SIR_CFG_MODULE_ID << 8)

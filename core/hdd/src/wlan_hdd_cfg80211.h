@@ -480,6 +480,9 @@ enum qca_nl80211_vendor_subcmds {
 	/* Encrypt/Decrypt command */
 	QCA_NL80211_VENDOR_SUBCMD_ENCRYPTION_TEST = 137,
 
+	/* subcommand to get chain rssi value */
+	QCA_NL80211_VENDOR_SUBCMD_GET_CHAIN_RSSI = 138,
+
 	/* Configure the TDLS mode from user space */
 	QCA_NL80211_VENDOR_SUBCMD_CONFIGURE_TDLS = 143,
 
@@ -1033,6 +1036,10 @@ enum qca_wlan_vendor_attr {
 	QCA_WLAN_VENDOR_ATTR_MAX_CONCURRENT_CHANNELS_2_4_BAND = 10,
 	QCA_WLAN_VENDOR_ATTR_MAX_CONCURRENT_CHANNELS_5_0_BAND = 11,
 	QCA_WLAN_VENDOR_ATTR_SETBAND_VALUE = 12,
+
+	/* used by QCA_NL80211_VENDOR_SUBCMD_GET_CHAIN_RSSI */
+	QCA_WLAN_VENDOR_ATTR_CHAIN_INDEX = 26,
+	QCA_WLAN_VENDOR_ATTR_CHAIN_RSSI = 27,
 
 	QCA_WLAN_VENDOR_ATTR_BTM_MBO_TRANSITION_REASON = 36,
 	QCA_WLAN_VENDOR_ATTR_BTM_CANDIDATE_INFO = 37,
@@ -2688,6 +2695,17 @@ enum qca_wlan_vendor_config {
 	/* Unsigned 8-bit, for setting qpower dynamically */
 	QCA_WLAN_VENDOR_ATTR_CONFIG_QPOWER = 25,
 	QCA_WLAN_VENDOR_ATTR_CONFIG_IGNORE_ASSOC_DISALLOWED = 26,
+	/* 32-bit unsigned value to trigger antenna diversity features:
+	 * 1-Enable, 0-Disable */
+	QCA_WLAN_VENDOR_ATTR_CONFIG_ANT_DIV_ENA = 27,
+	/* 32-bit unsigned value to configure specific chain antenna */
+	QCA_WLAN_VENDOR_ATTR_CONFIG_ANT_DIV_CHAIN = 28,
+	/* 32-bit unsigned value to trigger cycle selftest
+	 * 1-Enable, 0-Disable */
+	QCA_WLAN_VENDOR_ATTR_CONFIG_ANT_DIV_SELFTEST = 29,
+	/* 32-bit unsigned to configure the cycle time of selftest
+	 * the unit is micro-second */
+	QCA_WLAN_VENDOR_ATTR_CONFIG_ANT_DIV_SELFTEST_INTVL = 30,
 	QCA_WLAN_VENDOR_ATTR_CONFIG_PROPAGATION_ABS_DELAY = 40,
 
 	/* keep last */
@@ -3850,6 +3868,15 @@ void wlan_hdd_cfg80211_extscan_callback(void *ctx,
  * Return: None
  */
 void wlan_hdd_rso_cmd_status_cb(void *ctx, struct rso_cmd_status *rso_status);
+
+/**
+ * wlan_hdd_cfg80211_chainrssi_callback - chainrssi callback
+ * @ctx: hdd context
+ * @pmsg: pmsg
+ *
+ * Return: void
+ */
+void wlan_hdd_cfg80211_chainrssi_callback(void *ctx, void *pmsg);
 
 void hdd_rssi_threshold_breached(void *hddctx,
 				 struct rssi_breach_event *data);

@@ -698,6 +698,7 @@ ol_txrx_peer_uapsdmask_get(struct ol_txrx_pdev_t *txrx_pdev, uint16_t peer_id);
 uint8_t
 ol_txrx_peer_qoscapable_get(struct ol_txrx_pdev_t *txrx_pdev, uint16_t peer_id);
 
+#ifndef CONFIG_HL_SUPPORT
 /**
  * @brief Process an rx indication message sent by the target.
  * @details
@@ -723,6 +724,7 @@ ol_rx_in_order_indication_handler(ol_txrx_pdev_handle pdev,
 				  qdf_nbuf_t rx_ind_msg,
 				  uint16_t peer_id,
 				  uint8_t tid, uint8_t is_offload);
+#endif
 
 #ifdef FEATURE_HL_GROUP_CREDIT_FLOW_CONTROL
 

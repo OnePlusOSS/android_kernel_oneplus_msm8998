@@ -787,6 +787,7 @@ void htt_rx_msdu_desc_free(htt_pdev_handle htt_pdev, qdf_nbuf_t msdu);
  */
 void htt_rx_msdu_buff_replenish(htt_pdev_handle pdev);
 
+#ifndef CONFIG_HL_SUPPORT
 /**
  * @brief Add new MSDU buffers for the target to fill.
  * @details
@@ -803,6 +804,7 @@ void htt_rx_msdu_buff_replenish(htt_pdev_handle pdev);
  * Return: number of buffers actually replenished
  */
 int htt_rx_msdu_buff_in_order_replenish(htt_pdev_handle pdev, uint32_t num);
+#endif
 
 /**
  * @brief Links list of MSDUs into an single MPDU. Updates RX stats
@@ -858,6 +860,7 @@ uint16_t htt_rx_msdu_rx_desc_size_hl(htt_pdev_handle pdev, void *msdu_desc);
  */
 void htt_rx_get_vowext_stats(qdf_nbuf_t msdu, struct vow_extstats *vowstats);
 
+#ifndef CONFIG_HL_SUPPORT
 /**
  * @brief parses the offload message passed by the target.
  * @param pdev - pdev handle
@@ -879,6 +882,7 @@ htt_rx_offload_paddr_msdu_pop_ll(htt_pdev_handle pdev,
 				 int *tid,
 				 uint8_t *fw_desc,
 				 qdf_nbuf_t *head_buf, qdf_nbuf_t *tail_buf);
+#endif
 
 uint32_t htt_rx_amsdu_rx_in_order_get_pktlog(qdf_nbuf_t rx_ind_msg);
 

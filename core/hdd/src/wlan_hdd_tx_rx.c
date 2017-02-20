@@ -513,6 +513,12 @@ static int __hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/*
+	 * Add SKB to internal tracking table before further processing
+	 * in WLAN driver.
+	 */
+	qdf_net_buf_debug_acquire_skb(skb, __FILE__, __LINE__);
+
+	/*
 	 * user priority from IP header, which is already extracted and set from
 	 * select_queue call back function
 	 */
@@ -635,7 +641,7 @@ static int __hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 				 "%s: station is not connected. drop the pkt",
 				 __func__);
 		++pAdapter->hdd_stats.hddTxRxStats.txXmitDroppedAC[ac];
-		goto drop_pkt;
+		goto drop_pkt_and_release_skb;
 	}
 
 	/*
@@ -646,7 +652,7 @@ static int __hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			 "%s: TX function not registered by the data path",
 			 __func__);
 		++pAdapter->hdd_stats.hddTxRxStats.txXmitDroppedAC[ac];
-		goto drop_pkt;
+		goto drop_pkt_and_release_skb;
 	}
 
 	if (pAdapter->tx_fn(ol_txrx_get_vdev_by_sta_id(STAId),
@@ -655,13 +661,15 @@ static int __hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			  "%s: Failed to send packet to txrx for staid: %d",
 			  __func__, STAId);
 		++pAdapter->hdd_stats.hddTxRxStats.txXmitDroppedAC[ac];
-		goto drop_pkt;
+		goto drop_pkt_and_release_skb;
 	}
 
 	netif_trans_update(dev);
 
 	return NETDEV_TX_OK;
 
+drop_pkt_and_release_skb:
+	qdf_net_buf_debug_release_skb(skb);
 drop_pkt:
 
 	if (skb) {

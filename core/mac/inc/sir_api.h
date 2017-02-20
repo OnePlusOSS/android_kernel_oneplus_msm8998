@@ -3793,6 +3793,7 @@ typedef struct sSirScanOffloadReq {
 	uint16_t uIEFieldLen;
 	uint16_t uIEFieldOffset;
 
+	uint32_t burst_scan_duration;
 	/* mac address randomization attributes */
 	bool enable_scan_randomization;
 	uint8_t mac_addr[QDF_MAC_ADDR_SIZE];

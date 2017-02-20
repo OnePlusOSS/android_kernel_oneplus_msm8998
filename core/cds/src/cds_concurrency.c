@@ -2716,10 +2716,6 @@ bool cds_is_connection_in_progress(uint8_t *session_id,
 		return false;
 	}
 
-	if (true == hdd_ctx->btCoexModeSet) {
-		cds_info("BTCoex Mode operation in progress");
-		return true;
-	}
 	status = hdd_get_front_adapter(hdd_ctx, &adapter_node);
 	while (NULL != adapter_node && QDF_STATUS_SUCCESS == status) {
 		adapter = adapter_node->pAdapter;

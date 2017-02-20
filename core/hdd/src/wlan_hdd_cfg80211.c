@@ -12008,6 +12008,11 @@ static int wlan_hdd_cfg80211_connect_start(hdd_adapter_t *pAdapter,
 		goto ret_status;
 	}
 
+	if (pHddCtx->btCoexModeSet) {
+		hdd_err("BTCoex Mode operation in progress");
+		return -EBUSY;
+	}
+
 	if (true == cds_is_connection_in_progress(NULL, NULL)) {
 		hdd_err("Connection refused: conn in progress");
 		status = -EINVAL;

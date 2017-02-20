@@ -1672,6 +1672,11 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 	}
 #endif
 
+	if (pHddCtx->btCoexModeSet) {
+		cds_info("BTCoex Mode operation in progress");
+		return -EBUSY;
+	}
+
 	/* Check if scan is allowed at this point of time */
 	if (cds_is_connection_in_progress(&curr_session_id, &curr_reason)) {
 		hdd_err("Scan not allowed");

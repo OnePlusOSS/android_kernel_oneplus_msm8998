@@ -7978,7 +7978,7 @@ void hdd_set_rx_mode_rps(hdd_context_t *hdd_ctx, void *padapter,
 	struct cds_config_info *cds_cfg = cds_get_ini_config();
 	hdd_adapter_t *adapter = padapter;
 
-	if (adapter && hdd_ctx &&
+	if (adapter && hdd_ctx && cds_cfg &&
 	    !hdd_ctx->rps && cds_cfg->uc_offload_enabled) {
 		if (enable && !cds_cfg->rps_enabled)
 			hdd_send_rps_ind(adapter);

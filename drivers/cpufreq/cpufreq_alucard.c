@@ -33,7 +33,6 @@ struct cpufreq_alucard_policyinfo {
 	spinlock_t load_lock; /* protects load tracking stat */
 	u64 last_evaluated_jiffy;
 	struct cpufreq_policy *policy;
-	struct cpufreq_frequency_table *freq_table;
 	spinlock_t target_freq_lock; /*protects target freq */
 	unsigned int target_freq;
 	unsigned int min_freq;
@@ -65,7 +64,7 @@ static struct mutex gov_lock;
 #define DEFAULT_TIMER_RATE (20 * USEC_PER_MSEC)
 #define DEFAULT_TIMER_RATE_SUSP ((unsigned long)(50 * USEC_PER_MSEC))
 
-#define FREQ_RESPONSIVENESS			1113600
+#define FREQ_RESPONSIVENESS			1036800
 #define FREQ_RESPONSIVENESS_MAX		1324800
 #define FREQ_RESPONSIVENESS_MAX_BIGC		1920000
 
@@ -203,45 +202,57 @@ static void cpufreq_alucard_timer_start(
 	spin_unlock_irqrestore(&ppol->load_lock, flags);
 }
 
-static unsigned int choose_target_freq(struct cpufreq_alucard_policyinfo *pcpu,
-					unsigned int step, bool isup)
+static void get_target_load(struct cpufreq_policy *policy, int index,
+					unsigned int *down_load, unsigned int *up_load)
 {
-	struct cpufreq_policy *policy = pcpu->policy;
-	struct cpufreq_frequency_table *table = pcpu->freq_table;
-	struct cpufreq_frequency_table *pos;
-	unsigned int target_freq = 0, freq;
-	int i = 0, t = 0;
+	struct cpufreq_frequency_table *table;
+	int i = 0;
 
-	if (!policy || !table || !step)
+	if (!policy)
+		return;
+
+	table = policy->freq_table;
+	for (i = (index - 1); i >= 0; i--) {
+		if (table[i].frequency != CPUFREQ_ENTRY_INVALID) {
+			*down_load = clamp_val((table[i].frequency * 100) / policy->max, 0, 100);
+			break;
+		}
+	}
+	*up_load = clamp_val((policy->cur * 100) / policy->max, 0, 100);
+}
+
+static unsigned int choose_target_freq(struct cpufreq_policy *policy,
+					int index, unsigned int step, bool isup)
+{
+	struct cpufreq_frequency_table *table;
+	unsigned int target_freq = 0;
+	int i = 0;
+
+	if (!policy || !step)
 		return 0;
 
-	cpufreq_for_each_valid_entry(pos, table) {
-		freq = pos->frequency;
-		i = pos - table;
-		if (isup) {
-			if (freq > policy->cur) {
-				target_freq = freq;
+	table = policy->freq_table;
+	if (isup) {
+		for (i = (index + 1); (table[i].frequency != CPUFREQ_TABLE_END); i++) {
+			if (table[i].frequency != CPUFREQ_ENTRY_INVALID) {
+				target_freq = table[i].frequency;
 				step--;
 				if (step == 0) {
 					break;
 				}
 			}
-		} else {
-			if (freq == policy->cur) {
-				for (t = (i - 1); t >= 0; t--) {
-					if (table[t].frequency != CPUFREQ_ENTRY_INVALID) {
-						target_freq = table[t].frequency;
-						step--;
-						if (step == 0) {
-							break;
-						}
-					}
+		}
+	} else {
+		for (i = (index - 1); i >= 0; i--) {
+			if (table[i].frequency != CPUFREQ_ENTRY_INVALID) {
+				target_freq = table[i].frequency;
+				step--;
+				if (step == 0) {
+					break;
 				}
-				break;
 			}
 		}
 	}
-	
 	return target_freq;
 }
 
@@ -263,12 +274,11 @@ static bool update_load(int cpu)
 
 	WARN_ON_ONCE(!delta_time);
 
-	if (delta_time < delta_idle) {
+	if (!delta_time) {
 		pcpu->load = 0;
 		ignore = true;
 	} else {
-		pcpu->load = 100 * (delta_time - delta_idle);
-		do_div(pcpu->load, delta_time);
+		pcpu->load = (100 * (delta_time - delta_idle)) / delta_time;
 	}
 	pcpu->time_in_idle = now_idle;
 	pcpu->time_in_idle_timestamp = now;
@@ -285,16 +295,15 @@ static void cpufreq_alucard_timer(unsigned long data)
 	struct cpufreq_govinfo govinfo;
 	unsigned int freq_responsiveness = tunables->freq_responsiveness;
 	unsigned int freq_responsiveness_max = tunables->freq_responsiveness_max;
-	int target_cpu_load;
 	int pump_inc_step = tunables->pump_inc_step;
 	int pump_dec_step = tunables->pump_dec_step;
 	unsigned int cpus_up_rate = tunables->cpus_up_rate;
 	unsigned int cpus_down_rate = tunables->cpus_down_rate;
 	unsigned int new_freq = 0;
-	unsigned int max_load = 0;
+	unsigned int max_load = 0, up_load = 0, down_load = 0;
 	unsigned long flags;
 	unsigned long max_cpu;
-	int i, fcpu;
+	int i, fcpu, index;
 
 	if (!down_read_trylock(&ppol->enable_sem))
 		return;
@@ -318,7 +327,6 @@ static void cpufreq_alucard_timer(unsigned long data)
 	}
 #endif
 	/* CPUs Online Scale Frequency*/
-	target_cpu_load = (ppol->policy->cur * 100) / ppol->policy->max;
 	if (ppol->policy->cur < freq_responsiveness) {
 		pump_inc_step = tunables->pump_inc_step_at_min_freq;
 		pump_dec_step = tunables->pump_dec_step_at_min_freq;
@@ -363,19 +371,25 @@ static void cpufreq_alucard_timer(unsigned long data)
 	if (ppol->down_rate > cpus_down_rate)
 		ppol->down_rate = 1;
 
-	if (max_load >= target_cpu_load
+	index = cpufreq_frequency_table_get_index(ppol->policy, ppol->policy->cur);
+	if (index < 0) {
+		spin_unlock_irqrestore(&ppol->target_freq_lock, flags);
+		goto rearm;
+	}
+	get_target_load(ppol->policy, index, &down_load, &up_load);
+	if (max_load >= up_load
 		 && ppol->policy->cur < ppol->policy->max) {
 		if (ppol->up_rate % cpus_up_rate == 0) {
-			new_freq = choose_target_freq(ppol,
-				pump_inc_step, true);
+			new_freq = choose_target_freq(ppol->policy,
+				index, pump_inc_step, true);
 		} else {
 			++ppol->up_rate;
 		}
-	} else if (max_load < target_cpu_load
+	} else if (max_load < down_load
 				 && ppol->policy->cur > ppol->policy->min) {
 		if (ppol->down_rate % cpus_down_rate == 0) {
-			new_freq = choose_target_freq(ppol,
-				pump_dec_step, false);
+			new_freq = choose_target_freq(ppol->policy,
+				index, pump_dec_step, false);
 		} else {
 			++ppol->down_rate;
 		}
@@ -1078,7 +1092,6 @@ static int cpufreq_governor_alucard(struct cpufreq_policy *policy,
 {
 	int rc;
 	struct cpufreq_alucard_policyinfo *ppol;
-	struct cpufreq_frequency_table *freq_table;
 	struct cpufreq_alucard_tunables *tunables;
 	unsigned long flags;
 
@@ -1161,12 +1174,9 @@ static int cpufreq_governor_alucard(struct cpufreq_policy *policy,
 	case CPUFREQ_GOV_START:
 		mutex_lock(&gov_lock);
 
-		freq_table = cpufreq_frequency_get_table(policy->cpu);
-
 		ppol = per_cpu(polinfo, policy->cpu);
 		ppol->policy = policy;
 		ppol->target_freq = policy->cur;
-		ppol->freq_table = freq_table;
 		ppol->min_freq = policy->min;
 		ppol->up_rate = 1;
 		ppol->down_rate = 1;
@@ -1280,5 +1290,5 @@ static void __exit cpufreq_alucard_exit(void)
 module_exit(cpufreq_alucard_exit);
 
 MODULE_AUTHOR("Alucard24 <dmbaoh2@gmail.com>");
-MODULE_DESCRIPTION("'cpufreq_alucard' - A dynamic cpufreq governor v5.0");
+MODULE_DESCRIPTION("'cpufreq_alucard' - A dynamic cpufreq governor v5.2");
 MODULE_LICENSE("GPLv2");

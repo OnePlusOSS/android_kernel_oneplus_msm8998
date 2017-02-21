@@ -33,7 +33,6 @@ struct cpufreq_nightmare_policyinfo {
 	spinlock_t load_lock; /* protects load tracking stat */
 	u64 last_evaluated_jiffy;
 	struct cpufreq_policy *policy;
-	struct cpufreq_frequency_table *freq_table;
 	spinlock_t target_freq_lock; /*protects target freq */
 	unsigned int target_freq;
 	unsigned int min_freq;
@@ -197,32 +196,67 @@ static void cpufreq_nightmare_timer_start(
 	spin_unlock_irqrestore(&ppol->load_lock, flags);
 }
 
-static unsigned int choose_freq(struct cpufreq_nightmare_policyinfo *pcpu,
-					unsigned int tmp_freq)
+static void get_target_load(struct cpufreq_policy *policy, int index,
+					unsigned int *down_load, unsigned int *up_load)
 {
-	struct cpufreq_policy *policy = pcpu->policy;
-	struct cpufreq_frequency_table *table = pcpu->freq_table;
-	struct cpufreq_frequency_table *pos;
-	unsigned int i = 0, l_freq = 0, h_freq = 0, target_freq = 0, freq;
+	struct cpufreq_frequency_table *table;
+	int i = 0;
 
-	if (tmp_freq < policy->min)
-		tmp_freq = policy->min;
-	if (tmp_freq > policy->max)
-		tmp_freq = policy->max;
+	if (!policy)
+		return;
 
-	cpufreq_for_each_valid_entry(pos, table) {
-		freq = pos->frequency;
-		i = pos - table;
-		if (freq < tmp_freq) {
-			h_freq = freq;
-		}
-		if (freq == tmp_freq) {
-			target_freq = freq;
+	table = policy->freq_table;
+	for (i = (index - 1); i >= 0; i--) {
+		if (table[i].frequency != CPUFREQ_ENTRY_INVALID) {
+			*down_load = clamp_val((table[i].frequency * 100) / policy->max, 0, 100);
 			break;
 		}
-		if (freq > tmp_freq) {
-			l_freq = freq;
-			break;
+	}
+	*up_load = clamp_val((policy->cur * 100) / policy->max, 0, 100);
+}
+
+static unsigned int choose_freq(struct cpufreq_policy *policy,
+					int index, unsigned int tmp_freq, bool isup)
+{
+	struct cpufreq_frequency_table *table;
+	unsigned int l_freq = 0, h_freq = 0, target_freq = 0;
+	int i = 0;
+
+	if (!policy)
+		return 0;
+
+	table = policy->freq_table;
+	if (isup) {
+		for (i = index; (table[i].frequency != CPUFREQ_TABLE_END); i++) {
+			if (table[i].frequency != CPUFREQ_ENTRY_INVALID) {
+				if (table[i].frequency < tmp_freq) {
+					h_freq = table[i].frequency;
+				}
+				if (table[i].frequency == tmp_freq) {
+					target_freq = table[i].frequency;
+					break;
+				}
+				if (table[i].frequency > tmp_freq) {
+					l_freq = table[i].frequency;
+					break;
+				}
+			}
+		}
+	} else {
+		for (i = index; i >= 0; i--) {
+			if (table[i].frequency != CPUFREQ_ENTRY_INVALID) {
+				if (table[i].frequency > tmp_freq) {
+					l_freq = table[i].frequency;
+				}
+				if (table[i].frequency == tmp_freq) {
+					target_freq = table[i].frequency;
+					break;
+				}
+				if (table[i].frequency < tmp_freq) {
+					h_freq = table[i].frequency;
+					break;
+				}
+			}
 		}
 	}
 	if (!target_freq) {
@@ -254,12 +288,11 @@ static bool update_load(int cpu)
 
 	WARN_ON_ONCE(!delta_time);
 
-	if (delta_time < delta_idle) {
+	if (!delta_time) {
 		pcpu->load = 0;
 		ignore = true;
 	} else {
-		pcpu->load = 100 * (delta_time - delta_idle);
-		do_div(pcpu->load, delta_time);
+		pcpu->load = (100 * (delta_time - delta_idle)) / delta_time;
 	}
 	pcpu->time_in_idle = now_idle;
 	pcpu->time_in_idle_timestamp = now;
@@ -276,16 +309,15 @@ static void cpufreq_nightmare_timer(unsigned long data)
 	struct cpufreq_govinfo govinfo;
 	unsigned int freq_for_responsiveness = tunables->freq_for_responsiveness;
 	unsigned int freq_for_responsiveness_max = tunables->freq_for_responsiveness_max;
-	int target_cpu_load;
 	int freq_step = tunables->freq_step;
 	int freq_up_brake = tunables->freq_up_brake;
 	int freq_step_dec = tunables->freq_step_dec;
 	int tmp_step = 0;
 	unsigned int new_freq = 0;
-	unsigned int max_load = 0;
+	unsigned int max_load = 0, up_load = 0, down_load = 0;
 	unsigned long flags;
 	unsigned long max_cpu;
-	int i, fcpu;
+	int i, fcpu, index;
 
 	if (!down_read_trylock(&ppol->enable_sem))
 		return;
@@ -309,7 +341,6 @@ static void cpufreq_nightmare_timer(unsigned long data)
 	}
 #endif
 	/* CPUs Online Scale Frequency*/
-	target_cpu_load = (ppol->policy->cur * 100) / ppol->policy->max;
 	if (ppol->policy->cur < freq_for_responsiveness) {
 		freq_step = tunables->freq_step_at_min_freq;
 		freq_up_brake = tunables->freq_up_brake_at_min_freq;
@@ -348,22 +379,28 @@ static void cpufreq_nightmare_timer(unsigned long data)
 
 	/* Check for frequency increase or for frequency decrease */
 	spin_lock_irqsave(&ppol->target_freq_lock, flags);
-	if (max_load >= target_cpu_load
+	index = cpufreq_frequency_table_get_index(ppol->policy, ppol->policy->cur);
+	if (index < 0) {
+		spin_unlock_irqrestore(&ppol->target_freq_lock, flags);
+		goto rearm;
+	}
+	get_target_load(ppol->policy, index, &down_load, &up_load);
+	if (max_load >= up_load
 		 && ppol->policy->cur < ppol->policy->max) {
 		tmp_step = (max_load + freq_step - freq_up_brake) * 1536;
 		if (tmp_step < 0)
 			tmp_step = 0;
 
-		new_freq = choose_freq(ppol,
-			(ppol->policy->cur + tmp_step));
-	} else if (max_load < target_cpu_load
+		new_freq = choose_freq(ppol->policy, index,
+			(ppol->policy->cur + tmp_step), true);
+	} else if (max_load < down_load
 				 && ppol->policy->cur > ppol->policy->min) {
 		tmp_step = (100 - max_load + freq_step_dec) * 1536;
 		if (tmp_step < 0)
 			tmp_step = 0;
 
-		new_freq = choose_freq(ppol,
-			(ppol->policy->cur < tmp_step ? 0 : ppol->policy->cur - tmp_step));
+		new_freq = choose_freq(ppol->policy, index,
+			(ppol->policy->cur < tmp_step ? 0 : ppol->policy->cur - tmp_step), false);
 	}
 	if (!new_freq) {
 		spin_unlock_irqrestore(&ppol->target_freq_lock, flags);
@@ -996,7 +1033,6 @@ static int cpufreq_governor_nightmare(struct cpufreq_policy *policy,
 {
 	int rc;
 	struct cpufreq_nightmare_policyinfo *ppol;
-	struct cpufreq_frequency_table *freq_table;
 	struct cpufreq_nightmare_tunables *tunables;
 	unsigned long flags;
 
@@ -1079,12 +1115,9 @@ static int cpufreq_governor_nightmare(struct cpufreq_policy *policy,
 	case CPUFREQ_GOV_START:
 		mutex_lock(&gov_lock);
 
-		freq_table = cpufreq_frequency_get_table(policy->cpu);
-
 		ppol = per_cpu(polinfo, policy->cpu);
 		ppol->policy = policy;
 		ppol->target_freq = policy->cur;
-		ppol->freq_table = freq_table;
 		ppol->min_freq = policy->min;
 		ppol->reject_notification = true;
 		down_write(&ppol->enable_sem);

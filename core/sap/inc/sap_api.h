@@ -609,6 +609,7 @@ typedef struct sap_Config {
 	enum sap_acs_dfs_mode acs_dfs_mode;
 	/* beacon count before channel switch */
 	uint8_t          sap_chanswitch_beacon_cnt;
+	uint16_t reduced_beacon_interval;
 } tsap_Config_t;
 
 #ifdef FEATURE_WLAN_AP_AP_ACS_OPTIMIZE
@@ -717,6 +718,7 @@ typedef struct sSapDfsInfo {
 	uint16_t tx_leakage_threshold;
 	/* beacon count before channel switch */
 	uint8_t sap_ch_switch_beacon_cnt;
+	uint16_t reduced_beacon_interval;
 } tSapDfsInfo;
 
 typedef struct tagSapCtxList {

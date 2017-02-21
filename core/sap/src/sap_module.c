@@ -884,6 +884,8 @@ QDF_STATUS wlansap_start_bss(void *pCtx,     /* pwextCtx */
 				pConfig->disableDFSChSwitch;
 	pmac->sap.SapDfsInfo.sap_ch_switch_beacon_cnt =
 			pConfig->sap_chanswitch_beacon_cnt;
+	pmac->sap.SapDfsInfo.reduced_beacon_interval =
+				pConfig->reduced_beacon_interval;
 
 	/* Copy MAC filtering settings to sap context */
 	pSapCtx->eSapMacAddrAclMode = pConfig->SapMacaddr_acl;

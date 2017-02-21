@@ -914,6 +914,7 @@ typedef struct {
 	uint8_t restart_on_chan_switch;
 	uint8_t nss;
 	bool rx_ldpc;
+	uint16_t reduced_beacon_interval;
 } tSwitchChannelParams, *tpSwitchChannelParams;
 
 typedef void (*tpSetLinkStateCallback)(tpAniSirGlobal pMac, void *msgParam,

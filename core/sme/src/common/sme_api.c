@@ -3038,6 +3038,13 @@ QDF_STATUS sme_process_msg(tHalHandle hHal, cds_msg_t *pMsg)
 			pMac->sme.bt_activity_info_cb(pMac->hHdd,
 						      pMsg->bodyval);
 		break;
+	case eWNI_SME_RX_AGGR_HOLE_IND:
+		if (pMac->sme.stats_ext2_cb)
+			pMac->sme.stats_ext2_cb(pMac->hHdd,
+				(struct stats_ext2_event *)pMsg->bodyptr);
+		qdf_mem_free(pMsg->bodyptr);
+		break;
+
 	default:
 
 		if ((pMsg->type >= eWNI_SME_MSG_TYPES_BEGIN)
@@ -13048,6 +13055,14 @@ void sme_stats_ext_register_callback(tHalHandle hHal, StatsExtCallback callback)
 	pMac->sme.StatsExtCallback = callback;
 }
 
+void sme_stats_ext2_register_callback(tHalHandle hal_handle,
+		void (*stats_ext2_cb)(void *, struct stats_ext2_event *))
+{
+	tpAniSirGlobal pmac = PMAC_STRUCT(hal_handle);
+
+	pmac->sme.stats_ext2_cb = stats_ext2_cb;
+}
+
 /**
  * sme_stats_ext_deregister_callback() - De-register ext stats callback
  * @h_hal: Hal Handle
@@ -17829,6 +17844,88 @@ QDF_STATUS sme_chain_rssi_register_callback(tHalHandle phal,
 	if (QDF_STATUS_SUCCESS == status) {
 		pmac->sme.pchain_rssi_ind_cb = pchain_rssi_ind_cb;
 		sme_release_global_lock(&pmac->sme);
+	}
+
+	return status;
+}
+
+QDF_STATUS sme_set_reorder_timeout(tHalHandle hal,
+	struct sir_set_rx_reorder_timeout_val *req)
+{
+	QDF_STATUS status;
+	QDF_STATUS cds_status;
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+	cds_msg_t cds_msg;
+	struct sir_set_rx_reorder_timeout_val *reorder_timeout;
+
+	reorder_timeout = qdf_mem_malloc(sizeof(*reorder_timeout));
+	if (NULL == reorder_timeout) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			FL("Failed to alloc txrate_update"));
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	*reorder_timeout = *req;
+
+	status = sme_acquire_global_lock(&mac_ctx->sme);
+	if (QDF_STATUS_SUCCESS == status) {
+		/* Serialize the req through MC thread */
+		cds_msg.bodyptr = reorder_timeout;
+		cds_msg.type = SIR_HAL_SET_REORDER_TIMEOUT_CMDID;
+		cds_status = cds_mq_post_message(CDS_MQ_ID_WMA, &cds_msg);
+		sme_release_global_lock(&mac_ctx->sme);
+
+		if (!QDF_IS_STATUS_SUCCESS(cds_status)) {
+			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+				FL("Post Update tx_rate msg fail"));
+			status = QDF_STATUS_E_FAILURE;
+			qdf_mem_free(reorder_timeout);
+		}
+	} else {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			FL("sme_AcquireGlobalLock failed"));
+		qdf_mem_free(reorder_timeout);
+	}
+
+	return status;
+}
+
+QDF_STATUS sme_set_rx_set_blocksize(tHalHandle hal,
+	struct sir_peer_set_rx_blocksize *req)
+{
+	QDF_STATUS status;
+	QDF_STATUS cds_status;
+	tpAniSirGlobal mac_ctx  = PMAC_STRUCT(hal);
+	cds_msg_t cds_msg;
+	struct sir_peer_set_rx_blocksize *rx_blocksize;
+
+	rx_blocksize = qdf_mem_malloc(sizeof(*rx_blocksize));
+	if (NULL == rx_blocksize) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			FL("Failed to alloc rx_blocksize"));
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	*rx_blocksize = *req;
+
+	status = sme_acquire_global_lock(&mac_ctx->sme);
+	if (QDF_STATUS_SUCCESS == status) {
+		/* Serialize the req through MC thread */
+		cds_msg.bodyptr = rx_blocksize;
+		cds_msg.type = SIR_HAL_SET_RX_BLOCKSIZE_CMDID;
+		cds_status = cds_mq_post_message(CDS_MQ_ID_WMA, &cds_msg);
+		sme_release_global_lock(&mac_ctx->sme);
+
+		if (!QDF_IS_STATUS_SUCCESS(cds_status)) {
+			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+				FL("Post Update tx_rate msg fail"));
+			status = QDF_STATUS_E_FAILURE;
+			qdf_mem_free(rx_blocksize);
+		}
+	} else {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			FL("sme_AcquireGlobalLock failed"));
+		qdf_mem_free(rx_blocksize);
 	}
 
 	return status;

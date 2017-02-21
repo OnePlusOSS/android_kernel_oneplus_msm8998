@@ -10037,3 +10037,63 @@ void wma_spectral_scan_config(WMA_HANDLE wma_handle,
 	return;
 }
 #endif
+
+int wma_rx_aggr_failure_event_handler(void *handle, u_int8_t *event_buf,
+						u_int32_t len)
+{
+	WMI_REPORT_RX_AGGR_FAILURE_EVENTID_param_tlvs *param_buf;
+	struct sir_sme_rx_aggr_hole_ind *rx_aggr_hole_event;
+	wmi_rx_aggr_failure_event_fixed_param *rx_aggr_failure_info;
+	wmi_rx_aggr_failure_info *hole_info;
+	uint32_t i, alloc_len;
+	QDF_STATUS status;
+	cds_msg_t cds_msg;
+
+	WMA_LOGD("%s: Posting stats ext event to SME", __func__);
+
+	param_buf = (WMI_REPORT_RX_AGGR_FAILURE_EVENTID_param_tlvs *)event_buf;
+	if (!param_buf) {
+		WMA_LOGE("%s: Invalid stats ext event buf", __func__);
+		return -EINVAL;
+	}
+
+	rx_aggr_failure_info = param_buf->fixed_param;
+	hole_info = param_buf->failure_info;
+
+	alloc_len = sizeof(*rx_aggr_hole_event) +
+		(rx_aggr_failure_info->num_failure_info)*
+		sizeof(rx_aggr_hole_event->hole_info_array[0]);
+	rx_aggr_hole_event = qdf_mem_malloc(alloc_len);
+	if (NULL == rx_aggr_hole_event) {
+		WMA_LOGE("%s: Memory allocation failure", __func__);
+		return -ENOMEM;
+	}
+
+	rx_aggr_hole_event->hole_cnt = rx_aggr_failure_info->num_failure_info;
+	WMA_LOGD("aggr holes_sum: %d\n",
+		 rx_aggr_failure_info->num_failure_info);
+	for (i = 0; i < rx_aggr_hole_event->hole_cnt; i++) {
+		rx_aggr_hole_event->hole_info_array[i] =
+			hole_info->end_seq - hole_info->start_seq + 1;
+		WMA_LOGD("aggr_index: %d\tstart_seq: %d\tend_seq: %d\t"
+			"hole_info: %d mpdu lost",
+			i, hole_info->start_seq, hole_info->end_seq,
+			rx_aggr_hole_event->hole_info_array[i]);
+		hole_info++;
+	}
+
+	cds_msg.type = eWNI_SME_RX_AGGR_HOLE_IND;
+	cds_msg.bodyptr = rx_aggr_hole_event;
+	cds_msg.bodyval = 0;
+
+	status = cds_mq_post_message(CDS_MQ_ID_SME, &cds_msg);
+	if (status != QDF_STATUS_SUCCESS) {
+		WMA_LOGE("%s: Failed to post stats ext event to SME", __func__);
+		qdf_mem_free(rx_aggr_hole_event);
+		return -EINVAL;
+	}
+
+	WMA_LOGD("%s: stats ext event Posted to SME", __func__);
+
+	return 0;
+}

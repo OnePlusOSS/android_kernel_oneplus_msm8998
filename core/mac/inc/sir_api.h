@@ -7818,4 +7818,39 @@ struct spectral_samp_msg {
 	uint8_t       macaddr[6];
 	struct samp_msg_data samp_data;
 } qdf_packed;
+
+/**
+ * sir_sme_rx_aggr_hole_ind - sme rx aggr hole indication
+ * @hole_cnt: num of holes detected
+ * @hole_info_array: hole info
+ */
+struct sir_sme_rx_aggr_hole_ind {
+	uint32_t hole_cnt;
+	uint32_t hole_info_array[];
+};
+
+/**
+ * struct sir_set_rx_reorder_timeout_val - rx reorder timeout
+ * @rx_timeout_pri: reorder timeout for AC
+ *                  rx_timeout_pri[0] : AC_VO
+ *                  rx_timeout_pri[1] : AC_VI
+ *                  rx_timeout_pri[2] : AC_BE
+ *                  rx_timeout_pri[3] : AC_BK
+ */
+struct sir_set_rx_reorder_timeout_val {
+	uint32_t rx_timeout_pri[4];
+};
+
+/**
+ * struct sir_peer_set_rx_blocksize - set rx blocksize
+ * @vdev_id: vdev id
+ * @peer_macaddr: peer mac address
+ * @rx_block_ack_win_limit: windows size limitation
+ */
+struct sir_peer_set_rx_blocksize {
+	uint32_t vdev_id;
+	struct qdf_mac_addr peer_macaddr;
+	uint32_t rx_block_ack_win_limit;
+};
+
 #endif /* __SIR_API_H */

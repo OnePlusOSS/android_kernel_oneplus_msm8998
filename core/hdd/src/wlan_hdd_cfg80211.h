@@ -1062,11 +1062,11 @@ enum qca_wlan_vendor_attr {
 	QCA_WLAN_VENDOR_ATTR_MAX_CONCURRENT_CHANNELS_2_4_BAND = 10,
 	QCA_WLAN_VENDOR_ATTR_MAX_CONCURRENT_CHANNELS_5_0_BAND = 11,
 	QCA_WLAN_VENDOR_ATTR_SETBAND_VALUE = 12,
-
 	/* used by QCA_NL80211_VENDOR_SUBCMD_GET_CHAIN_RSSI */
 	QCA_WLAN_VENDOR_ATTR_CHAIN_INDEX = 26,
 	QCA_WLAN_VENDOR_ATTR_CHAIN_RSSI = 27,
-
+	QCA_WLAN_VENDOR_ATTR_RX_AGGREGATION_STATS_HOLES_NUM = 34,
+	QCA_WLAN_VENDOR_ATTR_RX_AGGREGATION_STATS_HOLES_INFO = 35,
 	QCA_WLAN_VENDOR_ATTR_BTM_MBO_TRANSITION_REASON = 36,
 	QCA_WLAN_VENDOR_ATTR_BTM_CANDIDATE_INFO = 37,
 
@@ -2641,6 +2641,18 @@ enum qca_ignore_assoc_disallowed {
  *                  to turn off/on qpower
  * @QCA_WLAN_VENDOR_ATTR_CONFIG_IGNORE_ASSOC_DISALLOWED:
  *                  Ignore Assoc Disallowed[MBO]
+ * @QCA_WLAN_VENDOR_ATTR_CONFIG_RX_REORDER_TIMEOUT_VOICE:
+ *                  32-bit unsigned value to set reorder timeout for AC_VO
+ * @QCA_WLAN_VENDOR_ATTR_CONFIG_RX_REORDER_TIMEOUT_VIDEO:
+ *                  32-bit unsigned value to set reorder timeout for AC_VI
+ * @QCA_WLAN_VENDOR_ATTR_CONFIG_RX_REORDER_TIMEOUT_BESTEFFORT:
+ *                  32-bit unsigned value to set reorder timeout for AC_BE
+ * @QCA_WLAN_VENDOR_ATTR_CONFIG_RX_REORDER_TIMEOUT_BACKGROUND:
+ *                  32-bit unsigned value to set reorder timeout for AC_BK
+ * @QCA_WLAN_VENDOR_ATTR_CONFIG_RX_BLOCKSIZE_PEER_MAC:
+ *                  6-byte MAC address to point out the specific peer
+ * @QCA_WLAN_VENDOR_ATTR_CONFIG_RX_BLOCKSIZE_WINLIMIT:
+ *                  32-bit unsigned value to set window size for specific peer
  * @QCA_WLAN_VENDOR_ATTR_CONFIG_PROPAGATION_ABS_DELAY:
  *                  32-bit unsigned value to configure the propagation absolute
  *                  delay for 2G/5G band (units in us)
@@ -2732,6 +2744,12 @@ enum qca_wlan_vendor_config {
 	/* 32-bit unsigned to configure the cycle time of selftest
 	 * the unit is micro-second */
 	QCA_WLAN_VENDOR_ATTR_CONFIG_ANT_DIV_SELFTEST_INTVL = 30,
+	QCA_WLAN_VENDOR_ATTR_CONFIG_RX_REORDER_TIMEOUT_VOICE = 31,
+	QCA_WLAN_VENDOR_ATTR_CONFIG_RX_REORDER_TIMEOUT_VIDEO = 32,
+	QCA_WLAN_VENDOR_ATTR_CONFIG_RX_REORDER_TIMEOUT_BESTEFFORT = 33,
+	QCA_WLAN_VENDOR_ATTR_CONFIG_RX_REORDER_TIMEOUT_BACKGROUND = 34,
+	QCA_WLAN_VENDOR_ATTR_CONFIG_RX_BLOCKSIZE_PEER_MAC = 35,
+	QCA_WLAN_VENDOR_ATTR_CONFIG_RX_BLOCKSIZE_WINLIMIT = 36,
 	QCA_WLAN_VENDOR_ATTR_CONFIG_PROPAGATION_ABS_DELAY = 40,
 
 	/* keep last */

@@ -881,6 +881,19 @@ typedef struct sStatsExtRequestReq {
 typedef void (*StatsExtCallback)(void *, tStatsExtEvent *);
 void sme_stats_ext_register_callback(tHalHandle hHal,
 		StatsExtCallback callback);
+
+/**
+ * sme_register_stats_ext2_callback() - Register stats ext2 register
+ * @hal_handle: hal handle for getting global mac struct
+ * @stats_ext2_cb: callback to be registered
+ *
+ * This function will register a callback for frame aggregation failure
+ * indications processing.
+ *
+ * Return: void
+ */
+void sme_stats_ext2_register_callback(tHalHandle hal_handle,
+		void (*stats_ext2_cb)(void *, struct stats_ext2_event *));
 void sme_stats_ext_deregister_callback(tHalHandle hhal);
 QDF_STATUS sme_stats_ext_request(uint8_t session_id,
 		tpStatsExtRequestReq input);
@@ -1640,5 +1653,28 @@ QDF_STATUS sme_process_msg_callback(tHalHandle hal, cds_msg_t *msg);
  */
 QDF_STATUS sme_set_dbs_scan_selection_config(tHalHandle hal,
 		struct wmi_dbs_scan_sel_params *params);
+
+/**
+ * sme_set_reorder_timeout() - set reorder timeout value
+ * including Voice,Video,Besteffort,Background parameters
+ * @hal: hal handle for getting global mac struct
+ * @reg: struct sir_set_rx_reorder_timeout_val
+ *
+ * Return: QDF_STATUS_SUCCESS or non-zero on failure.
+ */
+QDF_STATUS sme_set_reorder_timeout(tHalHandle hal,
+		struct sir_set_rx_reorder_timeout_val *req);
+
+/**
+ * sme_set_rx_set_blocksize() - set blocksize value
+ * including mac_addr and win_limit parameters
+ * @hal: hal handle for getting global mac struct
+ * @reg: struct sir_peer_set_rx_blocksize
+ *
+ * Return: QDF_STATUS_SUCCESS or non-zero on failure.
+ */
+
+QDF_STATUS sme_set_rx_set_blocksize(tHalHandle hal,
+		struct sir_peer_set_rx_blocksize *req);
 
 #endif /* #if !defined( __SME_API_H ) */

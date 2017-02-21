@@ -9347,6 +9347,8 @@ int hdd_register_cb(hdd_context_t *hdd_ctx)
 				  wlan_hdd_cfg80211_nan_callback);
 	sme_stats_ext_register_callback(hdd_ctx->hHal,
 					wlan_hdd_cfg80211_stats_ext_callback);
+	sme_stats_ext2_register_callback(hdd_ctx->hHal,
+					wlan_hdd_cfg80211_stats_ext2_callback);
 
 	sme_ext_scan_register_callback(hdd_ctx->hHal,
 				       wlan_hdd_cfg80211_extscan_callback);

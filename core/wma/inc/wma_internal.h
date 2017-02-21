@@ -1439,4 +1439,18 @@ QDF_STATUS wma_extract_single_phyerr_spectral(void *handle,
 		uint16_t datalen, uint16_t *buf_offset,
 		wmi_host_phyerr_t *phyerr);
 #endif
+
+/*
+ * wma_rx_aggr_failure_event_handler - event handler to handle rx aggr failure
+ * @handle: the wma handle
+ * @event_buf: buffer with event
+ * @len: buffer length
+ *
+ * This function receives rx aggregation failure event and then pass to upper
+ * layer
+ *
+ * Return: 0 on success
+ */
+int wma_rx_aggr_failure_event_handler(void *handle, u_int8_t *event_buf,
+							u_int32_t len);
 #endif

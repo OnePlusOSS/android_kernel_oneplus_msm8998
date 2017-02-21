@@ -2297,6 +2297,13 @@ static void __hdd_set_multicast_list(struct net_device *dev)
 		return;
 	}
 
+	/* Delete already configured multicast address list */
+	if (adapter->mc_addr_list.mc_cnt > 0)
+		if (wlan_hdd_set_mc_addr_list(adapter, false)) {
+			hdd_info("failed to clear mc addr list");
+			return;
+		}
+
 	if (dev->flags & IFF_ALLMULTI) {
 		hdd_notice("allow all multicast frames");
 		adapter->mc_addr_list.mc_cnt = 0;

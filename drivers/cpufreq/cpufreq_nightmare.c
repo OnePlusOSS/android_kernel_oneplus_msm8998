@@ -225,6 +225,7 @@ static unsigned int choose_freq(struct cpufreq_policy *policy,
 	if (!policy)
 		return 0;
 
+	tmp_freq = clamp_val(tmp_freq, policy->min, policy->max);
 	table = policy->freq_table;
 	if (isup) {
 		for (i = index; (table[i].frequency != CPUFREQ_TABLE_END); i++) {

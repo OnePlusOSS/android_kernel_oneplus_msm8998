@@ -2962,6 +2962,7 @@ void wma_set_channel(tp_wma_handle wma, tpSwitchChannelParams params)
 				 status);
 
 		ol_htt_mon_note_chan(pdev, req.chan);
+		goto send_resp;
 	} else {
 
 		msg = wma_fill_vdev_req(wma, req.vdev_id, WMA_CHNL_SWITCH_REQ,

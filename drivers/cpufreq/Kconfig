@@ -311,6 +311,11 @@ config CPU_FREQ_GOV_ALUCARD
 	depends on CPU_FREQ
 	select CPU_FREQ_GOV_COMMON
 
+config MSM_TRACK_FREQ_TARGET_INDEX
+	bool "Track cpufreq frequency index"
+	default y
+	depends on CPU_FREQ && ARCH_QCOM
+
 config CPUFREQ_DT
 	tristate "Generic DT based cpufreq driver"
 	depends on HAVE_CLK && OF

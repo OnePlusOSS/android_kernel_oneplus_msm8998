@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -174,7 +174,7 @@ static void wlan_hdd_send_status_pkg(struct hdd_adapter_s *adapter,
 		return;
 
 	memset(&data, 0, sizeof(struct wlan_status_data));
-	if (is_on)
+	if (is_on && (adapter->sessionId != HDD_SESSION_ID_INVALID))
 		ret = wlan_hdd_gen_wlan_status_pack(&data, adapter, sta_ctx,
 						    is_on, is_connected);
 

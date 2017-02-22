@@ -7259,7 +7259,7 @@ QDF_STATUS cds_handle_conc_multiport(uint8_t session_id, uint8_t channel)
  *
  * Return: None
  */
-void cds_restart_softap(hdd_adapter_t *pHostapdAdapter)
+static void cds_restart_softap(hdd_adapter_t *pHostapdAdapter)
 {
 	tHddAvoidFreqList hdd_avoid_freq_list;
 	hdd_context_t *hdd_ctx;

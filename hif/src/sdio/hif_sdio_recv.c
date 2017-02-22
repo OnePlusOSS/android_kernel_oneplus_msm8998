@@ -779,12 +779,13 @@ static QDF_STATUS hif_dev_issue_recv_packet_bundle(struct hif_sdio_device *pdev,
 	return status;
 }
 
+static
 QDF_STATUS hif_dev_recv_message_pending_handler(struct hif_sdio_device *pdev,
-				      uint8_t mail_box_index,
-				      uint32_t msg_look_aheads[],
-				      int num_look_aheads,
-				      bool *async_proc,
-				      int *num_pkts_fetched)
+					uint8_t mail_box_index,
+					uint32_t msg_look_aheads[],
+					int num_look_aheads,
+					bool *async_proc,
+					int *num_pkts_fetched)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	HTC_PACKET *packet;

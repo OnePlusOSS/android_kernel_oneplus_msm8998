@@ -379,11 +379,15 @@ static void cpufreq_nightmare_timer(unsigned long data)
 
 	/* Check for frequency increase or for frequency decrease */
 	spin_lock_irqsave(&ppol->target_freq_lock, flags);
+#ifdef CONFIG_MSM_TRACK_FREQ_TARGET_INDEX
+	index = ppol->policy->cur_index;
+#else
 	index = cpufreq_frequency_table_get_index(ppol->policy, ppol->policy->cur);
 	if (index < 0) {
 		spin_unlock_irqrestore(&ppol->target_freq_lock, flags);
 		goto rearm;
 	}
+#endif
 	get_target_load(ppol->policy, index, &down_load, &up_load);
 	if (max_load >= up_load
 		 && ppol->policy->cur < ppol->policy->max) {

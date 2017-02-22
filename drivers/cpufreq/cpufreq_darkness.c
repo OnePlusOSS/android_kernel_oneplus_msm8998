@@ -33,7 +33,6 @@ struct cpufreq_darkness_policyinfo {
 	spinlock_t load_lock; /* protects load tracking stat */
 	u64 last_evaluated_jiffy;
 	struct cpufreq_policy *policy;
-	struct cpufreq_frequency_table *freq_table;
 	spinlock_t target_freq_lock; /*protects target freq */
 	unsigned int target_freq;
 	unsigned int min_freq;
@@ -176,19 +175,18 @@ static void cpufreq_darkness_timer_start(
 	spin_unlock_irqrestore(&ppol->load_lock, flags);
 }
 
-static unsigned int choose_freq(struct cpufreq_darkness_policyinfo *pcpu,
+static unsigned int choose_freq(struct cpufreq_policy *policy,
 					unsigned int tmp_freq)
 {
-	struct cpufreq_policy *policy = pcpu->policy;
-	struct cpufreq_frequency_table *table = pcpu->freq_table;
+	struct cpufreq_frequency_table *table;
 	struct cpufreq_frequency_table *pos;
 	unsigned int i = 0, l_freq = 0, h_freq = 0, target_freq = 0, freq;
 
-	if (tmp_freq < policy->min)
-		tmp_freq = policy->min;
-	if (tmp_freq > policy->max)
-		tmp_freq = policy->max;
+	if (!policy)
+		return 0;
 
+	tmp_freq = clamp_val(tmp_freq, policy->min, policy->max);
+	table = policy->freq_table;
 	cpufreq_for_each_valid_entry(pos, table) {
 		freq = pos->frequency;
 		i = pos - table;
@@ -233,12 +231,11 @@ static bool update_load(int cpu)
 
 	WARN_ON_ONCE(!delta_time);
 
-	if (delta_time < delta_idle) {
+	if (!delta_time) {
 		pcpu->load = 0;
 		ignore = true;
 	} else {
-		pcpu->load = 100 * (delta_time - delta_idle);
-		do_div(pcpu->load, delta_time);
+		pcpu->load = (100 * (delta_time - delta_idle)) / delta_time;
 	}
 	pcpu->time_in_idle = now_idle;
 	pcpu->time_in_idle_timestamp = now;
@@ -313,7 +310,7 @@ static void cpufreq_darkness_timer(unsigned long data)
 	}
 
 	spin_lock_irqsave(&ppol->target_freq_lock, flags);
-	new_freq = choose_freq(ppol, max_load * (ppol->policy->max / 100));
+	new_freq = choose_freq(ppol->policy, max_load * (ppol->policy->max / 100));
 	if (!new_freq) {
 		spin_unlock_irqrestore(&ppol->target_freq_lock, flags);
 		goto rearm;
@@ -693,7 +690,6 @@ static int cpufreq_governor_darkness(struct cpufreq_policy *policy,
 {
 	int rc;
 	struct cpufreq_darkness_policyinfo *ppol;
-	struct cpufreq_frequency_table *freq_table;
 	struct cpufreq_darkness_tunables *tunables;
 	unsigned long flags;
 
@@ -776,12 +772,9 @@ static int cpufreq_governor_darkness(struct cpufreq_policy *policy,
 	case CPUFREQ_GOV_START:
 		mutex_lock(&gov_lock);
 
-		freq_table = cpufreq_frequency_get_table(policy->cpu);
-
 		ppol = per_cpu(polinfo, policy->cpu);
 		ppol->policy = policy;
 		ppol->target_freq = policy->cur;
-		ppol->freq_table = freq_table;
 		ppol->min_freq = policy->min;
 		ppol->reject_notification = true;
 		down_write(&ppol->enable_sem);

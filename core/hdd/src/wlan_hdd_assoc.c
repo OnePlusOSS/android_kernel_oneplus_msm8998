@@ -2265,6 +2265,7 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 	int ft_carrier_on = false;
 	bool hddDisconInProgress = false;
 	unsigned long rc;
+	tSirResultCodes timeout_reason = 0;
 
 	if (!pHddCtx) {
 		hdd_err("HDD context is NULL");
@@ -2587,16 +2588,17 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 					hdd_info("ft_carrier_on is %d, sending connect indication",
 						 ft_carrier_on);
 					hdd_connect_result(dev,
-								pRoamInfo->
-								bssid.bytes,
-								pRoamInfo,
-								pFTAssocReq,
-								assocReqlen,
-								pFTAssocRsp,
-								assocRsplen,
-								WLAN_STATUS_SUCCESS,
-								GFP_KERNEL,
-								false);
+							   pRoamInfo->
+							   bssid.bytes,
+							   pRoamInfo,
+							   pFTAssocReq,
+							   assocReqlen,
+							   pFTAssocRsp,
+							   assocRsplen,
+							   WLAN_STATUS_SUCCESS,
+							   GFP_KERNEL,
+							   false,
+							   pRoamInfo->statusCode);
 				}
 			} else {
 				/*
@@ -2631,16 +2633,17 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 
 						/* inform connect result to nl80211 */
 						hdd_connect_result(dev,
-									pRoamInfo->
-									bssid.bytes,
-									pRoamInfo,
-									reqRsnIe,
-									reqRsnLength,
-									rspRsnIe,
-									rspRsnLength,
-									WLAN_STATUS_SUCCESS,
-									GFP_KERNEL,
-									false);
+								   pRoamInfo->
+								   bssid.bytes,
+								   pRoamInfo,
+								   reqRsnIe,
+								   reqRsnLength,
+								   rspRsnIe,
+								   rspRsnLength,
+								   WLAN_STATUS_SUCCESS,
+								   GFP_KERNEL,
+								   false,
+								   pRoamInfo->statusCode);
 					}
 				}
 			}
@@ -2821,14 +2824,16 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 						NULL, NULL, 0, NULL, 0,
 						WLAN_STATUS_ASSOC_DENIED_UNSPEC,
 						GFP_KERNEL,
-						connect_timeout);
+						connect_timeout,
+						pRoamInfo->statusCode);
 				else
 					hdd_connect_result(dev,
 						pWextState->req_bssId.bytes,
 						NULL, NULL, 0, NULL, 0,
 						WLAN_STATUS_ASSOC_DENIED_UNSPEC,
 						GFP_KERNEL,
-						connect_timeout);
+						connect_timeout,
+						timeout_reason);
 			} else {
 				if (pRoamInfo)
 					hdd_connect_result(dev,
@@ -2838,14 +2843,16 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 						pRoamInfo->reasonCode :
 						WLAN_STATUS_UNSPECIFIED_FAILURE,
 						GFP_KERNEL,
-						connect_timeout);
+						connect_timeout,
+						pRoamInfo->statusCode);
 				else
 					hdd_connect_result(dev,
 						pWextState->req_bssId.bytes,
 						NULL, NULL, 0, NULL, 0,
 						WLAN_STATUS_UNSPECIFIED_FAILURE,
 						GFP_KERNEL,
-						connect_timeout);
+						connect_timeout,
+						timeout_reason);
 			}
 			hdd_clear_roam_profile_ie(pAdapter);
 		} else  if ((eCSR_ROAM_CANCELLED == roamStatus
@@ -2855,7 +2862,8 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 						NULL, NULL, 0, NULL, 0,
 						WLAN_STATUS_UNSPECIFIED_FAILURE,
 						GFP_KERNEL,
-						connect_timeout);
+						connect_timeout,
+						timeout_reason);
 		}
 
 		/*

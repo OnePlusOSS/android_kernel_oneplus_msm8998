@@ -10706,6 +10706,26 @@ enum dot11p_mode {
 #define CFG_IS_BSSID_HINT_PRIORITY_MIN     (0)
 #define CFG_IS_BSSID_HINT_PRIORITY_MAX     (1)
 
+/*
+ * <ini>
+ * gDfsBeaconTxEnhanced - beacon tx enhanced
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to enhance dfs beacon tx
+ *
+ * Related: none
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_DFS_BEACON_TX_ENHANCED         "gDfsBeaconTxEnhanced"
+#define CFG_DFS_BEACON_TX_ENHANCED_MIN     (0)
+#define CFG_DFS_BEACON_TX_ENHANCED_MAX     (1)
+#define CFG_DFS_BEACON_TX_ENHANCED_DEFAULT (0)
+
 /*---------------------------------------------------------------------------
    Type declarations
    -------------------------------------------------------------------------*/
@@ -11472,6 +11492,7 @@ struct hdd_config {
 	uint8_t max_mpdus_inampdu;
 	uint16_t sap_max_mcs_txdata;
 	bool is_bssid_hint_priority;
+	uint8_t dfs_beacon_tx_enhanced;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

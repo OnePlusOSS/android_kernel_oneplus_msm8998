@@ -5788,23 +5788,9 @@ end:
 	update_ie->pAdditionIEBuffer = NULL;
 }
 
-/**
- * send_extended_chan_switch_action_frame()- function to send ECSA
- * action frame for each sta connected to SAP/GO and AP in case of
- * STA .
- * @mac_ctx: pointer to global mac structure
- * @new_channel: new channel to switch to.
- * @ch_bandwidth: BW of channel to calculate op_class
- * @session_entry: pe session
- *
- * This function is called to send ECSA frame for STA/CLI and SAP/GO.
- *
- * Return: void
- */
-
-static void send_extended_chan_switch_action_frame(tpAniSirGlobal mac_ctx,
-				uint16_t new_channel, uint8_t ch_bandwidth,
-						tpPESession session_entry)
+void lim_send_chan_switch_action_frame(tpAniSirGlobal mac_ctx,
+			uint16_t new_channel, uint8_t ch_bandwidth,
+			tpPESession session_entry)
 {
 	uint16_t op_class;
 	uint8_t switch_mode = 0, i;
@@ -6000,7 +5986,7 @@ skip_vht:
 			ch_offset);
 
 	/* Send ECSA/CSA Action frame after updating the beacon */
-	send_extended_chan_switch_action_frame(mac_ctx,
+	lim_send_chan_switch_action_frame(mac_ctx,
 		session_entry->gLimChannelSwitch.primaryChannel,
 		ch_offset, session_entry);
 	session_entry->gLimChannelSwitch.switchCount--;
@@ -6040,7 +6026,7 @@ static void lim_process_ext_change_channel(tpAniSirGlobal mac_ctx,
 		pe_err("not an STA/CLI session");
 		return;
 	}
-	send_extended_chan_switch_action_frame(mac_ctx,
+	lim_send_chan_switch_action_frame(mac_ctx,
 			ext_chng_channel->new_channel,
 				0, session_entry);
 }

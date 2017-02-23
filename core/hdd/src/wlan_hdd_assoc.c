@@ -1675,6 +1675,9 @@ static QDF_STATUS hdd_dis_connect_handler(hdd_adapter_t *pAdapter,
 				pAdapter->sessionId);
 	}
 	wlan_hdd_clear_link_layer_stats(pAdapter);
+
+	pAdapter->dad = false;
+
 	/* Unblock anyone waiting for disconnect to complete */
 	complete(&pAdapter->disconnect_comp_var);
 	hdd_print_bss_info(pHddStaCtx);

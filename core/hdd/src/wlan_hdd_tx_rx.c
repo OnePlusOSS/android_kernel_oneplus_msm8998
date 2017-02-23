@@ -987,6 +987,66 @@ static bool hdd_is_mcast_replay(struct sk_buff *skb)
 }
 
 /**
+ * hdd_get_arp_src_ip() - get ARP packet src IP address
+ * @skb: pointer to sk_buff
+ *
+ * Return: return src IP address field value of ARP packet.
+ */
+static uint32_t hdd_get_arp_src_ip(struct sk_buff *skb)
+{
+	struct arphdr *arp;
+	unsigned char *arp_ptr;
+	uint32_t src_ip;
+
+	arp = (struct arphdr *)skb->data;
+	arp_ptr = (unsigned char *)(arp + 1);
+	arp_ptr += skb->dev->addr_len;
+
+	memcpy(&src_ip, arp_ptr, QDF_IPV4_ADDR_SIZE);
+
+	return src_ip;
+}
+
+/**
+ * hdd_is_duplicate_ip_arp() - duplicate address detection
+ * @skb: pointer to sk_buff
+ *
+ * Return: true if duplicate address detected or false otherwise.
+ */
+static bool hdd_is_duplicate_ip_arp(struct sk_buff *skb)
+{
+	struct in_ifaddr **ifap = NULL;
+	struct in_ifaddr *ifa = NULL;
+	struct in_device *in_dev;
+	uint32_t arp_ip, if_ip;
+
+	if (NULL == skb)
+		return false;
+
+	arp_ip = hdd_get_arp_src_ip(skb);
+
+	if (!skb->dev)
+		return false;
+
+	in_dev = __in_dev_get_rtnl(skb->dev);
+	if (in_dev) {
+		for (ifap = &in_dev->ifa_list; (ifa = *ifap) != NULL;
+			ifap = &ifa->ifa_next) {
+			if (!strcmp(skb->dev->name, ifa->ifa_label))
+				break;
+		}
+	}
+
+	if (ifa && ifa->ifa_local) {
+		if_ip = ifa->ifa_local;
+		if (if_ip == arp_ip)
+			return true;
+	}
+
+	return false;
+}
+
+/**
 * hdd_is_arp_local() - check if local or non local arp
 * @skb: pointer to sk_buff
 *
@@ -1063,6 +1123,7 @@ QDF_STATUS hdd_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 	hdd_station_ctx_t *pHddStaCtx = NULL;
 	unsigned int cpu_index;
 	bool wake_lock = false;
+	bool is_arp = false;
 	bool track_arp = false;
 
 	/* Sanity check on inputs */
@@ -1092,6 +1153,7 @@ QDF_STATUS hdd_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 	skb = (struct sk_buff *)rxBuf;
 
 	if (QDF_NBUF_CB_PACKET_TYPE_ARP == QDF_NBUF_CB_GET_PACKET_TYPE(skb)) {
+		is_arp = true;
 		if (qdf_nbuf_data_is_arp_rsp(skb) &&
 		    (pHddCtx->track_arp_ip == qdf_nbuf_get_arp_src_ip(skb))) {
 			++pAdapter->hdd_stats.hdd_arp_stats.rx_arp_rsp_count;
@@ -1134,6 +1196,13 @@ QDF_STATUS hdd_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 	++pAdapter->hdd_stats.hddTxRxStats.rxPackets[cpu_index];
 	++pAdapter->stats.rx_packets;
 	pAdapter->stats.rx_bytes += skb->len;
+
+	if (is_arp) {
+		pAdapter->dad |= hdd_is_duplicate_ip_arp(skb);
+		if (pAdapter->dad)
+			QDF_TRACE(QDF_MODULE_ID_HDD_DATA, QDF_TRACE_LEVEL_ERROR,
+				"%s: Duplicate IP detected", __func__);
+	}
 
 	/* Check & drop replayed mcast packets (for IPV6) */
 	if (pHddCtx->config->multicast_replay_filter &&

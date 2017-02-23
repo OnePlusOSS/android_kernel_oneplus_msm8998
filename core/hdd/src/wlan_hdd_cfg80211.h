@@ -304,6 +304,10 @@ typedef enum {
  *	(SAR) power limits. A critical regulation for FCC compliance, OEMs
  *	require methods to set SAR limits on TX power of WLAN/WWAN.
  *	enum qca_vendor_attr_sar_limits attributes are used with this command.
+ * @QCA_NL80211_VENDOR_SUBCMD_NUD_STATS_SET
+ *	Start / Stop the NUD stats collections
+ * @QCA_NL80211_VENDOR_SUBCMD_NUD_STATS_GET
+ *	Get the NUD stats, represented by the enum qca_attr_nud_stats_get
  */
 
 enum qca_nl80211_vendor_subcmds {
@@ -460,6 +464,8 @@ enum qca_nl80211_vendor_subcmds {
 
 	/* Set Specific Absorption Rate(SAR) Power Limits */
 	QCA_NL80211_VENDOR_SUBCMD_SET_SAR_LIMITS = 146,
+	QCA_NL80211_VENDOR_SUBCMD_NUD_STATS_SET = 149,
+	QCA_NL80211_VENDOR_SUBCMD_NUD_STATS_GET = 150,
 };
 
 /**
@@ -665,6 +671,7 @@ enum qca_wlan_vendor_attr_get_station_info {
  *      P2P listen offload index
  * @QCA_NL80211_VENDOR_SUBCMD_SAP_CONDITIONAL_CHAN_SWITCH_INDEX: SAP
  *      conditional channel switch index
+ * @QCA_NL80211_VENDOR_SUBCMD_NUD_STATS_GET_INDEX: NUD DEBUG Stats index
  */
 
 enum qca_nl80211_vendor_subcmds_index {
@@ -739,6 +746,71 @@ enum qca_nl80211_vendor_subcmds_index {
 #endif /* WLAN_FEATURE_NAN_DATAPATH */
 	QCA_NL80211_VENDOR_SUBCMD_P2P_LO_EVENT_INDEX,
 	QCA_NL80211_VENDOR_SUBCMD_SAP_CONDITIONAL_CHAN_SWITCH_INDEX,
+	QCA_NL80211_VENDOR_SUBCMD_NUD_STATS_GET_INDEX,
+};
+
+/**
+ * enum qca_attr_nud_stats_set - attribute to vendor subcmd
+ *	QCA_NL80211_VENDOR_SUBCMD_NUD_STATS_SET. This carry the requisite
+ *	information to start / stop the NUD stats collection.
+ * @QCA_ATTR_NUD_STATS_SET_START: set nud debug stats
+ *	Flag to Start / Stop the NUD stats collection
+ *	Start - If included , Stop - If not included
+ * @QCA_ATTR_NUD_STATS_GW_IPV4: set gatway ipv4 address
+ *	IPv4 address of Default Gateway (in network byte order)
+ */
+enum qca_attr_nud_stats_set {
+	QCA_ATTR_NUD_STATS_SET_INVALID = 0,
+	QCA_ATTR_NUD_STATS_SET_START = 1,
+	QCA_ATTR_NUD_STATS_GW_IPV4 = 2,
+	/* keep last */
+	QCA_ATTR_NUD_STATS_SET_LAST,
+	QCA_ATTR_NUD_STATS_SET_MAX =
+		QCA_ATTR_NUD_STATS_SET_LAST - 1,
+};
+
+/**
+ * enum qca_attr_nud_stats_get - attribute to vendor subcmd
+ *	QCA_NL80211_VENDOR_SUBCMD_NUD_STATS_GET. This carry the requisite
+ *	NUD stats collected when queried.
+ * @QCA_ATTR_NUD_STATS_ARP_REQ_COUNT_FROM_NETDEV: ARP Request Count from net
+ *	dev
+ * @QCA_ATTR_NUD_STATS_ARP_REQ_COUNT_TO_LOWER_MAC: ARP Request Count sent
+ *	to lower MAC from upper MAC
+ * @QCA_ATTR_NUD_STATS_ARP_REQ_RX_COUNT_BY_LOWER_MAC: ARP Request Count
+ *	received by lower MAC from upper MAC
+ * @QCA_ATTR_NUD_STATS_ARP_REQ_COUNT_TX_SUCCESS: ARP Request Count successfully
+ *	transmitted by the device
+ * @QCA_ATTR_NUD_STATS_ARP_RSP_RX_COUNT_BY_LOWER_MAC: ARP Response Count
+ *	received by lower MAC
+ * @QCA_ATTR_NUD_STATS_ARP_RSP_RX_COUNT_BY_UPPER_MAC: ARP Response Count
+ *	received by upper MAC
+ * @QCA_ATTR_NUD_STATS_ARP_RSP_COUNT_TO_NETDEV: ARP Response Count delivered
+ *	to netdev
+ * @QCA_ATTR_NUD_STATS_ARP_RSP_COUNT_OUT_OF_ORDER_DROP: ARP Response Count
+ *	delivered to netdev
+ * @QCA_ATTR_NUD_STATS_AP_LINK_ACTIVE: Flag indicating if the Stations
+ *	Link to AP is active.
+ *	Active Link - If exists, Inactive link - If not included
+ * @QCA_ATTR_NUD_STATS_AP_LINK_DAD: Flag indicating if the Stations
+ *	Duplicate Address detected.
+ */
+enum qca_attr_nud_stats_get {
+	QCA_ATTR_NUD_STATS_GET_INVALID = 0,
+	QCA_ATTR_NUD_STATS_ARP_REQ_COUNT_FROM_NETDEV = 1,
+	QCA_ATTR_NUD_STATS_ARP_REQ_COUNT_TO_LOWER_MAC = 2,
+	QCA_ATTR_NUD_STATS_ARP_REQ_RX_COUNT_BY_LOWER_MAC = 3,
+	QCA_ATTR_NUD_STATS_ARP_REQ_COUNT_TX_SUCCESS = 4,
+	QCA_ATTR_NUD_STATS_ARP_RSP_RX_COUNT_BY_LOWER_MAC = 5,
+	QCA_ATTR_NUD_STATS_ARP_RSP_RX_COUNT_BY_UPPER_MAC = 6,
+	QCA_ATTR_NUD_STATS_ARP_RSP_COUNT_TO_NETDEV = 7,
+	QCA_ATTR_NUD_STATS_ARP_RSP_COUNT_OUT_OF_ORDER_DROP = 8,
+	QCA_ATTR_NUD_STATS_AP_LINK_ACTIVE = 9,
+	QCA_ATTR_NUD_STATS_AP_LINK_DAD = 10,
+	/* keep last */
+	QCA_ATTR_NUD_STATS_GET_LAST,
+	QCA_ATTR_NUD_STATS_GET_MAX =
+		QCA_ATTR_NUD_STATS_GET_LAST - 1,
 };
 
 /**

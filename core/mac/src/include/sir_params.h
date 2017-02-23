@@ -99,7 +99,6 @@ typedef enum {
 	ADVANCE_TDLS = 29,
 	TDLS_OFF_CHANNEL = 30,
 #endif
-
 	/* MAX_FEATURE_SUPPORTED = 128 */
 } placeHolderInCapBitmap;
 
@@ -652,6 +651,9 @@ typedef struct sSirMbMsgP2p {
 
 #define SIR_HAL_ENABLE_BCAST_FILTER         (SIR_HAL_ITC_MSG_TYPES_BEGIN + 373)
 #define SIR_HAL_DISABLE_BCAST_FILTER        (SIR_HAL_ITC_MSG_TYPES_BEGIN + 374)
+/* ARP Debug stats */
+#define SIR_HAL_SET_ARP_STATS_REQ           (SIR_HAL_ITC_MSG_TYPES_BEGIN + 375)
+#define SIR_HAL_GET_ARP_STATS_REQ           (SIR_HAL_ITC_MSG_TYPES_BEGIN + 376)
 
 #define SIR_HAL_MSG_TYPES_END               (SIR_HAL_MSG_TYPES_BEGIN + 0x1FF)
 

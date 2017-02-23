@@ -1348,4 +1348,6 @@ wma_send_vdev_start_to_fw(t_wma_handle *wma, struct vdev_start_params *params);
  */
 QDF_STATUS wma_send_vdev_stop_to_fw(t_wma_handle *wma, uint8_t vdev_id);
 
+int wma_get_arp_stats_handler(void *handle, uint8_t *data,
+			      uint32_t data_len);
 #endif

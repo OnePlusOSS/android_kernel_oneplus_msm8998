@@ -6766,6 +6766,7 @@ static int hdd_context_init(hdd_context_t *hdd_ctx)
 	hdd_ctx->max_intf_count = CSR_ROAM_SESSION_MAX;
 
 	hdd_init_ll_stats_ctx();
+	hdd_init_nud_stats_ctx(hdd_ctx);
 
 	init_completion(&hdd_ctx->mc_sus_event_var);
 	init_completion(&hdd_ctx->ready_to_suspend);
@@ -8801,6 +8802,66 @@ void hdd_wlan_update_target_info(hdd_context_t *hdd_ctx, void *context)
 }
 
 /**
+ * hdd_get_nud_stats_cb() - callback api to update the stats
+ *	received from the firmware
+ * @data: pointer to adapter.
+ * @rsp: pointer to data received from FW.
+ *
+ * This is called when wlan driver received response event for
+ *	get arp stats to firmware.
+ *
+ * Return: None
+ */
+static void hdd_get_nud_stats_cb(void *data, struct rsp_stats *rsp)
+{
+	hdd_context_t *hdd_ctx = (hdd_context_t *)data;
+	struct hdd_nud_stats_context *context;
+	int status;
+	hdd_adapter_t *adapter = NULL;
+
+	ENTER();
+
+	adapter = hdd_get_adapter_by_vdev(hdd_ctx, rsp->vdev_id);
+	if (NULL == adapter)
+		return;
+
+	status = wlan_hdd_validate_context(hdd_ctx);
+	if (0 != status)
+		return;
+
+	if (!rsp) {
+		hdd_err("data is null");
+		return;
+	}
+
+	hdd_notice("rsp->arp_req_enqueue :%x", rsp->arp_req_enqueue);
+	hdd_notice("rsp->arp_req_tx_success :%x", rsp->arp_req_tx_success);
+	hdd_notice("rsp->arp_req_tx_failure :%x", rsp->arp_req_tx_failure);
+	hdd_notice("rsp->arp_rsp_recvd :%x", rsp->arp_rsp_recvd);
+	hdd_notice("rsp->out_of_order_arp_rsp_drop_cnt :%x",
+		   rsp->out_of_order_arp_rsp_drop_cnt);
+	hdd_notice("rsp->dad_detected :%x", rsp->dad_detected);
+	hdd_notice("rsp->connect_status :%x", rsp->connect_status);
+	hdd_notice("rsp->ba_session_establishment_status :%x",
+		   rsp->ba_session_establishment_status);
+
+	adapter->hdd_stats.hdd_arp_stats.tx_fw_cnt = rsp->arp_req_enqueue;
+	adapter->hdd_stats.hdd_arp_stats.rx_fw_cnt = rsp->arp_rsp_recvd;
+	adapter->hdd_stats.hdd_arp_stats.tx_ack_cnt = rsp->arp_req_tx_success;
+	adapter->dad |= rsp->dad_detected;
+	adapter->con_status = rsp->connect_status;
+
+	spin_lock(&hdd_context_lock);
+	context = &hdd_ctx->nud_stats_context;
+	complete(&context->response_event);
+	spin_unlock(&hdd_context_lock);
+
+	EXIT();
+
+	return;
+}
+
+/**
  * hdd_register_cb - Register HDD callbacks.
  * @hdd_ctx: HDD context
  *
@@ -8847,7 +8908,10 @@ int hdd_register_cb(hdd_context_t *hdd_ctx)
 	}
 
 	sme_set_rssi_threshold_breached_cb(hdd_ctx->hHal,
-				hdd_rssi_threshold_breached);
+					   hdd_rssi_threshold_breached);
+
+	sme_set_nud_debug_stats_cb(hdd_ctx->hHal,
+				   hdd_get_nud_stats_cb);
 
 	status = sme_bpf_offload_register_callback(hdd_ctx->hHal,
 						   hdd_get_bpf_offload_cb);

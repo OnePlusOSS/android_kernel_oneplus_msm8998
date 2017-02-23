@@ -259,6 +259,7 @@ typedef struct tagSmeStruct {
 			struct sir_lost_link_info *lost_link_info);
 	void (*rso_cmd_status_cb)(void *hdd_context,
 			 struct rso_cmd_status *rso_status);
+	void (*get_arp_stats_cb)(void *, struct rsp_stats *);
 } tSmeStruct, *tpSmeStruct;
 
 #endif /* #if !defined( __SMEINTERNAL_H ) */

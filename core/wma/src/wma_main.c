@@ -2329,6 +2329,13 @@ QDF_STATUS wma_open(void *cds_context,
 					   wma_stats_event_handler,
 					   WMA_RX_SERIALIZER_CTX);
 
+	/* register for stats response event */
+	wmi_unified_register_event_handler(wma_handle->wmi_handle,
+					   WMI_VDEV_GET_ARP_STAT_EVENTID,
+					   wma_get_arp_stats_handler,
+					   WMA_RX_SERIALIZER_CTX);
+
+
 #ifdef WLAN_POWER_DEBUGFS
 	/* register for Chip Power stats event */
 	wmi_unified_register_event_handler(wma_handle->wmi_handle,
@@ -6325,6 +6332,48 @@ void wma_mc_discard_msg(cds_msg_t *msg)
 	msg->type = 0;
 }
 
+static void wma_set_arp_req_stats(WMA_HANDLE handle,
+				  struct set_arp_stats_params *req_buf)
+{
+	int status;
+	struct set_arp_stats *arp_stats;
+	tp_wma_handle wma_handle = (tp_wma_handle) handle;
+
+	if (!wma_handle || !wma_handle->wmi_handle) {
+		WMA_LOGE("%s: WMA is closed, cannot send per roam config",
+			 __func__);
+		return;
+	}
+
+	arp_stats = (struct set_arp_stats *)req_buf;
+	status = wmi_unified_set_arp_stats_req(wma_handle->wmi_handle,
+					       arp_stats);
+	if (status != EOK)
+		WMA_LOGE("%s: failed to set arp stats to FW",
+			 __func__);
+}
+
+static void wma_get_arp_req_stats(WMA_HANDLE handle,
+				  struct get_arp_stats_params *req_buf)
+{
+	int status;
+	struct get_arp_stats *arp_stats;
+	tp_wma_handle wma_handle = (tp_wma_handle) handle;
+
+	if (!wma_handle || !wma_handle->wmi_handle) {
+		WMA_LOGE("%s: WMA is closed, cannot send per roam config",
+			 __func__);
+		return;
+	}
+
+	arp_stats = (struct get_arp_stats *)req_buf;
+	status = wmi_unified_get_arp_stats_req(wma_handle->wmi_handle,
+					       arp_stats);
+	if (status != EOK)
+		WMA_LOGE("%s: failed to send get arp stats to FW",
+			 __func__);
+}
+
 /**
  * wma_mc_process_msg() - process wma messages and call appropriate function.
  * @cds_context: cds context
@@ -7178,6 +7227,16 @@ QDF_STATUS wma_mc_process_msg(void *cds_context, cds_msg_t *msg)
 	case WMA_DISABLE_HW_BCAST_FILTER:
 		wma_configure_non_arp_broadcast_filter(wma_handle,
 			(struct broadcast_filter_request *) msg->bodyptr);
+		break;
+	case WMA_SET_ARP_STATS_REQ:
+		wma_set_arp_req_stats(wma_handle,
+			(struct set_arp_stats_params *)msg->bodyptr);
+		qdf_mem_free(msg->bodyptr);
+		break;
+	case WMA_GET_ARP_STATS_REQ:
+		wma_get_arp_req_stats(wma_handle,
+			(struct get_arp_stats_params *)msg->bodyptr);
+		qdf_mem_free(msg->bodyptr);
 		break;
 	default:
 		WMA_LOGE("Unhandled WMA message of type %d", msg->type);

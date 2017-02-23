@@ -494,6 +494,8 @@
 #define WDA_SET_UDP_RESP_OFFLOAD             SIR_HAL_SET_UDP_RESP_OFFLOAD
 
 #define WMA_SET_PER_ROAM_CONFIG_CMD          SIR_HAL_SET_PER_ROAM_CONFIG_CMD
+#define WMA_SET_ARP_STATS_REQ                SIR_HAL_SET_ARP_STATS_REQ
+#define WMA_GET_ARP_STATS_REQ                SIR_HAL_GET_ARP_STATS_REQ
 
 /* Bit 6 will be used to control BD rate for Management frames */
 #define HAL_USE_BD_RATE2_FOR_MANAGEMENT_FRAME 0x40

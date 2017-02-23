@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -286,8 +286,8 @@ ol_txrx_pdev_attach(
 	HTC_HANDLE htc_pdev,
 	qdf_device_t osdev);
 
-void
-ol_txrx_pdev_detach(ol_txrx_pdev_handle pdev, int force);
+void ol_txrx_pdev_pre_detach(ol_txrx_pdev_handle pdev, int force);
+void ol_txrx_pdev_detach(ol_txrx_pdev_handle pdev);
 
 ol_txrx_peer_handle
 ol_txrx_peer_attach(ol_txrx_vdev_handle vdev, uint8_t *peer_mac_addr);

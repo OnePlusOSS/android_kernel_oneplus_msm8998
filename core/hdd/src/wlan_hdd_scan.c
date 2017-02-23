@@ -1235,7 +1235,7 @@ static QDF_STATUS hdd_cfg80211_scan_done_callback(tHalHandle halHandle,
 				cds_flush_logs(WLAN_LOG_TYPE_NON_FATAL,
 						WLAN_LOG_INDICATOR_HOST_DRIVER,
 						WLAN_LOG_REASON_NO_SCAN_RESULTS,
-						true, true);
+						true, false);
 				hddctx->last_nil_scan_bug_report_timestamp =
 					current_timestamp;
 			}
@@ -2786,6 +2786,9 @@ static int __wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
 
 	if (0 != ret)
 		return ret;
+
+	if (!sme_is_session_id_valid(pHddCtx->hHal, pAdapter->sessionId))
+		return -EINVAL;
 
 	config = pHddCtx->config;
 	hHal = WLAN_HDD_GET_HAL_CTX(pAdapter);

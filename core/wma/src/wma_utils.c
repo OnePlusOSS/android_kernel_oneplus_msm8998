@@ -4052,6 +4052,11 @@ void wma_peer_debug_log(uint8_t vdev_id, uint8_t op,
 	uint32_t i;
 	struct peer_debug_rec *rec;
 
+	if (!wma) {
+		WMA_LOGD("%s: WMA handle NULL. Exiting", __func__);
+		return;
+	}
+
 	i = wma_next_peer_log_index(&wma->peer_dbg->index,
 				    WMA_PEER_DEBUG_MAX_REC);
 	rec = &wma->peer_dbg->rec[i];
@@ -4129,6 +4134,11 @@ void wma_peer_debug_dump(void)
 	uint32_t current_index;
 	struct peer_debug_rec *dbg_rec;
 	uint64_t startt = 0;
+
+	if (!wma) {
+		WMA_LOGD("%s: WMA handle NULL. Exiting", __func__);
+		return;
+	}
 
 #define DEBUG_CLOCK_TICKS_PER_MSEC 19200
 

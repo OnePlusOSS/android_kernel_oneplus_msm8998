@@ -6076,10 +6076,6 @@ int hdd_unregister_hostapd(hdd_adapter_t *pAdapter, bool rtnl_held)
 
 	hdd_softap_deinit_tx_rx(pAdapter);
 
-	if (!test_bit(DEVICE_IFACE_OPENED, &pAdapter->event_flags)) {
-		hdd_info("iface is not opened");
-		return 0;
-	}
 	/* if we are being called during driver unload,
 	 * then the dev has already been invalidated.
 	 * if we are being called at other times, then we can
@@ -6093,6 +6089,11 @@ int hdd_unregister_hostapd(hdd_adapter_t *pAdapter, bool rtnl_held)
 			pAdapter->dev->wireless_handlers = NULL;
 			rtnl_unlock();
 		}
+	}
+
+	if (!test_bit(DEVICE_IFACE_OPENED, &pAdapter->event_flags)) {
+		hdd_info("iface is not opened");
+		return 0;
 	}
 
 	status = wlansap_stop(sapContext);

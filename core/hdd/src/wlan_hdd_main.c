@@ -2010,10 +2010,6 @@ static int __hdd_stop(struct net_device *dev)
 		return -ENODEV;
 	}
 
-	/* Make sure the interface is marked as closed */
-	clear_bit(DEVICE_IFACE_OPENED, &adapter->event_flags);
-	hdd_notice("Disabling OS Tx queues");
-
 	/*
 	 * Disable TX on the interface, after this hard_start_xmit() will not
 	 * be called on that interface
@@ -2049,6 +2045,8 @@ static int __hdd_stop(struct net_device *dev)
 	/* DeInit the adapter. This ensures datapath cleanup as well */
 	hdd_deinit_adapter(hdd_ctx, adapter, true);
 
+	/* Make sure the interface is marked as closed */
+	clear_bit(DEVICE_IFACE_OPENED, &adapter->event_flags);
 
 	/*
 	 * Find if any iface is up. If any iface is up then can't put device to
@@ -3611,8 +3609,8 @@ QDF_STATUS hdd_stop_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 
 	ENTER();
 
-	if (!test_bit(DEVICE_IFACE_OPENED, &adapter->event_flags)) {
-		hdd_info("interface %d is not up %lu",
+	if (!test_bit(SME_SESSION_OPENED, &adapter->event_flags)) {
+		hdd_info("session %d is not open %lu",
 			adapter->device_mode, adapter->event_flags);
 		return -ENODEV;
 	}

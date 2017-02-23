@@ -4873,6 +4873,7 @@ typedef enum {
 	wmi_soc_set_dual_mac_config_resp_event_id,
 	wmi_tx_data_traffic_ctrl_event_id,
 	wmi_update_rcpi_event_id,
+	wmi_get_arp_stats_req_id,
 
 	wmi_events_max,
 } wmi_conv_event_id;
@@ -6854,6 +6855,30 @@ struct action_wakeup_set_param {
 	uint32_t vdev_id;
 	uint32_t operation;
 	uint32_t action_category_map[WMI_SUPPORTED_ACTION_CATEGORY_ELE_LIST];
+};
+
+/**
+ * struct set_arp_stats - set/reset arp stats
+ * @vdev_id: session id
+ * @flag: enable/disable stats
+ * @pkt_type: type of packet(1 - arp)
+ * @ip_addr: subnet ipv4 address in case of encrypted packets
+ */
+struct set_arp_stats {
+	uint32_t vdev_id;
+	uint8_t flag;
+	uint8_t pkt_type;
+	uint32_t ip_addr;
+};
+
+/**
+ * struct get_arp_stats - get arp stats from firmware
+ * @pkt_type: packet type(1 - ARP)
+ * @vdev_id: session id
+ */
+struct get_arp_stats {
+	uint8_t pkt_type;
+	uint32_t vdev_id;
 };
 
 #endif /* _WMI_UNIFIED_PARAM_H_ */

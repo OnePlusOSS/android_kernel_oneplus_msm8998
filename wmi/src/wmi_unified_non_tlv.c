@@ -7667,6 +7667,7 @@ static void populate_non_tlv_events_id(uint32_t *event_ids)
 					WMI_TX_DATA_TRAFFIC_CTRL_EVENTID;
 	event_ids[wmi_pdev_utf_event_id] = WMI_PDEV_UTF_EVENTID;
 	event_ids[wmi_update_rcpi_event_id] = WMI_UPDATE_RCPI_EVENTID;
+	event_ids[wmi_get_arp_stats_req_id] = WMI_VDEV_GET_ARP_STATS_EVENTID;
 }
 
 /**

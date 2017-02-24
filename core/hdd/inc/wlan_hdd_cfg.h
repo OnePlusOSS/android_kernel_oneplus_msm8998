@@ -10558,6 +10558,41 @@ enum dot11p_mode {
 #define CFG_ENABLE_ANI_MAX               (1)
 #define CFG_ENABLE_ANI_DEFAULT           (1)
 
+/**
+ * gSetRTSForSIFSBursting - set rts for sifs bursting
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini set rts for sifs bursting
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_SET_RTS_FOR_SIFS_BURSTING           "gSetRTSForSIFSBursting"
+#define CFG_SET_RTS_FOR_SIFS_BURSTING_MIN       (0)
+#define CFG_SET_RTS_FOR_SIFS_BURSTING_MAX       (1)
+#define CFG_SET_RTS_FOR_SIFS_BURSTING_DEFAULT   (0)
+
+/**
+ * <ini>
+ * gMaxMPDUsInAMPDU - max mpdus in ampdu
+ * @Min: 0
+ * @Max: 64
+ * @Default: 0
+ *
+ * This ini configure max mpdus in ampdu
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_MAX_MPDUS_IN_AMPDU                  "gMaxMPDUsInAMPDU"
+#define CFG_MAX_MPDUS_IN_AMPDU_MIN              (0)
+#define CFG_MAX_MPDUS_IN_AMPDU_MAX              (64)
+#define CFG_MAX_MPDUS_IN_AMPDU_DEFAULT          (0)
+
 /*---------------------------------------------------------------------------
    Type declarations
    -------------------------------------------------------------------------*/
@@ -11316,6 +11351,8 @@ struct hdd_config {
 	uint16_t pkt_err_disconn_th;
 	uint16_t reduced_beacon_interval;
 	bool ani_enabled;
+	uint8_t enable_rts_sifsbursting;
+	uint8_t max_mpdus_inampdu;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

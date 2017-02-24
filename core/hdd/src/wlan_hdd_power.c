@@ -78,6 +78,7 @@
 #include "wlan_hdd_driver_ops.h"
 #include <wlan_logging_sock_svc.h>
 #include "cds_utils.h"
+#include "wlan_hdd_packet_filter_api.h"
 
 /* Preprocessor definitions and constants */
 #define HDD_SSR_BRING_UP_TIME 30000
@@ -1271,6 +1272,7 @@ hdd_suspend_wlan(void (*callback)(void *callbackContext, bool suspended),
 		return;
 	}
 
+
 	status = hdd_get_front_adapter(pHddCtx, &pAdapterNode);
 	while (NULL != pAdapterNode && QDF_STATUS_SUCCESS == status) {
 		pAdapter = pAdapterNode->pAdapter;
@@ -1280,6 +1282,8 @@ hdd_suspend_wlan(void (*callback)(void *callbackContext, bool suspended),
 		wlan_hdd_netif_queue_control(pAdapter, WLAN_NETIF_TX_DISABLE,
 					   WLAN_CONTROL_PATH);
 
+		if (pAdapter->device_mode == QDF_STA_MODE)
+			status = hdd_enable_default_pkt_filters(pAdapter);
 		/* Configure supported OffLoads */
 		hdd_conf_hostoffload(pAdapter, true);
 
@@ -1340,6 +1344,8 @@ static void hdd_resume_wlan(void)
 					WLAN_WAKE_ALL_NETIF_QUEUE,
 					WLAN_CONTROL_PATH);
 
+		if (pAdapter->device_mode == QDF_STA_MODE)
+			status = hdd_disable_default_pkt_filters(pAdapter);
 		hdd_conf_resume_ind(pAdapter);
 
 		status = hdd_get_next_adapter(pHddCtx, pAdapterNode, &pNext);

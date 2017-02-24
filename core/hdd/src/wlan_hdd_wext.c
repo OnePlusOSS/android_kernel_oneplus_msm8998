@@ -93,6 +93,7 @@
 #endif
 #include "wlan_hdd_lro.h"
 #include "cds_utils.h"
+#include "wlan_hdd_packet_filter_api.h"
 
 #define HDD_FINISH_ULA_TIME_OUT         800
 #define HDD_SET_MCBC_FILTERS_TO_FW      1
@@ -11295,9 +11296,9 @@ static int iw_set_keepalive_params(struct net_device *dev,
  *
  * Return: 0 on success, non-zero on error
  */
-static int wlan_hdd_set_filter(hdd_context_t *hdd_ctx,
-				struct pkt_filter_cfg *request,
-				uint8_t sessionId)
+int wlan_hdd_set_filter(hdd_context_t *hdd_ctx,
+			struct pkt_filter_cfg *request,
+			uint8_t sessionId)
 {
 	tSirRcvPktFilterCfgType packetFilterSetReq = {0};
 	tSirRcvFltPktClearParam packetFilterClrReq = {0};
@@ -11474,6 +11475,13 @@ static int __iw_set_packet_filter_params(struct net_device *dev,
 		hdd_err("mem_alloc_copy_from_user_helper fail");
 		return -ENOMEM;
 	}
+
+	if (request->filter_action == HDD_RCV_FILTER_SET)
+		hdd_ctx->user_configured_pkt_filter_rules |=
+					1 << request->filter_id;
+	else if (request->filter_action == HDD_RCV_FILTER_CLEAR)
+		hdd_ctx->user_configured_pkt_filter_rules &=
+					~(1 << request->filter_id);
 
 	ret = wlan_hdd_set_filter(hdd_ctx, request, adapter->sessionId);
 

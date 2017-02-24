@@ -1657,6 +1657,7 @@ struct hdd_context_s {
 	uint8_t beacon_probe_rsp_cnt_per_scan;
 	bool rcpi_enabled;
 	bool imps_enabled;
+	int user_configured_pkt_filter_rules;
 };
 
 /*---------------------------------------------------------------------------

@@ -10154,6 +10154,7 @@ int wma_chan_info_event_handler(void *handle, u_int8_t *event_buf,
 	wmi_chan_info_event_fixed_param *event;
 	struct scan_chan_info buf;
 	tpAniSirGlobal mac = NULL;
+	struct lim_channel_status *channel_status;
 
 	WMA_LOGD("%s: Enter", __func__);
 
@@ -10188,6 +10189,50 @@ int wma_chan_info_event_handler(void *handle, u_int8_t *event_buf,
 		buf.rx_clear_count = event->rx_clear_count;
 		mac->chan_info_cb(&buf);
 	}
+
+	if (ACS_FW_REPORT_PARAM_CONFIGURED &&
+	    mac->sme.currDeviceMode == QDF_SAP_MODE) {
+		param_buf = (WMI_CHAN_INFO_EVENTID_param_tlvs *) event_buf;
+		if (!param_buf)  {
+			WMA_LOGE("Invalid chan info event buffer");
+			return -EINVAL;
+		}
+		event = param_buf->fixed_param;
+		channel_status =
+			qdf_mem_malloc(sizeof(*channel_status));
+		if (!channel_status) {
+			WMA_LOGE(FL("Mem alloc fail"));
+			return -ENOMEM;
+		}
+		WMA_LOGI(FL("freq=%d nf=%d"), event->freq,
+			 event->noise_floor);
+
+		channel_status->channelfreq = event->freq;
+		channel_status->noise_floor = event->noise_floor;
+		channel_status->rx_clear_count =
+			 event->rx_clear_count;
+		channel_status->cycle_count = event->cycle_count;
+		channel_status->chan_tx_pwr_range =
+			 event->chan_tx_pwr_range;
+		channel_status->chan_tx_pwr_throughput =
+			 event->chan_tx_pwr_tp;
+		channel_status->rx_frame_count =
+			 event->rx_frame_count;
+		channel_status->bss_rx_cycle_count =
+			event->my_bss_rx_cycle_count;
+		channel_status->rx_11b_mode_data_duration =
+			event->rx_11b_mode_data_duration;
+		channel_status->tx_frame_count = event->tx_frame_cnt;
+		channel_status->mac_clk_mhz = event->mac_clk_mhz;
+		channel_status->channel_id =
+			cds_freq_to_chan(event->freq);
+		channel_status->cmd_flags =
+			event->cmd_flags;
+
+		wma_send_msg(handle, WMA_RX_CHN_STATUS_EVENT,
+			     (void *)channel_status, 0);
+	}
+
 	return 0;
 }
 

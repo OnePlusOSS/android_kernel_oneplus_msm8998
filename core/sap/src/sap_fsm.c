@@ -2343,6 +2343,9 @@ QDF_STATUS sap_goto_channel_sel(ptSapContext sap_context,
 		/* Set BSSType to default type */
 		scan_request.BSSType = eCSR_BSS_TYPE_ANY;
 
+		if (ACS_FW_REPORT_PARAM_CONFIGURED)
+			scan_request.BSSType = eCSR_BSS_TYPE_INFRA_AP;
+
 #ifndef SOFTAP_CHANNEL_RANGE
 		/*Scan all the channels */
 		scan_request.ChannelInfo.num_of_channels = 0;

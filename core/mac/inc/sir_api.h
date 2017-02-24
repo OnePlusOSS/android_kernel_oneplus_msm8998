@@ -119,6 +119,14 @@ typedef uint8_t tSirVersionString[SIR_VERSION_STRING_LEN];
 	(QOS_MAP_LEN_MIN + 2 * QOS_MAP_MAX_EX)
 #define NUM_CHAINS_MAX  2
 
+#ifdef ACS_FW_REPORT_PARAM
+#define SIR_MAX_SUPPORTED_ACS_CHANNEL_LIST SIR_MAX_SUPPORTED_CHANNEL_LIST
+#define ACS_FW_REPORT_PARAM_CONFIGURED true
+#else
+#define SIR_MAX_SUPPORTED_ACS_CHANNEL_LIST 1
+#define ACS_FW_REPORT_PARAM_CONFIGURED false
+#endif
+
 #define MAX_LEN_UDP_RESP_OFFLOAD 128
 
 /* Maximum number of realms present in fils indication element */
@@ -2315,6 +2323,49 @@ typedef struct sLimScanChn {
 	uint16_t numTimeScan;   /* how many time this channel is scan */
 	uint8_t channelId;
 } tLimScanChn;
+
+/**
+ * struct lim_channel_status
+ * @channelfreq: Channel freq
+ * @noise_floor: Noise Floor value
+ * @rx_clear_count: rx clear count
+ * @cycle_count: cycle count
+ * @chan_tx_pwr_range: channel tx power per range in 0.5dBm steps
+ * @chan_tx_pwr_throughput: channel tx power per throughput
+ * @rx_frame_count: rx frame count (cumulative)
+ * @bss_rx_cycle_count: BSS rx cycle count
+ * @rx_11b_mode_data_duration: b-mode data rx time (units are microseconds)
+ * @tx_frame_count: BSS tx cycle count	3045
+ * @mac_clk_mhz: sample frequency
+ * @channel_id: channel index
+ * @cmd_flags: indicate which stat event is this status coming from
+ */
+struct lim_channel_status {
+	uint32_t    channelfreq;
+	uint32_t    noise_floor;
+	uint32_t    rx_clear_count;
+	uint32_t    cycle_count;
+	uint32_t    chan_tx_pwr_range;
+	uint32_t    chan_tx_pwr_throughput;
+	uint32_t    rx_frame_count;
+	uint32_t    bss_rx_cycle_count;
+	uint32_t    rx_11b_mode_data_duration;
+	uint32_t    tx_frame_count;
+	uint32_t    mac_clk_mhz;
+	uint32_t    channel_id;
+	uint32_t    cmd_flags;
+};
+
+/**
+ * struct lim_scan_channel_status
+ * @total_channel: total number of be scanned channel
+ * @channel_status_list: channel status info store in this array
+ */
+struct lim_scan_channel_status {
+	uint8_t total_channel;
+	struct lim_channel_status
+	 channel_status_list[SIR_MAX_SUPPORTED_ACS_CHANNEL_LIST];
+};
 
 typedef struct sSmeGetScanChnRsp {
 	/* Message Type */

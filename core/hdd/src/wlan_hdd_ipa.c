@@ -561,10 +561,22 @@ do { \
 } while (0)
 
 #define HDD_IPA_CHECK_HW() ipa_uc_reg_rdyCB(NULL)
+
+#define IPA_RESOURCE_READY(ipa_resource) \
+	((0 == (ipa_resource).ce_sr_base_paddr) || \
+	 (0 == (ipa_resource).tx_comp_ring_base_paddr) || \
+	 (0 == (ipa_resource).rx_rdy_ring_base_paddr) || \
+	 (0 == (ipa_resource).rx2_rdy_ring_base_paddr))
 #else
 /* Do nothing */
 #define HDD_IPA_WDI2_SET(pipe_in, ipa_ctxt)
 #define HDD_IPA_CHECK_HW() 0
+
+#define IPA_RESOURCE_READY(ipa_resource) \
+	((0 == (ipa_resource).ce_sr_base_paddr) || \
+	 (0 == (ipa_resource).tx_comp_ring_base_paddr) || \
+	 (0 == (ipa_resource).rx_rdy_ring_base_paddr))
+
 #endif /* IPA3 */
 
 #define HDD_IPA_DBG_DUMP_RX_LEN 32
@@ -2659,10 +2671,7 @@ QDF_STATUS hdd_ipa_uc_ol_init(hdd_context_t *hdd_ctx)
 		goto fail_return;
 	}
 	ol_txrx_ipa_uc_get_resource(pdev, &ipa_ctxt->ipa_resource);
-	if ((ipa_ctxt->ipa_resource.ce_sr_base_paddr == 0) ||
-	    (ipa_ctxt->ipa_resource.tx_comp_ring_base_paddr == 0) ||
-	    (ipa_ctxt->ipa_resource.rx_rdy_ring_base_paddr == 0) ||
-	    (ipa_ctxt->ipa_resource.rx2_rdy_ring_base_paddr == 0)) {
+	if (IPA_RESOURCE_READY(ipa_ctxt->ipa_resource)) {
 		HDD_IPA_LOG(QDF_TRACE_LEVEL_FATAL,
 			"IPA UC resource alloc fail");
 		stat = QDF_STATUS_E_FAILURE;

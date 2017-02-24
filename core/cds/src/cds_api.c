@@ -2543,3 +2543,89 @@ QDF_STATUS cds_deregister_dp_cb(void)
 
 	return QDF_STATUS_SUCCESS;
 }
+
+/**
+ * cds_get_arp_stats_gw_ip() - get arp stats track IP
+ *
+ * Return: ARP stats IP to track
+ */
+uint32_t cds_get_arp_stats_gw_ip(void)
+{
+	hdd_context_t *hdd_ctx;
+
+	hdd_ctx = (hdd_context_t *) (gp_cds_context->pHDDContext);
+	if (!hdd_ctx) {
+		cds_err("Hdd Context is Null");
+		return 0;
+	}
+
+	return hdd_ctx->track_arp_ip;
+}
+
+/**
+ * cds_incr_arp_stats_tx_tgt_delivered() - increment ARP stats
+ *
+ * Return: none
+ */
+void cds_incr_arp_stats_tx_tgt_delivered(void)
+{
+	hdd_context_t *hdd_ctx;
+	hdd_adapter_list_node_t *adapter_node = NULL, *next = NULL;
+	hdd_adapter_t *adapter = NULL;
+	QDF_STATUS status;
+
+	hdd_ctx = (hdd_context_t *) (gp_cds_context->pHDDContext);
+	if (!hdd_ctx) {
+		cds_err("Hdd Context is Null");
+		return;
+	}
+
+	status = hdd_get_front_adapter(hdd_ctx, &adapter_node);
+
+	while (NULL != adapter_node && QDF_STATUS_SUCCESS == status) {
+		adapter = adapter_node->pAdapter;
+
+		if (QDF_STA_MODE == adapter->device_mode)
+			break;
+
+		status = hdd_get_next_adapter(hdd_ctx, adapter_node, &next);
+		adapter_node = next;
+	}
+
+	if (adapter)
+		adapter->hdd_stats.hdd_arp_stats.tx_host_fw_sent++;
+}
+
+/**
+ * cds_incr_arp_stats_tx_tgt_acked() - increment ARP stats
+ *
+ * Return: none
+ */
+void cds_incr_arp_stats_tx_tgt_acked(void)
+{
+	hdd_context_t *hdd_ctx;
+	hdd_adapter_list_node_t *adapter_node = NULL, *next = NULL;
+	hdd_adapter_t *adapter = NULL;
+	QDF_STATUS status;
+
+	hdd_ctx = (hdd_context_t *) (gp_cds_context->pHDDContext);
+	if (!hdd_ctx) {
+		cds_err("Hdd Context is Null");
+		return;
+	}
+
+	status = hdd_get_front_adapter(hdd_ctx, &adapter_node);
+
+	while (NULL != adapter_node && QDF_STATUS_SUCCESS == status) {
+		adapter = adapter_node->pAdapter;
+
+		if (QDF_STA_MODE == adapter->device_mode)
+			break;
+
+		status = hdd_get_next_adapter(hdd_ctx, adapter_node, &next);
+		adapter_node = next;
+	}
+
+	if (adapter)
+		adapter->hdd_stats.hdd_arp_stats.tx_ack_cnt++;
+}

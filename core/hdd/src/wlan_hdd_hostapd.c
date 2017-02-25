@@ -1651,6 +1651,9 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 				chan_info.rate_flags;
 		}
 
+		pHostapdAdapter->aStaInfo[staId].ecsa_capable = pSapEvent->
+			sapevt.sapStationAssocReassocCompleteEvent.ecsa_capable;
+
 		if (hdd_ipa_is_enabled(pHddCtx)) {
 			status = hdd_ipa_wlan_evt(pHostapdAdapter,
 					pSapEvent->sapevt.
@@ -4970,7 +4973,8 @@ QDF_STATUS hdd_softap_get_sta_info(hdd_adapter_t *pAdapter, uint8_t *pBuf,
 		if (pAdapter->aStaInfo[i].isUsed) {
 			len =
 				scnprintf(pBuf, buf_len,
-					  "%5d .%02x:%02x:%02x:%02x:%02x:%02x",
+					  "%5d .%02x:%02x:%02x:%02x:%02x:%02x"
+					  " \t ecsa=%d\n",
 					  pAdapter->aStaInfo[i].ucSTAId,
 					  pAdapter->aStaInfo[i].macAddrSTA.bytes[0],
 					  pAdapter->aStaInfo[i].macAddrSTA.bytes[1],
@@ -4978,7 +4982,8 @@ QDF_STATUS hdd_softap_get_sta_info(hdd_adapter_t *pAdapter, uint8_t *pBuf,
 					  pAdapter->aStaInfo[i].macAddrSTA.bytes[3],
 					  pAdapter->aStaInfo[i].macAddrSTA.bytes[4],
 					  pAdapter->aStaInfo[i].macAddrSTA.
-					  bytes[5]);
+					  bytes[5],
+					  pAdapter->aStaInfo[i].ecsa_capable);
 			pBuf += len;
 			buf_len -= len;
 		}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -266,6 +266,8 @@ typedef struct sDphHashNode {
 	bool sta_deletion_in_progress;
 	struct parsed_ies parsed_ies;
 
+	/* Flag indicating connected STA doesn't support ECSA */
+	uint8_t non_ecsa_capable;
 	/*
 	 * When a station with already an existing dph entry tries to
 	 * associate again, the old dph entry will be zeroed out except

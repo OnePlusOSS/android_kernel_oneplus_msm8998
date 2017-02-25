@@ -5436,6 +5436,10 @@ typedef struct {
 	uint32_t num_probes_tx;
 	uint32_t num_beacon_miss;
 
+	uint32_t rts_succ_cnt;
+	uint32_t rts_fail_cnt;
+	uint32_t ppdu_succ_cnt;
+	uint32_t ppdu_fail_cnt;
 	/* per ac data packet statistics */
 	tSirWifiWmmAcStat AccessclassStats[WIFI_AC_MAX];
 

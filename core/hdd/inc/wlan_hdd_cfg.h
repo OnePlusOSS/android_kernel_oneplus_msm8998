@@ -10423,6 +10423,26 @@ enum dot11p_mode {
 #define CFG_MBO_CAND_RSSI_BTC_THRESHOLD_MIN     (-120)
 #define CFG_MBO_CAND_RSSI_BTC_THRESHOLD_MAX     (0)
 
+/*
+ * <ini>
+ * g_sap_chanswitch_beacon_cnt - channel switch beacon count
+ * @Min: 1
+ * @Max: 5
+ * @Default: 5
+ *
+ * This ini is used to configure channel switch beacon count
+ *
+ * Related: none
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_SAP_CH_SWITCH_BEACON_CNT         "g_sap_chanswitch_beacon_cnt"
+#define CFG_SAP_CH_SWITCH_BEACON_CNT_MIN     (1)
+#define CFG_SAP_CH_SWITCH_BEACON_CNT_MAX     (5)
+#define CFG_SAP_CH_SWITCH_BEACON_CNT_DEFAULT (5)
+
 /*---------------------------------------------------------------------------
    Type declarations
    -------------------------------------------------------------------------*/
@@ -11119,6 +11139,8 @@ struct hdd_config {
 	bool sta_prefer_80MHz_over_160MHz;
 	uint8_t sap_max_inactivity_override;
 	bool fw_timeout_crash;
+	/* beacon count before channel switch */
+	uint8_t sap_chanswitch_beacon_cnt;
 	uint32_t rx_wakelock_timeout;
 #ifdef WLAN_FEATURE_WOW_PULSE
 	bool wow_pulse_support;

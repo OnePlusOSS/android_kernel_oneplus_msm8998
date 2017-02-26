@@ -4249,6 +4249,7 @@ typedef struct sSirDfsCsaIeRequest {
 	uint8_t csaIeRequired;
 	uint8_t bssid[QDF_MAC_ADDR_SIZE];
 	struct ch_params_s ch_params;
+	uint8_t  ch_switch_beacon_cnt;
 } tSirDfsCsaIeRequest, *tpSirDfsCsaIeRequest;
 
 /* Indication from lower layer indicating the completion of first beacon send

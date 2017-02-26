@@ -10493,6 +10493,26 @@ enum dot11p_mode {
 
 /*
  * <ini>
+ * g_sap_chanswitch_mode - channel switch mode
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This ini is used to configure channel switch mode
+ *
+ * Related: none
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_SAP_CH_SWITCH_MODE         "g_sap_chanswitch_mode"
+#define CFG_SAP_CH_SWITCH_MODE_MIN     (0)
+#define CFG_SAP_CH_SWITCH_MODE_MAX     (1)
+#define CFG_SAP_CH_SWITCH_MODE_DEFAULT (1)
+
+/*
+ * <ini>
  * gReducedBeaconInterval - beacon interval reduced
  * @Min: 0
  * @Max: 100
@@ -10537,6 +10557,10 @@ enum dot11p_mode {
 #define CFG_ENABLE_ANI_MIN               (0)
 #define CFG_ENABLE_ANI_MAX               (1)
 #define CFG_ENABLE_ANI_DEFAULT           (1)
+
+/*---------------------------------------------------------------------------
+   Type declarations
+   -------------------------------------------------------------------------*/
 
 struct hdd_config {
 	/* Bitmap to track what is explicitly configured */
@@ -11232,6 +11256,7 @@ struct hdd_config {
 	bool fw_timeout_crash;
 	/* beacon count before channel switch */
 	uint8_t sap_chanswitch_beacon_cnt;
+	uint8_t sap_chanswitch_mode;
 	uint32_t rx_wakelock_timeout;
 #ifdef WLAN_FEATURE_WOW_PULSE
 	bool wow_pulse_support;

@@ -4204,6 +4204,13 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_SAP_CH_SWITCH_BEACON_CNT_MIN,
 		     CFG_SAP_CH_SWITCH_BEACON_CNT_MAX),
 
+	REG_VARIABLE(CFG_SAP_CH_SWITCH_MODE, WLAN_PARAM_Integer,
+		     struct hdd_config, sap_chanswitch_mode,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_SAP_CH_SWITCH_MODE_DEFAULT,
+		     CFG_SAP_CH_SWITCH_MODE_MIN,
+		     CFG_SAP_CH_SWITCH_MODE_MAX),
+
 #ifdef WLAN_FEATURE_UDP_RESPONSE_OFFLOAD
 	REG_VARIABLE(CFG_UDP_RESP_OFFLOAD_SUPPORT_NAME, WLAN_PARAM_Integer,
 		struct hdd_config, udp_resp_offload_support,

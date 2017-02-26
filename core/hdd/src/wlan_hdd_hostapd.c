@@ -4974,25 +4974,29 @@ QDF_STATUS hdd_softap_get_sta_info(hdd_adapter_t *pAdapter, uint8_t *pBuf,
 	maxSta = hdd_ctx->config->maxNumberOfPeers;
 
 	for (i = 0; i <= maxSta; i++) {
-		if (pAdapter->aStaInfo[i].isUsed) {
-			len =
-				scnprintf(pBuf, buf_len,
-					  "%5d .%02x:%02x:%02x:%02x:%02x:%02x"
-					  " \t ecsa=%d\n",
-					  pAdapter->aStaInfo[i].ucSTAId,
-					  pAdapter->aStaInfo[i].macAddrSTA.bytes[0],
-					  pAdapter->aStaInfo[i].macAddrSTA.bytes[1],
-					  pAdapter->aStaInfo[i].macAddrSTA.bytes[2],
-					  pAdapter->aStaInfo[i].macAddrSTA.bytes[3],
-					  pAdapter->aStaInfo[i].macAddrSTA.bytes[4],
-					  pAdapter->aStaInfo[i].macAddrSTA.
-					  bytes[5],
-					  pAdapter->aStaInfo[i].ecsa_capable);
-			pBuf += len;
-			buf_len -= len;
-		}
+		if (!pAdapter->aStaInfo[i].isUsed)
+			continue;
+
+		if (CHAN_HOP_ALL_BANDS_ENABLE &&
+		    (i == (WLAN_HDD_GET_AP_CTX_PTR(pAdapter))->uBCStaId))
+			continue;
+
 		if (WE_GET_STA_INFO_SIZE > buf_len)
 			break;
+
+		len = scnprintf(pBuf, buf_len,
+				"%5d .%02x:%02x:%02x:%02x:%02x:%02x "
+				"\t ecsa=%d\n",
+				pAdapter->aStaInfo[i].ucSTAId,
+				pAdapter->aStaInfo[i].macAddrSTA.bytes[0],
+				pAdapter->aStaInfo[i].macAddrSTA.bytes[1],
+				pAdapter->aStaInfo[i].macAddrSTA.bytes[2],
+				pAdapter->aStaInfo[i].macAddrSTA.bytes[3],
+				pAdapter->aStaInfo[i].macAddrSTA.bytes[4],
+				pAdapter->aStaInfo[i].macAddrSTA.bytes[5],
+				pAdapter->aStaInfo[i].ecsa_capable);
+		pBuf += len;
+		buf_len -= len;
 	}
 
 	EXIT();
@@ -7360,6 +7364,7 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 	pConfig->disableDFSChSwitch = iniConfig->disableDFSChSwitch;
 	pConfig->sap_chanswitch_beacon_cnt =
 			    iniConfig->sap_chanswitch_beacon_cnt;
+	pConfig->sap_chanswitch_mode = iniConfig->sap_chanswitch_mode;
 
 	pConfig->reduced_beacon_interval =
 			iniConfig->reduced_beacon_interval;

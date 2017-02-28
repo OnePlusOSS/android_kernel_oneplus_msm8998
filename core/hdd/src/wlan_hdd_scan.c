@@ -1866,7 +1866,7 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 		if (wlan_hdd_update_scan_ies(pAdapter, pScanInfo,
 				pScanInfo->scanAddIE.addIEdata,
 				(uint8_t *)&pScanInfo->scanAddIE.length))
-			hdd_err("Update scan IEs with default Scan IEs failed");
+			hdd_info("Update scan IEs with default Scan IEs failed");
 
 		if ((QDF_STA_MODE == pAdapter->device_mode) ||
 		    (QDF_P2P_CLIENT_MODE == pAdapter->device_mode) ||

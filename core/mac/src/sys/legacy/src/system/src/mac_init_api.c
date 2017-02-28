@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -48,6 +48,8 @@
 #ifdef TRACE_RECORD
 #include "mac_trace.h"
 #endif
+
+static tAniSirGlobal global_mac_context;
 
 extern tSirRetStatus halDoCfgInit(tpAniSirGlobal pMac);
 extern tSirRetStatus halProcessStartEvent(tpAniSirGlobal pMac);
@@ -106,23 +108,11 @@ tSirRetStatus mac_stop(tHalHandle hHal, tHalStopType stopType)
 tSirRetStatus mac_open(tHalHandle *pHalHandle, tHddHandle hHdd,
 		       struct cds_config_info *cds_cfg)
 {
-	tpAniSirGlobal p_mac = NULL;
+	tpAniSirGlobal p_mac = &global_mac_context;
 	tSirRetStatus status = eSIR_SUCCESS;
 
 	if (pHalHandle == NULL)
 		return eSIR_FAILURE;
-
-	/*
-	 * Make sure this adapter is not already opened. (Compare pAdapter pointer in already
-	 * allocated p_mac structures.)
-	 * If it is opened just return pointer to previously allocated p_mac pointer.
-	 * Or should this result in error?
-	 */
-
-	/* Allocate p_mac */
-	p_mac = qdf_mem_malloc(sizeof(tAniSirGlobal));
-	if (NULL == p_mac)
-		return eSIR_MEM_ALLOC_FAILED;
 
 	/*
 	 * Set various global fields of p_mac here
@@ -183,9 +173,6 @@ tSirRetStatus mac_close(tHalHandle hHal)
 	cfg_de_init(pMac);
 
 	log_deinit(pMac);
-
-	/* Finally, de-allocate the global MAC datastructure: */
-	qdf_mem_free(pMac);
 
 	return eSIR_SUCCESS;
 }

@@ -180,63 +180,6 @@ static struct wlan_logging gwlan_logging;
 static struct log_msg *gplog_msg;
 static struct pkt_stats_msg *gpkt_stats_buffers;
 
-/* PID of the APP to log the message */
-static int gapp_pid = INVALID_PID;
-
-#ifndef CNSS_GENL
-/* Utility function to send a netlink message to an application
- * in user space
- */
-static int wlan_send_sock_msg_to_app(tAniHdr *wmsg, int radio,
-				     int src_mod, int pid)
-{
-	int err = -1;
-	int payload_len;
-	int tot_msg_len;
-	tAniNlHdr *wnl = NULL;
-	struct sk_buff *skb;
-	struct nlmsghdr *nlh;
-	int wmsg_length = ntohs(wmsg->length);
-	static int nlmsg_seq;
-
-	if (radio < 0 || radio > ANI_MAX_RADIOS) {
-		LOGGING_TRACE(QDF_TRACE_LEVEL_ERROR,
-			      "%s: invalid radio id [%d]", __func__, radio);
-		return -EINVAL;
-	}
-
-	payload_len = wmsg_length + sizeof(wnl->radio) + sizeof(*wmsg);
-	tot_msg_len = NLMSG_SPACE(payload_len);
-	skb = dev_alloc_skb(tot_msg_len);
-	if (skb == NULL) {
-		LOGGING_TRACE(QDF_TRACE_LEVEL_ERROR,
-			      "%s: dev_alloc_skb() failed for msg size[%d]",
-			      __func__, tot_msg_len);
-		return -ENOMEM;
-	}
-	nlh = nlmsg_put(skb, pid, nlmsg_seq++, src_mod, payload_len,
-			NLM_F_REQUEST);
-	if (NULL == nlh) {
-		LOGGING_TRACE(QDF_TRACE_LEVEL_ERROR,
-			      "%s: nlmsg_put() failed for msg size[%d]",
-			      __func__, tot_msg_len);
-		kfree_skb(skb);
-		return -ENOMEM;
-	}
-
-	wnl = (tAniNlHdr *) nlh;
-	wnl->radio = radio;
-	memcpy(&wnl->wmsg, wmsg, wmsg_length);
-
-	err = nl_srv_ucast(skb, pid, MSG_DONTWAIT);
-	if (err)
-		LOGGING_TRACE(QDF_TRACE_LEVEL_INFO,
-			"%s: Failed sending Msg Type [0x%X] to pid[%d]\n",
-			__func__, wmsg->type, pid);
-	return err;
-}
-#endif
-
 /**
  * is_data_path_module() - To check for a Datapath module
  * @mod_id: Module id
@@ -902,130 +845,10 @@ static int wlan_logging_thread(void *Arg)
 	return 0;
 }
 
-#ifdef CNSS_GENL
-/**
- * register_logging_sock_handler() - Logging sock handler registration
- *
- * Dummy API to register the command handler for logger socket app.
- *
- * Return: None
- */
-static void register_logging_sock_handler(void)
-{
-}
-
-/**
- * unregister_logging_sock_handler() - Logging sock handler unregistration
- *
- * Dummy API to unregister the command handler for logger socket app.
- *
- * Return: None
- */
-static void unregister_logging_sock_handler(void)
-{
-}
-#else
-
-/*
- * Process all the Netlink messages from Logger Socket app in user space
- */
-static int wlan_logging_proc_sock_rx_msg(struct sk_buff *skb)
-{
-	tAniNlHdr *wnl;
-	int radio;
-	int type;
-	int ret, len;
-
-	wnl = (tAniNlHdr *) skb->data;
-	radio = wnl->radio;
-	type = wnl->nlh.nlmsg_type;
-
-	if (radio < 0 || radio > ANI_MAX_RADIOS) {
-		LOGGING_TRACE(QDF_TRACE_LEVEL_ERROR,
-			      "%s: invalid radio id [%d]\n", __func__, radio);
-		return -EINVAL;
-	}
-
-	len = ntohs(wnl->wmsg.length) + sizeof(tAniNlHdr);
-	if (len > skb_headlen(skb)) {
-		LOGGING_TRACE(QDF_TRACE_LEVEL_ERROR,
-			"%s: invalid length, msgLen:%x skb len:%x headLen: %d data_len: %d",
-			__func__, len, skb->len, skb_headlen(skb),
-			skb->data_len);
-		return -EINVAL;
-	}
-
-	if (wnl->wmsg.length > skb->data_len) {
-		LOGGING_TRACE(QDF_TRACE_LEVEL_ERROR,
-			"%s: invalid length msgLen:%x skb data_len:%x\n",
-			__func__, wnl->wmsg.length, skb->data_len);
-		return -EINVAL;
-	}
-
-	if (gapp_pid != INVALID_PID) {
-		if (wnl->nlh.nlmsg_pid > gapp_pid) {
-			gapp_pid = wnl->nlh.nlmsg_pid;
-		}
-
-		spin_lock_bh(&gwlan_logging.spin_lock);
-		if (gwlan_logging.pcur_node->filled_length) {
-			wlan_queue_logmsg_for_app();
-		}
-		spin_unlock_bh(&gwlan_logging.spin_lock);
-		set_bit(HOST_LOG_DRIVER_MSG, &gwlan_logging.eventFlag);
-		wake_up_interruptible(&gwlan_logging.wait_queue);
-	} else {
-		/* This is to set the default levels (WLAN logging
-		 * default values not the QDF trace default) when
-		 * logger app is registered for the first time.
-		 */
-		gapp_pid = wnl->nlh.nlmsg_pid;
-	}
-
-	ret = wlan_send_sock_msg_to_app(&wnl->wmsg, 0,
-					ANI_NL_MSG_LOG, wnl->nlh.nlmsg_pid);
-	if (ret < 0) {
-		LOGGING_TRACE(QDF_TRACE_LEVEL_ERROR,
-			      "wlan_send_sock_msg_to_app: failed");
-	}
-
-	return ret;
-}
-
-/**
- * register_logging_sock_handler() - Logging sock handler registration
- *
- * API to register the command handler for logger socket app. Registers
- * legacy handler
- *
- * Return: None
- */
-static void register_logging_sock_handler(void)
-{
-	nl_srv_register(ANI_NL_MSG_LOG, wlan_logging_proc_sock_rx_msg);
-}
-
-/**
- * unregister_logging_sock_handler() - Logging sock handler unregistration
- *
- * API to unregister the command handler for logger socket app. Unregisters
- * legacy handler
- *
- * Return: None
- */
-static void unregister_logging_sock_handler(void)
-{
-	nl_srv_unregister(ANI_NL_MSG_LOG, wlan_logging_proc_sock_rx_msg);
-}
-#endif
-
-
 int wlan_logging_sock_activate_svc(int log_to_console, int num_buf)
 {
 	int i = 0, j, pkt_stats_size;
 	unsigned long irq_flag;
-
-	gapp_pid = INVALID_PID;
 
 	gplog_msg = (struct log_msg *)vmalloc(num_buf * sizeof(struct log_msg));
 	if (!gplog_msg) {
@@ -1107,7 +930,6 @@ int wlan_logging_sock_activate_svc(int log_to_console, int num_buf)
 	gwlan_logging.is_active = true;
 	gwlan_logging.is_flush_complete = false;
 
-	register_logging_sock_handler();
 	return 0;
 
 err3:
@@ -1138,9 +960,7 @@ int wlan_logging_sock_deactivate_svc(void)
 	if (!gplog_msg)
 		return 0;
 
-	unregister_logging_sock_handler();
 	clear_default_logtoapp_log_level();
-	gapp_pid = INVALID_PID;
 
 	INIT_COMPLETION(gwlan_logging.shutdown_comp);
 	gwlan_logging.exit = true;
@@ -1179,7 +999,6 @@ int wlan_logging_sock_init_svc(void)
 {
 	spin_lock_init(&gwlan_logging.spin_lock);
 	spin_lock_init(&gwlan_logging.pkt_stats_lock);
-	gapp_pid = INVALID_PID;
 	gwlan_logging.pcur_node = NULL;
 	gwlan_logging.pkt_stats_pcur_node = NULL;
 
@@ -1190,7 +1009,6 @@ int wlan_logging_sock_deinit_svc(void)
 {
 	gwlan_logging.pcur_node = NULL;
 	gwlan_logging.pkt_stats_pcur_node = NULL;
-	gapp_pid = INVALID_PID;
 
 	return 0;
 }

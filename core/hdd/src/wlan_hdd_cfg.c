@@ -4858,8 +4858,9 @@ static QDF_STATUS hdd_apply_cfg_ini(hdd_context_t *pHddCtx,
 				value = pRegEntry->VarDefault;
 			}
 
-			/* If this parameter needs range checking, do it here. */
-			if (pRegEntry->Flags & VAR_FLAGS_RANGE_CHECK) {
+			/* Only if the parameter is set in the ini file, do the range check here */
+			if (match_status == QDF_STATUS_SUCCESS &&
+			    pRegEntry->Flags & VAR_FLAGS_RANGE_CHECK) {
 				if (value > pRegEntry->VarMax) {
 					hdd_warn("Reg Parameter %s > allowed Maximum [%u > %lu]. Enforcing Maximum", pRegEntry->RegName,
 					       value, pRegEntry->VarMax);
@@ -4872,9 +4873,10 @@ static QDF_STATUS hdd_apply_cfg_ini(hdd_context_t *pHddCtx,
 					value = pRegEntry->VarMin;
 				}
 			}
-			/* If this parameter needs range checking, do it here. */
-			else if (pRegEntry->
-				 Flags & VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT) {
+			/* Only if the parameter is set in the ini file, do the range check here */
+			else if (match_status == QDF_STATUS_SUCCESS &&
+				 pRegEntry->Flags &
+					VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT) {
 				if (value > pRegEntry->VarMax) {
 					hdd_warn("Reg Parameter %s > allowed Maximum [%u > %lu]. Enforcing Default: %lu", pRegEntry->RegName,
 					       value, pRegEntry->VarMax,
@@ -4906,8 +4908,9 @@ static QDF_STATUS hdd_apply_cfg_ini(hdd_context_t *pHddCtx,
 				svalue = (int32_t) pRegEntry->VarDefault;
 			}
 
-			/* If this parameter needs range checking, do it here. */
-			if (pRegEntry->Flags & VAR_FLAGS_RANGE_CHECK) {
+			/* Only if the parameter is set in the ini file, do the range check here */
+			if (match_status == QDF_STATUS_SUCCESS &&
+			    pRegEntry->Flags & VAR_FLAGS_RANGE_CHECK) {
 				if (svalue > (int32_t) pRegEntry->VarMax) {
 					hdd_warn("Reg Parameter %s > allowed Maximum "
 					       "[%d > %d]. Enforcing Maximum", pRegEntry->RegName,
@@ -4922,9 +4925,10 @@ static QDF_STATUS hdd_apply_cfg_ini(hdd_context_t *pHddCtx,
 					svalue = (int32_t) pRegEntry->VarMin;
 				}
 			}
-			/* If this parameter needs range checking, do it here. */
-			else if (pRegEntry->
-				 Flags & VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT) {
+			/* Only if the parameter is set in the ini file, do the range check here */
+			else if (match_status == QDF_STATUS_SUCCESS &&
+				 pRegEntry->Flags &
+					VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT) {
 				if (svalue > (int32_t) pRegEntry->VarMax) {
 					hdd_warn("Reg Parameter %s > allowed Maximum "
 					       "[%d > %d]. Enforcing Default: %d", pRegEntry->RegName,

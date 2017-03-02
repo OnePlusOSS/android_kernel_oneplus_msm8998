@@ -6121,6 +6121,7 @@ QDF_STATUS send_pno_start_cmd_tlv(wmi_unified_t wmi_handle,
 	/* Copy scan interval */
 	cmd->fast_scan_period = pno->fast_scan_period;
 	cmd->slow_scan_period = pno->slow_scan_period;
+	cmd->delay_start_time = WMI_SEC_TO_MSEC(pno->delay_start_time);
 	cmd->fast_scan_max_cycles = pno->fast_scan_max_cycles;
 	WMI_LOGD("fast_scan_period: %d msec slow_scan_period: %d msec",
 			cmd->fast_scan_period, cmd->slow_scan_period);

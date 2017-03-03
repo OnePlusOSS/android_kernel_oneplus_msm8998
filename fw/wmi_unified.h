@@ -358,6 +358,12 @@ typedef enum {
     WMI_PDEV_SET_STATS_THRESHOLD_CMDID,
     /** vdev restart request for multiple vdevs */
     WMI_PDEV_MULTIPLE_VDEV_RESTART_REQUEST_CMDID,
+    /** Pdev update packet routing command */
+    WMI_PDEV_UPDATE_PKT_ROUTING_CMDID,
+    /** Get Calibration data version details */
+    WMI_PDEV_CHECK_CAL_VERSION_CMDID,
+    /** Set Diversity Gain */
+    WMI_PDEV_SET_DIVERSITY_GAIN_CMDID,
 
     /* VDEV (virtual device) specific commands */
     /** vdev create */
@@ -1099,6 +1105,9 @@ typedef enum {
 
     /* Event to report the switch count in csa of one or more VDEVs */
     WMI_PDEV_CSA_SWITCH_COUNT_STATUS_EVENTID,
+
+    /** Report the caldata version to host */
+    WMI_PDEV_CHECK_CAL_VERSION_EVENTID,
 
     /* VDEV specific events */
     /** VDEV started event in response to VDEV_START request */
@@ -3919,6 +3928,16 @@ typedef enum {
      * 0 - Disallow mesh mcast traffic
      */
     WMI_PDEV_PARAM_MESH_MCAST_ENABLE,
+    /** Enable/Disable smart chainmask scheme
+      * 1 - Enable smart chainmask scheme
+      * 0 - Disable smart chainmask scheme
+      */
+    WMI_PDEV_PARAM_SMART_CHAINMASK_SCHEME,
+    /** Enable/Disable alternate chainmask scheme
+     * 1 - Enable alternate chainmask scheme
+     * 0 - Disable alternate chainmask scheme
+     */
+    WMI_PDEV_PARAM_ALTERNATIVE_CHAINMASK_SCHEME,
 
 } WMI_PDEV_PARAM;
 
@@ -12801,6 +12820,18 @@ enum {
 #define GET_PDEV_PARAM_TXPOWER_REASON(txpower_param)     \
     (((txpower_param) & PDEV_PARAM_TXPOWER_REASON_MASK) >> PDEV_PARAM_TXPOWER_REASON_SHIFT)
 
+#define PDEV_PARAM_SMART_CHAINMASK_SCHEME_DECISION_MASK 0x00000001
+#define PDEV_PARAM_SMART_CHAINMASK_SCHEME_DECISION_SHIFT 0
+
+#define SET_PDEV_SMART_CHAINMASK_SCHEME_DECISION(param, value) \
+    do { \
+        (param) &= ~PDEV_PARAM_SMART_CHAINMASK_SCHEME_DECISION_MASK; \
+        (param) |= (value) << PDEV_PARAM_SMART_CHAINMASK_SCHEME_DECISION_SHIFT; \
+    while (0)
+
+#define GET_PDEV_SMART_CHAINMASK_SCHEME_DECISION(param)     \
+    (((param) & PDEV_PARAM_SMART_CHAINMASK_SCHEME_DECISION_MASK) >> PDEV_PARAM_SMART_CHAINMASK_SCHEME_DECISION_SHIFT)
+
 /**
  * This command is sent from WLAN host driver to firmware to
  * notify the current modem power state. Host would receive a
@@ -15726,6 +15757,15 @@ typedef struct {
      * (units are seconds)
      */
     A_UINT32 per_rest_time;
+    /* This is the total time for which PER monitoring will be run.
+     * After completion of time windows, the average PER over the window
+     * will be computed.
+     * The parameter value stores specifications for both TX and RX
+     * monitor times.
+     * The two least-significant bytes (0 & 1) hold the RX monitor time;
+     * the two most-significant bytes (2 & 3) hold the TX monitor time.
+     */
+    A_UINT32 pkt_err_rate_mon_time; /* units = seconds */
 } wmi_roam_per_config_fixed_param;
 
 typedef struct {
@@ -17728,6 +17768,9 @@ static INLINE A_UINT8 *wmi_id_to_name(A_UINT32 wmi_command)
         WMI_RETURN_STRING(WMI_HW_DATA_FILTER_CMDID);
         WMI_RETURN_STRING(MI_PDEV_MULTIPLE_VDEV_RESTART_REQUEST_CMDID);
         WMI_RETURN_STRING(WMI_LPI_OEM_REQ_CMDID);
+        WMI_RETURN_STRING(WMI_PDEV_UPDATE_PKT_ROUTING_CMDID);
+        WMI_RETURN_STRING(WMI_PDEV_CHECK_CAL_VERSION_CMDID);
+        WMI_RETURN_STRING(WMI_PDEV_SET_DIVERSITY_GAIN_CMDID);
     }
 
     return "Invalid WMI cmd";
@@ -17969,6 +18012,81 @@ typedef struct {
      * A_UINT32 vdev_ids[]; <--- Array of VDEV ids.
      */
 } wmi_pdev_csa_switch_count_status_event_fixed_param;
+
+/* Operation types for packet routing command */
+typedef enum {
+    WMI_PDEV_ADD_PKT_ROUTING,
+    WMI_PDEV_DEL_PKT_ROUTING,
+} wmi_pdev_pkt_routing_op_code;
+
+/* Packet routing types based on specific data types */
+typedef enum {
+    WMI_PDEV_ROUTING_TYPE_ARP_IPV4,
+    WMI_PDEV_ROUTING_TYPE_NS_IPV6,
+    WMI_PDEV_ROUTING_TYPE_IGMP_IPV4,
+    WMI_PDEV_ROUTING_TYPE_MLD_IPV6,
+    WMI_PDEV_ROUTING_TYPE_DHCP_IPV4,
+    WMI_PDEV_ROUTING_TYPE_DHCP_IPV6,
+} wmi_pdev_pkt_routing_type;
+
+/* This command shall be sent only when no VDEV is up. If the command is sent after any VDEV is up, target will ignore the command */
+typedef struct {
+    /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_pdev_update_pkt_routing_cmd_fixed_param */
+    A_UINT32 tlv_header;
+    /** Identifies pdev on which routing needs to be applied */
+    A_UINT32 pdev_id;
+    /** Indicates the routing operation type: add/delete */
+    A_UINT32 op_code; /* wmi_pdev_pkt_routing_op_code */
+    /** Bitmap of multiple pkt routing types for a given destination ring and meta data */
+    A_UINT32 routing_type_bitmap; /* see wmi_pdev_pkt_routing_type */
+    /** 5 bits [4:0] are used to specify the destination ring where the CCE matched
+      * packet needs to be routed.
+      */
+    A_UINT32 dest_ring;
+    /** 16 bits [15:0] meta data can be passed to CCE. When the superrule matches,
+      * CCE copies this back in RX_MSDU_END_TLV.
+      */
+    A_UINT32 meta_data;
+} wmi_pdev_update_pkt_routing_cmd_fixed_param;
+
+typedef enum {
+    WMI_CALIBRATION_NO_FEATURE = 0, /* The board was calibrated with a meta which did not have this feature */
+    WMI_CALIBRATION_OK,             /* The calibration status is OK */
+    WMI_CALIBRATION_NOT_OK,         /* The calibration status is NOT OK */
+} WMI_CALIBRATION_STATUS;
+
+typedef struct {
+    A_UINT32 tlv_header;            /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_pdev_check_cal_version_event_fixed_param  */
+    A_UINT32 software_cal_version;  /* Current software level calibration data version */
+    A_UINT32 board_cal_version;     /* Calibration data version programmed on chip */
+    A_UINT32 cal_status;            /* filled with WMI_CALIBRATION_STATUS enum value */
+    /** pdev_id for identifying the MAC
+     * See macros starting with WMI_PDEV_ID_ for values.
+     */
+    A_UINT32 pdev_id;
+} wmi_pdev_check_cal_version_event_fixed_param;
+
+typedef struct {
+    A_UINT32 tlv_header; /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_pdev_check_cal_version_cmd_fixed_param */
+    /** pdev_id for identifying the MAC
+     * See macros starting with WMI_PDEV_ID_ for values.
+     */
+    A_UINT32 pdev_id;
+} wmi_pdev_check_cal_version_cmd_fixed_param;
+
+typedef struct {
+    A_UINT32 tlv_header; /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_pdev_set_diversity_gain_cmd_fixed_param */
+    /** Identifies pdev on which diversity gain to be applied */
+    A_UINT32 pdev_id;
+    /** The number of spatial stream */
+    A_UINT32 nss;
+    /** The number of gains */
+    A_UINT32 num_gains;
+    /*
+     * This fixed_param TLV is followed by other TLVs:
+     *    A_UINT8 diversity_gains[num_gains]; (gain is in dB units)
+     */
+} wmi_pdev_set_diversity_gain_cmd_fixed_param;
 
 
 /* ADD NEW DEFS HERE */

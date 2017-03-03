@@ -1486,25 +1486,29 @@ typedef enum {
 
 /*
  * <ini>
- * OkcEnabled - Enable OKC(Oppurtunistic Key Caching)
+ * pmkidModes - Enable PMKID modes
  * @Min: 0
- * @Max: 1
- * @Default: 1
+ * @Max: 3
+ * @Default: 3
  *
- * This INI is used to enable OKC feature
+ * This INI is used to enable PMKID feature options
+ * Bit 0 = Enable Opportunistic key caching
+ * Bit 1 = Enable PMKSA caching
  *
  * Related: None
  *
- * Supported Feature: Roaming
+ * Supported Feature: Firmware based roaming
  *
- * Usage: External
+ * Usage: Internal
  *
  * </ini>
  */
-#define CFG_OKC_FEATURE_ENABLED_NAME                       "OkcEnabled"
-#define CFG_OKC_FEATURE_ENABLED_MIN                        (0)
-#define CFG_OKC_FEATURE_ENABLED_MAX                        (1)
-#define CFG_OKC_FEATURE_ENABLED_DEFAULT                    (1)
+#define CFG_PMKID_MODES_NAME                       "pmkidModes"
+#define CFG_PMKID_MODES_MIN                        (0x0)
+#define CFG_PMKID_MODES_MAX                        (0x3)
+#define CFG_PMKID_MODES_DEFAULT                    (0x3)
+#define CFG_PMKID_MODES_OKC                        (0x1)
+#define CFG_PMKID_MODES_PMKSA_CACHING              (0x2)
 
 /*
  * <ini>
@@ -2135,7 +2139,7 @@ typedef enum {
 
 /*
  * <ini>
- * gIbssPsWarmupTime - IBSS Power Save Enable/Disable 1 RX
+ * gIbssPs1RxChainInAtim - IBSS Power Save Enable/Disable 1 RX
  * chain usage during the ATIM window
  *
  * @Min: 0
@@ -3845,24 +3849,73 @@ typedef enum {
 #define CFG_TL_DELAYED_TRGR_FRM_INT_MAX                     (4294967295UL)
 #define CFG_TL_DELAYED_TRGR_FRM_INT_DEFAULT                 3000
 
+/*
+ * <ini>
+ * gRrmEnable - Enable/Disable RRM
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to controls the capabilities (11 k) included
+ * in the capabilities field.
+ *
+ * Related: None.
+ *
+ * Supported Feature: 11k
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_RRM_ENABLE_NAME                              "gRrmEnable"
 #define CFG_RRM_ENABLE_MIN                               (0)
 #define CFG_RRM_ENABLE_MAX                               (1)
 #define CFG_RRM_ENABLE_DEFAULT                           (0)
 
+/*
+ * <ini>
+ * gRrmRandnIntvl - Randomization interval
+ * @Min: 10
+ * @Max: 100
+ * @Default: 100
+ *
+ * This ini is used to set randomization interval which is used to start a timer
+ * of a random value within randomization interval. Next RRM Scan request
+ * will be issued after the expiry of this random interval.
+ *
+ * Related: None.
+ *
+ * Supported Feature: 11k
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_RRM_MEAS_RANDOMIZATION_INTVL_NAME            "gRrmRandnIntvl"
 #define CFG_RRM_MEAS_RANDOMIZATION_INTVL_MIN             (10)
 #define CFG_RRM_MEAS_RANDOMIZATION_INTVL_MAX             (100)
 #define CFG_RRM_MEAS_RANDOMIZATION_INTVL_DEFAULT         (100)
 
-/**
- * This INI is used to configure RM enabled capabilities IE.
+/*
+ * <ini>
+ * rm_capability - Configure RM enabled capabilities IE
+ * @Default: 73,10,91,00,04
+ *
+ * This ini is used to configure RM enabled capabilities IE.
  * Using this INI, we can set/unset any of the bits in 5 bytes
  * (last 4bytes are reserved). Bit details are updated as per
  * Draft version of 11mc spec. (Draft P802.11REVmc_D4.2)
  *
  * Bitwise details are defined as bit mask in rrm_global.h
  * Comma is used as a separator for each byte.
+ *
+ * Related: None.
+ *
+ * Supported Feature: 11k
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
  */
 #define CFG_RM_CAPABILITY_NAME            "rm_capability"
 #define CFG_RM_CAPABILITY_DEFAULT         "73,10,91,00,04"
@@ -8885,6 +8938,37 @@ enum dot11p_mode {
 
 /*
  * <ini>
+ * gper_roam_mon_time - Minimum time required in seconds to
+ * be considered as valid scenario for PER based roam
+ * @Min: 5
+ * @Max: 25
+ * @Default: 25
+ *
+ * This ini is used to define minimum time in seconds for which DUT has
+ * collected the PER stats before it can consider the stats hysteresis to be
+ * valid for PER based scan.
+ * DUT collects following information during this period:
+ *     1. % of packets below gper_roam_low_rate_th
+ *     2. # packets above gper_roam_high_rate_th
+ * if DUT gets (1) greater than gper_roam_th_percent and (2) is zero during
+ * this period, it triggers PER based roam scan.
+ *
+ * Related: gper_roam_enabled, gper_roam_high_rate_th, gper_roam_low_rate_th,
+ *          gper_roam_th_percent, gper_roam_rest_time
+ *
+ * Supported Feature: LFR-3.0
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+#define CFG_PER_ROAM_MONITOR_TIME                "gper_roam_mon_time"
+#define CFG_PER_ROAM_MONITOR_TIME_MIN            (5)
+#define CFG_PER_ROAM_MONITOR_TIME_MAX            (25)
+#define CFG_PER_ROAM_MONTIOR_TIME_DEFAULT        (25)
+
+/*
+ * <ini>
  * gPowerUsage - Preferred Power Usage
  * @Min: Min
  * @Max: Max
@@ -9491,6 +9575,73 @@ enum dot11p_mode {
 #define CFG_HW_FILTER_MIN             (0)
 #define CFG_HW_FILTER_MAX             (1)
 
+/*
+ * <ini>
+ * g_enable_bcast_probe_rsp - Enable Broadcast probe response.
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to enable/disable broadcast probe response
+ *
+ * Related: None
+ *
+ * Supported Feature: FILS
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ENABLE_BCAST_PROBE_RESP_NAME    "g_enable_bcast_probe_rsp"
+#define CFG_ENABLE_BCAST_PROBE_RESP_MIN     (0)
+#define CFG_ENABLE_BCAST_PROBE_RESP_MAX     (1)
+#define CFG_ENABLE_BCAST_PROBE_RESP_DEFAULT (0)
+
+/*
+ * <ini>
+ * g_qcn_ie_support - QCN IE Support
+ * @Min: 0 (disabled)
+ * @Max: 1 (enabled)
+ * @Default: 0 (disabled)
+ *
+ * This config item is used to support QCN IE in probe/assoc/reassoc request
+ * for STA mode. QCN IE support is not added for SAP mode.
+ *
+ * Related: N/A
+ *
+ * Supported Feature: N/A
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+#define CFG_QCN_IE_SUPPORT_NAME    "g_qcn_ie_support"
+#define CFG_QCN_IE_SUPPORT_MIN      0
+#define CFG_QCN_IE_SUPPORT_MAX      1
+#define CFG_QCN_IE_SUPPORT_DEFAULT  0
+
+/*
+ * <ini>
+ * g_fils_max_chan_guard_time - Set maximum channel guard time(ms)
+ * @Min: 0
+ * @Max: 10
+ * @Default: 0
+ *
+ * This ini is used to set maximum channel guard time in milli seconds
+ *
+ * Related: None
+ *
+ * Supported Feature: FILS
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_FILS_MAX_CHAN_GUARD_TIME_NAME    "g_fils_max_chan_guard_time"
+#define CFG_FILS_MAX_CHAN_GUARD_TIME_MIN     (0)
+#define CFG_FILS_MAX_CHAN_GUARD_TIME_MAX     (10)
+#define CFG_FILS_MAX_CHAN_GUARD_TIME_DEFAULT (0)
+
 /*---------------------------------------------------------------------------
    Type declarations
    -------------------------------------------------------------------------*/
@@ -9636,7 +9787,7 @@ struct hdd_config {
 	bool isFastTransitionEnabled;
 	uint8_t RoamRssiDiff;
 	bool isWESModeEnabled;
-	bool isOkcIniFeatureEnabled;
+	uint32_t pmkid_modes;
 	bool isRoamOffloadScanEnabled;
 	bool bImplicitQosEnabled;
 
@@ -10192,12 +10343,16 @@ struct hdd_config {
 	uint32_t per_roam_low_rate_threshold;
 	uint32_t per_roam_th_percent;
 	uint32_t per_roam_rest_time;
+	uint32_t per_roam_mon_time;
 	uint32_t max_sched_scan_plan_interval;
 	uint32_t max_sched_scan_plan_iterations;
 	uint8_t enable_phy_reg_retention;
 	enum active_bpf_mode active_bpf_mode;
 	bool hw_broadcast_filter;
 	bool sap_internal_restart;
+	bool enable_bcast_probe_rsp;
+	bool qcn_ie_support;
+	uint8_t fils_max_chan_guard_time;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))
@@ -10321,8 +10476,9 @@ eCsrPhyMode hdd_cfg_xlate_to_csr_phy_mode(eHddDot11Mode dot11Mode);
 QDF_STATUS hdd_execute_global_config_command(hdd_context_t *pHddCtx,
 					     char *command);
 
-bool hdd_is_okc_mode_enabled(hdd_context_t *pHddCtx);
 QDF_STATUS hdd_set_idle_ps_config(hdd_context_t *pHddCtx, bool val);
+void hdd_get_pmkid_modes(hdd_context_t *pHddCtx,
+			 struct pmkid_mode_bits *pmkid_modes);
 
 void hdd_update_tgt_cfg(void *context, void *param);
 bool hdd_dfs_indicate_radar(void *context, void *param);

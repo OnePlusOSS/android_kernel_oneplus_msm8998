@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -254,6 +254,8 @@ typedef struct tagSmeStruct {
 			struct sir_encrypt_decrypt_rsp_params *);
 	void (*lost_link_info_cb)(void *context,
 			struct sir_lost_link_info *lost_link_info);
+	void (*rso_cmd_status_cb)(void *hdd_context,
+			 struct rso_cmd_status *rso_status);
 } tSmeStruct, *tpSmeStruct;
 
 #endif /* #if !defined( __SMEINTERNAL_H ) */

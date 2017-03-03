@@ -1146,6 +1146,10 @@ typedef struct sMaxTxPowerPerBandParams {
  * @nss_2g: vdev nss in 2.4G
  * @nss_5g: vdev nss in 5G
  * @status: response status code
+ * @tx_aggregation_size: Tx aggregation size
+ * @rx_aggregation_size: Rx aggregation size
+ * @enable_bcast_probe_rsp: enable broadcast probe response
+ * @fils_max_chan_guard_time: FILS max channel guard time
  */
 struct add_sta_self_params {
 	tSirMacAddr self_mac_addr;
@@ -1158,6 +1162,8 @@ struct add_sta_self_params {
 	uint32_t status;
 	uint32_t tx_aggregation_size;
 	uint32_t rx_aggregation_size;
+	bool enable_bcast_probe_rsp;
+	uint8_t fils_max_chan_guard_time;
 };
 
 /**

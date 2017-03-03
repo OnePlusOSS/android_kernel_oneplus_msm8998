@@ -2551,6 +2551,10 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 			pParam->per_roam_config.rx_rate_thresh_percnt;
 		pMac->roam.configParam.per_roam_config.per_rest_time =
 			pParam->per_roam_config.per_rest_time;
+		pMac->roam.configParam.per_roam_config.tx_per_mon_time =
+			pParam->per_roam_config.tx_per_mon_time;
+		pMac->roam.configParam.per_roam_config.rx_per_mon_time =
+			pParam->per_roam_config.rx_per_mon_time;
 
 		/* update p2p offload status */
 		pMac->pnoOffload = pParam->pnoOffload;
@@ -2618,6 +2622,12 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 			pParam->tx_aggregation_size;
 		pMac->roam.configParam.rx_aggregation_size =
 			pParam->rx_aggregation_size;
+		pMac->roam.configParam.enable_bcast_probe_rsp =
+			pParam->enable_bcast_probe_rsp;
+		pMac->roam.configParam.qcn_ie_support =
+			pParam->qcn_ie_support;
+		pMac->roam.configParam.fils_max_chan_guard_time =
+			pParam->fils_max_chan_guard_time;
 
 	}
 	return status;
@@ -2774,6 +2784,10 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 			cfg_params->per_roam_config.rx_rate_thresh_percnt;
 	pParam->per_roam_config.per_rest_time =
 			cfg_params->per_roam_config.per_rest_time;
+	pParam->per_roam_config.tx_per_mon_time =
+			cfg_params->per_roam_config.tx_per_mon_time;
+	pParam->per_roam_config.rx_per_mon_time =
+			cfg_params->per_roam_config.rx_per_mon_time;
 
 	pParam->conc_custom_rule1 = cfg_params->conc_custom_rule1;
 	pParam->conc_custom_rule2 = cfg_params->conc_custom_rule2;
@@ -2848,6 +2862,12 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 		pMac->roam.configParam.tx_aggregation_size;
 	pParam->rx_aggregation_size =
 		pMac->roam.configParam.rx_aggregation_size;
+	pParam->enable_bcast_probe_rsp =
+		pMac->roam.configParam.enable_bcast_probe_rsp;
+	pParam->qcn_ie_support =
+		pMac->roam.configParam.qcn_ie_support;
+	pParam->fils_max_chan_guard_time =
+		pMac->roam.configParam.fils_max_chan_guard_time;
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -14422,7 +14442,7 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 		 */
 		pwrLimit = csr_get_cfg_max_tx_power(pMac,
 					pBssDescription->channelId);
-		if (0 != pwrLimit)
+		if (0 != pwrLimit && pwrLimit < MAX_TX_PWR_CAP)
 			csr_join_req->powerCap.maxTxPower = pwrLimit;
 		else
 			csr_join_req->powerCap.maxTxPower = MAX_TX_PWR_CAP;
@@ -15391,6 +15411,10 @@ QDF_STATUS csr_process_add_sta_session_command(tpAniSirGlobal pMac,
 			pMac->roam.configParam.tx_aggregation_size;
 	add_sta_self_req->rx_aggregation_size =
 			pMac->roam.configParam.rx_aggregation_size;
+	add_sta_self_req->enable_bcast_probe_rsp =
+			pMac->roam.configParam.enable_bcast_probe_rsp;
+	add_sta_self_req->fils_max_chan_guard_time =
+			pMac->roam.configParam.fils_max_chan_guard_time;
 
 	msg.type = WMA_ADD_STA_SELF_REQ;
 	msg.reserved = 0;
@@ -16865,7 +16889,7 @@ QDF_STATUS csr_get_statistics(tpAniSirGlobal pMac,
  * @mac_ctx: mac context.
  * @session_id: Session Identifier
  * @roam_key_mgmt_offload_enabled: key mgmt enable/disable flag
- * @okc_enabled: Opportunistic key caching enable/disable flag
+ * @pmkid_modes: PMKID modes of PMKSA caching and OKC
  *
  * Return: QDF_STATUS_SUCCESS - CSR updated config successfully.
  * Other status means CSR is failed to update.
@@ -16874,7 +16898,7 @@ QDF_STATUS csr_get_statistics(tpAniSirGlobal pMac,
 QDF_STATUS csr_roam_set_key_mgmt_offload(tpAniSirGlobal mac_ctx,
 					 uint32_t session_id,
 					 bool roam_key_mgmt_offload_enabled,
-					 bool okc_enabled)
+					 struct pmkid_mode_bits *pmkid_modes)
 {
 	tCsrRoamSession *session = CSR_GET_SESSION(mac_ctx, session_id);
 	if (!session) {
@@ -16882,7 +16906,8 @@ QDF_STATUS csr_roam_set_key_mgmt_offload(tpAniSirGlobal mac_ctx,
 		return QDF_STATUS_E_FAILURE;
 	}
 	session->RoamKeyMgmtOffloadEnabled = roam_key_mgmt_offload_enabled;
-	session->okc_enabled = okc_enabled;
+	session->pmkid_modes.fw_okc = pmkid_modes->fw_okc;
+	session->pmkid_modes.fw_pmksa_cache = pmkid_modes->fw_pmksa_cache;
 	return QDF_STATUS_SUCCESS;
 }
 
@@ -17459,7 +17484,7 @@ csr_create_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 	req_buf->RoamOffloadEnabled = csr_roamIsRoamOffloadEnabled(mac_ctx);
 	req_buf->RoamKeyMgmtOffloadEnabled = session->RoamKeyMgmtOffloadEnabled;
-	req_buf->okc_enabled = session->okc_enabled;
+	req_buf->pmkid_modes = session->pmkid_modes;
 	/* Roam Offload piggybacks upon the Roam Scan offload command. */
 	if (req_buf->RoamOffloadEnabled)
 		csr_update_roam_scan_offload_request(mac_ctx, req_buf, session);
@@ -17705,6 +17730,11 @@ static void csr_update_driver_assoc_ies(tpAniSirGlobal mac_ctx,
 	uint8_t ese_ie[DOT11F_IE_ESEVERSION_MAX_LEN]
 			= { 0x0, 0x40, 0x96, 0x3, ESE_VERSION_SUPPORTED};
 #endif
+	uint8_t qcn_ie[DOT11F_IE_QCN_IE_MAX_LEN]
+			= {0x8C, 0xFD, 0xF0, 0x1, QCN_IE_VERSION_SUBATTR_ID,
+				QCN_IE_VERSION_SUBATTR_DATA_LEN,
+				QCN_IE_VERSION_SUPPORTED,
+				QCN_IE_SUBVERSION_SUPPORTED};
 
 	if (session->pConnectBssDesc)
 		max_tx_pwr_cap = csr_get_cfg_max_tx_power(mac_ctx,
@@ -17752,6 +17782,11 @@ static void csr_update_driver_assoc_ies(tpAniSirGlobal mac_ctx,
 	}
 	ese_populate_addtional_ies(mac_ctx, session, req_buf);
 
+	/* Append QCN IE if g_support_qcn_ie INI is enabled */
+	if (mac_ctx->roam.configParam.qcn_ie_support)
+		csr_append_assoc_ies(mac_ctx, req_buf, IEEE80211_ELEMID_VENDOR,
+					DOT11F_IE_QCN_IE_MAX_LEN,
+					qcn_ie);
 }
 
 /**
@@ -17787,18 +17822,23 @@ csr_create_per_roam_request(tpAniSirGlobal mac_ctx, uint8_t session_id)
 		mac_ctx->roam.configParam.per_roam_config.rx_low_rate_thresh;
 	req_buf->per_config.per_rest_time =
 		mac_ctx->roam.configParam.per_roam_config.per_rest_time;
+	req_buf->per_config.tx_per_mon_time =
+		mac_ctx->roam.configParam.per_roam_config.tx_per_mon_time;
+	req_buf->per_config.rx_per_mon_time =
+		mac_ctx->roam.configParam.per_roam_config.rx_per_mon_time;
 	req_buf->per_config.tx_rate_thresh_percnt =
 		mac_ctx->roam.configParam.per_roam_config.tx_rate_thresh_percnt;
 	req_buf->per_config.rx_rate_thresh_percnt =
 		mac_ctx->roam.configParam.per_roam_config.rx_rate_thresh_percnt;
 
 	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-		  FL("PER based roaming configuaration enable=%d vdev=%d high_rate_thresh=%d low_rate_thresh=%d rate_thresh_percnt=%d per_rest_time=%d"),
+		  FL("PER based roaming configuaration enable=%d vdev=%d high_rate_thresh=%d low_rate_thresh=%d rate_thresh_percnt=%d per_rest_time=%d monitor_time=%d"),
 			  req_buf->per_config.enable, session_id,
 			  req_buf->per_config.tx_high_rate_thresh,
 			  req_buf->per_config.tx_low_rate_thresh,
 			  req_buf->per_config.tx_rate_thresh_percnt,
-			  req_buf->per_config.per_rest_time);
+			  req_buf->per_config.per_rest_time,
+			  req_buf->per_config.tx_per_mon_time);
 	return req_buf;
 }
 

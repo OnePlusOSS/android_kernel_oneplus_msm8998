@@ -2299,6 +2299,12 @@ wlan_hdd_cfg80211_get_features(struct wiphy *wiphy,
 	return ret;
 }
 
+#define PARAM_NUM_NW \
+	QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_WHITE_LIST_SSID_NUM_NETWORKS
+#define PARAM_SET_BSSID \
+	QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_SET_BSSID_PARAMS_BSSID
+#define PRAM_SSID_LIST QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_WHITE_LIST_SSID_LIST
+#define PARAM_LIST_SSID  QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_WHITE_LIST_SSID
 
 /**
  * __wlan_hdd_cfg80211_set_ext_roam_params() - Settings for roaming parameters
@@ -2322,7 +2328,7 @@ __wlan_hdd_cfg80211_set_ext_roam_params(struct wiphy *wiphy,
 	uint8_t session_id;
 	struct roam_ext_params roam_params;
 	uint32_t cmd_type, req_id;
-	struct nlattr *curr_attr;
+	struct nlattr *curr_attr = NULL;
 	struct nlattr *tb[QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_MAX + 1];
 	struct nlattr *tb2[QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_MAX + 1];
 	int rem, i;
@@ -2366,45 +2372,63 @@ __wlan_hdd_cfg80211_set_ext_roam_params(struct wiphy *wiphy,
 	switch (cmd_type) {
 	case QCA_WLAN_VENDOR_ATTR_ROAM_SUBCMD_SSID_WHITE_LIST:
 		i = 0;
-		nla_for_each_nested(curr_attr,
-			tb[QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_WHITE_LIST_SSID_LIST],
-			rem) {
-			if (nla_parse(tb2,
-				QCA_WLAN_VENDOR_ATTR_ROAM_SUBCMD_MAX,
-				nla_data(curr_attr), nla_len(curr_attr),
-				NULL)) {
-				hdd_err("nla_parse failed");
-				goto fail;
-			}
-			/* Parse and Fetch allowed SSID list*/
-			if (!tb2[QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_WHITE_LIST_SSID]) {
-				hdd_err("attr allowed ssid failed");
-				goto fail;
-			}
-			buf_len = nla_len(tb2[QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_WHITE_LIST_SSID]);
-			/*
-			 * Upper Layers include a null termination character.
-			 * Check for the actual permissible length of SSID and
-			 * also ensure not to copy the NULL termination
-			 * character to the driver buffer.
-			 */
-			if (buf_len && (i < MAX_SSID_ALLOWED_LIST) &&
-				((buf_len - 1) <= SIR_MAC_MAX_SSID_LENGTH)) {
-				nla_memcpy(
+		if (tb[PARAM_NUM_NW]) {
+			count = nla_get_u32(
+			tb[PARAM_NUM_NW]);
+		} else {
+			hdd_err("Number of networks is not provided");
+			goto fail;
+		}
+
+		if (count &&
+		tb[PRAM_SSID_LIST]) {
+			nla_for_each_nested(curr_attr,
+			tb[PRAM_SSID_LIST], rem) {
+				if (nla_parse(tb2,
+					QCA_WLAN_VENDOR_ATTR_ROAM_SUBCMD_MAX,
+					nla_data(curr_attr), nla_len(curr_attr),
+					NULL)) {
+					hdd_err("nla_parse failed");
+					goto fail;
+				}
+				/* Parse and Fetch allowed SSID list*/
+				if (!tb2[PARAM_LIST_SSID]) {
+					hdd_err("attr allowed ssid failed");
+					goto fail;
+				}
+				buf_len = nla_len(tb2[PARAM_LIST_SSID]);
+				/*
+				 * Upper Layers include a null termination
+				 * character. Check for the actual permissible
+				 * length of SSID and also ensure not to copy
+				 * the NULL termination character to the driver
+				 * buffer.
+				 */
+				if (buf_len && (i < MAX_SSID_ALLOWED_LIST) &&
+				    ((buf_len - 1) <=
+				    SIR_MAC_MAX_SSID_LENGTH)) {
+					nla_memcpy(
 					roam_params.ssid_allowed_list[i].ssId,
-					tb2[QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_WHITE_LIST_SSID],
-					buf_len - 1);
-				roam_params.ssid_allowed_list[i].length =
-					buf_len - 1;
-				hdd_debug("SSID[%d]: %.*s,length = %d", i,
+					tb2[PARAM_LIST_SSID], buf_len - 1);
+					roam_params.ssid_allowed_list[i].length
+					 = buf_len - 1;
+					hdd_debug("SSID[%d]: %.*s,length = %d",
+					i,
 					roam_params.ssid_allowed_list[i].length,
 					roam_params.ssid_allowed_list[i].ssId,
 					roam_params.ssid_allowed_list[i].length);
-				i++;
-			} else {
-				hdd_err("Invalid buffer length");
+					i++;
+				} else {
+					hdd_err("Invalid buffer length");
+				}
 			}
 		}
+		if (i != count) {
+			hdd_err("Invalid number of SSIDs i = %d, count = %d",
+						i, count);
+			goto fail;
+		}
+
 		roam_params.num_ssid_allowed_list = i;
 		hdd_debug("Num of Allowed SSID %d",
 			roam_params.num_ssid_allowed_list);
@@ -2566,34 +2590,38 @@ __wlan_hdd_cfg80211_set_ext_roam_params(struct wiphy *wiphy,
 		}
 		hdd_debug("Num of blacklist BSSID (%d)", count);
 		i = 0;
-		nla_for_each_nested(curr_attr,
+
+		if (count &&
+		    tb[QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_SET_BSSID_PARAMS]) {
+			nla_for_each_nested(curr_attr,
 			tb[QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_SET_BSSID_PARAMS],
 			rem) {
 
-			if (i == count) {
-				hdd_warn("Ignoring excess Blacklist BSSID");
-				break;
-			}
+				if (i == count) {
+					hdd_warn("Ignoring excess Blacklist BSSID");
+					break;
+				}
 
-			if (nla_parse(tb2,
-				QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_MAX,
-				nla_data(curr_attr), nla_len(curr_attr),
-				NULL)) {
-				hdd_err("nla_parse failed");
-				goto fail;
+				if (nla_parse(tb2,
+				   QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_MAX,
+				   nla_data(curr_attr), nla_len(curr_attr),
+				   NULL)) {
+					hdd_err("nla_parse failed");
+					goto fail;
+				}
+				/* Parse and fetch MAC address */
+				if (!tb2[PARAM_SET_BSSID]) {
+					hdd_err("attr blacklist addr failed");
+					goto fail;
+				}
+				nla_memcpy(
+				   roam_params.bssid_avoid_list[i].bytes,
+				   tb2[PARAM_SET_BSSID], QDF_MAC_ADDR_SIZE);
+				hdd_debug(MAC_ADDRESS_STR,
+					MAC_ADDR_ARRAY(
+					roam_params.bssid_avoid_list[i].bytes));
+				i++;
 			}
-			/* Parse and fetch MAC address */
-			if (!tb2[QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_SET_BSSID_PARAMS_BSSID]) {
-				hdd_err("attr blacklist addr failed");
-				goto fail;
-			}
-			nla_memcpy(roam_params.bssid_avoid_list[i].bytes,
-				tb2[QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_SET_BSSID_PARAMS_BSSID],
-				QDF_MAC_ADDR_SIZE);
-			hdd_debug(MAC_ADDRESS_STR,
-				MAC_ADDR_ARRAY(
-				roam_params.bssid_avoid_list[i].bytes));
-			i++;
 		}
 		if (i < count)
 			hdd_warn("Num Blacklist BSSID %u less than expected %u",
@@ -2607,6 +2635,11 @@ __wlan_hdd_cfg80211_set_ext_roam_params(struct wiphy *wiphy,
 fail:
 	return -EINVAL;
 }
+#undef PARAM_NUM_NW
+#undef PARAM_SET_BSSID
+#undef PRAM_SSID_LIST
+#undef PARAM_LIST_SSID
+
 
 /**
  * wlan_hdd_cfg80211_set_ext_roam_params() - set ext scan roam params
@@ -3504,6 +3537,7 @@ static int __wlan_hdd_cfg80211_keymgmt_set_key(struct wiphy *wiphy,
 	hdd_adapter_t *hdd_adapter_ptr = WLAN_HDD_GET_PRIV_PTR(dev);
 	hdd_context_t *hdd_ctx_ptr;
 	int status;
+	struct pmkid_mode_bits pmkid_modes;
 
 	ENTER_DEV(dev);
 
@@ -3527,10 +3561,13 @@ static int __wlan_hdd_cfg80211_keymgmt_set_key(struct wiphy *wiphy,
 	status = wlan_hdd_validate_context(hdd_ctx_ptr);
 	if (status)
 		return status;
+
+	hdd_get_pmkid_modes(hdd_ctx_ptr, &pmkid_modes);
+
 	sme_update_roam_key_mgmt_offload_enabled(hdd_ctx_ptr->hHal,
 			hdd_adapter_ptr->sessionId,
 			true,
-			hdd_is_okc_mode_enabled(hdd_ctx_ptr));
+			&pmkid_modes);
 	qdf_mem_zero(&local_pmk, SIR_ROAM_SCAN_PSK_SIZE);
 	qdf_mem_copy(local_pmk, data, data_len);
 	sme_roam_set_psk_pmk(WLAN_HDD_GET_HAL_CTX(hdd_adapter_ptr),
@@ -8374,6 +8411,21 @@ nla_policy qca_wlan_vendor_attr[QCA_WLAN_VENDOR_ATTR_MAX+1] = {
 						 .len = QDF_MAC_ADDR_SIZE},
 };
 
+void wlan_hdd_rso_cmd_status_cb(void *ctx, struct rso_cmd_status *rso_status)
+{
+	hdd_context_t *hdd_ctx = (hdd_context_t *)ctx;
+	hdd_adapter_t *adapter;
+
+	adapter = hdd_get_adapter_by_vdev(hdd_ctx, rso_status->vdev_id);
+	if (!adapter) {
+		hdd_err("adapter NULL");
+		return;
+	}
+
+	adapter->lfr_fw_status.is_disabled = rso_status->status;
+	complete(&adapter->lfr_fw_status.disable_lfr_event);
+}
+
 /**
  * __wlan_hdd_cfg80211_set_fast_roaming() - enable/disable roaming
  * @wiphy: Pointer to wireless phy
@@ -8393,9 +8445,10 @@ static int __wlan_hdd_cfg80211_set_fast_roaming(struct wiphy *wiphy,
 	struct net_device *dev = wdev->netdev;
 	hdd_adapter_t *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
 	struct nlattr *tb[QCA_WLAN_VENDOR_ATTR_MAX + 1];
-	uint32_t is_fast_roam_enabled;
+	uint32_t is_fast_roam_enabled, enable_lfr_fw;
 	int ret;
 	QDF_STATUS qdf_status;
+	unsigned long rc;
 
 	ENTER_DEV(dev);
 
@@ -8431,14 +8484,36 @@ static int __wlan_hdd_cfg80211_set_fast_roaming(struct wiphy *wiphy,
 			adapter->dev->name);
 		return -EINVAL;
 	}
+
 	/* Update roaming */
+	enable_lfr_fw = (is_fast_roam_enabled && adapter->fast_roaming_allowed);
 	qdf_status = sme_config_fast_roaming(hdd_ctx->hHal, adapter->sessionId,
-				      (is_fast_roam_enabled &&
-				       adapter->fast_roaming_allowed));
+					     enable_lfr_fw);
 	if (qdf_status != QDF_STATUS_SUCCESS)
 		hdd_err("sme_config_fast_roaming failed with status=%d",
 				qdf_status);
 	ret = qdf_status_to_os_return(qdf_status);
+
+	INIT_COMPLETION(adapter->lfr_fw_status.disable_lfr_event);
+	if (QDF_IS_STATUS_SUCCESS(qdf_status) && !enable_lfr_fw) {
+
+		/*
+		 * wait only for LFR disable in fw as LFR enable
+		 * is always success
+		 */
+		rc = wait_for_completion_timeout(
+				&adapter->lfr_fw_status.disable_lfr_event,
+				msecs_to_jiffies(WAIT_TIME_RSO_CMD_STATUS));
+		if (!rc) {
+			hdd_err("Timed out waiting for RSO CMD status");
+			return -ETIMEDOUT;
+		}
+
+		if (!adapter->lfr_fw_status.is_disabled) {
+			hdd_err("Roam disable attempt in FW fails");
+			return -EBUSY;
+		}
+	}
 
 	EXIT();
 	return ret;
@@ -11542,29 +11617,34 @@ int wlan_hdd_cfg80211_update_bss(struct wiphy *wiphy,
  * @preauth: Preauth flag
  *
  * This function is used to notify the supplicant of a new PMKSA candidate.
+ * PMK value is notified to supplicant whether PMK caching or OKC is enabled
+ * in firmware or not. Supplicant needs this value becaue it uses PMK caching
+ * by default.
  *
  * Return: 0 for success, non-zero for failure
  */
-int wlan_hdd_cfg80211_pmksa_candidate_notify(hdd_adapter_t *pAdapter,
-					     tCsrRoamInfo *pRoamInfo,
+int wlan_hdd_cfg80211_pmksa_candidate_notify(hdd_adapter_t *adapter,
+					     tCsrRoamInfo *roam_info,
 					     int index, bool preauth)
 {
-	struct net_device *dev = pAdapter->dev;
-	hdd_context_t *pHddCtx = (hdd_context_t *) pAdapter->pHddCtx;
+	struct net_device *dev = adapter->dev;
+	hdd_context_t *hdd_ctx = (hdd_context_t *) adapter->pHddCtx;
+	struct pmkid_mode_bits pmkid_modes;
 
 	ENTER();
 	hdd_notice("is going to notify supplicant of:");
 
-	if (NULL == pRoamInfo) {
+	if (NULL == roam_info) {
 		hdd_alert("pRoamInfo is NULL");
 		return -EINVAL;
 	}
 
-	if (true == hdd_is_okc_mode_enabled(pHddCtx)) {
+	hdd_get_pmkid_modes(hdd_ctx, &pmkid_modes);
+	if (pmkid_modes.fw_okc) {
 		hdd_notice(MAC_ADDRESS_STR,
-		       MAC_ADDR_ARRAY(pRoamInfo->bssid.bytes));
+		       MAC_ADDR_ARRAY(roam_info->bssid.bytes));
 		cfg80211_pmksa_candidate_notify(dev, index,
-						pRoamInfo->bssid.bytes,
+						roam_info->bssid.bytes,
 						preauth, GFP_KERNEL);
 	}
 	return 0;

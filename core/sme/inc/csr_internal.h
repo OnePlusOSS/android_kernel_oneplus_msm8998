@@ -663,6 +663,9 @@ typedef struct tagCsrConfig {
 	uint32_t tx_aggregation_size;
 	uint32_t rx_aggregation_size;
 	struct wmi_per_roam_config per_roam_config;
+	bool enable_bcast_probe_rsp;
+	bool qcn_ie_support;
+	uint8_t fils_max_chan_guard_time;
 } tCsrConfig;
 
 typedef struct tagCsrChannelPowerInfo {
@@ -983,7 +986,7 @@ typedef struct tagCsrRoamSession {
 	size_t pmk_len;
 	uint8_t RoamKeyMgmtOffloadEnabled;
 	roam_offload_synch_ind *roam_synch_data;
-	bool okc_enabled;
+	struct pmkid_mode_bits pmkid_modes;
 #endif
 	tftSMEContext ftSmeContext;
 	/* This count represents the number of bssid's we try to join. */

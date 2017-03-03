@@ -5695,6 +5695,44 @@ uint32_t dot11f_get_packed_ie_QBSSLoad(
 }; /* End extern "C". */
 #endif /* C++ */
 
+/* EID 221 (0xdd) {OUI 0x8c, 0xfd, 0xf0, 0x01} */
+typedef struct sDot11fIEQCN_IE {
+	uint8_t             present;
+	uint8_t             version[4];
+} tDot11fIEQCN_IE;
+
+#define DOT11F_EID_QCN_IE (221)
+
+/* N.B. These #defines do *not* include the EID & length */
+#define DOT11F_IE_QCN_IE_MIN_LEN (8)
+
+#define DOT11F_IE_QCN_IE_MAX_LEN (8)
+
+#ifdef __cplusplus
+extern "C" {
+#endif /* C++ */
+uint32_t dot11f_unpack_ie_QCN_IE(
+	tpAniSirGlobal,
+	uint8_t *,
+	uint8_t,
+	tDot11fIEQCN_IE*);
+
+uint32_t dot11f_pack_ie_QCN_IE(
+	tpAniSirGlobal,
+	tDot11fIEQCN_IE *,
+	uint8_t *,
+	uint32_t,
+	uint32_t*);
+
+uint32_t dot11f_get_packed_ie_QCN_IE(
+	tpAniSirGlobal,
+	tDot11fIEQCN_IE *,
+	uint32_t*);
+
+#ifdef __cplusplus
+}; /* End extern "C". */
+#endif /* C++ */
+
 /* EID 221 (0xdd) {OUI 0x00, 0xa0, 0xc6} */
 typedef struct sDot11fIEQComVendorIE {
 	uint8_t             present;
@@ -7786,6 +7824,7 @@ typedef struct sDot11fAssocRequest{
 	tDot11fIEWFDIEOpaque                 WFDIEOpaque;
 	tDot11fIEvendor_vht_ie               vendor_vht_ie;
 	tDot11fIEhs20vendor_ie               hs20vendor_ie;
+	tDot11fIEQCN_IE                      QCN_IE;
 } tDot11fAssocRequest;
 
 #define DOT11F_ASSOCREQUEST (3)
@@ -7841,6 +7880,7 @@ typedef struct sDot11fAssocResponse{
 	tDot11fIEOBSSScanParameters        OBSSScanParameters;
 	tDot11fIEQosMapSet                 QosMapSet;
 	tDot11fIEvendor_vht_ie             vendor_vht_ie;
+	tDot11fIEQCN_IE                    QCN_IE;
 } tDot11fAssocResponse;
 
 #define DOT11F_ASSOCRESPONSE (4)
@@ -7953,6 +7993,7 @@ typedef struct sDot11fBeacon{
 	tDot11fIEQComVendorIE                QComVendorIE;
 	tDot11fIEESEVersion                  ESEVersion;
 	tDot11fIEMBO_IE                      MBO_IE;
+	tDot11fIEQCN_IE                      QCN_IE;
 } tDot11fBeacon;
 
 #define DOT11F_BEACON (6)
@@ -8047,6 +8088,7 @@ typedef struct sDot11fBeacon2{
 	tDot11fIEChannelSwitchWrapper        ChannelSwitchWrapper;
 	tDot11fIEQComVendorIE                QComVendorIE;
 	tDot11fIEESEVersion                  ESEVersion;
+	tDot11fIEQCN_IE                      QCN_IE;
 } tDot11fBeacon2;
 
 #define DOT11F_BEACON2 (8)
@@ -8123,6 +8165,7 @@ typedef struct sDot11fBeaconIEs{
 	tDot11fIEChannelSwitchWrapper        ChannelSwitchWrapper;
 	tDot11fIEQComVendorIE                QComVendorIE;
 	tDot11fIEMBO_IE                      MBO_IE;
+	tDot11fIEQCN_IE                      QCN_IE;
 } tDot11fBeaconIEs;
 
 #define DOT11F_BEACONIES (9)
@@ -8460,6 +8503,7 @@ typedef struct sDot11fProbeRequest{
 	tDot11fIEP2PProbeReq          P2PProbeReq;
 	tDot11fIEVHTCaps              VHTCaps;
 	tDot11fIEExtCap               ExtCap;
+	tDot11fIEQCN_IE               QCN_IE;
 } tDot11fProbeRequest;
 
 #define DOT11F_PROBEREQUEST (21)
@@ -8535,6 +8579,7 @@ typedef struct sDot11fProbeResponse{
 	tDot11fIEQComVendorIE                QComVendorIE;
 	tDot11fIEESEVersion                  ESEVersion;
 	tDot11fIEMBO_IE                      MBO_IE;
+	tDot11fIEQCN_IE                      QCN_IE;
 } tDot11fProbeResponse;
 
 #define DOT11F_PROBERESPONSE (22)

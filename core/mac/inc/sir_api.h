@@ -3126,6 +3126,18 @@ struct roam_ext_params {
 	int traffic_threshold;
 };
 
+/**
+ * struct pmkid_mode_bits - Bit flags for PMKID usage in RSN IE
+ * @fw_okc: Opportunistic key caching enable in firmware
+ * @fw_pmksa_cache: PMKSA caching enable in firmware, remember previously
+ *                  visited BSSID/PMK pairs
+ */
+struct pmkid_mode_bits {
+	uint32_t fw_okc:1;
+	uint32_t fw_pmksa_cache:1;
+	uint32_t unused:30;
+};
+
 typedef struct sSirRoamOffloadScanReq {
 	uint16_t message_type;
 	uint16_t length;
@@ -3170,7 +3182,7 @@ typedef struct sSirRoamOffloadScanReq {
 	uint8_t R0KH_ID[SIR_ROAM_R0KH_ID_MAX_LEN];
 	uint32_t R0KH_ID_Length;
 	uint8_t RoamKeyMgmtOffloadEnabled;
-	bool okc_enabled;
+	struct pmkid_mode_bits pmkid_modes;
 #endif
 	struct roam_ext_params roam_params;
 	uint8_t  middle_of_roaming;
@@ -4941,6 +4953,26 @@ struct power_stats_response {
 	uint32_t *debug_registers;
 };
 #endif
+
+/**
+ * struct lfr_firmware_status - LFR status in firmware
+ * @is_disabled: Is LFR disabled in FW
+ * @disable_lfr_event: Disable attempt done in FW
+ */
+struct lfr_firmware_status {
+	uint32_t is_disabled;
+	struct completion disable_lfr_event;
+};
+
+/**
+ * struct rso_cmd_status - RSO Command status
+ * @vdev_id: Vdev ID for which RSO command sent
+ * @status: Status of RSO command sent to FW
+ */
+struct rso_cmd_status {
+	uint32_t vdev_id;
+	bool status;
+};
 
 typedef struct {
 	uint8_t oui[WIFI_SCANNING_MAC_OUI_LENGTH];

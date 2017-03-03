@@ -2543,6 +2543,7 @@ static hdd_adapter_t *hdd_alloc_station_adapter(hdd_context_t *hdd_ctx,
 
 
 		init_completion(&adapter->scan_info.abortscan_event_var);
+		init_completion(&adapter->lfr_fw_status.disable_lfr_event);
 
 		adapter->offloads_configured = false;
 		adapter->isLinkUpSvcNeeded = false;
@@ -3865,14 +3866,18 @@ QDF_STATUS hdd_reset_all_adapters(hdd_context_t *hdd_ctx)
 			wlan_hdd_netif_queue_control(adapter,
 						     WLAN_NETIF_TX_DISABLE,
 						     WLAN_CONTROL_PATH);
-			hdd_sap_indicate_disconnect_for_sta(adapter);
-			hdd_cleanup_actionframe(hdd_ctx, adapter);
-			hdd_sap_destroy_events(adapter);
-		} else
+			if (test_bit(SOFTAP_BSS_STARTED,
+				     &adapter->event_flags)) {
+				hdd_sap_indicate_disconnect_for_sta(adapter);
+				hdd_cleanup_actionframe(hdd_ctx, adapter);
+				hdd_sap_destroy_events(adapter);
+			}
+			clear_bit(SOFTAP_BSS_STARTED, &adapter->event_flags);
+		} else {
 			wlan_hdd_netif_queue_control(adapter,
 					   WLAN_NETIF_TX_DISABLE_N_CARRIER,
 					   WLAN_CONTROL_PATH);
-
+		}
 		adapter->sessionCtx.station.hdd_ReassocScenario = false;
 
 		hdd_deinit_tx_rx(adapter);
@@ -7902,6 +7907,9 @@ static int hdd_features_init(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 	else
 		hdd_set_idle_ps_config(hdd_ctx, false);
 
+	if (hdd_ctx->config->enable_go_cts2self_for_sta)
+	    sme_set_cts2self_for_p2p_go(hdd_ctx->hHal);
+
 	if (hdd_lro_init(hdd_ctx))
 		hdd_warn("Unable to initialize LRO in fw");
 
@@ -7913,6 +7921,9 @@ static int hdd_features_init(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 		hdd_err("Error while initializing thermal information");
 		goto deregister_frames;
 	}
+
+	if (cds_is_packet_log_enabled())
+		hdd_pktlog_enable_disable(hdd_ctx, true, 0, 0);
 
 	hddtxlimit.txPower2g = hdd_ctx->config->TxPower2g;
 	hddtxlimit.txPower5g = hdd_ctx->config->TxPower5g;
@@ -7933,6 +7944,14 @@ static int hdd_features_init(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 		status = wlan_hdd_disable_all_dual_mac_features(hdd_ctx);
 		if (status != QDF_STATUS_SUCCESS) {
 			hdd_err("Failed to disable dual mac features");
+			goto deregister_cb;
+		}
+	}
+	if (hdd_ctx->config->goptimize_chan_avoid_event) {
+		status = sme_enable_disable_chanavoidind_event(
+							hdd_ctx->hHal, 0);
+		if (!QDF_IS_STATUS_SUCCESS(status)) {
+			hdd_err("Failed to disable Chan Avoidance Indication");
 			goto deregister_cb;
 		}
 	}
@@ -7974,7 +7993,7 @@ void hdd_set_rx_mode_rps(hdd_context_t *hdd_ctx, void *padapter,
 	struct cds_config_info *cds_cfg = cds_get_ini_config();
 	hdd_adapter_t *adapter = padapter;
 
-	if (adapter && hdd_ctx &&
+	if (adapter && hdd_ctx && cds_cfg &&
 	    !hdd_ctx->rps && cds_cfg->uc_offload_enabled) {
 		if (enable && !cds_cfg->rps_enabled)
 			hdd_send_rps_ind(adapter);
@@ -8422,9 +8441,6 @@ int hdd_wlan_startup(struct device *dev)
 	hdd_release_rtnl_lock();
 	rtnl_held = false;
 
-	if (hdd_ctx->config->enable_go_cts2self_for_sta)
-		sme_set_cts2self_for_p2p_go(hdd_ctx->hHal);
-
 	wlan_hdd_update_11n_mode(hdd_ctx->config);
 
 #ifdef FEATURE_WLAN_AP_AP_ACS_OPTIMIZE
@@ -8448,10 +8464,6 @@ int hdd_wlan_startup(struct device *dev)
 
 	if (hdd_ctx->rps)
 		hdd_set_rps_cpu_mask(hdd_ctx);
-
-
-	if (cds_is_packet_log_enabled())
-		hdd_pktlog_enable_disable(hdd_ctx, true, 0, 0);
 
 	ret = hdd_register_notifiers(hdd_ctx);
 	if (ret)
@@ -8483,12 +8495,6 @@ int hdd_wlan_startup(struct device *dev)
 	qdf_mc_timer_start(&hdd_ctx->iface_change_timer,
 			   hdd_ctx->config->iface_change_wait_time);
 
-	if (hdd_ctx->config->goptimize_chan_avoid_event) {
-		status = sme_enable_disable_chanavoidind_event(
-							hdd_ctx->hHal, 0);
-		if (!QDF_IS_STATUS_SUCCESS(status))
-			hdd_err("Failed to disable Chan Avoidance Indication");
-	}
 	complete(&wlan_start_comp);
 	goto success;
 
@@ -8612,6 +8618,8 @@ int hdd_register_cb(hdd_context_t *hdd_ctx)
 
 	sme_set_link_layer_stats_ind_cb(hdd_ctx->hHal,
 				wlan_hdd_cfg80211_link_layer_stats_callback);
+
+	sme_rso_cmd_status_cb(hdd_ctx->hHal, wlan_hdd_rso_cmd_status_cb);
 
 	status = sme_set_lost_link_info_cb(hdd_ctx->hHal,
 					   hdd_lost_link_info_cb);

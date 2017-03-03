@@ -1103,13 +1103,14 @@ REG_TABLE_ENTRY g_registry_table[] = {
 			     CFG_ENABLE_WES_MODE_NAME_MIN,
 			     CFG_ENABLE_WES_MODE_NAME_MAX,
 			     cb_notify_set_wes_mode, 0),
-	REG_VARIABLE(CFG_OKC_FEATURE_ENABLED_NAME, WLAN_PARAM_Integer,
-		     struct hdd_config, isOkcIniFeatureEnabled,
+	REG_VARIABLE(CFG_PMKID_MODES_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, pmkid_modes,
 		     VAR_FLAGS_OPTIONAL |
 		     VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
-		     CFG_OKC_FEATURE_ENABLED_DEFAULT,
-		     CFG_OKC_FEATURE_ENABLED_MIN,
-		     CFG_OKC_FEATURE_ENABLED_MAX),
+		     CFG_PMKID_MODES_DEFAULT,
+		     CFG_PMKID_MODES_MIN,
+		     CFG_PMKID_MODES_MAX),
+
 	REG_DYNAMIC_VARIABLE(CFG_ROAM_SCAN_OFFLOAD_ENABLED, WLAN_PARAM_Integer,
 			     struct hdd_config, isRoamOffloadScanEnabled,
 			     VAR_FLAGS_OPTIONAL |
@@ -4237,6 +4238,14 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		CFG_PER_ROAM_REST_TIME_DEFAULT,
 		CFG_PER_ROAM_REST_TIME_MIN,
 		CFG_PER_ROAM_REST_TIME_MAX),
+
+	REG_VARIABLE(CFG_PER_ROAM_MONITOR_TIME, WLAN_PARAM_Integer,
+		struct hdd_config, per_roam_mon_time,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_PER_ROAM_MONTIOR_TIME_DEFAULT,
+		CFG_PER_ROAM_MONITOR_TIME_MIN,
+		CFG_PER_ROAM_MONITOR_TIME_MAX),
+
 	REG_VARIABLE(CFG_MAX_SCHED_SCAN_PLAN_INT_NAME, WLAN_PARAM_Integer,
 		struct hdd_config, max_sched_scan_plan_interval,
 		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -4249,7 +4258,6 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		CFG_MAX_SCHED_SCAN_PLAN_ITRNS_DEFAULT,
 		CFG_MAX_SCHED_SCAN_PLAN_ITRNS_MIN,
 		CFG_MAX_SCHED_SCAN_PLAN_ITRNS_MAX),
-
 	REG_VARIABLE(CFG_ACTIVE_BPF_MODE_NAME, WLAN_PARAM_Integer,
 		struct hdd_config, active_bpf_mode,
 		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -4270,6 +4278,25 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		CFG_SAP_INTERNAL_RESTART_DEFAULT,
 		CFG_SAP_INTERNAL_RESTART_MIN,
 		CFG_SAP_INTERNAL_RESTART_MAX),
+	REG_VARIABLE(CFG_ENABLE_BCAST_PROBE_RESP_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, enable_bcast_probe_rsp,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_ENABLE_BCAST_PROBE_RESP_DEFAULT,
+		CFG_ENABLE_BCAST_PROBE_RESP_MIN,
+		CFG_ENABLE_BCAST_PROBE_RESP_MAX),
+
+	REG_VARIABLE(CFG_QCN_IE_SUPPORT_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, qcn_ie_support,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_QCN_IE_SUPPORT_DEFAULT,
+		CFG_QCN_IE_SUPPORT_MIN,
+		CFG_QCN_IE_SUPPORT_MAX),
+	REG_VARIABLE(CFG_FILS_MAX_CHAN_GUARD_TIME_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, fils_max_chan_guard_time,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_FILS_MAX_CHAN_GUARD_TIME_DEFAULT,
+		CFG_FILS_MAX_CHAN_GUARD_TIME_MIN,
+		CFG_FILS_MAX_CHAN_GUARD_TIME_MAX),
 };
 
 /**
@@ -5069,6 +5096,10 @@ static void hdd_per_roam_print_ini_config(hdd_context_t *hdd_ctx)
 	hdd_info("Name = [%s] Value = [%u]",
 		CFG_PER_ROAM_REST_TIME_NAME,
 		hdd_ctx->config->per_roam_rest_time);
+	hdd_info("Name = [%s] Value = [%u]",
+		CFG_PER_ROAM_MONITOR_TIME,
+		hdd_ctx->config->per_roam_mon_time);
+
 }
 
 /**
@@ -5182,8 +5213,8 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 		  pHddCtx->config->RoamRssiDiff);
 	hdd_info("Name = [isWESModeEnabled] Value = [%u] ",
 		  pHddCtx->config->isWESModeEnabled);
-	hdd_info("Name = [OkcEnabled] Value = [%u] ",
-		  pHddCtx->config->isOkcIniFeatureEnabled);
+	hdd_info("Name = [pmkidModes] Value = [0x%x] ",
+		  pHddCtx->config->pmkid_modes);
 #ifdef FEATURE_WLAN_SCAN_PNO
 	hdd_info("Name = [configPNOScanSupport] Value = [%u] ",
 		  pHddCtx->config->configPNOScanSupport);
@@ -6929,6 +6960,10 @@ static void hdd_update_per_config_to_sme(hdd_context_t *hdd_ctx,
 
 	sme_config->csrConfig.per_roam_config.per_rest_time =
 			hdd_ctx->config->per_roam_rest_time;
+	sme_config->csrConfig.per_roam_config.tx_per_mon_time =
+			hdd_ctx->config->per_roam_mon_time;
+	sme_config->csrConfig.per_roam_config.rx_per_mon_time =
+			hdd_ctx->config->per_roam_mon_time;
 }
 
 /**
@@ -7294,6 +7329,12 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 			pHddCtx->config->tx_aggregation_size;
 	smeConfig->csrConfig.rx_aggregation_size =
 			pHddCtx->config->rx_aggregation_size;
+	smeConfig->csrConfig.enable_bcast_probe_rsp =
+			pHddCtx->config->enable_bcast_probe_rsp;
+	smeConfig->csrConfig.qcn_ie_support =
+			pHddCtx->config->qcn_ie_support;
+	smeConfig->csrConfig.fils_max_chan_guard_time =
+			pHddCtx->config->fils_max_chan_guard_time;
 
 	status = sme_update_config(pHddCtx->hHal, smeConfig);
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
@@ -7340,18 +7381,18 @@ QDF_STATUS hdd_cfg_get_global_config(hdd_context_t *pHddCtx, char *pBuf,
 }
 
 /**
- * hdd_is_okc_mode_enabled() - returns whether OKC mode is enabled or not
+ * hdd_get_pmkid_modes() - returns PMKID mode bits
  * @pHddCtx: the pointer to hdd context
  *
- * Return: true if OKC is enabled, otherwise false
+ * Return: value of pmkid_modes
  */
-bool hdd_is_okc_mode_enabled(hdd_context_t *pHddCtx)
+void hdd_get_pmkid_modes(hdd_context_t *pHddCtx,
+			 struct pmkid_mode_bits *pmkid_modes)
 {
-	if (NULL == pHddCtx) {
-		hdd_alert("pHddCtx is NULL");
-		return -EINVAL;
-	}
-	return pHddCtx->config->isOkcIniFeatureEnabled;
+	pmkid_modes->fw_okc = (pHddCtx->config->pmkid_modes &
+			       CFG_PMKID_MODES_OKC) ? 1 : 0;
+	pmkid_modes->fw_pmksa_cache = (pHddCtx->config->pmkid_modes &
+				       CFG_PMKID_MODES_PMKSA_CACHING) ? 1 : 0;
 }
 
 /**

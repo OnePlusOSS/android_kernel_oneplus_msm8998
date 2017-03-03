@@ -1509,6 +1509,7 @@ int wma_vdev_stop_resp_handler(void *handle, uint8_t *cmd_param_info,
 			return -EINVAL;
 		}
 
+		wma_release_wmi_resp_wakelock(wma);
 		wma_hidden_ssid_vdev_restart_on_vdev_stop(wma,
 							  resp_event->vdev_id);
 	}
@@ -1534,6 +1535,9 @@ int wma_vdev_stop_resp_handler(void *handle, uint8_t *cmd_param_info,
 		tpDeleteBssParams params =
 			(tpDeleteBssParams) req_msg->user_data;
 		struct beacon_info *bcn;
+
+		wma_release_wmi_resp_wakelock(wma);
+
 		if (resp_event->vdev_id > wma->max_bssid) {
 			WMA_LOGE("%s: Invalid vdev_id %d", __func__,
 				 resp_event->vdev_id);
@@ -1634,6 +1638,8 @@ int wma_vdev_stop_resp_handler(void *handle, uint8_t *cmd_param_info,
 	} else if (req_msg->msg_type == WMA_SET_LINK_STATE) {
 		tpLinkStateParams params =
 			(tpLinkStateParams) req_msg->user_data;
+
+		wma_release_wmi_resp_wakelock(wma);
 
 		peer = ol_txrx_find_peer_by_addr(pdev, params->bssid, &peer_id);
 		if (peer) {
@@ -4760,7 +4766,7 @@ void wma_delete_bss(tp_wma_handle wma, tpDeleteBssParams params)
 			   OL_TXQ_PAUSE_REASON_VDEV_STOP);
 	iface->pause_bitmap |= (1 << PAUSE_TYPE_HOST);
 
-	if (wmi_unified_vdev_stop_send(wma->wmi_handle, params->smesessionId)) {
+	if (wma_send_vdev_stop_to_fw(wma, params->smesessionId)) {
 		WMA_LOGP("%s: %d Failed to send vdev stop", __func__, __LINE__);
 		wma_remove_vdev_req(wma, params->smesessionId,
 				WMA_TARGET_REQ_TYPE_VDEV_STOP);

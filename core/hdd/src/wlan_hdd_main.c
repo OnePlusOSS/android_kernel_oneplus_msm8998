@@ -3778,7 +3778,6 @@ QDF_STATUS hdd_stop_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 			qdf_mem_free(adapter->sessionCtx.ap.beacon);
 			adapter->sessionCtx.ap.beacon = NULL;
 		}
-		mutex_unlock(&hdd_ctx->sap_lock);
 		if (true == bCloseSession)
 			hdd_wait_for_sme_close_sesion(hdd_ctx, adapter);
 
@@ -3790,6 +3789,7 @@ QDF_STATUS hdd_stop_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 			hdd_err("Failed:WLANSAP_close");
 
 		adapter->sessionCtx.ap.sapContext = NULL;
+		mutex_unlock(&hdd_ctx->sap_lock);
 
 		break;
 	case QDF_OCB_MODE:

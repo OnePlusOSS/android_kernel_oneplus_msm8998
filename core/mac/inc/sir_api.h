@@ -5017,6 +5017,7 @@ struct sir_ipa_offload_enable_disable {
  * @msg_type: message type
  * @len: message length
  * @vdev_id: vdev id
+ * @rx_ldpc_ini: Rx LDPC ini setting
  *
  * Message wrapper structure for eWNI_SME_SET_VDEV_IES_PER_BAND.
  */
@@ -5024,6 +5025,7 @@ struct sir_set_vdev_ies_per_band {
 	uint16_t msg_type;
 	uint16_t len;
 	uint32_t vdev_id;
+	uint8_t is_hw_mode_dbs;
 };
 
 /**

@@ -2451,6 +2451,13 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		     CFG_ENABLE_RX_LDPC_MIN,
 		     CFG_ENABLE_RX_LDPC_MAX),
 
+	REG_VARIABLE(CFG_2G_BAND_RX_LDPC_SUPPORT_FEATURE, WLAN_PARAM_Integer,
+		     struct hdd_config, rx_ldpc_support_for_2g,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_2G_BAND_RX_LDPC_SUPPORT_FEATURE_DEFAULT,
+		     CFG_2G_BAND_RX_LDPC_SUPPORT_FEATURE_MIN,
+		     CFG_2G_BAND_RX_LDPC_SUPPORT_FEATURE_MAX),
+
 	REG_VARIABLE(CFG_ENABLE_MCC_ADATIVE_SCHEDULER_ENABLED_NAME,
 		     WLAN_PARAM_Integer,
 		     struct hdd_config, enableMCCAdaptiveScheduler,
@@ -7321,6 +7328,8 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 
 	smeConfig->csrConfig.enable_tx_ldpc = pConfig->enable_tx_ldpc;
 	smeConfig->csrConfig.enable_rx_ldpc = pConfig->enable_rx_ldpc;
+	smeConfig->csrConfig.rx_ldpc_support_for_2g =
+					pConfig->rx_ldpc_support_for_2g;
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
 	smeConfig->csrConfig.cc_switch_mode = pConfig->WlanMccToSccSwitchMode;
 #endif

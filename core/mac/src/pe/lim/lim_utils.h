@@ -630,7 +630,8 @@ QDF_STATUS lim_send_ext_cap_ie(tpAniSirGlobal mac_ctx, uint32_t session_id,
 			       tDot11fIEExtCap *extracted_extcap, bool merge);
 
 QDF_STATUS lim_send_ies_per_band(tpAniSirGlobal mac_ctx,
-				 tpPESession session, uint8_t vdev_id);
+				 tpPESession session, uint8_t vdev_id,
+				 uint8_t is_hw_mode_dbs);
 
 tSirRetStatus lim_strip_extcap_ie(tpAniSirGlobal mac_ctx, uint8_t *addn_ie,
 			  uint16_t *addn_ielen, uint8_t *extracted_extcap);

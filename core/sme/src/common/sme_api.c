@@ -1052,6 +1052,10 @@ sme_process_cmd:
 		csr_ll_unlock(&pMac->sme.smeCmdActiveList);
 		csr_process_set_antenna_mode(pMac, pCommand);
 		break;
+	case e_sme_command_issue_self_reassoc:
+		csr_ll_unlock(&pMac->sme.smeCmdActiveList);
+		csr_process_same_ap_reassoc_cmd(pMac, pCommand);
+		break;
 	default:
 		/* something is wrong */
 		/* remove it from the active list */
@@ -2542,6 +2546,7 @@ QDF_STATUS sme_process_msg(tHalHandle hHal, cds_msg_t *pMsg)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+	tSmeCmd *sme_cmd = NULL;
 
 	if (pMsg == NULL) {
 		sms_log(pMac, LOGE, "Empty message for SME");
@@ -2568,6 +2573,34 @@ QDF_STATUS sme_process_msg(tHalHandle hHal, cds_msg_t *pMsg)
 			  FL("LFR3: Rcvd eWNI_SME_HO_FAIL_IND"));
 		csr_process_ho_fail_ind(pMac, pMsg->bodyptr);
 		qdf_mem_free(pMsg->bodyptr);
+		break;
+
+	case eWNI_SME_SAME_AP_REASSOC_IND:
+		if (pMac->roam.configParam.rx_ldpc_support_for_2g) {
+			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
+			    FL("eWNI_SME_SAME_AP_REASSOC_IND cmd to delete"));
+			sme_cmd =  csr_find_self_reassoc_cmd(pMac,
+						pMsg->bodyval);
+			if (sme_cmd) {
+				QDF_TRACE(QDF_MODULE_ID_SME,
+				     QDF_TRACE_LEVEL_INFO,
+				     FL("found eWNI_SME_SAME_AP_REASSOC_IND"));
+				/*
+				 * pMsg->bodyval is nothing but
+				 * vdev_id/session_id
+				 */
+				csr_remove_same_ap_reassoc_cmd(pMac, sme_cmd);
+				csr_release_command(pMac, sme_cmd);
+				/*
+				 * no need to free bodyptr as no
+				 * malloc happened
+				 */
+			} else {
+				QDF_TRACE(QDF_MODULE_ID_SME,
+					QDF_TRACE_LEVEL_INFO,
+					FL("no eWNI_SME_SAME_AP_REASSOC_IND"));
+			}
+		}
 		break;
 #endif
 	case WNI_CFG_SET_CNF:
@@ -16612,12 +16645,22 @@ QDF_STATUS sme_set_adaptive_dwelltime_config(tHalHandle hal,
  *
  * Return: None
  */
-void sme_set_vdev_ies_per_band(tHalHandle hal, uint8_t vdev_id)
+void sme_set_vdev_ies_per_band(uint8_t vdev_id, uint8_t is_hw_mode_dbs)
 {
-	tpAniSirGlobal p_mac = PMAC_STRUCT(hal);
+	tHalHandle hal = cds_get_context(QDF_MODULE_ID_SME);
+	tpAniSirGlobal p_mac;
 	struct sir_set_vdev_ies_per_band *p_msg;
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 
+	if (!hal)
+		return;
+
+	p_mac = PMAC_STRUCT(hal);
+	status = sme_acquire_global_lock(&p_mac->sme);
+	if (!QDF_IS_STATUS_SUCCESS(status)) {
+		sms_log(p_mac, LOGE, FL("Failed to acquire lock"));
+		return;
+	}
 	p_msg = qdf_mem_malloc(sizeof(*p_msg));
 	if (NULL == p_msg) {
 		sms_log(p_mac, LOGE, FL("mem alloc failed for sme msg"));
@@ -16625,6 +16668,7 @@ void sme_set_vdev_ies_per_band(tHalHandle hal, uint8_t vdev_id)
 	}
 
 	p_msg->vdev_id = vdev_id;
+	p_msg->is_hw_mode_dbs = is_hw_mode_dbs;
 	p_msg->msg_type = eWNI_SME_SET_VDEV_IES_PER_BAND;
 	p_msg->len = sizeof(*p_msg);
 	sms_log(p_mac, LOGD,
@@ -16633,8 +16677,70 @@ void sme_set_vdev_ies_per_band(tHalHandle hal, uint8_t vdev_id)
 	status = cds_send_mb_message_to_mac(p_msg);
 	if (QDF_STATUS_SUCCESS != status)
 		sms_log(p_mac, LOGE,
-			FL("Send eWNI_SME_SET_VDEV_IES_PER_BAND fail"));
+				FL("Send eWNI_SME_SET_VDEV_IES_PER_BAND fail"));
+	sme_release_global_lock(&p_mac->sme);
 }
+
+bool sme_check_enable_rx_ldpc_sta_ini_item(void)
+{
+	tHalHandle hal = cds_get_context(QDF_MODULE_ID_SME);
+	tpAniSirGlobal mac_ctx;
+
+	if (!hal)
+		return false;
+	mac_ctx = PMAC_STRUCT(hal);
+	if (!mac_ctx->roam.configParam.rx_ldpc_support_for_2g) {
+		sms_log(mac_ctx, LOG1,
+			FL("2G STA Rx LDPC is disabled from ini"));
+		return false;
+	}
+	sms_log(mac_ctx, LOG1,
+		FL("2G STA Rx LDPC is enabled from ini"));
+
+	return true;
+}
+
+#ifdef WLAN_FEATURE_ROAM_OFFLOAD
+QDF_STATUS sme_issue_same_ap_reassoc_cmd(uint8_t session_id)
+{
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	tSmeCmd *cmd = NULL;
+	tHalHandle hal = cds_get_context(QDF_MODULE_ID_SME);
+	tpAniSirGlobal mac_ctx;
+
+	if (!hal)
+		return false;
+
+	mac_ctx = PMAC_STRUCT(hal);
+	status = sme_acquire_global_lock(&mac_ctx->sme);
+	if (!QDF_IS_STATUS_SUCCESS(status)) {
+		sms_log(mac_ctx, LOGE, FL("Failed to acquire lock"));
+		return QDF_STATUS_E_RESOURCES;
+	}
+
+	cmd = csr_get_command_buffer(mac_ctx);
+	if (!cmd) {
+		sms_log(mac_ctx, LOGE, FL("Get command buffer failed"));
+		sme_release_global_lock(&mac_ctx->sme);
+		return QDF_STATUS_E_NULL_VALUE;
+	}
+
+	cmd->command = e_sme_command_issue_self_reassoc;
+	cmd->sessionId = session_id;
+
+	sms_log(mac_ctx, LOG1, FL("Queuing self reassoc to CSR, session:%d"),
+		cmd->sessionId);
+	csr_queue_sme_command(mac_ctx, cmd, false);
+
+	sme_release_global_lock(&mac_ctx->sme);
+	return QDF_STATUS_SUCCESS;
+}
+#else
+QDF_STATUS sme_issue_same_ap_reassoc_cmd(uint8_t session_id)
+{
+	return QDF_STATUS_SUCCESS;
+}
+#endif
 
 /**
  * sme_set_pdev_ht_vht_ies() - sends the set pdev IE req

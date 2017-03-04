@@ -2298,6 +2298,43 @@ static void wma_roam_update_vdev(tp_wma_handle wma,
 	qdf_mem_free(add_sta_params);
 }
 
+
+#ifdef WLAN_FEATURE_ROAM_OFFLOAD
+/**
+ * wma_roam_remove_self_reassoc() - post a message to SME module to indicate
+ *				    to remove self reassociation command from
+ *				    sme active queue.
+ * @wma: pointer to wma handle
+ * @vdev_id: vdev id or sme session id which needs to cleaned up
+ *
+ * Post a message to SME module to indicate to remove self reassociation command
+ * from sme active queue, so that next command from sme pending queue can be
+ * processed.
+ *
+ * Return: none
+ */
+static void wma_roam_remove_self_reassoc(tp_wma_handle wma, uint32_t vdev_id)
+{
+	cds_msg_t sme_msg = { 0 };
+	QDF_STATUS qdf_status;
+
+	sme_msg.type = eWNI_SME_SAME_AP_REASSOC_IND;
+	sme_msg.bodyptr = NULL;
+	sme_msg.bodyval = vdev_id;
+
+	qdf_status = cds_mq_post_message(QDF_MODULE_ID_SME, &sme_msg);
+	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
+		WMA_LOGE("Fail to post eWNI_SME_SAME_AP_REASSOC_IND to SME");
+		return;
+	}
+	return;
+}
+#else
+static void wma_roam_remove_self_reassoc(tp_wma_handle wma, uint32_t vdev_id)
+{
+}
+#endif
+
 /**
  * wma_roam_synch_event_handler() - roam synch event handler
  * @handle: wma handle
@@ -2421,6 +2458,9 @@ cleanup_label:
 	if (bss_desc_ptr)
 		qdf_mem_free(bss_desc_ptr);
 	wma->interfaces[synch_event->vdev_id].roam_synch_in_progress = false;
+	wma_roam_remove_self_reassoc(wma, synch_event->vdev_id);
+	WMA_LOGD("LFR3: Remove any pending self reassoc cmd for vdev_id: %d",
+		 synch_event->vdev_id);
 
 	return status;
 }
@@ -5803,6 +5843,25 @@ int wma_roam_event_callback(WMA_HANDLE handle, uint8_t *event_buf,
 			 wmi_event->reason, wmi_event->vdev_id);
 		break;
 	}
+	/*
+	 * LFR3 module will only send ROAM_ABORT, HO_FAILED, or ROAM_SUCCESS up
+	 * on ROAM_START indication. ROAM_SUCCESS is handled in seperate
+	 * function. WMI_ROAM_REASON_INVOKE_ROAM_FAIL can be send when LFR3
+	 * can't find AP on that channel, so it can't start ROAMING
+	 */
+	if (((WMI_ROAM_REASON_INVALID == wmi_event->reason) &&
+				(WMI_ROAM_NOTIF_ROAM_ABORT ==
+						wmi_event->notif))
+			|| (WMI_ROAM_REASON_HO_FAILED == wmi_event->reason)
+			|| (WMI_ROAM_REASON_INVOKE_ROAM_FAIL ==
+				wmi_event->reason)) {
+		WMA_LOGI(FL("SELF-REASSOC: Roam reason-%x notif-%x vdevid-%x"),
+			 wmi_event->reason, wmi_event->notif,
+			 wmi_event->vdev_id);
+		wma_roam_remove_self_reassoc(wma_handle, wmi_event->vdev_id);
+		cds_restart_opportunistic_timer(false);
+	}
+
 	return 0;
 }
 

@@ -4974,12 +4974,14 @@ QDF_STATUS wma_get_caps_for_phyidx_hwmode(struct wma_caps_per_phy *caps_per_phy,
 /**
  * wma_is_rx_ldpc_supported_for_channel() - to find out if ldpc is supported
  *
- * @channel: Channel number for which it needs to check if rx ldpc is enabled
+ * @channel: Channel number for which it needs to check if rx ldpc is supported
+ * @hw_mode: hw mode for which it needs to check if rx ldpc is supported.
  *
- * This API takes channel number as argument and takes default hw mode as DBS
+ * This API takes channel number and hw mode as arguments
  * to check if rx LDPC support is enabled for that channel or no
  */
-bool wma_is_rx_ldpc_supported_for_channel(uint32_t channel)
+bool wma_is_rx_ldpc_supported_for_channel(uint32_t channel,
+			enum hw_mode_dbs_capab hw_mode)
 {
 	struct wma_caps_per_phy caps_per_phy = {0};
 	enum cds_band_type band;
@@ -4992,7 +4994,7 @@ bool wma_is_rx_ldpc_supported_for_channel(uint32_t channel)
 
 	if (QDF_STATUS_SUCCESS != wma_get_caps_for_phyidx_hwmode(
 						&caps_per_phy,
-						HW_MODE_DBS, band)) {
+						hw_mode, band)) {
 		return false;
 	}
 	if (CDS_IS_CHANNEL_24GHZ(channel))

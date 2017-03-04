@@ -6164,6 +6164,63 @@ void csr_release_scan_command(tpAniSirGlobal pMac, tSmeCmd *pCommand,
 	csr_release_command_scan(pMac, pCommand);
 }
 
+#ifdef WLAN_FEATURE_ROAM_OFFLOAD
+tSmeCmd *csr_find_self_reassoc_cmd(tpAniSirGlobal mac_ctx, uint32_t session_id)
+{
+	tDblLinkList *cmd_list = NULL;
+	tListElem *entry;
+	tSmeCmd *temp_cmd = NULL;
+
+	cmd_list = &mac_ctx->sme.smeCmdActiveList;
+	entry = csr_ll_peek_head(cmd_list, LL_ACCESS_LOCK);
+	if (!entry) {
+		sms_log(mac_ctx, LOGE, FL("Queue empty"));
+		return NULL;
+	}
+	temp_cmd = GET_BASE_ADDR(entry, tSmeCmd, Link);
+	if ((temp_cmd->command != e_sme_command_issue_self_reassoc) ||
+			(temp_cmd->sessionId != session_id)) {
+		sms_log(mac_ctx, LOG1,
+				FL("no self-reassoc cmd active"));
+		return NULL;
+	}
+
+	return temp_cmd;
+}
+
+void csr_remove_same_ap_reassoc_cmd(tpAniSirGlobal mac_ctx, tSmeCmd *sme_cmd)
+{
+	bool status = false;
+	tDblLinkList *cmd_list = NULL;
+
+	cmd_list = &mac_ctx->sme.smeCmdActiveList;
+	sms_log(mac_ctx, LOG1,
+		FL("Remove self reassoc cmd = %d, session_id = %d"),
+		sme_cmd->command, sme_cmd->sessionId);
+	status = csr_ll_remove_entry(cmd_list,
+			&sme_cmd->Link, LL_ACCESS_LOCK);
+	if (!status) {
+		sms_log(mac_ctx, LOGE,
+				FL("can't del self-reassoc cmd %d session %d"),
+				sme_cmd->command, sme_cmd->sessionId);
+		QDF_ASSERT(0);
+	}
+	sme_process_pending_queue(mac_ctx);
+
+	return;
+}
+#else
+tSmeCmd *csr_find_self_reassoc_cmd(tpAniSirGlobal mac_ctx, uint32_t session_id)
+{
+	return NULL;
+}
+
+void csr_remove_same_ap_reassoc_cmd(tpAniSirGlobal mac_ctx,
+					tSmeCmd *sme_cmd, uint32_t session_id)
+{
+}
+#endif
+
 QDF_STATUS csr_scan_get_pmkid_candidate_list(tpAniSirGlobal pMac,
 					     uint32_t sessionId,
 					     tPmkidCandidateInfo *pPmkidList,

@@ -6507,10 +6507,17 @@ static QDF_STATUS lim_send_ie(tpAniSirGlobal mac_ctx, uint32_t sme_session_id,
  *
  * Return: true if enabled and false otherwise
  */
-static inline bool lim_get_rx_ldpc(tpAniSirGlobal mac_ctx, uint8_t ch)
+static inline bool lim_get_rx_ldpc(tpAniSirGlobal mac_ctx, uint8_t ch,
+				   uint8_t is_hw_mode_dbs)
 {
+	enum hw_mode_dbs_capab hw_mode_to_use;
+
+	hw_mode_to_use = is_hw_mode_dbs ? HW_MODE_DBS : HW_MODE_DBS_NONE;
+	lim_log(mac_ctx, LOG1, FL("ch[%d] rx_ldpc[%d] hw_mode_to_use[%d]"),
+		ch, is_hw_mode_dbs, hw_mode_to_use);
 	if (mac_ctx->roam.configParam.rx_ldpc_enable &&
-		wma_is_rx_ldpc_supported_for_channel(CDS_CHANNEL_NUM(ch)))
+			wma_is_rx_ldpc_supported_for_channel(
+				CDS_CHANNEL_NUM(ch), hw_mode_to_use))
 		return true;
 	else
 		return false;
@@ -6528,8 +6535,8 @@ static inline bool lim_get_rx_ldpc(tpAniSirGlobal mac_ctx, uint8_t ch)
  * Return: status of operation
  */
 QDF_STATUS lim_send_ies_per_band(tpAniSirGlobal mac_ctx,
-				 tpPESession session,
-				 uint8_t vdev_id)
+				 tpPESession session, uint8_t vdev_id,
+				 uint8_t is_hw_mode_dbs)
 {
 	uint8_t ht_caps[DOT11F_IE_HTCAPS_MIN_LEN + 2] = {0};
 	uint8_t vht_caps[DOT11F_IE_VHTCAPS_MAX_LEN + 2] = {0};
@@ -6547,7 +6554,8 @@ QDF_STATUS lim_send_ies_per_band(tpAniSirGlobal mac_ctx,
 	lim_set_ht_caps(mac_ctx, session, ht_caps,
 			DOT11F_IE_HTCAPS_MIN_LEN + 2);
 	/* Get LDPC and over write for 2G */
-	p_ht_cap->advCodingCap = lim_get_rx_ldpc(mac_ctx, CHAN_ENUM_6);
+	p_ht_cap->advCodingCap = lim_get_rx_ldpc(mac_ctx, CHAN_ENUM_6,
+						 is_hw_mode_dbs);
 	/* Get self cap for HT40 support in 2G */
 	if (mac_ctx->roam.configParam.channelBondingMode24GHz) {
 		p_ht_cap->supportedChannelWidthSet = 1;
@@ -6562,7 +6570,8 @@ QDF_STATUS lim_send_ies_per_band(tpAniSirGlobal mac_ctx,
 	 * Get LDPC and over write for 5G - using channel 64 because it
 	 * is available in all reg domains.
 	 */
-	p_ht_cap->advCodingCap = lim_get_rx_ldpc(mac_ctx, CHAN_ENUM_64);
+	p_ht_cap->advCodingCap = lim_get_rx_ldpc(mac_ctx, CHAN_ENUM_64,
+						 is_hw_mode_dbs);
 	/* Get self cap for HT40 support in 5G */
 	if (mac_ctx->roam.configParam.channelBondingMode5GHz) {
 		p_ht_cap->supportedChannelWidthSet = 1;
@@ -6582,13 +6591,15 @@ QDF_STATUS lim_send_ies_per_band(tpAniSirGlobal mac_ctx,
 	 * Get LDPC and over write for 5G - using channel 64 because it
 	 * is available in all reg domains.
 	 */
-	p_vht_cap->ldpcCodingCap = lim_get_rx_ldpc(mac_ctx, CHAN_ENUM_64);
+	p_vht_cap->ldpcCodingCap = lim_get_rx_ldpc(mac_ctx, CHAN_ENUM_64,
+						   is_hw_mode_dbs);
 	/* Self VHT channel width for 5G is already negotiated with FW */
 	lim_send_ie(mac_ctx, vdev_id, DOT11F_EID_VHTCAPS,
 			CDS_BAND_5GHZ, &vht_caps[2], DOT11F_IE_VHTCAPS_MIN_LEN);
 
 	/* Get LDPC and over write for 2G */
-	p_vht_cap->ldpcCodingCap = lim_get_rx_ldpc(mac_ctx, CHAN_ENUM_6);
+	p_vht_cap->ldpcCodingCap = lim_get_rx_ldpc(mac_ctx, CHAN_ENUM_6,
+						   is_hw_mode_dbs);
 	/* Self VHT 80/160/80+80 channel width for 2G is 0 */
 	p_vht_cap->supportedChannelWidthSet = 0;
 	p_vht_cap->shortGI80MHz = 0;

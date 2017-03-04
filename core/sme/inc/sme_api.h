@@ -1276,7 +1276,10 @@ QDF_STATUS sme_create_mon_session(tHalHandle hal_handle, uint8_t *bssid);
 QDF_STATUS sme_set_adaptive_dwelltime_config(tHalHandle hal,
 			struct adaptive_dwelltime_params *dwelltime_params);
 
-void sme_set_vdev_ies_per_band(tHalHandle hal, uint8_t vdev_id);
+void sme_set_vdev_ies_per_band(uint8_t vdev_id,
+			       uint8_t is_hw_mode_dbs);
+bool sme_check_enable_rx_ldpc_sta_ini_item(void);
+QDF_STATUS sme_issue_same_ap_reassoc_cmd(uint8_t session_id);
 void sme_set_pdev_ht_vht_ies(tHalHandle hHal, bool enable2x2);
 
 void sme_update_vdev_type_nss(tHalHandle hal, uint8_t max_supp_nss,

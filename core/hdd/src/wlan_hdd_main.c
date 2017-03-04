@@ -2712,8 +2712,14 @@ QDF_STATUS hdd_init_station_mode(hdd_adapter_t *adapter)
 		status = QDF_STATUS_E_FAILURE;
 		goto error_sme_open;
 	}
-
-	sme_set_vdev_ies_per_band(hdd_ctx->hHal, adapter->sessionId);
+	if (hdd_ctx->config->rx_ldpc_support_for_2g &&
+			!wma_is_current_hwmode_dbs()) {
+		hdd_notice("send HT/VHT IE per band using nondbs hwmode");
+		sme_set_vdev_ies_per_band(adapter->sessionId, false);
+	} else {
+		hdd_notice("send HT/VHT IE per band using dbs hwmode");
+		sme_set_vdev_ies_per_band(adapter->sessionId, true);
+	}
 	/* Register wireless extensions */
 	qdf_ret_status = hdd_register_wext(pWlanDev);
 	if (QDF_STATUS_SUCCESS != qdf_ret_status) {

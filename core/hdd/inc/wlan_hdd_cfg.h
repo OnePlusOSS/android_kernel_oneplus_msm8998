@@ -6315,6 +6315,29 @@ typedef enum {
 
 /*
  * <ini>
+ * g2GBandRxLdpcSupport - to enable Rx LDPC for 2G STA band
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This ini is used to enable/disable to enable Rx LDPC for 2G STA band
+ * it can very well be enhanced for SAP/P2P/IBSS 2G band in future using
+ * bit mask.
+ *
+ * Related: STA
+ *
+ * Supported Feature: Concurrency/Standalone
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+#define CFG_2G_BAND_RX_LDPC_SUPPORT_FEATURE         "g2GBandRxLdpcSupport"
+#define CFG_2G_BAND_RX_LDPC_SUPPORT_FEATURE_MIN     (0)
+#define CFG_2G_BAND_RX_LDPC_SUPPORT_FEATURE_MAX     (1)
+#define CFG_2G_BAND_RX_LDPC_SUPPORT_FEATURE_DEFAULT (0)
+/*
+ * <ini>
  * gEnableMCCAdaptiveScheduler - MCC Adaptive Scheduler feature.
  * @Min: 0
  * @Max: 1
@@ -10350,6 +10373,7 @@ struct hdd_config {
 	bool enableTxSTBC;
 	uint8_t enable_tx_ldpc;
 	uint8_t enable_rx_ldpc;
+	uint8_t rx_ldpc_support_for_2g;
 	bool enable5gEBT;
 #ifdef FEATURE_WLAN_TDLS
 	bool fEnableTDLSSupport;

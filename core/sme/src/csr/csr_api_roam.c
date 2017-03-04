@@ -278,6 +278,58 @@ static void csr_ser_des_unpack_diassoc_rsp(uint8_t *pBuf,
 					   tSirSmeDisassocRsp *pRsp);
 void csr_init_operating_classes(tHalHandle hHal);
 
+#ifdef WLAN_FEATURE_ROAM_OFFLOAD
+QDF_STATUS csr_process_same_ap_reassoc_cmd(tpAniSirGlobal mac_ctx,
+					tSmeCmd *sme_cmd)
+{
+	QDF_STATUS status;
+	tCsrRoamSession *session;
+	struct wma_roam_invoke_cmd *fastreassoc;
+	cds_msg_t msg = {0};
+
+	session = CSR_GET_SESSION(mac_ctx, sme_cmd->sessionId);
+	if (!session) {
+		sms_log(mac_ctx, LOGE, FL("Invalid session"));
+		csr_remove_same_ap_reassoc_cmd(mac_ctx, sme_cmd);
+		csr_release_command(mac_ctx, sme_cmd);
+		return QDF_STATUS_E_FAILURE;
+	}
+	fastreassoc = qdf_mem_malloc(sizeof(*fastreassoc));
+	if (NULL == fastreassoc) {
+		sms_log(mac_ctx, LOGE, FL("can't allocate memory"));
+		csr_remove_same_ap_reassoc_cmd(mac_ctx, sme_cmd);
+		csr_release_command(mac_ctx, sme_cmd);
+		return QDF_STATUS_E_FAILURE;
+	}
+	fastreassoc->vdev_id = sme_cmd->sessionId;
+	fastreassoc->channel = session->connectedProfile.operationChannel;
+	fastreassoc->bssid[0] = session->connectedProfile.bssid.bytes[0];
+	fastreassoc->bssid[1] = session->connectedProfile.bssid.bytes[1];
+	fastreassoc->bssid[2] = session->connectedProfile.bssid.bytes[2];
+	fastreassoc->bssid[3] = session->connectedProfile.bssid.bytes[3];
+	fastreassoc->bssid[4] = session->connectedProfile.bssid.bytes[4];
+	fastreassoc->bssid[5] = session->connectedProfile.bssid.bytes[5];
+	sms_log(mac_ctx, LOG1, FL("self reassoc on channe[%d] bssid[%pM]"),
+			fastreassoc->channel, fastreassoc->bssid);
+
+	msg.type = SIR_HAL_ROAM_INVOKE;
+	msg.reserved = 0;
+	msg.bodyptr = fastreassoc;
+	status = cds_mq_post_message(QDF_MODULE_ID_WMA, &msg);
+	if (QDF_STATUS_SUCCESS != status) {
+		sms_log(mac_ctx, LOGE, FL("Not able to post ROAM_INVOKE_CMD"));
+		qdf_mem_free(fastreassoc);
+	}
+	return status;
+}
+#else
+QDF_STATUS csr_process_same_ap_reassoc_cmd(tpAniSirGlobal mac_ctx,
+		tSmeCmd *sme_cmd)
+{
+	return QDF_STATUS_SUCCESS;
+}
+#endif
+
 /* Initialize global variables */
 static void csr_roam_init_globals(tpAniSirGlobal pMac)
 {
@@ -2484,6 +2536,8 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 			pParam->send_smps_action;
 		pMac->roam.configParam.tx_ldpc_enable = pParam->enable_tx_ldpc;
 		pMac->roam.configParam.rx_ldpc_enable = pParam->enable_rx_ldpc;
+		pMac->roam.configParam.rx_ldpc_support_for_2g =
+					pParam->rx_ldpc_support_for_2g;
 		pMac->roam.configParam.ignore_peer_erp_info =
 			pParam->ignore_peer_erp_info;
 		pMac->roam.configParam.max_amsdu_num =
@@ -2743,6 +2797,8 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 #endif
 	pParam->enable_tx_ldpc = cfg_params->tx_ldpc_enable;
 	pParam->enable_rx_ldpc = cfg_params->rx_ldpc_enable;
+	pParam->rx_ldpc_support_for_2g =
+			cfg_params->rx_ldpc_support_for_2g;
 	pParam->max_amsdu_num = cfg_params->max_amsdu_num;
 	pParam->nSelect5GHzMargin = cfg_params->nSelect5GHzMargin;
 	pParam->isCoalesingInIBSSAllowed = cfg_params->isCoalesingInIBSSAllowed;
@@ -13795,7 +13851,7 @@ static void csr_add_supported_5Ghz_channels(tpAniSirGlobal mac_ctx,
  */
 static QDF_STATUS csr_set_ldpc_exception(tpAniSirGlobal mac_ctx,
 			tCsrRoamSession *session, uint8_t channel,
-			bool usr_cfg_rx_ldpc)
+			bool usr_cfg_rx_ldpc, enum hw_mode_dbs_capab hw_mode)
 {
 	if (!mac_ctx) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
@@ -13807,16 +13863,20 @@ static QDF_STATUS csr_set_ldpc_exception(tpAniSirGlobal mac_ctx,
 			"session is NULL");
 		return QDF_STATUS_E_FAILURE;
 	}
-	if (usr_cfg_rx_ldpc && wma_is_rx_ldpc_supported_for_channel(channel)) {
+	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
+		  "using user given hw_mode [%d]", hw_mode);
+	if (usr_cfg_rx_ldpc && wma_is_rx_ldpc_supported_for_channel(channel,
+							hw_mode)) {
 		session->htConfig.ht_rx_ldpc = 1;
 		session->vht_config.ldpc_coding = 1;
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-			"LDPC enable for chnl[%d]", channel);
+			"LDPC enable for chnl[%d] for hwmode[%d]",
+			channel, hw_mode);
 	} else {
 		session->htConfig.ht_rx_ldpc = 0;
 		session->vht_config.ldpc_coding = 0;
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-			"LDPC disable for chnl[%d]", channel);
+			  "LDPC disable for chnl[%d]", channel);
 	}
 	return QDF_STATUS_SUCCESS;
 }
@@ -13857,6 +13917,7 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 	tpCsrNeighborRoamControlInfo neigh_roam_info;
 	uint32_t value = 0, value1 = 0;
 	QDF_STATUS packetdump_timer_status;
+	enum hw_mode_dbs_capab hw_mode_to_use;
 
 	if (!pSession) {
 		sms_log(pMac, LOGE, FL("  session %d not found "), sessionId);
@@ -14328,15 +14389,48 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 			csr_apply_power2_current(pMac);
 		}
 		/*
-		 * If RX LDPC has been disabled for 2.4GHz channels and enabled
-		 * for 5Ghz for STA like persona then here is how to handle
-		 * those cases (by now channel has been decided).
+		 * LDPC exception is called for hardware limitation:
+		 * PHY-A can do Rx LPDC and PHY-B can't do Rx LDPC on some
+		 * of platforms due to which when-ever we enter in to DBS
+		 * and channel is 2.4G then the connection will end up on
+		 * PHY-B where Rx LDPC is not supported and when-ever we
+		 * enter in to NON-DBS and channel is 2.4G then the connection
+		 * will end up on PHY-A where Rx LDPC is supported.
+		 * 5G connection always stays on PHY-A.
+		 *
+		 * if user has configured 2G RX LDPC support enabled then use
+		 * current hw mode to configure Rx LDPC properly. if user has
+		 * not configured 2G RX LDPC support then use DBS hardware mode
+		 * which will give you 5G RxLDPC bit "1" and 2G RxLDPC bit "0".
+		 *
 		 */
 		if (eSIR_INFRASTRUCTURE_MODE == csr_join_req->bsstype ||
-		    !wma_is_dbs_enable())
-			csr_set_ldpc_exception(pMac, pSession,
+					!wma_is_dbs_enable()) {
+			sms_log(pMac, LOGD,
+				FL("Rx ldpc ini[%d] and 2G RX LDPC[%d]"),
+				pMac->roam.configParam.rx_ldpc_enable,
+				pMac->roam.configParam.rx_ldpc_support_for_2g);
+			if (pMac->roam.configParam.rx_ldpc_support_for_2g) {
+				hw_mode_to_use = wma_is_current_hwmode_dbs() ?
+							HW_MODE_DBS :
+							HW_MODE_DBS_NONE;
+				sms_log(pMac, LOGD,
+					FL("2G RxLDPC & roaming ON: hwmode-%d"),
+					hw_mode_to_use);
+				csr_set_ldpc_exception(pMac, pSession,
 					pBssDescription->channelId,
-					pMac->roam.configParam.rx_ldpc_enable);
+					pMac->roam.configParam.rx_ldpc_enable,
+					hw_mode_to_use);
+			} else {
+				sms_log(pMac, LOGD,
+					FL("2G RxLDPC/roaming OFF: hwmode-%d"),
+					HW_MODE_DBS);
+				csr_set_ldpc_exception(pMac, pSession,
+					pBssDescription->channelId,
+					pMac->roam.configParam.rx_ldpc_enable,
+					HW_MODE_DBS);
+			}
+		}
 		qdf_mem_copy(&csr_join_req->htConfig,
 				&pSession->htConfig, sizeof(tSirHTConfig));
 		qdf_mem_copy(&csr_join_req->vht_config, &pSession->vht_config,
@@ -15049,6 +15143,7 @@ QDF_STATUS csr_send_mb_start_bss_req_msg(tpAniSirGlobal pMac, uint32_t sessionId
 	tSirSmeStartBssReq *pMsg;
 	uint16_t wTmp;
 	uint32_t value = 0;
+
 	tCsrRoamSession *pSession = CSR_GET_SESSION(pMac, sessionId);
 
 	if (!pSession) {
@@ -15148,13 +15243,20 @@ QDF_STATUS csr_send_mb_start_bss_req_msg(tpAniSirGlobal pMac, uint32_t sessionId
 		     sizeof(tSirMacRateSet));
 	/*
 	 * If RX LDPC has been disabled for 2.4GHz channels and enabled
-	 * for 5Ghz for STA like persona then here is how to handle
+	 * for 5Ghz for STA/IBSS persona then here is how to handle
 	 * those cases (by now channel has been decided).
 	 */
-	if (eSIR_IBSS_MODE == pMsg->bssType || !wma_is_dbs_enable())
+	if (eSIR_IBSS_MODE == pMsg->bssType || !wma_is_dbs_enable()) {
+		/*
+		 * faking DBS hardware mode, so IBSS will enable rxLDPC
+		 * for 5G and disable rxLDPC
+		 */
+		sms_log(pMac, LOGD, FL("Rx LDPC : hwmode-%d"), HW_MODE_DBS);
 		csr_set_ldpc_exception(pMac, pSession,
 				pMsg->channelId,
-				pMac->roam.configParam.rx_ldpc_enable);
+				pMac->roam.configParam.rx_ldpc_enable,
+				HW_MODE_DBS);
+	}
 	qdf_mem_copy(&pMsg->vht_config,
 		     &pSession->vht_config,
 		     sizeof(pSession->vht_config));

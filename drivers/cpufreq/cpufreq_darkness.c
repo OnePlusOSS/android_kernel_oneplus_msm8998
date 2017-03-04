@@ -61,6 +61,13 @@ static struct mutex gov_lock;
 
 #define DEFAULT_TIMER_RATE (20 * USEC_PER_MSEC)
 #define DEFAULT_TIMER_RATE_SUSP ((unsigned long)(50 * USEC_PER_MSEC))
+#define LOAD_MODE					1
+
+enum {
+	CURLOAD,
+	AVGLOAD,
+	MAXLOAD,
+};
 
 struct cpufreq_darkness_tunables {
 	int usage_count;
@@ -82,6 +89,7 @@ struct cpufreq_darkness_tunables {
 	 * Whether to align timer windows across all CPUs.
 	 */
 	bool align_windows;
+	unsigned int load_mode;
 };
 
 /* For cases where we have single governor instance for system */
@@ -121,7 +129,9 @@ static void cpufreq_darkness_timer_resched(unsigned long cpu,
 	spin_lock_irqsave(&ppol->load_lock, flags);
 	expires = round_to_nw_start(ppol->last_evaluated_jiffy, tunables);
 	if (!slack_only) {
-		for_each_cpu(i, ppol->policy->cpus) {
+		for_each_cpu(i, ppol->policy->related_cpus) {
+			if (!cpu_online(i))
+				continue;
 			pcpu = &per_cpu(cpuinfo, i);
 			pcpu->time_in_idle = get_cpu_idle_time(i,
 						&pcpu->time_in_idle_timestamp,
@@ -166,7 +176,9 @@ static void cpufreq_darkness_timer_start(
 		add_timer(&ppol->policy_slack_timer);
 	}
 
-	for_each_cpu(i, ppol->policy->cpus) {
+	for_each_cpu(i, ppol->policy->related_cpus) {
+		if (!cpu_online(i))
+			continue;
 		pcpu = &per_cpu(cpuinfo, i);
 		pcpu->time_in_idle =
 			get_cpu_idle_time(i, &pcpu->time_in_idle_timestamp,
@@ -225,6 +237,9 @@ static bool update_load(int cpu)
 	u64 delta_time;
 	bool ignore = false;
 
+	if (!cpu_online(cpu))
+		return true;
+
 	now_idle = get_cpu_idle_time(cpu, &now, tunables->io_is_busy);
 	delta_idle = (now_idle - pcpu->time_in_idle);
 	delta_time = (now - pcpu->time_in_idle_timestamp);
@@ -252,11 +267,12 @@ static void cpufreq_darkness_timer(unsigned long data)
 #endif
 	struct cpufreq_darkness_cpuinfo *pcpu;
 	struct cpufreq_govinfo govinfo;
+	unsigned int load_mode = tunables->load_mode;
 	unsigned int new_freq;
-	unsigned int max_load = 0;
+	unsigned int calc_load = 0;
 	unsigned long flags;
 	unsigned long max_cpu;
-	int i, fcpu;
+	int i, fcpu, n = 0;
 
 	if (!down_read_trylock(&ppol->enable_sem))
 		return;
@@ -281,16 +297,23 @@ static void cpufreq_darkness_timer(unsigned long data)
 #endif
 
 	max_cpu = cpumask_first(ppol->policy->cpus);
-	for_each_cpu(i, ppol->policy->cpus) {
-		pcpu = &per_cpu(cpuinfo, i);
+	for_each_cpu(i, ppol->policy->related_cpus) {
 		if (update_load(i))
 			continue;
-
-		if (pcpu->load > max_load) {
-			max_load = pcpu->load;
-			max_cpu = i;
+		pcpu = &per_cpu(cpuinfo, i);
+		if (load_mode == CURLOAD) {
+			if (max_cpu == i)
+				calc_load = pcpu->load;
+		} else if (load_mode == AVGLOAD) {
+				calc_load += pcpu->load;
+				n++;	
+		} else {
+			if (pcpu->load > calc_load)
+				calc_load = pcpu->load;
 		}
 	}
+	if (load_mode == AVGLOAD)
+		calc_load /= n;
 	spin_unlock_irqrestore(&ppol->load_lock, flags);
 
 	/*
@@ -310,7 +333,7 @@ static void cpufreq_darkness_timer(unsigned long data)
 	}
 
 	spin_lock_irqsave(&ppol->target_freq_lock, flags);
-	new_freq = choose_freq(ppol->policy, max_load * (ppol->policy->max / 100));
+	new_freq = choose_freq(ppol->policy, calc_load * (ppol->policy->max / 100));
 	if (!new_freq) {
 		spin_unlock_irqrestore(&ppol->target_freq_lock, flags);
 		goto rearm;
@@ -506,6 +529,33 @@ static ssize_t store_io_is_busy(struct cpufreq_darkness_tunables *tunables,
 	return count;
 }
 
+/* load_mode */
+static ssize_t show_load_mode(struct cpufreq_darkness_tunables *tunables,
+		char *buf)
+{
+	return sprintf(buf, "%u\n", tunables->load_mode);
+}
+
+static ssize_t store_load_mode(struct cpufreq_darkness_tunables *tunables,
+		const char *buf, size_t count)
+{
+	int input;
+	int ret;
+
+	ret = sscanf(buf, "%u", &input);
+	if (ret != 1)
+		return -EINVAL;
+
+	input = min(max(0, input), 2);
+
+	if (input == tunables->load_mode)
+		return count;
+
+	tunables->load_mode = input;
+
+	return count;
+}
+
 /*
  * Create show/store routines
  * - sys: One governor instance for complete SYSTEM
@@ -546,6 +596,7 @@ show_store_gov_pol_sys(timer_rate);
 show_store_gov_pol_sys(timer_slack);
 show_store_gov_pol_sys(io_is_busy);
 show_store_gov_pol_sys(align_windows);
+show_store_gov_pol_sys(load_mode);
 
 #define gov_sys_attr_rw(_name)						\
 static struct global_attr _name##_gov_sys =				\
@@ -563,6 +614,7 @@ gov_sys_pol_attr_rw(timer_rate);
 gov_sys_pol_attr_rw(timer_slack);
 gov_sys_pol_attr_rw(io_is_busy);
 gov_sys_pol_attr_rw(align_windows);
+gov_sys_pol_attr_rw(load_mode);
 
 /* One Governor instance for entire system */
 static struct attribute *darkness_attributes_gov_sys[] = {
@@ -570,6 +622,7 @@ static struct attribute *darkness_attributes_gov_sys[] = {
 	&timer_slack_gov_sys.attr,
 	&io_is_busy_gov_sys.attr,
 	&align_windows_gov_sys.attr,
+	&load_mode_gov_sys.attr,
 	NULL,
 };
 
@@ -584,6 +637,7 @@ static struct attribute *darkness_attributes_gov_pol[] = {
 	&timer_slack_gov_pol.attr,
 	&io_is_busy_gov_pol.attr,
 	&align_windows_gov_pol.attr,
+	&load_mode_gov_pol.attr,
 	NULL,
 };
 
@@ -618,6 +672,7 @@ static struct cpufreq_darkness_tunables *alloc_tunable(
 	tunables->timer_rate_prev = DEFAULT_TIMER_RATE;
 #endif
 	tunables->timer_slack_val = DEFAULT_TIMER_SLACK;
+	tunables->load_mode = LOAD_MODE;
 
 	return tunables;
 }

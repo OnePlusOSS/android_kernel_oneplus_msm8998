@@ -71,6 +71,13 @@ static struct mutex gov_lock;
 #define FREQ_UP_BRAKE				30
 #define FREQ_STEP_DEC				10
 #define FREQ_STEP_DEC_AT_MAX_FREQ	10
+#define LOAD_MODE					1
+
+enum {
+	CURLOAD,
+	AVGLOAD,
+	MAXLOAD,
+};
 
 struct cpufreq_nightmare_tunables {
 	int usage_count;
@@ -103,6 +110,7 @@ struct cpufreq_nightmare_tunables {
 	int freq_step;
 	int freq_step_dec;
 	int freq_step_dec_at_max_freq;
+	unsigned int load_mode;
 };
 
 /* For cases where we have single governor instance for system */
@@ -142,7 +150,9 @@ static void cpufreq_nightmare_timer_resched(unsigned long cpu,
 	spin_lock_irqsave(&ppol->load_lock, flags);
 	expires = round_to_nw_start(ppol->last_evaluated_jiffy, tunables);
 	if (!slack_only) {
-		for_each_cpu(i, ppol->policy->cpus) {
+		for_each_cpu(i, ppol->policy->related_cpus) {
+			if (!cpu_online(i))
+				continue;
 			pcpu = &per_cpu(cpuinfo, i);
 			pcpu->time_in_idle = get_cpu_idle_time(i,
 						&pcpu->time_in_idle_timestamp,
@@ -187,7 +197,9 @@ static void cpufreq_nightmare_timer_start(
 		add_timer(&ppol->policy_slack_timer);
 	}
 
-	for_each_cpu(i, ppol->policy->cpus) {
+	for_each_cpu(i, ppol->policy->related_cpus) {
+		if (!cpu_online(i))
+			continue;
 		pcpu = &per_cpu(cpuinfo, i);
 		pcpu->time_in_idle =
 			get_cpu_idle_time(i, &pcpu->time_in_idle_timestamp,
@@ -283,6 +295,9 @@ static bool update_load(int cpu)
 	u64 delta_time;
 	bool ignore = false;
 
+	if (!cpu_online(cpu))
+		return true;
+
 	now_idle = get_cpu_idle_time(cpu, &now, tunables->io_is_busy);
 	delta_idle = (now_idle - pcpu->time_in_idle);
 	delta_time = (now - pcpu->time_in_idle_timestamp);
@@ -313,12 +328,13 @@ static void cpufreq_nightmare_timer(unsigned long data)
 	int freq_step = tunables->freq_step;
 	int freq_up_brake = tunables->freq_up_brake;
 	int freq_step_dec = tunables->freq_step_dec;
+	unsigned int load_mode = tunables->load_mode;
 	int tmp_step = 0;
 	unsigned int new_freq = 0;
-	unsigned int max_load = 0, up_load = 0, down_load = 0;
+	unsigned int calc_load = 0, up_load = 0, down_load = 0;
 	unsigned long flags;
 	unsigned long max_cpu;
-	int i, fcpu, index;
+	int i, fcpu, index,  n = 0;
 
 	if (!down_read_trylock(&ppol->enable_sem))
 		return;
@@ -350,16 +366,23 @@ static void cpufreq_nightmare_timer(unsigned long data)
 	}
 
 	max_cpu = cpumask_first(ppol->policy->cpus);
-	for_each_cpu(i, ppol->policy->cpus) {
-		pcpu = &per_cpu(cpuinfo, i);
+	for_each_cpu(i, ppol->policy->related_cpus) {
 		if (update_load(i))
 			continue;
-
-		if (pcpu->load > max_load) {
-			max_load = pcpu->load;
-			max_cpu = i;
+		pcpu = &per_cpu(cpuinfo, i);
+		if (load_mode == CURLOAD) {
+			if (max_cpu == i)
+				calc_load = pcpu->load;
+		} else if (load_mode == AVGLOAD) {
+				calc_load += pcpu->load;
+				n++;	
+		} else {
+			if (pcpu->load > calc_load)
+				calc_load = pcpu->load;
 		}
 	}
+	if (load_mode == AVGLOAD)
+		calc_load /= n;
 	spin_unlock_irqrestore(&ppol->load_lock, flags);
 
 	/*
@@ -390,17 +413,17 @@ static void cpufreq_nightmare_timer(unsigned long data)
 	}
 #endif
 	get_target_load(ppol->policy, index, &down_load, &up_load);
-	if (max_load >= up_load
+	if (calc_load >= up_load
 		 && ppol->policy->cur < ppol->policy->max) {
-		tmp_step = (max_load + freq_step - freq_up_brake) * 1536;
+		tmp_step = (calc_load + freq_step - freq_up_brake) * 1536;
 		if (tmp_step < 0)
 			tmp_step = 0;
 
 		new_freq = choose_freq(ppol->policy, index,
 			(ppol->policy->cur + tmp_step), true);
-	} else if (max_load < down_load
+	} else if (calc_load < down_load
 				 && ppol->policy->cur > ppol->policy->min) {
-		tmp_step = (100 - max_load + freq_step_dec) * 1536;
+		tmp_step = (100 - calc_load + freq_step_dec) * 1536;
 		if (tmp_step < 0)
 			tmp_step = 0;
 
@@ -814,6 +837,33 @@ static ssize_t store_freq_step_dec_at_max_freq(struct cpufreq_nightmare_tunables
 	return count;
 }
 
+/* load_mode */
+static ssize_t show_load_mode(struct cpufreq_nightmare_tunables *tunables,
+		char *buf)
+{
+	return sprintf(buf, "%u\n", tunables->load_mode);
+}
+
+static ssize_t store_load_mode(struct cpufreq_nightmare_tunables *tunables,
+		const char *buf, size_t count)
+{
+	int input;
+	int ret;
+
+	ret = sscanf(buf, "%u", &input);
+	if (ret != 1)
+		return -EINVAL;
+
+	input = min(max(0, input), 2);
+
+	if (input == tunables->load_mode)
+		return count;
+
+	tunables->load_mode = input;
+
+	return count;
+}
+
 /*
  * Create show/store routines
  * - sys: One governor instance for complete SYSTEM
@@ -862,6 +912,7 @@ show_store_gov_pol_sys(freq_up_brake_at_min_freq);
 show_store_gov_pol_sys(freq_up_brake);
 show_store_gov_pol_sys(freq_step_dec);
 show_store_gov_pol_sys(freq_step_dec_at_max_freq);
+show_store_gov_pol_sys(load_mode);
 
 #define gov_sys_attr_rw(_name)						\
 static struct global_attr _name##_gov_sys =				\
@@ -887,6 +938,7 @@ gov_sys_pol_attr_rw(freq_up_brake_at_min_freq);
 gov_sys_pol_attr_rw(freq_up_brake);
 gov_sys_pol_attr_rw(freq_step_dec);
 gov_sys_pol_attr_rw(freq_step_dec_at_max_freq);
+gov_sys_pol_attr_rw(load_mode);
 
 /* One Governor instance for entire system */
 static struct attribute *nightmare_attributes_gov_sys[] = {
@@ -902,6 +954,7 @@ static struct attribute *nightmare_attributes_gov_sys[] = {
 	&freq_up_brake_gov_sys.attr,
 	&freq_step_dec_gov_sys.attr,
 	&freq_step_dec_at_max_freq_gov_sys.attr,
+	&load_mode_gov_sys.attr,
 	NULL,
 };
 
@@ -924,6 +977,7 @@ static struct attribute *nightmare_attributes_gov_pol[] = {
 	&freq_up_brake_gov_pol.attr,
 	&freq_step_dec_gov_pol.attr,
 	&freq_step_dec_at_max_freq_gov_pol.attr,
+	&load_mode_gov_pol.attr,
 	NULL,
 };
 
@@ -966,6 +1020,7 @@ static struct cpufreq_nightmare_tunables *alloc_tunable(
 	tunables->freq_up_brake = FREQ_UP_BRAKE;
 	tunables->freq_step_dec = FREQ_STEP_DEC;
 	tunables->freq_step_dec_at_max_freq = FREQ_STEP_DEC_AT_MAX_FREQ;
+	tunables->load_mode = LOAD_MODE;
 
 	return tunables;
 }

@@ -71,10 +71,17 @@ static struct mutex gov_lock;
 #define CPUS_DOWN_RATE				1
 #define CPUS_UP_RATE				1
 
-#define PUMP_INC_STEP_AT_MIN_FREQ	2
-#define PUMP_INC_STEP				1
-#define PUMP_DEC_STEP_AT_MIN_FREQ	1
-#define PUMP_DEC_STEP				2
+#define PUMP_INC_STEP_AT_MIN_FREQ	6
+#define PUMP_INC_STEP				3
+#define PUMP_DEC_STEP_AT_MIN_FREQ	3
+#define PUMP_DEC_STEP				1
+#define LOAD_MODE					1
+
+enum {
+	CURLOAD,
+	AVGLOAD,
+	MAXLOAD,
+};
 
 struct cpufreq_alucard_tunables {
 	int usage_count;
@@ -109,6 +116,7 @@ struct cpufreq_alucard_tunables {
 	int pump_inc_step_at_min_freq;
 	int pump_dec_step;
 	int pump_dec_step_at_min_freq;
+	unsigned int load_mode;
 };
 
 /* For cases where we have single governor instance for system */
@@ -148,7 +156,9 @@ static void cpufreq_alucard_timer_resched(unsigned long cpu,
 	spin_lock_irqsave(&ppol->load_lock, flags);
 	expires = round_to_nw_start(ppol->last_evaluated_jiffy, tunables);
 	if (!slack_only) {
-		for_each_cpu(i, ppol->policy->cpus) {
+		for_each_cpu(i, ppol->policy->related_cpus) {
+			if (!cpu_online(i))
+				continue;
 			pcpu = &per_cpu(cpuinfo, i);
 			pcpu->time_in_idle = get_cpu_idle_time(i,
 						&pcpu->time_in_idle_timestamp,
@@ -193,7 +203,9 @@ static void cpufreq_alucard_timer_start(
 		add_timer(&ppol->policy_slack_timer);
 	}
 
-	for_each_cpu(i, ppol->policy->cpus) {
+	for_each_cpu(i, ppol->policy->related_cpus) {
+		if (!cpu_online(i))
+			continue;
 		pcpu = &per_cpu(cpuinfo, i);
 		pcpu->time_in_idle =
 			get_cpu_idle_time(i, &pcpu->time_in_idle_timestamp,
@@ -268,6 +280,9 @@ static bool update_load(int cpu)
 	u64 delta_time;
 	bool ignore = false;
 
+	if (!cpu_online(cpu))
+		return true;
+
 	now_idle = get_cpu_idle_time(cpu, &now, tunables->io_is_busy);
 	delta_idle = (now_idle - pcpu->time_in_idle);
 	delta_time = (now - pcpu->time_in_idle_timestamp);
@@ -299,11 +314,12 @@ static void cpufreq_alucard_timer(unsigned long data)
 	int pump_dec_step = tunables->pump_dec_step;
 	unsigned int cpus_up_rate = tunables->cpus_up_rate;
 	unsigned int cpus_down_rate = tunables->cpus_down_rate;
+	unsigned int load_mode = tunables->load_mode;
 	unsigned int new_freq = 0;
-	unsigned int max_load = 0, up_load = 0, down_load = 0;
+	unsigned int calc_load = 0, up_load = 0, down_load = 0;
 	unsigned long flags;
 	unsigned long max_cpu;
-	int i, fcpu, index;
+	int i, fcpu, index, n = 0;
 
 	if (!down_read_trylock(&ppol->enable_sem))
 		return;
@@ -336,16 +352,23 @@ static void cpufreq_alucard_timer(unsigned long data)
 	}
 
 	max_cpu = cpumask_first(ppol->policy->cpus);
-	for_each_cpu(i, ppol->policy->cpus) {
-		pcpu = &per_cpu(cpuinfo, i);
+	for_each_cpu(i, ppol->policy->related_cpus) {
 		if (update_load(i))
 			continue;
-
-		if (pcpu->load > max_load) {
-			max_load = pcpu->load;
-			max_cpu = i;
+		pcpu = &per_cpu(cpuinfo, i);
+		if (load_mode == CURLOAD) {
+			if (max_cpu == i)
+				calc_load = pcpu->load;
+		} else if (load_mode == AVGLOAD) {
+				calc_load += pcpu->load;
+				n++;	
+		} else {
+			if (pcpu->load > calc_load)
+				calc_load = pcpu->load;
 		}
 	}
+	if (load_mode == AVGLOAD)
+		calc_load /= n;
 	spin_unlock_irqrestore(&ppol->load_lock, flags);
 
 	/*
@@ -381,7 +404,7 @@ static void cpufreq_alucard_timer(unsigned long data)
 	}
 #endif
 	get_target_load(ppol->policy, index, &down_load, &up_load);
-	if (max_load >= up_load
+	if (calc_load >= up_load
 		 && ppol->policy->cur < ppol->policy->max) {
 		if (ppol->up_rate % cpus_up_rate == 0) {
 			new_freq = choose_target_freq(ppol->policy,
@@ -389,7 +412,7 @@ static void cpufreq_alucard_timer(unsigned long data)
 		} else {
 			++ppol->up_rate;
 		}
-	} else if (max_load < down_load
+	} else if (calc_load < down_load
 				 && ppol->policy->cur > ppol->policy->min) {
 		if (ppol->down_rate % cpus_down_rate == 0) {
 			new_freq = choose_target_freq(ppol->policy,
@@ -494,7 +517,7 @@ static int cpufreq_alucard_notifier(
 			return 0;
 		}
 		spin_lock_irqsave(&ppol->load_lock, flags);
-		for_each_cpu(cpu, ppol->policy->cpus)
+		for_each_cpu(cpu, ppol->policy->related_cpus)
 			update_load(cpu);
 		spin_unlock_irqrestore(&ppol->load_lock, flags);
 		spin_lock_irqsave(&ppol->target_freq_lock, flags);
@@ -859,6 +882,33 @@ static ssize_t store_pump_dec_step(struct cpufreq_alucard_tunables *tunables,
 	return count;
 }
 
+/* load_mode */
+static ssize_t show_load_mode(struct cpufreq_alucard_tunables *tunables,
+		char *buf)
+{
+	return sprintf(buf, "%u\n", tunables->load_mode);
+}
+
+static ssize_t store_load_mode(struct cpufreq_alucard_tunables *tunables,
+		const char *buf, size_t count)
+{
+	int input;
+	int ret;
+
+	ret = sscanf(buf, "%u", &input);
+	if (ret != 1)
+		return -EINVAL;
+
+	input = min(max(0, input), 2);
+
+	if (input == tunables->load_mode)
+		return count;
+
+	tunables->load_mode = input;
+
+	return count;
+}
+
 /*
  * Create show/store routines
  * - sys: One governor instance for complete SYSTEM
@@ -909,6 +959,7 @@ show_store_gov_pol_sys(pump_inc_step_at_min_freq);
 show_store_gov_pol_sys(pump_inc_step);
 show_store_gov_pol_sys(pump_dec_step_at_min_freq);
 show_store_gov_pol_sys(pump_dec_step);
+show_store_gov_pol_sys(load_mode);
 
 #define gov_sys_attr_rw(_name)						\
 static struct global_attr _name##_gov_sys =				\
@@ -936,6 +987,7 @@ gov_sys_pol_attr_rw(pump_inc_step_at_min_freq);
 gov_sys_pol_attr_rw(pump_inc_step);
 gov_sys_pol_attr_rw(pump_dec_step_at_min_freq);
 gov_sys_pol_attr_rw(pump_dec_step);
+gov_sys_pol_attr_rw(load_mode);
 
 /* One Governor instance for entire system */
 static struct attribute *alucard_attributes_gov_sys[] = {
@@ -953,6 +1005,7 @@ static struct attribute *alucard_attributes_gov_sys[] = {
 	&pump_inc_step_gov_sys.attr,
 	&pump_dec_step_at_min_freq_gov_sys.attr,
 	&pump_dec_step_gov_sys.attr,
+	&load_mode_gov_sys.attr,
 	NULL,
 };
 
@@ -977,6 +1030,7 @@ static struct attribute *alucard_attributes_gov_pol[] = {
 	&pump_inc_step_gov_pol.attr,
 	&pump_dec_step_at_min_freq_gov_pol.attr,
 	&pump_dec_step_gov_pol.attr,
+	&load_mode_gov_pol.attr,
 	NULL,
 };
 
@@ -1024,6 +1078,7 @@ static struct cpufreq_alucard_tunables *alloc_tunable(
 	tunables->pump_inc_step = PUMP_INC_STEP;
 	tunables->pump_dec_step = PUMP_DEC_STEP;
 	tunables->pump_dec_step_at_min_freq = PUMP_DEC_STEP_AT_MIN_FREQ;
+	tunables->load_mode = LOAD_MODE;
 
 	return tunables;
 }

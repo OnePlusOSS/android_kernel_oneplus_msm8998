@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -157,7 +157,7 @@ QDF_STATUS sme_remain_on_chn_ready(tHalHandle hHal, uint8_t *pMsg)
 		sms_log(pMac, LOGE, FL("No cmd found in active list."));
 		return status;
 	}
-	sms_log(pMac, LOG1,
+	sms_log(pMac, LOGD,
 		FL("Ready Ind %d %d"), rsp->session_id, rsp->scan_id);
 	pCommand = GET_BASE_ADDR(pEntry, tSmeCmd, Link);
 	if (eSmeCommandRemainOnChannel == pCommand->command) {
@@ -279,8 +279,6 @@ QDF_STATUS p2p_remain_on_channel(tHalHandle hHal, uint8_t sessionId,
 		/* Put it at the head of the Q if we just finish finding the peer and ready to send a frame */
 		status = csr_queue_sme_command(pMac, pRemainChlCmd, false);
 	} while (0);
-
-	sms_log(pMac, LOGW, "exiting function %s", __func__);
 
 	return status;
 }

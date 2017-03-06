@@ -721,6 +721,25 @@ void hif_fake_apps_suspend(struct hif_opaque_softc *hif_ctx,
 void hif_fake_apps_resume(struct hif_opaque_softc *hif_ctx);
 #endif
 
+#ifdef HIF_SDIO
+/**
+ * hif_reg_based_get_target_info - to retrieve target info
+ * @hif_ctx: hif context
+ * @targ_info: bmi target info
+ *
+ * Return: QDF_STATUS_SUCCESS for success.
+ */
+QDF_STATUS hif_reg_based_get_target_info(struct hif_opaque_softc *hif_ctx,
+		  struct bmi_target_info *targ_info);
+#else
+static inline QDF_STATUS
+hif_reg_based_get_target_info(struct hif_opaque_softc *hif_ctx,
+		  struct bmi_target_info *targ_info)
+{
+	return QDF_STATUS_SUCCESS;
+}
+#endif
+
 #ifdef __cplusplus
 }
 #endif

@@ -114,7 +114,9 @@ static void do_recv_completion(HTC_ENDPOINT *pEndpoint,
 							("HTC ep %d has NULL recv callback on packet %p\n",
 							 pEndpoint->Id,
 							 pPacket));
-					qdf_nbuf_free(pPacket->pPktContext);
+					if (pPacket)
+						qdf_nbuf_free(
+							pPacket->pPktContext);
 					continue;
 				}
 				AR_DEBUG_PRINTF(ATH_DEBUG_RECV,

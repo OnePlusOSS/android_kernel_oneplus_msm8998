@@ -2059,6 +2059,17 @@ struct pno_nw_type {
 };
 
 /**
+ * struct connected_pno_band_rssi_pref - BSS preference based on band
+ * and RSSI
+ * @band: band preference
+ * @rssi_pref: RSSI preference
+ */
+struct cpno_band_rssi_pref {
+	int8_t band;
+	int8_t rssi;
+};
+
+/**
  * struct pno_scan_req_params - PNO Scan request structure
  * @enable: flag to enable or disable
  * @modePNO: PNO Mode
@@ -2085,6 +2096,10 @@ struct pno_nw_type {
  * @mac_addr_mask: MAC address mask used with randomization, bits that
  *	are 0 in the mask should be randomized, bits that are 1 should
  *	be taken from the @mac_addr
+ * @relative_rssi_set: Flag to check whether realtive_rssi is set or not
+ * @relative_rssi: Relative rssi threshold, used for connected pno
+ * @band_rssi_pref: Band and RSSI preference that can be given to one BSS
+ *	over the other BSS
  * @ie_whitelist: set to true for enabling ie whitelisting
  * @probe_req_ie_bitmap: contains IEs to be included in probe req
  * @num_vendor_oui: number of vendor OUIs
@@ -2120,6 +2135,10 @@ struct pno_scan_req_params {
 	bool enable_pno_scan_randomization;
 	uint8_t mac_addr[QDF_MAC_ADDR_SIZE];
 	uint8_t mac_addr_mask[QDF_MAC_ADDR_SIZE];
+
+	bool relative_rssi_set;
+	int8_t relative_rssi;
+	struct cpno_band_rssi_pref band_rssi_pref;
 
 	/* probe req ie whitelisting attrs */
 	bool ie_whitelist;

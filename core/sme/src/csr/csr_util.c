@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -512,7 +512,7 @@ static void csr_get_ch_from_ht_profile(tpAniSirGlobal pMac,
 	if (!ch_bond)
 		goto ret;
 
-	sms_log(pMac, LOG1, FL("##HTC: %d scbw: %d rcbw: %d sco: %d"
+	sms_log(pMac, LOGD, FL("##HTC: %d scbw: %d rcbw: %d sco: %d"
 				"VHTC: %d apc: %d apbw: %d"
 			      ),
 			htp->htCapability, htp->htSupportedChannelWidthSet,
@@ -697,7 +697,7 @@ uint16_t csr_check_concurrent_channel_overlap(tpAniSirGlobal mac_ctx,
 	uint16_t sap_lfreq, sap_hfreq, intf_lfreq, intf_hfreq, sap_cch = 0;
 	QDF_STATUS status;
 
-	sms_log(mac_ctx, LOG1, FL("sap_ch:%d sap_phymode:%d"),
+	sms_log(mac_ctx, LOGD, FL("sap_ch:%d sap_phymode:%d"),
 		sap_ch, sap_phymode);
 
 	if (mac_ctx->roam.configParam.cc_switch_mode ==
@@ -719,7 +719,7 @@ uint16_t csr_check_concurrent_channel_overlap(tpAniSirGlobal mac_ctx,
 		sap_cfreq = cds_chan_to_freq(sap_cch);
 	}
 
-	sms_log(mac_ctx, LOG1,
+	sms_log(mac_ctx, LOGD,
 		FL("sap_ch:%d sap_phymode:%d sap_cch:%d sap_hbw:%d chb:%d"),
 		sap_ch, sap_phymode, sap_cch, sap_hbw, chb);
 
@@ -739,7 +739,7 @@ uint16_t csr_check_concurrent_channel_overlap(tpAniSirGlobal mac_ctx,
 			csr_get_ch_from_ht_profile(mac_ctx,
 				&session->connectedProfile.HTProfile,
 				intf_ch, &intf_cfreq, &intf_hbw);
-			sms_log(mac_ctx, LOG1,
+			sms_log(mac_ctx, LOGD,
 				FL("%d: intf_ch:%d intf_cfreq:%d intf_hbw:%d"),
 				i, intf_ch, intf_cfreq, intf_hbw);
 		} else if (((session->pCurRoamProfile->csrPersona ==
@@ -755,14 +755,14 @@ uint16_t csr_check_concurrent_channel_overlap(tpAniSirGlobal mac_ctx,
 					session, &sap_ch, &sap_hbw, &sap_cfreq,
 					&intf_ch, &intf_hbw, &intf_cfreq);
 
-				sms_log(mac_ctx, LOG1,
+				sms_log(mac_ctx, LOGD,
 					FL("%d: sap_ch:%d sap_hbw:%d sap_cfreq:%d intf_ch:%d intf_hbw:%d, intf_cfreq:%d"),
 					i, sap_ch, sap_hbw, sap_cfreq,
 					intf_ch, intf_hbw, intf_cfreq);
 		}
 	}
 
-	sms_log(mac_ctx, LOG1,
+	sms_log(mac_ctx, LOGD,
 		FL("intf_ch:%d sap_ch:%d cc_switch_mode:%d"),
 		intf_ch, sap_ch, cc_switch_mode);
 
@@ -2006,7 +2006,7 @@ static bool csr_validate_p2pcli_bcn_intrvl(tpAniSirGlobal mac_ctx,
 		(roamsession->pCurRoamProfile->csrPersona ==
 			 QDF_STA_MODE)) {
 		/* check for P2P client mode */
-		sms_log(mac_ctx, LOG1,
+		sms_log(mac_ctx, LOGD,
 			FL(" Ignore Beacon Interval Validation..."));
 	} else if (roamsession->bssParams.bssPersona == QDF_P2P_GO_MODE) {
 		/* Check for P2P go scenario */
@@ -2114,7 +2114,7 @@ static bool csr_validate_sta_bcn_intrvl(tpAniSirGlobal mac_ctx,
 		(roamsession->pCurRoamProfile->csrPersona ==
 				QDF_P2P_CLIENT_MODE)) {
 		/* check for P2P client mode */
-		sms_log(mac_ctx, LOG1,
+		sms_log(mac_ctx, LOGD,
 			FL("Bcn Intrvl validation not require for STA/CLIENT"));
 		return false;
 	}
@@ -2162,7 +2162,7 @@ static bool csr_validate_sta_bcn_intrvl(tpAniSirGlobal mac_ctx,
 					mac_ctx, *bcn_interval,
 					roamsession->bssParams.beaconInterval);
 			}
-			sms_log(mac_ctx, LOG1,
+			sms_log(mac_ctx, LOGD,
 				FL(" Peer AP BI : %d, new Beacon Interval: %d"),
 				*bcn_interval, new_bcn_interval);
 			/* Update the becon Interval */
@@ -2835,7 +2835,7 @@ csr_is_pmf_capabilities_in_rsn_match(tHalHandle hHal,
 		apProfileMFPCapable = (pRSNIe->RSN_Cap[0] >> 7) & 0x1;
 		apProfileMFPRequired = (pRSNIe->RSN_Cap[0] >> 6) & 0x1;
 
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 			FL("pFilterMFPEnabled=%d pFilterMFPRequired=%d"
 			   "pFilterMFPCapable=%d apProfileMFPCapable=%d"
 			   "apProfileMFPRequired=%d"),
@@ -2845,7 +2845,7 @@ csr_is_pmf_capabilities_in_rsn_match(tHalHandle hHal,
 
 		if (*pFilterMFPEnabled && *pFilterMFPCapable
 		    && *pFilterMFPRequired && (apProfileMFPCapable == 0)) {
-			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
+			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 				  "AP is not capable to make PMF connection");
 			return false;
 		}  else if (!(*pFilterMFPCapable) &&
@@ -2856,7 +2856,7 @@ csr_is_pmf_capabilities_in_rsn_match(tHalHandle hHal,
 			 * requires mandatory PMF connections and we are not
 			 * capable so this AP is not good choice to connect
 			 */
-			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
+			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 				  "AP needs PMF connection and we are not capable of pmf connection");
 			return false;
 		}
@@ -2907,7 +2907,7 @@ static bool csr_lookup_pmkid(tpAniSirGlobal pMac, uint32_t sessionId,
 
 	do {
 		for (Index = 0; Index < CSR_MAX_PMKID_ALLOWED; Index++) {
-			sms_log(pMac, LOG1,
+			sms_log(pMac, LOGD,
 				"match PMKID " MAC_ADDRESS_STR " to ",
 				MAC_ADDR_ARRAY(pBSSId));
 			if (!qdf_mem_cmp
@@ -2927,7 +2927,7 @@ static bool csr_lookup_pmkid(tpAniSirGlobal pMac, uint32_t sessionId,
 
 		fRC = true;
 	} while (0);
-	sms_log(pMac, LOGW,
+	sms_log(pMac, LOGD,
 		"csr_lookup_pmkid called return match = %d pMac->roam.NumPmkidCache = %d",
 		fRC, pSession->NumPmkidCache);
 
@@ -2955,7 +2955,7 @@ uint8_t csr_construct_rsn_ie(tHalHandle hHal, uint32_t sessionId,
 	tDot11fBeaconIEs *pIesLocal = pIes;
 	eCsrAuthType negAuthType = eCSR_AUTH_TYPE_UNKNOWN;
 
-	sms_log(pMac, LOGW, "%s called...", __func__);
+	sms_log(pMac, LOGD, "%s called...", __func__);
 
 	do {
 		if (!csr_is_profile_rsn(pProfile))
@@ -3254,7 +3254,7 @@ static bool csr_lookup_bkid(tpAniSirGlobal pMac, uint32_t sessionId,
 
 	do {
 		for (Index = 0; Index < pSession->NumBkidCache; Index++) {
-			sms_log(pMac, LOGW, "match BKID " MAC_ADDRESS_STR " to ",
+			sms_log(pMac, LOGD, "match BKID " MAC_ADDRESS_STR " to ",
 				MAC_ADDR_ARRAY(pBSSId));
 			if (!qdf_mem_cmp
 			    (pBSSId, pSession->BkidCacheInfo[Index].BSSID.bytes,
@@ -3273,7 +3273,7 @@ static bool csr_lookup_bkid(tpAniSirGlobal pMac, uint32_t sessionId,
 
 		fRC = true;
 	} while (0);
-	sms_log(pMac, LOGW,
+	sms_log(pMac, LOGD,
 		"csr_lookup_bkid called return match = %d pMac->roam.NumBkidCache = %d",
 		fRC, pSession->NumBkidCache);
 
@@ -5445,7 +5445,7 @@ bool csr_is_set_key_allowed(tpAniSirGlobal pMac, uint32_t sessionId)
 	 * The current work-around is to process setcontext_rsp no matter
 	 * what the state is.
 	 */
-	sms_log(pMac, LOG2,
+	sms_log(pMac, LOGD,
 		FL(" is not what it intends to. Must be revisit or removed"));
 	if ((NULL == pSession)
 	    || (csr_is_conn_state_disconnected(pMac, sessionId)

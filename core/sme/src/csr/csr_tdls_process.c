@@ -372,7 +372,7 @@ static QDF_STATUS tdls_send_message(tpAniSirGlobal pMac, uint16_t msg_type,
 	pMsg->type = msg_type;
 	pMsg->msgLen = (uint16_t) (msg_size);
 
-	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
+	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 		  ("sending msg = %d"), pMsg->type);
 	/* Send message. */
 	if (cds_send_mb_message_to_mac(pMsg) != QDF_STATUS_SUCCESS) {
@@ -513,7 +513,7 @@ static QDF_STATUS csr_tdls_process_add_sta(tpAniSirGlobal pMac, tSmeCmd *cmd)
 		     tdlsAddStaCmdInfo->supportedRatesLen);
 
 	/* Send the request to PE. */
-	sms_log(pMac, LOGE, "sending TDLS Add Sta req to PE ");
+	sms_log(pMac, LOGD, "sending TDLS Add Sta req to PE ");
 	status = tdls_send_message(pMac, eWNI_SME_TDLS_ADD_STA_REQ,
 				   (void *)tdlsAddStaReq,
 				   sizeof(tSirTdlsAddStaReq));
@@ -670,7 +670,7 @@ QDF_STATUS csr_tdls_process_link_establish(tpAniSirGlobal pMac, tSmeCmd *cmd)
 	tdlsLinkEstablishReq->maxSp = tdlsLinkEstablishCmdInfo->maxSp;
 
 	/* Send the request to PE. */
-	sms_log(pMac, LOGE, "sending TDLS Link Establish Request to PE \n");
+	sms_log(pMac, LOGD, "sending TDLS Link Establish Request to PE \n");
 	status = tdls_send_message(pMac, eWNI_SME_TDLS_LINK_ESTABLISH_REQ,
 				   (void *)tdlsLinkEstablishReq,
 				   sizeof(tSirTdlsLinkEstablishReq));
@@ -797,7 +797,7 @@ QDF_STATUS tdls_msg_processor(tpAniSirGlobal pMac, uint16_t msgType,
 	case eWNI_SME_TDLS_SHOULD_DISCOVER:
 		qdf_copy_macaddr(&roamInfo.peerMac, &tevent->peermac);
 		roamInfo.reasonCode = tevent->peer_reason;
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 				"%s: eWNI_SME_TDLS_SHOULD_DISCOVER for peer mac: "
 				MAC_ADDRESS_STR " peer_reason: %d",
 				__func__, MAC_ADDR_ARRAY(tevent->peermac.bytes),
@@ -809,7 +809,7 @@ QDF_STATUS tdls_msg_processor(tpAniSirGlobal pMac, uint16_t msgType,
 	case eWNI_SME_TDLS_SHOULD_TEARDOWN:
 		qdf_copy_macaddr(&roamInfo.peerMac, &tevent->peermac);
 		roamInfo.reasonCode = tevent->peer_reason;
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 				"%s: eWNI_SME_TDLS_SHOULD_TEARDOWN for peer mac: "
 				MAC_ADDRESS_STR " peer_reason: %d",
 				__func__, MAC_ADDR_ARRAY(tevent->peermac.bytes),
@@ -821,7 +821,7 @@ QDF_STATUS tdls_msg_processor(tpAniSirGlobal pMac, uint16_t msgType,
 	case eWNI_SME_TDLS_PEER_DISCONNECTED:
 		qdf_copy_macaddr(&roamInfo.peerMac, &tevent->peermac);
 		roamInfo.reasonCode = tevent->peer_reason;
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 				"%s: eWNI_SME_TDLS_PEER_DISCONNECTED for peer mac: "
 				MAC_ADDRESS_STR " peer_reason: %d",
 				__func__, MAC_ADDR_ARRAY(tevent->peermac.bytes),
@@ -833,7 +833,7 @@ QDF_STATUS tdls_msg_processor(tpAniSirGlobal pMac, uint16_t msgType,
 	case eWNI_SME_TDLS_CONNECTION_TRACKER_NOTIFICATION:
 		qdf_copy_macaddr(&roamInfo.peerMac, &tevent->peermac);
 		roamInfo.reasonCode = tevent->peer_reason;
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 			  "%s: eWNI_SME_TDLS_CONNECTION_TRACKER_NOTIFICATION for peer mac: "
 			  MAC_ADDRESS_STR " peer_reason: %d",
 			  __func__, MAC_ADDR_ARRAY(tevent->peermac.bytes),

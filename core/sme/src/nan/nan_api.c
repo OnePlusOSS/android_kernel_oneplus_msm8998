@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -153,7 +153,7 @@ QDF_STATUS sme_nan_event(tHalHandle hHal, void *pMsg)
 			  FL("msg ptr is NULL"));
 		status = QDF_STATUS_E_FAILURE;
 	} else {
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO_MED,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 			  FL("SME: Received sme_nan_event"));
 		if (pMac->sme.nanCallback) {
 			pMac->sme.nanCallback(pMac->hHdd,

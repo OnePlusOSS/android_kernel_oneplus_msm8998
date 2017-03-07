@@ -2209,4 +2209,16 @@ static inline void hdd_init_nud_stats_ctx(hdd_context_t *hdd_ctx)
 	init_completion(&hdd_ctx->nud_stats_context.response_event);
 	return;
 }
+
+/**
+ * hdd_start_complete()- complete the start event
+ * @ret: return value for complete event.
+ *
+ * complete the startup event and set the return in
+ * global variable
+ *
+ * Return: void
+ */
+
+void hdd_start_complete(int ret);
 #endif /* end #if !defined(WLAN_HDD_MAIN_H) */

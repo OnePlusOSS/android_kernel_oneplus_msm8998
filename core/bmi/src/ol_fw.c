@@ -1533,6 +1533,23 @@ out:
 	return result;
 }
 
+#ifdef CONFIG_HL_SUPPORT
+
+/**
+ * ol_dump_ce_register() - cannot read the section
+ * @scn: ol_softc handler
+ * @memory_block: non-NULL reserved memory location
+ *
+ * Return: -EACCES for LL and not apllicable for HL
+ */
+static inline int
+ol_dump_ce_register(struct hif_opaque_softc *scn, void *memory_block)
+{
+	return 0;
+}
+
+#else
+
 static
 void ol_dump_target_memory(struct hif_opaque_softc *scn, void *memory_block)
 {
@@ -1561,22 +1578,6 @@ void ol_dump_target_memory(struct hif_opaque_softc *scn, void *memory_block)
 		buffer_loc += size;
 	}
 }
-
-#ifdef CONFIG_HL_SUPPORT
-
-/**
- * ol_dump_ce_register() - cannot read the section
- * @scn: ol_softc handler
- * @memory_block: non-NULL reserved memory location
- *
- * Return: -EACCES for LL and not apllicable for HL
- */
-static inline int
-ol_dump_ce_register(struct hif_opaque_softc *scn, void *memory_block)
-{
-	return 0;
-}
-#else
 
 static int
 ol_dump_ce_register(struct hif_opaque_softc *scn, void *memory_block)

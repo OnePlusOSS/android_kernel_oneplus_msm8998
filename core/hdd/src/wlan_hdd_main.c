@@ -107,6 +107,7 @@
 #include "wlan_hdd_disa.h"
 #include "ol_txrx.h"
 #include "cds_utils.h"
+#include "sir_api.h"
 
 #ifdef MODULE
 #define WLAN_MODULE_NAME  module_name(THIS_MODULE)
@@ -1820,8 +1821,6 @@ int hdd_wlan_start_modules(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 			goto ol_cds_free;
 		}
 
-		hdd_ctx->driver_status = DRIVER_MODULES_OPENED;
-
 		hdd_ctx->hHal = cds_get_context(QDF_MODULE_ID_SME);
 
 		status = cds_pre_enable(hdd_ctx->pcds_context);
@@ -1829,6 +1828,8 @@ int hdd_wlan_start_modules(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 			hdd_err("Failed to pre-enable CDS: %d", status);
 			goto close;
 		}
+
+		hdd_ctx->driver_status = DRIVER_MODULES_OPENED;
 
 		if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
 			sme_register_ftm_msg_processor(hdd_ctx->hHal,
@@ -2296,6 +2297,13 @@ static void __hdd_set_multicast_list(struct net_device *dev)
 		adapter->mc_addr_list.mc_cnt = 0;
 		return;
 	}
+
+	/* Delete already configured multicast address list */
+	if (adapter->mc_addr_list.mc_cnt > 0)
+		if (wlan_hdd_set_mc_addr_list(adapter, false)) {
+			hdd_info("failed to clear mc addr list");
+			return;
+		}
 
 	if (dev->flags & IFF_ALLMULTI) {
 		hdd_notice("allow all multicast frames");
@@ -3073,11 +3081,16 @@ static void hdd_set_fw_log_params(hdd_context_t *hdd_ctx,
 		 * For FW module ID 7 enable log level 6
 		 */
 
-		/* FW expects WMI command value =
-		 * Module ID * 10 + Module Log level
-		 */
-		value = ((moduleloglevel[count] * 10) +
-			 moduleloglevel[count + 1]);
+		if ((moduleloglevel[count] > WLAN_MODULE_ID_MAX)
+			|| (moduleloglevel[count + 1] > DBGLOG_LVL_MAX)) {
+			hdd_err("Module id %d and dbglog level %d input length is more than max",
+				moduleloglevel[count],
+				moduleloglevel[count + 1]);
+			return;
+		}
+
+		value = moduleloglevel[count] << 16;
+		value |= moduleloglevel[count + 1];
 		ret = wma_cli_set_command(adapter->sessionId,
 				WMI_DBGLOG_MOD_LOG_LEVEL,
 				value, DBG_CMD);
@@ -3770,7 +3783,6 @@ QDF_STATUS hdd_stop_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 			qdf_mem_free(adapter->sessionCtx.ap.beacon);
 			adapter->sessionCtx.ap.beacon = NULL;
 		}
-		mutex_unlock(&hdd_ctx->sap_lock);
 		if (true == bCloseSession)
 			hdd_wait_for_sme_close_sesion(hdd_ctx, adapter);
 
@@ -3782,6 +3794,7 @@ QDF_STATUS hdd_stop_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 			hdd_err("Failed:WLANSAP_close");
 
 		adapter->sessionCtx.ap.sapContext = NULL;
+		mutex_unlock(&hdd_ctx->sap_lock);
 
 		break;
 	case QDF_OCB_MODE:
@@ -3970,6 +3983,101 @@ struct cfg80211_bss *hdd_cfg80211_get_bss(struct wiphy *wiphy,
 #endif
 
 #if defined CFG80211_CONNECT_BSS
+#if defined CFG80211_CONNECT_TIMEOUT_REASON_CODE || \
+	(LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0))
+/**
+ * hdd_convert_timeout_reason() - Convert to kernel specific enum
+ * @timeout_reason: reason for connect timeout
+ *
+ * This function is used to convert host timeout
+ * reason enum to kernel specific enum.
+ *
+ * Return: nl timeout enum
+ */
+static enum nl80211_timeout_reason hdd_convert_timeout_reason(
+						tSirResultCodes timeout_reason)
+{
+	switch (timeout_reason) {
+	case eSIR_SME_JOIN_TIMEOUT_RESULT_CODE:
+		return NL80211_TIMEOUT_SCAN;
+	case eSIR_SME_AUTH_TIMEOUT_RESULT_CODE:
+		return NL80211_TIMEOUT_AUTH;
+	case eSIR_SME_ASSOC_TIMEOUT_RESULT_CODE:
+		return NL80211_TIMEOUT_ASSOC;
+	default:
+		return NL80211_TIMEOUT_UNSPECIFIED;
+	}
+}
+
+/**
+ * hdd_cfg80211_connect_timeout() - API to send connection timeout reason
+ * @dev: network device
+ * @bssid: bssid to which we want to associate
+ * @timeout_reason: reason for connect timeout
+ *
+ * This API is used to send connection timeout reason to supplicant
+ *
+ * Return: void
+ */
+static void hdd_cfg80211_connect_timeout(struct net_device *dev,
+					 const u8 *bssid,
+					 tSirResultCodes timeout_reason)
+{
+	enum nl80211_timeout_reason nl_timeout_reason;
+	nl_timeout_reason = hdd_convert_timeout_reason(timeout_reason);
+
+	cfg80211_connect_timeout(dev, bssid, NULL, 0, GFP_KERNEL,
+				 nl_timeout_reason);
+}
+
+/**
+ * __hdd_connect_bss() - API to send connection status to supplicant
+ * @dev: network device
+ * @bssid: bssid to which we want to associate
+ * @req_ie: Request Information Element
+ * @req_ie_len: len of the req IE
+ * @resp_ie: Response IE
+ * @resp_ie_len: len of ht response IE
+ * @status: status
+ * @gfp: Kernel Flag
+ * @timeout_reason: reason for connect timeout
+ *
+ * Return: void
+ */
+static void __hdd_connect_bss(struct net_device *dev, const u8 *bssid,
+			      struct cfg80211_bss *bss, const u8 *req_ie,
+			      size_t req_ie_len, const u8 *resp_ie,
+			      size_t resp_ie_len, int status, gfp_t gfp,
+			      tSirResultCodes timeout_reason)
+{
+	enum nl80211_timeout_reason nl_timeout_reason;
+	nl_timeout_reason = hdd_convert_timeout_reason(timeout_reason);
+
+	cfg80211_connect_bss(dev, bssid, bss, req_ie, req_ie_len,
+			     resp_ie, resp_ie_len, status, gfp,
+			     nl_timeout_reason);
+}
+#else
+#if defined CFG80211_CONNECT_TIMEOUT
+static void hdd_cfg80211_connect_timeout(struct net_device *dev,
+					 const u8 *bssid,
+					 tSirResultCodes timeout_reason)
+{
+	cfg80211_connect_timeout(dev, bssid, NULL, 0, GFP_KERNEL);
+}
+#endif
+
+static void __hdd_connect_bss(struct net_device *dev, const u8 *bssid,
+			      struct cfg80211_bss *bss, const u8 *req_ie,
+			      size_t req_ie_len, const u8 *resp_ie,
+			      size_t resp_ie_len, int status, gfp_t gfp,
+			      tSirResultCodes timeout_reason)
+{
+	cfg80211_connect_bss(dev, bssid, bss, req_ie, req_ie_len,
+			     resp_ie, resp_ie_len, status, gfp);
+}
+#endif
+
 /**
  * hdd_connect_bss() - API to send connection status to supplicant
  * @dev: network device
@@ -3981,6 +4089,7 @@ struct cfg80211_bss *hdd_cfg80211_get_bss(struct wiphy *wiphy,
  * @status: status
  * @gfp: Kernel Flag
  * @connect_timeout: If timed out waiting for Auth/Assoc/Probe resp
+ * @timeout_reason: reason for connect timeout
  *
  * The API is a wrapper to send connection status to supplicant
  *
@@ -3991,23 +4100,25 @@ static void hdd_connect_bss(struct net_device *dev, const u8 *bssid,
 			struct cfg80211_bss *bss, const u8 *req_ie,
 			size_t req_ie_len, const u8 *resp_ie,
 			size_t resp_ie_len, int status, gfp_t gfp,
-			bool connect_timeout)
+			bool connect_timeout,
+			tSirResultCodes timeout_reason)
 {
 	if (connect_timeout)
-		cfg80211_connect_timeout(dev, bssid, NULL, 0, GFP_KERNEL);
+		hdd_cfg80211_connect_timeout(dev, bssid, timeout_reason);
 	else
-		cfg80211_connect_bss(dev, bssid, bss, req_ie, req_ie_len,
-			resp_ie, resp_ie_len, status, gfp);
+		__hdd_connect_bss(dev, bssid, bss, req_ie, req_ie_len, resp_ie,
+				  resp_ie_len, status, gfp, timeout_reason);
 }
 #else
 static void hdd_connect_bss(struct net_device *dev, const u8 *bssid,
 			struct cfg80211_bss *bss, const u8 *req_ie,
 			size_t req_ie_len, const u8 *resp_ie,
 			size_t resp_ie_len, int status, gfp_t gfp,
-			bool connect_timeout)
+			bool connect_timeout,
+			tSirResultCodes timeout_reason)
 {
-	cfg80211_connect_bss(dev, bssid, bss, req_ie, req_ie_len,
-		resp_ie, resp_ie_len, status, gfp);
+	__hdd_connect_bss(dev, bssid, bss, req_ie, req_ie_len, resp_ie,
+			  resp_ie_len, status, gfp, timeout_reason);
 }
 #endif
 
@@ -4023,6 +4134,7 @@ static void hdd_connect_bss(struct net_device *dev, const u8 *bssid,
  * @status: status
  * @gfp: Kernel Flag
  * @connect_timeout: If timed out waiting for Auth/Assoc/Probe resp
+ * @timeout_reason: reason for connect timeout
  *
  * The API is a wrapper to send connection status to supplicant
  * and allow runtime suspend
@@ -4033,7 +4145,8 @@ void hdd_connect_result(struct net_device *dev, const u8 *bssid,
 			tCsrRoamInfo *roam_info, const u8 *req_ie,
 			size_t req_ie_len, const u8 *resp_ie,
 			size_t resp_ie_len, u16 status, gfp_t gfp,
-			bool connect_timeout)
+			bool connect_timeout,
+			tSirResultCodes timeout_reason)
 {
 	hdd_adapter_t *padapter = (hdd_adapter_t *) netdev_priv(dev);
 	struct cfg80211_bss *bss = NULL;
@@ -4058,7 +4171,7 @@ void hdd_connect_result(struct net_device *dev, const u8 *bssid,
 
 	hdd_connect_bss(dev, bssid, bss, req_ie,
 		req_ie_len, resp_ie, resp_ie_len,
-		status, gfp, connect_timeout);
+		status, gfp, connect_timeout, timeout_reason);
 
 	qdf_runtime_pm_allow_suspend(&padapter->connect_rpm_ctx.connect);
 }
@@ -4067,7 +4180,8 @@ void hdd_connect_result(struct net_device *dev, const u8 *bssid,
 			tCsrRoamInfo *roam_info, const u8 *req_ie,
 			size_t req_ie_len, const u8 *resp_ie,
 			size_t resp_ie_len, u16 status, gfp_t gfp,
-			bool connect_timeout)
+			bool connect_timeout,
+			tSirResultCodes timeout_reason)
 {
 	hdd_adapter_t *padapter = (hdd_adapter_t *) netdev_priv(dev);
 
@@ -4137,9 +4251,10 @@ QDF_STATUS hdd_start_all_adapters(hdd_context_t *hdd_ctx)
 				 * process of connecting
 				 */
 				hdd_connect_result(adapter->dev, NULL, NULL,
-							NULL, 0, NULL, 0,
-							WLAN_STATUS_ASSOC_DENIED_UNSPEC,
-							GFP_KERNEL, false);
+						   NULL, 0, NULL, 0,
+						   WLAN_STATUS_ASSOC_DENIED_UNSPEC,
+						   GFP_KERNEL, false,
+						   0);
 			}
 
 			hdd_register_tx_flow_control(adapter,
@@ -7676,6 +7791,37 @@ static void hdd_tsf_init(hdd_context_t *hdd_ctx)
 }
 #endif
 
+static int hdd_set_smart_chainmask_enabled(hdd_context_t *hdd_ctx)
+{
+	int vdev_id = 0;
+	int param_id = WMI_PDEV_PARAM_SMART_CHAINMASK_SCHEME;
+	int value = hdd_ctx->config->smart_chainmask_enabled;
+	int vpdev = PDEV_CMD;
+	int ret;
+
+	ret = wma_cli_set_command(vdev_id, param_id, value, vpdev);
+	if (ret)
+		hdd_err("WMI_PDEV_PARAM_SMART_CHAINMASK_SCHEME failed %d", ret);
+
+	return ret;
+}
+
+static int hdd_set_alternative_chainmask_enabled(hdd_context_t *hdd_ctx)
+{
+	int vdev_id = 0;
+	int param_id = WMI_PDEV_PARAM_ALTERNATIVE_CHAINMASK_SCHEME;
+	int value = hdd_ctx->config->alternative_chainmask_enabled;
+	int vpdev = PDEV_CMD;
+	int ret;
+
+	ret = wma_cli_set_command(vdev_id, param_id, value, vpdev);
+	if (ret)
+		hdd_err("WMI_PDEV_PARAM_ALTERNATIVE_CHAINMASK_SCHEME failed %d",
+			ret);
+
+	return ret;
+}
+
 /**
  * hdd_pre_enable_configure() - Configurations prior to cds_enable
  * @hdd_ctx:	HDD context
@@ -7721,6 +7867,14 @@ static int hdd_pre_enable_configure(hdd_context_t *hdd_ctx)
 		hdd_err("WMI_PDEV_PARAM_TX_CHAIN_MASK_1SS failed %d", ret);
 		goto out;
 	}
+
+	ret = hdd_set_smart_chainmask_enabled(hdd_ctx);
+	if (ret)
+		goto out;
+
+	ret = hdd_set_alternative_chainmask_enabled(hdd_ctx);
+	if (ret)
+		goto out;
 
 	hdd_program_country_code(hdd_ctx);
 
@@ -7886,6 +8040,7 @@ static int hdd_features_init(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 {
 	tSirTxPowerLimit hddtxlimit;
 	QDF_STATUS status;
+	struct sme_5g_band_pref_params band_pref_params;
 	int ret;
 
 	ENTER();
@@ -7954,6 +8109,22 @@ static int hdd_features_init(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 			hdd_err("Failed to disable Chan Avoidance Indication");
 			goto deregister_cb;
 		}
+	}
+
+	if (hdd_ctx->config->enable_5g_band_pref) {
+		band_pref_params.rssi_boost_threshold_5g =
+				hdd_ctx->config->rssi_boost_threshold_5g;
+		band_pref_params.rssi_boost_factor_5g =
+				hdd_ctx->config->rssi_boost_factor_5g;
+		band_pref_params.max_rssi_boost_5g =
+				hdd_ctx->config->max_rssi_boost_5g;
+		band_pref_params.rssi_penalize_threshold_5g =
+				hdd_ctx->config->rssi_penalize_threshold_5g;
+		band_pref_params.rssi_penalize_factor_5g =
+				hdd_ctx->config->rssi_penalize_factor_5g;
+		band_pref_params.max_rssi_penalize_5g =
+				hdd_ctx->config->max_rssi_penalize_5g;
+		sme_set_5g_band_pref(hdd_ctx->hHal, &band_pref_params);
 	}
 
 	/* register P2P Listen Offload event callback */
@@ -8513,14 +8684,13 @@ err_wiphy_unregister:
 err_stop_modules:
 	hdd_wlan_stop_modules(hdd_ctx);
 
-
+err_exit_nl_srv:
 	status = cds_sched_close(hdd_ctx->pcds_context);
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		hdd_alert("Failed to close CDS Scheduler");
 		QDF_ASSERT(QDF_IS_STATUS_SUCCESS(status));
 	}
 
-err_exit_nl_srv:
 	hdd_green_ap_deinit(hdd_ctx);
 	hdd_exit_netlink_services(hdd_ctx);
 

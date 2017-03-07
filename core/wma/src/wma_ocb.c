@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -424,8 +424,9 @@ int wma_ocb_get_tsf_timer(tp_wma_handle wma_handle,
  *
  * Return: 0 on success
  */
-int wma_ocb_get_tsf_timer_resp_event_handler(void *handle, uint8_t *event_buf,
-					     uint32_t len)
+static int wma_ocb_get_tsf_timer_resp_event_handler(void *handle,
+						    uint8_t *event_buf,
+						    uint32_t len)
 {
 	QDF_STATUS qdf_status;
 	struct sir_ocb_get_tsf_timer_response *response;
@@ -494,8 +495,9 @@ int wma_dcc_get_stats(tp_wma_handle wma_handle,
  *
  * Return: 0 on success
  */
-int wma_dcc_get_stats_resp_event_handler(void *handle, uint8_t *event_buf,
-				uint32_t len)
+static int wma_dcc_get_stats_resp_event_handler(void *handle,
+						uint8_t *event_buf,
+						uint32_t len)
 {
 	QDF_STATUS qdf_status;
 	struct sir_dcc_get_stats_response *response;
@@ -593,8 +595,9 @@ int wma_dcc_update_ndl(tp_wma_handle wma_handle,
  *
  * Return: 0 on success
  */
-int wma_dcc_update_ndl_resp_event_handler(void *handle, uint8_t *event_buf,
-					  uint32_t len)
+static int wma_dcc_update_ndl_resp_event_handler(void *handle,
+						 uint8_t *event_buf,
+						 uint32_t len)
 {
 	QDF_STATUS qdf_status;
 	struct sir_dcc_update_ndl_response *resp;
@@ -634,7 +637,7 @@ int wma_dcc_update_ndl_resp_event_handler(void *handle, uint8_t *event_buf,
  *
  * Return: 0 on success
  */
-int wma_dcc_stats_event_handler(void *handle, uint8_t *event_buf,
+static int wma_dcc_stats_event_handler(void *handle, uint8_t *event_buf,
 				uint32_t len)
 {
 	QDF_STATUS qdf_status;

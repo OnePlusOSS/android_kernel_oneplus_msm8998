@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -229,6 +229,15 @@ void lim_delete_sta_context(tpAniSirGlobal mac_ctx, tpSirMsgQ lim_msg)
 	switch (msg->reasonCode) {
 	case HAL_DEL_STA_REASON_CODE_KEEP_ALIVE:
 		if (LIM_IS_STA_ROLE(session_entry) && !msg->is_tdls) {
+			if (session_entry->limMlmState !=
+			    eLIM_MLM_LINK_ESTABLISHED_STATE) {
+				lim_log(mac_ctx, LOGE,
+				  FL("Do not process in limMlmState %s(%x)"),
+				  lim_mlm_state_str(session_entry->limMlmState),
+				  session_entry->limMlmState);
+				qdf_mem_free(msg);
+				return;
+			}
 			sta_ds = dph_get_hash_entry(mac_ctx,
 					DPH_STA_HASH_INDEX_PEER,
 					&session_entry->dph.dphHashTable);

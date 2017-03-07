@@ -2123,12 +2123,6 @@ stopbss:
 			       qdf_status);
 		}
 
-		/* once the event is set, structure dev/pHostapdAdapter should
-		 * not be touched since they are now subject to being deleted
-		 * by another thread */
-		if (eSAP_STOP_BSS_EVENT == sapEvent)
-			qdf_event_set(&pHostapdState->qdf_stop_bss_event);
-
 		/* notify userspace that the BSS has stopped */
 		memset(&we_custom_event, '\0', sizeof(we_custom_event));
 		memcpy(&we_custom_event, stopBssEvent, event_len);
@@ -2140,6 +2134,14 @@ stopbss:
 				    (char *)we_custom_event_generic);
 		cds_decr_session_set_pcl(pHostapdAdapter->device_mode,
 					 pHostapdAdapter->sessionId);
+
+		/* once the event is set, structure dev/pHostapdAdapter should
+		 * not be touched since they are now subject to being deleted
+		 * by another thread
+		 */
+		if (eSAP_STOP_BSS_EVENT == sapEvent)
+			qdf_event_set(&pHostapdState->qdf_stop_bss_event);
+
 		cds_dump_concurrency_info();
 		/* Send SCC/MCC Switching event to IPA */
 		hdd_ipa_send_mcc_scc_msg(pHddCtx, pHddCtx->mcc_mode);
@@ -7272,8 +7274,10 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 
 	ENTER();
 
-	if (!update_beacon && cds_is_connection_in_progress(NULL, NULL)) {
-		hdd_err("Can't start BSS: connection is in progress");
+	if (!update_beacon && (cds_is_connection_in_progress(NULL, NULL) ||
+		pHddCtx->btCoexModeSet)) {
+		hdd_err("Can't start BSS: connection ot btcoex(%d) is in progress",
+			pHddCtx->btCoexModeSet);
 		return -EINVAL;
 	}
 
@@ -7913,8 +7917,10 @@ static int __wlan_hdd_cfg80211_stop_ap(struct wiphy *wiphy,
 	if (0 != ret)
 		return ret;
 
-	if (QDF_SAP_MODE == pAdapter->device_mode)
+	if (pAdapter->device_mode == QDF_SAP_MODE) {
+		wlan_hdd_del_station(pAdapter);
 		hdd_green_ap_stop_bss(pHddCtx);
+	}
 
 	status = hdd_get_front_adapter(pHddCtx, &pAdapterNode);
 	while (NULL != pAdapterNode && QDF_STATUS_SUCCESS == status) {
@@ -8150,6 +8156,10 @@ static int __wlan_hdd_cfg80211_start_ap(struct wiphy *wiphy,
 		pAdapter, hdd_device_mode_to_string(pAdapter->device_mode),
 		pAdapter->device_mode, cds_is_sub_20_mhz_enabled());
 
+	if (pHddCtx->btCoexModeSet) {
+		hdd_info("BTCoex Mode operation in progress");
+		return -EBUSY;
+	}
 
 	if (cds_is_connection_in_progress(NULL, NULL)) {
 		hdd_err("Can't start BSS: connection is in progress");

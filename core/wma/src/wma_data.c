@@ -1232,7 +1232,7 @@ void wma_set_linkstate(tp_wma_handle wma, tpLinkStateParams params)
 			params->status = false;
 			status = QDF_STATUS_E_NOMEM;
 		}
-		if (wmi_unified_vdev_stop_send(wma->wmi_handle, vdev_id)) {
+		if (wma_send_vdev_stop_to_fw(wma, vdev_id)) {
 			WMA_LOGP("%s: %d Failed to send vdev stop vdev %d",
 				 __func__, __LINE__, vdev_id);
 			params->status = false;

@@ -853,7 +853,13 @@ static int wlan_hdd_request_remain_on_channel(struct wiphy *wiphy,
 	ret = wlan_hdd_validate_context(pHddCtx);
 	if (0 != ret)
 		return ret;
-	if (cds_is_connection_in_progress(NULL, NULL)) {
+
+	if (pHddCtx->btCoexModeSet) {
+		hdd_notice("BTCoex Mode operation in progress");
+		isBusy = true;
+	}
+
+	if (!isBusy && cds_is_connection_in_progress(NULL, NULL)) {
 		hdd_notice("Connection is in progress");
 		isBusy = true;
 	}
@@ -2079,8 +2085,6 @@ struct wireless_dev *__wlan_hdd_add_virtual_intf(struct wiphy *wiphy,
 		return ERR_PTR(-EINVAL);
 	}
 
-	wlan_hdd_tdls_disable_offchan_and_teardown_links(pHddCtx);
-
 	pAdapter = hdd_get_adapter(pHddCtx, QDF_STA_MODE);
 	if ((pAdapter != NULL) &&
 		!(wlan_hdd_validate_session_id(pAdapter->sessionId))) {
@@ -2167,7 +2171,7 @@ stop_modules:
 		hdd_info("Other interfaces are still up dont close modules!");
 
 close_adapter:
-	hdd_close_adapter(pHddCtx, pAdapter, false);
+	hdd_close_adapter(pHddCtx, pAdapter, true);
 
 	return ERR_PTR(-EINVAL);
 }

@@ -837,7 +837,7 @@ ol_txrx_bad_peer_txctl_update_threshold(struct ol_txrx_pdev_t *pdev,
  *
  * Return: None
  */
-void
+static void
 ol_tx_pdev_peer_bal_timer(void *context)
 {
 	int i;
@@ -1171,7 +1171,7 @@ ol_tx_queue_log_oldest_update(struct ol_txrx_pdev_t *pdev, int offset)
  *
  * Return: log element
  */
-void*
+static void*
 ol_tx_queue_log_alloc(
 	struct ol_txrx_pdev_t *pdev,
 	u_int8_t type /* ol_tx_log_entry_type */,

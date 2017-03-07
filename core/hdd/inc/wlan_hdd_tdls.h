@@ -528,7 +528,7 @@ int wlan_hdd_tdls_set_sta_id(hdd_adapter_t *pAdapter, const uint8_t *mac,
 			     uint8_t staId);
 
 hddTdlsPeer_t *wlan_hdd_tdls_find_peer(hdd_adapter_t *pAdapter,
-				       const uint8_t *mac, bool mutexLock);
+				       const uint8_t *mac);
 
 hddTdlsPeer_t *wlan_hdd_tdls_find_all_peer(hdd_context_t *pHddCtx,
 					   const uint8_t *mac);
@@ -538,16 +538,14 @@ int wlan_hdd_tdls_get_link_establish_params(hdd_adapter_t *pAdapter,
 					    tCsrTdlsLinkEstablishParams *
 					    tdlsLinkEstablishParams);
 hddTdlsPeer_t *wlan_hdd_tdls_get_peer(hdd_adapter_t *pAdapter,
-				      const uint8_t *mac,
-				      bool need_mutex_lock);
+				      const uint8_t *mac);
 
 int wlan_hdd_tdls_set_cap(hdd_adapter_t *pAdapter, const uint8_t *mac,
 			  tTDLSCapType cap);
 
 void wlan_hdd_tdls_set_peer_link_status(hddTdlsPeer_t *curr_peer,
 					tTDLSLinkStatus status,
-					tTDLSLinkReason reason,
-					bool lock_needed);
+					tTDLSLinkReason reason);
 void wlan_hdd_tdls_set_link_status(hdd_adapter_t *pAdapter,
 				   const uint8_t *mac,
 				   tTDLSLinkStatus linkStatus,
@@ -593,8 +591,7 @@ void wlan_hdd_tdls_increment_peer_count(hdd_adapter_t *pAdapter);
 void wlan_hdd_tdls_decrement_peer_count(hdd_adapter_t *pAdapter);
 
 hddTdlsPeer_t *wlan_hdd_tdls_is_progress(hdd_context_t *pHddCtx,
-					 const uint8_t *mac, uint8_t skip_self,
-					 bool need_lock);
+					 const uint8_t *mac, uint8_t skip_self);
 
 int wlan_hdd_tdls_copy_scan_context(hdd_context_t *pHddCtx,
 				    struct wiphy *wiphy,
@@ -713,8 +710,7 @@ int wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy,
 #endif
 #endif
 
-void hdd_tdls_notify_mode_change(hdd_adapter_t *adapter,
-				hdd_context_t *hddctx);
+void hdd_update_tdls_ct_and_teardown_links(hdd_context_t *hdd_ctx);
 void wlan_hdd_tdls_disable_offchan_and_teardown_links(hdd_context_t *hddctx);
 
 hddTdlsPeer_t *wlan_hdd_tdls_find_first_connected_peer(hdd_adapter_t *adapter);
@@ -792,8 +788,7 @@ int wlan_hdd_cfg80211_configure_tdls_mode(struct wiphy *wiphy,
 					int data_len);
 
 #else
-static inline void hdd_tdls_notify_mode_change(hdd_adapter_t *adapter,
-				hdd_context_t *hddctx)
+static inline void hdd_update_tdls_ct_and_teardown_links(hdd_context_t *hdd_ctx)
 {
 }
 static inline void

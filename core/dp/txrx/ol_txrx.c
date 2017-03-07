@@ -284,7 +284,7 @@ ol_txrx_find_peer_by_addr_and_vdev(ol_txrx_pdev_handle pdev,
 	if (!peer)
 		return NULL;
 	*peer_id = peer->local_id;
-	OL_TXRX_PEER_DEC_REF_CNT(peer);
+	OL_TXRX_PEER_UNREF_DELETE(peer);
 	return peer;
 }
 
@@ -328,17 +328,67 @@ void *ol_txrx_get_vdev_by_sta_id(uint8_t sta_id)
 	return peer->vdev;
 }
 
+/**
+ * ol_txrx_find_peer_by_addr() - find peer via peer mac addr and peer_id
+ * @pdev: pointer of type ol_txrx_pdev_handle
+ * @peer_addr: peer mac addr
+ * @peer_id: pointer to fill in the value of peer->local_id for caller
+ *
+ * This function finds a peer with given mac address and returns its peer_id.
+ * Note that this function does not increment the peer->ref_cnt.
+ * This means that the peer may be deleted in some other parallel context after
+ * its been found.
+ *
+ * Return: peer handle if peer is found, NULL if peer is not found.
+ */
 ol_txrx_peer_handle ol_txrx_find_peer_by_addr(ol_txrx_pdev_handle pdev,
 					      uint8_t *peer_addr,
 					      uint8_t *peer_id)
 {
 	struct ol_txrx_peer_t *peer;
 
-	peer = ol_txrx_peer_find_hash_find(pdev, peer_addr, 0, 1);
+	peer = ol_txrx_peer_find_hash_find_inc_ref(pdev, peer_addr, 0, 1);
 	if (!peer)
 		return NULL;
 	*peer_id = peer->local_id;
-	OL_TXRX_PEER_DEC_REF_CNT(peer);
+	OL_TXRX_PEER_UNREF_DELETE(peer);
+	return peer;
+}
+
+/**
+ * ol_txrx_find_peer_by_addr_inc_ref() - find peer via peer mac addr and peer_id
+ * @pdev: pointer of type ol_txrx_pdev_handle
+ * @peer_addr: peer mac addr
+ * @peer_id: pointer to fill in the value of peer->local_id for caller
+ *
+ * This function finds the peer with given mac address and returns its peer_id.
+ * Note that this function increments the peer->ref_cnt.
+ * This makes sure that peer will be valid. This also means the caller needs to
+ * call the corresponding API - OL_TXRX_PEER_UNREF_DELETE to delete the peer
+ * reference.
+ * Sample usage:
+ *    {
+ *      //the API call below increments the peer->ref_cnt
+ *      peer = ol_txrx_find_peer_by_addr_inc_ref(pdev, peer_addr, peer_id);
+ *
+ *      // Once peer usage is done
+ *
+ *      //the API call below decrements the peer->ref_cnt
+ *       OL_TXRX_PEER_UNREF_DELETE(peer);
+ *    }
+ *
+ * Return: peer handle if the peer is found, NULL if peer is not found.
+ */
+ol_txrx_peer_handle ol_txrx_find_peer_by_addr_inc_ref(ol_txrx_pdev_handle pdev,
+						uint8_t *peer_addr,
+						uint8_t *peer_id)
+{
+	struct ol_txrx_peer_t *peer;
+
+	peer = ol_txrx_peer_find_hash_find_inc_ref(pdev, peer_addr, 0, 1);
+	if (!peer)
+		return NULL;
+	*peer_id = peer->local_id;
 	return peer;
 }
 
@@ -1689,42 +1739,27 @@ A_STATUS ol_txrx_pdev_attach_target(ol_txrx_pdev_handle pdev)
 }
 
 /**
- * ol_txrx_pdev_detach() - delete the data SW state
- *
+ * ol_txrx_pdev_pre_detach() - detach the data SW state
  * @pdev - the data physical device object being removed
  * @force - delete the pdev (and its vdevs and peers) even if
  * there are outstanding references by the target to the vdevs
  * and peers within the pdev
  *
  * This function is used when the WLAN driver is being removed to
- * remove the host data component within the driver.
- * All virtual devices within the physical device need to be deleted
- * (ol_txrx_vdev_detach) before the physical device itself is deleted.
+ * detach the host data component within the driver.
  *
+ * Return: None
  */
-void ol_txrx_pdev_detach(ol_txrx_pdev_handle pdev, int force)
+void ol_txrx_pdev_pre_detach(ol_txrx_pdev_handle pdev, int force)
 {
 	int i;
 	int num_freed_tx_desc = 0;
-	struct hif_opaque_softc *osc =  cds_get_context(QDF_MODULE_ID_HIF);
 
-	/*checking to ensure txrx pdev structure is not NULL */
-	if (!pdev) {
-		TXRX_PRINT(TXRX_PRINT_LEVEL_ERR, "NULL pdev passed to %s\n", __func__);
-		return;
-	}
 	/* preconditions */
 	TXRX_ASSERT2(pdev);
 
 	/* check that the pdev has no vdevs allocated */
 	TXRX_ASSERT1(TAILQ_EMPTY(&pdev->vdev_list));
-
-	htt_pktlogmod_exit(pdev, osc);
-
-	OL_RX_REORDER_TIMEOUT_CLEANUP(pdev);
-
-	if (pdev->cfg.is_high_latency)
-		ol_tx_sched_detach(pdev);
 
 #ifdef QCA_SUPPORT_TX_THROTTLE
 	/* Thermal Mitigation */
@@ -1787,7 +1822,6 @@ void ol_txrx_pdev_detach(ol_txrx_pdev_handle pdev, int force)
 		"freed %d tx frames for which no resp from target",
 		num_freed_tx_desc);
 
-	htt_deregister_rx_pkt_dump_callback(pdev->htt_pdev);
 	ol_tx_deregister_flow_control(pdev);
 	/* Stop the communication between HTT and target at first */
 	htt_detach_target(pdev->htt_pdev);
@@ -1801,13 +1835,7 @@ void ol_txrx_pdev_detach(ol_txrx_pdev_handle pdev, int force)
 		htt_ipa_uc_detach(pdev->htt_pdev);
 
 	htt_detach(pdev->htt_pdev);
-	htt_pdev_free(pdev->htt_pdev);
-
 	ol_tx_desc_dup_detect_deinit(pdev);
-
-	ol_txrx_peer_find_detach(pdev);
-
-	ol_txrx_tso_stats_deinit(pdev);
 
 	qdf_spinlock_destroy(&pdev->tx_mutex);
 	qdf_spinlock_destroy(&pdev->peer_ref_mutex);
@@ -1827,17 +1855,55 @@ void ol_txrx_pdev_detach(ol_txrx_pdev_handle pdev, int force)
 	OL_RX_REORDER_TRACE_DETACH(pdev);
 	OL_RX_PN_TRACE_DETACH(pdev);
 
-	ol_txrx_pdev_txq_log_destroy(pdev);
-	ol_txrx_pdev_grp_stat_destroy(pdev);
 	/*
 	 * WDI event detach
 	 */
 	wdi_event_detach(pdev);
+
 	ol_txrx_local_peer_id_cleanup(pdev);
 
 #ifdef QCA_COMPUTE_TX_DELAY
 	qdf_spinlock_destroy(&pdev->tx_delay.mutex);
 #endif
+}
+
+/**
+ * ol_txrx_pdev_detach() - delete the data SW state
+ * @pdev - the data physical device object being removed
+ *
+ * This function is used when the WLAN driver is being removed to
+ * remove the host data component within the driver.
+ * All virtual devices within the physical device need to be deleted
+ * (ol_txrx_vdev_detach) before the physical device itself is deleted.
+ *
+ * Return: None
+ */
+void ol_txrx_pdev_detach(ol_txrx_pdev_handle pdev)
+{
+	struct hif_opaque_softc *osc =  cds_get_context(QDF_MODULE_ID_HIF);
+
+	/*checking to ensure txrx pdev structure is not NULL */
+	if (!pdev) {
+		TXRX_PRINT(TXRX_PRINT_LEVEL_ERR,
+			   "NULL pdev passed to %s\n", __func__);
+		return;
+	}
+
+	htt_pktlogmod_exit(pdev, osc);
+
+	OL_RX_REORDER_TIMEOUT_CLEANUP(pdev);
+
+	if (pdev->cfg.is_high_latency)
+		ol_tx_sched_detach(pdev);
+
+	htt_deregister_rx_pkt_dump_callback(pdev->htt_pdev);
+
+	htt_pdev_free(pdev->htt_pdev);
+	ol_txrx_peer_find_detach(pdev);
+	ol_txrx_tso_stats_deinit(pdev);
+
+	ol_txrx_pdev_txq_log_destroy(pdev);
+	ol_txrx_pdev_grp_stat_destroy(pdev);
 }
 
 #if defined(CONFIG_PER_VDEV_TX_DESC_POOL)
@@ -2038,6 +2104,34 @@ void ol_txrx_set_drop_unenc(ol_txrx_vdev_handle vdev, uint32_t val)
 	vdev->drop_unenc = val;
 }
 
+#if defined(CONFIG_HL_SUPPORT)
+
+static void
+ol_txrx_tx_desc_reset_vdev(ol_txrx_vdev_handle vdev)
+{
+	struct ol_txrx_pdev_t *pdev = vdev->pdev;
+	int i;
+	struct ol_tx_desc_t *tx_desc;
+
+	qdf_spin_lock_bh(&pdev->tx_mutex);
+	for (i = 0; i < pdev->tx_desc.pool_size; i++) {
+		tx_desc = ol_tx_desc_find(pdev, i);
+		if (tx_desc->vdev == vdev)
+			tx_desc->vdev = NULL;
+	}
+	qdf_spin_unlock_bh(&pdev->tx_mutex);
+}
+
+#else
+
+static void
+ol_txrx_tx_desc_reset_vdev(ol_txrx_vdev_handle vdev)
+{
+
+}
+
+#endif
+
 /**
  * ol_txrx_vdev_detach - Deallocate the specified data virtual
  * device object.
@@ -2128,6 +2222,18 @@ ol_txrx_vdev_detach(ol_txrx_vdev_handle vdev,
 		   vdev->mac_addr.raw[4], vdev->mac_addr.raw[5]);
 
 	htt_vdev_detach(pdev->htt_pdev, vdev->vdev_id);
+
+	/*
+	* The ol_tx_desc_free might access the invalid content of vdev referred
+	* by tx desc, since this vdev might be detached in another thread
+	* asynchronous.
+	*
+	* Go through tx desc pool to set corresponding tx desc's vdev to NULL
+	* when detach this vdev, and add vdev checking in the ol_tx_desc_free
+	* to avoid crash.
+	*
+	*/
+	ol_txrx_tx_desc_reset_vdev(vdev);
 
 	/*
 	 * Doesn't matter if there are outstanding tx frames -
@@ -2718,7 +2824,7 @@ QDF_STATUS ol_txrx_peer_state_update(struct ol_txrx_pdev_t *pdev,
 		return QDF_STATUS_E_INVAL;
 	}
 
-	peer =  ol_txrx_peer_find_hash_find(pdev, peer_mac, 0, 1);
+	peer =  ol_txrx_peer_find_hash_find_inc_ref(pdev, peer_mac, 0, 1);
 	if (NULL == peer) {
 		TXRX_PRINT(TXRX_PRINT_LEVEL_INFO2,
 			   "%s: peer is null for peer_mac 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
@@ -2795,7 +2901,7 @@ ol_txrx_peer_update(ol_txrx_vdev_handle vdev,
 	struct ol_txrx_peer_t *peer;
 	int    peer_ref_cnt;
 
-	peer = ol_txrx_peer_find_hash_find(vdev->pdev, peer_mac, 0, 1);
+	peer = ol_txrx_peer_find_hash_find_inc_ref(vdev->pdev, peer_mac, 0, 1);
 	if (!peer) {
 		TXRX_PRINT(TXRX_PRINT_LEVEL_INFO2, "%s: peer is null",
 			   __func__);
@@ -2969,11 +3075,9 @@ int ol_txrx_peer_unref_delete(ol_txrx_peer_handle peer,
 	if (qdf_atomic_dec_and_test(&peer->ref_cnt)) {
 		u_int16_t peer_id;
 
-		TXRX_PRINT(TXRX_PRINT_LEVEL_INFO1,
-			   "(%s) Deleting peer %p (%pM) ref_cnt %d\n",
-			   fname,
-			   peer,
-			   peer->mac_addr.raw,
+		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO,
+			   "[%s][%d]: Deleting peer %p (%pM) ref_cnt %d\n",
+			   fname, line, peer, peer->mac_addr.raw,
 			   qdf_atomic_read(&peer->ref_cnt));
 
 		wma_peer_debug_log(vdev->vdev_id, DEBUG_DELETING_PEER_OBJ,
@@ -3018,13 +3122,23 @@ int ol_txrx_peer_unref_delete(ol_txrx_peer_handle peer,
 					vdev->delete.callback;
 				void *vdev_delete_context =
 					vdev->delete.context;
-
 				/*
 				 * Now that there are no references to the peer,
 				 * we can release the peer reference lock.
 				 */
 				qdf_spin_unlock_bh(&pdev->peer_ref_mutex);
 
+				/*
+				* The ol_tx_desc_free might access the invalid content of vdev
+				* referred by tx desc, since this vdev might be detached in
+				* another thread asynchronous.
+				*
+				* Go through tx desc pool to set corresponding tx desc's vdev
+				* to NULL when detach this vdev, and add vdev checking in the
+				* ol_tx_desc_free to avoid crash.
+				*
+				*/
+				ol_txrx_tx_desc_reset_vdev(vdev);
 				TXRX_PRINT(TXRX_PRINT_LEVEL_INFO1,
 					   "%s: deleting vdev object %p "
 					   "(%02x:%02x:%02x:%02x:%02x:%02x)"
@@ -3073,8 +3187,8 @@ int ol_txrx_peer_unref_delete(ol_txrx_peer_handle peer,
 	} else {
 		qdf_spin_unlock_bh(&pdev->peer_ref_mutex);
 		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_HIGH,
-			  "ref delete(%s): peer %p peer->ref_cnt = %d",
-			  fname, peer, rc);
+			  "[%s][%d]: ref delete peer %p peer->ref_cnt = %d",
+			  fname, line, peer, rc);
 	}
 
 	return rc;
@@ -3184,7 +3298,7 @@ void ol_txrx_peer_detach(ol_txrx_peer_handle peer)
 	/* debug print to dump rx reorder state */
 	/* htt_rx_reorder_log_print(vdev->pdev->htt_pdev); */
 
-	TXRX_PRINT(TXRX_PRINT_LEVEL_INFO1,
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO,
 		   "%s:peer %p (%02x:%02x:%02x:%02x:%02x:%02x)",
 		   __func__, peer,
 		   peer->mac_addr.raw[0], peer->mac_addr.raw[1],
@@ -3268,7 +3382,7 @@ ol_txrx_peer_handle
 ol_txrx_peer_find_by_addr(struct ol_txrx_pdev_t *pdev, uint8_t *peer_mac_addr)
 {
 	struct ol_txrx_peer_t *peer;
-	peer = ol_txrx_peer_find_hash_find(pdev, peer_mac_addr, 0, 0);
+	peer = ol_txrx_peer_find_hash_find_inc_ref(pdev, peer_mac_addr, 0, 0);
 	if (peer) {
 		/* release the extra reference */
 		OL_TXRX_PEER_UNREF_DELETE(peer);

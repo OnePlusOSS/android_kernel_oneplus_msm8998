@@ -116,6 +116,7 @@
 #define RX_HASH_LOG(x)          /* no-op */
 #endif
 
+#ifndef CONFIG_HL_SUPPORT
 /* De -initialization function of the rx buffer hash table. This function will
  *   free up the hash table which includes freeing all the pending rx buffers
  */
@@ -168,6 +169,7 @@ static void htt_rx_hash_deinit(struct htt_pdev_t *pdev)
 	qdf_spinlock_destroy(&(pdev->rx_ring.rx_hash_lock));
 
 }
+#endif
 
 /*
  * This function is used both below within this file (which the compiler
@@ -214,7 +216,7 @@ htt_rx_mpdu_desc_retry_hl(htt_pdev_handle pdev, void *mpdu_desc)
 }
 
 #ifdef CONFIG_HL_SUPPORT
-u_int16_t
+static u_int16_t
 htt_rx_mpdu_desc_seq_num_hl(htt_pdev_handle pdev, void *mpdu_desc)
 {
 	if (pdev->rx_desc_size_hl) {
@@ -332,6 +334,7 @@ htt_rx_msdu_is_frag_hl(htt_pdev_handle pdev, void *msdu_desc)
 		HTT_WORD_GET(*(u_int32_t *)rx_desc, HTT_HL_RX_DESC_MCAST_BCAST);
 }
 
+#ifndef CONFIG_HL_SUPPORT
 static bool
 htt_rx_msdu_first_msdu_flag_ll(htt_pdev_handle pdev, void *msdu_desc)
 {
@@ -343,12 +346,11 @@ htt_rx_msdu_first_msdu_flag_ll(htt_pdev_handle pdev, void *msdu_desc)
 		 RX_MSDU_END_4_FIRST_MSDU_LSB);
 }
 
-#ifndef CONFIG_HL_SUPPORT
 #define RX_PADDR_MAGIC_PATTERN 0xDEAD0000
 static qdf_dma_addr_t
 htt_rx_paddr_mark_high_bits(qdf_dma_addr_t paddr)
 {
-#ifdef HELIUMPLUS_PADDR64
+#ifdef ENABLE_DEBUG_ADDRESS_MARKING
 	if (sizeof(qdf_dma_addr_t) > 4) {
 		/* clear high bits, leave lower 37 bits (paddr) */
 		paddr &= 0x01FFFFFFFFF;
@@ -359,7 +361,7 @@ htt_rx_paddr_mark_high_bits(qdf_dma_addr_t paddr)
 	return paddr;
 }
 
-#ifdef HELIUMPLUS_PADDR64
+#ifdef ENABLE_DEBUG_ADDRESS_MARKING
 static qdf_dma_addr_t
 htt_rx_paddr_unmark_high_bits(qdf_dma_addr_t paddr)
 {
@@ -409,8 +411,7 @@ htt_rx_in_ord_paddr_get(uint32_t *u32p)
 {
 	return HTT_RX_IN_ORD_PADDR_IND_PADDR_GET(*u32p);
 }
-#endif /* HELIUMPLUS_PADDR64 */
-#endif /* CONFIG_HL_SUPPORT*/
+#endif /* ENABLE_DEBUG_ADDRESS_MARKING */
 
 /* full_reorder_offload case: this function is called with lock held */
 static int htt_rx_ring_fill_n(struct htt_pdev_t *pdev, int num)
@@ -526,9 +527,6 @@ fail:
 
 	return filled;
 }
-
-
-#ifndef CONFIG_HL_SUPPORT
 
 static int htt_rx_ring_size(struct htt_pdev_t *pdev)
 {
@@ -688,7 +686,6 @@ void htt_rx_detach(struct htt_pdev_t *pdev)
 	/* destroy the rx-parallelization refill spinlock */
 	qdf_spinlock_destroy(&(pdev->rx_ring.refill_lock));
 }
-#endif
 
 /*--- rx descriptor field access functions ----------------------------------*/
 /*
@@ -813,20 +810,6 @@ htt_rx_mpdu_desc_tid_ll(htt_pdev_handle pdev, void *mpdu_desc)
 		RX_MPDU_START_2_TID_LSB);
 }
 
-uint32_t htt_rx_mpdu_desc_tsf32(htt_pdev_handle pdev, void *mpdu_desc)
-{
-/* FIX THIS */
-	return 0;
-}
-
-/* FIX THIS: APPLIES TO LL ONLY */
-char *htt_rx_mpdu_wifi_hdr_retrieve(htt_pdev_handle pdev, void *mpdu_desc)
-{
-	struct htt_host_rx_desc_base *rx_desc =
-		(struct htt_host_rx_desc_base *)mpdu_desc;
-	return rx_desc->rx_hdr_status;
-}
-
 /* FIX THIS: APPLIES TO LL ONLY */
 static bool htt_rx_msdu_desc_completes_mpdu_ll(htt_pdev_handle pdev,
 					       void *msdu_desc)
@@ -870,6 +853,21 @@ static int htt_rx_msdu_is_frag_ll(htt_pdev_handle pdev, void *msdu_desc)
 	return
 		((*((uint32_t *) &rx_desc->attention)) &
 		 RX_ATTENTION_0_FRAGMENT_MASK) >> RX_ATTENTION_0_FRAGMENT_LSB;
+}
+#endif
+
+uint32_t htt_rx_mpdu_desc_tsf32(htt_pdev_handle pdev, void *mpdu_desc)
+{
+/* FIX THIS */
+	return 0;
+}
+
+/* FIX THIS: APPLIES TO LL ONLY */
+char *htt_rx_mpdu_wifi_hdr_retrieve(htt_pdev_handle pdev, void *mpdu_desc)
+{
+	struct htt_host_rx_desc_base *rx_desc =
+		(struct htt_host_rx_desc_base *)mpdu_desc;
+	return rx_desc->rx_hdr_status;
 }
 
 static inline
@@ -1081,6 +1079,7 @@ void htt_set_checksum_result_hl(qdf_nbuf_t msdu,
 #define MAX_DONE_BIT_CHECK_ITER 5
 #endif
 
+#ifndef CONFIG_HL_SUPPORT
 static int
 htt_rx_amsdu_pop_ll(htt_pdev_handle pdev,
 		    qdf_nbuf_t rx_ind_msg,
@@ -1133,10 +1132,10 @@ htt_rx_amsdu_pop_ll(htt_pdev_handle pdev,
 		 * Check if this MSDU completes a MPDU.
 		 */
 		rx_desc = htt_rx_desc(msdu);
-#if defined(HELIUMPLUS_PADDR64)
+#if defined(HELIUMPLUS)
 		if (HTT_WIFI_IP(pdev, 2, 0))
 			pad_bytes = rx_desc->msdu_end.l3_header_padding;
-#endif /* defined(HELIUMPLUS_PADDR64) */
+#endif /* defined(HELIUMPLUS) */
 		/*
 		 * Make the netbuf's data pointer point to the payload rather
 		 * than the descriptor.
@@ -1350,6 +1349,7 @@ htt_rx_amsdu_pop_ll(htt_pdev_handle pdev,
 	 */
 	return msdu_chaining;
 }
+#endif
 
 #if defined(CONFIG_HL_SUPPORT)
 
@@ -1445,6 +1445,7 @@ htt_rx_offload_msdu_pop_hl(htt_pdev_handle pdev,
 }
 #endif
 
+#ifndef CONFIG_HL_SUPPORT
 static int
 htt_rx_offload_msdu_pop_ll(htt_pdev_handle pdev,
 			   qdf_nbuf_t offload_deliver_msg,
@@ -1539,6 +1540,7 @@ htt_rx_offload_paddr_msdu_pop_ll(htt_pdev_handle pdev,
 	qdf_nbuf_set_pktlen(buf, msdu_len);
 	return 0;
 }
+#endif
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #if HTT_PADDR64
@@ -1547,6 +1549,7 @@ htt_rx_offload_paddr_msdu_pop_ll(htt_pdev_handle pdev,
 #define NEXT_FIELD_OFFSET_IN32 1
 #endif /* HTT_PADDR64 */
 
+#ifndef CONFIG_HL_SUPPORT
 /**
  * htt_mon_rx_handle_amsdu_packet() - Handle consecutive fragments of amsdu
  * @msdu: pointer to first msdu of amsdu
@@ -1849,6 +1852,7 @@ static void htt_rx_mon_get_rx_status(htt_pdev_handle pdev,
 	rx_status->chan_flags = channel_flags;
 	rx_status->ant_signal_db = rx_desc->ppdu_start.rssi_comb;
 }
+#endif
 
 #ifdef RX_HASH_DEBUG
 #define HTT_RX_CHECK_MSDU_COUNT(msdu_count) HTT_ASSERT_ALWAYS(msdu_count)
@@ -1856,6 +1860,7 @@ static void htt_rx_mon_get_rx_status(htt_pdev_handle pdev,
 #define HTT_RX_CHECK_MSDU_COUNT(msdu_count)     /* no-op */
 #endif
 
+#ifndef CONFIG_HL_SUPPORT
 /**
  * htt_rx_mon_amsdu_rx_in_order_pop_ll() - Monitor mode HTT Rx in order pop
  * function
@@ -1994,6 +1999,7 @@ static int htt_rx_mon_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 
 	return 1;
 }
+#endif
 
 /**
  * htt_rx_mon_note_capture_channel() - Make note of channel to update in
@@ -2019,6 +2025,7 @@ uint32_t htt_rx_amsdu_rx_in_order_get_pktlog(qdf_nbuf_t rx_ind_msg)
 	return HTT_RX_IN_ORD_PADDR_IND_PKTLOG_GET(*msg_word);
 }
 
+#ifndef CONFIG_HL_SUPPORT
 /* Return values: 1 - success, 0 - failure */
 static int
 htt_rx_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
@@ -2206,6 +2213,7 @@ htt_rx_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 
 	return 1;
 }
+#endif
 
 /* Util fake function that has same prototype as qdf_nbuf_clone that just
  * retures the same nbuf
@@ -2642,6 +2650,7 @@ bool (*htt_rx_mpdu_is_encrypted)(htt_pdev_handle pdev, void *mpdu_desc);
 bool (*htt_rx_msdu_desc_key_id)(htt_pdev_handle pdev,
 				void *mpdu_desc, uint8_t *key_id);
 
+#ifndef CONFIG_HL_SUPPORT
 static
 void *htt_rx_mpdu_desc_list_next_ll(htt_pdev_handle pdev, qdf_nbuf_t rx_ind_msg)
 {
@@ -2650,6 +2659,7 @@ void *htt_rx_mpdu_desc_list_next_ll(htt_pdev_handle pdev, qdf_nbuf_t rx_ind_msg)
 	pdev->rx_ring.sw_rd_idx.msdu_desc = pdev->rx_ring.sw_rd_idx.msdu_payld;
 	return (void *)htt_rx_desc(netbuf);
 }
+#endif
 
 bool (*htt_rx_msdu_chan_info_present)(
 	htt_pdev_handle pdev,
@@ -2664,11 +2674,13 @@ bool (*htt_rx_msdu_center_freq)(
 	uint16_t *contig_chan2_center_freq_mhz,
 	uint8_t *phy_mode);
 
+#ifndef CONFIG_HL_SUPPORT
 static void *htt_rx_in_ord_mpdu_desc_list_next_ll(htt_pdev_handle pdev,
 						  qdf_nbuf_t netbuf)
 {
 	return (void *)htt_rx_desc(netbuf);
 }
+#endif
 
 #if defined(CONFIG_HL_SUPPORT)
 
@@ -2816,6 +2828,7 @@ htt_rx_msdu_desc_key_id_hl(htt_pdev_handle htt_pdev,
 
 #endif
 
+#ifndef CONFIG_HL_SUPPORT
 static void *htt_rx_msdu_desc_retrieve_ll(htt_pdev_handle pdev, qdf_nbuf_t msdu)
 {
 	return htt_rx_desc(msdu);
@@ -2872,6 +2885,7 @@ htt_rx_msdu_desc_key_id_ll(htt_pdev_handle pdev, void *mpdu_desc,
 
 	return true;
 }
+#endif
 
 void htt_rx_desc_frame_free(htt_pdev_handle htt_pdev, qdf_nbuf_t msdu)
 {
@@ -2919,6 +2933,7 @@ void htt_rx_msdu_buff_replenish(htt_pdev_handle pdev)
 	qdf_atomic_inc(&pdev->rx_ring.refill_ref_cnt);
 }
 
+#ifndef CONFIG_HL_SUPPORT
 #define RX_RING_REFILL_DEBT_MAX 128
 int htt_rx_msdu_buff_in_order_replenish(htt_pdev_handle pdev, uint32_t num)
 {
@@ -2952,6 +2967,7 @@ int htt_rx_msdu_buff_in_order_replenish(htt_pdev_handle pdev, uint32_t num)
 
 	return filled;
 }
+#endif
 
 #define AR600P_ASSEMBLE_HW_RATECODE(_rate, _nss, _pream)     \
 	(((_pream) << 6) | ((_nss) << 4) | (_rate))
@@ -3145,6 +3161,7 @@ qdf_nbuf_t htt_rx_hash_list_lookup(struct htt_pdev_t *pdev, uint32_t paddr)
 	return netbuf;
 }
 
+#ifndef CONFIG_HL_SUPPORT
 /* Initialization function of the rx buffer hash table. This function will
    allocate a hash table of a certain pre-determined size and initialize all
    the elements */
@@ -3222,6 +3239,7 @@ hi_end:
 
 	return rc;
 }
+#endif
 
 /*--- RX In Order Hash Code --------------------------------------------------*/
 

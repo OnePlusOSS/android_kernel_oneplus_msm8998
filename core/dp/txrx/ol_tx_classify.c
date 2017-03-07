@@ -367,7 +367,7 @@ struct ol_txrx_peer_t *ol_tx_tdls_peer_find(struct ol_txrx_pdev_t *pdev,
 }
 
 #else
-struct ol_txrx_peer_t *ol_tx_tdls_peer_find(struct ol_txrx_pdev_t *pdev,
+static struct ol_txrx_peer_t *ol_tx_tdls_peer_find(struct ol_txrx_pdev_t *pdev,
 						struct ol_txrx_vdev_t *vdev,
 						uint8_t *peer_id)
 {
@@ -455,7 +455,7 @@ ol_tx_classify(
 			 * classify_extension function can check whether to
 			 * encrypt multicast / broadcast frames.
 			 */
-			peer = ol_txrx_peer_find_hash_find(pdev,
+			peer = ol_txrx_peer_find_hash_find_inc_ref(pdev,
 							vdev->mac_addr.raw,
 							0, 1);
 			if (!peer) {
@@ -533,8 +533,9 @@ ol_tx_classify(
 #endif
 			peer = ol_tx_tdls_peer_find(pdev, vdev, &peer_id);
 		} else {
-			peer = ol_txrx_peer_find_hash_find(pdev, dest_addr,
-									0, 1);
+			peer = ol_txrx_peer_find_hash_find_inc_ref(pdev,
+								dest_addr,
+								0, 1);
 		}
 		tx_msdu_info->htt.info.is_unicast = true;
 		if (!peer) {
@@ -695,7 +696,7 @@ ol_tx_classify_mgmt(
 			}
 		} else {
 			/* find the peer and increment its reference count */
-			peer = ol_txrx_peer_find_hash_find(pdev, dest_addr,
+			peer = ol_txrx_peer_find_hash_find_inc_ref(pdev, dest_addr,
 									0, 1);
 		}
 		tx_msdu_info->peer = peer;
@@ -732,155 +733,4 @@ ol_tx_classify_mgmt(
 	TX_SCHED_DEBUG_PRINT("Leave %s\n", __func__);
 	return txq;
 }
-
-A_STATUS
-ol_tx_classify_extension(
-	struct ol_txrx_vdev_t *vdev,
-	struct ol_tx_desc_t *tx_desc,
-	qdf_nbuf_t tx_msdu,
-	struct ol_txrx_msdu_info_t *msdu_info)
-{
-	A_UINT8 *datap = qdf_nbuf_data(tx_msdu);
-	struct ol_txrx_peer_t *peer;
-	int which_key;
-
-	/*
-	 * The following msdu_info fields were already filled in by the
-	 * ol_tx entry function or the regular ol_tx_classify function:
-	 *     htt.info.vdev_id            (ol_tx_hl or ol_tx_non_std_hl)
-	 *     htt.info.ext_tid            (ol_tx_non_std_hl or ol_tx_classify)
-	 *     htt.info.frame_type         (ol_tx_hl or ol_tx_non_std_hl)
-	 *     htt.info.l2_hdr_type        (ol_tx_hl or ol_tx_non_std_hl)
-	 *     htt.info.is_unicast         (ol_tx_classify)
-	 *     htt.info.peer_id            (ol_tx_classify)
-	 *     peer                        (ol_tx_classify)
-	 *     if (is_unicast) {
-	 *         htt.info.ethertype      (ol_tx_classify)
-	 *         htt.info.l3_hdr_offset  (ol_tx_classify)
-	 *     }
-	 * The following fields need to be filled in by this function:
-	 *     if (!is_unicast) {
-	 *         htt.info.ethertype
-	 *         htt.info.l3_hdr_offset
-	 *     }
-	 *     htt.action.band (NOT CURRENTLY USED)
-	 *     htt.action.do_encrypt
-	 *     htt.action.do_tx_complete
-	 * The following fields are not needed for data frames, and can
-	 * be left uninitialized:
-	 *     htt.info.frame_subtype
-	 */
-
-	if (!msdu_info->htt.info.is_unicast) {
-		int l2_hdr_size;
-		A_UINT16 ethertype;
-
-		if (msdu_info->htt.info.l2_hdr_type == htt_pkt_type_ethernet) {
-			struct ethernet_hdr_t *eh;
-
-			eh = (struct ethernet_hdr_t *)datap;
-			l2_hdr_size = sizeof(*eh);
-			ethertype = (eh->ethertype[0] << 8) | eh->ethertype[1];
-
-			if (ethertype == ETHERTYPE_VLAN) {
-				struct ethernet_vlan_hdr_t *evh;
-
-				evh = (struct ethernet_vlan_hdr_t *)datap;
-				l2_hdr_size = sizeof(*evh);
-				ethertype = (evh->ethertype[0] << 8) |
-							evh->ethertype[1];
-			}
-
-			if (!IS_ETHERTYPE(ethertype)) {
-				/* 802.3 header*/
-				struct llc_snap_hdr_t *llc =
-					(struct llc_snap_hdr_t *)(datap +
-							l2_hdr_size);
-				ethertype = (llc->ethertype[0] << 8) |
-							llc->ethertype[1];
-				l2_hdr_size += sizeof(*llc);
-			}
-			msdu_info->htt.info.l3_hdr_offset = l2_hdr_size;
-			msdu_info->htt.info.ethertype = ethertype;
-		} else { /* 802.11 */
-			struct llc_snap_hdr_t *llc;
-			l2_hdr_size = ol_txrx_ieee80211_hdrsize(datap);
-			llc = (struct llc_snap_hdr_t *)(datap + l2_hdr_size);
-			ethertype = (llc->ethertype[0] << 8) |
-							llc->ethertype[1];
-			/*
-			 * Don't include the LLC/SNAP header in l2_hdr_size,
-			 * because l3_hdr_offset is actually supposed to refer
-			 * to the header after the 802.3 or 802.11 header,
-			 * which could be a LLC/SNAP header rather
-			 * than the L3 header.
-			 */
-		}
-		msdu_info->htt.info.l3_hdr_offset = l2_hdr_size;
-		msdu_info->htt.info.ethertype = ethertype;
-		which_key = txrx_sec_mcast;
-	} else {
-		which_key = txrx_sec_ucast;
-	}
-	peer = msdu_info->peer;
-	/*
-	 * msdu_info->htt.action.do_encrypt is initially set in ol_tx_desc_hl.
-	 * Add more check here.
-	 */
-	msdu_info->htt.action.do_encrypt = (!peer) ? 0 :
-		(peer->security[which_key].sec_type == htt_sec_type_none) ? 0 :
-		msdu_info->htt.action.do_encrypt;
-	/*
-	 * For systems that have a frame by frame spec for whether to receive
-	 * a tx completion notification, use the tx completion notification
-	 * only  for certain management frames, not for data frames.
-	 * (In the future, this may be changed slightly, e.g. to request a
-	 * tx completion notification for the final EAPOL message sent by a
-	 * STA during the key delivery handshake.)
-	 */
-	msdu_info->htt.action.do_tx_complete = 0;
-
-	return A_OK;
-}
-
-A_STATUS
-ol_tx_classify_mgmt_extension(
-		struct ol_txrx_vdev_t *vdev,
-		struct ol_tx_desc_t *tx_desc,
-		qdf_nbuf_t tx_msdu,
-		struct ol_txrx_msdu_info_t *msdu_info)
-{
-	struct ieee80211_frame *wh;
-
-	/*
-	 * The following msdu_info fields were already filled in by the
-	 * ol_tx entry function or the regular ol_tx_classify_mgmt function:
-	 *     htt.info.vdev_id          (ol_txrx_mgmt_send)
-	 *     htt.info.frame_type       (ol_txrx_mgmt_send)
-	 *     htt.info.l2_hdr_type      (ol_txrx_mgmt_send)
-	 *     htt.action.do_tx_complete (ol_txrx_mgmt_send)
-	 *     htt.info.peer_id          (ol_tx_classify_mgmt)
-	 *     htt.info.ext_tid          (ol_tx_classify_mgmt)
-	 *     htt.info.is_unicast       (ol_tx_classify_mgmt)
-	 *     peer                      (ol_tx_classify_mgmt)
-	 * The following fields need to be filled in by this function:
-	 *     htt.info.frame_subtype
-	 *     htt.info.l3_hdr_offset
-	 *     htt.action.band (NOT CURRENTLY USED)
-	 * The following fields are not needed for mgmt frames, and can
-	 * be left uninitialized:
-	 *     htt.info.ethertype
-	 *     htt.action.do_encrypt
-	 *         (This will be filled in by other SW, which knows whether
-	 *         the peer has robust-managment-frames enabled.)
-	 */
-	wh = (struct ieee80211_frame *)qdf_nbuf_data(tx_msdu);
-	msdu_info->htt.info.frame_subtype =
-		(wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK) >>
-		IEEE80211_FC0_SUBTYPE_SHIFT;
-	msdu_info->htt.info.l3_hdr_offset = sizeof(struct ieee80211_frame);
-
-	return A_OK;
-}
-
 #endif /* defined(CONFIG_HL_SUPPORT) */

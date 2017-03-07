@@ -4486,6 +4486,10 @@ static int __wlan_hdd_cfg80211_wifi_logger_start(struct wiphy *wiphy,
 	if (status)
 		return status;
 
+	if (hdd_ctx->driver_status == DRIVER_MODULES_CLOSED) {
+		hdd_err("Driver Modules are closed, can not start logger");
+		return -EINVAL;
+	}
 
 	if (nla_parse(tb, QCA_WLAN_VENDOR_ATTR_WIFI_LOGGER_START_MAX,
 				data, data_len,
@@ -9297,6 +9301,12 @@ static void wlan_hdd_cfg80211_scan_randomization_init(struct wiphy *wiphy)
 }
 #endif
 
+/* Max number of supported csa_counters in beacons
+ * and probe responses. Set to the same value as
+ * IEEE80211_MAX_CSA_COUNTERS_NUM
+ */
+#define WLAN_HDD_MAX_NUM_CSA_COUNTERS 2
+
 /*
  * FUNCTION: wlan_hdd_cfg80211_init
  * This function is called by hdd_wlan_startup()
@@ -9529,6 +9539,7 @@ int wlan_hdd_cfg80211_init(struct device *dev,
 #endif
 
 	hdd_add_channel_switch_support(&wiphy->flags);
+	wiphy->max_num_csa_counters = WLAN_HDD_MAX_NUM_CSA_COUNTERS;
 	wlan_hdd_cfg80211_scan_randomization_init(wiphy);
 
 	EXIT();
@@ -10163,8 +10174,7 @@ static int __wlan_hdd_cfg80211_change_iface(struct wiphy *wiphy,
 	/* Reset the current device mode bit mask */
 	cds_clear_concurrency_mode(pAdapter->device_mode);
 
-	hdd_tdls_notify_mode_change(pAdapter, pHddCtx);
-
+	hdd_update_tdls_ct_and_teardown_links(pHddCtx);
 	if ((pAdapter->device_mode == QDF_STA_MODE) ||
 	    (pAdapter->device_mode == QDF_P2P_CLIENT_MODE) ||
 	    (pAdapter->device_mode == QDF_P2P_DEVICE_MODE) ||
@@ -10502,6 +10512,14 @@ static int __wlan_hdd_change_station(struct wiphy *wiphy,
 					num_unique_channels;
 				hdd_notice("After removing duplcates StaParams.supported_channels_len: %d",
 					  StaParams.supported_channels_len);
+			}
+			if (params->supported_oper_classes_len >
+			    CDS_MAX_SUPP_OPER_CLASSES) {
+				hdd_notice("received oper classes:%d, resetting it to max supported: %d",
+					  params->supported_oper_classes_len,
+					  CDS_MAX_SUPP_OPER_CLASSES);
+				params->supported_oper_classes_len =
+					CDS_MAX_SUPP_OPER_CLASSES;
 			}
 			qdf_mem_copy(StaParams.supported_oper_classes,
 				     params->supported_oper_classes,
@@ -12006,6 +12024,11 @@ static int wlan_hdd_cfg80211_connect_start(hdd_adapter_t *pAdapter,
 		hdd_err("wrong SSID len");
 		status = -EINVAL;
 		goto ret_status;
+	}
+
+	if (pHddCtx->btCoexModeSet) {
+		hdd_err("BTCoex Mode operation in progress");
+		return -EBUSY;
 	}
 
 	if (true == cds_is_connection_in_progress(NULL, NULL)) {

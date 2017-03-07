@@ -19448,6 +19448,13 @@ void csr_process_set_hw_mode(tpAniSirGlobal mac, tSmeCmd *command)
 	tSirMsgQ msg;
 	struct sir_set_hw_mode_resp *param;
 	enum cds_hw_mode_change cds_hw_mode;
+	hdd_context_t *hdd_ctx;
+
+	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+	if (!hdd_ctx) {
+		cds_err("HDD context is NULL");
+		goto fail;
+	}
 
 	/* Setting HW mode is for the entire system.
 	 * So, no need to check session
@@ -19483,8 +19490,11 @@ void csr_process_set_hw_mode(tpAniSirGlobal mac, tSmeCmd *command)
 
 	if ((SIR_UPDATE_REASON_OPPORTUNISTIC ==
 	     command->u.set_hw_mode_cmd.reason) &&
-	    (true == cds_is_connection_in_progress(NULL, NULL))) {
-		sms_log(mac, LOGE, FL("Set HW mode refused: conn in progress"));
+	    (hdd_ctx->btCoexModeSet ||
+		(cds_is_connection_in_progress(NULL, NULL)))) {
+		sms_log(mac, LOGE,
+		FL("Set HW mode refused: conn or btcoex(%d) is in progress"),
+			hdd_ctx->btCoexModeSet);
 		cds_restart_opportunistic_timer(false);
 		goto fail;
 	}

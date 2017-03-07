@@ -1372,6 +1372,7 @@ QDF_STATUS csr_scan_save_roam_offload_ap_to_scan_cache(tpAniSirGlobal pMac,
 		struct sSirSmeRoamOffloadSynchInd *roam_synch_ind_ptr,
 		tpSirBssDescription  bss_desc_ptr);
 void csr_process_ho_fail_ind(tpAniSirGlobal pMac, void *pMsgBuf);
+#endif
 #ifdef FEATURE_WLAN_DIAG_SUPPORT_CSR
 void csr_roaming_report_diag_event(tpAniSirGlobal mac_ctx,
 		roam_offload_synch_ind *roam_synch_ind_ptr,
@@ -1382,7 +1383,7 @@ static inline void csr_roaming_report_diag_event(tpAniSirGlobal mac_ctx,
 		eCsrDiagWlanStatusEventReason reason)
 {}
 #endif
-#endif
+
 bool csr_store_joinreq_param(tpAniSirGlobal mac_ctx,
 		tCsrRoamProfile *profile,
 		tScanResultHandle scan_cache,

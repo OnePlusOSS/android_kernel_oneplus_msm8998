@@ -1509,6 +1509,7 @@ int wma_vdev_stop_resp_handler(void *handle, uint8_t *cmd_param_info,
 			return -EINVAL;
 		}
 
+		wma_release_wmi_resp_wakelock(wma);
 		wma_hidden_ssid_vdev_restart_on_vdev_stop(wma,
 							  resp_event->vdev_id);
 	}
@@ -1534,6 +1535,9 @@ int wma_vdev_stop_resp_handler(void *handle, uint8_t *cmd_param_info,
 		tpDeleteBssParams params =
 			(tpDeleteBssParams) req_msg->user_data;
 		struct beacon_info *bcn;
+
+		wma_release_wmi_resp_wakelock(wma);
+
 		if (resp_event->vdev_id > wma->max_bssid) {
 			WMA_LOGE("%s: Invalid vdev_id %d", __func__,
 				 resp_event->vdev_id);
@@ -1634,6 +1638,8 @@ int wma_vdev_stop_resp_handler(void *handle, uint8_t *cmd_param_info,
 	} else if (req_msg->msg_type == WMA_SET_LINK_STATE) {
 		tpLinkStateParams params =
 			(tpLinkStateParams) req_msg->user_data;
+
+		wma_release_wmi_resp_wakelock(wma);
 
 		peer = ol_txrx_find_peer_by_addr(pdev, params->bssid, &peer_id);
 		if (peer) {
@@ -1876,6 +1882,9 @@ ol_txrx_vdev_handle wma_vdev_attach(tp_wma_handle wma_handle,
 	} else {
 		WMA_LOGE("Failed to get value of HT_CAP, TX STBC unchanged");
 	}
+
+	wma_set_vdev_mgmt_rate(wma_handle, self_sta_req->session_id);
+
 	/* Initialize roaming offload state */
 	if ((self_sta_req->type == WMI_VDEV_TYPE_STA) &&
 	    (self_sta_req->sub_type == 0)) {
@@ -4171,6 +4180,7 @@ static void wma_add_sta_req_sta_mode(tp_wma_handle wma, tpAddStaParams params)
 		status = QDF_STATUS_E_FAILURE;
 	} else {
 		wma->interfaces[params->smesessionId].vdev_up = true;
+		wma_set_vdev_mgmt_rate(wma, params->smesessionId);
 	}
 
 	qdf_atomic_set(&iface->bss_status, WMA_BSS_STATUS_STARTED);
@@ -4304,6 +4314,8 @@ send_del_rsp:
 static void wma_del_tdls_sta(tp_wma_handle wma, tpDeleteStaParams del_sta)
 {
 	tTdlsPeerStateParams *peerStateParams;
+	struct wma_target_req *msg;
+	int status;
 
 	peerStateParams = qdf_mem_malloc(sizeof(tTdlsPeerStateParams));
 	if (!peerStateParams) {
@@ -4315,6 +4327,7 @@ static void wma_del_tdls_sta(tp_wma_handle wma, tpDeleteStaParams del_sta)
 
 	peerStateParams->peerState = WMA_TDLS_PEER_STATE_TEARDOWN;
 	peerStateParams->vdevId = del_sta->smesessionId;
+	peerStateParams->resp_reqd = del_sta->respReqd;
 	qdf_mem_copy(&peerStateParams->peerMacAddr,
 		     &del_sta->staMac, sizeof(tSirMacAddr));
 
@@ -4323,9 +4336,48 @@ static void wma_del_tdls_sta(tp_wma_handle wma, tpDeleteStaParams del_sta)
 		 __func__, peerStateParams->peerMacAddr,
 		 peerStateParams->peerState);
 
-	wma_update_tdls_peer_state(wma, peerStateParams);
+	status = wma_update_tdls_peer_state(wma, peerStateParams);
 
-	del_sta->status = QDF_STATUS_SUCCESS;
+	if (status < 0) {
+		WMA_LOGE("%s: wma_update_tdls_peer_state returned failure",
+				__func__);
+		goto send_del_rsp;
+	}
+
+	if (del_sta->respReqd &&
+			WMI_SERVICE_IS_ENABLED(wma->wmi_service_bitmap,
+				WMI_SERVICE_SYNC_DELETE_CMDS)) {
+		del_sta->status = QDF_STATUS_SUCCESS;
+		msg = wma_fill_hold_req(wma,
+				del_sta->smesessionId,
+				WMA_DELETE_STA_REQ,
+				WMA_DELETE_STA_RSP_START, del_sta,
+				WMA_DELETE_STA_TIMEOUT);
+		if (!msg) {
+			WMA_LOGP(FL("Failed to allocate vdev_id %d"),
+					peerStateParams->vdevId);
+			wma_remove_req(wma,
+					peerStateParams->vdevId,
+					WMA_DELETE_STA_RSP_START);
+			del_sta->status = QDF_STATUS_E_NOMEM;
+			goto send_del_rsp;
+		}
+		/*
+		 * Acquire wake lock and bus lock till
+		 * firmware sends the response
+		 */
+		cds_host_diag_log_work(&wma->
+				wmi_cmd_rsp_wake_lock,
+				WMA_FW_RSP_EVENT_WAKE_LOCK_DURATION,
+				WIFI_POWER_EVENT_WAKELOCK_WMI_CMD_RSP);
+		qdf_wake_lock_timeout_acquire(&wma->
+				wmi_cmd_rsp_wake_lock,
+				WMA_FW_RSP_EVENT_WAKE_LOCK_DURATION);
+		qdf_runtime_pm_prevent_suspend(&wma->
+				wmi_cmd_rsp_runtime_lock);
+	}
+
+	return;
 
 send_del_rsp:
 	if (del_sta->respReqd) {
@@ -4714,7 +4766,7 @@ void wma_delete_bss(tp_wma_handle wma, tpDeleteBssParams params)
 			   OL_TXQ_PAUSE_REASON_VDEV_STOP);
 	iface->pause_bitmap |= (1 << PAUSE_TYPE_HOST);
 
-	if (wmi_unified_vdev_stop_send(wma->wmi_handle, params->smesessionId)) {
+	if (wma_send_vdev_stop_to_fw(wma, params->smesessionId)) {
 		WMA_LOGP("%s: %d Failed to send vdev stop", __func__, __LINE__);
 		wma_remove_vdev_req(wma, params->smesessionId,
 				WMA_TARGET_REQ_TYPE_VDEV_STOP);

@@ -823,6 +823,8 @@ QDF_STATUS cds_post_disable(void)
 {
 	tp_wma_handle wma_handle;
 	struct hif_opaque_softc *hif_ctx;
+	ol_txrx_pdev_handle txrx_pdev;
+
 	wma_handle = cds_get_context(QDF_MODULE_ID_WMA);
 	if (!wma_handle) {
 		cds_err("Failed to get wma_handle!");
@@ -832,6 +834,12 @@ QDF_STATUS cds_post_disable(void)
 	hif_ctx = cds_get_context(QDF_MODULE_ID_HIF);
 	if (!hif_ctx) {
 		cds_err("Failed to get hif_handle!");
+		return QDF_STATUS_E_INVAL;
+	}
+
+	txrx_pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+	if (!txrx_pdev) {
+		cds_err("Failed to get txrx pdev!");
 		return QDF_STATUS_E_INVAL;
 	}
 
@@ -849,6 +857,8 @@ QDF_STATUS cds_post_disable(void)
 		cds_suspend_target(wma_handle);
 	hif_disable_isr(hif_ctx);
 	hif_reset_soc(hif_ctx);
+
+	ol_txrx_pdev_pre_detach(txrx_pdev, 1);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -879,7 +889,7 @@ QDF_STATUS cds_close(v_CONTEXT_t cds_context)
 		gp_cds_context->htc_ctx = NULL;
 	}
 
-	ol_txrx_pdev_detach(gp_cds_context->pdev_txrx_ctx, 1);
+	ol_txrx_pdev_detach(gp_cds_context->pdev_txrx_ctx);
 	cds_free_context(cds_context, QDF_MODULE_ID_TXRX,
 			 gp_cds_context->pdev_txrx_ctx);
 

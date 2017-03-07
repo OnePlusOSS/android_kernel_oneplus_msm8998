@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -544,6 +544,44 @@ static void htt_t2h_lp_msg_handler(void *context, qdf_nbuf_t htt_t2h_msg,
 		qdf_nbuf_free(htt_t2h_msg);
 }
 
+#if defined(CONFIG_HL_SUPPORT)
+static inline void htt_t2h_rx_in_order_indication_handler(
+		ol_txrx_pdev_handle pdev,
+		qdf_nbuf_t htt_t2h_msg, uint32_t msg_word)
+{
+}
+#else
+static void htt_t2h_rx_in_order_indication_handler(
+		ol_txrx_pdev_handle pdev,
+		qdf_nbuf_t htt_t2h_msg, uint32_t msg_word)
+{
+	u_int16_t peer_id;
+	u_int8_t tid;
+	u_int8_t offload_ind, frag_ind;
+
+	peer_id = HTT_RX_IN_ORD_PADDR_IND_PEER_ID_GET(msg_word);
+	tid = HTT_RX_IN_ORD_PADDR_IND_EXT_TID_GET(msg_word);
+	offload_ind = HTT_RX_IN_ORD_PADDR_IND_OFFLOAD_GET(msg_word);
+	frag_ind = HTT_RX_IN_ORD_PADDR_IND_FRAG_GET(msg_word);
+
+#if defined(HELIUMPLUS_DEBUG)
+	qdf_print("%s %d: peerid %d tid %d offloadind %d fragind %d\n",
+			__func__, __LINE__, peer_id, tid, offload_ind,
+			frag_ind);
+#endif
+	if (qdf_unlikely(frag_ind)) {
+		ol_rx_frag_indication_handler(pdev,
+				htt_t2h_msg,
+				peer_id, tid);
+		return;
+	}
+
+	ol_rx_in_order_indication_handler(pdev,
+			htt_t2h_msg, peer_id,
+			tid, offload_ind);
+}
+#endif
+
 /* Generic Target to host Msg/event  handler  for low priority messages
    Low priority message are handler in a different handler called from
    this function . So that the most likely succes path like Rx and
@@ -738,10 +776,6 @@ void htt_t2h_msg_handler(void *context, HTC_PACKET *pkt)
 	}
 	case HTT_T2H_MSG_TYPE_RX_IN_ORD_PADDR_IND:
 	{
-		uint16_t peer_id;
-		uint8_t tid;
-		uint8_t offload_ind, frag_ind;
-
 		if (qdf_unlikely(!pdev->cfg.is_full_reorder_offload)) {
 			qdf_print("HTT_T2H_MSG_TYPE_RX_IN_ORD_PADDR_IND not ");
 			qdf_print("supported when full reorder offload is ");
@@ -755,26 +789,9 @@ void htt_t2h_msg_handler(void *context, HTC_PACKET *pkt)
 			break;
 		}
 
-		peer_id = HTT_RX_IN_ORD_PADDR_IND_PEER_ID_GET(*msg_word);
-		tid = HTT_RX_IN_ORD_PADDR_IND_EXT_TID_GET(*msg_word);
-		offload_ind = HTT_RX_IN_ORD_PADDR_IND_OFFLOAD_GET(*msg_word);
-		frag_ind = HTT_RX_IN_ORD_PADDR_IND_FRAG_GET(*msg_word);
-
-#if defined(HELIUMPLUS_DEBUG)
-		qdf_print("%s %d: peerid %d tid %d offloadind %d fragind %d\n",
-			  __func__, __LINE__, peer_id, tid, offload_ind,
-			  frag_ind);
-#endif
-		if (qdf_unlikely(frag_ind)) {
-			ol_rx_frag_indication_handler(pdev->txrx_pdev,
-						      htt_t2h_msg,
-						      peer_id, tid);
-			break;
-		}
-
-		ol_rx_in_order_indication_handler(pdev->txrx_pdev,
-						  htt_t2h_msg, peer_id,
-						  tid, offload_ind);
+		htt_t2h_rx_in_order_indication_handler(
+				pdev->txrx_pdev,
+				htt_t2h_msg, *msg_word);
 		break;
 	}
 
@@ -964,10 +981,6 @@ void htt_t2h_msg_handler_fast(void *context, qdf_nbuf_t *cmpl_msdus,
 		}
 		case HTT_T2H_MSG_TYPE_RX_IN_ORD_PADDR_IND:
 		{
-			u_int16_t peer_id;
-			u_int8_t tid;
-			u_int8_t offload_ind, frag_ind;
-
 			if (qdf_unlikely(
 				  !pdev->cfg.is_full_reorder_offload)) {
 				qdf_print("HTT_T2H_MSG_TYPE_RX_IN_ORD_PADDR_IND not supported when full reorder offload is disabled\n");
@@ -980,26 +993,9 @@ void htt_t2h_msg_handler_fast(void *context, qdf_nbuf_t *cmpl_msdus,
 				break;
 			}
 
-			peer_id = HTT_RX_IN_ORD_PADDR_IND_PEER_ID_GET(
-							*msg_word);
-			tid = HTT_RX_IN_ORD_PADDR_IND_EXT_TID_GET(
-							*msg_word);
-			offload_ind =
-				HTT_RX_IN_ORD_PADDR_IND_OFFLOAD_GET(
-							*msg_word);
-			frag_ind = HTT_RX_IN_ORD_PADDR_IND_FRAG_GET(
-							*msg_word);
-
-			if (qdf_unlikely(frag_ind)) {
-				ol_rx_frag_indication_handler(
-				pdev->txrx_pdev, htt_t2h_msg, peer_id,
-				tid);
-				break;
-			}
-
-			ol_rx_in_order_indication_handler(
-					pdev->txrx_pdev, htt_t2h_msg,
-					peer_id, tid, offload_ind);
+			htt_t2h_rx_in_order_indication_handler(
+					pdev->txrx_pdev,
+					htt_t2h_msg, *msg_word);
 			break;
 		}
 		default:

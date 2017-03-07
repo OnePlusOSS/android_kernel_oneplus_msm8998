@@ -2930,6 +2930,7 @@ static void wma_wow_parse_data_pkt_buffer(uint8_t *data,
 	uint16_t pkt_len, key_len, seq_num;
 	uint16_t src_port, dst_port;
 	uint32_t transaction_id, tcp_seq_num;
+	char *ip_addr;
 
 	WMA_LOGD("wow_buf_pkt_len: %u", buf_len);
 	if (buf_len >= QDF_NBUF_TRAC_IPV4_OFFSET)
@@ -3026,6 +3027,12 @@ static void wma_wow_parse_data_pkt_buffer(uint8_t *data,
 		if (buf_len >= WMA_IPV4_PKT_INFO_GET_MIN_LEN) {
 			pkt_len = (uint16_t)(*(uint16_t *)(data +
 				IPV4_PKT_LEN_OFFSET));
+			ip_addr = (char *)(data + IPV4_SRC_ADDR_OFFSET);
+			WMA_LOGD("src addr %d:%d:%d:%d", ip_addr[0], ip_addr[1],
+				ip_addr[2], ip_addr[3]);
+			ip_addr = (char *)(data + IPV4_DST_ADDR_OFFSET);
+			WMA_LOGD("dst addr %d:%d:%d:%d", ip_addr[0], ip_addr[1],
+				ip_addr[2], ip_addr[3]);
 			src_port = (uint16_t)(*(uint16_t *)(data +
 				IPV4_SRC_PORT_OFFSET));
 			dst_port = (uint16_t)(*(uint16_t *)(data +
@@ -3051,6 +3058,20 @@ static void wma_wow_parse_data_pkt_buffer(uint8_t *data,
 		if (buf_len >= WMA_IPV6_PKT_INFO_GET_MIN_LEN) {
 			pkt_len = (uint16_t)(*(uint16_t *)(data +
 				IPV6_PKT_LEN_OFFSET));
+			ip_addr = (char *)(data + IPV6_SRC_ADDR_OFFSET);
+			WMA_LOGD("src addr "IPV6_ADDR_STR, ip_addr[0],
+				ip_addr[1], ip_addr[2], ip_addr[3], ip_addr[4],
+				ip_addr[5], ip_addr[6], ip_addr[7], ip_addr[8],
+				ip_addr[9], ip_addr[10], ip_addr[11],
+				ip_addr[12], ip_addr[13], ip_addr[14],
+				ip_addr[15]);
+			ip_addr = (char *)(data + IPV6_DST_ADDR_OFFSET);
+			WMA_LOGD("dst addr "IPV6_ADDR_STR, ip_addr[0],
+				ip_addr[1], ip_addr[2], ip_addr[3], ip_addr[4],
+				ip_addr[5], ip_addr[6], ip_addr[7], ip_addr[8],
+				ip_addr[9], ip_addr[10], ip_addr[11],
+				ip_addr[12], ip_addr[13], ip_addr[14],
+				ip_addr[15]);
 			src_port = (uint16_t)(*(uint16_t *)(data +
 				IPV6_SRC_PORT_OFFSET));
 			dst_port = (uint16_t)(*(uint16_t *)(data +
@@ -3439,7 +3460,8 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 		 */
 		wma_peer_debug_log(wake_info->vdev_id, DEBUG_WOW_ROAM_EVENT,
 				   DEBUG_INVALID_PEER_ID, NULL, NULL,
-				   wake_info->wake_reason, 0);
+				   wake_info->wake_reason,
+				   *(uintptr_t *)param_buf->wow_packet_buffer);
 		WMA_LOGD("Host woken up because of roam event");
 		if (param_buf->wow_packet_buffer) {
 			/* Roam event is embedded in wow_packet_buffer */

@@ -77,7 +77,7 @@ static void memdump_cleanup_timer_cb(void *data)
 
 
 	if (!hdd_ctx->fw_dump_loc) {
-		hdd_notice("Memory dump already freed");
+		hdd_debug("Memory dump already freed");
 		return;
 	}
 
@@ -125,7 +125,7 @@ void wlan_hdd_cfg80211_fw_mem_dump_cb(void *ctx,
 	if (!dump_rsp->dump_complete ||
 	    context->request_id != dump_rsp->request_id) {
 		spin_unlock(&hdd_context_lock);
-		hdd_err("Error @ request_id: %d response_id: %d status: %d",
+		hdd_err("request_id: %d response_id: %d status: %d",
 		       context->request_id, dump_rsp->request_id,
 		       dump_rsp->dump_complete);
 		return;
@@ -168,7 +168,7 @@ static int wlan_hdd_send_memdump_rsp(hdd_context_t *hdd_ctx)
 	}
 
 	cfg80211_vendor_cmd_reply(skb);
-	hdd_notice("Memdump event sent successfully to user space");
+	hdd_debug("Memdump event sent successfully to user space");
 	return 0;
 
 nla_put_failure:
@@ -211,7 +211,7 @@ static int __wlan_hdd_cfg80211_get_fw_mem_dump(struct wiphy *wiphy,
 		return status;
 
 	if (!hdd_ctx->fw_mem_dump_enabled) {
-		hdd_notice("FW memory dump not supported by this FW");
+		hdd_warn("FW memory dump not supported by this FW");
 		return -ENOTSUPP;
 	}
 	qdf_ctx = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
@@ -259,7 +259,7 @@ static int __wlan_hdd_cfg80211_get_fw_mem_dump(struct wiphy *wiphy,
 	fw_mem_dump_req.request_id = FW_MEM_DUMP_REQ_ID;
 	fw_mem_dump_req.num_seg = FW_MEM_DUMP_NUM_SEG;
 
-	hdd_notice("request_id:%d num_seg:%d",
+	hdd_debug("request_id:%d num_seg:%d",
 		fw_mem_dump_req.request_id, fw_mem_dump_req.num_seg);
 	seg_req = (struct fw_dump_seg_req *) fw_mem_dump_req.segment;
 	for (loop = 0; loop < fw_mem_dump_req.num_seg; loop++) {
@@ -269,11 +269,11 @@ static int __wlan_hdd_cfg80211_get_fw_mem_dump(struct wiphy *wiphy,
 		seg_req->seg_length = FW_MEM_DUMP_SIZE;
 		seg_req->dst_addr_lo = hdd_ctx->dump_loc_paddr;
 		seg_req->dst_addr_hi = 0;
-		hdd_notice("seg_number:%d", loop);
-		hdd_notice("seg_id:%d start_addr_lo:0x%x start_addr_hi:0x%x",
+		hdd_debug("seg_number:%d", loop);
+		hdd_debug("seg_id:%d start_addr_lo:0x%x start_addr_hi:0x%x",
 		    seg_req->seg_id, seg_req->seg_start_addr_lo,
 		    seg_req->seg_start_addr_hi);
-		hdd_notice("seg_length:%d dst_addr_lo:0x%x dst_addr_hi:0x%x",
+		hdd_debug("seg_length:%d dst_addr_lo:0x%x dst_addr_hi:0x%x",
 		    seg_req->seg_length, seg_req->dst_addr_lo,
 		    seg_req->dst_addr_hi);
 		seg_req++;
@@ -401,7 +401,7 @@ static ssize_t memdump_read(struct file *file, char __user *buf,
 
 	hdd_ctx = memdump_get_file_data(file);
 
-	hdd_notice("Read req for size:%zu pos:%llu", count, *pos);
+	hdd_debug("Read req for size:%zu pos:%llu", count, *pos);
 	status = wlan_hdd_validate_context(hdd_ctx);
 	if (status)
 		return status;
@@ -421,7 +421,7 @@ static ssize_t memdump_read(struct file *file, char __user *buf,
 		hdd_err("Invalid start offset for memdump read");
 		return -EINVAL;
 	} else if (*pos >= FW_MEM_DUMP_SIZE || !count) {
-		hdd_warn("No more data to copy");
+		hdd_debug("No more data to copy");
 		return 0;
 	} else if (count > FW_MEM_DUMP_SIZE - *pos) {
 		count = FW_MEM_DUMP_SIZE - *pos;
@@ -491,7 +491,7 @@ static int memdump_procfs_init(void)
 	proc_dir = proc_mkdir(PROCFS_MEMDUMP_DIR, NULL);
 	if (proc_dir == NULL) {
 		remove_proc_entry(PROCFS_MEMDUMP_DIR, NULL);
-		pr_debug("Error: Could not initialize /proc/%s\n",
+		pr_debug("Could not initialize /proc/%s\n",
 			 PROCFS_MEMDUMP_DIR);
 		return -ENOMEM;
 	}
@@ -501,7 +501,7 @@ static int memdump_procfs_init(void)
 				     &memdump_fops, hdd_ctx);
 	if (proc_file == NULL) {
 		remove_proc_entry(PROCFS_MEMDUMP_NAME, proc_dir);
-		pr_debug("Error: Could not initialize /proc/%s\n",
+		pr_debug("Could not initialize /proc/%s\n",
 			  PROCFS_MEMDUMP_NAME);
 		return -ENOMEM;
 	}
@@ -602,7 +602,7 @@ void memdump_deinit(void)
 	}
 
 	if (!hdd_ctx->memdump_init_done) {
-		hdd_err("MemDump not initialized");
+		hdd_warn("MemDump not initialized");
 		return;
 	}
 	hdd_ctx->memdump_init_done = false;
@@ -693,7 +693,7 @@ static ssize_t hdd_driver_memdump_read(struct file *file, char __user *buf,
 
 	hdd_ctx = memdump_get_file_data(file);
 
-	hdd_notice("Read req for size:%zu pos:%llu", count, *pos);
+	hdd_debug("Read req for size:%zu pos:%llu", count, *pos);
 	status = wlan_hdd_validate_context(hdd_ctx);
 	if (status != 0)
 		return -EINVAL;
@@ -703,7 +703,7 @@ static ssize_t hdd_driver_memdump_read(struct file *file, char __user *buf,
 		return -EINVAL;
 	} else if (!count || (hdd_ctx->driver_dump_size &&
 				(*pos >= hdd_ctx->driver_dump_size))) {
-		hdd_warn("No more data to copy");
+		hdd_debug("No more data to copy");
 		return 0;
 	} else if ((*pos == 0) || (hdd_ctx->driver_dump_mem == NULL)) {
 		/*
@@ -730,7 +730,7 @@ static ssize_t hdd_driver_memdump_read(struct file *file, char __user *buf,
 		if (qdf_status != QDF_STATUS_SUCCESS)
 			hdd_err("Error in dump driver information, status %d",
 				qdf_status);
-		hdd_notice("driver_dump_size: %d",
+		hdd_debug("driver_dump_size: %d",
 					hdd_ctx->driver_dump_size);
 	}
 
@@ -787,7 +787,7 @@ static int hdd_driver_memdump_procfs_init(void)
 
 	proc_dir_driver = proc_mkdir(PROCFS_DRIVER_DUMP_DIR, NULL);
 	if (proc_dir_driver == NULL) {
-		pr_debug("Error: Could not initialize /proc/%s\n",
+		pr_debug("Could not initialize /proc/%s\n",
 			 PROCFS_DRIVER_DUMP_DIR);
 		return -ENOMEM;
 	}
@@ -797,7 +797,7 @@ static int hdd_driver_memdump_procfs_init(void)
 				     &driver_dump_fops, hdd_ctx);
 	if (proc_file_driver == NULL) {
 		remove_proc_entry(PROCFS_DRIVER_DUMP_NAME, proc_dir_driver);
-		pr_debug("Error: Could not initialize /proc/%s\n",
+		pr_debug("Could not initialize /proc/%s\n",
 			  PROCFS_DRIVER_DUMP_NAME);
 		return -ENOMEM;
 	}

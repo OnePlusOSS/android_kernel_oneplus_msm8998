@@ -932,7 +932,7 @@ csr_scan_request_lost_link1(tpAniSirGlobal mac_ctx, uint32_t session_id)
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	sms_log(mac_ctx, LOGW, FL("Entry"));
+	sms_log(mac_ctx, LOGD, FL("Entry"));
 	cmd = csr_get_command_buffer(mac_ctx);
 	if (!cmd) {
 		status = QDF_STATUS_E_RESOURCES;
@@ -1059,7 +1059,7 @@ csr_scan_request_lost_link2(tpAniSirGlobal mac_ctx, uint32_t session_id)
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	sms_log(mac_ctx, LOGW, FL(" called"));
+	sms_log(mac_ctx, LOGD, FL(" called"));
 	cmd = csr_get_command_buffer(mac_ctx);
 	if (!cmd) {
 		status = QDF_STATUS_E_RESOURCES;
@@ -1103,7 +1103,7 @@ csr_scan_request_lost_link3(tpAniSirGlobal mac_ctx, uint32_t session_id)
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	tSmeCmd *cmd;
 
-	sms_log(mac_ctx, LOGW, FL(" called"));
+	sms_log(mac_ctx, LOGD, FL(" called"));
 	do {
 		cmd = csr_get_command_buffer(mac_ctx);
 		if (!cmd) {
@@ -1248,7 +1248,7 @@ QDF_STATUS csr_scan_handle_search_for_ssid_failure(tpAniSirGlobal pMac,
 		&pCommand->u.scanCmd.u.scanRequest.SSIDs.SSIDList[0].SSID;
 		qdf_mem_copy(str, ptr_ssid->ssId, ptr_ssid->length);
 		str[ptr_ssid->length] = 0;
-		sms_log(pMac, LOGW, FL("SSID = %s"), str);
+		sms_log(pMac, LOGD, FL("SSID = %s"), str);
 	}
 #endif
 	/*
@@ -2202,7 +2202,7 @@ QDF_STATUS csr_scan_flush_result(tpAniSirGlobal pMac)
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	sms_log(pMac, LOG4, "%s: Flushing all scan results", __func__);
+	sms_log(pMac, LOGD, "%s: Flushing all scan results", __func__);
 	csr_ll_scan_purge_result(pMac, &pMac->scan.tempScanResults);
 	csr_ll_scan_purge_result(pMac, &pMac->scan.scanResultList);
 	return QDF_STATUS_SUCCESS;
@@ -2687,7 +2687,7 @@ static QDF_STATUS csr_add_pmkid_candidate_list(tpAniSirGlobal pMac,
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	sms_log(pMac, LOGW, FL("NumPmkidCandidate = %d"),
+	sms_log(pMac, LOGD, FL("NumPmkidCandidate = %d"),
 		pSession->NumPmkidCandidate);
 	if (!pIes)
 		return status;
@@ -2789,7 +2789,7 @@ static QDF_STATUS csr_add_bkid_candidate_list(tpAniSirGlobal pMac,
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	sms_log(pMac, LOGW,
+	sms_log(pMac, LOGD,
 		"csr_add_bkid_candidate_list called pMac->scan.NumBkidCandidate = %d",
 		pSession->NumBkidCandidate);
 	if (pIes) {
@@ -3000,7 +3000,7 @@ csr_remove_from_tmp_list(tpAniSirGlobal mac_ctx,
 		    && local_ie->Country.present) {
 			csr_add_vote_for_country_info(mac_ctx,
 						local_ie->Country.country);
-			sms_log(mac_ctx, LOGW,
+			sms_log(mac_ctx, LOGD,
 				FL("11d AP Bssid "MAC_ADDRESS_STR
 				   " chan= %d, rssi = -%d, countryCode %c%c"),
 				MAC_ADDR_ARRAY(
@@ -3038,7 +3038,7 @@ static void csr_move_temp_scan_results_to_main_list(tpAniSirGlobal pMac,
 			continue;
 		pSession = CSR_GET_SESSION(pMac, i);
 		if (csr_is_conn_state_connected(pMac, i)) {
-			sms_log(pMac, LOGW,
+			sms_log(pMac, LOGD,
 				FL("No need to update CC in connected state"));
 			return;
 		}
@@ -3067,7 +3067,7 @@ static tCsrScanResult *csr_scan_save_bss_description(tpAniSirGlobal pMac,
 	if (NULL != pCsrBssDescription) {
 		pCsrBssDescription->AgingCount =
 			(int32_t) pMac->roam.configParam.agingCount;
-		sms_log(pMac, LOGW,
+		sms_log(pMac, LOGD,
 			FL(" Set Aging Count = %d for BSS " MAC_ADDRESS_STR " "),
 			pCsrBssDescription->AgingCount,
 			MAC_ADDR_ARRAY(pCsrBssDescription->Result.BssDescriptor.
@@ -3217,7 +3217,7 @@ QDF_STATUS csr_save_to_channel_power2_g_5_g(tpAniSirGlobal pMac,
 						   &pChannelSet->link,
 						   LL_ACCESS_LOCK);
 			} else {
-				sms_log(pMac, LOGW,
+				sms_log(pMac, LOGD,
 					FL("Adding 11B/G ch in 11A. 1st ch %d"),
 					pChannelSet->firstChannel);
 				qdf_mem_free(pChannelSet);
@@ -3238,7 +3238,7 @@ QDF_STATUS csr_save_to_channel_power2_g_5_g(tpAniSirGlobal pMac,
 						   &pChannelSet->link,
 						   LL_ACCESS_LOCK);
 			} else {
-				sms_log(pMac, LOGW,
+				sms_log(pMac, LOGD,
 					FL("Adding 11A ch in B/G. 1st ch %d"),
 					pChannelSet->firstChannel);
 				qdf_mem_free(pChannelSet);
@@ -3265,7 +3265,7 @@ static void csr_clear_dfs_channel_list(tpAniSirGlobal pMac)
 
 void csr_apply_power2_current(tpAniSirGlobal pMac)
 {
-	sms_log(pMac, LOG3, FL(" Updating Cfg with power settings"));
+	sms_log(pMac, LOGD, FL(" Updating Cfg with power settings"));
 	csr_save_tx_power_to_cfg(pMac, &pMac->scan.channelPowerInfoList24,
 				 WNI_CFG_MAX_TX_POWER_2_4);
 	csr_save_tx_power_to_cfg(pMac, &pMac->scan.channelPowerInfoList5G,
@@ -3449,7 +3449,7 @@ bool csr_elected_country_info(tpAniSirGlobal pMac)
 		 * pick random.we can put some more intelligence - TBD
 		 */
 		if (maxVotes < pMac->scan.votes11d[i].votes) {
-			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
+			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 				  " Votes for Country %c%c : %d\n",
 				  pMac->scan.votes11d[i].countryCode[0],
 				  pMac->scan.votes11d[i].countryCode[1],
@@ -3465,7 +3465,7 @@ bool csr_elected_country_info(tpAniSirGlobal pMac)
 		qdf_mem_copy(pMac->scan.countryCodeElected,
 		       pMac->scan.votes11d[j].countryCode,
 		       WNI_CFG_COUNTRY_CODE_LEN);
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 			  "Selected Country is %c%c With count %d\n",
 			  pMac->scan.votes11d[j].countryCode[0],
 			  pMac->scan.votes11d[j].countryCode[1],
@@ -3611,7 +3611,7 @@ void csr_apply_country_information(tpAniSirGlobal pMac)
 	if (pMac->scan.domainIdCurrent != domainId)
 		return;
 	if (pMac->scan.domainIdCurrent != domainId) {
-		sms_log(pMac, LOGW, FL("Domain Changed Old %d, new %d"),
+		sms_log(pMac, LOGD, FL("Domain Changed Old %d, new %d"),
 			pMac->scan.domainIdCurrent, domainId);
 		status = wma_set_reg_domain(pMac, domainId);
 	}
@@ -3760,7 +3760,7 @@ free_ie:
 void csr_save_scan_results(tpAniSirGlobal pMac, uint8_t reason,
 				  uint8_t sessionId)
 {
-	sms_log(pMac, LOG4, "%s: Saving scan results", __func__);
+	sms_log(pMac, LOGD, "%s: Saving scan results", __func__);
 
 	/* initialize this to false. profMoveInterimScanResultsToMainList() routine */
 	/* will set this to the channel where an .11d beacon is seen */
@@ -4340,7 +4340,7 @@ csr_scan_remove_dup_bss_description_from_interim_list(tpAniSirGlobal mac_ctx,
 	 * in, then these must be duplicate scan results for this Bss. In that
 	 * case, remove the 'old' Bss description from the linked list.
 	 */
-	sms_log(mac_ctx, LOG4, FL(" for BSS " MAC_ADDRESS_STR " "),
+	sms_log(mac_ctx, LOGD, FL(" for BSS " MAC_ADDRESS_STR " "),
 		MAC_ADDR_ARRAY(bss_dscp->bssId));
 	csr_ll_lock(&mac_ctx->scan.tempScanResults);
 	pEntry = csr_ll_peek_head(&mac_ctx->scan.tempScanResults,
@@ -4408,7 +4408,7 @@ static tCsrScanResult *csr_scan_save_bss_description_to_interim_list(
 
 	cbAllocated = sizeof(tCsrScanResult) + cbBSSDesc;
 
-	sms_log(pMac, LOG4, FL("new BSS description, length %d, cbBSSDesc %d"),
+	sms_log(pMac, LOGD, FL("new BSS description, length %d, cbBSSDesc %d"),
 		cbAllocated, cbBSSDesc);
 	pCsrBssDescription = qdf_mem_malloc(cbAllocated);
 	if (NULL != pCsrBssDescription) {
@@ -4416,7 +4416,7 @@ static tCsrScanResult *csr_scan_save_bss_description_to_interim_list(
 			     pBSSDescription, cbBSSDesc);
 		pCsrBssDescription->AgingCount =
 			(int32_t) pMac->roam.configParam.agingCount;
-		sms_log(pMac, LOG4,
+		sms_log(pMac, LOGD,
 			FL(" Set Aging Count = %d for BSS " MAC_ADDRESS_STR " "),
 			pCsrBssDescription->AgingCount,
 			MAC_ADDR_ARRAY(pCsrBssDescription->Result.BssDescriptor.
@@ -4725,7 +4725,7 @@ QDF_STATUS csr_scan_process_single_bssdescr(tpAniSirGlobal mac_ctx,
 	tCsrRoamInfo *roam_info;
 	uint8_t session_id;
 
-	sms_log(mac_ctx, LOG4, "CSR: Processing single bssdescr");
+	sms_log(mac_ctx, LOGD, "CSR: Processing single bssdescr");
 	if (QDF_IS_STATUS_SUCCESS(
 		csr_get_cfg_valid_channels(mac_ctx,
 			(uint8_t *) mac_ctx->roam.validChannelList,
@@ -4975,7 +4975,7 @@ static bool csr_scan_age_out_bss(tpAniSirGlobal pMac, tCsrScanResult *pResult)
 		 */
 		pResult->AgingCount =
 			(int32_t) pMac->roam.configParam.agingCount;
-		sms_log(pMac, LOGW,
+		sms_log(pMac, LOGD,
 			FL("Connected BSS, Set Aging Count=%d for BSS "
 			   MAC_ADDRESS_STR), pResult->AgingCount,
 			MAC_ADDR_ARRAY(pResult->Result.BssDescriptor.bssId));
@@ -5398,7 +5398,7 @@ QDF_STATUS csr_process_scan_command(tpAniSirGlobal pMac, tSmeCmd *pCommand)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 
-	sms_log(pMac, LOG3,
+	sms_log(pMac, LOGD,
 			FL("starting SCAN cmd in %d state. reason %d"),
 			pCommand->u.scanCmd.lastRoamState[pCommand->sessionId],
 			pCommand->u.scanCmd.reason);
@@ -5511,7 +5511,7 @@ static void csr_scan_copy_request_valid_channels_only(tpAniSirGlobal mac_ctx,
 					sta_roam_policy.sap_operating_band ==
 						eCSR_BAND_5G))) {
 					QDF_TRACE(QDF_MODULE_ID_SME,
-						QDF_TRACE_LEVEL_INFO,
+						QDF_TRACE_LEVEL_DEBUG,
 					      FL("ignoring unsafe channel %d"),
 						src_req->ChannelInfo.
 						ChannelList[index]);
@@ -6109,7 +6109,7 @@ bool csr_scan_remove_fresh_scan_command(tpAniSirGlobal pMac, uint8_t sessionId)
 			pEntry = pEntryTmp;
 			continue;
 		}
-		sms_log(pMac, LOGW,
+		sms_log(pMac, LOGD,
 			FL("-------- abort scan command reason = %d"),
 			pCommand->u.scanCmd.reason);
 		/* The rest are fresh scan requests */
@@ -6181,7 +6181,7 @@ QDF_STATUS csr_scan_get_pmkid_candidate_list(tpAniSirGlobal pMac,
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	sms_log(pMac, LOGW, FL("pMac->scan.NumPmkidCandidate = %d"),
+	sms_log(pMac, LOGD, FL("pMac->scan.NumPmkidCandidate = %d"),
 		pSession->NumPmkidCandidate);
 	csr_reset_pmkid_candidate_list(pMac, sessionId);
 	if (!(csr_is_conn_state_connected(pMac, sessionId)
@@ -6251,7 +6251,7 @@ QDF_STATUS csr_scan_get_bkid_candidate_list(tpAniSirGlobal pMac,
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	sms_log(pMac, LOGW, FL("pMac->scan.NumBkidCandidate = %d"),
+	sms_log(pMac, LOGD, FL("pMac->scan.NumBkidCandidate = %d"),
 		pSession->NumBkidCandidate);
 	csr_reset_bkid_candidate_list(pMac, sessionId);
 	if (!(csr_is_conn_state_connected(pMac, sessionId)
@@ -6585,15 +6585,15 @@ void csr_set_cfg_valid_channel_list(tpAniSirGlobal pMac, uint8_t *pChannelList,
 	uint32_t dataLen = sizeof(uint8_t) * NumChannels;
 	QDF_STATUS status;
 
-	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
+	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 		  "%s: dump valid channel list(NumChannels(%d))",
 		  __func__, NumChannels);
-	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
+	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 			   pChannelList, NumChannels);
 	cfg_set_str(pMac, WNI_CFG_VALID_CHANNEL_LIST, pChannelList,
 			dataLen);
 
-	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
+	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 		  "Scan offload is enabled, update default chan list");
 	/*
 	 * disable fcc constraint since new country code
@@ -6661,14 +6661,14 @@ void csr_save_tx_power_to_cfg(tpAniSirGlobal pMac, tDblLinkList *pList,
 				ch_pwr_set->firstChanNum = (tSirMacChanNum)
 					(ch_set->firstChannel + (idx *
 						ch_set->interChannelOffset));
-				sms_log(pMac, LOG3,
+				sms_log(pMac, LOGD,
 					FL("Setting Channel Number %d"),
 					ch_pwr_set->firstChanNum);
 				ch_pwr_set->numChannels = 1;
 				ch_pwr_set->maxTxPower =
 					QDF_MIN(ch_set->txPower,
 					pMac->roam.configParam.nTxPowerCap);
-				sms_log(pMac, LOG3,
+				sms_log(pMac, LOGD,
 					FL("Setting Max Transmit Power %d"),
 					ch_pwr_set->maxTxPower);
 				cbLen += sizeof(tSirMacChanInfo);
@@ -6685,12 +6685,12 @@ void csr_save_tx_power_to_cfg(tpAniSirGlobal pMac, tDblLinkList *pList,
 				break;
 			}
 			ch_pwr_set->firstChanNum = ch_set->firstChannel;
-			sms_log(pMac, LOG3, FL("Setting Channel Number %d"),
+			sms_log(pMac, LOGD, FL("Setting Channel Number %d"),
 				ch_pwr_set->firstChanNum);
 			ch_pwr_set->numChannels = ch_set->numChannels;
 			ch_pwr_set->maxTxPower = QDF_MIN(ch_set->txPower,
 					pMac->roam.configParam.nTxPowerCap);
-			sms_log(pMac, LOG3,
+			sms_log(pMac, LOGD,
 				FL("Setting Max Tx Power %d, nTxPower %d"),
 				ch_pwr_set->maxTxPower,
 				pMac->roam.configParam.nTxPowerCap);
@@ -6710,7 +6710,7 @@ void csr_set_cfg_country_code(tpAniSirGlobal pMac, uint8_t *countryCode)
 	uint8_t cc[WNI_CFG_COUNTRY_CODE_LEN];
 	/* v_REGDOMAIN_t DomainId */
 
-	sms_log(pMac, LOG3, FL("Setting Country Code in Cfg %s"), countryCode);
+	sms_log(pMac, LOGD, FL("Setting Country Code in Cfg %s"), countryCode);
 	qdf_mem_copy(cc, countryCode, WNI_CFG_COUNTRY_CODE_LEN);
 
 	/*
@@ -6789,10 +6789,10 @@ void csr_set_cfg_scan_control_list(tpAniSirGlobal pMac, uint8_t *countryCode,
 				}
 
 			}
-			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
+			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 				  "%s: dump scan control list", __func__);
 			QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_SME,
-					   QDF_TRACE_LEVEL_INFO, pControlList,
+					   QDF_TRACE_LEVEL_DEBUG, pControlList,
 					   len);
 
 			cfg_set_str(pMac, WNI_CFG_SCAN_CONTROL_LIST,

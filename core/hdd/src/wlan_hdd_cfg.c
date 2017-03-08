@@ -4387,12 +4387,20 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		CFG_5G_MAX_RSSI_PENALIZE_DEFAULT,
 		CFG_5G_MAX_RSSI_PENALIZE_MIN,
 		CFG_5G_MAX_RSSI_PENALIZE_MAX),
+
 	REG_VARIABLE(CFG_ENABLE_PACKET_FILTERS_NAME, WLAN_PARAM_Integer,
 		struct hdd_config, packet_filters_bitmap,
 		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
 		CFG_ENABLE_PACKET_FILTERS_DEFAULT,
 		CFG_ENABLE_PACKET_FILTERS_MIN,
 		CFG_ENABLE_PACKET_FILTERS_MAX),
+
+	REG_VARIABLE(CFG_ARP_AC_CATEGORY, WLAN_PARAM_Integer,
+		struct hdd_config, arp_ac_category,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_ARP_AC_CATEGORY_DEFAULT,
+		CFG_ARP_AC_CATEGORY_MIN,
+		CFG_ARP_AC_CATEGORY_MAX),
 };
 
 /**
@@ -5880,6 +5888,9 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_debug("Name = [%s] Value = [%d]",
 		CFG_SAP_INTERNAL_RESTART_NAME,
 		pHddCtx->config->sap_internal_restart);
+	hdd_debug("Name = [%s] Value = [%d]",
+		CFG_ARP_AC_CATEGORY,
+		pHddCtx->config->arp_ac_category);
 }
 
 

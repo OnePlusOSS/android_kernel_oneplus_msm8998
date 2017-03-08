@@ -9972,16 +9972,39 @@ enum dot11p_mode {
  *
  * Related: None
  *
- * Supported Feature: PACKET FILTERING
- *
  * Usage: Internal/External
  *
- * </ini>
+ * Supported Feature: PACKET FILTERING
  */
 #define CFG_ENABLE_PACKET_FILTERS_NAME     "g_enable_packet_filter_bitmap"
 #define CFG_ENABLE_PACKET_FILTERS_DEFAULT  (0)
 #define CFG_ENABLE_PACKET_FILTERS_MIN      (0)
 #define CFG_ENABLE_PACKET_FILTERS_MAX      (63)
+
+/*
+ * arp_ac_category - ARP access category
+ * @Min: 0
+ * @Max: 3
+ * @Default: 3
+ *
+ * Firmware by default categorizes ARP packets with VOICE TID.
+ * This ini shall be used to override the default configuration.
+ * Access category enums are referenced in ieee80211_common.h
+ * WME_AC_BE = 0 (Best effort)
+ * WME_AC_BK = 1 (Background)
+ * WME_AC_VI = 2 (Video)
+ * WME_AC_VO = 3 (Voice)
+ *
+ * Related: none
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+#define CFG_ARP_AC_CATEGORY                "arp_ac_category"
+#define CFG_ARP_AC_CATEGORY_MIN            (0)
+#define CFG_ARP_AC_CATEGORY_MAX            (3)
+#define CFG_ARP_AC_CATEGORY_DEFAULT        (3)
 
 /*---------------------------------------------------------------------------
    Type declarations
@@ -10711,6 +10734,7 @@ struct hdd_config {
 	uint8_t                     max_rssi_penalize_5g;
 
 	uint8_t packet_filters_bitmap;
+	uint32_t                    arp_ac_category;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

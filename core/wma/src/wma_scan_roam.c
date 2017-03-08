@@ -379,6 +379,7 @@ QDF_STATUS wma_get_buf_start_scan_cmd(tp_wma_handle wma_handle,
 			cmd->notify_scan_events |=
 				WMI_SCAN_EVENT_FOREIGN_CHANNEL;
 			cmd->repeat_probe_time = 0;
+			cmd->scan_priority = WMI_SCAN_PRIORITY_HIGH;
 			break;
 		case P2P_SCAN_TYPE_SEARCH:
 			WMA_LOGD("P2P_SCAN_TYPE_SEARCH");
@@ -414,6 +415,7 @@ QDF_STATUS wma_get_buf_start_scan_cmd(tp_wma_handle wma_handle,
 					cmd->burst_duration =
 						WMA_P2P_SCAN_MAX_BURST_DURATION;
 			}
+			cmd->scan_priority = WMI_SCAN_PRIORITY_MEDIUM;
 			break;
 		default:
 			WMA_LOGE("Invalid scan type");
@@ -555,8 +557,6 @@ QDF_STATUS wma_start_scan(tp_wma_handle wma_handle,
 	WMA_LOGI("scan_id 0x%x, vdev_id %d, p2pScanType %d, msg_type 0x%x",
 		 cmd.scan_id, cmd.vdev_id, scan_req->p2pScanType, msg_type);
 
-	if (scan_req->p2pScanType)
-		cmd.scan_priority = WMI_SCAN_PRIORITY_MEDIUM;
 	/*
 	 * Cache vdev_id and scan_id because cmd is freed after calling
 	 * wmi_unified_cmd_send cmd. WMI internally frees cmd buffer after

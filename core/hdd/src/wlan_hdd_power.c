@@ -853,7 +853,8 @@ static void __hdd_ipv4_notifier_work_queue(struct work_struct *work)
 	 */
 	hdd_conf_arp_offload(pAdapter, true);
 
-	hdd_set_grat_arp_keepalive(pAdapter);
+	if (pHddCtx->config->sta_keepalive_method == HDD_STA_KEEPALIVE_GRAT_ARP)
+		hdd_set_grat_arp_keepalive(pAdapter);
 }
 
 /**

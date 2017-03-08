@@ -2523,6 +2523,7 @@ enum qca_wlan_vendor_acs_hw_mode {
 #define CFG_MGMT_RETRY_MAX                     (31)
 #define CFG_CTRL_RETRY_MAX                     (31)
 #define CFG_PROPAGATION_DELAY_MAX              (63)
+#define CFG_PROPAGATION_DELAY_BASE             (64)
 #define CFG_AGG_RETRY_MIN                      (5)
 
 /**
@@ -2607,6 +2608,9 @@ enum qca_ignore_assoc_disallowed {
  *                  to turn off/on qpower
  * @QCA_WLAN_VENDOR_ATTR_CONFIG_IGNORE_ASSOC_DISALLOWED:
  *                  Ignore Assoc Disallowed[MBO]
+ * @QCA_WLAN_VENDOR_ATTR_CONFIG_PROPAGATION_ABS_DELAY:
+ *                  32-bit unsigned value to configure the propagation absolute
+ *                  delay for 2G/5G band (units in us)
  * @QCA_WLAN_VENDOR_ATTR_CONFIG_LAST: last config
  * @QCA_WLAN_VENDOR_ATTR_CONFIG_MAX: max config
  */
@@ -2684,6 +2688,8 @@ enum qca_wlan_vendor_config {
 	/* Unsigned 8-bit, for setting qpower dynamically */
 	QCA_WLAN_VENDOR_ATTR_CONFIG_QPOWER = 25,
 	QCA_WLAN_VENDOR_ATTR_CONFIG_IGNORE_ASSOC_DISALLOWED = 26,
+	QCA_WLAN_VENDOR_ATTR_CONFIG_PROPAGATION_ABS_DELAY = 40,
+
 	/* keep last */
 	QCA_WLAN_VENDOR_ATTR_CONFIG_LAST,
 	QCA_WLAN_VENDOR_ATTR_CONFIG_MAX =

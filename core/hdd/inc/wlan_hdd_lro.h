@@ -156,7 +156,11 @@ int hdd_lro_init(hdd_context_t *hdd_ctx);
 int hdd_lro_enable(hdd_context_t *hdd_ctx,
 	 hdd_adapter_t *adapter);
 
+void hdd_lro_create(void);
+
 void hdd_lro_disable(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter);
+
+void hdd_lro_destroy(void);
 
 enum hdd_lro_rx_status hdd_lro_rx(hdd_context_t *hdd_ctx,
 	 hdd_adapter_t *adapter, struct sk_buff *skb);
@@ -176,6 +180,10 @@ static inline int hdd_lro_enable(hdd_context_t *hdd_ctx,
 	return 0;
 }
 
+static inline void hdd_lro_create(void)
+{
+}
+
 static inline enum hdd_lro_rx_status hdd_lro_rx(hdd_context_t *hdd_ctx,
 	 hdd_adapter_t *adapter, struct sk_buff *skb)
 {
@@ -189,6 +197,10 @@ static inline int hdd_lro_init(hdd_context_t *hdd_ctx)
 
 static inline void hdd_lro_disable(hdd_context_t *hdd_ctx,
 	 hdd_adapter_t *adapter)
+{
+}
+
+static inline void hdd_lro_destroy(void)
 {
 }
 

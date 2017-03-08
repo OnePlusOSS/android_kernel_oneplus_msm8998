@@ -966,7 +966,6 @@ struct ol_txrx_pdev_t {
 
 	struct {
 		void (*lro_flush_cb)(void *);
-		qdf_atomic_t lro_dev_cnt;
 	} lro_info;
 	struct ol_txrx_peer_t *self_peer;
 };

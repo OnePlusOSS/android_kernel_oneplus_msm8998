@@ -705,7 +705,6 @@ struct CE_handle *ce_init(struct hif_softc *scn,
 		CE_state->ctrl_addr = ctrl_addr;
 		CE_state->state = CE_RUNNING;
 		CE_state->attr_flags = attr->flags;
-		qdf_spinlock_create(&CE_state->lro_unloading_lock);
 	}
 	CE_state->scn = scn;
 
@@ -1229,8 +1228,6 @@ void ce_fini(struct CE_handle *copyeng)
 
 	CE_state->state = CE_UNUSED;
 	scn->ce_id_to_state[CE_id] = NULL;
-
-	qdf_spinlock_destroy(&CE_state->lro_unloading_lock);
 
 	if (CE_state->src_ring) {
 		/* Cleanup the datapath Tx ring */
@@ -2652,15 +2649,9 @@ int ce_lro_flush_cb_deregister(struct hif_opaque_softc *hif_hdl,
 		for (i = 0; i < scn->ce_count; i++) {
 			ce_state = scn->ce_id_to_state[i];
 			if ((ce_state != NULL) && (ce_state->htt_rx_data)) {
-				qdf_spin_lock_bh(
-					&ce_state->lro_unloading_lock);
 				ce_state->lro_flush_cb = NULL;
 				lro_deinit_cb(ce_state->lro_data);
 				ce_state->lro_data = NULL;
-				qdf_spin_unlock_bh(
-					&ce_state->lro_unloading_lock);
-				qdf_spinlock_destroy(
-					&ce_state->lro_unloading_lock);
 				rc++;
 			}
 		}

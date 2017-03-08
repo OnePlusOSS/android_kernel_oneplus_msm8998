@@ -151,7 +151,6 @@ struct CE_state {
 	bool htt_rx_data;
 	void (*lro_flush_cb)(void *);
 	void *lro_data;
-	qdf_spinlock_t lro_unloading_lock;
 };
 
 /* Descriptor rings must be aligned to this boundary */

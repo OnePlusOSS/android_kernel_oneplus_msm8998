@@ -3458,10 +3458,10 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 		 * WMI_ROAM_REASON_HO_FAILED event and it will be handled by
 		 * wma_roam_event_callback().
 		 */
-		wma_peer_debug_log(wake_info->vdev_id, DEBUG_WOW_ROAM_EVENT,
-				   DEBUG_INVALID_PEER_ID, NULL, NULL,
-				   wake_info->wake_reason,
-				   *(uintptr_t *)param_buf->wow_packet_buffer);
+		wma_peer_debug_log(wake_info->vdev_id,
+				DEBUG_WOW_ROAM_EVENT, DEBUG_INVALID_PEER_ID,
+				NULL, NULL, wake_info->wake_reason,
+				wow_buf_pkt_len);
 		WMA_LOGD("Host woken up because of roam event");
 		if (param_buf->wow_packet_buffer) {
 			/* Roam event is embedded in wow_packet_buffer */

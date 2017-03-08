@@ -118,7 +118,7 @@ void lim_populate_p2p_mac_header(tpAniSirGlobal pMac, uint8_t *pBD)
 
 	/* Prepare sequence number */
 	lim_add_mgmt_seq_num(pMac, pMacHdr);
-	lim_log(pMac, LOG1, "seqNumLo=%d, seqNumHi=%d, mgmtSeqNum=%d",
+	lim_log(pMac, LOGD, "seqNumLo=%d, seqNumHi=%d, mgmtSeqNum=%d",
 		pMacHdr->seqControl.seqNumLo,
 		pMacHdr->seqControl.seqNumHi, pMac->mgmtSeqNum);
 }
@@ -171,7 +171,7 @@ void lim_populate_mac_header(tpAniSirGlobal mac_ctx, uint8_t *buf,
 
 	/* Prepare sequence number */
 	lim_add_mgmt_seq_num(mac_ctx, mac_hdr);
-	lim_log(mac_ctx, LOG1, "seqNumLo=%d, seqNumHi=%d, mgmtSeqNum=%d",
+	lim_log(mac_ctx, LOGD, "seqNumLo=%d, seqNumHi=%d, mgmtSeqNum=%d",
 		mac_hdr->seqControl.seqNumLo,
 		mac_hdr->seqControl.seqNumHi, mac_ctx->mgmtSeqNum);
 }
@@ -356,7 +356,7 @@ lim_send_probe_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 					&addn_ielen,
 					&extracted_ext_cap);
 		if (eSIR_SUCCESS != sir_status) {
-			lim_log(mac_ctx, LOG1,
+			lim_log(mac_ctx, LOGD,
 			FL("Unable to Stripoff ExtCap IE from Probe Req"));
 		} else {
 			struct s_ext_cap *p_ext_cap =
@@ -677,7 +677,7 @@ lim_send_probe_rsp_mgmt_frame(tpAniSirGlobal mac_ctx,
 		populate_dot11f_ht_info(mac_ctx, &frm->HTInfo, pe_session);
 	}
 	if (pe_session->vhtCapability) {
-		lim_log(mac_ctx, LOG1, FL("Populate VHT IE in Probe Response"));
+		lim_log(mac_ctx, LOGD, FL("Populate VHT IE in Probe Response"));
 		populate_dot11f_vht_caps(mac_ctx, pe_session, &frm->VHTCaps);
 		populate_dot11f_vht_operation(mac_ctx, pe_session,
 			&frm->VHTOperation);
@@ -749,7 +749,7 @@ lim_send_probe_rsp_mgmt_frame(tpAniSirGlobal mac_ctx,
 					add_ie, &addn_ie_len,
 					&extracted_ext_cap);
 		if (eSIR_SUCCESS != sir_status) {
-			lim_log(mac_ctx, LOG1,
+			lim_log(mac_ctx, LOGD,
 				FL("Unable to strip off ExtCap IE"));
 		} else {
 			extracted_ext_cap_flag = true;
@@ -1224,7 +1224,7 @@ lim_send_assoc_rsp_mgmt_frame(tpAniSirGlobal mac_ctx,
 
 		if (sta->mlmStaContext.htCapability &&
 		    pe_session->htCapability) {
-			lim_log(mac_ctx, LOG1,
+			lim_log(mac_ctx, LOGD,
 				FL("Populate HT IEs in Assoc Response"));
 			populate_dot11f_ht_caps(mac_ctx, pe_session,
 				&frm.HTCaps);
@@ -1243,7 +1243,7 @@ lim_send_assoc_rsp_mgmt_frame(tpAniSirGlobal mac_ctx,
 			populate_dot11f_ht_info(mac_ctx, &frm.HTInfo,
 				pe_session);
 		}
-		lim_log(mac_ctx, LOG1,
+		lim_log(mac_ctx, LOGD,
 			FL("SupportedChnlWidth: %d, mimoPS: %d, GF: %d, short GI20:%d, shortGI40: %d, dsssCck: %d, AMPDU Param: %x"),
 			frm.HTCaps.supportedChannelWidthSet,
 			frm.HTCaps.mimoPowerSave,
@@ -1254,7 +1254,7 @@ lim_send_assoc_rsp_mgmt_frame(tpAniSirGlobal mac_ctx,
 
 		if (sta->mlmStaContext.vhtCapability &&
 		    pe_session->vhtCapability) {
-			lim_log(mac_ctx, LOG1,
+			lim_log(mac_ctx, LOGD,
 				FL("Populate VHT IEs in Assoc Response"));
 			populate_dot11f_vht_caps(mac_ctx, pe_session,
 				&frm.VHTCaps);
@@ -1266,7 +1266,7 @@ lim_send_assoc_rsp_mgmt_frame(tpAniSirGlobal mac_ctx,
 		    pe_session->vendor_vht_sap &&
 		    (assoc_req != NULL) &&
 		    assoc_req->vendor_vht_ie.VHTCaps.present) {
-			lim_log(mac_ctx, LOG1,
+			lim_log(mac_ctx, LOGD,
 				FL("Populate Vendor VHT IEs in Assoc Rsponse"));
 			frm.vendor_vht_ie.present = 1;
 			frm.vendor_vht_ie.type =
@@ -1354,7 +1354,7 @@ lim_send_assoc_rsp_mgmt_frame(tpAniSirGlobal mac_ctx,
 					(mac_ctx, &add_ie[0], &stripoff_len,
 					&extracted_ext_cap);
 			if (eSIR_SUCCESS != sir_status) {
-				lim_log(mac_ctx, LOG1,
+				lim_log(mac_ctx, LOGD,
 					FL("strip off extcap IE failed"));
 			} else {
 				addn_ie_len = stripoff_len;
@@ -1362,7 +1362,7 @@ lim_send_assoc_rsp_mgmt_frame(tpAniSirGlobal mac_ctx,
 			}
 			bytes = bytes + addn_ie_len;
 		}
-		lim_log(mac_ctx, LOG1,
+		lim_log(mac_ctx, LOGD,
 			FL("addn_ie_len = %d for Assoc Resp : %d"),
 			addn_ie_len, assoc_req->addIEPresent);
 	}
@@ -1425,16 +1425,11 @@ lim_send_assoc_rsp_mgmt_frame(tpAniSirGlobal mac_ctx,
 			status);
 	}
 
-	if (subtype == LIM_ASSOC)
-		lim_log(mac_ctx, LOG1,
-			FL("*** Sending Assoc Resp status %d aid %d to "),
-			status_code, aid);
-	else
-		lim_log(mac_ctx, LOG1,
-			FL("*** Sending ReAssoc Resp status %d aid %d to "),
-			status_code, aid);
+	lim_log(mac_ctx, LOGD,
+		FL("*** Sending Assoc Resp subtype %d status %d aid %d to "),
+			subtype, status_code, aid);
 
-	lim_print_mac_addr(mac_ctx, mac_hdr->da, LOG1);
+	lim_print_mac_addr(mac_ctx, mac_hdr->da, LOGD);
 
 	if (addn_ie_len && addn_ie_len <= WNI_CFG_ASSOC_RSP_ADDNIE_DATA_LEN)
 		qdf_mem_copy(frame + sizeof(tSirMacMgmtHdr) + payload,
@@ -1597,10 +1592,8 @@ lim_send_delts_req_action_frame(tpAniSirGlobal pMac,
 		}
 	}
 
-	PELOG1(lim_log
-		       (pMac, LOG1, FL("Sending DELTS REQ (size %d) to "), nBytes);
-	       lim_print_mac_addr(pMac, pMacHdr->da, LOG1);
-	       )
+	lim_log(pMac, LOGD, FL("Sending DELTS REQ (size %d) to "), nBytes);
+	       lim_print_mac_addr(pMac, pMacHdr->da, LOGD);
 
 	if ((SIR_BAND_5_GHZ ==
 	     lim_get_rf_band(psessionEntry->currentOperChannel))
@@ -1641,7 +1634,7 @@ static QDF_STATUS lim_assoc_tx_complete_cnf(tpAniSirGlobal mac_ctx,
 	uint16_t assoc_ack_status;
 	uint16_t reason_code;
 
-	lim_log(mac_ctx, LOG1,
+	lim_log(mac_ctx, LOGD,
 		 FL("tx_complete= %d"), tx_complete);
 	if (tx_complete) {
 		assoc_ack_status = ACKED;
@@ -1726,7 +1719,7 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 					add_ie, &add_ie_len, &extr_ext_cap);
 		if (eSIR_SUCCESS != sir_status) {
 			extr_ext_flag = false;
-			lim_log(mac_ctx, LOG1,
+			lim_log(mac_ctx, LOGD,
 			    FL("Unable to Stripoff ExtCap IE from Assoc Req"));
 		} else {
 			struct s_ext_cap *p_ext_cap = (struct s_ext_cap *)
@@ -1739,7 +1732,7 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 			extr_ext_flag = (extr_ext_cap.num_bytes > 0);
 		}
 	} else {
-		lim_log(mac_ctx, LOG1,
+		lim_log(mac_ctx, LOGD,
 		FL("No addn IE or peer dosen't support addnIE for Assoc Req"));
 		extr_ext_flag = false;
 	}
@@ -1857,12 +1850,12 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 	 */
 	if (pe_session->htCapability &&
 	    mac_ctx->lim.htCapabilityPresentInBeacon) {
-		lim_log(mac_ctx, LOG1, FL("Populate HT Caps in Assoc Request"));
+		lim_log(mac_ctx, LOGD, FL("Populate HT Caps in Assoc Request"));
 		populate_dot11f_ht_caps(mac_ctx, pe_session, &frm->HTCaps);
 		QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
 				   &frm->HTCaps, sizeof(frm->HTCaps));
 	}
-	lim_log(mac_ctx, LOG1,
+	lim_log(mac_ctx, LOGD,
 		FL("SupportedChnlWidth: %d, mimoPS: %d, GF: %d, short GI20:%d, shortGI40: %d, dsssCck: %d, AMPDU Param: %x"),
 		frm->HTCaps.supportedChannelWidthSet,
 		frm->HTCaps.mimoPowerSave,
@@ -1873,7 +1866,7 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 
 	if (pe_session->vhtCapability &&
 	    pe_session->vhtCapabilityPresentInBeacon) {
-		lim_log(mac_ctx, LOG1, FL("Populate VHT IEs in Assoc Request"));
+		lim_log(mac_ctx, LOGD, FL("Populate VHT IEs in Assoc Request"));
 		populate_dot11f_vht_caps(mac_ctx, pe_session, &frm->VHTCaps);
 		QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
 				   &frm->VHTCaps, sizeof(frm->VHTCaps));
@@ -1888,7 +1881,7 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 	}
 	if (!vht_enabled &&
 			pe_session->is_vendor_specific_vhtcaps) {
-		lim_log(mac_ctx, LOG1,
+		lim_log(mac_ctx, LOGD,
 			FL("Populate Vendor VHT IEs in Assoc Request"));
 		frm->vendor_vht_ie.present = 1;
 		frm->vendor_vht_ie.type =
@@ -1913,7 +1906,7 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 		tSirBssDescription *bssdescr;
 
 		bssdescr = &pe_session->pLimJoinReq->bssDescription;
-		lim_log(mac_ctx, LOG1, FL("mdie = %02x %02x %02x"),
+		lim_log(mac_ctx, LOGD, FL("mdie = %02x %02x %02x"),
 			(unsigned int) bssdescr->mdie[0],
 			(unsigned int) bssdescr->mdie[1],
 			(unsigned int) bssdescr->mdie[2]);
@@ -1921,7 +1914,7 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 			pe_session->pLimJoinReq->bssDescription.mdie);
 	} else {
 		/* No 11r IEs dont send any MDIE */
-		lim_log(mac_ctx, LOG1, FL("MDIE not present"));
+		lim_log(mac_ctx, LOGD, FL("MDIE not present"));
 	}
 
 #ifdef FEATURE_WLAN_ESE
@@ -1975,7 +1968,7 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 
 	if (eSIR_SUCCESS != lim_strip_supp_op_class_update_struct(mac_ctx,
 			add_ie, &add_ie_len, &frm->SuppOperatingClasses))
-		lim_log(mac_ctx, LOG1,
+		lim_log(mac_ctx, LOGD,
 		FL("Unable to Stripoff supp op classes IE from Assoc Req"));
 
 	status = dot11f_get_packed_assoc_request_size(mac_ctx, frm, &payload);
@@ -2038,7 +2031,7 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 			FL("Assoc request pack warning (0x%08x)"), status);
 	}
 
-	lim_log(mac_ctx, LOG1,
+	lim_log(mac_ctx, LOGD,
 		FL("*** Sending Association Request length %d to "), bytes);
 	if (pe_session->assocReq != NULL) {
 		qdf_mem_free(pe_session->assocReq);
@@ -2126,7 +2119,7 @@ static QDF_STATUS lim_auth_tx_complete_cnf(tpAniSirGlobal mac_ctx,
 	uint16_t auth_ack_status;
 	uint16_t reason_code;
 
-	lim_log(mac_ctx, LOG1,
+	lim_log(mac_ctx, LOGD,
 		 FL("tx_complete= %d"), tx_complete);
 	if (tx_complete) {
 		mac_ctx->auth_ack_status = LIM_AUTH_ACK_RCD_SUCCESS;
@@ -2338,7 +2331,7 @@ alloc_packet:
 	if (wep_bit == LIM_WEP_IN_FC) {
 		qdf_mem_copy(body, (uint8_t *) auth_frame, body_len);
 
-		lim_log(mac_ctx, LOG1,
+		lim_log(mac_ctx, LOGD,
 			FL("Sending Auth seq# 3 to " MAC_ADDRESS_STR),
 			MAC_ADDR_ARRAY(mac_hdr->da));
 
@@ -2393,7 +2386,7 @@ alloc_packet:
 			}
 		}
 
-		lim_log(mac_ctx, LOG1,
+		lim_log(mac_ctx, LOGD,
 			FL("*** Sending Auth seq# %d status %d (%d) to "
 				MAC_ADDRESS_STR),
 			auth_frame->authTransactionSeqNumber,
@@ -2589,7 +2582,7 @@ QDF_STATUS lim_send_disassoc_cnf(tpAniSirGlobal mac_ctx)
 		if (LIM_IS_STA_ROLE(pe_session) &&
 			(disassoc_req->reasonCode !=
 				eSIR_MAC_DISASSOC_DUE_TO_FTHANDOFF_REASON)) {
-			lim_log(mac_ctx, LOG1,
+			lim_log(mac_ctx, LOGD,
 				FL("FT Preauth Session (%p,%d) Clean up"
 #ifdef FEATURE_WLAN_ESE
 				" isESE %d"
@@ -2638,7 +2631,7 @@ end:
 QDF_STATUS lim_disassoc_tx_complete_cnf(tpAniSirGlobal pMac,
 					uint32_t txCompleteSuccess)
 {
-	lim_log(pMac, LOG1,
+	lim_log(pMac, LOGD,
 		FL("txCompleteSuccess: %d"), txCompleteSuccess);
 	return lim_send_disassoc_cnf(pMac);
 }
@@ -2646,7 +2639,7 @@ QDF_STATUS lim_disassoc_tx_complete_cnf(tpAniSirGlobal pMac,
 QDF_STATUS lim_deauth_tx_complete_cnf(tpAniSirGlobal pMac,
 				      uint32_t txCompleteSuccess)
 {
-	lim_log(pMac, LOG1,
+	lim_log(pMac, LOGD,
 		FL("txCompleteSuccess: %d"), txCompleteSuccess);
 	return lim_send_deauth_cnf(pMac);
 }
@@ -3614,7 +3607,7 @@ lim_send_extended_chan_switch_action_frame(tpAniSirGlobal mac_ctx,
 		txFlag |= HAL_USE_BD_RATE2_FOR_MANAGEMENT_FRAME;
 	}
 
-	lim_log(mac_ctx, LOG1,
+	lim_log(mac_ctx, LOGD,
 	 FL("Send Ext channel Switch to :"MAC_ADDRESS_STR" with swcount %d, swmode %d , newchannel %d newops %d"),
 		MAC_ADDR_ARRAY(mac_hdr->da),
 		frm.ext_chan_switch_ann_action.switch_count,
@@ -3657,7 +3650,7 @@ static QDF_STATUS lim_oper_chan_change_confirm_tx_complete_cnf(
 			tpAniSirGlobal mac_ctx,
 			uint32_t tx_complete)
 {
-	lim_log(mac_ctx, LOG1,
+	lim_log(mac_ctx, LOGD,
 		 FL(" tx_complete= %d"), tx_complete);
 	return QDF_STATUS_SUCCESS;
 }
@@ -3704,12 +3697,13 @@ lim_p2p_oper_chan_change_confirm_action_frame(tpAniSirGlobal mac_ctx,
 	frm.DialogToken.token = 0x0;
 
 	if (session_entry->htCapability) {
-		lim_log(mac_ctx, LOG1, FL("Populate HT Caps in Assoc Request"));
+		lim_log(mac_ctx, LOGD, FL("Populate HT Caps in Assoc Request"));
 		populate_dot11f_ht_caps(mac_ctx, session_entry, &frm.HTCaps);
 	}
 
 	if (session_entry->vhtCapability) {
-		lim_log(mac_ctx, LOG1, FL("Populate VHT Caps in Assoc Request"));
+		lim_log(mac_ctx, LOGD,
+			FL("Populate VHT Caps in Assoc Request"));
 		populate_dot11f_vht_caps(mac_ctx, session_entry, &frm.VHTCaps);
 		populate_dot11f_operating_mode(mac_ctx,
 					&frm.OperatingMode, session_entry);
@@ -4270,7 +4264,7 @@ lim_send_radio_measure_report_action_frame(tpAniSirGlobal pMac,
 		return eSIR_FAILURE;
 	}
 
-	lim_log(pMac, LOG1, FL("dialog_token %d num_report %d"),
+	lim_log(pMac, LOGD, FL("dialog_token %d num_report %d"),
 			dialog_token, num_report);
 
 	frm->Category.category = SIR_MAC_ACTION_RRM;
@@ -4515,10 +4509,10 @@ tSirRetStatus lim_send_sa_query_request_frame(tpAniSirGlobal pMac, uint8_t *tran
 			nStatus);
 	}
 
-	lim_log(pMac, LOG1, FL("Sending an SA Query Request to "));
-	lim_print_mac_addr(pMac, peer, LOG1);
-	lim_log(pMac, LOG1, FL("Sending an SA Query Request from "));
-	lim_print_mac_addr(pMac, psessionEntry->selfMacAddr, LOG1);
+	lim_log(pMac, LOGD, FL("Sending an SA Query Request to "));
+	lim_print_mac_addr(pMac, peer, LOGD);
+	lim_log(pMac, LOGD, FL("Sending an SA Query Request from "));
+	lim_print_mac_addr(pMac, psessionEntry->selfMacAddr, LOGD);
 
 	if ((SIR_BAND_5_GHZ == lim_get_rf_band(psessionEntry->currentOperChannel))
 #ifdef WLAN_FEATURE_P2P
@@ -4657,7 +4651,7 @@ tSirRetStatus lim_send_sa_query_response_frame(tpAniSirGlobal pMac,
 			nStatus);
 	}
 
-	lim_log(pMac, LOG1, FL("Sending a SA Query Response to "));
+	lim_log(pMac, LOGD, FL("Sending a SA Query Response to "));
 	lim_print_mac_addr(pMac, peer, LOGW);
 
 	if ((SIR_BAND_5_GHZ == lim_get_rf_band(psessionEntry->currentOperChannel))

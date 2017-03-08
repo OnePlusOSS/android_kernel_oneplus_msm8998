@@ -17452,7 +17452,7 @@ csr_create_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 	 */
 	if (req_buf->HomeAwayTime < (req_buf->NeighborScanChannelMaxTime +
 	     (2 * CSR_ROAM_SCAN_CHANNEL_SWITCH_TIME))) {
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_WARN,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 			  FL("Invalid config, Home away time(%d) is less than (twice RF switching time + channel max time)(%d). Hence enforcing home away time to disable (0)"),
 			  req_buf->HomeAwayTime,
 			  (req_buf->NeighborScanChannelMaxTime +
@@ -17931,7 +17931,7 @@ csr_roam_offload_scan(tpAniSirGlobal mac_ctx, uint8_t session_id,
 	if ((ROAM_SCAN_OFFLOAD_START == command) &&
 	    (session->pCurRoamProfile &&
 	     session->pCurRoamProfile->do_not_roam)) {
-		sms_log(mac_ctx, LOGE,
+		sms_log(mac_ctx, LOGD,
 			FL("Supplicant disabled driver roaming"));
 		return QDF_STATUS_E_FAILURE;
 	}

@@ -164,9 +164,9 @@ static void lim_process_auth_shared_system_algo(tpAniSirGlobal mac_ctx,
 		auth_node->timestamp = qdf_mc_timer_get_system_ticks();
 		lim_add_pre_auth_node(mac_ctx, auth_node);
 
-		lim_log(mac_ctx, LOG1, FL("Alloc new data: %p id %d peer "),
+		lim_log(mac_ctx, LOGD, FL("Alloc new data: %p id %d peer "),
 			auth_node, auth_node->authNodeIdx);
-		lim_print_mac_addr(mac_ctx, mac_hdr->sa, LOG1);
+		lim_print_mac_addr(mac_ctx, mac_hdr->sa, LOGD);
 		/* / Create and activate Auth Response timer */
 		if (tx_timer_change_context(&auth_node->timer,
 				auth_node->authNodeIdx) != TX_SUCCESS) {
@@ -242,8 +242,8 @@ static void lim_process_auth_open_system_algo(tpAniSirGlobal mac_ctx,
 		lim_print_mac_addr(mac_ctx, mac_hdr->sa, LOGW);
 		return;
 	}
-	lim_log(mac_ctx, LOG1, FL("Alloc new data: %p peer "), auth_node);
-	lim_print_mac_addr(mac_ctx, mac_hdr->sa, LOG1);
+	lim_log(mac_ctx, LOGD, FL("Alloc new data: %p peer "), auth_node);
+	lim_print_mac_addr(mac_ctx, mac_hdr->sa, LOGD);
 	qdf_mem_copy((uint8_t *) auth_node->peerMacAddr,
 			mac_hdr->sa, sizeof(tSirMacAddr));
 	auth_node->mlmState = eLIM_MLM_AUTHENTICATED_STATE;
@@ -562,10 +562,10 @@ static void lim_process_auth_frame_type2(tpAniSirGlobal mac_ctx,
 			 * Received Auth frame2 in an unexpected state.
 			 * Log error and ignore the frame.
 			 */
-			lim_log(mac_ctx, LOG1,
+			lim_log(mac_ctx, LOGD,
 				FL("rx Auth frm2 from peer in state %d, addr "),
 				pe_session->limMlmState);
-			lim_print_mac_addr(mac_ctx, mac_hdr->sa, LOG1);
+			lim_print_mac_addr(mac_ctx, mac_hdr->sa, LOGD);
 		}
 		return;
 	}
@@ -644,9 +644,9 @@ static void lim_process_auth_frame_type2(tpAniSirGlobal mac_ctx,
 			return;
 		}
 
-		lim_log(mac_ctx, LOG1,
+		lim_log(mac_ctx, LOGD,
 			FL("Alloc new data: %p peer"), auth_node);
-		lim_print_mac_addr(mac_ctx, mac_hdr->sa, LOG1);
+		lim_print_mac_addr(mac_ctx, mac_hdr->sa, LOGD);
 		qdf_mem_copy((uint8_t *) auth_node->peerMacAddr,
 				mac_ctx->lim.gpLimMlmAuthReq->peerMacAddr,
 				sizeof(tSirMacAddr));
@@ -946,7 +946,7 @@ static void lim_process_auth_frame_type4(tpAniSirGlobal mac_ctx,
 		 * Log error and ignore the frame.
 		 */
 
-		lim_log(mac_ctx, LOG1,
+		lim_log(mac_ctx, LOGW,
 			FL("received unexpected Auth frame4 from peer in state %d, addr "
 			MAC_ADDRESS_STR),
 			pe_session->limMlmState,
@@ -1014,9 +1014,9 @@ static void lim_process_auth_frame_type4(tpAniSirGlobal mac_ctx,
 			lim_print_mac_addr(mac_ctx, mac_hdr->sa, LOGW);
 			return;
 		}
-		lim_log(mac_ctx, LOG1, FL("Alloc new data: %p peer "),
+		lim_log(mac_ctx, LOGD, FL("Alloc new data: %p peer "),
 			auth_node);
-		lim_print_mac_addr(mac_ctx, mac_hdr->sa, LOG1);
+		lim_print_mac_addr(mac_ctx, mac_hdr->sa, LOGD);
 		qdf_mem_copy((uint8_t *) auth_node->peerMacAddr,
 				mac_ctx->lim.gpLimMlmAuthReq->peerMacAddr,
 				sizeof(tSirMacAddr));
@@ -1127,7 +1127,7 @@ lim_process_auth_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 	/* Restore default failure timeout */
 	if (QDF_P2P_CLIENT_MODE == pe_session->pePersona &&
 			pe_session->defaultAuthFailureTimeout) {
-		lim_log(mac_ctx, LOG1, FL("Restore default failure timeout"));
+		lim_log(mac_ctx, LOGD, FL("Restore default failure timeout"));
 		cfg_set_int(mac_ctx, WNI_CFG_AUTHENTICATE_FAILURE_TIMEOUT,
 				pe_session->defaultAuthFailureTimeout);
 	}
@@ -1512,22 +1512,18 @@ tSirRetStatus lim_process_auth_frame_no_session(tpAniSirGlobal pMac, uint8_t *pB
 		 * as this was indeed a response from the BSSID we tried to
 		 * pre-auth.
 		 */
-		PELOGE(lim_log(pMac, LOG1, "Auth rsp already posted to SME"
+		lim_log(pMac, LOGD, "Auth rsp already posted to SME"
 			       " (session %p, FT session %p)", psessionEntry,
 			       psessionEntry);
-		       );
 		return eSIR_SUCCESS;
 	} else {
-		PELOGE(lim_log(pMac, LOGW, "Auth rsp not yet posted to SME"
+		lim_log(pMac, LOGW, "Auth rsp not yet posted to SME"
 			       " (session %p, FT session %p)", psessionEntry,
 			       psessionEntry);
-		       );
 		psessionEntry->ftPEContext.pFTPreAuthReq->bPreAuthRspProcessed =
 			true;
 	}
 
-	lim_log(pMac, LOG1, FL("Pre-Auth response received from neighbor"));
-	lim_log(pMac, LOG1, FL("Pre-Auth done state"));
 	/* Stopping timer now, that we have our unicast from the AP */
 	/* of our choice. */
 	lim_deactivate_and_change_timer(pMac, eLIM_FT_PREAUTH_RSP_TIMER);
@@ -1543,14 +1539,13 @@ tSirRetStatus lim_process_auth_frame_no_session(tpAniSirGlobal pMac, uint8_t *pB
 	}
 	pRxAuthFrameBody = &rxAuthFrame;
 
-	PELOGE(lim_log(pMac, LOG1,
-		       FL
-			       ("Received Auth frame with type=%d seqnum=%d, status=%d (%d)"),
+	lim_log(pMac, LOGD,
+		FL("Received Auth frame with type=%d seqnum=%d, status=%d (%d)"),
 		       (uint32_t) pRxAuthFrameBody->authAlgoNumber,
 		       (uint32_t) pRxAuthFrameBody->authTransactionSeqNumber,
 		       (uint32_t) pRxAuthFrameBody->authStatusCode,
 		       (uint32_t) pMac->lim.gLimNumPreAuthContexts);
-	       )
+
 	switch (pRxAuthFrameBody->authTransactionSeqNumber) {
 	case SIR_MAC_AUTH_FRAME_2:
 		if (pRxAuthFrameBody->authStatusCode != eSIR_MAC_SUCCESS_STATUS) {

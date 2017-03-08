@@ -1970,7 +1970,7 @@ lim_process_mlm_set_keys_req(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 		return;
 	}
 
-	lim_log(mac_ctx, LOGW,
+	lim_log(mac_ctx, LOGD,
 		FL("Received MLM_SETKEYS_REQ with parameters:"
 		   "AID [%d], ED Type [%d], # Keys [%d] & Peer MAC Addr - "),
 		mlm_set_keys_req->aid, mlm_set_keys_req->edType,
@@ -1989,7 +1989,7 @@ lim_process_mlm_set_keys_req(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 				&mlm_set_keys_req->peer_macaddr)) &&
 		    (!qdf_is_macaddr_equal(&mlm_set_keys_req->peer_macaddr,
 					   &curr_bssid))) {
-			lim_log(mac_ctx, LOGW,
+			lim_log(mac_ctx, LOGD,
 				FL("Received MLM_SETKEYS_REQ with invalid BSSID"
 				MAC_ADDRESS_STR),
 				MAC_ADDR_ARRAY(mlm_set_keys_req->

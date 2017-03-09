@@ -5608,29 +5608,6 @@ typedef enum {
 #define CFG_ENABLE_TX_STBC_MAX                   (1)
 #define CFG_ENABLE_TX_STBC_DEFAULT               (0)
 
-/*
- * <ini>
- * gEnableRXLDPC - Enables/disables Rx LDPC capability in STA mode
- * @Min: 0
- * @Max: 1
- * @Default: 0
- *
- * This ini is used to set default Rx LDPC capability
- *
- * Related: None
- *
- * Supported Feature: STA
- *
- * Usage: Internal/External
- *
- * </ini>
- */
-
-#define CFG_ENABLE_RX_LDPC                       "gEnableRXLDPC"
-#define CFG_ENABLE_RX_LDPC_MIN                   (0)
-#define CFG_ENABLE_RX_LDPC_MAX                   (1)
-#define CFG_ENABLE_RX_LDPC_DEFAULT               (0)
-
 #ifdef FEATURE_WLAN_TDLS
 /*
  * <ini>
@@ -6286,15 +6263,55 @@ typedef enum {
 #define CFG_ENABLE_LPWR_IMG_TRANSITION_MAX         (1)
 #define CFG_ENABLE_LPWR_IMG_TRANSITION_DEFAULT     (0)
 
-/* Config Param to enable the txLdpc capability
+/*
+ * <ini>
+ * gTxLdpcEnable - Config Param to enable Tx LDPC capability
+ * @Min: 0
+ * @Max: 3
+ * @Default: 3
+ *
+ * This ini is used to enable/disable Tx LDPC capability
  * 0 - disable
  * 1 - HT LDPC enable
  * 2 - VHT LDPC enable
- * 3 - HT & VHT LDPC enable */
+ * 3 - HT & VHT LDPC enable
+ *
+ * Related: STA/SAP/P2P/IBSS/NAN.
+ *
+ * Supported Feature: Concurrency/Standalone
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_TX_LDPC_ENABLE_FEATURE         "gTxLdpcEnable"
 #define CFG_TX_LDPC_ENABLE_FEATURE_MIN     (0)
 #define CFG_TX_LDPC_ENABLE_FEATURE_MAX     (3)
 #define CFG_TX_LDPC_ENABLE_FEATURE_DEFAULT (3)
+
+/*
+ * <ini>
+ * gEnableRXLDPC - Config Param to enable Rx LDPC capability
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to enable/disable Rx LDPC capability
+ * 0 - disable Rx LDPC
+ * 1 - enable Rx LDPC
+ *
+ * Related: STA/SAP/P2P/IBSS/NAN.
+ *
+ * Supported Feature: Concurrency/Standalone
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+#define CFG_ENABLE_RX_LDPC                       "gEnableRXLDPC"
+#define CFG_ENABLE_RX_LDPC_MIN                   (0)
+#define CFG_ENABLE_RX_LDPC_MAX                   (1)
+#define CFG_ENABLE_RX_LDPC_DEFAULT               (0)
 
 /*
  * <ini>
@@ -10331,7 +10348,8 @@ struct hdd_config {
 	bool ignoreDynamicDtimInP2pMode;
 	bool enableRxSTBC;
 	bool enableTxSTBC;
-	bool enableRxLDPC;
+	uint8_t enable_tx_ldpc;
+	uint8_t enable_rx_ldpc;
 	bool enable5gEBT;
 #ifdef FEATURE_WLAN_TDLS
 	bool fEnableTDLSSupport;
@@ -10364,7 +10382,6 @@ struct hdd_config {
 #endif
 	uint32_t enableLpwrImgTransition;
 	uint8_t scanAgingTimeout;
-	bool enableTxLdpc;
 	uint8_t disableLDPCWithTxbfAP;
 	uint8_t enableMCCAdaptiveScheduler;
 	bool sapAllowAllChannel;

@@ -6509,7 +6509,7 @@ static QDF_STATUS lim_send_ie(tpAniSirGlobal mac_ctx, uint32_t sme_session_id,
  */
 static inline bool lim_get_rx_ldpc(tpAniSirGlobal mac_ctx, uint8_t ch)
 {
-	if (mac_ctx->roam.configParam.rxLdpcEnable &&
+	if (mac_ctx->roam.configParam.rx_ldpc_enable &&
 		wma_is_rx_ldpc_supported_for_channel(CDS_CHANNEL_NUM(ch)))
 		return true;
 	else

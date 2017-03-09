@@ -7473,7 +7473,6 @@ static int __iw_setint_getnone(struct net_device *dev,
 	hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
 	tHalHandle hHal = WLAN_HDD_GET_HAL_CTX(pAdapter);
 	hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
-	hdd_wext_state_t *pWextState = WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
 	hdd_context_t *hdd_ctx;
 	tSmeConfigParams smeConfig;
 	int *value = (int *)extra;
@@ -7485,7 +7484,6 @@ static int __iw_setint_getnone(struct net_device *dev,
 
 	ENTER_DEV(dev);
 
-	INIT_COMPLETION(pWextState->completion_var);
 	memset(&smeConfig, 0x00, sizeof(smeConfig));
 
 	hdd_ctx = WLAN_HDD_GET_CTX(pAdapter);
@@ -13658,9 +13656,6 @@ int hdd_register_wext(struct net_device *dev)
 
 	/* Zero the memory. This zeros the profile structure */
 	memset(pwextBuf, 0, sizeof(hdd_wext_state_t));
-
-	init_completion(&(WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter))->
-			completion_var);
 
 	status = hdd_set_wext(pAdapter);
 

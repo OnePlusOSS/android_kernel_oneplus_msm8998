@@ -563,7 +563,7 @@ static bool __lim_process_sme_sys_ready_ind(tpAniSirGlobal pMac, uint32_t *pMsgB
 	MTRACE(mac_trace_msg_tx(pMac, NO_SESSION, msg.type));
 
 	if (eSIR_SUCCESS != wma_post_ctrl_msg(pMac, &msg)) {
-		lim_log(pMac, LOGP, FL("wma_post_ctrl_msg failed"));
+		lim_log(pMac, LOGE, FL("wma_post_ctrl_msg failed"));
 		return true;
 	}
 	return false;
@@ -773,7 +773,7 @@ __lim_handle_sme_start_bss_request(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 
 		/* Store Persona */
 		session->pePersona = sme_start_bss_req->bssPersona;
-		QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_INFO,
+		QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
 			  FL("PE PERSONA=%d"), session->pePersona);
 
 		/* Update the phymode */
@@ -792,7 +792,7 @@ __lim_handle_sme_start_bss_request(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 			IS_DOT11_MODE_HT(session->dot11mode);
 		session->vhtCapability =
 			IS_DOT11_MODE_VHT(session->dot11mode);
-		QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_INFO,
+		QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
 			  FL("*****session->vhtCapability = %d"),
 			  session->vhtCapability);
 		session->txLdpcIniFeatureEnabled =
@@ -895,7 +895,7 @@ __lim_handle_sme_start_bss_request(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 			sme_start_bss_req->sec_ch_offset;
 		session->htRecommendedTxWidthSet =
 			(session->htSecondaryChannelOffset) ? 1 : 0;
-		QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_INFO,
+		QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
 			  FL("cbMode %u"), sme_start_bss_req->cbMode);
 		if (session->vhtCapability || session->htCapability) {
 			chanwidth = sme_start_bss_req->vht_channel_width;
@@ -959,7 +959,7 @@ __lim_handle_sme_start_bss_request(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 		/* Prepare and Issue LIM_MLM_START_REQ to MLM */
 		mlm_start_req = qdf_mem_malloc(sizeof(tLimMlmStartReq));
 		if (NULL == mlm_start_req) {
-			lim_log(mac_ctx, LOGP,
+			lim_log(mac_ctx, LOGE,
 				FL("Allocate Memory failed for mlmStartReq"));
 			ret_code = eSIR_SME_RESOURCES_UNAVAILABLE;
 			goto free;
@@ -993,10 +993,10 @@ __lim_handle_sme_start_bss_request(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 					WNI_CFG_IBSS_AUTO_BSSID,
 					&auto_gen_bssid);
 			if (ret_status != eSIR_SUCCESS) {
-				lim_log(mac_ctx, LOGP,
+				lim_log(mac_ctx, LOGE,
 					FL("Get Auto Gen BSSID fail,Status=%d"),
 					ret_status);
-				ret_code = eSIR_LOGP_EXCEPTION;
+				ret_code = eSIR_LOGE_EXCEPTION;
 				goto free;
 			}
 
@@ -1046,20 +1046,20 @@ __lim_handle_sme_start_bss_request(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 		} else {
 			if (wlan_cfg_get_int(mac_ctx,
 				WNI_CFG_DTIM_PERIOD, &val) != eSIR_SUCCESS)
-				lim_log(mac_ctx, LOGP,
+				lim_log(mac_ctx, LOGE,
 					FL("could not retrieve DTIM Period"));
 			mlm_start_req->dtimPeriod = (uint8_t) val;
 		}
 
 		if (wlan_cfg_get_int(mac_ctx, WNI_CFG_CFP_PERIOD, &val) !=
 			eSIR_SUCCESS)
-			lim_log(mac_ctx, LOGP,
+			lim_log(mac_ctx, LOGE,
 				FL("could not retrieve Beacon interval"));
 		mlm_start_req->cfParamSet.cfpPeriod = (uint8_t) val;
 
 		if (wlan_cfg_get_int(mac_ctx, WNI_CFG_CFP_MAX_DURATION, &val) !=
 			eSIR_SUCCESS)
-			lim_log(mac_ctx, LOGP,
+			lim_log(mac_ctx, LOGE,
 				FL("could not retrieve CFPMaxDuration"));
 		mlm_start_req->cfParamSet.cfpMaxDuration = (uint16_t) val;
 
@@ -1091,7 +1091,7 @@ __lim_handle_sme_start_bss_request(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 		    (SIR_BAND_5_GHZ == session->limRFBand)) {
 			if (wlan_cfg_get_int(mac_ctx,
 				WNI_CFG_11H_ENABLED, &val) != eSIR_SUCCESS)
-				lim_log(mac_ctx, LOGP,
+				lim_log(mac_ctx, LOGE,
 					FL("Fail to get WNI_CFG_11H_ENABLED "));
 			else
 				session->lim11hEnable = val;
@@ -1553,7 +1553,7 @@ __lim_process_sme_join_req(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 
 		sme_join_req = qdf_mem_malloc(n_size);
 		if (NULL == sme_join_req) {
-			lim_log(mac_ctx, LOGP,
+			lim_log(mac_ctx, LOGE,
 				FL("AllocateMemory failed for sme_join_req"));
 			ret_code = eSIR_SME_RESOURCES_UNAVAILABLE;
 			goto end;
@@ -1628,7 +1628,7 @@ __lim_process_sme_join_req(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 				ret_code = eSIR_SME_RESOURCES_UNAVAILABLE;
 				goto end;
 			} else
-				lim_log(mac_ctx, LOG2,
+				lim_log(mac_ctx, LOGD,
 					FL("SessionId:%d New session created"),
 					session_id);
 		}
@@ -1717,7 +1717,7 @@ __lim_process_sme_join_req(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 
 		/*Store Persona */
 		session->pePersona = sme_join_req->staPersona;
-		QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_INFO,
+		QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
 			  FL("PE PERSONA=%d cbMode %u"),
 			  session->pePersona, sme_join_req->cbMode);
 		/* Copy The channel Id to the session Table */
@@ -1839,7 +1839,7 @@ __lim_process_sme_join_req(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 			session->pLimJoinReq->bssDescription.length + 2;
 		mlm_join_req = qdf_mem_malloc(val);
 		if (NULL == mlm_join_req) {
-			lim_log(mac_ctx, LOGP,
+			lim_log(mac_ctx, LOGE,
 				FL("AllocateMemory failed for mlmJoinReq"));
 			ret_code = eSIR_SME_RESOURCES_UNAVAILABLE;
 			goto end;
@@ -1851,7 +1851,7 @@ __lim_process_sme_join_req(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 		if (wlan_cfg_get_int(mac_ctx, WNI_CFG_JOIN_FAILURE_TIMEOUT,
 			(uint32_t *) &mlm_join_req->joinFailureTimeout) !=
 			eSIR_SUCCESS) {
-			lim_log(mac_ctx, LOGP,
+			lim_log(mac_ctx, LOGE,
 				FL("couldn't retrieve JoinFailureTimer value"
 				" setting to default value"));
 			mlm_join_req->joinFailureTimeout =
@@ -1938,7 +1938,7 @@ __lim_process_sme_join_req(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 		if (SIR_BAND_5_GHZ == session->limRFBand) {
 			if (wlan_cfg_get_int(mac_ctx, WNI_CFG_11H_ENABLED,
 				&val) != eSIR_SUCCESS) {
-				lim_log(mac_ctx, LOGP,
+				lim_log(mac_ctx, LOGE,
 					FL("Fail to get WNI_CFG_11H_ENABLED "));
 				session->lim11hEnable =
 					WNI_CFG_11H_ENABLED_STADEF;
@@ -2062,7 +2062,7 @@ static void __lim_process_sme_reassoc_req(tpAniSirGlobal mac_ctx,
 	size = __lim_get_sme_join_req_size_for_alloc((uint8_t *)msg_buf);
 	reassoc_req = qdf_mem_malloc(size);
 	if (NULL == reassoc_req) {
-		lim_log(mac_ctx, LOGP,
+		lim_log(mac_ctx, LOGE,
 			FL("call to AllocateMemory failed for reassoc_req"));
 
 		ret_code = eSIR_SME_RESOURCES_UNAVAILABLE;
@@ -2169,7 +2169,7 @@ static void __lim_process_sme_reassoc_req(tpAniSirGlobal mac_ctx,
 				lim_print_mac_addr(mac_ctx,
 						   reassoc_req->bssDescription.
 						   bssId, LOGE);
-				lim_log(mac_ctx, LOGP,
+				lim_log(mac_ctx, LOGE,
 					FL("Unknown bssId in reassoc state"));
 				ret_code = eSIR_SME_INVALID_PARAMETERS;
 				goto end;
@@ -2238,7 +2238,7 @@ static void __lim_process_sme_reassoc_req(tpAniSirGlobal mac_ctx,
 
 	mlm_reassoc_req = qdf_mem_malloc(sizeof(tLimMlmReassocReq));
 	if (NULL == mlm_reassoc_req) {
-		lim_log(mac_ctx, LOGP,
+		lim_log(mac_ctx, LOGE,
 			FL("call to AllocateMemory failed for mlmReassocReq"));
 
 		ret_code = eSIR_SME_RESOURCES_UNAVAILABLE;
@@ -2255,7 +2255,7 @@ static void __lim_process_sme_reassoc_req(tpAniSirGlobal mac_ctx,
 		 * Could not get ReassocFailureTimeout value
 		 * from CFG. Log error.
 		 */
-		lim_log(mac_ctx, LOGP,
+		lim_log(mac_ctx, LOGE,
 			FL("could not retrieve ReassocFailureTimeout value"));
 	}
 
@@ -2265,7 +2265,7 @@ static void __lim_process_sme_reassoc_req(tpAniSirGlobal mac_ctx,
 		 * Could not get Capabilities value
 		 * from CFG. Log error.
 		 */
-		lim_log(mac_ctx, LOGP, FL(
+		lim_log(mac_ctx, LOGE, FL(
 				"could not retrieve Capabilities value"));
 	}
 
@@ -2284,7 +2284,7 @@ static void __lim_process_sme_reassoc_req(tpAniSirGlobal mac_ctx,
 	 */
 	if (wlan_cfg_get_int(mac_ctx, WNI_CFG_TELE_BCN_WAKEUP_EN,
 				&tele_bcn_en) != eSIR_SUCCESS)
-		lim_log(mac_ctx, LOGP,
+		lim_log(mac_ctx, LOGE,
 			FL("Couldn't get WNI_CFG_TELE_BCN_WAKEUP_EN"));
 
 	val = WNI_CFG_LISTEN_INTERVAL_STADEF;
@@ -2296,7 +2296,7 @@ static void __lim_process_sme_reassoc_req(tpAniSirGlobal mac_ctx,
 			 * Could not get ListenInterval value
 			 * from CFG. Log error.
 			 */
-			lim_log(mac_ctx, LOGP,
+			lim_log(mac_ctx, LOGE,
 				FL("could not retrieve ListenInterval"));
 	} else {
 		if (wlan_cfg_get_int(mac_ctx, WNI_CFG_LISTEN_INTERVAL, &val) !=
@@ -2305,7 +2305,7 @@ static void __lim_process_sme_reassoc_req(tpAniSirGlobal mac_ctx,
 			 * Could not get ListenInterval value
 			 * from CFG. Log error.
 			 */
-			lim_log(mac_ctx, LOGP,
+			lim_log(mac_ctx, LOGE,
 				FL("could not retrieve ListenInterval"));
 	}
 
@@ -2565,7 +2565,7 @@ static void __lim_process_sme_disassoc_req(tpAniSirGlobal pMac, uint32_t *pMsgBu
 	pMlmDisassocReq = qdf_mem_malloc(sizeof(tLimMlmDisassocReq));
 	if (NULL == pMlmDisassocReq) {
 		/* Log error */
-		lim_log(pMac, LOGP,
+		lim_log(pMac, LOGE,
 			FL("call to AllocateMemory failed for mlmDisassocReq"));
 
 		return;
@@ -2891,7 +2891,7 @@ static void __lim_process_sme_deauth_req(tpAniSirGlobal mac_ctx,
 	/* Trigger Deauthentication frame to peer MAC entity */
 	mlm_deauth_req = qdf_mem_malloc(sizeof(tLimMlmDeauthReq));
 	if (NULL == mlm_deauth_req) {
-		lim_log(mac_ctx, LOGP,
+		lim_log(mac_ctx, LOGE,
 			FL("call to AllocateMemory failed for mlmDeauthReq"));
 		if (mac_ctx->lim.gLimRspReqd) {
 			mac_ctx->lim.gLimRspReqd = false;
@@ -2952,7 +2952,7 @@ __lim_process_sme_set_context_req(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 
 	set_context_req = qdf_mem_malloc(sizeof(struct sSirSmeSetContextReq));
 	if (NULL == set_context_req) {
-		lim_log(mac_ctx, LOGP, FL(
+		lim_log(mac_ctx, LOGE, FL(
 			"call to AllocateMemory failed for set_context_req"));
 		return;
 	}
@@ -3251,10 +3251,10 @@ static void lim_process_sme_get_wpspbc_sessions(tpAniSirGlobal mac_ctx,
 		return;
 	}
 
-	lim_log(mac_ctx, LOGE, FL("wpsPBCOverlap %d"),
+	lim_log(mac_ctx, LOGD, FL("wpsPBCOverlap %d"),
 				sap_get_wpspbc_event->wpsPBCOverlap);
 	lim_print_mac_addr(mac_ctx,
-				sap_get_wpspbc_event->addr.bytes, LOG4);
+				sap_get_wpspbc_event->addr.bytes, LOGD);
 
 	sap_get_wpspbc_event->status = QDF_STATUS_SUCCESS;
 
@@ -3334,8 +3334,8 @@ __lim_handle_sme_stop_bss_request(tpAniSirGlobal pMac, uint32_t *pMsgBuf)
 	smetransactionId = stopBssReq.transactionId;
 
 	if (!lim_is_sme_stop_bss_req_valid(pMsgBuf)) {
-		PELOGW(lim_log(pMac, LOGW,
-		       FL("received invalid SME_STOP_BSS_REQ message"));)
+		lim_log(pMac, LOGW,
+		       FL("received invalid SME_STOP_BSS_REQ message"));
 		/* Send Stop BSS response to host */
 		lim_send_sme_rsp(pMac, eWNI_SME_STOP_BSS_RSP,
 				 eSIR_SME_INVALID_PARAMETERS, smesessionId,
@@ -3936,7 +3936,7 @@ void lim_process_sme_addts_rsp_timeout(tpAniSirGlobal pMac, uint32_t param)
 				pMac->lim.limTimers.gLimAddtsRspTimer.
 				sessionId);
 	if (psessionEntry == NULL) {
-		lim_log(pMac, LOGP,
+		lim_log(pMac, LOGE,
 			FL("Session Does not exist for given sessionID"));
 		return;
 	}
@@ -3999,7 +3999,7 @@ __lim_process_sme_get_statistics_request(tpAniSirGlobal pMac, uint32_t *pMsgBuf)
 	if (eSIR_SUCCESS != (wma_post_ctrl_msg(pMac, &msgQ))) {
 		qdf_mem_free(pMsgBuf);
 		pMsgBuf = NULL;
-		lim_log(pMac, LOGP, "Unable to forward request");
+		lim_log(pMac, LOGE, "Unable to forward request");
 		return;
 	}
 
@@ -4029,7 +4029,7 @@ __lim_process_sme_get_tsm_stats_request(tpAniSirGlobal pMac, uint32_t *pMsgBuf)
 	if (eSIR_SUCCESS != (wma_post_ctrl_msg(pMac, &msgQ))) {
 		qdf_mem_free(pMsgBuf);
 		pMsgBuf = NULL;
-		lim_log(pMac, LOGP, "Unable to forward request");
+		lim_log(pMac, LOGE, "Unable to forward request");
 		return;
 	}
 }
@@ -4051,7 +4051,7 @@ __lim_process_sme_update_apwpsi_es(tpAniSirGlobal pMac, uint32_t *pMsgBuf)
 
 	pUpdateAPWPSIEsReq = qdf_mem_malloc(sizeof(tSirUpdateAPWPSIEsReq));
 	if (NULL == pUpdateAPWPSIEsReq) {
-		lim_log(pMac, LOGP,
+		lim_log(pMac, LOGE,
 			FL
 				("call to AllocateMemory failed for pUpdateAPWPSIEsReq"));
 		return;
@@ -4255,7 +4255,7 @@ static void __lim_process_sme_set_wparsni_es(tpAniSirGlobal pMac, uint32_t *pMsg
 
 	pUpdateAPWPARSNIEsReq = qdf_mem_malloc(sizeof(tSirUpdateAPWPSIEsReq));
 	if (NULL == pUpdateAPWPARSNIEsReq) {
-		lim_log(pMac, LOGP,
+		lim_log(pMac, LOGE,
 			FL
 				("call to AllocateMemory failed for pUpdateAPWPARSNIEsReq"));
 		return;
@@ -4533,7 +4533,7 @@ lim_send_set_max_tx_power_req(tpAniSirGlobal pMac, int8_t txPower,
 
 	pMaxTxParams = qdf_mem_malloc(sizeof(tMaxTxPowerParams));
 	if (NULL == pMaxTxParams) {
-		lim_log(pMac, LOGP,
+		lim_log(pMac, LOGE,
 			FL("Unable to allocate memory for pMaxTxParams "));
 		return eSIR_MEM_ALLOC_FAILED;
 
@@ -5217,23 +5217,18 @@ bool lim_process_sme_req_messages(tpAniSirGlobal pMac, tpSirMsgQ pMsg)
 		break;
 
 	case eWNI_SME_ASSOC_CNF:
-		lim_log(pMac, LOGD, FL("Received ASSOC_CNF message"));
 		__lim_process_sme_assoc_cnf_new(pMac, pMsg->type, pMsgBuf);
 		break;
 
 	case eWNI_SME_ADDTS_REQ:
-		lim_log(pMac, LOGD, FL("Received ADDTS_REQ message"));
 		__lim_process_sme_addts_req(pMac, pMsgBuf);
 		break;
 
 	case eWNI_SME_DELTS_REQ:
-		lim_log(pMac, LOGD, FL("Received DELTS_REQ message"));
 		__lim_process_sme_delts_req(pMac, pMsgBuf);
 		break;
 
 	case SIR_LIM_ADDTS_RSP_TIMEOUT:
-		lim_log(pMac, LOGD,
-			FL("Received SIR_LIM_ADDTS_RSP_TIMEOUT message "));
 		lim_process_sme_addts_rsp_timeout(pMac, pMsg->bodyval);
 		break;
 
@@ -5439,7 +5434,7 @@ static void lim_process_sme_start_beacon_req(tpAniSirGlobal pMac, uint32_t *pMsg
 		 * Tx right after the WMA_ADD_BSS_RSP.
 		 */
 		lim_apply_configuration(pMac, psessionEntry);
-		QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_INFO,
+		QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
 			  FL("Start Beacon with ssid %s Ch %d"),
 			  psessionEntry->ssId.ssId,
 			  psessionEntry->currentOperChannel);
@@ -5506,7 +5501,7 @@ static void lim_process_sme_channel_change_request(tpAniSirGlobal mac_ctx,
 		session_entry->channelChangeReasonCode =
 			LIM_SWITCH_CHANNEL_OPERATION;
 
-	lim_log(mac_ctx, LOGW, FL(
+	lim_log(mac_ctx, LOGD, FL(
 			"switch old chnl %d to new chnl %d, ch_bw %d"),
 			session_entry->currentOperChannel,
 			ch_change_req->targetChannel,
@@ -5531,7 +5526,7 @@ static void lim_process_sme_channel_change_request(tpAniSirGlobal mac_ctx,
 	if (SIR_BAND_5_GHZ == session_entry->limRFBand) {
 		if (wlan_cfg_get_int(mac_ctx, WNI_CFG_11H_ENABLED, &val) !=
 				eSIR_SUCCESS)
-			lim_log(mac_ctx, LOGP,
+			lim_log(mac_ctx, LOGE,
 				FL("Fail to get WNI_CFG_11H_ENABLED"));
 	}
 

@@ -123,6 +123,12 @@ tSirRetStatus mac_open(tHalHandle *pHalHandle, tHddHandle hHdd,
 	*pHalHandle = (tHalHandle) p_mac;
 
 	{
+		/*
+		 * For Non-FTM cases this value will be reset during mac_start
+		 */
+		if (cds_cfg->driver_type)
+			p_mac->gDriverType = eDRIVER_TYPE_MFG;
+
 		/* Call various PE (and other layer init here) */
 		if (eSIR_SUCCESS != log_init(p_mac)) {
 			qdf_mem_free(p_mac);

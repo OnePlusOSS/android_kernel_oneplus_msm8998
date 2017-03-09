@@ -2151,7 +2151,7 @@ QDF_STATUS csr_scan_get_result(tpAniSirGlobal pMac,
 	pRetList->pCurEntry = NULL;
 	status = csr_parse_scan_results(pMac, pFilter, pRetList, &count);
 	sms_log(pMac, LOGD, FL("return %d BSS %d"),
-		csr_ll_count(&pRetList->List), status);
+		status, csr_ll_count(&pRetList->List));
 	if (!QDF_IS_STATUS_SUCCESS(status) || (phResult == NULL)) {
 		/* Fail or No one wants the result. */
 		csr_scan_result_purge(pMac, (tScanResultHandle) pRetList);
@@ -2166,6 +2166,56 @@ QDF_STATUS csr_scan_get_result(tpAniSirGlobal pMac,
 		}
 	}
 	return status;
+}
+
+tCsrScanResultInfo *csr_scan_get_result_for_bssid(tpAniSirGlobal mac_ctx,
+						  struct qdf_mac_addr *bssid)
+{
+	tDblLinkList *list = &mac_ctx->scan.scanResultList;
+	tListElem *entry;
+	tCsrScanResultInfo *scan_info = NULL;
+	tCsrScanResult *scan_res;
+	size_t bss_len, len;
+	tDot11fBeaconIEs *ies = NULL;
+	QDF_STATUS status;
+
+	csr_ll_lock(list);
+	entry = csr_ll_peek_head(list, LL_ACCESS_NOLOCK);
+	while (entry) {
+		scan_res = GET_BASE_ADDR(entry, tCsrScanResult, Link);
+		if (qdf_mem_cmp(scan_res->Result.BssDescriptor.bssId,
+				bssid->bytes, QDF_MAC_ADDR_SIZE) == 0) {
+			/* Found matching scan resut for this bssid */
+			bss_len = scan_res->Result.BssDescriptor.length +
+				  sizeof(scan_res->Result.BssDescriptor.length);
+			len = sizeof(*scan_info) + bss_len;
+			scan_info = qdf_mem_malloc(len);
+			if (!scan_info) {
+				sms_log(mac_ctx, LOGE,
+					FL("Failed to allocate memory for scan info, len = %lu"),
+					len);
+				break;
+			}
+			scan_info->ssId = scan_res->Result.ssId;
+			scan_info->timer = scan_res->Result.timer;
+			qdf_mem_copy(&scan_info->BssDescriptor,
+				     &scan_res->Result.BssDescriptor, bss_len);
+			status = csr_get_parsed_bss_description_ies(
+						mac_ctx,
+						&scan_info->BssDescriptor,
+						&ies);
+			if (QDF_IS_STATUS_ERROR(status)) {
+				qdf_mem_free(scan_info);
+				scan_info = NULL;
+			}
+			scan_info->pvIes = ies;
+			break;
+		}
+		entry = csr_ll_next(list, entry, LL_ACCESS_NOLOCK);
+	}
+	csr_ll_unlock(list);
+
+	return scan_info;
 }
 
 /*

@@ -1523,4 +1523,14 @@ void sme_set_5g_band_pref(tHalHandle hal_handle,
 QDF_STATUS sme_set_bt_activity_info_cb(tHalHandle hal,
 				void (*cb)(void *, uint32_t profile_info));
 
+/**
+ * sme_scan_get_result_for_bssid - gets the scan result from scan cache for the
+ *	bssid specified
+ * @hal: handle returned by mac_open
+ * @bssid: bssid to get the scan result for
+ *
+ * Return: tCsrScanResultInfo * or NULL if no result
+ */
+tCsrScanResultInfo *sme_scan_get_result_for_bssid(tHalHandle hal_handle,
+						  struct qdf_mac_addr *bssid);
 #endif /* #if !defined( __SME_API_H ) */

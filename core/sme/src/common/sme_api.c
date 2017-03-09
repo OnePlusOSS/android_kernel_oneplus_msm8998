@@ -3505,6 +3505,22 @@ QDF_STATUS sme_scan_get_result(tHalHandle hHal, uint8_t sessionId,
 	return status;
 }
 
+tCsrScanResultInfo *sme_scan_get_result_for_bssid(tHalHandle hal_handle,
+						  struct qdf_mac_addr *bssid)
+{
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal_handle);
+	QDF_STATUS status;
+	tCsrScanResultInfo *res = NULL;
+
+	status = sme_acquire_global_lock(&mac_ctx->sme);
+	if (QDF_IS_STATUS_SUCCESS(status)) {
+		res = csr_scan_get_result_for_bssid(hal_handle, bssid);
+		sme_release_global_lock(&mac_ctx->sme);
+	}
+
+	return res;
+}
+
 /**
  * sme_get_ap_channel_from_scan_cache() - a wrapper function to get AP's
  *                                        channel id from CSR by filtering the

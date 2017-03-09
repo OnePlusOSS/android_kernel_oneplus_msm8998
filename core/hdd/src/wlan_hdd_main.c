@@ -3779,7 +3779,7 @@ QDF_STATUS hdd_stop_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 
 		if (wlansap_close(sap_ctx) != QDF_STATUS_SUCCESS)
 			hdd_err("Failed:WLANSAP_close");
-
+		clear_bit(SME_SESSION_OPENED, &adapter->event_flags);
 		adapter->sessionCtx.ap.sapContext = NULL;
 		mutex_unlock(&hdd_ctx->sap_lock);
 

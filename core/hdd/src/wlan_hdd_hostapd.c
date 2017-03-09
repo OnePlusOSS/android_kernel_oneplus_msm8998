@@ -1340,7 +1340,6 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 		       pSapEvent->sapevt.sapStopBssCompleteEvent.
 		       status ? "eSAP_STATUS_FAILURE" : "eSAP_STATUS_SUCCESS");
 
-		clear_bit(SME_SESSION_OPENED, &pHostapdAdapter->event_flags);
 		hdd_hostapd_channel_allow_suspend(pHostapdAdapter,
 						  pHddApCtx->operatingChannel);
 

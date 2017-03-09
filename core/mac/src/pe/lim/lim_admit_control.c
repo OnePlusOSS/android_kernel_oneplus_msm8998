@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -45,8 +45,8 @@
 #include "lim_types.h"
 #include "lim_admit_control.h"
 
-#define ADMIT_CONTROL_LOGLEVEL        LOG1
-#define ADMIT_CONTROL_POLICY_LOGLEVEL LOG1
+#define ADMIT_CONTROL_LOGLEVEL        LOGD
+#define ADMIT_CONTROL_POLICY_LOGLEVEL LOGD
 
 /* total available bandwidth in bps in each phy mode
  * these should be defined in hal or dph - replace these later
@@ -119,7 +119,7 @@ lim_calculate_svc_int(tpAniSirGlobal pMac,
 	else if (pTspec->maxMsduSz != 0)
 		msduSz = pTspec->maxMsduSz;
 	else {
-		PELOGE(lim_log(pMac, LOGE, FL("MsduSize not specified"));)
+		lim_log(pMac, LOGE, FL("MsduSize not specified"));
 		return eSIR_FAILURE;
 	}
 
@@ -133,7 +133,7 @@ lim_calculate_svc_int(tpAniSirGlobal pMac,
 	else if (pTspec->minDataRate != 0)
 		dataRate = pTspec->minDataRate;
 	else {
-		PELOGE(lim_log(pMac, LOGE, FL("DataRate not specified"));)
+		lim_log(pMac, LOGE, FL("DataRate not specified"));
 		return eSIR_FAILURE;
 	}
 
@@ -201,7 +201,7 @@ lim_validate_tspec(tpAniSirGlobal pMac,
 	case SIR_MAC_ACCESSPOLICY_EDCA:
 		retval = lim_validate_tspec_edca(pMac, pTspec, psessionEntry);
 		if (retval != eSIR_SUCCESS)
-			PELOGW(lim_log(pMac, LOGW, FL("EDCA tspec invalid"));)
+			lim_log(pMac, LOGW, FL("EDCA tspec invalid"));
 			break;
 
 	case SIR_MAC_ACCESSPOLICY_HCCA:
@@ -368,9 +368,7 @@ static tSirRetStatus lim_admit_policy(tpAniSirGlobal pMac,
 							   &pMac->lim.tspecInfo[0],
 							   psessionEntry);
 		if (retval != eSIR_SUCCESS)
-			PELOGE(lim_log
-				       (pMac, LOGE, FL("rejected by BWFactor policy"));
-			       )
+			lim_log(pMac, LOGE, FL("rejected by BWFactor policy"));
 			break;
 
 	case WNI_CFG_ADMIT_POLICY_REJECT_ALL:
@@ -557,7 +555,7 @@ tSirRetStatus lim_tspec_add(tpAniSirGlobal pMac,
 
 	/* validate the assocId */
 	if (assocId >= pMac->lim.maxStation) {
-		PELOGE(lim_log(pMac, LOGE, FL("Invalid assocId 0x%x"), assocId);)
+		lim_log(pMac, LOGE, FL("Invalid assocId 0x%x"), assocId);
 		return eSIR_FAILURE;
 	}
 	/* decide whether to add/update */
@@ -580,7 +578,7 @@ tSirRetStatus lim_tspec_add(tpAniSirGlobal pMac,
 			     ctspec < LIM_NUM_TSPEC_MAX;
 			     ctspec++, pTspecList++) {
 				if (!pTspecList->inuse) {
-					lim_log(pMac, LOG1,
+					lim_log(pMac, LOGD,
 						FL
 							("Found free slot in TSPEC list. Add to TSPEC table entry %d"),
 						ctspec);
@@ -645,7 +643,7 @@ lim_validate_access_policy(tpAniSirGlobal pMac,
 		dph_get_hash_entry(pMac, assocId, &psessionEntry->dph.dphHashTable);
 
 	if ((pSta == NULL) || (!pSta->valid)) {
-		PELOGE(lim_log(pMac, LOGE, FL("invalid station address passed"));)
+		lim_log(pMac, LOGE, FL("invalid station address passed"));
 		return eSIR_FAILURE;
 	}
 
@@ -658,10 +656,8 @@ lim_validate_access_policy(tpAniSirGlobal pMac,
 	case SIR_MAC_ACCESSPOLICY_HCCA:
 	case SIR_MAC_ACCESSPOLICY_BOTH:
 	default:
-		PELOGE(lim_log
-			       (pMac, LOGE, FL("Invalid accessPolicy %d"),
+		lim_log(pMac, LOGE, FL("Invalid accessPolicy %d"),
 			       accessPolicy);
-		       )
 		break;
 	}
 
@@ -730,21 +726,19 @@ tSirRetStatus lim_admit_control_add_ts(tpAniSirGlobal pMac, uint8_t *pAddr,
 	/* check that the tspec's are well formed and acceptable */
 	if (lim_validate_tspec(pMac, &pAddts->tspec, psessionEntry) !=
 	    eSIR_SUCCESS) {
-		PELOGW(lim_log(pMac, LOGW, FL("tspec validation failed"));)
+		lim_log(pMac, LOGW, FL("tspec validation failed"));
 		return eSIR_FAILURE;
 	}
 	/* determine a service interval for the tspec */
 	if (lim_calculate_svc_int(pMac, &pAddts->tspec, &svcInterval) !=
 	    eSIR_SUCCESS) {
-		PELOGW(lim_log(pMac, LOGW, FL("SvcInt calculate failed"));)
+		lim_log(pMac, LOGW, FL("SvcInt calculate failed"));
 		return eSIR_FAILURE;
 	}
 	/* determine if the tspec can be admitted or not based on current policy */
 	if (lim_admit_policy(pMac, &pAddts->tspec, psessionEntry) != eSIR_SUCCESS) {
-		PELOGW(lim_log
-			       (pMac, LOGW,
-			       FL("tspec rejected by admit control policy"));
-		       )
+		lim_log(pMac, LOGW,
+			FL("tspec rejected by admit control policy"));
 		return eSIR_FAILURE;
 	}
 	/* fill in a schedule if requested */
@@ -776,7 +770,7 @@ tSirRetStatus lim_admit_control_add_ts(tpAniSirGlobal pMac, uint8_t *pAddr,
 	if (lim_tspec_add
 		    (pMac, pAddr, assocId, &pAddts->tspec, svcInterval, &pTspecInfo)
 	    != eSIR_SUCCESS) {
-		PELOGE(lim_log(pMac, LOGE, FL("no space in tspec list"));)
+		lim_log(pMac, LOGE, FL("no space in tspec list"));
 		return eSIR_FAILURE;
 	}
 	/* passing lim tspec table index to the caller */
@@ -872,20 +866,19 @@ tSirRetStatus lim_update_admit_policy(tpAniSirGlobal pMac)
 {
 	uint32_t val;
 	if (wlan_cfg_get_int(pMac, WNI_CFG_ADMIT_POLICY, &val) != eSIR_SUCCESS) {
-		lim_log(pMac, LOGP, FL("Unable to get CFG_ADMIT_POLICY"));
+		lim_log(pMac, LOGE, FL("Unable to get CFG_ADMIT_POLICY"));
 		return eSIR_FAILURE;
 	}
 	pMac->lim.admitPolicyInfo.type = (uint8_t) val;
 	if (wlan_cfg_get_int(pMac, WNI_CFG_ADMIT_BWFACTOR, &val) != eSIR_SUCCESS) {
-		lim_log(pMac, LOGP, FL("Unable to get CFG_ADMIT_BWFACTOR"));
+		lim_log(pMac, LOGE, FL("Unable to get CFG_ADMIT_BWFACTOR"));
 		return eSIR_FAILURE;
 	}
 	pMac->lim.admitPolicyInfo.bw_factor = (uint8_t) val;
 
-	PELOG1(lim_log(pMac, LOG1, FL("LIM: AdmitPolicy %d, bw_factor %d"),
+	lim_log(pMac, LOGD, FL("LIM: AdmitPolicy %d, bw_factor %d"),
 		       pMac->lim.admitPolicyInfo.type,
 		       pMac->lim.admitPolicyInfo.bw_factor);
-	       )
 
 	return eSIR_SUCCESS;
 }
@@ -921,7 +914,7 @@ lim_send_hal_msg_add_ts(tpAniSirGlobal pMac,
 
 	tpPESession psessionEntry = pe_find_session_by_session_id(pMac, sessionId);
 	if (psessionEntry == NULL) {
-		lim_log(pMac, LOGP,
+		lim_log(pMac, LOGE,
 			FL("Unable to get Session for session Id %d"),
 			sessionId);
 		return eSIR_FAILURE;
@@ -929,7 +922,7 @@ lim_send_hal_msg_add_ts(tpAniSirGlobal pMac,
 
 	pAddTsParam = qdf_mem_malloc(sizeof(tAddTsParams));
 	if (NULL == pAddTsParam) {
-		PELOGW(lim_log(pMac, LOGW, FL("AllocateMemory() failed"));)
+		lim_log(pMac, LOGE, FL("AllocateMemory() failed"));
 		return eSIR_MEM_ALLOC_FAILED;
 	}
 
@@ -989,7 +982,7 @@ lim_send_hal_msg_del_ts(tpAniSirGlobal pMac,
 
 	pDelTsParam = qdf_mem_malloc(sizeof(tDelTsParams));
 	if (NULL == pDelTsParam) {
-		lim_log(pMac, LOGP, FL("AllocateMemory() failed"));
+		lim_log(pMac, LOGE, FL("AllocateMemory() failed"));
 		return eSIR_MEM_ALLOC_FAILED;
 	}
 
@@ -1004,11 +997,9 @@ lim_send_hal_msg_del_ts(tpAniSirGlobal pMac,
 
 	psessionEntry = pe_find_session_by_session_id(pMac, sessionId);
 	if (psessionEntry == NULL) {
-		PELOGE(lim_log(pMac, LOGE,
-			       FL
-				       ("Session does Not exist with given sessionId :%d "),
+		lim_log(pMac, LOGE,
+			FL("Session does Not exist with given sessionId :%d "),
 			       sessionId);
-		       )
 		goto err;
 	}
 	pDelTsParam->sessionId = psessionEntry->smeSessionId;
@@ -1024,8 +1015,6 @@ lim_send_hal_msg_del_ts(tpAniSirGlobal pMac,
 		pDelTsParam->setRICparams = 1;
 	}
 #endif
-
-	lim_log(pMac, LOGW, FL("calling wma_post_ctrl_msg()"));
 	MTRACE(mac_trace_msg_tx(pMac, sessionId, msg.type));
 
 	if (eSIR_SUCCESS != wma_post_ctrl_msg(pMac, &msg)) {
@@ -1064,7 +1053,7 @@ void lim_process_hal_add_ts_rsp(tpAniSirGlobal pMac, tpSirMsgQ limMsg)
 	SET_LIM_PROCESS_DEFD_MESGS(pMac, true);
 
 	if (NULL == limMsg->bodyptr) {
-		lim_log(pMac, LOGP, FL("Received WMA_ADD_TS_RSP with NULL "));
+		lim_log(pMac, LOGE, FL("Received WMA_ADD_TS_RSP with NULL "));
 		goto end;
 	}
 
@@ -1075,11 +1064,9 @@ void lim_process_hal_add_ts_rsp(tpAniSirGlobal pMac, tpSirMsgQ limMsg)
 	psessionEntry = pe_find_session_by_session_id(pMac, pAddTsRspMsg->sessionId);
 
 	if (psessionEntry == NULL) {
-		PELOGE(lim_log
-			       (pMac, LOGE,
-			       FL("Session does Not exist with given sessionId :%d "),
+		lim_log(pMac, LOGE,
+			FL("Session does Not exist with given sessionId :%d "),
 			       pAddTsRspMsg->sessionId);
-		       )
 		lim_send_sme_addts_rsp(pMac, rspReqd, eSIR_SME_ADDTS_RSP_FAILED,
 				       psessionEntry, pAddTsRspMsg->tspec,
 				       pMac->lim.gLimAddtsReq.sessionId,
@@ -1088,10 +1075,8 @@ void lim_process_hal_add_ts_rsp(tpAniSirGlobal pMac, tpSirMsgQ limMsg)
 	}
 
 	if (pAddTsRspMsg->status == QDF_STATUS_SUCCESS) {
-		PELOG1(lim_log
-			       (pMac, LOG1,
-			       FL("Received successful ADDTS response from HAL "));
-		       )
+		lim_log(pMac, LOGD,
+			FL("Received successful ADDTS response from HAL "));
 		/* Use the smesessionId and smetransactionId from the PE session context */
 		lim_send_sme_addts_rsp(pMac, rspReqd, eSIR_SME_SUCCESS,
 				       psessionEntry, pAddTsRspMsg->tspec,
@@ -1099,10 +1084,8 @@ void lim_process_hal_add_ts_rsp(tpAniSirGlobal pMac, tpSirMsgQ limMsg)
 				       psessionEntry->transactionId);
 		goto end;
 	} else {
-		PELOG1(lim_log
-			       (pMac, LOG1,
-			       FL("Received failure ADDTS response from HAL "));
-		       )
+		lim_log(pMac, LOGD,
+			FL("Received failure ADDTS response from HAL "));
 		/* Send DELTS action frame to AP */
 		/* 090803: Get peer MAC addr from session */
 		sir_copy_mac_addr(peerMacAddr, psessionEntry->bssId);

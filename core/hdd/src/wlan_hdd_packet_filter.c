@@ -25,6 +25,7 @@
 
 /* Include Files */
 #include "wlan_hdd_packet_filter_api.h"
+#include "wlan_hdd_packet_filter_rules.h"
 
 int hdd_enable_default_pkt_filters(hdd_adapter_t *pAdapter)
 {
@@ -36,7 +37,7 @@ int hdd_enable_default_pkt_filters(hdd_adapter_t *pAdapter)
 		hdd_err("HDD context is Null!!!");
 		return -EINVAL;
 	}
-	if (!pHddCtx->user_configured_pkt_filter_rules) {
+	if (pHddCtx->user_configured_pkt_filter_rules) {
 		hdd_info("user has defined pkt filter run hence skipping default packet filter rule");
 		return 0;
 	}
@@ -73,7 +74,7 @@ int hdd_disable_default_pkt_filters(hdd_adapter_t *pAdapter)
 		return -EINVAL;
 	}
 
-	if (!pHddCtx->user_configured_pkt_filter_rules) {
+	if (pHddCtx->user_configured_pkt_filter_rules) {
 		hdd_info("user has defined pkt filter run hence skipping default packet filter rule");
 		return 0;
 	}
@@ -86,7 +87,7 @@ int hdd_disable_default_pkt_filters(hdd_adapter_t *pAdapter)
 				i+1, filter_id);
 			packet_filter_default_rules.filter_action =
 						HDD_RCV_FILTER_CLEAR;
-			packet_filter_default_rules.filter_id = i;
+			packet_filter_default_rules.filter_id = filter_id;
 			wlan_hdd_set_filter(pHddCtx,
 					    &packet_filter_default_rules,
 					    pAdapter->sessionId);

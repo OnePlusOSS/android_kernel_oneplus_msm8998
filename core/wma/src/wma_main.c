@@ -830,7 +830,7 @@ static void wma_set_dtim_period(tp_wma_handle wma,
 	struct wma_txrx_node *iface =
 		&wma->interfaces[vdev_id];
 
-	WMA_LOGE("%s: set dtim_period %d", __func__,
+	WMA_LOGD("%s: set dtim_period %d", __func__,
 			dtim_params->dtim_period);
 	iface->dtimPeriod = dtim_params->dtim_period;
 	ret = wma_vdev_set_param(wma->wmi_handle,
@@ -1004,7 +1004,7 @@ static void wma_process_cli_set_cmd(tp_wma_handle wma,
 			 *    intr[privcmd->param_vdev_id].config.amsdu =
 			 *            privcmd->param_value;
 			 */
-			WMA_LOGE("SET GEN_VDEV_PARAM_AMSDU command is currently not supported");
+			WMA_LOGD("SET GEN_VDEV_PARAM_AMSDU command is currently not supported");
 			break;
 		case GEN_PARAM_CRASH_INJECT:
 			if (QDF_GLOBAL_FTM_MODE  == cds_get_conparam())
@@ -1762,7 +1762,7 @@ static void wma_cleanup_vdev_resp_queue(tp_wma_handle wma)
 	qdf_spin_lock_bh(&wma->vdev_respq_lock);
 	if (!qdf_list_size(&wma->vdev_resp_queue)) {
 		qdf_spin_unlock_bh(&wma->vdev_respq_lock);
-		WMA_LOGE(FL("request queue maybe empty"));
+		WMA_LOGD(FL("request queue maybe empty"));
 		return;
 	}
 
@@ -1957,11 +1957,11 @@ static int wma_flush_complete_evt_handler(void *handle,
 	 * reason_code = other value; Asynchronous flush event for fatal events
 	 */
 	if (!reason_code && (cds_is_log_report_in_progress() == false)) {
-		WMA_LOGE("Received WMI flush event without sending CMD");
+		WMA_LOGD("Received WMI flush event without sending CMD");
 		return -EINVAL;
 	} else if (!reason_code && cds_is_log_report_in_progress() == true) {
 		/* Flush event in response to flush command */
-		WMA_LOGE("Received WMI flush event in response to flush CMD");
+		WMA_LOGD("Received WMI flush event in response to flush CMD");
 		status = qdf_mc_timer_stop(&wma->log_completion_timer);
 		if (status != QDF_STATUS_SUCCESS)
 			WMA_LOGE("Failed to stop the log completion timeout");
@@ -1982,7 +1982,7 @@ static int wma_flush_complete_evt_handler(void *handle,
 		/* Asynchronous flush event for fatal event,
 		 * but, report in progress already
 		 */
-		WMA_LOGE("%s: Bug report already in progress - dropping! type:%d, indicator=%d reason_code=%d",
+		WMA_LOGW("%s: Bug report already in progress - dropping! type:%d, indicator=%d reason_code=%d",
 				__func__, WLAN_LOG_TYPE_FATAL,
 				WLAN_LOG_INDICATOR_FIRMWARE, reason_code);
 		return QDF_STATUS_E_FAILURE;
@@ -3073,7 +3073,7 @@ QDF_STATUS wma_start(void *cds_ctx)
 
 #if defined(QCA_LL_LEGACY_TX_FLOW_CONTROL) || \
 	defined(QCA_LL_TX_FLOW_CONTROL_V2) || defined(CONFIG_HL_SUPPORT)
-	WMA_LOGE("MCC TX Pause Event Handler register");
+	WMA_LOGD("MCC TX Pause Event Handler register");
 	status = wmi_unified_register_event_handler(wma_handle->wmi_handle,
 					WMI_TX_PAUSE_EVENTID,
 					wma_mcc_vdev_tx_pause_evt_handler,
@@ -4598,23 +4598,23 @@ int wma_rx_service_ready_event(void *handle, uint8_t *cmd_param_info,
 
 	WMA_LOGD("%s: Firmware default hw mode index : %d",
 		 __func__, ev->default_dbs_hw_mode_index);
-	WMA_LOGE("%s: Firmware build version : %08x",
+	WMA_LOGI("%s: Firmware build version : %08x",
 		 __func__, ev->fw_build_vers);
-	WMA_LOGD(FL("FW fine time meas cap: 0x%x"), ev->wmi_fw_sub_feat_caps);
+	WMA_LOGD("FW fine time meas cap: 0x%x", ev->wmi_fw_sub_feat_caps);
 
 	if (ev->hw_bd_id) {
 		wma_handle->hw_bd_id = ev->hw_bd_id;
 		qdf_mem_copy(wma_handle->hw_bd_info,
 			     ev->hw_bd_info, sizeof(ev->hw_bd_info));
 
-		WMA_LOGE("%s: Board version: %x.%x",
+		WMA_LOGI("%s: Board version: %x.%x",
 			 __func__,
 			 wma_handle->hw_bd_info[0], wma_handle->hw_bd_info[1]);
 	} else {
 		wma_handle->hw_bd_id = 0;
 		qdf_mem_zero(wma_handle->hw_bd_info,
 			     sizeof(wma_handle->hw_bd_info));
-		WMA_LOGE("%s: Board version is unknown!", __func__);
+		WMA_LOGW("%s: Board version is unknown!", __func__);
 	}
 	wma_handle->dfs_ic->dfs_hw_bd_id = wma_handle->hw_bd_id;
 
@@ -4674,7 +4674,7 @@ int wma_rx_service_ready_event(void *handle, uint8_t *cmd_param_info,
 
 	if (WMI_SERVICE_IS_ENABLED(wma_handle->wmi_service_bitmap,
 				   WMI_SERVICE_MGMT_TX_WMI)) {
-		WMA_LOGE("Firmware supports management TX over WMI,use WMI interface instead of HTT for management Tx");
+		WMA_LOGD("Firmware supports management TX over WMI,use WMI interface instead of HTT for management Tx");
 		status = wmi_desc_pool_init(wma_handle, WMI_DESC_POOL_MAX);
 		if (status) {
 			WMA_LOGE("Failed to initialize wmi descriptor pool");
@@ -4854,7 +4854,7 @@ int wma_rx_service_ready_event(void *handle, uint8_t *cmd_param_info,
 		if (!QDF_IS_STATUS_SUCCESS(ret))
 			WMA_LOGE("Failed to start the service ready ext timer");
 
-		WMA_LOGA("%s: WMA waiting for WMI_SERVICE_READY_EXT_EVENTID",
+		WMA_LOGD("%s: WMA waiting for WMI_SERVICE_READY_EXT_EVENTID",
 				__func__);
 	}
 
@@ -5256,7 +5256,7 @@ static QDF_STATUS wma_update_hw_mode_list(t_wma_handle *wma_handle)
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	WMA_LOGA("%s: Updated HW mode list: Num modes:%d",
+	WMA_LOGD("%s: Updated HW mode list: Num modes:%d",
 		 __func__, wma_handle->num_dbs_hw_modes);
 
 	for (i = 0; i < wma_handle->num_dbs_hw_modes; i++) {

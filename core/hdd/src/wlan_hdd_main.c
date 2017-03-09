@@ -1935,6 +1935,7 @@ static int __hdd_open(struct net_device *dev)
 	}
 
 	set_bit(DEVICE_IFACE_OPENED, &adapter->event_flags);
+	hdd_info("%s interface up", dev->name);
 
 	if (hdd_conn_is_connected(WLAN_HDD_GET_STATION_CTX_PTR(adapter))) {
 		hdd_info("Enabling Tx Queues");
@@ -3230,7 +3231,7 @@ hdd_adapter_t *hdd_open_adapter(hdd_context_t *hdd_ctx, uint8_t session_type,
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	hdd_cfg80211_state_t *cfgState;
 
-	hdd_debug("iface(%s) type(%d)", iface_name, session_type);
+	hdd_info("%s interface created. iftype: %d", iface_name, session_type);
 
 	if (hdd_ctx->current_intf_count >= hdd_ctx->max_intf_count) {
 		/*
@@ -8694,7 +8695,7 @@ int hdd_wlan_startup(struct device *dev)
 	hdd_driver_memdump_init();
 
 	if (hdd_enable_egap(hdd_ctx))
-		hdd_warn("enhance green ap is not enabled");
+		hdd_debug("enhance green ap is not enabled");
 
 	if (hdd_ctx->config->fIsImpsEnabled)
 		hdd_set_idle_ps_config(hdd_ctx, true);
@@ -9178,7 +9179,7 @@ void wlan_hdd_send_svc_nlink_msg(int radio, int type, void *data, int len)
 		radio_info->length = (unsigned short) sizeof(radio_info->radio);
 		radio_info->radio = radio;
 		tlv_len = sizeof(*radio_info);
-		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_INFO,
+		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_DEBUG,
 			"Added radio index tlv - radio index %d",
 			radio_info->radio);
 	}

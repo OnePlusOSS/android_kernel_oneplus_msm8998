@@ -156,7 +156,7 @@ lim_compare_capabilities(tpAniSirGlobal pMac,
 		if (wlan_cfg_get_int
 			    (pMac, WNI_CFG_ACCEPT_SHORT_SLOT_ASSOC_ONLY,
 			    &val) != eSIR_SUCCESS) {
-			lim_log(pMac, LOGP,
+			lim_log(pMac, LOGE,
 				FL
 					("error getting WNI_CFG_FORCE_SHORT_SLOT_ASSOC_ONLY "));
 			return false;
@@ -208,7 +208,7 @@ lim_check_rx_basic_rates(tpAniSirGlobal pMac, tSirMacRateSet rxRateSet,
 
 	pRateSet = qdf_mem_malloc(sizeof(tSirMacRateSet));
 	if (NULL == pRateSet) {
-		lim_log(pMac, LOGP,
+		lim_log(pMac, LOGE,
 			FL("call to AllocateMemory failed for RATESET"));
 
 		return false;
@@ -291,7 +291,7 @@ uint8_t lim_check_mcs_set(tpAniSirGlobal pMac, uint8_t *supportedMCSSet)
 			     (uint8_t *) basicMCSSet,
 			     (uint32_t *) &cfgLen) != eSIR_SUCCESS) {
 		/* / Could not get Basic MCS rateset from CFG. Log error. */
-		lim_log(pMac, LOGP, FL("could not retrieve Basic MCS rateset"));
+		lim_log(pMac, LOGE, FL("could not retrieve Basic MCS rateset"));
 		return false;
 	}
 
@@ -365,7 +365,7 @@ lim_check_rx_rsn_ie_match(tpAniSirGlobal mac_ctx, tDot11fIERSN rx_rsn_ie,
 	for (i = 0; i < sizeof(rx_rsn_ie.gp_cipher_suite); i++)
 		if (rsn_ie->gp_cipher_suite[i] !=
 				 rx_rsn_ie.gp_cipher_suite[i]) {
-			lim_log(mac_ctx, LOG3,
+			lim_log(mac_ctx, LOGD,
 				 FL("Invalid groupwise cipher suite"));
 			return eSIR_MAC_INVALID_GROUP_CIPHER_STATUS;
 		}
@@ -920,7 +920,7 @@ lim_reject_association(tpAniSirGlobal mac_ctx, tSirMacAddr peer_addr,
 		   &session_entry->dph.dphHashTable);
 
 	if (sta_ds == NULL) {
-		lim_log(mac_ctx, LOGW,
+		lim_log(mac_ctx, LOGE,
 			FL("No STA context, yet rejecting Association"));
 		return;
 	}
@@ -1581,7 +1581,7 @@ lim_populate_own_rate_set(tpAniSirGlobal mac_ctx,
 
 	if ((temp_rate_set.numRates + temp_rate_set2.numRates) > 12) {
 		/* we are in big trouble */
-		lim_log(mac_ctx, LOGP, FL("more than 12 rates in CFG"));
+		lim_log(mac_ctx, LOGE, FL("more than 12 rates in CFG"));
 		/* panic */
 		return eSIR_FAILURE;
 	}
@@ -1724,7 +1724,7 @@ lim_populate_peer_rate_set(tpAniSirGlobal pMac,
 	if ((tempRateSet.numRates + tempRateSet2.numRates) >
 	    SIR_MAC_RATESET_EID_MAX) {
 		/* we are in big trouble */
-		lim_log(pMac, LOGP, FL("more than 12 rates in CFG"));
+		lim_log(pMac, LOGE, FL("more than 12 rates in CFG"));
 		return eSIR_FAILURE;
 	}
 
@@ -1789,10 +1789,8 @@ lim_populate_peer_rate_set(tpAniSirGlobal pMac,
 				     pRates->supportedMCSSet,
 				     &val) != eSIR_SUCCESS) {
 			/* / Could not get rateset from CFG. Log error. */
-			PELOGE(lim_log
-				       (pMac, LOGE,
-				       FL("could not retrieve supportedMCSSet"));
-			       )
+			lim_log(pMac, LOGE,
+				FL("could not retrieve supportedMCSSet"));
 			return eSIR_FAILURE;
 		}
 		if (psessionEntry->nss == NSS_1x1_MODE)
@@ -2024,7 +2022,7 @@ tSirRetStatus lim_populate_matching_rate_set(tpAniSirGlobal mac_ctx,
 		if (wlan_cfg_get_str(mac_ctx, WNI_CFG_SUPPORTED_MCS_SET,
 				     mcs_set, &val) != eSIR_SUCCESS) {
 			/* Could not get rateset from CFG. Log error. */
-			lim_log(mac_ctx, LOGP,
+			lim_log(mac_ctx, LOGE,
 				FL("could not retrieve supportedMCSet"));
 			return eSIR_FAILURE;
 		}
@@ -2145,7 +2143,7 @@ lim_add_sta(tpAniSirGlobal mac_ctx,
 
 	add_sta_params = qdf_mem_malloc(sizeof(tAddStaParams));
 	if (NULL == add_sta_params) {
-		lim_log(mac_ctx, LOGP,
+		lim_log(mac_ctx, LOGE,
 			FL("Unable to allocate memory during ADD_STA"));
 		return eSIR_MEM_ALLOC_FAILED;
 	}
@@ -2378,7 +2376,7 @@ lim_add_sta(tpAniSirGlobal mac_ctx,
 		 */
 		peer_node = lim_ibss_peer_find(mac_ctx, *sta_Addr);
 		if (!peer_node) {
-			lim_log(mac_ctx, LOGP,
+			lim_log(mac_ctx, LOGE,
 				FL("Can't find IBSS peer node for ADD_STA"));
 			return eSIR_HAL_STA_DOES_NOT_EXIST;
 		}
@@ -2553,7 +2551,7 @@ lim_del_sta(tpAniSirGlobal pMac,
 
 	pDelStaParams = qdf_mem_malloc(sizeof(tDeleteStaParams));
 	if (NULL == pDelStaParams) {
-		lim_log(pMac, LOGP,
+		lim_log(pMac, LOGE,
 			FL("Unable to allocate memory during ADD_STA"));
 		return eSIR_MEM_ALLOC_FAILED;
 	}
@@ -2703,7 +2701,7 @@ lim_add_sta_self(tpAniSirGlobal pMac, uint16_t staIdx, uint8_t updateSta,
 	lim_log(pMac, LOGD, FL(MAC_ADDRESS_STR ": "), MAC_ADDR_ARRAY(staMac));
 	pAddStaParams = qdf_mem_malloc(sizeof(tAddStaParams));
 	if (NULL == pAddStaParams) {
-		lim_log(pMac, LOGP,
+		lim_log(pMac, LOGE,
 			FL("Unable to allocate memory during ADD_STA"));
 		return eSIR_MEM_ALLOC_FAILED;
 	}
@@ -2832,7 +2830,7 @@ lim_add_sta_self(tpAniSirGlobal pMac, uint16_t staIdx, uint8_t updateSta,
 		if (wlan_cfg_get_int
 			    (pMac, WNI_CFG_VHT_AMPDU_LEN_EXPONENT, &ampduLenExponent)
 		    != eSIR_SUCCESS) {
-			lim_log(pMac, LOGP,
+			lim_log(pMac, LOGE,
 				FL
 					("Couldn't get WNI_CFG_VHT_AMPDU_LEN_EXPONENT"));
 		}
@@ -2856,7 +2854,7 @@ lim_add_sta_self(tpAniSirGlobal pMac, uint16_t staIdx, uint8_t updateSta,
 
 	if (wlan_cfg_get_int(pMac, WNI_CFG_LISTEN_INTERVAL, &listenInterval) !=
 	    eSIR_SUCCESS)
-		lim_log(pMac, LOGP, FL("Couldn't get LISTEN_INTERVAL"));
+		lim_log(pMac, LOGE, FL("Couldn't get LISTEN_INTERVAL"));
 	pAddStaParams->listenInterval = (uint16_t) listenInterval;
 
 	if (QDF_P2P_CLIENT_MODE == psessionEntry->pePersona) {
@@ -2959,28 +2957,23 @@ void lim_handle_cnf_wait_timeout(tpAniSirGlobal pMac, uint16_t staId)
 	psessionEntry = pe_find_session_by_session_id(pMac,
 			pMac->lim.limTimers.gpLimCnfWaitTimer[staId].sessionId);
 	if (psessionEntry == NULL) {
-		lim_log(pMac, LOGP,
+		lim_log(pMac, LOGE,
 			FL("Session Does not exist for given sessionID"));
 		return;
 	}
 	pStaDs = dph_get_hash_entry(pMac, staId, &psessionEntry->dph.dphHashTable);
 
 	if (pStaDs == NULL) {
-		PELOGW(lim_log
-			       (pMac, LOGW,
-			       FL("No STA context in SIR_LIM_CNF_WAIT_TIMEOUT."));
-		       )
+		lim_log(pMac, LOGE,
+			FL("No STA context in SIR_LIM_CNF_WAIT_TIMEOUT."));
 		return;
 	}
 
 	switch (pStaDs->mlmStaContext.mlmState) {
 	case eLIM_MLM_WT_ASSOC_CNF_STATE:
-		PELOGW(lim_log
-			       (pMac, LOGW,
-			       FL
-				       ("Did not receive Assoc Cnf in eLIM_MLM_WT_ASSOC_CNF_STATE sta Assoc id %d"),
-			       pStaDs->assocId);
-		       )
+		lim_log(pMac, LOGD,
+			FL("Did not receive Assoc Cnf in eLIM_MLM_WT_ASSOC_CNF_STATE sta Assoc id %d"),
+				pStaDs->assocId);
 		lim_print_mac_addr(pMac, pStaDs->staAddr, LOGD);
 
 		if (LIM_IS_AP_ROLE(psessionEntry)) {
@@ -3082,7 +3075,7 @@ lim_delete_dph_hash_entry(tpAniSirGlobal mac_ctx, tSirMacAddr sta_addr,
 
 	if (dph_delete_hash_entry(mac_ctx, sta_addr, sta_id,
 		 &session_entry->dph.dphHashTable) != eSIR_SUCCESS)
-		lim_log(mac_ctx, LOGP, FL("error deleting hash entry"));
+		lim_log(mac_ctx, LOGE, FL("error deleting hash entry"));
 }
 
 /**
@@ -3204,7 +3197,7 @@ lim_check_and_announce_join_success(tpAniSirGlobal mac_ctx,
 	 */
 	if (!session_entry->ignore_assoc_disallowed &&
 			beacon_probe_rsp->assoc_disallowed) {
-		lim_log(mac_ctx, LOGW,
+		lim_log(mac_ctx, LOGE,
 				FL("Connection fails due to assoc disallowed reason(%d):%pM PESessionID %d"),
 				beacon_probe_rsp->assoc_disallowed_reason,
 				session_entry->bssId,
@@ -3313,11 +3306,6 @@ tSirRetStatus lim_extract_ap_capabilities(tpAniSirGlobal pMac,
 {
 	qdf_mem_set((uint8_t *) beaconStruct, sizeof(tSirProbeRespBeacon), 0);
 
-	PELOG3(lim_log(pMac, LOG3,
-		       FL
-			       ("In lim_extract_ap_capabilities: The IE's being received are:"));
-	       sir_dump_buf(pMac, SIR_LIM_MODULE_ID, LOG3, pIE, ieLen);
-	       )
 	/* Parse the Beacon IE's, Don't try to parse if we dont have anything in IE */
 	if (ieLen > 0) {
 		if (eSIR_SUCCESS !=
@@ -3363,7 +3351,7 @@ lim_del_bss(tpAniSirGlobal pMac, tpDphHashNode pStaDs, uint16_t bssIdx,
 
 	pDelBssParams = qdf_mem_malloc(sizeof(tDeleteBssParams));
 	if (NULL == pDelBssParams) {
-		lim_log(pMac, LOGP,
+		lim_log(pMac, LOGE,
 			FL("Unable to allocate memory during ADD_BSS"));
 		return eSIR_MEM_ALLOC_FAILED;
 	}
@@ -3395,13 +3383,10 @@ lim_del_bss(tpAniSirGlobal pMac, tpDphHashNode pStaDs, uint16_t bssIdx,
 	qdf_mem_copy(pDelBssParams->bssid, psessionEntry->bssId,
 		     sizeof(tSirMacAddr));
 	pDelBssParams->smesessionId = psessionEntry->smeSessionId;
-	PELOGW(lim_log
-		       (pMac, LOGD,
-		       FL("Sessionid %d : Sending HAL_DELETE_BSS_REQ "
+	lim_log(pMac, LOGD, FL("Sessionid %d : Sending HAL_DELETE_BSS_REQ "
 			  "for bss idx: %X BSSID:" MAC_ADDRESS_STR),
 		       pDelBssParams->sessionId, pDelBssParams->bssIdx,
 		       MAC_ADDR_ARRAY(psessionEntry->bssId));
-	       )
 	/* we need to defer the message until we get the response back from HAL. */
 	SET_LIM_PROCESS_DEFD_MESGS(pMac, false);
 
@@ -3565,7 +3550,7 @@ tSirRetStatus lim_sta_send_add_bss(tpAniSirGlobal pMac, tpSirAssocRsp pAssocRsp,
 	/* Package SIR_HAL_ADD_BSS_REQ message parameters */
 	pAddBssParams = qdf_mem_malloc(sizeof(tAddBssParams));
 	if (NULL == pAddBssParams) {
-		lim_log(pMac, LOGP,
+		lim_log(pMac, LOGE,
 			FL("Unable to allocate memory during ADD_BSS"));
 		retCode = eSIR_MEM_ALLOC_FAILED;
 		goto returnFailure;
@@ -4103,7 +4088,7 @@ tSirRetStatus lim_sta_send_add_bss_pre_assoc(tpAniSirGlobal pMac, uint8_t update
 	/* Package SIR_HAL_ADD_BSS_REQ message parameters */
 	pAddBssParams = qdf_mem_malloc(sizeof(tAddBssParams));
 	if (NULL == pAddBssParams) {
-		lim_log(pMac, LOGP,
+		lim_log(pMac, LOGE,
 			FL("Unable to allocate memory during ADD_BSS"));
 		retCode = eSIR_MEM_ALLOC_FAILED;
 		goto returnFailure;
@@ -4591,7 +4576,7 @@ lim_prepare_and_send_del_sta_cnf(tpAniSirGlobal pMac, tpDphHashNode pStaDs,
 	tLimMlmStaContext mlmStaContext;
 
 	if (pStaDs == NULL) {
-		PELOGW(lim_log(pMac, LOGW, FL("pStaDs is NULL"));)
+		lim_log(pMac, LOGE, FL("pStaDs is NULL"));
 		return;
 	}
 	staDsAssocId = pStaDs->assocId;
@@ -4638,7 +4623,7 @@ void lim_init_pre_auth_timer_table(tpAniSirGlobal pMac,
 		** Could not get AUTH_RSP timeout value
 		** from CFG. Log error.
 		**/
-		lim_log(pMac, LOGP,
+		lim_log(pMac, LOGE,
 			FL("could not retrieve AUTH_RSP timeout value"));
 		return;
 	}
@@ -4651,7 +4636,7 @@ void lim_init_pre_auth_timer_table(tpAniSirGlobal pMac,
 			lim_auth_response_timer_handler, authNodeIdx,
 			cfgValue, 0, TX_NO_ACTIVATE) != TX_SUCCESS) {
 			/* Cannot create timer.  Log error. */
-			lim_log(pMac, LOGP,
+			lim_log(pMac, LOGE,
 				FL("Cannot create Auth Rsp timer of Index :%d."),
 				authNodeIdx);
 			return;
@@ -4735,7 +4720,7 @@ tSirRetStatus lim_is_dot11h_power_capabilities_in_range(tpAniSirGlobal pMac,
 	if (wlan_cfg_get_int
 		    (pMac, WNI_CFG_LOCAL_POWER_CONSTRAINT,
 		    &localPwrConstraint) != eSIR_SUCCESS) {
-		lim_log(pMac, LOGP,
+		lim_log(pMac, LOGE,
 			FL("Unable to get Local Power Constraint from cfg"));
 		return eSIR_FAILURE;
 	}
@@ -4805,7 +4790,7 @@ void lim_send_sme_unprotected_mgmt_frame_ind(tpAniSirGlobal pMac, uint8_t frameT
 
 	pSirSmeMgmtFrame = qdf_mem_malloc(length);
 	if (NULL == pSirSmeMgmtFrame) {
-		lim_log(pMac, LOGP,
+		lim_log(pMac, LOGE,
 			FL
 				("AllocateMemory failed for tSirSmeUnprotectedMgmtFrameInd"));
 		return;
@@ -4848,7 +4833,7 @@ void lim_send_sme_tsm_ie_ind(tpAniSirGlobal pMac, tpPESession psessionEntry,
 
 	pSirSmeTsmIeInd = qdf_mem_malloc(sizeof(tSirSmeTsmIEInd));
 	if (NULL == pSirSmeTsmIeInd) {
-		lim_log(pMac, LOGP,
+		lim_log(pMac, LOGE,
 			FL("AllocateMemory failed for tSirSmeTsmIEInd"));
 		return;
 	}

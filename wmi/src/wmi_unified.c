@@ -2302,8 +2302,6 @@ wmi_unified_remove_work(struct wmi_unified *wmi_handle)
 {
 	wmi_buf_t buf;
 
-	QDF_TRACE(QDF_MODULE_ID_WMI, QDF_TRACE_LEVEL_INFO,
-		"Enter: %s", __func__);
 	cancel_work_sync(&wmi_handle->rx_event_work);
 	qdf_spin_lock_bh(&wmi_handle->eventq_lock);
 	buf = qdf_nbuf_queue_remove(&wmi_handle->event_queue);
@@ -2312,8 +2310,6 @@ wmi_unified_remove_work(struct wmi_unified *wmi_handle)
 		buf = qdf_nbuf_queue_remove(&wmi_handle->event_queue);
 	}
 	qdf_spin_unlock_bh(&wmi_handle->eventq_lock);
-	QDF_TRACE(QDF_MODULE_ID_WMI, QDF_TRACE_LEVEL_INFO,
-		"Done: %s", __func__);
 }
 
 /**

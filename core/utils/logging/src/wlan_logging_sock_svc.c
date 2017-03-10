@@ -794,7 +794,7 @@ static void send_flush_completion_to_user(void)
 		&indicator, &reason_code, &recovery_needed);
 
 	/* Error on purpose, so that it will get logged in the kmsg */
-	LOGGING_TRACE(QDF_TRACE_LEVEL_INFO,
+	LOGGING_TRACE(QDF_TRACE_LEVEL_DEBUG,
 			"%s: Sending flush done to userspace", __func__);
 
 	wlan_report_log_completion(is_fatal, indicator, reason_code);
@@ -1501,7 +1501,7 @@ static void send_packetdump_monitor(uint8_t type)
 
 	pd_hdr.type = type;
 
-	LOGGING_TRACE(QDF_TRACE_LEVEL_INFO,
+	LOGGING_TRACE(QDF_TRACE_LEVEL_DEBUG,
 			"fate Tx-Rx %s: type: %d", __func__, type);
 
 	wlan_pkt_stats_to_logger_thread(&pktlog_hdr, &pd_hdr, NULL);
@@ -1528,7 +1528,7 @@ void wlan_deregister_txrx_packetdump(void)
 		gtx_count = 0;
 		grx_count = 0;
 	} else
-		LOGGING_TRACE(QDF_TRACE_LEVEL_INFO,
+		LOGGING_TRACE(QDF_TRACE_LEVEL_DEBUG,
 			"%s: deregistered packetdump already", __func__);
 }
 
@@ -1547,7 +1547,7 @@ static bool check_txrx_packetdump_count(void)
 {
 	if (gtx_count == MAX_NUM_PKT_LOG ||
 		grx_count == MAX_NUM_PKT_LOG) {
-		LOGGING_TRACE(QDF_TRACE_LEVEL_INFO,
+		LOGGING_TRACE(QDF_TRACE_LEVEL_DEBUG,
 			"%s gtx_count: %d grx_count: %d deregister packetdump",
 			__func__, gtx_count, grx_count);
 		wlan_deregister_txrx_packetdump();

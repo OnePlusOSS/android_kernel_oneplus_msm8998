@@ -858,6 +858,8 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 	int err;
 	wmi_channel_width chanwidth;
 
+	wma_release_wmi_resp_wakelock(wma);
+
 #ifdef FEATURE_AP_MCC_CH_AVOIDANCE
 	tpAniSirGlobal mac_ctx = cds_get_context(QDF_MODULE_ID_PE);
 	if (NULL == mac_ctx) {
@@ -1478,6 +1480,9 @@ int wma_vdev_stop_resp_handler(void *handle, uint8_t *cmd_param_info,
 	uint8_t peer_id;
 	struct wma_txrx_node *iface;
 	int32_t status = 0;
+
+	wma_release_wmi_resp_wakelock(wma);
+
 #ifdef FEATURE_AP_MCC_CH_AVOIDANCE
 	tpAniSirGlobal mac_ctx = cds_get_context(QDF_MODULE_ID_PE);
 	if (NULL == mac_ctx) {
@@ -1513,7 +1518,6 @@ int wma_vdev_stop_resp_handler(void *handle, uint8_t *cmd_param_info,
 			return -EINVAL;
 		}
 
-		wma_release_wmi_resp_wakelock(wma);
 		wma_hidden_ssid_vdev_restart_on_vdev_stop(wma,
 							  resp_event->vdev_id);
 	}
@@ -1539,8 +1543,6 @@ int wma_vdev_stop_resp_handler(void *handle, uint8_t *cmd_param_info,
 		tpDeleteBssParams params =
 			(tpDeleteBssParams) req_msg->user_data;
 		struct beacon_info *bcn;
-
-		wma_release_wmi_resp_wakelock(wma);
 
 		if (resp_event->vdev_id > wma->max_bssid) {
 			WMA_LOGE("%s: Invalid vdev_id %d", __func__,
@@ -1642,8 +1644,6 @@ int wma_vdev_stop_resp_handler(void *handle, uint8_t *cmd_param_info,
 	} else if (req_msg->msg_type == WMA_SET_LINK_STATE) {
 		tpLinkStateParams params =
 			(tpLinkStateParams) req_msg->user_data;
-
-		wma_release_wmi_resp_wakelock(wma);
 
 		peer = ol_txrx_find_peer_by_addr(pdev, params->bssid, &peer_id);
 		if (peer) {
@@ -2219,8 +2219,7 @@ QDF_STATUS wma_vdev_start(tp_wma_handle wma,
 		wma->interfaces[params.vdev_id].pause_bitmap = 0;
 	}
 
-	return wmi_unified_vdev_start_send(wma->wmi_handle, &params);
-
+	return wma_send_vdev_start_to_fw(wma, &params);
 }
 
 /**

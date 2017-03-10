@@ -593,7 +593,7 @@ __lim_process_ext_scan_beacon_probe_rsp(tpAniSirGlobal pmac,
 
 	frm_len = WMA_GET_RX_PAYLOAD_LEN(rx_pkt_info);
 	if (frm_len <= SIR_MAC_B_PR_SSID_OFFSET) {
-		lim_log(pmac, LOGP,
+		lim_log(pmac, LOGE,
 			FL("RX packet has invalid length %d"), frm_len);
 		return;
 	}
@@ -1179,7 +1179,7 @@ static QDF_STATUS lim_send_stop_scan_offload_req(tpAniSirGlobal pMac,
 
 	pAbortScanParams = qdf_mem_malloc(sizeof(tAbortScanParams));
 	if (NULL == pAbortScanParams) {
-		lim_log(pMac, LOGP,
+		lim_log(pMac, LOGE,
 			FL("Memory allocation failed for AbortScanParams"));
 		return QDF_STATUS_E_NOMEM;
 	}
@@ -1558,7 +1558,7 @@ static void lim_process_messages(tpAniSirGlobal mac_ctx, tpSirMsgQ msg)
 		session_entry = pe_find_session_by_sta_id(mac_ctx,
 			tdls_ind->staIdx, &session_id);
 		if (session_entry == NULL) {
-			lim_log(mac_ctx, LOGD,
+			lim_log(mac_ctx, LOGE,
 				FL("No session exist for given bssId"));
 				qdf_mem_free(msg->bodyptr);
 				msg->bodyptr = NULL;
@@ -2132,7 +2132,7 @@ handle_ht_capabilityand_ht_info(struct sAniSirGlobal *pMac,
 
 	if (wlan_cfg_get_int(pMac, WNI_CFG_HT_CAP_INFO, &cfgValue) !=
 	    eSIR_SUCCESS) {
-		lim_log(pMac, LOGP,
+		lim_log(pMac, LOGE,
 			FL("Fail to retrieve WNI_CFG_HT_CAP_INFO value"));
 		return;
 	}
@@ -2153,7 +2153,7 @@ handle_ht_capabilityand_ht_info(struct sAniSirGlobal *pMac,
 
 	if (wlan_cfg_get_int(pMac, WNI_CFG_HT_AMPDU_PARAMS, &cfgValue) !=
 	    eSIR_SUCCESS) {
-		lim_log(pMac, LOGP,
+		lim_log(pMac, LOGE,
 			FL("Fail to retrieve WNI_CFG_HT_PARAM_INFO value"));
 		return;
 	}
@@ -2166,7 +2166,7 @@ handle_ht_capabilityand_ht_info(struct sAniSirGlobal *pMac,
 	/* Get HT IE Info */
 	if (wlan_cfg_get_int(pMac, WNI_CFG_HT_INFO_FIELD1, &cfgValue) !=
 	    eSIR_SUCCESS) {
-		lim_log(pMac, LOGP,
+		lim_log(pMac, LOGE,
 			FL("Fail to retrieve WNI_CFG_HT_INFO_FIELD1 value"));
 		return;
 	}
@@ -2180,7 +2180,7 @@ handle_ht_capabilityand_ht_info(struct sAniSirGlobal *pMac,
 
 	if (wlan_cfg_get_int(pMac, WNI_CFG_HT_INFO_FIELD2, &cfgValue) !=
 	    eSIR_SUCCESS) {
-		lim_log(pMac, LOGP,
+		lim_log(pMac, LOGE,
 			FL("Fail to retrieve WNI_CFG_HT_INFO_FIELD2 value"));
 		return;
 	}
@@ -2190,7 +2190,7 @@ handle_ht_capabilityand_ht_info(struct sAniSirGlobal *pMac,
 
 	if (wlan_cfg_get_int(pMac, WNI_CFG_HT_INFO_FIELD3, &cfgValue) !=
 	    eSIR_SUCCESS) {
-		lim_log(pMac, LOGP,
+		lim_log(pMac, LOGE,
 			FL("Fail to retrieve WNI_CFG_HT_INFO_FIELD3 value"));
 		return;
 	}

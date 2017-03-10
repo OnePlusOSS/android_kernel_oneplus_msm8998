@@ -503,34 +503,34 @@ static void dump_csr_command_info(tpAniSirGlobal mac_ctx,
 {
 	switch (cmd->command) {
 	case eSmeCommandScan:
-		sms_log(mac_ctx, LOGW, " scan command reason is %d session %d",
+		sms_log(mac_ctx, LOGD, "scan command reason: %d session: %d",
 			cmd->u.scanCmd.reason,
 			cmd->sessionId);
 		break;
 
 	case eSmeCommandRoam:
-		sms_log(mac_ctx, LOGW, " roam command reason is %d session %d",
+		sms_log(mac_ctx, LOGD, "roam command reason: %d session: %d",
 			cmd->u.roamCmd.roamReason,
 			cmd->sessionId);
 		break;
 
 	case eSmeCommandWmStatusChange:
-		sms_log(mac_ctx, LOGW,
-			" WMStatusChange command type is %d session %d",
+		sms_log(mac_ctx, LOGD,
+			"WMStatusChange command type: %d session: %d",
 			cmd->u.wmStatusChangeCmd.Type,
 			cmd->sessionId);
 		break;
 
 	case eSmeCommandSetKey:
-		sms_log(mac_ctx, LOGW,
-			" setKey command auth(%d) enc(%d) session %d",
+		sms_log(mac_ctx, LOGD,
+			"setKey command auth: %d enc: %d session: %d",
 			cmd->u.setKeyCmd.authType, cmd->u.setKeyCmd.encType,
 			cmd->sessionId);
 		break;
 
 	default:
-		sms_log(mac_ctx, LOGW,
-			" default: Unhandled command %d session %d",
+		sms_log(mac_ctx, LOGD,
+			"default: Unhandled command: %d session: %d",
 			cmd->command,
 			cmd->sessionId);
 		break;
@@ -7127,8 +7127,6 @@ QDF_STATUS sme_send_action(tHalHandle hHal, uint8_t sessionId,
 		/* release the lock for the sme object */
 		sme_release_global_lock(&pMac->sme);
 	}
-
-	sms_log(pMac, LOGW, "exiting function %s", __func__);
 
 	return status;
 }

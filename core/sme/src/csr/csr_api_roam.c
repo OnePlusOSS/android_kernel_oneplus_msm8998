@@ -3438,8 +3438,8 @@ QDF_STATUS csr_roam_call_callback(tpAniSirGlobal pMac, uint32_t sessionId,
 
 	if (eCSR_ROAM_ASSOCIATION_COMPLETION == u1 &&
 			eCSR_ROAM_RESULT_ASSOCIATED == u2 && pRoamInfo) {
-		sms_log(pMac, LOGW,
-			FL("Assoc complete result=%d status=%d reason=%d"),
+		sms_log(pMac, LOG1,
+			FL("Assoc complete result: %d status: %d reason: %d"),
 			u2, pRoamInfo->statusCode, pRoamInfo->reasonCode);
 		beacon_ies = qdf_mem_malloc(sizeof(tDot11fBeaconIEs));
 		if ((NULL != beacon_ies) && (NULL != pRoamInfo->pBssDesc)) {
@@ -5262,7 +5262,7 @@ static void csr_roam_join_handle_profile(tpAniSirGlobal mac_ctx,
 		/* If roaming has stopped, don't continue the roaming command */
 		if (!CSR_IS_ROAMING(session) && CSR_IS_ROAMING_COMMAND(cmd)) {
 			/* No need to complete roaming as it already complete */
-			sms_log(mac_ctx, LOGW,
+			sms_log(mac_ctx, LOGD,
 				FL(
 				"Roam cmd(reason %d)aborted as roam complete"),
 				cmd->u.roamCmd.roamReason);
@@ -6287,7 +6287,7 @@ static void csr_roam_process_results_default(tpAniSirGlobal mac_ctx,
 	}
 	session = CSR_GET_SESSION(mac_ctx, session_id);
 
-	sms_log(mac_ctx, LOGW, FL("receives no association indication"));
+	sms_log(mac_ctx, LOGD, FL("receives no association indication"));
 	sms_log(mac_ctx, LOGD, FL("Assoc ref count %d"),
 			session->bRefAssocStartCnt);
 	if (CSR_IS_INFRASTRUCTURE(&session->connectedProfile)
@@ -18423,7 +18423,7 @@ QDF_STATUS csr_roam_dereg_statistics_req(tpAniSirGlobal pMac)
 	pEntry = csr_ll_peek_head(&pMac->roam.statsClientReqList, LL_ACCESS_LOCK);
 	if (!pEntry) {
 		/* list empty */
-		sms_log(pMac, LOGE,
+		sms_log(pMac, LOGD,
 			FL("List empty, no request from upper layer client(s)"));
 		return status;
 	}

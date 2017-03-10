@@ -3379,7 +3379,7 @@ tSirRetStatus lim_delete_tdls_peers(tpAniSirGlobal mac_ctx,
 	 * (with that aid) entry from the hash table and add the aid
 	 * in free pool
 	 */
-	lim_log(mac_ctx, LOGE, FL("Delete all the TDLS peer connected."));
+	lim_log(mac_ctx, LOGD, FL("Delete all the TDLS peer connected"));
 	for (i = 0; i < aid_bitmap_size / sizeof(uint32_t); i++) {
 		for (aid = 0; aid < (sizeof(uint32_t) << 3); aid++) {
 			if (!CHECK_BIT(session_entry->peerAIDBitmap[i], aid))

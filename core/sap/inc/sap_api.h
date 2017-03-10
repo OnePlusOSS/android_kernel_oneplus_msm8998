@@ -182,6 +182,7 @@ typedef enum {
 	eSAP_ACS_SCAN_SUCCESS_EVENT,
 	eSAP_ACS_CHANNEL_SELECTED,
 	eSAP_ECSA_CHANGE_CHAN_IND,
+	eSAP_UPDATE_SCAN_RESULT,
 } eSapHddEvent;
 
 typedef enum {
@@ -465,6 +466,7 @@ typedef struct sap_Event_s {
 		struct sap_roc_ready_ind_s sap_roc_ind;
 		struct sap_ch_change_ind sap_chan_cng_ind;
 		struct sap_acs_scan_complete_event sap_acs_scan_comp;
+		tSirBssDescription *bss_desc;
 	} sapevt;
 } tSap_Event, *tpSap_Event;
 
@@ -867,12 +869,13 @@ QDF_STATUS wlansap_get_wps_state(void *p_cds_gctx, bool *pbWPSState);
 void *wlansap_open(void *p_cds_gctx);
 QDF_STATUS wlansap_global_init(void);
 QDF_STATUS wlansap_global_deinit(void);
-QDF_STATUS wlansap_start(void *p_cds_gctx, enum tQDF_ADAPTER_MODE mode,
-			 uint8_t *addr, uint32_t *session_id);
 QDF_STATUS wlansap_stop(void *p_cds_gctx);
 QDF_STATUS wlansap_close(void *p_cds_gctx);
 typedef QDF_STATUS (*tpWLAN_SAPEventCB)(tpSap_Event pSapEvent,
 					void *pUsrContext);
+QDF_STATUS wlansap_start(void *p_cds_gctx, tpWLAN_SAPEventCB pSapEventCallback,
+			 enum tQDF_ADAPTER_MODE mode, uint8_t *addr,
+			 uint32_t *session_id, void *pUsrContext);
 uint8_t wlansap_get_state(void *p_cds_gctx);
 
 QDF_STATUS wlansap_start_bss(void *p_cds_gctx,

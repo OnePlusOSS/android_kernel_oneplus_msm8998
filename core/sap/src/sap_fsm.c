@@ -3136,6 +3136,15 @@ QDF_STATUS sap_signal_hdd_event(ptSapContext sap_ctx,
 		sap_ap_event.sapevt.sap_chan_cng_ind.new_chan =
 					   csr_roaminfo->target_channel;
 		break;
+	case eSAP_UPDATE_SCAN_RESULT:
+		if (!csr_roaminfo) {
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+				  FL("Invalid CSR Roam Info"));
+			return QDF_STATUS_E_INVAL;
+		}
+		sap_ap_event.sapHddEventCode = eSAP_UPDATE_SCAN_RESULT;
+		sap_ap_event.sapevt.bss_desc = csr_roaminfo->pBssDesc;
+		break;
 	default:
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
 			  FL("SAP Unknown callback event = %d"),

@@ -297,9 +297,11 @@ void *wlansap_open(void *p_cds_gctx)
  *        control block can be extracted from its context
  *        When MBSSID feature is enabled, SAP context is directly
  *        passed to SAP APIs
+ * @pSapEventCallback: Callback function to register
  * @mode: Device mode
  * @addr: MAC address of the SAP
  * @session_id: Pointer to the session id
+ * @pUsrContext: user context to be used in callback @pSapEventCallback
  *
  * Called as part of the overall start procedure (cds_enable). SAP will
  * use this call to register with TL as the SAP entity for SAP RSN frames.
@@ -309,8 +311,9 @@ void *wlansap_open(void *p_cds_gctx)
  *                             access would cause a page fault.
  *         QDF_STATUS_SUCCESS: Success
  */
-QDF_STATUS wlansap_start(void *pCtx, enum tQDF_ADAPTER_MODE mode,
-			 uint8_t *addr, uint32_t *session_id)
+QDF_STATUS wlansap_start(void *pCtx, tpWLAN_SAPEventCB pSapEventCallback,
+			 enum tQDF_ADAPTER_MODE mode, uint8_t *addr,
+			 uint32_t *session_id, void *pUsrContext)
 {
 	ptSapContext pSapCtx = NULL;
 	QDF_STATUS qdf_ret_status;
@@ -356,6 +359,9 @@ QDF_STATUS wlansap_start(void *pCtx, enum tQDF_ADAPTER_MODE mode,
 
 	/* Now configure the auth type in the roaming profile. To open. */
 	pSapCtx->csr_roamProfile.negotiatedAuthType = eCSR_AUTH_TYPE_OPEN_SYSTEM;        /* open is the default */
+
+	pSapCtx->pfnSapEventCallback = pSapEventCallback;
+	pSapCtx->pUsrContext = pUsrContext;
 
 	if (!QDF_IS_STATUS_SUCCESS(qdf_mutex_create(&pSapCtx->SapGlobalLock))) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,

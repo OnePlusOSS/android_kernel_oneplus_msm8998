@@ -2539,15 +2539,7 @@ ol_txrx_peer_get_peer_mac_addr(ol_txrx_peer_handle peer)
 	return peer->mac_addr.raw;
 }
 
-/**
- * ol_txrx_get_pn_info() - Returns pn info from peer
- * @peer: handle to peer
- * @last_pn_valid: return last_rmf_pn_valid value from peer.
- * @last_pn: return last_rmf_pn value from peer.
- * @rmf_pn_replays: return rmf_pn_replays value from peer.
- *
- * Return: NONE
- */
+#ifdef WLAN_FEATURE_11W
 void
 ol_txrx_get_pn_info(ol_txrx_peer_handle peer, uint8_t **last_pn_valid,
 		    uint64_t **last_pn, uint32_t **rmf_pn_replays)
@@ -2556,6 +2548,7 @@ ol_txrx_get_pn_info(ol_txrx_peer_handle peer, uint8_t **last_pn_valid,
 	*last_pn = &peer->last_rmf_pn;
 	*rmf_pn_replays = &peer->rmf_pn_replays;
 }
+#endif
 
 /**
  * ol_txrx_get_opmode() - Return operation mode of vdev

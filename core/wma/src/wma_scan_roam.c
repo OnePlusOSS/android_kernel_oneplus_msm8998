@@ -3124,6 +3124,11 @@ QDF_STATUS wma_pno_start(tp_wma_handle wma, tpSirPNOScanReq pno)
 	qdf_mem_copy(params->mac_addr_mask, pno->mac_addr_mask,
 		     QDF_MAC_ADDR_SIZE);
 
+	params->relative_rssi_set = pno->relative_rssi_set;
+	params->relative_rssi = pno->relative_rssi;
+	params->band_rssi_pref.band = pno->band_rssi_pref.band;
+	params->band_rssi_pref.rssi = pno->band_rssi_pref.rssi;
+
 	status = wmi_unified_pno_start_cmd(wma->wmi_handle,
 					params, channel_list);
 	if (QDF_IS_STATUS_SUCCESS(status)) {

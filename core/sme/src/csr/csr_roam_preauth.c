@@ -260,7 +260,7 @@ QDF_STATUS csr_neighbor_roam_preauth_rsp_handler(tpAniSirGlobal mac_ctx,
 	/* We can receive it in these 2 states. */
 	if ((neighbor_roam_info->neighborRoamState !=
 	     eCSR_NEIGHBOR_ROAM_STATE_PREAUTHENTICATING)) {
-		sms_log(mac_ctx, LOGW,
+		sms_log(mac_ctx, LOGD,
 			FL("Preauth response received in state %s"),
 			mac_trace_get_neighbour_roam_state
 				(neighbor_roam_info->neighborRoamState));
@@ -276,10 +276,10 @@ QDF_STATUS csr_neighbor_roam_preauth_rsp_handler(tpAniSirGlobal mac_ctx,
 				mac_ctx, &neighbor_roam_info->roamableAPList,
 				NULL);
 	if ((eSIR_SUCCESS == lim_status) && (NULL != preauth_rsp_node)) {
-		sms_log(mac_ctx, LOG1,
+		sms_log(mac_ctx, LOGD,
 			FL("Preauth completed successfully after %d tries"),
 			neighbor_roam_info->FTRoamInfo.numPreAuthRetries);
-		sms_log(mac_ctx, LOG1,
+		sms_log(mac_ctx, LOGD,
 			FL("After Pre-Auth: BSSID " MAC_ADDRESS_STR ", Ch:%d"),
 			MAC_ADDR_ARRAY(
 				preauth_rsp_node->pBssDescription->bssId),
@@ -416,7 +416,7 @@ static QDF_STATUS csr_neighbor_roam_add_preauth_fail(tpAniSirGlobal mac_ctx,
 	uint8_t num_mac_addr = neighbor_roam_info->FTRoamInfo.preAuthFailList.
 				numMACAddress;
 
-	sms_log(mac_ctx, LOGE,
+	sms_log(mac_ctx, LOGW,
 		FL(" Added BSSID " MAC_ADDRESS_STR " to Preauth failed list"),
 		MAC_ADDR_ARRAY(bssid));
 
@@ -736,7 +736,7 @@ QDF_STATUS csr_neighbor_roam_issue_preauth_req(tpAniSirGlobal mac_ctx,
 				&neighbor_roam_info->roamableAPList, NULL);
 
 	if (NULL == neighbor_bss_node) {
-		sms_log(mac_ctx, LOGW, FL("Roamable AP list is empty.. "));
+		sms_log(mac_ctx, LOGE, FL("Roamable AP list is empty.. "));
 		return QDF_STATUS_E_FAILURE;
 	} else {
 		csr_neighbor_roam_send_lfr_metric_event(mac_ctx, session_id,
@@ -746,7 +746,7 @@ QDF_STATUS csr_neighbor_roam_issue_preauth_req(tpAniSirGlobal mac_ctx,
 				neighbor_bss_node->pBssDescription,
 				eCsrPerformPreauth, true);
 
-		sms_log(mac_ctx, LOG1,
+		sms_log(mac_ctx, LOGD,
 			FL("Before Pre-Auth: BSSID " MAC_ADDRESS_STR ", Ch:%d"),
 			MAC_ADDR_ARRAY(
 				neighbor_bss_node->pBssDescription->bssId),

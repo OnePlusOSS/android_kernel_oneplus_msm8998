@@ -48,10 +48,11 @@
 #endif
 #endif /* QCA_TX_HTT2_SUPPORT */
 
+#define HTT_HTC_PKT_MISCLIST_SIZE           32
 
 struct htt_htc_pkt {
 	void *pdev_ctxt;
-	dma_addr_t nbuf_paddr;
+	target_paddr_t nbuf_paddr;
 	HTC_PACKET htc_pkt;
 	uint16_t msdu_id;
 };
@@ -167,7 +168,7 @@ struct htt_ipa_uc_rx_resource_t {
  * @rx_packet_leng: packet length
  */
 struct ipa_uc_rx_ring_elem_t {
-	qdf_dma_addr_t rx_packet_paddr;
+	target_paddr_t rx_packet_paddr;
 	uint32_t vdev_id;
 	uint32_t rx_packet_leng;
 };

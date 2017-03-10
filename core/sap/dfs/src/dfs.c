@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2002-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -62,6 +62,10 @@
 #include "dfs.h"
 
 int domainoverride = DFS_UNINIT_REGION;
+static struct ath_dfs global_dfs;
+static struct dfs_event global_dfs_event[DFS_MAX_EVENTS];
+static struct dfs_pulseline global_dfs_pulseline;
+static struct dfs_pulseline global_dfs_pulseline_ext;
 
 /*
 ** channel switch announcement (CSA)
@@ -274,32 +278,12 @@ static void dfs_free_filter(struct dfs_filtertype *radarf)
 int dfs_attach(struct ieee80211com *ic)
 {
 	int i, n;
-	struct ath_dfs *dfs = (struct ath_dfs *)ic->ic_dfs;
+	struct ath_dfs *dfs = &global_dfs;
 	struct ath_dfs_radar_tab_info radar_info;
 
-	if (dfs != NULL) {
-		/*DFS_DPRINTK(dfs, ATH_DEBUG_DFS1,
-		   "%s: ic_dfs was not NULL\n",
-		   __func__);
-		 */
-		return 1;
-	}
-
-	dfs = (struct ath_dfs *)os_malloc(NULL, sizeof(struct ath_dfs),
-						GFP_ATOMIC);
-
-	if (dfs == NULL) {
-		/*DFS_DPRINTK(dfs, ATH_DEBUG_DFS1,
-		   "%s: ath_dfs allocation failed\n", __func__); */
-		return 1;
-	}
-
 	OS_MEMZERO(dfs, sizeof(struct ath_dfs));
-
 	ic->ic_dfs = (void *)dfs;
-
 	dfs->ic = ic;
-
 	ic->ic_dfs_debug = dfs_get_debug_info;
 #ifndef ATH_DFS_RADAR_DETECTION_ONLY
 	dfs->dfs_nol = NULL;
@@ -328,31 +312,13 @@ int dfs_attach(struct ieee80211com *ic)
 	STAILQ_INIT(&dfs->dfs_arq);
 	STAILQ_INIT(&(dfs->dfs_eventq));
 	ATH_DFSEVENTQ_LOCK_INIT(dfs);
-	dfs->events = (struct dfs_event *)os_malloc(NULL,
-						    sizeof(struct dfs_event) *
-						    DFS_MAX_EVENTS, GFP_ATOMIC);
-	if (dfs->events == NULL) {
-		OS_FREE(dfs);
-		ic->ic_dfs = NULL;
-		DFS_PRINTK("%s: events allocation failed\n", __func__);
-		return 1;
-	}
+	dfs->events = global_dfs_event;
+	dfs->pulses = &global_dfs_pulseline;
+	dfs->pulses->pl_lastelem = DFS_MAX_PULSE_BUFFER_MASK;
+
 	for (i = 0; i < DFS_MAX_EVENTS; i++) {
 		STAILQ_INSERT_TAIL(&(dfs->dfs_eventq), &dfs->events[i],
 				   re_list);
-	}
-
-	dfs->pulses =
-		(struct dfs_pulseline *)os_malloc(NULL,
-						  sizeof(struct dfs_pulseline),
-						  GFP_ATOMIC);
-	if (dfs->pulses == NULL) {
-		OS_FREE(dfs->events);
-		dfs->events = NULL;
-		OS_FREE(dfs);
-		ic->ic_dfs = NULL;
-		DFS_PRINTK("%s: pulse buffer allocation failed\n", __func__);
-		return 1;
 	}
 
 	/*
@@ -360,24 +326,9 @@ int dfs_attach(struct ieee80211com *ic)
 	 * memory for pulses for extension segment.
 	 */
 	if (ic->dfs_hw_bd_id !=  DFS_HWBD_QCA6174) {
-		dfs->pulses_ext_seg = (struct dfs_pulseline *)
-					os_malloc(NULL,
-						sizeof(struct dfs_pulseline),
-						GFP_ATOMIC);
-		if (dfs->pulses_ext_seg == NULL) {
-			OS_FREE(dfs->events);
-			dfs->events = NULL;
-			OS_FREE(dfs);
-			ic->ic_dfs = NULL;
-			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-			    "%s[%d]: pulse buffer allocation failed",
-			    __func__, __LINE__);
-			return 1;
-		}
+		dfs->pulses_ext_seg = &global_dfs_pulseline_ext;
 		dfs->pulses_ext_seg->pl_lastelem = DFS_MAX_PULSE_BUFFER_MASK;
 	}
-
-	dfs->pulses->pl_lastelem = DFS_MAX_PULSE_BUFFER_MASK;
 
 	/* Allocate memory for radar filters */
 	for (n = 0; n < DFS_MAX_RADAR_TYPES; n++) {
@@ -475,24 +426,8 @@ bad1:
 			dfs->dfs_radarf[n] = NULL;
 		}
 	}
-	if (dfs->pulses) {
-		OS_FREE(dfs->pulses);
-		dfs->pulses = NULL;
-	}
-	if (dfs->pulses_ext_seg &&
-	    ic->dfs_hw_bd_id !=  DFS_HWBD_QCA6174) {
-		OS_FREE(dfs->pulses_ext_seg);
-		dfs->pulses_ext_seg = NULL;
-	}
-	if (dfs->events) {
-		OS_FREE(dfs->events);
-		dfs->events = NULL;
-	}
 
-	if (ic->ic_dfs) {
-		OS_FREE(ic->ic_dfs);
-		ic->ic_dfs = NULL;
-	}
+	ic->ic_dfs = NULL;
 	return 1;
 #undef N
 }
@@ -549,17 +484,6 @@ void dfs_detach(struct ieee80211com *ic)
 	if (ic->dfs_hw_bd_id !=  DFS_HWBD_QCA6174)
 		dfs_reset_alldelaylines(dfs, DFS_80P80_SEG1);
 
-	/* Free up pulse log */
-	if (dfs->pulses != NULL) {
-		OS_FREE(dfs->pulses);
-		dfs->pulses = NULL;
-	}
-
-	if (dfs->pulses_ext_seg != NULL) {
-		OS_FREE(dfs->pulses_ext_seg);
-		dfs->pulses_ext_seg = NULL;
-	}
-
 	for (n = 0; n < DFS_MAX_RADAR_TYPES; n++) {
 		if (dfs->dfs_radarf[n] != NULL) {
 			dfs_free_filter(dfs->dfs_radarf[n]);
@@ -606,12 +530,7 @@ void dfs_detach(struct ieee80211com *ic)
  *    dfs_reset_arq(dfs);
  */
 	}
-	if (dfs->events != NULL) {
-		OS_FREE(dfs->events);
-		dfs->events = NULL;
-	}
 	dfs_nol_timer_cleanup(dfs);
-	OS_FREE(dfs);
 
 	/* XXX? */
 	ic->ic_dfs = NULL;

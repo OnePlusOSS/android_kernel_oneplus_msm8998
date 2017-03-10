@@ -417,7 +417,7 @@ int hdd_lro_init(hdd_context_t *hdd_ctx)
 
 	if ((!hdd_ctx->config->lro_enable) &&
 	    (hdd_napi_enabled(HDD_NAPI_ANY) == 0)) {
-		hdd_warn("LRO and NAPI are both disabled.");
+		hdd_warn("LRO and NAPI are both disabled");
 		return 0;
 	}
 
@@ -528,7 +528,7 @@ int hdd_lro_enable(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 
 	if (!hdd_ctx->config->lro_enable ||
 		 QDF_STA_MODE != adapter->device_mode) {
-		hdd_info("LRO Disabled");
+		hdd_debug("LRO Disabled");
 		return 0;
 	}
 
@@ -541,7 +541,7 @@ int hdd_lro_enable(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 		hdd_reset_tcp_delack(hdd_ctx);
 	}
 
-	hdd_info("LRO Enabled");
+	hdd_debug("LRO Enabled");
 
 	return 0;
 }
@@ -549,7 +549,7 @@ int hdd_lro_enable(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 static void hdd_deinit_lro_mgr(void *lro_info)
 {
 	if (lro_info) {
-		hdd_notice("LRO instance %p is being freed", lro_info);
+		hdd_debug("LRO instance %p is being freed", lro_info);
 		qdf_mem_free(lro_info);
 	}
 }
@@ -656,7 +656,7 @@ enum hdd_lro_rx_status hdd_lro_rx(hdd_context_t *hdd_ctx,
  */
 void hdd_lro_display_stats(hdd_context_t *hdd_ctx)
 {
-	hdd_err("LRO stats is broken, will fix it");
+	hdd_debug("LRO stats is broken, will fix it");
 }
 
 /**
@@ -668,7 +668,7 @@ void hdd_lro_display_stats(hdd_context_t *hdd_ctx)
 void hdd_enable_lro_in_concurrency(hdd_context_t *hdd_ctx)
 {
 	if (hdd_ctx->config->enable_tcp_delack) {
-		hdd_info("Disable TCP delack as LRO is enabled");
+		hdd_debug("Disable TCP delack as LRO is enabled");
 		hdd_ctx->config->enable_tcp_delack = 0;
 		hdd_reset_tcp_delack(hdd_ctx);
 	}
@@ -686,7 +686,7 @@ void hdd_disable_lro_in_concurrency(hdd_context_t *hdd_ctx)
 	if (!hdd_ctx->config->enable_tcp_delack) {
 		struct wlan_rx_tp_data rx_tp_data = {0};
 
-		hdd_info("Enable TCP delack as LRO disabled in concurrency");
+		hdd_debug("Enable TCP delack as LRO disabled in concurrency");
 		rx_tp_data.rx_tp_flags |= TCP_DEL_ACK_IND;
 		rx_tp_data.level = hdd_ctx->cur_rx_level;
 		wlan_hdd_send_svc_nlink_msg(hdd_ctx->radio_index,

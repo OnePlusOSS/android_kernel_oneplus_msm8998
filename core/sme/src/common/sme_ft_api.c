@@ -99,7 +99,7 @@ void sme_ft_close(tHalHandle hHal, uint32_t sessionId)
 		}
 
 		if (pSession->ftSmeContext.pUsrCtx != NULL) {
-			sms_log(pMac, LOG1,
+			sms_log(pMac, LOGD,
 				FL
 					("Freeing ftSmeContext.pUsrCtx and setting to NULL"));
 			qdf_mem_free(pSession->ftSmeContext.pUsrCtx);
@@ -155,7 +155,7 @@ void sme_set_ft_ies(tHalHandle hal_ptr, uint32_t session_id,
 	if (!(QDF_IS_STATUS_SUCCESS(status)))
 		return;
 
-	sms_log(mac_ctx, LOG1, "FT IEs Req is received in state %d",
+	sms_log(mac_ctx, LOGD, "FT IEs Req is received in state %d",
 			session->ftSmeContext.FTState);
 
 	/* Global Station FT State */
@@ -183,7 +183,7 @@ void sme_set_ft_ies(tHalHandle hal_ptr, uint32_t session_id,
 				ft_ies, ft_ies_length);
 		session->ftSmeContext.FTState = eFT_AUTH_REQ_READY;
 
-		sms_log(mac_ctx, LOG1,
+		sms_log(mac_ctx, LOGD,
 			FL("ft_ies_length=%d"), ft_ies_length);
 		break;
 
@@ -196,10 +196,10 @@ void sme_set_ft_ies(tHalHandle hal_ptr, uint32_t session_id,
 		 * pre-auth list. Delete the pre-auth node locally. Set
 		 * your self back to restart pre-auth
 		 */
-		sms_log(mac_ctx, LOG1,
+		sms_log(mac_ctx, LOGD,
 			FL("Preauth done & rcving AUTHREQ in state %d"),
 			session->ftSmeContext.FTState);
-		sms_log(mac_ctx, LOG1,
+		sms_log(mac_ctx, LOGD,
 			FL("Unhandled reception of FT IES in state %d"),
 			session->ftSmeContext.FTState);
 		break;
@@ -210,7 +210,7 @@ void sme_set_ft_ies(tHalHandle hal_ptr, uint32_t session_id,
 		 * reassoc req. This is the new FT Roaming in place At
 		 * this juncture we'r ready to start sending Reassoc req
 		 */
-		sms_log(mac_ctx, LOG1, FL("New Reassoc Req=%p in state %d"),
+		sms_log(mac_ctx, LOGD, FL("New Reassoc Req=%p in state %d"),
 			ft_ies, session->ftSmeContext.FTState);
 		if ((session->ftSmeContext.reassoc_ft_ies) &&
 			(session->ftSmeContext.reassoc_ft_ies_length)) {
@@ -233,7 +233,7 @@ void sme_set_ft_ies(tHalHandle hal_ptr, uint32_t session_id,
 				ft_ies, ft_ies_length);
 
 		session->ftSmeContext.FTState = eFT_SET_KEY_WAIT;
-		sms_log(mac_ctx, LOG1,
+		sms_log(mac_ctx, LOGD,
 			FL("ft_ies_length=%d state=%d"), ft_ies_length,
 			session->ftSmeContext.FTState);
 
@@ -268,7 +268,7 @@ QDF_STATUS sme_ft_send_update_key_ind(tHalHandle hal, uint32_t session_id,
 	tAniEdType ed_type;
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
 
-	sms_log(mac_ctx, LOG1, FL("keyLength %d"), ftkey_info->keyLength);
+	sms_log(mac_ctx, LOGD, FL("keyLength %d"), ftkey_info->keyLength);
 
 	if (ftkey_info->keyLength > CSR_MAX_KEY_LEN) {
 		sms_log(mac_ctx, LOGE, FL("invalid keyLength %d"),
@@ -304,7 +304,7 @@ QDF_STATUS sme_ft_send_update_key_ind(tHalHandle hal, uint32_t session_id,
 
 	qdf_copy_macaddr(&msg->bssid, &ftkey_info->peerMac);
 	msg->smeSessionId = session_id;
-	sms_log(mac_ctx, LOG1, "BSSID = " MAC_ADDRESS_STR,
+	sms_log(mac_ctx, LOGD, "BSSID = " MAC_ADDRESS_STR,
 		MAC_ADDR_ARRAY(msg->bssid.bytes));
 	status = cds_send_mb_message_to_mac(msg);
 
@@ -356,7 +356,7 @@ QDF_STATUS sme_ft_update_key(tHalHandle hHal, uint32_t sessionId,
 	if (!(QDF_IS_STATUS_SUCCESS(status))) {
 		return QDF_STATUS_E_FAILURE;
 	}
-	sms_log(pMac, LOG1, "sme_ft_update_key is received in state %d",
+	sms_log(pMac, LOGD, "sme_ft_update_key is received in state %d",
 		pSession->ftSmeContext.FTState);
 
 	/* Global Station FT State */
@@ -373,14 +373,14 @@ QDF_STATUS sme_ft_update_key(tHalHandle hHal, uint32_t sessionId,
 			} else {
 				pSession->ftSmeContext.setFTPTKState = true;
 				status = QDF_STATUS_FT_PREAUTH_KEY_SUCCESS;
-				sms_log(pMac, LOG1, "%s: Key set success",
+				sms_log(pMac, LOGD, "%s: Key set success",
 					__func__);
 			}
 			sme_set_ft_pre_auth_state(hHal, sessionId, false);
 		}
 
 		pSession->ftSmeContext.FTState = eFT_START_READY;
-		sms_log(pMac, LOG1, "%s: state changed to %d status %d",
+		sms_log(pMac, LOGD, "%s: state changed to %d status %d",
 			__func__, pSession->ftSmeContext.FTState, status);
 		break;
 
@@ -443,7 +443,7 @@ void sme_get_ft_pre_auth_response(tHalHandle hHal, uint32_t sessionId,
 
 	pSession->ftSmeContext.FTState = eFT_REASSOC_REQ_WAIT;
 
-	sms_log(pMac, LOG1, FL(" Filled auth resp = %d"), *ft_ies_length);
+	sms_log(pMac, LOGD, FL(" Filled auth resp = %d"), *ft_ies_length);
 	sme_release_global_lock(&pMac->sme);
 	return;
 }
@@ -487,7 +487,7 @@ void sme_get_rici_es(tHalHandle hHal, uint32_t sessionId, uint8_t *ric_ies,
 	*ric_ies_length =
 		pSession->ftSmeContext.psavedFTPreAuthRsp->ric_ies_length;
 
-	sms_log(pMac, LOG1, FL(" Filled ric ies = %d"), *ric_ies_length);
+	sms_log(pMac, LOGD, FL(" Filled ric ies = %d"), *ric_ies_length);
 
 	sme_release_global_lock(&pMac->sme);
 	return;
@@ -529,7 +529,7 @@ void sme_ft_reset(tHalHandle hHal, uint32_t sessionId)
 	pSession = CSR_GET_SESSION(pMac, sessionId);
 	if (NULL != pSession) {
 		if (pSession->ftSmeContext.auth_ft_ies != NULL) {
-			sms_log(pMac, LOG1,
+			sms_log(pMac, LOGD,
 				FL("Free FT Auth IE %p and set to NULL"),
 				pSession->ftSmeContext.auth_ft_ies);
 			qdf_mem_free(pSession->ftSmeContext.auth_ft_ies);
@@ -538,7 +538,7 @@ void sme_ft_reset(tHalHandle hHal, uint32_t sessionId)
 		pSession->ftSmeContext.auth_ft_ies_length = 0;
 
 		if (pSession->ftSmeContext.reassoc_ft_ies != NULL) {
-			sms_log(pMac, LOG1,
+			sms_log(pMac, LOGD,
 				FL("Free FT Reassoc IE %p and set to NULL"),
 				pSession->ftSmeContext.reassoc_ft_ies);
 			qdf_mem_free(pSession->ftSmeContext.reassoc_ft_ies);
@@ -547,7 +547,7 @@ void sme_ft_reset(tHalHandle hHal, uint32_t sessionId)
 		pSession->ftSmeContext.reassoc_ft_ies_length = 0;
 
 		if (pSession->ftSmeContext.psavedFTPreAuthRsp != NULL) {
-			sms_log(pMac, LOG1,
+			sms_log(pMac, LOGD,
 				FL("Free FtPreAuthRsp %p and set to NULL"),
 				pSession->ftSmeContext.psavedFTPreAuthRsp);
 			qdf_mem_free(pSession->ftSmeContext.psavedFTPreAuthRsp);

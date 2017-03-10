@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -56,7 +56,7 @@ QDF_STATUS csr_roam_issue_reassociate(tpAniSirGlobal pMac,
 	/* Set the roaming substate to 'join attempt'... */
 	csr_roam_substate_change(pMac, eCSR_ROAM_SUBSTATE_REASSOC_REQ,
 			sessionId);
-	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
+	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 		  FL(" calling csr_send_join_req_msg (eWNI_SME_REASSOC_REQ)"));
 	/* attempt to Join this BSS... */
 	return csr_send_join_req_msg(pMac, sessionId, pSirBssDesc, pProfile,
@@ -197,7 +197,7 @@ void csr_neighbor_roam_process_scan_results(tpAniSirGlobal mac_ctx,
 				 * in the roamable AP list
 				 */
 				QDF_TRACE(QDF_MODULE_ID_SME,
-					  QDF_TRACE_LEVEL_INFO,
+					  QDF_TRACE_LEVEL_DEBUG,
 					  "SKIP-currently associated AP");
 				continue;
 			}
@@ -215,7 +215,7 @@ void csr_neighbor_roam_process_scan_results(tpAniSirGlobal mac_ctx,
 				if (conc_channel &&
 				   (conc_channel !=
 				   scan_result->BssDescriptor.channelId)) {
-					sms_log(mac_ctx, LOG1, FL("MCC not supported so Ignore AP on channel %d"),
+					sms_log(mac_ctx, LOGD, FL("MCC not supported so Ignore AP on channel %d"),
 					  scan_result->BssDescriptor.channelId);
 					continue;
 				}
@@ -232,7 +232,7 @@ void csr_neighbor_roam_process_scan_results(tpAniSirGlobal mac_ctx,
 			     || (descr->channelId !=
 				 n_roam_info->handoffReqInfo.channel))) {
 				QDF_TRACE(QDF_MODULE_ID_SME,
-					  QDF_TRACE_LEVEL_INFO,
+					  QDF_TRACE_LEVEL_DEBUG,
 					  "SKIP-not a candidate AP for OS requested roam");
 				continue;
 			}
@@ -259,21 +259,21 @@ void csr_neighbor_roam_process_scan_results(tpAniSirGlobal mac_ctx,
 			qavail = descr->QBSSLoad_avail;
 			voadmitted = n_roam_info->isVOAdmitted;
 			if (voadmitted)
-				sms_log(mac_ctx, LOG1,
+				sms_log(mac_ctx, LOGD,
 					FL("New QBSS=%s,BWavail=0x%x,req=0x%x"),
 					((qpresent) ? "yes" : "no"), qavail,
 					n_roam_info->MinQBssLoadRequired);
 			if (voadmitted && qpresent &&
 			    (qavail < n_roam_info->MinQBssLoadRequired)) {
 				QDF_TRACE(QDF_MODULE_ID_SME,
-					QDF_TRACE_LEVEL_INFO,
+					QDF_TRACE_LEVEL_DEBUG,
 					"BSSID:" MAC_ADDRESS_STR "has no BW",
 					MAC_ADDR_ARRAY(descr->bssId));
 				continue;
 			}
 			if (voadmitted && !qpresent) {
 				QDF_TRACE(QDF_MODULE_ID_SME,
-					QDF_TRACE_LEVEL_INFO,
+					QDF_TRACE_LEVEL_DEBUG,
 					"BSSID:" MAC_ADDRESS_STR "no LOAD IE",
 					MAC_ADDR_ARRAY(descr->bssId));
 				continue;
@@ -401,7 +401,7 @@ QDF_STATUS csr_neighbor_roam_process_scan_complete(tpAniSirGlobal pMac,
 	hstatus = csr_neighbor_roam_prepare_scan_profile_filter(pMac,
 								&scanFilter,
 								sessionId);
-	sms_log(pMac, LOGW,
+	sms_log(pMac, LOGD,
 		FL("Prepare scan to find neighbor AP filter status  = %d"),
 		hstatus);
 	if (QDF_STATUS_SUCCESS != hstatus) {
@@ -470,7 +470,7 @@ QDF_STATUS csr_neighbor_roam_candidate_found_ind_hdlr(tpAniSirGlobal pMac,
 		&pMac->roam.neighborRoamInfo[sessionId];
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 
-	sms_log(pMac, LOG1, FL("Received indication from firmware"));
+	sms_log(pMac, LOGD, FL("Received indication from firmware"));
 
 	/* we must be in connected state, if not ignore it */
 	if ((eCSR_NEIGHBOR_ROAM_STATE_CONNECTED !=
@@ -519,7 +519,7 @@ void csr_neighbor_roam_free_roamable_bss_list(tpAniSirGlobal mac_ctx,
 {
 	tpCsrNeighborRoamBSSInfo result = NULL;
 
-	sms_log(mac_ctx, LOG2,
+	sms_log(mac_ctx, LOGD,
 		FL("Emptying the BSS list. Current count = %d"),
 		csr_ll_count(llist));
 
@@ -557,7 +557,7 @@ bool csr_neighbor_roam_remove_roamable_ap_list_entry(tpAniSirGlobal pMac,
 					   LL_ACCESS_LOCK);
 	}
 
-	sms_log(pMac, LOGE,
+	sms_log(pMac, LOGD,
 		FL("Remove neigh BSS node from fail list. Current count = %d"),
 		csr_ll_count(pList));
 
@@ -672,7 +672,7 @@ void csr_neighbor_roam_request_handoff(tpAniSirGlobal mac_ctx,
 	neighbor_roam_info->csrNeighborRoamProfile.ChannelInfo.ChannelList[0] =
 		handoff_node.pBssDescription->channelId;
 
-	sms_log(mac_ctx, LOGW,
+	sms_log(mac_ctx, LOGD,
 		" csr_roamHandoffRequested: disassociating with current AP");
 
 	if (!QDF_IS_STATUS_SUCCESS
@@ -729,7 +729,7 @@ bool csr_neighbor_roam_get_handoff_ap_info(tpAniSirGlobal pMac,
 			pMac,
 			&ngbr_roam_info->FTRoamInfo.preAuthDoneList,
 			NULL);
-		sms_log(pMac, LOG1,
+		sms_log(pMac, LOGD,
 			FL("Number of Handoff candidates = %d"),
 			csr_ll_count(&
 				ngbr_roam_info->FTRoamInfo.preAuthDoneList));
@@ -741,7 +741,7 @@ bool csr_neighbor_roam_get_handoff_ap_info(tpAniSirGlobal pMac,
 			csr_neighbor_roam_next_roamable_ap(pMac,
 				&ngbr_roam_info->FTRoamInfo.preAuthDoneList,
 				NULL);
-		sms_log(pMac, LOG1,
+		sms_log(pMac, LOGD,
 			FL("Number of Handoff candidates = %d"),
 			csr_ll_count(&ngbr_roam_info->FTRoamInfo.
 			preAuthDoneList));
@@ -753,7 +753,7 @@ bool csr_neighbor_roam_get_handoff_ap_info(tpAniSirGlobal pMac,
 			csr_neighbor_roam_next_roamable_ap(pMac,
 			&ngbr_roam_info->FTRoamInfo.preAuthDoneList,
 			NULL);
-		sms_log(pMac, LOG1,
+		sms_log(pMac, LOGD,
 			FL("Number of Handoff candidates = %d"),
 			csr_ll_count(
 				&ngbr_roam_info->FTRoamInfo.preAuthDoneList));
@@ -762,7 +762,7 @@ bool csr_neighbor_roam_get_handoff_ap_info(tpAniSirGlobal pMac,
 			csr_neighbor_roam_next_roamable_ap(pMac,
 				&ngbr_roam_info->roamableAPList,
 				NULL);
-		sms_log(pMac, LOG1,
+		sms_log(pMac, LOGD,
 			FL("Number of Handoff candidates = %d"),
 			csr_ll_count(&ngbr_roam_info->roamableAPList));
 	}

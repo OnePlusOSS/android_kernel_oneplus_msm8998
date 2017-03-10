@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -659,6 +659,10 @@ A_STATUS process_rx_info(void *pdev, void *data)
 	pl_hdr.size = (*(pl_tgt_hdr + ATH_PKTLOG_HDR_SIZE_OFFSET) &
 		       ATH_PKTLOG_HDR_SIZE_MASK) >> ATH_PKTLOG_HDR_SIZE_SHIFT;
 	pl_hdr.timestamp = *(pl_tgt_hdr + ATH_PKTLOG_HDR_TIMESTAMP_OFFSET);
+#ifdef HELIUMPLUS
+	pl_hdr.type_specific_data =
+		*(pl_tgt_hdr + ATH_PKTLOG_HDR_TYPE_SPECIFIC_DATA_OFFSET);
+#endif
 	log_size = pl_hdr.size;
 	rxstat_log.rx_desc = (void *)pktlog_getbuf(pl_dev, pl_info,
 						   log_size, &pl_hdr);
@@ -722,6 +726,10 @@ A_STATUS process_rate_find(void *pdev, void *data)
 	pl_hdr.size = (*(pl_tgt_hdr + ATH_PKTLOG_HDR_SIZE_OFFSET) &
 		       ATH_PKTLOG_HDR_SIZE_MASK) >> ATH_PKTLOG_HDR_SIZE_SHIFT;
 	pl_hdr.timestamp = *(pl_tgt_hdr + ATH_PKTLOG_HDR_TIMESTAMP_OFFSET);
+#ifdef HELIUMPLUS
+	pl_hdr.type_specific_data =
+		*(pl_tgt_hdr + ATH_PKTLOG_HDR_TYPE_SPECIFIC_DATA_OFFSET);
+#endif
 	pl_dev = ((struct ol_txrx_pdev_t *)pdev)->pl_dev;
 	pl_info = pl_dev->pl_info;
 	log_size = pl_hdr.size;
@@ -851,6 +859,10 @@ A_STATUS process_rate_update(void *pdev, void *data)
 	pl_hdr.size = (*(pl_tgt_hdr + ATH_PKTLOG_HDR_SIZE_OFFSET) &
 		       ATH_PKTLOG_HDR_SIZE_MASK) >> ATH_PKTLOG_HDR_SIZE_SHIFT;
 	pl_hdr.timestamp = *(pl_tgt_hdr + ATH_PKTLOG_HDR_TIMESTAMP_OFFSET);
+#ifdef HELIUMPLUS
+	pl_hdr.type_specific_data =
+		*(pl_tgt_hdr + ATH_PKTLOG_HDR_TYPE_SPECIFIC_DATA_OFFSET);
+#endif
 	pl_dev = ((struct ol_txrx_pdev_t *)pdev)->pl_dev;
 	log_size = pl_hdr.size;
 	pl_info = pl_dev->pl_info;

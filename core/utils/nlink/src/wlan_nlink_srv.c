@@ -51,6 +51,13 @@
 #include <wlan_nlink_srv.h>
 #include <qdf_trace.h>
 
+#ifdef CNSS_GENL
+#include <qdf_mem.h>
+#include <wlan_nlink_common.h>
+#include <net/genetlink.h>
+#include <net/cnss_nl.h>
+#endif
+
 #if defined(CONFIG_CNSS_LOGGER)
 
 #include <net/cnss_logger.h>
@@ -138,9 +145,15 @@ int nl_srv_ucast(struct sk_buff *skb, int dst_pid, int flag)
 	/* not multicast */
 	NETLINK_CB(skb).dst_group = 0;
 
-	if (nl_srv_is_initialized() == 0)
+	if (nl_srv_is_initialized() == 0) {
 		err = cnss_logger_nl_ucast(skb, dst_pid, flag);
-	else
+		if (err < 0) {
+			QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_WARN,
+				  "NLINK: netlink_unicast to pid[%d] failed, ret[%d]",
+				  dst_pid, err);
+			dev_kfree_skb(skb);
+		}
+	} else
 		dev_kfree_skb(skb);
 	return err;
 }
@@ -170,9 +183,15 @@ int nl_srv_bcast(struct sk_buff *skb)
 	 /* destination group */
 	NETLINK_CB(skb).dst_group = WLAN_NLINK_MCAST_GRP_ID;
 
-	if (nl_srv_is_initialized() == 0)
+	if (nl_srv_is_initialized() == 0) {
 		err = cnss_logger_nl_bcast(skb, WLAN_NLINK_MCAST_GRP_ID, flags);
-	else
+		if ((err < 0) && (err != -ESRCH)) {
+			QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_WARN,
+				  "NLINK: netlink_broadcast failed err = %d",
+				   err);
+			dev_kfree_skb(skb);
+		}
+	} else
 		dev_kfree_skb(skb);
 	return err;
 }
@@ -344,25 +363,216 @@ int nl_srv_unregister(tWlanNlModTypes msg_type, nl_srv_msg_callback msg_handler)
 	return retcode;
 }
 
+#ifdef CNSS_GENL
+/**
+ * nl80211hdr_put() - API to fill genlmsg header
+ * @skb: Sk buffer
+ * @portid: Port ID
+ * @seq: Sequence number
+ * @flags: Flags
+ * @cmd: Command id
+ *
+ * API to fill genl message header for brodcast events to user space
+ *
+ * Return: Pointer to user specific header/payload
+ */
+static inline void *nl80211hdr_put(struct sk_buff *skb, uint32_t portid,
+					uint32_t seq, int flags, uint8_t cmd)
+{
+	struct genl_family *cld80211_fam = cld80211_get_genl_family();
+
+	return genlmsg_put(skb, portid, seq, cld80211_fam, flags, cmd);
+}
+
+/**
+ * cld80211_fill_data() - API to fill payload to nl message
+ * @msg: Sk buffer
+ * @portid: Port ID
+ * @seq: Sequence number
+ * @flags: Flags
+ * @cmd: Command ID
+ * @buf: data buffer/payload to be filled
+ * @len: length of the payload ie. @buf
+ *
+ * API to fill the payload/data of the nl message to be sent
+ *
+ * Return: zero on success
+ */
+static int cld80211_fill_data(struct sk_buff *msg, uint32_t portid,
+					uint32_t seq, int flags, uint8_t cmd,
+					uint8_t *buf, int len)
+{
+	void *hdr;
+	struct nlattr *nest;
+
+	hdr = nl80211hdr_put(msg, portid, seq, flags, cmd);
+	if (!hdr) {
+		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
+						"nl80211 hdr put failed");
+		return -EPERM;
+	}
+
+	nest = nla_nest_start(msg, CLD80211_ATTR_VENDOR_DATA);
+	if (!nest) {
+		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
+						"nla_nest_start failed");
+		goto nla_put_failure;
+	}
+
+	if (nla_put(msg, CLD80211_ATTR_DATA, len, buf)) {
+		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
+							"nla_put failed");
+		goto nla_put_failure;
+	}
+
+	nla_nest_end(msg, nest);
+	genlmsg_end(msg, hdr);
+
+	return 0;
+nla_put_failure:
+	genlmsg_cancel(msg, hdr);
+	return -EPERM;
+}
+
+/**
+ * send_msg_to_cld80211() - API to send message to user space Application
+ * @mcgroup_id: Multicast group ID
+ * @pid: Port ID
+ * @app_id: Application ID
+ * @buf: Data/payload buffer to be sent
+ * @len: Length of the data ie. @buf
+ *
+ * API to send the nl message to user space application.
+ *
+ * Return: zero on success
+ */
+static int send_msg_to_cld80211(int mcgroup_id, int pid, int app_id,
+						uint8_t *buf, int len)
+{
+	struct sk_buff *msg;
+	struct genl_family *cld80211_fam = cld80211_get_genl_family();
+	int status;
+	int flags = GFP_KERNEL;
+
+	if (in_interrupt() || irqs_disabled() || in_atomic())
+		flags = GFP_ATOMIC;
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, flags);
+	if (!msg) {
+		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
+						"nlmsg malloc fails");
+		return -EPERM;
+	}
+
+	status = cld80211_fill_data(msg, pid, 0, 0, app_id, buf, len);
+	if (status) {
+		nlmsg_free(msg);
+		return -EPERM;
+	}
+
+	genlmsg_multicast_netns(cld80211_fam, &init_net, msg, 0,
+						mcgroup_id, flags);
+	return 0;
+}
+
+/**
+ * nl_srv_bcast() - wrapper function to do broadcast events to user space apps
+ * @skb: the socket buffer to send
+ * @mcgroup_id: multicast group id
+ * @app_id: application id
+ *
+ * This function is common wrapper to send broadcast events to different
+ * user space applications.
+ *
+ * return: none
+ */
+int nl_srv_bcast(struct sk_buff *skb, int mcgroup_id, int app_id)
+{
+	struct nlmsghdr *nlh = (struct nlmsghdr *)skb->data;
+	void *msg = NLMSG_DATA(nlh);
+	uint32_t msg_len = nlmsg_len(nlh);
+	uint8_t *tempbuf;
+	int status;
+
+	tempbuf = (uint8_t *)qdf_mem_malloc(msg_len);
+	qdf_mem_copy(tempbuf, msg, msg_len);
+	status = send_msg_to_cld80211(mcgroup_id, 0, app_id, tempbuf, msg_len);
+	if (status) {
+		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
+			"send msg to cld80211 fails for app id %d", app_id);
+		dev_kfree_skb(skb);
+		qdf_mem_free(tempbuf);
+		return -EPERM;
+	}
+
+	dev_kfree_skb(skb);
+	qdf_mem_free(tempbuf);
+	return 0;
+}
+
+/**
+ * nl_srv_ucast() - wrapper function to do unicast events to user space apps
+ * @skb: the socket buffer to send
+ * @dst_pid: destination process IF
+ * @flag: flags
+ * @app_id: application id
+ * @mcgroup_id: Multicast group ID
+ *
+ * This function is common wrapper to send unicast events to different
+ * user space applications. This internally used broadcast API with multicast
+ * group mcgrp_id. This wrapper serves as a common API in both
+ * new generic netlink infra and legacy implementation.
+ *
+ * return: zero on success, error code otherwise
+ */
+int nl_srv_ucast(struct sk_buff *skb, int dst_pid, int flag,
+					int app_id, int mcgroup_id)
+{
+	struct nlmsghdr *nlh = (struct nlmsghdr *)skb->data;
+	void *msg = NLMSG_DATA(nlh);
+	uint32_t msg_len = nlmsg_len(nlh);
+	uint8_t *tempbuf;
+	int status;
+
+	tempbuf = (uint8_t *)qdf_mem_malloc(msg_len);
+	qdf_mem_copy(tempbuf, msg, msg_len);
+	status = send_msg_to_cld80211(mcgroup_id, dst_pid, app_id,
+					tempbuf, msg_len);
+	if (status) {
+		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
+			"send msg to cld80211 fails for app id %d", app_id);
+		dev_kfree_skb(skb);
+		qdf_mem_free(tempbuf);
+		return -EPERM;
+	}
+
+	dev_kfree_skb(skb);
+	qdf_mem_free(tempbuf);
+	return 0;
+}
+#else
+
 /*
  * Unicast the message to the process in user space identfied
  * by the dst-pid
  */
 int nl_srv_ucast(struct sk_buff *skb, int dst_pid, int flag)
 {
-	int err = 0;
+	int err = -EINVAL;
 
 	NETLINK_CB(skb).portid = 0;     /* sender's pid */
 	NETLINK_CB(skb).dst_group = 0;  /* not multicast */
 
-	if (nl_srv_sock)
+	if (nl_srv_sock) {
 		err = netlink_unicast(nl_srv_sock, skb, dst_pid, flag);
-
-	if (err < 0)
-		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_WARN,
-			  "NLINK: netlink_unicast to pid[%d] failed, ret[%d]",
-			  dst_pid, err);
-
+		if (err < 0) {
+			QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_WARN,
+				  "NLINK: netlink_unicast to pid[%d] failed, ret[%d]",
+				  dst_pid, err);
+			dev_kfree_skb(skb);
+		}
+	} else
+		dev_kfree_skb(skb);
 	return err;
 }
 
@@ -372,7 +582,7 @@ int nl_srv_ucast(struct sk_buff *skb, int dst_pid, int flag)
  */
 int nl_srv_bcast(struct sk_buff *skb)
 {
-	int err = 0;
+	int err = -EINVAL;
 	int flags = GFP_KERNEL;
 
 	if (in_interrupt() || irqs_disabled() || in_atomic())
@@ -381,16 +591,20 @@ int nl_srv_bcast(struct sk_buff *skb)
 	NETLINK_CB(skb).portid = 0;     /* sender's pid */
 	NETLINK_CB(skb).dst_group = WLAN_NLINK_MCAST_GRP_ID;    /* destination group */
 
-	if (nl_srv_sock)
+	if (nl_srv_sock) {
 		err = netlink_broadcast(nl_srv_sock, skb, 0,
 					WLAN_NLINK_MCAST_GRP_ID, flags);
-
-	if ((err < 0) && (err != -ESRCH)) {
-		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_WARN,
-			  "NLINK: netlink_broadcast failed err = %d", err);
-	}
+		if ((err < 0) && (err != -ESRCH)) {
+			QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_WARN,
+				  "NLINK: netlink_broadcast failed err = %d",
+				   err);
+			dev_kfree_skb(skb);
+		}
+	} else
+		dev_kfree_skb(skb);
 	return err;
 }
+#endif
 
 /*
  *  Processes the Netlink socket input queue.

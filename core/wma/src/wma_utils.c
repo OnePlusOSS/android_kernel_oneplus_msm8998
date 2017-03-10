@@ -329,7 +329,7 @@ static struct wma_target_req *wma_peek_vdev_req(tp_wma_handle wma,
 							  node1, &node2));
 	qdf_spin_unlock_bh(&wma->vdev_respq_lock);
 	if (!found) {
-		WMA_LOGP(FL("target request not found for vdev_id %d type %d"),
+		WMA_LOGE(FL("target request not found for vdev_id %d type %d"),
 			 vdev_id, type);
 		return NULL;
 	}
@@ -359,7 +359,7 @@ void wma_lost_link_info_handler(tp_wma_handle wma, uint32_t vdev_id,
 		sme_msg.type = eWNI_SME_LOST_LINK_INFO_IND;
 		sme_msg.bodyptr = lost_link_info;
 		sme_msg.bodyval = 0;
-		WMA_LOGI("%s: post msg to SME, bss_idx %d, rssi %d",  __func__,
+		WMA_LOGD("%s: post msg to SME, bss_idx %d, rssi %d",  __func__,
 			 lost_link_info->vdev_id, lost_link_info->rssi);
 
 		qdf_status = cds_mq_post_message(QDF_MODULE_ID_SME, &sme_msg);
@@ -1511,11 +1511,8 @@ static void wma_update_vdev_stats(tp_wma_handle wma,
  */
 static void wma_post_stats(tp_wma_handle wma, struct wma_txrx_node *node)
 {
-	tAniGetPEStatsRsp *stats_rsp_params;
-
-	stats_rsp_params = node->stats_rsp;
 	/* send response to UMAC */
-	wma_send_msg(wma, WMA_GET_STATISTICS_RSP, (void *)stats_rsp_params, 0);
+	wma_send_msg(wma, WMA_GET_STATISTICS_RSP, node->stats_rsp, 0);
 	node->stats_rsp = NULL;
 	node->fw_stats_set = 0;
 }
@@ -1541,10 +1538,10 @@ static void wma_update_peer_stats(tp_wma_handle wma,
 		return;
 
 	node = &wma->interfaces[vdev_id];
-	if (node->stats_rsp) {
+	stats_rsp_params = (tAniGetPEStatsRsp *) node->stats_rsp;
+	if (stats_rsp_params) {
 		node->fw_stats_set |= FW_PEER_STATS_SET;
 		WMA_LOGD("<-- FW PEER STATS received for vdevId:%d", vdev_id);
-		stats_rsp_params = (tAniGetPEStatsRsp *) node->stats_rsp;
 		stats_buf = (uint8_t *) (stats_rsp_params + 1);
 		temp_mask = stats_rsp_params->statsMask;
 		if (temp_mask & (1 << eCsrSummaryStats))
@@ -1679,11 +1676,11 @@ static void wma_update_rssi_stats(tp_wma_handle wma,
 
 	vdev_id = rssi_stats->vdev_id;
 	node = &wma->interfaces[vdev_id];
-	if (node->stats_rsp) {
+	stats_rsp_params = (tAniGetPEStatsRsp *) node->stats_rsp;
+	if (stats_rsp_params) {
 		node->fw_stats_set |=  FW_RSSI_PER_CHAIN_STATS_SET;
 		WMA_LOGD("<-- FW RSSI PER CHAIN STATS received for vdevId:%d",
 				vdev_id);
-		stats_rsp_params = (tAniGetPEStatsRsp *) node->stats_rsp;
 		stats_buf = (uint8_t *) (stats_rsp_params + 1);
 		temp_mask = stats_rsp_params->statsMask;
 
@@ -1794,7 +1791,7 @@ int wma_rso_cmd_status_event_handler(wmi_roam_event_fixed_param *wmi_event)
 	sme_msg.type = eWNI_SME_RSO_CMD_STATUS_IND;
 	sme_msg.bodyptr = rso_status;
 	sme_msg.bodyval = 0;
-	WMA_LOGI("%s: Post RSO cmd status to SME",  __func__);
+	WMA_LOGD("%s: Post RSO cmd status to SME",  __func__);
 
 	qdf_status = cds_mq_post_message(QDF_MODULE_ID_SME, &sme_msg);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
@@ -1834,9 +1831,6 @@ int wma_stats_event_handler(void *handle, uint8_t *cmd_param_info,
 	event = param_buf->fixed_param;
 	temp = (uint8_t *) param_buf->data;
 
-	WMA_LOGD("%s: num_stats: pdev: %u vdev: %u peer %u",
-		 __func__, event->num_pdev_stats, event->num_vdev_stats,
-		 event->num_peer_stats);
 	if (event->num_pdev_stats > 0) {
 		for (i = 0; i < event->num_pdev_stats; i++) {
 			pdev_stats = (wmi_pdev_stats *) temp;
@@ -1888,12 +1882,10 @@ int wma_stats_event_handler(void *handle, uint8_t *cmd_param_info,
 	for (i = 0; i < wma->max_bssid; i++) {
 		node = &wma->interfaces[i];
 		if (node->fw_stats_set & FW_PEER_STATS_SET) {
-			WMA_LOGD("<--STATS RSP VDEV_ID:%d", i);
 			wma_post_stats(wma, node);
 		}
 	}
 
-	WMA_LOGI("%s: Exit", __func__);
 	return 0;
 }
 
@@ -1971,7 +1963,7 @@ QDF_STATUS wma_wni_cfg_dnld(tp_wma_handle wma_handle)
 	WMA_LOGD("%s: Enter", __func__);
 
 	if (NULL == mac) {
-		WMA_LOGP("%s: Invalid context", __func__);
+		WMA_LOGE("%s: Invalid context", __func__);
 		QDF_ASSERT(0);
 		return QDF_STATUS_E_FAILURE;
 	}
@@ -2171,7 +2163,7 @@ WLAN_PHY_MODE wma_peer_phymode(tSirNwType nw_type, uint8_t sta_type,
 			phymode = (ch_width) ? MODE_11NA_HT40 : MODE_11NA_HT20;
 		break;
 	default:
-		WMA_LOGP("%s: Invalid nw type %d", __func__, nw_type);
+		WMA_LOGE("%s: Invalid nw type %d", __func__, nw_type);
 		break;
 	}
 	WMA_LOGD("%s: nw_type %d is_ht %d ch_width %d is_vht %d phymode %d",
@@ -2362,7 +2354,7 @@ void wma_get_stats_req(WMA_HANDLE handle,
 		if (pGetPEStatsRspParams->staId == get_stats_param->staId &&
 		    pGetPEStatsRspParams->statsMask ==
 		    get_stats_param->statsMask) {
-			WMA_LOGI("Stats for staId %d with stats mask %d "
+			WMA_LOGD("Stats for staId %d with stats mask %d "
 				 "is pending.... ignore new request",
 				 get_stats_param->staId,
 				 get_stats_param->statsMask);
@@ -2379,7 +2371,16 @@ void wma_get_stats_req(WMA_HANDLE handle,
 		goto end;
 
 	node->fw_stats_set = 0;
+	if (node->stats_rsp) {
+		WMA_LOGD(FL("stats_rsp is not null, prev_value: %p"),
+			node->stats_rsp);
+		qdf_mem_free(node->stats_rsp);
+		node->stats_rsp = NULL;
+	}
 	node->stats_rsp = pGetPEStatsRspParams;
+	WMA_LOGD("stats_rsp allocated: %p, sta_id: %d, mask: %d, vdev_id: %d",
+		node->stats_rsp, node->stats_rsp->staId,
+		node->stats_rsp->statsMask, get_stats_param->sessionId);
 
 	cmd.session_id = get_stats_param->sessionId;
 	if (wmi_unified_get_stats_cmd(wma_handle->wmi_handle, &cmd,
@@ -2394,10 +2395,10 @@ void wma_get_stats_req(WMA_HANDLE handle,
 failed:
 
 	pGetPEStatsRspParams->rc = QDF_STATUS_E_FAILURE;
-	node->stats_rsp = NULL;
 	/* send response to UMAC */
 	wma_send_msg(wma_handle, WMA_GET_STATISTICS_RSP, pGetPEStatsRspParams,
 		     0);
+	node->stats_rsp = NULL;
 end:
 	qdf_mem_free(get_stats_param);
 	WMA_LOGD("%s: Exit", __func__);
@@ -2699,7 +2700,7 @@ void wma_utf_attach(tp_wma_handle wma_handle)
 						 WMA_RX_SERIALIZER_CTX);
 
 	if (ret)
-		WMA_LOGP("%s: Failed to register UTF event callback", __func__);
+		WMA_LOGE("%s: Failed to register UTF event callback", __func__);
 }
 
 /**
@@ -2918,7 +2919,7 @@ static int8_t wma_get_matching_hw_mode_index(tp_wma_handle wma,
 			continue;
 
 		found = i;
-		WMA_LOGI("%s: hw_mode index %d found",
+		WMA_LOGD("%s: hw_mode index %d found",
 				__func__, i);
 		break;
 	}
@@ -2961,11 +2962,11 @@ int8_t wma_get_hw_mode_idx_from_dbs_hw_list(enum hw_mode_ss_config mac0_ss,
 	wma_get_tx_rx_ss_from_config(mac0_ss, &mac0_tx_ss, &mac0_rx_ss);
 	wma_get_tx_rx_ss_from_config(mac1_ss, &mac1_tx_ss, &mac1_rx_ss);
 
-	WMA_LOGI("%s: MAC0: TxSS=%d, RxSS=%d, BW=%d",
+	WMA_LOGD("%s: MAC0: TxSS=%d, RxSS=%d, BW=%d",
 		__func__, mac0_tx_ss, mac0_rx_ss, mac0_bw);
-	WMA_LOGI("%s: MAC1: TxSS=%d, RxSS=%d, BW=%d",
+	WMA_LOGD("%s: MAC1: TxSS=%d, RxSS=%d, BW=%d",
 		__func__, mac1_tx_ss, mac1_rx_ss, mac1_bw);
-	WMA_LOGI("%s: DBS=%d, Agile DFS=%d, SBS=%d",
+	WMA_LOGD("%s: DBS=%d, Agile DFS=%d, SBS=%d",
 		__func__, dbs, dfs, sbs);
 
 	return wma_get_matching_hw_mode_index(wma, mac0_tx_ss, mac0_rx_ss,
@@ -3059,11 +3060,11 @@ bool wma_is_hw_dbs_capable(void)
 	}
 
 	if (!wma_is_dbs_enable()) {
-		WMA_LOGI("%s: DBS is disabled", __func__);
+		WMA_LOGD("%s: DBS is disabled", __func__);
 		return false;
 	}
 
-	WMA_LOGI("%s: DBS service bit map: %d", __func__,
+	WMA_LOGD("%s: DBS service bit map: %d", __func__,
 		WMI_SERVICE_IS_ENABLED(wma->wmi_service_bitmap,
 		WMI_SERVICE_DUAL_BAND_SIMULTANEOUS_SUPPORT));
 
@@ -3077,9 +3078,9 @@ bool wma_is_hw_dbs_capable(void)
 
 	for (i = 0; i < wma->num_dbs_hw_modes; i++) {
 		param = wma->hw_mode.hw_mode_list[i];
-		WMA_LOGI("%s: HW param: %x", __func__, param);
+		WMA_LOGD("%s: HW param: %x", __func__, param);
 		if (WMA_HW_MODE_DBS_MODE_GET(param)) {
-			WMA_LOGI("%s: HW (%d) is DBS capable", __func__, i);
+			WMA_LOGD("%s: HW (%d) is DBS capable", __func__, i);
 			found = 1;
 			break;
 		}
@@ -3112,25 +3113,25 @@ wma_get_cds_hw_mode_change_from_hw_mode_index(uint32_t hw_mode_index)
 		goto ret_value;
 	}
 
-	WMA_LOGI("%s: HW param: %x", __func__, param);
+	WMA_LOGD("%s: HW param: %x", __func__, param);
 
 	param = wma->hw_mode.hw_mode_list[hw_mode_index];
 	if (WMA_HW_MODE_DBS_MODE_GET(param)) {
-		WMA_LOGI("%s: DBS is requested with HW (%d)", __func__,
+		WMA_LOGD("%s: DBS is requested with HW (%d)", __func__,
 			 hw_mode_index);
 		value = CDS_DBS_IN_PROGRESS;
 		goto ret_value;
 	}
 
 	if (WMA_HW_MODE_SBS_MODE_GET(param)) {
-		WMA_LOGI("%s: SBS is requested with HW (%d)", __func__,
+		WMA_LOGD("%s: SBS is requested with HW (%d)", __func__,
 			 hw_mode_index);
 		value = CDS_SBS_IN_PROGRESS;
 		goto ret_value;
 	}
 
 	value = CDS_SMM_IN_PROGRESS;
-	WMA_LOGI("%s: SMM is requested with HW (%d)", __func__,
+	WMA_LOGD("%s: SMM is requested with HW (%d)", __func__,
 		 hw_mode_index);
 ret_value:
 	return value;
@@ -3307,7 +3308,7 @@ QDF_STATUS wma_get_dbs_hw_modes(bool *one_by_one_dbs, bool *two_by_two_dbs)
 		    (dbs_mode == HW_MODE_DBS)) &&
 		    (found_one_by_one < 0)) {
 			found_one_by_one = i;
-			WMA_LOGI("%s: 1x1 hw_mode index %d found",
+			WMA_LOGD("%s: 1x1 hw_mode index %d found",
 					__func__, i);
 			/* Once an entry is found, need not check for 1x1
 			 * again
@@ -3322,7 +3323,7 @@ QDF_STATUS wma_get_dbs_hw_modes(bool *one_by_one_dbs, bool *two_by_two_dbs)
 		    (dbs_mode == HW_MODE_DBS)) &&
 		    (found_two_by_two < 0)) {
 			found_two_by_two = i;
-			WMA_LOGI("%s: 2x2 hw_mode index %d found",
+			WMA_LOGD("%s: 2x2 hw_mode index %d found",
 					__func__, i);
 			/* Once an entry is found, need not check for 2x2
 			 * again
@@ -3353,7 +3354,7 @@ QDF_STATUS wma_get_current_hw_mode(struct sir_hw_mode_params *hw_mode)
 	QDF_STATUS status;
 	uint32_t old_hw_index = 0, new_hw_index = 0;
 
-	WMA_LOGI("%s: Get the current hw mode", __func__);
+	WMA_LOGD("%s: Get the current hw mode", __func__);
 
 	status = wma_get_old_and_new_hw_index(&old_hw_index,
 			&new_hw_index);
@@ -4178,7 +4179,7 @@ void wma_peer_debug_dump(void)
 		WMA_LOGE("%s: No records to dump", __func__);
 		return;
 	} else {
-		WMA_LOGE("%s: Dumping all records. current index %d",
+		WMA_LOGD("%s: Dumping all records. current index %d",
 			 __func__, current_index);
 	}
 
@@ -4202,7 +4203,7 @@ void wma_peer_debug_dump(void)
 				    0xffffffff);
 		delta = delta / (DEBUG_CLOCK_TICKS_PER_MSEC >> 8);
 
-		WMA_LOGE("index = %5d timestamp = 0x%016llx delta ms = %-12u "
+		WMA_LOGD("index = %5d timestamp = 0x%016llx delta ms = %-12u "
 			 "info = %-24s vdev_id = %-3d mac addr = %pM "
 			 "peer obj = 0x%p peer_id = %-4d "
 			 "arg1 = 0x%-8x arg2 = 0x%-8x",

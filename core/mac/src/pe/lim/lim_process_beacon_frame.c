@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -77,10 +77,10 @@ lim_process_beacon_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 	 * beacon counter
 	 */
 	mac_hdr = WMA_GET_RX_MAC_HEADER(rx_pkt_info);
-	lim_log(mac_ctx, LOG2,
+	lim_log(mac_ctx, LOGD,
 		FL("Received Beacon frame with length=%d from "),
 		WMA_GET_RX_MPDU_LEN(rx_pkt_info));
-		lim_print_mac_addr(mac_ctx, mac_hdr->sa, LOG2);
+		lim_print_mac_addr(mac_ctx, mac_hdr->sa, LOGD);
 
 	/* Expect Beacon in any state as Scan is independent of LIM state */
 	bcn_ptr = qdf_mem_malloc(sizeof(*bcn_ptr));
@@ -194,9 +194,9 @@ lim_process_beacon_frame_no_session(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo)
 	pMac->lim.gLimNumBeaconsRcvd++;
 	pHdr = WMA_GET_RX_MAC_HEADER(pRxPacketInfo);
 
-	lim_log(pMac, LOG2, FL("Received Beacon frame with length=%d from "),
+	lim_log(pMac, LOGD, FL("Received Beacon frame with length=%d from "),
 		WMA_GET_RX_MPDU_LEN(pRxPacketInfo));
-	lim_print_mac_addr(pMac, pHdr->sa, LOG2);
+	lim_print_mac_addr(pMac, pHdr->sa, LOGD);
 
 
 	/**
@@ -246,7 +246,7 @@ lim_process_beacon_frame_no_session(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo)
 		qdf_mem_free(pBeacon);
 	} /* end of (eLIM_MLM_WT_PROBE_RESP_STATE) || (eLIM_MLM_PASSIVE_SCAN_STATE) */
 	else {
-		lim_log(pMac, LOG1, FL("Rcvd Beacon in unexpected MLM state %s (%d)"),
+		lim_log(pMac, LOGD, FL("Rcvd Beacon in unexpected MLM state %s (%d)"),
 			lim_mlm_state_str(pMac->lim.gLimMlmState),
 			pMac->lim.gLimMlmState);
 #ifdef WLAN_DEBUG

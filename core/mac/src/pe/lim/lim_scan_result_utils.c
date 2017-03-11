@@ -332,7 +332,7 @@ lim_check_and_add_bss_description(tpAniSirGlobal mac_ctx,
 
 	ie_len = WMA_GET_RX_PAYLOAD_LEN(rx_packet_info);
 	if (ie_len <= SIR_MAC_B_PR_SSID_OFFSET) {
-		lim_log(mac_ctx, LOGP,
+		lim_log(mac_ctx, LOGE,
 			FL("RX packet has invalid length %d"), ie_len);
 		return;
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -500,7 +500,7 @@ lim_restore_pre_reassoc_state(tpAniSirGlobal pMac,
 {
 	tLimMlmReassocCnf mlmReassocCnf;
 
-	lim_log(pMac, LOG1,
+	lim_log(pMac, LOGD,
 		FL("sessionid: %d protStatusCode: %d resultCode: %d"),
 		psessionEntry->smeSessionId, protStatusCode, resultCode);
 

@@ -7122,6 +7122,11 @@ QDF_STATUS wma_mc_process_msg(void *cds_context, cds_msg_t *msg)
 					     (tpSirLLStatsGetReq) msg->bodyptr);
 		qdf_mem_free(msg->bodyptr);
 		break;
+	case WMA_LINK_LAYER_STATS_SET_THRESHOLD:
+		wma_config_stats_ext_threshold(wma_handle,
+			(struct sir_ll_ext_stats_threshold *)msg->bodyptr);
+		qdf_mem_free(msg->bodyptr);
+		break;
 #endif /* WLAN_FEATURE_LINK_LAYER_STATS */
 	case SIR_HAL_UNIT_TEST_CMD:
 		wma_process_unit_test_cmd(wma_handle,

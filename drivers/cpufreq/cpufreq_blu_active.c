@@ -108,6 +108,12 @@ struct cpufreq_blu_active_tunables {
 #define DEFAULT_TIMER_SLACK (4 * DEFAULT_TIMER_RATE)
 	int timer_slack_val;
 	bool io_is_busy;
+ 	/*
+	 * Whether to align timer windows across all CPUs. When
+	 * use_sched_load is true, this flag is ignored and windows
+	 * will always be aligned.
+	 */
+	bool align_windows;
 	/* Use agressive frequency step calculation, above a given load threshold */
 	bool fastlane;
 	unsigned int fastlane_threshold;
@@ -123,9 +129,16 @@ static u64 round_to_nw_start(u64 jif,
 			     struct cpufreq_blu_active_tunables *tunables)
 {
 	unsigned long step = usecs_to_jiffies(tunables->timer_rate);
+	u64 ret;
 
-	do_div(jif, step);
-	return (jif + 1) * step;
+	if (tunables->align_windows) {
+		do_div(jif, step);
+		ret = (jif + 1) * step;
+	} else {
+		ret = jiffies + usecs_to_jiffies(tunables->timer_rate);
+	}
+
+	return ret;
 }
 
 static void cpufreq_blu_active_timer_resched(
@@ -464,8 +477,10 @@ static void cpufreq_blu_active_timer(unsigned long data)
 	wake_up_process(speedchange_task);
 
 rearm:
-	if (!timer_pending(&pcpu->cpu_timer))
+	if (!timer_pending(&pcpu->cpu_timer)) {
+		pcpu->last_evaluated_jiffy = get_jiffies_64();
 		cpufreq_blu_active_timer_resched(pcpu);
+	}
 
 exit:
 	up_read(&pcpu->enable_sem);
@@ -883,6 +898,25 @@ static ssize_t store_io_is_busy(struct cpufreq_blu_active_tunables *tunables,
 	return count;
 }
 
+static ssize_t show_align_windows(struct cpufreq_blu_active_tunables *tunables,
+		char *buf)
+{
+	return sprintf(buf, "%u\n", tunables->align_windows);
+}
+
+static ssize_t store_align_windows(struct cpufreq_blu_active_tunables *tunables,
+		const char *buf, size_t count)
+{
+	int ret;
+	unsigned long val;
+
+	ret = kstrtoul(buf, 0, &val);
+	if (ret < 0)
+		return ret;
+	tunables->align_windows = val;
+	return count;
+}
+
 static ssize_t show_fastlane(
 		struct cpufreq_blu_active_tunables *tunables, char *buf)
 {
@@ -967,6 +1001,7 @@ show_store_gov_pol_sys(min_sample_time);
 show_store_gov_pol_sys(timer_rate);
 show_store_gov_pol_sys(timer_slack);
 show_store_gov_pol_sys(io_is_busy);
+show_store_gov_pol_sys(align_windows);
 show_store_gov_pol_sys(fastlane);
 show_store_gov_pol_sys(fastlane_threshold);
 
@@ -990,6 +1025,7 @@ gov_sys_pol_attr_rw(min_sample_time);
 gov_sys_pol_attr_rw(timer_rate);
 gov_sys_pol_attr_rw(timer_slack);
 gov_sys_pol_attr_rw(io_is_busy);
+gov_sys_pol_attr_rw(align_windows);
 gov_sys_pol_attr_rw(fastlane);
 gov_sys_pol_attr_rw(fastlane_threshold);
 
@@ -1003,6 +1039,7 @@ static struct attribute *blu_active_attributes_gov_sys[] = {
 	&timer_rate_gov_sys.attr,
 	&timer_slack_gov_sys.attr,
 	&io_is_busy_gov_sys.attr,
+	&align_windows_gov_sys.attr,
 	&fastlane_gov_sys.attr,
 	&fastlane_threshold_gov_sys.attr,
 	NULL,
@@ -1023,6 +1060,7 @@ static struct attribute *blu_active_attributes_gov_pol[] = {
 	&timer_rate_gov_pol.attr,
 	&timer_slack_gov_pol.attr,
 	&io_is_busy_gov_pol.attr,
+	&align_windows_gov_pol.attr,
 	&fastlane_gov_pol.attr,
 	&fastlane_threshold_gov_pol.attr,
 	NULL,

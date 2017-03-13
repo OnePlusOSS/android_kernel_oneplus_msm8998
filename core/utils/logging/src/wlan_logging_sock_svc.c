@@ -736,19 +736,25 @@ void wlan_report_log_completion(uint32_t is_fatal,
 static void send_flush_completion_to_user(void)
 {
 	uint32_t is_fatal, indicator, reason_code;
-	bool recovery_needed;
+	bool recovery_needed = false;
 
-	cds_get_and_reset_log_completion(&is_fatal,
-		&indicator, &reason_code, &recovery_needed);
+	cds_get_and_reset_log_completion(&is_fatal, &indicator, &reason_code,
+					 &recovery_needed);
 
 	/* Error on purpose, so that it will get logged in the kmsg */
 	LOGGING_TRACE(QDF_TRACE_LEVEL_DEBUG,
-			"%s: Sending flush done to userspace", __func__);
+		      "%s: Sending flush done to userspace, recovery: %d",
+		      __func__, recovery_needed);
 
 	wlan_report_log_completion(is_fatal, indicator, reason_code);
 
-	if (recovery_needed)
+	if (!recovery_needed)
+		return;
+
+	if (cds_is_self_recovery_enabled())
 		cds_trigger_recovery(false);
+	else
+		QDF_BUG(0);
 }
 
 /**

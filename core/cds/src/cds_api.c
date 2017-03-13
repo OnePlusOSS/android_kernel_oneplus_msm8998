@@ -1651,6 +1651,50 @@ bool cds_is_packet_log_enabled(void)
 	return pHddCtx->config->enablePacketLog;
 }
 
+#ifdef QCA_WIFI_3_0_ADRASTEA
+/**
+ * cds_force_assert_target() - Force target assert via platform
+ * driver
+ * @qdf_ctx: pointer of qdf context
+ *
+ * For ADRASTREA chipsets target assert is supported via platform driver,
+ * for ROME chipsets control of self-recovery is with the hostdriver.
+ *
+ * Return: QDF_STATUS_SUCCESS if target assert through firmware is supported
+ *         QDF_STATUS_E_INVAL if targer assert through firmware failed
+ *         QDF_STATUS_E_NOSUPPORT if not supported for target
+ */
+static QDF_STATUS cds_force_assert_target(qdf_device_t qdf_ctx)
+{
+
+	cds_set_recovery_in_progress(true);
+	/*
+	 * If force assert thru platform is available, trigger that interface.
+	 * That should generate recovery by going thru the normal FW
+	 * assert recovery model.
+	 */
+	if (!pld_force_assert_target(qdf_ctx->dev)) {
+		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_INFO_HIGH,
+			  "Force assert triggered");
+		return QDF_STATUS_SUCCESS;
+	}
+
+	QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
+		  "Self Recovery not supported via Platform driver assert");
+
+	cds_set_recovery_in_progress(false);
+	QDF_BUG(0);
+
+	return QDF_STATUS_E_INVAL;
+}
+
+#else
+static QDF_STATUS cds_force_assert_target(qdf_device_t qdf_ctx)
+{
+	return QDF_STATUS_E_NOSUPPORT;
+}
+#endif
+
 /**
  * cds_config_recovery_work() - configure self recovery
  * @qdf_ctx: pointer of qdf context
@@ -1704,16 +1748,8 @@ void cds_trigger_recovery(bool skip_crash_inject)
 
 	qdf_runtime_pm_prevent_suspend(&recovery_lock);
 
-	/*
-	 * If force assert thru platform is available, trigger that interface.
-	 * That should generate recovery by going thru the normal FW
-	 * assert recovery model.
-	 */
-	if (!pld_force_assert_target(qdf_ctx->dev)) {
-		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_INFO_HIGH,
-			"Force assert triggered");
+	if (QDF_STATUS_E_NOSUPPORT != cds_force_assert_target(qdf_ctx))
 		goto out;
-	}
 
 	QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_INFO_HIGH,
 			"Force assert not available at platform");

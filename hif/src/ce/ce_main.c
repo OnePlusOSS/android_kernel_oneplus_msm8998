@@ -699,7 +699,6 @@ struct CE_handle *ce_init(struct hif_softc *scn,
 			return NULL;
 		}
 		malloc_CE_state = true;
-		scn->ce_id_to_state[CE_id] = CE_state;
 		qdf_spinlock_create(&CE_state->ce_index_lock);
 
 		CE_state->id = CE_id;
@@ -746,7 +745,6 @@ struct CE_handle *ce_init(struct hif_softc *scn,
 				HIF_ERROR("%s: src ring has no mem", __func__);
 				if (malloc_CE_state) {
 					/* allocated CE_state locally */
-					scn->ce_id_to_state[CE_id] = NULL;
 					qdf_mem_free(CE_state);
 					malloc_CE_state = false;
 				}
@@ -899,7 +897,6 @@ struct CE_handle *ce_init(struct hif_softc *scn,
 				}
 				if (malloc_CE_state) {
 					/* allocated CE_state locally */
-					scn->ce_id_to_state[CE_id] = NULL;
 					qdf_mem_free(CE_state);
 					malloc_CE_state = false;
 				}
@@ -1033,6 +1030,7 @@ struct CE_handle *ce_init(struct hif_softc *scn,
 
 	/* update the htt_data attribute */
 	ce_mark_datapath(CE_state);
+	scn->ce_id_to_state[CE_id] = CE_state;
 
 	return (struct CE_handle *)CE_state;
 

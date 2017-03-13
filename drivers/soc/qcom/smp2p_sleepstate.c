@@ -16,7 +16,6 @@
 #include <linux/suspend.h>
 #include "smp2p_private.h"
 
-#define SET_DELAY (2 * HZ)
 #define PROC_AWAKE_ID 12 /* 12th bit */
 //qiuchangping@BSP 2016-05-19 
 //add for when sync filesystem take long time and AP hold sensor

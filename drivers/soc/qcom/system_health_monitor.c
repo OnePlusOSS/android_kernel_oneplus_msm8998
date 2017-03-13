@@ -49,7 +49,7 @@ static int shm_default_timeout_ms = 2000;
 module_param_named(default_timeout_ms, shm_default_timeout_ms,
 		   int, S_IRUGO | S_IWUSR | S_IWGRP);
 
-#define DEFAULT_SHM_RATELIMIT_INTERVAL (HZ / 5)
+#define DEFAULT_SHM_RATELIMIT_INTERVAL 200
 #define DEFAULT_SHM_RATELIMIT_BURST 2
 
 #define SHM_ILCTXT_NUM_PAGES 2
@@ -463,7 +463,7 @@ static int handle_health_mon_reg_req(void *conn_h, void *req_h, void *buf)
 			else
 				tmp_hma_info->timeout = shm_default_timeout_ms;
 			ratelimit_state_init(&tmp_hma_info->rs,
-					     DEFAULT_SHM_RATELIMIT_INTERVAL,
+					     msecs_to_jiffies(DEFAULT_SHM_RATELIMIT_INTERVAL),
 					     DEFAULT_SHM_RATELIMIT_BURST);
 			SHM_INFO_LOG("%s: from %s timeout_ms %d\n",
 				 __func__, req->name, tmp_hma_info->timeout);

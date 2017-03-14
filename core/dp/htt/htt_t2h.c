@@ -375,7 +375,8 @@ static void htt_t2h_lp_msg_handler(void *context, qdf_nbuf_t htt_t2h_msg,
 			htc_pm_runtime_put(pdev->htc_pdev);
 			HTT_TX_SCHED(pdev);
 		} else {
-			qdf_print("Ignoring HTT_T2H_MSG_TYPE_MGMT_TX_COMPL_IND indication");
+			QDF_TRACE(QDF_MODULE_ID_HTT, QDF_TRACE_LEVEL_INFO,
+				  "Ignoring HTT_T2H_MSG_TYPE_MGMT_TX_COMPL_IND indication");
 		}
 		break;
 	}
@@ -567,9 +568,10 @@ static void htt_t2h_rx_in_order_indication_handler(
 	frag_ind = HTT_RX_IN_ORD_PADDR_IND_FRAG_GET(msg_word);
 
 #if defined(HELIUMPLUS_DEBUG)
-	qdf_print("%s %d: peerid %d tid %d offloadind %d fragind %d\n",
-			__func__, __LINE__, peer_id, tid, offload_ind,
-			frag_ind);
+	QDF_TRACE(QDF_MODULE_ID_HTT, QDF_TRACE_LEVEL_INFO,
+		  "%s %d: peerid %d tid %d offloadind %d fragind %d",
+		  __func__, __LINE__, peer_id, tid, offload_ind, frag_ind);
+
 #endif
 	if (qdf_unlikely(frag_ind)) {
 		ol_rx_frag_indication_handler(pdev,
@@ -618,8 +620,9 @@ void htt_t2h_msg_handler(void *context, HTC_PACKET *pkt)
 	msg_type = HTT_T2H_MSG_TYPE_GET(*msg_word);
 
 #if defined(HELIUMPLUS_DEBUG)
-	qdf_print("%s %d: msg_word 0x%x msg_type %d",
-		  __func__, __LINE__, *msg_word, msg_type);
+	QDF_TRACE(QDF_MODULE_ID_HTT, QDF_TRACE_LEVEL_INFO,
+		  "%s %d: msg_word 0x%x msg_type %d", __func__, __LINE__,
+		  *msg_word, msg_type);
 #endif
 
 	switch (msg_type) {

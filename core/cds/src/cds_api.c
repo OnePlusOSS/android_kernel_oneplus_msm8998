@@ -474,6 +474,7 @@ err_mac_close:
 	mac_close(gp_cds_context->pMACContext);
 
 err_wma_close:
+	cds_shutdown_notifier_purge();
 	wma_close(gp_cds_context);
 
 	wma_wmi_service_close(gp_cds_context);
@@ -496,7 +497,6 @@ err_sched_close:
 			QDF_ASSERT(false);
 		}
 	}
-	cds_shutdown_notifier_purge();
 
 err_concurrency_lock:
 	qdf_mutex_destroy(&cds_ctx->qdf_conc_list_lock);
@@ -909,6 +909,8 @@ QDF_STATUS cds_close(v_CONTEXT_t cds_context)
 
 	((p_cds_contextType) cds_context)->pMACContext = NULL;
 
+	cds_shutdown_notifier_purge();
+
 	if (true == wma_needshutdown(cds_context)) {
 		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
 				  "%s: Failed to shutdown wma", __func__);
@@ -949,8 +951,6 @@ QDF_STATUS cds_close(v_CONTEXT_t cds_context)
 		cds_err("Failed to destroy qdf_conc_list_lock");
 		QDF_ASSERT(QDF_IS_STATUS_SUCCESS(qdf_status));
 	}
-
-	cds_shutdown_notifier_purge();
 
 	cds_deinit_log_completion();
 	cds_deinit_ini_config();

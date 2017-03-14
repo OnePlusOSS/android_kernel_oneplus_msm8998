@@ -591,6 +591,7 @@ pkt_freeqalloc_failure:
 #endif
 	/* De-initialize all the message queues */
 	cds_sched_deinit_mqs(pSchedContext);
+	gp_cds_sched_context = NULL;
 
 	return QDF_STATUS_E_RESOURCES;
 

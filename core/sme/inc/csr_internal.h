@@ -1000,6 +1000,7 @@ typedef struct tagCsrRoamSession {
 	bool dhcp_done;
 	uint8_t disconnect_reason;
 	uint8_t uapsd_mask;
+	qdf_mc_timer_t roaming_offload_timer;
 } tCsrRoamSession;
 
 typedef struct tagCsrRoamStruct {

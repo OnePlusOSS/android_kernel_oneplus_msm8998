@@ -16396,20 +16396,6 @@ csr_update_stats(tpAniSirGlobal mac, uint8_t stats_type,
 		*stats += sizeof(tCsrGlobalClassCStatsInfo);
 		*length -= sizeof(tCsrGlobalClassCStatsInfo);
 		break;
-	case eCsrPerStaStats:
-		sms_log(mac, LOGD, FL("PerSta stats"));
-		if (CSR_MAX_STA > sme_stats_rsp->staId) {
-			qdf_mem_copy(
-				&mac->roam.perStaStatsInfo[sme_stats_rsp->staId],
-				*stats, sizeof(tCsrPerStaStatsInfo));
-		} else {
-			sms_log(mac, LOGE, FL("out bound staId:%d. failed to copy PerSta stats"),
-				sme_stats_rsp->staId);
-			QDF_ASSERT(0);
-		}
-		*stats += sizeof(tCsrPerStaStatsInfo);
-		*length -= sizeof(tCsrPerStaStatsInfo);
-		break;
 	case csr_per_chain_rssi_stats:
 		sms_log(mac, LOGD,
 			FL("csrRoamStatsRspProcessor:Per Chain RSSI stats"));
@@ -18583,14 +18569,6 @@ void csr_roam_report_statistics(tpAniSirGlobal pMac, uint32_t statsMask,
 					     classDStatsInfo,
 					     sizeof(tCsrGlobalClassDStatsInfo));
 				pStats += sizeof(tCsrGlobalClassDStatsInfo);
-				break;
-			case eCsrPerStaStats:
-				sms_log(pMac, LOGD, FL("PerSta stats"));
-				qdf_mem_copy(pStats,
-					     (uint8_t *) &pMac->roam.
-					     perStaStatsInfo[staId],
-					     sizeof(tCsrPerStaStatsInfo));
-				pStats += sizeof(tCsrPerStaStatsInfo);
 				break;
 			case csr_per_chain_rssi_stats:
 				sms_log(pMac, LOGD, FL("Per Chain RSSI stats"));

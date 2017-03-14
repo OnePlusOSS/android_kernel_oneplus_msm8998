@@ -6582,6 +6582,28 @@ struct ndp_pmk {
 };
 
 /**
+ * struct ndp_passphrase - structure to hold passphrase
+ * @passphrase_len: length of passphrase
+ * @passphrase: buffer containing passphrase
+ *
+ */
+struct ndp_passphrase {
+	uint32_t passphrase_len;
+	uint8_t *passphrase;
+};
+
+/**
+ * struct ndp_service_name - structure to hold service_name
+ * @service_name_len: length of service_name
+ * @service_name: buffer containing service_name
+ *
+ */
+struct ndp_service_name {
+	uint32_t service_name_len;
+	uint8_t *service_name;
+};
+
+/**
  * struct ndi_create_req - ndi create request params
  * @transaction_id: unique identifier
  * @iface_name: interface name
@@ -6642,6 +6664,8 @@ struct ndp_initiator_req {
 	struct ndp_app_info ndp_info;
 	uint32_t ncs_sk_type;
 	struct ndp_pmk pmk;
+	struct ndp_passphrase passphrase;
+	struct ndp_service_name service_name;
 };
 
 /**
@@ -6712,6 +6736,8 @@ struct ndp_responder_req {
 	struct ndp_app_info ndp_info;
 	struct ndp_pmk pmk;
 	uint32_t ncs_sk_type;
+	struct ndp_passphrase passphrase;
+	struct ndp_service_name service_name;
 };
 
 /**

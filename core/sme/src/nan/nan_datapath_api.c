@@ -48,6 +48,12 @@ static void csr_free_ndp_initiator_req(tSmeCmd *cmd)
 	qdf_mem_free(cmd->u.initiator_req.pmk.pmk);
 	cmd->u.initiator_req.pmk.pmk = NULL;
 	cmd->u.initiator_req.pmk.pmk_len = 0;
+	qdf_mem_free(cmd->u.initiator_req.passphrase.passphrase);
+	cmd->u.initiator_req.passphrase.passphrase = NULL;
+	cmd->u.initiator_req.passphrase.passphrase_len = 0;
+	qdf_mem_free(cmd->u.initiator_req.service_name.service_name);
+	cmd->u.initiator_req.service_name.service_name = NULL;
+	cmd->u.initiator_req.service_name.service_name_len = 0;
 }
 
 /**
@@ -68,6 +74,12 @@ static void csr_free_ndp_responder_req(tSmeCmd *cmd)
 	qdf_mem_free(cmd->u.responder_req.pmk.pmk);
 	cmd->u.responder_req.pmk.pmk = NULL;
 	cmd->u.responder_req.pmk.pmk_len = 0;
+	qdf_mem_free(cmd->u.initiator_req.passphrase.passphrase);
+	cmd->u.initiator_req.passphrase.passphrase = NULL;
+	cmd->u.initiator_req.passphrase.passphrase_len = 0;
+	qdf_mem_free(cmd->u.initiator_req.service_name.service_name);
+	cmd->u.initiator_req.service_name.service_name = NULL;
+	cmd->u.initiator_req.service_name.service_name_len = 0;
 }
 
 /**
@@ -146,6 +158,37 @@ QDF_STATUS sme_ndp_initiator_req_handler(tHalHandle hal,
 		qdf_mem_copy(cmd->u.initiator_req.pmk.pmk,
 			     req_params->pmk.pmk, req_params->pmk.pmk_len);
 	}
+
+	if (req_params->passphrase.passphrase_len) {
+		cmd->u.initiator_req.passphrase.passphrase =
+			qdf_mem_malloc(req_params->passphrase.passphrase_len);
+		if (NULL == cmd->u.initiator_req.passphrase.passphrase) {
+			csr_release_ndp_initiator_req(mac_ctx, cmd);
+			sme_release_global_lock(&mac_ctx->sme);
+			return QDF_STATUS_E_NOMEM;
+		}
+		qdf_mem_copy(cmd->u.initiator_req.passphrase.passphrase,
+			     req_params->passphrase.passphrase,
+			     req_params->passphrase.passphrase_len);
+	}
+
+	if (req_params->service_name.service_name_len) {
+		cmd->u.initiator_req.service_name.service_name =
+		    qdf_mem_malloc(req_params->service_name.service_name_len);
+		if (NULL == cmd->u.initiator_req.service_name.service_name) {
+			csr_release_ndp_initiator_req(mac_ctx, cmd);
+			sme_release_global_lock(&mac_ctx->sme);
+			return QDF_STATUS_E_NOMEM;
+		}
+		qdf_mem_copy(cmd->u.initiator_req.service_name.service_name,
+			     req_params->service_name.service_name,
+			     req_params->service_name.service_name_len);
+	}
+
+	sme_debug("pmk_len: %d, passphrase_len: %d, service_name_len: %d",
+		cmd->u.initiator_req.pmk.pmk_len,
+		cmd->u.initiator_req.passphrase.passphrase_len,
+		cmd->u.initiator_req.service_name.service_name_len);
 
 	status = csr_queue_sme_command(mac_ctx, cmd, true);
 	if (QDF_STATUS_SUCCESS != status) {
@@ -235,6 +278,32 @@ QDF_STATUS sme_ndp_responder_req_handler(tHalHandle hal,
 		}
 		qdf_mem_copy(cmd->u.responder_req.pmk.pmk,
 			     req_params->pmk.pmk, req_params->pmk.pmk_len);
+	}
+
+	if (req_params->passphrase.passphrase_len) {
+		cmd->u.responder_req.passphrase.passphrase =
+			qdf_mem_malloc(req_params->passphrase.passphrase_len);
+		if (NULL == cmd->u.responder_req.passphrase.passphrase) {
+			csr_release_ndp_responder_req(mac_ctx, cmd);
+			sme_release_global_lock(&mac_ctx->sme);
+			return QDF_STATUS_E_NOMEM;
+		}
+		qdf_mem_copy(cmd->u.responder_req.passphrase.passphrase,
+			     req_params->passphrase.passphrase,
+			     req_params->passphrase.passphrase_len);
+	}
+
+	if (req_params->service_name.service_name_len) {
+		cmd->u.responder_req.service_name.service_name =
+		    qdf_mem_malloc(req_params->service_name.service_name_len);
+		if (NULL == cmd->u.responder_req.service_name.service_name) {
+			csr_release_ndp_responder_req(mac_ctx, cmd);
+			sme_release_global_lock(&mac_ctx->sme);
+			return QDF_STATUS_E_NOMEM;
+		}
+		qdf_mem_copy(cmd->u.responder_req.service_name.service_name,
+			     req_params->service_name.service_name,
+			     req_params->service_name.service_name_len);
 	}
 
 	status = csr_queue_sme_command(mac_ctx, cmd, true);

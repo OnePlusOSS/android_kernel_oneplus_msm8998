@@ -45,6 +45,7 @@ QDF_STATUS wma_handle_ndp_initiator_req(tp_wma_handle wma_handle, void *req)
 	int ret;
 	uint16_t len;
 	uint32_t vdev_id, ndp_cfg_len, ndp_app_info_len, pmk_len;
+	uint32_t passphrase_len, service_name_len;
 	struct ndp_initiator_rsp ndp_rsp = {0};
 	ol_txrx_vdev_handle vdev;
 	wmi_buf_t buf;
@@ -77,9 +78,13 @@ QDF_STATUS wma_handle_ndp_initiator_req(tp_wma_handle wma_handle, void *req)
 	ndp_cfg_len = qdf_roundup(ndp_req->ndp_config.ndp_cfg_len, 4);
 	ndp_app_info_len = qdf_roundup(ndp_req->ndp_info.ndp_app_info_len, 4);
 	pmk_len = qdf_roundup(ndp_req->pmk.pmk_len, 4);
+	passphrase_len = qdf_roundup(ndp_req->passphrase.passphrase_len, 4);
+	service_name_len =
+		qdf_roundup(ndp_req->service_name.service_name_len, 4);
 	/* allocated memory for fixed params as well as variable size data */
-	len = sizeof(*cmd) + sizeof(*ch_tlv) + (3 * WMI_TLV_HDR_SIZE)
-		+ ndp_cfg_len + ndp_app_info_len + pmk_len;
+	len = sizeof(*cmd) + sizeof(*ch_tlv) + (5 * WMI_TLV_HDR_SIZE)
+		+ ndp_cfg_len + ndp_app_info_len + pmk_len
+		+ passphrase_len + service_name_len;
 
 	buf = wmi_buf_alloc(wma_handle->wmi_handle, len);
 	if (!buf) {
@@ -102,6 +107,8 @@ QDF_STATUS wma_handle_ndp_initiator_req(tp_wma_handle wma_handle, void *req)
 	cmd->ndp_channel_cfg = ndp_req->channel_cfg;
 	cmd->nan_pmk_len = ndp_req->pmk.pmk_len;
 	cmd->nan_csid = ndp_req->ncs_sk_type;
+	cmd->nan_passphrase_len = ndp_req->passphrase.passphrase_len;
+	cmd->nan_servicename_len = ndp_req->service_name.service_name_len;
 
 	ch_tlv = (wmi_channel *)&cmd[1];
 	WMITLV_SET_HDR(ch_tlv, WMITLV_TAG_STRUC_wmi_channel,
@@ -126,6 +133,17 @@ QDF_STATUS wma_handle_ndp_initiator_req(tp_wma_handle wma_handle, void *req)
 		     cmd->nan_pmk_len);
 	tlv_ptr = tlv_ptr + WMI_TLV_HDR_SIZE + pmk_len;
 
+	WMITLV_SET_HDR(tlv_ptr, WMITLV_TAG_ARRAY_BYTE, passphrase_len);
+	qdf_mem_copy(&tlv_ptr[WMI_TLV_HDR_SIZE], ndp_req->passphrase.passphrase,
+		     cmd->nan_passphrase_len);
+	tlv_ptr = tlv_ptr + WMI_TLV_HDR_SIZE + passphrase_len;
+
+	WMITLV_SET_HDR(tlv_ptr, WMITLV_TAG_ARRAY_BYTE, service_name_len);
+	qdf_mem_copy(&tlv_ptr[WMI_TLV_HDR_SIZE],
+		     ndp_req->service_name.service_name,
+		     cmd->nan_servicename_len);
+	tlv_ptr = tlv_ptr + WMI_TLV_HDR_SIZE + service_name_len;
+
 	WMA_LOGE(FL("vdev_id = %d, transaction_id: %d, service_instance_id: %d, ch: %d, ch_cfg: %d, csid: %d"),
 		cmd->vdev_id, cmd->transaction_id, cmd->service_instance_id,
 		ch_tlv->mhz, cmd->ndp_channel_cfg, cmd->nan_csid);
@@ -146,6 +164,14 @@ QDF_STATUS wma_handle_ndp_initiator_req(tp_wma_handle wma_handle, void *req)
 	WMA_LOGE(FL("pmk len: %d"), cmd->nan_pmk_len);
 	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_WMA, QDF_TRACE_LEVEL_DEBUG,
 			   ndp_req->pmk.pmk, cmd->nan_pmk_len);
+	WMA_LOGE(FL("pass phrase len: %d"), cmd->nan_passphrase_len);
+	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_WMA, QDF_TRACE_LEVEL_DEBUG,
+			   ndp_req->passphrase.passphrase,
+			   cmd->nan_passphrase_len);
+	WMA_LOGE(FL("service name len: %d"), cmd->nan_servicename_len);
+	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_WMA, QDF_TRACE_LEVEL_DEBUG,
+			   ndp_req->service_name.service_name,
+			   cmd->nan_servicename_len);
 	WMA_LOGE(FL("sending WMI_NDP_INITIATOR_REQ_CMDID(0x%X)"),
 		WMI_NDP_INITIATOR_REQ_CMDID);
 
@@ -191,6 +217,7 @@ QDF_STATUS wma_handle_ndp_responder_req(tp_wma_handle wma_handle,
 	wmi_buf_t buf;
 	ol_txrx_vdev_handle vdev;
 	uint32_t vdev_id = 0, ndp_cfg_len, ndp_app_info_len, pmk_len;
+	uint32_t passphrase_len, service_name_len;
 	uint8_t *tlv_ptr;
 	int ret;
 	wmi_ndp_responder_req_fixed_param *cmd;
@@ -225,11 +252,15 @@ QDF_STATUS wma_handle_ndp_responder_req(tp_wma_handle wma_handle,
 	 * round up ndp_cfg_len and ndp_app_info_len to 4 bytes
 	 */
 	ndp_cfg_len = qdf_roundup(req_params->ndp_config.ndp_cfg_len, 4);
-	ndp_app_info_len = qdf_roundup(req_params->ndp_info.ndp_app_info_len, 4);
+	ndp_app_info_len =
+		qdf_roundup(req_params->ndp_info.ndp_app_info_len, 4);
 	pmk_len = qdf_roundup(req_params->pmk.pmk_len, 4);
+	passphrase_len = qdf_roundup(req_params->passphrase.passphrase_len, 4);
+	service_name_len =
+		qdf_roundup(req_params->service_name.service_name_len, 4);
 	/* allocated memory for fixed params as well as variable size data */
-	len = sizeof(*cmd) + 3*WMI_TLV_HDR_SIZE + ndp_cfg_len + ndp_app_info_len
-		+ pmk_len;
+	len = sizeof(*cmd) + 5*WMI_TLV_HDR_SIZE + ndp_cfg_len + ndp_app_info_len
+		+ pmk_len + passphrase_len + service_name_len;
 
 	buf = wmi_buf_alloc(wma_handle->wmi_handle, len);
 	if (!buf) {
@@ -250,6 +281,8 @@ QDF_STATUS wma_handle_ndp_responder_req(tp_wma_handle wma_handle,
 	cmd->ndp_app_info_len = req_params->ndp_info.ndp_app_info_len;
 	cmd->nan_pmk_len = req_params->pmk.pmk_len;
 	cmd->nan_csid = req_params->ncs_sk_type;
+	cmd->nan_passphrase_len = req_params->passphrase.passphrase_len;
+	cmd->nan_servicename_len = req_params->service_name.service_name_len;
 
 	tlv_ptr = (uint8_t *)&cmd[1];
 
@@ -269,6 +302,18 @@ QDF_STATUS wma_handle_ndp_responder_req(tp_wma_handle wma_handle,
 		     cmd->nan_pmk_len);
 	tlv_ptr = tlv_ptr + WMI_TLV_HDR_SIZE + pmk_len;
 
+	WMITLV_SET_HDR(tlv_ptr, WMITLV_TAG_ARRAY_BYTE, passphrase_len);
+	qdf_mem_copy(&tlv_ptr[WMI_TLV_HDR_SIZE],
+		     req_params->passphrase.passphrase,
+		     cmd->nan_passphrase_len);
+	tlv_ptr = tlv_ptr + WMI_TLV_HDR_SIZE + passphrase_len;
+
+	WMITLV_SET_HDR(tlv_ptr, WMITLV_TAG_ARRAY_BYTE, service_name_len);
+	qdf_mem_copy(&tlv_ptr[WMI_TLV_HDR_SIZE],
+		     req_params->service_name.service_name,
+		     cmd->nan_servicename_len);
+	tlv_ptr = tlv_ptr + WMI_TLV_HDR_SIZE + service_name_len;
+
 	WMA_LOGE(FL("vdev_id = %d, transaction_id: %d, csid: %d"),
 		cmd->vdev_id, cmd->transaction_id, cmd->nan_csid);
 
@@ -287,6 +332,16 @@ QDF_STATUS wma_handle_ndp_responder_req(tp_wma_handle wma_handle,
 	WMA_LOGE(FL("pmk len: %d"), cmd->nan_pmk_len);
 	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_WMA, QDF_TRACE_LEVEL_DEBUG,
 			   req_params->pmk.pmk, cmd->nan_pmk_len);
+
+	WMA_LOGE(FL("pass phrase len: %d"), cmd->nan_passphrase_len);
+	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_WMA, QDF_TRACE_LEVEL_DEBUG,
+			   req_params->passphrase.passphrase,
+			   cmd->nan_passphrase_len);
+
+	WMA_LOGE(FL("service name len: %d"), cmd->nan_servicename_len);
+	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_WMA, QDF_TRACE_LEVEL_DEBUG,
+			   req_params->service_name.service_name,
+			   cmd->nan_servicename_len);
 
 	WMA_LOGE(FL("sending WMI_NDP_RESPONDER_REQ_CMDID(0x%X)"),
 		WMI_NDP_RESPONDER_REQ_CMDID);

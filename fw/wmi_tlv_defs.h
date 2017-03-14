@@ -802,6 +802,13 @@ typedef enum {
     WMITLV_TAG_STRUC_wmi_pdev_check_cal_version_cmd_fixed_param,
     WMITLV_TAG_STRUC_wmi_pdev_check_cal_version_event_fixed_param,
     WMITLV_TAG_STRUC_wmi_pdev_set_diversity_gain_cmd_fixed_param,
+    WMITLV_TAG_STRUC_WMI_MAC_PHY_CHAINMASK_COMBO,
+    WMITLV_TAG_STRUC_WMI_MAC_PHY_CHAINMASK_CAPABILITY,
+    WMITLV_TAG_STRUC_wmi_vdev_set_arp_stats_cmd_fixed_param,
+    WMITLV_TAG_STRUC_wmi_vdev_get_arp_stats_cmd_fixed_param,
+    WMITLV_TAG_STRUC_wmi_vdev_get_arp_stats_event_fixed_param,
+    WMITLV_TAG_STRUC_wmi_iface_offload_stats,
+    WMITLV_TAG_STRUC_wmi_request_stats_cmd_sub_struc_param,
 } WMITLV_TAG_ID;
 
 /*
@@ -1127,6 +1134,8 @@ typedef enum {
     OP(WMI_PDEV_UPDATE_PKT_ROUTING_CMDID) \
     OP(WMI_PDEV_CHECK_CAL_VERSION_CMDID) \
     OP(WMI_PDEV_SET_DIVERSITY_GAIN_CMDID) \
+    OP(WMI_VDEV_SET_ARP_STAT_CMDID) \
+    OP(WMI_VDEV_GET_ARP_STAT_CMDID) \
     /* add new CMD_LIST elements above this line */
 
 
@@ -1305,6 +1314,7 @@ typedef enum {
     OP(WMI_PDEV_CHIP_POWER_SAVE_FAILURE_DETECTED_EVENTID) \
     OP(WMI_PDEV_CSA_SWITCH_COUNT_STATUS_EVENTID) \
     OP(WMI_PDEV_CHECK_CAL_VERSION_EVENTID) \
+    OP(WMI_VDEV_GET_ARP_STAT_EVENTID) \
     /* add new EVT_LIST elements above this line */
 
 
@@ -1828,7 +1838,7 @@ WMITLV_CREATE_PARAM_STRUC(WMI_OEM_REQUEST_CMDID);
 /* RTT OEM req Cmd through LPASS */
 #define WMITLV_TABLE_WMI_LPI_OEM_REQ_CMDID(id,op,buf,len) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_BYTE, A_UINT8, data, WMITLV_SIZE_VAR)
- 
+
 WMITLV_CREATE_PARAM_STRUC(WMI_LPI_OEM_REQ_CMDID);
 
 /* Spectral scan configure Cmd */
@@ -1845,7 +1855,8 @@ WMITLV_CREATE_PARAM_STRUC(WMI_VDEV_SPECTRAL_SCAN_ENABLE_CMDID);
 
 /* Request stats Cmd */
 #define WMITLV_TABLE_WMI_REQUEST_STATS_CMDID(id,op,buf,len) \
-    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_request_stats_cmd_fixed_param, wmi_request_stats_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_request_stats_cmd_fixed_param, wmi_request_stats_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_inst_rssi_stats_params, inst_rssi_params, WMITLV_SIZE_VAR)
 
 WMITLV_CREATE_PARAM_STRUC(WMI_REQUEST_STATS_CMDID);
 
@@ -3239,6 +3250,16 @@ WMITLV_CREATE_PARAM_STRUC(WMI_PDEV_CHECK_CAL_VERSION_CMDID);
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_BYTE, A_UINT8, diversity_gains, WMITLV_SIZE_VAR)
 WMITLV_CREATE_PARAM_STRUC(WMI_PDEV_SET_DIVERSITY_GAIN_CMDID);
 
+/* set arp stats cmd */
+#define WMITLV_TABLE_WMI_VDEV_SET_ARP_STAT_CMDID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_vdev_set_arp_stats_cmd_fixed_param, wmi_vdev_set_arp_stats_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_VDEV_SET_ARP_STAT_CMDID);
+
+/* get arp stats cmd */
+#define WMITLV_TABLE_WMI_VDEV_GET_ARP_STAT_CMDID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_vdev_get_arp_stats_cmd_fixed_param, wmi_vdev_get_arp_stats_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_VDEV_GET_ARP_STAT_CMDID);
+
 
 /************************** TLV definitions of WMI events *******************************/
 
@@ -3263,7 +3284,9 @@ WMITLV_CREATE_PARAM_STRUC(WMI_SERVICE_AVAILABLE_EVENTID);
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, WMI_HW_MODE_CAPABILITIES, hw_mode_caps, WMITLV_SIZE_VAR) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, WMI_MAC_PHY_CAPABILITIES, mac_phy_caps, WMITLV_SIZE_VAR) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_WMI_SOC_HAL_REG_CAPABILITIES, WMI_SOC_HAL_REG_CAPABILITIES, soc_hal_reg_caps, WMITLV_SIZE_FIX) \
-    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, WMI_HAL_REG_CAPABILITIES_EXT, hal_reg_caps, WMITLV_SIZE_VAR)
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, WMI_HAL_REG_CAPABILITIES_EXT, hal_reg_caps, WMITLV_SIZE_VAR) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, WMI_MAC_PHY_CHAINMASK_COMBO, mac_phy_chainmask_combo, WMITLV_SIZE_VAR) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, WMI_MAC_PHY_CHAINMASK_CAPABILITY, mac_phy_chainmask_caps, WMITLV_SIZE_VAR)
 WMITLV_CREATE_PARAM_STRUC(WMI_SERVICE_READY_EXT_EVENTID);
 
 /* Ready event */
@@ -3640,7 +3663,8 @@ WMITLV_CREATE_PARAM_STRUC(WMI_DIAG_EVENT_LOG_SUPPORTED_EVENTID);
 #define WMITLV_TABLE_WMI_IFACE_LINK_STATS_EVENTID(id,op,buf,len)\
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_iface_link_stats_event_fixed_param, wmi_iface_link_stats_event_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_iface_link_stats, iface_link_stats, WMITLV_SIZE_VAR) \
-    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_wmm_ac_stats, ac, WMITLV_SIZE_VAR)
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_wmm_ac_stats, ac, WMITLV_SIZE_VAR) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_iface_offload_stats, iface_offload_stats, WMITLV_SIZE_VAR)
 
 WMITLV_CREATE_PARAM_STRUC(WMI_IFACE_LINK_STATS_EVENTID);
 
@@ -4317,6 +4341,11 @@ WMITLV_CREATE_PARAM_STRUC(WMI_PDEV_CSA_SWITCH_COUNT_STATUS_EVENTID);
 #define WMITLV_TABLE_WMI_PDEV_CHECK_CAL_VERSION_EVENTID(id,op,buf,len) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_pdev_check_cal_version_event_fixed_param, wmi_pdev_check_cal_version_event_fixed_param, fixed_param, WMITLV_SIZE_FIX)
 WMITLV_CREATE_PARAM_STRUC(WMI_PDEV_CHECK_CAL_VERSION_EVENTID);
+
+/* ARP stats response event */
+#define WMITLV_TABLE_WMI_VDEV_GET_ARP_STAT_EVENTID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_vdev_get_arp_stats_event_fixed_param, wmi_vdev_get_arp_stats_event_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_VDEV_GET_ARP_STAT_EVENTID);
 
 
 #ifdef __cplusplus

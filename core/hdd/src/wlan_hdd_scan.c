@@ -1971,7 +1971,9 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 	wlan_hdd_update_scan_rand_attrs((void *)&scan_req, (void *)request,
 					WLAN_HDD_HOST_SCAN);
 
-	if (!hdd_conn_is_connected(station_ctx) &&
+	if (pAdapter->device_mode == QDF_STA_MODE &&
+	    !is_p2p_scan &&
+	    !hdd_conn_is_connected(station_ctx) &&
 	    (pHddCtx->config->probe_req_ie_whitelist)) {
 		if (pHddCtx->no_of_probe_req_ouis != 0) {
 			scan_req.voui = qdf_mem_malloc(

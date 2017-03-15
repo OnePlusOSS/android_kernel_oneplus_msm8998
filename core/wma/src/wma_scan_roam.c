@@ -283,16 +283,6 @@ QDF_STATUS wma_get_buf_start_scan_cmd(tp_wma_handle wma_handle,
 	qdf_mem_copy(cmd->mac_addr_mask, scan_req->mac_addr_mask,
 		     QDF_MAC_ADDR_SIZE);
 
-	/* probe req ie whitelisting attributes */
-	cmd->ie_whitelist = scan_req->ie_whitelist;
-	if (cmd->ie_whitelist) {
-		for (i = 0; i < PROBE_REQ_BITMAP_LEN; i++)
-			cmd->probe_req_ie_bitmap[i] =
-					scan_req->probe_req_ie_bitmap[i];
-		cmd->num_vendor_oui = scan_req->num_vendor_oui;
-		cmd->oui_field_len = scan_req->oui_field_len;
-		cmd->voui = (uint8_t *)scan_req + scan_req->oui_field_offset;
-	}
 
 	if (!scan_req->p2pScanType) {
 		WMA_LOGD("Normal Scan request");
@@ -303,6 +293,18 @@ QDF_STATUS wma_get_buf_start_scan_cmd(tp_wma_handle wma_handle,
 			cmd->scan_ctrl_flags |= WMI_SCAN_FLAG_PASSIVE;
 		cmd->scan_ctrl_flags |= WMI_SCAN_ADD_TPC_IE_IN_PROBE_REQ;
 		cmd->scan_ctrl_flags |= WMI_SCAN_FILTER_PROBE_REQ;
+
+		/* probe req ie whitelisting attributes */
+		cmd->ie_whitelist = scan_req->ie_whitelist;
+		if (cmd->ie_whitelist) {
+			for (i = 0; i < PROBE_REQ_BITMAP_LEN; i++)
+				cmd->probe_req_ie_bitmap[i] =
+					scan_req->probe_req_ie_bitmap[i];
+			cmd->num_vendor_oui = scan_req->num_vendor_oui;
+			cmd->oui_field_len = scan_req->oui_field_len;
+			cmd->voui = (uint8_t *)scan_req +
+						scan_req->oui_field_offset;
+		}
 
 		/*
 		 * Decide burst_duration and dwell_time_active based on

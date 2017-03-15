@@ -40,6 +40,8 @@
 #include <qdf_status.h>
 #include <qdf_lock.h>
 #include <qdf_trace.h>
+#include <qdf_module.h>
+
 #include <net/ieee80211_radiotap.h>
 
 #if defined(FEATURE_TSO)
@@ -98,7 +100,7 @@ void qdf_nbuf_tx_desc_count_display(void)
 			 nbuf_tx_mgmt[QDF_NBUF_TX_PKT_FREE],
 		nbuf_tx_mgmt[QDF_NBUF_TX_PKT_FREE]);
 }
-EXPORT_SYMBOL(qdf_nbuf_tx_desc_count_display);
+qdf_export_symbol(qdf_nbuf_tx_desc_count_display);
 
 /**
  * qdf_nbuf_tx_desc_count_update() - Updates the layer packet counter
@@ -121,7 +123,7 @@ static inline void qdf_nbuf_tx_desc_count_update(uint8_t packet_type,
 		break;
 	}
 }
-EXPORT_SYMBOL(qdf_nbuf_tx_desc_count_update);
+qdf_export_symbol(qdf_nbuf_tx_desc_count_update);
 
 /**
  * qdf_nbuf_tx_desc_count_clear() - Clears packet counter for both data, mgmt
@@ -133,7 +135,7 @@ void qdf_nbuf_tx_desc_count_clear(void)
 	memset(nbuf_tx_mgmt, 0, sizeof(nbuf_tx_mgmt));
 	memset(nbuf_tx_data, 0, sizeof(nbuf_tx_data));
 }
-EXPORT_SYMBOL(qdf_nbuf_tx_desc_count_clear);
+qdf_export_symbol(qdf_nbuf_tx_desc_count_clear);
 
 /**
  * qdf_nbuf_set_state() - Updates the packet state
@@ -162,7 +164,7 @@ void qdf_nbuf_set_state(qdf_nbuf_t nbuf, uint8_t current_state)
 	qdf_nbuf_tx_desc_count_update(packet_type,
 					current_state);
 }
-EXPORT_SYMBOL(qdf_nbuf_set_state);
+qdf_export_symbol(qdf_nbuf_set_state);
 
 /* globals do not need to be initialized to NULL/0 */
 qdf_nbuf_trace_update_t qdf_trace_update_cb;
@@ -225,7 +227,7 @@ struct sk_buff *__qdf_nbuf_alloc(qdf_device_t osdev, size_t size, int reserve,
 
 	return skb;
 }
-EXPORT_SYMBOL(__qdf_nbuf_alloc);
+qdf_export_symbol(__qdf_nbuf_alloc);
 
 /**
  * __qdf_nbuf_free() - free the nbuf its interrupt safe
@@ -240,7 +242,7 @@ void __qdf_nbuf_free(struct sk_buff *skb)
 	else
 		dev_kfree_skb_any(skb);
 }
-EXPORT_SYMBOL(__qdf_nbuf_free);
+qdf_export_symbol(__qdf_nbuf_free);
 
 /**
  * __qdf_nbuf_map() - map a buffer to local bus address space
@@ -270,7 +272,7 @@ __qdf_nbuf_map(qdf_device_t osdev, struct sk_buff *skb, qdf_dma_dir_t dir)
 
 	return __qdf_nbuf_map_single(osdev, skb, dir);
 }
-EXPORT_SYMBOL(__qdf_nbuf_map);
+qdf_export_symbol(__qdf_nbuf_map);
 
 #else
 QDF_STATUS
@@ -278,7 +280,7 @@ __qdf_nbuf_map(qdf_device_t osdev, struct sk_buff *skb, qdf_dma_dir_t dir)
 {
 	return __qdf_nbuf_map_single(osdev, skb, dir);
 }
-EXPORT_SYMBOL(__qdf_nbuf_map);
+qdf_export_symbol(__qdf_nbuf_map);
 #endif
 /**
  * __qdf_nbuf_unmap() - to unmap a previously mapped buf
@@ -301,7 +303,7 @@ __qdf_nbuf_unmap(qdf_device_t osdev, struct sk_buff *skb,
 	 */
 	__qdf_nbuf_unmap_single(osdev, skb, dir);
 }
-EXPORT_SYMBOL(__qdf_nbuf_unmap);
+qdf_export_symbol(__qdf_nbuf_unmap);
 
 /**
  * __qdf_nbuf_map_single() - map a single buffer to local bus address space
@@ -322,7 +324,7 @@ __qdf_nbuf_map_single(qdf_device_t osdev, qdf_nbuf_t buf, qdf_dma_dir_t dir)
 	BUILD_BUG_ON(sizeof(QDF_NBUF_CB_PADDR(buf)) < sizeof(buf->data));
 	return QDF_STATUS_SUCCESS;
 }
-EXPORT_SYMBOL(__qdf_nbuf_map_single);
+qdf_export_symbol(__qdf_nbuf_map_single);
 #else
 QDF_STATUS
 __qdf_nbuf_map_single(qdf_device_t osdev, qdf_nbuf_t buf, qdf_dma_dir_t dir)
@@ -337,7 +339,7 @@ __qdf_nbuf_map_single(qdf_device_t osdev, qdf_nbuf_t buf, qdf_dma_dir_t dir)
 		? QDF_STATUS_E_FAILURE
 		: QDF_STATUS_SUCCESS;
 }
-EXPORT_SYMBOL(__qdf_nbuf_map_single);
+qdf_export_symbol(__qdf_nbuf_map_single);
 #endif
 /**
  * __qdf_nbuf_unmap_single() -  unmap a previously mapped buf
@@ -362,7 +364,7 @@ void __qdf_nbuf_unmap_single(qdf_device_t osdev, qdf_nbuf_t buf,
 			skb_end_pointer(buf) - buf->data, dir);
 }
 #endif
-EXPORT_SYMBOL(__qdf_nbuf_unmap_single);
+qdf_export_symbol(__qdf_nbuf_unmap_single);
 
 /**
  * __qdf_nbuf_set_rx_cksum() - set rx checksum
@@ -392,7 +394,7 @@ __qdf_nbuf_set_rx_cksum(struct sk_buff *skb, qdf_nbuf_rx_cksum_t *cksum)
 	}
 	return QDF_STATUS_SUCCESS;
 }
-EXPORT_SYMBOL(__qdf_nbuf_set_rx_cksum);
+qdf_export_symbol(__qdf_nbuf_set_rx_cksum);
 
 /**
  * __qdf_nbuf_get_tx_cksum() - get tx checksum
@@ -415,7 +417,7 @@ qdf_nbuf_tx_cksum_t __qdf_nbuf_get_tx_cksum(struct sk_buff *skb)
 		return QDF_NBUF_TX_CKSUM_NONE;
 	}
 }
-EXPORT_SYMBOL(__qdf_nbuf_get_tx_cksum);
+qdf_export_symbol(__qdf_nbuf_get_tx_cksum);
 
 /**
  * __qdf_nbuf_get_tid() - get tid
@@ -427,7 +429,7 @@ uint8_t __qdf_nbuf_get_tid(struct sk_buff *skb)
 {
 	return skb->priority;
 }
-EXPORT_SYMBOL(__qdf_nbuf_get_tid);
+qdf_export_symbol(__qdf_nbuf_get_tid);
 
 /**
  * __qdf_nbuf_set_tid() - set tid
@@ -439,7 +441,7 @@ void __qdf_nbuf_set_tid(struct sk_buff *skb, uint8_t tid)
 {
 	skb->priority = tid;
 }
-EXPORT_SYMBOL(__qdf_nbuf_set_tid);
+qdf_export_symbol(__qdf_nbuf_set_tid);
 
 /**
  * __qdf_nbuf_set_tid() - set tid
@@ -451,7 +453,7 @@ uint8_t __qdf_nbuf_get_exemption_type(struct sk_buff *skb)
 {
 	return QDF_NBUF_EXEMPT_NO_EXEMPTION;
 }
-EXPORT_SYMBOL(__qdf_nbuf_get_exemption_type);
+qdf_export_symbol(__qdf_nbuf_get_exemption_type);
 
 /**
  * __qdf_nbuf_reg_trace_cb() - register trace callback
@@ -464,7 +466,7 @@ void __qdf_nbuf_reg_trace_cb(qdf_nbuf_trace_update_t cb_func_ptr)
 	qdf_trace_update_cb = cb_func_ptr;
 	return;
 }
-EXPORT_SYMBOL(__qdf_nbuf_reg_trace_cb);
+qdf_export_symbol(__qdf_nbuf_reg_trace_cb);
 
 /**
  * __qdf_nbuf_data_get_dhcp_subtype() - get the subtype
@@ -1427,7 +1429,7 @@ void qdf_net_buf_debug_init(void)
 
 	return;
 }
-EXPORT_SYMBOL(qdf_net_buf_debug_init);
+qdf_export_symbol(qdf_net_buf_debug_init);
 
 /**
  * qdf_net_buf_debug_init() - exit network buffer debug functionality
@@ -1463,7 +1465,7 @@ void qdf_net_buf_debug_exit(void)
 
 	return;
 }
-EXPORT_SYMBOL(qdf_net_buf_debug_exit);
+qdf_export_symbol(qdf_net_buf_debug_exit);
 
 /**
  * qdf_net_buf_debug_hash() - hash network buffer pointer
@@ -1547,7 +1549,7 @@ void qdf_net_buf_debug_add_node(qdf_nbuf_t net_buf, size_t size,
 
 	return;
 }
-EXPORT_SYMBOL(qdf_net_buf_debug_add_node);
+qdf_export_symbol(qdf_net_buf_debug_add_node);
 
 /**
  * qdf_net_buf_debug_delete_node() - remove skb from debug hash table
@@ -1604,7 +1606,7 @@ done:
 
 	return;
 }
-EXPORT_SYMBOL(qdf_net_buf_debug_delete_node);
+qdf_export_symbol(qdf_net_buf_debug_delete_node);
 
 /**
  * qdf_net_buf_debug_release_skb() - release skb to avoid memory leak
@@ -1633,7 +1635,7 @@ void qdf_net_buf_debug_release_skb(qdf_nbuf_t net_buf)
 	}
 	qdf_net_buf_debug_delete_node(net_buf);
 }
-EXPORT_SYMBOL(qdf_net_buf_debug_release_skb);
+qdf_export_symbol(qdf_net_buf_debug_release_skb);
 
 #endif /*MEMORY_DEBUG */
 #if defined(FEATURE_TSO)
@@ -1980,7 +1982,7 @@ uint32_t __qdf_nbuf_get_tso_info(qdf_device_t osdev, struct sk_buff *skb,
 	}
 	return tso_info->num_segs;
 }
-EXPORT_SYMBOL(__qdf_nbuf_get_tso_info);
+qdf_export_symbol(__qdf_nbuf_get_tso_info);
 
 /**
  * __qdf_nbuf_unmap_tso_segment() - function to dma unmap TSO segment element
@@ -2035,7 +2037,7 @@ void __qdf_nbuf_unmap_tso_segment(qdf_device_t osdev,
 		tso_seg->seg.tso_frags[0].paddr = 0;
 	}
 }
-EXPORT_SYMBOL(__qdf_nbuf_unmap_tso_segment);
+qdf_export_symbol(__qdf_nbuf_unmap_tso_segment);
 
 /**
  * __qdf_nbuf_get_tso_num_seg() - function to divide a TSO nbuf
@@ -2066,7 +2068,7 @@ uint32_t __qdf_nbuf_get_tso_num_seg(struct sk_buff *skb)
 	}
 	return num_segs;
 }
-EXPORT_SYMBOL(__qdf_nbuf_get_tso_num_seg);
+qdf_export_symbol(__qdf_nbuf_get_tso_num_seg);
 
 #endif /* FEATURE_TSO */
 
@@ -2075,13 +2077,13 @@ struct sk_buff *__qdf_nbuf_inc_users(struct sk_buff *skb)
 	atomic_inc(&skb->users);
 	return skb;
 }
-EXPORT_SYMBOL(__qdf_nbuf_inc_users);
+qdf_export_symbol(__qdf_nbuf_inc_users);
 
 int __qdf_nbuf_get_users(struct sk_buff *skb)
 {
 	return atomic_read(&skb->users);
 }
-EXPORT_SYMBOL(__qdf_nbuf_get_users);
+qdf_export_symbol(__qdf_nbuf_get_users);
 
 /**
  * __qdf_nbuf_ref() - Reference the nbuf so it can get held until the last free.
@@ -2094,7 +2096,7 @@ void __qdf_nbuf_ref(struct sk_buff *skb)
 {
 	skb_get(skb);
 }
-EXPORT_SYMBOL(__qdf_nbuf_ref);
+qdf_export_symbol(__qdf_nbuf_ref);
 
 /**
  * __qdf_nbuf_shared() - Check whether the buffer is shared
@@ -2106,7 +2108,7 @@ int __qdf_nbuf_shared(struct sk_buff *skb)
 {
 	return skb_shared(skb);
 }
-EXPORT_SYMBOL(__qdf_nbuf_shared);
+qdf_export_symbol(__qdf_nbuf_shared);
 
 /**
  * __qdf_nbuf_dmamap_create() - create a DMA map.
@@ -2134,7 +2136,7 @@ __qdf_nbuf_dmamap_create(qdf_device_t osdev, __qdf_dma_map_t *dmap)
 
 	return error;
 }
-EXPORT_SYMBOL(__qdf_nbuf_dmamap_create);
+qdf_export_symbol(__qdf_nbuf_dmamap_create);
 /**
  * __qdf_nbuf_dmamap_destroy() - delete a dma map
  * @osdev: qdf device handle
@@ -2147,7 +2149,7 @@ __qdf_nbuf_dmamap_destroy(qdf_device_t osdev, __qdf_dma_map_t dmap)
 {
 	kfree(dmap);
 }
-EXPORT_SYMBOL(__qdf_nbuf_dmamap_destroy);
+qdf_export_symbol(__qdf_nbuf_dmamap_destroy);
 
 /**
  * __qdf_nbuf_map_nbytes_single() - map nbytes
@@ -2168,7 +2170,7 @@ QDF_STATUS __qdf_nbuf_map_nbytes_single(
 	QDF_NBUF_CB_PADDR(buf) = paddr = buf->data;
 	return QDF_STATUS_SUCCESS;
 }
-EXPORT_SYMBOL(__qdf_nbuf_map_nbytes_single);
+qdf_export_symbol(__qdf_nbuf_map_nbytes_single);
 #else
 QDF_STATUS __qdf_nbuf_map_nbytes_single(
 		qdf_device_t osdev, struct sk_buff *buf,
@@ -2183,7 +2185,7 @@ QDF_STATUS __qdf_nbuf_map_nbytes_single(
 	return dma_mapping_error(osdev->dev, paddr) ?
 		QDF_STATUS_E_FAULT : QDF_STATUS_SUCCESS;
 }
-EXPORT_SYMBOL(__qdf_nbuf_map_nbytes_single);
+qdf_export_symbol(__qdf_nbuf_map_nbytes_single);
 #endif
 /**
  * __qdf_nbuf_unmap_nbytes_single() - unmap nbytes
@@ -2201,7 +2203,7 @@ __qdf_nbuf_unmap_nbytes_single(
 {
 	return;
 }
-EXPORT_SYMBOL(__qdf_nbuf_unmap_nbytes_single);
+qdf_export_symbol(__qdf_nbuf_unmap_nbytes_single);
 
 #else
 void
@@ -2215,7 +2217,7 @@ __qdf_nbuf_unmap_nbytes_single(
 	dma_unmap_single(osdev->dev, QDF_NBUF_CB_PADDR(buf),
 			nbytes, dir);
 }
-EXPORT_SYMBOL(__qdf_nbuf_unmap_nbytes_single);
+qdf_export_symbol(__qdf_nbuf_unmap_nbytes_single);
 #endif
 /**
  * __qdf_nbuf_map_nbytes() - get the dma map of the nbuf
@@ -2248,7 +2250,7 @@ __qdf_nbuf_map_nbytes(
 
 	return __qdf_nbuf_map_nbytes_single(osdev, skb, dir, nbytes);
 }
-EXPORT_SYMBOL(__qdf_nbuf_map_nbytes);
+qdf_export_symbol(__qdf_nbuf_map_nbytes);
 #else
 QDF_STATUS
 __qdf_nbuf_map_nbytes(
@@ -2259,7 +2261,7 @@ __qdf_nbuf_map_nbytes(
 {
 	return __qdf_nbuf_map_nbytes_single(osdev, skb, dir, nbytes);
 }
-EXPORT_SYMBOL(__qdf_nbuf_map_nbytes);
+qdf_export_symbol(__qdf_nbuf_map_nbytes);
 #endif
 /**
  * __qdf_nbuf_unmap_nbytes() - to unmap a previously mapped buf
@@ -2285,7 +2287,7 @@ __qdf_nbuf_unmap_nbytes(
 	 */
 	__qdf_nbuf_unmap_nbytes_single(osdev, skb, dir, nbytes);
 }
-EXPORT_SYMBOL(__qdf_nbuf_unmap_nbytes);
+qdf_export_symbol(__qdf_nbuf_unmap_nbytes);
 
 /**
  * __qdf_nbuf_dma_map_info() - return the dma map info
@@ -2304,7 +2306,7 @@ __qdf_nbuf_dma_map_info(__qdf_dma_map_t bmap, qdf_dmamap_info_t *sg)
 			sizeof(struct __qdf_segment));
 	sg->nsegs = bmap->nsegs;
 }
-EXPORT_SYMBOL(__qdf_nbuf_dma_map_info);
+qdf_export_symbol(__qdf_nbuf_dma_map_info);
 /**
  * __qdf_nbuf_frag_info() - return the frag data & len, where frag no. is
  *			specified by the index
@@ -2333,7 +2335,7 @@ __qdf_nbuf_frag_info(struct sk_buff *skb, qdf_sglist_t  *sg)
 	sg->nsegs += i;
 
 }
-EXPORT_SYMBOL(__qdf_nbuf_frag_info);
+qdf_export_symbol(__qdf_nbuf_frag_info);
 #else
 #ifdef QDF_OS_DEBUG
 void
@@ -2349,7 +2351,7 @@ __qdf_nbuf_frag_info(struct sk_buff *skb, qdf_sglist_t  *sg)
 
 	qdf_assert(sh->nr_frags == 0);
 }
-EXPORT_SYMBOL(__qdf_nbuf_frag_info);
+qdf_export_symbol(__qdf_nbuf_frag_info);
 #else
 void
 __qdf_nbuf_frag_info(struct sk_buff *skb, qdf_sglist_t  *sg)
@@ -2358,7 +2360,7 @@ __qdf_nbuf_frag_info(struct sk_buff *skb, qdf_sglist_t  *sg)
 	sg->sg_segs[0].len   = skb->len;
 	sg->nsegs            = 1;
 }
-EXPORT_SYMBOL(__qdf_nbuf_frag_info);
+qdf_export_symbol(__qdf_nbuf_frag_info);
 #endif
 #endif
 /**
@@ -2375,7 +2377,7 @@ __qdf_nbuf_get_frag_size(__qdf_nbuf_t nbuf, uint32_t cur_frag)
 	const skb_frag_t *frag = sh->frags + cur_frag;
 	return skb_frag_size(frag);
 }
-EXPORT_SYMBOL(__qdf_nbuf_get_frag_size);
+qdf_export_symbol(__qdf_nbuf_get_frag_size);
 
 /**
  * __qdf_nbuf_frag_map() - dma map frag
@@ -2397,7 +2399,7 @@ QDF_STATUS __qdf_nbuf_frag_map(
 	QDF_NBUF_CB_PADDR(nbuf) = paddr = nbuf->data;
 	return QDF_STATUS_SUCCESS;
 }
-EXPORT_SYMBOL(__qdf_nbuf_frag_map);
+qdf_export_symbol(__qdf_nbuf_frag_map);
 #else
 QDF_STATUS __qdf_nbuf_frag_map(
 	qdf_device_t osdev, __qdf_nbuf_t nbuf,
@@ -2414,7 +2416,7 @@ QDF_STATUS __qdf_nbuf_frag_map(
 	return dma_mapping_error(osdev->dev, paddr) ?
 			QDF_STATUS_E_FAULT : QDF_STATUS_SUCCESS;
 }
-EXPORT_SYMBOL(__qdf_nbuf_frag_map);
+qdf_export_symbol(__qdf_nbuf_frag_map);
 #endif
 /**
  * __qdf_nbuf_dmamap_set_cb() - setup the map callback for a dma map
@@ -2429,7 +2431,7 @@ __qdf_nbuf_dmamap_set_cb(__qdf_dma_map_t dmap, void *cb, void *arg)
 {
 	return;
 }
-EXPORT_SYMBOL(__qdf_nbuf_dmamap_set_cb);
+qdf_export_symbol(__qdf_nbuf_dmamap_set_cb);
 
 
 #ifndef REMOVE_INIT_DEBUG_CODE
@@ -2480,7 +2482,7 @@ __qdf_nbuf_sync_for_cpu(qdf_device_t osdev,
 	 */
 	__qdf_nbuf_sync_single_for_cpu(osdev, skb, dir);
 }
-EXPORT_SYMBOL(__qdf_nbuf_sync_for_cpu);
+qdf_export_symbol(__qdf_nbuf_sync_for_cpu);
 #endif
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0))

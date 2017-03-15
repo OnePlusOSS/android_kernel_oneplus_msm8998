@@ -2855,16 +2855,14 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 		} else {
 			mgmt_param.desc_id = wmi_desc->desc_id;
 			wmi_desc->vdev_id = vdev_id;
+			wmi_desc->nbuf = tx_frame;
+			wmi_desc->tx_cmpl_cb = tx_frm_download_comp_cb;
+			wmi_desc->ota_post_proc_cb = tx_frm_ota_comp_cb;
 			status = wmi_mgmt_unified_cmd_send(
 					wma_handle->wmi_handle,
 					&mgmt_param);
-			if (status) {
+			if (status)
 				wmi_desc_put(wma_handle, wmi_desc);
-			} else {
-				wmi_desc->nbuf = tx_frame;
-				wmi_desc->tx_cmpl_cb = tx_frm_download_comp_cb;
-				wmi_desc->ota_post_proc_cb = tx_frm_ota_comp_cb;
-			}
 		}
 	} else {
 		/* Hand over the Tx Mgmt frame to TxRx */

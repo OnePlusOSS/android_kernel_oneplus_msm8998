@@ -53,6 +53,14 @@ ifeq ($(KERNEL_BUILD), 0)
 	CONFIG_MOBILE_ROUTER := y
 	endif
 
+	# If platform wants to support two driver base on this source
+	# code, below feature WLAN_DISABLE_EXPORT_SYMBOL needs to be
+	# enabled, otherwise when loading the second the driver,
+	# it will hit error of duplicate symbol.
+	ifeq ($(CONFIG_ARCH_SDXHEDGEHOG), y)
+	CONFIG_WLAN_DISABLE_EXPORT_SYMBOL := y
+	endif
+
 	# As per target team, build is done as follows:
 	# Defconfig : build with default flags
 	# Slub      : defconfig  + CONFIG_SLUB_DEBUG=y +
@@ -1615,6 +1623,10 @@ endif
 
 ifeq ($(CONFIG_MOBILE_ROUTER), y)
 CDEFINES += -DFEATURE_AP_MCC_CH_AVOIDANCE
+endif
+
+ifeq ($(CONFIG_WLAN_DISABLE_EXPORT_SYMBOL), y)
+CDEFINES += -DWLAN_DISABLE_EXPORT_SYMBOL
 endif
 
 ifeq ($(CONFIG_MPC_UT_FRAMEWORK), y)

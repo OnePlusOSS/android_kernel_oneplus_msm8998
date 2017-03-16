@@ -1673,6 +1673,8 @@ err_wiphy_unregister:
 		ptt_sock_deactivate_svc();
 		nl_srv_exit();
 
+		hdd_free_probe_req_ouis(pHddCtx);
+
 		/* Free up dynamically allocated members inside HDD Adapter */
 		qdf_mem_free(pHddCtx->config);
 		pHddCtx->config = NULL;
@@ -2172,7 +2174,7 @@ static void hdd_stop_dhcp_ind(hdd_adapter_t *adapter)
 {
 	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 
-	hdd_warn("DHCP stop indicated through power save");
+	hdd_debug("DHCP stop indicated through power save");
 	sme_dhcp_stop_ind(hdd_ctx->hHal, adapter->device_mode,
 			  adapter->macAddressCurrent.bytes,
 			  adapter->sessionId);
@@ -2408,10 +2410,12 @@ int wlan_hdd_cfg80211_set_txpower(struct wiphy *wiphy,
  */
 static int __wlan_hdd_cfg80211_get_txpower(struct wiphy *wiphy,
 				  struct wireless_dev *wdev,
-				  int *dbm, hdd_adapter_t *adapter)
+				  int *dbm)
 {
 
 	hdd_context_t *pHddCtx = (hdd_context_t *) wiphy_priv(wiphy);
+	struct net_device *ndev = wdev->netdev;
+	hdd_adapter_t *adapter = WLAN_HDD_GET_PRIV_PTR(ndev);
 	int status;
 
 	ENTER();
@@ -2430,7 +2434,7 @@ static int __wlan_hdd_cfg80211_get_txpower(struct wiphy *wiphy,
 	/* Validate adapter sessionId */
 	if (wlan_hdd_validate_session_id(adapter->sessionId)) {
 		hdd_err("invalid session id: %d", adapter->sessionId);
-		return -ENOTSUPP;
+		return -EINVAL;
 	}
 
 	mutex_lock(&pHddCtx->iface_change_lock);
@@ -2469,15 +2473,10 @@ int wlan_hdd_cfg80211_get_txpower(struct wiphy *wiphy,
 					 struct wireless_dev *wdev,
 					 int *dbm)
 {
-	int ret = -ENOTSUPP;
-	struct net_device *ndev = wdev->netdev;
-	hdd_adapter_t *adapter = WLAN_HDD_GET_PRIV_PTR(ndev);
+	int ret;
 
 	cds_ssr_protect(__func__);
-	if (adapter->sessionId != HDD_SESSION_ID_INVALID)
-		ret = __wlan_hdd_cfg80211_get_txpower(wiphy,
-						wdev,
-						dbm, adapter);
+	ret = __wlan_hdd_cfg80211_get_txpower(wiphy, wdev, dbm);
 	cds_ssr_unprotect(__func__);
 
 	return ret;

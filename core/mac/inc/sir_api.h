@@ -55,6 +55,7 @@ typedef struct sAniSirGlobal *tpAniSirGlobal;
 #include "cds_regdomain.h"
 #include "wmi_unified.h"
 #include "wmi_unified_param.h"
+#include "ol_txrx_htt_api.h"
 #include <dot11f.h>
 
 #define MAX_PEERS 32
@@ -249,7 +250,7 @@ typedef enum eSirScanType {
 /* / Result codes Firmware return to Host SW */
 typedef enum eSirResultCodes {
 	eSIR_SME_SUCCESS,
-	eSIR_LOGP_EXCEPTION,
+	eSIR_LOGE_EXCEPTION,
 	eSIR_SME_INVALID_PARAMETERS = 500,
 	eSIR_SME_UNEXPECTED_REQ_RESULT_CODE,
 	eSIR_SME_RESOURCES_UNAVAILABLE,
@@ -909,6 +910,13 @@ typedef struct sSirSmeScanReq {
 	uint8_t mac_addr[QDF_MAC_ADDR_SIZE];
 	uint8_t mac_addr_mask[QDF_MAC_ADDR_SIZE];
 
+	/* probe req ie whitelisting attrs */
+	bool ie_whitelist;
+	uint32_t probe_req_ie_bitmap[PROBE_REQ_BITMAP_LEN];
+	uint32_t num_vendor_oui;
+	uint32_t oui_field_len;
+	uint32_t oui_field_offset;
+
 	/* channelList MUST be the last field of this structure */
 	tSirChannelList channelList;
 	/*-----------------------------
@@ -927,7 +935,10 @@ typedef struct sSirSmeScanReq {
 	   ----------------------------- <--+
 	   ... variable size uIEFiled
 	   up to uIEFieldLen (can be 0)
-	   -----------------------------*/
+	   -----------------------------
+	   ... variable size upto num_vendor_oui
+	   struct vendor_oui voui;
+	   -----------------------------------*/
 } tSirSmeScanReq, *tpSirSmeScanReq;
 
 typedef struct sSirSmeScanAbortReq {
@@ -2910,6 +2921,17 @@ typedef struct {
 } tSirNetworkType;
 
 /**
+ * struct connected_pno_band_rssi_pref - BSS preference based on band
+ * and RSSI
+ * @band: band preference
+ * @rssi_pref: RSSI preference
+ */
+struct connected_pno_band_rssi_pref {
+	tSirRFBand band;
+	int8_t rssi;
+};
+
+/**
  * struct sSirPNOScanReq - PNO Scan request structure
  * @enable: flag to enable or disable
  * @modePNO: PNO Mode
@@ -2919,11 +2941,16 @@ typedef struct {
  * @sessionId: Session identifier
  * @fast_scan_period: Fast Scan period
  * @slow_scan_period: Slow scan period
+ * @delay_start_time: delay in seconds to use before starting the first scan
  * @fast_scan_max_cycles: Fast scan max cycles
  * @us24GProbeTemplateLen: 2.4G probe template length
  * @p24GProbeTemplate: 2.4G probe template
  * @us5GProbeTemplateLen: 5G probe template length
  * @p5GProbeTemplate: 5G probe template
+ * @relative_rssi_set: Flag to check whether realtive_rssi is set or not
+ * @relative_rssi: Relative rssi threshold, used for connected pno
+ * @band_rssi_pref: Band and RSSI preference that can be given to one BSS
+ * over the other BSS
  */
 typedef struct sSirPNOScanReq {
 	uint8_t enable;
@@ -2934,6 +2961,7 @@ typedef struct sSirPNOScanReq {
 	uint8_t sessionId;
 	uint32_t fast_scan_period;
 	uint32_t slow_scan_period;
+	uint32_t delay_start_time;
 	uint8_t fast_scan_max_cycles;
 
 	uint32_t        active_min_time;
@@ -2953,6 +2981,15 @@ typedef struct sSirPNOScanReq {
 	bool enable_pno_scan_randomization;
 	uint8_t mac_addr[QDF_MAC_ADDR_SIZE];
 	uint8_t mac_addr_mask[QDF_MAC_ADDR_SIZE];
+	bool relative_rssi_set;
+	int8_t relative_rssi;
+	struct connected_pno_band_rssi_pref band_rssi_pref;
+
+	/* probe req ie whitelisting attrs */
+	bool ie_whitelist;
+	uint32_t probe_req_ie_bitmap[PROBE_REQ_BITMAP_LEN];
+	uint32_t num_vendor_oui;
+	/* followed by one or more struct vendor_oui */
 } tSirPNOScanReq, *tpSirPNOScanReq;
 
 /* Preferred Network Found Indication */
@@ -2987,7 +3024,7 @@ typedef struct {
  * SIR_MAC_ACTION_DLP              2      0
  * SIR_MAC_ACTION_BLKACK           3      0
  * SIR_MAC_ACTION_PUBLIC_USAGE     4      1
- * SIR_MAC_ACTION_RRM              5      1
+ * SIR_MAC_ACTION_RRM              5      0
  * SIR_MAC_ACTION_FAST_BSS_TRNST   6      0
  * SIR_MAC_ACTION_HT               7      0
  * SIR_MAC_ACTION_SA_QUERY         8      1
@@ -3007,7 +3044,6 @@ typedef struct {
 		((1 << SIR_MAC_ACTION_SPECTRUM_MGMT) | \
 		 (1 << SIR_MAC_ACTION_QOS_MGMT) | \
 		 (1 << SIR_MAC_ACTION_PUBLIC_USAGE) | \
-		 (1 << SIR_MAC_ACTION_RRM) | \
 		 (1 << SIR_MAC_ACTION_SA_QUERY) | \
 		 (1 << SIR_MAC_ACTION_PROT_DUAL_PUB) | \
 		 (1 << SIR_MAC_ACTION_WNM) | \
@@ -3801,6 +3837,13 @@ typedef struct sSirScanOffloadReq {
 	uint8_t mac_addr[QDF_MAC_ADDR_SIZE];
 	uint8_t mac_addr_mask[QDF_MAC_ADDR_SIZE];
 
+	/* probe req ie whitelisting attrs */
+	bool ie_whitelist;
+	uint32_t probe_req_ie_bitmap[PROBE_REQ_BITMAP_LEN];
+	uint32_t num_vendor_oui;
+	uint32_t oui_field_len;
+	uint32_t oui_field_offset;
+
 	tSirChannelList channelList;
 	/*-----------------------------
 	  sSirScanOffloadReq....
@@ -3818,7 +3861,10 @@ typedef struct sSirScanOffloadReq {
 	  ----------------------------- <--+
 	  ... variable size uIEField
 	  up to uIEFieldLen (can be 0)
-	  -----------------------------*/
+	  -----------------------------
+	  ... variable size upto num_vendor_oui
+	  struct vendor_oui voui;
+	  ------------------------*/
 } tSirScanOffloadReq, *tpSirScanOffloadReq;
 
 /**
@@ -4981,6 +5027,11 @@ typedef struct {
 	uint8_t oui[WIFI_SCANNING_MAC_OUI_LENGTH];
 	uint32_t vdev_id;
 	bool enb_probe_req_sno_randomization;
+	/* probe req ie whitelisting attrs */
+	bool ie_whitelist;
+	uint32_t probe_req_ie_bitmap[PROBE_REQ_BITMAP_LEN];
+	uint32_t num_vendor_oui;
+	/* Followed by 0 or more struct vendor_oui */
 } tSirScanMacOui, *tpSirScanMacOui;
 
 enum {
@@ -4999,6 +5050,7 @@ struct sir_ipa_offload_enable_disable {
  * @msg_type: message type
  * @len: message length
  * @vdev_id: vdev id
+ * @rx_ldpc_ini: Rx LDPC ini setting
  *
  * Message wrapper structure for eWNI_SME_SET_VDEV_IES_PER_BAND.
  */
@@ -5006,6 +5058,7 @@ struct sir_set_vdev_ies_per_band {
 	uint16_t msg_type;
 	uint16_t len;
 	uint32_t vdev_id;
+	uint8_t is_hw_mode_dbs;
 };
 
 /**
@@ -5248,8 +5301,12 @@ typedef struct {
 	struct qdf_mac_addr peerMacAddress;
 	/* peer WIFI_CAPABILITY_XXX */
 	uint32_t capabilities;
-	/* number of rates */
-	uint32_t numRate;
+	union {
+		/* peer power saving mode */
+		uint32_t power_saving;
+		/* number of rates */
+		uint32_t numRate;
+	};
 	/* per rate statistics, number of entries  = num_rate */
 	tSirWifiRateStat rateStats[0];
 } tSirWifiPeerInfo, *tpSirWifiPeerInfo;
@@ -5390,6 +5447,19 @@ typedef struct {
 /* Clear particular peer stats depending on the peer_mac */
 #define WIFI_STATS_IFACE_PER_PEER      0x00000200
 
+/**
+ * struct sir_wifi_iface_tx_fail - TX failure event
+ * @tid: TX TID
+ * @msdu_num: TX MSDU failed counter
+ * @status: TX status from HTT message.
+ *          Only failure status will be involved.
+ */
+struct sir_wifi_iface_tx_fail {
+	uint8_t  tid;
+	uint16_t msdu_num;
+	enum htt_tx_status status;
+};
+
 typedef struct {
 	uint32_t paramId;
 	uint8_t ifaceId;
@@ -5406,6 +5476,10 @@ typedef struct {
 	uint8_t results[0];
 } tSirLLStatsResults, *tpSirLLStatsResults;
 
+/* Result ID for LL stats extension */
+#define WMI_LL_STATS_EXT_PS_CHG             0x00000100
+#define WMI_LL_STATS_EXT_TX_FAIL            0x00000200
+#define WMI_LL_STATS_EXT_MAC_COUNTER        0x00000400
 #endif /* WLAN_FEATURE_LINK_LAYER_STATS */
 
 typedef struct sAniGetLinkStatus {
@@ -6955,4 +7029,50 @@ struct sme_rcpi_req {
 	struct qdf_mac_addr mac_addr;
 };
 
+/**
+ * struct rsp_stats - arp packet stats
+ * @arp_req_enqueue: fw tx count
+ * @arp_req_tx_success: tx ack count
+ * @arp_req_tx_failure: tx ack fail count
+ * @arp_rsp_recvd: rx fw count
+ * @out_of_order_arp_rsp_drop_cnt: out of order count
+ * @dad_detected: dad detected
+ * @connect_status: connection status
+ * @ba_session_establishment_status: BA session status
+ */
+struct rsp_stats {
+	uint32_t vdev_id;
+	uint32_t arp_req_enqueue;
+	uint32_t arp_req_tx_success;
+	uint32_t arp_req_tx_failure;
+	uint32_t arp_rsp_recvd;
+	uint32_t out_of_order_arp_rsp_drop_cnt;
+	uint32_t dad_detected;
+	uint32_t connect_status;
+	uint32_t ba_session_establishment_status;
+};
+
+/**
+ * struct set_arp_stats_params - set/reset arp stats
+ * @vdev_id: session id
+ * @flag: enable/disable stats
+ * @pkt_type: type of packet(1 - arp)
+ * @ip_addr: subnet ipv4 address in case of encrypted packets
+ */
+struct set_arp_stats_params {
+	uint32_t vdev_id;
+	uint8_t flag;
+	uint8_t pkt_type;
+	uint32_t ip_addr;
+};
+
+/**
+ * struct get_arp_stats_params - get arp stats from firmware
+ * @pkt_type: packet type(1 - ARP)
+ * @vdev_id: session id
+ */
+struct get_arp_stats_params {
+	uint8_t pkt_type;
+	uint32_t vdev_id;
+};
 #endif /* __SIR_API_H */

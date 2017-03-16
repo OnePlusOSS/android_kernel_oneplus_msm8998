@@ -200,7 +200,7 @@ void lim_update_assoc_sta_datas(tpAniSirGlobal mac_ctx,
 				assoc_rsp->HTCaps.supportedMCSSet,
 				false, session_entry,
 				vht_caps) != eSIR_SUCCESS) {
-		lim_log(mac_ctx, LOGP,
+		lim_log(mac_ctx, LOGE,
 			FL("could not get rateset and extended rate set"));
 		return;
 	}
@@ -223,7 +223,7 @@ void lim_update_assoc_sta_datas(tpAniSirGlobal mac_ctx,
 			status =
 				sch_beacon_edca_process(mac_ctx,
 					&assoc_rsp->edca, session_entry);
-			lim_log(mac_ctx, LOG2,
+			lim_log(mac_ctx, LOGD,
 				"Edca set update based on AssocRsp: status %d",
 				status);
 			if (status != eSIR_SUCCESS) {
@@ -243,7 +243,7 @@ void lim_update_assoc_sta_datas(tpAniSirGlobal mac_ctx,
 		tSirRetStatus status;
 		status = sch_beacon_edca_process(mac_ctx, &assoc_rsp->edca,
 				session_entry);
-		lim_log(mac_ctx, LOGW,
+		lim_log(mac_ctx, LOGD,
 			"WME Edca set update based on AssocRsp: status %d",
 			status);
 
@@ -320,7 +320,7 @@ static void lim_update_ric_data(tpAniSirGlobal mac_ctx,
 			lim_log(mac_ctx, LOGE, FL("RIC data not present"));
 		}
 	} else {
-		lim_log(mac_ctx, LOG1,
+		lim_log(mac_ctx, LOGD,
 				FL("Ric is not present"));
 		session_entry->RICDataLen = 0;
 		session_entry->ricData = NULL;
@@ -349,7 +349,7 @@ static void lim_update_ese_tspec(tpAniSirGlobal mac_ctx,
 		session_entry->tspecLen = 0;
 	}
 	if (assoc_rsp->tspecPresent) {
-		lim_log(mac_ctx, LOG1, FL("Tspec EID present in assoc rsp"));
+		lim_log(mac_ctx, LOGD, FL("Tspec EID present in assoc rsp"));
 		session_entry->tspecLen =
 			assoc_rsp->num_tspecs * sizeof(tDot11fIEWMMTSPEC);
 		if (session_entry->tspecLen) {
@@ -370,7 +370,7 @@ static void lim_update_ese_tspec(tpAniSirGlobal mac_ctx,
 	} else {
 		session_entry->tspecLen = 0;
 		session_entry->tspecIes = NULL;
-		lim_log(mac_ctx, LOG1,
+		lim_log(mac_ctx, LOGD,
 			FL("Tspec EID *NOT* present in assoc rsp"));
 	}
 	return;
@@ -394,7 +394,7 @@ static void lim_update_ese_tsm(tpAniSirGlobal mac_ctx,
 	uint8_t cnt = 0;
 	tpEseTSMContext tsm_ctx;
 
-	lim_log(mac_ctx, LOG1,
+	lim_log(mac_ctx, LOGD,
 		FL("TSM IE Present in Reassoc Rsp"));
 	/*
 	 * Start the TSM  timer only if the TSPEC
@@ -448,7 +448,7 @@ static void lim_update_stads_ext_cap(tpAniSirGlobal mac_ctx,
 		session_entry->tdls_prohibited = false;
 		session_entry->tdls_chan_swit_prohibited = false;
 #endif
-		lim_log(mac_ctx, LOG1, FL("ExtCap not present"));
+		lim_log(mac_ctx, LOGD, FL("ExtCap not present"));
 		return;
 	}
 
@@ -458,8 +458,8 @@ static void lim_update_stads_ext_cap(tpAniSirGlobal mac_ctx,
 	session_entry->tdls_prohibited = ext_cap->tdls_prohibited;
 	session_entry->tdls_chan_swit_prohibited =
 		ext_cap->tdls_chan_swit_prohibited;
-	lim_log(mac_ctx, LOG1,
-		FL("ExtCap: tdls_prohibited:%d, tdls_chan_swit_prohibited: %d"),
+	lim_log(mac_ctx, LOGD,
+		FL("ExtCap: tdls_prohibited: %d, tdls_chan_swit_prohibited: %d"),
 		ext_cap->tdls_prohibited,
 		ext_cap->tdls_chan_swit_prohibited);
 #endif
@@ -535,7 +535,7 @@ lim_process_assoc_rsp_frame(tpAniSirGlobal mac_ctx,
 		return;
 	}
 
-	lim_log(mac_ctx, LOG1,
+	lim_log(mac_ctx, LOGD,
 		FL("received Re/Assoc(%d) resp on sessionid: %d systemrole: %d"
 		"and mlmstate: %d RSSI %d from " MAC_ADDRESS_STR), subtype,
 		session_entry->peSessionId, GET_LIM_SYSTEM_ROLE(session_entry),
@@ -577,7 +577,7 @@ lim_process_assoc_rsp_frame(tpAniSirGlobal mac_ctx,
 		))) {
 		/* Received unexpected Re/Association Response frame */
 
-		lim_log(mac_ctx, LOG1,
+		lim_log(mac_ctx, LOGD,
 			FL("Recieved Re/Assoc rsp in unexpected "
 			"state %d on session=%d"),
 			session_entry->limMlmState, session_entry->peSessionId);
@@ -630,7 +630,7 @@ lim_process_assoc_rsp_frame(tpAniSirGlobal mac_ctx,
 
 	assoc_rsp = qdf_mem_malloc(sizeof(*assoc_rsp));
 	if (NULL == assoc_rsp) {
-		lim_log(mac_ctx, LOGP,
+		lim_log(mac_ctx, LOGE,
 			FL("Allocate Memory failed in AssocRsp"));
 		qdf_mem_free(beacon);
 		return;
@@ -723,7 +723,7 @@ lim_process_assoc_rsp_frame(tpAniSirGlobal mac_ctx,
 		!= eSIR_SUCCESS) {
 		qdf_mem_free(assoc_rsp);
 		qdf_mem_free(beacon);
-		lim_log(mac_ctx, LOGP, FL("could not retrieve Capabilities "));
+		lim_log(mac_ctx, LOGE, FL("could not retrieve Capabilities "));
 		return;
 	}
 	lim_copy_u16((uint8_t *) &mac_capab, caps);
@@ -796,7 +796,7 @@ lim_process_assoc_rsp_frame(tpAniSirGlobal mac_ctx,
 				 */
 				timeout_value = 10;
 			}
-			lim_log(mac_ctx, LOG1,
+			lim_log(mac_ctx, LOGD,
 				FL("ASSOC res with eSIR_MAC_TRY_AGAIN_LATER "
 				" recvd.Starting timer to wait timeout=%d."),
 				timeout_value);
@@ -870,7 +870,7 @@ lim_process_assoc_rsp_frame(tpAniSirGlobal mac_ctx,
 
 	if (subtype == LIM_REASSOC) {
 		lim_log
-		(mac_ctx, LOG1, FL("Successfully Reassociated with BSS"));
+		(mac_ctx, LOGD, FL("Successfully Reassociated with BSS"));
 #ifdef FEATURE_WLAN_ESE
 	if (assoc_rsp->tsmPresent)
 		lim_update_ese_tsm(mac_ctx, session_entry, assoc_rsp);
@@ -908,7 +908,7 @@ lim_process_assoc_rsp_frame(tpAniSirGlobal mac_ctx,
 		if ((session_entry->limMlmState ==
 		    eLIM_MLM_WT_FT_REASSOC_RSP_STATE) ||
 			lim_is_roam_synch_in_progress(session_entry)) {
-			lim_log(mac_ctx, LOG1, FL("Sending self sta"));
+			lim_log(mac_ctx, LOGD, FL("Sending self sta"));
 			lim_update_assoc_sta_datas(mac_ctx, sta_ds, assoc_rsp,
 				session_entry);
 			lim_update_stads_ext_cap(mac_ctx, session_entry,
@@ -964,7 +964,7 @@ lim_process_assoc_rsp_frame(tpAniSirGlobal mac_ctx,
 		qdf_mem_free(beacon);
 		return;
 	}
-	lim_log(mac_ctx, LOG1,
+	lim_log(mac_ctx, LOGD,
 		FL("Successfully Associated with BSS " MAC_ADDRESS_STR),
 		 MAC_ADDR_ARRAY(hdr->sa));
 #ifdef FEATURE_WLAN_ESE

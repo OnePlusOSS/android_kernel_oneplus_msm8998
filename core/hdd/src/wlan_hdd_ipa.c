@@ -732,7 +732,7 @@ static int hdd_ipa_uc_register_uc_ready(struct hdd_ipa_priv *hdd_ipa)
 		return -EPERM;
 	}
 	if (true == uc_ready_param.is_uC_ready) {
-		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR, "UC Ready");
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "UC Ready");
 		hdd_ipa->uc_loaded = true;
 	}
 
@@ -4833,7 +4833,7 @@ static int wlan_ipa_add_hdr(struct ipa_ioc_add_hdr *ipa_hdr)
 			ipa_hdr->hdr[0].is_eth2_ofst_valid,
 			ipa_hdr->hdr[0].eth2_ofst);
 
-	HDD_IPA_DBG_DUMP(QDF_TRACE_LEVEL_ERROR, "hdr:",
+	HDD_IPA_DBG_DUMP(QDF_TRACE_LEVEL_DEBUG, "hdr:",
 			ipa_hdr->hdr[0].hdr, HDD_IPA_UC_WLAN_TX_HDR_LEN);
 
 	ret = ipa_add_hdr(ipa_hdr);

@@ -259,7 +259,8 @@ bool wma_get_prev_dbs_plus_agile_scan_config(void);
 bool wma_get_prev_single_mac_scan_with_dfs_config(void);
 QDF_STATUS wma_get_caps_for_phyidx_hwmode(struct wma_caps_per_phy *caps_per_phy,
 		enum hw_mode_dbs_capab hw_mode, enum cds_band_type band);
-bool wma_is_rx_ldpc_supported_for_channel(uint32_t channel);
+bool wma_is_rx_ldpc_supported_for_channel(uint32_t channel,
+				enum hw_mode_dbs_capab hw_mode);
 
 #define LRO_IPV4_SEED_ARR_SZ 5
 #define LRO_IPV6_SEED_ARR_SZ 11
@@ -399,4 +400,20 @@ void wma_peer_debug_log(uint8_t vdev_id, uint8_t op,
 			void *peer_obj, uint32_t val1, uint32_t val2);
 void wma_peer_debug_dump(void);
 
+#ifdef WLAN_FEATURE_LINK_LAYER_STATS
+/**
+ * wma_tx_failure_cb() - TX failure callback
+ * @ctx: txrx context
+ * @num_msdu: number of msdu with the same status
+ * @tid: TID number
+ * @status: failure status
+ */
+void wma_tx_failure_cb(void *ctx, uint32_t num_msdu,
+		       uint8_t tid, enum htt_tx_status status);
+#else
+static inline void wma_tx_failure_cb(void *ctx, uint32_t num_msdu,
+				     uint8_t tid, enum htt_tx_status status)
+{
+}
+#endif
 #endif

@@ -2385,7 +2385,7 @@ int wmi_desc_pool_init(tp_wma_handle wma_handle, uint32_t pool_size)
 		qdf_assert_always(pool_size);
 		return -EINVAL;
 	}
-	WMA_LOGE("%s: initialize desc pool of size %d", __func__, pool_size);
+	WMA_LOGD("%s: initialize desc pool of size %d", __func__, pool_size);
 	wma_handle->wmi_desc_pool.pool_size = pool_size;
 	wma_handle->wmi_desc_pool.num_free = pool_size;
 	wma_handle->wmi_desc_pool.array = qdf_mem_malloc(pool_size *
@@ -2833,7 +2833,7 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 		if ((pFc->type == SIR_MAC_MGMT_FRAME) &&
 		    (pFc->subType != SIR_MAC_MGMT_PROBE_REQ) &&
 		    (pFc->subType != SIR_MAC_MGMT_PROBE_RSP)) {
-			WMA_LOGE("TX MGMT - Type %hu, SubType %hu seq_num[%d]",
+			WMA_LOGD("TX MGMT - Type %hu, SubType %hu seq_num[%d]",
 				 pFc->type, pFc->subType,
 				 ((mHdr->seqControl.seqNumHi << 4) |
 				 mHdr->seqControl.seqNumLo));
@@ -3053,7 +3053,7 @@ void wma_tx_abort(uint8_t vdev_id)
 			 __func__, iface->handle);
 		return;
 	}
-	WMA_LOGI("%s: vdevid %d bssid %pM", __func__, vdev_id, iface->bssid);
+	WMA_LOGD("%s: vdevid %d bssid %pM", __func__, vdev_id, iface->bssid);
 	iface->pause_bitmap |= (1 << PAUSE_TYPE_HOST);
 	ol_txrx_vdev_pause(iface->handle, OL_TXQ_PAUSE_REASON_TX_ABORT);
 

@@ -270,6 +270,13 @@
 
 #define SCAN_REJECT_THRESHOLD_TIME 300000 /* Time is in msec, equal to 5 mins */
 
+/* wait time for nud stats in milliseconds */
+#define WLAN_WAIT_TIME_NUD_STATS 800
+/* nud stats skb max length */
+#define WLAN_NUD_STATS_LEN 800
+/* ARP packet type for NUD debug stats */
+#define WLAN_NUD_STATS_ARP_PKT_TYPE 1
+
 /*
  * @eHDD_SCAN_REJECT_DEFAULT: default value
  * @eHDD_CONNECTION_IN_PROGRESS: connection is in progress
@@ -284,6 +291,8 @@ typedef enum {
 	eHDD_EAPOL_IN_PROGRESS,
 	eHDD_SAP_EAPOL_IN_PROGRESS,
 } scan_reject_states;
+
+#define MAX_PROBE_REQ_OUIS 16
 
 /*
  * Generic asynchronous request/response support
@@ -408,6 +417,20 @@ typedef struct hdd_pmf_stats_s {
 } hdd_pmf_stats_t;
 #endif
 
+struct hdd_arp_stats_s {
+	uint16_t tx_count;
+	uint16_t rx_count;
+	uint16_t tx_dropped;
+	uint16_t rx_dropped;
+	uint16_t rx_delivered;
+	uint16_t rx_refused;
+	uint16_t tx_host_fw_sent;
+	uint16_t rx_host_drop_reorder;
+	uint16_t tx_fw_cnt;
+	uint16_t rx_fw_cnt;
+	uint16_t tx_ack_cnt;
+};
+
 typedef struct hdd_stats_s {
 	tCsrSummaryStatsInfo summary_stat;
 	tCsrGlobalClassAStatsInfo ClassA_stat;
@@ -417,6 +440,7 @@ typedef struct hdd_stats_s {
 	tCsrPerStaStatsInfo perStaStats;
 	struct csr_per_chain_rssi_stats_info  per_chain_rssi_stats;
 	hdd_tx_rx_stats_t hddTxRxStats;
+	struct hdd_arp_stats_s hdd_arp_stats;
 #ifdef WLAN_FEATURE_11W
 	hdd_pmf_stats_t hddPmfStats;
 #endif
@@ -1190,6 +1214,8 @@ struct hdd_adapter_s {
 	 */
 	uint8_t cfg80211_disconnect_reason;
 	struct lfr_firmware_status lfr_fw_status;
+	bool con_status;
+	bool dad;
 };
 
 /*
@@ -1377,6 +1403,14 @@ struct suspend_resume_stats {
 	uint32_t suspend_fail[SUSPEND_FAIL_MAX_COUNT];
 };
 
+/**
+ * struct hdd_nud_stats_context - hdd NUD stats context
+ * @response_event: NUD stats request wait event
+ */
+struct hdd_nud_stats_context {
+	struct completion response_event;
+};
+
 /** Adapter structure definition */
 struct hdd_context_s {
 	/** Global CDS context  */
@@ -1445,7 +1479,6 @@ struct hdd_context_s {
 
 #ifdef FEATURE_WLAN_TDLS
 	eTDLSSupportMode tdls_mode;
-	bool concurrency_marked;
 	eTDLSSupportMode tdls_mode_last;
 	tdlsConnInfo_t tdlsConnInfo[HDD_MAX_NUM_TDLS_STA];
 	/* maximum TDLS station number allowed upon runtime condition */
@@ -1658,6 +1691,10 @@ struct hdd_context_s {
 	bool rcpi_enabled;
 	bool imps_enabled;
 	int user_configured_pkt_filter_rules;
+
+	uint32_t no_of_probe_req_ouis;
+	struct vendor_oui *probe_req_voui;
+	struct hdd_nud_stats_context nud_stats_context;
 };
 
 /*---------------------------------------------------------------------------
@@ -2115,4 +2152,16 @@ void hdd_set_roaming_in_progress(bool value);
 bool hdd_check_for_opened_interfaces(hdd_context_t *hdd_ctx);
 void wlan_hdd_start_sap(hdd_adapter_t *ap_adapter, bool reinit);
 void hdd_set_rx_mode_rps(hdd_context_t *hdd_ctx, void *padapter, bool enable);
+
+/**
+ * hdd_init_nud_stats_ctx() - initialize NUD stats context
+ * @hdd_ctx: Pointer to hdd context
+ *
+ * Return: none
+ */
+static inline void hdd_init_nud_stats_ctx(hdd_context_t *hdd_ctx)
+{
+	init_completion(&hdd_ctx->nud_stats_context.response_event);
+	return;
+}
 #endif /* end #if !defined(WLAN_HDD_MAIN_H) */

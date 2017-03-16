@@ -946,7 +946,7 @@ QDF_STATUS wma_process_dhcp_ind(tp_wma_handle wma_handle,
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	WMA_LOGI("%s: WMA --> WMI_PEER_SET_PARAM triggered by DHCP, "
+	WMA_LOGD("%s: WMA --> WMI_PEER_SET_PARAM triggered by DHCP, "
 		 "msgType=%s,"
 		 "device_mode=%d, macAddr=" MAC_ADDRESS_STR,
 		 __func__,
@@ -1761,7 +1761,7 @@ int wma_oem_data_response_handler(void *handle,
 
 	qdf_mem_copy(oem_rsp->data, data, datalen);
 
-	WMA_LOGI(FL("Sending OEM_DATA_RSP(len: %d) to upper layer"), datalen);
+	WMA_LOGD("Sending OEM_DATA_RSP(len: %d) to upper layer", datalen);
 
 	pmac->sme.oem_data_rsp_callback(oem_rsp);
 
@@ -3962,12 +3962,12 @@ void wma_register_wow_default_patterns(WMA_HANDLE handle, uint8_t vdev_id)
 	if (iface->ptrn_match_enable) {
 		if (wma_is_vdev_in_beaconning_mode(wma, vdev_id)) {
 			/* Configure SAP/GO/IBSS mode default wow patterns */
-			WMA_LOGI("Config SAP specific default wow patterns vdev_id %d",
+			WMA_LOGD("Config SAP specific default wow patterns vdev_id %d",
 				 vdev_id);
 			wma_wow_ap(wma, vdev_id);
 		} else {
 			/* Configure STA/P2P CLI mode default wow patterns */
-			WMA_LOGI("Config STA specific default wow patterns vdev_id %d",
+			WMA_LOGD("Config STA specific default wow patterns vdev_id %d",
 				vdev_id);
 			wma_wow_sta(wma, vdev_id);
 			if (wma->IsRArateLimitEnabled) {
@@ -4003,7 +4003,7 @@ void wma_register_wow_wakeup_events(WMA_HANDLE handle,
 	tp_wma_handle wma = handle;
 	uint32_t event_bitmap;
 
-	WMA_LOGI("vdev_type %d vdev_subtype %d vdev_id %d", vdev_type,
+	WMA_LOGD("vdev_type %d vdev_subtype %d vdev_id %d", vdev_type,
 			vdev_subtype, vdev_id);
 
 	if ((WMI_VDEV_TYPE_STA == vdev_type) ||
@@ -4011,18 +4011,18 @@ void wma_register_wow_wakeup_events(WMA_HANDLE handle,
 		 (WMI_UNIFIED_VDEV_SUBTYPE_P2P_DEVICE == vdev_subtype))) {
 		/* Configure STA/P2P CLI mode specific default wake up events */
 		event_bitmap = WMA_WOW_STA_WAKE_UP_EVENTS;
-		WMA_LOGI("STA specific default wake up event 0x%x vdev id %d",
+		WMA_LOGD("STA specific default wake up event 0x%x vdev id %d",
 			event_bitmap, vdev_id);
 	} else if (WMI_VDEV_TYPE_IBSS == vdev_type) {
 		/* Configure IBSS mode specific default wake up events */
 		event_bitmap = (WMA_WOW_STA_WAKE_UP_EVENTS |
 				(1 << WOW_BEACON_EVENT));
-		WMA_LOGI("IBSS specific default wake up event 0x%x vdev id %d",
+		WMA_LOGD("IBSS specific default wake up event 0x%x vdev id %d",
 			event_bitmap, vdev_id);
 	} else if (WMI_VDEV_TYPE_AP == vdev_type) {
 		/* Configure SAP/GO mode specific default wake up events */
 		event_bitmap = WMA_WOW_SAP_WAKE_UP_EVENTS;
-		WMA_LOGI("SAP specific default wake up event 0x%x vdev id %d",
+		WMA_LOGD("SAP specific default wake up event 0x%x vdev id %d",
 			event_bitmap, vdev_id);
 	} else if (WMI_VDEV_TYPE_NDI == vdev_type) {
 		/*
@@ -6529,14 +6529,14 @@ QDF_STATUS wma_process_ch_avoid_update_req(tp_wma_handle wma_handle,
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	WMA_LOGI("%s: WMA --> WMI_CHAN_AVOID_UPDATE", __func__);
+	WMA_LOGD("%s: WMA --> WMI_CHAN_AVOID_UPDATE", __func__);
 
 	status = wmi_unified_process_ch_avoid_update_cmd(
 					wma_handle->wmi_handle);
 	if (QDF_IS_STATUS_ERROR(status))
 		return status;
 
-	WMA_LOGI("%s: WMA --> WMI_CHAN_AVOID_UPDATE sent through WMI",
+	WMA_LOGD("%s: WMA --> WMI_CHAN_AVOID_UPDATE sent through WMI",
 		 __func__);
 	return status;
 }
@@ -8232,7 +8232,7 @@ QDF_STATUS wma_set_tx_rx_aggregation_size(
 	cmd->tx_aggr_size = tx_rx_aggregation_size->tx_aggregation_size;
 	cmd->rx_aggr_size = tx_rx_aggregation_size->rx_aggregation_size;
 
-	WMA_LOGI("tx aggr: %d rx aggr: %d vdev: %d",
+	WMA_LOGD("tx aggr: %d rx aggr: %d vdev: %d",
 		cmd->tx_aggr_size, cmd->rx_aggr_size, cmd->vdev_id);
 
 	ret = wmi_unified_cmd_send(wma_handle->wmi_handle, buf, len,
@@ -8623,6 +8623,68 @@ QDF_STATUS wma_encrypt_decrypt_msg(WMA_HANDLE handle,
 				encrypt_decrypt_params);
 
 	return ret;
+}
+
+/**
+ * wma_get_arp_stats_handler() - handle arp stats data
+ * indicated by FW
+ * @handle: wma context
+ * @data: event buffer
+ * @data len: length of event buffer
+ *
+ * Return: 0 on success
+ */
+int wma_get_arp_stats_handler(void *handle, uint8_t *data,
+			uint32_t data_len)
+{
+	WMI_VDEV_GET_ARP_STAT_EVENTID_param_tlvs *param_buf;
+	wmi_vdev_get_arp_stats_event_fixed_param *data_event;
+	struct rsp_stats rsp;
+	tpAniSirGlobal mac = cds_get_context(QDF_MODULE_ID_PE);
+
+	ENTER();
+
+	if (!mac) {
+		WMA_LOGE("%s: Invalid mac context", __func__);
+		return -EINVAL;
+	}
+
+	if (!mac->sme.get_arp_stats_cb) {
+		WMA_LOGE("%s: Callback not registered", __func__);
+		return -EINVAL;
+	}
+
+	if (data == NULL) {
+		WMA_LOGE("%s: invalid pointer", __func__);
+		return -EINVAL;
+	}
+	param_buf = (WMI_VDEV_GET_ARP_STAT_EVENTID_param_tlvs *)data;
+	if (!param_buf) {
+		WMA_LOGE("%s: Invalid get arp stats event", __func__);
+		return -EINVAL;
+	}
+	data_event = param_buf->fixed_param;
+	if (!data_event) {
+		WMA_LOGE("%s: Invalid get arp stats data event", __func__);
+		return -EINVAL;
+	}
+	rsp.arp_req_enqueue = data_event->arp_req_enqueue;
+	rsp.vdev_id = data_event->vdev_id;
+	rsp.arp_req_tx_success = data_event->arp_req_tx_success;
+	rsp.arp_req_tx_failure = data_event->arp_req_tx_failure;
+	rsp.arp_rsp_recvd = data_event->arp_rsp_recvd;
+	rsp.out_of_order_arp_rsp_drop_cnt =
+		data_event->out_of_order_arp_rsp_drop_cnt;
+	rsp.dad_detected = data_event->dad_detected;
+	rsp.connect_status = data_event->connect_status;
+	rsp.ba_session_establishment_status =
+		data_event->ba_session_establishment_status;
+
+	mac->sme.get_arp_stats_cb(mac->hHdd, &rsp);
+
+	EXIT();
+
+	return 0;
 }
 
 /**

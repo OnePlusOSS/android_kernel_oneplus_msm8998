@@ -6431,6 +6431,58 @@ static void cds_nss_update_cb(void *context, uint8_t tx_status, uint8_t vdev_id,
 }
 
 /**
+ * cds_find_sta_and_update_caps_with_reassociation() - find sta and update
+ *			HT/VHT caps and do reassociation with same ap
+ * @is_hw_mode_dbs: DBS or NON-DBS hardware mode to use
+ *
+ * This API will find the 2G STA currently active from policy manager table
+ * and update their HT/VHT caps to firmware and trigger self reassociation
+ * with same AP through LFR3 roaming module.
+ *
+ * Return: QDF_STATUS
+ */
+static QDF_STATUS cds_find_sta_and_update_caps_with_reassociation(
+				uint8_t is_hw_mode_dbs)
+{
+	cds_context_type *cds_ctx;
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	uint32_t index, count;
+	uint32_t list[MAX_NUMBER_OF_CONC_CONNECTIONS];
+	uint32_t conn_index = 0;
+	uint32_t vdev_id, channel;
+
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	count = cds_mode_specific_connection_count(
+			CDS_STA_MODE, list);
+	for (index = 0; index < count; index++) {
+		qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
+		vdev_id = conc_connection_list[list[index]].vdev_id;
+		channel = conc_connection_list[list[index]].chan;
+		qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
+		conn_index = cds_get_connection_for_vdev_id(vdev_id);
+		if (MAX_NUMBER_OF_CONC_CONNECTIONS == conn_index) {
+			cds_err("connection not found for vdev %d",
+				vdev_id);
+			continue;
+		}
+		/* do it only for 2.4GHz channels */
+		if (!CDS_IS_CHANNEL_24GHZ(channel))
+			continue;
+		sme_set_vdev_ies_per_band(vdev_id, is_hw_mode_dbs);
+		status = sme_issue_same_ap_reassoc_cmd(vdev_id);
+		if (status == QDF_STATUS_E_FAILURE)
+			cds_err("Self reassoc failed %d", status);
+	}
+
+	return status;
+}
+
+/**
  * cds_complete_action() - initiates actions needed on
  * current connections once channel has been decided for the new
  * connection
@@ -6579,6 +6631,27 @@ QDF_STATUS cds_next_actions(uint32_t session_id,
 		cds_err("driver is already in %s mode, no further action needed",
 				(hw_mode.dbs_cap) ? "dbs" : "non dbs");
 		return QDF_STATUS_E_ALREADY;
+	}
+	/*
+	 * just check CDS_DBS action only, no need to check for
+	 * CDS_DBS_DOWNGRADE as it will eventually call CDS_DBS. if you check
+	 * for CDS_DBS_DOWNGRADE then IE update and self reassoc will happen two
+	 * times back to back as this functon is nested which
+	 * will not make sense. Same things apply for CDS_SINGLE_MAC_UPGRADE and
+	 * CDS_SINGLE_MAC operations.
+	 */
+	if ((CDS_DBS == action) && !hw_mode.dbs_cap &&
+			sme_check_enable_rx_ldpc_sta_ini_item()) {
+		cds_info("Going for DBS, disable rx-ldpc for all 2G STAs");
+		cds_find_sta_and_update_caps_with_reassociation(true);
+	} else if ((CDS_SINGLE_MAC == action) && hw_mode.dbs_cap
+			&& sme_check_enable_rx_ldpc_sta_ini_item()) {
+		/*
+		 * don't use default RX LDPC which isenabled for 5g and
+		 * disable for 2g
+		 */
+		cds_info("Going for SMM, enable rx-ldpc for all 2G STAs");
+		cds_find_sta_and_update_caps_with_reassociation(false);
 	}
 
 	switch (action) {

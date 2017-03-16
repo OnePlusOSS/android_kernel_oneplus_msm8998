@@ -118,7 +118,7 @@ void lim_populate_p2p_mac_header(tpAniSirGlobal pMac, uint8_t *pBD)
 
 	/* Prepare sequence number */
 	lim_add_mgmt_seq_num(pMac, pMacHdr);
-	lim_log(pMac, LOG1, "seqNumLo=%d, seqNumHi=%d, mgmtSeqNum=%d",
+	lim_log(pMac, LOGD, "seqNumLo=%d, seqNumHi=%d, mgmtSeqNum=%d",
 		pMacHdr->seqControl.seqNumLo,
 		pMacHdr->seqControl.seqNumHi, pMac->mgmtSeqNum);
 }
@@ -171,7 +171,7 @@ void lim_populate_mac_header(tpAniSirGlobal mac_ctx, uint8_t *buf,
 
 	/* Prepare sequence number */
 	lim_add_mgmt_seq_num(mac_ctx, mac_hdr);
-	lim_log(mac_ctx, LOG1, "seqNumLo=%d, seqNumHi=%d, mgmtSeqNum=%d",
+	lim_log(mac_ctx, LOGD, "seqNumLo=%d, seqNumHi=%d, mgmtSeqNum=%d",
 		mac_hdr->seqControl.seqNumLo,
 		mac_hdr->seqControl.seqNumHi, mac_ctx->mgmtSeqNum);
 }
@@ -356,7 +356,7 @@ lim_send_probe_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 					&addn_ielen,
 					&extracted_ext_cap);
 		if (eSIR_SUCCESS != sir_status) {
-			lim_log(mac_ctx, LOG1,
+			lim_log(mac_ctx, LOGD,
 			FL("Unable to Stripoff ExtCap IE from Probe Req"));
 		} else {
 			struct s_ext_cap *p_ext_cap =
@@ -400,7 +400,7 @@ lim_send_probe_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 	qdf_status = cds_packet_alloc((uint16_t) bytes, (void **)&frame,
 				      (void **)&packet);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		lim_log(mac_ctx, LOGP, FL("Failed to allocate %d bytes for a Probe Request."), bytes);
+		lim_log(mac_ctx, LOGE, FL("Failed to allocate %d bytes for a Probe Request."), bytes);
 		return eSIR_MEM_ALLOC_FAILED;
 	}
 	/* Paranoia: */
@@ -476,16 +476,14 @@ static tSirRetStatus lim_get_addn_ie_for_probe_resp(tpAniSirGlobal pMac,
 		uint8_t elem_id, elem_len;
 
 		if (NULL == addIE) {
-			PELOGE(lim_log(pMac, LOGE, FL(" NULL addIE pointer"));)
+			lim_log(pMac, LOGE, FL(" NULL addIE pointer"));
 			return eSIR_FAILURE;
 		}
 
 		tempbuf = qdf_mem_malloc(left);
 		if (NULL == tempbuf) {
-			PELOGE(lim_log(pMac, LOGE,
-				       FL
-					       ("Unable to allocate memory to store addn IE"));
-			       )
+			lim_log(pMac, LOGE,
+				FL("Unable to allocate memory to store addn IE"));
 			return eSIR_MEM_ALLOC_FAILED;
 		}
 
@@ -610,7 +608,7 @@ lim_send_probe_rsp_mgmt_frame(tpAniSirGlobal mac_ctx,
 		sir_status = wlan_cfg_get_int(mac_ctx,
 				WNI_CFG_BEACON_INTERVAL, &cfg);
 		if (eSIR_SUCCESS != sir_status) {
-			lim_log(mac_ctx, LOGP,
+			lim_log(mac_ctx, LOGE,
 				FL("Failed to get WNI_CFG_BEACON_INTERVAL (%d)."),
 				sir_status);
 			goto err_ret;
@@ -635,7 +633,7 @@ lim_send_probe_rsp_mgmt_frame(tpAniSirGlobal mac_ctx,
 	} else {
 		if (wlan_cfg_get_int(mac_ctx, (uint16_t) WNI_CFG_WPS_ENABLE,
 			&tmp) != eSIR_SUCCESS)
-			lim_log(mac_ctx, LOGP, "Failed to cfg get id %d",
+			lim_log(mac_ctx, LOGE, "Failed to cfg get id %d",
 				WNI_CFG_WPS_ENABLE);
 
 		wps_ap = tmp & WNI_CFG_WPS_ENABLE_AP;
@@ -677,7 +675,7 @@ lim_send_probe_rsp_mgmt_frame(tpAniSirGlobal mac_ctx,
 		populate_dot11f_ht_info(mac_ctx, &frm->HTInfo, pe_session);
 	}
 	if (pe_session->vhtCapability) {
-		lim_log(mac_ctx, LOG1, FL("Populate VHT IE in Probe Response"));
+		lim_log(mac_ctx, LOGD, FL("Populate VHT IE in Probe Response"));
 		populate_dot11f_vht_caps(mac_ctx, pe_session, &frm->VHTCaps);
 		populate_dot11f_vht_operation(mac_ctx, pe_session,
 			&frm->VHTOperation);
@@ -740,7 +738,7 @@ lim_send_probe_rsp_mgmt_frame(tpAniSirGlobal mac_ctx,
 
 		if (eSIR_SUCCESS != lim_get_addn_ie_for_probe_resp(mac_ctx,
 					add_ie, &addn_ie_len, preq_p2pie)) {
-			lim_log(mac_ctx, LOGP,
+			lim_log(mac_ctx, LOGE,
 				FL("Unable to get addn_ie"));
 			goto err_ret;
 		}
@@ -749,7 +747,7 @@ lim_send_probe_rsp_mgmt_frame(tpAniSirGlobal mac_ctx,
 					add_ie, &addn_ie_len,
 					&extracted_ext_cap);
 		if (eSIR_SUCCESS != sir_status) {
-			lim_log(mac_ctx, LOG1,
+			lim_log(mac_ctx, LOGD,
 				FL("Unable to strip off ExtCap IE"));
 		} else {
 			extracted_ext_cap_flag = true;
@@ -801,7 +799,7 @@ lim_send_probe_rsp_mgmt_frame(tpAniSirGlobal mac_ctx,
 	qdf_status = cds_packet_alloc((uint16_t) bytes, (void **)&frame,
 				      (void **)&packet);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		lim_log(mac_ctx, LOGP, FL("Probe Response allocation failed"));
+		lim_log(mac_ctx, LOGE, FL("Probe Response allocation failed"));
 		goto err_ret;
 	}
 	/* Paranoia: */
@@ -832,8 +830,8 @@ lim_send_probe_rsp_mgmt_frame(tpAniSirGlobal mac_ctx,
 			status);
 	}
 
-	lim_log(mac_ctx, LOG3, FL("Sending Probe Response frame to "));
-	lim_print_mac_addr(mac_ctx, peer_macaddr, LOG3);
+	lim_log(mac_ctx, LOGD, FL("Sending Probe Response frame to "));
+	lim_print_mac_addr(mac_ctx, peer_macaddr, LOGD);
 
 	mac_ctx->sys.probeRespond++;
 
@@ -966,7 +964,7 @@ lim_send_addts_req_action_frame(tpAniSirGlobal pMac,
 		nStatus =
 			dot11f_get_packed_add_ts_request_size(pMac, &AddTSReq, &nPayload);
 		if (DOT11F_FAILED(nStatus)) {
-			lim_log(pMac, LOGP,
+			lim_log(pMac, LOGE,
 				FL("Failed to calculate the packed size f"
 				   "or an Add TS Request (0x%08x)."), nStatus);
 			/* We'll fall back on the worst case scenario: */
@@ -1007,7 +1005,7 @@ lim_send_addts_req_action_frame(tpAniSirGlobal pMac,
 			dot11f_get_packed_wmm_add_ts_request_size(pMac, &WMMAddTSReq,
 								  &nPayload);
 		if (DOT11F_FAILED(nStatus)) {
-			lim_log(pMac, LOGP,
+			lim_log(pMac, LOGE,
 				FL("Failed to calculate the packed size f"
 				   "or a WMM Add TS Request (0x%08x)."),
 				nStatus);
@@ -1026,7 +1024,7 @@ lim_send_addts_req_action_frame(tpAniSirGlobal pMac,
 	qdf_status = cds_packet_alloc((uint16_t) nBytes, (void **)&pFrame,
 				      (void **)&pPacket);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		lim_log(pMac, LOGP, FL("Failed to allocate %d bytes for an Ad"
+		lim_log(pMac, LOGE, FL("Failed to allocate %d bytes for an Ad"
 				       "d TS Request."), nBytes);
 		return;
 	}
@@ -1079,9 +1077,8 @@ lim_send_addts_req_action_frame(tpAniSirGlobal pMac,
 		}
 	}
 
-	PELOG3(lim_log(pMac, LOG3, FL("Sending an Add TS Request frame to "));
-	       lim_print_mac_addr(pMac, peerMacAddr, LOG3);
-	       )
+	lim_log(pMac, LOGD, FL("Sending an Add TS Request frame to "));
+	       lim_print_mac_addr(pMac, peerMacAddr, LOGD);
 
 	if ((SIR_BAND_5_GHZ ==
 	     lim_get_rf_band(psessionEntry->currentOperChannel))
@@ -1224,7 +1221,7 @@ lim_send_assoc_rsp_mgmt_frame(tpAniSirGlobal mac_ctx,
 
 		if (sta->mlmStaContext.htCapability &&
 		    pe_session->htCapability) {
-			lim_log(mac_ctx, LOG1,
+			lim_log(mac_ctx, LOGD,
 				FL("Populate HT IEs in Assoc Response"));
 			populate_dot11f_ht_caps(mac_ctx, pe_session,
 				&frm.HTCaps);
@@ -1243,7 +1240,7 @@ lim_send_assoc_rsp_mgmt_frame(tpAniSirGlobal mac_ctx,
 			populate_dot11f_ht_info(mac_ctx, &frm.HTInfo,
 				pe_session);
 		}
-		lim_log(mac_ctx, LOG1,
+		lim_log(mac_ctx, LOGD,
 			FL("SupportedChnlWidth: %d, mimoPS: %d, GF: %d, short GI20:%d, shortGI40: %d, dsssCck: %d, AMPDU Param: %x"),
 			frm.HTCaps.supportedChannelWidthSet,
 			frm.HTCaps.mimoPowerSave,
@@ -1254,7 +1251,7 @@ lim_send_assoc_rsp_mgmt_frame(tpAniSirGlobal mac_ctx,
 
 		if (sta->mlmStaContext.vhtCapability &&
 		    pe_session->vhtCapability) {
-			lim_log(mac_ctx, LOG1,
+			lim_log(mac_ctx, LOGD,
 				FL("Populate VHT IEs in Assoc Response"));
 			populate_dot11f_vht_caps(mac_ctx, pe_session,
 				&frm.VHTCaps);
@@ -1266,7 +1263,7 @@ lim_send_assoc_rsp_mgmt_frame(tpAniSirGlobal mac_ctx,
 		    pe_session->vendor_vht_sap &&
 		    (assoc_req != NULL) &&
 		    assoc_req->vendor_vht_ie.VHTCaps.present) {
-			lim_log(mac_ctx, LOG1,
+			lim_log(mac_ctx, LOGD,
 				FL("Populate Vendor VHT IEs in Assoc Rsponse"));
 			frm.vendor_vht_ie.present = 1;
 			frm.vendor_vht_ie.type =
@@ -1354,7 +1351,7 @@ lim_send_assoc_rsp_mgmt_frame(tpAniSirGlobal mac_ctx,
 					(mac_ctx, &add_ie[0], &stripoff_len,
 					&extracted_ext_cap);
 			if (eSIR_SUCCESS != sir_status) {
-				lim_log(mac_ctx, LOG1,
+				lim_log(mac_ctx, LOGD,
 					FL("strip off extcap IE failed"));
 			} else {
 				addn_ie_len = stripoff_len;
@@ -1362,7 +1359,7 @@ lim_send_assoc_rsp_mgmt_frame(tpAniSirGlobal mac_ctx,
 			}
 			bytes = bytes + addn_ie_len;
 		}
-		lim_log(mac_ctx, LOG1,
+		lim_log(mac_ctx, LOGD,
 			FL("addn_ie_len = %d for Assoc Resp : %d"),
 			addn_ie_len, assoc_req->addIEPresent);
 	}
@@ -1394,7 +1391,7 @@ lim_send_assoc_rsp_mgmt_frame(tpAniSirGlobal mac_ctx,
 	qdf_status = cds_packet_alloc((uint16_t) bytes, (void **)&frame,
 				      (void **)&packet);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		lim_log(mac_ctx, LOGP, FL("cds_packet_alloc failed."));
+		lim_log(mac_ctx, LOGE, FL("cds_packet_alloc failed."));
 		return;
 	}
 	/* Paranoia: */
@@ -1425,16 +1422,11 @@ lim_send_assoc_rsp_mgmt_frame(tpAniSirGlobal mac_ctx,
 			status);
 	}
 
-	if (subtype == LIM_ASSOC)
-		lim_log(mac_ctx, LOG1,
-			FL("*** Sending Assoc Resp status %d aid %d to "),
-			status_code, aid);
-	else
-		lim_log(mac_ctx, LOG1,
-			FL("*** Sending ReAssoc Resp status %d aid %d to "),
-			status_code, aid);
+	lim_log(mac_ctx, LOGD,
+		FL("*** Sending Assoc Resp subtype %d status %d aid %d to "),
+			subtype, status_code, aid);
 
-	lim_print_mac_addr(mac_ctx, mac_hdr->da, LOG1);
+	lim_print_mac_addr(mac_ctx, mac_hdr->da, LOGD);
 
 	if (addn_ie_len && addn_ie_len <= WNI_CFG_ASSOC_RSP_ADDNIE_DATA_LEN)
 		qdf_mem_copy(frame + sizeof(tSirMacMgmtHdr) + payload,
@@ -1504,7 +1496,7 @@ lim_send_delts_req_action_frame(tpAniSirGlobal pMac,
 
 		nStatus = dot11f_get_packed_del_ts_size(pMac, &DelTS, &nPayload);
 		if (DOT11F_FAILED(nStatus)) {
-			lim_log(pMac, LOGP,
+			lim_log(pMac, LOGE,
 				FL("Failed to calculate the packed si"
 				   "ze for a Del TS (0x%08x)."), nStatus);
 			/* We'll fall back on the worst case scenario: */
@@ -1526,7 +1518,7 @@ lim_send_delts_req_action_frame(tpAniSirGlobal pMac,
 		nStatus =
 			dot11f_get_packed_wmm_del_ts_size(pMac, &WMMDelTS, &nPayload);
 		if (DOT11F_FAILED(nStatus)) {
-			lim_log(pMac, LOGP,
+			lim_log(pMac, LOGE,
 				FL("Failed to calculate the packed si"
 				   "ze for a WMM Del TS (0x%08x)."), nStatus);
 			/* We'll fall back on the worst case scenario: */
@@ -1545,7 +1537,7 @@ lim_send_delts_req_action_frame(tpAniSirGlobal pMac,
 		cds_packet_alloc((uint16_t) nBytes, (void **)&pFrame,
 				 (void **)&pPacket);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		lim_log(pMac, LOGP, FL("Failed to allocate %d bytes for an Ad"
+		lim_log(pMac, LOGE, FL("Failed to allocate %d bytes for an Ad"
 				       "d TS Response."), nBytes);
 		return;
 	}
@@ -1597,10 +1589,8 @@ lim_send_delts_req_action_frame(tpAniSirGlobal pMac,
 		}
 	}
 
-	PELOG1(lim_log
-		       (pMac, LOG1, FL("Sending DELTS REQ (size %d) to "), nBytes);
-	       lim_print_mac_addr(pMac, pMacHdr->da, LOG1);
-	       )
+	lim_log(pMac, LOGD, FL("Sending DELTS REQ (size %d) to "), nBytes);
+	       lim_print_mac_addr(pMac, pMacHdr->da, LOGD);
 
 	if ((SIR_BAND_5_GHZ ==
 	     lim_get_rf_band(psessionEntry->currentOperChannel))
@@ -1641,7 +1631,7 @@ static QDF_STATUS lim_assoc_tx_complete_cnf(tpAniSirGlobal mac_ctx,
 	uint16_t assoc_ack_status;
 	uint16_t reason_code;
 
-	lim_log(mac_ctx, LOG1,
+	lim_log(mac_ctx, LOGD,
 		 FL("tx_complete= %d"), tx_complete);
 	if (tx_complete) {
 		assoc_ack_status = ACKED;
@@ -1726,7 +1716,7 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 					add_ie, &add_ie_len, &extr_ext_cap);
 		if (eSIR_SUCCESS != sir_status) {
 			extr_ext_flag = false;
-			lim_log(mac_ctx, LOG1,
+			lim_log(mac_ctx, LOGD,
 			    FL("Unable to Stripoff ExtCap IE from Assoc Req"));
 		} else {
 			struct s_ext_cap *p_ext_cap = (struct s_ext_cap *)
@@ -1739,7 +1729,7 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 			extr_ext_flag = (extr_ext_cap.num_bytes > 0);
 		}
 	} else {
-		lim_log(mac_ctx, LOG1,
+		lim_log(mac_ctx, LOGD,
 		FL("No addn IE or peer dosen't support addnIE for Assoc Req"));
 		extr_ext_flag = false;
 	}
@@ -1857,12 +1847,12 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 	 */
 	if (pe_session->htCapability &&
 	    mac_ctx->lim.htCapabilityPresentInBeacon) {
-		lim_log(mac_ctx, LOG1, FL("Populate HT Caps in Assoc Request"));
+		lim_log(mac_ctx, LOGD, FL("Populate HT Caps in Assoc Request"));
 		populate_dot11f_ht_caps(mac_ctx, pe_session, &frm->HTCaps);
 		QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
 				   &frm->HTCaps, sizeof(frm->HTCaps));
 	}
-	lim_log(mac_ctx, LOG1,
+	lim_log(mac_ctx, LOGD,
 		FL("SupportedChnlWidth: %d, mimoPS: %d, GF: %d, short GI20:%d, shortGI40: %d, dsssCck: %d, AMPDU Param: %x"),
 		frm->HTCaps.supportedChannelWidthSet,
 		frm->HTCaps.mimoPowerSave,
@@ -1873,12 +1863,8 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 
 	if (pe_session->vhtCapability &&
 	    pe_session->vhtCapabilityPresentInBeacon) {
-		lim_log(mac_ctx, LOG1, FL("Populate VHT IEs in Assoc Request"));
+		lim_log(mac_ctx, LOGD, FL("Populate VHT IEs in Assoc Request"));
 		populate_dot11f_vht_caps(mac_ctx, pe_session, &frm->VHTCaps);
-		/* Enable 160/80+80 MHz channel width support for STA mode */
-		if (pe_session->pePersona == QDF_STA_MODE)
-			frm->VHTCaps.supportedChannelWidthSet =
-				VHT_CAP_160_AND_80P80_SUPP;
 		QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
 				   &frm->VHTCaps, sizeof(frm->VHTCaps));
 		vht_enabled = true;
@@ -1892,7 +1878,7 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 	}
 	if (!vht_enabled &&
 			pe_session->is_vendor_specific_vhtcaps) {
-		lim_log(mac_ctx, LOG1,
+		lim_log(mac_ctx, LOGD,
 			FL("Populate Vendor VHT IEs in Assoc Request"));
 		frm->vendor_vht_ie.present = 1;
 		frm->vendor_vht_ie.type =
@@ -1917,7 +1903,7 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 		tSirBssDescription *bssdescr;
 
 		bssdescr = &pe_session->pLimJoinReq->bssDescription;
-		lim_log(mac_ctx, LOG1, FL("mdie = %02x %02x %02x"),
+		lim_log(mac_ctx, LOGD, FL("mdie = %02x %02x %02x"),
 			(unsigned int) bssdescr->mdie[0],
 			(unsigned int) bssdescr->mdie[1],
 			(unsigned int) bssdescr->mdie[2]);
@@ -1925,7 +1911,7 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 			pe_session->pLimJoinReq->bssDescription.mdie);
 	} else {
 		/* No 11r IEs dont send any MDIE */
-		lim_log(mac_ctx, LOG1, FL("MDIE not present"));
+		lim_log(mac_ctx, LOGD, FL("MDIE not present"));
 	}
 
 #ifdef FEATURE_WLAN_ESE
@@ -1979,12 +1965,12 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 
 	if (eSIR_SUCCESS != lim_strip_supp_op_class_update_struct(mac_ctx,
 			add_ie, &add_ie_len, &frm->SuppOperatingClasses))
-		lim_log(mac_ctx, LOG1,
+		lim_log(mac_ctx, LOGD,
 		FL("Unable to Stripoff supp op classes IE from Assoc Req"));
 
 	status = dot11f_get_packed_assoc_request_size(mac_ctx, frm, &payload);
 	if (DOT11F_FAILED(status)) {
-		lim_log(mac_ctx, LOGP,
+		lim_log(mac_ctx, LOGE,
 			FL("Association Request packet size failure(0x%08x)."),
 			status);
 		/* We'll fall back on the worst case scenario: */
@@ -2000,7 +1986,7 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 	qdf_status = cds_packet_alloc((uint16_t) bytes, (void **)&frame,
 				(void **)&packet);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		lim_log(mac_ctx, LOGP, FL("Failed to allocate %d bytes."),
+		lim_log(mac_ctx, LOGE, FL("Failed to allocate %d bytes."),
 			bytes);
 
 		pe_session->limMlmState = pe_session->limPrevMlmState;
@@ -2042,7 +2028,7 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 			FL("Assoc request pack warning (0x%08x)"), status);
 	}
 
-	lim_log(mac_ctx, LOG1,
+	lim_log(mac_ctx, LOGD,
 		FL("*** Sending Association Request length %d to "), bytes);
 	if (pe_session->assocReq != NULL) {
 		qdf_mem_free(pe_session->assocReq);
@@ -2130,7 +2116,7 @@ static QDF_STATUS lim_auth_tx_complete_cnf(tpAniSirGlobal mac_ctx,
 	uint16_t auth_ack_status;
 	uint16_t reason_code;
 
-	lim_log(mac_ctx, LOG1,
+	lim_log(mac_ctx, LOGD,
 		 FL("tx_complete= %d"), tx_complete);
 	if (tx_complete) {
 		mac_ctx->auth_ack_status = LIM_AUTH_ACK_RCD_SUCCESS;
@@ -2197,7 +2183,7 @@ lim_send_auth_mgmt_frame(tpAniSirGlobal mac_ctx,
 		 * status code, 128 bytes for challenge text and
 		 * 4 bytes each for IV & ICV.
 		 */
-		lim_log(mac_ctx, LOG1,
+		lim_log(mac_ctx, LOGD,
 			FL("Sending encrypted auth frame to " MAC_ADDRESS_STR),
 				MAC_ADDR_ARRAY(peer_addr));
 
@@ -2207,7 +2193,7 @@ lim_send_auth_mgmt_frame(tpAniSirGlobal mac_ctx,
 		goto alloc_packet;
 	}
 
-	lim_log(mac_ctx, LOG1,
+	lim_log(mac_ctx, LOGD,
 		FL("Sending Auth seq# %d status %d (%d) to "
 		MAC_ADDRESS_STR),
 		auth_frame->authTransactionSeqNumber,
@@ -2235,11 +2221,11 @@ lim_send_auth_mgmt_frame(tpAniSirGlobal mac_ctx,
 				ft_ies_length = session->ftPEContext.
 					pFTPreAuthReq->ft_ies_length;
 				frame_len += ft_ies_length;
-				lim_log(mac_ctx, LOG3,
+				lim_log(mac_ctx, LOGD,
 					FL("Auth frame, FTIES length added=%d"),
 					ft_ies_length);
 			} else {
-				lim_log(mac_ctx, LOG3,
+				lim_log(mac_ctx, LOGD,
 					FL("Auth frame, Does not contain FTIES!!!"));
 				frame_len += (2 + SIR_MDIE_SIZE);
 			}
@@ -2317,7 +2303,7 @@ alloc_packet:
 				 (void **)&packet);
 
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		lim_log(mac_ctx, LOGP,
+		lim_log(mac_ctx, LOGE,
 			FL("call to bufAlloc failed for AUTH frame"));
 		return;
 	}
@@ -2342,7 +2328,7 @@ alloc_packet:
 	if (wep_bit == LIM_WEP_IN_FC) {
 		qdf_mem_copy(body, (uint8_t *) auth_frame, body_len);
 
-		lim_log(mac_ctx, LOG1,
+		lim_log(mac_ctx, LOGD,
 			FL("Sending Auth seq# 3 to " MAC_ADDRESS_STR),
 			MAC_ADDR_ARRAY(mac_hdr->da));
 
@@ -2378,9 +2364,9 @@ alloc_packet:
 					session->ftPEContext.
 						pFTPreAuthReq->ft_ies,
 					ft_ies_length);
-				lim_log(mac_ctx, LOG2,
+				lim_log(mac_ctx, LOGD,
 					FL("Auth1 Frame FTIE is: "));
-				sir_dump_buf(mac_ctx, SIR_LIM_MODULE_ID, LOG2,
+				sir_dump_buf(mac_ctx, SIR_LIM_MODULE_ID, LOGD,
 					(uint8_t *) body,
 					ft_ies_length);
 			} else if (NULL != session->ftPEContext.
@@ -2397,7 +2383,7 @@ alloc_packet:
 			}
 		}
 
-		lim_log(mac_ctx, LOG1,
+		lim_log(mac_ctx, LOGD,
 			FL("*** Sending Auth seq# %d status %d (%d) to "
 				MAC_ADDRESS_STR),
 			auth_frame->authTransactionSeqNumber,
@@ -2406,7 +2392,7 @@ alloc_packet:
 				eSIR_MAC_SUCCESS_STATUS),
 			MAC_ADDR_ARRAY(mac_hdr->da));
 	}
-	sir_dump_buf(mac_ctx, SIR_LIM_MODULE_ID, LOG2, frame, frame_len);
+	sir_dump_buf(mac_ctx, SIR_LIM_MODULE_ID, LOGD, frame, frame_len);
 
 	if ((NULL != session->ftPEContext.pFTPreAuthReq) &&
 	    (SIR_BAND_5_GHZ == lim_get_rf_band(
@@ -2464,10 +2450,8 @@ QDF_STATUS lim_send_deauth_cnf(tpAniSirGlobal pMac)
 		psessionEntry = pe_find_session_by_session_id(pMac,
 				pMlmDeauthReq->sessionId);
 		if (psessionEntry == NULL) {
-			PELOGE(lim_log(pMac, LOGE,
-				       FL
-					       ("session does not exist for given sessionId"));
-			       )
+			lim_log(pMac, LOGE,
+				FL("session does not exist for given sessionId"));
 			mlmDeauthCnf.resultCode =
 				eSIR_SME_INVALID_PARAMETERS;
 			goto end;
@@ -2493,7 +2477,7 @@ QDF_STATUS lim_send_deauth_cnf(tpAniSirGlobal pMac)
 #endif
 				 (psessionEntry->isFastRoamIniFeatureEnabled) ||
 				 (psessionEntry->is11Rconnection))) {
-			lim_log(pMac, LOGE,
+			lim_log(pMac, LOGD,
 				FL("FT Preauth (%p,%d) Deauth rc %d src = %d"),
 					psessionEntry,
 					psessionEntry->peSessionId,
@@ -2501,7 +2485,7 @@ QDF_STATUS lim_send_deauth_cnf(tpAniSirGlobal pMac)
 					pMlmDeauthReq->deauthTrigger);
 			lim_ft_cleanup(pMac, psessionEntry);
 		} else {
-			lim_log(pMac, LOGE,
+			lim_log(pMac, LOGD,
 				FL("No FT Preauth Session Cleanup in role %d"
 #ifdef FEATURE_WLAN_ESE
 				" isESE %d"
@@ -2593,7 +2577,7 @@ QDF_STATUS lim_send_disassoc_cnf(tpAniSirGlobal mac_ctx)
 		if (LIM_IS_STA_ROLE(pe_session) &&
 			(disassoc_req->reasonCode !=
 				eSIR_MAC_DISASSOC_DUE_TO_FTHANDOFF_REASON)) {
-			lim_log(mac_ctx, LOG1,
+			lim_log(mac_ctx, LOGD,
 				FL("FT Preauth Session (%p,%d) Clean up"
 #ifdef FEATURE_WLAN_ESE
 				" isESE %d"
@@ -2642,7 +2626,7 @@ end:
 QDF_STATUS lim_disassoc_tx_complete_cnf(tpAniSirGlobal pMac,
 					uint32_t txCompleteSuccess)
 {
-	lim_log(pMac, LOG1,
+	lim_log(pMac, LOGD,
 		FL("txCompleteSuccess: %d"), txCompleteSuccess);
 	return lim_send_disassoc_cnf(pMac);
 }
@@ -2650,7 +2634,7 @@ QDF_STATUS lim_disassoc_tx_complete_cnf(tpAniSirGlobal pMac,
 QDF_STATUS lim_deauth_tx_complete_cnf(tpAniSirGlobal pMac,
 				      uint32_t txCompleteSuccess)
 {
-	lim_log(pMac, LOG1,
+	lim_log(pMac, LOGD,
 		FL("txCompleteSuccess: %d"), txCompleteSuccess);
 	return lim_send_deauth_cnf(pMac);
 }
@@ -2709,7 +2693,7 @@ lim_send_disassoc_mgmt_frame(tpAniSirGlobal pMac,
 
 	nStatus = dot11f_get_packed_disassociation_size(pMac, &frm, &nPayload);
 	if (DOT11F_FAILED(nStatus)) {
-		lim_log(pMac, LOGP, FL("Failed to calculate the packed size f"
+		lim_log(pMac, LOGE, FL("Failed to calculate the packed size f"
 				       "or a Disassociation (0x%08x)."),
 			nStatus);
 		/* We'll fall back on the worst case scenario: */
@@ -2725,7 +2709,7 @@ lim_send_disassoc_mgmt_frame(tpAniSirGlobal pMac,
 	qdf_status = cds_packet_alloc((uint16_t) nBytes, (void **)&pFrame,
 				      (void **)&pPacket);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		lim_log(pMac, LOGP, FL("Failed to allocate %d bytes for a Dis"
+		lim_log(pMac, LOGE, FL("Failed to allocate %d bytes for a Dis"
 				       "association."), nBytes);
 		return;
 	}
@@ -2758,7 +2742,7 @@ lim_send_disassoc_mgmt_frame(tpAniSirGlobal pMac,
 				       "isassociation (0x%08x)."), nStatus);
 	}
 
-	lim_log(pMac, LOG1,
+	lim_log(pMac, LOGD,
 		FL("***Sessionid %d Sending Disassociation frame with "
 		   "reason %u and waitForAck %d to " MAC_ADDRESS_STR " ,From "
 		   MAC_ADDRESS_STR), psessionEntry->peSessionId, nReason,
@@ -2795,13 +2779,13 @@ lim_send_disassoc_mgmt_frame(tpAniSirGlobal pMac,
 		if (tx_timer_change
 			    (&pMac->lim.limTimers.gLimDisassocAckTimer, val, 0)
 		    != TX_SUCCESS) {
-			lim_log(pMac, LOGP,
+			lim_log(pMac, LOGE,
 				FL("Unable to change Disassoc ack Timer val"));
 			return;
 		} else if (TX_SUCCESS !=
 			   tx_timer_activate(&pMac->lim.limTimers.
 					     gLimDisassocAckTimer)) {
-			lim_log(pMac, LOGP,
+			lim_log(pMac, LOGE,
 				FL("Unable to activate Disassoc ack Timer"));
 			lim_deactivate_and_change_timer(pMac,
 							eLIM_DISASSOC_ACK_TIMER);
@@ -2888,7 +2872,7 @@ lim_send_deauth_mgmt_frame(tpAniSirGlobal pMac,
 
 	nStatus = dot11f_get_packed_de_auth_size(pMac, &frm, &nPayload);
 	if (DOT11F_FAILED(nStatus)) {
-		lim_log(pMac, LOGP, FL("Failed to calculate the packed size f"
+		lim_log(pMac, LOGE, FL("Failed to calculate the packed size f"
 				       "or a De-Authentication (0x%08x)."),
 			nStatus);
 		/* We'll fall back on the worst case scenario: */
@@ -2904,7 +2888,7 @@ lim_send_deauth_mgmt_frame(tpAniSirGlobal pMac,
 	qdf_status = cds_packet_alloc((uint16_t) nBytes, (void **)&pFrame,
 				      (void **)&pPacket);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		lim_log(pMac, LOGP, FL("Failed to allocate %d bytes for a De-"
+		lim_log(pMac, LOGE, FL("Failed to allocate %d bytes for a De-"
 				       "Authentication."), nBytes);
 		return;
 	}
@@ -2935,7 +2919,7 @@ lim_send_deauth_mgmt_frame(tpAniSirGlobal pMac,
 		lim_log(pMac, LOGW, FL("There were warnings while packing a D"
 				       "e-Authentication (0x%08x)."), nStatus);
 	}
-	lim_log(pMac, LOG1, FL("***Sessionid %d Sending Deauth frame with "
+	lim_log(pMac, LOGD, FL("***Sessionid %d Sending Deauth frame with "
 			       "reason %u and waitForAck %d to " MAC_ADDRESS_STR
 			       " ,From " MAC_ADDRESS_STR),
 		psessionEntry->peSessionId, nReason, waitForAck,
@@ -2988,13 +2972,13 @@ lim_send_deauth_mgmt_frame(tpAniSirGlobal pMac,
 		if (tx_timer_change
 			    (&pMac->lim.limTimers.gLimDeauthAckTimer, val, 0)
 		    != TX_SUCCESS) {
-			lim_log(pMac, LOGP,
+			lim_log(pMac, LOGE,
 				FL("Unable to change Deauth ack Timer val"));
 			return;
 		} else if (TX_SUCCESS !=
 			   tx_timer_activate(&pMac->lim.limTimers.
 					     gLimDeauthAckTimer)) {
-			lim_log(pMac, LOGP,
+			lim_log(pMac, LOGE,
 				FL("Unable to activate Deauth ack Timer"));
 			lim_deactivate_and_change_timer(pMac,
 							eLIM_DEAUTH_ACK_TIMER);
@@ -3097,7 +3081,7 @@ lim_send_meas_report_frame(tpAniSirGlobal pMac,
 
 	nStatus = dot11f_get_packed_measurement_report_size(pMac, &frm, &nPayload);
 	if (DOT11F_FAILED(nStatus)) {
-		lim_log(pMac, LOGP, FL("Failed to calculate the packed size f"
+		lim_log(pMac, LOGE, FL("Failed to calculate the packed size f"
 				       "or a Measurement Report (0x%08x)."),
 			nStatus);
 		/* We'll fall back on the worst case scenario: */
@@ -3115,7 +3099,7 @@ lim_send_meas_report_frame(tpAniSirGlobal pMac,
 				 (uint16_t) nBytes, (void **)&pFrame,
 				 (void **)&pPacket);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		lim_log(pMac, LOGP, FL("Failed to allocate %d bytes for a De-"
+		lim_log(pMac, LOGE, FL("Failed to allocate %d bytes for a De-"
 				       "Authentication."), nBytes);
 		return eSIR_FAILURE;
 	}
@@ -3202,7 +3186,7 @@ lim_send_tpc_request_frame(tpAniSirGlobal pMac,
 
 	nStatus = dot11f_get_packed_tpc_request_size(pMac, &frm, &nPayload);
 	if (DOT11F_FAILED(nStatus)) {
-		lim_log(pMac, LOGP, FL("Failed to calculate the packed size f"
+		lim_log(pMac, LOGE, FL("Failed to calculate the packed size f"
 				       "or a TPC Request (0x%08x)."), nStatus);
 		/* We'll fall back on the worst case scenario: */
 		nPayload = sizeof(tDot11fTPCRequest);
@@ -3219,7 +3203,7 @@ lim_send_tpc_request_frame(tpAniSirGlobal pMac,
 				 (uint16_t) nBytes, (void **)&pFrame,
 				 (void **)&pPacket);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		lim_log(pMac, LOGP, FL("Failed to allocate %d bytes for a TPC"
+		lim_log(pMac, LOGE, FL("Failed to allocate %d bytes for a TPC"
 				       " Request."), nBytes);
 		return;
 	}
@@ -3308,7 +3292,7 @@ lim_send_tpc_report_frame(tpAniSirGlobal pMac,
 
 	nStatus = dot11f_get_packed_tpc_report_size(pMac, &frm, &nPayload);
 	if (DOT11F_FAILED(nStatus)) {
-		lim_log(pMac, LOGP, FL("Failed to calculate the packed size f"
+		lim_log(pMac, LOGE, FL("Failed to calculate the packed size f"
 				       "or a TPC Report (0x%08x)."), nStatus);
 		/* We'll fall back on the worst case scenario: */
 		nPayload = sizeof(tDot11fTPCReport);
@@ -3325,7 +3309,7 @@ lim_send_tpc_report_frame(tpAniSirGlobal pMac,
 				 (uint16_t) nBytes, (void **)&pFrame,
 				 (void **)&pPacket);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		lim_log(pMac, LOGP, FL("Failed to allocate %d bytes for a TPC"
+		lim_log(pMac, LOGE, FL("Failed to allocate %d bytes for a TPC"
 				       " Report."), nBytes);
 		return eSIR_FAILURE;
 	}
@@ -3419,7 +3403,7 @@ lim_send_channel_switch_mgmt_frame(tpAniSirGlobal pMac,
 	uint8_t smeSessionId = 0;
 
 	if (psessionEntry == NULL) {
-		PELOGE(lim_log(pMac, LOGE, FL("Session entry is NULL!!!"));)
+		lim_log(pMac, LOGE, FL("Session entry is NULL!!!"));
 		return eSIR_FAILURE;
 	}
 	smeSessionId = psessionEntry->smeSessionId;
@@ -3435,7 +3419,7 @@ lim_send_channel_switch_mgmt_frame(tpAniSirGlobal pMac,
 
 	nStatus = dot11f_get_packed_channel_switch_size(pMac, &frm, &nPayload);
 	if (DOT11F_FAILED(nStatus)) {
-		lim_log(pMac, LOGP, FL("Failed to calculate the packed size f"
+		lim_log(pMac, LOGE, FL("Failed to calculate the packed size f"
 				       "or a Channel Switch (0x%08x)."),
 			nStatus);
 		/* We'll fall back on the worst case scenario: */
@@ -3452,7 +3436,7 @@ lim_send_channel_switch_mgmt_frame(tpAniSirGlobal pMac,
 		cds_packet_alloc((uint16_t) nBytes, (void **)&pFrame,
 				 (void **)&pPacket);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		lim_log(pMac, LOGP, FL("Failed to allocate %d bytes for a TPC"
+		lim_log(pMac, LOGE, FL("Failed to allocate %d bytes for a TPC"
 				       " Report."), nBytes);
 		return eSIR_FAILURE;
 	}
@@ -3563,7 +3547,7 @@ lim_send_extended_chan_switch_action_frame(tpAniSirGlobal mac_ctx,
 	status = dot11f_get_packed_ext_channel_switch_action_frame_size(mac_ctx,
 							    &frm, &n_payload);
 	if (DOT11F_FAILED(status)) {
-		lim_log(mac_ctx, LOGP,
+		lim_log(mac_ctx, LOGE,
 		 FL("Failed to get packed size for Channel Switch 0x%08x."),
 				 status);
 		/* We'll fall back on the worst case scenario*/
@@ -3580,7 +3564,7 @@ lim_send_extended_chan_switch_action_frame(tpAniSirGlobal mac_ctx,
 				(void **) &frame, (void **) &packet);
 
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		lim_log(mac_ctx, LOGP,
+		lim_log(mac_ctx, LOGE,
 		 FL("Failed to allocate %d bytes for a Ext Channel Switch."),
 								 num_bytes);
 		return eSIR_FAILURE;
@@ -3618,7 +3602,7 @@ lim_send_extended_chan_switch_action_frame(tpAniSirGlobal mac_ctx,
 		txFlag |= HAL_USE_BD_RATE2_FOR_MANAGEMENT_FRAME;
 	}
 
-	lim_log(mac_ctx, LOG1,
+	lim_log(mac_ctx, LOGD,
 	 FL("Send Ext channel Switch to :"MAC_ADDRESS_STR" with swcount %d, swmode %d , newchannel %d newops %d"),
 		MAC_ADDR_ARRAY(mac_hdr->da),
 		frm.ext_chan_switch_ann_action.switch_count,
@@ -3661,7 +3645,7 @@ static QDF_STATUS lim_oper_chan_change_confirm_tx_complete_cnf(
 			tpAniSirGlobal mac_ctx,
 			uint32_t tx_complete)
 {
-	lim_log(mac_ctx, LOG1,
+	lim_log(mac_ctx, LOGD,
 		 FL(" tx_complete= %d"), tx_complete);
 	return QDF_STATUS_SUCCESS;
 }
@@ -3708,12 +3692,13 @@ lim_p2p_oper_chan_change_confirm_action_frame(tpAniSirGlobal mac_ctx,
 	frm.DialogToken.token = 0x0;
 
 	if (session_entry->htCapability) {
-		lim_log(mac_ctx, LOG1, FL("Populate HT Caps in Assoc Request"));
+		lim_log(mac_ctx, LOGD, FL("Populate HT Caps in Assoc Request"));
 		populate_dot11f_ht_caps(mac_ctx, session_entry, &frm.HTCaps);
 	}
 
 	if (session_entry->vhtCapability) {
-		lim_log(mac_ctx, LOG1, FL("Populate VHT Caps in Assoc Request"));
+		lim_log(mac_ctx, LOGD,
+			FL("Populate VHT Caps in Assoc Request"));
 		populate_dot11f_vht_caps(mac_ctx, session_entry, &frm.VHTCaps);
 		populate_dot11f_operating_mode(mac_ctx,
 					&frm.OperatingMode, session_entry);
@@ -3722,7 +3707,7 @@ lim_p2p_oper_chan_change_confirm_action_frame(tpAniSirGlobal mac_ctx,
 	status = dot11f_get_packed_p2p_oper_chan_change_confirmSize(mac_ctx,
 							    &frm, &n_payload);
 	if (DOT11F_FAILED(status)) {
-		lim_log(mac_ctx, LOGP,
+		lim_log(mac_ctx, LOGE,
 		 FL("Failed to get packed size 0x%08x."),
 				 status);
 		/* We'll fall back on the worst case scenario*/
@@ -3739,7 +3724,7 @@ lim_p2p_oper_chan_change_confirm_action_frame(tpAniSirGlobal mac_ctx,
 				(void **) &frame, (void **) &packet);
 
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		lim_log(mac_ctx, LOGP,
+		lim_log(mac_ctx, LOGE,
 		 FL("Failed to allocate %d bytes."),
 								 num_bytes);
 		return eSIR_FAILURE;
@@ -3775,7 +3760,7 @@ lim_p2p_oper_chan_change_confirm_action_frame(tpAniSirGlobal mac_ctx,
 		(session_entry->pePersona == QDF_P2P_GO_MODE)) {
 		tx_flag |= HAL_USE_BD_RATE2_FOR_MANAGEMENT_FRAME;
 	}
-	lim_log(mac_ctx, LOG1, FL("Send frame on channel %d to mac "
+	lim_log(mac_ctx, LOGD, FL("Send frame on channel %d to mac "
 		MAC_ADDRESS_STR), session_entry->currentOperChannel,
 		MAC_ADDR_ARRAY(peer));
 
@@ -3818,7 +3803,7 @@ lim_send_vht_opmode_notification_frame(tpAniSirGlobal pMac,
 	uint8_t smeSessionId = 0;
 
 	if (psessionEntry == NULL) {
-		PELOGE(lim_log(pMac, LOGE, FL("Session entry is NULL!!!"));)
+		lim_log(pMac, LOGE, FL("Session entry is NULL!!!"));
 		return eSIR_FAILURE;
 	}
 	smeSessionId = psessionEntry->smeSessionId;
@@ -3833,7 +3818,7 @@ lim_send_vht_opmode_notification_frame(tpAniSirGlobal pMac,
 
 	nStatus = dot11f_get_packed_operating_mode_size(pMac, &frm, &nPayload);
 	if (DOT11F_FAILED(nStatus)) {
-		lim_log(pMac, LOGP, FL("Failed to calculate the packed size f"
+		lim_log(pMac, LOGE, FL("Failed to calculate the packed size f"
 				       "or a Operating Mode (0x%08x)."),
 			nStatus);
 		/* We'll fall back on the worst case scenario: */
@@ -3850,7 +3835,7 @@ lim_send_vht_opmode_notification_frame(tpAniSirGlobal pMac,
 		cds_packet_alloc((uint16_t) nBytes, (void **)&pFrame,
 				 (void **)&pPacket);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		lim_log(pMac, LOGP,
+		lim_log(pMac, LOGE,
 			FL("Failed to allocate %d bytes for a Operating Mode"
 			   " Report."), nBytes);
 		return eSIR_FAILURE;
@@ -3963,7 +3948,7 @@ lim_send_neighbor_report_request_frame(tpAniSirGlobal pMac,
 	nStatus =
 		dot11f_get_packed_neighbor_report_request_size(pMac, &frm, &nPayload);
 	if (DOT11F_FAILED(nStatus)) {
-		lim_log(pMac, LOGP, FL("Failed to calculate the packed size f"
+		lim_log(pMac, LOGE, FL("Failed to calculate the packed size f"
 				       "or a Neighbor Report Request(0x%08x)."),
 			nStatus);
 		/* We'll fall back on the worst case scenario: */
@@ -3980,7 +3965,7 @@ lim_send_neighbor_report_request_frame(tpAniSirGlobal pMac,
 		cds_packet_alloc((uint16_t) nBytes, (void **)&pFrame,
 				 (void **)&pPacket);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		lim_log(pMac, LOGP,
+		lim_log(pMac, LOGE,
 			FL("Failed to allocate %d bytes for a Neighbor "
 			   "Report Request."), nBytes);
 		return eSIR_FAILURE;
@@ -4023,8 +4008,8 @@ lim_send_neighbor_report_request_frame(tpAniSirGlobal pMac,
 			   "Request (0x%08x)."), nStatus);
 	}
 
-	lim_log(pMac, LOGW, FL("Sending a Neighbor Report Request to "));
-	lim_print_mac_addr(pMac, peer, LOGW);
+	lim_log(pMac, LOGD, FL("Sending a Neighbor Report Request to "));
+	lim_print_mac_addr(pMac, peer, LOGD);
 
 	if ((SIR_BAND_5_GHZ == lim_get_rf_band(psessionEntry->currentOperChannel))
 	    || (psessionEntry->pePersona == QDF_P2P_CLIENT_MODE) ||
@@ -4045,10 +4030,8 @@ lim_send_neighbor_report_request_frame(tpAniSirGlobal pMac,
 	MTRACE(qdf_trace(QDF_MODULE_ID_PE, TRACE_CODE_TX_COMPLETE,
 			 psessionEntry->peSessionId, qdf_status));
 	if (QDF_STATUS_SUCCESS != qdf_status) {
-		PELOGE(lim_log
-			       (pMac, LOGE, FL("wma_tx_frame FAILED! Status [%d]"),
+		lim_log(pMac, LOGE, FL("wma_tx_frame FAILED! Status [%d]"),
 			       qdf_status);
-		       )
 		statusCode = eSIR_FAILURE;
 		/* Pkt will be freed up by the callback */
 		return statusCode;
@@ -4124,7 +4107,7 @@ lim_send_link_report_action_frame(tpAniSirGlobal pMac,
 	nStatus =
 		dot11f_get_packed_link_measurement_report_size(pMac, &frm, &nPayload);
 	if (DOT11F_FAILED(nStatus)) {
-		lim_log(pMac, LOGP, FL("Failed to calculate the packed size f"
+		lim_log(pMac, LOGE, FL("Failed to calculate the packed size f"
 				       "or a Link Report (0x%08x)."), nStatus);
 		/* We'll fall back on the worst case scenario: */
 		nPayload = sizeof(tDot11fLinkMeasurementReport);
@@ -4140,7 +4123,7 @@ lim_send_link_report_action_frame(tpAniSirGlobal pMac,
 		cds_packet_alloc((uint16_t) nBytes, (void **)&pFrame,
 				 (void **)&pPacket);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		lim_log(pMac, LOGP, FL("Failed to allocate %d bytes for a Link "
+		lim_log(pMac, LOGE, FL("Failed to allocate %d bytes for a Link "
 				       "Report."), nBytes);
 		return eSIR_FAILURE;
 	}
@@ -4202,10 +4185,8 @@ lim_send_link_report_action_frame(tpAniSirGlobal pMac,
 	MTRACE(qdf_trace(QDF_MODULE_ID_PE, TRACE_CODE_TX_COMPLETE,
 			 psessionEntry->peSessionId, qdf_status));
 	if (QDF_STATUS_SUCCESS != qdf_status) {
-		PELOGE(lim_log
-			       (pMac, LOGE, FL("wma_tx_frame FAILED! Status [%d]"),
+		lim_log(pMac, LOGE, FL("wma_tx_frame FAILED! Status [%d]"),
 			       qdf_status);
-		       )
 		statusCode = eSIR_FAILURE;
 		/* Pkt will be freed up by the callback */
 		return statusCode;
@@ -4274,7 +4255,7 @@ lim_send_radio_measure_report_action_frame(tpAniSirGlobal pMac,
 		return eSIR_FAILURE;
 	}
 
-	lim_log(pMac, LOG1, FL("dialog_token %d num_report %d"),
+	lim_log(pMac, LOGD, FL("dialog_token %d num_report %d"),
 			dialog_token, num_report);
 
 	frm->Category.category = SIR_MAC_ACTION_RRM;
@@ -4315,7 +4296,7 @@ lim_send_radio_measure_report_action_frame(tpAniSirGlobal pMac,
 	nStatus =
 		dot11f_get_packed_radio_measurement_report_size(pMac, frm, &nPayload);
 	if (DOT11F_FAILED(nStatus)) {
-		lim_log(pMac, LOGP, FL("Failed to calculate the packed size f"
+		lim_log(pMac, LOGE, FL("Failed to calculate the packed size f"
 				       "or a Radio Measure Report (0x%08x)."),
 			nStatus);
 		/* We'll fall back on the worst case scenario: */
@@ -4334,7 +4315,7 @@ lim_send_radio_measure_report_action_frame(tpAniSirGlobal pMac,
 		cds_packet_alloc((uint16_t) nBytes, (void **)&pFrame,
 				 (void **)&pPacket);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		lim_log(pMac, LOGP,
+		lim_log(pMac, LOGE,
 			FL("Failed to allocate %d bytes for a Radio Measure "
 			   "Report."), nBytes);
 		qdf_mem_free(frm);
@@ -4399,10 +4380,8 @@ lim_send_radio_measure_report_action_frame(tpAniSirGlobal pMac,
 	MTRACE(qdf_trace(QDF_MODULE_ID_PE, TRACE_CODE_TX_COMPLETE,
 			 psessionEntry->peSessionId, qdf_status));
 	if (QDF_STATUS_SUCCESS != qdf_status) {
-		PELOGE(lim_log
-			       (pMac, LOGE, FL("wma_tx_frame FAILED! Status [%d]"),
+		lim_log(pMac, LOGE, FL("wma_tx_frame FAILED! Status [%d]"),
 			       qdf_status);
-		       )
 		statusCode = eSIR_FAILURE;
 		/* Pkt will be freed up by the callback */
 		qdf_mem_free(frm);
@@ -4463,7 +4442,7 @@ tSirRetStatus lim_send_sa_query_request_frame(tpAniSirGlobal pMac, uint8_t *tran
 
 	nStatus = dot11f_get_packed_sa_query_req_size(pMac, &frm, &nPayload);
 	if (DOT11F_FAILED(nStatus)) {
-		lim_log(pMac, LOGP, FL("Failed to calculate the packed size "
+		lim_log(pMac, LOGE, FL("Failed to calculate the packed size "
 				       "for an SA Query Request (0x%08x)."),
 			nStatus);
 		/* We'll fall back on the worst case scenario: */
@@ -4478,7 +4457,7 @@ tSirRetStatus lim_send_sa_query_request_frame(tpAniSirGlobal pMac, uint8_t *tran
 	qdf_status =
 		cds_packet_alloc(nBytes, (void **)&pFrame, (void **)&pPacket);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		lim_log(pMac, LOGP,
+		lim_log(pMac, LOGE,
 			FL("Failed to allocate %d bytes for a SA Query Request "
 			   "action frame"), nBytes);
 		return eSIR_FAILURE;
@@ -4519,10 +4498,10 @@ tSirRetStatus lim_send_sa_query_request_frame(tpAniSirGlobal pMac, uint8_t *tran
 			nStatus);
 	}
 
-	lim_log(pMac, LOG1, FL("Sending an SA Query Request to "));
-	lim_print_mac_addr(pMac, peer, LOG1);
-	lim_log(pMac, LOG1, FL("Sending an SA Query Request from "));
-	lim_print_mac_addr(pMac, psessionEntry->selfMacAddr, LOG1);
+	lim_log(pMac, LOGD, FL("Sending an SA Query Request to "));
+	lim_print_mac_addr(pMac, peer, LOGD);
+	lim_log(pMac, LOGD, FL("Sending an SA Query Request from "));
+	lim_print_mac_addr(pMac, psessionEntry->selfMacAddr, LOGD);
 
 	if ((SIR_BAND_5_GHZ == lim_get_rf_band(psessionEntry->currentOperChannel))
 #ifdef WLAN_FEATURE_P2P
@@ -4542,10 +4521,8 @@ tSirRetStatus lim_send_sa_query_request_frame(tpAniSirGlobal pMac, uint8_t *tran
 				7, lim_tx_complete, pFrame, txFlag,
 				smeSessionId, 0);
 	if (QDF_STATUS_SUCCESS != qdf_status) {
-		PELOGE(lim_log
-			       (pMac, LOGE, FL("wma_tx_frame FAILED! Status [%d]"),
+		lim_log(pMac, LOGE, FL("wma_tx_frame FAILED! Status [%d]"),
 			       qdf_status);
-		       )
 		nSirStatus = eSIR_FAILURE;
 		/* Pkt will be freed up by the callback */
 		return nSirStatus;
@@ -4605,7 +4582,7 @@ tSirRetStatus lim_send_sa_query_response_frame(tpAniSirGlobal pMac,
 
 	nStatus = dot11f_get_packed_sa_query_rsp_size(pMac, &frm, &nPayload);
 	if (DOT11F_FAILED(nStatus)) {
-		lim_log(pMac, LOGP, FL("Failed to calculate the packed size f"
+		lim_log(pMac, LOGE, FL("Failed to calculate the packed size f"
 				       "or a SA Query Response (0x%08x)."),
 			nStatus);
 		/* We'll fall back on the worst case scenario: */
@@ -4620,7 +4597,7 @@ tSirRetStatus lim_send_sa_query_response_frame(tpAniSirGlobal pMac,
 	qdf_status =
 		cds_packet_alloc(nBytes, (void **)&pFrame, (void **)&pPacket);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		lim_log(pMac, LOGP,
+		lim_log(pMac, LOGE,
 			FL("Failed to allocate %d bytes for a SA query response"
 			   " action frame"), nBytes);
 		return eSIR_FAILURE;
@@ -4661,8 +4638,8 @@ tSirRetStatus lim_send_sa_query_response_frame(tpAniSirGlobal pMac,
 			nStatus);
 	}
 
-	lim_log(pMac, LOG1, FL("Sending a SA Query Response to "));
-	lim_print_mac_addr(pMac, peer, LOGW);
+	lim_log(pMac, LOGD, FL("Sending a SA Query Response to "));
+	lim_print_mac_addr(pMac, peer, LOGD);
 
 	if ((SIR_BAND_5_GHZ == lim_get_rf_band(psessionEntry->currentOperChannel))
 #ifdef WLAN_FEATURE_P2P
@@ -4685,10 +4662,8 @@ tSirRetStatus lim_send_sa_query_response_frame(tpAniSirGlobal pMac,
 	MTRACE(qdf_trace(QDF_MODULE_ID_PE, TRACE_CODE_TX_COMPLETE,
 			 psessionEntry->peSessionId, qdf_status));
 	if (QDF_STATUS_SUCCESS != qdf_status) {
-		PELOGE(lim_log
-			       (pMac, LOGE, FL("wma_tx_frame FAILED! Status [%d]"),
+		lim_log(pMac, LOGE, FL("wma_tx_frame FAILED! Status [%d]"),
 			       qdf_status);
-		       )
 		nSirStatus = eSIR_FAILURE;
 		/* Pkt will be freed up by the callback */
 		return nSirStatus;

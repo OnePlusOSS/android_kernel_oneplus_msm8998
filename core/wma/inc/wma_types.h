@@ -494,6 +494,8 @@
 #define WDA_SET_UDP_RESP_OFFLOAD             SIR_HAL_SET_UDP_RESP_OFFLOAD
 
 #define WMA_SET_PER_ROAM_CONFIG_CMD          SIR_HAL_SET_PER_ROAM_CONFIG_CMD
+#define WMA_SET_ARP_STATS_REQ                SIR_HAL_SET_ARP_STATS_REQ
+#define WMA_GET_ARP_STATS_REQ                SIR_HAL_GET_ARP_STATS_REQ
 
 /* Bit 6 will be used to control BD rate for Management frames */
 #define HAL_USE_BD_RATE2_FOR_MANAGEMENT_FRAME 0x40
@@ -730,7 +732,7 @@ QDF_STATUS wma_register_mgmt_frm_client(void *p_cds_gctx,
 QDF_STATUS wma_de_register_mgmt_frm_client(void *p_cds_gctx);
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 QDF_STATUS wma_register_roaming_callbacks(void *cds_ctx,
-		void (*csr_roam_synch_cb)(tpAniSirGlobal mac,
+		QDF_STATUS (*csr_roam_synch_cb)(tpAniSirGlobal mac,
 			roam_offload_synch_ind *roam_synch_data,
 			tpSirBssDescription  bss_desc_ptr,
 			enum sir_roam_op_code reason),
@@ -739,7 +741,7 @@ QDF_STATUS wma_register_roaming_callbacks(void *cds_ctx,
 			tpSirBssDescription  bss_desc_ptr));
 #else
 static inline QDF_STATUS wma_register_roaming_callbacks(void *cds_ctx,
-		void (*csr_roam_synch_cb)(tpAniSirGlobal mac,
+		QDF_STATUS (*csr_roam_synch_cb)(tpAniSirGlobal mac,
 			roam_offload_synch_ind *roam_synch_data,
 			tpSirBssDescription  bss_desc_ptr,
 			enum sir_roam_op_code reason),

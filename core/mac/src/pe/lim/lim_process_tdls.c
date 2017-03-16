@@ -257,14 +257,14 @@ static void populate_dot11f_tdls_offchannel_params(
 		    (NSS_2x2_MODE == nss_5g) &&
 		    (NSS_1x1_MODE == nss_2g) &&
 		    (true == CDS_IS_DFS_CH(validChan[i]))) {
-			lim_log(pMac, LOG1,
+			lim_log(pMac, LOGD,
 				FL("skipping channel %d, nss_5g: %d, nss_2g: %d"),
 				validChan[i], nss_5g, nss_2g);
 			continue;
 		} else {
 			if (true == cds_is_dsrc_channel(
 				cds_chan_to_freq(validChan[i]))) {
-				lim_log(pMac, LOG1,
+				lim_log(pMac, LOGD,
 					FL("skipping channel %d from the valid channel list"),
 					validChan[i]);
 				continue;
@@ -316,7 +316,7 @@ static void populate_dot11f_tdls_offchannel_params(
 			psessionEntry->htSecondaryChannelOffset,
 			chanOffset);
 	} else {
-		lim_log(pMac, LOG1,
+		lim_log(pMac, LOGD,
 			FL(
 			   "Present Operating channel: %d chanOffset: %d, op class=%d"
 			  ),
@@ -468,7 +468,7 @@ static uint32_t lim_prepare_tdls_frame_header(tpAniSirGlobal pMac, uint8_t *pFra
 	qdf_mem_copy((uint8_t *) pMacHdr->addr3,
 		     (uint8_t *) (addr3), sizeof(tSirMacAddr));
 
-	lim_log(pMac, LOG1,
+	lim_log(pMac, LOGD,
 		FL(
 		   "Preparing TDLS frame header to %s A1:"
 		   MAC_ADDRESS_STR", A2:"MAC_ADDRESS_STR", A3:"
@@ -511,7 +511,7 @@ static uint32_t lim_prepare_tdls_frame_header(tpAniSirGlobal pMac, uint8_t *pFra
 static QDF_STATUS lim_mgmt_tdls_tx_complete(tpAniSirGlobal mac_ctx,
 					    uint32_t tx_complete)
 {
-	lim_log(mac_ctx, LOG1, FL("tdls_frm_session_id %x tx_complete %x"),
+	lim_log(mac_ctx, LOGD, FL("tdls_frm_session_id %x tx_complete %x"),
 		mac_ctx->lim.tdls_frm_session_id, tx_complete);
 
 	if (NO_SESSION != mac_ctx->lim.tdls_frm_session_id) {
@@ -575,10 +575,8 @@ static tSirRetStatus lim_send_tdls_dis_req_frame(tpAniSirGlobal pMac,
 	 */
 	status = dot11f_get_packed_tdls_dis_req_size(pMac, &tdlsDisReq, &nPayload);
 	if (DOT11F_FAILED(status)) {
-		lim_log(pMac, LOGP,
-			FL(
-			   "Failed to calculate the packed size for a discovery Request (0x%08x)."
-			  ),
+		lim_log(pMac, LOGE,
+			FL("Failed to calculate the packed size for a discovery Request (0x%08x)."),
 			status);
 		/* We'll fall back on the worst case scenario: */
 		nPayload = sizeof(tDot11fTDLSDisReq);
@@ -624,7 +622,7 @@ static tSirRetStatus lim_send_tdls_dis_req_frame(tpAniSirGlobal pMac,
 	qdf_status = cds_packet_alloc((uint16_t) nBytes, (void **)&pFrame,
 				      (void **)&pPacket);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		lim_log(pMac, LOGP,
+		lim_log(pMac, LOGE,
 			FL(
 			   "Failed to allocate %d bytes for a TDLS Discovery Request."
 			  ),
@@ -664,6 +662,7 @@ static tSirRetStatus lim_send_tdls_dis_req_frame(tpAniSirGlobal pMac,
 			  ),
 			status);
 	}
+
 #ifndef NO_PAD_TDLS_MIN_8023_SIZE
 	if (padLen != 0) {
 		/* QCOM VENDOR OUI = { 0x00, 0xA0, 0xC6, type = 0x0000 }; */
@@ -686,7 +685,7 @@ static tSirRetStatus lim_send_tdls_dis_req_frame(tpAniSirGlobal pMac,
 	}
 #endif
 
-	lim_log(pMac, LOG1,
+	lim_log(pMac, LOGD,
 		FL("[TDLS] action %d (%s) -AP-> OTA peer="MAC_ADDRESS_STR),
 		SIR_MAC_TDLS_DIS_REQ,
 		lim_trace_tdls_action_string(SIR_MAC_TDLS_DIS_REQ),
@@ -762,7 +761,7 @@ static void populate_dot11f_tdls_ht_vht_cap(tpAniSirGlobal pMac,
 	} else {
 		htCap->present = 0;
 	}
-	lim_log(pMac, LOG1, FL("HT present = %hu, Chan Width = %hu"),
+	lim_log(pMac, LOGD, FL("HT present = %hu, Chan Width = %hu"),
 		htCap->present, htCap->supportedChannelWidthSet);
 	if (((psessionEntry->currentOperChannel <= SIR_11B_CHANNEL_END) &&
 	     pMac->roam.configParam.enableVhtFor24GHz) ||
@@ -814,7 +813,7 @@ static void populate_dot11f_tdls_ht_vht_cap(tpAniSirGlobal pMac,
 		/* Vht Disable from ini in 2.4 GHz */
 		vhtCap->present = 0;
 	}
-	lim_log(pMac, LOG1, FL("VHT present = %hu, Chan Width = %hu"),
+	lim_log(pMac, LOGD, FL("VHT present = %hu, Chan Width = %hu"),
 		vhtCap->present, vhtCap->supportedChannelWidthSet);
 }
 
@@ -914,7 +913,7 @@ static tSirRetStatus lim_send_tdls_dis_rsp_frame(tpAniSirGlobal pMac,
 			tdlsDisRsp.ht2040_bss_coexistence.info_request = 1;
 		}
 	} else {
-		lim_log(pMac, LOG1,
+		lim_log(pMac, LOGD,
 			FL("TDLS offchan not enabled, or channel switch prohibited by AP, gLimTDLSOffChannelEnabled (%d), tdls_chan_swit_prohibited (%d)"),
 			pMac->lim.gLimTDLSOffChannelEnabled,
 			psessionEntry->tdls_chan_swit_prohibited);
@@ -1000,13 +999,14 @@ static tSirRetStatus lim_send_tdls_dis_rsp_frame(tpAniSirGlobal pMac,
 			  ),
 			status);
 	}
+
 	if (0 != addIeLen) {
-		lim_log(pMac, LOG1,
+		lim_log(pMac, LOGD,
 			FL("Copy Additional Ie Len = %d"), addIeLen);
 		qdf_mem_copy(pFrame + sizeof(tSirMacMgmtHdr) + nPayload, addIe,
 			     addIeLen);
 	}
-	lim_log(pMac, LOG1,
+	lim_log(pMac, LOGD,
 		FL("[TDLS] action %d (%s) -DIRECT-> OTA peer="MAC_ADDRESS_STR),
 		SIR_MAC_TDLS_DIS_RSP,
 		lim_trace_tdls_action_string(SIR_MAC_TDLS_DIS_RSP),
@@ -1215,7 +1215,7 @@ tSirRetStatus lim_send_tdls_link_setup_req_frame(tpAniSirGlobal pMac,
 	if (1 == pMac->lim.gLimTDLSWmmMode) {
 		uint32_t val = 0;
 
-		lim_log(pMac, LOG1,
+		lim_log(pMac, LOGD,
 			FL("populate WMM IE in Setup Request Frame"));
 		/* include WMM IE */
 		tdlsSetupReq.WMMInfoStation.version = SIR_MAC_OUI_VERSION_1;
@@ -1252,7 +1252,7 @@ tSirRetStatus lim_send_tdls_link_setup_req_frame(tpAniSirGlobal pMac,
 		 * on AP's capability
 		 */
 
-		lim_log(pMac, LOG1,
+		lim_log(pMac, LOGD,
 			FL("populate QOS IE in Setup Request Frame"));
 		tdlsSetupReq.QOSCapsStation.present = 1;
 		tdlsSetupReq.QOSCapsStation.max_sp_length = 0;
@@ -1298,7 +1298,7 @@ tSirRetStatus lim_send_tdls_link_setup_req_frame(tpAniSirGlobal pMac,
 			tdlsSetupReq.ht2040_bss_coexistence.info_request = 1;
 		}
 	} else {
-		lim_log(pMac, LOG1,
+		lim_log(pMac, LOGD,
 			FL("TDLS offchan not enabled, or channel switch prohibited by AP, gLimTDLSOffChannelEnabled (%d), tdls_chan_swit_prohibited (%d)"),
 			pMac->lim.gLimTDLSOffChannelEnabled,
 			psessionEntry->tdls_chan_swit_prohibited);
@@ -1364,7 +1364,7 @@ tSirRetStatus lim_send_tdls_link_setup_req_frame(tpAniSirGlobal pMac,
 						      TDLS_INITIATOR, TID_AC_VI,
 						      psessionEntry);
 
-	lim_log(pMac, LOGW,
+	lim_log(pMac, LOGD,
 		FL(
 		   "SupportedChnlWidth %x rxMCSMap %x rxMCSMap %x txSupDataRate %x"
 		  ),
@@ -1389,18 +1389,19 @@ tSirRetStatus lim_send_tdls_link_setup_req_frame(tpAniSirGlobal pMac,
 			  ),
 			status);
 	}
+
 	/* Copy the additional IE. */
 	/* TODO : addIe is added at the end of the frame. This means it doesnt */
 	/* follow the order. This should be ok, but we should consider changing this */
 	/* if there is any IOT issue. */
 	if (addIeLen != 0) {
-		lim_log(pMac, LOG1, FL("Copy Additional Ie Len = %d"),
+		lim_log(pMac, LOGD, FL("Copy Additional Ie Len = %d"),
 		       addIeLen);
 		qdf_mem_copy(pFrame + header_offset + nPayload, addIe,
 			     addIeLen);
 	}
 
-	lim_log(pMac, LOG1,
+	lim_log(pMac, LOGD,
 		FL("[TDLS] action %d (%s) -AP-> OTA peer="MAC_ADDRESS_STR),
 		SIR_MAC_TDLS_SETUP_REQ,
 		lim_trace_tdls_action_string(SIR_MAC_TDLS_SETUP_REQ),
@@ -1598,7 +1599,7 @@ tSirRetStatus lim_send_tdls_teardown_frame(tpAniSirGlobal pMac,
 		padVendorSpecific[3] = 0xA0;
 		padVendorSpecific[4] = 0xC6;
 
-		lim_log(pMac, LOG1, FL("Padding Vendor Specific Ie Len = %d"),
+		lim_log(pMac, LOGD, FL("Padding Vendor Specific Ie Len = %d"),
 			padLen);
 
 		/* padding zero if more than 5 bytes are required */
@@ -1608,7 +1609,7 @@ tSirRetStatus lim_send_tdls_teardown_frame(tpAniSirGlobal pMac,
 				    padLen - MIN_VENDOR_SPECIFIC_IE_SIZE, 0);
 	}
 #endif
-	lim_log(pMac, LOG1,
+	lim_log(pMac, LOGD,
 		FL("[TDLS] action %d (%s) -%s-> OTA peer="MAC_ADDRESS_STR),
 		SIR_MAC_TDLS_TEARDOWN,
 		lim_trace_tdls_action_string(SIR_MAC_TDLS_TEARDOWN),
@@ -1714,7 +1715,7 @@ static tSirRetStatus lim_send_tdls_setup_rsp_frame(tpAniSirGlobal pMac,
 	if (1 == pMac->lim.gLimTDLSWmmMode) {
 		uint32_t val = 0;
 
-		lim_log(pMac, LOG1,
+		lim_log(pMac, LOGD,
 			FL("populate WMM IE in Setup Response frame"));
 		/* include WMM IE */
 		tdlsSetupRsp.WMMInfoStation.version = SIR_MAC_OUI_VERSION_1;
@@ -1747,7 +1748,7 @@ static tSirRetStatus lim_send_tdls_setup_rsp_frame(tpAniSirGlobal pMac,
 		 * capability, and TDLS doesn't want to depend on AP's
 		 * capability
 		 */
-		lim_log(pMac, LOG1,
+		lim_log(pMac, LOGD,
 			FL("populate QOS IE in Setup Response frame"));
 		tdlsSetupRsp.QOSCapsStation.present = 1;
 		tdlsSetupRsp.QOSCapsStation.max_sp_length = 0;
@@ -1787,7 +1788,7 @@ static tSirRetStatus lim_send_tdls_setup_rsp_frame(tpAniSirGlobal pMac,
 			tdlsSetupRsp.ht2040_bss_coexistence.info_request = 1;
 		}
 	} else {
-		lim_log(pMac, LOG1,
+		lim_log(pMac, LOGD,
 			FL("TDLS offchan not enabled, or channel switch prohibited by AP, gLimTDLSOffChannelEnabled (%d), tdls_chan_swit_prohibited (%d)"),
 			pMac->lim.gLimTDLSOffChannelEnabled,
 			psessionEntry->tdls_chan_swit_prohibited);
@@ -1854,7 +1855,7 @@ static tSirRetStatus lim_send_tdls_setup_rsp_frame(tpAniSirGlobal pMac,
 						      TDLS_RESPONDER, TID_AC_VI,
 						      psessionEntry);
 
-	lim_log(pMac, LOG1,
+	lim_log(pMac, LOGD,
 		FL(
 		   "SupportedChnlWidth %x rxMCSMap %x rxMCSMap %x txSupDataRate %x"
 		  ),
@@ -1879,6 +1880,7 @@ static tSirRetStatus lim_send_tdls_setup_rsp_frame(tpAniSirGlobal pMac,
 			  ),
 			status);
 	}
+
 	/* Copy the additional IE. */
 	/* TODO : addIe is added at the end of the frame. This means it doesnt */
 	/* follow the order. This should be ok, but we should consider changing this */
@@ -1888,7 +1890,7 @@ static tSirRetStatus lim_send_tdls_setup_rsp_frame(tpAniSirGlobal pMac,
 			     addIeLen);
 	}
 
-	lim_log(pMac, LOG1,
+	lim_log(pMac, LOGD,
 		FL("[TDLS] action %d (%s) -AP-> OTA peer="MAC_ADDRESS_STR),
 		SIR_MAC_TDLS_SETUP_RSP,
 		lim_trace_tdls_action_string(SIR_MAC_TDLS_SETUP_RSP),
@@ -1965,7 +1967,7 @@ tSirRetStatus lim_send_tdls_link_setup_cnf_frame(tpAniSirGlobal pMac,
 	/* Check self and peer WMM capable */
 	if ((1 == pMac->lim.gLimTDLSWmmMode) &&
 	    (CHECK_BIT(peerCapability, TDLS_PEER_WMM_CAP))) {
-		lim_log(pMac, LOG1, FL("populate WMM praram in Setup Confirm"));
+		lim_log(pMac, LOGD, FL("populate WMM praram in Setup Confirm"));
 		populate_dot11f_wmm_params(pMac, &tdlsSetupCnf.WMMParams,
 					   psessionEntry);
 	}
@@ -2074,6 +2076,7 @@ tSirRetStatus lim_send_tdls_link_setup_cnf_frame(tpAniSirGlobal pMac,
 			  ),
 			status);
 	}
+
 	/* Copy the additional IE. */
 	/* TODO : addIe is added at the end of the frame. This means it doesnt */
 	/* follow the order. This should be ok, but we should consider changing this */
@@ -2094,7 +2097,7 @@ tSirRetStatus lim_send_tdls_link_setup_cnf_frame(tpAniSirGlobal pMac,
 		padVendorSpecific[3] = 0xA0;
 		padVendorSpecific[4] = 0xC6;
 
-		lim_log(pMac, LOG1, FL("Padding Vendor Specific Ie Len = %d"),
+		lim_log(pMac, LOGD, FL("Padding Vendor Specific Ie Len = %d"),
 			padLen);
 
 		/* padding zero if more than 5 bytes are required */
@@ -2105,7 +2108,7 @@ tSirRetStatus lim_send_tdls_link_setup_cnf_frame(tpAniSirGlobal pMac,
 	}
 #endif
 
-	lim_log(pMac, LOG1,
+	lim_log(pMac, LOGD,
 		FL("[TDLS] action %d (%s) -AP-> OTA peer="MAC_ADDRESS_STR),
 		SIR_MAC_TDLS_SETUP_CNF,
 		lim_trace_tdls_action_string(SIR_MAC_TDLS_SETUP_CNF),
@@ -2191,7 +2194,7 @@ static tSirRetStatus lim_tdls_populate_dot11f_ht_caps(tpAniSirGlobal pMac,
 		pDot11f->shortGI40MHz = 0;
 	}
 
-	lim_log(pMac, LOG1,
+	lim_log(pMac, LOGD,
 		FL(
 		   "SupportedChnlWidth: %d, mimoPS: %d, GF: %d, shortGI20:%d, shortGI40: %d, dsssCck: %d"
 		  ),
@@ -2211,7 +2214,7 @@ static tSirRetStatus lim_tdls_populate_dot11f_ht_caps(tpAniSirGlobal pMac,
 	pDot11f->mpduDensity = pHTParametersInfo->mpduDensity;
 	pDot11f->reserved1 = pHTParametersInfo->reserved;
 
-	lim_log(pMac, LOG1, FL("AMPDU Param: %x"), nCfgValue);
+	lim_log(pMac, LOGD, FL("AMPDU Param: %x"), nCfgValue);
 
 	qdf_mem_copy(pDot11f->supportedMCSSet, pTdlsAddStaReq->htCap.suppMcsSet,
 		     SIZE_OF_SUPPORTED_MCS_SET);
@@ -2504,7 +2507,7 @@ lim_tdls_populate_matching_rate_set(tpAniSirGlobal mac_ctx, tpDphHashNode stads,
 		if (wlan_cfg_get_str(mac_ctx, WNI_CFG_SUPPORTED_MCS_SET,
 				     mcsSet, &val) != eSIR_SUCCESS) {
 			/* Could not get rateset from CFG. Log error. */
-			lim_log(mac_ctx, LOGP,
+			lim_log(mac_ctx, LOGE,
 				FL("could not retrieve supportedMCSSet"));
 			return eSIR_FAILURE;
 		}
@@ -2515,10 +2518,10 @@ lim_tdls_populate_matching_rate_set(tpAniSirGlobal mac_ctx, tpDphHashNode stads,
 			stads->supportedRates.supportedMCSSet[i] =
 				mcsSet[i] & supp_mcs_set[i];
 
-		lim_log(mac_ctx, LOG1,
+		lim_log(mac_ctx, LOGD,
 				 FL("MCS Rate Set Bitmap from CFG and DPH"));
 		for (i = 0; i < SIR_MAC_MAX_SUPPORTED_MCS_SET; i++) {
-			lim_log(mac_ctx, LOG1, FL("%x %x"), mcsSet[i],
+			lim_log(mac_ctx, LOGD, FL("%x %x"), mcsSet[i],
 				stads->supportedRates.supportedMCSSet[i]);
 		}
 	}
@@ -2567,7 +2570,7 @@ static void lim_tdls_update_hash_node_info(tpAniSirGlobal pMac,
 		 * channel width of STA-AP link. So take this setting from the
 		 * psessionEntry.
 		 */
-		lim_log(pMac, LOG1,
+		lim_log(pMac, LOGD,
 			FL("supportedChannelWidthSet 0x%x htSupportedChannelWidthSet 0x%x"),
 				htCaps->supportedChannelWidthSet,
 				psessionEntry->htSupportedChannelWidthSet);
@@ -2576,7 +2579,7 @@ static void lim_tdls_update_hash_node_info(tpAniSirGlobal pMac,
 				 psessionEntry->htSupportedChannelWidthSet) ?
 				htCaps->supportedChannelWidthSet :
 				psessionEntry->htSupportedChannelWidthSet;
-		lim_log(pMac, LOG1, FL("pStaDs->htSupportedChannelWidthSet 0x%x"),
+		lim_log(pMac, LOGD, FL("pStaDs->htSupportedChannelWidthSet 0x%x"),
 				pStaDs->htSupportedChannelWidthSet);
 
 		pStaDs->htMIMOPSState = htCaps->mimoPowerSave;
@@ -2615,7 +2618,7 @@ static void lim_tdls_update_hash_node_info(tpAniSirGlobal pMac,
 			pStaDs->vhtSupportedChannelWidthSet =
 					psessionEntry->ch_width;
 
-		lim_log(pMac, LOG1, FL("vhtSupportedChannelWidthSet = %hu, htSupportedChannelWidthSet %hu"),
+		lim_log(pMac, LOGD, FL("vhtSupportedChannelWidthSet = %hu, htSupportedChannelWidthSet %hu"),
 			pStaDs->vhtSupportedChannelWidthSet,
 			pStaDs->htSupportedChannelWidthSet);
 
@@ -2706,7 +2709,7 @@ static tSirRetStatus lim_tdls_setup_add_sta(tpAniSirGlobal pMac,
 		/* Set the aid in peerAIDBitmap as it has been assigned to TDLS peer */
 		SET_PEER_AID_BITMAP(psessionEntry->peerAIDBitmap, aid);
 
-		lim_log(pMac, LOG1, FL("Aid = %d, for peer =" MAC_ADDRESS_STR),
+		lim_log(pMac, LOGD, FL("Aid = %d, for peer =" MAC_ADDRESS_STR),
 			aid, MAC_ADDR_ARRAY(pAddStaReq->peermac.bytes));
 		pStaDs =
 			dph_get_hash_entry(pMac, aid,
@@ -2762,10 +2765,10 @@ static tpDphHashNode lim_tdls_del_sta(tpAniSirGlobal pMac,
 
 	if (pStaDs) {
 
-		lim_log(pMac, LOG1, FL("DEL STA peer MAC: "MAC_ADDRESS_STR),
+		lim_log(pMac, LOGD, FL("DEL STA peer MAC: "MAC_ADDRESS_STR),
 		       MAC_ADDR_ARRAY(pStaDs->staAddr));
 
-		lim_log(pMac, LOG1,
+		lim_log(pMac, LOGD,
 		       FL("STA type = %x, sta idx = %x resp_reqd %d"),
 		       pStaDs->staType,
 		       pStaDs->staIndex,
@@ -2834,7 +2837,7 @@ QDF_STATUS lim_process_tdls_add_sta_rsp(tpAniSirGlobal pMac, void *msg,
 	uint16_t aid = 0;
 
 	SET_LIM_PROCESS_DEFD_MESGS(pMac, true);
-	lim_log(pMac, LOG1, FL("staIdx=%d, staMac="MAC_ADDRESS_STR),
+	lim_log(pMac, LOGD, FL("staIdx=%d, staMac="MAC_ADDRESS_STR),
 	       pAddStaParams->staIdx,
 	       MAC_ADDR_ARRAY(pAddStaParams->staMac));
 
@@ -2887,7 +2890,7 @@ tSirRetStatus lim_process_sme_tdls_mgmt_send_req(tpAniSirGlobal mac_ctx,
 	uint8_t session_id;
 	tSirResultCodes result_code = eSIR_SME_INVALID_PARAMETERS;
 
-	lim_log(mac_ctx, LOG1, FL("Send Mgmt Recieved"));
+	lim_log(mac_ctx, LOGD, FL("Send Mgmt Recieved"));
 	session_entry = pe_find_session_by_bssid(mac_ctx,
 					 send_req->bssid.bytes, &session_id);
 	if (NULL == session_entry) {
@@ -2923,14 +2926,14 @@ tSirRetStatus lim_process_sme_tdls_mgmt_send_req(tpAniSirGlobal mac_ctx,
 
 	switch (send_req->reqType) {
 	case SIR_MAC_TDLS_DIS_REQ:
-		lim_log(mac_ctx, LOG1, FL("Transmit Discovery Request Frame"));
+		lim_log(mac_ctx, LOGD, FL("Transmit Discovery Request Frame"));
 		/* format TDLS discovery request frame and transmit it */
 		lim_send_tdls_dis_req_frame(mac_ctx, send_req->peer_mac,
 					    send_req->dialog, session_entry);
 		result_code = eSIR_SME_SUCCESS;
 		break;
 	case SIR_MAC_TDLS_DIS_RSP:
-		lim_log(mac_ctx, LOG1, FL("Transmit Discovery Response Frame"));
+		lim_log(mac_ctx, LOGD, FL("Transmit Discovery Response Frame"));
 		/* Send a response mgmt action frame */
 		lim_send_tdls_dis_rsp_frame(mac_ctx, send_req->peer_mac,
 			send_req->dialog, session_entry, &send_req->addIe[0],
@@ -2938,7 +2941,7 @@ tSirRetStatus lim_process_sme_tdls_mgmt_send_req(tpAniSirGlobal mac_ctx,
 		result_code = eSIR_SME_SUCCESS;
 		break;
 	case SIR_MAC_TDLS_SETUP_REQ:
-		lim_log(mac_ctx, LOG1, FL("Transmit Setup Request Frame"));
+		lim_log(mac_ctx, LOGD, FL("Transmit Setup Request Frame"));
 		lim_send_tdls_link_setup_req_frame(mac_ctx,
 			send_req->peer_mac, send_req->dialog, session_entry,
 			&send_req->addIe[0],
@@ -2946,7 +2949,7 @@ tSirRetStatus lim_process_sme_tdls_mgmt_send_req(tpAniSirGlobal mac_ctx,
 		result_code = eSIR_SME_SUCCESS;
 		break;
 	case SIR_MAC_TDLS_SETUP_RSP:
-		lim_log(mac_ctx, LOG1, FL("Transmit Setup Response Frame"));
+		lim_log(mac_ctx, LOGD, FL("Transmit Setup Response Frame"));
 		lim_send_tdls_setup_rsp_frame(mac_ctx,
 			send_req->peer_mac, send_req->dialog, session_entry,
 			send_req->statusCode, &send_req->addIe[0],
@@ -2954,7 +2957,7 @@ tSirRetStatus lim_process_sme_tdls_mgmt_send_req(tpAniSirGlobal mac_ctx,
 		result_code = eSIR_SME_SUCCESS;
 		break;
 	case SIR_MAC_TDLS_SETUP_CNF:
-		lim_log(mac_ctx, LOG1, FL("Transmit Setup Confirm Frame"));
+		lim_log(mac_ctx, LOGD, FL("Transmit Setup Confirm Frame"));
 		lim_send_tdls_link_setup_cnf_frame(mac_ctx,
 			send_req->peer_mac, send_req->dialog,
 			send_req->peerCapability, session_entry,
@@ -2963,7 +2966,7 @@ tSirRetStatus lim_process_sme_tdls_mgmt_send_req(tpAniSirGlobal mac_ctx,
 		result_code = eSIR_SME_SUCCESS;
 		break;
 	case SIR_MAC_TDLS_TEARDOWN:
-		lim_log(mac_ctx, LOG1, FL("Transmit Teardown Frame"));
+		lim_log(mac_ctx, LOGD, FL("Transmit Teardown Frame"));
 		lim_send_tdls_teardown_frame(mac_ctx,
 			send_req->peer_mac, send_req->statusCode,
 			send_req->responder, session_entry,
@@ -3009,7 +3012,7 @@ void lim_send_sme_tdls_link_establish_req_rsp(tpAniSirGlobal pMac,
 		lim_log(pMac, LOGE, FL("Failed to allocate memory"));
 		return;
 	}
-	lim_log(pMac, LOG1, FL("Send Resp to TDL Link Establish Req to SME"));
+	lim_log(pMac, LOGD, FL("Send Resp to TDL Link Establish Req to SME"));
 	pTdlsLinkEstablishReqRsp->statusCode = status;
 	if (peermac)
 		qdf_copy_macaddr(&pTdlsLinkEstablishReqRsp->peermac, peermac);
@@ -3072,7 +3075,7 @@ tSirRetStatus lim_process_sme_tdls_add_sta_req(tpAniSirGlobal pMac,
 	tpPESession psessionEntry;
 	uint8_t sessionId;
 
-	lim_log(pMac, LOG1, FL("TDLS Add STA Request Recieved"));
+	lim_log(pMac, LOGD, FL("TDLS Add STA Request Recieved"));
 	psessionEntry =
 		pe_find_session_by_bssid(pMac, pAddStaReq->bssid.bytes,
 					 &sessionId);
@@ -3136,7 +3139,7 @@ tSirRetStatus lim_process_sme_tdls_del_sta_req(tpAniSirGlobal pMac,
 	tpPESession psessionEntry;
 	uint8_t sessionId;
 
-	lim_log(pMac, LOG1, FL("TDLS Delete STA Request Recieved"));
+	lim_log(pMac, LOGD, FL("TDLS Delete STA Request Recieved"));
 	psessionEntry =
 		pe_find_session_by_bssid(pMac, pDelStaReq->bssid.bytes,
 					 &sessionId);
@@ -3235,7 +3238,7 @@ tSirRetStatus lim_process_sme_tdls_link_establish_req(tpAniSirGlobal mac_ctx,
 	uint32_t self_num_chan = WNI_CFG_VALID_CHANNEL_LIST_LEN;
 	uint8_t self_supp_chan[WNI_CFG_VALID_CHANNEL_LIST_LEN];
 
-	QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_INFO,
+	QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
 		  FL("Process TDLS Link Establishment Request from SME"));
 
 	session_entry = pe_find_session_by_bssid(mac_ctx, tdls_req->bssid.bytes,
@@ -3376,7 +3379,7 @@ tSirRetStatus lim_delete_tdls_peers(tpAniSirGlobal mac_ctx,
 	 * (with that aid) entry from the hash table and add the aid
 	 * in free pool
 	 */
-	lim_log(mac_ctx, LOGE, FL("Delete all the TDLS peer connected."));
+	lim_log(mac_ctx, LOGD, FL("Delete all the TDLS peer connected"));
 	for (i = 0; i < aid_bitmap_size / sizeof(uint32_t); i++) {
 		for (aid = 0; aid < (sizeof(uint32_t) << 3); aid++) {
 			if (!CHECK_BIT(session_entry->peerAIDBitmap[i], aid))
@@ -3460,7 +3463,7 @@ void lim_process_tdls_del_sta_rsp(tpAniSirGlobal mac_ctx, tpSirMsgQ lim_msg,
 		goto skip_event;
 	}
 
-	lim_log(mac_ctx, LOG1, FL("DEL STA success"));
+	lim_log(mac_ctx, LOGD, FL("DEL STA success"));
 
 	/* now send indication to SME-->HDD->TL to remove STA from TL */
 

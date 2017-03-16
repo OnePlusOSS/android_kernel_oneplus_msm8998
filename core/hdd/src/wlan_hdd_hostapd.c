@@ -1063,6 +1063,40 @@ static QDF_STATUS hdd_handle_acs_scan_event(tpSap_Event sap_event,
 }
 #endif
 
+/**
+ * hdd_update_scan_result() - Update the scan result to CFG80211
+ * @sap_event: SAP event
+ * @adapter: adapter for SAP
+ *
+ * The function is to update the scan result to CFG80211
+ *
+ * Return: QDF_STATUS_SUCCESS on success,
+ *      other value on failure
+ */
+static QDF_STATUS hdd_update_scan_result(tpSap_Event sap_event,
+		hdd_adapter_t *adapter)
+{
+	struct cfg80211_bss *bss_status;
+
+	if (NULL != sap_event->sapevt.bss_desc) {
+		bss_status = wlan_hdd_cfg80211_inform_bss_frame(
+			adapter,
+			sap_event->sapevt.bss_desc);
+		if (NULL == bss_status) {
+			hdd_info("UPDATE_SCAN_RESULT returned NULL");
+			return QDF_STATUS_E_FAILURE;
+		} else {
+			cfg80211_put_bss(
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 9, 0)) || defined(WITH_BACKPORTS)
+				(WLAN_HDD_GET_CTX(adapter))->wiphy,
+#endif
+				bss_status);
+		}
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
+
 QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 				    void *usrDataForCallback)
 {
@@ -1238,7 +1272,7 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 		pHostapdState->bssState = BSS_START;
 
 		/* Set default key index */
-		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_INFO,
+		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_DEBUG,
 			"%s: default key index %hu", __func__,
 			pHddApCtx->wep_def_key_idx);
 
@@ -2060,7 +2094,9 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 			return QDF_STATUS_E_FAILURE;
 		else
 			return QDF_STATUS_SUCCESS;
-
+	case eSAP_UPDATE_SCAN_RESULT:
+		return hdd_update_scan_result(pSapEvent,
+					pHostapdAdapter);
 	default:
 		hdd_debug("SAP message is not handled");
 		goto stopbss;
@@ -5827,9 +5863,9 @@ QDF_STATUS hdd_init_ap_mode(hdd_adapter_t *pAdapter, bool reinit)
 		return QDF_STATUS_E_FAULT;
 	}
 
-	status = wlansap_start(sapContext, mode,
+	status = wlansap_start(sapContext, hdd_hostapd_sap_event_cb, mode,
 			pAdapter->macAddressCurrent.bytes,
-			&session_id);
+			&session_id, pAdapter->dev);
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		hdd_err("wlansap_start failed!!");
 		wlansap_close(sapContext);

@@ -93,13 +93,11 @@ lim_process_deauth_frame(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 	     (eLIM_SME_WT_DEAUTH_STATE == psessionEntry->limSmeState))) {
 		/*Every 15th deauth frame will be logged in kmsg */
 		if (!(pMac->lim.deauthMsgCnt & 0xF)) {
-			PELOGE(lim_log(pMac, LOGE,
-				       FL
-					       ("received Deauth frame in DEAUTH_WT_STATE"
-					       "(already processing previously received DEAUTH frame).."
-					       "Dropping this.. Deauth Failed %d"),
+			lim_log(pMac, LOG1,
+				FL("received Deauth frame in DEAUTH_WT_STATE"
+				"(already processing previously received DEAUTH frame).."
+				"Dropping this.. Deauth Failed %d"),
 				       ++pMac->lim.deauthMsgCnt);
-			       )
 		} else {
 			pMac->lim.deauthMsgCnt++;
 		}
@@ -109,20 +107,16 @@ lim_process_deauth_frame(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 	if (lim_is_group_addr(pHdr->sa)) {
 		/* Received Deauth frame from a BC/MC address */
 		/* Log error and ignore it */
-		PELOGE(lim_log(pMac, LOGE,
-			       FL("received Deauth frame from a BC/MC address"));
-		       )
-
+		lim_log(pMac, LOG1,
+			FL("received Deauth frame from a BC/MC address"));
 		return;
 	}
 
 	if (lim_is_group_addr(pHdr->da) && !lim_is_addr_bc(pHdr->da)) {
 		/* Received Deauth frame for a MC address */
 		/* Log error and ignore it */
-		PELOGE(lim_log(pMac, LOGE,
-			       FL("received Deauth frame for a MC address"));
-		       )
-
+		lim_log(pMac, LOG1,
+			FL("received Deauth frame for a MC address"));
 		return;
 	}
 	if (!lim_validate_received_frame_a1_addr(pMac,
@@ -136,11 +130,8 @@ lim_process_deauth_frame(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 	if (psessionEntry->limRmfEnabled
 	    && (WMA_GET_RX_DPU_FEEDBACK(pRxPacketInfo) &
 		DPU_FEEDBACK_UNPROTECTED_ERROR)) {
-		PELOGE(lim_log
-			       (pMac, LOGE,
-			       FL("received an unprotected deauth from AP"));
-		       )
-
+		lim_log(pMac, LOG1,
+			FL("received an unprotected deauth from AP"));
 		/*
 		 * When 11w offload is enabled then
 		 * firmware should not fwd this frame
@@ -170,7 +161,7 @@ lim_process_deauth_frame(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 	/* Get reasonCode from Deauthentication frame body */
 	reasonCode = sir_read_u16(pBody);
 
-	PELOGE(lim_log(pMac, LOGE,
+	lim_log(pMac, LOG1,
 		       FL("Received Deauth frame for Addr: " MAC_ADDRESS_STR
 			"(mlm state = %s, sme state = %d systemrole = %d "
 			"RSSI = %d) with reason code %d [%s] from "
@@ -180,16 +171,14 @@ lim_process_deauth_frame(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 			GET_LIM_SYSTEM_ROLE(psessionEntry), frame_rssi,
 			reasonCode, lim_dot11_reason_str(reasonCode),
 			MAC_ADDR_ARRAY(pHdr->sa));
-	       )
+
 	lim_diag_event_report(pMac, WLAN_PE_DIAG_DEAUTH_FRAME_EVENT,
 		psessionEntry, 0, reasonCode);
 
 	if (lim_check_disassoc_deauth_ack_pending(pMac, (uint8_t *) pHdr->sa)) {
-		PELOGE(lim_log(pMac, LOGE,
-			       FL
-				       ("Ignore the Deauth received, while waiting for ack of "
-				       "disassoc/deauth"));
-		       )
+		lim_log(pMac, LOGD,
+			FL("Ignore the Deauth received, while waiting for ack of "
+			"disassoc/deauth"));
 		lim_clean_up_disassoc_deauth_req(pMac, (uint8_t *) pHdr->sa, 1);
 		return;
 	}
@@ -204,13 +193,10 @@ lim_process_deauth_frame(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 		default:
 			/* Invalid reasonCode in received Deauthentication frame */
 			/* Log error and ignore the frame */
-			PELOGE(lim_log(pMac, LOGE,
-				       FL
-					       ("received Deauth frame with invalid reasonCode %d from "
+			lim_log(pMac, LOGE,
+				FL("received Deauth frame with invalid reasonCode %d from "
 					       MAC_ADDRESS_STR), reasonCode,
 				       MAC_ADDR_ARRAY(pHdr->sa));
-			       )
-
 			break;
 		}
 	} else if (LIM_IS_STA_ROLE(psessionEntry)) {
@@ -227,13 +213,10 @@ lim_process_deauth_frame(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 		default:
 			/* Invalid reasonCode in received Deauth frame */
 			/* Log error and ignore the frame */
-			PELOGE(lim_log(pMac, LOGE,
-				       FL
-					       ("received Deauth frame with invalid reasonCode %d from "
+			lim_log(pMac, LOGE,
+				FL("received Deauth frame with invalid reasonCode %d from "
 					       MAC_ADDRESS_STR), reasonCode,
 				       MAC_ADDR_ARRAY(pHdr->sa));
-			       )
-
 			break;
 		}
 	} else {
@@ -274,18 +257,12 @@ lim_process_deauth_frame(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 	if (lim_is_reassoc_in_progress(pMac, psessionEntry)
 	    || lim_is_reassoc_in_progress(pMac, pRoamSessionEntry)) {
 		if (!IS_REASSOC_BSSID(pMac, pHdr->sa, psessionEntry)) {
-			PELOGE(lim_log
-				       (pMac, LOGE,
-				       FL("Rcv Deauth from unknown/different "
-					  "AP while ReAssoc. Ignore " MAC_ADDRESS_STR),
-				       MAC_ADDR_ARRAY(pHdr->sa));
-			       )
-			PELOGE(lim_log
-				       (pMac, LOGE,
-				       FL(" limReAssocbssId : " MAC_ADDRESS_STR),
-				       MAC_ADDR_ARRAY(psessionEntry->
-						      limReAssocbssId));
-			       )
+			lim_log(pMac, LOGD,
+				FL("Rcv Deauth from unknown/different "
+				"AP while ReAssoc. Ignore " MAC_ADDRESS_STR
+				"limReAssocbssId : " MAC_ADDRESS_STR),
+				MAC_ADDR_ARRAY(pHdr->sa),
+				MAC_ADDR_ARRAY(psessionEntry->limReAssocbssId));
 			return;
 		}
 
@@ -293,18 +270,13 @@ lim_process_deauth_frame(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 		 *  Drop ReAssoc and Restore the Previous context( current connected AP).
 		 */
 		if (!IS_CURRENT_BSSID(pMac, pHdr->sa, psessionEntry)) {
-			PELOGE(lim_log
-				       (pMac, LOGE,
-				       FL("received DeAuth from the New AP to "
-					  "which ReAssoc is sent " MAC_ADDRESS_STR),
-				       MAC_ADDR_ARRAY(pHdr->sa));
-			       )
-			PELOGE(lim_log
-				       (pMac, LOGE,
-				       FL(" psessionEntry->bssId: "
-					  MAC_ADDRESS_STR),
-				       MAC_ADDR_ARRAY(psessionEntry->bssId));
-			       )
+			lim_log(pMac, LOGD,
+				FL("received DeAuth from the New AP to "
+				"which ReAssoc is sent " MAC_ADDRESS_STR
+				"psessionEntry->bssId: " MAC_ADDRESS_STR),
+				MAC_ADDR_ARRAY(pHdr->sa),
+				MAC_ADDR_ARRAY(psessionEntry->bssId));
+
 			lim_restore_pre_reassoc_state(pMac,
 						      eSIR_SME_REASSOC_REFUSED,
 						      reasonCode,
@@ -318,18 +290,14 @@ lim_process_deauth_frame(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 	 */
 	if (!LIM_IS_AP_ROLE(psessionEntry)) {
 		if (!IS_CURRENT_BSSID(pMac, pHdr->bssId, psessionEntry)) {
-			PELOGE(lim_log
-				       (pMac, LOGE,
-				       FL("received DeAuth from an AP other "
-					  "than we're trying to join. Ignore. "
-					  MAC_ADDRESS_STR), MAC_ADDR_ARRAY(pHdr->sa));
-			       )
+			lim_log(pMac, LOGE,
+				FL("received DeAuth from an AP other "
+				"than we're trying to join. Ignore. "
+				MAC_ADDRESS_STR), MAC_ADDR_ARRAY(pHdr->sa));
+
 			if (lim_search_pre_auth_list(pMac, pHdr->sa)) {
-				PELOG1(lim_log
-					       (pMac, LOG1,
-					       FL("Preauth entry exist. "
-						  "Deleting... "));
-				       )
+				lim_log(pMac, LOGD,
+					FL("Preauth entry exist. Deleting... "));
 				lim_delete_pre_auth_node(pMac, pHdr->sa);
 			}
 			return;
@@ -352,13 +320,11 @@ lim_process_deauth_frame(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 			 */
 
 			/* Log error */
-			PELOG1(lim_log(pMac, LOG1,
-				       FL
-					       ("received Deauth frame state %X with failure "
-					       "code %d from " MAC_ADDRESS_STR),
+			lim_log(pMac, LOGD,
+				FL("received Deauth frame state %X with failure "
+				"code %d from " MAC_ADDRESS_STR),
 				       psessionEntry->limMlmState, reasonCode,
 				       MAC_ADDR_ARRAY(pHdr->sa));
-			       )
 
 			lim_restore_from_auth_state(pMac,
 						    eSIR_SME_DEAUTH_WHILE_JOIN,
@@ -367,7 +333,7 @@ lim_process_deauth_frame(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 			return;
 
 		case eLIM_MLM_AUTHENTICATED_STATE:
-			lim_log(pMac, LOG1,
+			lim_log(pMac, LOGD,
 				FL("received Deauth frame state %X with "
 				   "reasonCode=%d from " MAC_ADDRESS_STR),
 				psessionEntry->limMlmState, reasonCode,
@@ -394,7 +360,7 @@ lim_process_deauth_frame(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 			 * context. Delete local pre-auth context
 			 * if any and issue ASSOC_CNF to SME.
 			 */
-			lim_log(pMac, LOG1,
+			lim_log(pMac, LOGD,
 				FL("received Deauth frame state %X with "
 				   "reasonCode=%d from " MAC_ADDRESS_STR),
 				psessionEntry->limMlmState, reasonCode,
@@ -432,13 +398,11 @@ lim_process_deauth_frame(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 
 		case eLIM_MLM_WT_ADD_STA_RSP_STATE:
 			psessionEntry->fDeauthReceived = true;
-			PELOGW(lim_log(pMac, LOGW,
-				       FL
-					       ("Received Deauth frame in state %X with Reason "
+			lim_log(pMac, LOGD,
+				FL("Received Deauth frame in state %X with Reason "
 					       "Code %d from Peer" MAC_ADDRESS_STR),
 				       psessionEntry->limMlmState, reasonCode,
 				       MAC_ADDR_ARRAY(pHdr->sa));
-			       )
 			return;
 
 		case eLIM_MLM_IDLE_STATE:
@@ -446,15 +410,12 @@ lim_process_deauth_frame(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 #ifdef FEATURE_WLAN_TDLS
 			if ((NULL != pStaDs)
 			    && (STA_ENTRY_TDLS_PEER == pStaDs->staType)) {
-				PELOGE(lim_log
-					       (pMac, LOGE,
-					       FL
-						       ("received Deauth frame in state %X with "
-						       "reason code %d from Tdls peer"
-						       MAC_ADDRESS_STR),
-					       psessionEntry->limMlmState, reasonCode,
-					       MAC_ADDR_ARRAY(pHdr->sa));
-				       )
+				lim_log(pMac, LOGE,
+					FL("received Deauth frame in state %X with "
+					"reason code %d from Tdls peer"
+					MAC_ADDRESS_STR),
+					psessionEntry->limMlmState, reasonCode,
+					MAC_ADDR_ARRAY(pHdr->sa));
 				lim_send_sme_tdls_del_sta_ind(pMac, pStaDs,
 							      psessionEntry,
 							      reasonCode);
@@ -489,23 +450,19 @@ lim_process_deauth_frame(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 			break;
 
 		case eLIM_MLM_WT_FT_REASSOC_RSP_STATE:
-			PELOGE(lim_log(pMac, LOGE,
-				       FL
-					       ("received Deauth frame in FT state %X with "
-					       "reasonCode=%d from " MAC_ADDRESS_STR),
+			lim_log(pMac, LOGE,
+				FL("received Deauth frame in FT state %X with "
+				"reasonCode=%d from " MAC_ADDRESS_STR),
 				       psessionEntry->limMlmState, reasonCode,
 				       MAC_ADDR_ARRAY(pHdr->sa));
-			       )
 			break;
 
 		default:
-			PELOGE(lim_log(pMac, LOGE,
-				       FL
-					       ("received Deauth frame in state %X with "
-					       "reasonCode=%d from " MAC_ADDRESS_STR),
+			lim_log(pMac, LOGE,
+				FL("received Deauth frame in state %X with "
+				"reasonCode=%d from " MAC_ADDRESS_STR),
 				       psessionEntry->limMlmState, reasonCode,
 				       MAC_ADDR_ARRAY(pHdr->sa));
-			       )
 			return;
 		}
 		break;
@@ -536,12 +493,10 @@ lim_process_deauth_frame(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 		 * Already in the process of deleting context for the peer
 		 * and received Deauthentication frame. Log and Ignore.
 		 */
-		PELOGE(lim_log(pMac, LOGE,
-			       FL
-				       ("received Deauth frame from peer that is in state %X, addr "
-				       MAC_ADDRESS_STR), pStaDs->mlmStaContext.mlmState,
+		lim_log(pMac, LOGE,
+			FL("received Deauth frame from peer that is in state %X, addr "
+			MAC_ADDRESS_STR), pStaDs->mlmStaContext.mlmState,
 			       MAC_ADDR_ARRAY(pHdr->sa));
-		       )
 		return;
 	}
 	pStaDs->mlmStaContext.disassocReason = (tSirMacReasonCodes) reasonCode;
@@ -574,9 +529,8 @@ lim_process_deauth_frame(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 			psessionEntry->limAssocResponseData = NULL;
 		}
 
-		PELOGE(lim_log(pMac, LOGE, FL("Rcv Deauth from ReAssoc AP. "
+		lim_log(pMac, LOGD, FL("Rcv Deauth from ReAssoc AP. "
 					      "Issue REASSOC_CNF. "));
-		       )
 		/*
 		 * TODO: Instead of overloading eSIR_SME_FT_REASSOC_TIMEOUT_FAILURE
 		 * it would have been good to define/use a different failure type.

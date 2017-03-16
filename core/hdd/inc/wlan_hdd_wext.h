@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -255,13 +255,8 @@ typedef struct hdd_wext_state_s {
 	/* qdf event */
 	qdf_event_t hdd_qdf_event;
 
-	qdf_event_t scanevent;
-
 	/**Counter measure state, Started/Stopped*/
 	bool mTKIPCounterMeasures;
-
-	/**Completion Variable*/
-	struct completion completion_var;
 
 #ifdef FEATURE_WLAN_ESE
 	/* ESE state variables */

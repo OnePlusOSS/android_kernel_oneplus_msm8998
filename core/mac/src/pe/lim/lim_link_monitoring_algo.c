@@ -71,7 +71,7 @@ static void lim_delete_sta_util(tpAniSirGlobal mac_ctx, tpDeleteStaContext msg,
 {
 	tpDphHashNode stads;
 
-	lim_log(mac_ctx, LOGE,
+	lim_log(mac_ctx, LOGD,
 		FL("Deleting station: staId = %d, reasonCode = %d"),
 		msg->staId, msg->reasonCode);
 
@@ -100,7 +100,7 @@ static void lim_delete_sta_util(tpAniSirGlobal mac_ctx, tpDeleteStaContext msg,
 	}
 
 	if (LIM_IS_AP_ROLE(session_entry)) {
-		lim_log(mac_ctx, LOG1,
+		lim_log(mac_ctx, LOGD,
 			FL("Delete Station staId: %d, assocId: %d"),
 			msg->staId, msg->assocId);
 		/*
@@ -142,7 +142,7 @@ static void lim_delete_sta_util(tpAniSirGlobal mac_ctx, tpDeleteStaContext msg,
 #endif
 		/* TearDownLink with AP */
 		tLimMlmDeauthInd mlm_deauth_ind;
-		lim_log(mac_ctx, LOGW,
+		lim_log(mac_ctx, LOGD,
 			FL("Delete Station (staId: %d, assocId: %d) "),
 			msg->staId, msg->assocId);
 
@@ -159,7 +159,7 @@ static void lim_delete_sta_util(tpAniSirGlobal mac_ctx, tpDeleteStaContext msg,
 			 * does not have context or in some transit state.
 			 * Log error
 			 */
-			lim_log(mac_ctx, LOGE,
+			lim_log(mac_ctx, LOGD,
 				FL("Received SIR_LIM_DELETE_STA_CONTEXT_IND for "
 					"STA that either has no context or "
 					"in some transit state, Addr = "
@@ -302,7 +302,7 @@ lim_trigger_sta_deletion(tpAniSirGlobal mac_ctx, tpDphHashNode sta_ds,
 			eLIM_MLM_WT_DEL_BSS_RSP_STATE) ||
 		sta_ds->sta_deletion_in_progress) {
 		/* Already in the process of deleting context for the peer */
-		lim_log(mac_ctx, LOG1,
+		lim_log(mac_ctx, LOGD,
 			FL("Deletion is in progress (%d) for peer:%p in mlmState %d"),
 			sta_ds->sta_deletion_in_progress, sta_ds->staAddr,
 			sta_ds->mlmStaContext.mlmState);
@@ -355,7 +355,7 @@ lim_tear_down_link_with_ap(tpAniSirGlobal pMac, uint8_t sessionId,
 
 	psessionEntry = pe_find_session_by_session_id(pMac, sessionId);
 	if (psessionEntry == NULL) {
-		lim_log(pMac, LOGP,
+		lim_log(pMac, LOGE,
 			FL("Session Does not exist for given sessionID"));
 		return;
 	}
@@ -366,7 +366,7 @@ lim_tear_down_link_with_ap(tpAniSirGlobal pMac, uint8_t sessionId,
 	 */
 	psessionEntry->pmmOffloadInfo.bcnmiss = false;
 
-	lim_log(pMac, LOGW,
+	lim_log(pMac, LOG1,
 		FL("No ProbeRsp from AP after HB failure. Tearing down link"));
 
 	/* Announce loss of link to Roaming algorithm */
@@ -406,7 +406,7 @@ lim_tear_down_link_with_ap(tpAniSirGlobal pMac, uint8_t sessionId,
 		else
 			pMac->lim.gLimHeartBeatApMacIndex = 1;
 
-		lim_log(pMac, LOGE, FL("HB Failure on MAC "
+		lim_log(pMac, LOG1, FL("HB Failure on MAC "
 			MAC_ADDRESS_STR" Store it on Index %d"),
 			MAC_ADDR_ARRAY(pStaDs->staAddr), apCount);
 
@@ -470,7 +470,7 @@ void lim_handle_heart_beat_failure(tpAniSirGlobal mac_ctx,
 		/* Ignore HB if channel switch is in progress */
 		if (session->gLimSpecMgmt.dot11hChanSwState ==
 		   eLIM_11H_CHANSW_RUNNING) {
-			lim_log(mac_ctx, LOGE,
+			lim_log(mac_ctx, LOGD,
 				FL("Ignore Heartbeat failure as Channel switch is in progress"));
 			session->pmmOffloadInfo.bcnmiss = false;
 			return;
@@ -496,7 +496,7 @@ void lim_handle_heart_beat_failure(tpAniSirGlobal mac_ctx,
 			 * it is still around. Wait until certain
 			 * timeout for Probe Response from AP.
 			 */
-			lim_log(mac_ctx, LOGW,
+			lim_log(mac_ctx, LOGD,
 				FL("HB missed from AP. Sending Probe Req"));
 			/* for searching AP, we don't include any more IE */
 			if (session->pLimJoinReq != NULL) {
@@ -515,7 +515,7 @@ void lim_handle_heart_beat_failure(tpAniSirGlobal mac_ctx,
 					session->dot11mode, 0, NULL);
 			}
 		} else {
-			lim_log(mac_ctx, LOGW,
+			lim_log(mac_ctx, LOGD,
 			    FL("HB missed from AP on DFS chanel moving to passive"));
 			if (curr_chan < SIR_MAX_24G_5G_CHANNEL_RANGE) {
 				lim_covert_channel_scan_type(mac_ctx, curr_chan,
@@ -538,10 +538,10 @@ void lim_handle_heart_beat_failure(tpAniSirGlobal mac_ctx,
 		 * or in states other than link-established state.
 		 * Log error.
 		 */
-		lim_log(mac_ctx, LOG1,
+		lim_log(mac_ctx, LOGD,
 			FL("received heartbeat timeout in state %X"),
 			session->limMlmState);
-		lim_print_mlm_state(mac_ctx, LOG1, session->limMlmState);
+		lim_print_mlm_state(mac_ctx, LOGD, session->limMlmState);
 		mac_ctx->lim.gLimHBfailureCntInOtherStates++;
 	}
 }

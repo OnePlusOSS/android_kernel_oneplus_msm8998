@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -122,7 +122,7 @@ lim_process_probe_rsp_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_Packet_info,
 		lim_log(mac_ctx, LOGE, FL("session_entry is NULL"));
 		return;
 	}
-	lim_log(mac_ctx, LOG1, "SessionId:%d ProbeRsp Frame is received",
+	lim_log(mac_ctx, LOGD, "SessionId: %d ProbeRsp Frame is received",
 		session_entry->peSessionId);
 
 	probe_rsp = qdf_mem_malloc(sizeof(tSirProbeRespBeacon));
@@ -138,7 +138,7 @@ lim_process_probe_rsp_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_Packet_info,
 
 	header = WMA_GET_RX_MAC_HEADER(rx_Packet_info);
 
-	lim_log(mac_ctx, LOG2,
+	lim_log(mac_ctx, LOGD,
 		FL("Rx Probe Response with length = %d from "MAC_ADDRESS_STR),
 		WMA_GET_RX_MPDU_LEN(rx_Packet_info),
 		MAC_ADDR_ARRAY(header->sa));
@@ -147,14 +147,14 @@ lim_process_probe_rsp_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_Packet_info,
 	if (lim_validate_ie_information_in_probe_rsp_frame(mac_ctx,
 				rx_Packet_info) !=
 		eSIR_SUCCESS) {
-		lim_log(mac_ctx, LOG1,
+		lim_log(mac_ctx, LOGE,
 			FL("Parse error ProbeResponse, length=%d"), frame_len);
 		qdf_mem_free(probe_rsp);
 		return;
 	}
 
 	frame_len = WMA_GET_RX_PAYLOAD_LEN(rx_Packet_info);
-	QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_INFO,
+	QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
 		FL("Probe Resp Frame Received: BSSID "
 		MAC_ADDRESS_STR " (RSSI %d)"),
 		MAC_ADDR_ARRAY(header->bssId),
@@ -165,7 +165,7 @@ lim_process_probe_rsp_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_Packet_info,
 	if ((sir_convert_probe_frame2_struct(mac_ctx,
 		body, frame_len, probe_rsp) == eSIR_FAILURE) ||
 		!probe_rsp->ssidPresent) {
-		lim_log(mac_ctx, LOG1,
+		lim_log(mac_ctx, LOGE,
 			FL("Parse error ProbeResponse, length=%d"), frame_len);
 		qdf_mem_free(probe_rsp);
 		return;
@@ -272,16 +272,16 @@ lim_process_probe_rsp_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_Packet_info,
 				&session_entry->dph.dphHashTable);
 		limGetQosMode(session_entry, &qos_enabled);
 		limGetWmeMode(session_entry, &wme_enabled);
-		lim_log(mac_ctx, LOG2,
+		lim_log(mac_ctx, LOGD,
 			FL("wmeEdcaPresent: %d wme_enabled: %d"),
 			probe_rsp->wmeEdcaPresent, wme_enabled);
-		lim_log(mac_ctx, LOG2,
+		lim_log(mac_ctx, LOGD,
 			FL("edcaPresent: %d, qos_enabled: %d"),
 			probe_rsp->edcaPresent, qos_enabled);
-		lim_log(mac_ctx, LOG2,
+		lim_log(mac_ctx, LOGD,
 			FL("edcaParams.qosInfo.count: %d"),
 			probe_rsp->edcaParams.qosInfo.count);
-		lim_log(mac_ctx, LOG2,
+		lim_log(mac_ctx, LOGD,
 			FL("schObject.gLimEdcaParamSetCount: %d"),
 			session_entry->gLimEdcaParamSetCount);
 		if (((probe_rsp->wmeEdcaPresent && wme_enabled) ||
@@ -360,23 +360,23 @@ lim_process_probe_rsp_frame_no_session(tpAniSirGlobal mac_ctx,
 
 	header = WMA_GET_RX_MAC_HEADER(rx_packet_info);
 
-	lim_log(mac_ctx, LOG2,
+	lim_log(mac_ctx, LOGD,
 		FL("Received Probe Response frame with length=%d from "),
 		WMA_GET_RX_MPDU_LEN(rx_packet_info));
-	lim_print_mac_addr(mac_ctx, header->sa, LOG2);
+	lim_print_mac_addr(mac_ctx, header->sa, LOGD);
 
 	/* Validate IE information before processing Probe Response Frame */
 	if (lim_validate_ie_information_in_probe_rsp_frame(mac_ctx,
 				rx_packet_info) !=
 								eSIR_SUCCESS) {
-		lim_log(mac_ctx, LOG1,
+		lim_log(mac_ctx, LOGE,
 			FL("Parse error ProbeResponse, length=%d"), frame_len);
 		qdf_mem_free(probe_rsp);
 		return;
 	}
 
 	frame_len = WMA_GET_RX_PAYLOAD_LEN(rx_packet_info);
-	lim_log(mac_ctx, LOG2,
+	lim_log(mac_ctx, LOGD,
 		  FL("Probe Resp Frame Received: BSSID "
 		  MAC_ADDRESS_STR " (RSSI %d)"),
 		  MAC_ADDR_ARRAY(header->bssId),
@@ -388,14 +388,14 @@ lim_process_probe_rsp_frame_no_session(tpAniSirGlobal mac_ctx,
 	body = WMA_GET_RX_MPDU_DATA(rx_packet_info);
 	if (sir_convert_probe_frame2_struct(mac_ctx, body, frame_len,
 		probe_rsp) == eSIR_FAILURE) {
-		lim_log(mac_ctx, LOG1,
+		lim_log(mac_ctx, LOGE,
 			FL("Parse error ProbeResponse, length=%d\n"),
 			frame_len);
 		qdf_mem_free(probe_rsp);
 		return;
 	}
 
-	lim_log(mac_ctx, LOG2, FL("Save this probe rsp in LFR cache"));
+	lim_log(mac_ctx, LOGD, FL("Save this probe rsp in LFR cache"));
 	lim_check_and_add_bss_description(mac_ctx, probe_rsp,
 		  rx_packet_info, false, true);
 	qdf_mem_free(probe_rsp);

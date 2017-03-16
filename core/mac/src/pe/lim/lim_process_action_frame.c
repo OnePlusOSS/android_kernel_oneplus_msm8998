@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -86,9 +86,8 @@ void lim_stop_tx_and_switch_channel(tpAniSirGlobal pMac, uint8_t sessionId)
 		return;
 	}
 
-	PELOG1(lim_log(pMac, LOG1, FL("Channel switch Mode == %d"),
+	lim_log(pMac, LOGD, FL("Channel switch Mode == %d"),
 		       psessionEntry->gLimChannelSwitch.switchMode);
-	       )
 
 	if (psessionEntry->gLimChannelSwitch.switchMode ==
 	    eSIR_CHANSW_MODE_SILENT
@@ -116,7 +115,7 @@ void lim_stop_tx_and_switch_channel(tpAniSirGlobal pMac, uint8_t sessionId)
 
 	if (tx_timer_activate(&pMac->lim.limTimers.gLimChannelSwitchTimer) !=
 	    TX_SUCCESS) {
-		lim_log(pMac, LOGP, FL("tx_timer_activate failed"));
+		lim_log(pMac, LOGE, FL("tx_timer_activate failed"));
 	}
 	return;
 }
@@ -134,7 +133,7 @@ void lim_stop_tx_and_switch_channel(tpAniSirGlobal pMac, uint8_t sessionId)
 tSirRetStatus lim_start_channel_switch(tpAniSirGlobal pMac,
 				       tpPESession psessionEntry)
 {
-	PELOG1(lim_log(pMac, LOG1, FL("Starting the channel switch"));)
+	lim_log(pMac, LOGD, FL("Starting the channel switch"));
 
 	/*If channel switch is already running and it is on a different session, just return */
 	/*This need to be removed for MCC */
@@ -153,14 +152,14 @@ tSirRetStatus lim_start_channel_switch(tpAniSirGlobal pMac,
 		       eLIM_CHANNEL_SWITCH_TIMER));
 	if (tx_timer_deactivate(&pMac->lim.limTimers.gLimChannelSwitchTimer) !=
 	    eSIR_SUCCESS) {
-		lim_log(pMac, LOGP, FL("tx_timer_deactivate failed!"));
+		lim_log(pMac, LOGE, FL("tx_timer_deactivate failed!"));
 		return eSIR_FAILURE;
 	}
 
 	if (tx_timer_change(&pMac->lim.limTimers.gLimChannelSwitchTimer,
 			    psessionEntry->gLimChannelSwitch.switchTimeoutValue,
 			    0) != TX_SUCCESS) {
-		lim_log(pMac, LOGP, FL("tx_timer_change failed "));
+		lim_log(pMac, LOGE, FL("tx_timer_change failed "));
 		return eSIR_FAILURE;
 	}
 
@@ -173,7 +172,7 @@ tSirRetStatus lim_start_channel_switch(tpAniSirGlobal pMac,
 			       psessionEntry->peSessionId, eLIM_QUIET_TIMER));
 		if (tx_timer_deactivate(&pMac->lim.limTimers.gLimQuietTimer) !=
 		    TX_SUCCESS) {
-			lim_log(pMac, LOGP, FL("tx_timer_deactivate failed"));
+			lim_log(pMac, LOGE, FL("tx_timer_deactivate failed"));
 			return eSIR_FAILURE;
 		}
 	} else if (psessionEntry->gLimSpecMgmt.quietState == eLIM_QUIET_RUNNING) {
@@ -182,7 +181,7 @@ tSirRetStatus lim_start_channel_switch(tpAniSirGlobal pMac,
 			       psessionEntry->peSessionId, eLIM_QUIET_BSS_TIMER));
 		if (tx_timer_deactivate(&pMac->lim.limTimers.gLimQuietBssTimer)
 		    != TX_SUCCESS) {
-			lim_log(pMac, LOGP, FL("tx_timer_deactivate failed"));
+			lim_log(pMac, LOGE, FL("tx_timer_deactivate failed"));
 			return eSIR_FAILURE;
 		}
 	}
@@ -224,8 +223,8 @@ static void __lim_process_channel_switch_action_frame(tpAniSirGlobal mac_ctx,
 	body_ptr = WMA_GET_RX_MPDU_DATA(rx_pkt_info);
 	frame_len = WMA_GET_RX_PAYLOAD_LEN(rx_pkt_info);
 
-	PELOG3(lim_log(mac_ctx, LOG3,
-		FL("Received Channel switch action frame"));)
+	lim_log(mac_ctx, LOGD,
+		FL("Received Channel switch action frame"));
 	if (!session->lim11hEnable)
 		return;
 
@@ -253,7 +252,7 @@ static void __lim_process_channel_switch_action_frame(tpAniSirGlobal mac_ctx,
 
 	if (qdf_mem_cmp((uint8_t *) &session->bssId,
 			(uint8_t *) &mac_hdr->sa, sizeof(tSirMacAddr))) {
-		lim_log(mac_ctx, LOG1,
+		lim_log(mac_ctx, LOGD,
 			FL("Rcvd action frame not from our BSS, dropping..."));
 		qdf_mem_free(chnl_switch_frame);
 		return;
@@ -286,7 +285,7 @@ static void __lim_process_channel_switch_action_frame(tpAniSirGlobal mac_ctx,
 		session->gLimWiderBWChannelSwitch.newCenterChanFreq1 =
 			wbw_chnlswitch_ie->newCenterChanFreq1;
 	}
-	lim_log(mac_ctx, LOG3,
+	lim_log(mac_ctx, LOGD,
 		FL("Rcv Chnl Swtch Frame: Timeout in %d ticks"),
 		session->gLimChannelSwitch.switchTimeoutValue);
 	if (session->htSupportedChannelWidthSet) {
@@ -331,7 +330,7 @@ static void __lim_process_channel_switch_action_frame(tpAniSirGlobal mac_ctx,
 	}
 
 	if (eSIR_SUCCESS != lim_start_channel_switch(mac_ctx, session))
-		lim_log(mac_ctx, LOG1,
+		lim_log(mac_ctx, LOGD,
 			FL("Could not start channel switch"));
 
 	qdf_mem_free(chnl_switch_frame);
@@ -365,7 +364,7 @@ lim_process_ext_channel_switch_action_frame(tpAniSirGlobal mac_ctx,
 	body = WMA_GET_RX_MPDU_DATA(rx_packet_info);
 	frame_len = WMA_GET_RX_PAYLOAD_LEN(rx_packet_info);
 
-	lim_log(mac_ctx, LOG1, FL("Received EXT Channel switch action frame"));
+	lim_log(mac_ctx, LOGD, FL("Received EXT Channel switch action frame"));
 
 	ext_channel_switch_frame =
 		 qdf_mem_malloc(sizeof(*ext_channel_switch_frame));
@@ -419,7 +418,7 @@ lim_process_ext_channel_switch_action_frame(tpAniSirGlobal mac_ctx,
 
 		ext_cng_chan_ind = qdf_mem_malloc(sizeof(*ext_cng_chan_ind));
 		if (NULL == ext_cng_chan_ind) {
-			lim_log(mac_ctx, LOGP,
+			lim_log(mac_ctx, LOGE,
 			  FL("AllocateMemory failed for ext_cng_chan_ind"));
 			return;
 		}
@@ -470,7 +469,7 @@ static void __lim_process_operating_mode_action_frame(tpAniSirGlobal mac_ctx,
 	body_ptr = WMA_GET_RX_MPDU_DATA(rx_pkt_info);
 	frame_len = WMA_GET_RX_PAYLOAD_LEN(rx_pkt_info);
 
-	lim_log(mac_ctx, LOG1,
+	lim_log(mac_ctx, LOGD,
 		FL("Received Operating Mode action frame"));
 	if (CHAN_ENUM_14 >= session->currentOperChannel)
 		cb_mode = mac_ctx->roam.configParam.channelBondingMode24GHz;
@@ -615,7 +614,7 @@ static void __lim_process_gid_management_action_frame(tpAniSirGlobal mac_ctx,
 	body_ptr = WMA_GET_RX_MPDU_DATA(rx_pkt_info);
 	frame_len = WMA_GET_RX_PAYLOAD_LEN(rx_pkt_info);
 
-	lim_log(mac_ctx, LOG3, FL("Received GID Management action frame"));
+	lim_log(mac_ctx, LOGD, FL("Received GID Management action frame"));
 	gid_mgmt_frame = qdf_mem_malloc(sizeof(*gid_mgmt_frame));
 	if (NULL == gid_mgmt_frame) {
 		lim_log(mac_ctx, LOGE, FL("AllocateMemory failed"));
@@ -1004,11 +1003,11 @@ static void __lim_process_del_ts_req(tpAniSirGlobal mac_ctx,
 				FL("Ignore delts req: wme not enabled"));
 			return;
 		}
-		lim_log(mac_ctx, LOG2, FL("WME Delts received"));
+		lim_log(mac_ctx, LOGD, FL("WME Delts received"));
 	} else if ((session->limQosEnabled) && sta_ptr->lleEnabled) {
-		lim_log(mac_ctx, LOG2, FL("11e QoS Delts received"));
+		lim_log(mac_ctx, LOGD, FL("11e QoS Delts received"));
 	} else if ((session->limWsmEnabled) && sta_ptr->wsmEnabled) {
-		lim_log(mac_ctx, LOG2, FL("WSM Delts received"));
+		lim_log(mac_ctx, LOGD, FL("WSM Delts received"));
 	} else {
 		lim_log(mac_ctx, LOGW,
 			FL("Ignoring delts request: qos not enabled/capable"));
@@ -1098,7 +1097,7 @@ static void __lim_process_del_ts_req(tpAniSirGlobal mac_ctx,
 	else
 		lim_log(mac_ctx, LOGE, FL("Self entry missing in Hash Table "));
 
-	lim_log(mac_ctx, LOG1, FL("DeleteTS succeeded"));
+	lim_log(mac_ctx, LOGD, FL("DeleteTS succeeded"));
 #ifdef FEATURE_WLAN_ESE
 	lim_send_sme_tsm_ie_ind(mac_ctx, session, 0, 0, 0);
 #endif
@@ -1147,9 +1146,7 @@ __lim_process_basic_meas_req(tpAniSirGlobal pMac,
 	if (lim_send_meas_report_frame(pMac, pMeasReqFrame,
 				       peerMacAddr, psessionEntry) !=
 					 eSIR_SUCCESS) {
-		PELOGE(lim_log
-			       (pMac, LOGE, FL("fail to send Basic Meas report "));
-		       )
+		lim_log(pMac, LOGE, FL("fail to send Basic Meas report "));
 		return;
 	}
 }
@@ -1161,7 +1158,7 @@ __lim_process_cca_meas_req(tpAniSirGlobal pMac,
 	if (lim_send_meas_report_frame(pMac, pMeasReqFrame,
 				       peerMacAddr, psessionEntry) !=
 					 eSIR_SUCCESS) {
-		PELOGE(lim_log(pMac, LOGE, FL("fail to send CCA Meas report "));)
+		lim_log(pMac, LOGE, FL("fail to send CCA Meas report "));
 		return;
 	}
 }
@@ -1173,7 +1170,7 @@ __lim_process_rpi_meas_req(tpAniSirGlobal pMac,
 	if (lim_send_meas_report_frame(pMac, pMeasReqFrame,
 				       peerMacAddr, psessionEntry) !=
 					 eSIR_SUCCESS) {
-		PELOGE(lim_log(pMac, LOGE, FL("fail to send RPI Meas report "));)
+		lim_log(pMac, LOGE, FL("fail to send RPI Meas report "));
 		return;
 	}
 }
@@ -1201,10 +1198,8 @@ __lim_process_measurement_request_frame(tpAniSirGlobal pMac,
 
 	if (sir_convert_meas_req_frame2_struct(pMac, pBody, pMeasReqFrame, frameLen)
 	    != eSIR_SUCCESS) {
-		PELOGW(lim_log
-			       (pMac, LOGW,
+		lim_log(pMac, LOGW,
 			       FL("Rcv invalid Measurement Request Action Frame "));
-		       )
 		return;
 	}
 	switch (pMeasReqFrame->measReqIE.measType) {
@@ -1221,9 +1216,8 @@ __lim_process_measurement_request_frame(tpAniSirGlobal pMac,
 					   psessionEntry);
 		break;
 	default:
-		PELOG1(lim_log(pMac, LOG1, FL("Unknown Measurement Type %d "),
+		lim_log(pMac, LOGD, FL("Unknown Measurement Type %d "),
 			       pMeasReqFrame->measReqIE.measType);
-		       )
 		break;
 	}
 } /*** end limProcessMeasurementRequestFrame ***/
@@ -1238,28 +1232,23 @@ __lim_process_tpc_request_frame(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 	pHdr = WMA_GET_RX_MAC_HEADER(pRxPacketInfo);
 	pBody = WMA_GET_RX_MPDU_DATA(pRxPacketInfo);
 	frameLen = WMA_GET_RX_PAYLOAD_LEN(pRxPacketInfo);
-	PELOG1(lim_log
-		       (pMac, LOG1,
+	lim_log(pMac, LOGD,
 		       FL("****LIM: Processing TPC Request from peer ****"));
-	       )
+
 	pTpcReqFrame = qdf_mem_malloc(sizeof(tSirMacTpcReqActionFrame));
 	if (NULL == pTpcReqFrame) {
-		PELOGE(lim_log(pMac, LOGE, FL("AllocateMemory failed "));)
+		lim_log(pMac, LOGE, FL("AllocateMemory failed "));
 		return;
 	}
 	if (sir_convert_tpc_req_frame2_struct(pMac, pBody, pTpcReqFrame, frameLen) !=
 	    eSIR_SUCCESS) {
-		PELOGW(lim_log
-			       (pMac, LOGW, FL("Rcv invalid TPC Req Action Frame "));
-		       )
+		lim_log(pMac, LOGW, FL("Rcv invalid TPC Req Action Frame "));
 		return;
 	}
 	if (lim_send_tpc_report_frame(pMac,
 				      pTpcReqFrame,
 				      pHdr->sa, psessionEntry) != eSIR_SUCCESS) {
-		PELOGE(lim_log
-			       (pMac, LOGE, FL("fail to send TPC Report Frame. "));
-		       )
+		lim_log(pMac, LOGE, FL("fail to send TPC Report Frame. "));
 		return;
 	}
 }
@@ -1301,21 +1290,17 @@ __lim_process_sm_power_save_update(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 			FL
 				("Failed to unpack and parse a Update SM Power (0x%08x, %d bytes):"),
 			nStatus, frameLen);
-		PELOG2(sir_dump_buf
-			       (pMac, SIR_DBG_MODULE_ID, LOG2, pBody, frameLen);
-		       )
+		sir_dump_buf(pMac, SIR_DBG_MODULE_ID, LOGE, pBody, frameLen);
 		return;
 	} else if (DOT11F_WARNED(nStatus)) {
 		lim_log(pMac, LOGW,
 			FL
 				("There were warnings while unpacking a SMPower Save update (0x%08x, %d bytes):"),
 			nStatus, frameLen);
-		PELOG2(sir_dump_buf
-			       (pMac, SIR_DBG_MODULE_ID, LOG2, pBody, frameLen);
-		       )
+		sir_dump_buf(pMac, SIR_DBG_MODULE_ID, LOGW, pBody, frameLen);
 	}
 
-	lim_log(pMac, LOGW,
+	lim_log(pMac, LOGD,
 		FL("Received SM Power save Mode update Frame with PS_Enable:%d"
 		   "PS Mode: %d"), frmSMPower.SMPowerModeSet.PowerSave_En,
 		frmSMPower.SMPowerModeSet.Mode);
@@ -1331,19 +1316,14 @@ __lim_process_sm_power_save_update(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 		 && (frmSMPower.SMPowerModeSet.Mode == 0))
 		state = eSIR_HT_MIMO_PS_NO_LIMIT;
 	else {
-		PELOGW(lim_log
-			       (pMac, LOGW,
-			       FL
-				       ("Received SM Power save Mode update Frame with invalid mode"));
-		       )
+		lim_log(pMac, LOGW,
+			FL("Received SM Power save Mode update Frame with invalid mode"));
 		return;
 	}
 
 	if (state == pSta->htMIMOPSState) {
-		PELOGE(lim_log
-			       (pMac, LOGE,
-			       FL("The PEER is already set in the same mode"));
-		       )
+		lim_log(pMac, LOGE,
+			FL("The PEER is already set in the same mode"));
 		return;
 	}
 
@@ -1391,15 +1371,13 @@ __lim_process_radio_measure_request(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 		lim_log(pMac, LOGE,
 			FL("Failed to unpack and parse a Radio Measure request (0x%08x, %d bytes):"),
 			nStatus, frameLen);
-		PELOG2(sir_dump_buf
-		       (pMac, SIR_DBG_MODULE_ID, LOG2, pBody, frameLen);)
+		sir_dump_buf(pMac, SIR_DBG_MODULE_ID, LOGE, pBody, frameLen);
 		    goto err;
 	} else if (DOT11F_WARNED(nStatus)) {
 		lim_log(pMac, LOGW,
 			FL("There were warnings while unpacking a Radio Measure request (0x%08x, %d bytes):"),
 			nStatus, frameLen);
-		PELOG2(sir_dump_buf
-		       (pMac, SIR_DBG_MODULE_ID, LOG2, pBody, frameLen);)
+		sir_dump_buf(pMac, SIR_DBG_MODULE_ID, LOGW, pBody, frameLen);
 	}
 	/* Call rrm function to handle the request. */
 
@@ -1435,18 +1413,14 @@ __lim_process_link_measurement_req(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 			FL
 				("Failed to unpack and parse a Link Measure request (0x%08x, %d bytes):"),
 			nStatus, frameLen);
-		PELOG2(sir_dump_buf
-			       (pMac, SIR_DBG_MODULE_ID, LOG2, pBody, frameLen);
-		       )
+		sir_dump_buf(pMac, SIR_DBG_MODULE_ID, LOGE, pBody, frameLen);
 		return eSIR_FAILURE;
 	} else if (DOT11F_WARNED(nStatus)) {
 		lim_log(pMac, LOGW,
 			FL
 				("There were warnings while unpacking a Link Measure request (0x%08x, %d bytes):"),
 			nStatus, frameLen);
-		PELOG2(sir_dump_buf
-			       (pMac, SIR_DBG_MODULE_ID, LOG2, pBody, frameLen);
-		       )
+		sir_dump_buf(pMac, SIR_DBG_MODULE_ID, LOGW, pBody, frameLen);
 	}
 	/* Call rrm function to handle the request. */
 
@@ -1490,9 +1464,7 @@ __lim_process_neighbor_report(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 			FL
 				("Failed to unpack and parse a Neighbor report response (0x%08x, %d bytes):"),
 			nStatus, frameLen);
-		PELOG2(sir_dump_buf
-			       (pMac, SIR_DBG_MODULE_ID, LOG2, pBody, frameLen);
-		       )
+		sir_dump_buf(pMac, SIR_DBG_MODULE_ID, LOGE, pBody, frameLen);
 		qdf_mem_free(pFrm);
 		return;
 	} else if (DOT11F_WARNED(nStatus)) {
@@ -1500,9 +1472,7 @@ __lim_process_neighbor_report(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 			FL
 				("There were warnings while unpacking a Neighbor report response (0x%08x, %d bytes):"),
 			nStatus, frameLen);
-		PELOG2(sir_dump_buf
-			       (pMac, SIR_DBG_MODULE_ID, LOG2, pBody, frameLen);
-		       )
+		sir_dump_buf(pMac, SIR_DBG_MODULE_ID, LOGW, pBody, frameLen);
 	}
 	/* Call rrm function to handle the request. */
 	rrm_process_neighbor_report_response(pMac, pFrm, psessionEntry);
@@ -1570,10 +1540,8 @@ static void __lim_process_sa_query_request_action_frame(tpAniSirGlobal pMac,
 					     transId,
 					     pHdr->sa,
 					     psessionEntry) != eSIR_SUCCESS) {
-		PELOGE(lim_log
-			       (pMac, LOGE,
-			       FL("fail to send SA query response action frame."));
-		       )
+		lim_log(pMac, LOGE,
+			FL("fail to send SA query response action frame."));
 		return;
 	}
 }
@@ -1611,7 +1579,7 @@ static void __lim_process_sa_query_response_action_frame(tpAniSirGlobal pMac,
 	pHdr = WMA_GET_RX_MAC_HEADER(pRxPacketInfo);
 	frameLen = WMA_GET_RX_PAYLOAD_LEN(pRxPacketInfo);
 	pBody = WMA_GET_RX_MPDU_DATA(pRxPacketInfo);
-	QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_INFO,
+	QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
 		  ("SA Query Response received..."));
 
 	/* When a station, supplicant handles SA Query Response.
@@ -1635,11 +1603,11 @@ static void __lim_process_sa_query_response_action_frame(tpAniSirGlobal pMac,
 	if (NULL == pSta)
 		return;
 
-	lim_log(pMac, LOG1,
+	lim_log(pMac, LOGD,
 		FL("SA Query Response source addr - %0x:%0x:%0x:%0x:%0x:%0x"),
 		pHdr->sa[0], pHdr->sa[1], pHdr->sa[2], pHdr->sa[3],
 		pHdr->sa[4], pHdr->sa[5]);
-	lim_log(pMac, LOG1,
+	lim_log(pMac, LOGD,
 		FL("SA Query state for station - %d"), pSta->pmfSaQueryState);
 
 	if (DPH_SA_QUERY_IN_PROGRESS != pSta->pmfSaQueryState)
@@ -1657,7 +1625,7 @@ static void __lim_process_sa_query_response_action_frame(tpAniSirGlobal pMac,
 	   query is from a rogue station, just go back to initial state. */
 	for (retryNum = 0; retryNum <= pSta->pmfSaQueryRetryCount; retryNum++)
 		if (transId == pSta->pmfSaQueryStartTransId + retryNum) {
-			lim_log(pMac, LOG1,
+			lim_log(pMac, LOGD,
 				FL
 					("Found matching SA Query Request - transaction ID %d"),
 				transId);
@@ -1782,7 +1750,7 @@ void lim_process_action_frame(tpAniSirGlobal mac_ctx,
 						session);
 				break;
 			default:
-				lim_log(mac_ctx, LOG1,
+				lim_log(mac_ctx, LOGD,
 					FL("Qos action %d not handled"),
 					action_hdr->actionID);
 				break;
@@ -1814,7 +1782,7 @@ void lim_process_action_frame(tpAniSirGlobal mac_ctx,
 					mac_ctx, rx_pkt_info, session);
 			break;
 		default:
-			lim_log(mac_ctx, LOG1,
+			lim_log(mac_ctx, LOGD,
 				FL("Spectrum mgmt action id %d not handled"),
 				action_hdr->actionID);
 			break;
@@ -1850,7 +1818,7 @@ void lim_process_action_frame(tpAniSirGlobal mac_ctx,
 			break;
 
 		default:
-			lim_log(mac_ctx, LOG1,
+			lim_log(mac_ctx, LOGD,
 				FL("WME action %d not handled"),
 				action_hdr->actionID);
 			break;
@@ -1867,7 +1835,7 @@ void lim_process_action_frame(tpAniSirGlobal mac_ctx,
 						session);
 			break;
 		default:
-			lim_log(mac_ctx, LOG1,
+			lim_log(mac_ctx, LOGD,
 				FL("Action ID %d not handled in HT category"),
 				action_hdr->actionID);
 			break;
@@ -1875,7 +1843,7 @@ void lim_process_action_frame(tpAniSirGlobal mac_ctx,
 		break;
 
 	case SIR_MAC_ACTION_WNM:
-		lim_log(mac_ctx, LOG1,
+		lim_log(mac_ctx, LOGD,
 			FL("WNM Action category %d action %d."),
 			action_hdr->category, action_hdr->actionID);
 		switch (action_hdr->actionID) {
@@ -1896,7 +1864,7 @@ void lim_process_action_frame(tpAniSirGlobal mac_ctx,
 					session, rssi);
 			break;
 		default:
-			lim_log(mac_ctx, LOG1,
+			lim_log(mac_ctx, LOGD,
 				FL("Action ID %d not handled in WNM category"),
 				action_hdr->actionID);
 			break;
@@ -1935,7 +1903,7 @@ void lim_process_action_frame(tpAniSirGlobal mac_ctx,
 						session);
 				break;
 			default:
-				lim_log(mac_ctx, LOG1,
+				lim_log(mac_ctx, LOGD,
 					FL("Action ID %d not handled in RRM"),
 					action_hdr->actionID);
 				break;
@@ -1943,7 +1911,7 @@ void lim_process_action_frame(tpAniSirGlobal mac_ctx,
 			}
 		} else {
 			/* Else we will just ignore the RRM messages. */
-			lim_log(mac_ctx, LOG1,
+			lim_log(mac_ctx, LOGD,
 			  FL("RRM frm ignored, it is disabled in cfg %d or DHCP not completed %d"),
 			  mac_ctx->rrm.rrmPEContext.rrmEnable,
 			  mac_ctx->roam.roamSession
@@ -1983,7 +1951,7 @@ void lim_process_action_frame(tpAniSirGlobal mac_ctx,
 					WMA_GET_RX_CH(rx_pkt_info),
 					session, 0);
 		} else {
-			lim_log(mac_ctx, LOG1,
+			lim_log(mac_ctx, LOGD,
 				FL("Dropping the vendor specific action frame"
 					"beacause of (WES Mode not enabled "
 					"(WESMODE = %d) or OUI mismatch "
@@ -2022,7 +1990,7 @@ void lim_process_action_frame(tpAniSirGlobal mac_ctx,
 						WMA_GET_RX_CH(rx_pkt_info),
 				session, WMA_GET_RX_RSSI_RAW(rx_pkt_info));
 			} else {
-				lim_log(mac_ctx, LOG1,
+				lim_log(mac_ctx, LOGD,
 					FL("Unhandled public action frame (Vendor specific). OUI %x %x %x %x"),
 					pub_action->Oui[0], pub_action->Oui[1],
 					pub_action->Oui[2], pub_action->Oui[3]);
@@ -2066,7 +2034,7 @@ void lim_process_action_frame(tpAniSirGlobal mac_ctx,
 			mac_hdr = WMA_GET_RX_MAC_HEADER(rx_pkt_info);
 			frame_len = WMA_GET_RX_PAYLOAD_LEN(rx_pkt_info);
 			rssi = WMA_GET_RX_RSSI_NORMALIZED(rx_pkt_info);
-			QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_INFO,
+			QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
 				  ("Public Action TDLS Discovery RSP .."));
 			lim_send_sme_mgmt_frame_ind(mac_ctx,
 				mac_hdr->fc.subType, (uint8_t *) mac_hdr,
@@ -2080,7 +2048,7 @@ void lim_process_action_frame(tpAniSirGlobal mac_ctx,
 							rx_pkt_info, session);
 			break;
 		default:
-			lim_log(mac_ctx, LOG1,
+			lim_log(mac_ctx, LOGD,
 				FL("Unhandled public action frame -- %x "),
 				action_hdr->actionID);
 			break;
@@ -2089,7 +2057,7 @@ void lim_process_action_frame(tpAniSirGlobal mac_ctx,
 
 #ifdef WLAN_FEATURE_11W
 	case SIR_MAC_ACTION_SA_QUERY:
-		lim_log(mac_ctx, LOG1,
+		lim_log(mac_ctx, LOGD,
 			FL("SA Query Action category %d action %d."),
 			action_hdr->category, action_hdr->actionID);
 		switch (action_hdr->actionID) {
@@ -2137,7 +2105,7 @@ void lim_process_action_frame(tpAniSirGlobal mac_ctx,
 		hdr = WMA_GET_RX_MAC_HEADER(rx_pkt_info);
 		frame_len = WMA_GET_RX_PAYLOAD_LEN(rx_pkt_info);
 
-		lim_log(mac_ctx, LOG1, FL("Received FST MGMT action frame"));
+		lim_log(mac_ctx, LOGD, FL("Received FST MGMT action frame"));
 		/* Forward to the SME to HDD */
 		lim_send_sme_mgmt_frame_ind(mac_ctx, hdr->fc.subType,
 					    (uint8_t *)hdr,
@@ -2148,7 +2116,7 @@ void lim_process_action_frame(tpAniSirGlobal mac_ctx,
 		break;
 	}
 	case SIR_MAC_ACTION_PROT_DUAL_PUB:
-		lim_log(mac_ctx, LOG1,
+		lim_log(mac_ctx, LOGD,
 			FL("Rcvd Protected Dual of Public Action; action %d."),
 			action_hdr->actionID);
 		switch (action_hdr->actionID) {
@@ -2166,13 +2134,13 @@ void lim_process_action_frame(tpAniSirGlobal mac_ctx,
 				WMA_GET_RX_CH(rx_pkt_info), session, rssi);
 			break;
 		default:
-			lim_log(mac_ctx, LOG1,
+			lim_log(mac_ctx, LOGD,
 				FL("Unhandled - Protected Dual Public Action"));
 			break;
 		}
 		break;
 	default:
-		lim_log(mac_ctx, LOG1,
+		lim_log(mac_ctx, LOGD,
 			FL("Action category %d not handled"),
 			action_hdr->category);
 		break;
@@ -2205,7 +2173,7 @@ void lim_process_action_frame_no_session(tpAniSirGlobal pMac, uint8_t *pBd)
 	tpSirMacVendorSpecificPublicActionFrameHdr pActionHdr =
 		(tpSirMacVendorSpecificPublicActionFrameHdr) pBody;
 
-	lim_log(pMac, LOG1, "Received a Action frame -- no session");
+	lim_log(pMac, LOGD, "Received a Action frame -- no session");
 
 	switch (pActionHdr->category) {
 	case SIR_MAC_ACTION_PUBLIC_USAGE:
@@ -2233,7 +2201,7 @@ void lim_process_action_frame_no_session(tpAniSirGlobal pMac, uint8_t *pBd)
 							    WMA_GET_RX_CH
 								    (pBd), NULL, 0);
 			} else {
-				lim_log(pMac, LOG1,
+				lim_log(pMac, LOGD,
 					FL
 						("Unhandled public action frame (Vendor specific). OUI %x %x %x %x"),
 					pActionHdr->Oui[0],
@@ -2244,20 +2212,16 @@ void lim_process_action_frame_no_session(tpAniSirGlobal pMac, uint8_t *pBd)
 		}
 		break;
 		default:
-			PELOGE(lim_log
-				       (pMac, LOG1,
-				       FL("Unhandled public action frame -- %x "),
+			lim_log(pMac, LOGW,
+				FL("Unhandled public action frame -- %x "),
 				       pActionHdr->actionID);
-			       )
 			break;
 		}
 		break;
 	default:
-		PELOGE(lim_log
-			       (pMac, LOG1,
-			       FL("Unhandled action frame without session -- %x "),
+		lim_log(pMac, LOGW,
+			FL("Unhandled action frame without session -- %x "),
 			       pActionHdr->category);
-		       )
 		break;
 
 	}

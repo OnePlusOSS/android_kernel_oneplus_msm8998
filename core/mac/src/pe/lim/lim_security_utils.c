@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -201,7 +201,7 @@ void lim_delete_pre_auth_list(tpAniSirGlobal pMac)
 	while (pCurrNode != NULL) {
 		pTempNode = pCurrNode->next;
 
-		PELOG1(lim_log(pMac, LOG1, FL("=====> lim_delete_pre_auth_list "));)
+		lim_log(pMac, LOG1, FL("=====> lim_delete_pre_auth_list "));
 		lim_release_pre_auth_node(pMac, pCurrNode);
 
 		pCurrNode = pTempNode;
@@ -393,17 +393,10 @@ void lim_delete_pre_auth_node(tpAniSirGlobal pMac, tSirMacAddr macAddr)
 
 		pMac->lim.pLimPreAuthList = pTempNode->next;
 
-		PELOG1(lim_log
-			       (pMac, LOG1,
-			       FL
-				       ("=====> lim_delete_pre_auth_node : first node to delete"));
-		       )
-		PELOG1(lim_log
-			       (pMac, LOG1,
-			       FL("Release data entry: %x id %d peer "), pTempNode,
-			       pTempNode->authNodeIdx);
-		       lim_print_mac_addr(pMac, macAddr, LOG1);
-		       )
+		lim_log(pMac, LOGD,
+			FL("first node to delete, Release data entry: %p id %d peer"),
+			       pTempNode, pTempNode->authNodeIdx);
+		lim_print_mac_addr(pMac, macAddr, LOGD);
 		lim_release_pre_auth_node(pMac, pTempNode);
 
 		return;
@@ -419,15 +412,10 @@ void lim_delete_pre_auth_node(tpAniSirGlobal pMac, tSirMacAddr macAddr)
 
 			pPrevNode->next = pTempNode->next;
 
-			PELOG1(lim_log
-				       (pMac, LOG1,
-				       FL
-					       ("=====> lim_delete_pre_auth_node : subsequent node to delete"));
-			       lim_log(pMac, LOG1,
-				       FL("Release data entry: %x id %d peer "),
+			lim_log(pMac, LOGD,
+				FL("subsequent node to delete, Release data entry: %p id %d peer"),
 				       pTempNode, pTempNode->authNodeIdx);
-			       lim_print_mac_addr(pMac, macAddr, LOG1);
-			       )
+			lim_print_mac_addr(pMac, macAddr, LOGD);
 			lim_release_pre_auth_node(pMac, pTempNode);
 
 			return;
@@ -439,8 +427,8 @@ void lim_delete_pre_auth_node(tpAniSirGlobal pMac, tSirMacAddr macAddr)
 
 	/* Should not be here */
 	/* Log error */
-	lim_log(pMac, LOGP, FL("peer not found in pre-auth list, addr= "));
-	lim_print_mac_addr(pMac, macAddr, LOGP);
+	lim_log(pMac, LOGE, FL("peer not found in pre-auth list, addr= "));
+	lim_print_mac_addr(pMac, macAddr, LOGE);
 
 } /*** end lim_delete_pre_auth_node() ***/
 
@@ -748,9 +736,9 @@ lim_decrypt_auth_frame(tpAniSirGlobal pMac, uint8_t *pKey, uint8_t *pEncrBody,
 	lim_rc4(pPlainBody,
 		pEncrBody + SIR_MAC_WEP_IV_LENGTH, seed, keyLength, frameLen);
 
-	PELOG4(lim_log(pMac, LOG4, FL("plainbody is "));
-	       sir_dump_buf(pMac, SIR_LIM_MODULE_ID, LOG4, pPlainBody, frameLen);
-	       )
+	lim_log(pMac, LOGD, FL("plainbody is "));
+	       sir_dump_buf(pMac, SIR_LIM_MODULE_ID, LOGD, pPlainBody, frameLen);
+
 	/* Compute CRC-32 and place them in last 4 bytes of encrypted body */
 	lim_compute_crc32(icv,
 			  (uint8_t *) pPlainBody,
@@ -758,11 +746,10 @@ lim_decrypt_auth_frame(tpAniSirGlobal pMac, uint8_t *pKey, uint8_t *pEncrBody,
 
 	/* Compare RX_ICV with computed ICV */
 	for (i = 0; i < SIR_MAC_WEP_ICV_LENGTH; i++) {
-		PELOG4(lim_log
-			       (pMac, LOG4, FL(" computed ICV%d[%x], rxed ICV%d[%x]"),
-			       i, icv[i], i,
-			       pPlainBody[frameLen - SIR_MAC_WEP_ICV_LENGTH + i]);
-		       )
+		lim_log(pMac, LOGD, FL(" computed ICV%d[%x], rxed ICV%d[%x]"),
+			i, icv[i], i,
+			pPlainBody[frameLen - SIR_MAC_WEP_ICV_LENGTH + i]);
+
 		if (icv[i] !=
 		    pPlainBody[frameLen - SIR_MAC_WEP_ICV_LENGTH + i])
 			return LIM_DECRYPT_ICV_FAIL;
@@ -823,7 +810,7 @@ void lim_send_set_bss_key_req(tpAniSirGlobal pMac,
 	uint32_t val = 0;
 
 	if (pMlmSetKeysReq->numKeys > SIR_MAC_MAX_NUM_OF_DEFAULT_KEYS) {
-		lim_log(pMac, LOG1,
+		lim_log(pMac, LOGD,
 			FL
 				("numKeys = %d is more than SIR_MAC_MAX_NUM_OF_DEFAULT_KEYS"),
 			pMlmSetKeysReq->numKeys);
@@ -848,9 +835,8 @@ void lim_send_set_bss_key_req(tpAniSirGlobal pMac,
 	pSetBssKeyParams->bssIdx = psessionEntry->bssIdx;
 	pSetBssKeyParams->encType = pMlmSetKeysReq->edType;
 
-	if (eSIR_SUCCESS != wlan_cfg_get_int(pMac, WNI_CFG_SINGLE_TID_RC, &val)) {
-		lim_log(pMac, LOGP, FL("Unable to read WNI_CFG_SINGLE_TID_RC"));
-	}
+	if (eSIR_SUCCESS != wlan_cfg_get_int(pMac, WNI_CFG_SINGLE_TID_RC, &val))
+		lim_log(pMac, LOGW, FL("Unable to read WNI_CFG_SINGLE_TID_RC"));
 
 	pSetBssKeyParams->singleTidRc = (uint8_t) val;
 
@@ -884,7 +870,7 @@ void lim_send_set_bss_key_req(tpAniSirGlobal pMac,
 	msgQ.bodyptr = pSetBssKeyParams;
 	msgQ.bodyval = 0;
 
-	lim_log(pMac, LOGW, FL("Sending WMA_SET_BSSKEY_REQ..."));
+	lim_log(pMac, LOGD, FL("Sending WMA_SET_BSSKEY_REQ..."));
 	MTRACE(mac_trace_msg_tx(pMac, psessionEntry->peSessionId, msgQ.type));
 	retCode = wma_post_ctrl_msg(pMac, &msgQ);
 	if (eSIR_SUCCESS != retCode) {
@@ -938,7 +924,7 @@ void lim_send_set_sta_key_req(tpAniSirGlobal pMac,
 	/* Package WMA_SET_STAKEY_REQ message parameters */
 	pSetStaKeyParams = qdf_mem_malloc(sizeof(tSetStaKeyParams));
 	if (NULL == pSetStaKeyParams) {
-		lim_log(pMac, LOGP,
+		lim_log(pMac, LOGE,
 			FL("Unable to allocate memory during SET_BSSKEY"));
 		return;
 	}
@@ -947,9 +933,8 @@ void lim_send_set_sta_key_req(tpAniSirGlobal pMac,
 	pSetStaKeyParams->staIdx = staIdx;
 	pSetStaKeyParams->encType = pMlmSetKeysReq->edType;
 
-	if (eSIR_SUCCESS != wlan_cfg_get_int(pMac, WNI_CFG_SINGLE_TID_RC, &val)) {
-		lim_log(pMac, LOGP, FL("Unable to read WNI_CFG_SINGLE_TID_RC"));
-	}
+	if (eSIR_SUCCESS != wlan_cfg_get_int(pMac, WNI_CFG_SINGLE_TID_RC, &val))
+		lim_log(pMac, LOGW, FL("Unable to read WNI_CFG_SINGLE_TID_RC"));
 
 	pSetStaKeyParams->singleTidRc = (uint8_t) val;
 
@@ -1057,7 +1042,7 @@ void lim_send_set_sta_key_req(tpAniSirGlobal pMac,
 	msgQ.bodyptr = pSetStaKeyParams;
 	msgQ.bodyval = 0;
 
-	lim_log(pMac, LOG1, FL("Sending WMA_SET_STAKEY_REQ..."));
+	lim_log(pMac, LOGD, FL("Sending WMA_SET_STAKEY_REQ..."));
 	MTRACE(mac_trace_msg_tx(pMac, sessionEntry->peSessionId, msgQ.type));
 	retCode = wma_post_ctrl_msg(pMac, &msgQ);
 	if (eSIR_SUCCESS != retCode) {

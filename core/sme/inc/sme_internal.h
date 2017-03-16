@@ -93,6 +93,7 @@ typedef enum eSmeCommandType {
 	e_sme_command_nss_update,
 	e_sme_command_set_dual_mac_config,
 	e_sme_command_set_antenna_mode,
+	e_sme_command_issue_self_reassoc,
 	eSmeCommandNdpInitiatorRequest,
 	eSmeCommandNdpResponderRequest,
 	eSmeCommandNdpDataEndInitiatorRequest,
@@ -182,6 +183,8 @@ typedef struct tagSmeStruct {
 #ifdef WLAN_FEATURE_LINK_LAYER_STATS
 	void (*pLinkLayerStatsIndCallback)(void *callbackContext,
 			int indType, void *pRsp);
+	void (*link_layer_stats_ext_cb)(tHddHandle callback_ctx,
+					tSirLLStatsResults *rsp);
 #endif /* WLAN_FEATURE_LINK_LAYER_STATS */
 
 #ifdef WLAN_POWER_DEBUGFS
@@ -256,6 +259,7 @@ typedef struct tagSmeStruct {
 			struct sir_lost_link_info *lost_link_info);
 	void (*rso_cmd_status_cb)(void *hdd_context,
 			 struct rso_cmd_status *rso_status);
+	void (*get_arp_stats_cb)(void *, struct rsp_stats *);
 } tSmeStruct, *tpSmeStruct;
 
 #endif /* #if !defined( __SMEINTERNAL_H ) */

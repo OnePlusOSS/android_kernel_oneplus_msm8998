@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -141,7 +141,7 @@ static void pe_reset_protection_callback(void *ptr)
 	       pe_session_entry->gLimOlbcParams.protectionEnabled         << 4;
 
 	QDF_TRACE(QDF_MODULE_ID_PE,
-		  QDF_TRACE_LEVEL_INFO,
+		  QDF_TRACE_LEVEL_DEBUG,
 		  FL("old protection state: 0x%04X, new protection state: 0x%04X"),
 		  pe_session_entry->old_protection_state,
 		  current_protection_state);
@@ -202,7 +202,7 @@ static void pe_reset_protection_callback(void *ptr)
 		pe_session_entry->old_protection_state) &&
 		(false == mac_ctx->sap.SapDfsInfo.is_dfs_cac_timer_running)) {
 		QDF_TRACE(QDF_MODULE_ID_PE,
-			  QDF_TRACE_LEVEL_ERROR,
+			  QDF_TRACE_LEVEL_DEBUG,
 			  FL("protection changed, update beacon template"));
 		/* update beacon fix params and send update to FW */
 		qdf_mem_zero(&beacon_params, sizeof(tUpdateBeaconParams));
@@ -442,8 +442,8 @@ tpPESession pe_find_session_by_bssid(tpAniSirGlobal pMac, uint8_t *bssid,
 		}
 	}
 
-	lim_log(pMac, LOG4, FL("Session lookup fails for BSSID:"));
-	lim_print_mac_addr(pMac, bssid, LOG4);
+	lim_log(pMac, LOGD, FL("Session lookup fails for BSSID:"));
+	lim_print_mac_addr(pMac, bssid, LOGD);
 	return NULL;
 
 }
@@ -468,7 +468,7 @@ tpPESession pe_find_session_by_bss_idx(tpAniSirGlobal pMac, uint8_t bssIdx)
 			return &pMac->lim.gpSession[i];
 		}
 	}
-	lim_log(pMac, LOG4, FL("Session lookup fails for bssIdx: %d"), bssIdx);
+	lim_log(pMac, LOGD, FL("Session lookup fails for bssIdx: %d"), bssIdx);
 	return NULL;
 }
 
@@ -533,7 +533,7 @@ pe_find_session_by_sta_id(tpAniSirGlobal mac_ctx,
 		}
 	}
 
-	lim_log(mac_ctx, LOG4,
+	lim_log(mac_ctx, LOGD,
 		FL("Session lookup fails for StaId: %d"), staid);
 	return NULL;
 }
@@ -749,8 +749,8 @@ tpPESession pe_find_session_by_peer_sta(tpAniSirGlobal pMac, uint8_t *sa,
 		}
 	}
 
-	lim_log(pMac, LOG1, FL("Session lookup fails for Peer StaId:"));
-	lim_print_mac_addr(pMac, sa, LOG1);
+	lim_log(pMac, LOGD, FL("Session lookup fails for Peer StaId:"));
+	lim_print_mac_addr(pMac, sa, LOGD);
 	return NULL;
 }
 
@@ -775,7 +775,7 @@ tpPESession pe_find_session_by_sme_session_id(tpAniSirGlobal mac_ctx,
 			return &mac_ctx->lim.gpSession[i];
 		}
 	}
-	lim_log(mac_ctx, LOG4,
+	lim_log(mac_ctx, LOGW,
 		FL("Session lookup fails for smeSessionID: %d"),
 		sme_session_id);
 	return NULL;

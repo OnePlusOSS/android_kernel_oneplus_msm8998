@@ -1394,8 +1394,6 @@ uint32_t csr_translate_to_wni_cfg_dot11_mode(tpAniSirGlobal pMac,
 
 	switch (csrDot11Mode) {
 	case eCSR_CFG_DOT11_MODE_AUTO:
-		sms_log(pMac, LOGW,
-			FL("  Warning: sees eCSR_CFG_DOT11_MODE_AUTO "));
 		if (IS_FEATURE_SUPPORTED_BY_FW(DOT11AC))
 			ret = WNI_CFG_DOT11_MODE_11AC;
 		else

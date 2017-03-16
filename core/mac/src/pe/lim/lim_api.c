@@ -263,7 +263,7 @@ static void __lim_init_assoc_vars(tpAniSirGlobal pMac)
 	uint32_t val;
 	if (wlan_cfg_get_int(pMac, WNI_CFG_ASSOC_STA_LIMIT, &val)
 		!= eSIR_SUCCESS)
-		lim_log(pMac, LOGP, FL("cfg get assoc sta limit failed"));
+		lim_log(pMac, LOGE, FL("cfg get assoc sta limit failed"));
 	pMac->lim.gLimAssocStaLimit = val;
 	pMac->lim.gLimIbssStaLimit = val;
 	/* Place holder for current authentication request */
@@ -336,16 +336,14 @@ static tSirRetStatus __lim_init_config(tpAniSirGlobal pMac)
 	 */
 
 	if (wlan_cfg_get_int(pMac, WNI_CFG_HT_CAP_INFO, &val1) != eSIR_SUCCESS) {
-		PELOGE(lim_log(pMac, LOGE, FL("could not retrieve HT Cap CFG"));)
+		lim_log(pMac, LOGE, FL("could not retrieve HT Cap CFG"));
 		return eSIR_FAILURE;
 	}
 
 	if (wlan_cfg_get_int(pMac, WNI_CFG_CHANNEL_BONDING_MODE, &val2) !=
 	    eSIR_SUCCESS) {
-		PELOGE(lim_log
-			       (pMac, LOGE,
-			       FL("could not retrieve Channel Bonding CFG"));
-		       )
+		lim_log(pMac, LOGE,
+			FL("could not retrieve Channel Bonding CFG"));
 		return eSIR_FAILURE;
 	}
 	val16 = (uint16_t) val1;
@@ -359,17 +357,13 @@ static tSirRetStatus __lim_init_config(tpAniSirGlobal pMac)
 	if (cfg_set_int
 		    (pMac, WNI_CFG_HT_CAP_INFO, *(uint16_t *) pHTCapabilityInfo)
 	    != eSIR_SUCCESS) {
-		PELOGE(lim_log
-			       (pMac, LOGE, FL("could not update HT Cap Info CFG"));
-		       )
+		lim_log(pMac, LOGE, FL("could not update HT Cap Info CFG"));
 		return eSIR_FAILURE;
 	}
 
 	if (wlan_cfg_get_int(pMac, WNI_CFG_HT_INFO_FIELD1, &val1) != eSIR_SUCCESS) {
-		PELOGE(lim_log
-			       (pMac, LOGE,
-			       FL("could not retrieve HT INFO Field1 CFG"));
-		       )
+		lim_log(pMac, LOGE,
+			FL("could not retrieve HT INFO Field1 CFG"));
 		return eSIR_FAILURE;
 	}
 
@@ -379,7 +373,7 @@ static tSirRetStatus __lim_init_config(tpAniSirGlobal pMac)
 		(uint8_t) pHTCapabilityInfo->supportedChannelWidthSet;
 	if (cfg_set_int(pMac, WNI_CFG_HT_INFO_FIELD1, *(uint8_t *) pHTInfoField1)
 	    != eSIR_SUCCESS) {
-		PELOGE(lim_log(pMac, LOGE, FL("could not update HT Info Field"));)
+		lim_log(pMac, LOGE, FL("could not update HT Info Field"));
 		return eSIR_FAILURE;
 	}
 
@@ -387,11 +381,8 @@ static tSirRetStatus __lim_init_config(tpAniSirGlobal pMac)
 
 	if (wlan_cfg_get_int(pMac, WNI_CFG_HEART_BEAT_THRESHOLD, &val1) !=
 	    eSIR_SUCCESS) {
-		PELOGE(lim_log
-			       (pMac, LOGE,
-			       FL
-				       ("could not retrieve WNI_CFG_HEART_BEAT_THRESHOLD CFG"));
-		       )
+		lim_log(pMac, LOGE,
+			FL("could not retrieve WNI_CFG_HEART_BEAT_THRESHOLD CFG"));
 		return eSIR_FAILURE;
 	}
 	if (!val1) {
@@ -433,7 +424,7 @@ static tSirRetStatus __lim_init_config(tpAniSirGlobal pMac)
 	/* WNI_CFG_SHORT_PREAMBLE - this one is not updated in
 	   lim_handle_cf_gparam_update do we want to update this? */
 	if (wlan_cfg_get_int(pMac, WNI_CFG_SHORT_PREAMBLE, &val1) != eSIR_SUCCESS) {
-		lim_log(pMac, LOGP, FL("cfg get short preamble failed"));
+		lim_log(pMac, LOGE, FL("cfg get short preamble failed"));
 		return eSIR_FAILURE;
 	}
 
@@ -445,34 +436,34 @@ static tSirRetStatus __lim_init_config(tpAniSirGlobal pMac)
 	if (eSIR_SUCCESS !=
 	    wlan_cfg_get_int(pMac, WNI_CFG_DISABLE_LDPC_WITH_TXBF_AP,
 			     (uint32_t *) &pMac->lim.disableLDPCWithTxbfAP)) {
-		lim_log(pMac, LOGP, FL("cfg get disableLDPCWithTxbfAP failed"));
+		lim_log(pMac, LOGE, FL("cfg get disableLDPCWithTxbfAP failed"));
 		return eSIR_FAILURE;
 	}
 #ifdef FEATURE_WLAN_TDLS
 	if (eSIR_SUCCESS != wlan_cfg_get_int(pMac, WNI_CFG_TDLS_BUF_STA_ENABLED,
 					     (uint32_t *) &pMac->lim.
 					     gLimTDLSBufStaEnabled)) {
-		lim_log(pMac, LOGP, FL("cfg get LimTDLSBufStaEnabled failed"));
+		lim_log(pMac, LOGE, FL("cfg get LimTDLSBufStaEnabled failed"));
 		return eSIR_FAILURE;
 	}
 	if (eSIR_SUCCESS !=
 	    wlan_cfg_get_int(pMac, WNI_CFG_TDLS_QOS_WMM_UAPSD_MASK,
 			     (uint32_t *) &pMac->lim.gLimTDLSUapsdMask)) {
-		lim_log(pMac, LOGP, FL("cfg get LimTDLSUapsdMask failed"));
+		lim_log(pMac, LOGE, FL("cfg get LimTDLSUapsdMask failed"));
 		return eSIR_FAILURE;
 	}
 	if (eSIR_SUCCESS !=
 	    wlan_cfg_get_int(pMac, WNI_CFG_TDLS_OFF_CHANNEL_ENABLED,
 			     (uint32_t *) &pMac->lim.
 			     gLimTDLSOffChannelEnabled)) {
-		lim_log(pMac, LOGP, FL("cfg get LimTDLSUapsdMask failed"));
+		lim_log(pMac, LOGE, FL("cfg get LimTDLSUapsdMask failed"));
 		return eSIR_FAILURE;
 	}
 
 	if (eSIR_SUCCESS != wlan_cfg_get_int(pMac, WNI_CFG_TDLS_WMM_MODE_ENABLED,
 					     (uint32_t *) &pMac->lim.
 					     gLimTDLSWmmMode)) {
-		lim_log(pMac, LOGP, FL("cfg get LimTDLSWmmMode failed"));
+		lim_log(pMac, LOGE, FL("cfg get LimTDLSWmmMode failed"));
 		return eSIR_FAILURE;
 	}
 #endif
@@ -488,7 +479,7 @@ tSirRetStatus lim_start(tpAniSirGlobal pMac)
 {
 	tSirResultCodes retCode = eSIR_SUCCESS;
 
-	PELOG1(lim_log(pMac, LOG1, FL(" enter"));)
+	lim_log(pMac, LOGD, FL(" enter"));
 
 	if (pMac->lim.gLimSmeState == eLIM_SME_OFFLINE_STATE) {
 		pMac->lim.gLimSmeState = eLIM_SME_IDLE_STATE;
@@ -619,8 +610,6 @@ void lim_cleanup(tpAniSirGlobal pMac)
 			&pMac->lim.gLimMgmtFrameRegistratinQueue,
 			(qdf_list_node_t **) &pLimMgmtRegistration) ==
 			QDF_STATUS_SUCCESS) {
-			QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_INFO,
-			FL("Fixing leak! Deallocating pLimMgmtRegistration node"));
 			qdf_mem_free(pLimMgmtRegistration);
 		}
 		qdf_mutex_release(&pMac->lim.lim_frame_register_lock);
@@ -700,7 +689,7 @@ static void lim_state_info_dump(char **buf_ptr, uint16_t *size)
 
 	mac = PMAC_STRUCT(hal);
 
-	lim_log(mac, LOG1, FL("size of buffer: %d"), *size);
+	lim_log(mac, LOGD, FL("size of buffer: %d"), *size);
 
 	len += qdf_scnprintf(buf + len, *size - len,
 		"\n SmeState: %d", mac->lim.gLimSmeState);
@@ -752,16 +741,16 @@ tSirRetStatus pe_open(tpAniSirGlobal pMac, struct cds_config_info *cds_cfg)
 	pMac->lim.maxStation = cds_cfg->max_station;
 
 	if ((pMac->lim.maxBssId == 0) || (pMac->lim.maxStation == 0)) {
-		PELOGE(lim_log(pMac, LOGE,
-			FL("max number of Bssid or Stations cannot be zero!"));)
+		lim_log(pMac, LOGE,
+			FL("max number of Bssid or Stations cannot be zero!"));
 		return eSIR_FAILURE;
 	}
 
 	pMac->lim.limTimers.gpLimCnfWaitTimer =
 		qdf_mem_malloc(sizeof(TX_TIMER) * (pMac->lim.maxStation + 1));
 	if (NULL == pMac->lim.limTimers.gpLimCnfWaitTimer) {
-		PELOGE(lim_log(pMac, LOGE,
-			FL("gpLimCnfWaitTimer memory allocate failed!"));)
+		lim_log(pMac, LOGE,
+			FL("gpLimCnfWaitTimer memory allocate failed!"));
 		return eSIR_MEM_ALLOC_FAILED;
 	}
 
@@ -779,7 +768,7 @@ tSirRetStatus pe_open(tpAniSirGlobal pMac, struct cds_config_info *cds_cfg)
 	pMac->lim.deferredMsgCnt = 0;
 
 	if (!QDF_IS_STATUS_SUCCESS(qdf_mutex_create(&pMac->lim.lkPeGlobalLock))) {
-		PELOGE(lim_log(pMac, LOGE, FL("pe lock init failed!"));)
+		lim_log(pMac, LOGE, FL("pe lock init failed!"));
 		status = eSIR_FAILURE;
 		goto pe_open_lock_fail;
 	}
@@ -1044,22 +1033,22 @@ static QDF_STATUS pe_handle_mgmt_frame(void *p_cds_gctx, void *cds_buff)
 
 	mHdr = WMA_GET_RX_MAC_HEADER(pRxPacketInfo);
 	if (mHdr->fc.type == SIR_MAC_MGMT_FRAME) {
-		lim_log(pMac, LOG2, FL
+		lim_log(pMac, LOGD, FL
 		  ("RxBd=%p mHdr=%p Type: %d Subtype: %d  Sizes:FC%zu Mgmt%zu"),
 		  pRxPacketInfo, mHdr, mHdr->fc.type, mHdr->fc.subType,
 		  sizeof(tSirMacFrameCtl), sizeof(tSirMacMgmtHdr));
 
-		lim_log(pMac, LOG2, FL("mpdu_len:%d hdr_len:%d data_len:%d"),
+		lim_log(pMac, LOGD, FL("mpdu_len:%d hdr_len:%d data_len:%d"),
 		       WMA_GET_RX_MPDU_LEN(pRxPacketInfo),
 		       WMA_GET_RX_MPDU_HEADER_LEN(pRxPacketInfo),
 		       WMA_GET_RX_PAYLOAD_LEN(pRxPacketInfo));
 
 		if (WMA_GET_ROAMCANDIDATEIND(pRxPacketInfo))
-			lim_log(pMac, LOG1, FL("roamCandidateInd %d"),
+			lim_log(pMac, LOGD, FL("roamCandidateInd %d"),
 				WMA_GET_ROAMCANDIDATEIND(pRxPacketInfo));
 
 		if (WMA_GET_OFFLOADSCANLEARN(pRxPacketInfo))
-			lim_log(pMac, LOG1, FL("offloadScanLearn %d"),
+			lim_log(pMac, LOGD, FL("offloadScanLearn %d"),
 				 WMA_GET_OFFLOADSCANLEARN(pRxPacketInfo));
 	}
 
@@ -1096,14 +1085,14 @@ void pe_register_callbacks_with_wma(tpAniSirGlobal pMac,
 	retStatus = wma_register_mgmt_frm_client(p_cds_gctx,
 				 pe_handle_mgmt_frame);
 	if (retStatus != QDF_STATUS_SUCCESS)
-		lim_log(pMac, LOGP,
+		lim_log(pMac, LOGE,
 			FL("Registering the PE Handle with WMA has failed"));
 
 	retStatus = wma_register_roaming_callbacks(p_cds_gctx,
 			ready_req->csr_roam_synch_cb,
 			ready_req->pe_roam_synch_cb);
 	if (retStatus != QDF_STATUS_SUCCESS)
-		lim_log(pMac, LOGP,
+		lim_log(pMac, LOGE,
 			FL("Registering roaming callbacks with WMA failed"));
 
 	retStatus = wma_register_ndp_cb(lim_handle_ndp_event_message);
@@ -1207,7 +1196,7 @@ lim_update_overlap_sta_param(tpAniSirGlobal pMac, tSirMacAddr bssId,
 	}
 
 	if (i == LIM_PROT_STA_OVERLAP_CACHE_SIZE) {
-		PELOG1(lim_log(pMac, LOGW, FL("Overlap cache is full"));)
+		lim_log(pMac, LOGW, FL("Overlap cache is full"));
 	} else {
 		qdf_mem_copy(pMac->lim.protStaOverlapCache[i].addr,
 			     bssId, sizeof(tSirMacAddr));
@@ -1304,13 +1293,11 @@ lim_handle_ibss_coalescing(tpAniSirGlobal pMac,
 	    (psessionEntry->currentOperChannel != pBeacon->channelNumber))
 		retCode = eSIR_LIM_IGNORE_BEACON;
 	else if (lim_ibss_enc_type_matched(pBeacon, psessionEntry) != eSIR_TRUE) {
-		PELOG3(lim_log(pMac, LOG3,
-			       FL
-				       ("peer privacy %d peer wpa %d peer rsn %d self encType %d"),
+		lim_log(pMac, LOGD,
+			FL("peer privacy %d peer wpa %d peer rsn %d self encType %d"),
 			       pBeacon->capabilityInfo.privacy,
 			       pBeacon->wpaPresent, pBeacon->rsnPresent,
 			       psessionEntry->encryptType);
-		       )
 		retCode = eSIR_LIM_IGNORE_BEACON;
 	} else {
 		uint32_t ieLen;
@@ -1319,10 +1306,8 @@ lim_handle_ibss_coalescing(tpAniSirGlobal pMac,
 		ieLen = WMA_GET_RX_PAYLOAD_LEN(pRxPacketInfo);
 		tsfLater = WMA_GET_RX_TSF_LATER(pRxPacketInfo);
 		pIEs = WMA_GET_RX_MPDU_DATA(pRxPacketInfo);
-		PELOG3(lim_log
-			       (pMac, LOG3, FL("BEFORE Coalescing tsfLater val :%d"),
+		lim_log(pMac, LOGD, FL("BEFORE Coalescing tsfLater val :%d"),
 			       tsfLater);
-		       )
 		retCode =
 			lim_ibss_coalesce(pMac, pHdr, pBeacon, pIEs, ieLen, tsfLater,
 					  psessionEntry);
@@ -1349,10 +1334,10 @@ lim_enc_type_matched(tpAniSirGlobal mac_ctx,
 	if (!bcn || !session)
 		return false;
 
-	lim_log(mac_ctx, LOG1,
+	lim_log(mac_ctx, LOGD,
 		FL("Beacon/Probe:: Privacy :%d WPA Present:%d RSN Present: %d"),
 		bcn->capabilityInfo.privacy, bcn->wpaPresent, bcn->rsnPresent);
-	lim_log(mac_ctx, LOG1,
+	lim_log(mac_ctx, LOGD,
 		FL("session:: Privacy :%d EncyptionType: %d OSEN %d WPS %d"),
 		SIR_MAC_GET_PRIVACY(session->limCurrentBssCaps),
 		session->encryptType, session->isOSENConnection,
@@ -1503,12 +1488,10 @@ lim_detect_change_in_ap_capabilities(tpAniSirGlobal pMac,
 		qdf_mem_copy(apNewCaps.bssId.bytes,
 			     psessionEntry->bssId, QDF_MAC_ADDR_SIZE);
 		if (newChannel != psessionEntry->currentOperChannel) {
-			PELOGE(lim_log
-				       (pMac, LOGE,
-				       FL("Channel Change from %d --> %d  - "
+			lim_log(pMac, LOGE,
+				FL("Channel Change from %d --> %d  - "
 					  "Ignoring beacon!"),
-				       psessionEntry->currentOperChannel, newChannel);
-			       )
+				psessionEntry->currentOperChannel, newChannel);
 			return;
 		}
 
@@ -1524,11 +1507,9 @@ lim_detect_change_in_ap_capabilities(tpAniSirGlobal pMac,
 		 */
 		else if ((SIR_MAC_GET_PRIVACY(apNewCaps.capabilityInfo) == 0) &&
 			 (pBeacon->rsnPresent || pBeacon->wpaPresent)) {
-			PELOGE(lim_log
-				       (pMac, LOGE,
-				       FL("BSS Caps (Privacy) bit 0 in beacon,"
-					  " but WPA or RSN IE present, Ignore Beacon!"));
-			       )
+			lim_log(pMac, LOGE,
+				FL("BSS Caps (Privacy) bit 0 in beacon,"
+				" but WPA or RSN IE present, Ignore Beacon!"));
 			return;
 		} else
 			apNewCaps.channelId = psessionEntry->currentOperChannel;
@@ -1547,7 +1528,7 @@ lim_detect_change_in_ap_capabilities(tpAniSirGlobal pMac,
 		 * will come here. If beacon is with broadcast ssid then fWaitForProbeRsp
 		 * will be false, the control will not come here*/
 
-		lim_log(pMac, LOG1, FL("capabilities in probe response are"
+		lim_log(pMac, LOGD, FL("capabilities in probe response are"
 				       "matching with the current setting,"
 				       "Ignoring subsequent capability"
 				       "mismatch"));
@@ -1588,7 +1569,7 @@ tSirRetStatus lim_update_short_slot(tpAniSirGlobal pMac,
 	/* Check Admin mode first. If it is disabled just return */
 	if (wlan_cfg_get_int(pMac, WNI_CFG_11G_SHORT_SLOT_TIME_ENABLED, &val)
 	    != eSIR_SUCCESS) {
-		lim_log(pMac, LOGP,
+		lim_log(pMac, LOGE,
 			FL("cfg get WNI_CFG_11G_SHORT_SLOT_TIME failed"));
 		return eSIR_FAILURE;
 	}
@@ -1627,11 +1608,9 @@ tSirRetStatus lim_update_short_slot(tpAniSirGlobal pMac,
 
 	if (nShortSlot != psessionEntry->shortSlotTimeSupported) {
 		/* Short slot time capability of AP has changed. Adopt to it. */
-		PELOG1(lim_log
-			       (pMac, LOG1,
-			       FL("Shortslot capability of AP changed: %d"),
+		lim_log(pMac, LOGD,
+			FL("Shortslot capability of AP changed: %d"),
 			       nShortSlot);
-		       )
 			((tpSirMacCapabilityInfo) & psessionEntry->
 			limCurrentBssCaps)->shortSlotTime = (uint16_t) nShortSlot;
 		psessionEntry->shortSlotTimeSupported = nShortSlot;
@@ -1652,7 +1631,7 @@ void lim_send_heart_beat_timeout_ind(tpAniSirGlobal pMac, tpPESession psessionEn
 	msg.type = (uint16_t) SIR_LIM_HEART_BEAT_TIMEOUT;
 	msg.bodyptr = psessionEntry;
 	msg.bodyval = 0;
-	lim_log(pMac, LOGE, FL("Heartbeat failure from Fw"));
+	lim_log(pMac, LOG1, FL("Heartbeat failure from Fw"));
 
 	statusCode = lim_post_msg_api(pMac, &msg);
 
@@ -1688,8 +1667,8 @@ void lim_ps_offload_handle_missed_beacon_ind(tpAniSirGlobal pMac, tpSirMsgQ pMsg
 
 	/* Set Beacon Miss in Powersave Offload */
 	psessionEntry->pmmOffloadInfo.bcnmiss = true;
-	PELOGE(lim_log(pMac, LOGE,
-		       FL("Received Heart Beat Failure"));)
+	lim_log(pMac, LOG1,
+		FL("Received Heart Beat Failure"));
 
 	/*  Do AP probing immediately */
 	lim_send_heart_beat_timeout_ind(pMac, psessionEntry);
@@ -1766,9 +1745,9 @@ lim_roam_fill_bss_descr(tpAniSirGlobal pMac,
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_INFO,
+	QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
 		"LFR3:Beacon/Prb Rsp:%d", roam_offload_synch_ind_ptr->isBeacon);
-	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_INFO,
+	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
 	bcn_proberesp_ptr, roam_offload_synch_ind_ptr->beaconProbeRespLength);
 	if (roam_offload_synch_ind_ptr->isBeacon) {
 		if (sir_parse_beacon_ie(pMac, parsed_frm_ptr,
@@ -1917,8 +1896,8 @@ QDF_STATUS pe_roam_synch_callback(tpAniSirGlobal mac_ctx,
 		lim_log(mac_ctx, LOGE, FL("LFR3:roam_sync_ind_ptr is NULL"));
 		return status;
 	}
-	lim_log(mac_ctx, LOG1, FL("LFR3:Received WMA_ROAM_OFFLOAD_SYNCH_IND"));
-	lim_log(mac_ctx, QDF_TRACE_LEVEL_DEBUG, FL("LFR3:auth=%d, vdevId=%d"),
+	lim_log(mac_ctx, QDF_TRACE_LEVEL_DEBUG,
+		FL("LFR3:Received WMA_ROAM_OFFLOAD_SYNCH_IND LFR3:auth=%d, vdevId=%d"),
 		roam_sync_ind_ptr->authStatus, roam_sync_ind_ptr->roamedVdevId);
 	lim_print_mac_addr(mac_ctx, roam_sync_ind_ptr->bssid.bytes,
 			QDF_TRACE_LEVEL_DEBUG);
@@ -1930,6 +1909,14 @@ QDF_STATUS pe_roam_synch_callback(tpAniSirGlobal mac_ctx,
 	}
 	if (!LIM_IS_STA_ROLE(session_ptr)) {
 		lim_log(mac_ctx, LOGE, FL("LFR3:session is not in STA mode"));
+		return status;
+	}
+	/*
+	 * If deauth from AP already in progress, ignore Roam Synch Indication
+	 * from firmware.
+	 */
+	if (session_ptr->limSmeState != eLIM_SME_LINK_EST_STATE) {
+		lim_log(mac_ctx, LOGE, FL("LFR3: Not in Link est state"));
 		return status;
 	}
 	status = lim_roam_fill_bss_descr(mac_ctx, roam_sync_ind_ptr, bss_desc);
@@ -2013,8 +2000,8 @@ QDF_STATUS pe_roam_synch_callback(tpAniSirGlobal mac_ctx,
 			roam_sync_ind_ptr->reassocRespOffset,
 			mac_ctx->roam.reassocRespLen);
 
-	lim_log(mac_ctx, LOG1, FL("LFR3:the reassoc resp frame data:"));
-	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
+	lim_log(mac_ctx, LOGD, FL("LFR3:the reassoc resp frame data:"));
+	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 			mac_ctx->roam.pReassocResp,
 			mac_ctx->roam.reassocRespLen);
 	ft_session_ptr->bRoamSynchInProgress = true;
@@ -2031,7 +2018,7 @@ QDF_STATUS pe_roam_synch_callback(tpAniSirGlobal mac_ctx,
 
 #ifdef FEATURE_WLAN_ESE
 	join_rsp_len += ft_session_ptr->tspecLen;
-	lim_log(mac_ctx, LOG1, FL("tspecLen = %d"),
+	lim_log(mac_ctx, LOGD, FL("tspecLen = %d"),
 			ft_session_ptr->tspecLen);
 #endif
 
@@ -2045,7 +2032,7 @@ QDF_STATUS pe_roam_synch_callback(tpAniSirGlobal mac_ctx,
 		return QDF_STATUS_E_NOMEM;
 	}
 
-	lim_log(mac_ctx, LOG1, FL("Session RicLength = %d"),
+	lim_log(mac_ctx, LOGD, FL("Session RicLength = %d"),
 			ft_session_ptr->RICDataLen);
 	if (ft_session_ptr->ricData != NULL) {
 		roam_sync_ind_ptr->join_rsp->parsedRicRspLen =
@@ -2232,7 +2219,7 @@ void lim_update_lost_link_info(tpAniSirGlobal mac, tpPESession session,
 	mmh_msg.type = eWNI_SME_LOST_LINK_INFO_IND;
 	mmh_msg.bodyptr = lost_link_info;
 	mmh_msg.bodyval = 0;
-	lim_log(mac, LOG1,
+	lim_log(mac, LOGD,
 		FL("post eWNI_SME_LOST_LINK_INFO_IND, bss_idx %d, rssi %d"),
 		lost_link_info->vdev_id, lost_link_info->rssi);
 
@@ -2277,7 +2264,6 @@ void lim_mon_init_session(tpAniSirGlobal mac_ptr,
 	tpPESession psession_entry;
 	uint8_t session_id;
 
-	lim_print_mac_addr(mac_ptr, msg->bss_id.bytes, LOGE);
 	psession_entry = pe_create_session(mac_ptr, msg->bss_id.bytes,
 					   &session_id,
 					   mac_ptr->lim.maxStation,

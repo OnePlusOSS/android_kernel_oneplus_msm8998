@@ -1935,6 +1935,7 @@ static int __hdd_open(struct net_device *dev)
 	}
 
 	set_bit(DEVICE_IFACE_OPENED, &adapter->event_flags);
+	hdd_info("%s interface up", dev->name);
 
 	if (hdd_conn_is_connected(WLAN_HDD_GET_STATION_CTX_PTR(adapter))) {
 		hdd_info("Enabling Tx Queues");
@@ -2711,8 +2712,14 @@ QDF_STATUS hdd_init_station_mode(hdd_adapter_t *adapter)
 		status = QDF_STATUS_E_FAILURE;
 		goto error_sme_open;
 	}
-
-	sme_set_vdev_ies_per_band(hdd_ctx->hHal, adapter->sessionId);
+	if (hdd_ctx->config->rx_ldpc_support_for_2g &&
+			!wma_is_current_hwmode_dbs()) {
+		hdd_notice("send HT/VHT IE per band using nondbs hwmode");
+		sme_set_vdev_ies_per_band(adapter->sessionId, false);
+	} else {
+		hdd_notice("send HT/VHT IE per band using dbs hwmode");
+		sme_set_vdev_ies_per_band(adapter->sessionId, true);
+	}
 	/* Register wireless extensions */
 	qdf_ret_status = hdd_register_wext(pWlanDev);
 	if (QDF_STATUS_SUCCESS != qdf_ret_status) {
@@ -3230,7 +3237,7 @@ hdd_adapter_t *hdd_open_adapter(hdd_context_t *hdd_ctx, uint8_t session_type,
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	hdd_cfg80211_state_t *cfgState;
 
-	hdd_debug("iface(%s) type(%d)", iface_name, session_type);
+	hdd_info("%s interface created. iftype: %d", iface_name, session_type);
 
 	if (hdd_ctx->current_intf_count >= hdd_ctx->max_intf_count) {
 		/*
@@ -4986,6 +4993,8 @@ static void hdd_context_destroy(hdd_context_t *hdd_ctx)
 
 	hdd_context_deinit(hdd_ctx);
 
+	hdd_free_probe_req_ouis(hdd_ctx);
+
 	qdf_mem_free(hdd_ctx->config);
 	hdd_ctx->config = NULL;
 
@@ -5072,6 +5081,7 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 		 * the expectation is that by the time Request Full Power has
 		 * completed, all scans will be cancelled
 		 */
+		hdd_cleanup_scan_queue(hdd_ctx);
 		hdd_abort_mac_scan_all_adapters(hdd_ctx);
 		hdd_abort_sched_scan_all_adapters(hdd_ctx);
 		hdd_stop_all_adapters(hdd_ctx);
@@ -6756,6 +6766,7 @@ static int hdd_context_init(hdd_context_t *hdd_ctx)
 	hdd_ctx->max_intf_count = CSR_ROAM_SESSION_MAX;
 
 	hdd_init_ll_stats_ctx();
+	hdd_init_nud_stats_ctx(hdd_ctx);
 
 	init_completion(&hdd_ctx->mc_sus_event_var);
 	init_completion(&hdd_ctx->ready_to_suspend);
@@ -6868,6 +6879,21 @@ static hdd_context_t *hdd_context_create(struct device *dev)
 	hdd_debug("Setting configuredMcastBcastFilter: %d",
 		   hdd_ctx->config->mcastBcastFilterSetting);
 
+	if (hdd_ctx->config->probe_req_ie_whitelist) {
+		if (hdd_validate_prb_req_ie_bitmap(hdd_ctx)) {
+			/* parse ini string probe req oui */
+			if (hdd_parse_probe_req_ouis(hdd_ctx)) {
+				hdd_err("Error parsing probe req ouis");
+				hdd_err("disable probe req ie whitelisting");
+				hdd_ctx->config->probe_req_ie_whitelist = false;
+			}
+		} else {
+			hdd_err("invalid probe req ie bitmap and ouis");
+			hdd_err("disable probe req ie whitelisting");
+			hdd_ctx->config->probe_req_ie_whitelist = false;
+		}
+	}
+
 	if (hdd_ctx->config->fhostNSOffload)
 		hdd_ctx->ns_offload_enable = true;
 
@@ -6927,6 +6953,7 @@ err_free_config:
 	qdf_mem_free(hdd_ctx->config);
 
 err_free_hdd_context:
+	hdd_free_probe_req_ouis(hdd_ctx);
 	wiphy_free(hdd_ctx->wiphy);
 
 err_out:
@@ -7913,6 +7940,16 @@ static int hdd_pre_enable_configure(hdd_context_t *hdd_ctx)
 
 	hdd_program_country_code(hdd_ctx);
 
+	ret = wma_cli_set_command(0, WMI_PDEV_PARAM_ARP_AC_OVERRIDE,
+				  hdd_ctx->config->arp_ac_category,
+				  PDEV_CMD);
+	if (0 != ret) {
+		hdd_err("WMI_PDEV_PARAM_ARP_AC_OVERRIDE ac: %d ret: %d",
+			hdd_ctx->config->arp_ac_category, ret);
+		goto out;
+	}
+
+
 	status = hdd_set_sme_chan_list(hdd_ctx);
 	if (status != QDF_STATUS_SUCCESS) {
 		hdd_err("Failed to init channel list: %d", status);
@@ -8684,7 +8721,7 @@ int hdd_wlan_startup(struct device *dev)
 	hdd_driver_memdump_init();
 
 	if (hdd_enable_egap(hdd_ctx))
-		hdd_warn("enhance green ap is not enabled");
+		hdd_debug("enhance green ap is not enabled");
 
 	if (hdd_ctx->config->fIsImpsEnabled)
 		hdd_set_idle_ps_config(hdd_ctx, true);
@@ -8765,6 +8802,66 @@ void hdd_wlan_update_target_info(hdd_context_t *hdd_ctx, void *context)
 }
 
 /**
+ * hdd_get_nud_stats_cb() - callback api to update the stats
+ *	received from the firmware
+ * @data: pointer to adapter.
+ * @rsp: pointer to data received from FW.
+ *
+ * This is called when wlan driver received response event for
+ *	get arp stats to firmware.
+ *
+ * Return: None
+ */
+static void hdd_get_nud_stats_cb(void *data, struct rsp_stats *rsp)
+{
+	hdd_context_t *hdd_ctx = (hdd_context_t *)data;
+	struct hdd_nud_stats_context *context;
+	int status;
+	hdd_adapter_t *adapter = NULL;
+
+	ENTER();
+
+	adapter = hdd_get_adapter_by_vdev(hdd_ctx, rsp->vdev_id);
+	if (NULL == adapter)
+		return;
+
+	status = wlan_hdd_validate_context(hdd_ctx);
+	if (0 != status)
+		return;
+
+	if (!rsp) {
+		hdd_err("data is null");
+		return;
+	}
+
+	hdd_notice("rsp->arp_req_enqueue :%x", rsp->arp_req_enqueue);
+	hdd_notice("rsp->arp_req_tx_success :%x", rsp->arp_req_tx_success);
+	hdd_notice("rsp->arp_req_tx_failure :%x", rsp->arp_req_tx_failure);
+	hdd_notice("rsp->arp_rsp_recvd :%x", rsp->arp_rsp_recvd);
+	hdd_notice("rsp->out_of_order_arp_rsp_drop_cnt :%x",
+		   rsp->out_of_order_arp_rsp_drop_cnt);
+	hdd_notice("rsp->dad_detected :%x", rsp->dad_detected);
+	hdd_notice("rsp->connect_status :%x", rsp->connect_status);
+	hdd_notice("rsp->ba_session_establishment_status :%x",
+		   rsp->ba_session_establishment_status);
+
+	adapter->hdd_stats.hdd_arp_stats.tx_fw_cnt = rsp->arp_req_enqueue;
+	adapter->hdd_stats.hdd_arp_stats.rx_fw_cnt = rsp->arp_rsp_recvd;
+	adapter->hdd_stats.hdd_arp_stats.tx_ack_cnt = rsp->arp_req_tx_success;
+	adapter->dad |= rsp->dad_detected;
+	adapter->con_status = rsp->connect_status;
+
+	spin_lock(&hdd_context_lock);
+	context = &hdd_ctx->nud_stats_context;
+	complete(&context->response_event);
+	spin_unlock(&hdd_context_lock);
+
+	EXIT();
+
+	return;
+}
+
+/**
  * hdd_register_cb - Register HDD callbacks.
  * @hdd_ctx: HDD context
  *
@@ -8811,7 +8908,10 @@ int hdd_register_cb(hdd_context_t *hdd_ctx)
 	}
 
 	sme_set_rssi_threshold_breached_cb(hdd_ctx->hHal,
-				hdd_rssi_threshold_breached);
+					   hdd_rssi_threshold_breached);
+
+	sme_set_nud_debug_stats_cb(hdd_ctx->hHal,
+				   hdd_get_nud_stats_cb);
 
 	status = sme_bpf_offload_register_callback(hdd_ctx->hHal,
 						   hdd_get_bpf_offload_cb);
@@ -8825,6 +8925,9 @@ int hdd_register_cb(hdd_context_t *hdd_ctx)
 				wlan_hdd_cfg80211_link_layer_stats_callback);
 
 	sme_rso_cmd_status_cb(hdd_ctx->hHal, wlan_hdd_rso_cmd_status_cb);
+
+	sme_set_link_layer_ext_cb(hdd_ctx->hHal,
+			wlan_hdd_cfg80211_link_layer_stats_ext_callback);
 
 	status = sme_set_lost_link_info_cb(hdd_ctx->hHal,
 					   hdd_lost_link_info_cb);
@@ -9168,7 +9271,7 @@ void wlan_hdd_send_svc_nlink_msg(int radio, int type, void *data, int len)
 		radio_info->length = (unsigned short) sizeof(radio_info->radio);
 		radio_info->radio = radio;
 		tlv_len = sizeof(*radio_info);
-		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_INFO,
+		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_DEBUG,
 			"Added radio index tlv - radio index %d",
 			radio_info->radio);
 	}

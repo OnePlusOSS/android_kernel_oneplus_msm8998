@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -131,7 +131,7 @@ void lim_trace_dump(tpAniSirGlobal pMac, tp_qdf_trace_record pRecord,
 
 	switch (pRecord->code) {
 	case TRACE_CODE_MLM_STATE:
-		lim_log(pMac, LOG1,
+		lim_log(pMac, LOGD,
 			"%04d %012llu %s S%d %-14s %-30s(0x%x)", recIndex,
 			pRecord->qtime, pRecord->time, pRecord->session,
 			"MLM State:",
@@ -140,7 +140,7 @@ void lim_trace_dump(tpAniSirGlobal pMac, tp_qdf_trace_record pRecord,
 			pRecord->data);
 		break;
 	case TRACE_CODE_SME_STATE:
-		lim_log(pMac, LOG1,
+		lim_log(pMac, LOGD,
 			"%04d %012llu %s S%d %-14s %-30s(0x%x)", recIndex,
 			pRecord->qtime, pRecord->time, pRecord->session,
 			"SME State:",
@@ -149,7 +149,7 @@ void lim_trace_dump(tpAniSirGlobal pMac, tp_qdf_trace_record pRecord,
 			pRecord->data);
 		break;
 	case TRACE_CODE_TX_MGMT:
-		lim_log(pMac, LOG1,
+		lim_log(pMac, LOGD,
 			"%04d %012llu %s S%d %-14s %-30s(0x%x)", recIndex,
 			pRecord->qtime, pRecord->time, pRecord->session,
 			"TX Mgmt:", frameSubtypeStr[pRecord->data],
@@ -159,10 +159,10 @@ void lim_trace_dump(tpAniSirGlobal pMac, tp_qdf_trace_record pRecord,
 	case TRACE_CODE_RX_MGMT:
 		if (LIM_TRACE_MAX_SUBTYPES <=
 		    LIM_TRACE_GET_SUBTYPE(pRecord->data)) {
-			lim_log(pMac, LOG1, "Wrong Subtype - %d",
+			lim_log(pMac, LOGD, "Wrong Subtype - %d",
 				LIM_TRACE_GET_SUBTYPE(pRecord->data));
 		} else {
-			lim_log(pMac, LOG1,
+			lim_log(pMac, LOGD,
 				"%04d %012llu %s S%d %-14s %-30s(%d) SN: %d",
 				recIndex, pRecord->qtime, pRecord->time,
 				pRecord->session, "RX Mgmt:",
@@ -173,7 +173,7 @@ void lim_trace_dump(tpAniSirGlobal pMac, tp_qdf_trace_record pRecord,
 		}
 		break;
 	case TRACE_CODE_RX_MGMT_DROP:
-		lim_log(pMac, LOG1, "%04d %012llu %s S%d %-14s %-30s(%d)",
+		lim_log(pMac, LOGD, "%04d %012llu %s S%d %-14s %-30s(%d)",
 			recIndex, pRecord->qtime, pRecord->time,
 			pRecord->session, "Drop RX Mgmt:",
 			__lim_trace_get_mgmt_drop_reason_string(
@@ -182,7 +182,7 @@ void lim_trace_dump(tpAniSirGlobal pMac, tp_qdf_trace_record pRecord,
 		break;
 
 	case TRACE_CODE_RX_MGMT_TSF:
-		lim_log(pMac, LOG1,
+		lim_log(pMac, LOGD,
 			"%04d %012llu %s S%d %-14s %-30s0x%x(%d)",
 			recIndex, pRecord->qtime, pRecord->time,
 			pRecord->session, "RX Mgmt TSF:", " ",
@@ -190,13 +190,13 @@ void lim_trace_dump(tpAniSirGlobal pMac, tp_qdf_trace_record pRecord,
 		break;
 
 	case TRACE_CODE_TX_COMPLETE:
-		lim_log(pMac, LOG1, "%04d %012llu %s S%d %-14s %d", recIndex,
+		lim_log(pMac, LOGD, "%04d %012llu %s S%d %-14s %d", recIndex,
 			pRecord->qtime, pRecord->time, pRecord->session,
 			"TX Complete", pRecord->data);
 		break;
 
 	case TRACE_CODE_TX_SME_MSG:
-		lim_log(pMac, LOG1,
+		lim_log(pMac, LOGD,
 			"%04d %012llu %s S%d %-14s %-30s(0x%x)", recIndex,
 			pRecord->qtime, pRecord->time, pRecord->session,
 			"TX SME Msg:",
@@ -204,7 +204,7 @@ void lim_trace_dump(tpAniSirGlobal pMac, tp_qdf_trace_record pRecord,
 			pRecord->data);
 		break;
 	case TRACE_CODE_RX_SME_MSG:
-		lim_log(pMac, LOG1,
+		lim_log(pMac, LOGD,
 			"%04d %012llu %s S%d %-14s %-30s(0x%x)", recIndex,
 			pRecord->qtime, pRecord->time, pRecord->session,
 			LIM_TRACE_GET_DEFRD_OR_DROPPED(
@@ -214,7 +214,7 @@ void lim_trace_dump(tpAniSirGlobal pMac, tp_qdf_trace_record pRecord,
 		break;
 
 	case TRACE_CODE_TX_WMA_MSG:
-		lim_log(pMac, LOG1,
+		lim_log(pMac, LOGD,
 			"%04d %012llu %s S%d %-14s %-30s(0x%x)", recIndex,
 			pRecord->qtime, pRecord->time, pRecord->session,
 			"TX WMA Msg:",
@@ -223,7 +223,7 @@ void lim_trace_dump(tpAniSirGlobal pMac, tp_qdf_trace_record pRecord,
 		break;
 
 	case TRACE_CODE_RX_WMA_MSG:
-		lim_log(pMac, LOG1,
+		lim_log(pMac, LOGD,
 			"%04d %012llu %s S%d %-14s %-30s(0x%x)", recIndex,
 			pRecord->qtime, pRecord->time, pRecord->session,
 			LIM_TRACE_GET_DEFRD_OR_DROPPED(
@@ -233,7 +233,7 @@ void lim_trace_dump(tpAniSirGlobal pMac, tp_qdf_trace_record pRecord,
 		break;
 
 	case TRACE_CODE_TX_LIM_MSG:
-		lim_log(pMac, LOG1,
+		lim_log(pMac, LOGD,
 			"%04d %012llu %s S%d %-14s %-30s(0x%x)", recIndex,
 			pRecord->qtime, pRecord->time, pRecord->session,
 			"TX LIM Msg:",
@@ -241,7 +241,7 @@ void lim_trace_dump(tpAniSirGlobal pMac, tp_qdf_trace_record pRecord,
 			pRecord->data);
 		break;
 	case TRACE_CODE_RX_LIM_MSG:
-		lim_log(pMac, LOG1,
+		lim_log(pMac, LOGD,
 			"%04d %012llu %s S%d %-14s %-30s(0x%x)", recIndex,
 			pRecord->qtime, pRecord->time, pRecord->session,
 			LIM_TRACE_GET_DEFRD_OR_DROPPED(
@@ -250,7 +250,7 @@ void lim_trace_dump(tpAniSirGlobal pMac, tp_qdf_trace_record pRecord,
 			pRecord->data);
 		break;
 	case TRACE_CODE_TX_CFG_MSG:
-		lim_log(pMac, LOG1,
+		lim_log(pMac, LOGD,
 			"%04d %012llu %s S%d %-14s %-30s(0x%x) ", recIndex,
 			pRecord->qtime, pRecord->time, pRecord->session,
 			"TX CFG Msg:",
@@ -258,7 +258,7 @@ void lim_trace_dump(tpAniSirGlobal pMac, tp_qdf_trace_record pRecord,
 			pRecord->data);
 		break;
 	case TRACE_CODE_RX_CFG_MSG:
-		lim_log(pMac, LOG1,
+		lim_log(pMac, LOGD,
 			"%04d %012llu %s S%d %-14s %-30s(0x%x) ", recIndex,
 			pRecord->qtime, pRecord->time, pRecord->session,
 			LIM_TRACE_GET_DEFRD_OR_DROPPED(
@@ -269,7 +269,7 @@ void lim_trace_dump(tpAniSirGlobal pMac, tp_qdf_trace_record pRecord,
 		break;
 
 	case TRACE_CODE_TIMER_ACTIVATE:
-		lim_log(pMac, LOG1,
+		lim_log(pMac, LOGD,
 			"%04d %012llu %s S%d %-14s %-30s(0x%x)", recIndex,
 			pRecord->qtime, pRecord->time, pRecord->session,
 			"Timer Actvtd",
@@ -277,7 +277,7 @@ void lim_trace_dump(tpAniSirGlobal pMac, tp_qdf_trace_record pRecord,
 			pRecord->data);
 		break;
 	case TRACE_CODE_TIMER_DEACTIVATE:
-		lim_log(pMac, LOG1,
+		lim_log(pMac, LOGD,
 			"%04d %012llu %s S%d %-14s %-30s(0x%x)", recIndex,
 			pRecord->qtime, pRecord->time, pRecord->session,
 			"Timer DeActvtd",
@@ -286,7 +286,7 @@ void lim_trace_dump(tpAniSirGlobal pMac, tp_qdf_trace_record pRecord,
 		break;
 
 	case TRACE_CODE_INFO_LOG:
-		lim_log(pMac, LOG1,
+		lim_log(pMac, LOGD,
 			"%04d %012llu %s S%d %-14s %-30s(0x%x)",
 			recIndex, pRecord->qtime, pRecord->time,
 			pRecord->session, "INFORMATION_LOG",
@@ -294,7 +294,7 @@ void lim_trace_dump(tpAniSirGlobal pMac, tp_qdf_trace_record pRecord,
 			pRecord->data);
 		break;
 	default:
-		lim_log(pMac, LOG1, "%04d %012llu %s S%d %-14s(%d) (0x%x)",
+		lim_log(pMac, LOGD, "%04d %012llu %s S%d %-14s(%d) (0x%x)",
 			recIndex, pRecord->qtime, pRecord->time,
 			pRecord->session, "Unknown Code",
 			pRecord->code, pRecord->data);

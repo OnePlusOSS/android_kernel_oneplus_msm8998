@@ -94,6 +94,15 @@
 /* variable. */
 #define SNR_HACK_BMPS                         (127)
 
+/*
+ * ROAMING_OFFLOAD_TIMER_START - Indicates the action to start the timer
+ * ROAMING_OFFLOAD_TIMER_STOP - Indicates the action to stop the timer
+ * CSR_ROAMING_OFFLOAD_TIMEOUT_PERIOD - Timeout value for roaming offload timer
+ */
+#define ROAMING_OFFLOAD_TIMER_START	1
+#define ROAMING_OFFLOAD_TIMER_STOP	2
+#define CSR_ROAMING_OFFLOAD_TIMEOUT_PERIOD    (5 * QDF_MC_TIMER_TO_SEC_UNIT)
+
 static bool b_roam_scan_offload_started;
 
 /*--------------------------------------------------------------------------
@@ -205,6 +214,9 @@ static QDF_STATUS csr_roam_start_roaming_timer(tpAniSirGlobal pMac,
 static QDF_STATUS csr_roam_stop_roaming_timer(tpAniSirGlobal pMac,
 					      uint32_t sessionId);
 static void csr_roam_roaming_timer_handler(void *pv);
+static void csr_roam_roaming_offload_timer_action(tpAniSirGlobal mac_ctx,
+		uint32_t interval, uint8_t session_id, uint8_t action);
+static void csr_roam_roaming_offload_timeout_handler(void *timer_data);
 QDF_STATUS csr_roam_start_wait_for_key_timer(tpAniSirGlobal pMac, uint32_t interval);
 static void csr_roam_wait_for_key_time_out_handler(void *pv);
 static QDF_STATUS csr_init11d_info(tpAniSirGlobal pMac, tCsr11dinfo *ps11dinfo);
@@ -277,6 +289,58 @@ void csr_roam_reissue_roam_command(tpAniSirGlobal pMac);
 static void csr_ser_des_unpack_diassoc_rsp(uint8_t *pBuf,
 					   tSirSmeDisassocRsp *pRsp);
 void csr_init_operating_classes(tHalHandle hHal);
+
+#ifdef WLAN_FEATURE_ROAM_OFFLOAD
+QDF_STATUS csr_process_same_ap_reassoc_cmd(tpAniSirGlobal mac_ctx,
+					tSmeCmd *sme_cmd)
+{
+	QDF_STATUS status;
+	tCsrRoamSession *session;
+	struct wma_roam_invoke_cmd *fastreassoc;
+	cds_msg_t msg = {0};
+
+	session = CSR_GET_SESSION(mac_ctx, sme_cmd->sessionId);
+	if (!session) {
+		sms_log(mac_ctx, LOGE, FL("Invalid session"));
+		csr_remove_same_ap_reassoc_cmd(mac_ctx, sme_cmd);
+		csr_release_command(mac_ctx, sme_cmd);
+		return QDF_STATUS_E_FAILURE;
+	}
+	fastreassoc = qdf_mem_malloc(sizeof(*fastreassoc));
+	if (NULL == fastreassoc) {
+		sms_log(mac_ctx, LOGE, FL("can't allocate memory"));
+		csr_remove_same_ap_reassoc_cmd(mac_ctx, sme_cmd);
+		csr_release_command(mac_ctx, sme_cmd);
+		return QDF_STATUS_E_FAILURE;
+	}
+	fastreassoc->vdev_id = sme_cmd->sessionId;
+	fastreassoc->channel = session->connectedProfile.operationChannel;
+	fastreassoc->bssid[0] = session->connectedProfile.bssid.bytes[0];
+	fastreassoc->bssid[1] = session->connectedProfile.bssid.bytes[1];
+	fastreassoc->bssid[2] = session->connectedProfile.bssid.bytes[2];
+	fastreassoc->bssid[3] = session->connectedProfile.bssid.bytes[3];
+	fastreassoc->bssid[4] = session->connectedProfile.bssid.bytes[4];
+	fastreassoc->bssid[5] = session->connectedProfile.bssid.bytes[5];
+	sms_log(mac_ctx, LOG1, FL("self reassoc on channe[%d] bssid[%pM]"),
+			fastreassoc->channel, fastreassoc->bssid);
+
+	msg.type = SIR_HAL_ROAM_INVOKE;
+	msg.reserved = 0;
+	msg.bodyptr = fastreassoc;
+	status = cds_mq_post_message(QDF_MODULE_ID_WMA, &msg);
+	if (QDF_STATUS_SUCCESS != status) {
+		sms_log(mac_ctx, LOGE, FL("Not able to post ROAM_INVOKE_CMD"));
+		qdf_mem_free(fastreassoc);
+	}
+	return status;
+}
+#else
+QDF_STATUS csr_process_same_ap_reassoc_cmd(tpAniSirGlobal mac_ctx,
+		tSmeCmd *sme_cmd)
+{
+	return QDF_STATUS_SUCCESS;
+}
+#endif
 
 /* Initialize global variables */
 static void csr_roam_init_globals(tpAniSirGlobal pMac)
@@ -2482,8 +2546,10 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 		pMac->roam.configParam.htSmps = pParam->htSmps;
 		pMac->roam.configParam.send_smps_action =
 			pParam->send_smps_action;
-		pMac->roam.configParam.txLdpcEnable = pParam->enableTxLdpc;
-		pMac->roam.configParam.rxLdpcEnable = pParam->enableRxLDPC;
+		pMac->roam.configParam.tx_ldpc_enable = pParam->enable_tx_ldpc;
+		pMac->roam.configParam.rx_ldpc_enable = pParam->enable_rx_ldpc;
+		pMac->roam.configParam.rx_ldpc_support_for_2g =
+					pParam->rx_ldpc_support_for_2g;
 		pMac->roam.configParam.ignore_peer_erp_info =
 			pParam->ignore_peer_erp_info;
 		pMac->roam.configParam.max_amsdu_num =
@@ -2741,8 +2807,10 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
 	pParam->cc_switch_mode = cfg_params->cc_switch_mode;
 #endif
-	pParam->enableTxLdpc = cfg_params->txLdpcEnable;
-	pParam->enableRxLDPC = cfg_params->rxLdpcEnable;
+	pParam->enable_tx_ldpc = cfg_params->tx_ldpc_enable;
+	pParam->enable_rx_ldpc = cfg_params->rx_ldpc_enable;
+	pParam->rx_ldpc_support_for_2g =
+			cfg_params->rx_ldpc_support_for_2g;
 	pParam->max_amsdu_num = cfg_params->max_amsdu_num;
 	pParam->nSelect5GHzMargin = cfg_params->nSelect5GHzMargin;
 	pParam->isCoalesingInIBSSAllowed = cfg_params->isCoalesingInIBSSAllowed;
@@ -3438,8 +3506,8 @@ QDF_STATUS csr_roam_call_callback(tpAniSirGlobal pMac, uint32_t sessionId,
 
 	if (eCSR_ROAM_ASSOCIATION_COMPLETION == u1 &&
 			eCSR_ROAM_RESULT_ASSOCIATED == u2 && pRoamInfo) {
-		sms_log(pMac, LOGW,
-			FL("Assoc complete result=%d status=%d reason=%d"),
+		sms_log(pMac, LOG1,
+			FL("Assoc complete result: %d status: %d reason: %d"),
 			u2, pRoamInfo->statusCode, pRoamInfo->reasonCode);
 		beacon_ies = qdf_mem_malloc(sizeof(tDot11fBeaconIEs));
 		if ((NULL != beacon_ies) && (NULL != pRoamInfo->pBssDesc)) {
@@ -4089,8 +4157,14 @@ QDF_STATUS csr_roam_prepare_bss_config(tpAniSirGlobal pMac,
 		pBssConfig->uJoinTimeOut =
 			CSR_JOIN_FAILURE_TIMEOUT_DEFAULT;
 	/* validate CB */
-	pBssConfig->cbMode = csr_get_cb_mode_from_ies(pMac, pBssDesc->channelId,
-						      pIes);
+	if ((pBssConfig->uCfgDot11Mode == eCSR_CFG_DOT11_MODE_11N)
+	    || (pBssConfig->uCfgDot11Mode == eCSR_CFG_DOT11_MODE_11AC)
+	    || (pBssConfig->uCfgDot11Mode == eCSR_CFG_DOT11_MODE_11AC_ONLY)
+	    || (pBssConfig->uCfgDot11Mode == eCSR_CFG_DOT11_MODE_11N_ONLY))
+		pBssConfig->cbMode = csr_get_cb_mode_from_ies(pMac,
+				pBssDesc->channelId, pIes);
+	else
+		pBssConfig->cbMode = PHY_SINGLE_CHANNEL_CENTERED;
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -5262,7 +5336,7 @@ static void csr_roam_join_handle_profile(tpAniSirGlobal mac_ctx,
 		/* If roaming has stopped, don't continue the roaming command */
 		if (!CSR_IS_ROAMING(session) && CSR_IS_ROAMING_COMMAND(cmd)) {
 			/* No need to complete roaming as it already complete */
-			sms_log(mac_ctx, LOGW,
+			sms_log(mac_ctx, LOGD,
 				FL(
 				"Roam cmd(reason %d)aborted as roam complete"),
 				cmd->u.roamCmd.roamReason);
@@ -6287,7 +6361,7 @@ static void csr_roam_process_results_default(tpAniSirGlobal mac_ctx,
 	}
 	session = CSR_GET_SESSION(mac_ctx, session_id);
 
-	sms_log(mac_ctx, LOGW, FL("receives no association indication"));
+	sms_log(mac_ctx, LOGD, FL("receives no association indication"));
 	sms_log(mac_ctx, LOGD, FL("Assoc ref count %d"),
 			session->bRefAssocStartCnt);
 	if (CSR_IS_INFRASTRUCTURE(&session->connectedProfile)
@@ -11620,6 +11694,33 @@ void csr_roam_roaming_timer_handler(void *pv)
 	}
 }
 
+/**
+ * csr_roam_roaming_offload_timeout_handler() - Handler for roaming failure
+ * @timer_data: Carries the mac_ctx and session info
+ *
+ * This function would be invoked when the roaming_offload_timer expires.
+ * The timer is waiting in anticipation of a related roaming event from
+ * the firmware after receiving the ROAM_START event.
+ *
+ * Return: None
+ */
+void csr_roam_roaming_offload_timeout_handler(void *timer_data)
+{
+	tCsrTimerInfo *timer_info = (tCsrTimerInfo *) timer_data;
+
+	if (timer_info) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
+			  FL("LFR3:roaming offload timer expired, session: %d"),
+			  timer_info->sessionId);
+	} else {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			  FL("Invalid Session"));
+		return;
+	}
+	csr_roam_disconnect(timer_info->pMac, timer_info->sessionId,
+			eCSR_DISCONNECT_REASON_UNSPECIFIED);
+}
+
 QDF_STATUS csr_roam_start_roaming_timer(tpAniSirGlobal pMac, uint32_t sessionId,
 					uint32_t interval)
 {
@@ -11701,6 +11802,48 @@ void csr_roam_wait_for_key_time_out_handler(void *pv)
 		}
 	}
 
+}
+
+/**
+ * csr_roam_roaming_offload_timer_action() - API to start/stop the timer
+ * @mac_ctx: MAC Context
+ * @interval: Value to be set for the timer
+ * @session_id: Session on which the timer should be operated
+ * @action: Start/Stop action for the timer
+ *
+ * API to start/stop the roaming offload timer
+ *
+ * Return: None
+ */
+void csr_roam_roaming_offload_timer_action(tpAniSirGlobal mac_ctx,
+		uint32_t interval, uint8_t session_id,
+		uint8_t action)
+{
+	tCsrRoamSession *csr_session = CSR_GET_SESSION(mac_ctx, session_id);
+
+	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
+			FL("LFR3: timer action %d, session %d, intvl %d"),
+			action, session_id, interval);
+	if (mac_ctx) {
+		csr_session = CSR_GET_SESSION(mac_ctx, session_id);
+	} else {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+				FL("LFR3: Invalid MAC Context"));
+		return;
+	}
+	if (!csr_session) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+				FL("LFR3: session %d not found"), session_id);
+		return;
+	}
+	csr_session->roamingTimerInfo.sessionId = (uint8_t) session_id;
+	if (action == ROAMING_OFFLOAD_TIMER_START)
+		qdf_mc_timer_start(&csr_session->roaming_offload_timer,
+				interval / QDF_MC_TIMER_TO_MS_UNIT);
+	if (action == ROAMING_OFFLOAD_TIMER_STOP)
+		qdf_mc_timer_stop(&csr_session->roaming_offload_timer);
+
+	return;
 }
 
 QDF_STATUS csr_roam_start_wait_for_key_timer(tpAniSirGlobal pMac, uint32_t interval)
@@ -13795,7 +13938,7 @@ static void csr_add_supported_5Ghz_channels(tpAniSirGlobal mac_ctx,
  */
 static QDF_STATUS csr_set_ldpc_exception(tpAniSirGlobal mac_ctx,
 			tCsrRoamSession *session, uint8_t channel,
-			bool usr_cfg_rx_ldpc)
+			bool usr_cfg_rx_ldpc, enum hw_mode_dbs_capab hw_mode)
 {
 	if (!mac_ctx) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
@@ -13807,16 +13950,20 @@ static QDF_STATUS csr_set_ldpc_exception(tpAniSirGlobal mac_ctx,
 			"session is NULL");
 		return QDF_STATUS_E_FAILURE;
 	}
-	if (usr_cfg_rx_ldpc && wma_is_rx_ldpc_supported_for_channel(channel)) {
+	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
+		  "using user given hw_mode [%d]", hw_mode);
+	if (usr_cfg_rx_ldpc && wma_is_rx_ldpc_supported_for_channel(channel,
+							hw_mode)) {
 		session->htConfig.ht_rx_ldpc = 1;
 		session->vht_config.ldpc_coding = 1;
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-			"LDPC enable for chnl[%d]", channel);
+			"LDPC enable for chnl[%d] for hwmode[%d]",
+			channel, hw_mode);
 	} else {
 		session->htConfig.ht_rx_ldpc = 0;
 		session->vht_config.ldpc_coding = 0;
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-			"LDPC disable for chnl[%d]", channel);
+			  "LDPC disable for chnl[%d]", channel);
 	}
 	return QDF_STATUS_SUCCESS;
 }
@@ -13857,6 +14004,7 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 	tpCsrNeighborRoamControlInfo neigh_roam_info;
 	uint32_t value = 0, value1 = 0;
 	QDF_STATUS packetdump_timer_status;
+	enum hw_mode_dbs_capab hw_mode_to_use;
 
 	if (!pSession) {
 		sms_log(pMac, LOGE, FL("  session %d not found "), sessionId);
@@ -14313,7 +14461,7 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 			csr_join_req->isFastRoamIniFeatureEnabled = false;
 
 		csr_join_req->txLdpcIniFeatureEnabled =
-			(uint8_t) pMac->roam.configParam.txLdpcEnable;
+			(uint8_t) pMac->roam.configParam.tx_ldpc_enable;
 
 		if ((csr_is11h_supported(pMac))
 		    && (CDS_IS_CHANNEL_5GHZ(pBssDescription->channelId))
@@ -14328,15 +14476,48 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 			csr_apply_power2_current(pMac);
 		}
 		/*
-		 * If RX LDPC has been disabled for 2.4GHz channels and enabled
-		 * for 5Ghz for STA like persona then here is how to handle
-		 * those cases (by now channel has been decided).
+		 * LDPC exception is called for hardware limitation:
+		 * PHY-A can do Rx LPDC and PHY-B can't do Rx LDPC on some
+		 * of platforms due to which when-ever we enter in to DBS
+		 * and channel is 2.4G then the connection will end up on
+		 * PHY-B where Rx LDPC is not supported and when-ever we
+		 * enter in to NON-DBS and channel is 2.4G then the connection
+		 * will end up on PHY-A where Rx LDPC is supported.
+		 * 5G connection always stays on PHY-A.
+		 *
+		 * if user has configured 2G RX LDPC support enabled then use
+		 * current hw mode to configure Rx LDPC properly. if user has
+		 * not configured 2G RX LDPC support then use DBS hardware mode
+		 * which will give you 5G RxLDPC bit "1" and 2G RxLDPC bit "0".
+		 *
 		 */
 		if (eSIR_INFRASTRUCTURE_MODE == csr_join_req->bsstype ||
-		    !wma_is_dbs_enable())
-			csr_set_ldpc_exception(pMac, pSession,
+					!wma_is_dbs_enable()) {
+			sms_log(pMac, LOGD,
+				FL("Rx ldpc ini[%d] and 2G RX LDPC[%d]"),
+				pMac->roam.configParam.rx_ldpc_enable,
+				pMac->roam.configParam.rx_ldpc_support_for_2g);
+			if (pMac->roam.configParam.rx_ldpc_support_for_2g) {
+				hw_mode_to_use = wma_is_current_hwmode_dbs() ?
+							HW_MODE_DBS :
+							HW_MODE_DBS_NONE;
+				sms_log(pMac, LOGD,
+					FL("2G RxLDPC & roaming ON: hwmode-%d"),
+					hw_mode_to_use);
+				csr_set_ldpc_exception(pMac, pSession,
 					pBssDescription->channelId,
-					pMac->roam.configParam.rxLdpcEnable);
+					pMac->roam.configParam.rx_ldpc_enable,
+					hw_mode_to_use);
+			} else {
+				sms_log(pMac, LOGD,
+					FL("2G RxLDPC/roaming OFF: hwmode-%d"),
+					HW_MODE_DBS);
+				csr_set_ldpc_exception(pMac, pSession,
+					pBssDescription->channelId,
+					pMac->roam.configParam.rx_ldpc_enable,
+					HW_MODE_DBS);
+			}
+		}
 		qdf_mem_copy(&csr_join_req->htConfig,
 				&pSession->htConfig, sizeof(tSirHTConfig));
 		qdf_mem_copy(&csr_join_req->vht_config, &pSession->vht_config,
@@ -15049,6 +15230,7 @@ QDF_STATUS csr_send_mb_start_bss_req_msg(tpAniSirGlobal pMac, uint32_t sessionId
 	tSirSmeStartBssReq *pMsg;
 	uint16_t wTmp;
 	uint32_t value = 0;
+
 	tCsrRoamSession *pSession = CSR_GET_SESSION(pMac, sessionId);
 
 	if (!pSession) {
@@ -15110,7 +15292,7 @@ QDF_STATUS csr_send_mb_start_bss_req_msg(tpAniSirGlobal pMac, uint32_t sessionId
 	pMsg->wps_state = pParam->wps_state;
 	pMsg->isCoalesingInIBSSAllowed = pMac->isCoalesingInIBSSAllowed;
 	pMsg->bssPersona = pParam->bssPersona;
-	pMsg->txLdpcIniFeatureEnabled = pMac->roam.configParam.txLdpcEnable;
+	pMsg->txLdpcIniFeatureEnabled = pMac->roam.configParam.tx_ldpc_enable;
 
 	if (wlan_cfg_get_int(pMac, WNI_CFG_VHT_SU_BEAMFORMEE_CAP, &value)
 					!= eSIR_SUCCESS)
@@ -15148,13 +15330,20 @@ QDF_STATUS csr_send_mb_start_bss_req_msg(tpAniSirGlobal pMac, uint32_t sessionId
 		     sizeof(tSirMacRateSet));
 	/*
 	 * If RX LDPC has been disabled for 2.4GHz channels and enabled
-	 * for 5Ghz for STA like persona then here is how to handle
+	 * for 5Ghz for STA/IBSS persona then here is how to handle
 	 * those cases (by now channel has been decided).
 	 */
-	if (eSIR_IBSS_MODE == pMsg->bssType || !wma_is_dbs_enable())
+	if (eSIR_IBSS_MODE == pMsg->bssType || !wma_is_dbs_enable()) {
+		/*
+		 * faking DBS hardware mode, so IBSS will enable rxLDPC
+		 * for 5G and disable rxLDPC
+		 */
+		sms_log(pMac, LOGD, FL("Rx LDPC : hwmode-%d"), HW_MODE_DBS);
 		csr_set_ldpc_exception(pMac, pSession,
 				pMsg->channelId,
-				pMac->roam.configParam.rxLdpcEnable);
+				pMac->roam.configParam.rx_ldpc_enable,
+				HW_MODE_DBS);
+	}
 	qdf_mem_copy(&pMsg->vht_config,
 		     &pSession->vht_config,
 		     sizeof(pSession->vht_config));
@@ -15494,6 +15683,16 @@ QDF_STATUS csr_roam_open_session(tpAniSirGlobal mac_ctx,
 					FL("cannot allocate memory for Roaming timer"));
 				break;
 			}
+			status = qdf_mc_timer_init(
+					&session->roaming_offload_timer,
+					QDF_TIMER_TYPE_SW,
+					csr_roam_roaming_offload_timeout_handler,
+					&session->roamingTimerInfo);
+			if (!QDF_IS_STATUS_SUCCESS(status)) {
+				sms_log(mac_ctx, LOGE,
+					FL("mem fail for roaming timer"));
+				break;
+			}
 			/* get the HT capability info */
 			if (wlan_cfg_get_int(mac_ctx, WNI_CFG_HT_CAP_INFO, &value)
 					!= eSIR_SUCCESS) {
@@ -15801,6 +16000,7 @@ void csr_cleanup_session(tpAniSirGlobal pMac, uint32_t sessionId)
 		csr_roam_free_connect_profile(&pSession->connectedProfile);
 		csr_roam_free_connected_info(pMac, &pSession->connectedInfo);
 		qdf_mc_timer_destroy(&pSession->hTimerRoaming);
+		qdf_mc_timer_destroy(&pSession->roaming_offload_timer);
 #ifdef FEATURE_WLAN_BTAMP_UT_RF
 		qdf_mc_timer_destroy(&pSession->hTimerJoinRetry);
 #endif
@@ -17452,7 +17652,7 @@ csr_create_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 	 */
 	if (req_buf->HomeAwayTime < (req_buf->NeighborScanChannelMaxTime +
 	     (2 * CSR_ROAM_SCAN_CHANNEL_SWITCH_TIME))) {
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_WARN,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 			  FL("Invalid config, Home away time(%d) is less than (twice RF switching time + channel max time)(%d). Hence enforcing home away time to disable (0)"),
 			  req_buf->HomeAwayTime,
 			  (req_buf->NeighborScanChannelMaxTime +
@@ -17931,7 +18131,7 @@ csr_roam_offload_scan(tpAniSirGlobal mac_ctx, uint8_t session_id,
 	if ((ROAM_SCAN_OFFLOAD_START == command) &&
 	    (session->pCurRoamProfile &&
 	     session->pCurRoamProfile->do_not_roam)) {
-		sms_log(mac_ctx, LOGE,
+		sms_log(mac_ctx, LOGD,
 			FL("Supplicant disabled driver roaming"));
 		return QDF_STATUS_E_FAILURE;
 	}
@@ -18423,7 +18623,7 @@ QDF_STATUS csr_roam_dereg_statistics_req(tpAniSirGlobal pMac)
 	pEntry = csr_ll_peek_head(&pMac->roam.statsClientReqList, LL_ACCESS_LOCK);
 	if (!pEntry) {
 		/* list empty */
-		sms_log(pMac, LOGE,
+		sms_log(pMac, LOGD,
 			FL("List empty, no request from upper layer client(s)"));
 		return status;
 	}
@@ -19076,6 +19276,8 @@ void csr_process_ho_fail_ind(tpAniSirGlobal pMac, void *pMsgBuf)
 		return;
 	}
 	cds_set_connection_in_progress(false);
+	csr_roam_roaming_offload_timer_action(pMac, 0, sessionId,
+			ROAMING_OFFLOAD_TIMER_STOP);
 	csr_roam_call_callback(pMac, sessionId, NULL, 0,
 			eCSR_ROAM_NAPI_OFF, eSIR_SME_SUCCESS);
 	csr_roam_synch_clean_up(pMac, sessionId);
@@ -19794,9 +19996,9 @@ void csr_roam_fill_tdls_info(tpAniSirGlobal mac_ctx, tCsrRoamInfo *roam_info,
  * is achieved through the already defined callback for assoc completion
  * handler.
  *
- * Return: None.
+ * Return: Success or Failure.
  */
-void csr_roam_synch_callback(tpAniSirGlobal mac_ctx,
+QDF_STATUS csr_roam_synch_callback(tpAniSirGlobal mac_ctx,
 		roam_offload_synch_ind *roam_synch_data,
 		tpSirBssDescription  bss_desc, enum sir_roam_op_code reason)
 {
@@ -19818,36 +20020,52 @@ void csr_roam_synch_callback(tpAniSirGlobal mac_ctx,
 	status = sme_acquire_global_lock(&mac_ctx->sme);
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		sms_log(mac_ctx, LOGE, FL("LFR3: Locking failed, bailing out"));
-		return;
+		return status;
 	}
 	if (!session) {
 		sms_log(mac_ctx, LOGE, FL("LFR3: Session not found"));
 		sme_release_global_lock(&mac_ctx->sme);
-		return;
+		return QDF_STATUS_E_FAILURE;
 	}
 
 	sms_log(mac_ctx, LOGD, FL("LFR3: reason: %d"), reason);
 	switch (reason) {
 	case SIR_ROAMING_DEREGISTER_STA:
+		/*
+		 * The following is the first thing done in CSR
+		 * after receiving RSI. Hence stopping the timer here.
+		 */
+		csr_roam_roaming_offload_timer_action(mac_ctx,
+				0, session_id, ROAMING_OFFLOAD_TIMER_STOP);
+		if (!CSR_IS_ROAM_JOINED(mac_ctx, session_id)) {
+			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
+				FL("LFR3: Session not in connected state"));
+			return QDF_STATUS_E_FAILURE;
+		}
 		csr_roam_call_callback(mac_ctx, session_id, NULL, 0,
 				eCSR_ROAM_FT_START, eSIR_SME_SUCCESS);
 		sme_release_global_lock(&mac_ctx->sme);
-		return;
+		return status;
 	case SIR_ROAMING_START:
+		csr_roam_roaming_offload_timer_action(mac_ctx,
+				CSR_ROAMING_OFFLOAD_TIMEOUT_PERIOD, session_id,
+				ROAMING_OFFLOAD_TIMER_START);
 		csr_roam_call_callback(mac_ctx, session_id, NULL, 0,
 				eCSR_ROAM_START, eSIR_SME_SUCCESS);
 		sme_release_global_lock(&mac_ctx->sme);
-		return;
+		return status;
 	case SIR_ROAMING_ABORT:
+		csr_roam_roaming_offload_timer_action(mac_ctx,
+				0, session_id, ROAMING_OFFLOAD_TIMER_STOP);
 		csr_roam_call_callback(mac_ctx, session_id, NULL, 0,
 				eCSR_ROAM_ABORT, eSIR_SME_SUCCESS);
 		sme_release_global_lock(&mac_ctx->sme);
-		return;
+		return status;
 	case SIR_ROAM_SYNCH_NAPI_OFF:
 		csr_roam_call_callback(mac_ctx, session_id, NULL, 0,
 				eCSR_ROAM_NAPI_OFF, eSIR_SME_SUCCESS);
 		sme_release_global_lock(&mac_ctx->sme);
-		return;
+		return status;
 	case SIR_ROAM_SYNCH_PROPAGATION:
 		break;
 	case SIR_ROAM_SYNCH_COMPLETE:
@@ -19872,20 +20090,21 @@ void csr_roam_synch_callback(tpAniSirGlobal mac_ctx,
 		session->roam_synch_in_progress = false;
 		cds_check_concurrent_intf_and_restart_sap(session->pContext);
 		sme_release_global_lock(&mac_ctx->sme);
-		return;
+		return status;
 	default:
 		sms_log(mac_ctx, LOGE, FL("LFR3: callback reason %d"), reason);
 		sme_release_global_lock(&mac_ctx->sme);
-		return;
+		return QDF_STATUS_E_FAILURE;
 	}
 	session->roam_synch_in_progress = true;
 	session->roam_synch_data = roam_synch_data;
-	if (!QDF_IS_STATUS_SUCCESS(csr_get_parsed_bss_description_ies(mac_ctx,
-			bss_desc, &ies_local))) {
+	status = csr_get_parsed_bss_description_ies(
+			mac_ctx, bss_desc, &ies_local);
+	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		sms_log(mac_ctx, LOGE, FL("LFR3: fail to parse IEs"));
 		session->roam_synch_in_progress = false;
 		sme_release_global_lock(&mac_ctx->sme);
-		return;
+		return status;
 	}
 	conn_profile = &session->connectedProfile;
 	csr_roam_stop_network(mac_ctx, session_id,
@@ -19901,7 +20120,7 @@ void csr_roam_synch_callback(tpAniSirGlobal mac_ctx,
 		session->roam_synch_in_progress = false;
 		qdf_mem_free(ies_local);
 		sme_release_global_lock(&mac_ctx->sme);
-		return;
+		return QDF_STATUS_E_NOMEM;
 	}
 	csr_scan_save_roam_offload_ap_to_scan_cache(mac_ctx, roam_synch_data,
 			bss_desc);
@@ -19975,7 +20194,7 @@ void csr_roam_synch_callback(tpAniSirGlobal mac_ctx,
 			qdf_mem_free(roam_info);
 		qdf_mem_free(ies_local);
 		sme_release_global_lock(&mac_ctx->sme);
-		return;
+		return QDF_STATUS_E_NOMEM;
 	}
 	qdf_mem_copy(roam_info->pbFrames,
 			(uint8_t *)roam_synch_data +
@@ -20115,5 +20334,7 @@ void csr_roam_synch_callback(tpAniSirGlobal mac_ctx,
 	qdf_mem_free(roam_info);
 	qdf_mem_free(ies_local);
 	sme_release_global_lock(&mac_ctx->sme);
+
+	return status;
 }
 #endif

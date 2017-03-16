@@ -69,7 +69,7 @@ void lim_ft_cleanup_pre_auth_info(tpAniSirGlobal pMac,
 						 pFTPreAuthReq->preAuthbssId,
 						 &sessionId);
 
-		lim_log(pMac, LOG1, FL("Freeing pFTPreAuthReq= %p"),
+		lim_log(pMac, LOGD, FL("Freeing pFTPreAuthReq= %p"),
 			       psessionEntry->ftPEContext.pFTPreAuthReq);
 		if (psessionEntry->ftPEContext.pFTPreAuthReq->
 		    pbssDescription) {
@@ -183,7 +183,7 @@ int lim_process_ft_pre_auth_req(tpAniSirGlobal mac_ctx, tpSirMsgQ msg)
 	/* We need information from the Pre-Auth Req. Lets save that */
 	session->ftPEContext.pFTPreAuthReq = ft_pre_auth_req;
 
-	lim_log(mac_ctx, LOG1, FL("PRE Auth ft_ies_length=%02x%02x%02x"),
+	lim_log(mac_ctx, LOGD, FL("PRE Auth ft_ies_length=%02x%02x%02x"),
 		session->ftPEContext.pFTPreAuthReq->ft_ies[0],
 		session->ftPEContext.pFTPreAuthReq->ft_ies[1],
 		session->ftPEContext.pFTPreAuthReq->ft_ies[2]);
@@ -200,13 +200,13 @@ int lim_process_ft_pre_auth_req(tpAniSirGlobal mac_ctx, tpSirMsgQ msg)
 	    session->ftPEContext.pFTPreAuthReq->preAuthchannelNum)
 	    || lim_is_in_mcc(mac_ctx)) {
 		/* Need to suspend link only if the channels are different */
-		lim_log(mac_ctx, LOG2,
+		lim_log(mac_ctx, LOGD,
 			FL("Performing pre-auth on diff channel(session %p)"),
 			session);
 		lim_send_preauth_scan_offload(mac_ctx, session->peSessionId,
 				session->ftPEContext.pFTPreAuthReq);
 	} else {
-		lim_log(mac_ctx, LOG2,
+		lim_log(mac_ctx, LOGD,
 			FL("Performing pre-auth on same channel (session %p)"),
 			session);
 		/* We are in the same channel. Perform pre-auth */
@@ -237,7 +237,7 @@ void lim_perform_ft_pre_auth(tpAniSirGlobal pMac, QDF_STATUS status,
 	eCsrAuthType auth_type;
 
 	if (NULL == psessionEntry) {
-		PELOGE(lim_log(pMac, LOGE, FL("psessionEntry is NULL"));)
+		lim_log(pMac, LOGE, FL("psessionEntry is NULL"));
 		return;
 	}
 	session_id = psessionEntry->smeSessionId;
@@ -267,7 +267,7 @@ void lim_perform_ft_pre_auth(tpAniSirGlobal pMac, QDF_STATUS status,
 		lim_log(pMac, LOGE, FL("psessionEntry is not in STA mode"));
 		return;
 	}
-	lim_log(pMac, LOG2, "Entered wait auth2 state for FT (old session %p)",
+	lim_log(pMac, LOGD, "Entered wait auth2 state for FT (old session %p)",
 				 psessionEntry);
 	if (psessionEntry->is11Rconnection) {
 		/* Now we are on the right channel and need to send out Auth1
@@ -297,7 +297,7 @@ void lim_perform_ft_pre_auth(tpAniSirGlobal pMac, QDF_STATUS status,
 	MTRACE(mac_trace(pMac, TRACE_CODE_TIMER_ACTIVATE,
 		psessionEntry->peSessionId, eLIM_FT_PREAUTH_RSP_TIMER));
 
-	lim_log(pMac, LOG1, FL("FT Auth Rsp Timer Started"));
+	lim_log(pMac, LOGD, FL("FT Auth Rsp Timer Started"));
 #ifdef FEATURE_WLAN_DIAG_SUPPORT
 	lim_diag_event_report(pMac, WLAN_PE_DIAG_ROAM_AUTH_START_EVENT,
 			pMac->lim.pSessionEntry, eSIR_SUCCESS, eSIR_SUCCESS);
@@ -451,7 +451,6 @@ void lim_handle_ft_pre_auth_rsp(tpAniSirGlobal pMac, tSirRetStatus status,
 	if (psessionEntry->ftPEContext.ftPreAuthStatus == eSIR_SUCCESS) {
 		pbssDescription =
 		      psessionEntry->ftPEContext.pFTPreAuthReq->pbssDescription;
-		lim_print_mac_addr(pMac, pbssDescription->bssId, LOG1);
 		pftSessionEntry =
 			pe_create_session(pMac, pbssDescription->bssId,
 					&sessionId, pMac->lim.maxStation,
@@ -487,13 +486,13 @@ void lim_handle_ft_pre_auth_rsp(tpAniSirGlobal pMac, tSirRetStatus status,
 		else
 			pftSessionEntry->vdev_nss = pMac->vdev_type_nss_2g.sta;
 
-		lim_log(pMac, LOG1, FL("created session (%p) with id = %d"),
+		lim_log(pMac, LOGD, FL("created session (%p) with id = %d"),
 			pftSessionEntry, pftSessionEntry->peSessionId);
 
 		/* Update the ReAssoc BSSID of the current session */
 		sir_copy_mac_addr(psessionEntry->limReAssocbssId,
 				  pbssDescription->bssId);
-		lim_print_mac_addr(pMac, psessionEntry->limReAssocbssId, LOG1);
+		lim_print_mac_addr(pMac, psessionEntry->limReAssocbssId, LOGD);
 	}
 send_rsp:
 	if (psessionEntry->currentOperChannel !=
@@ -503,7 +502,7 @@ send_rsp:
 			psessionEntry->ftPEContext.pFTPreAuthReq->scan_id,
 			PREAUTH_REQUESTOR_ID);
 	} else {
-		lim_log(pMac, LOG1,
+		lim_log(pMac, LOGD,
 			"Pre auth on same channel as connected AP channel %d",
 			psessionEntry->ftPEContext.pFTPreAuthReq->
 			preAuthchannelNum);
@@ -573,7 +572,7 @@ void lim_process_ft_preauth_rsp_timeout(tpAniSirGlobal mac_ctx)
 		 * Preauth rsp processed so that any rsp from AP is dropped in
 		 * lim_process_auth_frame_no_session.
 		 */
-		lim_log(mac_ctx, LOG1,
+		lim_log(mac_ctx, LOGD,
 			FL("Auth rsp not yet posted to SME (session %p)"),
 			session);
 		session->ftPEContext.pFTPreAuthReq->bPreAuthRspProcessed = true;
@@ -616,7 +615,7 @@ void lim_post_ft_pre_auth_rsp(tpAniSirGlobal mac_ctx,
 		return;
 	}
 
-	lim_log(mac_ctx, LOG1, FL("Auth Rsp = %p"), ft_pre_auth_rsp);
+	lim_log(mac_ctx, LOGD, FL("Auth Rsp = %p"), ft_pre_auth_rsp);
 	if (session) {
 		/* Nothing to be done if the session is not in STA mode */
 		if (!LIM_IS_STA_ROLE(session)) {
@@ -650,7 +649,7 @@ void lim_post_ft_pre_auth_rsp(tpAniSirGlobal mac_ctx,
 		 * Ensure that on Pre-Auth failure the cached Pre-Auth Req and
 		 * other allocated memory is freed up before returning.
 		 */
-		lim_log(mac_ctx, LOG1, "Pre-Auth Failed, Cleanup!");
+		lim_log(mac_ctx, LOGD, "Pre-Auth Failed, Cleanup!");
 		lim_ft_cleanup(mac_ctx, session);
 	}
 
@@ -658,7 +657,7 @@ void lim_post_ft_pre_auth_rsp(tpAniSirGlobal mac_ctx,
 	mmh_msg.bodyptr = ft_pre_auth_rsp;
 	mmh_msg.bodyval = 0;
 
-	lim_log(mac_ctx, LOG1, FL("Posted Auth Rsp to SME with status of 0x%x"),
+	lim_log(mac_ctx, LOGD, FL("Posted Auth Rsp to SME with status of 0x%x"),
 		status);
 #ifdef FEATURE_WLAN_DIAG_SUPPORT_LIM    /* FEATURE_WLAN_DIAG_SUPPORT */
 	if (status == eSIR_SUCCESS)
@@ -724,7 +723,7 @@ QDF_STATUS lim_send_preauth_scan_offload(tpAniSirGlobal mac_ctx,
 	scan_offload_req->scan_id = ft_preauth_req->scan_id;
 	scan_offload_req->scan_requestor_id = PREAUTH_REQUESTOR_ID;
 
-	lim_log(mac_ctx, LOG1,
+	lim_log(mac_ctx, LOGD,
 		FL("Scan request: duration %u, session %hu, chan %hu"),
 		scan_offload_req->maxChannelTime, session_id,
 		ft_preauth_req->preAuthchannelNum);

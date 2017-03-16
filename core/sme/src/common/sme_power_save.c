@@ -771,14 +771,19 @@ QDF_STATUS sme_set_ps_preferred_network_list(tHalHandle hal_ctx,
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	request_buf = qdf_mem_malloc(sizeof(tSirPNOScanReq));
+	request_buf = qdf_mem_malloc(sizeof(tSirPNOScanReq) +
+		      (request->num_vendor_oui) *
+		      (sizeof(struct vendor_oui)));
+
 	if (NULL == request_buf) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 			FL("Not able to allocate memory for PNO request"));
 		return QDF_STATUS_E_NOMEM;
 	}
 
-	qdf_mem_copy(request_buf, request, sizeof(tSirPNOScanReq));
+	qdf_mem_copy(request_buf, request, sizeof(tSirPNOScanReq) +
+			(request->num_vendor_oui) *
+			(sizeof(struct vendor_oui)));
 
 	/*Must translate the mode first */
 	uc_dot11_mode = (uint8_t) csr_translate_to_wni_cfg_dot11_mode(mac_ctx,
@@ -1004,7 +1009,7 @@ QDF_STATUS sme_ps_enable_auto_ps_timer(tHalHandle hal_ctx,
 	QDF_STATUS qdf_status;
 
 	if (!ps_global_info->auto_bmps_timer_val) {
-		sms_log(mac_ctx, LOGE, FL("auto_ps_timer is disabled in INI"));
+		sms_log(mac_ctx, LOGD, FL("auto_ps_timer is disabled in INI"));
 		return QDF_STATUS_SUCCESS;
 	}
 

@@ -809,7 +809,7 @@ static int cds_mc_thread(void *Arg)
 							pMsgWrapper->pVosMsg);
 				if (!QDF_IS_STATUS_SUCCESS(vStatus)) {
 					QDF_TRACE(QDF_MODULE_ID_QDF,
-						  QDF_TRACE_LEVEL_ERROR,
+						  QDF_TRACE_LEVEL_INFO,
 						  "%s: Issue Processing SME message",
 						  __func__);
 				}

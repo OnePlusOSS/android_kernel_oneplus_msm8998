@@ -605,8 +605,9 @@ typedef struct tagCsrConfig {
 	uint8_t enableHtSmps;
 	uint8_t htSmps;
 	bool send_smps_action;
-	uint8_t txLdpcEnable;
-	uint8_t rxLdpcEnable;
+	uint8_t tx_ldpc_enable;
+	uint8_t rx_ldpc_enable;
+	uint8_t rx_ldpc_support_for_2g;
 	/*
 	 * Enable/Disable heartbeat offload
 	 */
@@ -999,6 +1000,7 @@ typedef struct tagCsrRoamSession {
 	bool dhcp_done;
 	uint8_t disconnect_reason;
 	uint8_t uapsd_mask;
+	qdf_mc_timer_t roaming_offload_timer;
 } tCsrRoamSession;
 
 typedef struct tagCsrRoamStruct {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -410,9 +410,9 @@ sch_bcn_process_sta(tpAniSirGlobal mac_ctx,
 	/* Read beacon interval session Entry */
 	bi = session->beaconParams.beaconInterval;
 	if (bi != bcn->beaconInterval) {
-		PELOG1(sch_log(mac_ctx, LOG1,
+		sch_log(mac_ctx, LOGD,
 		       FL("Beacon interval changed from %d to %d"),
-		       bcn->beaconInterval, bi);)
+		       bcn->beaconInterval, bi);
 
 		bi = bcn->beaconInterval;
 		session->beaconParams.beaconInterval = (uint16_t) bi;
@@ -801,7 +801,7 @@ static void __sch_beacon_process_for_session(tpAniSirGlobal mac_ctx,
 
 	if (mac_ctx->roam.configParam.allow_tpc_from_ap) {
 		get_local_power_constraint_beacon(bcn, &local_constraint);
-		sch_log(mac_ctx, LOG1, "ESE localPowerConstraint = %d,",
+		sch_log(mac_ctx, LOGD, "ESE localPowerConstraint = %d,",
 						local_constraint);
 
 		if (mac_ctx->rrm.rrmPEContext.rrmEnable &&
@@ -809,7 +809,7 @@ static void __sch_beacon_process_for_session(tpAniSirGlobal mac_ctx,
 			local_constraint = regMax;
 			local_constraint -=
 				bcn->localPowerConstraint.localPowerConstraints;
-			sch_log(mac_ctx, LOG1, "localPowerConstraint = %d,",
+			sch_log(mac_ctx, LOGD, "localPowerConstraint = %d,",
 					local_constraint);
 			}
 	}
@@ -817,13 +817,13 @@ static void __sch_beacon_process_for_session(tpAniSirGlobal mac_ctx,
 	maxTxPower = lim_get_max_tx_power(regMax, local_constraint,
 					mac_ctx->roam.configParam.nTxPowerCap);
 
-	sch_log(mac_ctx, LOG1, "RegMax = %d, MaxTx pwr = %d",
+	sch_log(mac_ctx, LOGD, "RegMax = %d, MaxTx pwr = %d",
 			regMax, maxTxPower);
 
 
 	/* If maxTxPower is increased or decreased */
 	if (maxTxPower != session->maxTxPower) {
-		sch_log(mac_ctx, LOG1,
+		sch_log(mac_ctx, LOGD,
 			FL("Local power constraint change, Updating new maxTx power %d from old pwr %d"),
 			maxTxPower, session->maxTxPower);
 		if (lim_send_set_max_tx_power_req(mac_ctx, maxTxPower, session)
@@ -926,12 +926,12 @@ sch_beacon_process(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 		    && bcn_prm.paramChangeBitmap) {
 			/* Update the bcn and apply the new settings to HAL */
 			sch_set_fixed_beacon_fields(mac_ctx, ap_session);
-			PELOG1(sch_log(mac_ctx, LOG1,
+			sch_log(mac_ctx, LOGD,
 			       FL("Beacon for PE session[%d] got changed."),
-			       ap_session->peSessionId);)
-			PELOG1(sch_log(mac_ctx, LOG1,
+			       ap_session->peSessionId);
+			sch_log(mac_ctx, LOGD,
 			       FL("sending beacon param change bitmap: 0x%x"),
-			       bcn_prm.paramChangeBitmap);)
+			       bcn_prm.paramChangeBitmap);
 			lim_send_beacon_params(mac_ctx, &bcn_prm, ap_session);
 		}
 	}
@@ -966,7 +966,7 @@ sch_beacon_edca_process(tpAniSirGlobal pMac, tSirMacEdcaParamSetIE *edca,
 	host_log_qos_edca_pkt_type *log_ptr = NULL;
 #endif /* FEATURE_WLAN_DIAG_SUPPORT */
 
-	sch_log(pMac, LOG2,
+	sch_log(pMac, LOGD,
 		FL("Updating parameter set count: Old %d ---> new %d"),
 		session->gLimEdcaParamSetCount, edca->qosInfo.count);
 
@@ -1038,11 +1038,11 @@ sch_beacon_edca_process(tpAniSirGlobal pMac, tSirMacEdcaParamSetIE *edca,
 	}
 	WLAN_HOST_DIAG_LOG_REPORT(log_ptr);
 #endif /* FEATURE_WLAN_DIAG_SUPPORT */
-	sch_log(pMac, LOG1,
+	sch_log(pMac, LOGD,
 		FL("Edsa param enabled in ini %d. Updating Local EDCA Params(gLimEdcaParams) to: "),
 		pMac->roam.configParam.enable_edca_params);
 	for (i = 0; i < MAX_NUM_AC; i++) {
-		sch_log(pMac, LOG1,
+		sch_log(pMac, LOGD,
 		       FL("AC[%d]:  AIFSN: %d, ACM %d, CWmin %d, CWmax %d, TxOp %d"),
 		       i, session->gLimEdcaParams[i].aci.aifsn,
 		       session->gLimEdcaParams[i].aci.acm,

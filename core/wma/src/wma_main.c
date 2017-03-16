@@ -830,7 +830,7 @@ static void wma_set_dtim_period(tp_wma_handle wma,
 	struct wma_txrx_node *iface =
 		&wma->interfaces[vdev_id];
 
-	WMA_LOGE("%s: set dtim_period %d", __func__,
+	WMA_LOGD("%s: set dtim_period %d", __func__,
 			dtim_params->dtim_period);
 	iface->dtimPeriod = dtim_params->dtim_period;
 	ret = wma_vdev_set_param(wma->wmi_handle,
@@ -1004,7 +1004,7 @@ static void wma_process_cli_set_cmd(tp_wma_handle wma,
 			 *    intr[privcmd->param_vdev_id].config.amsdu =
 			 *            privcmd->param_value;
 			 */
-			WMA_LOGE("SET GEN_VDEV_PARAM_AMSDU command is currently not supported");
+			WMA_LOGD("SET GEN_VDEV_PARAM_AMSDU command is currently not supported");
 			break;
 		case GEN_PARAM_CRASH_INJECT:
 			if (QDF_GLOBAL_FTM_MODE  == cds_get_conparam())
@@ -1762,7 +1762,7 @@ static void wma_cleanup_vdev_resp_queue(tp_wma_handle wma)
 	qdf_spin_lock_bh(&wma->vdev_respq_lock);
 	if (!qdf_list_size(&wma->vdev_resp_queue)) {
 		qdf_spin_unlock_bh(&wma->vdev_respq_lock);
-		WMA_LOGE(FL("request queue maybe empty"));
+		WMA_LOGD(FL("request queue maybe empty"));
 		return;
 	}
 
@@ -1957,11 +1957,11 @@ static int wma_flush_complete_evt_handler(void *handle,
 	 * reason_code = other value; Asynchronous flush event for fatal events
 	 */
 	if (!reason_code && (cds_is_log_report_in_progress() == false)) {
-		WMA_LOGE("Received WMI flush event without sending CMD");
+		WMA_LOGD("Received WMI flush event without sending CMD");
 		return -EINVAL;
 	} else if (!reason_code && cds_is_log_report_in_progress() == true) {
 		/* Flush event in response to flush command */
-		WMA_LOGE("Received WMI flush event in response to flush CMD");
+		WMA_LOGD("Received WMI flush event in response to flush CMD");
 		status = qdf_mc_timer_stop(&wma->log_completion_timer);
 		if (status != QDF_STATUS_SUCCESS)
 			WMA_LOGE("Failed to stop the log completion timeout");
@@ -1982,7 +1982,7 @@ static int wma_flush_complete_evt_handler(void *handle,
 		/* Asynchronous flush event for fatal event,
 		 * but, report in progress already
 		 */
-		WMA_LOGE("%s: Bug report already in progress - dropping! type:%d, indicator=%d reason_code=%d",
+		WMA_LOGW("%s: Bug report already in progress - dropping! type:%d, indicator=%d reason_code=%d",
 				__func__, WLAN_LOG_TYPE_FATAL,
 				WLAN_LOG_INDICATOR_FIRMWARE, reason_code);
 		return QDF_STATUS_E_FAILURE;
@@ -2328,6 +2328,13 @@ QDF_STATUS wma_open(void *cds_context,
 					   WMI_UPDATE_STATS_EVENTID,
 					   wma_stats_event_handler,
 					   WMA_RX_SERIALIZER_CTX);
+
+	/* register for stats response event */
+	wmi_unified_register_event_handler(wma_handle->wmi_handle,
+					   WMI_VDEV_GET_ARP_STAT_EVENTID,
+					   wma_get_arp_stats_handler,
+					   WMA_RX_SERIALIZER_CTX);
+
 
 #ifdef WLAN_POWER_DEBUGFS
 	/* register for Chip Power stats event */
@@ -3073,7 +3080,7 @@ QDF_STATUS wma_start(void *cds_ctx)
 
 #if defined(QCA_LL_LEGACY_TX_FLOW_CONTROL) || \
 	defined(QCA_LL_TX_FLOW_CONTROL_V2) || defined(CONFIG_HL_SUPPORT)
-	WMA_LOGE("MCC TX Pause Event Handler register");
+	WMA_LOGD("MCC TX Pause Event Handler register");
 	status = wmi_unified_register_event_handler(wma_handle->wmi_handle,
 					WMI_TX_PAUSE_EVENTID,
 					wma_mcc_vdev_tx_pause_evt_handler,
@@ -4598,23 +4605,23 @@ int wma_rx_service_ready_event(void *handle, uint8_t *cmd_param_info,
 
 	WMA_LOGD("%s: Firmware default hw mode index : %d",
 		 __func__, ev->default_dbs_hw_mode_index);
-	WMA_LOGE("%s: Firmware build version : %08x",
+	WMA_LOGI("%s: Firmware build version : %08x",
 		 __func__, ev->fw_build_vers);
-	WMA_LOGD(FL("FW fine time meas cap: 0x%x"), ev->wmi_fw_sub_feat_caps);
+	WMA_LOGD("FW fine time meas cap: 0x%x", ev->wmi_fw_sub_feat_caps);
 
 	if (ev->hw_bd_id) {
 		wma_handle->hw_bd_id = ev->hw_bd_id;
 		qdf_mem_copy(wma_handle->hw_bd_info,
 			     ev->hw_bd_info, sizeof(ev->hw_bd_info));
 
-		WMA_LOGE("%s: Board version: %x.%x",
+		WMA_LOGI("%s: Board version: %x.%x",
 			 __func__,
 			 wma_handle->hw_bd_info[0], wma_handle->hw_bd_info[1]);
 	} else {
 		wma_handle->hw_bd_id = 0;
 		qdf_mem_zero(wma_handle->hw_bd_info,
 			     sizeof(wma_handle->hw_bd_info));
-		WMA_LOGE("%s: Board version is unknown!", __func__);
+		WMA_LOGW("%s: Board version is unknown!", __func__);
 	}
 	wma_handle->dfs_ic->dfs_hw_bd_id = wma_handle->hw_bd_id;
 
@@ -4674,7 +4681,7 @@ int wma_rx_service_ready_event(void *handle, uint8_t *cmd_param_info,
 
 	if (WMI_SERVICE_IS_ENABLED(wma_handle->wmi_service_bitmap,
 				   WMI_SERVICE_MGMT_TX_WMI)) {
-		WMA_LOGE("Firmware supports management TX over WMI,use WMI interface instead of HTT for management Tx");
+		WMA_LOGD("Firmware supports management TX over WMI,use WMI interface instead of HTT for management Tx");
 		status = wmi_desc_pool_init(wma_handle, WMI_DESC_POOL_MAX);
 		if (status) {
 			WMA_LOGE("Failed to initialize wmi descriptor pool");
@@ -4854,7 +4861,7 @@ int wma_rx_service_ready_event(void *handle, uint8_t *cmd_param_info,
 		if (!QDF_IS_STATUS_SUCCESS(ret))
 			WMA_LOGE("Failed to start the service ready ext timer");
 
-		WMA_LOGA("%s: WMA waiting for WMI_SERVICE_READY_EXT_EVENTID",
+		WMA_LOGD("%s: WMA waiting for WMI_SERVICE_READY_EXT_EVENTID",
 				__func__);
 	}
 
@@ -4974,12 +4981,14 @@ QDF_STATUS wma_get_caps_for_phyidx_hwmode(struct wma_caps_per_phy *caps_per_phy,
 /**
  * wma_is_rx_ldpc_supported_for_channel() - to find out if ldpc is supported
  *
- * @channel: Channel number for which it needs to check if rx ldpc is enabled
+ * @channel: Channel number for which it needs to check if rx ldpc is supported
+ * @hw_mode: hw mode for which it needs to check if rx ldpc is supported.
  *
- * This API takes channel number as argument and takes default hw mode as DBS
+ * This API takes channel number and hw mode as arguments
  * to check if rx LDPC support is enabled for that channel or no
  */
-bool wma_is_rx_ldpc_supported_for_channel(uint32_t channel)
+bool wma_is_rx_ldpc_supported_for_channel(uint32_t channel,
+			enum hw_mode_dbs_capab hw_mode)
 {
 	struct wma_caps_per_phy caps_per_phy = {0};
 	enum cds_band_type band;
@@ -4992,7 +5001,7 @@ bool wma_is_rx_ldpc_supported_for_channel(uint32_t channel)
 
 	if (QDF_STATUS_SUCCESS != wma_get_caps_for_phyidx_hwmode(
 						&caps_per_phy,
-						HW_MODE_DBS, band)) {
+						hw_mode, band)) {
 		return false;
 	}
 	if (CDS_IS_CHANNEL_24GHZ(channel))
@@ -5256,7 +5265,7 @@ static QDF_STATUS wma_update_hw_mode_list(t_wma_handle *wma_handle)
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	WMA_LOGA("%s: Updated HW mode list: Num modes:%d",
+	WMA_LOGD("%s: Updated HW mode list: Num modes:%d",
 		 __func__, wma_handle->num_dbs_hw_modes);
 
 	for (i = 0; i < wma_handle->num_dbs_hw_modes; i++) {
@@ -6323,6 +6332,48 @@ void wma_mc_discard_msg(cds_msg_t *msg)
 	msg->type = 0;
 }
 
+static void wma_set_arp_req_stats(WMA_HANDLE handle,
+				  struct set_arp_stats_params *req_buf)
+{
+	int status;
+	struct set_arp_stats *arp_stats;
+	tp_wma_handle wma_handle = (tp_wma_handle) handle;
+
+	if (!wma_handle || !wma_handle->wmi_handle) {
+		WMA_LOGE("%s: WMA is closed, cannot send per roam config",
+			 __func__);
+		return;
+	}
+
+	arp_stats = (struct set_arp_stats *)req_buf;
+	status = wmi_unified_set_arp_stats_req(wma_handle->wmi_handle,
+					       arp_stats);
+	if (status != EOK)
+		WMA_LOGE("%s: failed to set arp stats to FW",
+			 __func__);
+}
+
+static void wma_get_arp_req_stats(WMA_HANDLE handle,
+				  struct get_arp_stats_params *req_buf)
+{
+	int status;
+	struct get_arp_stats *arp_stats;
+	tp_wma_handle wma_handle = (tp_wma_handle) handle;
+
+	if (!wma_handle || !wma_handle->wmi_handle) {
+		WMA_LOGE("%s: WMA is closed, cannot send per roam config",
+			 __func__);
+		return;
+	}
+
+	arp_stats = (struct get_arp_stats *)req_buf;
+	status = wmi_unified_get_arp_stats_req(wma_handle->wmi_handle,
+					       arp_stats);
+	if (status != EOK)
+		WMA_LOGE("%s: failed to send get arp stats to FW",
+			 __func__);
+}
+
 /**
  * wma_mc_process_msg() - process wma messages and call appropriate function.
  * @cds_context: cds context
@@ -7176,6 +7227,16 @@ QDF_STATUS wma_mc_process_msg(void *cds_context, cds_msg_t *msg)
 	case WMA_DISABLE_HW_BCAST_FILTER:
 		wma_configure_non_arp_broadcast_filter(wma_handle,
 			(struct broadcast_filter_request *) msg->bodyptr);
+		break;
+	case WMA_SET_ARP_STATS_REQ:
+		wma_set_arp_req_stats(wma_handle,
+			(struct set_arp_stats_params *)msg->bodyptr);
+		qdf_mem_free(msg->bodyptr);
+		break;
+	case WMA_GET_ARP_STATS_REQ:
+		wma_get_arp_req_stats(wma_handle,
+			(struct get_arp_stats_params *)msg->bodyptr);
+		qdf_mem_free(msg->bodyptr);
 		break;
 	default:
 		WMA_LOGE("Unhandled WMA message of type %d", msg->type);

@@ -162,9 +162,9 @@ lim_collect_bss_description(tpAniSirGlobal pMac,
 
 	/* Copy RSSI & SINR from BD */
 
-	lim_log(pMac, LOG4, "*********BSS Description for BSSID:********* ");
-	sir_dump_buf(pMac, SIR_LIM_MODULE_ID, LOG4, pBssDescr->bssId, 6);
-	sir_dump_buf(pMac, SIR_LIM_MODULE_ID, LOG4,
+	lim_log(pMac, LOGD, "*********BSS Description for BSSID:********* ");
+	sir_dump_buf(pMac, SIR_LIM_MODULE_ID, LOGD, pBssDescr->bssId, 6);
+	sir_dump_buf(pMac, SIR_LIM_MODULE_ID, LOGD,
 		(uint8_t *) pRxPacketInfo, 36);
 
 	pBssDescr->rssi = (int8_t) WMA_GET_RX_RSSI_NORMALIZED(pRxPacketInfo);
@@ -172,7 +172,7 @@ lim_collect_bss_description(tpAniSirGlobal pMac,
 
 	/* SINR no longer reported by HW */
 	pBssDescr->sinr = 0;
-	lim_log(pMac, LOG3,
+	lim_log(pMac, LOGD,
 		FL(MAC_ADDRESS_STR " rssi: normalized = %d, absolute = %d"),
 		MAC_ADDR_ARRAY(pHdr->bssId), pBssDescr->rssi,
 		pBssDescr->rssi_raw);
@@ -181,13 +181,14 @@ lim_collect_bss_description(tpAniSirGlobal pMac,
 	pBssDescr->tsf_delta = WMA_GET_RX_TSF_DELTA(pRxPacketInfo);
 	pBssDescr->seq_ctrl = pHdr->seqControl;
 
-	lim_log(pMac, LOG1,
+	lim_log(pMac, LOGD,
 		  FL("BSSID: "MAC_ADDRESS_STR " tsf_delta = %u ReceivedTime = %llu ssid = %s"),
 		  MAC_ADDR_ARRAY(pHdr->bssId), pBssDescr->tsf_delta,
 		  pBssDescr->received_time,
 		  ((pBPR->ssidPresent) ? (char *)pBPR->ssId.ssId : ""));
 
-	lim_log(pMac, LOG1, FL("Seq Ctrl: Frag Num: %d, Seq Num: LO:%02x HI:%02x"),
+	lim_log(pMac, LOGD,
+		FL("Seq Ctrl: Frag Num: %d, Seq Num: LO:%02x HI:%02x"),
 		pBssDescr->seq_ctrl.fragNum, pBssDescr->seq_ctrl.seqNumLo,
 		pBssDescr->seq_ctrl.seqNumHi);
 
@@ -225,7 +226,7 @@ lim_collect_bss_description(tpAniSirGlobal pMac,
 	/*set channel number in beacon in case it is not present */
 	pBPR->channelNumber = pBssDescr->channelId;
 
-	lim_log(pMac, LOG3,
+	lim_log(pMac, LOGD,
 		FL("Collected BSS Description for Channel(%1d), length(%u), IE Fields(%u)"),
 		pBssDescr->channelId, pBssDescr->length, ieLen);
 	pMac->lim.beacon_probe_rsp_cnt_per_scan++;
@@ -303,7 +304,7 @@ lim_check_and_add_bss_description(tpAniSirGlobal mac_ctx,
 		if (rx_chan_bd != rx_chan_in_beacon) {
 			/* BCAST Frame, if CH do not match, Drop */
 			if (WMA_IS_RX_BCAST(rx_packet_info)) {
-				lim_log(mac_ctx, LOG3,
+				lim_log(mac_ctx, LOGD,
 					FL("Beacon/Probe Rsp dropped. Channel in BD %d. Channel in beacon %d"),
 					WMA_GET_RX_CH(rx_packet_info),
 					lim_get_channel_from_beacon(mac_ctx,
@@ -313,7 +314,7 @@ lim_check_and_add_bss_description(tpAniSirGlobal mac_ctx,
 			/* Unit cast frame, Probe RSP, do not drop */
 			else {
 				dont_update_all = 1;
-				lim_log(mac_ctx, LOG3,
+				lim_log(mac_ctx, LOGD,
 					FL("SSID %s, CH in ProbeRsp %d, CH in BD %d, mismatch, Do Not Drop"),
 					bpr->ssId.ssId, rx_chan_in_beacon,
 					WMA_GET_RX_CH(rx_packet_info));
@@ -331,7 +332,7 @@ lim_check_and_add_bss_description(tpAniSirGlobal mac_ctx,
 
 	ie_len = WMA_GET_RX_PAYLOAD_LEN(rx_packet_info);
 	if (ie_len <= SIR_MAC_B_PR_SSID_OFFSET) {
-		lim_log(mac_ctx, LOGP,
+		lim_log(mac_ctx, LOGE,
 			FL("RX packet has invalid length %d"), ie_len);
 		return;
 	}

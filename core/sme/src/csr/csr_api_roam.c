@@ -16291,13 +16291,6 @@ csr_update_stats(tpAniSirGlobal mac, uint8_t stats_type,
 		*stats += sizeof(tCsrGlobalClassAStatsInfo);
 		*length -= sizeof(tCsrGlobalClassAStatsInfo);
 		break;
-	case eCsrGlobalClassBStats:
-		sme_debug("ClassB stats");
-		qdf_mem_copy((uint8_t *) &mac->roam.classBStatsInfo, *stats,
-			     sizeof(tCsrGlobalClassBStatsInfo));
-		*stats += sizeof(tCsrGlobalClassBStatsInfo);
-		*length -= sizeof(tCsrGlobalClassBStatsInfo);
-		break;
 	case csr_per_chain_rssi_stats:
 		sme_debug("csrRoamStatsRspProcessor:Per Chain RSSI stats");
 		qdf_mem_copy((uint8_t *)&mac->roam.per_chain_rssi_stats,
@@ -18435,14 +18428,6 @@ void csr_roam_report_statistics(tpAniSirGlobal pMac, uint32_t statsMask,
 					     classAStatsInfo,
 					     sizeof(tCsrGlobalClassAStatsInfo));
 				pStats += sizeof(tCsrGlobalClassAStatsInfo);
-				break;
-			case eCsrGlobalClassBStats:
-				sme_debug("ClassB stats");
-				qdf_mem_copy(pStats,
-					     (uint8_t *) &pMac->roam.
-					     classBStatsInfo,
-					     sizeof(tCsrGlobalClassBStatsInfo));
-				pStats += sizeof(tCsrGlobalClassBStatsInfo);
 				break;
 			case eCsrGlobalClassDStats:
 				sme_debug("ClassD stats");

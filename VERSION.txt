@@ -1,1 +1,1 @@
-Current Component wlan-cmn.driver.lnx.1.0 version 5.1.1.1T
+Current Component wlan-cmn.driver.lnx.1.0 version 5.1.1.1U

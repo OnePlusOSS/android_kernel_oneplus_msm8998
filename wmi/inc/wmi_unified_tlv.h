@@ -614,5 +614,10 @@ send_set_active_bpf_mode_cmd_tlv(wmi_unified_t wmi_handle,
 				 uint8_t vdev_id,
 				 FW_ACTIVE_BPF_MODE ucast_mode,
 				 FW_ACTIVE_BPF_MODE mcast_bcast_mode);
+
+QDF_STATUS send_set_arp_stats_req_cmd_tlv(wmi_unified_t wmi_handle,
+					  struct set_arp_stats *req_buf);
+QDF_STATUS send_get_arp_stats_req_cmd_tlv(wmi_unified_t wmi_handle,
+					  struct get_arp_stats *req_buf);
 #endif
 

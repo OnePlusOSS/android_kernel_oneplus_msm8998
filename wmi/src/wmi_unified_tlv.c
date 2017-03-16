@@ -296,7 +296,7 @@ QDF_STATUS send_vdev_start_cmd_tlv(wmi_unified_t wmi_handle,
 	WMITLV_SET_HDR(buf_ptr, WMITLV_TAG_ARRAY_STRUC,
 		       cmd->num_noa_descriptors *
 		       sizeof(wmi_p2p_noa_descriptor));
-	WMI_LOGA("%s: vdev_id %d freq %d chanmode %d ch_info: 0x%x is_dfs %d "
+	WMI_LOGI("%s: vdev_id %d freq %d chanmode %d ch_info: 0x%x is_dfs %d "
 		"beacon interval %d dtim %d center_chan %d center_freq2 %d "
 		"reg_info_1: 0x%x reg_info_2: 0x%x, req->max_txpow: 0x%x "
 		"Tx SS %d, Rx SS %d",
@@ -1549,7 +1549,7 @@ QDF_STATUS send_scan_start_cmd_tlv(wmi_unified_t wmi_handle,
 		cmd->num_vendor_oui = params->num_vendor_oui;
 	}
 
-	WMI_LOGI("scan_ctrl_flags = %x", cmd->scan_ctrl_flags);
+	WMI_LOGD("scan_ctrl_flags = %x", cmd->scan_ctrl_flags);
 
 	buf_ptr += sizeof(*cmd);
 	tmp_ptr = (uint32_t *) (buf_ptr + WMI_TLV_HDR_SIZE);
@@ -5138,7 +5138,7 @@ QDF_STATUS send_ipa_offload_control_cmd_tlv(wmi_unified_t wmi_handle,
 		return QDF_STATUS_E_NOMEM;
 	}
 
-	WMI_LOGE("%s: offload_type=%d, enable=%d", __func__,
+	WMI_LOGD("%s: offload_type=%d, enable=%d", __func__,
 		ipa_offload->offload_type, ipa_offload->enable);
 
 	buf_ptr = (u_int8_t *)wmi_buf_data(wmi_buf);
@@ -6121,6 +6121,7 @@ QDF_STATUS send_pno_start_cmd_tlv(wmi_unified_t wmi_handle,
 	/* Copy scan interval */
 	cmd->fast_scan_period = pno->fast_scan_period;
 	cmd->slow_scan_period = pno->slow_scan_period;
+	cmd->delay_start_time = WMI_SEC_TO_MSEC(pno->delay_start_time);
 	cmd->fast_scan_max_cycles = pno->fast_scan_max_cycles;
 	WMI_LOGD("fast_scan_period: %d msec slow_scan_period: %d msec",
 			cmd->fast_scan_period, cmd->slow_scan_period);
@@ -7461,7 +7462,7 @@ QDF_STATUS send_start_oem_data_cmd_tlv(wmi_unified_t wmi_handle,
 	qdf_mem_copy(cmd, data,
 		     data_len);
 
-	WMI_LOGI(FL("Sending OEM Data Request to target, data len %d"),
+	WMI_LOGD(FL("Sending OEM Data Request to target, data len %d"),
 		 data_len);
 
 	ret = wmi_unified_cmd_send(wmi_handle, buf,
@@ -7786,16 +7787,16 @@ QDF_STATUS send_wow_patterns_to_fw_cmd_tlv(wmi_unified_t wmi_handle,
 	bitmap_pattern->bitmask_len = bitmap_pattern->pattern_len;
 	bitmap_pattern->pattern_id = ptrn_id;
 
-	WMI_LOGI("vdev id : %d, ptrn id: %d, ptrn len: %d, ptrn offset: %d user %d",
+	WMI_LOGD("vdev id : %d, ptrn id: %d, ptrn len: %d, ptrn offset: %d user %d",
 		 cmd->vdev_id, cmd->pattern_id, bitmap_pattern->pattern_len,
 		 bitmap_pattern->pattern_offset, user);
 #ifdef CONFIG_MCL
-	WMI_LOGI("Pattern : ");
-	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_WMI, QDF_TRACE_LEVEL_INFO,
+	WMI_LOGD("Pattern : ");
+	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_WMI, QDF_TRACE_LEVEL_DEBUG,
 		&bitmap_pattern->patternbuf[0], bitmap_pattern->pattern_len);
 
-	WMI_LOGI("Mask : ");
-	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_WMI, QDF_TRACE_LEVEL_INFO,
+	WMI_LOGD("Mask : ");
+	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_WMI, QDF_TRACE_LEVEL_DEBUG,
 		&bitmap_pattern->bitmaskbuf[0], bitmap_pattern->pattern_len);
 #endif
 
@@ -10124,7 +10125,7 @@ QDF_STATUS send_pdev_set_pcl_cmd_tlv(wmi_unified_t wmi_handle,
 
 	cmd->pdev_id = WMI_PDEV_ID_SOC;
 	cmd->num_chan = chan_len;
-	WMI_LOGI("%s: Total chan (PCL) len:%d", __func__, cmd->num_chan);
+	WMI_LOGD("%s: Total chan (PCL) len:%d", __func__, cmd->num_chan);
 
 	buf_ptr += sizeof(wmi_pdev_set_pcl_cmd_fixed_param);
 	WMITLV_SET_HDR(buf_ptr, WMITLV_TAG_ARRAY_UINT32,
@@ -10132,7 +10133,7 @@ QDF_STATUS send_pdev_set_pcl_cmd_tlv(wmi_unified_t wmi_handle,
 	cmd_args = (uint32_t *) (buf_ptr + WMI_TLV_HDR_SIZE);
 	for (i = 0; i < chan_len ; i++) {
 		cmd_args[i] = msg->weighed_valid_list[i];
-		WMI_LOGI("%s: chan:%d weight:%d", __func__,
+		WMI_LOGD("%s: chan:%d weight:%d", __func__,
 			msg->saved_chan_list[i], cmd_args[i]);
 	}
 	if (wmi_unified_cmd_send(wmi_handle, buf, len,
@@ -11117,7 +11118,7 @@ QDF_STATUS send_roam_scan_offload_chan_list_cmd_tlv(wmi_unified_t wmi_handle,
 	WMITLV_SET_HDR(buf_ptr, WMITLV_TAG_ARRAY_UINT32,
 		       (chan_list_fp->num_chan * sizeof(uint32_t)));
 	roam_chan_list_array = (A_UINT32 *) (buf_ptr + WMI_TLV_HDR_SIZE);
-	WMI_LOGI("%s: %d channels = ", __func__, chan_list_fp->num_chan);
+	WMI_LOGD("%s: %d channels = ", __func__, chan_list_fp->num_chan);
 	for (i = 0; ((i < chan_list_fp->num_chan) &&
 		     (i < WMI_ROAM_MAX_CHANNELS)); i++) {
 		roam_chan_list_array[i] = chan_list[i];
@@ -11132,7 +11133,99 @@ QDF_STATUS send_roam_scan_offload_chan_list_cmd_tlv(wmi_unified_t wmi_handle,
 		goto error;
 	}
 
-	WMI_LOGI("%s: WMI --> WMI_ROAM_SCAN_CHAN_LIST", __func__);
+	WMI_LOGD("%s: WMI --> WMI_ROAM_SCAN_CHAN_LIST", __func__);
+	return QDF_STATUS_SUCCESS;
+error:
+	wmi_buf_free(buf);
+
+	return status;
+}
+QDF_STATUS send_set_arp_stats_req_cmd_tlv(wmi_unified_t wmi_handle,
+					  struct set_arp_stats *req_buf)
+{
+	wmi_buf_t buf = NULL;
+	QDF_STATUS status;
+	int len;
+	uint8_t *buf_ptr;
+	wmi_vdev_set_arp_stats_cmd_fixed_param *wmi_set_arp;
+
+	len = sizeof(wmi_vdev_set_arp_stats_cmd_fixed_param);
+	buf = wmi_buf_alloc(wmi_handle, len);
+	if (!buf) {
+		WMI_LOGE("%s : wmi_buf_alloc failed", __func__);
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	buf_ptr = (uint8_t *) wmi_buf_data(buf);
+	wmi_set_arp =
+		(wmi_vdev_set_arp_stats_cmd_fixed_param *) buf_ptr;
+	WMITLV_SET_HDR(&wmi_set_arp->tlv_header,
+		       WMITLV_TAG_STRUC_wmi_vdev_set_arp_stats_cmd_fixed_param,
+		       WMITLV_GET_STRUCT_TLVLEN
+		       (wmi_vdev_set_arp_stats_cmd_fixed_param));
+
+	/* fill in per roam config values */
+	wmi_set_arp->vdev_id = req_buf->vdev_id;
+
+	wmi_set_arp->set_clr = req_buf->flag;
+	wmi_set_arp->pkt_type = req_buf->pkt_type;
+	wmi_set_arp->ipv4 = req_buf->ip_addr;
+
+	/* Send per roam config parameters */
+	status = wmi_unified_cmd_send(wmi_handle, buf,
+				      len, WMI_VDEV_SET_ARP_STAT_CMDID);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		WMI_LOGE("WMI_SET_ARP_STATS_CMDID failed, Error %d",
+			 status);
+		goto error;
+	}
+
+	WMI_LOGI(FL("set arp stats flag=%d, vdev=%d"),
+		 req_buf->flag, req_buf->vdev_id);
+	return QDF_STATUS_SUCCESS;
+error:
+	wmi_buf_free(buf);
+
+	return status;
+}
+
+QDF_STATUS send_get_arp_stats_req_cmd_tlv(wmi_unified_t wmi_handle,
+					  struct get_arp_stats *req_buf)
+{
+	wmi_buf_t buf = NULL;
+	QDF_STATUS status;
+	int len;
+	uint8_t *buf_ptr;
+	wmi_vdev_get_arp_stats_cmd_fixed_param *get_arp_stats;
+
+	len = sizeof(wmi_vdev_get_arp_stats_cmd_fixed_param);
+	buf = wmi_buf_alloc(wmi_handle, len);
+	if (!buf) {
+		WMI_LOGE("%s : wmi_buf_alloc failed", __func__);
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	buf_ptr = (uint8_t *) wmi_buf_data(buf);
+	get_arp_stats =
+		(wmi_vdev_get_arp_stats_cmd_fixed_param *) buf_ptr;
+	WMITLV_SET_HDR(&get_arp_stats->tlv_header,
+		       WMITLV_TAG_STRUC_wmi_vdev_get_arp_stats_cmd_fixed_param,
+		       WMITLV_GET_STRUCT_TLVLEN
+		       (wmi_vdev_get_arp_stats_cmd_fixed_param));
+
+	/* fill in arp stats req cmd values */
+	get_arp_stats->vdev_id = req_buf->vdev_id;
+
+	WMI_LOGI(FL("vdev=%d"), req_buf->vdev_id);
+	/* Send per roam config parameters */
+	status = wmi_unified_cmd_send(wmi_handle, buf,
+				      len, WMI_VDEV_GET_ARP_STAT_CMDID);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		WMI_LOGE("WMI_GET_ARP_STATS_CMDID failed, Error %d",
+			 status);
+		goto error;
+	}
+
 	return QDF_STATUS_SUCCESS;
 error:
 	wmi_buf_free(buf);
@@ -11424,7 +11517,7 @@ QDF_STATUS send_set_active_bpf_mode_cmd_tlv(wmi_unified_t wmi_handle,
 	wmi_bpf_set_vdev_active_mode_cmd_fixed_param *cmd;
 	wmi_buf_t buf;
 
-	WMI_LOGI("Sending WMI_BPF_SET_VDEV_ACTIVE_MODE_CMDID(%u, %d, %d)",
+	WMI_LOGD("Sending WMI_BPF_SET_VDEV_ACTIVE_MODE_CMDID(%u, %d, %d)",
 		 vdev_id, ucast_mode, mcast_bcast_mode);
 
 	/* allocate command buffer */
@@ -11453,7 +11546,7 @@ QDF_STATUS send_set_active_bpf_mode_cmd_tlv(wmi_unified_t wmi_handle,
 		return status;
 	}
 
-	WMI_LOGI("Sent WMI_BPF_SET_VDEV_ACTIVE_MODE_CMDID successfully");
+	WMI_LOGD("Sent WMI_BPF_SET_VDEV_ACTIVE_MODE_CMDID successfully");
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -13048,6 +13141,8 @@ struct wmi_ops tlv_ops =  {
 	.send_per_roam_config_cmd = send_per_roam_config_cmd_tlv,
 	.wmi_set_htc_tx_tag = wmi_set_htc_tx_tag_tlv,
 	.send_get_rcpi_cmd = send_get_rcpi_cmd_tlv,
+	.send_set_arp_stats_req_cmd = send_set_arp_stats_req_cmd_tlv,
+	.send_get_arp_stats_req_cmd = send_get_arp_stats_req_cmd_tlv,
 };
 
 #ifdef WMI_TLV_AND_NON_TLV_SUPPORT
@@ -13393,6 +13488,7 @@ static void populate_tlv_events_id(uint32_t *event_ids)
 	event_ids[wmi_soc_set_dual_mac_config_resp_event_id] =
 				WMI_SOC_SET_DUAL_MAC_CONFIG_RESP_EVENTID;
 	event_ids[wmi_update_rcpi_event_id] = WMI_UPDATE_RCPI_EVENTID;
+	event_ids[wmi_get_arp_stats_req_id] = WMI_VDEV_GET_ARP_STATS_EVENTID;
 }
 
 /**

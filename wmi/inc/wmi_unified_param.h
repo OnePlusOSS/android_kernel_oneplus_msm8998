@@ -2079,6 +2079,7 @@ struct cpno_band_rssi_pref {
  * @sessionId: Session identifier
  * @fast_scan_period: Fast Scan period
  * @slow_scan_period: Slow scan period
+ * @delay_start_time: delay in seconds to use before starting the first scan
  * @fast_scan_max_cycles: Fast scan max cycles
  * @us24GProbeTemplateLen: 2.4G probe template length
  * @p24GProbeTemplate: 2.4G probe template
@@ -2115,6 +2116,7 @@ struct pno_scan_req_params {
 	uint8_t sessionId;
 	uint32_t fast_scan_period;
 	uint32_t slow_scan_period;
+	uint32_t delay_start_time;
 	uint8_t fast_scan_max_cycles;
 	uint32_t        active_min_time;
 	uint32_t        active_max_time;
@@ -4871,6 +4873,7 @@ typedef enum {
 	wmi_soc_set_dual_mac_config_resp_event_id,
 	wmi_tx_data_traffic_ctrl_event_id,
 	wmi_update_rcpi_event_id,
+	wmi_get_arp_stats_req_id,
 
 	wmi_events_max,
 } wmi_conv_event_id;
@@ -6852,6 +6855,30 @@ struct action_wakeup_set_param {
 	uint32_t vdev_id;
 	uint32_t operation;
 	uint32_t action_category_map[WMI_SUPPORTED_ACTION_CATEGORY_ELE_LIST];
+};
+
+/**
+ * struct set_arp_stats - set/reset arp stats
+ * @vdev_id: session id
+ * @flag: enable/disable stats
+ * @pkt_type: type of packet(1 - arp)
+ * @ip_addr: subnet ipv4 address in case of encrypted packets
+ */
+struct set_arp_stats {
+	uint32_t vdev_id;
+	uint8_t flag;
+	uint8_t pkt_type;
+	uint32_t ip_addr;
+};
+
+/**
+ * struct get_arp_stats - get arp stats from firmware
+ * @pkt_type: packet type(1 - ARP)
+ * @vdev_id: session id
+ */
+struct get_arp_stats {
+	uint8_t pkt_type;
+	uint32_t vdev_id;
 };
 
 #endif /* _WMI_UNIFIED_PARAM_H_ */

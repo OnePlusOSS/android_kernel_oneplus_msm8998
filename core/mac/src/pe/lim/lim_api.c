@@ -2367,3 +2367,15 @@ QDF_STATUS lim_add_qcn_ie(tpAniSirGlobal mac_ctx, uint8_t *ie_data,
 	(*ie_len) += (QCN_IE_VERSION_SUBATTR_LEN);
 	return QDF_STATUS_SUCCESS;
 }
+
+void lim_log(tpAniSirGlobal pMac, uint32_t loglevel, const char *pString, ...)
+{
+#ifdef WLAN_DEBUG
+	va_list marker;
+
+	va_start(marker, pString);
+	log_debug(pMac, SIR_LIM_MODULE_ID, loglevel, pString, marker);
+	va_end(marker);
+#endif
+}
+

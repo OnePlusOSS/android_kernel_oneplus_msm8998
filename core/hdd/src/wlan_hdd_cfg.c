@@ -4549,6 +4549,13 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_SAP_MAX_MCS_FOR_TX_DATA_DEFAULT,
 		CFG_SAP_MAX_MCS_FOR_TX_DATA_MIN,
 		CFG_SAP_MAX_MCS_FOR_TX_DATA_MAX),
+
+	REG_VARIABLE(CFG_IS_BSSID_HINT_PRIORITY_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, is_bssid_hint_priority,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_IS_BSSID_HINT_PRIORITY_DEFAULT,
+		CFG_IS_BSSID_HINT_PRIORITY_MIN,
+		CFG_IS_BSSID_HINT_PRIORITY_MAX),
 };
 
 /**
@@ -6075,6 +6082,10 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_info("Name = [%s] value = [%u]",
 		 CFG_DROPPED_PKT_DISCONNECT_TH_NAME,
 		 pHddCtx->config->pkt_err_disconn_th);
+	hdd_info("Name = [%s] Value = [%u]",
+		CFG_IS_BSSID_HINT_PRIORITY_NAME,
+		pHddCtx->config->is_bssid_hint_priority);
+
 }
 
 /**
@@ -7652,6 +7663,9 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 			pHddCtx->config->fils_max_chan_guard_time;
 	smeConfig->csrConfig.pkt_err_disconn_th =
 			pHddCtx->config->pkt_err_disconn_th;
+	smeConfig->csrConfig.is_bssid_hint_priority =
+			pHddCtx->config->is_bssid_hint_priority;
+
 	status = sme_update_config(pHddCtx->hHal, smeConfig);
 	if (!QDF_IS_STATUS_SUCCESS(status))
 		hdd_err("sme_update_config() failure: %d", status);

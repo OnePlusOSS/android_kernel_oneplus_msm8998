@@ -10610,9 +10610,33 @@ enum dot11p_mode {
 #define CFG_SAP_MAX_MCS_FOR_TX_DATA_MAX             (383)
 #define CFG_SAP_MAX_MCS_FOR_TX_DATA_DEFAULT         (0)
 
+/*
+ * g_is_bssid_hint_priority - Set priority for connection with bssid_hint
+ * BSSID.
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This ini is used to give priority to BSS for connection which comes
+ * as part of bssid_hint
+ *
+ * Related: None
+ *
+ * Supported Feature: STA
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_IS_BSSID_HINT_PRIORITY_NAME    "g_is_bssid_hint_priority"
+#define CFG_IS_BSSID_HINT_PRIORITY_DEFAULT (1)
+#define CFG_IS_BSSID_HINT_PRIORITY_MIN     (0)
+#define CFG_IS_BSSID_HINT_PRIORITY_MAX     (1)
+
 /*---------------------------------------------------------------------------
    Type declarations
    -------------------------------------------------------------------------*/
+
 
 struct hdd_config {
 	/* Bitmap to track what is explicitly configured */
@@ -11371,6 +11395,7 @@ struct hdd_config {
 	uint8_t enable_rts_sifsbursting;
 	uint8_t max_mpdus_inampdu;
 	uint16_t sap_max_mcs_txdata;
+	bool is_bssid_hint_priority;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

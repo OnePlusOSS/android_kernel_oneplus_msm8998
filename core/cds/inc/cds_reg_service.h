@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -407,5 +407,11 @@ QDF_STATUS cds_set_reg_domain(void *client_ctxt, v_REGDOMAIN_t reg_domain);
 QDF_STATUS cds_put_default_country(uint8_t *def_country);
 uint16_t cds_bw_value(enum phy_ch_width bw);
 uint8_t cds_skip_dfs_and_2g(uint32_t rf_channel);
-
+/**
+ * cds_get_channel_enum() - get the channel enumeration
+ * @chan_num: channel number
+ *
+ * Return: enum for the channel
+ */
+enum channel_enum cds_get_channel_enum(uint32_t chan_num);
 #endif /* __CDS_REG_SERVICE_H */

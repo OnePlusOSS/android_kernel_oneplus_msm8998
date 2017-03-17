@@ -123,6 +123,22 @@ lim_collect_bss_description(tpAniSirGlobal pMac,
 	pBssDescr->capabilityInfo =
 		lim_get_u16((uint8_t *) &pBPR->capabilityInfo);
 
+	/* HT capability */
+	if (pBPR->HTCaps.present) {
+		pBssDescr->ht_caps_present = 1;
+		if (pBPR->HTCaps.supportedChannelWidthSet)
+			pBssDescr->chan_width = eHT_CHANNEL_WIDTH_40MHZ;
+	}
+	/* VHT Parameters */
+	if (pBPR->VHTCaps.present) {
+		pBssDescr->vht_caps_present = 1;
+		if (pBPR->VHTCaps.muBeamformerCap)
+			pBssDescr->beacomforming_capable = 1;
+	}
+	if (pBPR->VHTOperation.present)
+		if (pBPR->VHTOperation.chanWidth == 1)
+			pBssDescr->chan_width = eHT_CHANNEL_WIDTH_80MHZ;
+
 	if (!pBssDescr->beaconInterval) {
 		pe_warn("Beacon Interval is ZERO, making it to default 100 "
 			   MAC_ADDRESS_STR, MAC_ADDR_ARRAY(pHdr->bssId));
@@ -202,14 +218,11 @@ lim_collect_bss_description(tpAniSirGlobal pMac,
 		pBssDescr->mdie[2] = pBPR->mdie[2];
 	}
 
-#ifdef FEATURE_WLAN_ESE
-	pBssDescr->QBSSLoad_present = false;
-	pBssDescr->QBSSLoad_avail = 0;
 	if (pBPR->QBSSLoad.present) {
 		pBssDescr->QBSSLoad_present = true;
 		pBssDescr->QBSSLoad_avail = pBPR->QBSSLoad.avail;
+		pBssDescr->qbss_chan_load = pBPR->QBSSLoad.chautil;
 	}
-#endif
 	/* Copy IE fields */
 	qdf_mem_copy((uint8_t *) &pBssDescr->ieFields,
 		     pBody + SIR_MAC_B_PR_SSID_OFFSET, ieLen);

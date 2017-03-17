@@ -110,6 +110,44 @@
 extern uint8_t csr_wpa_oui[][CSR_WPA_OUI_SIZE];
 bool csr_is_supported_channel(tpAniSirGlobal pMac, uint8_t channelId);
 
+#define RSSI_THRESHOLD_5GHZ -70
+#define BEST_CANDIDATE_RSSI_WEIGHT 50
+#define MIN_RSSI (-100)
+#define MAX_RSSI 0
+#define BEST_CANDIDATE_AP_COUNT_WEIGHT 50
+#define BEST_CANDIDATE_MAX_COUNT 30
+#define BEST_CANDIDATE_MIN_COUNT 0
+#define ROAM_MAX_CHANNEL_WEIGHT 100
+#define DEFAULT_CHANNEL_UTILIZATION 50
+#define MAX_CHANNEL_UTILIZATION 100
+
+#define RSSI_WEIGHTAGE 25
+#define HT_CAPABILITY_WEIGHTAGE 7
+#define VHT_CAP_WEIGHTAGE 5
+#define BEAMFORMING_CAP_WEIGHTAGE 2
+#define CHAN_WIDTH_WEIGHTAGE 10
+#define CHAN_BAND_WEIGHTAGE 5
+#define WMM_WEIGHTAGE 0
+#define CCA_WEIGHTAGE 8
+#define OTHER_AP_WEIGHT 28
+#define PCL_WEIGHT 10
+
+#define MAX_AP_LOAD 255
+#define BEST_CANDIDATE_EXCELLENT_RSSI -40
+#define BEST_CANDIDATE_GOOD_RSSI -55
+#define BEST_CANDIDATE_POOR_RSSI -65
+#define BAD_RSSI  -80
+#define BEST_CANDIDATE_EXCELLENT_RSSI_WEIGHT 100
+#define BEST_CANDIDATE_GOOD_RSSI_WEIGHT 80
+#define BEST_CANDIDATE_BAD_RSSI_WEIGHT 60
+#define BEST_CANDIDATE_MAX_WEIGHT 100
+#define BEST_CANDIDATE_80MHZ 100
+#define BEST_CANDIDATE_40MHZ 70
+#define BEST_CANDIDATE_20MHZ 30
+#define BEST_CANDIDATE_PENALTY (3/10)
+#define BEST_CANDIDATE_MAX_BSS_SCORE 10000
+
+
 enum csr_scancomplete_nextcommand {
 	eCsrNextScanNothing,
 	eCsrNextLostLinkScan1Success,
@@ -175,6 +213,7 @@ struct tag_csrscan_result {
 	eCsrAuthType authType;
 
 	tCsrScanResultInfo Result;
+	int  bss_score;
 };
 
 struct scan_result_list {

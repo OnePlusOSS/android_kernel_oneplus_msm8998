@@ -969,6 +969,7 @@ typedef struct sAniSirGlobal {
 	bool sta_prefer_80MHz_over_160MHz;
 	enum  country_src reg_hint_src;
 	uint32_t rx_packet_drop_counter;
+	struct candidate_chan_info candidate_channel_info[QDF_MAX_NUM_CHAN];
 } tAniSirGlobal;
 
 typedef enum {

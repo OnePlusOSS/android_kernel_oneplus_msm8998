@@ -204,13 +204,7 @@ QDF_STATUS cds_read_default_country(uint8_t *def_ctry)
 	return QDF_STATUS_SUCCESS;
 }
 
-/**
- * cds_get_channel_enum() - get the channel enumeration
- * @chan_num: channel number
- *
- * Return: enum for the channel
- */
-static enum channel_enum cds_get_channel_enum(uint32_t chan_num)
+enum channel_enum cds_get_channel_enum(uint32_t chan_num)
 {
 	uint32_t loop;
 

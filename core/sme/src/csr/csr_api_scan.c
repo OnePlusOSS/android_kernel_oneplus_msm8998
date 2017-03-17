@@ -80,7 +80,7 @@
 #define MAX_ACTIVE_SCAN_FOR_ONE_CHANNEL_FASTREASSOC 30
 #define MIN_ACTIVE_SCAN_FOR_ONE_CHANNEL_FASTREASSOC 20
 
-#define PCL_ADVANTAGE 30
+#define PCL_ADVANTAGE 20
 #define PCL_RSSI_THRESHOLD -75
 
 #define CSR_SCAN_IS_OVER_BSS_LIMIT(pMac)  \
@@ -1361,17 +1361,21 @@ static int csr_derive_prefer_value_from_rssi(tpAniSirGlobal mac_ctx, int rssi)
 }
 
 /**
- * is_channel_found_in_pcl() - to check if channel is present in pcl
+ * csr_get_pcl_weight_of_channel() - Get PCL weight if channel is present in pcl
  * @mac_ctx: Global MAC Context
  * @channel_id: channel of bss
  * @filter: pointer to filter created through profile
+ * @pcl_chan_weight: Get PCL weight for corresponding channel
+ * @weight_list: Weight list for all the pcl channels.
  *
- * to check if provided channel is present in pcl
+ * Get pcl_chan_weight if provided channel is present in pcl list
  *
  * Return: true or false
  */
-static bool is_channel_found_in_pcl(tpAniSirGlobal mac_ctx, int channel_id,
-		tCsrScanResultFilter *filter)
+static bool csr_get_pcl_weight_of_channel(tpAniSirGlobal mac_ctx,
+		int channel_id,
+		tCsrScanResultFilter *filter, int *pcl_chan_weight,
+		uint8_t *weight_list)
 {
 	int i;
 	bool status = false;
@@ -1381,6 +1385,7 @@ static bool is_channel_found_in_pcl(tpAniSirGlobal mac_ctx, int channel_id,
 
 	for (i = 0; i < filter->pcl_channels.numChannels; i++) {
 		if (filter->pcl_channels.channelList[i] == channel_id) {
+			*pcl_chan_weight = weight_list[i];
 			status = true;
 			break;
 		}
@@ -1524,59 +1529,13 @@ static uint32_t csr_get_bss_cap_value(tpAniSirGlobal pMac,
 
 	return ret;
 }
-
-/**
- * csr_is_better_rssi() - Is bss1 better than bss2
- * @mac_ctx:             Global MAC Context pointer.
- * @bss1:                Pointer to the first BSS.
- * @bss2:                Pointer to the second BSS.
- *
- * This routine helps in determining the preference value
- * of a particular BSS in the scan result which is further
- * used in the sorting logic of the final candidate AP's.
- *
- * Return:          true, if bss1 is better than bss2
- *                  false, if bss2 is better than bss1.
- */
-static bool csr_is_better_rssi(tpAniSirGlobal mac_ctx,
-		struct tag_csrscan_result *bss1, struct tag_csrscan_result
-		*bss2)
-{
-	bool ret;
-	int rssi1, rssi2;
-	struct qdf_mac_addr local_mac;
-
-	rssi1 = bss1->Result.BssDescriptor.rssi;
-	rssi2 = bss2->Result.BssDescriptor.rssi;
-	/*
-	 * Apply the boost and penlty logic and check
-	 * which is the best RSSI
-	 */
-	qdf_mem_zero(&local_mac.bytes, QDF_MAC_ADDR_SIZE);
-	qdf_mem_copy(&local_mac.bytes,
-			&bss1->Result.BssDescriptor.bssId, QDF_MAC_ADDR_SIZE);
-	rssi1 = csr_get_altered_rssi(mac_ctx, rssi1,
-			bss1->Result.BssDescriptor.channelId,
-			&local_mac);
-	qdf_mem_copy(&local_mac.bytes,
-			&bss2->Result.BssDescriptor.bssId, QDF_MAC_ADDR_SIZE);
-	rssi2 = csr_get_altered_rssi(mac_ctx, rssi2,
-			bss2->Result.BssDescriptor.channelId,
-			&local_mac);
-	if (CSR_IS_BETTER_RSSI(rssi1, rssi2))
-		ret = true;
-	else
-		ret = false;
-	return ret;
-}
-
 /**
  * csr_is_better_bss() - Is bss1 better than bss2
  * @mac_ctx:             Global MAC Context pointer.
  * @bss1:                Pointer to the first BSS.
  * @bss2:                Pointer to the second BSS.
  *
- * This routine helps in determining the preference value
+ * This function helps in determining the preference value
  * of a particular BSS in the scan result which is further
  * used in the sorting logic of the final candidate AP's.
  *
@@ -1587,26 +1546,11 @@ static bool csr_is_better_bss(tpAniSirGlobal mac_ctx,
 	struct tag_csrscan_result *bss1, struct tag_csrscan_result *bss2)
 {
 	bool ret;
-
-	if (CSR_IS_BETTER_PREFER_VALUE(bss1->preferValue, bss2->preferValue)) {
+	if (CSR_IS_BETTER_PREFER_VALUE(bss1->bss_score,
+				bss2->bss_score))
 		ret = true;
-	} else if (CSR_IS_EQUAL_PREFER_VALUE
-			(bss1->preferValue, bss2->preferValue)) {
-		if (CSR_IS_BETTER_CAP_VALUE(bss1->capValue, bss2->capValue))
-			ret = true;
-		else if (CSR_IS_EQUAL_CAP_VALUE
-				(bss1->capValue, bss2->capValue)) {
-			if (csr_is_better_rssi(mac_ctx, bss1, bss2))
-				ret = true;
-			else
-				ret = false;
-		} else {
-			ret = false;
-		}
-	} else {
+	else
 		ret = false;
-	}
-
 	return ret;
 }
 
@@ -1681,156 +1625,6 @@ static void csr_scan_add_result(tpAniSirGlobal pMac, struct tag_csrscan_result
 	}
 }
 
-static void
-csr_parser_scan_result_for_5ghz_preference(tpAniSirGlobal pMac,
-					   tCsrScanResultFilter *pFilter)
-{
-	bool fMatch;
-	QDF_STATUS status;
-	tListElem *pEntry;
-	tDot11fBeaconIEs *pIes;
-	struct tag_csrscan_result *pBssDesc;
-	uint8_t i = 0;
-
-	/* Find out the best AP Rssi going thru the scan results */
-	pEntry = csr_ll_peek_head(&pMac->scan.scanResultList, LL_ACCESS_NOLOCK);
-	while (NULL != pEntry) {
-		pBssDesc = GET_BASE_ADDR(pEntry, struct tag_csrscan_result,
-					Link);
-		fMatch = false;
-
-		for (i = 0; pFilter && (i < pFilter->SSIDs.numOfSSIDs); i++) {
-			fMatch = csr_is_ssid_match(pMac,
-					pFilter->SSIDs.SSIDList[i].SSID.ssId,
-					pFilter->SSIDs.SSIDList[i].SSID.length,
-					pBssDesc->Result.ssId.ssId,
-					pBssDesc->Result.ssId.length, true);
-			if (!fMatch)
-				continue;
-
-			pIes = (tDot11fBeaconIEs *)(pBssDesc->Result.pvIes);
-			/* At this time, Result.pvIes may be NULL */
-			if (NULL == pIes) {
-				status = csr_get_parsed_bss_description_ies(
-						pMac,
-						&pBssDesc->Result.BssDescriptor,
-						&pIes);
-				if (!pIes && (!QDF_IS_STATUS_SUCCESS(status)))
-					continue;
-			}
-
-			sme_debug("SSID Matched");
-			if (pFilter->bOSENAssociation) {
-				fMatch = true;
-				sme_debug("Security Matched");
-				if ((pBssDesc->Result.pvIes == NULL) && pIes)
-					qdf_mem_free(pIes);
-				continue;
-			}
-#ifdef WLAN_FEATURE_11W
-			fMatch = csr_is_security_match(pMac, &pFilter->authType,
-					&pFilter->EncryptionType,
-					&pFilter->mcEncryptionType,
-					&pFilter->MFPEnabled,
-					&pFilter->MFPRequired,
-					&pFilter->MFPCapable,
-					&pBssDesc->Result.BssDescriptor,
-					pIes, NULL, NULL, NULL);
-#else
-			fMatch = csr_is_security_match(pMac, &pFilter->authType,
-					&pFilter->EncryptionType,
-					&pFilter->mcEncryptionType,
-					NULL, NULL, NULL,
-					&pBssDesc->Result.BssDescriptor,
-					pIes, NULL, NULL, NULL);
-#endif
-			if ((pBssDesc->Result.pvIes == NULL) && pIes)
-				qdf_mem_free(pIes);
-			if (fMatch)
-				sme_debug("Security Matched");
-		} /* for loop ends */
-
-		if (fMatch
-		    && (pBssDesc->Result.BssDescriptor.rssi >
-			pMac->scan.inScanResultBestAPRssi)) {
-			sme_debug("Best AP Rssi changed from %d to %d",
-				pMac->scan.inScanResultBestAPRssi,
-				pBssDesc->Result.BssDescriptor.rssi);
-			pMac->scan.inScanResultBestAPRssi =
-				pBssDesc->Result.BssDescriptor.rssi;
-		}
-		pEntry = csr_ll_next(&pMac->scan.scanResultList, pEntry,
-				     LL_ACCESS_NOLOCK);
-	}
-}
-
-static void
-csr_prefer_5ghz(tpAniSirGlobal pMac, tCsrScanResultFilter *pFilter)
-{
-	tListElem *pEntry;
-	struct tag_csrscan_result *pBssDesc;
-	struct roam_ext_params *roam_params = NULL;
-
-	if (!pMac->roam.configParam.nSelect5GHzMargin &&
-		!CSR_IS_SELECT_5G_PREFERRED(pMac))
-		return;
-
-	pMac->scan.inScanResultBestAPRssi = -128;
-	roam_params = &pMac->roam.configParam.roam_params;
-#ifdef WLAN_DEBUG_ROAM_OFFLOAD
-	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-		  FL("nSelect5GHzMargin"));
-#endif
-	csr_ll_lock(&pMac->scan.scanResultList);
-	/*
-	 * For 5G preference feature, there is no
-	 * need to check the filter match and also re-program the
-	 * RSSI bucket categories, since we use the RSSI values
-	 * while setting the preference value for the BSS.
-	 * There is no need to check the match for roaming since
-	 * it is already done.
-	 */
-	if (!CSR_IS_SELECT_5G_PREFERRED(pMac))
-		csr_parser_scan_result_for_5ghz_preference(pMac, pFilter);
-	if (-128 != pMac->scan.inScanResultBestAPRssi ||
-		CSR_IS_SELECT_5G_PREFERRED(pMac)) {
-		sme_debug("Best AP Rssi is %d",
-			pMac->scan.inScanResultBestAPRssi);
-		/* Modify Rssi category based on best AP Rssi */
-		if (-128 != pMac->scan.inScanResultBestAPRssi)
-			csr_assign_rssi_for_category(pMac,
-					pMac->scan.inScanResultBestAPRssi,
-					pMac->roam.configParam.bCatRssiOffset);
-		pEntry = csr_ll_peek_head(&pMac->scan.scanResultList,
-					  LL_ACCESS_NOLOCK);
-		while (NULL != pEntry) {
-			pBssDesc = GET_BASE_ADDR(pEntry, struct
-						tag_csrscan_result, Link);
-			/*
-			 * re-assign preference value based on modified
-			 * rssi bucket (or) 5G Preference feature.
-			 */
-			pBssDesc->preferValue = csr_get_bss_prefer_value(pMac,
-				(int)pBssDesc->Result.BssDescriptor.rssi,
-				(struct qdf_mac_addr *)
-				&pBssDesc->Result.BssDescriptor.bssId,
-				pBssDesc->Result.BssDescriptor.channelId);
-
-			sme_debug("BSSID("MAC_ADDRESS_STR") Rssi(%d) Chnl(%d) PrefVal(%u) SSID=%.*s",
-				MAC_ADDR_ARRAY(
-					pBssDesc->Result.BssDescriptor.bssId),
-				pBssDesc->Result.BssDescriptor.rssi,
-				pBssDesc->Result.BssDescriptor.channelId,
-				pBssDesc->preferValue,
-				pBssDesc->Result.ssId.length,
-				pBssDesc->Result.ssId.ssId);
-			pEntry = csr_ll_next(&pMac->scan.scanResultList, pEntry,
-					     LL_ACCESS_NOLOCK);
-		}
-	}
-	csr_ll_unlock(&pMac->scan.scanResultList);
-}
-
 static QDF_STATUS
 csr_save_ies(tpAniSirGlobal pMac,
 	     tCsrScanResultFilter *pFilter,
@@ -1885,17 +1679,263 @@ csr_save_ies(tpAniSirGlobal pMac,
 	return status;
 }
 
+/**
+ * csr_calc_other_rssi_count_weight() - Calculate channel weight based on other
+ *                           APs RSSI and count for candiate selection.
+ * @rssi: Best rssi on that channel
+ * @count: No. of APs on that channel
+ *
+ * Return : uint32_t
+ */
+static uint32_t csr_calc_other_rssi_count_weight(int32_t rssi, int32_t count)
+{
+	int32_t rssi_weight = 0;
+	int32_t count_weight = 0;
+	int32_t rssi_count_weight = 0;
+
+	rssi_weight = BEST_CANDIDATE_RSSI_WEIGHT * (rssi - MIN_RSSI);
+
+	do_div(rssi_weight, (MAX_RSSI - MIN_RSSI));
+
+	if (rssi_weight > BEST_CANDIDATE_RSSI_WEIGHT)
+		rssi_weight = BEST_CANDIDATE_RSSI_WEIGHT;
+	else if (rssi_weight < 0)
+		rssi_weight = 0;
+
+	count_weight = BEST_CANDIDATE_AP_COUNT_WEIGHT *
+		(count + BEST_CANDIDATE_MIN_COUNT);
+
+	do_div(count_weight,
+			(BEST_CANDIDATE_MAX_COUNT + BEST_CANDIDATE_MIN_COUNT));
+
+	if (count_weight > BEST_CANDIDATE_AP_COUNT_WEIGHT)
+		count_weight = BEST_CANDIDATE_AP_COUNT_WEIGHT;
+
+	rssi_count_weight =  ROAM_MAX_CHANNEL_WEIGHT -
+				(rssi_weight + count_weight);
+
+	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
+	FL("rssi_weight=%d, count_weight=%d, rssi_count_weight=%d rssi=%d count=%d"),
+		rssi_weight, count_weight, rssi_count_weight, rssi, count);
+
+	return rssi_count_weight;
+}
+
+/**
+ * _csr_calculate_bss_score () - Calculate BSS score based on AP capabilty
+ *                              and channel condition for best candidate
+ *                              selection
+ * @bss_info: bss information
+ * @best_rssi :  Best rssi on BSS channel
+ * @ap_cnt: No of AP count on BSS channel
+ * @pcl_chan_weight: pcl weight of BSS channel
+ *
+ * Return : int32_t
+ */
+static int32_t _csr_calculate_bss_score(tSirBssDescription *bss_info,
+		int32_t best_rssi, int32_t ap_cnt, int pcl_chan_weight)
+{
+	int32_t score = 0;
+	int32_t ap_load = 0;
+	int32_t normalised_width = BEST_CANDIDATE_20MHZ;
+	int32_t normalised_rssi = 0;
+	int32_t channel_weight;
+	int32_t pcl_score = 0;
+	int32_t modified_rssi = 0;
+	int32_t temp_pcl_chan_weight = 0;
+
+	/*
+	 * Total weight of a BSSID is calculated on basis of 100 in which
+	 * contribution of every factor is considered like this.
+	 * RSSI: RSSI_WEIGHTAGE : 25
+	 * HT_CAPABILITY_WEIGHTAGE: 7
+	 * VHT_CAP_WEIGHTAGE: 5
+	 * BEAMFORMING_CAP_WEIGHTAGE: 2
+	 * CHAN_WIDTH_WEIGHTAGE:10
+	 * CHAN_BAND_WEIGHTAGE: 5
+	 * CCA_WEIGHTAGE: 8
+	 * OTHER_AP_WEIGHT: 28
+	 * PCL: 10
+	 *
+	 * Rssi_weightage is again divided in another factors like if Rssi is
+	 * very good, very less or medium.
+	 * According to this FR, best rssi is being considered as -40.
+	 * EXCELLENT_RSSI = -40
+	 * GOOD_RSSI = -55
+	 * POOR_RSSI = -65
+	 * BAD_RSSI = -80
+	 *
+	 * And weightage to all the RSSI type is given like this.
+	 * ROAM_EXCELLENT_RSSI_WEIGHT = 100
+	 * ROAM_GOOD_RSSI_WEIGHT = 80
+	 * ROAM_BAD_RSSI_WEIGHT = 60
+	 *
+	 */
+
+	if (bss_info->rssi) {
+		/*
+		 * if RSSI of AP is less then -80, driver should ignore that
+		 * candidate.
+		 */
+		if (bss_info->rssi < BAD_RSSI) {
+			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
+			FL("Drop this BSS "MAC_ADDRESS_STR " due to low rssi %d"),
+			MAC_ADDR_ARRAY(bss_info->bssId), bss_info->rssi);
+			score = 0;
+			return score;
+		}
+		/*  If BSS is in PCL list, give a boost of -20dbm */
+		if (pcl_chan_weight)
+			modified_rssi = bss_info->rssi + PCL_ADVANTAGE;
+		else
+			modified_rssi = bss_info->rssi;
+		/*
+		 * Calculate % of rssi we are getting
+		 * max = 100
+		 * min = 0
+		 * less  than -40        = 100%
+		 * -40   - -55   = 80%
+		 * -55   - -65   = 60%
+		 * below that    = 100   - value
+		 **/
+		if (modified_rssi >= BEST_CANDIDATE_EXCELLENT_RSSI)
+			normalised_rssi = BEST_CANDIDATE_EXCELLENT_RSSI_WEIGHT;
+		else if (modified_rssi >= BEST_CANDIDATE_GOOD_RSSI)
+			normalised_rssi = BEST_CANDIDATE_GOOD_RSSI_WEIGHT;
+		else if (modified_rssi >= BEST_CANDIDATE_POOR_RSSI)
+			normalised_rssi = BEST_CANDIDATE_BAD_RSSI_WEIGHT;
+		else
+			normalised_rssi = modified_rssi - MIN_RSSI;
+
+		/* Calculate score part for rssi */
+		score += (normalised_rssi * RSSI_WEIGHTAGE);
+	}
+	/* If BSS is in PCL list extra pcl Weight is added n % */
+	if (pcl_chan_weight) {
+		temp_pcl_chan_weight =
+			(MAX_WEIGHT_OF_PCL_CHANNELS - pcl_chan_weight);
+		do_div(temp_pcl_chan_weight,
+				PCL_GROUPS_WEIGHT_DIFFERENCE);
+		pcl_score = PCL_WEIGHT - temp_pcl_chan_weight;
+
+		if (pcl_score < 0)
+			pcl_score = 0;
+
+		score += pcl_score * BEST_CANDIDATE_MAX_WEIGHT;
+	}
+	/* If AP supports HT caps, extra 10% score will be added */
+	if (bss_info->ht_caps_present)
+		score += BEST_CANDIDATE_MAX_WEIGHT * HT_CAPABILITY_WEIGHTAGE;
+
+	/* If AP supports VHT caps, Extra 6% score will be added to score */
+	if (bss_info->vht_caps_present)
+		score += BEST_CANDIDATE_MAX_WEIGHT * VHT_CAP_WEIGHTAGE;
+
+	/* If AP supports beam forming, extra 2% score will be added to score.*/
+	if (bss_info->beacomforming_capable)
+		score += BEST_CANDIDATE_MAX_WEIGHT * BEAMFORMING_CAP_WEIGHTAGE;
+
+	/*
+	 * Channel width is again calculated on basis of 100.
+	 * Where if AP is
+	 * 80MHZ = 100
+	 * 40MHZ = 70
+	 * 20MHZ = 30 weightage is given out of 100.
+	 * Channel width weightage is given as CHAN_WIDTH_WEIGHTAGE (10%).
+	 */
+	if (bss_info->chan_width == eHT_CHANNEL_WIDTH_80MHZ)
+		normalised_width = BEST_CANDIDATE_80MHZ;
+	else if (bss_info->chan_width == eHT_CHANNEL_WIDTH_40MHZ)
+		normalised_width = BEST_CANDIDATE_40MHZ;
+	else
+		normalised_width = BEST_CANDIDATE_20MHZ;
+	score += normalised_width * CHAN_WIDTH_WEIGHTAGE;
+
+	/* If AP is on 5Ghz channel , extra score of 5% is added to BSS score.*/
+	if (get_rf_band(bss_info->channelId) == SIR_BAND_5_GHZ &&
+			bss_info->rssi > RSSI_THRESHOLD_5GHZ)
+		score += BEST_CANDIDATE_MAX_WEIGHT * CHAN_BAND_WEIGHTAGE;
+
+	/*
+	 * If QBSS load is present, extra CCA weightage is given on based of AP
+	 * load as 10%.
+	 */
+	if (bss_info->QBSSLoad_present) {
+		/* calculate value in % */
+		ap_load = (bss_info->qbss_chan_load *
+				BEST_CANDIDATE_MAX_WEIGHT);
+		do_div(ap_load, MAX_AP_LOAD);
+	}
+	/*
+	 * If doesn't announce its ap load, driver will take it as 50% of
+	 * CCA_WEIGHTAGE
+	 */
+	if (ap_load)
+		score += (MAX_CHANNEL_UTILIZATION - ap_load) * CCA_WEIGHTAGE;
+	else
+		score +=  DEFAULT_CHANNEL_UTILIZATION * CCA_WEIGHTAGE;
+
+	if (ap_cnt == 0)
+		channel_weight = ROAM_MAX_CHANNEL_WEIGHT;
+	else
+		channel_weight = csr_calc_other_rssi_count_weight(
+				best_rssi, ap_cnt);
+
+	score += channel_weight * OTHER_AP_WEIGHT;
+	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
+		FL("BSSID:"MAC_ADDRESS_STR" rssi=%d normalized_rssi=%d htcaps=%d vht=%d bw=%d channel=%d beamforming=%d ap_load=%d channel_weight=%d pcl_score %d Final Score %d "),
+		MAC_ADDR_ARRAY(bss_info->bssId),
+		bss_info->rssi, normalised_rssi, bss_info->ht_caps_present,
+		bss_info->vht_caps_present, bss_info->chan_width,
+		bss_info->channelId,
+		bss_info->beacomforming_capable, ap_load, channel_weight,
+		pcl_score,
+		score);
+	return score;
+}
+/**
+ * csr_calculate_bss_score() - Calculate candidate AP score for Best
+ * candidate selection for connection
+ * @mac_ctx: Pointer to mac context
+ * @bss: BSSID
+ * @pcl_chan_weight: pcl weight for bss channel
+ *
+ * Return: int
+ *
+ * Calculate candidate AP score for Best candidate selection for connection.
+ */
+static int32_t csr_calculate_bss_score(tpAniSirGlobal pMac,
+		struct tag_csrscan_result *pBss,
+		int pcl_chan_weight)
+{
+	int32_t score = 0;
+	int channel_id;
+	tSirBssDescription *bss_info = &(pBss->Result.BssDescriptor);
+
+	channel_id = cds_get_channel_enum(pBss->Result.BssDescriptor.channelId);
+
+	score = _csr_calculate_bss_score(bss_info,
+			pMac->candidate_channel_info[channel_id].
+			max_rssi_on_channel,
+			pMac->candidate_channel_info[channel_id].
+			other_ap_count, pcl_chan_weight);
+
+	pBss->bss_score = score;
+	return 0;
+}
+
 static QDF_STATUS
 csr_save_scan_entry(tpAniSirGlobal pMac,
-		    tCsrScanResultFilter *pFilter,
-		    bool fMatch,
-		    struct tag_csrscan_result *pBssDesc,
-		    tDot11fBeaconIEs *pNewIes,
-		    struct scan_result_list *pRetList,
-		    uint32_t *count,
-		    eCsrEncryptionType uc,
-		    eCsrEncryptionType mc,
-		    eCsrAuthType *auth)
+		tCsrScanResultFilter *pFilter,
+		bool fMatch,
+		struct tag_csrscan_result *pBssDesc,
+		tDot11fBeaconIEs *pNewIes,
+		struct scan_result_list *pRetList,
+		uint32_t *count,
+		eCsrEncryptionType uc,
+		eCsrEncryptionType mc,
+		eCsrAuthType *auth,
+		uint8_t *weight_list)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	struct tag_csrscan_result *pResult;
@@ -1903,6 +1943,7 @@ csr_save_scan_entry(tpAniSirGlobal pMac,
 	/* To sort the list */
 	tListElem *pTmpEntry;
 	struct tag_csrscan_result *pTmpResult;
+	int pcl_chan_weight = 0;
 
 	if (!(NULL == pFilter || fMatch))
 		return status;
@@ -1929,10 +1970,28 @@ csr_save_scan_entry(tpAniSirGlobal pMac,
 	pResult->Result.timer = pBssDesc->Result.timer;
 	/* save the pIes for later use */
 	pResult->Result.pvIes = pNewIes;
+	pResult->bss_score = 0;
 	/* save bss description */
 	qdf_mem_copy(&pResult->Result.BssDescriptor,
 		     &pBssDesc->Result.BssDescriptor,
 		     bssLen);
+	/*
+	 * calculate pcl_chan_weight from weight list to honor PCL list
+	 */
+	if (pFilter  && pFilter->pcl_channels.numChannels > 0 &&
+		(pBssDesc->Result.BssDescriptor.rssi > PCL_RSSI_THRESHOLD)) {
+		if (csr_get_pcl_weight_of_channel(pMac,
+				pBssDesc->Result.BssDescriptor.channelId,
+				pFilter, &pcl_chan_weight, weight_list)) {
+			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
+				FL(" pcl channel %d pcl_chan_weight %d"),
+				pBssDesc->Result.BssDescriptor.channelId,
+				pcl_chan_weight);
+		}
+	}
+	if (pFilter)
+		csr_calculate_bss_score(pMac, pResult, pcl_chan_weight);
+
 	/*
 	 * No need to lock pRetList because it is locally allocated and no
 	 * outside can access it at this time
@@ -1945,27 +2004,20 @@ csr_save_scan_entry(tpAniSirGlobal pMac,
 	}
 	if (pFilter &&
 	   !qdf_mem_cmp(pResult->Result.BssDescriptor.bssId,
-	   pFilter->bssid_hint.bytes, QDF_MAC_ADDR_SIZE)) {
+	   pFilter->bssid_hint.bytes, QDF_MAC_ADDR_SIZE) &&
+	   pMac->roam.configParam.is_bssid_hint_priority) {
 		/* bssid hint AP should be on head */
 		csr_ll_insert_head(&pRetList->List,
 			&pResult->Link, LL_ACCESS_NOLOCK);
 		(*count)++;
+		pResult->bss_score = BEST_CANDIDATE_MAX_BSS_SCORE;
 		return status;
 	}
-
 	pTmpEntry = csr_ll_peek_head(&pRetList->List, LL_ACCESS_NOLOCK);
 	while (pTmpEntry) {
 		pTmpResult = GET_BASE_ADDR(pTmpEntry, struct tag_csrscan_result,
 					Link);
 
-		/* Skip the bssid hint AP, as it should be on head */
-		if (pFilter &&
-		   !qdf_mem_cmp(pTmpResult->Result.BssDescriptor.bssId,
-		   pFilter->bssid_hint.bytes, QDF_MAC_ADDR_SIZE)) {
-			pTmpEntry = csr_ll_next(&pRetList->List,
-					pTmpEntry, LL_ACCESS_NOLOCK);
-			continue;
-		}
 		if (csr_is_better_bss(pMac, pResult, pTmpResult)) {
 			csr_ll_insert_entry(&pRetList->List, pTmpEntry,
 					    &pResult->Link, LL_ACCESS_NOLOCK);
@@ -1984,59 +2036,79 @@ csr_save_scan_entry(tpAniSirGlobal pMac,
 	(*count)++;
 	return status;
 }
-
 /**
- * csr_calc_pref_val_by_pcl() - to calculate preferred value
- * @mac_ctx: mac context
- * @filter: filter to find match from scan result
- * @bss_descr: pointer to bss descriptor
+ * csr_calculate_other_ap_count_n_rssi() - calculate channel load on matching
+ * profile's channel
+ * @mac_ctx: Global MAC Context pointer.
+ * @pFilter: Filter to select candidate.
  *
- * this routine calculates the new preferred value to be given to
- * provided bss if its channel falls under preferred channel list.
- * Thump rule is higer the RSSI better the boost.
- *
- * Return: success or failure
+ * This function processes scan list and match scan results
+ * with candidate profile. If some scan result doesn't match
+ * with candidate profile, this function calculates no of
+ * those AP and best RSSI on that candidate's channel.
  */
-static QDF_STATUS csr_calc_pref_val_by_pcl(tpAniSirGlobal mac_ctx,
-			tCsrScanResultFilter *filter,
-			struct tag_csrscan_result *bss_descr)
+static QDF_STATUS csr_calculate_other_ap_count_n_rssi(tpAniSirGlobal pMac,
+		tCsrScanResultFilter *pFilter)
 {
-	int temp_rssi = 0, new_pref_val = 0;
-	int orig_pref_val = 0;
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	tListElem *entry;
+	bool match = false;
+	struct tag_csrscan_result *bss = NULL;
+	tDot11fBeaconIEs *ies, *new_ies = NULL;
+	int channel_id;
 
-	if (NULL == mac_ctx || NULL == bss_descr)
-		return QDF_STATUS_E_FAILURE;
-	if (filter && (0 != filter->BSSIDs.numOfBSSIDs)) {
-		sme_warn("filter has specific bssid, no point of boosting");
-		return QDF_STATUS_SUCCESS;
+	csr_ll_lock(&pMac->scan.scanResultList);
+	entry = csr_ll_peek_head(&pMac->scan.scanResultList, LL_ACCESS_NOLOCK);
+	while (entry) {
+		bss = GET_BASE_ADDR(entry, struct tag_csrscan_result, Link);
+		ies = (tDot11fBeaconIEs *) (bss->Result.pvIes);
+		match = false;
+		new_ies = NULL;
+
+		status = csr_save_ies(pMac, pFilter, bss, &new_ies,
+				&match, NULL, NULL, NULL);
+		if (new_ies)
+			qdf_mem_free(new_ies);
+		if (!QDF_IS_STATUS_SUCCESS(status)) {
+			sme_info("save ies fail");
+			break;
+		}
+		/*
+		 * Calculate Count of APs and Best Rssi on matching profile's
+		 * channel. This information will be used to calculate
+		 * total congestion on that channel.
+		 */
+		if (!match) {
+			channel_id = cds_get_channel_enum(
+					bss->Result.BssDescriptor.channelId);
+			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
+			FL("channel_id %d ssid %s rssi %d mac address "MAC_ADDRESS_STR),
+					bss->Result.BssDescriptor.channelId,
+					bss->Result.ssId.ssId,
+					bss->Result.BssDescriptor.rssi,
+					MAC_ADDR_ARRAY(
+					bss->Result.BssDescriptor.bssId));
+			pMac->candidate_channel_info[channel_id].
+				other_ap_count++;
+			if (pMac->candidate_channel_info[channel_id].
+					max_rssi_on_channel >= 0)
+				pMac->candidate_channel_info[channel_id].
+					max_rssi_on_channel = -127;
+			if ((bss->Result.BssDescriptor.rssi >
+				pMac->candidate_channel_info[channel_id].
+						max_rssi_on_channel))
+				pMac->candidate_channel_info[channel_id].
+					max_rssi_on_channel =
+					bss->Result.BssDescriptor.rssi;
+		}
+		entry = csr_ll_next(&pMac->scan.scanResultList, entry,
+				LL_ACCESS_NOLOCK);
+
 	}
-
-	if (is_channel_found_in_pcl(mac_ctx,
-			bss_descr->Result.BssDescriptor.channelId, filter) &&
-		(bss_descr->Result.BssDescriptor.rssi > PCL_RSSI_THRESHOLD)) {
-		orig_pref_val = csr_derive_prefer_value_from_rssi(mac_ctx,
-					bss_descr->Result.BssDescriptor.rssi);
-		temp_rssi = bss_descr->Result.BssDescriptor.rssi +
-				(PCL_ADVANTAGE/(CSR_NUM_RSSI_CAT -
-							orig_pref_val));
-		if (temp_rssi > 0)
-			temp_rssi = 0;
-		new_pref_val = csr_derive_prefer_value_from_rssi(mac_ctx,
-					temp_rssi);
-
-		sme_debug(
-			"%pM: rssi:%d org pref=%d temp rssi:%d new pref=%d pref=%d updated pref=%d",
-			bss_descr->Result.BssDescriptor.bssId,
-			bss_descr->Result.BssDescriptor.rssi,
-			orig_pref_val, temp_rssi, new_pref_val,
-			bss_descr->preferValue,
-			CSR_MAX(new_pref_val, bss_descr->preferValue));
-
-		bss_descr->preferValue =
-			CSR_MAX(new_pref_val, bss_descr->preferValue);
-	}
-	return QDF_STATUS_SUCCESS;
+	csr_ll_unlock(&pMac->scan.scanResultList);
+	return status;
 }
+
 
 static QDF_STATUS
 csr_parse_scan_results(tpAniSirGlobal pMac,
@@ -2089,14 +2161,9 @@ csr_parse_scan_results(tpAniSirGlobal pMac,
 			sme_debug("save ies fail %d", status);
 			break;
 		}
-		/*
-		 * Modify the prefer value to honor PCL list
-		 */
-		if (pFilter && pFilter->pcl_channels.numChannels > 0)
-			csr_calc_pref_val_by_pcl(pMac, pFilter, pBssDesc);
 		status = csr_save_scan_entry(pMac, pFilter, fMatch, pBssDesc,
 					     pNewIes, pRetList, count, uc, mc,
-					     &auth);
+					     &auth, weight_list);
 		if (!QDF_IS_STATUS_SUCCESS(status)) {
 			sme_debug("save entry fail %d",	status);
 			break;
@@ -2119,7 +2186,10 @@ QDF_STATUS csr_scan_get_result(tpAniSirGlobal pMac,
 	if (phResult)
 		*phResult = CSR_INVALID_SCANRESULT_HANDLE;
 
-	csr_prefer_5ghz(pMac, pFilter);
+	qdf_mem_set(&pMac->candidate_channel_info,
+			sizeof(struct candidate_chan_info), 0);
+	if (pFilter)
+		csr_calculate_other_ap_count_n_rssi(pMac, pFilter);
 
 	pRetList = qdf_mem_malloc(sizeof(struct scan_result_list));
 	if (NULL == pRetList) {

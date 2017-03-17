@@ -735,12 +735,11 @@ typedef struct sSirBssDescription {
 	uint8_t mdiePresent;
 	/* MDIE for 11r, picked from the beacons */
 	uint8_t mdie[SIR_MDIE_SIZE];
-#ifdef FEATURE_WLAN_ESE
-	uint16_t QBSSLoad_present;
+	uint8_t QBSSLoad_present;
+	uint8_t qbss_chan_load;
 	uint16_t QBSSLoad_avail;
 	/* To achieve 8-byte alignment with ESE enabled */
 	uint32_t reservedPadding5;
-#endif
 	/* Please keep the structure 4 bytes aligned above the ieFields */
 
 	/* whether it is from a probe rsp */
@@ -753,7 +752,12 @@ typedef struct sSirBssDescription {
 	uint8_t reservedPadding4;
 	uint32_t tsf_delta;
 
+	uint8_t  ht_caps_present;
+	uint8_t  vht_caps_present;
+	uint8_t  beacomforming_capable;
+	uint8_t  chan_width;
 	uint32_t ieFields[1];
+
 } tSirBssDescription, *tpSirBssDescription;
 
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
@@ -3011,6 +3015,19 @@ typedef struct {
 	uint8_t data[1];
 } tSirPrefNetworkFoundInd, *tpSirPrefNetworkFoundInd;
 #endif /* FEATURE_WLAN_SCAN_PNO */
+
+
+/**
+ * struct candidate_chan_info - channel information for candidate
+ * @channel_num: channel number.
+ * @other_ap_count: other ap count on candidate channel.
+ * @max_rssi_on_channel: Max best  rssi on candiate channel
+ */
+struct candidate_chan_info {
+	uint8_t    channel_num;
+	uint8_t    other_ap_count;
+	int8_t     max_rssi_on_channel;
+};
 
 /*
  * ALLOWED_ACTION_FRAMES_BITMAP

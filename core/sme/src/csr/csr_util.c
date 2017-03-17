@@ -576,9 +576,8 @@ static void csr_get_ch_from_ht_profile(tpAniSirGlobal pMac,
 	if (!ch_bond)
 		goto ret;
 
-	sms_log(pMac, LOGD, FL("##HTC: %d scbw: %d rcbw: %d sco: %d"
-				"VHTC: %d apc: %d apbw: %d"
-			      ),
+	sme_debug("##HTC: %d scbw: %d rcbw: %d sco: %d"
+				"VHTC: %d apc: %d apbw: %d",
 			htp->htCapability, htp->htSupportedChannelWidthSet,
 			htp->htRecommendedTxWidthSet,
 			htp->htSecondaryChannelOffset,
@@ -761,8 +760,7 @@ uint16_t csr_check_concurrent_channel_overlap(tpAniSirGlobal mac_ctx,
 	uint16_t sap_lfreq, sap_hfreq, intf_lfreq, intf_hfreq, sap_cch = 0;
 	QDF_STATUS status;
 
-	sms_log(mac_ctx, LOGD, FL("sap_ch:%d sap_phymode:%d"),
-		sap_ch, sap_phymode);
+	sme_debug("sap_ch: %d sap_phymode: %d", sap_ch, sap_phymode);
 
 	if (mac_ctx->roam.configParam.cc_switch_mode ==
 			QDF_MCC_TO_SCC_SWITCH_DISABLE)
@@ -783,8 +781,7 @@ uint16_t csr_check_concurrent_channel_overlap(tpAniSirGlobal mac_ctx,
 		sap_cfreq = cds_chan_to_freq(sap_cch);
 	}
 
-	sms_log(mac_ctx, LOGD,
-		FL("sap_ch:%d sap_phymode:%d sap_cch:%d sap_hbw:%d chb:%d"),
+	sme_debug("sap_ch:%d sap_phymode:%d sap_cch:%d sap_hbw:%d chb:%d",
 		sap_ch, sap_phymode, sap_cch, sap_hbw, chb);
 
 	for (i = 0; i < CSR_ROAM_SESSION_MAX; i++) {
@@ -803,8 +800,7 @@ uint16_t csr_check_concurrent_channel_overlap(tpAniSirGlobal mac_ctx,
 			csr_get_ch_from_ht_profile(mac_ctx,
 				&session->connectedProfile.HTProfile,
 				intf_ch, &intf_cfreq, &intf_hbw);
-			sms_log(mac_ctx, LOGD,
-				FL("%d: intf_ch:%d intf_cfreq:%d intf_hbw:%d"),
+			sme_debug("%d: intf_ch:%d intf_cfreq:%d intf_hbw:%d",
 				i, intf_ch, intf_cfreq, intf_hbw);
 		} else if (((session->pCurRoamProfile->csrPersona ==
 					QDF_P2P_GO_MODE) ||
@@ -819,15 +815,14 @@ uint16_t csr_check_concurrent_channel_overlap(tpAniSirGlobal mac_ctx,
 					session, &sap_ch, &sap_hbw, &sap_cfreq,
 					&intf_ch, &intf_hbw, &intf_cfreq);
 
-				sms_log(mac_ctx, LOGD,
-					FL("%d: sap_ch:%d sap_hbw:%d sap_cfreq:%d intf_ch:%d intf_hbw:%d, intf_cfreq:%d"),
+				sme_debug(
+					"%d: sap_ch:%d sap_hbw:%d sap_cfreq:%d intf_ch:%d intf_hbw:%d, intf_cfreq:%d",
 					i, sap_ch, sap_hbw, sap_cfreq,
 					intf_ch, intf_hbw, intf_cfreq);
 		}
 	}
 
-	sms_log(mac_ctx, LOGD,
-		FL("intf_ch:%d sap_ch:%d cc_switch_mode:%d"),
+	sme_debug("intf_ch:%d sap_ch:%d cc_switch_mode:%d",
 		intf_ch, sap_ch, cc_switch_mode);
 
 	if (intf_ch && sap_ch != intf_ch &&
@@ -841,9 +836,8 @@ uint16_t csr_check_concurrent_channel_overlap(tpAniSirGlobal mac_ctx,
 		intf_lfreq = intf_cfreq - intf_hbw;
 		intf_hfreq = intf_cfreq + intf_hbw;
 
-		sms_log(mac_ctx, LOGE,
-			FL("\nSAP:  OCH: %03d OCF: %d CCH: %03d CF: %d BW: %d LF: %d HF: %d\n"
-			"INTF: OCH: %03d OCF: %d CCH: %03d CF: %d BW: %d LF: %d HF: %d"),
+		sme_err("SAP:  OCH: %03d OCF: %d CCH: %03d CF: %d BW: %d LF: %d HF: %d"
+			"INTF: OCH: %03d OCF: %d CCH: %03d CF: %d BW: %d LF: %d HF: %d",
 			sap_ch, cds_chan_to_freq(sap_ch),
 			cds_freq_to_chan(sap_cfreq), sap_cfreq, sap_hbw * 2,
 			sap_lfreq, sap_hfreq, intf_ch,
@@ -869,8 +863,7 @@ uint16_t csr_check_concurrent_channel_overlap(tpAniSirGlobal mac_ctx,
 			status =
 			    cds_get_sap_mandatory_channel((uint32_t *)&intf_ch);
 			if (QDF_IS_STATUS_ERROR(status)) {
-				sms_log(mac_ctx, LOGE,
-						FL("no mandatory channel"));
+				sme_err("no mandatory channel");
 				intf_ch = sap_ch;
 			}
 		}
@@ -881,8 +874,7 @@ uint16_t csr_check_concurrent_channel_overlap(tpAniSirGlobal mac_ctx,
 				cds_get_sap_mandatory_channel(
 						(uint32_t *)&intf_ch);
 			if (QDF_IS_STATUS_ERROR(status)) {
-				sms_log(mac_ctx, LOGE,
-						FL("no mandatory channel"));
+				sme_err("no mandatory channel");
 				intf_ch = sap_ch;
 			}
 		}
@@ -891,7 +883,7 @@ uint16_t csr_check_concurrent_channel_overlap(tpAniSirGlobal mac_ctx,
 	if (intf_ch == sap_ch)
 		intf_ch = 0;
 
-	sms_log(mac_ctx, LOGE, FL("##Concurrent Channels %s Interfering"),
+	sme_err("##Concurrent Channels %s Interfering",
 		intf_ch == 0 ? "Not" : "Are");
 	return intf_ch;
 }
@@ -1216,7 +1208,7 @@ bool csr_is_ssid_equal(tHalHandle hHal, tSirBssDescription *pSirBssDesc1,
 		    !QDF_IS_STATUS_SUCCESS(csr_get_parsed_bss_description_ies
 						   (pMac, pSirBssDesc2,
 						    &pIesLocal))) {
-			sms_log(pMac, LOGE, FL("  fail to parse IEs"));
+			sme_err("fail to parse IEs");
 			break;
 		}
 		if (!QDF_IS_STATUS_SUCCESS
@@ -1348,7 +1340,6 @@ QDF_STATUS csr_get_parsed_bss_description_ies(tHalHandle hHal,
 					       tDot11fBeaconIEs **ppIEStruct)
 {
 	QDF_STATUS status = QDF_STATUS_E_INVAL;
-	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 
 	if (pBssDesc && ppIEStruct) {
 		*ppIEStruct = qdf_mem_malloc(sizeof(tDot11fBeaconIEs));
@@ -1361,7 +1352,7 @@ QDF_STATUS csr_get_parsed_bss_description_ies(tHalHandle hHal,
 				*ppIEStruct = NULL;
 			}
 		} else {
-			sms_log(pMac, LOGE, FL(" failed to allocate memory"));
+			sme_err("failed to allocate memory");
 			QDF_ASSERT(0);
 			return QDF_STATUS_E_NOMEM;
 		}
@@ -1494,8 +1485,7 @@ uint32_t csr_translate_to_wni_cfg_dot11_mode(tpAniSirGlobal pMac,
 			ret = WNI_CFG_DOT11_MODE_11N;
 		break;
 	default:
-		sms_log(pMac, LOGW, FL("doesn't expect %d as csrDo11Mode"),
-			csrDot11Mode);
+		sme_warn("doesn't expect %d as csrDo11Mode", csrDot11Mode);
 		if (eCSR_BAND_24 == pMac->roam.configParam.eBand) {
 			ret = WNI_CFG_DOT11_MODE_11G;
 		} else {
@@ -2014,8 +2004,7 @@ static uint16_t csr_calculate_mcc_beacon_interval(tpAniSirGlobal pMac,
 		   Which will cause divide by zero. Hence initialise with 100
 		 */
 		sta_bi = 100;
-		sms_log(pMac, LOGW,
-			FL("sta_bi 2nd parameter is zero, initialize to %d"),
+		sme_warn("sta_bi 2nd parameter is zero, initialize to %d",
 			sta_bi);
 	}
 	/* check, if either one is multiple of another */
@@ -2068,15 +2057,13 @@ static bool csr_validate_p2pcli_bcn_intrvl(tpAniSirGlobal mac_ctx,
 		(roamsession->pCurRoamProfile->csrPersona ==
 			 QDF_STA_MODE)) {
 		/* check for P2P client mode */
-		sms_log(mac_ctx, LOGD,
-			FL(" Ignore Beacon Interval Validation..."));
+		sme_debug("Ignore Beacon Interval Validation...");
 	} else if (roamsession->bssParams.bssPersona == QDF_P2P_GO_MODE) {
 		/* Check for P2P go scenario */
 		if ((roamsession->bssParams.operationChn != chnl_id)
 			&& (roamsession->bssParams.beaconInterval !=
 				*bcn_interval)) {
-			sms_log(mac_ctx, LOGE,
-				FL("BcnIntrvl is diff can't connect to P2P_GO network ..."));
+			sme_err("BcnIntrvl is diff can't connect to P2P_GO network");
 			*status = QDF_STATUS_E_FAILURE;
 			return true;
 		}
@@ -2176,8 +2163,7 @@ static bool csr_validate_sta_bcn_intrvl(tpAniSirGlobal mac_ctx,
 		(roamsession->pCurRoamProfile->csrPersona ==
 				QDF_P2P_CLIENT_MODE)) {
 		/* check for P2P client mode */
-		sms_log(mac_ctx, LOGD,
-			FL("Bcn Intrvl validation not require for STA/CLIENT"));
+		sme_debug("Bcn Intrvl validation not require for STA/CLIENT");
 		return false;
 	}
 	if ((roamsession->bssParams.bssPersona == QDF_SAP_MODE) &&
@@ -2188,8 +2174,7 @@ static bool csr_validate_sta_bcn_intrvl(tpAniSirGlobal mac_ctx,
 		 *  MCC should not be enabled so making it
 		 * false to enforce on same channel
 		 */
-		sms_log(mac_ctx, LOGE,
-			FL("*** MCC with SAP+STA sessions ****"));
+		sme_err("*** MCC with SAP+STA sessions ****");
 		*status = QDF_STATUS_SUCCESS;
 		return true;
 	}
@@ -2224,15 +2209,13 @@ static bool csr_validate_sta_bcn_intrvl(tpAniSirGlobal mac_ctx,
 					mac_ctx, *bcn_interval,
 					roamsession->bssParams.beaconInterval);
 			}
-			sms_log(mac_ctx, LOGD,
-				FL(" Peer AP BI : %d, new Beacon Interval: %d"),
+			sme_debug("Peer AP BI : %d, new Beacon Interval: %d",
 				*bcn_interval, new_bcn_interval);
 			/* Update the becon Interval */
 			if (new_bcn_interval !=
 					roamsession->bssParams.beaconInterval) {
 				/* Update the bcn_interval now */
-				sms_log(mac_ctx, LOGE,
-					FL(" Beacon Interval got changed config used: %d\n"),
+				sme_err("Beacon Interval got changed config used: %d",
 					cfg_param->fAllowMCCGODiffBI);
 
 				roamsession->bssParams.beaconInterval =
@@ -2256,8 +2239,7 @@ static bool csr_validate_sta_bcn_intrvl(tpAniSirGlobal mac_ctx,
 					eCSR_ROAM_RESULT_NONE);
 			return true;
 		}
-		sms_log(mac_ctx, LOGE,
-			FL("BcnIntrvl is diff can't connect to preferred AP..."));
+		sme_err("BcnIntrvl is diff can't connect to preferred AP");
 		*status = QDF_STATUS_E_FAILURE;
 		return true;
 	}
@@ -2326,9 +2308,7 @@ QDF_STATUS csr_validate_mcc_beacon_interval(tpAniSirGlobal mac_ctx,
 			break;
 
 		default:
-			sms_log(mac_ctx, LOGE,
-				FL("Persona not supported : %d"),
-				cur_bss_persona);
+			sme_err("Persona not supported: %d", cur_bss_persona);
 			return QDF_STATUS_E_FAILURE;
 		}
 	}
@@ -2963,14 +2943,13 @@ static bool csr_lookup_pmkid(tpAniSirGlobal pMac, uint32_t sessionId,
 	tCsrRoamSession *pSession = CSR_GET_SESSION(pMac, sessionId);
 
 	if (!pSession) {
-		sms_log(pMac, LOGE, FL("  session %d not found "), sessionId);
+		sme_err("session %d not found", sessionId);
 		return false;
 	}
 
 	do {
 		for (Index = 0; Index < CSR_MAX_PMKID_ALLOWED; Index++) {
-			sms_log(pMac, LOGD,
-				"match PMKID " MAC_ADDRESS_STR " to ",
+			sme_debug("match PMKID " MAC_ADDRESS_STR " to ",
 				MAC_ADDR_ARRAY(pBSSId));
 			if (!qdf_mem_cmp
 			    (pBSSId, pSession->PmkidCacheInfo[Index].BSSID.bytes,
@@ -2989,7 +2968,7 @@ static bool csr_lookup_pmkid(tpAniSirGlobal pMac, uint32_t sessionId,
 
 		fRC = true;
 	} while (0);
-	sms_log(pMac, LOGD,
+	sme_debug(
 		"csr_lookup_pmkid called return match = %d pMac->roam.NumPmkidCache = %d",
 		fRC, pSession->NumPmkidCache);
 
@@ -3016,8 +2995,6 @@ uint8_t csr_construct_rsn_ie(tHalHandle hHal, uint32_t sessionId,
 #endif
 	tDot11fBeaconIEs *pIesLocal = pIes;
 	eCsrAuthType negAuthType = eCSR_AUTH_TYPE_UNKNOWN;
-
-	sms_log(pMac, LOGD, "%s called...", __func__);
 
 	do {
 		if (!csr_is_profile_rsn(pProfile))
@@ -3202,8 +3179,7 @@ static bool csr_get_wapi_information(tHalHandle hal, tCsrAuthList *auth_type,
 
 	wapioui_idx = csr_get_oui_index_from_cipher(encr_type);
 	if (wapioui_idx >= CSR_OUI_WAPI_WAI_MAX_INDEX) {
-		sms_log(mac_ctx, LOGE,
-			FL("Wapi OUI index = %d out of limit"),
+		sme_err("Wapi OUI index = %d out of limit",
 			wapioui_idx);
 		acceptable_cipher = false;
 		goto end;
@@ -3220,8 +3196,7 @@ static bool csr_get_wapi_information(tHalHandle hal, tCsrAuthList *auth_type,
 		wapioui_idx = csr_get_oui_index_from_cipher(
 					mc_encryption->encryptionType[i]);
 		if (wapioui_idx >= CSR_OUI_WAPI_WAI_MAX_INDEX) {
-			sms_log(mac_ctx, LOGE,
-				FL("Wapi OUI index = %d out of limit"),
+			sme_err("Wapi OUI index = %d out of limit",
 				wapioui_idx);
 			acceptable_cipher = false;
 			break;
@@ -3310,13 +3285,13 @@ static bool csr_lookup_bkid(tpAniSirGlobal pMac, uint32_t sessionId,
 	tCsrRoamSession *pSession = CSR_GET_SESSION(pMac, sessionId);
 
 	if (!pSession) {
-		sms_log(pMac, LOGE, FL("  session %d not found "), sessionId);
+		sme_err("session %d not found", sessionId);
 		return false;
 	}
 
 	do {
 		for (Index = 0; Index < pSession->NumBkidCache; Index++) {
-			sms_log(pMac, LOGD, "match BKID " MAC_ADDRESS_STR " to ",
+			sme_debug("match BKID " MAC_ADDRESS_STR " to ",
 				MAC_ADDR_ARRAY(pBSSId));
 			if (!qdf_mem_cmp
 			    (pBSSId, pSession->BkidCacheInfo[Index].BSSID.bytes,
@@ -3335,7 +3310,7 @@ static bool csr_lookup_bkid(tpAniSirGlobal pMac, uint32_t sessionId,
 
 		fRC = true;
 	} while (0);
-	sms_log(pMac, LOGD,
+	sme_debug(
 		"csr_lookup_bkid called return match = %d pMac->roam.NumBkidCache = %d",
 		fRC, pSession->NumBkidCache);
 
@@ -3692,8 +3667,7 @@ uint8_t csr_retrieve_wpa_ie(tHalHandle hHal, tCsrRoamProfile *pProfile,
 				qdf_mem_copy(pWpaIe, pProfile->pWPAReqIE,
 					     cbWpaIe);
 			} else {
-				sms_log(pMac, LOGW,
-					"  csr_retrieve_wpa_ie detect invalid WPA IE length (%d) ",
+				sme_warn("csr_retrieve_wpa_ie detect invalid WPA IE length (%d)",
 					pProfile->nWPAReqIELength);
 			}
 		} else {
@@ -3733,8 +3707,7 @@ uint8_t csr_retrieve_rsn_ie(tHalHandle hHal, uint32_t sessionId,
 				qdf_mem_copy(pRsnIe, pProfile->pRSNReqIE,
 					     cbRsnIe);
 			} else {
-				sms_log(pMac, LOGW,
-					"  csr_retrieve_rsn_ie detect invalid RSN IE length (%d) ",
+				sme_warn("csr_retrieve_rsn_ie detect invalid RSN IE length (%d)",
 					pProfile->nRSNReqIELength);
 			}
 		} else {
@@ -3768,8 +3741,7 @@ uint8_t csr_retrieve_wapi_ie(tHalHandle hHal, uint32_t sessionId,
 				qdf_mem_copy(pWapiIe, pProfile->pWAPIReqIE,
 					     cbWapiIe);
 			} else {
-				sms_log(pMac, LOGW,
-					"  csr_retrieve_wapi_ie detect invalid WAPI IE length (%d) ",
+				sme_warn("csr_retrieve_wapi_ie detect invalid WAPI IE length (%d)",
 					pProfile->nWAPIReqIELength);
 			}
 		} else {
@@ -4732,8 +4704,7 @@ bool csr_match_bss(tHalHandle hal, tSirBssDescription *bss_descr,
 		}
 	}
 	if (blacklist_check) {
-		sms_log(mac_ctx, LOGE,
-			FL("Don't Attempt connect to blacklist bssid"));
+		sme_err("Don't Attempt connect to blacklist bssid");
 		goto end;
 	}
 
@@ -5409,9 +5380,7 @@ QDF_STATUS csr_get_regulatory_domain_for_country(tpAniSirGlobal pMac,
 			}
 			status = QDF_STATUS_SUCCESS;
 		} else {
-			sms_log(pMac, LOGW,
-				FL
-					(" Couldn't find domain for country code  %c%c"),
+			sme_warn("Couldn't find domain for country code %c%c",
 				pCountry[0], pCountry[1]);
 			status = QDF_STATUS_E_INVAL;
 		}
@@ -5436,7 +5405,7 @@ bool csr_match_country_code(tpAniSirGlobal pMac, uint8_t *pCountry,
 			break;
 		}
 		if (!pIes) {
-			sms_log(pMac, LOGE, FL("  No IEs"));
+			sme_err("No IEs");
 			break;
 		}
 
@@ -5507,8 +5476,7 @@ bool csr_is_set_key_allowed(tpAniSirGlobal pMac, uint32_t sessionId)
 	 * The current work-around is to process setcontext_rsp no matter
 	 * what the state is.
 	 */
-	sms_log(pMac, LOGD,
-		FL(" is not what it intends to. Must be revisit or removed"));
+	sme_debug("is not what it intends to. Must be revisit or removed");
 	if ((NULL == pSession)
 	    || (csr_is_conn_state_disconnected(pMac, sessionId)
 		&& (pSession->pCurRoamProfile != NULL)

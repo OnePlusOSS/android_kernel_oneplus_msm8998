@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2014-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011, 2014-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -237,6 +237,13 @@ ol_rx_fwd_check(struct ol_txrx_vdev_t *vdev,
 
 				copy = qdf_nbuf_copy(msdu);
 				if (copy) {
+					/* Since this is a private copy of skb
+					 * and part of skb tracking table, so
+					 * mark it to make sure that this skb
+					 * is getting deleted from tracking
+					 * table on receiving tx completion.
+					 */
+					QDF_NBUF_CB_TX_IS_PACKET_PRIV(copy) = 1;
 					ol_rx_fwd_to_tx(tx_vdev, copy);
 					tx_vdev->fwd_tx_packets++;
 				}

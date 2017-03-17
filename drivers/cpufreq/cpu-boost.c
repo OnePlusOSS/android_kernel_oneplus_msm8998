@@ -209,7 +209,7 @@ static void update_policy_online(void)
 	for_each_online_cpu(i) {
 		/*
 		 * both clusters have synchronous cpus
-		 * no need to upldate the policy for each core
+		 * no need to update the policy for each core
 		 * individually, saving at least one [down|up] write
 		 * and a [lock|unlock] irqrestore per pass
 		 */

@@ -1290,14 +1290,16 @@ __lim_process_sm_power_save_update(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 			FL
 				("Failed to unpack and parse a Update SM Power (0x%08x, %d bytes):"),
 			nStatus, frameLen);
-		sir_dump_buf(pMac, SIR_DBG_MODULE_ID, LOGE, pBody, frameLen);
+		QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_ERROR,
+				   pBody, frameLen);
 		return;
 	} else if (DOT11F_WARNED(nStatus)) {
 		lim_log(pMac, LOGW,
 			FL
 				("There were warnings while unpacking a SMPower Save update (0x%08x, %d bytes):"),
 			nStatus, frameLen);
-		sir_dump_buf(pMac, SIR_DBG_MODULE_ID, LOGW, pBody, frameLen);
+		QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_ERROR,
+				   pBody, frameLen);
 	}
 
 	lim_log(pMac, LOGD,
@@ -1371,13 +1373,15 @@ __lim_process_radio_measure_request(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 		lim_log(pMac, LOGE,
 			FL("Failed to unpack and parse a Radio Measure request (0x%08x, %d bytes):"),
 			nStatus, frameLen);
-		sir_dump_buf(pMac, SIR_DBG_MODULE_ID, LOGE, pBody, frameLen);
+		QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_ERROR,
+				   pBody, frameLen);
 		    goto err;
 	} else if (DOT11F_WARNED(nStatus)) {
 		lim_log(pMac, LOGW,
 			FL("There were warnings while unpacking a Radio Measure request (0x%08x, %d bytes):"),
 			nStatus, frameLen);
-		sir_dump_buf(pMac, SIR_DBG_MODULE_ID, LOGW, pBody, frameLen);
+		QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_WARN,
+				   pBody, frameLen);
 	}
 	/* Call rrm function to handle the request. */
 
@@ -1413,14 +1417,16 @@ __lim_process_link_measurement_req(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 			FL
 				("Failed to unpack and parse a Link Measure request (0x%08x, %d bytes):"),
 			nStatus, frameLen);
-		sir_dump_buf(pMac, SIR_DBG_MODULE_ID, LOGE, pBody, frameLen);
+		QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_ERROR,
+				   pBody, frameLen);
 		return eSIR_FAILURE;
 	} else if (DOT11F_WARNED(nStatus)) {
 		lim_log(pMac, LOGW,
 			FL
 				("There were warnings while unpacking a Link Measure request (0x%08x, %d bytes):"),
 			nStatus, frameLen);
-		sir_dump_buf(pMac, SIR_DBG_MODULE_ID, LOGW, pBody, frameLen);
+		QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_WARN,
+				   pBody, frameLen);
 	}
 	/* Call rrm function to handle the request. */
 
@@ -1464,7 +1470,8 @@ __lim_process_neighbor_report(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 			FL
 				("Failed to unpack and parse a Neighbor report response (0x%08x, %d bytes):"),
 			nStatus, frameLen);
-		sir_dump_buf(pMac, SIR_DBG_MODULE_ID, LOGE, pBody, frameLen);
+		QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_ERROR,
+				   pBody, frameLen);
 		qdf_mem_free(pFrm);
 		return;
 	} else if (DOT11F_WARNED(nStatus)) {
@@ -1472,7 +1479,8 @@ __lim_process_neighbor_report(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 			FL
 				("There were warnings while unpacking a Neighbor report response (0x%08x, %d bytes):"),
 			nStatus, frameLen);
-		sir_dump_buf(pMac, SIR_DBG_MODULE_ID, LOGW, pBody, frameLen);
+		QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_WARN,
+				   pBody, frameLen);
 	}
 	/* Call rrm function to handle the request. */
 	rrm_process_neighbor_report_response(pMac, pFrm, psessionEntry);

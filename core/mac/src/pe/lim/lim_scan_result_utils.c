@@ -162,11 +162,6 @@ lim_collect_bss_description(tpAniSirGlobal pMac,
 
 	/* Copy RSSI & SINR from BD */
 
-	lim_log(pMac, LOGD, "*********BSS Description for BSSID:********* ");
-	sir_dump_buf(pMac, SIR_LIM_MODULE_ID, LOGD, pBssDescr->bssId, 6);
-	sir_dump_buf(pMac, SIR_LIM_MODULE_ID, LOGD,
-		(uint8_t *) pRxPacketInfo, 36);
-
 	pBssDescr->rssi = (int8_t) WMA_GET_RX_RSSI_NORMALIZED(pRxPacketInfo);
 	pBssDescr->rssi_raw = (int8_t) WMA_GET_RX_RSSI_RAW(pRxPacketInfo);
 

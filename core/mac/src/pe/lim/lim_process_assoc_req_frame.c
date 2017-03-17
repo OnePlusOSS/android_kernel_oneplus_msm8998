@@ -1772,8 +1772,9 @@ void lim_process_assoc_req_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 			session->peSessionId, sub_type,
 			GET_LIM_SYSTEM_ROLE(session),
 			MAC_ADDR_ARRAY(hdr->sa));
-		sir_dump_buf(mac_ctx, SIR_LIM_MODULE_ID, LOGD,
-			     WMA_GET_RX_MPDU_DATA(rx_pkt_info), frame_len);
+		QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
+				   WMA_GET_RX_MPDU_DATA(rx_pkt_info),
+				   frame_len);
 		return;
 	}
 	if (session->limMlmState == eLIM_MLM_WT_DEL_BSS_RSP_STATE) {

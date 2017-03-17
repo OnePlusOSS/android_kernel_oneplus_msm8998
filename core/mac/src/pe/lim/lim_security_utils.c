@@ -736,9 +736,6 @@ lim_decrypt_auth_frame(tpAniSirGlobal pMac, uint8_t *pKey, uint8_t *pEncrBody,
 	lim_rc4(pPlainBody,
 		pEncrBody + SIR_MAC_WEP_IV_LENGTH, seed, keyLength, frameLen);
 
-	lim_log(pMac, LOGD, FL("plainbody is "));
-	       sir_dump_buf(pMac, SIR_LIM_MODULE_ID, LOGD, pPlainBody, frameLen);
-
 	/* Compute CRC-32 and place them in last 4 bytes of encrypted body */
 	lim_compute_crc32(icv,
 			  (uint8_t *) pPlainBody,

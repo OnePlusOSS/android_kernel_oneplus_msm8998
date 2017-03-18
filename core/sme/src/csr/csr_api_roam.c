@@ -37,7 +37,6 @@
 #include "wma_if.h"          /* for STA_INVALID_IDX. */
 #include "cds_mq.h"
 #include "csr_inside_api.h"
-#include "sms_debug.h"
 #include "sme_trace.h"
 #include "sme_qos_internal.h"
 #include "sme_inside.h"

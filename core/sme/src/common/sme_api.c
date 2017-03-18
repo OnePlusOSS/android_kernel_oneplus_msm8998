@@ -37,7 +37,8 @@
    Include Files
    ------------------------------------------------------------------------*/
 
-#include "sms_debug.h"
+#include <sir_common.h>
+#include <ani_global.h>
 #include "sme_api.h"
 #include "csr_inside_api.h"
 #include "sme_inside.h"
@@ -61,8 +62,6 @@
 #include "sch_api.h"
 #include "sme_nan_datapath.h"
 #include "csr_api.h"
-
-#define LOG_SIZE 256
 
 static tSelfRecoveryStats g_self_recovery_stats;
 
@@ -5825,17 +5824,6 @@ QDF_STATUS sme_neighbor_report_request(tHalHandle hHal, uint8_t sessionId,
 	}
 
 	return status;
-}
-
-void sms_log(tpAniSirGlobal pMac, uint32_t loglevel, const char *pString, ...)
-{
-#ifdef WLAN_DEBUG
-	va_list marker;
-
-	va_start(marker, pString);
-	log_debug(pMac, SIR_SMS_MODULE_ID, loglevel, pString, marker);
-	va_end(marker);
-#endif
 }
 
 /* ---------------------------------------------------------------------------

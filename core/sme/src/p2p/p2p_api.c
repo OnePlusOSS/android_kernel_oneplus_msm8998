@@ -26,7 +26,8 @@
  */
 
 #include "sme_api.h"
-#include "sms_debug.h"
+#include <sir_common.h>
+#include <ani_global.h>
 #include "csr_inside_api.h"
 #include "sme_inside.h"
 #include "p2p_api.h"

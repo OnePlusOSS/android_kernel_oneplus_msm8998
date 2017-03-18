@@ -39,7 +39,6 @@
 #include "cds_mq.h"
 #include "csr_inside_api.h"
 #include "sme_inside.h"
-#include "sms_debug.h"
 
 #include "csr_support.h"
 

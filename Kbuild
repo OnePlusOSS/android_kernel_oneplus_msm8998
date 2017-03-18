@@ -186,6 +186,9 @@ ifeq ($(KERNEL_BUILD), 0)
 	CONFIG_WLAN_FEATURE_DSRC := y
 	endif
 
+	#enable spectral scan feature
+	CONFIG_WLAN_SPECTRAL_SCAN := y
+
 ifneq ($(CONFIG_ROME_IF),sdio)
 	#Flag to enable memdump feature
 	CONFIG_WLAN_FEATURE_MEMDUMP := y
@@ -489,6 +492,10 @@ ifeq ($(CONFIG_WLAN_FEATURE_NAN_DATAPATH), y)
 HDD_OBJS += $(HDD_SRC_DIR)/wlan_hdd_nan_datapath.o
 endif
 
+ifeq ($(CONFIG_WLAN_SPECTRAL_SCAN), y)
+HDD_OBJS += $(HDD_SRC_DIR)/wlan_hdd_spectral.o
+endif
+
 ########### HOST DIAG LOG ###########
 HOST_DIAG_LOG_DIR :=	core/utils/host_diag_log
 
@@ -682,13 +689,18 @@ ifeq ($(CONFIG_WLAN_FEATURE_NAN_DATAPATH), y)
 SME_NDP_OBJS += $(SME_SRC_DIR)/nan/nan_datapath_api.o
 endif
 
+ifeq ($(CONFIG_WLAN_SPECTRAL_SCAN), y)
+SME_SPECTRAL_OBJS += $(SME_SRC_DIR)/spectralscan/spectral_scan_api.o
+endif
+
 SME_OBJS :=	$(SME_CMN_OBJS) \
 		$(SME_CSR_OBJS) \
 		$(SME_P2P_OBJS) \
 		$(SME_QOS_OBJS) \
 		$(SME_RRM_OBJS) \
 		$(SME_NAN_OBJS) \
-		$(SME_NDP_OBJS)
+		$(SME_NDP_OBJS) \
+		$(SME_SPECTRAL_OBJS)
 
 ############ NLINK ############
 NLINK_DIR     :=	core/utils/nlink
@@ -1679,6 +1691,10 @@ endif
 
 ifeq ($(CONFIG_WLAN_DEBUGFS), y)
 CDEFINES += -DWLAN_DEBUGFS
+endif
+
+ifeq ($(CONFIG_WLAN_SPECTRAL_SCAN), y)
+CDEFINES += -DFEATURE_SPECTRAL_SCAN
 endif
 
 KBUILD_CPPFLAGS += $(CDEFINES)

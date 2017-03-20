@@ -141,7 +141,7 @@ tSirRetStatus mac_open(tHalHandle *pHalHandle, tHddHandle hHdd,
 
 	status =  pe_open(p_mac, cds_cfg);
 	if (eSIR_SUCCESS != status) {
-		sys_log(p_mac, LOGE, FL("mac_open failure\n"));
+		pe_err("pe_open() failure");
 		qdf_mem_free(p_mac);
 	}
 

@@ -2228,6 +2228,26 @@ end:
 	}
 }
 
+#ifdef WLAN_FEATURE_FILS_SK
+/*
+ * lim_update_fils_auth_mode: API to update Auth mode in case of fils session
+ * @session_entry: pe session entry
+ * @auth_mode: auth mode needs to be updated
+ *
+ * Return: None
+ */
+static void lim_update_fils_auth_mode(tpPESession session_entry,
+			tAniAuthType *auth_mode)
+{
+	if (session_entry->fils_info.is_fils_connection)
+		*auth_mode = session_entry->fils_info.auth;
+}
+#else
+static void lim_update_fils_auth_mode(tpPESession session_entry,
+			tAniAuthType *auth_mode)
+{ }
+#endif
+
 /**
  * csr_neighbor_roam_handoff_req_hdlr - Processes handoff request
  * @mac_ctx:  Pointer to mac context
@@ -2280,6 +2300,7 @@ lim_process_sta_add_bss_rsp_pre_assoc(tpAniSirGlobal mac_ctx,
 		else
 			authMode = cfgAuthType;
 
+		lim_update_fils_auth_mode(session_entry, &authMode);
 		/* Trigger MAC based Authentication */
 		pMlmAuthReq = qdf_mem_malloc(sizeof(tLimMlmAuthReq));
 		if (NULL == pMlmAuthReq) {

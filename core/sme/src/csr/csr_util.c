@@ -3211,6 +3211,73 @@ static bool csr_lookup_pmkid(tpAniSirGlobal pMac, uint32_t sessionId,
 	return fRC;
 }
 
+#ifdef WLAN_FEATURE_FILS_SK
+/*
+ * csr_update_pmksa_for_cache_id: update tPmkidCacheInfo to lookup using
+ * ssid and cache id
+ * @bss_desc: bss description
+ * @profile: csr roam profile
+ * @pmkid_cache: pmksa cache
+ *
+ * Return: true if cache identifier present else false
+ */
+static bool csr_update_pmksa_for_cache_id(tSirBssDescription *bss_desc,
+				tCsrRoamProfile *profile,
+				tPmkidCacheInfo *pmkid_cache)
+{
+	if (!bss_desc->fils_info_element.is_cache_id_present)
+		return false;
+
+	pmkid_cache->ssid_len =
+		profile->SSIDs.SSIDList[0].SSID.length;
+	qdf_mem_copy(pmkid_cache->ssid,
+		profile->SSIDs.SSIDList[0].SSID.ssId,
+		profile->SSIDs.SSIDList[0].SSID.length);
+	qdf_mem_copy(pmkid_cache->cache_id,
+		bss_desc->fils_info_element.cache_id,
+		CACHE_ID_LEN);
+	qdf_mem_copy(pmkid_cache->BSSID.bytes,
+		bss_desc->bssId, QDF_MAC_ADDR_SIZE);
+
+	return true;
+
+}
+
+/*
+ * csr_update_pmksa_to_profile: update pmk and pmkid to profile which will be
+ * used in case of fils session
+ * @profile: profile
+ * @pmkid_cache: pmksa cache
+ *
+ * Return: None
+ */
+static inline void csr_update_pmksa_to_profile(tCsrRoamProfile *profile,
+		tPmkidCacheInfo *pmkid_cache)
+{
+	if (!profile->fils_con_info)
+		return;
+
+	profile->fils_con_info->pmk_len = pmkid_cache->pmk_len;
+	qdf_mem_copy(profile->fils_con_info->pmk,
+			pmkid_cache->pmk, pmkid_cache->pmk_len);
+	qdf_mem_copy(profile->fils_con_info->pmkid,
+		pmkid_cache->PMKID, CSR_RSN_PMKID_SIZE);
+
+}
+#else
+static inline bool csr_update_pmksa_for_cache_id(tSirBssDescription *bss_desc,
+				tCsrRoamProfile *profile,
+				tPmkidCacheInfo *pmkid_cache)
+{
+	return false;
+}
+
+static inline void csr_update_pmksa_to_profile(tCsrRoamProfile *profile,
+		tPmkidCacheInfo *pmkid_cache)
+{
+}
+#endif
+
 uint8_t csr_construct_rsn_ie(tHalHandle hHal, uint32_t sessionId,
 			     tCsrRoamProfile *pProfile,
 			     tSirBssDescription *pSirBssDesc,
@@ -3298,7 +3365,9 @@ uint8_t csr_construct_rsn_ie(tHalHandle hHal, uint32_t sessionId,
 		pPMK = (tCsrRSNPMKIe *) (((uint8_t *) (&pAuthSuite->AuthOui[1]))
 				+ sizeof(uint16_t));
 
-		qdf_mem_copy(pmkid_cache.BSSID.bytes,
+		if (!csr_update_pmksa_for_cache_id(pSirBssDesc,
+			pProfile, &pmkid_cache))
+			qdf_mem_copy(pmkid_cache.BSSID.bytes,
 				pSirBssDesc->bssId, QDF_MAC_ADDR_SIZE);
 		/* Don't include the PMK SA IDs for CCKM associations. */
 		if (
@@ -3314,8 +3383,10 @@ uint8_t csr_construct_rsn_ie(tHalHandle hHal, uint32_t sessionId,
 			qdf_mem_copy(pPMK->PMKIDList[0].PMKID,
 				     pmkid_cache.PMKID,
 				     CSR_RSN_PMKID_SIZE);
-		} else
+			csr_update_pmksa_to_profile(pProfile, &pmkid_cache);
+		} else {
 			pPMK->cPMKIDs = 0;
+		}
 
 #ifdef WLAN_FEATURE_11W
 		/* Advertise BIP in group cipher key management only if PMF is
@@ -4901,6 +4972,41 @@ static bool csr_is_rate_set_match(tpAniSirGlobal mac_ctx,
 	return match;
 }
 
+#ifdef WLAN_FEATURE_FILS_SK
+/*
+ * csr_is_fils_realm_match: API to check whether realm in scan filter is
+ * matching with realm in bss info
+ * @bss_descr: bss description
+ * @filter: scan filter
+ *
+ * Return: true if success else false
+ */
+static bool csr_is_fils_realm_match(tSirBssDescription *bss_descr,
+			tCsrScanResultFilter *filter)
+{
+	int i;
+	bool is_match = true;
+
+	if (filter->realm_check) {
+		is_match = false;
+		for (i = 0; i < bss_descr->fils_info_element.realm_cnt; i++) {
+			if (!qdf_mem_cmp(filter->fils_realm,
+				bss_descr->fils_info_element.realm[i],
+				SIR_REALM_LEN)) {
+				return true;
+			}
+		}
+	}
+
+	return is_match;
+}
+#else
+static bool csr_is_fils_realm_match(tSirBssDescription *bss_descr,
+			tCsrScanResultFilter *filter)
+{
+	return true;
+}
+#endif
 /**
  * csr_match_bss() - to compare the bss
  * @hal: pointer to hal context
@@ -5064,6 +5170,8 @@ bool csr_match_bss(tHalHandle hal, tSirBssDescription *bss_descr,
 		}
 	}
 	rc = true;
+	if (rc)
+		rc = csr_is_fils_realm_match(bss_descr, filter);
 
 end:
 	if (ie_dblptr)

@@ -61,6 +61,7 @@
 #include "rrm_api.h"
 
 #include "wma_types.h"
+#include "lim_process_fils.h"
 
 /**
  *
@@ -2082,7 +2083,6 @@ static QDF_STATUS lim_auth_tx_complete_cnf(tpAniSirGlobal mac_ctx,
  *
  * Return: void
  */
-
 void
 lim_send_auth_mgmt_frame(tpAniSirGlobal mac_ctx,
 			 tpSirMacAuthFrameBody auth_frame,
@@ -2145,6 +2145,8 @@ lim_send_auth_mgmt_frame(tpAniSirGlobal mac_ctx,
 			   SIR_MAC_AUTH_CHALLENGE_OFFSET;
 		body_len = SIR_MAC_AUTH_CHALLENGE_OFFSET;
 
+		frame_len += lim_create_fils_auth_data(mac_ctx,
+						auth_frame, session);
 		if (auth_frame->authAlgoNumber == eSIR_FT_AUTH) {
 			if (NULL != session->ftPEContext.pFTPreAuthReq &&
 			    0 != session->ftPEContext.pFTPreAuthReq->
@@ -2308,6 +2310,11 @@ alloc_packet:
 						pbssDescription->mdie[0],
 					SIR_MDIE_SIZE);
 			}
+		} else if (auth_frame->authAlgoNumber ==
+				eSIR_FILS_SK_WITHOUT_PFS) {
+			/* TODO MDIE */
+			pe_debug("appending fils Auth data");
+			lim_add_fils_data_to_auth_frame(session, body);
 		}
 
 		pe_debug("*** Sending Auth seq# %d status %d (%d) to "

@@ -495,6 +495,9 @@ typedef struct sPESession       /* Added to Support BT-AMP */
 	bool process_ho_fail;
 	/* Number of STAs that do not support ECSA capability */
 	uint8_t lim_non_ecsa_cap_num;
+#ifdef WLAN_FEATURE_FILS_SK
+	struct pe_fils_session fils_info;
+#endif
 } tPESession, *tpPESession;
 
 /*-------------------------------------------------------------------------

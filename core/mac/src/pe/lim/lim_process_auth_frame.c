@@ -50,6 +50,7 @@
 #include "lim_ser_des_utils.h"
 #include "lim_ft.h"
 #include "cds_utils.h"
+#include "lim_process_fils.h"
 
 /**
  * is_auth_valid
@@ -612,6 +613,13 @@ static void lim_process_auth_frame_type2(tpAniSirGlobal mac_ctx,
 		lim_restore_from_auth_state(mac_ctx, eSIR_SME_AUTH_REFUSED,
 			rx_auth_frm_body->authStatusCode,
 			pe_session);
+		return;
+	}
+
+	if (lim_process_fils_auth_frame2(mac_ctx, pe_session,
+					 rx_auth_frm_body)) {
+		lim_restore_from_auth_state(mac_ctx, eSIR_SME_SUCCESS,
+				rx_auth_frm_body->authStatusCode, pe_session);
 		return;
 	}
 
@@ -1300,6 +1308,12 @@ lim_process_auth_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 		(uint32_t) rx_auth_frm_body->authTransactionSeqNumber,
 		(uint32_t) rx_auth_frm_body->authStatusCode,
 		(uint32_t) mac_ctx->lim.gLimNumPreAuthContexts);
+
+	if (!lim_is_valid_fils_auth_frame(mac_ctx, pe_session,
+			rx_auth_frm_body)) {
+		pe_err("Received invalid FILS auth packet");
+		return;
+	}
 
 	/*
 	 * IOT Workaround: with invalid WEP key, some APs reply

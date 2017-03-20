@@ -13694,6 +13694,16 @@ static int hdd_set_wext(hdd_adapter_t *pAdapter)
 
 }
 
+#ifdef WLAN_FEATURE_FILS_SK
+static void hdd_initialize_fils_info(hdd_wext_state_t *pwextBuf)
+{
+	pwextBuf->roamProfile.fils_con_info = NULL;
+}
+#else
+static void hdd_initialize_fils_info(hdd_wext_state_t *pwextBuf)
+{ }
+#endif
+
 /**
  * hdd_register_wext() - register wext context
  * @dev: net device handle
@@ -13731,6 +13741,7 @@ int hdd_register_wext(struct net_device *dev)
 		return QDF_STATUS_E_FAILURE;
 	}
 
+	hdd_initialize_fils_info(pwextBuf);
 	/* Register as a wireless device */
 	dev->wireless_handlers = (struct iw_handler_def *)&we_handler_def;
 

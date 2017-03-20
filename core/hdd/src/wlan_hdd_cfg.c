@@ -4501,6 +4501,13 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		CFG_MBO_CAND_RSSI_BTC_THRESHOLD_DEFAULT,
 		CFG_MBO_CAND_RSSI_BTC_THRESHOLD_MIN,
 		CFG_MBO_CAND_RSSI_BTC_THRESHOLD_MAX),
+
+	REG_VARIABLE(CFG_DROPPED_PKT_DISCONNECT_TH_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, pkt_err_disconn_th,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_DROPPED_PKT_DISCONNECT_TH_DEFAULT,
+		CFG_DROPPED_PKT_DISCONNECT_TH_MIN,
+		CFG_DROPPED_PKT_DISCONNECT_TH_MAX),
 };
 
 /**
@@ -6024,6 +6031,9 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_info("Name = [%s] Value =[%s]",
 		 CFG_PROBE_REQ_OUI_NAME,
 		 pHddCtx->config->probe_req_ouis);
+	hdd_info("Name = [%s] value = [%u]",
+		 CFG_DROPPED_PKT_DISCONNECT_TH_NAME,
+		 pHddCtx->config->pkt_err_disconn_th);
 }
 
 /**
@@ -7590,7 +7600,8 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 			pHddCtx->config->qcn_ie_support;
 	smeConfig->csrConfig.fils_max_chan_guard_time =
 			pHddCtx->config->fils_max_chan_guard_time;
-
+	smeConfig->csrConfig.pkt_err_disconn_th =
+			pHddCtx->config->pkt_err_disconn_th;
 	status = sme_update_config(pHddCtx->hHal, smeConfig);
 	if (!QDF_IS_STATUS_SUCCESS(status))
 		hdd_err("sme_update_config() failure: %d", status);

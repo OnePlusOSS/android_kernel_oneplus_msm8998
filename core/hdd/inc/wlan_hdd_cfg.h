@@ -1560,6 +1560,29 @@ typedef enum {
 
 /*
  * <ini>
+ * gDroppedPktDisconnectTh - Sets dropped packet threshold in firmware
+ * @Min: 0
+ * @Max: 512
+ * @Default: 512
+ *
+ * This INI is the packet drop threshold will trigger disconnect from remote
+ * peer.
+ *
+ * Related: None
+ *
+ * Supported Feature: connection
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_DROPPED_PKT_DISCONNECT_TH_NAME      "gDroppedPktDisconnectTh"
+#define CFG_DROPPED_PKT_DISCONNECT_TH_MIN       (0)
+#define CFG_DROPPED_PKT_DISCONNECT_TH_MAX       (512)
+#define CFG_DROPPED_PKT_DISCONNECT_TH_DEFAULT   (512)
+
+/*
+ * <ini>
  * gEnableFastRoamInConcurrency - Enable LFR roaming on STA during concurrency
  * @Min: 0
  * @Max: 1
@@ -11149,6 +11172,8 @@ struct hdd_config {
 	int8_t mbo_current_rssi_thres;
 	int8_t mbo_current_rssi_mcc_thres;
 	int8_t mbo_candidate_rssi_btc_thres;
+	/* threshold of packet drops at which FW initiates disconnect */
+	uint16_t pkt_err_disconn_th;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

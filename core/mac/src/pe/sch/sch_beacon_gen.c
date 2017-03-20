@@ -51,7 +51,6 @@
 
 #include "parser_api.h"
 
-#include "sch_debug.h"
 
 const uint8_t p2p_oui[] = { 0x50, 0x6F, 0x9A, 0x9 };
 

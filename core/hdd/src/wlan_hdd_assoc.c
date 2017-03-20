@@ -3473,8 +3473,7 @@ QDF_STATUS hdd_roam_register_tdlssta(hdd_adapter_t *pAdapter,
  *
  * Return: QDF_STATUS enumeration
  */
-static QDF_STATUS hdd_roam_deregister_tdlssta(hdd_adapter_t *pAdapter,
-					      uint8_t staId)
+QDF_STATUS hdd_roam_deregister_tdlssta(hdd_adapter_t *pAdapter, uint8_t staId)
 {
 	QDF_STATUS qdf_status;
 	qdf_status = ol_txrx_clear_peer(staId);
@@ -3731,9 +3730,11 @@ hdd_roam_tdls_status_update_handler(hdd_adapter_t *pAdapter,
 				} else
 				    mutex_unlock(&pHddCtx->tdls_lock);
 
+				mutex_lock(&pHddCtx->tdls_lock);
 				wlan_hdd_tdls_reset_peer(pAdapter,
 							 pRoamInfo->
 							 peerMac.bytes);
+				mutex_unlock(&pHddCtx->tdls_lock);
 
 				pHddCtx->tdlsConnInfo[staIdx].staId = 0;
 				pHddCtx->tdlsConnInfo[staIdx].
@@ -3783,11 +3784,13 @@ hdd_roam_tdls_status_update_handler(hdd_adapter_t *pAdapter,
 						       [staIdx].
 						       peerMac.
 						       bytes));
+				mutex_lock(&pHddCtx->tdls_lock);
 				wlan_hdd_tdls_reset_peer(pAdapter,
 							 pHddCtx->
 							 tdlsConnInfo
 							 [staIdx].
 							 peerMac.bytes);
+				mutex_unlock(&pHddCtx->tdls_lock);
 				hdd_roam_deregister_tdlssta(pAdapter,
 							    pHddCtx->
 							    tdlsConnInfo
@@ -4054,7 +4057,7 @@ hdd_roam_tdls_status_update_handler(hdd_adapter_t *pAdapter,
 }
 #else
 
-static inline QDF_STATUS hdd_roam_deregister_tdlssta(hdd_adapter_t *pAdapter,
+inline QDF_STATUS hdd_roam_deregister_tdlssta(hdd_adapter_t *pAdapter,
 					      uint8_t staId)
 {
 	return QDF_STATUS_SUCCESS;

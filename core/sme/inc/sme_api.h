@@ -1550,4 +1550,7 @@ QDF_STATUS sme_set_bt_activity_info_cb(tHalHandle hal,
  */
 tCsrScanResultInfo *sme_scan_get_result_for_bssid(tHalHandle hal_handle,
 						  struct qdf_mac_addr *bssid);
+
+QDF_STATUS sme_delete_all_tdls_peers(tHalHandle hal, uint8_t session_id);
+
 #endif /* #if !defined( __SME_API_H ) */

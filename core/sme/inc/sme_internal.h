@@ -277,6 +277,7 @@ typedef struct tagSmeStruct {
 	void (*spectral_scan_cb)(void *context,
 			struct spectral_samp_msg *samp_msg);
 	void (*stats_ext2_cb)(void *, struct stats_ext2_event *);
+	void (*congestion_cb)(void *, uint32_t congestion, uint32_t vdev_id);
 } tSmeStruct, *tpSmeStruct;
 
 

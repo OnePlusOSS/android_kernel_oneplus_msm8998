@@ -4079,4 +4079,16 @@ int wlan_hdd_try_disconnect(hdd_adapter_t *adapter);
  * Return: none
  */
 void hdd_bt_activity_cb(void *context, uint32_t bt_activity);
+
+/**
+ * hdd_update_cca_info_cb() - stores congestion value in station context
+ * @context : HDD context
+ * @congestion : congestion
+ * @vdev_id : vdev id
+ *
+ * Return: None
+ */
+void hdd_update_cca_info_cb(void *context, uint32_t congestion,
+			uint32_t vdev_id);
+
 #endif

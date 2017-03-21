@@ -1543,6 +1543,16 @@ QDF_STATUS sme_set_bt_activity_info_cb(tHalHandle hal,
 				void (*cb)(void *, uint32_t profile_info));
 
 /**
+ * sme_congestion_register_callback(): registers congestion callback
+ * @hal: handler for HAL
+ * @congestion_cb: congestion callback
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS sme_congestion_register_callback(tHalHandle hal,
+	void (*congestion_cb)(void *, uint32_t congestion, uint32_t vdev_id));
+
+/**
  * sme_scan_get_result_for_bssid - gets the scan result from scan cache for the
  *	bssid specified
  * @hal: handle returned by mac_open

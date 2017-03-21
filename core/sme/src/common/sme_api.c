@@ -17866,3 +17866,21 @@ QDF_STATUS sme_set_rx_set_blocksize(tHalHandle hal,
 
 	return status;
 }
+
+QDF_STATUS sme_congestion_register_callback(tHalHandle hal,
+	void (*congestion_cb)(void *, uint32_t congestion, uint32_t vdev_id))
+{
+	QDF_STATUS status;
+	tpAniSirGlobal mac = PMAC_STRUCT(hal);
+
+	status = sme_acquire_global_lock(&mac->sme);
+	if (QDF_IS_STATUS_SUCCESS(status)) {
+		mac->sme.congestion_cb = congestion_cb;
+		sme_release_global_lock(&mac->sme);
+		sme_debug("congestion callback set");
+	} else {
+		sme_debug("sme_acquire_global_lock failed %d", status);
+	}
+
+	return status;
+}

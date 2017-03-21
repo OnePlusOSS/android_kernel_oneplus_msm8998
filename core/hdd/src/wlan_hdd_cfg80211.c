@@ -3097,6 +3097,14 @@ static int hdd_get_station_assoc_fail(hdd_context_t *hdd_ctx,
 		hdd_err("put fail");
 		goto fail;
 	}
+
+	hdd_info("congestion:%d", hdd_sta_ctx->conn_info.cca);
+	if (nla_put_u32(skb, NL80211_SURVEY_INFO_CHANNEL_TIME_BUSY,
+			hdd_sta_ctx->conn_info.cca)) {
+		hdd_err("put fail");
+		goto fail;
+	}
+
 	return cfg80211_vendor_cmd_reply(skb);
 fail:
 	if (skb)
@@ -9380,6 +9388,30 @@ void hdd_bt_activity_cb(void *context, uint32_t bt_activity)
 	hdd_info("a2dp_active:%d vo_active:%d", hdd_ctx->bt_a2dp_active,
 		 hdd_ctx->bt_vo_active);
 }
+
+void hdd_update_cca_info_cb(void *context, uint32_t congestion,
+			uint32_t vdev_id)
+{
+	hdd_context_t *hdd_ctx = (hdd_context_t *)context;
+	int status;
+	hdd_adapter_t *adapter = NULL;
+	hdd_station_ctx_t *hdd_sta_ctx;
+
+	status = wlan_hdd_validate_context(hdd_ctx);
+	if (status != 0)
+		return;
+
+	adapter = hdd_get_adapter_by_vdev(hdd_ctx, vdev_id);
+	if (adapter == NULL) {
+		hdd_err("vdev_id %d does not exist with host", vdev_id);
+		return;
+	}
+
+	hdd_sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
+	hdd_sta_ctx->conn_info.cca = congestion;
+	hdd_info("congestion:%d", congestion);
+}
+
 
 /**
  * wlan_hdd_is_bt_in_progress() - check if bt activity is in progress

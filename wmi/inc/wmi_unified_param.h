@@ -473,6 +473,7 @@ struct vdev_start_params {
 	uint8_t disable_hw_ack;
 	struct channel_param channel;
 #endif
+	bool ldpc_rx_enabled;
 };
 
 /**

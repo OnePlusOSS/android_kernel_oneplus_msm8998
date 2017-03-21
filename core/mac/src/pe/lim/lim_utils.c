@@ -6477,7 +6477,7 @@ static QDF_STATUS lim_send_ie(tpAniSirGlobal mac_ctx, uint32_t sme_session_id,
  *
  * Return: true if enabled and false otherwise
  */
-static inline bool lim_get_rx_ldpc(tpAniSirGlobal mac_ctx, uint8_t ch,
+bool lim_get_rx_ldpc(tpAniSirGlobal mac_ctx, uint8_t ch,
 				   uint8_t is_hw_mode_dbs)
 {
 	enum hw_mode_dbs_capab hw_mode_to_use;

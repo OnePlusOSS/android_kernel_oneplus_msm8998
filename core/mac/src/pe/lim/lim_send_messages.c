@@ -42,6 +42,8 @@
 #ifdef FEATURE_WLAN_DIAG_SUPPORT_LIM    /* FEATURE_WLAN_DIAG_SUPPORT */
 #include "host_diag_core_log.h"
 #endif /* FEATURE_WLAN_DIAG_SUPPORT */
+#include "wma.h"
+#include "lim_utils.h"
 
 /* When beacon filtering is enabled, firmware will
  * analyze the selected beacons received during BMPS,
@@ -213,6 +215,7 @@ tSirRetStatus lim_send_switch_chnl_params(tpAniSirGlobal pMac,
 	tpSwitchChannelParams pChnlParams = NULL;
 	tSirMsgQ msgQ;
 	tpPESession pSessionEntry;
+	bool is_current_hwmode_dbs;
 	pSessionEntry = pe_find_session_by_session_id(pMac, peSessionId);
 	if (pSessionEntry == NULL) {
 		lim_log(pMac, LOGE, FL(
@@ -265,6 +268,10 @@ tSirRetStatus lim_send_switch_chnl_params(tpAniSirGlobal pMac,
 	else if (cds_is_10_mhz_enabled())
 		pChnlParams->ch_width = CH_WIDTH_10MHZ;
 
+	/* Inform LDPC cap to firmware */
+	is_current_hwmode_dbs = wma_is_current_hwmode_dbs();
+	pChnlParams->rx_ldpc =
+		lim_get_rx_ldpc(pMac, chnlNumber, is_current_hwmode_dbs);
 	/* we need to defer the message until we
 	 * get the response back from WMA
 	 */

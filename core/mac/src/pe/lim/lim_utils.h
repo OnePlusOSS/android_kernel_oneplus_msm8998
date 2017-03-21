@@ -694,4 +694,6 @@ tSirRetStatus lim_strip_ie(tpAniSirGlobal mac_ctx,
 		uint8_t eid, eSizeOfLenField size_of_len_field,
 		uint8_t *oui, uint8_t out_len, uint8_t *extracted_ie,
 		uint32_t eid_max_len);
+bool lim_get_rx_ldpc(tpAniSirGlobal mac_ctx, uint8_t ch,
+			   uint8_t is_hw_mode_dbs);
 #endif /* __LIM_UTILS_H */

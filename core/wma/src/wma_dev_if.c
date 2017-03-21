@@ -2178,11 +2178,15 @@ QDF_STATUS wma_vdev_start(tp_wma_handle wma,
 
 		params.hidden_ssid = req->hidden_ssid;
 		params.pmf_enabled = req->pmf_enabled;
+		params.ldpc_rx_enabled = req->ldpc_rx_enabled;
 		if (req->hidden_ssid)
 			temp_flags |= WMI_UNIFIED_VDEV_START_HIDDEN_SSID;
 
 		if (req->pmf_enabled)
 			temp_flags |= WMI_UNIFIED_VDEV_START_PMF_ENABLED;
+
+		if (req->ldpc_rx_enabled)
+			temp_flags |= WMI_UNIFIED_VDEV_START_LDPC_RX_ENABLED;
 	}
 
 	params.num_noa_descriptors = 0;

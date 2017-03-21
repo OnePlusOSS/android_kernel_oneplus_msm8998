@@ -1811,6 +1811,7 @@ struct wma_vdev_start_req {
 	uint32_t preferred_tx_streams;
 	uint32_t preferred_rx_streams;
 	uint8_t beacon_tx_rate;
+	bool ldpc_rx_enabled;
 };
 
 /**

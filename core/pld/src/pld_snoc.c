@@ -239,26 +239,35 @@ static int pld_snoc_uevent(struct device *dev,
 			   struct icnss_uevent_data *uevent)
 {
 	struct pld_context *pld_context;
-	uint32_t status;
+	struct icnss_uevent_fw_down_data *uevent_data = NULL;
+	struct pld_uevent_data data;
 
 	pld_context = pld_get_global_context();
 	if (!pld_context)
 		return -EINVAL;
 
-	if (!pld_context->ops->update_status)
-		goto out;
+	if (!pld_context->ops->uevent)
+		return 0;
+
+	if (!uevent)
+		return -EINVAL;
 
 	switch (uevent->uevent) {
 	case ICNSS_UEVENT_FW_CRASHED:
-		status = PLD_RECOVERY;
+		data.uevent = PLD_RECOVERY;
+		break;
+	case ICNSS_UEVENT_FW_DOWN:
+		if (uevent->data == NULL)
+			return -EINVAL;
+		uevent_data = (struct icnss_uevent_fw_down_data *)uevent->data;
+		data.uevent = PLD_FW_DOWN;
+		data.fw_down.crashed = uevent_data->crashed;
 		break;
 	default:
-		goto out;
+		return 0;
 	}
 
-	pld_context->ops->update_status(dev, status);
-
-out:
+	pld_context->ops->uevent(dev, &data);
 	return 0;
 }
 

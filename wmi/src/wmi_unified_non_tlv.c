@@ -25,11 +25,6 @@
  * to the Linux Foundation.
  */
 
-#include "athdefs.h"
-#include "osapi_linux.h"
-#include "a_types.h"
-#include "a_debug.h"
-#include "ol_if_athvar.h"
 #include "wmi_unified_api.h"
 #include "wmi_unified_priv.h"
 

@@ -26,7 +26,6 @@
  */
 
 #include <osdep.h>
-#include "a_types.h"
 #include "wmi_unified_param.h"
 #include "legacy/wmi.h"
 #include "legacy/wmi_unified.h"

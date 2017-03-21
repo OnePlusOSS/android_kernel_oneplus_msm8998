@@ -28,16 +28,9 @@
 /*
  * Host WMI unified implementation
  */
-#include "athdefs.h"
-#include "osapi_linux.h"
-#include "a_types.h"
-#include "a_debug.h"
-#include "ol_if_athvar.h"
 #include "htc_api.h"
 #include "htc_api.h"
-#include "dbglog_host.h"
 #include "wmi_unified_priv.h"
-#include "wmi_unified_param.h"
 
 #include <linux/debugfs.h>
 
@@ -1063,7 +1056,7 @@ static uint8_t *wmi_id_to_name(uint32_t wmi_command)
 
 
 #ifndef WMI_NON_TLV_SUPPORT
-static inline void wma_log_cmd_id(uint32_t cmd_id, uint32_t tag)
+static inline void wmi_log_cmd_id(uint32_t cmd_id, uint32_t tag)
 {
 	WMI_LOGD("Send WMI command:%s command_id:%d htc_tag:%d",
 		 wmi_id_to_name(cmd_id), cmd_id, tag);
@@ -1184,7 +1177,7 @@ QDF_STATUS wmi_unified_cmd_send(wmi_unified_t wmi_handle, wmi_buf_t buf,
 
 	SET_HTC_PACKET_NET_BUF_CONTEXT(pkt, buf);
 #ifndef WMI_NON_TLV_SUPPORT
-	wma_log_cmd_id(cmd_id, htc_tag);
+	wmi_log_cmd_id(cmd_id, htc_tag);
 #endif
 
 #ifdef WMI_INTERFACE_EVENT_LOGGING

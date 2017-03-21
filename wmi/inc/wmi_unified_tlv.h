@@ -27,7 +27,6 @@
 #ifndef _WMI_UNIFIED_TLV_H_
 #define _WMI_UNIFIED_TLV_H_
 #include <osdep.h>
-#include "a_types.h"
 #include "wmi_unified_param.h"
 #include "wmi.h"
 #include "wmi_unified.h"

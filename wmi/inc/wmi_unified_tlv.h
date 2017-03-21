@@ -324,6 +324,16 @@ QDF_STATUS send_get_stats_cmd_tlv(wmi_unified_t wmi_handle,
 		       struct pe_stats_req  *get_stats_param,
 			   uint8_t addr[IEEE80211_ADDR_LEN]);
 
+/**
+ * send_congestion_cmd_tlv() - send request to fw to get CCA
+ * @wmi_handle: wmi handle
+ * @vdev_id: vdev id
+ *
+ * Return: CDF status
+ */
+QDF_STATUS send_congestion_cmd_tlv(wmi_unified_t wmi_handle,
+			A_UINT8 vdev_id);
+
 QDF_STATUS send_snr_request_cmd_tlv(wmi_unified_t wmi_handle);
 
 QDF_STATUS send_snr_cmd_tlv(wmi_unified_t wmi_handle, uint8_t vdev_id);

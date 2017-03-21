@@ -8648,9 +8648,9 @@ static int __wlan_hdd_cfg80211_set_nud_stats(struct wiphy *wiphy,
 	if (arp_stats_params.flag) {
 		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_INFO,
 			  "%s STATS_SET_START Cleared!!", __func__);
-		qdf_mem_zero(&adapter->hdd_stats.hdd_arp_stats,
-			     sizeof(adapter->hdd_stats.hdd_arp_stats));
 	}
+	qdf_mem_zero(&adapter->hdd_stats.hdd_arp_stats,
+		     sizeof(adapter->hdd_stats.hdd_arp_stats));
 
 	arp_stats_params.pkt_type = WLAN_NUD_STATS_ARP_PKT_TYPE;
 	arp_stats_params.vdev_id = adapter->sessionId;

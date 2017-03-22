@@ -2118,6 +2118,9 @@ htt_rx_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 		QDF_NBUF_CB_TX_PACKET_TRACK(msdu) = QDF_NBUF_TX_PKT_DATA_TRACK;
 		QDF_NBUF_CB_RX_CTX_ID(msdu) = rx_ctx_id;
 		ol_rx_log_packet(pdev, peer_id, msdu);
+		if (qdf_nbuf_is_ipv4_arp_pkt(msdu))
+			QDF_NBUF_CB_GET_PACKET_TYPE(msdu) =
+				QDF_NBUF_CB_PACKET_TYPE_ARP;
 		DPTRACE(qdf_dp_trace(msdu,
 			QDF_DP_TRACE_RX_HTT_PACKET_PTR_RECORD,
 			qdf_nbuf_data_addr(msdu),

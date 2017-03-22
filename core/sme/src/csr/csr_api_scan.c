@@ -2165,7 +2165,7 @@ tCsrScanResultInfo *csr_scan_get_result_for_bssid(tpAniSirGlobal mac_ctx,
 			len = sizeof(*scan_info) + bss_len;
 			scan_info = qdf_mem_malloc(len);
 			if (!scan_info) {
-				sme_err("Failed to allocate memory for scan info, len = %lu",
+				sme_err("Failed to allocate memory for scan info, len = %zu",
 					len);
 				break;
 			}

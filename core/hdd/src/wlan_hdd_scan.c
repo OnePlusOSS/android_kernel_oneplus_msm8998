@@ -2722,6 +2722,20 @@ hdd_sched_scan_callback(void *callbackContext,
 	hdd_debug("cfg80211 scan result database updated");
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
+static uint32_t hdd_config_sched_scan_start_delay(
+		struct cfg80211_sched_scan_request *request)
+{
+	return request->delay;
+}
+#else
+static uint32_t hdd_config_sched_scan_start_delay(
+		struct cfg80211_sched_scan_request *request)
+{
+	return 0;
+}
+#endif
+
 #if ((LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)) || \
 	defined(CFG80211_MULTI_SCAN_PLAN_BACKPORT)) && \
 	defined(FEATURE_WLAN_SCAN_PNO)
@@ -2737,7 +2751,6 @@ static void hdd_config_sched_scan_plan(tpSirPNOScanReq pno_req,
 			       struct cfg80211_sched_scan_request *request,
 			       hdd_context_t *hdd_ctx)
 {
-	pno_req->delay_start_time = request->delay;
 	/*
 	 * As of now max 2 scan plans were supported by firmware
 	 * if number of scan plan supported by firmware increased below logic
@@ -3056,6 +3069,8 @@ static int __wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
 	 *   shall be in slow_scan_period mode until next PNO Start.
 	 */
 	hdd_config_sched_scan_plan(pPnoRequest, request, pHddCtx);
+	pPnoRequest->delay_start_time =
+		hdd_config_sched_scan_start_delay(request);
 	wlan_hdd_sched_scan_update_relative_rssi(pPnoRequest, request);
 
 	hdd_debug("Base scan interval: %d sec PNOScanTimerRepeatValue: %d",

@@ -3766,4 +3766,13 @@ void hdd_process_defer_disconnect(hdd_adapter_t *adapter);
  * Return: 0 for success, non-zero for failure
  */
 int wlan_hdd_try_disconnect(hdd_adapter_t *adapter);
+
+/**
+ * hdd_bt_activity_cb() - callback function to receive bt activity
+ * @context: HDD context
+ * @bt_activity: specifies the kind of bt activity
+ *
+ * Return: none
+ */
+void hdd_bt_activity_cb(void *context, uint32_t bt_activity);
 #endif

@@ -1694,6 +1694,8 @@ struct hdd_context_s {
 	struct vendor_oui *probe_req_voui;
 	struct hdd_nud_stats_context nud_stats_context;
 	uint32_t track_arp_ip;
+	uint8_t bt_a2dp_active:1;
+	uint8_t bt_vo_active:1;
 };
 
 /*---------------------------------------------------------------------------

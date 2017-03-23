@@ -1531,6 +1531,16 @@ void sme_set_5g_band_pref(tHalHandle hal_handle,
 			  struct sme_5g_band_pref_params *pref_params);
 
 /**
+ * sme_set_bt_activity_info_cb - set the callback handler for bt events
+ * @hal: handle returned by mac_open
+ * @cb: callback handler
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS sme_set_bt_activity_info_cb(tHalHandle hal,
+				void (*cb)(void *, uint32_t profile_info));
+
+/**
  * sme_scan_get_result_for_bssid - gets the scan result from scan cache for the
  *	bssid specified
  * @hal: handle returned by mac_open

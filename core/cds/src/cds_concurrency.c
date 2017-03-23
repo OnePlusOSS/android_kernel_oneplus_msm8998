@@ -3083,7 +3083,7 @@ static void cds_dump_current_concurrency(void)
 	case 1:
 		cds_dump_current_concurrency_one_connection(cc_mode,
 					sizeof(cc_mode));
-		cds_err("%s Standalone", cc_mode);
+		cds_notice("%s Standalone", cc_mode);
 		break;
 	case 2:
 		count = cds_dump_current_concurrency_two_connection(
@@ -3098,7 +3098,7 @@ static void cds_dump_current_concurrency(void)
 		} else
 			strlcat(cc_mode, " DBS", sizeof(cc_mode));
 		qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
-		cds_err("%s", cc_mode);
+		cds_notice("%s", cc_mode);
 		break;
 	case 3:
 		count = cds_dump_current_concurrency_three_connection(
@@ -3122,7 +3122,7 @@ static void cds_dump_current_concurrency(void)
 			qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 			cds_dump_dbs_concurrency(cc_mode, sizeof(cc_mode));
 		}
-		cds_err("%s", cc_mode);
+		cds_notice("%s", cc_mode);
 		break;
 	default:
 		cds_err("unexpected num_connections value %d",
@@ -4795,7 +4795,7 @@ void cds_update_with_safe_channel_list(uint8_t *pcl_channels, uint32_t *len,
 				     sizeof(unsafe_channel_list));
 
 	if (unsafe_channel_count == 0)
-		cds_notice("There are no unsafe channels");
+		cds_debug("There are no unsafe channels");
 
 	if (unsafe_channel_count) {
 		qdf_mem_copy(current_channel_list, pcl_channels,

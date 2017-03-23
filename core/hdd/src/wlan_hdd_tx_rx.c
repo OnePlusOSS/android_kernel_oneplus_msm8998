@@ -286,7 +286,7 @@ void hdd_get_tx_resource(hdd_adapter_t *adapter,
  *
  * Return: pointer to skb structure
  */
-static struct sk_buff *hdd_skb_orphan(hdd_adapter_t *pAdapter,
+static inline struct sk_buff *hdd_skb_orphan(hdd_adapter_t *pAdapter,
 		struct sk_buff *skb) {
 
 	struct sk_buff *nskb;
@@ -443,11 +443,12 @@ static int __hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
 	bool granted;
 	uint8_t STAId;
+	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(pAdapter);
 	hdd_station_ctx_t *pHddStaCtx = &pAdapter->sessionCtx.station;
 #ifdef QCA_PKT_PROTO_TRACE
 	uint8_t proto_type = 0;
-	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(pAdapter);
 #endif /* QCA_PKT_PROTO_TRACE */
+	bool is_arp;
 
 #ifdef QCA_WIFI_FTM
 	if (hdd_get_conparam() == QDF_GLOBAL_FTM_MODE) {
@@ -456,20 +457,31 @@ static int __hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 #endif
 
+	wlan_hdd_classify_pkt(skb);
+
 	++pAdapter->hdd_stats.hddTxRxStats.txXmitCalled;
+
+	if (QDF_NBUF_CB_GET_PACKET_TYPE(skb) == QDF_NBUF_CB_PACKET_TYPE_ARP) {
+		is_arp = true;
+		if (qdf_nbuf_data_is_arp_req(skb) &&
+		    (hdd_ctx->track_arp_ip == qdf_nbuf_get_arp_tgt_ip(skb))) {
+			++pAdapter->hdd_stats.hdd_arp_stats.tx_arp_req_count;
+			QDF_TRACE(QDF_MODULE_ID_HDD_DATA, LOG1,
+					"%s : ARP packet", __func__);
+		}
+	}
+
 	if (cds_is_driver_recovering()) {
 		QDF_TRACE(QDF_MODULE_ID_HDD_DATA, QDF_TRACE_LEVEL_WARN,
 			"Recovery in progress, dropping the packet");
 		goto drop_pkt;
 	}
 
-	wlan_hdd_classify_pkt(skb);
-
 	STAId = HDD_WLAN_INVALID_STA_ID;
 
 	hdd_get_transmit_sta_id(pAdapter, skb, &STAId);
 	if (STAId >= WLAN_MAX_STA_COUNT) {
-		QDF_TRACE(QDF_MODULE_ID_HDD_DATA, QDF_TRACE_LEVEL_ERROR,
+		QDF_TRACE(QDF_MODULE_ID_HDD_DATA, QDF_TRACE_LEVEL_INFO,
 			  "Invalid station id, transmit operation suspended");
 		goto drop_pkt;
 	}
@@ -652,6 +664,7 @@ static int __hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		++pAdapter->hdd_stats.hddTxRxStats.txXmitDroppedAC[ac];
 		goto drop_pkt;
 	}
+
 	netif_trans_update(dev);
 
 	return NETDEV_TX_OK;
@@ -675,6 +688,11 @@ drop_pkt_accounting:
 
 	++pAdapter->stats.tx_dropped;
 	++pAdapter->hdd_stats.hddTxRxStats.txXmitDropped;
+	if (is_arp) {
+		++pAdapter->hdd_stats.hdd_arp_stats.tx_dropped;
+		QDF_TRACE(QDF_MODULE_ID_HDD_DATA, LOGE,
+			"%s : ARP packet dropped", __func__);
+	}
 
 	return NETDEV_TX_OK;
 }
@@ -969,6 +987,66 @@ static bool hdd_is_mcast_replay(struct sk_buff *skb)
 }
 
 /**
+ * hdd_get_arp_src_ip() - get ARP packet src IP address
+ * @skb: pointer to sk_buff
+ *
+ * Return: return src IP address field value of ARP packet.
+ */
+static uint32_t hdd_get_arp_src_ip(struct sk_buff *skb)
+{
+	struct arphdr *arp;
+	unsigned char *arp_ptr;
+	uint32_t src_ip;
+
+	arp = (struct arphdr *)skb->data;
+	arp_ptr = (unsigned char *)(arp + 1);
+	arp_ptr += skb->dev->addr_len;
+
+	memcpy(&src_ip, arp_ptr, QDF_IPV4_ADDR_SIZE);
+
+	return src_ip;
+}
+
+/**
+ * hdd_is_duplicate_ip_arp() - duplicate address detection
+ * @skb: pointer to sk_buff
+ *
+ * Return: true if duplicate address detected or false otherwise.
+ */
+static bool hdd_is_duplicate_ip_arp(struct sk_buff *skb)
+{
+	struct in_ifaddr **ifap = NULL;
+	struct in_ifaddr *ifa = NULL;
+	struct in_device *in_dev;
+	uint32_t arp_ip, if_ip;
+
+	if (NULL == skb)
+		return false;
+
+	arp_ip = hdd_get_arp_src_ip(skb);
+
+	if (!skb->dev)
+		return false;
+
+	in_dev = __in_dev_get_rtnl(skb->dev);
+	if (in_dev) {
+		for (ifap = &in_dev->ifa_list; (ifa = *ifap) != NULL;
+			ifap = &ifa->ifa_next) {
+			if (!strcmp(skb->dev->name, ifa->ifa_label))
+				break;
+		}
+	}
+
+	if (ifa && ifa->ifa_local) {
+		if_ip = ifa->ifa_local;
+		if (if_ip == arp_ip)
+			return true;
+	}
+
+	return false;
+}
+
+/**
 * hdd_is_arp_local() - check if local or non local arp
 * @skb: pointer to sk_buff
 *
@@ -1045,6 +1123,8 @@ QDF_STATUS hdd_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 	hdd_station_ctx_t *pHddStaCtx = NULL;
 	unsigned int cpu_index;
 	bool wake_lock = false;
+	bool is_arp = false;
+	bool track_arp = false;
 
 	/* Sanity check on inputs */
 	if (unlikely((NULL == context) || (NULL == rxBuf))) {
@@ -1071,6 +1151,17 @@ QDF_STATUS hdd_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 	cpu_index = wlan_hdd_get_cpu();
 
 	skb = (struct sk_buff *)rxBuf;
+
+	if (QDF_NBUF_CB_PACKET_TYPE_ARP == QDF_NBUF_CB_GET_PACKET_TYPE(skb)) {
+		is_arp = true;
+		if (qdf_nbuf_data_is_arp_rsp(skb) &&
+		    (pHddCtx->track_arp_ip == qdf_nbuf_get_arp_src_ip(skb))) {
+			++pAdapter->hdd_stats.hdd_arp_stats.rx_arp_rsp_count;
+			QDF_TRACE(QDF_MODULE_ID_HDD_DATA, QDF_TRACE_LEVEL_INFO,
+					"%s: ARP packet received", __func__);
+			track_arp = true;
+		}
+	}
 
 	pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
 	if ((pHddStaCtx->conn_info.proxyARPService) &&
@@ -1105,6 +1196,13 @@ QDF_STATUS hdd_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 	++pAdapter->hdd_stats.hddTxRxStats.rxPackets[cpu_index];
 	++pAdapter->stats.rx_packets;
 	pAdapter->stats.rx_bytes += skb->len;
+
+	if (is_arp) {
+		pAdapter->dad |= hdd_is_duplicate_ip_arp(skb);
+		if (pAdapter->dad)
+			QDF_TRACE(QDF_MODULE_ID_HDD_DATA, QDF_TRACE_LEVEL_ERROR,
+				"%s: Duplicate IP detected", __func__);
+	}
 
 	/* Check & drop replayed mcast packets (for IPV6) */
 	if (pHddCtx->config->multicast_replay_filter &&
@@ -1142,12 +1240,19 @@ QDF_STATUS hdd_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 		else
 			rxstat = netif_rx_ni(skb);
 
-		if (NET_RX_SUCCESS == rxstat)
+		if (NET_RX_SUCCESS == rxstat) {
 			++pAdapter->hdd_stats.hddTxRxStats.
 				 rxDelivered[cpu_index];
-		else
+			if (track_arp)
+				++pAdapter->hdd_stats.hdd_arp_stats.
+						rx_delivered;
+		} else {
 			++pAdapter->hdd_stats.hddTxRxStats.
-				 rxRefused[cpu_index];
+				rxRefused[cpu_index];
+			if (track_arp)
+				++pAdapter->hdd_stats.hdd_arp_stats.
+						rx_refused;
+		}
 
 	} else {
 		++pAdapter->hdd_stats.hddTxRxStats.

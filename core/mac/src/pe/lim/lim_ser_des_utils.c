@@ -102,10 +102,6 @@ tSirRetStatus lim_send_disassoc_frm_req_ser_des(tpAniSirGlobal mac_ctx,
 	len = disassoc_frm_req->length = lim_get_u16(buf);
 	buf += sizeof(A_UINT16);
 
-	lim_log(mac_ctx, LOGD,
-		FL("SME_DISASSOC_REQ length %d bytes is:"), len);
-	sir_dump_buf(mac_ctx, SIR_LIM_MODULE_ID, LOGD, buf, len);
-
 	if (len < (A_INT16) sizeof(A_UINT32))
 		return eSIR_FAILURE;
 

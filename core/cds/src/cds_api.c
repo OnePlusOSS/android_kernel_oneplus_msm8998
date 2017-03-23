@@ -524,7 +524,7 @@ QDF_STATUS cds_pre_enable(v_CONTEXT_t cds_context)
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
 	p_cds_contextType p_cds_context = (p_cds_contextType) cds_context;
 	void *scn;
-	QDF_TRACE(QDF_MODULE_ID_SYS, QDF_TRACE_LEVEL_INFO, "cds prestart");
+	QDF_TRACE(QDF_MODULE_ID_SYS, QDF_TRACE_LEVEL_DEBUG, "cds prestart");
 
 	if (gp_cds_context != p_cds_context) {
 		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
@@ -642,9 +642,6 @@ QDF_STATUS cds_enable(v_CONTEXT_t cds_context)
 	p_cds_contextType p_cds_context = (p_cds_contextType) cds_context;
 	tHalMacStartParameters halStartParams;
 
-	QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_INFO,
-		  "%s: Starting Libra SW", __func__);
-
 	/* We support only one instance for now ... */
 	if (gp_cds_context != p_cds_context) {
 		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
@@ -710,8 +707,6 @@ QDF_STATUS cds_enable(v_CONTEXT_t cds_context)
 	   goto err_sme_stop;
 	}
 
-	QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_INFO,
-		  "TL correctly started");
 	QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_INFO,
 		  "%s: CDS Start is successful!!", __func__);
 
@@ -2542,4 +2537,90 @@ QDF_STATUS cds_deregister_dp_cb(void)
 	cds_ctx->hdd_set_rx_mode_rps_cb = NULL;
 
 	return QDF_STATUS_SUCCESS;
+}
+
+/**
+ * cds_get_arp_stats_gw_ip() - get arp stats track IP
+ *
+ * Return: ARP stats IP to track
+ */
+uint32_t cds_get_arp_stats_gw_ip(void)
+{
+	hdd_context_t *hdd_ctx;
+
+	hdd_ctx = (hdd_context_t *) (gp_cds_context->pHDDContext);
+	if (!hdd_ctx) {
+		cds_err("Hdd Context is Null");
+		return 0;
+	}
+
+	return hdd_ctx->track_arp_ip;
+}
+
+/**
+ * cds_incr_arp_stats_tx_tgt_delivered() - increment ARP stats
+ *
+ * Return: none
+ */
+void cds_incr_arp_stats_tx_tgt_delivered(void)
+{
+	hdd_context_t *hdd_ctx;
+	hdd_adapter_list_node_t *adapter_node = NULL, *next = NULL;
+	hdd_adapter_t *adapter = NULL;
+	QDF_STATUS status;
+
+	hdd_ctx = (hdd_context_t *) (gp_cds_context->pHDDContext);
+	if (!hdd_ctx) {
+		cds_err("Hdd Context is Null");
+		return;
+	}
+
+	status = hdd_get_front_adapter(hdd_ctx, &adapter_node);
+
+	while (NULL != adapter_node && QDF_STATUS_SUCCESS == status) {
+		adapter = adapter_node->pAdapter;
+
+		if (QDF_STA_MODE == adapter->device_mode)
+			break;
+
+		status = hdd_get_next_adapter(hdd_ctx, adapter_node, &next);
+		adapter_node = next;
+	}
+
+	if (adapter)
+		adapter->hdd_stats.hdd_arp_stats.tx_host_fw_sent++;
+}
+
+/**
+ * cds_incr_arp_stats_tx_tgt_acked() - increment ARP stats
+ *
+ * Return: none
+ */
+void cds_incr_arp_stats_tx_tgt_acked(void)
+{
+	hdd_context_t *hdd_ctx;
+	hdd_adapter_list_node_t *adapter_node = NULL, *next = NULL;
+	hdd_adapter_t *adapter = NULL;
+	QDF_STATUS status;
+
+	hdd_ctx = (hdd_context_t *) (gp_cds_context->pHDDContext);
+	if (!hdd_ctx) {
+		cds_err("Hdd Context is Null");
+		return;
+	}
+
+	status = hdd_get_front_adapter(hdd_ctx, &adapter_node);
+
+	while (NULL != adapter_node && QDF_STATUS_SUCCESS == status) {
+		adapter = adapter_node->pAdapter;
+
+		if (QDF_STA_MODE == adapter->device_mode)
+			break;
+
+		status = hdd_get_next_adapter(hdd_ctx, adapter_node, &next);
+		adapter_node = next;
+	}
+
+	if (adapter)
+		adapter->hdd_stats.hdd_arp_stats.tx_ack_cnt++;
 }

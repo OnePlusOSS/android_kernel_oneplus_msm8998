@@ -5251,6 +5251,9 @@ typedef struct {
 	/* tx time (in milliseconds) per TPC level (0.5 dBm) */
 	uint32_t tx_time_per_tpc[MAX_TPC_LEVELS];
 
+	uint32_t on_time_host_scan;
+	uint32_t on_time_lpi_scan;
+
 	/* channel statistics tSirWifiChannelStats */
 	tSirWifiChannelStats *channels;
 } tSirWifiRadioStat, *tpSirWifiRadioStat;
@@ -5310,6 +5313,22 @@ typedef struct {
 	/* per rate statistics, number of entries  = num_rate */
 	tSirWifiRateStat rateStats[0];
 } tSirWifiPeerInfo, *tpSirWifiPeerInfo;
+
+/**
+ * struct wifi_iface_offload_stat - Wifi Iface offload statistics
+ * @type: type of offload stats (enum wmi_offload_stats_type)
+ * @rx_count: Number of (MSDUs) frames Received
+ * @drp_count: Number of frames Dropped
+ * @fwd_count:
+ *  Number of frames for which FW Responded (Valid for ARP and NS only).(or)
+ *  Number of frames forwarded to Host (Valid for stats type except ARP and NS).
+ */
+struct wifi_iface_offload_stat {
+	wmi_offload_stats_type type;
+	uint32_t rx_count;
+	uint32_t drp_count;
+	uint32_t fwd_count;
+};
 
 /* per access category statistics */
 typedef struct {
@@ -5405,8 +5424,27 @@ typedef struct {
 	 *  a data frame with PM bit set.
 	 */
 	uint32_t rx_leak_window;
+
+	uint32_t tx_rts_succ_cnt;
+	uint32_t tx_rts_fail_cnt;
+	uint32_t tx_ppdu_succ_cnt;
+	uint32_t tx_ppdu_fail_cnt;
+	uint32_t connected_duration;
+	uint32_t disconnected_duration;
+	uint32_t rtt_ranging_duration;
+	uint32_t rtt_responder_duration;
+	uint32_t num_probes_tx;
+	uint32_t num_beacon_miss;
+
+	uint32_t rts_succ_cnt;
+	uint32_t rts_fail_cnt;
+	uint32_t ppdu_succ_cnt;
+	uint32_t ppdu_fail_cnt;
 	/* per ac data packet statistics */
 	tSirWifiWmmAcStat AccessclassStats[WIFI_AC_MAX];
+
+	uint32_t num_offload_stats;
+	struct wifi_iface_offload_stat offload_stat[WMI_OFFLOAD_STATS_TYPE_MAX];
 } tSirWifiIfaceStat, *tpSirWifiIfaceStat;
 
 /* Peer statistics - corresponding to 3rd most LSB in
@@ -6544,6 +6582,28 @@ struct ndp_pmk {
 };
 
 /**
+ * struct ndp_passphrase - structure to hold passphrase
+ * @passphrase_len: length of passphrase
+ * @passphrase: buffer containing passphrase
+ *
+ */
+struct ndp_passphrase {
+	uint32_t passphrase_len;
+	uint8_t *passphrase;
+};
+
+/**
+ * struct ndp_service_name - structure to hold service_name
+ * @service_name_len: length of service_name
+ * @service_name: buffer containing service_name
+ *
+ */
+struct ndp_service_name {
+	uint32_t service_name_len;
+	uint8_t *service_name;
+};
+
+/**
  * struct ndi_create_req - ndi create request params
  * @transaction_id: unique identifier
  * @iface_name: interface name
@@ -6604,6 +6664,8 @@ struct ndp_initiator_req {
 	struct ndp_app_info ndp_info;
 	uint32_t ncs_sk_type;
 	struct ndp_pmk pmk;
+	struct ndp_passphrase passphrase;
+	struct ndp_service_name service_name;
 };
 
 /**
@@ -6674,6 +6736,8 @@ struct ndp_responder_req {
 	struct ndp_app_info ndp_info;
 	struct ndp_pmk pmk;
 	uint32_t ncs_sk_type;
+	struct ndp_passphrase passphrase;
+	struct ndp_service_name service_name;
 };
 
 /**

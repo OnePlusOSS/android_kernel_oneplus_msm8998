@@ -215,7 +215,7 @@ static inline struct sk_buff *hdd_skb_orphan(hdd_adapter_t *pAdapter,
  *
  * Return: pointer to skb structure
  */
-static struct sk_buff *hdd_skb_orphan(hdd_adapter_t *pAdapter,
+static inline struct sk_buff *hdd_skb_orphan(hdd_adapter_t *pAdapter,
 		struct sk_buff *skb) {
 
 	struct sk_buff *nskb;
@@ -317,6 +317,13 @@ static int __hdd_softap_hard_start_xmit(struct sk_buff *skb,
 			QDF_TRACE(QDF_MODULE_ID_HDD_SAP_DATA,
 				  QDF_TRACE_LEVEL_WARN,
 				  "%s: STA %d is unregistered", __func__,
+				  STAId);
+			goto drop_pkt;
+		} else if (true == pAdapter->aStaInfo[STAId].
+							isDeauthInProgress) {
+			QDF_TRACE(QDF_MODULE_ID_HDD_SAP_DATA,
+				  QDF_TRACE_LEVEL_WARN,
+				  "%s: STA %d deauth in progress", __func__,
 				  STAId);
 			goto drop_pkt;
 		}

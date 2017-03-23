@@ -1902,6 +1902,15 @@ __wlan_hdd_cfg80211_get_supported_features(struct wiphy *wiphy,
 	if (hdd_link_layer_stats_supported())
 		fset |= WIFI_FEATURE_LINK_LAYER_STATS;
 
+	if (hdd_roaming_supported(pHddCtx))
+		fset |= WIFI_FEATURE_CONTROL_ROAMING;
+
+	if (pHddCtx->config->probe_req_ie_whitelist)
+		fset |= WIFI_FEATURE_IE_WHITELIST;
+
+	if (hdd_scan_random_mac_addr_supported())
+		fset |= WIFI_FEATURE_SCAN_RAND;
+
 	skb = cfg80211_vendor_cmd_alloc_reply_skb(wiphy, sizeof(fset) +
 						  NLMSG_HDRLEN);
 	if (!skb) {
@@ -8632,6 +8641,7 @@ static int __wlan_hdd_cfg80211_set_nud_stats(struct wiphy *wiphy,
 		}
 		arp_stats_params.flag = true;
 		arp_stats_params.ip_addr = nla_get_u32(tb[STATS_GW_IPV4]);
+		hdd_ctx->track_arp_ip = arp_stats_params.ip_addr;
 	} else {
 		arp_stats_params.flag = false;
 	}
@@ -8793,17 +8803,17 @@ static int __wlan_hdd_cfg80211_get_nud_stats(struct wiphy *wiphy,
 	}
 
 	if (nla_put_u16(skb, COUNT_FROM_NETDEV,
-			adapter->hdd_stats.hdd_arp_stats.tx_count) ||
+			adapter->hdd_stats.hdd_arp_stats.tx_arp_req_count) ||
 	    nla_put_u16(skb, COUNT_TO_LOWER_MAC,
 			adapter->hdd_stats.hdd_arp_stats.tx_host_fw_sent) ||
 	    nla_put_u16(skb, RX_COUNT_BY_LOWER_MAC,
-			adapter->hdd_stats.hdd_arp_stats.tx_fw_cnt) ||
+			adapter->hdd_stats.hdd_arp_stats.tx_host_fw_sent) ||
 	    nla_put_u16(skb, COUNT_TX_SUCCESS,
 			adapter->hdd_stats.hdd_arp_stats.tx_ack_cnt) ||
 	    nla_put_u16(skb, RSP_RX_COUNT_BY_LOWER_MAC,
 			adapter->hdd_stats.hdd_arp_stats.rx_fw_cnt) ||
 	    nla_put_u16(skb, RSP_RX_COUNT_BY_UPPER_MAC,
-			adapter->hdd_stats.hdd_arp_stats.rx_count) ||
+			adapter->hdd_stats.hdd_arp_stats.rx_arp_rsp_count) ||
 	    nla_put_u16(skb, RSP_COUNT_TO_NETDEV,
 			adapter->hdd_stats.hdd_arp_stats.rx_delivered) ||
 	    nla_put_u16(skb, RSP_COUNT_OUT_OF_ORDER_DROP,
@@ -8818,6 +8828,7 @@ static int __wlan_hdd_cfg80211_get_nud_stats(struct wiphy *wiphy,
 	if (adapter->dad)
 		nla_put_flag(skb, AP_LINK_DAD);
 
+	hdd_ctx->track_arp_ip = 0;
 	cfg80211_vendor_cmd_reply(skb);
 	return err;
 }
@@ -8858,6 +8869,516 @@ static int wlan_hdd_cfg80211_get_nud_stats(struct wiphy *wiphy,
 #undef QCA_ATTR_NUD_STATS_ARP_RSP_COUNT_OUT_OF_ORDER_DROP
 #undef QCA_ATTR_NUD_STATS_AP_LINK_ACTIVE
 #undef QCA_ATTR_NUD_STATS_GET_MAX
+
+void hdd_bt_activity_cb(void *context, uint32_t bt_activity)
+{
+	hdd_context_t *hdd_ctx = (hdd_context_t *)context;
+	int status;
+
+	status = wlan_hdd_validate_context(hdd_ctx);
+	if (0 != status)
+		return;
+
+	if (bt_activity == WLAN_COEX_EVENT_BT_A2DP_PROFILE_ADD)
+		hdd_ctx->bt_a2dp_active = 1;
+	else if (bt_activity == WLAN_COEX_EVENT_BT_A2DP_PROFILE_REMOVE)
+		hdd_ctx->bt_a2dp_active = 0;
+	else if (bt_activity == WLAN_COEX_EVENT_BT_VOICE_PROFILE_ADD)
+		hdd_ctx->bt_vo_active = 1;
+	else if (bt_activity == WLAN_COEX_EVENT_BT_VOICE_PROFILE_REMOVE)
+		hdd_ctx->bt_vo_active = 0;
+	else
+		return;
+
+	hdd_info("a2dp_active:%d vo_active:%d", hdd_ctx->bt_a2dp_active,
+		 hdd_ctx->bt_vo_active);
+}
+
+/**
+ * wlan_hdd_is_bt_in_progress() - check if bt activity is in progress
+ * @hdd_ctx : HDD context
+ *
+ * Return: true if BT activity is in progress else false
+ */
+static inline bool wlan_hdd_is_bt_in_progress(hdd_context_t *hdd_ctx)
+{
+	if (hdd_ctx->bt_a2dp_active || hdd_ctx->bt_vo_active)
+		return true;
+
+	return false;
+}
+
+#ifdef FEATURE_WLAN_CH_AVOID
+/**
+ * wlan_hdd_is_channel_to_avoid() - Check channel to avoid
+ * @hdd_ctx : HDD contex
+ * @channel_id : channel to check
+ *
+ * This fuction checks if channel is unsafe to use. Unsafe channel here are
+ * LTE-Coex channels.
+ *
+ * Return : true if channel is unsafe to use else false.
+ */
+static bool wlan_hdd_is_channel_to_avoid(hdd_context_t *hdd_ctx,
+					 uint16_t channel_id)
+{
+	uint16_t cnt;
+
+	for (cnt = 0; cnt < hdd_ctx->unsafe_channel_count; cnt++)
+		if (channel_id == hdd_ctx->unsafe_channel_list[cnt])
+			return true;
+
+	/* No matching channel */
+	return false;
+}
+#else
+static bool wlan_hdd_is_channel_to_avoid(hdd_context_t *hdd_ctx,
+					 uint16_t channel_id)
+{
+	return false;
+}
+#endif
+
+/**
+ * wlan_hdd_is_mcc_channel() - check if using the channel results into MCC
+ * @adapter : pointer to adapter
+ * @channel : channel number to check for MCC scenario
+ *
+ * Return : true if channel causes MCC, else false
+ */
+static bool wlan_hdd_is_mcc_channel(hdd_adapter_t *adapter, uint8_t channel)
+{
+	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+	hdd_adapter_list_node_t *adapter_node = NULL, *next = NULL;
+	hdd_adapter_t *p_adapter;
+	hdd_station_ctx_t *sta_ctx;
+	hdd_ap_ctx_t *ap_ctx;
+	hdd_hostapd_state_t *hostapd_state;
+	QDF_STATUS status;
+	uint8_t oper_channel = 0;
+
+	if (channel == 0)
+		return false;
+
+	status = hdd_get_front_adapter(hdd_ctx, &adapter_node);
+	while (QDF_STATUS_SUCCESS == status && NULL != adapter_node) {
+		p_adapter = adapter_node->pAdapter;
+
+		if (p_adapter && p_adapter != adapter) {
+			if (QDF_STA_MODE == p_adapter->device_mode ||
+			    QDF_P2P_CLIENT_MODE == p_adapter->device_mode) {
+				sta_ctx =
+					WLAN_HDD_GET_STATION_CTX_PTR(p_adapter);
+				if (eConnectionState_Associated ==
+					sta_ctx->conn_info.connState)
+					oper_channel =
+					    sta_ctx->conn_info.operationChannel;
+			} else if (QDF_P2P_GO_MODE == p_adapter->device_mode ||
+				   QDF_SAP_MODE == p_adapter->device_mode) {
+				ap_ctx = WLAN_HDD_GET_AP_CTX_PTR(p_adapter);
+				hostapd_state =
+				      WLAN_HDD_GET_HOSTAP_STATE_PTR(p_adapter);
+				if (hostapd_state->bssState == BSS_START &&
+				    hostapd_state->qdf_status ==
+							QDF_STATUS_SUCCESS)
+					oper_channel = ap_ctx->operatingChannel;
+			}
+
+			if (oper_channel && channel != oper_channel &&
+			    (!wma_is_hw_dbs_capable() ||
+			     CDS_IS_SAME_BAND_CHANNELS(channel, oper_channel)))
+				return true;
+		}
+
+		status = hdd_get_next_adapter(hdd_ctx, adapter_node, &next);
+		adapter_node = next;
+	}
+
+	return false;
+}
+
+/**
+ * wlan_hdd_get_status_for_candidate() - Get bss transition status for candidate
+ * @adapter : pointer to adapter
+ * @conn_bss_desc : connected bss descriptor
+ * @bss_desc : candidate bss descriptor
+ * @info : candiadate bss information
+ * @trans_reason : transition reason code
+ *
+ * Return : true if candidate is rejected and reject reason is filled
+ * @info->status. Otherwise returns false.
+ */
+static bool wlan_hdd_get_status_for_candidate(hdd_adapter_t *adapter,
+					      tSirBssDescription *conn_bss_desc,
+					      tSirBssDescription *bss_desc,
+					      struct bss_candidate_info *info,
+					      uint8_t trans_reason)
+{
+	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+
+	/* Low RSSI based rejection
+	 * If candidate rssi is less than mbo_candidate_rssi_thres and connected
+	 * bss rssi is greater than mbo_current_rssi_thres, then reject the
+	 * candidate with MBO reason code 4.
+	 */
+	if (bss_desc->rssi < hdd_ctx->config->mbo_candidate_rssi_thres &&
+	    conn_bss_desc->rssi > hdd_ctx->config->mbo_current_rssi_thres) {
+		hdd_err("Candidate BSS "MAC_ADDRESS_STR" has LOW RSSI(%d), hence reject",
+			MAC_ADDR_ARRAY(bss_desc->bssId), bss_desc->rssi);
+		info->status = QCA_STATUS_REJECT_LOW_RSSI;
+		return true;
+	}
+
+	if (trans_reason == MBO_TRANSITION_REASON_LOAD_BALANCING ||
+	    trans_reason == MBO_TRANSITION_REASON_TRANSITIONING_TO_PREMIUM_AP) {
+		/* MCC rejection
+		 * If moving to candidate's channel will result in MCC scenario
+		 * and the rssi of connected bss is greater than
+		 * mbo_current_rssi_mss_thres, then reject the candidate with
+		 * MBO reason code 3.
+		 */
+		if ((conn_bss_desc->rssi >
+				hdd_ctx->config->mbo_current_rssi_mcc_thres) &&
+		    wlan_hdd_is_mcc_channel(adapter, bss_desc->channelId)) {
+			hdd_err("Candidate BSS "MAC_ADDRESS_STR" causes MCC, hence reject",
+				MAC_ADDR_ARRAY(bss_desc->bssId));
+			info->status =
+				QCA_STATUS_REJECT_INSUFFICIENT_QOS_CAPACITY;
+			return true;
+		}
+
+		/* BT coex rejection
+		 * If AP is trying to move the client from 5G to 2.4G and moving
+		 * to 2.4G will result in BT coex and candidate channel rssi is
+		 * less than mbo_candidate_rssi_btc_thres, then reject the
+		 * candidate with MBO reason code 2.
+		 */
+		if (CDS_IS_CHANNEL_5GHZ(conn_bss_desc->channelId) &&
+		    CDS_IS_CHANNEL_24GHZ(bss_desc->channelId) &&
+		    wlan_hdd_is_bt_in_progress(hdd_ctx) &&
+		    (bss_desc->rssi <
+			       hdd_ctx->config->mbo_candidate_rssi_btc_thres)) {
+			hdd_err("Candidate BSS "MAC_ADDRESS_STR" causes BT coex, hence reject",
+				MAC_ADDR_ARRAY(bss_desc->bssId));
+			info->status =
+				QCA_STATUS_REJECT_EXCESSIVE_DELAY_EXPECTED;
+			return true;
+		}
+
+		/* LTE coex rejection
+		 * If moving to candidate's channel can cause LTE coex, then
+		 * reject the candidate with MBO reason code 5.
+		 */
+		if (!wlan_hdd_is_channel_to_avoid(hdd_ctx,
+						  conn_bss_desc->channelId) &&
+		    wlan_hdd_is_channel_to_avoid(hdd_ctx,
+						 bss_desc->channelId)) {
+			hdd_err("High interference expected if transitioned to BSS "
+				MAC_ADDRESS_STR" hence reject",
+				MAC_ADDR_ARRAY(bss_desc->bssId));
+			info->status =
+				QCA_STATUS_REJECT_HIGH_INTERFERENCE;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+/**
+ * wlan_hdd_get_bss_transition_status() - get bss transition status all
+ *	cadidates
+ * @adapter : Pointer to adapter
+ * @transition_reason : Transition reason
+ * @info : bss candidate information
+ * @n_candidates : number of candidates
+ *
+ * Return : 0 on success otherwise errno
+ */
+static int wlan_hdd_get_bss_transition_status(hdd_adapter_t *adapter,
+					      uint8_t transition_reason,
+					      struct bss_candidate_info *info,
+					      uint16_t n_candidates)
+{
+	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+	hdd_station_ctx_t *hdd_sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
+	tSirBssDescription *bss_desc, *conn_bss_desc;
+	tCsrScanResultInfo *res, *conn_res;
+	uint16_t i;
+
+	if (!n_candidates || !info) {
+		hdd_err("No candidate info available");
+		return -EINVAL;
+	}
+
+	/* Get the connected BSS descriptor */
+	conn_res = sme_scan_get_result_for_bssid(hdd_ctx->hHal,
+						 &hdd_sta_ctx->conn_info.bssId);
+	if (!conn_res) {
+		hdd_err("Failed to find connected BSS in scan list");
+		return -EINVAL;
+	}
+	conn_bss_desc = &conn_res->BssDescriptor;
+
+	for (i = 0; i < n_candidates; i++) {
+		/* Get candidate BSS descriptors */
+		res = sme_scan_get_result_for_bssid(hdd_ctx->hHal,
+						    &info[i].bssid);
+		if (!res) {
+			hdd_err("BSS "MAC_ADDRESS_STR" not present in scan list",
+				MAC_ADDR_ARRAY(info[i].bssid.bytes));
+			info[i].status = QCA_STATUS_REJECT_UNKNOWN;
+			continue;
+		}
+
+		bss_desc = &res->BssDescriptor;
+
+		if (!wlan_hdd_get_status_for_candidate(adapter, conn_bss_desc,
+						       bss_desc, &info[i],
+						       transition_reason)) {
+			/* If status is not over written, it means it is a
+			 * candidate for accept.
+			 */
+			info[i].status = QCA_STATUS_ACCEPT;
+		}
+
+		qdf_mem_free(res->pvIes);
+		qdf_mem_free(res);
+	}
+
+	/* free allocated memory */
+	qdf_mem_free(conn_res->pvIes);
+	qdf_mem_free(conn_res);
+
+	/* success */
+	return 0;
+}
+
+/**
+ * wlan_hdd_fill_btm_resp() - Fill bss candidate response buffer
+ * @reply_skb : pointer to reply_skb
+ * @info : bss candidate information
+ * @index : attribute type index for nla_next_start()
+ *
+ * Return : 0 on success and errno on failure
+ */
+static int wlan_hdd_fill_btm_resp(struct sk_buff *reply_skb,
+				  struct bss_candidate_info *info,
+				  int index)
+{
+	struct nlattr *attr;
+
+	attr = nla_nest_start(reply_skb, index);
+	if (!attr) {
+		hdd_err("nla_nest_start failed");
+		kfree_skb(reply_skb);
+		return -EINVAL;
+	}
+
+	if (nla_put(reply_skb,
+		  QCA_WLAN_VENDOR_ATTR_BTM_CANDIDATE_INFO_BSSID,
+		  ETH_ALEN, info->bssid.bytes) ||
+	    nla_put_u32(reply_skb,
+		 QCA_WLAN_VENDOR_ATTR_BTM_CANDIDATE_INFO_STATUS,
+		 info->status)) {
+		hdd_err("nla_put failed");
+		kfree_skb(reply_skb);
+		return -EINVAL;
+	}
+
+	nla_nest_end(reply_skb, attr);
+
+	return 0;
+}
+
+/**
+ * __wlan_hdd_cfg80211_fetch_bss_transition_status () - fetch bss transition
+ *							status
+ * @wiphy : WIPHY structure pointer
+ * @wdev : Wireless device structure pointer
+ * @data : Pointer to the data received
+ * @data_len : Length of the data received
+ *
+ * This fuction is used to fetch transition status for candidate bss. The
+ * transition status is either accept or reason for reject.
+ *
+ * Return : 0 on success and errno on failure
+ */
+static int __wlan_hdd_cfg80211_fetch_bss_transition_status(struct wiphy *wiphy,
+						struct wireless_dev *wdev,
+						const void *data, int data_len)
+{
+	struct nlattr *tb[QCA_WLAN_VENDOR_ATTR_MAX + 1];
+	struct nlattr *tb_msg[QCA_WLAN_VENDOR_ATTR_BTM_CANDIDATE_INFO_MAX + 1];
+	uint8_t transition_reason;
+	struct nlattr *attr;
+	struct sk_buff *reply_skb;
+	int rem, j;
+	int ret;
+	struct bss_candidate_info candidate_info[MAX_CANDIDATE_INFO];
+	uint16_t nof_candidates, i = 0;
+	hdd_context_t *hdd_ctx = wiphy_priv(wiphy);
+	struct net_device *dev = wdev->netdev;
+	hdd_adapter_t *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
+	hdd_station_ctx_t *hdd_sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
+	const struct nla_policy
+	btm_params_policy[QCA_WLAN_VENDOR_ATTR_MAX + 1] = {
+		[QCA_WLAN_VENDOR_ATTR_BTM_MBO_TRANSITION_REASON] = {
+							.type = NLA_U8},
+		[QCA_WLAN_VENDOR_ATTR_BTM_CANDIDATE_INFO] = {
+							.type = NLA_NESTED},
+	};
+	const struct nla_policy
+	btm_cand_list_policy[QCA_WLAN_VENDOR_ATTR_BTM_CANDIDATE_INFO_MAX + 1]
+		= {[QCA_WLAN_VENDOR_ATTR_BTM_CANDIDATE_INFO_BSSID] = {
+						.len = QDF_MAC_ADDR_SIZE},
+		   [QCA_WLAN_VENDOR_ATTR_BTM_CANDIDATE_INFO_STATUS] = {
+							.type = NLA_U32},
+		};
+
+	ENTER();
+
+	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
+		hdd_err("Command not allowed in FTM mode");
+		return -EINVAL;
+	}
+
+	ret = wlan_hdd_validate_context(hdd_ctx);
+	if (ret)
+		return ret;
+
+	if (adapter->device_mode != QDF_STA_MODE ||
+	    hdd_sta_ctx->conn_info.connState != eConnectionState_Associated) {
+		hdd_err("Command is either not invoked for STA mode (device mode: %d)"
+			"or STA is not associated (Connection state: %d)",
+			adapter->device_mode, hdd_sta_ctx->conn_info.connState);
+		return -EINVAL;
+	}
+
+	ret = nla_parse(tb, QCA_WLAN_VENDOR_ATTR_MAX, data,
+			data_len, btm_params_policy);
+	if (ret) {
+		hdd_err("Attribute parse failed");
+		return -EINVAL;
+	}
+
+	if (!tb[QCA_WLAN_VENDOR_ATTR_BTM_MBO_TRANSITION_REASON] ||
+	    !tb[QCA_WLAN_VENDOR_ATTR_BTM_CANDIDATE_INFO]) {
+		hdd_err("Missing attributes");
+		return -EINVAL;
+	}
+
+	transition_reason = nla_get_u8(
+			    tb[QCA_WLAN_VENDOR_ATTR_BTM_MBO_TRANSITION_REASON]);
+
+	nla_for_each_nested(attr,
+			    tb[QCA_WLAN_VENDOR_ATTR_BTM_CANDIDATE_INFO],
+			    rem) {
+		ret = nla_parse_nested(
+				tb_msg,
+				QCA_WLAN_VENDOR_ATTR_BTM_CANDIDATE_INFO_MAX,
+				attr, btm_cand_list_policy);
+		if (ret) {
+			hdd_err("Attribute parse failed");
+			return -EINVAL;
+		}
+
+		if (!tb_msg[QCA_WLAN_VENDOR_ATTR_BTM_CANDIDATE_INFO_BSSID]) {
+			hdd_err("Missing BSSID attribute");
+			return -EINVAL;
+		}
+
+		qdf_mem_copy((void *)candidate_info[i].bssid.bytes,
+			     nla_data(tb_msg[
+			     QCA_WLAN_VENDOR_ATTR_BTM_CANDIDATE_INFO_BSSID]),
+			     QDF_MAC_ADDR_SIZE);
+		i++;
+		if (i == MAX_CANDIDATE_INFO)
+			break;
+	}
+
+	/* Determine status for each candidate and fill in the status field.
+	 * Also arrange the candidates in the order of preference.
+	 */
+	nof_candidates = i;
+
+	ret = wlan_hdd_get_bss_transition_status(adapter, transition_reason,
+						 candidate_info,
+						 nof_candidates);
+	if (ret)
+		return -EINVAL;
+
+	/* Prepare the reply and send it to userspace */
+	reply_skb = cfg80211_vendor_cmd_alloc_reply_skb(wiphy,
+			((QDF_MAC_ADDR_SIZE + sizeof(uint32_t)) *
+			 nof_candidates) + NLMSG_HDRLEN);
+	if (!reply_skb) {
+		hdd_err("reply buffer alloc failed");
+		return -ENOMEM;
+	}
+
+	attr = nla_nest_start(reply_skb,
+			      QCA_WLAN_VENDOR_ATTR_BTM_CANDIDATE_INFO);
+	if (!attr) {
+		hdd_err("nla_nest_start failed");
+		kfree_skb(reply_skb);
+		return -EINVAL;
+	}
+
+	/* Order candidates as - accepted candidate list followed by rejected
+	 * candidate list
+	 */
+	for (i = 0, j = 0; i < nof_candidates; i++) {
+		/* copy accepted candidate list */
+		if (candidate_info[i].status == QCA_STATUS_ACCEPT) {
+			if (wlan_hdd_fill_btm_resp(reply_skb,
+						   &candidate_info[i], j))
+				return -EINVAL;
+			j++;
+		}
+	}
+	for (i = 0; i < nof_candidates; i++) {
+		/* copy rejected candidate list */
+		if (candidate_info[i].status != QCA_STATUS_ACCEPT) {
+			if (wlan_hdd_fill_btm_resp(reply_skb,
+						   &candidate_info[i], j))
+				return -EINVAL;
+			j++;
+		}
+	}
+	nla_nest_end(reply_skb, attr);
+
+	EXIT();
+
+	return cfg80211_vendor_cmd_reply(reply_skb);
+}
+
+/**
+ * __wlan_hdd_cfg80211_fetch_bss_transition_status () - fetch bss transition
+ *							status
+ * @wiphy : WIPHY structure pointer
+ * @wdev : Wireless device structure pointer
+ * @data : Pointer to the data received
+ * @data_len : Length of the data received
+ *
+ * This fuction is used to fetch transition status for candidate bss. The
+ * transition status is either accept or reason for reject.
+ *
+ * Return : 0 on success and errno on failure
+ */
+static int wlan_hdd_cfg80211_fetch_bss_transition_status(struct wiphy *wiphy,
+						struct wireless_dev *wdev,
+						const void *data, int data_len)
+{
+	int ret;
+
+	cds_ssr_protect(__func__);
+	ret = __wlan_hdd_cfg80211_fetch_bss_transition_status(wiphy, wdev,
+							      data, data_len);
+	cds_ssr_unprotect(__func__);
+
+	return ret;
+}
 
 const struct wiphy_vendor_command hdd_wiphy_vendor_commands[] = {
 	{
@@ -9495,6 +10016,15 @@ const struct wiphy_vendor_command hdd_wiphy_vendor_commands[] = {
 			WIPHY_VENDOR_CMD_NEED_NETDEV |
 			WIPHY_VENDOR_CMD_NEED_RUNNING,
 		.doit = wlan_hdd_cfg80211_get_nud_stats
+	},
+	{
+		.info.vendor_id = QCA_NL80211_VENDOR_ID,
+		.info.subcmd =
+			QCA_NL80211_VENDOR_SUBCMD_FETCH_BSS_TRANSITION_STATUS,
+		.flags = WIPHY_VENDOR_CMD_NEED_WDEV |
+			 WIPHY_VENDOR_CMD_NEED_NETDEV |
+			 WIPHY_VENDOR_CMD_NEED_RUNNING,
+		.doit = wlan_hdd_cfg80211_fetch_bss_transition_status
 	},
 };
 
@@ -12325,6 +12855,38 @@ static bool wlan_hdd_handle_sap_sta_dfs_conc(hdd_adapter_t *adapter,
 	return true;
 }
 
+#ifdef WLAN_FEATURE_11W
+/**
+ * wlan_hdd_cfg80211_check_pmf_valid() - check if pmf status is ok
+ * @roam_profile: pointer to roam profile
+ *
+ * if MFPEnabled is set but the peer AP is non-PMF i.e 80211w=2
+ * or pmf=2 is an explicit configuration in the supplicant
+ * configuration, drop the connection request.
+ *
+ * Return: 0 if check result is valid, otherwise return error code
+ */
+static int wlan_hdd_cfg80211_check_pmf_valid(tCsrRoamProfile *roam_profile)
+{
+	if (roam_profile->MFPEnabled &&
+	    !(roam_profile->MFPRequired ||
+	    roam_profile->MFPCapable)) {
+		hdd_err("Drop connect req as supplicant has indicated PMF required for the non-PMF peer. MFPEnabled %d MFPRequired %d MFPCapable %d",
+				roam_profile->MFPEnabled,
+				roam_profile->MFPRequired,
+				roam_profile->MFPCapable);
+		return -EINVAL;
+	}
+	return 0;
+}
+#else
+static inline
+int wlan_hdd_cfg80211_check_pmf_valid(tCsrRoamProfile *roam_profile)
+{
+	return 0;
+}
+#endif
+
 /**
  * wlan_hdd_cfg80211_connect_start() - to start the association process
  * @pAdapter: Pointer to adapter
@@ -12554,18 +13116,9 @@ static int wlan_hdd_cfg80211_connect_start(hdd_adapter_t *pAdapter,
 			hdd_select_cbmode(pAdapter, operatingChannel,
 					  &pRoamProfile->ch_params);
 		}
-		/*
-		 * if MFPEnabled is set but the peer AP is non-PMF i.e 80211w=2
-		 * or pmf=2 is an explicit configuration in the supplicant
-		 * configuration, drop the connection request.
-		 */
-		if (pWextState->roamProfile.MFPEnabled &&
-		    !(pWextState->roamProfile.MFPRequired ||
-		    pWextState->roamProfile.MFPCapable)) {
-			hdd_err("Drop connect req as supplicant has indicated PMF req for a non-PMF peer. MFPEnabled %d MFPRequired %d MFPCapable %d",
-					pWextState->roamProfile.MFPEnabled,
-					pWextState->roamProfile.MFPRequired,
-					pWextState->roamProfile.MFPCapable);
+
+		if (wlan_hdd_cfg80211_check_pmf_valid(
+		   &pWextState->roamProfile)) {
 			status = -EINVAL;
 			goto conn_failure;
 		}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -45,7 +45,6 @@
 #include "sch_api.h"
 #include "utils_api.h"
 
-#include "sys_debug.h"
 #include "sys_def.h"
 #include "sys_entry_func.h"
 #include "sys_startup.h"
@@ -115,14 +114,6 @@ sys_bbt_process_message_core(tpAniSirGlobal mac_ctx, tpSirMsgQ msg,
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status))
 		goto fail;
 
-	sys_log(mac_ctx, LOG3, FL("Rx Mgmt Frame Subtype: %d\n"), subtype);
-	sir_dump_buf(mac_ctx, SIR_SYS_MODULE_ID, LOG3,
-		(uint8_t *) WMA_GET_RX_MAC_HEADER(bd_ptr),
-		WMA_GET_RX_MPDU_LEN(bd_ptr));
-	sir_dump_buf(mac_ctx, SIR_SYS_MODULE_ID, LOG3,
-		WMA_GET_RX_MPDU_DATA(bd_ptr),
-		WMA_GET_RX_PAYLOAD_LEN(bd_ptr));
-
 	mac_ctx->sys.gSysFrameCount[type][subtype]++;
 	framecount = mac_ctx->sys.gSysFrameCount[type][subtype];
 
@@ -180,8 +171,19 @@ sys_bbt_process_message_core(tpAniSirGlobal mac_ctx, tpSirMsgQ msg,
 				mac_ctx->sys.gSysFrameCount[type][subtype]);
 		}
 
-		/* Post the message to PE Queue */
-		ret = (tSirRetStatus) lim_post_msg_api(mac_ctx, msg);
+		/*
+		 * Post the message to PE Queue. Prioritize the
+		 * Auth and assoc frames.
+		 */
+		if ((subtype == SIR_MAC_MGMT_AUTH) ||
+		   (subtype == SIR_MAC_MGMT_ASSOC_RSP) ||
+		   (subtype == SIR_MAC_MGMT_REASSOC_RSP) ||
+		   (subtype == SIR_MAC_MGMT_ASSOC_REQ) ||
+		   (subtype == SIR_MAC_MGMT_REASSOC_REQ))
+			ret = (tSirRetStatus)
+				   lim_post_msg_high_priority(mac_ctx, msg);
+		else
+			ret = (tSirRetStatus) lim_post_msg_api(mac_ctx, msg);
 		if (ret != eSIR_SUCCESS) {
 			sys_log(mac_ctx, LOGE,
 				FL("posting to LIM2 failed, ret %d\n"), ret);
@@ -215,17 +217,11 @@ fail:
 
 void sys_log(tpAniSirGlobal pMac, uint32_t loglevel, const char *pString, ...)
 {
-	/* Verify against current log level */
-	if (loglevel >
-	    pMac->utils.gLogDbgLevel[LOG_INDEX_FOR_MODULE(SIR_SYS_MODULE_ID)])
-		return;
-	else {
-		va_list marker;
+#ifdef WLAN_DEBUG
+	va_list marker;
 
-		va_start(marker, pString);      /* Initialize variable arguments. */
-
-		log_debug(pMac, SIR_SYS_MODULE_ID, loglevel, pString, marker);
-
-		va_end(marker); /* Reset variable arguments.      */
-	}
+	va_start(marker, pString);
+	log_debug(pMac, SIR_SYS_MODULE_ID, loglevel, pString, marker);
+	va_end(marker);
+#endif
 }

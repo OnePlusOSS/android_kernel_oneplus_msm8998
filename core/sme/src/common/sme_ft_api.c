@@ -24,8 +24,8 @@
  * under proprietary terms before Copyright ownership was assigned
  * to the Linux Foundation.
  */
-
-#include <sms_debug.h>
+#include <sir_common.h>
+#include <ani_global.h>
 #include <csr_inside_api.h>
 #include <csr_neighbor_roam.h>
 
@@ -46,7 +46,7 @@ void sme_ft_open(tHalHandle hHal, uint32_t sessionId)
 			qdf_mem_malloc(sizeof(tFTRoamCallbackUsrCtx));
 
 		if (NULL == pSession->ftSmeContext.pUsrCtx) {
-			sms_log(pMac, LOGE, FL("Memory allocation failure"));
+			sme_err("Memory allocation failure");
 			return;
 		}
 		pSession->ftSmeContext.pUsrCtx->pMac = pMac;
@@ -60,9 +60,7 @@ void sme_ft_open(tHalHandle hHal, uint32_t sessionId)
 					  (void *)pSession->ftSmeContext.pUsrCtx);
 
 		if (QDF_STATUS_SUCCESS != status) {
-			sms_log(pMac, LOGE,
-				FL
-					("Preauth Reassoc interval Timer allocation failed"));
+			sme_err("Preauth Reassoc interval Timer allocation failed");
 			qdf_mem_free(pSession->ftSmeContext.pUsrCtx);
 			pSession->ftSmeContext.pUsrCtx = NULL;
 			return;
@@ -94,14 +92,9 @@ void sme_ft_close(tHalHandle hHal, uint32_t sessionId)
 		if (QDF_STATUS_SUCCESS !=
 		    qdf_mc_timer_destroy(&pSession->ftSmeContext.
 					 preAuthReassocIntvlTimer)) {
-			sms_log(pMac, LOGE,
-				FL("preAuthReAssocTimer destroy failed"));
 		}
 
 		if (pSession->ftSmeContext.pUsrCtx != NULL) {
-			sms_log(pMac, LOGD,
-				FL
-					("Freeing ftSmeContext.pUsrCtx and setting to NULL"));
 			qdf_mem_free(pSession->ftSmeContext.pUsrCtx);
 			pSession->ftSmeContext.pUsrCtx = NULL;
 		}
@@ -147,7 +140,7 @@ void sme_set_ft_ies(tHalHandle hal_ptr, uint32_t session_id,
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 
 	if (NULL == session || NULL == ft_ies) {
-		sms_log(mac_ctx, LOGE, FL(" ft ies or session is NULL"));
+		sme_err("ft ies or session is NULL");
 		return;
 	}
 
@@ -155,8 +148,8 @@ void sme_set_ft_ies(tHalHandle hal_ptr, uint32_t session_id,
 	if (!(QDF_IS_STATUS_SUCCESS(status)))
 		return;
 
-	sms_log(mac_ctx, LOGD, "FT IEs Req is received in state %d",
-			session->ftSmeContext.FTState);
+	sme_debug("FT IEs Req is received in state %d",
+		  session->ftSmeContext.FTState);
 
 	/* Global Station FT State */
 	switch (session->ftSmeContext.FTState) {
@@ -173,8 +166,7 @@ void sme_set_ft_ies(tHalHandle hal_ptr, uint32_t session_id,
 		session->ftSmeContext.auth_ft_ies =
 					qdf_mem_malloc(ft_ies_length);
 		if (NULL == session->ftSmeContext.auth_ft_ies) {
-			sms_log(mac_ctx, LOGE,
-				FL("Mem alloc failed for auth_ft_ies"));
+			sme_err("Mem alloc failed for auth_ft_ies");
 			sme_release_global_lock(&mac_ctx->sme);
 			return;
 		}
@@ -183,8 +175,7 @@ void sme_set_ft_ies(tHalHandle hal_ptr, uint32_t session_id,
 				ft_ies, ft_ies_length);
 		session->ftSmeContext.FTState = eFT_AUTH_REQ_READY;
 
-		sms_log(mac_ctx, LOGD,
-			FL("ft_ies_length=%d"), ft_ies_length);
+		sme_debug("ft_ies_length: %d", ft_ies_length);
 		break;
 
 	case eFT_AUTH_COMPLETE:
@@ -196,12 +187,10 @@ void sme_set_ft_ies(tHalHandle hal_ptr, uint32_t session_id,
 		 * pre-auth list. Delete the pre-auth node locally. Set
 		 * your self back to restart pre-auth
 		 */
-		sms_log(mac_ctx, LOGD,
-			FL("Preauth done & rcving AUTHREQ in state %d"),
-			session->ftSmeContext.FTState);
-		sms_log(mac_ctx, LOGD,
-			FL("Unhandled reception of FT IES in state %d"),
-			session->ftSmeContext.FTState);
+		sme_debug("Preauth done & rcving AUTHREQ in state %d",
+			  session->ftSmeContext.FTState);
+		sme_debug("Unhandled reception of FT IES in state %d",
+			  session->ftSmeContext.FTState);
 		break;
 
 	case eFT_REASSOC_REQ_WAIT:
@@ -210,7 +199,7 @@ void sme_set_ft_ies(tHalHandle hal_ptr, uint32_t session_id,
 		 * reassoc req. This is the new FT Roaming in place At
 		 * this juncture we'r ready to start sending Reassoc req
 		 */
-		sms_log(mac_ctx, LOGD, FL("New Reassoc Req=%p in state %d"),
+		sme_debug("New Reassoc Req: %p in state %d",
 			ft_ies, session->ftSmeContext.FTState);
 		if ((session->ftSmeContext.reassoc_ft_ies) &&
 			(session->ftSmeContext.reassoc_ft_ies_length)) {
@@ -222,8 +211,7 @@ void sme_set_ft_ies(tHalHandle hal_ptr, uint32_t session_id,
 		session->ftSmeContext.reassoc_ft_ies =
 					qdf_mem_malloc(ft_ies_length);
 		if (NULL == session->ftSmeContext.reassoc_ft_ies) {
-			sms_log(mac_ctx, LOGE,
-				FL("Mem alloc fail for reassoc_ft_ie"));
+			sme_err("Mem alloc fail for reassoc_ft_ie");
 			sme_release_global_lock(&mac_ctx->sme);
 			return;
 		}
@@ -233,15 +221,13 @@ void sme_set_ft_ies(tHalHandle hal_ptr, uint32_t session_id,
 				ft_ies, ft_ies_length);
 
 		session->ftSmeContext.FTState = eFT_SET_KEY_WAIT;
-		sms_log(mac_ctx, LOGD,
-			FL("ft_ies_length=%d state=%d"), ft_ies_length,
-			session->ftSmeContext.FTState);
+		sme_debug("ft_ies_length: %d state: %d", ft_ies_length,
+			  session->ftSmeContext.FTState);
 
 		break;
 
 	default:
-		sms_log(mac_ctx, LOGE, FL("Unhandled state=%d"),
-			session->ftSmeContext.FTState);
+		sme_warn("Unhandled state: %d", session->ftSmeContext.FTState);
 		break;
 	}
 	sme_release_global_lock(&mac_ctx->sme);
@@ -266,13 +252,11 @@ QDF_STATUS sme_ft_send_update_key_ind(tHalHandle hal, uint32_t session_id,
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	tSirKeyMaterial *keymaterial = NULL;
 	tAniEdType ed_type;
-	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
 
-	sms_log(mac_ctx, LOGD, FL("keyLength %d"), ftkey_info->keyLength);
+	sme_debug("keyLength: %d", ftkey_info->keyLength);
 
 	if (ftkey_info->keyLength > CSR_MAX_KEY_LEN) {
-		sms_log(mac_ctx, LOGE, FL("invalid keyLength %d"),
-			ftkey_info->keyLength);
+		sme_err("invalid keyLength: %d", ftkey_info->keyLength);
 		return QDF_STATUS_E_FAILURE;
 	}
 	msglen  = sizeof(tSirFTUpdateKeyInfo);
@@ -304,8 +288,7 @@ QDF_STATUS sme_ft_send_update_key_ind(tHalHandle hal, uint32_t session_id,
 
 	qdf_copy_macaddr(&msg->bssid, &ftkey_info->peerMac);
 	msg->smeSessionId = session_id;
-	sms_log(mac_ctx, LOGD, "BSSID = " MAC_ADDRESS_STR,
-		MAC_ADDR_ARRAY(msg->bssid.bytes));
+	sme_debug("BSSID = " MAC_ADDRESS_STR, MAC_ADDR_ARRAY(msg->bssid.bytes));
 	status = cds_send_mb_message_to_mac(msg);
 
 	return status;
@@ -317,7 +300,7 @@ bool sme_get_ftptk_state(tHalHandle hHal, uint32_t sessionId)
 	tCsrRoamSession *pSession = CSR_GET_SESSION(pMac, sessionId);
 
 	if (!pSession) {
-		sms_log(pMac, LOGE, FL("pSession is NULL"));
+		sme_err("pSession is NULL");
 		return false;
 	}
 	return pSession->ftSmeContext.setFTPTKState;
@@ -329,7 +312,7 @@ void sme_set_ftptk_state(tHalHandle hHal, uint32_t sessionId, bool state)
 	tCsrRoamSession *pSession = CSR_GET_SESSION(pMac, sessionId);
 
 	if (!pSession) {
-		sms_log(pMac, LOGE, FL("pSession is NULL"));
+		sme_err("pSession is NULL");
 		return;
 	}
 	pSession->ftSmeContext.setFTPTKState = state;
@@ -343,12 +326,12 @@ QDF_STATUS sme_ft_update_key(tHalHandle hHal, uint32_t sessionId,
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 
 	if (!pSession) {
-		sms_log(pMac, LOGE, FL("pSession is NULL"));
+		sme_err("pSession is NULL");
 		return QDF_STATUS_E_FAILURE;
 	}
 
 	if (pFTKeyInfo == NULL) {
-		sms_log(pMac, LOGE, "%s: pFTKeyInfo is NULL", __func__);
+		sme_err("pFTKeyInfo is NULL");
 		return QDF_STATUS_E_FAILURE;
 	}
 
@@ -356,8 +339,8 @@ QDF_STATUS sme_ft_update_key(tHalHandle hHal, uint32_t sessionId,
 	if (!(QDF_IS_STATUS_SUCCESS(status))) {
 		return QDF_STATUS_E_FAILURE;
 	}
-	sms_log(pMac, LOGD, "sme_ft_update_key is received in state %d",
-		pSession->ftSmeContext.FTState);
+	sme_debug("sme_ft_update_key is received in state %d",
+		  pSession->ftSmeContext.FTState);
 
 	/* Global Station FT State */
 	switch (pSession->ftSmeContext.FTState) {
@@ -366,27 +349,24 @@ QDF_STATUS sme_ft_update_key(tHalHandle hHal, uint32_t sessionId,
 			status =
 				sme_ft_send_update_key_ind(pMac, sessionId, pFTKeyInfo);
 			if (status != 0) {
-				sms_log(pMac, LOGE, "%s: Key set failure %d",
-					__func__, status);
+				sme_err("Key set failure: %d", status);
 				pSession->ftSmeContext.setFTPTKState = false;
 				status = QDF_STATUS_FT_PREAUTH_KEY_FAILED;
 			} else {
 				pSession->ftSmeContext.setFTPTKState = true;
 				status = QDF_STATUS_FT_PREAUTH_KEY_SUCCESS;
-				sms_log(pMac, LOGD, "%s: Key set success",
-					__func__);
+				sme_debug("Key set success");
 			}
 			sme_set_ft_pre_auth_state(hHal, sessionId, false);
 		}
 
 		pSession->ftSmeContext.FTState = eFT_START_READY;
-		sms_log(pMac, LOGD, "%s: state changed to %d status %d",
-			__func__, pSession->ftSmeContext.FTState, status);
+		sme_debug("state changed to %d status %d",
+			  pSession->ftSmeContext.FTState, status);
 		break;
 
 	default:
-		sms_log(pMac, LOGW, "%s: Unhandled state=%d", __func__,
-			pSession->ftSmeContext.FTState);
+		sme_warn("Unhandled state: %d", pSession->ftSmeContext.FTState);
 		status = QDF_STATUS_E_FAILURE;
 		break;
 	}
@@ -411,7 +391,7 @@ void sme_get_ft_pre_auth_response(tHalHandle hHal, uint32_t sessionId,
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 
 	if (!pSession) {
-		sms_log(pMac, LOGE, FL("pSession is NULL"));
+		sme_err("pSession is NULL");
 		return;
 	}
 
@@ -443,7 +423,7 @@ void sme_get_ft_pre_auth_response(tHalHandle hHal, uint32_t sessionId,
 
 	pSession->ftSmeContext.FTState = eFT_REASSOC_REQ_WAIT;
 
-	sms_log(pMac, LOGD, FL(" Filled auth resp = %d"), *ft_ies_length);
+	sme_debug("Filled auth resp: %d", *ft_ies_length);
 	sme_release_global_lock(&pMac->sme);
 	return;
 }
@@ -463,7 +443,7 @@ void sme_get_rici_es(tHalHandle hHal, uint32_t sessionId, uint8_t *ric_ies,
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 
 	if (!pSession) {
-		sms_log(pMac, LOGE, FL("pSession is NULL"));
+		sme_err("pSession is NULL");
 		return;
 	}
 
@@ -487,7 +467,7 @@ void sme_get_rici_es(tHalHandle hHal, uint32_t sessionId, uint8_t *ric_ies,
 	*ric_ies_length =
 		pSession->ftSmeContext.psavedFTPreAuthRsp->ric_ies_length;
 
-	sms_log(pMac, LOGD, FL(" Filled ric ies = %d"), *ric_ies_length);
+	sme_debug("Filled ric ies: %d", *ric_ies_length);
 
 	sme_release_global_lock(&pMac->sme);
 	return;
@@ -529,27 +509,18 @@ void sme_ft_reset(tHalHandle hHal, uint32_t sessionId)
 	pSession = CSR_GET_SESSION(pMac, sessionId);
 	if (NULL != pSession) {
 		if (pSession->ftSmeContext.auth_ft_ies != NULL) {
-			sms_log(pMac, LOGD,
-				FL("Free FT Auth IE %p and set to NULL"),
-				pSession->ftSmeContext.auth_ft_ies);
 			qdf_mem_free(pSession->ftSmeContext.auth_ft_ies);
 			pSession->ftSmeContext.auth_ft_ies = NULL;
 		}
 		pSession->ftSmeContext.auth_ft_ies_length = 0;
 
 		if (pSession->ftSmeContext.reassoc_ft_ies != NULL) {
-			sms_log(pMac, LOGD,
-				FL("Free FT Reassoc IE %p and set to NULL"),
-				pSession->ftSmeContext.reassoc_ft_ies);
 			qdf_mem_free(pSession->ftSmeContext.reassoc_ft_ies);
 			pSession->ftSmeContext.reassoc_ft_ies = NULL;
 		}
 		pSession->ftSmeContext.reassoc_ft_ies_length = 0;
 
 		if (pSession->ftSmeContext.psavedFTPreAuthRsp != NULL) {
-			sms_log(pMac, LOGD,
-				FL("Free FtPreAuthRsp %p and set to NULL"),
-				pSession->ftSmeContext.psavedFTPreAuthRsp);
 			qdf_mem_free(pSession->ftSmeContext.psavedFTPreAuthRsp);
 			pSession->ftSmeContext.psavedFTPreAuthRsp = NULL;
 		}

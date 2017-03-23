@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2014-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012, 2014-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -38,7 +38,6 @@
 #include "cds_api.h"
 #include "cfg_priv.h"
 #include "lim_trace.h"
-#include "cfg_debug.h"
 
 /*--------------------------------------------------------------------*/
 /* ATTENTION:  The functions contained in this module are to be used  */

@@ -34,7 +34,6 @@
 
    ========================================================================*/
 #include "ani_global.h"          /* for tpAniSirGlobal */
-#include "sms_debug.h"
 #include "mac_trace.h"
 #include "sme_trace.h"
 #include "sme_internal.h"
@@ -96,6 +95,7 @@ static uint8_t *sme_trace_get_rx_msg_string(uint32_t code)
 		CASE_RETURN_STRING(TRACE_CODE_SME_RX_HDD_ENTER_WOWL);
 		CASE_RETURN_STRING(TRACE_CODE_SME_RX_HDD_EXIT_WOWL);
 		CASE_RETURN_STRING(TRACE_CODE_SME_RX_HDD_SET_KEY);
+		CASE_RETURN_STRING(TRACE_CODE_SME_RX_HDD_REMOVE_KEY);
 		CASE_RETURN_STRING(TRACE_CODE_SME_RX_HDD_GET_STATS);
 		CASE_RETURN_STRING(TRACE_CODE_SME_RX_HDD_GET_RSSI);
 		CASE_RETURN_STRING(TRACE_CODE_SME_RX_HDD_GET_CNTRYCODE);
@@ -194,11 +194,22 @@ static uint8_t *sme_trace_get_command_string(uint32_t command)
 		CASE_RETURN_STRING(eSmeCommandExitBmps);
 		CASE_RETURN_STRING(eSmeCommandEnterUapsd);
 		CASE_RETURN_STRING(eSmeCommandExitUapsd);
+		CASE_RETURN_STRING(eSmeCommandExitWowl);
 		CASE_RETURN_STRING(eSmeCommandEnterStandby);
 		CASE_RETURN_STRING(eSmeQosCommandMask);
 		CASE_RETURN_STRING(eSmeCommandAddTs);
 		CASE_RETURN_STRING(eSmeCommandDelTs);
+#ifdef FEATURE_OEM_DATA_SUPPORT
+		CASE_RETURN_STRING(eSmeCommandOemDataReq);
+#endif
 		CASE_RETURN_STRING(eSmeCommandRemainOnChannel);
+		CASE_RETURN_STRING(e_sme_command_set_hw_mode);
+		CASE_RETURN_STRING(e_sme_command_nss_update);
+		CASE_RETURN_STRING(e_sme_command_set_dual_mac_config);
+		CASE_RETURN_STRING(e_sme_command_set_antenna_mode);
+		CASE_RETURN_STRING(eSmeCommandNdpInitiatorRequest);
+		CASE_RETURN_STRING(eSmeCommandNdpResponderRequest);
+		CASE_RETURN_STRING(eSmeCommandNdpDataEndInitiatorRequest);
 	default:
 		return "UNKNOWN";
 		break;
@@ -210,28 +221,28 @@ static void sme_trace_dump(tpAniSirGlobal mac_ctx, tp_qdf_trace_record record,
 {
 	switch (record->code) {
 	case TRACE_CODE_SME_COMMAND:
-		sms_log(mac_ctx, LOGD, "%04d %012llu %s S%d %-14s %-30s(0x%x)",
+		sme_debug("%04d %012llu %s S%d %-14s %-30s(0x%x)",
 			rec_index, record->qtime, record->time, record->session,
 			"SME COMMAND:",
 			sme_trace_get_command_string(record->data),
 			record->data);
 		break;
 	case TRACE_CODE_SME_TX_WMA_MSG:
-		sms_log(mac_ctx, LOGD, "%04d %012llu %s S%d %-14s %-30s(0x%x)",
+		sme_debug("%04d %012llu %s S%d %-14s %-30s(0x%x)",
 			rec_index, record->qtime, record->time, record->session,
 			"TX WMA Msg:",
 			mac_trace_get_wma_msg_string((uint16_t)record->data),
 			record->data);
 		break;
 	case TRACE_CODE_SME_RX_WMA_MSG:
-		sms_log(mac_ctx, LOGD, "%04d %012llu %s S%d %-14s %-30s(0x%x)",
+		sme_debug("%04d %012llu %s S%d %-14s %-30s(0x%x)",
 			rec_index, record->qtime, record->time, record->session,
 			"RX WMA Msg:",
 			mac_trace_get_sme_msg_string((uint16_t)record->data),
 			record->data);
 		break;
 	default:
-		sms_log(mac_ctx, LOGD, "%04d %012llu %s S%d %-14s %-30s(0x%x)",
+		sme_debug("%04d %012llu %s S%d %-14s %-30s(0x%x)",
 			rec_index, record->qtime, record->time, record->session,
 			"RX HDD MSG:",
 			sme_trace_get_rx_msg_string(record->code),

@@ -2327,8 +2327,8 @@ QDF_STATUS lim_update_ext_cap_ie(tpAniSirGlobal mac_ctx,
 	lim_merge_extcap_struct(&driver_ext_cap, &default_scan_ext_cap, true);
 
 	qdf_mem_copy(local_ie_buf + (*local_ie_len),
-			driver_ext_cap.bytes, DOT11F_IE_EXTCAP_MAX_LEN);
-	(*local_ie_len) += DOT11F_IE_EXTCAP_MAX_LEN;
+			driver_ext_cap.bytes, driver_ext_cap.num_bytes);
+	(*local_ie_len) += driver_ext_cap.num_bytes;
 	return QDF_STATUS_SUCCESS;
 }
 
@@ -2367,3 +2367,15 @@ QDF_STATUS lim_add_qcn_ie(tpAniSirGlobal mac_ctx, uint8_t *ie_data,
 	(*ie_len) += (QCN_IE_VERSION_SUBATTR_LEN);
 	return QDF_STATUS_SUCCESS;
 }
+
+void lim_log(tpAniSirGlobal pMac, uint32_t loglevel, const char *pString, ...)
+{
+#ifdef WLAN_DEBUG
+	va_list marker;
+
+	va_start(marker, pString);
+	log_debug(pMac, SIR_LIM_MODULE_ID, loglevel, pString, marker);
+	va_end(marker);
+#endif
+}
+

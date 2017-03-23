@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -31,7 +31,6 @@
 #include <stdarg.h>
 #include <sir_common.h>
 #include "ani_global.h"
-#include "utils_global.h"
 #include "sys_wrapper.h"
 
 /* / System role definition on a per BSS */
@@ -47,6 +46,7 @@ typedef enum eBssSystemRole {
 	eSYSTEM_MULTI_BSS_ROLE = eSYSTEM_LAST_ROLE
 } tBssSystemRole;
 
+#define LOG_FIRST_MODULE_ID    SIR_FIRST_MODULE_ID
 #define LOG_INDEX_FOR_MODULE(modId) ((modId) - LOG_FIRST_MODULE_ID)
 #define GET_MIN_VALUE(__val1, __val2) ((__val1 < __val2) ? __val1 : __val2)
 
@@ -61,16 +61,8 @@ extern uint32_t gPktAllocCnt, gPktFreeCnt;
 
 extern QDF_TRACE_LEVEL get_vos_debug_level(uint32_t debugLevel);
 
-/* / Log initialization */
-extern tSirRetStatus log_init(tpAniSirGlobal);
-
-extern void log_deinit(tpAniSirGlobal);
-
 extern tSirRetStatus cfg_init(tpAniSirGlobal);
 extern void cfg_de_init(tpAniSirGlobal);
-
-void sir_dump_buf(tpAniSirGlobal pMac, uint8_t modId, uint32_t level,
-		  uint8_t *buf, uint32_t size);
 
 /**
  * sir_swap_u16()

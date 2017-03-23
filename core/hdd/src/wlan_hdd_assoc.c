@@ -1633,21 +1633,12 @@ static QDF_STATUS hdd_dis_connect_handler(hdd_adapter_t *pAdapter,
 		hdd_debug("roamResult: %d", roamResult);
 
 		/* clear scan cache for Link Lost */
-		if ((eCSR_ROAM_RESULT_DEAUTH_IND == roamResult ||
-		    eCSR_ROAM_RESULT_DISASSOC_IND == roamResult)) {
+		if (pRoamInfo && !pRoamInfo->reasonCode &&
+		    eCSR_ROAM_LOSTLINK == roamStatus) {
 			wlan_hdd_cfg80211_update_bss_list(pAdapter,
 				pHddStaCtx->conn_info.bssId.bytes);
 			sme_remove_bssid_from_scan_list(pHddCtx->hHal,
 			pHddStaCtx->conn_info.bssId.bytes);
-		}
-		/* We should clear all sta register with TL,
-		 * for now, only one.
-		 */
-		vstatus = hdd_roam_deregister_sta(pAdapter, sta_id);
-		if (!QDF_IS_STATUS_SUCCESS(vstatus)) {
-			hdd_err("hdd_roam_deregister_sta() failed to for staID: %d Status:%d [0x%x]",
-				sta_id, status, status);
-			status = QDF_STATUS_E_FAILURE;
 		}
 		pHddCtx->sta_to_adapter[sta_id] = NULL;
 	}
@@ -1675,6 +1666,9 @@ static QDF_STATUS hdd_dis_connect_handler(hdd_adapter_t *pAdapter,
 				pAdapter->sessionId);
 	}
 	wlan_hdd_clear_link_layer_stats(pAdapter);
+
+	pAdapter->dad = false;
+
 	/* Unblock anyone waiting for disconnect to complete */
 	complete(&pAdapter->disconnect_comp_var);
 	hdd_print_bss_info(pHddStaCtx);

@@ -148,6 +148,18 @@ static inline void wlan_hdd_clear_link_layer_stats(hdd_adapter_t *adapter) {}
 #define USE_CFG80211_DEL_STA_V2
 #endif
 
+#define MAX_CANDIDATE_INFO 10
+/**
+ * struct bss_candidate_info - Candidate bss information
+ *
+ * @bssid : BSSID of candidate bss
+ * @status : status code for candidate bss
+ */
+struct bss_candidate_info {
+	struct qdf_mac_addr bssid;
+	uint32_t status;
+};
+
 /**
  * enum eDFS_CAC_STATUS: CAC status
  *
@@ -308,6 +320,18 @@ typedef enum {
  *	Start / Stop the NUD stats collections
  * @QCA_NL80211_VENDOR_SUBCMD_NUD_STATS_GET
  *	Get the NUD stats, represented by the enum qca_attr_nud_stats_get
+ * @QCA_NL80211_VENDOR_SUBCMD_FETCH_BSS_TRANSITION_STATUS: Sub-command to fetch
+ *	the BSS transition status, whether accept or reject, for a list of
+ *	candidate BSSIDs provided by the userspace. This uses the vendor
+ *	attributes QCA_WLAN_VENDOR_ATTR_BTM_MBO_TRANSITION_REASON and
+ *	QCA_WLAN_VENDOR_ATTR_BTM_CANDIDATE_INFO. The userspace shall specify
+ *	the attributes QCA_WLAN_VENDOR_ATTR_BTM_MBO_TRANSITION_REASON and an
+ *	array of QCA_WLAN_VENDOR_ATTR_BTM_CANDIDATE_INFO_BSSID nested in
+ *	QCA_WLAN_VENDOR_ATTR_BTM_CANDIDATE_INFO in the request. In the response
+ *	the driver shall specify array of
+ *	QCA_WLAN_VENDOR_ATTR_BTM_CANDIDATE_INFO_BSSID and
+ *	QCA_WLAN_VENDOR_ATTR_BTM_CANDIDATE_INFO_STATUS pairs nested in
+ *	QCA_WLAN_VENDOR_ATTR_BTM_CANDIDATE_INFO.
  */
 
 enum qca_nl80211_vendor_subcmds {
@@ -466,6 +490,9 @@ enum qca_nl80211_vendor_subcmds {
 	QCA_NL80211_VENDOR_SUBCMD_SET_SAR_LIMITS = 146,
 	QCA_NL80211_VENDOR_SUBCMD_NUD_STATS_SET = 149,
 	QCA_NL80211_VENDOR_SUBCMD_NUD_STATS_GET = 150,
+
+	/* Fetch BSS transition status */
+	QCA_NL80211_VENDOR_SUBCMD_FETCH_BSS_TRANSITION_STATUS = 151,
 };
 
 /**
@@ -943,6 +970,18 @@ enum qca_wlan_vendor_attr_get_tdls_capabilities {
  * @QCA_WLAN_VENDOR_ATTR_FEATURE_FLAGS: Supported Features
  *@QCA_WLAN_VENDOR_ATTR_SETBAND_VALUE: setband attribute which is used by
  *	QCA_NL80211_VENDOR_SUBCMD_SETBAND
+ * @QCA_WLAN_VENDOR_ATTR_BTM_MBO_TRANSITION_REASON : Unsigned 8-bit value
+ *	representing MBO transition reason code as provided by the AP used by
+ *	subcommand QCA_NL80211_VENDOR_SUBCMD_FETCH_BSS_TRANSITION_STATUS.
+ *	This is specified by the userspace in the request to the driver.
+ *@QCA_WLAN_VENDOR_ATTR_BTM_CANDIDATE_INFO : Array of nested attributes, BSSID
+ *	and status code, used by subcommand
+ *	QCA_NL80211_VENDOR_SUBCMD_FETCH_BSS_TRANSITION_STATUS, where each entry
+ *	is taken from enum qca_wlan_vendor_attr_btm_candidate_info. The
+ *	userspace space specifies the list/array of candidate BSSIDs in the
+ *	order of preference in the request. The driver specifies the status
+ *	code, for each BSSID in the list, in the response. The acceptable
+ *	candidates are listed in the order preferred by the driver.
  * @QCA_WLAN_VENDOR_ATTR_AFTER_LAST: After last
  * @QCA_WLAN_VENDOR_ATTR_MAX: Max value
  */
@@ -959,6 +998,9 @@ enum qca_wlan_vendor_attr {
 	QCA_WLAN_VENDOR_ATTR_MAX_CONCURRENT_CHANNELS_2_4_BAND = 10,
 	QCA_WLAN_VENDOR_ATTR_MAX_CONCURRENT_CHANNELS_5_0_BAND = 11,
 	QCA_WLAN_VENDOR_ATTR_SETBAND_VALUE = 12,
+
+	QCA_WLAN_VENDOR_ATTR_BTM_MBO_TRANSITION_REASON = 36,
+	QCA_WLAN_VENDOR_ATTR_BTM_CANDIDATE_INFO = 37,
 
 	/* keep last */
 	QCA_WLAN_VENDOR_ATTR_AFTER_LAST,
@@ -1745,6 +1787,15 @@ enum qca_wlan_vendor_attr_ll_stats_results {
 	 */
 	QCA_WLAN_VENDOR_ATTR_LL_STATS_RADIO_TX_TIME_PER_LEVEL,
 
+	/* Unsigned 32bit value */
+	QCA_WLAN_VENDOR_ATTR_LL_STATS_IFACE_RTS_SUCC_CNT,
+	/* Unsigned 32bit value */
+	QCA_WLAN_VENDOR_ATTR_LL_STATS_IFACE_RTS_FAIL_CNT,
+	/* Unsigned 32bit value */
+	QCA_WLAN_VENDOR_ATTR_LL_STATS_IFACE_PPDU_SUCC_CNT,
+	/* Unsigned 32bit value */
+	QCA_WLAN_VENDOR_ATTR_LL_STATS_IFACE_PPDU_FAIL_CNT,
+
 	/* keep last */
 	QCA_WLAN_VENDOR_ATTR_LL_STATS_AFTER_LAST,
 	QCA_WLAN_VENDOR_ATTR_LL_STATS_MAX =
@@ -2335,6 +2386,9 @@ enum qca_wlan_vendor_attr_sap_conditional_chan_switch {
 #define WIFI_FEATURE_MKEEP_ALIVE        0x100000  /* WiFi mkeep_alive */
 #define WIFI_FEATURE_CONFIG_NDO         0x200000  /* ND offload configure */
 #define WIFI_FEATURE_TX_TRANSMIT_POWER  0x400000  /* Tx transmit power levels */
+#define WIFI_FEATURE_CONTROL_ROAMING    0x800000  /* Enable/Disable roaming */
+#define WIFI_FEATURE_IE_WHITELIST       0x1000000 /* Support Probe IE white listing */
+#define WIFI_FEATURE_SCAN_RAND          0x2000000 /* Support MAC & Probe Sequence Number randomization */
 
 /**
  * enum wifi_logger_supported_features - values for supported logger features
@@ -3416,6 +3470,36 @@ enum qca_wlan_vendor_attr_ll_stats_ext {
 		QCA_WLAN_VENDOR_ATTR_LL_STATS_EXT_LAST - 1
 };
 
+enum qca_wlan_btm_candidate_status {
+	QCA_STATUS_ACCEPT,
+	QCA_STATUS_REJECT_EXCESSIVE_FRAME_LOSS_EXPECTED,
+	QCA_STATUS_REJECT_EXCESSIVE_DELAY_EXPECTED,
+	QCA_STATUS_REJECT_INSUFFICIENT_QOS_CAPACITY,
+	QCA_STATUS_REJECT_LOW_RSSI,
+	QCA_STATUS_REJECT_HIGH_INTERFERENCE,
+	QCA_STATUS_REJECT_UNKNOWN,
+};
+
+enum qca_wlan_vendor_attr_btm_candidate_info {
+	QCA_WLAN_VENDOR_ATTR_BTM_CANDIDATE_INFO_INVALID = 0,
+
+	/* 6-byte MAC address representing the bssid of transition candidate */
+	QCA_WLAN_VENDOR_ATTR_BTM_CANDIDATE_INFO_BSSID = 1,
+	/* Unsigned 32-bit value from enum qca_wlan_btm_candidate_status
+	 * returned by the driver. It says whether the bssid provided in
+	 * QCA_WLAN_VENDOR_ATTR_BTM_CANDIDATE_INFO_BSSID is acceptable by
+	 * the driver, if not it specifies the reason for rejection.
+	 * Note that the user-space can overwrite the transition reject reason
+	 * codes provided by driver based on more information.
+	 */
+	QCA_WLAN_VENDOR_ATTR_BTM_CANDIDATE_INFO_STATUS = 2,
+
+	/* keep last */
+	QCA_WLAN_VENDOR_ATTR_BTM_CANDIDATE_INFO_AFTER_LAST,
+	QCA_WLAN_VENDOR_ATTR_BTM_CANDIDATE_INFO_MAX =
+	QCA_WLAN_VENDOR_ATTR_BTM_CANDIDATE_INFO_AFTER_LAST - 1,
+};
+
 struct cfg80211_bss *wlan_hdd_cfg80211_update_bss_db(hdd_adapter_t *pAdapter,
 						tCsrRoamInfo *pRoamInfo);
 
@@ -3682,4 +3766,13 @@ void hdd_process_defer_disconnect(hdd_adapter_t *adapter);
  * Return: 0 for success, non-zero for failure
  */
 int wlan_hdd_try_disconnect(hdd_adapter_t *adapter);
+
+/**
+ * hdd_bt_activity_cb() - callback function to receive bt activity
+ * @context: HDD context
+ * @bt_activity: specifies the kind of bt activity
+ *
+ * Return: none
+ */
+void hdd_bt_activity_cb(void *context, uint32_t bt_activity);
 #endif

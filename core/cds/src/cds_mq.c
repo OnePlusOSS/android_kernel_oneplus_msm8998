@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -163,7 +163,7 @@ inline p_cds_msg_wrapper cds_mq_get(p_cds_mq_type pMq)
 	spin_lock_irqsave(&pMq->mqLock, flags);
 
 	if (list_empty(&pMq->mqList)) {
-		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_WARN,
+		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_DEBUG,
 			  "%s: CDS Message Queue is empty", __func__);
 	} else {
 		listptr = pMq->mqList.next;

@@ -1836,13 +1836,6 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		     CFG_TELE_BCN_MAX_LI_NUM_IDLE_BCNS_MIN,
 		     CFG_TELE_BCN_MAX_LI_NUM_IDLE_BCNS_MAX),
 
-	REG_VARIABLE(CFG_AP_DATA_AVAIL_POLL_PERIOD_NAME, WLAN_PARAM_Integer,
-		     struct hdd_config, apDataAvailPollPeriodInMs,
-		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
-		     CFG_AP_DATA_AVAIL_POLL_PERIOD_DEFAULT,
-		     CFG_AP_DATA_AVAIL_POLL_PERIOD_MIN,
-		     CFG_AP_DATA_AVAIL_POLL_PERIOD_MAX),
-
 	REG_VARIABLE(CFG_ENABLE_BYPASS_11D_NAME, WLAN_PARAM_Integer,
 		     struct hdd_config, enableBypass11d,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -4476,6 +4469,38 @@ REG_TABLE_ENTRY g_registry_table[] = {
 			    struct hdd_config, probe_req_ouis,
 			    VAR_FLAGS_OPTIONAL,
 			    (void *)CFG_PROBE_REQ_OUI_DEFAULT),
+
+	REG_VARIABLE(CFG_MBO_CANDIDATE_RSSI_THRESHOLD_NAME,
+		WLAN_PARAM_SignedInteger, struct hdd_config,
+		mbo_candidate_rssi_thres,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_CANDIDATE_RSSI_THRESHOLD_DEFAULT,
+		CFG_CANDIDATE_RSSI_THRESHOLD_MIN,
+		CFG_CANDIDATE_RSSI_THRESHOLD_MAX),
+
+	REG_VARIABLE(CFG_MBO_CURRENT_RSSI_THRESHOLD_NAME,
+		WLAN_PARAM_SignedInteger, struct hdd_config,
+		mbo_current_rssi_thres,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_CURRENT_RSSI_THRESHOLD_DEFAULT,
+		CFG_CURRENT_RSSI_THRESHOLD_MIN,
+		CFG_CURRENT_RSSI_THRESHOLD_MAX),
+
+	REG_VARIABLE(CFG_MBO_CUR_RSSI_MCC_THRESHOLD_NAME,
+		WLAN_PARAM_SignedInteger, struct hdd_config,
+		mbo_current_rssi_mcc_thres,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_MBO_CUR_RSSI_MCC_THRESHOLD_DEFAULT,
+		CFG_MBO_CUR_RSSI_MCC_THRESHOLD_MIN,
+		CFG_MBO_CUR_RSSI_MCC_THRESHOLD_MAX),
+
+	REG_VARIABLE(CFG_MBO_CAND_RSSI_BTC_THRESHOLD_NAME,
+		WLAN_PARAM_SignedInteger, struct hdd_config,
+		mbo_candidate_rssi_btc_thres,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_MBO_CAND_RSSI_BTC_THRESHOLD_DEFAULT,
+		CFG_MBO_CAND_RSSI_BTC_THRESHOLD_MIN,
+		CFG_MBO_CAND_RSSI_BTC_THRESHOLD_MAX),
 };
 
 /**
@@ -4833,8 +4858,9 @@ static QDF_STATUS hdd_apply_cfg_ini(hdd_context_t *pHddCtx,
 				value = pRegEntry->VarDefault;
 			}
 
-			/* If this parameter needs range checking, do it here. */
-			if (pRegEntry->Flags & VAR_FLAGS_RANGE_CHECK) {
+			/* Only if the parameter is set in the ini file, do the range check here */
+			if (match_status == QDF_STATUS_SUCCESS &&
+			    pRegEntry->Flags & VAR_FLAGS_RANGE_CHECK) {
 				if (value > pRegEntry->VarMax) {
 					hdd_warn("Reg Parameter %s > allowed Maximum [%u > %lu]. Enforcing Maximum", pRegEntry->RegName,
 					       value, pRegEntry->VarMax);
@@ -4847,9 +4873,10 @@ static QDF_STATUS hdd_apply_cfg_ini(hdd_context_t *pHddCtx,
 					value = pRegEntry->VarMin;
 				}
 			}
-			/* If this parameter needs range checking, do it here. */
-			else if (pRegEntry->
-				 Flags & VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT) {
+			/* Only if the parameter is set in the ini file, do the range check here */
+			else if (match_status == QDF_STATUS_SUCCESS &&
+				 pRegEntry->Flags &
+					VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT) {
 				if (value > pRegEntry->VarMax) {
 					hdd_warn("Reg Parameter %s > allowed Maximum [%u > %lu]. Enforcing Default: %lu", pRegEntry->RegName,
 					       value, pRegEntry->VarMax,
@@ -4881,8 +4908,9 @@ static QDF_STATUS hdd_apply_cfg_ini(hdd_context_t *pHddCtx,
 				svalue = (int32_t) pRegEntry->VarDefault;
 			}
 
-			/* If this parameter needs range checking, do it here. */
-			if (pRegEntry->Flags & VAR_FLAGS_RANGE_CHECK) {
+			/* Only if the parameter is set in the ini file, do the range check here */
+			if (match_status == QDF_STATUS_SUCCESS &&
+			    pRegEntry->Flags & VAR_FLAGS_RANGE_CHECK) {
 				if (svalue > (int32_t) pRegEntry->VarMax) {
 					hdd_warn("Reg Parameter %s > allowed Maximum "
 					       "[%d > %d]. Enforcing Maximum", pRegEntry->RegName,
@@ -4897,9 +4925,10 @@ static QDF_STATUS hdd_apply_cfg_ini(hdd_context_t *pHddCtx,
 					svalue = (int32_t) pRegEntry->VarMin;
 				}
 			}
-			/* If this parameter needs range checking, do it here. */
-			else if (pRegEntry->
-				 Flags & VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT) {
+			/* Only if the parameter is set in the ini file, do the range check here */
+			else if (match_status == QDF_STATUS_SUCCESS &&
+				 pRegEntry->Flags &
+					VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT) {
 				if (svalue > (int32_t) pRegEntry->VarMax) {
 					hdd_warn("Reg Parameter %s > allowed Maximum "
 					       "[%d > %d]. Enforcing Default: %d", pRegEntry->RegName,
@@ -5546,8 +5575,6 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 		  pHddCtx->config->nTeleBcnMaxListenInterval);
 	hdd_debug("Name = [maxLiNumIdleBeacons] Value = [%u] ",
 		  pHddCtx->config->nTeleBcnMaxLiNumIdleBeacons);
-	hdd_debug("Name = [gApDataAvailPollInterVal] Value = [%u] ",
-		  pHddCtx->config->apDataAvailPollPeriodInMs);
 	hdd_debug("Name = [gEnableBypass11d] Value = [%u] ",
 		  pHddCtx->config->enableBypass11d);
 	hdd_debug("Name = [gEnableDFSChnlScan] Value = [%u] ",
@@ -6937,13 +6964,6 @@ bool hdd_update_config_cfg(hdd_context_t *hdd_ctx)
 		    config->HeartbeatThresh24) == QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_HEART_BEAT_THRESHOLD to CFG");
-	}
-
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_AP_DATA_AVAIL_POLL_PERIOD,
-		    config->apDataAvailPollPeriodInMs) ==
-		    QDF_STATUS_E_FAILURE) {
-		status = false;
-		hdd_err("Couldn't pass on WNI_CFG_AP_DATA_AVAIL_POLL_PERIOD to CFG");
 	}
 
 	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_ENABLE_MC_ADDR_LIST,

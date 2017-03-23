@@ -1056,43 +1056,53 @@ static void hdd_vendor_scan_callback(hdd_adapter_t *adapter,
 	}
 
 	cookie = (uintptr_t)req;
-
 	attr = nla_nest_start(skb, QCA_WLAN_VENDOR_ATTR_SCAN_SSIDS);
 	if (!attr)
 		goto nla_put_failure;
 	for (i = 0; i < req->n_ssids; i++) {
-		if (nla_put(skb, i, req->ssids[i].ssid_len, req->ssids[i].ssid))
+		if (nla_put(skb, i, req->ssids[i].ssid_len,
+			req->ssids[i].ssid)) {
+			hdd_err("Failed to add ssid");
 			goto nla_put_failure;
+		}
 	}
 	nla_nest_end(skb, attr);
-
 	attr = nla_nest_start(skb, QCA_WLAN_VENDOR_ATTR_SCAN_FREQUENCIES);
 	if (!attr)
 		goto nla_put_failure;
 	for (i = 0; i < req->n_channels; i++) {
-		if (nla_put_u32(skb, i, req->channels[i]->center_freq))
-			goto nla_put_failure;
+		if (nla_put_u32(skb, i, req->channels[i]->center_freq)) {
+				hdd_err("Failed to add channel");
+				goto nla_put_failure;
+			}
 	}
 	nla_nest_end(skb, attr);
 
 	if (req->ie &&
 		nla_put(skb, QCA_WLAN_VENDOR_ATTR_SCAN_IE, req->ie_len,
-			req->ie))
+			req->ie)) {
+		hdd_err("Failed to add scan ie");
 		goto nla_put_failure;
-
+	}
 	if (req->flags &&
-		nla_put_u32(skb, QCA_WLAN_VENDOR_ATTR_SCAN_FLAGS, req->flags))
+		nla_put_u32(skb, QCA_WLAN_VENDOR_ATTR_SCAN_FLAGS, req->flags)) {
+		hdd_err("Failed to add scan flags");
 		goto nla_put_failure;
-
-	if (hdd_wlan_nla_put_u64(skb, QCA_WLAN_VENDOR_ATTR_SCAN_COOKIE, cookie))
+	}
+	if (hdd_wlan_nla_put_u64(skb,
+				  QCA_WLAN_VENDOR_ATTR_SCAN_COOKIE,
+				  cookie)) {
+		hdd_err("Failed to add scan cookie");
 		goto nla_put_failure;
-
+	}
 	scan_status = (aborted == true) ? VENDOR_SCAN_STATUS_ABORTED :
 		VENDOR_SCAN_STATUS_NEW_RESULTS;
-	if (nla_put_u8(skb, QCA_WLAN_VENDOR_ATTR_SCAN_STATUS, scan_status))
+	if (nla_put_u8(skb, QCA_WLAN_VENDOR_ATTR_SCAN_STATUS, scan_status)) {
+		hdd_err("Failed to add scan staus");
 		goto nla_put_failure;
-
+	}
 	cfg80211_vendor_event(skb, GFP_KERNEL);
+	hdd_info("scan complete event sent to NL");
 	qdf_mem_free(req);
 	return;
 
@@ -1971,7 +1981,9 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 	wlan_hdd_update_scan_rand_attrs((void *)&scan_req, (void *)request,
 					WLAN_HDD_HOST_SCAN);
 
-	if (!hdd_conn_is_connected(station_ctx) &&
+	if (pAdapter->device_mode == QDF_STA_MODE &&
+	    !is_p2p_scan &&
+	    !hdd_conn_is_connected(station_ctx) &&
 	    (pHddCtx->config->probe_req_ie_whitelist)) {
 		if (pHddCtx->no_of_probe_req_ouis != 0) {
 			scan_req.voui = qdf_mem_malloc(

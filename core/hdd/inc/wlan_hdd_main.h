@@ -418,15 +418,14 @@ typedef struct hdd_pmf_stats_s {
 #endif
 
 struct hdd_arp_stats_s {
-	uint16_t tx_count;
-	uint16_t rx_count;
+	uint16_t tx_arp_req_count;
+	uint16_t rx_arp_rsp_count;
 	uint16_t tx_dropped;
 	uint16_t rx_dropped;
 	uint16_t rx_delivered;
 	uint16_t rx_refused;
 	uint16_t tx_host_fw_sent;
 	uint16_t rx_host_drop_reorder;
-	uint16_t tx_fw_cnt;
 	uint16_t rx_fw_cnt;
 	uint16_t tx_ack_cnt;
 };
@@ -437,7 +436,6 @@ typedef struct hdd_stats_s {
 	tCsrGlobalClassBStatsInfo ClassB_stat;
 	tCsrGlobalClassCStatsInfo ClassC_stat;
 	tCsrGlobalClassDStatsInfo ClassD_stat;
-	tCsrPerStaStatsInfo perStaStats;
 	struct csr_per_chain_rssi_stats_info  per_chain_rssi_stats;
 	hdd_tx_rx_stats_t hddTxRxStats;
 	struct hdd_arp_stats_s hdd_arp_stats;
@@ -1695,6 +1693,9 @@ struct hdd_context_s {
 	uint32_t no_of_probe_req_ouis;
 	struct vendor_oui *probe_req_voui;
 	struct hdd_nud_stats_context nud_stats_context;
+	uint32_t track_arp_ip;
+	uint8_t bt_a2dp_active:1;
+	uint8_t bt_vo_active:1;
 };
 
 /*---------------------------------------------------------------------------
@@ -1848,6 +1849,52 @@ hdd_adapter_t *hdd_get_con_sap_adapter(hdd_adapter_t *this_sap_adapter,
 bool hdd_is_5g_supported(hdd_context_t *pHddCtx);
 
 int wlan_hdd_scan_abort(hdd_adapter_t *pAdapter);
+
+#ifdef FEATURE_WLAN_LFR
+static inline bool hdd_driver_roaming_supported(hdd_context_t *hdd_ctx)
+{
+	return hdd_ctx->cfg_ini->isFastRoamIniFeatureEnabled;
+}
+#else
+static inline bool hdd_driver_roaming_supported(hdd_context_t *hdd_ctx)
+{
+	return false;
+}
+#endif
+
+#ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
+static inline bool hdd_firmware_roaming_supported(hdd_context_t *hdd_ctx)
+{
+	return hdd_ctx->cfg_ini->isRoamOffloadScanEnabled;
+}
+#else
+static inline bool hdd_firmware_roaming_supported(hdd_context_t *hdd_ctx)
+{
+	return false;
+}
+#endif
+
+static inline bool hdd_roaming_supported(hdd_context_t *hdd_ctx)
+{
+	bool val;
+
+	val = hdd_driver_roaming_supported(hdd_ctx) ||
+		hdd_firmware_roaming_supported(hdd_ctx);
+
+	return val;
+}
+
+#ifdef CFG80211_SCAN_RANDOM_MAC_ADDR
+static inline bool hdd_scan_random_mac_addr_supported(void)
+{
+	return true;
+}
+#else
+static inline bool hdd_scan_random_mac_addr_supported(void)
+{
+	return false;
+}
+#endif
 
 void hdd_get_fw_version(hdd_context_t *hdd_ctx,
 			uint32_t *major_spid, uint32_t *minor_spid,
@@ -2164,4 +2211,16 @@ static inline void hdd_init_nud_stats_ctx(hdd_context_t *hdd_ctx)
 	init_completion(&hdd_ctx->nud_stats_context.response_event);
 	return;
 }
+
+/**
+ * hdd_start_complete()- complete the start event
+ * @ret: return value for complete event.
+ *
+ * complete the startup event and set the return in
+ * global variable
+ *
+ * Return: void
+ */
+
+void hdd_start_complete(int ret);
 #endif /* end #if !defined(WLAN_HDD_MAIN_H) */

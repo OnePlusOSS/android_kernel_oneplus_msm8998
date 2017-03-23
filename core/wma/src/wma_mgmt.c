@@ -3177,6 +3177,16 @@ int wma_process_rmf_frame(tp_wma_handle wma_handle,
 	}
     return 0;
 }
+#else
+static inline int wma_process_rmf_frame(tp_wma_handle wma_handle,
+	struct wma_txrx_node *iface,
+	struct ieee80211_frame *wh,
+	cds_pkt_t *rx_pkt,
+	qdf_nbuf_t wbuf)
+{
+	return 0;
+}
+
 #endif
 
 /**
@@ -3285,12 +3295,12 @@ static int wma_mgmt_rx_process(void *handle, uint8_t *data,
 	tp_wma_handle wma_handle = (tp_wma_handle) handle;
 	WMI_MGMT_RX_EVENTID_param_tlvs *param_tlvs = NULL;
 	wmi_mgmt_rx_hdr *hdr = NULL;
-	struct wma_txrx_node *iface = NULL;
 	uint8_t vdev_id = WMA_INVALID_VDEV_ID;
 	cds_pkt_t *rx_pkt;
 	qdf_nbuf_t wbuf;
 	struct ieee80211_frame *wh;
 	uint8_t mgt_type, mgt_subtype;
+	struct wma_txrx_node *iface = NULL;
 	int status;
 	tp_wma_packetdump_cb packetdump_cb;
 
@@ -3426,7 +3436,6 @@ static int wma_mgmt_rx_process(void *handle, uint8_t *data,
 	mgt_type = (wh)->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
 	mgt_subtype = (wh)->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
 
-#ifdef WLAN_FEATURE_11W
 	if (mgt_type == IEEE80211_FC0_TYPE_MGT &&
 	    (mgt_subtype == IEEE80211_FC0_SUBTYPE_DISASSOC ||
 	     mgt_subtype == IEEE80211_FC0_SUBTYPE_DEAUTH ||
@@ -3448,7 +3457,7 @@ static int wma_mgmt_rx_process(void *handle, uint8_t *data,
 			}
 		}
 	}
-#endif /* WLAN_FEATURE_11W */
+
 	rx_pkt->pkt_meta.sessionId =
 		(vdev_id == WMA_INVALID_VDEV_ID ? 0 : vdev_id);
 

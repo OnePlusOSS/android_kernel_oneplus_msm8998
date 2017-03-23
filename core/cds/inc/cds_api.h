@@ -210,6 +210,18 @@ static inline void cds_set_unload_in_progress(uint8_t value)
 		cds_clear_driver_state(CDS_DRIVER_STATE_UNLOADING);
 }
 
+/**
+ * cds_is_driver_loaded() - Is driver loaded
+ *
+ * Return: true if driver is loaded or false otherwise.
+ */
+static inline bool cds_is_driver_loaded(void)
+{
+	enum cds_driver_state state = cds_get_driver_state();
+
+	return __CDS_IS_DRIVER_STATE(state, CDS_DRIVER_STATE_LOADED);
+}
+
 v_CONTEXT_t cds_init(void);
 void cds_deinit(void);
 
@@ -305,4 +317,8 @@ bool cds_is_self_recovery_enabled(void);
 void cds_pkt_stats_to_logger_thread(void *pl_hdr, void *pkt_dump, void *data);
 QDF_STATUS cds_register_dp_cb(struct cds_dp_cbacks *dp_cbs);
 QDF_STATUS cds_deregister_dp_cb(void);
+
+uint32_t cds_get_arp_stats_gw_ip(void);
+void cds_incr_arp_stats_tx_tgt_delivered(void);
+void cds_incr_arp_stats_tx_tgt_acked(void);
 #endif /* if !defined __CDS_API_H */

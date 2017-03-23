@@ -8559,6 +8559,9 @@ static int __iw_setint_getnone(struct net_device *dev,
 		case WLAN_HIF_STATS:
 			hdd_clear_hif_stats();
 			break;
+		case WLAN_NAPI_STATS:
+			hdd_clear_napi_stats();
+			break;
 		default:
 			if (ol_txrx_clear_stats(set_value) ==
 						QDF_STATUS_E_INVAL) {

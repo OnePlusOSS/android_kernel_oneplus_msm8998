@@ -3035,11 +3035,6 @@ QDF_STATUS sme_process_msg(tHalHandle hHal, cds_msg_t *pMsg)
 							  pMsg->bodyptr);
 		qdf_mem_free(pMsg->bodyptr);
 		break;
-	case eWNI_SME_BT_ACTIVITY_INFO_IND:
-		if (pMac->sme.bt_activity_info_cb)
-			pMac->sme.bt_activity_info_cb(pMac->hHdd,
-						      pMsg->bodyval);
-		break;
 	default:
 
 		if ((pMsg->type >= eWNI_SME_MSG_TYPES_BEGIN)
@@ -17478,24 +17473,6 @@ QDF_STATUS sme_get_nud_debug_stats(tHalHandle hal,
 	}
 
 	return QDF_STATUS_SUCCESS;
-}
-
-QDF_STATUS sme_set_bt_activity_info_cb(tHalHandle hal,
-			void (*cb)(void *, uint32_t bt_activity))
-{
-	QDF_STATUS status;
-	tpAniSirGlobal mac = PMAC_STRUCT(hal);
-
-	status = sme_acquire_global_lock(&mac->sme);
-	if (QDF_IS_STATUS_SUCCESS(status)) {
-		mac->sme.bt_activity_info_cb = cb;
-		sme_release_global_lock(&mac->sme);
-		sme_debug("bt activity info callback set");
-	} else {
-		sme_debug("sme_acquire_global_lock failed %d", status);
-	}
-
-	return status;
 }
 
 /**

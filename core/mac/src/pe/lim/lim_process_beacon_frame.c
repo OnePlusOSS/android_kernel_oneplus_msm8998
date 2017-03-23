@@ -77,16 +77,14 @@ lim_process_beacon_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 	 * beacon counter
 	 */
 	mac_hdr = WMA_GET_RX_MAC_HEADER(rx_pkt_info);
-	lim_log(mac_ctx, LOGD,
-		FL("Received Beacon frame with length=%d from "),
+	pe_debug("Received Beacon frame with length: %d from",
 		WMA_GET_RX_MPDU_LEN(rx_pkt_info));
 		lim_print_mac_addr(mac_ctx, mac_hdr->sa, LOGD);
 
 	/* Expect Beacon in any state as Scan is independent of LIM state */
 	bcn_ptr = qdf_mem_malloc(sizeof(*bcn_ptr));
 	if (NULL == bcn_ptr) {
-		lim_log(mac_ctx, LOGE,
-			FL("Unable to allocate memory"));
+		pe_err("Unable to allocate memory");
 		return;
 	}
 	/* Parse received Beacon */
@@ -97,8 +95,7 @@ lim_process_beacon_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 		 * Received wrongly formatted/invalid Beacon.
 		 * Ignore it and move on.
 		 */
-		lim_log(mac_ctx, LOGW,
-			FL("Received invalid Beacon in state %X"),
+		pe_warn("Received invalid Beacon in state: %X",
 			session->limMlmState);
 		lim_print_mlm_state(mac_ctx, LOGW,
 			session->limMlmState);
@@ -158,8 +155,7 @@ lim_process_beacon_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 		session->bcnLen = WMA_GET_RX_PAYLOAD_LEN(rx_pkt_info);
 		session->beacon = qdf_mem_malloc(session->bcnLen);
 		if (NULL == session->beacon) {
-			lim_log(mac_ctx, LOGE,
-				FL("fail to alloc mem to store bcn"));
+			pe_err("fail to alloc mem to store bcn");
 		} else {
 			/*
 			 * Store the Beacon/ProbeRsp. This is sent to
@@ -194,7 +190,7 @@ lim_process_beacon_frame_no_session(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo)
 	pMac->lim.gLimNumBeaconsRcvd++;
 	pHdr = WMA_GET_RX_MAC_HEADER(pRxPacketInfo);
 
-	lim_log(pMac, LOGD, FL("Received Beacon frame with length=%d from "),
+	pe_debug("Received Beacon frame with length: %d from ",
 		WMA_GET_RX_MPDU_LEN(pRxPacketInfo));
 	lim_print_mac_addr(pMac, pHdr->sa, LOGD);
 
@@ -209,9 +205,7 @@ lim_process_beacon_frame_no_session(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo)
 	    (pMac->lim.gLimMlmState == eLIM_MLM_LEARN_STATE)) {
 		pBeacon = qdf_mem_malloc(sizeof(tSchBeaconStruct));
 		if (NULL == pBeacon) {
-			lim_log(pMac, LOGE,
-				FL
-					("Unable to allocate memory in lim_process_beacon_frame_no_session"));
+			pe_err("Unable to allocate memory in lim_process_beacon_frame_no_session");
 			return;
 		}
 
@@ -219,9 +213,7 @@ lim_process_beacon_frame_no_session(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo)
 			    (pMac, (uint8_t *) pRxPacketInfo,
 			    pBeacon) != eSIR_SUCCESS) {
 			/* Received wrongly formatted/invalid Beacon. Ignore and move on. */
-			lim_log(pMac, LOGW,
-				FL
-					("Received invalid Beacon in global MLM state %X"),
+			pe_warn("Received invalid Beacon in global MLM state: %X",
 				pMac->lim.gLimMlmState);
 			lim_print_mlm_state(pMac, LOGW, pMac->lim.gLimMlmState);
 			qdf_mem_free(pBeacon);
@@ -246,7 +238,7 @@ lim_process_beacon_frame_no_session(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo)
 		qdf_mem_free(pBeacon);
 	} /* end of (eLIM_MLM_WT_PROBE_RESP_STATE) || (eLIM_MLM_PASSIVE_SCAN_STATE) */
 	else {
-		lim_log(pMac, LOGD, FL("Rcvd Beacon in unexpected MLM state %s (%d)"),
+		pe_debug("Rcvd Beacon in unexpected MLM state: %s (%d)",
 			lim_mlm_state_str(pMac->lim.gLimMlmState),
 			pMac->lim.gLimMlmState);
 #ifdef WLAN_DEBUG

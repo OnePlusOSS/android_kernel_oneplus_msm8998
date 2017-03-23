@@ -295,9 +295,6 @@ static bool update_load(int cpu)
 	u64 delta_time;
 	bool ignore = false;
 
-	if (!cpu_online(cpu))
-		return true;
-
 	now_idle = get_cpu_idle_time(cpu, &now, tunables->io_is_busy);
 	delta_idle = (now_idle - pcpu->time_in_idle);
 	delta_time = (now - pcpu->time_in_idle_timestamp);
@@ -367,6 +364,8 @@ static void cpufreq_nightmare_timer(unsigned long data)
 
 	max_cpu = cpumask_first(ppol->policy->cpus);
 	for_each_cpu(i, ppol->policy->related_cpus) {
+		if (!cpu_online(i))
+			continue;
 		if (update_load(i))
 			continue;
 		pcpu = &per_cpu(cpuinfo, i);
@@ -523,8 +522,11 @@ static int cpufreq_nightmare_notifier(
 			return 0;
 		}
 		spin_lock_irqsave(&ppol->load_lock, flags);
-		for_each_cpu(cpu, ppol->policy->cpus)
+		for_each_cpu(cpu, ppol->policy->related_cpus) {
+			if (!cpu_online(cpu))
+				continue;
 			update_load(cpu);
+		}
 		spin_unlock_irqrestore(&ppol->load_lock, flags);
 
 		up_read(&ppol->enable_sem);

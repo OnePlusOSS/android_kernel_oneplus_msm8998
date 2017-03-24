@@ -372,4 +372,19 @@ int __qdf_set_dma_coherent_mask(struct device *dev, uint8_t addr_bits)
 }
 #endif
 
+/**
+ * __qdf_do_div() - wrapper function for kernel macro(do_div).
+ * @dividend: Dividend value
+ * @divisor : Divisor value
+ *
+ * Return: Quotient
+ */
+static inline
+uint64_t __qdf_do_div(uint64_t dividend, uint32_t divisor)
+{
+	do_div(dividend, divisor);
+	/*do_div macro updates dividend with Quotient of dividend/divisor */
+	return dividend;
+}
+
 #endif /*_I_QDF_UTIL_H*/

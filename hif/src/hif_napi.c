@@ -41,8 +41,9 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #ifdef HELIUMPLUS
-#include <soc/qcom/irq-helper.h>
+#ifdef CONFIG_SCHED_CORE_CTL
 #include <linux/sched/core_ctl.h>
+#endif
 #include <pld_snoc.h>
 #endif
 #include <linux/pm.h>
@@ -136,6 +137,7 @@ int hif_napi_create(struct hif_opaque_softc   *hif_ctx,
 		rc = hif_napi_cpu_init(hif_ctx);
 		if (rc != 0) {
 			HIF_ERROR("NAPI_initialization failed,. %d", rc);
+			rc = napid->ce_map;
 			goto hnc_err;
 		}
 
@@ -152,8 +154,21 @@ int hif_napi_create(struct hif_opaque_softc   *hif_ctx,
 
 		/* Now this is a CE where we need NAPI on */
 		NAPI_DEBUG("Creating NAPI on pipe %d", i);
+		napii = qdf_mem_malloc(sizeof(*napii));
+		napid->napis[i] = napii;
+		if (!napii) {
+			NAPI_DEBUG("NAPI alloc failure %d", i);
+			rc = -ENOMEM;
+			goto napii_alloc_failure;
+		}
+	}
 
-		napii = &(napid->napis[i]);
+	for (i = 0; i < hif->ce_count; i++) {
+		napii = napid->napis[i];
+		if (!napii)
+			continue;
+
+		NAPI_DEBUG("initializing NAPI for pipe %d", i);
 		memset(napii, 0, sizeof(struct qca_napi_info));
 		napii->scale = scale;
 		napii->id    = NAPI_PIPE2ID(i);
@@ -188,10 +203,21 @@ int hif_napi_create(struct hif_opaque_softc   *hif_ctx,
 		HIF_DBG("%s: NAPI id %d created for pipe %d", __func__,
 			 napii->id, i);
 	}
+	NAPI_DEBUG("napi map = %x", napid->ce_map);
 	NAPI_DEBUG("NAPI ids created for all applicable pipes");
+	return napid->ce_map;
+
+napii_alloc_failure:
+	for (i = 0; i < hif->ce_count; i++) {
+		napii = napid->napis[i];
+		napid->napis[i] = NULL;
+		if (napii)
+			qdf_mem_free(napii);
+	}
+
 hnc_err:
 	NAPI_DEBUG("<--napi_instances_map=%x]", napid->ce_map);
-	return napid->ce_map;
+	return rc;
 }
 
 /**
@@ -230,13 +256,23 @@ int hif_napi_destroy(struct hif_opaque_softc *hif_ctx,
 	} else if (0 == (hif->napi_data.ce_map & (0x01 << ce))) {
 		HIF_ERROR("%s: NAPI instance %d (pipe %d) not created",
 			  __func__, id, ce);
+		if (hif->napi_data.napis[ce])
+			HIF_ERROR("%s: memory allocated but ce_map not set %d (pipe %d)",
+				  __func__, id, ce);
 		rc = -EINVAL;
 	} else {
 		struct qca_napi_data *napid;
 		struct qca_napi_info *napii;
 
 		napid = &(hif->napi_data);
-		napii = &(napid->napis[ce]);
+		napii = napid->napis[ce];
+		if (!napii) {
+			if (napid->ce_map & (0x01 << ce))
+				HIF_ERROR("%s: napii & ce_map out of sync(ce %d)",
+					  __func__, ce);
+			return -EINVAL;
+		}
+
 
 		if (hif->napi_data.state == HIF_NAPI_CONF_UP) {
 			if (force) {
@@ -263,7 +299,9 @@ int hif_napi_destroy(struct hif_opaque_softc *hif_ctx,
 			netif_napi_del(&(napii->napi));
 
 			napid->ce_map &= ~(0x01 << ce);
+			napid->napis[ce] = NULL;
 			napii->scale  = 0;
+			qdf_mem_free(napii);
 			HIF_DBG("%s: NAPI %d destroyed\n", __func__, id);
 
 			/* if there are no active instances and
@@ -300,7 +338,6 @@ int hif_napi_lro_flush_cb_register(struct hif_opaque_softc *hif_hdl,
 {
 	int rc = 0;
 	int i;
-	struct CE_state *ce_state;
 	struct hif_softc *scn = HIF_GET_SOFTC(hif_hdl);
 	void *data = NULL;
 	struct qca_napi_data *napid;
@@ -311,15 +348,14 @@ int hif_napi_lro_flush_cb_register(struct hif_opaque_softc *hif_hdl,
 	napid = hif_napi_get_all(hif_hdl);
 	if (scn != NULL) {
 		for (i = 0; i < scn->ce_count; i++) {
-			ce_state = scn->ce_id_to_state[i];
-			if ((ce_state != NULL) && (ce_state->htt_rx_data)) {
+			napii = napid->napis[i];
+			if (napii) {
 				data = lro_init_handler();
 				if (data == NULL) {
 					HIF_ERROR("%s: Failed to init LRO for CE %d",
 						  __func__, i);
 					continue;
 				}
-				napii = &(napid->napis[i]);
 				napii->lro_flush_cb = lro_flush_handler;
 				napii->lro_ctx = data;
 				HIF_DBG("Registering LRO for ce_id %d NAPI callback for %d flush_cb %p, lro_data %p\n",
@@ -345,7 +381,6 @@ void hif_napi_lro_flush_cb_deregister(struct hif_opaque_softc *hif_hdl,
 				     void (lro_deinit_cb)(void *))
 {
 	int i;
-	struct CE_state *ce_state;
 	struct hif_softc *scn = HIF_GET_SOFTC(hif_hdl);
 	struct qca_napi_data *napid;
 	struct qca_napi_info *napii;
@@ -355,9 +390,8 @@ void hif_napi_lro_flush_cb_deregister(struct hif_opaque_softc *hif_hdl,
 	napid = hif_napi_get_all(hif_hdl);
 	if (scn != NULL) {
 		for (i = 0; i < scn->ce_count; i++) {
-			ce_state = scn->ce_id_to_state[i];
-			if ((ce_state != NULL) && (ce_state->htt_rx_data)) {
-				napii = &(napid->napis[i]);
+			napii = napid->napis[i];
+			if (napii) {
 				HIF_DBG("deRegistering LRO for ce_id %d NAPI callback for %d flush_cb %p, lro_data %p\n",
 					i, napii->id, napii->lro_flush_cb,
 					napii->lro_ctx);
@@ -392,9 +426,11 @@ void *hif_napi_get_lro_info(struct hif_opaque_softc *hif_hdl, int napi_id)
 	struct qca_napi_info *napii;
 
 	napid = &(scn->napi_data);
-	napii = &(napid->napis[NAPI_ID2PIPE(napi_id)]);
+	napii = napid->napis[NAPI_ID2PIPE(napi_id)];
 
-	return napii->lro_ctx;
+	if (napii)
+		return napii->lro_ctx;
+	return 0;
 }
 
 /**
@@ -617,26 +653,28 @@ int hif_napi_event(struct hif_opaque_softc *hif_ctx, enum qca_napi_event event,
 	if (prev_state != napid->state) {
 		if (napid->state == ENABLE_NAPI_MASK) {
 			rc = 1;
-			for (i = 0; i < CE_COUNT_MAX; i++)
-				if ((napid->ce_map & (0x01 << i))) {
-					napi = &(napid->napis[i].napi);
+			for (i = 0; i < CE_COUNT_MAX; i++) {
+				struct qca_napi_info *napii = napid->napis[i];
+				if (napii) {
+					napi = &(napii->napi);
 					NAPI_DEBUG("%s: enabling NAPI %d",
 						   __func__, i);
 					napi_enable(napi);
 				}
+			}
 		} else {
 			rc = 0;
-			for (i = 0; i < CE_COUNT_MAX; i++)
-				if (napid->ce_map & (0x01 << i)) {
-					napi = &(napid->napis[i].napi);
+			for (i = 0; i < CE_COUNT_MAX; i++) {
+				struct qca_napi_info *napii = napid->napis[i];
+				if (napii) {
+					napi = &(napii->napi);
 					NAPI_DEBUG("%s: disabling NAPI %d",
 						   __func__, i);
 					napi_disable(napi);
 					/* in case it is affined, remove it */
-					irq_set_affinity_hint(
-							napid->napis[i].irq,
-							NULL);
+					irq_set_affinity_hint(napii->irq, NULL);
 				}
+			}
 		}
 	} else {
 		HIF_DBG("%s: no change in hif napi state (still %d)",
@@ -694,14 +732,22 @@ int hif_napi_schedule(struct hif_opaque_softc *hif_ctx, int ce_id)
 {
 	int cpu = smp_processor_id();
 	struct hif_softc *scn = HIF_GET_SOFTC(hif_ctx);
+	struct qca_napi_info *napii;
 
 	hif_record_ce_desc_event(scn,  ce_id, NAPI_SCHEDULE,
 				 NULL, NULL, 0);
 
-	scn->napi_data.napis[ce_id].stats[cpu].napi_schedules++;
-	NAPI_DEBUG("scheduling napi %d (ce:%d)",
-		   scn->napi_data.napis[ce_id].id, ce_id);
-	napi_schedule(&(scn->napi_data.napis[ce_id].napi));
+	napii = scn->napi_data.napis[ce_id];
+	if (qdf_unlikely(!napii)) {
+		HIF_ERROR("%s, scheduling unallocated napi (ce:%d)",
+			      __func__, ce_id);
+		qdf_atomic_dec(&scn->active_tasklet_cnt);
+		return false;
+	}
+
+	napii->stats[cpu].napi_schedules++;
+	NAPI_DEBUG("scheduling napi %d (ce:%d)", napii->id, ce_id);
+	napi_schedule(&(napii->napi));
 
 	return true;
 }
@@ -784,9 +830,6 @@ int hif_napi_poll(struct hif_opaque_softc *hif_ctx,
 	struct qca_napi_info *napi_info;
 	struct CE_state *ce_state = NULL;
 
-	NAPI_DEBUG("%s -->(napi(%d, irq=%d), budget=%d)",
-		   __func__, napi_info->id, napi_info->irq, budget);
-
 	if (unlikely(NULL == hif)) {
 		HIF_ERROR("%s: hif context is NULL", __func__);
 		QDF_ASSERT(0);
@@ -795,6 +838,9 @@ int hif_napi_poll(struct hif_opaque_softc *hif_ctx,
 
 	napi_info = (struct qca_napi_info *)
 		container_of(napi, struct qca_napi_info, napi);
+
+	NAPI_DEBUG("%s -->(napi(%d, irq=%d), budget=%d)",
+		   __func__, napi_info->id, napi_info->irq, budget);
 
 	napi_info->stats[cpu].napi_polls++;
 
@@ -914,13 +960,16 @@ void hif_napi_update_yield_stats(struct CE_state *ce_state,
 		}
 	}
 
+	if (unlikely(NULL == napi_data->napis[ce_id]))
+		return;
+
 	ce_id = ce_state->id;
 	cpu_id = qdf_get_cpu();
 
 	if (time_limit_reached)
-		napi_data->napis[ce_id].stats[cpu_id].time_limit_reached++;
+		napi_data->napis[ce_id]->stats[cpu_id].time_limit_reached++;
 	else
-		napi_data->napis[ce_id].stats[cpu_id].rxpkt_thresh_reached++;
+		napi_data->napis[ce_id]->stats[cpu_id].rxpkt_thresh_reached++;
 }
 
 /**
@@ -1332,15 +1381,17 @@ static int hncm_migrate_to(struct qca_napi_data *napid,
 	NAPI_DEBUG("-->%s(napi_cd=%d, didx=%d)", __func__, napi_ce, didx);
 
 	cpumask.bits[0] = (1 << didx);
+	if (!napid->napis[napi_ce])
+		return -EINVAL;
 
-	irq_modify_status(napid->napis[napi_ce].irq, IRQ_NO_BALANCING, 0);
-	rc = irq_set_affinity_hint(napid->napis[napi_ce].irq, &cpumask);
+	irq_modify_status(napid->napis[napi_ce]->irq, IRQ_NO_BALANCING, 0);
+	rc = irq_set_affinity_hint(napid->napis[napi_ce]->irq, &cpumask);
 
 	/* unmark the napis bitmap in the cpu table */
-	napid->napi_cpu[napid->napis[napi_ce].cpu].napis &= ~(0x01 << napi_ce);
+	napid->napi_cpu[napid->napis[napi_ce]->cpu].napis &= ~(0x01 << napi_ce);
 	/* mark the napis bitmap for the new designated cpu */
 	napid->napi_cpu[didx].napis |= (0x01 << napi_ce);
-	napid->napis[napi_ce].cpu = didx;
+	napid->napis[napi_ce]->cpu = didx;
 
 	NAPI_DEBUG("<--%s[%d]", __func__, rc);
 	return rc;
@@ -1505,21 +1556,39 @@ hncm_return:
 static inline void hif_napi_bl_irq(struct qca_napi_data *napid, bool bl_flag)
 {
 	int i;
+	struct qca_napi_info *napii;
 	for (i = 0; i < CE_COUNT_MAX; i++) {
 		/* check if NAPI is enabled on the CE */
 		if (!(napid->ce_map & (0x01 << i)))
 			continue;
 
+		/*double check that NAPI is allocated for the CE */
+		napii = napid->napis[i];
+		if (!(napii))
+			continue;
+
 		if (bl_flag == true)
-			irq_modify_status(napid->napis[i].irq,
+			irq_modify_status(napii->irq,
 					  0, IRQ_NO_BALANCING);
 		else
-			irq_modify_status(napid->napis[i].irq,
+			irq_modify_status(napii->irq,
 					  IRQ_NO_BALANCING, 0);
 		HIF_DBG("%s: bl_flag %d CE %d", __func__, bl_flag, i);
 	}
 }
 
+#ifdef CONFIG_SCHED_CORE_CTL
+/* Enable this API only if kernel feature - CONFIG_SCHED_CORE_CTL is defined */
+static inline int hif_napi_core_ctl_set_boost(bool boost)
+{
+	return core_ctl_set_boost(boost);
+}
+#else
+static inline int hif_napi_core_ctl_set_boost(bool boost)
+{
+	return 0;
+}
+#endif
 /**
  * hif_napi_cpu_blacklist() - en(dis)ables blacklisting for NAPI RX interrupts.
  * @napid: pointer to qca_napi_data structure
@@ -1559,7 +1628,7 @@ int hif_napi_cpu_blacklist(struct qca_napi_data *napid, enum qca_blacklist_op op
 		ref_count++;
 		rc = 0;
 		if (ref_count == 1) {
-			rc = core_ctl_set_boost(true);
+			rc = hif_napi_core_ctl_set_boost(true);
 			NAPI_DEBUG("boost_on() returns %d - refcnt=%d",
 				rc, ref_count);
 			hif_napi_bl_irq(napid, true);
@@ -1570,7 +1639,7 @@ int hif_napi_cpu_blacklist(struct qca_napi_data *napid, enum qca_blacklist_op op
 			ref_count--;
 		rc = 0;
 		if (ref_count == 0) {
-			rc = core_ctl_set_boost(false);
+			rc = hif_napi_core_ctl_set_boost(false);
 			NAPI_DEBUG("boost_off() returns %d - refcnt=%d",
 				   rc, ref_count);
 			hif_napi_bl_irq(napid, false);

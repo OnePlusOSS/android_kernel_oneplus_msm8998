@@ -116,6 +116,7 @@ typedef union {
  * @tx.trace       : combined structure for DP and protocol trace
  * @tx.trace.packet_state: {NBUF_TX_PKT_[(HDD)|(TXRX_ENQUEUE)|(TXRX_DEQUEUE)|
  *                       +               (TXRX)|(HTT)|(HTC)|(HIF)|(CE)|(FREE)]
+ * @tx.trace.is_packet_priv: flag, pkt generated internally or come from NS
  * @tx.trace.packet_track: {NBUF_TX_PKT_[(DATA)|(MGMT)]_TRACK}
  * @tx.trace.proto_type  : bitmap of NBUF_PKT_TRAC_TYPE[(EAPOL)|(DHCP)|
  *                       +                              (MGMT_ACTION)] - 4 bits
@@ -182,7 +183,8 @@ struct qdf_nbuf_cb {
 				struct {
 					uint32_t data_attr; /* 4 bytes */
 					struct{
-						uint8_t packet_state;
+						uint8_t packet_state:7,
+							is_packet_priv:1;
 						uint8_t packet_track:4,
 							proto_type:4;
 						uint8_t dp_trace:1,
@@ -274,6 +276,9 @@ struct qdf_nbuf_cb {
 #define QDF_NBUF_CB_TX_PACKET_STATE(skb) \
 	(((struct qdf_nbuf_cb *) \
 		((skb)->cb))->u.tx.dev.mcl.trace.packet_state)
+#define QDF_NBUF_CB_TX_IS_PACKET_PRIV(skb) \
+	(((struct qdf_nbuf_cb *) \
+		((skb)->cb))->u.tx.dev.mcl.trace.is_packet_priv)
 #define QDF_NBUF_CB_TX_PACKET_TRACK(skb) \
 	(((struct qdf_nbuf_cb *) \
 		((skb)->cb))->u.tx.dev.mcl.trace.packet_track)
@@ -501,6 +506,7 @@ void __qdf_nbuf_unmap_nbytes_single(
 void __qdf_nbuf_dma_map_info(__qdf_dma_map_t bmap, qdf_dmamap_info_t *sg);
 uint32_t __qdf_nbuf_get_frag_size(__qdf_nbuf_t nbuf, uint32_t cur_frag);
 void __qdf_nbuf_frag_info(struct sk_buff *skb, qdf_sglist_t  *sg);
+void qdf_net_buf_debug_delete_node(struct sk_buff *net_buf);
 QDF_STATUS __qdf_nbuf_frag_map(
 	qdf_device_t osdev, __qdf_nbuf_t nbuf,
 	int offset, qdf_dma_dir_t dir, int cur_frag);
@@ -519,6 +525,10 @@ bool __qdf_nbuf_data_is_ipv6_tcp_pkt(uint8_t *data);
 bool __qdf_nbuf_data_is_ipv4_dhcp_pkt(uint8_t *data);
 bool __qdf_nbuf_data_is_ipv4_eapol_pkt(uint8_t *data);
 bool __qdf_nbuf_data_is_ipv4_arp_pkt(uint8_t *data);
+bool __qdf_nbuf_data_is_arp_req(uint8_t *data);
+bool __qdf_nbuf_data_is_arp_rsp(uint8_t *data);
+uint32_t __qdf_nbuf_get_arp_src_ip(uint8_t *data);
+uint32_t __qdf_nbuf_get_arp_tgt_ip(uint8_t *data);
 enum qdf_proto_subtype  __qdf_nbuf_data_get_dhcp_subtype(uint8_t *data);
 enum qdf_proto_subtype  __qdf_nbuf_data_get_eapol_subtype(uint8_t *data);
 enum qdf_proto_subtype  __qdf_nbuf_data_get_arp_subtype(uint8_t *data);
@@ -937,6 +947,11 @@ static inline void __qdf_nbuf_tx_free(struct sk_buff *bufs, int tx_err)
 {
 	while (bufs) {
 		struct sk_buff *next = __qdf_nbuf_next(bufs);
+
+		if (QDF_NBUF_CB_TX_IS_PACKET_PRIV(bufs)) {
+			if (qdf_likely(bufs))
+				qdf_net_buf_debug_delete_node(bufs);
+		}
 		__qdf_nbuf_free(bufs);
 		bufs = next;
 	}

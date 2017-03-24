@@ -1046,6 +1046,28 @@ static const struct ccp_freq_chan_map freq_chan_map[] = {
 #define WE_SET_WOW_DATA_INACTIVITY_TO    90
 
 
+/*
+ * <ioctl>
+ * setModDTIM - Change Modulated DTIM
+ *
+ * @INPUT: set_value.
+ *
+ * @OUTPUT: None
+ *
+ * This IOCTL is used to change modulated DTIM
+ * value without WIFI OFF/ON.
+ *
+ * @E.g: iwpriv wlan0 setModDTIM <value>
+ * iwpriv wlan0 setModDTIM 2
+ *
+ * Supported Feature: N/A
+ *
+ * Usage: External
+ *
+ * </ioctl>
+ */
+#define WE_SET_MODULATED_DTIM                 91
+
 /* Private ioctls and their sub-ioctls */
 #define WLAN_PRIV_SET_NONE_GET_INT    (SIOCIWFIRSTPRIV + 1)
 #define WE_GET_11D_STATE     1
@@ -8865,6 +8887,18 @@ static int __iw_setint_getnone(struct net_device *dev,
 		cds_set_cur_conc_system_pref(set_value);
 		break;
 	}
+	case WE_SET_MODULATED_DTIM:
+	{
+		if ((set_value < CFG_ENABLE_MODULATED_DTIM_MIN) ||
+				(set_value > CFG_ENABLE_MODULATED_DTIM_MAX)) {
+			hdd_err("Invalid gEnableModuleDTIM value %d",
+				set_value);
+			return -EINVAL;
+		} else {
+			hdd_ctx->config->enableModulatedDTIM = set_value;
+		}
+		break;
+	}
 	default:
 	{
 		hdd_err("Invalid sub command %d",
@@ -13229,6 +13263,10 @@ static const struct iw_priv_args we_private_args[] = {
 	{WE_SET_CONC_SYSTEM_PREF,
 	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
 	 0, "setConcSysPref" },
+
+	{WE_SET_MODULATED_DTIM,
+	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
+	 0, "setModDTIM" },
 
 	{WLAN_PRIV_SET_NONE_GET_INT,
 	 0,

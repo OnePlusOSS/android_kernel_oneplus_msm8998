@@ -4613,7 +4613,7 @@ QDF_STATUS sme_get_config_param(tHalHandle hHal, tSmeConfigParams *pParam)
  * sme_cfg_set_int() - Sets the cfg parameter value.
  * @hal:	Handle to hal.
  * @cfg_id:	Configuration parameter ID.
- * @value: 	value to be saved in the cfg parameter.
+ * @value:	value to be saved in the cfg parameter.
  *
  * This function sets the string value in cfg parameter.
  *
@@ -4657,8 +4657,7 @@ QDF_STATUS sme_cfg_set_str(tHalHandle hal, uint16_t cfg_id, uint8_t *str,
  * sme_cfg_get_int() -  Gets the cfg parameter value.
  * @hal:	Handle to hal.
  * @cfg_id:	Configuration parameter ID.
- * @cfg_value:	Pointer to variable in which cfg value
- * 		will be saved.
+ * @cfg_value:	Pointer to variable in which cfg value will be saved.
  *
  * This function gets the value of the cfg parameter.
  *

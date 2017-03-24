@@ -192,6 +192,7 @@ static int hdd_lro_desc_find(struct hdd_lro_s *lro_info,
 	/* Check if this flow exists in the descriptor list */
 	list_for_each(ptr, &lro_hash_table->lro_desc_list) {
 		struct net_lro_desc *tmp_lro_desc = NULL;
+
 		entry = list_entry(ptr, struct hdd_lro_desc_entry, lro_node);
 		tmp_lro_desc = entry->lro_desc;
 		if (tmp_lro_desc->active) {
@@ -457,9 +458,9 @@ static void *hdd_init_lro_mgr(void)
 		return NULL;
 	}
 	/*
-	* Allocate all the LRO data structures at once and then carve
-	* them up as needed
-	*/
+	 * Allocate all the LRO data structures at once and then carve
+	 * them up as needed
+	 */
 	lro_info_sz = sizeof(struct hdd_lro_s);
 	lro_mgr_sz = sizeof(struct net_lro_mgr);
 	desc_arr_sz = (LRO_DESC_POOL_SZ * sizeof(struct net_lro_desc));
@@ -572,8 +573,6 @@ void hdd_lro_disable(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 
 	/* Deregister the flush callback */
 	ol_deregister_lro_flush_cb(hdd_deinit_lro_mgr);
-
-	return;
 }
 
 /**
@@ -635,9 +634,8 @@ enum hdd_lro_rx_status hdd_lro_rx(hdd_context_t *hdd_ctx,
 			lro_receive_skb_ext(lro_info->lro_mgr, skb,
 				 (void *)adapter, &hdd_lro_info);
 
-			if (!hdd_lro_info.lro_desc->active) {
+			if (!hdd_lro_info.lro_desc->active)
 				hdd_lro_desc_free(lro_desc, lro_info);
-			}
 
 			status = HDD_LRO_RX;
 		} else {

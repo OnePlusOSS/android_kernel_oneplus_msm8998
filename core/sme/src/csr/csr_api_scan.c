@@ -4892,9 +4892,6 @@ QDF_STATUS csr_scan_sme_scan_response(tpAniSirGlobal pMac,
 	if (eSmeCommandScan != pCommand->command)
 		goto error_handling;
 
-	 /* Purge the scan results based on Aging */
-	if (pEntry && pMac->scan.scanResultCfgAgingTime)
-		csr_purge_scan_result_by_age(pMac);
 	scanStatus = (eSIR_SME_SUCCESS == pScanRsp->statusCode) ?
 			eCSR_SCAN_SUCCESS : eCSR_SCAN_FAILURE;
 	reason = pCommand->u.scanCmd.reason;
@@ -4916,6 +4913,9 @@ QDF_STATUS csr_scan_sme_scan_response(tpAniSirGlobal pMac,
 		}
 		break;
 	}
+	/* Purge the scan results based on Aging */
+	if (pMac->scan.scanResultCfgAgingTime)
+		csr_purge_scan_result_by_age(pMac);
 	if (fRemoveCommand)
 		csr_release_scan_command(pMac, pCommand, scanStatus);
 	sme_process_pending_queue(pMac);

@@ -63,7 +63,7 @@ struct index_vht_data_rate_type {
  * @DATA_RATE_11AC_MAX_MCS_9: MCS9 rate
  * @DATA_RATE_11AC_MAX_MCS_NA:i Not applicable
  */
-enum eDataRate11ACMaxMcs{
+enum eDataRate11ACMaxMcs {
 	DATA_RATE_11AC_MAX_MCS_7,
 	DATA_RATE_11AC_MAX_MCS_8,
 	DATA_RATE_11AC_MAX_MCS_9,
@@ -180,7 +180,6 @@ int wlan_hdd_ll_stats_get(hdd_adapter_t *adapter, uint32_t req_id,
 
 static inline void hdd_init_ll_stats_ctx(void)
 {
-	return;
 }
 
 static inline bool hdd_link_layer_stats_supported(void)

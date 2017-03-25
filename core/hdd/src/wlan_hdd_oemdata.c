@@ -208,17 +208,15 @@ static void send_oem_reg_rsp_nlink_msg(void)
 	hdd_adapter_t *pAdapter = NULL;
 	QDF_STATUS status = 0;
 
-	/* OEM message is always to a specific process and cannot be a broadcast */
+	/* OEM msg is always to a specific process & cannot be a broadcast */
 	if (p_hdd_ctx->oem_pid == 0) {
 		hdd_err("invalid dest pid");
 		return;
 	}
 
 	skb = alloc_skb(NLMSG_SPACE(WLAN_NL_MAX_PAYLOAD), GFP_KERNEL);
-	if (skb == NULL) {
-		hdd_err("alloc_skb failed");
+	if (skb == NULL)
 		return;
-	}
 
 	nlh = (struct nlmsghdr *)skb->data;
 	nlh->nlmsg_pid = 0;     /* from kernel */
@@ -238,7 +236,7 @@ static void send_oem_reg_rsp_nlink_msg(void)
 	numInterfaces = buf++;
 	*numInterfaces = 0;
 
-	/* Iterate through each of the adapters and fill device mode and vdev id */
+	/* Iterate through each adapter and fill device mode and vdev id */
 	status = hdd_get_front_adapter(p_hdd_ctx, &pAdapterNode);
 	while ((QDF_STATUS_SUCCESS == status) && pAdapterNode) {
 		pAdapter = pAdapterNode->pAdapter;
@@ -266,8 +264,6 @@ static void send_oem_reg_rsp_nlink_msg(void)
 		   aniHdr->length, p_hdd_ctx->oem_pid);
 
 	(void)nl_srv_ucast_oem(skb, p_hdd_ctx->oem_pid, MSG_DONTWAIT);
-
-	return;
 }
 
 /**
@@ -287,10 +283,8 @@ static void send_oem_err_rsp_nlink_msg(int32_t app_pid, uint8_t error_code)
 	uint8_t *buf;
 
 	skb = alloc_skb(NLMSG_SPACE(WLAN_NL_MAX_PAYLOAD), GFP_KERNEL);
-	if (skb == NULL) {
-		hdd_err("alloc_skb failed");
+	if (skb == NULL)
 		return;
-	}
 
 	nlh = (struct nlmsghdr *)skb->data;
 	nlh->nlmsg_pid = 0;     /* from kernel */
@@ -311,8 +305,6 @@ static void send_oem_err_rsp_nlink_msg(int32_t app_pid, uint8_t error_code)
 	hdd_debug("sending oem error response to pid: %d", app_pid);
 
 	(void)nl_srv_ucast_oem(skb, app_pid, MSG_DONTWAIT);
-
-	return;
 }
 
 /**
@@ -346,10 +338,8 @@ void hdd_send_oem_data_rsp_msg(struct oem_data_rsp *oem_data_rsp)
 
 	skb = alloc_skb(NLMSG_SPACE(sizeof(tAniMsgHdr) + OEM_DATA_RSP_SIZE),
 			GFP_KERNEL);
-	if (skb == NULL) {
-		hdd_err("alloc_skb failed");
+	if (skb == NULL)
 		return;
-	}
 
 	nlh = (struct nlmsghdr *)skb->data;
 	nlh->nlmsg_pid = 0;     /* from kernel */
@@ -370,8 +360,6 @@ void hdd_send_oem_data_rsp_msg(struct oem_data_rsp *oem_data_rsp)
 		   oem_data_rsp->rsp_len, p_hdd_ctx->oem_pid);
 
 	(void)nl_srv_ucast_oem(skb, p_hdd_ctx->oem_pid, MSG_DONTWAIT);
-
-	return;
 }
 
 /**
@@ -495,7 +483,7 @@ static int oem_process_channel_info_req_msg(int numOfChannels, char *chanList)
 	int i;
 	uint8_t *buf;
 
-	/* OEM message is always to a specific process and cannot be a broadcast */
+	/* OEM msg is always to a specific process and cannot be a broadcast */
 	if (p_hdd_ctx->oem_pid == 0) {
 		hdd_err("invalid dest pid");
 		return -EPERM;
@@ -504,10 +492,8 @@ static int oem_process_channel_info_req_msg(int numOfChannels, char *chanList)
 	skb = alloc_skb(NLMSG_SPACE(sizeof(tAniMsgHdr) + sizeof(uint8_t) +
 				    numOfChannels * sizeof(tHddChannelInfo)),
 			GFP_KERNEL);
-	if (skb == NULL) {
-		hdd_err("alloc_skb failed");
+	if (skb == NULL)
 		return -ENOMEM;
-	}
 
 	nlh = (struct nlmsghdr *)skb->data;
 	nlh->nlmsg_pid = 0;     /* from kernel */
@@ -556,10 +542,10 @@ static int oem_process_channel_info_req_msg(int numOfChannels, char *chanList)
 			hddChanInfo.reg_info_1 = reg_info_1;
 			hddChanInfo.reg_info_2 = reg_info_2;
 		} else {
-			/* channel info is not returned, fill in zeros in channel
-			 * info struct
+			/* channel info is not returned, fill in zeros in
+			 * channel info struct
 			 */
-			hdd_debug("sme_get_reg_info failed for chan (%d), return info 0",
+			hdd_debug("sme_get_reg_info failed for chan: %d, fill 0s",
 				   chanId);
 			hddChanInfo.chan_id = chanId;
 			hddChanInfo.reserved0 = 0;
@@ -616,10 +602,8 @@ static int oem_process_set_cap_req_msg(int oem_cap_len,
 	error_code = qdf_status_to_os_return(status);
 
 	skb = alloc_skb(NLMSG_SPACE(WLAN_NL_MAX_PAYLOAD), GFP_KERNEL);
-	if (skb == NULL) {
-		hdd_err("alloc_skb failed");
+	if (skb == NULL)
 		return -ENOMEM;
-	}
 
 	nlh = (struct nlmsghdr *)skb->data;
 	nlh->nlmsg_pid = 0;     /* from kernel */
@@ -678,10 +662,8 @@ static int oem_process_get_cap_req_msg(void)
 
 	skb = alloc_skb(NLMSG_SPACE(sizeof(tAniMsgHdr) + sizeof(*cap_rsp)),
 			GFP_KERNEL);
-	if (skb == NULL) {
-		hdd_err("alloc_skb failed");
+	if (skb == NULL)
 		return -ENOMEM;
-	}
 
 	nlh = (struct nlmsghdr *)skb->data;
 	nlh->nlmsg_pid = 0;     /* from kernel */
@@ -750,10 +732,8 @@ void hdd_send_peer_status_ind_to_oem_app(struct qdf_mac_addr *peerMac,
 	skb = alloc_skb(NLMSG_SPACE(sizeof(tAniMsgHdr) +
 				    sizeof(tPeerStatusInfo)),
 			GFP_KERNEL);
-	if (skb == NULL) {
-		hdd_err("alloc_skb failed");
+	if (skb == NULL)
 		return;
-	}
 
 	nlh = (struct nlmsghdr *)skb->data;
 	nlh->nlmsg_pid = 0;     /* from kernel */
@@ -818,8 +798,6 @@ void hdd_send_peer_status_ind_to_oem_app(struct qdf_mac_addr *peerMac,
 		  pPeerInfo->peer_chan_info.reg_info_2);
 
 	(void)nl_srv_ucast_oem(skb, p_hdd_ctx->oem_pid, MSG_DONTWAIT);
-
-	return;
 }
 
 /**
@@ -1078,8 +1056,6 @@ static void oem_cmd_handler(const void *data, int data_len, void *ctx, int pid)
 		return;
 	}
 	oem_request_dispatcher(msg_hdr, pid);
-
-	return;
 }
 
 /**
@@ -1119,8 +1095,8 @@ static int oem_msg_callback(struct sk_buff *skb)
 	struct nlmsghdr *nlh;
 	tAniMsgHdr *msg_hdr;
 	int ret;
-	nlh = (struct nlmsghdr *)skb->data;
 
+	nlh = (struct nlmsghdr *)skb->data;
 	if (!nlh) {
 		hdd_err("Netlink header null");
 		return -EPERM;

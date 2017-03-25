@@ -1526,7 +1526,7 @@ void ol_rx_pkt_dump_call(
 
 	peer = ol_txrx_peer_find_by_id(pdev, peer_id);
 	if (!peer) {
-		ol_txrx_err("%s: peer with peer id %d is NULL", __func__,
+		ol_txrx_dbg("%s: peer with peer id %d is NULL", __func__,
 			peer_id);
 		return;
 	}

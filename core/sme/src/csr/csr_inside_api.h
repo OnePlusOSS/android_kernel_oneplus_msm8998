@@ -224,7 +224,7 @@ extern void csr_release_roc_req_cmd(tpAniSirGlobal mac_ctx);
 bool csr_is_duplicate_bss_description(tpAniSirGlobal pMac,
 				      tSirBssDescription *pSirBssDesc1,
 				      tSirBssDescription *pSirBssDesc2,
-				      tDot11fBeaconIEs *pIes2, bool fForced);
+				      tDot11fBeaconIEs *pIes2);
 QDF_STATUS csr_roam_save_connected_bss_desc(tpAniSirGlobal pMac, uint32_t sessionId,
 					    tSirBssDescription *pBssDesc);
 bool csr_is_network_type_equal(tSirBssDescription *pSirBssDesc1,
@@ -263,7 +263,7 @@ tCsrScanResult *csr_scan_append_bss_description(tpAniSirGlobal pMac,
 						tSirBssDescription *
 						pSirBssDescription,
 						tDot11fBeaconIEs *pIes,
-						bool fForced, uint8_t sessionId);
+						uint8_t sessionId);
 void csr_scan_call_callback(tpAniSirGlobal pMac, tSmeCmd *pCommand,
 			    eCsrScanStatus scanStatus);
 QDF_STATUS csr_scan_copy_request(tpAniSirGlobal pMac, tCsrScanRequest *pDstReq,

@@ -6642,7 +6642,7 @@ static void csr_roam_process_start_bss_success(tpAniSirGlobal mac_ctx,
 	if (!CSR_IS_INFRA_AP(profile)) {
 		scan_res =
 			csr_scan_append_bss_description(mac_ctx,
-					bss_desc, ies_ptr, false,
+					bss_desc, ies_ptr,
 					session_id);
 	}
 	csr_roam_save_connected_bss_desc(mac_ctx, session_id, bss_desc);

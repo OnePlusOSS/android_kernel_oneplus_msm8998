@@ -60,7 +60,7 @@ static struct hdd_context_s *p_hdd_ctx;
  * Return: error code
  */
 static int populate_oem_data_cap(hdd_adapter_t *adapter,
-				 t_iw_oem_data_cap *data_cap)
+				 struct oem_data_cap *data_cap)
 {
 	QDF_STATUS status;
 	struct hdd_config *config;
@@ -140,8 +140,8 @@ int iw_get_oem_data_cap(struct net_device *dev,
 			union iwreq_data *wrqu, char *extra)
 {
 	int status;
-	t_iw_oem_data_cap oemDataCap = { {0} };
-	t_iw_oem_data_cap *pHddOemDataCap;
+	struct oem_data_cap oemDataCap = { {0} };
+	struct oem_data_cap *pHddOemDataCap;
 	hdd_adapter_t *pAdapter = (netdev_priv(dev));
 	hdd_context_t *pHddContext;
 	int ret;
@@ -159,7 +159,7 @@ int iw_get_oem_data_cap(struct net_device *dev,
 		return status;
 	}
 
-	pHddOemDataCap = (t_iw_oem_data_cap *) (extra);
+	pHddOemDataCap = (struct oem_data_cap *) (extra);
 	*pHddOemDataCap = oemDataCap;
 
 	EXIT();
@@ -428,7 +428,7 @@ void hdd_update_channel_bw_info(hdd_context_t *hdd_ctx,
 	uint16_t sec_ch_2g = 0;
 	WLAN_PHY_MODE phy_mode;
 	uint32_t wni_dot11_mode;
-	tHddChannelInfo *hdd_chan_info = chan_info;
+	struct hdd_channel_info *hdd_chan_info = chan_info;
 
 	wni_dot11_mode = sme_get_wni_dot11_mode(hdd_ctx->hHal);
 
@@ -474,8 +474,8 @@ static int oem_process_channel_info_req_msg(int numOfChannels, char *chanList)
 	struct sk_buff *skb;
 	struct nlmsghdr *nlh;
 	tAniMsgHdr *aniHdr;
-	tHddChannelInfo *pHddChanInfo;
-	tHddChannelInfo hddChanInfo;
+	struct hdd_channel_info *pHddChanInfo;
+	struct hdd_channel_info hddChanInfo;
 	uint8_t chanId;
 	uint32_t reg_info_1;
 	uint32_t reg_info_2;
@@ -490,7 +490,7 @@ static int oem_process_channel_info_req_msg(int numOfChannels, char *chanList)
 	}
 
 	skb = alloc_skb(NLMSG_SPACE(sizeof(tAniMsgHdr) + sizeof(uint8_t) +
-				    numOfChannels * sizeof(tHddChannelInfo)),
+				    numOfChannels * sizeof(*pHddChanInfo)),
 			GFP_KERNEL);
 	if (skb == NULL)
 		return -ENOMEM;
@@ -504,7 +504,7 @@ static int oem_process_channel_info_req_msg(int numOfChannels, char *chanList)
 	aniHdr->type = ANI_MSG_CHANNEL_INFO_RSP;
 
 	aniHdr->length =
-		sizeof(uint8_t) + numOfChannels * sizeof(tHddChannelInfo);
+		sizeof(uint8_t) + numOfChannels * sizeof(*pHddChanInfo);
 	nlh->nlmsg_len = NLMSG_LENGTH((sizeof(tAniMsgHdr) + aniHdr->length));
 
 	/* First byte of message body will have num of channels */
@@ -516,9 +516,9 @@ static int oem_process_channel_info_req_msg(int numOfChannels, char *chanList)
 	 * then fill in 0 in channel info for that particular channel
 	 */
 	for (i = 0; i < numOfChannels; i++) {
-		pHddChanInfo = (tHddChannelInfo *) ((char *)buf +
+		pHddChanInfo = (struct hdd_channel_info *) ((char *)buf +
 						    i *
-						    sizeof(tHddChannelInfo));
+						    sizeof(*pHddChanInfo));
 
 		chanId = chanList[i];
 		status = sme_get_reg_info(p_hdd_ctx->hHal, chanId,
@@ -557,7 +557,7 @@ static int oem_process_channel_info_req_msg(int numOfChannels, char *chanList)
 			hddChanInfo.reg_info_2 = 0;
 		}
 		qdf_mem_copy(pHddChanInfo, &hddChanInfo,
-			     sizeof(tHddChannelInfo));
+			     sizeof(*pHddChanInfo));
 	}
 
 	skb_put(skb, NLMSG_SPACE((sizeof(tAniMsgHdr) + aniHdr->length)));
@@ -641,7 +641,7 @@ static int oem_process_get_cap_req_msg(void)
 {
 	int error_code;
 	struct oem_get_capability_rsp *cap_rsp;
-	t_iw_oem_data_cap data_cap = { {0} };
+	struct oem_data_cap data_cap = { {0} };
 	struct sme_oem_capability oem_cap;
 	hdd_adapter_t *adapter;
 	struct sk_buff *skb;
@@ -714,7 +714,7 @@ void hdd_send_peer_status_ind_to_oem_app(struct qdf_mac_addr *peerMac,
 	struct sk_buff *skb;
 	struct nlmsghdr *nlh;
 	tAniMsgHdr *aniHdr;
-	tPeerStatusInfo *pPeerInfo;
+	struct peer_status_info *pPeerInfo;
 
 	if (!p_hdd_ctx || !p_hdd_ctx->hHal) {
 		hdd_err("Either HDD Ctx is null or Hal Ctx is null");
@@ -730,7 +730,7 @@ void hdd_send_peer_status_ind_to_oem_app(struct qdf_mac_addr *peerMac,
 	}
 
 	skb = alloc_skb(NLMSG_SPACE(sizeof(tAniMsgHdr) +
-				    sizeof(tPeerStatusInfo)),
+				    sizeof(*pPeerInfo)),
 			GFP_KERNEL);
 	if (skb == NULL)
 		return;
@@ -743,10 +743,10 @@ void hdd_send_peer_status_ind_to_oem_app(struct qdf_mac_addr *peerMac,
 	aniHdr = NLMSG_DATA(nlh);
 	aniHdr->type = ANI_MSG_PEER_STATUS_IND;
 
-	aniHdr->length = sizeof(tPeerStatusInfo);
+	aniHdr->length = sizeof(*pPeerInfo);
 	nlh->nlmsg_len = NLMSG_LENGTH((sizeof(tAniMsgHdr) + aniHdr->length));
 
-	pPeerInfo = (tPeerStatusInfo *) ((char *)aniHdr + sizeof(tAniMsgHdr));
+	pPeerInfo = (struct peer_status_info *) ((char *)aniHdr + sizeof(tAniMsgHdr));
 
 	qdf_mem_copy(pPeerInfo->peer_mac_addr, peerMac->bytes,
 		     sizeof(peerMac->bytes));

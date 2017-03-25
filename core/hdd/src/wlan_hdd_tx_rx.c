@@ -104,7 +104,6 @@ void hdd_tx_resume_timer_expired_handler(void *adapter_context)
 	hdd_notice("Enabling queues");
 	wlan_hdd_netif_queue_control(pAdapter, WLAN_WAKE_ALL_NETIF_QUEUE,
 				     WLAN_CONTROL_PATH);
-	return;
 }
 #if defined(CONFIG_PER_VDEV_TX_DESC_POOL)
 
@@ -131,6 +130,7 @@ hdd_tx_resume_false(hdd_adapter_t *pAdapter, bool tx_resume)
 			qdf_mc_timer_get_current_state(&pAdapter->
 						       tx_flow_control_timer)) {
 		QDF_STATUS status;
+
 		status = qdf_mc_timer_start(&pAdapter->tx_flow_control_timer,
 				WLAN_HDD_TX_FLOW_CONTROL_OS_Q_BLOCK_TIME);
 
@@ -142,15 +142,12 @@ hdd_tx_resume_false(hdd_adapter_t *pAdapter, bool tx_resume)
 
 	pAdapter->hdd_stats.hddTxRxStats.txflow_pause_cnt++;
 	pAdapter->hdd_stats.hddTxRxStats.is_txflow_paused = true;
-
-	return;
 }
 #else
 
 static inline void
 hdd_tx_resume_false(hdd_adapter_t *pAdapter, bool tx_resume)
 {
-	return;
 }
 #endif
 
@@ -159,9 +156,8 @@ static inline struct sk_buff *hdd_skb_orphan(hdd_adapter_t *pAdapter,
 {
 	if (pAdapter->tx_flow_low_watermark > 0)
 		skb_orphan(skb);
-	else {
+	else
 		skb = skb_unshare(skb, GFP_ATOMIC);
-	}
 
 	return skb;
 }
@@ -200,8 +196,6 @@ void hdd_tx_resume_cb(void *adapter_context, bool tx_resume)
 					     WLAN_DATA_FLOW_CONTROL);
 	}
 	hdd_tx_resume_false(pAdapter, tx_resume);
-
-	return;
 }
 
 /**
@@ -226,7 +220,6 @@ void hdd_register_tx_flow_control(hdd_adapter_t *adapter,
 	ol_txrx_register_tx_flow_control(adapter->sessionId,
 					flow_control_fp,
 					adapter);
-
 }
 
 /**
@@ -290,8 +283,8 @@ static inline struct sk_buff *hdd_skb_orphan(hdd_adapter_t *pAdapter,
 		struct sk_buff *skb) {
 
 	struct sk_buff *nskb;
-	nskb = skb_unshare(skb, GFP_ATOMIC);
 
+	nskb = skb_unshare(skb, GFP_ATOMIC);
 	if (nskb == skb) {
 		/*
 		 * For UDP packets we want to orphan the packet to allow the app
@@ -495,18 +488,18 @@ static int __hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (!qdf_nbuf_ipa_owned_get(skb)) {
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(3, 19, 0))
 		/*
-		* The TCP TX throttling logic is changed a little after
-		* 3.19-rc1 kernel, the TCP sending limit will be smaller,
-		* which will throttle the TCP packets to the host driver.
-		* The TCP UP LINK throughput will drop heavily. In order to
-		* fix this issue, need to orphan the socket buffer asap, which
-		* will call skb's destructor to notify the TCP stack that the
-		* SKB buffer is unowned. And then the TCP stack will pump more
-		* packets to host driver.
-		*
-		* The TX packets might be dropped for UDP case in the iperf
-		* testing. So need to be protected by follow control.
-		*/
+		 * The TCP TX throttling logic is changed a little after
+		 * 3.19-rc1 kernel, the TCP sending limit will be smaller,
+		 * which will throttle the TCP packets to the host driver.
+		 * The TCP UP LINK throughput will drop heavily. In order to
+		 * fix this issue, need to orphan the socket buffer asap, which
+		 * will call skb's destructor to notify the TCP stack that the
+		 * SKB buffer is unowned. And then the TCP stack will pump more
+		 * packets to host driver.
+		 *
+		 * The TX packets might be dropped for UDP case in the iperf
+		 * testing. So need to be protected by follow control.
+		 */
 		skb = hdd_skb_orphan(pAdapter, skb);
 #else
 		/* Check if the buffer has enough header room */
@@ -599,11 +592,10 @@ static int __hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		proto_type = cds_pkt_get_proto_type(skb,
 						    hdd_ctx->config->gEnableDebugLog,
 						    0);
-		if (CDS_PKT_TRAC_TYPE_EAPOL & proto_type) {
+		if (CDS_PKT_TRAC_TYPE_EAPOL & proto_type)
 			cds_pkt_trace_buf_update("ST:T:EPL");
-		} else if (CDS_PKT_TRAC_TYPE_DHCP & proto_type) {
+		else if (CDS_PKT_TRAC_TYPE_DHCP & proto_type)
 			cds_pkt_trace_buf_update("ST:T:DHC");
-		}
 	}
 #endif /* QCA_PKT_PROTO_TRACE */
 
@@ -613,9 +605,8 @@ static int __hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (qdf_nbuf_is_tso(skb))
 		pAdapter->stats.tx_packets += qdf_nbuf_get_tso_num_seg(skb);
-	else {
+	else
 		++pAdapter->stats.tx_packets;
-	}
 
 	hdd_event_eapol_log(skb, QDF_TX);
 	qdf_dp_trace_log_pkt(pAdapter->sessionId, skb, QDF_TX);
@@ -745,12 +736,12 @@ QDF_STATUS hdd_get_peer_sta_id(hdd_station_ctx_t *pHddStaCtx,
 
 #ifdef FEATURE_WLAN_DIAG_SUPPORT
 /**
-* hdd_wlan_datastall_sta_event()- send sta datastall information
-*
-* This Function send send sta datastall status diag event
-*
-* Return: void.
-*/
+ * hdd_wlan_datastall_sta_event()- send sta datastall information
+ *
+ * This Function send send sta datastall status diag event
+ *
+ * Return: void.
+ */
 static void hdd_wlan_datastall_sta_event(void)
 {
 	WLAN_HOST_DIAG_EVENT_DEF(sta_data_stall,
@@ -762,7 +753,6 @@ static void hdd_wlan_datastall_sta_event(void)
 #else
 static inline void hdd_wlan_datastall_sta_event(void)
 {
-
 }
 #endif
 
@@ -1047,11 +1037,11 @@ static bool hdd_is_duplicate_ip_arp(struct sk_buff *skb)
 }
 
 /**
-* hdd_is_arp_local() - check if local or non local arp
-* @skb: pointer to sk_buff
-*
-* Return: true if local arp or false otherwise.
-*/
+ * hdd_is_arp_local() - check if local or non local arp
+ * @skb: pointer to sk_buff
+ *
+ * Return: true if local arp or false otherwise.
+ */
 static bool hdd_is_arp_local(struct sk_buff *skb)
 {
 	struct arphdr *arp;
@@ -1088,11 +1078,11 @@ static bool hdd_is_arp_local(struct sk_buff *skb)
 }
 
 /**
-* hdd_is_rx_wake_lock_needed() - check if wake lock is needed
-* @skb: pointer to sk_buff
-*
-* Return: true if wake lock is needed or false otherwise.
-*/
+ * hdd_is_rx_wake_lock_needed() - check if wake lock is needed
+ * @skb: pointer to sk_buff
+ *
+ * Return: true if wake lock is needed or false otherwise.
+ */
 static bool hdd_is_rx_wake_lock_needed(struct sk_buff *skb)
 {
 	if ((skb->pkt_type != PACKET_BROADCAST &&
@@ -1339,8 +1329,6 @@ static void wlan_hdd_update_queue_oper_stats(hdd_adapter_t *adapter,
 	default:
 		break;
 	}
-
-	return;
 }
 
 /**
@@ -1539,8 +1527,6 @@ void wlan_hdd_netif_queue_control(hdd_adapter_t *adapter,
 							adapter->pause_map;
 	if (++adapter->history_index == WLAN_HDD_MAX_HISTORY_ENTRY)
 		adapter->history_index = 0;
-
-	return;
 }
 
 /**

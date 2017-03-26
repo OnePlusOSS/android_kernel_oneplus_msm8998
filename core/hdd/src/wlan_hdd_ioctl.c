@@ -991,7 +991,7 @@ static int hdd_parse_reassoc_v1(hdd_adapter_t *adapter, const char *command)
  * hdd_parse_reassoc_v2() - parse version 2 of the REASSOC command
  * @adapter:	Adapter upon which the command was received
  * @command:	Command that was received, ASCII command
- *      	     followed by binary data
+ *		followed by binary data
  *
  * This function parses the v2 REASSOC command with the format
  *
@@ -1250,7 +1250,7 @@ hdd_parse_sendactionframe_v1(hdd_adapter_t *adapter, const char *command)
  *       SENDACTIONFRAME command
  * @adapter:	Adapter upon which the command was received
  * @command:	Command that was received, ASCII command
- *      	     followed by binary data
+ *		followed by binary data
  *
  * This function parses the v2 SENDACTIONFRAME command with the format
  *
@@ -1352,7 +1352,7 @@ hdd_parse_sendactionframe(hdd_adapter_t *adapter, const char *command,
  * hdd_parse_channellist() - HDD Parse channel list
  * @pValue:		Pointer to input channel list
  * @ChannelList:	Pointer to local output array to record
- *      	       channel list
+ *			channel list
  * @pNumChannels:	Pointer to number of roam scan channels
  *
  * This function parses the channel list passed in the format
@@ -1525,7 +1525,7 @@ exit:
  * SETROAMSCANCHANNELS command
  * @adapter:	Adapter upon which the command was received
  * @command:	Command that was received, ASCII command
- *      	     followed by binary data
+ *		followed by binary data
  *
  * This function parses the v2 SETROAMSCANCHANNELS command with the format
  *
@@ -5134,8 +5134,9 @@ static int drv_cmd_get_ibss_peer_info_all(hdd_adapter_t *adapter,
 			goto exit;
 		}
 
-		priv_data->buf[numOfBytestoPrint] = '\0';
-		hdd_debug("%s", priv_data->buf);
+		/* This overwrites the last space, which we already copied */
+		extra[numOfBytestoPrint - 1] = '\0';
+		hdd_debug("%s", extra);
 
 		if (length > numOfBytestoPrint) {
 			if (copy_to_user
@@ -5146,7 +5147,7 @@ static int drv_cmd_get_ibss_peer_info_all(hdd_adapter_t *adapter,
 				ret = -EFAULT;
 				goto exit;
 			}
-			hdd_debug("%s", &priv_data->buf[numOfBytestoPrint]);
+			hdd_debug("%s", &extra[numOfBytestoPrint]);
 		}
 
 		/* Free temporary buffer */

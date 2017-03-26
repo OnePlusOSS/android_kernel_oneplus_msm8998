@@ -56,8 +56,6 @@
 
 #define SME_SUMMARY_STATS         (1 << eCsrSummaryStats)
 #define SME_GLOBAL_CLASSA_STATS   (1 << eCsrGlobalClassAStats)
-#define SME_GLOBAL_CLASSB_STATS   (1 << eCsrGlobalClassBStats)
-#define SME_GLOBAL_CLASSC_STATS   (1 << eCsrGlobalClassCStats)
 #define SME_GLOBAL_CLASSD_STATS   (1 << eCsrGlobalClassDStats)
 #define SME_PER_CHAIN_RSSI_STATS  (1 << csr_per_chain_rssi_stats)
 
@@ -1300,6 +1298,7 @@ void sme_set_pdev_ht_vht_ies(tHalHandle hHal, bool enable2x2);
 
 void sme_update_vdev_type_nss(tHalHandle hal, uint8_t max_supp_nss,
 		uint32_t vdev_type_nss, eCsrBand band);
+void sme_update_hw_dbs_capable(tHalHandle hal, uint8_t hw_dbs_capable);
 void sme_register_p2p_lo_event(tHalHandle hHal, void *context,
 					p2p_lo_callback callback);
 
@@ -1550,4 +1549,7 @@ QDF_STATUS sme_set_bt_activity_info_cb(tHalHandle hal,
  */
 tCsrScanResultInfo *sme_scan_get_result_for_bssid(tHalHandle hal_handle,
 						  struct qdf_mac_addr *bssid);
+
+QDF_STATUS sme_delete_all_tdls_peers(tHalHandle hal, uint8_t session_id);
+
 #endif /* #if !defined( __SME_API_H ) */

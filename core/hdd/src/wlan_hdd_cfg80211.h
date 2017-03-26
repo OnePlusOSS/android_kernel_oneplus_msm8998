@@ -249,13 +249,13 @@ typedef enum {
  * @QCA_NL80211_VENDOR_SUBCMD_DFS_OFFLOAD_CAC_STARTED: Indicate that driver
  *	started CAC on DFS channel
  * @QCA_NL80211_VENDOR_SUBCMD_DFS_OFFLOAD_CAC_FINISHED: Indicate that driver
- * 	completed the CAC check on DFS channel
+ *	completed the CAC check on DFS channel
  * @QCA_NL80211_VENDOR_SUBCMD_DFS_OFFLOAD_CAC_ABORTED: Indicate that the CAC
- * 	check was aborted by the driver
+ *	check was aborted by the driver
  * @QCA_NL80211_VENDOR_SUBCMD_DFS_OFFLOAD_CAC_NOP_FINISHED: Indicate that the
- * 	driver completed NOP
+ *	driver completed NOP
  * @QCA_NL80211_VENDOR_SUBCMD_DFS_OFFLOAD_RADAR_DETECTED: Indicate that the
- * 	driver detected radar signal on the current operating channel
+ *	driver detected radar signal on the current operating channel
  * @QCA_NL80211_VENDOR_SUBCMD_GET_WIFI_INFO: get wlan driver information
  * @QCA_NL80211_VENDOR_SUBCMD_WIFI_LOGGER_START: start wifi logger
  * @QCA_NL80211_VENDOR_SUBCMD_WIFI_LOGGER_MEMORY_DUMP: memory dump request
@@ -3648,7 +3648,7 @@ static inline int wlan_hdd_send_roam_auth_event(hdd_adapter_t *adapter,
 int wlan_hdd_cfg80211_update_apies(hdd_adapter_t *adapter);
 
 #if !(defined (SUPPORT_WDEV_CFG80211_VENDOR_EVENT_ALLOC)) &&	\
-	(LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 0)) && 	\
+	(LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 0)) &&	\
 	!(defined(WITH_BACKPORTS))
 
 static inline struct sk_buff *

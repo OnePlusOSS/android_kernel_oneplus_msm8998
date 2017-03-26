@@ -43,7 +43,6 @@
 #include "cfg_api.h"
 #include "lim_api.h"
 #include "utils_api.h"
-#include "sch_debug.h"
 #include "sch_api.h"
 
 #include "lim_utils.h"
@@ -381,10 +380,9 @@ sch_bcn_process_sta(tpAniSirGlobal mac_ctx,
 	 * with. Check if there are any changes in AP's capabilities
 	 */
 	if ((uint8_t) bcn->channelNumber != session->currentOperChannel) {
-		PELOGE(sch_log(mac_ctx, LOGE,
-		       FL("Channel Change from %d --> %d - Ignoring beacon!"),
+		pe_err("Channel Change from %d --> %d - Ignoring beacon!",
 		       session->currentOperChannel,
-		       bcn->channelNumber);)
+		       bcn->channelNumber);
 		return false;
 	}
 	lim_detect_change_in_ap_capabilities(mac_ctx, bcn, session);
@@ -410,8 +408,7 @@ sch_bcn_process_sta(tpAniSirGlobal mac_ctx,
 	/* Read beacon interval session Entry */
 	bi = session->beaconParams.beaconInterval;
 	if (bi != bcn->beaconInterval) {
-		sch_log(mac_ctx, LOGD,
-		       FL("Beacon interval changed from %d to %d"),
+		pe_debug("Beacon interval changed from %d to %d",
 		       bcn->beaconInterval, bi);
 
 		bi = bcn->beaconInterval;
@@ -455,8 +452,7 @@ sch_bcn_process_sta(tpAniSirGlobal mac_ctx,
 		    session->gLimEdcaParamSetCount) {
 			if (sch_beacon_edca_process(mac_ctx, &bcn->edcaParams,
 						    session) != eSIR_SUCCESS) {
-				PELOGE(sch_log(mac_ctx, LOGE,
-				       FL("EDCA parameter processing error"));)
+				pe_err("EDCA parameter processing error");
 			} else if (pStaDs != NULL) {
 				/* If needed, downgrade the EDCA parameters */
 				lim_set_active_edca_params(mac_ctx,
@@ -465,8 +461,7 @@ sch_bcn_process_sta(tpAniSirGlobal mac_ctx,
 					session->gLimEdcaParamsActive,
 					pStaDs->bssId);
 			} else {
-				PELOGE(sch_log(mac_ctx, LOGE,
-				       FL("Self Entry missing in Hash Table"));)
+				pe_err("Self Entry missing in Hash Table");
 			}
 		}
 		return true;
@@ -561,20 +556,17 @@ sch_bcn_process_sta_ibss(tpAniSirGlobal mac_ctx,
 			((operMode != bcn->OperatingMode.chanWidth) ||
 			(pStaDs->vhtSupportedRxNss !=
 			(bcn->OperatingMode.rxNSS + 1)))) {
-			PELOGE(sch_log(mac_ctx, LOGE,
-			       FL("received OpMode Chanwidth %d, staIdx = %d"),
-			       bcn->OperatingMode.chanWidth, pStaDs->staIndex);)
-			PELOGE(sch_log(mac_ctx, LOGE,
-			       FL("MAC - %0x:%0x:%0x:%0x:%0x:%0x"),
+			pe_debug("received OpMode Chanwidth %d, staIdx = %d",
+			       bcn->OperatingMode.chanWidth, pStaDs->staIndex);
+			pe_debug("MAC - %0x:%0x:%0x:%0x:%0x:%0x",
 			       pMh->sa[0], pMh->sa[1],
 			       pMh->sa[2], pMh->sa[3],
-			       pMh->sa[4], pMh->sa[5]);)
+			       pMh->sa[4], pMh->sa[5]);
 
 			if ((bcn->OperatingMode.chanWidth >=
 				eHT_CHANNEL_WIDTH_160MHZ) &&
 				(fw_vht_ch_wd > eHT_CHANNEL_WIDTH_80MHZ)) {
-				PELOGE(sch_log(mac_ctx, LOGE,
-				       FL("Updating the CH Width to 160MHz"));)
+				pe_debug("Updating the CH Width to 160MHz");
 				pStaDs->vhtSupportedChannelWidthSet =
 					WNI_CFG_VHT_CHANNEL_WIDTH_160MHZ;
 				pStaDs->htSupportedChannelWidthSet =
@@ -582,8 +574,7 @@ sch_bcn_process_sta_ibss(tpAniSirGlobal mac_ctx,
 				chWidth = eHT_CHANNEL_WIDTH_160MHZ;
 			} else if (bcn->OperatingMode.chanWidth >=
 				eHT_CHANNEL_WIDTH_80MHZ) {
-				PELOGE(sch_log(mac_ctx, LOGE,
-				       FL("Updating the CH Width to 80MHz"));)
+				pe_debug("Updating the CH Width to 80MHz");
 				pStaDs->vhtSupportedChannelWidthSet =
 					WNI_CFG_VHT_CHANNEL_WIDTH_80MHZ;
 				pStaDs->htSupportedChannelWidthSet =
@@ -591,8 +582,7 @@ sch_bcn_process_sta_ibss(tpAniSirGlobal mac_ctx,
 				chWidth = eHT_CHANNEL_WIDTH_80MHZ;
 			} else if (bcn->OperatingMode.chanWidth ==
 				eHT_CHANNEL_WIDTH_40MHZ) {
-				PELOGE(sch_log(mac_ctx, LOGE,
-				       FL("Updating the CH Width to 40MHz"));)
+				pe_debug("Updating the CH Width to 40MHz");
 				pStaDs->vhtSupportedChannelWidthSet =
 					WNI_CFG_VHT_CHANNEL_WIDTH_20_40MHZ;
 				pStaDs->htSupportedChannelWidthSet =
@@ -600,8 +590,7 @@ sch_bcn_process_sta_ibss(tpAniSirGlobal mac_ctx,
 				chWidth = eHT_CHANNEL_WIDTH_40MHZ;
 			} else if (bcn->OperatingMode.chanWidth ==
 				eHT_CHANNEL_WIDTH_20MHZ) {
-				PELOGE(sch_log(mac_ctx, LOGE,
-				       FL("Updating the CH Width to 20MHz"));)
+				pe_debug("Updating the CH Width to 20MHz");
 				pStaDs->vhtSupportedChannelWidthSet =
 					WNI_CFG_VHT_CHANNEL_WIDTH_20_40MHZ;
 				pStaDs->htSupportedChannelWidthSet =
@@ -626,20 +615,17 @@ sch_bcn_process_sta_ibss(tpAniSirGlobal mac_ctx,
 
 	if (!skip_opmode_update &&
 	    (operMode != bcn->VHTOperation.chanWidth)) {
-		PELOGE(sch_log(mac_ctx, LOGE,
-		       FL("received VHTOP CHWidth %d staIdx = %d"),
-		       bcn->VHTOperation.chanWidth, pStaDs->staIndex);)
-		PELOGE(sch_log(mac_ctx, LOGE,
-		       FL(" MAC - %0x:%0x:%0x:%0x:%0x:%0x"),
+		pe_debug("received VHTOP CHWidth %d staIdx = %d",
+		       bcn->VHTOperation.chanWidth, pStaDs->staIndex);
+		pe_debug("MAC - %0x:%0x:%0x:%0x:%0x:%0x",
 		       pMh->sa[0], pMh->sa[1],
 		       pMh->sa[2], pMh->sa[3],
-		       pMh->sa[4], pMh->sa[5]);)
+		       pMh->sa[4], pMh->sa[5]);
 
 		if ((bcn->VHTOperation.chanWidth >=
 			WNI_CFG_VHT_CHANNEL_WIDTH_160MHZ) &&
 			(fw_vht_ch_wd > eHT_CHANNEL_WIDTH_80MHZ)) {
-			PELOGE(sch_log(mac_ctx, LOGE,
-				FL("Updating the CH Width to 160MHz"));)
+			pe_debug("Updating the CH Width to 160MHz");
 			pStaDs->vhtSupportedChannelWidthSet =
 				bcn->VHTOperation.chanWidth;
 			pStaDs->htSupportedChannelWidthSet =
@@ -647,8 +633,7 @@ sch_bcn_process_sta_ibss(tpAniSirGlobal mac_ctx,
 			chWidth = eHT_CHANNEL_WIDTH_160MHZ;
 		} else if (bcn->VHTOperation.chanWidth >=
 			WNI_CFG_VHT_CHANNEL_WIDTH_80MHZ) {
-			PELOGE(sch_log(mac_ctx, LOGE,
-			       FL("Updating the CH Width to 80MHz"));)
+			pe_debug("Updating the CH Width to 80MHz");
 			pStaDs->vhtSupportedChannelWidthSet =
 				WNI_CFG_VHT_CHANNEL_WIDTH_80MHZ;
 			pStaDs->htSupportedChannelWidthSet =
@@ -659,14 +644,12 @@ sch_bcn_process_sta_ibss(tpAniSirGlobal mac_ctx,
 			pStaDs->vhtSupportedChannelWidthSet =
 				WNI_CFG_VHT_CHANNEL_WIDTH_20_40MHZ;
 			if (bcn->HTCaps.supportedChannelWidthSet) {
-				PELOGE(sch_log(mac_ctx, LOGE,
-				       FL("Updating the CH Width to 40MHz"));)
+				pe_debug("Updating the CH Width to 40MHz");
 				pStaDs->htSupportedChannelWidthSet =
 					eHT_CHANNEL_WIDTH_40MHZ;
 				chWidth = eHT_CHANNEL_WIDTH_40MHZ;
 			} else {
-				PELOGE(sch_log(mac_ctx, LOGE,
-				       FL("Updating the CH Width to 20MHz"));)
+				pe_debug("Updating the CH Width to 20MHz");
 				pStaDs->htSupportedChannelWidthSet =
 					eHT_CHANNEL_WIDTH_20MHZ;
 				chWidth = eHT_CHANNEL_WIDTH_20MHZ;
@@ -801,29 +784,29 @@ static void __sch_beacon_process_for_session(tpAniSirGlobal mac_ctx,
 
 	if (mac_ctx->roam.configParam.allow_tpc_from_ap) {
 		get_local_power_constraint_beacon(bcn, &local_constraint);
-		sch_log(mac_ctx, LOGD, "ESE localPowerConstraint = %d,",
-						local_constraint);
+		pe_debug("ESE localPowerConstraint = %d,",
+				local_constraint);
 
 		if (mac_ctx->rrm.rrmPEContext.rrmEnable &&
 				bcn->powerConstraintPresent) {
 			local_constraint = regMax;
 			local_constraint -=
 				bcn->localPowerConstraint.localPowerConstraints;
-			sch_log(mac_ctx, LOGD, "localPowerConstraint = %d,",
-					local_constraint);
+			pe_debug("localPowerConstraint = %d,",
+				local_constraint);
 			}
 	}
 
 	maxTxPower = lim_get_max_tx_power(regMax, local_constraint,
 					mac_ctx->roam.configParam.nTxPowerCap);
 
-	sch_log(mac_ctx, LOGD, "RegMax = %d, MaxTx pwr = %d",
+	pe_debug("RegMax = %d, MaxTx pwr = %d",
 			regMax, maxTxPower);
 
 
 	/* If maxTxPower is increased or decreased */
 	if (maxTxPower != session->maxTxPower) {
-		sch_log(mac_ctx, LOGD,
+		pe_debug(
 			FL("Local power constraint change, Updating new maxTx power %d from old pwr %d"),
 			maxTxPower, session->maxTxPower);
 		if (lim_send_set_max_tx_power_req(mac_ctx, maxTxPower, session)
@@ -850,12 +833,10 @@ static void __sch_beacon_process_for_session(tpAniSirGlobal mac_ctx,
 
 	if ((false == mac_ctx->sap.SapDfsInfo.is_dfs_cac_timer_running)
 	    && beaconParams.paramChangeBitmap) {
-		PELOGW(sch_log(mac_ctx, LOGW,
-		       FL("Beacon for session[%d] got changed."),
-		       session->peSessionId);)
-		PELOGW(sch_log(mac_ctx, LOGW,
-		       FL("sending beacon param change bitmap: 0x%x "),
-		       beaconParams.paramChangeBitmap);)
+		pe_warn("Beacon for session[%d] got changed.",
+		       session->peSessionId);
+		pe_warn("sending beacon param change bitmap: 0x%x",
+		       beaconParams.paramChangeBitmap);
 		lim_send_beacon_params(mac_ctx, &beaconParams, session);
 	}
 
@@ -889,7 +870,7 @@ sch_beacon_process(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 	/* Convert the beacon frame into a structure */
 	if (sir_convert_beacon_frame2_struct(mac_ctx, (uint8_t *) rx_pkt_info,
 		&bcn) != eSIR_SUCCESS) {
-		PELOGE(sch_log(mac_ctx, LOGE, FL("beacon parsing failed"));)
+		pe_err("beacon parsing failed");
 		mac_ctx->sch.gSchBcnParseErrorCnt++;
 		return;
 	}
@@ -926,11 +907,9 @@ sch_beacon_process(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 		    && bcn_prm.paramChangeBitmap) {
 			/* Update the bcn and apply the new settings to HAL */
 			sch_set_fixed_beacon_fields(mac_ctx, ap_session);
-			sch_log(mac_ctx, LOGD,
-			       FL("Beacon for PE session[%d] got changed."),
+			pe_debug("Beacon for PE session[%d] got changed",
 			       ap_session->peSessionId);
-			sch_log(mac_ctx, LOGD,
-			       FL("sending beacon param change bitmap: 0x%x"),
+			pe_debug("sending beacon param change bitmap: 0x%x",
 			       bcn_prm.paramChangeBitmap);
 			lim_send_beacon_params(mac_ctx, &bcn_prm, ap_session);
 		}
@@ -966,8 +945,7 @@ sch_beacon_edca_process(tpAniSirGlobal pMac, tSirMacEdcaParamSetIE *edca,
 	host_log_qos_edca_pkt_type *log_ptr = NULL;
 #endif /* FEATURE_WLAN_DIAG_SUPPORT */
 
-	sch_log(pMac, LOGD,
-		FL("Updating parameter set count: Old %d ---> new %d"),
+	pe_debug("Updating parameter set count: Old %d ---> new %d",
 		session->gLimEdcaParamSetCount, edca->qosInfo.count);
 
 	session->gLimEdcaParamSetCount = edca->qosInfo.count;
@@ -1038,12 +1016,10 @@ sch_beacon_edca_process(tpAniSirGlobal pMac, tSirMacEdcaParamSetIE *edca,
 	}
 	WLAN_HOST_DIAG_LOG_REPORT(log_ptr);
 #endif /* FEATURE_WLAN_DIAG_SUPPORT */
-	sch_log(pMac, LOGD,
-		FL("Edsa param enabled in ini %d. Updating Local EDCA Params(gLimEdcaParams) to: "),
+	pe_debug("Edsa param enabled in ini %d. Updating Local EDCA Params(gLimEdcaParams) to: ",
 		pMac->roam.configParam.enable_edca_params);
 	for (i = 0; i < MAX_NUM_AC; i++) {
-		sch_log(pMac, LOGD,
-		       FL("AC[%d]:  AIFSN: %d, ACM %d, CWmin %d, CWmax %d, TxOp %d"),
+		pe_debug("AC[%d]:  AIFSN: %d, ACM %d, CWmin %d, CWmax %d, TxOp %d",
 		       i, session->gLimEdcaParams[i].aci.aifsn,
 		       session->gLimEdcaParams[i].aci.acm,
 		       session->gLimEdcaParams[i].cw.min,

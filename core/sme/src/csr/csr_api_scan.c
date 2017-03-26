@@ -6260,8 +6260,7 @@ tSmeCmd *csr_find_self_reassoc_cmd(tpAniSirGlobal mac_ctx, uint32_t session_id)
 	return NULL;
 }
 
-void csr_remove_same_ap_reassoc_cmd(tpAniSirGlobal mac_ctx,
-					tSmeCmd *sme_cmd, uint32_t session_id)
+void csr_remove_same_ap_reassoc_cmd(tpAniSirGlobal mac_ctx, tSmeCmd *sme_cmd)
 {
 }
 #endif

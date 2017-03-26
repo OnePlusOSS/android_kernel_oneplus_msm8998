@@ -7139,4 +7139,16 @@ struct get_arp_stats_params {
 	uint8_t pkt_type;
 	uint32_t vdev_id;
 };
+
+/**
+ * struct sir_del_all_tdls_peers - delete all tdls peers
+ * @msg_type: type of message
+ * @msg_len: length of message
+ * @bssid: bssid of peer device
+ */
+struct sir_del_all_tdls_peers {
+	uint16_t msg_type;
+	uint16_t msg_len;
+	struct qdf_mac_addr bssid;
+};
 #endif /* __SIR_API_H */

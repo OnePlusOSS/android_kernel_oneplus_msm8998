@@ -100,8 +100,7 @@ tSirRetStatus lim_send_cf_params(tpAniSirGlobal pMac, uint8_t bssIdx,
 
 	pCFParams = qdf_mem_malloc(sizeof(tUpdateCFParams));
 	if (NULL == pCFParams) {
-		lim_log(pMac, LOGE,
-			FL("Unable to allocate memory during Update CF Params"));
+		pe_err("Unable to allocate memory during Update CF Params");
 		retCode = eSIR_MEM_ALLOC_FAILED;
 		goto returnFailure;
 	}
@@ -113,13 +112,12 @@ tSirRetStatus lim_send_cf_params(tpAniSirGlobal pMac, uint8_t bssIdx,
 	msgQ.reserved = 0;
 	msgQ.bodyptr = pCFParams;
 	msgQ.bodyval = 0;
-	lim_log(pMac, LOGD, FL("Sending WMA_UPDATE_CF_IND..."));
+	pe_debug("Sending WMA_UPDATE_CF_IND");
 	MTRACE(mac_trace_msg_tx(pMac, NO_SESSION, msgQ.type));
 	retCode = wma_post_ctrl_msg(pMac, &msgQ);
 	if (eSIR_SUCCESS != retCode) {
 		qdf_mem_free(pCFParams);
-		lim_log(pMac, LOGE,
-			FL("Posting WMA_UPDATE_CF_IND failed, reason=%X"),
+		pe_err("Posting WMA_UPDATE_CF_IND failed, reason=%X",
 			retCode);
 	}
 returnFailure:
@@ -148,8 +146,7 @@ tSirRetStatus lim_send_beacon_params(tpAniSirGlobal pMac,
 
 	pBcnParams = qdf_mem_malloc(sizeof(*pBcnParams));
 	if (NULL == pBcnParams) {
-		lim_log(pMac, LOGE,
-			FL("Unable to allocate memory during Update Beacon Params"));
+		pe_err("Unable to allocate memory during Update Beacon Params");
 		return eSIR_MEM_ALLOC_FAILED;
 	}
 	qdf_mem_copy((uint8_t *) pBcnParams, pUpdatedBcnParams,
@@ -158,8 +155,7 @@ tSirRetStatus lim_send_beacon_params(tpAniSirGlobal pMac,
 	msgQ.reserved = 0;
 	msgQ.bodyptr = pBcnParams;
 	msgQ.bodyval = 0;
-	lim_log(pMac, LOGD,
-	       FL("Sending WMA_UPDATE_BEACON_IND, paramChangeBitmap in hex = %x"),
+	pe_debug("Sending WMA_UPDATE_BEACON_IND, paramChangeBitmap in hex: %x",
 	       pUpdatedBcnParams->paramChangeBitmap);
 	if (NULL == psessionEntry) {
 		qdf_mem_free(pBcnParams);
@@ -174,8 +170,7 @@ tSirRetStatus lim_send_beacon_params(tpAniSirGlobal pMac,
 	retCode = wma_post_ctrl_msg(pMac, &msgQ);
 	if (eSIR_SUCCESS != retCode) {
 		qdf_mem_free(pBcnParams);
-		lim_log(pMac, LOGE,
-			FL("Posting WMA_UPDATE_BEACON_IND, reason=%X"),
+		pe_err("Posting WMA_UPDATE_BEACON_IND, reason=%X",
 			retCode);
 	}
 	lim_send_beacon_ind(pMac, psessionEntry);
@@ -218,15 +213,13 @@ tSirRetStatus lim_send_switch_chnl_params(tpAniSirGlobal pMac,
 	bool is_current_hwmode_dbs;
 	pSessionEntry = pe_find_session_by_session_id(pMac, peSessionId);
 	if (pSessionEntry == NULL) {
-		lim_log(pMac, LOGE, FL(
-				"Unable to get Session for session Id %d"),
+		pe_err("Unable to get Session for session Id %d",
 				peSessionId);
 		return eSIR_FAILURE;
 	}
 	pChnlParams = qdf_mem_malloc(sizeof(tSwitchChannelParams));
 	if (NULL == pChnlParams) {
-		lim_log(pMac, LOGE, FL(
-			"Unable to allocate memory for Switch Ch Params"));
+		pe_err("Unable to allocate memory for Switch Ch Params");
 		return eSIR_MEM_ALLOC_FAILED;
 	}
 	pChnlParams->channelNumber = chnlNumber;
@@ -242,7 +235,7 @@ tSirRetStatus lim_send_switch_chnl_params(tpAniSirGlobal pMac,
 	pChnlParams->vhtCapable = pSessionEntry->vhtCapability;
 	pChnlParams->dot11_mode = pSessionEntry->dot11mode;
 	pChnlParams->nss = pSessionEntry->nss;
-	lim_log(pMac, LOGD, FL("nss value: %d"), pChnlParams->nss);
+	pe_debug("nss value: %d", pChnlParams->nss);
 
 	/*Set DFS flag for DFS channel */
 	if (ch_width == CH_WIDTH_160MHZ) {
@@ -280,15 +273,13 @@ tSirRetStatus lim_send_switch_chnl_params(tpAniSirGlobal pMac,
 	msgQ.reserved = 0;
 	msgQ.bodyptr = pChnlParams;
 	msgQ.bodyval = 0;
-	lim_log(pMac, LOGD, FL(
-		"Sending CH_SWITCH_REQ, ch_width %d, ch_num %d, maxTxPower %d"),
+	pe_debug("Sending CH_SWITCH_REQ, ch_width %d, ch_num %d, maxTxPower %d",
 		       pChnlParams->ch_width,
 		       pChnlParams->channelNumber, pChnlParams->maxTxPower);
 	MTRACE(mac_trace_msg_tx(pMac, peSessionId, msgQ.type));
 	if (eSIR_SUCCESS != wma_post_ctrl_msg(pMac, &msgQ)) {
 		qdf_mem_free(pChnlParams);
-		lim_log(pMac, LOGE, FL(
-			"Posting  CH_SWITCH_REQ to WMA failed"));
+		pe_err("Posting  CH_SWITCH_REQ to WMA failed");
 		return eSIR_FAILURE;
 	}
 	return eSIR_SUCCESS;
@@ -326,8 +317,7 @@ tSirRetStatus lim_send_edca_params(tpAniSirGlobal pMac,
 
 	pEdcaParams = qdf_mem_malloc(sizeof(tEdcaParams));
 	if (NULL == pEdcaParams) {
-		lim_log(pMac, LOGE,
-			FL("Unable to allocate memory during Update EDCA Params"));
+		pe_err("Unable to allocate memory during Update EDCA Params");
 		retCode = eSIR_MEM_ALLOC_FAILED;
 		return retCode;
 	}
@@ -340,11 +330,9 @@ tSirRetStatus lim_send_edca_params(tpAniSirGlobal pMac,
 	msgQ.reserved = 0;
 	msgQ.bodyptr = pEdcaParams;
 	msgQ.bodyval = 0;
-	lim_log(pMac, LOGD,
-	       FL("Sending WMA_UPDATE_EDCA_PROFILE_IND, EDCA Parameters:"));
+	pe_debug("Sending WMA_UPDATE_EDCA_PROFILE_IND, EDCA Parameters:");
 	for (i = 0; i < MAX_NUM_AC; i++) {
-		lim_log(pMac, LOGD,
-		       FL("AC[%d]:  AIFSN %d, ACM %d, CWmin %d, CWmax %d, TxOp %d "),
+		pe_debug("AC[%d]:  AIFSN %d, ACM %d, CWmin %d, CWmax %d, TxOp %d ",
 		       i, pUpdatedEdcaParams[i].aci.aifsn,
 		       pUpdatedEdcaParams[i].aci.acm,
 		       pUpdatedEdcaParams[i].cw.min,
@@ -355,8 +343,7 @@ tSirRetStatus lim_send_edca_params(tpAniSirGlobal pMac,
 	retCode = wma_post_ctrl_msg(pMac, &msgQ);
 	if (eSIR_SUCCESS != retCode) {
 		qdf_mem_free(pEdcaParams);
-		lim_log(pMac, LOGE,
-			FL("Posting WMA_UPDATE_EDCA_PROFILE_IND failed, reason=%X"),
+		pe_err("Posting WMA_UPDATE_EDCA_PROFILE_IND failed, reason=%X",
 			retCode);
 	}
 	return retCode;
@@ -407,21 +394,19 @@ void lim_set_active_edca_params(tpAniSirGlobal mac_ctx,
 	 *   such that: BE_ACM=1, BK_ACM=1, VI_ACM=1, VO_ACM=0
 	 *   then all AC will be downgraded to AC_BE.
 	 */
-	lim_log(mac_ctx, LOGD, FL("adAdmitMask[UPLINK] = 0x%x "),
+	pe_debug("adAdmitMask[UPLINK] = 0x%x ",
 		pe_session->gAcAdmitMask[SIR_MAC_DIRECTION_UPLINK]);
-	lim_log(mac_ctx, LOGD, FL("adAdmitMask[DOWNLINK] = 0x%x "),
+	pe_debug("adAdmitMask[DOWNLINK] = 0x%x ",
 		pe_session->gAcAdmitMask[SIR_MAC_DIRECTION_DNLINK]);
 	for (ac = EDCA_AC_BK; ac <= EDCA_AC_VO; ac++) {
 		ac_admitted =
 			((pe_session->gAcAdmitMask[SIR_MAC_DIRECTION_UPLINK] &
 			 (1 << ac)) >> ac);
 
-		lim_log(mac_ctx, LOGD,
-			FL("For AC[%d]: acm=%d,  ac_admitted=%d "),
+		pe_debug("For AC[%d]: acm=%d,  ac_admitted=%d ",
 			ac, edca_params[ac].aci.acm, ac_admitted);
 		if ((edca_params[ac].aci.acm == 1) && (ac_admitted == 0)) {
-			lim_log(mac_ctx, LOGD,
-				FL("We need to downgrade AC %d!! "), ac);
+			pe_debug("We need to downgrade AC %d!!", ac);
 			/* Loop backwards through AC values until it finds
 			 * acm == 0 or reaches EDCA_AC_BE.
 			 * Note that for block has no executable statements.
@@ -432,9 +417,7 @@ void lim_set_active_edca_params(tpAniSirGlobal mac_ctx,
 			     i--)
 				;
 			new_ac = i;
-			lim_log(mac_ctx, LOG1,
-				FL("Downgrading AC %d ---> AC %d "),
-				ac, new_ac);
+			pe_info("Downgrading AC %d ---> AC %d ", ac, new_ac);
 			pe_session->gLimEdcaParamsActive[ac] =
 				edca_params[new_ac];
 		}
@@ -490,9 +473,7 @@ tSirRetStatus lim_set_link_state(tpAniSirGlobal pMac, tSirLinkState state,
 	/* Allocate memory. */
 	pLinkStateParams = qdf_mem_malloc(sizeof(tLinkStateParams));
 	if (NULL == pLinkStateParams) {
-		lim_log(pMac, LOGE,
-			FL
-				("Unable to allocate memory while sending Set Link State"));
+		pe_err("Unable to allocate memory while sending Set Link State");
 		retCode = eSIR_MEM_ALLOC_FAILED;
 		return retCode;
 	}
@@ -514,8 +495,7 @@ tSirRetStatus lim_set_link_state(tpAniSirGlobal pMac, tSirLinkState state,
 	retCode = (uint32_t) wma_post_ctrl_msg(pMac, &msgQ);
 	if (retCode != eSIR_SUCCESS) {
 		qdf_mem_free(pLinkStateParams);
-		lim_log(pMac, LOGE,
-			FL("Posting link state %d failed, reason = %x "), state,
+		pe_err("Posting link state %d failed, reason = %x", state,
 			retCode);
 	}
 	return retCode;
@@ -532,9 +512,7 @@ extern tSirRetStatus lim_set_link_state_ft(tpAniSirGlobal pMac, tSirLinkState
 	/* Allocate memory. */
 	pLinkStateParams = qdf_mem_malloc(sizeof(tLinkStateParams));
 	if (NULL == pLinkStateParams) {
-		lim_log(pMac, LOGE,
-			FL
-				("Unable to allocate memory while sending Set Link State"));
+		pe_err("Unable to allocate memory while sending Set Link State");
 		retCode = eSIR_MEM_ALLOC_FAILED;
 		return retCode;
 	}
@@ -559,8 +537,7 @@ extern tSirRetStatus lim_set_link_state_ft(tpAniSirGlobal pMac, tSirLinkState
 	retCode = (uint32_t) wma_post_ctrl_msg(pMac, &msgQ);
 	if (retCode != eSIR_SUCCESS) {
 		qdf_mem_free(pLinkStateParams);
-		lim_log(pMac, LOGE,
-			FL("Posting link state %d failed, reason = %x "), state,
+		pe_err("Posting link state %d failed, reason = %x", state,
 			retCode);
 	}
 	return retCode;
@@ -584,15 +561,14 @@ tSirRetStatus lim_send_beacon_filter_info(tpAniSirGlobal pMac,
 	tpBeaconFilterIe pIe;
 
 	if (psessionEntry == NULL) {
-		lim_log(pMac, LOGE, FL("Fail to find the right session "));
+		pe_err("Fail to find the right session");
 		retCode = eSIR_FAILURE;
 		return retCode;
 	}
 	msgSize = sizeof(tBeaconFilterMsg) + sizeof(beacon_filter_table);
 	pBeaconFilterMsg = qdf_mem_malloc(msgSize);
 	if (NULL == pBeaconFilterMsg) {
-		lim_log(pMac, LOGE,
-			FL("Fail to allocate memory for beaconFiilterMsg "));
+		pe_err("Fail to allocate memory for beaconFiilterMsg");
 		retCode = eSIR_MEM_ALLOC_FAILED;
 		return retCode;
 	}
@@ -624,13 +600,12 @@ tSirRetStatus lim_send_beacon_filter_info(tpAniSirGlobal pMac,
 	msgQ.reserved = 0;
 	msgQ.bodyptr = pBeaconFilterMsg;
 	msgQ.bodyval = 0;
-	lim_log(pMac, LOGD, FL("Sending WMA_BEACON_FILTER_IND..."));
+	pe_debug("Sending WMA_BEACON_FILTER_IND");
 	MTRACE(mac_trace_msg_tx(pMac, psessionEntry->peSessionId, msgQ.type));
 	retCode = wma_post_ctrl_msg(pMac, &msgQ);
 	if (eSIR_SUCCESS != retCode) {
 		qdf_mem_free(pBeaconFilterMsg);
-		lim_log(pMac, LOGE,
-			FL("Posting WMA_BEACON_FILTER_IND failed, reason=%X"),
+		pe_err("Posting WMA_BEACON_FILTER_IND failed, reason=%X",
 			retCode);
 		return retCode;
 	}
@@ -647,8 +622,7 @@ tSirRetStatus lim_send_mode_update(tpAniSirGlobal pMac,
 
 	pVhtOpMode = qdf_mem_malloc(sizeof(tUpdateVHTOpMode));
 	if (NULL == pVhtOpMode) {
-		lim_log(pMac, LOGE,
-			FL("Unable to allocate memory during Update Op Mode"));
+		pe_err("Unable to allocate memory during Update Op Mode");
 		return eSIR_MEM_ALLOC_FAILED;
 	}
 	qdf_mem_copy((uint8_t *) pVhtOpMode, pTempParam,
@@ -657,8 +631,7 @@ tSirRetStatus lim_send_mode_update(tpAniSirGlobal pMac,
 	msgQ.reserved = 0;
 	msgQ.bodyptr = pVhtOpMode;
 	msgQ.bodyval = 0;
-	lim_log(pMac, LOGD, FL(
-			"Sending WMA_UPDATE_OP_MODE, op_mode %d, sta_id %d"),
+	pe_debug("Sending WMA_UPDATE_OP_MODE, op_mode %d, sta_id %d",
 			pVhtOpMode->opMode, pVhtOpMode->staId);
 	if (NULL == psessionEntry)
 		MTRACE(mac_trace_msg_tx(pMac, NO_SESSION, msgQ.type));
@@ -669,8 +642,7 @@ tSirRetStatus lim_send_mode_update(tpAniSirGlobal pMac,
 	retCode = wma_post_ctrl_msg(pMac, &msgQ);
 	if (eSIR_SUCCESS != retCode) {
 		qdf_mem_free(pVhtOpMode);
-		lim_log(pMac, LOGE,
-			FL("Posting WMA_UPDATE_OP_MODE failed, reason=%X"),
+		pe_err("Posting WMA_UPDATE_OP_MODE failed, reason=%X",
 			retCode);
 	}
 
@@ -687,8 +659,7 @@ tSirRetStatus lim_send_rx_nss_update(tpAniSirGlobal pMac,
 
 	pRxNss = qdf_mem_malloc(sizeof(tUpdateRxNss));
 	if (NULL == pRxNss) {
-		lim_log(pMac, LOGE,
-			FL("Unable to allocate memory during Update Rx Nss"));
+		pe_err("Unable to allocate memory during Update Rx Nss");
 		return eSIR_MEM_ALLOC_FAILED;
 	}
 	qdf_mem_copy((uint8_t *) pRxNss, pTempParam, sizeof(tUpdateRxNss));
@@ -696,7 +667,7 @@ tSirRetStatus lim_send_rx_nss_update(tpAniSirGlobal pMac,
 	msgQ.reserved = 0;
 	msgQ.bodyptr = pRxNss;
 	msgQ.bodyval = 0;
-	lim_log(pMac, LOGD, FL("Sending WMA_UPDATE_RX_NSS"));
+	pe_debug("Sending WMA_UPDATE_RX_NSS");
 	if (NULL == psessionEntry)
 		MTRACE(mac_trace_msg_tx(pMac, NO_SESSION, msgQ.type));
 	else
@@ -706,8 +677,7 @@ tSirRetStatus lim_send_rx_nss_update(tpAniSirGlobal pMac,
 	retCode = wma_post_ctrl_msg(pMac, &msgQ);
 	if (eSIR_SUCCESS != retCode) {
 		qdf_mem_free(pRxNss);
-		lim_log(pMac, LOGE,
-			FL("Posting WMA_UPDATE_RX_NSS failed, reason=%X"),
+		pe_err("Posting WMA_UPDATE_RX_NSS failed, reason=%X",
 			retCode);
 	}
 
@@ -724,8 +694,7 @@ tSirRetStatus lim_set_membership(tpAniSirGlobal pMac,
 
 	pMembership = qdf_mem_malloc(sizeof(tUpdateMembership));
 	if (NULL == pMembership) {
-		lim_log(pMac, LOGE,
-			FL("Unable to allocate memory during Update Membership Mode"));
+		pe_err("Unable to allocate memory during Update Membership Mode");
 		return eSIR_MEM_ALLOC_FAILED;
 	}
 	qdf_mem_copy((uint8_t *) pMembership, pTempParam,
@@ -735,7 +704,7 @@ tSirRetStatus lim_set_membership(tpAniSirGlobal pMac,
 	msgQ.reserved = 0;
 	msgQ.bodyptr = pMembership;
 	msgQ.bodyval = 0;
-	lim_log(pMac, LOGD, FL("Sending WMA_UPDATE_MEMBERSHIP"));
+	pe_debug("Sending WMA_UPDATE_MEMBERSHIP");
 	if (NULL == psessionEntry)
 		MTRACE(mac_trace_msg_tx(pMac, NO_SESSION, msgQ.type));
 	else
@@ -745,8 +714,7 @@ tSirRetStatus lim_set_membership(tpAniSirGlobal pMac,
 	retCode = wma_post_ctrl_msg(pMac, &msgQ);
 	if (eSIR_SUCCESS != retCode) {
 		qdf_mem_free(pMembership);
-		lim_log(pMac, LOGE,
-			FL("Posting WMA_UPDATE_MEMBERSHIP failed, reason=%X"),
+		pe_err("Posting WMA_UPDATE_MEMBERSHIP failed, reason=%X",
 			retCode);
 	}
 
@@ -763,8 +731,7 @@ tSirRetStatus lim_set_user_pos(tpAniSirGlobal pMac,
 
 	pUserPos = qdf_mem_malloc(sizeof(tUpdateUserPos));
 	if (NULL == pUserPos) {
-		lim_log(pMac, LOGE,
-			FL("Unable to allocate memory during Update User Position"));
+		pe_err("Unable to allocate memory during Update User Position");
 		return eSIR_MEM_ALLOC_FAILED;
 	}
 	qdf_mem_copy((uint8_t *) pUserPos, pTempParam, sizeof(tUpdateUserPos));
@@ -773,7 +740,7 @@ tSirRetStatus lim_set_user_pos(tpAniSirGlobal pMac,
 	msgQ.reserved = 0;
 	msgQ.bodyptr = pUserPos;
 	msgQ.bodyval = 0;
-	lim_log(pMac, LOGD, FL("Sending WMA_UPDATE_USERPOS"));
+	pe_debug("Sending WMA_UPDATE_USERPOS");
 	if (NULL == psessionEntry)
 		MTRACE(mac_trace_msg_tx(pMac, NO_SESSION, msgQ.type));
 	else
@@ -783,8 +750,7 @@ tSirRetStatus lim_set_user_pos(tpAniSirGlobal pMac,
 	retCode = wma_post_ctrl_msg(pMac, &msgQ);
 	if (eSIR_SUCCESS != retCode) {
 		qdf_mem_free(pUserPos);
-		lim_log(pMac, LOGE,
-			FL("Posting WMA_UPDATE_USERPOS failed, reason=%X"),
+		pe_err("Posting WMA_UPDATE_USERPOS failed, reason=%X",
 			retCode);
 	}
 
@@ -814,8 +780,7 @@ tSirRetStatus lim_send_exclude_unencrypt_ind(tpAniSirGlobal pMac,
 	pExcludeUnencryptParam =
 		qdf_mem_malloc(sizeof(tSirWlanExcludeUnencryptParam));
 	if (NULL == pExcludeUnencryptParam) {
-		lim_log(pMac, LOGE,
-			FL("Unable to allocate memory during lim_send_exclude_unencrypt_ind"));
+		pe_err("Unable to allocate memory during lim_send_exclude_unencrypt_ind");
 		return eSIR_MEM_ALLOC_FAILED;
 	}
 
@@ -827,13 +792,12 @@ tSirRetStatus lim_send_exclude_unencrypt_ind(tpAniSirGlobal pMac,
 	msgQ.reserved = 0;
 	msgQ.bodyptr = pExcludeUnencryptParam;
 	msgQ.bodyval = 0;
-	lim_log(pMac, LOGD, FL("Sending WMA_EXCLUDE_UNENCRYPTED_IND"));
+	pe_debug("Sending WMA_EXCLUDE_UNENCRYPTED_IND");
 	MTRACE(mac_trace_msg_tx(pMac, psessionEntry->peSessionId, msgQ.type));
 	retCode = wma_post_ctrl_msg(pMac, &msgQ);
 	if (eSIR_SUCCESS != retCode) {
 		qdf_mem_free(pExcludeUnencryptParam);
-		lim_log(pMac, LOGE,
-			FL("Posting WMA_EXCLUDE_UNENCRYPTED_IND failed, reason=%X"),
+		pe_err("Posting WMA_EXCLUDE_UNENCRYPTED_IND failed, reason=%X",
 			retCode);
 	}
 
@@ -894,8 +858,7 @@ tSirRetStatus lim_send_ht40_obss_scanind(tpAniSirGlobal mac_ctx,
 	channelnum = WNI_CFG_VALID_CHANNEL_LIST_LEN;
 	if (wlan_cfg_get_str(mac_ctx, WNI_CFG_VALID_CHANNEL_LIST,
 			chan_list, &channelnum) != eSIR_SUCCESS) {
-		lim_log(mac_ctx, LOGE,
-			FL("could not retrieve Valid channel list"));
+		pe_err("could not retrieve Valid channel list");
 		qdf_mem_free(ht40_obss_scanind);
 		return eSIR_FAILURE;
 	}
@@ -920,15 +883,13 @@ tSirRetStatus lim_send_ht40_obss_scanind(tpAniSirGlobal mac_ctx,
 	msg.reserved = 0;
 	msg.bodyptr = (void *)ht40_obss_scanind;
 	msg.bodyval = 0;
-	lim_log(mac_ctx, LOGD,
-		FL("Sending WDA_HT40_OBSS_SCAN_IND to WDA"
-		"Obss Scan trigger width = %d, delay factor = %d"),
+	pe_debug("Sending WDA_HT40_OBSS_SCAN_IND to WDA"
+		"Obss Scan trigger width: %d, delay factor: %d",
 		ht40_obss_scanind->obss_width_trigger_interval,
 		ht40_obss_scanind->bsswidth_ch_trans_delay);
 	ret = wma_post_ctrl_msg(mac_ctx, &msg);
 	if (eSIR_SUCCESS != ret) {
-		lim_log(mac_ctx, LOGE,
-			FL("WDA_HT40_OBSS_SCAN_IND msg failed, reason=%X"),
+		pe_err("WDA_HT40_OBSS_SCAN_IND msg failed, reason=%X",
 			ret);
 		qdf_mem_free(ht40_obss_scanind);
 	}

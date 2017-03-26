@@ -394,8 +394,6 @@ void ol_txrx_fw_stats_cfg(
 	 uint8_t cfg_stats_type,
 	 uint32_t cfg_val);
 
-void ol_txrx_print_level_set(unsigned level);
-
 #define TXRX_FW_STATS_TXSTATS                     1
 #define TXRX_FW_STATS_RXSTATS                     2
 #define TXRX_FW_STATS_RX_RATE_INFO                3

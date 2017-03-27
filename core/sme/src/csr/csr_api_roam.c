@@ -319,10 +319,10 @@ QDF_STATUS csr_process_same_ap_reassoc_cmd(tpAniSirGlobal mac_ctx,
 	sme_info("self reassoc on channe[%d] bssid[%pM]",
 		 fastreassoc->channel, fastreassoc->bssid);
 
-	msg.type = SIR_HAL_ROAM_INVOKE;
+	msg.type = eWNI_SME_ROAM_INVOKE;
 	msg.reserved = 0;
 	msg.bodyptr = fastreassoc;
-	status = cds_mq_post_message(QDF_MODULE_ID_WMA, &msg);
+	status = cds_mq_post_message(CDS_MQ_ID_PE, &msg);
 	if (QDF_STATUS_SUCCESS != status) {
 		sme_err("Not able to post ROAM_INVOKE_CMD");
 		qdf_mem_free(fastreassoc);

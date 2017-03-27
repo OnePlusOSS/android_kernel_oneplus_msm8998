@@ -4874,6 +4874,35 @@ static void lim_process_set_vdev_ies_per_band(tpAniSirGlobal mac_ctx,
 }
 
 /**
+ * lim_process_roam_invoke() - process the Roam Invoke req
+ * @mac_ctx: Pointer to Global MAC structure
+ * @msg_buf: Pointer to the SME message buffer
+ *
+ * This function is called by limProcessMessageQueue(). This function sends the
+ * ROAM_INVOKE command to WMA.
+ *
+ * Return: None
+ */
+static void lim_process_roam_invoke(tpAniSirGlobal mac_ctx,
+				uint32_t *msg_buf)
+{
+	cds_msg_t msg = {0};
+	QDF_STATUS status;
+
+	msg.type = SIR_HAL_ROAM_INVOKE;
+	msg.bodyptr = msg_buf;
+	msg.reserved = 0;
+
+	status = cds_mq_post_message(QDF_MODULE_ID_WMA, &msg);
+	if (QDF_STATUS_SUCCESS != status) {
+		pe_err("Not able to post SIR_HAL_ROAM_INVOKE to WMA");
+		return;
+	}
+
+	return;
+}
+
+/**
  * lim_process_set_pdev_IEs() - process the set pdev IE req
  * @mac_ctx: Pointer to Global MAC structure
  * @msg_buf: Pointer to the SME message buffer
@@ -5189,6 +5218,10 @@ bool lim_process_sme_req_messages(tpAniSirGlobal pMac, tpSirMsgQ pMsg)
 		break;
 	case eWNI_SME_SET_VDEV_IES_PER_BAND:
 		lim_process_set_vdev_ies_per_band(pMac, pMsgBuf);
+		break;
+	case eWNI_SME_ROAM_INVOKE:
+		lim_process_roam_invoke(pMac, pMsgBuf);
+		bufConsumed = false;
 		break;
 	case eWNI_SME_NDP_END_REQ:
 	case eWNI_SME_NDP_INITIATOR_REQ:

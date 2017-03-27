@@ -991,8 +991,7 @@ static QDF_STATUS pe_drop_pending_rx_mgmt_frames(tpAniSirGlobal mac_ctx,
 	if (mac_ctx->sys.sys_bbt_pending_mgmt_count >=
 	     MGMT_RX_PACKETS_THRESHOLD) {
 		qdf_spin_unlock(&mac_ctx->sys.bbt_mgmt_lock);
-		lim_log(mac_ctx, LOGE,
-			FL("No.of pending RX management frames reaches to threshold, dropping management frames"));
+		pe_err("No.of pending RX management frames reaches to threshold, dropping management frames");
 		cds_pkt_return_packet(cds_pkt);
 		cds_pkt = NULL;
 		return QDF_STATUS_E_FAILURE;
@@ -1003,8 +1002,7 @@ static QDF_STATUS pe_drop_pending_rx_mgmt_frames(tpAniSirGlobal mac_ctx,
 		    hdr->fc.subType == SIR_MAC_MGMT_PROBE_REQ ||
 		    hdr->fc.subType == SIR_MAC_MGMT_PROBE_RSP) {
 			qdf_spin_unlock(&mac_ctx->sys.bbt_mgmt_lock);
-			lim_log(mac_ctx, LOGE,
-				FL("No.of pending RX management frames reaches to half of threshold, dropping probe req, probe resp or beacon frames"));
+			pe_err("No.of pending RX management frames reaches to half of threshold, dropping probe req, probe resp or beacon frames");
 			cds_pkt_return_packet(cds_pkt);
 			cds_pkt = NULL;
 			return QDF_STATUS_E_FAILURE;
@@ -1014,8 +1012,7 @@ static QDF_STATUS pe_drop_pending_rx_mgmt_frames(tpAniSirGlobal mac_ctx,
 	qdf_spin_unlock(&mac_ctx->sys.bbt_mgmt_lock);
 	if (mac_ctx->sys.sys_bbt_pending_mgmt_count ==
 	    (MGMT_RX_PACKETS_THRESHOLD / 4))
-		lim_log(mac_ctx, LOGW,
-			FL("No.of pending RX management frames reaches to 1/4th of threshold"));
+		pe_warn("No.of pending RX management frames reaches to 1/4th of threshold");
 	return QDF_STATUS_SUCCESS;
 }
 
@@ -2385,16 +2382,5 @@ QDF_STATUS lim_add_qcn_ie(tpAniSirGlobal mac_ctx, uint8_t *ie_data,
 			(QCN_IE_VERSION_SUBATTR_LEN));
 	(*ie_len) += (QCN_IE_VERSION_SUBATTR_LEN);
 	return QDF_STATUS_SUCCESS;
-}
-
-void lim_log(tpAniSirGlobal pMac, uint32_t loglevel, const char *pString, ...)
-{
-#ifdef WLAN_DEBUG
-	va_list marker;
-
-	va_start(marker, pString);
-	log_debug(pMac, SIR_LIM_MODULE_ID, loglevel, pString, marker);
-	va_end(marker);
-#endif
 }
 

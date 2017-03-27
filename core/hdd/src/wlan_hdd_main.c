@@ -4859,7 +4859,7 @@ out:
  *
  * Return: None.
  */
-static void hdd_unregister_notifiers(hdd_context_t *hdd_ctx)
+void hdd_unregister_notifiers(hdd_context_t *hdd_ctx)
 {
 	hdd_wlan_unregister_ip6_notifier(hdd_ctx);
 
@@ -5139,9 +5139,9 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 	}
 
 	/*
-	 * Close the scheduler before calling cds_close to make sure no thread
-	 * is scheduled after the each module close is called i.e after all the
-	 * data structures are freed.
+	 * Close the scheduler before calling cds_close to make sure
+	 * no thread is scheduled after the each module close is
+	 * is called i.e after all the data structures are freed.
 	 */
 	qdf_status = cds_sched_close(p_cds_context);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
@@ -5172,10 +5172,15 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 	cds_flush_work(&hdd_ctx->roc_req_work);
 
 	wlansap_global_deinit();
-	wiphy_unregister(wiphy);
-	wlan_hdd_cfg80211_deinit(wiphy);
-
-	hdd_lpass_notify_stop(hdd_ctx);
+	/*
+	 * If there is re_init failure wiphy would have already de-registered
+	 * check the wiphy status status before un-registering again
+	 */
+	if (!wiphy && wiphy->registered) {
+		wiphy_unregister(wiphy);
+		wlan_hdd_cfg80211_deinit(wiphy);
+		hdd_lpass_notify_stop(hdd_ctx);
+	}
 
 	hdd_exit_netlink_services(hdd_ctx);
 	mutex_destroy(&hdd_ctx->iface_change_lock);
@@ -5868,10 +5873,11 @@ static int wlan_hdd_init_tx_rx_histogram(hdd_context_t *hdd_ctx)
  */
 void wlan_hdd_deinit_tx_rx_histogram(hdd_context_t *hdd_ctx)
 {
-	if (hdd_ctx->hdd_txrx_hist) {
-		qdf_mem_free(hdd_ctx->hdd_txrx_hist);
-		hdd_ctx->hdd_txrx_hist = NULL;
-	}
+	if (!hdd_ctx || hdd_ctx->hdd_txrx_hist == NULL)
+		return;
+
+	qdf_mem_free(hdd_ctx->hdd_txrx_hist);
+	hdd_ctx->hdd_txrx_hist = NULL;
 }
 
 static uint8_t *convert_level_to_string(uint32_t level)
@@ -8458,11 +8464,6 @@ int hdd_wlan_stop_modules(hdd_context_t *hdd_ctx)
 		return -EINVAL;
 	}
 
-	cds_sched_context = get_cds_sched_ctxt();
-	if (!cds_sched_context) {
-		hdd_err("cds scheduler context NULL");
-		return -EINVAL;
-	}
 	mutex_lock(&hdd_ctx->iface_change_lock);
 	hdd_ctx->stop_modules_in_progress = true;
 
@@ -8520,8 +8521,11 @@ int hdd_wlan_stop_modules(hdd_context_t *hdd_ctx)
 		QDF_ASSERT(0);
 	}
 	/* Clean up message queues of TX, RX and MC thread */
-	if (!cds_is_driver_recovering())
-		cds_sched_flush_mc_mqs(cds_sched_context);
+	if (!cds_is_driver_recovering()) {
+		cds_sched_context = get_cds_sched_ctxt();
+		if (cds_sched_context)
+			cds_sched_flush_mc_mqs(cds_sched_context);
+	}
 
 	hif_ctx = cds_get_context(QDF_MODULE_ID_HIF);
 	if (!hif_ctx) {

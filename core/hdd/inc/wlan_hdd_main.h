@@ -2286,4 +2286,13 @@ static inline void hdd_init_nud_stats_ctx(hdd_context_t *hdd_ctx)
  */
 
 void hdd_start_complete(int ret);
+
+/**
+ * hdd_unregister_notifiers()- unregister kernel notifiers
+ * @hdd_ctx: Hdd Context
+ *
+ * Unregister netdev notifiers like Netdevice,IPv4 and IPv6.
+ *
+ */
+void hdd_unregister_notifiers(hdd_context_t *hdd_ctx);
 #endif /* end #if !defined(WLAN_HDD_MAIN_H) */

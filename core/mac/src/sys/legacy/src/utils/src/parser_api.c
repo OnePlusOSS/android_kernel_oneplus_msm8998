@@ -2269,6 +2269,75 @@ sir_validate_and_rectify_ies(tpAniSirGlobal mac_ctx,
 	return eSIR_SUCCESS;
 }
 
+#ifdef WLAN_FEATURE_FILS_SK
+/**
+ * update_fils_data: update fils params from beacon/probe response
+ * @fils_ind: pointer to sir_fils_indication
+ * @fils_indication: pointer to tDot11fIEfils_indication
+ *
+ * Return: None
+ */
+static void update_fils_data(struct sir_fils_indication *fils_ind,
+				 tDot11fIEfils_indication *fils_indication)
+{
+	uint8_t *data;
+
+	data = fils_indication->variable_data;
+	fils_ind->is_present = true;
+	fils_ind->is_ip_config_supported =
+			fils_indication->is_ip_config_supported;
+	fils_ind->is_fils_sk_auth_supported =
+			fils_indication->is_fils_sk_auth_supported;
+	fils_ind->is_fils_sk_auth_pfs_supported =
+			fils_indication->is_fils_sk_auth_pfs_supported;
+	fils_ind->is_pk_auth_supported =
+			fils_indication->is_pk_auth_supported;
+	if (fils_indication->is_cache_id_present) {
+		fils_ind->cache_identifier.is_present = true;
+		qdf_mem_copy(fils_ind->cache_identifier.identifier,
+				data, SIR_CACHE_IDENTIFIER_LEN);
+		data = data + SIR_CACHE_IDENTIFIER_LEN;
+	}
+	if (fils_indication->is_hessid_present) {
+		fils_ind->hessid.is_present = true;
+		qdf_mem_copy(fils_ind->hessid.hessid,
+				data, SIR_HESSID_LEN);
+		data = data + SIR_HESSID_LEN;
+	}
+	if (fils_indication->realm_identifiers_cnt) {
+		fils_ind->realm_identifier.is_present = true;
+		fils_ind->realm_identifier.realm_cnt =
+			fils_indication->realm_identifiers_cnt;
+		qdf_mem_copy(fils_ind->realm_identifier.realm,
+			data, fils_ind->realm_identifier.realm_cnt *
+					SIR_REALM_LEN);
+	}
+}
+
+/**
+ * sir_convert_fils_data_to_probersp_struct: update fils params from probe resp
+ * @probe_resp: pointer to tpSirProbeRespBeacon
+ * @pr: pointer to tDot11fProbeResponse
+ *
+ * Return: None
+ */
+static void
+sir_convert_fils_data_to_probersp_struct(tpSirProbeRespBeacon probe_resp,
+			tDot11fProbeResponse *pr)
+{
+	if (!pr->fils_indication.present)
+		return;
+
+	update_fils_data(&probe_resp->fils_ind, &pr->fils_indication);
+}
+#else
+static inline void
+sir_convert_fils_data_to_probersp_struct(tpSirProbeRespBeacon probe_resp,
+		tDot11fProbeResponse *pr)
+{
+}
+#endif
+
 tSirRetStatus sir_convert_probe_frame2_struct(tpAniSirGlobal pMac,
 					      uint8_t *pFrame,
 					      uint32_t nFrame,
@@ -2558,6 +2627,7 @@ tSirRetStatus sir_convert_probe_frame2_struct(tpAniSirGlobal pMac,
 		}
 	}
 
+	sir_convert_fils_data_to_probersp_struct(pProbeResp, pr);
 	qdf_mem_free(pr);
 	return eSIR_SUCCESS;
 
@@ -3427,6 +3497,30 @@ err_bcnrep:
 
 #endif /* FEATURE_WLAN_ESE */
 
+#ifdef WLAN_FEATURE_FILS_SK
+/**
+ * sir_parse_fils_beacon_ie: update fils params from beacon IEs
+ * @beacon_struct: pointer to tpSirProbeRespBeacon
+ * @beacon_ie: pointer to tDot11fBeaconIEs
+ *
+ * Return: None
+ */
+static void sir_parse_fils_beacon_ie(tpSirProbeRespBeacon beacon_struct,
+				tDot11fBeaconIEs *beacon_ie)
+{
+	if (!beacon_ie->fils_indication.present)
+		return;
+
+	update_fils_data(&beacon_struct->fils_ind,
+			&beacon_ie->fils_indication);
+}
+#else
+static inline void sir_parse_fils_beacon_ie(tpSirProbeRespBeacon beacon_struct,
+			tDot11fBeaconIEs *beacon_ie)
+{
+}
+#endif
+
 tSirRetStatus
 sir_parse_beacon_ie(tpAniSirGlobal pMac,
 		    tpSirProbeRespBeacon pBeaconStruct,
@@ -3709,9 +3803,36 @@ sir_parse_beacon_ie(tpAniSirGlobal pMac,
 		}
 	}
 
+	sir_parse_fils_beacon_ie(pBeaconStruct, pBies);
 	qdf_mem_free(pBies);
 	return eSIR_SUCCESS;
 } /* End sir_parse_beacon_ie. */
+
+#ifdef WLAN_FEATURE_FILS_SK
+/**
+ * sir_convert_fils_data_to_beacon_struct: update fils params from beacon
+ * @beacon_struct: pointer to tpSirProbeRespBeacon
+ * @beacon: pointer to tDot11fBeacon
+ *
+ * Return: None
+ */
+static void
+sir_convert_fils_data_to_beacon_struct(tpSirProbeRespBeacon beacon_struct,
+					tDot11fBeacon *beacon)
+{
+	if (!beacon->fils_indication.present)
+		return;
+
+	update_fils_data(&beacon_struct->fils_ind,
+			&beacon->fils_indication);
+}
+#else
+static inline void
+sir_convert_fils_data_to_beacon_struct(tpSirProbeRespBeacon beacon_struct,
+					tDot11fBeacon *beacon)
+{
+}
+#endif
 
 tSirRetStatus
 sir_convert_beacon_frame2_struct(tpAniSirGlobal pMac,
@@ -4072,6 +4193,7 @@ sir_convert_beacon_frame2_struct(tpAniSirGlobal pMac,
 		}
 	}
 
+	sir_convert_fils_data_to_beacon_struct(pBeaconStruct, pBeacon);
 	qdf_mem_free(pBeacon);
 	return eSIR_SUCCESS;
 

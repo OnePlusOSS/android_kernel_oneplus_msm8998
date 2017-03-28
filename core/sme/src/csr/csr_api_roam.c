@@ -13400,6 +13400,47 @@ csr_roam_diag_set_pmkid(tCsrRoamSession *pSession)
 }
 #endif /* FEATURE_WLAN_DIAG_SUPPORT_CSR */
 
+static void csr_update_pmk_cache(tCsrRoamSession *pSession,
+			tPmkidCacheInfo *pmksa)
+{
+	uint16_t cache_idx = pSession->curr_cache_idx;
+
+	/* Add entry to the cache */
+	if (!pmksa->ssid_len) {
+		qdf_copy_macaddr(
+		    &pSession->PmkidCacheInfo[cache_idx].BSSID,
+		    &pmksa->BSSID);
+		pSession->PmkidCacheInfo[cache_idx].ssid_len = 0;
+	} else {
+		qdf_mem_copy(pSession->PmkidCacheInfo[cache_idx].ssid,
+			pmksa->ssid, pmksa->ssid_len);
+		pSession->PmkidCacheInfo[cache_idx].ssid_len =
+			pmksa->ssid_len;
+		qdf_mem_copy(pSession->PmkidCacheInfo[cache_idx].cache_id,
+			pmksa->cache_id, CACHE_ID_LEN);
+
+	}
+	qdf_mem_copy(
+	    pSession->PmkidCacheInfo[cache_idx].PMKID,
+	    pmksa->PMKID, CSR_RSN_PMKID_SIZE);
+
+	if (pmksa->pmk_len)
+		qdf_mem_copy(pSession->PmkidCacheInfo[cache_idx].pmk,
+				pmksa->pmk, pmksa->pmk_len);
+
+	pSession->PmkidCacheInfo[cache_idx].pmk_len = pmksa->pmk_len;
+
+	/* Increment the CSR local cache index */
+	if (cache_idx < (CSR_MAX_PMKID_ALLOWED - 1))
+		pSession->curr_cache_idx++;
+	else
+		pSession->curr_cache_idx = 0;
+
+	pSession->NumPmkidCache++;
+	if (pSession->NumPmkidCache > CSR_MAX_PMKID_ALLOWED)
+		pSession->NumPmkidCache = CSR_MAX_PMKID_ALLOWED;
+}
+
 QDF_STATUS
 csr_roam_set_pmkid_cache(tpAniSirGlobal pMac, uint32_t sessionId,
 			 tPmkidCacheInfo *pPMKIDCache, uint32_t numItems,
@@ -13438,38 +13479,24 @@ csr_roam_set_pmkid_cache(tpAniSirGlobal pMac, uint32_t sessionId,
 
 		/* Delete the entry if present */
 		csr_roam_del_pmkid_from_cache(pMac, sessionId,
-				pmksa->BSSID.bytes, false);
+				pmksa, false);
+		/* Update new entry */
+		csr_update_pmk_cache(pSession, pmksa);
 
-		/* Add entry to the cache */
-		qdf_copy_macaddr(
-		    &pSession->PmkidCacheInfo[pSession->curr_cache_idx].BSSID,
-		    &pmksa->BSSID);
-		qdf_mem_copy(
-		    pSession->PmkidCacheInfo[pSession->curr_cache_idx].PMKID,
-		    pmksa->PMKID, CSR_RSN_PMKID_SIZE);
-
-		/* Increment the CSR local cache index */
-		if (pSession->curr_cache_idx < (CSR_MAX_PMKID_ALLOWED - 1))
-			pSession->curr_cache_idx++;
-		else
-			pSession->curr_cache_idx = 0;
-
-		pSession->NumPmkidCache++;
-		if (pSession->NumPmkidCache > CSR_MAX_PMKID_ALLOWED)
-			pSession->NumPmkidCache = CSR_MAX_PMKID_ALLOWED;
 	}
 	return QDF_STATUS_SUCCESS;
 }
 
 QDF_STATUS csr_roam_del_pmkid_from_cache(tpAniSirGlobal pMac,
 					 uint32_t sessionId,
-					 const uint8_t *pBSSId,
+					 tPmkidCacheInfo *pmksa,
 					 bool flush_cache)
 {
 	tCsrRoamSession *pSession = CSR_GET_SESSION(pMac, sessionId);
 	bool fMatchFound = false;
 	uint32_t Index;
 	uint32_t curr_idx;
+	tPmkidCacheInfo *cached_pmksa;
 	uint32_t i;
 
 	if (!pSession) {
@@ -13494,20 +13521,27 @@ QDF_STATUS csr_roam_del_pmkid_from_cache(tpAniSirGlobal pMac,
 
 	/* !flush_cache - so look up in the cache */
 	for (Index = 0; Index < CSR_MAX_PMKID_ALLOWED; Index++) {
-		if (!qdf_mem_cmp(pSession->PmkidCacheInfo[Index].BSSID.bytes,
-				    pBSSId, QDF_MAC_ADDR_SIZE)) {
+		cached_pmksa = &pSession->PmkidCacheInfo[Index];
+		if ((!cached_pmksa->ssid_len) &&
+			qdf_is_macaddr_equal(&cached_pmksa->BSSID,
+				&pmksa->BSSID))
 			fMatchFound = 1;
 
+		else if ((!qdf_mem_cmp(cached_pmksa->ssid,
+			pmksa->ssid, pmksa->ssid_len)) &&
+			(!qdf_mem_cmp(cached_pmksa->cache_id,
+				pmksa->cache_id, CACHE_ID_LEN)))
+			fMatchFound = 1;
+
+		if (fMatchFound)
 			/* Clear this - the matched entry */
-			qdf_mem_zero(&pSession->PmkidCacheInfo[Index],
+			qdf_mem_zero(cached_pmksa,
 				     sizeof(tPmkidCacheInfo));
 			break;
-		}
 	}
 
 	if (Index == CSR_MAX_PMKID_ALLOWED && !fMatchFound) {
-		sme_debug("No such PMKSA entry exists"
-			MAC_ADDRESS_STR, MAC_ADDR_ARRAY(pBSSId));
+		sme_debug("No such PMKSA entry exists");
 		return QDF_STATUS_SUCCESS;
 	}
 

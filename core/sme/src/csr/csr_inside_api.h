@@ -104,6 +104,7 @@
  * ***************************************************************************/
 #define CSR_MAX_BSSID_COUNT     ((SME_ACTIVE_LIST_CMD_TIMEOUT_VALUE/4000) * 3)
 #define CSR_CUSTOM_CONC_GO_BI    100
+extern uint8_t csr_wpa_oui[][CSR_WPA_OUI_SIZE];
 
 typedef enum {
 	eCsrNextScanNothing,

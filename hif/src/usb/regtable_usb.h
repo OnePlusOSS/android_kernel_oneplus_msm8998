@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1285,7 +1285,7 @@ typedef struct TGT_REG_SECTION {
 } tgt_reg_section;
 
 typedef struct TGT_REG_TABLE {
-	tgt_reg_section *section;
+	const tgt_reg_section *section;
 	u_int32_t section_size;
 } tgt_reg_table;
 void target_register_tbl_attach(struct hif_softc *scn,

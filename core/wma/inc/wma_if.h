@@ -913,6 +913,7 @@ typedef struct {
 
 	uint8_t restart_on_chan_switch;
 	uint8_t nss;
+	bool rx_ldpc;
 } tSwitchChannelParams, *tpSwitchChannelParams;
 
 typedef void (*tpSetLinkStateCallback)(tpAniSirGlobal pMac, void *msgParam,

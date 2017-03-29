@@ -361,6 +361,22 @@ htt_rx_paddr_mark_high_bits(qdf_dma_addr_t paddr)
 	return paddr;
 }
 
+#ifdef HTT_PADDR64
+static inline qdf_dma_addr_t htt_paddr_trim_to_37(qdf_dma_addr_t paddr)
+{
+	qdf_dma_addr_t ret = paddr;
+
+	if (sizeof(paddr) > 4)
+		ret &= 0x1fffffffff;
+	return ret;
+}
+#else /* not 64 bits */
+static inline qdf_dma_addr_t htt_paddr_trim_to_37(qdf_dma_addr_t paddr)
+{
+	return paddr;
+}
+#endif /* HTT_PADDR64 */
+
 #ifdef ENABLE_DEBUG_ADDRESS_MARKING
 static qdf_dma_addr_t
 htt_rx_paddr_unmark_high_bits(qdf_dma_addr_t paddr)
@@ -384,7 +400,7 @@ htt_rx_paddr_unmark_high_bits(qdf_dma_addr_t paddr)
 		}
 
 		/* clear markings  for further use */
-		paddr &= (uint64_t)0x1ffffffff; /* LS 37 bits */
+		paddr = htt_paddr_trim_to_37(paddr);
 	}
 	return paddr;
 }
@@ -491,7 +507,7 @@ moretofill:
 		paddr = htt_rx_paddr_mark_high_bits(paddr);
 		if (pdev->cfg.is_full_reorder_offload) {
 			if (qdf_unlikely(htt_rx_hash_list_insert(
-					pdev, (uint32_t)paddr, rx_netbuf))) {
+					pdev, paddr, rx_netbuf))) {
 				QDF_TRACE(QDF_MODULE_ID_HTT,
 					  QDF_TRACE_LEVEL_ERROR,
 					  "%s: hash insert failed!", __func__);
@@ -949,7 +965,8 @@ htt_rx_in_order_netbuf_pop(htt_pdev_handle pdev, qdf_dma_addr_t paddr)
 {
 	HTT_ASSERT1(htt_rx_in_order_ring_elems(pdev) != 0);
 	pdev->rx_ring.fill_cnt--;
-	return htt_rx_hash_list_lookup(pdev, (uint32_t)(paddr & 0xffffffff));
+	paddr = htt_paddr_trim_to_37(paddr);
+	return htt_rx_hash_list_lookup(pdev, paddr);
 }
 
 /* FIX ME: this function applies only to LL rx descs.
@@ -3066,7 +3083,8 @@ static inline void htt_list_remove(struct htt_list_node *node)
    Note: this function is not thread-safe
    Returns 0 - success, 1 - failure */
 int
-htt_rx_hash_list_insert(struct htt_pdev_t *pdev, uint32_t paddr,
+htt_rx_hash_list_insert(struct htt_pdev_t *pdev,
+			qdf_dma_addr_t paddr,
 			qdf_nbuf_t netbuf)
 {
 	int i;
@@ -3074,6 +3092,9 @@ htt_rx_hash_list_insert(struct htt_pdev_t *pdev, uint32_t paddr,
 	struct htt_rx_hash_entry *hash_element = NULL;
 
 	qdf_spin_lock_bh(&(pdev->rx_ring.rx_hash_lock));
+
+	/* get rid of the marking bits if they are available */
+	paddr = htt_paddr_trim_to_37(paddr);
 
 	i = RX_HASH_FUNCTION(paddr);
 
@@ -3121,10 +3142,13 @@ hli_end:
 	return rc;
 }
 
-/* Given a physical address this function will find the corresponding network
-   buffer from the hash table.
-   Note: this function is not thread-safe */
-qdf_nbuf_t htt_rx_hash_list_lookup(struct htt_pdev_t *pdev, uint32_t paddr)
+/*
+ * Given a physical address this function will find the corresponding network
+ *  buffer from the hash table.
+ *  paddr is already stripped off of higher marking bits.
+ */
+qdf_nbuf_t htt_rx_hash_list_lookup(struct htt_pdev_t *pdev,
+				   qdf_dma_addr_t     paddr)
 {
 	uint32_t i;
 	struct htt_list_node *list_iter = NULL;
@@ -3167,8 +3191,8 @@ qdf_nbuf_t htt_rx_hash_list_lookup(struct htt_pdev_t *pdev, uint32_t paddr)
 	qdf_spin_unlock_bh(&(pdev->rx_ring.rx_hash_lock));
 
 	if (netbuf == NULL) {
-		qdf_print("rx hash: %s: no entry found for 0x%x!!!\n",
-			  __func__, paddr);
+		qdf_print("rx hash: %s: no entry found for %p!\n",
+			  __func__, (void *)paddr);
 		HTT_ASSERT_ALWAYS(0);
 	}
 

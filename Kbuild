@@ -49,7 +49,7 @@ ifeq ($(KERNEL_BUILD), 0)
 	CONFIG_MOBILE_ROUTER := y
 	endif
 
-	ifeq ($(CONFIG_ARCH_SDXHEDGEHOG), y)
+	ifeq ($(CONFIG_ARCH_SDX20), y)
 	CONFIG_MOBILE_ROUTER := y
 	endif
 
@@ -90,7 +90,7 @@ ifeq ($(KERNEL_BUILD), 0)
 	#Flag to enable Legacy Fast Roaming2(LFR2)
 	CONFIG_QCACLD_WLAN_LFR2 := y
 	#Flag to enable Legacy Fast Roaming3(LFR3)
-	ifneq ($(CONFIG_ARCH_SDXHEDGEHOG), y)
+	ifneq ($(CONFIG_ARCH_SDX20), y)
 	CONFIG_QCACLD_WLAN_LFR3 := y
 	endif
 
@@ -1379,7 +1379,7 @@ ifeq ($(CONFIG_WLAN_FEATURE_DSRC), y)
 CDEFINES += -DWLAN_FEATURE_DSRC
 endif
 
-ifeq ($(CONFIG_ARCH_SDXHEDGEHOG), y)
+ifeq ($(CONFIG_ARCH_SDX20), y)
 ifeq ($(CONFIG_QCA_WIFI_SDIO), 1)
 ifeq ($(CONFIG_WCNSS_SKB_PRE_ALLOC), y)
 CDEFINES += -DFEATURE_SKB_PRE_ALLOC
@@ -1452,7 +1452,7 @@ ifeq ($(CONFIG_IPA_OFFLOAD), 1)
 CDEFINES += -DIPA_OFFLOAD
 endif
 
-ifeq ($(CONFIG_ARCH_SDXHEDGEHOG), y)
+ifeq ($(CONFIG_ARCH_SDX20), y)
 CDEFINES += -DSYNC_IPA_READY
 endif
 

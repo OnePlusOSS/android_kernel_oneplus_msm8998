@@ -1296,7 +1296,7 @@ void cds_sched_flush_mc_mqs(p_cds_sched_context pSchedContext)
 	 * be freed first
 	 */
 	QDF_TRACE(QDF_MODULE_ID_QDF,
-		  QDF_TRACE_LEVEL_INFO,
+		  QDF_TRACE_LEVEL_DEBUG,
 		  ("Flushing the MC Thread message queue"));
 
 	if (NULL == pSchedContext) {

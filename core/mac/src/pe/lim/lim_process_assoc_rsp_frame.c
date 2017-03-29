@@ -311,7 +311,7 @@ static void lim_update_ric_data(tpAniSirGlobal mac_ctx,
 					session_entry->RICDataLen);
 			}
 		} else {
-			pe_err("RIC data not present");
+			pe_debug("RIC data not present");
 		}
 	} else {
 		pe_debug("Ric is not present");
@@ -523,7 +523,7 @@ lim_process_assoc_rsp_frame(tpAniSirGlobal mac_ctx,
 	}
 
 	pe_info("received Re/Assoc: %d resp on sessionid: %d systemrole: %d"
-		"and mlmstate: %d RSSI: %d from " MAC_ADDRESS_STR, subtype,
+		" and mlmstate: %d RSSI: %d from "MAC_ADDRESS_STR, subtype,
 		session_entry->peSessionId, GET_LIM_SYSTEM_ROLE(session_entry),
 		session_entry->limMlmState,
 		(uint) abs((int8_t) WMA_GET_RX_RSSI_NORMALIZED(rx_pkt_info)),

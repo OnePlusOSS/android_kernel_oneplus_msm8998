@@ -127,10 +127,8 @@ tSirRetStatus mac_open(tHalHandle *pHalHandle, tHddHandle hHdd,
 			p_mac->gDriverType = eDRIVER_TYPE_MFG;
 
 		/* Call routine to initialize CFG data structures */
-		if (eSIR_SUCCESS != cfg_init(p_mac)) {
-			qdf_mem_free(p_mac);
+		if (eSIR_SUCCESS != cfg_init(p_mac))
 			return eSIR_FAILURE;
-		}
 
 		sys_init_globals(p_mac);
 	}
@@ -140,10 +138,8 @@ tSirRetStatus mac_open(tHalHandle *pHalHandle, tHddHandle hHdd,
 	p_mac->first_scan_done = false;
 
 	status =  pe_open(p_mac, cds_cfg);
-	if (eSIR_SUCCESS != status) {
+	if (eSIR_SUCCESS != status)
 		pe_err("pe_open() failure");
-		qdf_mem_free(p_mac);
-	}
 
 	return status;
 }

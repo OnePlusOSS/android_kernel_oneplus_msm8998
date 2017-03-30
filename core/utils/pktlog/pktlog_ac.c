@@ -781,6 +781,10 @@ static int pktlog_htc_connect_service(struct ol_pktlog_dev_t *pdev)
 
 	if (status != A_OK) {
 		pdev->mt_pktlog_enabled = false;
+
+		if (!cds_is_fw_down())
+			QDF_BUG(0);
+
 		return -EIO;       /* failure */
 	}
 

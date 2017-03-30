@@ -141,6 +141,17 @@ static inline qdf_workqueue_t *qdf_create_workqueue(char *name)
 }
 
 /**
+ * qdf_create_singlethread_workqueue() - create a single threaded workqueue
+ * @name: string
+ *
+ * Return: pointer of type qdf_workqueue_t
+ */
+static inline qdf_workqueue_t *qdf_create_singlethread_workqueue(char *name)
+{
+	return  __qdf_create_singlethread_workqueue(name);
+}
+
+/**
  * qdf_queue_work - Queue the work/task
  * @hdl: OS handle
  * @wqueue: pointer to workqueue

@@ -646,7 +646,6 @@ A_STATUS htc_wait_recv_ctrl_message(HTC_TARGET *target)
 	/* Wait for BMI request/response transaction to complete */
 	if (qdf_wait_single_event(&target->ctrl_response_valid,
 				  HTC_CONTROL_RX_TIMEOUT)) {
-		QDF_BUG(0);
 		return A_ERROR;
 	}
 

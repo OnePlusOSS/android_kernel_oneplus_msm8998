@@ -4500,6 +4500,13 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_DROPPED_PKT_DISCONNECT_TH_DEFAULT,
 		CFG_DROPPED_PKT_DISCONNECT_TH_MIN,
 		CFG_DROPPED_PKT_DISCONNECT_TH_MAX),
+
+	REG_VARIABLE(CFG_AUTO_DETECT_POWER_FAIL_MODE_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, auto_pwr_save_fail_mode,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_AUTO_DETECT_POWER_FAIL_MODE_DEFAULT,
+		CFG_AUTO_DETECT_POWER_FAIL_MODE_MIN,
+		CFG_AUTO_DETECT_POWER_FAIL_MODE_MAX),
 };
 
 /**
@@ -5979,6 +5986,9 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_debug("Name = [%s] Value = [%u]",
 		CFG_HW_BC_FILTER_NAME,
 		pHddCtx->config->hw_broadcast_filter);
+	hdd_err("Name = [%s] Value = [%u]",
+		CFG_AUTO_DETECT_POWER_FAIL_MODE_NAME,
+		pHddCtx->config->auto_pwr_save_fail_mode);
 	hdd_per_roam_print_ini_config(pHddCtx);
 	hdd_debug("Name = [%s] Value = [%d]",
 		CFG_SAP_INTERNAL_RESTART_NAME,

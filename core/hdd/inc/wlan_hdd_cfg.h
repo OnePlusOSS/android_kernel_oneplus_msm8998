@@ -10472,6 +10472,24 @@ enum dot11p_mode {
 #define CFG_SAP_CH_SWITCH_BEACON_CNT_MAX     (5)
 #define CFG_SAP_CH_SWITCH_BEACON_CNT_DEFAULT (5)
 
+/*
+ * <ini>
+ * g_auto_detect_power_failure_mode - auto detect power save failure mode
+ * @Min: 0 : Recovery
+ * @Max: 1 : WMI
+ * @Default: 0
+ *
+ * This ini specifies the behavior of FW in case of
+ * CHIP_POWER_SAVE_FAIL_DETECTED event
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_AUTO_DETECT_POWER_FAIL_MODE_NAME "g_auto_detect_power_failure_mode"
+#define CFG_AUTO_DETECT_POWER_FAIL_MODE_MIN             (0)
+#define CFG_AUTO_DETECT_POWER_FAIL_MODE_MAX             (1)
+#define CFG_AUTO_DETECT_POWER_FAIL_MODE_DEFAULT         (0)
 
 struct hdd_config {
 	/* Bitmap to track what is explicitly configured */
@@ -11200,6 +11218,7 @@ struct hdd_config {
 	uint8_t                     rssi_penalize_factor_5g;
 	uint8_t                     max_rssi_penalize_5g;
 
+	uint8_t                     auto_pwr_save_fail_mode;
 	uint8_t packet_filters_bitmap;
 	uint32_t                    arp_ac_category;
 

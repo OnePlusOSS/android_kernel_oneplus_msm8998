@@ -4451,3 +4451,201 @@ tSirWifiPeerType wmi_to_sir_peer_type(enum wmi_peer_type type)
 		return WIFI_PEER_INVALID;
 	}
 }
+
+int wma_chip_power_save_failure_detected_handler(void *handle,
+						 uint8_t  *cmd_param_info,
+						 uint32_t len)
+{
+	tp_wma_handle wma = (tp_wma_handle)handle;
+	WMI_PDEV_CHIP_POWER_SAVE_FAILURE_DETECTED_EVENTID_param_tlvs *param_buf;
+	wmi_chip_power_save_failure_detected_fixed_param  *event;
+	struct chip_pwr_save_fail_detected_params  pwr_save_fail_params;
+	tpAniSirGlobal mac = (tpAniSirGlobal)cds_get_context(
+						QDF_MODULE_ID_PE);
+	if (NULL == wma) {
+		WMA_LOGE("%s: wma_handle is NULL", __func__);
+		return -EINVAL;
+	}
+	if (!mac) {
+		WMA_LOGE("%s: Invalid mac context", __func__);
+		return -EINVAL;
+	}
+	if (!mac->sme.chip_power_save_fail_cb) {
+		WMA_LOGE("%s: Callback not registered", __func__);
+		return -EINVAL;
+	}
+
+	param_buf =
+	(WMI_PDEV_CHIP_POWER_SAVE_FAILURE_DETECTED_EVENTID_param_tlvs *)
+	cmd_param_info;
+	if (!param_buf) {
+		WMA_LOGE("%s: Invalid pwr_save_fail_params breached event",
+			 __func__);
+		return -EINVAL;
+	}
+	event = param_buf->fixed_param;
+	pwr_save_fail_params.failure_reason_code =
+				event->power_save_failure_reason_code;
+	pwr_save_fail_params.wake_lock_bitmap[0] =
+				event->protocol_wake_lock_bitmap[0];
+	pwr_save_fail_params.wake_lock_bitmap[1] =
+				event->protocol_wake_lock_bitmap[1];
+	pwr_save_fail_params.wake_lock_bitmap[2] =
+				event->protocol_wake_lock_bitmap[2];
+	pwr_save_fail_params.wake_lock_bitmap[3] =
+				event->protocol_wake_lock_bitmap[3];
+	mac->sme.chip_power_save_fail_cb(mac->hHdd,
+				&pwr_save_fail_params);
+
+	WMA_LOGD("%s: Invoke HDD pwr_save_fail callback", __func__);
+	return 0;
+}
+/**
+ * wma_get_event_bitmap_idx() - get indices for extended wow bitmaps
+ * @event: wow event
+ * @wow_bitmap_size: WOW bitmap size
+ * @bit_idx: bit index
+ * @idx: byte index
+ *
+ * Return: none
+ */
+static inline void wma_get_event_bitmap_idx(WOW_WAKE_EVENT_TYPE event,
+			      uint32_t wow_bitmap_size,
+			      uint32_t *bit_idx,
+			      uint32_t *idx)
+{
+
+	if (!bit_idx || !idx || wow_bitmap_size == 0)
+		return;
+	if (event == 0)
+		*idx = *bit_idx = 0;
+	else {
+		*idx = event / (wow_bitmap_size * 8);
+		*bit_idx = event % (wow_bitmap_size * 8);
+	}
+}
+
+void wma_set_wow_event_bitmap(WOW_WAKE_EVENT_TYPE event,
+			      uint32_t wow_bitmap_size,
+			      uint32_t *bitmask)
+{
+	uint32_t bit_idx = 0, idx = 0;
+
+	if (!bitmask || wow_bitmap_size < WMI_WOW_MAX_EVENT_BM_LEN) {
+		WMA_LOGE("%s: wow bitmask length shorter than %d",
+			 __func__, WMI_WOW_MAX_EVENT_BM_LEN);
+		return;
+	}
+	wma_get_event_bitmap_idx(event, wow_bitmap_size, &bit_idx, &idx);
+	bitmask[idx] |= 1 << bit_idx;
+
+	WMA_LOGI("%s: bitmask updated %x%x%x%x",
+		 __func__, bitmask[0], bitmask[1], bitmask[2], bitmask[3]);
+}
+
+inline bool wma_is_wow_bitmask_zero(uint32_t *bitmask,
+				    uint32_t wow_bitmap_size)
+{
+	int i = 0;
+
+	if (!bitmask || wow_bitmap_size < WMI_WOW_MAX_EVENT_BM_LEN)
+		WMA_LOGE("%s: wow bitmask length shorter than %d",
+			 __func__, WMI_WOW_MAX_EVENT_BM_LEN);
+	else {
+		for (; i < WMI_WOW_MAX_EVENT_BM_LEN; i++) {
+			if (bitmask[i] != 0)
+				return false;
+		}
+	}
+	return true;
+}
+
+void wma_set_sta_wow_bitmask(uint32_t *bitmask, uint32_t wow_bitmap_size)
+{
+
+	if (!bitmask || wow_bitmap_size < WMI_WOW_MAX_EVENT_BM_LEN) {
+		WMA_LOGE("%s: wow bitmask length shorter than %d",
+			 __func__, WMI_WOW_MAX_EVENT_BM_LEN);
+		return;
+	}
+	wma_set_wow_event_bitmap(WOW_CSA_IE_EVENT,
+			     WMI_WOW_MAX_EVENT_BM_LEN,
+			     bitmask);
+	wma_set_wow_event_bitmap(WOW_CLIENT_KICKOUT_EVENT,
+			     WMI_WOW_MAX_EVENT_BM_LEN,
+			     bitmask);
+	wma_set_wow_event_bitmap(WOW_PATTERN_MATCH_EVENT,
+			     WMI_WOW_MAX_EVENT_BM_LEN,
+			     bitmask);
+	wma_set_wow_event_bitmap(WOW_MAGIC_PKT_RECVD_EVENT,
+			     WMI_WOW_MAX_EVENT_BM_LEN,
+			     bitmask);
+	wma_set_wow_event_bitmap(WOW_DEAUTH_RECVD_EVENT,
+			     WMI_WOW_MAX_EVENT_BM_LEN,
+			     bitmask);
+	wma_set_wow_event_bitmap(WOW_DISASSOC_RECVD_EVENT,
+			     WMI_WOW_MAX_EVENT_BM_LEN,
+			     bitmask);
+	wma_set_wow_event_bitmap(WOW_BMISS_EVENT,
+			     WMI_WOW_MAX_EVENT_BM_LEN,
+			     bitmask);
+	wma_set_wow_event_bitmap(WOW_GTK_ERR_EVENT,
+			     WMI_WOW_MAX_EVENT_BM_LEN,
+			     bitmask);
+	wma_set_wow_event_bitmap(WOW_BETTER_AP_EVENT,
+			     WMI_WOW_MAX_EVENT_BM_LEN,
+			     bitmask);
+	wma_set_wow_event_bitmap(WOW_HTT_EVENT,
+			     WMI_WOW_MAX_EVENT_BM_LEN,
+			     bitmask);
+	wma_set_wow_event_bitmap(WOW_RA_MATCH_EVENT,
+			     WMI_WOW_MAX_EVENT_BM_LEN,
+			     bitmask);
+	wma_set_wow_event_bitmap(WOW_NLO_DETECTED_EVENT,
+			     WMI_WOW_MAX_EVENT_BM_LEN,
+			     bitmask);
+	wma_set_wow_event_bitmap(WOW_EXTSCAN_EVENT,
+			     WMI_WOW_MAX_EVENT_BM_LEN,
+			     bitmask);
+	wma_set_wow_event_bitmap(WOW_OEM_RESPONSE_EVENT,
+			     WMI_WOW_MAX_EVENT_BM_LEN,
+			     bitmask);
+	wma_set_wow_event_bitmap(WOW_TDLS_CONN_TRACKER_EVENT,
+			     WMI_WOW_MAX_EVENT_BM_LEN,
+			     bitmask);
+	/* Add further STA wakeup events above this line. */
+}
+
+void wma_set_sap_wow_bitmask(uint32_t *bitmask, uint32_t wow_bitmap_size)
+{
+
+	if (!bitmask || wow_bitmap_size < WMI_WOW_MAX_EVENT_BM_LEN) {
+		WMA_LOGE("%s: wow bitmask length shorter than %d",
+			 __func__, WMI_WOW_MAX_EVENT_BM_LEN);
+		return;
+	}
+
+	wma_set_wow_event_bitmap(WOW_PROBE_REQ_WPS_IE_EVENT,
+			     WMI_WOW_MAX_EVENT_BM_LEN,
+			     bitmask);
+	wma_set_wow_event_bitmap(WOW_PATTERN_MATCH_EVENT,
+			     WMI_WOW_MAX_EVENT_BM_LEN,
+			     bitmask);
+	wma_set_wow_event_bitmap(WOW_AUTH_REQ_EVENT,
+			     WMI_WOW_MAX_EVENT_BM_LEN,
+			     bitmask);
+	wma_set_wow_event_bitmap(WOW_ASSOC_REQ_EVENT,
+			     WMI_WOW_MAX_EVENT_BM_LEN,
+			     bitmask);
+	wma_set_wow_event_bitmap(WOW_DEAUTH_RECVD_EVENT,
+			     WMI_WOW_MAX_EVENT_BM_LEN,
+			     bitmask);
+	wma_set_wow_event_bitmap(WOW_DISASSOC_RECVD_EVENT,
+			     WMI_WOW_MAX_EVENT_BM_LEN,
+			     bitmask);
+	wma_set_wow_event_bitmap(WOW_HTT_EVENT,
+			     WMI_WOW_MAX_EVENT_BM_LEN,
+			     bitmask);
+
+	/* Add further SAP wakeup events above this line. */
+}

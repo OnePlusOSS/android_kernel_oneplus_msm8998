@@ -3040,6 +3040,7 @@ static void wma_add_bss_ap_mode(tp_wma_handle wma, tpAddBssParams add_bss)
 	QDF_STATUS status;
 	int8_t maxTxPower;
 	struct sir_hw_mode_params hw_mode = {0};
+	uint32_t wow_mask[WMI_WOW_MAX_EVENT_BM_LEN] = {0};
 
 	pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 
@@ -3055,9 +3056,14 @@ static void wma_add_bss_ap_mode(tp_wma_handle wma, tpAddBssParams add_bss)
 
 		goto send_fail_resp;
 	}
-	if (SAP_WPS_DISABLED == add_bss->wps_state)
+	if (SAP_WPS_DISABLED == add_bss->wps_state) {
+		wma_set_wow_event_bitmap(WOW_PROBE_REQ_WPS_IE_EVENT,
+					 WMI_WOW_MAX_EVENT_BM_LEN,
+					 wow_mask);
+
 		wma_enable_disable_wakeup_event(wma, vdev_id,
-			(1 << WOW_PROBE_REQ_WPS_IE_EVENT), false);
+			wow_mask, false);
+	}
 	wma_set_bss_rate_flags(&wma->interfaces[vdev_id], add_bss);
 	status = wma_create_peer(wma, pdev, vdev, add_bss->bssId,
 				 WMI_PEER_TYPE_DEFAULT, vdev_id, false);

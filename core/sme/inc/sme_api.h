@@ -1587,4 +1587,16 @@ QDF_STATUS sme_set_random_mac(tHalHandle hal,
 QDF_STATUS sme_clear_random_mac(tHalHandle hal, uint32_t session_id,
 				uint8_t *random_mac, uint32_t freq);
 
+/**
+ * sme_set_chip_pwr_save_fail_cb() - set chip power save failure callback
+ * @hal: global hal handle
+ * @cb: callback function pointer
+ *
+ * This function stores the chip power save failure callback function.
+ *
+ * Return: QDF_STATUS enumeration.
+ */
+QDF_STATUS sme_set_chip_pwr_save_fail_cb(tHalHandle hal, void (*cb)(void *,
+				 struct chip_pwr_save_fail_detected_params *));
+
 #endif /* #if !defined( __SME_API_H ) */

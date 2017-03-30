@@ -77,30 +77,6 @@
 #define ARRAY_LENGTH(a)         (sizeof(a) / sizeof((a)[0]))
 #endif
 
-#define WMA_WOW_STA_WAKE_UP_EVENTS ((1 << WOW_CSA_IE_EVENT) |\
-				(1 << WOW_CLIENT_KICKOUT_EVENT) |\
-				(1 << WOW_PATTERN_MATCH_EVENT) |\
-				(1 << WOW_MAGIC_PKT_RECVD_EVENT) |\
-				(1 << WOW_DEAUTH_RECVD_EVENT) |\
-				(1 << WOW_DISASSOC_RECVD_EVENT) |\
-				(1 << WOW_BMISS_EVENT) |\
-				(1 << WOW_GTK_ERR_EVENT) |\
-				(1 << WOW_BETTER_AP_EVENT) |\
-				(1 << WOW_HTT_EVENT) |\
-				(1 << WOW_RA_MATCH_EVENT) |\
-				(1 << WOW_NLO_DETECTED_EVENT) |\
-				(1 << WOW_EXTSCAN_EVENT)) |\
-				(1 << WOW_OEM_RESPONSE_EVENT)|\
-				(1 << WOW_TDLS_CONN_TRACKER_EVENT)\
-
-#define WMA_WOW_SAP_WAKE_UP_EVENTS ((1 << WOW_PROBE_REQ_WPS_IE_EVENT) |\
-				(1 << WOW_PATTERN_MATCH_EVENT) |\
-				(1 << WOW_AUTH_REQ_EVENT) |\
-				(1 << WOW_ASSOC_REQ_EVENT) |\
-				(1 << WOW_DEAUTH_RECVD_EVENT) |\
-				(1 << WOW_DISASSOC_RECVD_EVENT) |\
-				(1 << WOW_HTT_EVENT))\
-
 /**
  * WMA_SET_VDEV_IE_SOURCE_HOST - Flag to identify the source of VDEV SET IE
  * command. The value is 0x0 for the VDEV SET IE WMI commands from mobile
@@ -2243,7 +2219,6 @@ void wma_register_dfs_event_handler(tp_wma_handle wma_handle)
 	return;
 }
 
-
 /**
  * wma_unified_dfs_phyerr_filter_offload_enable() - enable dfs phyerr filter
  * @wma_handle: wma handle
@@ -2435,6 +2410,8 @@ static const u8 *wma_wow_wake_reason_str(A_INT32 wake_reason)
 		return "NAN_EVENT_WAKE_HOST";
 	case WOW_REASON_DEBUG_TEST:
 		return "DEBUG_TEST";
+	case WOW_REASON_CHIP_POWER_FAILURE_DETECT:
+		return "CHIP_POWER_FAILURE_DETECT";
 	default:
 		return "unknown";
 	}
@@ -2591,6 +2568,10 @@ static void wma_inc_wow_stats(struct sir_vdev_wow_stats *stats, uint8_t *data,
 		break;
 	case WOW_REASON_OEM_RESPONSE_EVENT:
 		stats->oem_response++;
+		break;
+
+	case WOW_REASON_CHIP_POWER_FAILURE_DETECT:
+		stats->pwr_save_fail_detected++;
 		break;
 
 	default:
@@ -3543,6 +3524,10 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 			WMA_LOGD("No wow_packet_buffer present");
 		break;
 #endif
+	case WOW_REASON_CHIP_POWER_FAILURE_DETECT:
+		/* Just update stats and exit */
+		WMA_LOGD("Host woken up because of chip power save failure");
+		break;
 	default:
 		break;
 	}
@@ -3616,7 +3601,7 @@ static inline void wma_set_wow_bus_suspend(tp_wma_handle wma, int val)
  */
 QDF_STATUS wma_add_wow_wakeup_event(tp_wma_handle wma,
 					uint32_t vdev_id,
-					uint32_t bitmap,
+					uint32_t *bitmap,
 					bool enable)
 {
 	int ret;
@@ -3981,6 +3966,7 @@ void wma_register_wow_default_patterns(WMA_HANDLE handle, uint8_t vdev_id)
 	return;
 }
 
+
 /**
  * wma_register_wow_wakeup_events() - register vdev specific wake events with fw
  * @handle: Pointer to wma handle
@@ -4001,7 +3987,7 @@ void wma_register_wow_wakeup_events(WMA_HANDLE handle,
 				uint8_t vdev_subtype)
 {
 	tp_wma_handle wma = handle;
-	uint32_t event_bitmap;
+	uint32_t event_bitmap[WMI_WOW_MAX_EVENT_BM_LEN] = {0};
 
 	WMA_LOGD("vdev_type %d vdev_subtype %d vdev_id %d", vdev_type,
 			vdev_subtype, vdev_id);
@@ -4010,20 +3996,28 @@ void wma_register_wow_wakeup_events(WMA_HANDLE handle,
 		((WMI_VDEV_TYPE_AP == vdev_type) &&
 		 (WMI_UNIFIED_VDEV_SUBTYPE_P2P_DEVICE == vdev_subtype))) {
 		/* Configure STA/P2P CLI mode specific default wake up events */
-		event_bitmap = WMA_WOW_STA_WAKE_UP_EVENTS;
-		WMA_LOGD("STA specific default wake up event 0x%x vdev id %d",
-			event_bitmap, vdev_id);
+		wma_set_sta_wow_bitmask(event_bitmap,
+					WMI_WOW_MAX_EVENT_BM_LEN);
+
+		if ((wma->interfaces[vdev_id].in_bmps == true ||
+		     wma->in_imps == true) &&
+		     wma->auto_power_save_enabled)
+			wma_set_wow_event_bitmap(
+					 WOW_CHIP_POWER_FAILURE_DETECT_EVENT,
+					 WMI_WOW_MAX_EVENT_BM_LEN,
+					 event_bitmap);
+
 	} else if (WMI_VDEV_TYPE_IBSS == vdev_type) {
 		/* Configure IBSS mode specific default wake up events */
-		event_bitmap = (WMA_WOW_STA_WAKE_UP_EVENTS |
-				(1 << WOW_BEACON_EVENT));
-		WMA_LOGD("IBSS specific default wake up event 0x%x vdev id %d",
-			event_bitmap, vdev_id);
+		wma_set_sta_wow_bitmask(event_bitmap,
+					WMI_WOW_MAX_EVENT_BM_LEN);
+		wma_set_wow_event_bitmap(WOW_BEACON_EVENT,
+					 WMI_WOW_MAX_EVENT_BM_LEN,
+					 event_bitmap);
 	} else if (WMI_VDEV_TYPE_AP == vdev_type) {
 		/* Configure SAP/GO mode specific default wake up events */
-		event_bitmap = WMA_WOW_SAP_WAKE_UP_EVENTS;
-		WMA_LOGD("SAP specific default wake up event 0x%x vdev id %d",
-			event_bitmap, vdev_id);
+		wma_set_sap_wow_bitmask(event_bitmap,
+					WMI_WOW_MAX_EVENT_BM_LEN);
 	} else if (WMI_VDEV_TYPE_NDI == vdev_type) {
 		/*
 		 * Configure NAN data path specific default wake up events.
@@ -4052,14 +4046,18 @@ void wma_register_wow_wakeup_events(WMA_HANDLE handle,
  */
 void wma_enable_disable_wakeup_event(WMA_HANDLE handle,
 				uint32_t vdev_id,
-				uint32_t bitmap,
+				uint32_t *bitmap,
 				bool enable)
 {
 	tp_wma_handle wma = handle;
+	uint32_t event_bitmap[WMI_WOW_MAX_EVENT_BM_LEN] = {0};
 
-	WMA_LOGI("vdev_id %d wake up event 0x%x enable %d",
-		vdev_id, bitmap, enable);
-	wma_add_wow_wakeup_event(wma, vdev_id, bitmap, enable);
+	qdf_mem_copy(event_bitmap, bitmap, sizeof(uint32_t) *
+		     WMI_WOW_MAX_EVENT_BM_LEN);
+
+	WMA_LOGI("vdev_id %d wake up event 0x%x%x%x%x enable %d",
+		vdev_id, bitmap[0], bitmap[1], bitmap[2], bitmap[3], enable);
+	wma_add_wow_wakeup_event(wma, vdev_id, event_bitmap, enable);
 }
 
 /**
@@ -4694,6 +4692,10 @@ static bool wma_is_wow_applicable(tp_wma_handle wma)
 	return false;
 }
 
+/* Define for conciseness */
+#define BM_LEN WMI_WOW_MAX_EVENT_BM_LEN
+#define EV_NLO WOW_NLO_SCAN_COMPLETE_EVENT
+#define EV_PWR WOW_CHIP_POWER_FAILURE_DETECT_EVENT
 /**
  * wma_configure_dynamic_wake_events(): configure dyanmic wake events
  * @wma: wma handle
@@ -4704,31 +4706,68 @@ static bool wma_is_wow_applicable(tp_wma_handle wma)
  */
 static void wma_configure_dynamic_wake_events(tp_wma_handle wma)
 {
+
 	int vdev_id;
-	int enable_mask;
-	int disable_mask;
+	uint32_t enable_mask[BM_LEN] = {0};
+	uint32_t disable_mask[BM_LEN] = {0};
+	bool enable_configured = false;
+	bool disable_configured = false;
+	ol_txrx_vdev_handle vdev;
 
 	for (vdev_id = 0; vdev_id < wma->max_bssid; vdev_id++) {
-		enable_mask = 0;
-		disable_mask = 0;
 
-		if (wma_is_pnoscan_in_progress(wma, vdev_id)) {
-			if (wma_is_pnoscan_match_found(wma, vdev_id))
-				enable_mask |=
-					(1 << WOW_NLO_SCAN_COMPLETE_EVENT);
-			else
-				disable_mask |=
-					(1 << WOW_NLO_SCAN_COMPLETE_EVENT);
+		qdf_mem_set(enable_mask,  sizeof(uint32_t) * BM_LEN, 0);
+		qdf_mem_set(disable_mask, sizeof(uint32_t) * BM_LEN, 0);
+		vdev = wma_find_vdev_by_id(wma, vdev_id);
+		if (NULL == vdev) {
+			WMA_LOGP("%s: Couldn't find vdev for vdev_id: %d",
+				 __func__, vdev_id);
+			continue;
 		}
 
-		if (enable_mask != 0)
+		if (wma_is_pnoscan_in_progress(wma, vdev_id)) {
+			if (wma_is_pnoscan_match_found(wma, vdev_id)) {
+				wma_set_wow_event_bitmap(EV_NLO,
+							 BM_LEN,
+							 enable_mask);
+				enable_configured = true;
+			} else
+				wma_set_wow_event_bitmap(EV_NLO,
+							 BM_LEN,
+							 disable_mask);
+				disable_configured = true;
+		}
+		if ((wma->interfaces[vdev_id].in_bmps == true ||
+		     wma->in_imps == true) &&
+		     (wma->interfaces[vdev_id].type == WMI_VDEV_TYPE_STA ||
+		     (wma->interfaces[vdev_id].type == WMI_VDEV_TYPE_AP &&
+		     (wma->interfaces[vdev_id].sub_type ==
+		      WMI_UNIFIED_VDEV_SUBTYPE_P2P_DEVICE ||
+		      wma->interfaces[vdev_id].sub_type ==
+		      WMI_UNIFIED_VDEV_SUBTYPE_P2P_CLIENT))) &&
+		     wma->auto_power_save_enabled) {
+			wma_set_wow_event_bitmap(EV_PWR,
+						 BM_LEN,
+						 enable_mask);
+			enable_configured = true;
+		}
+		if (enable_configured) {
 			wma_enable_disable_wakeup_event(wma, vdev_id,
 					enable_mask, true);
-		if (disable_mask != 0)
+		}
+
+		if (disable_configured) {
 			wma_enable_disable_wakeup_event(wma, vdev_id,
 					disable_mask, false);
+		}
+
+		enable_configured = false;
+		disable_configured = false;
 	}
 }
+#undef BM_LEN
+#undef EV_NLO
+#undef EV_PWR
 
 #ifdef FEATURE_WLAN_LPHB
 /**

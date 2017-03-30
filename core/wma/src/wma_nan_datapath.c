@@ -909,10 +909,12 @@ void wma_ndp_unregister_all_event_handlers(tp_wma_handle wma_handle)
 void wma_ndp_add_wow_wakeup_event(tp_wma_handle wma_handle,
 					uint8_t vdev_id)
 {
-	uint32_t event_bitmap;
-	event_bitmap = (1 << WOW_NAN_DATA_EVENT);
+	uint32_t event_bitmap[WMI_WOW_MAX_EVENT_BM_LEN] = {0};
+
+	wma_set_wow_event_bitmap(WOW_NAN_DATA_EVENT, WMI_WOW_MAX_EVENT_BM_LEN,
+				 event_bitmap);
 	WMA_LOGI("NDI specific default wake up event 0x%x vdev id %d",
-		event_bitmap, vdev_id);
+		 event_bitmap[0], vdev_id);
 	wma_add_wow_wakeup_event(wma_handle, vdev_id, event_bitmap, true);
 }
 

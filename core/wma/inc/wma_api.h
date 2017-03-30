@@ -208,7 +208,7 @@ tSirRetStatus wma_post_ctrl_msg(tpAniSirGlobal pMac, tSirMsgQ *pMsg);
 
 void wma_enable_disable_wakeup_event(WMA_HANDLE handle,
 				uint32_t vdev_id,
-				uint32_t bitmap,
+				uint32_t *bitmap,
 				bool enable);
 void wma_register_wow_wakeup_events(WMA_HANDLE handle, uint8_t vdev_id,
 					uint8_t vdev_type, uint8_t sub_type);

@@ -826,6 +826,8 @@ void wma_enable_sta_ps_mode(tp_wma_handle wma, tpEnablePsParams ps_req)
 			return;
 		}
 	}
+	/* power save request succeeded */
+	iface->in_bmps = true;
 }
 
 /**
@@ -839,6 +841,7 @@ void wma_disable_sta_ps_mode(tp_wma_handle wma, tpDisablePsParams ps_req)
 {
 	QDF_STATUS ret;
 	uint32_t vdev_id = ps_req->sessionid;
+	struct wma_txrx_node *iface = &wma->interfaces[vdev_id];
 
 	WMA_LOGD("Disable Sta Mode Ps vdevId %d", vdev_id);
 
@@ -848,7 +851,7 @@ void wma_disable_sta_ps_mode(tp_wma_handle wma, tpDisablePsParams ps_req)
 		WMA_LOGE("Disable Sta Mode Ps Failed vdevId %d", vdev_id);
 		return;
 	}
-
+	iface->in_bmps = false;
 	/* Disable UAPSD incase if additional Req came */
 	if (eSIR_ADDON_DISABLE_UAPSD == ps_req->psSetting) {
 		WMA_LOGD("Disable Uapsd vdevId %d", vdev_id);
@@ -1724,6 +1727,7 @@ QDF_STATUS wma_set_idle_ps_config(void *wma_ptr, uint32_t idle_ps)
 		WMA_LOGE("Fail to Set Idle Ps Config %d", idle_ps);
 		return QDF_STATUS_E_FAILURE;
 	}
+	 wma->in_imps = idle_ps;
 
 	WMA_LOGD("Successfully Set Idle Ps Config %d", idle_ps);
 	return QDF_STATUS_SUCCESS;

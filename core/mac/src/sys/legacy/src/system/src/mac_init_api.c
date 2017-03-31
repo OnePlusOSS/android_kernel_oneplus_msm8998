@@ -138,8 +138,10 @@ tSirRetStatus mac_open(tHalHandle *pHalHandle, tHddHandle hHdd,
 	p_mac->first_scan_done = false;
 
 	status =  pe_open(p_mac, cds_cfg);
-	if (eSIR_SUCCESS != status)
+	if (eSIR_SUCCESS != status) {
 		pe_err("pe_open() failure");
+		cfg_de_init(p_mac);
+	}
 
 	return status;
 }

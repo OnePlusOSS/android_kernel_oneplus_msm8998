@@ -8714,7 +8714,14 @@ static void csr_roam_join_rsp_processor(tpAniSirGlobal pMac,
 					QDF_TRACE_LEVEL_ERROR,
 					"disconnect is pending, complete roam");
 
+			if (session_ptr->bRefAssocStartCnt)
+				session_ptr->bRefAssocStartCnt--;
+
 			session_ptr->join_bssid_count = 0;
+			csr_roam_call_callback(pMac, session_ptr->sessionId,
+				NULL, roamId,
+				eCSR_ROAM_ASSOCIATION_COMPLETION,
+				eCSR_ROAM_RESULT_NOT_ASSOCIATED);
 			csr_roam_complete(pMac, eCsrNothingToJoin, NULL);
 		}
 	} /*else: ( eSIR_SME_SUCCESS == pSmeJoinRsp->statusCode ) */

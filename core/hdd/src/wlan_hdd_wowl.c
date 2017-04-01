@@ -50,6 +50,7 @@ static uint8_t g_hdd_wowl_ptrns_count;
 static inline int find_ptrn_len(const char *ptrn)
 {
 	int len = 0;
+
 	while (*ptrn != '\0' && *ptrn != WOWL_INTER_PTRN_TOKENIZER) {
 		len++;
 		ptrn++;
@@ -336,8 +337,9 @@ bool hdd_add_wowl_ptrn_debugfs(hdd_adapter_t *pAdapter, uint8_t pattern_idx,
 		hdd_err("Malformed WoW pattern!");
 
 		return false;
-	} else
-		pattern_len >>= 1;
+	}
+
+	pattern_len >>= 1;
 
 	if (!pattern_len || pattern_len > WOWL_PTRN_MAX_SIZE) {
 		hdd_err("WoW pattern length %d is out of range (1 ~ %d).",

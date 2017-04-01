@@ -5170,7 +5170,7 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 		QDF_ASSERT(QDF_IS_STATUS_SUCCESS(qdf_status));
 	}
 
-	hdd_wlan_stop_modules(hdd_ctx);
+	hdd_wlan_stop_modules(hdd_ctx, false);
 
 	qdf_spinlock_destroy(&hdd_ctx->hdd_adapter_lock);
 	qdf_spinlock_destroy(&hdd_ctx->sta_update_info_lock);
@@ -8462,6 +8462,7 @@ static int hdd_deconfigure_cds(hdd_context_t *hdd_ctx)
 /**
  * hdd_wlan_stop_modules - Single driver state machine for stoping modules
  * @hdd_ctx: HDD context
+ * @ftm_mode: ftm mode
  *
  * This function maintains the driver state machine it will be invoked from
  * exit, shutdown and con_mode change handler. Depending on the driver state
@@ -8469,7 +8470,7 @@ static int hdd_deconfigure_cds(hdd_context_t *hdd_ctx)
  *
  * Return: 0 for success; non-zero for failure
  */
-int hdd_wlan_stop_modules(hdd_context_t *hdd_ctx)
+int hdd_wlan_stop_modules(hdd_context_t *hdd_ctx, bool ftm_mode)
 {
 	void *hif_ctx;
 	qdf_device_t qdf_ctx;
@@ -8499,10 +8500,11 @@ int hdd_wlan_stop_modules(hdd_context_t *hdd_ctx)
 
 		cds_print_external_threads();
 
-		if (is_idle_stop) {
+		if (is_idle_stop && !ftm_mode) {
 			mutex_unlock(&hdd_ctx->iface_change_lock);
 			qdf_mc_timer_start(&hdd_ctx->iface_change_timer,
-				       hdd_ctx->config->iface_change_wait_time);
+				hdd_ctx->config->iface_change_wait_time);
+			hdd_ctx->stop_modules_in_progress = false;
 			return 0;
 		}
 	}
@@ -8607,7 +8609,7 @@ static void hdd_iface_change_callback(void *priv)
 
 	ENTER();
 	hdd_debug("Interface change timer expired close the modules!");
-	ret = hdd_wlan_stop_modules(hdd_ctx);
+	ret = hdd_wlan_stop_modules(hdd_ctx, false);
 	if (ret)
 		hdd_err("Failed to stop modules");
 	EXIT();
@@ -8850,7 +8852,7 @@ err_wiphy_unregister:
 	wiphy_unregister(hdd_ctx->wiphy);
 
 err_stop_modules:
-	hdd_wlan_stop_modules(hdd_ctx);
+	hdd_wlan_stop_modules(hdd_ctx, false);
 
 err_exit_nl_srv:
 	if (DRIVER_MODULES_CLOSED == hdd_ctx->driver_status) {
@@ -10527,7 +10529,7 @@ static int __con_mode_handler(const char *kmessage, struct kernel_param *kp,
 	/* Cleanup present mode before switching to new mode */
 	hdd_cleanup_present_mode(hdd_ctx, curr_mode);
 
-	ret = hdd_wlan_stop_modules(hdd_ctx);
+	ret = hdd_wlan_stop_modules(hdd_ctx, true);
 	if (ret) {
 		hdd_err("Stop wlan modules failed");
 		goto reset_flags;

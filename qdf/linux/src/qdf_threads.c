@@ -78,6 +78,7 @@ qdf_export_symbol(qdf_sleep);
 void qdf_sleep_us(uint32_t us_interval)
 {
 	unsigned long timeout = usecs_to_jiffies(us_interval) + 1;
+
 	if (in_interrupt()) {
 		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
 			  "%s cannot be called from interrupt context!!!",

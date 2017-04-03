@@ -620,6 +620,7 @@ qdf_nbuf_alloc_debug(qdf_device_t osdev, qdf_size_t size, int reserve,
 		uint32_t line_num)
 {
 	qdf_nbuf_t net_buf;
+
 	net_buf = __qdf_nbuf_alloc(osdev, size, reserve, align, prio);
 
 	/* Store SKB in internal QDF tracking table */
@@ -701,7 +702,6 @@ qdf_nbuf_copy_debug(qdf_nbuf_t buf, uint8_t *file_name,
 
 static inline void qdf_net_buf_debug_release_skb(qdf_nbuf_t net_buf)
 {
-	return;
 }
 
 /* Nbuf allocation rouines */

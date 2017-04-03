@@ -378,7 +378,8 @@ void qdf_dp_trace_set_track(qdf_nbuf_t nbuf, enum qdf_proto_dir dir);
 void qdf_dp_trace(qdf_nbuf_t nbuf, enum QDF_DP_TRACE_ID code,
 			uint8_t *data, uint8_t size, enum qdf_proto_dir dir);
 void qdf_dp_trace_dump_all(uint32_t count);
-typedef void (*tp_qdf_dp_trace_cb)(struct qdf_dp_trace_record_s* , uint16_t);
+typedef void (*tp_qdf_dp_trace_cb)(struct qdf_dp_trace_record_s*,
+					uint16_t index);
 void qdf_dp_display_record(struct qdf_dp_trace_record_s *record,
 							uint16_t index);
 void qdf_dp_trace_ptr(qdf_nbuf_t nbuf, enum QDF_DP_TRACE_ID code,

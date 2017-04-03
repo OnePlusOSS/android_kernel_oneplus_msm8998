@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -89,6 +89,7 @@ typedef struct __qdf_mempool_ctxt {
 	size_t elem_size;
 	void *pool_mem;
 	u_int32_t mem_size;
+
 	STAILQ_HEAD(, mempool_elem) free_list;
 	spinlock_t lock;
 	u_int32_t max_elem;
@@ -175,7 +176,7 @@ void __qdf_mempool_destroy(qdf_device_t osdev, __qdf_mempool_t pool);
 void *__qdf_mempool_alloc(qdf_device_t osdev, __qdf_mempool_t pool);
 void __qdf_mempool_free(qdf_device_t osdev, __qdf_mempool_t pool, void *buf);
 
-#define __qdf_mempool_elem_size(_pool) ((_pool)->elem_size);
+#define __qdf_mempool_elem_size(_pool) ((_pool)->elem_size)
 #endif
 
 /**

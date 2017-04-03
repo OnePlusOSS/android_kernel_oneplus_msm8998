@@ -705,6 +705,7 @@ static int send_filled_buffers_to_user(void)
  * @is_fatal: Type of event, fatal or not
  * @indicator: Source of bug report, framework/host/firmware
  * @reason_code: Reason for triggering bug report
+ * @ring_id: Ring id of logging entities
  *
  * This function is used to report the bug report completion to userspace
  *
@@ -712,7 +713,8 @@ static int send_filled_buffers_to_user(void)
  */
 void wlan_report_log_completion(uint32_t is_fatal,
 		uint32_t indicator,
-		uint32_t reason_code)
+		uint32_t reason_code,
+		uint8_t ring_id)
 {
 	WLAN_HOST_DIAG_EVENT_DEF(wlan_diag_event,
 			struct host_event_wlan_log_complete);
@@ -720,7 +722,7 @@ void wlan_report_log_completion(uint32_t is_fatal,
 	wlan_diag_event.is_fatal = is_fatal;
 	wlan_diag_event.indicator = indicator;
 	wlan_diag_event.reason_code = reason_code;
-	wlan_diag_event.reserved = 0;
+	wlan_diag_event.reserved = ring_id;
 
 	WLAN_HOST_DIAG_EVENT_REPORT(&wlan_diag_event, EVENT_WLAN_LOG_COMPLETE);
 }
@@ -728,12 +730,13 @@ void wlan_report_log_completion(uint32_t is_fatal,
 
 /**
  * send_flush_completion_to_user() - Indicate flush completion to the user
+ * @ring_id:  Ring id of logging entities
  *
  * This function is used to send the flush completion message to user space
  *
  * Return: None
  */
-static void send_flush_completion_to_user(void)
+static void send_flush_completion_to_user(uint8_t ring_id)
 {
 	uint32_t is_fatal, indicator, reason_code;
 	bool recovery_needed = false;
@@ -746,7 +749,7 @@ static void send_flush_completion_to_user(void)
 		      "%s: Sending flush done to userspace, recovery: %d",
 		      __func__, recovery_needed);
 
-	wlan_report_log_completion(is_fatal, indicator, reason_code);
+	wlan_report_log_completion(is_fatal, indicator, reason_code, ring_id);
 
 	if (!recovery_needed)
 		return;
@@ -805,7 +808,8 @@ static int wlan_logging_thread(void *Arg)
 				msleep(200);
 			if (WLAN_LOG_INDICATOR_HOST_ONLY ==
 			   cds_get_log_indicator()) {
-				send_flush_completion_to_user();
+				send_flush_completion_to_user(
+						RING_ID_DRIVER_DEBUG);
 			}
 		}
 
@@ -825,7 +829,8 @@ static int wlan_logging_thread(void *Arg)
 			 */
 			if (gwlan_logging.is_flush_complete == true) {
 				gwlan_logging.is_flush_complete = false;
-				send_flush_completion_to_user();
+				send_flush_completion_to_user(
+						RING_ID_DRIVER_DEBUG);
 			} else {
 				gwlan_logging.is_flush_complete = true;
 				/* Flush all current host logs*/

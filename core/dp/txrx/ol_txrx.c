@@ -3180,6 +3180,9 @@ int ol_txrx_peer_unref_delete(ol_txrx_peer_handle peer,
 
 		ol_txrx_peer_tx_queue_free(pdev, peer);
 
+		/* Remove mappings from peer_id to peer object */
+		ol_txrx_peer_clear_map_peer(pdev, peer);
+
 		/*
 		 * 'array' is allocated in addba handler and is supposed to be
 		 * freed in delba handler. There is the case (for example, in

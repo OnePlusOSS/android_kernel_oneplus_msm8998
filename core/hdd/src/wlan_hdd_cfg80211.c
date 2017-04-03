@@ -16855,7 +16855,7 @@ wlan_hdd_cfg80211_update_ft_ies(struct wiphy *wiphy,
 
 #ifdef WLAN_FEATURE_GTK_OFFLOAD
 /**
- * wlan_hdd_cfg80211_update_replay_counter_callback() - replay counter callback
+ * wlan_hdd_cfg80211_update_replay_counter_cb() - replay counter callback
  * @callbackContext: Callback context
  * @pGtkOffloadGetInfoRsp: Pointer to gtk offload response parameter
  *
@@ -16863,7 +16863,7 @@ wlan_hdd_cfg80211_update_ft_ies(struct wiphy *wiphy,
  *
  * Return: none
  */
-void wlan_hdd_cfg80211_update_replay_counter_callback(void *callbackContext,
+void wlan_hdd_cfg80211_update_replay_counter_cb(void *callbackContext,
 						tpSirGtkOffloadGetInfoRspParams
 						pGtkOffloadGetInfoRsp)
 {

@@ -3895,10 +3895,10 @@ int wlan_hdd_cfg80211_send_tdls_discover_req(struct wiphy *wiphy,
 					     struct net_device *dev, u8 *peer);
 #endif
 #ifdef WLAN_FEATURE_GTK_OFFLOAD
-extern void wlan_hdd_cfg80211_update_replay_counter_callback(void
-							     *callbackContext,
-							     tpSirGtkOffloadGetInfoRspParams
-							     pGtkOffloadGetInfoRsp);
+extern void wlan_hdd_cfg80211_update_replay_counter_cb(
+						void *callbackContext,
+						tpSirGtkOffloadGetInfoRspParams
+						pGtkOffloadGetInfoRsp);
 #endif
 void *wlan_hdd_change_country_code_cb(void *pAdapter);
 void hdd_select_cbmode(hdd_adapter_t *pAdapter, uint8_t operationChannel,

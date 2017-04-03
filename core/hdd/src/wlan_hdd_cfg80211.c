@@ -14673,8 +14673,8 @@ static int wlan_hdd_cfg80211_set_privacy_ibss(hdd_adapter_t *pAdapter,
 				/* Unpack the WPA IE */
 				/* Skip past the EID byte and length byte - and four byte WiFi OUI */
 				dot11f_unpack_ie_wpa((tpAniSirGlobal) halHandle,
-						     &ie[2 + 4],
-						     ie[1] - 4, &dot11WPAIE);
+						     &ie[2 + 4], ie[1] - 4,
+						     &dot11WPAIE, false);
 				/*Extract the multicast cipher, the encType for unicast
 				   cipher for wpa-none is none */
 				encryptionType =

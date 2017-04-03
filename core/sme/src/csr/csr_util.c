@@ -1322,8 +1322,8 @@ QDF_STATUS csr_parse_bss_description_ies(tHalHandle hHal,
 
 	if (ieLen > 0 && pIEStruct)
 		if (!DOT11F_FAILED(dot11f_unpack_beacon_i_es
-				   (pMac, (uint8_t *) pBssDesc->ieFields, ieLen,
-				    pIEStruct)))
+				    (pMac, (uint8_t *) pBssDesc->ieFields,
+				    ieLen, pIEStruct, false)))
 			status = QDF_STATUS_SUCCESS;
 
 	return status;

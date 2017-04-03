@@ -24,7 +24,7 @@
  * under proprietary terms before Copyright ownership was assigned
  * to the Linux Foundation.
  */
- /**
+/**
  * @file cdp_txrx_api_common.h
  * @brief Define the host data path converged API functions
  * called by the host control SW and the OS interface module
@@ -50,9 +50,9 @@
  *****************************************************************************/
 
  /**
- * ol_txrx_pdev_handle - opaque handle for txrx physical device
- * object
- */
+  * ol_txrx_pdev_handle - opaque handle for txrx physical device
+  * object
+  */
 struct ol_txrx_pdev_t;
 typedef struct ol_txrx_pdev_t *ol_txrx_pdev_handle;
 
@@ -153,7 +153,7 @@ typedef QDF_STATUS (*ol_txrx_rx_fp)(void *osif_dev, qdf_nbuf_t msdu_list);
 
 /**
  * ol_txrx_rx_check_wai_fp - OSIF WAPI receive function
-*/
+ */
 typedef bool (*ol_txrx_rx_check_wai_fp)(ol_osif_vdev_handle vdev,
 					    qdf_nbuf_t mpdu_head,
 					    qdf_nbuf_t mpdu_tail);
@@ -167,7 +167,7 @@ typedef void (*ol_txrx_rx_mon_fp)(ol_osif_vdev_handle vdev,
 
 /**
  * ol_txrx_proxy_arp_fp - proxy arp function pointer
-*/
+ */
 typedef int (*ol_txrx_proxy_arp_fp)(ol_osif_vdev_handle vdev,
 					    qdf_nbuf_t netbuf);
 

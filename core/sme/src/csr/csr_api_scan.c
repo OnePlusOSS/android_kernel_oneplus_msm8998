@@ -128,7 +128,8 @@ static void csr_release_scan_cmd_pending_list(tpAniSirGlobal pMac)
 }
 
 /* pResult is invalid calling this function. */
-void csr_free_scan_result_entry(tpAniSirGlobal pMac, tCsrScanResult *pResult)
+void csr_free_scan_result_entry(tpAniSirGlobal pMac, struct tag_csrscan_result
+				*pResult)
 {
 	if (NULL != pResult->Result.pvIes)
 		qdf_mem_free(pResult->Result.pvIes);
@@ -141,12 +142,13 @@ static QDF_STATUS csr_ll_scan_purge_result(tpAniSirGlobal pMac,
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	tListElem *pEntry;
-	tCsrScanResult *pBssDesc;
+	struct tag_csrscan_result *pBssDesc;
 
 	csr_ll_lock(pList);
 
 	while ((pEntry = csr_ll_remove_head(pList, LL_ACCESS_NOLOCK)) != NULL) {
-		pBssDesc = GET_BASE_ADDR(pEntry, tCsrScanResult, Link);
+		pBssDesc = GET_BASE_ADDR(pEntry, struct tag_csrscan_result,
+					Link);
 		csr_free_scan_result_entry(pMac, pBssDesc);
 	}
 
@@ -1258,9 +1260,9 @@ QDF_STATUS csr_scan_handle_search_for_ssid_failure(tpAniSirGlobal pMac,
 		qdf_mem_set(&roamInfo, sizeof(tCsrRoamInfo), 0);
 		pRoamInfo = &roamInfo;
 		if (pCommand->u.roamCmd.pRoamBssEntry) {
-			tCsrScanResult *pScanResult = GET_BASE_ADDR(
+			struct tag_csrscan_result *pScanResult = GET_BASE_ADDR(
 				pCommand->u.roamCmd.pRoamBssEntry,
-				tCsrScanResult, Link);
+				struct tag_csrscan_result, Link);
 			roamInfo.pBssDesc = &pScanResult->Result.BssDescriptor;
 		}
 		roamInfo.statusCode = pSession->joinFailStatusCode.statusCode;
@@ -1286,7 +1288,8 @@ QDF_STATUS csr_scan_result_purge(tpAniSirGlobal pMac,
 				 tScanResultHandle hScanList)
 {
 	QDF_STATUS status = QDF_STATUS_E_INVAL;
-	tScanResultList *pScanList = (tScanResultList *) hScanList;
+	struct scan_result_list *pScanList =
+				(struct scan_result_list *) hScanList;
 
 	if (pScanList) {
 		status = csr_ll_scan_purge_result(pMac, &pScanList->List);
@@ -1310,13 +1313,14 @@ void csr_remove_bssid_from_scan_list(tpAniSirGlobal mac_ctx,
 			tSirMacAddr bssid)
 {
 	tListElem *entry, *free_elem;
-	tCsrScanResult *bss_desc;
+	struct tag_csrscan_result *bss_desc;
 	tDblLinkList *list = &mac_ctx->scan.scanResultList;
 
 	csr_ll_lock(list);
 	entry = csr_ll_peek_head(list, LL_ACCESS_NOLOCK);
 	while (entry != NULL) {
-		bss_desc = GET_BASE_ADDR(entry, tCsrScanResult, Link);
+		bss_desc = GET_BASE_ADDR(entry, struct tag_csrscan_result,
+					Link);
 		if (!qdf_mem_cmp(bss_desc->Result.BssDescriptor.bssId,
 		   bssid, sizeof(tSirMacAddr))) {
 			free_elem = entry;
@@ -1535,7 +1539,8 @@ static uint32_t csr_get_bss_cap_value(tpAniSirGlobal pMac,
  *                  false, if bss2 is better than bss1.
  */
 static bool csr_is_better_rssi(tpAniSirGlobal mac_ctx,
-		tCsrScanResult *bss1, tCsrScanResult *bss2)
+		struct tag_csrscan_result *bss1, struct tag_csrscan_result
+		*bss2)
 {
 	bool ret;
 	int rssi1, rssi2;
@@ -1579,7 +1584,7 @@ static bool csr_is_better_rssi(tpAniSirGlobal mac_ctx,
  *                  false, if bss2 is better than bss1.
  */
 static bool csr_is_better_bss(tpAniSirGlobal mac_ctx,
-	tCsrScanResult *bss1, tCsrScanResult *bss2)
+	struct tag_csrscan_result *bss1, struct tag_csrscan_result *bss2)
 {
 	bool ret;
 
@@ -1607,7 +1612,7 @@ static bool csr_is_better_bss(tpAniSirGlobal mac_ctx,
 
 /* Add the channel to the occupiedChannels array */
 static void csr_scan_add_to_occupied_channels(tpAniSirGlobal pMac,
-					tCsrScanResult *pResult,
+					struct tag_csrscan_result *pResult,
 					uint8_t sessionId,
 					tCsrChannel *occupied_ch,
 					tDot11fBeaconIEs *pIes,
@@ -1645,7 +1650,8 @@ static void csr_scan_add_to_occupied_channels(tpAniSirGlobal pMac,
 
 /* Put the BSS into the scan result list */
 /* pIes can not be NULL */
-static void csr_scan_add_result(tpAniSirGlobal pMac, tCsrScanResult *pResult,
+static void csr_scan_add_result(tpAniSirGlobal pMac, struct tag_csrscan_result
+				*pResult,
 				tDot11fBeaconIEs *pIes, uint32_t sessionId)
 {
 	tpCsrNeighborRoamControlInfo pNeighborRoamInfo =
@@ -1683,13 +1689,14 @@ csr_parser_scan_result_for_5ghz_preference(tpAniSirGlobal pMac,
 	QDF_STATUS status;
 	tListElem *pEntry;
 	tDot11fBeaconIEs *pIes;
-	tCsrScanResult *pBssDesc;
+	struct tag_csrscan_result *pBssDesc;
 	uint8_t i = 0;
 
 	/* Find out the best AP Rssi going thru the scan results */
 	pEntry = csr_ll_peek_head(&pMac->scan.scanResultList, LL_ACCESS_NOLOCK);
 	while (NULL != pEntry) {
-		pBssDesc = GET_BASE_ADDR(pEntry, tCsrScanResult, Link);
+		pBssDesc = GET_BASE_ADDR(pEntry, struct tag_csrscan_result,
+					Link);
 		fMatch = false;
 
 		for (i = 0; pFilter && (i < pFilter->SSIDs.numOfSSIDs); i++) {
@@ -1761,7 +1768,7 @@ static void
 csr_prefer_5ghz(tpAniSirGlobal pMac, tCsrScanResultFilter *pFilter)
 {
 	tListElem *pEntry;
-	tCsrScanResult *pBssDesc;
+	struct tag_csrscan_result *pBssDesc;
 	struct roam_ext_params *roam_params = NULL;
 
 	if (!pMac->roam.configParam.nSelect5GHzMargin &&
@@ -1797,7 +1804,8 @@ csr_prefer_5ghz(tpAniSirGlobal pMac, tCsrScanResultFilter *pFilter)
 		pEntry = csr_ll_peek_head(&pMac->scan.scanResultList,
 					  LL_ACCESS_NOLOCK);
 		while (NULL != pEntry) {
-			pBssDesc = GET_BASE_ADDR(pEntry, tCsrScanResult, Link);
+			pBssDesc = GET_BASE_ADDR(pEntry, struct
+						tag_csrscan_result, Link);
 			/*
 			 * re-assign preference value based on modified
 			 * rssi bucket (or) 5G Preference feature.
@@ -1826,7 +1834,7 @@ csr_prefer_5ghz(tpAniSirGlobal pMac, tCsrScanResultFilter *pFilter)
 static QDF_STATUS
 csr_save_ies(tpAniSirGlobal pMac,
 	     tCsrScanResultFilter *pFilter,
-	     tCsrScanResult *pBssDesc,
+	     struct tag_csrscan_result *pBssDesc,
 	     tDot11fBeaconIEs **pNewIes,
 	     bool *fMatch,
 	     eCsrEncryptionType *uc,
@@ -1881,27 +1889,27 @@ static QDF_STATUS
 csr_save_scan_entry(tpAniSirGlobal pMac,
 		    tCsrScanResultFilter *pFilter,
 		    bool fMatch,
-		    tCsrScanResult *pBssDesc,
+		    struct tag_csrscan_result *pBssDesc,
 		    tDot11fBeaconIEs *pNewIes,
-		    tScanResultList *pRetList,
+		    struct scan_result_list *pRetList,
 		    uint32_t *count,
 		    eCsrEncryptionType uc,
 		    eCsrEncryptionType mc,
 		    eCsrAuthType *auth)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
-	tCsrScanResult *pResult;
+	struct tag_csrscan_result *pResult;
 	uint32_t bssLen, allocLen;
 	/* To sort the list */
 	tListElem *pTmpEntry;
-	tCsrScanResult *pTmpResult;
+	struct tag_csrscan_result *pTmpResult;
 
 	if (!(NULL == pFilter || fMatch))
 		return status;
 
 	bssLen = pBssDesc->Result.BssDescriptor.length +
 		sizeof(pBssDesc->Result.BssDescriptor.length);
-	allocLen = sizeof(tCsrScanResult) + bssLen;
+	allocLen = sizeof(struct tag_csrscan_result) + bssLen;
 	pResult = qdf_mem_malloc(allocLen);
 	if (NULL == pResult) {
 		status = QDF_STATUS_E_NOMEM;
@@ -1947,7 +1955,8 @@ csr_save_scan_entry(tpAniSirGlobal pMac,
 
 	pTmpEntry = csr_ll_peek_head(&pRetList->List, LL_ACCESS_NOLOCK);
 	while (pTmpEntry) {
-		pTmpResult = GET_BASE_ADDR(pTmpEntry, tCsrScanResult, Link);
+		pTmpResult = GET_BASE_ADDR(pTmpEntry, struct tag_csrscan_result,
+					Link);
 
 		/* Skip the bssid hint AP, as it should be on head */
 		if (pFilter &&
@@ -1990,7 +1999,7 @@ csr_save_scan_entry(tpAniSirGlobal pMac,
  */
 static QDF_STATUS csr_calc_pref_val_by_pcl(tpAniSirGlobal mac_ctx,
 			tCsrScanResultFilter *filter,
-			tCsrScanResult *bss_descr)
+			struct tag_csrscan_result *bss_descr)
 {
 	int temp_rssi = 0, new_pref_val = 0;
 	int orig_pref_val = 0;
@@ -2032,13 +2041,13 @@ static QDF_STATUS csr_calc_pref_val_by_pcl(tpAniSirGlobal mac_ctx,
 static QDF_STATUS
 csr_parse_scan_results(tpAniSirGlobal pMac,
 		       tCsrScanResultFilter *pFilter,
-		       tScanResultList *pRetList,
+		       struct scan_result_list *pRetList,
 		       uint32_t *count)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	tListElem *pEntry;
 	bool fMatch = false;
-	tCsrScanResult *pBssDesc = NULL;
+	struct tag_csrscan_result *pBssDesc = NULL;
 	tDot11fBeaconIEs *pIes, *pNewIes = NULL;
 	eCsrEncryptionType uc, mc;
 	eCsrAuthType auth = eCSR_AUTH_TYPE_OPEN_SYSTEM;
@@ -2064,7 +2073,8 @@ csr_parse_scan_results(tpAniSirGlobal pMac,
 
 	pEntry = csr_ll_peek_head(&pMac->scan.scanResultList, LL_ACCESS_NOLOCK);
 	while (pEntry) {
-		pBssDesc = GET_BASE_ADDR(pEntry, tCsrScanResult, Link);
+		pBssDesc = GET_BASE_ADDR(pEntry, struct tag_csrscan_result,
+					Link);
 		pIes = (tDot11fBeaconIEs *) (pBssDesc->Result.pvIes);
 		/*
 		 * if pBssDesc->Result.pvIes is NULL, we need to free any memory
@@ -2103,7 +2113,7 @@ QDF_STATUS csr_scan_get_result(tpAniSirGlobal pMac,
 			       tScanResultHandle *phResult)
 {
 	QDF_STATUS status;
-	tScanResultList *pRetList;
+	struct scan_result_list *pRetList;
 	uint32_t count = 0;
 
 	if (phResult)
@@ -2111,7 +2121,7 @@ QDF_STATUS csr_scan_get_result(tpAniSirGlobal pMac,
 
 	csr_prefer_5ghz(pMac, pFilter);
 
-	pRetList = qdf_mem_malloc(sizeof(tScanResultList));
+	pRetList = qdf_mem_malloc(sizeof(struct scan_result_list));
 	if (NULL == pRetList) {
 		sme_err("pRetList is NULL");
 		return QDF_STATUS_E_NOMEM;
@@ -2144,7 +2154,7 @@ tCsrScanResultInfo *csr_scan_get_result_for_bssid(tpAniSirGlobal mac_ctx,
 	tDblLinkList *list = &mac_ctx->scan.scanResultList;
 	tListElem *entry;
 	tCsrScanResultInfo *scan_info = NULL;
-	tCsrScanResult *scan_res;
+	struct tag_csrscan_result *scan_res;
 	size_t bss_len, len;
 	tDot11fBeaconIEs *ies = NULL;
 	QDF_STATUS status;
@@ -2152,7 +2162,8 @@ tCsrScanResultInfo *csr_scan_get_result_for_bssid(tpAniSirGlobal mac_ctx,
 	csr_ll_lock(list);
 	entry = csr_ll_peek_head(list, LL_ACCESS_NOLOCK);
 	while (entry) {
-		scan_res = GET_BASE_ADDR(entry, tCsrScanResult, Link);
+		scan_res = GET_BASE_ADDR(entry, struct tag_csrscan_result,
+					Link);
 		if (qdf_mem_cmp(scan_res->Result.BssDescriptor.bssId,
 				bssid->bytes, QDF_MAC_ADDR_SIZE) == 0) {
 			/* Found matching scan resut for this bssid */
@@ -2231,14 +2242,15 @@ QDF_STATUS csr_scan_flush_selective_result(tpAniSirGlobal pMac, bool flushP2P)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	tListElem *pEntry, *pFreeElem;
-	tCsrScanResult *pBssDesc;
+	struct tag_csrscan_result *pBssDesc;
 	tDblLinkList *pList = &pMac->scan.scanResultList;
 
 	csr_ll_lock(pList);
 
 	pEntry = csr_ll_peek_head(pList, LL_ACCESS_NOLOCK);
 	while (pEntry != NULL) {
-		pBssDesc = GET_BASE_ADDR(pEntry, tCsrScanResult, Link);
+		pBssDesc = GET_BASE_ADDR(pEntry, struct tag_csrscan_result,
+					Link);
 		if (flushP2P && !qdf_mem_cmp(pBssDesc->Result.ssId.ssId,
 						"DIRECT-", 7)) {
 			pFreeElem = pEntry;
@@ -2259,14 +2271,15 @@ void csr_scan_flush_bss_entry(tpAniSirGlobal pMac,
 			      tpSmeCsaOffloadInd pCsaOffloadInd)
 {
 	tListElem *pEntry, *pFreeElem;
-	tCsrScanResult *pBssDesc;
+	struct tag_csrscan_result *pBssDesc;
 	tDblLinkList *pList = &pMac->scan.scanResultList;
 
 	csr_ll_lock(pList);
 
 	pEntry = csr_ll_peek_head(pList, LL_ACCESS_NOLOCK);
 	while (pEntry != NULL) {
-		pBssDesc = GET_BASE_ADDR(pEntry, tCsrScanResult, Link);
+		pBssDesc = GET_BASE_ADDR(pEntry, struct tag_csrscan_result,
+					Link);
 		if (!qdf_mem_cmp(pBssDesc->Result.BssDescriptor.bssId,
 			pCsaOffloadInd->bssid.bytes, QDF_MAC_ADDR_SIZE)) {
 			pFreeElem = pEntry;
@@ -2347,7 +2360,7 @@ QDF_STATUS csr_scan_filter_results(tpAniSirGlobal pMac)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	tListElem *pEntry, *pTempEntry;
-	tCsrScanResult *pBssDesc;
+	struct tag_csrscan_result *pBssDesc;
 	uint32_t len = sizeof(pMac->roam.validChannelList);
 
 	/* Get valid channels list from CFG */
@@ -2361,7 +2374,8 @@ QDF_STATUS csr_scan_filter_results(tpAniSirGlobal pMac)
 	csr_ll_lock(&pMac->scan.scanResultList);
 	pEntry = csr_ll_peek_head(&pMac->scan.scanResultList, LL_ACCESS_NOLOCK);
 	while (pEntry) {
-		pBssDesc = GET_BASE_ADDR(pEntry, tCsrScanResult, Link);
+		pBssDesc = GET_BASE_ADDR(pEntry, struct tag_csrscan_result,
+					Link);
 		pTempEntry = csr_ll_next(&pMac->scan.scanResultList, pEntry,
 					 LL_ACCESS_NOLOCK);
 		if (csr_check11d_channel(pBssDesc->Result.BssDescriptor.
@@ -2382,7 +2396,8 @@ QDF_STATUS csr_scan_filter_results(tpAniSirGlobal pMac)
 	pEntry = csr_ll_peek_head(&pMac->scan.tempScanResults,
 					 LL_ACCESS_NOLOCK);
 	while (pEntry) {
-		pBssDesc = GET_BASE_ADDR(pEntry, tCsrScanResult, Link);
+		pBssDesc = GET_BASE_ADDR(pEntry, struct tag_csrscan_result,
+					Link);
 		pTempEntry = csr_ll_next(&pMac->scan.tempScanResults, pEntry,
 					 LL_ACCESS_NOLOCK);
 		if (csr_check11d_channel(pBssDesc->Result.BssDescriptor.channelId,
@@ -2406,8 +2421,9 @@ QDF_STATUS csr_scan_copy_result_list(tpAniSirGlobal pMac, tScanResultHandle hIn,
 				     tScanResultHandle *phResult)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
-	tScanResultList *pRetList, *pInList = (tScanResultList *) hIn;
-	tCsrScanResult *pResult, *pScanResult;
+	struct scan_result_list *pRetList, *pInList =
+						(struct scan_result_list *) hIn;
+	struct tag_csrscan_result *pResult, *pScanResult;
 	uint32_t count = 0;
 	tListElem *pEntry;
 	uint32_t bssLen, allocLen;
@@ -2415,7 +2431,7 @@ QDF_STATUS csr_scan_copy_result_list(tpAniSirGlobal pMac, tScanResultHandle hIn,
 	if (phResult)
 		*phResult = CSR_INVALID_SCANRESULT_HANDLE;
 
-	pRetList = qdf_mem_malloc(sizeof(tScanResultList));
+	pRetList = qdf_mem_malloc(sizeof(struct scan_result_list));
 	if (NULL == pRetList)
 		status = QDF_STATUS_E_NOMEM;
 	else {
@@ -2427,10 +2443,11 @@ QDF_STATUS csr_scan_copy_result_list(tpAniSirGlobal pMac, tScanResultHandle hIn,
 		pEntry = csr_ll_peek_head(&pInList->List, LL_ACCESS_NOLOCK);
 		while (pEntry) {
 			pScanResult =
-				GET_BASE_ADDR(pEntry, tCsrScanResult, Link);
+				GET_BASE_ADDR(pEntry, struct tag_csrscan_result,
+						Link);
 			bssLen = pScanResult->Result.BssDescriptor.length +
 			sizeof(pScanResult->Result.BssDescriptor.length);
-			allocLen = sizeof(tCsrScanResult) + bssLen;
+			allocLen = sizeof(struct tag_csrscan_result) + bssLen;
 			pResult = qdf_mem_malloc(allocLen);
 			if (NULL == pResult)
 				status = QDF_STATUS_E_NOMEM;
@@ -2604,7 +2621,7 @@ static bool csr_remove_dup_bss_description(tpAniSirGlobal pMac,
 					   unsigned long *timer)
 {
 	tListElem *pEntry;
-	tCsrScanResult *scan_entry;
+	struct tag_csrscan_result *scan_entry;
 	bool fRC = false;
 
 	/*
@@ -2617,7 +2634,8 @@ static bool csr_remove_dup_bss_description(tpAniSirGlobal pMac,
 	pEntry = csr_ll_peek_head(&pMac->scan.scanResultList, LL_ACCESS_NOLOCK);
 
 	while (pEntry) {
-		scan_entry = GET_BASE_ADDR(pEntry, tCsrScanResult, Link);
+		scan_entry = GET_BASE_ADDR(pEntry, struct tag_csrscan_result,
+					Link);
 		/*
 		 * we have a duplicate scan results only when BSSID, SSID,
 		 * Channel and NetworkType matches
@@ -2892,7 +2910,8 @@ static bool csr_process_bss_desc_for_bkid_list(tpAniSirGlobal pMac,
 static void csr_purge_scan_results(tpAniSirGlobal mac_ctx)
 {
 	tListElem *pentry, *tmp_entry;
-	tCsrScanResult *presult, *oldest_bss = NULL, *weakest_bss = NULL;
+	struct tag_csrscan_result *presult, *oldest_bss = NULL,
+					*weakest_bss = NULL;
 	uint64_t oldest_entry = 0;
 	uint64_t curr_time = (uint64_t)qdf_mc_timer_get_system_time();
 	int8_t weakest_rssi = 0;
@@ -2903,7 +2922,8 @@ static void csr_purge_scan_results(tpAniSirGlobal mac_ctx)
 	while (pentry) {
 		tmp_entry = csr_ll_next(&mac_ctx->scan.scanResultList, pentry,
 			LL_ACCESS_NOLOCK);
-		presult = GET_BASE_ADDR(pentry, tCsrScanResult, Link);
+		presult = GET_BASE_ADDR(pentry, struct tag_csrscan_result,
+					Link);
 		if ((curr_time - presult->Result.BssDescriptor.received_time) >
 		     oldest_entry) {
 			oldest_entry = curr_time -
@@ -2917,7 +2937,7 @@ static void csr_purge_scan_results(tpAniSirGlobal mac_ctx)
 		pentry = tmp_entry;
 	}
 	if (oldest_bss) {
-		tCsrScanResult *bss_to_remove;
+		struct tag_csrscan_result *bss_to_remove;
 
 		if (weakest_rssi < CSR_PURGE_RSSI_THRESHOLD)
 			bss_to_remove = weakest_bss;
@@ -2946,7 +2966,7 @@ csr_remove_from_tmp_list(tpAniSirGlobal mac_ctx,
 {
 	QDF_STATUS status;
 	tListElem *entry;
-	tCsrScanResult *bss_dscp;
+	struct tag_csrscan_result *bss_dscp;
 	tDot11fBeaconIEs *local_ie = NULL;
 	bool dup_bss;
 	tAniSSID tmpSsid;
@@ -2955,7 +2975,8 @@ csr_remove_from_tmp_list(tpAniSirGlobal mac_ctx,
 	tmpSsid.length = 0;
 	while ((entry = csr_ll_remove_tail(&mac_ctx->scan.tempScanResults,
 					   LL_ACCESS_LOCK)) != NULL) {
-		bss_dscp = GET_BASE_ADDR(entry, tCsrScanResult, Link);
+		bss_dscp = GET_BASE_ADDR(entry, struct tag_csrscan_result,
+					Link);
 		sme_debug(
 			"...Bssid= "MAC_ADDRESS_STR" chan= %d, rssi = -%d",
 			MAC_ADDR_ARRAY(bss_dscp->Result.BssDescriptor.
@@ -3071,13 +3092,14 @@ static void csr_move_temp_scan_results_to_main_list(tpAniSirGlobal pMac,
 		csr_learn_11dcountry_information(pMac, NULL, NULL, true);
 }
 
-static tCsrScanResult *csr_scan_save_bss_description(tpAniSirGlobal pMac,
+static struct tag_csrscan_result *csr_scan_save_bss_description(tpAniSirGlobal
+							pMac,
 						     tSirBssDescription *
 						     pBSSDescription,
 						     tDot11fBeaconIEs *pIes,
 						     uint8_t sessionId)
 {
-	tCsrScanResult *pCsrBssDescription = NULL;
+	struct tag_csrscan_result *pCsrBssDescription = NULL;
 	uint32_t cbBSSDesc;
 	uint32_t cbAllocated;
 
@@ -3086,7 +3108,7 @@ static tCsrScanResult *csr_scan_save_bss_description(tpAniSirGlobal pMac,
 	 */
 	cbBSSDesc = pBSSDescription->length + sizeof(pBSSDescription->length);
 
-	cbAllocated = sizeof(tCsrScanResult) + cbBSSDesc;
+	cbAllocated = sizeof(struct tag_csrscan_result) + cbBSSDesc;
 
 	pCsrBssDescription = qdf_mem_malloc(cbAllocated);
 	if (NULL != pCsrBssDescription) {
@@ -3112,13 +3134,13 @@ static tCsrScanResult *csr_scan_save_bss_description(tpAniSirGlobal pMac,
 }
 
 /* Append a Bss Description... */
-tCsrScanResult *csr_scan_append_bss_description(tpAniSirGlobal pMac,
+struct tag_csrscan_result *csr_scan_append_bss_description(tpAniSirGlobal pMac,
 						tSirBssDescription *
 						pSirBssDescription,
 						tDot11fBeaconIEs *pIes,
 						uint8_t sessionId)
 {
-	tCsrScanResult *pCsrBssDescription = NULL;
+	struct tag_csrscan_result *pCsrBssDescription = NULL;
 	tAniSSID tmpSsid;
 	unsigned long timer = 0;
 	int result;
@@ -3809,13 +3831,13 @@ void csr_reinit_scan_cmd(tpAniSirGlobal pMac, tSmeCmd *pCommand)
 	qdf_mem_set(&pCommand->u.scanCmd, sizeof(tScanCmd), 0);
 }
 
-static eCsrScanCompleteNextCommand csr_scan_get_next_command_state(
+static enum csr_scancomplete_nextcommand csr_scan_get_next_command_state(
 							tpAniSirGlobal pMac,
 							tSmeCmd *pCommand,
 							bool fSuccess,
 							uint8_t *chan)
 {
-	eCsrScanCompleteNextCommand NextCommand = eCsrNextScanNothing;
+	enum csr_scancomplete_nextcommand NextCommand = eCsrNextScanNothing;
 	int8_t channel;
 
 	switch (pCommand->u.scanCmd.reason) {
@@ -4007,8 +4029,8 @@ static void csr_saved_scan_cmd_free_fields(tpAniSirGlobal mac_ctx,
 static QDF_STATUS csr_save_profile(tpAniSirGlobal mac_ctx,
 				   tSmeCmd *save_cmd, tSmeCmd *command)
 {
-	tCsrScanResult *scan_result;
-	tCsrScanResult *temp;
+	struct tag_csrscan_result *scan_result;
+	struct tag_csrscan_result *temp;
 	uint32_t bss_len;
 	QDF_STATUS status;
 
@@ -4049,12 +4071,12 @@ static QDF_STATUS csr_save_profile(tpAniSirGlobal mac_ctx,
 		return QDF_STATUS_SUCCESS;
 
 	scan_result = GET_BASE_ADDR(command->u.roamCmd.pRoamBssEntry,
-			tCsrScanResult, Link);
+			struct tag_csrscan_result, Link);
 
 	bss_len = scan_result->Result.BssDescriptor.length +
 		sizeof(scan_result->Result.BssDescriptor.length);
 
-	temp = qdf_mem_malloc(sizeof(tCsrScanResult) + bss_len);
+	temp = qdf_mem_malloc(sizeof(struct tag_csrscan_result) + bss_len);
 	if (!temp) {
 		sme_err("bss mem fail");
 		goto error;
@@ -4094,7 +4116,7 @@ error:
 
 static void
 csr_handle_nxt_cmd(tpAniSirGlobal mac_ctx, tSmeCmd *pCommand,
-		   eCsrScanCompleteNextCommand *nxt_cmd,
+		   enum csr_scancomplete_nextcommand *nxt_cmd,
 		   bool *remove_cmd, uint32_t session_id,
 		   uint8_t chan)
 {
@@ -4271,7 +4293,7 @@ QDF_STATUS csr_get_active_scan_entry(tpAniSirGlobal mac_ctx,
 /* Return whether the command should be removed */
 bool csr_scan_complete(tpAniSirGlobal pMac, tSirSmeScanRsp *pScanRsp)
 {
-	eCsrScanCompleteNextCommand NextCommand = eCsrNextScanNothing;
+	enum csr_scancomplete_nextcommand NextCommand = eCsrNextScanNothing;
 	tListElem *pEntry = NULL;
 	tSmeCmd *pCommand;
 	bool fRemoveCommand = true;
@@ -4340,7 +4362,7 @@ csr_scan_remove_dup_bss_description_from_interim_list(tpAniSirGlobal mac_ctx,
 					tDot11fBeaconIEs *pIes)
 {
 	tListElem *pEntry;
-	tCsrScanResult *scan_bss_dscp;
+	struct tag_csrscan_result *scan_bss_dscp;
 	int8_t scan_entry_rssi = 0;
 	/*
 	 * Walk through all the chained BssDescriptions. If we find a chained
@@ -4354,7 +4376,8 @@ csr_scan_remove_dup_bss_description_from_interim_list(tpAniSirGlobal mac_ctx,
 	pEntry = csr_ll_peek_head(&mac_ctx->scan.tempScanResults,
 				 LL_ACCESS_NOLOCK);
 	while (pEntry) {
-		scan_bss_dscp = GET_BASE_ADDR(pEntry, tCsrScanResult, Link);
+		scan_bss_dscp = GET_BASE_ADDR(pEntry, struct tag_csrscan_result,
+					Link);
 		/*
 		 * we have a duplicate scan results only when BSSID, SSID,
 		 * Channel and NetworkType matches
@@ -4402,12 +4425,12 @@ csr_scan_remove_dup_bss_description_from_interim_list(tpAniSirGlobal mac_ctx,
 /* Caller allocated memory pfNewBssForConn to return whether
  * new candidate for current connection is found. Cannot be NULL
  */
-static tCsrScanResult *csr_scan_save_bss_description_to_interim_list(
+static struct tag_csrscan_result *csr_scan_save_bss_description_to_interim_list(
 					tpAniSirGlobal pMac,
 					tSirBssDescription *pBSSDescription,
 					tDot11fBeaconIEs *pIes)
 {
-	tCsrScanResult *pCsrBssDescription = NULL;
+	struct tag_csrscan_result *pCsrBssDescription = NULL;
 	uint32_t cbBSSDesc;
 	uint32_t cbAllocated;
 
@@ -4416,7 +4439,7 @@ static tCsrScanResult *csr_scan_save_bss_description_to_interim_list(
 	 */
 	cbBSSDesc = pBSSDescription->length + sizeof(pBSSDescription->length);
 
-	cbAllocated = sizeof(tCsrScanResult) + cbBSSDesc;
+	cbAllocated = sizeof(struct tag_csrscan_result) + cbBSSDesc;
 
 	sme_debug("new BSS description, length %d, cbBSSDesc %d",
 		cbAllocated, cbBSSDesc);
@@ -4850,15 +4873,17 @@ tCsrScanResultInfo *csr_scan_result_get_first(tpAniSirGlobal pMac,
 					      tScanResultHandle hScanResult)
 {
 	tListElem *pEntry;
-	tCsrScanResult *pResult;
+	struct tag_csrscan_result *pResult;
 	tCsrScanResultInfo *pRet = NULL;
-	tScanResultList *pResultList = (tScanResultList *) hScanResult;
+	struct scan_result_list *pResultList =
+				(struct scan_result_list *) hScanResult;
 
 	if (pResultList) {
 		csr_ll_lock(&pResultList->List);
 		pEntry = csr_ll_peek_head(&pResultList->List, LL_ACCESS_NOLOCK);
 		if (pEntry) {
-			pResult = GET_BASE_ADDR(pEntry, tCsrScanResult, Link);
+			pResult = GET_BASE_ADDR(pEntry, struct
+						tag_csrscan_result, Link);
 			pRet = &pResult->Result;
 		}
 		pResultList->pCurEntry = pEntry;
@@ -4872,9 +4897,10 @@ tCsrScanResultInfo *csr_scan_result_get_next(tpAniSirGlobal pMac,
 					     tScanResultHandle hScanResult)
 {
 	tListElem *pEntry = NULL;
-	tCsrScanResult *pResult = NULL;
+	struct tag_csrscan_result *pResult = NULL;
 	tCsrScanResultInfo *pRet = NULL;
-	tScanResultList *pResultList = (tScanResultList *) hScanResult;
+	struct scan_result_list *pResultList =
+				(struct scan_result_list *) hScanResult;
 
 	if (!pResultList)
 		return NULL;
@@ -4887,7 +4913,8 @@ tCsrScanResultInfo *csr_scan_result_get_next(tpAniSirGlobal pMac,
 				     LL_ACCESS_NOLOCK);
 
 	if (pEntry) {
-		pResult = GET_BASE_ADDR(pEntry, tCsrScanResult, Link);
+		pResult = GET_BASE_ADDR(pEntry, struct tag_csrscan_result,
+					Link);
 		pRet = &pResult->Result;
 	}
 	pResultList->pCurEntry = pEntry;
@@ -4904,8 +4931,9 @@ QDF_STATUS csr_move_bss_to_head_from_bssid(tpAniSirGlobal pMac,
 					   tScanResultHandle hScanResult)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
-	tScanResultList *pResultList = (tScanResultList *) hScanResult;
-	tCsrScanResult *pResult = NULL;
+	struct scan_result_list *pResultList =
+				(struct scan_result_list *) hScanResult;
+	struct tag_csrscan_result *pResult = NULL;
 	tListElem *pEntry = NULL;
 
 	if (!(pResultList && bssid))
@@ -4914,7 +4942,8 @@ QDF_STATUS csr_move_bss_to_head_from_bssid(tpAniSirGlobal pMac,
 	csr_ll_lock(&pResultList->List);
 	pEntry = csr_ll_peek_head(&pResultList->List, LL_ACCESS_NOLOCK);
 	while (pEntry) {
-		pResult = GET_BASE_ADDR(pEntry, tCsrScanResult, Link);
+		pResult = GET_BASE_ADDR(pEntry, struct tag_csrscan_result,
+					Link);
 		if (!qdf_mem_cmp(bssid, pResult->Result.BssDescriptor.bssId,
 				    sizeof(struct qdf_mac_addr))) {
 			status = QDF_STATUS_SUCCESS;
@@ -4934,7 +4963,8 @@ QDF_STATUS csr_move_bss_to_head_from_bssid(tpAniSirGlobal pMac,
 /* Remove the BSS if possible. */
 /* Return -- true == the BSS is remove. False == Fail to remove it */
 /* This function is called when list lock is held. */
-static bool csr_scan_age_out_bss(tpAniSirGlobal pMac, tCsrScanResult *pResult)
+static bool csr_scan_age_out_bss(tpAniSirGlobal pMac, struct tag_csrscan_result
+				*pResult)
 {
 	bool fRet = false;
 	uint32_t i;
@@ -4996,7 +5026,7 @@ QDF_STATUS csr_scan_age_results(tpAniSirGlobal pMac,
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	tListElem *pEntry, *tmpEntry;
-	tCsrScanResult *pResult;
+	struct tag_csrscan_result *pResult;
 	tLimScanChn *pChnInfo;
 	uint8_t i;
 
@@ -5009,7 +5039,8 @@ QDF_STATUS csr_scan_age_results(tpAniSirGlobal pMac,
 			tmpEntry =
 				csr_ll_next(&pMac->scan.scanResultList, pEntry,
 					    LL_ACCESS_NOLOCK);
-			pResult = GET_BASE_ADDR(pEntry, tCsrScanResult, Link);
+			pResult = GET_BASE_ADDR(pEntry, struct
+						tag_csrscan_result, Link);
 			if (pResult->Result.BssDescriptor.channelId ==
 			    pChnInfo->channelId) {
 				if (pResult->AgingCount <= 0) {
@@ -5035,7 +5066,7 @@ QDF_STATUS csr_scan_age_results(tpAniSirGlobal pMac,
 
 static QDF_STATUS csr_send_mb_scan_req(tpAniSirGlobal pMac, uint16_t sessionId,
 				       tCsrScanRequest *pScanReq,
-				       tScanReqParam *pScanReqParam)
+				       struct tag_scanreq_param *pScanReqParam)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	tSirSmeScanReq *pMsg;
@@ -5307,7 +5338,7 @@ static void csr_diag_scan_channels(tpAniSirGlobal pMac, tSmeCmd *pCommand)
 static QDF_STATUS csr_scan_channels(tpAniSirGlobal pMac, tSmeCmd *pCommand)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
-	tScanReqParam scanReq;
+	struct tag_scanreq_param scanReq;
 
 	/*
 	 * Don't delete cached results. Rome rssi based scan candidates may land
@@ -6072,7 +6103,7 @@ static void csr_purge_scan_result_by_age(void *pv)
 {
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(pv);
 	tListElem *entry, *tmp_entry;
-	tCsrScanResult *result;
+	struct tag_csrscan_result *result;
 	uint64_t ageout_time =
 		mac_ctx->scan.scanResultCfgAgingTime * SYSTEM_TIME_SEC_TO_MSEC;
 	uint64_t cur_time = qdf_mc_timer_get_system_time();
@@ -6085,7 +6116,7 @@ static void csr_purge_scan_result_by_age(void *pv)
 	while (entry) {
 		tmp_entry = csr_ll_next(&mac_ctx->scan.scanResultList, entry,
 					LL_ACCESS_NOLOCK);
-		result = GET_BASE_ADDR(entry, tCsrScanResult, Link);
+		result = GET_BASE_ADDR(entry, struct tag_csrscan_result, Link);
 
 		if ((cur_time - result->Result.BssDescriptor.received_time) >
 			    ageout_time) {
@@ -7168,7 +7199,7 @@ QDF_STATUS csr_scan_save_preferred_network_found(tpAniSirGlobal pMac,
 {
 	uint32_t uLen = 0;
 	tpSirProbeRespBeacon parsed_frm;
-	tCsrScanResult *pScanResult = NULL;
+	struct tag_csrscan_result *pScanResult = NULL;
 	tSirBssDescription *pBssDescr = NULL;
 	bool fDupBss;
 	tDot11fBeaconIEs *local_ie = NULL;
@@ -7207,7 +7238,7 @@ QDF_STATUS csr_scan_save_preferred_network_found(tpAniSirGlobal pMac,
 		uLen = pPrefNetworkFoundInd->frameLength -
 		       (SIR_MAC_HDR_LEN_3A + SIR_MAC_B_PR_SSID_OFFSET);
 	}
-	pScanResult = qdf_mem_malloc(sizeof(tCsrScanResult) + uLen);
+	pScanResult = qdf_mem_malloc(sizeof(struct tag_csrscan_result) + uLen);
 	if (NULL == pScanResult) {
 		sme_err("fail to allocate memory for frame");
 		qdf_mem_free(parsed_frm);
@@ -7345,7 +7376,7 @@ QDF_STATUS csr_scan_save_preferred_network_found(tpAniSirGlobal pMac,
 void csr_init_occupied_channels_list(tpAniSirGlobal pMac, uint8_t sessionId)
 {
 	tListElem *pEntry = NULL;
-	tCsrScanResult *pBssDesc = NULL;
+	struct tag_csrscan_result *pBssDesc = NULL;
 	tDot11fBeaconIEs *pIes = NULL;
 	tpCsrNeighborRoamControlInfo pNeighborRoamInfo =
 		&pMac->roam.neighborRoamInfo[sessionId];
@@ -7375,7 +7406,8 @@ void csr_init_occupied_channels_list(tpAniSirGlobal pMac, uint8_t sessionId)
 	csr_ll_lock(&pMac->scan.scanResultList);
 	pEntry = csr_ll_peek_head(&pMac->scan.scanResultList, LL_ACCESS_NOLOCK);
 	while (pEntry) {
-		pBssDesc = GET_BASE_ADDR(pEntry, tCsrScanResult, Link);
+		pBssDesc = GET_BASE_ADDR(pEntry, struct tag_csrscan_result,
+					Link);
 		pIes = (tDot11fBeaconIEs *) (pBssDesc->Result.pvIes);
 		/* At this time, pBssDescription->Result.pvIes may be NULL */
 		if (!pIes && !QDF_IS_STATUS_SUCCESS(
@@ -7496,12 +7528,13 @@ QDF_STATUS csr_scan_save_roam_offload_ap_to_scan_cache(tpAniSirGlobal pMac,
 	tDot11fBeaconIEs *ies_local_ptr = NULL;
 	tAniSSID tmpSsid;
 	unsigned long timer = 0;
-	tCsrScanResult *scan_res_ptr = NULL;
+	struct tag_csrscan_result *scan_res_ptr = NULL;
 	uint8_t session_id = roam_sync_ind_ptr->roamedVdevId;
 
 	length = roam_sync_ind_ptr->beaconProbeRespLength -
 		(SIR_MAC_HDR_LEN_3A + SIR_MAC_B_PR_SSID_OFFSET);
-	scan_res_ptr = qdf_mem_malloc(sizeof(tCsrScanResult) + length);
+	scan_res_ptr = qdf_mem_malloc(sizeof(struct tag_csrscan_result) +
+				length);
 	if (scan_res_ptr == NULL) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 				" fail to allocate memory for frame");
@@ -7555,8 +7588,9 @@ QDF_STATUS csr_scan_save_roam_offload_ap_to_scan_cache(tpAniSirGlobal pMac,
 tpSirBssDescription csr_get_fst_bssdescr_ptr(tScanResultHandle result_handle)
 {
 	tListElem *first_element = NULL;
-	tCsrScanResult *scan_result = NULL;
-	tScanResultList *bss_list = (tScanResultList *)result_handle;
+	struct tag_csrscan_result *scan_result = NULL;
+	struct scan_result_list *bss_list =
+				(struct scan_result_list *)result_handle;
 
 	if (NULL == bss_list) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
@@ -7576,7 +7610,8 @@ tpSirBssDescription csr_get_fst_bssdescr_ptr(tScanResultHandle result_handle)
 		return NULL;
 	}
 
-	scan_result = GET_BASE_ADDR(first_element, tCsrScanResult, Link);
+	scan_result = GET_BASE_ADDR(first_element, struct tag_csrscan_result,
+					Link);
 
 	return &scan_result->Result.BssDescriptor;
 }
@@ -7595,8 +7630,9 @@ csr_get_bssdescr_from_scan_handle(tScanResultHandle result_handle,
 				tSirBssDescription *bss_descr)
 {
 	tListElem *first_element = NULL;
-	tCsrScanResult *scan_result = NULL;
-	tScanResultList *bss_list = (tScanResultList *)result_handle;
+	struct tag_csrscan_result *scan_result = NULL;
+	struct scan_result_list *bss_list =
+				(struct scan_result_list *)result_handle;
 
 	if (NULL == bss_list) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
@@ -7612,7 +7648,7 @@ csr_get_bssdescr_from_scan_handle(tScanResultHandle result_handle,
 	first_element = csr_ll_peek_head(&bss_list->List, LL_ACCESS_NOLOCK);
 	if (first_element) {
 		scan_result = GET_BASE_ADDR(first_element,
-				tCsrScanResult,
+				struct tag_csrscan_result,
 				Link);
 		qdf_mem_copy(bss_descr,
 				&scan_result->Result.BssDescriptor,

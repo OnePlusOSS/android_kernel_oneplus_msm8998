@@ -57,7 +57,7 @@ ifeq ($(KERNEL_BUILD), 0)
 	# code, below feature WLAN_DISABLE_EXPORT_SYMBOL needs to be
 	# enabled, otherwise when loading the second the driver,
 	# it will hit error of duplicate symbol.
-	ifeq ($(CONFIG_ARCH_SDXHEDGEHOG), y)
+	ifeq ($(CONFIG_ARCH_SDX20), y)
 	CONFIG_WLAN_DISABLE_EXPORT_SYMBOL := y
 	endif
 

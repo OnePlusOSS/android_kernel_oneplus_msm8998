@@ -94,7 +94,13 @@ static QDF_STATUS lim_add_ndi_peer(tpAniSirGlobal mac_ctx,
 	}
 	pe_info("Need to create NDI Peer :" MAC_ADDRESS_STR,
 		MAC_ADDR_ARRAY(peer_mac_addr.bytes));
+
 	peer_idx = lim_assign_peer_idx(mac_ctx, session);
+	if (!peer_idx) {
+		pe_err("Invalid peer_idx: %d", peer_idx);
+		return QDF_STATUS_SUCCESS;
+	}
+
 	sta_ds = dph_add_hash_entry(mac_ctx, peer_mac_addr.bytes, peer_idx,
 			&session->dph.dphHashTable);
 	if (sta_ds == NULL) {
@@ -102,6 +108,7 @@ static QDF_STATUS lim_add_ndi_peer(tpAniSirGlobal mac_ctx,
 		/* couldn't add dph entry */
 		return QDF_STATUS_E_FAILURE;
 	}
+
 	/* wma decides NDI mode from wma->inferface struct */
 	sta_ds->staType = STA_ENTRY_NDI_PEER;
 	status = lim_add_sta(mac_ctx, sta_ds, false, session);
@@ -111,6 +118,7 @@ static QDF_STATUS lim_add_ndi_peer(tpAniSirGlobal mac_ctx,
 			status);
 		return QDF_STATUS_E_FAILURE;
 	}
+
 	return QDF_STATUS_SUCCESS;
 }
 
@@ -719,6 +727,9 @@ void lim_process_ndi_mlm_add_bss_rsp(tpAniSirGlobal mac_ctx, tpSirMsgQ lim_msgq,
 		/* Apply previously set configuration at HW */
 		lim_apply_configuration(mac_ctx, session_entry);
 		mlm_start_cnf.resultCode = eSIR_SME_SUCCESS;
+
+		/* Initialize peer ID pool */
+		lim_init_peer_idxpool(mac_ctx, session_entry);
 	} else {
 		pe_err("WDA_ADD_BSS_REQ failed with status %d",
 			add_bss_params->status);

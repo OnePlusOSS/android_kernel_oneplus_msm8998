@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -24,7 +24,7 @@
  * under proprietary terms before Copyright ownership was assigned
  * to the Linux Foundation.
  */
- /**
+/**
  * @file cdp_txrx_flow_ctrl_v2.h
  * @brief Define the host data path flow control version 2 API
  * functions
@@ -56,7 +56,6 @@ QDF_STATUS ol_txrx_register_pause_cb(ol_tx_pause_callback_fp pause_cb)
 
 static inline void ol_tx_set_desc_global_pool_size(uint32_t num_msdu_desc)
 {
-	return;
 }
 #endif
 

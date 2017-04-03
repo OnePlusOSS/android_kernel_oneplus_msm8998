@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -24,7 +24,7 @@
  * under proprietary terms before Copyright ownership was assigned
  * to the Linux Foundation.
  */
- /**
+/**
  * @file cdp_txrx_ipa.h
  * @brief Define the host data path IP Acceleraor API functions
  */
@@ -91,7 +91,6 @@ static inline void
 ol_txrx_ipa_uc_get_resource(ol_txrx_pdev_handle pdev,
 		 struct ol_txrx_ipa_resources *ipa_res)
 {
-	return;
 }
 
 static inline void
@@ -99,20 +98,17 @@ ol_txrx_ipa_uc_set_doorbell_paddr(ol_txrx_pdev_handle pdev,
 				  qdf_dma_addr_t ipa_tx_uc_doorbell_paddr,
 				  qdf_dma_addr_t ipa_rx_uc_doorbell_paddr)
 {
-	return;
 }
 
 static inline void
 ol_txrx_ipa_uc_set_active(ol_txrx_pdev_handle pdev,
 	bool uc_active, bool is_tx)
 {
-	return;
 }
 
 static inline void
 ol_txrx_ipa_uc_op_response(ol_txrx_pdev_handle pdev, uint8_t *op_msg)
 {
-	return;
 }
 
 static inline void
@@ -121,24 +117,20 @@ ol_txrx_ipa_uc_register_op_cb(ol_txrx_pdev_handle pdev,
 							     void *osif_ctxt),
 				   void *osif_dev)
 {
-	return;
 }
 
 static inline void ol_txrx_ipa_uc_get_share_stats(ol_txrx_pdev_handle pdev,
 						 uint8_t reset_stats)
 {
-	return;
 }
 
 static inline void ol_txrx_ipa_uc_set_quota(ol_txrx_pdev_handle pdev,
 						 uint64_t quota_bytes)
 {
-	return;
 }
 
 static inline void ol_txrx_ipa_uc_get_stat(ol_txrx_pdev_handle pdev)
 {
-	return;
 }
 #endif /* IPA_OFFLOAD */
 

@@ -682,9 +682,14 @@ drop_pkt_accounting:
 	++pAdapter->stats.tx_dropped;
 	++pAdapter->hdd_stats.hddTxRxStats.txXmitDropped;
 	if (is_arp) {
-		++pAdapter->hdd_stats.hdd_arp_stats.tx_dropped;
-		QDF_TRACE(QDF_MODULE_ID_HDD_DATA, LOGE,
-			"%s : ARP packet dropped", __func__);
+		uint16_t arpdropped;
+
+		arpdropped = ++pAdapter->hdd_stats.hdd_arp_stats.tx_dropped;
+		/* rate limit error messages to 1/64th */
+		if ((arpdropped & 0x3f) == 0)
+			QDF_TRACE(QDF_MODULE_ID_HDD_DATA, LOGE,
+				  "%s : ARP packet dropped; count=%d",
+				  __func__, arpdropped);
 	}
 
 	return NETDEV_TX_OK;

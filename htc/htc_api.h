@@ -778,4 +778,10 @@ int htc_pm_runtime_put(HTC_HANDLE htc_handle);
 static inline int htc_pm_runtime_get(HTC_HANDLE htc_handle) { return 0; }
 static inline int htc_pm_runtime_put(HTC_HANDLE htc_handle) { return 0; }
 #endif
+
+#ifdef WMI_INTERFACE_EVENT_LOGGING
+void htc_print_credit_history(HTC_HANDLE htc, uint32_t count,
+			      qdf_abstract_print * print, void *print_priv);
+#endif
+
 #endif /* _HTC_API_H_ */

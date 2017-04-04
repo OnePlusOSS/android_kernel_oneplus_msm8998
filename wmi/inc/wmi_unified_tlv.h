@@ -27,11 +27,9 @@
 #ifndef _WMI_UNIFIED_TLV_H_
 #define _WMI_UNIFIED_TLV_H_
 #include <osdep.h>
-#include "a_types.h"
 #include "wmi_unified_param.h"
 #include "wmi.h"
 #include "wmi_unified.h"
-#include "ol_defines.h" /* Fix Me: wmi_unified_t structure definition */
 
 QDF_STATUS send_vdev_create_cmd_tlv(wmi_unified_t wmi_handle,
 				 uint8_t macaddr[IEEE80211_ADDR_LEN],

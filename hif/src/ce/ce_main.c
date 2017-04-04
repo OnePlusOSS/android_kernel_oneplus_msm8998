@@ -699,7 +699,6 @@ struct CE_handle *ce_init(struct hif_softc *scn,
 			return NULL;
 		}
 		malloc_CE_state = true;
-		scn->ce_id_to_state[CE_id] = CE_state;
 		qdf_spinlock_create(&CE_state->ce_index_lock);
 
 		CE_state->id = CE_id;
@@ -746,7 +745,6 @@ struct CE_handle *ce_init(struct hif_softc *scn,
 				HIF_ERROR("%s: src ring has no mem", __func__);
 				if (malloc_CE_state) {
 					/* allocated CE_state locally */
-					scn->ce_id_to_state[CE_id] = NULL;
 					qdf_mem_free(CE_state);
 					malloc_CE_state = false;
 				}
@@ -899,7 +897,6 @@ struct CE_handle *ce_init(struct hif_softc *scn,
 				}
 				if (malloc_CE_state) {
 					/* allocated CE_state locally */
-					scn->ce_id_to_state[CE_id] = NULL;
 					qdf_mem_free(CE_state);
 					malloc_CE_state = false;
 				}
@@ -1033,6 +1030,7 @@ struct CE_handle *ce_init(struct hif_softc *scn,
 
 	/* update the htt_data attribute */
 	ce_mark_datapath(CE_state);
+	scn->ce_id_to_state[CE_id] = CE_state;
 
 	return (struct CE_handle *)CE_state;
 
@@ -1170,8 +1168,11 @@ void ce_t2h_msg_ce_cleanup(struct CE_handle *ce_hdl)
 		 *    covered that case. This is not in performance path,
 		 *    so OK to do this.
 		 */
-		if (nbuf)
+		if (nbuf) {
+			qdf_nbuf_unmap_single(ce_state->scn->qdf_dev, nbuf,
+					      QDF_DMA_FROM_DEVICE);
 			qdf_nbuf_free(nbuf);
+		}
 	}
 }
 
@@ -1435,9 +1436,13 @@ hif_pci_ce_send_done(struct CE_handle *copyeng, void *ce_context,
 		 * when last fragment is complteted.
 		 */
 		if (transfer_context != CE_SENDLIST_ITEM_CTXT) {
-			if (scn->target_status == TARGET_STATUS_RESET)
+			if (scn->target_status == TARGET_STATUS_RESET) {
+
+				qdf_nbuf_unmap_single(scn->qdf_dev,
+						      transfer_context,
+						      QDF_DMA_TO_DEVICE);
 				qdf_nbuf_free(transfer_context);
-			else
+			} else
 				msg_callbacks->txCompletionHandler(
 					msg_callbacks->Context,
 					transfer_context, transfer_id,
@@ -1477,6 +1482,7 @@ static inline void hif_ce_do_recv(struct hif_msg_callbacks *msg_callbacks,
 	} else {
 		HIF_ERROR("%s: Invalid Rx msg buf:%p nbytes:%d",
 				__func__, netbuf, nbytes);
+
 		qdf_nbuf_free(netbuf);
 	}
 }

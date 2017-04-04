@@ -1641,7 +1641,7 @@ qdf_export_symbol(qdf_net_buf_debug_release_skb);
 void qdf_net_buf_debug_delete_node(qdf_nbuf_t net_buf)
 {
 }
-EXPORT_SYMBOL(qdf_net_buf_debug_delete_node);
+qdf_export_symbol(qdf_net_buf_debug_delete_node);
 #endif /*MEMORY_DEBUG */
 
 #if defined(FEATURE_TSO)

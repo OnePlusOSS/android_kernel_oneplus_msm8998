@@ -34,8 +34,6 @@
 #define _WMI_UNIFIED_API_H_
 
 #include <osdep.h>
-#include "a_types.h"
-#include "ol_defines.h"
 #ifdef CONFIG_MCL
 #include "wmi.h"
 #endif

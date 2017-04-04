@@ -2633,3 +2633,13 @@ void cds_incr_arp_stats_tx_tgt_acked(void)
 	if (adapter)
 		adapter->hdd_stats.hdd_arp_stats.tx_ack_cnt++;
 }
+
+#ifdef WMI_INTERFACE_EVENT_LOGGING
+inline void
+cds_print_htc_credit_history(uint32_t count, qdf_abstract_print *print,
+			     void *print_priv)
+{
+	htc_print_credit_history(gp_cds_context->htc_ctx, count,
+				 print, print_priv);
+}
+#endif

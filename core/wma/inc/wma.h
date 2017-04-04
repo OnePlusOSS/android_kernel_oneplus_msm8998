@@ -2452,4 +2452,81 @@ void wma_set_sap_wow_bitmask(uint32_t *bitmask, uint32_t wow_bitmask_size);
 bool wma_is_wow_bitmask_zero(uint32_t *bitmask,
 			     uint32_t wow_bitmask_size);
 
+#ifdef WMI_INTERFACE_EVENT_LOGGING
+static inline void wma_print_wmi_cmd_log(uint32_t count,
+					 qdf_abstract_print *print,
+					 void *print_priv)
+{
+	t_wma_handle *wma = cds_get_context(QDF_MODULE_ID_WMA);
+
+	if (wma)
+		wmi_print_cmd_log(wma->wmi_handle, count, print, print_priv);
+}
+
+static inline void wma_print_wmi_cmd_tx_cmp_log(uint32_t count,
+						qdf_abstract_print *print,
+						void *print_priv)
+{
+	t_wma_handle *wma = cds_get_context(QDF_MODULE_ID_WMA);
+
+	if (wma)
+		wmi_print_cmd_tx_cmp_log(wma->wmi_handle, count, print,
+					 print_priv);
+}
+
+static inline void wma_print_wmi_mgmt_cmd_log(uint32_t count,
+					      qdf_abstract_print *print,
+					      void *print_priv)
+{
+	t_wma_handle *wma = cds_get_context(QDF_MODULE_ID_WMA);
+
+	if (wma)
+		wmi_print_mgmt_cmd_log(wma->wmi_handle, count, print,
+				       print_priv);
+}
+
+static inline void wma_print_wmi_mgmt_cmd_tx_cmp_log(uint32_t count,
+						     qdf_abstract_print *print,
+						     void *print_priv)
+{
+	t_wma_handle *wma = cds_get_context(QDF_MODULE_ID_WMA);
+
+	if (wma)
+		wmi_print_mgmt_cmd_tx_cmp_log(wma->wmi_handle, count, print,
+					      print_priv);
+}
+
+static inline void wma_print_wmi_event_log(uint32_t count,
+					   qdf_abstract_print *print,
+					   void *print_priv)
+{
+	t_wma_handle *wma = cds_get_context(QDF_MODULE_ID_WMA);
+
+	if (wma)
+		wmi_print_event_log(wma->wmi_handle, count, print, print_priv);
+}
+
+static inline void wma_print_wmi_rx_event_log(uint32_t count,
+					      qdf_abstract_print *print,
+					      void *print_priv)
+{
+	t_wma_handle *wma = cds_get_context(QDF_MODULE_ID_WMA);
+
+	if (wma)
+		wmi_print_rx_event_log(wma->wmi_handle, count, print,
+				       print_priv);
+}
+
+static inline void wma_print_wmi_mgmt_event_log(uint32_t count,
+						qdf_abstract_print *print,
+						void *print_priv)
+{
+	t_wma_handle *wma = cds_get_context(QDF_MODULE_ID_WMA);
+
+	if (wma)
+		wmi_print_mgmt_event_log(wma->wmi_handle, count, print,
+					 print_priv);
+}
+#endif /* WMI_INTERFACE_EVENT_LOGGING */
+
 #endif

@@ -320,4 +320,10 @@ QDF_STATUS cds_deregister_dp_cb(void);
 uint32_t cds_get_arp_stats_gw_ip(void);
 void cds_incr_arp_stats_tx_tgt_delivered(void);
 void cds_incr_arp_stats_tx_tgt_acked(void);
+
+#ifdef WMI_INTERFACE_EVENT_LOGGING
+void cds_print_htc_credit_history(uint32_t count, qdf_abstract_print * print,
+				  void *print_priv);
+#endif
+
 #endif /* if !defined __CDS_API_H */

@@ -107,6 +107,7 @@ void htt_htc_pkt_free(struct htt_pdev_t *pdev, struct htt_htc_pkt *pkt)
 void htt_htc_pkt_pool_free(struct htt_pdev_t *pdev)
 {
 	struct htt_htc_pkt_union *pkt, *next;
+
 	pkt = pdev->htt_htc_pkt_freelist;
 	while (pkt) {
 		next = pkt->u.next;
@@ -131,7 +132,8 @@ htt_htc_misc_pkt_list_trim(struct htt_pdev_t *pdev, int level)
 		next = pkt->u.next;
 		/* trim the out grown list*/
 		if (++i > level) {
-			netbuf = (qdf_nbuf_t)(pkt->u.pkt.htc_pkt.pNetBufContext);
+			netbuf =
+				(qdf_nbuf_t)(pkt->u.pkt.htc_pkt.pNetBufContext);
 			qdf_nbuf_unmap(pdev->osdev, netbuf, QDF_DMA_TO_DEVICE);
 			qdf_nbuf_free(netbuf);
 			qdf_mem_free(pkt);
@@ -171,6 +173,7 @@ void htt_htc_misc_pkt_pool_free(struct htt_pdev_t *pdev)
 {
 	struct htt_htc_pkt_union *pkt, *next;
 	qdf_nbuf_t netbuf;
+
 	pkt = pdev->htt_htc_pkt_misclist;
 
 	while (pkt) {
@@ -256,7 +259,6 @@ htt_htc_tx_htt2_service_start(struct htt_pdev_t *pdev,
 			      struct htc_service_connect_req *connect_req,
 			      struct htc_service_connect_resp *connect_resp)
 {
-	return;
 }
 #endif
 
@@ -440,6 +442,7 @@ htt_attach(struct htt_pdev_t *pdev, int desc_pool_size)
 	/* pre-allocate some HTC_PACKET objects */
 	for (i = 0; i < HTT_HTC_PKT_POOL_INIT_SIZE; i++) {
 		struct htt_htc_pkt_union *pkt;
+
 		pkt = qdf_mem_malloc(sizeof(*pkt));
 		if (!pkt)
 			break;

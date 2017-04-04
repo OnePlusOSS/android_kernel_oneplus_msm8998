@@ -259,6 +259,7 @@ typedef struct sLimMlmAssocInd {
 	uint32_t assocReqLength;
 	uint8_t *assocReqPtr;
 	tSirSmeChanInfo chan_info;
+	uint8_t              ecsa_capable;
 } tLimMlmAssocInd, *tpLimMlmAssocInd;
 
 typedef struct sLimMlmReassocReq {
@@ -296,6 +297,7 @@ typedef struct sLimMlmReassocInd {
 	uint8_t *beaconPtr;
 	uint32_t assocReqLength;
 	uint8_t *assocReqPtr;
+	uint8_t              ecsa_capable;
 } tLimMlmReassocInd, *tpLimMlmReassocInd;
 
 typedef struct sLimMlmAuthCnf {
@@ -668,7 +670,7 @@ lim_post_sme_message(tpAniSirGlobal pMac, uint32_t msgType, uint32_t *pMsgBuf)
 	tSirMsgQ msg;
 
 	if (pMsgBuf == NULL) {
-		lim_log(pMac, LOGE, FL("Buffer is Pointing to NULL"));
+		pe_err("Buffer is Pointing to NULL");
 		return;
 	}
 
@@ -712,10 +714,10 @@ lim_post_sme_message(tpAniSirGlobal pMac, uint32_t msgType, uint32_t *pMsgBuf)
 static inline void
 lim_post_mlm_message(tpAniSirGlobal pMac, uint32_t msgType, uint32_t *pMsgBuf)
 {
-
 	tSirMsgQ msg;
+
 	if (pMsgBuf == NULL) {
-		lim_log(pMac, LOGE, FL("Buffer is Pointing to NULL"));
+		pe_err("Buffer is Pointing to NULL");
 		return;
 	}
 	msg.type = (uint16_t) msgType;

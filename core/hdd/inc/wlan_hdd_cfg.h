@@ -234,7 +234,7 @@
 #define CFG_ADVERTISE_CONCURRENT_OPERATION_MIN     (0)
 #define CFG_ADVERTISE_CONCURRENT_OPERATION_MAX     (1)
 
-typedef enum {
+enum hdd_dot11_mode {
 	eHDD_DOT11_MODE_AUTO = 0,       /* covers all things we support */
 	eHDD_DOT11_MODE_abg,    /* 11a/b/g only, no HT, no proprietary */
 	eHDD_DOT11_MODE_11b,
@@ -246,7 +246,7 @@ typedef enum {
 	eHDD_DOT11_MODE_11ac_ONLY,
 	eHDD_DOT11_MODE_11ac,
 	eHDD_DOT11_MODE_11a,
-} eHddDot11Mode;
+};
 
 /*
  * <ini>
@@ -1166,7 +1166,7 @@ typedef enum {
  * during host scan
  * @Min: 0
  * @Max: 4
- * @Default: 0
+ * @Default: 1
  *
  * This ini will set the algo used in dwell time optimization
  * during host scan. see enum wmi_dwelltime_adaptive_mode.
@@ -1188,7 +1188,7 @@ typedef enum {
 #define CFG_ADAPTIVE_SCAN_DWELL_MODE_NAME        "hostscan_adaptive_dwell_mode"
 #define CFG_ADAPTIVE_SCAN_DWELL_MODE_MIN         (0)
 #define CFG_ADAPTIVE_SCAN_DWELL_MODE_MAX         (4)
-#define CFG_ADAPTIVE_SCAN_DWELL_MODE_DEFAULT     (0)
+#define CFG_ADAPTIVE_SCAN_DWELL_MODE_DEFAULT     (1)
 
 /*
  * <ini>
@@ -1196,7 +1196,7 @@ typedef enum {
  * during ext scan
  * @Min: 0
  * @Max: 4
- * @Default: 0
+ * @Default: 1
  *
  * This ini will set the algo used in dwell time optimization
  * during ext scan. see enum wmi_dwelltime_adaptive_mode.
@@ -1218,7 +1218,7 @@ typedef enum {
 #define CFG_ADAPTIVE_EXTSCAN_DWELL_MODE_NAME     "extscan_adaptive_dwell_mode"
 #define CFG_ADAPTIVE_EXTSCAN_DWELL_MODE_MIN      (0)
 #define CFG_ADAPTIVE_EXTSCAN_DWELL_MODE_MAX      (4)
-#define CFG_ADAPTIVE_EXTSCAN_DWELL_MODE_DEFAULT  (0)
+#define CFG_ADAPTIVE_EXTSCAN_DWELL_MODE_DEFAULT  (1)
 
 /*
  * <ini>
@@ -1226,7 +1226,7 @@ typedef enum {
  * during pno scan
  * @Min: 0
  * @Max: 4
- * @Default: 0
+ * @Default: 1
  *
  * This ini will set the algo used in dwell time optimization
  * during pno scan. see enum wmi_dwelltime_adaptive_mode.
@@ -1248,7 +1248,7 @@ typedef enum {
 #define CFG_ADAPTIVE_PNOSCAN_DWELL_MODE_NAME     "pnoscan_adaptive_dwell_mode"
 #define CFG_ADAPTIVE_PNOSCAN_DWELL_MODE_MIN      (0)
 #define CFG_ADAPTIVE_PNOSCAN_DWELL_MODE_MAX      (4)
-#define CFG_ADAPTIVE_PNOSCAN_DWELL_MODE_DEFAULT  (0)
+#define CFG_ADAPTIVE_PNOSCAN_DWELL_MODE_DEFAULT  (1)
 
 /*
  * <ini>
@@ -1282,7 +1282,7 @@ typedef enum {
  * global_adapt_dwelltime_mode - Set default adaptive mode
  * @Min: 0
  * @Max: 4
- * @Default: 1
+ * @Default: 0
  *
  * This parameter will set default adaptive mode, will be used if any of the
  * scan dwell mode is set to default.
@@ -1299,7 +1299,7 @@ typedef enum {
 #define CFG_GLOBAL_ADAPTIVE_DWELL_MODE_NAME       "global_adapt_dwelltime_mode"
 #define CFG_GLOBAL_ADAPTIVE_DWELL_MODE_MIN        (0)
 #define CFG_GLOBAL_ADAPTIVE_DWELL_MODE_MAX        (4)
-#define CFG_GLOBAL_ADAPTIVE_DWELL_MODE_DEFAULT    (1)
+#define CFG_GLOBAL_ADAPTIVE_DWELL_MODE_DEFAULT    (0)
 
 /*
  * gRssiCatGap - Set Rssi CatGap
@@ -1824,7 +1824,7 @@ typedef enum {
  * roamscan_adaptive_dwell_mode - Sets dwell time adaptive mode
  * @Min: 0
  * @Max: 4
- * @Default: 0
+ * @Default: 1
  *
  * This parameter will set the algo used in dwell time optimization during
  * roam scan. see enum wmi_dwelltime_adaptive_mode.
@@ -1846,7 +1846,7 @@ typedef enum {
 #define CFG_ADAPTIVE_ROAMSCAN_DWELL_MODE_NAME    "roamscan_adaptive_dwell_mode"
 #define CFG_ADAPTIVE_ROAMSCAN_DWELL_MODE_MIN     (0)
 #define CFG_ADAPTIVE_ROAMSCAN_DWELL_MODE_MAX     (4)
-#define CFG_ADAPTIVE_ROAMSCAN_DWELL_MODE_DEFAULT (0)
+#define CFG_ADAPTIVE_ROAMSCAN_DWELL_MODE_DEFAULT (1)
 
 /*
  * Timer waiting for interface up from the upper layer. If
@@ -2796,7 +2796,9 @@ typedef enum {
 #define CFG_MAX_TX_POWER_NAME                   "gTxPowerCap"
 #define CFG_MAX_TX_POWER_MIN                    WNI_CFG_CURRENT_TX_POWER_LEVEL_STAMIN
 #define CFG_MAX_TX_POWER_MAX                    WNI_CFG_CURRENT_TX_POWER_LEVEL_STAMAX
-/* Not to use CFG default because if no registry setting, this is ignored by SME. */
+/* Not to use CFG default because if no registry setting,
+ * this is ignored by SME
+ */
 #define CFG_MAX_TX_POWER_DEFAULT                WNI_CFG_CURRENT_TX_POWER_LEVEL_STAMAX
 
 /* This ini controls driver to honor/dishonor power constraint from AP */
@@ -4251,11 +4253,11 @@ enum station_keepalive_method {
 #define CFG_ENABLE_RAMDUMP_COLLECTION_MAX          (1)
 #define CFG_ENABLE_RAMDUMP_COLLECTION_DEFAULT      (1)
 
-typedef enum {
+enum hdd_link_speed_rpt_type {
 	eHDD_LINK_SPEED_REPORT_ACTUAL = 0,
 	eHDD_LINK_SPEED_REPORT_MAX = 1,
 	eHDD_LINK_SPEED_REPORT_MAX_SCALED = 2,
-} eHddLinkSpeedReportType;
+};
 
 /*
  * <ini>
@@ -4285,26 +4287,25 @@ typedef enum {
 #define CFG_VHT_CHANNEL_WIDTH_DEFAULT        (3)
 
 /*
-* <ini>
-* gVhtRxMCS - VHT Rx MCS capability for 1x1 mode
-* @Min: 0
-* @Max: 2
-* @Default: 0
-*
-* This ini is  used to set VHT Rx MCS capability for 1x1 mode.
-* 0, MCS0-7
-* 1, MCS0-8
-* 2, MCS0-9
-*
-* Related: NA
-*
-* Supported Feature: 11AC
-*
-* Usage: Internal/External
-*
-* </ini>
-*/
-
+ * <ini>
+ * gVhtRxMCS - VHT Rx MCS capability for 1x1 mode
+ * @Min: 0
+ * @Max: 2
+ * @Default: 0
+ *
+ * This ini is  used to set VHT Rx MCS capability for 1x1 mode.
+ * 0, MCS0-7
+ * 1, MCS0-8
+ * 2, MCS0-9
+ *
+ * Related: NA
+ *
+ * Supported Feature: 11AC
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
 #define CFG_VHT_ENABLE_RX_MCS_8_9               "gVhtRxMCS"
 #define CFG_VHT_ENABLE_RX_MCS_8_9_MIN           (0)
 #define CFG_VHT_ENABLE_RX_MCS_8_9_MAX           (2)
@@ -5163,7 +5164,8 @@ typedef enum {
  * Options
  * 0 -Disable DynamicDTIM
  * 1 to 5 - SLM will switch to DTIM specified here when host suspends and
- *          switch DTIM1 when host resumes */
+ * switch DTIM1 when host resumes
+ */
 #define CFG_ENABLE_DYNAMIC_DTIM_NAME            "gEnableDynamicDTIM"
 #define CFG_ENABLE_DYNAMIC_DTIM_MIN        (0)
 #define CFG_ENABLE_DYNAMIC_DTIM_MAX        (9)
@@ -8728,6 +8730,29 @@ enum dot11p_mode {
 #define CFG_SAP_INTERNAL_RESTART_DEFAULT (1)
 
 /*
+ * <ini>
+ * sap_restart_on_ch_avoid - control SAP restart on channel avoidance
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This ini is used to control SAP restart on channel avoidance
+ * sap_restart_on_ch_avoid=0: Don't restart SAP on channel avoidance indication
+ * sap_restart_on_ch_avoid=1: restart SAP on channel avoidance indication
+ *
+ * Related: None
+ *
+ * Supported Feature: channel avoidance
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+#define CFG_SAP_RESTART_ON_CH_AVOID_NAME    "sap_restart_on_ch_avoid"
+#define CFG_SAP_RESTART_ON_CH_AVOID_MIN     (0)
+#define CFG_SAP_RESTART_ON_CH_AVOID_MAX     (1)
+#define CFG_SAP_RESTART_ON_CH_AVOID_DEFAULT (1)
+/*
  * This parameter will avoid updating ap_sta_inactivity from hostapd.conf
  * file. If a station does not send anything in ap_max_inactivity seconds, an
  * empty data frame is sent to it in order to verify whether it is
@@ -9201,7 +9226,7 @@ enum dot11p_mode {
 #define CFG_PER_ROAM_ENABLE_NAME           "gper_roam_enabled"
 #define CFG_PER_ROAM_ENABLE_MIN            (0)
 #define CFG_PER_ROAM_ENABLE_MAX            (3)
-#define CFG_PER_ROAM_ENABLE_DEFAULT        (0)
+#define CFG_PER_ROAM_ENABLE_DEFAULT        (3)
 
 /*
  * <ini>
@@ -10423,9 +10448,26 @@ enum dot11p_mode {
 #define CFG_MBO_CAND_RSSI_BTC_THRESHOLD_MIN     (-120)
 #define CFG_MBO_CAND_RSSI_BTC_THRESHOLD_MAX     (0)
 
-/*---------------------------------------------------------------------------
-   Type declarations
-   -------------------------------------------------------------------------*/
+/*
+ * <ini>
+ * g_sap_chanswitch_beacon_cnt - channel switch beacon count
+ * @Min: 1
+ * @Max: 5
+ * @Default: 5
+ *
+ * This ini is used to configure channel switch beacon count
+ *
+ * Related: none
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_SAP_CH_SWITCH_BEACON_CNT         "g_sap_chanswitch_beacon_cnt"
+#define CFG_SAP_CH_SWITCH_BEACON_CNT_MIN     (1)
+#define CFG_SAP_CH_SWITCH_BEACON_CNT_MAX     (5)
+#define CFG_SAP_CH_SWITCH_BEACON_CNT_DEFAULT (5)
+
 
 struct hdd_config {
 	/* Bitmap to track what is explicitly configured */
@@ -10447,7 +10489,7 @@ struct hdd_config {
 	uint32_t nBmpsModListenInterval;
 	uint32_t nBmpsMaxListenInterval;
 	uint32_t nBmpsMinListenInterval;
-	eHddDot11Mode dot11Mode;
+	enum hdd_dot11_mode dot11Mode;
 	uint32_t nChannelBondingMode24GHz;
 	uint32_t nChannelBondingMode5GHz;
 	uint32_t MaxRxAmpduFactor;
@@ -10529,9 +10571,9 @@ struct hdd_config {
 	uint32_t       min_rest_time_conc;
 	/* In units of milliseconds */
 	uint32_t       idle_time_conc;
-	uint8_t nNumStaChanCombinedConc;        /* number of channels combined for */
+	uint8_t nNumStaChanCombinedConc;
 	/* STA in each split scan operation */
-	uint8_t nNumP2PChanCombinedConc;        /* number of channels combined for */
+	uint8_t nNumP2PChanCombinedConc;
 	/* P2P in each split scan operation */
 #endif
 
@@ -10549,7 +10591,7 @@ struct hdd_config {
 	uint8_t nDataInactivityTimeout;
 
 	/* WMM QoS Configuration */
-	hdd_wmm_user_mode_t WmmMode;
+	enum hdd_wmm_user_mode WmmMode;
 	bool b80211eIsEnabled;
 	uint8_t UapsdMask;      /* what ACs to setup U-APSD for at assoc */
 	uint32_t InfraUapsdVoSrvIntv;
@@ -10607,7 +10649,8 @@ struct hdd_config {
 	char wowlPattern[1024];
 
 	/* Control for Replay counetr. value 1 means
-	   single replay counter for all TID */
+	 * single replay counter for all TID
+	 */
 	bool bSingleTidRc;
 	uint8_t mcastBcastFilterSetting;
 	bool fhostArpOffload;
@@ -10673,7 +10716,7 @@ struct hdd_config {
 	uint8_t enable_dfs_pno_chnl_scan;
 	uint8_t enableDynamicDTIM;
 	uint8_t ShortGI40MhzEnable;
-	eHddLinkSpeedReportType reportMaxLinkSpeed;
+	enum hdd_link_speed_rpt_type reportMaxLinkSpeed;
 	int32_t linkSpeedRssiHigh;
 	int32_t linkSpeedRssiMid;
 	int32_t linkSpeedRssiLow;
@@ -10790,7 +10833,6 @@ struct hdd_config {
 	uint32_t cfgMaxMediumTime;
 	bool enableVhtFor24GHzBand;
 	bool enable_sap_vendor_vht;
-	/* Flag indicating whether legacy fast roam during concurrency is enabled in cfg.ini or not */
 	bool bFastRoamInConIniFeatureEnabled;
 	bool fEnableAdaptRxDrain;
 	bool enableIbssHeartBeatOffload;
@@ -11119,6 +11161,8 @@ struct hdd_config {
 	bool sta_prefer_80MHz_over_160MHz;
 	uint8_t sap_max_inactivity_override;
 	bool fw_timeout_crash;
+	/* beacon count before channel switch */
+	uint8_t sap_chanswitch_beacon_cnt;
 	uint32_t rx_wakelock_timeout;
 #ifdef WLAN_FEATURE_WOW_PULSE
 	bool wow_pulse_support;
@@ -11138,6 +11182,7 @@ struct hdd_config {
 	enum active_bpf_mode active_bpf_mode;
 	bool hw_broadcast_filter;
 	bool sap_internal_restart;
+	bool sap_restart_on_ch_avoid;
 	bool enable_bcast_probe_rsp;
 	bool qcn_ie_support;
 	uint8_t fils_max_chan_guard_time;
@@ -11206,13 +11251,13 @@ struct hdd_config {
  */
 #define VAR_FLAGS_DYNAMIC_CFG (1 << 3)
 
-typedef enum {
+enum wlan_parameter_type {
 	WLAN_PARAM_Integer,
 	WLAN_PARAM_SignedInteger,
 	WLAN_PARAM_HexInteger,
 	WLAN_PARAM_String,
 	WLAN_PARAM_MacAddr,
-} WLAN_PARAMETER_TYPE;
+};
 
 #define REG_VARIABLE(_Name, _Type,  _Struct, _VarName,		\
 		      _Flags, _Default, _Min, _Max)		\
@@ -11260,10 +11305,9 @@ typedef enum {
 		0						\
 	}
 
-typedef struct tREG_TABLE_ENTRY {
-
+struct reg_table_entry {
 	char *RegName;          /* variable name in the qcom_cfg.ini file */
-	WLAN_PARAMETER_TYPE RegType;    /* variable type in hdd_config struct */
+	enum wlan_parameter_type RegType;    /* variable type in hdd_config struct */
 	unsigned long Flags;    /* Specify optional parms and if RangeCheck is performed */
 	unsigned short VarOffset;       /* offset to field from the base address of the structure */
 	unsigned short VarSize; /* size (in bytes) of the field */
@@ -11274,15 +11318,7 @@ typedef struct tREG_TABLE_ENTRY {
 	void (*pfnDynamicnotify)(hdd_context_t *pHddCtx,
 				 unsigned long notifyId);
 	unsigned long notifyId; /* Dynamic modification identifier */
-} REG_TABLE_ENTRY;
-
-static __inline unsigned long util_min(unsigned long a, unsigned long b)
-{
-	unsigned long r;
-
-	r = ((a < b) ? a : b);
-	return r;
-}
+};
 
 /* Function declarations and documenation */
 QDF_STATUS hdd_parse_config_ini(hdd_context_t *pHddCtx);
@@ -11335,7 +11371,7 @@ bool hdd_update_config_cfg(hdd_context_t *pHddCtx);
 QDF_STATUS hdd_cfg_get_global_config(hdd_context_t *pHddCtx, char *pBuf,
 				     int buflen);
 
-eCsrPhyMode hdd_cfg_xlate_to_csr_phy_mode(eHddDot11Mode dot11Mode);
+eCsrPhyMode hdd_cfg_xlate_to_csr_phy_mode(enum hdd_dot11_mode dot11Mode);
 QDF_STATUS hdd_execute_global_config_command(hdd_context_t *pHddCtx,
 					     char *command);
 

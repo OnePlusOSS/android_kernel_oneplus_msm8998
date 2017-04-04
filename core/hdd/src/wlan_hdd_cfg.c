@@ -75,21 +75,23 @@ cb_notify_set_roam_intra_band(hdd_context_t *pHddCtx, unsigned long notifyId)
 	sme_set_roam_intra_band(pHddCtx->hHal, pHddCtx->config->nRoamIntraBand);
 }
 
-static void cb_notify_set_wes_mode(hdd_context_t *pHddCtx, unsigned long notifyId)
+static void cb_notify_set_wes_mode(hdd_context_t *pHddCtx,
+				   unsigned long notifyId)
 {
-	/* At the point this routine is called, the value in the hdd config
-	   table has already been updated */
-	sme_update_wes_mode(pHddCtx->hHal, pHddCtx->config->isWESModeEnabled, 0);
+	sme_update_wes_mode(pHddCtx->hHal,
+			    pHddCtx->config->isWESModeEnabled, 0);
 }
 
 static void
 cb_notify_set_roam_scan_n_probes(hdd_context_t *pHddCtx, unsigned long notifyId)
 {
-	sme_update_roam_scan_n_probes(pHddCtx->hHal, 0, pHddCtx->config->nProbes);
+	sme_update_roam_scan_n_probes(pHddCtx->hHal, 0,
+				      pHddCtx->config->nProbes);
 }
 
 static void
-cb_notify_set_roam_scan_home_away_time(hdd_context_t *pHddCtx, unsigned long notifyId)
+cb_notify_set_roam_scan_home_away_time(hdd_context_t *pHddCtx,
+				       unsigned long notifyId)
 {
 	sme_update_roam_scan_home_away_time(pHddCtx->hHal, 0,
 					    pHddCtx->config->nRoamScanHomeAwayTime,
@@ -100,28 +102,24 @@ static void
 notify_is_fast_roam_ini_feature_enabled(hdd_context_t *pHddCtx,
 					unsigned long notifyId)
 {
-	/* At the point this routine is called, the value in the hdd config
-	   table has already been updated */
 	sme_update_is_fast_roam_ini_feature_enabled(pHddCtx->hHal, 0,
 						    pHddCtx->config->
 						    isFastRoamIniFeatureEnabled);
 }
 
 static void
-notify_is_mawc_ini_feature_enabled(hdd_context_t *pHddCtx, unsigned long notifyId)
+notify_is_mawc_ini_feature_enabled(hdd_context_t *pHddCtx,
+				   unsigned long notifyId)
 {
-	/* At the point this routine is called, the value in the hdd config
-	   table has already been updated */
 	sme_update_is_mawc_ini_feature_enabled(pHddCtx->hHal,
 					       pHddCtx->config->MAWCEnabled);
 }
 
 #ifdef FEATURE_WLAN_ESE
 static void
-cb_notify_set_ese_feature_enabled(hdd_context_t *pHddCtx, unsigned long notifyId)
+cb_notify_set_ese_feature_enabled(hdd_context_t *pHddCtx,
+				  unsigned long notifyId)
 {
-	/* At the point this routine is called, the value in the hdd config
-	   table has already been updated */
 	sme_update_is_ese_feature_enabled(pHddCtx->hHal, 0,
 					  pHddCtx->config->isEseIniFeatureEnabled);
 }
@@ -130,8 +128,6 @@ cb_notify_set_ese_feature_enabled(hdd_context_t *pHddCtx, unsigned long notifyId
 static void
 cb_notify_set_fw_rssi_monitoring(hdd_context_t *pHddCtx, unsigned long notifyId)
 {
-	/* At the point this routine is called, the value in the hdd config
-	   table has already been updated */
 	sme_update_config_fw_rssi_monitoring(pHddCtx->hHal,
 					     pHddCtx->config->
 					     fEnableFwRssiMonitoring);
@@ -140,8 +136,6 @@ cb_notify_set_fw_rssi_monitoring(hdd_context_t *pHddCtx, unsigned long notifyId)
 static void cb_notify_set_opportunistic_scan_threshold_diff(hdd_context_t *pHddCtx,
 							    unsigned long notifyId)
 {
-	/* At the point this routine is called, the value in the hdd config
-	   table has already been updated */
 	sme_set_roam_opportunistic_scan_threshold_diff(pHddCtx->hHal, 0,
 						       pHddCtx->config->
 						       nOpportunisticThresholdDiff);
@@ -150,8 +144,6 @@ static void cb_notify_set_opportunistic_scan_threshold_diff(hdd_context_t *pHddC
 static void cb_notify_set_roam_rescan_rssi_diff(hdd_context_t *pHddCtx,
 						unsigned long notifyId)
 {
-	/* At the point this routine is called, the value in the hdd config
-	   table has already been updated */
 	sme_set_roam_rescan_rssi_diff(pHddCtx->hHal,
 				      0, pHddCtx->config->nRoamRescanRssiDiff);
 }
@@ -160,8 +152,6 @@ static void
 cb_notify_set_neighbor_lookup_rssi_threshold(hdd_context_t *pHddCtx,
 					     unsigned long notifyId)
 {
-	/* At the point this routine is called, the value in the hdd config
-	   table has already been updated */
 	sme_set_neighbor_lookup_rssi_threshold(pHddCtx->hHal, 0,
 					       pHddCtx->config->
 					       nNeighborLookupRssiThreshold);
@@ -171,19 +161,14 @@ static void
 cb_notify_set_delay_before_vdev_stop(hdd_context_t *hdd_ctx,
 				     unsigned long notify_id)
 {
-	/*
-	 * At the point this routine is called, the value in the cfg_ini
-	 * table has already been updated
-	 */
 	sme_set_delay_before_vdev_stop(hdd_ctx->hHal, 0,
 				hdd_ctx->config->delay_before_vdev_stop);
 }
 
 static void
-cb_notify_set_neighbor_scan_period(hdd_context_t *pHddCtx, unsigned long notifyId)
+cb_notify_set_neighbor_scan_period(hdd_context_t *pHddCtx,
+				   unsigned long notifyId)
 {
-	/* At the point this routine is called, the value in the hdd config
-	   table has already been updated */
 	sme_set_neighbor_scan_period(pHddCtx->hHal, 0,
 				     pHddCtx->config->nNeighborScanPeriod);
 }
@@ -192,8 +177,6 @@ static void
 cb_notify_set_neighbor_results_refresh_period(hdd_context_t *pHddCtx,
 					      unsigned long notifyId)
 {
-	/* At the point this routine is called, the value in the hdd config
-	   table has already been updated */
 	sme_set_neighbor_scan_refresh_period(pHddCtx->hHal, 0,
 					     pHddCtx->config->
 					     nNeighborResultsRefreshPeriod);
@@ -203,8 +186,6 @@ static void
 cb_notify_set_empty_scan_refresh_period(hdd_context_t *pHddCtx,
 					unsigned long notifyId)
 {
-	/* At the point this routine is called, the value in the hdd config
-	   table has already been updated */
 	sme_update_empty_scan_refresh_period(pHddCtx->hHal, 0,
 					     pHddCtx->config->
 					     nEmptyScanRefreshPeriod);
@@ -214,8 +195,6 @@ static void
 cb_notify_set_neighbor_scan_min_chan_time(hdd_context_t *pHddCtx,
 					  unsigned long notifyId)
 {
-	/* At the point this routine is called, the value in the hdd config
-	   table has already been updated */
 	sme_set_neighbor_scan_min_chan_time(pHddCtx->hHal,
 					    pHddCtx->config->
 					    nNeighborScanMinChanTime, 0);
@@ -233,8 +212,6 @@ cb_notify_set_neighbor_scan_max_chan_time(hdd_context_t *pHddCtx,
 static void cb_notify_set_roam_bmiss_first_bcnt(hdd_context_t *pHddCtx,
 						unsigned long notifyId)
 {
-	/* At the point this routine is called, the value in the hdd config
-	   table has already been updated */
 	sme_set_roam_bmiss_first_bcnt(pHddCtx->hHal,
 				      0, pHddCtx->config->nRoamBmissFirstBcnt);
 }
@@ -256,8 +233,6 @@ static void cb_notify_set_roam_beacon_rssi_weight(hdd_context_t *pHddCtx,
 static void
 cb_notify_set_dfs_scan_mode(hdd_context_t *pHddCtx, unsigned long notifyId)
 {
-	/* At the point this routine is called, the value in the hdd config
-	   table has already been updated */
 	sme_update_dfs_scan_mode(pHddCtx->hHal, 0,
 				 pHddCtx->config->allowDFSChannelRoam);
 }
@@ -322,9 +297,8 @@ cb_notify_set_roam_scan_hi_rssi_scan_params(hdd_context_t *hdd_ctx,
 {
 	int32_t val;
 
-	if (wlan_hdd_validate_context(hdd_ctx)) {
+	if (wlan_hdd_validate_context(hdd_ctx))
 		return;
-	}
 
 	switch (notify_id) {
 	case eCSR_HI_RSSI_SCAN_MAXCOUNT_ID:
@@ -352,7 +326,7 @@ cb_notify_set_roam_scan_hi_rssi_scan_params(hdd_context_t *hdd_ctx,
 }
 
 
-REG_TABLE_ENTRY g_registry_table[] = {
+struct reg_table_entry g_registry_table[] = {
 	REG_VARIABLE(CFG_RTS_THRESHOLD_NAME, WLAN_PARAM_Integer,
 		     struct hdd_config, RTSThreshold,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -1084,8 +1058,9 @@ REG_TABLE_ENTRY g_registry_table[] = {
 			     CFG_FAST_TRANSITION_ENABLED_NAME_MAX,
 			     cb_notify_set_fast_transition_enabled, 0),
 
-	/* Variable to specify the delta/difference between the RSSI of current AP
-	 * and roamable AP while roaming */
+	/* Variable to specify the delta/difference between the
+	 * RSSI of current AP and roamable AP while roaming
+	 */
 	REG_DYNAMIC_VARIABLE(CFG_ROAM_RSSI_DIFF_NAME, WLAN_PARAM_Integer,
 			     struct hdd_config, RoamRssiDiff,
 			     VAR_FLAGS_OPTIONAL |
@@ -1368,7 +1343,8 @@ REG_TABLE_ENTRY g_registry_table[] = {
 			     CFG_OPPORTUNISTIC_SCAN_THRESHOLD_DIFF_DEFAULT,
 			     CFG_OPPORTUNISTIC_SCAN_THRESHOLD_DIFF_MIN,
 			     CFG_OPPORTUNISTIC_SCAN_THRESHOLD_DIFF_MAX,
-			     cb_notify_set_opportunistic_scan_threshold_diff, 0),
+			     cb_notify_set_opportunistic_scan_threshold_diff,
+			     0),
 
 	REG_DYNAMIC_VARIABLE(CFG_ROAM_RESCAN_RSSI_DIFF_NAME, WLAN_PARAM_Integer,
 			     struct hdd_config, nRoamRescanRssiDiff,
@@ -2613,7 +2589,7 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		     CFG_PNO_SLOW_SCAN_MULTIPLIER_MIN,
 		     CFG_PNO_SLOW_SCAN_MULTIPLIER_MAX),
 #endif
-	REG_VARIABLE(CFG_MAX_AMSDU_NUM_NAME , WLAN_PARAM_Integer,
+	REG_VARIABLE(CFG_MAX_AMSDU_NUM_NAME, WLAN_PARAM_Integer,
 		     struct hdd_config, max_amsdu_num,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
 		     CFG_MAX_AMSDU_NUM_DEFAULT,
@@ -4220,6 +4196,14 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		CFG_RX_WAKELOCK_TIMEOUT_DEFAULT,
 		CFG_RX_WAKELOCK_TIMEOUT_MIN,
 		CFG_RX_WAKELOCK_TIMEOUT_MAX),
+
+	REG_VARIABLE(CFG_SAP_CH_SWITCH_BEACON_CNT, WLAN_PARAM_Integer,
+		     struct hdd_config, sap_chanswitch_beacon_cnt,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_SAP_CH_SWITCH_BEACON_CNT_DEFAULT,
+		     CFG_SAP_CH_SWITCH_BEACON_CNT_MIN,
+		     CFG_SAP_CH_SWITCH_BEACON_CNT_MAX),
+
 #ifdef WLAN_FEATURE_UDP_RESPONSE_OFFLOAD
 	REG_VARIABLE(CFG_UDP_RESP_OFFLOAD_SUPPORT_NAME, WLAN_PARAM_Integer,
 		struct hdd_config, udp_resp_offload_support,
@@ -4321,6 +4305,14 @@ REG_TABLE_ENTRY g_registry_table[] = {
 		CFG_SAP_INTERNAL_RESTART_DEFAULT,
 		CFG_SAP_INTERNAL_RESTART_MIN,
 		CFG_SAP_INTERNAL_RESTART_MAX),
+
+	REG_VARIABLE(CFG_SAP_RESTART_ON_CH_AVOID_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, sap_restart_on_ch_avoid,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_SAP_RESTART_ON_CH_AVOID_DEFAULT,
+		CFG_SAP_RESTART_ON_CH_AVOID_MIN,
+		CFG_SAP_RESTART_ON_CH_AVOID_MAX),
+
 	REG_VARIABLE(CFG_ENABLE_BCAST_PROBE_RESP_NAME, WLAN_PARAM_Integer,
 		struct hdd_config, enable_bcast_probe_rsp,
 		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -4525,9 +4517,8 @@ static char *get_next_line(char *str)
 {
 	char c;
 
-	if (str == NULL || *str == '\0') {
+	if (str == NULL || *str == '\0')
 		return NULL;
-	}
 
 	c = *str;
 	while (c != '\n' && c != '\0' && c != 0xd) {
@@ -4535,14 +4526,11 @@ static char *get_next_line(char *str)
 		c = *str;
 	}
 
-	if (c == '\0') {
+	if (c == '\0')
 		return NULL;
-	} else {
-		*str = '\0';
-		return str + 1;
-	}
 
-	return NULL;
+	*str = '\0';
+	return str + 1;
 }
 
 /** look for space. Ascii values to look are
@@ -4607,14 +4595,14 @@ static char *i_trim(char *str)
  * Return: QDF_STATUS_SUCCESS if the configuration and buffer size can carry
  *		the content, otherwise QDF_STATUS_E_RESOURCES
  */
-static QDF_STATUS hdd_cfg_get_config(REG_TABLE_ENTRY *reg_table,
+static QDF_STATUS hdd_cfg_get_config(struct reg_table_entry *reg_table,
 				     unsigned long cRegTableEntries,
 				     uint8_t *ini_struct,
 				     hdd_context_t *pHddCtx, char *pBuf,
 				     int buflen)
 {
 	unsigned int idx;
-	REG_TABLE_ENTRY *pRegEntry = reg_table;
+	struct reg_table_entry *pRegEntry = reg_table;
 	uint32_t value;
 	char valueStr[CFG_VALUE_MAX_LEN];
 	char configStr[CFG_ENTRY_MAX_LEN];
@@ -4813,7 +4801,7 @@ static QDF_STATUS hdd_apply_cfg_ini(hdd_context_t *pHddCtx,
 	uint32_t value;
 	int32_t svalue;
 	void *pStructBase = pHddCtx->config;
-	REG_TABLE_ENTRY *pRegEntry = g_registry_table;
+	struct reg_table_entry *pRegEntry = g_registry_table;
 	unsigned long cRegTableEntries = QDF_ARRAY_SIZE(g_registry_table);
 	uint32_t cbOutString;
 	int i;
@@ -4973,8 +4961,8 @@ static QDF_STATUS hdd_apply_cfg_ini(hdd_context_t *pHddCtx,
 					       pRegEntry->RegName,
 					       WLAN_INI_FILE);
 					cbOutString =
-						util_min(strlen
-								 ((char *)pRegEntry->
+						QDF_MIN(strlen
+							 ((char *)pRegEntry->
 								 VarDefault),
 							 pRegEntry->VarSize - 1);
 					memcpy(pField,
@@ -4991,7 +4979,7 @@ static QDF_STATUS hdd_apply_cfg_ini(hdd_context_t *pHddCtx,
 			} else {
 				/* Failed to read the string parameter from the registry.  Use the default. */
 				cbOutString =
-					util_min(strlen((char *)pRegEntry->VarDefault),
+					QDF_MIN(strlen((char *)pRegEntry->VarDefault),
 						 pRegEntry->VarSize - 1);
 				memcpy(pField, (void *)(pRegEntry->VarDefault),
 				       cbOutString);
@@ -5045,13 +5033,13 @@ static QDF_STATUS hdd_apply_cfg_ini(hdd_context_t *pHddCtx,
  * Return: QDF_STATUS_SUCCESS if the command is found and able to execute,
  *		otherwise the appropriate QDF_STATUS will be returned
  */
-static QDF_STATUS hdd_execute_config_command(REG_TABLE_ENTRY *reg_table,
+static QDF_STATUS hdd_execute_config_command(struct reg_table_entry *reg_table,
 					     unsigned long tableSize,
 					     uint8_t *ini_struct,
 					     hdd_context_t *pHddCtx,
 					     char *command)
 {
-	REG_TABLE_ENTRY *pRegEntry;
+	struct reg_table_entry *pRegEntry;
 	char *clone;
 	char *pCmd;
 	void *pField;
@@ -5070,10 +5058,9 @@ static QDF_STATUS hdd_execute_config_command(REG_TABLE_ENTRY *reg_table,
 
 	/* clone the command so that we can manipulate it */
 	clone = kstrdup(command, GFP_ATOMIC);
-	if (NULL == clone) {
-		hdd_err("memory allocation failure, unable to process [%s]", command);
+	if (NULL == clone)
 		return vstatus;
-	}
+
 	/* 'clone' will point to the beginning of the string so it can be freed
 	 * 'pCmd' will be used to walk/parse the command
 	 */
@@ -5088,9 +5075,9 @@ static QDF_STATUS hdd_execute_config_command(REG_TABLE_ENTRY *reg_table,
 	}
 	/* parse the <name> = <value> */
 	name = pCmd;
-	while (('=' != *pCmd) && ('\0' != *pCmd)) {
+	while (('=' != *pCmd) && ('\0' != *pCmd))
 		pCmd++;
-	}
+
 	if ('\0' == *pCmd) {
 		/* did not find '=' */
 		hdd_err("invalid command, no '=':[%s]", command);
@@ -5225,13 +5212,13 @@ static QDF_STATUS hdd_execute_config_command(REG_TABLE_ENTRY *reg_table,
 	vstatus = QDF_STATUS_SUCCESS;
 
 	/* config table has been modified, is there a notifier? */
-	if (NULL != pRegEntry->pfnDynamicnotify) {
+	if (NULL != pRegEntry->pfnDynamicnotify)
 		(pRegEntry->pfnDynamicnotify)(pHddCtx, pRegEntry->notifyId);
-	}
+
 	/* note that this item was explicitly configured */
-	if (idx < MAX_CFG_INI_ITEMS) {
+	if (idx < MAX_CFG_INI_ITEMS)
 		set_bit(idx, (void *)&pHddCtx->config->bExplicitCfg);
-	}
+
 done:
 	kfree(clone);
 	return vstatus;
@@ -5248,13 +5235,12 @@ static void hdd_set_power_save_offload_config(hdd_context_t *pHddCtx)
 	struct hdd_config *pConfig = pHddCtx->config;
 	uint32_t listenInterval = 0;
 
-	if (strcmp(pConfig->PowerUsageControl, "Min") == 0) {
+	if (strcmp(pConfig->PowerUsageControl, "Min") == 0)
 		listenInterval = pConfig->nBmpsMinListenInterval;
-	} else if (strcmp(pConfig->PowerUsageControl, "Max") == 0) {
+	else if (strcmp(pConfig->PowerUsageControl, "Max") == 0)
 		listenInterval = pConfig->nBmpsMaxListenInterval;
-	} else if (strcmp(pConfig->PowerUsageControl, "Mod") == 0) {
+	else if (strcmp(pConfig->PowerUsageControl, "Mod") == 0)
 		listenInterval = pConfig->nBmpsModListenInterval;
-	}
 
 	/*
 	 * Based on Mode Set the LI
@@ -5998,6 +5984,9 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 		CFG_SAP_INTERNAL_RESTART_NAME,
 		pHddCtx->config->sap_internal_restart);
 	hdd_debug("Name = [%s] Value = [%d]",
+		CFG_SAP_RESTART_ON_CH_AVOID_NAME,
+		pHddCtx->config->sap_restart_on_ch_avoid);
+	hdd_debug("Name = [%s] Value = [%d]",
 		CFG_ARP_AC_CATEGORY,
 		pHddCtx->config->arp_ac_category);
 
@@ -6333,7 +6322,7 @@ config_exit:
  *
  * Return: the CSR phy mode value
  */
-eCsrPhyMode hdd_cfg_xlate_to_csr_phy_mode(eHddDot11Mode dot11Mode)
+eCsrPhyMode hdd_cfg_xlate_to_csr_phy_mode(enum hdd_dot11_mode dot11Mode)
 {
 	if (cds_is_sub_20_mhz_enabled())
 		return eCSR_DOT11_MODE_abg;
@@ -6420,8 +6409,6 @@ static void hdd_set_fine_time_meas_cap(hdd_context_t *hdd_ctx,
 	hdd_debug("fine time meas capability - INI: %04x Enabled: %04x",
 		config->fine_time_meas_cap,
 		sme_config->csrConfig.fine_time_meas_cap);
-
-	return;
 }
 
 /**
@@ -6453,7 +6440,8 @@ static QDF_STATUS hdd_convert_string_to_array(char *str, uint8_t *array,
 		int val;
 		/* Increment length only if sscanf successfully extracted
 		 * one element. Any other return value means error.
-		 * Ignore it. */
+		 * Ignore it
+		 */
 		if (sscanf(s, format, &val) == 1) {
 			array[*len] = (uint8_t) val;
 			*len += 1;
@@ -6629,7 +6617,8 @@ static bool hdd_update_vht_cap_in_cfg(hdd_context_t *hdd_ctx)
 			hdd_err("Couldn't pass WNI_VHT_SHORT_GI_80MHZ to CFG");
 		}
 		/* Hardware is capable of doing
-		 * 128K AMPDU in 11AC mode */
+		 * 128K AMPDU in 11AC mode
+		 */
 		if (sme_cfg_set_int(hdd_ctx->hHal,
 			     WNI_CFG_VHT_AMPDU_LEN_EXPONENT,
 			     config->fVhtAmpduLenExponent) ==
@@ -7381,9 +7370,8 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 #ifdef FEATURE_WLAN_ESE
 	smeConfig->csrConfig.isEseIniFeatureEnabled =
 		pConfig->isEseIniFeatureEnabled;
-	if (pConfig->isEseIniFeatureEnabled) {
+	if (pConfig->isEseIniFeatureEnabled)
 		pConfig->isFastTransitionEnabled = true;
-	}
 #endif
 	smeConfig->csrConfig.isFastTransitionEnabled =
 		pConfig->isFastTransitionEnabled;
@@ -7395,7 +7383,9 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 		pConfig->bFastRoamInConIniFeatureEnabled;
 
 	if (0 == smeConfig->csrConfig.isRoamOffloadScanEnabled) {
-		/* Disable roaming in concurrency if roam scan offload is disabled */
+		/* Disable roaming in concurrency if roam scan
+		 * offload is disabled
+		 */
 		smeConfig->csrConfig.bFastRoamInConIniFeatureEnabled = 0;
 	}
 	smeConfig->csrConfig.neighborRoamConfig.nNeighborLookupRssiThreshold =

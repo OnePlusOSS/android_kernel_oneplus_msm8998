@@ -483,7 +483,7 @@ int hdd_display_napi_stats(void)
 			if (!napii)
 				continue;
 
-			for (j = 0; j < NR_CPUS; j++) {
+			for (j = 0; j < num_possible_cpus(); j++) {
 				napis = &(napii->stats[j]);
 				n = 0;
 				max = sizeof(buf);

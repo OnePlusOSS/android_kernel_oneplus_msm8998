@@ -369,6 +369,7 @@ static void hdd_ocb_set_config_callback(void *context_ptr, void *response_ptr)
 	spin_lock(&hdd_context_lock);
 	if (context->magic == HDD_OCB_MAGIC) {
 		hdd_adapter_t *adapter = context->adapter;
+
 		if (!resp) {
 			context->status = -EINVAL;
 			complete(&context->completion_evt);

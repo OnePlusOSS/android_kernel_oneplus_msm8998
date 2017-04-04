@@ -183,14 +183,11 @@ wlan_hdd_cfg80211_extscan_get_capabilities_rsp(void *ctx,
 		hdd_err("Target response id did not match. request_id: %d response_id: %d",
 			context->request_id, data->requestId);
 		return;
-	} else {
-		context->capability_response = *data;
-		complete(&context->response_event);
 	}
 
+	context->capability_response = *data;
+	complete(&context->response_event);
 	spin_unlock(&context->context_lock);
-
-	return;
 }
 
 /*
@@ -429,6 +426,7 @@ wlan_hdd_cfg80211_extscan_cached_results_ind(void *ctx,
 
 	if (data->num_scan_ids) {
 		struct nlattr *nla_results;
+
 		result = &data->result[0];
 
 		if (nla_put_u32(skb,
@@ -502,8 +500,6 @@ fail:
 	spin_lock(&context->context_lock);
 	context->response_status = -EINVAL;
 	spin_unlock(&context->context_lock);
-
-	return;
 }
 
 /**
@@ -638,7 +634,6 @@ wlan_hdd_cfg80211_extscan_hotlist_match_ind(void *ctx,
 
 fail:
 	kfree_skb(skb);
-	return;
 }
 
 /**
@@ -815,7 +810,8 @@ wlan_hdd_cfg80211_extscan_full_scan_result_event(void *ctx,
 	pData->ap.channel = cds_chan_to_freq(pData->ap.channel);
 
 	/* Android does not want the time stamp from the frame.
-	   Instead it wants a monotonic increasing value since boot */
+	 * Instead it wants a monotonic increasing value since boot
+	 */
 	get_monotonic_boottime(&ts);
 	pData->ap.ts = ((u64)ts.tv_sec * 1000000) + (ts.tv_nsec / 1000);
 
@@ -904,7 +900,6 @@ wlan_hdd_cfg80211_extscan_full_scan_result_event(void *ctx,
 
 nla_put_failure:
 	kfree_skb(skb);
-	return;
 }
 
 /**
@@ -965,7 +960,6 @@ wlan_hdd_cfg80211_extscan_scan_res_available_event(
 
 nla_put_failure:
 	kfree_skb(skb);
-	return;
 }
 
 /**
@@ -1042,7 +1036,6 @@ wlan_hdd_cfg80211_extscan_scan_progress_event(void *ctx,
 
 nla_put_failure:
 	kfree_skb(skb);
-	return;
 }
 
 /**
@@ -1139,6 +1132,7 @@ wlan_hdd_cfg80211_extscan_epno_match_found(void *ctx,
 
 	if (data->num_results) {
 		struct nlattr *nla_aps;
+
 		nla_aps = nla_nest_start(skb,
 			QCA_WLAN_VENDOR_ATTR_EXTSCAN_RESULTS_LIST);
 		if (!nla_aps)
@@ -1156,7 +1150,6 @@ wlan_hdd_cfg80211_extscan_epno_match_found(void *ctx,
 
 fail:
 	kfree_skb(skb);
-	return;
 }
 
 /**
@@ -1288,7 +1281,6 @@ wlan_hdd_cfg80211_passpoint_match_found(void *ctx,
 
 fail:
 	kfree_skb(skb);
-	return;
 }
 
 /**
@@ -1329,8 +1321,6 @@ wlan_hdd_cfg80211_extscan_generic_rsp
 		complete(&context->response_event);
 	}
 	spin_unlock(&context->context_lock);
-
-	return;
 }
 
 /**
@@ -1356,7 +1346,8 @@ void wlan_hdd_cfg80211_extscan_callback(void *ctx, const uint16_t evType,
 	switch (evType) {
 	case eSIR_EXTSCAN_CACHED_RESULTS_RSP:
 		/* There is no need to send this response to upper layer
-		   Just log the message */
+		 * Just log the message
+		 */
 		hdd_debug("Rcvd eSIR_EXTSCAN_CACHED_RESULTS_RSP");
 		break;
 
@@ -2079,7 +2070,7 @@ int wlan_hdd_cfg80211_extscan_set_bssid_hotlist(struct wiphy *wiphy,
 
 
 /**
- * __wlan_hdd_cfg80211_extscan_set_significant_change () - set significant change
+ * __wlan_hdd_cfg80211_extscan_set_significant_change() - set significant change
  * @wiphy: Pointer to wireless phy
  * @wdev: Pointer to wireless device
  * @data: Pointer to data
@@ -3923,7 +3914,7 @@ fail:
 	return -EINVAL;
 }
 
- /**
+/**
  * wlan_hdd_cfg80211_set_epno_list() - epno set network list
  * @wiphy: wiphy
  * @wdev: pointer to wireless dev
@@ -4282,7 +4273,6 @@ static inline void wlan_hdd_init_completion_extwow(hdd_context_t *pHddCtx)
 #else
 static inline void wlan_hdd_init_completion_extwow(hdd_context_t *pHddCtx)
 {
-	return;
 }
 #endif
 

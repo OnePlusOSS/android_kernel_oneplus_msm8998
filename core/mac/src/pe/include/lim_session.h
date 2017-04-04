@@ -493,6 +493,8 @@ typedef struct sPESession       /* Added to Support BT-AMP */
 	bool ignore_assoc_disallowed;
 	bool send_p2p_conf_frame;
 	bool process_ho_fail;
+	/* Number of STAs that do not support ECSA capability */
+	uint8_t lim_non_ecsa_cap_num;
 } tPESession, *tpPESession;
 
 /*-------------------------------------------------------------------------

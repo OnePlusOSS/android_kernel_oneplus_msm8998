@@ -1665,11 +1665,6 @@ QDF_STATUS sme_hdd_ready_ind(tHalHandle hHal)
 			break;
 		}
 
-		if (QDF_STATUS_SUCCESS != rrm_ready(hHal)) {
-			status = QDF_STATUS_E_FAILURE;
-			sme_err("rrm_ready failed");
-			break;
-		}
 		pMac->sme.state = SME_STATE_READY;
 	} while (0);
 
@@ -13305,7 +13300,7 @@ QDF_STATUS sme_update_dsc_pto_up_mapping(tHalHandle hHal,
 	}
 
 	if (!pSession->QosMapSet.present) {
-		hdd_notice("QOS Mapping IE not present");
+		sme_debug("QOS Mapping IE not present");
 		sme_release_global_lock(&pMac->sme);
 		return QDF_STATUS_E_FAILURE;
 	}

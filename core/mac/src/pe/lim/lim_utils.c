@@ -209,7 +209,7 @@ char *lim_mlm_state_str(tLimMlmStates state)
 void
 lim_print_mlm_state(tpAniSirGlobal pMac, uint16_t logLevel, tLimMlmStates state)
 {
-	lim_log(pMac, logLevel, lim_mlm_state_str(state));
+	pe_debug("Mlm state: %s", lim_mlm_state_str(state));
 }
 
 char *lim_sme_state_str(tLimSmeStates state)
@@ -267,7 +267,7 @@ char *lim_sme_state_str(tLimSmeStates state)
 void
 lim_print_sme_state(tpAniSirGlobal pMac, uint16_t logLevel, tLimSmeStates state)
 {
-	lim_log(pMac, logLevel, lim_sme_state_str(state));
+	pe_debug("SME state: %s", lim_sme_state_str(state));
 }
 
 char *lim_msg_str(uint32_t msgType)
@@ -510,7 +510,7 @@ char *lim_result_code_str(tSirResultCodes resultCode)
 
 void lim_print_msg_name(tpAniSirGlobal pMac, uint16_t logLevel, uint32_t msgType)
 {
-	lim_log(pMac, logLevel, lim_msg_str(msgType));
+	pe_debug("Msg: %s", lim_msg_str(msgType));
 }
 
 /**
@@ -793,7 +793,7 @@ uint8_t lim_is_group_addr(tSirMacAddr macAddr)
 
 void lim_print_mac_addr(tpAniSirGlobal pMac, tSirMacAddr macAddr, uint8_t logLevel)
 {
-	lim_log(pMac, logLevel, FL(MAC_ADDRESS_STR), MAC_ADDR_ARRAY(macAddr));
+	pe_debug(MAC_ADDRESS_STR, MAC_ADDR_ARRAY(macAddr));
 } /****** end lim_print_mac_addr() ******/
 
 /*
@@ -5608,6 +5608,7 @@ tpPESession lim_is_ap_session_active(tpAniSirGlobal pMac)
 void lim_handle_defer_msg_error(tpAniSirGlobal pMac, tpSirMsgQ pLimMsg)
 {
 	if (SIR_BB_XPORT_MGMT_MSG == pLimMsg->type) {
+		lim_decrement_pending_mgmt_count(pMac);
 		cds_pkt_return_packet((cds_pkt_t *) pLimMsg->bodyptr);
 		pLimMsg->bodyptr = NULL;
 	} else if (pLimMsg->bodyptr != NULL) {
@@ -7196,4 +7197,15 @@ tCsrRoamSession *lim_get_session_by_macaddr(tpAniSirGlobal mac_ctx,
 	}
 
 	return NULL;
+}
+
+void lim_decrement_pending_mgmt_count(tpAniSirGlobal mac_ctx)
+{
+	qdf_spin_lock(&mac_ctx->sys.bbt_mgmt_lock);
+	if (!mac_ctx->sys.sys_bbt_pending_mgmt_count) {
+		qdf_spin_unlock(&mac_ctx->sys.bbt_mgmt_lock);
+		return;
+	}
+	mac_ctx->sys.sys_bbt_pending_mgmt_count--;
+	qdf_spin_unlock(&mac_ctx->sys.bbt_mgmt_lock);
 }

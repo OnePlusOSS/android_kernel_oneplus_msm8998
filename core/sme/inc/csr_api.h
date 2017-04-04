@@ -1450,6 +1450,8 @@ typedef struct tagCsrRoamInfo {
 	tDot11fIEVHTOperation vht_operation;
 	tDot11fIEHTInfo ht_operation;
 	bool reassoc;
+	/* Extended capabilities of STA */
+	uint8_t ecsa_capable;
 } tCsrRoamInfo;
 
 typedef struct tagCsrFreqScanInfo {
@@ -1477,6 +1479,8 @@ typedef struct sSirSmeAssocIndToUpperLayerCnf {
 	uint8_t timingMeasCap;
 	tSirSmeChanInfo chan_info;
 	uint8_t target_channel;
+	/* Extended capabilities of STA */
+	uint8_t              ecsa_capable;
 } tSirSmeAssocIndToUpperLayerCnf, *tpSirSmeAssocIndToUpperLayerCnf;
 
 typedef struct tagCsrSummaryStatsInfo {

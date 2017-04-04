@@ -3977,11 +3977,6 @@ csr_diag_scan_complete(tpAniSirGlobal pMac,
 	csr_scan_result_purge(pMac, hScanResult);
 	WLAN_HOST_DIAG_LOG_REPORT(pScanLog);
 
-	csr_diag_event_report(pMac, eCSR_EVENT_SCAN_COMPLETE, eSIR_SUCCESS,
-			      eSIR_SUCCESS);
-	if (c > 0)
-		csr_diag_event_report(pMac, eCSR_EVENT_SCAN_RES_FOUND,
-				      eSIR_SUCCESS, eSIR_SUCCESS);
 }
 #endif /* #ifdef FEATURE_WLAN_DIAG_SUPPORT_CSR */
 

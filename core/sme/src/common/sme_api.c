@@ -25,18 +25,13 @@
  * to the Linux Foundation.
  */
 
-/**=========================================================================
+/*
+ * DOC: smeApi.c
+ *
+ * Definitions for SME APIs
+ */
 
-   \file  smeApi.c
-
-   \brief Definitions for SME APIs
-
-   ========================================================================*/
-
-/*--------------------------------------------------------------------------
-   Include Files
-   ------------------------------------------------------------------------*/
-
+/* Include Files */
 #include <sir_common.h>
 #include <ani_global.h>
 #include "sme_api.h"
@@ -69,16 +64,15 @@ static QDF_STATUS init_sme_cmd_list(tpAniSirGlobal pMac);
 static void sme_abort_command(tpAniSirGlobal pMac, tSmeCmd *pCommand,
 			      bool fStopping);
 
-eCsrPhyMode sme_get_phy_mode(tHalHandle hHal);
+static QDF_STATUS sme_handle_change_country_code(tpAniSirGlobal pMac,
+						void *pMsgBuf);
 
-QDF_STATUS sme_handle_change_country_code(tpAniSirGlobal pMac, void *pMsgBuf);
+static void sme_disconnect_connected_sessions(tpAniSirGlobal pMac);
 
-void sme_disconnect_connected_sessions(tpAniSirGlobal pMac);
-
-QDF_STATUS sme_handle_generic_change_country_code(tpAniSirGlobal pMac,
+static QDF_STATUS sme_handle_generic_change_country_code(tpAniSirGlobal pMac,
 						  void *pMsgBuf);
 
-QDF_STATUS sme_process_nss_update_resp(tpAniSirGlobal mac, uint8_t *msg);
+static QDF_STATUS sme_process_nss_update_resp(tpAniSirGlobal mac, uint8_t *msg);
 
 #ifdef WLAN_FEATURE_11W
 QDF_STATUS sme_unprotected_mgmt_frm_ind(tHalHandle hHal,
@@ -90,7 +84,7 @@ QDF_STATUS dfs_msg_processor(tpAniSirGlobal pMac,
 			     uint16_t msg_type, void *pMsgBuf);
 
 /* Channel Change Response Indication Handler */
-QDF_STATUS sme_process_channel_change_resp(tpAniSirGlobal pMac,
+static QDF_STATUS sme_process_channel_change_resp(tpAniSirGlobal pMac,
 					   uint16_t msg_type, void *pMsgBuf);
 
 /* Internal SME APIs */
@@ -100,9 +94,8 @@ QDF_STATUS sme_acquire_global_lock(tSmeStruct *psSme)
 
 	if (psSme) {
 		if (QDF_IS_STATUS_SUCCESS
-			    (qdf_mutex_acquire(&psSme->lkSmeGlobalLock))) {
+			    (qdf_mutex_acquire(&psSme->lkSmeGlobalLock)))
 			status = QDF_STATUS_SUCCESS;
-		}
 	}
 
 	return status;
@@ -114,9 +107,8 @@ QDF_STATUS sme_release_global_lock(tSmeStruct *psSme)
 
 	if (psSme) {
 		if (QDF_IS_STATUS_SUCCESS
-			    (qdf_mutex_release(&psSme->lkSmeGlobalLock))) {
+			    (qdf_mutex_release(&psSme->lkSmeGlobalLock)))
 			status = QDF_STATUS_SUCCESS;
-		}
 	}
 
 	return status;
@@ -205,13 +197,13 @@ static QDF_STATUS sme_process_set_hw_mode_resp(tpAniSirGlobal mac, uint8_t *msg)
 			sme_err("saved cmd is NULL, Check this");
 			goto end;
 		}
-		if (param->status == SET_HW_MODE_STATUS_OK) {
+		if (param->status == SET_HW_MODE_STATUS_OK)
 			csr_scan_handle_search_for_ssid(mac,
 					saved_cmd);
-		} else {
+		else
 			csr_scan_handle_search_for_ssid_failure(mac,
 					saved_cmd);
-		}
+
 		if (saved_cmd->u.roamCmd.pRoamBssEntry)
 			qdf_mem_free(
 					saved_cmd->u.roamCmd.pRoamBssEntry);
@@ -234,10 +226,10 @@ static QDF_STATUS sme_process_set_hw_mode_resp(tpAniSirGlobal mac, uint8_t *msg)
 end:
 	found = csr_ll_remove_entry(&mac->sme.smeCmdActiveList, entry,
 			LL_ACCESS_LOCK);
-	if (found) {
+	if (found)
 		/* Now put this command back on the avilable command list */
 		sme_release_command(mac, command);
-	}
+
 	sme_process_pending_queue(mac);
 	return QDF_STATUS_SUCCESS;
 }
@@ -284,6 +276,7 @@ static QDF_STATUS sme_process_hw_mode_trans_ind(tpAniSirGlobal mac,
 static void free_sme_cmds(tpAniSirGlobal mac_ctx)
 {
 	uint32_t idx;
+
 	if (NULL == mac_ctx->sme.pSmeCmdBufAddr)
 		return;
 
@@ -365,7 +358,7 @@ static QDF_STATUS init_sme_cmd_list(tpAniSirGlobal pMac)
 		qdf_status =
 			qdf_mc_timer_init(pMac->sme.smeCmdActiveList.
 					  cmdTimeoutTimer, QDF_TIMER_TYPE_SW,
-					  active_list_cmd_timeout_handle, (void *)pMac);
+				active_list_cmd_timeout_handle, (void *)pMac);
 
 		if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
@@ -373,10 +366,9 @@ static QDF_STATUS init_sme_cmd_list(tpAniSirGlobal pMac)
 			qdf_mem_free(pMac->sme.smeCmdActiveList.
 				     cmdTimeoutTimer);
 			pMac->sme.smeCmdActiveList.cmdTimeoutTimer = NULL;
-		} else {
+		} else
 			pMac->sme.smeCmdActiveList.cmdTimeoutDuration =
 				SME_ACTIVE_LIST_CMD_TIMEOUT_VALUE;
-		}
 	}
 
 end:
@@ -389,7 +381,8 @@ end:
 void sme_release_command(tpAniSirGlobal pMac, tSmeCmd *pCmd)
 {
 	pCmd->command = eSmeNoCommand;
-	csr_ll_insert_tail(&pMac->sme.smeCmdFreeList, &pCmd->Link, LL_ACCESS_LOCK);
+	csr_ll_insert_tail(&pMac->sme.smeCmdFreeList, &pCmd->Link,
+			LL_ACCESS_LOCK);
 }
 
 static void sme_release_cmd_list(tpAniSirGlobal pMac, tDblLinkList *pList)
@@ -398,8 +391,9 @@ static void sme_release_cmd_list(tpAniSirGlobal pMac, tDblLinkList *pList)
 	tSmeCmd *pCommand;
 
 	while ((pEntry = csr_ll_remove_head(pList, LL_ACCESS_LOCK)) != NULL) {
-		/* TODO: base on command type to call release functions */
-		/* reinitialize different command types so they can be reused */
+		/* TODO: base on command type to call release functions
+		 * reinitialize different command types so they can be reused
+		 */
 		pCommand = GET_BASE_ADDR(pEntry, tSmeCmd, Link);
 		sme_abort_command(pMac, pCommand, true);
 	}
@@ -434,10 +428,10 @@ void purge_sme_session_cmd_list(tpAniSirGlobal pMac, uint32_t sessionId,
 		pNext = csr_ll_next(pList, pEntry, LL_ACCESS_NOLOCK);
 		pCommand = GET_BASE_ADDR(pEntry, tSmeCmd, Link);
 		if (pCommand->sessionId == sessionId) {
-			if (csr_ll_remove_entry(pList, pEntry, LL_ACCESS_NOLOCK)) {
+			if (csr_ll_remove_entry(pList, pEntry,
+						LL_ACCESS_NOLOCK))
 				csr_ll_insert_tail(&localList, pEntry,
 						   LL_ACCESS_NOLOCK);
-			}
 		}
 		pEntry = pNext;
 	}
@@ -475,9 +469,8 @@ static QDF_STATUS free_sme_cmd_list(tpAniSirGlobal pMac)
 	free_sme_cmds(pMac);
 
 	status = qdf_mutex_release(&pMac->sme.lkSmeGlobalLock);
-	if (status != QDF_STATUS_SUCCESS) {
+	if (status != QDF_STATUS_SUCCESS)
 		sme_err("Failed to release the lock status: %d", status);
-	}
 done:
 	return status;
 }
@@ -538,18 +531,19 @@ tSmeCmd *sme_get_command_buffer(tpAniSirGlobal pMac)
 
 		/* Cannot change pRetCmd here since it needs to return later. */
 		pEntry =
-			csr_ll_peek_head(&pMac->sme.smeCmdActiveList, LL_ACCESS_LOCK);
-		if (pEntry) {
+			csr_ll_peek_head(&pMac->sme.smeCmdActiveList,
+					LL_ACCESS_LOCK);
+		if (pEntry)
 			pTempCmd = GET_BASE_ADDR(pEntry, tSmeCmd, Link);
-		}
-		sme_err(
-			"Out of command buffer.... command (0x%X) stuck",
+
+		sme_err("Out of command buffer.... command (0x%X) stuck",
 			(pTempCmd) ? pTempCmd->command : eSmeNoCommand);
 		if (pTempCmd) {
-			if (eSmeCsrCommandMask & pTempCmd->command) {
-				/* CSR command is stuck. See what the reason code is for that command */
+			if (eSmeCsrCommandMask & pTempCmd->command)
+				/* CSR command is stuck. See what the reason
+				 * code is for that command
+				 */
 				dump_csr_command_info(pMac, pTempCmd);
-			}
 		} /* if(pTempCmd) */
 
 		/* dump what is in the pending queue */
@@ -561,17 +555,17 @@ tSmeCmd *sme_get_command_buffer(tpAniSirGlobal pMac)
 			pTempCmd = GET_BASE_ADDR(pEntry, tSmeCmd, Link);
 			/* Print only 1st five commands from pending queue. */
 			if (idx <= 5)
-				sme_err(
-					"Out of command buffer.... SME pending command #%d (0x%X)",
+				sme_err("out of cmd buff. pending list cmd: %d (0x%X)",
 					idx, pTempCmd->command);
 			idx++;
-			if (eSmeCsrCommandMask & pTempCmd->command) {
-				/* CSR command is stuck. See what the reason code is for that command */
+			if (eSmeCsrCommandMask & pTempCmd->command)
+				/* CSR command is stuck. See what the reason
+				 * code is for that command
+				 */
 				dump_csr_command_info(pMac, pTempCmd);
-			}
-			pEntry =
-				csr_ll_next(&pMac->sme.smeCmdPendingList, pEntry,
-					    LL_ACCESS_NOLOCK);
+
+			pEntry = csr_ll_next(&pMac->sme.smeCmdPendingList,
+						pEntry, LL_ACCESS_NOLOCK);
 		}
 		csr_ll_unlock(&pMac->sme.smeCmdPendingList);
 
@@ -583,17 +577,16 @@ tSmeCmd *sme_get_command_buffer(tpAniSirGlobal pMac)
 					 LL_ACCESS_NOLOCK);
 		while (pEntry  && !sme_command_queue_full) {
 			pTempCmd = GET_BASE_ADDR(pEntry, tSmeCmd, Link);
-			/* Print only 1st five commands from CSR pending queue */
+			/* Print only 1st five commands from CSR pending
+			 * queue
+			 */
 			if (idx <= 5)
-				sme_err(
-					"Out of command buffer.... "
-					"CSR roamCmdPendingList command #%d (0x%X)",
+				sme_err("Out of command buffer. CSR roamCmdPendingList command #%d (0x%X)",
 					idx, pTempCmd->command);
 			idx++;
 			dump_csr_command_info(pMac, pTempCmd);
-			pEntry =
-				csr_ll_next(&pMac->roam.roamCmdPendingList, pEntry,
-					    LL_ACCESS_NOLOCK);
+			pEntry = csr_ll_next(&pMac->roam.roamCmdPendingList,
+						pEntry, LL_ACCESS_NOLOCK);
 		}
 
 		/* Increment static variable so that it prints
@@ -634,18 +627,16 @@ void sme_push_command(tpAniSirGlobal pMac, tSmeCmd *pCmd, bool fHighPriority)
 		return;
 	}
 
-	if (fHighPriority) {
+	if (fHighPriority)
 		csr_ll_insert_head(&pMac->sme.smeCmdPendingList, &pCmd->Link,
 				   LL_ACCESS_LOCK);
-	} else {
+	else
 		csr_ll_insert_tail(&pMac->sme.smeCmdPendingList, &pCmd->Link,
 				   LL_ACCESS_LOCK);
-	}
 
 	/* process the command queue... */
 	sme_process_pending_queue(pMac);
 
-	return;
 }
 
 /* For commands that need to do extra cleanup. */
@@ -666,11 +657,10 @@ static void sme_abort_command(tpAniSirGlobal pMac, tSmeCmd *pCommand,
 			remainOnChanCallback callback =
 				pCommand->u.remainChlCmd.callback;
 			/* process the msg */
-			if (callback) {
+			if (callback)
 				callback(pMac, pCommand->u.remainChlCmd.
 					callbackCtx, eCSR_SCAN_ABORT,
 					pCommand->u.remainChlCmd.scan_id);
-			}
 		}
 		sme_release_command(pMac, pCommand);
 		break;
@@ -689,7 +679,8 @@ tListElem *csr_get_cmd_to_process(tpAniSirGlobal pMac, tDblLinkList *pList,
 	tSmeCmd *pCommand;
 
 	/* Go through the list and return the command whose session id is not
-	 * matching with the current ongoing scan cmd sessionId */
+	 * matching with the current ongoing scan cmd sessionId
+	 */
 	pCurEntry = csr_ll_peek_head(pList, LL_ACCESS_LOCK);
 	while (pCurEntry) {
 		pCommand = GET_BASE_ADDR(pCurEntry, tSmeCmd, Link);
@@ -1058,7 +1049,8 @@ void sme_process_pending_queue(tpAniSirGlobal pMac)
 
 bool sme_command_pending(tpAniSirGlobal pMac)
 {
-	return !csr_ll_is_list_empty(&pMac->sme.smeCmdActiveList, LL_ACCESS_NOLOCK)
+	return !csr_ll_is_list_empty(&pMac->sme.smeCmdActiveList,
+			LL_ACCESS_NOLOCK)
 		|| !csr_ll_is_list_empty(&pMac->sme.smeCmdPendingList,
 					 LL_ACCESS_NOLOCK);
 }
@@ -1239,23 +1231,21 @@ QDF_STATUS sme_init_chan_list(tHalHandle hal, uint8_t *alpha2,
 	return csr_init_chan_list(pmac, alpha2);
 }
 
-/*--------------------------------------------------------------------------
-
-   \brief sme_set11dinfo() - Set the 11d information about valid channels
-   and there power using information from nvRAM
-   This function is called only for AP.
-
-   This is a synchronous call
-
-   \param hHal - The handle returned by mac_open.
-   \Param pSmeConfigParams - a pointer to a caller allocated object of
-   typedef struct _smeConfigParams.
-
-   \return QDF_STATUS_SUCCESS - SME update the config parameters successfully.
-
-   Other status means SME is failed to update the config parameters.
-   \sa
-   --------------------------------------------------------------------------*/
+/**
+ * sme_set11dinfo() - Set the 11d information about valid channels
+ *  and there power using information from nvRAM
+ *  This function is called only for AP.
+ *
+ *  This is a synchronous call
+ *
+ * hHal - The handle returned by mac_open.
+ * pSmeConfigParams - a pointer to a caller allocated object of
+ *  typedef struct _smeConfigParams.
+ *
+ * Return QDF_STATUS_SUCCESS - SME update the config parameters successfully.
+ *
+ *  Other status means SME is failed to update the config parameters.
+ */
 
 QDF_STATUS sme_set11dinfo(tHalHandle hHal, tpSmeConfigParams pSmeConfigParams)
 {
@@ -1287,24 +1277,22 @@ QDF_STATUS sme_set11dinfo(tHalHandle hHal, tpSmeConfigParams pSmeConfigParams)
 void sme_set_scan_disable(tHalHandle h_hal, int value)
 {
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(h_hal);
+
 	mac_ctx->lim.scan_disabled = value;
 }
-/*--------------------------------------------------------------------------
+/**
+ * sme_get_soft_ap_domain() - Get the current regulatory domain of softAp.
+ * This is a synchronous call
+ *
+ * hHal - The handle returned by HostapdAdapter.
+ * v_REGDOMAIN_t - The current Regulatory Domain requested for SoftAp.
+ *
+ * Return QDF_STATUS_SUCCESS - SME successfully completed the request.
+ *  Other status means, failed to get the current regulatory domain.
+ */
 
-   \brief sme_get_soft_ap_domain() - Get the current regulatory domain of softAp.
-
-   This is a synchronous call
-
-   \param hHal - The handle returned by HostapdAdapter.
-   \Param v_REGDOMAIN_t - The current Regulatory Domain requested for SoftAp.
-
-   \return QDF_STATUS_SUCCESS - SME successfully completed the request.
-
-   Other status means, failed to get the current regulatory domain.
-   \sa
-   --------------------------------------------------------------------------*/
-
-QDF_STATUS sme_get_soft_ap_domain(tHalHandle hHal, v_REGDOMAIN_t *domainIdSoftAp)
+QDF_STATUS sme_get_soft_ap_domain(tHalHandle hHal, v_REGDOMAIN_t
+				*domainIdSoftAp)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
@@ -1342,9 +1330,9 @@ QDF_STATUS sme_set_reg_info(tHalHandle hHal, uint8_t *apCntryCode)
 	}
 
 	status = csr_set_reg_info(hHal, apCntryCode);
-	if (!QDF_IS_STATUS_SUCCESS(status)) {
+	if (!QDF_IS_STATUS_SUCCESS(status))
 		sme_err("csr_set_reg_info failed with status: %d", status);
-	}
+
 	return status;
 }
 
@@ -1360,6 +1348,7 @@ void sme_update_fine_time_measurement_capab(tHalHandle hal, uint8_t session_id,
 						uint32_t val)
 {
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+
 	mac_ctx->fine_time_meas_cap = val;
 
 	if (!val) {
@@ -1378,28 +1367,22 @@ void sme_update_fine_time_measurement_capab(tHalHandle hal, uint8_t session_id,
 			REASON_CONNECT_IES_CHANGED);
 }
 
-/*--------------------------------------------------------------------------
-
-   \brief sme_update_config() - Change configurations for all SME moduels
-
-   The function updates some configuration for modules in SME, CSR, etc
-   during SMEs close open sequence.
-
-   Modules inside SME apply the new configuration at the next transaction.
-
-   This is a synchronous call
-
-   \param hHal - The handle returned by mac_open.
-   \Param pSmeConfigParams - a pointer to a caller allocated object of
-   typedef struct _smeConfigParams.
-
-   \return QDF_STATUS_SUCCESS - SME update the config parameters successfully.
-
-   Other status means SME is failed to update the config parameters.
-   \sa
-
-   --------------------------------------------------------------------------*/
-QDF_STATUS sme_update_config(tHalHandle hHal, tpSmeConfigParams pSmeConfigParams)
+/**
+ * sme_update_config() - Change configurations for all SME moduels
+ * The function updates some configuration for modules in SME, CSR, etc
+ *  during SMEs close open sequence.
+ * Modules inside SME apply the new configuration at the next transaction.
+ * This is a synchronous call
+ *
+ * @hHal - The handle returned by mac_open.
+ * @pSmeConfigParams - a pointer to a caller allocated object of
+ *  typedef struct _smeConfigParams.
+ *
+ * Return QDF_STATUS_SUCCESS - SME update the config parameters successfully.
+ *  Other status means SME is failed to update the config parameters.
+ */
+QDF_STATUS sme_update_config(tHalHandle hHal, tpSmeConfigParams
+				pSmeConfigParams)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
@@ -1412,25 +1395,25 @@ QDF_STATUS sme_update_config(tHalHandle hHal, tpSmeConfigParams pSmeConfigParams
 		return status;
 	}
 
-	status =
-		csr_change_default_config_param(pMac, &pSmeConfigParams->csrConfig);
+	status = csr_change_default_config_param(pMac, &pSmeConfigParams->
+						csrConfig);
 
-	if (!QDF_IS_STATUS_SUCCESS(status)) {
+	if (!QDF_IS_STATUS_SUCCESS(status))
 		sme_err("csr_change_default_config_param failed status: %d",
 			status);
-	}
-	status =
-		rrm_change_default_config_param(hHal, &pSmeConfigParams->rrmConfig);
 
-	if (!QDF_IS_STATUS_SUCCESS(status)) {
+	status = rrm_change_default_config_param(hHal, &pSmeConfigParams->
+						rrmConfig);
+
+	if (!QDF_IS_STATUS_SUCCESS(status))
 		sme_err("rrm_change_default_config_param failed status: %d",
 			status);
-	}
-	/* For SOC, CFG is set before start */
-	/* We don't want to apply global CFG in connect state because that may cause some side affect */
-	if (csr_is_all_session_disconnected(pMac)) {
+
+	/* For SOC, CFG is set before start We don't want to apply global CFG
+	 * in connect state because that may cause some side affect
+	 */
+	if (csr_is_all_session_disconnected(pMac))
 		csr_set_global_cfgs(pMac);
-	}
 
 	/*
 	 * If scan offload is enabled then lim has allow the sending of
@@ -1439,10 +1422,10 @@ QDF_STATUS sme_update_config(tHalHandle hHal, tpSmeConfigParams pSmeConfigParams
 	 */
 	status = sme_cfg_set_int(hHal, WNI_CFG_SCAN_IN_POWERSAVE, true);
 
-	if (QDF_STATUS_SUCCESS != status) {
+	if (QDF_STATUS_SUCCESS != status)
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 			  "Could not pass on WNI_CFG_SCAN_IN_POWERSAVE to CFG");
-	}
+
 	return status;
 }
 
@@ -1553,22 +1536,18 @@ static void sme_process_get_gtk_info_rsp(tHalHandle hHal,
 }
 #endif
 
-/*--------------------------------------------------------------------------
-
-   \fn    - sme_process_ready_to_suspend
-   \brief - On getting ready to suspend indication, this function calls
-	    callback registered (HDD callbacks) with SME to inform
-	    ready to suspend indication.
-
-   \param hHal - Handle returned by mac_open.
-	  pReadyToSuspend - Parameter received along with ready to suspend
-			    indication from WMA.
-
-   \return None
-
-   \sa
-
-   --------------------------------------------------------------------------*/
+/**
+ * sme_process_ready_to_suspend() -
+ * On getting ready to suspend indication, this function calls
+ * callback registered (HDD callbacks) with SME to inform ready
+ * to suspend indication.
+ *
+ * hHal - Handle returned by mac_open.
+ * pReadyToSuspend - Parameter received along with ready to suspend
+ *			    indication from WMA.
+ *
+ * Return None
+ */
 static void sme_process_ready_to_suspend(tHalHandle hHal,
 					 tpSirReadyToSuspendInd pReadyToSuspend)
 {
@@ -1621,24 +1600,19 @@ static void sme_process_ready_to_ext_wow(tHalHandle hHal,
 }
 #endif
 
-/*--------------------------------------------------------------------------
-
-   \brief sme_hdd_ready_ind() - SME sends eWNI_SME_SYS_READY_IND to PE to inform
-   that the NIC is ready tio run.
-
-   The function is called by HDD at the end of initialization stage so PE/HAL can
-   enable the NIC to running state.
-
-   This is a synchronous call
-   \param hHal - The handle returned by mac_open.
-
-   \return QDF_STATUS_SUCCESS - eWNI_SME_SYS_READY_IND is sent to PE
-				successfully.
-
-   Other status means SME failed to send the message to PE.
-   \sa
-
-   --------------------------------------------------------------------------*/
+/**
+ * sme_hdd_ready_ind() - SME sends eWNI_SME_SYS_READY_IND to PE to inform
+ *  that the NIC is ready tio run.
+ * The function is called by HDD at the end of initialization stage so PE/HAL
+ * can enable the NIC to running state.
+ * This is a synchronous call
+ *
+ * @param hHal - The handle returned by mac_open.
+ *
+ * Return QDF_STATUS_SUCCESS - eWNI_SME_SYS_READY_IND is sent to PE
+ *				successfully.
+ * Other status means SME failed to send the message to PE.
+ */
 QDF_STATUS sme_hdd_ready_ind(tHalHandle hHal)
 {
 	tSirSmeReadyReq Msg;
@@ -1655,9 +1629,10 @@ QDF_STATUS sme_hdd_ready_ind(tHalHandle hHal)
 		Msg.csr_roam_synch_cb = csr_roam_synch_callback;
 		Msg.sme_msg_cb = sme_process_msg_callback;
 
-		if (eSIR_FAILURE != u_mac_post_ctrl_msg(hHal, (tSirMbMsg *) &Msg)) {
+		if (eSIR_FAILURE != u_mac_post_ctrl_msg(hHal, (tSirMbMsg *)
+							&Msg))
 			status = QDF_STATUS_SUCCESS;
-		} else {
+		else {
 			sme_err("u_mac_post_ctrl_msg failed to send eWNI_SME_SYS_READY_IND");
 			break;
 		}
@@ -1674,21 +1649,17 @@ QDF_STATUS sme_hdd_ready_ind(tHalHandle hHal)
 	return status;
 }
 
-/*--------------------------------------------------------------------------
-
-   \brief sme_start() - Put all SME modules at ready state.
-
-   The function starts each module in SME, PMC, CSR, etc. . Upon
-   successfully return, all modules are ready to run.
-   This is a synchronous call
-   \param hHal - The handle returned by mac_open.
-
-   \return QDF_STATUS_SUCCESS - SME is ready.
-
-   Other status means SME is failed to start
-   \sa
-
-   --------------------------------------------------------------------------*/
+/**
+ * sme_start() - Put all SME modules at ready state.
+ *  The function starts each module in SME, PMC, CSR, etc. . Upon
+ *  successfully return, all modules are ready to run.
+ *  This is a synchronous call
+ *
+ * @hHal - The handle returned by mac_open.
+ *
+ * Return QDF_STATUS_SUCCESS - SME is ready.
+ * Other status means SME is failed to start
+ */
 QDF_STATUS sme_start(tHalHandle hHal)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
@@ -1757,9 +1728,9 @@ static QDF_STATUS sme_handle_scan_req(tpAniSirGlobal mac_ctx,
 	status = csr_scan_request(mac_ctx, session_id,
 		scan_msg->scan_param,
 		callback, scan_msg->ctx);
-	if (!QDF_IS_STATUS_SUCCESS(status)) {
+	if (!QDF_IS_STATUS_SUCCESS(status))
 		sme_err("Scan request failed. session_id: %d", session_id);
-	}
+
 	csr_scan_free_request(mac_ctx, scan_msg->scan_param);
 	qdf_mem_free(scan_msg->scan_param);
 	return status;
@@ -1793,21 +1764,18 @@ static QDF_STATUS sme_handle_roc_req(tHalHandle hal,
 		roc_msg->channel, roc_msg->duration, callback,
 		roc_msg->ctx, roc_msg->is_p2pprobe_allowed,
 		roc_msg->scan_id);
-	if (!QDF_IS_STATUS_SUCCESS(status)) {
+	if (!QDF_IS_STATUS_SUCCESS(status))
 		sme_err("Scan request failed. session_id: %d scan_id: %d",
 			roc_msg->session_id, roc_msg->scan_id);
-	}
+
 	return status;
 }
 
 #ifdef WLAN_FEATURE_11W
-/*------------------------------------------------------------------
- *
+/*
  * Handle the unprotected management frame indication from LIM and
  * forward it to HDD.
- *
- *------------------------------------------------------------------*/
-
+ */
 QDF_STATUS sme_unprotected_mgmt_frm_ind(tHalHandle hHal,
 					tpSirSmeUnprotMgmtFrameInd pSmeMgmtFrm)
 {
@@ -1828,12 +1796,9 @@ QDF_STATUS sme_unprotected_mgmt_frm_ind(tHalHandle hHal,
 }
 #endif
 
-/*------------------------------------------------------------------
- *
- * Handle the DFS Radar Event and indicate it to the SAP
- *
- *------------------------------------------------------------------*/
-QDF_STATUS dfs_msg_processor(tpAniSirGlobal pMac, uint16_t msgType, void *pMsgBuf)
+/* Handle the DFS Radar Event and indicate it to the SAP */
+QDF_STATUS dfs_msg_processor(tpAniSirGlobal pMac, uint16_t msgType,
+			void *pMsgBuf)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	tCsrRoamInfo roamInfo = { 0 };
@@ -2120,12 +2085,13 @@ static QDF_STATUS sme_tsm_ie_ind(tHalHandle hHal, tSirSmeTsmIEInd *pSmeTsmIeInd)
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	tCsrRoamInfo pRoamInfo = { 0 };
 	uint32_t SessionId = pSmeTsmIeInd->sessionId;
+
 	pRoamInfo.tsmIe.tsid = pSmeTsmIeInd->tsmIe.tsid;
 	pRoamInfo.tsmIe.state = pSmeTsmIeInd->tsmIe.state;
 	pRoamInfo.tsmIe.msmt_interval = pSmeTsmIeInd->tsmIe.msmt_interval;
 	/* forward the tsm ie information to HDD */
 	csr_roam_call_callback(pMac,
-			       SessionId, &pRoamInfo, 0, eCSR_ROAM_TSM_IE_IND, 0);
+			     SessionId, &pRoamInfo, 0, eCSR_ROAM_TSM_IE_IND, 0);
 	return status;
 }
 
@@ -2146,6 +2112,7 @@ QDF_STATUS sme_set_cckm_ie(tHalHandle hHal, uint8_t sessionId,
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
+
 	status = sme_acquire_global_lock(&pMac->sme);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
 		csr_set_cckm_ie(pMac, sessionId, pCckmIe, cckmIeLen);
@@ -2402,17 +2369,16 @@ static QDF_STATUS sme_process_dual_mac_config_resp(tpAniSirGlobal mac,
 
 	callback = command->u.set_dual_mac_cmd.set_dual_mac_cb;
 	if (callback) {
-		if (!param) {
+		if (!param)
 			sme_err("Callback failed-Dual mac config is NULL");
-		} else {
+		else {
 			sme_debug("Calling HDD callback for Dual mac config");
 			callback(param->status,
 				command->u.set_dual_mac_cmd.scan_config,
 				command->u.set_dual_mac_cmd.fw_mode_config);
 		}
-	} else {
+	} else
 		sme_err("Callback does not exist");
-	}
 
 	found = csr_ll_remove_entry(&mac->sme.smeCmdActiveList, entry,
 			LL_ACCESS_LOCK);
@@ -2443,12 +2409,11 @@ static QDF_STATUS sme_process_antenna_mode_resp(tpAniSirGlobal mac,
 	struct sir_antenna_mode_resp *param;
 
 	param = (struct sir_antenna_mode_resp *)msg;
-	if (!param) {
+	if (!param)
 		sme_err("set antenna mode resp is NULL");
 		/* Not returning. Need to check if active command list
 		 * needs to be freed
 		 */
-	}
 
 	entry = csr_ll_peek_head(&mac->sme.smeCmdActiveList,
 			LL_ACCESS_LOCK);
@@ -2471,14 +2436,12 @@ static QDF_STATUS sme_process_antenna_mode_resp(tpAniSirGlobal mac,
 	callback =
 		command->u.set_antenna_mode_cmd.set_antenna_mode_resp;
 	if (callback) {
-		if (!param) {
+		if (!param)
 			sme_err("Set antenna mode call back is NULL");
-		} else {
+		else
 			callback(param->status);
-		}
-	} else {
+	} else
 		sme_err("Callback does not exist");
-	}
 
 	found = csr_ll_remove_entry(&mac->sme.smeCmdActiveList, entry,
 			LL_ACCESS_LOCK);
@@ -2490,23 +2453,18 @@ static QDF_STATUS sme_process_antenna_mode_resp(tpAniSirGlobal mac,
 	return QDF_STATUS_SUCCESS;
 }
 
-/*--------------------------------------------------------------------------
-
-   \brief sme_process_msg() - The main message processor for SME.
-
-   The function is called by a message dispatcher when to process a message
-   targeted for SME.
-
-   This is a synchronous call
-   \param hHal - The handle returned by mac_open.
-   \param pMsg - A pointer to a caller allocated object of tSirMsgQ.
-
-   \return QDF_STATUS_SUCCESS - SME successfully process the message.
-
-   Other status means SME failed to process the message to HAL.
-   \sa
-
-   --------------------------------------------------------------------------*/
+/**
+ * sme_process_msg() - The main message processor for SME.
+ *  The function is called by a message dispatcher when to process a message
+ *  targeted for SME.
+ *  This is a synchronous call
+ *
+ * @hHal - The handle returned by mac_open.
+ * @pMsg - A pointer to a caller allocated object of tSirMsgQ.
+ *
+ * Return QDF_STATUS_SUCCESS - SME successfully process the message.
+ * Other status means SME failed to process the message to HAL.
+ */
 QDF_STATUS sme_process_msg(tHalHandle hHal, cds_msg_t *pMsg)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
@@ -2597,7 +2555,7 @@ QDF_STATUS sme_process_msg(tHalHandle hHal, cds_msg_t *pMsg)
 						       pMsg->bodyptr);
 			qdf_mem_free(pMsg->bodyptr);
 		} else {
-			sme_err("Empty message for: %d",	pMsg->type);
+			sme_err("Empty message for: %d", pMsg->type);
 		}
 		break;
 	case eWNI_SME_ADD_STA_SELF_RSP:
@@ -2864,11 +2822,11 @@ QDF_STATUS sme_process_msg(tHalHandle hHal, cds_msg_t *pMsg)
 		tAniGetLinkStatus *pLinkStatus =
 			(tAniGetLinkStatus *) pMsg->bodyptr;
 		if (pLinkStatus) {
-			if (pMac->sme.linkStatusCallback) {
+			if (pMac->sme.linkStatusCallback)
 				pMac->sme.linkStatusCallback(
 					pLinkStatus->linkStatus,
 					pMac->sme.linkStatusContext);
-			}
+
 			pMac->sme.linkStatusCallback = NULL;
 			pMac->sme.linkStatusContext = NULL;
 			qdf_mem_free(pLinkStatus);
@@ -2876,14 +2834,14 @@ QDF_STATUS sme_process_msg(tHalHandle hHal, cds_msg_t *pMsg)
 		break;
 	}
 	case eWNI_SME_MSG_GET_TEMPERATURE_IND:
-		if (pMac->sme.pGetTemperatureCb) {
+		if (pMac->sme.pGetTemperatureCb)
 			pMac->sme.pGetTemperatureCb(pMsg->bodyval,
 					pMac->sme.pTemperatureCbContext);
-		}
 		break;
 	case eWNI_SME_SNR_IND:
 	{
 		tAniGetSnrReq *pSnrReq = (tAniGetSnrReq *) pMsg->bodyptr;
+
 		if (pSnrReq) {
 			if (pSnrReq->snrCallback) {
 				((tCsrSnrCallback)
@@ -3023,7 +2981,7 @@ QDF_STATUS sme_process_msg(tHalHandle hHal, cds_msg_t *pMsg)
 	case eWNI_SME_EXT_CHANGE_CHANNEL_IND:
 		 status = sme_extended_change_channel_ind(pMac, pMsg->bodyptr);
 		 qdf_mem_free(pMsg->bodyptr);
-		 break;
+		break;
 	case eWNI_SME_SET_ANTENNA_MODE_RESP:
 		if (pMsg->bodyptr) {
 			status = sme_process_antenna_mode_resp(pMac,
@@ -3112,7 +3070,7 @@ release_lock:
  * Processes the nss update response and invokes the HDD
  * callback to process further
  */
-QDF_STATUS sme_process_nss_update_resp(tpAniSirGlobal mac, uint8_t *msg)
+static QDF_STATUS sme_process_nss_update_resp(tpAniSirGlobal mac, uint8_t *msg)
 {
 	tListElem *entry = NULL;
 	tSmeCmd *command = NULL;
@@ -3121,12 +3079,11 @@ QDF_STATUS sme_process_nss_update_resp(tpAniSirGlobal mac, uint8_t *msg)
 	struct sir_beacon_tx_complete_rsp *param;
 
 	param = (struct sir_beacon_tx_complete_rsp *)msg;
-	if (!param) {
+	if (!param)
 		sme_err("nss update resp param is NULL");
 		/* Not returning. Need to check if active command list
 		 * needs to be freed
 		 */
-	}
 
 	entry = csr_ll_peek_head(&mac->sme.smeCmdActiveList,
 			LL_ACCESS_LOCK);
@@ -3148,59 +3105,52 @@ QDF_STATUS sme_process_nss_update_resp(tpAniSirGlobal mac, uint8_t *msg)
 
 	callback = command->u.nss_update_cmd.nss_update_cb;
 	if (callback) {
-		if (!param) {
+		if (!param)
 			sme_err("Callback failed since nss update params is NULL");
-		} else {
+		else
 			callback(command->u.nss_update_cmd.context,
 				param->tx_status,
 				param->session_id,
 				command->u.nss_update_cmd.next_action,
 				command->u.nss_update_cmd.reason);
-		}
-	} else {
+	} else
 		sme_err("Callback does not exisit");
-	}
 
 	found = csr_ll_remove_entry(&mac->sme.smeCmdActiveList, entry,
 			LL_ACCESS_LOCK);
-	if (found) {
+	if (found)
 		/* Now put this command back on the avilable command list */
 		sme_release_command(mac, command);
-	}
 	sme_process_pending_queue(mac);
 	return QDF_STATUS_SUCCESS;
 }
 
-/* No need to hold the global lock here because this function can only be called */
-/* after sme_stop. */
+/* No need to hold the global lock here because this function can only be
+ * called after sme_stop.
+ */
 void sme_free_msg(tHalHandle hHal, cds_msg_t *pMsg)
 {
 	if (pMsg) {
-		if (pMsg->bodyptr) {
+		if (pMsg->bodyptr)
 			qdf_mem_free(pMsg->bodyptr);
-		}
 	}
 
 }
 
-/*--------------------------------------------------------------------------
-
-   \brief sme_stop() - Stop all SME modules and put them at idle state
-
-   The function stops each module in SME, PMC, CSR, etc. . Upon
-   return, all modules are at idle state ready to start.
-
-   This is a synchronous call
-   \param hHal - The handle returned by mac_open
-   \param tHalStopType - reason for stopping
-
-   \return QDF_STATUS_SUCCESS - SME is stopped.
-
-   Other status means SME is failed to stop but caller should still
-   consider SME is stopped.
-   \sa
-
-   --------------------------------------------------------------------------*/
+/**
+ * sme_stop() - Stop all SME modules and put them at idle state
+ *
+ *  The function stops each module in SME, PMC, CSR, etc. . Upon
+ *  return, all modules are at idle state ready to start.
+ *  This is a synchronous call
+ *
+ * @hHal - The handle returned by mac_open
+ * @tHalStopType - reason for stopping
+ *
+ * Return QDF_STATUS_SUCCESS - SME is stopped.
+ *  Other status means SME is failed to stop but caller should still
+ *  consider SME is stopped.
+ */
 QDF_STATUS sme_stop(tHalHandle hHal, tHalStopType stopType)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
@@ -3217,34 +3167,29 @@ QDF_STATUS sme_stop(tHalHandle hHal, tHalStopType stopType)
 
 	purge_sme_cmd_list(pMac);
 
-	if (!QDF_IS_STATUS_SUCCESS(fail_status)) {
+	if (!QDF_IS_STATUS_SUCCESS(fail_status))
 		status = fail_status;
-	}
 
 	pMac->sme.state = SME_STATE_STOP;
 
 	return status;
 }
 
-/*--------------------------------------------------------------------------
-
-   \brief sme_close() - Release all SME modules and their resources.
-
-   The function release each module in SME, PMC, CSR, etc. . Upon
-   return, all modules are at closed state.
-
-   No SME APIs can be involved after smeClose except smeOpen.
-   smeClose must be called before mac_close.
-   This is a synchronous call
-   \param hHal - The handle returned by mac_open
-
-   \return QDF_STATUS_SUCCESS - SME is successfully close.
-
-   Other status means SME is failed to be closed but caller still cannot
-   call any other SME functions except smeOpen.
-   \sa
-
-   --------------------------------------------------------------------------*/
+/**
+ * sme_close() - Release all SME modules and their resources.
+ * The function release each module in SME, PMC, CSR, etc. . Upon
+ *  return, all modules are at closed state.
+ *
+ *  No SME APIs can be involved after smeClose except smeOpen.
+ *  smeClose must be called before mac_close.
+ *  This is a synchronous call
+ *
+ * @hHal - The handle returned by mac_open
+ *
+ * Return QDF_STATUS_SUCCESS - SME is successfully close.
+ * Other status means SME is failed to be closed but caller still cannot
+ *  call any other SME functions except smeOpen.
+ */
 QDF_STATUS sme_close(tHalHandle hHal)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
@@ -3284,13 +3229,11 @@ QDF_STATUS sme_close(tHalHandle hHal)
 	free_sme_cmd_list(pMac);
 
 	if (!QDF_IS_STATUS_SUCCESS
-		    (qdf_mutex_destroy(&pMac->sme.lkSmeGlobalLock))) {
+		    (qdf_mutex_destroy(&pMac->sme.lkSmeGlobalLock)))
 		fail_status = QDF_STATUS_E_FAILURE;
-	}
 
-	if (!QDF_IS_STATUS_SUCCESS(fail_status)) {
+	if (!QDF_IS_STATUS_SUCCESS(fail_status))
 		status = fail_status;
-	}
 
 	pMac->sme.state = SME_STATE_STOP;
 
@@ -3409,14 +3352,15 @@ QDF_STATUS sme_scan_request(tHalHandle hal, uint8_t session_id,
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_scan_get_result
-    \brief a wrapper function to request scan results from CSR.
-    This is a synchronous call
-    \param pFilter - If pFilter is NULL, all cached results are returned
-    \param phResult - an object for the result.
-    \return QDF_STATUS
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_scan_get_result()- A wrapper function to request scan results from CSR.
+ * This is a synchronous call
+ *
+ * @pFilter - If pFilter is NULL, all cached results are returned
+ * @phResult - an object for the result.
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_scan_get_result(tHalHandle hHal, uint8_t sessionId,
 			       tCsrScanResultFilter *pFilter,
 			       tScanResultHandle *phResult)
@@ -3486,37 +3430,35 @@ QDF_STATUS sme_get_ap_channel_from_scan_cache(tHalHandle hal_handle,
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 				FL("scan_filter mem alloc failed"));
 		return QDF_STATUS_E_FAILURE;
-	} else {
-		qdf_mem_set(&first_ap_profile, sizeof(tSirBssDescription), 0);
-
-		if (NULL == profile) {
-			scan_filter->EncryptionType.numEntries = 1;
-			scan_filter->EncryptionType.encryptionType[0]
+	}
+	qdf_mem_set(&first_ap_profile, sizeof(tSirBssDescription), 0);
+	if (NULL == profile) {
+		scan_filter->EncryptionType.numEntries = 1;
+		scan_filter->EncryptionType.encryptionType[0]
 				= eCSR_ENCRYPT_TYPE_NONE;
-		} else {
-			/* Here is the profile we need to connect to */
-			status = csr_roam_prepare_filter_from_profile(mac_ctx,
+	} else {
+		/* Here is the profile we need to connect to */
+		status = csr_roam_prepare_filter_from_profile(mac_ctx,
 					profile,
 					scan_filter);
-		}
+	}
 
-		if (QDF_STATUS_SUCCESS == status) {
-			/* Save the WPS info */
-			if (NULL != profile) {
-				scan_filter->bWPSAssociation =
+	if (QDF_STATUS_SUCCESS == status) {
+		/* Save the WPS info */
+		if (NULL != profile) {
+			scan_filter->bWPSAssociation =
 						 profile->bWPSAssociation;
-				scan_filter->bOSENAssociation =
+			scan_filter->bOSENAssociation =
 						 profile->bOSENAssociation;
-			} else {
-				scan_filter->bWPSAssociation = 0;
-				scan_filter->bOSENAssociation = 0;
-			}
 		} else {
-			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-				FL("Preparing the profile filter failed"));
-			qdf_mem_free(scan_filter);
-			return QDF_STATUS_E_FAILURE;
+			scan_filter->bWPSAssociation = 0;
+			scan_filter->bOSENAssociation = 0;
 		}
+	} else {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			FL("Preparing the profile filter failed"));
+		qdf_mem_free(scan_filter);
+		return QDF_STATUS_E_FAILURE;
 	}
 	status = sme_acquire_global_lock(&mac_ctx->sme);
 	if (QDF_STATUS_SUCCESS == status) {
@@ -3591,9 +3533,8 @@ bool sme_store_joinreq_param(tHalHandle hal_handle,
 	status = sme_acquire_global_lock(&mac_ctx->sme);
 	if (QDF_STATUS_SUCCESS == status) {
 		if (false == csr_store_joinreq_param(mac_ctx, profile,
-					scan_cache, roam_id, session_id)) {
+					scan_cache, roam_id, session_id))
 			ret_status = false;
-		}
 		sme_release_global_lock(&mac_ctx->sme);
 	} else {
 		ret_status = false;
@@ -3626,9 +3567,8 @@ bool sme_clear_joinreq_param(tHalHandle hal_handle,
 	status = sme_acquire_global_lock(&mac_ctx->sme);
 	if (QDF_STATUS_SUCCESS == status) {
 		if (false == csr_clear_joinreq_param(mac_ctx,
-					session_id)) {
+					session_id))
 			ret_status = false;
-		}
 		sme_release_global_lock(&mac_ctx->sme);
 	} else {
 		ret_status = false;
@@ -3675,12 +3615,15 @@ QDF_STATUS sme_issue_stored_joinreq(tHalHandle hal_handle,
 	return ret_status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_scan_flush_result
-    \brief a wrapper function to request CSR to clear scan results.
-    This is a synchronous call
-    \return QDF_STATUS
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_scan_flush_result() - A wrapper function to request CSR to clear scan
+ * results.
+ * This is a synchronous call
+ *
+ * @hHal: pointer to hal context
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_scan_flush_result(tHalHandle hHal)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
@@ -3698,14 +3641,16 @@ QDF_STATUS sme_scan_flush_result(tHalHandle hHal)
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_filter_scan_results
-    \brief a wrapper function to request CSR to clear scan results.
-    This is a synchronous call
-    \param tHalHandle - HAL context handle
-    \param sessionId - session id
-    \return QDF_STATUS
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_filter_scan_results() - A wrapper function to request CSR to clear scan
+ * results.
+ *   This is a synchronous call
+ *
+ * @tHalHandle - HAL context handle
+ * @sessionId - session id
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_filter_scan_results(tHalHandle hHal, uint8_t sessionId)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
@@ -3740,14 +3685,15 @@ QDF_STATUS sme_scan_flush_p2p_result(tHalHandle hHal, uint8_t sessionId)
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_scan_result_get_first
-    \brief a wrapper function to request CSR to returns the first element of
-	scan result.
-    This is a synchronous call
-    \param hScanResult - returned from csr_scan_get_result
-    \return tCsrScanResultInfo * - NULL if no result
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_scan_result_get_first() - A wrapper function to request CSR to returns
+ * the first element of scan result.
+ * This is a synchronous call
+ *
+ * @hScanResult - returned from csr_scan_get_result
+ *
+ * Return tCsrScanResultInfo * - NULL if no result
+ */
 tCsrScanResultInfo *sme_scan_result_get_first(tHalHandle hHal,
 					      tScanResultHandle hScanResult)
 {
@@ -3767,15 +3713,16 @@ tCsrScanResultInfo *sme_scan_result_get_first(tHalHandle hHal,
 	return pRet;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_scan_result_get_next
-    \brief a wrapper function to request CSR to returns the next element of
-	scan result. It can be called without calling csr_scan_result_get_first
-	first
-    This is a synchronous call
-    \param hScanResult - returned from csr_scan_get_result
-    \return Null if no result or reach the end
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_scan_result_get_next() - A wrapper function to request CSR to returns
+ * the next element of scan result. It can be called without calling
+ * csr_scan_result_get_first first
+ *   This is a synchronous call
+ *
+ * @hScanResult - returned from csr_scan_get_result
+ *
+ * Return Null if no result or reach the end
+ */
 tCsrScanResultInfo *sme_scan_result_get_next(tHalHandle hHal,
 					     tScanResultHandle hScanResult)
 {
@@ -3792,16 +3739,17 @@ tCsrScanResultInfo *sme_scan_result_get_next(tHalHandle hHal,
 	return pRet;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_scan_result_purge
-    \brief a wrapper function to request CSR to remove all items(tCsrScanResult)
-	in the list and free memory for each item
-    This is a synchronous call
-    \param hScanResult - returned from csr_scan_get_result. hScanResult is
-			 considered gone by
-    calling this function and even before this function reutrns.
-    \return QDF_STATUS
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_scan_result_purge() - A wrapper function to request CSR to remove all
+ * items(tCsrScanResult) in the list and free memory for each item
+ *   This is a synchronous call
+ *
+ * @hScanResult - returned from csr_scan_get_result. hScanResult is
+ *	considered gone by
+ *  calling this function and even before this function reutrns.
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_scan_result_purge(tHalHandle hHal, tScanResultHandle hScanResult)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
@@ -3819,22 +3767,24 @@ QDF_STATUS sme_scan_result_purge(tHalHandle hHal, tScanResultHandle hScanResult)
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_scan_get_pmkid_candidate_list
-    \brief a wrapper function to return the PMKID candidate list
-    This is a synchronous call
-    \param pPmkidList - caller allocated buffer point to an array of
-			tPmkidCandidateInfo
-    \param pNumItems - pointer to a variable that has the number of
-		       tPmkidCandidateInfo allocated when retruning, this is
-		       either the number needed or number of items put into
-		       pPmkidList
-    \return QDF_STATUS - when fail, it usually means the buffer allocated is not
-			 big enough and pNumItems
-			 has the number of tPmkidCandidateInfo.
-    \Note: pNumItems is a number of tPmkidCandidateInfo,
-	   not sizeof(tPmkidCandidateInfo) * something
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_scan_get_pmkid_candidate_list() - A wrapper function to return the
+ * PMKID candidate list
+ *   This is a synchronous call
+ *
+ * @pPmkidList - caller allocated buffer point to an array of
+ *			tPmkidCandidateInfo
+ * @pNumItems - pointer to a variable that has the number of
+ *		       tPmkidCandidateInfo allocated when retruning, this is
+ *		       either the number needed or number of items put into
+ *		       pPmkidList
+ *
+ * Return QDF_STATUS - when fail, it usually means the buffer allocated is not
+ *			 big enough and pNumItems
+ *			 has the number of tPmkidCandidateInfo.
+ *  \Note: pNumItems is a number of tPmkidCandidateInfo,
+ *	   not sizeof(tPmkidCandidateInfo) * something
+ */
 QDF_STATUS sme_scan_get_pmkid_candidate_list(tHalHandle hHal, uint8_t sessionId,
 					     tPmkidCandidateInfo *pPmkidList,
 					     uint32_t *pNumItems)
@@ -3857,15 +3807,17 @@ QDF_STATUS sme_scan_get_pmkid_candidate_list(tHalHandle hHal, uint8_t sessionId,
 eCsrPhyMode sme_get_phy_mode(tHalHandle hHal)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
 	return pMac->roam.configParam.phyMode;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_get_channel_bonding_mode5_g
-    \brief get the channel bonding mode for 5G band
-    \param hHal - HAL handle
-    \return channel bonding mode for 5G
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_get_channel_bonding_mode5_g() - get the channel bonding mode for 5G band
+ *
+ * @hHal - HAL handle
+ *
+ * Return channel bonding mode for 5G
+ */
 uint32_t sme_get_channel_bonding_mode5_g(tHalHandle hHal)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
@@ -3876,12 +3828,13 @@ uint32_t sme_get_channel_bonding_mode5_g(tHalHandle hHal)
 	return smeConfig.csrConfig.channelBondingMode5GHz;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_get_channel_bonding_mode24_g
-    \brief get the channel bonding mode for 2.4G band
-    \param hHal - HAL handle
-    \return channel bonding mode for 2.4G
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_get_channel_bonding_mode24_g() - get the channel bonding mode for 2.4G
+ * band
+ *
+ * hHal - HAL handle
+ * Return channel bonding mode for 2.4G
+ */
 uint32_t sme_get_channel_bonding_mode24_g(tHalHandle hHal)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
@@ -3892,60 +3845,55 @@ uint32_t sme_get_channel_bonding_mode24_g(tHalHandle hHal)
 	return smeConfig.csrConfig.channelBondingMode24GHz;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_roam_connect
-    \brief a wrapper function to request CSR to inititiate an association
-    This is an asynchronous call.
-    \param sessionId - the sessionId returned by sme_open_session.
-    \param pProfile - description of the network to which to connect
-    \param hBssListIn - a list of BSS descriptor to roam to. It is returned
-			from csr_scan_get_result
-    \param pRoamId - to get back the request ID
-    \return QDF_STATUS
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_roam_connect() - A wrapper function to request CSR to inititiate an
+ * association
+ *   This is an asynchronous call.
+ *
+ * @sessionId - the sessionId returned by sme_open_session.
+ * @pProfile - description of the network to which to connect
+ * @hBssListIn - a list of BSS descriptor to roam to. It is returned
+ *			from csr_scan_get_result
+ * @pRoamId - to get back the request ID
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_roam_connect(tHalHandle hHal, uint8_t sessionId,
 			    tCsrRoamProfile *pProfile, uint32_t *pRoamId)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 
-	if (!pMac) {
+	if (!pMac)
 		return QDF_STATUS_E_FAILURE;
-	}
 
 	MTRACE(qdf_trace(QDF_MODULE_ID_SME,
 			 TRACE_CODE_SME_RX_HDD_MSG_CONNECT, sessionId, 0));
 	status = sme_acquire_global_lock(&pMac->sme);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
-		if (CSR_IS_SESSION_VALID(pMac, sessionId)) {
+		if (CSR_IS_SESSION_VALID(pMac, sessionId))
 			status =
 				csr_roam_connect(pMac, sessionId, pProfile,
 						 pRoamId);
-		} else {
+		else {
 			sme_err("Invalid sessionID: %d", sessionId);
 			status = QDF_STATUS_E_INVAL;
 		}
 		sme_release_global_lock(&pMac->sme);
-	} else {
+	} else
 		sme_err("sme_acquire_global_lock failed");
-	}
 
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-
-    \fn sme_set_phy_mode
-
-    \brief Changes the PhyMode.
-
-    \param hHal - The handle returned by mac_open.
-
-    \param phyMode new phyMode which is to set
-
-    \return QDF_STATUS  SUCCESS.
-
-   -------------------------------------------------------------------------------*/
+/**
+ * sme_set_phy_mode() - Changes the PhyMode.
+ *
+ * @hHal - The handle returned by mac_open.
+ * @phyMode new phyMode which is to set
+ *
+ * Return QDF_STATUS  SUCCESS.
+ */
 QDF_STATUS sme_set_phy_mode(tHalHandle hHal, eCsrPhyMode phyMode)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
@@ -3959,25 +3907,27 @@ QDF_STATUS sme_set_phy_mode(tHalHandle hHal, eCsrPhyMode phyMode)
 	pMac->roam.configParam.phyMode = phyMode;
 	pMac->roam.configParam.uCfgDot11Mode =
 		csr_get_cfg_dot11_mode_from_csr_phy_mode(NULL,
-							 pMac->roam.configParam.phyMode,
-							 pMac->roam.configParam.
-							 ProprietaryRatesEnabled);
+						pMac->roam.configParam.phyMode,
+						pMac->roam.configParam.
+						ProprietaryRatesEnabled);
 
 	return QDF_STATUS_SUCCESS;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_roam_reassoc
-    \brief a wrapper function to request CSR to inititiate a re-association
-    \param pProfile - can be NULL to join the currently connected AP. In that
-    case modProfileFields should carry the modified field(s) which could trigger
-    reassoc
-    \param modProfileFields - fields which are part of tCsrRoamConnectedProfile
-    that might need modification dynamically once STA is up & running and this
-    could trigger a reassoc
-    \param pRoamId - to get back the request ID
-    \return QDF_STATUS
-   -------------------------------------------------------------------------------*/
+/**
+ * sme_roam_reassoc() - A wrapper function to request CSR to inititiate a
+ * re-association
+ *
+ * @pProfile - can be NULL to join the currently connected AP. In that
+ * case modProfileFields should carry the modified field(s) which could trigger
+ * reassoc
+ * @modProfileFields - fields which are part of tCsrRoamConnectedProfile
+ *   that might need modification dynamically once STA is up & running and this
+ *   could trigger a reassoc
+ * @pRoamId - to get back the request ID
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_roam_reassoc(tHalHandle hHal, uint8_t sessionId,
 			    tCsrRoamProfile *pProfile,
 			    tCsrRoamModifyProfileFields modProfileFields,
@@ -3992,16 +3942,15 @@ QDF_STATUS sme_roam_reassoc(tHalHandle hHal, uint8_t sessionId,
 	status = sme_acquire_global_lock(&pMac->sme);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
 		if (CSR_IS_SESSION_VALID(pMac, sessionId)) {
-			if ((NULL == pProfile) && (fForce == 1)) {
+			if ((NULL == pProfile) && (fForce == 1))
 				status =
 					csr_reassoc(pMac, sessionId,
 						    &modProfileFields, pRoamId,
 						    fForce);
-			} else {
-				status =
-					csr_roam_reassoc(pMac, sessionId, pProfile,
-							 modProfileFields, pRoamId);
-			}
+			else
+				status = csr_roam_reassoc(pMac, sessionId,
+						pProfile,
+						modProfileFields, pRoamId);
 		} else {
 			status = QDF_STATUS_E_INVAL;
 		}
@@ -4011,13 +3960,13 @@ QDF_STATUS sme_roam_reassoc(tHalHandle hHal, uint8_t sessionId,
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_roam_connect_to_last_profile
-    \brief a wrapper function to request CSR to disconnect and reconnect with
-	the same profile
-    This is an asynchronous call.
-    \return QDF_STATUS. It returns fail if currently connected
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_roam_connect_to_last_profile() - A wrapper function to request CSR to
+ * disconnect and reconnect with the same profile
+ *   This is an asynchronous call.
+ *
+ * Return QDF_STATUS. It returns fail if currently connected
+ */
 QDF_STATUS sme_roam_connect_to_last_profile(tHalHandle hHal, uint8_t sessionId)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
@@ -4028,25 +3977,27 @@ QDF_STATUS sme_roam_connect_to_last_profile(tHalHandle hHal, uint8_t sessionId)
 			 sessionId, 0));
 	status = sme_acquire_global_lock(&pMac->sme);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
-		if (CSR_IS_SESSION_VALID(pMac, sessionId)) {
-			status = csr_roam_connect_to_last_profile(pMac, sessionId);
-		} else {
+		if (CSR_IS_SESSION_VALID(pMac, sessionId))
+			status = csr_roam_connect_to_last_profile(pMac,
+								sessionId);
+		else
 			status = QDF_STATUS_E_INVAL;
-		}
 		sme_release_global_lock(&pMac->sme);
 	}
 
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_roam_disconnect
-    \brief a wrapper function to request CSR to disconnect from a network
-    This is an asynchronous call.
-    \param reason -- To indicate the reason for disconnecting. Currently, only
-		     eCSR_DISCONNECT_REASON_MIC_ERROR is meanful.
-    \return QDF_STATUS
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_roam_disconnect() - A wrapper function to request CSR to disconnect
+ * from a network
+ *   This is an asynchronous call.
+ *
+ * @reason -- To indicate the reason for disconnecting. Currently, only
+ *		     eCSR_DISCONNECT_REASON_MIC_ERROR is meanful.
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_roam_disconnect(tHalHandle hHal, uint8_t sessionId,
 			       eCsrRoamDisconnectReason reason)
 {
@@ -4059,18 +4010,19 @@ QDF_STATUS sme_roam_disconnect(tHalHandle hHal, uint8_t sessionId,
 
 	status = sme_acquire_global_lock(&pMac->sme);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
-		if (CSR_IS_SESSION_VALID(pMac, sessionId)) {
+		if (CSR_IS_SESSION_VALID(pMac, sessionId))
 			status = csr_roam_disconnect(pMac, sessionId, reason);
-		} else {
+		else
 			status = QDF_STATUS_E_INVAL;
-		}
 		sme_release_global_lock(&pMac->sme);
 	}
 
 	return status;
 }
 
-/* sme_dhcp_done_ind() - send dhcp done ind
+/**
+ * sme_dhcp_done_ind() - send dhcp done ind
+ *
  * @hal: hal context
  * @session_id: session id
  *
@@ -4092,13 +4044,15 @@ void sme_dhcp_done_ind(tHalHandle hal, uint8_t session_id)
 	session->dhcp_done = true;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_roam_stop_bss
-    \brief To stop BSS for Soft AP. This is an asynchronous API.
-    \param hHal - Global structure
-    \param sessionId - sessionId of SoftAP
-    \return QDF_STATUS  SUCCESS  Roam callback will be called to indicate actual results
-   -------------------------------------------------------------------------------*/
+/*
+ * sme_roam_stop_bss() - To stop BSS for Soft AP. This is an asynchronous API.
+ *
+ * @hHal - Global structure
+ * @sessionId - sessionId of SoftAP
+ *
+ * Return QDF_STATUS  SUCCESS  Roam callback will be called to indicate
+ * actual results
+ */
 QDF_STATUS sme_roam_stop_bss(tHalHandle hHal, uint8_t sessionId)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
@@ -4106,11 +4060,11 @@ QDF_STATUS sme_roam_stop_bss(tHalHandle hHal, uint8_t sessionId)
 
 	status = sme_acquire_global_lock(&pMac->sme);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
-		if (CSR_IS_SESSION_VALID(pMac, sessionId)) {
-			status = csr_roam_issue_stop_bss_cmd(pMac, sessionId, true);
-		} else {
+		if (CSR_IS_SESSION_VALID(pMac, sessionId))
+			status = csr_roam_issue_stop_bss_cmd(pMac, sessionId,
+							true);
+		else
 			status = QDF_STATUS_E_INVAL;
-		}
 		sme_release_global_lock(&pMac->sme);
 	}
 
@@ -4141,12 +4095,11 @@ QDF_STATUS sme_roam_disconnect_sta(tHalHandle hHal, uint8_t sessionId,
 
 	status = sme_acquire_global_lock(&pMac->sme);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
-		if (CSR_IS_SESSION_VALID(pMac, sessionId)) {
+		if (CSR_IS_SESSION_VALID(pMac, sessionId))
 			status = csr_roam_issue_disassociate_sta_cmd(pMac,
 					sessionId, p_del_sta_params);
-		} else {
+		else
 			status = QDF_STATUS_E_INVAL;
-		}
 		sme_release_global_lock(&pMac->sme);
 	}
 
@@ -4181,26 +4134,28 @@ QDF_STATUS sme_roam_deauth_sta(tHalHandle hHal, uint8_t sessionId,
 			 sessionId, pDelStaParams->reason_code));
 	status = sme_acquire_global_lock(&pMac->sme);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
-		if (CSR_IS_SESSION_VALID(pMac, sessionId)) {
+		if (CSR_IS_SESSION_VALID(pMac, sessionId))
 			status =
 				csr_roam_issue_deauth_sta_cmd(pMac, sessionId,
 							      pDelStaParams);
-		} else {
+		else
 			status = QDF_STATUS_E_INVAL;
-		}
 		sme_release_global_lock(&pMac->sme);
 	}
 
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_roam_tkip_counter_measures
-    \brief To start or stop TKIP counter measures. This is an asynchronous API.
-    \param sessionId - sessionId of SoftAP
-    \param pPeerMacAddr - Caller allocated memory filled with peer MAC address (6 bytes)
-    \return QDF_STATUS
-   -------------------------------------------------------------------------------*/
+/**
+ * sme_roam_tkip_counter_measures() -
+ * To start or stop TKIP counter measures. This is an asynchronous API.
+ *
+ * @sessionId - sessionId of SoftAP
+ * @pPeerMacAddr - Caller allocated memory filled with peer MAC address
+ * (6 bytes)
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_roam_tkip_counter_measures(tHalHandle hHal, uint8_t sessionId,
 					  bool bEnable)
 {
@@ -4214,34 +4169,35 @@ QDF_STATUS sme_roam_tkip_counter_measures(tHalHandle hHal, uint8_t sessionId,
 
 	status = sme_acquire_global_lock(&pMac->sme);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
-		if (CSR_IS_SESSION_VALID(pMac, sessionId)) {
+		if (CSR_IS_SESSION_VALID(pMac, sessionId))
 			status =
-				csr_roam_issue_tkip_counter_measures(pMac, sessionId,
+				csr_roam_issue_tkip_counter_measures(pMac,
+								sessionId,
 								     bEnable);
-		} else {
+		else
 			status = QDF_STATUS_E_INVAL;
-		}
 		sme_release_global_lock(&pMac->sme);
 	}
 
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_roam_get_associated_stas
-    \brief To probe the list of associated stations from various modules
-	 of CORE stack.
-    \This is an asynchronous API.
-    \param sessionId    - sessionId of SoftAP
-    \param modId        - Module from whom list of associtated stations is
-			  to be probed. If an invalid module is passed then
-			  by default QDF_MODULE_ID_PE will be probed.
-    \param pUsrContext  - Opaque HDD context
-    \param pfnSapEventCallback  - Sap event callback in HDD
-    \param pAssocBuf    - Caller allocated memory to be filled with associatd
-			  stations info
-    \return QDF_STATUS
-   -------------------------------------------------------------------------------*/
+/**
+ * sme_roam_get_associated_stas() - To probe the list of associated stations
+ * from various modules of CORE stack.
+ * This is an asynchronous API.
+ *
+ * @sessionId    - sessionId of SoftAP
+ * @modId        - Module from whom list of associtated stations is
+ *			  to be probed. If an invalid module is passed then
+ *			  by default QDF_MODULE_ID_PE will be probed.
+ * @pUsrContext  - Opaque HDD context
+ * @pfnSapEventCallback  - Sap event callback in HDD
+ * @pAssocBuf    - Caller allocated memory to be filled with associatd
+ *			  stations info
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_roam_get_associated_stas(tHalHandle hHal, uint8_t sessionId,
 					QDF_MODULE_ID modId, void *pUsrContext,
 					void *pfnSapEventCallback,
@@ -4257,31 +4213,33 @@ QDF_STATUS sme_roam_get_associated_stas(tHalHandle hHal, uint8_t sessionId,
 
 	status = sme_acquire_global_lock(&pMac->sme);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
-		if (CSR_IS_SESSION_VALID(pMac, sessionId)) {
+		if (CSR_IS_SESSION_VALID(pMac, sessionId))
 			status =
-				csr_roam_get_associated_stas(pMac, sessionId, modId,
-							     pUsrContext,
-							     pfnSapEventCallback,
-							     pAssocStasBuf);
-		} else {
+				csr_roam_get_associated_stas(pMac, sessionId,
+							modId,
+							pUsrContext,
+							pfnSapEventCallback,
+							pAssocStasBuf);
+		else
 			status = QDF_STATUS_E_INVAL;
-		}
 		sme_release_global_lock(&pMac->sme);
 	}
 
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_roam_get_wps_session_overlap
-    \brief To get the WPS PBC session overlap information.
-    \This is an asynchronous API.
-    \param sessionId    - sessionId of SoftAP
-    \param pUsrContext  - Opaque HDD context
-    \param pfnSapEventCallback  - Sap event callback in HDD
-    \pRemoveMac - pointer to Mac address which needs to be removed from session
-    \return QDF_STATUS
-   -------------------------------------------------------------------------------*/
+/**
+ * sme_roam_get_wps_session_overlap() - To get the WPS PBC session overlap
+ * information.
+ * This is an asynchronous API.
+ *
+ * @sessionId    - sessionId of SoftAP
+ * @pUsrContext  - Opaque HDD context
+ * @pfnSapEventCallback  - Sap event callback in HDD
+ * @pRemoveMac - pointer to Mac address which needs to be removed from session
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_roam_get_wps_session_overlap(tHalHandle hHal, uint8_t sessionId,
 					    void *pUsrContext, void
 					    *pfnSapEventCallback,
@@ -4297,28 +4255,27 @@ QDF_STATUS sme_roam_get_wps_session_overlap(tHalHandle hHal, uint8_t sessionId,
 
 	status = sme_acquire_global_lock(&pMac->sme);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
-		if (CSR_IS_SESSION_VALID(pMac, sessionId)) {
-			status =
-				csr_roam_get_wps_session_overlap(pMac, sessionId,
+		if (CSR_IS_SESSION_VALID(pMac, sessionId))
+			status = csr_roam_get_wps_session_overlap(pMac,
+								sessionId,
 								 pUsrContext,
-								 pfnSapEventCallback,
+							pfnSapEventCallback,
 								 pRemoveMac);
-		} else {
+		else
 			status = QDF_STATUS_E_INVAL;
-		}
 		sme_release_global_lock(&pMac->sme);
 	}
 
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_roam_get_connect_state
-    \brief a wrapper function to request CSR to return the current connect state
-	of Roaming
-    This is a synchronous call.
-    \return QDF_STATUS
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_roam_get_connect_state() - A wrapper function to request CSR to return
+ * the current connect state of Roaming
+ * This is a synchronous call.
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_roam_get_connect_state(tHalHandle hHal, uint8_t sessionId,
 				      eCsrConnectState *pState)
 {
@@ -4327,28 +4284,29 @@ QDF_STATUS sme_roam_get_connect_state(tHalHandle hHal, uint8_t sessionId,
 
 	status = sme_acquire_global_lock(&pMac->sme);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
-		if (CSR_IS_SESSION_VALID(pMac, sessionId)) {
-			status =
-				csr_roam_get_connect_state(pMac, sessionId, pState);
-		} else {
+		if (CSR_IS_SESSION_VALID(pMac, sessionId))
+			status = csr_roam_get_connect_state(pMac, sessionId,
+							pState);
+		else
 			status = QDF_STATUS_E_INVAL;
-		}
 		sme_release_global_lock(&pMac->sme);
 	}
 
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_roam_get_connect_profile
-    \brief a wrapper function to request CSR to return the current connect
-	profile. Caller must call csr_roam_free_connect_profile after it is done
-	and before reuse for another csr_roam_get_connect_profile call.
-    This is a synchronous call.
-    \param pProfile - pointer to a caller allocated structure
-		      tCsrRoamConnectedProfile
-    \return QDF_STATUS. Failure if not connected
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_roam_get_connect_profile() - A wrapper function to request CSR to return
+ * the current connect profile. Caller must call csr_roam_free_connect_profile
+ * after it is done and before reuse for another csr_roam_get_connect_profile
+ * call.
+ * This is a synchronous call.
+ *
+ * @pProfile - pointer to a caller allocated structure
+ *		      tCsrRoamConnectedProfile
+ *
+ * Return QDF_STATUS. Failure if not connected
+ */
 QDF_STATUS sme_roam_get_connect_profile(tHalHandle hHal, uint8_t sessionId,
 					tCsrRoamConnectedProfile *pProfile)
 {
@@ -4360,12 +4318,11 @@ QDF_STATUS sme_roam_get_connect_profile(tHalHandle hHal, uint8_t sessionId,
 			 sessionId, 0));
 	status = sme_acquire_global_lock(&pMac->sme);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
-		if (CSR_IS_SESSION_VALID(pMac, sessionId)) {
-			status =
-				csr_roam_get_connect_profile(pMac, sessionId, pProfile);
-		} else {
+		if (CSR_IS_SESSION_VALID(pMac, sessionId))
+			status = csr_roam_get_connect_profile(pMac, sessionId,
+							pProfile);
+		else
 			status = QDF_STATUS_E_INVAL;
-		}
 		sme_release_global_lock(&pMac->sme);
 	}
 
@@ -4388,24 +4345,26 @@ void sme_roam_free_connect_profile(tCsrRoamConnectedProfile *profile)
 	csr_roam_free_connect_profile(profile);
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_roam_set_pmkid_cache
-    \brief a wrapper function to request CSR to return the PMKID candidate list
-    This is a synchronous call.
-    \param pPMKIDCache - caller allocated buffer point to an array of
-			 tPmkidCacheInfo
-    \param numItems - a variable that has the number of tPmkidCacheInfo
-		      allocated when retruning, this is either the number needed
-		      or number of items put into pPMKIDCache
-    \param update_entire_cache - this bool value specifies if the entire pmkid
-				 cache should be overwritten or should it be
-				 updated entry by entry.
-    \return QDF_STATUS - when fail, it usually means the buffer allocated is not
-			 big enough and pNumItems has the number of
-			 tPmkidCacheInfo.
-    \Note: pNumItems is a number of tPmkidCacheInfo,
-	   not sizeof(tPmkidCacheInfo) * something
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_roam_set_pmkid_cache() - A wrapper function to request CSR to return the
+ * PMKID candidate list
+ * This is a synchronous call.
+
+ * pPMKIDCache - caller allocated buffer point to an array of
+ *			 tPmkidCacheInfo
+ * numItems - a variable that has the number of tPmkidCacheInfo
+ *		      allocated when retruning, this is either the number needed
+ *		      or number of items put into pPMKIDCache
+ * update_entire_cache - this bool value specifies if the entire pmkid
+ *				 cache should be overwritten or should it be
+ *				 updated entry by entry.
+ *
+ * Return QDF_STATUS - when fail, it usually means the buffer allocated is not
+ *			 big enough and pNumItems has the number of
+ *			 tPmkidCacheInfo.
+ *   \Note: pNumItems is a number of tPmkidCacheInfo,
+ *	   not sizeof(tPmkidCacheInfo) * something
+ */
 QDF_STATUS sme_roam_set_pmkid_cache(tHalHandle hHal, uint8_t sessionId,
 				    tPmkidCacheInfo *pPMKIDCache,
 				    uint32_t numItems, bool update_entire_cache)
@@ -4418,13 +4377,12 @@ QDF_STATUS sme_roam_set_pmkid_cache(tHalHandle hHal, uint8_t sessionId,
 			 numItems));
 	status = sme_acquire_global_lock(&pMac->sme);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
-		if (CSR_IS_SESSION_VALID(pMac, sessionId)) {
-			status =
-				csr_roam_set_pmkid_cache(pMac, sessionId, pPMKIDCache,
-							 numItems, update_entire_cache);
-		} else {
+		if (CSR_IS_SESSION_VALID(pMac, sessionId))
+			status = csr_roam_set_pmkid_cache(pMac, sessionId,
+						pPMKIDCache,
+						numItems, update_entire_cache);
+		else
 			status = QDF_STATUS_E_INVAL;
-		}
 		sme_release_global_lock(&pMac->sme);
 	}
 
@@ -4443,63 +4401,63 @@ QDF_STATUS sme_roam_del_pmkid_from_cache(tHalHandle hHal, uint8_t sessionId,
 			 sessionId, flush_cache));
 	status = sme_acquire_global_lock(&pMac->sme);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
-		if (CSR_IS_SESSION_VALID(pMac, sessionId)) {
+		if (CSR_IS_SESSION_VALID(pMac, sessionId))
 			status = csr_roam_del_pmkid_from_cache(pMac, sessionId,
 						       pmksa, flush_cache);
-		} else {
+		else
 			status = QDF_STATUS_E_INVAL;
-		}
 		sme_release_global_lock(&pMac->sme);
 	}
 	return status;
 }
 
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
-/* ---------------------------------------------------------------------------
- * \fn sme_roam_set_psk_pmk
- * \brief a wrapper function to request CSR to save PSK/PMK
+/**
+ * sme_roam_set_psk_pmk() - A wrapper function to request CSR to save PSK/PMK
  *  This is a synchronous call.
- * \param hHal - Global structure
- * \param sessionId - SME sessionId
- * \param pPSK_PMK - pointer to an array of Psk[]/Pmk
- * \param pmk_len - Length could be only 16 bytes in case if LEAP
+ *
+ * @hHal - Global structure
+ * @sessionId - SME sessionId
+ * @pPSK_PMK - pointer to an array of Psk[]/Pmk
+ * @pmk_len - Length could be only 16 bytes in case if LEAP
  *                  connections. Need to pass this information to
  *                  firmware.
- * \return QDF_STATUS -status whether PSK/PMK is set or not
- *---------------------------------------------------------------------------
+ *
+ * Return QDF_STATUS -status whether PSK/PMK is set or not
  */
 QDF_STATUS sme_roam_set_psk_pmk(tHalHandle hHal, uint8_t sessionId,
 				uint8_t *pPSK_PMK, size_t pmk_len)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
 	status = sme_acquire_global_lock(&pMac->sme);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
-		if (CSR_IS_SESSION_VALID(pMac, sessionId)) {
-			status =
-				csr_roam_set_psk_pmk(pMac, sessionId, pPSK_PMK,
+		if (CSR_IS_SESSION_VALID(pMac, sessionId))
+			status = csr_roam_set_psk_pmk(pMac, sessionId, pPSK_PMK,
 						     pmk_len);
-		} else {
+		else
 			status = QDF_STATUS_E_INVAL;
-		}
 		sme_release_global_lock(&pMac->sme);
 	}
 	return status;
 }
 #endif
-/* ---------------------------------------------------------------------------
-    \fn sme_roam_get_security_req_ie
-    \brief a wrapper function to request CSR to return the WPA or RSN or WAPI IE CSR
-	passes to PE to JOIN request or START_BSS request
-    This is a synchronous call.
-    \param pLen - caller allocated memory that has the length of pBuf as input.
-		  Upon returned, *pLen has the needed or IE length in pBuf.
-    \param pBuf - Caller allocated memory that contain the IE field, if any,
-		  upon return
-    \param secType - Specifies whether looking for WPA/WPA2/WAPI IE
-    \return QDF_STATUS - when fail, it usually means the buffer allocated is not
-			 big enough
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_roam_get_security_req_ie() - A wrapper function to request CSR to return
+ * the WPA or RSN or WAPI IE CSR passes to PE to JOIN request or START_BSS
+ * request
+ * This is a synchronous call.
+ *
+ * pLen - caller allocated memory that has the length of pBuf as input.
+ *		  Upon returned, *pLen has the needed or IE length in pBuf.
+ * pBuf - Caller allocated memory that contain the IE field, if any,
+ *		  upon return
+ * secType - Specifies whether looking for WPA/WPA2/WAPI IE
+ *
+ * Return QDF_STATUS - when fail, it usually means the buffer allocated is not
+ *			 big enough
+ */
 QDF_STATUS sme_roam_get_security_req_ie(tHalHandle hHal, uint8_t sessionId,
 					uint32_t *pLen, uint8_t *pBuf,
 					eCsrSecurityType secType)
@@ -4509,31 +4467,32 @@ QDF_STATUS sme_roam_get_security_req_ie(tHalHandle hHal, uint8_t sessionId,
 
 	status = sme_acquire_global_lock(&pMac->sme);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
-		if (CSR_IS_SESSION_VALID(pMac, sessionId)) {
-			status =
-				csr_roam_get_wpa_rsn_req_ie(hHal, sessionId, pLen, pBuf);
-		} else {
+		if (CSR_IS_SESSION_VALID(pMac, sessionId))
+			status = csr_roam_get_wpa_rsn_req_ie(hHal, sessionId,
+								pLen, pBuf);
+		else
 			status = QDF_STATUS_E_INVAL;
-		}
 		sme_release_global_lock(&pMac->sme);
 	}
 
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_roam_get_security_rsp_ie
-    \brief a wrapper function to request CSR to return the WPA or RSN or
-	 WAPI IE from the beacon or probe rsp if connected
-    This is a synchronous call.
-    \param pLen - caller allocated memory that has the length of pBuf as input.
-		  Upon returned, *pLen has the needed or IE length in pBuf.
-    \param pBuf - Caller allocated memory that contain the IE field, if any,
-		  upon return
-    \param secType - Specifies whether looking for WPA/WPA2/WAPI IE
-    \return QDF_STATUS - when fail, it usually means the buffer allocated is not
-			 big enough
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_roam_get_security_rsp_ie() - A wrapper function to request CSR to return
+ * the WPA or RSN or
+ * WAPI IE from the beacon or probe rsp if connected
+ * This is a synchronous call.
+ *
+ * pLen - caller allocated memory that has the length of pBuf as input.
+ *		  Upon returned, *pLen has the needed or IE length in pBuf.
+ * pBuf - Caller allocated memory that contain the IE field, if any,
+ *		  upon return
+ * secType - Specifies whether looking for WPA/WPA2/WAPI IE
+ *
+ * Return QDF_STATUS - when fail, it usually means the buffer allocated is not
+ *			 big enough
+ */
 QDF_STATUS sme_roam_get_security_rsp_ie(tHalHandle hHal, uint8_t sessionId,
 					uint32_t *pLen, uint8_t *pBuf,
 					eCsrSecurityType secType)
@@ -4543,12 +4502,11 @@ QDF_STATUS sme_roam_get_security_rsp_ie(tHalHandle hHal, uint8_t sessionId,
 
 	status = sme_acquire_global_lock(&pMac->sme);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
-		if (CSR_IS_SESSION_VALID(pMac, sessionId)) {
-			status =
-				csr_roam_get_wpa_rsn_rsp_ie(pMac, sessionId, pLen, pBuf);
-		} else {
+		if (CSR_IS_SESSION_VALID(pMac, sessionId))
+			status = csr_roam_get_wpa_rsn_rsp_ie(pMac, sessionId,
+							pLen, pBuf);
+		else
 			status = QDF_STATUS_E_INVAL;
-		}
 		sme_release_global_lock(&pMac->sme);
 	}
 
@@ -4556,13 +4514,13 @@ QDF_STATUS sme_roam_get_security_rsp_ie(tHalHandle hHal, uint8_t sessionId,
 
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_roam_get_num_pmkid_cache
-    \brief a wrapper function to request CSR to return number of PMKID cache
-	entries
-    This is a synchronous call.
-    \return uint32_t - the number of PMKID cache entries
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_roam_get_num_pmkid_cache() - A wrapper function to request CSR to return
+ * number of PMKID cache entries
+ *   This is a synchronous call.
+ *
+ * Return uint32_t - the number of PMKID cache entries
+ */
 uint32_t sme_roam_get_num_pmkid_cache(tHalHandle hHal, uint8_t sessionId)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
@@ -4575,29 +4533,30 @@ uint32_t sme_roam_get_num_pmkid_cache(tHalHandle hHal, uint8_t sessionId)
 			numPmkidCache =
 				csr_roam_get_num_pmkid_cache(pMac, sessionId);
 			status = QDF_STATUS_SUCCESS;
-		} else {
+		} else
 			status = QDF_STATUS_E_INVAL;
-		}
 		sme_release_global_lock(&pMac->sme);
 	}
 
 	return numPmkidCache;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_roam_get_pmkid_cache
-    \brief a wrapper function to request CSR to return PMKID cache from CSR
-    This is a synchronous call.
-    \param pNum - caller allocated memory that has the space of the number of
-		  pBuf tPmkidCacheInfo as input. Upon returned, *pNum has the
-		  needed or actually number in tPmkidCacheInfo.
-    \param pPmkidCache - Caller allocated memory that contains PMKID cache, if
-			 any, upon return
-    \return QDF_STATUS - when fail, it usually means the buffer allocated is not
-			 big enough
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_roam_get_pmkid_cache() - A wrapper function to request CSR to return
+ * PMKID cache from CSR
+ * This is a synchronous call.
+ *
+ * @pNum - caller allocated memory that has the space of the number of
+ *		  pBuf tPmkidCacheInfo as input. Upon returned, *pNum has the
+ *		  needed or actually number in tPmkidCacheInfo.
+ * @pPmkidCache - Caller allocated memory that contains PMKID cache, if
+ *			 any, upon return
+ *
+ * Return QDF_STATUS - when fail, it usually means the buffer allocated is not
+ *			 big enough
+ */
 QDF_STATUS sme_roam_get_pmkid_cache(tHalHandle hHal, uint8_t sessionId,
-				    uint32_t *pNum, tPmkidCacheInfo *pPmkidCache)
+				   uint32_t *pNum, tPmkidCacheInfo *pPmkidCache)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
@@ -4607,27 +4566,26 @@ QDF_STATUS sme_roam_get_pmkid_cache(tHalHandle hHal, uint8_t sessionId,
 			 0));
 	status = sme_acquire_global_lock(&pMac->sme);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
-		if (CSR_IS_SESSION_VALID(pMac, sessionId)) {
-			status =
-				csr_roam_get_pmkid_cache(pMac, sessionId, pNum,
+		if (CSR_IS_SESSION_VALID(pMac, sessionId))
+			status = csr_roam_get_pmkid_cache(pMac, sessionId, pNum,
 							 pPmkidCache);
-		} else {
+		else
 			status = QDF_STATUS_E_INVAL;
-		}
 		sme_release_global_lock(&pMac->sme);
 	}
 
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_get_config_param
-    \brief a wrapper function that HDD calls to get the global settings
-	currently maintained by CSR.
-    This is a synchronous call.
-    \param pParam - caller allocated memory
-    \return QDF_STATUS
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_get_config_param() - A wrapper function that HDD calls to get the global
+ * settings currently maintained by CSR.
+ * This is a synchronous call.
+ *
+ * @pParam - caller allocated memory
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_get_config_param(tHalHandle hHal, tSmeConfigParams *pParam)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
@@ -4740,20 +4698,21 @@ QDF_STATUS sme_cfg_get_str(tHalHandle hal, uint16_t cfg_id, uint8_t *str,
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_get_modify_profile_fields
-    \brief HDD or SME - QOS calls this function to get the current values of
-    connected profile fields, changing which can cause reassoc.
-    This function must be called after CFG is downloaded and STA is in connected
-    state. Also, make sure to call this function to get the current profile
-    fields before calling the reassoc. So that pModifyProfileFields will have
-    all the latest values plus the one(s) has been updated as part of reassoc
-    request.
-    \param pModifyProfileFields - pointer to the connected profile fields
-    changing which can cause reassoc
-
-    \return QDF_STATUS
-   -------------------------------------------------------------------------------*/
+/**
+ * sme_get_modify_profile_fields() -
+ * HDD or SME - QOS calls this function to get the current values of
+ * connected profile fields, changing which can cause reassoc.
+ * This function must be called after CFG is downloaded and STA is in connected
+ * state. Also, make sure to call this function to get the current profile
+ * fields before calling the reassoc. So that pModifyProfileFields will have
+ * all the latest values plus the one(s) has been updated as part of reassoc
+ * request.
+ *
+ * @pModifyProfileFields - pointer to the connected profile fields
+ *   changing which can cause reassoc
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_get_modify_profile_fields(tHalHandle hHal, uint8_t sessionId,
 					 tCsrRoamModifyProfileFields *
 					 pModifyProfileFields)
@@ -4766,24 +4725,25 @@ QDF_STATUS sme_get_modify_profile_fields(tHalHandle hHal, uint8_t sessionId,
 			 0));
 	status = sme_acquire_global_lock(&pMac->sme);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
-		if (CSR_IS_SESSION_VALID(pMac, sessionId)) {
-			status =
-				csr_get_modify_profile_fields(pMac, sessionId,
-							      pModifyProfileFields);
-		} else {
+		if (CSR_IS_SESSION_VALID(pMac, sessionId))
+			status = csr_get_modify_profile_fields(pMac, sessionId,
+							  pModifyProfileFields);
+		else
 			status = QDF_STATUS_E_INVAL;
-		}
 		sme_release_global_lock(&pMac->sme);
 	}
 
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn  sme_set_dhcp_till_power_active_flag
-    \brief  Sets/Clears DHCP related flag to disable/enable auto PS
-    \param  hal - The handle returned by mac_open.
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_set_dhcp_till_power_active_flag() - Sets/Clears DHCP related flag to
+ * disable/enable auto PS
+ *
+ * @hal - The handle returned by mac_open.
+ *
+ * Return None
+ */
 void sme_set_dhcp_till_power_active_flag(tHalHandle hal, uint8_t flag)
 {
 	tpAniSirGlobal mac = PMAC_STRUCT(hal);
@@ -4796,16 +4756,17 @@ void sme_set_dhcp_till_power_active_flag(tHalHandle hal, uint8_t flag)
 	ps_global_info->remain_in_power_active_till_dhcp = flag;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_register11d_scan_done_callback
-    \brief  Register a routine of type csr_scan_completeCallback which is
-	called whenever an 11d scan is done
-    \param  hHal - The handle returned by mac_open.
-    \param  callback -  11d scan complete routine to be registered
-    \return QDF_STATUS
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_register11d_scan_done_callback() - Register a routine of type
+ * csr_scan_completeCallback which is called whenever an 11d scan is done
+ *
+ * @hHal - The handle returned by mac_open.
+ * @callback -  11d scan complete routine to be registered
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_register11d_scan_done_callback(tHalHandle hHal,
-					      csr_scan_completeCallback callback)
+					     csr_scan_completeCallback callback)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
@@ -4960,7 +4921,6 @@ void sme_register_ftm_msg_processor(tHalHandle hal,
 	}
 
 	mac_ctx->ftm_msg_processor_callback = callback;
-	return;
 }
 
 /**
@@ -4982,6 +4942,7 @@ QDF_STATUS sme_wow_add_pattern(tHalHandle hal,
 	struct wow_add_pattern *ptrn;
 	tSirRetStatus ret_code = eSIR_SUCCESS;
 	tSirMsgQ msg_q;
+
 	MTRACE(qdf_trace(QDF_MODULE_ID_SME,
 			TRACE_CODE_SME_RX_HDD_WOWL_ADDBCAST_PATTERN, session_id,
 			0));
@@ -5021,6 +4982,7 @@ QDF_STATUS sme_wow_delete_pattern(tHalHandle hal,
 	struct wow_delete_pattern *delete_ptrn;
 	tSirRetStatus ret_code = eSIR_SUCCESS;
 	tSirMsgQ msg_q;
+
 	MTRACE(qdf_trace(QDF_MODULE_ID_SME,
 			 TRACE_CODE_SME_RX_HDD_WOWL_DELBCAST_PATTERN, sessionId,
 			 0));
@@ -5038,10 +5000,10 @@ QDF_STATUS sme_wow_delete_pattern(tHalHandle hal,
 	sme_debug("Sending WMA_WOWL_DEL_BCAST_PTRN");
 
 	ret_code = wma_post_ctrl_msg(pMac, &msg_q);
-	if (eSIR_SUCCESS != ret_code) {
+	if (eSIR_SUCCESS != ret_code)
 		sme_err("Posting WMA_WOWL_DEL_BCAST_PTRN failed, reason: %X",
 			ret_code);
-	}
+
 	return ret_code;
 }
 
@@ -5096,6 +5058,7 @@ QDF_STATUS sme_enter_wowl(tHalHandle hal_ctx,
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal_ctx);
 	struct ps_global_info *ps_global_info = &mac_ctx->sme.ps_global_info;
+
 	MTRACE(qdf_trace(QDF_MODULE_ID_SME,
 			TRACE_CODE_SME_RX_HDD_ENTER_WOWL, session_id, 0));
 
@@ -5135,6 +5098,7 @@ QDF_STATUS sme_exit_wowl(tHalHandle hal_ctx,
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal_ctx);
 	uint8_t session_id;
+
 	MTRACE(qdf_trace(QDF_MODULE_ID_SME,
 			TRACE_CODE_SME_RX_HDD_EXIT_WOWL, NO_SESSION, 0));
 	session_id = wowl_exit_params->sessionId;
@@ -5255,24 +5219,24 @@ QDF_STATUS sme_roam_set_default_key_index(tHalHandle hal, uint8_t session_id,
 }
 
 
-/* ---------------------------------------------------------------------------
-    \fn sme_get_rssi
-    \brief a wrapper function that client calls to register a callback to get
-	RSSI
-
-    \param hHal - HAL handle for device
-    \param callback - SME sends back the requested stats using the callback
-    \param staId -    The station ID for which the stats is requested for
-    \param bssid - The bssid of the connected session
-    \param lastRSSI - RSSI value at time of request. In case fw cannot provide
-		      RSSI, do not hold up but return this value.
-    \param pContext - user context to be passed back along with the callback
-    \param p_cds_context - cds context
-    \return QDF_STATUS
-   ---------------------------------------------------------------------------*/
+/*
+ * sme_get_rssi() -
+ * A wrapper function that client calls to register a callback to get RSSI
+ *
+ * hHal - HAL handle for device
+ * callback - SME sends back the requested stats using the callback
+ * staId -    The station ID for which the stats is requested for
+ * bssid - The bssid of the connected session
+ * lastRSSI - RSSI value at time of request. In case fw cannot provide
+ *		      RSSI, do not hold up but return this value.
+ * pContext - user context to be passed back along with the callback
+ * p_cds_context - cds context
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_get_rssi(tHalHandle hHal,
-			tCsrRssiCallback callback,
-			uint8_t staId, struct qdf_mac_addr bssId, int8_t lastRSSI,
+			tCsrRssiCallback callback, uint8_t staId,
+			struct qdf_mac_addr bssId, int8_t lastRSSI,
 			void *pContext, void *p_cds_context)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
@@ -5287,20 +5251,21 @@ QDF_STATUS sme_get_rssi(tHalHandle hHal,
 				      pContext, p_cds_context);
 		sme_release_global_lock(&pMac->sme);
 	}
+
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_get_snr
-    \brief a wrapper function that client calls to register a callback to
-	get SNR
-
-    \param callback - SME sends back the requested stats using the callback
-    \param staId - The station ID for which the stats is requested for
-    \param pContext - user context to be passed back along with the callback
-    \param p_cds_context - cds context
-    \return QDF_STATUS
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_get_snr() - A wrapper function that client calls to register a callback
+ * to get SNR
+ *
+ * @callback - SME sends back the requested stats using the callback
+ * @staId - The station ID for which the stats is requested for
+ * @pContext - user context to be passed back along with the callback
+ * @p_cds_context - cds context
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_get_snr(tHalHandle hHal,
 		       tCsrSnrCallback callback,
 		       uint8_t staId, struct qdf_mac_addr bssId, void *pContext)
@@ -5313,27 +5278,28 @@ QDF_STATUS sme_get_snr(tHalHandle hHal,
 		status = csr_get_snr(pMac, callback, staId, bssId, pContext);
 		sme_release_global_lock(&pMac->sme);
 	}
+
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_get_statistics
-    \brief a wrapper function that client calls to register a callback to get
-    different PHY level statistics from CSR.
-
-    \param requesterId - different client requesting for statistics,
-	HDD, UMA/GAN etc
-    \param statsMask - The different category/categories of stats requester
-	is looking for
-    \param callback - SME sends back the requested stats using the callback
-    \param periodicity - If requester needs periodic update in millisec, 0 means
-			 it's an one time request
-    \param cache - If requester is happy with cached stats
-    \param staId - The station ID for which the stats is requested for
-    \param pContext - user context to be passed back along with the callback
-    \param sessionId - sme session interface
-    \return QDF_STATUS
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_get_statistics() - A wrapper function that client calls to register a
+ * callback to get different PHY level statistics from CSR.
+ *
+ * @requesterId - different client requesting for statistics,
+ *	HDD, UMA/GAN etc
+ * @statsMask - The different category/categories of stats requester
+ *	is looking for
+ * @callback - SME sends back the requested stats using the callback
+ * @periodicity - If requester needs periodic update in millisec, 0 means
+ *			 it's an one time request
+ * @cache - If requester is happy with cached stats
+ * @staId - The station ID for which the stats is requested for
+ * @pContext - user context to be passed back along with the callback
+ * @sessionId - sme session interface
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_get_statistics(tHalHandle hHal,
 			      eCsrStatsRequesterType requesterId,
 			      uint32_t statsMask, tCsrStatsCallback callback,
@@ -5348,10 +5314,9 @@ QDF_STATUS sme_get_statistics(tHalHandle hHal,
 			 periodicity));
 	status = sme_acquire_global_lock(&pMac->sme);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
-		status =
-			csr_get_statistics(pMac, requesterId, statsMask, callback,
-					   periodicity, cache, staId, pContext,
-					   sessionId);
+		status = csr_get_statistics(pMac, requesterId, statsMask,
+					callback, periodicity, cache, staId,
+					pContext, sessionId);
 		sme_release_global_lock(&pMac->sme);
 	}
 
@@ -5390,7 +5355,8 @@ QDF_STATUS sme_get_link_status(tHalHandle hHal,
 		cds_message.reserved = 0;
 
 		if (!QDF_IS_STATUS_SUCCESS
-			    (cds_mq_post_message(QDF_MODULE_ID_WMA, &cds_message))) {
+			    (cds_mq_post_message(QDF_MODULE_ID_WMA,
+						&cds_message))) {
 			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 				  "%s: Post LINK STATUS MSG fail", __func__);
 			qdf_mem_free(pMsg);
@@ -5405,29 +5371,23 @@ QDF_STATUS sme_get_link_status(tHalHandle hHal,
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-
-    \fn sme_get_country_code
-
-    \brief To return the current country code. If no country code is applied,
-	default country code is used to fill the buffer.
-	If 11d supported is turned off, an error is return and the last
-	applied/default country code is used.
-	This is a synchronous API.
-
-    \param pBuf - pointer to a caller allocated buffer for returned country code.
-
-    \param pbLen  For input, this parameter indicates how big is the buffer.
-		  Upon return, this parameter has the number of bytes for
-		  country. If pBuf doesn't have enough space, this function
-		  returns fail status and this parameter contains the number
-		  that is needed.
-
-    \return QDF_STATUS  SUCCESS.
-
-			FAILURE or RESOURCES  The API finished and failed.
-
-   -------------------------------------------------------------------------------*/
+/**
+ * sme_get_country_code() - To return the current country code. If no country
+ * code is applied, default country code is used to fill the buffer.
+ * If 11d supported is turned off, an error is return and the last
+ * applied/default country code is used.
+ * This is a synchronous API.
+ *
+ * @pBuf - pointer to a caller allocated buffer for returned country code.
+ * @pbLen  For input, this parameter indicates how big is the buffer.
+ *		  Upon return, this parameter has the number of bytes for
+ *		  country. If pBuf doesn't have enough space, this function
+ *		  returns fail status and this parameter contains the number
+ *		  that is needed.
+ *
+ * Return QDF_STATUS  SUCCESS.
+ * FAILURE or RESOURCES  The API finished and failed.
+ */
 QDF_STATUS sme_get_country_code(tHalHandle hHal, uint8_t *pBuf, uint8_t *pbLen)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
@@ -5475,24 +5435,18 @@ bool sme_is_wmm_supported(tHalHandle hHal)
 	return csr_is_wmm_supported(pMac);
 }
 
-/* ---------------------------------------------------------------------------
-
-    \fn sme_change_country_code
-
-    \brief Change Country code from upperlayer during WLAN driver operation.
-	This is a synchronous API.
-
-    \param hHal - The handle returned by mac_open.
-
-    \param pCountry New Country Code String
-
-    \param sendRegHint If we want to send reg hint to nl80211
-
-    \return QDF_STATUS  SUCCESS.
-
-			FAILURE or RESOURCES  The API finished and failed.
-
-   -------------------------------------------------------------------------------*/
+/**
+ * sme_change_country_code() - Change Country code from upperlayer during WLAN
+ * driver operation.
+ * This is a synchronous API.
+ *
+ * @hHal - The handle returned by mac_open.
+ * @pCountry New Country Code String
+ * @sendRegHint If we want to send reg hint to nl80211
+ *
+ * Return QDF_STATUS  SUCCESS.
+ * FAILURE or RESOURCES  The API finished and failed.
+ */
 QDF_STATUS sme_change_country_code(tHalHandle hHal,
 				   tSmeChangeCountryCallback callback,
 				   uint8_t *pCountry,
@@ -5554,24 +5508,18 @@ QDF_STATUS sme_change_country_code(tHalHandle hHal,
 	return status;
 }
 
-/*--------------------------------------------------------------------------
-
-    \fn sme_generic_change_country_code
-
-    \brief Change Country code from upperlayer during WLAN driver operation.
-	This is a synchronous API.
-
-    \param hHal - The handle returned by mac_open.
-
-    \param pCountry New Country Code String
-
-    \param reg_domain regulatory domain
-
-    \return QDF_STATUS  SUCCESS.
-
-			FAILURE or RESOURCES  The API finished and failed.
-
-   -----------------------------------------------------------------------------*/
+/**
+ * sme_generic_change_country_code() - Change Country code from upperlayer
+ * during WLAN driver operation.
+ * This is a synchronous API.
+ *
+ * @hHal - The handle returned by mac_open.
+ * @pCountry New Country Code String
+ * @reg_domain regulatory domain
+ *
+ * Return QDF_STATUS  SUCCESS.
+ * FAILURE or RESOURCES  The API finished and failed.
+ */
 QDF_STATUS sme_generic_change_country_code(tHalHandle hHal,
 					   uint8_t *pCountry)
 {
@@ -5618,24 +5566,17 @@ QDF_STATUS sme_generic_change_country_code(tHalHandle hHal,
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-
-    \fn sme_dhcp_start_ind
-
-    \brief API to signal the FW about the DHCP Start event.
-
-    \param hHal - HAL handle for device.
-
-    \param device_mode - mode(AP,SAP etc) of the device.
-
-    \param macAddr - MAC address of the adapter.
-
-    \param sessionId - session ID.
-
-    \return QDF_STATUS  SUCCESS.
-
-			FAILURE or RESOURCES  The API finished and failed.
-   --------------------------------------------------------------------------*/
+/**
+ * sme_dhcp_start_ind() - API to signal the FW about the DHCP Start event.
+ *
+ * @hHal - HAL handle for device.
+ * @device_mode - mode(AP,SAP etc) of the device.
+ * @macAddr - MAC address of the adapter.
+ * @sessionId - session ID.
+ *
+ * Return QDF_STATUS  SUCCESS.
+ * FAILURE or RESOURCES  The API finished and failed.
+ */
 QDF_STATUS sme_dhcp_start_ind(tHalHandle hHal,
 			      uint8_t device_mode,
 			      uint8_t *macAddr, uint8_t sessionId)
@@ -5691,22 +5632,17 @@ QDF_STATUS sme_dhcp_start_ind(tHalHandle hHal,
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_dhcp_stop_ind
-
-    \brief API to signal the FW about the DHCP complete event.
-
-    \param hHal - HAL handle for device.
-
-    \param device_mode - mode(AP, SAP etc) of the device.
-
-    \param macAddr - MAC address of the adapter.
-
-    \param sessionId - session ID.
-
-    \return QDF_STATUS  SUCCESS.
-			FAILURE or RESOURCES  The API finished and failed.
-   --------------------------------------------------------------------------*/
+/**
+ * sme_dhcp_stop_ind() - API to signal the FW about the DHCP complete event.
+ *
+ * @hHal - HAL handle for device.
+ * @device_mode - mode(AP, SAP etc) of the device.
+ * @macAddr - MAC address of the adapter.
+ * @sessionId - session ID.
+ *
+ * Return QDF_STATUS  SUCCESS.
+ *			FAILURE or RESOURCES  The API finished and failed.
+ */
 QDF_STATUS sme_dhcp_stop_ind(tHalHandle hHal,
 			     uint8_t device_mode,
 			     uint8_t *macAddr, uint8_t sessionId)
@@ -5761,20 +5697,19 @@ QDF_STATUS sme_dhcp_stop_ind(tHalHandle hHal,
 
 		sme_release_global_lock(&pMac->sme);
 	}
+
 	return status;
 }
 
-/*---------------------------------------------------------------------------
-
-    \fn sme_TXFailMonitorStopInd
-
-    \brief API to signal the FW to start monitoring TX failures
-
-    \return QDF_STATUS  SUCCESS.
-
-			FAILURE or RESOURCES  The API finished and failed.
-   --------------------------------------------------------------------------*/
-QDF_STATUS sme_tx_fail_monitor_start_stop_ind(tHalHandle hHal, uint8_t tx_fail_count,
+/**
+ * sme_TXFailMonitorStopInd() - API to signal the FW to start monitoring TX
+ * failures
+ *
+ * Return QDF_STATUS  SUCCESS.
+ * FAILURE or RESOURCES  The API finished and failed.
+ */
+QDF_STATUS sme_tx_fail_monitor_start_stop_ind(tHalHandle hHal, uint8_t
+						tx_fail_count,
 					      void *txFailIndCallback)
 {
 	QDF_STATUS status;
@@ -5815,22 +5750,24 @@ QDF_STATUS sme_tx_fail_monitor_start_stop_ind(tHalHandle hHal, uint8_t tx_fail_c
 		}
 		sme_release_global_lock(&pMac->sme);
 	}
+
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_set_cfg_privacy
-    \brief  API to set configure privacy parameters
-    \param  hHal - The handle returned by mac_open.
-    \param  pProfile - Pointer CSR Roam profile.
-    \param  fPrivacy - This parameter indicates status of privacy
-
-    \return void
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_set_cfg_privacy() - API to set configure privacy parameters
+ *
+ * @hHal - The handle returned by mac_open.
+ * @pProfile - Pointer CSR Roam profile.
+ * @fPrivacy - This parameter indicates status of privacy
+ *
+ * Return void
+ */
 void sme_set_cfg_privacy(tHalHandle hHal,
 			 tCsrRoamProfile *pProfile, bool fPrivacy)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
 	MTRACE(qdf_trace(QDF_MODULE_ID_SME,
 			 TRACE_CODE_SME_RX_HDD_SET_CFGPRIVACY, NO_SESSION, 0));
 	if (QDF_STATUS_SUCCESS == sme_acquire_global_lock(&pMac->sme)) {
@@ -5839,23 +5776,25 @@ void sme_set_cfg_privacy(tHalHandle hHal,
 	}
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_neighbor_report_request
-    \brief  API to request neighbor report.
-    \param  hHal - The handle returned by mac_open.
-    \param  pRrmNeighborReq - Pointer to a caller allocated object of type
-			      tRrmNeighborReq. Caller owns the memory and is
-			      responsible for freeing it.
-    \return QDF_STATUS
-	    QDF_STATUS_E_FAILURE - failure
-	    QDF_STATUS_SUCCESS  success
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_neighbor_report_request() - API to request neighbor report.
+ *
+ * @hHal - The handle returned by mac_open.
+ * @pRrmNeighborReq - Pointer to a caller allocated object of type
+ *		tRrmNeighborReq. Caller owns the memory and is responsible
+ *		for freeing it.
+ *
+ * Return QDF_STATUS
+ *	    QDF_STATUS_E_FAILURE - failure
+ *	    QDF_STATUS_SUCCESS  success
+ */
 QDF_STATUS sme_neighbor_report_request(tHalHandle hHal, uint8_t sessionId,
 				       tpRrmNeighborReq pRrmNeighborReq,
-				       tpRrmNeighborRspCallbackInfo callbackInfo)
+				      tpRrmNeighborRspCallbackInfo callbackInfo)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
 	MTRACE(qdf_trace(QDF_MODULE_ID_SME,
 			 TRACE_CODE_SME_RX_HDD_NEIGHBOR_REPORTREQ, NO_SESSION,
 			 0));
@@ -5863,23 +5802,24 @@ QDF_STATUS sme_neighbor_report_request(tHalHandle hHal, uint8_t sessionId,
 	if (QDF_STATUS_SUCCESS == sme_acquire_global_lock(&pMac->sme)) {
 		status =
 			sme_rrm_neighbor_report_request(hHal, sessionId,
-							pRrmNeighborReq, callbackInfo);
+						pRrmNeighborReq, callbackInfo);
 		sme_release_global_lock(&pMac->sme);
 	}
 
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_get_wcnss_wlan_compiled_version
-    \brief  This API returns the version of the WCNSS WLAN API with
-	which the HOST driver was built
-    \param  hHal - The handle returned by mac_open.
-    \param  pVersion - Points to the Version structure to be filled
-    \return QDF_STATUS
-	    QDF_STATUS_E_INVAL - failure
-	    QDF_STATUS_SUCCESS  success
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_get_wcnss_wlan_compiled_version() - This API returns the version of the
+ * WCNSS WLAN API with which the HOST driver was built
+ *
+ * @hHal - The handle returned by mac_open.
+ * @pVersion - Points to the Version structure to be filled
+ *
+ * Return QDF_STATUS
+ *	    QDF_STATUS_E_INVAL - failure
+ *	    QDF_STATUS_SUCCESS  success
+ */
 QDF_STATUS sme_get_wcnss_wlan_compiled_version(tHalHandle hHal,
 					       tSirVersionType *pVersion)
 {
@@ -5898,16 +5838,17 @@ QDF_STATUS sme_get_wcnss_wlan_compiled_version(tHalHandle hHal,
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_get_wcnss_wlan_reported_version
-    \brief  This API returns the version of the WCNSS WLAN API with
-	which the WCNSS driver reports it was built
-    \param  hHal - The handle returned by mac_open.
-    \param  pVersion - Points to the Version structure to be filled
-    \return QDF_STATUS
-	    QDF_STATUS_E_INVAL - failure
-	    QDF_STATUS_SUCCESS  success
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_get_wcnss_wlan_reported_version() - This API returns the version of the
+ * WCNSS WLAN API with which the WCNSS driver reports it was built
+ *
+ * @hHal - The handle returned by mac_open.
+ * @pVersion - Points to the Version structure to be filled
+ *
+ * Return QDF_STATUS
+ *	    QDF_STATUS_E_INVAL - failure
+ *	    QDF_STATUS_SUCCESS  success
+ */
 QDF_STATUS sme_get_wcnss_wlan_reported_version(tHalHandle hHal,
 					       tSirVersionType *pVersion)
 {
@@ -5926,16 +5867,18 @@ QDF_STATUS sme_get_wcnss_wlan_reported_version(tHalHandle hHal,
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_get_wcnss_software_version
-    \brief  This API returns the version string of the WCNSS driver
-    \param  hHal - The handle returned by mac_open.
-    \param  pVersion - Points to the Version string buffer to be filled
-    \param  versionBufferSize - THe size of the Version string buffer
-    \return QDF_STATUS
-	    QDF_STATUS_E_INVAL - failure
-	    QDF_STATUS_SUCCESS  success
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_get_wcnss_software_version() - This API returns the version string of the
+ * WCNSS driver
+ *
+ * @hHal - The handle returned by mac_open.
+ * @pVersion - Points to the Version string buffer to be filled
+ * @versionBufferSize - THe size of the Version string buffer
+ *
+ * Return QDF_STATUS
+ *	    QDF_STATUS_E_INVAL - failure
+ *	    QDF_STATUS_SUCCESS  success
+ */
 QDF_STATUS sme_get_wcnss_software_version(tHalHandle hHal,
 					  uint8_t *pVersion,
 					  uint32_t versionBufferSize)
@@ -5945,30 +5888,31 @@ QDF_STATUS sme_get_wcnss_software_version(tHalHandle hHal,
 	v_CONTEXT_t cds_context = cds_get_global_context();
 
 	if (QDF_STATUS_SUCCESS == sme_acquire_global_lock(&pMac->sme)) {
-		if (pVersion != NULL) {
+		if (pVersion != NULL)
 			status =
 				wma_get_wcnss_software_version(cds_context,
 							    pVersion,
 							    versionBufferSize);
-		} else {
+		else
 			status = QDF_STATUS_E_INVAL;
-		}
 		sme_release_global_lock(&pMac->sme);
 	}
 
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_get_wcnss_hardware_version
-    \brief  This API returns the version string of the WCNSS hardware
-    \param  hHal - The handle returned by mac_open.
-    \param  pVersion - Points to the Version string buffer to be filled
-    \param  versionBufferSize - THe size of the Version string buffer
-    \return QDF_STATUS
-	    QDF_STATUS_E_INVAL - failure
-	    QDF_STATUS_SUCCESS  success
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_get_wcnss_hardware_version() - This API returns the version string of the
+ * WCNSS hardware
+ *
+ * @hHal - The handle returned by mac_open.
+ * @pVersion - Points to the Version string buffer to be filled
+ * @versionBufferSize - THe size of the Version string buffer
+ *
+ * Return QDF_STATUS
+ *	    QDF_STATUS_E_INVAL - failure
+ *	    QDF_STATUS_SUCCESS  success
+ */
 QDF_STATUS sme_get_wcnss_hardware_version(tHalHandle hHal,
 					  uint8_t *pVersion,
 					  uint32_t versionBufferSize)
@@ -5990,21 +5934,23 @@ QDF_STATUS sme_get_wcnss_hardware_version(tHalHandle hHal,
 
 #ifdef FEATURE_WLAN_WAPI
 
-/* ---------------------------------------------------------------------------
-    \fn sme_scan_get_bkid_candidate_list
-    \brief a wrapper function to return the BKID candidate list
-    \param pBkidList - caller allocated buffer point to an array of
-		       tBkidCandidateInfo
-    \param pNumItems - pointer to a variable that has the number of
-		       tBkidCandidateInfo allocated when retruning, this is
-		       either the number needed or number of items put into
-		       pPmkidList
-    \return QDF_STATUS - when fail, it usually means the buffer allocated is not
-			 big enough and pNumItems
-			 has the number of tBkidCandidateInfo.
-    \Note: pNumItems is a number of tBkidCandidateInfo,
-	   not sizeof(tBkidCandidateInfo) * something
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_scan_get_bkid_candidate_list() - A wrapper function to return the BKID
+ * candidate list
+ *
+ * @pBkidList - caller allocated buffer point to an array of
+ *		       tBkidCandidateInfo
+ * @pNumItems - pointer to a variable that has the number of
+ *		       tBkidCandidateInfo allocated when retruning, this is
+ *		       either the number needed or number of items put into
+ *		       pPmkidList
+ *
+ * Return QDF_STATUS - when fail, it usually means the buffer allocated is not
+ *			 big enough and pNumItems
+ *			 has the number of tBkidCandidateInfo.
+ * Note: pNumItems is a number of tBkidCandidateInfo,
+ *	   not sizeof(tBkidCandidateInfo) * something
+ */
 QDF_STATUS sme_scan_get_bkid_candidate_list(tHalHandle hHal, uint32_t sessionId,
 					    tBkidCandidateInfo *pBkidList,
 					    uint32_t *pNumItems)
@@ -6015,8 +5961,8 @@ QDF_STATUS sme_scan_get_bkid_candidate_list(tHalHandle hHal, uint32_t sessionId,
 	status = sme_acquire_global_lock(&pMac->sme);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
 		status =
-			csr_scan_get_bkid_candidate_list(pMac, sessionId, pBkidList,
-							 pNumItems);
+			csr_scan_get_bkid_candidate_list(pMac, sessionId,
+							pBkidList, pNumItems);
 		sme_release_global_lock(&pMac->sme);
 	}
 
@@ -6063,43 +6009,40 @@ QDF_STATUS sme_oem_data_req(tHalHandle hal, struct oem_data_req *hdd_oem_req)
 
 	status = wma_start_oem_data_req(wma_handle, oem_data_req);
 
-	if (!QDF_IS_STATUS_SUCCESS(status)) {
+	if (!QDF_IS_STATUS_SUCCESS(status))
 		sme_err("Post oem data request msg fail");
-	} else {
+	else
 		sme_debug("OEM request(length: %d) sent to WMA",
 			  oem_data_req->data_len);
-	}
 
 	if (oem_data_req->data_len)
 		qdf_mem_free(oem_data_req->data);
 	qdf_mem_free(oem_data_req);
 
 	SME_EXIT();
+
 	return status;
 }
 #endif /*FEATURE_OEM_DATA_SUPPORT */
 
-/*--------------------------------------------------------------------------
-
-   \brief sme_open_session() - Open a session for scan/roam operation.
-
-   This is a synchronous API.
-
-   \param hHal - The handle returned by mac_open.
-   \param callback - A pointer to the function caller specifies for
-		     roam/connect status indication
-   \param pContext - The context passed with callback
-   \param pSelfMacAddr - Caller allocated memory filled with self MAC address
-			 (6 bytes)
-   \param pbSessionId - pointer to a caller allocated buffer for returned session ID
-
-   \return QDF_STATUS_SUCCESS - session is opened. sessionId returned.
-
-		Other status means SME is failed to open the session.
-		QDF_STATUS_E_RESOURCES - no more session available.
-   \sa
-
-   --------------------------------------------------------------------------*/
+/**
+ * sme_open_session() - Open a session for scan/roam operation.
+ *
+ *  This is a synchronous API.
+ *
+ * @hHal - The handle returned by mac_open.
+ * @callback - A pointer to the function caller specifies for
+ *		     roam/connect status indication
+ * @pContext - The context passed with callback
+ * @pSelfMacAddr - Caller allocated memory filled with self MAC address
+ *			 (6 bytes)
+ * @pbSessionId - pointer to a caller allocated buffer for returned session ID
+ *
+ * Return QDF_STATUS_SUCCESS - session is opened. sessionId returned.
+ *
+ *		Other status means SME is failed to open the session.
+ *		QDF_STATUS_E_RESOURCES - no more session available.
+ */
 QDF_STATUS sme_open_session(tHalHandle hHal, csr_roam_completeCallback callback,
 			    void *pContext,
 			    uint8_t *pSelfMacAddr, uint8_t *pbSessionId,
@@ -6138,8 +6081,9 @@ QDF_STATUS sme_open_session(tHalHandle hHal, csr_roam_completeCallback callback,
 				status = QDF_STATUS_E_INVAL;
 
 			} else {
-				status = csr_roam_open_session(pMac, callback, pContext,
-						pSelfMacAddr, pbSessionId, type, subType);
+				status = csr_roam_open_session(pMac, callback,
+						pContext, pSelfMacAddr,
+						pbSessionId, type, subType);
 			}
 
 			sme_release_global_lock(&pMac->sme);
@@ -6153,23 +6097,18 @@ QDF_STATUS sme_open_session(tHalHandle hHal, csr_roam_completeCallback callback,
 	return status;
 }
 
-/*--------------------------------------------------------------------------
-
-   \brief sme_close_session() - Open a session for scan/roam operation.
-
-   This is a synchronous API.
-
-   \param hHal - The handle returned by mac_open.
-
-   \param sessionId - A previous opened session's ID.
-
-   \return QDF_STATUS_SUCCESS - session is closed.
-
-	Other status means SME is failed to open the session.
-	QDF_STATUS_E_INVAL - session is not opened.
-   \sa
-
-   --------------------------------------------------------------------------*/
+/**
+ * sme_close_session() - Open a session for scan/roam operation.
+ *
+ *  This is a synchronous API.
+ *
+ * @hHal - The handle returned by mac_open.
+ * @sessionId - A previous opened session's ID.
+ *
+ * Return QDF_STATUS_SUCCESS - session is closed.
+ * Other status means SME is failed to open the session.
+ *	QDF_STATUS_E_INVAL - session is not opened.
+ */
 QDF_STATUS sme_close_session(tHalHandle hHal, uint8_t sessionId,
 			     csr_roamSessionCloseCallback callback,
 			     void *pContext)
@@ -6190,20 +6129,16 @@ QDF_STATUS sme_close_session(tHalHandle hHal, uint8_t sessionId,
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-
-    \fn sme_roam_update_apwpsie
-
-    \brief To update AP's WPS IE. This function should be called after SME AP session is created
-    This is an asynchronous API.
-
-    \param pAPWPSIES - pointer to a caller allocated object of tSirAPWPSIEs
-
-    \return QDF_STATUS  SUCCESS 
-
-			FAILURE or RESOURCES  The API finished and failed.
-
-   -------------------------------------------------------------------------------*/
+/**
+ * sme_roam_update_apwpsie() - To update AP's WPS IE. This function should be
+ * called after SME AP session is created
+ *   This is an asynchronous API.
+ *
+ * pAPWPSIES - pointer to a caller allocated object of tSirAPWPSIEs
+ *
+ * Return QDF_STATUS  SUCCESS 
+ * FAILURE or RESOURCES  The API finished and failed.
+ */
 QDF_STATUS sme_roam_update_apwpsie(tHalHandle hHal, uint8_t sessionId,
 				   tSirAPWPSIEs *pAPWPSIES)
 {
@@ -6222,20 +6157,17 @@ QDF_STATUS sme_roam_update_apwpsie(tHalHandle hHal, uint8_t sessionId,
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-
-    \fn sme_roam_update_apwparsni_es
-
-    \brief To update AP's WPA/RSN IEs. This function should be called after SME AP session is created
-    This is an asynchronous API.
-
-    \param pAPSirRSNie - pointer to a caller allocated object of tSirRSNie with WPS/RSN IEs
-
-    \return QDF_STATUS  SUCCESS 
-
-			FAILURE or RESOURCES  The API finished and failed.
-
-   -------------------------------------------------------------------------------*/
+/**
+ * sme_roam_update_apwparsni_es() - To update AP's WPA/RSN IEs. This function
+ * should be called after SME AP session is created
+ *   This is an asynchronous API.
+ *
+ * @pAPSirRSNie - pointer to a caller allocated object of tSirRSNie with
+ * WPS/RSN IEs
+ *
+ * Return QDF_STATUS  SUCCESS 
+ * FAILURE or RESOURCES  The API finished and failed.
+ */
 QDF_STATUS sme_roam_update_apwparsni_es(tHalHandle hHal, uint8_t sessionId,
 					tSirRSNie *pAPSirRSNie)
 {
@@ -6246,7 +6178,8 @@ QDF_STATUS sme_roam_update_apwparsni_es(tHalHandle hHal, uint8_t sessionId,
 	status = sme_acquire_global_lock(&pMac->sme);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
 
-		status = csr_roam_update_wparsni_es(pMac, sessionId, pAPSirRSNie);
+		status = csr_roam_update_wparsni_es(pMac, sessionId,
+						pAPSirRSNie);
 
 		sme_release_global_lock(&pMac->sme);
 	}
@@ -6254,21 +6187,18 @@ QDF_STATUS sme_roam_update_apwparsni_es(tHalHandle hHal, uint8_t sessionId,
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-
-    \fn sme_change_mcc_beacon_interval
-
-    \brief To update P2P-GO beaconInterval. This function should be called after
-    disassociating all the station is done
-    This is an asynchronous API.
-
-    \param
-
-    \return QDF_STATUS  SUCCESS
-			FAILURE or RESOURCES
-			The API finished and failed.
-
-   -------------------------------------------------------------------------------*/
+/**
+ * sme_change_mcc_beacon_interval() - To update P2P-GO beaconInterval. This
+ * function should be called after disassociating all the station is done
+ *   This is an asynchronous API.
+ *
+ * @hHal: The handle returned by mac_open.
+ * @sessionId: Session Identifier
+ *
+ * Return QDF_STATUS  SUCCESS
+ *			FAILURE or RESOURCES
+ *			The API finished and failed.
+ */
 QDF_STATUS sme_change_mcc_beacon_interval(tHalHandle hHal, uint8_t sessionId)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
@@ -6279,6 +6209,7 @@ QDF_STATUS sme_change_mcc_beacon_interval(tHalHandle hHal, uint8_t sessionId)
 		status = csr_send_chng_mcc_beacon_interval(pMac, sessionId);
 		sme_release_global_lock(&pMac->sme);
 	}
+
 	return status;
 }
 
@@ -6415,7 +6346,7 @@ QDF_STATUS sme_set_gtk_offload(tHalHandle hHal,
 	if (!QDF_IS_STATUS_SUCCESS
 		    (cds_mq_post_message(QDF_MODULE_ID_WMA, &msg))) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-			FL("Not able to post SIR_HAL_SET_GTK_OFFLOAD message to HAL"));
+			"Not able to post SIR_HAL_SET_GTK_OFFLOAD message to HAL");
 		qdf_mem_free(request_buf);
 		return QDF_STATUS_E_FAILURE;
 	}
@@ -6453,7 +6384,7 @@ QDF_STATUS sme_get_gtk_offload(tHalHandle hHal,
 	request_buf = qdf_mem_malloc(sizeof(*request_buf));
 	if (NULL == request_buf) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-			 FL("Not able to allocate memory for Get GTK offload request"));
+			"Not able to allocate memory for Get GTK offload request");
 		return QDF_STATUS_E_NOMEM;
 	}
 
@@ -6483,7 +6414,7 @@ QDF_STATUS sme_get_gtk_offload(tHalHandle hHal,
 	if (!QDF_IS_STATUS_SUCCESS
 		    (cds_mq_post_message(QDF_MODULE_ID_WMA, &msg))) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-			  FL("Not able to post WMA_GTK_OFFLOAD_GETINFO_REQ message to WMA"));
+			 "Not able to post WMA_GTK_OFFLOAD_GETINFO_REQ message to WMA");
 		qdf_mem_free(request_buf);
 		return QDF_STATUS_E_FAILURE;
 	}
@@ -6492,13 +6423,14 @@ QDF_STATUS sme_get_gtk_offload(tHalHandle hHal,
 }
 #endif /* WLAN_FEATURE_GTK_OFFLOAD */
 
-/* ---------------------------------------------------------------------------
-    \fn sme_set_keep_alive
-    \brief  API to set the Keep Alive feature.
-    \param  hHal - The handle returned by mac_open.
-    \param  request -  Pointer to the Keep Alive request.
-    \return QDF_STATUS
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_set_keep_alive() - API to set the Keep Alive feature.
+ *
+ * @hHal - The handle returned by mac_open.
+ * @request -  Pointer to the Keep Alive request.
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_set_keep_alive(tHalHandle hHal, uint8_t session_id,
 			      tpSirKeepAliveReq request)
 {
@@ -6518,7 +6450,7 @@ QDF_STATUS sme_set_keep_alive(tHalHandle hHal, uint8_t session_id,
 	request_buf = qdf_mem_malloc(sizeof(tSirKeepAliveReq));
 	if (NULL == request_buf) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-			FL("Not able to allocate memory for keep alive request"));
+			"Not able to allocate memory for keep alive request");
 		return QDF_STATUS_E_NOMEM;
 	}
 
@@ -6538,7 +6470,7 @@ QDF_STATUS sme_set_keep_alive(tHalHandle hHal, uint8_t session_id,
 	if (QDF_STATUS_SUCCESS !=
 			cds_mq_post_message(QDF_MODULE_ID_WMA, &msg)) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-				FL("Not able to post WMA_SET_KEEP_ALIVE message to WMA"));
+			"Not able to post WMA_SET_KEEP_ALIVE message to WMA");
 		qdf_mem_free(request_buf);
 		return QDF_STATUS_E_FAILURE;
 	}
@@ -6547,13 +6479,15 @@ QDF_STATUS sme_set_keep_alive(tHalHandle hHal, uint8_t session_id,
 }
 
 #ifdef FEATURE_WLAN_SCAN_PNO
-/* ---------------------------------------------------------------------------
-    \fn sme_set_preferred_network_list
-    \brief  API to set the Preferred Network List Offload feature.
-    \param  hHal - The handle returned by mac_open.
-    \param  request -  Pointer to the offload request.
-    \return QDF_STATUS
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_set_preferred_network_list() - API to set the Preferred Network List
+ * Offload feature.
+ *
+ * @hHal - The handle returned by mac_open.
+ * @request -  Pointer to the offload request.
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_set_preferred_network_list(tHalHandle hHal,
 		tpSirPNOScanReq request,
 		uint8_t sessionId,
@@ -6601,14 +6535,16 @@ QDF_STATUS sme_abort_mac_scan(tHalHandle hHal, uint8_t sessionId,
 	return status;
 }
 
-/* ----------------------------------------------------------------------------
-    \fn sme_get_operation_channel
-    \brief API to get current channel on which STA is parked
-    this function gives channel information only of infra station or IBSS station
-    \param hHal, pointer to memory location and sessionId
-    \returns QDF_STATUS_SUCCESS
-	     QDF_STATUS_E_FAILURE
-   -------------------------------------------------------------------------------*/
+/**
+ * sme_get_operation_channel() - API to get current channel on which STA is
+ * parked his function gives channel information only of infra station or IBSS
+ * station
+ *
+ * @hHal, pointer to memory location and sessionId
+ *
+ * Returns QDF_STATUS_SUCCESS
+ *	     QDF_STATUS_E_FAILURE
+ */
 QDF_STATUS sme_get_operation_channel(tHalHandle hHal, uint32_t *pChannel,
 				     uint8_t sessionId)
 {
@@ -6707,17 +6643,17 @@ QDF_STATUS sme_register_mgmt_frame_ind_callback(tHalHandle hal,
 	return QDF_STATUS_E_FAILURE;
 }
 
-/* ---------------------------------------------------------------------------
-
-    \fn sme_RegisterMgtFrame
-
-    \brief To register managment frame of specified type and subtype.
-    \param frameType - type of the frame that needs to be passed to HDD.
-    \param matchData - data which needs to be matched before passing frame
-		       to HDD.
-    \param matchDataLen - Length of matched data.
-    \return QDF_STATUS
-   -------------------------------------------------------------------------------*/
+/**
+ * sme_RegisterMgtFrame() -
+ * To register managment frame of specified type and subtype.
+ *
+ * frameType - type of the frame that needs to be passed to HDD.
+ * matchData - data which needs to be matched before passing frame
+ *		       to HDD.
+ * matchDataLen - Length of matched data.
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_register_mgmt_frame(tHalHandle hHal, uint8_t sessionId,
 				   uint16_t frameType, uint8_t *matchData,
 				   uint16_t matchLen)
@@ -6737,7 +6673,8 @@ QDF_STATUS sme_register_mgmt_frame(tHalHandle hHal, uint8_t sessionId,
 			return QDF_STATUS_E_FAILURE;
 		}
 
-		if (!CSR_IS_SESSION_ANY(sessionId) && !pSession->sessionActive) {
+		if (!CSR_IS_SESSION_ANY(sessionId) &&
+						!pSession->sessionActive) {
 			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 				  "%s Invalid Sessionid", __func__);
 			sme_release_global_lock(&pMac->sme);
@@ -6764,17 +6701,17 @@ QDF_STATUS sme_register_mgmt_frame(tHalHandle hHal, uint8_t sessionId,
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-
-    \fn sme_DeregisterMgtFrame
-
-    \brief To De-register managment frame of specified type and subtype.
-    \param frameType - type of the frame that needs to be passed to HDD.
-    \param matchData - data which needs to be matched before passing frame
-		       to HDD.
-    \param matchDataLen - Length of matched data.
-    \return QDF_STATUS
-   -------------------------------------------------------------------------------*/
+/**
+ * sme_DeregisterMgtFrame() - To De-register managment frame of specified type
+ * and subtype.
+ *
+ * @frameType - type of the frame that needs to be passed to HDD.
+ * @matchData - data which needs to be matched before passing frame
+ *		       to HDD.
+ * @matchDataLen - Length of matched data.
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_deregister_mgmt_frame(tHalHandle hHal, uint8_t sessionId,
 				     uint16_t frameType, uint8_t *matchData,
 				     uint16_t matchLen)
@@ -6797,7 +6734,8 @@ QDF_STATUS sme_deregister_mgmt_frame(tHalHandle hHal, uint8_t sessionId,
 			return QDF_STATUS_E_FAILURE;
 		}
 
-		if (!CSR_IS_SESSION_ANY(sessionId) && !pSession->sessionActive) {
+		if (!CSR_IS_SESSION_ANY(sessionId) &&
+						!pSession->sessionActive) {
 			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 				  "%s Invalid Sessionid", __func__);
 			sme_release_global_lock(&pMac->sme);
@@ -6893,13 +6831,16 @@ QDF_STATUS sme_remain_on_channel(tHalHandle hHal, uint8_t session_id,
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_report_probe_req
-    \brief  API to enable/disable forwarding of probeReq to apps in p2p.
-    \param  hHal - The handle returned by mac_open.
-    \param  falg: to set the Probe request forarding to wpa_supplicant in listen state in p2p
-    \return QDF_STATUS
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_report_probe_req() - API to enable/disable forwarding of probeReq to apps
+ * in p2p.
+ *
+ * @hHal - The handle returned by mac_open.
+ * @falg: to set the Probe request forarding to wpa_supplicant in listen state
+ * in p2p
+ *
+ * Return QDF_STATUS
+ */
 
 #ifndef WLAN_FEATURE_CONCURRENT_P2P
 QDF_STATUS sme_report_probe_req(tHalHandle hHal, uint8_t flag)
@@ -6921,14 +6862,15 @@ QDF_STATUS sme_report_probe_req(tHalHandle hHal, uint8_t flag)
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_update_p2p_ie
-    \brief  API to set the P2p Ie in p2p context
-    \param  hHal - The handle returned by mac_open.
-    \param  p2pIe -  Ptr to p2pIe from HDD.
-    \param p2pIeLength: length of p2pIe
-    \return QDF_STATUS
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_update_p2p_ie() - API to set the P2p Ie in p2p context
+ *
+ * @hHal - The handle returned by mac_open.
+ * @p2pIe -  Ptr to p2pIe from HDD.
+ * @p2pIeLength: length of p2pIe
+ *
+ * Return QDF_STATUS
+ */
 
 QDF_STATUS sme_update_p2p_ie(tHalHandle hHal, void *p2pIe, uint32_t p2pIeLength)
 {
@@ -6964,12 +6906,13 @@ QDF_STATUS sme_update_p2p_ie(tHalHandle hHal, void *p2pIe, uint32_t p2pIeLength)
 }
 #endif
 
-/* ---------------------------------------------------------------------------
-    \fn sme_send_action
-    \brief  API to send action frame from supplicant.
-    \param  hHal - The handle returned by mac_open.
-    \return QDF_STATUS
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_send_action() - API to send action frame from supplicant.
+ *
+ * @hHal - The handle returned by mac_open.
+ *
+ * Return QDF_STATUS
+ */
 
 QDF_STATUS sme_send_action(tHalHandle hHal, uint8_t sessionId,
 			   const uint8_t *pBuf, uint32_t len,
@@ -7024,27 +6967,18 @@ QDF_STATUS sme_p2p_set_ps(tHalHandle hHal, tP2pPsConfig *data)
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-
-   \fn    sme_configure_suspend_ind
-
-   \brief
-    SME will pass this request to lower mac to Indicate that the wlan needs to
-    be suspended
-
-   \param
-
-    hHal - The handle returned by mac_open.
-
-    wlanSuspendParam- Depicts the wlan suspend params
-
-    csr_readyToSuspendCallback - Callback to be called when ready to suspend
-				 event is received.
-	callback_context  - Context associated with csr_readyToSuspendCallback.
-
-   \return QDF_STATUS
-
-   --------------------------------------------------------------------------- */
+/**
+ * sme_configure_suspend_ind() - SME will pass this request to lower mac to
+ * Indicate that the wlan needs to be suspended
+ *
+ * @hHal - The handle returned by mac_open.
+ * @wlanSuspendParam- Depicts the wlan suspend params
+ * @csr_readyToSuspendCallback - Callback to be called when ready to suspend
+ *				 event is received.
+ * @callback_context  - Context associated with csr_readyToSuspendCallback.
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_configure_suspend_ind(tHalHandle hHal,
 				     uint32_t conn_state_mask,
 				     csr_readyToSuspendCallback callback,
@@ -7081,23 +7015,15 @@ QDF_STATUS sme_configure_suspend_ind(tHalHandle hHal,
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-
-   \fn    sme_configure_resume_req
-
-   \brief
-    SME will pass this request to lower mac to Indicate that the wlan needs to
-    be Resumed
-
-   \param
-
-    hHal - The handle returned by mac_open.
-
-    wlanResumeParam- Depicts the wlan resume params
-
-   \return QDF_STATUS
-
-   --------------------------------------------------------------------------- */
+/**
+ * sme_configure_resume_req() - SME will pass this request to lower mac to
+ * Indicate that the wlan needs to be Resumed
+ *
+ * @hHal - The handle returned by mac_open.
+ * @wlanResumeParam- Depicts the wlan resume params
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_configure_resume_req(tHalHandle hHal,
 				    tpSirWlanResumeParam wlanResumeParam)
 {
@@ -7117,9 +7043,9 @@ QDF_STATUS sme_configure_resume_req(tHalHandle hHal,
 		MTRACE(qdf_trace(QDF_MODULE_ID_SME, TRACE_CODE_SME_TX_WMA_MSG,
 				 NO_SESSION, cds_message.type));
 		qdf_status = cds_mq_post_message(CDS_MQ_ID_WMA, &cds_message);
-		if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
+		if (!QDF_IS_STATUS_SUCCESS(qdf_status))
 			status = QDF_STATUS_E_FAILURE;
-		}
+
 		sme_release_global_lock(&pMac->sme);
 	}
 	return status;
@@ -7134,6 +7060,7 @@ QDF_STATUS sme_configure_resume_req(tHalHandle hHal,
  * @callback_context - ext_wow callback context
  *
  * SME will pass this request to lower mac to configure Extr WoW
+ *
  * Return: QDF_STATUS
  */
 QDF_STATUS sme_configure_ext_wow(tHalHandle hHal,
@@ -7180,24 +7107,17 @@ QDF_STATUS sme_configure_ext_wow(tHalHandle hHal,
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-
-   \fn    sme_configure_app_type1_params
-
-   \brief
-   SME will pass this request to lower mac to configure Indoor WoW parameters.
-
-   \param
-
-    hHal - The handle returned by mac_open.
-
-    wlanAppType1Params- Depicts the wlan App Type 1(Indoor) params
-
-   \return QDF_STATUS
-
-   --------------------------------------------------------------------------- */
+/**
+ * sme_configure_app_type1_params() - SME will pass this request to lower mac
+ * to configure Indoor WoW parameters.
+ *
+ * @hHal - The handle returned by mac_open.
+ * @wlanAppType1Params- Depicts the wlan App Type 1(Indoor) params
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_configure_app_type1_params(tHalHandle hHal,
-					  tpSirAppType1Params wlanAppType1Params)
+					 tpSirAppType1Params wlanAppType1Params)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
@@ -7224,31 +7144,23 @@ QDF_STATUS sme_configure_app_type1_params(tHalHandle hHal,
 			status = QDF_STATUS_E_FAILURE;
 		}
 		sme_release_global_lock(&pMac->sme);
-	} else {
+	} else
 		qdf_mem_free(MsgPtr);
-	}
 
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-
-   \fn    sme_configure_app_type2_params
-
-   \brief
-   SME will pass this request to lower mac to configure Indoor WoW parameters.
-
-   \param
-
-    hHal - The handle returned by mac_open.
-
-    wlanAppType2Params- Depicts the wlan App Type 2 (Outdoor) params
-
-   \return QDF_STATUS
-
-   --------------------------------------------------------------------------- */
+/**
+ * sme_configure_app_type2_params() - SME will pass this request to lower mac to
+ * configure Indoor WoW parameters.
+ *
+ * @hHal - The handle returned by mac_open.
+ * @wlanAppType2Params- Depicts the wlan App Type 2 (Outdoor) params
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_configure_app_type2_params(tHalHandle hHal,
-					  tpSirAppType2Params wlanAppType2Params)
+					 tpSirAppType2Params wlanAppType2Params)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
@@ -7275,26 +7187,21 @@ QDF_STATUS sme_configure_app_type2_params(tHalHandle hHal,
 			status = QDF_STATUS_E_FAILURE;
 		}
 		sme_release_global_lock(&pMac->sme);
-	} else {
+	} else
 		qdf_mem_free(MsgPtr);
-	}
 
 	return status;
 }
 #endif
 
-/* ---------------------------------------------------------------------------
-
-    \fn sme_get_infra_session_id
-
-    \brief To get the session ID for infra session, if connected
-    This is a synchronous API.
-
-    \param hHal - The handle returned by mac_open.
-
-    \return sessionid, -1 if infra session is not connected
-
-   -------------------------------------------------------------------------------*/
+/**
+ * sme_get_infra_session_id() - To get the session ID for infra session, if
+ * connected
+ *   This is a synchronous API.
+ *
+ * @hHal - The handle returned by mac_open.
+ * @sessionid, -1 if infra session is not connected
+ */
 int8_t sme_get_infra_session_id(tHalHandle hHal)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
@@ -7312,24 +7219,22 @@ int8_t sme_get_infra_session_id(tHalHandle hHal)
 	return sessionid;
 }
 
-/* ---------------------------------------------------------------------------
-
-    \fn sme_get_infra_operation_channel
-
-    \brief To get the operating channel for infra session, if connected
-    This is a synchronous API.
-
-    \param hHal - The handle returned by mac_open.
-    \param sessionId - the sessionId returned by sme_open_session.
-
-    \return operating channel, 0 if infra session is not connected
-
-   -------------------------------------------------------------------------------*/
+/**
+ * sme_get_infra_operation_channel() - To get the operating channel for infra
+ * session, if connected
+ *   This is a synchronous API.
+ *
+ * @hHal - The handle returned by mac_open.
+ * @sessionId - the sessionId returned by sme_open_session.
+ *
+ * Return operating channel, 0 if infra session is not connected
+ */
 uint8_t sme_get_infra_operation_channel(tHalHandle hHal, uint8_t sessionId)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 	uint8_t channel = 0;
+
 	status = sme_acquire_global_lock(&pMac->sme);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
 
@@ -7341,19 +7246,22 @@ uint8_t sme_get_infra_operation_channel(tHalHandle hHal, uint8_t sessionId)
 	return channel;
 }
 
-/* This routine will return poerating channel on which other BSS is operating to be used for concurrency mode. */
-/* If other BSS is not up or not connected it will return 0 */
+/* This routine will return poerating channel on which other BSS is operating
+ * to be used for concurrency mode. If other BSS is not up or not connected it
+ * will return 0
+ */
 uint8_t sme_get_concurrent_operation_channel(tHalHandle hHal)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 	uint8_t channel = 0;
+
 	status = sme_acquire_global_lock(&pMac->sme);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
 
 		channel = csr_get_concurrent_operation_channel(pMac);
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG, "%s: "
-			  " Other Concurrent Channel = %d", __func__, channel);
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
+			"%s: Other Concurrent Channel: %d", __func__, channel);
 		sme_release_global_lock(&pMac->sme);
 	}
 
@@ -7372,7 +7280,8 @@ uint16_t sme_check_concurrent_channel_overlap(tHalHandle hHal, uint16_t sap_ch,
 	status = sme_acquire_global_lock(&pMac->sme);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
 		channel =
-			csr_check_concurrent_channel_overlap(pMac, sap_ch, sapPhyMode,
+			csr_check_concurrent_channel_overlap(pMac, sap_ch,
+								sapPhyMode,
 							     cc_switch_mode);
 		sme_release_global_lock(&pMac->sme);
 	}
@@ -7398,6 +7307,7 @@ void sme_update_roam_pno_channel_prediction_config(
 		uint8_t copy_from_to)
 {
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+
 	if (copy_from_to == SME_CONFIG_TO_ROAM_CONFIG) {
 		mac_ctx->roam.configParam.pno_channel_prediction =
 			csr_config->pno_channel_prediction;
@@ -7423,20 +7333,18 @@ void sme_update_roam_pno_channel_prediction_config(
 	}
 
 }
-/******************************************************************************
-*
-* Name: sme_preferred_network_found_ind
-*
-* Description:
-*    Invoke Preferred Network Found Indication
-*
-* Parameters:
-*    hHal - HAL handle for device
-*    pMsg - found network description
-*
-* Returns: QDF_STATUS
-*
-******************************************************************************/
+/*
+ * Name: sme_preferred_network_found_ind() -
+ *
+ * Description:
+ *    Invoke Preferred Network Found Indication
+ *
+ * Parameters:
+ *    hHal - HAL handle for device
+ *    pMsg - found network description
+ *
+ * Returns: QDF_STATUS
+ */
 QDF_STATUS sme_preferred_network_found_ind(tHalHandle hHal, void *pMsg)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
@@ -7471,7 +7379,8 @@ QDF_STATUS sme_preferred_network_found_ind(tHalHandle hHal, void *pMsg)
 			  dumpSsId, pPrefNetworkFoundInd->frameLength);
 
 		/* Flush scan results, So as to avoid indication/updation of
-		 * stale entries, which may not have aged out during APPS collapse
+		 * stale entries, which may not have aged out during APPS
+		 * collapse
 		 */
 		sme_scan_flush_result(hHal);
 
@@ -7481,14 +7390,12 @@ QDF_STATUS sme_preferred_network_found_ind(tHalHandle hHal, void *pMsg)
 			/* we may have a frame */
 			status = csr_scan_save_preferred_network_found(pMac,
 					pPrefNetworkFoundInd);
-			if (!QDF_IS_STATUS_SUCCESS(status)) {
+			if (!QDF_IS_STATUS_SUCCESS(status))
 				sme_err("fail to save preferred network");
-			}
-		} else {
+		} else
 			sme_err("not enough data length %d needed %zu",
 				pPrefNetworkFoundInd->mesgLen,
 				sizeof(tSirPrefNetworkFoundInd));
-		}
 
 		/* Call Preferred Netowrk Found Indication callback routine. */
 		if (QDF_IS_STATUS_SUCCESS(status)
@@ -7611,37 +7518,35 @@ void sme_set_cc_src(tHalHandle hHal, enum country_src cc_src)
 
 	mac_ctx->reg_hint_src = cc_src;
 }
-/* ---------------------------------------------------------------------------
-
-    \fn sme_handle_change_country_code
-
-    \brief Change Country code, Reg Domain and channel list
-
-    \details Country Code Priority
-    If Supplicant country code is priority than 11d is disabled.
-    If 11D is enabled, we update the country code after every scan.
-    Hence when Supplicant country code is priority, we don't need 11D info.
-    Country code from Supplicant is set as current courtry code.
-    User can send reset command XX (instead of country code) to reset the
-    country code to default values.
-    If 11D is priority,
-    Than Supplicant country code code is set to default code. But 11D code is set as current country code
-
-    \param pMac - The handle returned by mac_open.
-    \param pMsgBuf - MSG Buffer
-
-    \return QDF_STATUS
-
-   -------------------------------------------------------------------------------*/
-QDF_STATUS sme_handle_change_country_code(tpAniSirGlobal pMac, void *pMsgBuf)
+/*
+ * sme_handle_change_country_code() - Change Country code, Reg Domain and
+ * channel list
+ *
+ * Details Country Code Priority
+ * If Supplicant country code is priority than 11d is disabled.
+ * If 11D is enabled, we update the country code after every scan.
+ * Hence when Supplicant country code is priority, we don't need 11D info.
+ * Country code from Supplicant is set as current courtry code.
+ * User can send reset command XX (instead of country code) to reset the
+ * country code to default values. If 11D is priority,
+ * Than Supplicant country code code is set to default code. But 11D code
+ * is set as current country code
+ *
+ * @pMac - The handle returned by mac_open.
+ * @pMsgBuf - MSG Buffer
+ *
+ * Return QDF_STATUS
+ */
+static QDF_STATUS sme_handle_change_country_code(tpAniSirGlobal pMac,
+						void *pMsgBuf)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	tAniChangeCountryCodeReq *pMsg;
 	v_REGDOMAIN_t domainIdIoctl;
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
 	static uint8_t default_country[CDS_COUNTRY_CODE_LEN + 1];
-	pMsg = (tAniChangeCountryCodeReq *) pMsgBuf;
 
+	pMsg = (tAniChangeCountryCodeReq *) pMsgBuf;
 	/*
 	 * if the reset Supplicant country code command is triggered,
 	 * enable 11D, reset the country code and return
@@ -7675,9 +7580,8 @@ QDF_STATUS sme_handle_change_country_code(tpAniSirGlobal pMac, void *pMsgBuf)
 	} else {
 		/* if Supplicant country code has priority, disable 11d */
 		if (pMac->roam.configParam.fSupplicantCountryCodeHasPriority &&
-		    pMsg->countryFromUserSpace) {
+		    pMsg->countryFromUserSpace)
 			pMac->roam.configParam.Is11dSupportEnabled = false;
-		}
 	}
 
 	if (pMac->roam.configParam.Is11dSupportEnabled)
@@ -7699,7 +7603,7 @@ QDF_STATUS sme_handle_change_country_code(tpAniSirGlobal pMac, void *pMsgBuf)
 
 	/* Get Domain ID from country code */
 	status = csr_get_regulatory_domain_for_country(pMac,
-						       pMac->scan.countryCodeCurrent,
+						  pMac->scan.countryCodeCurrent,
 						       (v_REGDOMAIN_t *) &
 						       domainIdIoctl,
 						       SOURCE_QUERY);
@@ -7707,8 +7611,9 @@ QDF_STATUS sme_handle_change_country_code(tpAniSirGlobal pMac, void *pMsgBuf)
 		sme_err("Fail to get regId %d", domainIdIoctl);
 		return status;
 	} else if (REGDOMAIN_WORLD == domainIdIoctl) {
-		/* Supplicant country code is invalid, so we are on world mode now. So
-		   give 11D chance to update */
+		/* Supplicant country code is invalid, so we are on world mode
+		 * now. So give 11D chance to update
+		 */
 		pMac->roam.configParam.Is11dSupportEnabled =
 			pMac->roam.configParam.Is11dSupportEnabledOriginal;
 		sme_warn("Country Code unrecognized by driver");
@@ -7719,23 +7624,22 @@ QDF_STATUS sme_handle_change_country_code(tpAniSirGlobal pMac, void *pMsgBuf)
 	if (status != QDF_STATUS_SUCCESS) {
 		sme_err("fail to set regId %d", domainIdIoctl);
 		return status;
-	} else {
-		/* if 11d has priority, clear currentCountryBssid & countryCode11d to get */
-		/* set again if we find AP with 11d info during scan */
-		if (!pMac->roam.configParam.fSupplicantCountryCodeHasPriority) {
-			sme_warn("Clearing currentCountryBssid, countryCode11d");
-			qdf_mem_zero(&pMac->scan.currentCountryBssid,
-				     sizeof(struct qdf_mac_addr));
-			qdf_mem_zero(pMac->scan.countryCode11d,
-				     sizeof(pMac->scan.countryCode11d));
-		}
+	}
+	/* if 11d has priority, clear currentCountryBssid &
+	 * countryCode11d to get set again if we find AP with
+	 * 11d info during scan
+	 */
+	if (!pMac->roam.configParam.fSupplicantCountryCodeHasPriority) {
+		sme_warn("Clearing currentCountryBssid, countryCode11d");
+		qdf_mem_zero(&pMac->scan.currentCountryBssid,
+			     sizeof(struct qdf_mac_addr));
+		qdf_mem_zero(pMac->scan.countryCode11d,
+			     sizeof(pMac->scan.countryCode11d));
 	}
 
-	if (pMsg->changeCCCallback) {
+	if (pMsg->changeCCCallback)
 		((tSmeChangeCountryCallback) (pMsg->changeCCCallback))((void *)
-								       pMsg->
-								       pDevContext);
-	}
+							pMsg->pDevContext);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -7752,7 +7656,7 @@ QDF_STATUS sme_handle_change_country_code(tpAniSirGlobal pMac, void *pMsgBuf)
  *
  * Return: status of operation
  */
-QDF_STATUS
+static QDF_STATUS
 sme_handle_generic_change_country_code(tpAniSirGlobal mac_ctx,
 				       void *pMsgBuf)
 {
@@ -7768,12 +7672,14 @@ sme_handle_generic_change_country_code(tpAniSirGlobal mac_ctx,
 				mac_ctx->roam.configParam.Is11dSupportEnabled =
 					false;
 			else {
-				if (mac_ctx->roam.configParam.Is11dSupportEnabled &&
-				    mac_ctx->scan.countryCode11d[0] != 0) {
+				if (mac_ctx->roam.configParam.
+					Is11dSupportEnabled &&
+					mac_ctx->scan.countryCode11d[0] != 0) {
 
 					sme_debug("restore 11d");
 
-					status = csr_get_regulatory_domain_for_country(
+					status =
+					csr_get_regulatory_domain_for_country(
 						mac_ctx,
 						mac_ctx->scan.countryCode11d,
 						&reg_domain_id,
@@ -7827,6 +7733,7 @@ sme_search_in_base_ch_lst(tpAniSirGlobal mac_ctx, uint8_t curr_ch)
 {
 	uint8_t i;
 	tCsrChannel *ch_lst_info;
+
 	ch_lst_info = &mac_ctx->scan.base_channels;
 	for (i = 0; i < ch_lst_info->numChannels; i++) {
 		if (ch_lst_info->channelList[i] == curr_ch)
@@ -7845,7 +7752,7 @@ sme_search_in_base_ch_lst(tpAniSirGlobal mac_ctx, uint8_t curr_ch)
  *
  * Return: void
  */
-void sme_disconnect_connected_sessions(tpAniSirGlobal mac_ctx)
+static void sme_disconnect_connected_sessions(tpAniSirGlobal mac_ctx)
 {
 	uint8_t session_id, found = false;
 	uint8_t curr_ch;
@@ -7877,8 +7784,8 @@ QDF_STATUS sme_8023_multicast_list(tHalHandle hHal, uint8_t sessionId,
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 	tCsrRoamSession *pSession = NULL;
 
-	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG, "%s: "
-		  "ulMulticastAddrCnt=%d, multicastAddr[0]=%p", __func__,
+	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
+		"%s: ulMulticastAddrCnt: %d, multicastAddr[0]: %p", __func__,
 		  pMulticastAddrs->ulMulticastAddrCnt,
 		  pMulticastAddrs->multicastAddr[0].bytes);
 
@@ -7895,8 +7802,7 @@ QDF_STATUS sme_8023_multicast_list(tHalHandle hHal, uint8_t sessionId,
 	request_buf = qdf_mem_malloc(sizeof(tSirRcvFltMcAddrList));
 	if (NULL == request_buf) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-			  "%s: Not able to "
-			  "allocate memory for 8023 Multicast List request",
+			  "%s: Not able to allocate memory for 8023 Multicast List request",
 			  __func__);
 		return QDF_STATUS_E_NOMEM;
 	}
@@ -7922,10 +7828,10 @@ QDF_STATUS sme_8023_multicast_list(tHalHandle hHal, uint8_t sessionId,
 	msg.bodyptr = request_buf;
 	MTRACE(qdf_trace(QDF_MODULE_ID_SME, TRACE_CODE_SME_TX_WMA_MSG,
 			 sessionId, msg.type));
-	if (QDF_STATUS_SUCCESS != cds_mq_post_message(QDF_MODULE_ID_WMA, &msg)) {
+	if (QDF_STATUS_SUCCESS != cds_mq_post_message(QDF_MODULE_ID_WMA,
+							&msg)) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-			  "%s: Not able to "
-			  "post WMA_8023_MULTICAST_LIST message to WMA",
+			  "%s: Not able to post WMA_8023_MULTICAST_LIST message to WMA",
 			  __func__);
 		qdf_mem_free(request_buf);
 		return QDF_STATUS_E_FAILURE;
@@ -7935,7 +7841,7 @@ QDF_STATUS sme_8023_multicast_list(tHalHandle hHal, uint8_t sessionId,
 }
 
 QDF_STATUS sme_receive_filter_set_filter(tHalHandle hHal,
-					 tpSirRcvPktFilterCfgType pRcvPktFilterCfg,
+				tpSirRcvPktFilterCfgType pRcvPktFilterCfg,
 					 uint8_t sessionId)
 {
 	tpSirRcvPktFilterCfgType request_buf;
@@ -7945,8 +7851,8 @@ QDF_STATUS sme_receive_filter_set_filter(tHalHandle hHal,
 	tCsrRoamSession *pSession = CSR_GET_SESSION(pMac, sessionId);
 	uint8_t idx = 0;
 
-	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG, "%s: filterType=%d, "
-		  "filterId = %d", __func__,
+	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
+		"%s: filterType=%d, filterId = %d", __func__,
 		  pRcvPktFilterCfg->filterType, pRcvPktFilterCfg->filterId);
 
 	allocSize = sizeof(tSirRcvPktFilterCfgType);
@@ -7955,8 +7861,7 @@ QDF_STATUS sme_receive_filter_set_filter(tHalHandle hHal,
 
 	if (NULL == request_buf) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-			  "%s: Not able to "
-			  "allocate memory for Receive Filter Set Filter request",
+			  "%s: Not able to allocate memory for Receive Filter Set Filter request",
 			  __func__);
 		return QDF_STATUS_E_NOMEM;
 	}
@@ -7979,12 +7884,12 @@ QDF_STATUS sme_receive_filter_set_filter(tHalHandle hHal,
 	msg.bodyptr = request_buf;
 	MTRACE(qdf_trace(QDF_MODULE_ID_SME, TRACE_CODE_SME_TX_WMA_MSG,
 			 sessionId, msg.type));
-	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG, "Pkt Flt Req : "
-		  "FT %d FID %d ",
+	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
+		"Pkt Flt Req : FT %d FID %d ",
 		  request_buf->filterType, request_buf->filterId);
 
-	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG, "Pkt Flt Req : "
-		  "params %d CT %d",
+	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
+		"Pkt Flt Req : params %d CT %d",
 		  request_buf->numFieldParams, request_buf->coalesceTime);
 
 	for (idx = 0; idx < request_buf->numFieldParams; idx++) {
@@ -8019,10 +7924,10 @@ QDF_STATUS sme_receive_filter_set_filter(tHalHandle hHal,
 
 	}
 
-	if (QDF_STATUS_SUCCESS != cds_mq_post_message(QDF_MODULE_ID_WMA, &msg)) {
+	if (QDF_STATUS_SUCCESS != cds_mq_post_message(QDF_MODULE_ID_WMA,
+							&msg)) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-			  "%s: Not able to post "
-			  "WMA_RECEIVE_FILTER_SET_FILTER message to WMA",
+			  "%s: Not able to post WMA_RECEIVE_FILTER_SET_FILTER message to WMA",
 			  __func__);
 		qdf_mem_free(request_buf);
 		return QDF_STATUS_E_FAILURE;
@@ -8033,7 +7938,7 @@ QDF_STATUS sme_receive_filter_set_filter(tHalHandle hHal,
 
 QDF_STATUS sme_receive_filter_clear_filter(tHalHandle hHal,
 					   tpSirRcvFltPktClearParam
-					   pRcvFltPktClearParam, uint8_t sessionId)
+					pRcvFltPktClearParam, uint8_t sessionId)
 {
 	tpSirRcvFltPktClearParam request_buf;
 	cds_msg_t msg;
@@ -8052,8 +7957,8 @@ QDF_STATUS sme_receive_filter_clear_filter(tHalHandle hHal,
 	request_buf = qdf_mem_malloc(sizeof(tSirRcvFltPktClearParam));
 	if (NULL == request_buf) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-			  "%s: Not able to allocate memory for Receive Filter "
-			  "Clear Filter request", __func__);
+			  "%s: Not able to allocate memory for Receive Filter Clear Filter request",
+			__func__);
 		return QDF_STATUS_E_NOMEM;
 	}
 
@@ -8070,10 +7975,10 @@ QDF_STATUS sme_receive_filter_clear_filter(tHalHandle hHal,
 	msg.bodyptr = request_buf;
 	MTRACE(qdf_trace(QDF_MODULE_ID_SME, TRACE_CODE_SME_TX_WMA_MSG,
 			 sessionId, msg.type));
-	if (QDF_STATUS_SUCCESS != cds_mq_post_message(QDF_MODULE_ID_WMA, &msg)) {
+	if (QDF_STATUS_SUCCESS != cds_mq_post_message(QDF_MODULE_ID_WMA,
+							&msg)) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-			  "%s: Not able to post "
-			  "WMA_RECEIVE_FILTER_CLEAR_FILTER message to WMA",
+			  "%s: Not able to post WMA_RECEIVE_FILTER_CLEAR_FILTER message to WMA",
 			  __func__);
 		qdf_mem_free(request_buf);
 		return QDF_STATUS_E_FAILURE;
@@ -8083,19 +7988,16 @@ QDF_STATUS sme_receive_filter_clear_filter(tHalHandle hHal,
 }
 #endif /* WLAN_FEATURE_PACKET_FILTERING */
 
-/* ---------------------------------------------------------------------------
-
-    \fn sme_is_channel_valid
-
-    \brief To check if the channel is valid for currently established domain
-    This is a synchronous API.
-
-    \param hHal - The handle returned by mac_open.
-    \param channel - channel to verify
-
-    \return true/false, true if channel is valid
-
-   -------------------------------------------------------------------------------*/
+/**
+ * sme_is_channel_valid() - To check if the channel is valid for currently
+ * established domain
+ *   This is a synchronous API.
+ *
+ * @hHal - The handle returned by mac_open.
+ * @channel - channel to verify
+ *
+ * Return true/false, true if channel is valid
+ */
 bool sme_is_channel_valid(tHalHandle hHal, uint8_t channel)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
@@ -8113,14 +8015,15 @@ bool sme_is_channel_valid(tHalHandle hHal, uint8_t channel)
 	return valid;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_set_freq_band
-    \brief  Used to set frequency band.
-    \param  hHal
-    \param  sessionId - Session Identifier
-    \eBand  band value to be configured
-   \- return QDF_STATUS
-    -------------------------------------------------------------------------*/
+/**
+ * sme_set_freq_band() - Used to set frequency band.
+ *
+ * @hHal
+ * @sessionId - Session Identifier
+ * @band value to be configured
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_set_freq_band(tHalHandle hHal, uint8_t sessionId, eCsrBand eBand)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
@@ -8134,13 +8037,14 @@ QDF_STATUS sme_set_freq_band(tHalHandle hHal, uint8_t sessionId, eCsrBand eBand)
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_get_freq_band
-    \brief  Used to get the current band settings.
-    \param  hHal
-    \pBand  pointer to hold band value
-   \- return QDF_STATUS
-    -------------------------------------------------------------------------*/
+/**
+ * sme_get_freq_band() - Used to get the current band settings.
+ *
+ * @hHal
+ * @pBand  pointer to hold band value
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_get_freq_band(tHalHandle hHal, eCsrBand *pBand)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
@@ -8154,17 +8058,16 @@ QDF_STATUS sme_get_freq_band(tHalHandle hHal, eCsrBand *pBand)
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_set_max_tx_power_per_band
-
-    \brief Set the Maximum Transmit Power specific to band dynamically.
-    Note: this setting will not persist over reboots.
-
-    \param band
-    \param power to set in dB
-  \- return QDF_STATUS
-
-   ----------------------------------------------------------------------------*/
+/**
+ * sme_set_max_tx_power_per_band() - Set the Maximum Transmit Power specific
+ * to band dynamically.
+ *   Note: this setting will not persist over reboots.
+ *
+ * @band
+ * @power to set in dB
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_set_max_tx_power_per_band(eCsrBand band, int8_t dB)
 {
 	cds_msg_t msg;
@@ -8187,7 +8090,8 @@ QDF_STATUS sme_set_max_tx_power_per_band(eCsrBand band, int8_t dB)
 	msg.bodyptr = pMaxTxPowerPerBandParams;
 	MTRACE(qdf_trace(QDF_MODULE_ID_SME, TRACE_CODE_SME_TX_WMA_MSG,
 			 NO_SESSION, msg.type));
-	if (QDF_STATUS_SUCCESS != cds_mq_post_message(QDF_MODULE_ID_WMA, &msg)) {
+	if (QDF_STATUS_SUCCESS != cds_mq_post_message(QDF_MODULE_ID_WMA,
+							&msg)) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 			  "%s:Not able to post WMA_SET_MAX_TX_POWER_PER_BAND_REQ",
 			  __func__);
@@ -8198,20 +8102,17 @@ QDF_STATUS sme_set_max_tx_power_per_band(eCsrBand band, int8_t dB)
 	return QDF_STATUS_SUCCESS;
 }
 
-/* ---------------------------------------------------------------------------
-
-    \fn sme_set_max_tx_power
-
-    \brief Set the Maximum Transmit Power dynamically. Note: this setting will
-    not persist over reboots.
-
-    \param  hHal
-    \param pBssid  BSSID to set the power cap for
-    \param pBssid  pSelfMacAddress self MAC Address
-    \param pBssid  power to set in dB
-   \- return QDF_STATUS
-
-   -------------------------------------------------------------------------------*/
+/**
+ * sme_set_max_tx_power() - Set the Maximum Transmit Power dynamically. Note:
+ * this setting will not persist over reboots.
+ *
+ * @hHal
+ * @pBssid  BSSID to set the power cap for
+ * @pBssid  pSelfMacAddress self MAC Address
+ * @pBssid  power to set in dB
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_set_max_tx_power(tHalHandle hHal, struct qdf_mac_addr pBssid,
 				struct qdf_mac_addr pSelfMacAddress, int8_t dB)
 {
@@ -8236,7 +8137,8 @@ QDF_STATUS sme_set_max_tx_power(tHalHandle hHal, struct qdf_mac_addr pBssid,
 	msg.reserved = 0;
 	msg.bodyptr = pMaxTxParams;
 
-	if (QDF_STATUS_SUCCESS != cds_mq_post_message(QDF_MODULE_ID_WMA, &msg)) {
+	if (QDF_STATUS_SUCCESS != cds_mq_post_message(QDF_MODULE_ID_WMA,
+							&msg)) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 			  "%s: Not able to post WMA_SET_MAX_TX_POWER_REQ message to WMA",
 			  __func__);
@@ -8247,16 +8149,13 @@ QDF_STATUS sme_set_max_tx_power(tHalHandle hHal, struct qdf_mac_addr pBssid,
 	return QDF_STATUS_SUCCESS;
 }
 
-/* ---------------------------------------------------------------------------
-
-    \fn sme_set_custom_mac_addr
-
-    \brief Set the customer Mac Address.
-
-    \param customMacAddr  customer MAC Address
-   \- return QDF_STATUS
-
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_set_custom_mac_addr() - Set the customer Mac Address.
+ *
+ * @customMacAddr  customer MAC Address
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_set_custom_mac_addr(tSirMacAddr customMacAddr)
 {
 	cds_msg_t msg;
@@ -8275,10 +8174,10 @@ QDF_STATUS sme_set_custom_mac_addr(tSirMacAddr customMacAddr)
 	msg.reserved = 0;
 	msg.bodyptr = pBaseMacAddr;
 
-	if (QDF_STATUS_SUCCESS != cds_mq_post_message(QDF_MODULE_ID_WMA, &msg)) {
+	if (QDF_STATUS_SUCCESS != cds_mq_post_message(QDF_MODULE_ID_WMA,
+							&msg)) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-			  FL
-				  ("Not able to post SIR_HAL_SET_BASE_MACADDR_IND message to WMA"));
+			"Not able to post SIR_HAL_SET_BASE_MACADDR_IND message to WMA");
 		qdf_mem_free(pBaseMacAddr);
 		return QDF_STATUS_E_FAILURE;
 	}
@@ -8286,16 +8185,17 @@ QDF_STATUS sme_set_custom_mac_addr(tSirMacAddr customMacAddr)
 	return QDF_STATUS_SUCCESS;
 }
 
-/* ----------------------------------------------------------------------------
-   \fn sme_set_tx_power
-   \brief Set Transmit Power dynamically.
-   \param  hHal
-   \param sessionId  Target Session ID
-   \pBSSId BSSID
-   \dev_mode dev_mode such as station, P2PGO, SAP
-   \param dBm  power to set
-   \- return QDF_STATUS
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_set_tx_power() - Set Transmit Power dynamically.
+ *
+ * @hHal
+ * @sessionId  Target Session ID
+ * @BSSID
+ * @dev_mode dev_mode such as station, P2PGO, SAP
+ * @dBm  power to set
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_set_tx_power(tHalHandle hHal, uint8_t sessionId,
 			   struct qdf_mac_addr pBSSId,
 			   enum tQDF_ADAPTER_MODE dev_mode, int dBm)
@@ -8329,7 +8229,8 @@ QDF_STATUS sme_set_tx_power(tHalHandle hHal, uint8_t sessionId,
 	msg.reserved = 0;
 	msg.bodyptr = pTxParams;
 
-	if (QDF_STATUS_SUCCESS != cds_mq_post_message(QDF_MODULE_ID_WMA, &msg)) {
+	if (QDF_STATUS_SUCCESS != cds_mq_post_message(QDF_MODULE_ID_WMA,
+							&msg)) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 			  "%s: failed to post WMA_SET_TX_POWER_REQ to WMA",
 			  __func__);
@@ -8381,16 +8282,17 @@ QDF_STATUS sme_update_session_param(tHalHandle hal, uint8_t session_id,
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-
-    \fn sme_set_tm_level
-    \brief  Set Thermal Mitigation Level to RIVA
-    \param  hHal - The handle returned by mac_open.
-    \param  newTMLevel - new Thermal Mitigation Level
-    \param  tmMode - Thermal Mitigation handle mode, default 0
-    \return QDF_STATUS
-   ---------------------------------------------------------------------------*/
-QDF_STATUS sme_set_tm_level(tHalHandle hHal, uint16_t newTMLevel, uint16_t tmMode)
+/**
+ * sme_set_tm_level() - Set Thermal Mitigation Level to RIVA
+ *
+ * @hHal - The handle returned by mac_open.
+ * @newTMLevel - new Thermal Mitigation Level
+ * @tmMode - Thermal Mitigation handle mode, default 0
+ *
+ * Return QDF_STATUS
+ */
+QDF_STATUS sme_set_tm_level(tHalHandle hHal, uint16_t newTMLevel, uint16_t
+			tmMode)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
@@ -8433,61 +8335,62 @@ QDF_STATUS sme_set_tm_level(tHalHandle hHal, uint16_t newTMLevel, uint16_t tmMod
 	return status;
 }
 
-/*---------------------------------------------------------------------------
-
-   \brief sme_feature_caps_exchange() - SME interface to exchange capabilities between
-   Host and FW.
-
-   \param  hHal - HAL handle for device
-
-   \return NONE
-
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_feature_caps_exchange() - SME interface to exchange capabilities between
+ *  Host and FW.
+ *
+ * @hHal - HAL handle for device
+ *
+ * Return NONE
+ */
 void sme_feature_caps_exchange(tHalHandle hHal)
 {
 	MTRACE(qdf_trace
-		       (QDF_MODULE_ID_SME, TRACE_CODE_SME_RX_HDD_CAPS_EXCH, NO_SESSION,
-		       0));
+		       (QDF_MODULE_ID_SME, TRACE_CODE_SME_RX_HDD_CAPS_EXCH,
+			NO_SESSION, 0));
 }
 
-/*---------------------------------------------------------------------------
-
-   \brief sme_disable_feature_capablity() - SME interface to disable Active mode offload capablity
-   in Host.
-
-   \param  hHal - HAL handle for device
-
-   \return NONE
-
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_disable_feature_capablity() - SME interface to disable Active mode
+ * offload capablity in Host.
+ *
+ * @hHal - HAL handle for device
+ *
+ * Return NONE
+ */
 void sme_disable_feature_capablity(uint8_t feature_index)
 {
 }
 
-/* ---------------------------------------------------------------------------
-    \fn     sme_reset_power_values_for5_g
-    \brief  Reset the power values for 5G band with default power values.
-    \param  hHal - HAL handle for device
-   \- return NONE
-    -------------------------------------------------------------------------*/
+/**
+ * sme_reset_power_values_for5_g() - Reset the power values for 5G band with
+ * default power values.
+ *
+ * @hHal - HAL handle for device
+ *
+ * Return NONE
+ */
 void sme_reset_power_values_for5_g(tHalHandle hHal)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
 	MTRACE(qdf_trace(QDF_MODULE_ID_SME,
 			 TRACE_CODE_SME_RX_HDD_RESET_PW5G, NO_SESSION, 0));
 	csr_save_channel_power_for_band(pMac, true);
-	csr_apply_power2_current(pMac);    /* Store the channel+power info in the global place: Cfg */
+	/* Store the channel+power info in the global place: Cfg */
+	csr_apply_power2_current(pMac);
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_update_roam_prefer5_g_hz
-    \brief  enable/disable Roam prefer 5G runtime option
-	    This function is called through dynamic setConfig callback function
-	    to configure the Roam prefer 5G runtime option
-    \param  hHal - HAL handle for device
-    \param  nRoamPrefer5GHz Enable/Disable Roam prefer 5G runtime option
-   \- return Success or failure
-    -------------------------------------------------------------------------*/
+/**
+ * sme_update_roam_prefer5_g_hz() - Enable/disable Roam prefer 5G runtime option
+ *	    This function is called through dynamic setConfig callback function
+ *	    to configure the Roam prefer 5G runtime option
+ *
+ * @hHal - HAL handle for device
+ * @nRoamPrefer5GHz Enable/Disable Roam prefer 5G runtime option
+ *
+ * Return Success or failure
+ */
 
 QDF_STATUS sme_update_roam_prefer5_g_hz(tHalHandle hHal, bool nRoamPrefer5GHz)
 {
@@ -8509,15 +8412,15 @@ QDF_STATUS sme_update_roam_prefer5_g_hz(tHalHandle hHal, bool nRoamPrefer5GHz)
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_set_roam_intra_band
-    \brief  enable/disable Intra band roaming
-	    This function is called through dynamic setConfig callback function
-	    to configure the intra band roaming
-    \param  hHal - HAL handle for device
-    \param  nRoamIntraBand Enable/Disable Intra band roaming
-   \- return Success or failure
-    -------------------------------------------------------------------------*/
+/**
+ * sme_set_roam_intra_band() - enable/disable Intra band roaming
+ *	    This function is called through dynamic setConfig callback function
+ *	    to configure the intra band roaming
+ * @hHal - HAL handle for device
+ * @nRoamIntraBand Enable/Disable Intra band roaming
+ *
+ * Return Success or failure
+ */
 QDF_STATUS sme_set_roam_intra_band(tHalHandle hHal, const bool nRoamIntraBand)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
@@ -8538,16 +8441,16 @@ QDF_STATUS sme_set_roam_intra_band(tHalHandle hHal, const bool nRoamIntraBand)
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_update_roam_scan_n_probes
-    \brief  function to update roam scan N probes
-	    This function is called through dynamic setConfig callback function
-	    to update roam scan N probes
-    \param  hHal - HAL handle for device
-    \param  sessionId - Session Identifier
-    \param  nProbes number of probe requests to be sent out
-   \- return Success or failure
-    -------------------------------------------------------------------------*/
+/**
+ * sme_update_roam_scan_n_probes() - Function to update roam scan N probes
+ *	    This function is called through dynamic setConfig callback function
+ *	    to update roam scan N probes
+ * @hHal - HAL handle for device
+ * @sessionId - Session Identifier
+ * @nProbes number of probe requests to be sent out
+ *
+ * Return Success or failure
+ */
 QDF_STATUS sme_update_roam_scan_n_probes(tHalHandle hHal, uint8_t sessionId,
 					 const uint8_t nProbes)
 {
@@ -8573,21 +8476,21 @@ QDF_STATUS sme_update_roam_scan_n_probes(tHalHandle hHal, uint8_t sessionId,
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_update_roam_scan_home_away_time
-    \brief  function to update roam scan Home away time
-	    This function is called through dynamic setConfig callback function
-	    to update roam scan home away time
-    \param  hHal - HAL handle for device
-    \param  sessionId - Session Identifier
-    \param  nRoamScanAwayTime Scan home away time
-    \param  bSendOffloadCmd If true then send offload command to firmware
-			    If false then command is not sent to firmware
-   \- return Success or failure
-    -------------------------------------------------------------------------*/
+/**
+ * sme_update_roam_scan_home_away_time() - Function to update roam scan Home
+ * away time This function is called through dynamic setConfig callback function
+ *	    to update roam scan home away time
+ *
+ * @hHal - HAL handle for device
+ * @sessionId - Session Identifier
+ * @nRoamScanAwayTime Scan home away time
+ * @bSendOffloadCmd If true then send offload command to firmware
+ *			    If false then command is not sent to firmware
+ * Return Success or failure
+ */
 QDF_STATUS sme_update_roam_scan_home_away_time(tHalHandle hHal,
 					       uint8_t sessionId,
-					       const uint16_t nRoamScanHomeAwayTime,
+					   const uint16_t nRoamScanHomeAwayTime,
 					       const bool bSendOffloadCmd)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
@@ -8607,7 +8510,8 @@ QDF_STATUS sme_update_roam_scan_home_away_time(tHalHandle hHal,
 			nRoamScanHomeAwayTime;
 		sme_release_global_lock(&pMac->sme);
 	}
-	if (pMac->roam.configParam.isRoamOffloadScanEnabled && bSendOffloadCmd) {
+	if (pMac->roam.configParam.isRoamOffloadScanEnabled &&
+					bSendOffloadCmd) {
 		csr_roam_offload_scan(pMac, sessionId,
 				      ROAM_SCAN_OFFLOAD_UPDATE_CFG,
 				      REASON_HOME_AWAY_TIME_CHANGED);
@@ -8654,56 +8558,63 @@ QDF_STATUS sme_ext_change_channel(tHalHandle h_hal, uint32_t channel,
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_get_roam_intra_band
-    \brief  get Intra band roaming
-    \param  hHal - HAL handle for device
-   \- return Success or failure
-    -------------------------------------------------------------------------*/
+/**
+ * sme_get_roam_intra_band() - get Intra band roaming
+ *
+ * @hHal - HAL handle for device
+ *
+ * Return Success or failure
+ */
 bool sme_get_roam_intra_band(tHalHandle hHal)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
 	MTRACE(qdf_trace(QDF_MODULE_ID_SME,
 			 TRACE_CODE_SME_RX_HDD_GET_ROAMIBAND, NO_SESSION, 0));
 	return pMac->roam.configParam.nRoamIntraBand;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_get_roam_scan_n_probes
-    \brief  get N Probes
-    \param  hHal - HAL handle for device
-   \- return Success or failure
-    -------------------------------------------------------------------------*/
+/**
+ * sme_get_roam_scan_n_probes() - get N Probes
+ *
+ * @hHal - HAL handle for device
+ *
+ * Return Success or failure
+ */
 uint8_t sme_get_roam_scan_n_probes(tHalHandle hHal)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
 	return pMac->roam.configParam.nProbes;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_get_roam_scan_home_away_time
-    \brief  get Roam scan home away time
-    \param  hHal - HAL handle for device
-   \- return Success or failure
-    -------------------------------------------------------------------------*/
+/**
+ * sme_get_roam_scan_home_away_time() - get Roam scan home away time
+ *
+ * @hHal - HAL handle for device
+ *
+ * Return Success or failure
+ */
 uint16_t sme_get_roam_scan_home_away_time(tHalHandle hHal)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
 	return pMac->roam.configParam.nRoamScanHomeAwayTime;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_update_roam_rssi_diff
-    \brief  Update RoamRssiDiff
-	    This function is called through dynamic setConfig callback function
-	    to configure RoamRssiDiff
-	    Usage: adb shell iwpriv wlan0 setConfig RoamRssiDiff=[0 .. 125]
-    \param  hHal - HAL handle for device
-    \param  sessionId - Session Identifier
-    \param  RoamRssiDiff - minimum rssi difference between potential
-	    candidate and current AP.
-   \- return Success or failure
-    -------------------------------------------------------------------------*/
+/**
+ * sme_update_roam_rssi_diff() - Update RoamRssiDiff
+ *	    This function is called through dynamic setConfig callback function
+ *	    to configure RoamRssiDiff
+ *	    Usage: adb shell iwpriv wlan0 setConfig RoamRssiDiff=[0 .. 125]
+ *
+ * @hHal - HAL handle for device
+ * @sessionId - Session Identifier
+ * @RoamRssiDiff - minimum rssi difference between potential
+ *	    candidate and current AP.
+ *
+ * Return Success or failure
+ */
 
 QDF_STATUS sme_update_roam_rssi_diff(tHalHandle hHal, uint8_t sessionId,
 				     uint8_t RoamRssiDiff)
@@ -8726,31 +8637,31 @@ QDF_STATUS sme_update_roam_rssi_diff(tHalHandle hHal, uint8_t sessionId,
 			  mac_trace_get_neighbour_roam_state(pMac->roam.
 							     neighborRoamInfo
 							     [sessionId].
-							     neighborRoamState));
+							    neighborRoamState));
 		pMac->roam.configParam.RoamRssiDiff = RoamRssiDiff;
 		sme_release_global_lock(&pMac->sme);
 	}
 
-	if (pMac->roam.configParam.isRoamOffloadScanEnabled) {
+	if (pMac->roam.configParam.isRoamOffloadScanEnabled)
 		csr_roam_offload_scan(pMac, sessionId,
 				      ROAM_SCAN_OFFLOAD_UPDATE_CFG,
 				      REASON_RSSI_DIFF_CHANGED);
-	}
 	return status;
 }
 
-/*--------------------------------------------------------------------------
-   \brief sme_update_fast_transition_enabled() - enable/disable Fast Transition
-	support at runtime
-   It is used at in the REG_DYNAMIC_VARIABLE macro definition of
-   isFastTransitionEnabled.
-   This is a synchronous call
-   \param hHal - The handle returned by mac_open.
-   \return QDF_STATUS_SUCCESS - SME update isFastTransitionEnabled config
-	successfully.
-	Other status means SME is failed to update isFastTransitionEnabled.
-   \sa
-   --------------------------------------------------------------------------*/
+/**
+ * sme_update_fast_transition_enabled() - enable/disable Fast Transition
+ *	support at runtime
+ *  It is used at in the REG_DYNAMIC_VARIABLE macro definition of
+ *  isFastTransitionEnabled.
+ *  This is a synchronous call
+ *
+ * @hHal - The handle returned by mac_open.
+ *
+ * Return QDF_STATUS_SUCCESS - SME update isFastTransitionEnabled config
+ *	successfully.
+ *	Other status means SME is failed to update isFastTransitionEnabled.
+ */
 QDF_STATUS sme_update_fast_transition_enabled(tHalHandle hHal,
 					      bool isFastTransitionEnabled)
 {
@@ -8775,17 +8686,18 @@ QDF_STATUS sme_update_fast_transition_enabled(tHalHandle hHal,
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_update_wes_mode
-    \brief  Update WES Mode
-	    This function is called through dynamic setConfig callback function
-	    to configure isWESModeEnabled
-    \param  hHal - HAL handle for device
-    \param  isWESModeEnabled - WES mode
-    \param  sessionId - Session Identifier
-    \return QDF_STATUS_SUCCESS - SME update isWESModeEnabled config successfully.
-	    Other status means SME is failed to update isWESModeEnabled.
-    -------------------------------------------------------------------------*/
+/**
+ * sme_update_wes_mode() - Update WES Mode
+ *	    This function is called through dynamic setConfig callback function
+ *	    to configure isWESModeEnabled
+ *
+ * @hHal - HAL handle for device
+ * @isWESModeEnabled - WES mode
+ * @sessionId - Session Identifier
+ *
+ * Return QDF_STATUS_SUCCESS - SME update isWESModeEnabled config successfully.
+ *	    Other status means SME is failed to update isWESModeEnabled.
+ */
 
 QDF_STATUS sme_update_wes_mode(tHalHandle hHal, bool isWESModeEnabled,
 			       uint8_t sessionId)
@@ -8808,7 +8720,7 @@ QDF_STATUS sme_update_wes_mode(tHalHandle hHal, bool isWESModeEnabled,
 			  mac_trace_get_neighbour_roam_state(pMac->roam.
 							     neighborRoamInfo
 							     [sessionId].
-							     neighborRoamState));
+							    neighborRoamState));
 		pMac->roam.configParam.isWESModeEnabled = isWESModeEnabled;
 		sme_release_global_lock(&pMac->sme);
 	}
@@ -8816,17 +8728,17 @@ QDF_STATUS sme_update_wes_mode(tHalHandle hHal, bool isWESModeEnabled,
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_set_roam_scan_control
-    \brief  Set roam scan control
-	    This function is called to set roam scan control
-	    if roam scan control is set to 0, roaming scan cache is cleared
-	    any value other than 0 is treated as invalid value
-    \param  hHal - HAL handle for device
-    \param  sessionId - Session Identifier
-    \return QDF_STATUS_SUCCESS - SME update config successfully.
-	    Other status means SME failure to update
-    -------------------------------------------------------------------------*/
+/**
+ * sme_set_roam_scan_control() - Set roam scan control
+ *	    This function is called to set roam scan control
+ *	    if roam scan control is set to 0, roaming scan cache is cleared
+ *	    any value other than 0 is treated as invalid value
+ * @hHal - HAL handle for device
+ * @sessionId - Session Identifier
+ *
+ * Return QDF_STATUS_SUCCESS - SME update config successfully.
+ *	    Other status means SME failure to update
+ */
 QDF_STATUS sme_set_roam_scan_control(tHalHandle hHal, uint8_t sessionId,
 				     bool roamScanControl)
 {
@@ -8851,16 +8763,17 @@ QDF_STATUS sme_set_roam_scan_control(tHalHandle hHal, uint8_t sessionId,
 			  mac_trace_get_neighbour_roam_state(pMac->roam.
 							     neighborRoamInfo
 							     [sessionId].
-							     neighborRoamState));
+							    neighborRoamState));
 		pMac->roam.configParam.nRoamScanControl = roamScanControl;
 		if (0 == roamScanControl) {
 			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 				  "LFR runtime successfully cleared roam scan cache");
-			csr_flush_cfg_bg_scan_roam_channel_list(pMac, sessionId);
+			csr_flush_cfg_bg_scan_roam_channel_list(pMac,
+								sessionId);
 			if (pMac->roam.configParam.isRoamOffloadScanEnabled) {
 				csr_roam_offload_scan(pMac, sessionId,
-						      ROAM_SCAN_OFFLOAD_UPDATE_CFG,
-						      REASON_FLUSH_CHANNEL_LIST);
+						   ROAM_SCAN_OFFLOAD_UPDATE_CFG,
+						     REASON_FLUSH_CHANNEL_LIST);
 			}
 		}
 		sme_release_global_lock(&pMac->sme);
@@ -8868,22 +8781,23 @@ QDF_STATUS sme_set_roam_scan_control(tHalHandle hHal, uint8_t sessionId,
 	return status;
 }
 
-/*--------------------------------------------------------------------------
-   \brief sme_update_is_fast_roam_ini_feature_enabled() - enable/disable LFR
-	support at runtime
-   It is used at in the REG_DYNAMIC_VARIABLE macro definition of
-   isFastRoamIniFeatureEnabled.
-   This is a synchronous call
-   \param hHal - The handle returned by mac_open.
-   \param  sessionId - Session Identifier
-   \return QDF_STATUS_SUCCESS - SME update isFastRoamIniFeatureEnabled config
-	successfully.
-	Other status means SME is failed to update isFastRoamIniFeatureEnabled.
-   \sa
-   --------------------------------------------------------------------------*/
-QDF_STATUS sme_update_is_fast_roam_ini_feature_enabled
-	(tHalHandle hHal,
-	uint8_t sessionId, const bool isFastRoamIniFeatureEnabled) {
+/**
+ * sme_update_is_fast_roam_ini_feature_enabled() - enable/disable LFR
+ *	support at runtime
+ * It is used at in the REG_DYNAMIC_VARIABLE macro definition of
+ * isFastRoamIniFeatureEnabled.
+ * This is a synchronous call
+ *
+ * @hHal - The handle returned by mac_open.
+ * @sessionId - Session Identifier
+ *
+ * Return QDF_STATUS_SUCCESS - SME update isFastRoamIniFeatureEnabled config
+ *	successfully.
+ * Other status means SME is failed to update isFastRoamIniFeatureEnabled.
+ */
+QDF_STATUS sme_update_is_fast_roam_ini_feature_enabled(tHalHandle hHal,
+		uint8_t sessionId, const bool isFastRoamIniFeatureEnabled)
+{
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 
 	if (pMac->roam.configParam.isFastRoamIniFeatureEnabled ==
@@ -8903,7 +8817,7 @@ QDF_STATUS sme_update_is_fast_roam_ini_feature_enabled
 	pMac->roam.configParam.isFastRoamIniFeatureEnabled =
 		isFastRoamIniFeatureEnabled;
 	csr_neighbor_roam_update_fast_roaming_enabled(pMac, sessionId,
-						      isFastRoamIniFeatureEnabled);
+						   isFastRoamIniFeatureEnabled);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -8957,17 +8871,17 @@ QDF_STATUS sme_config_fast_roaming(tHalHandle hal, uint8_t session_id,
 	return QDF_STATUS_SUCCESS;
 }
 
-/*--------------------------------------------------------------------------
-   \brief sme_update_is_mawc_ini_feature_enabled() -
-   Enable/disable LFR MAWC support at runtime
-   It is used at in the REG_DYNAMIC_VARIABLE macro definition of
-   isMAWCIniFeatureEnabled.
-   This is a synchronous call
-   \param hHal - The handle returned by mac_open.
-   \return QDF_STATUS_SUCCESS - SME update MAWCEnabled config successfully.
-	Other status means SME is failed to update MAWCEnabled.
-   \sa
-   --------------------------------------------------------------------------*/
+/**
+ * sme_update_is_mawc_ini_feature_enabled() - Enable/disable LFR MAWC support
+ * at runtime It is used at in the REG_DYNAMIC_VARIABLE macro definition of
+ *  isMAWCIniFeatureEnabled.
+ *  This is a synchronous call
+ *
+ * @hHal - The handle returned by mac_open.
+ *
+ * Return QDF_STATUS_SUCCESS - SME update MAWCEnabled config successfully.
+ *	Other status means SME is failed to update MAWCEnabled.
+ */
 QDF_STATUS sme_update_is_mawc_ini_feature_enabled(tHalHandle hHal,
 						  const bool MAWCEnabled)
 {
@@ -8987,15 +8901,16 @@ QDF_STATUS sme_update_is_mawc_ini_feature_enabled(tHalHandle hHal,
 
 }
 
-/*--------------------------------------------------------------------------
-   \brief sme_stop_roaming() - Stop roaming for a given sessionId
-   This is a synchronous call
-   \param hHal      - The handle returned by mac_open
-   \param  sessionId - Session Identifier
-   \return QDF_STATUS_SUCCESS on success
-	   Other status on failure
-   \sa
-   --------------------------------------------------------------------------*/
+/**
+ * sme_stop_roaming() - Stop roaming for a given sessionId
+ *  This is a synchronous call
+ *
+ * @hHal      - The handle returned by mac_open
+ * @sessionId - Session Identifier
+ *
+ * Return QDF_STATUS_SUCCESS on success
+ *	   Other status on failure
+ */
 QDF_STATUS sme_stop_roaming(tHalHandle hHal, uint8_t sessionId, uint8_t reason)
 {
 	tSirMsgQ wma_msg;
@@ -9039,15 +8954,16 @@ QDF_STATUS sme_stop_roaming(tHalHandle hHal, uint8_t sessionId, uint8_t reason)
 	return QDF_STATUS_SUCCESS;
 }
 
-/*--------------------------------------------------------------------------
-   \brief sme_start_roaming() - Start roaming for a given sessionId
-   This is a synchronous call
-   \param hHal      - The handle returned by mac_open
-   \param  sessionId - Session Identifier
-   \return QDF_STATUS_SUCCESS on success
-	Other status on failure
-   \sa
-   --------------------------------------------------------------------------*/
+/**
+ * sme_start_roaming() - Start roaming for a given sessionId
+ *  This is a synchronous call
+ *
+ * @hHal      - The handle returned by mac_open
+ * @sessionId - Session Identifier
+ *
+ * Return QDF_STATUS_SUCCESS on success
+ *	Other status on failure
+ */
 QDF_STATUS sme_start_roaming(tHalHandle hHal, uint8_t sessionId, uint8_t reason)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
@@ -9063,19 +8979,19 @@ QDF_STATUS sme_start_roaming(tHalHandle hHal, uint8_t sessionId, uint8_t reason)
 	return status;
 }
 
-/*--------------------------------------------------------------------------
-   \brief sme_update_enable_fast_roam_in_concurrency() - enable/disable LFR if
-	Concurrent session exists
-   This is a synchronuous call
-   \param hHal - The handle returned by mac_open.
-   \return QDF_STATUS_SUCCESS
-	Other status means SME is failed
-   \sa
-   --------------------------------------------------------------------------*/
-
+/**
+ * sme_update_enable_fast_roam_in_concurrency() - enable/disable LFR if
+ *	Concurrent session exists
+ *  This is a synchronuous call
+ *
+ * @hHal - The handle returned by mac_open.
+ *
+ * Return QDF_STATUS_SUCCESS
+ *	Other status means SME is failed
+ */
 QDF_STATUS sme_update_enable_fast_roam_in_concurrency(tHalHandle hHal,
 						      bool
-						      bFastRoamInConIniFeatureEnabled)
+						bFastRoamInConIniFeatureEnabled)
 {
 
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
@@ -9095,26 +9011,27 @@ QDF_STATUS sme_update_enable_fast_roam_in_concurrency(tHalHandle hHal,
 	return status;
 }
 
-/*--------------------------------------------------------------------------
-   \brief sme_update_config_fw_rssi_monitoring() - enable/disable firmware RSSI
-	Monitoring at runtime
-   It is used at in the REG_DYNAMIC_VARIABLE macro definition of
-   fEnableFwRssiMonitoring.
-   This is a synchronous call
-   \param hHal - The handle returned by mac_open.
-   \return QDF_STATUS_SUCCESS - SME update fEnableFwRssiMonitoring.
-	config successfully.
-	Other status means SME is failed to update fEnableFwRssiMonitoring.
-   \sa
-   --------------------------------------------------------------------------*/
-
+/**
+ * sme_update_config_fw_rssi_monitoring() - enable/disable firmware RSSI
+ *	Monitoring at runtime
+ *  It is used at in the REG_DYNAMIC_VARIABLE macro definition of
+ *  fEnableFwRssiMonitoring.
+ *  This is a synchronous call
+ *
+ * @hHal - The handle returned by mac_open.
+ *
+ * Return QDF_STATUS_SUCCESS - SME update fEnableFwRssiMonitoring.
+ *	config successfully.
+ * Other status means SME is failed to update fEnableFwRssiMonitoring.
+ */
 QDF_STATUS sme_update_config_fw_rssi_monitoring(tHalHandle hHal,
 						bool fEnableFwRssiMonitoring)
 {
 	QDF_STATUS qdf_ret_status = QDF_STATUS_SUCCESS;
 
 	if (sme_cfg_set_int (hHal, WNI_CFG_PS_ENABLE_RSSI_MONITOR,
-						fEnableFwRssiMonitoring) == QDF_STATUS_E_FAILURE) {
+						fEnableFwRssiMonitoring) ==
+						QDF_STATUS_E_FAILURE) {
 		qdf_ret_status = QDF_STATUS_E_FAILURE;
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 			  "Could not pass on WNI_CFG_PS_RSSI_MONITOR to CFG");
@@ -9123,22 +9040,23 @@ QDF_STATUS sme_update_config_fw_rssi_monitoring(tHalHandle hHal,
 	return qdf_ret_status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn     sme_set_roam_opportunistic_scan_threshold_diff
-    \brief  Update Opportunistic Scan threshold diff
-	This function is called through dynamic setConfig callback function
-	to configure  nOpportunisticThresholdDiff
-    \param  hHal - HAL handle for device
-    \param  sessionId - Session Identifier
-    \param  nOpportunisticThresholdDiff - Opportunistic Scan threshold diff
-    \return QDF_STATUS_SUCCESS - SME update nOpportunisticThresholdDiff config
-	    successfully.
-	    else SME is failed to update nOpportunisticThresholdDiff.
-    -------------------------------------------------------------------------*/
+/**
+ * sme_set_roam_opportunistic_scan_threshold_diff() - Update Opportunistic Scan
+ * threshold diff This function is called through dynamic setConfig callback
+ * function to configure  nOpportunisticThresholdDiff
+ *
+ * @hHal - HAL handle for device
+ * @sessionId - Session Identifier
+ * @nOpportunisticThresholdDiff - Opportunistic Scan threshold diff
+ *
+ * Return QDF_STATUS_SUCCESS - SME update nOpportunisticThresholdDiff config
+ *	    successfully.
+ *	    else SME is failed to update nOpportunisticThresholdDiff.
+ */
 QDF_STATUS sme_set_roam_opportunistic_scan_threshold_diff(tHalHandle hHal,
 							  uint8_t sessionId,
 							  const uint8_t
-							  nOpportunisticThresholdDiff)
+						nOpportunisticThresholdDiff)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
@@ -9158,33 +9076,36 @@ QDF_STATUS sme_set_roam_opportunistic_scan_threshold_diff(tHalHandle hHal,
 	return status;
 }
 
-/*--------------------------------------------------------------------------
-   \fn    sme_get_roam_opportunistic_scan_threshold_diff()
-   \brief gets Opportunistic Scan threshold diff
-	This is a synchronous call
-   \param hHal - The handle returned by mac_open
-   \return uint8_t - nOpportunisticThresholdDiff
-   \sa
-   --------------------------------------------------------------------------*/
+/**
+ * sme_get_roam_opportunistic_scan_threshold_diff() - gets Opportunistic Scan
+ * threshold diff
+ * This is a synchronous call
+ *
+ * @hHal - The handle returned by mac_open
+ *
+ * Return uint8_t - nOpportunisticThresholdDiff
+ */
 uint8_t sme_get_roam_opportunistic_scan_threshold_diff(tHalHandle hHal)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
 	return pMac->roam.configParam.neighborRoamConfig.
 	       nOpportunisticThresholdDiff;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn     sme_set_roam_rescan_rssi_diff
-    \brief  Update roam rescan rssi diff
-	    This function is called through dynamic setConfig callback function
-	    to configure  nRoamRescanRssiDiff
-    \param  hHal - HAL handle for device
-    \param  sessionId - Session Identifier
-    \param  nRoamRescanRssiDiff - roam rescan rssi diff
-    \return QDF_STATUS_SUCCESS - SME update nRoamRescanRssiDiff config
-	    successfully.
-	    else SME is failed to update nRoamRescanRssiDiff.
-    -------------------------------------------------------------------------*/
+/**
+ * sme_set_roam_rescan_rssi_diff() - Update roam rescan rssi diff
+ *	    This function is called through dynamic setConfig callback function
+ *	    to configure  nRoamRescanRssiDiff
+ *
+ * @hHal - HAL handle for device
+ * @sessionId - Session Identifier
+ * @nRoamRescanRssiDiff - roam rescan rssi diff
+ *
+ * Return QDF_STATUS_SUCCESS - SME update nRoamRescanRssiDiff config
+ *	    successfully.
+ * else SME is failed to update nRoamRescanRssiDiff.
+ */
 QDF_STATUS sme_set_roam_rescan_rssi_diff(tHalHandle hHal,
 					 uint8_t sessionId,
 					 const uint8_t nRoamRescanRssiDiff)
@@ -9206,32 +9127,33 @@ QDF_STATUS sme_set_roam_rescan_rssi_diff(tHalHandle hHal,
 	return status;
 }
 
-/*--------------------------------------------------------------------------
-   \fn    sme_get_roam_rescan_rssi_diff
-   \brief gets roam rescan rssi diff
-	  This is a synchronous call
-   \param hHal - The handle returned by mac_open
-   \return int8_t - nRoamRescanRssiDiff
-   \sa
-   --------------------------------------------------------------------------*/
+/**
+ * sme_get_roam_rescan_rssi_diff() - gets roam rescan rssi diff
+ *	  This is a synchronous call
+ *
+ * @hHal - The handle returned by mac_open
+ *
+ * Return int8_t - nRoamRescanRssiDiff
+ */
 uint8_t sme_get_roam_rescan_rssi_diff(tHalHandle hHal)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
 	return pMac->roam.configParam.neighborRoamConfig.nRoamRescanRssiDiff;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn     sme_set_roam_bmiss_first_bcnt
-    \brief  Update Roam count for first beacon miss
-	    This function is called through dynamic setConfig callback function
-	    to configure nRoamBmissFirstBcnt
-    \param  hHal - HAL handle for device
-    \param  sessionId - Session Identifier
-    \param  nRoamBmissFirstBcnt - Roam first bmiss count
-    \return QDF_STATUS_SUCCESS - SME update nRoamBmissFirstBcnt
-	    successfully.
-	    else SME is failed to update nRoamBmissFirstBcnt
-    -------------------------------------------------------------------------*/
+/**
+ * sme_set_roam_bmiss_first_bcnt() - Update Roam count for first beacon miss
+ *	    This function is called through dynamic setConfig callback function
+ *	    to configure nRoamBmissFirstBcnt
+ * @hHal - HAL handle for device
+ * @sessionId - Session Identifier
+ * @nRoamBmissFirstBcnt - Roam first bmiss count
+ *
+ * Return QDF_STATUS_SUCCESS - SME update nRoamBmissFirstBcnt
+ *	    successfully.
+ * else SME is failed to update nRoamBmissFirstBcnt
+ */
 QDF_STATUS sme_set_roam_bmiss_first_bcnt(tHalHandle hHal,
 					 uint8_t sessionId,
 					 const uint8_t nRoamBmissFirstBcnt)
@@ -9253,30 +9175,32 @@ QDF_STATUS sme_set_roam_bmiss_first_bcnt(tHalHandle hHal,
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_get_roam_bmiss_first_bcnt
-    \brief  get neighbor roam beacon miss first count
-    \param hHal - The handle returned by mac_open.
-    \return uint8_t - neighbor roam beacon miss first count
-    -------------------------------------------------------------------------*/
+/**
+ * sme_get_roam_bmiss_first_bcnt() - get neighbor roam beacon miss first count
+ *
+ * @hHal - The handle returned by mac_open.
+ *
+ * Return uint8_t - neighbor roam beacon miss first count
+ */
 uint8_t sme_get_roam_bmiss_first_bcnt(tHalHandle hHal)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
 	return pMac->roam.configParam.neighborRoamConfig.nRoamBmissFirstBcnt;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn     sme_set_roam_bmiss_final_bcnt
-    \brief  Update Roam count for final beacon miss
-	    This function is called through dynamic setConfig callback function
-	    to configure nRoamBmissFinalBcnt
-    \param  hHal - HAL handle for device
-    \param  sessionId - Session Identifier
-    \param  nRoamBmissFinalBcnt - Roam final bmiss count
-    \return QDF_STATUS_SUCCESS - SME update nRoamBmissFinalBcnt
-	    successfully.
-	    else SME is failed to update nRoamBmissFinalBcnt
-    -------------------------------------------------------------------------*/
+/**
+ * sme_set_roam_bmiss_final_bcnt() - Update Roam count for final beacon miss
+ *	    This function is called through dynamic setConfig callback function
+ *	    to configure nRoamBmissFinalBcnt
+ * @hHal - HAL handle for device
+ * @sessionId - Session Identifier
+ * @nRoamBmissFinalBcnt - Roam final bmiss count
+ *
+ * Return QDF_STATUS_SUCCESS - SME update nRoamBmissFinalBcnt
+ *	    successfully.
+ * else SME is failed to update nRoamBmissFinalBcnt
+ */
 QDF_STATUS sme_set_roam_bmiss_final_bcnt(tHalHandle hHal,
 					 uint8_t sessionId,
 					 const uint8_t nRoamBmissFinalBcnt)
@@ -9298,32 +9222,34 @@ QDF_STATUS sme_set_roam_bmiss_final_bcnt(tHalHandle hHal,
 	return status;
 }
 
-/*--------------------------------------------------------------------------
-   \fn    sme_get_roam_bmiss_final_bcnt
-   \brief gets Roam count for final beacon miss
-	  This is a synchronous call
-   \param hHal - The handle returned by mac_open
-   \return uint8_t - nRoamBmissFinalBcnt
-   \sa
-   --------------------------------------------------------------------------*/
+/**
+ * sme_get_roam_bmiss_final_bcnt() - gets Roam count for final beacon miss
+ *	  This is a synchronous call
+ *
+ * @hHal - The handle returned by mac_open
+ *
+ * Return uint8_t - nRoamBmissFinalBcnt
+ */
 uint8_t sme_get_roam_bmiss_final_bcnt(tHalHandle hHal)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
 	return pMac->roam.configParam.neighborRoamConfig.nRoamBmissFinalBcnt;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn     sme_set_roam_beacon_rssi_weight
-    \brief  Update Roam beacon rssi weight
-	    This function is called through dynamic setConfig callback function
-	    to configure nRoamBeaconRssiWeight
-    \param  hHal - HAL handle for device
-    \param  sessionId - Session Identifier
-    \param  nRoamBeaconRssiWeight - Roam beacon rssi weight
-    \return QDF_STATUS_SUCCESS - SME update nRoamBeaconRssiWeight config
-	    successfully.
-	    else SME is failed to update nRoamBeaconRssiWeight
-    -------------------------------------------------------------------------*/
+/**
+ * sme_set_roam_beacon_rssi_weight() - Update Roam beacon rssi weight
+ *	    This function is called through dynamic setConfig callback function
+ *	    to configure nRoamBeaconRssiWeight
+ *
+ * @hHal - HAL handle for device
+ * @sessionId - Session Identifier
+ * @nRoamBeaconRssiWeight - Roam beacon rssi weight
+ *
+ * Return QDF_STATUS_SUCCESS - SME update nRoamBeaconRssiWeight config
+ *	    successfully.
+ * else SME is failed to update nRoamBeaconRssiWeight
+ */
 QDF_STATUS sme_set_roam_beacon_rssi_weight(tHalHandle hHal,
 					   uint8_t sessionId,
 					   const uint8_t nRoamBeaconRssiWeight)
@@ -9345,32 +9271,35 @@ QDF_STATUS sme_set_roam_beacon_rssi_weight(tHalHandle hHal,
 	return status;
 }
 
-/*--------------------------------------------------------------------------
-   \fn    sme_get_roam_beacon_rssi_weight
-   \brief gets Roam beacon rssi weight
-	  This is a synchronous call
-   \param hHal - The handle returned by mac_open
-   \return uint8_t - nRoamBeaconRssiWeight
-   \sa
-   --------------------------------------------------------------------------*/
+/**
+ * sme_get_roam_beacon_rssi_weight() - gets Roam beacon rssi weight
+ *	  This is a synchronous call
+ *
+ * @hHal - The handle returned by mac_open
+ *
+ * Return uint8_t - nRoamBeaconRssiWeight
+ */
 uint8_t sme_get_roam_beacon_rssi_weight(tHalHandle hHal)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
 	return pMac->roam.configParam.neighborRoamConfig.nRoamBeaconRssiWeight;
 }
 
-/*--------------------------------------------------------------------------
-   \brief sme_set_neighbor_lookup_rssi_threshold() - update neighbor lookup
-	rssi threshold
-   This is a synchronous call
-   \param hHal - The handle returned by mac_open.
-   \param  sessionId - Session Identifier
-   \return QDF_STATUS_SUCCESS - SME update config successful.
-	   Other status means SME is failed to update
-   \sa
-   --------------------------------------------------------------------------*/
-QDF_STATUS sme_set_neighbor_lookup_rssi_threshold
-	(tHalHandle hHal, uint8_t sessionId, uint8_t neighborLookupRssiThreshold) {
+/**
+ * sme_set_neighbor_lookup_rssi_threshold() - update neighbor lookup
+ *	rssi threshold
+ *  This is a synchronous call
+ *
+ * @hHal - The handle returned by mac_open.
+ * @sessionId - Session Identifier
+ *
+ * Return QDF_STATUS_SUCCESS - SME update config successful.
+ *	   Other status means SME is failed to update
+ */
+QDF_STATUS sme_set_neighbor_lookup_rssi_threshold(tHalHandle hHal,
+			uint8_t sessionId, uint8_t neighborLookupRssiThreshold)
+{
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 
@@ -9389,16 +9318,17 @@ QDF_STATUS sme_set_neighbor_lookup_rssi_threshold
 	return status;
 }
 
-/*--------------------------------------------------------------------------
-  \brief sme_set_delay_before_vdev_stop() - update delay before VDEV_STOP
-  This is a synchronous call
-  \param  hal - The handle returned by macOpen.
-  \param  session_id - Session Identifier
-  \param  delay_before_vdev_stop - value to be set
-  \return QDF_STATUS_SUCCESS - SME update config successful.
-	  Other status means SME is failed to update
-  \sa
-  --------------------------------------------------------------------------*/
+/**
+ * sme_set_delay_before_vdev_stop() - update delay before VDEV_STOP
+ *  This is a synchronous call
+ *
+ * @hal - The handle returned by macOpen.
+ * @session_id - Session Identifier
+ * @delay_before_vdev_stop - value to be set
+ *
+ * Return QDF_STATUS_SUCCESS - SME update config successful.
+ *	  Other status means SME is failed to update
+ */
 QDF_STATUS sme_set_delay_before_vdev_stop(tHalHandle hal,
 					  uint8_t session_id,
 					  uint8_t delay_before_vdev_stop)
@@ -9414,9 +9344,8 @@ QDF_STATUS sme_set_delay_before_vdev_stop(tHalHandle hal,
 
 	status = sme_acquire_global_lock(&pMac->sme);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
-		QDF_TRACE(QDF_MODULE_ID_SME,
-			QDF_TRACE_LEVEL_DEBUG,
-			FL("LFR param delay_before_vdev_stop changed from %d to %d"),
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
+			"LFR param delay_before_vdev_stop changed from %d to %d",
 			pMac->roam.configParam.neighborRoamConfig.
 			delay_before_vdev_stop,
 			delay_before_vdev_stop);
@@ -9429,35 +9358,38 @@ QDF_STATUS sme_set_delay_before_vdev_stop(tHalHandle hal,
 	return status;
 }
 
-/*--------------------------------------------------------------------------
-   \brief sme_get_neighbor_lookup_rssi_threshold() - get neighbor lookup
-	rssi threshold
-   This is a synchronous call
-   \param hHal - The handle returned by mac_open.
-   \return QDF_STATUS_SUCCESS - SME update config successful.
-	   Other status means SME is failed to update
-   \sa
-   --------------------------------------------------------------------------*/
+/**
+ * sme_get_neighbor_lookup_rssi_threshold() - get neighbor lookup
+ *	rssi threshold
+ *  This is a synchronous call
+ *
+ * @hHal - The handle returned by mac_open.
+ *
+ * Return QDF_STATUS_SUCCESS - SME update config successful.
+ *	   Other status means SME is failed to update
+ */
 uint8_t sme_get_neighbor_lookup_rssi_threshold(tHalHandle hHal)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
 	return pMac->roam.configParam.neighborRoamConfig.
 	       nNeighborLookupRssiThreshold;
 }
 
-/*--------------------------------------------------------------------------
-   \brief sme_set_neighbor_scan_refresh_period() - set neighbor scan results
-	refresh period
-   This is a synchronous call
-   \param hHal - The handle returned by mac_open.
-   \param  sessionId - Session Identifier
-   \return QDF_STATUS_SUCCESS - SME update config successful.
-	   Other status means SME is failed to update
-   \sa
-   --------------------------------------------------------------------------*/
-QDF_STATUS sme_set_neighbor_scan_refresh_period
-	(tHalHandle hHal,
-	uint8_t sessionId, uint16_t neighborScanResultsRefreshPeriod) {
+/**
+ * sme_set_neighbor_scan_refresh_period() - set neighbor scan results
+ *	refresh period
+ *  This is a synchronous call
+ *
+ * @hHal - The handle returned by mac_open.
+ * @sessionId - Session Identifier
+ *
+ * Return QDF_STATUS_SUCCESS - SME update config successful.
+ *	   Other status means SME is failed to update
+ */
+QDF_STATUS sme_set_neighbor_scan_refresh_period(tHalHandle hHal,
+		uint8_t sessionId, uint16_t neighborScanResultsRefreshPeriod)
+{
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	tCsrNeighborRoamConfig *pNeighborRoamConfig = NULL;
@@ -9482,7 +9414,7 @@ QDF_STATUS sme_set_neighbor_scan_refresh_period
 			  mac_trace_get_neighbour_roam_state(pMac->roam.
 							     neighborRoamInfo
 							     [sessionId].
-							     neighborRoamState));
+							    neighborRoamState));
 		pNeighborRoamConfig->nNeighborResultsRefreshPeriod =
 			neighborScanResultsRefreshPeriod;
 		pNeighborRoamInfo->cfgParams.neighborResultsRefreshPeriod =
@@ -9493,23 +9425,23 @@ QDF_STATUS sme_set_neighbor_scan_refresh_period
 	if (pMac->roam.configParam.isRoamOffloadScanEnabled) {
 		csr_roam_offload_scan(pMac, sessionId,
 				      ROAM_SCAN_OFFLOAD_UPDATE_CFG,
-				      REASON_NEIGHBOR_SCAN_REFRESH_PERIOD_CHANGED);
+				   REASON_NEIGHBOR_SCAN_REFRESH_PERIOD_CHANGED);
 	}
 	return status;
 }
 
-/*--------------------------------------------------------------------------
-   \brief sme_update_roam_scan_offload_enabled() - enable/disable roam scan
-	offload feaure
-   It is used at in the REG_DYNAMIC_VARIABLE macro definition of
-   gRoamScanOffloadEnabled.
-   This is a synchronous call
-   \param hHal - The handle returned by mac_open.
-   \return QDF_STATUS_SUCCESS - SME update config successfully.
-	   Other status means SME is failed to update.
-   \sa
-   --------------------------------------------------------------------------*/
-
+/**
+ * sme_update_roam_scan_offload_enabled() - enable/disable roam scan
+ *	offload feaure
+ *  It is used at in the REG_DYNAMIC_VARIABLE macro definition of
+ *  gRoamScanOffloadEnabled.
+ *  This is a synchronous call
+ *
+ * @hHal - The handle returned by mac_open.
+ *
+ * Return QDF_STATUS_SUCCESS - SME update config successfully.
+ *	   Other status means SME is failed to update.
+ */
 QDF_STATUS sme_update_roam_scan_offload_enabled(tHalHandle hHal,
 						bool nRoamScanOffloadEnabled)
 {
@@ -9519,8 +9451,7 @@ QDF_STATUS sme_update_roam_scan_offload_enabled(tHalHandle hHal,
 	status = sme_acquire_global_lock(&pMac->sme);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-			  FL
-				  ("gRoamScanOffloadEnabled is changed from %d to %d"),
+			  "gRoamScanOffloadEnabled is changed from %d to %d",
 			  pMac->roam.configParam.isRoamOffloadScanEnabled,
 			  nRoamScanOffloadEnabled);
 		pMac->roam.configParam.isRoamOffloadScanEnabled =
@@ -9531,51 +9462,57 @@ QDF_STATUS sme_update_roam_scan_offload_enabled(tHalHandle hHal,
 	return status;
 }
 
-/*--------------------------------------------------------------------------
-   \brief sme_get_neighbor_scan_refresh_period() - get neighbor scan results
-	refresh period
-   This is a synchronous call
-   \param hHal - The handle returned by mac_open.
-   \return uint16_t - Neighbor scan results refresh period value
-   \sa
-   --------------------------------------------------------------------------*/
+/**
+ * sme_get_neighbor_scan_refresh_period() - get neighbor scan results
+ *	refresh period
+ *  This is a synchronous call
+ *
+ * @hHal - The handle returned by mac_open.
+ *
+ * Return uint16_t - Neighbor scan results refresh period value
+ */
 uint16_t sme_get_neighbor_scan_refresh_period(tHalHandle hHal)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
 	return pMac->roam.configParam.neighborRoamConfig.
 	       nNeighborResultsRefreshPeriod;
 }
 
-/*--------------------------------------------------------------------------
-   \brief sme_get_empty_scan_refresh_period() - get empty scan refresh period
-   This is a synchronuous call
-   \param hHal - The handle returned by mac_open.
-   \return QDF_STATUS_SUCCESS - SME update config successful.
-	   Other status means SME is failed to update
-   \sa
-   --------------------------------------------------------------------------*/
+/**
+ * sme_get_empty_scan_refresh_period() - get empty scan refresh period
+ * This is a synchronuous call
+ *
+ * @hHal - The handle returned by mac_open.
+ *
+ * Return QDF_STATUS_SUCCESS - SME update config successful.
+ *	   Other status means SME is failed to update
+ */
 uint16_t sme_get_empty_scan_refresh_period(tHalHandle hHal)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
 	return pMac->roam.configParam.neighborRoamConfig.
 	       nEmptyScanRefreshPeriod;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_update_empty_scan_refresh_period
-    \brief  Update nEmptyScanRefreshPeriod
-	    This function is called through dynamic setConfig callback function
-	    to configure nEmptyScanRefreshPeriod
-	    Usage: adb shell iwpriv wlan0 setConfig
-			nEmptyScanRefreshPeriod=[0 .. 60]
-    \param  hHal - HAL handle for device
-    \param  sessionId - Session Identifier
-    \param  nEmptyScanRefreshPeriod - scan period following empty scan results.
-   \- return Success or failure
-    -------------------------------------------------------------------------*/
+/**
+ * sme_update_empty_scan_refresh_period() - Update nEmptyScanRefreshPeriod
+ *	    This function is called through dynamic setConfig callback function
+ *	    to configure nEmptyScanRefreshPeriod
+ *	    Usage: adb shell iwpriv wlan0 setConfig
+ *			nEmptyScanRefreshPeriod=[0 .. 60]
+ *
+ * @hHal - HAL handle for device
+ * @sessionId - Session Identifier
+ * @nEmptyScanRefreshPeriod - scan period following empty scan results.
+ *
+ * Return Success or failure
+ */
 
-QDF_STATUS sme_update_empty_scan_refresh_period(tHalHandle hHal, uint8_t sessionId,
-						uint16_t nEmptyScanRefreshPeriod)
+QDF_STATUS sme_update_empty_scan_refresh_period(tHalHandle hHal, uint8_t
+						sessionId, uint16_t
+						nEmptyScanRefreshPeriod)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
@@ -9601,7 +9538,7 @@ QDF_STATUS sme_update_empty_scan_refresh_period(tHalHandle hHal, uint8_t session
 			  mac_trace_get_neighbour_roam_state(pMac->roam.
 							     neighborRoamInfo
 							     [sessionId].
-							     neighborRoamState));
+							    neighborRoamState));
 		pNeighborRoamConfig->nEmptyScanRefreshPeriod =
 			nEmptyScanRefreshPeriod;
 		pNeighborRoamInfo->cfgParams.emptyScanRefreshPeriod =
@@ -9616,18 +9553,19 @@ QDF_STATUS sme_update_empty_scan_refresh_period(tHalHandle hHal, uint8_t session
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_set_neighbor_scan_min_chan_time
-    \brief  Update nNeighborScanMinChanTime
-	    This function is called through dynamic setConfig callback function
-	    to configure gNeighborScanChannelMinTime
-	    Usage: adb shell iwpriv wlan0 setConfig
-			gNeighborScanChannelMinTime=[0 .. 60]
-    \param  hHal - HAL handle for device
-    \param  nNeighborScanMinChanTime - Channel minimum dwell time
-    \param  sessionId - Session Identifier
-   \- return Success or failure
-    -------------------------------------------------------------------------*/
+/**
+ * sme_set_neighbor_scan_min_chan_time() - Update nNeighborScanMinChanTime
+ *	    This function is called through dynamic setConfig callback function
+ *	    to configure gNeighborScanChannelMinTime
+ *	    Usage: adb shell iwpriv wlan0 setConfig
+ *			gNeighborScanChannelMinTime=[0 .. 60]
+ *
+ * @hHal - HAL handle for device
+ * @nNeighborScanMinChanTime - Channel minimum dwell time
+ * @sessionId - Session Identifier
+ *
+ * Return Success or failure
+ */
 QDF_STATUS sme_set_neighbor_scan_min_chan_time(tHalHandle hHal,
 					       const uint16_t
 					       nNeighborScanMinChanTime,
@@ -9652,7 +9590,7 @@ QDF_STATUS sme_set_neighbor_scan_min_chan_time(tHalHandle hHal,
 			  mac_trace_get_neighbour_roam_state(pMac->roam.
 							     neighborRoamInfo
 							     [sessionId].
-							     neighborRoamState));
+							    neighborRoamState));
 
 		pMac->roam.configParam.neighborRoamConfig.
 		nNeighborScanMinChanTime = nNeighborScanMinChanTime;
@@ -9664,19 +9602,21 @@ QDF_STATUS sme_set_neighbor_scan_min_chan_time(tHalHandle hHal,
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_set_neighbor_scan_max_chan_time
-    \brief  Update nNeighborScanMaxChanTime
-	    This function is called through dynamic setConfig callback function
-	    to configure gNeighborScanChannelMaxTime
-	    Usage: adb shell iwpriv wlan0 setConfig
-			gNeighborScanChannelMaxTime=[0 .. 60]
-    \param  hHal - HAL handle for device
-    \param  sessionId - Session Identifier
-    \param  nNeighborScanMinChanTime - Channel maximum dwell time
-   \- return Success or failure
-    -------------------------------------------------------------------------*/
-QDF_STATUS sme_set_neighbor_scan_max_chan_time(tHalHandle hHal, uint8_t sessionId,
+/**
+ * sme_set_neighbor_scan_max_chan_time() - Update nNeighborScanMaxChanTime
+ *	    This function is called through dynamic setConfig callback function
+ *	    to configure gNeighborScanChannelMaxTime
+ *	    Usage: adb shell iwpriv wlan0 setConfig
+ *			gNeighborScanChannelMaxTime=[0 .. 60]
+ *
+ * @hHal - HAL handle for device
+ * @sessionId - Session Identifier
+ * @nNeighborScanMinChanTime - Channel maximum dwell time
+ *
+ * Return Success or failure
+ */
+QDF_STATUS sme_set_neighbor_scan_max_chan_time(tHalHandle hHal, uint8_t
+						sessionId,
 					       const uint16_t
 					       nNeighborScanMaxChanTime)
 {
@@ -9704,7 +9644,7 @@ QDF_STATUS sme_set_neighbor_scan_max_chan_time(tHalHandle hHal, uint8_t sessionI
 			  mac_trace_get_neighbour_roam_state(pMac->roam.
 							     neighborRoamInfo
 							     [sessionId].
-							     neighborRoamState));
+							    neighborRoamState));
 		pNeighborRoamConfig->nNeighborScanMaxChanTime =
 			nNeighborScanMaxChanTime;
 		pNeighborRoamInfo->cfgParams.maxChannelScanTime =
@@ -9720,13 +9660,14 @@ QDF_STATUS sme_set_neighbor_scan_max_chan_time(tHalHandle hHal, uint8_t sessionI
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_get_neighbor_scan_min_chan_time
-    \brief  get neighbor scan min channel time
-    \param hHal - The handle returned by mac_open.
-    \param  sessionId - Session Identifier
-    \return uint16_t - channel min time value
-    -------------------------------------------------------------------------*/
+/**
+ * sme_get_neighbor_scan_min_chan_time() - get neighbor scan min channel time
+ *
+ * @hHal - The handle returned by mac_open.
+ * @sessionId - Session Identifier
+ *
+ * Return uint16_t - channel min time value
+ */
 uint16_t sme_get_neighbor_scan_min_chan_time(tHalHandle hHal, uint8_t sessionId)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
@@ -9741,13 +9682,14 @@ uint16_t sme_get_neighbor_scan_min_chan_time(tHalHandle hHal, uint8_t sessionId)
 	       minChannelScanTime;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_get_neighbor_roam_state
-    \brief  get neighbor roam state
-    \param hHal - The handle returned by mac_open.
-    \param  sessionId - Session Identifier
-    \return uint32_t - neighbor roam state
-    -------------------------------------------------------------------------*/
+/**
+ * sme_get_neighbor_roam_state() - get neighbor roam state
+ *
+ * @hHal - The handle returned by mac_open.
+ * @sessionId - Session Identifier
+ *
+ * Return uint32_t - neighbor roam state
+ */
 uint32_t sme_get_neighbor_roam_state(tHalHandle hHal, uint8_t sessionId)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
@@ -9761,63 +9703,72 @@ uint32_t sme_get_neighbor_roam_state(tHalHandle hHal, uint8_t sessionId)
 	return pMac->roam.neighborRoamInfo[sessionId].neighborRoamState;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_get_current_roam_state
-    \brief  get current roam state
-    \param hHal - The handle returned by mac_open.
-    \param  sessionId - Session Identifier
-    \return uint32_t - current roam state
-    -------------------------------------------------------------------------*/
+/**
+ * sme_get_current_roam_state() - get current roam state
+ *
+ * @hHal - The handle returned by mac_open.
+ * @sessionId - Session Identifier
+ *
+ * Return uint32_t - current roam state
+ */
 uint32_t sme_get_current_roam_state(tHalHandle hHal, uint8_t sessionId)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
 	return pMac->roam.curState[sessionId];
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_get_current_roam_sub_state
-    \brief  get neighbor roam sub state
-    \param hHal - The handle returned by mac_open.
-    \param  sessionId - Session Identifier
-    \return uint32_t - current roam sub state
-    -------------------------------------------------------------------------*/
+/**
+ * sme_get_current_roam_sub_state() - get neighbor roam sub state
+ *
+ * @hHal - The handle returned by mac_open.
+ * @sessionId - Session Identifier
+ *
+ * Return uint32_t - current roam sub state
+ */
 uint32_t sme_get_current_roam_sub_state(tHalHandle hHal, uint8_t sessionId)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
 	return pMac->roam.curSubState[sessionId];
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_get_lim_sme_state
-    \brief  get Lim Sme state
-    \param hHal - The handle returned by mac_open.
-    \return uint32_t - Lim Sme state
-    -------------------------------------------------------------------------*/
+/**
+ * sme_get_lim_sme_state() - get Lim Sme state
+ *
+ * @hHal - The handle returned by mac_open.
+ *
+ * Return uint32_t - Lim Sme state
+ */
 uint32_t sme_get_lim_sme_state(tHalHandle hHal)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
 	return pMac->lim.gLimSmeState;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_get_lim_mlm_state
-    \brief  get Lim Mlm state
-    \param hHal - The handle returned by mac_open.
-    \return uint32_t - Lim Mlm state
-    -------------------------------------------------------------------------*/
+/**
+ * sme_get_lim_mlm_state() - get Lim Mlm state
+ *
+ * @hHal - The handle returned by mac_open.
+ *
+ * Return uint32_t - Lim Mlm state
+ */
 uint32_t sme_get_lim_mlm_state(tHalHandle hHal)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
 	return pMac->lim.gLimMlmState;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_is_lim_session_valid
-    \brief  is Lim session valid
-    \param hHal - The handle returned by mac_open.
-    \param  sessionId - Session Identifier
-    \return bool - true or false
-    -------------------------------------------------------------------------*/
+/**
+ * sme_is_lim_session_valid() - is Lim session valid
+ *
+ * @hHal - The handle returned by mac_open.
+ * @sessionId - Session Identifier
+ *
+ * Return bool - true or false
+ */
 bool sme_is_lim_session_valid(tHalHandle hHal, uint8_t sessionId)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
@@ -9828,39 +9779,44 @@ bool sme_is_lim_session_valid(tHalHandle hHal, uint8_t sessionId)
 	return pMac->lim.gpSession[sessionId].valid;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_get_lim_sme_session_state
-    \brief  get Lim Sme session state
-    \param hHal - The handle returned by mac_open.
-    \param  sessionId - Session Identifier
-    \return uint32_t - Lim Sme session state
-    -------------------------------------------------------------------------*/
+/**
+ * sme_get_lim_sme_session_state() - get Lim Sme session state
+ *
+ * @hHal - The handle returned by mac_open.
+ * @sessionId - Session Identifier
+ *
+ * Return uint32_t - Lim Sme session state
+ */
 uint32_t sme_get_lim_sme_session_state(tHalHandle hHal, uint8_t sessionId)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
 	return pMac->lim.gpSession[sessionId].limSmeState;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_get_lim_mlm_session_state
-    \brief  get Lim Mlm session state
-    \param hHal - The handle returned by mac_open.
-    \param  sessionId - Session Identifier
-    \return uint32_t - Lim Mlm session state
-    -------------------------------------------------------------------------*/
+/**
+ * sme_get_lim_mlm_session_state() - get Lim Mlm session state
+ *
+ * @hHal - The handle returned by mac_open.
+ * @sessionId - Session Identifier
+ *
+ * Return uint32_t - Lim Mlm session state
+ */
 uint32_t sme_get_lim_mlm_session_state(tHalHandle hHal, uint8_t sessionId)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
 	return pMac->lim.gpSession[sessionId].limMlmState;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_get_neighbor_scan_max_chan_time
-    \brief  get neighbor scan max channel time
-    \param hHal - The handle returned by mac_open.
-    \param  sessionId - Session Identifier
-    \return uint16_t - channel max time value
-    -------------------------------------------------------------------------*/
+/**
+ * sme_get_neighbor_scan_max_chan_time() - get neighbor scan max channel time
+ *
+ * @hHal - The handle returned by mac_open.
+ * @sessionId - Session Identifier
+ *
+ * Return uint16_t - channel max time value
+ */
 uint16_t sme_get_neighbor_scan_max_chan_time(tHalHandle hHal, uint8_t sessionId)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
@@ -9875,18 +9831,19 @@ uint16_t sme_get_neighbor_scan_max_chan_time(tHalHandle hHal, uint8_t sessionId)
 	       maxChannelScanTime;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_set_neighbor_scan_period
-    \brief  Update nNeighborScanPeriod
-	    This function is called through dynamic setConfig callback function
-	    to configure nNeighborScanPeriod
-	    Usage: adb shell iwpriv wlan0 setConfig
-			nNeighborScanPeriod=[0 .. 1000]
-    \param  hHal - HAL handle for device
-    \param  sessionId - Session Identifier
-    \param  nNeighborScanPeriod - neighbor scan period
-   \- return Success or failure
-    -------------------------------------------------------------------------*/
+/**
+ * sme_set_neighbor_scan_period() - Update nNeighborScanPeriod
+ *	    This function is called through dynamic setConfig callback function
+ *	    to configure nNeighborScanPeriod
+ *	    Usage: adb shell iwpriv wlan0 setConfig
+ *			nNeighborScanPeriod=[0 .. 1000]
+ *
+ * @hHal - HAL handle for device
+ * @sessionId - Session Identifier
+ * @nNeighborScanPeriod - neighbor scan period
+ *
+ * Return Success or failure
+ */
 QDF_STATUS sme_set_neighbor_scan_period(tHalHandle hHal, uint8_t sessionId,
 					const uint16_t nNeighborScanPeriod)
 {
@@ -9907,15 +9864,14 @@ QDF_STATUS sme_set_neighbor_scan_period(tHalHandle hHal, uint8_t sessionId,
 			&pMac->roam.configParam.neighborRoamConfig;
 		pNeighborRoamInfo = &pMac->roam.neighborRoamInfo[sessionId];
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-			  "LFR runtime successfully set neighbor scan period to %d"
-			  " - old value is %d - roam state is %s",
+			  "LFR:set neighbor scan period, old:%d, new: %d, state: %s",
 			  nNeighborScanPeriod,
 			  pMac->roam.configParam.neighborRoamConfig.
 			  nNeighborScanTimerPeriod,
 			  mac_trace_get_neighbour_roam_state(pMac->roam.
 							     neighborRoamInfo
 							     [sessionId].
-							     neighborRoamState));
+							    neighborRoamState));
 		pNeighborRoamConfig->nNeighborScanTimerPeriod =
 			nNeighborScanPeriod;
 		pNeighborRoamInfo->cfgParams.neighborScanPeriod =
@@ -9931,13 +9887,14 @@ QDF_STATUS sme_set_neighbor_scan_period(tHalHandle hHal, uint8_t sessionId,
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_get_neighbor_scan_period
-    \brief  get neighbor scan period
-    \param hHal - The handle returned by mac_open.
-    \param  sessionId - Session Identifier
-    \return uint16_t - neighbor scan period
-    -------------------------------------------------------------------------*/
+/**
+ * sme_get_neighbor_scan_period() - get neighbor scan period
+ *
+ * @hHal - The handle returned by mac_open.
+ * @sessionId - Session Identifier
+ *
+ * Return uint16_t - neighbor scan period
+ */
 uint16_t sme_get_neighbor_scan_period(tHalHandle hHal, uint8_t sessionId)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
@@ -9954,16 +9911,18 @@ uint16_t sme_get_neighbor_scan_period(tHalHandle hHal, uint8_t sessionId)
 
 
 
-/*--------------------------------------------------------------------------
-   \brief sme_get_roam_rssi_diff() - get Roam rssi diff
-   This is a synchronous call
-   \param hHal - The handle returned by mac_open.
-   \return uint16_t - Rssi diff value
-   \sa
-   --------------------------------------------------------------------------*/
+/**
+ * sme_get_roam_rssi_diff() - get Roam rssi diff
+ *  This is a synchronous call
+ *
+ * @hHal - The handle returned by mac_open.
+ *
+ * Return uint16_t - Rssi diff value
+ */
 uint8_t sme_get_roam_rssi_diff(tHalHandle hHal)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
 	return pMac->roam.configParam.RoamRssiDiff;
 }
 
@@ -10036,9 +9995,9 @@ QDF_STATUS sme_change_roam_scan_channel_list(tHalHandle hHal, uint8_t sessionId,
 		}
 	}
 	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-			FL("LFR runtime successfully set roam scan channels to %s - old value is %s - roam state is %d"),
+		"LFR set roam scan channels: %s, old: %s, state: %d",
 			newChannelList, oldChannelList,
-			pMac->roam.neighborRoamInfo[sessionId].neighborRoamState);
+		pMac->roam.neighborRoamInfo[sessionId].neighborRoamState);
 	sme_release_global_lock(&pMac->sme);
 
 	if (pMac->roam.configParam.isRoamOffloadScanEnabled)
@@ -10088,94 +10047,104 @@ QDF_STATUS sme_get_roam_scan_channel_list(tHalHandle hHal,
 	}
 
 	*pNumChannels = pNeighborRoamInfo->cfgParams.channelInfo.numOfChannels;
-	for (i = 0; i < (*pNumChannels); i++) {
+	for (i = 0; i < (*pNumChannels); i++)
 		pOutPtr[i] =
 			pNeighborRoamInfo->cfgParams.channelInfo.ChannelList[i];
-	}
+
 	pOutPtr[i] = '\0';
 	sme_release_global_lock(&pMac->sme);
 	return status;
 }
 
-/*--------------------------------------------------------------------------
-   \brief sme_get_is_ese_feature_enabled() - get ESE feature enabled or not
-   This is a synchronuous call
-   \param hHal - The handle returned by mac_open.
-   \return true (1) - if the ESE feature is enabled
-	   false (0) - if feature is disabled (compile or runtime)
-   \sa
-   --------------------------------------------------------------------------*/
+/**
+ * sme_get_is_ese_feature_enabled() - get ESE feature enabled or not
+ *  This is a synchronuous call
+ *
+ * @hHal - The handle returned by mac_open.
+ *
+ * @Return true (1) - if the ESE feature is enabled
+ *	  false (0) - if feature is disabled (compile or runtime)
+ */
 bool sme_get_is_ese_feature_enabled(tHalHandle hHal)
 {
 #ifdef FEATURE_WLAN_ESE
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
 	return csr_roam_is_ese_ini_feature_enabled(pMac);
 #else
 	return false;
 #endif
 }
 
-/*--------------------------------------------------------------------------
-   \brief sme_get_wes_mode() - get WES Mode
-   This is a synchronous call
-   \param hHal - The handle returned by mac_open
-   \return uint8_t - WES Mode Enabled(1)/Disabled(0)
-   \sa
-   --------------------------------------------------------------------------*/
+/**
+ * sme_get_wes_mode() - get WES Mode
+ *  This is a synchronous call
+ *
+ * @hHal - The handle returned by mac_open
+ *
+ * Return uint8_t - WES Mode Enabled(1)/Disabled(0)
+ */
 bool sme_get_wes_mode(tHalHandle hHal)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
 	return pMac->roam.configParam.isWESModeEnabled;
 }
 
-/*--------------------------------------------------------------------------
-   \brief sme_get_roam_scan_control() - get scan control
-   This is a synchronous call
-   \param hHal - The handle returned by mac_open.
-   \return bool - Enabled(1)/Disabled(0)
-   \sa
-   --------------------------------------------------------------------------*/
+/**
+ * sme_get_roam_scan_control() - get scan control
+ *  This is a synchronous call
+ *
+ * @hHal - The handle returned by mac_open.
+ *
+ * Return bool - Enabled(1)/Disabled(0)
+ */
 bool sme_get_roam_scan_control(tHalHandle hHal)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
 	return pMac->roam.configParam.nRoamScanControl;
 }
 
-/*--------------------------------------------------------------------------
-   \brief sme_get_is_lfr_feature_enabled() - get LFR feature enabled or not
-   This is a synchronuous call
-   \param hHal - The handle returned by mac_open.
-   \return true (1) - if the feature is enabled
-	   false (0) - if feature is disabled (compile or runtime)
-   \sa
-   --------------------------------------------------------------------------*/
+/**
+ * sme_get_is_lfr_feature_enabled() - get LFR feature enabled or not
+ *  This is a synchronuous call
+ *
+ * @hHal - The handle returned by mac_open.
+ *
+ * Return true (1) - if the feature is enabled
+ *	  false (0) - if feature is disabled (compile or runtime)
+ */
 bool sme_get_is_lfr_feature_enabled(tHalHandle hHal)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
 	return pMac->roam.configParam.isFastRoamIniFeatureEnabled;
 }
 
-/*--------------------------------------------------------------------------
-   \brief sme_get_is_ft_feature_enabled() - get FT feature enabled or not
-   This is a synchronuous call
-   \param hHal - The handle returned by mac_open.
-   \return true (1) - if the feature is enabled
-	   false (0) - if feature is disabled (compile or runtime)
-   \sa
-   --------------------------------------------------------------------------*/
+/**
+ * sme_get_is_ft_feature_enabled() - get FT feature enabled or not
+ *  This is a synchronuous call
+ *
+ * @hHal - The handle returned by mac_open.
+ *
+ * Return true (1) - if the feature is enabled
+ *	   false (0) - if feature is disabled (compile or runtime)
+ */
 bool sme_get_is_ft_feature_enabled(tHalHandle hHal)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
 	return pMac->roam.configParam.isFastTransitionEnabled;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_is_feature_supported_by_fw
-    \brief  Check if an feature is enabled by FW
-
-    \param  feattEnumValue - Enumeration value from placeHolderInCapBitmap
-   \- return 1/0 (true/false)
-    -------------------------------------------------------------------------*/
+/**
+ * sme_is_feature_supported_by_fw() - Check if an feature is enabled by FW
+ *
+ * @feattEnumValue - Enumeration value from placeHolderInCapBitmap
+ *
+ * Return 1/0 (true/false)
+ */
 uint8_t sme_is_feature_supported_by_fw(uint8_t featEnumValue)
 {
 	return IS_FEATURE_SUPPORTED_BY_FW(featEnumValue);
@@ -10183,14 +10152,15 @@ uint8_t sme_is_feature_supported_by_fw(uint8_t featEnumValue)
 
 #ifdef FEATURE_WLAN_TDLS
 
-/* ---------------------------------------------------------------------------
-    \fn sme_send_tdls_link_establish_params
-    \brief  API to send TDLS Peer Link Establishment Parameters.
-
-    \param  peerMac - peer's Mac Adress.
-    \param  tdlsLinkEstablishParams - TDLS Peer Link Establishment Parameters
-   \- return QDF_STATUS_SUCCES
-    -------------------------------------------------------------------------*/
+/**
+ * sme_send_tdls_link_establish_params() - API to send TDLS Peer Link
+ * Establishment Parameters.
+ *
+ * @peerMac - peer's Mac Adress.
+ * @tdlsLinkEstablishParams - TDLS Peer Link Establishment Parameters
+ *
+ * Return QDF_STATUS_SUCCES
+ */
 QDF_STATUS sme_send_tdls_link_establish_params(tHalHandle hHal,
 					       uint8_t sessionId,
 					       const tSirMacAddr peerMac,
@@ -10207,27 +10177,27 @@ QDF_STATUS sme_send_tdls_link_establish_params(tHalHandle hHal,
 	status = sme_acquire_global_lock(&pMac->sme);
 
 	if (QDF_IS_STATUS_SUCCESS(status)) {
-	    status = csr_tdls_send_link_establish_params(hHal, sessionId,
+		status = csr_tdls_send_link_establish_params(hHal, sessionId,
 				peerMac, tdlsLinkEstablishParams);
 		sme_release_global_lock(&pMac->sme);
 	}
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_send_tdls_mgmt_frame
-    \brief  API to send TDLS management frames.
-
-    \param  peerMac - peer's Mac Adress.
-    \param frame_type - Type of TDLS mgmt frame to be sent.
-    \param dialog - dialog token used in the frame.
-    \param status - status to be incuded in the frame.
-    \param peerCapability - peer cpabilities
-    \param buf - additional IEs to be included
-    \param len - lenght of additional Ies
-    \param responder - Tdls request type
-   \- return QDF_STATUS_SUCCES
-    -------------------------------------------------------------------------*/
+/**
+ * sme_send_tdls_mgmt_frame() - API to send TDLS management frames.
+ *
+ * @peerMac - peer's Mac Adress.
+ * @frame_type - Type of TDLS mgmt frame to be sent.
+ * @dialog - dialog token used in the frame.
+ * @status - status to be incuded in the frame.
+ * @peerCapability - peer cpabilities
+ * @buf - additional IEs to be included
+ * @len - lenght of additional Ies
+ * @responder - Tdls request type
+ *
+ * Return QDF_STATUS_SUCCES
+ */
 QDF_STATUS sme_send_tdls_mgmt_frame(tHalHandle hHal, uint8_t sessionId,
 				    const tSirMacAddr peerMac,
 				    uint8_t frame_type,
@@ -10262,14 +10232,14 @@ QDF_STATUS sme_send_tdls_mgmt_frame(tHalHandle hHal, uint8_t sessionId,
 
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_change_tdls_peer_sta
-    \brief  API to Update TDLS peer sta parameters.
-
-    \param  peerMac - peer's Mac Adress.
-    \param  staParams - Peer Station Parameters
-   \- return QDF_STATUS_SUCCES
-    -------------------------------------------------------------------------*/
+/**
+ * sme_change_tdls_peer_sta() - API to Update TDLS peer sta parameters.
+ *
+ * @peerMac - peer's Mac Adress.
+ * @staParams - Peer Station Parameters
+ *
+ * Return QDF_STATUS_SUCCES
+ */
 QDF_STATUS sme_change_tdls_peer_sta(tHalHandle hHal, uint8_t sessionId,
 				    const tSirMacAddr peerMac,
 				    tCsrStaParams *pstaParams)
@@ -10297,13 +10267,13 @@ QDF_STATUS sme_change_tdls_peer_sta(tHalHandle hHal, uint8_t sessionId,
 
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_add_tdls_peer_sta
-    \brief  API to Add TDLS peer sta entry.
-
-    \param  peerMac - peer's Mac Adress.
-   \- return QDF_STATUS_SUCCES
-    -------------------------------------------------------------------------*/
+/**
+ * sme_add_tdls_peer_sta() - API to Add TDLS peer sta entry.
+ *
+ * @peerMac - peer's Mac Adress.
+ *
+ * Return QDF_STATUS_SUCCES
+ */
 QDF_STATUS sme_add_tdls_peer_sta(tHalHandle hHal, uint8_t sessionId,
 				 const tSirMacAddr peerMac)
 {
@@ -10324,13 +10294,13 @@ QDF_STATUS sme_add_tdls_peer_sta(tHalHandle hHal, uint8_t sessionId,
 
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_delete_tdls_peer_sta
-    \brief  API to Delete TDLS peer sta entry.
-
-    \param  peerMac - peer's Mac Adress.
-   \- return QDF_STATUS_SUCCES
-    -------------------------------------------------------------------------*/
+/**
+ * sme_delete_tdls_peer_sta() - API to Delete TDLS peer sta entry.
+ *
+ * @peerMac - peer's Mac Adress.
+ *
+ * Return QDF_STATUS_SUCCES
+ */
 QDF_STATUS sme_delete_tdls_peer_sta(tHalHandle hHal, uint8_t sessionId,
 				    const tSirMacAddr peerMac)
 {
@@ -10351,38 +10321,32 @@ QDF_STATUS sme_delete_tdls_peer_sta(tHalHandle hHal, uint8_t sessionId,
 
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_set_tdls_power_save_prohibited
-    \API to set/reset the is_tdls_power_save_prohibited.
-
-   \- return void
-   -------------------------------------------------------------------------*/
+/**
+ * sme_set_tdls_power_save_prohibited() - API to set/reset the
+ * is_tdls_power_save_prohibited.
+ *
+ * Return void
+ */
 void sme_set_tdls_power_save_prohibited(tHalHandle hHal, uint32_t sessionId,
 		bool val)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 	struct ps_global_info *ps_global_info = &pMac->sme.ps_global_info;
 	struct ps_params *ps_param = &ps_global_info->ps_params[sessionId];
+
 	ps_param->is_tdls_power_save_prohibited = val;
-	return;
 }
 
-/* ---------------------------------------------------------------------------
-   \fn    sme_update_fw_tdls_state
-
-   \brief
-    SME will send message to WMA to set TDLS state in f/w
-
-   \param
-
-    hHal - The handle returned by mac_open
-
-    psmeTdlsParams - TDLS state info to update in f/w
-
-    useSmeLock - Need to acquire SME Global Lock before state update or not
-
-   \return QDF_STATUS
-   --------------------------------------------------------------------------- */
+/**
+ * sme_update_fw_tdls_state() - SME will send message to WMA to set TDLS state
+ * in f/w
+ *
+ * @hHal - The handle returned by mac_open
+ * @psmeTdlsParams - TDLS state info to update in f/w
+ * @useSmeLock - Need to acquire SME Global Lock before state update or not
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_update_fw_tdls_state(tHalHandle hHal, void *psmeTdlsParams,
 				    bool useSmeLock)
 {
@@ -10705,13 +10669,13 @@ void sme_update_enable_ssr(tHalHandle hHal, bool enableSSR)
 		WMA_SetEnableSSR(enableSSR);
 		sme_release_global_lock(&pMac->sme);
 	}
-	return;
 }
 
 QDF_STATUS sme_check_ch_in_band(tpAniSirGlobal mac_ctx, uint8_t start_ch,
 		uint8_t ch_cnt)
 {
 	uint8_t i;
+
 	for (i = 0; i < ch_cnt; i++) {
 		if (QDF_STATUS_SUCCESS != csr_is_valid_channel(mac_ctx,
 					(start_ch + i*4)))
@@ -10726,33 +10690,32 @@ ePhyChanBondState sme_get_cb_phy_state_from_cb_ini_value(uint32_t cb_ini_value)
 	return csr_convert_cb_ini_value_to_phy_cb_state(cb_ini_value);
 }
 
-/*--------------------------------------------------------------------------
-
-   \brief sme_set_curr_device_mode() - Sets the current operating device mode.
-   \param hHal - The handle returned by mac_open.
-   \param currDeviceMode - Current operating device mode.
-   --------------------------------------------------------------------------*/
-
+/**
+ * sme_set_curr_device_mode() - Sets the current operating device mode.
+ *
+ * @hHal - The handle returned by mac_open.
+ * @currDeviceMode - Current operating device mode.
+ */
 void sme_set_curr_device_mode(tHalHandle hHal,
 				enum tQDF_ADAPTER_MODE currDeviceMode)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
 	pMac->sme.currDeviceMode = currDeviceMode;
-	return;
 }
 
-/*--------------------------------------------------------------------------
-   \brief sme_handoff_request() - a wrapper function to Request a handoff
-   from CSR.
-   This is a synchronous call
-   \param hHal - The handle returned by mac_open
-   \param  sessionId - Session Identifier
-   \param pHandoffInfo - info provided by HDD with the handoff request (namely:
-   BSSID, channel etc.)
-   \return QDF_STATUS_SUCCESS - SME passed the request to CSR successfully.
-	   Other status means SME is failed to send the request.
-   \sa
-   --------------------------------------------------------------------------*/
+/**
+ * sme_handoff_request() - a wrapper function to Request a handoff from CSR.
+ *   This is a synchronous call
+ *
+ * @hHal - The handle returned by mac_open
+ * @sessionId - Session Identifier
+ * @pHandoffInfo - info provided by HDD with the handoff request (namely:
+ * BSSID, channel etc.)
+ *
+ * Return QDF_STATUS_SUCCESS - SME passed the request to CSR successfully.
+ *	   Other status means SME is failed to send the request.
+ */
 
 QDF_STATUS sme_handoff_request(tHalHandle hHal,
 			       uint8_t sessionId,
@@ -10773,14 +10736,15 @@ QDF_STATUS sme_handoff_request(tHalHandle hHal,
 }
 
 #ifdef IPA_OFFLOAD
-/* ---------------------------------------------------------------------------
-   \fn sme_ipa_offload_enable_disable
-   \brief  API to enable/disable IPA offload
-   \param  hal - The handle returned by macOpen.
-   \param  session_id - Session Identifier
-   \param  request -  Pointer to the offload request.
-   \return QDF_STATUS
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_ipa_offload_enable_disable() - API to enable/disable IPA offload
+ *
+ * @hal - The handle returned by macOpen.
+ * @session_id - Session Identifier
+ * @request -  Pointer to the offload request.
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_ipa_offload_enable_disable(tHalHandle hal, uint8_t session_id,
 		struct sir_ipa_offload_enable_disable *request)
 {
@@ -10794,7 +10758,7 @@ QDF_STATUS sme_ipa_offload_enable_disable(tHalHandle hal, uint8_t session_id,
 		request_buf = qdf_mem_malloc(sizeof(*request_buf));
 		if (NULL == request_buf) {
 			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-				  FL("Not able to allocate memory for IPA_OFFLOAD_ENABLE_DISABLE"));
+				"Not able to allocate memory for IPA_OFFLOAD_ENABLE_DISABLE");
 			sme_release_global_lock(&pMac->sme);
 			return QDF_STATUS_E_NOMEM;
 		}
@@ -10809,7 +10773,7 @@ QDF_STATUS sme_ipa_offload_enable_disable(tHalHandle hal, uint8_t session_id,
 		if (!QDF_IS_STATUS_SUCCESS(
 				cds_mq_post_message(CDS_MQ_ID_WMA, &msg))) {
 			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-				  FL("Not able to post WMA_IPA_OFFLOAD_ENABLE_DISABLE message to WMA"));
+				"Not able to post WMA_IPA_OFFLOAD_ENABLE_DISABLE message to WMA");
 			qdf_mem_free(request_buf);
 			sme_release_global_lock(&pMac->sme);
 			return QDF_STATUS_E_FAILURE;
@@ -10829,26 +10793,26 @@ QDF_STATUS sme_ipa_offload_enable_disable(tHalHandle hal, uint8_t session_id,
 QDF_STATUS sme_is_sta_p2p_client_connected(tHalHandle hHal)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
-	if (csr_is_infra_connected(pMac)) {
+
+	if (csr_is_infra_connected(pMac))
 		return QDF_STATUS_SUCCESS;
-	}
+
 	return QDF_STATUS_E_FAILURE;
 }
 
 #ifdef FEATURE_WLAN_LPHB
-/* ---------------------------------------------------------------------------
-    \fn sme_lphb_config_req
-    \API to make configuration LPHB within FW.
-    \param hHal - The handle returned by mac_open
-    \param lphdReq - LPHB request argument by client
-    \param pCallbackfn - LPHB timeout notification callback function pointer
-   \- return Configuration message posting status, SUCCESS or Fail
-    -------------------------------------------------------------------------*/
-QDF_STATUS sme_lphb_config_req
-	(tHalHandle hHal,
-	tSirLPHBReq *lphdReq,
-	void (*pCallbackfn)(void *pHddCtx, tSirLPHBInd * indParam)
-	) {
+/**
+ * sme_lphb_config_req() - API to make configuration LPHB within FW.
+ *
+ * @hHal - The handle returned by mac_open
+ * @lphdReq - LPHB request argument by client
+ * @pCallbackfn - LPHB timeout notification callback function pointer
+ *
+ * Return Configuration message posting status, SUCCESS or Fail
+ */
+QDF_STATUS sme_lphb_config_req(tHalHandle hHal, tSirLPHBReq *lphdReq,
+		void (*pCallbackfn)(void *pHddCtx, tSirLPHBInd * indParam))
+{
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
@@ -10866,9 +10830,8 @@ QDF_STATUS sme_lphb_config_req
 				  __func__);
 			sme_release_global_lock(&pMac->sme);
 			return QDF_STATUS_E_FAILURE;
-		} else if (NULL != pCallbackfn) {
+		} else if (NULL != pCallbackfn)
 			pMac->sme.pLphbIndCb = pCallbackfn;
-		}
 
 		/* serialize the req through MC thread */
 		cds_message.bodyptr = lphdReq;
@@ -10987,12 +10950,12 @@ sme_del_periodic_tx_ptrn(tHalHandle hal,
 }
 
 /**
-  * sme_enable_rmc() - enables RMC
-  * @hHal : Pointer to global HAL handle
-  * @sessionId : Session ID
-  *
-  * Return: QDF_STATUS
-  */
+ * sme_enable_rmc() - enables RMC
+ * @hHal : Pointer to global HAL handle
+ * @sessionId : Session ID
+ *
+ * Return: QDF_STATUS
+ */
 QDF_STATUS sme_enable_rmc(tHalHandle hHal, uint32_t sessionId)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
@@ -11019,12 +10982,12 @@ QDF_STATUS sme_enable_rmc(tHalHandle hHal, uint32_t sessionId)
 }
 
 /**
-  * sme_disable_rmc() - disables RMC
-  * @hHal : Pointer to global HAL handle
-  * @sessionId : Session ID
-  *
-  * Return: QDF_STATUS
-  */
+ * sme_disable_rmc() - disables RMC
+ * @hHal : Pointer to global HAL handle
+ * @sessionId : Session ID
+ *
+ * Return: QDF_STATUS
+ */
 QDF_STATUS sme_disable_rmc(tHalHandle hHal, uint32_t sessionId)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
@@ -11051,12 +11014,12 @@ QDF_STATUS sme_disable_rmc(tHalHandle hHal, uint32_t sessionId)
 }
 
 /**
-  * sme_send_rmc_action_period() - sends RMC action period param to target
-  * @hHal : Pointer to global HAL handle
-  * @sessionId : Session ID
-  *
-  * Return: QDF_STATUS
-  */
+ * sme_send_rmc_action_period() - sends RMC action period param to target
+ * @hHal : Pointer to global HAL handle
+ * @sessionId : Session ID
+ *
+ * Return: QDF_STATUS
+ */
 QDF_STATUS sme_send_rmc_action_period(tHalHandle hHal, uint32_t sessionId)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
@@ -11082,15 +11045,15 @@ QDF_STATUS sme_send_rmc_action_period(tHalHandle hHal, uint32_t sessionId)
 }
 
 /**
-  * sme_request_ibss_peer_info() -  request ibss peer info
-  * @hHal : Pointer to global HAL handle
-  * @pUserData : Pointer to user data
-  * @peerInfoCbk : Peer info callback
-  * @allPeerInfoReqd : All peer info required or not
-  * @staIdx : sta index
-  *
-  * Return:  QDF_STATUS
-  */
+ * sme_request_ibss_peer_info() -  request ibss peer info
+ * @hHal : Pointer to global HAL handle
+ * @pUserData : Pointer to user data
+ * @peerInfoCbk : Peer info callback
+ * @allPeerInfoReqd : All peer info required or not
+ * @staIdx : sta index
+ *
+ * Return:  QDF_STATUS
+ */
 QDF_STATUS sme_request_ibss_peer_info(tHalHandle hHal, void *pUserData,
 				      pIbssPeerInfoCb peerInfoCbk,
 				      bool allPeerInfoReqd, uint8_t staIdx)
@@ -11107,7 +11070,7 @@ QDF_STATUS sme_request_ibss_peer_info(tHalHandle hHal, void *pUserData,
 		pMac->sme.peerInfoParams.pUserData = pUserData;
 
 		pIbssInfoReqParams = (tSirIbssGetPeerInfoReqParams *)
-				     qdf_mem_malloc(sizeof(tSirIbssGetPeerInfoReqParams));
+			qdf_mem_malloc(sizeof(tSirIbssGetPeerInfoReqParams));
 		if (NULL == pIbssInfoReqParams) {
 			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 				  "%s: Not able to allocate memory for dhcp start",
@@ -11136,13 +11099,15 @@ QDF_STATUS sme_request_ibss_peer_info(tHalHandle hHal, void *pUserData,
 	return qdf_status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_send_cesium_enable_ind
-    \brief  Used to send proprietary cesium enable indication to fw
-    \param  hHal
-    \param  sessionId
-   \- return QDF_STATUS
-    -------------------------------------------------------------------------*/
+/**
+ * sme_send_cesium_enable_ind() - Used to send proprietary cesium enable
+ * indication to fw
+ *
+ * @hHal
+ * @sessionId
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_send_cesium_enable_ind(tHalHandle hHal, uint32_t sessionId)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
@@ -11180,16 +11145,17 @@ void sme_get_command_q_status(tHalHandle hHal)
 	}
 
 	pEntry = csr_ll_peek_head(&pMac->sme.smeCmdActiveList, LL_ACCESS_LOCK);
-	if (pEntry) {
+	if (pEntry)
 		pTempCmd = GET_BASE_ADDR(pEntry, tSmeCmd, Link);
-	}
+
 	sme_err("Currently smeCmdActiveList has command (0x%X)",
 		(pTempCmd) ? pTempCmd->command : eSmeNoCommand);
 	if (pTempCmd) {
-		if (eSmeCsrCommandMask & pTempCmd->command) {
-			/* CSR command is stuck. See what the reason code is for that command */
+		if (eSmeCsrCommandMask & pTempCmd->command)
+			/* CSR command is stuck. See what the reason code is
+			 * for that command
+			 */
 			dump_csr_command_info(pMac, pTempCmd);
-		}
 	} /* if(pTempCmd) */
 
 	sme_err("Currently smeCmdPendingList has %d commands",
@@ -11198,7 +11164,6 @@ void sme_get_command_q_status(tHalHandle hHal)
 	sme_err("Currently roamCmdPendingList has %d commands",
 		csr_ll_count(&pMac->roam.roamCmdPendingList));
 
-	return;
 }
 /**
  * sme_set_prefer_80MHz_over_160MHz() - API to set sta_prefer_80MHz_over_160MHz
@@ -11209,6 +11174,7 @@ void sme_set_prefer_80MHz_over_160MHz(tHalHandle hal,
 		bool sta_prefer_80MHz_over_160MHz)
 {
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+
 	mac_ctx->sta_prefer_80MHz_over_160MHz = sta_prefer_80MHz_over_160MHz;
 }
 
@@ -11221,6 +11187,7 @@ void sme_set_prefer_80MHz_over_160MHz(tHalHandle hal,
 void sme_set_dot11p_config(tHalHandle hHal, bool enable_dot11p)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
 	pMac->enable_dot11p = enable_dot11p;
 }
 
@@ -11806,8 +11773,8 @@ void sme_get_recovery_stats(tHalHandle hHal)
 				  "timestamp %llu: command 0x%0X: reason %d: session %d",
 				  g_self_recovery_stats.activeCmdStats[i].
 				  timestamp,
-				  g_self_recovery_stats.activeCmdStats[i].command,
-				  g_self_recovery_stats.activeCmdStats[i].reason,
+				g_self_recovery_stats.activeCmdStats[i].command,
+				 g_self_recovery_stats.activeCmdStats[i].reason,
 				  g_self_recovery_stats.activeCmdStats[i].
 				  sessionId);
 		}
@@ -11860,7 +11827,6 @@ static void sme_save_active_cmd_stats(tHalHandle hHal)
 			((g_self_recovery_stats.cmdStatsIndx + 1) &
 				(MAX_ACTIVE_CMD_STATS - 1));
 	}
-	return;
 }
 
 void active_list_cmd_timeout_handle(void *userData)
@@ -11918,9 +11884,8 @@ QDF_STATUS sme_notify_modem_power_state(tHalHandle hHal, uint32_t value)
 	tpSirModemPowerStateInd request_buf;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 
-	if (NULL == pMac) {
+	if (NULL == pMac)
 		return QDF_STATUS_E_FAILURE;
-	}
 
 	request_buf = qdf_mem_malloc(sizeof(tSirModemPowerStateInd));
 	if (NULL == request_buf) {
@@ -11938,8 +11903,8 @@ QDF_STATUS sme_notify_modem_power_state(tHalHandle hHal, uint32_t value)
 	if (!QDF_IS_STATUS_SUCCESS
 		    (cds_mq_post_message(QDF_MODULE_ID_WMA, &msg))) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-			  "%s: Not able to post WMA_MODEM_POWER_STATE_IND message"
-			  " to WMA", __func__);
+			  "%s: Not able to post WMA_MODEM_POWER_STATE_IND message to WMA",
+			__func__);
 		qdf_mem_free(request_buf);
 		return QDF_STATUS_E_FAILURE;
 	}
@@ -11957,9 +11922,8 @@ QDF_STATUS sme_notify_ht2040_mode(tHalHandle hHal, uint16_t staId,
 	tUpdateVHTOpMode *pHtOpMode = NULL;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 
-	if (NULL == pMac) {
+	if (NULL == pMac)
 		return QDF_STATUS_E_FAILURE;
-	}
 
 	pHtOpMode = qdf_mem_malloc(sizeof(tUpdateVHTOpMode));
 	if (NULL == pHtOpMode) {
@@ -11997,8 +11961,8 @@ QDF_STATUS sme_notify_ht2040_mode(tHalHandle hHal, uint16_t staId,
 	if (!QDF_IS_STATUS_SUCCESS
 		    (cds_mq_post_message(QDF_MODULE_ID_WMA, &msg))) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-			  "%s: Not able to post WMA_UPDATE_OP_MODE message"
-			  " to WMA", __func__);
+			  "%s: Not able to post WMA_UPDATE_OP_MODE message to WMA",
+			__func__);
 		qdf_mem_free(pHtOpMode);
 		return QDF_STATUS_E_FAILURE;
 	}
@@ -12010,19 +11974,13 @@ QDF_STATUS sme_notify_ht2040_mode(tHalHandle hHal, uint16_t staId,
 	return QDF_STATUS_SUCCESS;
 }
 
-/* ---------------------------------------------------------------------------
-
-    \fn sme_set_ht2040_mode
-
-    \brief To update HT Operation beacon IE.
-
-    \param
-
-    \return QDF_STATUS  SUCCESS
-			FAILURE or RESOURCES
-			The API finished and failed.
-
-   -------------------------------------------------------------------------------*/
+/**
+ * sme_set_ht2040_mode() - To update HT Operation beacon IE.
+ *
+ * Return QDF_STATUS  SUCCESS
+ *			FAILURE or RESOURCES
+ *			The API finished and failed.
+ */
 QDF_STATUS sme_set_ht2040_mode(tHalHandle hHal, uint8_t sessionId,
 			       uint8_t channel_type, bool obssEnabled)
 {
@@ -12085,7 +12043,8 @@ QDF_STATUS sme_set_idle_powersave_config(bool value)
 	return QDF_STATUS_SUCCESS;
 }
 
-int16_t sme_get_ht_config(tHalHandle hHal, uint8_t session_id, uint16_t ht_capab)
+int16_t sme_get_ht_config(tHalHandle hHal, uint8_t session_id,
+			uint16_t ht_capab)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 	tCsrRoamSession *pSession = CSR_GET_SESSION(pMac, session_id);
@@ -12153,13 +12112,14 @@ int sme_update_ht_config(tHalHandle hHal, uint8_t sessionId, uint16_t htCapab,
 }
 
 #define HT20_SHORT_GI_MCS7_RATE 722
-/* ---------------------------------------------------------------------------
-    \fn sme_send_rate_update_ind
-    \brief  API to Update rate
-    \param  hHal - The handle returned by mac_open
-    \param  rateUpdateParams - Pointer to rate update params
-    \return QDF_STATUS
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_send_rate_update_ind() - API to Update rate
+ *
+ * @hHal - The handle returned by mac_open
+ * @rateUpdateParams - Pointer to rate update params
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_send_rate_update_ind(tHalHandle hHal,
 				    tSirRateUpdateInd *rateUpdateParams)
 {
@@ -12192,8 +12152,7 @@ QDF_STATUS sme_send_rate_update_ind(tHalHandle hHal,
 		if (!QDF_IS_STATUS_SUCCESS
 			    (cds_mq_post_message(QDF_MODULE_ID_WMA, &msg))) {
 			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-				  "%s: Not able "
-				  "to post WMA_SET_RMC_RATE_IND to WMA!",
+				  "%s: Not able to post WMA_SET_RMC_RATE_IND to WMA!",
 				  __func__);
 
 			sme_release_global_lock(&pMac->sme);
@@ -12306,7 +12265,7 @@ QDF_STATUS sme_update_short_retry_limit_threshold(tHalHandle hal_handle,
  * This function is used to configure TH to retry long frame.
  *
  * Return: QDF_STATUS
-*/
+ */
 QDF_STATUS sme_update_long_retry_limit_threshold(tHalHandle hal_handle,
 		struct sme_long_retry_limit  *long_retry_limit_th)
 {
@@ -12356,7 +12315,7 @@ QDF_STATUS sme_update_long_retry_limit_threshold(tHalHandle hal_handle,
  * disassociated and then deauthenticated.
  *
  * Return: QDF_STATUS_SUCCESS or non-zero on failure.
-*/
+ */
 QDF_STATUS sme_update_sta_inactivity_timeout(tHalHandle hal_handle,
 		 struct sme_sta_inactivity_timeout  *sta_inactivity_timer)
 {
@@ -12426,13 +12385,15 @@ QDF_STATUS sme_get_reg_info(tHalHandle hHal, uint8_t chanId,
 }
 
 #ifdef FEATURE_WLAN_AUTO_SHUTDOWN
-/* ---------------------------------------------------------------------------
-    \fn sme_auto_shutdown_cb
-    \brief  Used to plug in callback function for receiving auto shutdown evt
-    \param  hHal
-    \param  pCallbackfn : callback function pointer should be plugged in
-   \- return QDF_STATUS
-   -------------------------------------------------------------------------*/
+/**
+ * sme_auto_shutdown_cb() - Used to plug in callback function for receiving auto
+ * shutdown evt
+ *
+ * @hHal
+ * @pCallbackfn : callback function pointer should be plugged in
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_set_auto_shutdown_cb(tHalHandle hHal, void (*pCallbackfn)(void)
 				    ) {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
@@ -12443,22 +12404,22 @@ QDF_STATUS sme_set_auto_shutdown_cb(tHalHandle hHal, void (*pCallbackfn)(void)
 
 	status = sme_acquire_global_lock(&pMac->sme);
 	if (QDF_STATUS_SUCCESS == status) {
-		if (NULL != pCallbackfn) {
+		if (NULL != pCallbackfn)
 			pMac->sme.pAutoShutdownNotificationCb = pCallbackfn;
-		}
 		sme_release_global_lock(&pMac->sme);
 	}
 
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_set_auto_shutdown_timer
-    \API to set auto shutdown timer value in FW.
-    \param hHal - The handle returned by mac_open
-    \param timer_val - The auto shutdown timer value to be set
-   \- return Configuration message posting status, SUCCESS or Fail
-    -------------------------------------------------------------------------*/
+/**
+ * sme_set_auto_shutdown_timer() - API to set auto shutdown timer value in FW.
+ *
+ * @hHal - The handle returned by mac_open
+ * @timer_val - The auto shutdown timer value to be set
+ *
+ * Return Configuration message posting status, SUCCESS or Fail
+ */
 QDF_STATUS sme_set_auto_shutdown_timer(tHalHandle hHal, uint32_t timer_val)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
@@ -12501,18 +12462,19 @@ QDF_STATUS sme_set_auto_shutdown_timer(tHalHandle hHal, uint32_t timer_val)
 #endif
 
 #ifdef FEATURE_WLAN_CH_AVOID
-/* ---------------------------------------------------------------------------
-    \fn sme_add_ch_avoid_callback
-    \brief  Used to plug in callback function
-	    Which notify channel may not be used with SAP or P2PGO mode.
-	    Notification come from FW.
-    \param  hHal
-    \param  pCallbackfn : callback function pointer should be plugged in
-   \- return QDF_STATUS
-    -------------------------------------------------------------------------*/
-QDF_STATUS sme_add_ch_avoid_callback
-	(tHalHandle hHal, void (*pCallbackfn)(void *pAdapter, void *indParam)
-	) {
+/**
+ * sme_add_ch_avoid_callback() - Used to plug in callback function
+ *  Which notify channel may not be used with SAP or P2PGO mode.
+ *	    Notification come from FW.
+ *
+ * @hHal
+ * @pCallbackfn : callback function pointer should be plugged in
+ *
+ * Return QDF_STATUS
+ */
+QDF_STATUS sme_add_ch_avoid_callback(tHalHandle hHal,
+			void (*pCallbackfn)(void *pAdapter, void *indParam))
+{
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 
@@ -12521,22 +12483,22 @@ QDF_STATUS sme_add_ch_avoid_callback
 
 	status = sme_acquire_global_lock(&pMac->sme);
 	if (QDF_STATUS_SUCCESS == status) {
-		if (NULL != pCallbackfn) {
+		if (NULL != pCallbackfn)
 			pMac->sme.pChAvoidNotificationCb = pCallbackfn;
-		}
 		sme_release_global_lock(&pMac->sme);
 	}
 
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_ch_avoid_update_req
-    \API to request channel avoidance update from FW.
-    \param hHal - The handle returned by mac_open
-    \param update_type - The udpate_type parameter of this request call
-   \- return Configuration message posting status, SUCCESS or Fail
-    -------------------------------------------------------------------------*/
+/**
+ * sme_ch_avoid_update_req() - API to request channel avoidance update from FW.
+ *
+ * @hHal - The handle returned by mac_open
+ * @update_type - The udpate_type parameter of this request call
+ *
+ * Return Configuration message posting status, SUCCESS or Fail
+ */
 QDF_STATUS sme_ch_avoid_update_req(tHalHandle hHal)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
@@ -12690,12 +12652,13 @@ QDF_STATUS sme_roam_channel_change_req(tHalHandle hHal,
 	return status;
 }
 
-/* -------------------------------------------------------------------------
-   \fn sme_process_channel_change_resp
-   \brief API to Indicate Channel change response message to SAP.
-   \return QDF_STATUS
-   ---------------------------------------------------------------------------*/
-QDF_STATUS sme_process_channel_change_resp(tpAniSirGlobal pMac,
+/**
+ * sme_process_channel_change_resp() - API to Indicate Channel change response
+ * message to SAP.
+ *
+ * Return QDF_STATUS
+ */
+static QDF_STATUS sme_process_channel_change_resp(tpAniSirGlobal pMac,
 					   uint16_t msg_type, void *pMsgBuf)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
@@ -12748,24 +12711,27 @@ QDF_STATUS sme_process_channel_change_resp(tpAniSirGlobal pMac,
 	return status;
 }
 
-/* -------------------------------------------------------------------------
-   \fn sme_roam_start_beacon_req
-   \brief API to Indicate LIM to start Beacon Tx
-   \after SAP CAC Wait is completed.
-   \param hHal - The handle returned by mac_open
-   \param sessionId - session ID
-   \param dfsCacWaitStatus - CAC WAIT status flag
-   \return QDF_STATUS
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_roam_start_beacon_req() - API to Indicate LIM to start Beacon Tx after
+ * SAP CAC Wait is completed.
+ *
+ * @hHal - The handle returned by mac_open
+ * @sessionId - session ID
+ * @dfsCacWaitStatus - CAC WAIT status flag
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_roam_start_beacon_req(tHalHandle hHal, struct qdf_mac_addr bssid,
 				     uint8_t dfsCacWaitStatus)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
 	status = sme_acquire_global_lock(&pMac->sme);
 
 	if (QDF_IS_STATUS_SUCCESS(status)) {
-		status = csr_roam_start_beacon_req(pMac, bssid, dfsCacWaitStatus);
+		status = csr_roam_start_beacon_req(pMac, bssid,
+						dfsCacWaitStatus);
 		sme_release_global_lock(&pMac->sme);
 	}
 	return status;
@@ -12787,6 +12753,7 @@ QDF_STATUS sme_roam_csa_ie_request(tHalHandle hHal, struct qdf_mac_addr bssid,
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
 	status = sme_acquire_global_lock(&pMac->sme);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
 		status = csr_roam_send_chan_sw_ie_request(pMac, bssid,
@@ -12796,14 +12763,17 @@ QDF_STATUS sme_roam_csa_ie_request(tHalHandle hHal, struct qdf_mac_addr bssid,
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_init_thermal_info
-    \brief  SME API to initialize the thermal mitigation parameters
-    \param  hHal
-    \param  thermalParam : thermal mitigation parameters
-   \- return QDF_STATUS
-    -------------------------------------------------------------------------*/
-QDF_STATUS sme_init_thermal_info(tHalHandle hHal, tSmeThermalParams thermalParam)
+/**
+ * sme_init_thermal_info() - SME API to initialize the thermal mitigation
+ * parameters
+ *
+ * @hHal
+ * @thermalParam : thermal mitigation parameters
+ *
+ * Return QDF_STATUS
+ */
+QDF_STATUS sme_init_thermal_info(tHalHandle hHal, tSmeThermalParams
+				thermalParam)
 {
 	t_thermal_mgmt *pWmaParam;
 	cds_msg_t msg;
@@ -12914,13 +12884,14 @@ QDF_STATUS sme_set_thermal_level(tHalHandle hal, uint8_t level)
 	return QDF_STATUS_E_FAILURE;
 }
 
-/* ---------------------------------------------------------------------------
-   \fn sme_txpower_limit
-   \brief SME API to set txpower limits
-   \param hHal
-   \param psmetx : power limits for 2g/5g
-   \- return QDF_STATUS
-   -------------------------------------------------------------------------*/
+/**
+ * sme_txpower_limit() - SME API to set txpower limits
+ *
+ * @hHal
+ * @psmetx : power limits for 2g/5g
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_txpower_limit(tHalHandle hHal, tSirTxPowerLimit *psmetx)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
@@ -12962,26 +12933,21 @@ QDF_STATUS sme_update_connect_debug(tHalHandle hHal, uint32_t set_value)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
 	pMac->fEnableDebugLog = set_value;
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-   \fn    sme_ap_disable_intra_bss_fwd
-
-   \brief
-    SME will send message to WMA to set Intra BSS in txrx
-
-   \param
-
-    hHal - The handle returned by mac_open
-
-    sessionId - session id ( vdev id)
-
-    disablefwd - bool value that indicate disable intrabss fwd disable
-
-   \return QDF_STATUS
-   --------------------------------------------------------------------------- */
+/**
+ * sme_ap_disable_intra_bss_fwd() - SME will send message to WMA to set Intra
+ * BSS in txrx
+ *
+ * @hHal - The handle returned by mac_open
+ * @sessionId - session id ( vdev id)
+ * @disablefwd - bool value that indicate disable intrabss fwd disable
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_ap_disable_intra_bss_fwd(tHalHandle hHal, uint8_t sessionId,
 					bool disablefwd)
 {
@@ -13018,15 +12984,12 @@ QDF_STATUS sme_ap_disable_intra_bss_fwd(tHalHandle hHal, uint8_t sessionId,
 
 #ifdef WLAN_FEATURE_STATS_EXT
 
-/******************************************************************************
-   \fn sme_stats_ext_register_callback
-
-   \brief
-   a function called to register the callback that send vendor event for stats
-   ext
-
-   \param callback - callback to be registered
-******************************************************************************/
+/**
+ * sme_stats_ext_register_callback() - This function called to register the
+ * callback that send vendor event for stats ext
+ *
+ * @callback - callback to be registered
+ */
 void sme_stats_ext_register_callback(tHalHandle hHal, StatsExtCallback callback)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
@@ -13066,18 +13029,15 @@ void sme_stats_ext_deregister_callback(tHalHandle h_hal)
 }
 
 
-/******************************************************************************
-   \fn sme_stats_ext_request
-
-   \brief
-   a function called when HDD receives STATS EXT vendor command from userspace
-
-   \param sessionID - vdevID for the stats ext request
-
-   \param input - Stats Ext Request structure ptr
-
-   \return QDF_STATUS
-******************************************************************************/
+/**
+ * sme_stats_ext_request() - Function called when HDD receives STATS EXT vendor
+ * command from userspace
+ *
+ * @sessionID - vdevID for the stats ext request
+ * @input - Stats Ext Request structure ptr
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_stats_ext_request(uint8_t session_id, tpStatsExtRequestReq input)
 {
 	cds_msg_t msg;
@@ -13087,21 +13047,21 @@ QDF_STATUS sme_stats_ext_request(uint8_t session_id, tpStatsExtRequestReq input)
 	data_len = sizeof(tStatsExtRequest) + input->request_data_len;
 	data = qdf_mem_malloc(data_len);
 
-	if (data == NULL) {
+	if (data == NULL)
 		return QDF_STATUS_E_NOMEM;
-	}
+
 	data->vdev_id = session_id;
 	data->request_data_len = input->request_data_len;
-	if (input->request_data_len) {
+	if (input->request_data_len)
 		qdf_mem_copy(data->request_data,
 			     input->request_data, input->request_data_len);
-	}
 
 	msg.type = WMA_STATS_EXT_REQUEST;
 	msg.reserved = 0;
 	msg.bodyptr = data;
 
-	if (QDF_STATUS_SUCCESS != cds_mq_post_message(QDF_MODULE_ID_WMA, &msg)) {
+	if (QDF_STATUS_SUCCESS != cds_mq_post_message(QDF_MODULE_ID_WMA,
+							&msg)) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 			  "%s: Not able to post WMA_STATS_EXT_REQUEST message to WMA",
 			  __func__);
@@ -13112,17 +13072,15 @@ QDF_STATUS sme_stats_ext_request(uint8_t session_id, tpStatsExtRequestReq input)
 	return QDF_STATUS_SUCCESS;
 }
 
-/******************************************************************************
-   \fn sme_stats_ext_event
-
-   \brief
-   a callback function called when SME received eWNI_SME_STATS_EXT_EVENT
-   response from WMA
-
-   \param hHal - HAL handle for device
-   \param pMsg - Message body passed from WMA; includes NAN header
-   \return QDF_STATUS
-******************************************************************************/
+/**
+ * sme_stats_ext_event() - This callback function called when SME received
+ * eWNI_SME_STATS_EXT_EVENT response from WMA
+ *
+ * @hHal - HAL handle for device
+ * @pMsg - Message body passed from WMA; includes NAN header
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_stats_ext_event(tHalHandle hHal, void *pMsg)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
@@ -13132,10 +13090,9 @@ QDF_STATUS sme_stats_ext_event(tHalHandle hHal, void *pMsg)
 		sme_err("pMsg is NULL in sme_stats_ext_event");
 		status = QDF_STATUS_E_FAILURE;
 	} else {
-		if (pMac->sme.StatsExtCallback) {
+		if (pMac->sme.StatsExtCallback)
 			pMac->sme.StatsExtCallback(pMac->hHdd,
 						   (tpStatsExtEvent) pMsg);
-		}
 	}
 
 	return status;
@@ -13143,20 +13100,19 @@ QDF_STATUS sme_stats_ext_event(tHalHandle hHal, void *pMsg)
 
 #endif
 
-/* ---------------------------------------------------------------------------
-    \fn sme_update_dfs_scan_mode
-    \brief  Update DFS roam scan mode
-	    This function is called through dynamic setConfig callback function
-	    to configure allowDFSChannelRoam.
-    \param  hHal - HAL handle for device
-    \param  sessionId - Session Identifier
-    \param  allowDFSChannelRoam - DFS roaming scan mode 0 (disable),
-	    1 (passive), 2 (active)
-    \return QDF_STATUS_SUCCESS - SME update DFS roaming scan config
-	    successfully.
-	    Other status means SME failed to update DFS roaming scan config.
-    \sa
-    -------------------------------------------------------------------------*/
+/**
+ * sme_update_dfs_scan_mode() - Update DFS roam scan mode
+ *	    This function is called through dynamic setConfig callback function
+ *	    to configure allowDFSChannelRoam.
+ * @hHal - HAL handle for device
+ * @sessionId - Session Identifier
+ * @allowDFSChannelRoam - DFS roaming scan mode 0 (disable),
+ *	    1 (passive), 2 (active)
+ *
+ * Return QDF_STATUS_SUCCESS - SME update DFS roaming scan config
+ *	    successfully.
+ *	  Other status means SME failed to update DFS roaming scan config.
+ */
 QDF_STATUS sme_update_dfs_scan_mode(tHalHandle hHal, uint8_t sessionId,
 				    uint8_t allowDFSChannelRoam)
 {
@@ -13172,14 +13128,13 @@ QDF_STATUS sme_update_dfs_scan_mode(tHalHandle hHal, uint8_t sessionId,
 	status = sme_acquire_global_lock(&pMac->sme);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-			  "LFR runtime successfully set AllowDFSChannelRoam Mode to "
-			  "%d - old value is %d - roam state is %s",
+			  "LFR runtime successfully set AllowDFSChannelRoam Mode to %d - old value is %d - roam state is %s",
 			  allowDFSChannelRoam,
 			  pMac->roam.configParam.allowDFSChannelRoam,
 			  mac_trace_get_neighbour_roam_state(pMac->roam.
 							     neighborRoamInfo
 							     [sessionId].
-							     neighborRoamState));
+							    neighborRoamState));
 		pMac->roam.configParam.allowDFSChannelRoam =
 			allowDFSChannelRoam;
 		sme_release_global_lock(&pMac->sme);
@@ -13193,32 +13148,37 @@ QDF_STATUS sme_update_dfs_scan_mode(tHalHandle hHal, uint8_t sessionId,
 	return status;
 }
 
-/*--------------------------------------------------------------------------
-   \brief sme_get_dfs_scan_mode() - get DFS roam scan mode
-	  This is a synchronous call
-   \param hHal - The handle returned by mac_open.
-   \return DFS roaming scan mode 0 (disable), 1 (passive), 2 (active)
-   \sa
-   --------------------------------------------------------------------------*/
+/**
+ * sme_get_dfs_scan_mode() - get DFS roam scan mode
+ *	  This is a synchronous call
+ *
+ * @hHal - The handle returned by mac_open.
+ *
+ * Return DFS roaming scan mode 0 (disable), 1 (passive), 2 (active)
+ */
 uint8_t sme_get_dfs_scan_mode(tHalHandle hHal)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
 	return pMac->roam.configParam.allowDFSChannelRoam;
 }
 
-/*----------------------------------------------------------------------------
-   \fn  sme_modify_add_ie
-   \brief  This function sends msg to updates the additional IE buffers in PE
-   \param  hHal - global structure
-   \param  pModifyIE - pointer to tModifyIE structure
-   \param  updateType - type of buffer
-   \- return Success or failure
-   -----------------------------------------------------------------------------*/
+/**
+ * sme_modify_add_ie() - This function sends msg to updates the additional IE
+ * buffers in PE
+ *
+ * @hHal - global structure
+ * @pModifyIE - pointer to tModifyIE structure
+ * @updateType - type of buffer
+ *
+ * Return Success or failure
+ */
 QDF_STATUS sme_modify_add_ie(tHalHandle hHal,
 			     tSirModifyIE *pModifyIE, eUpdateIEsType updateType)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
 	status = sme_acquire_global_lock(&pMac->sme);
 
 	if (QDF_IS_STATUS_SUCCESS(status)) {
@@ -13228,19 +13188,22 @@ QDF_STATUS sme_modify_add_ie(tHalHandle hHal,
 	return status;
 }
 
-/*----------------------------------------------------------------------------
-   \fn  sme_update_add_ie
-   \brief  This function sends msg to updates the additional IE buffers in PE
-   \param  hHal - global structure
-   \param  pUpdateIE - pointer to structure tUpdateIE
-   \param  updateType - type of buffer
-   \- return Success or failure
-   -----------------------------------------------------------------------------*/
+/**
+ * sme_update_add_ie() - This function sends msg to updates the additional IE
+ * buffers in PE
+ *
+ * @hHal - global structure
+ * @pUpdateIE - pointer to structure tUpdateIE
+ * @updateType - type of buffer
+ *
+ * Return Success or failure
+ */
 QDF_STATUS sme_update_add_ie(tHalHandle hHal,
 			     tSirUpdateIE *pUpdateIE, eUpdateIEsType updateType)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
 	status = sme_acquire_global_lock(&pMac->sme);
 
 	if (QDF_IS_STATUS_SUCCESS(status)) {
@@ -13314,9 +13277,8 @@ QDF_STATUS sme_update_dsc_pto_up_mapping(tHalHandle hHal,
 					QDF_TRACE_LEVEL_ERROR,
 					FL("User Priority %d isn't used"), i);
 				break;
-			} else {
-				dscpmapping[j] = i;
 			}
+			dscpmapping[j] = i;
 		}
 	}
 	for (i = 0; i < pSession->QosMapSet.num_dscp_exceptions; i++)
@@ -13328,13 +13290,15 @@ QDF_STATUS sme_update_dsc_pto_up_mapping(tHalHandle hHal,
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_abort_roam_scan
-    \brief  API to abort current roam scan cycle by roam scan offload module.
-    \param  hHal - The handle returned by mac_open.
-    \param  sessionId - Session Identifier
-    \return QDF_STATUS
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_abort_roam_scan() - API to abort current roam scan cycle by roam scan
+ * offload module.
+ *
+ * @hHal - The handle returned by mac_open.
+ * @sessionId - Session Identifier
+ *
+ * Return QDF_STATUS
+ */
 
 QDF_STATUS sme_abort_roam_scan(tHalHandle hHal, uint8_t sessionId)
 {
@@ -13401,18 +13365,16 @@ QDF_STATUS sme_get_valid_channels_by_band(tHalHandle hHal,
 		sme_debug("Unspec Band, return all %d valid channels",
 			  totValidChannels);
 		numChannels = totValidChannels;
-		for (i = 0; i < totValidChannels; i++) {
+		for (i = 0; i < totValidChannels; i++)
 			aValidChannels[i] = cds_chan_to_freq(chanList[i]);
-		}
 		break;
 
 	case WIFI_BAND_BG:
 		sme_debug("WIFI_BAND_BG (2.4 GHz)");
 		for (i = 0; i < totValidChannels; i++) {
-			if (CDS_IS_CHANNEL_24GHZ(chanList[i])) {
+			if (CDS_IS_CHANNEL_24GHZ(chanList[i]))
 				aValidChannels[numChannels++] =
 					cds_chan_to_freq(chanList[i]);
-			}
 		}
 		break;
 
@@ -13420,10 +13382,9 @@ QDF_STATUS sme_get_valid_channels_by_band(tHalHandle hHal,
 		sme_debug("WIFI_BAND_A (5 GHz without DFS)");
 		for (i = 0; i < totValidChannels; i++) {
 			if (CDS_IS_CHANNEL_5GHZ(chanList[i]) &&
-			    !CDS_IS_DFS_CH(chanList[i])) {
+			    !CDS_IS_DFS_CH(chanList[i]))
 				aValidChannels[numChannels++] =
 					cds_chan_to_freq(chanList[i]);
-			}
 		}
 		break;
 
@@ -13432,10 +13393,9 @@ QDF_STATUS sme_get_valid_channels_by_band(tHalHandle hHal,
 		for (i = 0; i < totValidChannels; i++) {
 			if ((CDS_IS_CHANNEL_24GHZ(chanList[i]) ||
 			     CDS_IS_CHANNEL_5GHZ(chanList[i])) &&
-			    !CDS_IS_DFS_CH(chanList[i])) {
+			    !CDS_IS_DFS_CH(chanList[i]))
 				aValidChannels[numChannels++] =
 					cds_chan_to_freq(chanList[i]);
-			}
 		}
 		break;
 
@@ -13443,20 +13403,18 @@ QDF_STATUS sme_get_valid_channels_by_band(tHalHandle hHal,
 		sme_debug("WIFI_BAND_A_DFS (5 GHz DFS only)");
 		for (i = 0; i < totValidChannels; i++) {
 			if (CDS_IS_CHANNEL_5GHZ(chanList[i]) &&
-			    CDS_IS_DFS_CH(chanList[i])) {
+			    CDS_IS_DFS_CH(chanList[i]))
 				aValidChannels[numChannels++] =
 					cds_chan_to_freq(chanList[i]);
-			}
 		}
 		break;
 
 	case WIFI_BAND_A_WITH_DFS:
 		sme_debug("WIFI_BAND_A_WITH_DFS (5 GHz with DFS)");
 		for (i = 0; i < totValidChannels; i++) {
-			if (CDS_IS_CHANNEL_5GHZ(chanList[i])) {
+			if (CDS_IS_CHANNEL_5GHZ(chanList[i]))
 				aValidChannels[numChannels++] =
 					cds_chan_to_freq(chanList[i]);
-			}
 		}
 		break;
 
@@ -13464,30 +13422,29 @@ QDF_STATUS sme_get_valid_channels_by_band(tHalHandle hHal,
 		sme_debug("WIFI_BAND_ABG_WITH_DFS (2.4 GHz+5 GHz with DFS)");
 		for (i = 0; i < totValidChannels; i++) {
 			if (CDS_IS_CHANNEL_24GHZ(chanList[i]) ||
-			    CDS_IS_CHANNEL_5GHZ(chanList[i])) {
+			    CDS_IS_CHANNEL_5GHZ(chanList[i]))
 				aValidChannels[numChannels++] =
 					cds_chan_to_freq(chanList[i]);
-			}
 		}
 		break;
 
 	default:
 		sme_err("Unknown wifiBand: %d", wifiBand);
 		return QDF_STATUS_E_INVAL;
-		break;
 	}
 	*pNumChannels = numChannels;
 
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_ext_scan_get_capabilities
-    \brief  SME API to fetch extscan capabilities
-    \param  hHal
-    \param  pReq: extscan capabilities structure
-   \- return QDF_STATUS
-    -------------------------------------------------------------------------*/
+/**
+ * sme_ext_scan_get_capabilities() - SME API to fetch extscan capabilities
+ *
+ * @hHal
+ * @pReq: extscan capabilities structure
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_ext_scan_get_capabilities(tHalHandle hHal,
 					 tSirGetExtScanCapabilitiesReqParams *
 					 pReq)
@@ -13513,13 +13470,14 @@ QDF_STATUS sme_ext_scan_get_capabilities(tHalHandle hHal,
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_ext_scan_start
-    \brief  SME API to issue extscan start
-    \param  hHal
-    \param  pStartCmd: extscan start structure
-   \- return QDF_STATUS
-    -------------------------------------------------------------------------*/
+/**
+ * sme_ext_scan_start() - SME API to issue extscan start
+ *
+ * @hHal
+ * @pStartCmd: extscan start structure
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_ext_scan_start(tHalHandle hHal,
 			      tSirWifiScanCmdReqParams *pStartCmd)
 {
@@ -13544,14 +13502,16 @@ QDF_STATUS sme_ext_scan_start(tHalHandle hHal,
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_ext_scan_stop
-    \brief  SME API to issue extscan stop
-    \param  hHal
-    \param  pStopReq: extscan stop structure
-   \- return QDF_STATUS
-    -------------------------------------------------------------------------*/
-QDF_STATUS sme_ext_scan_stop(tHalHandle hHal, tSirExtScanStopReqParams *pStopReq)
+/**
+ * sme_ext_scan_stop() - SME API to issue extscan stop
+ *
+ * @hHal
+ * @pStopReq: extscan stop structure
+ *
+ * Return QDF_STATUS
+ */
+QDF_STATUS sme_ext_scan_stop(tHalHandle hHal, tSirExtScanStopReqParams
+			*pStopReq)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
@@ -13573,13 +13533,14 @@ QDF_STATUS sme_ext_scan_stop(tHalHandle hHal, tSirExtScanStopReqParams *pStopReq
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_set_bss_hotlist
-    \brief  SME API to set BSSID hotlist
-    \param  hHal
-    \param  pSetHotListReq: extscan set hotlist structure
-   \- return QDF_STATUS
-    -------------------------------------------------------------------------*/
+/**
+ * sme_set_bss_hotlist() - SME API to set BSSID hotlist
+ *
+ * @hHal
+ * @pSetHotListReq: extscan set hotlist structure
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_set_bss_hotlist(tHalHandle hHal,
 			       tSirExtScanSetBssidHotListReqParams *
 			       pSetHotListReq)
@@ -13605,13 +13566,14 @@ QDF_STATUS sme_set_bss_hotlist(tHalHandle hHal,
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_reset_bss_hotlist
-    \brief  SME API to reset BSSID hotlist
-    \param  hHal
-    \param  pSetHotListReq: extscan set hotlist structure
-   \- return QDF_STATUS
-    -------------------------------------------------------------------------*/
+/**
+ * sme_reset_bss_hotlist() - SME API to reset BSSID hotlist
+ *
+ * @hHal
+ * @pSetHotListReq: extscan set hotlist structure
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_reset_bss_hotlist(tHalHandle hHal,
 				 tSirExtScanResetBssidHotlistReqParams *
 				 pResetReq)
@@ -13670,13 +13632,14 @@ QDF_STATUS sme_set_wisa_params(tHalHandle hal,
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_set_significant_change
-    \brief  SME API to set significant change
-    \param  hHal
-    \param  pSetSignificantChangeReq: extscan set significant change structure
-   \- return QDF_STATUS
-    -------------------------------------------------------------------------*/
+/**
+ * sme_set_significant_change() - SME API to set significant change
+ *
+ * @hHal
+ * @pSetSignificantChangeReq: extscan set significant change structure
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_set_significant_change(tHalHandle hHal,
 				      tSirExtScanSetSigChangeReqParams *
 				      pSetSignificantChangeReq)
@@ -13702,15 +13665,16 @@ QDF_STATUS sme_set_significant_change(tHalHandle hHal,
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_reset_significant_change
-    \brief  SME API to reset significant change
-    \param  hHal
-    \param  pResetReq: extscan reset significant change structure
-   \- return QDF_STATUS
-    -------------------------------------------------------------------------*/
+/**
+ * sme_reset_significant_change() - SME API to reset significant change
+ *
+ * @hHal
+ * @pResetReq: extscan reset significant change structure
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_reset_significant_change(tHalHandle hHal,
-					tSirExtScanResetSignificantChangeReqParams
+				tSirExtScanResetSignificantChangeReqParams
 					*pResetReq)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
@@ -13734,13 +13698,14 @@ QDF_STATUS sme_reset_significant_change(tHalHandle hHal,
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_get_cached_results
-    \brief  SME API to get cached results
-    \param  hHal
-    \param  pCachedResultsReq: extscan get cached results structure
-   \- return QDF_STATUS
-    -------------------------------------------------------------------------*/
+/**
+ * sme_get_cached_results() - SME API to get cached results
+ *
+ * @hHal
+ * @pCachedResultsReq: extscan get cached results structure
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_get_cached_results(tHalHandle hHal,
 				  tSirExtScanGetCachedResultsReqParams *
 				  pCachedResultsReq)
@@ -13977,13 +13942,14 @@ QDF_STATUS sme_ext_scan_register_callback(tHalHandle hHal,
 
 #ifdef WLAN_FEATURE_LINK_LAYER_STATS
 
-/* ---------------------------------------------------------------------------
-    \fn sme_ll_stats_clear_req
-    \brief  SME API to clear Link Layer Statistics
-    \param  hHal
-    \param  pclearStatsReq: Link Layer clear stats request params structure
-   \- return QDF_STATUS
-    -------------------------------------------------------------------------*/
+/**
+ * sme_ll_stats_clear_req() - SME API to clear Link Layer Statistics
+ *
+ * @hHal
+ * @pclearStatsReq: Link Layer clear stats request params structure
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_ll_stats_clear_req(tHalHandle hHal,
 				  tSirLLStatsClearReq *pclearStatsReq)
 {
@@ -14028,8 +13994,8 @@ QDF_STATUS sme_ll_stats_clear_req(tHalHandle hHal,
 		}
 		sme_release_global_lock(&pMac->sme);
 	} else {
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR, "%s: "
-			  "sme_acquire_global_lock error", __func__);
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			"%s: sme_acquire_global_lock error", __func__);
 		qdf_mem_free(clear_stats_req);
 		status = QDF_STATUS_E_FAILURE;
 	}
@@ -14037,14 +14003,16 @@ QDF_STATUS sme_ll_stats_clear_req(tHalHandle hHal,
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_ll_stats_set_req
-    \brief  SME API to set the Link Layer Statistics
-    \param  hHal
-    \param  psetStatsReq: Link Layer set stats request params structure
-   \- return QDF_STATUS
-    -------------------------------------------------------------------------*/
-QDF_STATUS sme_ll_stats_set_req(tHalHandle hHal, tSirLLStatsSetReq *psetStatsReq)
+/**
+ * sme_ll_stats_set_req() - SME API to set the Link Layer Statistics
+ *
+ * @hHal
+ * @psetStatsReq: Link Layer set stats request params structure
+ *
+ * Return QDF_STATUS
+ */
+QDF_STATUS sme_ll_stats_set_req(tHalHandle hHal, tSirLLStatsSetReq
+				*psetStatsReq)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
@@ -14086,8 +14054,8 @@ QDF_STATUS sme_ll_stats_set_req(tHalHandle hHal, tSirLLStatsSetReq *psetStatsReq
 		}
 		sme_release_global_lock(&pMac->sme);
 	} else {
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR, "%s: "
-			  "sme_acquire_global_lock error", __func__);
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			"%s: sme_acquire_global_lock error", __func__);
 		qdf_mem_free(set_stats_req);
 		status = QDF_STATUS_E_FAILURE;
 	}
@@ -14095,14 +14063,16 @@ QDF_STATUS sme_ll_stats_set_req(tHalHandle hHal, tSirLLStatsSetReq *psetStatsReq
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_ll_stats_get_req
-    \brief  SME API to get the Link Layer Statistics
-    \param  hHal
-    \param  pgetStatsReq: Link Layer get stats request params structure
-   \- return QDF_STATUS
-    -------------------------------------------------------------------------*/
-QDF_STATUS sme_ll_stats_get_req(tHalHandle hHal, tSirLLStatsGetReq *pgetStatsReq)
+/**
+ * sme_ll_stats_get_req() - SME API to get the Link Layer Statistics
+ *
+ * @hHal
+ * @pgetStatsReq: Link Layer get stats request params structure
+ *
+ * Return QDF_STATUS
+ */
+QDF_STATUS sme_ll_stats_get_req(tHalHandle hHal, tSirLLStatsGetReq
+				*pgetStatsReq)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
@@ -14139,8 +14109,8 @@ QDF_STATUS sme_ll_stats_get_req(tHalHandle hHal, tSirLLStatsGetReq *pgetStatsReq
 		}
 		sme_release_global_lock(&pMac->sme);
 	} else {
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR, "%s: "
-			  "sme_acquire_global_lock error", __func__);
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			"%s: sme_acquire_global_lock error", __func__);
 		qdf_mem_free(get_stats_req);
 		status = QDF_STATUS_E_FAILURE;
 	}
@@ -14148,18 +14118,19 @@ QDF_STATUS sme_ll_stats_get_req(tHalHandle hHal, tSirLLStatsGetReq *pgetStatsReq
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_set_link_layer_stats_ind_cb
-    \brief  SME API to trigger the stats are available  after get request
-    \param  hHal
-    \param callback_routine - HDD callback which needs to be invoked after
-	   getting status notification from FW
-   \- return QDF_STATUS
-    -------------------------------------------------------------------------*/
-QDF_STATUS sme_set_link_layer_stats_ind_cb
-	(tHalHandle hHal,
-	void (*callback_routine)(void *callbackCtx, int indType, void *pRsp)
-	) {
+/**
+ * sme_set_link_layer_stats_ind_cb() - SME API to trigger the stats are
+ * available  after get request
+ *
+ * @hHal
+ * @callback_routine - HDD callback which needs to be invoked after
+ *	   getting status notification from FW
+ *
+ * Return QDF_STATUS
+ */
+QDF_STATUS sme_set_link_layer_stats_ind_cb(tHalHandle hHal,
+	void (*callback_routine)(void *callbackCtx, int indType, void *pRsp))
+{
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 
@@ -14167,10 +14138,9 @@ QDF_STATUS sme_set_link_layer_stats_ind_cb
 	if (QDF_IS_STATUS_SUCCESS(status)) {
 		pMac->sme.pLinkLayerStatsIndCallback = callback_routine;
 		sme_release_global_lock(&pMac->sme);
-	} else {
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR, "%s: "
-			  "sme_acquire_global_lock error", __func__);
-	}
+	} else
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			"%s: sme_acquire_global_lock error", __func__);
 
 	return status;
 }
@@ -14183,9 +14153,9 @@ QDF_STATUS sme_set_link_layer_stats_ind_cb
  *
  * Return: eHalStatus
  */
-QDF_STATUS sme_set_link_layer_ext_cb(tHalHandle hal,
-		     void (*ll_stats_ext_cb)(tHddHandle callback_ctx,
-					     tSirLLStatsResults *rsp))
+QDF_STATUS sme_set_link_layer_ext_cb(tHalHandle hal, void (*ll_stats_ext_cb)
+				(tHddHandle callback_ctx, tSirLLStatsResults
+				*rsp))
 {
 	QDF_STATUS status;
 	tpAniSirGlobal mac = PMAC_STRUCT(hal);
@@ -14194,10 +14164,9 @@ QDF_STATUS sme_set_link_layer_ext_cb(tHalHandle hal,
 	if (status == QDF_STATUS_SUCCESS) {
 		mac->sme.link_layer_stats_ext_cb = ll_stats_ext_cb;
 		sme_release_global_lock(&mac->sme);
-	} else {
+	} else
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 			  "%s: sme_qcquire_global_lock error", __func__);
-	}
 	return status;
 }
 
@@ -14227,10 +14196,9 @@ QDF_STATUS sme_reset_link_layer_stats_ind_cb(tHalHandle h_hal)
 	if (QDF_IS_STATUS_SUCCESS(status)) {
 		pmac->sme.pLinkLayerStatsIndCallback = NULL;
 		sme_release_global_lock(&pmac->sme);
-	} else {
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR, "%s: sme_acquire_global_lock error",
-			  __func__);
-	}
+	} else
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			"%s: sme_acquire_global_lock error", __func__);
 
 	return status;
 }
@@ -14325,9 +14293,8 @@ QDF_STATUS sme_power_debug_stats_req(tHalHandle hal, void (*callback_fn)
 		msg.bodyptr = NULL;
 		msg.type = WMA_POWER_DEBUG_STATS_REQ;
 		status = cds_mq_post_message(QDF_MODULE_ID_WMA, &msg);
-		if (!QDF_IS_STATUS_SUCCESS(status)) {
+		if (!QDF_IS_STATUS_SUCCESS(status))
 			sme_err("not able to post WDA_POWER_DEBUG_STATS_REQ");
-		}
 		sme_release_global_lock(&mac_ctx->sme);
 	}
 	return status;
@@ -14356,10 +14323,9 @@ QDF_STATUS sme_fw_mem_dump_register_cb(tHalHandle hal,
 	if (QDF_STATUS_SUCCESS == status) {
 		pmac->sme.fw_dump_callback = callback_routine;
 		sme_release_global_lock(&pmac->sme);
-	} else {
+	} else
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 			  FL("sme_acquire_global_lock error"));
-	}
 
 	return status;
 }
@@ -14391,10 +14357,9 @@ QDF_STATUS sme_fw_mem_dump_unregister_cb(tHalHandle hal)
 	if (QDF_STATUS_SUCCESS == status) {
 		pmac->sme.fw_dump_callback = NULL;
 		sme_release_global_lock(&pmac->sme);
-	} else {
+	} else
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 			  FL("sme_acquire_global_lock error"));
-	}
 
 	return status;
 }
@@ -14406,15 +14371,16 @@ QDF_STATUS sme_fw_mem_dump_unregister_cb(tHalHandle hal)
 #endif /* WLAN_FEATURE_MEMDUMP */
 
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
-/*--------------------------------------------------------------------------
-   \brief sme_update_roam_offload_enabled() - enable/disable roam offload feaure
-   It is used at in the REG_DYNAMIC_VARIABLE macro definition of
-   \param hHal - The handle returned by mac_open.
-   \param nRoamOffloadEnabled - The bool to update with
-   \return QDF_STATUS_SUCCESS - SME update config successfully.
-	   Other status means SME is failed to update.
-   \sa
-   --------------------------------------------------------------------------*/
+/**
+ * sme_update_roam_offload_enabled() - enable/disable roam offload feaure
+ *  It is used at in the REG_DYNAMIC_VARIABLE macro definition of
+ *
+ * @hHal - The handle returned by mac_open.
+ * @nRoamOffloadEnabled - The bool to update with
+ *
+ * Return QDF_STATUS_SUCCESS - SME update config successfully.
+ *	   Other status means SME is failed to update.
+ */
 
 QDF_STATUS sme_update_roam_offload_enabled(tHalHandle hHal,
 					   bool nRoamOffloadEnabled)
@@ -14443,6 +14409,7 @@ QDF_STATUS sme_update_roam_offload_enabled(tHalHandle hHal,
  * @session_id: Session Identifier
  * @key_mgmt_offload_enabled: key mgmt enable/disable flag
  * @pmkid_modes: PMKID modes of PMKSA caching and OKC
+ *
  * Return: QDF_STATUS_SUCCESS - SME updated config successfully.
  * Other status means SME is failed to update.
  */
@@ -14465,9 +14432,8 @@ QDF_STATUS sme_update_roam_key_mgmt_offload_enabled(tHalHandle hal_ctx,
 						session_id,
 						key_mgmt_offload_enabled,
 						pmkid_modes);
-		} else {
+		} else
 			status = QDF_STATUS_E_INVAL;
-		}
 		sme_release_global_lock(&mac_ctx->sme);
 	}
 
@@ -14475,14 +14441,15 @@ QDF_STATUS sme_update_roam_key_mgmt_offload_enabled(tHalHandle hal_ctx,
 }
 #endif
 
-/* ---------------------------------------------------------------------------
-   \fn sme_get_temperature
-   \brief SME API to get the pdev temperature
-   \param hHal
-   \param temperature context
-   \param pCallbackfn: callback fn with response (temperature)
-   \- return QDF_STATUS
-   -------------------------------------------------------------------------*/
+/**
+ * sme_get_temperature() - SME API to get the pdev temperature
+ *
+ * @hHal
+ * @temperature context
+ * @pCallbackfn: callback fn with response (temperature)
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_get_temperature(tHalHandle hHal,
 			       void *tempContext,
 			       void (*pCallbackfn)(int temperature,
@@ -14498,8 +14465,7 @@ QDF_STATUS sme_get_temperature(tHalHandle hHal,
 		if ((NULL == pCallbackfn) &&
 		    (NULL == pMac->sme.pGetTemperatureCb)) {
 			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-				  FL
-					  ("Indication Call back did not registered"));
+				"Indication Call back did not registered");
 			sme_release_global_lock(&pMac->sme);
 			return QDF_STATUS_E_FAILURE;
 		} else if (NULL != pCallbackfn) {
@@ -14520,14 +14486,16 @@ QDF_STATUS sme_get_temperature(tHalHandle hHal,
 	return status;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_set_scanning_mac_oui
-    \brief  SME API to set scanning mac oui
-    \param  hHal
-    \param  pScanMacOui: Scanning Mac Oui (input 3 bytes)
-   \- return QDF_STATUS
-    -------------------------------------------------------------------------*/
-QDF_STATUS sme_set_scanning_mac_oui(tHalHandle hHal, tSirScanMacOui *pScanMacOui)
+/**
+ * sme_set_scanning_mac_oui() - SME API to set scanning mac oui
+ *
+ * @hHal
+ * @pScanMacOui: Scanning Mac Oui (input 3 bytes)
+ *
+ * Return QDF_STATUS
+ */
+QDF_STATUS sme_set_scanning_mac_oui(tHalHandle hHal, tSirScanMacOui
+					*pScanMacOui)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
@@ -14551,13 +14519,14 @@ QDF_STATUS sme_set_scanning_mac_oui(tHalHandle hHal, tSirScanMacOui *pScanMacOui
 }
 
 #ifdef DHCP_SERVER_OFFLOAD
-/* ---------------------------------------------------------------------------
-    \fn sme_set_dhcp_srv_offload
-    \brief  SME API to set DHCP server offload info
-    \param  hHal
-    \param  pDhcpSrvInfo : DHCP server offload info struct
-   \- return QDF_STATUS
-    -------------------------------------------------------------------------*/
+/**
+ * sme_set_dhcp_srv_offload() - SME API to set DHCP server offload info
+ *
+ * @hHal
+ * @pDhcpSrvInfo : DHCP server offload info struct
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_set_dhcp_srv_offload(tHalHandle hHal,
 				    tSirDhcpSrvOffloadInfo *pDhcpSrvInfo)
 {
@@ -14584,7 +14553,8 @@ QDF_STATUS sme_set_dhcp_srv_offload(tHalHandle hHal,
 		cds_message.bodyptr = pSmeDhcpSrvInfo;
 
 		if (!QDF_IS_STATUS_SUCCESS
-			    (cds_mq_post_message(QDF_MODULE_ID_WMA, &cds_message))) {
+			    (cds_mq_post_message(QDF_MODULE_ID_WMA,
+						&cds_message))) {
 			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 				  "%s: Not able to post WMA_SET_DHCP_SERVER_OFFLOAD_CMD to WMA!",
 				  __func__);
@@ -14603,13 +14573,14 @@ QDF_STATUS sme_set_dhcp_srv_offload(tHalHandle hHal,
 #endif /* DHCP_SERVER_OFFLOAD */
 
 #ifdef WLAN_FEATURE_GPIO_LED_FLASHING
-/* ---------------------------------------------------------------------------
-    \fn sme_set_led_flashing
-    \brief  API to set the Led flashing parameters.
-    \param  hHal - The handle returned by mac_open.
-    \param  x0, x1 -  led flashing parameters
-    \return QDF_STATUS
-   ---------------------------------------------------------------------------*/
+/**
+ * sme_set_led_flashing() - API to set the Led flashing parameters.
+ *
+ * @hHal - The handle returned by mac_open.
+ * @x0, x1 -  led flashing parameters
+ *
+ * Return QDF_STATUS
+ */
 QDF_STATUS sme_set_led_flashing(tHalHandle hHal, uint8_t type,
 				uint32_t x0, uint32_t x1)
 {
@@ -14622,8 +14593,7 @@ QDF_STATUS sme_set_led_flashing(tHalHandle hHal, uint8_t type,
 	ledflashing = qdf_mem_malloc(sizeof(*ledflashing));
 	if (!ledflashing) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-			  FL
-				  ("Not able to allocate memory for WMA_LED_TIMING_REQ"));
+			"Not able to allocate memory for WMA_LED_TIMING_REQ");
 		return QDF_STATUS_E_NOMEM;
 	}
 
@@ -14649,6 +14619,7 @@ QDF_STATUS sme_set_led_flashing(tHalHandle hHal, uint8_t type,
  *  sme_handle_dfS_chan_scan() - handle DFS channel configuration
  *  @h_hal:         corestack handler
  *  @dfs_flag:      flag indicating dfs channel enable/disable
+ *
  *  Return:         QDF_STATUS
  */
 QDF_STATUS sme_handle_dfs_chan_scan(tHalHandle h_hal, uint8_t dfs_flag)
@@ -14885,7 +14856,7 @@ QDF_STATUS sme_configure_modulated_dtim(tHalHandle h_hal, uint8_t session_id,
 	return status;
 }
 
-/*
+/**
  * sme_wifi_start_logger() - Send the start/stop logging command to WMA
  * to either start/stop logging
  * @hal: HAL context
@@ -14966,7 +14937,7 @@ bool sme_neighbor_middle_of_roaming(tHalHandle hHal, uint8_t sessionId)
 	return val;
 }
 
-/*
+/**
  * sme_send_flush_logs_cmd_to_fw() - Flush FW logs
  * @mac: MAC handle
  *
@@ -15436,12 +15407,13 @@ QDF_STATUS sme_fw_mem_dump(tHalHandle hHal, void *recvd_req)
 }
 #endif /* WLAN_FEATURE_MEMDUMP */
 
-/*
+/**
  * sme_pdev_set_pcl() - Send WMI_PDEV_SET_PCL_CMDID to the WMA
  * @hal: Handle returned by macOpen
  * @msg: PCL channel list and length structure
  *
  * Sends the command to WMA to send WMI_PDEV_SET_PCL_CMDID to FW
+ *
  * Return: QDF_STATUS_SUCCESS on successful posting
  */
 QDF_STATUS sme_pdev_set_pcl(tHalHandle hal,
@@ -15489,12 +15461,13 @@ QDF_STATUS sme_pdev_set_pcl(tHalHandle hal,
 	return status;
 }
 
-/*
+/**
  * sme_pdev_set_hw_mode() - Send WMI_PDEV_SET_HW_MODE_CMDID to the WMA
  * @hal: Handle returned by macOpen
  * @msg: HW mode structure containing hw mode and callback details
  *
  * Sends the command to CSR to send WMI_PDEV_SET_HW_MODE_CMDID to FW
+ *
  * Return: QDF_STATUS_SUCCESS on successful posting
  */
 QDF_STATUS sme_pdev_set_hw_mode(tHalHandle hal,
@@ -15562,10 +15535,12 @@ void sme_register_hw_mode_trans_cb(tHalHandle hal,
  * @next_action: next action to happen at policy mgr after beacon update
  *
  * Sends the command to CSR to send to PE
+ *
  * Return: QDF_STATUS_SUCCESS on successful posting
  */
 QDF_STATUS sme_nss_update_request(tHalHandle hHal, uint32_t vdev_id,
-				uint8_t  new_nss, void *cback, uint8_t next_action,
+				uint8_t  new_nss, void *cback,
+				uint8_t next_action,
 				void *hdd_context,
 				enum sir_conn_update_reason reason)
 {
@@ -15662,7 +15637,7 @@ QDF_STATUS sme_gateway_param_update(tHalHandle Hal,
 	request_buf = qdf_mem_malloc(sizeof(*request_buf));
 	if (NULL == request_buf) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-			FL("Not able to allocate memory for gw param update request"));
+			"Not able to allocate memory for gw param update request");
 		return QDF_STATUS_E_NOMEM;
 	}
 
@@ -15674,7 +15649,7 @@ QDF_STATUS sme_gateway_param_update(tHalHandle Hal,
 	qdf_status = cds_mq_post_message(CDS_MQ_ID_WMA, &cds_message);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-			FL("Not able to post WMA_GW_PARAM_UPDATE_REQ message to HAL"));
+			"Not able to post WMA_GW_PARAM_UPDATE_REQ message to HAL");
 		qdf_mem_free(request_buf);
 		return QDF_STATUS_E_FAILURE;
 	}
@@ -15757,7 +15732,7 @@ QDF_STATUS sme_set_peer_authorized(uint8_t *peer_addr,
 				  1, vdev_id);
 }
 
-/*
+/**
  * sme_handle_set_fcc_channel() - set spec. tx power for non-fcc channel
  * @hal: HAL pointer
  * @fcc_constraint: flag to enable/disable the constraint
@@ -15797,6 +15772,7 @@ QDF_STATUS sme_handle_set_fcc_channel(tHalHandle hal, bool fcc_constraint,
 void sme_setdef_dot11mode(tHalHandle hal)
 {
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+
 	csr_set_default_dot11_mode(mac_ctx);
 }
 
@@ -15911,7 +15887,6 @@ void sme_update_tgt_services(tHalHandle hal, struct wma_tgt_services *cfg)
 	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 		FL("mac_ctx->pmf_offload: %d"), mac_ctx->pmf_offload);
 
-	return;
 }
 
 /**
@@ -15926,18 +15901,17 @@ void sme_update_tgt_services(tHalHandle hal, struct wma_tgt_services *cfg)
 bool sme_is_session_id_valid(tHalHandle hal, uint32_t session_id)
 {
 	tpAniSirGlobal mac = PMAC_STRUCT(hal);
+
 	if (!mac) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 			"%s: null mac pointer", __func__);
 		return false;
 	}
 
-	if (CSR_IS_SESSION_VALID(mac, session_id)) {
+	if (CSR_IS_SESSION_VALID(mac, session_id))
 		return true;
-	} else {
-		sme_err("Invalid session id: %d", session_id);
-		return false;
-	}
+
+	return false;
 }
 
 #ifdef FEATURE_WLAN_TDLS
@@ -16672,12 +16646,11 @@ void sme_set_pdev_ht_vht_ies(tHalHandle hal, bool enable2x2)
 			  ht_vht_cfg->nss,
 			  ht_vht_cfg->dot11mode);
 		status = cds_send_mb_message_to_mac(ht_vht_cfg);
-		if (QDF_STATUS_SUCCESS != status) {
+		if (QDF_STATUS_SUCCESS != status)
 			sme_err("Send SME_PDEV_SET_HT_VHT_IE fail");
-		}
+
 		sme_release_global_lock(&mac_ctx->sme);
 	}
-	return;
 }
 
 /**
@@ -16732,6 +16705,7 @@ void sme_update_vdev_type_nss(tHalHandle hal, uint8_t max_supp_nss,
 void sme_update_hw_dbs_capable(tHalHandle hal, uint8_t hw_dbs_capable)
 {
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+
 	mac_ctx->hw_dbs_capable = hw_dbs_capable;
 }
 
@@ -16763,6 +16737,7 @@ void sme_register_p2p_lo_event(tHalHandle hHal, void *context,
  * @hal: The handle returned by macOpen
  * @session_id: session id
  * @dbg_args: args for mac pwr debug command
+ *
  * Return: Return QDF_STATUS, otherwise appropriate failure code
  */
 QDF_STATUS sme_process_mac_pwr_dbg_cmd(tHalHandle hal, uint32_t session_id,
@@ -16818,6 +16793,7 @@ void sme_get_vdev_type_nss(tHalHandle hal, enum tQDF_ADAPTER_MODE dev_mode,
 		uint8_t *nss_2g, uint8_t *nss_5g)
 {
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+
 	csr_get_vdev_type_nss(mac_ctx, dev_mode, nss_2g, nss_5g);
 }
 
@@ -16905,7 +16881,7 @@ QDF_STATUS sme_enable_disable_chanavoidind_event(tHalHandle hal,
 	return status;
 }
 
-/*
+/**
  * sme_set_default_scan_ie() - API to send default scan IE to LIM
  * @hal: reference to the HAL
  * @session_id: current session ID
@@ -16976,7 +16952,7 @@ QDF_STATUS sme_encrypt_decrypt_msg(tHalHandle hal,
 				encrypt_decrypt_params->data_len);
 	if (ptr == NULL) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-			FL("Failed to alloc memory for encrypt/decrypt params"));
+			"Failed to alloc memory for encrypt/decrypt params");
 		return QDF_STATUS_E_NOMEM;
 	}
 
@@ -17045,10 +17021,9 @@ QDF_STATUS sme_encrypt_decrypt_msg_register_callback(tHalHandle hal,
 	if (QDF_IS_STATUS_SUCCESS(status)) {
 		mac->sme.encrypt_decrypt_cb = encrypt_decrypt_cb;
 		sme_release_global_lock(&mac->sme);
-	} else {
+	} else
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 			FL("sme_acquire_global_lock failed"));
-	}
 	return status;
 }
 
@@ -17080,10 +17055,9 @@ QDF_STATUS sme_encrypt_decrypt_msg_deregister_callback(tHalHandle h_hal)
 	if (QDF_IS_STATUS_SUCCESS(status)) {
 		mac->sme.encrypt_decrypt_cb = NULL;
 		sme_release_global_lock(&mac->sme);
-	} else {
+	} else
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 			FL("sme_acquire_global_lock failed"));
-	}
 	return status;
 }
 #endif
@@ -17146,7 +17120,7 @@ QDF_STATUS sme_update_tx_fail_cnt_threshold(tHalHandle hal_handle,
 
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-				FL("Not able to post Tx fail count message to WDA"));
+			FL("Not able to post Tx fail count message to WDA"));
 		qdf_mem_free(tx_fail_cnt);
 	}
 	return status;
@@ -17162,10 +17136,9 @@ QDF_STATUS sme_set_lost_link_info_cb(tHalHandle hal,
 	if (QDF_IS_STATUS_SUCCESS(status)) {
 		mac->sme.lost_link_info_cb = cb;
 		sme_release_global_lock(&mac->sme);
-	} else {
-		sme_err("sme_acquire_global_lock error status: %d",
-			status);
-	}
+	} else
+		sme_err("sme_acquire_global_lock error status: %d", status);
+
 	return status;
 }
 #ifdef FEATURE_WLAN_ESE
@@ -17222,6 +17195,7 @@ bool sme_neighbor_roam_is11r_assoc(tHalHandle hal_ctx,
 			uint8_t session_id)
 {
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal_ctx);
+
 	return csr_neighbor_roam_is11r_assoc(mac_ctx, session_id);
 
 }

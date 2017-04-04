@@ -28,6 +28,7 @@ struct cpu_sync {
 	int cpu;
 	unsigned int input_boost_min;
 	unsigned int input_boost_freq;
+	unsigned int input_boost_freq_s2;
 };
 
 static DEFINE_PER_CPU(struct cpu_sync, sync_info);
@@ -38,11 +39,15 @@ static bool input_boost_enabled;
 static unsigned int input_boost_ms = 40;
 module_param(input_boost_ms, uint, 0644);
 
+static unsigned int input_boost_ms_s2 = 0;
+module_param(input_boost_ms_s2, uint, 0644);
+
 static bool sched_boost_on_input;
 module_param(sched_boost_on_input, bool, 0644);
 
 static bool sched_boost_active;
 
+static struct delayed_work input_boost_work_s2;
 static struct delayed_work input_boost_rem;
 static u64 last_input_time;
 
@@ -51,7 +56,7 @@ static struct task_struct *cpu_boost_worker_thread;
 
 #define MIN_INPUT_INTERVAL (150 * USEC_PER_MSEC)
 
-static int set_input_boost_freq(const char *buf, const struct kernel_param *kp)
+static int set_input_boost_freq(const char *buf, const struct kernel_param *kp, int step)
 {
 	int i, ntokens = 0;
 	unsigned int val, cpu;
@@ -65,9 +70,17 @@ static int set_input_boost_freq(const char *buf, const struct kernel_param *kp)
 	if (!ntokens) {
 		if (sscanf(buf, "%u\n", &val) != 1)
 			return -EINVAL;
-		for_each_possible_cpu(i)
-			per_cpu(sync_info, i).input_boost_freq = val;
-		goto check_enable;
+		for_each_possible_cpu(i) {
+			if (step == 1)
+				per_cpu(sync_info, i).input_boost_freq = val;
+			else if (step == 2)
+				per_cpu(sync_info, i).input_boost_freq_s2 = val;
+		}
+		if (step == 1)
+			goto check_enable;
+		else if (step == 2)
+			/* Don't think about disabling input boost for step 2 configuration cases */
+			return 0;
 	}
 
 	/* CPU:value pair */
@@ -81,7 +94,11 @@ static int set_input_boost_freq(const char *buf, const struct kernel_param *kp)
 		if (cpu > num_possible_cpus())
 			return -EINVAL;
 
-		per_cpu(sync_info, cpu).input_boost_freq = val;
+		if (step == 1)
+			per_cpu(sync_info, i).input_boost_freq = val;
+		else if (step == 2)
+			per_cpu(sync_info, i).input_boost_freq_s2 = val;
+
 		cp = strchr(cp, ' ');
 		cp++;
 	}
@@ -97,27 +114,56 @@ check_enable:
 
 	return 0;
 }
-
-static int get_input_boost_freq(char *buf, const struct kernel_param *kp)
+static inline int set_input_boost_freq_s1(const char *buf, const struct kernel_param *kp)
 {
-	int cnt = 0, cpu;
+	return set_input_boost_freq(buf, kp, 1);
+}
+
+static inline int set_input_boost_freq_s2(const char *buf, const struct kernel_param *kp)
+{
+	return set_input_boost_freq(buf, kp, 2);
+}
+
+static int get_input_boost_freq(char *buf, const struct kernel_param *kp, int step)
+{
+	int cnt = 0, cpu, target_input_freq;
 	struct cpu_sync *s;
 
 	for_each_possible_cpu(cpu) {
 		s = &per_cpu(sync_info, cpu);
+		if (step == 1)
+			target_input_freq = s->input_boost_freq;
+		else if (step == 2)
+			target_input_freq = s->input_boost_freq_s2;
+
 		cnt += snprintf(buf + cnt, PAGE_SIZE - cnt,
-				"%d:%u ", cpu, s->input_boost_freq);
+				"%d:%u ", cpu, target_input_freq);
 	}
 	cnt += snprintf(buf + cnt, PAGE_SIZE - cnt, "\n");
 	return cnt;
 }
 
+static inline int get_input_boost_freq_s1(char *buf, const struct kernel_param *kp)
+{
+	return get_input_boost_freq(buf, kp, 1);
+}
+
+static inline int get_input_boost_freq_s2(char *buf, const struct kernel_param *kp)
+{
+	return get_input_boost_freq(buf, kp, 2);
+}
+
 static const struct kernel_param_ops param_ops_input_boost_freq = {
-	.set = set_input_boost_freq,
-	.get = get_input_boost_freq,
+	.set = set_input_boost_freq_s1,
+	.get = get_input_boost_freq_s1,
 };
 module_param_cb(input_boost_freq, &param_ops_input_boost_freq, NULL, 0644);
 
+static const struct kernel_param_ops param_ops_input_boost_freq_s2 = {
+	.set = set_input_boost_freq_s2,
+	.get = get_input_boost_freq_s2,
+};
+module_param_cb(input_boost_freq_s2, &param_ops_input_boost_freq_s2, NULL, 0644);
 /*
  * The CPUFREQ_ADJUST notifier is used to override the current policy min to
  * make sure policy min >= boost_min. The cpufreq framework then does the job
@@ -197,12 +243,33 @@ static void do_input_boost_rem(struct work_struct *work)
 	}
 }
 
+static void do_input_boost_s2(struct work_struct *work)
+{
+	unsigned int i;
+	struct cpu_sync *i_sync_info;
+
+	/* Set the input_boost_min for all CPUs in the system */
+	pr_debug("Step 2: Setting input boost min for all CPUs\n");
+	for_each_possible_cpu(i) {
+		i_sync_info = &per_cpu(sync_info, i);
+		i_sync_info->input_boost_min = i_sync_info->input_boost_freq_s2;
+	}
+
+	/* Update policies for all online CPUs */
+	update_policy_online();
+
+	queue_delayed_work(system_power_efficient_wq,
+		&input_boost_rem, msecs_to_jiffies(input_boost_ms_s2));
+}
+
 static void do_input_boost(struct kthread_work *work)
 {
 	unsigned int i, ret;
 	struct cpu_sync *i_sync_info;
 
+	cancel_delayed_work_sync(&input_boost_work_s2);
 	cancel_delayed_work_sync(&input_boost_rem);
+
 	if (sched_boost_active) {
 		sched_set_boost(0);
 		sched_boost_active = false;
@@ -227,8 +294,13 @@ static void do_input_boost(struct kthread_work *work)
 			sched_boost_active = true;
 	}
 
-	queue_delayed_work(system_power_efficient_wq,
-		&input_boost_rem, msecs_to_jiffies(input_boost_ms));
+	/* Decide behaviour based on whether two-step input boost is enabled */
+	if (!input_boost_ms_s2)
+		queue_delayed_work(system_power_efficient_wq,
+			&input_boost_rem, msecs_to_jiffies(input_boost_ms));
+	else
+		queue_delayed_work(system_power_efficient_wq,
+			&input_boost_work_s2, msecs_to_jiffies(input_boost_ms));
 }
 
 static void cpuboost_input_event(struct input_handle *handle,
@@ -336,6 +408,7 @@ static int cpu_boost_init(void)
 	sched_setscheduler(cpu_boost_worker_thread, SCHED_FIFO, &param);
 
 	init_kthread_work(&input_boost_work, do_input_boost);
+	INIT_DELAYED_WORK(&input_boost_work_s2, do_input_boost_s2);
 	INIT_DELAYED_WORK(&input_boost_rem, do_input_boost_rem);
 
 	for_each_possible_cpu(cpu) {

@@ -1611,4 +1611,17 @@ QDF_STATUS sme_set_chip_pwr_save_fail_cb(tHalHandle hal, void (*cb)(void *,
  * Return: QDF_STATUS enumeration.
  */
 QDF_STATUS sme_process_msg_callback(tHalHandle hal, cds_msg_t *msg);
+
+/**
+ * sme_set_dbs_scan_selection_config() - Update DBS scan selection
+ * configuration
+ * @hal: The handle returned by macOpen
+ * @params: wmi_dbs_scan_sel_params config
+ *
+ * Return: QDF_STATUS if DBS scan selection update
+ * configuration success else failure status
+ */
+QDF_STATUS sme_set_dbs_scan_selection_config(tHalHandle hal,
+		struct wmi_dbs_scan_sel_params *params);
+
 #endif /* #if !defined( __SME_API_H ) */

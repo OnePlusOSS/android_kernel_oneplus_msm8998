@@ -4863,6 +4863,9 @@ int wma_rx_service_ready_event(void *handle, uint8_t *cmd_param_info,
 	else
 		wma_handle->wlan_resource_config.use_pdev_id = false;
 
+	wma_handle->wlan_resource_config.max_num_dbs_scan_duty_cycle =
+		CFG_DBS_SCAN_CLIENTS_MAX;
+
 	/* register the Enhanced Green AP event handler */
 	wma_register_egap_event_handle(wma_handle);
 
@@ -7419,6 +7422,11 @@ QDF_STATUS wma_mc_process_msg(void *cds_context, cds_msg_t *msg)
 	case WDA_ACTION_FRAME_RANDOM_MAC:
 		wma_process_action_frame_random_mac(wma_handle,
 		     (struct action_frame_random_filter *)msg->bodyptr);
+		qdf_mem_free(msg->bodyptr);
+		break;
+	case WMA_SET_DBS_SCAN_SEL_CONF_PARAMS:
+		wma_send_dbs_scan_selection_params(wma_handle,
+			(struct wmi_dbs_scan_sel_params *)msg->bodyptr);
 		qdf_mem_free(msg->bodyptr);
 		break;
 	default:

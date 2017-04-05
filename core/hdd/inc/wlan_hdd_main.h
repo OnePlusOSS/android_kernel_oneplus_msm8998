@@ -2331,6 +2331,17 @@ static inline void hdd_init_nud_stats_ctx(hdd_context_t *hdd_ctx)
 }
 
 /**
+ * hdd_dbs_scan_selection_init() - initialization for DBS scan selection config
+ * @hdd_ctx: HDD context
+ *
+ * This function sends the DBS scan selection config configuration to the
+ * firmware via WMA
+ *
+ * Return: 0 - success, < 0 - failure
+ */
+int hdd_dbs_scan_selection_init(hdd_context_t *hdd_ctx);
+
+/**
  * hdd_start_complete()- complete the start event
  * @ret: return value for complete event.
  *

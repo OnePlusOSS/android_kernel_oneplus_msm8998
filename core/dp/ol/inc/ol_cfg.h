@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -385,6 +385,7 @@ static inline
 int ol_cfg_is_ip_tcp_udp_checksum_offload_enabled(ol_pdev_handle pdev)
 {
 	struct txrx_pdev_cfg_t *cfg = (struct txrx_pdev_cfg_t *)pdev;
+
 	return cfg->ip_tcp_udp_checksum_offload;
 }
 
@@ -554,7 +555,6 @@ static inline unsigned int ol_cfg_ipa_uc_tx_partition_base(
 static inline void ol_cfg_set_ipa_uc_tx_partition_base(
 	ol_pdev_handle pdev, uint32_t value)
 {
-	return;
 }
 #endif /* IPA_OFFLOAD */
 

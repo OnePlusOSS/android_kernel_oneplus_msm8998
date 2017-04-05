@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -29,7 +29,7 @@
 #include <ol_if_athvar.h>
 #include <cdp_txrx_cfg.h>
 
-unsigned int vow_config = 0;
+unsigned int vow_config;
 
 #ifdef QCA_LL_TX_FLOW_CONTROL_V2
 /**
@@ -53,7 +53,6 @@ static
 void ol_tx_set_flow_control_parameters(struct txrx_pdev_cfg_t *cfg_ctx,
 	struct txrx_pdev_cfg_param_t cfg_param)
 {
-	return;
 }
 #endif
 

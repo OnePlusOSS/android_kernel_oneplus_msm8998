@@ -11402,6 +11402,12 @@ static int __iw_set_packet_filter_params(struct net_device *dev,
 		return -EINVAL;
 	}
 
+	if (adapter->device_mode != QDF_STA_MODE) {
+		hdd_err("Packet filter not supported for this mode :%d",
+			adapter->device_mode);
+		return -ENOTSUPP;
+	}
+
 	/* copy data using copy_from_user */
 	request = mem_alloc_copy_from_user_helper(priv_data.pointer,
 						   priv_data.length);

@@ -55,31 +55,31 @@
 #define RATE_MASK 0x7f
 
 /**
- * typedef tSSIDBcastType - SSID broadcast type
+ * enum essid_bcast_type - SSID broadcast type
  * @eBCAST_UNKNOWN: Broadcast unknown
  * @eBCAST_NORMAL: Broadcast normal
  * @eBCAST_HIDDEN: Broadcast hidden
  */
-typedef enum eSSIDBcastType {
+enum essid_bcast_type {
 	eBCAST_UNKNOWN = 0,
 	eBCAST_NORMAL = 1,
 	eBCAST_HIDDEN = 2,
-} tSSIDBcastType;
+};
 
 
 /**
- * typedef hdd_scan_info_t - HDD scan info
+ * hdd_scan_info_t - HDD scan info
  * @dev: Pointer to net device
  * @info: Pointer to request info
  * @start: Start pointer
  * @end: End pointer
  */
-typedef struct hdd_scan_info {
+struct hdd_scan_info {
 	struct net_device *dev;
 	struct iw_request_info *info;
 	char *start;
 	char *end;
-} hdd_scan_info_t, *hdd_scan_info_tp;
+};
 
 /**
  * hdd_translate_abg_rate_to_mbps_rate() - translate abg rate to Mbps rate
@@ -107,7 +107,7 @@ static int32_t hdd_translate_abg_rate_to_mbps_rate(uint8_t *pFcRate)
  * Return: 0 for success, non zero for failure
  */
 static int hdd_add_iw_stream_event(int cmd, int length, char *data,
-				   hdd_scan_info_t *pscanInfo,
+				   struct hdd_scan_info *pscanInfo,
 				   char **last_event,
 				   char **current_event)
 {
@@ -144,7 +144,7 @@ static int hdd_add_iw_stream_event(int cmd, int length, char *data,
  */
 static int hdd_get_wparsn_ies(uint8_t *ieFields, uint16_t ie_length,
 			      char **last_event, char **current_event,
-			      hdd_scan_info_t *pscanInfo)
+			      struct hdd_scan_info *pscanInfo)
 {
 	uint8_t eid, elen, *element;
 	uint16_t tie_length = 0;
@@ -171,8 +171,9 @@ static int hdd_get_wparsn_ies(uint8_t *ieFields, uint16_t ie_length,
 		case DOT11F_EID_WAPI:
 #endif
 			if (hdd_add_iw_stream_event
-				    (IWEVGENIE, elen + 2, (char *)element, pscanInfo,
-				    last_event, current_event) < 0)
+				    (IWEVGENIE, elen + 2, (char *)element,
+					pscanInfo, last_event,
+					current_event) < 0)
 				return -E2BIG;
 			break;
 
@@ -189,6 +190,230 @@ static int hdd_get_wparsn_ies(uint8_t *ieFields, uint16_t ie_length,
 }
 
 /**
+ * hdd_iwe_stream_add_value_pdot11ext() - add a value to a Wireless
+ * Event in a stream of events
+ * pDot11ExtSuppRates: Pointer to tDot11fIEExtSuppRates Structure
+ * scanInfo: HDD scan info
+ * current_event: Pointer to current event
+ * current_pad: Pointer to current pad
+ * event: A Wireless Event
+ * numBasicRates: Basic num rates as defined in tDot11fIESuppRates structure
+ */
+static void hdd_iwe_stream_add_value_pdot11ext(
+				struct sDot11fIEExtSuppRates
+						*pDot11ExtSuppRates,
+				struct hdd_scan_info *scanInfo,
+				char *current_event, char *current_pad,
+				struct iw_event *event, int numBasicRates)
+{
+	if (pDot11ExtSuppRates->present) {
+		int i, no_of_rates;
+		int maxNumRates = 0;
+		char *end = scanInfo->end;
+
+		maxNumRates =
+			numBasicRates + pDot11ExtSuppRates->num_rates;
+
+		/* Check to make sure the total number of rates
+		 * doesn't exceed IW_MAX_BITRATES
+		 */
+
+		maxNumRates = QDF_MIN(maxNumRates, IW_MAX_BITRATES);
+
+		if ((maxNumRates - numBasicRates) > MAX_RATES) {
+			no_of_rates = MAX_RATES;
+			hdd_debug("Limit rates to MAX_RATES");
+		} else {
+			no_of_rates = maxNumRates - numBasicRates;
+		}
+		for (i = 0; i < no_of_rates; i++) {
+			if (0 != (pDot11ExtSuppRates->rates[i] & 0x7F)) {
+				event->u.bitrate.value =
+					hdd_translate_abg_rate_to_mbps_rate
+					     (&pDot11ExtSuppRates->rates[i]);
+
+				current_pad =
+					iwe_stream_add_value(scanInfo->info,
+							     current_event,
+							     current_pad,
+							     end, event,
+							     IW_EV_PARAM_LEN);
+			}
+		}
+	}
+}
+
+/**
+ * hdd_iwe_stream_add_value_pdot11() - add a value to a Wireless
+ * Event in a stream of events
+ * pDot11SuppRates: pointer to tDot11fIESuppRates Structure
+ * scanInfo: HDD scan info
+ * current_event: Pointer to current event
+ * current_pad: Pointer to current pad
+ * event: A Wireless Event
+ */
+
+static void hdd_iwe_stream_add_value_pdot11(
+					struct sDot11fIESuppRates
+							*pDot11SuppRates,
+					struct hdd_scan_info *scanInfo,
+					char *current_event,
+					char *current_pad,
+					struct iw_event *event)
+{
+	int i;
+	char *end = scanInfo->end;
+
+	for (i = 0; i < pDot11SuppRates->num_rates; i++) {
+		if (0 != (pDot11SuppRates->rates[i] & 0x7F)) {
+			event->u.bitrate.value =
+			hdd_translate_abg_rate_to_mbps_rate
+				(&pDot11SuppRates->rates[i]);
+
+			current_pad =
+				iwe_stream_add_value(
+					scanInfo->info,
+					current_event,
+					current_pad,
+					end, event,
+					IW_EV_PARAM_LEN);
+		}
+	}
+}
+
+/**
+ * hdd_add_scan_event_from_ies() - Add a wireless event
+ * scanInfo: HDD scan info
+ * scan_result: Pointer to tCsrScanResultInfo Structure
+ * current_event: Pointer to current event
+ * last_event: Pointer to last event
+ */
+static int hdd_add_scan_event_from_ies(struct hdd_scan_info *scanInfo,
+					tCsrScanResultInfo *scan_result,
+					char *current_event, char *last_event)
+{
+	hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(scanInfo->dev);
+	tHalHandle hHal = WLAN_HDD_GET_HAL_CTX(pAdapter);
+	tSirBssDescription *descriptor = &scan_result->BssDescriptor;
+	uint16_t ie_length = 0;
+	struct iw_event event;
+	char *end = scanInfo->end;
+	char *current_pad;
+	uint16_t capabilityInfo;
+
+	/* dot11BeaconIEs is a large struct, so we make it static to
+	 * avoid stack overflow.  This API is only invoked via ioctl,
+	 * so it is serialized by the kernel rtnl_lock and hence does
+	 * not need to be reentrant
+	 */
+	static tDot11fBeaconIEs dot11BeaconIEs;
+	tDot11fIESSID *pDot11SSID;
+	tDot11fIESuppRates *pDot11SuppRates;
+	tDot11fIEExtSuppRates *pDot11ExtSuppRates;
+	tDot11fIEHTCaps *pDot11IEHTCaps;
+	int numBasicRates = 0;
+
+	pDot11IEHTCaps = NULL;
+
+	/* To extract SSID */
+	ie_length = GET_IE_LEN_IN_BSS(descriptor->length);
+
+	if (ie_length <= 0)
+		return 0;
+
+	dot11f_unpack_beacon_i_es((tpAniSirGlobal)
+				  hHal, (uint8_t *) descriptor->ieFields,
+				  ie_length, &dot11BeaconIEs, false);
+
+	pDot11SSID = &dot11BeaconIEs.SSID;
+
+	if (pDot11SSID->present) {
+		last_event = current_event;
+		qdf_mem_zero(&event, sizeof(struct iw_event));
+
+		event.cmd = SIOCGIWESSID;
+		event.u.data.flags = 1;
+		event.u.data.length = scan_result->ssId.length;
+		current_event =
+			iwe_stream_add_point(scanInfo->info,
+						current_event,
+						end, &event,
+						(char *)scan_result->ssId.
+						ssId);
+
+		if (last_event == current_event) {
+			/* no space to add event */
+			hdd_err("no space for SIOCGIWESSID");
+			return -E2BIG;
+		}
+	}
+
+	if (hdd_get_wparsn_ies
+			((uint8_t *) descriptor->ieFields, ie_length,
+			&last_event,
+			&current_event, scanInfo) < 0) {
+		hdd_err("no space for SIOCGIWESSID");
+		return -E2BIG;
+	}
+
+	last_event = current_event;
+	current_pad = current_event + IW_EV_LCP_LEN;
+	qdf_mem_zero(&event, sizeof(struct iw_event));
+
+	/*Rates */
+	event.cmd = SIOCGIWRATE;
+
+	pDot11SuppRates = &dot11BeaconIEs.SuppRates;
+
+	if (pDot11SuppRates->present) {
+		numBasicRates = pDot11SuppRates->num_rates;
+		hdd_iwe_stream_add_value_pdot11(pDot11SuppRates, scanInfo,
+						current_event, current_pad,
+						&event);
+	}
+	pDot11ExtSuppRates = &dot11BeaconIEs.ExtSuppRates;
+
+	hdd_iwe_stream_add_value_pdot11ext(pDot11ExtSuppRates,
+					   scanInfo, current_event,
+					   current_pad,	&event,
+					   numBasicRates);
+
+	if ((current_pad - current_event) >= IW_EV_LCP_LEN) {
+		current_event = current_pad;
+	} else {
+		if (last_event == current_event) {
+			/* no space to add event */
+			hdd_err("no space for SIOCGIWRATE");
+			return -E2BIG;
+		}
+	}
+
+	last_event = current_event;
+	qdf_mem_zero(&event, sizeof(struct iw_event));
+
+	event.cmd = SIOCGIWENCODE;
+	capabilityInfo = descriptor->capabilityInfo;
+	if (SIR_MAC_GET_PRIVACY(capabilityInfo)) {
+		event.u.data.flags =
+			IW_ENCODE_ENABLED | IW_ENCODE_NOKEY;
+	} else {
+		event.u.data.flags = IW_ENCODE_DISABLED;
+	}
+	event.u.data.length = 0;
+
+	current_event =
+		iwe_stream_add_point(scanInfo->info, current_event, end,
+					 &event, (char *)pDot11SSID->ssid);
+	if (last_event == current_event) {
+		hdd_err("no space for SIOCGIWENCODE");
+		return -E2BIG;
+	}
+
+	return 0;
+}
+
+
+/**
  * hdd_indicate_scan_result() - indicate scan results
  * @scanInfo: Pointer to the scan info structure.
  * @descriptor: Pointer to the Bss Descriptor.
@@ -198,18 +423,14 @@ static int hdd_get_wparsn_ies(uint8_t *ieFields, uint16_t ie_length,
  * @Return: 0 for success, non zero for failure
  */
 #define MAX_CUSTOM_LEN 64
-static int hdd_indicate_scan_result(hdd_scan_info_t *scanInfo,
+static int hdd_indicate_scan_result(struct hdd_scan_info *scanInfo,
 				    tCsrScanResultInfo *scan_result)
 {
-	hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(scanInfo->dev);
-	tHalHandle hHal = WLAN_HDD_GET_HAL_CTX(pAdapter);
 	tSirBssDescription *descriptor = &scan_result->BssDescriptor;
 	struct iw_event event;
 	char *current_event = scanInfo->start;
 	char *end = scanInfo->end;
 	char *last_event;
-	char *current_pad;
-	uint16_t ie_length = 0;
 	uint16_t capabilityInfo;
 	char *modestr;
 	int error;
@@ -271,6 +492,11 @@ static int hdd_indicate_scan_result(hdd_scan_info_t *scanInfo,
 		return -E2BIG;
 	}
 
+	error = hdd_add_scan_event_from_ies(scanInfo, scan_result,
+						current_event, last_event);
+	if (error)
+		return error;
+
 	last_event = current_event;
 	qdf_mem_zero(&event, sizeof(struct iw_event));
 
@@ -280,8 +506,8 @@ static int hdd_indicate_scan_result(hdd_scan_info_t *scanInfo,
 	event.u.freq.m = descriptor->channelId;
 	event.u.freq.e = 0;
 	event.u.freq.i = 0;
-	current_event = iwe_stream_add_event(scanInfo->info, current_event, end,
-					     &event, IW_EV_FREQ_LEN);
+	current_event = iwe_stream_add_event(scanInfo->info, current_event,
+						end, &event, IW_EV_FREQ_LEN);
 
 	if (last_event == current_event) {      /* no space to add event */
 		hdd_err("no space for SIOCGIWFREQ");
@@ -311,151 +537,6 @@ static int hdd_indicate_scan_result(hdd_scan_info_t *scanInfo,
 	if (last_event == current_event) {      /* no space to add event */
 		hdd_err("no space for SIOCGIWMODE");
 		return -E2BIG;
-	}
-	/* To extract SSID */
-	ie_length = GET_IE_LEN_IN_BSS(descriptor->length);
-
-	if (ie_length > 0) {
-		/* dot11BeaconIEs is a large struct, so we make it static to
-		   avoid stack overflow.  This API is only invoked via ioctl,
-		   so it is serialized by the kernel rtnl_lock and hence does
-		   not need to be reentrant */
-		static tDot11fBeaconIEs dot11BeaconIEs;
-		tDot11fIESSID *pDot11SSID;
-		tDot11fIESuppRates *pDot11SuppRates;
-		tDot11fIEExtSuppRates *pDot11ExtSuppRates;
-		tDot11fIEHTCaps *pDot11IEHTCaps;
-		int numBasicRates = 0;
-		int maxNumRates = 0;
-
-		pDot11IEHTCaps = NULL;
-
-		dot11f_unpack_beacon_i_es((tpAniSirGlobal)
-					  hHal, (uint8_t *) descriptor->ieFields,
-					  ie_length, &dot11BeaconIEs, false);
-
-		pDot11SSID = &dot11BeaconIEs.SSID;
-
-		if (pDot11SSID->present) {
-			last_event = current_event;
-			qdf_mem_zero(&event, sizeof(struct iw_event));
-
-			event.cmd = SIOCGIWESSID;
-			event.u.data.flags = 1;
-			event.u.data.length = scan_result->ssId.length;
-			current_event =
-				iwe_stream_add_point(scanInfo->info, current_event,
-						     end, &event,
-						     (char *)scan_result->ssId.
-						     ssId);
-
-			if (last_event == current_event) {      /* no space to add event */
-				hdd_err("no space for SIOCGIWESSID");
-				return -E2BIG;
-			}
-		}
-
-		if (hdd_get_wparsn_ies
-			    ((uint8_t *) descriptor->ieFields, ie_length, &last_event,
-			    &current_event, scanInfo) < 0) {
-			hdd_err("no space for SIOCGIWESSID");
-			return -E2BIG;
-		}
-
-		last_event = current_event;
-		current_pad = current_event + IW_EV_LCP_LEN;
-		qdf_mem_zero(&event, sizeof(struct iw_event));
-
-		/*Rates */
-		event.cmd = SIOCGIWRATE;
-
-		pDot11SuppRates = &dot11BeaconIEs.SuppRates;
-
-		if (pDot11SuppRates->present) {
-			int i;
-
-			numBasicRates = pDot11SuppRates->num_rates;
-			for (i = 0; i < pDot11SuppRates->num_rates; i++) {
-				if (0 != (pDot11SuppRates->rates[i] & 0x7F)) {
-					event.u.bitrate.value =
-						hdd_translate_abg_rate_to_mbps_rate
-							(&pDot11SuppRates->rates[i]);
-
-					current_pad =
-						iwe_stream_add_value(scanInfo->info,
-								     current_event,
-								     current_pad,
-								     end, &event,
-								     IW_EV_PARAM_LEN);
-				}
-			}
-
-		}
-
-		pDot11ExtSuppRates = &dot11BeaconIEs.ExtSuppRates;
-
-		if (pDot11ExtSuppRates->present) {
-			int i, no_of_rates;
-			maxNumRates =
-				numBasicRates + pDot11ExtSuppRates->num_rates;
-
-			/* Check to make sure the total number of rates
-			 * doesn't exceed IW_MAX_BITRATES
-			 */
-
-			maxNumRates = QDF_MIN(maxNumRates, IW_MAX_BITRATES);
-
-			if ((maxNumRates - numBasicRates) > MAX_RATES) {
-				no_of_rates = MAX_RATES;
-				hdd_debug("Limit rates to MAX_RATES");
-			} else {
-				no_of_rates = maxNumRates - numBasicRates;
-			}
-			for (i = 0; i < no_of_rates; i++) {
-				if (0 != (pDot11ExtSuppRates->rates[i] & 0x7F)) {
-					event.u.bitrate.value =
-						hdd_translate_abg_rate_to_mbps_rate
-							(&pDot11ExtSuppRates->rates[i]);
-
-					current_pad =
-						iwe_stream_add_value(scanInfo->info,
-								     current_event,
-								     current_pad,
-								     end, &event,
-								     IW_EV_PARAM_LEN);
-				}
-			}
-		}
-
-		if ((current_pad - current_event) >= IW_EV_LCP_LEN) {
-			current_event = current_pad;
-		} else {
-			if (last_event == current_event) {      /* no space to add event */
-				hdd_err("no space for SIOCGIWRATE");
-				return -E2BIG;
-			}
-		}
-
-		last_event = current_event;
-		qdf_mem_zero(&event, sizeof(struct iw_event));
-
-		event.cmd = SIOCGIWENCODE;
-
-		if (SIR_MAC_GET_PRIVACY(capabilityInfo)) {
-			event.u.data.flags =
-				IW_ENCODE_ENABLED | IW_ENCODE_NOKEY;
-		} else {
-			event.u.data.flags = IW_ENCODE_DISABLED;
-		}
-		event.u.data.length = 0;
-
-		current_event =
-			iwe_stream_add_point(scanInfo->info, current_event, end,
-					     &event, (char *)pDot11SSID->ssid);
-		if (last_event == current_event) {
-			hdd_err("no space for SIOCGIWENCODE");
-			return -E2BIG;
-		}
 	}
 
 	last_event = current_event;
@@ -711,13 +792,12 @@ static QDF_STATUS wlan_hdd_scan_request_dequeue(hdd_context_t *hdd_ctx,
 				      scan_id, req,
 				      qdf_list_size(&hdd_ctx->hdd_scan_req_q));
 				return QDF_STATUS_SUCCESS;
-			} else {
-				qdf_spin_unlock(&hdd_ctx->hdd_scan_req_q_lock);
-				hdd_err("Failed to remove node scan id %d, pending scans %d",
-				      scan_id,
-				      qdf_list_size(&hdd_ctx->hdd_scan_req_q));
-				return status;
 			}
+			qdf_spin_unlock(&hdd_ctx->hdd_scan_req_q_lock);
+			hdd_err("Failed to remove node scan id %d, pending scans %d",
+			      scan_id,
+			      qdf_list_size(&hdd_ctx->hdd_scan_req_q));
+			return status;
 		}
 	} while (QDF_STATUS_SUCCESS ==
 		qdf_list_peek_next(&hdd_ctx->hdd_scan_req_q, pNode, &ppNode));
@@ -995,7 +1075,7 @@ static int __iw_get_scan(struct net_device *dev,
 	tHalHandle hHal = WLAN_HDD_GET_HAL_CTX(pAdapter);
 	tCsrScanResultInfo *pScanResult;
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
-	hdd_scan_info_t scanInfo;
+	struct hdd_scan_info scanInfo;
 	tScanResultHandle pResult;
 	int i = 0;
 	int ret;
@@ -1019,11 +1099,10 @@ static int __iw_get_scan(struct net_device *dev,
 	scanInfo.start = extra;
 	scanInfo.info = info;
 
-	if (0 == wrqu->data.length) {
+	if (0 == wrqu->data.length)
 		scanInfo.end = extra + IW_SCAN_MAX_DATA;
-	} else {
+	else
 		scanInfo.end = extra + wrqu->data.length;
-	}
 
 	status = sme_scan_get_result(hHal, pAdapter->sessionId, NULL, &pResult);
 
@@ -1037,9 +1116,8 @@ static int __iw_get_scan(struct net_device *dev,
 
 	while (pScanResult) {
 		status = hdd_indicate_scan_result(&scanInfo, pScanResult);
-		if (0 != status) {
+		if (0 != status)
 			break;
-		}
 		i++;
 		pScanResult = sme_scan_result_get_next(hHal, pResult);
 	}
@@ -1146,9 +1224,9 @@ static void hdd_vendor_scan_callback(hdd_adapter_t *adapter,
 		goto nla_put_failure;
 	for (i = 0; i < req->n_channels; i++) {
 		if (nla_put_u32(skb, i, req->channels[i]->center_freq)) {
-				hdd_err("Failed to add channel");
-				goto nla_put_failure;
-			}
+			hdd_err("Failed to add channel");
+			goto nla_put_failure;
+		}
 	}
 	nla_nest_end(skb, attr);
 
@@ -1183,7 +1261,6 @@ static void hdd_vendor_scan_callback(hdd_adapter_t *adapter,
 nla_put_failure:
 	kfree_skb(skb);
 	qdf_mem_free(req);
-	return;
 }
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 7, 0))
@@ -1299,9 +1376,8 @@ static QDF_STATUS hdd_cfg80211_scan_done_callback(tHalHandle halHandle,
 	 * cfg80211_scan_done informing NL80211 about completion
 	 * of scanning
 	 */
-	if (status == eCSR_SCAN_ABORT || status == eCSR_SCAN_FAILURE) {
+	if (status == eCSR_SCAN_ABORT || status == eCSR_SCAN_FAILURE)
 		aborted = true;
-	}
 
 	if (!aborted && !hddctx->beacon_probe_rsp_cnt_per_scan) {
 		hdd_debug("NO SCAN result");
@@ -1410,6 +1486,7 @@ static bool wlan_hdd_sap_skip_scan_check(hdd_context_t *hdd_ctx,
 	skip = true;
 	for (i = 0; i < request->n_channels ; i++) {
 		bool find = false;
+
 		for (j = 0; j < hdd_ctx->num_of_channels; j++) {
 			if (hdd_ctx->last_acs_channel_list[j] ==
 			   request->channels[i]->hw_value) {
@@ -1440,6 +1517,7 @@ void wlan_hdd_cfg80211_scan_block_cb(struct work_struct *work)
 	hdd_adapter_t *adapter = container_of(work,
 					      hdd_adapter_t, scan_block_work);
 	struct cfg80211_scan_request *request;
+
 	if (WLAN_HDD_ADAPTER_MAGIC != adapter->magic) {
 		hdd_err("HDD adapter context is invalid");
 		return;
@@ -1855,6 +1933,7 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 	if ((request->ssids) && (0 < request->n_ssids)) {
 		tCsrSSIDInfo *SsidInfo;
 		int j;
+
 		scan_req.SSIDs.numOfSSIDs = request->n_ssids;
 		/* Allocate num_ssid tCsrSSIDInfo structure */
 		SsidInfo = scan_req.SSIDs.SSIDList =
@@ -1914,6 +1993,7 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 	if (request->n_channels) {
 		char chList[(request->n_channels * 5) + 1];
 		int len;
+
 		channelList = qdf_mem_malloc(request->n_channels);
 		if (NULL == channelList) {
 			hdd_err("channelList malloc failed channelList");
@@ -1994,10 +2074,12 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 						 request->ie_len);
 		if (pP2pIe != NULL) {
 #ifdef WLAN_FEATURE_P2P_DEBUG
-			if (((global_p2p_connection_status == P2P_GO_NEG_COMPLETED)
+			if (((global_p2p_connection_status ==
+							P2P_GO_NEG_COMPLETED)
 			     || (global_p2p_connection_status ==
 				 P2P_GO_NEG_PROCESS))
-			    && (QDF_P2P_CLIENT_MODE == pAdapter->device_mode)) {
+			    && (QDF_P2P_CLIENT_MODE ==
+						pAdapter->device_mode)) {
 				global_p2p_connection_status =
 					P2P_CLIENT_CONNECTING_STATE_1;
 				hdd_debug("[P2P State] Changing state from Go nego completed to Connection is started");
@@ -2014,7 +2096,9 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 			}
 #endif
 
-			/* no_cck will be set during p2p find to disable 11b rates */
+			/* no_cck will be set during p2p find to
+			 * disable 11b rates
+			 */
 			if (request->no_cck) {
 				hdd_debug("This is a P2P Search");
 				scan_req.p2pSearch = 1;
@@ -2027,15 +2111,13 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 				}
 
 				/*
-				 * Skip Dfs Channel in case of P2P Search if it is set in
-				 * ini file
+				 * Skip Dfs Channel in case of P2P Search if
+				 * it is set in ini file
 				 */
-				if (cfg_param->skipDfsChnlInP2pSearch) {
+				if (cfg_param->skipDfsChnlInP2pSearch)
 					scan_req.skipDfsChnlInP2pSearch = 1;
-				} else {
+				else
 					scan_req.skipDfsChnlInP2pSearch = 0;
-				}
-
 			}
 		}
 	} else {
@@ -2051,11 +2133,12 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 
 	/* acquire the wakelock to avoid the apps suspend during the scan. To
 	 * address the following issues.
-	 * 1) Disconnected scenario: we are not allowing the suspend as WLAN is not in
-	 * BMPS/IMPS this result in android trying to suspend aggressively and backing off
-	 * for long time, this result in apps running at full power for long time.
-	 * 2) Connected scenario: If we allow the suspend during the scan, RIVA will
-	 * be stuck in full power because of resume BMPS
+	 * 1) Disconnected scenario: we are not allowing the suspend as WLAN
+	 * is not in BMPS/IMPS this result in android trying to suspend
+	 * aggressively and backing off for long time, this result in apps
+	 * running at full power for long time.
+	 * 2) Connected scenario: If we allow the suspend during the scan,
+	 * RIVA will be stuck in full power because of resume BMPS
 	 */
 	hdd_prevent_suspend_timeout(HDD_WAKE_LOCK_SCAN_DURATION,
 				    WIFI_POWER_EVENT_WAKELOCK_SCAN);
@@ -2154,6 +2237,7 @@ int wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 			   struct cfg80211_scan_request *request)
 {
 	int ret;
+
 	cds_ssr_protect(__func__);
 	ret = __wlan_hdd_cfg80211_scan(wiphy,
 				request, NL_SCAN);
@@ -2178,6 +2262,7 @@ int wlan_hdd_cfg80211_tdls_scan(struct wiphy *wiphy,
 				uint8_t source)
 {
 	int ret;
+
 	cds_ssr_protect(__func__);
 	ret = __wlan_hdd_cfg80211_scan(wiphy,
 				request, source);
@@ -2974,11 +3059,11 @@ static int __wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
 			 TRACE_CODE_HDD_CFG80211_SCHED_SCAN_START,
 			 pAdapter->sessionId, pAdapter->device_mode));
 	/*
-	 * The current umac is unable to handle the SCAN_PREEMPT and SCAN_DEQUEUED
-	 * so its necessary to terminate the existing scan which is already issued
-	 * otherwise the host won't enter into the suspend state due to the reason
-	 * that the wlan wakelock which was held in the wlan_hdd_cfg80211_scan
-	 * function.
+	 * The current umac is unable to handle the SCAN_PREEMPT and
+	 * SCAN_DEQUEUED so its necessary to terminate the existing scan which
+	 * is already issued otherwise the host won't enter into the suspend
+	 * state due to the reason that the wlan wakelock which was held in the
+	 * wlan_hdd_cfg80211_scan function.
 	 */
 	if (true == pScanInfo->mScanPending) {
 		ret = wlan_hdd_scan_abort(pAdapter);
@@ -3021,7 +3106,8 @@ static int __wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
 	}
 
 	/* Framework provides one set of channels(all)
-	 * common for all saved profile */
+	 * common for all saved profile
+	 */
 	if (0 != sme_cfg_get_str(hHal, WNI_CFG_VALID_CHANNEL_LIST,
 				 channels_allowed, &num_channels_allowed)) {
 		hdd_err("failed to get valid channel list");
@@ -3033,6 +3119,7 @@ static int __wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
 	if (request->n_channels) {
 		char chList[(request->n_channels * 5) + 1];
 		int len;
+
 		for (i = 0, len = 0; i < request->n_channels; i++) {
 			for (indx = 0; indx < num_channels_allowed; indx++) {
 				if (request->channels[i]->hw_value ==
@@ -3042,8 +3129,10 @@ static int __wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
 						&& (CHANNEL_STATE_DFS ==
 						cds_get_channel_state(
 						    channels_allowed[indx]))) {
-						hdd_debug("Dropping DFS channel : %d",
-							   channels_allowed[indx]);
+						hdd_debug(
+						"Dropping DFS channel : %d",
+						channels_allowed[indx]);
+
 						num_ignore_dfs_ch++;
 						break;
 					}
@@ -3089,10 +3178,11 @@ static int __wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
 		memcpy(pPnoRequest->aNetworks[i].ssId.ssId,
 		       request->match_sets[i].ssid.ssid,
 		       request->match_sets[i].ssid.ssid_len);
-		pPnoRequest->aNetworks[i].authentication = 0;   /*eAUTH_TYPE_ANY */
-		pPnoRequest->aNetworks[i].encryption = 0;       /*eED_ANY */
-		pPnoRequest->aNetworks[i].bcastNetwType = 0;    /*eBCAST_UNKNOWN */
-
+		/* eAUTH_TYPE_ANY */
+		pPnoRequest->aNetworks[i].authentication = 0;
+		pPnoRequest->aNetworks[i].encryption = 0;       /* eED_ANY */
+		/* eBCAST_UNKNOWN */
+		pPnoRequest->aNetworks[i].bcastNetwType = 0;
 		/*Copying list of valid channel into request */
 		memcpy(pPnoRequest->aNetworks[i].aChannels, valid_ch, num_ch);
 		pPnoRequest->aNetworks[i].ucChannelCount = num_ch;
@@ -3300,11 +3390,12 @@ static int __wlan_hdd_cfg80211_sched_scan_stop(struct net_device *dev)
 	/* The return 0 is intentional when Recovery and Load/Unload in
 	 * progress. We did observe a crash due to a return of
 	 * failure in sched_scan_stop , especially for a case where the unload
-	 * of the happens at the same time. The function __cfg80211_stop_sched_scan
-	 * was clearing rdev->sched_scan_req only when the sched_scan_stop returns
-	 * success. If it returns a failure , then its next invocation due to the
-	 * clean up of the second interface will have the dev pointer corresponding
-	 * to the first one leading to a crash.
+	 * of the happens at the same time. The function
+	 * __cfg80211_stop_sched_scan was clearing rdev->sched_scan_req only
+	 * when the sched_scan_stop returns success. If it returns a failure ,
+	 * then its next invocation due to the clean up of the second interface
+	 * will have the dev pointer corresponding to the first one leading to
+	 * a crash.
 	 */
 	if (cds_is_driver_recovering() || cds_is_driver_in_bad_state()) {
 		hdd_info("Recovery in Progress. State: 0x%x Ignore!!!",
@@ -3338,7 +3429,7 @@ int wlan_hdd_cfg80211_sched_scan_stop(struct wiphy *wiphy,
 #endif /*FEATURE_WLAN_SCAN_PNO */
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0)) || \
-    defined(CFG80211_ABORT_SCAN)
+	defined(CFG80211_ABORT_SCAN)
 /**
  * __wlan_hdd_cfg80211_abort_scan() - cfg80211 abort scan api
  * @wiphy: Pointer to wiphy
@@ -3447,7 +3538,6 @@ void hdd_cleanup_scan_queue(hdd_context_t *hdd_ctx)
 	}
 	qdf_spin_unlock(&hdd_ctx->hdd_scan_req_q_lock);
 
-	return;
 }
 
 /**

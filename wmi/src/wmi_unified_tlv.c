@@ -1824,6 +1824,7 @@ QDF_STATUS send_mgmt_cmd_tlv(wmi_unified_t wmi_handle,
 	uint64_t dma_addr;
 	void *qdf_ctx = param->qdf_ctx;
 	uint8_t *bufp;
+	QDF_STATUS status;
 	int32_t bufp_len = (param->frm_len < mgmt_tx_dl_frm_len) ? param->frm_len :
 		mgmt_tx_dl_frm_len;
 
@@ -1852,7 +1853,14 @@ QDF_STATUS send_mgmt_cmd_tlv(wmi_unified_t wmi_handle,
 							    sizeof(uint32_t)));
 	bufp += WMI_TLV_HDR_SIZE;
 	qdf_mem_copy(bufp, param->pdata, bufp_len);
-	qdf_nbuf_map_single(qdf_ctx, param->tx_frame, QDF_DMA_TO_DEVICE);
+
+	status = qdf_nbuf_map_single(qdf_ctx, param->tx_frame,
+				     QDF_DMA_TO_DEVICE);
+	if (status != QDF_STATUS_SUCCESS) {
+		WMI_LOGE("%s: wmi buf map failed", __func__);
+		goto err1;
+	}
+
 	dma_addr = qdf_nbuf_get_frag_paddr(param->tx_frame, 0);
 	cmd->paddr_lo = (uint32_t)(dma_addr & 0xffffffff);
 #if defined(HTT_PADDR64)
@@ -7669,7 +7677,7 @@ wmi_send_failed:
  */
 QDF_STATUS send_add_wow_wakeup_event_cmd_tlv(wmi_unified_t wmi_handle,
 					uint32_t vdev_id,
-					uint32_t bitmap,
+					uint32_t *bitmap,
 					bool enable)
 {
 	WMI_WOW_ADD_DEL_EVT_CMD_fixed_param *cmd;
@@ -7690,7 +7698,8 @@ QDF_STATUS send_add_wow_wakeup_event_cmd_tlv(wmi_unified_t wmi_handle,
 			       (WMI_WOW_ADD_DEL_EVT_CMD_fixed_param));
 	cmd->vdev_id = vdev_id;
 	cmd->is_add = enable;
-	cmd->event_bitmap = bitmap;
+	qdf_mem_copy(&(cmd->event_bitmaps[0]), bitmap, sizeof(uint32_t) *
+		     WMI_WOW_MAX_EVENT_BM_LEN);
 
 	ret = wmi_unified_cmd_send(wmi_handle, buf, len,
 				   WMI_WOW_ENABLE_DISABLE_WAKE_EVENT_CMDID);
@@ -7700,8 +7709,9 @@ QDF_STATUS send_add_wow_wakeup_event_cmd_tlv(wmi_unified_t wmi_handle,
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	WMI_LOGD("Wakeup pattern 0x%x %s in fw", bitmap,
-		 enable ? "enabled" : "disabled");
+	WMI_LOGD("Wakeup pattern 0x%x%x%x%x %s in fw", cmd->event_bitmaps[0],
+		 cmd->event_bitmaps[1], cmd->event_bitmaps[2],
+		 cmd->event_bitmaps[3], enable ? "enabled" : "disabled");
 
 	return QDF_STATUS_SUCCESS;
 }

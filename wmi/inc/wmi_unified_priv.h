@@ -542,7 +542,7 @@ QDF_STATUS
 
 QDF_STATUS (*send_add_wow_wakeup_event_cmd)(wmi_unified_t wmi_handle,
 					uint32_t vdev_id,
-					uint32_t bitmap,
+					uint32_t *bitmap,
 					bool enable);
 
 QDF_STATUS (*send_wow_patterns_to_fw_cmd)(wmi_unified_t wmi_handle,

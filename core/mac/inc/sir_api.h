@@ -927,6 +927,9 @@ typedef struct sSirSmeScanReq {
 	/* Number of SSIDs to scan */
 	uint8_t numSsid;
 
+	/* scan control flag extended */
+	uint32_t scan_ctrl_flags_ext;
+
 	/* channelList has to be the last member of this structure. Check
 	 * tSirChannelList for the reason. This MUST be the last field of the
 	 * structure
@@ -950,6 +953,7 @@ typedef struct sSirSmeScanReq {
 
 	/* channelList MUST be the last field of this structure */
 	tSirChannelList channelList;
+
 	/*-----------------------------
 	   tSirSmeScanReq....
 	   -----------------------------
@@ -3876,6 +3880,7 @@ typedef struct sSirScanOffloadReq {
 	enum wmi_dwelltime_adaptive_mode scan_adaptive_dwell_mode;
 	uint16_t uIEFieldLen;
 	uint16_t uIEFieldOffset;
+	uint32_t scan_ctrl_flags_ext;
 
 	uint32_t burst_scan_duration;
 	/* mac address randomization attributes */

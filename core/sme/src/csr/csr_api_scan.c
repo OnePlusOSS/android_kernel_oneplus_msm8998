@@ -5336,6 +5336,8 @@ static QDF_STATUS csr_send_mb_scan_req(tpAniSirGlobal pMac, uint16_t sessionId,
 			     pMsg->oui_field_len);
 	}
 
+	pMsg->scan_ctrl_flags_ext = pScanReq->scan_ctrl_flags_ext;
+
 send_scan_req:
 	sme_debug(
 		"scanId %d domainIdCurrent %d scanType %s (%d) bssType %s (%d) requestType %s (%d) numChannels %d",

@@ -259,6 +259,8 @@ QDF_STATUS wma_get_buf_start_scan_cmd(tp_wma_handle wma_handle,
 	/* add DS param IE in probe req frame */
 	cmd->scan_ctrl_flags |= WMI_SCAN_ADD_DS_IE_IN_PROBE_REQ;
 
+	cmd->scan_ctrl_flags_ext = scan_req->scan_ctrl_flags_ext;
+
 	/* do not add OFDM rates in 11B mode */
 	if (scan_req->dot11mode != WNI_CFG_DOT11_MODE_11B)
 		cmd->scan_ctrl_flags |= WMI_SCAN_ADD_OFDM_RATES;
@@ -585,6 +587,7 @@ QDF_STATUS wma_start_scan(tp_wma_handle wma_handle,
 	WMA_LOGD("ActiveDwell %d, PassiveDwell %d, ScanFlags 0x%x NumChan %d",
 		 cmd.dwell_time_active, cmd.dwell_time_passive,
 		 cmd.scan_ctrl_flags, cmd.num_chan);
+	WMA_LOGD("ScanFlagsExt 0x%x", cmd.scan_ctrl_flags_ext);
 
 	/* Call the wmi api to request the scan */
 	qdf_status = wmi_unified_scan_start_cmd_send(wma_handle->wmi_handle,

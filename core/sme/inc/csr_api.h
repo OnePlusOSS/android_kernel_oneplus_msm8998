@@ -291,6 +291,7 @@ typedef struct tagCsrScanRequest {
 	uint8_t *pIEField;
 	enum wmi_dwelltime_adaptive_mode scan_adaptive_dwell_mode;
 	eCsrRequestType requestType; /* 11d scan or full scan */
+	uint32_t scan_ctrl_flags_ext; /* Scan control flags extended */
 	bool p2pSearch;
 	bool skipDfsChnlInP2pSearch;
 	bool bcnRptReqScan;     /* is Scan issued by Beacon Report Request */

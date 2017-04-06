@@ -496,6 +496,65 @@ static int hdd_indicate_scan_result(hdd_scan_info_t *scanInfo,
 }
 
 /**
+ * hdd_update_dbs_scan_ctrl_ext_flag() - set scan_ctrl_flags_ext value
+ * @hdd_ctx: HDD context
+ * @scan_req: pointer to tCsrScanRequest structure
+ *
+ * This function sets scan_ctrl_flags_ext value depending on the type of
+ * scan and the channel lists.
+ *
+ * Non-DBS scan is requested if any of the below case is met:
+ *     1. HW is DBS incapable
+ *     2. Directed scan
+ *     3. Channel list has only few channels
+ *     4. Channel list has single band channels
+ * For remaining cases, dbs scan is requested.
+ *
+ * Return: void
+ */
+static void hdd_update_dbs_scan_ctrl_ext_flag(hdd_context_t *hdd_ctx,
+					      tCsrScanRequest *scan_req)
+{
+	uint32_t num_chan;
+	uint32_t scan_dbs_policy = HDD_SCAN_DBS_POLICY_FORCE_NONDBS;
+
+	/* Resetting the scan_ctrl_flags_ext to 0 */
+	scan_req->scan_ctrl_flags_ext = 0;
+
+	if ((hdd_ctx->config->dual_mac_feature_disable)
+	    || (!wma_is_hw_dbs_capable()))
+		goto end;
+
+	if (!qdf_is_macaddr_zero(&scan_req->bssid))
+		goto end;
+
+	num_chan = scan_req->ChannelInfo.numOfChannels;
+
+	/* num_chan=0 means all channels */
+	if (!num_chan)
+		scan_dbs_policy = HDD_SCAN_DBS_POLICY_DEFAULT;
+
+	if (num_chan < HDD_MIN_CHAN_DBS_SCAN_THRESHOLD)
+		goto end;
+
+	while (num_chan > 1) {
+		if (!CDS_IS_SAME_BAND_CHANNELS(
+			scan_req->ChannelInfo.ChannelList[0],
+			scan_req->ChannelInfo.ChannelList[num_chan-1])) {
+			scan_dbs_policy = HDD_SCAN_DBS_POLICY_DEFAULT;
+			break;
+		}
+		num_chan--;
+	}
+
+end:
+	scan_req->scan_ctrl_flags_ext |=
+		((scan_dbs_policy << HDD_SCAN_FLAG_EXT_DBS_SCAN_POLICY_BIT)
+		 & HDD_SCAN_FLAG_EXT_DBS_SCAN_POLICY_MASK);
+	hdd_debug("scan_ctrl_flags_ext: 0x%x", scan_req->scan_ctrl_flags_ext);
+}
+
+/**
  * wlan_hdd_is_scan_pending() - Utility function to check pending scans
  * @adapter: Pointer to the adapter
  *
@@ -858,6 +917,7 @@ static int __iw_set_scan(struct net_device *dev, struct iw_request_info *info,
 		scanRequest.uIEFieldLen = pAdapter->scan_info.scanAddIE.length;
 		scanRequest.pIEField = pAdapter->scan_info.scanAddIE.addIEdata;
 	}
+	hdd_update_dbs_scan_ctrl_ext_flag(hdd_ctx, &scanRequest);
 	scanRequest.timestamp = qdf_mc_timer_get_system_time();
 	status = sme_scan_request((WLAN_HDD_GET_CTX(pAdapter))->hHal,
 				  pAdapter->sessionId, &scanRequest,
@@ -2022,6 +2082,7 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 						pHddCtx);
 	}
 
+	hdd_update_dbs_scan_ctrl_ext_flag(pHddCtx, &scan_req);
 	qdf_runtime_pm_prevent_suspend(&pHddCtx->runtime_context.scan);
 	status = sme_scan_request(WLAN_HDD_GET_HAL_CTX(pAdapter),
 				pAdapter->sessionId, &scan_req,

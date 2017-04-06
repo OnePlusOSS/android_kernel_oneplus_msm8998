@@ -8948,16 +8948,18 @@ static void hdd_get_nud_stats_cb(void *data, struct rsp_stats *rsp)
 
 	ENTER();
 
-	adapter = hdd_get_adapter_by_vdev(hdd_ctx, rsp->vdev_id);
-	if (NULL == adapter)
+	if (!rsp) {
+		hdd_err("data is null");
 		return;
+	}
 
 	status = wlan_hdd_validate_context(hdd_ctx);
 	if (0 != status)
 		return;
 
-	if (!rsp) {
-		hdd_err("data is null");
+	adapter = hdd_get_adapter_by_vdev(hdd_ctx, rsp->vdev_id);
+	if ((NULL == adapter) || (WLAN_HDD_ADAPTER_MAGIC != adapter->magic)) {
+		hdd_err("Invalid adapter or adapter has invalid magic");
 		return;
 	}
 

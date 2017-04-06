@@ -8731,14 +8731,18 @@ enum dot11p_mode {
 
 /*
  * <ini>
- * sap_restart_on_ch_avoid - control SAP restart on channel avoidance
+ * restart_beaconing_on_chan_avoid_event - control the beaconing entity to move
+ * away from active LTE channels
  * @Min: 0
  * @Max: 1
  * @Default: 1
  *
- * This ini is used to control SAP restart on channel avoidance
- * sap_restart_on_ch_avoid=0: Don't restart SAP on channel avoidance indication
- * sap_restart_on_ch_avoid=1: restart SAP on channel avoidance indication
+ * This ini is used to control the beaconing entity (SAP/GO) to move away from
+ * active LTE channels when channel avoidance event is received
+ * restart_beaconing_on_chan_avoid_event=0: Don't allow beaconing entity move
+ * from active LTE channels
+ * restart_beaconing_on_chan_avoid_event=1: Allow beaconing entity move from
+ * active LTE channels
  *
  * Related: None
  *
@@ -8748,10 +8752,10 @@ enum dot11p_mode {
  *
  * </ini>
  */
-#define CFG_SAP_RESTART_ON_CH_AVOID_NAME    "sap_restart_on_ch_avoid"
-#define CFG_SAP_RESTART_ON_CH_AVOID_MIN     (0)
-#define CFG_SAP_RESTART_ON_CH_AVOID_MAX     (1)
-#define CFG_SAP_RESTART_ON_CH_AVOID_DEFAULT (1)
+#define CFG_RESTART_BEACONING_ON_CH_AVOID_NAME    "restart_beaconing_on_chan_avoid_event"
+#define CFG_RESTART_BEACONING_ON_CH_AVOID_MIN     (0)
+#define CFG_RESTART_BEACONING_ON_CH_AVOID_MAX     (1)
+#define CFG_RESTART_BEACONING_ON_CH_AVOID_DEFAULT (1)
 /*
  * This parameter will avoid updating ap_sta_inactivity from hostapd.conf
  * file. If a station does not send anything in ap_max_inactivity seconds, an
@@ -10468,6 +10472,24 @@ enum dot11p_mode {
 #define CFG_SAP_CH_SWITCH_BEACON_CNT_MAX     (5)
 #define CFG_SAP_CH_SWITCH_BEACON_CNT_DEFAULT (5)
 
+/*
+ * <ini>
+ * g_auto_detect_power_failure_mode - auto detect power save failure mode
+ * @Min: 0 : Recovery
+ * @Max: 1 : WMI
+ * @Default: 0
+ *
+ * This ini specifies the behavior of FW in case of
+ * CHIP_POWER_SAVE_FAIL_DETECTED event
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_AUTO_DETECT_POWER_FAIL_MODE_NAME "g_auto_detect_power_failure_mode"
+#define CFG_AUTO_DETECT_POWER_FAIL_MODE_MIN             (0)
+#define CFG_AUTO_DETECT_POWER_FAIL_MODE_MAX             (1)
+#define CFG_AUTO_DETECT_POWER_FAIL_MODE_DEFAULT         (0)
 
 struct hdd_config {
 	/* Bitmap to track what is explicitly configured */
@@ -10859,7 +10881,7 @@ struct hdd_config {
 	uint32_t ibssPs1RxChainInAtimEnable;
 
 	bool enable_ip_tcp_udp_checksum_offload;
-	bool enablePowersaveOffload;
+	uint8_t enablePowersaveOffload;
 	bool enablefwprint;
 	uint8_t enable_fw_log;
 	uint8_t fVhtAmpduLenExponent;
@@ -11182,7 +11204,7 @@ struct hdd_config {
 	enum active_bpf_mode active_bpf_mode;
 	bool hw_broadcast_filter;
 	bool sap_internal_restart;
-	bool sap_restart_on_ch_avoid;
+	bool restart_beaconing_on_chan_avoid_event;
 	bool enable_bcast_probe_rsp;
 	bool qcn_ie_support;
 	uint8_t fils_max_chan_guard_time;
@@ -11196,6 +11218,7 @@ struct hdd_config {
 	uint8_t                     rssi_penalize_factor_5g;
 	uint8_t                     max_rssi_penalize_5g;
 
+	uint8_t                     auto_pwr_save_fail_mode;
 	uint8_t packet_filters_bitmap;
 	uint32_t                    arp_ac_category;
 

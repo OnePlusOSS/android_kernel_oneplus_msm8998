@@ -4306,12 +4306,12 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_SAP_INTERNAL_RESTART_MIN,
 		CFG_SAP_INTERNAL_RESTART_MAX),
 
-	REG_VARIABLE(CFG_SAP_RESTART_ON_CH_AVOID_NAME, WLAN_PARAM_Integer,
-		struct hdd_config, sap_restart_on_ch_avoid,
+	REG_VARIABLE(CFG_RESTART_BEACONING_ON_CH_AVOID_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, restart_beaconing_on_chan_avoid_event,
 		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
-		CFG_SAP_RESTART_ON_CH_AVOID_DEFAULT,
-		CFG_SAP_RESTART_ON_CH_AVOID_MIN,
-		CFG_SAP_RESTART_ON_CH_AVOID_MAX),
+		CFG_RESTART_BEACONING_ON_CH_AVOID_DEFAULT,
+		CFG_RESTART_BEACONING_ON_CH_AVOID_MIN,
+		CFG_RESTART_BEACONING_ON_CH_AVOID_MAX),
 
 	REG_VARIABLE(CFG_ENABLE_BCAST_PROBE_RESP_NAME, WLAN_PARAM_Integer,
 		struct hdd_config, enable_bcast_probe_rsp,
@@ -4500,6 +4500,13 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_DROPPED_PKT_DISCONNECT_TH_DEFAULT,
 		CFG_DROPPED_PKT_DISCONNECT_TH_MIN,
 		CFG_DROPPED_PKT_DISCONNECT_TH_MAX),
+
+	REG_VARIABLE(CFG_AUTO_DETECT_POWER_FAIL_MODE_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, auto_pwr_save_fail_mode,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_AUTO_DETECT_POWER_FAIL_MODE_DEFAULT,
+		CFG_AUTO_DETECT_POWER_FAIL_MODE_MIN,
+		CFG_AUTO_DETECT_POWER_FAIL_MODE_MAX),
 };
 
 /**
@@ -5979,13 +5986,16 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_debug("Name = [%s] Value = [%u]",
 		CFG_HW_BC_FILTER_NAME,
 		pHddCtx->config->hw_broadcast_filter);
+	hdd_err("Name = [%s] Value = [%u]",
+		CFG_AUTO_DETECT_POWER_FAIL_MODE_NAME,
+		pHddCtx->config->auto_pwr_save_fail_mode);
 	hdd_per_roam_print_ini_config(pHddCtx);
 	hdd_debug("Name = [%s] Value = [%d]",
 		CFG_SAP_INTERNAL_RESTART_NAME,
 		pHddCtx->config->sap_internal_restart);
 	hdd_debug("Name = [%s] Value = [%d]",
-		CFG_SAP_RESTART_ON_CH_AVOID_NAME,
-		pHddCtx->config->sap_restart_on_ch_avoid);
+		CFG_RESTART_BEACONING_ON_CH_AVOID_NAME,
+		pHddCtx->config->restart_beaconing_on_chan_avoid_event);
 	hdd_debug("Name = [%s] Value = [%d]",
 		CFG_ARP_AC_CATEGORY,
 		pHddCtx->config->arp_ac_category);
@@ -6062,7 +6072,7 @@ QDF_STATUS hdd_update_mac_config(hdd_context_t *pHddCtx)
 
 	hdd_debug("wlan_mac.bin size %zu", fw->size);
 
-	temp = qdf_mem_malloc(fw->size);
+	temp = qdf_mem_malloc(fw->size + 1);
 
 	if (temp == NULL) {
 		hdd_err("fail to alloc memory");
@@ -6071,6 +6081,7 @@ QDF_STATUS hdd_update_mac_config(hdd_context_t *pHddCtx)
 	}
 	buffer = temp;
 	qdf_mem_copy(buffer, fw->data, fw->size);
+	buffer[fw->size + 1] = 0x0;
 
 	/* data format:
 	 * Intf0MacAddress=00AA00BB00CC

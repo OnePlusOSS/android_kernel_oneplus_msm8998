@@ -5563,8 +5563,12 @@ static int hdd_wiphy_init(hdd_context_t *hdd_ctx)
 
 	/* registration of wiphy dev with cfg80211 */
 	ret_val = wlan_hdd_cfg80211_register(wiphy);
-	if (0 > ret_val)
+	if (0 > ret_val) {
 		hdd_err("wiphy registration failed");
+		return ret_val;
+	}
+
+	hdd_program_country_code(hdd_ctx);
 
 	return ret_val;
 }
@@ -6611,7 +6615,7 @@ void hdd_ch_avoid_cb(void *hdd_context, void *indi_param)
 	 * first update the unsafe channel list to the platform driver and
 	 * send the avoid freq event to the application
 	 */
-	if (hdd_ctxt->config->sap_restart_on_ch_avoid) {
+	if (hdd_ctxt->config->restart_beaconing_on_chan_avoid_event) {
 		wlan_hdd_send_avoid_freq_event(hdd_ctxt, &hdd_avoid_freq_list);
 
 		if (!hdd_ctxt->unsafe_channel_count) {
@@ -7463,6 +7467,8 @@ static int hdd_update_cds_config(hdd_context_t *hdd_ctx)
 	cds_cfg->self_recovery_enabled = hdd_ctx->config->enableSelfRecovery;
 	cds_cfg->fw_timeout_crash = hdd_ctx->config->fw_timeout_crash;
 	cds_cfg->active_bpf_mode = hdd_ctx->config->active_bpf_mode;
+	cds_cfg->auto_power_save_fail_mode =
+		hdd_ctx->config->auto_pwr_save_fail_mode;
 
 	hdd_ra_populate_cds_config(cds_cfg, hdd_ctx);
 	hdd_txrx_populate_cds_config(cds_cfg, hdd_ctx);
@@ -8016,8 +8022,6 @@ static int hdd_pre_enable_configure(hdd_context_t *hdd_ctx)
 	ret = hdd_set_alternative_chainmask_enabled(hdd_ctx);
 	if (ret)
 		goto out;
-
-	hdd_program_country_code(hdd_ctx);
 
 	ret = wma_cli_set_command(0, WMI_PDEV_PARAM_ARP_AC_OVERRIDE,
 				  hdd_ctx->config->arp_ac_category,
@@ -8832,6 +8836,10 @@ int hdd_wlan_startup(struct device *dev)
 			wma_cli_set_command(0, (int)WMI_PDEV_PARAM_BURST_DUR,
 					    set_value, PDEV_CMD);
 	}
+
+	/* set chip power save failure detected callback */
+	sme_set_chip_pwr_save_fail_cb(hdd_ctx->hHal,
+				      hdd_chip_pwr_save_fail_detected_cb);
 
 	qdf_mc_timer_start(&hdd_ctx->iface_change_timer,
 			   hdd_ctx->config->iface_change_wait_time);

@@ -2475,7 +2475,7 @@ void wma_hold_req_timer(void *data)
 	wma = cds_get_context(QDF_MODULE_ID_WMA);
 	if (NULL == wma) {
 		WMA_LOGE(FL("Failed to get wma"));
-		goto free_tgt_req;
+		return;
 	}
 
 	WMA_LOGA(FL("request %d is timed out for vdev_id - %d"),
@@ -2485,7 +2485,11 @@ void wma_hold_req_timer(void *data)
 	if (!msg) {
 		WMA_LOGE(FL("Failed to lookup request message - %d"),
 			 tgt_req->msg_type);
-		goto free_tgt_req;
+		/*
+		 * if find request failed, then firmware rsp should have
+		 * consumed the buffer. Do not free.
+		 */
+		return;
 	}
 
 	if (tgt_req->msg_type == WMA_ADD_STA_REQ) {
@@ -2537,9 +2541,6 @@ void wma_hold_req_timer(void *data)
 				tgt_req->msg_type, tgt_req->type);
 		QDF_BUG(0);
 	}
-free_tgt_req:
-	qdf_mc_timer_destroy(&tgt_req->event_timeout);
-	qdf_mem_free(tgt_req);
 }
 
 /**
@@ -3039,6 +3040,7 @@ static void wma_add_bss_ap_mode(tp_wma_handle wma, tpAddBssParams add_bss)
 	QDF_STATUS status;
 	int8_t maxTxPower;
 	struct sir_hw_mode_params hw_mode = {0};
+	uint32_t wow_mask[WMI_WOW_MAX_EVENT_BM_LEN] = {0};
 
 	pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 
@@ -3054,9 +3056,14 @@ static void wma_add_bss_ap_mode(tp_wma_handle wma, tpAddBssParams add_bss)
 
 		goto send_fail_resp;
 	}
-	if (SAP_WPS_DISABLED == add_bss->wps_state)
+	if (SAP_WPS_DISABLED == add_bss->wps_state) {
+		wma_set_wow_event_bitmap(WOW_PROBE_REQ_WPS_IE_EVENT,
+					 WMI_WOW_MAX_EVENT_BM_LEN,
+					 wow_mask);
+
 		wma_enable_disable_wakeup_event(wma, vdev_id,
-			(1 << WOW_PROBE_REQ_WPS_IE_EVENT), false);
+			wow_mask, false);
+	}
 	wma_set_bss_rate_flags(&wma->interfaces[vdev_id], add_bss);
 	status = wma_create_peer(wma, pdev, vdev, add_bss->bssId,
 				 WMI_PEER_TYPE_DEFAULT, vdev_id, false);

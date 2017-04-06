@@ -5622,7 +5622,6 @@ static int __hdd_ipa_wlan_evt(hdd_adapter_t *adapter, uint8_t sta_id,
 					msg_ex->name);
 			return 0;
 		}
-
 		qdf_mutex_acquire(&hdd_ipa->event_lock);
 		if (!hdd_ipa_uc_find_add_assoc_sta(hdd_ipa, false, sta_id)) {
 			HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,

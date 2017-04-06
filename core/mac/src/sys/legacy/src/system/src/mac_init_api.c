@@ -167,5 +167,7 @@ tSirRetStatus mac_close(tHalHandle hHal)
 	/* Call routine to free-up all CFG data structures */
 	cfg_de_init(pMac);
 
+	qdf_mem_zero(pMac, sizeof(*pMac));
+
 	return eSIR_SUCCESS;
 }

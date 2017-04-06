@@ -475,6 +475,7 @@ struct ol_txrx_pool_stats {
  * @start_th: start threshold
  * @freelist: tx descriptor freelist
  * @pkt_drop_no_desc: drop due to no descriptors
+ * @ref_cnt: pool's ref count
  */
 struct ol_tx_flow_pool_t {
 	TAILQ_ENTRY(ol_tx_flow_pool_t) flow_pool_list_elem;
@@ -490,6 +491,7 @@ struct ol_tx_flow_pool_t {
 	uint16_t start_th;
 	union ol_tx_desc_list_elem_t *freelist;
 	uint16_t pkt_drop_no_desc;
+	qdf_atomic_t ref_cnt;
 };
 
 #endif
@@ -966,7 +968,6 @@ struct ol_txrx_pdev_t {
 
 	struct {
 		void (*lro_flush_cb)(void *);
-		qdf_atomic_t lro_dev_cnt;
 	} lro_info;
 	struct ol_txrx_peer_t *self_peer;
 };
@@ -1135,6 +1136,26 @@ typedef A_STATUS (*ol_tx_filter_func)(struct ol_txrx_msdu_info_t *
 /* Allow 6000 ms to receive peer unmap events after peer is deleted */
 #define OL_TXRX_PEER_UNMAP_TIMEOUT (6000)
 
+struct ol_txrx_cached_bufq_t {
+	/* cached_bufq is used to enqueue the pending RX frames from a peer
+	 * before the peer is registered for data service. The list will be
+	 * flushed to HDD once that station is registered.
+	 */
+	struct list_head cached_bufq;
+	/* mutual exclusion lock to access the cached_bufq queue */
+	qdf_spinlock_t bufq_lock;
+	/* # entries in queue after which  subsequent adds will be dropped */
+	uint32_t thresh;
+	/* # entries in present in cached_bufq */
+	uint32_t curr;
+	/* # max num of entries in the queue if bufq thresh was not in place */
+	uint32_t high_water_mark;
+	/* # max num of entries in the queue if we did not drop packets */
+	uint32_t qdepth_no_thresh;
+	/* # of packes (beyond threshold) dropped from cached_bufq */
+	uint32_t dropped;
+};
+
 struct ol_txrx_peer_t {
 	struct ol_txrx_vdev_t *vdev;
 
@@ -1153,8 +1174,9 @@ struct ol_txrx_peer_t {
 	 */
 	enum ol_txrx_peer_state state;
 	qdf_spinlock_t peer_info_lock;
-	qdf_spinlock_t bufq_lock;
-	struct list_head cached_bufq;
+
+	/* Wrapper around the cached_bufq list */
+	struct ol_txrx_cached_bufq_t bufq_info;
 
 	ol_tx_filter_func tx_filter;
 
@@ -1244,7 +1266,7 @@ struct ol_txrx_peer_t {
 	qdf_time_t last_disassoc_rcvd;
 	qdf_time_t last_deauth_rcvd;
 	qdf_atomic_t fw_create_pending;
-	qdf_mc_timer_t peer_unmap_timer;
+	qdf_timer_t peer_unmap_timer;
 };
 
 enum ol_rx_err_type {

@@ -462,6 +462,8 @@ QDF_STATUS cds_open(void)
 		goto err_sme_close;
 	}
 
+	hdd_lro_create();
+
 	QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_INFO_HIGH,
 		  "%s: CDS successfully Opened", __func__);
 
@@ -877,6 +879,8 @@ QDF_STATUS cds_close(v_CONTEXT_t cds_context)
 		 "%s: Failed to close wma_wmi_work", __func__);
 		QDF_ASSERT(0);
 	}
+
+	hdd_lro_destroy();
 
 	if (gp_cds_context->htc_ctx) {
 		htc_stop(gp_cds_context->htc_ctx);

@@ -2337,4 +2337,22 @@ void hdd_start_complete(int ret);
  *
  */
 void hdd_unregister_notifiers(hdd_context_t *hdd_ctx);
+
+/**
+ * hdd_chip_pwr_save_fail_detected_cb() - chip power save failure detected
+ * callback
+ * @hdd_ctx: HDD context
+ * @data: chip power save failure detected data
+ *
+ * This function reads the chip power save failure detected data and fill in
+ * the skb with NL attributes and send up the NL event.
+ * This callback execute in atomic context and must not invoke any
+ * blocking calls.
+ *
+ * Return: none
+ */
+void hdd_chip_pwr_save_fail_detected_cb(void *hdd_ctx,
+				struct chip_pwr_save_fail_detected_params
+				*data);
+
 #endif /* end #if !defined(WLAN_HDD_MAIN_H) */

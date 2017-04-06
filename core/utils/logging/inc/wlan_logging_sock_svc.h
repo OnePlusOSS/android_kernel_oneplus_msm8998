@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -67,11 +67,13 @@ static inline void wlan_logging_set_fw_flush_complete(void)
 #ifdef FEATURE_WLAN_DIAG_SUPPORT
 void wlan_report_log_completion(uint32_t is_fatal,
 		uint32_t indicator,
-		uint32_t reason_code);
+		uint32_t reason_code,
+		uint8_t ring_id);
 #else
 static inline void wlan_report_log_completion(uint32_t is_fatal,
 		uint32_t indicator,
-		uint32_t reason_code)
+		uint32_t reason_code,
+		unit8_t ring_id)
 {
 	return;
 }

@@ -1330,12 +1330,19 @@ QDF_STATUS sme_get_soft_ap_domain(tHalHandle hHal, v_REGDOMAIN_t *domainIdSoftAp
 QDF_STATUS sme_set_reg_info(tHalHandle hHal, uint8_t *apCntryCode)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
+	int32_t ctry_val;
 
 	MTRACE(qdf_trace(QDF_MODULE_ID_SME,
 			 TRACE_CODE_SME_RX_HDD_MSG_SET_REGINFO, NO_SESSION, 0));
 	if (NULL == apCntryCode) {
 		sme_err("Empty Country Code, nothing to update");
 		return status;
+	}
+
+	ctry_val = cds_get_country_from_alpha2(apCntryCode);
+	if (ctry_val == CTRY_DEFAULT) {
+		sme_err("invalid AP alpha2");
+		return  status;
 	}
 
 	status = csr_set_reg_info(hHal, apCntryCode);
@@ -15233,6 +15240,26 @@ bool sme_is_any_session_in_connected_state(tHalHandle h_hal)
 		sme_release_global_lock(&mac_ctx->sme);
 	}
 	return ret;
+}
+
+QDF_STATUS sme_set_chip_pwr_save_fail_cb(tHalHandle hal,
+		 void (*cb)(void *,
+		 struct chip_pwr_save_fail_detected_params *))
+{
+
+	QDF_STATUS status  = QDF_STATUS_SUCCESS;
+	tpAniSirGlobal mac = PMAC_STRUCT(hal);
+
+	status = sme_acquire_global_lock(&mac->sme);
+	if (status != QDF_STATUS_SUCCESS) {
+		sme_err("sme_AcquireGlobalLock failed!(status=%d)",
+			status);
+		return status;
+	}
+	mac->sme.chip_power_save_fail_cb = cb;
+	sme_release_global_lock(&mac->sme);
+
+	return status;
 }
 
 /**

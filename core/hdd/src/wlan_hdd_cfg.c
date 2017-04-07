@@ -7983,18 +7983,19 @@ int hdd_parse_probe_req_ouis(hdd_context_t *hdd_ctx)
 				memcpy(temp, &str[i - 8], 8);
 				i++;
 				temp[8] = '\0';
-				if (hdd_probe_req_voui_convert_to_hex(temp,
-				    &voui[oui_indx]) == 0) {
+				if (!hdd_probe_req_voui_convert_to_hex(temp,
+				    &voui[oui_indx])) {
+					end = start = 0;
 					continue;
 				}
 				oui_indx++;
-				if (oui_indx > MAX_PROBE_REQ_OUIS) {
+				if (oui_indx >= MAX_PROBE_REQ_OUIS) {
 					/*
 					 * Max number of OUIs supported is 16,
 					 * ignoring the rest
 					 */
 					hdd_info("Max OUIs-supported: 16");
-					return 0;
+					break;
 				}
 			}
 			start = end = 0;
@@ -8004,11 +8005,11 @@ int hdd_parse_probe_req_ouis(hdd_context_t *hdd_ctx)
 		}
 	}
 
-	if ((end - start) == 8) {
+	if (((end - start) == 8) && oui_indx < MAX_PROBE_REQ_OUIS) {
 		memcpy(temp, &str[i - 8], 8);
 		temp[8] = '\0';
 		if (hdd_probe_req_voui_convert_to_hex(temp,
-		    &voui[oui_indx]) == 1)
+		    &voui[oui_indx]))
 			oui_indx++;
 	}
 

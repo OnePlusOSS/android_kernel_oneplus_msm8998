@@ -533,7 +533,7 @@ static void pktlog_detach(struct hif_opaque_softc *scn)
 	}
 }
 
-static int pktlog_open(struct inode *i, struct file *f)
+static int __pktlog_open(struct inode *i, struct file *f)
 {
 	struct hif_opaque_softc *scn;
 	struct ol_pktlog_dev_t *pl_dev;
@@ -553,6 +553,11 @@ static int pktlog_open(struct inode *i, struct file *f)
 		pr_info("%s: plinfo state (%d) != PKTLOG_OPR_NOT_IN_PROGRESS",
 			__func__, pl_info->curr_pkt_state);
 		return -EBUSY;
+	}
+
+	if (cds_is_load_or_unload_in_progress() || cds_is_driver_recovering()) {
+		pr_info("%s: Load/Unload or recovery is in progress", __func__);
+		return -EAGAIN;
 	}
 
 	pl_info->curr_pkt_state = PKTLOG_OPR_IN_PROGRESS_READ_START;
@@ -590,7 +595,18 @@ static int pktlog_open(struct inode *i, struct file *f)
 	return ret;
 }
 
-static int pktlog_release(struct inode *i, struct file *f)
+static int pktlog_open(struct inode *i, struct file *f)
+{
+	int ret;
+
+	cds_ssr_protect(__func__);
+	ret = __pktlog_open(i, f);
+	cds_ssr_unprotect(__func__);
+
+	return ret;
+}
+
+static int __pktlog_release(struct inode *i, struct file *f)
 {
 	struct hif_opaque_softc *scn;
 	struct ol_pktlog_dev_t *pl_dev;
@@ -604,6 +620,11 @@ static int pktlog_release(struct inode *i, struct file *f)
 
 	if (!pl_info)
 		return -EINVAL;
+
+	if (cds_is_load_or_unload_in_progress() || cds_is_driver_recovering()) {
+		pr_info("%s: Load/Unload or recovery is in progress", __func__);
+		return -EAGAIN;
+	}
 
 	scn = cds_get_context(QDF_MODULE_ID_HIF);
 	if (!scn) {
@@ -637,6 +658,17 @@ static int pktlog_release(struct inode *i, struct file *f)
 			__func__, ret);
 
 	pl_info->curr_pkt_state = PKTLOG_OPR_NOT_IN_PROGRESS;
+	return ret;
+}
+
+static int pktlog_release(struct inode *i, struct file *f)
+{
+	int ret;
+
+	cds_ssr_protect(__func__);
+	ret = __pktlog_release(i, f);
+	cds_ssr_unprotect(__func__);
+
 	return ret;
 }
 
@@ -797,7 +829,7 @@ rd_done:
 }
 
 static ssize_t
-pktlog_read(struct file *file, char *buf, size_t nbytes, loff_t *ppos)
+__pktlog_read(struct file *file, char *buf, size_t nbytes, loff_t *ppos)
 {
 	size_t bufhdr_size;
 	size_t count = 0, ret_val = 0;
@@ -806,6 +838,11 @@ pktlog_read(struct file *file, char *buf, size_t nbytes, loff_t *ppos)
 	int fold_offset, ppos_data, cur_rd_offset;
 	struct ath_pktlog_info *pl_info;
 	struct ath_pktlog_buf *log_buf;
+
+	if (cds_is_load_or_unload_in_progress() || cds_is_driver_recovering()) {
+		pr_info("%s: Load/Unload or recovery is in progress", __func__);
+		return -EAGAIN;
+	}
 
 	pl_info = (struct ath_pktlog_info *)
 					PDE_DATA(file->f_path.dentry->d_inode);
@@ -926,6 +963,18 @@ rd_done:
 	return ret_val;
 }
 
+static ssize_t
+pktlog_read(struct file *file, char *buf, size_t nbytes, loff_t *ppos)
+{
+	int ret;
+
+	cds_ssr_protect(__func__);
+	ret = __pktlog_read(file, buf, nbytes, ppos);
+	cds_ssr_unprotect(__func__);
+
+	return ret;
+}
+
 #ifndef VMALLOC_VMADDR
 #define VMALLOC_VMADDR(x) ((unsigned long)(x))
 #endif
@@ -962,7 +1011,7 @@ static struct vm_operations_struct pktlog_vmops = {
 	fault:pktlog_fault,
 };
 
-static int pktlog_mmap(struct file *file, struct vm_area_struct *vma)
+static int __pktlog_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct ath_pktlog_info *pl_info;
 
@@ -979,10 +1028,26 @@ static int pktlog_mmap(struct file *file, struct vm_area_struct *vma)
 		return -ENOMEM;
 	}
 
+	if (cds_is_load_or_unload_in_progress() || cds_is_driver_recovering()) {
+		pr_info("%s: Load/Unload or recovery is in progress", __func__);
+		return -EAGAIN;
+	}
+
 	vma->vm_flags |= VM_LOCKED;
 	vma->vm_ops = &pktlog_vmops;
 	pktlog_vopen(vma);
 	return 0;
+}
+
+static int pktlog_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	int ret;
+
+	cds_ssr_protect(__func__);
+	ret = __pktlog_mmap(file, vma);
+	cds_ssr_unprotect(__func__);
+
+	return ret;
 }
 
 int pktlogmod_init(void *context)

@@ -40,7 +40,7 @@
  * otherwise we may encouter error in the dump processing.
  */
 
-static const tgt_reg_section ar6320v2_reg_table[] = {
+static const struct tgt_reg_section ar6320v2_reg_table[] = {
 	{0x800, 0x810},
 	{0x820, 0x82C},
 	{0x830, 0x8F4},
@@ -322,7 +322,7 @@ static const tgt_reg_section ar6320v2_reg_table[] = {
 };
 
 #ifdef HIF_SDIO
-static const tgt_reg_section ar6320v3_reg_table[] = {
+static const struct tgt_reg_section ar6320v3_reg_table[] = {
 	{0x800, 0x810},
 	{0x820, 0x82C},
 	{0x830, 0x8F4},
@@ -596,7 +596,7 @@ static const tgt_reg_section ar6320v3_reg_table[] = {
 	{0x80010, 0x80020},
 };
 #else
-static const tgt_reg_section ar6320v3_reg_table[] = {
+static const struct tgt_reg_section ar6320v3_reg_table[] = {
 	{0x800, 0x810},
 	{0x820, 0x82C},
 	{0x830, 0x8F4},

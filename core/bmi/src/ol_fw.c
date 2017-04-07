@@ -850,8 +850,7 @@ ol_check_dataset_patch(struct hif_opaque_softc *scn, uint32_t *address)
 	return 0;
 }
 
-
-static QDF_STATUS ol_fw_populate_clk_settings(A_refclk_speed_t refclk,
+static QDF_STATUS ol_fw_populate_clk_settings(enum a_refclk_speed_t refclk,
 					      struct cmnos_clock_s *clock_s)
 {
 	if (!clock_s)
@@ -1435,7 +1434,7 @@ static int ol_diag_read(struct hif_opaque_softc *scn, uint8_t *buffer,
 }
 
 static int ol_ath_get_reg_table(uint32_t target_version,
-				tgt_reg_table *reg_table)
+				struct tgt_reg_table *reg_table)
 {
 	int section_len = 0;
 
@@ -1472,8 +1471,8 @@ static int ol_diag_read_reg_loc(struct hif_opaque_softc *scn, uint8_t *buffer,
 {
 	int i, len, section_len, fill_len;
 	int dump_len, result = 0;
-	tgt_reg_table reg_table;
-	const tgt_reg_section *curr_sec, *next_sec;
+	struct tgt_reg_table reg_table;
+	const struct tgt_reg_section *curr_sec, *next_sec;
 	struct hif_target_info *tgt_info = hif_get_target_info_handle(scn);
 	uint32_t target_version =  tgt_info->target_version;
 
@@ -1510,8 +1509,8 @@ static int ol_diag_read_reg_loc(struct hif_opaque_softc *scn, uint8_t *buffer,
 		}
 
 		if (result < section_len) {
-			next_sec = (tgt_reg_section *) ((uint8_t *) curr_sec
-							+ sizeof(*curr_sec));
+			next_sec = (struct tgt_reg_section *) ((uint8_t *)
+						 curr_sec + sizeof(*curr_sec));
 			fill_len = next_sec->start_addr - curr_sec->end_addr;
 			if ((buffer_len - result) < fill_len) {
 				BMI_ERR("Not enough memory to fill registers:"

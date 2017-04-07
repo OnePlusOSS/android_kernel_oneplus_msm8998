@@ -320,13 +320,6 @@ static int hdd_ndi_create_req_handler(hdd_context_t *hdd_ctx,
 	transaction_id =
 		nla_get_u16(tb[QCA_WLAN_VENDOR_ATTR_NDP_TRANSACTION_ID]);
 
-	/* Check for an existing interface of NDI type */
-	adapter = hdd_get_adapter(hdd_ctx, QDF_NDI_MODE);
-	if (adapter) {
-		hdd_err("Cannot support more than one NDI");
-		return -EEXIST;
-	}
-
 	adapter = hdd_open_adapter(hdd_ctx, QDF_NDI_MODE, iface_name,
 			wlan_hdd_get_intf_addr(hdd_ctx), NET_NAME_UNKNOWN,
 			true);
@@ -402,14 +395,14 @@ static int hdd_ndi_delete_req_handler(hdd_context_t *hdd_ctx,
 		nla_get_u16(tb[QCA_WLAN_VENDOR_ATTR_NDP_TRANSACTION_ID]);
 
 	/* Check if there is already an existing inteface with the same name */
-	adapter = hdd_get_adapter(hdd_ctx, QDF_NDI_MODE);
+	adapter = hdd_get_adapter_by_iface_name(hdd_ctx, iface_name);
 	if (!adapter) {
 		hdd_err("NAN data interface %s is not available", iface_name);
 		return -EINVAL;
 	}
 
 	/* check if adapter is in NDI mode */
-	if (QDF_NDI_MODE != adapter->device_mode) {
+	if (!WLAN_HDD_IS_NDI(adapter)) {
 		hdd_err("Interface %s is not in NDI mode", iface_name);
 		return -EINVAL;
 	}
@@ -553,9 +546,14 @@ static int hdd_ndp_initiator_req_handler(hdd_context_t *hdd_ctx,
 
 	iface_name = nla_data(tb[QCA_WLAN_VENDOR_ATTR_NDP_IFACE_STR]);
 	/* Check for interface in NDI mode */
-	adapter = hdd_get_adapter(hdd_ctx, QDF_NDI_MODE);
+	adapter = hdd_get_adapter_by_iface_name(hdd_ctx, iface_name);
 	if (!adapter) {
 		hdd_err("NAN data interface %s not available", iface_name);
+		return -EINVAL;
+	}
+
+	if (!WLAN_HDD_IS_NDI(adapter)) {
+		hdd_err("Interface %s is not in NDI mode", iface_name);
 		return -EINVAL;
 	}
 
@@ -686,14 +684,14 @@ static int hdd_ndp_responder_req_handler(hdd_context_t *hdd_ctx,
 
 	iface_name = nla_data(tb[QCA_WLAN_VENDOR_ATTR_NDP_IFACE_STR]);
 	/* Check if there is already an existing NAN interface */
-	adapter = hdd_get_adapter(hdd_ctx, QDF_NDI_MODE);
+	adapter = hdd_get_adapter_by_iface_name(hdd_ctx, iface_name);
 	if (!adapter) {
 		hdd_err("NAN data interface %s not available", iface_name);
 		return -EINVAL;
 	}
 
-	if (QDF_NDI_MODE != adapter->device_mode) {
-		hdd_err("Interface %s not in NDI mode", iface_name);
+	if (!WLAN_HDD_IS_NDI(adapter)) {
+		hdd_err("Interface %s is not in NDI mode", iface_name);
 		return -EINVAL;
 	}
 

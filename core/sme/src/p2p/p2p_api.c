@@ -34,11 +34,7 @@
 #include "cfg_api.h"
 #include "wma.h"
 
-/*------------------------------------------------------------------
- *
- * handle SME remain on channel request.
- *
- *------------------------------------------------------------------*/
+/* handle SME remain on channel request. */
 
 QDF_STATUS p2p_process_remain_on_channel_cmd(tpAniSirGlobal pMac,
 					     tSmeCmd *p2pRemainonChn)
@@ -95,11 +91,7 @@ error:
 	return status;
 }
 
-/*------------------------------------------------------------------
- *
- * handle LIM remain on channel rsp: Success/failure.
- *
- *------------------------------------------------------------------*/
+/* handle LIM remain on channel rsp: Success/failure. */
 
 QDF_STATUS sme_remain_on_chn_rsp(tpAniSirGlobal pMac, uint8_t *pMsg)
 {
@@ -127,19 +119,15 @@ QDF_STATUS sme_remain_on_chn_rsp(tpAniSirGlobal pMac, uint8_t *pMsg)
 
 	fFound = csr_ll_remove_entry(&pMac->sme.smeScanCmdActiveList, pEntry,
 				     LL_ACCESS_LOCK);
-	if (fFound) {
+	if (fFound)
 		/* Now put this command back on the avilable command list */
 		sme_release_command(pMac, pCommand);
-	}
+
 	sme_process_pending_queue(pMac);
 	return status;
 }
 
-/*------------------------------------------------------------------
- *
- * Handle the remain on channel ready indication from PE
- *
- *------------------------------------------------------------------*/
+/* Handle the remain on channel ready indication from PE */
 
 QDF_STATUS sme_remain_on_chn_ready(tHalHandle hHal, uint8_t *pMsg)
 {
@@ -174,12 +162,13 @@ QDF_STATUS sme_p2p_open(tHalHandle hHal)
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 
-	/* If static structure is too big, Need to change this function to allocate memory dynamically */
+	/* If static structure is too big, Need to change this function to
+	 * allocate memory dynamically
+	 */
 	qdf_mem_zero(&pMac->p2pContext, sizeof(tp2pContext));
 
-	if (!QDF_IS_STATUS_SUCCESS(status)) {
+	if (!QDF_IS_STATUS_SUCCESS(status))
 		sme_p2p_close(hHal);
-	}
 
 	return status;
 }
@@ -225,19 +214,18 @@ tSirRFBand get_rf_band(uint8_t channel)
 	return SIR_BAND_UNKNOWN;
 }
 
-/* ---------------------------------------------------------------------------
-
-    \fn p2p_remain_on_channel
-    \brief  API to post the remain on channel command.
-    \param  hHal - The handle returned by mac_open.
-    \param  sessinId - HDD session ID.
-    \param  channel - Channel to remain on channel.
-    \param  duration - Duration for which we should remain on channel
-    \param  callback - callback function.
-    \param  pContext - argument to the callback function
-    \return QDF_STATUS
-
-   -------------------------------------------------------------------------------*/
+/*
+ * p2p_remain_on_channel() -
+ *  API to post the remain on channel command.
+ *
+ * hHal - The handle returned by mac_open.
+ * sessinId - HDD session ID.
+ * channel - Channel to remain on channel.
+ * duration - Duration for which we should remain on channel
+ * callback - callback function.
+ * pContext - argument to the callback function
+ * Return QDF_STATUS
+ */
 QDF_STATUS p2p_remain_on_channel(tHalHandle hHal, uint8_t sessionId,
 				 uint8_t channel, uint32_t duration,
 				 remainOnChanCallback callback,
@@ -253,11 +241,10 @@ QDF_STATUS p2p_remain_on_channel(tHalHandle hHal, uint8_t sessionId,
 	if (pRemainChlCmd == NULL)
 		return QDF_STATUS_E_FAILURE;
 
-	if (SIR_BAND_5_GHZ == get_rf_band(channel)) {
+	if (SIR_BAND_5_GHZ == get_rf_band(channel))
 		phyMode = WNI_CFG_PHY_MODE_11A;
-	} else {
+	else
 		phyMode = WNI_CFG_PHY_MODE_11G;
-	}
 
 	cfg_set_int(pMac, WNI_CFG_PHY_MODE, phyMode);
 
@@ -273,7 +260,9 @@ QDF_STATUS p2p_remain_on_channel(tHalHandle hHal, uint8_t sessionId,
 		pRemainChlCmd->u.remainChlCmd.callbackCtx = pContext;
 		pRemainChlCmd->u.remainChlCmd.scan_id = scan_id;
 
-		/* Put it at the head of the Q if we just finish finding the peer and ready to send a frame */
+		/* Put it at the head of the Q if we just finish finding the
+		 * peer and ready to send a frame
+		 */
 		status = csr_queue_sme_command(pMac, pRemainChlCmd, false);
 	} while (0);
 

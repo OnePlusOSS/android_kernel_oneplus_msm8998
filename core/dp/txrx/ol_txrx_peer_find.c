@@ -47,12 +47,12 @@
 
 /*=== misc. / utility function definitions ==================================*/
 
-static int ol_txrx_log2_ceil(unsigned value)
+static int ol_txrx_log2_ceil(unsigned int value)
 {
 	/* need to switch to unsigned math so that negative values
 	 * will right-shift towards 0 instead of -1
 	 */
-	unsigned tmp = value;
+	unsigned int tmp = value;
 	int log2 = -1;
 
 	if (value == 0) {
@@ -143,11 +143,11 @@ static void ol_txrx_peer_find_hash_detach(struct ol_txrx_pdev_t *pdev)
 	qdf_mem_free(pdev->peer_hash.bins);
 }
 
-static inline unsigned
+static inline unsigned int
 ol_txrx_peer_find_hash_index(struct ol_txrx_pdev_t *pdev,
 			     union ol_txrx_align_mac_addr_t *mac_addr)
 {
-	unsigned index;
+	unsigned int index;
 
 	index =
 		mac_addr->align2.bytes_ab ^
@@ -161,7 +161,7 @@ void
 ol_txrx_peer_find_hash_add(struct ol_txrx_pdev_t *pdev,
 			   struct ol_txrx_peer_t *peer)
 {
-	unsigned index;
+	unsigned int index;
 
 	index = ol_txrx_peer_find_hash_index(pdev, &peer->mac_addr);
 	qdf_spin_lock_bh(&pdev->peer_ref_mutex);
@@ -183,7 +183,7 @@ struct ol_txrx_peer_t *ol_txrx_peer_vdev_find_hash(struct ol_txrx_pdev_t *pdev,
 						   uint8_t check_valid)
 {
 	union ol_txrx_align_mac_addr_t local_mac_addr_aligned, *mac_addr;
-	unsigned index;
+	unsigned int index;
 	struct ol_txrx_peer_t *peer;
 
 	if (mac_addr_is_aligned) {
@@ -199,8 +199,10 @@ struct ol_txrx_peer_t *ol_txrx_peer_vdev_find_hash(struct ol_txrx_pdev_t *pdev,
 		if (ol_txrx_peer_find_mac_addr_cmp(mac_addr, &peer->mac_addr) ==
 		    0 && (check_valid == 0 || peer->valid)
 		    && peer->vdev == vdev) {
-			/* found it - increment the ref count before releasing
-			   the lock */
+			/*
+			 * found it - increment the ref count before releasing
+			 * the lock
+			 */
 			OL_TXRX_PEER_INC_REF_CNT(peer);
 			qdf_spin_unlock_bh(&pdev->peer_ref_mutex);
 			return peer;
@@ -210,13 +212,14 @@ struct ol_txrx_peer_t *ol_txrx_peer_vdev_find_hash(struct ol_txrx_pdev_t *pdev,
 	return NULL;            /* failure */
 }
 
-struct ol_txrx_peer_t *ol_txrx_peer_find_hash_find_inc_ref(struct ol_txrx_pdev_t *pdev,
-						   uint8_t *peer_mac_addr,
-						   int mac_addr_is_aligned,
-						   uint8_t check_valid)
+struct ol_txrx_peer_t *ol_txrx_peer_find_hash_find_inc_ref(
+					struct ol_txrx_pdev_t *pdev,
+					uint8_t *peer_mac_addr,
+					int mac_addr_is_aligned,
+					uint8_t check_valid)
 {
 	union ol_txrx_align_mac_addr_t local_mac_addr_aligned, *mac_addr;
-	unsigned index;
+	unsigned int index;
 	struct ol_txrx_peer_t *peer;
 
 	if (mac_addr_is_aligned) {
@@ -231,8 +234,10 @@ struct ol_txrx_peer_t *ol_txrx_peer_find_hash_find_inc_ref(struct ol_txrx_pdev_t
 	TAILQ_FOREACH(peer, &pdev->peer_hash.bins[index], hash_list_elem) {
 		if (ol_txrx_peer_find_mac_addr_cmp(mac_addr, &peer->mac_addr) ==
 		    0 && (check_valid == 0 || peer->valid)) {
-			/* found it - increment the ref count before
-			   releasing the lock */
+			/*
+			 * found it - increment the ref count before
+			 * releasing the lock
+			 */
 			OL_TXRX_PEER_INC_REF_CNT(peer);
 			qdf_spin_unlock_bh(&pdev->peer_ref_mutex);
 			return peer;
@@ -246,7 +251,7 @@ void
 ol_txrx_peer_find_hash_remove(struct ol_txrx_pdev_t *pdev,
 			      struct ol_txrx_peer_t *peer)
 {
-	unsigned index;
+	unsigned int index;
 
 	index = ol_txrx_peer_find_hash_index(pdev, &peer->mac_addr);
 	/*
@@ -270,7 +275,7 @@ ol_txrx_peer_find_hash_remove(struct ol_txrx_pdev_t *pdev,
 
 void ol_txrx_peer_find_hash_erase(struct ol_txrx_pdev_t *pdev)
 {
-	unsigned i;
+	unsigned int i;
 	/*
 	 * Not really necessary to take peer_ref_mutex lock - by this point,
 	 * it's known that the pdev is no longer in use.
@@ -454,8 +459,6 @@ static inline void ol_txrx_peer_find_add_id(struct ol_txrx_pdev_t *pdev,
 		/* TBDXXX: assert for now */
 		qdf_assert(0);
 	}
-
-	return;
 }
 
 /*=== allocation / deallocation function definitions ========================*/
@@ -489,6 +492,7 @@ ol_rx_peer_map_handler(ol_txrx_pdev_handle pdev,
 	ol_txrx_peer_find_add_id(pdev, peer_mac_addr, peer_id);
 	if (!tx_ready) {
 		struct ol_txrx_peer_t *peer;
+
 		peer = ol_txrx_peer_find_by_id(pdev, peer_id);
 		if (!peer) {
 			/* ol_txrx_peer_detach called before peer map arrived*/
@@ -496,6 +500,7 @@ ol_rx_peer_map_handler(ol_txrx_pdev_handle pdev,
 		} else {
 			if (tx_ready) {
 				int i;
+
 				/* unpause all tx queues now, since the
 				 * target is ready
 				 */
@@ -511,7 +516,8 @@ ol_rx_peer_map_handler(ol_txrx_pdev_handle pdev,
 
 				/* keep non-mgmt tx queues paused until assoc
 				 * is finished tx queues were paused in
-				 * ol_txrx_peer_attach*/
+				 * ol_txrx_peer_attach
+				 */
 				/* unpause tx mgmt queue */
 				ol_txrx_peer_tid_unpause(peer,
 							 HTT_TX_EXT_TID_MGMT);
@@ -548,12 +554,10 @@ ol_rx_peer_map_handler(ol_txrx_pdev_handle pdev,
 		       int tx_ready)
 {
 	ol_txrx_peer_find_add_id(pdev, peer_mac_addr, peer_id);
-
 }
 
 void ol_txrx_peer_tx_ready_handler(ol_txrx_pdev_handle pdev, uint16_t peer_id)
 {
-	return;
 }
 
 #endif
@@ -761,6 +765,7 @@ void ol_txrx_peer_find_display(ol_txrx_pdev_handle pdev, int indent)
 	for (i = 0; i <= pdev->peer_hash.mask; i++) {
 		if (!TAILQ_EMPTY(&pdev->peer_hash.bins[i])) {
 			struct ol_txrx_peer_t *peer;
+
 			TAILQ_FOREACH(peer, &pdev->peer_hash.bins[i],
 				      hash_list_elem) {
 				QDF_TRACE(QDF_MODULE_ID_TXRX,

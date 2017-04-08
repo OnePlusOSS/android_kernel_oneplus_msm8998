@@ -85,9 +85,8 @@ void sme_ft_close(tHalHandle hHal, uint32_t sessionId)
 					  preAuthReassocIntvlTimer);
 		}
 
-		if (QDF_STATUS_SUCCESS !=
-		    qdf_mc_timer_destroy(&pSession->ftSmeContext.
-					 preAuthReassocIntvlTimer))
+		qdf_mc_timer_destroy(&pSession->ftSmeContext.
+					 preAuthReassocIntvlTimer);
 
 		if (pSession->ftSmeContext.pUsrCtx != NULL) {
 			qdf_mem_free(pSession->ftSmeContext.pUsrCtx);

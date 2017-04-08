@@ -63,10 +63,10 @@ void hif_snoc_disable_isr(struct hif_softc *scn)
 
 /**
  * hif_dump_registers(): dump bus debug registers
- * @scn: struct hif_opaque_softc
+ * @hif_ctx: struct hif_opaque_softc
  *
  * This function dumps hif bus debug registers
-  *
+ *
  * Return: 0 for success or error code
  */
 int hif_snoc_dump_registers(struct hif_softc *hif_ctx)
@@ -325,6 +325,7 @@ void hif_snoc_disable_bus(struct hif_softc *scn)
 void hif_snoc_nointrs(struct hif_softc *scn)
 {
 	struct HIF_CE_state *hif_state = HIF_GET_CE_STATE(scn);
+
 	if (scn->request_irq_done) {
 		ce_unregister_irq(hif_state, 0xfff);
 		scn->request_irq_done = false;

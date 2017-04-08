@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -211,10 +211,9 @@ int hif_target_sync_ahb(struct hif_softc *scn)
 		if (wait_limit < 0) {
 			HIF_TRACE("%s: FW signal timed out", __func__);
 			return -EIO;
-		} else {
-			HIF_TRACE("%s: Got FW signal, retries = %x", __func__,
-							500-wait_limit);
 		}
+		HIF_TRACE("%s: Got FW signal, retries = %x", __func__,
+							500-wait_limit);
 	}
 
 	return 0;

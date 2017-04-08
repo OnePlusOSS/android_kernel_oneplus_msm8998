@@ -433,9 +433,10 @@ void csr_ll_purge(tDblLinkList *pList, bool fInterlocked)
 		if (fInterlocked)
 			csr_ll_lock(pList);
 
+		/* Remove everything from the list */
 		while ((pEntry = csr_ll_remove_head(pList, LL_ACCESS_NOLOCK)))
-			/* just remove everything from the list until */
-			/* nothing left on the list. */
+			;
+
 		if (fInterlocked)
 			csr_ll_unlock(pList);
 	}

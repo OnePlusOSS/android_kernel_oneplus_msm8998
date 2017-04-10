@@ -3495,7 +3495,7 @@ static void hif_target_sync(struct hif_softc *scn)
  */
 QDF_STATUS hif_pci_enable_bus(struct hif_softc *ol_sc,
 			  struct device *dev, void *bdev,
-			  const hif_bus_id *bid,
+			  const struct hif_bus_id *bid,
 			  enum hif_enable_type type)
 {
 	int ret = 0;

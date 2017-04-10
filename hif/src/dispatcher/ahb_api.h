@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -29,7 +29,7 @@ void hif_ahb_nointrs(struct hif_softc *scn);
 void hif_ahb_reset_soc(struct hif_softc *hif_ctx);
 QDF_STATUS hif_ahb_enable_bus(struct hif_softc *ol_sc,
 			  struct device *dev, void *bdev,
-			  const hif_bus_id *bid,
+			  const struct hif_bus_id *bid,
 			  enum hif_enable_type type);
 void hif_ahb_disable_bus(struct hif_softc *scn);
 int hif_ahb_bus_configure(struct hif_softc *scn);

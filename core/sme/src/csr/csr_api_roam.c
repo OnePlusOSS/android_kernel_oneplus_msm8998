@@ -11985,17 +11985,12 @@ QDF_STATUS csr_roam_lost_link(tpAniSirGlobal pMac, uint32_t sessionId,
 	tSirSmeDisassocInd *pDisassocIndMsg = NULL;
 	eCsrRoamResult result = eCSR_ROAM_RESULT_LOSTLINK;
 	tCsrRoamInfo roamInfo;
-	bool fToRoam;
 	tCsrRoamSession *pSession = CSR_GET_SESSION(pMac, sessionId);
 
 	if (!pSession) {
 		sme_err("session: %d not found", sessionId);
 		return QDF_STATUS_E_FAILURE;
 	}
-	/* Only need to roam for infra station. In this case P2P client will
-	 * roam as well
-	 */
-	fToRoam = CSR_IS_INFRASTRUCTURE(&pSession->connectedProfile);
 	pSession->fCancelRoaming = false;
 	if (eWNI_SME_DISASSOC_IND == type) {
 		result = eCSR_ROAM_RESULT_DISASSOC_IND;
@@ -12025,9 +12020,6 @@ QDF_STATUS csr_roam_lost_link(tpAniSirGlobal pMac, uint32_t sessionId,
 	else if (eWNI_SME_DEAUTH_IND == type)
 		status = csr_send_mb_deauth_cnf_msg(pMac, pDeauthIndMsg);
 
-	if (!QDF_IS_STATUS_SUCCESS(status))
-		/* If fail to send confirmation to PE, not to trigger roaming */
-		fToRoam = false;
 	/* prepare to tell HDD to disconnect */
 	qdf_mem_set(&roamInfo, sizeof(tCsrRoamInfo), 0);
 	roamInfo.statusCode = (tSirResultCodes) pSession->roamingStatusCode;
@@ -12047,22 +12039,6 @@ QDF_STATUS csr_roam_lost_link(tpAniSirGlobal pMac, uint32_t sessionId,
 		roamInfo.rxRssi = pDeauthIndMsg->rssi;
 	}
 	sme_debug("roamInfo.staId: %d", roamInfo.staId);
-
-	/* See if we can possibly roam.  If so, start the roaming process and
-	 * notify HDD that we are roaming.  But if we cannot possibly roam, or
-	 * if we are unable to currently roam, then notify HDD of the lost link
-	 */
-	if (fToRoam) {
-		/* Only remove the connected BSS in infrastructure mode */
-		csr_roam_remove_connected_bss_from_scan_cache(pMac,
-							      &pSession->
-							      connectedProfile);
-		/* Not to do anying for lostlink with WDS */
-		status = csr_roam_start_roaming(pMac, sessionId,
-				(eWNI_SME_DEAUTH_IND == type) ?
-				eCsrLostlinkRoamingDeauth :
-				eCsrLostlinkRoamingDisassoc);
-	}
 
 	return status;
 }
@@ -18706,6 +18682,13 @@ QDF_STATUS csr_queue_sme_command(tpAniSirGlobal pMac, tSmeCmd *pCommand,
 
 	if ((pCommand->command == eSmeCommandScan)
 	    || (pCommand->command == eSmeCommandRemainOnChannel)) {
+		if (csr_ll_count(&pMac->sme.smeScanCmdActiveList) >=
+		    pMac->scan.max_scan_count) {
+			sme_err("scan pending list count %d",
+				pMac->sme.smeScanCmdPendingList.Count);
+			csr_scan_call_callback(pMac, pCommand, eCSR_SCAN_ABORT);
+			return QDF_STATUS_E_FAILURE;
+		}
 		sme_debug(
 		"scan pending list count %d scan_id %d",
 			pMac->sme.smeScanCmdPendingList.Count,

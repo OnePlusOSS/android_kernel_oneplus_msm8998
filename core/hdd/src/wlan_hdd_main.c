@@ -1694,7 +1694,7 @@ int hdd_start_adapter(hdd_adapter_t *adapter)
 		ret = hdd_start_ftm_adapter(adapter);
 		if (ret)
 			goto err_start_adapter;
-	break;
+		goto exit;
 	default:
 		hdd_err("Invalid session type %d", device_mode);
 		QDF_ASSERT(0);
@@ -1708,6 +1708,7 @@ int hdd_start_adapter(hdd_adapter_t *adapter)
 	 * applicable to all interfaces
 	 */
 	wlan_hdd_cfg80211_register_frames(adapter);
+exit:
 	EXIT();
 	return 0;
 err_start_adapter:

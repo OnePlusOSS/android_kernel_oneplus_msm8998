@@ -673,6 +673,9 @@ static void wma_vdev_start_rsp(tp_wma_handle wma,
 			       resp_event)
 {
 	struct beacon_info *bcn;
+	ol_txrx_pdev_handle pdev;
+	ol_txrx_peer_handle peer = NULL;
+	uint8_t peer_id;
 
 #ifdef QCA_IBSS_SUPPORT
 	WMA_LOGD("%s: vdev start response received for %s mode", __func__,
@@ -729,6 +732,25 @@ static void wma_vdev_start_rsp(tp_wma_handle wma,
 	}
 	add_bss->smpsMode = host_map_smps_mode(resp_event->smps_mode);
 send_fail_resp:
+	if (add_bss->status != QDF_STATUS_SUCCESS) {
+		WMA_LOGE("%s: ADD BSS failure %d", __func__, add_bss->status);
+
+		pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+		if (NULL == pdev)
+			WMA_LOGE("%s: Failed to get pdev", __func__);
+
+		if (pdev)
+			peer = ol_txrx_find_peer_by_addr(pdev,
+				add_bss->bssId, &peer_id);
+		if (!peer)
+			WMA_LOGE("%s Failed to find peer %pM", __func__,
+				add_bss->bssId);
+
+		if (peer)
+			wma_remove_peer(wma, add_bss->bssId,
+				resp_event->vdev_id, peer, false);
+	}
+
 	WMA_LOGD("%s: Sending add bss rsp to umac(vdev %d status %d)",
 		 __func__, resp_event->vdev_id, add_bss->status);
 	wma_send_msg(wma, WMA_ADD_BSS_RSP, (void *)add_bss, 0);

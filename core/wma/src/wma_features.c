@@ -3278,7 +3278,7 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 			      uint32_t len)
 {
 	tp_wma_handle wma = (tp_wma_handle) handle;
-	struct wma_txrx_node *wma_vdev;
+	struct wma_txrx_node *wma_vdev = NULL;
 	WMI_WOW_WAKEUP_HOST_EVENTID_param_tlvs *param_buf;
 	WOW_EVENT_INFO_fixed_param *wake_info;
 	uint32_t wakelock_duration;
@@ -3294,7 +3294,10 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 	}
 
 	wake_info = param_buf->fixed_param;
-	wma_vdev = &wma->interfaces[wake_info->vdev_id];
+
+	/* unspecified means apps-side wakeup, so there won't be a vdev */
+	if (wake_info->wake_reason != WOW_REASON_UNSPECIFIED)
+		wma_vdev = &wma->interfaces[wake_info->vdev_id];
 
 	if ((wake_info->wake_reason != WOW_REASON_UNSPECIFIED) ||
 	    (wake_info->wake_reason == WOW_REASON_UNSPECIFIED &&
@@ -3303,7 +3306,7 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 			 wma_wow_wake_reason_str(wake_info->wake_reason),
 			 wake_info->wake_reason,
 			 wake_info->vdev_id,
-			 wma_vdev ? wma_vdev_type_str(wma_vdev->type) : "null");
+			 wma_vdev ? wma_vdev_type_str(wma_vdev->type) : "none");
 		qdf_wow_wakeup_host_event(wake_info->wake_reason);
 		qdf_wma_wow_wakeup_stats_event();
 	}

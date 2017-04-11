@@ -86,9 +86,7 @@ enum notifier_state {
 	NOTIFIER_STATE_NOTIFYING,
 } notifier_state;
 
-
-static p_cds_sched_context gp_cds_sched_context;
-
+struct _cds_sched_context *gp_cds_sched_context;
 static int cds_mc_thread(void *Arg);
 #ifdef QCA_CONFIG_SMP
 static int cds_ol_rx_thread(void *arg);

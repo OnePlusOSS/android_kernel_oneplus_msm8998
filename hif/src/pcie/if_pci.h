@@ -103,7 +103,7 @@ struct hif_pci_pm_stats {
 struct hif_msi_info {
 	void *magic;
 	dma_addr_t magic_da;
-	OS_DMA_MEM_CONTEXT(dmacontext)
+	OS_DMA_MEM_CONTEXT(dmacontext);
 };
 
 struct hif_pci_softc {

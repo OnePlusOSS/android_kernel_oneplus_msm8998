@@ -47,6 +47,7 @@
 void __qdf_defer_func(struct work_struct *work)
 {
 	__qdf_work_t *ctx = container_of(work, __qdf_work_t, work);
+
 	if (ctx->fn == NULL) {
 		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
 			  "No callback registered !!");

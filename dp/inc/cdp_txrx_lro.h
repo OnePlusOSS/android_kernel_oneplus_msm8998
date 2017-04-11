@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -32,8 +32,8 @@
 #ifndef _CDP_TXRX_LRO_H_
 #define _CDP_TXRX_LRO_H_
 
-void ol_register_lro_flush_cb(void (lro_flush_cb)(void *),
+void ol_register_lro_flush_cb(void (*lro_flush_cb)(void *data),
 				void *(lro_init_cb)(void));
-void ol_deregister_lro_flush_cb(void (lro_deinit_cb)(void *));
+void ol_deregister_lro_flush_cb(void (*lro_deinit_cb)(void *data));
 
 #endif /* _CDP_TXRX_LRO_H_ */

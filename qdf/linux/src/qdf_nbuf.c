@@ -154,6 +154,7 @@ void qdf_nbuf_set_state(qdf_nbuf_t nbuf, uint8_t current_state)
 	 * such as scan commands are not tracked
 	 */
 	uint8_t packet_type;
+
 	packet_type = QDF_NBUF_CB_TX_PACKET_TRACK(nbuf);
 
 	if ((packet_type != QDF_NBUF_TX_PKT_DATA_TRACK) &&
@@ -195,10 +196,9 @@ struct sk_buff *__qdf_nbuf_alloc(qdf_device_t osdev, size_t size, int reserve,
 
 	skb = dev_alloc_skb(size);
 
-	if (!skb) {
-		pr_info("ERROR:NBUF alloc failed\n");
+	if (!skb)
 		return NULL;
-	}
+
 	memset(skb->cb, 0x0, sizeof(skb->cb));
 
 	/*
@@ -258,6 +258,7 @@ QDF_STATUS
 __qdf_nbuf_map(qdf_device_t osdev, struct sk_buff *skb, qdf_dma_dir_t dir)
 {
 	struct skb_shared_info *sh = skb_shinfo(skb);
+
 	qdf_assert((dir == QDF_DMA_TO_DEVICE)
 			|| (dir == QDF_DMA_FROM_DEVICE));
 
@@ -313,7 +314,7 @@ qdf_export_symbol(__qdf_nbuf_unmap);
  *
  * Return: QDF_STATUS
  */
-#if defined(A_SIMOS_DEVHOST) || defined (HIF_USB)
+#if defined(A_SIMOS_DEVHOST) || defined(HIF_USB)
 QDF_STATUS
 __qdf_nbuf_map_single(qdf_device_t osdev, qdf_nbuf_t buf, qdf_dma_dir_t dir)
 {
@@ -349,11 +350,10 @@ qdf_export_symbol(__qdf_nbuf_map_single);
  *
  * Return: none
  */
-#if defined(A_SIMOS_DEVHOST) || defined (HIF_USB)
+#if defined(A_SIMOS_DEVHOST) || defined(HIF_USB)
 void __qdf_nbuf_unmap_single(qdf_device_t osdev, qdf_nbuf_t buf,
 				qdf_dma_dir_t dir)
 {
-	return;
 }
 #else
 void __qdf_nbuf_unmap_single(qdf_device_t osdev, qdf_nbuf_t buf,
@@ -408,8 +408,6 @@ qdf_nbuf_tx_cksum_t __qdf_nbuf_get_tx_cksum(struct sk_buff *skb)
 	case CHECKSUM_NONE:
 		return QDF_NBUF_TX_CKSUM_NONE;
 	case CHECKSUM_PARTIAL:
-		/* XXX ADF and Linux checksum don't map with 1-to-1. This is
-		 * not 100% correct */
 		return QDF_NBUF_TX_CKSUM_TCP_UDP;
 	case CHECKSUM_COMPLETE:
 		return QDF_NBUF_TX_CKSUM_TCP_UDP_IP;
@@ -464,7 +462,6 @@ qdf_export_symbol(__qdf_nbuf_get_exemption_type);
 void __qdf_nbuf_reg_trace_cb(qdf_nbuf_trace_update_t cb_func_ptr)
 {
 	qdf_trace_update_cb = cb_func_ptr;
-	return;
 }
 qdf_export_symbol(__qdf_nbuf_reg_trace_cb);
 
@@ -1427,8 +1424,6 @@ void qdf_net_buf_debug_init(void)
 		gp_qdf_net_buf_track_tbl[i] = NULL;
 		spin_lock_init(&g_qdf_net_buf_track_lock[i]);
 	}
-
-	return;
 }
 qdf_export_symbol(qdf_net_buf_debug_init);
 
@@ -1463,8 +1458,6 @@ void qdf_net_buf_debug_exit(void)
 	}
 
 	qdf_nbuf_track_memory_manager_destroy();
-
-	return;
 }
 qdf_export_symbol(qdf_net_buf_debug_exit);
 
@@ -1547,8 +1540,6 @@ void qdf_net_buf_debug_add_node(qdf_nbuf_t net_buf, size_t size,
 				  file_name, line_num, size);
 	}
 	spin_unlock_irqrestore(&g_qdf_net_buf_track_lock[i], irq_flag);
-
-	return;
 }
 qdf_export_symbol(qdf_net_buf_debug_add_node);
 
@@ -1604,8 +1595,6 @@ done:
 	} else {
 		qdf_nbuf_track_free(p_node);
 	}
-
-	return;
 }
 qdf_export_symbol(qdf_net_buf_debug_delete_node);
 
@@ -1704,6 +1693,7 @@ static uint8_t __qdf_nbuf_get_tso_cmn_seg_info(qdf_device_t osdev,
 	if (tso_info->ethproto == htons(ETH_P_IP)) { /* IPv4 */
 		/* for IPv4, get the IP ID and enable TCP and IP csum */
 		struct iphdr *ipv4_hdr = ip_hdr(skb);
+
 		tso_info->ip_id = ntohs(ipv4_hdr->id);
 		tso_info->ipv4_csum_en = 1;
 		tso_info->tcp_ipv4_csum_en = 1;
@@ -1823,8 +1813,6 @@ static inline void __qdf_nbuf_fill_tso_cmn_seg_info(
 		   tso_cmn_info->eit_hdr_len,
 		   curr_seg->seg.tso_flags.tcp_seq_num,
 		   curr_seg->seg.total_len);
-
-
 }
 
 /**
@@ -2208,7 +2196,6 @@ void
 __qdf_nbuf_unmap_nbytes_single(
 	qdf_device_t osdev, struct sk_buff *buf, qdf_dma_dir_t dir, int nbytes)
 {
-	return;
 }
 qdf_export_symbol(__qdf_nbuf_unmap_nbytes_single);
 
@@ -2244,6 +2231,7 @@ __qdf_nbuf_map_nbytes(
 	int nbytes)
 {
 	struct skb_shared_info  *sh = skb_shinfo(skb);
+
 	qdf_assert((dir == QDF_DMA_TO_DEVICE) || (dir == QDF_DMA_FROM_DEVICE));
 
 	/*
@@ -2333,6 +2321,7 @@ __qdf_nbuf_frag_info(struct sk_buff *skb, qdf_sglist_t  *sg)
 
 	for (int i = 1; i <= sh->nr_frags; i++) {
 		skb_frag_t    *f        = &sh->frags[i - 1];
+
 		sg->sg_segs[i].vaddr    = (uint8_t *)(page_address(f->page) +
 			f->page_offset);
 		sg->sg_segs[i].len      = f->size;
@@ -2382,6 +2371,7 @@ __qdf_nbuf_get_frag_size(__qdf_nbuf_t nbuf, uint32_t cur_frag)
 {
 	struct skb_shared_info  *sh = skb_shinfo(nbuf);
 	const skb_frag_t *frag = sh->frags + cur_frag;
+
 	return skb_frag_size(frag);
 }
 qdf_export_symbol(__qdf_nbuf_get_frag_size);
@@ -2413,9 +2403,9 @@ QDF_STATUS __qdf_nbuf_frag_map(
 	int offset, qdf_dma_dir_t dir, int cur_frag)
 {
 	dma_addr_t paddr, frag_len;
-
 	struct skb_shared_info *sh = skb_shinfo(nbuf);
 	const skb_frag_t *frag = sh->frags + cur_frag;
+
 	frag_len = skb_frag_size(frag);
 
 	QDF_NBUF_CB_TX_EXTRA_FRAG_PADDR(nbuf) = paddr =
@@ -2658,5 +2648,4 @@ unsigned int qdf_nbuf_update_radiotap(struct mon_rx_status *rx_status,
 void __qdf_nbuf_reg_free_cb(qdf_nbuf_free_t cb_func_ptr)
 {
 	nbuf_free_cb = cb_func_ptr;
-	return;
 }

@@ -2986,6 +2986,7 @@ void wma_set_channel(tp_wma_handle wma, tpSwitchChannelParams params)
 	ol_txrx_pdev_handle pdev;
 	struct wma_txrx_node *intr = wma->interfaces;
 	struct sir_hw_mode_params hw_mode = {0};
+	uint16_t beacon_interval_ori;
 
 	WMA_LOGD("%s: Enter", __func__);
 	if (!wma_find_vdev_by_addr(wma, params->selfStaMacAddr, &vdev_id)) {
@@ -3042,6 +3043,33 @@ void wma_set_channel(tp_wma_handle wma, tpSwitchChannelParams params)
 	if ((wma_is_vdev_in_ap_mode(wma, req.vdev_id) == true) ||
 		(params->restart_on_chan_switch == true))
 		wma->interfaces[req.vdev_id].is_channel_switch = true;
+
+	if ((wma_is_vdev_in_ap_mode(wma, req.vdev_id) == true) &&
+		(params->reduced_beacon_interval)) {
+		/* Reduce the beacon interval just before the channel switch.
+		 * This would help in reducing the downtime on the STA side
+		 * (which is waiting for beacons from the AP to resume back
+		 * transmission). Switch back the beacon_interval to its
+		 * original value after the channel switch based on the
+		 * timeout. This would ensure there are atleast some beacons
+		 * sent with increased frequency.
+		 */
+
+		WMA_LOGD("%s: Changing beacon interval to %d",
+			__func__, params->reduced_beacon_interval);
+
+		/* Add a timer to reset the beacon interval back*/
+		beacon_interval_ori = req.beacon_intval;
+		req.beacon_intval = params->reduced_beacon_interval;
+		if (wma_fill_beacon_interval_reset_req(wma,
+			req.vdev_id,
+			beacon_interval_ori,
+			RESET_BEACON_INTERVAL_TIMEOUT)) {
+
+			WMA_LOGD("%s: Failed to fill beacon interval reset req",
+				__func__);
+		}
+	}
 
 	if (QDF_GLOBAL_MONITOR_MODE == cds_get_conparam() &&
 	    wma_is_vdev_up(vdev_id)) {
@@ -4898,7 +4926,7 @@ QDF_STATUS wma_get_buf_extscan_start_cmd(tp_wma_handle wma_handle,
 QDF_STATUS wma_start_extscan(tp_wma_handle wma,
 			     tSirWifiScanCmdReqParams *pstart)
 {
-	struct wifi_scan_cmd_req_params *params = {0};
+	struct wifi_scan_cmd_req_params *params;
 	int i, j;
 	QDF_STATUS status;
 
@@ -4966,6 +4994,7 @@ QDF_STATUS wma_start_extscan(tp_wma_handle wma,
 
 	status = wmi_unified_start_extscan_cmd(wma->wmi_handle,
 					params);
+	qdf_mem_free(params);
 	if (QDF_IS_STATUS_ERROR(status))
 		return status;
 

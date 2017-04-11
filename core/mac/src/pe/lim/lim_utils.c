@@ -6344,16 +6344,19 @@ bool lim_get_rx_ldpc(tpAniSirGlobal mac_ctx, uint8_t ch,
 				   uint8_t is_hw_mode_dbs)
 {
 	enum hw_mode_dbs_capab hw_mode_to_use;
+	bool ret_val;
 
 	hw_mode_to_use = is_hw_mode_dbs ? HW_MODE_DBS : HW_MODE_DBS_NONE;
-	pe_debug("ch: %d rx_ldpc: %d hw_mode_to_use: %d",
-		ch, is_hw_mode_dbs, hw_mode_to_use);
 	if (mac_ctx->roam.configParam.rx_ldpc_enable &&
 			wma_is_rx_ldpc_supported_for_channel(
 				CDS_CHANNEL_NUM(ch), hw_mode_to_use))
-		return true;
+		ret_val = true;
 	else
-		return false;
+		ret_val = false;
+	pe_debug("ch: %d rx_ldpc: %d hw_mode_to_use: %d",
+		ch, ret_val, hw_mode_to_use);
+
+	return ret_val;
 }
 
 /**

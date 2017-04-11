@@ -4204,6 +4204,13 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_SAP_CH_SWITCH_BEACON_CNT_MIN,
 		     CFG_SAP_CH_SWITCH_BEACON_CNT_MAX),
 
+	REG_VARIABLE(CFG_SAP_CH_SWITCH_MODE, WLAN_PARAM_Integer,
+		     struct hdd_config, sap_chanswitch_mode,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_SAP_CH_SWITCH_MODE_DEFAULT,
+		     CFG_SAP_CH_SWITCH_MODE_MIN,
+		     CFG_SAP_CH_SWITCH_MODE_MAX),
+
 #ifdef WLAN_FEATURE_UDP_RESPONSE_OFFLOAD
 	REG_VARIABLE(CFG_UDP_RESP_OFFLOAD_SUPPORT_NAME, WLAN_PARAM_Integer,
 		struct hdd_config, udp_resp_offload_support,
@@ -4507,6 +4514,20 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_AUTO_DETECT_POWER_FAIL_MODE_DEFAULT,
 		CFG_AUTO_DETECT_POWER_FAIL_MODE_MIN,
 		CFG_AUTO_DETECT_POWER_FAIL_MODE_MAX),
+
+	REG_VARIABLE(CFG_REDUCED_BEACON_INTERVAL, WLAN_PARAM_Integer,
+		struct hdd_config, reduced_beacon_interval,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_REDUCED_BEACON_INTERVAL_DEFAULT,
+		CFG_REDUCED_BEACON_INTERVAL_MIN,
+		CFG_REDUCED_BEACON_INTERVAL_MAX),
+
+	REG_VARIABLE(CFG_ENABLE_ANI_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, ani_enabled,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ENABLE_ANI_DEFAULT,
+		     CFG_ENABLE_ANI_MIN,
+		     CFG_ENABLE_ANI_MAX),
 };
 
 /**
@@ -6081,7 +6102,7 @@ QDF_STATUS hdd_update_mac_config(hdd_context_t *pHddCtx)
 	}
 	buffer = temp;
 	qdf_mem_copy(buffer, fw->data, fw->size);
-	buffer[fw->size + 1] = 0x0;
+	buffer[fw->size] = 0x0;
 
 	/* data format:
 	 * Intf0MacAddress=00AA00BB00CC

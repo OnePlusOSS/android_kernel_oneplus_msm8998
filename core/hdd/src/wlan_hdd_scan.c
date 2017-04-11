@@ -1383,7 +1383,10 @@ static void wlan_hdd_cfg80211_scan_block_cb(struct work_struct *work)
 		request->n_channels = 0;
 
 		hdd_err("##In DFS Master mode. Scan aborted. Null result sent");
-		hdd_cfg80211_scan_done(adapter, request, true);
+		if (NL_SCAN == adapter->scan_source)
+			hdd_cfg80211_scan_done(adapter, request, true);
+		else
+			hdd_vendor_scan_callback(adapter, request, true);
 		adapter->request = NULL;
 	}
 }
@@ -1610,6 +1613,19 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 		hdd_device_mode_to_string(pAdapter->device_mode),
 		pAdapter->device_mode);
 
+	/*
+	 * IBSS vdev does not have peers on other macs,
+	 * so it does not support scan on other band,
+	 * and IBSS vdev does not need to scan to establish
+	 * IBSS connection. If IBSS vdev need to support scan,
+	 * Firmware need to make the change to add self peer
+	 * per mac for IBSS vdev.
+	 */
+	if (wma_is_hw_dbs_capable() &&
+	   (QDF_IBSS_MODE == pAdapter->device_mode)) {
+		hdd_err("Scan not supported for IBSS in if HW support DBS");
+		return -EINVAL;
+	}
 
 	cfg_param = pHddCtx->config;
 	pScanInfo = &pAdapter->scan_info;
@@ -1637,6 +1653,7 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 			 */
 			hdd_err("##In DFS Master mode. Scan aborted");
 			pAdapter->request = request;
+			pAdapter->scan_source = source;
 
 			INIT_WORK(&pAdapter->scan_block_work,
 				  wlan_hdd_cfg80211_scan_block_cb);
@@ -1742,6 +1759,7 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 	   wlan_hdd_sap_skip_scan_check(pHddCtx, request)) {
 		hdd_debug("sap scan skipped");
 		pAdapter->request = request;
+		pAdapter->scan_source = source;
 		INIT_WORK(&pAdapter->scan_block_work,
 			wlan_hdd_cfg80211_scan_block_cb);
 		schedule_work(&pAdapter->scan_block_work);
@@ -2717,6 +2735,20 @@ hdd_sched_scan_callback(void *callbackContext,
 	hdd_debug("cfg80211 scan result database updated");
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
+static uint32_t hdd_config_sched_scan_start_delay(
+		struct cfg80211_sched_scan_request *request)
+{
+	return request->delay;
+}
+#else
+static uint32_t hdd_config_sched_scan_start_delay(
+		struct cfg80211_sched_scan_request *request)
+{
+	return 0;
+}
+#endif
+
 #if ((LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)) || \
 	defined(CFG80211_MULTI_SCAN_PLAN_BACKPORT)) && \
 	defined(FEATURE_WLAN_SCAN_PNO)
@@ -2732,7 +2764,6 @@ static void hdd_config_sched_scan_plan(tpSirPNOScanReq pno_req,
 			       struct cfg80211_sched_scan_request *request,
 			       hdd_context_t *hdd_ctx)
 {
-	pno_req->delay_start_time = request->delay;
 	/*
 	 * As of now max 2 scan plans were supported by firmware
 	 * if number of scan plan supported by firmware increased below logic
@@ -3051,6 +3082,8 @@ static int __wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
 	 *   shall be in slow_scan_period mode until next PNO Start.
 	 */
 	hdd_config_sched_scan_plan(pPnoRequest, request, pHddCtx);
+	pPnoRequest->delay_start_time =
+		hdd_config_sched_scan_start_delay(request);
 	wlan_hdd_sched_scan_update_relative_rssi(pPnoRequest, request);
 
 	hdd_debug("Base scan interval: %d sec PNOScanTimerRepeatValue: %d",

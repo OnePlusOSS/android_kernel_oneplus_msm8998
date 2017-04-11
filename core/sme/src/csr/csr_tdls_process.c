@@ -25,14 +25,11 @@
  * to the Linux Foundation.
  */
 
-/** ------------------------------------------------------------------------- *
-    ------------------------------------------------------------------------- *
-
-    \file csr_tdls_process.c
-
-    Implementation for the TDLS interface to PE.
-   ========================================================================== */
-
+/*
+ * DOC: csr_tdls_process.c
+ *
+ * Implementation for the TDLS interface to PE.
+ */
 #ifdef FEATURE_WLAN_TDLS
 
 #include "ani_global.h"          /* for tpAniSirGlobal */
@@ -258,7 +255,7 @@ QDF_STATUS csr_tdls_send_link_establish_params(tHalHandle hHal,
 				     tdlsLinkEstablishParams->
 				     supportedOperClassesLen);
 			tdlsLinkEstablishCmdInfo->supportedOperClassesLen =
-				tdlsLinkEstablishParams->supportedOperClassesLen;
+			tdlsLinkEstablishParams->supportedOperClassesLen;
 			tdlsLinkEstablishCmdInfo->isResponder =
 				tdlsLinkEstablishParams->isResponder;
 			tdlsLinkEstablishCmdInfo->maxSp =
@@ -358,9 +355,9 @@ static QDF_STATUS tdls_send_message(tpAniSirGlobal pMac, uint16_t msg_type,
 {
 
 	tSirMbMsg *pMsg = (tSirMbMsg *) msg_data;
+
 	pMsg->type = msg_type;
 	pMsg->msgLen = (uint16_t) (msg_size);
-
 	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 		  ("sending msg = %d"), pMsg->type);
 	/* Send message. */
@@ -402,7 +399,9 @@ static QDF_STATUS csr_tdls_process_send_mgmt(tpAniSirGlobal pMac, tSmeCmd *cmd)
 		return status;
 	}
 	tdlsSendMgmtReq->sessionId = cmd->sessionId;
-	/* Using dialog as transactionId. This can be used to match response with request */
+	/* Using dialog as transactionId. This can be used to match
+	 * response with request
+	 */
 	tdlsSendMgmtReq->transactionId = tdlsSendMgmtCmdInfo->dialog;
 	tdlsSendMgmtReq->reqType = tdlsSendMgmtCmdInfo->frameType;
 	tdlsSendMgmtReq->dialog = tdlsSendMgmtCmdInfo->dialog;
@@ -427,9 +426,9 @@ static QDF_STATUS csr_tdls_process_send_mgmt(tpAniSirGlobal pMac, tSmeCmd *cmd)
 				   (void *)tdlsSendMgmtReq,
 				   sizeof(tSirTdlsSendMgmtReq) +
 				   tdlsSendMgmtCmdInfo->len);
-	if (!QDF_IS_STATUS_SUCCESS(status)) {
+	if (!QDF_IS_STATUS_SUCCESS(status))
 		sme_err("Failed to send request to MAC");
-	}
+
 	if (tdlsSendMgmtCmdInfo->len && tdlsSendMgmtCmdInfo->buf) {
 		/* Done with the buf. Free it. */
 		qdf_mem_free(tdlsSendMgmtCmdInfo->buf);
@@ -470,7 +469,9 @@ static QDF_STATUS csr_tdls_process_add_sta(tpAniSirGlobal pMac, tSmeCmd *cmd)
 	}
 	tdlsAddStaReq->sessionId = cmd->sessionId;
 	tdlsAddStaReq->tdlsAddOper = tdlsAddStaCmdInfo->tdlsAddOper;
-	/* Using dialog as transactionId. This can be used to match response with request */
+	/* Using dialog as transactionId. This can be used to match
+	 * response with request
+	 */
 	tdlsAddStaReq->transactionId = 0;
 
 	qdf_mem_copy(tdlsAddStaReq->bssid.bytes,
@@ -503,9 +504,9 @@ static QDF_STATUS csr_tdls_process_add_sta(tpAniSirGlobal pMac, tSmeCmd *cmd)
 	status = tdls_send_message(pMac, eWNI_SME_TDLS_ADD_STA_REQ,
 				   (void *)tdlsAddStaReq,
 				   sizeof(tSirTdlsAddStaReq));
-	if (!QDF_IS_STATUS_SUCCESS(status)) {
+	if (!QDF_IS_STATUS_SUCCESS(status))
 		sme_err("Failed to send request to MAC");
-	}
+
 	return status;
 }
 
@@ -538,7 +539,9 @@ static QDF_STATUS csr_tdls_process_del_sta(tpAniSirGlobal pMac, tSmeCmd *cmd)
 		return status;
 	}
 	tdlsDelStaReq->sessionId = cmd->sessionId;
-	/* Using dialog as transactionId. This can be used to match response with request */
+	/* Using dialog as transactionId. This can be used to match
+	 * response with request
+	 */
 	tdlsDelStaReq->transactionId = 0;
 
 	qdf_mem_copy(tdlsDelStaReq->bssid.bytes,
@@ -552,9 +555,9 @@ static QDF_STATUS csr_tdls_process_del_sta(tpAniSirGlobal pMac, tSmeCmd *cmd)
 	status = tdls_send_message(pMac, eWNI_SME_TDLS_DEL_STA_REQ,
 				   (void *)tdlsDelStaReq,
 				   sizeof(tSirTdlsDelStaReq));
-	if (!QDF_IS_STATUS_SUCCESS(status)) {
+	if (!QDF_IS_STATUS_SUCCESS(status))
 		sme_err("Failed to send request to MAC");
-	}
+
 	return status;
 }
 
@@ -565,45 +568,39 @@ QDF_STATUS csr_tdls_process_cmd(tpAniSirGlobal pMac, tSmeCmd *cmd)
 {
 	eSmeCommandType cmdType = cmd->command;
 	bool status = true;
+
 	switch (cmdType) {
 	case eSmeCommandTdlsSendMgmt:
 	{
 		status = csr_tdls_process_send_mgmt(pMac, cmd);
-		if (QDF_IS_STATUS_SUCCESS(status)) {
+		if (QDF_IS_STATUS_SUCCESS(status))
 			status = false;
-		}
 	}
 	break;
 	case eSmeCommandTdlsAddPeer:
 	{
 		status = csr_tdls_process_add_sta(pMac, cmd);
-		if (QDF_IS_STATUS_SUCCESS(status)) {
+		if (QDF_IS_STATUS_SUCCESS(status))
 			status = false;
-		}
 	}
 	break;
 	case eSmeCommandTdlsDelPeer:
 	{
 		status = csr_tdls_process_del_sta(pMac, cmd);
-		if (QDF_IS_STATUS_SUCCESS(status)) {
+		if (QDF_IS_STATUS_SUCCESS(status))
 			status = false;
-		}
 	}
 	break;
 	case eSmeCommandTdlsLinkEstablish:
 	{
 		status = csr_tdls_process_link_establish(pMac, cmd);
-		if (QDF_IS_STATUS_SUCCESS(status)) {
+		if (QDF_IS_STATUS_SUCCESS(status))
 			status = false;
-		}
 	}
 	break;
 	default:
-	{
 		/* TODO: Add defualt handling */
 		break;
-	}
-
 	}
 	return status;
 }
@@ -628,7 +625,9 @@ QDF_STATUS csr_tdls_process_link_establish(tpAniSirGlobal pMac, tSmeCmd *cmd)
 		return QDF_STATUS_E_NOMEM;
 	}
 	tdlsLinkEstablishReq->sessionId = cmd->sessionId;
-	/* Using dialog as transactionId. This can be used to match response with request */
+	/* Using dialog as transactionId. This can be used to match
+	 * response with request
+	 */
 	tdlsLinkEstablishReq->transactionId = 0;
 	qdf_copy_macaddr(&tdlsLinkEstablishReq->peermac,
 			 &tdlsLinkEstablishCmdInfo->peermac);
@@ -821,7 +820,7 @@ QDF_STATUS tdls_msg_processor(tpAniSirGlobal pMac, uint16_t msgType,
 			  tevent->peer_reason);
 		csr_roam_call_callback(pMac, tevent->sessionId, &roamInfo,
 				0, eCSR_ROAM_TDLS_STATUS_UPDATE,
-				eCSR_ROAM_RESULT_TDLS_CONNECTION_TRACKER_NOTIFICATION);
+			eCSR_ROAM_RESULT_TDLS_CONNECTION_TRACKER_NOTIFICATION);
 		break;
 	default:
 		break;

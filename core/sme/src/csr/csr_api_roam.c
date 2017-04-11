@@ -178,7 +178,7 @@ static const uint8_t
 csr_start_ibss_channels24[CSR_NUM_IBSS_START_CHANNELS_24] = { 1, 6, 11 };
 static void init_config_param(tpAniSirGlobal pMac);
 static bool csr_roam_process_results(tpAniSirGlobal pMac, tSmeCmd *pCommand,
-				     eCsrRoamCompleteResult Result,
+				     enum csr_roamcomplete_result Result,
 				     void *Context);
 static QDF_STATUS csr_roam_start_ibss(tpAniSirGlobal pMac, uint32_t sessionId,
 				      tCsrRoamProfile *pProfile,
@@ -319,10 +319,10 @@ QDF_STATUS csr_process_same_ap_reassoc_cmd(tpAniSirGlobal mac_ctx,
 	sme_info("self reassoc on channe[%d] bssid[%pM]",
 		 fastreassoc->channel, fastreassoc->bssid);
 
-	msg.type = SIR_HAL_ROAM_INVOKE;
+	msg.type = eWNI_SME_ROAM_INVOKE;
 	msg.reserved = 0;
 	msg.bodyptr = fastreassoc;
-	status = cds_mq_post_message(QDF_MODULE_ID_WMA, &msg);
+	status = cds_mq_post_message(CDS_MQ_ID_PE, &msg);
 	if (QDF_STATUS_SUCCESS != status) {
 		sme_err("Not able to post ROAM_INVOKE_CMD");
 		qdf_mem_free(fastreassoc);
@@ -4873,7 +4873,8 @@ QDF_STATUS csr_roam_set_bss_config_cfg(tpAniSirGlobal pMac, uint32_t sessionId,
 				       tCsrRoamProfile *pProfile,
 				       tSirBssDescription *pBssDesc,
 				       tBssConfigParam *pBssConfig,
-				       tDot11fBeaconIEs *pIes, bool resetCountry)
+				       tDot11fBeaconIEs
+					*pIes, bool resetCountry)
 {
 	tSirRetStatus status;
 	uint32_t cfgCb = WNI_CFG_CHANNEL_BONDING_MODE_DISABLE;
@@ -5255,18 +5256,18 @@ static void csr_set_abort_roaming_command(tpAniSirGlobal pMac,
  */
 static bool csr_roam_select_bss(tpAniSirGlobal mac_ctx,
 		tListElem *roam_bss_entry, tCsrScanResultInfo **csr_result_info,
-		tCsrScanResult **csr_scan_result, uint32_t session_id,
-		uint32_t roam_id, eCsrJoinState *roam_state,
-		tScanResultList *bss_list)
+		struct tag_csrscan_result **csr_scan_result, uint32_t
+		session_id, uint32_t roam_id, eCsrJoinState *roam_state,
+		struct scan_result_list *bss_list)
 {
 	uint8_t conc_channel = 0;
 	bool status = false;
-	tCsrScanResult *scan_result = NULL;
+	struct tag_csrscan_result *scan_result = NULL;
 	tCsrScanResultInfo *result = NULL;
 
 	while (roam_bss_entry) {
-		scan_result = GET_BASE_ADDR(roam_bss_entry, tCsrScanResult,
-				Link);
+		scan_result = GET_BASE_ADDR(roam_bss_entry, struct
+				tag_csrscan_result, Link);
 		/*
 		 * If concurrency enabled take the
 		 * concurrent connected channel first.
@@ -5324,7 +5325,7 @@ static bool csr_roam_select_bss(tpAniSirGlobal mac_ctx,
 static void csr_roam_join_handle_profile(tpAniSirGlobal mac_ctx,
 		uint32_t session_id, tSmeCmd *cmd, tCsrRoamInfo *roam_info_ptr,
 		eCsrJoinState *roam_state, tCsrScanResultInfo *result,
-		tCsrScanResult *scan_result)
+		struct tag_csrscan_result *scan_result)
 {
 #ifndef WLAN_MDM_CODE_REDUCTION_OPT
 	uint8_t acm_mask = 0;
@@ -5413,7 +5414,7 @@ static void csr_roam_join_handle_profile(tpAniSirGlobal mac_ctx,
 		 * they are used in csr_is_same_profile
 		 */
 		scan_result = GET_BASE_ADDR(cmd->u.roamCmd.pRoamBssEntry,
-				tCsrScanResult, Link);
+				struct tag_csrscan_result, Link);
 		/*
 		 * The OSEN IE doesn't provide the cipher suite.Therefore set
 		 * to constant value of AES
@@ -5503,10 +5504,10 @@ static void csr_roam_join_handle_profile(tpAniSirGlobal mac_ctx,
 static eCsrJoinState csr_roam_join_next_bss(tpAniSirGlobal mac_ctx,
 		tSmeCmd *cmd, bool use_same_bss)
 {
-	tCsrScanResult *scan_result = NULL;
+	struct tag_csrscan_result *scan_result = NULL;
 	eCsrJoinState roam_state = eCsrStopRoaming;
-	tScanResultList *bss_list =
-		(tScanResultList *) cmd->u.roamCmd.hBSSList;
+	struct scan_result_list *bss_list =
+		(struct scan_result_list *) cmd->u.roamCmd.hBSSList;
 	bool done = false;
 	tCsrRoamInfo roam_info, *roam_info_ptr = NULL;
 	uint32_t session_id = cmd->sessionId;
@@ -5678,7 +5679,7 @@ QDF_STATUS csr_process_ft_reassoc_roam_command(tpAniSirGlobal pMac,
 {
 	uint32_t sessionId;
 	tCsrRoamSession *pSession;
-	tCsrScanResult *pScanResult = NULL;
+	struct tag_csrscan_result *pScanResult = NULL;
 	tSirBssDescription *pBssDesc = NULL;
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 
@@ -5699,7 +5700,7 @@ QDF_STATUS csr_process_ft_reassoc_roam_command(tpAniSirGlobal pMac,
 	if (pCommand->u.roamCmd.pRoamBssEntry) {
 		pScanResult =
 			GET_BASE_ADDR(pCommand->u.roamCmd.pRoamBssEntry,
-				      tCsrScanResult, Link);
+				      struct tag_csrscan_result, Link);
 		pBssDesc = &pScanResult->Result.BssDescriptor;
 	} else {
 		/* the roaming is cancelled. Simply complete the command */
@@ -5921,7 +5922,7 @@ void csr_reinit_wm_status_change_cmd(tpAniSirGlobal pMac, tSmeCmd *pCommand)
 		    0);
 }
 
-void csr_roam_complete(tpAniSirGlobal pMac, eCsrRoamCompleteResult Result,
+void csr_roam_complete(tpAniSirGlobal pMac, enum csr_roamcomplete_result Result,
 		       void *Context)
 {
 	tListElem *pEntry;
@@ -6364,7 +6365,8 @@ static void csr_roam_copy_ht_profile(tCsrRoamHTProfile *dst_profile,
  * Return: None
  */
 static void csr_roam_process_results_default(tpAniSirGlobal mac_ctx,
-		     tSmeCmd *cmd, void *context, eCsrRoamCompleteResult res)
+		     tSmeCmd *cmd, void *context, enum csr_roamcomplete_result
+			res)
 {
 	uint32_t session_id = cmd->sessionId;
 	tCsrRoamSession *session;
@@ -6574,7 +6576,7 @@ static void csr_roam_process_start_bss_success(tpAniSirGlobal mac_ctx,
 	tSirBssDescription *bss_desc = NULL;
 	tCsrRoamInfo roam_info;
 	tSirSmeStartBssRsp *start_bss_rsp = NULL;
-	tCsrScanResult *scan_res = NULL;
+	struct tag_csrscan_result *scan_res = NULL;
 	eRoamCmdStatus roam_status;
 	eCsrRoamResult roam_result;
 	tDot11fBeaconIEs *ies_ptr = NULL;
@@ -6772,7 +6774,7 @@ static void csr_roam_process_start_bss_success(tpAniSirGlobal mac_ctx,
  * Return: None
  */
 static void csr_roam_process_join_res(tpAniSirGlobal mac_ctx,
-	eCsrRoamCompleteResult res, tSmeCmd *cmd, void *context)
+	enum csr_roamcomplete_result res, tSmeCmd *cmd, void *context)
 {
 	tSirMacAddr bcast_mac = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 	sme_QosAssocInfo assoc_info;
@@ -6782,7 +6784,7 @@ static void csr_roam_process_join_res(tpAniSirGlobal mac_ctx,
 	tCsrRoamProfile *profile = &cmd->u.roamCmd.roamProfile;
 	tCsrRoamSession *session;
 	tSirBssDescription *bss_desc = NULL;
-	tCsrScanResult *scan_res = NULL;
+	struct tag_csrscan_result *scan_res = NULL;
 	sme_qos_csr_event_indType ind_qos;
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
 	tSirSmeHTProfile *src_profile = NULL;
@@ -6852,7 +6854,7 @@ static void csr_roam_process_join_res(tpAniSirGlobal mac_ctx,
 	} else {
 		if (cmd->u.roamCmd.pRoamBssEntry) {
 			scan_res = GET_BASE_ADDR(cmd->u.roamCmd.pRoamBssEntry,
-					tCsrScanResult, Link);
+					struct tag_csrscan_result, Link);
 			if (scan_res != NULL) {
 				bss_desc = &scan_res->Result.BssDescriptor;
 				ies_ptr = (tDot11fBeaconIEs *)
@@ -7166,7 +7168,8 @@ static void csr_roam_process_join_res(tpAniSirGlobal mac_ctx,
  * Return: true if the command can be released, else not.
  */
 static bool csr_roam_process_results(tpAniSirGlobal mac_ctx, tSmeCmd *cmd,
-				     eCsrRoamCompleteResult res, void *context)
+				     enum csr_roamcomplete_result res,
+					void *context)
 {
 	bool release_cmd = true;
 	tSirBssDescription *bss_desc = NULL;
@@ -8905,7 +8908,7 @@ csr_roaming_state_config_cnf_processor(tpAniSirGlobal mac_ctx,
 {
 	tListElem *entry = csr_ll_peek_head(&mac_ctx->sme.smeCmdActiveList,
 					     LL_ACCESS_LOCK);
-	tCsrScanResult *scan_result = NULL;
+	struct tag_csrscan_result *scan_result = NULL;
 	tSirBssDescription *bss_desc = NULL;
 	tSmeCmd *cmd = NULL;
 	uint32_t session_id;
@@ -8974,7 +8977,7 @@ csr_roaming_state_config_cnf_processor(tpAniSirGlobal mac_ctx,
 	 */
 	if (cmd->u.roamCmd.pRoamBssEntry) {
 		scan_result = GET_BASE_ADDR(cmd->u.roamCmd.pRoamBssEntry,
-					    tCsrScanResult,
+					    struct tag_csrscan_result,
 					    Link);
 		bss_desc = &scan_result->Result.BssDescriptor;
 	}
@@ -9097,7 +9100,7 @@ csr_roaming_state_config_cnf_processor(tpAniSirGlobal mac_ctx,
 static void csr_roam_roaming_state_reassoc_rsp_processor(tpAniSirGlobal pMac,
 						tpSirSmeJoinRsp pSmeJoinRsp)
 {
-	eCsrRoamCompleteResult result;
+	enum csr_roamcomplete_result result;
 	tpCsrNeighborRoamControlInfo pNeighborRoamInfo =
 		&pMac->roam.neighborRoamInfo[pSmeJoinRsp->sessionId];
 	tCsrRoamInfo roamInfo;
@@ -9191,7 +9194,7 @@ static void csr_roam_roaming_state_reassoc_rsp_processor(tpAniSirGlobal pMac,
 static void csr_roam_roaming_state_stop_bss_rsp_processor(tpAniSirGlobal pMac,
 							  tSirSmeRsp *pSmeRsp)
 {
-	eCsrRoamCompleteResult result_code = eCsrNothingToJoin;
+	enum csr_roamcomplete_result result_code = eCsrNothingToJoin;
 	tCsrRoamProfile *profile;
 
 #ifdef FEATURE_WLAN_DIAG_SUPPORT_CSR
@@ -9529,7 +9532,7 @@ static void csr_roam_roaming_state_start_bss_rsp_processor(tpAniSirGlobal pMac,
 							   tSirSmeStartBssRsp *
 							   pSmeStartBssRsp)
 {
-	eCsrRoamCompleteResult result;
+	enum csr_roamcomplete_result result;
 
 	if (eSIR_SME_SUCCESS == pSmeStartBssRsp->statusCode) {
 		sme_debug("SmeStartBssReq Successful");
@@ -13708,7 +13711,7 @@ csr_roam_remove_connected_bss_from_scan_cache(tpAniSirGlobal pMac,
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	tCsrScanResultFilter *pScanFilter = NULL;
 	tListElem *pEntry;
-	tCsrScanResult *pResult;
+	struct tag_csrscan_result *pResult;
 	tDot11fBeaconIEs *pIes;
 	bool fMatch;
 
@@ -13768,7 +13771,8 @@ csr_roam_remove_connected_bss_from_scan_cache(tpAniSirGlobal pMac,
 	csr_ll_lock(&pMac->scan.scanResultList);
 	pEntry = csr_ll_peek_head(&pMac->scan.scanResultList, LL_ACCESS_NOLOCK);
 	while (pEntry) {
-		pResult = GET_BASE_ADDR(pEntry, tCsrScanResult, Link);
+		pResult = GET_BASE_ADDR(pEntry, struct tag_csrscan_result,
+					Link);
 		pIes = (tDot11fBeaconIEs *) (pResult->Result.pvIes);
 		fMatch = csr_match_bss(pMac, &pResult->Result.BssDescriptor,
 				       pScanFilter, NULL, NULL, NULL, &pIes);
@@ -19070,6 +19074,9 @@ QDF_STATUS csr_roam_send_chan_sw_ie_request(tpAniSirGlobal mac_ctx,
 	msg->csaIeRequired = csa_ie_reqd;
 	msg->ch_switch_beacon_cnt =
 		 mac_ctx->sap.SapDfsInfo.sap_ch_switch_beacon_cnt;
+	msg->ch_switch_mode = mac_ctx->sap.SapDfsInfo.sap_ch_switch_mode;
+	msg->dfs_ch_switch_disable =
+		mac_ctx->sap.SapDfsInfo.disable_dfs_ch_switch;
 	qdf_mem_copy(msg->bssid, bssid.bytes, QDF_MAC_ADDR_SIZE);
 	qdf_mem_copy(&msg->ch_params, ch_params, sizeof(struct ch_params_s));
 
@@ -19388,7 +19395,7 @@ bool csr_clear_joinreq_param(tpAniSirGlobal mac_ctx,
 		uint32_t session_id)
 {
 	tCsrRoamSession *sta_session;
-	tScanResultList *bss_list;
+	struct scan_result_list *bss_list;
 
 	if (NULL == mac_ctx)
 		return false;
@@ -19399,7 +19406,7 @@ bool csr_clear_joinreq_param(tpAniSirGlobal mac_ctx,
 
 	/* Release the memory allocated by previous join request */
 	bss_list =
-		(tScanResultList *)&sta_session->stored_roam_profile.
+		(struct scan_result_list *)&sta_session->stored_roam_profile.
 		bsslist_handle;
 	if (NULL != bss_list) {
 		csr_scan_result_purge(mac_ctx,

@@ -80,10 +80,6 @@ QDF_STATUS sme_handle_generic_change_country_code(tpAniSirGlobal pMac,
 
 QDF_STATUS sme_process_nss_update_resp(tpAniSirGlobal mac, uint8_t *msg);
 
-#ifdef FEATURE_WLAN_ESE
-bool csr_is_supported_channel(tpAniSirGlobal pMac, uint8_t channelId);
-#endif
-
 #ifdef WLAN_FEATURE_11W
 QDF_STATUS sme_unprotected_mgmt_frm_ind(tHalHandle hHal,
 					tpSirSmeUnprotMgmtFrameInd pSmeMgmtFrm);
@@ -17365,7 +17361,7 @@ QDF_STATUS sme_get_beacon_frm(tHalHandle hal, tCsrRoamProfile *profile,
 	tCsrScanResultFilter *scan_filter;
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
 	tSirBssDescription *bss_descp;
-	tScanResultList *bss_list;
+	struct scan_result_list *bss_list;
 	uint32_t ie_len;
 
 	scan_filter = qdf_mem_malloc(sizeof(tCsrScanResultFilter));
@@ -17401,7 +17397,7 @@ QDF_STATUS sme_get_beacon_frm(tHalHandle hal, tCsrRoamProfile *profile,
 		goto free_scan_flter;
 	}
 
-	bss_list = (tScanResultList *)result_handle;
+	bss_list = (struct scan_result_list *)result_handle;
 	bss_descp = csr_get_fst_bssdescr_ptr(bss_list);
 	if (!bss_descp) {
 		sme_err("unable to fetch bss descriptor");

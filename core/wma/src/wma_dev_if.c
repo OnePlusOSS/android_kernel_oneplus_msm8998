@@ -1476,7 +1476,7 @@ int wma_vdev_stop_resp_handler(void *handle, uint8_t *cmd_param_info,
 	tp_wma_handle wma = (tp_wma_handle) handle;
 	WMI_VDEV_STOPPED_EVENTID_param_tlvs *param_buf;
 	wmi_vdev_stopped_event_fixed_param *resp_event;
-	struct wma_target_req *req_msg;
+	struct wma_target_req *req_msg, *del_req;
 	ol_txrx_peer_handle peer;
 	ol_txrx_pdev_handle pdev;
 	uint8_t peer_id;
@@ -1654,6 +1654,24 @@ int wma_vdev_stop_resp_handler(void *handle, uint8_t *cmd_param_info,
 				 params->bssid, req_msg->vdev_id);
 			wma_remove_peer(wma, params->bssid, req_msg->vdev_id,
 				peer, false);
+			if (WMI_SERVICE_IS_ENABLED(wma->wmi_service_bitmap,
+				    WMI_SERVICE_SYNC_DELETE_CMDS)) {
+				WMA_LOGI(FL("Wait for the peer delete. vdev_id %d"),
+						 req_msg->vdev_id);
+				del_req = wma_fill_hold_req(wma,
+						   req_msg->vdev_id,
+						   WMA_DELETE_STA_REQ,
+						   WMA_SET_LINK_PEER_RSP,
+						   params,
+						   WMA_DELETE_STA_TIMEOUT);
+				if (!del_req) {
+					WMA_LOGE(FL("Failed to allocate request. vdev_id %d"),
+						 req_msg->vdev_id);
+					params->status = QDF_STATUS_E_NOMEM;
+				} else {
+					goto free_req_msg;
+				}
+			}
 		}
 		if (wmi_unified_vdev_down_send(wma->wmi_handle,
 					req_msg->vdev_id) !=
@@ -2446,6 +2464,16 @@ int wma_peer_delete_handler(void *handle, uint8_t *cmd_param_info,
 		wma_handle_vdev_detach(wma, data->self_sta_param,
 				data->generate_rsp);
 		qdf_mem_free(data);
+	} else if (req_msg->type == WMA_SET_LINK_PEER_RSP) {
+		tpLinkStateParams params =
+			(tpLinkStateParams) req_msg->user_data;
+		if (wmi_unified_vdev_down_send(wma->wmi_handle,
+				req_msg->vdev_id) !=
+				QDF_STATUS_SUCCESS) {
+			WMA_LOGE("Failed to send vdev down cmd: vdev %d",
+					req_msg->vdev_id);
+		}
+		wma_send_msg(wma, WMA_SET_LINK_STATE_RSP, (void *)params, 0);
 	}
 	qdf_mem_free(req_msg);
 	return status;
@@ -2536,6 +2564,11 @@ void wma_hold_req_timer(void *data)
 		(tgt_req->type == WMA_DEL_P2P_SELF_STA_RSP_START)) {
 		WMA_LOGA(FL("wma delete sta p2p request timed out"));
 		QDF_ASSERT(0);
+	} else if ((tgt_req->msg_type == WMA_DELETE_STA_REQ) &&
+			(tgt_req->type == WMA_SET_LINK_PEER_RSP)) {
+		WMA_LOGA(FL("wma delete peer for set link timed out"));
+		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true)
+			QDF_BUG(0);
 	} else {
 		WMA_LOGE(FL("Unhandled timeout for msg_type:%d and type:%d"),
 				tgt_req->msg_type, tgt_req->type);
@@ -4818,4 +4851,59 @@ void wma_set_vdev_intrabss_fwd(tp_wma_handle wma_handle,
 	txrx_vdev = wma_handle->interfaces[pdis_intra_fwd->sessionId].handle;
 	ol_vdev_rx_set_intrabss_fwd(txrx_vdev,
 				    pdis_intra_fwd->disableintrabssfwd);
+}
+
+/**
+ * wma_vdev_reset_beacon_interval_timer() - reset beacon interval back
+ * to its original value after the channel switch.
+ *
+ * @data: data
+ *
+ * Return: void
+ */
+static void wma_vdev_reset_beacon_interval_timer(void *data)
+{
+	tp_wma_handle wma;
+	struct wma_beacon_interval_reset_req *req =
+		(struct wma_beacon_interval_reset_req *)data;
+	uint16_t beacon_interval = req->interval;
+	uint8_t vdev_id = req->vdev_id;
+
+	wma = (tp_wma_handle)cds_get_context(QDF_MODULE_ID_WMA);
+	if (NULL == wma) {
+		WMA_LOGE("%s: Failed to get wma", __func__);
+		goto end;
+	}
+
+	/* Change the beacon interval back to its original value */
+	WMA_LOGE("%s: Change beacon interval back to %d",
+			__func__, beacon_interval);
+	wma_update_beacon_interval(wma, vdev_id, beacon_interval);
+
+end:
+	qdf_timer_stop(&req->event_timeout);
+	qdf_timer_free(&req->event_timeout);
+	qdf_mem_free(req);
+}
+
+int wma_fill_beacon_interval_reset_req(tp_wma_handle wma, uint8_t vdev_id,
+				uint16_t beacon_interval, uint32_t timeout)
+{
+	struct wma_beacon_interval_reset_req *req;
+
+	req = qdf_mem_malloc(sizeof(*req));
+	if (!req) {
+		WMA_LOGE("%s: Failed to allocate memory for beacon_interval_reset_req vdev %d",
+			__func__, vdev_id);
+		return -ENOMEM;
+	}
+
+	WMA_LOGD("%s: vdev_id %d ", __func__, vdev_id);
+	req->vdev_id = vdev_id;
+	req->interval = beacon_interval;
+	qdf_timer_init(NULL, &req->event_timeout,
+		wma_vdev_reset_beacon_interval_timer, req, QDF_TIMER_TYPE_SW);
+	qdf_timer_start(&req->event_timeout, timeout);
+
+	return 0;
 }

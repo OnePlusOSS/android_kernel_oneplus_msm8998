@@ -1449,6 +1449,36 @@ static void wma_cleanup_target_req_param(struct wma_target_req *tgt_req)
 }
 
 /**
+ * get_fw_active_bpf_mode() - convert HDD BPF mode to FW configurable BPF
+ * mode
+ * @mode: BPF mode maintained in HDD
+ *
+ * Return: FW configurable BP mode
+ */
+static FW_ACTIVE_BPF_MODE get_fw_active_bpf_mode(enum active_bpf_mode mode)
+{
+	FW_ACTIVE_BPF_MODE fw_bpf_mode;
+
+	switch (mode) {
+	case ACTIVE_BPF_DISABLED:
+		fw_bpf_mode = FW_ACTIVE_BPF_MODE_DISABLE;
+		break;
+	case ACTIVE_BPF_ENABLED:
+		fw_bpf_mode = FW_ACTIVE_BPF_MODE_FORCE_ENABLE;
+		break;
+	case ACTIVE_BPF_ADAPTIVE:
+		fw_bpf_mode = FW_ACTIVE_BPF_MODE_ADAPTIVE_ENABLE;
+		break;
+	default:
+		WMA_LOGE("Invalid Active BPF Mode %d; Using 'disabled'", mode);
+		fw_bpf_mode = FW_ACTIVE_BPF_MODE_DISABLE;
+		break;
+	}
+
+	return fw_bpf_mode;
+}
+
+/**
  * wma_config_active_bpf_mode() - Config active BPF mode in FW
  * @wma: the WMA handle
  * @vdev_id: the Id of the vdev for which the configuration should be applied
@@ -1457,28 +1487,13 @@ static void wma_cleanup_target_req_param(struct wma_target_req *tgt_req)
  */
 static QDF_STATUS wma_config_active_bpf_mode(t_wma_handle *wma, uint8_t vdev_id)
 {
-	const FW_ACTIVE_BPF_MODE mcbc_mode = FW_ACTIVE_BPF_MODE_FORCE_ENABLE;
-	FW_ACTIVE_BPF_MODE uc_mode;
+	FW_ACTIVE_BPF_MODE uc_mode, mcbc_mode;
 
-	WMA_LOGD("Configuring Active BPF Mode %d for vdev %u",
-		 wma->active_bpf_mode, vdev_id);
+	uc_mode = get_fw_active_bpf_mode(wma->active_uc_bpf_mode);
+	mcbc_mode = get_fw_active_bpf_mode(wma->active_mc_bc_bpf_mode);
 
-	switch (wma->active_bpf_mode) {
-	case ACTIVE_BPF_DISABLED:
-		uc_mode = FW_ACTIVE_BPF_MODE_DISABLE;
-		break;
-	case ACTIVE_BPF_ENABLED:
-		uc_mode = FW_ACTIVE_BPF_MODE_FORCE_ENABLE;
-		break;
-	case ACTIVE_BPF_ADAPTIVE:
-		uc_mode = FW_ACTIVE_BPF_MODE_ADAPTIVE_ENABLE;
-		break;
-	default:
-		WMA_LOGD("Invalid Active BPF Mode %d; Using 'disabled'",
-			 wma->active_bpf_mode);
-		uc_mode = FW_ACTIVE_BPF_MODE_DISABLE;
-		break;
-	}
+	WMA_LOGD("Configuring Active BPF Mode UC:%d MC/BC:%d for vdev %u",
+		  uc_mode, mcbc_mode, vdev_id);
 
 	return wmi_unified_set_active_bpf_mode_cmd(wma->wmi_handle, vdev_id,
 						   uc_mode, mcbc_mode);

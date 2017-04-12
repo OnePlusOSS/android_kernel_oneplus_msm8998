@@ -1457,7 +1457,10 @@ struct peer_debug_info {
  * handle of other modules.
  * @saved_wmi_init_cmd: Saved WMI INIT command
  * @bpf_packet_filter_enable: BPF filter enabled or not
- * @active_bpf_mode: Setting that determines how BPF is applied in active mode
+ * @active_uc_bpf_mode: Setting that determines how BPF is applied in active
+ * mode for uc packets
+ * @active_mc_bc_bpf_mode: Setting that determines how BPF is applied in
+ * active mode for MC/BC packets
  * @service_ready_ext_evt: Wait event for service ready ext
  * @wmi_cmd_rsp_wake_lock: wmi command response wake lock
  * @wmi_cmd_rsp_runtime_lock: wmi command response bus lock
@@ -1641,7 +1644,8 @@ typedef struct {
 	uint32_t fine_time_measurement_cap;
 	bool bpf_enabled;
 	bool bpf_packet_filter_enable;
-	enum active_bpf_mode active_bpf_mode;
+	enum active_bpf_mode active_uc_bpf_mode;
+	enum active_bpf_mode active_mc_bc_bpf_mode;
 	struct wma_ini_config ini_config;
 	struct wma_valid_channels saved_chan;
 	/* NAN datapath support enabled in firmware */

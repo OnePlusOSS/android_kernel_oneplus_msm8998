@@ -4298,12 +4298,19 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_MAX_SCHED_SCAN_PLAN_ITRNS_DEFAULT,
 		CFG_MAX_SCHED_SCAN_PLAN_ITRNS_MIN,
 		CFG_MAX_SCHED_SCAN_PLAN_ITRNS_MAX),
-	REG_VARIABLE(CFG_ACTIVE_BPF_MODE_NAME, WLAN_PARAM_Integer,
-		struct hdd_config, active_bpf_mode,
+	REG_VARIABLE(CFG_ACTIVE_UC_BPF_MODE_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, active_uc_bpf_mode,
 		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
-		CFG_ACTIVE_BPF_MODE_DEFAULT,
-		CFG_ACTIVE_BPF_MODE_MIN,
-		CFG_ACTIVE_BPF_MODE_MAX),
+		CFG_ACTIVE_UC_BPF_MODE_DEFAULT,
+		CFG_ACTIVE_UC_BPF_MODE_MIN,
+		CFG_ACTIVE_UC_BPF_MODE_MAX),
+
+	REG_VARIABLE(CFG_ACTIVE_MC_BC_BPF_MODE_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, active_mc_bc_bpf_mode,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_ACTIVE_MC_BC_BPF_MODE_DEFAULT,
+		CFG_ACTIVE_MC_BC_BPF_MODE_MIN,
+		CFG_ACTIVE_MC_BC_BPF_MODE_MAX),
 
 	REG_VARIABLE(CFG_HW_BC_FILTER_NAME, WLAN_PARAM_Integer,
 		struct hdd_config, hw_broadcast_filter,
@@ -6041,6 +6048,12 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_debug("Name = [%s] Value = [%u]",
 		CFG_ENABLE_PHY_REG_NAME,
 		pHddCtx->config->enable_phy_reg_retention);
+	hdd_debug("Name = [%s] Value = [%u]",
+		CFG_ACTIVE_UC_BPF_MODE_NAME,
+		pHddCtx->config->active_uc_bpf_mode);
+	hdd_debug("Name = [%s] Value = [%u]",
+		CFG_ACTIVE_MC_BC_BPF_MODE_NAME,
+		pHddCtx->config->active_mc_bc_bpf_mode);
 	hdd_debug("Name = [%s] Value = [%u]",
 		CFG_HW_BC_FILTER_NAME,
 		pHddCtx->config->hw_broadcast_filter);

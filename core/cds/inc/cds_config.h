@@ -114,7 +114,10 @@ enum active_bpf_mode {
  * @flow_steering_enabled: Receive flow steering.
  * @is_fw_timeout: Indicate whether crash host when fw timesout or not
  * @force_target_assert_enabled: Indicate whether target assert enabled or not
- * @active_bpf_mode: Setting that determines how BPF is applied in active mode
+ * @active_uc_bpf_mode: Setting that determines how BPF is applied in active
+ * mode for uc packets
+ * @active_mc_bc_bpf_mode: Setting that determines how BPF is applied in
+ * active mode for MC/BC packets
  * @rps_enabled: RPS enabled in SAP mode
  * Structure for holding cds ini parameters.
  */
@@ -172,7 +175,8 @@ struct cds_config_info {
 	struct ol_tx_sched_wrr_ac_specs_t ac_specs[TX_WMM_AC_NUM];
 
 	bool force_target_assert_enabled;
-	enum active_bpf_mode active_bpf_mode;
+	enum active_bpf_mode active_uc_bpf_mode;
+	enum active_bpf_mode active_mc_bc_bpf_mode;
 	bool rps_enabled;
 	bool auto_power_save_fail_mode;
 };

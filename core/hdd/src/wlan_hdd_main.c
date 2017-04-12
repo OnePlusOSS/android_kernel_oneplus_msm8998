@@ -7481,7 +7481,8 @@ static int hdd_update_cds_config(hdd_context_t *hdd_ctx)
 	cds_cfg->flow_steering_enabled = hdd_ctx->config->flow_steering_enable;
 	cds_cfg->self_recovery_enabled = hdd_ctx->config->enableSelfRecovery;
 	cds_cfg->fw_timeout_crash = hdd_ctx->config->fw_timeout_crash;
-	cds_cfg->active_bpf_mode = hdd_ctx->config->active_bpf_mode;
+	cds_cfg->active_uc_bpf_mode = hdd_ctx->config->active_uc_bpf_mode;
+	cds_cfg->active_mc_bc_bpf_mode = hdd_ctx->config->active_mc_bc_bpf_mode;
 	cds_cfg->auto_power_save_fail_mode =
 		hdd_ctx->config->auto_pwr_save_fail_mode;
 

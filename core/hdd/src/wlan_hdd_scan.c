@@ -522,13 +522,26 @@ static void hdd_update_dbs_scan_ctrl_ext_flag(hdd_context_t *hdd_ctx,
 	scan_req->scan_ctrl_flags_ext = 0;
 
 	if ((hdd_ctx->config->dual_mac_feature_disable)
-	    || (!wma_is_hw_dbs_capable()))
+	    || (!wma_is_hw_dbs_capable())) {
+		hdd_info("DBS is disabled or HW is not capable of DBS");
 		goto end;
+	}
 
-	if (!qdf_is_macaddr_zero(&scan_req->bssid))
+	if (scan_req->SSIDs.numOfSSIDs) {
+		hdd_info("Directed SSID");
 		goto end;
+	}
+
+	if (!(qdf_is_macaddr_zero(&scan_req->bssid) ||
+			qdf_is_group_addr((u8 *)&scan_req->bssid))) {
+		hdd_info("Directed BSSID");
+		goto end;
+	}
 
 	num_chan = scan_req->ChannelInfo.numOfChannels;
+
+	hdd_info("num_chan = %u, threshold = %u", num_chan,
+			HDD_MIN_CHAN_DBS_SCAN_THRESHOLD);
 
 	/* num_chan=0 means all channels */
 	if (!num_chan)

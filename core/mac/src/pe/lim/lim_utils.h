@@ -709,4 +709,7 @@ bool lim_get_rx_ldpc(tpAniSirGlobal mac_ctx, uint8_t ch,
  * Return: None
  */
 void lim_decrement_pending_mgmt_count(tpAniSirGlobal mac_ctx);
+QDF_STATUS lim_util_get_type_subtype(void *pkt, uint8_t *type,
+					uint8_t *subtype);
+
 #endif /* __LIM_UTILS_H */

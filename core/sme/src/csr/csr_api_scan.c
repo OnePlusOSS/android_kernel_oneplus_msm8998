@@ -2257,8 +2257,9 @@ tCsrScanResultInfo *csr_scan_get_result_for_bssid(tpAniSirGlobal mac_ctx,
 			if (QDF_IS_STATUS_ERROR(status)) {
 				qdf_mem_free(scan_info);
 				scan_info = NULL;
+			} else {
+				scan_info->pvIes = ies;
 			}
-			scan_info->pvIes = ies;
 			break;
 		}
 		entry = csr_ll_next(list, entry, LL_ACCESS_NOLOCK);

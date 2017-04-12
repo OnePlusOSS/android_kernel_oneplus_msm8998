@@ -1496,8 +1496,9 @@ static QDF_STATUS hdd_dis_connect_handler(hdd_adapter_t *pAdapter,
 	}
 	/* notify apps that we can't pass traffic anymore */
 	hdd_notice("Disabling queues");
-	wlan_hdd_netif_queue_control(pAdapter, WLAN_NETIF_TX_DISABLE_N_CARRIER,
-				   WLAN_CONTROL_PATH);
+	wlan_hdd_netif_queue_control(pAdapter,
+				     WLAN_STOP_ALL_NETIF_QUEUE_N_CARRIER,
+				     WLAN_CONTROL_PATH);
 
 	if (hdd_ipa_is_enabled(pHddCtx))
 		hdd_ipa_wlan_evt(pAdapter, pHddStaCtx->conn_info.staId[0],
@@ -2874,7 +2875,7 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 
 		hdd_info("Disabling queues");
 		wlan_hdd_netif_queue_control(pAdapter,
-					   WLAN_NETIF_TX_DISABLE_N_CARRIER,
+					   WLAN_STOP_ALL_NETIF_QUEUE_N_CARRIER,
 					   WLAN_CONTROL_PATH);
 	}
 
@@ -3393,7 +3394,7 @@ roam_roam_connect_status_update_handler(hdd_adapter_t *pAdapter,
 		/* Stop only when we are inactive */
 		hdd_info("Disabling queues");
 		wlan_hdd_netif_queue_control(pAdapter,
-					   WLAN_NETIF_TX_DISABLE_N_CARRIER,
+					   WLAN_STOP_ALL_NETIF_QUEUE_N_CARRIER,
 					   WLAN_CONTROL_PATH);
 		hdd_conn_set_connection_state(pAdapter,
 					      eConnectionState_NotConnected);
@@ -4673,7 +4674,7 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 		hdd_debug("Roam Synch Ind: NAPI Serialize ON");
 		hdd_napi_serialize(1);
 		wlan_hdd_netif_queue_control(pAdapter,
-				WLAN_NETIF_TX_DISABLE,
+				WLAN_STOP_ALL_NETIF_QUEUE,
 				WLAN_CONTROL_PATH);
 		status = hdd_roam_deregister_sta(pAdapter,
 					pHddStaCtx->conn_info.staId[0]);
@@ -4695,7 +4696,7 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 		/* notify apps that we can't pass traffic anymore */
 		hdd_debug("Disabling queues");
 		wlan_hdd_netif_queue_control(pAdapter,
-					   WLAN_NETIF_TX_DISABLE,
+					   WLAN_STOP_ALL_NETIF_QUEUE,
 					   WLAN_CONTROL_PATH);
 		if (pHddStaCtx->ft_carrier_on == false) {
 			wlan_hdd_netif_queue_control(pAdapter,
@@ -4708,7 +4709,7 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 			hdd_debug("Roaming started due to connection lost");
 			hdd_info("Disabling queues");
 			wlan_hdd_netif_queue_control(pAdapter,
-					WLAN_NETIF_TX_DISABLE_N_CARRIER,
+					WLAN_STOP_ALL_NETIF_QUEUE_N_CARRIER,
 					WLAN_CONTROL_PATH);
 			break;
 		}
@@ -4940,7 +4941,7 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 	case eCSR_ROAM_START:
 		hdd_debug("Process ROAM_START from firmware");
 		wlan_hdd_netif_queue_control(pAdapter,
-				WLAN_NETIF_TX_DISABLE,
+				WLAN_STOP_ALL_NETIF_QUEUE,
 				WLAN_CONTROL_PATH);
 		hdd_napi_serialize(1);
 		cds_set_connection_in_progress(true);

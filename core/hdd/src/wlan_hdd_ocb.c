@@ -424,8 +424,9 @@ static int hdd_ocb_set_config_req(hdd_adapter_t *adapter,
 	context.magic = HDD_OCB_MAGIC;
 
 	hdd_notice("Disabling queues");
-	wlan_hdd_netif_queue_control(adapter, WLAN_NETIF_TX_DISABLE_N_CARRIER,
-		WLAN_CONTROL_PATH);
+	wlan_hdd_netif_queue_control(adapter,
+				     WLAN_STOP_ALL_NETIF_QUEUE_N_CARRIER,
+				     WLAN_CONTROL_PATH);
 
 	/* Call the SME API to set the config */
 	qdf_status = sme_ocb_set_config(

@@ -3591,7 +3591,11 @@ void cds_set_concurrency_mode(enum tQDF_ADAPTER_MODE mode)
 		hdd_ctx->concurrency_mode, mode,
 		hdd_ctx->no_of_open_sessions[mode]);
 
-	hdd_green_ap_start_bss(hdd_ctx);
+	/*
+	 * Only toggle the green_ap update when SAP adapter exist.
+	 */
+	if (hdd_get_adapter(hdd_ctx, QDF_SAP_MODE))
+		hdd_green_ap_start_bss(hdd_ctx);
 }
 
 /**
@@ -3630,7 +3634,12 @@ void cds_clear_concurrency_mode(enum tQDF_ADAPTER_MODE mode)
 		hdd_ctx->concurrency_mode, mode,
 		hdd_ctx->no_of_open_sessions[mode]);
 
-	hdd_green_ap_start_bss(hdd_ctx);
+	/*
+	 * Only toggle the green_ap update when SAP adapter exist or
+	 * SAP interface removal.
+	 */
+	if (hdd_get_adapter(hdd_ctx, QDF_SAP_MODE) || (mode == QDF_SAP_MODE))
+		hdd_green_ap_start_bss(hdd_ctx);
 }
 
 /**

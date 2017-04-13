@@ -1754,8 +1754,12 @@ static int hdd_populate_wifi_peer_ps_info(tSirWifiPeerStat *data,
 		wifi_peer_info = &data->peerInfo[i];
 		peers = nla_nest_start(vendor_event, i);
 
-		if (hdd_populate_per_peer_ps_info(wifi_peer_info,
-						  vendor_event))
+		if (peers == NULL) {
+			hdd_err("nla_nest_start failed");
+			return -EINVAL;
+		}
+
+		if (hdd_populate_per_peer_ps_info(wifi_peer_info, vendor_event))
 			return -EINVAL;
 
 		nla_nest_end(vendor_event, peers);
@@ -1852,7 +1856,7 @@ void wlan_hdd_cfg80211_link_layer_stats_ext_callback(tHddHandle ctx,
 			index, GFP_KERNEL);
 	if (!skb) {
 		hdd_err("cfg80211_vendor_event_alloc failed.");
-		goto exit;
+		return;
 	}
 
 	results = linkLayer_stats_results->results;
@@ -1871,11 +1875,12 @@ void wlan_hdd_cfg80211_link_layer_stats_ext_callback(tHddHandle ctx,
 		status = hdd_populate_tx_failure_info(tx_fail, skb);
 	} else if (param_id & WMI_LL_STATS_EXT_MAC_COUNTER) {
 		hdd_info("MAC counters stats");
+		status = -EINVAL;
 	} else {
 		hdd_info("Unknown link layer stats");
+		status = -EINVAL;
 	}
 
-exit:
 	if (status == 0)
 		cfg80211_vendor_event(skb, GFP_KERNEL);
 	else

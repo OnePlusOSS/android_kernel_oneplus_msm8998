@@ -2097,25 +2097,9 @@ QDF_STATUS wma_vdev_start(tp_wma_handle wma,
 	else if (req->is_quarter_rate)
 		temp_chan_info |=  (1 << WMI_CHAN_FLAG_QUARTER_RATE);
 
-	/*
-	 * If the channel has DFS set, flip on radar reporting.
-	 *
-	 * It may be that this should only be done for IBSS/hostap operation
-	 * as this flag may be interpreted (at some point in the future)
-	 * by the firmware as "oh, and please do radar DETECTION."
-	 *
-	 * If that is ever the case we would insert the decision whether to
-	 * enable the firmware flag here.
-	 */
-
-	/*
-	 * If the Channel is DFS,
-	 * set the WMI_CHAN_FLAG_DFS flag
-	 */
 	params.is_dfs = req->is_dfs;
 	params.is_restart = isRestart;
 	if ((QDF_GLOBAL_MONITOR_MODE != cds_get_conparam()) && req->is_dfs) {
-		params.flag_dfs = WMI_CHAN_FLAG_DFS;
 		temp_chan_info |=  (1 << WMI_CHAN_FLAG_DFS);
 		params.dis_hw_ack = true;
 		req->dfs_pri_multiplier = wma->dfs_pri_multiplier;
@@ -2132,6 +2116,11 @@ QDF_STATUS wma_vdev_start(tp_wma_handle wma,
 		 * does not support operation on DFS Channels.
 		 */
 		if (wma_is_vdev_in_ap_mode(wma, params.vdev_id) == true) {
+			/*
+			 * If the Channel is DFS,
+			 * set the WMI_CHAN_FLAG_DFS flag
+			 */
+			params.flag_dfs = WMI_CHAN_FLAG_DFS;
 			/*
 			 * If DFS regulatory domain is invalid,
 			 * then, DFS radar filters intialization
@@ -3687,6 +3676,8 @@ static void wma_add_sta_req_ap_mode(tp_wma_handle wma, tpAddStaParams add_sta)
 	struct wma_txrx_node *iface = NULL;
 	struct wma_target_req *msg;
 	bool peer_assoc_cnf = false;
+	uint32_t mcs_limit, i, j;
+	uint8_t *rate_pos;
 
 	pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 
@@ -3763,6 +3754,46 @@ static void wma_add_sta_req_ap_mode(tp_wma_handle wma, tpAddStaParams add_sta)
 	}
 
 	wmi_unified_send_txbf(wma, add_sta);
+
+	/*
+	 * Get MCS limit from ini configure, and map it to rate parameters
+	 * This will limit HT rate upper bound. CFG_CTRL_MASK is used to
+	 * check whether ini config is enabled and CFG_DATA_MASK to get the
+	 * MCS value.
+	 */
+#define CFG_CTRL_MASK              0xFF00
+#define CFG_DATA_MASK              0x00FF
+
+	if (wlan_cfg_get_int(wma->mac_context, WNI_CFG_SAP_MAX_MCS_DATA,
+				&mcs_limit) != eSIR_SUCCESS) {
+		mcs_limit = WNI_CFG_SAP_MAX_MCS_DATA_STADEF;
+	}
+
+	if (mcs_limit & CFG_CTRL_MASK) {
+		WMA_LOGD("%s: set mcs_limit %x", __func__, mcs_limit);
+
+		mcs_limit &= CFG_DATA_MASK;
+		rate_pos = (u_int8_t *)add_sta->supportedRates.supportedMCSSet;
+		for (i = 0, j = 0; i < MAX_SUPPORTED_RATES;) {
+			if (j < mcs_limit / 8) {
+				rate_pos[j] = 0xff;
+				j++;
+				i += 8;
+			} else if (j < mcs_limit / 8 + 1) {
+				if (i <= mcs_limit)
+					rate_pos[i / 8] |= 1 << (i % 8);
+				else
+					rate_pos[i / 8] &= ~(1 << (i % 8));
+				i++;
+
+				if (i >= (j + 1) * 8)
+					j++;
+			} else {
+				rate_pos[j++] = 0;
+				i += 8;
+			}
+		}
+	}
 
 	if (WMI_SERVICE_IS_ENABLED(wma->wmi_service_bitmap,
 				    WMI_SERVICE_PEER_ASSOC_CONF)) {

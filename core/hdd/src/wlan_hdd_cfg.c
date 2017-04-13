@@ -4528,6 +4528,27 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_ENABLE_ANI_DEFAULT,
 		     CFG_ENABLE_ANI_MIN,
 		     CFG_ENABLE_ANI_MAX),
+
+	REG_VARIABLE(CFG_SET_RTS_FOR_SIFS_BURSTING, WLAN_PARAM_Integer,
+		struct hdd_config, enable_rts_sifsbursting,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_SET_RTS_FOR_SIFS_BURSTING_DEFAULT,
+		CFG_SET_RTS_FOR_SIFS_BURSTING_MIN,
+		CFG_SET_RTS_FOR_SIFS_BURSTING_MAX),
+
+	REG_VARIABLE(CFG_MAX_MPDUS_IN_AMPDU, WLAN_PARAM_Integer,
+		struct hdd_config, max_mpdus_inampdu,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_MAX_MPDUS_IN_AMPDU_DEFAULT,
+		CFG_MAX_MPDUS_IN_AMPDU_MIN,
+		CFG_MAX_MPDUS_IN_AMPDU_MAX),
+
+	REG_VARIABLE(CFG_SAP_MAX_MCS_FOR_TX_DATA, WLAN_PARAM_Integer,
+		struct hdd_config, sap_max_mcs_txdata,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_SAP_MAX_MCS_FOR_TX_DATA_DEFAULT,
+		CFG_SAP_MAX_MCS_FOR_TX_DATA_MIN,
+		CFG_SAP_MAX_MCS_FOR_TX_DATA_MAX),
 };
 
 /**
@@ -7179,6 +7200,13 @@ bool hdd_update_config_cfg(hdd_context_t *hdd_ctx)
 		hdd_err("Couldn't pass on WNI_CFG_RATE_FOR_TX_MGMT to CCM");
 	}
 
+	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_SAP_MAX_MCS_DATA,
+				config->sap_max_mcs_txdata) ==
+			QDF_STATUS_E_FAILURE) {
+		status = false;
+		hdd_err("Could not pass on WNI_CFG_SAP_MAX_MCS_DATA to CCM");
+	}
+
 	return status;
 }
 #ifdef FEATURE_WLAN_SCAN_PNO
@@ -7955,18 +7983,19 @@ int hdd_parse_probe_req_ouis(hdd_context_t *hdd_ctx)
 				memcpy(temp, &str[i - 8], 8);
 				i++;
 				temp[8] = '\0';
-				if (hdd_probe_req_voui_convert_to_hex(temp,
-				    &voui[oui_indx]) == 0) {
+				if (!hdd_probe_req_voui_convert_to_hex(temp,
+				    &voui[oui_indx])) {
+					end = start = 0;
 					continue;
 				}
 				oui_indx++;
-				if (oui_indx > MAX_PROBE_REQ_OUIS) {
+				if (oui_indx >= MAX_PROBE_REQ_OUIS) {
 					/*
 					 * Max number of OUIs supported is 16,
 					 * ignoring the rest
 					 */
 					hdd_info("Max OUIs-supported: 16");
-					return 0;
+					break;
 				}
 			}
 			start = end = 0;
@@ -7976,11 +8005,11 @@ int hdd_parse_probe_req_ouis(hdd_context_t *hdd_ctx)
 		}
 	}
 
-	if ((end - start) == 8) {
+	if (((end - start) == 8) && oui_indx < MAX_PROBE_REQ_OUIS) {
 		memcpy(temp, &str[i - 8], 8);
 		temp[8] = '\0';
 		if (hdd_probe_req_voui_convert_to_hex(temp,
-		    &voui[oui_indx]) == 1)
+		    &voui[oui_indx]))
 			oui_indx++;
 	}
 

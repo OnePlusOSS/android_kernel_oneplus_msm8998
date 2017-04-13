@@ -582,16 +582,17 @@ static int hdd_ndp_initiator_req_handler(hdd_context_t *hdd_ctx,
 	req.transaction_id =
 		nla_get_u16(tb[QCA_WLAN_VENDOR_ATTR_NDP_TRANSACTION_ID]);
 
-	if (tb[QCA_WLAN_VENDOR_ATTR_NDP_CHANNEL])
+	if (tb[QCA_WLAN_VENDOR_ATTR_NDP_CHANNEL]) {
 		req.channel =
 			nla_get_u32(tb[QCA_WLAN_VENDOR_ATTR_NDP_CHANNEL]);
 
-	if (tb[QCA_WLAN_VENDOR_ATTR_NDP_CHANNEL_CONFIG]) {
-		req.channel_cfg =
-		    nla_get_u32(tb[QCA_WLAN_VENDOR_ATTR_NDP_CHANNEL_CONFIG]);
-	} else {
-		hdd_err("Channel config is unavailable");
-		return -EINVAL;
+		if (tb[QCA_WLAN_VENDOR_ATTR_NDP_CHANNEL_CONFIG]) {
+			req.channel_cfg =
+				nla_get_u32(tb[QCA_WLAN_VENDOR_ATTR_NDP_CHANNEL_CONFIG]);
+		} else {
+			hdd_err("Channel config is unavailable");
+			return -EINVAL;
+		}
 	}
 
 	if (!tb[QCA_WLAN_VENDOR_ATTR_NDP_SERVICE_INSTANCE_ID]) {

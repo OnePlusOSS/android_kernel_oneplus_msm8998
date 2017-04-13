@@ -6199,7 +6199,7 @@ static int hdd_set_rx_filter(hdd_adapter_t *adapter, bool action,
 				    MAC_ADDR_ARRAY(filter->multicastAddr[j].bytes));
 				j++;
 			}
-			if (j == SIR_MAX_NUM_MULTICAST_ADDRESS)
+			if (j == WLAN_HDD_MAX_MC_ADDR_LIST)
 				break;
 		}
 		filter->ulMulticastAddrCnt = j;

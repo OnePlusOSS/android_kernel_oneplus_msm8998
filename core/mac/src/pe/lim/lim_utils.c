@@ -7248,3 +7248,22 @@ QDF_STATUS lim_util_get_type_subtype(void *pkt, uint8_t *type,
 	}
 	return QDF_STATUS_SUCCESS;
 }
+
+bool lim_check_if_vendor_oui_match(tpAniSirGlobal mac_ctx,
+					uint8_t *oui, uint8_t oui_len,
+			       uint8_t *ie, uint8_t ie_len)
+{
+	uint8_t *ptr = ie;
+	uint8_t elem_id = *ie;
+
+	if (NULL == ie || 0 == ie_len) {
+		pe_err("IE Null or ie len zero %d", ie_len);
+		return false;
+	}
+
+	if (elem_id == IE_EID_VENDOR &&
+		!qdf_mem_cmp(&ptr[2], oui, oui_len))
+		return true;
+	else
+		return false;
+}

@@ -5497,6 +5497,19 @@ uint16_t csr_rates_find_best_rate(tSirMacRateSet *pSuppRates,
 	return nBest;
 }
 
+#ifdef WLAN_FEATURE_FILS_SK
+static inline void csr_free_fils_profile_info(tCsrRoamProfile *profile)
+{
+	if (profile->fils_con_info) {
+		qdf_mem_free(profile->fils_con_info);
+		profile->fils_con_info = NULL;
+	}
+}
+#else
+static inline void csr_free_fils_profile_info(tCsrRoamProfile *profile)
+{ }
+#endif
+
 void csr_release_profile(tpAniSirGlobal pMac, tCsrRoamProfile *pProfile)
 {
 	if (pProfile) {
@@ -5536,6 +5549,7 @@ void csr_release_profile(tpAniSirGlobal pMac, tCsrRoamProfile *pProfile)
 			qdf_mem_free(pProfile->ChannelInfo.ChannelList);
 			pProfile->ChannelInfo.ChannelList = NULL;
 		}
+		csr_free_fils_profile_info(pProfile);
 		qdf_mem_set(pProfile, sizeof(tCsrRoamProfile), 0);
 	}
 }

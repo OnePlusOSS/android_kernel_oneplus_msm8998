@@ -274,7 +274,7 @@ pe_init_pmf_comeback_timer(tpAniSirGlobal mac_ctx,
  *
  * Return: void
  */
-static void pe_delete_fils_info(tpPESession session)
+void pe_delete_fils_info(tpPESession session)
 {
 	struct pe_fils_session *fils_info;
 
@@ -283,7 +283,7 @@ static void pe_delete_fils_info(tpPESession session)
 			  FL("session is not valid"));
 		return;
 	}
-	fils_info = &session->fils_info;
+	fils_info = session->fils_info;
 	if (!fils_info) {
 		QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
 			  FL("fils info not found"));
@@ -307,14 +307,9 @@ static void pe_delete_fils_info(tpPESession session)
 		qdf_mem_free(fils_info->auth_info.keyname);
 	if (fils_info->auth_info.domain_name)
 		qdf_mem_free(fils_info->auth_info.domain_name);
-	qdf_mem_zero(fils_info->ick, MAX_ICK_LEN);
-	qdf_mem_zero(fils_info->kek, MAX_KEK_LEN);
-	qdf_mem_zero(fils_info->tk, MAX_TK_LEN);
-	qdf_mem_zero(fils_info->key_auth, MAX_KEY_AUTH_DATA_LEN);
-	qdf_mem_zero(fils_info->ap_key_auth_data, MAX_KEY_AUTH_DATA_LEN);
-	qdf_mem_zero(fils_info->gtk, MAX_GTK_LEN);
-	qdf_mem_zero(fils_info->igtk, MAX_IGTK_LEN);
-	qdf_mem_zero(fils_info->ipn, IPN_LEN);
+
+	qdf_mem_free(fils_info);
+	session->fils_info = NULL;
 }
 /**
  * pe_init_fils_info: API to initialize fils session info elements to null
@@ -331,7 +326,9 @@ static void pe_init_fils_info(tpPESession session)
 			  FL("session is not valid"));
 		return;
 	}
-	fils_info = &session->fils_info;
+
+	session->fils_info = qdf_mem_malloc(sizeof(struct pe_fils_session));
+	fils_info = session->fils_info;
 	if (!fils_info) {
 		QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
 			  FL("fils info not found"));

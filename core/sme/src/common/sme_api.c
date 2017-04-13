@@ -6424,6 +6424,9 @@ QDF_STATUS sme_set_gtk_offload(tHalHandle hHal,
 
 	*request_buf = *pGtkOffload;
 
+	if (pSession->is_fils_connection)
+		request_buf->ulFlags = GTK_OFFLOAD_DISABLE;
+
 	msg.type = WMA_GTK_OFFLOAD_REQ;
 	msg.reserved = 0;
 	msg.bodyptr = request_buf;

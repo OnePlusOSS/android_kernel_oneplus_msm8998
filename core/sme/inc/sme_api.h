@@ -1599,4 +1599,14 @@ QDF_STATUS sme_clear_random_mac(tHalHandle hal, uint32_t session_id,
 QDF_STATUS sme_set_chip_pwr_save_fail_cb(tHalHandle hal, void (*cb)(void *,
 				 struct chip_pwr_save_fail_detected_params *));
 
+/**
+ * sme_process_msg_callback() - process callback message from LIM
+ * @hal: global hal handle
+ * @msg: cds message
+ *
+ * This function process the callback messages from LIM.
+ *
+ * Return: QDF_STATUS enumeration.
+ */
+QDF_STATUS sme_process_msg_callback(tHalHandle hal, cds_msg_t *msg);
 #endif /* #if !defined( __SME_API_H ) */

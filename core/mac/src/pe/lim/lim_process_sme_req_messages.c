@@ -546,6 +546,7 @@ static bool __lim_process_sme_sys_ready_ind(tpAniSirGlobal pMac, uint32_t *pMsgB
 		ready_req->pe_roam_synch_cb = pe_roam_synch_callback;
 		pe_register_callbacks_with_wma(pMac, ready_req);
 		pMac->lim.add_bssdescr_callback = ready_req->add_bssdescr_cb;
+		pMac->lim.sme_msg_callback = ready_req->sme_msg_cb;
 	}
 	pe_debug("sending WMA_SYS_READY_IND msg to HAL");
 	MTRACE(mac_trace_msg_tx(pMac, NO_SESSION, msg.type));

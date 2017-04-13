@@ -15145,6 +15145,7 @@ QDF_STATUS csr_send_assoc_cnf_msg(tpAniSirGlobal pMac, tpSirSmeAssocInd
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	tSirSmeAssocCnf *pMsg;
+	cds_msg_t msg;
 
 	sme_debug("Posting eWNI_SME_ASSOC_CNF to LIM.HalStatus: %d", Halstatus);
 	do {
@@ -15170,8 +15171,12 @@ QDF_STATUS csr_send_assoc_cnf_msg(tpAniSirGlobal pMac, tpSirSmeAssocInd
 			     QDF_MAC_ADDR_SIZE);
 		/* alternateChannelId */
 		pMsg->alternateChannelId = 11;
+		msg.type = pMsg->messageType;
+		msg.bodyval = 0;
+		msg.bodyptr = pMsg;
 		/* pMsg is freed by cds_send_mb_message_to_mac in anycase*/
-		status = cds_send_mb_message_to_mac(pMsg);
+		status = cds_mq_post_message_by_priority(CDS_MQ_ID_PE,
+					&msg, HIGH_PRIORITY);
 	} while (0);
 	return status;
 }

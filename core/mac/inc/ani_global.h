@@ -826,6 +826,8 @@ typedef struct sAniSirLim {
 	QDF_STATUS(*add_bssdescr_callback)
 		(tpAniSirGlobal pMac, tpSirBssDescription buf,
 		uint32_t scan_id, uint32_t flags);
+	QDF_STATUS(*sme_msg_callback)
+		(tHalHandle hal, cds_msg_t *msg);
 	uint8_t retry_packet_cnt;
 	uint8_t scan_disabled;
 	uint8_t beacon_probe_rsp_cnt_per_scan;

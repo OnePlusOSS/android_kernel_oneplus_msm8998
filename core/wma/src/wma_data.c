@@ -2433,6 +2433,9 @@ void wmi_desc_pool_deinit(tp_wma_handle wma_handle)
 	qdf_spinlock_destroy(&wma_handle->wmi_desc_pool.wmi_desc_pool_lock);
 }
 
+/* WMI MGMT TX wake lock timeout in milli seconds */
+#define WMI_MGMT_TX_WAKE_LOCK_DURATION 300
+
 /**
  * wmi_desc_get() - Get wmi descriptor from wmi free descriptor pool
  * @wma_handle: handle to wma
@@ -2442,6 +2445,7 @@ void wmi_desc_pool_deinit(tp_wma_handle wma_handle)
 struct wmi_desc_t *wmi_desc_get(tp_wma_handle wma_handle)
 {
 	struct wmi_desc_t *wmi_desc = NULL;
+	uint16_t num_free;
 
 	qdf_spin_lock_bh(&wma_handle->wmi_desc_pool.wmi_desc_pool_lock);
 	if (wma_handle->wmi_desc_pool.freelist) {
@@ -2449,8 +2453,19 @@ struct wmi_desc_t *wmi_desc_get(tp_wma_handle wma_handle)
 		wmi_desc = &wma_handle->wmi_desc_pool.freelist->wmi_desc;
 		wma_handle->wmi_desc_pool.freelist =
 			wma_handle->wmi_desc_pool.freelist->next;
+
+		qdf_wake_lock_timeout_acquire(&wma_handle->wow_wake_lock,
+					      WMI_MGMT_TX_WAKE_LOCK_DURATION);
+
+		num_free = wma_handle->wmi_desc_pool.num_free;
 	}
 	qdf_spin_unlock_bh(&wma_handle->wmi_desc_pool.wmi_desc_pool_lock);
+
+	if (wmi_desc)
+		WMA_LOGD("%s: num_free %d desc_id %d",
+			 __func__, num_free, wmi_desc->desc_id);
+	else
+		WMA_LOGE("%s: WMI descriptors are exhausted", __func__);
 
 	return wmi_desc;
 }
@@ -2464,12 +2479,25 @@ struct wmi_desc_t *wmi_desc_get(tp_wma_handle wma_handle)
  */
 void wmi_desc_put(tp_wma_handle wma_handle, struct wmi_desc_t *wmi_desc)
 {
+	uint16_t num_free;
+
 	qdf_spin_lock_bh(&wma_handle->wmi_desc_pool.wmi_desc_pool_lock);
 	((union wmi_desc_elem_t *)wmi_desc)->next =
 		wma_handle->wmi_desc_pool.freelist;
 	wma_handle->wmi_desc_pool.freelist = (union wmi_desc_elem_t *)wmi_desc;
 	wma_handle->wmi_desc_pool.num_free++;
+
+	if (wma_handle->wmi_desc_pool.num_free ==
+	    wma_handle->wmi_desc_pool.pool_size)
+		qdf_wake_lock_release(&wma_handle->wow_wake_lock,
+				      WIFI_POWER_EVENT_WAKELOCK_MGMT_TX);
+
+	num_free = wma_handle->wmi_desc_pool.num_free;
+
 	qdf_spin_unlock_bh(&wma_handle->wmi_desc_pool.wmi_desc_pool_lock);
+
+	WMA_LOGD("%s: num_free %d desc_id %d",
+		 __func__, num_free, wmi_desc->desc_id);
 }
 
 /**

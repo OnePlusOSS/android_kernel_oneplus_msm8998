@@ -603,6 +603,7 @@ enum wifi_connectivity_events {
  * @WIFI_POWER_EVENT_WAKELOCK_WMI_CMD_RSP: Firmware response
  * @WIFI_POWER_EVENT_WAKELOCK_MISC: Miscellaneous wakelocks
  * @WIFI_POWER_EVENT_WAKELOCK_DHCP: DHCP negotiation under way
+ * @WIFI_POWER_EVENT_WAKELOCK_MGMT_TX: MGMT Tx wake lock
  *
  * Indicates the reason for which the wakelock was taken/released
  */
@@ -626,6 +627,7 @@ enum wake_lock_reason {
 	WIFI_POWER_EVENT_WAKELOCK_WMI_CMD_RSP,
 	WIFI_POWER_EVENT_WAKELOCK_MISC,
 	WIFI_POWER_EVENT_WAKELOCK_DHCP,
+	WIFI_POWER_EVENT_WAKELOCK_MGMT_TX,
 };
 
 #ifdef __cplusplus

@@ -446,14 +446,6 @@ void hif_close(struct hif_opaque_softc *hif_ctx)
 		scn->target_info.hw_name = "ErrUnloading";
 		qdf_mem_free(hw_name);
 	}
-
-	if (scn->vaddr_rri_on_ddr)
-		qdf_mem_free_consistent(scn->qdf_dev, scn->qdf_dev->dev,
-					(CE_COUNT*sizeof(uint32_t)),
-				scn->vaddr_rri_on_ddr, scn->paddr_rri_on_ddr,
-				0);
-
-	scn->vaddr_rri_on_ddr = NULL;
 	hif_bus_close(scn);
 	qdf_mem_free(scn);
 }

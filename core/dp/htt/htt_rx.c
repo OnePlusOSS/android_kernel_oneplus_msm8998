@@ -944,6 +944,7 @@ static inline qdf_nbuf_t htt_rx_netbuf_pop(htt_pdev_handle pdev)
 	return msdu;
 }
 
+#ifndef CONFIG_HL_SUPPORT
 static inline qdf_nbuf_t
 htt_rx_in_order_netbuf_pop(htt_pdev_handle pdev, qdf_dma_addr_t paddr)
 {
@@ -951,6 +952,7 @@ htt_rx_in_order_netbuf_pop(htt_pdev_handle pdev, qdf_dma_addr_t paddr)
 	pdev->rx_ring.fill_cnt--;
 	return htt_rx_hash_list_lookup(pdev, (uint32_t)(paddr & 0xffffffff));
 }
+#endif
 
 /* FIX ME: this function applies only to LL rx descs.
    An equivalent for HL rx descs is needed. */
@@ -2981,7 +2983,6 @@ int htt_rx_msdu_buff_in_order_replenish(htt_pdev_handle pdev, uint32_t num)
 
 	return filled;
 }
-#endif
 
 #define AR600P_ASSEMBLE_HW_RATECODE(_rate, _nss, _pream)     \
 	(((_pream) << 6) | ((_nss) << 4) | (_rate))
@@ -3174,6 +3175,7 @@ qdf_nbuf_t htt_rx_hash_list_lookup(struct htt_pdev_t *pdev, uint32_t paddr)
 
 	return netbuf;
 }
+#endif
 
 #ifndef CONFIG_HL_SUPPORT
 /* Initialization function of the rx buffer hash table. This function will

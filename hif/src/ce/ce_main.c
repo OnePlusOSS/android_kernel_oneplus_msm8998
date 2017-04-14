@@ -622,7 +622,6 @@ int hif_ce_bus_late_resume(struct hif_softc *scn)
 	int ce_id;
 	struct CE_state *ce_state;
 	int write_index;
-	bool index_updated;
 
 	for (ce_id = 0; ce_id < scn->ce_count; ce_id++) {
 		ce_state = scn->ce_id_to_state[ce_id];
@@ -632,19 +631,14 @@ int hif_ce_bus_late_resume(struct hif_softc *scn)
 			CE_SRC_RING_WRITE_IDX_SET(scn, ce_state->ctrl_addr,
 					write_index);
 			ce_state->state = CE_RUNNING;
-			index_updated = true;
-		} else {
-			index_updated = false;
+			hif_record_ce_desc_event(scn, ce_id,
+				RESUME_WRITE_INDEX_UPDATE,
+				NULL, NULL, write_index);
 		}
 
 		if (ce_state->state == CE_PAUSED)
 			ce_state->state = CE_RUNNING;
 		qdf_spin_unlock_bh(&ce_state->ce_index_lock);
-
-		if (index_updated)
-			hif_record_ce_desc_event(scn, ce_id,
-				RESUME_WRITE_INDEX_UPDATE,
-				NULL, NULL, write_index);
 	}
 
 	return 0;

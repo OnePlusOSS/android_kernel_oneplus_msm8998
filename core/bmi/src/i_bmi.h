@@ -97,14 +97,14 @@ struct hash_fw {
 	u8 utf[SHA256_DIGEST_SIZE];
 };
 
-typedef enum _ATH_BIN_FILE {
+enum ATH_BIN_FILE {
 	ATH_OTP_FILE,
 	ATH_FIRMWARE_FILE,
 	ATH_PATCH_FILE,
 	ATH_BOARD_DATA_FILE,
 	ATH_FLASH_FILE,
 	ATH_SETUP_FILE,
-} ATH_BIN_FILE;
+};
 
 #if defined(QCA_WIFI_3_0_ADRASTEA)
 #define NO_BMI 1

@@ -6316,3 +6316,18 @@ void hdd_tdls_notify_p2p_roc(hdd_context_t *hdd_ctx,
 			   hdd_ctx->config->tdls_enable_defer_time);
 }
 
+void process_rx_tdls_disc_resp_frame(hdd_adapter_t *adapter,
+				     uint8_t *peer_addr, int8_t rx_rssi)
+{
+	hdd_debug("[TDLS] TDLS Discovery Response,"
+		  MAC_ADDRESS_STR " RSSI[%d] <--- OTA",
+		  MAC_ADDR_ARRAY(peer_addr), rx_rssi);
+
+	wlan_hdd_tdls_set_rssi(adapter, peer_addr, rx_rssi);
+	wlan_hdd_tdls_recv_discovery_resp(adapter, peer_addr);
+	cds_tdls_tx_rx_mgmt_event(SIR_MAC_ACTION_TDLS,
+				  SIR_MAC_ACTION_RX, SIR_MAC_MGMT_ACTION,
+				  WLAN_HDD_PUBLIC_ACTION_TDLS_DISC_RESP,
+				  peer_addr);
+}
+

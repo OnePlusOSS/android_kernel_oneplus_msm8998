@@ -13031,6 +13031,7 @@ static int wlan_hdd_cfg80211_connect_start(hdd_adapter_t *pAdapter,
 				    enum nl80211_chan_width ch_width)
 {
 	int status = 0;
+	QDF_STATUS qdf_status;
 	hdd_wext_state_t *pWextState;
 	hdd_context_t *pHddCtx;
 	hdd_station_ctx_t *hdd_sta_ctx;
@@ -13086,8 +13087,8 @@ static int wlan_hdd_cfg80211_connect_start(hdd_adapter_t *pAdapter,
 		 */
 		cds_restart_opportunistic_timer(false);
 		if (cds_is_hw_mode_change_in_progress()) {
-			status = qdf_wait_for_connection_update();
-			if (!QDF_IS_STATUS_SUCCESS(status)) {
+			qdf_status = qdf_wait_for_connection_update();
+			if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 				hdd_err("qdf wait for event failed!!");
 				status = -EINVAL;
 				goto ret_status;
@@ -13222,9 +13223,9 @@ static int wlan_hdd_cfg80211_connect_start(hdd_adapter_t *pAdapter,
 			 * to firmware if power save is enabled by the
 			 * firmware.
 			 */
-			status = hdd_set_ibss_power_save_params(pAdapter);
+			qdf_status = hdd_set_ibss_power_save_params(pAdapter);
 
-			if (QDF_STATUS_SUCCESS != status) {
+			if (QDF_STATUS_SUCCESS != qdf_status) {
 				hdd_err("Set IBSS Power Save Params Failed");
 				status = -EINVAL;
 				goto conn_failure;
@@ -13335,16 +13336,17 @@ static int wlan_hdd_cfg80211_connect_start(hdd_adapter_t *pAdapter,
 
 		qdf_runtime_pm_prevent_suspend(&pAdapter->connect_rpm_ctx.
 					       connect);
-		status = sme_roam_connect(WLAN_HDD_GET_HAL_CTX(pAdapter),
+		qdf_status = sme_roam_connect(WLAN_HDD_GET_HAL_CTX(pAdapter),
 					  pAdapter->sessionId, pRoamProfile,
 					  &roamId);
-
-		if ((QDF_STATUS_SUCCESS != status) &&
+		if (QDF_IS_STATUS_ERROR(qdf_status))
+			status = -EINVAL;
+		if ((QDF_STATUS_SUCCESS != qdf_status) &&
 		    (QDF_STA_MODE == pAdapter->device_mode ||
 		     QDF_P2P_CLIENT_MODE == pAdapter->device_mode)) {
 			hdd_err("sme_roam_connect (session %d) failed with "
-			       "status %d. -> NotConnected",
-			       pAdapter->sessionId, status);
+			       "qdf_status %d. -> NotConnected",
+			       pAdapter->sessionId, qdf_status);
 			/* change back to NotAssociated */
 			hdd_conn_set_connection_state(pAdapter,
 						      eConnectionState_NotConnected);

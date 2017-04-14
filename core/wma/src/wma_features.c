@@ -6937,7 +6937,7 @@ QDF_STATUS wma_suspend_target(WMA_HANDLE handle, int disable_target_intr)
 
 /**
  * wma_target_suspend_acknowledge() - update target susspend status
- * @context: HTC_INIT_INFO->context
+ * @context: htc_init_info->context
  * @wow_nack: true when wow is rejected
  *
  * Return: none

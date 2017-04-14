@@ -2839,6 +2839,34 @@ fail_return:
 }
 
 /**
+ * hdd_ipa_uc_ol_deinit() - Disconnect IPA TX and RX pipes
+ * @hdd_ctx: Global HDD context
+ *
+ * Return: 0 on success, negativer errno on error
+ */
+int hdd_ipa_uc_ol_deinit(hdd_context_t *hdd_ctx)
+{
+	struct hdd_ipa_priv *hdd_ipa = hdd_ctx->hdd_ipa;
+	int ret = 0;
+
+	if (!hdd_ipa_uc_is_enabled(hdd_ctx))
+		return ret;
+
+	if (true == hdd_ipa->uc_loaded) {
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_INFO,
+			    "%s: Disconnect TX PIPE tx_pipe_handle=0x%x",
+			    __func__, hdd_ipa->tx_pipe_handle);
+		ret = ipa_disconnect_wdi_pipe(hdd_ipa->tx_pipe_handle);
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_INFO,
+			    "%s: Disconnect RX PIPE rx_pipe_handle=0x%x",
+			    __func__, hdd_ipa->rx_pipe_handle);
+		ret = ipa_disconnect_wdi_pipe(hdd_ipa->rx_pipe_handle);
+	}
+
+	return ret;
+}
+
+/**
  * __hdd_ipa_uc_force_pipe_shutdown() - Force shutdown IPA pipe
  * @hdd_ctx: hdd main context
  *
@@ -3067,7 +3095,6 @@ static int __hdd_ipa_uc_ssr_deinit(void)
 	int idx;
 	struct hdd_ipa_iface_context *iface_context;
 	hdd_context_t *hdd_ctx;
-	int ret = 0;
 
 	if (!hdd_ipa)
 		return 0;
@@ -3101,26 +3128,6 @@ static int __hdd_ipa_uc_ssr_deinit(void)
 		hdd_ipa->assoc_stas_map[idx].sta_id = 0xFF;
 	}
 	qdf_mutex_release(&hdd_ipa->ipa_lock);
-
-	HDD_IPA_LOG(QDF_TRACE_LEVEL_INFO,
-		    "%s: Disconnect TX PIPE tx_pipe_handle=0x%x",
-		    __func__, hdd_ipa->tx_pipe_handle);
-	ret = ipa_disconnect_wdi_pipe(hdd_ipa->tx_pipe_handle);
-	if (ret) {
-		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,
-			"Error: %d IPA disconnect TX pipe", ret);
-		QDF_BUG(0);
-	}
-
-	HDD_IPA_LOG(QDF_TRACE_LEVEL_INFO,
-		    "%s: Disconnect RX PIPE rx_pipe_handle=0x%x",
-		    __func__, hdd_ipa->rx_pipe_handle);
-	ret = ipa_disconnect_wdi_pipe(hdd_ipa->rx_pipe_handle);
-	if (ret) {
-		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,
-			"Error: %d IPA disconnect RX pipe", ret);
-		QDF_BUG(0);
-	}
 
 	if (hdd_ipa_uc_sta_is_enabled(hdd_ipa->hdd_ctx))
 		hdd_ipa_uc_sta_reset_sta_connected(hdd_ipa);
@@ -6029,16 +6036,6 @@ static QDF_STATUS __hdd_ipa_cleanup(hdd_context_t *hdd_ctx)
 			HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,
 					"UC Ready CB deregister fail");
 		hdd_ipa_uc_rt_debug_deinit(hdd_ctx);
-		if (true == hdd_ipa->uc_loaded) {
-			HDD_IPA_LOG(QDF_TRACE_LEVEL_INFO,
-			    "%s: Disconnect TX PIPE tx_pipe_handle=0x%x",
-			    __func__, hdd_ipa->tx_pipe_handle);
-			ipa_disconnect_wdi_pipe(hdd_ipa->tx_pipe_handle);
-			HDD_IPA_LOG(QDF_TRACE_LEVEL_INFO,
-			    "%s: Disconnect RX PIPE rx_pipe_handle=0x%x",
-			    __func__, hdd_ipa->rx_pipe_handle);
-			ipa_disconnect_wdi_pipe(hdd_ipa->rx_pipe_handle);
-		}
 		qdf_mutex_destroy(&hdd_ipa->event_lock);
 		qdf_mutex_destroy(&hdd_ipa->ipa_lock);
 		hdd_ipa_cleanup_pending_event(hdd_ipa);

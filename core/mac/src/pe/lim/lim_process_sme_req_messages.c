@@ -4875,6 +4875,7 @@ static void lim_process_set_vdev_ies_per_band(tpAniSirGlobal mac_ctx,
 		pe_err("Unable to send HT/VHT Cap to FW");
 }
 
+#ifdef WLAN_FEATURE_ROAM_OFFLOAD
 /**
  * lim_process_roam_invoke() - process the Roam Invoke req
  * @mac_ctx: Pointer to Global MAC structure
@@ -4903,6 +4904,12 @@ static void lim_process_roam_invoke(tpAniSirGlobal mac_ctx,
 
 	return;
 }
+#else
+static void lim_process_roam_invoke(tpAniSirGlobal mac_ctx,
+				uint32_t *msg_buf)
+{
+}
+#endif
 
 /**
  * lim_process_set_pdev_IEs() - process the set pdev IE req

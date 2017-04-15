@@ -83,6 +83,7 @@ static int hif_post_recv_buffers_for_pipe(struct HIF_CE_pipe_info *pipe_info);
 
 static int hif_post_recv_buffers(struct hif_softc *scn);
 static void hif_config_rri_on_ddr(struct hif_softc *scn);
+static void hif_clear_rri_on_ddr(struct hif_softc *scn);
 
 /**
  * hif_target_access_log_dump() - dump access log
@@ -889,17 +890,7 @@ struct CE_handle *ce_init(struct hif_softc *scn,
 				 */
 				HIF_ERROR("%s: dest ring has no mem",
 					  __func__);
-				if (malloc_src_ring) {
-					qdf_mem_free(CE_state->src_ring);
-					CE_state->src_ring = NULL;
-					malloc_src_ring = false;
-				}
-				if (malloc_CE_state) {
-					/* allocated CE_state locally */
-					qdf_mem_free(CE_state);
-					malloc_CE_state = false;
-				}
-				return NULL;
+				goto error_no_dma_mem;
 			}
 
 			dest_ring = CE_state->dest_ring =
@@ -2182,6 +2173,7 @@ QDF_STATUS hif_ce_open(struct hif_softc *hif_sc)
  */
 void hif_ce_close(struct hif_softc *hif_sc)
 {
+	hif_clear_rri_on_ddr(hif_sc);
 }
 
 /**
@@ -2871,6 +2863,18 @@ static inline void hif_config_rri_on_ddr(struct hif_softc *scn)
 
 	return;
 }
+
+static inline void hif_clear_rri_on_ddr(struct hif_softc *scn)
+{
+	if (scn && scn->vaddr_rri_on_ddr) {
+		qdf_mem_free_consistent(scn->qdf_dev, scn->qdf_dev->dev,
+				(CE_COUNT*sizeof(uint32_t)),
+				scn->vaddr_rri_on_ddr, scn->paddr_rri_on_ddr,
+				0);
+		scn->vaddr_rri_on_ddr = NULL;
+	}
+	return;
+}
 #else
 
 /**
@@ -2884,6 +2888,11 @@ static inline void hif_config_rri_on_ddr(struct hif_softc *scn)
  * Return: None
  */
 static inline void hif_config_rri_on_ddr(struct hif_softc *scn)
+{
+	return;
+}
+
+static inline void hif_clear_rri_on_ddr(struct hif_softc *scn)
 {
 	return;
 }

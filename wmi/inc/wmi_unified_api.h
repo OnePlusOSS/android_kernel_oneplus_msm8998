@@ -1362,4 +1362,28 @@ QDF_STATUS wmi_unified_set_arp_stats_req(void *wmi_hdl,
 					 struct set_arp_stats *req_buf);
 QDF_STATUS wmi_unified_get_arp_stats_req(void *wmi_hdl,
 					 struct get_arp_stats *req_buf);
+
+#ifdef WMI_INTERFACE_EVENT_LOGGING
+void wmi_print_cmd_log(wmi_unified_t wmi, uint32_t count,
+		       qdf_abstract_print *print, void *print_priv);
+
+void wmi_print_cmd_tx_cmp_log(wmi_unified_t wmi, uint32_t count,
+			      qdf_abstract_print *print, void *print_priv);
+
+void wmi_print_mgmt_cmd_log(wmi_unified_t wmi, uint32_t count,
+			    qdf_abstract_print *print, void *print_priv);
+
+void wmi_print_mgmt_cmd_tx_cmp_log(wmi_unified_t wmi, uint32_t count,
+				   qdf_abstract_print *print, void *print_priv);
+
+void wmi_print_event_log(wmi_unified_t wmi, uint32_t count,
+			 qdf_abstract_print *print, void *print_priv);
+
+void wmi_print_rx_event_log(wmi_unified_t wmi, uint32_t count,
+			    qdf_abstract_print *print, void *print_priv);
+
+void wmi_print_mgmt_event_log(wmi_unified_t wmi, uint32_t count,
+			      qdf_abstract_print *print, void *print_priv);
+#endif /* WMI_INTERFACE_EVENT_LOGGING */
+
 #endif /* _WMI_UNIFIED_API_H_ */

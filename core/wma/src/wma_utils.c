@@ -5384,5 +5384,9 @@ void wma_set_sap_wow_bitmask(uint32_t *bitmask, uint32_t wow_bitmap_size)
 			     WMI_WOW_MAX_EVENT_BM_LEN,
 			     bitmask);
 
+	wma_set_wow_event_bitmap(WOW_CLIENT_KICKOUT_EVENT,
+			WMI_WOW_MAX_EVENT_BM_LEN,
+			bitmask);
+
 	/* Add further SAP wakeup events above this line. */
 }

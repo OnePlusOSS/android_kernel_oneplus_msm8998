@@ -1388,14 +1388,15 @@ QDF_STATUS cds_mq_post_message_by_priority(CDS_MQ_ID msgQueueId,
 	uint32_t debug_count = 0;
 
 	if ((gp_cds_context == NULL) || (pMsg == NULL) ||
-			(gp_cds_sched_context->McThread == 0)) {
+	    (gp_cds_sched_context == NULL) ||
+	    (gp_cds_sched_context->McThread == 0)) {
 		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
 			  "%s: Null params or global cds context is null",
 			  __func__);
 		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
-			"%s: gp_cds_context[%d] pMsg[%d] McThread[%d]",
+			"%s: cds_context[%d] pMsg[%d] cds_sched_context[%d]",
 			__func__, !!gp_cds_context, !!pMsg,
-			!!gp_cds_sched_context->McThread);
+			!!gp_cds_sched_context);
 		QDF_ASSERT(0);
 		return QDF_STATUS_E_FAILURE;
 	}

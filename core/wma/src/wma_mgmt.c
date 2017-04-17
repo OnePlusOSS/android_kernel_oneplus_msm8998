@@ -3442,14 +3442,15 @@ static int wma_mgmt_rx_process(void *handle, uint8_t *data,
 			if (iface->rmfEnabled) {
 				status = wma_process_rmf_frame(wma_handle,
 					iface, wh, rx_pkt, wbuf);
+				if (status)
+					return status;
 				/*
 				 * CCMP header might have been pulled off
 				 * reinitialize the start pointer of mac header
 				 */
 				wh = (struct ieee80211_frame *)
 						qdf_nbuf_data(wbuf);
-				if (status != 0)
-					return status;
+
 			}
 		}
 	}

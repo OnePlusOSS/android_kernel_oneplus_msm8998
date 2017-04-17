@@ -9985,7 +9985,7 @@ enum dot11p_mode {
  * g_enable_non_arp_bc_hw_filter - Enable HW broadcast filtering
  * @Min: 0
  * @Max: 1
- * @Default: 0
+ * @Default: 1
  *
  * This ini support to dynamically enable/disable Broadast filter
  * when target goes to wow suspend/resume mode
@@ -9995,7 +9995,7 @@ enum dot11p_mode {
  * </ini>
  */
 #define CFG_HW_BC_FILTER_NAME     "g_enable_non_arp_bc_hw_filter"
-#define CFG_HW_FILTER_DEFAULT         (0)
+#define CFG_HW_FILTER_DEFAULT         (1)
 #define CFG_HW_FILTER_MIN             (0)
 #define CFG_HW_FILTER_MAX             (1)
 

@@ -399,7 +399,6 @@ int wlan_hdd_update_phymode(struct net_device *net, tHalHandle hal,
 
 int wlan_hdd_get_temperature(hdd_adapter_t *pAdapter, int *temperature);
 int wlan_hdd_get_link_speed(hdd_adapter_t *sta_adapter, uint32_t *link_speed);
-
 /**
  * wlan_hdd_get_peer_rssi() - get station's rssi
  * @adapter: hostapd interface
@@ -411,4 +410,14 @@ int wlan_hdd_get_link_speed(hdd_adapter_t *sta_adapter, uint32_t *link_speed);
  */
 int wlan_hdd_get_peer_rssi(hdd_adapter_t *adapter,
 			struct qdf_mac_addr *macaddress);
+/**
+ * wlan_hdd_set_mon_chan() - Set capture channel on the monitor mode interface.
+ * @adapter: Handle to adapter
+ * @chan: Monitor mode channel
+ * @bandwidth: Capture channel bandwidth
+ *
+ * Return: 0 on success else error code.
+ */
+int wlan_hdd_set_mon_chan(hdd_adapter_t *adapter, uint32_t chan,
+			  uint32_t bandwidth);
 #endif /* __WEXT_IW_H__ */

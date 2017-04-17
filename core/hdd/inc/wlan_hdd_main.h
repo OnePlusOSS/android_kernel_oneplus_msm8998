@@ -1394,6 +1394,8 @@ struct hdd_adapter_s {
 	/* random address management for management action frames */
 	spinlock_t random_mac_lock;
 	struct action_frame_random_mac random_mac[MAX_RANDOM_MAC_ADDRS];
+	uint32_t mon_chan;
+	uint32_t mon_bandwidth;
 };
 
 #define WLAN_HDD_GET_STATION_CTX_PTR(pAdapter) (&(pAdapter)->sessionCtx.station)

@@ -1642,10 +1642,6 @@ int hdd_set_mon_rx_cb(struct net_device *dev)
 	struct ol_txrx_desc_type sta_desc = {0};
 	struct ol_txrx_ops txrx_ops;
 
-	ret = wlan_hdd_validate_context(hdd_ctx);
-	if (0 != ret)
-		return ret;
-
 	qdf_mem_zero(&txrx_ops, sizeof(txrx_ops));
 	txrx_ops.rx.rx = hdd_mon_rx_packet_cbk;
 	ol_txrx_vdev_register(

@@ -1549,17 +1549,18 @@ QDF_STATUS hdd_wlan_re_init(void)
 	}
 	bug_on_reinit_failure = pHddCtx->config->bug_on_reinit_failure;
 
-	/* The driver should always be initialized in STA mode after SSR */
-	hdd_set_conparam(0);
 	/* Try to get an adapter from mode ID */
 	pAdapter = hdd_get_adapter(pHddCtx, QDF_STA_MODE);
 	if (!pAdapter) {
 		pAdapter = hdd_get_adapter(pHddCtx, QDF_SAP_MODE);
 		if (!pAdapter) {
 			pAdapter = hdd_get_adapter(pHddCtx, QDF_IBSS_MODE);
-			if (!pAdapter)
-				hdd_err("Failed to get Adapter!");
-
+			if (!pAdapter) {
+				pAdapter = hdd_get_adapter(pHddCtx,
+							   QDF_MONITOR_MODE);
+				if (!pAdapter)
+					hdd_err("Failed to get adapter");
+			}
 		}
 	}
 

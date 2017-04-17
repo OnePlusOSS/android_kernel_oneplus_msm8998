@@ -1743,10 +1743,18 @@ static void hdd_mon_mode_ether_setup(struct net_device *dev)
 static int __hdd_mon_open(struct net_device *dev)
 {
 	int ret;
+	hdd_adapter_t *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
 
 	ENTER_DEV(dev);
+
+	if (WLAN_HDD_ADAPTER_MAGIC != adapter->magic) {
+		hdd_err("Invalid magic");
+		return -EINVAL;
+	}
+
 	hdd_mon_mode_ether_setup(dev);
 	ret = hdd_set_mon_rx_cb(dev);
+	set_bit(DEVICE_IFACE_OPENED, &adapter->event_flags);
 	return ret;
 }
 
@@ -4903,6 +4911,12 @@ QDF_STATUS hdd_start_all_adapters(hdd_context_t *hdd_ctx)
 					 (const u8 *)&bcastMac.bytes[0],
 					 GFP_KERNEL);
 #endif
+			break;
+		case QDF_MONITOR_MODE:
+			hdd_init_station_mode(adapter);
+			hdd_set_mon_rx_cb(adapter->dev);
+			wlan_hdd_set_mon_chan(adapter, adapter->mon_chan,
+					      adapter->mon_bandwidth);
 			break;
 
 		default:

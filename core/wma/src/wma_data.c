@@ -2445,7 +2445,7 @@ void wmi_desc_pool_deinit(tp_wma_handle wma_handle)
 struct wmi_desc_t *wmi_desc_get(tp_wma_handle wma_handle)
 {
 	struct wmi_desc_t *wmi_desc = NULL;
-	uint16_t num_free;
+	uint16_t num_free = -1;
 
 	qdf_spin_lock_bh(&wma_handle->wmi_desc_pool.wmi_desc_pool_lock);
 	if (wma_handle->wmi_desc_pool.freelist) {

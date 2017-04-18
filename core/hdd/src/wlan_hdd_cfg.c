@@ -4576,6 +4576,13 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_DFS_BEACON_TX_ENHANCED_DEFAULT,
 		CFG_DFS_BEACON_TX_ENHANCED_MIN,
 		CFG_DFS_BEACON_TX_ENHANCED_MAX),
+
+	REG_VARIABLE(CFG_SCAN_BACKOFF_MULTIPLIER_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, scan_backoff_multiplier,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_SCAN_BACKOFF_MULTIPLIER_DEFAULT,
+		CFG_SCAN_BACKOFF_MULTIPLIER_MIN,
+		CFG_SCAN_BACKOFF_MULTIPLIER_MAX),
 };
 
 /**
@@ -6117,7 +6124,9 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_info("Name = [%s] Value = [%u]",
 		CFG_IS_BSSID_HINT_PRIORITY_NAME,
 		pHddCtx->config->is_bssid_hint_priority);
-
+	hdd_debug("Name = [%s] Value = [%u]",
+		CFG_SCAN_BACKOFF_MULTIPLIER_NAME,
+		pHddCtx->config->scan_backoff_multiplier);
 }
 
 /**

@@ -3167,6 +3167,8 @@ static int __wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
 	 *   shall be in slow_scan_period mode until next PNO Start.
 	 */
 	hdd_config_sched_scan_plan(pPnoRequest, request, pHddCtx);
+	pPnoRequest->scan_backoff_multiplier =
+		pHddCtx->config->scan_backoff_multiplier;
 	pPnoRequest->delay_start_time =
 		hdd_config_sched_scan_start_delay(request);
 	wlan_hdd_sched_scan_update_relative_rssi(pPnoRequest, request);

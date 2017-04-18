@@ -3005,6 +3005,7 @@ struct connected_pno_band_rssi_pref {
  * @slow_scan_period: Slow scan period
  * @delay_start_time: delay in seconds to use before starting the first scan
  * @fast_scan_max_cycles: Fast scan max cycles
+ * @scan_backoff_multiplier: multiply fast scan period by this after max cycles
  * @us24GProbeTemplateLen: 2.4G probe template length
  * @p24GProbeTemplate: 2.4G probe template
  * @us5GProbeTemplateLen: 5G probe template length
@@ -3025,7 +3026,7 @@ typedef struct sSirPNOScanReq {
 	uint32_t slow_scan_period;
 	uint32_t delay_start_time;
 	uint8_t fast_scan_max_cycles;
-
+	uint32_t scan_backoff_multiplier;
 	uint32_t        active_min_time;
 	uint32_t        active_max_time;
 	uint32_t        passive_min_time;

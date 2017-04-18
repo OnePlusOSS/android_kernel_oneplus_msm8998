@@ -10714,6 +10714,37 @@ enum dot11p_mode {
 #define CFG_DFS_BEACON_TX_ENHANCED_MAX     (1)
 #define CFG_DFS_BEACON_TX_ENHANCED_DEFAULT (0)
 
+/*
+ * <ini>
+ * gScanBackoffMultiplier - For NLO/PNO, multiply fast scan period by this every
+ *	max cycles
+ * @Min: 0
+ * @Max: 255
+ * @Default: 0
+ *
+ * For Network Listen Offload and Perfered Network Offload, multiply the fast
+ * scan period by this value after max cycles have occurred. Setting this to 0
+ * disables the feature.
+ *
+ * @E.g.
+ *	# Disable scan backoff multiplier
+ *	gScanBackoffMultiplier=0
+ *	# Effectively the same
+ *	gScanBackoffMultiplier=1
+ *	# Double the scan period after each max cycles have occurred
+ *	gScanBackoffMultiplier=2
+ *
+ * Related: NLO, PNO
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+#define CFG_SCAN_BACKOFF_MULTIPLIER_NAME	"gScanBackoffMultiplier"
+#define CFG_SCAN_BACKOFF_MULTIPLIER_MIN		(0)
+#define CFG_SCAN_BACKOFF_MULTIPLIER_MAX		(255)
+#define CFG_SCAN_BACKOFF_MULTIPLIER_DEFAULT	(0)
+
 /*---------------------------------------------------------------------------
    Type declarations
    -------------------------------------------------------------------------*/
@@ -11478,6 +11509,7 @@ struct hdd_config {
 	uint16_t sap_max_mcs_txdata;
 	bool is_bssid_hint_priority;
 	uint8_t dfs_beacon_tx_enhanced;
+	uint8_t scan_backoff_multiplier;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

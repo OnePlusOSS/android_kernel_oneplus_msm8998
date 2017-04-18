@@ -2421,7 +2421,7 @@ QDF_STATUS wma_open(void *cds_context,
 	 * Phyerror events. Handlers differ for phyerr filtering
 	 * offload enable and disable cases.
 	 */
-	wma_register_dfs_event_handler(wma_handle);
+	wma_register_phy_err_event_handler(wma_handle);
 
 	/* Register peer change event handler */
 	wmi_unified_register_event_handler(wma_handle->wmi_handle,

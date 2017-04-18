@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -244,3 +244,106 @@ ieee80211_mark_dfs(struct ieee80211com *ic, struct dfs_ieee80211_channel *ichan)
 	int status;
 	status = wma_dfs_indicate_radar(ic, ichan);
 }
+
+#ifdef FEATURE_SPECTRAL_SCAN
+/**
+ * wma_ieee80211_secondary20_channel_offset() finds the offset for
+ * secondary channel
+ * @chan: channel for which secondary offset to find
+ *
+ * Return: secondary offset
+ */
+int8_t
+wma_ieee80211_secondary20_channel_offset(struct dfs_ieee80211_channel *chan)
+{
+	int8_t pri_center_ch_diff, sec_level;
+	u_int16_t pri_chan_40_center;
+	int8_t offset = 0;
+
+	if (!chan || IEEE80211_IS_CHAN_A(chan) ||
+	    IEEE80211_IS_CHAN_B(chan) || IEEE80211_IS_CHAN_G(chan) ||
+	    IEEE80211_IS_CHAN_PUREG(chan) || IEEE80211_IS_CHAN_ANYG(chan) ||
+	    IEEE80211_IS_CHAN_11N_HT20(chan) ||
+	    IEEE80211_IS_CHAN_11AC_VHT20(chan)) {
+		/* No secondary channel */
+		return 0;
+	}
+
+	if (IEEE80211_IS_CHAN_11AC_VHT40PLUS(chan) ||
+	    IEEE80211_IS_CHAN_11NG_HT40PLUS(chan) ||
+	    IEEE80211_IS_CHAN_11NA_HT40PLUS(chan)) {
+		return 1;
+	}
+
+	if (IEEE80211_IS_CHAN_11AC_VHT40MINUS(chan) ||
+	    IEEE80211_IS_CHAN_11NG_HT40MINUS(chan) ||
+	    IEEE80211_IS_CHAN_11NA_HT40MINUS(chan)) {
+		offset = -1;
+		return offset;
+	}
+
+	if (IEEE80211_IS_CHAN_11AC_VHT80(chan) ||
+	    IEEE80211_IS_CHAN_11AC_VHT80P80(chan)) {
+		/* The following logic generates the extension channel offset
+		 * from the primary channel(ic_ieee) and 80M channel central
+		 * frequency.
+		 * The channelization for 80M is as following:
+		 * | 20M  20M  20M  20M |
+		 * | 36   40   44   48  |
+		 * |         80M        |
+		 * The central frequency is 42 in the example.
+		 * If the primary channel is 36 and 44, the extension channel
+		 * is 40PLUS. If the primary channel is 40 and 48 the extension
+		 * channel is 40MINUS.
+		 */
+
+		if (chan->ic_ieee < chan->ic_vhtop_ch_freq_seg1) {
+			if ((chan->ic_vhtop_ch_freq_seg1 - chan->ic_ieee) > 4)
+				return 1;
+
+			offset = -1;
+			return offset;
+		}
+
+		if ((chan->ic_ieee - chan->ic_vhtop_ch_freq_seg1) > 4) {
+			offset = -1;
+			return offset;
+		}
+		return 1;
+	}
+
+	if (IEEE80211_IS_CHAN_11AC_VHT160(chan)) {
+		/* The channelization of 160M is as following:
+		 * | 20M 20M 20M 20M 20M 20M 20M 20M |
+		 * | 36  40  44  48  52  56  60  64  |
+		 * The center frequency is 50 in this example.
+		 * If primary channel is 36, 44, 52 or 60, the extension channel
+		 * is 40PLUS.
+		 * If primary channel is 40, 48, 56 or 64, the extension channel
+		 * is 40MINUS.
+		 */
+
+		pri_center_ch_diff = chan->ic_ieee -
+				chan->ic_vhtop_ch_freq_seg2;
+
+		if (pri_center_ch_diff > 0)
+			sec_level = -1;
+		else
+			sec_level = 1;
+
+		if (sec_level * pri_center_ch_diff < -6)
+			pri_chan_40_center = chan->ic_vhtop_ch_freq_seg2 -
+					(2 * sec_level*6);
+		else
+			pri_chan_40_center = chan->ic_vhtop_ch_freq_seg2 -
+					(2 * sec_level*2);
+
+		if (pri_chan_40_center > chan->ic_ieee)
+			return 1;
+		offset = -1;
+		return offset;
+	}
+
+	return 0;
+}
+#endif

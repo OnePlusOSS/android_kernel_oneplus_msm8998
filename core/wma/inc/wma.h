@@ -50,6 +50,7 @@
 #include "cdp_txrx_cmn.h"
 #include "ol_defines.h"
 #include "dbglog.h"
+#include "wma_spectral.h"
 
 /* Platform specific configuration for max. no. of fragments */
 #define QCA_OL_11AC_TX_MAX_FRAGS            2
@@ -2461,6 +2462,32 @@ void wma_set_sap_wow_bitmask(uint32_t *bitmask, uint32_t wow_bitmask_size);
  */
 bool wma_is_wow_bitmask_zero(uint32_t *bitmask,
 			     uint32_t wow_bitmask_size);
+
+/**
+ * wma_register_phy_err_event_handler() - register phy error event handler
+ * @wma_handle: wma handle
+ *
+ * Return: none
+ */
+void wma_register_phy_err_event_handler(tp_wma_handle wma_handle);
+
+#ifdef FEATURE_SPECTRAL_SCAN
+/**
+ * wma_ieee80211_secondary20_channel_offset() - finds the offset for
+ * secondary channel
+ * @chan: channel for which secondary offset to find
+ *
+ * Return: secondary offset
+ */
+int8_t wma_ieee80211_secondary20_channel_offset(
+			struct dfs_ieee80211_channel *chan);
+#else
+static inline int8_t wma_ieee80211_secondary20_channel_offset(
+			struct dfs_ieee80211_channel *chan)
+{
+	return 0;
+}
+#endif
 
 #ifdef WMI_INTERFACE_EVENT_LOGGING
 static inline void wma_print_wmi_cmd_log(uint32_t count,

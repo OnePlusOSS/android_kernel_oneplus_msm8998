@@ -2134,6 +2134,16 @@ QDF_STATUS wma_vdev_start(tp_wma_handle wma,
 	else if (req->is_quarter_rate)
 		temp_chan_info |=  (1 << WMI_CHAN_FLAG_QUARTER_RATE);
 
+	/* Config channel information in dfs_ic, the channel information
+	 * is needed when processing spectral scan results
+	 */
+	qdf_spin_lock_bh(&wma->dfs_ic->chan_lock);
+	wma->dfs_ic->ic_curchan =
+				wma_dfs_configure_channel(wma->dfs_ic,
+						params.band_center_freq1,
+						params.band_center_freq2, req);
+	qdf_spin_unlock_bh(&wma->dfs_ic->chan_lock);
+
 	params.is_dfs = req->is_dfs;
 	params.is_restart = isRestart;
 	if ((QDF_GLOBAL_MONITOR_MODE != cds_get_conparam()) && req->is_dfs) {

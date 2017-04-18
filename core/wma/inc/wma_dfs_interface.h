@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -113,6 +113,7 @@
 
 #define WMA_DFS2_PHYERROR_CODE    0x5
 #define WMA_DFS2_FALSE_RADAR_EXT  0x24
+#define WMA_SPECTRAL_SCAN_ERROR   0x26
 
 /**
  * struct dfs_ieee80211_channel - channel info

@@ -1427,6 +1427,11 @@ void wlan_hdd_netif_queue_control(hdd_adapter_t *adapter,
 		return;
 	}
 
+	hdd_debug("%pS: vdev_id: %d netif_queue action:%s, reason:%s",
+		(void *)_RET_IP_, adapter->sessionId,
+		hdd_action_type_to_string(action),
+		hdd_reason_type_to_string(reason));
+
 	switch (action) {
 
 	case WLAN_NETIF_CARRIER_ON:

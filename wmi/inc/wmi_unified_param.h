@@ -2096,6 +2096,7 @@ struct cpno_band_rssi_pref {
  * @slow_scan_period: Slow scan period
  * @delay_start_time: delay in seconds to use before starting the first scan
  * @fast_scan_max_cycles: Fast scan max cycles
+ * @scan_backoff_multiplier: multiply fast scan period by this after max cycles
  * @us24GProbeTemplateLen: 2.4G probe template length
  * @p24GProbeTemplate: 2.4G probe template
  * @us5GProbeTemplateLen: 5G probe template length
@@ -2121,6 +2122,11 @@ struct cpno_band_rssi_pref {
  * @num_vendor_oui: number of vendor OUIs
  * @oui_field_len: size of total number of OUIs
  * @voui: pointer to OUI buffer
+ *
+ * E.g.
+ *	{ fast_scan_period=120, fast_scan_max_cycles=2,
+ *	  slow_scan_period=1800, scan_backoff_multiplier=2 }
+ *	Result: 120s x2, 240s x2, 480s x2, 960s x2, 1800s xN
  */
 struct pno_scan_req_params {
 	uint8_t enable;
@@ -2133,6 +2139,7 @@ struct pno_scan_req_params {
 	uint32_t slow_scan_period;
 	uint32_t delay_start_time;
 	uint8_t fast_scan_max_cycles;
+	uint8_t scan_backoff_multiplier;
 	uint32_t        active_min_time;
 	uint32_t        active_max_time;
 	uint32_t        passive_min_time;

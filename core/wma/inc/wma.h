@@ -1468,6 +1468,7 @@ struct peer_debug_info {
  * @wmi_cmd_rsp_runtime_lock: wmi command response bus lock
  * @saved_chan: saved channel list sent as part of WMI_SCAN_CHAN_LIST_CMDID
  * @fw_mem_dump_enabled: Fw memory dump support
+ * @ss_configs: spectral scan config parameters
  */
 typedef struct {
 	void *wmi_handle;
@@ -1665,6 +1666,9 @@ typedef struct {
 	struct peer_debug_info *peer_dbg;
 	bool auto_power_save_enabled;
 	uint8_t in_imps;
+#ifdef FEATURE_SPECTRAL_SCAN
+	struct vdev_spectral_configure_params ss_configs;
+#endif
 } t_wma_handle, *tp_wma_handle;
 
 /**

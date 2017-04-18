@@ -7499,6 +7499,16 @@ QDF_STATUS wma_mc_process_msg(void *cds_context, cds_msg_t *msg)
 		wma_get_chain_rssi(wma_handle, msg->bodyptr);
 		qdf_mem_free(msg->bodyptr);
 		break;
+	case SIR_HAL_SPECTRAL_SCAN_REQUEST:
+		wma_spectral_scan_req(wma_handle,
+			(struct vdev_spectral_enable_params *) msg->bodyptr);
+		qdf_mem_free(msg->bodyptr);
+		break;
+	case SIR_HAL_SPECTRAL_SCAN_CONFIG:
+		wma_spectral_scan_config(wma_handle,
+			(struct vdev_spectral_configure_params *) msg->bodyptr);
+		qdf_mem_free(msg->bodyptr);
+		break;
 	default:
 		WMA_LOGE("Unhandled WMA message of type %d", msg->type);
 		if (msg->bodyptr)

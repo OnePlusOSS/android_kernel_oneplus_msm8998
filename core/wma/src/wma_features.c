@@ -9080,3 +9080,44 @@ int wma_peer_ant_info_evt_handler(void *handle, u_int8_t *event,
 
 	return 0;
 }
+
+#ifdef FEATURE_SPECTRAL_SCAN
+void wma_spectral_scan_req(WMA_HANDLE wma_handle,
+				struct vdev_spectral_enable_params *req)
+{
+	tp_wma_handle wma = (tp_wma_handle) wma_handle;
+	QDF_STATUS status;
+
+	if (wma == NULL)
+		return;
+
+	status = wmi_unified_vdev_spectral_enable_cmd_send(wma->wmi_handle,
+								req);
+
+	if (status != QDF_STATUS_SUCCESS)
+		WMA_LOGE(FL("Failed to send spectral scan enable command"));
+
+	return;
+}
+
+void wma_spectral_scan_config(WMA_HANDLE wma_handle,
+				struct vdev_spectral_configure_params *req)
+{
+	tp_wma_handle wma = (tp_wma_handle) wma_handle;
+	QDF_STATUS status;
+
+	if (wma == NULL)
+		return;
+
+	/* save the copy of the config params */
+	memcpy(&wma->ss_configs, req, sizeof(*req));
+
+	status = wmi_unified_vdev_spectral_configure_cmd_send(wma->wmi_handle,
+								req);
+
+	if (status != QDF_STATUS_SUCCESS)
+		WMA_LOGE(FL("Failed to send spectral scan config command"));
+
+	return;
+}
+#endif

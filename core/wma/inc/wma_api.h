@@ -435,4 +435,36 @@ static inline void wma_tx_failure_cb(void *ctx, uint32_t num_msdu,
  * Return: tSirWifiPeerType
  */
 tSirWifiPeerType wmi_to_sir_peer_type(enum wmi_peer_type type);
+
+#ifdef FEATURE_SPECTRAL_SCAN
+/**
+ * wma_spectral_scan_req() - start or stop spectral scan
+ * @wma_ptr: pointer to wma handle
+ * @req: enable/disable spectral scan request
+ *
+ * Return: none
+ */
+void wma_spectral_scan_req(WMA_HANDLE wma_handle,
+				struct vdev_spectral_enable_params *req);
+
+/**
+ * wma_spectral_scan_config() - config spectral scan parameters
+ * @wma_ptr: pointer to wma handle
+ * @req: spectral scan configuration request
+ *
+ * Return: none
+ */
+void wma_spectral_scan_config(WMA_HANDLE wma_handle,
+				struct vdev_spectral_configure_params *req);
+#else
+static inline void wma_spectral_scan_req(WMA_HANDLE wma_handle,
+				struct vdev_spectral_enable_params *req)
+{
+}
+
+static inline void wma_spectral_scan_config(WMA_HANDLE wma_handle,
+				struct vdev_spectral_configure_params *req)
+{
+}
+#endif
 #endif

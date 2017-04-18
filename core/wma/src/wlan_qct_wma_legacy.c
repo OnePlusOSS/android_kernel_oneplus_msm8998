@@ -110,8 +110,8 @@ tSirRetStatus u_mac_post_ctrl_msg(void *pSirGlobal, tSirMbMsg *pMb)
 	tSirMsgQ msg;
 	tSirRetStatus status = eSIR_SUCCESS;
 	tpAniSirGlobal pMac = (tpAniSirGlobal) pSirGlobal;
-
 	tSirMbMsg *pMbLocal;
+
 	msg.type = pMb->type;
 	msg.bodyval = 0;
 

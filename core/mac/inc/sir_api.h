@@ -7737,4 +7737,84 @@ struct get_chain_rssi_req_params {
 	uint8_t session_id;
 };
 
+struct INTERF_RSP {
+	uint8_t interf_type;
+	uint16_t interf_min_freq;
+	uint16_t interf_max_freq;
+} qdf_packed;
+
+#define MAX_INTERF 10 /* 5 categories x (lower + upper) bands */
+#define MAX_NUM_BINS 520
+#define MAX_SPECTRAL_CHAINS  3
+struct INTERF_SRC_RSP {
+	uint16_t count;
+	struct INTERF_RSP interf[MAX_INTERF];
+} qdf_packed;
+
+struct samp_msg_data {
+	int16_t     spectral_data_len;
+	int16_t     spectral_data_len_sec80;
+	int16_t     spectral_rssi;
+	int16_t     spectral_rssi_sec80;
+	int8_t      spectral_combined_rssi;
+	int8_t      spectral_upper_rssi;
+	int8_t      spectral_lower_rssi;
+	int8_t      spectral_chain_ctl_rssi[MAX_SPECTRAL_CHAINS];
+	int8_t      spectral_chain_ext_rssi[MAX_SPECTRAL_CHAINS];
+	uint8_t     spectral_max_scale;
+	int16_t     spectral_bwinfo;
+	int32_t     spectral_tstamp;
+	int16_t     spectral_max_index;
+	int16_t     spectral_max_index_sec80;
+	int16_t     spectral_max_mag;
+	int16_t     spectral_max_mag_sec80;
+	uint8_t     spectral_max_exp;
+	int32_t     spectral_last_tstamp;
+	int16_t     spectral_upper_max_index;
+	int16_t     spectral_lower_max_index;
+	uint8_t     spectral_nb_upper;
+	uint8_t     spectral_nb_lower;
+	uint16_t    bin_pwr_count;
+
+	uint8_t    lb_edge_extrabins;
+	uint8_t    rb_edge_extrabins;
+
+	uint16_t   bin_pwr_count_sec80;
+	uint8_t    bin_pwr[MAX_NUM_BINS];
+	uint8_t    bin_pwr_sec80[MAX_NUM_BINS];
+	struct INTERF_SRC_RSP interf_list;
+	int16_t    noise_floor;
+	int16_t    noise_floor_sec80;
+	uint32_t   ch_width;
+} qdf_packed;
+
+enum dcs_int_type {
+	SPECTRAL_DCS_INT_NONE,
+	SPECTRAL_DCS_INT_CW,
+	SPECTRAL_DCS_INT_WIFI
+};
+
+/**
+ * struct spectral_samp_msg - FFT sampling data
+ * @signature: flag indicating it is a samp message
+ * @freq: frequency of the samplings
+ * @vhtop_ch_freq_seg1: VHT channel frequency segment 1
+ * @vhtop_ch_freq_seg2: VHT channel frequency segment 2
+ * @freq_loading: spectral scan frequency loading
+ * @dcs_enabled: if DCS is enabled
+ * @int_type: DCS interface type
+ * @macaddr: interface mac address
+ * @samp_data: sampling data
+ */
+struct spectral_samp_msg {
+	uint32_t      signature;
+	uint16_t      freq;
+	uint16_t      vhtop_ch_freq_seg1;
+	uint16_t      vhtop_ch_freq_seg2;
+	uint16_t      freq_loading;
+	uint16_t      dcs_enabled;
+	enum dcs_int_type   int_type;
+	uint8_t       macaddr[6];
+	struct samp_msg_data samp_data;
+} qdf_packed;
 #endif /* __SIR_API_H */

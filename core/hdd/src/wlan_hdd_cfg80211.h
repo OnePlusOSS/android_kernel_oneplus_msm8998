@@ -520,6 +520,9 @@ enum qca_nl80211_vendor_subcmds {
 
 	/* Fetch BSS transition status */
 	QCA_NL80211_VENDOR_SUBCMD_FETCH_BSS_TRANSITION_STATUS = 151,
+	/* spectral scan commands */
+	QCA_NL80211_VENDOR_SUBCMD_SPECTRAL_SCAN_START = 154,
+	QCA_NL80211_VENDOR_SUBCMD_SPECTRAL_SCAN_STOP = 155,
 };
 
 /**

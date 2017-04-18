@@ -108,6 +108,7 @@
 #include "ol_txrx.h"
 #include "cds_utils.h"
 #include "sir_api.h"
+#include "wlan_hdd_spectralscan.h"
 
 #ifdef CNSS_GENL
 #include <net/cnss_nl.h>
@@ -5137,6 +5138,12 @@ static int hdd_init_netlink_services(hdd_context_t *hdd_ctx)
 		goto err_close_cesium;
 	}
 
+	ret = spectral_scan_activate_service();
+	if (ret) {
+		hdd_alert("spectral_scan_activate_service failed: %d", ret);
+		goto err_close_cesium;
+	}
+
 	return 0;
 
 err_close_cesium:
@@ -8579,6 +8586,9 @@ static int hdd_features_init(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 		sme_register_p2p_lo_event(hdd_ctx->hHal, hdd_ctx,
 				wlan_hdd_p2p_lo_event_callback);
 
+	/* register spectral scan callback */
+	hdd_register_spectral_scan_cb(hdd_ctx, spectral_scan_callback);
+
 	ret = hdd_set_auto_shutdown_cb(hdd_ctx);
 
 	if (ret)
@@ -9042,6 +9052,8 @@ int hdd_wlan_startup(struct device *dev)
 		goto err_hdd_free_context;
 
 	hdd_green_ap_init(hdd_ctx);
+
+	hdd_init_spectral_scan(hdd_ctx);
 
 	ret = hdd_wlan_start_modules(hdd_ctx, NULL, false);
 	if (ret) {

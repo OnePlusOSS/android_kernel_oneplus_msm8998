@@ -106,6 +106,7 @@ typedef enum eAniNlModuleTypes {
 	WLAN_NL_MSG_SVC,
 	WLAN_NL_MSG_CNSS_DIAG = ANI_NL_MSG_BASE + 0x0B, /* Value needs to be 27 */
 	ANI_NL_MSG_LOG,
+	WLAN_NL_MSG_SPECTRAL_SCAN,
 	ANI_NL_MSG_MAX
 } tAniNlModTypes, tWlanNlModTypes;
 

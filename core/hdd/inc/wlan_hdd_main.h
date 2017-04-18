@@ -1759,6 +1759,10 @@ struct hdd_context_s {
 	uint32_t track_arp_ip;
 	uint8_t bt_a2dp_active:1;
 	uint8_t bt_vo_active:1;
+#ifdef FEATURE_SPECTRAL_SCAN
+	struct vdev_spectral_configure_params ss_config;
+	int sscan_pid;
+#endif
 };
 
 int hdd_validate_channel_and_bandwidth(hdd_adapter_t *adapter,

@@ -96,6 +96,7 @@
 #include "wlan_hdd_lpass.h"
 #include "wlan_hdd_nan_datapath.h"
 #include "wlan_hdd_disa.h"
+#include "wlan_hdd_spectralscan.h"
 
 #define g_mode_rates_size (12)
 #define a_mode_rates_size (8)
@@ -10423,6 +10424,7 @@ const struct wiphy_vendor_command hdd_wiphy_vendor_commands[] = {
 			WIPHY_VENDOR_CMD_NEED_RUNNING,
 		.doit = wlan_hdd_cfg80211_get_chain_rssi
 	},
+	FEATURE_SPECTRAL_SCAN_VENDOR_COMMANDS
 };
 
 /**

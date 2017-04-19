@@ -263,7 +263,9 @@ static void cpufreq_darkness_timer(unsigned long data)
 		ppol->policy->governor_data;
 #endif
 	struct cpufreq_darkness_cpuinfo *pcpu;
+#if defined(CONFIG_MSM_PERFORMANCE) || defined(CONFIG_SCHED_CORE_CTL)
 	struct cpufreq_govinfo govinfo;
+#endif
 	unsigned int load_mode = tunables->load_mode;
 	unsigned int new_freq;
 	unsigned int calc_load = 0;
@@ -315,6 +317,7 @@ static void cpufreq_darkness_timer(unsigned long data)
 		calc_load /= n;
 	spin_unlock_irqrestore(&ppol->load_lock, flags);
 
+#if defined(CONFIG_MSM_PERFORMANCE) || defined(CONFIG_SCHED_CORE_CTL)
 	/*
 	 * Send govinfo notification.
 	 * Govinfo notification could potentially wake up another thread
@@ -330,6 +333,7 @@ static void cpufreq_darkness_timer(unsigned long data)
 		atomic_notifier_call_chain(&cpufreq_govinfo_notifier_list,
 					   CPUFREQ_LOAD_CHANGE, &govinfo);
 	}
+#endif
 
 	spin_lock_irqsave(&ppol->target_freq_lock, flags);
 	new_freq = choose_freq(ppol->policy, calc_load * (ppol->policy->max / 100));

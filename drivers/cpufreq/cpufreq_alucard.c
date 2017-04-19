@@ -304,7 +304,9 @@ static void cpufreq_alucard_timer(unsigned long data)
 	struct cpufreq_alucard_tunables *tunables =
 		ppol->policy->governor_data;
 	struct cpufreq_alucard_cpuinfo *pcpu;
+#if defined(CONFIG_MSM_PERFORMANCE) || defined(CONFIG_SCHED_CORE_CTL)
 	struct cpufreq_govinfo govinfo;
+#endif
 	unsigned int freq_responsiveness = tunables->freq_responsiveness;
 	unsigned int freq_responsiveness_max = tunables->freq_responsiveness_max;
 	int pump_inc_step = tunables->pump_inc_step;
@@ -370,6 +372,7 @@ static void cpufreq_alucard_timer(unsigned long data)
 		calc_load /= n;
 	spin_unlock_irqrestore(&ppol->load_lock, flags);
 
+#if defined(CONFIG_MSM_PERFORMANCE) || defined(CONFIG_SCHED_CORE_CTL)
 	/*
 	 * Send govinfo notification.
 	 * Govinfo notification could potentially wake up another thread
@@ -385,6 +388,7 @@ static void cpufreq_alucard_timer(unsigned long data)
 		atomic_notifier_call_chain(&cpufreq_govinfo_notifier_list,
 					   CPUFREQ_LOAD_CHANGE, &govinfo);
 	}
+#endif
 
 	/* Check for frequency increase or for frequency decrease */
 	spin_lock_irqsave(&ppol->target_freq_lock, flags);

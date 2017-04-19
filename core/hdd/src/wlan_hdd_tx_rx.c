@@ -461,8 +461,9 @@ static int __hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (qdf_nbuf_data_is_arp_req(skb) &&
 		    (hdd_ctx->track_arp_ip == qdf_nbuf_get_arp_tgt_ip(skb))) {
 			++pAdapter->hdd_stats.hdd_arp_stats.tx_arp_req_count;
-			QDF_TRACE(QDF_MODULE_ID_HDD_DATA, LOG1,
-					"%s : ARP packet", __func__);
+			QDF_TRACE(QDF_MODULE_ID_HDD_DATA,
+				  QDF_TRACE_LEVEL_INFO_HIGH,
+				  "%s : ARP packet", __func__);
 		}
 	}
 
@@ -690,14 +691,9 @@ drop_pkt_accounting:
 	++pAdapter->stats.tx_dropped;
 	++pAdapter->hdd_stats.hddTxRxStats.txXmitDropped;
 	if (is_arp) {
-		uint16_t arpdropped;
-
-		arpdropped = ++pAdapter->hdd_stats.hdd_arp_stats.tx_dropped;
-		/* rate limit error messages to 1/64th */
-		if ((arpdropped & 0x3f) == 0)
-			QDF_TRACE(QDF_MODULE_ID_HDD_DATA, LOGE,
-				  "%s : ARP packet dropped; count=%d",
-				  __func__, arpdropped);
+		++pAdapter->hdd_stats.hdd_arp_stats.tx_dropped;
+		QDF_TRACE(QDF_MODULE_ID_HDD_DATA, QDF_TRACE_LEVEL_INFO_HIGH,
+				  "%s : ARP packet dropped", __func__);
 	}
 
 	return NETDEV_TX_OK;

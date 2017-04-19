@@ -2630,7 +2630,7 @@ static int hdd_extscan_start_fill_bucket_channel_spec(
 	QDF_STATUS status;
 	uint8_t bkt_index, j, num_channels, total_channels = 0;
 	uint32_t expected_buckets;
-	uint32_t chan_list[WNI_CFG_VALID_CHANNEL_LIST_LEN] = {0};
+	uint32_t *chan_list;
 
 	uint32_t min_dwell_time_active_bucket =
 		hdd_ctx->config->extscan_active_max_chn_time;
@@ -2641,6 +2641,13 @@ static int hdd_extscan_start_fill_bucket_channel_spec(
 	uint32_t max_dwell_time_passive_bucket =
 		hdd_ctx->config->extscan_passive_max_chn_time;
 
+	chan_list = qdf_mem_malloc(sizeof(uint32_t) *
+				WNI_CFG_VALID_CHANNEL_LIST_LEN);
+
+	if (!chan_list) {
+		hdd_err("failed to allocate memory");
+		return -EINVAL;
+	}
 	req_msg->min_dwell_time_active =
 		req_msg->max_dwell_time_active =
 			hdd_ctx->config->extscan_active_max_chn_time;
@@ -2665,13 +2672,13 @@ static int hdd_extscan_start_fill_bucket_channel_spec(
 			QCA_WLAN_VENDOR_ATTR_EXTSCAN_SUBCMD_CONFIG_PARAM_MAX,
 			nla_data(buckets), nla_len(buckets), NULL)) {
 			hdd_err("nla_parse failed");
-			return -EINVAL;
+			goto fail;
 		}
 
 		/* Parse and fetch bucket spec */
 		if (!bucket[QCA_WLAN_VENDOR_ATTR_EXTSCAN_BUCKET_SPEC_INDEX]) {
 			hdd_err("attr bucket index failed");
-			return -EINVAL;
+			goto fail;
 		}
 		req_msg->buckets[bkt_index].bucket = nla_get_u8(
 			bucket[QCA_WLAN_VENDOR_ATTR_EXTSCAN_BUCKET_SPEC_INDEX]);
@@ -2679,7 +2686,7 @@ static int hdd_extscan_start_fill_bucket_channel_spec(
 		/* Parse and fetch wifi band */
 		if (!bucket[QCA_WLAN_VENDOR_ATTR_EXTSCAN_BUCKET_SPEC_BAND]) {
 			hdd_err("attr wifi band failed");
-			return -EINVAL;
+			goto fail;
 		}
 		req_msg->buckets[bkt_index].band = nla_get_u8(
 			bucket[QCA_WLAN_VENDOR_ATTR_EXTSCAN_BUCKET_SPEC_BAND]);
@@ -2687,7 +2694,7 @@ static int hdd_extscan_start_fill_bucket_channel_spec(
 		/* Parse and fetch period */
 		if (!bucket[QCA_WLAN_VENDOR_ATTR_EXTSCAN_BUCKET_SPEC_PERIOD]) {
 			hdd_err("attr period failed");
-			return -EINVAL;
+			goto fail;
 		}
 		req_msg->buckets[bkt_index].period = nla_get_u32(
 		bucket[QCA_WLAN_VENDOR_ATTR_EXTSCAN_BUCKET_SPEC_PERIOD]);
@@ -2696,7 +2703,7 @@ static int hdd_extscan_start_fill_bucket_channel_spec(
 		if (!bucket[
 			QCA_WLAN_VENDOR_ATTR_EXTSCAN_BUCKET_SPEC_REPORT_EVENTS]) {
 			hdd_err("attr report events failed");
-			return -EINVAL;
+			goto fail;
 		}
 		req_msg->buckets[bkt_index].reportEvents = nla_get_u8(
 			bucket[
@@ -2705,7 +2712,7 @@ static int hdd_extscan_start_fill_bucket_channel_spec(
 		/* Parse and fetch max period */
 		if (!bucket[QCA_WLAN_VENDOR_ATTR_EXTSCAN_BUCKET_SPEC_MAX_PERIOD]) {
 			hdd_err("attr max period failed");
-			return -EINVAL;
+			goto fail;
 		}
 		req_msg->buckets[bkt_index].max_period = nla_get_u32(
 			bucket[QCA_WLAN_VENDOR_ATTR_EXTSCAN_BUCKET_SPEC_MAX_PERIOD]);
@@ -2713,7 +2720,7 @@ static int hdd_extscan_start_fill_bucket_channel_spec(
 		/* Parse and fetch base */
 		if (!bucket[QCA_WLAN_VENDOR_ATTR_EXTSCAN_BUCKET_SPEC_BASE]) {
 			hdd_err("attr base failed");
-			return -EINVAL;
+			goto fail;
 		}
 		req_msg->buckets[bkt_index].exponent = nla_get_u32(
 			bucket[QCA_WLAN_VENDOR_ATTR_EXTSCAN_BUCKET_SPEC_BASE]);
@@ -2721,7 +2728,7 @@ static int hdd_extscan_start_fill_bucket_channel_spec(
 		/* Parse and fetch step count */
 		if (!bucket[QCA_WLAN_VENDOR_ATTR_EXTSCAN_BUCKET_SPEC_STEP_COUNT]) {
 			hdd_err("attr step count failed");
-			return -EINVAL;
+			goto fail;
 		}
 		req_msg->buckets[bkt_index].step_count = nla_get_u32(
 			bucket[QCA_WLAN_VENDOR_ATTR_EXTSCAN_BUCKET_SPEC_STEP_COUNT]);
@@ -2750,8 +2757,10 @@ static int hdd_extscan_start_fill_bucket_channel_spec(
 		 */
 		if (req_msg->buckets[bkt_index].band != WIFI_BAND_UNSPECIFIED) {
 			if (hdd_extscan_channel_max_reached(req_msg,
-							    total_channels))
+							    total_channels)) {
+				qdf_mem_free(chan_list);
 				return 0;
+			}
 
 			num_channels = 0;
 			hdd_debug("WiFi band is specified, driver to fill channel list");
@@ -2761,7 +2770,7 @@ static int hdd_extscan_start_fill_bucket_channel_spec(
 			if (!QDF_IS_STATUS_SUCCESS(status)) {
 				hdd_err("sme_GetValidChannelsByBand failed (err=%d)",
 				       status);
-				return -EINVAL;
+				goto fail;
 			}
 			hdd_debug("before trimming, num_channels: %d",
 				num_channels);
@@ -2852,7 +2861,7 @@ static int hdd_extscan_start_fill_bucket_channel_spec(
 		if (!bucket[
 			QCA_WLAN_VENDOR_ATTR_EXTSCAN_BUCKET_SPEC_NUM_CHANNEL_SPECS]) {
 			hdd_err("attr num channels failed");
-			return -EINVAL;
+			goto fail;
 		}
 		req_msg->buckets[bkt_index].numChannels =
 		nla_get_u32(bucket[
@@ -2866,12 +2875,14 @@ static int hdd_extscan_start_fill_bucket_channel_spec(
 		hdd_debug("Num channels/bucket: %d total_channels: %d",
 			req_msg->buckets[bkt_index].numChannels,
 			total_channels);
-		if (hdd_extscan_channel_max_reached(req_msg, total_channels))
+		if (hdd_extscan_channel_max_reached(req_msg, total_channels)) {
+			qdf_mem_free(chan_list);
 			return 0;
+		}
 
 		if (!bucket[QCA_WLAN_VENDOR_ATTR_EXTSCAN_CHANNEL_SPEC]) {
 			hdd_err("attr channel spec failed");
-			return -EINVAL;
+			goto fail;
 		}
 
 		j = 0;
@@ -2887,14 +2898,14 @@ static int hdd_extscan_start_fill_bucket_channel_spec(
 				nla_data(channels), nla_len(channels),
 				wlan_hdd_extscan_config_policy)) {
 				hdd_err("nla_parse failed");
-				return -EINVAL;
+				goto fail;
 			}
 
 			/* Parse and fetch channel */
 			if (!channel[
 				QCA_WLAN_VENDOR_ATTR_EXTSCAN_CHANNEL_SPEC_CHANNEL]) {
 				hdd_err("attr channel failed");
-				return -EINVAL;
+				goto fail;
 			}
 			req_msg->buckets[bkt_index].channels[j].channel =
 				nla_get_u32(channel[
@@ -2906,7 +2917,7 @@ static int hdd_extscan_start_fill_bucket_channel_spec(
 			if (!channel[
 				QCA_WLAN_VENDOR_ATTR_EXTSCAN_CHANNEL_SPEC_DWELL_TIME]) {
 				hdd_err("attr dwelltime failed");
-				return -EINVAL;
+				goto fail;
 			}
 			req_msg->buckets[bkt_index].channels[j].dwellTimeMs =
 				nla_get_u32(channel[
@@ -2964,7 +2975,7 @@ static int hdd_extscan_start_fill_bucket_channel_spec(
 			if (!channel[
 				QCA_WLAN_VENDOR_ATTR_EXTSCAN_CHANNEL_SPEC_PASSIVE]) {
 				hdd_err("attr channel spec passive failed");
-				return -EINVAL;
+				goto fail;
 			}
 			req_msg->buckets[bkt_index].channels[j].passive =
 				nla_get_u8(channel[
@@ -3006,8 +3017,12 @@ static int hdd_extscan_start_fill_bucket_channel_spec(
 				req_msg->max_dwell_time_active,
 				req_msg->min_dwell_time_passive,
 				req_msg->max_dwell_time_passive);
-
+	qdf_mem_free(chan_list);
 	return 0;
+fail:
+	if (chan_list)
+		qdf_mem_free(chan_list);
+	return -EINVAL;
 }
 
 /*

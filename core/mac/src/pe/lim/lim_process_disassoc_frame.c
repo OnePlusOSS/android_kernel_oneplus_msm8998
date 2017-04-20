@@ -108,16 +108,18 @@ lim_process_disassoc_frame(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 	}
 
 	if (LIM_IS_STA_ROLE(psessionEntry) &&
-		(eLIM_SME_WT_DISASSOC_STATE == psessionEntry->limSmeState)) {
-		if (pHdr->fc.retry > 0) {
-			/*
-			 * This can happen when first disassoc frame is received
-			 * but ACK from this STA is lost, in this case 2nd
-			 * disassoc frame is already in transmission queue
-			 */
-			pe_err("AP is sending disassoc after ACK lost");
-			return;
+		((eLIM_SME_WT_DISASSOC_STATE == psessionEntry->limSmeState) ||
+		(eLIM_SME_WT_DEAUTH_STATE == psessionEntry->limSmeState))) {
+		if (!(psessionEntry->disassocmsgcnt & 0xF)) {
+			pe_info("received Disassoc frame in %s"
+				"(already processing previously received Disassoc frame)"
+				"Dropping this.. Disassoc Failed %d",
+				lim_sme_state_str(psessionEntry->limSmeState),
+					   ++psessionEntry->disassocmsgcnt);
+		} else {
+			psessionEntry->disassocmsgcnt++;
 		}
+		return;
 	}
 #ifdef WLAN_FEATURE_11W
 	/* PMF: If this session is a PMF session, then ensure that this frame was protected */
@@ -184,6 +186,9 @@ lim_process_disassoc_frame(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 		lim_clean_up_disassoc_deauth_req(pMac, (uint8_t *) pHdr->sa, 1);
 		return;
 	}
+
+	if (psessionEntry->disassocmsgcnt != 0)
+		psessionEntry->disassocmsgcnt = 0;
 
 	/** If we are in the Wait for ReAssoc Rsp state */
 	if (lim_is_reassoc_in_progress(pMac, psessionEntry)) {

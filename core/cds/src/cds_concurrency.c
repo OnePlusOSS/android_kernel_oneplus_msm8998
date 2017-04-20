@@ -9080,6 +9080,169 @@ QDF_STATUS cds_reset_sap_mandatory_channels(void)
 }
 
 /**
+ * cds_enable_disable_sap_mandatory_chan_list() - enable/disable SAP mandatory
+ * channel list
+ * @val: Enable or Disable sap mandatory chan list
+ *
+ * enable/disable the SAP mandatory channel list
+ *
+ * Return: None
+ */
+void cds_enable_disable_sap_mandatory_chan_list(bool val)
+{
+	cds_context_type *cds_ctx;
+
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return;
+	}
+
+	cds_debug("enable_sap_mandatory_chan_list %d", val);
+	cds_ctx->enable_sap_mandatory_chan_list = val;
+}
+
+/**
+ * cds_add_sap_mandatory_chan() - Add chan to SAP mandatory chan
+ * list
+ * @chan: Channel to be added
+ *
+ * Add chan to SAP mandatory channel list
+ *
+ * Return: None
+ */
+void cds_add_sap_mandatory_chan(uint8_t chan)
+{
+	cds_context_type *cds_ctx;
+	int i;
+
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return;
+	}
+	for (i = 0; i < cds_ctx->sap_mandatory_channels_len; i++) {
+		if (chan == cds_ctx->sap_mandatory_channels[i])
+			return;
+	}
+
+	cds_debug("chan %hu", chan);
+	cds_ctx->sap_mandatory_channels[cds_ctx->sap_mandatory_channels_len++]
+		= chan;
+}
+
+/**
+ * cds_is_sap_mandatory_chan_list_enabled() - Return the SAP mandatory chan
+ * list enabled status
+ *
+ * Get the SAP mandatory chan list enabled status
+ *
+ * Return: Enable or Disable
+ */
+bool cds_is_sap_mandatory_chan_list_enabled(void)
+{
+	cds_context_type *cds_ctx;
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return false;
+	}
+
+	return cds_ctx->enable_sap_mandatory_chan_list;
+}
+
+/**
+ * cds_get_sap_mandatory_chan_list_len() - Return the SAP mandatory chan list
+ * len
+ *
+ * Get the SAP mandatory chan list len
+ *
+ * Return: Channel list length
+ */
+uint32_t cds_get_sap_mandatory_chan_list_len(void)
+{
+	cds_context_type *cds_ctx;
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return false;
+	}
+
+	return cds_ctx->sap_mandatory_channels_len;
+}
+
+/**
+ * cds_init_sap_mandatory_2g_chan() - Init 2.4G SAP mandatory chan list
+ *
+ * Initialize the 2.4G SAP mandatory channels
+ *
+ * Return: Success or Failure
+ */
+void cds_init_sap_mandatory_2g_chan(void)
+{
+	cds_context_type *cds_ctx;
+	uint8_t chan_list[QDF_MAX_NUM_CHAN] = {0};
+	uint32_t len = 0;
+	int i;
+	QDF_STATUS status;
+
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return;
+	}
+
+	status = cds_get_valid_chans(chan_list, &len);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		cds_err("Error in getting valid channels");
+		return;
+	}
+	for (i = 0; i < len; i++) {
+		if (CDS_IS_CHANNEL_24GHZ(chan_list[i])) {
+			cds_err("Add chan %hu to mandatory list", chan_list[i]);
+			cds_ctx->sap_mandatory_channels[
+			cds_ctx->sap_mandatory_channels_len++] = chan_list[i];
+		}
+	}
+	return;
+}
+
+/**
+ * cds_remove_sap_mandatory_chan() - Remove chan from SAP mandatory chan list
+ *
+ * Remove chan from SAP mandatory chan list
+ *
+ * Return: Success or Failure
+ */
+void cds_remove_sap_mandatory_chan(uint8_t chan)
+{
+	cds_context_type *cds_ctx;
+	uint8_t chan_list[QDF_MAX_NUM_CHAN] = {0};
+	uint32_t num_chan = 0;
+	int i;
+
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return;
+	}
+
+	for (i = 0; i < cds_ctx->sap_mandatory_channels_len; i++) {
+		if (chan == cds_ctx->sap_mandatory_channels[i])
+			continue;
+		chan_list[num_chan++] = cds_ctx->sap_mandatory_channels[i];
+	}
+
+	qdf_mem_zero(cds_ctx->sap_mandatory_channels,
+			cds_ctx->sap_mandatory_channels_len);
+	qdf_mem_copy(cds_ctx->sap_mandatory_channels, chan_list, num_chan);
+	cds_ctx->sap_mandatory_channels_len = num_chan;
+
+	return;
+}
+/**
  * cds_is_sap_mandatory_channel_set() - Checks if SAP mandatory channel is set
  *
  * Checks if any mandatory channel is set for SAP operation

@@ -7984,6 +7984,7 @@ static int __wlan_hdd_cfg80211_stop_ap(struct wiphy *wiphy,
 	unsigned long rc;
 	hdd_adapter_list_node_t *pAdapterNode = NULL;
 	hdd_adapter_list_node_t *pNext = NULL;
+	tsap_Config_t *pConfig;
 
 	ENTER();
 
@@ -8073,10 +8074,17 @@ static int __wlan_hdd_cfg80211_stop_ap(struct wiphy *wiphy,
 		pHddCtx->is_sap_restart_required = false;
 		qdf_spin_unlock(&pHddCtx->sap_update_info_lock);
 	}
-	pAdapter->sessionCtx.ap.sapConfig.acs_cfg.acs_mode = false;
+
+	pConfig = &pAdapter->sessionCtx.ap.sapConfig;
+	pConfig->acs_cfg.acs_mode = false;
 	wlan_hdd_undo_acs(pAdapter);
-	qdf_mem_zero(&pAdapter->sessionCtx.ap.sapConfig.acs_cfg,
-						sizeof(struct sap_acs_cfg));
+	qdf_mem_zero(&pConfig->acs_cfg, sizeof(struct sap_acs_cfg));
+
+	/* Remove the channel no from sap mandatory list if it is a
+	 * 5GHz channel */
+	if (CDS_IS_CHANNEL_5GHZ(pConfig->channel))
+		cds_remove_sap_mandatory_chan(pConfig->channel);
+
 	/* Stop all tx queues */
 	hdd_notice("Disabling queues");
 	wlan_hdd_netif_queue_control(pAdapter,
@@ -8285,6 +8293,17 @@ static int __wlan_hdd_cfg80211_start_ap(struct wiphy *wiphy,
 	channel_width = wlan_hdd_get_channel_bw(params->chandef.width);
 	channel = ieee80211_frequency_to_channel(
 				params->chandef.chan->center_freq);
+
+	if (cds_is_sap_mandatory_chan_list_enabled()) {
+		if (!cds_get_sap_mandatory_chan_list_len())
+			cds_init_sap_mandatory_2g_chan();
+
+		if (CDS_IS_CHANNEL_5GHZ(channel)) {
+			hdd_debug("channel %hu, sap mandatory chan list enabled",
+					channel);
+			cds_add_sap_mandatory_chan(channel);
+		}
+	}
 
 	if (cds_is_sub_20_mhz_enabled()) {
 		enum channel_state ch_state;

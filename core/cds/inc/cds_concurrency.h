@@ -878,4 +878,10 @@ void cds_hw_mode_transition_cb(uint32_t old_hw_mode_index,
 			 struct sir_vdev_mac_map *vdev_mac_map);
 void cds_set_hw_mode_change_in_progress(enum cds_hw_mode_change value);
 enum cds_hw_mode_change cds_is_hw_mode_change_in_progress(void);
+void cds_enable_disable_sap_mandatory_chan_list(bool val);
+void cds_add_sap_mandatory_chan(uint8_t chan);
+void cds_remove_sap_mandatory_chan(uint8_t chan);
+bool cds_is_sap_mandatory_chan_list_enabled(void);
+void cds_init_sap_mandatory_2g_chan(void);
+uint32_t cds_get_sap_mandatory_chan_list_len(void);
 #endif /* __CDS_CONCURRENCY_H */

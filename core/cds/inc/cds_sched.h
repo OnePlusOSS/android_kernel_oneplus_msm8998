@@ -322,6 +322,7 @@ typedef struct _cds_context_type {
 	 */
 	uint8_t sap_mandatory_channels[QDF_MAX_NUM_CHAN];
 	uint32_t sap_mandatory_channels_len;
+	bool enable_sap_mandatory_chan_list;
 	bool do_hw_mode_change;
 	bool enable_fatal_event;
 	struct cds_config_info *cds_cfg;

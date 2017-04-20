@@ -534,6 +534,11 @@ void hdd_conf_ns_offload(hdd_adapter_t *adapter, bool fenable)
 		return;
 	}
 
+	if (QDF_IBSS_MODE == adapter->device_mode) {
+		hdd_debug("NS Offload is not supported in IBSS mode");
+		return;
+	}
+
 	if (fenable)
 		hdd_enable_ns_offload(adapter);
 	else

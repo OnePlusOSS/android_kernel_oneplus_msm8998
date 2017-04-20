@@ -13753,7 +13753,7 @@ static int wlan_hdd_cfg80211_set_auth_type(hdd_adapter_t *pAdapter,
 	return 0;
 }
 
-#ifdef WLAN_FEATURE_FILS_SK
+#if defined(WLAN_FEATURE_FILS_SK) && defined(CFG80211_FILS_SK_OFFLOAD_SUPPORT)
 static bool hdd_validate_fils_info_ptr(hdd_wext_state_t *wext_state)
 {
 	struct cds_fils_connection_info *fils_con_info;
@@ -13827,7 +13827,7 @@ static int wlan_hdd_set_akm_suite(hdd_adapter_t *pAdapter, u32 key_mgmt)
 		hdd_debug("setting key mgmt type to OSEN");
 		pWextState->authKeyMgmt |= IW_AUTH_KEY_MGMT_802_1X;
 		break;
-#ifdef WLAN_FEATURE_FILS_SK
+#if defined(WLAN_FEATURE_FILS_SK) && defined(CFG80211_FILS_SK_OFFLOAD_SUPPORT)
 	case WLAN_AKM_SUITE_FILS_SHA256:
 		hdd_notice("setting key mgmt type to FILS SHA256");
 		pWextState->authKeyMgmt |= IW_AUTH_KEY_MGMT_802_1X;

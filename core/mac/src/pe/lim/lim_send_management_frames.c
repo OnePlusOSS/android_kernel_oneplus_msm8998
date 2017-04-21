@@ -4131,6 +4131,8 @@ lim_send_radio_measure_report_action_frame(tpAniSirGlobal pMac,
 		return eSIR_FAILURE;
 	}
 
+	smeSessionId = psessionEntry->smeSessionId;
+
 	pe_debug("dialog_token %d num_report %d",
 			dialog_token, num_report);
 

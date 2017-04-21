@@ -2515,7 +2515,7 @@ QDF_STATUS sme_process_msg(tHalHandle hHal, cds_msg_t *pMsg)
 		break;
 
 	case eWNI_SME_SAME_AP_REASSOC_IND:
-		if (pMac->roam.configParam.rx_ldpc_support_for_2g) {
+		if (sme_check_enable_rx_ldpc_sta_ini_item()) {
 			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
 			    FL("eWNI_SME_SAME_AP_REASSOC_IND cmd to delete"));
 			sme_cmd =  csr_find_self_reassoc_cmd(pMac,
@@ -16548,6 +16548,10 @@ bool sme_check_enable_rx_ldpc_sta_ini_item(void)
 	mac_ctx = PMAC_STRUCT(hal);
 	if (!mac_ctx->roam.configParam.rx_ldpc_support_for_2g) {
 		sme_debug("2G STA Rx LDPC is disabled from ini");
+		return false;
+	}
+	if (!mac_ctx->roam.configParam.rx_ldpc_enable) {
+		sme_debug("Master Rx LDPC is disabled from ini");
 		return false;
 	}
 	sme_debug("2G STA Rx LDPC is enabled from ini");

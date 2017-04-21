@@ -1992,37 +1992,44 @@ static void lim_trigger_channel_switch_through_roaming(uint32_t sme_sessionid,
 
 static void lim_csa_ecsa_handler(tpAniSirGlobal mac_ctx, tpPESession session)
 {
-	uint8_t old_channel, new_channel;
+	uint8_t old_channel, new_channel, is_fw_roaming_allowed;
 
 	old_channel = session->currentOperChannel;
 	new_channel = session->gLimChannelSwitch.primaryChannel;
+
+	if (!CDS_IS_SAME_BAND_CHANNELS(old_channel, new_channel) &&
+			(QDF_STA_MODE == session->pePersona)) {
+		pe_debug("Bands are different & Persona is STA");
+		is_fw_roaming_allowed = 1;
+	} else {
+		pe_debug("use host driver CSA/ECSA mechanism");
+		is_fw_roaming_allowed = 0;
+	}
 	switch (session->gLimChannelSwitch.state) {
 	case eLIM_CHANNEL_SWITCH_PRIMARY_ONLY:
 		pe_debug("CHANNEL_SWITCH_PRIMARY_ONLY");
-		if (!CDS_IS_SAME_BAND_CHANNELS(old_channel, new_channel)) {
+		if (is_fw_roaming_allowed)
 			lim_trigger_channel_switch_through_roaming(
 				session->smeSessionId, session->bssId,
 				session->gLimChannelSwitch.primaryChannel);
-		} else {
+		else
 			lim_switch_primary_channel(mac_ctx,
 				session->gLimChannelSwitch.primaryChannel,
 				session);
-		}
 		session->gLimChannelSwitch.state = eLIM_CHANNEL_SWITCH_IDLE;
 		break;
 	case eLIM_CHANNEL_SWITCH_PRIMARY_AND_SECONDARY:
 		pe_debug("CHANNEL_SWITCH_PRIMARY_AND_SECONDARY");
-		if (!CDS_IS_SAME_BAND_CHANNELS(old_channel, new_channel)) {
+		if (is_fw_roaming_allowed)
 			lim_trigger_channel_switch_through_roaming(
 				session->smeSessionId, session->bssId,
 				session->gLimChannelSwitch.primaryChannel);
-		} else {
+		else
 			lim_switch_primary_secondary_channel(mac_ctx, session,
 				session->gLimChannelSwitch.primaryChannel,
 				session->gLimChannelSwitch.ch_center_freq_seg0,
 				session->gLimChannelSwitch.ch_center_freq_seg1,
 				session->gLimChannelSwitch.ch_width);
-		}
 		session->gLimChannelSwitch.state = eLIM_CHANNEL_SWITCH_IDLE;
 		break;
 	case eLIM_CHANNEL_SWITCH_IDLE:

@@ -80,7 +80,7 @@
 #include "cdp_txrx_ipa.h"
 #include "wma_nan_datapath.h"
 
-#define WMA_LOG_COMPLETION_TIMER 10000 /* 10 seconds */
+#define WMA_LOG_COMPLETION_TIMER 3000 /* 3 seconds */
 
 #define WMI_TLV_HEADROOM 128
 

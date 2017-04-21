@@ -5158,14 +5158,14 @@ int __iw_get_softap_linkspeed(struct net_device *dev,
 	struct qdf_mac_addr macAddress;
 	char pmacAddress[MAC_ADDRESS_STR_LEN + 1];
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
-	int rc, valid, i;
+	int rc, errno, i;
 
 	ENTER_DEV(dev);
 
 	hdd_ctx = WLAN_HDD_GET_CTX(pHostapdAdapter);
-	valid = wlan_hdd_validate_context(hdd_ctx);
-	if (0 != valid)
-		return valid;
+	errno = wlan_hdd_validate_context(hdd_ctx);
+	if (errno)
+		return errno;
 
 	hdd_debug("wrqu->data.length(%d)", wrqu->data.length);
 
@@ -5212,11 +5212,11 @@ int __iw_get_softap_linkspeed(struct net_device *dev,
 		hdd_err("Invalid peer macaddress");
 		return -EINVAL;
 	}
-	status = wlan_hdd_get_linkspeed_for_peermac(pHostapdAdapter,
-						    macAddress);
-	if (!QDF_IS_STATUS_SUCCESS(status)) {
-		hdd_err("Unable to retrieve SME linkspeed");
-		return -EINVAL;
+	errno = wlan_hdd_get_linkspeed_for_peermac(pHostapdAdapter,
+						   macAddress);
+	if (errno) {
+		hdd_err("Unable to retrieve SME linkspeed: %d", errno);
+		return errno;
 	}
 
 	link_speed = pHostapdAdapter->ls_stats.estLinkSpeed;

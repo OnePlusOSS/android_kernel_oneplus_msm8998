@@ -5959,7 +5959,7 @@ static void csr_purge_scan_result_by_age(void *pv)
 		if ((cur_time - result->Result.BssDescriptor.received_time) >
 			    ageout_time) {
 			bssId = result->Result.BssDescriptor.bssId;
-			sme_warn("age out for BSSID" MAC_ADDRESS_STR" Channel %d",
+			sme_debug("age out BSSID " MAC_ADDRESS_STR" Channel %d",
 				MAC_ADDR_ARRAY(bssId),
 				result->Result.BssDescriptor.channelId);
 			csr_scan_age_out_bss(mac_ctx, result);

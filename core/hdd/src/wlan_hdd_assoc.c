@@ -2241,8 +2241,8 @@ void hdd_perform_roam_set_key_complete(hdd_adapter_t *pAdapter)
 	pHddStaCtx->roam_info.deferKeyComplete = false;
 }
 
-#ifdef WLAN_FEATURE_FILS_SK
-static void hdd_clear_fils_connection_info(hdd_adapter_t *adapter)
+#if defined(WLAN_FEATURE_FILS_SK) && defined(CFG80211_FILS_SK_OFFLOAD_SUPPORT)
+void hdd_clear_fils_connection_info(hdd_adapter_t *adapter)
 {
 	hdd_wext_state_t *wext_state = WLAN_HDD_GET_WEXT_STATE_PTR(adapter);
 
@@ -2251,9 +2251,6 @@ static void hdd_clear_fils_connection_info(hdd_adapter_t *adapter)
 		wext_state->roamProfile.fils_con_info = NULL;
 	}
 }
-#else
-static void hdd_clear_fils_connection_info(hdd_adapter_t *adapter)
-{ }
 #endif
 
 /**

@@ -13893,11 +13893,12 @@ QDF_STATUS csr_roam_del_pmkid_from_cache(tpAniSirGlobal pMac,
 				pmksa->cache_id, CACHE_ID_LEN)))
 			fMatchFound = 1;
 
-		if (fMatchFound)
-			/* Clear this - the matched entry */
+		if (fMatchFound) {
+			/* Clear this - matched entry */
 			qdf_mem_zero(cached_pmksa,
 				     sizeof(tPmkidCacheInfo));
 			break;
+		}
 	}
 
 	if (Index == CSR_MAX_PMKID_ALLOWED && !fMatchFound) {

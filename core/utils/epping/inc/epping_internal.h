@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -171,7 +171,8 @@ void epping_tx_complete_multiple(void *ctx, HTC_PACKET_QUEUE *pPacketQueue);
 int epping_tx_send(qdf_nbuf_t skb, epping_adapter_t *pAdapter);
 
 #ifdef HIF_SDIO
-HTC_SEND_FULL_ACTION epping_tx_queue_full(void *Context, HTC_PACKET *pPacket);
+enum htc_send_full_action epping_tx_queue_full(void *Context,
+						HTC_PACKET *pPacket);
 #endif
 void epping_tx_dup_pkt(epping_adapter_t *pAdapter,
 		       HTC_ENDPOINT_ID eid, qdf_nbuf_t skb);

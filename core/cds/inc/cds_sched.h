@@ -330,6 +330,8 @@ typedef struct _cds_context_type {
 	uint32_t hw_mode_change_in_progress;
 } cds_context_type, *p_cds_contextType;
 
+extern struct _cds_sched_context *gp_cds_sched_context;
+
 /*---------------------------------------------------------------------------
    Function declarations and documenation
    ---------------------------------------------------------------------------*/

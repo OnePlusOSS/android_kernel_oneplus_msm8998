@@ -1496,6 +1496,11 @@ static void wma_process_cli_set_cmd(tp_wma_handle wma,
 				WMA_LOGE("Current band is not 5G");
 			}
 			break;
+		case WMI_PDEV_PARAM_ENA_ANT_DIV:
+		case WMI_PDEV_PARAM_FORCE_CHAIN_ANT:
+		case WMI_PDEV_PARAM_ANT_DIV_SELFTEST:
+		case WMI_PDEV_PARAM_ANT_DIV_SELFTEST_INTVL:
+			break;
 		default:
 			WMA_LOGD("Invalid wma_cli_set pdev command/Not yet implemented 0x%x",
 				 privcmd->param_id);
@@ -2240,7 +2245,8 @@ QDF_STATUS wma_open(void *cds_context,
 	wma_handle->enable_mc_list = cds_cfg->enable_mc_list;
 	wma_handle->bpf_packet_filter_enable =
 		cds_cfg->bpf_packet_filter_enable;
-	wma_handle->active_bpf_mode = cds_cfg->active_bpf_mode;
+	wma_handle->active_uc_bpf_mode = cds_cfg->active_uc_bpf_mode;
+	wma_handle->active_mc_bc_bpf_mode = cds_cfg->active_mc_bc_bpf_mode;
 	wma_handle->link_stats_results = NULL;
 #ifdef FEATURE_WLAN_RA_FILTERING
 	wma_handle->IsRArateLimitEnabled = cds_cfg->is_ra_ratelimit_enabled;
@@ -2577,6 +2583,10 @@ QDF_STATUS wma_open(void *cds_context,
 
 
 	wma_ndp_register_all_event_handlers(wma_handle);
+	wmi_unified_register_event_handler(wma_handle->wmi_handle,
+				WMI_PEER_ANTDIV_INFO_EVENTID,
+				wma_peer_ant_info_evt_handler,
+				WMA_RX_SERIALIZER_CTX);
 	wma_register_debug_callback();
 
 	wma_handle->peer_dbg = qdf_mem_malloc(sizeof(*wma_handle->peer_dbg));
@@ -3497,6 +3507,24 @@ QDF_STATUS wma_wmi_service_close(void *cds_ctx)
 		if (wma_handle->interfaces[i].stats_rsp) {
 			qdf_mem_free(wma_handle->interfaces[i].stats_rsp);
 			wma_handle->interfaces[i].stats_rsp = NULL;
+		}
+
+		if (wma_handle->interfaces[i].psnr_req) {
+			qdf_mem_free(wma_handle->
+				     interfaces[i].psnr_req);
+			wma_handle->interfaces[i].psnr_req = NULL;
+		}
+
+		if (wma_handle->interfaces[i].rcpi_req) {
+			qdf_mem_free(wma_handle->
+				     interfaces[i].rcpi_req);
+			wma_handle->interfaces[i].rcpi_req = NULL;
+		}
+
+		if (wma_handle->interfaces[i].action_frame_filter) {
+			qdf_mem_free(wma_handle->
+				     interfaces[i].action_frame_filter);
+			wma_handle->interfaces[i].action_frame_filter = NULL;
 		}
 	}
 
@@ -4861,6 +4889,9 @@ int wma_rx_service_ready_event(void *handle, uint8_t *cmd_param_info,
 		wma_handle->wlan_resource_config.use_pdev_id = true;
 	else
 		wma_handle->wlan_resource_config.use_pdev_id = false;
+
+	wma_handle->wlan_resource_config.max_num_dbs_scan_duty_cycle =
+		CFG_DBS_SCAN_CLIENTS_MAX;
 
 	/* register the Enhanced Green AP event handler */
 	wma_register_egap_event_handle(wma_handle);
@@ -6546,6 +6577,45 @@ wma_process_action_frame_random_mac(tp_wma_handle wma_handle,
 	return QDF_STATUS_SUCCESS;
 }
 
+static QDF_STATUS wma_get_chain_rssi(tp_wma_handle wma_handle,
+		struct get_chain_rssi_req_params *req_params)
+{
+	wmi_peer_antdiv_info_req_cmd_fixed_param *cmd;
+	wmi_buf_t wmi_buf;
+	uint32_t len = sizeof(wmi_peer_antdiv_info_req_cmd_fixed_param);
+	u_int8_t *buf_ptr;
+
+	if (!wma_handle) {
+		WMA_LOGE(FL("WMA is closed, can not issue cmd"));
+		return QDF_STATUS_E_INVAL;
+	}
+
+	wmi_buf = wmi_buf_alloc(wma_handle->wmi_handle, len);
+	if (!wmi_buf) {
+		WMA_LOGE(FL("wmi_buf_alloc failed"));
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	buf_ptr = (u_int8_t *)wmi_buf_data(wmi_buf);
+
+	cmd = (wmi_peer_antdiv_info_req_cmd_fixed_param *)buf_ptr;
+	WMITLV_SET_HDR(&cmd->tlv_header,
+		WMITLV_TAG_STRUC_wmi_peer_antdiv_info_req_cmd_fixed_param,
+		WMITLV_GET_STRUCT_TLVLEN(wmi_peer_antdiv_info_req_cmd_fixed_param));
+	cmd->vdev_id = req_params->session_id;
+	WMI_CHAR_ARRAY_TO_MAC_ADDR(req_params->peer_macaddr.bytes,
+				&cmd->peer_mac_address);
+
+	if (wmi_unified_cmd_send(wma_handle->wmi_handle, wmi_buf, len,
+		WMI_PEER_ANTDIV_INFO_REQ_CMDID)) {
+			WMA_LOGE(FL("failed to send get chain rssi command"));
+			wmi_buf_free(wmi_buf);
+			return QDF_STATUS_E_FAILURE;
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
+
 /**
  * wma_mc_process_msg() - process wma messages and call appropriate function.
  * @cds_context: cds context
@@ -7121,6 +7191,11 @@ QDF_STATUS wma_mc_process_msg(void *cds_context, cds_msg_t *msg)
 					     (tpSirLLStatsGetReq) msg->bodyptr);
 		qdf_mem_free(msg->bodyptr);
 		break;
+	case WMA_LINK_LAYER_STATS_SET_THRESHOLD:
+		wma_config_stats_ext_threshold(wma_handle,
+			(struct sir_ll_ext_stats_threshold *)msg->bodyptr);
+		qdf_mem_free(msg->bodyptr);
+		break;
 #endif /* WLAN_FEATURE_LINK_LAYER_STATS */
 	case SIR_HAL_UNIT_TEST_CMD:
 		wma_process_unit_test_cmd(wma_handle,
@@ -7413,6 +7488,25 @@ QDF_STATUS wma_mc_process_msg(void *cds_context, cds_msg_t *msg)
 	case WDA_ACTION_FRAME_RANDOM_MAC:
 		wma_process_action_frame_random_mac(wma_handle,
 		     (struct action_frame_random_filter *)msg->bodyptr);
+		qdf_mem_free(msg->bodyptr);
+		break;
+	case WMA_SET_DBS_SCAN_SEL_CONF_PARAMS:
+		wma_send_dbs_scan_selection_params(wma_handle,
+			(struct wmi_dbs_scan_sel_params *)msg->bodyptr);
+		qdf_mem_free(msg->bodyptr);
+		break;
+	case SIR_HAL_GET_CHAIN_RSSI_REQ:
+		wma_get_chain_rssi(wma_handle, msg->bodyptr);
+		qdf_mem_free(msg->bodyptr);
+		break;
+	case SIR_HAL_SPECTRAL_SCAN_REQUEST:
+		wma_spectral_scan_req(wma_handle,
+			(struct vdev_spectral_enable_params *) msg->bodyptr);
+		qdf_mem_free(msg->bodyptr);
+		break;
+	case SIR_HAL_SPECTRAL_SCAN_CONFIG:
+		wma_spectral_scan_config(wma_handle,
+			(struct vdev_spectral_configure_params *) msg->bodyptr);
 		qdf_mem_free(msg->bodyptr);
 		break;
 	default:

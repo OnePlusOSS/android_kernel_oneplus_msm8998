@@ -224,6 +224,8 @@ enum ds_mode {
 
 #define WMA_MAX_RF_CHAINS(x)    ((1 << x) - 1)
 #define WMA_MIN_RF_CHAINS               (1)
+#define WMA_MAX_NSS               (2)
+
 
 #ifdef FEATURE_WLAN_EXTSCAN
 #define WMA_MAX_EXTSCAN_MSG_SIZE        1536
@@ -1457,12 +1459,16 @@ struct peer_debug_info {
  * handle of other modules.
  * @saved_wmi_init_cmd: Saved WMI INIT command
  * @bpf_packet_filter_enable: BPF filter enabled or not
- * @active_bpf_mode: Setting that determines how BPF is applied in active mode
+ * @active_uc_bpf_mode: Setting that determines how BPF is applied in active
+ * mode for uc packets
+ * @active_mc_bc_bpf_mode: Setting that determines how BPF is applied in
+ * active mode for MC/BC packets
  * @service_ready_ext_evt: Wait event for service ready ext
  * @wmi_cmd_rsp_wake_lock: wmi command response wake lock
  * @wmi_cmd_rsp_runtime_lock: wmi command response bus lock
  * @saved_chan: saved channel list sent as part of WMI_SCAN_CHAN_LIST_CMDID
  * @fw_mem_dump_enabled: Fw memory dump support
+ * @ss_configs: spectral scan config parameters
  */
 typedef struct {
 	void *wmi_handle;
@@ -1641,7 +1647,8 @@ typedef struct {
 	uint32_t fine_time_measurement_cap;
 	bool bpf_enabled;
 	bool bpf_packet_filter_enable;
-	enum active_bpf_mode active_bpf_mode;
+	enum active_bpf_mode active_uc_bpf_mode;
+	enum active_bpf_mode active_mc_bc_bpf_mode;
 	struct wma_ini_config ini_config;
 	struct wma_valid_channels saved_chan;
 	/* NAN datapath support enabled in firmware */
@@ -1659,6 +1666,9 @@ typedef struct {
 	struct peer_debug_info *peer_dbg;
 	bool auto_power_save_enabled;
 	uint8_t in_imps;
+#ifdef FEATURE_SPECTRAL_SCAN
+	struct vdev_spectral_configure_params ss_configs;
+#endif
 } t_wma_handle, *tp_wma_handle;
 
 /**
@@ -2451,5 +2461,82 @@ void wma_set_sap_wow_bitmask(uint32_t *bitmask, uint32_t wow_bitmask_size);
  */
 bool wma_is_wow_bitmask_zero(uint32_t *bitmask,
 			     uint32_t wow_bitmask_size);
+
+#ifdef WMI_INTERFACE_EVENT_LOGGING
+static inline void wma_print_wmi_cmd_log(uint32_t count,
+					 qdf_abstract_print *print,
+					 void *print_priv)
+{
+	t_wma_handle *wma = cds_get_context(QDF_MODULE_ID_WMA);
+
+	if (wma)
+		wmi_print_cmd_log(wma->wmi_handle, count, print, print_priv);
+}
+
+static inline void wma_print_wmi_cmd_tx_cmp_log(uint32_t count,
+						qdf_abstract_print *print,
+						void *print_priv)
+{
+	t_wma_handle *wma = cds_get_context(QDF_MODULE_ID_WMA);
+
+	if (wma)
+		wmi_print_cmd_tx_cmp_log(wma->wmi_handle, count, print,
+					 print_priv);
+}
+
+static inline void wma_print_wmi_mgmt_cmd_log(uint32_t count,
+					      qdf_abstract_print *print,
+					      void *print_priv)
+{
+	t_wma_handle *wma = cds_get_context(QDF_MODULE_ID_WMA);
+
+	if (wma)
+		wmi_print_mgmt_cmd_log(wma->wmi_handle, count, print,
+				       print_priv);
+}
+
+static inline void wma_print_wmi_mgmt_cmd_tx_cmp_log(uint32_t count,
+						     qdf_abstract_print *print,
+						     void *print_priv)
+{
+	t_wma_handle *wma = cds_get_context(QDF_MODULE_ID_WMA);
+
+	if (wma)
+		wmi_print_mgmt_cmd_tx_cmp_log(wma->wmi_handle, count, print,
+					      print_priv);
+}
+
+static inline void wma_print_wmi_event_log(uint32_t count,
+					   qdf_abstract_print *print,
+					   void *print_priv)
+{
+	t_wma_handle *wma = cds_get_context(QDF_MODULE_ID_WMA);
+
+	if (wma)
+		wmi_print_event_log(wma->wmi_handle, count, print, print_priv);
+}
+
+static inline void wma_print_wmi_rx_event_log(uint32_t count,
+					      qdf_abstract_print *print,
+					      void *print_priv)
+{
+	t_wma_handle *wma = cds_get_context(QDF_MODULE_ID_WMA);
+
+	if (wma)
+		wmi_print_rx_event_log(wma->wmi_handle, count, print,
+				       print_priv);
+}
+
+static inline void wma_print_wmi_mgmt_event_log(uint32_t count,
+						qdf_abstract_print *print,
+						void *print_priv)
+{
+	t_wma_handle *wma = cds_get_context(QDF_MODULE_ID_WMA);
+
+	if (wma)
+		wmi_print_mgmt_event_log(wma->wmi_handle, count, print,
+					 print_priv);
+}
+#endif /* WMI_INTERFACE_EVENT_LOGGING */
 
 #endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -78,6 +78,9 @@ typedef enum eAniAuthType {
 	eSIR_LEAP_AUTH = 0x80,
 #endif
 	eSIR_AUTO_SWITCH,
+	eSIR_FILS_SK_WITHOUT_PFS = 4,
+	eSIR_FILS_SK_WITH_PFS = 5,
+	eSIR_FILS_PK_AUTH = 6,
 	eSIR_DONOT_USE_AUTH_TYPE = SIR_MAX_ENUM_SIZE
 } tAniAuthType;
 

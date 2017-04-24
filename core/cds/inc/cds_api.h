@@ -283,7 +283,6 @@ void cds_set_fatal_event(bool value);
 void cds_wlan_flush_host_logs_for_fatal(void);
 
 void cds_init_log_completion(void);
-void cds_deinit_log_completion(void);
 QDF_STATUS cds_flush_logs(uint32_t is_fatal,
 		uint32_t indicator,
 		uint32_t reason_code,
@@ -320,4 +319,10 @@ QDF_STATUS cds_deregister_dp_cb(void);
 uint32_t cds_get_arp_stats_gw_ip(void);
 void cds_incr_arp_stats_tx_tgt_delivered(void);
 void cds_incr_arp_stats_tx_tgt_acked(void);
+
+#ifdef WMI_INTERFACE_EVENT_LOGGING
+void cds_print_htc_credit_history(uint32_t count, qdf_abstract_print * print,
+				  void *print_priv);
+#endif
+
 #endif /* if !defined __CDS_API_H */

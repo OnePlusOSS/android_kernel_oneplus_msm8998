@@ -79,7 +79,10 @@
 #define LIM_IS_CONNECTION_ACTIVE(psessionEntry)  (psessionEntry->LimRxedBeaconCntDuringHB)
 /*pMac->lim.gLimProcessDefdMsgs*/
 #define GET_LIM_PROCESS_DEFD_MESGS(pMac) (pMac->lim.gLimProcessDefdMsgs)
-#define SET_LIM_PROCESS_DEFD_MESGS(pMac, val) (pMac->lim.gLimProcessDefdMsgs = val)
+#define SET_LIM_PROCESS_DEFD_MESGS(pMac, val) \
+		pMac->lim.gLimProcessDefdMsgs = val; \
+		pe_debug("%s Defer LIM messages - value %d", __func__, val);
+
 /* LIM exported function templates */
 #define LIM_MIN_BCN_PR_LENGTH  12
 #define LIM_BCN_PR_CAPABILITY_OFFSET 10
@@ -327,7 +330,5 @@ static inline void lim_fill_join_rsp_ht_caps(tpPESession session,
 #endif
 QDF_STATUS lim_update_ext_cap_ie(tpAniSirGlobal mac_ctx,
 	uint8_t *ie_data, uint8_t *local_ie_buf, uint16_t *local_ie_len);
-QDF_STATUS lim_add_qcn_ie(tpAniSirGlobal mac_ctx, uint8_t *ie_data,
-							uint16_t *ie_len);
 /************************************************************/
 #endif /* __LIM_API_H */

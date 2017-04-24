@@ -109,6 +109,90 @@ typedef struct sSirQCNIE {
 	uint8_t sub_version;
 } tSirQCNIE, *tpSirQCNIE;
 
+#ifdef WLAN_FEATURE_FILS_SK
+#define SIR_MAX_IDENTIFIER_CNT 7
+#define SIR_CACHE_IDENTIFIER_LEN 2
+#define SIR_HESSID_LEN 6
+#define SIR_MAX_KEY_CNT 7
+#define SIR_MAX_KEY_LEN 48
+
+/*
+ * struct public_key_identifier: structure for public key identifier
+ * present in fils indication element
+ * @is_present: if Key info is present
+ * @key_cnt:  number of keys present
+ * @key_type: type of key used
+ * @length: length of key
+ * @key: key data
+ */
+struct public_key_identifier {
+	bool is_present;
+	uint8_t key_cnt;
+	uint8_t key_type;
+	uint8_t length;
+	uint8_t key[SIR_MAX_KEY_CNT][SIR_MAX_KEY_LEN];
+};
+
+/*
+ * struct fils_cache_identifier: structure for fils cache identifier
+ * present in fils indication element
+ * @is_present: if cache identifier is present
+ * @identifier: cache identifier
+ */
+struct fils_cache_identifier {
+	bool is_present;
+	uint8_t identifier[SIR_CACHE_IDENTIFIER_LEN];
+};
+
+/*
+ * struct fils_hessid: structure for fils hessid
+ * present in fils indication element
+ * @is_present: if hessid info is present
+ * @hessid: hessid data
+ */
+struct fils_hessid {
+	bool is_present;
+	uint8_t hessid[SIR_HESSID_LEN];
+};
+
+/*
+ * struct fils_realm_identifier: structure for fils_realm_identifier
+ * present in fils indication element
+ * @is_present: if realm info is present
+ * @realm_cnt: realm count
+ * @realm: realm data
+ */
+struct fils_realm_identifier {
+	bool is_present;
+	uint8_t realm_cnt;
+	uint8_t realm[SIR_MAX_REALM_COUNT][SIR_REALM_LEN];
+};
+
+/*
+ * struct sir_fils_indication: structure for fils indication element
+ * @is_present: if indication element is present
+ * @is_ip_config_supported: if IP config is supported
+ * @is_fils_sk_auth_supported: if fils sk suppprted
+ * @is_fils_sk_auth_pfs_supported: if fils sk with pfs supported
+ * @is_pk_auth_supported: if fils public key supported
+ * @cache_identifier: fils cache idenfier info
+ * @hessid: fils hessid info
+ * @realm_identifier: fils realm info
+ * @key_identifier: fils key identifier info
+ */
+struct sir_fils_indication {
+	bool is_present;
+	uint8_t is_ip_config_supported;
+	uint8_t is_fils_sk_auth_supported;
+	uint8_t is_fils_sk_auth_pfs_supported;
+	uint8_t is_pk_auth_supported;
+	struct fils_cache_identifier cache_identifier;
+	struct fils_hessid hessid;
+	struct fils_realm_identifier realm_identifier;
+	struct public_key_identifier key_identifier;
+};
+#endif
+
 /* Structure common to Beacons & Probe Responses */
 typedef struct sSirProbeRespBeacon {
 	tSirMacTimeStamp timeStamp;
@@ -198,6 +282,9 @@ typedef struct sSirProbeRespBeacon {
 	bool assoc_disallowed;
 	uint8_t assoc_disallowed_reason;
 	tSirQCNIE QCN_IE;
+#ifdef WLAN_FEATURE_FILS_SK
+	struct sir_fils_indication fils_ind;
+#endif
 } tSirProbeRespBeacon, *tpSirProbeRespBeacon;
 
 /* probe Request structure */
@@ -317,6 +404,11 @@ typedef struct sSirAssocRsp {
 	tDot11fIEvendor_vht_ie vendor_vht_ie;
 	tDot11fIEOBSSScanParameters obss_scanparams;
 	tSirQCNIE QCN_IE;
+#ifdef WLAN_FEATURE_FILS_SK
+	tDot11fIEfils_session fils_session;
+	tDot11fIEfils_key_confirmation fils_key_auth;
+	tDot11fIEfils_kde fils_kde;
+#endif
 } tSirAssocRsp, *tpSirAssocRsp;
 
 #ifdef FEATURE_WLAN_ESE
@@ -482,6 +574,7 @@ sir_convert_assoc_req_frame2_struct(struct sAniSirGlobal *pMac,
 
 tSirRetStatus
 sir_convert_assoc_resp_frame2_struct(struct sAniSirGlobal *pMac,
+				tpPESession session_entry,
 				uint8_t *frame, uint32_t len,
 				tpSirAssocRsp assoc);
 
@@ -967,6 +1060,27 @@ populate_dot11f_ext_cap(tpAniSirGlobal pMac, bool isVHTEnabled,
 			tDot11fIEExtCap *pDot11f, tpPESession psessionEntry);
 
 void populate_dot11f_qcn_ie(tDot11fIEQCN_IE *pDot11f);
+
+#ifdef WLAN_FEATURE_FILS_SK
+/**
+ * populate_dot11f_fils_params() - Populate FILS IE to frame
+ * @mac_ctx: global mac context
+ * @frm: Assoc request frame
+ * @pe_session: PE session
+ *
+ * This API is used to populate FILS IE to Association request
+ *
+ * Return: None
+ */
+void populate_dot11f_fils_params(tpAniSirGlobal mac_ctx,
+				 tDot11fAssocRequest *frm,
+				 tpPESession pe_session);
+#else
+static inline void populate_dot11f_fils_params(tpAniSirGlobal mac_ctx,
+				 tDot11fAssocRequest *frm,
+				 tpPESession pe_session)
+{ }
+#endif
 
 tSirRetStatus
 populate_dot11f_operating_mode(tpAniSirGlobal pMac,

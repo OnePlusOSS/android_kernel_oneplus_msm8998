@@ -1653,7 +1653,7 @@ QDF_STATUS sme_hdd_ready_ind(tHalHandle hHal)
 		Msg.length = sizeof(tSirSmeReadyReq);
 		Msg.add_bssdescr_cb = csr_scan_process_single_bssdescr;
 		Msg.csr_roam_synch_cb = csr_roam_synch_callback;
-
+		Msg.sme_msg_cb = sme_process_msg_callback;
 
 		if (eSIR_FAILURE != u_mac_post_ctrl_msg(hHal, (tSirMbMsg *) &Msg)) {
 			status = QDF_STATUS_SUCCESS;
@@ -4388,7 +4388,8 @@ QDF_STATUS sme_roam_set_pmkid_cache(tHalHandle hHal, uint8_t sessionId,
 }
 
 QDF_STATUS sme_roam_del_pmkid_from_cache(tHalHandle hHal, uint8_t sessionId,
-					 const uint8_t *pBSSId, bool flush_cache)
+					 tPmkidCacheInfo *pmksa,
+					 bool flush_cache)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
@@ -4400,7 +4401,7 @@ QDF_STATUS sme_roam_del_pmkid_from_cache(tHalHandle hHal, uint8_t sessionId,
 	if (QDF_IS_STATUS_SUCCESS(status)) {
 		if (CSR_IS_SESSION_VALID(pMac, sessionId)) {
 			status = csr_roam_del_pmkid_from_cache(pMac, sessionId,
-							       pBSSId, flush_cache);
+						       pmksa, flush_cache);
 		} else {
 			status = QDF_STATUS_E_INVAL;
 		}
@@ -6423,6 +6424,9 @@ QDF_STATUS sme_set_gtk_offload(tHalHandle hHal,
 
 	*request_buf = *pGtkOffload;
 
+	if (pSession->is_fils_connection)
+		request_buf->ulFlags = GTK_OFFLOAD_DISABLE;
+
 	msg.type = WMA_GTK_OFFLOAD_REQ;
 	msg.reserved = 0;
 	msg.bodyptr = request_buf;
@@ -7899,16 +7903,13 @@ QDF_STATUS sme_8023_multicast_list(tHalHandle hHal, uint8_t sessionId,
 		  pMulticastAddrs->multicastAddr[0].bytes);
 
 	/* Find the connected Infra / P2P_client connected session */
-	if (CSR_IS_SESSION_VALID(pMac, sessionId) &&
-			(csr_is_conn_state_infra(pMac, sessionId) ||
-			csr_is_ndi_started(pMac, sessionId))) {
-		pSession = CSR_GET_SESSION(pMac, sessionId);
-		if (pSession == NULL) {
-			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-				"%s: Unable to find the session Id: %d", __func__,
-				sessionId);
-			return QDF_STATUS_E_FAILURE;
-		}
+	pSession = CSR_GET_SESSION(pMac, sessionId);
+	if (!CSR_IS_SESSION_VALID(pMac, sessionId) ||
+			(!csr_is_conn_state_infra(pMac, sessionId) &&
+			 !csr_is_ndi_started(pMac, sessionId))) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			  "%s: Invalid session: %d", __func__, sessionId);
+		return QDF_STATUS_E_FAILURE;
 	}
 
 	request_buf = qdf_mem_malloc(sizeof(tSirRcvFltMcAddrList));
@@ -10875,30 +10876,6 @@ QDF_STATUS sme_lphb_config_req
 	return status;
 }
 #endif /* FEATURE_WLAN_LPHB */
-/*--------------------------------------------------------------------------
-   \brief sme_enable_disable_split_scan() - a wrapper function to set the split
-					    scan parameter.
-   This is a synchronous call
-   \param hHal - The handle returned by mac_open
-   \return NONE.
-   \sa
-   --------------------------------------------------------------------------*/
-void sme_enable_disable_split_scan(tHalHandle hHal, uint8_t nNumStaChan,
-				   uint8_t nNumP2PChan)
-{
-	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
-
-	pMac->roam.configParam.nNumStaChanCombinedConc = nNumStaChan;
-	pMac->roam.configParam.nNumP2PChanCombinedConc = nNumP2PChan;
-
-	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-		  "%s: SCAN nNumStaChanCombinedConc : %d,"
-		  "nNumP2PChanCombinedConc : %d ",
-		  __func__, nNumStaChan, nNumP2PChan);
-
-	return;
-
-}
 
 /**
  * sme_add_periodic_tx_ptrn() - Add Periodic TX Pattern
@@ -14239,6 +14216,64 @@ QDF_STATUS sme_reset_link_layer_stats_ind_cb(tHalHandle h_hal)
 	return status;
 }
 
+/**
+ * sme_ll_stats_set_thresh - set threshold for mac counters
+ * @hal, hal layer handle
+ * @threshold, threshold for mac counters
+ *
+ * Return: QDF_STATUS Enumeration
+ */
+QDF_STATUS sme_ll_stats_set_thresh(tHalHandle hal,
+				   struct sir_ll_ext_stats_threshold *threshold)
+{
+	QDF_STATUS status;
+	tpAniSirGlobal mac;
+	cds_msg_t message;
+	struct sir_ll_ext_stats_threshold *thresh;
+
+	if (!threshold) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			  FL("threshold is not valid"));
+		return QDF_STATUS_E_INVAL;
+	}
+
+	if (!hal) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			  FL("hal is not valid"));
+		return QDF_STATUS_E_INVAL;
+	}
+	mac = PMAC_STRUCT(hal);
+
+	thresh = qdf_mem_malloc(sizeof(*thresh));
+	if (!thresh) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			  "%s: Fail to alloc mem", __func__);
+		return QDF_STATUS_E_NOMEM;
+	}
+	*thresh = *threshold;
+
+	status = sme_acquire_global_lock(&mac->sme);
+	if (QDF_IS_STATUS_SUCCESS(status)) {
+		/* Serialize the req through MC thread */
+		message.bodyptr = thresh;
+		message.type    = WMA_LINK_LAYER_STATS_SET_THRESHOLD;
+		MTRACE(qdf_trace(QDF_MODULE_ID_SME, TRACE_CODE_SME_TX_WMA_MSG,
+				 NO_SESSION, message.type));
+		status = cds_mq_post_message(QDF_MODULE_ID_WMA, &message);
+		if (!QDF_IS_STATUS_SUCCESS(status)) {
+			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+				  "%s: not able to post WDA_LL_STATS_GET_REQ",
+				  __func__);
+			qdf_mem_free(thresh);
+		}
+		sme_release_global_lock(&mac->sme);
+	} else {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			  FL("sme_acquire_global_lock error"));
+		qdf_mem_free(thresh);
+	}
+	return status;
+}
 
 #endif /* WLAN_FEATURE_LINK_LAYER_STATS */
 
@@ -17660,5 +17695,112 @@ QDF_STATUS sme_clear_random_mac(tHalHandle hal, uint32_t session_id,
 				FL("sme_acquire_global_lock failed"));
 		qdf_mem_free(filter);
 	}
+	return status;
+}
+
+QDF_STATUS sme_process_msg_callback(tHalHandle hal, cds_msg_t *msg)
+{
+	QDF_STATUS status = QDF_STATUS_E_FAILURE;
+
+	if (msg == NULL) {
+		sme_err("Empty message for SME Msg callback");
+		return status;
+	}
+	status = sme_process_msg(hal, msg);
+	return status;
+}
+
+QDF_STATUS sme_set_dbs_scan_selection_config(tHalHandle hal,
+		struct wmi_dbs_scan_sel_params *params)
+{
+	cds_msg_t message;
+	QDF_STATUS status;
+	struct wmi_dbs_scan_sel_params *dbs_scan_params;
+	uint32_t i;
+
+	if (params->num_clients == 0) {
+		sme_err("Num of clients is 0");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	dbs_scan_params = qdf_mem_malloc(sizeof(*dbs_scan_params));
+	if (!dbs_scan_params) {
+		sme_err("fail to alloc dbs_scan_params");
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	dbs_scan_params->num_clients = params->num_clients;
+	dbs_scan_params->pdev_id = params->pdev_id;
+	for (i = 0; i < params->num_clients; i++) {
+		dbs_scan_params->module_id[i] = params->module_id[i];
+		dbs_scan_params->num_dbs_scans[i] = params->num_dbs_scans[i];
+		dbs_scan_params->num_non_dbs_scans[i] =
+			params->num_non_dbs_scans[i];
+	}
+	message.type = WMA_SET_DBS_SCAN_SEL_CONF_PARAMS;
+	message.bodyptr = dbs_scan_params;
+	status = cds_mq_post_message(QDF_MODULE_ID_WMA, &message);
+	if (!QDF_IS_STATUS_SUCCESS(status)) {
+		sme_err("Not able to post msg to WMA!");
+		qdf_mem_free(dbs_scan_params);
+	}
+
+	return status;
+}
+
+QDF_STATUS sme_get_chain_rssi(tHalHandle phal,
+	struct get_chain_rssi_req_params *input)
+{
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	QDF_STATUS cds_status = QDF_STATUS_SUCCESS;
+	tpAniSirGlobal pmac = PMAC_STRUCT(phal);
+	cds_msg_t cds_message;
+	struct get_chain_rssi_req_params *req_msg;
+
+	req_msg = qdf_mem_malloc(sizeof(*req_msg));
+	if (!req_msg) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			"%s: Not able to allocate memory", __func__);
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	*req_msg = *input;
+
+	status = sme_acquire_global_lock(&pmac->sme);
+	if (QDF_STATUS_SUCCESS == status) {
+		/* serialize the req through MC thread */
+		cds_message.bodyptr = req_msg;
+		cds_message.type    = SIR_HAL_GET_CHAIN_RSSI_REQ;
+		cds_status = cds_mq_post_message(CDS_MQ_ID_WMA, &cds_message);
+		if (!QDF_IS_STATUS_SUCCESS(cds_status)) {
+			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+				FL("Post Get Chain Rssi msg fail"));
+			status = QDF_STATUS_E_FAILURE;
+		}
+		sme_release_global_lock(&pmac->sme);
+	}
+
+	return status;
+}
+
+/**
+ * sme_chain_rssi_register_callback - chain rssi callback
+ * @hal: global hal handle
+ * @pchain_rssi_ind_cb: callback function pointer
+ *
+ * Return: QDF_STATUS enumeration.
+ */
+QDF_STATUS sme_chain_rssi_register_callback(tHalHandle phal,
+			void (*pchain_rssi_ind_cb)(void *, void *))
+{
+	QDF_STATUS status;
+	tpAniSirGlobal pmac = PMAC_STRUCT(phal);
+
+	status = sme_acquire_global_lock(&pmac->sme);
+	if (QDF_STATUS_SUCCESS == status) {
+		pmac->sme.pchain_rssi_ind_cb = pchain_rssi_ind_cb;
+		sme_release_global_lock(&pmac->sme);
+	}
+
 	return status;
 }

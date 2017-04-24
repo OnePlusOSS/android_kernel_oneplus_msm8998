@@ -105,6 +105,13 @@ uint8_t ccp_rsn_oui07[HDD_RSN_OUI_SIZE] = { 0x00, 0x0F, 0xAC, 0x06 };
 uint8_t ccp_rsn_oui08[HDD_RSN_OUI_SIZE] = { 0x00, 0x0F, 0xAC, 0x05 };
 #endif
 
+#ifdef WLAN_FEATURE_FILS_SK
+uint8_t ccp_rsn_oui_0e[HDD_RSN_OUI_SIZE] = {0x00, 0x0F, 0xAC, 0x0E};
+uint8_t ccp_rsn_oui_0f[HDD_RSN_OUI_SIZE] = {0x00, 0x0F, 0xAC, 0x0F};
+uint8_t ccp_rsn_oui_10[HDD_RSN_OUI_SIZE] = {0x00, 0x0F, 0xAC, 0x10};
+uint8_t ccp_rsn_oui_11[HDD_RSN_OUI_SIZE] = {0x00, 0x0F, 0xAC, 0x11};
+#endif
+
 /* Offset where the EID-Len-IE, start. */
 #define FT_ASSOC_RSP_IES_OFFSET 6  /* Capability(2) + AID(2) + Status Code(2) */
 #define FT_ASSOC_REQ_IES_OFFSET 4  /* Capability(2) + LI(2) */
@@ -1496,8 +1503,9 @@ static QDF_STATUS hdd_dis_connect_handler(hdd_adapter_t *pAdapter,
 	}
 	/* notify apps that we can't pass traffic anymore */
 	hdd_notice("Disabling queues");
-	wlan_hdd_netif_queue_control(pAdapter, WLAN_NETIF_TX_DISABLE_N_CARRIER,
-				   WLAN_CONTROL_PATH);
+	wlan_hdd_netif_queue_control(pAdapter,
+				     WLAN_STOP_ALL_NETIF_QUEUE_N_CARRIER,
+				     WLAN_CONTROL_PATH);
 
 	if (hdd_ipa_is_enabled(pHddCtx))
 		hdd_ipa_wlan_evt(pAdapter, pHddStaCtx->conn_info.staId[0],
@@ -2232,6 +2240,21 @@ void hdd_perform_roam_set_key_complete(hdd_adapter_t *pAdapter)
 	pHddStaCtx->roam_info.deferKeyComplete = false;
 }
 
+#ifdef WLAN_FEATURE_FILS_SK
+static void hdd_clear_fils_connection_info(hdd_adapter_t *adapter)
+{
+	hdd_wext_state_t *wext_state = WLAN_HDD_GET_WEXT_STATE_PTR(adapter);
+
+	if (wext_state->roamProfile.fils_con_info) {
+		qdf_mem_free(wext_state->roamProfile.fils_con_info);
+		wext_state->roamProfile.fils_con_info = NULL;
+	}
+}
+#else
+static void hdd_clear_fils_connection_info(hdd_adapter_t *adapter)
+{ }
+#endif
+
 /**
  * hdd_association_completion_handler() - association completion handler
  * @pAdapter: pointer to adapter
@@ -2814,7 +2837,7 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 				if (pRoamInfo)
 					hdd_connect_result(dev,
 						pRoamInfo->bssid.bytes,
-						NULL, NULL, 0, NULL, 0,
+						pRoamInfo, NULL, 0, NULL, 0,
 						WLAN_STATUS_ASSOC_DENIED_UNSPEC,
 						GFP_KERNEL,
 						connect_timeout,
@@ -2831,7 +2854,7 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 				if (pRoamInfo)
 					hdd_connect_result(dev,
 						pRoamInfo->bssid.bytes,
-						NULL, NULL, 0, NULL, 0,
+						pRoamInfo, NULL, 0, NULL, 0,
 						pRoamInfo->reasonCode ?
 						pRoamInfo->reasonCode :
 						WLAN_STATUS_UNSPECIFIED_FAILURE,
@@ -2874,13 +2897,15 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 
 		hdd_info("Disabling queues");
 		wlan_hdd_netif_queue_control(pAdapter,
-					   WLAN_NETIF_TX_DISABLE_N_CARRIER,
+					   WLAN_STOP_ALL_NETIF_QUEUE_N_CARRIER,
 					   WLAN_CONTROL_PATH);
 	}
 
 	if (QDF_STATUS_SUCCESS != cds_check_and_restart_sap(
 					roamResult, pHddStaCtx))
 		return QDF_STATUS_E_FAILURE;
+
+	hdd_clear_fils_connection_info(pAdapter);
 
 	if (NULL != pRoamInfo && NULL != pRoamInfo->pBssDesc) {
 		cds_force_sap_on_scc(roamResult,
@@ -3393,7 +3418,7 @@ roam_roam_connect_status_update_handler(hdd_adapter_t *pAdapter,
 		/* Stop only when we are inactive */
 		hdd_info("Disabling queues");
 		wlan_hdd_netif_queue_control(pAdapter,
-					   WLAN_NETIF_TX_DISABLE_N_CARRIER,
+					   WLAN_STOP_ALL_NETIF_QUEUE_N_CARRIER,
 					   WLAN_CONTROL_PATH);
 		hdd_conn_set_connection_state(pAdapter,
 					      eConnectionState_NotConnected);
@@ -3755,6 +3780,14 @@ hdd_roam_tdls_status_update_handler(hdd_adapter_t *pAdapter,
 		curr_peer =
 			wlan_hdd_tdls_find_peer(pAdapter,
 						pRoamInfo->peerMac.bytes);
+
+		if (!curr_peer) {
+			mutex_unlock(&pHddCtx->tdls_lock);
+			hdd_debug("peer doesn't exists");
+			status = QDF_STATUS_SUCCESS;
+			break;
+		}
+
 		wlan_hdd_tdls_indicate_teardown(pAdapter, curr_peer,
 						pRoamInfo->reasonCode);
 		hdd_send_wlan_tdls_teardown_event(eTDLS_TEARDOWN_BSS_DISCONNECT,
@@ -4673,7 +4706,7 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 		hdd_debug("Roam Synch Ind: NAPI Serialize ON");
 		hdd_napi_serialize(1);
 		wlan_hdd_netif_queue_control(pAdapter,
-				WLAN_NETIF_TX_DISABLE,
+				WLAN_STOP_ALL_NETIF_QUEUE,
 				WLAN_CONTROL_PATH);
 		status = hdd_roam_deregister_sta(pAdapter,
 					pHddStaCtx->conn_info.staId[0]);
@@ -4695,7 +4728,7 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 		/* notify apps that we can't pass traffic anymore */
 		hdd_debug("Disabling queues");
 		wlan_hdd_netif_queue_control(pAdapter,
-					   WLAN_NETIF_TX_DISABLE,
+					   WLAN_STOP_ALL_NETIF_QUEUE,
 					   WLAN_CONTROL_PATH);
 		if (pHddStaCtx->ft_carrier_on == false) {
 			wlan_hdd_netif_queue_control(pAdapter,
@@ -4708,7 +4741,7 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 			hdd_debug("Roaming started due to connection lost");
 			hdd_info("Disabling queues");
 			wlan_hdd_netif_queue_control(pAdapter,
-					WLAN_NETIF_TX_DISABLE_N_CARRIER,
+					WLAN_STOP_ALL_NETIF_QUEUE_N_CARRIER,
 					WLAN_CONTROL_PATH);
 			break;
 		}
@@ -4940,7 +4973,7 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 	case eCSR_ROAM_START:
 		hdd_debug("Process ROAM_START from firmware");
 		wlan_hdd_netif_queue_control(pAdapter,
-				WLAN_NETIF_TX_DISABLE,
+				WLAN_STOP_ALL_NETIF_QUEUE,
 				WLAN_CONTROL_PATH);
 		hdd_napi_serialize(1);
 		cds_set_connection_in_progress(true);
@@ -4968,6 +5001,33 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 	return qdf_ret_status;
 }
 
+#ifdef WLAN_FEATURE_FILS_SK
+/**
+ * hdd_translate_fils_rsn_to_csr_auth() - Translate FILS RSN to CSR auth type
+ * @auth_suite: auth suite
+ * @auth_type: pointer to eCsrAuthType
+ *
+ * Return: None
+ */
+static void hdd_translate_fils_rsn_to_csr_auth(int8_t auth_suite[4],
+					eCsrAuthType *auth_type)
+{
+	if (!memcmp(auth_suite, ccp_rsn_oui_0e, 4))
+		*auth_type = eCSR_AUTH_TYPE_FILS_SHA256;
+	else if (!memcmp(auth_suite, ccp_rsn_oui_0f, 4))
+		*auth_type = eCSR_AUTH_TYPE_FILS_SHA384;
+	else if (!memcmp(auth_suite, ccp_rsn_oui_10, 4))
+		*auth_type = eCSR_AUTH_TYPE_FT_FILS_SHA256;
+	else if (!memcmp(auth_suite, ccp_rsn_oui_11, 4))
+		*auth_type = eCSR_AUTH_TYPE_FT_FILS_SHA384;
+}
+#else
+static inline void hdd_translate_fils_rsn_to_csr_auth(int8_t auth_suite[4],
+					eCsrAuthType *auth_type)
+{
+}
+#endif
+
 /**
  * hdd_translate_rsn_to_csr_auth_type() - Translate RSN to CSR auth type
  * @auth_suite: auth suite
@@ -4976,7 +5036,7 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
  */
 eCsrAuthType hdd_translate_rsn_to_csr_auth_type(uint8_t auth_suite[4])
 {
-	eCsrAuthType auth_type;
+	eCsrAuthType auth_type = eCSR_AUTH_TYPE_UNKNOWN;
 	/* is the auth type supported? */
 	if (memcmp(auth_suite, ccp_rsn_oui01, 4) == 0) {
 		auth_type = eCSR_AUTH_TYPE_RSN;
@@ -5002,8 +5062,9 @@ eCsrAuthType hdd_translate_rsn_to_csr_auth_type(uint8_t auth_suite[4])
 	} else
 #endif
 	{
-		auth_type = eCSR_AUTH_TYPE_UNKNOWN;
+		hdd_translate_fils_rsn_to_csr_auth(auth_suite, &auth_type);
 	}
+	hdd_debug("auth_type: %d", auth_type);
 	return auth_type;
 }
 
@@ -5015,7 +5076,7 @@ eCsrAuthType hdd_translate_rsn_to_csr_auth_type(uint8_t auth_suite[4])
  */
 eCsrAuthType hdd_translate_wpa_to_csr_auth_type(uint8_t auth_suite[4])
 {
-	eCsrAuthType auth_type;
+	eCsrAuthType auth_type = eCSR_AUTH_TYPE_UNKNOWN;
 	/* is the auth type supported? */
 	if (memcmp(auth_suite, ccp_wpa_oui01, 4) == 0) {
 		auth_type = eCSR_AUTH_TYPE_WPA;
@@ -5028,7 +5089,7 @@ eCsrAuthType hdd_translate_wpa_to_csr_auth_type(uint8_t auth_suite[4])
 	} else
 #endif /* FEATURE_WLAN_ESE */
 	{
-		auth_type = eCSR_AUTH_TYPE_UNKNOWN;
+		hdd_translate_fils_rsn_to_csr_auth(auth_suite, &auth_type);
 	}
 	hdd_debug("auth_type: %d", auth_type);
 	return auth_type;
@@ -5092,6 +5153,30 @@ hdd_translate_wpa_to_csr_encryption_type(uint8_t cipher_suite[4])
 	return cipher_type;
 }
 
+#ifdef WLAN_FEATURE_FILS_SK
+/*
+ * hdd_is_fils_connection: API to determine if connection is FILS
+ * @adapter: hdd adapter
+ *
+ * Return: true if fils connection else false
+ */
+static inline bool hdd_is_fils_connection(hdd_adapter_t *adapter)
+{
+	hdd_wext_state_t *wext_state = WLAN_HDD_GET_WEXT_STATE_PTR(adapter);
+
+	if (wext_state->roamProfile.fils_con_info)
+		return wext_state->roamProfile.
+				fils_con_info->is_fils_connection;
+
+	return false;
+}
+#else
+static inline bool hdd_is_fils_connection(hdd_adapter_t *adapter)
+{
+	return false;
+}
+#endif
+
 /**
  * hdd_process_genie() - process gen ie
  * @pAdapter: pointer to adapter
@@ -5143,7 +5228,7 @@ static int32_t hdd_process_genie(hdd_adapter_t *pAdapter,
 		RSNIeLen = gen_ie_len - 2;
 		/* Unpack the RSN IE */
 		dot11f_unpack_ie_rsn((tpAniSirGlobal) halHandle,
-				     pRsnIe, RSNIeLen, &dot11RSNIE);
+				     pRsnIe, RSNIeLen, &dot11RSNIE, false);
 		/* Copy out the encryption and authentication types */
 		hdd_debug("pairwise cipher suite count: %d",
 			 dot11RSNIE.pwise_cipher_suite_count);
@@ -5181,7 +5266,7 @@ static int32_t hdd_process_genie(hdd_adapter_t *pAdapter,
 				     dot11RSNIE.pmkid[i], CSR_RSN_PMKID_SIZE);
 		}
 
-		if (updatePMKCache) {
+		if (updatePMKCache && (!hdd_is_fils_connection(pAdapter))) {
 			/*
 			 * Calling csr_roam_set_pmkid_cache to configure the
 			 * PMKIDs into the cache.
@@ -5209,7 +5294,7 @@ static int32_t hdd_process_genie(hdd_adapter_t *pAdapter,
 		RSNIeLen = gen_ie_len - (2 + 4);
 		/* Unpack the WPA IE */
 		dot11f_unpack_ie_wpa((tpAniSirGlobal) halHandle,
-				     pRsnIe, RSNIeLen, &dot11WPAIE);
+				     pRsnIe, RSNIeLen, &dot11WPAIE, false);
 		/* Copy out the encryption and authentication types */
 		hdd_debug("WPA unicast cipher suite count: %d",
 			 dot11WPAIE.unicast_cipher_count);
@@ -5313,6 +5398,40 @@ int hdd_set_genie_to_csr(hdd_adapter_t *pAdapter, eCsrAuthType *RSNAuthType)
 	return 0;
 }
 
+#ifdef WLAN_FEATURE_FILS_SK
+/**
+ * hdd_check_fils_rsn_n_set_auth_type() - This API checks whether a give
+ * auth type is fils if yes, sets it in profile.
+ * @rsn_auth_type: auth type
+ *
+ * Return: true if FILS auth else false
+ */
+static bool hdd_check_fils_rsn_n_set_auth_type(tCsrRoamProfile *roam_profile,
+			    eCsrAuthType rsn_auth_type)
+{
+	bool is_fils_rsn = false;
+
+	if (!roam_profile->fils_con_info)
+		return false;
+
+	if ((rsn_auth_type == eCSR_AUTH_TYPE_FILS_SHA256) ||
+	   (rsn_auth_type == eCSR_AUTH_TYPE_FILS_SHA384) ||
+	   (rsn_auth_type == eCSR_AUTH_TYPE_FT_FILS_SHA256) ||
+	   (rsn_auth_type == eCSR_AUTH_TYPE_FT_FILS_SHA384))
+		is_fils_rsn = true;
+	if (is_fils_rsn)
+		roam_profile->fils_con_info->akm_type = rsn_auth_type;
+
+	return is_fils_rsn;
+}
+#else
+static bool hdd_check_fils_rsn_n_set_auth_type(tCsrRoamProfile *roam_profile,
+			    eCsrAuthType rsn_auth_type)
+{
+	return false;
+}
+#endif
+
 /**
  * hdd_set_csr_auth_type() - set csr auth type
  * @pAdapter: pointer to adapter
@@ -5410,8 +5529,14 @@ int hdd_set_csr_auth_type(hdd_adapter_t *pAdapter, eCsrAuthType RSNAuthType)
 					eCSR_AUTH_TYPE_RSN_8021X_SHA256;
 			} else
 #endif
+			if (hdd_check_fils_rsn_n_set_auth_type(pRoamProfile,
+				RSNAuthType)) {
+				pRoamProfile->AuthType.authType[0] =
+					RSNAuthType;
+				hdd_info("updated profile authtype as %d",
+					RSNAuthType);
 
-			if ((pWextState->
+			} else if ((pWextState->
 			     authKeyMgmt & IW_AUTH_KEY_MGMT_802_1X)
 			    == IW_AUTH_KEY_MGMT_802_1X) {
 				pRoamProfile->AuthType.authType[0] =

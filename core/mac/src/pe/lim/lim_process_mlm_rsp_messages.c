@@ -795,7 +795,7 @@ lim_fill_assoc_ind_params(tpAniSirGlobal mac_ctx,
 void lim_process_mlm_assoc_ind(tpAniSirGlobal pMac, uint32_t *pMsgBuf)
 {
 	uint32_t len;
-	tSirMsgQ msgQ;
+	cds_msg_t msg;
 	tSirSmeAssocInd *pSirSmeAssocInd;
 	tpDphHashNode pStaDs = 0;
 	tpPESession psessionEntry;
@@ -821,9 +821,9 @@ void lim_process_mlm_assoc_ind(tpAniSirGlobal pMac, uint32_t *pMsgBuf)
 	pSirSmeAssocInd->messageType = eWNI_SME_ASSOC_IND;
 	lim_fill_assoc_ind_params(pMac, (tpLimMlmAssocInd) pMsgBuf, pSirSmeAssocInd,
 				  psessionEntry);
-	msgQ.type = eWNI_SME_ASSOC_IND;
-	msgQ.bodyptr = pSirSmeAssocInd;
-	msgQ.bodyval = 0;
+	msg.type = eWNI_SME_ASSOC_IND;
+	msg.bodyptr = pSirSmeAssocInd;
+	msg.bodyval = 0;
 	pStaDs = dph_get_hash_entry(pMac,
 				    ((tpLimMlmAssocInd) pMsgBuf)->aid,
 				    &psessionEntry->dph.dphHashTable);
@@ -838,13 +838,11 @@ void lim_process_mlm_assoc_ind(tpAniSirGlobal pMac, uint32_t *pMsgBuf)
 	pSirSmeAssocInd->reassocReq = pStaDs->mlmStaContext.subType;
 	pSirSmeAssocInd->timingMeasCap = pStaDs->timingMeasCap;
 	MTRACE(mac_trace(pMac, TRACE_CODE_TX_SME_MSG,
-			 psessionEntry->peSessionId, msgQ.type));
+			 psessionEntry->peSessionId, msg.type));
 #ifdef FEATURE_WLAN_DIAG_SUPPORT_LIM    /* FEATURE_WLAN_DIAG_SUPPORT */
 	lim_diag_event_report(pMac, WLAN_PE_DIAG_ASSOC_IND_EVENT, psessionEntry, 0,
 			      0);
 #endif /* FEATURE_WLAN_DIAG_SUPPORT */
-	lim_sys_process_mmh_msg_api(pMac, &msgQ, ePROT);
-
 	pe_debug("Create CNF_WAIT_TIMER after received LIM_MLM_ASSOC_IND");
 	/*
 	** turn on a timer to detect the loss of ASSOC CNF
@@ -853,6 +851,7 @@ void lim_process_mlm_assoc_ind(tpAniSirGlobal pMac, uint32_t *pMsgBuf)
 			       (uint16_t) ((tpLimMlmAssocInd) pMsgBuf)->aid,
 			       psessionEntry);
 
+	pMac->lim.sme_msg_callback(pMac, &msg);
 } /*** end lim_process_mlm_assoc_ind() ***/
 
 /**
@@ -2229,6 +2228,29 @@ end:
 	}
 }
 
+#ifdef WLAN_FEATURE_FILS_SK
+/*
+ * lim_update_fils_auth_mode: API to update Auth mode in case of fils session
+ * @session_entry: pe session entry
+ * @auth_mode: auth mode needs to be updated
+ *
+ * Return: None
+ */
+static void lim_update_fils_auth_mode(tpPESession session_entry,
+			tAniAuthType *auth_mode)
+{
+	if (!session_entry->fils_info)
+		return;
+
+	if (session_entry->fils_info->is_fils_connection)
+		*auth_mode = session_entry->fils_info->auth;
+}
+#else
+static void lim_update_fils_auth_mode(tpPESession session_entry,
+			tAniAuthType *auth_mode)
+{ }
+#endif
+
 /**
  * csr_neighbor_roam_handoff_req_hdlr - Processes handoff request
  * @mac_ctx:  Pointer to mac context
@@ -2281,6 +2303,7 @@ lim_process_sta_add_bss_rsp_pre_assoc(tpAniSirGlobal mac_ctx,
 		else
 			authMode = cfgAuthType;
 
+		lim_update_fils_auth_mode(session_entry, &authMode);
 		/* Trigger MAC based Authentication */
 		pMlmAuthReq = qdf_mem_malloc(sizeof(tLimMlmAuthReq));
 		if (NULL == pMlmAuthReq) {

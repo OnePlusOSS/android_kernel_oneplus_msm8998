@@ -776,12 +776,10 @@ QDF_STATUS sme_add_periodic_tx_ptrn(tHalHandle hHal, tSirAddPeriodicTxPtrn
 		*addPeriodicTxPtrnParams);
 QDF_STATUS sme_del_periodic_tx_ptrn(tHalHandle hHal, tSirDelPeriodicTxPtrn
 		*delPeriodicTxPtrnParams);
-void sme_enable_disable_split_scan(tHalHandle hHal, uint8_t nNumStaChan,
-		uint8_t nNumP2PChan);
 QDF_STATUS sme_send_rate_update_ind(tHalHandle hHal,
 		tSirRateUpdateInd *rateUpdateParams);
 QDF_STATUS sme_roam_del_pmkid_from_cache(tHalHandle hHal, uint8_t sessionId,
-		const uint8_t *pBSSId, bool flush_cache);
+		tPmkidCacheInfo *pmksa, bool flush_cache);
 void sme_get_command_q_status(tHalHandle hHal);
 
 QDF_STATUS sme_enable_rmc(tHalHandle hHal, uint32_t sessionId);
@@ -950,6 +948,8 @@ QDF_STATUS sme_set_link_layer_ext_cb(tHalHandle hal,
 		     void (*ll_stats_ext_cb)(tHddHandle callback_ctx,
 					     tSirLLStatsResults * rsp));
 QDF_STATUS sme_reset_link_layer_stats_ind_cb(tHalHandle hhal);
+QDF_STATUS sme_ll_stats_set_thresh(tHalHandle hal,
+				struct sir_ll_ext_stats_threshold *threshold);
 #endif /* WLAN_FEATURE_LINK_LAYER_STATS */
 
 QDF_STATUS sme_fw_mem_dump(tHalHandle hHal, void *recvd_req);
@@ -1598,5 +1598,47 @@ QDF_STATUS sme_clear_random_mac(tHalHandle hal, uint32_t session_id,
  */
 QDF_STATUS sme_set_chip_pwr_save_fail_cb(tHalHandle hal, void (*cb)(void *,
 				 struct chip_pwr_save_fail_detected_params *));
+/**
+ * sme_get_chain_rssi - sme api to get chain rssi
+ * @phal: global hal handle
+ * @input: get chain rssi req params
+ *
+ * Return: QDF_STATUS enumeration.
+ */
+QDF_STATUS sme_get_chain_rssi(tHalHandle phal,
+	struct get_chain_rssi_req_params *input);
+
+/**
+ * sme_chain_rssi_register_callback - chain rssi callback
+ * @phal: global hal handle
+ * @pchain_rssi_ind_cb: callback function pointer
+ *
+ * Return: QDF_STATUS enumeration.
+ */
+QDF_STATUS sme_chain_rssi_register_callback(tHalHandle phal,
+			void (*pchain_rssi_ind_cb)(void *ctx, void *pmsg));
+
+/**
+ * sme_process_msg_callback() - process callback message from LIM
+ * @hal: global hal handle
+ * @msg: cds message
+ *
+ * This function process the callback messages from LIM.
+ *
+ * Return: QDF_STATUS enumeration.
+ */
+QDF_STATUS sme_process_msg_callback(tHalHandle hal, cds_msg_t *msg);
+
+/**
+ * sme_set_dbs_scan_selection_config() - Update DBS scan selection
+ * configuration
+ * @hal: The handle returned by macOpen
+ * @params: wmi_dbs_scan_sel_params config
+ *
+ * Return: QDF_STATUS if DBS scan selection update
+ * configuration success else failure status
+ */
+QDF_STATUS sme_set_dbs_scan_selection_config(tHalHandle hal,
+		struct wmi_dbs_scan_sel_params *params);
 
 #endif /* #if !defined( __SME_API_H ) */

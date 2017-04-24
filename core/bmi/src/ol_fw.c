@@ -73,8 +73,8 @@ static int ol_target_coredump(void *inst, void *memory_block,
 					uint32_t block_len);
 
 #ifdef FEATURE_SECURE_FIRMWARE
-static int ol_check_fw_hash(struct device *dev,
-			    const u8 *data, u32 fw_size, ATH_BIN_FILE file)
+static int ol_check_fw_hash(struct device *dev, const u8 *data,
+			    u32 fw_size, enum ATH_BIN_FILE file)
 {
 	u8 *hash = NULL;
 	u8 *fw_mem = NULL;
@@ -147,8 +147,8 @@ end:
 #endif
 
 static int
-__ol_transfer_bin_file(struct ol_context *ol_ctx, ATH_BIN_FILE file,
-				  uint32_t address, bool compressed)
+__ol_transfer_bin_file(struct ol_context *ol_ctx, enum ATH_BIN_FILE file,
+		       uint32_t address, bool compressed)
 {
 	struct hif_opaque_softc *scn = ol_ctx->scn;
 	int status = EOK;
@@ -255,7 +255,8 @@ __ol_transfer_bin_file(struct ol_context *ol_ctx, ATH_BIN_FILE file,
 
 #if defined(QCA_WIFI_FTM)
 		/* Try default board data file if FTM specific
-		 * board data file is not present. */
+		 * board data file is not present.
+		 */
 		if (filename == bmi_ctx->fw_files.utf_board_data) {
 			filename = bmi_ctx->fw_files.board_data;
 			BMI_INFO("%s: Trying to load default %s",
@@ -287,8 +288,8 @@ __ol_transfer_bin_file(struct ol_context *ol_ctx, ATH_BIN_FILE file,
 	temp_eeprom = NULL;
 
 #ifdef FEATURE_SECURE_FIRMWARE
-
-	if (ol_check_fw_hash(qdf_dev->dev, fw_entry->data, fw_entry_size, file)) {
+	if (ol_check_fw_hash(qdf_dev->dev, fw_entry->data,
+			     fw_entry_size, file)) {
 		BMI_ERR("Hash Check failed for file:%s", filename);
 		status = -EINVAL;
 		goto end;
@@ -443,8 +444,8 @@ release_fw:
 }
 
 static int
-ol_transfer_bin_file(struct ol_context *ol_ctx, ATH_BIN_FILE file,
-				uint32_t address, bool compressed)
+ol_transfer_bin_file(struct ol_context *ol_ctx, enum ATH_BIN_FILE file,
+		     uint32_t address, bool compressed)
 {
 	int ret;
 	qdf_device_t qdf_dev = ol_ctx->qdf_dev;
@@ -579,7 +580,6 @@ out_fail:
 		pld_device_self_recovery(qdf_dev->dev);
 	else
 		pld_device_crashed(qdf_dev->dev);
-	return;
 }
 
 void fw_indication_work_handler(void *data)
@@ -625,12 +625,13 @@ void ol_target_failure(void *instance, QDF_STATUS status)
 		return;
 	}
 
+	cds_set_recovery_in_progress(true);
 	if (cds_is_load_or_unload_in_progress()) {
+		cds_set_recovery_in_progress(false);
 		BMI_ERR("%s: Loading/Unloading is in progress, ignore!",
 		       __func__);
 		return;
 	}
-	cds_set_recovery_in_progress(true);
 
 	ret = hif_check_fw_reg(scn);
 	if (0 == ret) {
@@ -650,8 +651,6 @@ void ol_target_failure(void *instance, QDF_STATUS status)
 		qdf_sched_work(0, &ol_ctx->ramdump_work);
 	else
 		pr_debug("%s: athdiag read for target reg\n", __func__);
-
-	return;
 }
 
 #ifdef CONFIG_DISABLE_CDC_MAX_PERF_WAR
@@ -794,7 +793,7 @@ QDF_STATUS ol_configure_target(struct ol_context *ol_ctx)
 					 hi_option_flag2)),
 				(uint8_t *)&param, 4, ol_ctx) !=
 							QDF_STATUS_SUCCESS) {
-				BMI_ERR("bmi_read_memory for setting external SWREG failed");
+				BMI_ERR("BMI READ failed for external SWREG");
 				return QDF_STATUS_E_FAILURE;
 			}
 
@@ -805,7 +804,7 @@ QDF_STATUS ol_configure_target(struct ol_context *ol_ctx)
 						 hi_option_flag2)),
 					(uint8_t *)&param, 4, ol_ctx) !=
 							QDF_STATUS_SUCCESS) {
-				BMI_ERR("BMI WRITE for setting external SWREG fail");
+				BMI_ERR("BMI WRITE failed for external SWREG");
 				return QDF_STATUS_E_FAILURE;
 			}
 		}
@@ -850,8 +849,7 @@ ol_check_dataset_patch(struct hif_opaque_softc *scn, uint32_t *address)
 	return 0;
 }
 
-
-static QDF_STATUS ol_fw_populate_clk_settings(A_refclk_speed_t refclk,
+static QDF_STATUS ol_fw_populate_clk_settings(enum a_refclk_speed_t refclk,
 					      struct cmnos_clock_s *clock_s)
 {
 	if (!clock_s)
@@ -1268,7 +1266,7 @@ QDF_STATUS ol_download_firmware(struct ol_context *ol_ctx)
 		/* Flash is either not available or invalid */
 		if (ol_transfer_bin_file(ol_ctx, ATH_BOARD_DATA_FILE, address,
 							false) != EOK) {
-			return -1;
+			return QDF_STATUS_E_FAILURE;
 		}
 
 		/* Record the fact that Board Data is initialized */
@@ -1307,14 +1305,14 @@ QDF_STATUS ol_download_firmware(struct ol_context *ol_ctx)
 	address = BMI_SEGMENTED_WRITE_ADDR;
 	if (ol_transfer_bin_file(ol_ctx, ATH_FIRMWARE_FILE,
 				address, true) != EOK) {
-		return -1;
+		return QDF_STATUS_E_FAILURE;
 	}
 
 	/* Apply the patches */
 	if (ol_check_dataset_patch(scn, &address)) {
 		if ((ol_transfer_bin_file(ol_ctx, ATH_PATCH_FILE, address,
-				false)) != EOK) {
-			return -1;
+					  false)) != EOK) {
+			return QDF_STATUS_E_FAILURE;
 		}
 		bmi_write_memory(hif_hia_item_address(target_type,
 			offsetof(struct host_interest_s, hi_dset_list_head)),
@@ -1409,6 +1407,7 @@ static int ol_diag_read(struct hif_opaque_softc *scn, uint8_t *buffer,
 		size_t amount_read = 0;
 		size_t readSize = PCIE_READ_LIMIT;
 		size_t remainder = 0;
+
 		if (count > PCIE_READ_LIMIT) {
 			while ((amount_read < count) && (0 == result)) {
 				result = hif_diag_read_mem(scn, pos,
@@ -1435,7 +1434,7 @@ static int ol_diag_read(struct hif_opaque_softc *scn, uint8_t *buffer,
 }
 
 static int ol_ath_get_reg_table(uint32_t target_version,
-				tgt_reg_table *reg_table)
+				struct tgt_reg_table *reg_table)
 {
 	int section_len = 0;
 
@@ -1472,8 +1471,8 @@ static int ol_diag_read_reg_loc(struct hif_opaque_softc *scn, uint8_t *buffer,
 {
 	int i, len, section_len, fill_len;
 	int dump_len, result = 0;
-	tgt_reg_table reg_table;
-	const tgt_reg_section *curr_sec, *next_sec;
+	struct tgt_reg_table reg_table;
+	const struct tgt_reg_section *curr_sec, *next_sec;
 	struct hif_target_info *tgt_info = hif_get_target_info_handle(scn);
 	uint32_t target_version =  tgt_info->target_version;
 
@@ -1491,9 +1490,8 @@ static int ol_diag_read_reg_loc(struct hif_opaque_softc *scn, uint8_t *buffer,
 		dump_len = curr_sec->end_addr - curr_sec->start_addr;
 
 		if ((buffer_len - result) < dump_len) {
-			BMI_ERR("Not enough memory to dump the registers:"
-			       " %d: 0x%08x-0x%08x", i,
-			       curr_sec->start_addr, curr_sec->end_addr);
+			BMI_ERR("No buffer to dump regs:%d: 0x%08x-0x%08x",
+				i, curr_sec->start_addr, curr_sec->end_addr);
 			goto out;
 		}
 
@@ -1510,14 +1508,13 @@ static int ol_diag_read_reg_loc(struct hif_opaque_softc *scn, uint8_t *buffer,
 		}
 
 		if (result < section_len) {
-			next_sec = (tgt_reg_section *) ((uint8_t *) curr_sec
-							+ sizeof(*curr_sec));
+			next_sec = (struct tgt_reg_section *) ((uint8_t *)
+						 curr_sec + sizeof(*curr_sec));
 			fill_len = next_sec->start_addr - curr_sec->end_addr;
 			if ((buffer_len - result) < fill_len) {
-				BMI_ERR("Not enough memory to fill registers:"
-				       " %d: 0x%08x-0x%08x", i,
-				       curr_sec->end_addr,
-				       next_sec->start_addr);
+				BMI_ERR("No buf to fill regs:%d: 0x%08x-0x%08x",
+					i, curr_sec->end_addr,
+					next_sec->start_addr);
 				goto out;
 			}
 

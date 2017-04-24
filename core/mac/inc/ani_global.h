@@ -170,6 +170,8 @@ enum log_event_indicator {
  * @WLAN_LOG_REASON_NO_SCAN_RESULTS: no scan results to report from HDD
  * This enum contains the different reason codes for bug report
  * @WLAN_LOG_REASON_SCAN_NOT_ALLOWED: scan not allowed due to connection states
+ * @WLAN_LOG_REASON_HB_FAILURE: station triggered heart beat failure with AP
+ * @WLAN_LOG_REASON_ROAM_HO_FAILURE: Handover failed during LFR3 roaming
  */
 enum log_event_host_reason_code {
 	WLAN_LOG_REASON_CODE_UNUSED,
@@ -184,6 +186,8 @@ enum log_event_host_reason_code {
 	WLAN_LOG_REASON_SME_OUT_OF_CMD_BUF,
 	WLAN_LOG_REASON_NO_SCAN_RESULTS,
 	WLAN_LOG_REASON_SCAN_NOT_ALLOWED,
+	WLAN_LOG_REASON_HB_FAILURE,
+	WLAN_LOG_REASON_ROAM_HO_FAILURE
 };
 
 
@@ -822,6 +826,8 @@ typedef struct sAniSirLim {
 	QDF_STATUS(*add_bssdescr_callback)
 		(tpAniSirGlobal pMac, tpSirBssDescription buf,
 		uint32_t scan_id, uint32_t flags);
+	QDF_STATUS(*sme_msg_callback)
+		(tHalHandle hal, cds_msg_t *msg);
 	uint8_t retry_packet_cnt;
 	uint8_t scan_disabled;
 	uint8_t beacon_probe_rsp_cnt_per_scan;
@@ -969,6 +975,7 @@ typedef struct sAniSirGlobal {
 	bool sta_prefer_80MHz_over_160MHz;
 	enum  country_src reg_hint_src;
 	uint32_t rx_packet_drop_counter;
+	struct candidate_chan_info candidate_channel_info[QDF_MAX_NUM_CHAN];
 } tAniSirGlobal;
 
 typedef enum {

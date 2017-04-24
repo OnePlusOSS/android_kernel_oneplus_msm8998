@@ -44,7 +44,43 @@
 #include "rrm_api.h"
 #include "cds_utils.h"
 
+#ifdef WLAN_FEATURE_FILS_SK
+/**
+ * lim_update_bss_with_fils_data: update fils data to bss descriptor
+ * if available in probe/beacon.
+ * @pr: probe response/beacon
+ * @bss_descr: pointer to bss descriptor
+ *
+ * @Return: None
+ */
+static void lim_update_bss_with_fils_data(tpSirProbeRespBeacon pr,
+				tSirBssDescription *bss_descr)
+{
+	if (!pr->fils_ind.is_present)
+		return;
 
+	if (pr->fils_ind.realm_identifier.realm_cnt > SIR_MAX_REALM_COUNT)
+		pr->fils_ind.realm_identifier.realm_cnt = SIR_MAX_REALM_COUNT;
+
+	bss_descr->fils_info_element.realm_cnt =
+		pr->fils_ind.realm_identifier.realm_cnt;
+	qdf_mem_copy(bss_descr->fils_info_element.realm,
+		pr->fils_ind.realm_identifier.realm,
+		bss_descr->fils_info_element.realm_cnt * SIR_REALM_LEN);
+	if (pr->fils_ind.cache_identifier.is_present) {
+		bss_descr->fils_info_element.is_cache_id_present = true;
+		qdf_mem_copy(bss_descr->fils_info_element.cache_id,
+			pr->fils_ind.cache_identifier.identifier, CACHE_ID_LEN);
+	}
+	if (pr->fils_ind.is_fils_sk_auth_supported)
+		bss_descr->fils_info_element.is_fils_sk_supported = true;
+}
+#else
+static inline void lim_update_bss_with_fils_data(tpSirProbeRespBeacon pr,
+				tSirBssDescription *bss_descr)
+{
+}
+#endif
 /**
  * lim_collect_bss_description()
  *
@@ -122,6 +158,22 @@ lim_collect_bss_description(tpAniSirGlobal pMac,
 	pBssDescr->beaconInterval = pBPR->beaconInterval;
 	pBssDescr->capabilityInfo =
 		lim_get_u16((uint8_t *) &pBPR->capabilityInfo);
+
+	/* HT capability */
+	if (pBPR->HTCaps.present) {
+		pBssDescr->ht_caps_present = 1;
+		if (pBPR->HTCaps.supportedChannelWidthSet)
+			pBssDescr->chan_width = eHT_CHANNEL_WIDTH_40MHZ;
+	}
+	/* VHT Parameters */
+	if (pBPR->VHTCaps.present) {
+		pBssDescr->vht_caps_present = 1;
+		if (pBPR->VHTCaps.muBeamformerCap)
+			pBssDescr->beacomforming_capable = 1;
+	}
+	if (pBPR->VHTOperation.present)
+		if (pBPR->VHTOperation.chanWidth == 1)
+			pBssDescr->chan_width = eHT_CHANNEL_WIDTH_80MHZ;
 
 	if (!pBssDescr->beaconInterval) {
 		pe_warn("Beacon Interval is ZERO, making it to default 100 "
@@ -202,14 +254,13 @@ lim_collect_bss_description(tpAniSirGlobal pMac,
 		pBssDescr->mdie[2] = pBPR->mdie[2];
 	}
 
-#ifdef FEATURE_WLAN_ESE
-	pBssDescr->QBSSLoad_present = false;
-	pBssDescr->QBSSLoad_avail = 0;
 	if (pBPR->QBSSLoad.present) {
 		pBssDescr->QBSSLoad_present = true;
 		pBssDescr->QBSSLoad_avail = pBPR->QBSSLoad.avail;
+		pBssDescr->qbss_chan_load = pBPR->QBSSLoad.chautil;
 	}
-#endif
+
+	lim_update_bss_with_fils_data(pBPR, pBssDescr);
 	/* Copy IE fields */
 	qdf_mem_copy((uint8_t *) &pBssDescr->ieFields,
 		     pBody + SIR_MAC_B_PR_SSID_OFFSET, ieLen);

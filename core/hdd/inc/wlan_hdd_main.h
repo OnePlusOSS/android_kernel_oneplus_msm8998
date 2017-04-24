@@ -151,6 +151,8 @@
 
 #define WLAN_WAIT_TIME_SET_RND 100
 
+#define WLAN_WAIT_TIME_CHAIN_RSSI	1000
+
 #define MAX_NUMBER_OF_ADAPTERS 4
 
 #define MAX_CFG_STRING_LEN  255
@@ -893,7 +895,7 @@ typedef struct hdd_scaninfo_s {
 	tSirAddie scanAddIE;
 
 	uint8_t *default_scan_ies;
-	uint8_t default_scan_ies_len;
+	uint16_t default_scan_ies_len;
 	/* Scan mode */
 	tSirScanType scan_mode;
 
@@ -1358,6 +1360,18 @@ enum smps_mode {
 	HDD_SMPS_MODE_MAX
 };
 
+/**
+ * struct hdd_chain_rssi_context - hdd chain rssi context
+ * @response_event: chain rssi request wait event
+ * @ignore_result: Flag to ignore the result or not
+ * @chain_rssi: chain rssi array
+ */
+struct hdd_chain_rssi_context {
+	struct completion response_event;
+	bool ignore_result;
+	struct chain_rssi_result result;
+};
+
 #ifdef WLAN_FEATURE_OFFLOAD_PACKETS
 /**
  * struct hdd_offloaded_packets - request id to pattern id mapping
@@ -1670,6 +1684,7 @@ struct hdd_context_s {
 	struct hdd_offloaded_packets_ctx op_ctx;
 #endif
 	bool mcc_mode;
+	struct hdd_chain_rssi_context chain_rssi_context;
 #ifdef WLAN_FEATURE_MEMDUMP
 	uint8_t *fw_dump_loc;
 	uint32_t dump_loc_paddr;
@@ -1744,6 +1759,10 @@ struct hdd_context_s {
 	uint32_t track_arp_ip;
 	uint8_t bt_a2dp_active:1;
 	uint8_t bt_vo_active:1;
+#ifdef FEATURE_SPECTRAL_SCAN
+	struct vdev_spectral_configure_params ss_config;
+	int sscan_pid;
+#endif
 };
 
 int hdd_validate_channel_and_bandwidth(hdd_adapter_t *adapter,
@@ -2071,6 +2090,18 @@ const char *hdd_get_fwpath(void);
 void hdd_indicate_mgmt_frame(tSirSmeMgmtFrameInd *frame_ind);
 hdd_adapter_t *hdd_get_adapter_by_sme_session_id(hdd_context_t *hdd_ctx,
 						uint32_t sme_session_id);
+/**
+ * hdd_get_adapter_by_iface_name() - Return adapter with given interface name
+ * @hdd_ctx: hdd context.
+ * @iface_name: interface name
+ *
+ * This function is used to get the adapter with given interface name
+ *
+ * Return: adapter pointer if found, NULL otherwise
+ *
+ */
+hdd_adapter_t *hdd_get_adapter_by_iface_name(hdd_context_t *hdd_ctx,
+					     const char *iface_name);
 enum phy_ch_width hdd_map_nl_chan_width(enum nl80211_chan_width ch_width);
 uint8_t wlan_hdd_find_opclass(tHalHandle hal, uint8_t channel,
 			uint8_t bw_offset);
@@ -2317,6 +2348,17 @@ static inline void hdd_init_nud_stats_ctx(hdd_context_t *hdd_ctx)
 {
 	init_completion(&hdd_ctx->nud_stats_context.response_event);
 }
+
+/**
+ * hdd_dbs_scan_selection_init() - initialization for DBS scan selection config
+ * @hdd_ctx: HDD context
+ *
+ * This function sends the DBS scan selection config configuration to the
+ * firmware via WMA
+ *
+ * Return: 0 - success, < 0 - failure
+ */
+int hdd_dbs_scan_selection_init(hdd_context_t *hdd_ctx);
 
 /**
  * hdd_start_complete()- complete the start event

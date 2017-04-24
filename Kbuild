@@ -94,11 +94,6 @@ ifeq ($(KERNEL_BUILD), 0)
 	CONFIG_QCACLD_WLAN_LFR3 := y
 	endif
 
-	#Enable Power debugfs feature only if debug_fs is enabled
-	ifeq ($(CONFIG_DEBUG_FS), y)
-	CONFIG_WLAN_POWER_DEBUGFS := y
-	endif
-
 	# JB kernel has CPU enablement patches, so enable
 	ifeq ($(CONFIG_ROME_IF),pci)
 		CONFIG_PRIMA_WLAN_11AC_HIGH_TP := y
@@ -135,6 +130,8 @@ ifeq ($(KERNEL_BUILD), 0)
 	#Flag to enable Fast Transition (11r) feature
 	CONFIG_QCOM_VOWIFI_11R := y
 
+	#Flag to enable FILS Feature (11ai)
+	CONFIG_WLAN_FEATURE_FILS := y
 	ifneq ($(CONFIG_QCA_CLD_WLAN),)
 		ifeq (y,$(findstring y,$(CONFIG_CNSS) $(CONFIG_ICNSS)))
 		#Flag to enable Protected Managment Frames (11w) feature
@@ -189,6 +186,9 @@ ifeq ($(KERNEL_BUILD), 0)
 	CONFIG_WLAN_FEATURE_DSRC := y
 	endif
 
+	#enable spectral scan feature
+	CONFIG_WLAN_SPECTRAL_SCAN := y
+
 ifneq ($(CONFIG_ROME_IF),sdio)
 	#Flag to enable memdump feature
 	CONFIG_WLAN_FEATURE_MEMDUMP := y
@@ -230,12 +230,15 @@ endif
 	# Flag to enable MCC to SCC switch feature
 	CONFIG_MCC_TO_SCC_SWITCH := y
 
-ifeq ($(CONFIG_DEBUG_FS), y)
-	# Flag to enable debugfs. Depends on CONFIG_DEBUG_FS in kernel
-	# configuration.
-	CONFIG_WLAN_DEBUGFS := y
 endif
 
+#Enable WLAN/Power debugfs feature only if debug_fs is enabled
+ifeq ($(CONFIG_DEBUG_FS), y)
+       # Flag to enable debugfs. Depends on CONFIG_DEBUG_FS in kernel
+       # configuration.
+       CONFIG_WLAN_DEBUGFS := y
+
+       CONFIG_WLAN_POWER_DEBUGFS := y
 endif
 
 # If not set, assume, Common driver is with in the build tree
@@ -489,6 +492,10 @@ ifeq ($(CONFIG_WLAN_FEATURE_NAN_DATAPATH), y)
 HDD_OBJS += $(HDD_SRC_DIR)/wlan_hdd_nan_datapath.o
 endif
 
+ifeq ($(CONFIG_WLAN_SPECTRAL_SCAN), y)
+HDD_OBJS += $(HDD_SRC_DIR)/wlan_hdd_spectral.o
+endif
+
 ########### HOST DIAG LOG ###########
 HOST_DIAG_LOG_DIR :=	core/utils/host_diag_log
 
@@ -572,6 +579,10 @@ MAC_LIM_OBJS := $(MAC_SRC_DIR)/pe/lim/lim_aid_mgmt.o \
 
 ifeq ($(CONFIG_QCOM_TDLS),y)
 MAC_LIM_OBJS += $(MAC_SRC_DIR)/pe/lim/lim_process_tdls.o
+endif
+
+ifeq ($(CONFIG_WLAN_FEATURE_FILS),y)
+MAC_LIM_OBJS += $(MAC_SRC_DIR)/pe/lim/lim_process_fils.o
 endif
 
 ifeq ($(CONFIG_WLAN_FEATURE_NAN_DATAPATH), y)
@@ -678,13 +689,18 @@ ifeq ($(CONFIG_WLAN_FEATURE_NAN_DATAPATH), y)
 SME_NDP_OBJS += $(SME_SRC_DIR)/nan/nan_datapath_api.o
 endif
 
+ifeq ($(CONFIG_WLAN_SPECTRAL_SCAN), y)
+SME_SPECTRAL_OBJS += $(SME_SRC_DIR)/spectralscan/spectral_scan_api.o
+endif
+
 SME_OBJS :=	$(SME_CMN_OBJS) \
 		$(SME_CSR_OBJS) \
 		$(SME_P2P_OBJS) \
 		$(SME_QOS_OBJS) \
 		$(SME_RRM_OBJS) \
 		$(SME_NAN_OBJS) \
-		$(SME_NDP_OBJS)
+		$(SME_NDP_OBJS) \
+		$(SME_SPECTRAL_OBJS)
 
 ############ NLINK ############
 NLINK_DIR     :=	core/utils/nlink
@@ -746,6 +762,7 @@ QDF_OBJS := 	$(QDF_OBJ_DIR)/qdf_defer.o \
 		$(QDF_OBJ_DIR)/qdf_mem.o \
 		$(QDF_OBJ_DIR)/qdf_nbuf.o \
 		$(QDF_OBJ_DIR)/qdf_threads.o \
+		$(QDF_OBJ_DIR)/qdf_crypto.o \
 		$(QDF_OBJ_DIR)/qdf_trace.o
 
 ifeq ($(CONFIG_WLAN_DEBUGFS), y)
@@ -1152,6 +1169,10 @@ ifneq ($(CONFIG_HIF_USB), 1)
 CDEFINES += -DWLAN_LOGGING_SOCK_SVC_ENABLE
 endif
 
+ifeq ($(CONFIG_WLAN_FEATURE_FILS),y)
+CDEFINES += -DWLAN_FEATURE_FILS_SK
+endif
+
 ifeq ($(CONFIG_CNSS), y)
 ifeq ($(CONFIG_CNSS_SDIO), y)
 CDEFINES += -DCONFIG_PLD_SDIO_CNSS
@@ -1229,7 +1250,17 @@ CDEFINES += -DTIMER_MANAGER
 CDEFINES += -DMEMORY_DEBUG
 CDEFINES += -DCONFIG_HALT_KMEMLEAK
 CDEFINES += -DWLAN_SUSPEND_RESUME_TEST
+CONFIG_LOCK_STATS_ON := y
 endif
+
+ifeq ($(CONFIG_LOCK_STATS_ON),y)
+CDEFINES += -DQDF_LOCK_STATS=1
+CDEFINES += -DQDF_LOCK_STATS_DESTROY_PRINT=0
+CDEFINES += -DQDF_LOCK_STATS_BUG_ON=1
+CDEFINES += -DQDF_LOCK_STATS_LIST=1
+CDEFINES += -DQDF_LOCK_STATS_LIST_SIZE=256
+endif
+
 
 ifeq ($(HAVE_CFG80211),1)
 CDEFINES += -DWLAN_FEATURE_P2P
@@ -1660,6 +1691,10 @@ endif
 
 ifeq ($(CONFIG_WLAN_DEBUGFS), y)
 CDEFINES += -DWLAN_DEBUGFS
+endif
+
+ifeq ($(CONFIG_WLAN_SPECTRAL_SCAN), y)
+CDEFINES += -DFEATURE_SPECTRAL_SCAN
 endif
 
 KBUILD_CPPFLAGS += $(CDEFINES)

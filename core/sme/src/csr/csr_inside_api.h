@@ -54,8 +54,6 @@
 #define CSR_MIN_REST_TIME_CONC              50
 #define CSR_IDLE_TIME_CONC                  25
 
-#define CSR_NUM_STA_CHAN_COMBINED_CONC      3
-#define CSR_NUM_P2P_CHAN_COMBINED_CONC      1
 #endif
 
 #define CSR_MAX_NUM_SUPPORTED_CHANNELS 55
@@ -109,6 +107,44 @@
 #define CSR_CUSTOM_CONC_GO_BI    100
 extern uint8_t csr_wpa_oui[][CSR_WPA_OUI_SIZE];
 bool csr_is_supported_channel(tpAniSirGlobal pMac, uint8_t channelId);
+
+#define RSSI_THRESHOLD_5GHZ -70
+#define BEST_CANDIDATE_RSSI_WEIGHT 50
+#define MIN_RSSI (-100)
+#define MAX_RSSI 0
+#define BEST_CANDIDATE_AP_COUNT_WEIGHT 50
+#define BEST_CANDIDATE_MAX_COUNT 30
+#define BEST_CANDIDATE_MIN_COUNT 0
+#define ROAM_MAX_CHANNEL_WEIGHT 100
+#define DEFAULT_CHANNEL_UTILIZATION 50
+#define MAX_CHANNEL_UTILIZATION 100
+
+#define RSSI_WEIGHTAGE 25
+#define HT_CAPABILITY_WEIGHTAGE 7
+#define VHT_CAP_WEIGHTAGE 5
+#define BEAMFORMING_CAP_WEIGHTAGE 2
+#define CHAN_WIDTH_WEIGHTAGE 10
+#define CHAN_BAND_WEIGHTAGE 5
+#define WMM_WEIGHTAGE 0
+#define CCA_WEIGHTAGE 8
+#define OTHER_AP_WEIGHT 28
+#define PCL_WEIGHT 10
+
+#define MAX_AP_LOAD 255
+#define BEST_CANDIDATE_EXCELLENT_RSSI -40
+#define BEST_CANDIDATE_GOOD_RSSI -55
+#define BEST_CANDIDATE_POOR_RSSI -65
+#define BAD_RSSI  -80
+#define BEST_CANDIDATE_EXCELLENT_RSSI_WEIGHT 100
+#define BEST_CANDIDATE_GOOD_RSSI_WEIGHT 80
+#define BEST_CANDIDATE_BAD_RSSI_WEIGHT 60
+#define BEST_CANDIDATE_MAX_WEIGHT 100
+#define BEST_CANDIDATE_80MHZ 100
+#define BEST_CANDIDATE_40MHZ 70
+#define BEST_CANDIDATE_20MHZ 30
+#define BEST_CANDIDATE_PENALTY (3/10)
+#define BEST_CANDIDATE_MAX_BSS_SCORE 10000
+
 
 enum csr_scancomplete_nextcommand {
 	eCsrNextScanNothing,
@@ -175,6 +211,7 @@ struct tag_csrscan_result {
 	eCsrAuthType authType;
 
 	tCsrScanResultInfo Result;
+	int  bss_score;
 };
 
 struct scan_result_list {
@@ -202,9 +239,16 @@ struct csr_scan_for_ssid_context {
 #define CSR_IS_BETTER_CAP_VALUE(v1, v2)     ((v1) > (v2))
 #define CSR_IS_EQUAL_CAP_VALUE(v1, v2)  ((v1) == (v2))
 #define CSR_IS_BETTER_RSSI(v1, v2)   ((v1) > (v2))
-#define CSR_IS_ENC_TYPE_STATIC(encType) ((eCSR_ENCRYPT_TYPE_NONE == (encType)) \
-			|| (eCSR_ENCRYPT_TYPE_WEP40_STATICKEY == (encType)) || \
-			(eCSR_ENCRYPT_TYPE_WEP104_STATICKEY == (encType)))
+#define CSR_IS_ENC_TYPE_STATIC(encType) \
+		((eCSR_ENCRYPT_TYPE_NONE == (encType)) || \
+		(eCSR_ENCRYPT_TYPE_WEP40_STATICKEY == (encType)) || \
+		(eCSR_ENCRYPT_TYPE_WEP104_STATICKEY == (encType)))
+
+#define CSR_IS_AUTH_TYPE_FILS(auth_type) \
+		((eCSR_AUTH_TYPE_FILS_SHA256 == auth_type) || \
+		(eCSR_AUTH_TYPE_FILS_SHA384 == auth_type) || \
+		(eCSR_AUTH_TYPE_FT_FILS_SHA256 == auth_type) || \
+		(eCSR_AUTH_TYPE_FT_FILS_SHA384 == auth_type))
 #define CSR_IS_WAIT_FOR_KEY(pMac, sessionId) \
 		 (CSR_IS_ROAM_JOINED(pMac, sessionId) && \
 		  CSR_IS_ROAM_SUBSTATE_WAITFORKEY(pMac, sessionId))
@@ -1143,7 +1187,7 @@ QDF_STATUS csr_scan_create_entry_in_scan_cache(tpAniSirGlobal pMac,
 QDF_STATUS csr_update_channel_list(tpAniSirGlobal pMac);
 QDF_STATUS csr_roam_del_pmkid_from_cache(tpAniSirGlobal pMac,
 					 uint32_t sessionId,
-					 const uint8_t *pBSSId,
+					 tPmkidCacheInfo *pmksa,
 					 bool flush_cache);
 
 bool csr_elected_country_info(tpAniSirGlobal pMac);

@@ -1245,6 +1245,20 @@ QDF_STATUS wma_send_adapt_dwelltime_params(WMA_HANDLE handle,
 	return QDF_STATUS_SUCCESS;
 }
 
+QDF_STATUS wma_send_dbs_scan_selection_params(WMA_HANDLE handle,
+			struct wmi_dbs_scan_sel_params *dbs_scan_params)
+{
+	tp_wma_handle wma_handle = (tp_wma_handle) handle;
+	int32_t err;
+
+	err = wmi_unified_send_dbs_scan_sel_params_cmd(wma_handle->
+					wmi_handle, dbs_scan_params);
+	if (err)
+		return QDF_STATUS_E_FAILURE;
+
+	return QDF_STATUS_SUCCESS;
+}
+
 #ifdef FEATURE_GREEN_AP
 
 /**
@@ -3264,7 +3278,7 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 			      uint32_t len)
 {
 	tp_wma_handle wma = (tp_wma_handle) handle;
-	struct wma_txrx_node *wma_vdev;
+	struct wma_txrx_node *wma_vdev = NULL;
 	WMI_WOW_WAKEUP_HOST_EVENTID_param_tlvs *param_buf;
 	WOW_EVENT_INFO_fixed_param *wake_info;
 	uint32_t wakelock_duration;
@@ -3280,7 +3294,10 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 	}
 
 	wake_info = param_buf->fixed_param;
-	wma_vdev = &wma->interfaces[wake_info->vdev_id];
+
+	/* unspecified means apps-side wakeup, so there won't be a vdev */
+	if (wake_info->wake_reason != WOW_REASON_UNSPECIFIED)
+		wma_vdev = &wma->interfaces[wake_info->vdev_id];
 
 	if ((wake_info->wake_reason != WOW_REASON_UNSPECIFIED) ||
 	    (wake_info->wake_reason == WOW_REASON_UNSPECIFIED &&
@@ -3289,7 +3306,7 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 			 wma_wow_wake_reason_str(wake_info->wake_reason),
 			 wake_info->wake_reason,
 			 wake_info->vdev_id,
-			 wma_vdev ? wma_vdev_type_str(wma_vdev->type) : "null");
+			 wma_vdev ? wma_vdev_type_str(wma_vdev->type) : "none");
 		qdf_wow_wakeup_host_event(wake_info->wake_reason);
 		qdf_wma_wow_wakeup_stats_event();
 	}
@@ -5318,6 +5335,12 @@ QDF_STATUS wma_process_mcbc_set_filter_req(tp_wma_handle wma_handle,
 	if (mcbc_param->ulMulticastAddrCnt <= 0) {
 		WMA_LOGW("Number of multicast addresses is 0");
 		return QDF_STATUS_E_FAILURE;
+	} else if (mcbc_param->ulMulticastAddrCnt >
+		   CFG_TGT_MAX_MULTICAST_FILTER_ENTRIES) {
+		WMA_LOGW("Number of multicast addresses %u is more than max %u",
+			 mcbc_param->ulMulticastAddrCnt,
+			 CFG_TGT_MAX_MULTICAST_FILTER_ENTRIES);
+		return QDF_STATUS_E_FAILURE;
 	}
 
 	if (!wma_find_vdev_by_addr(wma_handle,
@@ -6931,7 +6954,7 @@ QDF_STATUS wma_suspend_target(WMA_HANDLE handle, int disable_target_intr)
 
 /**
  * wma_target_suspend_acknowledge() - update target susspend status
- * @context: HTC_INIT_INFO->context
+ * @context: htc_init_info->context
  * @wow_nack: true when wow is rejected
  *
  * Return: none
@@ -7352,6 +7375,24 @@ int wma_update_tdls_peer_state(WMA_HANDLE handle,
 					 chanId);
 	}
 
+	/* Make sure that peer exists before sending peer state cmd*/
+	pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+	if (!pdev) {
+		WMA_LOGE("%s: Failed to find pdev", __func__);
+		ret = -EIO;
+		goto end_tdls_peer_state;
+	}
+
+	peer = ol_txrx_find_peer_by_addr(pdev,
+			peerStateParams->peerMacAddr,
+			&peer_id);
+	if (!peer) {
+		WMA_LOGE("%s: peer not exists %pM",
+				__func__, peerStateParams->peerMacAddr);
+		ret = -EIO;
+		goto end_tdls_peer_state;
+	}
+
 	if (wmi_unified_update_tdls_peer_state_cmd(wma_handle->wmi_handle,
 				 (struct tdls_peer_state_params *)peerStateParams,
 				 ch_mhz)) {
@@ -7363,22 +7404,6 @@ int wma_update_tdls_peer_state(WMA_HANDLE handle,
 
 	/* in case of teardown, remove peer from fw */
 	if (WMA_TDLS_PEER_STATE_TEARDOWN == peerStateParams->peerState) {
-		pdev = cds_get_context(QDF_MODULE_ID_TXRX);
-		if (!pdev) {
-			WMA_LOGE("%s: Failed to find pdev", __func__);
-			ret = -EIO;
-			goto end_tdls_peer_state;
-		}
-
-		peer = ol_txrx_find_peer_by_addr(pdev,
-						 peerStateParams->peerMacAddr,
-						 &peer_id);
-		if (!peer) {
-			WMA_LOGE("%s: Failed to get peer handle using peer mac %pM",
-				__func__, peerStateParams->peerMacAddr);
-			ret = -EIO;
-			goto end_tdls_peer_state;
-		}
 		peer_mac_addr = ol_txrx_peer_get_peer_mac_addr(peer);
 		restore_last_peer = is_vdev_restore_last_peer(peer);
 
@@ -7400,7 +7425,6 @@ end_tdls_peer_state:
 	return ret;
 }
 #endif /* FEATURE_WLAN_TDLS */
-
 
 /**
  * wma_dfs_attach() - Attach DFS methods to the umac state.
@@ -8041,8 +8065,9 @@ QDF_STATUS wma_process_set_ie_info(tp_wma_handle wma,
 	cmd.data = ie_info->data;
 	cmd.ie_source = WMA_SET_VDEV_IE_SOURCE_HOST;
 
-	WMA_LOGD(FL("ie_id: %d, band: %d, len: %d"),
-		ie_info->ie_id, ie_info->band, ie_info->length);
+	WMA_LOGD(FL("vdev id: %d, ie_id: %d, band: %d, len: %d"),
+		 ie_info->vdev_id, ie_info->ie_id, ie_info->band,
+		 ie_info->length);
 
 	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_WMA, QDF_TRACE_LEVEL_DEBUG,
 		ie_info->data, ie_info->length);
@@ -9009,3 +9034,90 @@ int wma_wlan_bt_activity_evt_handler(void *handle, uint8_t *event, uint32_t len)
 
 	return 0;
 }
+
+int wma_peer_ant_info_evt_handler(void *handle, u_int8_t *event,
+	u_int32_t len)
+{
+	wmi_peer_antdiv_info *peer_ant_info;
+	WMI_PEER_ANTDIV_INFO_EVENTID_param_tlvs *param_buf;
+	wmi_peer_antdiv_info_event_fixed_param *fix_param;
+	struct chain_rssi_result chain_rssi_result;
+	u_int32_t chain_index;
+
+	tpAniSirGlobal pmac = (tpAniSirGlobal)cds_get_context(
+					QDF_MODULE_ID_PE);
+	if (!pmac) {
+		WMA_LOGE("%s: Invalid pmac", __func__);
+		return -EINVAL;
+	}
+
+	param_buf = (WMI_PEER_ANTDIV_INFO_EVENTID_param_tlvs *) event;
+	if (!param_buf) {
+		WMA_LOGE("Invalid peer_ant_info event buffer");
+		return -EINVAL;
+	}
+	fix_param = param_buf->fixed_param;
+	peer_ant_info = param_buf->peer_info;
+
+	WMA_LOGD(FL("num_peers=%d\tvdev_id=%d\n"),
+		fix_param->num_peers, fix_param->vdev_id);
+	WMA_LOGD(FL("peer_ant_info: %p\n"), peer_ant_info);
+
+	if (!peer_ant_info) {
+		WMA_LOGE("Invalid peer_ant_info ptr\n");
+		return -EINVAL;
+	}
+
+	for (chain_index = 0; chain_index < CHAIN_RSSI_NUM; chain_index++)
+		WMA_LOGD(FL("chain%d rssi: %x\n"), chain_index,
+				peer_ant_info->chain_rssi[chain_index]);
+
+	qdf_mem_copy(chain_rssi_result.chain_rssi,
+				peer_ant_info->chain_rssi,
+				sizeof(peer_ant_info->chain_rssi));
+
+	pmac->sme.pchain_rssi_ind_cb(pmac->hHdd, &chain_rssi_result);
+
+	return 0;
+}
+
+#ifdef FEATURE_SPECTRAL_SCAN
+void wma_spectral_scan_req(WMA_HANDLE wma_handle,
+				struct vdev_spectral_enable_params *req)
+{
+	tp_wma_handle wma = (tp_wma_handle) wma_handle;
+	QDF_STATUS status;
+
+	if (wma == NULL)
+		return;
+
+	status = wmi_unified_vdev_spectral_enable_cmd_send(wma->wmi_handle,
+								req);
+
+	if (status != QDF_STATUS_SUCCESS)
+		WMA_LOGE(FL("Failed to send spectral scan enable command"));
+
+	return;
+}
+
+void wma_spectral_scan_config(WMA_HANDLE wma_handle,
+				struct vdev_spectral_configure_params *req)
+{
+	tp_wma_handle wma = (tp_wma_handle) wma_handle;
+	QDF_STATUS status;
+
+	if (wma == NULL)
+		return;
+
+	/* save the copy of the config params */
+	memcpy(&wma->ss_configs, req, sizeof(*req));
+
+	status = wmi_unified_vdev_spectral_configure_cmd_send(wma->wmi_handle,
+								req);
+
+	if (status != QDF_STATUS_SUCCESS)
+		WMA_LOGE(FL("Failed to send spectral scan config command"));
+
+	return;
+}
+#endif

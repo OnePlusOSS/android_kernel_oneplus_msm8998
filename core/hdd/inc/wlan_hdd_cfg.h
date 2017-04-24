@@ -59,6 +59,10 @@
 #define IPADDR_STRING_LENGTH   (16)
 #endif
 
+#define CFG_DBS_SCAN_CLIENTS_MAX           7
+#define CFG_DBS_SCAN_PARAM_PER_CLIENT      3
+#define CFG_DBS_SCAN_PARAM_LENGTH          42
+
 /* Number of items that can be configured */
 #define MAX_CFG_INI_ITEMS   1024
 #define MAX_PRB_REQ_VENDOR_OUI_INI_LEN 160
@@ -1578,7 +1582,7 @@ enum hdd_dot11_mode {
  */
 #define CFG_DROPPED_PKT_DISCONNECT_TH_NAME      "gDroppedPktDisconnectTh"
 #define CFG_DROPPED_PKT_DISCONNECT_TH_MIN       (0)
-#define CFG_DROPPED_PKT_DISCONNECT_TH_MAX       (512)
+#define CFG_DROPPED_PKT_DISCONNECT_TH_MAX       (65535)
 #define CFG_DROPPED_PKT_DISCONNECT_TH_DEFAULT   (512)
 
 /*
@@ -2737,55 +2741,6 @@ enum hdd_dot11_mode {
 #define CFG_IDLE_TIME_MIN                           (0)
 #define CFG_IDLE_TIME_MAX                           (25)
 #define CFG_IDLE_TIME_DEFAULT                       (25)
-
-
-/*
- * <ini>
- * gNumStaChanCombinedConc - Number of channels combined for STA in each
- * split scan operation.
- * @Min: 1
- * @Max: 255
- * @Default: 3
- *
- * This ini is used to configure the number of channels combined for STA in
- * each split scan operation.
- *
- * Related: None.
- *
- * Supported Feature: Concurrency
- *
- * Usage: Internal/External
- *
- * </ini>
- */
-#define CFG_NUM_STA_CHAN_COMBINED_CONC_NAME             "gNumStaChanCombinedConc"
-#define CFG_NUM_STA_CHAN_COMBINED_CONC_MIN              (1)
-#define CFG_NUM_STA_CHAN_COMBINED_CONC_MAX              (255)
-#define CFG_NUM_STA_CHAN_COMBINED_CONC_DEFAULT          (3)
-
-/*
- * <ini>
- * gNumP2PChanCombinedConc - Number of channels combined for P2P in each
- * split scan operation.
- * @Min: 1
- * @Max: 255
- * @Default: 1
- *
- * This ini is used to configure the number of channels combined for P2P in
- * each split scan operation.
- *
- * Related: None.
- *
- * Supported Feature: Concurrency
- *
- * Usage: Internal/External
- *
- * </ini>
- */
-#define CFG_NUM_P2P_CHAN_COMBINED_CONC_NAME             "gNumP2PChanCombinedConc"
-#define CFG_NUM_P2P_CHAN_COMBINED_CONC_MIN              (1)
-#define CFG_NUM_P2P_CHAN_COMBINED_CONC_MAX              (255)
-#define CFG_NUM_P2P_CHAN_COMBINED_CONC_DEFAULT          (1)
 #endif
 
 #define CFG_MAX_PS_POLL_NAME                   "gMaxPsPoll"
@@ -7218,6 +7173,25 @@ enum hdd_link_speed_rpt_type {
 #define CFG_BUS_BANDWIDTH_COMPUTE_INTERVAL_DEFAULT (100)
 #define CFG_BUS_BANDWIDTH_COMPUTE_INTERVAL_MIN     (0)
 #define CFG_BUS_BANDWIDTH_COMPUTE_INTERVAL_MAX     (10000)
+/*
+ * <ini>
+ * gTcpAdvWinScaleEnable - Control to enable  TCP adv window scaling
+ * @Min: -0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This ini is used to enable dynamic configuration of TCP adv window scaling system parameter.
+ *
+ * Supported Feature: Tcp Advance Window Scaling
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+#define CFG_ENABLE_TCP_ADV_WIN_SCALE                      "gTcpAdvWinScaleEnable"
+#define CFG_ENABLE_TCP_ADV_WIN_SCALE_DEFAULT              (1)
+#define CFG_ENABLE_TCP_ADV_WIN_SCALE_MIN                  (0)
+#define CFG_ENABLE_TCP_ADV_WIN_SCALE_MAX                  (1)
 
 /*
  * <ini>
@@ -8149,6 +8123,30 @@ enum dot11p_mode {
 #define CFG_DUAL_MAC_FEATURE_DISABLE_MIN          (0)
 #define CFG_DUAL_MAC_FEATURE_DISABLE_MAX          (1)
 #define CFG_DUAL_MAC_FEATURE_DISABLE_DEFAULT      (0)
+
+/*
+ * <ini>
+ * gdbs_scan_selection - DBS Scan Selection.
+ * @Default: 5,2,2,16,2,2
+ *
+ * This ini is used to enable DBS scan selection.
+ * 1st argument is module_id, 2nd argument is number of DBS scan,
+ * 3rd argument is number of non-DBS scan,
+ * and other arguments follows.
+ * 5,2,2,16,2,2 means:
+ * 5 is module id, 2 is num of DBS scan, 2 is num of non-DBS scan.
+ * 16 is module id, 2 is num of DBS scan, 2 is num of non-DBS scan.
+ *
+ * Related: None.
+ *
+ * Supported Feature: DBS Scan
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+#define CFG_DBS_SCAN_SELECTION_NAME          "gdbs_scan_selection"
+#define CFG_DBS_SCAN_SELECTION_DEFAULT       "5,2,2,16,2,2"
 
 /*
  * gPNOChannelPrediction will allow user to enable/disable the
@@ -9934,12 +9932,12 @@ enum dot11p_mode {
 
 /*
  * <ini>
- * gActiveBpfMode - Control active BPF mode
+ * gActiveUcBpfMode - Control UC active BPF mode
  * @Min: 0 (disabled)
  * @Max: 2 (adaptive)
  * @Default: 0 (disabled)
  *
- * This config item is used to control BPF in active mode. There are 3 modes:
+ * This config item is used to control UC BPF in active mode. There are 3 modes:
  *	0) disabled - BPF is disabled in active mode
  *	1) enabled - BPF is enabled for all packets in active mode
  *	2) adaptive - BPF is enabled for packets up to some throughput threshold
@@ -9951,17 +9949,43 @@ enum dot11p_mode {
  * Usage: Internal/External
  * </ini>
  */
-#define CFG_ACTIVE_BPF_MODE_NAME    "gActiveBpfMode"
-#define CFG_ACTIVE_BPF_MODE_MIN     (ACTIVE_BPF_DISABLED)
-#define CFG_ACTIVE_BPF_MODE_MAX     (ACTIVE_BPF_MODE_COUNT - 1)
-#define CFG_ACTIVE_BPF_MODE_DEFAULT (ACTIVE_BPF_DISABLED)
+#define CFG_ACTIVE_UC_BPF_MODE_NAME    "gActiveUcBpfMode"
+#define CFG_ACTIVE_UC_BPF_MODE_MIN     (ACTIVE_BPF_DISABLED)
+#define CFG_ACTIVE_UC_BPF_MODE_MAX     (ACTIVE_BPF_MODE_COUNT - 1)
+#define CFG_ACTIVE_UC_BPF_MODE_DEFAULT (ACTIVE_BPF_DISABLED)
+
+/*
+ * <ini>
+ * g_mc_bc_active_bpf_mode - Control MC/BC active BPF mode
+ * @Min: 0 (disabled)
+ * @Max: 2 (adaptive)
+ * @Default: 0 (disabled)
+ *
+ * This config item is used to control MC/BC BPF mode.
+ * g_mc_bc_active_bpf_mode=disabled(0): BPF is disabled in active mode
+ * g_mc_bc_active_bpf_mode=enabled(1): BPF is enabled for all packets in active
+ * mode
+ * g_mc_bc_active_bpf_mode=adaptive(2): BPF is enabled for packets up to some
+ * throughput threshold
+ *
+ * Related: N/A
+ *
+ * Supported Feature: Active Mode BPF
+ *
+ * Usage: Internal/External
+ * </ini>
+ */
+#define CFG_ACTIVE_MC_BC_BPF_MODE_NAME    "gActiveMcBcBpfMode"
+#define CFG_ACTIVE_MC_BC_BPF_MODE_MIN     (ACTIVE_BPF_DISABLED)
+#define CFG_ACTIVE_MC_BC_BPF_MODE_MAX     (ACTIVE_BPF_MODE_COUNT - 1)
+#define CFG_ACTIVE_MC_BC_BPF_MODE_DEFAULT (ACTIVE_BPF_DISABLED)
 
 /*
  * <ini>
  * g_enable_non_arp_bc_hw_filter - Enable HW broadcast filtering
  * @Min: 0
  * @Max: 1
- * @Default: 0
+ * @Default: 1
  *
  * This ini support to dynamically enable/disable Broadast filter
  * when target goes to wow suspend/resume mode
@@ -9971,7 +9995,7 @@ enum dot11p_mode {
  * </ini>
  */
 #define CFG_HW_BC_FILTER_NAME     "g_enable_non_arp_bc_hw_filter"
-#define CFG_HW_FILTER_DEFAULT         (0)
+#define CFG_HW_FILTER_DEFAULT         (1)
 #define CFG_HW_FILTER_MIN             (0)
 #define CFG_HW_FILTER_MAX             (1)
 
@@ -10610,9 +10634,53 @@ enum dot11p_mode {
 #define CFG_SAP_MAX_MCS_FOR_TX_DATA_MAX             (383)
 #define CFG_SAP_MAX_MCS_FOR_TX_DATA_DEFAULT         (0)
 
+/*
+ * g_is_bssid_hint_priority - Set priority for connection with bssid_hint
+ * BSSID.
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This ini is used to give priority to BSS for connection which comes
+ * as part of bssid_hint
+ *
+ * Related: None
+ *
+ * Supported Feature: STA
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_IS_BSSID_HINT_PRIORITY_NAME    "g_is_bssid_hint_priority"
+#define CFG_IS_BSSID_HINT_PRIORITY_DEFAULT (1)
+#define CFG_IS_BSSID_HINT_PRIORITY_MIN     (0)
+#define CFG_IS_BSSID_HINT_PRIORITY_MAX     (1)
+
+/*
+ * <ini>
+ * gDfsBeaconTxEnhanced - beacon tx enhanced
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to enhance dfs beacon tx
+ *
+ * Related: none
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_DFS_BEACON_TX_ENHANCED         "gDfsBeaconTxEnhanced"
+#define CFG_DFS_BEACON_TX_ENHANCED_MIN     (0)
+#define CFG_DFS_BEACON_TX_ENHANCED_MAX     (1)
+#define CFG_DFS_BEACON_TX_ENHANCED_DEFAULT (0)
+
 /*---------------------------------------------------------------------------
    Type declarations
    -------------------------------------------------------------------------*/
+
 
 struct hdd_config {
 	/* Bitmap to track what is explicitly configured */
@@ -10716,10 +10784,6 @@ struct hdd_config {
 	uint32_t       min_rest_time_conc;
 	/* In units of milliseconds */
 	uint32_t       idle_time_conc;
-	uint8_t nNumStaChanCombinedConc;
-	/* STA in each split scan operation */
-	uint8_t nNumP2PChanCombinedConc;
-	/* P2P in each split scan operation */
 #endif
 
 	uint8_t nMaxPsPoll;
@@ -11081,6 +11145,7 @@ struct hdd_config {
 	uint32_t busBandwidthLowThreshold;
 	uint32_t busBandwidthComputeInterval;
 	uint32_t enable_tcp_delack;
+	uint32_t enable_tcp_adv_win_scale;
 	uint32_t tcpDelackThresholdHigh;
 	uint32_t tcpDelackThresholdLow;
 	uint32_t tcp_tx_high_tput_thres;
@@ -11211,6 +11276,7 @@ struct hdd_config {
 #endif
 	bool ce_classify_enabled;
 	uint32_t dual_mac_feature_disable;
+	uint8_t dbs_scan_selection[CFG_DBS_SCAN_PARAM_LENGTH];
 	bool     tx_chain_mask_cck;
 	uint8_t  tx_chain_mask_1ss;
 	bool smart_chainmask_enabled;
@@ -11325,7 +11391,8 @@ struct hdd_config {
 	uint32_t max_sched_scan_plan_interval;
 	uint32_t max_sched_scan_plan_iterations;
 	uint8_t enable_phy_reg_retention;
-	enum active_bpf_mode active_bpf_mode;
+	enum active_bpf_mode active_uc_bpf_mode;
+	enum active_bpf_mode active_mc_bc_bpf_mode;
 	bool hw_broadcast_filter;
 	bool sap_internal_restart;
 	bool restart_beaconing_on_chan_avoid_event;
@@ -11371,6 +11438,8 @@ struct hdd_config {
 	uint8_t enable_rts_sifsbursting;
 	uint8_t max_mpdus_inampdu;
 	uint16_t sap_max_mcs_txdata;
+	bool is_bssid_hint_priority;
+	uint8_t dfs_beacon_tx_enhanced;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

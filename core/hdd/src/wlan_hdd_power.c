@@ -1274,8 +1274,9 @@ hdd_suspend_wlan(void (*callback)(void *callbackContext, bool suspended),
 
 		/* stop all TX queues before suspend */
 		hdd_debug("Disabling queues");
-		wlan_hdd_netif_queue_control(pAdapter, WLAN_NETIF_TX_DISABLE,
-					   WLAN_CONTROL_PATH);
+		wlan_hdd_netif_queue_control(pAdapter,
+					     WLAN_STOP_ALL_NETIF_QUEUE,
+					     WLAN_CONTROL_PATH);
 
 		if (pAdapter->device_mode == QDF_STA_MODE)
 			status = hdd_enable_default_pkt_filters(pAdapter);
@@ -1642,6 +1643,7 @@ QDF_STATUS hdd_wlan_re_init(void)
 	pHddCtx->last_scan_reject_reason = 0;
 	pHddCtx->last_scan_reject_timestamp = 0;
 
+	hdd_set_roaming_in_progress(false);
 	pHddCtx->btCoexModeSet = false;
 
 	/* Allow the phone to go to sleep */

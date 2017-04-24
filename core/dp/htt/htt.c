@@ -107,6 +107,7 @@ void htt_htc_pkt_free(struct htt_pdev_t *pdev, struct htt_htc_pkt *pkt)
 void htt_htc_pkt_pool_free(struct htt_pdev_t *pdev)
 {
 	struct htt_htc_pkt_union *pkt, *next;
+
 	pkt = pdev->htt_htc_pkt_freelist;
 	while (pkt) {
 		next = pkt->u.next;
@@ -131,7 +132,8 @@ htt_htc_misc_pkt_list_trim(struct htt_pdev_t *pdev, int level)
 		next = pkt->u.next;
 		/* trim the out grown list*/
 		if (++i > level) {
-			netbuf = (qdf_nbuf_t)(pkt->u.pkt.htc_pkt.pNetBufContext);
+			netbuf =
+				(qdf_nbuf_t)(pkt->u.pkt.htc_pkt.pNetBufContext);
 			qdf_nbuf_unmap(pdev->osdev, netbuf, QDF_DMA_TO_DEVICE);
 			qdf_nbuf_free(netbuf);
 			qdf_mem_free(pkt);
@@ -171,6 +173,7 @@ void htt_htc_misc_pkt_pool_free(struct htt_pdev_t *pdev)
 {
 	struct htt_htc_pkt_union *pkt, *next;
 	qdf_nbuf_t netbuf;
+
 	pkt = pdev->htt_htc_pkt_misclist;
 
 	while (pkt) {
@@ -213,13 +216,13 @@ void htt_htc_misc_pkt_pool_free(struct htt_pdev_t *pdev)
  */
 static void
 htt_htc_tx_htt2_service_start(struct htt_pdev_t *pdev,
-			      HTC_SERVICE_CONNECT_REQ *connect_req,
-			      HTC_SERVICE_CONNECT_RESP *connect_resp)
+			      struct htc_service_connect_req *connect_req,
+			      struct htc_service_connect_resp *connect_resp)
 {
 	A_STATUS status;
 
-	qdf_mem_set(connect_req, 0, sizeof(HTC_SERVICE_CONNECT_REQ));
-	qdf_mem_set(connect_resp, 0, sizeof(HTC_SERVICE_CONNECT_RESP));
+	qdf_mem_set(connect_req, 0, sizeof(struct htc_service_connect_req));
+	qdf_mem_set(connect_resp, 0, sizeof(struct htc_service_connect_resp));
 
 	/* The same as HTT service but no RX. */
 	connect_req->EpCallbacks.pContext = pdev;
@@ -253,10 +256,9 @@ htt_htc_tx_htt2_service_start(struct htt_pdev_t *pdev,
 
 static inline void
 htt_htc_tx_htt2_service_start(struct htt_pdev_t *pdev,
-			      HTC_SERVICE_CONNECT_REQ *connect_req,
-			      HTC_SERVICE_CONNECT_RESP *connect_resp)
+			      struct htc_service_connect_req *connect_req,
+			      struct htc_service_connect_resp *connect_resp)
 {
-	return;
 }
 #endif
 
@@ -277,7 +279,7 @@ htt_htc_tx_htt2_service_start(struct htt_pdev_t *pdev,
  */
 static
 void htt_htc_credit_flow_disable(struct htt_pdev_t *pdev,
-				 HTC_SERVICE_CONNECT_REQ *connect_req)
+				 struct htc_service_connect_req *connect_req)
 {
 	if (pdev->osdev->bus_type == QDF_BUS_TYPE_SDIO) {
 		/*
@@ -440,6 +442,7 @@ htt_attach(struct htt_pdev_t *pdev, int desc_pool_size)
 	/* pre-allocate some HTC_PACKET objects */
 	for (i = 0; i < HTT_HTC_PKT_POOL_INIT_SIZE; i++) {
 		struct htt_htc_pkt_union *pkt;
+
 		pkt = qdf_mem_malloc(sizeof(*pkt));
 		if (!pkt)
 			break;
@@ -666,8 +669,8 @@ int htt_update_endpoint(struct htt_pdev_t *pdev,
 
 int htt_htc_attach(struct htt_pdev_t *pdev, uint16_t service_id)
 {
-	HTC_SERVICE_CONNECT_REQ connect;
-	HTC_SERVICE_CONNECT_RESP response;
+	struct htc_service_connect_req connect;
+	struct htc_service_connect_resp response;
 	A_STATUS status;
 
 	qdf_mem_set(&connect, sizeof(connect), 0);

@@ -673,6 +673,9 @@ static void wma_vdev_start_rsp(tp_wma_handle wma,
 			       resp_event)
 {
 	struct beacon_info *bcn;
+	ol_txrx_pdev_handle pdev;
+	ol_txrx_peer_handle peer = NULL;
+	uint8_t peer_id;
 
 #ifdef QCA_IBSS_SUPPORT
 	WMA_LOGD("%s: vdev start response received for %s mode", __func__,
@@ -729,6 +732,25 @@ static void wma_vdev_start_rsp(tp_wma_handle wma,
 	}
 	add_bss->smpsMode = host_map_smps_mode(resp_event->smps_mode);
 send_fail_resp:
+	if (add_bss->status != QDF_STATUS_SUCCESS) {
+		WMA_LOGE("%s: ADD BSS failure %d", __func__, add_bss->status);
+
+		pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+		if (NULL == pdev)
+			WMA_LOGE("%s: Failed to get pdev", __func__);
+
+		if (pdev)
+			peer = ol_txrx_find_peer_by_addr(pdev,
+				add_bss->bssId, &peer_id);
+		if (!peer)
+			WMA_LOGE("%s Failed to find peer %pM", __func__,
+				add_bss->bssId);
+
+		if (peer)
+			wma_remove_peer(wma, add_bss->bssId,
+				resp_event->vdev_id, peer, false);
+	}
+
 	WMA_LOGD("%s: Sending add bss rsp to umac(vdev %d status %d)",
 		 __func__, resp_event->vdev_id, add_bss->status);
 	wma_send_msg(wma, WMA_ADD_BSS_RSP, (void *)add_bss, 0);
@@ -1427,6 +1449,36 @@ static void wma_cleanup_target_req_param(struct wma_target_req *tgt_req)
 }
 
 /**
+ * get_fw_active_bpf_mode() - convert HDD BPF mode to FW configurable BPF
+ * mode
+ * @mode: BPF mode maintained in HDD
+ *
+ * Return: FW configurable BP mode
+ */
+static FW_ACTIVE_BPF_MODE get_fw_active_bpf_mode(enum active_bpf_mode mode)
+{
+	FW_ACTIVE_BPF_MODE fw_bpf_mode;
+
+	switch (mode) {
+	case ACTIVE_BPF_DISABLED:
+		fw_bpf_mode = FW_ACTIVE_BPF_MODE_DISABLE;
+		break;
+	case ACTIVE_BPF_ENABLED:
+		fw_bpf_mode = FW_ACTIVE_BPF_MODE_FORCE_ENABLE;
+		break;
+	case ACTIVE_BPF_ADAPTIVE:
+		fw_bpf_mode = FW_ACTIVE_BPF_MODE_ADAPTIVE_ENABLE;
+		break;
+	default:
+		WMA_LOGE("Invalid Active BPF Mode %d; Using 'disabled'", mode);
+		fw_bpf_mode = FW_ACTIVE_BPF_MODE_DISABLE;
+		break;
+	}
+
+	return fw_bpf_mode;
+}
+
+/**
  * wma_config_active_bpf_mode() - Config active BPF mode in FW
  * @wma: the WMA handle
  * @vdev_id: the Id of the vdev for which the configuration should be applied
@@ -1435,28 +1487,13 @@ static void wma_cleanup_target_req_param(struct wma_target_req *tgt_req)
  */
 static QDF_STATUS wma_config_active_bpf_mode(t_wma_handle *wma, uint8_t vdev_id)
 {
-	const FW_ACTIVE_BPF_MODE mcbc_mode = FW_ACTIVE_BPF_MODE_FORCE_ENABLE;
-	FW_ACTIVE_BPF_MODE uc_mode;
+	FW_ACTIVE_BPF_MODE uc_mode, mcbc_mode;
 
-	WMA_LOGD("Configuring Active BPF Mode %d for vdev %u",
-		 wma->active_bpf_mode, vdev_id);
+	uc_mode = get_fw_active_bpf_mode(wma->active_uc_bpf_mode);
+	mcbc_mode = get_fw_active_bpf_mode(wma->active_mc_bc_bpf_mode);
 
-	switch (wma->active_bpf_mode) {
-	case ACTIVE_BPF_DISABLED:
-		uc_mode = FW_ACTIVE_BPF_MODE_DISABLE;
-		break;
-	case ACTIVE_BPF_ENABLED:
-		uc_mode = FW_ACTIVE_BPF_MODE_FORCE_ENABLE;
-		break;
-	case ACTIVE_BPF_ADAPTIVE:
-		uc_mode = FW_ACTIVE_BPF_MODE_ADAPTIVE_ENABLE;
-		break;
-	default:
-		WMA_LOGD("Invalid Active BPF Mode %d; Using 'disabled'",
-			 wma->active_bpf_mode);
-		uc_mode = FW_ACTIVE_BPF_MODE_DISABLE;
-		break;
-	}
+	WMA_LOGD("Configuring Active BPF Mode UC:%d MC/BC:%d for vdev %u",
+		  uc_mode, mcbc_mode, vdev_id);
 
 	return wmi_unified_set_active_bpf_mode_cmd(wma->wmi_handle, vdev_id,
 						   uc_mode, mcbc_mode);

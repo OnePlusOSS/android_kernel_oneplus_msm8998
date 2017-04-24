@@ -532,10 +532,6 @@ typedef struct tagCsrConfig {
 	/* In units of milliseconds */
 	uint32_t  idle_time_conc;
 
-	/* number of channels combined for Sta in each split scan operation */
-	uint8_t nNumStaChanCombinedConc;
-	/* number of channels combined for P2P in each split scan operation */
-	uint8_t nNumP2PChanCombinedConc;
 #endif
 	/*
 	 * in dBm, the max TX power. The actual TX power is the lesser of this
@@ -652,6 +648,7 @@ typedef struct tagCsrConfig {
 	bool qcn_ie_support;
 	uint8_t fils_max_chan_guard_time;
 	uint16_t pkt_err_disconn_th;
+	bool is_bssid_hint_priority;
 } tCsrConfig;
 
 typedef struct tagCsrChannelPowerInfo {
@@ -689,9 +686,6 @@ typedef struct tagCsrScanStruct {
 	tDblLinkList tempScanResults;
 	bool fScanEnable;
 	bool fFullScanIssued;
-#ifdef WLAN_AP_STA_CONCURRENCY
-	qdf_mc_timer_t hTimerStaApConcTimer;
-#endif
 	qdf_mc_timer_t hTimerIdleScan;
 	/*
 	 * changes on every scan, it is used as a flag for whether 11d info is
@@ -986,6 +980,8 @@ typedef struct tagCsrRoamSession {
 	uint8_t disconnect_reason;
 	uint8_t uapsd_mask;
 	qdf_mc_timer_t roaming_offload_timer;
+	bool is_fils_connection;
+	uint16_t fils_seq_num;
 } tCsrRoamSession;
 
 typedef struct tagCsrRoamStruct {

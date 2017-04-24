@@ -259,6 +259,8 @@ QDF_STATUS wma_get_buf_start_scan_cmd(tp_wma_handle wma_handle,
 	/* add DS param IE in probe req frame */
 	cmd->scan_ctrl_flags |= WMI_SCAN_ADD_DS_IE_IN_PROBE_REQ;
 
+	cmd->scan_ctrl_flags_ext = scan_req->scan_ctrl_flags_ext;
+
 	/* do not add OFDM rates in 11B mode */
 	if (scan_req->dot11mode != WNI_CFG_DOT11_MODE_11B)
 		cmd->scan_ctrl_flags |= WMI_SCAN_ADD_OFDM_RATES;
@@ -585,6 +587,7 @@ QDF_STATUS wma_start_scan(tp_wma_handle wma_handle,
 	WMA_LOGD("ActiveDwell %d, PassiveDwell %d, ScanFlags 0x%x NumChan %d",
 		 cmd.dwell_time_active, cmd.dwell_time_passive,
 		 cmd.scan_ctrl_flags, cmd.num_chan);
+	WMA_LOGD("ScanFlagsExt 0x%x", cmd.scan_ctrl_flags_ext);
 
 	/* Call the wmi api to request the scan */
 	qdf_status = wmi_unified_scan_start_cmd_send(wma_handle->wmi_handle,
@@ -1761,9 +1764,6 @@ QDF_STATUS wma_process_roaming_config(tp_wma_handle wma_handle,
 	uint32_t mode = 0;
 	struct wma_txrx_node *intr = NULL;
 
-	WMA_LOGD("%s: command 0x%x, reason %d", __func__, roam_req->Command,
-		 roam_req->reason);
-
 	if (NULL == pMac) {
 		WMA_LOGE("%s: pMac is NULL", __func__);
 		qdf_mem_free(roam_req);
@@ -2483,9 +2483,11 @@ cleanup_label:
 			wma->csr_roam_synch_cb((tpAniSirGlobal)wma->mac_context,
 				roam_synch_ind_ptr, NULL, SIR_ROAMING_ABORT);
 		roam_req = qdf_mem_malloc(sizeof(tSirRoamOffloadScanReq));
-		roam_req->Command = ROAM_SCAN_OFFLOAD_STOP;
-		roam_req->reason = REASON_ROAM_SYNCH_FAILED;
-		wma_process_roaming_config(wma, roam_req);
+		if (roam_req) {
+			roam_req->Command = ROAM_SCAN_OFFLOAD_STOP;
+			roam_req->reason = REASON_ROAM_SYNCH_FAILED;
+			wma_process_roaming_config(wma, roam_req);
+		}
 	}
 	if (roam_synch_ind_ptr && roam_synch_ind_ptr->join_rsp)
 		qdf_mem_free(roam_synch_ind_ptr->join_rsp);
@@ -2493,10 +2495,13 @@ cleanup_label:
 		qdf_mem_free(roam_synch_ind_ptr);
 	if (bss_desc_ptr)
 		qdf_mem_free(bss_desc_ptr);
-	wma->interfaces[synch_event->vdev_id].roam_synch_in_progress = false;
-	wma_roam_remove_self_reassoc(wma, synch_event->vdev_id);
-	WMA_LOGD("LFR3: Remove any pending self reassoc cmd for vdev_id: %d",
-		 synch_event->vdev_id);
+	if (wma && synch_event) {
+		wma->interfaces[synch_event->vdev_id].roam_synch_in_progress =
+			false;
+		wma_roam_remove_self_reassoc(wma, synch_event->vdev_id);
+		WMA_LOGD("LFR3: Remove pending self-reassoc cmd vdev_id: %d",
+			synch_event->vdev_id);
+	}
 
 	return status;
 }

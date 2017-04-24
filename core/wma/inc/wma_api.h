@@ -298,6 +298,17 @@ QDF_STATUS wma_add_beacon_filter(WMA_HANDLE wma,
 				struct beacon_filter_param *filter_params);
 QDF_STATUS wma_send_adapt_dwelltime_params(WMA_HANDLE handle,
 			struct adaptive_dwelltime_params *dwelltime_params);
+
+/**
+ * wma_send_dbs_scan_selection_params() - send DBS scan selection configuration
+ * params to firmware
+ * @handle:	 wma handler
+ * @dbs_scan_params: pointer to wmi_dbs_scan_sel_params
+ *
+ * Return: QDF_STATUS_SUCCESS on success and QDF failure reason code for failure
+ */
+QDF_STATUS wma_send_dbs_scan_selection_params(WMA_HANDLE handle,
+			struct wmi_dbs_scan_sel_params *dbs_scan_params);
 #ifdef FEATURE_GREEN_AP
 void wma_setup_egap_support(struct wma_tgt_cfg *tgt_cfg, WMA_HANDLE handle);
 void wma_register_egap_event_handle(WMA_HANDLE handle);
@@ -424,4 +435,36 @@ static inline void wma_tx_failure_cb(void *ctx, uint32_t num_msdu,
  * Return: tSirWifiPeerType
  */
 tSirWifiPeerType wmi_to_sir_peer_type(enum wmi_peer_type type);
+
+#ifdef FEATURE_SPECTRAL_SCAN
+/**
+ * wma_spectral_scan_req() - start or stop spectral scan
+ * @wma_ptr: pointer to wma handle
+ * @req: enable/disable spectral scan request
+ *
+ * Return: none
+ */
+void wma_spectral_scan_req(WMA_HANDLE wma_handle,
+				struct vdev_spectral_enable_params *req);
+
+/**
+ * wma_spectral_scan_config() - config spectral scan parameters
+ * @wma_ptr: pointer to wma handle
+ * @req: spectral scan configuration request
+ *
+ * Return: none
+ */
+void wma_spectral_scan_config(WMA_HANDLE wma_handle,
+				struct vdev_spectral_configure_params *req);
+#else
+static inline void wma_spectral_scan_req(WMA_HANDLE wma_handle,
+				struct vdev_spectral_enable_params *req)
+{
+}
+
+static inline void wma_spectral_scan_config(WMA_HANDLE wma_handle,
+				struct vdev_spectral_configure_params *req)
+{
+}
+#endif
 #endif

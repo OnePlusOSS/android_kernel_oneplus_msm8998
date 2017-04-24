@@ -682,6 +682,10 @@ void wma_set_sta_sa_query_param(tp_wma_handle wma,
 
 	WMA_LOGD(FL("Enter:"));
 
+	if (!mac) {
+		WMA_LOGE(FL("mac context is NULL"));
+		return;
+	}
 	if (wlan_cfg_get_int
 		    (mac, WNI_CFG_PMF_SA_QUERY_MAX_RETRIES,
 		    &max_retries) != eSIR_SUCCESS) {
@@ -1221,7 +1225,8 @@ QDF_STATUS wma_send_peer_assoc(tp_wma_handle wma,
 	 * Limit nss to max number of rf chain supported by target
 	 * Otherwise Fw will crash
 	 */
-	wma_update_txrx_chainmask(wma->num_rf_chains, &cmd->peer_nss);
+	if (cmd->peer_nss > WMA_MAX_NSS)
+		cmd->peer_nss = WMA_MAX_NSS;
 
 	intr->nss = cmd->peer_nss;
 	cmd->peer_phymode = phymode;
@@ -2753,7 +2758,8 @@ void wma_process_update_rx_nss(tp_wma_handle wma_handle,
 		&wma_handle->interfaces[update_rx_nss->smesessionId];
 	int rx_nss = update_rx_nss->rxNss;
 
-	wma_update_txrx_chainmask(wma_handle->num_rf_chains, &rx_nss);
+	if (rx_nss > WMA_MAX_NSS)
+		rx_nss = WMA_MAX_NSS;
 
 	intr->nss = (uint8_t)rx_nss;
 	update_rx_nss->rxNss = (uint32_t)rx_nss;
@@ -3438,14 +3444,15 @@ static int wma_mgmt_rx_process(void *handle, uint8_t *data,
 			if (iface->rmfEnabled) {
 				status = wma_process_rmf_frame(wma_handle,
 					iface, wh, rx_pkt, wbuf);
+				if (status)
+					return status;
 				/*
 				 * CCMP header might have been pulled off
 				 * reinitialize the start pointer of mac header
 				 */
 				wh = (struct ieee80211_frame *)
 						qdf_nbuf_data(wbuf);
-				if (status != 0)
-					return status;
+
 			}
 		}
 	}

@@ -209,7 +209,7 @@ static int hdd_lro_desc_find(struct hdd_lro_s *lro_info,
 		 &free_pool->lro_free_list_head,
 		 struct hdd_lro_desc_entry, lro_node);
 	if (NULL == entry) {
-		hdd_err("Could not allocate LRO desc!");
+		hdd_debug("Could not allocate LRO desc!");
 		return -ENOMEM;
 	}
 
@@ -285,7 +285,7 @@ static bool hdd_lro_eligible(struct hdd_lro_s *lro_info, struct sk_buff *skb,
 		return false;
 
 	if (0 != hdd_lro_desc_find(lro_info, skb, iph, tcph, desc)) {
-		hdd_err("finding the LRO desc failed");
+		hdd_debug("finding the LRO desc failed");
 		return false;
 	}
 
@@ -610,7 +610,8 @@ enum hdd_lro_rx_status hdd_lro_rx(hdd_context_t *hdd_ctx,
 	enum hdd_lro_rx_status status = HDD_LRO_NO_RX;
 
 	if (((adapter->dev->features & NETIF_F_LRO) != NETIF_F_LRO) ||
-			qdf_atomic_read(&hdd_ctx->disable_lro_in_concurrency))
+			qdf_atomic_read(&hdd_ctx->disable_lro_in_concurrency) ||
+			QDF_NBUF_CB_RX_PEER_CACHED_FRM(skb))
 		return status;
 
 	if (QDF_NBUF_CB_RX_TCP_PROTO(skb)) {

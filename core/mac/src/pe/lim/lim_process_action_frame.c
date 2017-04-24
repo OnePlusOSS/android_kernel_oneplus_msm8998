@@ -86,6 +86,11 @@ void lim_stop_tx_and_switch_channel(tpAniSirGlobal pMac, uint8_t sessionId)
 		return;
 	}
 
+	if (psessionEntry->ftPEContext.pFTPreAuthReq) {
+		pe_err("Avoid Switch Channel req during pre auth");
+		return;
+	}
+
 	pe_debug("Channel switch Mode: %d",
 		       psessionEntry->gLimChannelSwitch.switchMode);
 
@@ -235,7 +240,7 @@ static void __lim_process_channel_switch_action_frame(tpAniSirGlobal mac_ctx,
 
 	/* Unpack channel switch frame */
 	status = dot11f_unpack_channel_switch(mac_ctx, body_ptr, frame_len,
-			chnl_switch_frame);
+			chnl_switch_frame, false);
 
 	if (DOT11F_FAILED(status)) {
 		pe_err("Failed to unpack and parse (0x%08x, %d bytes)",
@@ -369,7 +374,7 @@ lim_process_ext_channel_switch_action_frame(tpAniSirGlobal mac_ctx,
 
 	/* Unpack channel switch frame */
 	status = dot11f_unpack_ext_channel_switch_action_frame(mac_ctx,
-			body, frame_len, ext_channel_switch_frame);
+			body, frame_len, ext_channel_switch_frame, false);
 
 	if (DOT11F_FAILED(status)) {
 		pe_err("Failed to parse CHANSW action frame (0x%08x, len %d):",
@@ -476,7 +481,7 @@ static void __lim_process_operating_mode_action_frame(tpAniSirGlobal mac_ctx,
 	}
 	/* Unpack channel switch frame */
 	status = dot11f_unpack_operating_mode(mac_ctx, body_ptr, frame_len,
-			operating_mode_frm);
+			operating_mode_frm, false);
 	if (DOT11F_FAILED(status)) {
 		pe_err("Failed to unpack and parse (0x%08x, %d bytes)",
 			status, frame_len);
@@ -606,7 +611,7 @@ static void __lim_process_gid_management_action_frame(tpAniSirGlobal mac_ctx,
 
 	/* Unpack Gid Mangement Action frame */
 	status = dot11f_unpack_vht_gid_management_action_frame(mac_ctx,
-			body_ptr, frame_len, gid_mgmt_frame);
+			body_ptr, frame_len, gid_mgmt_frame, false);
 	if (DOT11F_FAILED(status)) {
 		pe_err("Fail to parse an Grp id frame (0x%08x, %d bytes):",
 			status, frame_len);
@@ -1232,7 +1237,8 @@ __lim_process_sm_power_save_update(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 	}
 
 	/**Unpack the received frame */
-	nStatus = dot11f_unpack_sm_power_save(pMac, pBody, frameLen, &frmSMPower);
+	nStatus = dot11f_unpack_sm_power_save(pMac, pBody, frameLen,
+					      &frmSMPower, false);
 
 	if (DOT11F_FAILED(nStatus)) {
 		pe_err("Failed to unpack and parse a Update SM Power (0x%08x, %d bytes):",
@@ -1306,9 +1312,8 @@ __lim_process_radio_measure_request(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 	}
 
 	/**Unpack the received frame */
-	nStatus = dot11f_unpack_radio_measurement_request(pMac,
-								pBody,
-								frameLen, frm);
+	nStatus = dot11f_unpack_radio_measurement_request(pMac, pBody,
+							  frameLen, frm, false);
 
 	if (DOT11F_FAILED(nStatus)) {
 		pe_err("Failed to unpack and parse a Radio Measure request (0x%08x, %d bytes):",
@@ -1349,7 +1354,8 @@ __lim_process_link_measurement_req(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 
 	/**Unpack the received frame */
 	nStatus =
-		dot11f_unpack_link_measurement_request(pMac, pBody, frameLen, &frm);
+		dot11f_unpack_link_measurement_request(pMac, pBody, frameLen,
+						       &frm, false);
 
 	if (DOT11F_FAILED(nStatus)) {
 		pe_err("Failed to unpack and parse a Link Measure request (0x%08x, %d bytes):",
@@ -1396,7 +1402,8 @@ __lim_process_neighbor_report(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 
 	/**Unpack the received frame */
 	nStatus =
-		dot11f_unpack_neighbor_report_response(pMac, pBody, frameLen, pFrm);
+		dot11f_unpack_neighbor_report_response(pMac, pBody,
+						       frameLen, pFrm, false);
 
 	if (DOT11F_FAILED(nStatus)) {
 		pe_err("Failed to unpack and parse a Neighbor report response (0x%08x, %d bytes):",

@@ -263,6 +263,9 @@ typedef struct tagSmeStruct {
 	void (*bt_activity_info_cb)(void *context, uint32_t bt_activity);
 	void (*chip_power_save_fail_cb)(void *,
 			struct chip_pwr_save_fail_detected_params *);
+	void (*pchain_rssi_ind_cb)(void *ctx, void *pmsg);
+	void (*spectral_scan_cb)(void *context,
+			struct spectral_samp_msg *samp_msg);
 } tSmeStruct, *tpSmeStruct;
 
 #endif /* #if !defined( __SMEINTERNAL_H ) */

@@ -8307,6 +8307,10 @@ static int hdd_pre_enable_configure(hdd_context_t *hdd_ctx)
 
 	hdd_init_channel_avoidance(hdd_ctx);
 
+	/* update enable sap mandatory chan list */
+	cds_enable_disable_sap_mandatory_chan_list(
+			hdd_ctx->config->enable_sap_mandatory_chan_list);
+
 out:
 	return ret;
 }
@@ -8724,7 +8728,6 @@ hdd_features_deinit:
 	wlan_hdd_cfg80211_deregister_frames(adapter);
 cds_disable:
 	cds_disable(hdd_ctx->pcds_context);
-
 out:
 	return -EINVAL;
 }

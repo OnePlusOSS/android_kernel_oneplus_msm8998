@@ -1087,6 +1087,7 @@ struct scan_start_params {
 	uint32_t num_vendor_oui;
 	uint32_t oui_field_len;
 	uint8_t *voui;
+	uint32_t scan_ctrl_flags_ext;
 };
 
 /**
@@ -6893,6 +6894,24 @@ struct set_arp_stats {
 struct get_arp_stats {
 	uint8_t pkt_type;
 	uint32_t vdev_id;
+};
+
+#define WMI_SCAN_CLIENT_MAX        7
+
+/**
+ * struct wmi_dbs_scan_sel_params - DBS scan selection params
+ * @num_clients: Number of scan clients dutycycle
+ * @pdev_id: pdev_id for identifying the MAC
+ * @module_id: scan client module id
+ * @num_dbs_scans: number of DBS scans
+ * @num_non_dbs_scans: number of non-DBS scans
+ */
+struct wmi_dbs_scan_sel_params {
+	uint32_t num_clients;
+	uint32_t pdev_id;
+	uint32_t module_id[WMI_SCAN_CLIENT_MAX];
+	uint32_t num_dbs_scans[WMI_SCAN_CLIENT_MAX];
+	uint32_t num_non_dbs_scans[WMI_SCAN_CLIENT_MAX];
 };
 
 #endif /* _WMI_UNIFIED_PARAM_H_ */

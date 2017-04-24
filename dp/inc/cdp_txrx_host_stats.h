@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -24,7 +24,7 @@
  * under proprietary terms before Copyright ownership was assigned
  * to the Linux Foundation.
  */
- /**
+/**
  * @file cdp_txrx_host_stats.h
  * @brief Define the host data path stats API functions
  * called by the host control SW and the OS interface module
@@ -35,9 +35,10 @@
 #include <cdp_txrx_stats_struct.h>
 /* WIN */
 /* Need to remove the "req" parameter */
-/* Need to rename the function to reflect the functionality "show" / "display"
+/**
+ * Need to rename the function to reflect the functionality "show" / "display"
  * WIN -- to figure out whether to change OSIF to converge (not an immediate AI)
- * */
+ */
 #if WLAN_FEATURE_FASTPATH
 int ol_txrx_host_stats_get(
 	ol_txrx_vdev_handle vdev,

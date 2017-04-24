@@ -110,12 +110,14 @@ struct wmi_command_header {
  * @ buf_tail_idx - Tail index of buffer
  * @ p_buf_tail_idx - refernce to buffer tail index. It is added to accommodate
  * unified design since MCL uses global variable for buffer tail index
+ * @ size - the size of the buffer in number of entries
  */
 struct wmi_log_buf_t {
 	void *buf;
 	uint32_t length;
 	uint32_t buf_tail_idx;
 	uint32_t *p_buf_tail_idx;
+	uint32_t size;
 };
 
 /**
@@ -1153,6 +1155,9 @@ QDF_STATUS (*send_power_dbg_cmd)(wmi_unified_t wmi_handle,
 
 QDF_STATUS (*send_adapt_dwelltime_params_cmd)(wmi_unified_t wmi_handle,
 			struct wmi_adaptive_dwelltime_params *dwelltime_params);
+
+QDF_STATUS (*send_dbs_scan_sel_params_cmd)(wmi_unified_t wmi_handle,
+			struct wmi_dbs_scan_sel_params *dbs_scan_params);
 
 QDF_STATUS (*send_fw_test_cmd)(wmi_unified_t wmi_handle,
 			       struct set_fwtest_params *wmi_fwtest);

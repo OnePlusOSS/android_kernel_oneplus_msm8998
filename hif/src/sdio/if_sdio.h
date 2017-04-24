@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -76,7 +76,6 @@ static inline int athdiag_procfs_init(void *scn)
 
 static inline void athdiag_procfs_remove(void)
 {
-	return;
 }
 #endif
 

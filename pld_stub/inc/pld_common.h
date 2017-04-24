@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -166,7 +166,6 @@ static inline int pld_wlan_disable(struct device *dev,
 }
 static inline void pld_is_pci_link_down(struct device *dev)
 {
-	return;
 }
 static inline int pld_wlan_pm_control(struct device *dev, bool vote)
 {
@@ -174,7 +173,6 @@ static inline int pld_wlan_pm_control(struct device *dev, bool vote)
 }
 static inline void pld_intr_notify_q6(struct device *dev)
 {
-	return;
 }
 static inline int pld_ce_request_irq(struct device *dev, unsigned int ce_id,
 				     irqreturn_t (*handler)(int, void *),
@@ -204,11 +202,9 @@ static inline int pld_pm_runtime_request(struct device *dev,
 }
 static inline void pld_runtime_init(struct device *dev, int auto_delay)
 {
-	return;
 }
 static inline void pld_runtime_exit(struct device *dev)
 {
-	return;
 }
 static inline int pld_athdiag_read(struct device *dev,
 				   uint32_t offset, uint32_t memtype,

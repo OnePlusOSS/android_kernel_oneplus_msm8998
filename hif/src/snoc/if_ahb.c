@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -211,10 +211,9 @@ int hif_target_sync_ahb(struct hif_softc *scn)
 		if (wait_limit < 0) {
 			HIF_TRACE("%s: FW signal timed out", __func__);
 			return -EIO;
-		} else {
-			HIF_TRACE("%s: Got FW signal, retries = %x", __func__,
-							500-wait_limit);
 		}
+		HIF_TRACE("%s: Got FW signal, retries = %x", __func__,
+							500-wait_limit);
 	}
 
 	return 0;
@@ -274,7 +273,7 @@ void hif_ahb_disable_bus(struct hif_softc *scn)
  */
 QDF_STATUS hif_ahb_enable_bus(struct hif_softc *ol_sc,
 		struct device *dev, void *bdev,
-		const hif_bus_id *bid,
+		const struct hif_bus_id *bid,
 		enum hif_enable_type type)
 {
 	int ret = 0;

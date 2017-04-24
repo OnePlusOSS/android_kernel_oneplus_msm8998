@@ -63,10 +63,10 @@ void hif_snoc_disable_isr(struct hif_softc *scn)
 
 /**
  * hif_dump_registers(): dump bus debug registers
- * @scn: struct hif_opaque_softc
+ * @hif_ctx: struct hif_opaque_softc
  *
  * This function dumps hif bus debug registers
-  *
+ *
  * Return: 0 for success or error code
  */
 int hif_snoc_dump_registers(struct hif_softc *hif_ctx)
@@ -199,7 +199,7 @@ int hif_snoc_bus_configure(struct hif_softc *scn)
  * Return: 0 for success
  */
 static inline int hif_snoc_get_target_type(struct hif_softc *ol_sc,
-	struct device *dev, void *bdev, const hif_bus_id *bid,
+	struct device *dev, void *bdev, const struct hif_bus_id *bid,
 	uint32_t *hif_type, uint32_t *target_type)
 {
 	/* TODO: need to use HW version. Hard code for now */
@@ -243,7 +243,7 @@ static int hif_set_dma_coherent_mask(struct device *dev)
  */
 QDF_STATUS hif_snoc_enable_bus(struct hif_softc *ol_sc,
 			  struct device *dev, void *bdev,
-			  const hif_bus_id *bid,
+			  const struct hif_bus_id *bid,
 			  enum hif_enable_type type)
 {
 	int ret;
@@ -325,6 +325,7 @@ void hif_snoc_disable_bus(struct hif_softc *scn)
 void hif_snoc_nointrs(struct hif_softc *scn)
 {
 	struct HIF_CE_state *hif_state = HIF_GET_CE_STATE(scn);
+
 	if (scn->request_irq_done) {
 		ce_unregister_irq(hif_state, 0xfff);
 		scn->request_irq_done = false;

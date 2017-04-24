@@ -45,6 +45,8 @@
 
 #define FL(x)    "%s: %d: " x, __func__, __LINE__
 
+typedef int (qdf_abstract_print)(void *priv, const char *fmt, ...);
+
 /*
  * Log levels
  */

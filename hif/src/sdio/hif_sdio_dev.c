@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -75,18 +75,16 @@ uint8_t hif_dev_map_pipe_to_mail_box(struct hif_sdio_device *pdev,
 			uint8_t pipeid)
 {
 	/* TODO: temp version, should not hardcoded here, will be
-	 * updated after HIF design */
+	 * updated after HIF design
+	 */
 	if (2 == pipeid || 3 == pipeid)
 		return 1;
 	else if (0 == pipeid || 1 == pipeid)
 		return 0;
-	else {
-		AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
-			("%s: pipeid=%d,should not happen\n",
-			 __func__, pipeid));
-		qdf_assert(0);
-		return INVALID_MAILBOX_NUMBER;
-	}
+	AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: pipeid=%d,should not happen\n",
+					__func__, pipeid));
+	qdf_assert(0);
+	return INVALID_MAILBOX_NUMBER;
 }
 
 /**
@@ -104,19 +102,17 @@ uint8_t hif_dev_map_mail_box_to_pipe(struct hif_sdio_device *pdev,
 				     bool upload)
 {
 	/* TODO: temp version, should not hardcoded here, will be
-	 * updated after HIF design */
-	if (mbox_index == 0) {
+	 * updated after HIF design
+	 */
+	if (mbox_index == 0)
 		return upload ? 1 : 0;
-	} else if (mbox_index == 1) {
+	else if (mbox_index == 1)
 		return upload ? 3 : 2;
-	} else {
-		AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
-			("%s:--------------------mboxIndex=%d,upload=%d,"
-			 " should not happen\n",
+	AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
+			("%s:-----mboxIndex=%d,upload=%d, should not happen\n",
 			__func__, mbox_index, upload));
-		qdf_assert(0);
-		return 0xff;
-	}
+	qdf_assert(0);
+	return 0xff;
 }
 
 /**
@@ -135,6 +131,7 @@ QDF_STATUS hif_dev_map_service_to_pipe(struct hif_sdio_device *pdev,
 				     bool swap_mapping)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
+
 	switch (service_id) {
 	case HTT_DATA_MSG_SVC:
 		if (swap_mapping) {
@@ -284,6 +281,7 @@ struct hif_sdio_device *hif_dev_from_hif(struct hif_sdio_dev *hif_device)
 {
 	struct hif_sdio_device *pdev = NULL;
 	QDF_STATUS status;
+
 	status = hif_configure_device(hif_device,
 				HIF_DEVICE_GET_HTC_CONTEXT,
 				(void **)&pdev, sizeof(struct hif_sdio_device));
@@ -306,6 +304,7 @@ QDF_STATUS hif_dev_disable_interrupts(struct hif_sdio_device *pdev)
 {
 	struct MBOX_IRQ_ENABLE_REGISTERS regs;
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
+
 	HIF_ENTER();
 
 	LOCK_HIF_DEV(pdev);
@@ -351,6 +350,7 @@ QDF_STATUS hif_dev_enable_interrupts(struct hif_sdio_device *pdev)
 {
 	QDF_STATUS status;
 	struct MBOX_IRQ_ENABLE_REGISTERS regs;
+
 	HIF_ENTER();
 
 	/* for good measure, make sure interrupt are disabled
@@ -360,7 +360,8 @@ QDF_STATUS hif_dev_enable_interrupts(struct hif_sdio_device *pdev)
 	 * and when HTC is finally ready to handle interrupts,
 	 * other software can perform target "soft" resets.
 	 * The AR6K interrupt enables reset back to an "enabled"
-	 * state when this happens. */
+	 * state when this happens.
+	 */
 	hif_dev_disable_interrupts(pdev);
 
 	/* Unmask the host controller interrupts */
@@ -369,7 +370,8 @@ QDF_STATUS hif_dev_enable_interrupts(struct hif_sdio_device *pdev)
 	LOCK_HIF_DEV(pdev);
 
 	/* Enable all the interrupts except for the internal
-	 * AR6000 CPU interrupt */
+	 * AR6000 CPU interrupt
+	 */
 	pdev->IrqEnableRegisters.int_status_enable =
 		INT_STATUS_ENABLE_ERROR_SET(0x01) |
 			INT_STATUS_ENABLE_CPU_SET(0x01)
@@ -384,7 +386,7 @@ QDF_STATUS hif_dev_enable_interrupts(struct hif_sdio_device *pdev)
 	 * CPU sourced interrupt #0, #1.
 	 * #0 is used for report assertion from target
 	 * #1 is used for inform host that credit arrived
-	 * */
+	 */
 	pdev->IrqEnableRegisters.cpu_int_status_enable = 0x03;
 
 	/* Set up the Error Interrupt Status Register */
@@ -393,7 +395,8 @@ QDF_STATUS hif_dev_enable_interrupts(struct hif_sdio_device *pdev)
 		 | ERROR_STATUS_ENABLE_TX_OVERFLOW_SET(0x01)) >> 16;
 
 	/* Set up the Counter Interrupt Status Register
-	 * (only for debug interrupt to catch fatal errors) */
+	 * (only for debug interrupt to catch fatal errors)
+	 */
 	pdev->IrqEnableRegisters.counter_int_status_enable =
 	   (COUNTER_INT_STATUS_ENABLE_BIT_SET(AR6K_TARGET_DEBUG_INTR_MASK)) >>
 		24;
@@ -434,7 +437,7 @@ QDF_STATUS hif_dev_setup(struct hif_sdio_device *pdev)
 {
 	QDF_STATUS status;
 	uint32_t blocksizes[MAILBOX_COUNT];
-	HTC_CALLBACKS htc_callbacks;
+	struct htc_callbacks htc_cbs;
 	struct hif_sdio_dev *hif_device = pdev->HIFDevice;
 
 	HIF_ENTER();
@@ -504,7 +507,8 @@ QDF_STATUS hif_dev_setup(struct hif_sdio_device *pdev)
 	pdev->HifMaskUmaskRecvEvent = NULL;
 
 	/* see if the HIF layer implements the mask/unmask recv
-	 * events function  */
+	 * events function
+	 */
 	hif_configure_device(hif_device,
 			     HIF_DEVICE_GET_RECV_EVENT_MASK_UNMASK_FUNC,
 			     &pdev->HifMaskUmaskRecvEvent,
@@ -512,12 +516,12 @@ QDF_STATUS hif_dev_setup(struct hif_sdio_device *pdev)
 
 	status = hif_dev_disable_interrupts(pdev);
 
-	qdf_mem_zero(&htc_callbacks, sizeof(HTC_CALLBACKS));
+	qdf_mem_zero(&htc_cbs, sizeof(struct htc_callbacks));
 	/* the device layer handles these */
-	htc_callbacks.rwCompletionHandler = hif_dev_rw_completion_handler;
-	htc_callbacks.dsrHandler = hif_dev_dsr_handler;
-	htc_callbacks.context = pdev;
-	status = hif_attach_htc(pdev->HIFDevice, &htc_callbacks);
+	htc_cbs.rwCompletionHandler = hif_dev_rw_completion_handler;
+	htc_cbs.dsrHandler = hif_dev_dsr_handler;
+	htc_cbs.context = pdev;
+	status = hif_attach_htc(pdev->HIFDevice, &htc_cbs);
 
 	HIF_EXIT();
 	return status;

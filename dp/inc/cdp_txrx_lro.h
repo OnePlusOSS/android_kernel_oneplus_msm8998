@@ -24,7 +24,7 @@
  * under proprietary terms before Copyright ownership was assigned
  * to the Linux Foundation.
  */
- /**
+/**
  * @file cdp_txrx_lro.h
  * @brief Define the host data path Large Receive Offload API
  * functions

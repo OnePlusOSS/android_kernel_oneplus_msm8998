@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -40,7 +40,7 @@ void hif_pci_disable_isr(struct hif_softc *scn);
 void hif_pci_nointrs(struct hif_softc *scn);
 QDF_STATUS hif_pci_enable_bus(struct hif_softc *scn,
 			struct device *dev, void *bdev,
-			const hif_bus_id *bid,
+			const struct hif_bus_id *bid,
 			enum hif_enable_type type);
 void hif_pci_disable_bus(struct hif_softc *scn);
 int hif_pci_bus_configure(struct hif_softc *scn);

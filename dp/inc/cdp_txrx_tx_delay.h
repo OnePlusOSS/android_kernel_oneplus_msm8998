@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -24,7 +24,7 @@
  * under proprietary terms before Copyright ownership was assigned
  * to the Linux Foundation.
  */
- /**
+/**
  * @file cdp_txrx_tx_delay.h
  * @brief Define the host data path histogram API functions
  * called by the host control SW and the OS interface module
@@ -52,14 +52,12 @@ ol_tx_delay(ol_txrx_pdev_handle pdev,
 		 uint32_t *queue_delay_microsec,
 		 uint32_t *tx_delay_microsec, int category)
 {
-	return;
 }
 
 static inline void
 ol_tx_delay_hist(ol_txrx_pdev_handle pdev,
 		 uint16_t *bin_values, int category)
 {
-	return;
 }
 
 static inline void
@@ -67,14 +65,12 @@ ol_tx_packet_count(ol_txrx_pdev_handle pdev,
 		 uint16_t *out_packet_count,
 		 uint16_t *out_packet_loss_count, int category)
 {
-	return;
 }
 
 static inline void
 ol_tx_set_compute_interval(ol_txrx_pdev_handle pdev,
 		 uint32_t interval)
 {
-	return;
 }
 #endif
 

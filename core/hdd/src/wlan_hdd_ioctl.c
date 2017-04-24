@@ -2405,7 +2405,7 @@ static int wlan_hdd_get_link_status(hdd_adapter_t *adapter)
 	QDF_STATUS hstatus;
 	unsigned long rc;
 
-	if (cds_is_driver_recovering()) {
+	if (cds_is_driver_recovering() || cds_is_driver_in_bad_state()) {
 		hdd_warn("Recovery in Progress. State: 0x%x Ignore!!!",
 			 cds_get_driver_state());
 		return 0;

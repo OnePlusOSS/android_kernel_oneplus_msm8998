@@ -11843,7 +11843,7 @@ void active_list_cmd_timeout_handle(void *userData)
 	} else {
 		if (!mac_ctx->roam.configParam.enable_fatal_event &&
 		   !(cds_is_load_or_unload_in_progress() ||
-		    cds_is_driver_recovering()))
+		    cds_is_driver_recovering() || cds_is_driver_in_bad_state()))
 			QDF_BUG(0);
 	}
 }

@@ -3557,7 +3557,7 @@ QDF_STATUS wlan_hdd_get_rssi(hdd_adapter_t *pAdapter, int8_t *rssi_value)
 		hdd_err("Invalid context, pAdapter");
 		return QDF_STATUS_E_FAULT;
 	}
-	if (cds_is_driver_recovering()) {
+	if (cds_is_driver_recovering() || cds_is_driver_in_bad_state()) {
 		hdd_warn("Recovery in Progress. State: 0x%x Ignore!!!",
 			cds_get_driver_state());
 		/* return a cached value */
@@ -5978,7 +5978,7 @@ QDF_STATUS wlan_hdd_get_class_astats(hdd_adapter_t *pAdapter)
 		hdd_err("pAdapter is NULL");
 		return QDF_STATUS_E_FAULT;
 	}
-	if (cds_is_driver_recovering()) {
+	if (cds_is_driver_recovering() || cds_is_driver_in_bad_state()) {
 		hdd_debug("Recovery in Progress. State: 0x%x Ignore!!!",
 			 cds_get_driver_state());
 		return QDF_STATUS_SUCCESS;

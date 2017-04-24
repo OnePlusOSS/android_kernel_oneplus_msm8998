@@ -505,7 +505,7 @@ static int __hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 
-	if (cds_is_driver_recovering()) {
+	if (cds_is_driver_recovering() || cds_is_driver_in_bad_state()) {
 		QDF_TRACE(QDF_MODULE_ID_HDD_DATA, QDF_TRACE_LEVEL_INFO_HIGH,
 			"Recovery in progress, dropping the packet");
 		goto drop_pkt;

@@ -400,7 +400,7 @@ static int __hdd_netdev_notifier_call(struct notifier_block *nb,
 		QDF_ASSERT(0);
 		return NOTIFY_DONE;
 	}
-	if (cds_is_driver_recovering())
+	if (cds_is_driver_recovering() || cds_is_driver_in_bad_state())
 		return NOTIFY_DONE;
 
 	hdd_debug("%s New Net Device State = %lu",
@@ -611,6 +611,12 @@ int wlan_hdd_validate_context(hdd_context_t *hdd_ctx)
 		hdd_debug("%pS Start/Stop Modules in progress. Ignore!!!",
 				(void *)_RET_IP_);
 		return -EAGAIN;
+	}
+
+	if (cds_is_driver_in_bad_state()) {
+		hdd_debug("%pS driver in bad State: 0x%x Ignore!!!",
+			(void *)_RET_IP_, cds_get_driver_state());
+		return -ENODEV;
 	}
 
 	return 0;
@@ -1401,7 +1407,7 @@ void hdd_update_tgt_cfg(void *context, void *param)
 		hdd_warn("ini BandCapability not supported by the target");
 	}
 
-	if (!cds_is_driver_recovering()) {
+	if (!cds_is_driver_recovering() || cds_is_driver_in_bad_state()) {
 		hdd_ctx->reg.reg_domain = cfg->reg_domain;
 		hdd_ctx->reg.eeprom_rd_ext = cfg->eeprom_rd_ext;
 	}
@@ -1803,6 +1809,7 @@ int hdd_wlan_start_modules(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 				goto release_lock;
 			}
 		}
+
 		ret = hdd_hif_open(qdf_dev->dev, qdf_dev->drv_hdl, qdf_dev->bid,
 				   qdf_dev->bus_type,
 				   (reinit == true) ?  HIF_ENABLE_TYPE_REINIT :
@@ -5506,7 +5513,7 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 	 */
 	qdf_status = cds_sched_close(p_cds_context);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		hdd_err("Failed to close CDS Scheduler");
+		hdd_alert("Failed to close CDS Scheduler");
 		QDF_ASSERT(QDF_IS_STATUS_SUCCESS(qdf_status));
 	}
 

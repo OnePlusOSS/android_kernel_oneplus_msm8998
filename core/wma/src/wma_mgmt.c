@@ -3333,6 +3333,11 @@ static int wma_mgmt_rx_process(void *handle, uint8_t *data,
 		return -EINVAL;
 	}
 
+	if (cds_is_driver_in_bad_state()) {
+		WMA_LOGW(FL("Driver in bad state"));
+		return -EINVAL;
+	}
+
 	rx_pkt = qdf_mem_malloc(sizeof(*rx_pkt));
 	if (!rx_pkt) {
 		WMA_LOGE("Failed to allocate rx packet");

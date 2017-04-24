@@ -4397,7 +4397,8 @@ static int __wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy,
 			!rc ? "Mgmt Tx Completion timed out" : "Mgmt Tx Completion failed",
 			rc, pAdapter->mgmtTxCompletionStatus);
 
-		if (cds_is_driver_recovering()) {
+		if (cds_is_driver_recovering() ||
+		    cds_is_driver_in_bad_state()) {
 			hdd_warn("Recovery in Progress. State: 0x%x Ignore!!!",
 				cds_get_driver_state());
 			return -EAGAIN;

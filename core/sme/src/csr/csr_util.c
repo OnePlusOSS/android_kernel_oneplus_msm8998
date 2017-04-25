@@ -3143,15 +3143,15 @@ static bool csr_lookup_pmkid_using_bssid(tpAniSirGlobal mac,
 {
 	uint32_t i;
 	tPmkidCacheInfo *session_pmk;
-
+	sme_debug("lookup PMKID using bssid: " MAC_ADDRESS_STR,
+		  MAC_ADDR_ARRAY(pmk_cache->BSSID.bytes));
 	for (i = 0; i < session->NumPmkidCache; i++) {
 		session_pmk = &session->PmkidCacheInfo[i];
-		sme_debug("match PMKID " MAC_ADDRESS_STR " to ",
-			MAC_ADDR_ARRAY(pmk_cache->BSSID.bytes));
 		if (qdf_is_macaddr_equal(&pmk_cache->BSSID,
 					 &session_pmk->BSSID)) {
 			/* match found */
 			*index = i;
+			sme_debug("PMKID found");
 			return true;
 		}
 	}

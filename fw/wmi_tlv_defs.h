@@ -817,6 +817,11 @@ typedef enum {
     WMITLV_TAG_STRUC_wmi_offchan_data_tx_compl_event_fixed_param,
     WMITLV_TAG_STRUC_wmi_offchan_data_tx_send_cmd_fixed_param,
     WMITLV_TAG_STRUC_wmi_tx_send_params,
+    WMITLV_TAG_STRUC_wmi_he_rate_set,
+    WMITLV_TAG_STRUC_wmi_congestion_stats,
+    WMITLV_TAG_STRUC_wmi_set_init_country_cmd_fixed_param,
+    WMITLV_TAG_STRUC_wmi_scan_dbs_duty_cycle_fixed_param,
+    WMITLV_TAG_STRUC_wmi_scan_dbs_duty_cycle_param_tlv,
 } WMITLV_TAG_ID;
 
 /*
@@ -1146,6 +1151,8 @@ typedef enum {
     OP(WMI_VDEV_GET_ARP_STAT_CMDID) \
     OP(WMI_VDEV_GET_TX_POWER_CMDID) \
     OP(WMI_OFFCHAN_DATA_TX_SEND_CMDID) \
+    OP(WMI_SET_INIT_COUNTRY_CMDID) \
+    OP(WMI_SET_SCAN_DBS_DUTY_CYCLE_CMDID) \
     /* add new CMD_LIST elements above this line */
 
 
@@ -1535,6 +1542,13 @@ WMITLV_CREATE_PARAM_STRUC(WMI_START_SCAN_CMDID);
 
 WMITLV_CREATE_PARAM_STRUC(WMI_SCAN_ADAPTIVE_DWELL_CONFIG_CMDID);
 
+/* Set scan selection duty cycle */
+#define WMITLV_TABLE_WMI_SET_SCAN_DBS_DUTY_CYCLE_CMDID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_scan_dbs_duty_cycle_fixed_param, wmi_scan_dbs_duty_cycle_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_scan_dbs_duty_cycle_tlv_param, param, WMITLV_SIZE_VAR)
+
+WMITLV_CREATE_PARAM_STRUC(WMI_SET_SCAN_DBS_DUTY_CYCLE_CMDID);
+
 /* Start ExtScan Cmd */
 #define WMITLV_TABLE_WMI_EXTSCAN_START_CMDID(id,op,buf,len) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_extscan_start_cmd_fixed_param, wmi_extscan_start_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
@@ -1735,7 +1749,8 @@ WMITLV_CREATE_PARAM_STRUC(WMI_VDEV_IPSEC_NATKEEPALIVE_FILTER_CMDID);
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_peer_assoc_complete_cmd_fixed_param, wmi_peer_assoc_complete_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_BYTE, A_UINT8, peer_legacy_rates, WMITLV_SIZE_VAR) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_BYTE, A_UINT8, peer_ht_rates, WMITLV_SIZE_VAR) \
-    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_vht_rate_set, wmi_vht_rate_set, peer_vht_rates, WMITLV_SIZE_FIX)
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_vht_rate_set, wmi_vht_rate_set, peer_vht_rates, WMITLV_SIZE_FIX) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_he_rate_set, peer_he_rates, WMITLV_SIZE_VAR)
 
 WMITLV_CREATE_PARAM_STRUC(WMI_PEER_ASSOC_CMDID);
 
@@ -3242,6 +3257,11 @@ WMITLV_CREATE_PARAM_STRUC(WMI_REQUEST_PEER_STATS_INFO_CMDID);
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_set_current_country_cmd_fixed_param, wmi_set_current_country_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
 WMITLV_CREATE_PARAM_STRUC(WMI_SET_CURRENT_COUNTRY_CMDID);
 
+/* Host sets the init country code */
+#define WMITLV_TABLE_WMI_SET_INIT_COUNTRY_CMDID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_set_init_country_cmd_fixed_param, wmi_set_init_country_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_SET_INIT_COUNTRY_CMDID);
+
 /* Start 11d scan in FW */
 #define WMITLV_TABLE_WMI_11D_SCAN_START_CMDID(id,op,buf,len) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_11d_scan_start_cmd_fixed_param, wmi_11d_scan_start_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
@@ -3680,7 +3700,8 @@ WMITLV_CREATE_PARAM_STRUC(WMI_HOST_SWBA_EVENTID);
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_stats_event_fixed_param, wmi_stats_event_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_BYTE, A_UINT8, data, WMITLV_SIZE_VAR) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_per_chain_rssi_stats, wmi_per_chain_rssi_stats, chain_stats, WMITLV_SIZE_FIX) \
-    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_rssi_stats, rssi_stats, WMITLV_SIZE_VAR)
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_rssi_stats, rssi_stats, WMITLV_SIZE_VAR) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_congestion_stats, congestion_stats, WMITLV_SIZE_VAR)
 WMITLV_CREATE_PARAM_STRUC(WMI_UPDATE_STATS_EVENTID);
 
 /* For vdev based ht/vht info upload*/

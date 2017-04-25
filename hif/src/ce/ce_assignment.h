@@ -102,8 +102,7 @@ static struct CE_attr host_ce_cfg_wcn3990[] = {
 	/* Target autonomous HIF_memcpy */
 	{ /* CE6 */ CE_ATTR_FLAGS, 0, 0, 0, 0, NULL,},
 	/* ce_diag, the Diagnostic Window */
-	{ /* CE7 */ (CE_ATTR_FLAGS | CE_ATTR_DISABLE_INTR), 0,
-		2, DIAG_TRANSFER_LIMIT, 2, NULL,},
+	{ /* CE7 */ CE_ATTR_FLAGS, 0, 0, 0, 0, NULL,},
 	/* Target to uMC */
 	{ /* CE8 */ CE_ATTR_FLAGS, 0, 0, 0, 0, NULL,},
 	/* target->host HTT */

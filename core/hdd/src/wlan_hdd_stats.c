@@ -1410,6 +1410,11 @@ int wlan_hdd_ll_stats_get(hdd_adapter_t *adapter, uint32_t req_id,
 	get_req.paramIdMask = req_mask;
 	get_req.staId = adapter->sessionId;
 
+	if (wlan_hdd_validate_session_id(adapter->sessionId)) {
+		hdd_err("invalid session id: %d", adapter->sessionId);
+		return -EINVAL;
+	}
+
 	rtnl_lock();
 	ret = wlan_hdd_send_ll_stats_req(hdd_ctx, &get_req);
 	rtnl_unlock();
@@ -1493,6 +1498,11 @@ __wlan_hdd_cfg80211_ll_stats_get(struct wiphy *wiphy,
 			    [QCA_WLAN_VENDOR_ATTR_LL_STATS_GET_CONFIG_REQ_MASK]);
 
 	LinkLayerStatsGetReq.staId = pAdapter->sessionId;
+
+	if (wlan_hdd_validate_session_id(pAdapter->sessionId)) {
+		hdd_err("invalid session id: %d", pAdapter->sessionId);
+		return -EINVAL;
+	}
 
 	rc = wlan_hdd_send_ll_stats_req(pHddCtx, &LinkLayerStatsGetReq);
 	if (!rc) {

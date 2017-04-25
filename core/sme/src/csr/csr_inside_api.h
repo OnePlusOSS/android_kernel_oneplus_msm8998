@@ -245,11 +245,6 @@ struct csr_scan_for_ssid_context {
 		(eCSR_ENCRYPT_TYPE_WEP40_STATICKEY == (encType)) || \
 		(eCSR_ENCRYPT_TYPE_WEP104_STATICKEY == (encType)))
 
-#define CSR_IS_AUTH_TYPE_FILS(auth_type) \
-		((eCSR_AUTH_TYPE_FILS_SHA256 == auth_type) || \
-		(eCSR_AUTH_TYPE_FILS_SHA384 == auth_type) || \
-		(eCSR_AUTH_TYPE_FT_FILS_SHA256 == auth_type) || \
-		(eCSR_AUTH_TYPE_FT_FILS_SHA384 == auth_type))
 #define CSR_IS_WAIT_FOR_KEY(pMac, sessionId) \
 		 (CSR_IS_ROAM_JOINED(pMac, sessionId) && \
 		  CSR_IS_ROAM_SUBSTATE_WAITFORKEY(pMac, sessionId))

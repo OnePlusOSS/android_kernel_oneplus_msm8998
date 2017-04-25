@@ -14835,11 +14835,18 @@ static bool wlan_hdd_reassoc_bssid_hint(hdd_adapter_t *adapter,
 	bool reassoc = false;
 	const uint8_t *bssid = NULL;
 	uint16_t channel = 0;
+	hdd_wext_state_t *wext_state = WLAN_HDD_GET_WEXT_STATE_PTR(adapter);
 
 	if (req->bssid)
 		bssid = req->bssid;
 	else if (req->bssid_hint)
 		bssid = req->bssid_hint;
+
+	if (CSR_IS_AUTH_TYPE_FILS(
+	   wext_state->roamProfile.AuthType.authType[0])) {
+		hdd_info("connection is FILS, dropping roaming..");
+		return reassoc;
+	}
 
 	if (req->channel)
 		channel = req->channel->hw_value;

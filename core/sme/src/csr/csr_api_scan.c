@@ -5525,8 +5525,8 @@ static void csr_scan_copy_request_valid_channels_only(tpAniSirGlobal mac_ctx,
 				cds_get_channel_state(src_req->
 							ChannelInfo.
 							ChannelList
-							[index])))
-			) {
+							[index]))) &&
+				(src_req->ChannelInfo.numOfChannels > 1)) {
 				sme_debug(
 					"reqType= %s (%d), numOfChannels=%d, ignoring DFS channel %d",
 					sme_request_type_to_string(

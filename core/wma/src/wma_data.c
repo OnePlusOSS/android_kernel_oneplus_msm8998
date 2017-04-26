@@ -2418,8 +2418,17 @@ int wmi_desc_pool_init(tp_wma_handle wma_handle, uint32_t pool_size)
  */
 void wmi_desc_pool_deinit(tp_wma_handle wma_handle)
 {
+	struct wmi_desc_t *wmi_desc;
+	uint8_t i;
+
 	qdf_spin_lock_bh(&wma_handle->wmi_desc_pool.wmi_desc_pool_lock);
 	if (wma_handle->wmi_desc_pool.array) {
+		for (i = 0; i < wma_handle->wmi_desc_pool.pool_size; i++) {
+			wmi_desc = (struct wmi_desc_t *)
+				    (&wma_handle->wmi_desc_pool.array[i]);
+			if (wmi_desc && wmi_desc->nbuf)
+				cds_packet_free(wmi_desc->nbuf);
+		}
 		qdf_mem_free(wma_handle->wmi_desc_pool.array);
 		wma_handle->wmi_desc_pool.array = NULL;
 	} else {

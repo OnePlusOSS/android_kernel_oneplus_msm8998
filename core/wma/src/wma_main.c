@@ -1775,9 +1775,7 @@ static void wma_cleanup_vdev_resp_queue(tp_wma_handle wma)
 		req_msg = qdf_container_of(node1, struct wma_target_req, node);
 		qdf_spin_unlock_bh(&wma->vdev_respq_lock);
 		qdf_mc_timer_stop(&req_msg->event_timeout);
-		qdf_mc_timer_destroy(&req_msg->event_timeout);
 		wma_vdev_resp_timer(req_msg);
-		qdf_mem_free(req_msg);
 		qdf_spin_lock_bh(&wma->vdev_respq_lock);
 	}
 	qdf_spin_unlock_bh(&wma->vdev_respq_lock);
@@ -1809,7 +1807,6 @@ static void wma_cleanup_hold_req(tp_wma_handle wma)
 		qdf_mc_timer_stop(&req_msg->event_timeout);
 		qdf_mc_timer_destroy(&req_msg->event_timeout);
 		wma_hold_req_timer(req_msg);
-		qdf_mem_free(req_msg);
 		qdf_spin_lock_bh(&wma->wma_hold_req_q_lock);
 	}
 	qdf_spin_unlock_bh(&wma->wma_hold_req_q_lock);

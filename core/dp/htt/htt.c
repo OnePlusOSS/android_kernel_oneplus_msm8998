@@ -394,10 +394,8 @@ htt_pdev_alloc(ol_txrx_pdev_handle txrx_pdev,
 	if (htt_htc_attach(pdev, HTT_DATA_MSG_SVC))
 		goto fail2;
 	if (htt_htc_attach(pdev, HTT_DATA2_MSG_SVC))
-		;
 		goto fail2;
 	if (htt_htc_attach(pdev, HTT_DATA3_MSG_SVC))
-		;
 		goto fail2;
 	if (hif_ce_fastpath_cb_register(osc, htt_t2h_msg_handler_fast, pdev))
 		qdf_print("failed to register fastpath callback\n");

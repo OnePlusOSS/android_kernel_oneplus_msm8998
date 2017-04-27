@@ -4731,6 +4731,7 @@ free_buf:
 #define OL_TXRX_PRINT_RATE_LIMIT_THRESH 0x0f
 
 static QDF_STATUS ol_txrx_enqueue_rx_frames(
+					struct ol_txrx_peer_t *peer,
 					struct ol_txrx_cached_bufq_t *bufqi,
 					qdf_nbuf_t rx_buf_list)
 {
@@ -4739,8 +4740,6 @@ static QDF_STATUS ol_txrx_enqueue_rx_frames(
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	int dropped = 0;
 	static uint32_t count;
-	bool thresh_crossed = false;
-
 
 	if ((count++ & OL_TXRX_PRINT_RATE_LIMIT_THRESH) == 0)
 		ol_txrx_info(
@@ -4750,20 +4749,9 @@ static QDF_STATUS ol_txrx_enqueue_rx_frames(
 	qdf_spin_lock_bh(&bufqi->bufq_lock);
 	if (bufqi->curr >= bufqi->thresh) {
 		status = QDF_STATUS_E_FAULT;
-		dropped = ol_txrx_drop_nbuf_list(rx_buf_list);
-		bufqi->dropped += dropped;
-		bufqi->qdepth_no_thresh += dropped;
-
-		if (bufqi->qdepth_no_thresh > bufqi->high_water_mark)
-			bufqi->high_water_mark = bufqi->qdepth_no_thresh;
-
-		thresh_crossed = true;
+		goto drop_bufs;
 	}
-
 	qdf_spin_unlock_bh(&bufqi->bufq_lock);
-
-	if (thresh_crossed)
-		goto end;
 
 	buf = rx_buf_list;
 	while (buf) {
@@ -4779,14 +4767,30 @@ static QDF_STATUS ol_txrx_enqueue_rx_frames(
 			qdf_nbuf_set_next(buf, NULL);
 			cache_buf->buf = buf;
 			qdf_spin_lock_bh(&bufqi->bufq_lock);
-			list_add_tail(&cache_buf->list,
+			if (peer && peer->valid) {
+				list_add_tail(&cache_buf->list,
 				      &bufqi->cached_bufq);
-			bufqi->curr++;
-			qdf_spin_unlock_bh(&bufqi->bufq_lock);
+				bufqi->curr++;
+				qdf_spin_unlock_bh(&bufqi->bufq_lock);
+			} else {
+				status = QDF_STATUS_E_FAULT;
+				qdf_mem_free(cache_buf);
+				rx_buf_list = buf;
+				qdf_nbuf_set_next(rx_buf_list, next_buf);
+				goto drop_bufs;
+			}
 		}
 		buf = next_buf;
 	}
-end:
+
+drop_bufs:
+	dropped = ol_txrx_drop_nbuf_list(rx_buf_list);
+	bufqi->dropped += dropped;
+	bufqi->qdepth_no_thresh += dropped;
+
+	if (bufqi->qdepth_no_thresh > bufqi->high_water_mark)
+		bufqi->high_water_mark = bufqi->qdepth_no_thresh;
+	qdf_spin_unlock_bh(&bufqi->bufq_lock);
 	return status;
 }
 /**
@@ -4826,7 +4830,8 @@ void ol_rx_data_process(struct ol_txrx_peer_t *peer,
 	 * which will be flushed to HDD once that station is registered.
 	 */
 	if (!data_rx) {
-		if (ol_txrx_enqueue_rx_frames(&peer->bufq_info, rx_buf_list)
+		if (ol_txrx_enqueue_rx_frames(peer, &peer->bufq_info,
+					      rx_buf_list)
 				!= QDF_STATUS_SUCCESS)
 			QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_HIGH,
 				  "%s: failed to enqueue rx frm to cached_bufq",

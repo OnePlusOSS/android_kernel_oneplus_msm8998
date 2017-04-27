@@ -2028,6 +2028,7 @@ void __qdf_nbuf_unmap_tso_segment(qdf_device_t osdev,
 			qdf_assert(0);
 			return;
 		}
+		qdf_tso_seg_dbg_record(tso_seg, TSOSEG_LOC_UNMAPTSO);
 		dma_unmap_single(osdev->dev,
 				 tso_seg->seg.tso_frags[num_frags].paddr,
 				 tso_seg->seg.tso_frags[num_frags].length,
@@ -2524,6 +2525,7 @@ static unsigned int qdf_nbuf_update_radiotap_vht_flags(
 		IEEE80211_RADIOTAP_VHT_KNOWN_BANDWIDTH;
 	put_unaligned_le16(vht_flags, &rtap_buf[rtap_len]);
 	rtap_len += 2;
+
 	rtap_buf[rtap_len] |=
 		(rx_status->is_stbc ?
 		 IEEE80211_RADIOTAP_VHT_FLAG_STBC : 0) |
@@ -2532,8 +2534,8 @@ static unsigned int qdf_nbuf_update_radiotap_vht_flags(
 		 IEEE80211_RADIOTAP_VHT_FLAG_LDPC_EXTRA_OFDM_SYM : 0) |
 		(rx_status->beamformed ?
 		 IEEE80211_RADIOTAP_VHT_FLAG_BEAMFORMED : 0);
-
 	rtap_len += 1;
+
 	rtap_buf[rtap_len] = (rx_status->vht_flag_values2);
 	rtap_len += 1;
 	rtap_buf[rtap_len] = (rx_status->vht_flag_values3[0]);
@@ -2593,11 +2595,15 @@ unsigned int qdf_nbuf_update_radiotap(struct mon_rx_status *rx_status,
 	rtap_len += 1;
 
 	/* IEEE80211_RADIOTAP_RATE  u8           500kb/s */
-	rthdr->it_present |= cpu_to_le32(1 << IEEE80211_RADIOTAP_RATE);
-	rtap_buf[rtap_len] = rx_status->rate;
+	if (!rx_status->ht_flags && !rx_status->vht_flags) {
+		rthdr->it_present |= cpu_to_le32(1 << IEEE80211_RADIOTAP_RATE);
+		rtap_buf[rtap_len] = rx_status->rate;
+	} else
+		rtap_buf[rtap_len] = 0;
 	rtap_len += 1;
-	rthdr->it_present |= cpu_to_le32(1 << IEEE80211_RADIOTAP_CHANNEL);
+
 	/* IEEE80211_RADIOTAP_CHANNEL 2 x __le16   MHz, bitmap */
+	rthdr->it_present |= cpu_to_le32(1 << IEEE80211_RADIOTAP_CHANNEL);
 	put_unaligned_le16(rx_status->chan_freq, &rtap_buf[rtap_len]);
 	rtap_len += 2;
 	/* Channel flags. */
@@ -2620,6 +2626,25 @@ unsigned int qdf_nbuf_update_radiotap(struct mon_rx_status *rx_status,
 	rthdr->it_present |= cpu_to_le32(1 << IEEE80211_RADIOTAP_ANTENNA);
 	rtap_buf[rtap_len] = rx_status->nr_ant;
 	rtap_len += 1;
+
+	if (rx_status->ht_flags) {
+		/* IEEE80211_RADIOTAP_VHT u8, u8, u8 */
+		rthdr->it_present |= cpu_to_le32(1 << IEEE80211_RADIOTAP_MCS);
+		rtap_buf[rtap_len] = IEEE80211_RADIOTAP_MCS_HAVE_BW |
+					IEEE80211_RADIOTAP_MCS_HAVE_MCS |
+					IEEE80211_RADIOTAP_MCS_HAVE_GI;
+		rtap_len += 1;
+
+		if (rx_status->sgi)
+			rtap_buf[rtap_len] |= IEEE80211_RADIOTAP_MCS_SGI;
+		if (rx_status->bw)
+			rtap_buf[rtap_len] |= IEEE80211_RADIOTAP_MCS_BW_40;
+		rtap_len += 1;
+
+		rtap_buf[rtap_len] = rx_status->mcs;
+		rtap_len += 1;
+	}
+
 	if (rx_status->vht_flags) {
 		/* IEEE80211_RADIOTAP_VHT u16, u8, u8, u8[4], u8, u8, u16 */
 		rthdr->it_present |= cpu_to_le32(1 << IEEE80211_RADIOTAP_VHT);

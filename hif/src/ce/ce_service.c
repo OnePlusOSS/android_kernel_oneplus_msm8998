@@ -621,9 +621,9 @@ int ce_send_fast(struct CE_handle *copyeng, qdf_nbuf_t msdu,
 	uint32_t user_flags;
 	enum hif_ce_event_type type = FAST_TX_SOFTWARE_INDEX_UPDATE;
 
-	qdf_spin_lock_bh(&ce_state->ce_index_lock);
 	Q_TARGET_ACCESS_BEGIN(scn);
 
+	qdf_spin_lock_bh(&ce_state->ce_index_lock);
 	src_ring->sw_index = CE_SRC_RING_READ_IDX_GET_FROM_DDR(scn, ctrl_addr);
 	write_index = src_ring->write_index;
 	sw_index = src_ring->sw_index;
@@ -719,13 +719,15 @@ int ce_send_fast(struct CE_handle *copyeng, qdf_nbuf_t msdu,
 		src_ring->per_transfer_context[write_index] = msdu;
 		write_index = CE_RING_IDX_INCR(nentries_mask, write_index);
 
-		DPTRACE(qdf_dp_trace(msdu,
-			QDF_DP_TRACE_CE_FAST_PACKET_PTR_RECORD,
-			qdf_nbuf_data_addr(msdu),
-			sizeof(qdf_nbuf_data(msdu)), QDF_TX));
 	}
 
 	src_ring->write_index = write_index;
+	qdf_spin_unlock_bh(&ce_state->ce_index_lock);
+
+	DPTRACE(qdf_dp_trace(msdu,
+			QDF_DP_TRACE_CE_FAST_PACKET_PTR_RECORD,
+			qdf_nbuf_data_addr(msdu),
+			sizeof(qdf_nbuf_data(msdu)), QDF_TX));
 
 	if (hif_pm_runtime_get(hif_hdl) == 0) {
 		if (qdf_likely(ce_state->state == CE_RUNNING)) {
@@ -740,7 +742,7 @@ int ce_send_fast(struct CE_handle *copyeng, qdf_nbuf_t msdu,
 				 NULL, NULL, write_index);
 
 	Q_TARGET_ACCESS_END(scn);
-	qdf_spin_unlock_bh(&ce_state->ce_index_lock);
+
 
 	/* sent 1 packet */
 	return 1;

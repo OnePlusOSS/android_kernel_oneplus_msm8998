@@ -6203,6 +6203,7 @@ QDF_STATUS send_pno_start_cmd_tlv(wmi_unified_t wmi_handle,
 	cmd->slow_scan_period = pno->slow_scan_period;
 	cmd->delay_start_time = WMI_SEC_TO_MSEC(pno->delay_start_time);
 	cmd->fast_scan_max_cycles = pno->fast_scan_max_cycles;
+	cmd->scan_backoff_multiplier = pno->scan_backoff_multiplier;
 	WMI_LOGD("fast_scan_period: %d msec slow_scan_period: %d msec",
 			cmd->fast_scan_period, cmd->slow_scan_period);
 	WMI_LOGD("fast_scan_max_cycles: %d", cmd->fast_scan_max_cycles);
@@ -12962,6 +12963,120 @@ static QDF_STATUS send_get_rcpi_cmd_tlv(wmi_unified_t wmi_handle,
 	return QDF_STATUS_SUCCESS;
 }
 
+#ifdef FEATURE_SPECTRAL_SCAN
+/**
+ * send_vdev_spectral_enable_cmd_tlv() - send VDEV spectral enable
+ * command to fw
+ * @wmi_handle: wmi handle
+ * @param: pointer to hold spectral enable parameter
+ *
+ * Return: 0 for success or error code
+ */
+static QDF_STATUS send_vdev_spectral_enable_cmd_tlv(wmi_unified_t wmi_handle,
+				struct vdev_spectral_enable_params *param)
+{
+	wmi_vdev_spectral_enable_cmd_fixed_param *cmd;
+	wmi_buf_t buf;
+	QDF_STATUS status;
+	uint32_t len = sizeof(*cmd);
+
+	buf = wmi_buf_alloc(wmi_handle, len);
+	if (!buf) {
+		WMI_LOGP("%s: failed to allocate memory for spectral scan req",
+			 __func__);
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	cmd = (wmi_vdev_spectral_enable_cmd_fixed_param *)wmi_buf_data(buf);
+
+	WMITLV_SET_HDR(&cmd->tlv_header,
+		 WMITLV_TAG_STRUC_wmi_vdev_spectral_enable_cmd_fixed_param,
+		 WMITLV_GET_STRUCT_TLVLEN(
+			wmi_vdev_spectral_enable_cmd_fixed_param));
+
+	cmd->vdev_id = param->vdev_id;
+	cmd->trigger_cmd = param->active;
+	cmd->enable_cmd = param->enabled;
+
+	WMI_LOGE("%s: vdev_id=%d, trigger_cmd=%d, enable_cmd=%d",
+		 __func__, cmd->vdev_id, cmd->trigger_cmd, cmd->enable_cmd);
+
+	status = wmi_unified_cmd_send(wmi_handle, buf, len,
+			WMI_VDEV_SPECTRAL_SCAN_ENABLE_CMDID);
+	if (status != QDF_STATUS_SUCCESS) {
+		WMI_LOGE("%s: failed to send spectral scan enable command %d",
+			 __func__, status);
+		wmi_buf_free(buf);
+	}
+
+	return status;
+}
+
+/**
+ * send_vdev_spectral_configure_cmd_tlv() - send VDEV spectral configure
+ * command to fw
+ * @wmi_handle: wmi handle
+ * @param: pointer to hold spectral config parameter
+ *
+ * Return: 0 for success or error code
+ */
+static QDF_STATUS send_vdev_spectral_configure_cmd_tlv(wmi_unified_t wmi_handle,
+				struct vdev_spectral_configure_params *param)
+{
+	wmi_vdev_spectral_configure_cmd_fixed_param *cmd;
+	wmi_buf_t buf;
+	QDF_STATUS status;
+	uint32_t len = sizeof(*cmd);
+
+	buf = wmi_buf_alloc(wmi_handle, len);
+	if (!buf) {
+		WMI_LOGP("%s: failed to allocate memory for spectral scan req",
+			 __func__);
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	cmd = (wmi_vdev_spectral_configure_cmd_fixed_param *)wmi_buf_data(buf);
+
+	WMITLV_SET_HDR(&cmd->tlv_header,
+		 WMITLV_TAG_STRUC_wmi_vdev_spectral_configure_cmd_fixed_param,
+		 WMITLV_GET_STRUCT_TLVLEN(
+			wmi_vdev_spectral_configure_cmd_fixed_param));
+
+	cmd->vdev_id = param->vdev_id;
+	cmd->spectral_scan_count = param->count;
+	cmd->spectral_scan_period = param->period;
+	cmd->spectral_scan_priority = param->spectral_pri;
+	cmd->spectral_scan_fft_size = param->fft_size;
+	cmd->spectral_scan_gc_ena = param->gc_enable;
+	cmd->spectral_scan_restart_ena = param->restart_enable;
+	cmd->spectral_scan_noise_floor_ref = param->noise_floor_ref;
+	cmd->spectral_scan_init_delay = param->init_delay;
+	cmd->spectral_scan_nb_tone_thr = param->nb_tone_thr;
+	cmd->spectral_scan_str_bin_thr = param->str_bin_thr;
+	cmd->spectral_scan_wb_rpt_mode = param->wb_rpt_mode;
+	cmd->spectral_scan_rssi_rpt_mode = param->rssi_rpt_mode;
+	cmd->spectral_scan_rssi_thr = param->rssi_thr;
+	cmd->spectral_scan_pwr_format = param->pwr_format;
+	cmd->spectral_scan_rpt_mode = param->rpt_mode;
+	cmd->spectral_scan_bin_scale = param->bin_scale;
+	cmd->spectral_scan_dBm_adj = param->dBm_adj;
+	cmd->spectral_scan_chn_mask = param->chn_mask;
+
+	WMI_LOGD("%s: Sending spectral scan config command, vdev_id=%d",
+			__func__, cmd->vdev_id);
+
+	status = wmi_unified_cmd_send(wmi_handle, buf, len,
+			WMI_VDEV_SPECTRAL_SCAN_CONFIGURE_CMDID);
+	if (status != QDF_STATUS_SUCCESS) {
+		WMI_LOGE("%s: failed to send spectral scan config command %d",
+			 __func__, status);
+		wmi_buf_free(buf);
+	}
+
+	return status;
+}
+#endif
+
 struct wmi_ops tlv_ops =  {
 	.send_vdev_create_cmd = send_vdev_create_cmd_tlv,
 	.send_vdev_delete_cmd = send_vdev_delete_cmd_tlv,
@@ -13227,6 +13342,12 @@ struct wmi_ops tlv_ops =  {
 	.send_get_rcpi_cmd = send_get_rcpi_cmd_tlv,
 	.send_set_arp_stats_req_cmd = send_set_arp_stats_req_cmd_tlv,
 	.send_get_arp_stats_req_cmd = send_get_arp_stats_req_cmd_tlv,
+#ifdef FEATURE_SPECTRAL_SCAN
+	.send_vdev_spectral_configure_cmd =
+			send_vdev_spectral_configure_cmd_tlv,
+	.send_vdev_spectral_enable_cmd =
+				send_vdev_spectral_enable_cmd_tlv,
+#endif
 };
 
 #ifdef WMI_TLV_AND_NON_TLV_SUPPORT

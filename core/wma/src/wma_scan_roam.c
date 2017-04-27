@@ -3338,8 +3338,7 @@ QDF_STATUS wma_pno_start(tp_wma_handle wma, tpSirPNOScanReq pno)
 			params->probe_req_ie_bitmap[i] =
 					pno->probe_req_ie_bitmap[i];
 		params->num_vendor_oui = pno->num_vendor_oui;
-		params->oui_field_len = pno->num_vendor_oui *
-					sizeof(struct vendor_oui);
+		params->oui_field_len = pno->num_vendor_oui * sizeof(uint32_t);
 		params->voui = (uint8_t *)pno;
 	}
 
@@ -5779,7 +5778,7 @@ QDF_STATUS wma_scan_probe_setoui(tp_wma_handle wma, tSirScanMacOui *psetoui)
 						psetoui->probe_req_ie_bitmap[i];
 		set_oui.num_vendor_oui = psetoui->num_vendor_oui;
 		set_oui.oui_field_len = psetoui->num_vendor_oui *
-					sizeof(struct vendor_oui);
+					sizeof(uint32_t);
 		set_oui.voui = (uint8_t *)psetoui;
 	}
 

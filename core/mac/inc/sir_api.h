@@ -1002,7 +1002,7 @@ typedef struct sSirSmeScanReq {
 	   up to uIEFieldLen (can be 0)
 	   -----------------------------
 	   ... variable size upto num_vendor_oui
-	   struct vendor_oui voui;
+	   of type uint32_t
 	   -----------------------------------*/
 } tSirSmeScanReq, *tpSirSmeScanReq;
 
@@ -3139,7 +3139,7 @@ typedef struct sSirPNOScanReq {
 	bool ie_whitelist;
 	uint32_t probe_req_ie_bitmap[PROBE_REQ_BITMAP_LEN];
 	uint32_t num_vendor_oui;
-	/* followed by one or more struct vendor_oui */
+	/* followed by one or more vendor ouis of type uint32_t */
 } tSirPNOScanReq, *tpSirPNOScanReq;
 
 /* Preferred Network Found Indication */
@@ -4061,7 +4061,7 @@ typedef struct sSirScanOffloadReq {
 	  up to uIEFieldLen (can be 0)
 	  -----------------------------
 	  ... variable size upto num_vendor_oui
-	  struct vendor_oui voui;
+	  of type uint32_t
 	  ------------------------*/
 } tSirScanOffloadReq, *tpSirScanOffloadReq;
 
@@ -5332,7 +5332,7 @@ typedef struct {
 	bool ie_whitelist;
 	uint32_t probe_req_ie_bitmap[PROBE_REQ_BITMAP_LEN];
 	uint32_t num_vendor_oui;
-	/* Followed by 0 or more struct vendor_oui */
+	/* Followed by 0 or more vendor_ouis of type uint32_t */
 } tSirScanMacOui, *tpSirScanMacOui;
 
 enum {

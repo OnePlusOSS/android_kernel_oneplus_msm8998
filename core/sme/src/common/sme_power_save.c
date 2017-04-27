@@ -765,7 +765,7 @@ QDF_STATUS sme_set_ps_preferred_network_list(tHalHandle hal_ctx,
 
 	request_buf = qdf_mem_malloc(sizeof(tSirPNOScanReq) +
 		      (request->num_vendor_oui) *
-		      (sizeof(struct vendor_oui)));
+		      (sizeof(uint32_t)));
 
 	if (NULL == request_buf) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
@@ -775,7 +775,7 @@ QDF_STATUS sme_set_ps_preferred_network_list(tHalHandle hal_ctx,
 
 	qdf_mem_copy(request_buf, request, sizeof(tSirPNOScanReq) +
 			(request->num_vendor_oui) *
-			(sizeof(struct vendor_oui)));
+			(sizeof(uint32_t)));
 
 	/*Must translate the mode first */
 	uc_dot11_mode = (uint8_t) csr_translate_to_wni_cfg_dot11_mode(mac_ctx,

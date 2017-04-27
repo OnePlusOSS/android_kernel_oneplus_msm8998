@@ -7419,6 +7419,37 @@ list_destroy:
 }
 
 /**
+ * ie_whitelist_attrs_init() - initialize ie whitelisting attributes
+ * @hdd_ctx: pointer to hdd context
+ *
+ * Return: status of initialization
+ *         0 - success
+ *         negative value - failure
+ */
+static int ie_whitelist_attrs_init(hdd_context_t *hdd_ctx)
+{
+	int ret;
+
+	if (!hdd_ctx->config->probe_req_ie_whitelist)
+		return 0;
+
+	if (!hdd_validate_prb_req_ie_bitmap(hdd_ctx)) {
+		hdd_err("invalid ie bitmap and ouis: disable ie whitelisting");
+		hdd_ctx->config->probe_req_ie_whitelist = false;
+		return -EINVAL;
+	}
+
+	/* parse ini string probe req oui */
+	ret = hdd_parse_probe_req_ouis(hdd_ctx);
+	if (ret) {
+		hdd_err("parsing error: disable ie whitelisting");
+		hdd_ctx->config->probe_req_ie_whitelist = false;
+	}
+
+	return ret;
+}
+
+/**
  * hdd_context_create() - Allocate and inialize HDD context.
  * @dev:	Device Pointer to the underlying device
  *
@@ -7470,20 +7501,7 @@ static hdd_context_t *hdd_context_create(struct device *dev)
 		goto err_free_config;
 	}
 
-	if (hdd_ctx->config->probe_req_ie_whitelist) {
-		if (hdd_validate_prb_req_ie_bitmap(hdd_ctx)) {
-			/* parse ini string probe req oui */
-			if (hdd_parse_probe_req_ouis(hdd_ctx)) {
-				hdd_err("Error parsing probe req ouis");
-				hdd_err("disable probe req ie whitelisting");
-				hdd_ctx->config->probe_req_ie_whitelist = false;
-			}
-		} else {
-			hdd_err("invalid probe req ie bitmap and ouis");
-			hdd_err("disable probe req ie whitelisting");
-			hdd_ctx->config->probe_req_ie_whitelist = false;
-		}
-	}
+	ie_whitelist_attrs_init(hdd_ctx);
 
 	if (hdd_ctx->config->fhostNSOffload)
 		hdd_ctx->ns_offload_enable = true;

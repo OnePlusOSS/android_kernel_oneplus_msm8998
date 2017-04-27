@@ -5525,6 +5525,46 @@ static void hdd_per_roam_print_ini_config(hdd_context_t *hdd_ctx)
 }
 
 /**
+ * hdd_cfg_print_ie_whitelist_attrs() - print the ie whitelist attrs
+ * @hdd_ctx: pointer to hdd context
+ *
+ * Return: None
+ */
+static void hdd_cfg_print_ie_whitelist_attrs(hdd_context_t *hdd_ctx)
+{
+	hdd_debug("Name = [%s] Value = [%x] ",
+		  CFG_PRB_REQ_IE_WHITELIST_NAME,
+		  hdd_ctx->config->probe_req_ie_whitelist);
+	hdd_debug("Name = [%s] Value = [%x] ",
+		  CFG_PRB_REQ_IE_BIT_MAP0_NAME,
+		  hdd_ctx->config->probe_req_ie_bitmap_0);
+	hdd_debug("Name = [%s] Value = [%x] ",
+		  CFG_PRB_REQ_IE_BIT_MAP1_NAME,
+		  hdd_ctx->config->probe_req_ie_bitmap_1);
+	hdd_debug("Name = [%s] Value = [%x] ",
+		  CFG_PRB_REQ_IE_BIT_MAP2_NAME,
+		  hdd_ctx->config->probe_req_ie_bitmap_2);
+	hdd_debug("Name = [%s] Value = [%x] ",
+		  CFG_PRB_REQ_IE_BIT_MAP3_NAME,
+		  hdd_ctx->config->probe_req_ie_bitmap_3);
+	hdd_debug("Name = [%s] Value = [%x] ",
+		  CFG_PRB_REQ_IE_BIT_MAP4_NAME,
+		  hdd_ctx->config->probe_req_ie_bitmap_4);
+	hdd_debug("Name = [%s] Value = [%x] ",
+		  CFG_PRB_REQ_IE_BIT_MAP5_NAME,
+		  hdd_ctx->config->probe_req_ie_bitmap_5);
+	hdd_debug("Name = [%s] Value = [%x] ",
+		  CFG_PRB_REQ_IE_BIT_MAP6_NAME,
+		  hdd_ctx->config->probe_req_ie_bitmap_6);
+	hdd_debug("Name = [%s] Value = [%x] ",
+		  CFG_PRB_REQ_IE_BIT_MAP7_NAME,
+		  hdd_ctx->config->probe_req_ie_bitmap_7);
+	hdd_debug("Name = [%s] Value =[%s]",
+		  CFG_PROBE_REQ_OUI_NAME,
+		  hdd_ctx->config->probe_req_ouis);
+}
+
+/**
  * hdd_cfg_print() - print the hdd configuration
  * @iniTable: pointer to hdd context
  *
@@ -6234,36 +6274,9 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_debug("Name = [%s] value = [%u]",
 		 CFG_FORCE_1X1_NAME,
 		 pHddCtx->config->is_force_1x1);
-	hdd_debug("Name = [%s] Value = [%x] ",
-		 CFG_PRB_REQ_IE_WHITELIST_NAME,
-		 pHddCtx->config->probe_req_ie_whitelist);
-	hdd_debug("Name = [%s] Value = [%x] ",
-		 CFG_PRB_REQ_IE_BIT_MAP0_NAME,
-		 pHddCtx->config->probe_req_ie_bitmap_0);
-	hdd_debug("Name = [%s] Value = [%x] ",
-		 CFG_PRB_REQ_IE_BIT_MAP1_NAME,
-		 pHddCtx->config->probe_req_ie_bitmap_1);
-	hdd_debug("Name = [%s] Value = [%x] ",
-		 CFG_PRB_REQ_IE_BIT_MAP2_NAME,
-		 pHddCtx->config->probe_req_ie_bitmap_2);
-	hdd_debug("Name = [%s] Value = [%x] ",
-		 CFG_PRB_REQ_IE_BIT_MAP3_NAME,
-		 pHddCtx->config->probe_req_ie_bitmap_3);
-	hdd_debug("Name = [%s] Value = [%x] ",
-		 CFG_PRB_REQ_IE_BIT_MAP4_NAME,
-		 pHddCtx->config->probe_req_ie_bitmap_4);
-	hdd_debug("Name = [%s] Value = [%x] ",
-		 CFG_PRB_REQ_IE_BIT_MAP5_NAME,
-		 pHddCtx->config->probe_req_ie_bitmap_5);
-	hdd_debug("Name = [%s] Value = [%x] ",
-		 CFG_PRB_REQ_IE_BIT_MAP6_NAME,
-		 pHddCtx->config->probe_req_ie_bitmap_6);
-	hdd_debug("Name = [%s] Value = [%x] ",
-		 CFG_PRB_REQ_IE_BIT_MAP7_NAME,
-		 pHddCtx->config->probe_req_ie_bitmap_7);
-	hdd_debug("Name = [%s] Value =[%s]",
-		 CFG_PROBE_REQ_OUI_NAME,
-		 pHddCtx->config->probe_req_ouis);
+
+	hdd_cfg_print_ie_whitelist_attrs(pHddCtx);
+
 	hdd_debug("Name = [%s] value = [%u]",
 		 CFG_DROPPED_PKT_DISCONNECT_TH_NAME,
 		 pHddCtx->config->pkt_err_disconn_th);
@@ -8168,132 +8181,48 @@ bool hdd_validate_prb_req_ie_bitmap(hdd_context_t *hdd_ctx)
 	return true;
 }
 
-/**
- * probe_req_voui_convert_to_hex - converts str of 8 chars into two hex values
- * @temp: string to be converted
- * @voui: contains the type and subtype values
- *
- * This function converts the string length of 8 characters into two
- * hexa-decimal values, oui_type and oui_subtype, where oui_type is the
- * hexa decimal value converted from first 6 characters and oui_subtype is
- * hexa decimal value converted from last 2 characters.
- * strings which doesn't match with the specified pattern are ignored.
- *
- * Return: status of conversion
- *         true - if conversion is successful
- *         false - if conversion is failed
- */
-static bool hdd_probe_req_voui_convert_to_hex(uint8_t *temp,
-					      struct vendor_oui *voui)
-{
-	uint32_t hex_value[4] = {0};
-	uint32_t i = 0;
-	uint32_t indx = 0;
-
-	memset(voui, 0x00, sizeof(*voui));
-
-	/* convert string to hex */
-	for (i = 0; i < 8; i++) {
-		if (temp[i] >= '0' && temp[i] <= '9') {
-			hex_value[indx] = (temp[i] - '0') << 4;
-		} else if (temp[i] >= 'A' && temp[i] <= 'F') {
-			hex_value[indx] = (temp[i] - 'A') + 0xA;
-			hex_value[indx] = hex_value[indx] << 4;
-		} else {
-			/* invalid character in oui */
-			return false;
-		}
-
-		if (temp[i + 1] >= '0' && temp[i + 1] <= '9') {
-			hex_value[indx] |= (temp[i + 1] - '0');
-			i = i + 1;
-			indx = indx + 1;
-		} else if (temp[i + 1] >= 'A' && temp[i + 1] <= 'F') {
-			hex_value[indx] |= ((temp[i + 1] - 'A') + 0xA);
-			i = i + 1;
-			indx = indx + 1;
-		} else {
-			/* invalid character in oui */
-			return false;
-		}
-	}
-
-	voui->oui_type = (hex_value[0] | (hex_value[1] << 8) |
-			 (hex_value[2] << 16));
-	voui->oui_subtype = hex_value[3];
-
-	hdd_info("OUI_type = %x and OUI_subtype = %x",
-		 voui->oui_type, voui->oui_subtype);
-
-	return true;
-}
-
 int hdd_parse_probe_req_ouis(hdd_context_t *hdd_ctx)
 {
-	struct vendor_oui voui[MAX_PROBE_REQ_OUIS];
-	uint8_t *str;
-	uint8_t temp[9];
-	uint32_t start = 0, end = 0;
+	uint32_t voui[MAX_PROBE_REQ_OUIS];
+	char *str;
+	uint8_t *token;
 	uint32_t oui_indx = 0;
-	uint32_t i = 0;
+	int ret;
+	uint32_t hex_value;
 
-	hdd_ctx->config->probe_req_ouis[MAX_PRB_REQ_VENDOR_OUI_INI_LEN - 1] =
-									'\0';
-	if (!strlen(hdd_ctx->config->probe_req_ouis)) {
+	str = (char *)(hdd_ctx->config->probe_req_ouis);
+	str[MAX_PRB_REQ_VENDOR_OUI_INI_LEN - 1] = '\0';
+
+	if (!strlen(str)) {
 		hdd_ctx->no_of_probe_req_ouis = 0;
 		hdd_ctx->probe_req_voui = NULL;
 		hdd_info("NO OUIS to parse");
 		return 0;
 	}
 
-	str = (uint8_t *)(hdd_ctx->config->probe_req_ouis);
+	token = strsep(&str, " ");
+	while (token) {
+		if (strlen(token) != 8)
+			goto next_token;
 
-	while (str[i] != '\0') {
-		if (str[i] == ' ') {
-			if ((end - start) != 8) {
-				end = start = 0;
-				i++;
-				continue;
-			} else {
-				memcpy(temp, &str[i - 8], 8);
-				i++;
-				temp[8] = '\0';
-				if (!hdd_probe_req_voui_convert_to_hex(temp,
-				    &voui[oui_indx])) {
-					end = start = 0;
-					continue;
-				}
-				oui_indx++;
-				if (oui_indx >= MAX_PROBE_REQ_OUIS) {
-					/*
-					 * Max number of OUIs supported is 16,
-					 * ignoring the rest
-					 */
-					hdd_info("Max OUIs-supported: 16");
-					break;
-				}
-			}
-			start = end = 0;
-		} else {
-			i++;
-			end++;
-		}
-	}
+		ret = kstrtouint(token, 16, &hex_value);
+		if (ret)
+			goto next_token;
 
-	if (((end - start) == 8) && oui_indx < MAX_PROBE_REQ_OUIS) {
-		memcpy(temp, &str[i - 8], 8);
-		temp[8] = '\0';
-		if (hdd_probe_req_voui_convert_to_hex(temp,
-		    &voui[oui_indx]))
-			oui_indx++;
+		voui[oui_indx++] = cpu_to_be32(hex_value);
+		if (oui_indx >= MAX_PROBE_REQ_OUIS)
+			break;
+
+		next_token:
+		token = strsep(&str, " ");
 	}
 
 	if (!oui_indx)
-		return 0;
+		return -EINVAL;
 
 	hdd_ctx->probe_req_voui = qdf_mem_malloc(oui_indx *
 					sizeof(*hdd_ctx->probe_req_voui));
-	if (hdd_ctx->probe_req_voui == NULL) {
+	if (!hdd_ctx->probe_req_voui) {
 		hdd_err("Not Enough memory for OUI");
 		hdd_ctx->no_of_probe_req_ouis = 0;
 		return -ENOMEM;
@@ -8307,7 +8236,7 @@ int hdd_parse_probe_req_ouis(hdd_context_t *hdd_ctx)
 
 void hdd_free_probe_req_ouis(hdd_context_t *hdd_ctx)
 {
-	struct vendor_oui *probe_req_voui = hdd_ctx->probe_req_voui;
+	uint32_t *probe_req_voui = hdd_ctx->probe_req_voui;
 
 	if (probe_req_voui) {
 		hdd_ctx->probe_req_voui = NULL;

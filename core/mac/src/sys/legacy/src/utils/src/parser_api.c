@@ -2851,7 +2851,6 @@ sir_convert_assoc_req_frame2_struct(tpAniSirGlobal pMac,
 			lim_log_vht_cap(pMac, &pAssocReq->VHTCaps);
 		}
 	}
-
 	qdf_mem_free(ar);
 	return eSIR_SUCCESS;
 
@@ -2931,6 +2930,27 @@ static void fils_convert_assoc_rsp_frame2_struct(tDot11fAssocResponse *ar,
 		qdf_mem_copy(&pAssocRsp->fils_kde.kde_list,
 				&ar->fils_kde.kde_list,
 				pAssocRsp->fils_kde.num_kde_list);
+	}
+
+	if (ar->fils_hlp_container.present) {
+		pe_debug("FILS HLP container IE present");
+		sir_copy_mac_addr(pAssocRsp->dst_mac.bytes,
+				ar->fils_hlp_container.dest_mac);
+		sir_copy_mac_addr(pAssocRsp->src_mac.bytes,
+				ar->fils_hlp_container.src_mac);
+		pAssocRsp->hlp_data_len = ar->fils_hlp_container.num_hlp_packet;
+		qdf_mem_copy(pAssocRsp->hlp_data,
+				ar->fils_hlp_container.hlp_packet,
+				pAssocRsp->hlp_data_len);
+
+		if (ar->fragment_ie.present) {
+			pe_debug("FILS fragment ie present");
+			qdf_mem_copy(pAssocRsp->hlp_data +
+					pAssocRsp->hlp_data_len,
+					ar->fragment_ie.data,
+					ar->fragment_ie.num_data);
+			pAssocRsp->hlp_data_len += ar->fragment_ie.num_data;
+		}
 	}
 }
 #else

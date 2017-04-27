@@ -2515,7 +2515,7 @@ QDF_STATUS sme_process_msg(tHalHandle hHal, cds_msg_t *pMsg)
 		break;
 
 	case eWNI_SME_SAME_AP_REASSOC_IND:
-		if (pMac->roam.configParam.rx_ldpc_support_for_2g) {
+		if (sme_check_enable_rx_ldpc_sta_ini_item()) {
 			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
 			    FL("eWNI_SME_SAME_AP_REASSOC_IND cmd to delete"));
 			sme_cmd =  csr_find_self_reassoc_cmd(pMac,
@@ -3038,6 +3038,13 @@ QDF_STATUS sme_process_msg(tHalHandle hHal, cds_msg_t *pMsg)
 			pMac->sme.bt_activity_info_cb(pMac->hHdd,
 						      pMsg->bodyval);
 		break;
+	case eWNI_SME_RX_AGGR_HOLE_IND:
+		if (pMac->sme.stats_ext2_cb)
+			pMac->sme.stats_ext2_cb(pMac->hHdd,
+				(struct stats_ext2_event *)pMsg->bodyptr);
+		qdf_mem_free(pMsg->bodyptr);
+		break;
+
 	default:
 
 		if ((pMsg->type >= eWNI_SME_MSG_TYPES_BEGIN)
@@ -9015,17 +9022,42 @@ QDF_STATUS sme_update_is_mawc_ini_feature_enabled(tHalHandle hHal,
    --------------------------------------------------------------------------*/
 QDF_STATUS sme_stop_roaming(tHalHandle hHal, uint8_t sessionId, uint8_t reason)
 {
-	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
-	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	tSirMsgQ wma_msg;
+	tSirRetStatus status;
+	tSirRoamOffloadScanReq *req;
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hHal);
+	void *wma = cds_get_context(QDF_MODULE_ID_WMA);
 
-	status = sme_acquire_global_lock(&pMac->sme);
-	if (QDF_IS_STATUS_SUCCESS(status)) {
-		csr_roam_offload_scan(pMac, sessionId, ROAM_SCAN_OFFLOAD_STOP,
-				      reason);
-		sme_release_global_lock(&pMac->sme);
+	if (!wma) {
+		sme_err("wma is null");
+		return QDF_STATUS_E_NULL_VALUE;
 	}
 
-	return status;
+	req = qdf_mem_malloc(sizeof(*req));
+	if (!req) {
+		sme_err("failed to allocated memory");
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	req->Command = ROAM_SCAN_OFFLOAD_STOP;
+	req->reason = REASON_ROAM_SYNCH_FAILED;
+	req->sessionId = sessionId;
+	if (csr_neighbor_middle_of_roaming(mac_ctx, sessionId))
+		req->middle_of_roaming = 1;
+	else
+		csr_roam_reset_roam_params(mac_ctx);
+
+	wma_msg.type = WMA_ROAM_SCAN_OFFLOAD_REQ;
+	wma_msg.bodyptr = req;
+
+	status = wma_post_ctrl_msg(mac_ctx, &wma_msg);
+	if (eSIR_SUCCESS != status) {
+		sme_err("Posting WMA_ROAM_SCAN_OFFLOAD_REQ failed");
+		qdf_mem_free(req);
+		return QDF_STATUS_E_FAULT;
+	}
+
+	return QDF_STATUS_SUCCESS;
 }
 
 /*--------------------------------------------------------------------------
@@ -13023,6 +13055,14 @@ void sme_stats_ext_register_callback(tHalHandle hHal, StatsExtCallback callback)
 	pMac->sme.StatsExtCallback = callback;
 }
 
+void sme_stats_ext2_register_callback(tHalHandle hal_handle,
+		void (*stats_ext2_cb)(void *, struct stats_ext2_event *))
+{
+	tpAniSirGlobal pmac = PMAC_STRUCT(hal_handle);
+
+	pmac->sme.stats_ext2_cb = stats_ext2_cb;
+}
+
 /**
  * sme_stats_ext_deregister_callback() - De-register ext stats callback
  * @h_hal: Hal Handle
@@ -16550,6 +16590,10 @@ bool sme_check_enable_rx_ldpc_sta_ini_item(void)
 		sme_debug("2G STA Rx LDPC is disabled from ini");
 		return false;
 	}
+	if (!mac_ctx->roam.configParam.rx_ldpc_enable) {
+		sme_debug("Master Rx LDPC is disabled from ini");
+		return false;
+	}
 	sme_debug("2G STA Rx LDPC is enabled from ini");
 
 	return true;
@@ -17800,6 +17844,88 @@ QDF_STATUS sme_chain_rssi_register_callback(tHalHandle phal,
 	if (QDF_STATUS_SUCCESS == status) {
 		pmac->sme.pchain_rssi_ind_cb = pchain_rssi_ind_cb;
 		sme_release_global_lock(&pmac->sme);
+	}
+
+	return status;
+}
+
+QDF_STATUS sme_set_reorder_timeout(tHalHandle hal,
+	struct sir_set_rx_reorder_timeout_val *req)
+{
+	QDF_STATUS status;
+	QDF_STATUS cds_status;
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+	cds_msg_t cds_msg;
+	struct sir_set_rx_reorder_timeout_val *reorder_timeout;
+
+	reorder_timeout = qdf_mem_malloc(sizeof(*reorder_timeout));
+	if (NULL == reorder_timeout) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			FL("Failed to alloc txrate_update"));
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	*reorder_timeout = *req;
+
+	status = sme_acquire_global_lock(&mac_ctx->sme);
+	if (QDF_STATUS_SUCCESS == status) {
+		/* Serialize the req through MC thread */
+		cds_msg.bodyptr = reorder_timeout;
+		cds_msg.type = SIR_HAL_SET_REORDER_TIMEOUT_CMDID;
+		cds_status = cds_mq_post_message(CDS_MQ_ID_WMA, &cds_msg);
+		sme_release_global_lock(&mac_ctx->sme);
+
+		if (!QDF_IS_STATUS_SUCCESS(cds_status)) {
+			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+				FL("Post Update tx_rate msg fail"));
+			status = QDF_STATUS_E_FAILURE;
+			qdf_mem_free(reorder_timeout);
+		}
+	} else {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			FL("sme_AcquireGlobalLock failed"));
+		qdf_mem_free(reorder_timeout);
+	}
+
+	return status;
+}
+
+QDF_STATUS sme_set_rx_set_blocksize(tHalHandle hal,
+	struct sir_peer_set_rx_blocksize *req)
+{
+	QDF_STATUS status;
+	QDF_STATUS cds_status;
+	tpAniSirGlobal mac_ctx  = PMAC_STRUCT(hal);
+	cds_msg_t cds_msg;
+	struct sir_peer_set_rx_blocksize *rx_blocksize;
+
+	rx_blocksize = qdf_mem_malloc(sizeof(*rx_blocksize));
+	if (NULL == rx_blocksize) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			FL("Failed to alloc rx_blocksize"));
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	*rx_blocksize = *req;
+
+	status = sme_acquire_global_lock(&mac_ctx->sme);
+	if (QDF_STATUS_SUCCESS == status) {
+		/* Serialize the req through MC thread */
+		cds_msg.bodyptr = rx_blocksize;
+		cds_msg.type = SIR_HAL_SET_RX_BLOCKSIZE_CMDID;
+		cds_status = cds_mq_post_message(CDS_MQ_ID_WMA, &cds_msg);
+		sme_release_global_lock(&mac_ctx->sme);
+
+		if (!QDF_IS_STATUS_SUCCESS(cds_status)) {
+			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+				FL("Post Update tx_rate msg fail"));
+			status = QDF_STATUS_E_FAILURE;
+			qdf_mem_free(rx_blocksize);
+		}
+	} else {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			FL("sme_AcquireGlobalLock failed"));
+		qdf_mem_free(rx_blocksize);
 	}
 
 	return status;

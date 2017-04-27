@@ -2954,10 +2954,47 @@ enum hdd_dot11_mode {
 #define CFG_FW_MCC_BCAST_PROB_RESP_MAX         (1)
 #define CFG_FW_MCC_BCAST_PROB_RESP_DEFAULT     (0)
 
+/*
+ * <ini>
+ * gDataInactivityTimeout - Data activity timeout for non wow mode.
+ * @Min: 1
+ * @Max: 255
+ * @Default: 200
+ *
+ * This ini is used to set data inactivity timeout in non wow mode.
+ *
+ * Supported Feature: inactivity timeout in non wow mode
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+
 #define CFG_DATA_INACTIVITY_TIMEOUT_NAME       "gDataInactivityTimeout"
 #define CFG_DATA_INACTIVITY_TIMEOUT_MIN        (1)
 #define CFG_DATA_INACTIVITY_TIMEOUT_MAX        (255)
 #define CFG_DATA_INACTIVITY_TIMEOUT_DEFAULT    (200)
+
+/*
+ * <ini>
+ * g_wow_data_inactivity_timeout - Data activity timeout in wow mode.
+ * @Min: 1
+ * @Max: 255
+ * @Default: 50
+ *
+ * This ini is used to set data inactivity timeout in wow mode.
+ *
+ * Supported Feature: inactivity timeout in wow mode
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+#define CFG_WOW_DATA_INACTIVITY_TIMEOUT_NAME     "g_wow_data_inactivity_timeout"
+#define CFG_WOW_DATA_INACTIVITY_TIMEOUT_MIN      (1)
+#define CFG_WOW_DATA_INACTIVITY_TIMEOUT_MAX      (255)
+#define CFG_WOW_DATA_INACTIVITY_TIMEOUT_DEFAULT  (50)
+
 /*
  * <ini>
  * rfSettlingTimeUs - Settle the TimeUs
@@ -5007,7 +5044,7 @@ enum hdd_link_speed_rpt_type {
 #define CFG_ENABLE_EGAP_ENABLE_FEATURE             "gEnableEGAP"
 #define CFG_ENABLE_EGAP_ENABLE_FEATURE_MIN         (0)
 #define CFG_ENABLE_EGAP_ENABLE_FEATURE_MAX         (1)
-#define CFG_ENABLE_EGAP_ENABLE_FEATURE_DEFAULT     (0)
+#define CFG_ENABLE_EGAP_ENABLE_FEATURE_DEFAULT     (1)
 
 #define CFG_ENABLE_EGAP_INACT_TIME_FEATURE         "gEGAPInactTime"
 #define CFG_ENABLE_EGAP_INACT_TIME_FEATURE_MIN     (0)
@@ -5149,6 +5186,31 @@ enum hdd_link_speed_rpt_type {
 #define CFG_FORCE_SAP_ACS_END_CH_MIN       (0)
 #define CFG_FORCE_SAP_ACS_END_CH_MAX       (0xFF)
 #define CFG_FORCE_SAP_ACS_END_CH_DEFAULT   (11)
+
+/*
+ * <ini>
+ * gEnableSAPManadatoryChanList - Enable SAP Mandatory channel list
+ * Options.
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to enable/disable the SAP manadatory chan list
+ * 0 - Disable SAP mandatory chan list
+ * 1 - Enable SAP mandatory chan list
+ *
+ * Supported Feature: SAP
+ *
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+#define CFG_ENABLE_SAP_MANDATORY_CHAN_LIST       "gEnableSAPManadatoryChanList"
+#define CFG_ENABLE_SAP_MANDATORY_CHAN_LIST_MIN   (0)
+#define CFG_ENABLE_SAP_MANDATORY_CHAN_LIST_MAX   (1)
+#define CFG_ENABLE_SAP_MANDATORY_CHAN_LIST_DEFAULT (0)
+
 
 /*
  * <ini>
@@ -10677,6 +10739,37 @@ enum dot11p_mode {
 #define CFG_DFS_BEACON_TX_ENHANCED_MAX     (1)
 #define CFG_DFS_BEACON_TX_ENHANCED_DEFAULT (0)
 
+/*
+ * <ini>
+ * gScanBackoffMultiplier - For NLO/PNO, multiply fast scan period by this every
+ *	max cycles
+ * @Min: 0
+ * @Max: 255
+ * @Default: 0
+ *
+ * For Network Listen Offload and Perfered Network Offload, multiply the fast
+ * scan period by this value after max cycles have occurred. Setting this to 0
+ * disables the feature.
+ *
+ * @E.g.
+ *	# Disable scan backoff multiplier
+ *	gScanBackoffMultiplier=0
+ *	# Effectively the same
+ *	gScanBackoffMultiplier=1
+ *	# Double the scan period after each max cycles have occurred
+ *	gScanBackoffMultiplier=2
+ *
+ * Related: NLO, PNO
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+#define CFG_SCAN_BACKOFF_MULTIPLIER_NAME	"gScanBackoffMultiplier"
+#define CFG_SCAN_BACKOFF_MULTIPLIER_MIN		(0)
+#define CFG_SCAN_BACKOFF_MULTIPLIER_MAX		(255)
+#define CFG_SCAN_BACKOFF_MULTIPLIER_DEFAULT	(0)
+
 /*---------------------------------------------------------------------------
    Type declarations
    -------------------------------------------------------------------------*/
@@ -10798,6 +10891,7 @@ struct hdd_config {
 	bool mcc_rts_cts_prot_enable;
 	bool mcc_bcast_prob_resp_enable;
 	uint8_t nDataInactivityTimeout;
+	uint8_t wow_data_inactivity_timeout;
 
 	/* WMM QoS Configuration */
 	enum hdd_wmm_user_mode WmmMode;
@@ -11182,7 +11276,7 @@ struct hdd_config {
 	uint8_t force_sap_acs;
 	uint8_t force_sap_acs_st_ch;
 	uint8_t force_sap_acs_end_ch;
-
+	uint8_t enable_sap_mandatory_chan_list;
 	int32_t dfsRadarPriMultiplier;
 	uint8_t reorderOffloadSupport;
 
@@ -11440,6 +11534,7 @@ struct hdd_config {
 	uint16_t sap_max_mcs_txdata;
 	bool is_bssid_hint_priority;
 	uint8_t dfs_beacon_tx_enhanced;
+	uint8_t scan_backoff_multiplier;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

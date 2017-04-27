@@ -92,13 +92,13 @@ lim_process_deauth_frame(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 	    ((eLIM_SME_WT_DISASSOC_STATE == psessionEntry->limSmeState) ||
 	     (eLIM_SME_WT_DEAUTH_STATE == psessionEntry->limSmeState))) {
 		/*Every 15th deauth frame will be logged in kmsg */
-		if (!(pMac->lim.deauthMsgCnt & 0xF)) {
+		if (!(psessionEntry->deauthmsgcnt & 0xF)) {
 			pe_info("received Deauth frame in DEAUTH_WT_STATE"
 				"(already processing previously received DEAUTH frame)"
 				"Dropping this.. Deauth Failed %d",
-				       ++pMac->lim.deauthMsgCnt);
+				       ++psessionEntry->deauthmsgcnt);
 		} else {
-			pMac->lim.deauthMsgCnt++;
+			psessionEntry->deauthmsgcnt++;
 		}
 		return;
 	}
@@ -517,9 +517,9 @@ lim_process_deauth_frame(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 	}
 	/* reset the deauthMsgCnt here since we are able to Process
 	* the deauth frame and sending up the indication as well */
-	if (pMac->lim.deauthMsgCnt != 0) {
-		pMac->lim.deauthMsgCnt = 0;
-	}
+	if (psessionEntry->deauthmsgcnt != 0)
+		psessionEntry->deauthmsgcnt = 0;
+
 	if (LIM_IS_STA_ROLE(psessionEntry))
 		wma_tx_abort(psessionEntry->smeSessionId);
 

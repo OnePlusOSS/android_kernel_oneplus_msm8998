@@ -14939,7 +14939,7 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 		 * which will give you 5G RxLDPC bit "1" and 2G RxLDPC bit "0".
 		 *
 		 */
-		if (eSIR_INFRASTRUCTURE_MODE == csr_join_req->bsstype ||
+		if ((pSession->pCurRoamProfile->csrPersona == QDF_STA_MODE) ||
 					!wma_is_dbs_enable()) {
 			sme_debug(
 				"Rx ldpc ini[%d] and 2G RX LDPC[%d]",
@@ -15260,8 +15260,9 @@ QDF_STATUS csr_send_mb_disassoc_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 	 * handoff. Here we should not send the disassoc over the air
 	 * to the AP
 	 */
-	if (CSR_IS_ROAM_SUBSTATE_DISASSOC_HO(pMac, sessionId)
-	    && csr_roam_is11r_assoc(pMac, sessionId)) {
+	if ((CSR_IS_ROAM_SUBSTATE_DISASSOC_HO(pMac, sessionId)
+			&& csr_roam_is11r_assoc(pMac, sessionId)) ||
+						pMsg->process_ho_fail) {
 		/* Set DoNotSendOverTheAir flag to 1 only for handoff case */
 		pMsg->doNotSendOverTheAir = CSR_DONT_SEND_DISASSOC_OVER_THE_AIR;
 	}
@@ -15826,7 +15827,8 @@ QDF_STATUS csr_send_mb_start_bss_req_msg(tpAniSirGlobal pMac, uint32_t
 	 * for 5Ghz for STA/IBSS persona then here is how to handle
 	 * those cases (by now channel has been decided).
 	 */
-	if (eSIR_IBSS_MODE == pMsg->bssType || !wma_is_dbs_enable()) {
+	if ((pSession->pCurRoamProfile->csrPersona == QDF_IBSS_MODE) ||
+				!wma_is_dbs_enable()) {
 		/*
 		 * faking DBS hardware mode, so IBSS will enable rxLDPC
 		 * for 5G and disable rxLDPC

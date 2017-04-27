@@ -2936,289 +2936,452 @@ static void wlan_hdd_p2p_action_debug(enum action_frm_type actionFrmType,
 }
 #endif
 
-void __hdd_indicate_mgmt_frame(hdd_adapter_t *pAdapter,
-			     uint32_t nFrameLength,
-			     uint8_t *pbFrames,
-			     uint8_t frameType, uint32_t rxChan, int8_t rxRssi)
+static inline bool is_non_probe_req_mgmt_frame(uint8_t type, uint8_t sub_type)
 {
-	uint16_t freq;
-	uint16_t extend_time;
-	uint8_t type = 0;
-	uint8_t subType = 0;
-	enum action_frm_type actionFrmType;
-	hdd_cfg80211_state_t *cfgState = NULL;
+	return type == SIR_MAC_MGMT_FRAME &&
+		sub_type != SIR_MAC_MGMT_PROBE_REQ;
+}
+
+static hdd_adapter_t *get_adapter_from_broadcast_ocb(hdd_context_t *hdd_ctx,
+						     uint8_t *broadcast)
+{
+	hdd_adapter_t *adapter;
+
+	adapter = hdd_get_adapter(hdd_ctx, QDF_OCB_MODE);
+	if (!adapter) {
+		hdd_err("Dropping the frame. No frame with BCST as destination");
+		return NULL;
+	}
+	if (broadcast) {
+		hdd_debug("Set broadcast to true");
+		*broadcast = 1;
+	}
+
+	return adapter;
+}
+
+static hdd_adapter_t *get_adapter_from_mac_addr(hdd_context_t *hdd_ctx,
+						uint8_t *dest_addr)
+{
+	hdd_adapter_t *adapter;
+
+	adapter = hdd_get_adapter_by_macaddr(hdd_ctx, dest_addr);
+
+	return (adapter) ? adapter :
+		hdd_get_adapter_by_rand_macaddr(hdd_ctx, dest_addr);
+}
+
+static inline bool is_mgmt_non_broadcast_frame(uint8_t type,
+					       uint8_t sub_type,
+					       uint8_t broadcast)
+{
+	return (type == SIR_MAC_MGMT_FRAME) &&
+		(sub_type == SIR_MAC_MGMT_ACTION) && !broadcast;
+}
+
+static inline bool is_public_action_frame(uint8_t *pb_frames,
+					  uint32_t frame_len)
+{
+	if (frame_len <= WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET) {
+		hdd_debug("Not a public action frame len: %d", frame_len);
+		return false;
+	}
+
+	return (pb_frames[WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET] ==
+		WLAN_HDD_PUBLIC_ACTION_FRAME);
+}
+
+static inline bool is_p2p_action_frame(uint8_t *pb_frames,
+				       uint32_t frame_len)
+{
+	if (frame_len <= WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET +
+	    SIR_MAC_P2P_OUI_SIZE) {
+		hdd_debug("Not a p2p action frame len: %d", frame_len);
+		return false;
+	}
+
+	if ((pb_frames[WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET + 1]
+		 != SIR_MAC_ACTION_VENDOR_SPECIFIC))
+		return false;
+
+	return !qdf_mem_cmp(&pb_frames
+			    [WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET + 2],
+			    SIR_MAC_P2P_OUI, SIR_MAC_P2P_OUI_SIZE);
+}
+
+static inline bool is_tdls_action_frame(uint8_t *pb_frames,
+					uint32_t frame_len)
+{
+	if (frame_len <= WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET) {
+		hdd_debug("Not a TDLS action frame len: %d", frame_len);
+		return false;
+	}
+
+	return (pb_frames[WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET] ==
+		    WLAN_HDD_TDLS_ACTION_FRAME);
+}
+
+static inline bool is_tdls_disc_resp_frame(uint8_t *pb_frames,
+					   uint32_t frame_len)
+{
+	if (frame_len <= WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET + 1) {
+		hdd_debug("Not a TDLS disc resp frame len: %d", frame_len);
+		return false;
+	}
+
+	return (pb_frames[WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET + 1] ==
+		WLAN_HDD_PUBLIC_ACTION_TDLS_DISC_RESP);
+}
+
+static inline bool is_qos_action_frame(uint8_t *pb_frames, uint32_t frame_len)
+{
+	if (frame_len <= WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET + 1) {
+		hdd_debug("Not a QOS frame len: %d", frame_len);
+		return false;
+	}
+
+	return ((pb_frames[WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET] ==
+		 WLAN_HDD_QOS_ACTION_FRAME) &&
+		(pb_frames[WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET + 1] ==
+		 WLAN_HDD_QOS_MAP_CONFIGURE));
+}
+
+static inline bool is_extend_roc_timer_for_action(enum action_frm_type
+						  frm_type)
+{
+	switch (frm_type) {
+	case WLAN_HDD_GO_NEG_REQ:
+	case WLAN_HDD_GO_NEG_RESP:
+	case WLAN_HDD_INVITATION_REQ:
+	case WLAN_HDD_DEV_DIS_REQ:
+	case WLAN_HDD_PROV_DIS_REQ:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static inline int get_roc_extension_time(enum action_frm_type frm_type)
+{
+	switch (frm_type) {
+	case WLAN_HDD_GO_NEG_REQ:
+	case WLAN_HDD_GO_NEG_RESP:
+		return 2 * ACTION_FRAME_DEFAULT_WAIT;
+	default:
+		return ACTION_FRAME_DEFAULT_WAIT;
+	}
+}
+
+static int extend_roc_timer(hdd_remain_on_chan_ctx_t *rem_chan_ctx,
+			    uint16_t extend_time)
+{
 	QDF_STATUS status;
-	hdd_remain_on_chan_ctx_t *pRemainChanCtx = NULL;
-	hdd_context_t *pHddCtx;
-	uint8_t broadcast = 0;
 
-	hdd_debug("Frame Type = %d Frame Length = %d",
-		frameType, nFrameLength);
+	if (!rem_chan_ctx) {
+		hdd_err("Extend ROC timer failed");
+		return -EINVAL;
+	}
 
-	if (NULL == pAdapter) {
-		hdd_err("pAdapter is NULL");
+	if (QDF_TIMER_STATE_RUNNING !=
+	    qdf_mc_timer_get_current_state(
+		    &rem_chan_ctx->hdd_remain_on_chan_timer)) {
+		hdd_debug("Rcvd action frame after timer expired");
+		return -EFAULT;
+	}
+
+	qdf_mc_timer_stop(&rem_chan_ctx->hdd_remain_on_chan_timer);
+	status = qdf_mc_timer_start(&rem_chan_ctx->hdd_remain_on_chan_timer,
+				    extend_time);
+	if (QDF_STATUS_SUCCESS != status) {
+		hdd_err("Remain on Channel timer start failed");
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
+static void buffer_p2p_action_frame(hdd_remain_on_chan_ctx_t *rem_chan_ctx,
+				    uint8_t *pb_frames, uint32_t frm_len,
+				    uint16_t freq)
+{
+	if (!rem_chan_ctx) {
+		hdd_err("Buffer P2P action frame failed");
 		return;
 	}
-	pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
 
-	if (0 == nFrameLength) {
+	if (rem_chan_ctx->action_pkt_buff.frame_length != 0) {
+		hdd_warn("Frames are pending. dropping frame !!!");
+		return;
+	}
+
+	rem_chan_ctx->action_pkt_buff.frame_length = frm_len;
+	rem_chan_ctx->action_pkt_buff.freq = freq;
+	rem_chan_ctx->action_pkt_buff.frame_ptr =
+		qdf_mem_malloc(frm_len);
+	qdf_mem_copy(rem_chan_ctx->action_pkt_buff.frame_ptr, pb_frames,
+		     frm_len);
+	hdd_debug("Action Pkt Cached successfully !!!");
+}
+
+static inline bool is_rx_action_resp_while_ack_pending(
+	enum p2p_action_frame_state frame_state,
+	enum action_frm_type frm_type)
+{
+	return (frm_type == WLAN_HDD_PROV_DIS_RESP &&
+		frame_state == HDD_PD_REQ_ACK_PENDING) ||
+		(frm_type == WLAN_HDD_GO_NEG_RESP &&
+		 frame_state == HDD_GO_NEG_REQ_ACK_PENDING);
+}
+
+static bool process_rx_p2p_action_frame(hdd_adapter_t *adapter,
+					uint8_t *pb_frames,
+					hdd_cfg80211_state_t *cfg_state,
+					uint32_t frm_len, uint16_t freq)
+{
+	uint8_t *macFrom;
+	enum action_frm_type frm_type;
+	uint16_t extend_time;
+	hdd_remain_on_chan_ctx_t *rem_chan_ctx = NULL;
+
+	macFrom = &pb_frames[WLAN_HDD_80211_PEER_ADDR_OFFSET];
+	frm_type = pb_frames[WLAN_HDD_PUBLIC_ACTION_FRAME_TYPE_OFFSET];
+
+	hdd_debug("Rx Action Frame %u", frm_type);
+	wlan_hdd_p2p_action_debug(frm_type, macFrom);
+
+	mutex_lock(&cfg_state->remain_on_chan_ctx_lock);
+	rem_chan_ctx = cfg_state->remain_on_chan_ctx;
+	if (rem_chan_ctx) {
+		if (is_extend_roc_timer_for_action(frm_type)) {
+			extend_time = get_roc_extension_time(frm_type);
+			hdd_debug("Extend RoC timer on reception of Action Frame %d",
+				  extend_time);
+			if (completion_done(
+				&adapter->rem_on_chan_ready_event)) {
+				extend_roc_timer(rem_chan_ctx, extend_time);
+			} else {
+				hdd_err("Buffer packet");
+				buffer_p2p_action_frame(rem_chan_ctx,
+							pb_frames,
+							frm_len, freq);
+				mutex_unlock(&cfg_state->
+					     remain_on_chan_ctx_lock);
+				return false;
+			}
+		}
+	}
+	mutex_unlock(&cfg_state->remain_on_chan_ctx_lock);
+
+	if (is_rx_action_resp_while_ack_pending(cfg_state->actionFrmState,
+						frm_type)) {
+		hdd_debug("ACK_PENDING and But received RESP for Action frame ");
+		cfg_state->is_go_neg_ack_received = 1;
+		hdd_send_action_cnf(adapter, true);
+	}
+
+	return true;
+}
+
+static void log_rx_tdls_action_frame(uint8_t *pb_frames, uint32_t frame_len)
+{
+	enum action_frm_type frm_type;
+
+	if (frame_len <= WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET + 1) {
+		hdd_debug("Not a TDLS action frame len: %d", frame_len);
+		return;
+	}
+
+	frm_type = pb_frames[WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET + 1];
+	if (frm_type >= MAX_TDLS_ACTION_FRAME_TYPE) {
+		hdd_debug("[TDLS] unknown[%d] <--- OTA",
+			  frm_type);
+	} else {
+		hdd_debug("[TDLS] %s <--- OTA",
+			  tdls_action_frame_type[frm_type]);
+	}
+
+	cds_tdls_tx_rx_mgmt_event(SIR_MAC_ACTION_TDLS, SIR_MAC_ACTION_RX,
+				  SIR_MAC_MGMT_ACTION, frm_type,
+				  &pb_frames[WLAN_HDD_80211_PEER_ADDR_OFFSET]);
+}
+
+#ifdef FEATURE_WLAN_TDLS
+static void process_tdls_rx_action_frame(hdd_adapter_t *adapter,
+					 uint8_t *peer_addr, int8_t rx_rssi)
+{
+	process_rx_tdls_disc_resp_frame(adapter, peer_addr, rx_rssi);
+}
+#else
+static void process_tdls_rx_action_frame(hdd_adapter_t *adapter,
+					 uint8_t *peer_addr, int8_t rx_rssi)
+{
+}
+#endif
+
+static bool process_rx_public_action_frame(hdd_adapter_t *adapter,
+					   uint8_t *pb_frames,
+					   hdd_cfg80211_state_t *cfg_state,
+					   enum action_frm_type frm_type,
+					   uint32_t frm_len, uint16_t freq,
+					   int8_t rx_rssi)
+{
+	if (!adapter || !pb_frames || !cfg_state) {
+		hdd_err("Invalid parameter");
+		return false;
+	}
+
+	if (!is_public_action_frame(pb_frames, frm_len))
+		goto done;
+
+	if (is_p2p_action_frame(pb_frames, frm_len)) {
+		hdd_debug("Process P2P action frame");
+		return process_rx_p2p_action_frame(adapter, pb_frames,
+						   cfg_state, frm_len, freq);
+	}
+
+	if (is_tdls_disc_resp_frame(pb_frames, frm_len)) {
+		uint8_t *peer_addr;
+
+		peer_addr = &pb_frames[WLAN_HDD_80211_PEER_ADDR_OFFSET];
+		process_tdls_rx_action_frame(adapter, peer_addr, rx_rssi);
+	}
+
+done:
+	return true;
+}
+
+static uint16_t get_rx_frame_freq_from_chan(uint32_t rx_chan)
+{
+	if (rx_chan <= MAX_NO_OF_2_4_CHANNELS)
+		return ieee80211_channel_to_frequency(rx_chan,
+						      NL80211_BAND_2GHZ);
+
+	return ieee80211_channel_to_frequency(rx_chan, NL80211_BAND_5GHZ);
+}
+
+static void indicate_rx_mgmt_over_nl80211(hdd_adapter_t *adapter,
+					  uint32_t frm_len,
+					  uint8_t *pb_frames, uint16_t freq,
+					  int8_t rx_rssi)
+{
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0))
+	cfg80211_rx_mgmt(adapter->dev->ieee80211_ptr,
+			 freq, rx_rssi * 100, pb_frames,
+			 frm_len, NL80211_RXMGMT_FLAG_ANSWERED);
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 12, 0))
+	cfg80211_rx_mgmt(adapter->dev->ieee80211_ptr,
+			 freq, rx_rssi * 100, pb_frames,
+			 frm_len, NL80211_RXMGMT_FLAG_ANSWERED,
+			 GFP_ATOMIC);
+#else
+	cfg80211_rx_mgmt(adapter->dev->ieee80211_ptr, freq,
+			 rx_rssi * 100,
+			 pb_frames, frm_len, GFP_ATOMIC);
+#endif /* LINUX_VERSION_CODE */
+}
+
+void __hdd_indicate_mgmt_frame(hdd_adapter_t *adapter, uint32_t frm_len,
+			       uint8_t *pb_frames, uint8_t frame_type,
+			       uint32_t rx_chan, int8_t rx_rssi)
+{
+	uint16_t freq;
+	uint8_t type = 0;
+	uint8_t sub_type = 0;
+	enum action_frm_type frm_type;
+	hdd_cfg80211_state_t *cfg_state;
+	hdd_context_t *hdd_ctx;
+	uint8_t broadcast = 0;
+	uint8_t *dest_addr;
+
+	hdd_debug("Frame Type = %d Frame Length = %d",
+		  frame_type, frm_len);
+
+	if (NULL == adapter) {
+		hdd_err("adapter is NULL");
+		return;
+	}
+	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+
+	if (0 == frm_len) {
 		hdd_err("Frame Length is Invalid ZERO");
 		return;
 	}
 
-	if (NULL == pbFrames) {
-		hdd_err("pbFrames is NULL");
+	if (NULL == pb_frames) {
+		hdd_err("pb_frames is NULL");
 		return;
 	}
 
-	type = WLAN_HDD_GET_TYPE_FRM_FC(pbFrames[0]);
-	subType = WLAN_HDD_GET_SUBTYPE_FRM_FC(pbFrames[0]);
+	type = WLAN_HDD_GET_TYPE_FRM_FC(pb_frames[0]);
+	sub_type = WLAN_HDD_GET_SUBTYPE_FRM_FC(pb_frames[0]);
+	hdd_debug("Frame Type = %d subType = %d", type, sub_type);
 
-	/* Get pAdapter from Destination mac address of the frame */
-	if ((type == SIR_MAC_MGMT_FRAME) && (subType != SIR_MAC_MGMT_PROBE_REQ)) {
-		pAdapter =
-			hdd_get_adapter_by_macaddr(pHddCtx,
-						   &pbFrames
-						   [WLAN_HDD_80211_FRM_DA_OFFSET]);
-
-		if (pAdapter == NULL)
-			pAdapter = hdd_get_adapter_by_rand_macaddr(pHddCtx,
-				      &pbFrames[WLAN_HDD_80211_FRM_DA_OFFSET]);
-
-		if (NULL == pAdapter) {
-			/*
-			 * Under assumtion that we don't receive any action
-			 * frame with BCST as destination,
-			 * we are dropping action frame
-			 */
-			hdd_err("pAdapter for action frame is NULL Macaddr = "
-				  MAC_ADDRESS_STR,
-				  MAC_ADDR_ARRAY(&pbFrames
-						 [WLAN_HDD_80211_FRM_DA_OFFSET]));
-			hdd_debug("Frame Type = %d Frame Length = %d subType = %d",
-				frameType, nFrameLength, subType);
-			/* We will receive broadcast management frames
-			 * in OCB mode
-			 */
-			pAdapter = hdd_get_adapter(pHddCtx, QDF_OCB_MODE);
-			if (NULL == pAdapter || !qdf_is_macaddr_broadcast(
-				(struct qdf_mac_addr *)&pbFrames
-				[WLAN_HDD_80211_FRM_DA_OFFSET])) {
-				/*
-				 * Under assumtion that we don't
-				 * receive any action
-				 * frame with BCST as destination,
-				 * we are dropping action frame
-				 */
+	if (is_non_probe_req_mgmt_frame(type, sub_type)) {
+		if (frm_len <= WLAN_HDD_80211_FRM_DA_OFFSET +
+		    QDF_MAC_ADDR_SIZE) {
+			hdd_err("Cannot parse dest mac addr len: %d", frm_len);
 			return;
-			}
+		}
+		dest_addr = &pb_frames[WLAN_HDD_80211_FRM_DA_OFFSET];
 
-		 broadcast = 1;
-
+		if (qdf_is_macaddr_broadcast((struct qdf_mac_addr *)
+					     dest_addr)) {
+			hdd_debug("Check if rx mgmt OCB frames");
+			adapter = get_adapter_from_broadcast_ocb(hdd_ctx,
+								 &broadcast);
+		} else {
+			adapter = get_adapter_from_mac_addr(hdd_ctx,
+							    dest_addr);
+		}
+		if (!adapter) {
+			hdd_err("Cannot get adapter for RX mgmt frame");
+			return;
 		}
 	}
 
-	if (NULL == pAdapter->dev) {
-		hdd_err("pAdapter->dev is NULL");
+	if (!adapter->dev) {
+		hdd_err("adapter->dev is NULL");
 		return;
 	}
 
-	if (WLAN_HDD_ADAPTER_MAGIC != pAdapter->magic) {
-		hdd_err("pAdapter has invalid magic");
+	if (WLAN_HDD_ADAPTER_MAGIC != adapter->magic) {
+		hdd_err("adapter has invalid magic");
 		return;
 	}
 
-	/* Channel indicated may be wrong. TODO */
-	/* Indicate an action frame. */
-	if (rxChan <= MAX_NO_OF_2_4_CHANNELS)
-		freq = ieee80211_channel_to_frequency(rxChan,
-						      NL80211_BAND_2GHZ);
-	else
-		freq = ieee80211_channel_to_frequency(rxChan,
-						      NL80211_BAND_5GHZ);
+	freq = get_rx_frame_freq_from_chan(rx_chan);
 
-	cfgState = WLAN_HDD_GET_CFG_STATE_PTR(pAdapter);
+	cfg_state = WLAN_HDD_GET_CFG_STATE_PTR(adapter);
 
-	if ((type == SIR_MAC_MGMT_FRAME) &&
-		(subType == SIR_MAC_MGMT_ACTION) && !broadcast) {
-		if (pbFrames[WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET] ==
-		    WLAN_HDD_PUBLIC_ACTION_FRAME) {
-			/* Public action frame */
-			if ((pbFrames[WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET + 1]
-			     == SIR_MAC_ACTION_VENDOR_SPECIFIC) &&
-			    !qdf_mem_cmp(&pbFrames
-					    [WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET
-					     + 2], SIR_MAC_P2P_OUI,
-					    SIR_MAC_P2P_OUI_SIZE)) {
-			/* P2P action frames */
-				uint8_t *macFrom = &pbFrames
-					[WLAN_HDD_80211_PEER_ADDR_OFFSET];
-				actionFrmType =
-					pbFrames
-					[WLAN_HDD_PUBLIC_ACTION_FRAME_TYPE_OFFSET];
-				hdd_debug("Rx Action Frame %u",
-					 actionFrmType);
+	if (!is_mgmt_non_broadcast_frame(type, sub_type, broadcast))
+		goto indicate;
 
-				wlan_hdd_p2p_action_debug(actionFrmType,
-								macFrom);
+	if (is_public_action_frame(pb_frames, frm_len)) {
+		bool processed;
 
-				mutex_lock(&cfgState->remain_on_chan_ctx_lock);
-				pRemainChanCtx = cfgState->remain_on_chan_ctx;
-				if (pRemainChanCtx != NULL) {
-					if (actionFrmType == WLAN_HDD_GO_NEG_REQ
-					    || actionFrmType ==
-					    WLAN_HDD_GO_NEG_RESP
-					    || actionFrmType ==
-					    WLAN_HDD_INVITATION_REQ
-					    || actionFrmType ==
-					    WLAN_HDD_DEV_DIS_REQ
-					    || actionFrmType ==
-					    WLAN_HDD_PROV_DIS_REQ) {
-						hdd_debug("Extend RoC timer on reception of Action Frame");
-
-						if ((actionFrmType ==
-						     WLAN_HDD_GO_NEG_REQ)
-						    || (actionFrmType ==
-							WLAN_HDD_GO_NEG_RESP))
-							extend_time =
-								2 *
-								ACTION_FRAME_DEFAULT_WAIT;
-						else
-							extend_time =
-								ACTION_FRAME_DEFAULT_WAIT;
-
-						if (completion_done
-							    (&pAdapter->
-							    rem_on_chan_ready_event)) {
-							if (QDF_TIMER_STATE_RUNNING == qdf_mc_timer_get_current_state(&pRemainChanCtx->hdd_remain_on_chan_timer)) {
-								qdf_mc_timer_stop
-									(&pRemainChanCtx->
-									hdd_remain_on_chan_timer);
-								status =
-									qdf_mc_timer_start
-										(&pRemainChanCtx->
-										hdd_remain_on_chan_timer,
-										extend_time);
-								if (status !=
-								    QDF_STATUS_SUCCESS) {
-									hdd_err("Remain on Channel timer start failed");
-								}
-							} else {
-								hdd_debug("Rcvd action frame after timer expired");
-							}
-						} else {
-							/* Buffer Packet */
-							if (pRemainChanCtx->
-							    action_pkt_buff.
-							    frame_length == 0) {
-								pRemainChanCtx->
-								action_pkt_buff.
-								frame_length
-									=
-										nFrameLength;
-								pRemainChanCtx->
-								action_pkt_buff.
-								freq = freq;
-								pRemainChanCtx->
-								action_pkt_buff.
-								frame_ptr =
-									qdf_mem_malloc
-										(nFrameLength);
-								qdf_mem_copy
-									(pRemainChanCtx->
-									action_pkt_buff.
-									frame_ptr,
-									pbFrames,
-									nFrameLength);
-								hdd_debug("Action Pkt Cached successfully !!!");
-							} else {
-								hdd_warn("Frames are pending. dropping frame !!!");
-							}
-							mutex_unlock(&cfgState->
-								     remain_on_chan_ctx_lock);
-							return;
-						}
-					}
-				}
-				mutex_unlock(&cfgState->
-					     remain_on_chan_ctx_lock);
-
-				if (((actionFrmType == WLAN_HDD_PROV_DIS_RESP)
-				     && (cfgState->actionFrmState ==
-					 HDD_PD_REQ_ACK_PENDING))
-				    || ((actionFrmType == WLAN_HDD_GO_NEG_RESP)
-					&& (cfgState->actionFrmState ==
-					    HDD_GO_NEG_REQ_ACK_PENDING))) {
-					hdd_debug("ACK_PENDING and But received RESP for Action frame ");
-					cfgState->is_go_neg_ack_received = 1;
-					hdd_send_action_cnf(pAdapter, true);
-				}
-			}
-#ifdef FEATURE_WLAN_TDLS
-			else if (pbFrames
-				 [WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET + 1] ==
-				 WLAN_HDD_PUBLIC_ACTION_TDLS_DISC_RESP) {
-				u8 *mac = &pbFrames
-					[WLAN_HDD_80211_PEER_ADDR_OFFSET];
-
-				hdd_debug("[TDLS] TDLS Discovery Response,"
-				       MAC_ADDRESS_STR " RSSI[%d] <--- OTA",
-				       MAC_ADDR_ARRAY(mac), rxRssi);
-
-				wlan_hdd_tdls_set_rssi(pAdapter, mac, rxRssi);
-				wlan_hdd_tdls_recv_discovery_resp(pAdapter,
-								  mac);
-				cds_tdls_tx_rx_mgmt_event(SIR_MAC_ACTION_TDLS,
-				   SIR_MAC_ACTION_RX, SIR_MAC_MGMT_ACTION,
-				   WLAN_HDD_PUBLIC_ACTION_TDLS_DISC_RESP,
-				   &pbFrames[WLAN_HDD_80211_PEER_ADDR_OFFSET]);
-			}
-#endif
-		}
-
-		if (pbFrames[WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET] ==
-		    WLAN_HDD_TDLS_ACTION_FRAME) {
-			actionFrmType =
-				pbFrames[WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET + 1];
-			if (actionFrmType >= MAX_TDLS_ACTION_FRAME_TYPE) {
-				hdd_debug("[TDLS] unknown[%d] <--- OTA",
-					   actionFrmType);
-			} else {
-				hdd_debug("[TDLS] %s <--- OTA",
-					   tdls_action_frame_type[actionFrmType]);
-			}
-			cds_tdls_tx_rx_mgmt_event(SIR_MAC_ACTION_TDLS,
-				SIR_MAC_ACTION_RX, SIR_MAC_MGMT_ACTION,
-				actionFrmType,
-				&pbFrames[WLAN_HDD_80211_PEER_ADDR_OFFSET]);
-		}
-
-		if ((pbFrames[WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET] ==
-		     WLAN_HDD_QOS_ACTION_FRAME)
-		    && (pbFrames[WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET + 1] ==
-			WLAN_HDD_QOS_MAP_CONFIGURE)) {
-			sme_update_dsc_pto_up_mapping(pHddCtx->hHal,
-						      pAdapter->hddWmmDscpToUpMap,
-						      pAdapter->sessionId);
+		processed = process_rx_public_action_frame(adapter, pb_frames,
+							   cfg_state, frm_type,
+							   frm_len, freq,
+							   rx_rssi);
+		if (!processed) {
+			hdd_err("Unable to process rx public action frame");
+			return;
 		}
 	}
-	/* Indicate Frame Over Normal Interface */
+
+	if (is_tdls_action_frame(pb_frames, frm_len))
+		log_rx_tdls_action_frame(pb_frames, frm_len);
+
+	if (is_qos_action_frame(pb_frames, frm_len))
+		sme_update_dsc_pto_up_mapping(hdd_ctx->hHal,
+					      adapter->hddWmmDscpToUpMap,
+					      adapter->sessionId);
+
+indicate:
 	hdd_debug("Indicate Frame over NL80211 sessionid : %d, idx :%d",
-		   pAdapter->sessionId, pAdapter->dev->ifindex);
+		  adapter->sessionId, adapter->dev->ifindex);
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0))
-	cfg80211_rx_mgmt(pAdapter->dev->ieee80211_ptr,
-		 freq, rxRssi * 100, pbFrames,
-			 nFrameLength, NL80211_RXMGMT_FLAG_ANSWERED);
-#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 12, 0))
-	cfg80211_rx_mgmt(pAdapter->dev->ieee80211_ptr,
-			freq, rxRssi * 100, pbFrames,
-			 nFrameLength, NL80211_RXMGMT_FLAG_ANSWERED,
-			 GFP_ATOMIC);
-#else
-	cfg80211_rx_mgmt(pAdapter->dev->ieee80211_ptr, freq,
-			rxRssi * 100,
-			pbFrames, nFrameLength, GFP_ATOMIC);
-#endif /* LINUX_VERSION_CODE */
+	indicate_rx_mgmt_over_nl80211(adapter, frm_len, pb_frames,
+				      freq, rx_rssi);
 }
 

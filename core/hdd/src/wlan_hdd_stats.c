@@ -1381,11 +1381,10 @@ static int wlan_hdd_send_ll_stats_req(hdd_context_t *hdd_ctx,
 int wlan_hdd_ll_stats_get(hdd_adapter_t *adapter, uint32_t req_id,
 			  uint32_t req_mask)
 {
-	unsigned long rc;
+	int ret;
 	tSirLLStatsGetReq get_req;
 	hdd_station_ctx_t *hddstactx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
 	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
-	int status;
 
 	ENTER();
 
@@ -1394,12 +1393,12 @@ int wlan_hdd_ll_stats_get(hdd_adapter_t *adapter, uint32_t req_id,
 		return -EPERM;
 	}
 
-	status = wlan_hdd_validate_context(hdd_ctx);
-	if (0 != status)
+	ret = wlan_hdd_validate_context(hdd_ctx);
+	if (0 != ret)
 		return -EINVAL;
 
 	if (hddstactx->hdd_ReassocScenario) {
-		hdd_err("Roaming in progress, so unable to proceed this request");
+		hdd_err("Roaming in progress, cannot process the request");
 		return -EBUSY;
 	}
 
@@ -1411,21 +1410,21 @@ int wlan_hdd_ll_stats_get(hdd_adapter_t *adapter, uint32_t req_id,
 	get_req.paramIdMask = req_mask;
 	get_req.staId = adapter->sessionId;
 
-	rtnl_lock();
-	rc = wlan_hdd_send_ll_stats_req(hdd_ctx, &get_req);
-	if (0 != rc) {
-		hdd_err("Failed to send LL stats request (id:%u)", req_id);
-		goto err_rtnl_unlock;
+	if (wlan_hdd_validate_session_id(adapter->sessionId)) {
+		hdd_err("invalid session id: %d", adapter->sessionId);
+		return -EINVAL;
 	}
 
+	rtnl_lock();
+	ret = wlan_hdd_send_ll_stats_req(hdd_ctx, &get_req);
 	rtnl_unlock();
+	if (0 != ret)
+		hdd_err("Send LL stats req failed, id:%u, mask:%d, session:%d",
+			req_id, req_mask, adapter->sessionId);
 
 	EXIT();
-	return rc;
+	return ret;
 
-err_rtnl_unlock:
-	rtnl_unlock();
-	return rc;
 }
 
 /**
@@ -1499,6 +1498,11 @@ __wlan_hdd_cfg80211_ll_stats_get(struct wiphy *wiphy,
 			    [QCA_WLAN_VENDOR_ATTR_LL_STATS_GET_CONFIG_REQ_MASK]);
 
 	LinkLayerStatsGetReq.staId = pAdapter->sessionId;
+
+	if (wlan_hdd_validate_session_id(pAdapter->sessionId)) {
+		hdd_err("invalid session id: %d", pAdapter->sessionId);
+		return -EINVAL;
+	}
 
 	rc = wlan_hdd_send_ll_stats_req(pHddCtx, &LinkLayerStatsGetReq);
 	if (!rc) {
@@ -2934,6 +2938,59 @@ void wlan_hdd_cfg80211_stats_ext_callback(void *ctx,
 	cfg80211_vendor_event(vendor_event, GFP_KERNEL);
 
 }
+
+void wlan_hdd_cfg80211_stats_ext2_callback(void *ctx,
+	struct stats_ext2_event *pmsg)
+{
+	hdd_context_t *hdd_ctx = (hdd_context_t *)ctx;
+	int status, data_size;
+	struct sk_buff *vendor_event;
+
+	status = wlan_hdd_validate_context(hdd_ctx);
+	if (0 != status)
+		return;
+
+	if (NULL == pmsg) {
+		hdd_err("msg received here is null");
+		return;
+	}
+
+	data_size = sizeof(struct stats_ext2_event) +
+		(pmsg->hole_cnt)*sizeof(pmsg->hole_info_array[0]);
+
+	vendor_event = cfg80211_vendor_event_alloc(hdd_ctx->wiphy,
+			NULL,
+			data_size + NLMSG_HDRLEN + NLMSG_HDRLEN,
+			QCA_NL80211_VENDOR_SUBCMD_STATS_EXT_INDEX,
+			GFP_KERNEL);
+
+	if (!vendor_event) {
+		hdd_err("vendor_event_alloc failed for STATS_EXT2");
+		return;
+	}
+
+	if (nla_put_u32(vendor_event,
+			QCA_WLAN_VENDOR_ATTR_RX_AGGREGATION_STATS_HOLES_NUM,
+			pmsg->hole_cnt)) {
+		hdd_err("%s put fail",
+			"QCA_WLAN_VENDOR_ATTR_RX_AGGREGATION_STATS_HOLES_NUM");
+		kfree_skb(vendor_event);
+		return;
+	}
+
+	if (nla_put(vendor_event,
+			QCA_WLAN_VENDOR_ATTR_RX_AGGREGATION_STATS_HOLES_INFO,
+			(pmsg->hole_cnt)*sizeof(pmsg->hole_info_array[0]),
+			(void *)(pmsg->hole_info_array))) {
+		hdd_err("%s put fail",
+			"QCA_WLAN_VENDOR_ATTR_RX_AGGREGATION_STATS_HOLES_INFO");
+		kfree_skb(vendor_event);
+		return;
+	}
+
+	cfg80211_vendor_event(vendor_event, GFP_KERNEL);
+}
+
 #endif /* End of WLAN_FEATURE_STATS_EXT */
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)) && !defined(WITH_BACKPORTS)

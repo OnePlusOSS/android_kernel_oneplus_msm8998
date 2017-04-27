@@ -659,6 +659,13 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_FORCE_SAP_ACS_END_CH_MIN,
 		CFG_FORCE_SAP_ACS_END_CH_MAX),
 
+	REG_VARIABLE(CFG_ENABLE_SAP_MANDATORY_CHAN_LIST, WLAN_PARAM_Integer,
+		struct hdd_config, enable_sap_mandatory_chan_list,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_ENABLE_SAP_MANDATORY_CHAN_LIST_DEFAULT,
+		CFG_ENABLE_SAP_MANDATORY_CHAN_LIST_MIN,
+		CFG_ENABLE_SAP_MANDATORY_CHAN_LIST_MAX),
+
 	REG_VARIABLE(CFG_AP_KEEP_ALIVE_PERIOD_NAME, WLAN_PARAM_Integer,
 		     struct hdd_config, apKeepAlivePeriod,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -907,6 +914,13 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_DATA_INACTIVITY_TIMEOUT_DEFAULT,
 		     CFG_DATA_INACTIVITY_TIMEOUT_MIN,
 		     CFG_DATA_INACTIVITY_TIMEOUT_MAX),
+
+	REG_VARIABLE(CFG_WOW_DATA_INACTIVITY_TIMEOUT_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, wow_data_inactivity_timeout,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_WOW_DATA_INACTIVITY_TIMEOUT_DEFAULT,
+		     CFG_WOW_DATA_INACTIVITY_TIMEOUT_MIN,
+		     CFG_WOW_DATA_INACTIVITY_TIMEOUT_MAX),
 
 	REG_VARIABLE(CFG_QOS_WMM_MODE_NAME, WLAN_PARAM_Integer,
 		     struct hdd_config, WmmMode,
@@ -4569,6 +4583,13 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_DFS_BEACON_TX_ENHANCED_DEFAULT,
 		CFG_DFS_BEACON_TX_ENHANCED_MIN,
 		CFG_DFS_BEACON_TX_ENHANCED_MAX),
+
+	REG_VARIABLE(CFG_SCAN_BACKOFF_MULTIPLIER_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, scan_backoff_multiplier,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_SCAN_BACKOFF_MULTIPLIER_DEFAULT,
+		CFG_SCAN_BACKOFF_MULTIPLIER_MIN,
+		CFG_SCAN_BACKOFF_MULTIPLIER_MAX),
 };
 
 /**
@@ -4691,12 +4712,23 @@ static QDF_STATUS hdd_cfg_get_config(struct reg_table_entry *reg_table,
 		    (WLAN_PARAM_SignedInteger == pRegEntry->RegType) ||
 		    (WLAN_PARAM_HexInteger == pRegEntry->RegType)) {
 			value = 0;
+
+			if ((pRegEntry->VarSize > sizeof(value)) ||
+			    (pRegEntry->VarSize == 0)) {
+				pr_warn("Invalid length of %s: %d",
+					pRegEntry->RegName, pRegEntry->VarSize);
+				continue;
+			}
+
 			memcpy(&value, pField, pRegEntry->VarSize);
 			if (WLAN_PARAM_HexInteger == pRegEntry->RegType) {
 				fmt = "%x";
 			} else if (WLAN_PARAM_SignedInteger ==
 				   pRegEntry->RegType) {
 				fmt = "%d";
+				value = sign_extend32(
+						value,
+						pRegEntry->VarSize * 8 - 1);
 			} else {
 				fmt = "%u";
 			}
@@ -6110,7 +6142,9 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_info("Name = [%s] Value = [%u]",
 		CFG_IS_BSSID_HINT_PRIORITY_NAME,
 		pHddCtx->config->is_bssid_hint_priority);
-
+	hdd_debug("Name = [%s] Value = [%u]",
+		CFG_SCAN_BACKOFF_MULTIPLIER_NAME,
+		pHddCtx->config->scan_backoff_multiplier);
 }
 
 /**
@@ -6917,6 +6951,13 @@ bool hdd_update_config_cfg(hdd_context_t *hdd_ctx)
 		    config->nDataInactivityTimeout) == QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_PS_DATA_INACTIVITY_TIMEOUT to CFG");
+	}
+
+	if (sme_cfg_set_int(hdd_ctx->hHal,
+		WNI_CFG_PS_WOW_DATA_INACTIVITY_TIMEOUT,
+		config->wow_data_inactivity_timeout) == QDF_STATUS_E_FAILURE) {
+		status = false;
+		hdd_err("Fail to pass WNI_CFG_PS_WOW_DATA_INACTIVITY_TO CFG");
 	}
 
 	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_ENABLE_LTE_COEX,

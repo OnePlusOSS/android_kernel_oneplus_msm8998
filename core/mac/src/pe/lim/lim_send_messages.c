@@ -263,13 +263,21 @@ tSirRetStatus lim_send_switch_chnl_params(tpAniSirGlobal pMac,
 	else if (cds_is_10_mhz_enabled())
 		pChnlParams->ch_width = CH_WIDTH_10MHZ;
 
-	/* Inform LDPC cap to firmware */
-	is_current_hwmode_dbs = wma_is_current_hwmode_dbs();
-	pChnlParams->rx_ldpc =
-		lim_get_rx_ldpc(pMac, chnlNumber, is_current_hwmode_dbs);
-	if (CDS_IS_CHANNEL_24GHZ(chnlNumber))
-		pChnlParams->rx_ldpc = pChnlParams->rx_ldpc &&
-			pMac->roam.configParam.rx_ldpc_support_for_2g;
+	/*
+	 * Do this operation only for STA, as 2G RX LDPC
+	 * feature may be supported, for rest of the persona
+	 * let RX LDPC comes from default setting
+	 */
+	if (QDF_STA_MODE == pSessionEntry->pePersona) {
+		is_current_hwmode_dbs = wma_is_current_hwmode_dbs();
+		pChnlParams->rx_ldpc = lim_get_rx_ldpc(pMac, chnlNumber,
+							is_current_hwmode_dbs);
+		if (CDS_IS_CHANNEL_24GHZ(chnlNumber))
+			pChnlParams->rx_ldpc = pChnlParams->rx_ldpc &&
+				pMac->roam.configParam.rx_ldpc_support_for_2g;
+		pe_debug("Rx LDPC param pChnlParams->rx_ldpc[%d]",
+			pChnlParams->rx_ldpc);
+	}
 	/* we need to defer the message until we
 	 * get the response back from WMA
 	 */

@@ -765,7 +765,6 @@ tSirRetStatus pe_open(tpAniSirGlobal pMac, struct cds_config_info *cds_cfg)
 		status = eSIR_FAILURE;
 		goto pe_open_lock_fail;
 	}
-	pMac->lim.deauthMsgCnt = 0;
 	pMac->lim.retry_packet_cnt = 0;
 	pMac->lim.ibss_retry_cnt = 0;
 

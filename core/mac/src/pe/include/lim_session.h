@@ -498,6 +498,8 @@ typedef struct sPESession       /* Added to Support BT-AMP */
 #ifdef WLAN_FEATURE_FILS_SK
 	struct pe_fils_session *fils_info;
 #endif
+	uint8_t deauthmsgcnt;
+	uint8_t disassocmsgcnt;
 } tPESession, *tpPESession;
 
 /*-------------------------------------------------------------------------

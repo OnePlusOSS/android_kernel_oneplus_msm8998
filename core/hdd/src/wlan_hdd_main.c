@@ -2747,13 +2747,16 @@ QDF_STATUS hdd_init_station_mode(hdd_adapter_t *adapter)
 		status = QDF_STATUS_E_FAILURE;
 		goto error_sme_open;
 	}
-	if (hdd_ctx->config->rx_ldpc_support_for_2g &&
-			!wma_is_current_hwmode_dbs()) {
-		hdd_notice("send HT/VHT IE per band using nondbs hwmode");
-		sme_set_vdev_ies_per_band(adapter->sessionId, false);
-	} else {
-		hdd_notice("send HT/VHT IE per band using dbs hwmode");
-		sme_set_vdev_ies_per_band(adapter->sessionId, true);
+	if (hdd_ctx->config->enable_rx_ldpc &&
+	    hdd_ctx->config->rx_ldpc_support_for_2g &&
+	    (QDF_STA_MODE == adapter->device_mode)) {
+		if (!wma_is_current_hwmode_dbs()) {
+		    hdd_notice("send HT/VHT IE per band using nondbs hwmode");
+		    sme_set_vdev_ies_per_band(adapter->sessionId, false);
+		} else {
+		    hdd_notice("send HT/VHT IE per band using dbs hwmode");
+		    sme_set_vdev_ies_per_band(adapter->sessionId, true);
+		}
 	}
 	/* Register wireless extensions */
 	qdf_ret_status = hdd_register_wext(pWlanDev);
@@ -8304,6 +8307,10 @@ static int hdd_pre_enable_configure(hdd_context_t *hdd_ctx)
 
 	hdd_init_channel_avoidance(hdd_ctx);
 
+	/* update enable sap mandatory chan list */
+	cds_enable_disable_sap_mandatory_chan_list(
+			hdd_ctx->config->enable_sap_mandatory_chan_list);
+
 out:
 	return ret;
 }
@@ -8721,7 +8728,6 @@ hdd_features_deinit:
 	wlan_hdd_cfg80211_deregister_frames(adapter);
 cds_disable:
 	cds_disable(hdd_ctx->pcds_context);
-
 out:
 	return -EINVAL;
 }
@@ -9344,6 +9350,8 @@ int hdd_register_cb(hdd_context_t *hdd_ctx)
 				  wlan_hdd_cfg80211_nan_callback);
 	sme_stats_ext_register_callback(hdd_ctx->hHal,
 					wlan_hdd_cfg80211_stats_ext_callback);
+	sme_stats_ext2_register_callback(hdd_ctx->hHal,
+					wlan_hdd_cfg80211_stats_ext2_callback);
 
 	sme_ext_scan_register_callback(hdd_ctx->hHal,
 				       wlan_hdd_cfg80211_extscan_callback);

@@ -50,6 +50,7 @@
 #include "cdp_txrx_cmn.h"
 #include "ol_defines.h"
 #include "dbglog.h"
+#include "wma_spectral.h"
 
 /* Platform specific configuration for max. no. of fragments */
 #define QCA_OL_11AC_TX_MAX_FRAGS            2
@@ -261,6 +262,7 @@ enum ds_mode {
 
 #define WMA_DEL_P2P_SELF_STA_RSP_START 0x03
 #define WMA_SET_LINK_PEER_RSP 0x04
+#define WMA_DELETE_PEER_RSP 0x05
 #define WMA_VDEV_START_REQUEST_TIMEOUT (6000)   /* 6 seconds */
 #define WMA_VDEV_STOP_REQUEST_TIMEOUT  (6000)   /* 6 seconds */
 
@@ -292,6 +294,9 @@ enum ds_mode {
 
 /* Default InActivity Time is 200 ms */
 #define POWERSAVE_DEFAULT_INACTIVITY_TIME 200
+
+/* Default WOW InActivity Time is 50 ms */
+#define WOW_POWERSAVE_DEFAULT_INACTIVITY_TIME 50
 
 /* Default Listen Interval */
 #define POWERSAVE_DEFAULT_LISTEN_INTERVAL 1
@@ -2461,6 +2466,43 @@ void wma_set_sap_wow_bitmask(uint32_t *bitmask, uint32_t wow_bitmask_size);
  */
 bool wma_is_wow_bitmask_zero(uint32_t *bitmask,
 			     uint32_t wow_bitmask_size);
+/**
+ * wma_process_roaming_config() - process roam request
+ * @wma_handle: wma handle
+ * @roam_req: roam request parameters
+ *
+ * Main routine to handle ROAM commands coming from CSR module.
+ *
+ * Return: QDF status
+ */
+QDF_STATUS wma_process_roaming_config(tp_wma_handle wma_handle,
+				     tSirRoamOffloadScanReq *roam_req);
+
+/**
+ * wma_register_phy_err_event_handler() - register phy error event handler
+ * @wma_handle: wma handle
+ *
+ * Return: none
+ */
+void wma_register_phy_err_event_handler(tp_wma_handle wma_handle);
+
+#ifdef FEATURE_SPECTRAL_SCAN
+/**
+ * wma_ieee80211_secondary20_channel_offset() - finds the offset for
+ * secondary channel
+ * @chan: channel for which secondary offset to find
+ *
+ * Return: secondary offset
+ */
+int8_t wma_ieee80211_secondary20_channel_offset(
+			struct dfs_ieee80211_channel *chan);
+#else
+static inline int8_t wma_ieee80211_secondary20_channel_offset(
+			struct dfs_ieee80211_channel *chan)
+{
+	return 0;
+}
+#endif
 
 #ifdef WMI_INTERFACE_EVENT_LOGGING
 static inline void wma_print_wmi_cmd_log(uint32_t count,

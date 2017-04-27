@@ -3005,6 +3005,7 @@ struct connected_pno_band_rssi_pref {
  * @slow_scan_period: Slow scan period
  * @delay_start_time: delay in seconds to use before starting the first scan
  * @fast_scan_max_cycles: Fast scan max cycles
+ * @scan_backoff_multiplier: multiply fast scan period by this after max cycles
  * @us24GProbeTemplateLen: 2.4G probe template length
  * @p24GProbeTemplate: 2.4G probe template
  * @us5GProbeTemplateLen: 5G probe template length
@@ -3025,7 +3026,7 @@ typedef struct sSirPNOScanReq {
 	uint32_t slow_scan_period;
 	uint32_t delay_start_time;
 	uint8_t fast_scan_max_cycles;
-
+	uint32_t scan_backoff_multiplier;
 	uint32_t        active_min_time;
 	uint32_t        active_max_time;
 	uint32_t        passive_min_time;
@@ -7817,4 +7818,39 @@ struct spectral_samp_msg {
 	uint8_t       macaddr[6];
 	struct samp_msg_data samp_data;
 } qdf_packed;
+
+/**
+ * sir_sme_rx_aggr_hole_ind - sme rx aggr hole indication
+ * @hole_cnt: num of holes detected
+ * @hole_info_array: hole info
+ */
+struct sir_sme_rx_aggr_hole_ind {
+	uint32_t hole_cnt;
+	uint32_t hole_info_array[];
+};
+
+/**
+ * struct sir_set_rx_reorder_timeout_val - rx reorder timeout
+ * @rx_timeout_pri: reorder timeout for AC
+ *                  rx_timeout_pri[0] : AC_VO
+ *                  rx_timeout_pri[1] : AC_VI
+ *                  rx_timeout_pri[2] : AC_BE
+ *                  rx_timeout_pri[3] : AC_BK
+ */
+struct sir_set_rx_reorder_timeout_val {
+	uint32_t rx_timeout_pri[4];
+};
+
+/**
+ * struct sir_peer_set_rx_blocksize - set rx blocksize
+ * @vdev_id: vdev id
+ * @peer_macaddr: peer mac address
+ * @rx_block_ack_win_limit: windows size limitation
+ */
+struct sir_peer_set_rx_blocksize {
+	uint32_t vdev_id;
+	struct qdf_mac_addr peer_macaddr;
+	uint32_t rx_block_ack_win_limit;
+};
+
 #endif /* __SIR_API_H */

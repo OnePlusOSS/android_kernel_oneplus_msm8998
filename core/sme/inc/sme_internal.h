@@ -124,6 +124,16 @@ typedef struct sStatsExtEvent {
 	uint8_t event_data[];
 } tStatsExtEvent, *tpStatsExtEvent;
 
+/**
+ * struct stats_ext2_event - stats ext2 event
+ * @hole_cnt: hole counter
+ * @hole_info_array: hole informaton
+ */
+struct stats_ext2_event {
+	uint32_t hole_cnt;
+	uint32_t hole_info_array[];
+};
+
 #define MAX_ACTIVE_CMD_STATS    16
 
 typedef struct sActiveCmdStats {
@@ -266,6 +276,8 @@ typedef struct tagSmeStruct {
 	void (*pchain_rssi_ind_cb)(void *ctx, void *pmsg);
 	void (*spectral_scan_cb)(void *context,
 			struct spectral_samp_msg *samp_msg);
+	void (*stats_ext2_cb)(void *, struct stats_ext2_event *);
 } tSmeStruct, *tpSmeStruct;
+
 
 #endif /* #if !defined( __SMEINTERNAL_H ) */

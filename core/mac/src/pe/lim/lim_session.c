@@ -501,6 +501,8 @@ pe_create_session(tpAniSirGlobal pMac, uint8_t *bssid, uint8_t *sessionId,
 	}
 	pe_init_fils_info(session_ptr);
 	pe_init_pmf_comeback_timer(pMac, session_ptr, *sessionId);
+	session_ptr->deauthmsgcnt = 0;
+	session_ptr->disassocmsgcnt = 0;
 
 	return &pMac->lim.gpSession[i];
 }
@@ -797,6 +799,8 @@ void pe_delete_session(tpAniSirGlobal mac_ctx, tpPESession session)
 		qdf_mem_free(session->access_policy_vendor_ie);
 
 	session->access_policy_vendor_ie = NULL;
+	session->deauthmsgcnt = 0;
+	session->disassocmsgcnt = 0;
 
 	if (LIM_IS_AP_ROLE(session))
 		lim_check_and_reset_protection_params(mac_ctx);

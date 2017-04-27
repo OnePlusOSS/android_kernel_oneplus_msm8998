@@ -867,4 +867,18 @@ void hdd_wlan_tdls_enable_link_event(const uint8_t *peer_mac,
 static inline void hdd_wlan_block_scan_by_tdls_event(void) {}
 #endif /* FEATURE_WLAN_DIAG_SUPPORT */
 
+/**
+ * process_rx_tdls_disc_resp_frame() - Process TDLS DISC RESP action frame
+ * @adapter:   pointer to HDD adapter
+ * @pb_frames: TDLS disc resp RX frame buffer
+ * @frm_len:   Length of the TDLS disc resp RX frame
+ * @rx_rssi:   Received RSSI
+ *
+ * This function process the RX TDLS DISC RESP action frame
+ *
+ * Return: none
+ */
+void process_rx_tdls_disc_resp_frame(hdd_adapter_t *adapter,
+				     uint8_t *peer_addr, int8_t rx_rssi);
+
 #endif /* __HDD_TDLS_H */

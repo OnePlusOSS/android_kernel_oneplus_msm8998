@@ -3202,6 +3202,7 @@ QDF_STATUS wma_pno_start(tp_wma_handle wma, tpSirPNOScanReq pno)
 	params->fast_scan_period = pno->fast_scan_period;
 	params->slow_scan_period = pno->slow_scan_period;
 	params->fast_scan_max_cycles = pno->fast_scan_max_cycles;
+	params->scan_backoff_multiplier = pno->scan_backoff_multiplier;
 	params->delay_start_time = pno->delay_start_time;
 	params->active_min_time = pno->active_min_time;
 	params->active_max_time = pno->active_max_time;

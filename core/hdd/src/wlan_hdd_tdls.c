@@ -2452,11 +2452,25 @@ int wlan_hdd_tdls_get_all_peers(hdd_adapter_t *pAdapter, char *buf, int buflen)
 	hddTdlsPeer_t *curr_peer;
 	tdlsCtx_t *pHddTdlsCtx;
 	hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
+	hdd_station_ctx_t *hdd_sta_ctx;
 
 	ENTER();
 
 	if (0 != (wlan_hdd_validate_context(pHddCtx)))
 		return 0;
+
+	if ((QDF_STA_MODE != pAdapter->device_mode)
+	    && (QDF_P2P_CLIENT_MODE != pAdapter->device_mode)) {
+		len = scnprintf(buf, buflen,
+				"\nNo TDLS support for this adapter\n");
+		return len;
+	}
+
+	hdd_sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
+	if (eConnectionState_Associated != hdd_sta_ctx->conn_info.connState) {
+		len = scnprintf(buf, buflen, "\nSTA is not associated\n");
+		return len;
+	}
 
 	init_len = buflen;
 	len = scnprintf(buf, buflen, "\n%-18s%-3s%-4s%-3s%-5s\n",
@@ -2562,8 +2576,15 @@ void wlan_hdd_tdls_disconnection_callback(hdd_adapter_t *pAdapter)
 	ENTER();
 
 	pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
-	if (0 != wlan_hdd_validate_context(pHddCtx))
+
+	/*
+	 * Use of wlan_hdd_validate_context is returning failure when
+	 * driver load/unload in progress.so we are directly NULL
+	 * checking context pointer
+	 */
+	if (!pHddCtx)
 		return;
+
 	mutex_lock(&pHddCtx->tdls_lock);
 
 	pHddTdlsCtx = WLAN_HDD_GET_TDLS_CTX_PTR(pAdapter);
@@ -6008,7 +6029,7 @@ static void wlan_hdd_tdls_ct_process_peers(hddTdlsPeer_t *curr_peer,
 					   hdd_context_t *hdd_ctx,
 					   tdlsCtx_t *hdd_tdls_ctx)
 {
-	hdd_info(MAC_ADDRESS_STR " link_status %d tdls_support %d",
+	hdd_debug(MAC_ADDRESS_STR " link_status %d tdls_support %d",
 		 MAC_ADDR_ARRAY(curr_peer->peerMac),
 		 curr_peer->link_status, curr_peer->tdls_support);
 
@@ -6293,5 +6314,20 @@ void hdd_tdls_notify_p2p_roc(hdd_context_t *hdd_ctx,
 
 	qdf_mc_timer_start(&hdd_ctx->tdls_source_timer,
 			   hdd_ctx->config->tdls_enable_defer_time);
+}
+
+void process_rx_tdls_disc_resp_frame(hdd_adapter_t *adapter,
+				     uint8_t *peer_addr, int8_t rx_rssi)
+{
+	hdd_debug("[TDLS] TDLS Discovery Response,"
+		  MAC_ADDRESS_STR " RSSI[%d] <--- OTA",
+		  MAC_ADDR_ARRAY(peer_addr), rx_rssi);
+
+	wlan_hdd_tdls_set_rssi(adapter, peer_addr, rx_rssi);
+	wlan_hdd_tdls_recv_discovery_resp(adapter, peer_addr);
+	cds_tdls_tx_rx_mgmt_event(SIR_MAC_ACTION_TDLS,
+				  SIR_MAC_ACTION_RX, SIR_MAC_MGMT_ACTION,
+				  WLAN_HDD_PUBLIC_ACTION_TDLS_DISC_RESP,
+				  peer_addr);
 }
 

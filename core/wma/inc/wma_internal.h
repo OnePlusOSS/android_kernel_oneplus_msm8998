@@ -273,9 +273,6 @@ QDF_STATUS wma_roam_scan_bmiss_cnt(tp_wma_handle wma_handle,
 QDF_STATUS wma_roam_scan_offload_command(tp_wma_handle wma_handle,
 					 uint32_t command, uint32_t vdev_id);
 
-QDF_STATUS wma_process_roaming_config(tp_wma_handle wma_handle,
-				     tSirRoamOffloadScanReq *roam_req);
-
 QDF_STATUS wma_roam_preauth_chan_set(tp_wma_handle wma_handle,
 				     tpSwitchChannelParams params,
 				     uint8_t vdev_id);
@@ -967,8 +964,6 @@ int wma_oem_data_response_handler(void *handle, uint8_t *datap,
 				  uint32_t len);
 #endif
 
-void wma_register_dfs_event_handler(tp_wma_handle wma_handle);
-
 int
 wma_unified_dfs_phyerr_filter_offload_enable(tp_wma_handle wma_handle);
 
@@ -1412,4 +1407,50 @@ int wma_fill_beacon_interval_reset_req(tp_wma_handle wma, uint8_t vdev_id,
 int wma_peer_ant_info_evt_handler(void *handle, u_int8_t *event,
 	u_int32_t len);
 
+/**
+ * wma_extract_comb_phyerr_spectral() - extract comb phy error from event
+ * @handle: wma handle
+ * @param evt_buf: pointer to event buffer
+ * @param datalen: data length of event buffer
+ * @param buf_offset: Pointer to hold value of current event buffer offset
+ * post extraction
+ * @param phyerr: Pointer to hold phyerr
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS wma_extract_comb_phyerr_spectral(void *handle, void *evt_buf,
+		uint16_t datalen, uint16_t *buf_offset,
+		wmi_host_phyerr_t *phyerr);
+
+#ifdef FEATURE_SPECTRAL_SCAN
+/**
+ * wma_extract_single_phyerr_spectral() - extract single phy error from event
+ * @handle: wma handle
+ * @param evt_buf: pointer to event buffer
+ * @param datalen: data length of event buffer
+ * @param buf_offset: Pointer to hold value of current event buffer offset
+ * post extraction
+ * @param phyerr: Pointer to hold phyerr
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS wma_extract_single_phyerr_spectral(void *handle,
+		void *evt_buf,
+		uint16_t datalen, uint16_t *buf_offset,
+		wmi_host_phyerr_t *phyerr);
+#endif
+
+/*
+ * wma_rx_aggr_failure_event_handler - event handler to handle rx aggr failure
+ * @handle: the wma handle
+ * @event_buf: buffer with event
+ * @len: buffer length
+ *
+ * This function receives rx aggregation failure event and then pass to upper
+ * layer
+ *
+ * Return: 0 on success
+ */
+int wma_rx_aggr_failure_event_handler(void *handle, u_int8_t *event_buf,
+							u_int32_t len);
 #endif

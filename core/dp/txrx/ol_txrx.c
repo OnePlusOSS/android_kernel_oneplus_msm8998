@@ -1782,7 +1782,8 @@ static void ol_tx_free_descs_inuse(ol_txrx_pdev_handle pdev)
 		 * been given to the target to transmit, for which the
 		 * target has never provided a response.
 		 */
-		if (qdf_atomic_read(&tx_desc->ref_cnt)) {
+		if (qdf_atomic_read(&tx_desc->ref_cnt) &&
+				tx_desc->vdev_id != OL_TXRX_INVALID_VDEV_ID) {
 			ol_txrx_dbg(
 				   "Warning: freeing tx frame (no compltn)\n");
 			ol_tx_desc_frame_free_nonstd(pdev,
@@ -4827,7 +4828,9 @@ void ol_rx_data_process(struct ol_txrx_peer_t *peer,
 	if (!data_rx) {
 		if (ol_txrx_enqueue_rx_frames(&peer->bufq_info, rx_buf_list)
 				!= QDF_STATUS_SUCCESS)
-			ol_txrx_err("failed to enqueue rx frm to cached_bufq");
+			QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_HIGH,
+				  "%s: failed to enqueue rx frm to cached_bufq",
+				  __func__);
 	} else {
 #ifdef QCA_CONFIG_SMP
 		/*

@@ -555,7 +555,7 @@ lim_send_probe_rsp_mgmt_frame(tpAniSirGlobal mac_ctx,
 	uint8_t noa_ie[SIR_MAX_NOA_ATTR_LEN + SIR_P2P_IE_HEADER_LEN];
 	uint8_t sme_sessionid = 0;
 	bool is_vht_enabled = false;
-	tDot11fIEExtCap extracted_ext_cap;
+	tDot11fIEExtCap extracted_ext_cap = {0};
 	bool extracted_ext_cap_flag = false;
 
 	/* We don't answer requests in this case*/
@@ -1832,7 +1832,6 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 			pe_session->vendor_specific_vht_ie_sub_type;
 
 		frm->vendor_vht_ie.VHTCaps.present = 1;
-		pe_session->vht_config.su_beam_formee = 0;
 		populate_dot11f_vht_caps(mac_ctx, pe_session,
 				&frm->vendor_vht_ie.VHTCaps);
 		vht_enabled = true;

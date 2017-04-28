@@ -1370,6 +1370,7 @@ typedef struct sTdlsLinkEstablishParams {
 typedef struct tHalHiddenSsidVdevRestart {
 	uint8_t ssidHidden;
 	uint8_t sessionId;
+	uint16_t pe_session_id;
 } tHalHiddenSsidVdevRestart, *tpHalHiddenSsidVdevRestart;
 
 

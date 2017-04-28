@@ -18061,6 +18061,10 @@ csr_create_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 		mac_ctx->roam.configParam.early_stop_scan_min_threshold;
 	req_buf->early_stop_scan_max_threshold =
 		mac_ctx->roam.configParam.early_stop_scan_max_threshold;
+	req_buf->roamscan_adaptive_dwell_mode =
+		mac_ctx->roam.configParam.roamscan_adaptive_dwell_mode;
+
+#ifdef WLAN_FEATURE_ROAM_OFFLOAD
 	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 		  FL("HomeAwayTime=%d EarlyStopFeature Enable=%d, MinThresh=%d, MaxThresh=%d PMK len=%d"),
 		  req_buf->HomeAwayTime,
@@ -18068,9 +18072,6 @@ csr_create_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 		  req_buf->early_stop_scan_min_threshold,
 		  req_buf->early_stop_scan_max_threshold,
 		  req_buf->pmk_len);
-	req_buf->roamscan_adaptive_dwell_mode =
-		mac_ctx->roam.configParam.roamscan_adaptive_dwell_mode;
-#ifdef WLAN_FEATURE_ROAM_OFFLOAD
 	req_buf->RoamOffloadEnabled = csr_roamIsRoamOffloadEnabled(mac_ctx);
 	req_buf->RoamKeyMgmtOffloadEnabled = session->RoamKeyMgmtOffloadEnabled;
 	req_buf->pmkid_modes = session->pmkid_modes;

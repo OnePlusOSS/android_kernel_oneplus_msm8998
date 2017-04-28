@@ -7583,14 +7583,12 @@ QDF_STATUS wma_mc_process_msg(void *cds_context, cds_msg_t *msg)
 				 (struct sme_rcpi_req *)msg->bodyptr);
 		qdf_mem_free(msg->bodyptr);
 		break;
-	case WMA_ENABLE_BCAST_FILTER:
-		wma_configure_non_arp_broadcast_filter(wma_handle,
-			(struct broadcast_filter_request *) msg->bodyptr);
+	case WMA_CONF_HW_FILTER: {
+		struct hw_filter_request *req = msg->bodyptr;
+
+		qdf_status = wma_conf_hw_filter_mode(wma_handle, req);
 		break;
-	case WMA_DISABLE_HW_BCAST_FILTER:
-		wma_configure_non_arp_broadcast_filter(wma_handle,
-			(struct broadcast_filter_request *) msg->bodyptr);
-		break;
+	}
 	case WMA_SET_ARP_STATS_REQ:
 		wma_set_arp_req_stats(wma_handle,
 			(struct set_arp_stats_params *)msg->bodyptr);

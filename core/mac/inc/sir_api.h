@@ -2772,12 +2772,12 @@ typedef struct sSirNsOffloadReq {
 #endif /* WLAN_NS_OFFLOAD */
 
 /**
- * struct broadcast_filter_request - For enable/disable HW Broadcast Filter
- * @enable: value to enable disable feature
- * @bss_id: bss_id for get session.
+ * struct hw_filter_request - For enable/disable HW Filter
+ * @mode_bitmap: the hardware filter mode to configure
+ * @bssid: bss_id for get session.
  */
-struct broadcast_filter_request {
-	bool enable;
+struct hw_filter_request {
+	uint8_t mode_bitmap;
 	struct qdf_mac_addr bssid;
 };
 

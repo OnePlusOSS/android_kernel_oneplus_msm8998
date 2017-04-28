@@ -652,18 +652,13 @@ void hdd_conf_hostoffload(hdd_adapter_t *pAdapter, bool fenable)
 			hdd_conf_ns_offload(pAdapter, fenable);
 	}
 
-	/*
-	 * Filter Non-Arp HW broadcast filter when target goes to
-	 * wow suspend/resume mode
-	 */
-	if (pHddCtx->config->hw_broadcast_filter) {
-		if (fenable) {
-			hdd_debug("set hw broadcast fliter");
-			hdd_set_non_arp_hw_broadcast_filter(pAdapter);
-		} else {
-			hdd_debug("clear hw broadcast fliter");
-			hdd_clear_non_arp_hw_broadcast_filter(pAdapter);
-		}
+	/* Configure DTIM hardware filter rules */
+	{
+		enum hw_filter_mode mode = pHddCtx->config->hw_filter_mode;
+
+		if (!fenable)
+			mode = HW_FILTER_DISABLED;
+		hdd_conf_hw_filter_mode(pAdapter, mode);
 	}
 
 	EXIT();
@@ -1031,28 +1026,19 @@ QDF_STATUS hdd_conf_arp_offload(hdd_adapter_t *pAdapter, bool fenable)
 	}
 }
 
-int hdd_set_non_arp_hw_broadcast_filter(hdd_adapter_t *adapter)
+int hdd_conf_hw_filter_mode(hdd_adapter_t *adapter, enum hw_filter_mode mode)
 {
-	if (QDF_STATUS_SUCCESS !=
-		sme_enable_non_arp_broadcast_filter(
-			WLAN_HDD_GET_HAL_CTX(adapter), adapter->sessionId)) {
-		hdd_err("Failed to enable broadcast filter");
+	QDF_STATUS status;
+
+	if (!adapter) {
+		hdd_err("adapter is null");
 		return -EINVAL;
 	}
 
-	return 0;
-}
+	status = sme_conf_hw_filter_mode(WLAN_HDD_GET_HAL_CTX(adapter),
+					 adapter->sessionId, mode);
 
-int hdd_clear_non_arp_hw_broadcast_filter(hdd_adapter_t *adapter)
-{
-	if (QDF_STATUS_SUCCESS !=
-		sme_disable_nonarp_broadcast_filter(
-			WLAN_HDD_GET_HAL_CTX(adapter), adapter->sessionId)) {
-		hdd_err("Failed to disable broadcast filter");
-		return -EINVAL;
-	}
-
-	return 0;
+	return qdf_status_to_os_return(status);
 }
 
 #ifdef WLAN_FEATURE_PACKET_FILTERING

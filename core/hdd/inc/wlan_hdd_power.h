@@ -151,22 +151,13 @@ QDF_STATUS hdd_conf_arp_offload(hdd_adapter_t *pAdapter, bool fenable);
 void hdd_conf_hostoffload(hdd_adapter_t *pAdapter, bool fenable);
 
 /**
- * hdd_set_non_arp_hw_broadcast_filter() - enable HW Broadcast filter
- * when target goes to wow suspend/resume mode
- * @adapter: Adapter context for which broadcast filter is to be configured
+ * hdd_conf_hw_filter_mode() - configure the given mode for the given adapter
+ * @adapter: the adapter to configure the hw filter for
+ * @mode: the hw filter mode to configure
  *
- * Return: zero if success, non-zero otherwise
+ * Return: Errno
  */
-int hdd_set_non_arp_hw_broadcast_filter(hdd_adapter_t *adapter);
-
-/**
- * hdd_clear_non_arp_hw_broadcast_filter() - disable HW Broadcast filter
- * when target goes to wow suspend/resume mode
- * @adapter: Adapter context for which broadcast filter is to be configured
- *
- * Return: zero if success, non-zero otherwise
- */
-int hdd_clear_non_arp_hw_broadcast_filter(hdd_adapter_t *adapter);
+int hdd_conf_hw_filter_mode(hdd_adapter_t *adapter, enum hw_filter_mode mode);
 
 #ifdef WLAN_FEATURE_PACKET_FILTERING
 int wlan_hdd_set_mc_addr_list(hdd_adapter_t *pAdapter, uint8_t set);

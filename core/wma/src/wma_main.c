@@ -7961,3 +7961,12 @@ int wma_lro_init(struct wma_lro_config_cmd_t *lro_config)
 	return 0;
 }
 #endif
+
+
+void wma_ipa_uc_stat_request(wma_cli_set_cmd_t *privcmd)
+{
+	tp_wma_handle wma = cds_get_context(QDF_MODULE_ID_WMA);
+
+	if (wma_set_priv_cfg(wma, privcmd))
+		WMA_LOGE("Failed to set wma priv congiuration");
+}

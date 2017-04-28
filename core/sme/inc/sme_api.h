@@ -1676,5 +1676,16 @@ QDF_STATUS sme_set_reorder_timeout(tHalHandle hal,
 
 QDF_STATUS sme_set_rx_set_blocksize(tHalHandle hal,
 		struct sir_peer_set_rx_blocksize *req);
-
+/**
+ * sme_ipa_uc_stat_request() - set ipa config parameters
+ * @vdev_id: virtual device for the command
+ * @param_id: parameter id
+ * @param_val: parameter value
+ * @req_cat: parameter category
+ *
+ * Return: QDF_STATUS_SUCCESS or non-zero on failure
+ */
+QDF_STATUS sme_ipa_uc_stat_request(tHalHandle hal,
+			uint32_t vdev_id, uint32_t param_id,
+			uint32_t param_val, uint32_t req_cat);
 #endif /* #if !defined( __SME_API_H ) */

@@ -354,7 +354,7 @@ struct _HIF_SCATTER_REQ {
 	struct _HIF_SCATTER_ITEM    scatter_list[1]; /* start of scatter list */
 };
 
-typedef struct HIF_SCATTER_REQ * (*HIF_ALLOCATE_SCATTER_REQUEST)(
+typedef struct _HIF_SCATTER_REQ * (*HIF_ALLOCATE_SCATTER_REQUEST)(
 						struct hif_sdio_dev *device);
 typedef void (*HIF_FREE_SCATTER_REQUEST)(struct hif_sdio_dev *device,
 				struct _HIF_SCATTER_REQ *request);

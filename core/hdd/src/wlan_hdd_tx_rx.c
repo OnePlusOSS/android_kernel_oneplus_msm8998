@@ -1198,12 +1198,8 @@ QDF_STATUS hdd_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 	++pAdapter->stats.rx_packets;
 	pAdapter->stats.rx_bytes += skb->len;
 
-	if (is_arp) {
+	if (is_arp)
 		pAdapter->dad |= hdd_is_duplicate_ip_arp(skb);
-		if (pAdapter->dad)
-			QDF_TRACE(QDF_MODULE_ID_HDD_DATA, QDF_TRACE_LEVEL_ERROR,
-				"%s: Duplicate IP detected", __func__);
-	}
 
 	/* Check & drop replayed mcast packets (for IPV6) */
 	if (pHddCtx->config->multicast_replay_filter &&

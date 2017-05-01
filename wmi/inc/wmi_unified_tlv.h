@@ -528,17 +528,15 @@ QDF_STATUS send_enable_arp_ns_offload_cmd_tlv(wmi_unified_t wmi_handle,
 			   uint8_t vdev_id);
 
 /**
- * send_enable_broadcast_filter_cmd_tlv() - Enable/Disable Broadcast filter
- * when target goes to wow suspend/resume mode
- * @wma: wmi handle
- * @vdev_id: device identifier
- * @enable: enable/disable broadcast filter
+ * send_conf_hw_filter_cmd_tlv() - configure hw filter mode to firmware
+ * @wmi: wmi handle
+ * @vdev_id: Id of the vdev to configure
+ * @mode_bitmap: the hw filter mode to configure
  *
- *
- * Return: QDF Status
+ * Return: QDF_STATUS
  */
-QDF_STATUS send_enable_broadcast_filter_cmd_tlv(wmi_unified_t wmi_handle,
-			   uint8_t vdev_id, bool enable);
+QDF_STATUS send_conf_hw_filter_cmd_tlv(wmi_unified_t wmi, uint8_t vdev_id,
+				       uint8_t mode_bitmap);
 
 QDF_STATUS send_set_led_flashing_cmd_tlv(wmi_unified_t wmi_handle,
 				struct flashing_req_params *flashing);

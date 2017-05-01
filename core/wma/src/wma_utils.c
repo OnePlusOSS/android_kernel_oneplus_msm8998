@@ -5323,7 +5323,7 @@ void wma_set_wow_event_bitmap(WOW_WAKE_EVENT_TYPE event,
 	wma_get_event_bitmap_idx(event, wow_bitmap_size, &bit_idx, &idx);
 	bitmask[idx] |= 1 << bit_idx;
 
-	WMA_LOGI("%s: bitmask updated %x%x%x%x",
+	WMA_LOGD("%s: bitmask updated %x%x%x%x",
 		 __func__, bitmask[0], bitmask[1], bitmask[2], bitmask[3]);
 }
 

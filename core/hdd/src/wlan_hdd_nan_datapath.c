@@ -873,10 +873,12 @@ static void hdd_ndp_iface_create_rsp_handler(hdd_adapter_t *adapter,
 		hdd_err("failed to allocate memory");
 		return;
 	}
-	if (wlan_hdd_validate_context(hdd_ctx))
+
+	if (wlan_hdd_validate_context(hdd_ctx)) {
 		/* No way the driver can send response back to user space */
 		qdf_mem_free(roam_info);
 		return;
+	}
 
 	if (ndi_rsp) {
 		create_status = ndi_rsp->status;

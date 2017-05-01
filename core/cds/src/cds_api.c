@@ -1431,17 +1431,23 @@ QDF_STATUS cds_mq_post_message_by_priority(CDS_MQ_ID msgQueueId,
 	p_cds_msg_wrapper pMsgWrapper = NULL;
 	uint32_t debug_count = 0;
 
-	if ((gp_cds_context == NULL) || (pMsg == NULL) ||
-	    (gp_cds_sched_context == NULL) ||
-	    (gp_cds_sched_context->McThread == 0)) {
-		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
-			  "%s: Null params or global cds context is null",
-			  __func__);
-		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
-			"%s: cds_context[%d] pMsg[%d] cds_sched_context[%d]",
-			__func__, !!gp_cds_context, !!pMsg,
-			!!gp_cds_sched_context);
-		QDF_ASSERT(0);
+	if (!pMsg) {
+		cds_err("pMsg is null");
+		return QDF_STATUS_E_INVAL;
+	}
+
+	if (!gp_cds_context) {
+		cds_err("gp_cds_context is null");
+		return QDF_STATUS_E_INVAL;
+	}
+
+	if (!gp_cds_sched_context) {
+		cds_err("gp_cds_sched_context is null");
+		return QDF_STATUS_E_INVAL;
+	}
+
+	if (!gp_cds_sched_context->McThread) {
+		cds_err("Cannot post message because MC thread is stopped");
 		return QDF_STATUS_E_FAILURE;
 	}
 

@@ -2412,7 +2412,7 @@ ol_txrx_peer_attach(ol_txrx_vdev_handle vdev, uint8_t *peer_mac_addr)
 	TAILQ_FOREACH(temp_peer, &vdev->peer_list, peer_list_elem) {
 		if (!ol_txrx_peer_find_mac_addr_cmp(&temp_peer->mac_addr,
 			(union ol_txrx_align_mac_addr_t *)peer_mac_addr)) {
-			ol_txrx_info(
+			ol_txrx_info_high(
 				"vdev_id %d (%02x:%02x:%02x:%02x:%02x:%02x) already exsist.\n",
 				vdev->vdev_id,
 				peer_mac_addr[0], peer_mac_addr[1],
@@ -2431,7 +2431,7 @@ ol_txrx_peer_attach(ol_txrx_vdev_handle vdev, uint8_t *peer_mac_addr)
 		if (cmp_wait_mac && !ol_txrx_peer_find_mac_addr_cmp(
 					&temp_peer->mac_addr,
 					&vdev->last_peer_mac_addr)) {
-			ol_txrx_info(
+			ol_txrx_info_high(
 				"vdev_id %d (%02x:%02x:%02x:%02x:%02x:%02x) old peer exsist.\n",
 				vdev->vdev_id,
 				vdev->last_peer_mac_addr.raw[0],
@@ -2801,7 +2801,7 @@ ol_txrx_remove_peers_for_vdev(ol_txrx_vdev_handle vdev,
 		}
 		/* self peer is deleted last */
 		if (peer == TAILQ_FIRST(&vdev->peer_list)) {
-			ol_txrx_info(
+			ol_txrx_info_high(
 				   "%s: self peer removed by caller ",
 				   __func__);
 			break;
@@ -2835,7 +2835,7 @@ ol_txrx_remove_peers_for_vdev_no_lock(ol_txrx_vdev_handle vdev,
 	ol_txrx_peer_handle peer = NULL;
 
 	TAILQ_FOREACH(peer, &vdev->peer_list, peer_list_elem) {
-		ol_txrx_info(
+		ol_txrx_info_high(
 			   "%s: peer found for vdev id %d. deleting the peer",
 			   __func__, vdev->vdev_id);
 		callback(callback_context, (uint8_t *)&vdev->mac_addr,
@@ -3411,7 +3411,7 @@ void ol_txrx_peer_detach(ol_txrx_peer_handle peer)
 			sizeof(union ol_txrx_align_mac_addr_t));
 		qdf_timer_start(&peer->peer_unmap_timer,
 				OL_TXRX_PEER_UNMAP_TIMEOUT);
-		ol_txrx_info("%s: started peer_unmap_timer for peer %p",
+		ol_txrx_info_high("%s: started peer_unmap_timer for peer %p",
 			     __func__, peer);
 	}
 

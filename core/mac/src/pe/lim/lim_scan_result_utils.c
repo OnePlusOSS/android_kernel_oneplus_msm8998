@@ -81,6 +81,24 @@ static inline void lim_update_bss_with_fils_data(tpSirProbeRespBeacon pr,
 {
 }
 #endif
+
+#ifdef FEATURE_WLAN_ESE
+static inline void populate_qbss_load_status(tSirBssDescription *pBssDescr,
+				tpSirProbeRespBeacon pBPR)
+{
+	if (pBPR->QBSSLoad.present) {
+		pBssDescr->QBSSLoad_present = true;
+		pBssDescr->QBSSLoad_avail = pBPR->QBSSLoad.avail;
+		pBssDescr->qbss_chan_load = pBPR->QBSSLoad.chautil;
+	}
+}
+#else
+static inline void populate_qbss_load_status(tSirBssDescription *pBssDescr,
+				tpSirProbeRespBeacon pBPR)
+{
+}
+#endif
+
 /**
  * lim_collect_bss_description()
  *
@@ -254,12 +272,7 @@ lim_collect_bss_description(tpAniSirGlobal pMac,
 		pBssDescr->mdie[2] = pBPR->mdie[2];
 	}
 
-	if (pBPR->QBSSLoad.present) {
-		pBssDescr->QBSSLoad_present = true;
-		pBssDescr->QBSSLoad_avail = pBPR->QBSSLoad.avail;
-		pBssDescr->qbss_chan_load = pBPR->QBSSLoad.chautil;
-	}
-
+	populate_qbss_load_status(pBssDescr, pBPR);
 	lim_update_bss_with_fils_data(pBPR, pBssDescr);
 	/* Copy IE fields */
 	qdf_mem_copy((uint8_t *) &pBssDescr->ieFields,

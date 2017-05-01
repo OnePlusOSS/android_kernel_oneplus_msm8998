@@ -2628,9 +2628,11 @@ static int wma_process_mgmt_tx_completion(tp_wma_handle wma_handle,
 		packetdump_cb(wmi_desc->nbuf, QDF_STATUS_SUCCESS,
 			wmi_desc->vdev_id, TX_MGMT_PKT);
 
-	if (wmi_desc->tx_cmpl_cb)
+	if (wmi_desc->tx_cmpl_cb) {
 		wmi_desc->tx_cmpl_cb(wma_handle->mac_context,
 					   wmi_desc->nbuf, 1);
+		wmi_desc->nbuf = NULL;
+	}
 
 	if (wmi_desc->ota_post_proc_cb)
 		wmi_desc->ota_post_proc_cb((tpAniSirGlobal)

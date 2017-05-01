@@ -5046,11 +5046,7 @@ QDF_STATUS wma_enable_wow_in_fw(WMA_HANDLE handle, uint32_t wow_flags)
 			 wmi_get_pending_cmds(wma->wmi_handle));
 		wmi_set_target_suspend(wma->wmi_handle, false);
 		if (!cds_is_driver_recovering()) {
-			if (pMac->sme.enableSelfRecovery) {
-				cds_trigger_recovery(false);
-			} else {
-				QDF_BUG(0);
-			}
+			cds_trigger_recovery(false);
 		} else {
 			WMA_LOGE("%s: LOGP is in progress, ignore!", __func__);
 		}
@@ -5812,12 +5808,8 @@ static QDF_STATUS wma_send_host_wakeup_ind_to_fw(tp_wma_handle wma)
 			 wmi_get_pending_cmds(wma->wmi_handle),
 			 wmi_get_host_credits(wma->wmi_handle));
 		if (!cds_is_driver_recovering()) {
-			if (pMac->sme.enableSelfRecovery) {
-				wmi_tag_crash_inject(wma->wmi_handle, true);
-				cds_trigger_recovery(false);
-			} else {
-				QDF_BUG(0);
-			}
+			wmi_tag_crash_inject(wma->wmi_handle, true);
+			cds_trigger_recovery(false);
 		} else {
 			WMA_LOGE("%s: SSR in progress, ignore resume timeout",
 				 __func__);
@@ -6607,39 +6599,35 @@ QDF_STATUS wma_enable_arp_ns_offload(tp_wma_handle wma,
 	return QDF_STATUS_SUCCESS;
 }
 
-QDF_STATUS wma_configure_non_arp_broadcast_filter(tp_wma_handle wma,
-				struct broadcast_filter_request *bcast_filter)
+QDF_STATUS wma_conf_hw_filter_mode(tp_wma_handle wma,
+				   struct hw_filter_request *req)
 {
-	int32_t res;
+	QDF_STATUS status;
 	uint8_t vdev_id;
 
 	/* Get the vdev id */
-	if (!wma_find_vdev_by_bssid(wma, bcast_filter->bssid.bytes,
-					&vdev_id)) {
+	if (!wma_find_vdev_by_bssid(wma, req->bssid.bytes, &vdev_id)) {
 		WMA_LOGE("vdev handle is invalid for %pM",
-			 bcast_filter->bssid.bytes);
-		qdf_mem_free(bcast_filter);
+			 req->bssid.bytes);
+		qdf_mem_free(req);
 		return QDF_STATUS_E_INVAL;
 	}
 
 	if (!wma->interfaces[vdev_id].vdev_up) {
 		WMA_LOGE("vdev %d is not up skipping enable Broadcast Filter",
 			 vdev_id);
-		qdf_mem_free(bcast_filter);
+		qdf_mem_free(req);
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	res = wmi_unified_configure_broadcast_filter_cmd(wma->wmi_handle,
-				vdev_id, bcast_filter->enable);
-
-	if (res) {
+	status = wmi_unified_conf_hw_filter_mode_cmd(wma->wmi_handle, vdev_id,
+						     req->mode_bitmap);
+	if (QDF_IS_STATUS_ERROR(status))
 		WMA_LOGE("Failed to enable/disable Broadcast Filter");
-		qdf_mem_free(bcast_filter);
-		return QDF_STATUS_E_FAILURE;
-	}
 
-	qdf_mem_free(bcast_filter);
-	return QDF_STATUS_SUCCESS;
+	qdf_mem_free(req);
+
+	return status;
 }
 
 /**
@@ -7815,10 +7803,8 @@ static inline void wma_suspend_target_timeout(bool is_self_recovery_enabled)
 	else if (cds_is_driver_recovering())
 		WMA_LOGE("%s: Module recovering; Ignoring suspend timeout",
 			 __func__);
-	else if (is_self_recovery_enabled)
-		cds_trigger_recovery(false);
 	else
-		QDF_BUG(0);
+		cds_trigger_recovery(false);
 }
 
 /**
@@ -7988,11 +7974,7 @@ QDF_STATUS wma_resume_target(WMA_HANDLE handle)
 			wmi_get_pending_cmds(wma->wmi_handle),
 			wmi_get_host_credits(wma->wmi_handle));
 		if (!cds_is_driver_recovering()) {
-			if (pMac->sme.enableSelfRecovery) {
-				cds_trigger_recovery(false);
-			} else {
-				QDF_BUG(0);
-			}
+			cds_trigger_recovery(false);
 		} else {
 			WMA_LOGE("%s: SSR in progress, ignore resume timeout",
 				__func__);

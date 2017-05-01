@@ -434,6 +434,10 @@ int epping_connect_service(epping_context_t *pEpping_ctx)
 		EPPING_LOG(QDF_TRACE_LEVEL_FATAL,
 			   "Failed to connect to Endpoint Ping BE service status:%d\n",
 			   status);
+
+		if (!cds_is_fw_down())
+			QDF_BUG(0);
+
 		return status;
 	} else {
 		EPPING_LOG(QDF_TRACE_LEVEL_FATAL,
@@ -448,6 +452,10 @@ int epping_connect_service(epping_context_t *pEpping_ctx)
 		EPPING_LOG(QDF_TRACE_LEVEL_FATAL,
 			   "Failed to connect to Endpoint Ping BK service status:%d\n",
 			   status);
+
+		if (!cds_is_fw_down())
+			QDF_BUG(0);
+
 		return status;
 	} else {
 		EPPING_LOG(QDF_TRACE_LEVEL_FATAL,

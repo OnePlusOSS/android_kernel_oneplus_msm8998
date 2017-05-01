@@ -402,6 +402,27 @@ static struct wma_target_req *wma_find_vdev_req(tp_wma_handle wma,
 }
 
 /**
+ * wma_send_del_sta_self_resp() - send del sta self resp to Upper layer
+ * @param: params of del sta resp
+ *
+ * Return: none
+ */
+static inline void wma_send_del_sta_self_resp(struct del_sta_self_params *param)
+{
+	cds_msg_t sme_msg = {0};
+	QDF_STATUS status;
+
+	sme_msg.type = eWNI_SME_DEL_STA_SELF_RSP;
+	sme_msg.bodyptr = param;
+
+	status = cds_mq_post_message(QDF_MODULE_ID_SME, &sme_msg);
+	if (!QDF_IS_STATUS_SUCCESS(status)) {
+		WMA_LOGE("Failed to post eWNI_SME_DEL_STA_SELF_RSP");
+		qdf_mem_free(param);
+	}
+}
+
+/**
  * wma_vdev_detach_callback() - send vdev detach response to upper layer
  * @ctx: txrx node ptr
  *
@@ -413,8 +434,6 @@ static void wma_vdev_detach_callback(void *ctx)
 	struct wma_txrx_node *iface = (struct wma_txrx_node *)ctx;
 	struct del_sta_self_params *param;
 	struct wma_target_req *req_msg;
-	QDF_STATUS status = QDF_STATUS_SUCCESS;
-	cds_msg_t sme_msg = { 0 };
 
 	wma = cds_get_context(QDF_MODULE_ID_WMA);
 
@@ -451,15 +470,7 @@ static void wma_vdev_detach_callback(void *ctx)
 
 	qdf_mem_zero(iface, sizeof(*iface));
 	param->status = QDF_STATUS_SUCCESS;
-	sme_msg.type = eWNI_SME_DEL_STA_SELF_RSP;
-	sme_msg.bodyptr = param;
-	sme_msg.bodyval = 0;
-
-	status = cds_mq_post_message(QDF_MODULE_ID_SME, &sme_msg);
-	if (!QDF_IS_STATUS_SUCCESS(status)) {
-		WMA_LOGE("Failed to post eWNI_SME_ADD_STA_SELF_RSP");
-		qdf_mem_free(param);
-	}
+	wma_send_del_sta_self_resp(param);
 }
 
 
@@ -538,7 +549,6 @@ static QDF_STATUS wma_handle_vdev_detach(tp_wma_handle wma_handle,
 	uint8_t vdev_id = del_sta_self_req_param->session_id;
 	struct wma_txrx_node *iface = &wma_handle->interfaces[vdev_id];
 	struct wma_target_req *msg = NULL;
-	cds_msg_t sme_msg = { 0 };
 
 	status = wmi_unified_vdev_delete_send(wma_handle->wmi_handle, vdev_id);
 	if (QDF_IS_STATUS_ERROR(status)) {
@@ -597,17 +607,8 @@ out:
 		qdf_mem_free(iface->staKeyParams);
 	qdf_mem_zero(iface, sizeof(*iface));
 	del_sta_self_req_param->status = status;
-	if (generate_rsp) {
-		sme_msg.type = eWNI_SME_DEL_STA_SELF_RSP;
-		sme_msg.bodyptr = del_sta_self_req_param;
-		sme_msg.bodyval = 0;
-
-		status = cds_mq_post_message(QDF_MODULE_ID_SME, &sme_msg);
-		if (!QDF_IS_STATUS_SUCCESS(status)) {
-			WMA_LOGE("Failed to post eWNI_SME_DEL_STA_SELF_RSP");
-			qdf_mem_free(del_sta_self_req_param);
-		}
-	}
+	if (generate_rsp)
+		wma_send_del_sta_self_resp(del_sta_self_req_param);
 	return status;
 }
 /**
@@ -2610,6 +2611,9 @@ static inline bool wma_crash_on_fw_timeout(bool crash_enabled)
 	if (cds_is_driver_recovering())
 		return false;
 
+	if (!cds_is_fw_down())
+		return false;
+
 	return crash_enabled;
 }
 
@@ -2687,23 +2691,48 @@ void wma_hold_req_timer(void *data)
 		}
 	} else if ((tgt_req->msg_type == WMA_DELETE_STA_REQ) &&
 		(tgt_req->type == WMA_DEL_P2P_SELF_STA_RSP_START)) {
+		struct del_sta_self_rsp_params *del_sta;
+		del_sta = (struct del_sta_self_rsp_params *)tgt_req->user_data;
+		del_sta->self_sta_param->status = QDF_STATUS_E_TIMEOUT;
 		WMA_LOGA(FL("wma delete sta p2p request timed out"));
-		QDF_ASSERT(0);
+
+		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash)) {
+			QDF_BUG(0);
+		} else {
+			if (del_sta->generate_rsp)
+				wma_send_del_sta_self_resp(
+					del_sta->self_sta_param);
+		}
+		qdf_mem_free(tgt_req->user_data);
 	} else if ((tgt_req->msg_type == WMA_DELETE_STA_REQ) &&
 			(tgt_req->type == WMA_SET_LINK_PEER_RSP)) {
+		tpLinkStateParams params =
+			(tpLinkStateParams) tgt_req->user_data;
+
+		params->status = false;
 		WMA_LOGA(FL("wma delete peer for set link timed out"));
 		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true)
 			QDF_BUG(0);
+		else
+			wma_send_msg(wma, WMA_SET_LINK_STATE_RSP,
+					params, 0);
 	} else if ((tgt_req->msg_type == WMA_DELETE_STA_REQ) &&
 			(tgt_req->type == WMA_DELETE_PEER_RSP)) {
+		tpDeleteBssParams params =
+			(tpDeleteBssParams) tgt_req->user_data;
+
+		params->status = QDF_STATUS_E_TIMEOUT;
 		WMA_LOGE(FL("wma delete peer for del bss req timed out"));
 		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true)
 			QDF_BUG(0);
+		else
+			wma_send_msg(wma, WMA_DELETE_BSS_RSP, params, 0);
 	} else {
 		WMA_LOGE(FL("Unhandled timeout for msg_type:%d and type:%d"),
 				tgt_req->msg_type, tgt_req->type);
 		QDF_BUG(0);
 	}
+	qdf_mem_free(tgt_req);
 }
 
 /**
@@ -2724,6 +2753,9 @@ struct wma_target_req *wma_fill_hold_req(tp_wma_handle wma,
 	struct wma_target_req *req;
 	QDF_STATUS status;
 
+	if (cds_is_driver_recovering())
+		return NULL;
+
 	req = qdf_mem_malloc(sizeof(*req));
 	if (!req) {
 		WMA_LOGE(FL("Failed to allocate memory for msg %d vdev %d"),
@@ -2732,15 +2764,11 @@ struct wma_target_req *wma_fill_hold_req(tp_wma_handle wma,
 	}
 
 	WMA_LOGD(FL("vdev_id %d msg %d type %d"), vdev_id, msg_type, type);
-
+	qdf_spin_lock_bh(&wma->wma_hold_req_q_lock);
 	req->vdev_id = vdev_id;
 	req->msg_type = msg_type;
 	req->type = type;
 	req->user_data = params;
-	qdf_mc_timer_init(&req->event_timeout, QDF_TIMER_TYPE_SW,
-			  wma_hold_req_timer, req);
-	qdf_mc_timer_start(&req->event_timeout, timeout);
-	qdf_spin_lock_bh(&wma->wma_hold_req_q_lock);
 	status = qdf_list_insert_back(&wma->wma_hold_req_queue, &req->node);
 	if (QDF_STATUS_SUCCESS != status) {
 		qdf_spin_unlock_bh(&wma->wma_hold_req_q_lock);
@@ -2749,6 +2777,9 @@ struct wma_target_req *wma_fill_hold_req(tp_wma_handle wma,
 		return NULL;
 	}
 	qdf_spin_unlock_bh(&wma->wma_hold_req_q_lock);
+	qdf_mc_timer_init(&req->event_timeout, QDF_TIMER_TYPE_SW,
+			  wma_hold_req_timer, req);
+	qdf_mc_timer_start(&req->event_timeout, timeout);
 	return req;
 }
 
@@ -2792,8 +2823,6 @@ void wma_vdev_resp_timer(void *data)
 	ol_txrx_pdev_handle pdev;
 	uint8_t peer_id;
 	struct wma_target_req *msg;
-	QDF_STATUS status = QDF_STATUS_SUCCESS;
-	cds_msg_t sme_msg = { 0 };
 #ifdef FEATURE_AP_MCC_CH_AVOIDANCE
 	tpAniSirGlobal mac_ctx = cds_get_context(QDF_MODULE_ID_PE);
 	if (NULL == mac_ctx) {
@@ -2837,7 +2866,10 @@ void wma_vdev_resp_timer(void *data)
 		params->status = QDF_STATUS_E_TIMEOUT;
 		WMA_LOGA("%s: WMA_SWITCH_CHANNEL_REQ timedout", __func__);
 
-		/* Trigger host crash if the flag is set */
+		/*
+		 * Trigger host crash if the flag is set or if the timeout
+		 * is not due to fw down
+		 */
 		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true)
 			QDF_BUG(0);
 		else
@@ -2869,7 +2901,10 @@ void wma_vdev_resp_timer(void *data)
 			qdf_mc_timer_stop(&tgt_req->event_timeout);
 			goto free_tgt_req;
 		}
-		/* Trigger host crash when vdev response timesout */
+		/*
+		 * Trigger host crash if the flag is set or if the timeout
+		 * is not due to fw down
+		 */
 		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true) {
 			QDF_BUG(0);
 			return;
@@ -2947,20 +2982,11 @@ void wma_vdev_resp_timer(void *data)
 		params->status = QDF_STATUS_E_TIMEOUT;
 
 		WMA_LOGA("%s: WMA_DEL_STA_SELF_REQ timedout", __func__);
-		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true) {
+		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true)
 			QDF_BUG(0);
-		} else {
-			sme_msg.type = eWNI_SME_DEL_STA_SELF_RSP;
-			sme_msg.bodyptr = iface->del_staself_req;
-			sme_msg.bodyval = 0;
+		else
+			wma_send_del_sta_self_resp(iface->del_staself_req);
 
-			status = cds_mq_post_message(QDF_MODULE_ID_SME,
-						     &sme_msg);
-			if (!QDF_IS_STATUS_SUCCESS(status)) {
-				WMA_LOGE("Failed to post eWNI_SME_ADD_STA_SELF_RSP");
-				qdf_mem_free(iface->del_staself_req);
-			}
-		}
 		if (iface->addBssStaContext)
 			qdf_mem_free(iface->addBssStaContext);
 		if (iface->staKeyParams)
@@ -3035,6 +3061,9 @@ struct wma_target_req *wma_fill_vdev_req(tp_wma_handle wma,
 	struct wma_target_req *req;
 	QDF_STATUS status;
 
+	if (cds_is_driver_recovering())
+		return NULL;
+
 	req = qdf_mem_malloc(sizeof(*req));
 	if (!req) {
 		WMA_LOGE("%s: Failed to allocate memory for msg %d vdev %d",
@@ -3043,14 +3072,11 @@ struct wma_target_req *wma_fill_vdev_req(tp_wma_handle wma,
 	}
 
 	WMA_LOGD("%s: vdev_id %d msg %d", __func__, vdev_id, msg_type);
+	qdf_spin_lock_bh(&wma->vdev_respq_lock);
 	req->vdev_id = vdev_id;
 	req->msg_type = msg_type;
 	req->type = type;
 	req->user_data = params;
-	qdf_mc_timer_init(&req->event_timeout, QDF_TIMER_TYPE_SW,
-			  wma_vdev_resp_timer, req);
-	qdf_mc_timer_start(&req->event_timeout, timeout);
-	qdf_spin_lock_bh(&wma->vdev_respq_lock);
 	status = qdf_list_insert_back(&wma->vdev_resp_queue, &req->node);
 	if (QDF_STATUS_SUCCESS != status) {
 		qdf_spin_unlock_bh(&wma->vdev_respq_lock);
@@ -3059,8 +3085,10 @@ struct wma_target_req *wma_fill_vdev_req(tp_wma_handle wma,
 		qdf_mem_free(req);
 		return NULL;
 	}
-
 	qdf_spin_unlock_bh(&wma->vdev_respq_lock);
+	qdf_mc_timer_init(&req->event_timeout, QDF_TIMER_TYPE_SW,
+			  wma_vdev_resp_timer, req);
+	qdf_mc_timer_start(&req->event_timeout, timeout);
 	return req;
 }
 

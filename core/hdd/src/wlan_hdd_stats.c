@@ -3740,7 +3740,7 @@ static int __wlan_hdd_cfg80211_dump_survey(struct wiphy *wiphy,
 		return -ENONET;
 	}
 
-	if (!pHddStaCtx->hdd_ReassocScenario) {
+	if (pHddStaCtx->hdd_ReassocScenario) {
 		hdd_err("Roaming in progress, hence return");
 		return -ENONET;
 	}

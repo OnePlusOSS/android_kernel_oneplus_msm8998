@@ -1762,7 +1762,6 @@ static void wma_cleanup_vdev_resp_queue(tp_wma_handle wma)
 {
 	struct wma_target_req *req_msg = NULL;
 	qdf_list_node_t *node1 = NULL;
-	QDF_STATUS status;
 
 	qdf_spin_lock_bh(&wma->vdev_respq_lock);
 	if (!qdf_list_size(&wma->vdev_resp_queue)) {
@@ -1771,21 +1770,46 @@ static void wma_cleanup_vdev_resp_queue(tp_wma_handle wma)
 		return;
 	}
 
-	while (qdf_list_peek_front(&wma->vdev_resp_queue, &node1) !=
+	while (qdf_list_peek_front(&wma->vdev_resp_queue, &node1) ==
 				   QDF_STATUS_SUCCESS) {
 		req_msg = qdf_container_of(node1, struct wma_target_req, node);
-		status = qdf_list_remove_node(&wma->vdev_resp_queue, node1);
 		qdf_spin_unlock_bh(&wma->vdev_respq_lock);
-		if (status != QDF_STATUS_SUCCESS) {
-			WMA_LOGE(FL("Failed to remove req vdev_id %d type %d"),
-				 req_msg->vdev_id, req_msg->type);
-			return;
-		}
-		qdf_mc_timer_destroy(&req_msg->event_timeout);
-		qdf_mem_free(req_msg);
+		qdf_mc_timer_stop(&req_msg->event_timeout);
+		wma_vdev_resp_timer(req_msg);
 		qdf_spin_lock_bh(&wma->vdev_respq_lock);
 	}
 	qdf_spin_unlock_bh(&wma->vdev_respq_lock);
+}
+
+/**
+ * wma_cleanup_hold_req() - cleanup hold request queue
+ * @wma: wma handle
+ *
+ * Return: none
+ */
+static void wma_cleanup_hold_req(tp_wma_handle wma)
+{
+	struct wma_target_req *req_msg = NULL;
+	qdf_list_node_t *node1 = NULL;
+
+	qdf_spin_lock_bh(&wma->wma_hold_req_q_lock);
+	if (!qdf_list_size(&wma->wma_hold_req_queue)) {
+		qdf_spin_unlock_bh(&wma->wma_hold_req_q_lock);
+		WMA_LOGD(FL("request queue is empty"));
+		return;
+	}
+
+	while (QDF_STATUS_SUCCESS ==
+			qdf_list_peek_front(&wma->wma_hold_req_queue, &node1)) {
+		req_msg = qdf_container_of(node1, struct wma_target_req, node);
+		qdf_spin_unlock_bh(&wma->wma_hold_req_q_lock);
+		/* Cleanup timeout handler */
+		qdf_mc_timer_stop(&req_msg->event_timeout);
+		qdf_mc_timer_destroy(&req_msg->event_timeout);
+		wma_hold_req_timer(req_msg);
+		qdf_spin_lock_bh(&wma->wma_hold_req_q_lock);
+	}
+	qdf_spin_unlock_bh(&wma->wma_hold_req_q_lock);
 }
 
 /**
@@ -1806,6 +1830,7 @@ static void wma_shutdown_notifier_cb(void *priv)
 
 	qdf_event_set(&wma_handle->wma_resume_event);
 	wma_cleanup_vdev_resp_queue(wma_handle);
+	wma_cleanup_hold_req(wma_handle);
 }
 
 struct wma_version_info g_wmi_version_info;
@@ -2672,6 +2697,10 @@ QDF_STATUS wma_pre_start(void *cds_ctx)
 						 wma_handle->htc_handle);
 	if (A_OK != status) {
 		WMA_LOGE("%s: wmi_unified_connect_htc_service", __func__);
+
+		if (!cds_is_fw_down())
+			QDF_BUG(0);
+
 		qdf_status = QDF_STATUS_E_FAULT;
 		goto end;
 	}
@@ -3412,41 +3441,6 @@ QDF_STATUS wma_stop(void *cds_ctx, uint8_t reason)
 end:
 	WMA_LOGD("%s: Exit", __func__);
 	return qdf_status;
-}
-
-/**
- * wma_cleanup_hold_req() - cleanup hold request queue
- * @wma: wma handle
- *
- * Return: none
- */
-static void wma_cleanup_hold_req(tp_wma_handle wma)
-{
-	struct wma_target_req *req_msg = NULL;
-	qdf_list_node_t *node1 = NULL;
-	QDF_STATUS status;
-
-	qdf_spin_lock_bh(&wma->wma_hold_req_q_lock);
-	if (!qdf_list_size(&wma->wma_hold_req_queue)) {
-		qdf_spin_unlock_bh(&wma->wma_hold_req_q_lock);
-		WMA_LOGD(FL("request queue is empty"));
-		return;
-	}
-
-	while (QDF_STATUS_SUCCESS !=
-			qdf_list_peek_front(&wma->wma_hold_req_queue, &node1)) {
-		req_msg = qdf_container_of(node1, struct wma_target_req, node);
-		status = qdf_list_remove_node(&wma->wma_hold_req_queue, node1);
-		if (QDF_STATUS_SUCCESS != status) {
-			qdf_spin_unlock_bh(&wma->wma_hold_req_q_lock);
-			WMA_LOGE(FL("Failed to remove request for vdev_id %d type %d"),
-				 req_msg->vdev_id, req_msg->type);
-			return;
-		}
-		qdf_mc_timer_destroy(&req_msg->event_timeout);
-		qdf_mem_free(req_msg);
-	}
-	qdf_spin_unlock_bh(&wma->wma_hold_req_q_lock);
 }
 
 /**
@@ -7589,14 +7583,12 @@ QDF_STATUS wma_mc_process_msg(void *cds_context, cds_msg_t *msg)
 				 (struct sme_rcpi_req *)msg->bodyptr);
 		qdf_mem_free(msg->bodyptr);
 		break;
-	case WMA_ENABLE_BCAST_FILTER:
-		wma_configure_non_arp_broadcast_filter(wma_handle,
-			(struct broadcast_filter_request *) msg->bodyptr);
+	case WMA_CONF_HW_FILTER: {
+		struct hw_filter_request *req = msg->bodyptr;
+
+		qdf_status = wma_conf_hw_filter_mode(wma_handle, req);
 		break;
-	case WMA_DISABLE_HW_BCAST_FILTER:
-		wma_configure_non_arp_broadcast_filter(wma_handle,
-			(struct broadcast_filter_request *) msg->bodyptr);
-		break;
+	}
 	case WMA_SET_ARP_STATS_REQ:
 		wma_set_arp_req_stats(wma_handle,
 			(struct set_arp_stats_params *)msg->bodyptr);

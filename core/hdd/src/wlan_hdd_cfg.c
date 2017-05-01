@@ -4319,12 +4319,12 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_ACTIVE_MC_BC_BPF_MODE_MIN,
 		CFG_ACTIVE_MC_BC_BPF_MODE_MAX),
 
-	REG_VARIABLE(CFG_HW_BC_FILTER_NAME, WLAN_PARAM_Integer,
-		struct hdd_config, hw_broadcast_filter,
+	REG_VARIABLE(CFG_HW_FILTER_MODE_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, hw_filter_mode,
 		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
-		CFG_HW_FILTER_DEFAULT,
-		CFG_HW_FILTER_MIN,
-		CFG_HW_FILTER_MAX),
+		CFG_HW_FILTER_MODE_DEFAULT,
+		CFG_HW_FILTER_MODE_MIN,
+		CFG_HW_FILTER_MODE_MAX),
 
 	REG_VARIABLE(CFG_SAP_INTERNAL_RESTART_NAME, WLAN_PARAM_Integer,
 		struct hdd_config, sap_internal_restart,
@@ -6090,8 +6090,8 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 		CFG_ACTIVE_MC_BC_BPF_MODE_NAME,
 		pHddCtx->config->active_mc_bc_bpf_mode);
 	hdd_debug("Name = [%s] Value = [%u]",
-		CFG_HW_BC_FILTER_NAME,
-		pHddCtx->config->hw_broadcast_filter);
+		CFG_HW_FILTER_MODE_NAME,
+		pHddCtx->config->hw_filter_mode);
 	hdd_err("Name = [%s] Value = [%u]",
 		CFG_AUTO_DETECT_POWER_FAIL_MODE_NAME,
 		pHddCtx->config->auto_pwr_save_fail_mode);

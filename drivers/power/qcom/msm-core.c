@@ -226,7 +226,7 @@ static void repopulate_stats(int cpu)
 
 void trigger_cpu_pwr_stats_calc(void)
 {
-	int cpu;
+	int cpu, rc;
 	static long prev_temp[NR_CPUS];
 	struct cpu_activity_info *cpu_node;
 	int temp;
@@ -242,7 +242,12 @@ void trigger_cpu_pwr_stats_calc(void)
 			continue;
 
 		if (cpu_node->temp == prev_temp[cpu]) {
-			sensor_get_temp(cpu_node->sensor_id, &temp);
+			rc = sensor_get_temp(cpu_node->sensor_id, &temp);
+			if (rc) {
+				pr_err("msm-core: The sensor reported invalid data!");
+				temp = DEFAULT_TEMP;
+			}
+
 			cpu_node->temp = temp / scaling_factor;
 		}
 

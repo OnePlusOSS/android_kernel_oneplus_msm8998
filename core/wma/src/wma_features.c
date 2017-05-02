@@ -8467,38 +8467,38 @@ void wma_dfs_configure(struct ieee80211com *ic)
  * @band_center_freq1: center frequency 1
  * @band_center_freq2: center frequency 2
  *       (valid only for 11ac vht 80plus80 mode)
- * @ req: vdev start request
+ * @req: vdev start request
  *
  * Set the Channel parameters in to DFS module
  * Also,configure the DFS radar filters for
  * matching the DFS phyerrors.
  *
- * Return: dfs_ieee80211_channel / NULL for error
+ * Return: None
  */
-struct dfs_ieee80211_channel *wma_dfs_configure_channel(
-						struct ieee80211com *dfs_ic,
-						uint32_t band_center_freq1,
-						uint32_t band_center_freq2,
-						struct wma_vdev_start_req
-						*req)
+void wma_dfs_configure_channel(struct ieee80211com *dfs_ic,
+				uint32_t band_center_freq1,
+				uint32_t band_center_freq2,
+				struct wma_vdev_start_req *req)
 {
 	uint8_t ext_channel;
 
 	if (dfs_ic == NULL) {
 		WMA_LOGE("%s: DFS ic is Invalid", __func__);
-		return NULL;
+		return;
 	}
 
+	qdf_spin_lock_bh(&dfs_ic->chan_lock);
 	if (!dfs_ic->ic_curchan) {
 		dfs_ic->ic_curchan = (struct dfs_ieee80211_channel *)os_malloc(
 					NULL,
 					sizeof(struct dfs_ieee80211_channel),
 					GFP_ATOMIC);
 		if (dfs_ic->ic_curchan == NULL) {
+			qdf_spin_unlock_bh(&dfs_ic->chan_lock);
 			WMA_LOGE(
 			    "%s: allocation of dfs_ic->ic_curchan failed %zu",
 			    __func__, sizeof(struct dfs_ieee80211_channel));
-			return NULL;
+			return;
 		}
 	}
 
@@ -8560,7 +8560,7 @@ struct dfs_ieee80211_channel *wma_dfs_configure_channel(
 					IEEE80211_CHAN_VHT160;
 		break;
 	default:
-		WMA_LOGE(
+		WMA_LOGD(
 		    "%s: Recieved a wrong channel width %d",
 		    __func__, req->chan_width);
 		break;
@@ -8574,13 +8574,14 @@ struct dfs_ieee80211_channel *wma_dfs_configure_channel(
 	}
 
 	dfs_ic->dfs_pri_multiplier = req->dfs_pri_multiplier;
+	qdf_spin_unlock_bh(&dfs_ic->chan_lock);
 
 	/*
 	 * Configuring the DFS with current channel and the radar filters
 	 */
 	wma_dfs_configure(dfs_ic);
-	WMA_LOGI("%s: DFS- CHANNEL CONFIGURED", __func__);
-	return dfs_ic->ic_curchan;
+	WMA_LOGD("%s: DFS- CHANNEL CONFIGURED", __func__);
+	return;
 }
 
 

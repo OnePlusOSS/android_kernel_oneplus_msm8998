@@ -2231,12 +2231,9 @@ QDF_STATUS wma_vdev_start(tp_wma_handle wma,
 	/* Config channel information in dfs_ic, the channel information
 	 * is needed when processing spectral scan results
 	 */
-	qdf_spin_lock_bh(&wma->dfs_ic->chan_lock);
-	wma->dfs_ic->ic_curchan =
-				wma_dfs_configure_channel(wma->dfs_ic,
-						params.band_center_freq1,
-						params.band_center_freq2, req);
-	qdf_spin_unlock_bh(&wma->dfs_ic->chan_lock);
+	wma_dfs_configure_channel(wma->dfs_ic,
+				params.band_center_freq1,
+				params.band_center_freq2, req);
 
 	params.is_dfs = req->is_dfs;
 	params.is_restart = isRestart;
@@ -2281,16 +2278,13 @@ QDF_STATUS wma_vdev_start(tp_wma_handle wma,
 				return QDF_STATUS_E_FAILURE;
 			}
 
-			qdf_spin_lock_bh(&wma->dfs_ic->chan_lock);
 			if (isRestart)
 				wma->dfs_ic->disable_phy_err_processing = true;
 
 			/* provide the current channel to DFS */
-			wma->dfs_ic->ic_curchan =
-				wma_dfs_configure_channel(wma->dfs_ic,
+			wma_dfs_configure_channel(wma->dfs_ic,
 						params.band_center_freq1,
 						params.band_center_freq2, req);
-			qdf_spin_unlock_bh(&wma->dfs_ic->chan_lock);
 
 			wma_unified_dfs_phyerr_filter_offload_enable(wma);
 			dfs->disable_dfs_ch_switch =

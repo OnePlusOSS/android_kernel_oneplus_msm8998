@@ -1178,12 +1178,25 @@ void wma_dfs_detach(struct ieee80211com *dfs_ic);
 
 void wma_dfs_configure(struct ieee80211com *ic);
 
-struct dfs_ieee80211_channel *wma_dfs_configure_channel(
-						struct ieee80211com *dfs_ic,
-						uint32_t band_center_freq1,
-						uint32_t band_center_freq2,
-						struct wma_vdev_start_req
-						*req);
+/**
+ * wma_dfs_configure_channel() - configure DFS channel
+ * @dfs_ic: ieee80211com ptr
+ * @band_center_freq1: center frequency 1
+ * @band_center_freq2: center frequency 2
+ *       (valid only for 11ac vht 80plus80 mode)
+ * @req: vdev start request
+ *
+ * Set the Channel parameters in to DFS module
+ * Also,configure the DFS radar filters for
+ * matching the DFS phyerrors.
+ *
+ * Return: None
+ */
+void wma_dfs_configure_channel(struct ieee80211com *dfs_ic,
+				uint32_t band_center_freq1,
+				uint32_t band_center_freq2,
+				struct wma_vdev_start_req *req);
+
 void wma_set_vdev_mgmt_rate(tp_wma_handle wma, uint8_t vdev_id);
 void wma_set_sap_keepalive(tp_wma_handle wma, uint8_t vdev_id);
 

@@ -722,13 +722,6 @@ int ce_send_fast(struct CE_handle *copyeng, qdf_nbuf_t msdu,
 	}
 
 	src_ring->write_index = write_index;
-	qdf_spin_unlock_bh(&ce_state->ce_index_lock);
-
-	DPTRACE(qdf_dp_trace(msdu,
-			QDF_DP_TRACE_CE_FAST_PACKET_PTR_RECORD,
-			qdf_nbuf_data_addr(msdu),
-			sizeof(qdf_nbuf_data(msdu)), QDF_TX));
-
 	if (hif_pm_runtime_get(hif_hdl) == 0) {
 		if (qdf_likely(ce_state->state == CE_RUNNING)) {
 			type = FAST_TX_WRITE_INDEX_UPDATE;
@@ -738,6 +731,14 @@ int ce_send_fast(struct CE_handle *copyeng, qdf_nbuf_t msdu,
 			ce_state->state = CE_PENDING;
 		hif_pm_runtime_put(hif_hdl);
 	}
+	qdf_spin_unlock_bh(&ce_state->ce_index_lock);
+
+	DPTRACE(qdf_dp_trace(msdu,
+			QDF_DP_TRACE_CE_FAST_PACKET_PTR_RECORD,
+			qdf_nbuf_data_addr(msdu),
+			sizeof(qdf_nbuf_data(msdu)), QDF_TX));
+
+
 	hif_record_ce_desc_event(scn, ce_state->id, type,
 				 NULL, NULL, write_index);
 

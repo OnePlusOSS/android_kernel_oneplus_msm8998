@@ -2906,7 +2906,16 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 		mgmt_param.qdf_ctx = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
 		wmi_desc = wmi_desc_get(wma_handle);
 		if (!wmi_desc) {
-			WMA_LOGE("%s: Failed to get wmi_desc", __func__);
+			/* Countinous failure can cause flooding of logs */
+			if (!(wma_handle->wmi_desc_fail_count %
+				MAX_PRINT_FAILURE_CNT))
+				WMA_LOGE("%s: Failed to get wmi_desc",
+					__func__);
+			else
+				WMA_LOGD("%s: Failed to get wmi_desc",
+					__func__);
+
+			wma_handle->wmi_desc_fail_count++;
 			status = QDF_STATUS_E_FAILURE;
 		} else {
 			mgmt_param.desc_id = wmi_desc->desc_id;
@@ -2935,7 +2944,11 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 			tx_frm_download_comp_cb(wma_handle->mac_context,
 						tx_frame,
 						WMA_TX_FRAME_BUFFER_FREE);
-		WMA_LOGP("%s: Failed to send Mgmt Frame", __func__);
+		if (!(wma_handle->tx_fail_cnt % MAX_PRINT_FAILURE_CNT))
+			WMA_LOGE("%s: Failed to send Mgmt Frame", __func__);
+		else
+			WMA_LOGD("%s: Failed to send Mgmt Frame", __func__);
+		wma_handle->tx_fail_cnt++;
 		goto error;
 	}
 

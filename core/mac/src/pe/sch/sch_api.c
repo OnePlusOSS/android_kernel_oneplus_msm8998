@@ -194,6 +194,18 @@ tSirRetStatus sch_send_beacon_req(tpAniSirGlobal pMac, uint8_t *beaconPayload,
 	tpSendbeaconParams beaconParams = NULL;
 	tSirRetStatus retCode;
 
+	if (LIM_IS_AP_ROLE(psessionEntry) &&
+			(pMac->sch.schObject.fBeaconChanged)) {
+		retCode = lim_send_probe_rsp_template_to_hal(pMac,
+				psessionEntry,
+				&psessionEntry->
+				DefProbeRspIeBitmap
+				[0]);
+		if (eSIR_SUCCESS != retCode) {
+			pe_err("FAILED to send probe response template with retCode %d",
+					retCode);
+		}
+	}
 	beaconParams = qdf_mem_malloc(sizeof(tSendbeaconParams));
 	if (NULL == beaconParams)
 		return eSIR_MEM_ALLOC_FAILED;
@@ -251,23 +263,9 @@ tSirRetStatus sch_send_beacon_req(tpAniSirGlobal pMac, uint8_t *beaconPayload,
 
 	MTRACE(mac_trace_msg_tx(pMac, psessionEntry->peSessionId, msgQ.type));
 	retCode = wma_post_ctrl_msg(pMac, &msgQ);
-	if (eSIR_SUCCESS != retCode) {
+	if (eSIR_SUCCESS != retCode)
 		pe_err("Posting SEND_BEACON_REQ to HAL failed, reason=%X",
 			retCode);
-	} else {
-		if (LIM_IS_AP_ROLE(psessionEntry) &&
-		   (pMac->sch.schObject.fBeaconChanged)) {
-			retCode = lim_send_probe_rsp_template_to_hal(pMac,
-								     psessionEntry,
-								     &psessionEntry->
-								     DefProbeRspIeBitmap
-								     [0]);
-			if (eSIR_SUCCESS != retCode) {
-				pe_err("FAILED to send probe response template with retCode %d",
-					retCode);
-			}
-		}
-	}
 
 	return retCode;
 }

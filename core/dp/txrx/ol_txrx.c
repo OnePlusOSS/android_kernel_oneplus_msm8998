@@ -4776,6 +4776,23 @@ free_buf:
 /* print for every 16th packet */
 #define OL_TXRX_PRINT_RATE_LIMIT_THRESH 0x0f
 
+/** helper function to drop packets
+ *  Note: caller must hold the cached buq lock before invoking
+ *  this function. Also, it assumes that the pointers passed in
+ *  are valid (non-NULL)
+ */
+static inline void ol_txrx_drop_frames(
+					struct ol_txrx_cached_bufq_t *bufqi,
+					qdf_nbuf_t rx_buf_list)
+{
+	uint32_t dropped = ol_txrx_drop_nbuf_list(rx_buf_list);
+	bufqi->dropped += dropped;
+	bufqi->qdepth_no_thresh += dropped;
+
+	if (bufqi->qdepth_no_thresh > bufqi->high_water_mark)
+		bufqi->high_water_mark = bufqi->qdepth_no_thresh;
+}
+
 static QDF_STATUS ol_txrx_enqueue_rx_frames(
 					struct ol_txrx_peer_t *peer,
 					struct ol_txrx_cached_bufq_t *bufqi,
@@ -4783,8 +4800,6 @@ static QDF_STATUS ol_txrx_enqueue_rx_frames(
 {
 	struct ol_rx_cached_buf *cache_buf;
 	qdf_nbuf_t buf, next_buf;
-	QDF_STATUS status = QDF_STATUS_SUCCESS;
-	int dropped = 0;
 	static uint32_t count;
 
 	if ((count++ & OL_TXRX_PRINT_RATE_LIMIT_THRESH) == 0)
@@ -4794,8 +4809,9 @@ static QDF_STATUS ol_txrx_enqueue_rx_frames(
 
 	qdf_spin_lock_bh(&bufqi->bufq_lock);
 	if (bufqi->curr >= bufqi->thresh) {
-		status = QDF_STATUS_E_FAULT;
-		goto drop_bufs;
+		ol_txrx_drop_frames(bufqi, rx_buf_list);
+		qdf_spin_unlock_bh(&bufqi->bufq_lock);
+		return QDF_STATUS_E_FAULT;
 	}
 	qdf_spin_unlock_bh(&bufqi->bufq_lock);
 
@@ -4812,32 +4828,25 @@ static QDF_STATUS ol_txrx_enqueue_rx_frames(
 			/* Add NULL terminator */
 			qdf_nbuf_set_next(buf, NULL);
 			cache_buf->buf = buf;
-			qdf_spin_lock_bh(&bufqi->bufq_lock);
 			if (peer && peer->valid) {
+				qdf_spin_lock_bh(&bufqi->bufq_lock);
 				list_add_tail(&cache_buf->list,
 				      &bufqi->cached_bufq);
 				bufqi->curr++;
 				qdf_spin_unlock_bh(&bufqi->bufq_lock);
 			} else {
-				status = QDF_STATUS_E_FAULT;
 				qdf_mem_free(cache_buf);
 				rx_buf_list = buf;
 				qdf_nbuf_set_next(rx_buf_list, next_buf);
-				goto drop_bufs;
+				qdf_spin_lock_bh(&bufqi->bufq_lock);
+				ol_txrx_drop_frames(bufqi, rx_buf_list);
+				qdf_spin_unlock_bh(&bufqi->bufq_lock);
+				return QDF_STATUS_E_FAULT;
 			}
 		}
 		buf = next_buf;
 	}
-
-drop_bufs:
-	dropped = ol_txrx_drop_nbuf_list(rx_buf_list);
-	bufqi->dropped += dropped;
-	bufqi->qdepth_no_thresh += dropped;
-
-	if (bufqi->qdepth_no_thresh > bufqi->high_water_mark)
-		bufqi->high_water_mark = bufqi->qdepth_no_thresh;
-	qdf_spin_unlock_bh(&bufqi->bufq_lock);
-	return status;
+	return QDF_STATUS_SUCCESS;
 }
 /**
  * ol_rx_data_process() - process rx frame

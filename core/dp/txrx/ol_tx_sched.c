@@ -515,7 +515,6 @@ struct ol_tx_sched_wrr_adv_category_info_t {
 		send_limit, \
 		credit_reserve, \
 		discard_weights) \
-	do {			\
 		enum { OL_TX_SCHED_WRR_ADV_ ## cat ## _WRR_SKIP_WEIGHT = \
 			(wrr_skip_weight) }; \
 		enum { OL_TX_SCHED_WRR_ADV_ ## cat ## _CREDIT_THRESHOLD = \
@@ -525,8 +524,7 @@ struct ol_tx_sched_wrr_adv_category_info_t {
 		enum { OL_TX_SCHED_WRR_ADV_ ## cat ## _CREDIT_RESERVE = \
 			(credit_reserve) }; \
 		enum { OL_TX_SCHED_WRR_ADV_ ## cat ## _DISCARD_WEIGHT = \
-			(discard_weights) }; \
-	} while (0)
+			(discard_weights) }
 /* Rome:
  * For high-volume traffic flows (VI, BE, BK), use a credit threshold
  * roughly equal to a large A-MPDU (occupying half the target memory

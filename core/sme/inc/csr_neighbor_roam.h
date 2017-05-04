@@ -325,6 +325,8 @@ void csr_roam_reset_roam_params(tpAniSirGlobal mac_ptr);
 #define REASON_ROAM_SCAN_STA_ROAM_POLICY_CHANGED    35
 #define REASON_ROAM_SYNCH_FAILED                    36
 #define REASON_ROAM_PSK_PMK_CHANGED                 37
+#define REASON_ROAM_STOP_ALL                        38
+
 
 
 #if defined(WLAN_FEATURE_HOST_ROAM) || defined(WLAN_FEATURE_ROAM_OFFLOAD)

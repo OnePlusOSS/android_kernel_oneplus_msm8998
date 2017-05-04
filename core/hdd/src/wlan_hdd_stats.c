@@ -1506,7 +1506,7 @@ __wlan_hdd_cfg80211_ll_stats_get(struct wiphy *wiphy,
 	}
 
 	rc = wlan_hdd_send_ll_stats_req(pHddCtx, &LinkLayerStatsGetReq);
-	if (!rc) {
+	if (0 != rc) {
 		hdd_err("Failed to send LL stats request (id:%u)",
 			LinkLayerStatsGetReq.reqId);
 		return rc;

@@ -1267,7 +1267,7 @@ typedef struct sSirSmeJoinReq {
 #endif
 	/* Pls make this as last variable in struct */
 	tSirBssDescription bssDescription;
-
+	bool ignore_assoc_disallowed;
 } tSirSmeJoinReq, *tpSirSmeJoinReq;
 
 /* / Definition for reponse message to previously issued join request */

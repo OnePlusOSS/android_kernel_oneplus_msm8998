@@ -982,6 +982,7 @@ typedef struct tagCsrRoamSession {
 	qdf_mc_timer_t roaming_offload_timer;
 	bool is_fils_connection;
 	uint16_t fils_seq_num;
+	bool ignore_assoc_disallowed;
 } tCsrRoamSession;
 
 typedef struct tagCsrRoamStruct {

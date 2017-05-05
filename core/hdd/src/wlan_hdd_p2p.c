@@ -2200,7 +2200,7 @@ send_frame:
 			enb_random_mac = true;
 		}
 
-		if (enb_random_mac && !noack)
+		if (enb_random_mac && !noack && chan && chan->center_freq)
 			hdd_set_action_frame_random_mac(pAdapter,
 				(uint8_t *)(&buf[WLAN_HDD_80211_FRM_SA_OFFSET]),
 				*cookie, chan->center_freq);
@@ -2225,7 +2225,7 @@ send_frame:
 	return 0;
 err:
 	if (!noack) {
-		if (enb_random_mac &&
+		if (enb_random_mac && chan && chan->center_freq &&
 			((pAdapter->device_mode == QDF_STA_MODE) ||
 			(pAdapter->device_mode == QDF_P2P_CLIENT_MODE) ||
 			(pAdapter->device_mode == QDF_P2P_DEVICE_MODE)))

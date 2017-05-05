@@ -2284,7 +2284,7 @@ static void wma_vdev_stats_lost_link_helper(tp_wma_handle wma,
 	int32_t rssi;
 	struct wma_target_req *req_msg;
 	static const uint8_t zero_mac[QDF_MAC_ADDR_SIZE] = {0};
-	int8_t bcn_snr, dat_snr;
+	int32_t bcn_snr, dat_snr;
 
 	node = &wma->interfaces[vdev_stats->vdev_id];
 	if (node->vdev_up &&
@@ -2329,11 +2329,11 @@ static void wma_update_vdev_stats(tp_wma_handle wma,
 	uint8_t *stats_buf;
 	struct wma_txrx_node *node;
 	uint8_t i;
-	int8_t rssi = 0;
+	int32_t rssi = 0;
 	QDF_STATUS qdf_status;
 	tAniGetRssiReq *pGetRssiReq = (tAniGetRssiReq *) wma->pGetRssiReq;
 	cds_msg_t sme_msg = { 0 };
-	int8_t bcn_snr, dat_snr;
+	int32_t bcn_snr, dat_snr;
 
 	bcn_snr = vdev_stats->vdev_snr.bcn_snr;
 	dat_snr = vdev_stats->vdev_snr.dat_snr;
@@ -2373,7 +2373,7 @@ static void wma_update_vdev_stats(tp_wma_handle wma,
 			} else if (WMA_TGT_IS_VALID_SNR(dat_snr)) {
 				summary_stats->snr = dat_snr;
 				summary_stats->rssi =
-					bcn_snr + WMA_TGT_NOISE_FLOOR_DBM;
+					dat_snr + WMA_TGT_NOISE_FLOOR_DBM;
 			} else {
 				summary_stats->snr = WMA_TGT_INVALID_SNR;
 				summary_stats->rssi = 0;
@@ -2554,7 +2554,7 @@ static void wma_update_per_chain_rssi_stats(tp_wma_handle wma,
 		struct csr_per_chain_rssi_stats_info *rssi_per_chain_stats)
 {
 	int i;
-	int8_t bcn_snr, dat_snr;
+	int32_t bcn_snr, dat_snr;
 
 	for (i = 0; i < NUM_CHAINS_MAX; i++) {
 		bcn_snr = rssi_stats->rssi_avg_beacon[i];

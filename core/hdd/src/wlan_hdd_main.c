@@ -2749,9 +2749,8 @@ QDF_STATUS hdd_init_station_mode(hdd_adapter_t *adapter)
 	if (!rc) {
 		hdd_err("Session is not opened within timeout period code %ld",
 			rc);
-		adapter->sessionId = HDD_SESSION_ID_INVALID;
 		status = QDF_STATUS_E_FAILURE;
-		goto error_sme_open;
+		goto error_register_wext;
 	}
 	if (hdd_ctx->config->enable_rx_ldpc &&
 	    hdd_ctx->config->rx_ldpc_support_for_2g &&
@@ -2837,14 +2836,12 @@ error_wmm_init:
 error_init_txrx:
 	hdd_unregister_wext(pWlanDev);
 error_register_wext:
-	if (test_bit(SME_SESSION_OPENED, &adapter->event_flags)) {
+	if (adapter->sessionId != HDD_SESSION_ID_INVALID) {
 		INIT_COMPLETION(adapter->session_close_comp_var);
 		if (QDF_STATUS_SUCCESS == sme_close_session(hdd_ctx->hHal,
 							    adapter->sessionId,
 							    hdd_sme_close_session_callback,
 							    adapter)) {
-			unsigned long rc;
-
 			/*
 			 * Block on a completion variable.
 			 * Can't wait forever though.
@@ -2854,9 +2851,10 @@ error_register_wext:
 				msecs_to_jiffies
 					(WLAN_WAIT_TIME_SESSIONOPENCLOSE));
 			if (rc <= 0)
-				hdd_err("Session is not opened within timeout period code %ld",
+				hdd_err("Session is not closed within timeout period code %ld",
 				       rc);
 		}
+		adapter->sessionId = HDD_SESSION_ID_INVALID;
 	}
 error_sme_open:
 	return status;

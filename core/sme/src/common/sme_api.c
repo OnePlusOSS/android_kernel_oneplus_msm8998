@@ -1706,6 +1706,33 @@ QDF_STATUS sme_start(tHalHandle hHal)
 	return status;
 }
 
+static QDF_STATUS sme_handle_ipa_uc_stat_request(
+		tpAniSirGlobal mac_ctx, void *msg)
+{
+	wma_cli_set_cmd_t *iwcmd;
+	struct ani_ipa_stat_req *ipa_stat_msg;
+
+	ipa_stat_msg = msg;
+	iwcmd = qdf_mem_malloc(sizeof(*iwcmd));
+	if (!iwcmd) {
+		sme_err("Failed alloc memory for iwcmd");
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	qdf_mem_zero(iwcmd, sizeof(*iwcmd));
+	iwcmd->param_sec_value = 0;
+	iwcmd->param_vdev_id = ipa_stat_msg->vdev_id;
+	iwcmd->param_id = ipa_stat_msg->param_id;
+	iwcmd->param_vp_dev = ipa_stat_msg->req_type;
+	iwcmd->param_value =  ipa_stat_msg->param_val;
+
+	sme_info("param_id %d", iwcmd->param_id);
+	wma_ipa_uc_stat_request(iwcmd);
+	qdf_mem_free(iwcmd);
+
+	return QDF_STATUS_SUCCESS;
+}
+
 /**
  * sme_handle_scan_req() - Scan request handler
  * @mac_ctx: MAC global context
@@ -3043,6 +3070,16 @@ QDF_STATUS sme_process_msg(tHalHandle hHal, cds_msg_t *pMsg)
 			pMac->sme.stats_ext2_cb(pMac->hHdd,
 				(struct stats_ext2_event *)pMsg->bodyptr);
 		qdf_mem_free(pMsg->bodyptr);
+		break;
+
+	case eWNI_SME_IPA_STATS_REQ_CMD:
+		if (pMsg->bodyptr) {
+			status = sme_handle_ipa_uc_stat_request(pMac,
+							 pMsg->bodyptr);
+			qdf_mem_free(pMsg->bodyptr);
+		} else {
+			sme_err("Empty message for: %d", pMsg->type);
+		}
 		break;
 
 	default:
@@ -8976,7 +9013,10 @@ QDF_STATUS sme_stop_roaming(tHalHandle hHal, uint8_t sessionId, uint8_t reason)
 	}
 
 	req->Command = ROAM_SCAN_OFFLOAD_STOP;
-	req->reason = REASON_ROAM_SYNCH_FAILED;
+	if (reason == eCsrForcedDisassoc)
+		req->reason = REASON_ROAM_STOP_ALL;
+	else
+		req->reason = REASON_ROAM_SYNCH_FAILED;
 	req->sessionId = sessionId;
 	if (csr_neighbor_middle_of_roaming(mac_ctx, sessionId))
 		req->middle_of_roaming = 1;
@@ -15475,6 +15515,8 @@ QDF_STATUS sme_pdev_set_hw_mode(tHalHandle hal,
 	}
 
 	cmd->command = e_sme_command_set_hw_mode;
+	cmd->sessionId = msg.session_id;
+
 	cmd->u.set_hw_mode_cmd.hw_mode_index = msg.hw_mode_index;
 	cmd->u.set_hw_mode_cmd.set_hw_mode_cb = msg.set_hw_mode_cb;
 	cmd->u.set_hw_mode_cmd.reason = msg.reason;
@@ -17863,6 +17905,65 @@ QDF_STATUS sme_set_rx_set_blocksize(tHalHandle hal,
 			FL("sme_AcquireGlobalLock failed"));
 		qdf_mem_free(rx_blocksize);
 	}
+
+	return status;
+}
+
+QDF_STATUS sme_congestion_register_callback(tHalHandle hal,
+	void (*congestion_cb)(void *, uint32_t congestion, uint32_t vdev_id))
+{
+	QDF_STATUS status;
+	tpAniSirGlobal mac = PMAC_STRUCT(hal);
+
+	status = sme_acquire_global_lock(&mac->sme);
+	if (QDF_IS_STATUS_SUCCESS(status)) {
+		mac->sme.congestion_cb = congestion_cb;
+		sme_release_global_lock(&mac->sme);
+		sme_debug("congestion callback set");
+	} else {
+		sme_debug("sme_acquire_global_lock failed %d", status);
+	}
+
+	return status;
+}
+
+QDF_STATUS sme_ipa_uc_stat_request(tHalHandle hal, uint32_t vdev_id,
+			uint32_t param_id, uint32_t param_val, uint32_t req_cat)
+{
+	struct ani_ipa_stat_req	*ipa_stat_msg;
+	cds_msg_t msg = {0};
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+	QDF_STATUS status;
+
+	status = sme_acquire_global_lock(&mac_ctx->sme);
+	if (!QDF_IS_STATUS_SUCCESS(status)) {
+		sme_err("Unable to acquire lock");
+		return status;
+	}
+
+	ipa_stat_msg = qdf_mem_malloc(sizeof(struct ani_ipa_stat_req));
+	if (NULL == ipa_stat_msg) {
+		sme_release_global_lock(&mac_ctx->sme);
+		sme_err("Failed to allocate memory for ipa_stat_msg");
+		return QDF_STATUS_E_NOMEM;
+	}
+	ipa_stat_msg->msg_type = eWNI_SME_IPA_STATS_REQ_CMD;
+	ipa_stat_msg->msg_len = (uint16_t) sizeof(struct ani_ipa_stat_req);
+	ipa_stat_msg->vdev_id = vdev_id;
+	ipa_stat_msg->param_id = param_id;
+	ipa_stat_msg->param_val = param_val;
+	ipa_stat_msg->req_type = req_cat;
+	msg.type = eWNI_SME_IPA_STATS_REQ_CMD;
+	msg.bodyptr = ipa_stat_msg;
+	msg.reserved = 0;
+	msg.bodyval = 0;
+	if (QDF_STATUS_SUCCESS !=
+		cds_mq_post_message(CDS_MQ_ID_SME, &msg)) {
+		sme_err("sme_ipa_uc_stat_request failed to post msg");
+		qdf_mem_free(ipa_stat_msg);
+		status = QDF_STATUS_E_FAILURE;
+	}
+	sme_release_global_lock(&mac_ctx->sme);
 
 	return status;
 }

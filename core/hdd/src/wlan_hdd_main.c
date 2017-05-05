@@ -2533,6 +2533,7 @@ static hdd_adapter_t *hdd_alloc_station_adapter(hdd_context_t *hdd_ctx,
 {
 	struct net_device *pWlanDev = NULL;
 	hdd_adapter_t *adapter = NULL;
+	hdd_station_ctx_t *sta_ctx;
 	/*
 	 * cfg80211 initialization and registration....
 	 */
@@ -2550,7 +2551,10 @@ static hdd_adapter_t *hdd_alloc_station_adapter(hdd_context_t *hdd_ctx,
 		adapter = (hdd_adapter_t *) netdev_priv(pWlanDev);
 
 		qdf_mem_zero(adapter, sizeof(hdd_adapter_t));
-
+		sta_ctx = &adapter->sessionCtx.station;
+		qdf_mem_set(sta_ctx->conn_info.staId,
+			sizeof(sta_ctx->conn_info.staId),
+			HDD_WLAN_INVALID_STA_ID);
 		adapter->dev = pWlanDev;
 		adapter->pHddCtx = hdd_ctx;
 		adapter->magic = WLAN_HDD_ADAPTER_MAGIC;
@@ -2559,6 +2563,7 @@ static hdd_adapter_t *hdd_alloc_station_adapter(hdd_context_t *hdd_ctx,
 		init_completion(&adapter->session_open_comp_var);
 		init_completion(&adapter->session_close_comp_var);
 		init_completion(&adapter->disconnect_comp_var);
+		init_completion(&adapter->roaming_comp_var);
 		init_completion(&adapter->linkup_event_var);
 		init_completion(&adapter->cancel_rem_on_chan_var);
 		init_completion(&adapter->rem_on_chan_ready_event);
@@ -8808,6 +8813,11 @@ static int hdd_deconfigure_cds(hdd_context_t *hdd_ctx)
 		ret = -EINVAL;
 	}
 
+	if (hdd_ipa_uc_ol_deinit(hdd_ctx)) {
+		hdd_err("Failed to disconnect pipes");
+		ret = -EINVAL;
+	}
+
 	EXIT();
 	return ret;
 }
@@ -9442,6 +9452,11 @@ int hdd_register_cb(hdd_context_t *hdd_ctx)
 
 	sme_chain_rssi_register_callback(hdd_ctx->hHal,
 				wlan_hdd_cfg80211_chainrssi_callback);
+
+	status = sme_congestion_register_callback(hdd_ctx->hHal,
+					     hdd_update_cca_info_cb);
+	if (!QDF_IS_STATUS_SUCCESS(status))
+		hdd_err("set congestion callback failed");
 
 	EXIT();
 

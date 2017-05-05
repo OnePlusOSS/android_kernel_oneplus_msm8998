@@ -3968,6 +3968,7 @@ lim_send_vdev_restart(tpAniSirGlobal pMac,
 
 	pHalHiddenSsidVdevRestart->ssidHidden = psessionEntry->ssidHidden;
 	pHalHiddenSsidVdevRestart->sessionId = sessionId;
+	pHalHiddenSsidVdevRestart->pe_session_id = psessionEntry->peSessionId;
 
 	msgQ.type = WMA_HIDDEN_SSID_VDEV_RESTART;
 	msgQ.bodyptr = pHalHiddenSsidVdevRestart;
@@ -4047,15 +4048,15 @@ static void lim_handle_update_ssid_hidden(tpAniSirGlobal mac_ctx,
 	pe_debug("received HIDE_SSID message old HIDE_SSID: %d new HIDE_SSID: %d",
 			session->ssidHidden, ssid_hidden);
 
-	if (ssid_hidden != session->ssidHidden)
+	if (ssid_hidden != session->ssidHidden) {
 		session->ssidHidden = ssid_hidden;
+	} else {
+		pe_debug("Dont process HIDE_SSID msg with existing setting");
+		return;
+	}
 
 	/* Send vdev restart */
 	lim_send_vdev_restart(mac_ctx, session, session->smeSessionId);
-
-	/* Update beacon */
-	sch_set_fixed_beacon_fields(mac_ctx, session);
-	lim_send_beacon_ind(mac_ctx, session);
 
 	return;
 }

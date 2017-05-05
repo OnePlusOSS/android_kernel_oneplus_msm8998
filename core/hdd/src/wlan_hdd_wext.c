@@ -8923,6 +8923,8 @@ static int __iw_setnone_getint(struct net_device *dev,
 	{
 		sme_get_config_param(hHal, &smeConfig);
 		*value = (smeConfig.csrConfig.enable2x2 == 0) ? 1 : 2;
+		 if (wma_is_current_hwmode_dbs())
+			 *value = *value-1;
 		hdd_debug("GET_NSS: Current NSS:%d", *value);
 		break;
 	}

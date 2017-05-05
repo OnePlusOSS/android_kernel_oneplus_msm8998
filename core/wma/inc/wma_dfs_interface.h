@@ -189,11 +189,11 @@ struct ieee80211_dfs_state {
  * @DFS_HWBD_QCA6174: Rome(AR6320)
  * @DFS_HWBD_QCA2582: Killer 1525
  */
-typedef enum {
+enum DFS_HWBD_ID {
 	DFS_HWBD_NONE = 0,
 	DFS_HWBD_QCA6174 = 1,
 	DFS_HWBD_QCA2582 = 2,
-} DFS_HWBD_ID;
+};
 
 
 /**
@@ -208,7 +208,7 @@ typedef enum {
  * @last_radar_found_chan: last radar found channel
  * @dfs_pri_multiplier: dfs multiplier
  */
-typedef struct ieee80211com {
+struct ieee80211com {
 	void (*ic_start_csa)(struct ieee80211com *ic, uint8_t ieeeChan);
 	void (*ic_get_ext_chan_info)(struct ieee80211com *ic,
 				     struct ieee80211_channel_list *chan);
@@ -267,8 +267,8 @@ typedef struct ieee80211com {
 	int32_t dfs_pri_multiplier;
 	qdf_spinlock_t chan_lock;
 	bool disable_phy_err_processing;
-	DFS_HWBD_ID dfs_hw_bd_id;
-} IEEE80211COM, *PIEEE80211COM;
+	enum DFS_HWBD_ID dfs_hw_bd_id;
+};
 
 /**
  * ieee80211_chan2freq() - Convert channel to frequency value.
@@ -281,9 +281,8 @@ static inline u_int
 ieee80211_chan2freq(struct ieee80211com *ic,
 			const struct dfs_ieee80211_channel *c)
 {
-	if (c == NULL) {
+	if (c == NULL)
 		return 0;
-	}
 	return (c == DFS_IEEE80211_CHAN_ANYC) ?
 			DFS_IEEE80211_CHAN_ANY : c->ic_freq;
 }

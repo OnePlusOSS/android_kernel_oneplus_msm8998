@@ -564,13 +564,10 @@ int dfs_radar_enable(struct ieee80211com *ic,
 	struct ath_dfs *dfs;
 	struct dfs_state *rs_pri, *rs_ext;
 	struct dfs_ieee80211_channel *chan = ic->ic_curchan, *ext_ch = NULL;
-	is_ext_ch = IEEE80211_IS_CHAN_11N_HT40(ic->ic_curchan);
+
 	dfs = (struct ath_dfs *)ic->ic_dfs;
 	rs_pri = NULL;
 	rs_ext = NULL;
-#if 0
-	int i;
-#endif
 	if (dfs == NULL) {
 		DFS_DPRINTK(dfs, ATH_DEBUG_DFS, "%s: ic_dfs is NULL\n",
 			    __func__);
@@ -599,6 +596,8 @@ int dfs_radar_enable(struct ieee80211com *ic,
 	if ((ic->ic_opmode == IEEE80211_M_HOSTAP
 	     || ic->ic_opmode == IEEE80211_M_IBSS)) {
 
+		qdf_spin_lock_bh(&ic->chan_lock);
+		is_ext_ch = IEEE80211_IS_CHAN_11N_HT40(ic->ic_curchan);
 		if (IEEE80211_IS_CHAN_DFS(chan)) {
 
 			uint8_t index_pri, index_ext;
@@ -629,17 +628,6 @@ int dfs_radar_enable(struct ieee80211com *ic,
 
 				OS_MEMSET(&pe, '\0', sizeof(pe));
 
-				if (index_pri != dfs->dfs_curchan_radindex) {
-					dfs_reset_alldelaylines(dfs,
-								DFS_80P80_SEG0);
-					/*
-					 * Reset only when ext segment is
-					 * present
-					 */
-					if (chan->ic_80p80_both_dfs)
-						dfs_reset_alldelaylines(dfs,
-								DFS_80P80_SEG1);
-				}
 				dfs->dfs_curchan_radindex = (int16_t) index_pri;
 				dfs->dfs_pri_multiplier_ini =
 					radar_info->dfs_pri_multiplier;
@@ -648,6 +636,7 @@ int dfs_radar_enable(struct ieee80211com *ic,
 					dfs->dfs_extchan_radindex =
 						(int16_t) index_ext;
 
+				qdf_spin_unlock_bh(&ic->chan_lock);
 				ath_dfs_phyerr_param_copy(&pe,
 							  &rs_pri->rs_param);
 				DFS_DPRINTK(dfs, ATH_DEBUG_DFS3,
@@ -673,11 +662,14 @@ int dfs_radar_enable(struct ieee80211com *ic,
 				DFS_DPRINTK(dfs, ATH_DEBUG_DFS3,
 					    "%s: duration multiplier is %d\n",
 					    __func__, dfs->dur_multiplier);
-			} else
+			} else {
+				qdf_spin_unlock_bh(&ic->chan_lock);
 				DFS_DPRINTK(dfs, ATH_DEBUG_DFS,
 					    "%s: No more radar states left\n",
 					    __func__);
-		}
+			}
+		} else
+			qdf_spin_unlock_bh(&ic->chan_lock);
 	}
 
 	return DFS_STATUS_SUCCESS;

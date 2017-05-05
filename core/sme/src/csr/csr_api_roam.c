@@ -13893,11 +13893,12 @@ QDF_STATUS csr_roam_del_pmkid_from_cache(tpAniSirGlobal pMac,
 				pmksa->cache_id, CACHE_ID_LEN)))
 			fMatchFound = 1;
 
-		if (fMatchFound)
-			/* Clear this - the matched entry */
+		if (fMatchFound) {
+			/* Clear this - matched entry */
 			qdf_mem_zero(cached_pmksa,
 				     sizeof(tPmkidCacheInfo));
 			break;
+		}
 	}
 
 	if (Index == CSR_MAX_PMKID_ALLOWED && !fMatchFound) {
@@ -18544,6 +18545,14 @@ csr_roam_offload_scan(tpAniSirGlobal mac_ctx, uint8_t session_id,
 		sme_err("Roam Scan Offload is already started");
 		return QDF_STATUS_E_FAILURE;
 	}
+
+	/* Roaming is not supported currently for FILS akm */
+	if (session->pCurRoamProfile &&
+	    CSR_IS_AUTH_TYPE_FILS(
+	    session->pCurRoamProfile->AuthType.authType[0])) {
+		sme_info("Roaming not suppprted for fils based connection");
+		return QDF_STATUS_SUCCESS;
+	}
 	/*
 	 * The Dynamic Config Items Update may happen even if the state is in
 	 * INIT. It is important to ensure that the command is passed down to
@@ -19651,7 +19660,7 @@ void csr_process_ho_fail_ind(tpAniSirGlobal pMac, void *pMsgBuf)
 	csr_roam_roaming_offload_timer_action(pMac, 0, sessionId,
 			ROAMING_OFFLOAD_TIMER_STOP);
 	csr_roam_call_callback(pMac, sessionId, NULL, 0,
-			eCSR_ROAM_NAPI_OFF, eSIR_SME_SUCCESS);
+			eCSR_ROAM_NAPI_OFF, eCSR_ROAM_RESULT_FAILURE);
 	csr_roam_synch_clean_up(pMac, sessionId);
 	csr_roaming_report_diag_event(pMac, NULL,
 			eCSR_REASON_ROAM_HO_FAIL);

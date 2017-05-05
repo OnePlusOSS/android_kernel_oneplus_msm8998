@@ -89,6 +89,8 @@
 
 #define FRAGMENT_SIZE 3072
 
+#define MAX_PRINT_FAILURE_CNT 50
+
 #define WMA_INVALID_VDEV_ID                             0xFF
 #define MAX_MEM_CHUNKS                                  32
 #define WMA_MAX_VDEV_SIZE                               20
@@ -214,7 +216,8 @@ enum ds_mode {
 #define WMA_ROAM_LOW_RSSI_TRIGGER_VERYLOW    (10)
 #define WMA_ROAM_BEACON_WEIGHT_DEFAULT       (14)
 #define WMA_ROAM_OPP_SCAN_PERIOD_DEFAULT     (120000)
-#define WMA_ROAM_OPP_SCAN_AGING_PERIOD_DEFAULT (WMA_ROAM_OPP_SCAN_PERIOD_DEFAULT * 5)
+#define WMA_ROAM_OPP_SCAN_AGING_PERIOD_DEFAULT \
+					(WMA_ROAM_OPP_SCAN_PERIOD_DEFAULT * 5)
 #define WMA_ROAM_BMISS_FIRST_BCNT_DEFAULT    (10)
 #define WMA_ROAM_BMISS_FINAL_BCNT_DEFAULT    (10)
 #define WMA_ROAM_BMISS_FIRST_BCNT_DEFAULT_P2P (15)
@@ -651,6 +654,7 @@ enum wma_phy_idx {
 struct wma_mem_chunk {
 	uint32_t *vaddr;
 	uint32_t paddr;
+
 	qdf_dma_mem_context(memctx);
 	uint32_t len;
 	uint32_t req_id;
@@ -1639,6 +1643,7 @@ typedef struct {
 	 * the serialized MC thread context with a timer.
 	 */
 	qdf_mc_timer_t service_ready_ext_timer;
+
 	QDF_STATUS (*csr_roam_synch_cb)(tpAniSirGlobal mac,
 		roam_offload_synch_ind *roam_synch_data,
 		tpSirBssDescription  bss_desc_ptr,
@@ -1671,6 +1676,8 @@ typedef struct {
 	struct peer_debug_info *peer_dbg;
 	bool auto_power_save_enabled;
 	uint8_t in_imps;
+	uint64_t tx_fail_cnt;
+	uint64_t wmi_desc_fail_count;
 #ifdef FEATURE_SPECTRAL_SCAN
 	struct vdev_spectral_configure_params ss_configs;
 #endif
@@ -2393,6 +2400,16 @@ QDF_STATUS wma_create_peer(tp_wma_handle wma, ol_txrx_pdev_handle pdev,
 			   u_int32_t peer_type, u_int8_t vdev_id,
 			   bool roam_synch_in_progress);
 
+/**
+ * wma_get_cca_stats() - send request to fw to get CCA
+ * @wmi_hdl: wma handle
+ * @vdev_id: vdev id
+ *
+ * Return: QDF status
+ */
+QDF_STATUS wma_get_cca_stats(tp_wma_handle wma_handle,
+				uint8_t vdev_id);
+
 struct wma_ini_config *wma_get_ini_handle(tp_wma_handle wma_handle);
 WLAN_PHY_MODE wma_chan_phy_mode(u8 chan, enum phy_ch_width chan_width,
 	u8 dot11_mode);
@@ -2580,5 +2597,13 @@ static inline void wma_print_wmi_mgmt_event_log(uint32_t count,
 					 print_priv);
 }
 #endif /* WMI_INTERFACE_EVENT_LOGGING */
+
+/**
+ * wma_ipa_uc_stat_request() - set ipa config parameters
+ * @privcmd: private command
+ *
+ * Return: None
+ */
+void wma_ipa_uc_stat_request(wma_cli_set_cmd_t *privcmd);
 
 #endif

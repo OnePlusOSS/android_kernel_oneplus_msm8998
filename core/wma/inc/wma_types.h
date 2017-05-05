@@ -35,7 +35,8 @@
 #include "i_cds_packet.h"
 
 #define IS_MCC_SUPPORTED 1
-#define IS_FEATURE_SUPPORTED_BY_FW(feat_enum_value) wma_get_fw_wlan_feat_caps(feat_enum_value)
+#define IS_FEATURE_SUPPORTED_BY_FW(feat_enum_value) \
+				wma_get_fw_wlan_feat_caps(feat_enum_value)
 
 #define IS_ROAM_SCAN_OFFLOAD_FEATURE_ENABLE 1
 
@@ -175,6 +176,7 @@
 #define WMA_ENTER_PS_REQ               SIR_HAL_ENTER_PS_REQ
 #define WMA_EXIT_PS_REQ                SIR_HAL_EXIT_PS_REQ
 
+#define WMA_HIDDEN_SSID_RESTART_RSP    SIR_HAL_HIDDEN_SSID_RESTART_RSP
 #define WMA_SWITCH_CHANNEL_RSP         SIR_HAL_SWITCH_CHANNEL_RSP
 #define WMA_P2P_NOA_ATTR_IND           SIR_HAL_P2P_NOA_ATTR_IND
 #define WMA_P2P_NOA_START_IND          SIR_HAL_P2P_NOA_START_IND
@@ -182,7 +184,8 @@
 #define WMA_REGISTER_PE_CALLBACK       SIR_HAL_REGISTER_PE_CALLBACK
 
 #define WMA_IBSS_STA_ADD               SIR_HAL_IBSS_STA_ADD
-#define WMA_TIMER_ADJUST_ADAPTIVE_THRESHOLD_IND   SIR_HAL_TIMER_ADJUST_ADAPTIVE_THRESHOLD_IND
+#define WMA_TIMER_ADJUST_ADAPTIVE_THRESHOLD_IND \
+		SIR_HAL_TIMER_ADJUST_ADAPTIVE_THRESHOLD_IND
 #define WMA_SET_LINK_STATE             SIR_HAL_SET_LINK_STATE
 #define WMA_SET_LINK_STATE_RSP         SIR_HAL_SET_LINK_STATE_RSP
 #define WMA_SET_STA_BCASTKEY_REQ       SIR_HAL_SET_STA_BCASTKEY_REQ
@@ -674,23 +677,23 @@ struct ar6k_testmode_cmd_data {
  * @WMA_TDLS_PEER_ADD_MAC_ADDR: add peer into connection table
  * @WMA_TDLS_PEER_REMOVE_MAC_ADDR: remove peer from connection table
  */
-typedef enum {
+enum WMA_TdlsPeerState {
 	WMA_TDLS_PEER_STATE_PEERING,
 	WMA_TDLS_PEER_STATE_CONNECTED,
 	WMA_TDLS_PEER_STATE_TEARDOWN,
 	WMA_TDLS_PEER_ADD_MAC_ADDR,
 	WMA_TDLS_PEER_REMOVE_MAC_ADDR,
-} WMA_TdlsPeerState;
+};
 
 /**
  * enum wma_tdls_off_chan_mode - modes for WMI_TDLS_SET_OFFCHAN_MODE_CMDID
  * @WMA_TDLS_ENABLE_OFFCHANNEL: enable off channel
  * @WMA_TDLS_DISABLE_OFFCHANNEL: disable off channel
  */
-typedef enum {
+enum wma_tdls_off_chan_mode {
 	WMA_TDLS_ENABLE_OFFCHANNEL,
 	WMA_TDLS_DISABLE_OFFCHANNEL
-} wma_tdls_off_chan_mode;
+};
 
 #endif /* FEATURE_WLAN_TDLS */
 

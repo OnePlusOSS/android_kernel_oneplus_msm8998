@@ -480,13 +480,13 @@ static int wma_ndp_indication_event_handler(void *handle, uint8_t *event_info,
 	WMI_MAC_ADDR_TO_CHAR_ARRAY(&fixed_params->peer_discovery_mac_addr,
 				ind_event.peer_discovery_mac_addr.bytes);
 
-	WMA_LOGD(FL("WMI_NDP_INDICATION_EVENTID(0x%X) received. vdev %d, \n"
-		"service_instance %d, ndp_instance %d, role %d, policy %d, \n"
-		"csid: %d, scid_len: %d, peer_mac_addr: %pM, peer_disc_mac_addr: %pM"),
-		 WMI_NDP_INDICATION_EVENTID, fixed_params->vdev_id,
+	WMA_LOGD(FL("WMI_NDP_INDICATION_EVENTID(0x%X) received. vdev %d"),
+		 WMI_NDP_INDICATION_EVENTID, fixed_params->vdev_id);
+	WMA_LOGD(FL("service_instance %d, ndp_instance %d, role %d, policy %d"),
 		 fixed_params->service_instance_id,
 		 fixed_params->ndp_instance_id, fixed_params->self_ndp_role,
-		 fixed_params->accept_policy,
+		 fixed_params->accept_policy);
+	WMA_LOGD(FL("csid: %d, scid_len: %d, peer_mac_addr: %pM, peer_disc_mac_addr: %pM"),
 		 fixed_params->nan_csid, fixed_params->nan_scid_len,
 		 ind_event.peer_mac_addr.bytes,
 		 ind_event.peer_discovery_mac_addr.bytes);
@@ -1148,8 +1148,8 @@ void wma_delete_all_nan_remote_peers(tp_wma_handle wma, uint32_t vdev_id)
 		if (peer == TAILQ_FIRST(&vdev->peer_list)) {
 			WMA_LOGE("%s: self peer removed", __func__);
 			break;
-		} else
-			temp = peer;
+		}
+		temp = peer;
 	}
 	qdf_spin_unlock_bh(&vdev->pdev->peer_ref_mutex);
 

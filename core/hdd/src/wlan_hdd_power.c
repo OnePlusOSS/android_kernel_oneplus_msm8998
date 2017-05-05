@@ -534,6 +534,11 @@ void hdd_conf_ns_offload(hdd_adapter_t *adapter, bool fenable)
 		return;
 	}
 
+	if (QDF_IBSS_MODE == adapter->device_mode) {
+		hdd_debug("NS Offload is not supported in IBSS mode");
+		return;
+	}
+
 	if (fenable)
 		hdd_enable_ns_offload(adapter);
 	else
@@ -1630,6 +1635,7 @@ QDF_STATUS hdd_wlan_re_init(void)
 	pHddCtx->last_scan_reject_timestamp = 0;
 
 	hdd_set_roaming_in_progress(false);
+	complete(&pAdapter->roaming_comp_var);
 	pHddCtx->btCoexModeSet = false;
 
 	/* Allow the phone to go to sleep */

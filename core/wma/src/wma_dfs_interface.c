@@ -172,16 +172,15 @@ uint32_t ieee80211_ieee2mhz(uint32_t chan, uint32_t flags)
 	} else if (flags & IEEE80211_CHAN_5GHZ) {
 		/* 5Ghz band */
 		return 5000 + (chan * 5);
-	} else {
-		/* either, guess */
-		if (chan == 14)
-			return 2484;
-		if (chan < 14)  /* 0-13 */
-			return 2407 + chan * 5;
-		if (chan < 27)  /* 15-26 */
-			return 2512 + ((chan - 15) * 20);
-		return 5000 + (chan * 5);
 	}
+	/* either, guess */
+	if (chan == 14)
+		return 2484;
+	if (chan < 14)  /* 0-13 */
+		return 2407 + chan * 5;
+	if (chan < 27)  /* 15-26 */
+		return 2512 + ((chan - 15) * 20);
+	return 5000 + (chan * 5);
 }
 
 /**
@@ -242,6 +241,7 @@ void
 ieee80211_mark_dfs(struct ieee80211com *ic, struct dfs_ieee80211_channel *ichan)
 {
 	int status;
+
 	status = wma_dfs_indicate_radar(ic, ichan);
 }
 

@@ -1294,7 +1294,7 @@ static void lim_join_result_callback(tpAniSirGlobal mac, void *param,
 	lim_send_sme_join_reassoc_rsp(mac, eWNI_SME_JOIN_RSP,
 				      link_state_params->result_code,
 				      link_state_params->prot_status_code,
-				      NULL, sme_session_id, sme_trans_id);
+				      session, sme_session_id, sme_trans_id);
 	pe_delete_session(mac, session);
 	qdf_mem_free(link_state_params);
 }
@@ -2613,6 +2613,38 @@ void lim_process_mlm_add_bss_rsp(tpAniSirGlobal mac_ctx,
 		}
 	}
 #endif
+}
+
+void lim_process_mlm_update_hidden_ssid_rsp(tpAniSirGlobal mac_ctx,
+	tpSirMsgQ msg)
+{
+	tpPESession session_entry;
+	tpHalHiddenSsidVdevRestart hidden_ssid_vdev_restart;
+
+	hidden_ssid_vdev_restart = (tpHalHiddenSsidVdevRestart)(msg->bodyptr);
+
+	if (NULL == hidden_ssid_vdev_restart) {
+		pe_err("NULL msg pointer");
+		return;
+	}
+
+	session_entry = pe_find_session_by_session_id(mac_ctx,
+			hidden_ssid_vdev_restart->pe_session_id);
+
+	if (session_entry == NULL) {
+		pe_err("SessionId:%d Session Doesn't exist",
+			hidden_ssid_vdev_restart->pe_session_id);
+		goto free_req;
+	}
+	/* Update beacon */
+	sch_set_fixed_beacon_fields(mac_ctx, session_entry);
+	lim_send_beacon_ind(mac_ctx, session_entry);
+
+free_req:
+	if (NULL != hidden_ssid_vdev_restart) {
+		qdf_mem_free(hidden_ssid_vdev_restart);
+		msg->bodyptr = NULL;
+	}
 }
 
 /**

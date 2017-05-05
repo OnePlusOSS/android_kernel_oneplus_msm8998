@@ -197,7 +197,7 @@ lim_add_fils_data_to_auth_frame(tpPESession session, uint8_t *body)
 static inline bool lim_is_valid_fils_auth_frame(tpAniSirGlobal mac_ctx,
 	tpPESession pe_session, tSirMacAuthFrameBody *rx_auth_frm_body)
 {
-	return false;
+	return true;
 }
 
 static inline void

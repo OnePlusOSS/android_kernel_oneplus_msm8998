@@ -7258,8 +7258,12 @@ void csr_init_occupied_channels_list(tpAniSirGlobal pMac, uint8_t sessionId)
 		/* At this time, pBssDescription->Result.pvIes may be NULL */
 		if (!pIes && !QDF_IS_STATUS_SUCCESS(
 			csr_get_parsed_bss_description_ies(pMac,
-				&pBssDesc->Result.BssDescriptor, &pIes)))
+				&pBssDesc->Result.BssDescriptor, &pIes))) {
+			/* Pick next bss entry before continuing */
+			pEntry = csr_ll_next(&pMac->scan.scanResultList, pEntry,
+				     LL_ACCESS_NOLOCK);
 			continue;
+		}
 		csr_scan_add_to_occupied_channels(pMac, pBssDesc, sessionId,
 				&pMac->scan.occupiedChannels[sessionId], pIes,
 				true);

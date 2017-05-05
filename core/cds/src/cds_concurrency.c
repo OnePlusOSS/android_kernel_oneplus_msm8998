@@ -9237,6 +9237,12 @@ void cds_remove_sap_mandatory_chan(uint8_t chan)
 		return;
 	}
 
+	if (cds_ctx->sap_mandatory_channels_len >= QDF_MAX_NUM_CHAN) {
+		cds_err("Invalid channel len %d ",
+			cds_ctx->sap_mandatory_channels_len);
+		return;
+	}
+
 	for (i = 0; i < cds_ctx->sap_mandatory_channels_len; i++) {
 		if (chan == cds_ctx->sap_mandatory_channels[i])
 			continue;

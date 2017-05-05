@@ -168,7 +168,7 @@ irqreturn_t hw_vsync_handler(int irq, void *data)
 	else
 		pr_err("Pstatus data is NULL\n");
 
-	schedule_work(&pstatus_data->irq_done);
+	queue_work(system_highpri_wq, &pstatus_data->irq_done);
 
 	return IRQ_HANDLED;
 }

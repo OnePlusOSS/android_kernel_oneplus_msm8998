@@ -15294,6 +15294,7 @@ static int __wlan_hdd_cfg80211_disconnect(struct wiphy *wiphy,
 							 pAdapter->sessionId, mac);
 			}
 		}
+		wlan_hdd_tdls_notify_disconnect(pAdapter, true);
 #endif
 		hdd_info("Disconnect request from user space with reason: %d (%s) internal reason code: %d",
 			reason, hdd_ieee80211_reason_code_to_str(reason), reasonCode);

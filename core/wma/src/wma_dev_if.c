@@ -742,6 +742,11 @@ send_fail_resp:
 	if (add_bss->status != QDF_STATUS_SUCCESS) {
 		WMA_LOGE("%s: ADD BSS failure %d", __func__, add_bss->status);
 
+		/* Send vdev stop if vdev start was success*/
+		if (!resp_event->status)
+			if (wma_send_vdev_stop_to_fw(wma, resp_event->vdev_id))
+				WMA_LOGE("%s: %d Failed to send vdev stop", __func__, __LINE__);
+
 		pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 		if (NULL == pdev)
 			WMA_LOGE("%s: Failed to get pdev", __func__);

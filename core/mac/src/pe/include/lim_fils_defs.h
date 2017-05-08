@@ -41,6 +41,7 @@
 #define IPN_LEN 6
 #define FILS_SESSION_LENGTH 8
 #define FILS_MAX_KDE_LIST_LEN 255
+#define FILS_MAX_HLP_DATA_LEN 2048
 
 /* 12.12.2.5.3 80211-ai draft */
 #define FILS_SHA384_KEK_LEN 64
@@ -216,6 +217,10 @@ struct fils_auth_rsp_info {
  * @igtk_len: igtk length
  * @igtk: igtk data pointer
  * @ipn: pointer to ipn data
+ * @dst_mac: HLP destination mac address
+ * @src_mac: HLP source mac address
+ * @hlp_data_len: HLP data length
+ * @hlp_data: pointer to HLP data
  */
 struct pe_fils_session {
 	bool is_fils_connection;
@@ -259,4 +264,8 @@ struct pe_fils_session {
 	uint8_t igtk_len;
 	uint8_t igtk[MAX_IGTK_LEN];
 	uint8_t ipn[IPN_LEN];
+	struct qdf_mac_addr dst_mac;
+	struct qdf_mac_addr src_mac;
+	uint16_t hlp_data_len;
+	uint8_t *hlp_data;
 };

@@ -9624,6 +9624,39 @@ send_status:
 }
 
 /**
+ * cds_get_chan_by_session_id() - Get channel for a given session ID
+ * @session_id: Session ID
+ * @chan: Pointer to the channel
+ *
+ * Gets the channel for a given session ID
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS cds_get_chan_by_session_id(uint8_t session_id, uint8_t *chan)
+{
+	cds_context_type *cds_ctx;
+	uint32_t i;
+
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
+	for (i = 0; i < MAX_NUMBER_OF_CONC_CONNECTIONS; i++) {
+		if ((conc_connection_list[i].vdev_id == session_id) &&
+		    (conc_connection_list[i].in_use)) {
+			*chan = conc_connection_list[i].chan;
+			qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
+			return QDF_STATUS_SUCCESS;
+		}
+	}
+	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
+	return QDF_STATUS_E_FAILURE;
+}
+
+/**
  * cds_get_mac_id_by_session_id() - Get MAC ID for a given session ID
  * @session_id: Session ID
  * @mac_id: Pointer to the MAC ID
@@ -9671,11 +9704,18 @@ QDF_STATUS cds_get_mcc_session_id_on_mac(uint8_t mac_id, uint8_t session_id,
 {
 	cds_context_type *cds_ctx;
 	uint32_t i;
-	uint8_t chan = conc_connection_list[session_id].chan;
+	QDF_STATUS status;
+	uint8_t chan;
 
 	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
 	if (!cds_ctx) {
 		cds_err("Invalid CDS Context");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	status = cds_get_chan_by_session_id(session_id, &chan);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		hdd_err("Failed to get channel for session id:%d", session_id);
 		return QDF_STATUS_E_FAILURE;
 	}
 
@@ -9732,9 +9772,12 @@ uint8_t cds_get_mcc_operating_channel(uint8_t session_id)
 		return INVALID_CHANNEL_ID;
 	}
 
-	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
-	chan = conc_connection_list[mcc_session_id].chan;
-	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
+	status = cds_get_chan_by_session_id(mcc_session_id, &chan);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		hdd_err("Failed to get channel for MCC session ID:%d",
+			 mcc_session_id);
+		return INVALID_CHANNEL_ID;
+	}
 
 	return chan;
 }

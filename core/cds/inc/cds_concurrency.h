@@ -857,6 +857,7 @@ QDF_STATUS cds_deregister_sap_restart_channel_switch_cb(void);
 #endif
 bool cds_is_any_mode_active_on_band_along_with_session(uint8_t session_id,
 						       enum cds_band band);
+QDF_STATUS cds_get_chan_by_session_id(uint8_t session_id, uint8_t *chan);
 QDF_STATUS cds_get_mac_id_by_session_id(uint8_t session_id, uint8_t *mac_id);
 QDF_STATUS cds_get_mcc_session_id_on_mac(uint8_t mac_id, uint8_t session_id,
 						uint8_t *mcc_session_id);

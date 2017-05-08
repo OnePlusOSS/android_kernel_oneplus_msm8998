@@ -1506,7 +1506,7 @@ __wlan_hdd_cfg80211_ll_stats_get(struct wiphy *wiphy,
 	}
 
 	rc = wlan_hdd_send_ll_stats_req(pHddCtx, &LinkLayerStatsGetReq);
-	if (!rc) {
+	if (0 != rc) {
 		hdd_err("Failed to send LL stats request (id:%u)",
 			LinkLayerStatsGetReq.reqId);
 		return rc;
@@ -3099,7 +3099,18 @@ static int __wlan_hdd_cfg80211_get_station(struct wiphy *wiphy,
 				  RCPI_MEASUREMENT_TYPE_AVG_MGMT);
 
 	wlan_hdd_get_station_stats(pAdapter);
-	sinfo->signal = pAdapter->hdd_stats.summary_stat.rssi;
+
+	if (pAdapter->hdd_stats.summary_stat.rssi)
+		pAdapter->rssi = pAdapter->hdd_stats.summary_stat.rssi;
+
+	/* for new connection there might be no valid previous RSSI */
+	if (!pAdapter->rssi) {
+		hdd_get_rssi_snr_by_bssid(pAdapter,
+				pHddStaCtx->conn_info.bssId.bytes,
+				&pAdapter->rssi, NULL);
+	}
+
+	sinfo->signal = pAdapter->rssi;
 	snr = pAdapter->hdd_stats.summary_stat.snr;
 	hdd_debug("snr: %d, rssi: %d",
 		pAdapter->hdd_stats.summary_stat.snr,

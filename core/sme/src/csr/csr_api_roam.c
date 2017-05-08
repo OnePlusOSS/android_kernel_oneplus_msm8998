@@ -6831,6 +6831,11 @@ static QDF_STATUS populate_fils_params_join_rsp(tpAniSirGlobal mac_ctx,
 	qdf_mem_copy(roam_fils_info->gtk,
 		     fils_join_rsp->gtk, roam_fils_info->gtk_len);
 
+	cds_copy_hlp_info(&fils_join_rsp->dst_mac, &fils_join_rsp->src_mac,
+			  fils_join_rsp->hlp_data_len, fils_join_rsp->hlp_data,
+			  &roam_fils_info->dst_mac, &roam_fils_info->src_mac,
+			  &roam_fils_info->hlp_data_len,
+			  roam_fils_info->hlp_data);
 	sme_debug("FILS connect params copied to CSR!");
 
 free_fils_join_rsp:
@@ -15175,6 +15180,8 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 				break;
 			}
 		}
+		csr_join_req->ignore_assoc_disallowed =
+					pSession->ignore_assoc_disallowed;
 		status = cds_send_mb_message_to_mac(csr_join_req);
 		if (!QDF_IS_STATUS_SUCCESS(status)) {
 			/*

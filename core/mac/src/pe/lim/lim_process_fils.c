@@ -1278,6 +1278,12 @@ void populate_fils_connect_params(tpAniSirGlobal mac_ctx,
 	fils_join_rsp->gtk_len = fils_info->gtk_len;
 	qdf_mem_copy(fils_join_rsp->gtk, fils_info->gtk, fils_info->gtk_len);
 
+	cds_copy_hlp_info(&fils_info->dst_mac, &fils_info->src_mac,
+			  fils_info->hlp_data_len, fils_info->hlp_data,
+			  &fils_join_rsp->dst_mac, &fils_join_rsp->src_mac,
+			  &fils_join_rsp->hlp_data_len,
+			  fils_join_rsp->hlp_data);
+
 	pe_debug("FILS connect params copied lim");
 	pe_delete_fils_info(session);
 }
@@ -1427,6 +1433,22 @@ bool lim_verify_fils_params_assoc_rsp(tpAniSirGlobal mac_ctx,
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		pe_err("KDE parsing fails");
 		goto verify_fils_params_fails;
+	}
+
+	if (assoc_rsp->hlp_data_len) {
+		fils_info->hlp_data = qdf_mem_malloc(assoc_rsp->hlp_data_len);
+
+		if (!fils_info->hlp_data) {
+			pe_err("FILS session HLP data malloc fails");
+			return true;
+		}
+
+		/* Save the HLP container IE data if present*/
+		cds_copy_hlp_info(&assoc_rsp->dst_mac, &assoc_rsp->src_mac,
+				  assoc_rsp->hlp_data_len, assoc_rsp->hlp_data,
+				  &fils_info->dst_mac, &fils_info->src_mac,
+				  &fils_info->hlp_data_len,
+				  fils_info->hlp_data);
 	}
 	return true;
 

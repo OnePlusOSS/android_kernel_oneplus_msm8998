@@ -70,10 +70,12 @@ int ce_send_fast(struct CE_handle *copyeng, qdf_nbuf_t msdu,
  * succeeds, that guarantees that the target has room to accept
  * the new tx frame.
  */
-static inline qdf_nbuf_t ol_tx_prepare_ll(struct ol_tx_desc_t *tx_desc,
-			ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu,
-			struct ol_txrx_msdu_info_t *msdu_info)
+static struct ol_tx_desc_t *
+ol_tx_prepare_ll(ol_txrx_vdev_handle vdev,
+		 qdf_nbuf_t msdu,
+		 struct ol_txrx_msdu_info_t *msdu_info)
 {
+	struct ol_tx_desc_t *tx_desc;
 	struct ol_txrx_pdev_t *pdev = vdev->pdev;
 
 	(msdu_info)->htt.info.frame_type = pdev->htt_pkt_type;
@@ -88,10 +90,10 @@ static inline qdf_nbuf_t ol_tx_prepare_ll(struct ol_tx_desc_t *tx_desc,
 					vdev, msdu_info, true);
 		TXRX_STATS_MSDU_LIST_INCR(
 				pdev, tx.dropped.host_reject, msdu);
-		return msdu; /* the list of unaccepted MSDUs */
+		return NULL;
 	}
 
-	return NULL;
+	return tx_desc;
 }
 
 #if defined(FEATURE_TSO)
@@ -428,7 +430,8 @@ qdf_nbuf_t ol_tx_ll(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list)
 
 			segments--;
 
-			if (ol_tx_prepare_ll(tx_desc, vdev, msdu, &msdu_info))
+			tx_desc = ol_tx_prepare_ll(vdev, msdu, &msdu_info);
+			if (!tx_desc)
 				return msdu;
 
 			/*
@@ -491,7 +494,8 @@ qdf_nbuf_t ol_tx_ll(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list)
 
 		msdu_info.htt.info.ext_tid = qdf_nbuf_get_tid(msdu);
 		msdu_info.peer = NULL;
-		if (ol_tx_prepare_ll(tx_desc, vdev, msdu, &msdu_info))
+		tx_desc = ol_tx_prepare_ll(vdev, msdu, &msdu_info);
+		if (!tx_desc)
 			return msdu;
 
 		TXRX_STATS_MSDU_INCR(vdev->pdev, tx.from_stack, msdu);
@@ -1300,7 +1304,8 @@ ol_tx_non_std_ll(ol_txrx_vdev_handle vdev,
 		msdu_info.peer = NULL;
 		msdu_info.tso_info.is_tso = 0;
 
-		if (ol_tx_prepare_ll(tx_desc, vdev, msdu, &msdu_info))
+		tx_desc = ol_tx_prepare_ll(vdev, msdu, &msdu_info);
+		if (!tx_desc)
 			return msdu;
 
 		/*
@@ -1345,14 +1350,14 @@ static inline int ol_tx_encap_wrapper(struct ol_txrx_pdev_t *pdev,
 				      ol_txrx_vdev_handle vdev,
 				      struct ol_tx_desc_t *tx_desc,
 				      qdf_nbuf_t msdu,
-				      struct ol_txrx_msdu_info_t tx_msdu_info)
+				      struct ol_txrx_msdu_info_t *tx_msdu_info)
 {
-	if (OL_TX_ENCAP(vdev, tx_desc, msdu, &tx_msdu_info) != A_OK) {
+	if (OL_TX_ENCAP(vdev, tx_desc, msdu, tx_msdu_info) != A_OK) {
 		qdf_atomic_inc(&pdev->tx_queue.rsrc_cnt);
 		ol_tx_desc_frame_free_nonstd(pdev, tx_desc, 1);
-		if (tx_msdu_info.peer) {
+		if (tx_msdu_info->peer) {
 			/* remove the peer reference added above */
-			OL_TXRX_PEER_UNREF_DELETE(tx_msdu_info.peer);
+			OL_TXRX_PEER_UNREF_DELETE(tx_msdu_info->peer);
 		}
 		return -EINVAL;
 	}
@@ -1364,7 +1369,7 @@ static inline int ol_tx_encap_wrapper(struct ol_txrx_pdev_t *pdev,
 				      ol_txrx_vdev_handle vdev,
 				      struct ol_tx_desc_t *tx_desc,
 				      qdf_nbuf_t msdu,
-				      struct ol_txrx_msdu_info_t tx_msdu_info)
+				      struct ol_txrx_msdu_info_t *tx_msdu_info)
 {
 	/* no-op */
 	return 0;
@@ -1870,7 +1875,7 @@ ol_tx_hl_base(
 			 * encountered, jumps to the MSDU_LOOP_BOTTOM label.
 			 */
 			if (ol_tx_encap_wrapper(pdev, vdev, tx_desc, msdu,
-						tx_msdu_info))
+						&tx_msdu_info))
 				goto MSDU_LOOP_BOTTOM;
 
 			/* initialize the HW tx descriptor */
@@ -2149,7 +2154,8 @@ qdf_nbuf_t ol_tx_reinject(struct ol_txrx_vdev_t *vdev,
 	msdu_info.htt.action.tx_comp_req = 0;
 	msdu_info.tso_info.is_tso = 0;
 
-	if (ol_tx_prepare_ll(tx_desc, vdev, msdu, &msdu_info))
+	tx_desc = ol_tx_prepare_ll(vdev, msdu, &msdu_info);
+	if (!tx_desc)
 		return msdu;
 
 	HTT_TX_DESC_POSTPONED_SET(*((uint32_t *) (tx_desc->htt_tx_desc)), true);

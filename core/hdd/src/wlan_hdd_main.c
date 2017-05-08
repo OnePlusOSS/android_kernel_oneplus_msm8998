@@ -7282,9 +7282,6 @@ static hdd_context_t *hdd_context_create(struct device *dev)
 		goto err_free_config;
 	}
 
-	hdd_debug("Setting configuredMcastBcastFilter: %d",
-		   hdd_ctx->config->mcastBcastFilterSetting);
-
 	if (hdd_ctx->config->probe_req_ie_whitelist) {
 		if (hdd_validate_prb_req_ie_bitmap(hdd_ctx)) {
 			/* parse ini string probe req oui */

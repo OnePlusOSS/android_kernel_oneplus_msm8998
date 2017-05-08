@@ -144,7 +144,7 @@ static int hdd_close_ndi(hdd_adapter_t *adapter)
 	if (test_bit(SME_SESSION_OPENED, &adapter->event_flags)) {
 		INIT_COMPLETION(adapter->session_close_comp_var);
 		if (QDF_STATUS_SUCCESS == sme_close_session(hdd_ctx->hHal,
-				adapter->sessionId,
+				adapter->sessionId, true,
 				hdd_sme_close_session_callback, adapter)) {
 			/* Block on a timed completion variable */
 			rc = wait_for_completion_timeout(
@@ -2090,7 +2090,7 @@ error_register_wext:
 		INIT_COMPLETION(adapter->session_close_comp_var);
 		if (QDF_STATUS_SUCCESS ==
 				sme_close_session(hdd_ctx->hHal,
-					adapter->sessionId,
+					adapter->sessionId, true,
 					hdd_sme_close_session_callback,
 					adapter)) {
 			rc = wait_for_completion_timeout(

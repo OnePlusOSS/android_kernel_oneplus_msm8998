@@ -249,7 +249,18 @@ QDF_STATUS sme_open_session(tHalHandle hHal, csr_roam_completeCallback callback,
 		uint32_t subType);
 void sme_set_curr_device_mode(tHalHandle hHal,
 		enum tQDF_ADAPTER_MODE currDeviceMode);
+/**
+ * sme_close_session: Close session for scan/roam operation.
+ * @hHal: The handle returned by mac_open.
+ * @sessionId: A previous opened session's ID.
+ * @flush_all_sme_cmds: whether all sme commands needs to be flushed
+ * @callback: pointer to callback API
+ * @pContext: context needs to be passed to callback
+ *
+ * @Return: QDF_STATUS
+ */
 QDF_STATUS sme_close_session(tHalHandle hHal, uint8_t sessionId,
+		bool flush_all_sme_cmds,
 		csr_roamSessionCloseCallback callback,
 		void *pContext);
 QDF_STATUS sme_update_roam_params(tHalHandle hHal, uint8_t session_id,

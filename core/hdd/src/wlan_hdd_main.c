@@ -2840,9 +2840,9 @@ error_register_wext:
 	if (adapter->sessionId != HDD_SESSION_ID_INVALID) {
 		INIT_COMPLETION(adapter->session_close_comp_var);
 		if (QDF_STATUS_SUCCESS == sme_close_session(hdd_ctx->hHal,
-							    adapter->sessionId,
-							    hdd_sme_close_session_callback,
-							    adapter)) {
+						adapter->sessionId, true,
+						hdd_sme_close_session_callback,
+						adapter)) {
 			/*
 			 * Block on a completion variable.
 			 * Can't wait forever though.
@@ -3612,13 +3612,15 @@ void wlan_hdd_reset_prob_rspies(hdd_adapter_t *pHostapdAdapter)
  * hdd_wait_for_sme_close_sesion() - Close and wait for SME session close
  * @hdd_ctx: HDD context which is already NULL validated
  * @adapter: HDD adapter which is already NULL validated
+ * @flush_all_sme_cmds: whether all commands needs to be flushed
  *
  * Close the SME session and wait for its completion, if needed.
  *
  * Return: None
  */
 static void hdd_wait_for_sme_close_sesion(hdd_context_t *hdd_ctx,
-					hdd_adapter_t *adapter)
+					hdd_adapter_t *adapter,
+					bool flush_all_sme_cmds)
 {
 	unsigned long rc;
 
@@ -3630,6 +3632,7 @@ static void hdd_wait_for_sme_close_sesion(hdd_context_t *hdd_ctx,
 	INIT_COMPLETION(adapter->session_close_comp_var);
 	if (QDF_STATUS_SUCCESS ==
 			sme_close_session(hdd_ctx->hHal, adapter->sessionId,
+				flush_all_sme_cmds,
 				hdd_sme_close_session_callback,
 				adapter)) {
 		/*
@@ -3754,7 +3757,7 @@ QDF_STATUS hdd_stop_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 		 * wish to close the session
 		 */
 		if (true == bCloseSession)
-			hdd_wait_for_sme_close_sesion(hdd_ctx, adapter);
+			hdd_wait_for_sme_close_sesion(hdd_ctx, adapter, false);
 		break;
 
 	case QDF_SAP_MODE:
@@ -3832,7 +3835,7 @@ QDF_STATUS hdd_stop_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 			adapter->sessionCtx.ap.beacon = NULL;
 		}
 		if (true == bCloseSession)
-			hdd_wait_for_sme_close_sesion(hdd_ctx, adapter);
+			hdd_wait_for_sme_close_sesion(hdd_ctx, adapter, true);
 
 		sap_ctx = WLAN_HDD_GET_SAP_CTX_PTR(adapter);
 		if (wlansap_stop(sap_ctx) != QDF_STATUS_SUCCESS)

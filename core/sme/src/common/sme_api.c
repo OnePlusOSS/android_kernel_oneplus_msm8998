@@ -409,7 +409,7 @@ static void purge_sme_cmd_list(tpAniSirGlobal pMac)
 }
 
 void purge_sme_session_cmd_list(tpAniSirGlobal pMac, uint32_t sessionId,
-				tDblLinkList *pList)
+				tDblLinkList *pList, bool flush_all_cmds)
 {
 	/* release any out standing commands back to free command list */
 	tListElem *pEntry, *pNext;
@@ -427,6 +427,12 @@ void purge_sme_session_cmd_list(tpAniSirGlobal pMac, uint32_t sessionId,
 	while (pEntry != NULL) {
 		pNext = csr_ll_next(pList, pEntry, LL_ACCESS_NOLOCK);
 		pCommand = GET_BASE_ADDR(pEntry, tSmeCmd, Link);
+		if (!flush_all_cmds &&
+		    csr_is_disconnect_cmd(pCommand)) {
+			sme_debug("Ignore disconnect");
+			pEntry = pNext;
+			continue;
+		}
 		if (pCommand->sessionId == sessionId) {
 			if (csr_ll_remove_entry(pList, pEntry,
 						LL_ACCESS_NOLOCK))
@@ -6097,12 +6103,16 @@ QDF_STATUS sme_open_session(tHalHandle hHal, csr_roam_completeCallback callback,
  *
  * @hHal - The handle returned by mac_open.
  * @sessionId - A previous opened session's ID.
+ * @flush_all_sme_cmds: whether all sme commands needs to be flushed
+ * @callback: pointer to callback API
+ * @pContext: context needs to be passed to callback
  *
  * Return QDF_STATUS_SUCCESS - session is closed.
  * Other status means SME is failed to open the session.
  *	QDF_STATUS_E_INVAL - session is not opened.
  */
 QDF_STATUS sme_close_session(tHalHandle hHal, uint8_t sessionId,
+			     bool flush_all_sme_cmds,
 			     csr_roamSessionCloseCallback callback,
 			     void *pContext)
 {
@@ -6114,6 +6124,7 @@ QDF_STATUS sme_close_session(tHalHandle hHal, uint8_t sessionId,
 	status = sme_acquire_global_lock(&pMac->sme);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
 		status = csr_roam_close_session(pMac, sessionId, false,
+						flush_all_sme_cmds,
 						callback, pContext);
 
 		sme_release_global_lock(&pMac->sme);

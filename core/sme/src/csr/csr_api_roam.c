@@ -978,7 +978,7 @@ QDF_STATUS csr_stop(tpAniSirGlobal pMac, tHalStopType stopType)
 	uint32_t sessionId;
 
 	for (sessionId = 0; sessionId < CSR_ROAM_SESSION_MAX; sessionId++)
-		csr_roam_close_session(pMac, sessionId, true, NULL, NULL);
+		csr_roam_close_session(pMac, sessionId, true, true, NULL, NULL);
 
 	csr_scan_disable(pMac);
 	pMac->scan.fCancelIdleScan = false;
@@ -1160,7 +1160,7 @@ static QDF_STATUS csr_roam_close(tpAniSirGlobal pMac)
 	uint32_t sessionId;
 
 	for (sessionId = 0; sessionId < CSR_ROAM_SESSION_MAX; sessionId++)
-		csr_roam_close_session(pMac, sessionId, true, NULL, NULL);
+		csr_roam_close_session(pMac, sessionId, true, true, NULL, NULL);
 
 	qdf_mc_timer_stop(&pMac->roam.hTimerWaitForKey);
 	qdf_mc_timer_destroy(&pMac->roam.hTimerWaitForKey);
@@ -1387,6 +1387,22 @@ void csr_release_roc_req_cmd(tpAniSirGlobal mac_ctx)
 				sme_release_command(mac_ctx, cmd);
 		}
 	}
+}
+
+bool csr_is_disconnect_cmd(tSmeCmd *command)
+{
+	switch (command->command) {
+	case eSmeCommandRoam:
+		if (CSR_IS_DISCONNECT_COMMAND(command))
+			return true;
+		break;
+	case eSmeCommandWmStatusChange:
+		return true;
+	default:
+		return false;
+	}
+
+	return false;
 }
 
 void csr_abort_command(tpAniSirGlobal pMac, tSmeCmd *pCommand, bool fStopping)
@@ -16389,9 +16405,20 @@ QDF_STATUS csr_process_del_sta_session_rsp(tpAniSirGlobal pMac, uint8_t *pMsg)
 	return status;
 }
 
-
+/**
+ * csr_issue_del_sta_for_session_req: API to issue del Sta
+ * @pMac: mac context
+ * @sessionId: session id
+ * @flush_all_sme_cmds: whether all commands needs to be flushed
+ * @sessionMacAddr: session mac address
+ * @callback: callback API
+ * @pContext: context pointer
+ *
+ * Return: QDF_STATUS
+ */
 static QDF_STATUS
 csr_issue_del_sta_for_session_req(tpAniSirGlobal pMac, uint32_t sessionId,
+				  bool is_high_priority,
 				  tSirMacAddr sessionMacAddr,
 				  csr_roamSessionCloseCallback callback,
 				  void *pContext)
@@ -16409,7 +16436,8 @@ csr_issue_del_sta_for_session_req(tpAniSirGlobal pMac, uint32_t sessionId,
 		pCommand->u.delStaSessionCmd.pContext = pContext;
 		qdf_mem_copy(pCommand->u.delStaSessionCmd.selfMacAddr,
 			     sessionMacAddr, sizeof(tSirMacAddr));
-		status = csr_queue_sme_command(pMac, pCommand, true);
+		status = csr_queue_sme_command(pMac, pCommand,
+				is_high_priority);
 		if (!QDF_IS_STATUS_SUCCESS(status)) {
 			/* Should be panic?? */
 			sme_err(
@@ -16451,7 +16479,16 @@ QDF_STATUS csr_process_del_sta_session_command(tpAniSirGlobal pMac,
 	return status;
 }
 
-static void purge_csr_session_cmd_list(tpAniSirGlobal pMac, uint32_t sessionId)
+/**
+ * purge_csr_session_cmd_list: remove commands for cmd list
+ * @pMac: mac context
+ * @sessionId: session id
+ * @flush_all_cmd: whether all commands need to be flushed
+ *
+ * Return: None
+ */
+static void purge_csr_session_cmd_list(tpAniSirGlobal pMac, uint32_t sessionId,
+					bool flush_all_cmd)
 {
 	tDblLinkList *pList = &pMac->roam.roamCmdPendingList;
 	tListElem *pEntry, *pNext;
@@ -16468,6 +16505,12 @@ static void purge_csr_session_cmd_list(tpAniSirGlobal pMac, uint32_t sessionId)
 	while (pEntry != NULL) {
 		pNext = csr_ll_next(pList, pEntry, LL_ACCESS_NOLOCK);
 		pCommand = GET_BASE_ADDR(pEntry, tSmeCmd, Link);
+		if (!flush_all_cmd &&
+		    csr_is_disconnect_cmd(pCommand)) {
+			sme_debug(" Ignore disconnect");
+			pEntry = pNext;
+			continue;
+		}
 		if (pCommand->sessionId == sessionId) {
 			if (csr_ll_remove_entry(pList, pEntry,
 						LL_ACCESS_NOLOCK)) {
@@ -16503,19 +16546,33 @@ void csr_cleanup_session(tpAniSirGlobal pMac, uint32_t sessionId)
 #ifdef FEATURE_WLAN_BTAMP_UT_RF
 		qdf_mc_timer_destroy(&pSession->hTimerJoinRetry);
 #endif
-		purge_sme_session_cmd_list(pMac, sessionId,
-					   &pMac->sme.smeCmdPendingList);
-		purge_sme_session_cmd_list(pMac, sessionId,
-						   &pMac->sme.
-						   smeScanCmdPendingList);
-
-		purge_csr_session_cmd_list(pMac, sessionId);
+		csr_purge_sme_cmd_list(pMac, sessionId, true);
 		csr_init_session(pMac, sessionId);
 	}
 }
 
+void csr_purge_sme_cmd_list(tpAniSirGlobal mac_ctx, uint8_t sessionid,
+				bool flush_all_cmd)
+{
+	purge_sme_session_cmd_list(mac_ctx, sessionid,
+		&mac_ctx->sme.smeCmdPendingList,
+		flush_all_cmd);
+	purge_sme_session_cmd_list(mac_ctx, sessionid,
+			&mac_ctx->sme.smeScanCmdPendingList,
+			flush_all_cmd);
+	purge_sme_session_cmd_list(mac_ctx, sessionid,
+		&mac_ctx->sme.smeScanCmdPendingList,
+		flush_all_cmd);
+	purge_sme_session_cmd_list(mac_ctx, sessionid,
+		&mac_ctx->sme.smeScanCmdActiveList,
+		flush_all_cmd);
+
+	purge_csr_session_cmd_list(mac_ctx, sessionid,
+			flush_all_cmd);
+}
+
 QDF_STATUS csr_roam_close_session(tpAniSirGlobal pMac, uint32_t sessionId,
-				  bool fSync,
+				  bool fSync, bool flush_all_sme_cmds,
 				  csr_roamSessionCloseCallback callback,
 				  void *pContext)
 {
@@ -16528,17 +16585,10 @@ QDF_STATUS csr_roam_close_session(tpAniSirGlobal pMac, uint32_t sessionId,
 		if (fSync) {
 			csr_cleanup_session(pMac, sessionId);
 		} else {
-			purge_sme_session_cmd_list(pMac, sessionId,
-						  &pMac->sme.smeCmdPendingList);
-			purge_sme_session_cmd_list(pMac, sessionId,
-					   &pMac->sme.smeScanCmdPendingList);
-
-			purge_sme_session_cmd_list(pMac, sessionId,
-					   &pMac->sme.smeScanCmdActiveList);
-
-			purge_csr_session_cmd_list(pMac, sessionId);
+			csr_purge_sme_cmd_list(pMac, sessionId,
+				flush_all_sme_cmds);
 			status = csr_issue_del_sta_for_session_req(pMac,
-						 sessionId,
+						 sessionId, flush_all_sme_cmds,
 						 pSession->selfMacAddr.bytes,
 						 callback, pContext);
 		}

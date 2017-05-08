@@ -3261,11 +3261,11 @@ QDF_STATUS sap_close_session(tHalHandle hHal,
 
 	if (false == valid) {
 		qdf_status = sme_close_session(hHal,
-					       sapContext->sessionId,
+					       sapContext->sessionId, true,
 					       callback, NULL);
 	} else {
 		qdf_status = sme_close_session(hHal,
-					       sapContext->sessionId,
+					       sapContext->sessionId, true,
 					       callback, sapContext);
 	}
 

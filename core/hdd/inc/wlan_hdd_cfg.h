@@ -10061,9 +10061,9 @@ enum hw_filter_mode {
  *
  * Takes a bitmap of frame types to drop
  * @E.g.
- *	# disable feature (default)
+ *	# disable feature
  *	gHwFilterMode=0
- *	# drop all broadcast frames, except ARP
+ *	# drop all broadcast frames, except ARP (default)
  *	gHwFilterMode=1
  *	# drop all multicast frames, except ICMPv6
  *	gHwFilterMode=2

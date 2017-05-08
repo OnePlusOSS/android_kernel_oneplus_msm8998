@@ -939,7 +939,7 @@ void qdf_dp_trace_set_track(qdf_nbuf_t nbuf, enum qdf_proto_dir dir)
 qdf_export_symbol(qdf_dp_trace_set_track);
 
 #define DPTRACE_PRINT(args...) \
-	QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_INFO, ## args)
+	QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_DEBUG, ## args)
 
 /**
  * dump_hex_trace() - Display the data in buffer
@@ -1677,15 +1677,13 @@ void qdf_dp_trace_dump_all(uint32_t count)
 	int32_t i, tail;
 
 	if (!g_qdf_dp_trace_data.enable) {
-		QDF_TRACE(QDF_MODULE_ID_SYS,
-			  QDF_TRACE_LEVEL_ERROR, "Tracing Disabled");
+		DPTRACE_PRINT("Tracing Disabled");
 		return;
 	}
 
-	QDF_TRACE(QDF_MODULE_ID_SYS, QDF_TRACE_LEVEL_ERROR,
-		  "Total Records: %d, Head: %d, Tail: %d",
-		  g_qdf_dp_trace_data.num, g_qdf_dp_trace_data.head,
-		  g_qdf_dp_trace_data.tail);
+	DPTRACE_PRINT("Total Records: %d, Head: %d, Tail: %d",
+		      g_qdf_dp_trace_data.num, g_qdf_dp_trace_data.head,
+		      g_qdf_dp_trace_data.tail);
 
 	/* aquire the lock so that only one thread at a time can read
 	 * the ring buffer

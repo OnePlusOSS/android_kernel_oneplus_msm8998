@@ -418,7 +418,7 @@ static int32_t hdd_set_action_frame_random_mac(hdd_adapter_t *adapter,
 					       uint64_t cookie, uint32_t freq)
 {
 	uint32_t i = 0;
-	uint32_t in_use_cnt = 0;
+	uint32_t first_unused = MAX_RANDOM_MAC_ADDRS;
 	struct action_frame_cookie *action_cookie = NULL;
 	int32_t append_ret = 0;
 
@@ -431,13 +431,21 @@ static int32_t hdd_set_action_frame_random_mac(hdd_adapter_t *adapter,
 			MAC_ADDR_ARRAY(random_mac_addr), cookie, freq);
 
 	spin_lock(&adapter->random_mac_lock);
+	/*
+	 * Following loop checks whether random mac entry is already
+	 * present, if present get the index of matched entry else
+	 * get the first unused slot to store this new random mac
+	 */
 	for (i = 0; i < MAX_RANDOM_MAC_ADDRS; i++) {
-		if (adapter->random_mac[i].in_use) {
-			in_use_cnt++;
-			if (!qdf_mem_cmp(adapter->random_mac[i].addr,
-				random_mac_addr, QDF_MAC_ADDR_SIZE))
-				break;
+		if (!adapter->random_mac[i].in_use) {
+			if (first_unused == MAX_RANDOM_MAC_ADDRS)
+				first_unused = i;
+			continue;
 		}
+
+		if (!qdf_mem_cmp(adapter->random_mac[i].addr, random_mac_addr,
+				 QDF_MAC_ADDR_SIZE))
+			break;
 	}
 
 	if (i != MAX_RANDOM_MAC_ADDRS) {
@@ -454,17 +462,14 @@ static int32_t hdd_set_action_frame_random_mac(hdd_adapter_t *adapter,
 		return 0;
 	}
 
-	if (in_use_cnt == MAX_RANDOM_MAC_ADDRS) {
+	if (first_unused == MAX_RANDOM_MAC_ADDRS) {
 		spin_unlock(&adapter->random_mac_lock);
 		hdd_err("Reached the limit of Max random addresses");
 		return -EBUSY;
 	}
 
 	/* get the first unused buf and store new random mac */
-	for (i = 0; i < MAX_RANDOM_MAC_ADDRS; i++) {
-		if (!adapter->random_mac[i].in_use)
-			break;
-	}
+	i = first_unused;
 
 	INIT_LIST_HEAD(&adapter->random_mac[i].cookie_list);
 	action_cookie = allocate_action_frame_cookie(

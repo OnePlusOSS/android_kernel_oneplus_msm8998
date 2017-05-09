@@ -7746,7 +7746,7 @@ struct INTERF_RSP {
 	uint8_t interf_type;
 	uint16_t interf_min_freq;
 	uint16_t interf_max_freq;
-} qdf_packed;
+};
 
 #define MAX_INTERF 10 /* 5 categories x (lower + upper) bands */
 #define MAX_NUM_BINS 520
@@ -7754,7 +7754,7 @@ struct INTERF_RSP {
 struct INTERF_SRC_RSP {
 	uint16_t count;
 	struct INTERF_RSP interf[MAX_INTERF];
-} qdf_packed;
+};
 
 struct samp_msg_data {
 	int16_t     spectral_data_len;
@@ -7791,7 +7791,7 @@ struct samp_msg_data {
 	int16_t    noise_floor;
 	int16_t    noise_floor_sec80;
 	uint32_t   ch_width;
-} qdf_packed;
+};
 
 enum dcs_int_type {
 	SPECTRAL_DCS_INT_NONE,
@@ -7817,11 +7817,11 @@ struct spectral_samp_msg {
 	uint16_t      vhtop_ch_freq_seg1;
 	uint16_t      vhtop_ch_freq_seg2;
 	uint16_t      freq_loading;
-	uint16_t      dcs_enabled;
+	uint8_t       dcs_enabled;
 	enum dcs_int_type   int_type;
 	uint8_t       macaddr[6];
 	struct samp_msg_data samp_data;
-} qdf_packed;
+};
 
 /**
  * sir_sme_rx_aggr_hole_ind - sme rx aggr hole indication
@@ -7876,5 +7876,4 @@ struct ani_ipa_stat_req {
 	uint32_t param_val;
 	uint32_t req_type;
 };
-
 #endif /* __SIR_API_H */

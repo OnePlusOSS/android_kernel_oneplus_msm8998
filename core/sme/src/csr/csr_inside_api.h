@@ -94,11 +94,8 @@
 #define CSR_ROAMING_DFS_CHANNEL_ENABLED_NORMAL     (1)
 #define CSR_ROAMING_DFS_CHANNEL_ENABLED_ACTIVE     (2)
 
-#ifdef QCA_WIFI_3_0_EMU
-#define CSR_ACTIVE_SCAN_LIST_CMD_TIMEOUT (1000*30*20)
-#else
 #define CSR_ACTIVE_SCAN_LIST_CMD_TIMEOUT (1000*30)
-#endif
+
 /* ***************************************************************************
  * The MAX BSSID Count should be lower than the command timeout value and it
  * can be of a fraction of 3/4 of the total command timeout value.

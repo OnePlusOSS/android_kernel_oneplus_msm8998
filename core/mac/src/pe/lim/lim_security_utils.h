@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -39,7 +39,12 @@
 #define __LIM_SECURITY_UTILS_H
 #include "sir_mac_prot_def.h"      /* for tSirMacAuthFrameBody */
 
-#define LIM_ENCR_AUTH_BODY_LEN  (sizeof(tSirMacAuthFrameBody) +	\
+#define LIM_ENCR_AUTH_BODY_LEN  (sizeof(tSirMacAuthFrameBody) -	\
+				 sizeof(tSirMacRsnInfo) - \
+				 2 * sizeof(uint8_t) - \
+				 SIR_FILS_SESSION_LENGTH - \
+				 SIR_FILS_WRAPPED_DATA_MAX_SIZE - \
+				 SIR_FILS_NONCE_LENGTH + \
 				 SIR_MAC_WEP_IV_LENGTH + \
 				 SIR_MAC_WEP_ICV_LENGTH)
 struct tLimPreAuthNode;

@@ -3084,7 +3084,7 @@ static int wma_unified_phyerr_rx_event_handler(void *handle,
 	if (((phyerr.phy_err_mask0 & (WMI_PHY_ERROR_MASK0_RADAR |
 				WMI_PHY_ERROR_MASK0_FALSE_RADAR_EXT |
 				WMI_PHY_ERROR_MASK0_SPECTRAL_SCAN)) == 0)) {
-		WMA_LOGE("%s:Unknown phy error event", __func__);
+		WMA_LOGD("%s:Unknown phy error event", __func__);
 		return QDF_STATUS_E_FAILURE;
 	}
 

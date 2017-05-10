@@ -56,6 +56,8 @@
 #include "ol_txrx.h"
 #include "wlan_hdd_nan_datapath.h"
 #include "pld_common.h"
+#include "wlan_hdd_power.h"
+
 
 #ifdef QCA_LL_TX_FLOW_CONTROL_V2
 /*
@@ -371,8 +373,42 @@ void wlan_hdd_classify_pkt(struct sk_buff *skb)
 	else if (qdf_nbuf_is_ipv4_wapi_pkt(skb))
 		QDF_NBUF_CB_GET_PACKET_TYPE(skb) =
 			QDF_NBUF_CB_PACKET_TYPE_WAPI;
+	else if (qdf_nbuf_is_icmp_pkt(skb))
+		QDF_NBUF_CB_GET_PACKET_TYPE(skb) =
+			QDF_NBUF_CB_PACKET_TYPE_ICMP;
 
 }
+
+/**
+ * wlan_hdd_latency_opt()- latency option
+ * @adapter:  pointer to the adapter structure
+ * @skb:      pointer to sk buff
+ *
+ * Function to disable power save for icmp packets.
+ *
+ * Return: None
+ */
+#ifdef WLAN_ICMP_DISABLE_PS
+static inline void
+wlan_hdd_latency_opt(hdd_adapter_t *adapter, struct sk_buff *skb)
+{
+	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+
+	if (hdd_ctx->config->icmp_disable_ps_val <= 0)
+		return;
+
+	if (QDF_NBUF_CB_GET_PACKET_TYPE(skb) ==
+				QDF_NBUF_CB_PACKET_TYPE_ICMP) {
+		wlan_hdd_set_powersave(adapter, false,
+				hdd_ctx->config->icmp_disable_ps_val);
+	}
+}
+#else
+static inline void
+wlan_hdd_latency_opt(hdd_adapter_t *adapter, struct sk_buff *skb)
+{
+}
+#endif
 
 /**
  * hdd_get_transmit_sta_id() - function to retrieve station id to be used for
@@ -454,6 +490,7 @@ static int __hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 #endif
 
 	wlan_hdd_classify_pkt(skb);
+	wlan_hdd_latency_opt(pAdapter, skb);
 
 	++pAdapter->hdd_stats.hddTxRxStats.txXmitCalled;
 

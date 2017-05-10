@@ -10199,7 +10199,7 @@ QDF_STATUS sme_send_tdls_link_establish_params(tHalHandle hHal,
  * @buf - additional IEs to be included
  * @len - lenght of additional Ies
  * @responder - Tdls request type
- *
+ * @ac - access category
  * Return QDF_STATUS_SUCCES
  */
 QDF_STATUS sme_send_tdls_mgmt_frame(tHalHandle hHal, uint8_t sessionId,
@@ -10207,7 +10207,8 @@ QDF_STATUS sme_send_tdls_mgmt_frame(tHalHandle hHal, uint8_t sessionId,
 				    uint8_t frame_type,
 				    uint8_t dialog, uint16_t statusCode,
 				    uint32_t peerCapability, uint8_t *buf,
-				    uint8_t len, uint8_t responder)
+				    uint8_t len, uint8_t responder,
+				    enum sir_wifi_traffic_ac ac)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	tCsrTdlsSendMgmt sendTdlsReq = { {0} };
@@ -10226,6 +10227,7 @@ QDF_STATUS sme_send_tdls_mgmt_frame(tHalHandle hHal, uint8_t sessionId,
 		sendTdlsReq.statusCode = statusCode;
 		sendTdlsReq.responder = responder;
 		sendTdlsReq.peerCapability = peerCapability;
+		sendTdlsReq.ac = ac;
 
 		status = csr_tdls_send_mgmt_req(hHal, sessionId, &sendTdlsReq);
 

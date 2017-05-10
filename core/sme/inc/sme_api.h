@@ -743,7 +743,7 @@ QDF_STATUS sme_send_tdls_mgmt_frame(tHalHandle hHal, uint8_t sessionId,
 		const tSirMacAddr peerMac, uint8_t frame_type,
 		uint8_t dialog, uint16_t status,
 		uint32_t peerCapability, uint8_t *buf,
-		uint8_t len, uint8_t responder);
+		uint8_t len, uint8_t responder, enum sir_wifi_traffic_ac ac);
 QDF_STATUS sme_change_tdls_peer_sta(tHalHandle hHal, uint8_t sessionId,
 		const tSirMacAddr peerMac,
 		tCsrStaParams *pstaParams);

@@ -4099,6 +4099,7 @@ static int __wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy,
 	peer_capability = 0;
 #endif
 #endif
+	enum sir_wifi_traffic_ac ac = WIFI_AC_VI;
 
 	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
 		hdd_warn("Command not allowed in FTM mode");
@@ -4170,17 +4171,13 @@ static int __wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy,
 		}
 		mutex_unlock(&pHddCtx->tdls_lock);
 	}
-	/* Discard TDLS Discovery request and setup confirm if violates
-	 * ACM rules
-	 */
-	if ((SIR_MAC_TDLS_DIS_REQ == action_code ||
-		SIR_MAC_TDLS_SETUP_CNF == action_code) &&
-		(hdd_wmm_is_active(pAdapter)) &&
+
+	if ((hdd_wmm_is_active(pAdapter)) &&
 		!(pAdapter->hddWmmStatus.wmmAcStatus[OL_TX_WMM_AC_VI].wmmAcAccessAllowed)) {
-			QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
-			"%s: Admission control is set to VI, action %d is not allowed.",
+			QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_DEBUG,
+			"%s: Admission control is set to VI, send the frame with least AC (BK) for action %d.",
 			__func__, action_code);
-			return -EPERM;
+			ac = WIFI_AC_BK;
 	}
 
 	if (SIR_MAC_TDLS_SETUP_REQ == action_code ||
@@ -4308,7 +4305,8 @@ static int __wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy,
 					  action_code, dialog_token,
 					  status_code, peer_capability,
 					  (uint8_t *) buf, len,
-					  !responder);
+					  !responder,
+					  ac);
 
 	if (QDF_STATUS_SUCCESS != status) {
 		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,

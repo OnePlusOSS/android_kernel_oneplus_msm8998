@@ -3630,6 +3630,7 @@ QDF_STATUS wlan_hdd_get_rssi(hdd_adapter_t *pAdapter, int8_t *rssi_value)
 	spin_unlock(&hdd_context_lock);
 
 	*rssi_value = pAdapter->rssi;
+	hdd_debug("RSSI = %d", *rssi_value);
 
 	return QDF_STATUS_SUCCESS;
 }

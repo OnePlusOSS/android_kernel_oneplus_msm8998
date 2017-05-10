@@ -167,7 +167,7 @@ static void wma_send_bcn_buf_ll(tp_wma_handle wma,
 			(uint8_t) WMI_UNIFIED_NOA_ATTR_CTWIN_GET(p2p_noa_info);
 		noa_ie.num_descriptors = (uint8_t)
 				WMI_UNIFIED_NOA_ATTR_NUM_DESC_GET(p2p_noa_info);
-		WMA_LOGI("%s: index %u, oppPs %u, ctwindow %u, num_descriptors = %u",
+		WMA_LOGD("%s: index %u, oppPs %u, ctwindow %u, num_descriptors = %u",
 			 __func__, noa_ie.index,
 			 noa_ie.oppPS, noa_ie.ctwindow, noa_ie.num_descriptors);
 		for (i = 0; i < noa_ie.num_descriptors; i++) {
@@ -180,7 +180,7 @@ static void wma_send_bcn_buf_ll(tp_wma_handle wma,
 				p2p_noa_info->noa_descriptors[i].interval;
 			noa_ie.noa_descriptors[i].start_time =
 				p2p_noa_info->noa_descriptors[i].start_time;
-			WMA_LOGI("%s: NoA descriptor[%d] type_count %u, duration %u, interval %u, start_time = %u",
+			WMA_LOGD("%s: NoA descriptor[%d] type_count %u, duration %u, interval %u, start_time = %u",
 				 __func__, i,
 				 noa_ie.noa_descriptors[i].type_count,
 				 noa_ie.noa_descriptors[i].duration,
@@ -1312,7 +1312,7 @@ wma_update_beacon_interval(tp_wma_handle wma, uint8_t vdev_id,
 	if (QDF_IS_STATUS_ERROR(ret))
 		WMA_LOGE("Failed to update beacon interval");
 	else
-		WMA_LOGI("Updated beacon interval %d for vdev %d",
+		WMA_LOGD("Updated beacon interval %d for vdev %d",
 			 beaconInterval, vdev_id);
 }
 
@@ -2489,7 +2489,7 @@ void wma_send_beacon(tp_wma_handle wma, tpSendbeaconParams bcn_info)
 
 		if (bcn_info->p2pIeOffset) {
 			p2p_ie = bcn_info->beacon + bcn_info->p2pIeOffset;
-			WMA_LOGI("%s: p2pIe is present - vdev_id %hu, p2p_ie = %p, p2p ie len = %hu",
+			WMA_LOGD("%s: p2pIe is present - vdev_id %hu, p2p_ie = %p, p2p ie len = %hu",
 				__func__, vdev_id, p2p_ie, p2p_ie[1]);
 			if (wma_p2p_go_set_beacon_ie(wma, vdev_id,
 							 p2p_ie) < 0) {
@@ -3218,7 +3218,7 @@ static bool wma_is_pkt_drop_candidate(tp_wma_handle wma_handle,
 	peer = ol_txrx_find_peer_by_addr_inc_ref(pdev_ctx, peer_addr, &peer_id);
 	if (!peer) {
 		if (SIR_MAC_MGMT_ASSOC_REQ != subtype) {
-			WMA_LOGI(
+			WMA_LOGD(
 			   FL("Received mgmt frame: %0x from unknow peer: %pM"),
 			   subtype, peer_addr);
 			should_drop = true;
@@ -3231,7 +3231,7 @@ static bool wma_is_pkt_drop_candidate(tp_wma_handle wma_handle,
 		if (peer->last_assoc_rcvd) {
 			if (qdf_get_system_timestamp() - peer->last_assoc_rcvd <
 					WMA_MGMT_FRAME_DETECT_DOS_TIMER) {
-				WMA_LOGI(FL("Dropping Assoc Req received"));
+				WMA_LOGD(FL("Dropping Assoc Req received"));
 				should_drop = true;
 			}
 		}

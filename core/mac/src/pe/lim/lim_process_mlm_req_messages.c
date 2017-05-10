@@ -2478,7 +2478,7 @@ lim_process_assoc_failure_timeout(tpAniSirGlobal mac_ctx, uint32_t msg_type)
 	 * when device has missed the assoc resp sent by peer.
 	 * By sending deauth try to clear the session created on peer device.
 	 */
-	pe_info("Sessionid: %d try sending deauth on channel %d to BSSID: "
+	pe_debug("Sessionid: %d try sending deauth on channel %d to BSSID: "
 		MAC_ADDRESS_STR, session->peSessionId,
 		session->currentOperChannel,
 		MAC_ADDR_ARRAY(session->bssId));

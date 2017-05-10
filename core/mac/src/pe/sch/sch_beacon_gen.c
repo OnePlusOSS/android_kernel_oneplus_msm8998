@@ -282,7 +282,7 @@ sch_set_fixed_beacon_fields(tpAniSirGlobal mac_ctx, tpPESession session)
 		populate_dot_11_f_ext_chann_switch_ann(mac_ctx,
 				&bcn_2->ext_chan_switch_ann,
 				session);
-		pe_info("ecsa: mode:%d reg:%d chan:%d count:%d",
+		pe_debug("ecsa: mode:%d reg:%d chan:%d count:%d",
 			bcn_2->ext_chan_switch_ann.switch_mode,
 			bcn_2->ext_chan_switch_ann.new_reg_class,
 			bcn_2->ext_chan_switch_ann.new_channel,
@@ -314,7 +314,7 @@ sch_set_fixed_beacon_fields(tpAniSirGlobal mac_ctx, tpPESession session)
 			     session->lim_non_ecsa_cap_num > 0) {
 				populate_dot11f_chan_switch_ann(mac_ctx,
 						&bcn_2->ChanSwitchAnn, session);
-				pe_info("csa: mode:%d chan:%d count:%d",
+				pe_debug("csa: mode:%d chan:%d count:%d",
 					bcn_2->ChanSwitchAnn.switchMode,
 					bcn_2->ChanSwitchAnn.newChannel,
 					bcn_2->ChanSwitchAnn.switchCount);

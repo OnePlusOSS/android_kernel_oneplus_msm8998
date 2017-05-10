@@ -1091,9 +1091,9 @@ static int wma_ll_stats_evt_handler(void *handle, u_int8_t *event,
 			qdf_mem_copy(&peer_stats[i].mac_address,
 				     &peer->mac_addr,
 				     sizeof(peer_stats[i].mac_address));
-			WMA_LOGI("Peer %d mac address is: ",
+			WMA_LOGD("Peer %d mac address is: ",
 				 wmi_peer_signal->peer_id);
-			WMA_LOGI("%2x:%2x:%2x:%2x:%2x:%2x.",
+			WMA_LOGD("%2x:%2x:%2x:%2x:%2x:%2x.",
 				 peer->mac_addr.raw[0], peer->mac_addr.raw[1],
 				 peer->mac_addr.raw[2], peer->mac_addr.raw[3],
 				 peer->mac_addr.raw[4], peer->mac_addr.raw[5]);
@@ -2826,7 +2826,7 @@ int wma_stats_event_handler(void *handle, uint8_t *cmd_param_info,
 					__func__);
 				return -EINVAL;
 			}
-			WMA_LOGI("%s: congestion %d", __func__,
+			WMA_LOGD("%s: congestion %d", __func__,
 				congestion_stats->congestion);
 			mac->sme.congestion_cb(mac->hHdd,
 				congestion_stats->congestion,

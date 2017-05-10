@@ -3515,7 +3515,7 @@ QDF_STATUS csr_roam_call_callback(tpAniSirGlobal pMac, uint32_t sessionId,
 
 	if (eCSR_ROAM_ASSOCIATION_COMPLETION == u1 &&
 			eCSR_ROAM_RESULT_ASSOCIATED == u2 && pRoamInfo) {
-		sme_info("Assoc complete result: %d status: %d reason: %d",
+		sme_debug("Assoc complete result: %d status: %d reason: %d",
 			u2, pRoamInfo->statusCode, pRoamInfo->reasonCode);
 		beacon_ies = qdf_mem_malloc(sizeof(tDot11fBeaconIEs));
 		if ((NULL != beacon_ies) && (NULL != pRoamInfo->pBssDesc)) {
@@ -7998,7 +7998,7 @@ static void csr_roam_print_candidate_aps(tpAniSirGlobal pMac,
 	while (pEntry) {
 		pBssDesc = GET_BASE_ADDR(pEntry,
 				struct tag_csrscan_result, Link);
-		sme_info("BSSID "MAC_ADDRESS_STR" score is %d",
+		sme_debug("BSSID "MAC_ADDRESS_STR" score is %d",
 			MAC_ADDR_ARRAY(pBssDesc->Result.BssDescriptor.bssId),
 			pBssDesc->bss_score);
 

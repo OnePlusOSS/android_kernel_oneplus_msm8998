@@ -396,7 +396,7 @@ void wma_set_tx_power(WMA_HANDLE handle,
 	if (wma_handle->interfaces[vdev_id].tx_power != tx_pwr_params->power) {
 
 		/* tx_power changed, Push the tx_power to FW */
-		WMA_LOGI("%s: Set TX pwr limit [WMI_VDEV_PARAM_TX_PWRLIMIT] to %d",
+		WMA_LOGD("%s: Set TX pwr limit [WMI_VDEV_PARAM_TX_PWRLIMIT] to %d",
 			__func__, tx_pwr_params->power);
 		ret = wma_vdev_set_param(wma_handle->wmi_handle, vdev_id,
 					      WMI_VDEV_PARAM_TX_PWRLIMIT,
@@ -462,7 +462,7 @@ void wma_set_max_tx_power(WMA_HANDLE handle,
 		ret = QDF_STATUS_SUCCESS;
 		goto end;
 	}
-	WMA_LOGI("Set MAX TX pwr limit [WMI_VDEV_PARAM_TX_PWRLIMIT] to %d",
+	WMA_LOGD("Set MAX TX pwr limit [WMI_VDEV_PARAM_TX_PWRLIMIT] to %d",
 		 wma_handle->interfaces[vdev_id].max_tx_power);
 	ret = wma_vdev_set_param(wma_handle->wmi_handle, vdev_id,
 				WMI_VDEV_PARAM_TX_PWRLIMIT,
@@ -735,16 +735,16 @@ static enum powersave_qpower_mode wma_get_qpower_config(tp_wma_handle wma)
 	switch (wma->powersave_mode) {
 	case PS_QPOWER_NODEEPSLEEP:
 	case PS_QPOWER_DEEPSLEEP:
-		WMA_LOGI("QPOWER is enabled in power save mode %d",
+		WMA_LOGD("QPOWER is enabled in power save mode %d",
 			wma->powersave_mode);
 		return QPOWER_ENABLED;
 	case PS_DUTY_CYCLING_QPOWER:
-		WMA_LOGI("DUTY cycling QPOWER is enabled in power save mode %d",
+		WMA_LOGD("DUTY cycling QPOWER is enabled in power save mode %d",
 			wma->powersave_mode);
 		return QPOWER_DUTY_CYCLING;
 
 	default:
-		WMA_LOGI("QPOWER is disabled in power save mode %d",
+		WMA_LOGD("QPOWER is disabled in power save mode %d",
 			wma->powersave_mode);
 		return QPOWER_DISABLED;
 	}
@@ -876,7 +876,7 @@ QDF_STATUS wma_set_qpower_config(uint8_t vdev_id, uint8_t qpower)
 		return QDF_STATUS_E_INVAL;
 	}
 
-	WMA_LOGI("configuring qpower: %d", qpower);
+	WMA_LOGD("configuring qpower: %d", qpower);
 	wma->powersave_mode = qpower;
 	return wma_unified_set_sta_ps_param(wma->wmi_handle,
 					    vdev_id,
@@ -1195,7 +1195,7 @@ int wma_pdev_temperature_evt_handler(void *handle, uint8_t *event,
 	}
 
 	wmi_event = param_buf->fixed_param;
-	WMA_LOGI(FL("temperature: %d"), wmi_event->value);
+	WMA_LOGD(FL("temperature: %d"), wmi_event->value);
 
 	sme_msg.type = eWNI_SME_MSG_GET_TEMPERATURE_IND;
 	sme_msg.bodyptr = NULL;
@@ -1334,7 +1334,7 @@ static void wma_update_beacon_noa_ie(struct beacon_info *bcn,
 		     new_noa_sub_ie_len);
 
 	bcn->len += (new_noa_sub_ie_len + sizeof(struct p2p_ie));
-	WMA_LOGI("%s: Updated beacon length with NoA Ie is %u",
+	WMA_LOGD("%s: Updated beacon length with NoA Ie is %u",
 		 __func__, bcn->len);
 }
 
@@ -1464,7 +1464,7 @@ void wma_update_probe_resp_noa(tp_wma_handle wma_handle,
 				noa_ie->noa_descriptors[1].start_time;
 		}
 	}
-	WMA_LOGI("Sending SIR_HAL_P2P_NOA_ATTR_IND to LIM");
+	WMA_LOGD("Sending SIR_HAL_P2P_NOA_ATTR_IND to LIM");
 	wma_send_msg(wma_handle, SIR_HAL_P2P_NOA_ATTR_IND, (void *)noa_attr, 0);
 }
 
@@ -1512,7 +1512,7 @@ int wma_p2p_noa_event_handler(void *handle, uint8_t *event,
 		descriptors = WMI_UNIFIED_NOA_ATTR_NUM_DESC_GET(p2p_noa_info);
 		noa_ie.num_descriptors = (uint8_t) descriptors;
 
-		WMA_LOGI("%s: index %u, oppPs %u, ctwindow %u, num_descriptors = %u",
+		WMA_LOGD("%s: index %u, oppPs %u, ctwindow %u, num_descriptors = %u",
 			 __func__, noa_ie.index,
 			 noa_ie.oppPS, noa_ie.ctwindow, noa_ie.num_descriptors);
 		for (i = 0; i < noa_ie.num_descriptors; i++) {
@@ -1525,7 +1525,7 @@ int wma_p2p_noa_event_handler(void *handle, uint8_t *event,
 				p2p_noa_info->noa_descriptors[i].interval;
 			noa_ie.noa_descriptors[i].start_time =
 				p2p_noa_info->noa_descriptors[i].start_time;
-			WMA_LOGI("%s: NoA descriptor[%d] type_count %u, duration %u, interval %u, start_time = %u",
+			WMA_LOGD("%s: NoA descriptor[%d] type_count %u, duration %u, interval %u, start_time = %u",
 				 __func__, i,
 				 noa_ie.noa_descriptors[i].type_count,
 				 noa_ie.noa_descriptors[i].duration,

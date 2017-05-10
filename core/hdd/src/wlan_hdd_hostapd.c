@@ -5344,7 +5344,7 @@ __iw_softap_stopbss(struct net_device *dev,
 			WLAN_HDD_GET_SAP_CTX_PTR(pHostapdAdapter));
 		if (QDF_IS_STATUS_SUCCESS(status)) {
 			qdf_status =
-				qdf_wait_single_event(&pHostapdState->
+				qdf_wait_for_event_completion(&pHostapdState->
 					qdf_stop_bss_event,
 					SME_CMD_TIMEOUT_VALUE);
 
@@ -8398,7 +8398,7 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 
 	hdd_debug("Waiting for Scan to complete(auto mode) and BSS to start");
 
-	qdf_status = qdf_wait_single_event(&pHostapdState->qdf_event,
+	qdf_status = qdf_wait_for_event_completion(&pHostapdState->qdf_event,
 						SME_CMD_TIMEOUT_VALUE);
 
 	wlansap_reset_sap_config_add_ie(pConfig, eUPDATE_IE_ALL);
@@ -8611,7 +8611,7 @@ static int __wlan_hdd_cfg80211_stop_ap(struct wiphy *wiphy,
 		status = wlansap_stop_bss(WLAN_HDD_GET_SAP_CTX_PTR(pAdapter));
 		if (QDF_IS_STATUS_SUCCESS(status)) {
 			qdf_status =
-				qdf_wait_single_event(&pHostapdState->
+				qdf_wait_for_event_completion(&pHostapdState->
 					qdf_stop_bss_event,
 					SME_CMD_TIMEOUT_VALUE);
 

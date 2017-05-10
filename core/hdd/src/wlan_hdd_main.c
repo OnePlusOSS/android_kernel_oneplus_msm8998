@@ -4270,8 +4270,8 @@ QDF_STATUS hdd_stop_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 				qdf_event_reset(&hostapd_state->
 						qdf_stop_bss_event);
 				qdf_status =
-					qdf_wait_single_event(&hostapd_state->
-					qdf_stop_bss_event,
+					qdf_wait_for_event_completion(
+					&hostapd_state->qdf_stop_bss_event,
 					SME_CMD_TIMEOUT_VALUE);
 
 				if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
@@ -11174,8 +11174,8 @@ void wlan_hdd_stop_sap(hdd_adapter_t *ap_adapter)
 		qdf_event_reset(&hostapd_state->qdf_stop_bss_event);
 		if (QDF_STATUS_SUCCESS == wlansap_stop_bss(hdd_ap_ctx->
 							sapContext)) {
-			qdf_status = qdf_wait_single_event(&hostapd_state->
-					qdf_stop_bss_event,
+			qdf_status = qdf_wait_for_event_completion(
+					&hostapd_state->qdf_stop_bss_event,
 					SME_CMD_TIMEOUT_VALUE);
 			if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 				mutex_unlock(&hdd_ctx->sap_lock);
@@ -11242,7 +11242,7 @@ void wlan_hdd_start_sap(hdd_adapter_t *ap_adapter, bool reinit)
 		goto end;
 
 	hdd_debug("Waiting for SAP to start");
-	qdf_status = qdf_wait_single_event(&hostapd_state->qdf_event,
+	qdf_status = qdf_wait_for_event_completion(&hostapd_state->qdf_event,
 					SME_CMD_TIMEOUT_VALUE);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 		hdd_err("SAP Start failed");

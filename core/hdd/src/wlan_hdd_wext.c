@@ -5091,9 +5091,9 @@ static int __iw_get_bitrate(struct net_device *dev,
 
 		pWextState = WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
 
-		qdf_status =
-			qdf_wait_single_event(&pWextState->hdd_qdf_event,
-					      WLAN_WAIT_TIME_STATS);
+		qdf_status = qdf_wait_for_event_completion(
+				&pWextState->hdd_qdf_event,
+				WLAN_WAIT_TIME_STATS);
 
 		if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 			hdd_err("SME timeout while retrieving statistics");
@@ -11894,9 +11894,10 @@ static int __iw_get_statistics(struct net_device *dev,
 
 		pWextState = WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
 
-		qdf_status =
-			qdf_wait_single_event(&pWextState->hdd_qdf_event,
-					      WLAN_WAIT_TIME_STATS);
+		qdf_status = qdf_wait_for_event_completion(
+				&pWextState->hdd_qdf_event,
+				WLAN_WAIT_TIME_STATS);
+
 		if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 			hdd_err("SME timeout while retrieving statistics");
 			/* Remove the SME statistics list by

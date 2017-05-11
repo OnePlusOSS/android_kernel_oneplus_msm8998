@@ -427,11 +427,9 @@ static int hdd_ndi_delete_req_handler(hdd_context_t *hdd_ctx,
 	}
 
 	/* check if there are active peers on the adapter */
-	if (ndp_ctx->active_ndp_peers > 0) {
-		hdd_err("NDP peers active: %d, cannot delete NDI",
+	if (ndp_ctx->active_ndp_peers > 0)
+		hdd_err("NDP peers active: %d, active NDPs may not terminated",
 			ndp_ctx->active_ndp_peers);
-		return -EINVAL;
-	}
 
 	/*
 	 * Since, the interface is being deleted, remove the

@@ -2660,6 +2660,7 @@ QDF_STATUS sme_process_msg(tHalHandle hHal, cds_msg_t *pMsg)
 	case eWNI_SME_TDLS_SHOULD_DISCOVER:
 	case eWNI_SME_TDLS_SHOULD_TEARDOWN:
 	case eWNI_SME_TDLS_PEER_DISCONNECTED:
+	case eWNI_SME_TDLS_NOTIFY_SET_STATE_DISABLE:
 		if (pMsg->bodyptr) {
 			status = tdls_msg_processor(pMac, pMsg->type,
 						    pMsg->bodyptr);

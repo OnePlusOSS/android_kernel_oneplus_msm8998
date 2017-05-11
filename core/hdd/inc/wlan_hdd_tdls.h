@@ -787,6 +787,17 @@ int wlan_hdd_cfg80211_configure_tdls_mode(struct wiphy *wiphy,
 					const void *data,
 					int data_len);
 
+/**
+ * hdd_tdls_notify_set_state_disable() - callback from pe to update tdls state
+ * @session_id: session_id
+ *
+ * This function is called part of STA disconnect and we need to
+ * update the TDLS state before vdev is stopped
+ *
+ * Return: none
+ */
+void hdd_tdls_notify_set_state_disable(uint32_t session_id);
+
 #else
 static inline void hdd_update_tdls_ct_and_teardown_links(hdd_context_t *hdd_ctx)
 {
@@ -843,6 +854,9 @@ static inline void wlan_hdd_change_tdls_mode(void *hdd_ctx)
 static inline void
 hdd_tdls_notify_p2p_roc(hdd_context_t *hdd_ctx,
 			enum tdls_concerned_external_events event)
+{
+}
+static inline void hdd_tdls_notify_set_state_disable(uint32_t session_id)
 {
 }
 #endif /* End of FEATURE_WLAN_TDLS */

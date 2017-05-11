@@ -3834,6 +3834,15 @@ typedef struct sSirTdlsEventnotify {
 	uint16_t messageType;
 	uint32_t peer_reason;
 } tSirTdlsEventnotify;
+
+/**
+ * struct sir_sme_tdls_notify_set_state_disable - notify set state disable
+ * @session_id: session id
+ */
+struct sir_tdls_notify_set_state_disable {
+	uint32_t session_id;
+};
+
 #endif /* FEATURE_WLAN_TDLS */
 
 typedef struct sSirActiveModeSetBcnFilterReq {

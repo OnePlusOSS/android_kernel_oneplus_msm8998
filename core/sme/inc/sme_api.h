@@ -1535,12 +1535,14 @@ QDF_STATUS sme_get_rssi_snr_by_bssid(tHalHandle hal, tCsrRoamProfile *profile,
  * @bssid: bssid to look for in scan cache
  * @frame_buf: frame buffer to populate
  * @frame_len: length of constructed frame
+ * @channel: Pointer to channel info to be filled
  *
  * Return: QDF_STATUS
  */
 QDF_STATUS sme_get_beacon_frm(tHalHandle hal, tCsrRoamProfile *profile,
 			    const tSirMacAddr bssid,
-			    uint8_t **frame_buf, uint32_t *frame_len);
+			    uint8_t **frame_buf, uint32_t *frame_len,
+			    int *channel);
 
 /**
  * sme_rso_cmd_status_cb() - Set RSO cmd status callback

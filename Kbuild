@@ -362,6 +362,7 @@ CONFIG_ATH_PCIE_ACCESS_DEBUG := 0
 #Enable IPA offload
 ifeq ($(CONFIG_IPA), y)
 CONFIG_IPA_OFFLOAD := 1
+CONFIG_NUM_IPA_IFACE := 3
 endif
 
 #Enable Signed firmware support for split binary format
@@ -1478,9 +1479,14 @@ ifeq ($(CONFIG_CHECKSUM_OFFLOAD), 1)
 CDEFINES += -DCHECKSUM_OFFLOAD
 endif
 
-#Enable Checksum Offload support
+ifeq ($(CONFIG_ARCH_SDX20), y)
+CONFIG_NUM_IPA_IFACE := 2
+endif
+
+#Enable IPA Offload support
 ifeq ($(CONFIG_IPA_OFFLOAD), 1)
 CDEFINES += -DIPA_OFFLOAD
+CDEFINES += -DMAX_IPA_IFACE=$(CONFIG_NUM_IPA_IFACE)
 endif
 
 ifeq ($(CONFIG_ARCH_SDX20), y)

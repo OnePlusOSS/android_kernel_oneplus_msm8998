@@ -2248,6 +2248,18 @@ sir_validate_and_rectify_ies(tpAniSirGlobal mac_ctx,
 }
 
 #ifdef WLAN_FEATURE_FILS_SK
+static void populate_dot11f_fils_rsn(tpAniSirGlobal mac_ctx,
+				     tDot11fIERSNOpaque *p_dot11f,
+				     uint8_t *rsn_ie)
+{
+	pe_debug("FILS RSN IE length %d", rsn_ie[1]);
+	if (rsn_ie[1]) {
+		p_dot11f->present = 1;
+		p_dot11f->num_data = rsn_ie[1];
+		qdf_mem_copy(p_dot11f->data, &rsn_ie[2], rsn_ie[1]);
+	}
+}
+
 void populate_dot11f_fils_params(tpAniSirGlobal mac_ctx,
 		tDot11fAssocRequest *frm,
 		tpPESession pe_session)
@@ -2255,8 +2267,8 @@ void populate_dot11f_fils_params(tpAniSirGlobal mac_ctx,
 	struct pe_fils_session *fils_info = pe_session->fils_info;
 
 	/* Populate RSN IE with FILS AKM */
-	populate_dot11f_rsn_opaque(mac_ctx, (tpSirRSNie) &(fils_info->rsn_ie),
-							   &frm->RSNOpaque);
+	populate_dot11f_fils_rsn(mac_ctx, &frm->RSNOpaque,
+				 fils_info->rsn_ie);
 
 	/* Populate FILS session IE */
 	frm->fils_session.present = true;

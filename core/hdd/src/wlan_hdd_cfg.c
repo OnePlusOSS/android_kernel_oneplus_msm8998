@@ -6109,7 +6109,7 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_debug("Name = [%s] Value = [%u]",
 		CFG_HW_FILTER_MODE_NAME,
 		pHddCtx->config->hw_filter_mode);
-	hdd_err("Name = [%s] Value = [%u]",
+	hdd_debug("Name = [%s] Value = [%u]",
 		CFG_AUTO_DETECT_POWER_FAIL_MODE_NAME,
 		pHddCtx->config->auto_pwr_save_fail_mode);
 	hdd_per_roam_print_ini_config(pHddCtx);
@@ -6127,40 +6127,40 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 		 CFG_FORCE_1X1_NAME,
 		 pHddCtx->config->is_force_1x1);
 
-	hdd_info("Name = [%s] Value = [%x] ",
+	hdd_debug("Name = [%s] Value = [%x] ",
 		 CFG_PRB_REQ_IE_WHITELIST_NAME,
 		 pHddCtx->config->probe_req_ie_whitelist);
-	hdd_info("Name = [%s] Value = [%x] ",
+	hdd_debug("Name = [%s] Value = [%x] ",
 		 CFG_PRB_REQ_IE_BIT_MAP0_NAME,
 		 pHddCtx->config->probe_req_ie_bitmap_0);
-	hdd_info("Name = [%s] Value = [%x] ",
+	hdd_debug("Name = [%s] Value = [%x] ",
 		 CFG_PRB_REQ_IE_BIT_MAP1_NAME,
 		 pHddCtx->config->probe_req_ie_bitmap_1);
-	hdd_info("Name = [%s] Value = [%x] ",
+	hdd_debug("Name = [%s] Value = [%x] ",
 		 CFG_PRB_REQ_IE_BIT_MAP2_NAME,
 		 pHddCtx->config->probe_req_ie_bitmap_2);
-	hdd_info("Name = [%s] Value = [%x] ",
+	hdd_debug("Name = [%s] Value = [%x] ",
 		 CFG_PRB_REQ_IE_BIT_MAP3_NAME,
 		 pHddCtx->config->probe_req_ie_bitmap_3);
-	hdd_info("Name = [%s] Value = [%x] ",
+	hdd_debug("Name = [%s] Value = [%x] ",
 		 CFG_PRB_REQ_IE_BIT_MAP4_NAME,
 		 pHddCtx->config->probe_req_ie_bitmap_4);
-	hdd_info("Name = [%s] Value = [%x] ",
+	hdd_debug("Name = [%s] Value = [%x] ",
 		 CFG_PRB_REQ_IE_BIT_MAP5_NAME,
 		 pHddCtx->config->probe_req_ie_bitmap_5);
-	hdd_info("Name = [%s] Value = [%x] ",
+	hdd_debug("Name = [%s] Value = [%x] ",
 		 CFG_PRB_REQ_IE_BIT_MAP6_NAME,
 		 pHddCtx->config->probe_req_ie_bitmap_6);
-	hdd_info("Name = [%s] Value = [%x] ",
+	hdd_debug("Name = [%s] Value = [%x] ",
 		 CFG_PRB_REQ_IE_BIT_MAP7_NAME,
 		 pHddCtx->config->probe_req_ie_bitmap_7);
-	hdd_info("Name = [%s] Value =[%s]",
+	hdd_debug("Name = [%s] Value =[%s]",
 		 CFG_PROBE_REQ_OUI_NAME,
 		 pHddCtx->config->probe_req_ouis);
-	hdd_info("Name = [%s] value = [%u]",
+	hdd_debug("Name = [%s] value = [%u]",
 		 CFG_DROPPED_PKT_DISCONNECT_TH_NAME,
 		 pHddCtx->config->pkt_err_disconn_th);
-	hdd_info("Name = [%s] Value = [%u]",
+	hdd_debug("Name = [%s] Value = [%u]",
 		CFG_IS_BSSID_HINT_PRIORITY_NAME,
 		pHddCtx->config->is_bssid_hint_priority);
 	hdd_debug("Name = [%s] Value = [%u]",

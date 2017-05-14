@@ -265,7 +265,7 @@ static int __hdd_hostapd_open(struct net_device *dev)
 
 	set_bit(DEVICE_IFACE_OPENED, &pAdapter->event_flags);
 	/* Enable all Tx queues */
-	hdd_notice("Enabling queues");
+	hdd_debug("Enabling queues");
 	wlan_hdd_netif_queue_control(pAdapter,
 				   WLAN_START_ALL_NETIF_QUEUE_N_CARRIER,
 				   WLAN_CONTROL_PATH);
@@ -319,7 +319,7 @@ static int __hdd_hostapd_stop(struct net_device *dev)
 
 	clear_bit(DEVICE_IFACE_OPENED, &adapter->event_flags);
 	/* Stop all tx queues */
-	hdd_notice("Disabling queues");
+	hdd_debug("Disabling queues");
 	wlan_hdd_netif_queue_control(adapter,
 				     WLAN_STOP_ALL_NETIF_QUEUE_N_CARRIER,
 				     WLAN_CONTROL_PATH);
@@ -1785,9 +1785,9 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 
 		if (pSapEvent->sapevt.sapStationDisassocCompleteEvent.reason ==
 		    eSAP_USR_INITATED_DISASSOC)
-			hdd_notice(" User initiated disassociation");
+			hdd_debug(" User initiated disassociation");
 		else
-			hdd_notice(" MAC initiated disassociation");
+			hdd_debug(" MAC initiated disassociation");
 		we_event = IWEVEXPIRED;
 		qdf_status =
 			hdd_softap_get_sta_id(pHostapdAdapter,
@@ -2172,7 +2172,7 @@ stopbss:
 		/* Stop the pkts from n/w stack as we are going to free all of
 		 * the TX WMM queues for all STAID's
 		 */
-		hdd_notice("Disabling queues");
+		hdd_debug("Disabling queues");
 		wlan_hdd_netif_queue_control(pHostapdAdapter,
 					WLAN_STOP_ALL_NETIF_QUEUE_N_CARRIER,
 					WLAN_CONTROL_PATH);
@@ -3301,14 +3301,14 @@ static __iw_softap_setparam(struct net_device *dev,
 		ret = hdd_set_rx_stbc(pHostapdAdapter, set_value);
 		break;
 	case QCSAP_SET_DEFAULT_AMPDU:
-		hdd_notice("QCSAP_SET_DEFAULT_AMPDU val %d", set_value);
+		hdd_debug("QCSAP_SET_DEFAULT_AMPDU val %d", set_value);
 		ret = wma_cli_set_command((int)pHostapdAdapter->sessionId,
 					(int)WMI_PDEV_PARAM_MAX_MPDUS_IN_AMPDU,
 					set_value, PDEV_CMD);
 		break;
 
 	case QCSAP_ENABLE_RTS_BURSTING:
-		hdd_notice("QCSAP_ENABLE_RTS_BURSTING val %d", set_value);
+		hdd_debug("QCSAP_ENABLE_RTS_BURSTING val %d", set_value);
 		ret = wma_cli_set_command((int)pHostapdAdapter->sessionId,
 					(int)WMI_PDEV_PARAM_ENABLE_RTS_SIFS_BURSTING,
 					set_value, PDEV_CMD);
@@ -7849,7 +7849,7 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 #ifdef WLAN_FEATURE_11W
 	pConfig->mfpCapable = MFPCapable;
 	pConfig->mfpRequired = MFPRequired;
-	hdd_notice("Soft AP MFP capable %d, MFP required %d",
+	hdd_debug("Soft AP MFP capable %d, MFP required %d",
 	       pConfig->mfpCapable, pConfig->mfpRequired);
 #endif
 
@@ -8098,7 +8098,7 @@ static int __wlan_hdd_cfg80211_stop_ap(struct wiphy *wiphy,
 		cds_remove_sap_mandatory_chan(pConfig->channel);
 
 	/* Stop all tx queues */
-	hdd_notice("Disabling queues");
+	hdd_debug("Disabling queues");
 	wlan_hdd_netif_queue_control(pAdapter,
 				     WLAN_STOP_ALL_NETIF_QUEUE_N_CARRIER,
 				     WLAN_CONTROL_PATH);

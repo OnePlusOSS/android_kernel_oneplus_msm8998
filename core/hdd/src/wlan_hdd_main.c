@@ -1998,7 +1998,7 @@ static int __hdd_open(struct net_device *dev)
 
 	/* Enable carrier and transmit queues for NDI */
 	if (WLAN_HDD_IS_NDI(adapter)) {
-		hdd_notice("Enabling Tx Queues");
+		hdd_debug("Enabling Tx Queues");
 		wlan_hdd_netif_queue_control(adapter,
 			WLAN_START_ALL_NETIF_QUEUE_N_CARRIER,
 			WLAN_CONTROL_PATH);
@@ -2065,7 +2065,7 @@ static int __hdd_stop(struct net_device *dev)
 	 * Disable TX on the interface, after this hard_start_xmit() will not
 	 * be called on that interface
 	 */
-	hdd_notice("Disabling queues");
+	hdd_debug("Disabling queues");
 	wlan_hdd_netif_queue_control(adapter,
 				     WLAN_STOP_ALL_NETIF_QUEUE_N_CARRIER,
 				     WLAN_CONTROL_PATH);
@@ -2796,10 +2796,10 @@ QDF_STATUS hdd_init_station_mode(hdd_adapter_t *adapter)
 	    hdd_ctx->config->rx_ldpc_support_for_2g &&
 	    (QDF_STA_MODE == adapter->device_mode)) {
 		if (!wma_is_current_hwmode_dbs()) {
-		    hdd_notice("send HT/VHT IE per band using nondbs hwmode");
+		    hdd_debug("send HT/VHT IE per band using nondbs hwmode");
 		    sme_set_vdev_ies_per_band(adapter->sessionId, false);
 		} else {
-		    hdd_notice("send HT/VHT IE per band using dbs hwmode");
+		    hdd_debug("send HT/VHT IE per band using dbs hwmode");
 		    sme_set_vdev_ies_per_band(adapter->sessionId, true);
 		}
 	}
@@ -3715,7 +3715,7 @@ QDF_STATUS hdd_stop_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 	}
 
 	scan_info = &adapter->scan_info;
-	hdd_notice("Disabling queues");
+	hdd_debug("Disabling queues");
 	wlan_hdd_netif_queue_control(adapter,
 				     WLAN_STOP_ALL_NETIF_QUEUE_N_CARRIER,
 				     WLAN_CONTROL_PATH);
@@ -3965,7 +3965,7 @@ QDF_STATUS hdd_reset_all_adapters(hdd_context_t *hdd_ctx)
 
 	while (NULL != adapterNode && QDF_STATUS_SUCCESS == status) {
 		adapter = adapterNode->pAdapter;
-		hdd_notice("Disabling queues");
+		hdd_debug("Disabling queues");
 		if (hdd_ctx->config->sap_internal_restart &&
 		    adapter->device_mode == QDF_SAP_MODE) {
 			wlan_hdd_netif_queue_control(adapter,
@@ -9454,15 +9454,15 @@ static void hdd_get_nud_stats_cb(void *data, struct rsp_stats *rsp)
 		return;
 	}
 
-	hdd_notice("rsp->arp_req_enqueue :%x", rsp->arp_req_enqueue);
-	hdd_notice("rsp->arp_req_tx_success :%x", rsp->arp_req_tx_success);
-	hdd_notice("rsp->arp_req_tx_failure :%x", rsp->arp_req_tx_failure);
-	hdd_notice("rsp->arp_rsp_recvd :%x", rsp->arp_rsp_recvd);
-	hdd_notice("rsp->out_of_order_arp_rsp_drop_cnt :%x",
+	hdd_debug("rsp->arp_req_enqueue :%x", rsp->arp_req_enqueue);
+	hdd_debug("rsp->arp_req_tx_success :%x", rsp->arp_req_tx_success);
+	hdd_debug("rsp->arp_req_tx_failure :%x", rsp->arp_req_tx_failure);
+	hdd_debug("rsp->arp_rsp_recvd :%x", rsp->arp_rsp_recvd);
+	hdd_debug("rsp->out_of_order_arp_rsp_drop_cnt :%x",
 		   rsp->out_of_order_arp_rsp_drop_cnt);
-	hdd_notice("rsp->dad_detected :%x", rsp->dad_detected);
-	hdd_notice("rsp->connect_status :%x", rsp->connect_status);
-	hdd_notice("rsp->ba_session_establishment_status :%x",
+	hdd_debug("rsp->dad_detected :%x", rsp->dad_detected);
+	hdd_debug("rsp->connect_status :%x", rsp->connect_status);
+	hdd_debug("rsp->ba_session_establishment_status :%x",
 		   rsp->ba_session_establishment_status);
 
 	adapter->hdd_stats.hdd_arp_stats.rx_fw_cnt = rsp->arp_rsp_recvd;

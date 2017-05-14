@@ -5716,7 +5716,7 @@ void hdd_chip_pwr_save_fail_detected_cb(void *ctx,
 		return;
 
 	if (!data) {
-		hdd_notice("data is null");
+		hdd_debug("data is null");
 		return;
 	}
 
@@ -12097,7 +12097,7 @@ static int __wlan_hdd_change_station(struct wiphy *wiphy,
 			}
 			if (params->supported_oper_classes_len >
 			    CDS_MAX_SUPP_OPER_CLASSES) {
-				hdd_notice("received oper classes:%d, resetting it to max supported: %d",
+				hdd_debug("received oper classes:%d, resetting it to max supported: %d",
 					  params->supported_oper_classes_len,
 					  CDS_MAX_SUPP_OPER_CLASSES);
 				params->supported_oper_classes_len =
@@ -14024,7 +14024,7 @@ static int wlan_hdd_cfg80211_set_auth_type(hdd_adapter_t *pAdapter,
 #endif
 #if defined(WLAN_FEATURE_FILS_SK) && defined(CFG80211_FILS_SK_OFFLOAD_SUPPORT)
 	case NL80211_AUTHTYPE_FILS_SK:
-		hdd_notice("set authentication type to FILS SHARED");
+		hdd_debug("set authentication type to FILS SHARED");
 		pHddStaCtx->conn_info.authType = eCSR_AUTH_TYPE_OPEN_SYSTEM;
 		break;
 #endif
@@ -14115,28 +14115,28 @@ static int wlan_hdd_set_akm_suite(hdd_adapter_t *pAdapter, u32 key_mgmt)
 		break;
 #if defined(WLAN_FEATURE_FILS_SK) && defined(CFG80211_FILS_SK_OFFLOAD_SUPPORT)
 	case WLAN_AKM_SUITE_FILS_SHA256:
-		hdd_notice("setting key mgmt type to FILS SHA256");
+		hdd_debug("setting key mgmt type to FILS SHA256");
 		pWextState->authKeyMgmt |= IW_AUTH_KEY_MGMT_802_1X;
 		roam_profile->fils_con_info->akm_type =
 			eCSR_AUTH_TYPE_FILS_SHA256;
 		break;
 
 	case WLAN_AKM_SUITE_FILS_SHA384:
-		hdd_notice("setting key mgmt type to FILS SHA384");
+		hdd_debug("setting key mgmt type to FILS SHA384");
 		pWextState->authKeyMgmt |= IW_AUTH_KEY_MGMT_802_1X;
 		roam_profile->fils_con_info->akm_type =
 			eCSR_AUTH_TYPE_FILS_SHA384;
 		break;
 
 	case WLAN_AKM_SUITE_FT_FILS_SHA256:
-		hdd_notice("setting key mgmt type to FILS FT SHA256");
+		hdd_debug("setting key mgmt type to FILS FT SHA256");
 		pWextState->authKeyMgmt |= IW_AUTH_KEY_MGMT_802_1X;
 		roam_profile->fils_con_info->akm_type =
 			eCSR_AUTH_TYPE_FT_FILS_SHA256;
 		break;
 
 	case WLAN_AKM_SUITE_FT_FILS_SHA384:
-		hdd_notice("setting key mgmt type to FILS FT SHA384");
+		hdd_debug("setting key mgmt type to FILS FT SHA384");
 		pWextState->authKeyMgmt |= IW_AUTH_KEY_MGMT_802_1X;
 		roam_profile->fils_con_info->akm_type =
 			eCSR_AUTH_TYPE_FT_FILS_SHA384;
@@ -15185,7 +15185,7 @@ static int wlan_hdd_disconnect(hdd_adapter_t *pAdapter, u16 reason)
 			}
 			if (pAdapter->roam_ho_fail) {
 				INIT_COMPLETION(pAdapter->disconnect_comp_var);
-					hdd_notice("Disabling queues");
+					hdd_debug("Disabling queues");
 				wlan_hdd_netif_queue_control(pAdapter,
 					WLAN_STOP_ALL_NETIF_QUEUE_N_CARRIER,
 					WLAN_CONTROL_PATH);
@@ -15198,7 +15198,7 @@ static int wlan_hdd_disconnect(hdd_adapter_t *pAdapter, u16 reason)
 
 	prev_conn_state = pHddStaCtx->conn_info.connState;
 	/*stop tx queues */
-	hdd_notice("Disabling queues");
+	hdd_debug("Disabling queues");
 	wlan_hdd_netif_queue_control(pAdapter,
 				     WLAN_STOP_ALL_NETIF_QUEUE_N_CARRIER,
 				     WLAN_CONTROL_PATH);

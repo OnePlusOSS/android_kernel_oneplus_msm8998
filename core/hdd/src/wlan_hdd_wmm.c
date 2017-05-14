@@ -1279,7 +1279,7 @@ QDF_STATUS hdd_wmm_init(hdd_adapter_t *pAdapter)
 	sme_QosWmmUpType *hddWmmDscpToUpMap = pAdapter->hddWmmDscpToUpMap;
 	uint8_t dscp;
 
-	hdd_info("Entered");
+	hdd_debug("Entered");
 
 	/* DSCP to User Priority Lookup Table
 	 * By default use the 3 Precedence bits of DSCP as the User Priority
@@ -1808,7 +1808,7 @@ QDF_STATUS hdd_wmm_assoc(hdd_adapter_t *pAdapter,
 	 * enable UAPSD for any access categories
 	 */
 
-	hdd_info("Entered");
+	hdd_debug("Entered");
 
 	if (pRoamInfo->fReassocReq) {
 		/* when we reassociate we should continue to use
@@ -1820,7 +1820,7 @@ QDF_STATUS hdd_wmm_assoc(hdd_adapter_t *pAdapter,
 		 * parameters will be updated there
 		 */
 
-		hdd_info("Reassoc so no work, Exiting");
+		hdd_debug("Reassoc so no work, Exiting");
 
 		return QDF_STATUS_SUCCESS;
 	}
@@ -1828,7 +1828,7 @@ QDF_STATUS hdd_wmm_assoc(hdd_adapter_t *pAdapter,
 	uapsdMask =
 		pRoamInfo->u.pConnectedProfile->modifyProfileFields.uapsd_mask;
 
-	hdd_info("U-APSD mask is 0x%02x", (int)uapsdMask);
+	hdd_debug("U-APSD mask is 0x%02x", (int)uapsdMask);
 
 	if (uapsdMask & HDD_AC_VO) {
 		status =
@@ -1902,7 +1902,7 @@ QDF_STATUS hdd_wmm_assoc(hdd_adapter_t *pAdapter,
 		hdd_wmm_init(pAdapter);
 	}
 
-	hdd_info("Exiting");
+	hdd_debug("Exiting");
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -1932,7 +1932,7 @@ QDF_STATUS hdd_wmm_connect(hdd_adapter_t *pAdapter,
 	bool qosConnection;
 	uint8_t acmMask;
 
-	hdd_info("Entered");
+	hdd_debug("Entered");
 
 	if ((eCSR_BSS_TYPE_INFRASTRUCTURE == eBssType) &&
 	    pRoamInfo && pRoamInfo->u.pConnectedProfile) {
@@ -1945,7 +1945,7 @@ QDF_STATUS hdd_wmm_connect(hdd_adapter_t *pAdapter,
 		acmMask = 0x0;
 	}
 
-	hdd_info("qap is %d, qosConnection is %d, acmMask is 0x%x",
+	hdd_debug("qap is %d, qosConnection is %d, acmMask is 0x%x",
 		 qap, qosConnection, acmMask);
 
 	pAdapter->hddWmmStatus.wmmQap = qap;
@@ -1953,7 +1953,7 @@ QDF_STATUS hdd_wmm_connect(hdd_adapter_t *pAdapter,
 
 	for (ac = 0; ac < WLAN_MAX_AC; ac++) {
 		if (qap && qosConnection && (acmMask & acm_mask_bit[ac])) {
-			hdd_info("ac %d on", ac);
+			hdd_debug("ac %d on", ac);
 
 			/* admission is required */
 			pAdapter->hddWmmStatus.wmmAcStatus[ac].
@@ -1983,7 +1983,7 @@ QDF_STATUS hdd_wmm_connect(hdd_adapter_t *pAdapter,
 					wmmAcAccessAllowed = false;
 			}
 		} else {
-			hdd_info("ac %d off", ac);
+			hdd_debug("ac %d off", ac);
 			/* admission is not required so access is allowed */
 			pAdapter->hddWmmStatus.wmmAcStatus[ac].
 			wmmAcAccessRequired = false;
@@ -1993,7 +1993,7 @@ QDF_STATUS hdd_wmm_connect(hdd_adapter_t *pAdapter,
 
 	}
 
-	hdd_info("Exiting");
+	hdd_debug("Exiting");
 
 	return QDF_STATUS_SUCCESS;
 }

@@ -3120,7 +3120,7 @@ static void cds_dump_current_concurrency(void)
 	case 1:
 		cds_dump_current_concurrency_one_connection(cc_mode,
 					sizeof(cc_mode));
-		cds_notice("%s Standalone", cc_mode);
+		cds_debug("%s Standalone", cc_mode);
 		break;
 	case 2:
 		count = cds_dump_current_concurrency_two_connection(
@@ -3135,7 +3135,7 @@ static void cds_dump_current_concurrency(void)
 		} else
 			strlcat(cc_mode, " DBS", sizeof(cc_mode));
 		qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
-		cds_notice("%s", cc_mode);
+		cds_debug("%s", cc_mode);
 		break;
 	case 3:
 		count = cds_dump_current_concurrency_three_connection(
@@ -3159,7 +3159,7 @@ static void cds_dump_current_concurrency(void)
 			qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 			cds_dump_dbs_concurrency(cc_mode, sizeof(cc_mode));
 		}
-		cds_notice("%s", cc_mode);
+		cds_debug("%s", cc_mode);
 		break;
 	default:
 		cds_err("unexpected num_connections value %d",

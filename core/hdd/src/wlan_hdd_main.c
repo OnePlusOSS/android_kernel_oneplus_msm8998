@@ -1975,6 +1975,11 @@ static int __hdd_open(struct net_device *dev)
 			WLAN_CONTROL_PATH);
 	}
 
+	if (adapter->device_mode == QDF_STA_MODE) {
+		hdd_debug("Sending Start Lpass notification");
+		hdd_lpass_notify_start(hdd_ctx, adapter);
+	}
+
 	return ret;
 }
 
@@ -2035,6 +2040,11 @@ static int __hdd_stop(struct net_device *dev)
 	wlan_hdd_netif_queue_control(adapter,
 				     WLAN_STOP_ALL_NETIF_QUEUE_N_CARRIER,
 				     WLAN_CONTROL_PATH);
+
+	if (adapter->device_mode == QDF_STA_MODE) {
+		hdd_debug("Sending Lpass stop notifcation");
+		hdd_lpass_notify_stop(hdd_ctx);
+	}
 
 	/*
 	 * NAN data interface is different in some sense. The traffic on NDI is
@@ -4556,7 +4566,10 @@ QDF_STATUS hdd_start_all_adapters(hdd_context_t *hdd_ctx)
 			hdd_register_tx_flow_control(adapter,
 					hdd_tx_resume_timer_expired_handler,
 					hdd_tx_resume_cb);
-
+			if (adapter->device_mode == QDF_STA_MODE) {
+				hdd_debug("Sending the Lpass start notification after re_init");
+				hdd_lpass_notify_start(hdd_ctx, adapter);
+			}
 			break;
 
 		case QDF_SAP_MODE:
@@ -9250,7 +9263,7 @@ int hdd_wlan_startup(struct device *dev)
 
 	hdd_bus_bandwidth_init(hdd_ctx);
 
-	hdd_lpass_notify_start(hdd_ctx);
+	hdd_lpass_notify_wlan_version(hdd_ctx);
 
 	if (hdd_ctx->rps)
 		hdd_set_rps_cpu_mask(hdd_ctx);

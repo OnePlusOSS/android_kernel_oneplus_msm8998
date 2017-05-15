@@ -269,45 +269,28 @@ static void wlan_hdd_send_version_pkg(uint32_t fw_version,
 }
 
 /**
- * wlan_hdd_send_all_scan_intf_info() - report scan interfaces to lpass
+ * wlan_hdd_send_scan_intf_info() - report scan interfaces to lpass
  * @hdd_ctx: The global HDD context
+ * @adapter: Adapter that supports scanning.
  *
- * This function iterates through all of the interfaces registered
- * with HDD and indicates to lpass all that support scanning.
- * If no interfaces support scanning then that fact is also indicated.
+ * This function indicates adapter that supports scanning to lpass.
  *
  * Return: none
  */
-static void wlan_hdd_send_all_scan_intf_info(struct hdd_context_s *hdd_ctx)
+static void wlan_hdd_send_scan_intf_info(struct hdd_context_s *hdd_ctx,
+					 struct hdd_adapter_s *adapter)
 {
-	hdd_adapter_t *adapter = NULL;
-	hdd_adapter_list_node_t *node = NULL, *next = NULL;
-	bool scan_intf_found = false;
-	QDF_STATUS status;
-
 	if (!hdd_ctx) {
 		hdd_err("NULL pointer for hdd_ctx");
 		return;
 	}
 
-	status = hdd_get_front_adapter(hdd_ctx, &node);
-	while (NULL != node && QDF_STATUS_SUCCESS == status) {
-		adapter = node->pAdapter;
-		if (adapter) {
-			if (adapter->device_mode == QDF_STA_MODE
-			    || adapter->device_mode == QDF_P2P_CLIENT_MODE
-			    || adapter->device_mode ==
-			    QDF_P2P_DEVICE_MODE) {
-				scan_intf_found = true;
-				wlan_hdd_send_status_pkg(adapter, NULL, 1, 0);
-			}
-		}
-		status = hdd_get_next_adapter(hdd_ctx, node, &next);
-		node = next;
+	if (!adapter) {
+		hdd_err("Adapter is Null");
+		return;
 	}
 
-	if (!scan_intf_found)
-		wlan_hdd_send_status_pkg(adapter, NULL, 1, 0);
+	wlan_hdd_send_status_pkg(adapter, NULL, 1, 0);
 }
 
 /*
@@ -376,19 +359,36 @@ void hdd_lpass_notify_mode_change(struct hdd_adapter_s *adapter)
 	struct hdd_context_s *hdd_ctx;
 
 	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
-	wlan_hdd_send_all_scan_intf_info(hdd_ctx);
+	wlan_hdd_send_scan_intf_info(hdd_ctx, adapter);
 }
 
+/*
+ * hdd_lpass_notify_wlan_version() - Notify LPASS WLAN Host/FW version
+ *
+ * implementation note: Notify LPASS for the WLAN host/firmware version.
+ */
+void hdd_lpass_notify_wlan_version(struct hdd_context_s *hdd_ctx)
+{
+	ENTER();
+
+	wlan_hdd_send_version_pkg(hdd_ctx->target_fw_version,
+				  hdd_ctx->target_hw_version,
+				  hdd_ctx->target_hw_name);
+
+	EXIT();
+}
 /*
  * hdd_lpass_notify_start() - Notify LPASS of driver start
  * (public function documented in wlan_hdd_lpass.h)
  */
-void hdd_lpass_notify_start(struct hdd_context_s *hdd_ctx)
+void hdd_lpass_notify_start(struct hdd_context_s *hdd_ctx,
+			   hdd_adapter_t  *adapter)
 {
-	wlan_hdd_send_all_scan_intf_info(hdd_ctx);
-	wlan_hdd_send_version_pkg(hdd_ctx->target_fw_version,
-				  hdd_ctx->target_hw_version,
-				  hdd_ctx->target_hw_name);
+	ENTER();
+
+	wlan_hdd_send_scan_intf_info(hdd_ctx, adapter);
+
+	EXIT();
 }
 
 /*

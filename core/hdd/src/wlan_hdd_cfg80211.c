@@ -11886,7 +11886,10 @@ done:
 	/* Set bitmask based on updated value */
 	cds_set_concurrency_mode(pAdapter->device_mode);
 
-	hdd_lpass_notify_mode_change(pAdapter);
+	if (pAdapter->device_mode == QDF_STA_MODE) {
+		hdd_debug("Sending Lpass mode change notification");
+		hdd_lpass_notify_mode_change(pAdapter);
+	}
 
 	EXIT();
 	return 0;

@@ -9609,7 +9609,7 @@ static int wlan_hdd_cfg80211_set_limit_offchan_param(struct wiphy *wiphy,
 #define AP_LINK_ACTIVE \
 	QCA_ATTR_NUD_STATS_AP_LINK_ACTIVE
 #define AP_LINK_DAD \
-	QCA_ATTR_NUD_STATS_AP_LINK_DAD
+	QCA_ATTR_NUD_STATS_IS_DAD
 #define STATS_GET_MAX \
 	QCA_ATTR_NUD_STATS_GET_MAX
 

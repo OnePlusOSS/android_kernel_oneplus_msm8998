@@ -453,7 +453,7 @@ wlan_hdd_cfg80211_extscan_cached_results_ind(void *ctx,
 	if (nla_put_u32(skb, QCA_WLAN_VENDOR_ATTR_EXTSCAN_RESULTS_REQUEST_ID,
 		data->request_id) ||
 	    nla_put_u32(skb,
-		QCA_WLAN_VENDOR_ATTR_EXTSCAN_NUM_RESULTS_AVAILABLE,
+		QCA_WLAN_VENDOR_ATTR_EXTSCAN_RESULTS_NUM_RESULTS_AVAILABLE,
 		data->num_scan_ids) ||
 	    nla_put_u8(skb,
 		QCA_WLAN_VENDOR_ATTR_EXTSCAN_RESULTS_SCAN_RESULT_MORE_DATA,
@@ -496,7 +496,7 @@ wlan_hdd_cfg80211_extscan_cached_results_ind(void *ctx,
 				QCA_WLAN_VENDOR_ATTR_EXTSCAN_RESULTS_BUCKETS_SCANNED,
 				result->buckets_scanned) ||
 			    nla_put_u32(skb,
-				QCA_WLAN_VENDOR_ATTR_EXTSCAN_NUM_RESULTS_AVAILABLE,
+				QCA_WLAN_VENDOR_ATTR_EXTSCAN_RESULTS_NUM_RESULTS_AVAILABLE,
 				result->num_results)) {
 				hdd_err("put fail");
 				goto fail;
@@ -610,7 +610,7 @@ wlan_hdd_cfg80211_extscan_hotlist_match_ind(void *ctx,
 		QCA_WLAN_VENDOR_ATTR_EXTSCAN_RESULTS_REQUEST_ID,
 		data->requestId) ||
 	    nla_put_u32(skb,
-		QCA_WLAN_VENDOR_ATTR_EXTSCAN_NUM_RESULTS_AVAILABLE,
+		QCA_WLAN_VENDOR_ATTR_EXTSCAN_RESULTS_NUM_RESULTS_AVAILABLE,
 		data->numOfAps)) {
 		hdd_err("put fail");
 		goto fail;
@@ -740,7 +740,7 @@ wlan_hdd_cfg80211_extscan_signif_wifi_change_results_ind(
 		QCA_WLAN_VENDOR_ATTR_EXTSCAN_RESULTS_REQUEST_ID,
 		pData->requestId) ||
 	    nla_put_u32(skb,
-		QCA_WLAN_VENDOR_ATTR_EXTSCAN_NUM_RESULTS_AVAILABLE,
+		QCA_WLAN_VENDOR_ATTR_EXTSCAN_RESULTS_NUM_RESULTS_AVAILABLE,
 		pData->numResults)) {
 		hdd_err("put fail");
 		goto fail;
@@ -986,7 +986,7 @@ wlan_hdd_cfg80211_extscan_scan_res_available_event(
 		QCA_WLAN_VENDOR_ATTR_EXTSCAN_RESULTS_REQUEST_ID,
 		pData->requestId) ||
 	    nla_put_u32(skb,
-		QCA_WLAN_VENDOR_ATTR_EXTSCAN_NUM_RESULTS_AVAILABLE,
+		QCA_WLAN_VENDOR_ATTR_EXTSCAN_RESULTS_NUM_RESULTS_AVAILABLE,
 		pData->numResultsAvailable)) {
 		hdd_err("nla put fail");
 		goto nla_put_failure;
@@ -1159,7 +1159,7 @@ wlan_hdd_cfg80211_extscan_epno_match_found(void *ctx,
 	if (nla_put_u32(skb, QCA_WLAN_VENDOR_ATTR_EXTSCAN_RESULTS_REQUEST_ID,
 		data->request_id) ||
 	    nla_put_u32(skb,
-		QCA_WLAN_VENDOR_ATTR_EXTSCAN_NUM_RESULTS_AVAILABLE,
+		QCA_WLAN_VENDOR_ATTR_EXTSCAN_RESULTS_NUM_RESULTS_AVAILABLE,
 		data->num_results) ||
 	    nla_put_u8(skb,
 		QCA_WLAN_VENDOR_ATTR_EXTSCAN_RESULTS_SCAN_RESULT_MORE_DATA,

@@ -14542,6 +14542,7 @@ static int wlan_hdd_cfg80211_set_fils_config(hdd_adapter_t *adapter,
 		return -EINVAL;
 	}
 
+	hdd_clear_fils_connection_info(adapter);
 	roam_profile->fils_con_info =
 		qdf_mem_malloc(sizeof(struct cds_fils_connection_info));
 

@@ -2908,8 +2908,6 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 					roamResult, pHddStaCtx))
 		return QDF_STATUS_E_FAILURE;
 
-	hdd_clear_fils_connection_info(pAdapter);
-
 	if (NULL != pRoamInfo && NULL != pRoamInfo->pBssDesc) {
 		cds_force_sap_on_scc(roamResult,
 				pRoamInfo->pBssDesc->channelId);

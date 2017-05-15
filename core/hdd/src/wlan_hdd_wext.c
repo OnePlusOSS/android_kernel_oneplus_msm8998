@@ -3992,6 +3992,7 @@ void hdd_clear_roam_profile_ie(hdd_adapter_t *pAdapter)
 	pAdapter->wapi_info.nWapiMode = 0;
 #endif
 
+	hdd_clear_fils_connection_info(pAdapter);
 	qdf_zero_macaddr(&pWextState->req_bssId);
 	EXIT();
 }

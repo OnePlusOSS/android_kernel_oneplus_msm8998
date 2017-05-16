@@ -3445,6 +3445,8 @@ void hdd_cleanup_scan_queue(hdd_context_t *hdd_ctx)
 		adapter = hdd_scan_req->adapter;
 		if (WLAN_HDD_ADAPTER_MAGIC != adapter->magic) {
 			hdd_err("HDD adapter magic is invalid");
+		} else if (!req) {
+			hdd_debug("pending scan is wext triggered");
 		} else {
 			if (NL_SCAN == source)
 				hdd_cfg80211_scan_done(adapter, req, aborted);

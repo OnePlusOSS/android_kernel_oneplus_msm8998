@@ -1209,6 +1209,15 @@ uint32_t lim_create_fils_auth_data(tpAniSirGlobal mac_ctx,
 	if (!session->fils_info)
 		return 0;
 
+	/* These memory may already been allocated if auth retry */
+	if (session->fils_info->fils_r_ik) {
+		qdf_mem_free(session->fils_info->fils_r_ik);
+		session->fils_info->fils_r_ik = NULL;
+	}
+	if  (session->fils_info->fils_erp_reauth_pkt) {
+		qdf_mem_free(session->fils_info->fils_erp_reauth_pkt);
+		session->fils_info->fils_erp_reauth_pkt = NULL;
+	}
 	if (auth_frame->authAlgoNumber == eSIR_FILS_SK_WITHOUT_PFS) {
 		frame_len += session->fils_info->rsn_ie_len;
 		/* FILS nounce */

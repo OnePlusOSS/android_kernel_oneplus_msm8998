@@ -3267,6 +3267,10 @@ tSirRetStatus lim_delete_tdls_peers(tpAniSirGlobal mac_ctx,
 	}
 
 	lim_check_aid_and_delete_peer(mac_ctx, session_entry);
+
+	if (lim_is_roam_synch_in_progress(session_entry))
+		return eSIR_SUCCESS;
+
 	if (mac_ctx->lim.sme_msg_callback) {
 		tdls_state_disable = qdf_mem_malloc(
 						sizeof(*tdls_state_disable));
@@ -3280,9 +3284,6 @@ tSirRetStatus lim_delete_tdls_peers(tpAniSirGlobal mac_ctx,
 		msg.bodyval = 0;
 		mac_ctx->lim.sme_msg_callback(mac_ctx, &msg);
 	}
-
-	if (lim_is_roam_synch_in_progress(session_entry))
-		return eSIR_SUCCESS;
 
 	lim_send_sme_tdls_delete_all_peer_ind(mac_ctx, session_entry);
 	pe_debug("Exit");

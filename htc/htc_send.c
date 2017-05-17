@@ -116,10 +116,12 @@ void htc_print_credit_history(HTC_HANDLE htc, uint32_t count,
 		struct HTC_CREDIT_HISTORY *hist =
 						&htc_credit_history_buffer[idx];
 		long long us = qdf_log_timestamp_to_usecs(hist->time);
+		long long s = qdf_do_div(us, 1000000);
+		long long us_mod = qdf_do_mod(us, 1000000);
 
 		print(print_priv, "% 8lld.%06lld    %-25s    %-7.d    %d",
-		      us / 1000000,
-		      us % 1000000,
+		      s,
+		      us_mod,
 		      htc_credit_exchange_type_str(hist->type),
 		      hist->tx_credit,
 		      hist->htc_tx_queue_depth);

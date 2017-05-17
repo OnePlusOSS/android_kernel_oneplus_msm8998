@@ -84,8 +84,7 @@ static void hif_target_dump_access_log(void);
 #define PIPEDIR_INOUT_H2H 4
 #endif
 
-#ifdef QCA_WIFI_3_0
-static struct CE_attr host_ce_config_wlan[] = {
+static struct CE_attr host_ce_cfg_wcn3990[] = {
 	/* host->target HTC control and raw streams */
 	{ /* CE0 */ CE_ATTR_FLAGS, 0, 16, 2048, 0, NULL,},
 	/* target->host HTT + HTC control */
@@ -103,8 +102,7 @@ static struct CE_attr host_ce_config_wlan[] = {
 	/* Target autonomous HIF_memcpy */
 	{ /* CE6 */ CE_ATTR_FLAGS, 0, 0, 0, 0, NULL,},
 	/* ce_diag, the Diagnostic Window */
-	{ /* CE7 */ (CE_ATTR_FLAGS | CE_ATTR_DISABLE_INTR), 0,
-		2, DIAG_TRANSFER_LIMIT, 2, NULL,},
+	{ /* CE7 */ CE_ATTR_FLAGS, 0, 0, 0, 0, NULL,},
 	/* Target to uMC */
 	{ /* CE8 */ CE_ATTR_FLAGS, 0, 0, 0, 0, NULL,},
 	/* target->host HTT */
@@ -115,7 +113,7 @@ static struct CE_attr host_ce_config_wlan[] = {
 	{ /* CE11 */ CE_ATTR_FLAGS, 0, 0, 2048, 512, NULL,},
 };
 
-static struct CE_pipe_config target_ce_config_wlan[] = {
+static struct CE_pipe_config target_ce_cfg_wcn3990[] = {
 	/* host->target HTC control and raw streams */
 	{ /* CE0 */ 0, PIPEDIR_OUT, 32, 2048, CE_ATTR_FLAGS, 0,},
 	/* target->host HTT */
@@ -146,7 +144,7 @@ static struct CE_pipe_config target_ce_config_wlan[] = {
 	{ /* CE11 */ 11, PIPEDIR_IN,  32, 2048, CE_ATTR_FLAGS, 0,},
 };
 
-static struct CE_attr host_ce_config_wlan_epping_poll[] = {
+static struct CE_attr host_ce_cfg_wcn3990_epping_poll[] = {
 	/* host->target HTC control and raw streams */
 	{ /* CE0 */ CE_ATTR_FLAGS, 0, 16, 2048, 0, NULL,},
 	/* target->host EP-ping */
@@ -165,7 +163,7 @@ static struct CE_attr host_ce_config_wlan_epping_poll[] = {
 	{ /* CE7 */ CE_ATTR_FLAGS, 0, 2,   DIAG_TRANSFER_LIMIT, 2, NULL,},
 };
 
-static struct CE_attr host_ce_config_wlan_epping_irq[] = {
+static struct CE_attr host_ce_cfg_wcn3990_epping_irq[] = {
 	/* host->target HTC control and raw streams */
 	{ /* CE0 */ CE_ATTR_FLAGS, 0,  16, 2048, 0, NULL,},
 	/* target->host EP-ping */
@@ -186,7 +184,7 @@ static struct CE_attr host_ce_config_wlan_epping_irq[] = {
 /*
  * EP-ping firmware's CE configuration
  */
-static struct CE_pipe_config target_ce_config_wlan_epping[] = {
+static struct CE_pipe_config target_ce_cfg_wcn3990_epping[] = {
 	/* host->target HTC control and raw streams */
 	{ /* CE0 */ 0, PIPEDIR_OUT,  16, 2048, CE_ATTR_FLAGS, 0,},
 	/* target->host EP-ping */
@@ -206,8 +204,8 @@ static struct CE_pipe_config target_ce_config_wlan_epping[] = {
 	/* CE8 used only by IPA */
 	{ /* CE8 */ 8, PIPEDIR_IN, 32, 2048, CE_ATTR_FLAGS, 0,}
 };
-#else
-static struct CE_attr host_ce_config_wlan[] = {
+
+static struct CE_attr host_ce_cfg_ar6320[] = {
 	/* host->target HTC control and raw streams */
 	{ /* CE0 */ CE_ATTR_FLAGS, 0, 16,  256, 0, NULL,},
 	/* target->host HTT + HTC control */
@@ -229,7 +227,7 @@ static struct CE_attr host_ce_config_wlan[] = {
 		0, 2, DIAG_TRANSFER_LIMIT, 2, NULL,},
 };
 
-static struct CE_pipe_config target_ce_config_wlan[] = {
+static struct CE_pipe_config target_ce_cfg_ar6320[] = {
 	/* host->target HTC control and raw streams */
 	{ /* CE0 */ 0, PIPEDIR_OUT, 32,  256, CE_ATTR_FLAGS, 0,},
 	/* target->host HTT + HTC control */
@@ -251,7 +249,7 @@ static struct CE_pipe_config target_ce_config_wlan[] = {
 	{ /* CE8 */ 8, PIPEDIR_IN, 32, 2048, CE_ATTR_FLAGS, 0,}
 };
 
-static struct CE_attr host_ce_config_wlan_epping_poll[] = {
+static struct CE_attr host_ce_cfg_ar6320_epping_poll[] = {
 	/* host->target HTC control and raw streams */
 	{ /* CE0 */ CE_ATTR_FLAGS, 0, 16, 256, 0, NULL,},
 	/* target->host EP-ping */
@@ -274,7 +272,7 @@ static struct CE_attr host_ce_config_wlan_epping_poll[] = {
 	{ /* CE10 */ CE_ATTR_FLAGS, 0, 0, 0, 0, NULL,},
 	{ /* CE11 */ CE_ATTR_FLAGS, 0, 0, 0, 0, NULL,},
 };
-static struct CE_attr host_ce_config_wlan_epping_irq[] = {
+static struct CE_attr host_ce_cfg_ar6320_epping_irq[] = {
 	/* host->target HTC control and raw streams */
 	{ /* CE0 */ CE_ATTR_FLAGS, 0, 16, 256, 0, NULL,},
 	/* target->host EP-ping */
@@ -300,7 +298,7 @@ static struct CE_attr host_ce_config_wlan_epping_irq[] = {
 /*
  * EP-ping firmware's CE configuration
  */
-static struct CE_pipe_config target_ce_config_wlan_epping[] = {
+static struct CE_pipe_config target_ce_cfg_ar6320_epping[] = {
 	/* host->target HTC control and raw streams */
 	{ /* CE0 */ 0, PIPEDIR_OUT, 16,   256, CE_ATTR_FLAGS, 0,},
 	/* target->host EP-ping */
@@ -323,7 +321,6 @@ static struct CE_pipe_config target_ce_config_wlan_epping[] = {
 	{ /* CE10 */ 10, PIPEDIR_IN,  0, 0, CE_ATTR_FLAGS, 0,},
 	{ /* CE11 */ 11, PIPEDIR_IN,  0, 0, CE_ATTR_FLAGS, 0,},
 };
-#endif
 
 static struct CE_attr host_ce_config_wlan_ar9888[] = {
 	/* host->target HTC control and raw streams */
@@ -446,7 +443,7 @@ static struct CE_pipe_config target_ce_config_wlan_ar900b[] = {
 
 
 
-static struct CE_attr *host_ce_config = host_ce_config_wlan;
-static struct CE_pipe_config *target_ce_config = target_ce_config_wlan;
-static int target_ce_config_sz = sizeof(target_ce_config_wlan);
+static struct CE_attr *host_ce_config;
+static struct CE_pipe_config *target_ce_config;
+static int target_ce_config_sz;
 #endif /* __HIF_PCI_INTERNAL_H__ */

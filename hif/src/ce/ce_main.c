@@ -2115,24 +2115,54 @@ void hif_ce_prepare_config(struct hif_softc *scn)
 	struct hif_opaque_softc *hif_hdl = GET_HIF_OPAQUE_HDL(scn);
 	struct hif_target_info *tgt_info = hif_get_target_info_handle(hif_hdl);
 
-	/* if epping is enabled we need to use the epping configuration. */
-	if (QDF_IS_EPPING_ENABLED(mode)) {
-		if (CE_EPPING_USES_IRQ)
-			host_ce_config = host_ce_config_wlan_epping_irq;
-		else
-			host_ce_config = host_ce_config_wlan_epping_poll;
-		target_ce_config = target_ce_config_wlan_epping;
-		target_ce_config_sz = sizeof(target_ce_config_wlan_epping);
-		target_service_to_ce_map =
-		    target_service_to_ce_map_wlan_epping;
-		target_service_to_ce_map_sz =
-			sizeof(target_service_to_ce_map_wlan_epping);
-		target_shadow_reg_cfg = target_shadow_reg_cfg_epping;
-		shadow_cfg_sz = sizeof(target_shadow_reg_cfg_epping);
-	}
-
 	switch (tgt_info->target_type) {
 	default:
+		break;
+	case TARGET_TYPE_AR6320V1:
+	case TARGET_TYPE_AR6320V2:
+	case TARGET_TYPE_AR6320V3:
+		if (QDF_IS_EPPING_ENABLED(mode)) {
+			if (CE_EPPING_USES_IRQ)
+				host_ce_config = host_ce_cfg_ar6320_epping_irq;
+			else
+				host_ce_config =
+					host_ce_cfg_ar6320_epping_poll;
+			target_ce_config = target_ce_cfg_ar6320_epping;
+			target_ce_config_sz =
+				sizeof(target_ce_cfg_ar6320_epping);
+			target_service_to_ce_map =
+				target_service_to_ce_map_wlan_epping;
+			target_service_to_ce_map_sz =
+				sizeof(target_service_to_ce_map_wlan_epping);
+			target_shadow_reg_cfg = target_shadow_reg_cfg_epping;
+			shadow_cfg_sz = sizeof(target_shadow_reg_cfg_epping);
+		} else {
+			host_ce_config = host_ce_cfg_ar6320;
+			target_ce_config = target_ce_cfg_ar6320;
+			target_ce_config_sz = sizeof(target_ce_cfg_ar6320);
+		}
+		break;
+	case TARGET_TYPE_ADRASTEA:
+		if (QDF_IS_EPPING_ENABLED(mode)) {
+			if (CE_EPPING_USES_IRQ)
+				host_ce_config = host_ce_cfg_wcn3990_epping_irq;
+			else
+				host_ce_config =
+					host_ce_cfg_wcn3990_epping_poll;
+			target_ce_config = target_ce_cfg_wcn3990_epping;
+			target_ce_config_sz =
+					sizeof(target_ce_cfg_wcn3990_epping);
+			target_service_to_ce_map =
+				target_service_to_ce_map_wlan_epping;
+			target_service_to_ce_map_sz =
+				sizeof(target_service_to_ce_map_wlan_epping);
+			target_shadow_reg_cfg = target_shadow_reg_cfg_epping;
+			shadow_cfg_sz = sizeof(target_shadow_reg_cfg_epping);
+		} else {
+			host_ce_config = host_ce_cfg_wcn3990;
+			target_ce_config = target_ce_cfg_wcn3990;
+			target_ce_config_sz = sizeof(target_ce_cfg_wcn3990);
+		}
 		break;
 	case TARGET_TYPE_AR900B:
 	case TARGET_TYPE_QCA9984:

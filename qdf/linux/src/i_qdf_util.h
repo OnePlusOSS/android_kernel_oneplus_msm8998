@@ -388,4 +388,17 @@ uint64_t __qdf_do_div(uint64_t dividend, uint32_t divisor)
 	return dividend;
 }
 
+/**
+ * __qdf_do_mod() - wrapper function for kernel macro(do_div).
+ * @dividend: Dividend value
+ * @divisor : Divisor value
+ *
+ * Return: Modulo
+ */
+static inline
+uint64_t __qdf_do_mod(uint64_t dividend, uint32_t divisor)
+{
+	return do_div(dividend, divisor);
+}
+
 #endif /*_I_QDF_UTIL_H*/

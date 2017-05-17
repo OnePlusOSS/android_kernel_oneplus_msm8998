@@ -3488,6 +3488,7 @@ static int __copy_layer_pp_info_igc_params(
 			compat_ptr(pp_info32->igc_cfg.c0_c1_data);
 		pp_info->igc_cfg.c2_data =
 			compat_ptr(pp_info32->igc_cfg.c2_data);
+		kfree(cfg_payload);
 		cfg_payload = NULL;
 		break;
 	}
@@ -3560,6 +3561,7 @@ static int __copy_layer_pp_info_hist_lut_params(
 		pp_info->hist_lut_cfg.len = pp_info32->hist_lut_cfg.len;
 		pp_info->hist_lut_cfg.data =
 				compat_ptr(pp_info32->hist_lut_cfg.data);
+		kfree(cfg_payload);
 		cfg_payload = NULL;
 		break;
 	}
@@ -3649,6 +3651,7 @@ static int __copy_layer_pp_info_pa_v2_params(
 		break;
 	default:
 		pr_debug("version invalid\n");
+		kfree(cfg_payload);
 		cfg_payload = NULL;
 		break;
 	}
@@ -3732,6 +3735,7 @@ static int __copy_layer_pp_info_pcc_params(
 		break;
 	default:
 		pr_debug("version invalid, fallback to legacy\n");
+		kfree(cfg_payload);
 		cfg_payload = NULL;
 		break;
 	}

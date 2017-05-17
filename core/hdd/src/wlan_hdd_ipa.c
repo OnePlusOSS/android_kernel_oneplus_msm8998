@@ -76,7 +76,7 @@
 #define HDD_IPA_UC_RT_DEBUG_FILL_INTERVAL  10000
 
 #define HDD_IPA_WLAN_HDR_DES_MAC_OFFSET    0
-#define HDD_IPA_MAX_IFACE                  3
+#define HDD_IPA_MAX_IFACE                  MAX_IPA_IFACE
 #define HDD_IPA_MAX_SYSBAM_PIPE            4
 #define HDD_IPA_RX_PIPE                    HDD_IPA_MAX_IFACE
 #define HDD_IPA_ENABLE_MASK                BIT(0)
@@ -587,7 +587,7 @@ do { \
 static struct hdd_ipa_adapter_2_client {
 	enum ipa_client_type cons_client;
 	enum ipa_client_type prod_client;
-} hdd_ipa_adapter_2_client[HDD_IPA_MAX_IFACE] = {
+} hdd_ipa_adapter_2_client[] = {
 	{
 		IPA_CLIENT_WLAN2_CONS, IPA_CLIENT_WLAN1_PROD
 	}, {

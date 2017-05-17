@@ -551,6 +551,30 @@ static void dump_tdls_state_param_setting(tdlsInfo_t *info)
 
 }
 
+void hdd_tdls_notify_set_state_disable(uint32_t session_id)
+{
+	hdd_context_t *hdd_ctx;
+	hdd_adapter_t *adapter;
+
+	ENTER();
+
+	/* Get the HDD context.*/
+	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+	if (NULL == hdd_ctx)
+		return;
+
+	adapter = hdd_get_adapter_by_sme_session_id(hdd_ctx, session_id);
+	if (NULL == adapter) {
+		hdd_err("adapter not found");
+		return;
+	}
+
+	if (WLAN_HDD_ADAPTER_MAGIC != adapter->magic) {
+		hdd_err("adapter has invalid magic");
+		return;
+	}
+	wlan_hdd_tdls_notify_disconnect(adapter, true);
+}
 
 /**
  * wlan_hdd_tdls_monitor_timers_stop() - stop all monitoring timers

@@ -4036,6 +4036,12 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_ENABLE_DP_TRACE_MIN,
 		CFG_ENABLE_DP_TRACE_MAX),
 
+
+	REG_VARIABLE_STRING(CFG_ENABLE_DP_TRACE_CONFIG, WLAN_PARAM_String,
+			struct hdd_config, dp_trace_config,
+			VAR_FLAGS_OPTIONAL,
+			(void *) CFG_ENABLE_DP_TRACE_CONFIG_DEFAULT),
+
 	REG_VARIABLE(CFG_ADAPTIVE_SCAN_DWELL_MODE_NAME, WLAN_PARAM_Integer,
 		struct hdd_config, scan_adaptive_dwell_mode,
 		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -6045,10 +6051,12 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_debug("Name = [%s] Value = [%s]",
 		CFG_ENABLE_TX_SCHED_WRR_BE,
 		pHddCtx->config->tx_sched_wrr_be);
-
 	hdd_debug("Name = [%s] Value = [%u]",
 		CFG_ENABLE_DP_TRACE,
 		pHddCtx->config->enable_dp_trace);
+	hdd_debug("Name = [%s] Value = [%s]",
+		CFG_ENABLE_DP_TRACE_CONFIG,
+		pHddCtx->config->dp_trace_config);
 	hdd_debug("Name = [%s] Value = [%u]",
 		CFG_ADAPTIVE_SCAN_DWELL_MODE_NAME,
 		pHddCtx->config->scan_adaptive_dwell_mode);

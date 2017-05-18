@@ -1410,7 +1410,6 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 	struct nlattr *tb[QCA_WLAN_VENDOR_ATTR_ACS_MAX + 1];
 	bool ht_enabled, ht40_enabled, vht_enabled;
 	uint8_t ch_width;
-	uint8_t weight_list[QDF_MAX_NUM_CHAN];
 
 	/* ***Note*** Donot set SME config related to ACS operation here because
 	 * ACS operation is not synchronouse and ACS for Second AP may come when
@@ -1566,9 +1565,10 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 
 	/* consult policy manager to get PCL */
 	status = cds_get_pcl(CDS_SAP_MODE,
-				sap_config->acs_cfg.pcl_channels,
-				&sap_config->acs_cfg.pcl_ch_count,
-				weight_list, QDF_ARRAY_SIZE(weight_list));
+			sap_config->acs_cfg.pcl_channels,
+			&sap_config->acs_cfg.pcl_ch_count,
+			sap_config->acs_cfg.weight_list,
+			QDF_ARRAY_SIZE(sap_config->acs_cfg.weight_list));
 	if (QDF_STATUS_SUCCESS != status)
 		hdd_err("Get PCL failed");
 

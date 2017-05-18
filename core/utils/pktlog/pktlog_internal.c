@@ -290,8 +290,13 @@ fill_ieee80211_hdr_data(struct ol_txrx_pdev_t *txrx_pdev,
 				      >> TX_DESC_ID_HIGH_SHIFT);
 			msdu_id += 1;
 		}
-		tx_desc = ol_tx_desc_find(txrx_pdev, tx_desc_id);
-		qdf_assert(tx_desc);
+		tx_desc = ol_tx_desc_find_check(txrx_pdev, tx_desc_id);
+		if (!tx_desc) {
+			qdf_print("%s: ignore invalid desc_id(%u)\n", __func__,
+					tx_desc_id);
+			return;
+		}
+
 		netbuf = tx_desc->netbuf;
 		htt_tx_desc = (uint32_t *) tx_desc->htt_tx_desc;
 		qdf_assert(htt_tx_desc);

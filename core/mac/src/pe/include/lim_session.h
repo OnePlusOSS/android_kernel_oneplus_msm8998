@@ -500,6 +500,7 @@ typedef struct sPESession       /* Added to Support BT-AMP */
 #endif
 	uint8_t deauthmsgcnt;
 	uint8_t disassocmsgcnt;
+	bool enable_bcast_probe_rsp;
 } tPESession, *tpPESession;
 
 /*-------------------------------------------------------------------------

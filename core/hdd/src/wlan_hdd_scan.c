@@ -2763,7 +2763,6 @@ static void
 hdd_sched_scan_callback(void *callbackContext,
 			tSirPrefNetworkFoundInd *pPrefNetworkFoundInd)
 {
-	int ret;
 	hdd_adapter_t *pAdapter = (hdd_adapter_t *) callbackContext;
 	hdd_context_t *pHddCtx;
 
@@ -2789,21 +2788,7 @@ hdd_sched_scan_callback(void *callbackContext,
 	}
 	qdf_spin_unlock(&pHddCtx->sched_scan_lock);
 
-	ret = wlan_hdd_cfg80211_update_bss(pHddCtx->wiphy, pAdapter, 0);
-
-	if (ret < 0) {
-		hdd_debug("NO SCAN result");
-	} else {
-		/*
-		 * Acquire wakelock to handle the case where APP's tries to
-		 * suspend immediately after the driver gets connect
-		 * request(i.e after pno) from supplicant, this result in
-		 * app's is suspending and not able to process the connect
-		 * request to AP
-		 */
-		hdd_prevent_suspend_timeout(1000,
-					    WIFI_POWER_EVENT_WAKELOCK_SCAN);
-	}
+	hdd_prevent_suspend_timeout(1000, WIFI_POWER_EVENT_WAKELOCK_SCAN);
 
 	cfg80211_sched_scan_results(pHddCtx->wiphy);
 	hdd_debug("cfg80211 scan result database updated");

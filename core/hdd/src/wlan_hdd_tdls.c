@@ -1926,17 +1926,21 @@ int wlan_hdd_tdls_set_params(struct net_device *dev,
  */
 static hdd_adapter_t *wlan_hdd_tdls_get_adapter(hdd_context_t *hdd_ctx)
 {
+	uint32_t vdev_id;
+
 	if (cds_get_connection_count() > 1)
 		return NULL;
-	if (cds_mode_specific_connection_count(QDF_STA_MODE,
-					       NULL) == 1)
-		return hdd_get_adapter(hdd_ctx,
-				       QDF_STA_MODE);
-	if (cds_mode_specific_connection_count(QDF_P2P_CLIENT_MODE,
-					       NULL) == 1)
-		return hdd_get_adapter(hdd_ctx,
-				       QDF_P2P_CLIENT_MODE);
+
+	vdev_id = cds_mode_specific_vdev_id(QDF_STA_MODE);
+	if (CDS_INVALID_VDEV_ID != vdev_id)
+		return hdd_get_adapter_by_vdev(hdd_ctx, vdev_id);
+
+	vdev_id = cds_mode_specific_vdev_id(QDF_P2P_CLIENT_MODE);
+	if (CDS_INVALID_VDEV_ID != vdev_id)
+		return hdd_get_adapter_by_vdev(hdd_ctx, vdev_id);
+
 	return NULL;
+
 }
 
 /**
@@ -2112,6 +2116,11 @@ void wlan_hdd_tdls_notify_connect(hdd_adapter_t *adapter,
 				  tCsrRoamInfo *csr_roam_info)
 {
 	hdd_info("Check and update TDLS state");
+
+	if (cds_get_connection_count() > 1) {
+		hdd_debug("concurrent sessions exist, TDLS can't be enabled");
+		return;
+	}
 
 	/* Association event */
 	if (adapter->device_mode == QDF_STA_MODE ||

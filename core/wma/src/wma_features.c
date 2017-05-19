@@ -2965,6 +2965,7 @@ static QDF_STATUS spectral_phyerr_event_handler(void *handle,
 		return QDF_STATUS_E_FAILURE;
 	}
 
+	memset(&phyerr, 0, sizeof(wmi_host_phyerr_t));
 	if (wma_extract_comb_phyerr_spectral(handle, data,
 			datalen, &buf_offset, &phyerr)) {
 		WMA_LOGE("%s: extract comb phyerr failed", __func__);

@@ -314,9 +314,9 @@ lim_check_and_add_bss_description(tpAniSirGlobal mac_ctx,
 	uint32_t frame_len, ie_len = 0;
 	uint8_t rx_chan_in_beacon = 0;
 	QDF_STATUS status;
-	uint8_t dont_update_all = 0;
 	uint8_t rf_band = 0;
 	uint8_t rx_chan_bd = 0;
+	uint32_t flags = 0;
 
 	tSirMacAddr bssid_zero =  {0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 	tpSirMacDataHdr3a hdr;
@@ -356,17 +356,17 @@ lim_check_and_add_bss_description(tpAniSirGlobal mac_ctx,
 		rx_chan_bd = WMA_GET_RX_CH(rx_packet_info);
 
 		if (rx_chan_bd != rx_chan_in_beacon) {
-			/* BCAST Frame, if CH do not match, Drop */
-			if (WMA_IS_RX_BCAST(rx_packet_info)) {
-				pe_debug("Beacon/Probe Rsp dropped. Channel in BD: %d Channel in beacon: %d",
+			/* Drop beacon, if CH do not match, Drop */
+			if (!fProbeRsp) {
+				pe_debug("Beacon Rsp dropped. Channel in BD: %d Channel in beacon: %d",
 					WMA_GET_RX_CH(rx_packet_info),
 					lim_get_channel_from_beacon(mac_ctx,
 						bpr));
 				return;
 			}
-			/* Unit cast frame, Probe RSP, do not drop */
+			/* Probe RSP, do not drop */
 			else {
-				dont_update_all = 1;
+				flags |= WLAN_SKIP_RSSI_UPDATE;
 				pe_debug("SSID: %s CH in ProbeRsp: %d CH in BD: %d mismatch Do Not Drop",
 					bpr->ssId.ssId, rx_chan_in_beacon,
 					WMA_GET_RX_CH(rx_packet_info));
@@ -410,7 +410,8 @@ lim_check_and_add_bss_description(tpAniSirGlobal mac_ctx,
 	 * scan_id and flags parameters are currently unused and set to 0.
 	 */
 	if (mac_ctx->lim.add_bssdescr_callback) {
-		(mac_ctx->lim.add_bssdescr_callback) (mac_ctx, bssdescr, 0, 0);
+		(mac_ctx->lim.add_bssdescr_callback) (mac_ctx,
+			bssdescr, 0, flags);
 	} else {
 		pe_warn("No CSR callback routine to send beacons");
 		status = QDF_STATUS_E_INVAL;

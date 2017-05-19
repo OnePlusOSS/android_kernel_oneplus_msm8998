@@ -4413,7 +4413,8 @@ bool csr_scan_complete(tpAniSirGlobal pMac, tSirSmeScanRsp *pScanRsp)
 
 static void
 csr_scan_remove_dup_bss_description_from_interim_list(tpAniSirGlobal mac_ctx,
-					tSirBssDescription *bss_dscp)
+					tSirBssDescription *bss_dscp,
+					uint32_t flags)
 {
 	tListElem *pEntry;
 	struct tag_csrscan_result *scan_bss_dscp;
@@ -4439,16 +4440,27 @@ csr_scan_remove_dup_bss_description_from_interim_list(tpAniSirGlobal mac_ctx,
 		scan_entry_rssi = scan_bss_dscp->Result.BssDescriptor.rssi;
 		if (csr_is_duplicate_bss_description(mac_ctx,
 			&scan_bss_dscp->Result.BssDescriptor, bss_dscp)) {
-			/*
-			 * Following is mathematically a = (aX + b(100-X))/100
-			 * where:
-			 * a = bss_dscp->rssi, b = scan_entry_rssi
-			 * and X = CSR_SCAN_RESULT_RSSI_WEIGHT
-			 */
-			bss_dscp->rssi = (int8_t) ((((int32_t) bss_dscp->rssi *
-				CSR_SCAN_RESULT_RSSI_WEIGHT) +
-				((int32_t) scan_entry_rssi *
-				 (100 - CSR_SCAN_RESULT_RSSI_WEIGHT))) / 100);
+
+			/* Do not update RSSI id skip RSSI Update flag is set */
+			if (flags & WLAN_SKIP_RSSI_UPDATE) {
+				bss_dscp->rssi =
+				   scan_bss_dscp->Result.BssDescriptor.rssi;
+				bss_dscp->rssi_raw =
+				   scan_bss_dscp->Result.BssDescriptor.rssi_raw;
+			} else {
+				/*
+				 * Following is mathematically
+				 * a = (aX + b(100-X))/100 where:
+				 * a = bss_dscp->rssi, b = scan_entry_rssi
+				 * and X = CSR_SCAN_RESULT_RSSI_WEIGHT
+				 */
+				bss_dscp->rssi = (int8_t)
+					((((int32_t) bss_dscp->rssi *
+					CSR_SCAN_RESULT_RSSI_WEIGHT) +
+					((int32_t) scan_entry_rssi *
+					(100 - CSR_SCAN_RESULT_RSSI_WEIGHT)))
+					/ 100);
+			}
 			/* Remove the 'old' entry from the list */
 			if (csr_ll_remove_entry(&mac_ctx->scan.tempScanResults,
 				pEntry, LL_ACCESS_NOLOCK)) {
@@ -4778,6 +4790,11 @@ QDF_STATUS csr_scan_process_single_bssdescr(tpAniSirGlobal mac_ctx,
 
 	if (csr_scan_validate_scan_result(mac_ctx, chanlist,
 			cnt_channels, bssdescr, &ies)) {
+
+		csr_scan_remove_dup_bss_description_from_interim_list
+			(mac_ctx, bssdescr, flags);
+		csr_scan_save_bss_description_to_interim_list
+			(mac_ctx, bssdescr, ies);
 		roam_info = qdf_mem_malloc(sizeof(*roam_info));
 		if (roam_info) {
 			qdf_mem_zero(roam_info, sizeof(*roam_info));
@@ -4797,10 +4814,6 @@ QDF_STATUS csr_scan_process_single_bssdescr(tpAniSirGlobal mac_ctx,
 		} else {
 			sme_err("qdf_mem_malloc failed");
 		}
-		csr_scan_remove_dup_bss_description_from_interim_list
-			(mac_ctx, bssdescr);
-		csr_scan_save_bss_description_to_interim_list
-			(mac_ctx, bssdescr, ies);
 		/*
 		 * If scan is not in progress and interim list
 		 * reach threashold, move scan results from temp

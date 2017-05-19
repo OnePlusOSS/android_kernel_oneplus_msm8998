@@ -1520,13 +1520,6 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_QOS_WMM_BURST_SIZE_DEFN_MIN,
 		     CFG_QOS_WMM_BURST_SIZE_DEFN_MAX),
 
-	REG_VARIABLE(CFG_MCAST_BCAST_FILTER_SETTING_NAME, WLAN_PARAM_Integer,
-		     struct hdd_config, mcastBcastFilterSetting,
-		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
-		     CFG_MCAST_BCAST_FILTER_SETTING_DEFAULT,
-		     CFG_MCAST_BCAST_FILTER_SETTING_MIN,
-		     CFG_MCAST_BCAST_FILTER_SETTING_MAX),
-
 	REG_VARIABLE(CFG_ENABLE_HOST_ARPOFFLOAD_NAME, WLAN_PARAM_Integer,
 		     struct hdd_config, fhostArpOffload,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -5606,8 +5599,6 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 
 	hdd_debug("Name = [DelayedTriggerFrmInt] Value = [%u] ",
 		  pHddCtx->config->DelayedTriggerFrmInt);
-	hdd_debug("Name = [mcastBcastFilterSetting] Value = [%u] ",
-		  pHddCtx->config->mcastBcastFilterSetting);
 	hdd_debug("Name = [fhostArpOffload] Value = [%u] ",
 		  pHddCtx->config->fhostArpOffload);
 	hdd_debug("Name = [ssdp] Value = [%u] ", pHddCtx->config->ssdp);
@@ -7011,12 +7002,6 @@ bool hdd_update_config_cfg(hdd_context_t *hdd_ctx)
 		    config->goLinkMonitorPeriod) == QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_GO_LINK_MONITOR_TIMEOUT to CFG");
-	}
-
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_MCAST_BCAST_FILTER_SETTING,
-		    config->mcastBcastFilterSetting) == QDF_STATUS_E_FAILURE) {
-		status = false;
-		hdd_err("Couldn't pass on WNI_CFG_MCAST_BCAST_FILTER_SETTING to CFG");
 	}
 
 	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_SINGLE_TID_RC,

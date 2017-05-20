@@ -320,6 +320,13 @@ static int hdd_ndi_create_req_handler(hdd_context_t *hdd_ctx,
 	transaction_id =
 		nla_get_u16(tb[QCA_WLAN_VENDOR_ATTR_NDP_TRANSACTION_ID]);
 
+	/* check for an existing NDI with the same name */
+	adapter = hdd_get_adapter_by_iface_name(hdd_ctx, iface_name);
+	if (adapter) {
+		hdd_err("NAN data interface %s is available", iface_name);
+		return -EEXIST;
+	}
+
 	adapter = hdd_open_adapter(hdd_ctx, QDF_NDI_MODE, iface_name,
 			wlan_hdd_get_intf_addr(hdd_ctx), NET_NAME_UNKNOWN,
 			true);
@@ -398,7 +405,7 @@ static int hdd_ndi_delete_req_handler(hdd_context_t *hdd_ctx,
 	adapter = hdd_get_adapter_by_iface_name(hdd_ctx, iface_name);
 	if (!adapter) {
 		hdd_err("NAN data interface %s is not available", iface_name);
-		return -EINVAL;
+		return -ENODEV;
 	}
 
 	/* check if adapter is in NDI mode */

@@ -3785,8 +3785,10 @@ static void cds_set_pcl_for_existing_combo(enum cds_con_mode mode)
 	if (cds_mode_specific_connection_count(mode, NULL) > 0) {
 		/* Check, store and temp delete the mode's parameter */
 		cds_store_and_del_conn_info(mode, &info);
+		qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 		/* Set the PCL to the FW since connection got updated */
 		cds_pdev_set_pcl(pcl_mode);
+		qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 		cds_debug("Set PCL to FW for mode:%d", mode);
 		/* Restore the connection info */
 		cds_restore_deleted_conn_info(&info);
@@ -4013,8 +4015,10 @@ QDF_STATUS cds_get_pcl_for_existing_conn(enum cds_con_mode mode,
 	if (cds_mode_specific_connection_count(mode, NULL) > 0) {
 		/* Check, store and temp delete the mode's parameter */
 		cds_store_and_del_conn_info(mode, &info);
+		qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 		/* Get the PCL */
 		status = cds_get_pcl(mode, pcl_ch, len, pcl_weight, weight_len);
+		qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 		cds_debug("Get PCL to FW for mode:%d", mode);
 		/* Restore the connection info */
 		cds_restore_deleted_conn_info(&info);

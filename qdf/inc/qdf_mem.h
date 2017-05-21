@@ -37,6 +37,8 @@
 #include <qdf_types.h>
 #include <i_qdf_mem.h>
 
+#define QDF_CACHE_LINE_SZ __qdf_cache_line_sz
+
 /**
  * struct qdf_mem_dma_page_t - Allocated dmaable page
  * @page_v_addr_start: Page start virtual address

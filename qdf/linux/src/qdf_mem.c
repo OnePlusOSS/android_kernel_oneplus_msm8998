@@ -438,7 +438,7 @@ static QDF_STATUS qdf_mem_debug_debugfs_init(void)
 		return QDF_STATUS_E_FAILURE;
 
 	debugfs_create_file("list",
-			    S_IRUSR | S_IWUSR,
+			    S_IRUSR,
 			    qdf_mem_debugfs_root,
 			    NULL,
 			    &fops_qdf_mem_debugfs);
@@ -486,12 +486,12 @@ static QDF_STATUS qdf_mem_debugfs_init(void)
 
 
 	debugfs_create_atomic_t("kmalloc",
-				S_IRUSR | S_IWUSR,
+				S_IRUSR,
 				qdf_mem_debugfs_root,
 				&qdf_mem_stat.kmalloc);
 
 	debugfs_create_atomic_t("dma",
-				S_IRUSR | S_IWUSR,
+				S_IRUSR,
 				qdf_mem_debugfs_root,
 				&qdf_mem_stat.dma);
 
@@ -512,11 +512,6 @@ static QDF_STATUS qdf_mem_debugfs_init(void)
 }
 static void qdf_mem_debugfs_exit(void) {}
 
-
-static QDF_STATUS qdf_mem_debug_debugfs_init(void)
-{
-	return QDF_STATUS_E_NOSUPPORT;
-}
 
 static QDF_STATUS qdf_mem_debug_debugfs_init(void)
 {

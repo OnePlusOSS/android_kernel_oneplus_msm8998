@@ -181,6 +181,9 @@ static inline uint8_t ol_rx_defrag_concat(qdf_nbuf_t dst, qdf_nbuf_t src)
 	if (qdf_nbuf_cat(dst, src))
 		return OL_RX_DEFRAG_ERR;
 
+	/* Free source buffer */
+	qdf_nbuf_free(src);
+
 	return OL_RX_DEFRAG_OK;
 }
 

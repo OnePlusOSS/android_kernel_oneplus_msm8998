@@ -1587,6 +1587,29 @@ enum hdd_dot11_mode {
 
 /*
  * <ini>
+ * gForce1x1Exception - force 1x1 when connecting to certain peer
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This INI when enabled will force 1x1 connection with certain peer.
+ *
+ *
+ * Related: None
+ *
+ * Supported Feature: connection
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_FORCE_1X1_NAME      "gForce1x1Exception"
+#define CFG_FORCE_1X1_MIN       (0)
+#define CFG_FORCE_1X1_MAX       (1)
+#define CFG_FORCE_1X1_DEFAULT   (0)
+
+/*
+ * <ini>
  * gEnableFastRoamInConcurrency - Enable LFR roaming on STA during concurrency
  * @Min: 0
  * @Max: 1
@@ -4033,29 +4056,6 @@ enum station_keepalive_method {
 
 /*
  * <ini>
- * McastBcastFilter - Filters Mcast/Bcast Rx packets completely
- * @Min: 0
- * @Max: 3
- * @Default: 0
- *
- * This ini is used to send default NULL frame to AP
- *
- * Related: None
- *
- * Supported Feature: STA
- *
- * Usage: Internal/External
- *
- * </ini>
- */
-
-#define CFG_MCAST_BCAST_FILTER_SETTING_NAME          "McastBcastFilter"
-#define CFG_MCAST_BCAST_FILTER_SETTING_MIN           (0)
-#define CFG_MCAST_BCAST_FILTER_SETTING_MAX           (3)
-#define CFG_MCAST_BCAST_FILTER_SETTING_DEFAULT       (0)
-
-/*
- * <ini>
  * gDynamicPSPollvalue - Set dynamic PSpoll value
  * @Min: 0
  * @Max: 255
@@ -5049,17 +5049,17 @@ enum hdd_link_speed_rpt_type {
 #define CFG_ENABLE_EGAP_INACT_TIME_FEATURE         "gEGAPInactTime"
 #define CFG_ENABLE_EGAP_INACT_TIME_FEATURE_MIN     (0)
 #define CFG_ENABLE_EGAP_INACT_TIME_FEATURE_MAX     (300000)
-#define CFG_ENABLE_EGAP_INACT_TIME_FEATURE_DEFAULT (1000)
+#define CFG_ENABLE_EGAP_INACT_TIME_FEATURE_DEFAULT (2000)
 
 #define CFG_ENABLE_EGAP_WAIT_TIME_FEATURE          "gEGAPWaitTime"
 #define CFG_ENABLE_EGAP_WAIT_TIME_FEATURE_MIN      (0)
 #define CFG_ENABLE_EGAP_WAIT_TIME_FEATURE_MAX      (300000)
-#define CFG_ENABLE_EGAP_WAIT_TIME_FEATURE_DEFAULT  (100)
+#define CFG_ENABLE_EGAP_WAIT_TIME_FEATURE_DEFAULT  (150)
 
 #define CFG_ENABLE_EGAP_FLAGS_FEATURE              "gEGAPFeatures"
 #define CFG_ENABLE_EGAP_FLAGS_FEATURE_MIN          (0)
 #define CFG_ENABLE_EGAP_FLAGS_FEATURE_MAX          (15)
-#define CFG_ENABLE_EGAP_FLAGS_FEATURE_DEFAULT      (7)
+#define CFG_ENABLE_EGAP_FLAGS_FEATURE_DEFAULT      (3)
 /* end Enhanced Green AP flags/params */
 
 #endif
@@ -9554,6 +9554,31 @@ enum dot11p_mode {
 #define CFG_AUTO_PS_ENABLE_TIMER_MAX           (120)
 #define CFG_AUTO_PS_ENABLE_TIMER_DEFAULT       (0)
 
+#ifdef WLAN_ICMP_DISABLE_PS
+/*
+ * <ini>
+ * gIcmpDisablePsValue - Set ICMP packet disable power save value
+ * @Min:     0
+ * @Max:     10000
+ * @Default: 5000
+ *
+ * This ini is used to set ICMP packet disable power save value in
+ * millisecond.
+ *
+ * Related: gEnableBmps
+ *
+ * Supported Feature: Power Save
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ICMP_DISABLE_PS_NAME               "gIcmpDisablePsValue"
+#define CFG_ICMP_DISABLE_PS_MIN                (0)
+#define CFG_ICMP_DISABLE_PS_MAX                (10000)
+#define CFG_ICMP_DISABLE_PS_DEFAULT            (5000)
+#endif
+
 /*
  * <ini>
  * gBmpsMinListenInterval - Set BMPS Minimum Listen Interval
@@ -10053,7 +10078,7 @@ enum hw_filter_mode {
  * gHwFilterMode - configure hardware filter for DTIM mode
  * @Min: 0
  * @Max: 3
- * @Default: 0
+ * @Default: 1
  *
  * The hardware filter is only effective in DTIM mode. Use this configuration
  * to blanket drop broadcast/multicast packets at the hardware level, without
@@ -10061,9 +10086,9 @@ enum hw_filter_mode {
  *
  * Takes a bitmap of frame types to drop
  * @E.g.
- *	# disable feature (default)
+ *	# disable feature
  *	gHwFilterMode=0
- *	# drop all broadcast frames, except ARP
+ *	# drop all broadcast frames, except ARP (default)
  *	gHwFilterMode=1
  *	# drop all multicast frames, except ICMPv6
  *	gHwFilterMode=2
@@ -10079,7 +10104,7 @@ enum hw_filter_mode {
 #define CFG_HW_FILTER_MODE_NAME		"gHwFilterMode"
 #define CFG_HW_FILTER_MODE_MIN		(0)
 #define CFG_HW_FILTER_MODE_MAX		(3)
-#define CFG_HW_FILTER_MODE_DEFAULT	(0)
+#define CFG_HW_FILTER_MODE_DEFAULT	(1)
 
 /*
  * <ini>
@@ -10812,6 +10837,7 @@ struct hdd_config {
 	bool fIsImpsEnabled;
 	bool is_ps_enabled;
 	uint32_t auto_bmps_timer_val;
+	uint32_t icmp_disable_ps_val;
 	uint32_t nBmpsModListenInterval;
 	uint32_t nBmpsMaxListenInterval;
 	uint32_t nBmpsMinListenInterval;
@@ -10975,7 +11001,6 @@ struct hdd_config {
 	 * single replay counter for all TID
 	 */
 	bool bSingleTidRc;
-	uint8_t mcastBcastFilterSetting;
 	bool fhostArpOffload;
 	bool ssdp;
 
@@ -11555,6 +11580,7 @@ struct hdd_config {
 	bool is_bssid_hint_priority;
 	uint8_t dfs_beacon_tx_enhanced;
 	uint8_t scan_backoff_multiplier;
+	bool is_force_1x1;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

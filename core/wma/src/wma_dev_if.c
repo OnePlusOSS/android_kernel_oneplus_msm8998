@@ -638,8 +638,13 @@ QDF_STATUS wma_vdev_detach(tp_wma_handle wma_handle,
 	if (!iface->handle) {
 		WMA_LOGE("handle of vdev_id %d is NULL vdev is already freed",
 			 vdev_id);
-		qdf_mem_free(pdel_sta_self_req_param);
-		pdel_sta_self_req_param = NULL;
+		pdel_sta_self_req_param->status = status;
+		if (generateRsp) {
+			wma_send_del_sta_self_resp(pdel_sta_self_req_param);
+		} else {
+			qdf_mem_free(pdel_sta_self_req_param);
+			pdel_sta_self_req_param = NULL;
+		}
 		return status;
 	}
 
@@ -736,6 +741,11 @@ static void wma_vdev_start_rsp(tp_wma_handle wma,
 send_fail_resp:
 	if (add_bss->status != QDF_STATUS_SUCCESS) {
 		WMA_LOGE("%s: ADD BSS failure %d", __func__, add_bss->status);
+
+		/* Send vdev stop if vdev start was success*/
+		if (!resp_event->status)
+			if (wma_send_vdev_stop_to_fw(wma, resp_event->vdev_id))
+				WMA_LOGE("%s: %d Failed to send vdev stop", __func__, __LINE__);
 
 		pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 		if (NULL == pdev)
@@ -1209,7 +1219,7 @@ void wma_remove_peer(tp_wma_handle wma, uint8_t *bssid,
 						vdev_id);
 
 peer_detach:
-	WMA_LOGI("%s: Remove peer %p with peer_addr %pM vdevid %d peer_count %d",
+	WMA_LOGD("%s: Remove peer %p with peer_addr %pM vdevid %d peer_count %d",
 		 __func__, peer, bssid, vdev_id,
 		 wma->interfaces[vdev_id].peer_count);
 
@@ -1259,7 +1269,7 @@ QDF_STATUS wma_create_peer(tp_wma_handle wma, ol_txrx_pdev_handle pdev,
 	}
 
 	if (roam_synch_in_progress) {
-		WMA_LOGI("%s: LFR3: Created peer %p with peer_addr %pM vdev_id %d, peer_count - %d",
+		WMA_LOGD("%s: LFR3: Created peer %p with peer_addr %pM vdev_id %d, peer_count - %d",
 			 __func__, peer, peer_addr, vdev_id,
 			 wma->interfaces[vdev_id].peer_count);
 		return QDF_STATUS_SUCCESS;
@@ -1273,7 +1283,7 @@ QDF_STATUS wma_create_peer(tp_wma_handle wma, ol_txrx_pdev_handle pdev,
 		ol_txrx_peer_detach(peer);
 		goto err;
 	}
-	WMA_LOGI("%s: Created peer %p ref_cnt %d with peer_addr %pM vdev_id %d, peer_count - %d",
+	WMA_LOGD("%s: Created peer %p ref_cnt %d with peer_addr %pM vdev_id %d, peer_count - %d",
 		  __func__, peer, qdf_atomic_read(&peer->ref_cnt),
 		  peer_addr, vdev_id,
 		  wma->interfaces[vdev_id].peer_count);
@@ -1786,7 +1796,7 @@ int wma_vdev_stop_resp_handler(void *handle, uint8_t *cmd_param_info,
 				peer, false);
 			if (WMI_SERVICE_IS_ENABLED(wma->wmi_service_bitmap,
 				    WMI_SERVICE_SYNC_DELETE_CMDS)) {
-				WMA_LOGI(FL("Wait for the peer delete. vdev_id %d"),
+				WMA_LOGD(FL("Wait for the peer delete. vdev_id %d"),
 						 req_msg->vdev_id);
 				del_req = wma_fill_hold_req(wma,
 						   req_msg->vdev_id,
@@ -1970,7 +1980,7 @@ ol_txrx_vdev_handle wma_vdev_attach(tp_wma_handle wma_handle,
 	    (self_sta_req->type == WMI_VDEV_TYPE_OCB) ||
 	    (self_sta_req->type == WMI_VDEV_TYPE_MONITOR) ||
 	    (self_sta_req->type == WMI_VDEV_TYPE_NDI)) {
-		WMA_LOGA("Creating self peer %pM, vdev_id %hu",
+		WMA_LOGD("Creating self peer %pM, vdev_id %hu",
 			 self_sta_req->self_mac_addr, self_sta_req->session_id);
 		status = wma_create_peer(wma_handle, txrx_pdev,
 					 txrx_vdev_handle,
@@ -2613,6 +2623,9 @@ static inline bool wma_crash_on_fw_timeout(bool crash_enabled)
 	if (cds_is_driver_recovering())
 		return false;
 
+	if (cds_is_driver_unloading())
+		return false;
+
 	if (!cds_is_fw_down())
 		return false;
 
@@ -2757,9 +2770,6 @@ struct wma_target_req *wma_fill_hold_req(tp_wma_handle wma,
 	struct wma_target_req *req;
 	QDF_STATUS status;
 
-	if (cds_is_driver_recovering())
-		return NULL;
-
 	req = qdf_mem_malloc(sizeof(*req));
 	if (!req) {
 		WMA_LOGE(FL("Failed to allocate memory for msg %d vdev %d"),
@@ -2845,15 +2855,6 @@ void wma_vdev_resp_timer(void *data)
 		goto free_tgt_req;
 	}
 
-	pdev = cds_get_context(QDF_MODULE_ID_TXRX);
-
-	if (NULL == pdev) {
-		WMA_LOGE("%s: Failed to get pdev", __func__);
-		wma_cleanup_target_req_param(tgt_req);
-		qdf_mc_timer_stop(&tgt_req->event_timeout);
-		goto free_tgt_req;
-	}
-
 	WMA_LOGA("%s: request %d is timed out for vdev_id - %d", __func__,
 		 tgt_req->msg_type, tgt_req->vdev_id);
 	msg = wma_find_vdev_req(wma, tgt_req->vdev_id, tgt_req->type);
@@ -2861,7 +2862,15 @@ void wma_vdev_resp_timer(void *data)
 	if (!msg) {
 		WMA_LOGE("%s: Failed to lookup request message - %d",
 			 __func__, tgt_req->msg_type);
+		return;
+	}
+
+	pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+
+	if (NULL == pdev) {
+		WMA_LOGE("%s: Failed to get pdev", __func__);
 		wma_cleanup_target_req_param(tgt_req);
+		qdf_mc_timer_stop(&tgt_req->event_timeout);
 		goto free_tgt_req;
 	}
 
@@ -3065,9 +3074,6 @@ struct wma_target_req *wma_fill_vdev_req(tp_wma_handle wma,
 {
 	struct wma_target_req *req;
 	QDF_STATUS status;
-
-	if (cds_is_driver_recovering())
-		return NULL;
 
 	req = qdf_mem_malloc(sizeof(*req));
 	if (!req) {
@@ -3312,7 +3318,7 @@ static void wma_add_bss_ap_mode(tp_wma_handle wma, tpAddBssParams add_bss)
 	if (!QDF_IS_STATUS_SUCCESS(status))
 		WMA_LOGE("wma_get_current_hw_mode failed");
 
-	if ((add_bss->nss == 2) && !hw_mode.dbs_cap) {
+	if (add_bss->nss == 2) {
 		req.preferred_rx_streams = 2;
 		req.preferred_tx_streams = 2;
 	} else {
@@ -3457,7 +3463,7 @@ static void wma_add_bss_ibss_mode(tp_wma_handle wma, tpAddBssParams add_bss)
 	if (!QDF_IS_STATUS_SUCCESS(status))
 		WMA_LOGE("wma_get_current_hw_mode failed");
 
-	if ((add_bss->nss == 2) && !hw_mode.dbs_cap) {
+	if (add_bss->nss == 2) {
 		req.preferred_rx_streams = 2;
 		req.preferred_tx_streams = 2;
 	} else {
@@ -3637,7 +3643,7 @@ static void wma_add_bss_sta_mode(tp_wma_handle wma, tpAddBssParams add_bss)
 			if (!QDF_IS_STATUS_SUCCESS(status))
 				WMA_LOGE("wma_get_current_hw_mode failed");
 
-			if ((add_bss->nss == 2) && !hw_mode.dbs_cap) {
+			if (add_bss->nss == 2) {
 				req.preferred_rx_streams = 2;
 				req.preferred_tx_streams = 2;
 			} else {
@@ -4017,6 +4023,7 @@ static void wma_add_sta_req_ap_mode(tp_wma_handle wma, tpAddStaParams add_sta)
 	}
 #endif
 
+	iface->rmfEnabled = add_sta->rmfEnabled;
 	if (add_sta->rmfEnabled)
 		wma_set_mgmt_frame_protection(wma);
 
@@ -4845,7 +4852,7 @@ void wma_delete_bss_ho_fail(tp_wma_handle wma, tpDeleteBssParams params)
 	if (peer)
 		ol_txrx_peer_detach(peer);
 	iface->peer_count--;
-	WMA_LOGI("%s: Removed peer %p with peer_addr %pM vdevid %d peer_count %d",
+	WMA_LOGD("%s: Removed peer %p with peer_addr %pM vdevid %d peer_count %d",
 		 __func__, peer, params->bssid,  params->smesessionId,
 		 iface->peer_count);
 fail_del_bss_ho_fail:

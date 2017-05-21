@@ -1434,13 +1434,7 @@ static bool wlan_hdd_sap_skip_scan_check(hdd_context_t *hdd_ctx,
 }
 #endif
 
-/**
- * wlan_hdd_cfg80211_scan_block_cb() - scan block work handler
- * @work: Pointer to work
- *
- * Return: none
- */
-static void wlan_hdd_cfg80211_scan_block_cb(struct work_struct *work)
+void wlan_hdd_cfg80211_scan_block_cb(struct work_struct *work)
 {
 	hdd_adapter_t *adapter = container_of(work,
 					      hdd_adapter_t, scan_block_work);
@@ -1526,7 +1520,7 @@ static int wlan_hdd_update_scan_ies(hdd_adapter_t *adapter,
 				add_ie = true;
 			break;
 		case IE_EID_VENDOR:
-			if ((0 == qdf_mem_cmp(&temp_ie[0], MBO_OUI_TYPE,
+			if ((0 != qdf_mem_cmp(&temp_ie[0], MBO_OUI_TYPE,
 							MBO_OUI_TYPE_SIZE)) ||
 				(0 == qdf_mem_cmp(&temp_ie[0], QCN_OUI_TYPE,
 							QCN_OUI_TYPE_SIZE)))
@@ -1737,8 +1731,6 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 			pAdapter->request = request;
 			pAdapter->scan_source = source;
 
-			INIT_WORK(&pAdapter->scan_block_work,
-				  wlan_hdd_cfg80211_scan_block_cb);
 			schedule_work(&pAdapter->scan_block_work);
 			return 0;
 		}
@@ -1842,8 +1834,6 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 		hdd_debug("sap scan skipped");
 		pAdapter->request = request;
 		pAdapter->scan_source = source;
-		INIT_WORK(&pAdapter->scan_block_work,
-			wlan_hdd_cfg80211_scan_block_cb);
 		schedule_work(&pAdapter->scan_block_work);
 		return 0;
 	}
@@ -2074,8 +2064,10 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 	       scan_req.minChnTime, scan_req.maxChnTime,
 	       scan_req.p2pSearch, scan_req.skipDfsChnlInP2pSearch);
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(3, 7, 0))
-	if (request->flags & NL80211_SCAN_FLAG_FLUSH)
+	if (request->flags & NL80211_SCAN_FLAG_FLUSH) {
+		hdd_debug("Kernel scan flush flag enabled");
 		sme_scan_flush_result(WLAN_HDD_GET_HAL_CTX(pAdapter));
+	}
 #endif
 	wlan_hdd_update_scan_rand_attrs((void *)&scan_req, (void *)request,
 					WLAN_HDD_HOST_SCAN);
@@ -2771,7 +2763,6 @@ static void
 hdd_sched_scan_callback(void *callbackContext,
 			tSirPrefNetworkFoundInd *pPrefNetworkFoundInd)
 {
-	int ret;
 	hdd_adapter_t *pAdapter = (hdd_adapter_t *) callbackContext;
 	hdd_context_t *pHddCtx;
 
@@ -2797,21 +2788,7 @@ hdd_sched_scan_callback(void *callbackContext,
 	}
 	qdf_spin_unlock(&pHddCtx->sched_scan_lock);
 
-	ret = wlan_hdd_cfg80211_update_bss(pHddCtx->wiphy, pAdapter, 0);
-
-	if (ret < 0) {
-		hdd_debug("NO SCAN result");
-	} else {
-		/*
-		 * Acquire wakelock to handle the case where APP's tries to
-		 * suspend immediately after the driver gets connect
-		 * request(i.e after pno) from supplicant, this result in
-		 * app's is suspending and not able to process the connect
-		 * request to AP
-		 */
-		hdd_prevent_suspend_timeout(1000,
-					    WIFI_POWER_EVENT_WAKELOCK_SCAN);
-	}
+	hdd_prevent_suspend_timeout(1000, WIFI_POWER_EVENT_WAKELOCK_SCAN);
 
 	cfg80211_sched_scan_results(pHddCtx->wiphy);
 	hdd_debug("cfg80211 scan result database updated");
@@ -3001,7 +2978,6 @@ static int __wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
 	 * that the wlan wakelock which was held in the wlan_hdd_cfg80211_scan
 	 * function.
 	 */
-	sme_scan_flush_result(hHal);
 	if (true == pScanInfo->mScanPending) {
 		ret = wlan_hdd_scan_abort(pAdapter);
 		if (ret < 0) {
@@ -3454,6 +3430,8 @@ void hdd_cleanup_scan_queue(hdd_context_t *hdd_ctx)
 		adapter = hdd_scan_req->adapter;
 		if (WLAN_HDD_ADAPTER_MAGIC != adapter->magic) {
 			hdd_err("HDD adapter magic is invalid");
+		} else if (!req) {
+			hdd_debug("pending scan is wext triggered");
 		} else {
 			if (NL_SCAN == source)
 				hdd_cfg80211_scan_done(adapter, req, aborted);

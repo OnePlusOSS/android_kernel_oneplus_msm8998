@@ -121,6 +121,8 @@ QDF_STATUS csr_tdls_send_mgmt_req(tHalHandle hHal, uint8_t sessionId,
 		tdlsSendMgmtCmdInfo->len = 0;
 	}
 
+	tdlsSendMgmtCmdInfo->ac = tdlsSendMgmt->ac;
+
 	tdlsSendMgmtCmd->command = eSmeCommandTdlsSendMgmt;
 	tdlsSendMgmtCmd->u.tdlsCmd.size = sizeof(tTdlsSendMgmtCmdInfo);
 	sme_push_command(pMac, tdlsSendMgmtCmd, false);
@@ -408,6 +410,7 @@ static QDF_STATUS csr_tdls_process_send_mgmt(tpAniSirGlobal pMac, tSmeCmd *cmd)
 	tdlsSendMgmtReq->statusCode = tdlsSendMgmtCmdInfo->statusCode;
 	tdlsSendMgmtReq->responder = tdlsSendMgmtCmdInfo->responder;
 	tdlsSendMgmtReq->peerCapability = tdlsSendMgmtCmdInfo->peerCapability;
+	tdlsSendMgmtReq->ac = tdlsSendMgmtCmdInfo->ac;
 
 	qdf_mem_copy(tdlsSendMgmtReq->bssid.bytes,
 		     pSession->pConnectBssDesc->bssId, QDF_MAC_ADDR_SIZE);
@@ -679,6 +682,7 @@ QDF_STATUS tdls_msg_processor(tpAniSirGlobal pMac, uint16_t msgType,
 	tSirTdlsLinkEstablishReqRsp *linkEstablishReqRsp =
 		(tSirTdlsLinkEstablishReqRsp *) pMsgBuf;
 	tSirTdlsEventnotify *tevent = (tSirTdlsEventnotify *) pMsgBuf;
+	struct sir_tdls_notify_set_state_disable *tdls_state_disable;
 
 	roamInfo = qdf_mem_malloc(sizeof(*roamInfo));
 	if (!roamInfo) {
@@ -686,6 +690,19 @@ QDF_STATUS tdls_msg_processor(tpAniSirGlobal pMac, uint16_t msgType,
 		return QDF_STATUS_E_FAILURE;
 	}
 	switch (msgType) {
+	case eWNI_SME_TDLS_NOTIFY_SET_STATE_DISABLE:
+	{
+		qdf_mem_set(roamInfo, sizeof(*roamInfo), 0);
+		tdls_state_disable = (
+			(struct sir_tdls_notify_set_state_disable *)pMsgBuf);
+		roamInfo->sessionId = tdls_state_disable->session_id;
+		csr_roam_call_callback(pMac, tdls_state_disable->session_id,
+				       roamInfo, 0,
+				       eCSR_ROAM_TDLS_SET_STATE_DISABLE,
+				       0);
+		break;
+	}
+
 	case eWNI_SME_TDLS_SEND_MGMT_RSP:
 	{
 		tSirSmeRsp *msg = (tSirSmeRsp *) pMsgBuf;

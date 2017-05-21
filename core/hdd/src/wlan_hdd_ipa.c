@@ -76,7 +76,7 @@
 #define HDD_IPA_UC_RT_DEBUG_FILL_INTERVAL  10000
 
 #define HDD_IPA_WLAN_HDR_DES_MAC_OFFSET    0
-#define HDD_IPA_MAX_IFACE                  3
+#define HDD_IPA_MAX_IFACE                  MAX_IPA_IFACE
 #define HDD_IPA_MAX_SYSBAM_PIPE            4
 #define HDD_IPA_RX_PIPE                    HDD_IPA_MAX_IFACE
 #define HDD_IPA_ENABLE_MASK                BIT(0)
@@ -587,7 +587,7 @@ do { \
 static struct hdd_ipa_adapter_2_client {
 	enum ipa_client_type cons_client;
 	enum ipa_client_type prod_client;
-} hdd_ipa_adapter_2_client[HDD_IPA_MAX_IFACE] = {
+} hdd_ipa_adapter_2_client[] = {
 	{
 		IPA_CLIENT_WLAN2_CONS, IPA_CLIENT_WLAN1_PROD
 	}, {
@@ -706,10 +706,13 @@ static void hdd_ipa_uc_loaded_uc_cb(void *priv_ctxt)
 
 	/* When the same uC OPCODE is already pended, just return */
 	if (uc_op_work->msg)
-		return;
+		goto done;
 
 	uc_op_work->msg = msg;
 	schedule_work(&uc_op_work->work);
+
+done:
+	qdf_mem_free(msg);
 }
 
 /**
@@ -2856,6 +2859,9 @@ int hdd_ipa_uc_ol_deinit(hdd_context_t *hdd_ctx)
 	if (!hdd_ipa_uc_is_enabled(hdd_ctx))
 		return ret;
 
+	if (!hdd_ipa->ipa_pipes_down)
+		hdd_ipa_uc_disable_pipes(hdd_ipa);
+
 	if (true == hdd_ipa->uc_loaded) {
 		HDD_IPA_LOG(QDF_TRACE_LEVEL_INFO,
 			    "%s: Disconnect TX PIPE tx_pipe_handle=0x%x",
@@ -3123,8 +3129,6 @@ static int __hdd_ipa_uc_ssr_deinit(void)
 	 * IPA submodule during SSR transient state. So deinit basic IPA
 	 * UC host side to be in sync with reloaded FW during SSR
 	 */
-	if (!hdd_ipa->ipa_pipes_down)
-		hdd_ipa_uc_disable_pipes(hdd_ipa);
 
 	qdf_mutex_acquire(&hdd_ipa->ipa_lock);
 	for (idx = 0; idx < WLAN_MAX_STA_COUNT; idx++) {
@@ -6020,7 +6024,8 @@ static QDF_STATUS __hdd_ipa_cleanup(hdd_context_t *hdd_ctx)
 		qdf_spin_unlock_bh(&hdd_ipa->pm_lock);
 
 		pm_tx_cb = (struct hdd_ipa_pm_tx_cb *)skb->cb;
-		ipa_free_skb(pm_tx_cb->ipa_tx_desc);
+		if (pm_tx_cb->ipa_tx_desc)
+			ipa_free_skb(pm_tx_cb->ipa_tx_desc);
 
 		qdf_spin_lock_bh(&hdd_ipa->pm_lock);
 	}

@@ -1272,6 +1272,7 @@ typedef struct sSirSmeJoinReq {
 	/* Pls make this as last variable in struct */
 	tSirBssDescription bssDescription;
 	bool ignore_assoc_disallowed;
+	bool enable_bcast_probe_rsp;
 } tSirSmeJoinReq, *tpSirSmeJoinReq;
 
 /* / Definition for reponse message to previously issued join request */
@@ -3686,6 +3687,15 @@ typedef struct sAniSetTmLevelReq {
 	uint16_t newTmLevel;
 } tAniSetTmLevelReq, *tpAniSetTmLevelReq;
 
+/* access categories */
+enum sir_wifi_traffic_ac {
+	WIFI_AC_VO = 0,
+	WIFI_AC_VI = 1,
+	WIFI_AC_BE = 2,
+	WIFI_AC_BK = 3,
+	WIFI_AC_MAX = 4,
+};
+
 #ifdef FEATURE_WLAN_TDLS
 /* TDLS Request struct SME-->PE */
 typedef struct sSirTdlsSendMgmtReq {
@@ -3701,6 +3711,7 @@ typedef struct sSirTdlsSendMgmtReq {
 	/* For multi-session, for PE to locate peSession ID */
 	struct qdf_mac_addr bssid;
 	struct qdf_mac_addr peer_mac;
+	enum sir_wifi_traffic_ac ac;
 	/* Variable length. Dont add any field after this. */
 	uint8_t addIe[1];
 } tSirTdlsSendMgmtReq, *tpSirSmeTdlsSendMgmtReq;
@@ -3824,6 +3835,15 @@ typedef struct sSirTdlsEventnotify {
 	uint16_t messageType;
 	uint32_t peer_reason;
 } tSirTdlsEventnotify;
+
+/**
+ * struct sir_sme_tdls_notify_set_state_disable - notify set state disable
+ * @session_id: session id
+ */
+struct sir_tdls_notify_set_state_disable {
+	uint32_t session_id;
+};
+
 #endif /* FEATURE_WLAN_TDLS */
 
 typedef struct sSirActiveModeSetBcnFilterReq {
@@ -5359,15 +5379,6 @@ typedef struct {
 	/* number of long data pkt retries */
 	uint32_t retriesLong;
 } tSirWifiRateStat, *tpSirWifiRateStat;
-
-/* access categories */
-typedef enum {
-	WIFI_AC_VO = 0,
-	WIFI_AC_VI = 1,
-	WIFI_AC_BE = 2,
-	WIFI_AC_BK = 3,
-	WIFI_AC_MAX = 4,
-} tSirWifiTrafficAc;
 
 /* wifi peer type */
 typedef enum {
@@ -7746,7 +7757,7 @@ struct INTERF_RSP {
 	uint8_t interf_type;
 	uint16_t interf_min_freq;
 	uint16_t interf_max_freq;
-} qdf_packed;
+};
 
 #define MAX_INTERF 10 /* 5 categories x (lower + upper) bands */
 #define MAX_NUM_BINS 520
@@ -7754,7 +7765,7 @@ struct INTERF_RSP {
 struct INTERF_SRC_RSP {
 	uint16_t count;
 	struct INTERF_RSP interf[MAX_INTERF];
-} qdf_packed;
+};
 
 struct samp_msg_data {
 	int16_t     spectral_data_len;
@@ -7791,7 +7802,7 @@ struct samp_msg_data {
 	int16_t    noise_floor;
 	int16_t    noise_floor_sec80;
 	uint32_t   ch_width;
-} qdf_packed;
+};
 
 enum dcs_int_type {
 	SPECTRAL_DCS_INT_NONE,
@@ -7817,11 +7828,11 @@ struct spectral_samp_msg {
 	uint16_t      vhtop_ch_freq_seg1;
 	uint16_t      vhtop_ch_freq_seg2;
 	uint16_t      freq_loading;
-	uint16_t      dcs_enabled;
+	uint8_t       dcs_enabled;
 	enum dcs_int_type   int_type;
 	uint8_t       macaddr[6];
 	struct samp_msg_data samp_data;
-} qdf_packed;
+};
 
 /**
  * sir_sme_rx_aggr_hole_ind - sme rx aggr hole indication
@@ -7855,26 +7866,6 @@ struct sir_peer_set_rx_blocksize {
 	uint32_t vdev_id;
 	struct qdf_mac_addr peer_macaddr;
 	uint32_t rx_block_ack_win_limit;
-};
-
-/**
- * struct ani_ipa_stat_req - IPA stats request
- * @msg_type: Message type
- * @msg_len: Message Length
- * @vdev_id: Vdev Id
- * @param_id: param id
- * @param_val: param value
- * @req_type: request type
- *
- * IPA stats request message structure
- */
-struct ani_ipa_stat_req {
-	uint16_t msg_type;
-	uint16_t msg_len;
-	uint16_t vdev_id;
-	uint32_t param_id;
-	uint32_t param_val;
-	uint32_t req_type;
 };
 
 #endif /* __SIR_API_H */

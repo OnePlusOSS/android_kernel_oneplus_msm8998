@@ -291,7 +291,7 @@ rrm_process_link_measurement_request(tpAniSirGlobal pMac,
 	LinkReport.txAntenna = 0;
 	currentRSSI = WMA_GET_RX_RSSI_RAW(pRxPacketInfo);
 
-	pe_info("Received Link report frame with %d", currentRSSI);
+	pe_debug("Received Link report frame with %d", currentRSSI);
 
 	/* 2008 11k spec reference: 18.4.8.5 RCPI Measurement */
 	if ((currentRSSI) <= RCPI_LOW_RSSI_VALUE)
@@ -548,7 +548,7 @@ rrm_process_beacon_report_req(tpAniSirGlobal pMac,
 
 	measDuration = pBeaconReq->measurement_request.Beacon.meas_duration;
 
-	pe_info("maxDuration = %d sign = %d maxMeasduration = %d measDuration = %d",
+	pe_debug("maxDuration = %d sign = %d maxMeasduration = %d measDuration = %d",
 		maxDuration, sign, maxMeasduration, measDuration);
 
 	if (maxMeasduration < measDuration) {
@@ -874,7 +874,7 @@ rrm_process_beacon_report_xmit(tpAniSirGlobal mac_ctx,
 				break;
 			}
 		}
-		pe_info("Sending Action frame with %d bss info",
+		pe_debug("Sending Action frame with %d bss info",
 			bss_desc_count);
 		lim_send_radio_measure_report_action_frame(mac_ctx,
 			curr_req->dialog_token, bss_desc_count, report,
@@ -1089,7 +1089,7 @@ rrm_process_radio_measurement_request(tpAniSirGlobal mac_ctx,
 	}
 	/* PF Fix */
 	if (rrm_req->NumOfRepetitions.repetitions > 0) {
-		pe_info("number of repetitions %d",
+		pe_debug("number of repetitions %d",
 			rrm_req->NumOfRepetitions.repetitions);
 		/*
 		 * Send a report with incapable bit set.

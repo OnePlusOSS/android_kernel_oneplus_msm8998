@@ -160,4 +160,14 @@ void wlan_hdd_fill_whitelist_ie_attrs(bool *ie_whitelist,
 				      struct vendor_oui *voui,
 				      hdd_context_t *hdd_ctx);
 
+/**
+ * wlan_hdd_cfg80211_scan_block_cb() - scan block work handler
+ * @work: Pointer to work
+ *
+ * This function is used to do scan block work handler
+ *
+ * Return: none
+ */
+void wlan_hdd_cfg80211_scan_block_cb(struct work_struct *work);
+
 #endif /* end #if !defined(WLAN_HDD_SCAN_H) */

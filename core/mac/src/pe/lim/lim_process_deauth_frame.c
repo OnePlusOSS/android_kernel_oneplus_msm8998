@@ -93,7 +93,7 @@ lim_process_deauth_frame(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 	     (eLIM_SME_WT_DEAUTH_STATE == psessionEntry->limSmeState))) {
 		/*Every 15th deauth frame will be logged in kmsg */
 		if (!(psessionEntry->deauthmsgcnt & 0xF)) {
-			pe_info("received Deauth frame in DEAUTH_WT_STATE"
+			pe_debug("received Deauth frame in DEAUTH_WT_STATE"
 				"(already processing previously received DEAUTH frame)"
 				"Dropping this.. Deauth Failed %d",
 				       ++psessionEntry->deauthmsgcnt);
@@ -106,14 +106,14 @@ lim_process_deauth_frame(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 	if (lim_is_group_addr(pHdr->sa)) {
 		/* Received Deauth frame from a BC/MC address */
 		/* Log error and ignore it */
-		pe_info("received Deauth frame from a BC/MC address");
+		pe_debug("received Deauth frame from a BC/MC address");
 		return;
 	}
 
 	if (lim_is_group_addr(pHdr->da) && !lim_is_addr_bc(pHdr->da)) {
 		/* Received Deauth frame for a MC address */
 		/* Log error and ignore it */
-		pe_info("received Deauth frame for a MC address");
+		pe_debug("received Deauth frame for a MC address");
 		return;
 	}
 	if (!lim_validate_received_frame_a1_addr(pMac,
@@ -126,7 +126,7 @@ lim_process_deauth_frame(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 	if (psessionEntry->limRmfEnabled
 	    && (WMA_GET_RX_DPU_FEEDBACK(pRxPacketInfo) &
 		DPU_FEEDBACK_UNPROTECTED_ERROR)) {
-		pe_info("received an unprotected deauth from AP");
+		pe_debug("received an unprotected deauth from AP");
 		/*
 		 * When 11w offload is enabled then
 		 * firmware should not fwd this frame
@@ -154,7 +154,7 @@ lim_process_deauth_frame(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 	/* Get reasonCode from Deauthentication frame body */
 	reasonCode = sir_read_u16(pBody);
 
-	pe_info("Received Deauth frame for Addr: " MAC_ADDRESS_STR
+	pe_debug("Received Deauth frame for Addr: " MAC_ADDRESS_STR
 			"(mlm state = %s, sme state = %d systemrole = %d "
 			"RSSI = %d) with reason code %d [%s] from "
 			MAC_ADDRESS_STR, MAC_ADDR_ARRAY(pHdr->da),

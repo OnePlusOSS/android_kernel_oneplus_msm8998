@@ -409,6 +409,15 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_AUTO_PS_ENABLE_TIMER_MIN,
 		     CFG_AUTO_PS_ENABLE_TIMER_MAX),
 
+#ifdef WLAN_ICMP_DISABLE_PS
+	REG_VARIABLE(CFG_ICMP_DISABLE_PS_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, icmp_disable_ps_val,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ICMP_DISABLE_PS_DEFAULT,
+		     CFG_ICMP_DISABLE_PS_MIN,
+		     CFG_ICMP_DISABLE_PS_MAX),
+#endif
+
 	REG_VARIABLE(CFG_BMPS_MINIMUM_LI_NAME, WLAN_PARAM_Integer,
 		     struct hdd_config, nBmpsMinListenInterval,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -1510,13 +1519,6 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_QOS_WMM_BURST_SIZE_DEFN_DEFAULT,
 		     CFG_QOS_WMM_BURST_SIZE_DEFN_MIN,
 		     CFG_QOS_WMM_BURST_SIZE_DEFN_MAX),
-
-	REG_VARIABLE(CFG_MCAST_BCAST_FILTER_SETTING_NAME, WLAN_PARAM_Integer,
-		     struct hdd_config, mcastBcastFilterSetting,
-		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
-		     CFG_MCAST_BCAST_FILTER_SETTING_DEFAULT,
-		     CFG_MCAST_BCAST_FILTER_SETTING_MIN,
-		     CFG_MCAST_BCAST_FILTER_SETTING_MAX),
 
 	REG_VARIABLE(CFG_ENABLE_HOST_ARPOFFLOAD_NAME, WLAN_PARAM_Integer,
 		     struct hdd_config, fhostArpOffload,
@@ -4346,18 +4348,28 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_ENABLE_BCAST_PROBE_RESP_DEFAULT,
 		CFG_ENABLE_BCAST_PROBE_RESP_MIN,
 		CFG_ENABLE_BCAST_PROBE_RESP_MAX),
+
 	REG_VARIABLE(CFG_QCN_IE_SUPPORT_NAME, WLAN_PARAM_Integer,
 		struct hdd_config, qcn_ie_support,
 		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
 		CFG_QCN_IE_SUPPORT_DEFAULT,
 		CFG_QCN_IE_SUPPORT_MIN,
 		CFG_QCN_IE_SUPPORT_MAX),
+
 	REG_VARIABLE(CFG_FILS_MAX_CHAN_GUARD_TIME_NAME, WLAN_PARAM_Integer,
 		struct hdd_config, fils_max_chan_guard_time,
 		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
 		CFG_FILS_MAX_CHAN_GUARD_TIME_DEFAULT,
 		CFG_FILS_MAX_CHAN_GUARD_TIME_MIN,
 		CFG_FILS_MAX_CHAN_GUARD_TIME_MAX),
+
+	REG_VARIABLE(CFG_FORCE_1X1_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, is_force_1x1,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_FORCE_1X1_DEFAULT,
+		CFG_FORCE_1X1_MIN,
+		CFG_FORCE_1X1_MAX),
+
 	REG_VARIABLE(CFG_ENABLE_5G_BAND_PREF_NAME, WLAN_PARAM_Integer,
 		struct hdd_config, enable_5g_band_pref,
 		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -5587,8 +5599,6 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 
 	hdd_debug("Name = [DelayedTriggerFrmInt] Value = [%u] ",
 		  pHddCtx->config->DelayedTriggerFrmInt);
-	hdd_debug("Name = [mcastBcastFilterSetting] Value = [%u] ",
-		  pHddCtx->config->mcastBcastFilterSetting);
 	hdd_debug("Name = [fhostArpOffload] Value = [%u] ",
 		  pHddCtx->config->fhostArpOffload);
 	hdd_debug("Name = [ssdp] Value = [%u] ", pHddCtx->config->ssdp);
@@ -6105,6 +6115,10 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_debug("Name = [%s] Value = [%d]",
 		CFG_ARP_AC_CATEGORY,
 		pHddCtx->config->arp_ac_category);
+
+	hdd_debug("Name = [%s] value = [%u]",
+		 CFG_FORCE_1X1_NAME,
+		 pHddCtx->config->is_force_1x1);
 
 	hdd_info("Name = [%s] Value = [%x] ",
 		 CFG_PRB_REQ_IE_WHITELIST_NAME,
@@ -6990,12 +7004,6 @@ bool hdd_update_config_cfg(hdd_context_t *hdd_ctx)
 		hdd_err("Couldn't pass on WNI_CFG_GO_LINK_MONITOR_TIMEOUT to CFG");
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_MCAST_BCAST_FILTER_SETTING,
-		    config->mcastBcastFilterSetting) == QDF_STATUS_E_FAILURE) {
-		status = false;
-		hdd_err("Couldn't pass on WNI_CFG_MCAST_BCAST_FILTER_SETTING to CFG");
-	}
-
 	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_SINGLE_TID_RC,
 		    config->bSingleTidRc) == QDF_STATUS_E_FAILURE) {
 		status = false;
@@ -7729,6 +7737,8 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 	smeConfig->csrConfig.is_bssid_hint_priority =
 			pHddCtx->config->is_bssid_hint_priority;
 
+	smeConfig->csrConfig.is_force_1x1 =
+			pHddCtx->config->is_force_1x1;
 	status = sme_update_config(pHddCtx->hHal, smeConfig);
 	if (!QDF_IS_STATUS_SUCCESS(status))
 		hdd_err("sme_update_config() failure: %d", status);

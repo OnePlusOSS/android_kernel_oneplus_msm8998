@@ -63,6 +63,7 @@
 #define WMA_WAKE_LOCK_TIMEOUT              1000
 #define WMA_RESUME_TIMEOUT                 6000
 #define MAX_MEM_CHUNKS                     32
+#define NAN_CLUSTER_ID_BYTES               4
 
 #define WMA_CRASH_INJECT_TIMEOUT           5000
 
@@ -269,14 +270,9 @@ enum ds_mode {
 #define WMA_VDEV_START_REQUEST_TIMEOUT (6000)   /* 6 seconds */
 #define WMA_VDEV_STOP_REQUEST_TIMEOUT  (6000)   /* 6 seconds */
 
-/*
- * The firmware value has been changed recently to 0x127
- * But, to maintain backward compatibility, the old
- * value is also preserved.
- */
 #define WMA_TGT_INVALID_SNR (0)
 
-#define WMA_TGT_IS_VALID_SNR(x)  (((x) >= 0 && (x) < 0x7f) ? true : false)
+#define WMA_TGT_IS_VALID_SNR(x)  ((x) >= 0 && (x) < WMA_TGT_MAX_SNR)
 #define WMA_TGT_IS_INVALID_SNR(x) (!WMA_TGT_IS_VALID_SNR(x))
 
 #define WMA_TX_Q_RECHECK_TIMER_WAIT      2      /* 2 ms */

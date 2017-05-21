@@ -365,7 +365,7 @@ lim_tear_down_link_with_ap(tpAniSirGlobal pMac, uint8_t sessionId,
 	 */
 	psessionEntry->pmmOffloadInfo.bcnmiss = false;
 
-	pe_info("No ProbeRsp from AP after HB failure. Tearing down link");
+	pe_debug("No ProbeRsp from AP after HB failure. Tearing down link");
 
 	/* Announce loss of link to Roaming algorithm */
 	/* and cleanup by sending SME_DISASSOC_REQ to SME */

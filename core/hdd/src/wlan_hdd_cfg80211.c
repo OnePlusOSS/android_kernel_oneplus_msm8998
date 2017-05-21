@@ -4112,6 +4112,20 @@ nla_put_failure:
 	QCA_WLAN_VENDOR_ATTR_CONFIG_RX_BLOCKSIZE_PEER_MAC
 #define RX_BLOCKSIZE_WINLIMIT \
 	QCA_WLAN_VENDOR_ATTR_CONFIG_RX_BLOCKSIZE_WINLIMIT
+#define ANT_DIV_PROBE_PERIOD \
+	QCA_WLAN_VENDOR_ATTR_CONFIG_ANT_DIV_PROBE_PERIOD
+#define ANT_DIV_STAY_PERIOD \
+	QCA_WLAN_VENDOR_ATTR_CONFIG_ANT_DIV_STAY_PERIOD
+#define ANT_DIV_SNR_DIFF \
+	QCA_WLAN_VENDOR_ATTR_CONFIG_ANT_DIV_SNR_DIFF
+#define ANT_DIV_PROBE_DWELL_TIME \
+	QCA_WLAN_VENDOR_ATTR_CONFIG_ANT_DIV_PROBE_DWELL_TIME
+#define ANT_DIV_MGMT_SNR_WEIGHT \
+	QCA_WLAN_VENDOR_ATTR_CONFIG_ANT_DIV_MGMT_SNR_WEIGHT
+#define ANT_DIV_DATA_SNR_WEIGHT \
+	QCA_WLAN_VENDOR_ATTR_CONFIG_ANT_DIV_DATA_SNR_WEIGHT
+#define ANT_DIV_ACK_SNR_WEIGHT \
+	QCA_WLAN_VENDOR_ATTR_CONFIG_ANT_DIV_ACK_SNR_WEIGHT
 static const struct nla_policy
 wlan_hdd_wifi_config_policy[QCA_WLAN_VENDOR_ATTR_CONFIG_MAX + 1] = {
 
@@ -4137,6 +4151,13 @@ wlan_hdd_wifi_config_policy[QCA_WLAN_VENDOR_ATTR_CONFIG_MAX + 1] = {
 	[RX_REORDER_TIMEOUT_BACKGROUND] = {.type = NLA_U32},
 	[RX_BLOCKSIZE_PEER_MAC] = {.type = NLA_UNSPEC},
 	[RX_BLOCKSIZE_WINLIMIT] = {.type = NLA_U32},
+	[ANT_DIV_PROBE_PERIOD] = {.type = NLA_U32},
+	[ANT_DIV_STAY_PERIOD] = {.type = NLA_U32},
+	[ANT_DIV_SNR_DIFF] = {.type = NLA_U32},
+	[ANT_DIV_PROBE_DWELL_TIME] = {.type = NLA_U32},
+	[ANT_DIV_MGMT_SNR_WEIGHT] = {.type = NLA_U32},
+	[ANT_DIV_DATA_SNR_WEIGHT] = {.type = NLA_U32},
+	[ANT_DIV_ACK_SNR_WEIGHT] = {.type = NLA_U32},
 };
 
 /**
@@ -4276,6 +4297,7 @@ __wlan_hdd_cfg80211_wifi_configuration_set(struct wiphy *wiphy,
 	uint32_t abs_delay;
 	int param_id;
 	uint32_t tx_fail_count;
+	uint32_t ant_div_usrcfg;
 
 	ENTER_DEV(dev);
 
@@ -4699,6 +4721,93 @@ __wlan_hdd_cfg80211_wifi_configuration_set(struct wiphy *wiphy,
 		}
 	}
 
+#define ANT_DIV_SET_PERIOD(probe_period, stay_period) \
+	((1<<26)|((probe_period&0x1fff)<<13)|(stay_period&0x1fff))
+
+#define ANT_DIV_SET_SNR_DIFF(snr_diff) \
+	((1<<27)|(snr_diff&0x1fff))
+
+#define ANT_DIV_SET_PROBE_DWELL_TIME(probe_dwell_time) \
+	((1<<28)|(probe_dwell_time&0x1fff))
+
+#define ANT_DIV_SET_WEIGHT(mgmt_snr_weight, data_snr_weight, ack_snr_weight) \
+	((1<<29)|((mgmt_snr_weight&0xff)<<16)|((data_snr_weight&0xff)<<8)| \
+	(ack_snr_weight&0xff))
+
+	if (tb[ANT_DIV_PROBE_PERIOD] ||
+	    tb[ANT_DIV_STAY_PERIOD]) {
+
+		if (!tb[ANT_DIV_PROBE_PERIOD] ||
+		    !tb[ANT_DIV_STAY_PERIOD]) {
+			hdd_err("Both probe and stay period required");
+			return -EINVAL;
+		}
+
+		ant_div_usrcfg = ANT_DIV_SET_PERIOD(
+			nla_get_u32(tb[ANT_DIV_PROBE_PERIOD]),
+			nla_get_u32(tb[ANT_DIV_STAY_PERIOD]));
+		hdd_debug("ant div set period: %x", ant_div_usrcfg);
+		ret_val = wma_cli_set_command((int)adapter->sessionId,
+					(int)WMI_PDEV_PARAM_ANT_DIV_USRCFG,
+					ant_div_usrcfg, PDEV_CMD);
+		if (ret_val) {
+			hdd_err("Failed to set ant div period");
+			return ret_val;
+		}
+	}
+
+	if (tb[ANT_DIV_SNR_DIFF]) {
+		ant_div_usrcfg = ANT_DIV_SET_SNR_DIFF(
+			nla_get_u32(tb[ANT_DIV_SNR_DIFF]));
+		hdd_debug("ant div set snr diff: %x", ant_div_usrcfg);
+		ret_val = wma_cli_set_command((int)adapter->sessionId,
+					(int)WMI_PDEV_PARAM_ANT_DIV_USRCFG,
+					ant_div_usrcfg, PDEV_CMD);
+		if (ret_val) {
+			hdd_err("Failed to set ant snr diff");
+			return ret_val;
+		}
+	}
+
+	if (tb[ANT_DIV_PROBE_DWELL_TIME]) {
+		ant_div_usrcfg = ANT_DIV_SET_PROBE_DWELL_TIME(
+			nla_get_u32(tb[ANT_DIV_PROBE_DWELL_TIME]));
+		hdd_debug("ant div set probe dewll time: %x",
+					ant_div_usrcfg);
+		ret_val = wma_cli_set_command((int)adapter->sessionId,
+					(int)WMI_PDEV_PARAM_ANT_DIV_USRCFG,
+					ant_div_usrcfg, PDEV_CMD);
+		if (ret_val) {
+			hdd_err("Failed to set ant div probe dewll time");
+			return ret_val;
+		}
+	}
+
+	if (tb[ANT_DIV_MGMT_SNR_WEIGHT] ||
+	    tb[ANT_DIV_DATA_SNR_WEIGHT] ||
+	    tb[ANT_DIV_ACK_SNR_WEIGHT]) {
+
+		if (!tb[ANT_DIV_MGMT_SNR_WEIGHT] ||
+		    !tb[ANT_DIV_DATA_SNR_WEIGHT] ||
+		    !tb[ANT_DIV_ACK_SNR_WEIGHT]) {
+			hdd_err("Mgmt snr, data snr and ack snr weight are required");
+			return -EINVAL;
+		}
+
+		ant_div_usrcfg = ANT_DIV_SET_WEIGHT(
+			nla_get_u32(tb[ANT_DIV_MGMT_SNR_WEIGHT]),
+			nla_get_u32(tb[ANT_DIV_DATA_SNR_WEIGHT]),
+			nla_get_u32(tb[ANT_DIV_ACK_SNR_WEIGHT]));
+		hdd_debug("ant div set weight: %x", ant_div_usrcfg);
+		ret_val = wma_cli_set_command((int)adapter->sessionId,
+					(int)WMI_PDEV_PARAM_ANT_DIV_USRCFG,
+					ant_div_usrcfg, PDEV_CMD);
+		if (ret_val) {
+			hdd_err("Failed to set ant div weight");
+			return ret_val;
+		}
+	}
+
 	return ret_val;
 }
 
@@ -5105,7 +5214,7 @@ wlan_hdd_add_tx_ptrn(hdd_adapter_t *adapter, hdd_context_t *hdd_ctx,
 	request_id = nla_get_u32(tb[PARAM_REQUEST_ID]);
 	if (request_id == MAX_REQUEST_ID) {
 		hdd_err("request_id cannot be MAX");
-		return -EINVAL;
+		goto fail;
 	}
 	hdd_debug("Request Id: %u", request_id);
 
@@ -11318,6 +11427,27 @@ uint8_t *wlan_hdd_cfg80211_get_ie_ptr(const uint8_t *ies_ptr, int length,
 	return NULL;
 }
 
+bool wlan_hdd_is_ap_supports_immediate_power_save(uint8_t *ies, int length)
+{
+	uint8_t *vendor_ie;
+
+	if (length < 2) {
+		hdd_debug("bss size is less than expected");
+		return true;
+	}
+	if (!ies) {
+		hdd_debug("invalid IE pointer");
+		return true;
+	}
+	vendor_ie = wlan_hdd_get_vendor_oui_ie_ptr(VENDOR1_AP_OUI_TYPE,
+				VENDOR1_AP_OUI_TYPE_SIZE, ies, length);
+	if (vendor_ie) {
+		hdd_debug("AP can't support immediate powersave. defer it");
+		return false;
+	}
+	return true;
+}
+
 /*
  * FUNCTION: wlan_hdd_validate_operation_channel
  * called by wlan_hdd_cfg80211_start_bss() and
@@ -14521,6 +14651,7 @@ static int wlan_hdd_cfg80211_set_fils_config(hdd_adapter_t *adapter,
 		return -EINVAL;
 	}
 
+	hdd_clear_fils_connection_info(adapter);
 	roam_profile->fils_con_info =
 		qdf_mem_malloc(sizeof(struct cds_fils_connection_info));
 
@@ -15294,6 +15425,7 @@ static int __wlan_hdd_cfg80211_disconnect(struct wiphy *wiphy,
 							 pAdapter->sessionId, mac);
 			}
 		}
+		wlan_hdd_tdls_notify_disconnect(pAdapter, true);
 #endif
 		hdd_info("Disconnect request from user space with reason: %d (%s) internal reason code: %d",
 			reason, hdd_ieee80211_reason_code_to_str(reason), reasonCode);

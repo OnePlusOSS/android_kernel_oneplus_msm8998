@@ -62,7 +62,7 @@
  * similar to the mentioned the WMA
  */
 #define WMA_TGT_NOISE_FLOOR_DBM (-96)
-#define WMA_TGT_RSSI_INVALID      96
+#define WMA_TGT_MAX_SNR         (WMA_TGT_NOISE_FLOOR_DBM * (-1))
 
 /*
  * Make sure that link monitor and keep alive
@@ -926,8 +926,6 @@ QDF_STATUS wma_process_lphb_conf_req(tp_wma_handle wma_handle,
 
 QDF_STATUS wma_process_dhcp_ind(tp_wma_handle wma_handle,
 				tAniDHCPInd *ta_dhcp_ind);
-
-QDF_STATUS wma_get_link_speed(WMA_HANDLE handle, tSirLinkSpeedInfo *pLinkSpeed);
 
 int wma_profile_data_report_event_handler(void *handle, uint8_t *event_buf,
 				       uint32_t len);

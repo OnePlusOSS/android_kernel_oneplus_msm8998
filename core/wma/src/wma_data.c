@@ -1915,7 +1915,7 @@ static void wma_set_thermal_level_ind(u_int8_t level)
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
 	cds_msg_t sme_msg = {0};
 
-	WMA_LOGI(FL("Thermal level: %d"), level);
+	WMA_LOGD(FL("Thermal level: %d"), level);
 
 	sme_msg.type = eWNI_SME_SET_THERMAL_LEVEL_IND;
 	sme_msg.bodyptr = NULL;
@@ -2869,14 +2869,14 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 
 	if (wma_handle->interfaces[vdev_id].scan_info.chan_freq != 0) {
 		chanfreq = wma_handle->interfaces[vdev_id].scan_info.chan_freq;
-		WMA_LOGI("%s: Preauth frame on channel %d", __func__, chanfreq);
+		WMA_LOGD("%s: Preauth frame on channel %d", __func__, chanfreq);
 	} else if (pFc->subType == SIR_MAC_MGMT_PROBE_RSP) {
 		if ((wma_is_vdev_in_ap_mode(wma_handle, vdev_id)) &&
 		    (0 != wma_handle->interfaces[vdev_id].mhz))
 			chanfreq = wma_handle->interfaces[vdev_id].mhz;
 		else
 			chanfreq = channel_freq;
-		WMA_LOGI("%s: Probe response frame on channel %d vdev:%d",
+		WMA_LOGD("%s: Probe response frame on channel %d vdev:%d",
 			__func__, chanfreq, vdev_id);
 		if (wma_is_vdev_in_ap_mode(wma_handle, vdev_id) && !chanfreq)
 			WMA_LOGE("%s: AP oper chan is zero", __func__);
@@ -2907,7 +2907,7 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 		wmi_desc = wmi_desc_get(wma_handle);
 		if (!wmi_desc) {
 			/* Countinous failure can cause flooding of logs */
-			if (!(wma_handle->wmi_desc_fail_count %
+			if (!qdf_do_mod(wma_handle->wmi_desc_fail_count,
 				MAX_PRINT_FAILURE_CNT))
 				WMA_LOGE("%s: Failed to get wmi_desc",
 					__func__);
@@ -2944,7 +2944,7 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 			tx_frm_download_comp_cb(wma_handle->mac_context,
 						tx_frame,
 						WMA_TX_FRAME_BUFFER_FREE);
-		if (!(wma_handle->tx_fail_cnt % MAX_PRINT_FAILURE_CNT))
+		if (!qdf_do_mod(wma_handle->tx_fail_cnt, MAX_PRINT_FAILURE_CNT))
 			WMA_LOGE("%s: Failed to send Mgmt Frame", __func__);
 		else
 			WMA_LOGD("%s: Failed to send Mgmt Frame", __func__);

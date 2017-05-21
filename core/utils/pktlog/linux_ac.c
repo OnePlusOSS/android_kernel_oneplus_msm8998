@@ -127,6 +127,7 @@ int pktlog_alloc_buf(struct hif_opaque_softc *scn)
 	unsigned long vaddr;
 	struct page *vpg;
 	struct ath_pktlog_info *pl_info;
+	struct ath_pktlog_buf *buffer;
 	ol_txrx_pdev_handle pdev_txrx_handle;
 	pdev_txrx_handle = cds_get_context(QDF_MODULE_ID_TXRX);
 
@@ -142,25 +143,39 @@ int pktlog_alloc_buf(struct hif_opaque_softc *scn)
 
 	page_cnt = (sizeof(*(pl_info->buf)) + pl_info->buf_size) / PAGE_SIZE;
 
-	pl_info->buf = vmalloc((page_cnt + 2) * PAGE_SIZE);
-	if (pl_info->buf == NULL) {
+	spin_lock_bh(&pl_info->log_lock);
+	if (pl_info->buf != NULL) {
+		printk(PKTLOG_TAG "Buffer is already in use\n");
+		spin_unlock_bh(&pl_info->log_lock);
+		return -EINVAL;
+	}
+	spin_unlock_bh(&pl_info->log_lock);
+
+	buffer = vmalloc((page_cnt + 2) * PAGE_SIZE);
+	if (buffer == NULL) {
 		printk(PKTLOG_TAG
 		       "%s: Unable to allocate buffer "
 		       "(%d pages)\n", __func__, page_cnt);
 		return -ENOMEM;
 	}
 
-	pl_info->buf = (struct ath_pktlog_buf *)
-		       (((unsigned long)(pl_info->buf) + PAGE_SIZE - 1)
+	buffer = (struct ath_pktlog_buf *)
+		       (((unsigned long)(buffer) + PAGE_SIZE - 1)
 			& PAGE_MASK);
 
-	for (vaddr = (unsigned long)(pl_info->buf);
-	     vaddr < ((unsigned long)(pl_info->buf) + (page_cnt * PAGE_SIZE));
+	for (vaddr = (unsigned long)(buffer);
+	     vaddr < ((unsigned long)(buffer) + (page_cnt * PAGE_SIZE));
 	     vaddr += PAGE_SIZE) {
 		vpg = vmalloc_to_page((const void *)vaddr);
 		SetPageReserved(vpg);
 	}
 
+	spin_lock_bh(&pl_info->log_lock);
+	if (pl_info->buf != NULL)
+		pktlog_release_buf(scn);
+
+	pl_info->buf =  buffer;
+	spin_unlock_bh(&pl_info->log_lock);
 	return 0;
 }
 
@@ -201,6 +216,7 @@ static void pktlog_cleanup(struct ath_pktlog_info *pl_info)
 {
 	pl_info->log_state = 0;
 	PKTLOG_LOCK_DESTROY(pl_info);
+	mutex_destroy(&pl_info->pktlog_mutex);
 }
 
 /* sysctl procfs handler to enable pktlog */
@@ -986,11 +1002,18 @@ static ssize_t
 pktlog_read(struct file *file, char *buf, size_t nbytes, loff_t *ppos)
 {
 	int ret;
+	struct ath_pktlog_info *pl_info;
+
+	pl_info = (struct ath_pktlog_info *)
+					PDE_DATA(file->f_path.dentry->d_inode);
+	if (!pl_info)
+		return 0;
 
 	cds_ssr_protect(__func__);
+	mutex_lock(&pl_info->pktlog_mutex);
 	ret = __pktlog_read(file, buf, nbytes, ppos);
+	mutex_unlock(&pl_info->pktlog_mutex);
 	cds_ssr_unprotect(__func__);
-
 	return ret;
 }
 

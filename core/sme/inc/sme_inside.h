@@ -100,6 +100,7 @@ typedef struct TdlsSendMgmtInfo {
 	uint32_t peerCapability;
 	uint8_t *buf;
 	uint8_t len;
+	enum sir_wifi_traffic_ac ac;
 } tTdlsSendMgmtCmdInfo;
 
 typedef struct TdlsLinkEstablishInfo {
@@ -200,8 +201,18 @@ tSmeCmd *sme_get_command_buffer(tpAniSirGlobal pMac);
 void sme_push_command(tpAniSirGlobal pMac, tSmeCmd *pCmd, bool fHighPriority);
 void sme_process_pending_queue(tpAniSirGlobal pMac);
 void sme_release_command(tpAniSirGlobal pMac, tSmeCmd *pCmd);
+
+/**
+ * purge_sme_session_cmd_list: API to remove command from sme list
+ * @pMac: mac context
+ * @sessionId: session id
+ * @pList: list from which commands needs to be removed
+ * @flush_all_cmd: whether all commands needs to be removed
+ *
+ * Return: None
+ */
 void purge_sme_session_cmd_list(tpAniSirGlobal pMac, uint32_t sessionId,
-		tDblLinkList *pList);
+		tDblLinkList *pList, bool flush_all_cmd);
 bool sme_command_pending(tpAniSirGlobal pMac);
 bool qos_process_command(tpAniSirGlobal pMac, tSmeCmd *pCommand);
 void qos_release_command(tpAniSirGlobal pMac, tSmeCmd *pCommand);
@@ -254,6 +265,14 @@ QDF_STATUS csr_roam_process_set_key_command(tpAniSirGlobal pMac,
 		tSmeCmd *pCommand);
 void csr_release_command_set_key(tpAniSirGlobal pMac, tSmeCmd *pCommand);
 void csr_abort_command(tpAniSirGlobal pMac, tSmeCmd *pCommand, bool fStopping);
+
+/**
+ * csr_is_disconnect_cmd() - Check if command is for disconnect
+ * @command: command to check
+ *
+ * Return: true if disconnect or full power command else false
+ */
+bool csr_is_disconnect_cmd(tSmeCmd *command);
 
 QDF_STATUS csr_is_valid_channel(tpAniSirGlobal pMac, uint8_t chnNum);
 bool csr_roam_is_valid40_mhz_channel(tpAniSirGlobal pmac, uint8_t channel);

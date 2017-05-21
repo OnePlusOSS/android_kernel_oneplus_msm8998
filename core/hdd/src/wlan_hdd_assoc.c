@@ -1619,7 +1619,8 @@ static QDF_STATUS hdd_dis_connect_handler(hdd_adapter_t *pAdapter,
 		pHddCtx->sta_to_adapter[sta_id] = NULL;
 		/* Clear all the peer sta register with TL. */
 		for (i = 0; i < MAX_PEERS; i++) {
-			if (0 == pHddStaCtx->conn_info.staId[i])
+			if (HDD_WLAN_INVALID_STA_ID ==
+				pHddStaCtx->conn_info.staId[i])
 				continue;
 			sta_id = pHddStaCtx->conn_info.staId[i];
 			hdd_debug("Deregister StaID %d", sta_id);
@@ -2074,7 +2075,7 @@ static int hdd_change_sta_state_authenticated(hdd_adapter_t *adapter,
 		sme_ps_enable_auto_ps_timer(
 			WLAN_HDD_GET_HAL_CTX(adapter),
 			adapter->sessionId,
-			timeout);
+			timeout, false);
 	}
 
 	return ret;
@@ -2269,7 +2270,7 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 	hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
 	QDF_STATUS qdf_status = QDF_STATUS_E_FAILURE;
 	uint8_t reqRsnIe[DOT11F_IE_RSN_MAX_LEN];
-	uint32_t reqRsnLength = DOT11F_IE_RSN_MAX_LEN;
+	uint32_t reqRsnLength = DOT11F_IE_RSN_MAX_LEN, ie_len;
 	int ft_carrier_on = false;
 	bool hddDisconInProgress = false;
 	unsigned long rc;
@@ -2323,6 +2324,18 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 			pAdapter->wapi_info.fIsWapiSta = 0;
 		}
 #endif /* FEATURE_WLAN_WAPI */
+		hdd_debug("bss_descr[%d] devicemode[%d]", !!pRoamInfo->pBssDesc,
+				pAdapter->device_mode);
+		if ((QDF_STA_MODE == pAdapter->device_mode) &&
+						pRoamInfo->pBssDesc) {
+			ie_len = GET_IE_LEN_IN_BSS(pRoamInfo->pBssDesc->length);
+			pHddStaCtx->ap_supports_immediate_power_save =
+				wlan_hdd_is_ap_supports_immediate_power_save(
+				     (uint8_t *) pRoamInfo->pBssDesc->ieFields,
+				     ie_len);
+			hdd_debug("ap_supports_immediate_power_save flag [%d]",
+				  pHddStaCtx->ap_supports_immediate_power_save);
+		}
 
 		/* Indicate 'connect' status to user space */
 		hdd_send_association_event(dev, pRoamInfo);
@@ -2896,8 +2909,6 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 					roamResult, pHddStaCtx))
 		return QDF_STATUS_E_FAILURE;
 
-	hdd_clear_fils_connection_info(pAdapter);
-
 	if (NULL != pRoamInfo && NULL != pRoamInfo->pBssDesc) {
 		cds_force_sap_on_scc(roamResult,
 				pRoamInfo->pBssDesc->channelId);
@@ -3131,7 +3142,8 @@ static bool roam_remove_ibss_station(hdd_adapter_t *pAdapter, uint8_t staId)
 
 			empty_slots++;
 		} else {
-			if (pHddStaCtx->conn_info.staId[idx] != 0) {
+			if (pHddStaCtx->conn_info.staId[idx] !=
+					HDD_WLAN_INVALID_STA_ID) {
 				valid_idx = idx;
 			} else {
 				/* Found an empty slot */
@@ -3149,7 +3161,8 @@ static bool roam_remove_ibss_station(hdd_adapter_t *pAdapter, uint8_t staId)
 	/* Find next active staId, to have a valid sta trigger for TL. */
 	if (fSuccess == true) {
 		if (del_idx == 0) {
-			if (pHddStaCtx->conn_info.staId[valid_idx] != 0) {
+			if (pHddStaCtx->conn_info.staId[valid_idx] !=
+					HDD_WLAN_INVALID_STA_ID) {
 				pHddStaCtx->conn_info.staId[0] =
 					pHddStaCtx->conn_info.staId[valid_idx];
 				qdf_copy_macaddr(&pHddStaCtx->conn_info.
@@ -4905,6 +4918,9 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 	case eCSR_ROAM_RESULT_MGMT_TX_COMPLETE_IND:
 		wlan_hdd_tdls_mgmt_completion_callback(pAdapter,
 						       pRoamInfo->reasonCode);
+		break;
+	case eCSR_ROAM_TDLS_SET_STATE_DISABLE:
+		hdd_tdls_notify_set_state_disable(pRoamInfo->sessionId);
 		break;
 #endif
 #ifdef WLAN_FEATURE_11W

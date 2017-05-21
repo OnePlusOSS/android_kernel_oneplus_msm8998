@@ -4413,7 +4413,8 @@ bool csr_scan_complete(tpAniSirGlobal pMac, tSirSmeScanRsp *pScanRsp)
 
 static void
 csr_scan_remove_dup_bss_description_from_interim_list(tpAniSirGlobal mac_ctx,
-					tSirBssDescription *bss_dscp)
+					tSirBssDescription *bss_dscp,
+					uint32_t flags)
 {
 	tListElem *pEntry;
 	struct tag_csrscan_result *scan_bss_dscp;
@@ -4439,16 +4440,27 @@ csr_scan_remove_dup_bss_description_from_interim_list(tpAniSirGlobal mac_ctx,
 		scan_entry_rssi = scan_bss_dscp->Result.BssDescriptor.rssi;
 		if (csr_is_duplicate_bss_description(mac_ctx,
 			&scan_bss_dscp->Result.BssDescriptor, bss_dscp)) {
-			/*
-			 * Following is mathematically a = (aX + b(100-X))/100
-			 * where:
-			 * a = bss_dscp->rssi, b = scan_entry_rssi
-			 * and X = CSR_SCAN_RESULT_RSSI_WEIGHT
-			 */
-			bss_dscp->rssi = (int8_t) ((((int32_t) bss_dscp->rssi *
-				CSR_SCAN_RESULT_RSSI_WEIGHT) +
-				((int32_t) scan_entry_rssi *
-				 (100 - CSR_SCAN_RESULT_RSSI_WEIGHT))) / 100);
+
+			/* Do not update RSSI id skip RSSI Update flag is set */
+			if (flags & WLAN_SKIP_RSSI_UPDATE) {
+				bss_dscp->rssi =
+				   scan_bss_dscp->Result.BssDescriptor.rssi;
+				bss_dscp->rssi_raw =
+				   scan_bss_dscp->Result.BssDescriptor.rssi_raw;
+			} else {
+				/*
+				 * Following is mathematically
+				 * a = (aX + b(100-X))/100 where:
+				 * a = bss_dscp->rssi, b = scan_entry_rssi
+				 * and X = CSR_SCAN_RESULT_RSSI_WEIGHT
+				 */
+				bss_dscp->rssi = (int8_t)
+					((((int32_t) bss_dscp->rssi *
+					CSR_SCAN_RESULT_RSSI_WEIGHT) +
+					((int32_t) scan_entry_rssi *
+					(100 - CSR_SCAN_RESULT_RSSI_WEIGHT)))
+					/ 100);
+			}
 			/* Remove the 'old' entry from the list */
 			if (csr_ll_remove_entry(&mac_ctx->scan.tempScanResults,
 				pEntry, LL_ACCESS_NOLOCK)) {
@@ -4763,6 +4775,7 @@ QDF_STATUS csr_scan_process_single_bssdescr(tpAniSirGlobal mac_ctx,
 	tCsrRoamInfo *roam_info;
 	uint8_t session_id;
 
+	session_id = csr_scan_get_session_id(mac_ctx);
 	sme_debug("CSR: Processing single bssdescr");
 	if (QDF_IS_STATUS_SUCCESS(
 		csr_get_cfg_valid_channels(mac_ctx,
@@ -4777,12 +4790,16 @@ QDF_STATUS csr_scan_process_single_bssdescr(tpAniSirGlobal mac_ctx,
 
 	if (csr_scan_validate_scan_result(mac_ctx, chanlist,
 			cnt_channels, bssdescr, &ies)) {
+
+		csr_scan_remove_dup_bss_description_from_interim_list
+			(mac_ctx, bssdescr, flags);
+		csr_scan_save_bss_description_to_interim_list
+			(mac_ctx, bssdescr, ies);
 		roam_info = qdf_mem_malloc(sizeof(*roam_info));
 		if (roam_info) {
 			qdf_mem_zero(roam_info, sizeof(*roam_info));
 			roam_info->pBssDesc = bssdescr;
 
-			session_id = csr_scan_get_session_id(mac_ctx);
 			if (session_id == CSR_SESSION_ID_INVALID) {
 				if (ies != NULL)
 					qdf_mem_free(ies);
@@ -4797,10 +4814,21 @@ QDF_STATUS csr_scan_process_single_bssdescr(tpAniSirGlobal mac_ctx,
 		} else {
 			sme_err("qdf_mem_malloc failed");
 		}
-		csr_scan_remove_dup_bss_description_from_interim_list
-			(mac_ctx, bssdescr);
-		csr_scan_save_bss_description_to_interim_list
-			(mac_ctx, bssdescr, ies);
+		/*
+		 * If scan is not in progress and interim list
+		 * reach threashold, move scan results from temp
+		 * to main list and age out old results.
+		 */
+		if (csr_ll_is_list_empty(&mac_ctx->sme.smeScanCmdActiveList,
+		   LL_ACCESS_LOCK) &&
+		   csr_ll_count(&mac_ctx->scan.tempScanResults) >=
+				CSR_MAX_BSS_SUPPORT / 10) {
+			csr_remove_from_tmp_list(mac_ctx, eCsrScanOther,
+				session_id);
+			/* Purge the scan results based on Aging */
+			if (mac_ctx->scan.scanResultCfgAgingTime)
+				csr_purge_scan_result_by_age(mac_ctx);
+		}
 		csr_update_scantype(mac_ctx, ies, bssdescr->channelId);
 		/* Free the resource */
 		if (ies != NULL)
@@ -4880,6 +4908,8 @@ error_handling:
 		sme_debug("PNO Scan completion called");
 		csr_save_scan_results(pMac, eCsrScanCandidateFound,
 				      pScanRsp->sessionId);
+		if (pMac->scan.scanResultCfgAgingTime)
+			csr_purge_scan_result_by_age(pMac);
 		return QDF_STATUS_SUCCESS;
 	}
 
@@ -7258,8 +7288,12 @@ void csr_init_occupied_channels_list(tpAniSirGlobal pMac, uint8_t sessionId)
 		/* At this time, pBssDescription->Result.pvIes may be NULL */
 		if (!pIes && !QDF_IS_STATUS_SUCCESS(
 			csr_get_parsed_bss_description_ies(pMac,
-				&pBssDesc->Result.BssDescriptor, &pIes)))
+				&pBssDesc->Result.BssDescriptor, &pIes))) {
+			/* Pick next bss entry before continuing */
+			pEntry = csr_ll_next(&pMac->scan.scanResultList, pEntry,
+				     LL_ACCESS_NOLOCK);
 			continue;
+		}
 		csr_scan_add_to_occupied_channels(pMac, pBssDesc, sessionId,
 				&pMac->scan.occupiedChannels[sessionId], pIes,
 				true);
@@ -7551,5 +7585,6 @@ void csr_scan_active_list_timeout_handle(void *userData)
 
 	csr_save_scan_results(mac_ctx, scan_cmd->u.scanCmd.reason,
 		scan_cmd->sessionId);
+	scan_cmd->u.scanCmd.abort_scan_indication = eCSR_SCAN_ABORT_DEFAULT;
 	csr_release_scan_command(mac_ctx, scan_cmd, eCSR_SCAN_FAILURE);
 }

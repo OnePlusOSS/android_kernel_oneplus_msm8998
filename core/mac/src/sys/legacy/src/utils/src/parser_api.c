@@ -394,29 +394,6 @@ populate_dot11f_country(tpAniSirGlobal pMac,
 	return eSIR_SUCCESS;
 } /* End populate_dot11f_country. */
 
-#ifdef QCA_WIFI_3_0_EMU
-/**
- * populate_dot11f_ds_params() - To populate DS IE params
- * mac_ctx: Pointer to global mac context
- * dot11f_param: pointer to DS params IE
- * channel: channel number
- *
- * This routine will populate DS param in management frame like
- * beacon, probe response, and etc.
- *
- * Return: Overall sucess
- */
-tSirRetStatus
-populate_dot11f_ds_params(tpAniSirGlobal mac_ctx,
-			  tDot11fIEDSParams *dot11f_param, uint8_t channel)
-{
-	/* .11a/11b/g mode PHY => Include the DS Parameter Set IE: */
-	dot11f_param->curr_channel = channel;
-	dot11f_param->present = 1;
-
-	return eSIR_SUCCESS;
-} /* End populate_dot11f_ds_params. */
-#else
 /**
  * populate_dot11f_ds_params() - To populate DS IE params
  * mac_ctx: Pointer to global mac context
@@ -440,7 +417,6 @@ populate_dot11f_ds_params(tpAniSirGlobal mac_ctx,
 
 	return eSIR_SUCCESS;
 }
-#endif
 
 #define SET_AIFSN(aifsn) (((aifsn) < 2) ? 2 : (aifsn))
 
@@ -937,10 +913,8 @@ populate_dot11f_vht_caps(tpAniSirGlobal pMac,
 		pDot11f->suBeamformeeCap =
 			psessionEntry->vht_config.su_beam_formee;
 		if (psessionEntry->vht_config.su_beam_formee) {
-			nCfgValue = 0;
-			CFG_GET_INT(nStatus, pMac,
-				    WNI_CFG_VHT_MU_BEAMFORMEE_CAP, nCfgValue);
-			pDot11f->muBeamformeeCap = (nCfgValue & 0x0001);
+			pDot11f->muBeamformeeCap =
+				psessionEntry->vht_config.mu_beam_formee;
 			pDot11f->csnofBeamformerAntSup =
 			      psessionEntry->vht_config.csnof_beamformer_antSup;
 		} else {
@@ -1230,7 +1204,7 @@ populate_dot11f_ext_cap(tpAniSirGlobal pMac,
 #endif
 	p_ext_cap->ext_chan_switch = 1;
 
-	if (pMac->roam.configParam.enable_bcast_probe_rsp)
+	if (psessionEntry && psessionEntry->enable_bcast_probe_rsp)
 		p_ext_cap->fils_capability = 1;
 
 	/* Need to calulate the num_bytes based on bits set */
@@ -2272,6 +2246,18 @@ sir_validate_and_rectify_ies(tpAniSirGlobal mac_ctx,
 }
 
 #ifdef WLAN_FEATURE_FILS_SK
+static void populate_dot11f_fils_rsn(tpAniSirGlobal mac_ctx,
+				     tDot11fIERSNOpaque *p_dot11f,
+				     uint8_t *rsn_ie)
+{
+	pe_debug("FILS RSN IE length %d", rsn_ie[1]);
+	if (rsn_ie[1]) {
+		p_dot11f->present = 1;
+		p_dot11f->num_data = rsn_ie[1];
+		qdf_mem_copy(p_dot11f->data, &rsn_ie[2], rsn_ie[1]);
+	}
+}
+
 void populate_dot11f_fils_params(tpAniSirGlobal mac_ctx,
 		tDot11fAssocRequest *frm,
 		tpPESession pe_session)
@@ -2279,8 +2265,8 @@ void populate_dot11f_fils_params(tpAniSirGlobal mac_ctx,
 	struct pe_fils_session *fils_info = pe_session->fils_info;
 
 	/* Populate RSN IE with FILS AKM */
-	populate_dot11f_rsn_opaque(mac_ctx, (tpSirRSNie) &(fils_info->rsn_ie),
-							   &frm->RSNOpaque);
+	populate_dot11f_fils_rsn(mac_ctx, &frm->RSNOpaque,
+				 fils_info->rsn_ie);
 
 	/* Populate FILS session IE */
 	frm->fils_session.present = true;

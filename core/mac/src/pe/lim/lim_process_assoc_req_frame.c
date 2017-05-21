@@ -776,10 +776,14 @@ static bool lim_chk_n_process_wpa_rsn_ie(tpAniSirGlobal mac_ctx,
 			if (assoc_req->rsnPresent) {
 				if (assoc_req->rsn.length) {
 					/* Unpack the RSN IE */
-					dot11f_unpack_ie_rsn(mac_ctx,
+					if (dot11f_unpack_ie_rsn(mac_ctx,
 						&assoc_req->rsn.info[0],
 						assoc_req->rsn.length,
-						&dot11f_ie_rsn, false);
+						&dot11f_ie_rsn, false) !=
+							DOT11F_PARSE_SUCCESS) {
+						pe_err("Invalid RSN ie");
+						return false;
+					}
 
 					/* Check RSN version is supported */
 					if (SIR_MAC_OUI_VERSION_1 ==
@@ -843,15 +847,18 @@ static bool lim_chk_n_process_wpa_rsn_ie(tpAniSirGlobal mac_ctx,
 						session);
 					return false;
 				}
-			} /* end - if(assoc_req->rsnPresent) */
-			if ((!assoc_req->rsnPresent) && assoc_req->wpaPresent) {
+			} else if (assoc_req->wpaPresent) {
 				/* Unpack the WPA IE */
 				if (assoc_req->wpa.length) {
 					/* OUI is not taken care */
-					dot11f_unpack_ie_wpa(mac_ctx,
+					if (dot11f_unpack_ie_wpa(mac_ctx,
 						&assoc_req->wpa.info[4],
 						assoc_req->wpa.length,
-						&dot11f_ie_wpa, false);
+						&dot11f_ie_wpa, false) !=
+							DOT11F_PARSE_SUCCESS) {
+						pe_err("Invalid WPA IE");
+						return false;
+					}
 					/*
 					 * check the groupwise and pairwise
 					 * cipher suites
@@ -889,7 +896,31 @@ static bool lim_chk_n_process_wpa_rsn_ie(tpAniSirGlobal mac_ctx,
 						session);
 					return false;
 				} /* end - if(assoc_req->wpa.length) */
-			} /* end - if(assoc_req->wpaPresent) */
+			} else if (assoc_req->wapiPresent) {
+				pe_debug("Assoc req wapiPresent");
+			} else {
+				/*
+				 * When client send AssocReq without any
+				 * cipher IE,We must reject it here,
+				 * otherwise hostapd will not trigger
+				 * eapol and will not delete it, remains
+				 * connected/not-authenticated state
+				 * and block sta scan as checking in
+				 * cds_is_connection_in_progress.
+				 */
+				pe_warn("Re/Assoc rejected from: "
+					MAC_ADDRESS_STR
+					" without cipher suite IE",
+					MAC_ADDR_ARRAY(hdr->sa));
+				lim_send_assoc_rsp_mgmt_frame(mac_ctx,
+					eSIR_MAC_CIPHER_SUITE_REJECTED_STATUS,
+					1,
+					hdr->sa,
+					sub_type,
+					0,
+					session);
+				return false;
+			}
 		}
 		/*
 		 * end of if(session->pLimStartBssReq->privacy

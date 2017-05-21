@@ -144,7 +144,7 @@ static int hdd_close_ndi(hdd_adapter_t *adapter)
 	if (test_bit(SME_SESSION_OPENED, &adapter->event_flags)) {
 		INIT_COMPLETION(adapter->session_close_comp_var);
 		if (QDF_STATUS_SUCCESS == sme_close_session(hdd_ctx->hHal,
-				adapter->sessionId,
+				adapter->sessionId, true,
 				hdd_sme_close_session_callback, adapter)) {
 			/* Block on a timed completion variable */
 			rc = wait_for_completion_timeout(
@@ -873,10 +873,12 @@ static void hdd_ndp_iface_create_rsp_handler(hdd_adapter_t *adapter,
 		hdd_err("failed to allocate memory");
 		return;
 	}
-	if (wlan_hdd_validate_context(hdd_ctx))
+
+	if (wlan_hdd_validate_context(hdd_ctx)) {
 		/* No way the driver can send response back to user space */
 		qdf_mem_free(roam_info);
 		return;
+	}
 
 	if (ndi_rsp) {
 		create_status = ndi_rsp->status;
@@ -1025,7 +1027,6 @@ static void hdd_ndp_iface_delete_rsp_handler(hdd_adapter_t *adapter,
 				     WLAN_CONTROL_PATH);
 
 	complete(&adapter->disconnect_comp_var);
-	return;
 }
 
 /**
@@ -1790,6 +1791,7 @@ static void hdd_ndp_end_ind_handler(hdd_adapter_t *adapter,
 				data_len, QCA_NL80211_VENDOR_SUBCMD_NDP_INDEX,
 				GFP_KERNEL);
 	if (!vendor_event) {
+		qdf_mem_free(ndp_instance_array);
 		hdd_err("cfg80211_vendor_event_alloc failed");
 		return;
 	}
@@ -2070,9 +2072,9 @@ int hdd_init_nan_data_mode(struct hdd_adapter_s *adapter)
 			(int)WMI_PDEV_PARAM_BURST_ENABLE,
 			(int)hdd_ctx->config->enableSifsBurst,
 			PDEV_CMD);
-	if (0 != ret_val) {
+	if (0 != ret_val)
 		hdd_err("WMI_PDEV_PARAM_BURST_ENABLE set failed %d", ret_val);
-	}
+
 
 	ndp_ctx->state = NAN_DATA_NDI_CREATING_STATE;
 	return ret_val;
@@ -2089,7 +2091,7 @@ error_register_wext:
 		INIT_COMPLETION(adapter->session_close_comp_var);
 		if (QDF_STATUS_SUCCESS ==
 				sme_close_session(hdd_ctx->hHal,
-					adapter->sessionId,
+					adapter->sessionId, true,
 					hdd_sme_close_session_callback,
 					adapter)) {
 			rc = wait_for_completion_timeout(

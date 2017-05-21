@@ -78,13 +78,6 @@ ifeq ($(KERNEL_BUILD), 0)
 	# config.
 	ifneq ($(TARGET_BUILD_VARIANT),user)
 		CONFIG_FEATURE_PKTLOG := y
-		ifeq ($(CONFIG_SLUB_DEBUG_ON),y)
-			CONFIG_FEATURE_DP_TRACE := y
-		else
-			ifeq ($(findstring perf,$(KERNEL_DEFCONFIG)),)
-				CONFIG_FEATURE_DP_TRACE := y
-			endif
-		endif
 	endif
 
 	#Flag to enable Legacy Fast Roaming2(LFR2)
@@ -362,6 +355,7 @@ CONFIG_ATH_PCIE_ACCESS_DEBUG := 0
 #Enable IPA offload
 ifeq ($(CONFIG_IPA), y)
 CONFIG_IPA_OFFLOAD := 1
+CONFIG_NUM_IPA_IFACE := 3
 endif
 
 #Enable Signed firmware support for split binary format
@@ -1187,7 +1181,6 @@ endif
 
 ifeq (y,$(filter y,$(CONFIG_CNSS_EOS) $(CONFIG_ICNSS)))
 CDEFINES += -DQCA_WIFI_3_0
-CDEFINES += -DQCA_WIFI_3_0_EMU
 endif
 
 ifeq (y,$(filter y,$(CONFIG_CNSS_ADRASTEA) $(CONFIG_ICNSS)))
@@ -1204,9 +1197,7 @@ ifeq ($(CONFIG_FEATURE_PKTLOG), y)
 CDEFINES +=     -DFEATURE_PKTLOG
 endif
 
-ifeq ($(CONFIG_FEATURE_DP_TRACE), y)
 CDEFINES +=	-DFEATURE_DP_TRACE
-endif
 
 ifeq ($(CONFIG_WLAN_NAPI), y)
 CDEFINES += -DFEATURE_NAPI
@@ -1478,9 +1469,14 @@ ifeq ($(CONFIG_CHECKSUM_OFFLOAD), 1)
 CDEFINES += -DCHECKSUM_OFFLOAD
 endif
 
-#Enable Checksum Offload support
+ifeq ($(CONFIG_ARCH_SDX20), y)
+CONFIG_NUM_IPA_IFACE := 2
+endif
+
+#Enable IPA Offload support
 ifeq ($(CONFIG_IPA_OFFLOAD), 1)
 CDEFINES += -DIPA_OFFLOAD
+CDEFINES += -DMAX_IPA_IFACE=$(CONFIG_NUM_IPA_IFACE)
 endif
 
 ifeq ($(CONFIG_ARCH_SDX20), y)
@@ -1510,6 +1506,11 @@ endif
 #Enable Channel Matrix restriction for all Rome only targets
 ifneq (y,$(filter y,$(CONFIG_CNSS_EOS) $(CONFIG_ICNSS)))
 CDEFINES += -DWLAN_ENABLE_CHNL_MATRIX_RESTRICTION
+endif
+
+#Enable ICMP packet disable powersave feature
+ifeq ($(CONFIG_ICMP_DISABLE_PS),y)
+CDEFINES += -DWLAN_ICMP_DISABLE_PS
 endif
 
 #Enable OBSS feature

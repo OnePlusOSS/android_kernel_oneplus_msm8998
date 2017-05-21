@@ -56,6 +56,8 @@
 #include "ol_txrx.h"
 #include "wlan_hdd_nan_datapath.h"
 #include "pld_common.h"
+#include "wlan_hdd_power.h"
+
 
 #ifdef QCA_LL_TX_FLOW_CONTROL_V2
 /*
@@ -371,8 +373,42 @@ void wlan_hdd_classify_pkt(struct sk_buff *skb)
 	else if (qdf_nbuf_is_ipv4_wapi_pkt(skb))
 		QDF_NBUF_CB_GET_PACKET_TYPE(skb) =
 			QDF_NBUF_CB_PACKET_TYPE_WAPI;
+	else if (qdf_nbuf_is_icmp_pkt(skb))
+		QDF_NBUF_CB_GET_PACKET_TYPE(skb) =
+			QDF_NBUF_CB_PACKET_TYPE_ICMP;
 
 }
+
+/**
+ * wlan_hdd_latency_opt()- latency option
+ * @adapter:  pointer to the adapter structure
+ * @skb:      pointer to sk buff
+ *
+ * Function to disable power save for icmp packets.
+ *
+ * Return: None
+ */
+#ifdef WLAN_ICMP_DISABLE_PS
+static inline void
+wlan_hdd_latency_opt(hdd_adapter_t *adapter, struct sk_buff *skb)
+{
+	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+
+	if (hdd_ctx->config->icmp_disable_ps_val <= 0)
+		return;
+
+	if (QDF_NBUF_CB_GET_PACKET_TYPE(skb) ==
+				QDF_NBUF_CB_PACKET_TYPE_ICMP) {
+		wlan_hdd_set_powersave(adapter, false,
+				hdd_ctx->config->icmp_disable_ps_val);
+	}
+}
+#else
+static inline void
+wlan_hdd_latency_opt(hdd_adapter_t *adapter, struct sk_buff *skb)
+{
+}
+#endif
 
 /**
  * hdd_get_transmit_sta_id() - function to retrieve station id to be used for
@@ -389,12 +425,13 @@ static void hdd_get_transmit_sta_id(hdd_adapter_t *adapter,
 			struct sk_buff *skb, uint8_t *station_id)
 {
 	bool mcbc_addr = false;
+	QDF_STATUS status;
 	hdd_station_ctx_t *sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
 	struct qdf_mac_addr *dst_addr = NULL;
 
 	dst_addr = (struct qdf_mac_addr *)skb->data;
-	hdd_get_peer_sta_id(sta_ctx, dst_addr, station_id);
-	if (*station_id == HDD_WLAN_INVALID_STA_ID) {
+	status = hdd_get_peer_sta_id(sta_ctx, dst_addr, station_id);
+	if (QDF_IS_STATUS_ERROR(status)) {
 		if (QDF_NBUF_CB_GET_IS_BCAST(skb) ||
 				QDF_NBUF_CB_GET_IS_MCAST(skb)) {
 			hdd_info("Received MC/BC packet for transmission");
@@ -453,6 +490,7 @@ static int __hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 #endif
 
 	wlan_hdd_classify_pkt(skb);
+	wlan_hdd_latency_opt(pAdapter, skb);
 
 	++pAdapter->hdd_stats.hddTxRxStats.txXmitCalled;
 
@@ -957,7 +995,7 @@ int hdd_get_peer_idx(hdd_station_ctx_t *sta_ctx, struct qdf_mac_addr *addr)
 	uint8_t idx;
 
 	for (idx = 0; idx < MAX_PEERS; idx++) {
-		if (sta_ctx->conn_info.staId[idx] == 0)
+		if (sta_ctx->conn_info.staId[idx] == HDD_WLAN_INVALID_STA_ID)
 			continue;
 		if (qdf_mem_cmp(&sta_ctx->conn_info.peerMacAddress[idx],
 				addr, sizeof(struct qdf_mac_addr)))
@@ -1080,17 +1118,21 @@ static bool hdd_is_arp_local(struct sk_buff *skb)
 			memcpy(&tip, arp_ptr, 4);
 			hdd_info("ARP packet: local IP: %x dest IP: %x",
 				ifa->ifa_local, tip);
-			if (ifa->ifa_local != tip)
-				return false;
+			if (ifa->ifa_local == tip)
+				return true;
 		}
 	}
 
-	return true;
+	return false;
 }
 
 /**
  * hdd_is_rx_wake_lock_needed() - check if wake lock is needed
  * @skb: pointer to sk_buff
+ *
+ * RX wake lock is needed for:
+ * 1) Unicast data packet OR
+ * 2) Local ARP data packet
  *
  * Return: true if wake lock is needed or false otherwise.
  */
@@ -1198,12 +1240,8 @@ QDF_STATUS hdd_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 	++pAdapter->stats.rx_packets;
 	pAdapter->stats.rx_bytes += skb->len;
 
-	if (is_arp) {
+	if (is_arp)
 		pAdapter->dad |= hdd_is_duplicate_ip_arp(skb);
-		if (pAdapter->dad)
-			QDF_TRACE(QDF_MODULE_ID_HDD_DATA, QDF_TRACE_LEVEL_ERROR,
-				"%s: Duplicate IP detected", __func__);
-	}
 
 	/* Check & drop replayed mcast packets (for IPV6) */
 	if (pHddCtx->config->multicast_replay_filter &&
@@ -1349,14 +1387,13 @@ static void wlan_hdd_update_txq_timestamp(struct net_device *dev)
 {
 	struct netdev_queue *txq;
 	int i;
-	bool unlock;
 
 	for (i = 0; i < NUM_TX_QUEUES; i++) {
 		txq = netdev_get_tx_queue(dev, i);
-		unlock = __netif_tx_trylock(txq);
-		txq_trans_update(txq);
-		if (unlock == true)
+		if (__netif_tx_trylock(txq)) {
+			txq_trans_update(txq);
 			__netif_tx_unlock(txq);
+		}
 	}
 }
 

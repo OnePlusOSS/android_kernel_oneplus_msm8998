@@ -1091,9 +1091,9 @@ static int wma_ll_stats_evt_handler(void *handle, u_int8_t *event,
 			qdf_mem_copy(&peer_stats[i].mac_address,
 				     &peer->mac_addr,
 				     sizeof(peer_stats[i].mac_address));
-			WMA_LOGI("Peer %d mac address is: ",
+			WMA_LOGD("Peer %d mac address is: ",
 				 wmi_peer_signal->peer_id);
-			WMA_LOGI("%2x:%2x:%2x:%2x:%2x:%2x.",
+			WMA_LOGD("%2x:%2x:%2x:%2x:%2x:%2x.",
 				 peer->mac_addr.raw[0], peer->mac_addr.raw[1],
 				 peer->mac_addr.raw[2], peer->mac_addr.raw[3],
 				 peer->mac_addr.raw[4], peer->mac_addr.raw[5]);
@@ -2284,11 +2284,11 @@ static void wma_vdev_stats_lost_link_helper(tp_wma_handle wma,
 	int32_t rssi;
 	struct wma_target_req *req_msg;
 	static const uint8_t zero_mac[QDF_MAC_ADDR_SIZE] = {0};
-	int8_t bcn_snr, dat_snr;
+	int32_t bcn_snr, dat_snr;
 
 	node = &wma->interfaces[vdev_stats->vdev_id];
 	if (node->vdev_up &&
-	    qdf_mem_cmp(node->bssid, zero_mac, QDF_MAC_ADDR_SIZE)) {
+	    !qdf_mem_cmp(node->bssid, zero_mac, QDF_MAC_ADDR_SIZE)) {
 		req_msg = wma_peek_vdev_req(wma, vdev_stats->vdev_id,
 					    WMA_TARGET_REQ_TYPE_VDEV_STOP);
 		if ((NULL == req_msg) ||
@@ -2329,11 +2329,11 @@ static void wma_update_vdev_stats(tp_wma_handle wma,
 	uint8_t *stats_buf;
 	struct wma_txrx_node *node;
 	uint8_t i;
-	int8_t rssi = 0;
+	int32_t rssi = 0;
 	QDF_STATUS qdf_status;
 	tAniGetRssiReq *pGetRssiReq = (tAniGetRssiReq *) wma->pGetRssiReq;
 	cds_msg_t sme_msg = { 0 };
-	int8_t bcn_snr, dat_snr;
+	int32_t bcn_snr, dat_snr;
 
 	bcn_snr = vdev_stats->vdev_snr.bcn_snr;
 	dat_snr = vdev_stats->vdev_snr.dat_snr;
@@ -2373,7 +2373,7 @@ static void wma_update_vdev_stats(tp_wma_handle wma,
 			} else if (WMA_TGT_IS_VALID_SNR(dat_snr)) {
 				summary_stats->snr = dat_snr;
 				summary_stats->rssi =
-					bcn_snr + WMA_TGT_NOISE_FLOOR_DBM;
+					dat_snr + WMA_TGT_NOISE_FLOOR_DBM;
 			} else {
 				summary_stats->snr = WMA_TGT_INVALID_SNR;
 				summary_stats->rssi = 0;
@@ -2554,7 +2554,7 @@ static void wma_update_per_chain_rssi_stats(tp_wma_handle wma,
 		struct csr_per_chain_rssi_stats_info *rssi_per_chain_stats)
 {
 	int i;
-	int8_t bcn_snr, dat_snr;
+	int32_t bcn_snr, dat_snr;
 
 	for (i = 0; i < NUM_CHAINS_MAX; i++) {
 		bcn_snr = rssi_stats->rssi_avg_beacon[i];
@@ -2826,7 +2826,7 @@ int wma_stats_event_handler(void *handle, uint8_t *cmd_param_info,
 					__func__);
 				return -EINVAL;
 			}
-			WMA_LOGI("%s: congestion %d", __func__,
+			WMA_LOGD("%s: congestion %d", __func__,
 				congestion_stats->congestion);
 			mac->sme.congestion_cb(mac->hHdd,
 				congestion_stats->congestion,
@@ -2852,25 +2852,29 @@ int wma_stats_event_handler(void *handle, uint8_t *cmd_param_info,
 QDF_STATUS wma_send_link_speed(uint32_t link_speed)
 {
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
-	cds_msg_t sme_msg = { 0 };
+	tpAniSirGlobal mac_ctx;
 	tSirLinkSpeedInfo *ls_ind =
 		(tSirLinkSpeedInfo *) qdf_mem_malloc(sizeof(tSirLinkSpeedInfo));
+
+	mac_ctx = cds_get_context(QDF_MODULE_ID_PE);
+	if (!mac_ctx) {
+		WMA_LOGD("%s: NULL mac_ctx ptr. Exiting", __func__);
+		return QDF_STATUS_E_INVAL;
+	}
+
 	if (!ls_ind) {
 		WMA_LOGE("%s: Memory allocation failed.", __func__);
 		qdf_status = QDF_STATUS_E_NOMEM;
 	} else {
 		ls_ind->estLinkSpeed = link_speed;
-		sme_msg.type = eWNI_SME_LINK_SPEED_IND;
-		sme_msg.bodyptr = ls_ind;
-		sme_msg.bodyval = 0;
-
-		qdf_status = cds_mq_post_message(QDF_MODULE_ID_SME, &sme_msg);
-		if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-			WMA_LOGE("%s: Fail to post linkspeed ind  msg",
-				 __func__);
-			qdf_mem_free(ls_ind);
-		}
+		if (mac_ctx->sme.pLinkSpeedIndCb)
+			mac_ctx->sme.pLinkSpeedIndCb(ls_ind,
+					mac_ctx->sme.pLinkSpeedCbContext);
+		else
+			WMA_LOGD("%s: pLinkSpeedIndCb is null", __func__);
+		qdf_mem_free(ls_ind);
 	}
+
 	return qdf_status;
 }
 

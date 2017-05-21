@@ -77,13 +77,22 @@ static QDF_STATUS lim_add_ndi_peer(tpAniSirGlobal mac_ctx,
 	tpDphHashNode sta_ds;
 	uint16_t assoc_id, peer_idx;
 	tSirRetStatus status;
+	uint8_t zero_mac_addr[QDF_MAC_ADDR_SIZE] = { 0, 0, 0, 0, 0, 0 };
+
+	if (!qdf_mem_cmp(&zero_mac_addr, &peer_mac_addr.bytes[0],
+			QDF_MAC_ADDR_SIZE)) {
+		pe_err("Failing to add peer with all zero mac addr");
+		return QDF_STATUS_E_FAILURE;
+	}
 
 	session = pe_find_session_by_sme_session_id(mac_ctx,
 						vdev_id);
 	if (session == NULL) {
 		/* couldn't find session */
+		pe_err("Session not found for vdev_id: %d", vdev_id);
 		return QDF_STATUS_E_FAILURE;
 	}
+
 	sta_ds = dph_lookup_hash_entry(mac_ctx,
 				peer_mac_addr.bytes,
 				&assoc_id, &session->dph.dphHashTable);
@@ -92,7 +101,7 @@ static QDF_STATUS lim_add_ndi_peer(tpAniSirGlobal mac_ctx,
 		pe_err("NDI Peer already exists!!");
 		return QDF_STATUS_SUCCESS;
 	}
-	pe_info("Need to create NDI Peer :" MAC_ADDRESS_STR,
+	pe_debug("Need to create NDI Peer :" MAC_ADDRESS_STR,
 		MAC_ADDR_ARRAY(peer_mac_addr.bytes));
 
 	peer_idx = lim_assign_peer_idx(mac_ctx, session);
@@ -135,7 +144,7 @@ static QDF_STATUS lim_handle_ndp_indication_event(tpAniSirGlobal mac_ctx,
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 
-	pe_info("role: %d, vdev: %d, csid: %d, peer_mac_addr "
+	pe_debug("role: %d, vdev: %d, csid: %d, peer_mac_addr "
 			MAC_ADDRESS_STR,
 		ndp_ind->role, ndp_ind->vdev_id, ndp_ind->ncs_sk_type,
 		MAC_ADDR_ARRAY(ndp_ind->peer_mac_addr.bytes));
@@ -233,8 +242,15 @@ void lim_ndp_delete_peer_by_addr(tpAniSirGlobal mac_ctx, uint8_t vdev_id,
 	tpPESession session;
 	tpDphHashNode sta_ds;
 	uint16_t peer_idx;
+	uint8_t zero_mac_addr[QDF_MAC_ADDR_SIZE] = { 0, 0, 0, 0, 0, 0 };
 
-	pe_info("deleting peer: "MAC_ADDRESS_STR" confirm rejected",
+	if (!qdf_mem_cmp(&zero_mac_addr, &peer_ndi_mac_addr.bytes[0],
+			QDF_MAC_ADDR_SIZE)) {
+		pe_err("Failing to delete the peer with all zero mac addr");
+		return;
+	}
+
+	pe_debug("deleting peer: "MAC_ADDRESS_STR" confirm rejected",
 		MAC_ADDR_ARRAY(peer_ndi_mac_addr.bytes));
 
 	session = pe_find_session_by_sme_session_id(mac_ctx, vdev_id);
@@ -289,7 +305,7 @@ static void lim_ndp_delete_peers(tpAniSirGlobal mac_ctx,
 	}
 
 	for (i = 0; i < num_peers; i++) {
-		pe_info("ndp_map[%d]: MAC: " MAC_ADDRESS_STR " num_active %d",
+		pe_debug("ndp_map[%d]: MAC: " MAC_ADDRESS_STR " num_active %d",
 			i,
 			MAC_ADDR_ARRAY(ndp_map[i].peer_ndi_mac_addr.bytes),
 			ndp_map[i].num_active_ndp_sessions);
@@ -418,7 +434,7 @@ void lim_process_ndi_del_sta_rsp(tpAniSirGlobal mac_ctx, tpSirMsgQ lim_msg,
 		status = eSIR_SME_REFUSED;
 		goto skip_event;
 	}
-	pe_info("Deleted STA AssocID %d staId %d MAC " MAC_ADDRESS_STR,
+	pe_debug("Deleted STA AssocID %d staId %d MAC " MAC_ADDRESS_STR,
 		sta_ds->assocId, sta_ds->staIndex,
 		MAC_ADDR_ARRAY(sta_ds->staAddr));
 

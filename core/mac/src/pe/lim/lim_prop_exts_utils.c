@@ -57,6 +57,7 @@
 
 #define LIM_GET_NOISE_MAX_TRY 5
 
+#ifdef FEATURE_WLAN_ESE
 /**
  * get_local_power_constraint_probe_response() - extracts local constraint
  * from probe response
@@ -66,7 +67,6 @@
  *
  * Return: None
  */
-#ifdef FEATURE_WLAN_ESE
 static void get_local_power_constraint_probe_response(
 		tpSirProbeRespBeacon beacon_struct,
 		int8_t *local_constraint,
@@ -75,6 +75,21 @@ static void get_local_power_constraint_probe_response(
 	if (beacon_struct->eseTxPwr.present)
 		*local_constraint =
 			beacon_struct->eseTxPwr.power_limit;
+}
+
+/**
+ * get_ese_version_ie_probe_response() - extracts ESE version IE
+ * from probe response
+ * @beacon_struct: beacon structure
+ * @session: A pointer to session entry.
+ *
+ * Return: None
+ */
+static void get_ese_version_ie_probe_response(tpAniSirGlobal mac_ctx,
+					tpSirProbeRespBeacon beacon_struct,
+					tpPESession session)
+{
+	if (mac_ctx->roam.configParam.isEseIniFeatureEnabled)
 		session->is_ese_version_ie_present =
 			beacon_struct->is_ese_ver_ie_present;
 }
@@ -86,7 +101,46 @@ static void get_local_power_constraint_probe_response(
 {
 
 }
+
+static inline void get_ese_version_ie_probe_response(tpAniSirGlobal mac_ctx,
+					tpSirProbeRespBeacon beacon_struct,
+					tpPESession session)
+{
+}
 #endif
+
+/**
+ * lim_get_nss_supported_by_beacon() - finds out nss from beacom
+ * @bcn: beacon structure pointer
+ * @session: pointer to pe session
+ *
+ * Return: number of nss advertised by beacon
+ */
+static uint8_t lim_get_nss_supported_by_beacon(tpSchBeaconStruct bcn,
+						tpPESession session)
+{
+	if (session->vhtCapability && bcn->VHTCaps.present) {
+		if ((bcn->VHTCaps.rxMCSMap & 0xC0) != 0xC0)
+			return 4;
+
+		if ((bcn->VHTCaps.rxMCSMap & 0x30) != 0x30)
+			return 3;
+
+		if ((bcn->VHTCaps.rxMCSMap & 0x0C) != 0x0C)
+			return 2;
+	} else if (session->htCapability && bcn->HTCaps.present) {
+		if (bcn->HTCaps.supportedMCSSet[3])
+			return 4;
+
+		if (bcn->HTCaps.supportedMCSSet[2])
+			return 3;
+
+		if (bcn->HTCaps.supportedMCSSet[1])
+			return 2;
+	}
+
+	return 1;
+}
 
 /**
  * lim_extract_ap_capability() - extract AP's HCF/WME/WSM capability
@@ -138,6 +192,18 @@ lim_extract_ap_capability(tpAniSirGlobal mac_ctx, uint8_t *p_ie,
 		qdf_mem_free(beacon_struct);
 		return;
 	}
+
+	if (mac_ctx->roam.configParam.is_force_1x1 &&
+		cfg_get_vendor_ie_ptr_from_oui(mac_ctx, SIR_MAC_VENDOR_AP_1_OUI,
+				SIR_MAC_VENDOR_AP_1_OUI_LEN, p_ie, ie_len) &&
+		lim_get_nss_supported_by_beacon(beacon_struct, session) == 2) {
+		session->supported_nss_1x1 = true;
+		session->vdev_nss = 1;
+		session->nss = 1;
+		pe_debug("For special ap, NSS: %d", session->nss);
+	}
+
+
 	if (beacon_struct->wmeInfoPresent ||
 	    beacon_struct->wmeEdcaPresent ||
 	    beacon_struct->HTCaps.present)
@@ -309,6 +375,9 @@ lim_extract_ap_capability(tpAniSirGlobal mac_ctx, uint8_t *p_ie,
 				beacon_struct, local_constraint, session);
 		}
 	}
+
+	get_ese_version_ie_probe_response(mac_ctx, beacon_struct, session);
+
 	session->country_info_present = false;
 	/* Initializing before first use */
 	if (beacon_struct->countryInfoPresent)

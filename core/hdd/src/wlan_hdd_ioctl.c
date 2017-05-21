@@ -840,7 +840,6 @@ void hdd_wma_send_fastreassoc_cmd(hdd_adapter_t *adapter,
 		return;
 	}
 	fastreassoc->vdev_id = adapter->sessionId;
-	fastreassoc->channel = channel;
 	fastreassoc->bssid[0] = bssid[0];
 	fastreassoc->bssid[1] = bssid[1];
 	fastreassoc->bssid[2] = bssid[2];
@@ -850,8 +849,10 @@ void hdd_wma_send_fastreassoc_cmd(hdd_adapter_t *adapter,
 
 	status = sme_get_beacon_frm(WLAN_HDD_GET_HAL_CTX(adapter), profile,
 						bssid, &fastreassoc->frame_buf,
-						&fastreassoc->frame_len);
+						&fastreassoc->frame_len,
+						&channel);
 
+	fastreassoc->channel = channel;
 	if (QDF_STATUS_SUCCESS != status) {
 		hdd_warn("sme_get_beacon_frm failed");
 		fastreassoc->frame_buf = NULL;
@@ -4445,8 +4446,8 @@ static int drv_cmd_fast_reassoc(hdd_adapter_t *adapter,
 	}
 
 	/* Check channel number is a valid channel number */
-	if (QDF_STATUS_SUCCESS !=
-		wlan_hdd_validate_operation_channel(adapter, channel)) {
+	if (channel && (QDF_STATUS_SUCCESS !=
+		wlan_hdd_validate_operation_channel(adapter, channel))) {
 		hdd_err("Invalid Channel [%d]", channel);
 		return -EINVAL;
 	}
@@ -5089,7 +5090,7 @@ static int drv_cmd_get_ibss_peer_info_all(hdd_adapter_t *adapter,
 		if (copy_to_user(priv_data->buf, extra, numOfBytestoPrint)) {
 			hdd_err("Copy into user data buffer failed");
 			ret = -EFAULT;
-			goto exit;
+			goto mem_free;
 		}
 
 		/* This overwrites the last space, which we already copied */
@@ -5103,7 +5104,7 @@ static int drv_cmd_get_ibss_peer_info_all(hdd_adapter_t *adapter,
 				    length - numOfBytestoPrint + 1)) {
 				hdd_err("Copy into user data buffer failed");
 				ret = -EFAULT;
-				goto exit;
+				goto mem_free;
 			}
 			hdd_debug("%s", &extra[numOfBytestoPrint]);
 		}
@@ -5119,6 +5120,8 @@ static int drv_cmd_get_ibss_peer_info_all(hdd_adapter_t *adapter,
 	}
 	ret = 0;
 
+mem_free:
+	qdf_mem_free(extra);
 exit:
 	return ret;
 }

@@ -500,6 +500,7 @@ typedef enum {
 	 */
 	eCSR_ROAM_TDLS_STATUS_UPDATE,
 	eCSR_ROAM_RESULT_MGMT_TX_COMPLETE_IND,
+	eCSR_ROAM_TDLS_SET_STATE_DISABLE,
 
 	/* Disaconnect all the clients */
 	eCSR_ROAM_DISCONNECT_ALL_P2P_CLIENTS,
@@ -1337,6 +1338,7 @@ typedef struct tagCsrConfigParam {
 	uint8_t fils_max_chan_guard_time;
 	uint16_t pkt_err_disconn_th;
 	bool is_bssid_hint_priority;
+	bool is_force_1x1;
 } tCsrConfigParam;
 
 /* Tush */
@@ -1606,7 +1608,7 @@ typedef struct tagCsrTdlsSendMgmt {
 	uint32_t peerCapability;
 	uint8_t *buf;
 	uint8_t len;
-
+	enum sir_wifi_traffic_ac ac;
 } tCsrTdlsSendMgmt;
 #endif
 

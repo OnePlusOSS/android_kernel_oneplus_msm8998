@@ -249,7 +249,18 @@ QDF_STATUS sme_open_session(tHalHandle hHal, csr_roam_completeCallback callback,
 		uint32_t subType);
 void sme_set_curr_device_mode(tHalHandle hHal,
 		enum tQDF_ADAPTER_MODE currDeviceMode);
+/**
+ * sme_close_session: Close session for scan/roam operation.
+ * @hHal: The handle returned by mac_open.
+ * @sessionId: A previous opened session's ID.
+ * @flush_all_sme_cmds: whether all sme commands needs to be flushed
+ * @callback: pointer to callback API
+ * @pContext: context needs to be passed to callback
+ *
+ * @Return: QDF_STATUS
+ */
 QDF_STATUS sme_close_session(tHalHandle hHal, uint8_t sessionId,
+		bool flush_all_sme_cmds,
 		csr_roamSessionCloseCallback callback,
 		void *pContext);
 QDF_STATUS sme_update_roam_params(tHalHandle hHal, uint8_t session_id,
@@ -732,7 +743,7 @@ QDF_STATUS sme_send_tdls_mgmt_frame(tHalHandle hHal, uint8_t sessionId,
 		const tSirMacAddr peerMac, uint8_t frame_type,
 		uint8_t dialog, uint16_t status,
 		uint32_t peerCapability, uint8_t *buf,
-		uint8_t len, uint8_t responder);
+		uint8_t len, uint8_t responder, enum sir_wifi_traffic_ac ac);
 QDF_STATUS sme_change_tdls_peer_sta(tHalHandle hHal, uint8_t sessionId,
 		const tSirMacAddr peerMac,
 		tCsrStaParams *pstaParams);
@@ -1524,12 +1535,14 @@ QDF_STATUS sme_get_rssi_snr_by_bssid(tHalHandle hal, tCsrRoamProfile *profile,
  * @bssid: bssid to look for in scan cache
  * @frame_buf: frame buffer to populate
  * @frame_len: length of constructed frame
+ * @channel: Pointer to channel info to be filled
  *
  * Return: QDF_STATUS
  */
 QDF_STATUS sme_get_beacon_frm(tHalHandle hal, tCsrRoamProfile *profile,
 			    const tSirMacAddr bssid,
-			    uint8_t **frame_buf, uint32_t *frame_len);
+			    uint8_t **frame_buf, uint32_t *frame_len,
+			    int *channel);
 
 /**
  * sme_rso_cmd_status_cb() - Set RSO cmd status callback

@@ -3134,8 +3134,9 @@ hdd_wlan_get_ibss_mac_addr_from_staid(hdd_adapter_t *pAdapter,
 	hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
 
 	for (idx = 0; idx < MAX_PEERS; idx++) {
-		if (0 != pHddStaCtx->conn_info.staId[idx] &&
-		    staIdx == pHddStaCtx->conn_info.staId[idx]) {
+		if (HDD_WLAN_INVALID_STA_ID !=
+				pHddStaCtx->conn_info.staId[idx] &&
+				staIdx == pHddStaCtx->conn_info.staId[idx]) {
 			return &pHddStaCtx->conn_info.peerMacAddress[idx];
 		}
 	}
@@ -3992,6 +3993,7 @@ void hdd_clear_roam_profile_ie(hdd_adapter_t *pAdapter)
 	pAdapter->wapi_info.nWapiMode = 0;
 #endif
 
+	hdd_clear_fils_connection_info(pAdapter);
 	qdf_zero_macaddr(&pWextState->req_bssId);
 	EXIT();
 }
@@ -9892,7 +9894,8 @@ static int __iw_get_char_setnone(struct net_device *dev,
 		int length = 0, buf = 0;
 
 		for (idx = 0; idx < MAX_PEERS; idx++) {
-			if (0 != pHddStaCtx->conn_info.staId[idx]) {
+			if (HDD_WLAN_INVALID_STA_ID !=
+					pHddStaCtx->conn_info.staId[idx]) {
 				buf = snprintf
 					      ((extra + length),
 					      WE_MAX_STR_LEN - length,
@@ -11499,6 +11502,11 @@ static int __iw_set_packet_filter_params(struct net_device *dev,
 	if (adapter->device_mode != QDF_STA_MODE) {
 		hdd_err("Packet filter not supported for this mode :%d",
 			adapter->device_mode);
+		return -ENOTSUPP;
+	}
+
+	if (!hdd_conn_is_connected(WLAN_HDD_GET_STATION_CTX_PTR(adapter))) {
+		hdd_err("Packet filter not supported in disconnected state");
 		return -ENOTSUPP;
 	}
 

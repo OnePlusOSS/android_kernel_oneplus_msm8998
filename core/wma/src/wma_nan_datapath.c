@@ -913,7 +913,7 @@ void wma_ndp_add_wow_wakeup_event(tp_wma_handle wma_handle,
 
 	wma_set_wow_event_bitmap(WOW_NAN_DATA_EVENT, WMI_WOW_MAX_EVENT_BM_LEN,
 				 event_bitmap);
-	WMA_LOGI("NDI specific default wake up event 0x%x vdev id %d",
+	WMA_LOGD("NDI specific default wake up event 0x%x vdev id %d",
 		 event_bitmap[0], vdev_id);
 	wma_add_wow_wakeup_event(wma_handle, vdev_id, event_bitmap, true);
 }
@@ -963,7 +963,7 @@ uint32_t wma_ndp_get_eventid_from_tlvtag(uint32_t tag)
 		break;
 	}
 
-	WMA_LOGI(FL("For tag %d WMI event 0x%x"), tag, event_id);
+	WMA_LOGD(FL("For tag %d WMI event 0x%x"), tag, event_id);
 	return event_id;
 }
 
@@ -1039,7 +1039,7 @@ void wma_add_bss_ndi_mode(tp_wma_handle wma, tpAddBssParams add_bss)
 	QDF_STATUS status;
 	struct vdev_set_params param = {0};
 
-	WMA_LOGI("%s: enter", __func__);
+	WMA_LOGD("%s: enter", __func__);
 	if (NULL == wma_find_vdev_by_addr(wma, add_bss->bssId, &vdev_id)) {
 		WMA_LOGE("%s: Failed to find vdev", __func__);
 		goto send_fail_resp;
@@ -1090,7 +1090,7 @@ void wma_add_bss_ndi_mode(tp_wma_handle wma, tpAddBssParams add_bss)
 			WMA_TARGET_REQ_TYPE_VDEV_START);
 		goto send_fail_resp;
 	}
-	WMA_LOGI("%s: vdev start request for NDI sent to target", __func__);
+	WMA_LOGD("%s: vdev start request for NDI sent to target", __func__);
 
 	/* Initialize protection mode to no protection */
 	param.if_id = vdev_id;

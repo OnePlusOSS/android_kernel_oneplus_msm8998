@@ -10210,6 +10210,7 @@ enum hw_filter_mode {
 #define CFG_ENABLE_PACKET_FILTERS_MAX      (63)
 
 /*
+ * <ini>
  * arp_ac_category - ARP access category
  * @Min: 0
  * @Max: 3
@@ -10690,6 +10691,7 @@ enum hw_filter_mode {
 #define CFG_ENABLE_ANI_DEFAULT           (1)
 
 /**
+ * <ini>
  * gSetRTSForSIFSBursting - set rts for sifs bursting
  * @Min: 0
  * @Max: 1
@@ -10725,6 +10727,7 @@ enum hw_filter_mode {
 #define CFG_MAX_MPDUS_IN_AMPDU_DEFAULT          (0)
 
 /*
+ * <ini>
  * gSapMaxMCSForTxData - sap 11n max mcs
  * @Min: 0
  * @Max: 383
@@ -10742,6 +10745,7 @@ enum hw_filter_mode {
 #define CFG_SAP_MAX_MCS_FOR_TX_DATA_DEFAULT         (0)
 
 /*
+ * <ini>
  * g_is_bssid_hint_priority - Set priority for connection with bssid_hint
  * BSSID.
  * @Min: 0
@@ -10763,6 +10767,29 @@ enum hw_filter_mode {
 #define CFG_IS_BSSID_HINT_PRIORITY_DEFAULT (1)
 #define CFG_IS_BSSID_HINT_PRIORITY_MIN     (0)
 #define CFG_IS_BSSID_HINT_PRIORITY_MAX     (1)
+
+/*
+ * <ini>
+ * g_is_fils_enabled - Enable/Disable FILS support in driver
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This ini is used to enable/disable FILS support in driver
+ * Driver will update config to supplicant based on this config.
+ *
+ * Related: None
+ *
+ * Supported Feature: FILS
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_IS_FILS_ENABLED_NAME    "g_is_fils_enabled"
+#define CFG_IS_FILS_ENABLED_DEFAULT (1)
+#define CFG_IS_FILS_ENABLED_MIN     (0)
+#define CFG_IS_FILS_ENABLED_MAX     (1)
 
 /*
  * <ini>
@@ -11578,6 +11605,7 @@ struct hdd_config {
 	uint8_t max_mpdus_inampdu;
 	uint16_t sap_max_mcs_txdata;
 	bool is_bssid_hint_priority;
+	bool is_fils_enabled;
 	uint8_t dfs_beacon_tx_enhanced;
 	uint8_t scan_backoff_multiplier;
 	bool is_force_1x1;

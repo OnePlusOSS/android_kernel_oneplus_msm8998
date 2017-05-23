@@ -4078,6 +4078,42 @@ static uint32_t wma_wow_get_wakelock_ms(int wake_reason)
 }
 
 /**
+ * wma_wow_get_wakelock() - return the wakelock
+ *        for some mgmt packets received.
+ * @wma_handle: wma handle
+ * @wake_reason: wow wakeup reason
+ *
+ * This function returns the wakelock for some mgmt packets
+ * received while in wow suspend.
+ *
+ * Return: wakelock
+ */
+static qdf_wake_lock_t *wma_wow_get_wakelock(tp_wma_handle wma_handle,
+		int wake_reason)
+{
+
+	switch (wake_reason) {
+	case WOW_REASON_AUTH_REQ_RECV:
+		return &wma_handle->wow_auth_req_wl;
+	case WOW_REASON_ASSOC_REQ_RECV:
+		return &wma_handle->wow_assoc_req_wl;
+	case WOW_REASON_DEAUTH_RECVD:
+		return &wma_handle->wow_deauth_rec_wl;
+	case WOW_REASON_DISASSOC_RECVD:
+		return &wma_handle->wow_disassoc_rec_wl;
+	case WOW_REASON_AP_ASSOC_LOST:
+		return &wma_handle->wow_ap_assoc_lost_wl;
+	case WOW_REASON_HOST_AUTO_SHUTDOWN:
+		return &wma_handle->wow_auto_shutdown_wl;
+	case WOW_REASON_ROAM_HO:
+		return &wma_handle->roam_ho_wl;
+	default:
+		return NULL;
+	}
+
+}
+
+/**
  * wma_wow_ap_lost_helper() - helper function to handle WOW_REASON_AP_ASSOC_LOST
  * reason code and retrieve RSSI from the event.
  * @wma: Pointer to wma handle
@@ -4443,12 +4479,17 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 
 	wakelock_duration = wma_wow_get_wakelock_ms(wake_info->wake_reason);
 	if (wakelock_duration) {
-		cds_host_diag_log_work(&wma->wow_wake_lock,
-				       wakelock_duration,
-				       WIFI_POWER_EVENT_WAKELOCK_WOW);
-		qdf_wake_lock_timeout_acquire(&wma->wow_wake_lock,
-					      wakelock_duration);
-		WMA_LOGA("Holding %d msec wake_lock", wakelock_duration);
+		qdf_wake_lock_t *wake_lock = wma_wow_get_wakelock(wma,
+						wake_info->wake_reason);
+		if (wake_lock) {
+			cds_host_diag_log_work(wake_lock,
+					       wakelock_duration,
+					       WIFI_POWER_EVENT_WAKELOCK_WOW);
+			qdf_wake_lock_timeout_acquire(wake_lock,
+						      wakelock_duration);
+			WMA_LOGA("Holding %d msec wake_lock",
+					wakelock_duration);
+		}
 	}
 
 	if (wmi_cmd_struct_ptr)

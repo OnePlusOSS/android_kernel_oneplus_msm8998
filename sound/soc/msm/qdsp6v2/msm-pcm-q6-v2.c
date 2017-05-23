@@ -780,6 +780,11 @@ static int msm_pcm_open(struct snd_pcm_substream *substream)
 	    (pdata->perf_mode == LOW_LATENCY_PCM_MODE))
 		apr_start_rx_rt(prtd->audio_client->apr);
 
+	/* Vote to update the Rx thread priority to RT Thread for playback */
+	if ((substream->stream == SNDRV_PCM_STREAM_PLAYBACK) &&
+	    (pdata->perf_mode == LOW_LATENCY_PCM_MODE))
+		apr_start_rx_rt(prtd->audio_client->apr);
+
 	return 0;
 }
 

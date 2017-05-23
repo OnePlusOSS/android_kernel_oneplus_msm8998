@@ -262,4 +262,18 @@ static inline void hif_napi_stats(struct qca_napi_data *napid) { }
 
 #endif /* FEATURE_NAPI */
 
+/**
+ * hif_update_napi_max_poll_time() - updates NAPI max poll time
+ * @ce_state: ce state
+ * @napi_info: pointer to napi info structure
+ * @cpu_id: cpu id
+ *
+ * This API updates NAPI max poll time per CE per SPU.
+ *
+ * Return: void
+ */
+void hif_update_napi_max_poll_time(struct CE_state *ce_state,
+				   struct qca_napi_info *napi_info,
+				   int cpu_id);
+
 #endif /* __HIF_NAPI_H__ */

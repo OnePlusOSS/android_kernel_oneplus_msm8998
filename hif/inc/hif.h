@@ -126,6 +126,7 @@ struct qca_napi_stat {
 	uint32_t napi_budget_uses[QCA_NAPI_NUM_BUCKETS];
 	uint32_t time_limit_reached;
 	uint32_t rxpkt_thresh_reached;
+	unsigned long long napi_max_poll_time;
 };
 
 /**
@@ -754,5 +755,29 @@ hif_reg_based_get_target_info(struct hif_opaque_softc *hif_ctx,
 #ifdef __cplusplus
 }
 #endif
+
+/**
+ * hif_set_ce_service_max_yield_time() - sets CE service max yield time
+ * @hif: hif context
+ * @ce_service_max_yield_time: CE service max yield time to set
+ *
+ * This API storess CE service max yield time in hif context based
+ * on ini value.
+ *
+ * Return: void
+ */
+void hif_set_ce_service_max_yield_time(struct hif_opaque_softc *hif,
+				       uint8_t ce_service_max_yield_time);
+
+/**
+ * hif_get_ce_service_max_yield_time() - get CE service max yield time
+ * @hif: hif context
+ *
+ * This API returns CE service max yield time.
+ *
+ * Return: CE service max yield time
+ */
+unsigned long long
+hif_get_ce_service_max_yield_time(struct hif_opaque_softc *hif);
 
 #endif /* _HIF_H_ */

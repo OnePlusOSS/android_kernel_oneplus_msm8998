@@ -2805,17 +2805,33 @@ QDF_STATUS hdd_init_station_mode(hdd_adapter_t *adapter)
 		status = QDF_STATUS_E_FAILURE;
 		goto error_register_wext;
 	}
-	if (hdd_ctx->config->enable_rx_ldpc &&
-	    hdd_ctx->config->rx_ldpc_support_for_2g &&
-	    (QDF_STA_MODE == adapter->device_mode)) {
-		if (!wma_is_current_hwmode_dbs()) {
-		    hdd_debug("send HT/VHT IE per band using nondbs hwmode");
-		    sme_set_vdev_ies_per_band(adapter->sessionId, false);
-		} else {
-		    hdd_debug("send HT/VHT IE per band using dbs hwmode");
-		    sme_set_vdev_ies_per_band(adapter->sessionId, true);
-		}
+
+	/*
+	 * 1) When DBS hwmode is disabled from INI then send HT/VHT IE as per
+	 *    non-dbs hw mode, so that there is no limitation applied for 2G/5G.
+	 * 2) When DBS hw mode is enabled, master Rx LDPC is enabled, 2G RX LDPC
+	 *    support is enabled, and if it is STA connection then send HT/VHT
+	 *    IE as per non-dbs hw mode, so that there is no limitation applied
+	 *    for first connection (initial connections as well as roaming
+	 *    scenario). As soon as second connection comes up policy manager
+	 *    will take care of imposing Rx LDPC limitation of STA connection
+	 *    (for current connection as well as roaming scenario).
+	 * 3) When DBS hw mode is supported but RX LDPC is disabled or 2G RXLPDC
+	 *    support is disabled then send HT/VHT IE as per DBS hw mode, so
+	 *    that STA will not use Rx LDPC for 2G connection.
+	 */
+	if (!wma_is_hw_dbs_capable() ||
+		(((QDF_STA_MODE == adapter->device_mode) &&
+			hdd_ctx->config->enable_rx_ldpc &&
+			hdd_ctx->config->rx_ldpc_support_for_2g) &&
+					!wma_is_current_hwmode_dbs())) {
+		hdd_notice("send HT/VHT IE per band using nondbs hwmode");
+		sme_set_vdev_ies_per_band(adapter->sessionId, false);
+	} else {
+		hdd_notice("send HT/VHT IE per band using dbs hwmode");
+		sme_set_vdev_ies_per_band(adapter->sessionId, true);
 	}
+
 	/* Register wireless extensions */
 	qdf_ret_status = hdd_register_wext(pWlanDev);
 	if (QDF_STATUS_SUCCESS != qdf_ret_status) {

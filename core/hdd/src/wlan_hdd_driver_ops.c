@@ -268,6 +268,9 @@ int hdd_hif_open(struct device *dev, void *bdev, const struct hif_bus_id *bid,
 		}
 	}
 
+	hif_set_ce_service_max_yield_time(cds_get_context(QDF_MODULE_ID_HIF),
+				hdd_ctx->config->ce_service_max_yield_time);
+
 	return 0;
 
 err_hif_close:

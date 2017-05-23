@@ -592,6 +592,15 @@ static inline bool schedule_delayed_work(struct delayed_work *dwork,
 }
 
 /**
+ * delayed_work_busy - See work_busy()
+ * @dwork: the delayed work to be tested
+ */
+static inline unsigned int delayed_work_busy(struct delayed_work *dwork)
+{
+	return work_busy(&dwork->work);
+}
+
+/**
  * keventd_up - is workqueue initialized yet?
  */
 static inline bool keventd_up(void)

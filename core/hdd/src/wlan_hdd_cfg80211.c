@@ -13653,6 +13653,7 @@ static int wlan_hdd_cfg80211_connect_start(hdd_adapter_t *pAdapter,
 	eCsrAuthType RSNAuthType;
 	tSmeConfigParams *sme_config;
 	uint8_t channel = 0;
+	bool disable_fw_tdls_state = false;
 
 	ENTER();
 
@@ -13681,7 +13682,9 @@ static int wlan_hdd_cfg80211_connect_start(hdd_adapter_t *pAdapter,
 		goto ret_status;
 	}
 
-	wlan_hdd_tdls_disable_offchan_and_teardown_links(pHddCtx);
+	disable_fw_tdls_state = true;
+	wlan_hdd_check_conc_and_update_tdls_state(pHddCtx,
+						  disable_fw_tdls_state);
 
 	pRoamProfile = &pWextState->roamProfile;
 	qdf_mem_zero(&hdd_sta_ctx->conn_info.conn_flag,
@@ -13996,6 +13999,9 @@ conn_failure:
 	cds_set_connection_in_progress(false);
 
 ret_status:
+	if (disable_fw_tdls_state)
+		wlan_hdd_check_conc_and_update_tdls_state(pHddCtx, false);
+
 	EXIT();
 	return status;
 }

@@ -2171,6 +2171,23 @@ void wlan_hdd_tdls_notify_disconnect(hdd_adapter_t *adapter, bool lfr_roam)
 	}
 }
 
+void wlan_hdd_check_conc_and_update_tdls_state(hdd_context_t *hdd_ctx,
+					       bool disable_tdls)
+{
+	hdd_adapter_t *temp_adapter;
+
+	temp_adapter = wlan_hdd_tdls_get_adapter(hdd_ctx);
+	if (NULL != temp_adapter) {
+		if (disable_tdls) {
+			wlan_hdd_tdls_disable_offchan_and_teardown_links(
+								hdd_ctx);
+			wlan_hdd_update_tdls_info(temp_adapter, true, true);
+		} else {
+			wlan_hdd_update_tdls_info(temp_adapter, false, false);
+		}
+	}
+}
+
 /**
  * wlan_hdd_tdls_set_sta_id() - set station ID on a tdls peer
  * @pAdapter: HDD adapter

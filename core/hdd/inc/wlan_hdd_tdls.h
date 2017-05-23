@@ -755,6 +755,21 @@ void wlan_hdd_tdls_notify_connect(hdd_adapter_t *adapter,
  * Return: None
  */
 void wlan_hdd_tdls_notify_disconnect(hdd_adapter_t *adapter, bool lfr_roam);
+
+/**
+ * wlan_hdd_check_conc_and_update_tdls_state - Check concurrency and update
+ *     FW TDLS state if needed
+ * @hdd_ctx: hdd context
+ * @disable_tdls: disable TDLS in FW TDLS state
+ *
+ * This routine is called to teardown TDLS links, and enable/disable TDLS mode
+ * in FW tdls state if concurrency is detected.
+ *
+ * Return: None
+ */
+void wlan_hdd_check_conc_and_update_tdls_state(hdd_context_t *hdd_ctx,
+					       bool disable_tdls);
+
 void wlan_hdd_change_tdls_mode(void *hdd_ctx);
 
 /**
@@ -837,6 +852,12 @@ static inline void wlan_hdd_tdls_notify_connect(hdd_adapter_t *adapter,
 }
 static inline void wlan_hdd_tdls_notify_disconnect(hdd_adapter_t *adapter,
 						   bool lfr_roam)
+{
+}
+
+static inline void
+wlan_hdd_check_conc_and_update_tdls_state(hdd_context_t *hdd_ctx,
+					  bool disable_tdls)
 {
 }
 

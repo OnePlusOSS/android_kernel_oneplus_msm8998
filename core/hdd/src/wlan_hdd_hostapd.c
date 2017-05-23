@@ -7368,6 +7368,7 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 	bool MFPRequired = false;
 	uint16_t prev_rsn_length = 0;
 	enum dfs_mode mode;
+	bool disable_fw_tdls_state = false;
 
 	ENTER();
 
@@ -7378,19 +7379,24 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 		return -EINVAL;
 	}
 
-	wlan_hdd_tdls_disable_offchan_and_teardown_links(pHddCtx);
+	disable_fw_tdls_state = true;
+	wlan_hdd_check_conc_and_update_tdls_state(pHddCtx,
+						  disable_fw_tdls_state);
+
 	if (cds_is_hw_mode_change_in_progress()) {
 		status = qdf_wait_for_connection_update();
 		if (!QDF_IS_STATUS_SUCCESS(status)) {
 			hdd_err("qdf wait for event failed!!");
-			return -EINVAL;
+			ret = -EINVAL;
+			goto ret_status;
 		}
 	}
 
 	sme_config = qdf_mem_malloc(sizeof(tSmeConfigParams));
 	if (!sme_config) {
 		hdd_err("failed to allocate memory");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto ret_status;
 	}
 
 	iniConfig = pHddCtx->config;
@@ -7971,6 +7977,10 @@ error:
 			acs_cfg.ch_list);
 		pHostapdAdapter->sessionCtx.ap.sapConfig.acs_cfg.ch_list = NULL;
 	}
+
+ret_status:
+	if (disable_fw_tdls_state)
+		wlan_hdd_check_conc_and_update_tdls_state(pHddCtx, false);
 	return ret;
 }
 
@@ -8176,6 +8186,7 @@ static int __wlan_hdd_cfg80211_stop_ap(struct wiphy *wiphy,
 	}
 #endif
 	pAdapter->sessionId = HDD_SESSION_ID_INVALID;
+	wlan_hdd_check_conc_and_update_tdls_state(pHddCtx, false);
 	EXIT();
 	return ret;
 }

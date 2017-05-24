@@ -916,4 +916,5 @@ static inline void hdd_wlan_block_scan_by_tdls_event(void) {}
 void process_rx_tdls_disc_resp_frame(hdd_adapter_t *adapter,
 				     uint8_t *peer_addr, int8_t rx_rssi);
 
+void wlan_hdd_tdls_timers_stop(tdlsCtx_t *hdd_tdls_ctx);
 #endif /* __HDD_TDLS_H */

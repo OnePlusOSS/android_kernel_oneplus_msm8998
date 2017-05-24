@@ -1470,6 +1470,17 @@ typedef struct tagCsrRoamInfo {
 	bool reassoc;
 	/* Extended capabilities of STA */
 	uint8_t ecsa_capable;
+	bool ampdu;
+	bool sgi_enable;
+	bool tx_stbc;
+	bool rx_stbc;
+	tSirMacHTChannelWidth ch_width;
+	enum sir_sme_phy_mode mode;
+	uint8_t max_supp_idx;
+	uint8_t max_ext_idx;
+	uint8_t max_mcs_idx;
+	uint8_t rx_mcs_map;
+	uint8_t tx_mcs_map;
 	bool is_fils_connection;
 	uint16_t fils_seq_num;
 #ifdef WLAN_FEATURE_FILS_SK
@@ -1503,7 +1514,18 @@ typedef struct sSirSmeAssocIndToUpperLayerCnf {
 	tSirSmeChanInfo chan_info;
 	uint8_t target_channel;
 	/* Extended capabilities of STA */
-	uint8_t              ecsa_capable;
+	uint8_t ecsa_capable;
+	bool ampdu;
+	bool sgi_enable;
+	bool tx_stbc;
+	tSirMacHTChannelWidth ch_width;
+	enum sir_sme_phy_mode mode;
+	bool rx_stbc;
+	uint8_t max_supp_idx;
+	uint8_t max_ext_idx;
+	uint8_t max_mcs_idx;
+	uint8_t rx_mcs_map;
+	uint8_t tx_mcs_map;
 } tSirSmeAssocIndToUpperLayerCnf, *tpSirSmeAssocIndToUpperLayerCnf;
 
 typedef struct tagCsrSummaryStatsInfo {

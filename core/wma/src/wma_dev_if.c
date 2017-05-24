@@ -3748,10 +3748,11 @@ static void wma_add_bss_sta_mode(tp_wma_handle wma, tpAddBssParams add_bss)
 
 	}
 send_bss_resp:
-	ol_txrx_find_peer_by_addr(pdev, add_bss->bssId,
-				  &add_bss->staContext.staIdx);
-	add_bss->status = (add_bss->staContext.staIdx < 0) ?
-			  QDF_STATUS_E_FAILURE : QDF_STATUS_SUCCESS;
+	if (NULL == ol_txrx_find_peer_by_addr(pdev, add_bss->bssId,
+				  &add_bss->staContext.staIdx))
+		add_bss->status = QDF_STATUS_E_FAILURE;
+	else
+		add_bss->status = QDF_STATUS_SUCCESS;
 	add_bss->bssIdx = add_bss->staContext.smesessionId;
 	qdf_mem_copy(add_bss->staContext.staMac, add_bss->bssId,
 		     sizeof(add_bss->staContext.staMac));

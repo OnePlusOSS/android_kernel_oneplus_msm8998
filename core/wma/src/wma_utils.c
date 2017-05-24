@@ -5114,7 +5114,7 @@ void wma_peer_debug_dump(void)
 {
 	tp_wma_handle wma = cds_get_context(QDF_MODULE_ID_WMA);
 	uint32_t i;
-	uint32_t current_index;
+	int32_t current_index;
 	struct peer_debug_rec *dbg_rec;
 	uint64_t startt = 0;
 	uint32_t delta;

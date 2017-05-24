@@ -459,7 +459,7 @@ static int send_msg_to_cld80211(int mcgroup_id, int pid, int app_id,
 		if (len > WLAN_CLD80211_MAX_SIZE) {
 			QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
 				"buf size:%d if more than max size: %d",
-				len, WLAN_CLD80211_MAX_SIZE);
+				len, (int) WLAN_CLD80211_MAX_SIZE);
 			return -ENOMEM;
 		}
 		msg = nlmsg_new(WLAN_CLD80211_MAX_SIZE, flags);

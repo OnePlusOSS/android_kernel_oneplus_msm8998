@@ -1997,9 +1997,10 @@ static void lim_csa_ecsa_handler(tpAniSirGlobal mac_ctx, tpPESession session)
 	old_channel = session->currentOperChannel;
 	new_channel = session->gLimChannelSwitch.primaryChannel;
 
-	if (!CDS_IS_SAME_BAND_CHANNELS(old_channel, new_channel) &&
-			(QDF_STA_MODE == session->pePersona)) {
-		pe_debug("Bands are different & Persona is STA");
+	if (mac_ctx->roam.configParam.isRoamOffloadEnabled &&
+	   !CDS_IS_SAME_BAND_CHANNELS(old_channel, new_channel) &&
+	   (QDF_STA_MODE == session->pePersona)) {
+		pe_debug("Roam offload enabled & Bands are different & Persona is STA");
 		is_fw_roaming_allowed = 1;
 	} else {
 		pe_debug("use host driver CSA/ECSA mechanism");

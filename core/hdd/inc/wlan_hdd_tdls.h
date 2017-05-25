@@ -108,6 +108,7 @@ enum tdls_concerned_external_events {
  * @HDD_SET_TDLS_MODE_SOURCE_OFFCHANNEL: disable during offchannel
  * @HDD_SET_TDLS_MODE_SOURCE_BTC: disable during bluetooth
  * @HDD_SET_TDLS_MODE_SOURCE_P2P: disable during p2p
+ * @HDD_SET_TDLS_MODE_SOURCE_POLICY_MGR: disable during DBS HW mode
  */
 enum tdls_disable_source {
 	HDD_SET_TDLS_MODE_SOURCE_USER = 0,
@@ -115,6 +116,7 @@ enum tdls_disable_source {
 	HDD_SET_TDLS_MODE_SOURCE_OFFCHANNEL,
 	HDD_SET_TDLS_MODE_SOURCE_BTC,
 	HDD_SET_TDLS_MODE_SOURCE_P2P,
+	HDD_SET_TDLS_MODE_SOURCE_POLICY_MGR,
 };
 
 /**
@@ -845,6 +847,16 @@ void hdd_tdls_notify_set_state_disable(uint32_t session_id);
  */
 void hdd_tdls_timers_stop(hdd_adapter_t *adapter);
 
+/**
+ * hdd_tdls_notify_hw_mode_change() - Notify hardware mode change to TDLS
+ * @is_dbs_hw_mode: true or false
+ *
+ * This function notify TDLS about the hw mode change operation
+ *
+ * Return: none
+ */
+void hdd_tdls_notify_hw_mode_change(bool is_dbs_hw_mode);
+
 #else
 static inline bool
 wlan_hdd_tdls_check_enable_tdls_scan(hdd_context_t *hdd_ctx)
@@ -926,6 +938,11 @@ static inline void hdd_tdls_notify_set_state_disable(uint32_t session_id)
 static inline void hdd_tdls_timers_stop(hdd_adapter_t *adapter)
 {
 }
+static inline void
+hdd_tdls_notify_hw_mode_change(bool is_dbs_hw_mode)
+{
+}
+
 #endif /* End of FEATURE_WLAN_TDLS */
 
 #ifdef FEATURE_WLAN_DIAG_SUPPORT

@@ -6525,3 +6525,52 @@ void process_rx_tdls_disc_resp_frame(hdd_adapter_t *adapter,
 				  peer_addr);
 }
 
+void hdd_tdls_notify_hw_mode_change(bool is_dbs_hw_mode)
+{
+	hdd_context_t *hdd_ctx;
+	v_CONTEXT_t g_context;
+	enum tdls_support_mode tdls_mode;
+
+	g_context = cds_get_global_context();
+
+	if (!g_context)
+		return;
+
+	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+
+	if (!hdd_ctx)
+		return;
+
+	if (is_dbs_hw_mode) {
+		hdd_debug("hw mode is DBS");
+		wlan_hdd_tdls_set_mode(hdd_ctx,
+				       eTDLS_SUPPORT_DISABLED,
+				       false,
+				       HDD_SET_TDLS_MODE_SOURCE_POLICY_MGR);
+		return;
+	}
+
+	/* if tdls was enabled before dbs, re-enable tdls mode */
+	if (hdd_ctx->tdls_mode_last > eTDLS_SUPPORT_DISABLED) {
+		tdls_mode = hdd_ctx->tdls_mode_last;
+		goto revert_tdls_mode;
+	}
+
+	/* TDLS previous mode is modified by other source, so
+	 * assign the default configured mode to TDLS
+	 */
+	if (false == hdd_ctx->config->fEnableTDLSImplicitTrigger)
+		tdls_mode = eTDLS_SUPPORT_EXPLICIT_TRIGGER_ONLY;
+	else if (true == hdd_ctx->config->fTDLSExternalControl)
+		tdls_mode = eTDLS_SUPPORT_EXTERNAL_CONTROL;
+	else
+		tdls_mode = eTDLS_SUPPORT_ENABLED;
+
+revert_tdls_mode:
+	hdd_debug("hw mode is non DBS, so revert to last tdls mode %d",
+					tdls_mode);
+	wlan_hdd_tdls_set_mode(hdd_ctx,
+			       tdls_mode,
+			       false,
+			       HDD_SET_TDLS_MODE_SOURCE_POLICY_MGR);
+}

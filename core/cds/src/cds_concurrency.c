@@ -2626,6 +2626,12 @@ static void cds_pdev_set_hw_mode_cb(uint32_t status,
 			vdev_mac_map,
 			hw_mode);
 
+	/* notify TDLS of HW mode */
+	if (wma_is_current_hwmode_dbs())
+		hdd_tdls_notify_hw_mode_change(true);
+	else
+		hdd_tdls_notify_hw_mode_change(false);
+
 	ret = qdf_set_connection_update();
 	if (!QDF_IS_STATUS_SUCCESS(ret))
 		cds_err("ERROR: set connection_update_done event failed");

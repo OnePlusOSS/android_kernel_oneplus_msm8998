@@ -3428,11 +3428,6 @@ static void wma_inc_wow_stats(struct sir_vdev_wow_stats *stats, uint8_t *data,
 				WMA_LOGA("ICMP_V6 data len %d", len);
 		} else {
 			stats->ucast++;
-			if (qdf_nbuf_data_is_ipv4_mcast_pkt(data))
-				stats->ipv4_mcast++;
-			else if (qdf_nbuf_data_is_ipv6_mcast_pkt(data))
-				stats->ipv6_mcast++;
-
 			if (len >= WMA_IPV4_PROTO_GET_MIN_LEN &&
 			    qdf_nbuf_data_is_icmp_pkt(data))
 				stats->icmpv4++;

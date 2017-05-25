@@ -8402,35 +8402,6 @@ static void hdd_initialize_mac_address(hdd_context_t *hdd_ctx)
 	}
 }
 
-/**
- * hdd_tsf_init() - Initialize the TSF synchronization interface
- * @hdd_ctx: HDD global context
- *
- * When TSF synchronization via GPIO is supported by the driver and
- * has been enabled in the configuration file, this function plumbs
- * the GPIO value down to firmware via SME.
- *
- * Return: None
- */
-#ifdef WLAN_FEATURE_TSF
-static void hdd_tsf_init(hdd_context_t *hdd_ctx)
-{
-	QDF_STATUS status;
-
-	if (hdd_ctx->config->tsf_gpio_pin == TSF_GPIO_PIN_INVALID)
-		return;
-
-	status = sme_set_tsf_gpio(hdd_ctx->hHal,
-				      hdd_ctx->config->tsf_gpio_pin);
-	if (!QDF_IS_STATUS_SUCCESS(status))
-		hdd_err("Set tsf GPIO failed, status: %d", status);
-}
-#else
-static void hdd_tsf_init(hdd_context_t *hdd_ctx)
-{
-}
-#endif
-
 static int hdd_set_smart_chainmask_enabled(hdd_context_t *hdd_ctx)
 {
 	int vdev_id = 0;
@@ -8845,7 +8816,7 @@ static int hdd_features_init(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 	if (!QDF_IS_STATUS_SUCCESS(status))
 		hdd_err("Error setting txlimit in sme: %d", status);
 
-	hdd_tsf_init(hdd_ctx);
+	wlan_hdd_tsf_init(hdd_ctx);
 	hdd_encrypt_decrypt_init(hdd_ctx);
 
 	ret = hdd_register_cb(hdd_ctx);
@@ -8908,6 +8879,19 @@ out:
 
 }
 
+
+/**
+ * hdd_features_deinit() - Deinit features
+ * @hdd_ctx:	HDD context
+ *
+ * De-Initialize features and their feature context.
+ *
+ * Return: none.
+ */
+static void hdd_features_deinit(hdd_context_t *hdd_ctx)
+{
+	wlan_hdd_tsf_deinit(hdd_ctx);
+}
 
 /**
  * hdd_set_rx_mode_rps() - Enable/disable RPS in SAP mode
@@ -9041,6 +9025,10 @@ static int hdd_deconfigure_cds(hdd_context_t *hdd_ctx)
 	int ret = 0;
 
 	ENTER();
+
+	/* De-init features */
+	hdd_features_deinit(hdd_ctx);
+
 	/* De-register the SME callbacks */
 	hdd_deregister_cb(hdd_ctx);
 	hdd_encrypt_decrypt_deinit(hdd_ctx);

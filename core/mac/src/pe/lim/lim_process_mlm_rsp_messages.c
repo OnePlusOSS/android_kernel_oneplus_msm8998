@@ -1375,8 +1375,11 @@ error:
 		if (lim_set_link_state
 			(mac_ctx, eSIR_LINK_DOWN_STATE, session_entry->bssId,
 			 session_entry->selfMacAddr, lim_join_result_callback,
-			 param) != eSIR_SUCCESS)
+			 param) != eSIR_SUCCESS) {
+			qdf_mem_free(param);
+			param = NULL;
 			pe_err("Failed to set the LinkState");
+		}
 		return;
 	}
 

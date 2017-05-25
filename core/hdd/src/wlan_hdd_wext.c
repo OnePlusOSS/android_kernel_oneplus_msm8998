@@ -3800,10 +3800,10 @@ int wlan_hdd_get_linkspeed_for_peermac(hdd_adapter_t *pAdapter,
 	status = sme_get_link_speed(WLAN_HDD_GET_HAL_CTX(pAdapter),
 				    linkspeed_req,
 				    &context, hdd_get_link_speed_cb);
+	qdf_mem_free(linkspeed_req);
 	errno = qdf_status_to_os_return(status);
 	if (errno) {
 		hdd_err("Unable to retrieve statistics for link speed");
-		qdf_mem_free(linkspeed_req);
 	} else {
 		rc = wait_for_completion_timeout
 			(&context.completion,

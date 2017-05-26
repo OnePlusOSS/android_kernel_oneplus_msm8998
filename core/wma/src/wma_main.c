@@ -4676,14 +4676,25 @@ static void wma_init_scan_fw_mode_config(tp_wma_handle wma_handle,
 	wma_handle->dual_mac_cfg.cur_scan_config = 0;
 	wma_handle->dual_mac_cfg.cur_fw_mode_config = 0;
 
-	/* If dual mac features are disabled in the INI, we
+	/*
+	 * If dual mac features are disabled in the INI, we
 	 * need not proceed further
 	 */
-	if (mac->dual_mac_feature_disable) {
+	if (mac->dual_mac_feature_disable == DISABLE_DBS_CXN_AND_SCAN) {
 		WMA_LOGE("%s: Disabling dual mac capabilities", __func__);
 		/* All capabilites are initialized to 0. We can return */
 		goto done;
 	}
+
+	WMI_DBS_CONC_SCAN_CFG_ASYNC_DBS_SCAN_SET(
+		wma_handle->dual_mac_cfg.cur_scan_config,
+		WMI_DBS_CONC_SCAN_CFG_ASYNC_DBS_SCAN_GET(scan_config));
+	WMI_DBS_FW_MODE_CFG_DBS_FOR_CXN_SET(
+		wma_handle->dual_mac_cfg.cur_fw_mode_config,
+		WMI_DBS_FW_MODE_CFG_DBS_FOR_CXN_GET(fw_config));
+	WMI_DBS_CONC_SCAN_CFG_SYNC_DBS_SCAN_SET(
+		wma_handle->dual_mac_cfg.cur_scan_config,
+		WMI_DBS_CONC_SCAN_CFG_SYNC_DBS_SCAN_GET(scan_config));
 
 	/* Initialize concurrent_scan_config_bits with default FW value */
 	WMI_DBS_CONC_SCAN_CFG_DBS_SCAN_SET(

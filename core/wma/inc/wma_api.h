@@ -249,6 +249,8 @@ QDF_STATUS wma_get_updated_scan_config(uint32_t *scan_config,
 QDF_STATUS wma_get_updated_fw_mode_config(uint32_t *fw_mode_config,
 		bool dbs,
 		bool agile_dfs);
+QDF_STATUS wma_get_updated_scan_and_fw_mode_config(uint32_t *scan_config,
+		uint32_t *fw_mode_config, uint32_t dual_mac_disable_ini);
 bool wma_get_dbs_scan_config(void);
 bool wma_get_dbs_plus_agile_scan_config(void);
 bool wma_get_single_mac_scan_with_dfs_config(void);

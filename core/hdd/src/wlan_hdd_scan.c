@@ -43,6 +43,7 @@
 #include "wlan_hdd_p2p.h"
 #include "wlan_hdd_trace.h"
 #include "wlan_hdd_scan.h"
+#include "wlan_hdd_power.h"
 #include "cds_concurrency.h"
 #include "wma_api.h"
 #include "cds_utils.h"
@@ -1359,8 +1360,8 @@ allow_suspend:
 		 * app's is suspending and not ableto process the connect
 		 * request to AP
 		 */
-		hdd_prevent_suspend_timeout(1000,
-			WIFI_POWER_EVENT_WAKELOCK_SCAN);
+		hdd_prevent_suspend_timeout(HDD_WAKELOCK_TIMEOUT_CONNECT,
+					    WIFI_POWER_EVENT_WAKELOCK_SCAN);
 	} else {
 		/* Release the spin lock */
 		qdf_spin_unlock(&hddctx->hdd_scan_req_q_lock);
@@ -2788,7 +2789,8 @@ hdd_sched_scan_callback(void *callbackContext,
 	}
 	qdf_spin_unlock(&pHddCtx->sched_scan_lock);
 
-	hdd_prevent_suspend_timeout(1000, WIFI_POWER_EVENT_WAKELOCK_SCAN);
+	hdd_prevent_suspend_timeout(HDD_WAKELOCK_TIMEOUT_CONNECT,
+				    WIFI_POWER_EVENT_WAKELOCK_SCAN);
 
 	cfg80211_sched_scan_results(pHddCtx->wiphy);
 	hdd_debug("cfg80211 scan result database updated");

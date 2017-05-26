@@ -82,7 +82,6 @@
 
 /* Preprocessor definitions and constants */
 #define HDD_SSR_BRING_UP_TIME 30000
-#define HDD_WAKE_LOCK_RESUME_DURATION 1000
 
 /* Type declarations */
 
@@ -1785,7 +1784,7 @@ static int __wlan_hdd_cfg80211_resume_wlan(struct wiphy *wiphy)
 				 * process the connect request to AP
 				 */
 				hdd_prevent_suspend_timeout(
-					HDD_WAKE_LOCK_RESUME_DURATION,
+					HDD_WAKELOCK_TIMEOUT_RESUME,
 					WIFI_POWER_EVENT_WAKELOCK_RESUME_WLAN);
 				cfg80211_sched_scan_results(pHddCtx->wiphy);
 			}
@@ -2105,7 +2104,8 @@ static void hdd_start_dhcp_ind(hdd_adapter_t *adapter)
 
 	hdd_debug("DHCP start indicated through power save");
 	qdf_runtime_pm_prevent_suspend(&adapter->connect_rpm_ctx.connect);
-	hdd_prevent_suspend_timeout(1000, WIFI_POWER_EVENT_WAKELOCK_DHCP);
+	hdd_prevent_suspend_timeout(HDD_WAKELOCK_TIMEOUT_CONNECT,
+				    WIFI_POWER_EVENT_WAKELOCK_DHCP);
 	sme_dhcp_start_ind(hdd_ctx->hHal, adapter->device_mode,
 			   adapter->macAddressCurrent.bytes,
 			   adapter->sessionId);

@@ -4316,17 +4316,19 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 	wake_info = param_buf->fixed_param;
 
 	/* unspecified means apps-side wakeup, so there won't be a vdev */
-	if (wake_info->wake_reason != WOW_REASON_UNSPECIFIED)
+	if (wake_info->wake_reason != WOW_REASON_UNSPECIFIED) {
 		wma_vdev = &wma->interfaces[wake_info->vdev_id];
-
-	if ((wake_info->wake_reason != WOW_REASON_UNSPECIFIED) ||
-	    (wake_info->wake_reason == WOW_REASON_UNSPECIFIED &&
-	     !wmi_get_runtime_pm_inprogress(wma->wmi_handle))) {
-		WMA_LOGA("WOW wakeup host event received; reason: %s(%d), vdev_id: %d, vdev_type: %s",
+		WMA_LOGA("WLAN triggered wakeup: %s (%d), vdev: %d (%s)",
 			 wma_wow_wake_reason_str(wake_info->wake_reason),
 			 wake_info->wake_reason,
 			 wake_info->vdev_id,
-			 wma_vdev ? wma_vdev_type_str(wma_vdev->type) : "none");
+			 wma_vdev_type_str(wma_vdev->type));
+		qdf_wow_wakeup_host_event(wake_info->wake_reason);
+		qdf_wma_wow_wakeup_stats_event();
+	} else if (!wmi_get_runtime_pm_inprogress(wma->wmi_handle)) {
+		WMA_LOGA("Non-WLAN triggered wakeup: %s (%d)",
+			 wma_wow_wake_reason_str(wake_info->wake_reason),
+			 wake_info->wake_reason);
 		qdf_wow_wakeup_host_event(wake_info->wake_reason);
 		qdf_wma_wow_wakeup_stats_event();
 	}

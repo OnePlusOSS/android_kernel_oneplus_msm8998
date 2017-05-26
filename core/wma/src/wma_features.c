@@ -8257,6 +8257,14 @@ QDF_STATUS wma_set_tdls_offchan_mode(WMA_HANDLE handle,
 		goto end;
 	}
 
+	if (wma_is_roam_synch_in_progress(wma_handle,
+					  chan_switch_params->vdev_id)) {
+		WMA_LOGE("%s: roaming in progress, reject offchan mode cmd!",
+			 __func__);
+		ret = -EPERM;
+		goto end;
+	}
+
 	params.vdev_id = chan_switch_params->vdev_id;
 	params.tdls_off_ch_bw_offset =
 			chan_switch_params->tdls_off_ch_bw_offset;
@@ -8296,6 +8304,13 @@ QDF_STATUS wma_update_fw_tdls_state(WMA_HANDLE handle, void *pwmaTdlsparams)
 		WMA_LOGE("%s: WMA is closed, can not issue fw tdls state cmd",
 			 __func__);
 		ret = -EINVAL;
+		goto end_fw_tdls_state;
+	}
+
+	if (wma_is_roam_synch_in_progress(wma_handle, wma_tdls->vdev_id)) {
+		WMA_LOGE("%s: roaming in progress, reject fw tdls state cmd!",
+			 __func__);
+		ret = -EPERM;
 		goto end_fw_tdls_state;
 	}
 
@@ -8366,6 +8381,14 @@ int wma_update_tdls_peer_state(WMA_HANDLE handle,
 	if (!wma_handle || !wma_handle->wmi_handle) {
 		WMA_LOGE("%s: WMA is closed, can not issue cmd", __func__);
 		ret = -EINVAL;
+		goto end_tdls_peer_state;
+	}
+
+	if (wma_is_roam_synch_in_progress(wma_handle,
+					peerStateParams->vdevId)) {
+		WMA_LOGE("%s: roaming in progress, reject peer update cmd!",
+			 __func__);
+		ret = -EPERM;
 		goto end_tdls_peer_state;
 	}
 

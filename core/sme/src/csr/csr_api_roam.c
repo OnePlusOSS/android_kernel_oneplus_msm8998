@@ -13885,12 +13885,17 @@ static void csr_update_pmk_cache(tCsrRoamSession *pSession,
 	/* Increment the CSR local cache index */
 	if (cache_idx < (CSR_MAX_PMKID_ALLOWED - 1))
 		pSession->curr_cache_idx++;
-	else
+	else {
+		sme_debug("max value reached, setting current index as 0");
 		pSession->curr_cache_idx = 0;
+	}
 
 	pSession->NumPmkidCache++;
-	if (pSession->NumPmkidCache > CSR_MAX_PMKID_ALLOWED)
+	if (pSession->NumPmkidCache > CSR_MAX_PMKID_ALLOWED) {
+		sme_debug("setting num pmkid cache to %d",
+			CSR_MAX_PMKID_ALLOWED);
 		pSession->NumPmkidCache = CSR_MAX_PMKID_ALLOWED;
+	}
 }
 
 QDF_STATUS
@@ -14025,6 +14030,9 @@ QDF_STATUS csr_roam_del_pmkid_from_cache(tpAniSirGlobal pMac,
 
 	/* Decrement the count since an entry has been deleted */
 	pSession->NumPmkidCache--;
+	sme_debug("PMKID at index=%d deleted, current index=%d cache count=%d",
+		Index, pSession->curr_cache_idx, pSession->NumPmkidCache);
+
 	return QDF_STATUS_SUCCESS;
 }
 

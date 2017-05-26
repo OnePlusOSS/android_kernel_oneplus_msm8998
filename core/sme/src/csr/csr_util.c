@@ -3138,6 +3138,7 @@ static bool csr_lookup_pmkid_using_ssid(tpAniSirGlobal mac,
 				  pmk_cache->cache_id, CACHE_ID_LEN))) {
 			/* match found */
 			*index = i;
+			sme_debug("PMKID found at index %d", i);
 			return true;
 		}
 	}
@@ -3161,15 +3162,16 @@ static bool csr_lookup_pmkid_using_bssid(tpAniSirGlobal mac,
 {
 	uint32_t i;
 	tPmkidCacheInfo *session_pmk;
-	sme_debug("lookup PMKID using bssid: " MAC_ADDRESS_STR,
-		  MAC_ADDR_ARRAY(pmk_cache->BSSID.bytes));
 	for (i = 0; i < session->NumPmkidCache; i++) {
 		session_pmk = &session->PmkidCacheInfo[i];
+		sme_debug("Matching BSSID: " MAC_ADDRESS_STR " to cached BSSID:"
+			MAC_ADDRESS_STR, MAC_ADDR_ARRAY(pmk_cache->BSSID.bytes),
+			MAC_ADDR_ARRAY(session_pmk->BSSID.bytes));
 		if (qdf_is_macaddr_equal(&pmk_cache->BSSID,
 					 &session_pmk->BSSID)) {
 			/* match found */
 			*index = i;
-			sme_debug("PMKID found");
+			sme_debug("PMKID found at index %d", i);
 			return true;
 		}
 	}
@@ -3210,7 +3212,8 @@ static bool csr_lookup_pmkid(tpAniSirGlobal pMac, uint32_t sessionId,
 						pSession, pmk_cache, &Index);
 
 	if (!fMatchFound) {
-		sme_debug("no pmkid match found");
+		sme_debug("no pmkid match found NumPmkidCache = %d",
+			pSession->NumPmkidCache);
 		return false;
 	}
 
@@ -3224,7 +3227,7 @@ static bool csr_lookup_pmkid(tpAniSirGlobal pMac, uint32_t sessionId,
 	pmk_cache->pmk_len = pSession->PmkidCacheInfo[Index].pmk_len;
 
 	fRC = true;
-	sme_debug("csr_lookup_pmkid called return match = %d pMac->roam.NumPmkidCache = %d",
+	sme_debug("match = %d NumPmkidCache = %d",
 		fRC, pSession->NumPmkidCache);
 
 	return fRC;

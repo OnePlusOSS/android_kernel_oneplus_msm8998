@@ -16601,29 +16601,32 @@ static int wlan_hdd_cfg80211_add_station(struct wiphy *wiphy,
 static inline bool wlan_hdd_is_pmksa_valid(struct cfg80211_pmksa *pmksa)
 {
 	if (!pmksa->bssid) {
-		hdd_err("bssid (%p) is NULL",
-		       pmksa->bssid);
-	} else if (!pmksa->ssid || !pmksa->cache_id) {
-		hdd_err("either ssid (%p) or cache_id (%p) are NULL",
-		       pmksa->ssid, pmksa->cache_id);
-		return false;
+		hdd_warn("bssid (%p) is NULL",
+				pmksa->bssid);
+		if (!pmksa->ssid || !pmksa->cache_id) {
+			hdd_err("either ssid (%p) or cache_id (%p) are NULL",
+					pmksa->ssid, pmksa->cache_id);
+			return false;
+		}
 	}
+
 	return true;
 }
 
 /*
- * hdd_update_pmksa_info: API to update tPmkidCacheInfo from cfg80211_pmksa
+ * hdd_fill_pmksa_info: API to update tPmkidCacheInfo from cfg80211_pmksa
  * @pmk_cache: pmksa from supplicant
  * @pmk_cache: pmk needs to be updated
  *
  * Return: None
  */
-static void hdd_update_pmksa_info(tPmkidCacheInfo *pmk_cache,
+static void hdd_fill_pmksa_info(tPmkidCacheInfo *pmk_cache,
 				  struct cfg80211_pmksa *pmksa, bool is_delete)
 {
 	if (pmksa->bssid) {
-		hdd_debug("set PMKSA for " MAC_ADDRESS_STR,
-		MAC_ADDR_ARRAY(pmksa->bssid));
+		hdd_debug("%s PMKSA for " MAC_ADDRESS_STR,
+			is_delete ? "Delete" : "Set",
+			MAC_ADDR_ARRAY(pmksa->bssid));
 		qdf_mem_copy(pmk_cache->BSSID.bytes,
 				pmksa->bssid, QDF_MAC_ADDR_SIZE);
 	} else {
@@ -16631,7 +16634,8 @@ static void hdd_update_pmksa_info(tPmkidCacheInfo *pmk_cache,
 				SIR_MAC_MAX_SSID_LENGTH);
 		qdf_mem_copy(pmk_cache->cache_id, pmksa->cache_id, CACHE_ID_LEN);
 		pmk_cache->ssid_len = pmksa->ssid_len;
-		hdd_debug("set PMKSA for ssid %*.*s cache_id %x %x",
+		hdd_debug("%s PMKSA for ssid %*.*s cache_id %x %x",
+			is_delete ? "Delete" : "Set",
 			pmk_cache->ssid_len, pmk_cache->ssid_len,
 			pmksa->ssid, pmksa->cache_id[0], pmksa->cache_id[1]);
 	}
@@ -16663,16 +16667,16 @@ static inline bool wlan_hdd_is_pmksa_valid(struct cfg80211_pmksa *pmksa)
 }
 
 /*
- * hdd_update_pmksa_info: API to update tPmkidCacheInfo from cfg80211_pmksa
+ * hdd_fill_pmksa_info: API to update tPmkidCacheInfo from cfg80211_pmksa
  * @pmk_cache: pmksa from supplicant
  * @pmk_cache: pmk needs to be updated
  *
  * Return: None
  */
-static void hdd_update_pmksa_info(tPmkidCacheInfo *pmk_cache,
+static void hdd_fill_pmksa_info(tPmkidCacheInfo *pmk_cache,
 				  struct cfg80211_pmksa *pmksa, bool is_delete)
 {
-	hdd_debug("set PMKSA for " MAC_ADDRESS_STR,
+	hdd_debug("%s PMKSA for " MAC_ADDRESS_STR, is_delete ? "Delete" : "Set",
 	MAC_ADDR_ARRAY(pmksa->bssid));
 	qdf_mem_copy(pmk_cache->BSSID.bytes,
 				pmksa->bssid, QDF_MAC_ADDR_SIZE);
@@ -16738,7 +16742,7 @@ static int __wlan_hdd_cfg80211_set_pmksa(struct wiphy *wiphy,
 
 	qdf_mem_zero(&pmk_cache, sizeof(pmk_cache));
 
-	hdd_update_pmksa_info(&pmk_cache, pmksa, false);
+	hdd_fill_pmksa_info(&pmk_cache, pmksa, false);
 
 	/*
 	 * Add to the PMKSA Cache in CSR
@@ -16830,7 +16834,7 @@ static int __wlan_hdd_cfg80211_del_pmksa(struct wiphy *wiphy,
 
 	qdf_mem_zero(&pmk_cache, sizeof(pmk_cache));
 
-	hdd_update_pmksa_info(&pmk_cache, pmksa, true);
+	hdd_fill_pmksa_info(&pmk_cache, pmksa, true);
 
 	/* Delete the PMKID CSR cache */
 	if (QDF_STATUS_SUCCESS !=

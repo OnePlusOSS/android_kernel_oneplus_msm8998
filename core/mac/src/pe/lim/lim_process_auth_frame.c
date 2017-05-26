@@ -515,7 +515,7 @@ static void lim_process_auth_frame_type2(tpAniSirGlobal mac_ctx,
 	uint32_t val, key_length = 8;
 	uint8_t defaultkey[SIR_MAC_KEY_LENGTH];
 	struct tLimPreAuthNode *auth_node;
-	uint8_t encr_auth_frame[LIM_ENCR_AUTH_BODY_LEN];
+	uint8_t *encr_auth_frame;
 
 	/* AuthFrame 2 */
 	if (pe_session->limMlmState != eLIM_MLM_WT_AUTH_FRAME2_STATE) {
@@ -732,6 +732,11 @@ static void lim_process_auth_frame_type2(tpAniSirGlobal mac_ctx,
 			(tpSirMacAuthFrameBody)plainbody)->challengeText,
 			rx_auth_frm_body->challengeText,
 			SIR_MAC_AUTH_CHALLENGE_LENGTH);
+		encr_auth_frame = qdf_mem_malloc(LIM_ENCR_AUTH_BODY_LEN);
+		if (!encr_auth_frame) {
+			pe_err("failed to allocate memory");
+			return;
+		}
 		lim_encrypt_auth_frame(mac_ctx, key_id,
 				defaultkey, plainbody,
 				encr_auth_frame, key_length);
@@ -743,7 +748,7 @@ static void lim_process_auth_frame_type2(tpAniSirGlobal mac_ctx,
 				(tpSirMacAuthFrameBody)encr_auth_frame,
 				mac_hdr->sa, LIM_WEP_IN_FC,
 				pe_session);
-
+		qdf_mem_free(encr_auth_frame);
 		return;
 	}
 }

@@ -61,6 +61,7 @@
 #include "cdp_txrx_peer_ops.h"
 #include "wlan_hdd_napi.h"
 #include <wlan_logging_sock_svc.h>
+#include "wlan_hdd_tsf.h"
 
 /* These are needed to recognize WPA and RSN suite types */
 #define HDD_WPA_OUI_SIZE 4
@@ -182,6 +183,10 @@ void hdd_conn_set_connection_state(hdd_adapter_t *pAdapter,
 	hdd_debug("%pS Changed connectionState Changed from oldState:%d to State:%d",
 		(void *)_RET_IP_, pHddStaCtx->conn_info.connState,
 		connState);
+
+	hdd_tsf_notify_wlan_state_change(pAdapter,
+					 pHddStaCtx->conn_info.connState,
+					 connState);
 	pHddStaCtx->conn_info.connState = connState;
 
 	/* Check is pending ROC request or not when connection state changed */

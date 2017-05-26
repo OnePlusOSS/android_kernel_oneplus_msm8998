@@ -1118,5 +1118,18 @@ sir_validate_and_rectify_ies(tpAniSirGlobal mac_ctx,
 				uint8_t *mgmt_frame,
 				uint32_t frame_bytes,
 				uint32_t *missing_rsn_bytes);
+/**
+ * sir_copy_caps_info() - Copy Caps info from tDot11fFfCapabilities to
+ *                        beacon/probe response structure.
+ * @mac_ctx: MAC Context
+ * @caps: tDot11fFfCapabilities structure
+ * @pProbeResp: beacon/probe response structure
+ *
+ * Copy the caps info to beacon/probe response structure
+ *
+ * Return: None
+ */
+void sir_copy_caps_info(tpAniSirGlobal mac_ctx, tDot11fFfCapabilities caps,
+			tpSirProbeRespBeacon pProbeResp);
 
 #endif /* __PARSE_H__ */

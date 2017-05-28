@@ -1700,6 +1700,11 @@ A_STATUS htc_send_data_pkt(HTC_HANDLE HTCHandle, HTC_PACKET *pPacket,
 			UNLOCK_HTC_TX(target);
 			return A_OK;
 		}
+
+		QDF_NBUF_UPDATE_TX_PKT_COUNT(netbuf, QDF_NBUF_TX_PKT_HTC);
+		DPTRACE(qdf_dp_trace(netbuf, QDF_DP_TRACE_HTC_PACKET_PTR_RECORD,
+				qdf_nbuf_data_addr(netbuf),
+				sizeof(qdf_nbuf_data(netbuf)), QDF_TX));
 	} else {
 		LOCK_HTC_TX(target);
 		pEndpoint = &target->endpoint[1];
@@ -1772,10 +1777,6 @@ A_STATUS htc_send_data_pkt(HTC_HANDLE HTCHandle, HTC_PACKET *pPacket,
 				     tx_resources);
 		UNLOCK_HTC_TX(target);
 	}
-	QDF_NBUF_UPDATE_TX_PKT_COUNT(netbuf, QDF_NBUF_TX_PKT_HTC);
-	DPTRACE(qdf_dp_trace(netbuf, QDF_DP_TRACE_HTC_PACKET_PTR_RECORD,
-				qdf_nbuf_data_addr(netbuf),
-				sizeof(qdf_nbuf_data(netbuf)), QDF_TX));
 
 	/* send what we can */
 	while (true) {

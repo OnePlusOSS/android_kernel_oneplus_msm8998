@@ -2240,6 +2240,31 @@ uint32_t cds_mode_specific_connection_count(enum cds_con_mode mode,
 	return count;
 }
 
+QDF_STATUS cds_check_conn_with_mode_and_vdev_id(enum cds_con_mode mode,
+						uint32_t vdev_id)
+{
+	QDF_STATUS qdf_status = QDF_STATUS_E_FAILURE;
+	uint32_t conn_index = 0;
+	cds_context_type *cds_ctx;
+
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return qdf_status;
+	}
+	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
+	while (CONC_CONNECTION_LIST_VALID_INDEX(conn_index)) {
+		if ((conc_connection_list[conn_index].mode == mode) &&
+		    (conc_connection_list[conn_index].vdev_id == vdev_id)) {
+			qdf_status = QDF_STATUS_SUCCESS;
+			break;
+		}
+		conn_index++;
+	}
+	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
+	return qdf_status;
+}
+
 /**
  * cds_store_and_del_conn_info() - Store and del a connection info
  * @mode: Mode whose entry has to be deleted
@@ -4049,7 +4074,12 @@ void cds_decr_session_set_pcl(enum tQDF_ADAPTER_MODE mode,
 		return;
 	}
 
-	cds_decr_active_session(mode, session_id);
+	qdf_status = cds_decr_active_session(mode, session_id);
+	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
+		cds_err("Invalid active session");
+		return;
+	}
+
 	/*
 	 * After the removal of this connection, we need to check if
 	 * a STA connection still exists. The reason for this is that
@@ -4090,25 +4120,35 @@ void cds_decr_session_set_pcl(enum tQDF_ADAPTER_MODE mode,
  * mode. In the case of STA/P2P CLI/IBSS upon disconnection it is decremented
  * In the case of SAP/P2P GO upon bss stop it is decremented
  *
- * Return: None
+ * Return: QDF_STATUS
  */
-void cds_decr_active_session(enum tQDF_ADAPTER_MODE mode,
+QDF_STATUS cds_decr_active_session(enum tQDF_ADAPTER_MODE mode,
 				  uint8_t session_id)
 {
 	hdd_context_t *hdd_ctx;
 	cds_context_type *cds_ctx;
 	hdd_adapter_t *sap_adapter;
+	QDF_STATUS qdf_status;
 
 	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
 	if (!cds_ctx) {
 		cds_err("Invalid CDS Context");
-		return;
+		return QDF_STATUS_E_INVAL;
 	}
 
 	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
 	if (!hdd_ctx) {
 		cds_err("HDD context is NULL");
-		return;
+		return QDF_STATUS_E_EMPTY;
+	}
+
+	qdf_status = cds_check_conn_with_mode_and_vdev_id(
+				cds_convert_device_mode_to_qdf_type(mode),
+				session_id);
+	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
+		cds_err("No connection with mode:%d vdev_id:%d",
+			cds_convert_device_mode_to_qdf_type(mode), session_id);
+		return qdf_status;
 	}
 
 	switch (mode) {
@@ -4159,6 +4199,8 @@ void cds_decr_active_session(enum tQDF_ADAPTER_MODE mode,
 	cds_set_tdls_ct_mode(hdd_ctx);
 
 	cds_dump_current_concurrency();
+
+	return qdf_status;
 }
 
 /**

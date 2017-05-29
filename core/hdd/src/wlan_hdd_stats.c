@@ -1443,14 +1443,13 @@ __wlan_hdd_cfg80211_ll_stats_get(struct wiphy *wiphy,
 				   const void *data,
 				   int data_len)
 {
-	unsigned long rc;
+	int ret;
 	hdd_context_t *pHddCtx = wiphy_priv(wiphy);
 	struct nlattr *tb_vendor[QCA_WLAN_VENDOR_ATTR_LL_STATS_GET_MAX + 1];
 	tSirLLStatsGetReq LinkLayerStatsGetReq;
 	struct net_device *dev = wdev->netdev;
 	hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
 	hdd_station_ctx_t *hddstactx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
-	int status;
 
 	/* ENTER() intentionally not used in a frequently invoked API */
 
@@ -1459,8 +1458,8 @@ __wlan_hdd_cfg80211_ll_stats_get(struct wiphy *wiphy,
 		return -EPERM;
 	}
 
-	status = wlan_hdd_validate_context(pHddCtx);
-	if (0 != status)
+	ret = wlan_hdd_validate_context(pHddCtx);
+	if (0 != ret)
 		return -EINVAL;
 
 	if (!pAdapter->isLinkLayerStatsSet) {
@@ -1470,7 +1469,7 @@ __wlan_hdd_cfg80211_ll_stats_get(struct wiphy *wiphy,
 	}
 
 	if (hddstactx->hdd_ReassocScenario) {
-		hdd_err("Roaming in progress, so unable to proceed this request");
+		hdd_err("Roaming in progress, cannot process the request");
 		return -EBUSY;
 	}
 
@@ -1505,11 +1504,11 @@ __wlan_hdd_cfg80211_ll_stats_get(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
-	rc = wlan_hdd_send_ll_stats_req(pHddCtx, &LinkLayerStatsGetReq);
-	if (0 != rc) {
+	ret = wlan_hdd_send_ll_stats_req(pHddCtx, &LinkLayerStatsGetReq);
+	if (0 != ret) {
 		hdd_err("Failed to send LL stats request (id:%u)",
 			LinkLayerStatsGetReq.reqId);
-		return rc;
+		return ret;
 	}
 
 	EXIT();

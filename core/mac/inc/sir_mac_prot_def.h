@@ -423,6 +423,16 @@
 
 #define SIR_MAC_MAX_ADD_IE_LENGTH       2048
 
+#ifdef WLAN_FEATURE_FILS_SK
+#define FILS_AUTH_IE_LEN	(sizeof(tSirMacRsnInfo) - \
+				 2 * sizeof(uint8_t) - \
+				 SIR_FILS_SESSION_LENGTH - \
+				 SIR_FILS_WRAPPED_DATA_MAX_SIZE - \
+				 SIR_FILS_NONCE_LENGTH)
+#else
+#define FILS_AUTH_IE_LEN 0
+#endif
+
 /* / Maximum length of each IE */
 #define SIR_MAC_MAX_IE_LENGTH       255
 

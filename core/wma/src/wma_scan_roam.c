@@ -1620,6 +1620,7 @@ static QDF_STATUS wma_roam_scan_filter(tp_wma_handle wma_handle,
 	uint32_t op_bitmap = 0;
 	struct roam_ext_params *roam_params;
 	struct roam_scan_filter_params *params;
+	struct lca_disallow_config_params *lca_config_params;
 
 	params = qdf_mem_malloc(sizeof(struct roam_scan_filter_params));
 	if (params == NULL) {
@@ -1628,6 +1629,7 @@ static QDF_STATUS wma_roam_scan_filter(tp_wma_handle wma_handle,
 	}
 
 	roam_params = &roam_req->roam_params;
+	lca_config_params = &roam_req->lca_config_params;
 	if (roam_req->Command != ROAM_SCAN_OFFLOAD_STOP) {
 		switch (roam_req->reason) {
 		case REASON_ROAM_SET_BLACKLIST_BSSID:
@@ -1651,6 +1653,19 @@ static QDF_STATUS wma_roam_scan_filter(tp_wma_handle wma_handle,
 			len = num_bssid_preferred_list * sizeof(wmi_mac_addr);
 			len += WMI_TLV_HDR_SIZE;
 			len += num_bssid_preferred_list * sizeof(A_UINT32);
+			break;
+		case REASON_CTX_INIT:
+			if (roam_req->Command == ROAM_SCAN_OFFLOAD_START) {
+				params->lca_disallow_config_present = true;
+				len += sizeof(
+					wmi_roam_lca_disallow_config_tlv_param)
+					+ (4 * WMI_TLV_HDR_SIZE);
+				op_bitmap |= ROAM_FILTER_OP_BITMAP_LCA_DISALLOW;
+			} else {
+				WMA_LOGD("%s : Roam Filter need not be sent", __func__);
+				qdf_mem_free(params);
+				return QDF_STATUS_SUCCESS;
+			}
 			break;
 		default:
 			WMA_LOGD("%s : Roam Filter need not be sent", __func__);
@@ -1698,6 +1713,14 @@ static QDF_STATUS wma_roam_scan_filter(tp_wma_handle wma_handle,
 	qdf_mem_copy(params->bssid_favored_factor,
 			roam_params->bssid_favored_factor, MAX_BSSID_FAVORED);
 
+	if (params->lca_disallow_config_present) {
+		params->disallow_duration
+				= lca_config_params->disallow_duration;
+		params->rssi_channel_penalization
+				= lca_config_params->rssi_channel_penalization;
+		params->num_disallowed_aps
+				= lca_config_params->num_disallowed_aps;
+	}
 	status = wmi_unified_roam_scan_filter_cmd(wma_handle->wmi_handle,
 					params);
 

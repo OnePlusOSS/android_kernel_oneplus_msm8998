@@ -53,6 +53,8 @@
 
 #define TK_LEN_TKIP 32
 #define TK_LEN_CCMP 16
+#define TK_LEN_GCMP 16
+#define TK_LEN_GCMP_256 32
 #define TK_LEN_AES_128_CMAC 32
 
 #define FILS_SHA256_PKM_LEN 32

@@ -93,9 +93,18 @@ uint8_t csr_rsn_oui[][CSR_RSN_OUI_SIZE] = {
 	{0x00, 0x0F, 0xAC, 0x10},
 #define ENUM_FT_FILS_SHA384 12
 	/* FILS FT SHA384 */
-	{0x00, 0x0F, 0xAC, 0x11}
+	{0x00, 0x0F, 0xAC, 0x11},
+#else
+	{0x00, 0x00, 0x00, 0x00},
+	{0x00, 0x00, 0x00, 0x00},
+	{0x00, 0x00, 0x00, 0x00},
+	{0x00, 0x00, 0x00, 0x00},
 #endif
-	/* define new oui here */
+	/* AES GCMP */
+	{0x00, 0x0F, 0xAC, 0x08},
+	/* AES GCMP-256 */
+	{0x00, 0x0F, 0xAC, 0x09},
+	/* define new oui here, update #define CSR_OUI_***_INDEX  */
 };
 
 #ifdef FEATURE_WLAN_WAPI
@@ -1936,6 +1945,8 @@ bool csr_is_profile_rsn(tCsrRoamProfile *pProfile)
 		case eCSR_ENCRYPT_TYPE_WEP104:
 		case eCSR_ENCRYPT_TYPE_TKIP:
 		case eCSR_ENCRYPT_TYPE_AES:
+		case eCSR_ENCRYPT_TYPE_AES_GCMP:
+		case eCSR_ENCRYPT_TYPE_AES_GCMP_256:
 			fRSNProfile = true;
 			break;
 
@@ -2713,6 +2724,12 @@ static uint8_t csr_get_oui_index_from_cipher(eCsrEncryptionType enType)
 		break;
 	case eCSR_ENCRYPT_TYPE_AES:
 		OUIIndex = CSR_OUI_AES_INDEX;
+		break;
+	case eCSR_ENCRYPT_TYPE_AES_GCMP:
+		OUIIndex = CSR_OUI_AES_GCMP_INDEX;
+		break;
+	case eCSR_ENCRYPT_TYPE_AES_GCMP_256:
+		OUIIndex = CSR_OUI_AES_GCMP_256_INDEX;
 		break;
 	case eCSR_ENCRYPT_TYPE_NONE:
 		OUIIndex = CSR_OUI_USE_GROUP_CIPHER_INDEX;
@@ -4163,6 +4180,13 @@ tAniEdType csr_translate_encrypt_type_to_ed_type(eCsrEncryptionType EncryptType)
 	case eCSR_ENCRYPT_TYPE_AES_CMAC:
 		edType = eSIR_ED_AES_128_CMAC;
 		break;
+	case eCSR_ENCRYPT_TYPE_AES_GCMP:
+		edType = eSIR_ED_GCMP;
+		break;
+	case eCSR_ENCRYPT_TYPE_AES_GCMP_256:
+		edType = eSIR_ED_GCMP_256;
+		break;
+
 #endif
 	}
 
@@ -4375,7 +4399,19 @@ static bool csr_validate_any_default(tHalHandle hal, tCsrAuthList *auth_type,
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
 	/* It is allowed to match anything. Try the more secured ones first. */
 	if (ies_ptr) {
-		/* Check AES first */
+		/* Check GCMP-256 first */
+		*uc_cipher = eCSR_ENCRYPT_TYPE_AES_GCMP_256;
+		match_any = csr_is_rsn_match(hal, auth_type,
+				*uc_cipher, mc_enc_type, mfp_enabled,
+				mfp_required, mfp_capable, ies_ptr,
+				neg_auth_type, mc_cipher);
+		/* Check GCMP second */
+		*uc_cipher = eCSR_ENCRYPT_TYPE_AES_GCMP;
+		match_any = csr_is_rsn_match(hal, auth_type,
+				*uc_cipher, mc_enc_type, mfp_enabled,
+				mfp_required, mfp_capable, ies_ptr,
+				neg_auth_type, mc_cipher);
+		/* Check AES third */
 		*uc_cipher = eCSR_ENCRYPT_TYPE_AES;
 		match_any = csr_is_rsn_match(hal, auth_type,
 				*uc_cipher, mc_enc_type, mfp_enabled,
@@ -4504,6 +4540,8 @@ bool csr_is_security_match(tHalHandle hal, tCsrAuthList *auth_type,
 
 		case eCSR_ENCRYPT_TYPE_TKIP:
 		case eCSR_ENCRYPT_TYPE_AES:
+		case eCSR_ENCRYPT_TYPE_AES_GCMP:
+		case eCSR_ENCRYPT_TYPE_AES_GCMP_256:
 			if (!ies_ptr) {
 				match = false;
 				break;

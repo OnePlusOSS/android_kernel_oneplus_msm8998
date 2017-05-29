@@ -159,6 +159,10 @@ static uint8_t lim_get_tk_len(int cypher_suite)
 		return TK_LEN_TKIP;
 	case eSIR_ED_CCMP:
 		return TK_LEN_CCMP;
+	case eSIR_ED_GCMP:
+		return TK_LEN_GCMP;
+	case eSIR_ED_GCMP_256:
+		return TK_LEN_GCMP_256;
 	case eSIR_ED_AES_128_CMAC:
 		return TK_LEN_AES_128_CMAC;
 	default:

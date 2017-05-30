@@ -10951,7 +10951,7 @@ QDF_STATUS send_roam_invoke_cmd_tlv(wmi_unified_t wmi_handle,
 	WMITLV_TAG_STRUC_wmi_roam_invoke_cmd_fixed_param,
 	WMITLV_GET_STRUCT_TLVLEN(wmi_roam_invoke_cmd_fixed_param));
 	cmd->vdev_id = roaminvoke->vdev_id;
-	cmd->flags |= WMI_ROAM_INVOKE_FLAG_REPORT_FAILURE;
+	cmd->flags |= (1 << WMI_ROAM_INVOKE_FLAG_REPORT_FAILURE);
 
 	if (roaminvoke->frame_len)
 		cmd->roam_scan_mode = WMI_ROAM_INVOKE_SCAN_MODE_SKIP;
@@ -12296,7 +12296,7 @@ static QDF_STATUS extract_vdev_scan_ev_param_tlv(wmi_unified_t wmi_handle,
 	case WMI_SCAN_EVENT_RESTARTED:
 		param->event = WMI_HOST_SCAN_EVENT_RESTARTED;
 		break;
-	case WMI_HOST_SCAN_EVENT_FOREIGN_CHANNEL_EXIT:
+	case WMI_SCAN_EVENT_FOREIGN_CHANNEL_EXIT:
 		param->event = WMI_HOST_SCAN_EVENT_FOREIGN_CHANNEL_EXIT;
 		break;
 	case WMI_SCAN_EVENT_MAX:

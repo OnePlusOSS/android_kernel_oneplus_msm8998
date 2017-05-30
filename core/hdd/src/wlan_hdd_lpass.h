@@ -153,7 +153,11 @@ static inline void hdd_lpass_notify_disconnect(struct hdd_adapter_s *adapter)
 static inline void hdd_lpass_notify_mode_change(struct hdd_adapter_s *adapter)
 {
 }
-static inline void hdd_lpass_notify_start(struct hdd_context_s *hdd_ctx) { }
+
+static inline void hdd_lpass_notify_start(struct hdd_context_s *hdd_ctx,
+					  struct hdd_adapter_s *adapter)
+{
+}
 static inline void hdd_lpass_notify_stop(struct hdd_context_s *hdd_ctx) { }
 static inline bool hdd_lpass_is_supported(struct hdd_context_s *hdd_ctx)
 {

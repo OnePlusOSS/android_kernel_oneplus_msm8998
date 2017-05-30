@@ -80,9 +80,9 @@ qca_wlan_vendor_ndp_policy[QCA_WLAN_VENDOR_ATTR_NDP_PARAMS_MAX + 1] = {
  */
 void hdd_ndp_print_ini_config(hdd_context_t *hdd_ctx)
 {
-	hdd_info("Name = [%s] Value = [%u]", CFG_ENABLE_NAN_DATAPATH_NAME,
+	hdd_debug("Name = [%s] Value = [%u]", CFG_ENABLE_NAN_DATAPATH_NAME,
 		hdd_ctx->config->enable_nan_datapath);
-	hdd_info("Name = [%s] Value = [%u]", CFG_ENABLE_NAN_NDI_CHANNEL_NAME,
+	hdd_debug("Name = [%s] Value = [%u]", CFG_ENABLE_NAN_NDI_CHANNEL_NAME,
 		hdd_ctx->config->nan_datapath_ndi_channel);
 }
 
@@ -320,6 +320,13 @@ static int hdd_ndi_create_req_handler(hdd_context_t *hdd_ctx,
 	transaction_id =
 		nla_get_u16(tb[QCA_WLAN_VENDOR_ATTR_NDP_TRANSACTION_ID]);
 
+	/* check for an existing NDI with the same name */
+	adapter = hdd_get_adapter_by_iface_name(hdd_ctx, iface_name);
+	if (adapter) {
+		hdd_err("NAN data interface %s is available", iface_name);
+		return -EEXIST;
+	}
+
 	adapter = hdd_open_adapter(hdd_ctx, QDF_NDI_MODE, iface_name,
 			wlan_hdd_get_intf_addr(hdd_ctx), NET_NAME_UNKNOWN,
 			true);
@@ -398,7 +405,7 @@ static int hdd_ndi_delete_req_handler(hdd_context_t *hdd_ctx,
 	adapter = hdd_get_adapter_by_iface_name(hdd_ctx, iface_name);
 	if (!adapter) {
 		hdd_err("NAN data interface %s is not available", iface_name);
-		return -EINVAL;
+		return -ENODEV;
 	}
 
 	/* check if adapter is in NDI mode */
@@ -420,11 +427,9 @@ static int hdd_ndi_delete_req_handler(hdd_context_t *hdd_ctx,
 	}
 
 	/* check if there are active peers on the adapter */
-	if (ndp_ctx->active_ndp_peers > 0) {
-		hdd_err("NDP peers active: %d, cannot delete NDI",
+	if (ndp_ctx->active_ndp_peers > 0)
+		hdd_err("NDP peers active: %d, active NDPs may not terminated",
 			ndp_ctx->active_ndp_peers);
-		return -EINVAL;
-	}
 
 	/*
 	 * Since, the interface is being deleted, remove the
@@ -1939,10 +1944,10 @@ static int __wlan_hdd_cfg80211_process_ndp_cmd(struct wiphy *wiphy,
 
 	if (tb[QCA_WLAN_VENDOR_ATTR_NDP_IFACE_STR]) {
 		iface_name = nla_data(tb[QCA_WLAN_VENDOR_ATTR_NDP_IFACE_STR]);
-		hdd_notice("Transaction Id: %d NDP Cmd: %d iface_name: %s",
+		hdd_debug("Transaction Id: %d NDP Cmd: %d iface_name: %s",
 			transaction_id, ndp_cmd_type, iface_name);
 	} else {
-		hdd_notice("Transaction Id: %d NDP Cmd: %d iface_name: unspecified",
+		hdd_debug("Transaction Id: %d NDP Cmd: %d iface_name: unspecified",
 			transaction_id, ndp_cmd_type);
 	}
 

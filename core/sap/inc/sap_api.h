@@ -502,6 +502,7 @@ struct sap_acs_cfg {
 	uint16_t   ch_width;
 	uint8_t    pcl_channels[QDF_MAX_NUM_CHAN];
 	uint32_t   pcl_ch_count;
+	uint8_t    weight_list[QDF_MAX_NUM_CHAN];
 	/* ACS Algo Output */
 	uint8_t    pri_ch;
 	uint8_t    ht_sec_ch;

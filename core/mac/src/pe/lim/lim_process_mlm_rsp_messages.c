@@ -1375,8 +1375,11 @@ error:
 		if (lim_set_link_state
 			(mac_ctx, eSIR_LINK_DOWN_STATE, session_entry->bssId,
 			 session_entry->selfMacAddr, lim_join_result_callback,
-			 param) != eSIR_SUCCESS)
+			 param) != eSIR_SUCCESS) {
+			qdf_mem_free(param);
+			param = NULL;
 			pe_err("Failed to set the LinkState");
+		}
 		return;
 	}
 
@@ -1758,6 +1761,11 @@ void lim_process_mlm_del_sta_rsp(tpAniSirGlobal mac_ctx,
 
 	if (LIM_IS_AP_ROLE(session_entry)) {
 		lim_process_ap_mlm_del_sta_rsp(mac_ctx, msg,
+				session_entry);
+		return;
+	}
+	if (LIM_IS_IBSS_ROLE(session_entry)) {
+		lim_process_ibss_del_sta_rsp(mac_ctx, msg,
 				session_entry);
 		return;
 	}

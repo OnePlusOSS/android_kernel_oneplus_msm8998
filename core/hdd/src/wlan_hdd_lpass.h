@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -102,7 +102,8 @@ void hdd_lpass_notify_mode_change(struct hdd_adapter_s *adapter);
  *
  * Return: none
  */
-void hdd_lpass_notify_start(struct hdd_context_s *hdd_ctx);
+void hdd_lpass_notify_start(struct hdd_context_s *hdd_ctx,
+			    struct hdd_adapter_s *adapter);
 
 /**
  * hdd_lpass_notify_stop() - Notify LPASS of driver stop
@@ -124,6 +125,15 @@ void hdd_lpass_notify_stop(struct hdd_context_s *hdd_ctx);
  */
 bool hdd_lpass_is_supported(struct hdd_context_s *hdd_ctx);
 
+/*
+ * hdd_lpass_notify_wlan_version() - Notify LPASS WLAN Host/FW version
+ * @hdd_ctx: The global HDD context
+ *
+ * Notify LPASS for the WLAN host/firmware and hardware version.
+ *
+ * Return: none
+ */
+void hdd_lpass_notify_wlan_version(struct hdd_context_s *hdd_ctx);
 #else
 static inline void hdd_lpass_target_config(struct hdd_context_s *hdd_ctx,
 					   struct wma_tgt_cfg *target_config)
@@ -143,12 +153,17 @@ static inline void hdd_lpass_notify_disconnect(struct hdd_adapter_s *adapter)
 static inline void hdd_lpass_notify_mode_change(struct hdd_adapter_s *adapter)
 {
 }
-static inline void hdd_lpass_notify_start(struct hdd_context_s *hdd_ctx) { }
+
+static inline void hdd_lpass_notify_start(struct hdd_context_s *hdd_ctx,
+					  struct hdd_adapter_s *adapter)
+{
+}
 static inline void hdd_lpass_notify_stop(struct hdd_context_s *hdd_ctx) { }
 static inline bool hdd_lpass_is_supported(struct hdd_context_s *hdd_ctx)
 {
 	return false;
 }
+static inline void hdd_lpass_notify_wlan_version(struct hdd_context_s *hdd_ctx) {}
 #endif
 
 #endif /* WLAN_HDD_LPASS_H */

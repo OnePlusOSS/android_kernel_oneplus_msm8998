@@ -103,7 +103,7 @@ void hdd_tx_resume_timer_expired_handler(void *adapter_context)
 		return;
 	}
 
-	hdd_notice("Enabling queues");
+	hdd_debug("Enabling queues");
 	wlan_hdd_netif_queue_control(pAdapter, WLAN_WAKE_ALL_NETIF_QUEUE,
 				     WLAN_CONTROL_PATH);
 }
@@ -124,7 +124,7 @@ hdd_tx_resume_false(hdd_adapter_t *pAdapter, bool tx_resume)
 		return;
 
 	/* Pause TX  */
-	hdd_notice("Disabling queues");
+	hdd_debug("Disabling queues");
 	wlan_hdd_netif_queue_control(pAdapter, WLAN_STOP_ALL_NETIF_QUEUE,
 				     WLAN_DATA_FLOW_CONTROL);
 
@@ -192,7 +192,7 @@ void hdd_tx_resume_cb(void *adapter_context, bool tx_resume)
 						   tx_flow_control_timer)) {
 			qdf_mc_timer_stop(&pAdapter->tx_flow_control_timer);
 		}
-		hdd_notice("Enabling queues");
+		hdd_debug("Enabling queues");
 		wlan_hdd_netif_queue_control(pAdapter,
 					     WLAN_WAKE_ALL_NETIF_QUEUE,
 					     WLAN_DATA_FLOW_CONTROL);
@@ -434,7 +434,8 @@ static void hdd_get_transmit_sta_id(hdd_adapter_t *adapter,
 	if (QDF_IS_STATUS_ERROR(status)) {
 		if (QDF_NBUF_CB_GET_IS_BCAST(skb) ||
 				QDF_NBUF_CB_GET_IS_MCAST(skb)) {
-			hdd_info("Received MC/BC packet for transmission");
+			QDF_TRACE(QDF_MODULE_ID_HDD_DATA, QDF_TRACE_LEVEL_DEBUG,
+				"Received MC/BC packet for transmission");
 			mcbc_addr = true;
 		}
 	}
@@ -505,7 +506,7 @@ static int __hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 
-	if (cds_is_driver_recovering()) {
+	if (cds_is_driver_recovering() || cds_is_driver_in_bad_state()) {
 		QDF_TRACE(QDF_MODULE_ID_HDD_DATA, QDF_TRACE_LEVEL_INFO_HIGH,
 			"Recovery in progress, dropping the packet");
 		goto drop_pkt;
@@ -1378,6 +1379,27 @@ static void wlan_hdd_update_queue_oper_stats(hdd_adapter_t *adapter,
 }
 
 /**
+ * hdd_netdev_queue_is_locked()
+ * @txq: net device tx queue
+ *
+ * For SMP system, always return false and we could safely rely on
+ * __netif_tx_trylock().
+ *
+ * Return: true locked; false not locked
+ */
+#ifdef QCA_CONFIG_SMP
+static inline bool hdd_netdev_queue_is_locked(struct netdev_queue *txq)
+{
+	return false;
+}
+#else
+static inline bool hdd_netdev_queue_is_locked(struct netdev_queue *txq)
+{
+	return txq->xmit_lock_owner != -1;
+}
+#endif
+
+/**
  * wlan_hdd_update_txq_timestamp() - update txq timestamp
  * @dev: net device
  *
@@ -1390,9 +1412,19 @@ static void wlan_hdd_update_txq_timestamp(struct net_device *dev)
 
 	for (i = 0; i < NUM_TX_QUEUES; i++) {
 		txq = netdev_get_tx_queue(dev, i);
-		if (__netif_tx_trylock(txq)) {
-			txq_trans_update(txq);
-			__netif_tx_unlock(txq);
+
+		/*
+		 * On UP system, kernel will trigger watchdog bite if spinlock
+		 * recursion is detected. Unfortunately recursion is possible
+		 * when it is called in dev_queue_xmit() context, where stack
+		 * grabs the lock before calling driver's ndo_start_xmit
+		 * callback.
+		 */
+		if (!hdd_netdev_queue_is_locked(txq)) {
+			if (__netif_tx_trylock(txq)) {
+				txq_trans_update(txq);
+				__netif_tx_unlock(txq);
+			}
 		}
 	}
 }

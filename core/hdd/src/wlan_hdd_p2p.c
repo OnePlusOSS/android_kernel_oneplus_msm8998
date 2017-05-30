@@ -590,7 +590,7 @@ static int32_t hdd_delete_action_frame_cookie(hdd_adapter_t *adapter,
 	struct action_frame_cookie *action_cookie = NULL;
 	uint32_t freq = 0;
 
-	hdd_info("Delete cookie = %llu", cookie);
+	hdd_debug("Delete cookie = %llu", cookie);
 
 	spin_lock(&adapter->random_mac_lock);
 	for (i = 0; i < MAX_RANDOM_MAC_ADDRS; i++) {
@@ -1664,7 +1664,7 @@ __wlan_hdd_cfg80211_cancel_remain_on_channel(struct wiphy *wiphy,
 	pRemainChanCtx = cfgState->remain_on_chan_ctx;
 
 	if (pRemainChanCtx) {
-		hdd_notice("action_cookie = %08llx, roc cookie = %08llx, cookie = %08llx",
+		hdd_debug("action_cookie = %08llx, roc cookie = %08llx, cookie = %08llx",
 				cfgState->action_cookie, pRemainChanCtx->cookie,
 				cookie);
 
@@ -3327,7 +3327,9 @@ void __hdd_indicate_mgmt_frame(hdd_adapter_t *adapter, uint32_t frm_len,
 	sub_type = WLAN_HDD_GET_SUBTYPE_FRM_FC(pb_frames[0]);
 	hdd_debug("Frame Type = %d subType = %d", type, sub_type);
 
-	if (is_non_probe_req_mgmt_frame(type, sub_type)) {
+	if (is_non_probe_req_mgmt_frame(type, sub_type) &&
+	    !qdf_is_macaddr_broadcast(
+	     (struct qdf_mac_addr *)&pb_frames[WLAN_HDD_80211_FRM_DA_OFFSET])) {
 		if (frm_len <= WLAN_HDD_80211_FRM_DA_OFFSET +
 		    QDF_MAC_ADDR_SIZE) {
 			hdd_err("Cannot parse dest mac addr len: %d", frm_len);

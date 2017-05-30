@@ -2965,6 +2965,7 @@ static QDF_STATUS spectral_phyerr_event_handler(void *handle,
 		return QDF_STATUS_E_FAILURE;
 	}
 
+	memset(&phyerr, 0, sizeof(wmi_host_phyerr_t));
 	if (wma_extract_comb_phyerr_spectral(handle, data,
 			datalen, &buf_offset, &phyerr)) {
 		WMA_LOGE("%s: extract comb phyerr failed", __func__);
@@ -3427,11 +3428,6 @@ static void wma_inc_wow_stats(struct sir_vdev_wow_stats *stats, uint8_t *data,
 				WMA_LOGA("ICMP_V6 data len %d", len);
 		} else {
 			stats->ucast++;
-			if (qdf_nbuf_data_is_ipv4_mcast_pkt(data))
-				stats->ipv4_mcast++;
-			else if (qdf_nbuf_data_is_ipv6_mcast_pkt(data))
-				stats->ipv6_mcast++;
-
 			if (len >= WMA_IPV4_PROTO_GET_MIN_LEN &&
 			    qdf_nbuf_data_is_icmp_pkt(data))
 				stats->icmpv4++;
@@ -7776,6 +7772,9 @@ static inline void wma_suspend_target_timeout(bool is_self_recovery_enabled)
 			 __func__);
 	else if (cds_is_driver_recovering())
 		WMA_LOGE("%s: Module recovering; Ignoring suspend timeout",
+			 __func__);
+	else if (cds_is_driver_in_bad_state())
+		WMA_LOGE("%s: Module in bad state; Ignoring suspend timeout",
 			 __func__);
 	else
 		cds_trigger_recovery(false);

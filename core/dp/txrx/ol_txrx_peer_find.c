@@ -654,7 +654,7 @@ void ol_rx_peer_unmap_handler(ol_txrx_pdev_handle pdev, uint16_t peer_id)
 	 */
 	OL_TXRX_PEER_UNREF_DELETE(peer);
 
-	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO,
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_DEBUG,
 	   "%s: peer_id %d peer %p peer_id_ref_cnt %d",
 	   __func__, peer_id, peer, ref_cnt);
 }

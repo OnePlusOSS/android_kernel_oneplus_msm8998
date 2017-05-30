@@ -3120,7 +3120,7 @@ static void cds_dump_current_concurrency(void)
 	case 1:
 		cds_dump_current_concurrency_one_connection(cc_mode,
 					sizeof(cc_mode));
-		cds_notice("%s Standalone", cc_mode);
+		cds_debug("%s Standalone", cc_mode);
 		break;
 	case 2:
 		count = cds_dump_current_concurrency_two_connection(
@@ -3135,7 +3135,7 @@ static void cds_dump_current_concurrency(void)
 		} else
 			strlcat(cc_mode, " DBS", sizeof(cc_mode));
 		qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
-		cds_notice("%s", cc_mode);
+		cds_debug("%s", cc_mode);
 		break;
 	case 3:
 		count = cds_dump_current_concurrency_three_connection(
@@ -3159,7 +3159,7 @@ static void cds_dump_current_concurrency(void)
 			qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 			cds_dump_dbs_concurrency(cc_mode, sizeof(cc_mode));
 		}
-		cds_notice("%s", cc_mode);
+		cds_debug("%s", cc_mode);
 		break;
 	default:
 		cds_err("unexpected num_connections value %d",
@@ -3785,8 +3785,10 @@ static void cds_set_pcl_for_existing_combo(enum cds_con_mode mode)
 	if (cds_mode_specific_connection_count(mode, NULL) > 0) {
 		/* Check, store and temp delete the mode's parameter */
 		cds_store_and_del_conn_info(mode, &info);
+		qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 		/* Set the PCL to the FW since connection got updated */
 		cds_pdev_set_pcl(pcl_mode);
+		qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 		cds_debug("Set PCL to FW for mode:%d", mode);
 		/* Restore the connection info */
 		cds_restore_deleted_conn_info(&info);
@@ -4013,8 +4015,10 @@ QDF_STATUS cds_get_pcl_for_existing_conn(enum cds_con_mode mode,
 	if (cds_mode_specific_connection_count(mode, NULL) > 0) {
 		/* Check, store and temp delete the mode's parameter */
 		cds_store_and_del_conn_info(mode, &info);
+		qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 		/* Get the PCL */
 		status = cds_get_pcl(mode, pcl_ch, len, pcl_weight, weight_len);
+		qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 		cds_debug("Get PCL to FW for mode:%d", mode);
 		/* Restore the connection info */
 		cds_restore_deleted_conn_info(&info);
@@ -9434,18 +9438,23 @@ QDF_STATUS cds_get_sap_mandatory_channel(uint32_t *chan)
 }
 
 /**
- * cds_get_valid_chan_weights() - Get the weightage for all valid channels
+ * cds_get_valid_chan_weights() - Get the weightage for all
+ * requested valid channels
  * @weight: Pointer to the structure containing pcl, saved channel list and
  * weighed channel list
+ * @mode: connection type
  *
- * Provides the weightage for all valid channels. This compares the PCL list
- * with the valid channel list. The channels present in the PCL get their
- * corresponding weightage and the non-PCL channels get the default weightage
- * of WEIGHT_OF_NON_PCL_CHANNELS.
+ * Provides the weightage for all requested valid channels. This
+ * compares the PCL list with the valid channel list. The
+ * channels present in the PCL get their corresponding weightage
+ * and the non-PCL channels get the default weightage of
+ * WEIGHT_OF_NON_PCL_CHANNELS, otherwise
+ * WEIGHT_OF_DISALLOWED_CHANNELS.
  *
  * Return: QDF_STATUS
  */
-QDF_STATUS cds_get_valid_chan_weights(struct sir_pcl_chan_weights *weight)
+QDF_STATUS cds_get_valid_chan_weights(struct sir_pcl_chan_weights *weight,
+			enum cds_con_mode mode)
 {
 	uint32_t i, j;
 	cds_context_type *cds_ctx;
@@ -9475,7 +9484,8 @@ QDF_STATUS cds_get_valid_chan_weights(struct sir_pcl_chan_weights *weight)
 	qdf_mem_set(weight->weighed_valid_list, QDF_MAX_NUM_CHAN,
 		    WEIGHT_OF_DISALLOWED_CHANNELS);
 	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
-	if (cds_mode_specific_connection_count(CDS_STA_MODE, NULL) > 0) {
+	if ((cds_mode_specific_connection_count(CDS_STA_MODE, NULL) > 0)
+		&& (CDS_STA_MODE == mode)) {
 		/*
 		 * Store the STA mode's parameter and temporarily delete it
 		 * from the concurrency table. This way the allow concurrency
@@ -9501,6 +9511,16 @@ QDF_STATUS cds_get_valid_chan_weights(struct sir_pcl_chan_weights *weight)
 		cds_restore_deleted_conn_info(&info);
 	}
 	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
+
+	if (CDS_SAP_MODE == mode)
+		for (i = 0; i < weight->saved_num_chan; i++) {
+			if (cds_allow_concurrency(CDS_SAP_MODE,
+						weight->saved_chan_list[i],
+						HW_MODE_20_MHZ)) {
+				weight->weighed_valid_list[i] =
+					WEIGHT_OF_NON_PCL_CHANNELS;
+			}
+		}
 
 	for (i = 0; i < weight->saved_num_chan; i++) {
 		for (j = 0; j < weight->pcl_len; j++) {

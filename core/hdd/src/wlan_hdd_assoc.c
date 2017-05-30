@@ -1502,7 +1502,7 @@ static QDF_STATUS hdd_dis_connect_handler(hdd_adapter_t *pAdapter,
 		return QDF_STATUS_E_FAILURE;
 	}
 	/* notify apps that we can't pass traffic anymore */
-	hdd_notice("Disabling queues");
+	hdd_debug("Disabling queues");
 	wlan_hdd_netif_queue_control(pAdapter,
 				     WLAN_STOP_ALL_NETIF_QUEUE_N_CARRIER,
 				     WLAN_CONTROL_PATH);
@@ -1824,7 +1824,7 @@ QDF_STATUS hdd_roam_register_sta(hdd_adapter_t *pAdapter,
 		staDesc.is_qos_enabled = 0;
 
 #ifdef FEATURE_WLAN_WAPI
-	hdd_notice("WAPI STA Registered: %d",
+	hdd_debug("WAPI STA Registered: %d",
 		   pAdapter->wapi_info.fIsWapiSta);
 	if (pAdapter->wapi_info.fIsWapiSta)
 		staDesc.is_wapi_supported = 1;

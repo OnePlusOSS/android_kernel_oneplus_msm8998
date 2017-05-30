@@ -110,20 +110,10 @@ tSirRetStatus u_mac_post_ctrl_msg(void *pSirGlobal, tSirMbMsg *pMb)
 	tSirMsgQ msg;
 	tSirRetStatus status = eSIR_SUCCESS;
 	tpAniSirGlobal pMac = (tpAniSirGlobal) pSirGlobal;
-	tSirMbMsg *pMbLocal;
 
 	msg.type = pMb->type;
 	msg.bodyval = 0;
-
-	pMbLocal = qdf_mem_malloc(pMb->msgLen);
-	if (!pMbLocal) {
-		WMA_LOGE("Memory allocation failed! Can't send 0x%x\n",
-			 msg.type);
-		return eSIR_MEM_ALLOC_FAILED;
-	}
-
-	qdf_mem_copy((void *)pMbLocal, (void *)pMb, pMb->msgLen);
-	msg.bodyptr = pMbLocal;
+	msg.bodyptr = pMb;
 
 	switch (msg.type & HAL_MMH_MB_MSG_TYPE_MASK) {
 	case WMA_MSG_TYPES_BEGIN:       /* Posts a message to the HAL MsgQ */

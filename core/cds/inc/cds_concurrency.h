@@ -866,7 +866,8 @@ uint8_t cds_get_mcc_operating_channel(uint8_t session_id);
 QDF_STATUS cds_get_pcl_for_existing_conn(enum cds_con_mode mode,
 			uint8_t *pcl_ch, uint32_t *len,
 			uint8_t *weight_list, uint32_t weight_len);
-QDF_STATUS cds_get_valid_chan_weights(struct sir_pcl_chan_weights *weight);
+QDF_STATUS cds_get_valid_chan_weights(struct sir_pcl_chan_weights *weight,
+			enum cds_con_mode mode);
 QDF_STATUS cds_set_hw_mode_on_channel_switch(uint8_t session_id);
 void cds_set_do_hw_mode_change_flag(bool flag);
 bool cds_is_hw_mode_change_after_vdev_up(void);

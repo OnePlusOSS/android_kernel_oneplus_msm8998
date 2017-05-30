@@ -1621,22 +1621,26 @@ static void sme_process_ready_to_ext_wow(tHalHandle hHal,
  */
 QDF_STATUS sme_hdd_ready_ind(tHalHandle hHal)
 {
-	tSirSmeReadyReq Msg;
+	tSirSmeReadyReq *msg;
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 
 	MTRACE(qdf_trace(QDF_MODULE_ID_SME,
 			 TRACE_CODE_SME_RX_HDD_MSG_HDDREADYIND, NO_SESSION, 0));
 	do {
-
-		Msg.messageType = eWNI_SME_SYS_READY_IND;
-		Msg.length = sizeof(tSirSmeReadyReq);
-		Msg.add_bssdescr_cb = csr_scan_process_single_bssdescr;
-		Msg.csr_roam_synch_cb = csr_roam_synch_callback;
-		Msg.sme_msg_cb = sme_process_msg_callback;
+		msg = qdf_mem_malloc(sizeof(*msg));
+		if (!msg) {
+			sme_err("Memory allocation failed! for msg");
+			return QDF_STATUS_E_NOMEM;
+		}
+		msg->messageType = eWNI_SME_SYS_READY_IND;
+		msg->length = sizeof(*msg);
+		msg->add_bssdescr_cb = csr_scan_process_single_bssdescr;
+		msg->csr_roam_synch_cb = csr_roam_synch_callback;
+		msg->sme_msg_cb = sme_process_msg_callback;
 
 		if (eSIR_FAILURE != u_mac_post_ctrl_msg(hHal, (tSirMbMsg *)
-							&Msg))
+							msg))
 			status = QDF_STATUS_SUCCESS;
 		else {
 			sme_err("u_mac_post_ctrl_msg failed to send eWNI_SME_SYS_READY_IND");
@@ -11839,7 +11843,7 @@ void active_list_cmd_timeout_handle(void *userData)
 	} else {
 		if (!mac_ctx->roam.configParam.enable_fatal_event &&
 		   !(cds_is_load_or_unload_in_progress() ||
-		    cds_is_driver_recovering()))
+		    cds_is_driver_recovering() || cds_is_driver_in_bad_state()))
 			QDF_BUG(0);
 	}
 }

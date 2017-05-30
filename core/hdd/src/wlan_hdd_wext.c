@@ -3557,7 +3557,7 @@ QDF_STATUS wlan_hdd_get_rssi(hdd_adapter_t *pAdapter, int8_t *rssi_value)
 		hdd_err("Invalid context, pAdapter");
 		return QDF_STATUS_E_FAULT;
 	}
-	if (cds_is_driver_recovering()) {
+	if (cds_is_driver_recovering() || cds_is_driver_in_bad_state()) {
 		hdd_warn("Recovery in Progress. State: 0x%x Ignore!!!",
 			cds_get_driver_state());
 		/* return a cached value */
@@ -3800,10 +3800,10 @@ int wlan_hdd_get_linkspeed_for_peermac(hdd_adapter_t *pAdapter,
 	status = sme_get_link_speed(WLAN_HDD_GET_HAL_CTX(pAdapter),
 				    linkspeed_req,
 				    &context, hdd_get_link_speed_cb);
+	qdf_mem_free(linkspeed_req);
 	errno = qdf_status_to_os_return(status);
 	if (errno) {
 		hdd_err("Unable to retrieve statistics for link speed");
-		qdf_mem_free(linkspeed_req);
 	} else {
 		rc = wait_for_completion_timeout
 			(&context.completion,
@@ -5978,7 +5978,7 @@ QDF_STATUS wlan_hdd_get_class_astats(hdd_adapter_t *pAdapter)
 		hdd_err("pAdapter is NULL");
 		return QDF_STATUS_E_FAULT;
 	}
-	if (cds_is_driver_recovering()) {
+	if (cds_is_driver_recovering() || cds_is_driver_in_bad_state()) {
 		hdd_debug("Recovery in Progress. State: 0x%x Ignore!!!",
 			 cds_get_driver_state());
 		return QDF_STATUS_SUCCESS;
@@ -7052,7 +7052,7 @@ static int __iw_set_mlme(struct net_device *dev,
 			(WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter))->authKeyMgmt =
 				0;
 
-			hdd_notice("Disabling queues");
+			hdd_debug("Disabling queues");
 			wlan_hdd_netif_queue_control(pAdapter,
 					WLAN_STOP_ALL_NETIF_QUEUE_N_CARRIER,
 					WLAN_CONTROL_PATH);
@@ -10261,7 +10261,7 @@ static int iw_get_policy_manager_ut_ops(hdd_context_t *hdd_ctx,
 		uint8_t weight_list[QDF_MAX_NUM_CHAN] = {0};
 		uint32_t pcl_len = 0, i = 0;
 
-		hdd_notice("<iwpriv wlan0 pm_pcl> is called");
+		hdd_debug("<iwpriv wlan0 pm_pcl> is called");
 
 		cds_get_pcl(apps_args[0],
 				pcl, &pcl_len,
@@ -10305,7 +10305,7 @@ static int iw_get_policy_manager_ut_ops(hdd_context_t *hdd_ctx,
 	{
 		enum cds_conc_next_action action;
 
-		hdd_notice("<iwpriv wlan0 pm_query_action> is called");
+		hdd_debug("<iwpriv wlan0 pm_query_action> is called");
 		action = cds_current_connections_update(adapter->sessionId,
 						apps_args[0],
 						SIR_UPDATE_REASON_UT);
@@ -10317,7 +10317,7 @@ static int iw_get_policy_manager_ut_ops(hdd_context_t *hdd_ctx,
 	{
 		bool allow;
 
-		hdd_notice("<iwpriv wlan0 pm_query_allow> is called");
+		hdd_debug("<iwpriv wlan0 pm_query_allow> is called");
 		allow = cds_allow_concurrency(
 				apps_args[0], apps_args[1], apps_args[2]);
 		pr_info("allow %d {0 = don't allow, 1 = allow}", allow);

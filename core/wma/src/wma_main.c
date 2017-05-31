@@ -5217,12 +5217,36 @@ bool wma_is_rx_ldpc_supported_for_channel(uint32_t channel,
 	struct wma_caps_per_phy caps_per_phy = {0};
 	enum cds_band_type band;
 	bool status;
+	t_wma_handle *wma_handle;
+	struct hif_target_info *tgt_info;
+	struct hif_opaque_softc *scn = cds_get_context(QDF_MODULE_ID_HIF);
+
+	if (!scn) {
+		WMA_LOGE("%s: Invalid wma handle", __func__);
+		return false;
+	}
 
 	if (!CDS_IS_CHANNEL_24GHZ(channel))
 		band = CDS_BAND_5GHZ;
 	else
 		band = CDS_BAND_2GHZ;
 
+	tgt_info = hif_get_target_info_handle(scn);
+
+	if ((tgt_info->target_type == TARGET_TYPE_AR6320V1) ||
+	    (tgt_info->target_type == TARGET_TYPE_AR6320V2) ||
+	    (tgt_info->target_type == TARGET_TYPE_AR6320V3) ||
+	    (tgt_info->target_type == TARGET_TYPE_QCA9377V1)) {
+		wma_handle = cds_get_context(QDF_MODULE_ID_WMA);
+		if (!wma_handle) {
+			WMA_LOGE("Invalid wma handle");
+			return false;
+		}
+		if (wma_handle->ht_cap_info & WMI_HT_CAP_LDPC)
+			return true;
+		else
+			return false;
+	}
 	if (QDF_STATUS_SUCCESS != wma_get_caps_for_phyidx_hwmode(
 						&caps_per_phy,
 						hw_mode, band)) {

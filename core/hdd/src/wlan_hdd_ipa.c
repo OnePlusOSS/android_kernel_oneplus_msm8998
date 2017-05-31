@@ -5069,6 +5069,13 @@ static void hdd_ipa_cleanup_iface(struct hdd_ipa_iface_context *iface_context)
 {
 	if (iface_context == NULL)
 		return;
+	if (iface_context->adapter->magic != WLAN_HDD_ADAPTER_MAGIC) {
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG,
+			    "%s: bad adapter(%p).magic(%d)!",
+			    __func__, iface_context->adapter,
+			    iface_context->adapter->magic);
+		return;
+	}
 
 	hdd_ipa_clean_hdr(iface_context->adapter);
 

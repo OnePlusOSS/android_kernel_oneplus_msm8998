@@ -1760,6 +1760,17 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 	if (0 != status)
 		return status;
 
+	if ((eConnectionState_Associated ==
+			WLAN_HDD_GET_STATION_CTX_PTR(pAdapter)->
+						conn_info.connState) &&
+	    (!pHddCtx->config->enable_connected_scan)) {
+		hdd_info("enable_connected_scan is false, Aborting scan");
+		pAdapter->request = request;
+		pAdapter->scan_source = source;
+		schedule_work(&pAdapter->scan_block_work);
+		return 0;
+	}
+
 	MTRACE(qdf_trace(QDF_MODULE_ID_HDD,
 			 TRACE_CODE_HDD_CFG80211_SCAN,
 			 pAdapter->sessionId, request->n_channels));
@@ -3036,6 +3047,15 @@ static int __wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
 
 	if (0 != ret)
 		return ret;
+
+	if ((eConnectionState_Associated ==
+				WLAN_HDD_GET_STATION_CTX_PTR(pAdapter)->
+							conn_info.connState) &&
+	    (!pHddCtx->config->enable_connected_scan)) {
+		hdd_info("enable_connected_scan is false, Aborting scan");
+		return -EBUSY;
+	}
+
 
 	if (!sme_is_session_id_valid(pHddCtx->hHal, pAdapter->sessionId))
 		return -EINVAL;

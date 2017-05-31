@@ -50,29 +50,26 @@ int qdf_get_hash(uint8_t *type,
 		int8_t *hash)
 {
 	int i, ret;
-	struct hash_desc desc;
-	struct scatterlist sg;
+	struct shash_desc desc;
 
 	/* allocate crypto hash type */
-	desc.tfm = crypto_alloc_hash(type, 0, CRYPTO_ALG_ASYNC);
+	desc.tfm = crypto_alloc_shash(type, 0, CRYPTO_ALG_ASYNC);
 
 	if (IS_ERR(desc.tfm)) {
 		ret = PTR_ERR(desc.tfm);
 		return -EINVAL;
 	}
 	desc.flags = 0;
-	ret = crypto_hash_init(&desc);
+	ret = crypto_shash_init(&desc);
 
 	if (ret)
 		return ret;
 
-	for (i = 0; i < element_cnt ; i++) {
-		sg_init_one(&sg, addr[i], addr_len[i]);
-		crypto_hash_update(&desc, &sg, addr_len[i]);
-	}
+	for (i = 0; i < element_cnt ; i++)
+		crypto_shash_update(&desc, addr[i], addr_len[i]);
 
-	crypto_hash_final(&desc, hash);
-	crypto_free_hash(desc.tfm);
+	crypto_shash_final(&desc, hash);
+	crypto_free_shash(desc.tfm);
 	return 0;
 }
 
@@ -82,31 +79,28 @@ int qdf_get_hmac_hash(uint8_t *type, uint8_t *key,
 		int8_t *hash)
 {
 	int i, ret;
-	struct hash_desc desc;
-	struct scatterlist sg;
+	struct shash_desc desc;
 
 	/* allocate crypto hash type */
-	desc.tfm = crypto_alloc_hash(type, 0, CRYPTO_ALG_ASYNC);
+	desc.tfm = crypto_alloc_shash(type, 0, CRYPTO_ALG_ASYNC);
 
 	if (IS_ERR(desc.tfm)) {
 		ret = PTR_ERR(desc.tfm);
 		return -EINVAL;
 	}
 	desc.flags = 0;
-	ret = crypto_hash_setkey(desc.tfm, key, keylen);
+	ret = crypto_shash_setkey(desc.tfm, key, keylen);
 
-	crypto_hash_init(&desc);
+	crypto_shash_init(&desc);
 
 	if (ret)
 		return ret;
 
-	for (i = 0; i < element_cnt ; i++) {
-		sg_init_one(&sg, addr[i], addr_len[i]);
-		crypto_hash_update(&desc, &sg, addr_len[i]);
-	}
+	for (i = 0; i < element_cnt ; i++)
+		crypto_shash_update(&desc, addr[i], addr_len[i]);
 
-	crypto_hash_final(&desc, hash);
-	crypto_free_hash(desc.tfm);
+	crypto_shash_final(&desc, hash);
+	crypto_free_shash(desc.tfm);
 	return 0;
 }
 

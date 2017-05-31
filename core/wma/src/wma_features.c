@@ -2325,6 +2325,7 @@ QDF_STATUS wma_extract_comb_phyerr_spectral(void *handle, void *data,
 	return QDF_STATUS_SUCCESS;
 }
 
+#if defined(QCA_WIFI_3_0_ADRASTEA)
 #ifdef FEATURE_SPECTRAL_SCAN
 /**
  * get_spectral_control_info() - Get spectral control channel info
@@ -3225,6 +3226,75 @@ void wma_register_phy_err_event_handler(tp_wma_handle wma_handle)
 	WMA_LOGD("%s: WMI_PHYERR_EVENTID event handler registered",
 			 __func__);
 }
+
+#else
+/**
+ * wma_unified_phyerr_rx_event_handler() - phyerr event handler
+ * @handle: wma handle
+ * @data: data buffer
+ * @datalen: buffer length
+ *
+ * WMI Handler for WMI_PHYERR_EVENTID event from firmware.
+ *
+ * Return: 0 for success, other value for failure
+ */
+static int wma_unified_phyerr_rx_event_handler(void *handle,
+						uint8_t *data, uint32_t datalen)
+{
+       return dfs_phyerr_no_offload_event_handler(handle,
+						data, datalen);
+}
+
+/**
+ * wma_unified_dfs_radar_rx_event_handler() - radar event handler
+ * @handle: wma handle
+ * @data: data buffer
+ * @datalen: buffer length
+ *
+ * WMI Handler for WMI_DFS_RADAR_EVENTID event from firmware.
+ *
+ * Return: 0 for success, other value for failure
+ */
+static int wma_unified_dfs_radar_rx_event_handler(void *handle,
+						uint8_t *data, uint32_t datalen)
+{
+       return dfs_phyerr_offload_event_handler(handle,
+						data, datalen);
+}
+
+/**
+ * wma_register_phy_err_event_handler() - register appropriate phy error event
+ *     handler
+ * @wma_handle: wma handle
+ *
+ * Register phyerror event handler for DFS
+ *
+ * Return: none
+ */
+void wma_register_phy_err_event_handler(tp_wma_handle wma_handle)
+{
+	if (NULL == wma_handle) {
+		WMA_LOGE("%s:wma_handle is NULL", __func__);
+		return;
+	}
+
+	if (false == wma_handle->dfs_phyerr_filter_offload) {
+		wmi_unified_register_event_handler(wma_handle->wmi_handle,
+					WMI_PHYERR_EVENTID,
+					wma_unified_phyerr_rx_event_handler,
+					WMA_RX_WORK_CTX);
+		WMA_LOGD("%s: WMI_PHYERR_EVENTID event handler registered",
+			__func__);
+	} else {
+		wmi_unified_register_event_handler(wma_handle->wmi_handle,
+					WMI_DFS_RADAR_EVENTID,
+					wma_unified_dfs_radar_rx_event_handler,
+					WMA_RX_WORK_CTX);
+		WMA_LOGD("%s: WMI_DFS_RADAR_EVENTID event handler registered",
+		__func__);
+	}
+}
+#endif
 
 /**
  * wma_unified_dfs_phyerr_filter_offload_enable() - enable dfs phyerr filter

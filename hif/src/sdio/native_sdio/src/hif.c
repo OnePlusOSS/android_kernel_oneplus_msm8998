@@ -55,6 +55,23 @@
 #define ATH_MODULE_NAME hif
 #include "a_debug.h"
 
+#define BUS_REQ_RECORD_SIZE 100
+u_int32_t g_bus_req_buf_idx = 0;
+qdf_spinlock_t g_bus_request_record_lock;
+struct bus_request_record bus_request_record_buf[BUS_REQ_RECORD_SIZE];
+
+#define BUS_REQUEST_RECORD(r, a, l) { \
+	qdf_spin_lock_irqsave(&g_bus_request_record_lock); \
+	if (g_bus_req_buf_idx == BUS_REQ_RECORD_SIZE) \
+		g_bus_req_buf_idx = 0; \
+	bus_request_record_buf[g_bus_req_buf_idx].request = r;  \
+	bus_request_record_buf[g_bus_req_buf_idx].address = a;  \
+	bus_request_record_buf[g_bus_req_buf_idx].len = l; \
+	bus_request_record_buf[g_bus_req_buf_idx].time = qdf_get_monotonic_boottime(); \
+	g_bus_req_buf_idx++; \
+	qdf_spin_unlock_irqrestore(&g_bus_request_record_lock); \
+}
+
 #if HIF_USE_DMA_BOUNCE_BUFFER
 /* macro to check if DMA buffer is WORD-aligned and DMA-able.
  * Most host controllers assume the
@@ -633,11 +650,12 @@ hif_read_write(struct hif_sdio_dev *device,
 					 : "Synch"));
 			busrequest = hif_allocate_bus_request(device);
 			if (busrequest == NULL) {
-				AR_DEBUG_PRINTF(ATH_DEBUG_ERROR,
+				AR_DEBUG_PRINTF(ATH_DEBUG_INFO,
 					("no async bus requests available (%s, addr:0x%X, len:%d)\n",
 					 request & HIF_SDIO_READ ? "READ" :
 					 "WRITE", address, length));
-				return QDF_STATUS_E_FAILURE;
+				BUS_REQUEST_RECORD(request, address, length);
+				return QDF_STATUS_E_CANCELED;
 			}
 			busrequest->address = address;
 			busrequest->buffer = buffer;
@@ -1786,8 +1804,8 @@ static int hif_device_inserted(struct sdio_func *func,
 	}
 
 	qdf_spinlock_create(&device->lock);
-
 	qdf_spinlock_create(&device->asynclock);
+	qdf_spinlock_create(&g_bus_request_record_lock);
 
 	DL_LIST_INIT(&device->scatter_req_head);
 

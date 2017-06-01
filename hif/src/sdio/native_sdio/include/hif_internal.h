@@ -181,6 +181,20 @@ enum hif_sdio_device_state {
 		HIF_DEVICE_STATE_WOW
 };
 
+/**
+ * struct bus_request_record - basic bus request struct
+ * @request: request info
+ * @address: address of sdio register
+ * @len: length of register that this request will read or write
+ * @time: record time
+ */
+struct bus_request_record {
+	u_int32_t request;
+	u_int32_t address;
+	u_int32_t len;
+	u_int64_t time;
+};
+
 struct bus_request {
 	struct bus_request *next;       /* link list of available requests */
 	struct bus_request *inusenext;  /* link list of in use requests */

@@ -719,7 +719,7 @@ void htt_t2h_msg_handler(void *context, HTC_PACKET *pkt)
 		}
 
 		ol_tx_completion_handler(pdev->txrx_pdev, num_msdus,
-					 status, msg_word + 1);
+					 status, msg_word);
 		HTT_TX_SCHED(pdev);
 		break;
 	}
@@ -922,7 +922,7 @@ void htt_t2h_msg_handler_fast(void *context, qdf_nbuf_t *cmpl_msdus,
 				}
 			}
 			ol_tx_completion_handler(pdev->txrx_pdev, num_msdus,
-						 status, msg_word + 1);
+						 status, msg_word);
 
 			break;
 		}

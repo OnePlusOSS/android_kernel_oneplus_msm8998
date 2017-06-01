@@ -1988,6 +1988,7 @@ __wlan_hdd_cfg80211_set_scanning_mac_oui(struct wiphy *wiphy,
 	struct nlattr *tb[QCA_WLAN_VENDOR_ATTR_SET_SCANNING_MAC_OUI_MAX + 1];
 	QDF_STATUS status;
 	int ret;
+	int len;
 	struct net_device *ndev = wdev->netdev;
 	hdd_adapter_t *adapter = WLAN_HDD_GET_PRIV_PTR(ndev);
 
@@ -2007,6 +2008,10 @@ __wlan_hdd_cfg80211_set_scanning_mac_oui(struct wiphy *wiphy,
 		return -ENOTSUPP;
 	}
 
+	/*
+	 * audit note: it is ok to pass a NULL policy here since only
+	 * one attribute is parsed and it is explicitly validated
+	 */
 	if (nla_parse(tb, QCA_WLAN_VENDOR_ATTR_SET_SCANNING_MAC_OUI_MAX,
 		      data, data_len, NULL)) {
 		hdd_err("Invalid ATTR");
@@ -2020,10 +2025,19 @@ __wlan_hdd_cfg80211_set_scanning_mac_oui(struct wiphy *wiphy,
 		hdd_err("qdf_mem_malloc failed");
 		return -ENOMEM;
 	}
+
 	if (!tb[QCA_WLAN_VENDOR_ATTR_SET_SCANNING_MAC_OUI]) {
 		hdd_err("attr mac oui failed");
 		goto fail;
 	}
+
+	len = nla_len(tb[QCA_WLAN_VENDOR_ATTR_SET_SCANNING_MAC_OUI]);
+	if (len != sizeof(pReqMsg->oui)) {
+		hdd_err("attr mac oui invalid size %d expected %zu",
+			len, sizeof(pReqMsg->oui));
+		goto fail;
+	}
+
 	nla_memcpy(&pReqMsg->oui[0],
 		   tb[QCA_WLAN_VENDOR_ATTR_SET_SCANNING_MAC_OUI],
 		   sizeof(pReqMsg->oui));

@@ -417,8 +417,11 @@ static int mdss_mdp_splash_kickoff(struct msm_fb_data_type *mfd,
 	}
 
 	req = kzalloc(sizeof(struct mdp_overlay), GFP_KERNEL);
-	if (!req)
-		return -ENOMEM;
+	if (!req) {
+		pr_err("fail allocate memory\n");
+		ret = -ENOMEM;
+		goto end;
+	}
 
 	/*
 	 * use single pipe for

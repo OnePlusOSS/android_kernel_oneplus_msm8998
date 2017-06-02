@@ -1000,11 +1000,11 @@ typedef struct sSirMacWpaInfo {
 	uint8_t info[SIR_MAC_MAX_IE_LENGTH];
 } qdf_packed tSirMacWpaInfo, *tpSirMacWpaInfo,
 tSirMacRsnInfo, *tpSirMacRsnInfo;
+
 typedef struct sSirMacWapiInfo {
 	uint8_t length;
 	uint8_t info[SIR_MAC_MAX_IE_LENGTH];
-} qdf_packed tSirMacWapiInfo, *tpSirMacWapiInfo,
-tSirMacWapiInfo, *tpSirMacWapiInfo;
+} qdf_packed tSirMacWapiInfo, *tpSirMacWapiInfo;
 
 typedef struct sSirMacFHParamSet {
 	uint16_t dwellTime;

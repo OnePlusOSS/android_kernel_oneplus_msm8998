@@ -357,12 +357,6 @@ void ol_txrx_pdev_unpause(struct ol_txrx_pdev_t *pdev, uint32_t reason)
  */
 void ol_txrx_tx_sync(ol_txrx_pdev_handle data_pdev, uint8_t sync_cnt);
 
-typedef void (*ol_txrx_vdev_delete_cb)(void *context);
-
-
-typedef void
-(*ol_txrx_data_tx_cb)(void *ctxt, qdf_nbuf_t tx_frm, int had_error);
-
 /**
  * @brief Store a delivery notification callback for specific data frames.
  * @details

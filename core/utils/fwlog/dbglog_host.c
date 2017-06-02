@@ -33,7 +33,6 @@
 #include "wmi.h"
 #include "wmi_unified_api.h"
 #include "wma.h"
-#include "ol_defines.h"
 #include <wlan_nlink_srv.h>
 #include "host_diag_core_event.h"
 #include "qwlan_version.h"

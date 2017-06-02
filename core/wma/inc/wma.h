@@ -48,7 +48,6 @@
 #include "lim_types.h"
 #include "wmi_unified_api.h"
 #include "cdp_txrx_cmn.h"
-#include "ol_defines.h"
 #include "dbglog.h"
 #include "wma_spectral.h"
 

@@ -5897,6 +5897,7 @@ int voc_set_device_config(uint32_t session_id, uint8_t path_dir,
 		break;
 	default:
 		pr_err("%s: Invalid path_dir %d\n", __func__, path_dir);
+		mutex_unlock(&v->lock);
 		return -EINVAL;
 	}
 

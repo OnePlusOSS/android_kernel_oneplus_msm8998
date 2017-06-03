@@ -611,7 +611,8 @@ enum hdd_lro_rx_status hdd_lro_rx(hdd_context_t *hdd_ctx,
 
 	if (((adapter->dev->features & NETIF_F_LRO) != NETIF_F_LRO) ||
 			qdf_atomic_read(&hdd_ctx->disable_lro_in_concurrency) ||
-			QDF_NBUF_CB_RX_PEER_CACHED_FRM(skb))
+			QDF_NBUF_CB_RX_PEER_CACHED_FRM(skb) ||
+			qdf_atomic_read(&hdd_ctx->disable_lro_in_low_tput))
 		return status;
 
 	if (QDF_NBUF_CB_RX_TCP_PROTO(skb)) {
@@ -711,4 +712,12 @@ void hdd_disable_lro_in_concurrency(hdd_context_t *hdd_ctx)
 		hdd_ctx->config->enable_tcp_delack = 1;
 	}
 	qdf_atomic_set(&hdd_ctx->disable_lro_in_concurrency, 1);
+}
+
+void hdd_disable_lro_for_low_tput(hdd_context_t *hdd_ctx, bool disable)
+{
+	if (disable)
+		qdf_atomic_set(&hdd_ctx->disable_lro_in_low_tput, 1);
+	else
+		qdf_atomic_set(&hdd_ctx->disable_lro_in_low_tput, 0);
 }

@@ -252,7 +252,7 @@ static inline bool hdd_ipa_is_present(hdd_context_t *hdd_ctx)
  *
  * Return: QDF_STATUS
  */
-QDF_STATUS hdd_ipa_uc_ol_init(hdd_context_t *hdd_ctx)
+static inline QDF_STATUS hdd_ipa_uc_ol_init(hdd_context_t *hdd_ctx)
 {
 	return QDF_STATUS_SUCCESS;
 }
@@ -263,7 +263,7 @@ QDF_STATUS hdd_ipa_uc_ol_init(hdd_context_t *hdd_ctx)
  *
  * Return: 0 on success, negativer errno on error
  */
-static int hdd_ipa_uc_ol_deinit(hdd_context_t *hdd_ctx)
+static inline int hdd_ipa_uc_ol_deinit(hdd_context_t *hdd_ctx)
 {
 	return 0;
 }

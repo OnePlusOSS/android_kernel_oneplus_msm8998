@@ -190,9 +190,10 @@ typedef  enum  {
     WMI_SERVICE_PKT_ROUTING=121, /* Support for routing specific data packets to selected destination rings */
     WMI_SERVICE_CHECK_CAL_VERSION=122, /* Support cal version check */
     WMI_SERVICE_OFFCHAN_TX_WMI=123, /* Support offchan data/mgmt tx over wmi */
-
-
-    /******* ADD NEW SERVICES HERE UNTIL ALL VALUES UP TO 128 ARE USED *******/
+    WMI_SERVICE_8SS_TX_BFEE = 124, /* support for 8Ant Bfee */
+    WMI_SERVICE_EXTENDED_NSS_SUPPORT=125, /* Extend NSS support for 80Mhz and 160Mhz */
+    WMI_SERVICE_ACK_TIMEOUT=126, /* Support TX ack timeout configurations */
+    WMI_SERVICE_PDEV_BSS_CHANNEL_INFO_64 = 127, /* BSS channel info (freq, noise floor, rx clear, cycles 64-bit counters) event support */
 
     WMI_MAX_SERVICE=128, /* max service */
 
@@ -206,8 +207,9 @@ typedef  enum  {
      * WMI_SERVICE_READY_EVENT message.
      */
 
-    /*PUT 1ST EXT SERVICE HERE:*//*WMI_SERVICE_xxxxxxxx=128,*/
-    /*PUT 2ND EXT SERVICE HERE:*//*WMI_SERVICE_yyyyyyyy=129,*/
+    WMI_SERVICE_CHAN_LOAD_INFO=128, /* The values in WMI_CHAN_INFO_EVENTID is the difference in cycle counters */
+
+    /******* ADD NEW SERVICES HERE *******/
 
     WMI_MAX_EXT_SERVICE
 

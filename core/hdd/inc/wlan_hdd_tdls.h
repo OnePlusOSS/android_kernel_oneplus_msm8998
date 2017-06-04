@@ -813,6 +813,14 @@ int wlan_hdd_cfg80211_configure_tdls_mode(struct wiphy *wiphy,
  */
 void hdd_tdls_notify_set_state_disable(uint32_t session_id);
 
+/**
+ * hdd_tdls_timers_stop() - stop all the tdls timers
+ * @adapter: hdd adapter
+ *
+ * Return: none
+ */
+void hdd_tdls_timers_stop(hdd_adapter_t *adapter);
+
 #else
 static inline void hdd_update_tdls_ct_and_teardown_links(hdd_context_t *hdd_ctx)
 {
@@ -880,6 +888,9 @@ hdd_tdls_notify_p2p_roc(hdd_context_t *hdd_ctx,
 static inline void hdd_tdls_notify_set_state_disable(uint32_t session_id)
 {
 }
+static inline void hdd_tdls_timers_stop(hdd_adapter_t *adapter)
+{
+}
 #endif /* End of FEATURE_WLAN_TDLS */
 
 #ifdef FEATURE_WLAN_DIAG_SUPPORT
@@ -916,5 +927,4 @@ static inline void hdd_wlan_block_scan_by_tdls_event(void) {}
 void process_rx_tdls_disc_resp_frame(hdd_adapter_t *adapter,
 				     uint8_t *peer_addr, int8_t rx_rssi);
 
-void wlan_hdd_tdls_timers_stop(tdlsCtx_t *hdd_tdls_ctx);
 #endif /* __HDD_TDLS_H */

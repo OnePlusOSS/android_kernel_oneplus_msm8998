@@ -631,10 +631,25 @@ static void wlan_hdd_tdls_ct_timers_stop(tdlsCtx_t *hdd_tdls_ctx)
  *
  * Return: none
  */
-void wlan_hdd_tdls_timers_stop(tdlsCtx_t *hdd_tdls_ctx)
+static void wlan_hdd_tdls_timers_stop(tdlsCtx_t *hdd_tdls_ctx)
 {
 	wlan_hdd_tdls_monitor_timers_stop(hdd_tdls_ctx);
 	wlan_hdd_tdls_ct_timers_stop(hdd_tdls_ctx);
+}
+
+/**
+ * hdd_tdls_timers_stop() - stop all the tdls timers
+ * @adapter: hdd adapter
+ *
+ * Return: none
+ */
+void hdd_tdls_timers_stop(hdd_adapter_t *adapter)
+{
+	tdlsCtx_t *tdls_ctx;
+
+	tdls_ctx = WLAN_HDD_GET_TDLS_CTX_PTR(adapter);
+	if (tdls_ctx)
+		wlan_hdd_tdls_timers_stop(tdls_ctx);
 }
 
 /**

@@ -18149,3 +18149,8 @@ QDF_STATUS sme_ipa_uc_stat_request(tHalHandle hal, uint32_t vdev_id,
 
 	return status;
 }
+
+int sme_cli_set_command(int vdev_id, int param_id, int sval, int vpdev)
+{
+	return wma_cli_set_command(vdev_id, param_id, sval, vpdev);
+}

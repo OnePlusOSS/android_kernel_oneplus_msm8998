@@ -670,7 +670,7 @@ QDF_STATUS hdd_set_ibss_power_save_params(hdd_adapter_t *adapter)
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	ret = wma_cli_set_command(adapter->sessionId,
+	ret = sme_cli_set_command(adapter->sessionId,
 				  WMA_VDEV_IBSS_SET_ATIM_WINDOW_SIZE,
 				  hdd_ctx->config->ibssATIMWinSize,
 				  VDEV_CMD);
@@ -679,7 +679,7 @@ QDF_STATUS hdd_set_ibss_power_save_params(hdd_adapter_t *adapter)
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	ret = wma_cli_set_command(adapter->sessionId,
+	ret = sme_cli_set_command(adapter->sessionId,
 				  WMA_VDEV_IBSS_SET_POWER_SAVE_ALLOWED,
 				  hdd_ctx->config->isIbssPowerSaveAllowed,
 				  VDEV_CMD);
@@ -689,7 +689,7 @@ QDF_STATUS hdd_set_ibss_power_save_params(hdd_adapter_t *adapter)
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	ret = wma_cli_set_command(adapter->sessionId,
+	ret = sme_cli_set_command(adapter->sessionId,
 				  WMA_VDEV_IBSS_SET_POWER_COLLAPSE_ALLOWED,
 				  hdd_ctx->config->
 				  isIbssPowerCollapseAllowed, VDEV_CMD);
@@ -699,7 +699,7 @@ QDF_STATUS hdd_set_ibss_power_save_params(hdd_adapter_t *adapter)
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	ret = wma_cli_set_command(adapter->sessionId,
+	ret = sme_cli_set_command(adapter->sessionId,
 				  WMA_VDEV_IBSS_SET_AWAKE_ON_TX_RX,
 				  hdd_ctx->config->isIbssAwakeOnTxRx,
 				  VDEV_CMD);
@@ -708,7 +708,7 @@ QDF_STATUS hdd_set_ibss_power_save_params(hdd_adapter_t *adapter)
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	ret = wma_cli_set_command(adapter->sessionId,
+	ret = sme_cli_set_command(adapter->sessionId,
 				  WMA_VDEV_IBSS_SET_INACTIVITY_TIME,
 				  hdd_ctx->config->ibssInactivityCount,
 				  VDEV_CMD);
@@ -717,7 +717,7 @@ QDF_STATUS hdd_set_ibss_power_save_params(hdd_adapter_t *adapter)
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	ret = wma_cli_set_command(adapter->sessionId,
+	ret = sme_cli_set_command(adapter->sessionId,
 				  WMA_VDEV_IBSS_SET_TXSP_END_INACTIVITY_TIME,
 				  hdd_ctx->config->ibssTxSpEndInactivityTime,
 				  VDEV_CMD);
@@ -727,7 +727,7 @@ QDF_STATUS hdd_set_ibss_power_save_params(hdd_adapter_t *adapter)
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	ret = wma_cli_set_command(adapter->sessionId,
+	ret = sme_cli_set_command(adapter->sessionId,
 				  WMA_VDEV_IBSS_PS_SET_WARMUP_TIME_SECS,
 				  hdd_ctx->config->ibssPsWarmupTime,
 				  VDEV_CMD);
@@ -737,7 +737,7 @@ QDF_STATUS hdd_set_ibss_power_save_params(hdd_adapter_t *adapter)
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	ret = wma_cli_set_command(adapter->sessionId,
+	ret = sme_cli_set_command(adapter->sessionId,
 				  WMA_VDEV_IBSS_PS_SET_1RX_CHAIN_IN_ATIM_WINDOW,
 				  hdd_ctx->config->ibssPs1RxChainInAtimEnable,
 				  VDEV_CMD);
@@ -2895,7 +2895,7 @@ QDF_STATUS hdd_init_station_mode(hdd_adapter_t *adapter)
 
 	set_bit(WMM_INIT_DONE, &adapter->event_flags);
 
-	ret_val = wma_cli_set_command(adapter->sessionId,
+	ret_val = sme_cli_set_command(adapter->sessionId,
 				      WMI_PDEV_PARAM_BURST_ENABLE,
 				      hdd_ctx->config->enableSifsBurst,
 				      PDEV_CMD);
@@ -3167,7 +3167,7 @@ static void hdd_set_fw_log_params(hdd_context_t *hdd_ctx,
 	/* Enable FW logs based on INI configuration */
 	hdd_ctx->fw_log_settings.dl_type =
 			hdd_ctx->config->enableFwLogType;
-	ret = wma_cli_set_command(adapter->sessionId,
+	ret = sme_cli_set_command(adapter->sessionId,
 			WMI_DBGLOG_TYPE,
 			hdd_ctx->config->enableFwLogType,
 			DBG_CMD);
@@ -3177,7 +3177,7 @@ static void hdd_set_fw_log_params(hdd_context_t *hdd_ctx,
 
 	hdd_ctx->fw_log_settings.dl_loglevel =
 			hdd_ctx->config->enableFwLogLevel;
-	ret = wma_cli_set_command(adapter->sessionId,
+	ret = sme_cli_set_command(adapter->sessionId,
 			WMI_DBGLOG_LOG_LEVEL,
 			hdd_ctx->config->enableFwLogLevel,
 			DBG_CMD);
@@ -3220,7 +3220,7 @@ static void hdd_set_fw_log_params(hdd_context_t *hdd_ctx,
 
 		value = moduleloglevel[count] << 16;
 		value |= moduleloglevel[count + 1];
-		ret = wma_cli_set_command(adapter->sessionId,
+		ret = sme_cli_set_command(adapter->sessionId,
 				WMI_DBGLOG_MOD_LOG_LEVEL,
 				value, DBG_CMD);
 		if (ret != 0)
@@ -3269,7 +3269,7 @@ int hdd_set_fw_params(hdd_adapter_t *adapter)
 		 * as param_id << 29 | param_value.
 		 * Below param_value = 0(disable)
 		 */
-		ret = wma_cli_set_command(adapter->sessionId,
+		ret = sme_cli_set_command(adapter->sessionId,
 					  WMI_STA_SMPS_PARAM_CMDID,
 					  HDD_DTIM_1CHAIN_RX_ID <<
 					  HDD_SMPS_PARAM_VALUE_S,
@@ -3279,7 +3279,7 @@ int hdd_set_fw_params(hdd_adapter_t *adapter)
 			goto error;
 		}
 
-		ret = wma_cli_set_command(adapter->sessionId,
+		ret = sme_cli_set_command(adapter->sessionId,
 					  WMI_PDEV_PARAM_TX_CHAIN_MASK,
 					  hdd_ctx->config->txchainmask1x1,
 					  PDEV_CMD);
@@ -3289,7 +3289,7 @@ int hdd_set_fw_params(hdd_adapter_t *adapter)
 			goto error;
 		}
 
-		ret = wma_cli_set_command(adapter->sessionId,
+		ret = sme_cli_set_command(adapter->sessionId,
 					  WMI_PDEV_PARAM_RX_CHAIN_MASK,
 					  hdd_ctx->config->rxchainmask1x1,
 					  PDEV_CMD);
@@ -3305,7 +3305,7 @@ int hdd_set_fw_params(hdd_adapter_t *adapter)
 	}
 
 	if (QDF_GLOBAL_FTM_MODE != cds_get_conparam()) {
-		ret = wma_cli_set_command(adapter->sessionId,
+		ret = sme_cli_set_command(adapter->sessionId,
 					  WMI_PDEV_PARAM_HYST_EN,
 					  hdd_ctx->config->enableMemDeepSleep,
 					  PDEV_CMD);
@@ -3316,7 +3316,7 @@ int hdd_set_fw_params(hdd_adapter_t *adapter)
 			goto error;
 		}
 
-		ret = wma_cli_set_command(adapter->sessionId,
+		ret = sme_cli_set_command(adapter->sessionId,
 					  WMI_VDEV_PARAM_ENABLE_RTSCTS,
 					  hdd_ctx->config->rts_profile,
 					  VDEV_CMD);
@@ -3327,7 +3327,7 @@ int hdd_set_fw_params(hdd_adapter_t *adapter)
 
 		hdd_debug("SET AMSDU num %d", hdd_ctx->config->max_amsdu_num);
 
-		ret = wma_cli_set_command(adapter->sessionId,
+		ret = sme_cli_set_command(adapter->sessionId,
 					  GEN_VDEV_PARAM_AMSDU,
 					  hdd_ctx->config->max_amsdu_num,
 					  GEN_CMD);
@@ -8418,7 +8418,7 @@ static int hdd_set_smart_chainmask_enabled(hdd_context_t *hdd_ctx)
 	int vpdev = PDEV_CMD;
 	int ret;
 
-	ret = wma_cli_set_command(vdev_id, param_id, value, vpdev);
+	ret = sme_cli_set_command(vdev_id, param_id, value, vpdev);
 	if (ret)
 		hdd_err("WMI_PDEV_PARAM_SMART_CHAINMASK_SCHEME failed %d", ret);
 
@@ -8433,7 +8433,7 @@ static int hdd_set_alternative_chainmask_enabled(hdd_context_t *hdd_ctx)
 	int vpdev = PDEV_CMD;
 	int ret;
 
-	ret = wma_cli_set_command(vdev_id, param_id, value, vpdev);
+	ret = sme_cli_set_command(vdev_id, param_id, value, vpdev);
 	if (ret)
 		hdd_err("WMI_PDEV_PARAM_ALTERNATIVE_CHAINMASK_SCHEME failed %d",
 			ret);
@@ -8449,7 +8449,7 @@ static int hdd_set_ani_enabled(hdd_context_t *hdd_ctx)
 	int vpdev = PDEV_CMD;
 	int ret;
 
-	ret = wma_cli_set_command(vdev_id, param_id, value, vpdev);
+	ret = sme_cli_set_command(vdev_id, param_id, value, vpdev);
 	if (ret)
 		hdd_err("WMI_PDEV_PARAM_ANI_ENABLE failed %d", ret);
 
@@ -8494,7 +8494,7 @@ static int hdd_pre_enable_configure(hdd_context_t *hdd_ctx)
 		goto out;
 	}
 
-	ret = wma_cli_set_command(0, WMI_PDEV_PARAM_TX_CHAIN_MASK_1SS,
+	ret = sme_cli_set_command(0, WMI_PDEV_PARAM_TX_CHAIN_MASK_1SS,
 				  hdd_ctx->config->tx_chain_mask_1ss,
 				  PDEV_CMD);
 	if (0 != ret) {
@@ -8514,7 +8514,7 @@ static int hdd_pre_enable_configure(hdd_context_t *hdd_ctx)
 	if (ret)
 		goto out;
 
-	ret = wma_cli_set_command(0, WMI_PDEV_PARAM_ARP_AC_OVERRIDE,
+	ret = sme_cli_set_command(0, WMI_PDEV_PARAM_ARP_AC_OVERRIDE,
 				  hdd_ctx->config->arp_ac_category,
 				  PDEV_CMD);
 	if (0 != ret) {
@@ -8985,7 +8985,7 @@ int hdd_configure_cds(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 		hdd_err("Unable to register datapath callbacks in CDS");
 
 	if (hdd_ctx->config->enable_phy_reg_retention)
-		wma_cli_set_command(0, WMI_PDEV_PARAM_FAST_PWR_TRANSITION,
+		sme_cli_set_command(0, WMI_PDEV_PARAM_FAST_PWR_TRANSITION,
 			hdd_ctx->config->enable_phy_reg_retention, PDEV_CMD);
 
 	cds_get_dfs_region(&dfs_reg);
@@ -9360,6 +9360,9 @@ int hdd_wlan_startup(struct device *dev)
 	void *hif_sc;
 	bool rtnl_held;
 	int set_value;
+	uint32_t num_abg_tx_chains = 0;
+	uint32_t num_11b_tx_chains = 0;
+	uint32_t num_11ag_tx_chains = 0;
 
 	ENTER();
 
@@ -9489,7 +9492,7 @@ int hdd_wlan_startup(struct device *dev)
 			hdd_ctx->config->sifs_burst_duration;
 
 		if ((set_value > 0) && (set_value <= SIFS_BURST_DUR_MAX))
-			wma_cli_set_command(0, (int)WMI_PDEV_PARAM_BURST_DUR,
+			sme_cli_set_command(0, (int)WMI_PDEV_PARAM_BURST_DUR,
 					    set_value, PDEV_CMD);
 	}
 
@@ -9499,20 +9502,35 @@ int hdd_wlan_startup(struct device *dev)
 
 	if (hdd_ctx->config->max_mpdus_inampdu) {
 		set_value = hdd_ctx->config->max_mpdus_inampdu;
-		wma_cli_set_command(0, (int)WMI_PDEV_PARAM_MAX_MPDUS_IN_AMPDU,
+		sme_cli_set_command(0, (int)WMI_PDEV_PARAM_MAX_MPDUS_IN_AMPDU,
 				    set_value, PDEV_CMD);
 	}
 
 	if (hdd_ctx->config->enable_rts_sifsbursting) {
 		set_value = hdd_ctx->config->enable_rts_sifsbursting;
-		wma_cli_set_command(0,
+		sme_cli_set_command(0,
 				    (int)WMI_PDEV_PARAM_ENABLE_RTS_SIFS_BURSTING,
 				    set_value, PDEV_CMD);
 	}
 
 	if (hdd_ctx->config->is_force_1x1)
-		wma_cli_set_command(0, (int)WMI_PDEV_PARAM_SET_IOT_PATTERN,
+		sme_cli_set_command(0, (int)WMI_PDEV_PARAM_SET_IOT_PATTERN,
 				1, PDEV_CMD);
+
+	num_11b_tx_chains = hdd_ctx->config->num_11b_tx_chains;
+	num_11ag_tx_chains = hdd_ctx->config->num_11ag_tx_chains;
+	if (!hdd_ctx->config->enable2x2) {
+		if (num_11b_tx_chains > 1)
+			num_11b_tx_chains = 1;
+		if (num_11ag_tx_chains > 1)
+			num_11ag_tx_chains = 1;
+	}
+	WMI_PDEV_PARAM_SET_11B_TX_CHAIN_NUM(num_abg_tx_chains,
+					    num_11b_tx_chains);
+	WMI_PDEV_PARAM_SET_11AG_TX_CHAIN_NUM(num_abg_tx_chains,
+					     num_11ag_tx_chains);
+	sme_cli_set_command(0, (int)WMI_PDEV_PARAM_ABG_MODE_TX_CHAIN_NUM,
+			    num_abg_tx_chains, PDEV_CMD);
 
 	qdf_mc_timer_start(&hdd_ctx->iface_change_timer,
 			   hdd_ctx->config->iface_change_wait_time);

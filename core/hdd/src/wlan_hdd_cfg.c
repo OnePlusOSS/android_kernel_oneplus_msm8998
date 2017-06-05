@@ -4637,6 +4637,20 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_SCAN_BACKOFF_MULTIPLIER_DEFAULT,
 		CFG_SCAN_BACKOFF_MULTIPLIER_MIN,
 		CFG_SCAN_BACKOFF_MULTIPLIER_MAX),
+
+	REG_VARIABLE(CFG_11B_NUM_TX_CHAIN_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, num_11b_tx_chains,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_11B_NUM_TX_CHAIN_DEFAULT,
+		CFG_11B_NUM_TX_CHAIN_MIN,
+		CFG_11B_NUM_TX_CHAIN_MAX),
+
+	REG_VARIABLE(CFG_11AG_NUM_TX_CHAIN_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, num_11ag_tx_chains,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_11AG_NUM_TX_CHAIN_DEFAULT,
+		CFG_11AG_NUM_TX_CHAIN_MIN,
+		CFG_11AG_NUM_TX_CHAIN_MAX),
 };
 
 /**
@@ -6152,11 +6166,9 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_debug("Name = [%s] Value = [%d]",
 		CFG_ARP_AC_CATEGORY,
 		pHddCtx->config->arp_ac_category);
-
 	hdd_debug("Name = [%s] value = [%u]",
 		 CFG_FORCE_1X1_NAME,
 		 pHddCtx->config->is_force_1x1);
-
 	hdd_debug("Name = [%s] Value = [%x] ",
 		 CFG_PRB_REQ_IE_WHITELIST_NAME,
 		 pHddCtx->config->probe_req_ie_whitelist);
@@ -6198,6 +6210,12 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 		pHddCtx->config->scan_backoff_multiplier);
 	hdd_info("Name = [gEnableConnectedScan] Value = %u",
 		pHddCtx->config->enable_connected_scan);
+	hdd_debug("Name = [%s] value = [%u]",
+		 CFG_11B_NUM_TX_CHAIN_NAME,
+		 pHddCtx->config->num_11b_tx_chains);
+	hdd_debug("Name = [%s] value = [%u]",
+		 CFG_11AG_NUM_TX_CHAIN_NAME,
+		 pHddCtx->config->num_11ag_tx_chains);
 }
 
 /**
@@ -7789,9 +7807,13 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 			pHddCtx->config->pkt_err_disconn_th;
 	smeConfig->csrConfig.is_bssid_hint_priority =
 			pHddCtx->config->is_bssid_hint_priority;
-
 	smeConfig->csrConfig.is_force_1x1 =
 			pHddCtx->config->is_force_1x1;
+	smeConfig->csrConfig.num_11b_tx_chains =
+			pHddCtx->config->num_11b_tx_chains;
+	smeConfig->csrConfig.num_11ag_tx_chains =
+			pHddCtx->config->num_11ag_tx_chains;
+
 	status = sme_update_config(pHddCtx->hHal, smeConfig);
 	if (!QDF_IS_STATUS_SUCCESS(status))
 		hdd_err("sme_update_config() failure: %d", status);

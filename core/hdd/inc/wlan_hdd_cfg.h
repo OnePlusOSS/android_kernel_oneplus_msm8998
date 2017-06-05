@@ -1632,6 +1632,52 @@ enum hdd_dot11_mode {
 
 /*
  * <ini>
+ * g11bNumTxChains - Number of Tx Chanins in 11b mode
+ * @Min: 0
+ * @Max: 2
+ * @Default: 0
+ *
+ * Number of Tx Chanins in 11b mode
+ *
+ *
+ * Related: None
+ *
+ * Supported Feature: connection
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_11B_NUM_TX_CHAIN_NAME      "g11bNumTxChains"
+#define CFG_11B_NUM_TX_CHAIN_MIN       (0)
+#define CFG_11B_NUM_TX_CHAIN_MAX       (2)
+#define CFG_11B_NUM_TX_CHAIN_DEFAULT   (0)
+
+/*
+ * <ini>
+ * g11agNumTxChains - Number of Tx Chanins in 11ag mode
+ * @Min: 0
+ * @Max: 2
+ * @Default: 0
+ *
+ * Number of Tx Chanins in 11ag mode
+ *
+ *
+ * Related: None
+ *
+ * Supported Feature: connection
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_11AG_NUM_TX_CHAIN_NAME      "g11agNumTxChains"
+#define CFG_11AG_NUM_TX_CHAIN_MIN       (1)
+#define CFG_11AG_NUM_TX_CHAIN_MAX       (4)
+#define CFG_11AG_NUM_TX_CHAIN_DEFAULT   (1)
+
+/*
+ * <ini>
  * gEnableFastRoamInConcurrency - Enable LFR roaming on STA during concurrency
  * @Min: 0
  * @Max: 1
@@ -11746,6 +11792,8 @@ struct hdd_config {
 	uint8_t dfs_beacon_tx_enhanced;
 	uint8_t scan_backoff_multiplier;
 	bool is_force_1x1;
+	uint16_t num_11b_tx_chains;
+	uint16_t num_11ag_tx_chains;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

@@ -1752,4 +1752,19 @@ QDF_STATUS sme_get_peer_info_ext(tHalHandle hal,
 		void *context,
 		void (*callbackfn)(struct sir_peer_info_ext_resp *param,
 			void *pcontext));
+
+/**
+ * sme_cli_set_command() - SME wrapper API over WMA "set" command
+ * processor cmd
+ * @vdev_id: virtual device for the command
+ * @param_id: parameter id
+ * @sval: parameter value
+ * @vpdev: parameter category
+ *
+ * Command handler for set operations
+ *
+ * Return: 0 on success, errno on failure
+ */
+int sme_cli_set_command(int vdev_id, int param_id, int sval, int vpdev);
+
 #endif /* #if !defined( __SME_API_H ) */

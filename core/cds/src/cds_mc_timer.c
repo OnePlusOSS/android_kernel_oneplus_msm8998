@@ -45,7 +45,7 @@
 void cds_linux_timer_callback(unsigned long data)
 {
 	qdf_mc_timer_t *timer = (qdf_mc_timer_t *)data;
-	cds_msg_t msg;
+	cds_msg_t msg = {0};
 	QDF_STATUS status;
 
 	qdf_mc_timer_callback_t callback = NULL;

@@ -5983,6 +5983,14 @@ static int wlan_hdd_cfg80211_get_preferred_freq_list(struct wiphy *wiphy,
 	return ret;
 }
 
+static const struct nla_policy set_probable_oper_channel_policy
+		[QCA_WLAN_VENDOR_ATTR_PROBABLE_OPER_CHANNEL_MAX + 1] = {
+	[QCA_WLAN_VENDOR_ATTR_PROBABLE_OPER_CHANNEL_IFACE_TYPE] = {
+		.type = NLA_U32},
+	[QCA_WLAN_VENDOR_ATTR_PROBABLE_OPER_CHANNEL_FREQ] = {
+		.type = NLA_U32},
+};
+
 /**
  * __wlan_hdd_cfg80211_set_probable_oper_channel () - set probable channel
  * @wiphy: Pointer to wireless phy
@@ -6002,7 +6010,7 @@ static int __wlan_hdd_cfg80211_set_probable_oper_channel(struct wiphy *wiphy,
 	hdd_context_t *hdd_ctx = wiphy_priv(wiphy);
 	int ret = 0;
 	enum cds_con_mode intf_mode;
-	struct nlattr *tb[QCA_WLAN_VENDOR_ATTR_GET_PREFERRED_FREQ_LIST_MAX + 1];
+	struct nlattr *tb[QCA_WLAN_VENDOR_ATTR_PROBABLE_OPER_CHANNEL_MAX + 1];
 	uint32_t channel_hint;
 
 	ENTER_DEV(ndev);
@@ -6012,7 +6020,7 @@ static int __wlan_hdd_cfg80211_set_probable_oper_channel(struct wiphy *wiphy,
 		return ret;
 
 	if (nla_parse(tb, QCA_WLAN_VENDOR_ATTR_PROBABLE_OPER_CHANNEL_MAX,
-		      data, data_len, NULL)) {
+		      data, data_len, set_probable_oper_channel_policy)) {
 		hdd_err("Invalid ATTR");
 		return -EINVAL;
 	}

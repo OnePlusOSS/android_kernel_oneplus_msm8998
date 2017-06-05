@@ -60,6 +60,12 @@
 #include "ol_txrx.h"
 #include "pktlog_ac.h"
 #include "wlan_hdd_ipa.h"
+
+#ifdef ENABLE_SMMU_S1_TRANSLATION
+#include "pld_common.h"
+#include <asm/dma-iommu.h>
+#include <linux/iommu.h>
+#endif
 /* Preprocessor Definitions and Constants */
 
 /* Maximum number of cds message queue get wrapper failures to cause panic */
@@ -2656,5 +2662,38 @@ cds_print_htc_credit_history(uint32_t count, qdf_abstract_print *print,
 {
 	htc_print_credit_history(gp_cds_context->htc_ctx, count,
 				 print, print_priv);
+}
+#endif
+
+#ifdef ENABLE_SMMU_S1_TRANSLATION
+void cds_smmu_mem_map_setup(qdf_device_t osdev)
+{
+	int attr = 0;
+	struct dma_iommu_mapping *mapping = pld_smmu_get_mapping(osdev->dev);
+
+	osdev->smmu_s1_enabled = false;
+	if (!mapping) {
+		cds_info("No SMMU mapping present");
+		return;
+	}
+
+	if ((iommu_domain_get_attr(mapping->domain,
+				   DOMAIN_ATTR_S1_BYPASS, &attr) == 0) &&
+				   !attr)
+		osdev->smmu_s1_enabled = true;
+}
+
+int cds_smmu_map_unmap(bool map, uint32_t num_buf, qdf_mem_info_t *buf_arr)
+{
+	return hdd_ipa_uc_smmu_map(map, num_buf, buf_arr);
+}
+#else
+void cds_smmu_mem_map_setup(qdf_device_t osdev)
+{
+}
+
+int cds_smmu_map_unmap(bool map, uint32_t num_buf, qdf_mem_info_t *buf_arr)
+{
+	return 0;
 }
 #endif

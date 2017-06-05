@@ -122,6 +122,19 @@ bool hdd_ipa_is_present(hdd_context_t *hdd_ctx);
 void hdd_ipa_dump_info(hdd_context_t *hdd_ctx);
 QDF_STATUS hdd_ipa_uc_ol_init(hdd_context_t *hdd_ctx);
 int hdd_ipa_uc_ol_deinit(hdd_context_t *hdd_ctx);
+
+/**
+ * hdd_ipa_uc_smmu_map() - Map / Unmap DMA buffer to IPA UC
+ * @map: Map / unmap operation
+ * @num_buf: Number of buffers in array
+ * @buf_arr: Buffer array of DMA mem mapping info
+ *
+ * This API maps/unmaps WLAN-IPA buffers if SMMU S1 translation
+ * is enabled.
+ *
+ * Return: Status of map operation
+ */
+int hdd_ipa_uc_smmu_map(bool map, uint32_t num_buf, qdf_mem_info_t *buf_arr);
 #else
 static inline QDF_STATUS hdd_ipa_init(hdd_context_t *hdd_ctx)
 {
@@ -264,6 +277,12 @@ static inline QDF_STATUS hdd_ipa_uc_ol_init(hdd_context_t *hdd_ctx)
  * Return: 0 on success, negativer errno on error
  */
 static inline int hdd_ipa_uc_ol_deinit(hdd_context_t *hdd_ctx)
+{
+	return 0;
+}
+
+static inline int hdd_ipa_uc_smmu_map(bool map, uint32_t num_buf,
+				      qdf_mem_info_t *buf_arr)
 {
 	return 0;
 }

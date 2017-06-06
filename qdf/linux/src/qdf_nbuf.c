@@ -1743,7 +1743,21 @@ static uint8_t __qdf_nbuf_get_tso_cmn_seg_info(qdf_device_t osdev,
 		qdf_assert(0);
 		return 1;
 	}
-	tso_info->ip_tcp_hdr_len = tso_info->eit_hdr_len - tso_info->l2_len;
+
+	if (tso_info->ethproto == htons(ETH_P_IP)) {
+		/* inlcude IPv4 header length for IPV4 (total length) */
+		tso_info->ip_tcp_hdr_len =
+			tso_info->eit_hdr_len - tso_info->l2_len;
+	} else if (tso_info->ethproto == htons(ETH_P_IPV6)) {
+		/* exclude IPv6 header length for IPv6 (payload length) */
+		tso_info->ip_tcp_hdr_len = tcp_hdrlen(skb);
+	}
+	/*
+	 * The length of the payload (application layer data) is added to
+	 * tso_info->ip_tcp_hdr_len before passing it on to the msdu link ext
+	 * descriptor.
+	 */
+
 	TSO_DEBUG("%s seq# %u eit hdr len %u l2 len %u  skb len %u\n", __func__,
 		tso_info->tcp_seq_num,
 		tso_info->eit_hdr_len,
@@ -1906,6 +1920,8 @@ uint32_t __qdf_nbuf_get_tso_info(qdf_device_t osdev, struct sk_buff *skb,
 			return tso_info->num_segs;
 
 		curr_seg->seg.tso_flags.ip_len = tso_cmn_info.ip_tcp_hdr_len;
+		/* frag len is added to ip_len in while loop below*/
+
 		curr_seg->seg.num_frags++;
 
 		while (more_tso_frags) {

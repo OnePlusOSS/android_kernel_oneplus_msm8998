@@ -2068,6 +2068,7 @@ lim_add_sta(tpAniSirGlobal mac_ctx,
 	tSirRetStatus ret_code = eSIR_SUCCESS;
 	tSirMacAddr sta_mac, *sta_Addr;
 	tpSirAssocReq assoc_req;
+	uint8_t i, nw_type_11b = 0;
 	tLimIbssPeerNode *peer_node; /* for IBSS mode */
 	uint8_t *p2p_ie = NULL;
 
@@ -2407,6 +2408,19 @@ lim_add_sta(tpAniSirGlobal mac_ctx,
 		SET_LIM_PROCESS_DEFD_MESGS(mac_ctx, false);
 
 	add_sta_params->nwType = session_entry->nwType;
+
+	if (!(add_sta_params->htCapable || add_sta_params->vhtCapable)) {
+		nw_type_11b = 1;
+		for (i = 0; i < SIR_NUM_11A_RATES; i++) {
+			if (sirIsArate(sta_ds->supportedRates.llaRates[i] &
+						0x7F)) {
+				nw_type_11b = 0;
+				break;
+			}
+		}
+		if (nw_type_11b)
+			add_sta_params->nwType = eSIR_11B_NW_TYPE;
+	}
 
 	msg_q.type = WMA_ADD_STA_REQ;
 
@@ -3014,7 +3028,6 @@ lim_check_and_announce_join_success(tpAniSirGlobal mac_ctx,
 	uint32_t *noa2_duration_from_beacon = NULL;
 	uint32_t noa;
 	uint32_t total_num_noa_desc = 0;
-	uint32_t selfStaDot11Mode = 0;
 
 	qdf_mem_copy(current_ssid.ssId,
 		     session_entry->ssId.ssId, session_entry->ssId.length);
@@ -3148,9 +3161,7 @@ lim_check_and_announce_join_success(tpAniSirGlobal mac_ctx,
 	lim_post_sme_message(mac_ctx, LIM_MLM_JOIN_CNF,
 			     (uint32_t *) &mlm_join_cnf);
 
-	wlan_cfg_get_int(mac_ctx, WNI_CFG_DOT11_MODE, &selfStaDot11Mode);
-
-	if ((IS_DOT11_MODE_VHT(selfStaDot11Mode)) &&
+	if ((IS_DOT11_MODE_VHT(session_entry->dot11mode)) &&
 		beacon_probe_rsp->vendor_vht_ie.VHTCaps.present) {
 		session_entry->is_vendor_specific_vhtcaps = true;
 		session_entry->vendor_specific_vht_ie_type =
@@ -4103,6 +4114,7 @@ tSirRetStatus lim_sta_send_add_bss_pre_assoc(tpAniSirGlobal pMac, uint8_t update
 	pAddBssParams->currentOperChannel = bssDescription->channelId;
 	pe_debug("currentOperChannel %d",
 		pAddBssParams->currentOperChannel);
+
 	if (psessionEntry->vhtCapability &&
 		(IS_BSS_VHT_CAPABLE(pBeaconStruct->VHTCaps) ||
 		 IS_BSS_VHT_CAPABLE(pBeaconStruct->vendor_vht_ie.VHTCaps))) {

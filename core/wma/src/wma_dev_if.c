@@ -1235,6 +1235,42 @@ peer_detach:
 }
 
 /**
+ * wma_find_duplicate_peer_on_other_vdev() - Find if same peer exist
+ * on other vdevs
+ * @wma: wma handle
+ * @pdev: txrx pdev ptr
+ * @vdev_id: vdev id of vdev on which the peer
+ *           needs to be added
+ * @peer_mac: peer mac addr which needs to be added
+ *
+ * Check if peer with same MAC is present on vdev other then
+ * the provided vdev_id
+ *
+ * Return: true if same peer is present on vdev other then vdev_id
+ * else return false
+ */
+static bool wma_find_duplicate_peer_on_other_vdev(tp_wma_handle wma,
+	ol_txrx_pdev_handle pdev, uint8_t vdev_id, uint8_t *peer_mac)
+{
+	int i;
+	uint8_t peer_id;
+
+	for (i = 0; i < wma->max_bssid; i++) {
+		/* Need to check vdevs other than the vdev_id */
+		if (vdev_id == i ||
+		   !wma->interfaces[i].handle)
+			continue;
+		if (ol_txrx_find_peer_by_addr_and_vdev(pdev,
+			wma->interfaces[i].handle, peer_mac, &peer_id)) {
+			WMA_LOGE("%s :Duplicate peer %pM (peer id %d) already exist on vdev %d",
+				__func__, peer_mac, peer_id, i);
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
  * wma_create_peer() - send peer create command to fw
  * @wma: wma handle
  * @pdev: txrx pdev ptr
@@ -1256,12 +1292,22 @@ QDF_STATUS wma_create_peer(tp_wma_handle wma, ol_txrx_pdev_handle pdev,
 	struct peer_create_params param = {0};
 	uint8_t *mac_addr_raw;
 
+
 	if (++wma->interfaces[vdev_id].peer_count >
 	    wma->wlan_resource_config.num_peers) {
 		WMA_LOGE("%s, the peer count exceeds the limit %d", __func__,
 			 wma->interfaces[vdev_id].peer_count - 1);
 		goto err;
 	}
+
+	/*
+	 * Check if peer with same MAC exist on other Vdev, If so avoid
+	 * adding this peer, as it will cause FW to crash.
+	 */
+	if (wma_find_duplicate_peer_on_other_vdev(wma, pdev,
+	   vdev_id, peer_addr))
+		goto err;
+
 	peer = ol_txrx_peer_attach(vdev, peer_addr);
 	if (!peer) {
 		WMA_LOGE("%s : Unable to attach peer %pM", __func__, peer_addr);
@@ -3748,10 +3794,11 @@ static void wma_add_bss_sta_mode(tp_wma_handle wma, tpAddBssParams add_bss)
 
 	}
 send_bss_resp:
-	ol_txrx_find_peer_by_addr(pdev, add_bss->bssId,
-				  &add_bss->staContext.staIdx);
-	add_bss->status = (add_bss->staContext.staIdx < 0) ?
-			  QDF_STATUS_E_FAILURE : QDF_STATUS_SUCCESS;
+	if (NULL == ol_txrx_find_peer_by_addr(pdev, add_bss->bssId,
+				  &add_bss->staContext.staIdx))
+		add_bss->status = QDF_STATUS_E_FAILURE;
+	else
+		add_bss->status = QDF_STATUS_SUCCESS;
 	add_bss->bssIdx = add_bss->staContext.smesessionId;
 	qdf_mem_copy(add_bss->staContext.staMac, add_bss->bssId,
 		     sizeof(add_bss->staContext.staMac));

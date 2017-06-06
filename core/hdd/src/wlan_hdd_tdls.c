@@ -638,6 +638,21 @@ static void wlan_hdd_tdls_timers_stop(tdlsCtx_t *hdd_tdls_ctx)
 }
 
 /**
+ * hdd_tdls_timers_stop() - stop all the tdls timers
+ * @adapter: hdd adapter
+ *
+ * Return: none
+ */
+void hdd_tdls_timers_stop(hdd_adapter_t *adapter)
+{
+	tdlsCtx_t *tdls_ctx;
+
+	tdls_ctx = WLAN_HDD_GET_TDLS_CTX_PTR(adapter);
+	if (tdls_ctx)
+		wlan_hdd_tdls_timers_stop(tdls_ctx);
+}
+
+/**
  * wlan_hdd_tdls_del_non_forced_peers() - delete non forced tdls peers
  * @hdd_tdls_ctx: TDLS context
  *
@@ -2168,6 +2183,23 @@ void wlan_hdd_tdls_notify_disconnect(hdd_adapter_t *adapter, bool lfr_roam)
 			wlan_hdd_update_tdls_info(temp_adapter,
 						  false,
 						  false);
+	}
+}
+
+void wlan_hdd_check_conc_and_update_tdls_state(hdd_context_t *hdd_ctx,
+					       bool disable_tdls)
+{
+	hdd_adapter_t *temp_adapter;
+
+	temp_adapter = wlan_hdd_tdls_get_adapter(hdd_ctx);
+	if (NULL != temp_adapter) {
+		if (disable_tdls) {
+			wlan_hdd_tdls_disable_offchan_and_teardown_links(
+								hdd_ctx);
+			wlan_hdd_update_tdls_info(temp_adapter, true, true);
+		} else {
+			wlan_hdd_update_tdls_info(temp_adapter, false, false);
+		}
 	}
 }
 

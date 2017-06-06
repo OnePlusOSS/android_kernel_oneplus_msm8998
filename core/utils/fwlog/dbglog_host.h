@@ -33,7 +33,9 @@ extern "C" {
 #endif
 
 #include "dbglog_common.h"
-#include "ol_defines.h"
+#include "qdf_nbuf.h"
+#include "qdf_types.h"
+#include "wmi_unified_param.h"
 
 #define DIAG_FWID_OFFSET            24
 #define DIAG_FWID_MASK              0xFF000000  /* Bit 24-31 */

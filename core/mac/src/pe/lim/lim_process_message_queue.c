@@ -896,7 +896,7 @@ lim_handle80211_frames(tpAniSirGlobal pMac, tpSirMsgQ limMsg, uint8_t *pDeferMsg
 	tpSirMacMgmtHdr pHdr = NULL;
 	tpPESession psessionEntry = NULL;
 	uint8_t sessionId;
-	tAniBool isFrmFt = false;
+	bool isFrmFt = false;
 
 	*pDeferMsg = false;
 	lim_get_b_dfrom_rx_packet(pMac, limMsg->bodyptr,

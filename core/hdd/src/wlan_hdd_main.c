@@ -7732,8 +7732,8 @@ static int hdd_update_country_code(hdd_context_t *hdd_ctx,
 	status = sme_change_country_code(hdd_ctx->hHal,
 					 wlan_hdd_change_country_code_callback,
 					 country_code, adapter,
-					 hdd_ctx->pcds_context, eSIR_TRUE,
-					 eSIR_TRUE);
+					 hdd_ctx->pcds_context, true,
+					 true);
 
 
 	if (!QDF_IS_STATUS_SUCCESS(status)) {

@@ -2967,8 +2967,8 @@ static int drv_cmd_country(hdd_adapter_t *adapter,
 			country_code,
 			adapter,
 			hdd_ctx->pcds_context,
-			eSIR_TRUE,
-			eSIR_TRUE);
+			true,
+			true);
 	if (status == QDF_STATUS_SUCCESS) {
 		rc = wait_for_completion_timeout(
 			&adapter->change_country_code,

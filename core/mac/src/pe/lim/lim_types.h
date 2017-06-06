@@ -246,12 +246,12 @@ typedef struct sLimMlmAssocInd {
 	tSirWAPIie wapiIE;
 	tSirAddie addIE;        /* additional IE received from the peer, which possibly includes WSC IE and/or P2P IE. */
 	tSirMacCapabilityInfo capabilityInfo;
-	tAniBool spectrumMgtIndicator;
+	bool spectrumMgtIndicator;
 	tSirMacPowerCapInfo powerCap;
 	tSirSupChnl supportedChannels;
 	uint8_t sessionId;
 
-	tAniBool WmmStaInfoPresent;
+	bool WmmStaInfoPresent;
 
 	/* Required for indicating the frames to upper layer */
 	uint32_t beaconLength;
@@ -297,11 +297,11 @@ typedef struct sLimMlmReassocInd {
 	tSirWAPIie wapiIE;
 	tSirAddie addIE;        /* additional IE received from the peer, which can be WSC IE and/or P2P IE. */
 	tSirMacCapabilityInfo capabilityInfo;
-	tAniBool spectrumMgtIndicator;
+	bool spectrumMgtIndicator;
 	tSirMacPowerCapInfo powerCap;
 	tSirSupChnl supportedChannels;
 
-	tAniBool WmmStaInfoPresent;
+	bool WmmStaInfoPresent;
 
 	/* Required for indicating the frames to upper layer */
 	uint32_t beaconLength;

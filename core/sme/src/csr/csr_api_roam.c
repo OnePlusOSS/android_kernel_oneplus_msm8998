@@ -323,7 +323,7 @@ QDF_STATUS csr_process_same_ap_reassoc_cmd(tpAniSirGlobal mac_ctx,
 	msg.type = eWNI_SME_ROAM_INVOKE;
 	msg.reserved = 0;
 	msg.bodyptr = fastreassoc;
-	status = cds_mq_post_message(CDS_MQ_ID_PE, &msg);
+	status = cds_mq_post_message(QDF_MODULE_ID_PE, &msg);
 	if (QDF_STATUS_SUCCESS != status) {
 		sme_err("Not able to post ROAM_INVOKE_CMD");
 		qdf_mem_free(fastreassoc);
@@ -15625,7 +15625,7 @@ QDF_STATUS csr_send_assoc_cnf_msg(tpAniSirGlobal pMac, tpSirSmeAssocInd
 		msg.bodyval = 0;
 		msg.bodyptr = pMsg;
 		/* pMsg is freed by cds_send_mb_message_to_mac in anycase*/
-		status = cds_mq_post_message_by_priority(CDS_MQ_ID_PE,
+		status = cds_mq_post_message_by_priority(QDF_MODULE_ID_PE,
 					&msg, HIGH_PRIORITY);
 	} while (0);
 	return status;
@@ -17304,7 +17304,7 @@ QDF_STATUS csr_get_rssi(tpAniSirGlobal pMac,
 	msg.type = eWNI_SME_GET_RSSI_REQ;
 	msg.bodyptr = pMsg;
 	msg.reserved = 0;
-	if (QDF_STATUS_SUCCESS != cds_mq_post_message(CDS_MQ_ID_SME, &msg)) {
+	if (QDF_STATUS_SUCCESS != cds_mq_post_message(QDF_MODULE_ID_SME, &msg)) {
 		sme_err("csr_get_rssi failed to post msg to self ");
 		qdf_mem_free((void *)pMsg);
 		status = QDF_STATUS_E_FAILURE;
@@ -17343,7 +17343,7 @@ QDF_STATUS csr_get_snr(tpAniSirGlobal pMac,
 	msg.bodyptr = pMsg;
 	msg.reserved = 0;
 
-	if (QDF_STATUS_SUCCESS != cds_mq_post_message(CDS_MQ_ID_SME, &msg)) {
+	if (QDF_STATUS_SUCCESS != cds_mq_post_message(QDF_MODULE_ID_SME, &msg)) {
 		sme_err("%s failed to post msg to self", __func__);
 		qdf_mem_free((void *)pMsg);
 		status = QDF_STATUS_E_FAILURE;
@@ -19470,7 +19470,7 @@ QDF_STATUS csr_handoff_request(tpAniSirGlobal pMac,
 	msg.type = eWNI_SME_HANDOFF_REQ;
 	msg.bodyptr = pMsg;
 	msg.reserved = 0;
-	if (QDF_STATUS_SUCCESS != cds_mq_post_message(CDS_MQ_ID_SME, &msg)) {
+	if (QDF_STATUS_SUCCESS != cds_mq_post_message(QDF_MODULE_ID_SME, &msg)) {
 		sme_err("csr_handoff_request failed to post msg to self ");
 		qdf_mem_free((void *)pMsg);
 		status = QDF_STATUS_E_FAILURE;

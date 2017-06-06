@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -89,25 +89,9 @@ typedef struct cds_msg_s {
    Function declarations and documenation
    ------------------------------------------------------------------------*/
 
-/* Message Queue IDs */
-typedef enum {
-	/* Message Queue ID for messages bound for SME */
-	CDS_MQ_ID_SME = QDF_MODULE_ID_SME,
-
-	/* Message Queue ID for messages bound for PE */
-	CDS_MQ_ID_PE = QDF_MODULE_ID_PE,
-
-	/* Message Queue ID for messages bound for WMA */
-	CDS_MQ_ID_WMA = QDF_MODULE_ID_WMA,
-
-	/* Message Queue ID for messages bound for the SYS module */
-	CDS_MQ_ID_SYS = QDF_MODULE_ID_SYS,
-
-} CDS_MQ_ID;
-
 #define HIGH_PRIORITY 1
 #define LOW_PRIORITY 0
-QDF_STATUS cds_mq_post_message_by_priority(CDS_MQ_ID msg_queue_id,
+QDF_STATUS cds_mq_post_message_by_priority(QDF_MODULE_ID msg_queue_id,
 					   cds_msg_t *message,
 					   int is_high_priority);
 
@@ -127,7 +111,7 @@ QDF_STATUS cds_mq_post_message_by_priority(CDS_MQ_ID msg_queue_id,
  *             QDF_STATUS_E_FAILURE for unknown failure reported by
  *             message queue handler
  */
-static inline QDF_STATUS cds_mq_post_message(CDS_MQ_ID msg_queue_id,
+static inline QDF_STATUS cds_mq_post_message(QDF_MODULE_ID msg_queue_id,
 					     cds_msg_t *message)
 {
 	return cds_mq_post_message_by_priority(msg_queue_id, message,

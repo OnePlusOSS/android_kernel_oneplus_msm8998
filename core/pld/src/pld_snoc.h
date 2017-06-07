@@ -150,6 +150,15 @@ static inline int pld_snoc_set_fw_log_mode(u8 fw_log_mode)
 {
 	return 0;
 }
+
+static inline void pld_snoc_increment_driver_load_cnt(void)
+{
+}
+
+static inline int pld_snoc_get_driver_load_cnt(void)
+{
+	return 0;
+}
 #else
 int pld_snoc_register_driver(void);
 void pld_snoc_unregister_driver(void);
@@ -252,9 +261,20 @@ static inline int pld_snoc_force_assert_target(struct device *dev)
 {
 	return icnss_trigger_recovery(dev);
 }
+
 static inline int pld_snoc_set_fw_log_mode(u8 fw_log_mode)
 {
 	return icnss_set_fw_log_mode(fw_log_mode);
+}
+
+static inline void pld_snoc_increment_driver_load_cnt(void)
+{
+	icnss_increment_driver_load_cnt();
+}
+
+static inline int pld_snoc_get_driver_load_cnt(void)
+{
+	return icnss_get_driver_load_cnt();
 }
 #endif
 #endif

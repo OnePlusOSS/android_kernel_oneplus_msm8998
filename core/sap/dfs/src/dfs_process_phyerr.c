@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2002-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -509,7 +509,7 @@ dfs_process_phyerr(struct ieee80211com *ic, void *buf, uint16_t datalen,
 		dump_phyerr_contents(buf, datalen);
 
 	if (chan == NULL) {
-		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
 			  "%s: chan is NULL", __func__);
 		return;
 	}
@@ -560,7 +560,7 @@ dfs_process_phyerr(struct ieee80211com *ic, void *buf, uint16_t datalen,
 					      r_fulltsf, &e,
 					      enable_log) == 0) {
 			dfs->dfs_phyerr_reject_count++;
-			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
 				  "%s:Rejected phyerr count after parsing=%d",
 				  __func__, dfs->dfs_phyerr_reject_count);
 			return;
@@ -591,7 +591,7 @@ dfs_process_phyerr(struct ieee80211com *ic, void *buf, uint16_t datalen,
 		}
 	}
 
-	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
+	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
 		  "%s: Frequency at which the phyerror was injected = %d",
 		  __func__, e.freq);
 	/*
@@ -816,7 +816,7 @@ dfs_process_phyerr(struct ieee80211com *ic, void *buf, uint16_t datalen,
 					e.dur > dfs->dfs_rinfo.rn_maxpulsedur) {
 
 				QDF_TRACE(QDF_MODULE_ID_SAP,
-					QDF_TRACE_LEVEL_INFO,
+					QDF_TRACE_LEVEL_DEBUG,
 					"%s [%d] : Rejecting: dur = %d maxpulsedur = %d, rssi = %d minrssithresh = %d",
 					__func__, __LINE__,
 					e.dur, dfs->dfs_rinfo.rn_maxpulsedur,

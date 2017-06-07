@@ -359,6 +359,10 @@ ifeq ($(CONFIG_IPA), y)
 CONFIG_IPA_OFFLOAD := 1
 CONFIG_NUM_IPA_IFACE := 3
 endif
+ifeq ($(CONFIG_IPA3), y)
+CONFIG_IPA_OFFLOAD := 1
+CONFIG_NUM_IPA_IFACE := 2
+endif
 
 #Enable Signed firmware support for split binary format
 CONFIG_QCA_SIGNED_SPLIT_BINARY_SUPPORT := 0

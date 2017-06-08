@@ -5115,7 +5115,6 @@ QDF_STATUS sme_roam_set_key(tHalHandle hal,  uint8_t session_id,
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
 	uint32_t roam_id;
-	uint32_t i;
 	tCsrRoamSession *session = NULL;
 	struct ps_global_info *ps_global_info = &mac_ctx->sme.ps_global_info;
 
@@ -5138,8 +5137,6 @@ QDF_STATUS sme_roam_set_key(tHalHandle hal,  uint8_t session_id,
 		*ptr_roam_id = roam_id;
 
 	sme_debug("keyLength: %d", set_key->keyLength);
-	for (i = 0; i < set_key->keyLength; i++)
-		sme_debug("%02x", set_key->Key[i]);
 
 	sme_debug("Session_id: %d roam_id: %d", session_id, roam_id);
 	session = CSR_GET_SESSION(mac_ctx, session_id);

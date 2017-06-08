@@ -178,6 +178,8 @@ static int enable_dfs_chan_scan = -1;
  */
 DEFINE_SPINLOCK(hdd_context_lock);
 
+DEFINE_MUTEX(hdd_init_deinit_lock);
+
 #define WLAN_NLINK_CESIUM 30
 
 static qdf_wake_lock_t wlan_wake_lock;
@@ -1984,15 +1986,24 @@ static int __hdd_open(struct net_device *dev)
 	MTRACE(qdf_trace(QDF_MODULE_ID_HDD, TRACE_CODE_HDD_OPEN_REQUEST,
 		adapter->sessionId, adapter->device_mode));
 
-	ret = wlan_hdd_validate_context(hdd_ctx);
-	if (ret)
-		return ret;
+	mutex_lock(&hdd_init_deinit_lock);
 
+	/*
+	  * This scenario can be hit in cases where in the wlan driver after
+	  * registering the netdevices and there is a failure in driver
+	  * initialization. So return error gracefully because the netdevices
+	  * will be de-registered as part of the load failure.
+	  */
+	if (!cds_is_driver_loaded()) {
+		hdd_err("Failed to start the wlan driver!!");
+		ret = -EIO;
+		goto err_hdd_hdd_init_deinit_lock;
+	}
 
 	ret = hdd_wlan_start_modules(hdd_ctx, adapter, false);
 	if (ret) {
 		hdd_err("Failed to start WLAN modules return");
-		return -ret;
+		goto err_hdd_hdd_init_deinit_lock;
 	}
 
 
@@ -2001,7 +2012,7 @@ static int __hdd_open(struct net_device *dev)
 		if (ret) {
 			hdd_err("Failed to start adapter :%d",
 				adapter->device_mode);
-			return ret;
+			goto err_hdd_hdd_init_deinit_lock;
 		}
 	}
 
@@ -2029,6 +2040,9 @@ static int __hdd_open(struct net_device *dev)
 		hdd_lpass_notify_start(hdd_ctx, adapter);
 	}
 
+
+err_hdd_hdd_init_deinit_lock:
+	mutex_unlock(&hdd_init_deinit_lock);
 	return ret;
 }
 

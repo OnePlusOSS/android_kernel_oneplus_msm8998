@@ -357,6 +357,7 @@ struct random_mac_context {
 };
 
 extern spinlock_t hdd_context_lock;
+extern struct mutex hdd_init_deinit_lock;
 
 #define STATS_CONTEXT_MAGIC 0x53544154  /* STAT */
 #define RSSI_CONTEXT_MAGIC  0x52535349  /* RSSI */

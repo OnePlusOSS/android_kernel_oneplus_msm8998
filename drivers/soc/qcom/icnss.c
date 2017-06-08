@@ -3914,6 +3914,7 @@ static int icnss_regread_show(struct seq_file *s, void *data)
 	seq_hex_dump(s, "", DUMP_PREFIX_OFFSET, 32, 4, priv->diag_reg_read_buf,
 		     priv->diag_reg_read_len, false);
 
+	mutex_lock(&priv->dev_lock);
 	priv->diag_reg_read_len = 0;
 	kfree(priv->diag_reg_read_buf);
 	priv->diag_reg_read_buf = NULL;
@@ -3992,6 +3993,7 @@ static ssize_t icnss_regread_write(struct file *fp, const char __user *user_buf,
 		return ret;
 	}
 
+	mutex_lock(&priv->dev_lock);
 	priv->diag_reg_read_addr = reg_offset;
 	priv->diag_reg_read_mem_type = mem_type;
 	priv->diag_reg_read_len = data_len;

@@ -109,6 +109,11 @@ QDF_STATUS hif_dev_send_buffer(struct hif_sdio_device *pdev,
 	uint32_t request = HIF_WR_ASYNC_BLOCK_INC;
 	uint8_t mbox_index = hif_dev_map_pipe_to_mail_box(pdev, pipe);
 
+	if (mbox_index == INVALID_MAILBOX_NUMBER) {
+		AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("pipe id(%d) invalid\n", pipe));
+		return QDF_STATUS_E_FAILURE;
+	}
+
 	padded_length = DEV_CALC_SEND_PADDED_LEN(pdev, nbytes);
 	A_ASSERT(padded_length - nbytes < HIF_DUMMY_SPACE_MASK + 1);
 	/*
@@ -145,7 +150,15 @@ QDF_STATUS hif_dev_send_buffer(struct hif_sdio_device *pdev,
 			(struct hif_sendContext *)
 			qdf_mem_malloc(sizeof(struct hif_sendContext) +
 				       padded_length);
-		send_context->bNewAlloc = true;
+		if (send_context) {
+			send_context->bNewAlloc = true;
+		} else {
+			AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
+				("Allocate send context fail %d\n",
+				sizeof(struct hif_sendContext) +
+				padded_length));
+			return QDF_STATUS_E_NOMEM;
+		}
 	}
 
 	send_context->netbuf = buf;

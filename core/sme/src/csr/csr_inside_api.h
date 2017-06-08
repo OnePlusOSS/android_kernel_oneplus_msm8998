@@ -197,10 +197,6 @@ struct tag_csrscan_result {
 	 * equal preferValue
 	 */
 	uint32_t capValue;
-	/* This member must be the last in the structure because the end of
-	 * tSirBssDescription (inside) is an
-	 * array with nonknown size at this time
-	 */
 	/* Preferred Encryption type that matched with profile. */
 	eCsrEncryptionType ucEncryptionType;
 	eCsrEncryptionType mcEncryptionType;
@@ -209,7 +205,12 @@ struct tag_csrscan_result {
 	int  bss_score;
 
 	tCsrScanResultInfo Result;
-	/* Do not add any element here */
+	/*
+	 * WARNING - Do not add any element here
+	 * This member Result must be the last in the structure because the end
+	 * of tSirBssDescription (inside) is an array with nonknown size at
+	 * this time.
+	 */
 };
 
 struct scan_result_list {

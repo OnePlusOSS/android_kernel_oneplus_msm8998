@@ -1271,10 +1271,14 @@ typedef struct sSirSmeJoinReq {
 #ifdef WLAN_FEATURE_FILS_SK
 	struct cds_fils_connection_info fils_con_info;
 #endif
-	/* Pls make this as last variable in struct */
-	tSirBssDescription bssDescription;
 	bool ignore_assoc_disallowed;
 	bool enable_bcast_probe_rsp;
+	tSirBssDescription bssDescription;
+	/*
+	 * WARNING: Pls make bssDescription as last variable in struct
+	 * tSirSmeJoinReq as it has ieFields followed after this bss
+	 * description. Adding a variable after this corrupts the ieFields
+	 */
 } tSirSmeJoinReq, *tpSirSmeJoinReq;
 
 /* / Definition for reponse message to previously issued join request */

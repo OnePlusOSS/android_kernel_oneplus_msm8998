@@ -8642,8 +8642,7 @@ static int __iw_setint_getnone(struct net_device *dev,
 			return -EINVAL;
 		}
 
-		/* hdd_ctx, hdd_ctx->config are already checked for null */
-		hdd_ctx->config->conc_system_pref = set_value;
+		cds_set_cur_conc_system_pref(set_value);
 		break;
 	}
 	default:
@@ -10255,7 +10254,7 @@ static int iw_get_policy_manager_ut_ops(hdd_context_t *hdd_ctx,
 		if (apps_args[1] >= CDS_THROUGHPUT &&
 			apps_args[1] <= CDS_LATENCY) {
 			pr_info("setting system pref to [%d]\n", apps_args[1]);
-			hdd_ctx->config->conc_system_pref = apps_args[1];
+			cds_set_cur_conc_system_pref(apps_args[1]);
 		}
 	}
 	break;

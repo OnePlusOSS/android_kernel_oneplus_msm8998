@@ -333,6 +333,9 @@ typedef struct _cds_context_type {
 	uint32_t hw_mode_change_in_progress;
 	uint16_t unsafe_channel_count;
 	uint16_t unsafe_channel_list[NUM_CHANNELS];
+	/* current system preference */
+	uint8_t cur_conc_system_pref;
+
 } cds_context_type, *p_cds_contextType;
 
 extern struct _cds_sched_context *gp_cds_sched_context;

@@ -5433,6 +5433,7 @@ QDF_STATUS cds_get_pcl(enum cds_con_mode mode,
 	enum cds_two_connection_mode third_index = 0;
 	enum cds_pcl_type pcl = CDS_NONE;
 	enum cds_conc_priority_mode conc_system_pref = 0;
+	enum cds_conc_priority_mode cur_conc_system_pref = 0;
 	hdd_context_t *hdd_ctx;
 
 	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
@@ -5443,10 +5444,13 @@ QDF_STATUS cds_get_pcl(enum cds_con_mode mode,
 
 	/* find the current connection state from conc_connection_list*/
 	num_connections = cds_get_connection_count();
-	cds_debug("connections:%d pref:%d requested mode:%d",
-		num_connections, hdd_ctx->config->conc_system_pref, mode);
 
-	switch (hdd_ctx->config->conc_system_pref) {
+	cur_conc_system_pref = cds_get_cur_conc_system_pref();
+
+	cds_debug("connections:%d pref:%d requested mode:%d",
+		num_connections, cur_conc_system_pref, mode);
+
+	switch (cur_conc_system_pref) {
 	case 0:
 		conc_system_pref = CDS_THROUGHPUT;
 		break;
@@ -5458,7 +5462,7 @@ QDF_STATUS cds_get_pcl(enum cds_con_mode mode,
 		break;
 	default:
 		cds_err("unknown conc_system_pref value %d",
-			hdd_ctx->config->conc_system_pref);
+			cur_conc_system_pref);
 		break;
 	}
 
@@ -5944,17 +5948,13 @@ done:
  */
 enum cds_conc_priority_mode cds_get_first_connection_pcl_table_index(void)
 {
-	hdd_context_t *hdd_ctx;
+	enum cds_conc_priority_mode cur_conc_system_pref;
 
-	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
-	if (!hdd_ctx) {
-		cds_err("HDD context is NULL");
-		return CDS_THROUGHPUT;
-	}
+	cur_conc_system_pref = cds_get_cur_conc_system_pref();
 
-	if (hdd_ctx->config->conc_system_pref >= CDS_MAX_CONC_PRIORITY_MODE)
+	if (cur_conc_system_pref >= CDS_MAX_CONC_PRIORITY_MODE)
 		return CDS_THROUGHPUT;
-	return hdd_ctx->config->conc_system_pref;
+	return cur_conc_system_pref;
 }
 
 /**
@@ -10282,4 +10282,42 @@ void cds_save_wlan_unsafe_channels(uint16_t *unsafe_channel_list,
 			unsafe_channel_list, cds_ctx->unsafe_channel_count);
 	else
 		qdf_mem_zero(cds_ctx->unsafe_channel_list, NUM_CHANNELS);
+}
+
+/**
+ * cds_set_cur_conc_system_pref() - set the value of cur_conc_system_pref
+ * @conc_system_pref: value of conc_system_pref
+ * This function overwrites the conc_system_pref with the user preference
+ *
+ * Return: None
+ */
+void cds_set_cur_conc_system_pref(uint8_t conc_system_pref)
+{
+	cds_context_type *cds_ctx;
+
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("cds_ctx is NULL");
+		return;
+	}
+	cds_ctx->cur_conc_system_pref = conc_system_pref;
+}
+
+/**
+ * cds_get_cur_conc_system() - read the value of cur_conc_system_pref
+ *
+ * This function reads the value of current conc_system_pref value
+ *
+ * Return: current conc_system_pref
+ */
+uint8_t cds_get_cur_conc_system_pref(void)
+{
+	cds_context_type *cds_ctx;
+
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("cds_ctx is NULL");
+		return CDS_THROUGHPUT;
+	}
+	return cds_ctx->cur_conc_system_pref;
 }

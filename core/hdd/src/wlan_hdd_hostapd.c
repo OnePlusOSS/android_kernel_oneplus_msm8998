@@ -2759,8 +2759,7 @@ static __iw_softap_setparam(struct net_device *dev,
 			hdd_err("Invalid system preference: %d", set_value);
 			return -EINVAL;
 		}
-		/* hdd_ctx, hdd_ctx->config are already checked for null */
-		hdd_ctx->config->conc_system_pref = set_value;
+		cds_set_cur_conc_system_pref(set_value);
 		break;
 	case QCSAP_PARAM_MAX_ASSOC:
 		if (WNI_CFG_ASSOC_STA_LIMIT_STAMIN > set_value) {

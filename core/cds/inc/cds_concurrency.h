@@ -976,4 +976,23 @@ bool cds_disallow_mcc(uint8_t channel);
  * Return: New channel
  */
 uint8_t cds_get_alternate_channel_for_sap(void);
+
+/**
+ * cds_set_cur_conc_system_pref() - set the value of cur_conc_system_pref
+ * @conc_system_pref: value of conc_system_pref
+ * This function overwrites the conc_system_pref with the user preference
+ *
+ * Return: None
+  */
+void cds_set_cur_conc_system_pref(uint8_t conc_system_pref);
+
+/**
+ * cds_get_cur_conc_system() - read the value of cur_conc_system_pref
+ *
+ * This function reads the value of current conc_system_pref value
+ *
+ * Return: current conc_system_pref
+ */
+uint8_t cds_get_cur_conc_system_pref(void);
+
 #endif /* __CDS_CONCURRENCY_H */

@@ -8563,6 +8563,7 @@ static int hdd_pre_enable_configure(hdd_context_t *hdd_ctx)
 	cds_enable_disable_sap_mandatory_chan_list(
 			hdd_ctx->config->enable_sap_mandatory_chan_list);
 
+	cds_set_cur_conc_system_pref(hdd_ctx->config->conc_system_pref);
 out:
 	return ret;
 }

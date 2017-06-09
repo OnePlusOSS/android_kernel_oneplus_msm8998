@@ -3444,6 +3444,21 @@ static void hdd_get_rssi_cb(int8_t rssi, uint32_t staId, void *pContext)
 	pAdapter = pStatsContext->pAdapter;
 	pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
 
+	/* update rssi only if its valid else return previous valid rssi */
+	if (rssi)
+		pAdapter->rssi = rssi;
+
+	/* for new connection there might be no valid previous RSSI
+	 * Do not keep hdd_get_rssi_snr_by_bssid under spin_lock
+	 * because it accesses scan cache in pMac which is mutex
+	 * protected
+	 */
+	if (!pAdapter->rssi)
+		hdd_get_rssi_snr_by_bssid(pAdapter,
+			pHddStaCtx->conn_info.bssId.bytes,
+			&pAdapter->rssi, NULL);
+
+
 	/* there is a race condition that exists between this callback
 	 * function and the caller since the caller could time out
 	 * either before or while this code is executing.  we use a
@@ -3466,17 +3481,6 @@ static void hdd_get_rssi_cb(int8_t rssi, uint32_t staId, void *pContext)
 
 	/* paranoia: invalidate the magic */
 	pStatsContext->magic = 0;
-
-	/* update rssi only if its valid else return previous valid rssi */
-	if (rssi)
-		pAdapter->rssi = rssi;
-
-	/* for new connection there might be no valid previous RSSI */
-	if (!pAdapter->rssi)
-		hdd_get_rssi_snr_by_bssid(pAdapter,
-			pHddStaCtx->conn_info.bssId.bytes,
-			&pAdapter->rssi, NULL);
-
 	/* notify the caller */
 	complete(&pStatsContext->completion);
 

@@ -7038,6 +7038,9 @@ void hdd_ch_avoid_cb(void *hdd_context, void *indi_param)
 		return;
 	}
 
+	cds_save_wlan_unsafe_channels(hdd_ctxt->unsafe_channel_list,
+			hdd_ctxt->unsafe_channel_count);
+
 	for (channel_loop = 0;
 	     channel_loop < hdd_ctxt->unsafe_channel_count; channel_loop++) {
 		hdd_debug("channel %d is not safe ",

@@ -913,4 +913,16 @@ void cds_remove_sap_mandatory_chan(uint8_t chan);
 bool cds_is_sap_mandatory_chan_list_enabled(void);
 void cds_init_sap_mandatory_2g_chan(void);
 uint32_t cds_get_sap_mandatory_chan_list_len(void);
+/**
+ * cds_save_wlan_unsafe_channels() - saves the
+ * LTE channel avoidance list in cds
+ * @unsafe_channel_list: LTE channel avoidance list
+ * @unsafe_channel_count: LTE channel avoidance list count
+ *
+ * This function saves the LTE unsafe channels in cds context
+ *
+ * Return: None
+ */
+void cds_save_wlan_unsafe_channels(uint16_t *unsafe_channel_list,
+		uint16_t unsafe_channel_count);
 #endif /* __CDS_CONCURRENCY_H */

@@ -172,9 +172,6 @@ ifeq ($(KERNEL_BUILD), 0)
 	CONFIG_WLAN_FEATURE_DSRC := y
 	endif
 
-	#enable spectral scan feature
-	CONFIG_WLAN_SPECTRAL_SCAN := y
-
 ifneq ($(CONFIG_ROME_IF),sdio)
 	#Flag to enable DISA
 	CONFIG_WLAN_FEATURE_DISA := y
@@ -235,6 +232,8 @@ ifneq ($(TARGET_BUILD_VARIANT),user)
 	CONFIG_FEATURE_PKTLOG := y
 endif
 
+#enable spectral scan feature
+CONFIG_WLAN_SPECTRAL_SCAN := y
 
 #Enable WLAN/Power debugfs feature only if debug_fs is enabled
 ifeq ($(CONFIG_DEBUG_FS), y)

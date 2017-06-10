@@ -371,8 +371,6 @@ struct od_ops {
 	void (*freq_increase)(struct cpufreq_policy *policy, unsigned int freq);
 };
 
-};
-
 static inline int delay_for_sampling_rate(unsigned int sampling_rate)
 {
 	int delay = usecs_to_jiffies(sampling_rate);

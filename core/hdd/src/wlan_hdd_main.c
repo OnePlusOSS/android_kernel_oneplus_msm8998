@@ -5992,6 +5992,8 @@ static int hdd_wiphy_init(hdd_context_t *hdd_ctx)
 		return ret_val;
 	}
 
+	pld_increment_driver_load_cnt(hdd_ctx->parent_dev);
+
 	hdd_program_country_code(hdd_ctx);
 
 	return ret_val;

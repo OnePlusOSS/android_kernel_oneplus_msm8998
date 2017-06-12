@@ -388,5 +388,6 @@ unsigned int pld_socinfo_get_serial_number(struct device *dev);
 uint8_t *pld_get_wlan_mac_address(struct device *dev, uint32_t *num);
 int pld_is_qmi_disable(struct device *dev);
 int pld_force_assert_target(struct device *dev);
-
+void pld_increment_driver_load_cnt(struct device *dev);
+int pld_get_driver_load_cnt(struct device *dev);
 #endif

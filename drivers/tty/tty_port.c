@@ -16,6 +16,7 @@
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/module.h>
+#include <uapi/linux/sched.h>
 
 void tty_port_init(struct tty_port *port)
 {
@@ -598,3 +599,12 @@ int tty_port_open(struct tty_port *port, struct tty_struct *tty,
 }
 
 EXPORT_SYMBOL(tty_port_open);
+
+int tty_port_set_policy(struct tty_port *port, int policy, int sched_priority)
+{
+	struct sched_param param = { .sched_priority = sched_priority };
+
+	return sched_setscheduler(port->worker_thread, policy, &param);
+}
+EXPORT_SYMBOL_GPL(tty_port_set_policy);
+

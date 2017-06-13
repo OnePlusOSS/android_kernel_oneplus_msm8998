@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2005-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -341,7 +341,7 @@ struct dfs_event {
 	uint8_t dfs_phyerr_eventq_serial_num;
 	uint8_t peak_mag;
 	STAILQ_ENTRY(dfs_event) re_list;
-} qdf_packed;
+};
 #ifdef WIN32
 #pragma pack(pop, dfs_event)
 #endif
@@ -495,7 +495,7 @@ struct dfs_nolelem {
 	uint32_t nol_timeout_ms;        /* NOL timeout value in msec */
 	os_timer_t nol_timer;   /* per element NOL timer */
 	struct dfs_nolelem *nol_next;   /* next element pointer */
-} qdf_packed;
+};
 #ifdef WIN32
 #pragma pack(pop, dfs_nolelem)
 #endif

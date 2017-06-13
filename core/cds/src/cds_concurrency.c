@@ -7147,11 +7147,11 @@ static bool cds_sta_p2pgo_concur_handle(hdd_adapter_t *sta_adapter,
 			if (p2pgo_channel_num <= 14) {
 				freq = ieee80211_channel_to_frequency(
 						p2pgo_channel_num,
-						NL80211_BAND_2GHZ);
+						HDD_NL80211_BAND_2GHZ);
 			} else {
 				freq = ieee80211_channel_to_frequency(
 						p2pgo_channel_num,
-						NL80211_BAND_5GHZ);
+						HDD_NL80211_BAND_5GHZ);
 			}
 			qdf_mem_zero(&hdd_avoid_freq_list,
 					sizeof(hdd_avoid_freq_list));

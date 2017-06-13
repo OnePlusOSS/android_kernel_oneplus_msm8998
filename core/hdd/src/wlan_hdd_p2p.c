@@ -3267,9 +3267,10 @@ static uint16_t get_rx_frame_freq_from_chan(uint32_t rx_chan)
 {
 	if (rx_chan <= MAX_NO_OF_2_4_CHANNELS)
 		return ieee80211_channel_to_frequency(rx_chan,
-						      NL80211_BAND_2GHZ);
+						      HDD_NL80211_BAND_2GHZ);
 
-	return ieee80211_channel_to_frequency(rx_chan, NL80211_BAND_5GHZ);
+	return ieee80211_channel_to_frequency(rx_chan,
+						HDD_NL80211_BAND_5GHZ);
 }
 
 static void indicate_rx_mgmt_over_nl80211(hdd_adapter_t *adapter,

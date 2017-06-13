@@ -139,6 +139,7 @@ enum pld_driver_status {
 enum pld_uevent {
 	PLD_RECOVERY,
 	PLD_FW_DOWN,
+	PLD_FW_READY,
 };
 
 /**

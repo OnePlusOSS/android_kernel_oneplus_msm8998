@@ -15946,6 +15946,24 @@ QDF_STATUS csr_send_mb_start_bss_req_msg(tpAniSirGlobal pMac, uint32_t
 	pMsg->bssPersona = pParam->bssPersona;
 	pMsg->txLdpcIniFeatureEnabled = pMac->roam.configParam.tx_ldpc_enable;
 
+	/*
+	 * If RX LDPC has been disabled for 2.4GHz channels and enabled
+	 * for 5Ghz for STA/IBSS persona then here is how to handle
+	 * those cases (by now channel has been decided).
+	 */
+	if ((pSession->pCurRoamProfile->csrPersona == QDF_IBSS_MODE) ||
+				!wma_is_dbs_enable()) {
+		/*
+		 * faking DBS hardware mode, so IBSS will enable rxLDPC
+		 * for 5G and disable rxLDPC
+		 */
+		sme_debug("Rx LDPC : hwmode-%d", HW_MODE_DBS);
+		csr_set_ldpc_exception(pMac, pSession,
+				pMsg->channelId,
+				pMac->roam.configParam.rx_ldpc_enable,
+				HW_MODE_DBS);
+	}
+
 	qdf_mem_copy(&pMsg->vht_config,
 		     &pSession->vht_config,
 		     sizeof(pSession->vht_config));
@@ -15991,23 +16009,6 @@ QDF_STATUS csr_send_mb_start_bss_req_msg(tpAniSirGlobal pMac, uint32_t
 	qdf_mem_copy(&pMsg->extendedRateSet,
 		     &pParam->extendedRateSet,
 		     sizeof(tSirMacRateSet));
-	/*
-	 * If RX LDPC has been disabled for 2.4GHz channels and enabled
-	 * for 5Ghz for STA/IBSS persona then here is how to handle
-	 * those cases (by now channel has been decided).
-	 */
-	if ((pSession->pCurRoamProfile->csrPersona == QDF_IBSS_MODE) ||
-				!wma_is_dbs_enable()) {
-		/*
-		 * faking DBS hardware mode, so IBSS will enable rxLDPC
-		 * for 5G and disable rxLDPC
-		 */
-		sme_debug("Rx LDPC : hwmode-%d", HW_MODE_DBS);
-		csr_set_ldpc_exception(pMac, pSession,
-				pMsg->channelId,
-				pMac->roam.configParam.rx_ldpc_enable,
-				HW_MODE_DBS);
-	}
 	qdf_mem_copy(&pMsg->addIeParams,
 		     &pParam->addIeParams,
 		     sizeof(pParam->addIeParams));

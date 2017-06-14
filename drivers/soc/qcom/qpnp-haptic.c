@@ -1697,6 +1697,11 @@ static void qpnp_hap_td_enable(struct timed_output_dev *dev, int value)
 	//schedule_work(&hap->work); wulaibin remove it 2017-02-22 for vibrete time nonuniform
 }
 
+void set_vibrate(int value)
+{
+	qpnp_hap_td_enable(&ghap->timed_dev, value);
+}
+
 /* play pwm bytes */
 int qpnp_hap_play_byte(u8 data, bool on)
 {

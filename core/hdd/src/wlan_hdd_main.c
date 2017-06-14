@@ -3924,9 +3924,9 @@ QDF_STATUS hdd_stop_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 			}
 			/* Reset WNI_CFG_PROBE_RSP Flags */
 			wlan_hdd_reset_prob_rspies(adapter);
-			qdf_mem_free(adapter->sessionCtx.ap.beacon);
-			adapter->sessionCtx.ap.beacon = NULL;
 		}
+		qdf_mem_free(adapter->sessionCtx.ap.beacon);
+		adapter->sessionCtx.ap.beacon = NULL;
 		if (true == bCloseSession)
 			hdd_wait_for_sme_close_sesion(hdd_ctx, adapter, true);
 
@@ -10504,6 +10504,10 @@ void wlan_hdd_start_sap(hdd_adapter_t *ap_adapter, bool reinit)
 
 end:
 	mutex_unlock(&hdd_ctx->sap_lock);
+	/* SAP context and beacon cleanup will happen during driver unload
+	 * in hdd_stop_adapter
+	 */
+	hdd_err("SAP restart after SSR failed! Reload WLAN and try SAP again");
 }
 
 /**

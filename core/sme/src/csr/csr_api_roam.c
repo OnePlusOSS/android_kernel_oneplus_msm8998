@@ -9460,10 +9460,10 @@ static void csr_roam_roaming_state_reassoc_rsp_processor(tpAniSirGlobal pMac,
 			if (pNeighborRoamInfo) {
 				qdf_mem_zero(&roamInfo, sizeof(tCsrRoamInfo));
 				csr_roam_call_callback(pMac,
-						       pSmeJoinRsp->sessionId,
-						       &roamInfo, roamId,
-						    eCSR_ROAM_FT_REASSOC_FAILED,
-						       eSIR_SME_SUCCESS);
+						pSmeJoinRsp->sessionId,
+						&roamInfo, roamId,
+						eCSR_ROAM_FT_REASSOC_FAILED,
+						eCSR_ROAM_RESULT_SUCCESS);
 				/*
 				 * Since the above callback sends a disconnect
 				 * to HDD, we should clean-up our state
@@ -9607,7 +9607,8 @@ csr_post_roam_failure(tpAniSirGlobal mac_ctx,
 	/* Inform the upper layers that the reassoc failed */
 	qdf_mem_zero(roam_info, sizeof(tCsrRoamInfo));
 	csr_roam_call_callback(mac_ctx, session_id, roam_info, 0,
-			       eCSR_ROAM_FT_REASSOC_FAILED, eSIR_SME_SUCCESS);
+			       eCSR_ROAM_FT_REASSOC_FAILED,
+			       eCSR_ROAM_RESULT_SUCCESS);
 	/*
 	 * Issue a disassoc request so that PE/LIM uses this to clean-up the FT
 	 * session. Upon success, we would re-enter this routine after receiving
@@ -16206,13 +16207,13 @@ QDF_STATUS csr_process_add_sta_session_command(tpAniSirGlobal pMac,
 	struct add_sta_self_params *add_sta_self_req;
 	uint8_t nss_2g;
 	uint8_t nss_5g;
-	QDF_STATUS status = QDF_STATUS_E_NOMEM;
+	tSirRetStatus status;
 	tSirMsgQ msg;
 
 	add_sta_self_req = qdf_mem_malloc(sizeof(struct add_sta_self_params));
 	if (NULL == add_sta_self_req) {
 		sme_err("Unable to allocate memory for tAddSelfStaParams");
-		return status;
+		return QDF_STATUS_E_NOMEM;
 	}
 
 	csr_get_vdev_type_nss(pMac, pAddStaReq->currDeviceMode,
@@ -16245,12 +16246,13 @@ QDF_STATUS csr_process_add_sta_session_command(tpAniSirGlobal pMac,
 		 MAC_ADDR_ARRAY(add_sta_self_req->self_mac_addr));
 	status = wma_post_ctrl_msg(pMac, &msg);
 
-	if (status != QDF_STATUS_SUCCESS) {
+	if (status != eSIR_SUCCESS) {
 		sme_err("wma_post_ctrl_msg failed");
 		qdf_mem_free(add_sta_self_req);
 		add_sta_self_req = NULL;
+		return QDF_STATUS_E_FAILURE;
 	}
-	return status;
+	return QDF_STATUS_SUCCESS;
 }
 
 QDF_STATUS csr_roam_open_session(tpAniSirGlobal mac_ctx,
@@ -16563,7 +16565,7 @@ QDF_STATUS csr_process_del_sta_session_command(tpAniSirGlobal pMac,
 {
 	struct del_sta_self_params *del_sta_self_req;
 	tSirMsgQ msg;
-	QDF_STATUS status = QDF_STATUS_E_FAILURE;
+	tSirRetStatus status;
 
 	del_sta_self_req = qdf_mem_malloc(sizeof(struct del_sta_self_params));
 	if (NULL == del_sta_self_req) {
@@ -16583,11 +16585,12 @@ QDF_STATUS csr_process_del_sta_session_command(tpAniSirGlobal pMac,
 
 	sme_debug("sending WMA_DEL_STA_SELF_REQ");
 	status = wma_post_ctrl_msg(pMac, &msg);
-	if (status != QDF_STATUS_SUCCESS) {
+	if (status != eSIR_SUCCESS) {
 		sme_err("wma_post_ctrl_msg failed");
 		qdf_mem_free(del_sta_self_req);
+		return QDF_STATUS_E_FAILURE;
 	}
-	return status;
+	return QDF_STATUS_SUCCESS;
 }
 
 /**
@@ -20617,24 +20620,24 @@ static QDF_STATUS csr_process_roam_sync_callback(tpAniSirGlobal mac_ctx,
 			return QDF_STATUS_E_FAILURE;
 		}
 		csr_roam_call_callback(mac_ctx, session_id, NULL, 0,
-				eCSR_ROAM_FT_START, eSIR_SME_SUCCESS);
+				eCSR_ROAM_FT_START, eCSR_ROAM_RESULT_SUCCESS);
 		return status;
 	case SIR_ROAMING_START:
 		csr_roam_roaming_offload_timer_action(mac_ctx,
 				CSR_ROAMING_OFFLOAD_TIMEOUT_PERIOD, session_id,
 				ROAMING_OFFLOAD_TIMER_START);
 		csr_roam_call_callback(mac_ctx, session_id, NULL, 0,
-				eCSR_ROAM_START, eSIR_SME_SUCCESS);
+				eCSR_ROAM_START, eCSR_ROAM_RESULT_SUCCESS);
 		return status;
 	case SIR_ROAMING_ABORT:
 		csr_roam_roaming_offload_timer_action(mac_ctx,
 				0, session_id, ROAMING_OFFLOAD_TIMER_STOP);
 		csr_roam_call_callback(mac_ctx, session_id, NULL, 0,
-				eCSR_ROAM_ABORT, eSIR_SME_SUCCESS);
+				eCSR_ROAM_ABORT, eCSR_ROAM_RESULT_SUCCESS);
 		return status;
 	case SIR_ROAM_SYNCH_NAPI_OFF:
 		csr_roam_call_callback(mac_ctx, session_id, NULL, 0,
-				eCSR_ROAM_NAPI_OFF, eSIR_SME_SUCCESS);
+				eCSR_ROAM_NAPI_OFF, eCSR_ROAM_RESULT_SUCCESS);
 		return status;
 	case SIR_ROAMING_INVOKE_FAIL:
 		csr_roam_call_callback(mac_ctx, session_id, NULL, 0,

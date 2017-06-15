@@ -3011,6 +3011,13 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_ENABLE_MEMORY_DEEP_SLEEP_MIN,
 		     CFG_ENABLE_MEMORY_DEEP_SLEEP_MAX),
 
+	REG_VARIABLE(CFG_ENABLE_CCK_TX_FIR_OVERRIDE_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, enable_cck_tx_fir_override,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ENABLE_CCK_TX_FIR_OVERRIDE_DEFAULT,
+		     CFG_ENABLE_CCK_TX_FIR_OVERRIDE_MIN,
+		     CFG_ENABLE_CCK_TX_FIR_OVERRIDE_MAX),
+
 	REG_VARIABLE(CFG_DEFAULT_RATE_INDEX_24GH, WLAN_PARAM_Integer,
 		     struct hdd_config, defaultRateIndex24Ghz,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -5810,6 +5817,9 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 		  pHddCtx->config->apMaxOffloadPeers);
 	hdd_debug("Name = [gMaxOffloadReorderBuffs] value = [%u] ",
 		  pHddCtx->config->apMaxOffloadReorderBuffs);
+	hdd_debug("Name = [%s] Value = [%d]",
+		  CFG_ENABLE_CCK_TX_FIR_OVERRIDE_NAME,
+		  pHddCtx->config->enable_cck_tx_fir_override);
 	hdd_debug("Name = [gAllowDFSChannelRoam] Value = [%u] ",
 		  pHddCtx->config->allowDFSChannelRoam);
 	hdd_debug("Name = [gMaxConcurrentActiveSessions] Value = [%u] ",

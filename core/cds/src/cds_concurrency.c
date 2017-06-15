@@ -3586,10 +3586,10 @@ void cds_set_tdls_ct_mode(hdd_context_t *hdd_ctx)
 	    (!hdd_ctx->config->fEnableTDLSImplicitTrigger)) {
 		state = false;
 		goto set_state;
-	} else if (cds_mode_specific_connection_count(QDF_STA_MODE,
+	} else if (cds_mode_specific_connection_count(CDS_STA_MODE,
 						      NULL) == 1) {
 		state = true;
-	} else if (cds_mode_specific_connection_count(QDF_P2P_CLIENT_MODE,
+	} else if (cds_mode_specific_connection_count(CDS_P2P_CLIENT_MODE,
 						      NULL) == 1){
 		state = true;
 	} else {
@@ -6050,7 +6050,7 @@ enum cds_one_connection_mode cds_get_second_connection_pcl_table_index(void)
  */
 enum cds_two_connection_mode cds_get_third_connection_pcl_table_index(void)
 {
-	enum cds_one_connection_mode index = CDS_MAX_TWO_CONNECTION_MODE;
+	enum cds_two_connection_mode index = CDS_MAX_TWO_CONNECTION_MODE;
 	cds_context_type *cds_ctx;
 
 	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);

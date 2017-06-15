@@ -83,13 +83,13 @@ tSirRetStatus mac_start(tHalHandle hHal, void *pHalMacStartParams)
    \return tSirRetStatus
    -------------------------------------------------------------*/
 
-tSirRetStatus mac_stop(tHalHandle hHal, tHalStopType stopType)
+QDF_STATUS mac_stop(tHalHandle hHal, tHalStopType stopType)
 {
 	tpAniSirGlobal pMac = (tpAniSirGlobal) hHal;
 	pe_stop(pMac);
 	cfg_cleanup(pMac);
 
-	return eSIR_SUCCESS;
+	return QDF_STATUS_SUCCESS;
 }
 
 /** -------------------------------------------------------------
@@ -154,13 +154,13 @@ tSirRetStatus mac_open(tHalHandle *pHalHandle, tHddHandle hHdd,
    \return none
    -------------------------------------------------------------*/
 
-tSirRetStatus mac_close(tHalHandle hHal)
+QDF_STATUS mac_close(tHalHandle hHal)
 {
 
 	tpAniSirGlobal pMac = (tpAniSirGlobal) hHal;
 
 	if (!pMac)
-		return eSIR_FAILURE;
+		return QDF_STATUS_E_FAILURE;
 
 	pe_close(pMac);
 
@@ -169,5 +169,5 @@ tSirRetStatus mac_close(tHalHandle hHal)
 
 	qdf_mem_zero(pMac, sizeof(*pMac));
 
-	return eSIR_SUCCESS;
+	return QDF_STATUS_SUCCESS;
 }

@@ -176,6 +176,7 @@ QDF_STATUS ol_txrx_set_wisa_mode(ol_txrx_vdev_handle vdev,
 			bool enable);
 void ol_txrx_update_mac_id(uint8_t vdev_id, uint8_t mac_id);
 void ol_txrx_peer_detach_force_delete(ol_txrx_peer_handle peer);
+void peer_unmap_timer_work_function(void *);
 void peer_unmap_timer_handler(void *data);
 
 #endif /* _OL_TXRX__H_ */

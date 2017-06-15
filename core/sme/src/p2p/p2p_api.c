@@ -113,9 +113,12 @@ QDF_STATUS sme_remain_on_chn_rsp(tpAniSirGlobal pMac, uint8_t *pMsg)
 		return status;
 
 	callback = pCommand->u.remainChlCmd.callback;
-	if (callback)
+	if (callback && rsp) {
+		if(rsp->status != eSIR_SME_SUCCESS)
+			status = QDF_STATUS_E_FAILURE;
 		callback(pMac, pCommand->u.remainChlCmd.callbackCtx,
-			rsp->status, rsp->scan_id);
+			status, rsp->scan_id);
+	}
 
 	fFound = csr_ll_remove_entry(&pMac->sme.smeScanCmdActiveList, pEntry,
 				     LL_ACCESS_LOCK);

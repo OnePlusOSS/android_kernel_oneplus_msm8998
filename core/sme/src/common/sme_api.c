@@ -665,7 +665,7 @@ static void sme_abort_command(tpAniSirGlobal pMac, tSmeCmd *pCommand,
 			/* process the msg */
 			if (callback)
 				callback(pMac, pCommand->u.remainChlCmd.
-					callbackCtx, eCSR_SCAN_ABORT,
+					callbackCtx, QDF_STATUS_E_FAILURE,
 					pCommand->u.remainChlCmd.scan_id);
 		}
 		sme_release_command(pMac, pCommand);

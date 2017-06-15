@@ -32,6 +32,9 @@
 #include "spectral_scan_api.h"
 #include "wlan_nlink_srv.h"
 #include "spectral_scan_fmt.h"
+#ifdef CNSS_GENL
+#include <net/cnss_nl.h>
+#endif
 
 static const struct nla_policy spectral_scan_policy[
 		QCA_WLAN_VENDOR_ATTR_SPECTRAL_SCAN_CONFIG_MAX + 1] = {
@@ -330,6 +333,7 @@ static void send_spectral_scan_reg_rsp_msg(hdd_context_t *hdd_ctx)
 	struct sk_buff *skb;
 	struct nlmsghdr *nlh;
 	struct spectral_scan_msg *rsp_msg;
+	int err;
 
 	skb = alloc_skb(NLMSG_SPACE(sizeof(struct spectral_scan_msg)),
 				GFP_KERNEL);
@@ -355,7 +359,15 @@ static void send_spectral_scan_reg_rsp_msg(hdd_context_t *hdd_ctx)
 	hdd_info("sending App Reg Response to process pid %d",
 			hdd_ctx->sscan_pid);
 
-	(void)nl_srv_ucast(skb, hdd_ctx->sscan_pid, MSG_DONTWAIT);
+#ifdef CNSS_GENL
+	err = nl_srv_ucast(skb, hdd_ctx->sscan_pid, MSG_DONTWAIT,
+			WLAN_NL_MSG_SPECTRAL_SCAN, CLD80211_MCGRP_OEM_MSGS);
+#else
+	err = nl_srv_ucast(skb, hdd_ctx->sscan_pid, MSG_DONTWAIT);
+#endif
+	if (err < 0)
+		hdd_err("SPECTRAL: failed to send to spectral scan reg"
+			" response");
 }
 
 static int spectral_scan_msg_callback(struct sk_buff *skb)
@@ -573,7 +585,12 @@ void spectral_scan_callback(void *context, struct spectral_samp_msg   *samp_msg)
 	samp_msg_info->samp_data.ch_width =
 				samp_msg->samp_data.ch_width;
 
+#ifdef CNSS_GENL
+	err = nl_srv_ucast(spectral_skb, hdd_ctx->sscan_pid, MSG_DONTWAIT,
+			WLAN_NL_MSG_SPECTRAL_SCAN, CLD80211_MCGRP_OEM_MSGS);
+#else
 	err = nl_srv_ucast(spectral_skb, hdd_ctx->sscan_pid, MSG_DONTWAIT);
+#endif
 	if (err < 0)
 		hdd_err("SPECTRAL : failed to send to spectral scan app");
 }

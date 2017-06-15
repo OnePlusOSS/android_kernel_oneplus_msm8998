@@ -327,6 +327,13 @@ cb_notify_set_roam_scan_hi_rssi_scan_params(hdd_context_t *hdd_ctx,
 
 
 struct reg_table_entry g_registry_table[] = {
+	REG_VARIABLE(CFG_ENABLE_CONNECTED_SCAN_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, enable_connected_scan,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ENABLE_CONNECTED_SCAN_DEFAULT,
+		     CFG_ENABLE_CONNECTED_SCAN_MIN,
+		     CFG_ENABLE_CONNECTED_SCAN_MAX),
+
 	REG_VARIABLE(CFG_RTS_THRESHOLD_NAME, WLAN_PARAM_Integer,
 		     struct hdd_config, RTSThreshold,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -2170,6 +2177,20 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_RATE_FOR_TX_MGMT_DEFAULT,
 		     CFG_RATE_FOR_TX_MGMT_MIN,
 		     CFG_RATE_FOR_TX_MGMT_MAX),
+
+	REG_VARIABLE(CFG_RATE_FOR_TX_MGMT_2G, WLAN_PARAM_HexInteger,
+		     struct hdd_config, rate_for_tx_mgmt_2g,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_RATE_FOR_TX_MGMT_2G_DEFAULT,
+		     CFG_RATE_FOR_TX_MGMT_2G_MIN,
+		     CFG_RATE_FOR_TX_MGMT_2G_MAX),
+
+	REG_VARIABLE(CFG_RATE_FOR_TX_MGMT_5G, WLAN_PARAM_HexInteger,
+		     struct hdd_config, rate_for_tx_mgmt_5g,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_RATE_FOR_TX_MGMT_5G_DEFAULT,
+		     CFG_RATE_FOR_TX_MGMT_5G_MIN,
+		     CFG_RATE_FOR_TX_MGMT_5G_MAX),
 
 	REG_VARIABLE(CFG_ENABLE_FIRST_SCAN_2G_ONLY_NAME, WLAN_PARAM_Integer,
 		     struct hdd_config, enableFirstScan2GOnly,
@@ -4029,6 +4050,12 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_ENABLE_DP_TRACE_MIN,
 		CFG_ENABLE_DP_TRACE_MAX),
 
+
+	REG_VARIABLE_STRING(CFG_ENABLE_DP_TRACE_CONFIG, WLAN_PARAM_String,
+			struct hdd_config, dp_trace_config,
+			VAR_FLAGS_OPTIONAL,
+			(void *) CFG_ENABLE_DP_TRACE_CONFIG_DEFAULT),
+
 	REG_VARIABLE(CFG_ADAPTIVE_SCAN_DWELL_MODE_NAME, WLAN_PARAM_Integer,
 		struct hdd_config, scan_adaptive_dwell_mode,
 		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -4377,7 +4404,7 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_ENABLE_5G_BAND_PREF_MIN,
 		CFG_ENABLE_5G_BAND_PREF_MAX),
 
-	REG_VARIABLE(CFG_5G_RSSI_BOOST_THRESHOLD_NAME, WLAN_PARAM_Integer,
+	REG_VARIABLE(CFG_5G_RSSI_BOOST_THRESHOLD_NAME, WLAN_PARAM_SignedInteger,
 		struct hdd_config, rssi_boost_threshold_5g,
 		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
 		CFG_5G_RSSI_BOOST_THRESHOLD_DEFAULT,
@@ -4398,7 +4425,8 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_5G_MAX_RSSI_BOOST_MIN,
 		CFG_5G_MAX_RSSI_BOOST_MAX),
 
-	REG_VARIABLE(CFG_5G_RSSI_PENALIZE_THRESHOLD_NAME, WLAN_PARAM_Integer,
+	REG_VARIABLE(CFG_5G_RSSI_PENALIZE_THRESHOLD_NAME,
+		WLAN_PARAM_SignedInteger,
 		struct hdd_config, rssi_penalize_threshold_5g,
 		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
 		CFG_5G_RSSI_PENALIZE_THRESHOLD_DEFAULT,
@@ -6038,10 +6066,12 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_debug("Name = [%s] Value = [%s]",
 		CFG_ENABLE_TX_SCHED_WRR_BE,
 		pHddCtx->config->tx_sched_wrr_be);
-
 	hdd_debug("Name = [%s] Value = [%u]",
 		CFG_ENABLE_DP_TRACE,
 		pHddCtx->config->enable_dp_trace);
+	hdd_debug("Name = [%s] Value = [%s]",
+		CFG_ENABLE_DP_TRACE_CONFIG,
+		pHddCtx->config->dp_trace_config);
 	hdd_debug("Name = [%s] Value = [%u]",
 		CFG_ADAPTIVE_SCAN_DWELL_MODE_NAME,
 		pHddCtx->config->scan_adaptive_dwell_mode);
@@ -6166,6 +6196,8 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_debug("Name = [%s] Value = [%u]",
 		CFG_SCAN_BACKOFF_MULTIPLIER_NAME,
 		pHddCtx->config->scan_backoff_multiplier);
+	hdd_info("Name = [gEnableConnectedScan] Value = %u",
+		pHddCtx->config->enable_connected_scan);
 }
 
 /**
@@ -7298,6 +7330,20 @@ bool hdd_update_config_cfg(hdd_context_t *hdd_ctx)
 			QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Could not pass on WNI_CFG_SAP_MAX_MCS_DATA to CCM");
+	}
+
+	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_RATE_FOR_TX_MGMT_2G,
+			    config->rate_for_tx_mgmt_2g) ==
+			    QDF_STATUS_E_FAILURE) {
+		status = false;
+		hdd_err("Couldn't pass on WNI_CFG_RATE_FOR_TX_MGMT_2G to CCM");
+	}
+
+	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_RATE_FOR_TX_MGMT_5G,
+			    config->rate_for_tx_mgmt_5g) ==
+			    QDF_STATUS_E_FAILURE) {
+		status = false;
+		hdd_err("Couldn't pass on WNI_CFG_RATE_FOR_TX_MGMT_5G to CCM");
 	}
 
 	return status;

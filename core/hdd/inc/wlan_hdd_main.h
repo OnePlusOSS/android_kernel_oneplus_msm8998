@@ -357,6 +357,7 @@ struct random_mac_context {
 };
 
 extern spinlock_t hdd_context_lock;
+extern struct mutex hdd_init_deinit_lock;
 
 #define STATS_CONTEXT_MAGIC 0x53544154  /* STAT */
 #define RSSI_CONTEXT_MAGIC  0x52535349  /* RSSI */
@@ -2413,5 +2414,13 @@ static inline void hdd_clear_fils_connection_info(hdd_adapter_t *adapter)
  */
 int hdd_get_rssi_snr_by_bssid(hdd_adapter_t *adapter, const uint8_t *bssid,
 			      int8_t *rssi, int8_t *snr);
+
+/**
+ * hdd_dp_trace_init() - initialize DP Trace by calling the QDF API
+ * @config: hdd config
+ *
+ * Return: NONE
+ */
+void hdd_dp_trace_init(struct hdd_config *config);
 
 #endif /* end #if !defined(WLAN_HDD_MAIN_H) */

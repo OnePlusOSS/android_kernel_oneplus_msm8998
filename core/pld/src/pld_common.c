@@ -1183,6 +1183,61 @@ void pld_disable_irq(struct device *dev, unsigned int ce_id)
 }
 
 /**
+ * pld_increment_driver_load_cnt() - Maintain driver load count
+ * @dev: device
+ *
+ * This function maintain a count which get increase whenever wiphy
+ * is registered
+ *
+ * Return: void
+ */
+void pld_increment_driver_load_cnt(struct device *dev)
+{
+	switch (pld_get_bus_type(dev)) {
+	case PLD_BUS_TYPE_PCIE:
+		pld_pcie_increment_driver_load_cnt();
+		break;
+	case PLD_BUS_TYPE_SNOC:
+		pld_snoc_increment_driver_load_cnt();
+		break;
+	case PLD_BUS_TYPE_SDIO:
+		break;
+	default:
+		pr_err("Invalid device type\n");
+		break;
+	}
+}
+
+/**
+ * pld_get_driver_load_cnt() - get driver load count
+ * @dev: device
+ *
+ * This function provide total wiphy registration count from starting
+ *
+ * Return: int
+ */
+int pld_get_driver_load_cnt(struct device *dev)
+{
+	int ret = 0;
+
+	switch (pld_get_bus_type(dev)) {
+	case PLD_BUS_TYPE_PCIE:
+		ret = pld_pcie_get_driver_load_cnt();
+		break;
+	case PLD_BUS_TYPE_SNOC:
+		ret = pld_snoc_get_driver_load_cnt();
+		break;
+	case PLD_BUS_TYPE_SDIO:
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
+/**
  * pld_get_soc_info() - Get SOC information
  * @dev: device
  * @info: buffer to SOC information

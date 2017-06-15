@@ -3529,7 +3529,7 @@ QDF_STATUS ol_txrx_wait_for_pending_tx(int timeout)
 }
 
 #ifndef QCA_WIFI_3_0_EMU
-#define SUSPEND_DRAIN_WAIT 1000
+#define SUSPEND_DRAIN_WAIT 500
 #else
 #define SUSPEND_DRAIN_WAIT 3000
 #endif
@@ -5091,51 +5091,64 @@ bool ol_txrx_set_ocb_def_tx_param(ol_txrx_vdev_handle vdev,
 			 * Validate the contents and
 			 * save them in the vdev.
 			 */
-		if (def_tx_param_size != sizeof(struct ocb_tx_ctrl_hdr_t)) {
-			QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
-			"%sInvalid size of OCB default TX params", __func__);
-			return false;
-		}
-
-		if (def_tx_param->version != OCB_HEADER_VERSION) {
-			QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
-			"%sInvalid version of OCB default TX params", __func__);
-			return false;
-		}
-
-		if (def_tx_param->channel_freq) {
-			int i;
-
-			for (i = 0; i < vdev->ocb_channel_count; i++) {
-				if (vdev->ocb_channel_info[i].chan_freq ==
-					def_tx_param->channel_freq)
-					break;
-			}
-			if (i == vdev->ocb_channel_count) {
+			if (def_tx_param_size !=
+				sizeof(struct ocb_tx_ctrl_hdr_t)) {
 				QDF_TRACE(QDF_MODULE_ID_TXRX,
-				QDF_TRACE_LEVEL_ERROR,
-			"%sInvalid default channel frequency", __func__);
+					QDF_TRACE_LEVEL_ERROR,
+					"%sInvalid size of OCB default TX params",
+					__func__);
 				return false;
 			}
-		}
 
-		if (def_tx_param->valid_datarate &&
+			if (def_tx_param->version != OCB_HEADER_VERSION) {
+				QDF_TRACE(QDF_MODULE_ID_TXRX,
+					QDF_TRACE_LEVEL_ERROR,
+					"%sInvalid version of OCB default TX params",
+					__func__);
+				return false;
+			}
+
+			if (def_tx_param->channel_freq) {
+				int i;
+
+				for (i = 0; i < vdev->ocb_channel_count; i++) {
+					if (vdev->ocb_channel_info[i].
+						chan_freq ==
+						def_tx_param->channel_freq)
+						break;
+				}
+				if (i == vdev->ocb_channel_count) {
+					QDF_TRACE(QDF_MODULE_ID_TXRX,
+						QDF_TRACE_LEVEL_ERROR,
+						"%sInvalid default channel frequency",
+						__func__);
+					return false;
+				}
+			}
+
+			if (def_tx_param->valid_datarate &&
 				def_tx_param->datarate > MAX_DATARATE) {
-			QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
-				"%sInvalid default datarate", __func__);
-			return false;
-		}
+					QDF_TRACE(QDF_MODULE_ID_TXRX,
+						QDF_TRACE_LEVEL_ERROR,
+						"%sInvalid default datarate",
+						__func__);
+				return false;
+			}
 
-		if (def_tx_param->valid_tid &&
+			if (def_tx_param->valid_tid &&
 				def_tx_param->ext_tid > MAX_TID) {
-			QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
-				"%sInvalid default TID", __func__);
-			return false;
-		}
+					QDF_TRACE(QDF_MODULE_ID_TXRX,
+						QDF_TRACE_LEVEL_ERROR,
+						"%sInvalid default TID",
+						__func__);
+				return false;
+			}
 
-		if (vdev->ocb_def_tx_param == NULL)
-			vdev->ocb_def_tx_param =
-				qdf_mem_malloc(sizeof(*vdev->ocb_def_tx_param));
+			if (vdev->ocb_def_tx_param == NULL)
+				vdev->ocb_def_tx_param =
+					qdf_mem_malloc(
+						sizeof(*vdev->ocb_def_tx_param)
+						);
 			qdf_mem_copy(vdev->ocb_def_tx_param, def_tx_param,
 				sizeof(*vdev->ocb_def_tx_param));
 		} else {

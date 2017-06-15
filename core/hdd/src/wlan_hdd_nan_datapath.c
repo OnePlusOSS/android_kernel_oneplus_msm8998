@@ -910,7 +910,7 @@ static void hdd_ndp_iface_create_rsp_handler(hdd_adapter_t *adapter,
 				NLMSG_HDRLEN + (4 * NLA_HDRLEN);
 	struct nan_datapath_ctx *ndp_ctx = WLAN_HDD_GET_NDP_CTX_PTR(adapter);
 	bool create_fail = false;
-	uint8_t create_transaction_id = 0;
+	uint16_t create_transaction_id = 0;
 	uint32_t create_status = NDP_RSP_STATUS_ERROR;
 	uint32_t create_reason = NDP_NAN_DATA_IFACE_CREATE_FAILED;
 	hdd_station_ctx_t *sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);

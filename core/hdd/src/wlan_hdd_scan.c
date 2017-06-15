@@ -81,6 +81,13 @@ struct hdd_scan_info {
 	char *end;
 };
 
+static const
+struct nla_policy scan_policy[QCA_WLAN_VENDOR_ATTR_SCAN_MAX + 1] = {
+	[QCA_WLAN_VENDOR_ATTR_SCAN_FLAGS] = {.type = NLA_U32},
+	[QCA_WLAN_VENDOR_ATTR_SCAN_TX_NO_CCK_RATE] = {.type = NLA_FLAG},
+	[QCA_WLAN_VENDOR_ATTR_SCAN_COOKIE] = {.type = NLA_U64},
+};
+
 /**
  * hdd_translate_abg_rate_to_mbps_rate() - translate abg rate to Mbps rate
  * @pFcRate: Rate pointer
@@ -603,9 +610,9 @@ static void hdd_update_dbs_scan_ctrl_ext_flag(hdd_context_t *hdd_ctx,
 	/* Resetting the scan_ctrl_flags_ext to 0 */
 	scan_req->scan_ctrl_flags_ext = 0;
 
-	if ((hdd_ctx->config->dual_mac_feature_disable)
-	    || (!wma_is_hw_dbs_capable())) {
-		hdd_info("DBS is disabled or HW is not capable of DBS");
+	if (hdd_ctx->config->dual_mac_feature_disable ==
+				DISABLE_DBS_CXN_AND_SCAN) {
+		hdd_info("DBS is disabled");
 		goto end;
 	}
 
@@ -1760,6 +1767,17 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 	if (0 != status)
 		return status;
 
+	if ((eConnectionState_Associated ==
+			WLAN_HDD_GET_STATION_CTX_PTR(pAdapter)->
+						conn_info.connState) &&
+	    (!pHddCtx->config->enable_connected_scan)) {
+		hdd_info("enable_connected_scan is false, Aborting scan");
+		pAdapter->request = request;
+		pAdapter->scan_source = source;
+		schedule_work(&pAdapter->scan_block_work);
+		return 0;
+	}
+
 	MTRACE(qdf_trace(QDF_MODULE_ID_HDD,
 			 TRACE_CODE_HDD_CFG80211_SCAN,
 			 pAdapter->sessionId, request->n_channels));
@@ -1814,7 +1832,8 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 			return 0;
 		}
 	}
-	if (!wma_is_hw_dbs_capable()) {
+	if (pHddCtx->config->dual_mac_feature_disable ==
+				DISABLE_DBS_CXN_AND_SCAN) {
 		if (true == pScanInfo->mScanPending) {
 			scan_ebusy_cnt++;
 			if (MAX_PENDING_LOG >
@@ -2472,7 +2491,7 @@ static int __wlan_hdd_cfg80211_vendor_scan(struct wiphy *wiphy,
 		return ret;
 
 	if (nla_parse(tb, QCA_WLAN_VENDOR_ATTR_SCAN_MAX, data,
-		data_len, NULL)) {
+		      data_len, scan_policy)) {
 		hdd_err("Invalid ATTR");
 		return -EINVAL;
 	}
@@ -2525,8 +2544,13 @@ static int __wlan_hdd_cfg80211_vendor_scan(struct wiphy *wiphy,
 	count = 0;
 	if (tb[QCA_WLAN_VENDOR_ATTR_SCAN_FREQUENCIES]) {
 		nla_for_each_nested(attr,
-				tb[QCA_WLAN_VENDOR_ATTR_SCAN_FREQUENCIES],
-				tmp) {
+				    tb[QCA_WLAN_VENDOR_ATTR_SCAN_FREQUENCIES],
+				    tmp) {
+			if (nla_len(attr) != sizeof(uint32_t)) {
+				hdd_err("len is not correct for frequency %d",
+					count);
+				goto error;
+			}
 			chan = __ieee80211_get_channel(wiphy,
 							nla_get_u32(attr));
 			if (!chan)
@@ -2754,7 +2778,7 @@ static int __wlan_hdd_vendor_abort_scan(
 
 	ret = -EINVAL;
 	if (nla_parse(tb, QCA_WLAN_VENDOR_ATTR_SCAN_MAX, data,
-	    data_len, NULL)) {
+		      data_len, scan_policy)) {
 		hdd_err("Invalid ATTR");
 		return ret;
 	}
@@ -3035,6 +3059,15 @@ static int __wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
 
 	if (0 != ret)
 		return ret;
+
+	if ((eConnectionState_Associated ==
+				WLAN_HDD_GET_STATION_CTX_PTR(pAdapter)->
+							conn_info.connState) &&
+	    (!pHddCtx->config->enable_connected_scan)) {
+		hdd_info("enable_connected_scan is false, Aborting scan");
+		return -EBUSY;
+	}
+
 
 	if (!sme_is_session_id_valid(pHddCtx->hHal, pAdapter->sessionId))
 		return -EINVAL;

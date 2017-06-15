@@ -4676,14 +4676,25 @@ static void wma_init_scan_fw_mode_config(tp_wma_handle wma_handle,
 	wma_handle->dual_mac_cfg.cur_scan_config = 0;
 	wma_handle->dual_mac_cfg.cur_fw_mode_config = 0;
 
-	/* If dual mac features are disabled in the INI, we
+	/*
+	 * If dual mac features are disabled in the INI, we
 	 * need not proceed further
 	 */
-	if (mac->dual_mac_feature_disable) {
+	if (mac->dual_mac_feature_disable == DISABLE_DBS_CXN_AND_SCAN) {
 		WMA_LOGE("%s: Disabling dual mac capabilities", __func__);
 		/* All capabilites are initialized to 0. We can return */
 		goto done;
 	}
+
+	WMI_DBS_CONC_SCAN_CFG_ASYNC_DBS_SCAN_SET(
+		wma_handle->dual_mac_cfg.cur_scan_config,
+		WMI_DBS_CONC_SCAN_CFG_ASYNC_DBS_SCAN_GET(scan_config));
+	WMI_DBS_FW_MODE_CFG_DBS_FOR_CXN_SET(
+		wma_handle->dual_mac_cfg.cur_fw_mode_config,
+		WMI_DBS_FW_MODE_CFG_DBS_FOR_CXN_GET(fw_config));
+	WMI_DBS_CONC_SCAN_CFG_SYNC_DBS_SCAN_SET(
+		wma_handle->dual_mac_cfg.cur_scan_config,
+		WMI_DBS_CONC_SCAN_CFG_SYNC_DBS_SCAN_GET(scan_config));
 
 	/* Initialize concurrent_scan_config_bits with default FW value */
 	WMI_DBS_CONC_SCAN_CFG_DBS_SCAN_SET(
@@ -5206,12 +5217,36 @@ bool wma_is_rx_ldpc_supported_for_channel(uint32_t channel,
 	struct wma_caps_per_phy caps_per_phy = {0};
 	enum cds_band_type band;
 	bool status;
+	t_wma_handle *wma_handle;
+	struct hif_target_info *tgt_info;
+	struct hif_opaque_softc *scn = cds_get_context(QDF_MODULE_ID_HIF);
+
+	if (!scn) {
+		WMA_LOGE("%s: Invalid wma handle", __func__);
+		return false;
+	}
 
 	if (!CDS_IS_CHANNEL_24GHZ(channel))
 		band = CDS_BAND_5GHZ;
 	else
 		band = CDS_BAND_2GHZ;
 
+	tgt_info = hif_get_target_info_handle(scn);
+
+	if ((tgt_info->target_type == TARGET_TYPE_AR6320V1) ||
+	    (tgt_info->target_type == TARGET_TYPE_AR6320V2) ||
+	    (tgt_info->target_type == TARGET_TYPE_AR6320V3) ||
+	    (tgt_info->target_type == TARGET_TYPE_QCA9377V1)) {
+		wma_handle = cds_get_context(QDF_MODULE_ID_WMA);
+		if (!wma_handle) {
+			WMA_LOGE("Invalid wma handle");
+			return false;
+		}
+		if (wma_handle->ht_cap_info & WMI_HT_CAP_LDPC)
+			return true;
+		else
+			return false;
+	}
 	if (QDF_STATUS_SUCCESS != wma_get_caps_for_phyidx_hwmode(
 						&caps_per_phy,
 						hw_mode, band)) {

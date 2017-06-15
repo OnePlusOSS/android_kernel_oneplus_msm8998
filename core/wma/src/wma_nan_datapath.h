@@ -48,6 +48,25 @@ static inline void wma_update_hdd_cfg_ndp(tp_wma_handle wma_handle,
 {
 	tgt_cfg->nan_datapath_enabled = wma_handle->nan_datapath_enabled;
 }
+
+/**
+ * wma_is_ndi_active() - Determines of the nan data iface is active
+ * @wma_handle: handle to wma context
+ *
+ * Returns: true if ndi active, flase otherwise
+ */
+static inline bool wma_is_ndi_active(tp_wma_handle wma_handle)
+{
+	int i;
+
+	for (i = 0; i < wma_handle->max_bssid; i++) {
+		if (wma_handle->interfaces[i].type == WMI_VDEV_TYPE_NDI &&
+				wma_handle->interfaces[i].peer_count > 0)
+			return true;
+	}
+	return false;
+}
+
 QDF_STATUS wma_handle_ndp_responder_req(tp_wma_handle wma_handle,
 					struct ndp_responder_req *req_params);
 void wma_delete_all_nan_remote_peers(tp_wma_handle wma,
@@ -115,5 +134,7 @@ static inline uint32_t wma_ndp_get_eventid_from_tlvtag(uint32_t tag)
 {
 	return 0;
 }
+
+static inline bool wma_is_ndi_active(tp_wma_handle wma_handle) { return false; }
 #endif /* WLAN_FEATURE_NAN_DATAPATH */
 #endif /* __WMA_NAN_DATAPATH_H */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2002-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -405,7 +405,7 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 							DFS_EVENT_HW_CHIRP)
 				is_hw_chirp = 1;
 
-			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
 				  "\n %s[%d]:PHYERR# = %d ts = %u  diff_ts = %u ppdu_rssi = %u dur = %u is_hw_chirp = %d segid = %d sidx = %d peak_mag = %d delta_peak = %d delta_diff = %d agc_total_gain = %d agc_mb_gain = %d radar_subchan_mask = 0x%x pulse_height = %d triggering_agc_event = %d rs_pulse_rssi = %d pri80_inband_power = %d ext80_inband_power = %d\n",
 				  __func__, __LINE__,
 				  re.dfs_phyerr_eventq_serial_num,
@@ -419,7 +419,7 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 				  re.radar_fft_pri80_inband_power,
 				  re.radar_fft_ext80_inband_power);
 		} else {
-			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
 				  "%s[%d]:xxxxx ts =%u re.re_dur=%u re.re_rssi =%u diff =%u pl->pl_lastelem.p_time=%llu xxxxx",
 				  __func__, __LINE__, (uint32_t) this_ts, re.re_dur,
 				  re.re_rssi, diff_ts,
@@ -452,7 +452,7 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 			 (diff_ts > 500 || diff_ts <= 305) &&
 			 (re.sidx == -4)) {
 
-			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
 			"\n%s: Rejecting on Peak Index = %d,re.re_dur = %d,diff_ts = %d\n",
 			__func__, re.sidx, re.re_dur, diff_ts);
 
@@ -481,16 +481,16 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 		     re.re_dur < DFS_TYPE4_WAR_PULSE_DURATION_UPPER_LIMIT) &&
 		    (diff_ts > DFS_TYPE4_WAR_PRI_LOWER_LIMIT &&
 		     diff_ts < DFS_TYPE4_WAR_PRI_UPPER_LIMIT)) {
-			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
 				"%s:chan->ic_flags=0x%x, MHz separation=%d\n",
 				__func__, chan->ic_flags,
 				chan->ic_pri_freq_center_freq_mhz_separation);
 
-			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
 				"%s: Peak Idx =%d,re.re_dur =%d,diff_ts =%d\n",
 				__func__, re.sidx, re.re_dur, diff_ts);
 
-			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
 				"\n%s: Modify pulse dur to fit valid range \n",
 				__func__);
 
@@ -518,16 +518,16 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 			diff_ts < DFS_ETSI_TYPE2_WAR_PRI_UPPER_LIMIT) ||
 		     (diff_ts > DFS_ETSI_TYPE3_WAR_PRI_LOWER_LIMIT &&
 			diff_ts < DFS_ETSI_TYPE3_WAR_PRI_UPPER_LIMIT))) {
-			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
 				"\n%s:chan->ic_flags=0x%x,MHz Separation=%d\n",
 				__func__, chan->ic_flags,
 				chan->ic_pri_freq_center_freq_mhz_separation);
 
-			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
 				"%s:Peak Index =%d,re.re_dur =%d,diff_ts =%d\n",
 				__func__, re.sidx, re.re_dur, diff_ts);
 
-			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
 				"%s:Modify ETSI pulse dur to valid range \n",
 				__func__);
 
@@ -615,7 +615,7 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 					    __func__, re.re_rssi,
 					    ft->ft_rssithresh);
 				QDF_TRACE(QDF_MODULE_ID_SAP,
-					  QDF_TRACE_LEVEL_INFO,
+					  QDF_TRACE_LEVEL_DEBUG,
 					  "%s[%d]: Rejecting on rssi rssi=%u thresh=%u",
 					  __func__, __LINE__, re.re_rssi,
 					  ft->ft_rssithresh);
@@ -640,7 +640,7 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 					    (unsigned long long)deltaT,
 					    ft->ft_minpri);
 				QDF_TRACE(QDF_MODULE_ID_SAP,
-					  QDF_TRACE_LEVEL_INFO,
+					  QDF_TRACE_LEVEL_DEBUG,
 					  "%s[%d]:Rejecting on pri pri=%lld minpri=%u",
 					  __func__, __LINE__,
 					  (unsigned long long)deltaT,
@@ -674,7 +674,7 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 							    deltaT,
 							    rf->rf_minpri);
 						QDF_TRACE(QDF_MODULE_ID_SAP,
-							  QDF_TRACE_LEVEL_INFO,
+							  QDF_TRACE_LEVEL_DEBUG,
 							  "%s[%d]:filterID= %d::Rejecting on individual filter min PRI deltaT=%lld rf->rf_minpri=%u",
 							  __func__, __LINE__,
 							  rf->rf_pulseid,
@@ -698,7 +698,7 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 								    rf_minpri);
 							QDF_TRACE
 								(QDF_MODULE_ID_SAP,
-								QDF_TRACE_LEVEL_INFO,
+								QDF_TRACE_LEVEL_DEBUG,
 								"%s[%d]:filterID= %d :: Rejecting on individual filter max PRI deltaT=%lld rf->rf_minpri=%u",
 								__func__, __LINE__,
 								rf->rf_pulseid,
@@ -738,7 +738,7 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 								    rf_minpri);
 							QDF_TRACE
 								(QDF_MODULE_ID_SAP,
-								QDF_TRACE_LEVEL_INFO,
+								QDF_TRACE_LEVEL_DEBUG,
 								"%s[%d]:filterID= %d :: Rejecting on individual filter max PRI deltaT=%lld rf->rf_minpri=%u",
 								__func__, __LINE__,
 								rf->rf_pulseid,
@@ -787,7 +787,7 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 					    "Found on channel minDur = %d, filterId = %d",
 					    ft->ft_mindur,
 					    rf != NULL ? rf->rf_pulseid : -1);
-				QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
+				QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
 					"%s[%d]:### Found on channel minDur = %d, filterId = %d  seg_id = %d ###",
 					__func__, __LINE__, ft->ft_mindur,
 					rf != NULL ? rf->rf_pulseid : -1,
@@ -878,7 +878,7 @@ dfsfound:
 		dfs->dfs_phyerr_freq_max = 0;
 		dfs->dfs_phyerr_w53_counter = 0;
 	}
-	/* QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO, "IN FUNC %s[%d]: retval = %d ",__func__,__LINE__,retval); */
+	/* QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG, "IN FUNC %s[%d]: retval = %d ",__func__,__LINE__,retval); */
 	return retval;
 /* #endif */
 /*        return 1; */

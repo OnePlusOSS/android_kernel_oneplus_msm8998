@@ -5304,10 +5304,10 @@ static QDF_STATUS csr_send_mb_scan_req(tpAniSirGlobal pMac, uint16_t sessionId,
 		qdf_mem_copy(pMsg->probe_req_ie_bitmap,
 			     pScanReq->probe_req_ie_bitmap,
 			     PROBE_REQ_BITMAP_LEN * sizeof(uint32_t));
-		pMsg->num_vendor_oui = pScanReq->num_vendor_oui;
-		pMsg->oui_field_len = pScanReq->num_vendor_oui *
+	pMsg->num_vendor_oui = pScanReq->num_vendor_oui;
+	pMsg->oui_field_len = pScanReq->num_vendor_oui *
 				      sizeof(*pScanReq->voui);
-		pMsg->oui_field_offset = (sizeof(tSirSmeScanReq) -
+	pMsg->oui_field_offset = (sizeof(tSirSmeScanReq) -
 				sizeof(pMsg->channelList.channelNumber) +
 				(sizeof(pMsg->channelList.channelNumber) *
 				pScanReq->ChannelInfo.numOfChannels)) +

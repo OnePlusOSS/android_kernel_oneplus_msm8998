@@ -4739,6 +4739,52 @@ QDF_STATUS wma_get_updated_scan_config(uint32_t *scan_config,
 	return QDF_STATUS_SUCCESS;
 }
 
+QDF_STATUS wma_get_updated_scan_and_fw_mode_config(uint32_t *scan_config,
+			uint32_t *fw_mode_config, uint32_t dual_mac_disable_ini)
+{
+	tp_wma_handle wma;
+
+	wma = cds_get_context(QDF_MODULE_ID_WMA);
+	if (!wma) {
+		WMA_LOGE("%s: Invalid WMA handle", __func__);
+		return QDF_STATUS_E_FAILURE;
+	}
+	if (!scan_config) {
+		WMA_LOGE("%s: scan_config NULL", __func__);
+		return QDF_STATUS_E_FAILURE;
+	}
+	if (!fw_mode_config) {
+		WMA_LOGE("%s: fw_mode_config NULL", __func__);
+		return QDF_STATUS_E_FAILURE;
+	}
+	*scan_config = wma->dual_mac_cfg.cur_scan_config;
+	*fw_mode_config = wma->dual_mac_cfg.cur_fw_mode_config;
+	switch (dual_mac_disable_ini) {
+	case DISABLE_DBS_CXN_AND_ENABLE_DBS_SCAN_WITH_ASYNC_SCAN_OFF:
+		WMA_LOGD("%s: dual_mac_disable_ini:%d async/dbs off", __func__,
+			dual_mac_disable_ini);
+		WMI_DBS_CONC_SCAN_CFG_ASYNC_DBS_SCAN_SET(*scan_config, 0);
+		WMI_DBS_FW_MODE_CFG_DBS_FOR_CXN_SET(*fw_mode_config, 0);
+		break;
+	case DISABLE_DBS_CXN_AND_ENABLE_DBS_SCAN:
+		WMA_LOGD("%s: dual_mac_disable_ini:%d dbs_cxn off", __func__,
+			dual_mac_disable_ini);
+		WMI_DBS_FW_MODE_CFG_DBS_FOR_CXN_SET(*fw_mode_config, 0);
+		break;
+	case ENABLE_DBS_CXN_AND_ENABLE_SCAN_WITH_ASYNC_SCAN_OFF:
+		WMA_LOGD("%s: dual_mac_disable_ini:%d async off", __func__,
+			dual_mac_disable_ini);
+		WMI_DBS_CONC_SCAN_CFG_ASYNC_DBS_SCAN_SET(*scan_config, 0);
+		break;
+	default:
+		break;
+	}
+	WMA_LOGD("%s: *scan_config:%x ", __func__, *scan_config);
+	WMA_LOGD("%s: *fw_mode_config:%x ", __func__, *fw_mode_config);
+
+	return QDF_STATUS_SUCCESS;
+}
+
 /**
  * wma_get_updated_fw_mode_config() - Get the updated fw mode configuration
  * @fw_mode_config: Pointer containing the updated fw mode config
@@ -4917,8 +4963,19 @@ bool wma_is_dual_mac_disabled_in_ini(void)
 		return true;
 	}
 
-	if (mac->dual_mac_feature_disable)
+	/*
+	 * If DBS support for connection is disabled through INI then assume
+	 * that DBS is not supported, so that policy manager takes
+	 * the decision considering non-dbs cases only.
+	 *
+	 * For DBS scan check the INI value explicitly
+	 */
+	switch (mac->dual_mac_feature_disable) {
+	case DISABLE_DBS_CXN_AND_SCAN:
+	case DISABLE_DBS_CXN_AND_ENABLE_DBS_SCAN:
+	case DISABLE_DBS_CXN_AND_ENABLE_DBS_SCAN_WITH_ASYNC_SCAN_OFF:
 		return true;
+	}
 
 	return false;
 }
@@ -5065,7 +5122,14 @@ bool wma_get_prev_single_mac_scan_with_dfs_config(void)
  */
 bool wma_is_scan_simultaneous_capable(void)
 {
-	if (wma_is_hw_dbs_capable())
+	tpAniSirGlobal mac = cds_get_context(QDF_MODULE_ID_PE);
+
+	if (!mac) {
+		WMA_LOGE("%s: Invalid mac pointer", __func__);
+		return true;
+	}
+
+	if (mac->dual_mac_feature_disable != DISABLE_DBS_CXN_AND_SCAN)
 		return true;
 
 	return false;

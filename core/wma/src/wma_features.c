@@ -2325,6 +2325,7 @@ QDF_STATUS wma_extract_comb_phyerr_spectral(void *handle, void *data,
 	return QDF_STATUS_SUCCESS;
 }
 
+#if defined(QCA_WIFI_3_0_ADRASTEA)
 #ifdef FEATURE_SPECTRAL_SCAN
 /**
  * get_spectral_control_info() - Get spectral control channel info
@@ -3225,6 +3226,75 @@ void wma_register_phy_err_event_handler(tp_wma_handle wma_handle)
 	WMA_LOGD("%s: WMI_PHYERR_EVENTID event handler registered",
 			 __func__);
 }
+
+#else
+/**
+ * wma_unified_phyerr_rx_event_handler() - phyerr event handler
+ * @handle: wma handle
+ * @data: data buffer
+ * @datalen: buffer length
+ *
+ * WMI Handler for WMI_PHYERR_EVENTID event from firmware.
+ *
+ * Return: 0 for success, other value for failure
+ */
+static int wma_unified_phyerr_rx_event_handler(void *handle,
+						uint8_t *data, uint32_t datalen)
+{
+       return dfs_phyerr_no_offload_event_handler(handle,
+						data, datalen);
+}
+
+/**
+ * wma_unified_dfs_radar_rx_event_handler() - radar event handler
+ * @handle: wma handle
+ * @data: data buffer
+ * @datalen: buffer length
+ *
+ * WMI Handler for WMI_DFS_RADAR_EVENTID event from firmware.
+ *
+ * Return: 0 for success, other value for failure
+ */
+static int wma_unified_dfs_radar_rx_event_handler(void *handle,
+						uint8_t *data, uint32_t datalen)
+{
+       return dfs_phyerr_offload_event_handler(handle,
+						data, datalen);
+}
+
+/**
+ * wma_register_phy_err_event_handler() - register appropriate phy error event
+ *     handler
+ * @wma_handle: wma handle
+ *
+ * Register phyerror event handler for DFS
+ *
+ * Return: none
+ */
+void wma_register_phy_err_event_handler(tp_wma_handle wma_handle)
+{
+	if (NULL == wma_handle) {
+		WMA_LOGE("%s:wma_handle is NULL", __func__);
+		return;
+	}
+
+	if (false == wma_handle->dfs_phyerr_filter_offload) {
+		wmi_unified_register_event_handler(wma_handle->wmi_handle,
+					WMI_PHYERR_EVENTID,
+					wma_unified_phyerr_rx_event_handler,
+					WMA_RX_WORK_CTX);
+		WMA_LOGD("%s: WMI_PHYERR_EVENTID event handler registered",
+			__func__);
+	} else {
+		wmi_unified_register_event_handler(wma_handle->wmi_handle,
+					WMI_DFS_RADAR_EVENTID,
+					wma_unified_dfs_radar_rx_event_handler,
+					WMA_RX_WORK_CTX);
+		WMA_LOGD("%s: WMI_DFS_RADAR_EVENTID event handler registered",
+		__func__);
+	}
+}
+#endif
 
 /**
  * wma_unified_dfs_phyerr_filter_offload_enable() - enable dfs phyerr filter
@@ -4316,17 +4386,19 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 	wake_info = param_buf->fixed_param;
 
 	/* unspecified means apps-side wakeup, so there won't be a vdev */
-	if (wake_info->wake_reason != WOW_REASON_UNSPECIFIED)
+	if (wake_info->wake_reason != WOW_REASON_UNSPECIFIED) {
 		wma_vdev = &wma->interfaces[wake_info->vdev_id];
-
-	if ((wake_info->wake_reason != WOW_REASON_UNSPECIFIED) ||
-	    (wake_info->wake_reason == WOW_REASON_UNSPECIFIED &&
-	     !wmi_get_runtime_pm_inprogress(wma->wmi_handle))) {
-		WMA_LOGA("WOW wakeup host event received; reason: %s(%d), vdev_id: %d, vdev_type: %s",
+		WMA_LOGA("WLAN triggered wakeup: %s (%d), vdev: %d (%s)",
 			 wma_wow_wake_reason_str(wake_info->wake_reason),
 			 wake_info->wake_reason,
 			 wake_info->vdev_id,
-			 wma_vdev ? wma_vdev_type_str(wma_vdev->type) : "none");
+			 wma_vdev_type_str(wma_vdev->type));
+		qdf_wow_wakeup_host_event(wake_info->wake_reason);
+		qdf_wma_wow_wakeup_stats_event();
+	} else if (!wmi_get_runtime_pm_inprogress(wma->wmi_handle)) {
+		WMA_LOGA("Non-WLAN triggered wakeup: %s (%d)",
+			 wma_wow_wake_reason_str(wake_info->wake_reason),
+			 wake_info->wake_reason);
 		qdf_wow_wakeup_host_event(wake_info->wake_reason);
 		qdf_wma_wow_wakeup_stats_event();
 	}
@@ -5768,11 +5840,12 @@ static void wma_configure_dynamic_wake_events(tp_wma_handle wma)
 							 BM_LEN,
 							 enable_mask);
 				enable_configured = true;
-			} else
+			} else {
 				wma_set_wow_event_bitmap(EV_NLO,
 							 BM_LEN,
 							 disable_mask);
 				disable_configured = true;
+			}
 		}
 		if ((wma->interfaces[vdev_id].in_bmps == true ||
 		     wma->in_imps == true) &&
@@ -8255,6 +8328,14 @@ QDF_STATUS wma_set_tdls_offchan_mode(WMA_HANDLE handle,
 		goto end;
 	}
 
+	if (wma_is_roam_synch_in_progress(wma_handle,
+					  chan_switch_params->vdev_id)) {
+		WMA_LOGE("%s: roaming in progress, reject offchan mode cmd!",
+			 __func__);
+		ret = -EPERM;
+		goto end;
+	}
+
 	params.vdev_id = chan_switch_params->vdev_id;
 	params.tdls_off_ch_bw_offset =
 			chan_switch_params->tdls_off_ch_bw_offset;
@@ -8294,6 +8375,13 @@ QDF_STATUS wma_update_fw_tdls_state(WMA_HANDLE handle, void *pwmaTdlsparams)
 		WMA_LOGE("%s: WMA is closed, can not issue fw tdls state cmd",
 			 __func__);
 		ret = -EINVAL;
+		goto end_fw_tdls_state;
+	}
+
+	if (wma_is_roam_synch_in_progress(wma_handle, wma_tdls->vdev_id)) {
+		WMA_LOGE("%s: roaming in progress, reject fw tdls state cmd!",
+			 __func__);
+		ret = -EPERM;
 		goto end_fw_tdls_state;
 	}
 
@@ -8364,6 +8452,14 @@ int wma_update_tdls_peer_state(WMA_HANDLE handle,
 	if (!wma_handle || !wma_handle->wmi_handle) {
 		WMA_LOGE("%s: WMA is closed, can not issue cmd", __func__);
 		ret = -EINVAL;
+		goto end_tdls_peer_state;
+	}
+
+	if (wma_is_roam_synch_in_progress(wma_handle,
+					peerStateParams->vdevId)) {
+		WMA_LOGE("%s: roaming in progress, reject peer update cmd!",
+			 __func__);
+		ret = -EPERM;
 		goto end_tdls_peer_state;
 	}
 

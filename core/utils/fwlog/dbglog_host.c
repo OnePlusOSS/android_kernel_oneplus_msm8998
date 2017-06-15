@@ -1358,13 +1358,6 @@ int dbglog_report_enable(wmi_unified_t wmi_handle, bool isenable)
 {
 	int bitmap[2] = { 0 };
 
-	if (isenable > true) {
-		AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
-				("dbglog_report_enable:Invalid value %d\n",
-				 isenable));
-		return -EINVAL;
-	}
-
 	if (isenable) {
 		/* set the vap enable bitmap */
 		dbglog_set_vap_enable_bitmap(wmi_handle, 0xFFFF);
@@ -4173,6 +4166,10 @@ static void cnss_diag_cmd_handler(const void *data, int data_len,
 	struct dbglog_slot *slot = NULL;
 	struct nlattr *tb[QCA_WLAN_VENDOR_ATTR_MAX + 1];
 
+	/*
+	 * audit note: it is ok to pass a NULL policy here since a
+	 * length check on the data is added later already
+	 */
 	if (nla_parse(tb, CLD80211_ATTR_MAX, data, data_len, NULL)) {
 		AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: nla parse fails\n",
 							__func__));
@@ -4182,6 +4179,12 @@ static void cnss_diag_cmd_handler(const void *data, int data_len,
 	if (!tb[CLD80211_ATTR_DATA]) {
 		AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: attr VENDOR_DATA fails\n",
 								__func__));
+		return;
+	}
+
+	if (nla_len(tb[CLD80211_ATTR_DATA]) != sizeof(struct dbglog_slot)) {
+		AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: attr length check fails\n",
+				__func__));
 		return;
 	}
 	slot = (struct dbglog_slot *)nla_data(tb[CLD80211_ATTR_DATA]);

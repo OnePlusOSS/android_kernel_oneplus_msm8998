@@ -38,6 +38,7 @@
 #include "sme_api.h"
 #include "wlan_hdd_main.h"
 #include "wlan_hdd_regulatory.h"
+#include "pld_common.h"
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0)) || defined(WITH_BACKPORTS)
 #define IEEE80211_CHAN_PASSIVE_SCAN IEEE80211_CHAN_NO_IR
@@ -657,8 +658,16 @@ void hdd_reg_notifier(struct wiphy *wiphy,
 
 		if ((false == init_by_driver) &&
 		    (false == init_by_reg_core)) {
+			/* callback during wiphy registration */
 
-			if (NL80211_REGDOM_SET_BY_CORE == request->initiator)
+			if ((NL80211_REGDOM_SET_BY_CORE ==
+			     request->initiator) &&
+			    (pld_get_driver_load_cnt(
+
+				   /* first time load there is
+				    * always a default 00 cbk
+				    */
+				    hdd_ctx->parent_dev) == 0))
 				return;
 			init_by_reg_core = true;
 		}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -7610,15 +7610,17 @@ PREPACK struct htt_txq_group {
  * The following diagram shows the format of the TX completion indication sent
  * from the target to the host
  *
- *          |31      25|    24|23        16| 15 |14 11|10   8|7          0|
+ *          |31      26| 25 |  24 |23        16| 15 |14 11|10   8|7          0|
  *          |-------------------------------------------------------------|
- * header:  | reserved |append|     num    | t_i| tid |status|  msg_type  |
+ * header:  | reserved |append1|append|num | t_i| tid |status|  msg_type  |
  *          |-------------------------------------------------------------|
  * payload: |            MSDU1 ID          |         MSDU0 ID             |
  *          |-------------------------------------------------------------|
  *          :            MSDU3 ID          :         MSDU2 ID             :
  *          |-------------------------------------------------------------|
  *          |          struct htt_tx_compl_ind_append_retries             |
+ *          - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ *          |          struct htt_tx_compl_ind_append_txtstamp         |
  *          - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  *
  * The following field definitions describe the format of the TX completion
@@ -7650,6 +7652,11 @@ PREPACK struct htt_txq_group {
  *   Purpose: append the struct htt_tx_compl_ind_append_retries which contains
  *            the number of tx retries for one MSDU at the end of this message
  *   Value: 0 indicates no appending; 1 indicates appending
+ * - append1
+ *   Bits 25:25
+ *   Purpose: append the struct htt_tx_compl_ind_append_txtstamp which contains
+ *            the timestamp info for each TX msdu id in payload
+ *   Value: 0 indicates no appending; 1 indicates appending
  * Payload fields:
  * - hmsdu_id
  *   Bits 15:0
@@ -7667,6 +7674,8 @@ PREPACK struct htt_txq_group {
 #define HTT_TX_COMPL_IND_NUM_M         0x00ff0000
 #define HTT_TX_COMPL_IND_APPEND_S      24
 #define HTT_TX_COMPL_IND_APPEND_M      0x01000000
+#define HTT_TX_COMPL_IND_APPEND1_S     25
+#define HTT_TX_COMPL_IND_APPEND1_M     0x02000000
 
 #define HTT_TX_COMPL_IND_STATUS_SET(_info, _val)                        \
 	do {								\
@@ -7704,6 +7713,13 @@ PREPACK struct htt_txq_group {
 	} while (0)
 #define HTT_TX_COMPL_IND_APPEND_GET(_info)				\
 	(((_info) & HTT_TX_COMPL_IND_APPEND_M) >> HTT_TX_COMPL_IND_APPEND_S)
+#define HTT_TX_COMPL_IND_APPEND1_SET(_info, _val)			\
+	do {								\
+		HTT_CHECK_SET_VAL(HTT_TX_COMPL_IND_APPEND1, _val);	\
+		((_info) |= ((_val) << HTT_TX_COMPL_IND_APPEND1_S));	\
+	} while (0)
+#define HTT_TX_COMPL_IND_APPEND1_GET(_info)				\
+	(((_info) & HTT_TX_COMPL_IND_APPEND1_M) >> HTT_TX_COMPL_IND_APPEND1_S)
 
 #define HTT_TX_COMPL_CTXT_SZ                sizeof(A_UINT16)
 #define HTT_TX_COMPL_CTXT_NUM(_bytes)       ((_bytes) >> 1)
@@ -7738,6 +7754,10 @@ PREPACK struct htt_tx_compl_ind_append_retries {
 	A_UINT8 tx_retries;
 	A_UINT8 flag;/* Bit 0, 1: another append_retries struct is appended
 				  0: this is the last append_retries struct */
+} POSTPACK;
+
+PREPACK struct htt_tx_compl_ind_append_txtstamp {
+	A_UINT32 timestamp[1/*or more*/];
 } POSTPACK;
 
 /**

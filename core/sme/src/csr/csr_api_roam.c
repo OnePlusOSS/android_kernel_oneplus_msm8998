@@ -19882,7 +19882,7 @@ void csr_process_ho_fail_ind(tpAniSirGlobal pMac, void *pMsgBuf)
 	csr_roam_disconnect(pMac, sessionId,
 			eCSR_DISCONNECT_REASON_ROAM_HO_FAIL);
 	if (pMac->roam.configParam.enable_fatal_event)
-		cds_flush_logs(WLAN_LOG_TYPE_NON_FATAL,
+		cds_flush_logs(WLAN_LOG_TYPE_FATAL,
 				WLAN_LOG_INDICATOR_HOST_DRIVER,
 				WLAN_LOG_REASON_ROAM_HO_FAILURE,
 				true, false);

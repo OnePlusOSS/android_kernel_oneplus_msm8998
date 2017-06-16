@@ -1864,6 +1864,10 @@ void wmi_unified_detach(struct wmi_unified *wmi_handle)
 		buf = qdf_nbuf_queue_remove(&wmi_handle->event_queue);
 	}
 
+	/* Free events logs list */
+	if (wmi_handle->events_logs_list)
+		qdf_mem_free(wmi_handle->events_logs_list);
+
 #ifdef WMI_INTERFACE_EVENT_LOGGING
 	wmi_log_buffer_free(wmi_handle);
 #endif

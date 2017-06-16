@@ -2410,3 +2410,44 @@ sap_ch_sel_end:
 	else
 		return SAP_CHANNEL_NOT_SELECTED;
 }
+
+QDF_STATUS sap_update_acs_channel_list(struct sap_acs_cfg *acs_cfg)
+{
+	uint8_t    i, j, count = 0;
+	uint8_t    *ch_list;
+
+	ch_list = qdf_mem_malloc(acs_cfg->ch_list_count);
+	if (ch_list == NULL) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			"sap_update_acs_channel_list alloc fail");
+		return QDF_STATUS_E_FAULT;
+	}
+
+	for (i = 0; i < acs_cfg->ch_list_count; i++) {
+		for (j = 0; j < acs_cfg->pcl_ch_count; j++) {
+			if (acs_cfg->ch_list[i] == acs_cfg->pcl_channels[j]) {
+				ch_list[count++] = acs_cfg->ch_list[i];
+				break;
+			}
+		}
+	}
+	/*
+	 * if no common channel with PCL, overwrite acs list with top
+	 * ch_list_count number of PCL channels
+	 */
+	if (!count) {
+		count = (acs_cfg->ch_list_count > acs_cfg->pcl_ch_count) ?
+			acs_cfg->pcl_ch_count : acs_cfg->ch_list_count;
+		acs_cfg->ch_list_count = count;
+		for (i = 0; i < acs_cfg->ch_list_count; i++)
+			acs_cfg->ch_list[i] = acs_cfg->pcl_channels[i];
+	} else {
+		acs_cfg->ch_list_count = count;
+		for (i = 0; i < acs_cfg->ch_list_count; i++)
+			acs_cfg->ch_list[i] = ch_list[i];
+	}
+
+	qdf_mem_free(ch_list);
+
+	return QDF_STATUS_SUCCESS;
+}

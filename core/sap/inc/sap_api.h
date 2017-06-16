@@ -916,7 +916,7 @@ QDF_STATUS wlansap_disassoc_sta(void *p_cds_gctx,
 QDF_STATUS wlansap_deauth_sta(void *p_cds_gctx,
 			struct tagCsrDelStaParams *pDelStaParams);
 QDF_STATUS wlansap_set_channel_change_with_csa(void *p_cds_gctx,
-			uint32_t targetChannel, enum phy_ch_width target_bw);
+	uint32_t targetChannel, enum phy_ch_width target_bw, bool strict);
 QDF_STATUS wlansap_set_key_sta(void *p_cds_gctx,
 	tCsrRoamSetKey *pSetKeyInfo);
 QDF_STATUS wlansap_get_assoc_stations(void *p_cds_gctx,
@@ -1003,6 +1003,16 @@ QDF_STATUS wlansap_set_tx_leakage_threshold(tHalHandle hal,
 
 QDF_STATUS wlansap_set_invalid_session(void *cds_ctx);
 QDF_STATUS sap_roam_session_close_callback(void *pContext);
+/**
+ * sap_update_acs_channel_list() - Update the acs channel list
+ * with PCL if force SCC is set
+ * @acs_cfg: pointer to acs config structure for the sap
+ *
+ * Update the acs channel list with PCL if force SCC is set
+ *
+ * Return: Success if update happens succesfully
+ */
+QDF_STATUS sap_update_acs_channel_list(struct sap_acs_cfg *acs_cfg);
 
 #ifdef __cplusplus
 }

@@ -2204,6 +2204,32 @@ uint32_t cds_mode_specific_vdev_id(enum cds_con_mode mode)
 	return vdev_id;
 }
 
+static uint8_t cds_mode_specific_get_channel(enum cds_con_mode mode)
+{
+	uint32_t conn_index;
+	uint8_t channel = 0;
+	cds_context_type *cds_ctx;
+
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return channel;
+	}
+	/* provides the channel for the first matching mode type */
+	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
+	for (conn_index = 0; conn_index < MAX_NUMBER_OF_CONC_CONNECTIONS;
+		conn_index++) {
+		if ((conc_connection_list[conn_index].mode == mode) &&
+			conc_connection_list[conn_index].in_use) {
+			channel = conc_connection_list[conn_index].chan;
+			break;
+		}
+	}
+	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
+
+	return channel;
+}
+
 /**
  * cds_mode_specific_connection_count() - provides the
  * count of connections of specific mode
@@ -7496,7 +7522,7 @@ void cds_force_sap_on_scc(eCsrRoamResult roam_result,
 #endif /* FEATURE_WLAN_FORCE_SAP_SCC */
 
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
-static bool cds_is_safe_channel(uint8_t channel)
+bool cds_is_safe_channel(uint8_t channel)
 {
 	cds_context_type *cds_ctx;
 	bool is_safe = true;
@@ -9547,6 +9573,61 @@ QDF_STATUS cds_get_sap_mandatory_channel(uint32_t *chan)
 	return QDF_STATUS_SUCCESS;
 }
 
+QDF_STATUS cds_valid_sap_conc_channel_check(uint8_t *con_ch, uint8_t sap_ch)
+{
+	uint8_t channel = *con_ch;
+	/*
+	 * if force SCC is set, Check if conc channel is DFS
+	 * or passive or part of LTE avoided channel list.
+	 * In that case move SAP to other band if DBS is supported,
+	 * return otherwise
+	 */
+	if (!cds_is_force_scc())
+		return QDF_STATUS_SUCCESS;
+
+	/* if interference is 0, check if it is DBS */
+	if (!channel &&
+		(sap_ch != cds_mode_specific_get_channel(CDS_STA_MODE)))
+		return QDF_STATUS_SUCCESS;
+	else if (!channel)
+		channel = sap_ch;
+
+	if (cds_valid_sta_channel_check(channel)) {
+		if (CDS_IS_DFS_CH(channel) ||
+			CDS_IS_PASSIVE_OR_DISABLE_CH(channel) ||
+			!cds_is_safe_channel(channel)) {
+			if (wma_is_hw_dbs_capable()) {
+				if (CDS_IS_CHANNEL_5GHZ(channel))
+					channel = CDS_24_GHZ_CHANNEL_6;
+				else
+					channel = CDS_5_GHZ_CHANNEL_36;
+			} else {
+				cds_warn("Can't have concurrency on %d",
+					channel);
+				return QDF_STATUS_E_FAILURE;
+			}
+		}
+	}
+
+	if (channel != sap_ch)
+		*con_ch = channel;
+
+	return QDF_STATUS_SUCCESS;
+}
+
+bool cds_is_force_scc(void)
+{
+	hdd_context_t *hdd_ctx;
+
+	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+	if (!hdd_ctx) {
+		cds_err("HDD context is NULL");
+		return false;
+	}
+
+	return hdd_ctx->config->WlanMccToSccSwitchMode ==
+		QDF_MCC_TO_SCC_SWITCH_FORCE_WITHOUT_DISCONNECTION;
+}
 /**
  * cds_get_valid_chan_weights() - Get the weightage for all
  * requested valid channels
@@ -9625,8 +9706,9 @@ QDF_STATUS cds_get_valid_chan_weights(struct sir_pcl_chan_weights *weight,
 	if (CDS_SAP_MODE == mode)
 		for (i = 0; i < weight->saved_num_chan; i++) {
 			if (cds_allow_concurrency(CDS_SAP_MODE,
-						weight->saved_chan_list[i],
-						HW_MODE_20_MHZ)) {
+				weight->saved_chan_list[i],
+				HW_MODE_20_MHZ) &&
+				!cds_is_force_scc()) {
 				weight->weighed_valid_list[i] =
 					WEIGHT_OF_NON_PCL_CHANNELS;
 			}

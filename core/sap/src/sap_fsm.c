@@ -2299,6 +2299,14 @@ QDF_STATUS sap_goto_channel_sel(ptSapContext sap_context,
 					sap_context->channel,
 					sap_context->csr_roamProfile.phyMode,
 					sap_context->cc_switch_mode);
+			if (QDF_IS_STATUS_ERROR(
+				cds_valid_sap_conc_channel_check(&con_ch,
+					sap_context->channel))) {
+				QDF_TRACE(QDF_MODULE_ID_SAP,
+					QDF_TRACE_LEVEL_WARN,
+					FL("SAP can't start (no MCC)"));
+				return QDF_STATUS_E_ABORTED;
+			}
 			if (con_ch && !CDS_IS_DFS_CH(con_ch)) {
 				QDF_TRACE(QDF_MODULE_ID_SAP,
 					QDF_TRACE_LEVEL_ERROR,

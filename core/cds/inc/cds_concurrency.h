@@ -925,4 +925,33 @@ uint32_t cds_get_sap_mandatory_chan_list_len(void);
  */
 void cds_save_wlan_unsafe_channels(uint16_t *unsafe_channel_list,
 		uint16_t unsafe_channel_count);
+/**
+ * cds_is_force_scc() - checks if SCC needs to be mandated
+ *
+ * This function checks if SCC needs to be mandated or not
+ *
+ * Return: True if SCC to be mandated, false otherwise
+ */
+bool cds_is_force_scc(void);
+/**
+ * cds_valid_sap_conc_channel_check() - checks & updates the channel
+ * SAP to come up on in case of STA+SAP concurrency
+ * @con_ch: pointer to the channel on which sap will come up
+ * @sap_ch: initial channel for SAP
+ *
+ * This function checks & updates the channel SAP to come up on in
+ * case of STA+SAP concurrency
+ * Return: Success if SAP can come up on a channel
+ */
+QDF_STATUS cds_valid_sap_conc_channel_check(uint8_t *con_ch, uint8_t sap_ch);
+/**
+ * cds_is_safe_channel() - checks if the channel is
+ * LTE safe
+ * @channel: channel on which a beaconing entity might come up
+ *
+ * This function checks if the channel is LTE safe
+ *
+ * Return: Success if the channel is LTE safe
+ */
+bool cds_is_safe_channel(uint8_t channel);
 #endif /* __CDS_CONCURRENCY_H */

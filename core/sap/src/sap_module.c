@@ -1652,6 +1652,8 @@ static QDF_STATUS wlansap_update_csa_channel_params(ptSapContext sap_context,
  * @p_cds_gctx: Pointer to cds global context structure
  * @targetChannel: Target channel
  * @target_bw: Target bandwidth
+ * @strict: if true switch to the requested channel always, fail
+ *        otherwise
  *
  * This api function does a channel change to the target channel specified.
  * CSA IE is included in the beacons before doing a channel change.
@@ -1660,7 +1662,7 @@ static QDF_STATUS wlansap_update_csa_channel_params(ptSapContext sap_context,
  */
 QDF_STATUS
 wlansap_set_channel_change_with_csa(void *p_cds_gctx, uint32_t targetChannel,
-					enum phy_ch_width target_bw)
+				enum phy_ch_width target_bw, bool strict)
 {
 
 	ptSapContext sapContext = NULL;
@@ -1682,6 +1684,12 @@ wlansap_set_channel_change_with_csa(void *p_cds_gctx, uint32_t targetChannel,
 	if (NULL == hHal) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
 			  "%s: Invalid HAL pointer from p_cds_gctx", __func__);
+		return QDF_STATUS_E_FAULT;
+	}
+
+	if (strict && !cds_is_safe_channel(targetChannel)) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			"%u is unsafe channel", targetChannel);
 		return QDF_STATUS_E_FAULT;
 	}
 	pMac = PMAC_STRUCT(hHal);

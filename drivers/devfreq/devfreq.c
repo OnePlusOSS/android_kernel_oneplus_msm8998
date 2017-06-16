@@ -1139,7 +1139,7 @@ static bool is_boost_device(struct devfreq *df)
 {
 	int i;
 
-	for (i = 0; ARRAY_SIZE(boost_devices); i++) {
+	for (i = 0; i < ARRAY_SIZE(boost_devices); i++) {
 		if (!strncmp(dev_name(&df->dev), boost_devices[i],
 				DEVFREQ_NAME_LEN))
 			return true;

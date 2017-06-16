@@ -8661,6 +8661,8 @@ int hdd_dbs_scan_selection_init(hdd_context_t *hdd_ctx)
 	uint8_t dbs_scan_config[CFG_DBS_SCAN_PARAM_PER_CLIENT
 				* CFG_DBS_SCAN_CLIENTS_MAX];
 
+	hdd_ctx->is_dbs_scan_duty_cycle_enabled = false;
+
 	/* check if DBS is enabled or supported */
 	if (hdd_ctx->config->dual_mac_feature_disable ==
 				DISABLE_DBS_CXN_AND_SCAN)
@@ -8705,6 +8707,8 @@ int hdd_dbs_scan_selection_init(hdd_context_t *hdd_ctx)
 		hdd_err("Failed to send DBS Scan selection configuration!");
 		return -EAGAIN;
 	}
+
+	hdd_ctx->is_dbs_scan_duty_cycle_enabled = true;
 	return 0;
 }
 

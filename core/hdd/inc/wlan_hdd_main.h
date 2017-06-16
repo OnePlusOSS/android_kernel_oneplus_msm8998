@@ -1557,6 +1557,9 @@ struct hdd_context_s {
 	uint8_t no_of_open_sessions[QDF_MAX_NO_OF_MODE];
 	uint8_t no_of_active_sessions[QDF_MAX_NO_OF_MODE];
 
+	/* Check if dbs scan duty cycle is enabled */
+	bool is_dbs_scan_duty_cycle_enabled;
+
 	/** P2P Device MAC Address for the adapter  */
 	struct qdf_mac_addr p2pDeviceAddress;
 

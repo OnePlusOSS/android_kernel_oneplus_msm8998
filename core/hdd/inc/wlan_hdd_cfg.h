@@ -11135,6 +11135,25 @@ enum hw_filter_mode {
 #define CFG_ROAM_NUM_DISALLOWED_APS_MIN     (0)
 #define CFG_ROAM_NUM_DISALLOWED_APS_MAX     (8)
 #define CFG_ROAM_NUM_DISALLOWED_APS_DEFAULT (3)
+/*
+ * <ini>
+ * gEnableTxOrphan- Enable/Disable orphaning of Tx packets
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to enable/disable orphaning of Tx packets.
+ *
+ * Related: None
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_TX_ORPHAN_ENABLE_NAME    "gEnableTxOrphan"
+#define CFG_TX_ORPHAN_ENABLE_DEFAULT (0)
+#define CFG_TX_ORPHAN_ENABLE_MIN     (0)
+#define CFG_TX_ORPHAN_ENABLE_MAX     (1)
 
 /*---------------------------------------------------------------------------
    Type declarations
@@ -11906,6 +11925,7 @@ struct hdd_config {
 	uint16_t sap_max_mcs_txdata;
 	bool is_bssid_hint_priority;
 	bool is_fils_enabled;
+	bool tx_orphan_enable;
 	uint8_t dfs_beacon_tx_enhanced;
 	uint8_t scan_backoff_multiplier;
 	bool is_force_1x1;

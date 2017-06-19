@@ -5277,19 +5277,19 @@ QDF_STATUS wma_get_rcpi_req(WMA_HANDLE handle,
 	switch (rcpi_request->measurement_type) {
 
 	case RCPI_MEASUREMENT_TYPE_AVG_MGMT:
-		cmd.measurement_type = WMI_RCPI_MEASUREMENT_TYPE_AVG_MGMT;
+		cmd.measurement_type = RCPI_MEASUREMENT_TYPE_AVG_MGMT;
 		break;
 
 	case RCPI_MEASUREMENT_TYPE_AVG_DATA:
-		cmd.measurement_type = WMI_RCPI_MEASUREMENT_TYPE_AVG_DATA;
+		cmd.measurement_type = RCPI_MEASUREMENT_TYPE_AVG_DATA;
 		break;
 
 	case RCPI_MEASUREMENT_TYPE_LAST_MGMT:
-		cmd.measurement_type = WMI_RCPI_MEASUREMENT_TYPE_LAST_MGMT;
+		cmd.measurement_type = RCPI_MEASUREMENT_TYPE_LAST_MGMT;
 		break;
 
 	case RCPI_MEASUREMENT_TYPE_LAST_DATA:
-		cmd.measurement_type = WMI_RCPI_MEASUREMENT_TYPE_LAST_DATA;
+		cmd.measurement_type = RCPI_MEASUREMENT_TYPE_LAST_DATA;
 		break;
 
 	default:
@@ -5297,7 +5297,7 @@ QDF_STATUS wma_get_rcpi_req(WMA_HANDLE handle,
 		 * invalid rcpi measurement type, fall back to
 		 * RCPI_MEASUREMENT_TYPE_AVG_MGMT
 		 */
-		cmd.measurement_type = WMI_RCPI_MEASUREMENT_TYPE_AVG_MGMT;
+		cmd.measurement_type = RCPI_MEASUREMENT_TYPE_AVG_MGMT;
 		break;
 	}
 

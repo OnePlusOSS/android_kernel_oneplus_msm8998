@@ -643,7 +643,7 @@ error:
 			return QDF_STATUS_E_NOMEM;
 		}
 		memset(scan_event, 0x00, sizeof(*scan_event));
-		scan_event->event = WMI_SCAN_EVENT_COMPLETED;
+		scan_event->event = SIR_SCAN_EVENT_COMPLETED;
 		scan_event->reasonCode = eSIR_SME_SCAN_FAILED;
 		scan_event->sessionId = scan_req->sessionId;
 		scan_event->p2pScanType = scan_req->p2pScanType;
@@ -5806,11 +5806,11 @@ int wma_scan_event_callback(WMA_HANDLE handle, uint8_t *data,
 		 * results is available in scan cache(due to partial or
 		 * aborted scan)
 		 */
-		scan_event->event = WMI_SCAN_EVENT_COMPLETED;
+		scan_event->event = SIR_SCAN_EVENT_COMPLETED;
 		scan_event->reasonCode = eSIR_SME_SUCCESS;
 		break;
 	case WMI_SCAN_EVENT_START_FAILED:
-		scan_event->event = WMI_SCAN_EVENT_COMPLETED;
+		scan_event->event = SIR_SCAN_EVENT_COMPLETED;
 		scan_event->reasonCode = eSIR_SME_SCAN_FAILED;
 		break;
 	case WMI_SCAN_EVENT_PREEMPTED:

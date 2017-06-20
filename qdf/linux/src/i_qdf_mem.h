@@ -101,9 +101,6 @@ typedef struct __qdf_mempool_ctxt {
 
 #endif /* __KERNEL__ */
 
-/* typedef for dma_data_direction */
-typedef enum dma_data_direction __dma_data_direction;
-
 /**
  * __qdf_str_cmp() - Compare two strings
  * @str1: First string

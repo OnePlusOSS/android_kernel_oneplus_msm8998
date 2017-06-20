@@ -4587,21 +4587,21 @@ QDF_STATUS send_roam_scan_offload_mode_cmd_tlv(wmi_unified_t wmi_handle,
 				    roam_req->fw_okc) {
 					WMI_SET_ROAM_OFFLOAD_OKC_ENABLED
 						(roam_offload_11i->flags);
-					WMI_LOGE("LFR3:OKC enabled");
+					WMI_LOGI("LFR3:OKC enabled");
 				} else {
 					WMI_SET_ROAM_OFFLOAD_OKC_DISABLED
 						(roam_offload_11i->flags);
-					WMI_LOGE("LFR3:OKC disabled");
+					WMI_LOGI("LFR3:OKC disabled");
 				}
 				if (roam_req->roam_key_mgmt_offload_enabled &&
 				    roam_req->fw_pmksa_cache) {
 					WMI_SET_ROAM_OFFLOAD_PMK_CACHE_ENABLED
 						(roam_offload_11i->flags);
-					WMI_LOGE("LFR3:PMKSA caching enabled");
+					WMI_LOGI("LFR3:PMKSA caching enabled");
 				} else {
 					WMI_SET_ROAM_OFFLOAD_PMK_CACHE_DISABLED
 						(roam_offload_11i->flags);
-					WMI_LOGE("LFR3:PMKSA caching disabled");
+					WMI_LOGI("LFR3:PMKSA caching disabled");
 				}
 
 				qdf_mem_copy(roam_offload_11i->pmk,
@@ -6246,7 +6246,7 @@ QDF_STATUS send_pno_start_cmd_tlv(wmi_unified_t wmi_handle,
 		nlo_list[i].bcast_nw_type.valid = true;
 		nlo_list[i].bcast_nw_type.bcast_nw_type =
 			pno->aNetworks[i].bcastNetwType;
-		WMI_LOGI("Broadcast NW type (%u)",
+		WMI_LOGD("Broadcast NW type (%u)",
 			 nlo_list[i].bcast_nw_type.bcast_nw_type);
 	}
 	buf_ptr += cmd->no_of_ssids * sizeof(nlo_configured_parameters);
@@ -6297,7 +6297,7 @@ QDF_STATUS send_pno_start_cmd_tlv(wmi_unified_t wmi_handle,
 	}
 	if (pno->relative_rssi_set)
 		cmd->flags |= WMI_NLO_CONFIG_ENABLE_CNLO_RSSI_CONFIG;
-	WMI_LOGI("pno flags = %x", cmd->flags);
+	WMI_LOGD("pno flags = %x", cmd->flags);
 
 	/* ie white list */
 	WMITLV_SET_HDR(buf_ptr, WMITLV_TAG_ARRAY_STRUC, pno->num_vendor_oui *
@@ -6321,7 +6321,7 @@ QDF_STATUS send_pno_start_cmd_tlv(wmi_unified_t wmi_handle,
 		WMITLV_TAG_STRUC_wmi_connected_nlo_rssi_params,
 		WMITLV_GET_STRUCT_TLVLEN(connected_nlo_rssi_params));
 	nlo_relative_rssi->relative_rssi = pno->relative_rssi;
-	WMI_LOGI("relative_rssi %d", nlo_relative_rssi->relative_rssi);
+	WMI_LOGD("relative_rssi %d", nlo_relative_rssi->relative_rssi);
 	buf_ptr += sizeof(*nlo_relative_rssi);
 
 	/*
@@ -6343,7 +6343,7 @@ QDF_STATUS send_pno_start_cmd_tlv(wmi_unified_t wmi_handle,
 				connected_nlo_bss_band_rssi_pref));
 		 nlo_band_rssi[i].band = pno->band_rssi_pref.band;
 		 nlo_band_rssi[i].rssi_pref = pno->band_rssi_pref.rssi;
-		 WMI_LOGI("band_pref %d, rssi_pref %d",
+		 WMI_LOGD("band_pref %d, rssi_pref %d",
 			nlo_band_rssi[i].band,
 			nlo_band_rssi[i].rssi_pref);
 	}
@@ -9419,7 +9419,7 @@ QDF_STATUS send_update_tdls_peer_state_cmd_tlv(wmi_unified_t wmi_handle,
 
 		if (peerStateParams->peerCap.peerChan[i].dfsSet) {
 			WMI_SET_CHANNEL_FLAG(chan_info, WMI_CHAN_FLAG_PASSIVE);
-			WMI_LOGI("chan[%d] DFS[%d]\n",
+			WMI_LOGD("chan[%d] DFS[%d]\n",
 				 peerStateParams->peerCap.peerChan[i].chanId,
 				 peerStateParams->peerCap.peerChan[i].dfsSet);
 		}
@@ -12534,7 +12534,7 @@ static QDF_STATUS extract_all_stats_counts_tlv(wmi_unified_t wmi_handle,
 
 	ev = (wmi_stats_event_fixed_param *) param_buf->fixed_param;
 	if (!ev) {
-		WMI_LOGE("%s: Failed to alloc memory\n", __func__);
+		WMI_LOGE("%s: Failed to alloc memory", __func__);
 		return QDF_STATUS_E_FAILURE;
 	}
 
@@ -12819,7 +12819,7 @@ static QDF_STATUS extract_chan_info_event_tlv(wmi_unified_t wmi_handle,
 
 	ev = (wmi_chan_info_event_fixed_param *) param_buf->fixed_param;
 	if (!ev) {
-		WMI_LOGE("%s: Failed to allocmemory\n", __func__);
+		WMI_LOGE("%s: Failed to alloc memory", __func__);
 		return QDF_STATUS_E_FAILURE;
 	}
 

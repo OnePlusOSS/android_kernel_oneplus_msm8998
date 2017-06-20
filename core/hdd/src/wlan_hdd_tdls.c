@@ -3127,7 +3127,7 @@ void wlan_hdd_tdls_scan_done_callback(hdd_adapter_t *pAdapter)
 		return;
 
 	if (eTDLS_SUPPORT_NOT_ENABLED == pHddCtx->tdls_mode) {
-		hdd_info("TDLS mode is disabled OR not enabled");
+		hdd_debug("TDLS mode is disabled OR not enabled");
 		return;
 	}
 
@@ -6269,7 +6269,7 @@ static int wlan_hdd_tdls_teardown_links(hdd_context_t *hddctx,
 	int ret = 0;
 
 	if (eTDLS_SUPPORT_NOT_ENABLED == hddctx->tdls_mode) {
-		hdd_info("TDLS mode is disabled OR not enabled in FW");
+		hdd_debug("TDLS mode is disabled OR not enabled in FW");
 		return 0;
 	}
 

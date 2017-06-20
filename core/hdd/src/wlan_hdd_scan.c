@@ -618,24 +618,24 @@ static void hdd_update_dbs_scan_ctrl_ext_flag(hdd_context_t *hdd_ctx,
 
 	if (hdd_ctx->config->dual_mac_feature_disable ==
 				DISABLE_DBS_CXN_AND_SCAN) {
-		hdd_info("DBS is disabled");
+		hdd_debug("DBS is disabled");
 		goto end;
 	}
 
 	if (scan_req->SSIDs.numOfSSIDs) {
-		hdd_info("Directed SSID");
+		hdd_debug("Directed SSID");
 		goto end;
 	}
 
 	if (!(qdf_is_macaddr_zero(&scan_req->bssid) ||
 			qdf_is_group_addr((u8 *)&scan_req->bssid))) {
-		hdd_info("Directed BSSID");
+		hdd_debug("Directed BSSID");
 		goto end;
 	}
 
 	num_chan = scan_req->ChannelInfo.numOfChannels;
 
-	hdd_info("num_chan = %u, threshold = %u", num_chan,
+	hdd_debug("num_chan = %u, threshold = %u", num_chan,
 			HDD_MIN_CHAN_DBS_SCAN_THRESHOLD);
 
 	/* num_chan=0 means all channels */
@@ -1267,7 +1267,7 @@ static void hdd_vendor_scan_callback(hdd_adapter_t *adapter,
 		goto nla_put_failure;
 	}
 	cfg80211_vendor_event(skb, GFP_KERNEL);
-	hdd_info("scan complete event sent to NL");
+	hdd_debug("scan complete event sent to NL");
 	qdf_mem_free(req);
 	return;
 
@@ -2190,7 +2190,7 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 						pHddCtx->no_of_probe_req_ouis *
 						sizeof(struct vendor_oui));
 			if (!scan_req.voui) {
-				hdd_info("Not enough memory for voui");
+				hdd_debug("Not enough memory for voui");
 				scan_req.num_vendor_oui = 0;
 				status = -ENOMEM;
 				goto free_mem;

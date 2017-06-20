@@ -4329,6 +4329,13 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_PER_ROAM_MONITOR_TIME_MIN,
 		CFG_PER_ROAM_MONITOR_TIME_MAX),
 
+	REG_VARIABLE(CFG_PER_ROAM_MIN_CANDIDATE_RSSI, WLAN_PARAM_Integer,
+		struct hdd_config, min_candidate_rssi,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_PER_ROAM_MIN_CANDIDATE_RSSI_DEFAULT,
+		CFG_PER_ROAM_MIN_CANDIDATE_RSSI_MIN,
+		CFG_PER_ROAM_MIN_CANDIDATE_RSSI_MAX),
+
 	REG_VARIABLE(CFG_MAX_SCHED_SCAN_PLAN_INT_NAME, WLAN_PARAM_Integer,
 		struct hdd_config, max_sched_scan_plan_interval,
 		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -5469,7 +5476,9 @@ static void hdd_per_roam_print_ini_config(hdd_context_t *hdd_ctx)
 	hdd_debug("Name = [%s] Value = [%u]",
 		CFG_PER_ROAM_MONITOR_TIME,
 		hdd_ctx->config->per_roam_mon_time);
-
+	hdd_debug("Name = [%s] Value = [%u]",
+		CFG_PER_ROAM_MIN_CANDIDATE_RSSI,
+		hdd_ctx->config->min_candidate_rssi);
 }
 
 /**
@@ -7443,6 +7452,10 @@ static void hdd_update_per_config_to_sme(hdd_context_t *hdd_ctx,
 			hdd_ctx->config->per_roam_mon_time;
 	sme_config->csrConfig.per_roam_config.rx_per_mon_time =
 			hdd_ctx->config->per_roam_mon_time;
+
+	/* Assigning minimum roamable AP RSSI for candidate selection */
+	sme_config->csrConfig.per_roam_config.min_candidate_rssi =
+			hdd_ctx->config->min_candidate_rssi;
 }
 
 /**

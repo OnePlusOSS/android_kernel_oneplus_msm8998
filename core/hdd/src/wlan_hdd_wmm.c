@@ -83,14 +83,6 @@ const uint8_t hdd_wmm_up_to_ac_map[] = {
  * operate on different traffic.
  */
 #ifdef QCA_LL_TX_FLOW_CONTROL_V2
-enum hdd_wmm_linuxac {
-	HDD_LINUX_AC_VO = 0,
-	HDD_LINUX_AC_VI = 1,
-	HDD_LINUX_AC_BE = 2,
-	HDD_LINUX_AC_BK = 3,
-	HDD_LINUX_AC_HI_PRIO = 4,
-};
-
 void wlan_hdd_process_peer_unauthorised_pause(hdd_adapter_t *adapter)
 {
 	/* Enable HI_PRIO queue */
@@ -102,13 +94,6 @@ void wlan_hdd_process_peer_unauthorised_pause(hdd_adapter_t *adapter)
 
 }
 #else
-enum hdd_wmm_linuxac {
-	HDD_LINUX_AC_VO = 0,
-	HDD_LINUX_AC_VI = 1,
-	HDD_LINUX_AC_BE = 2,
-	HDD_LINUX_AC_BK = 3
-};
-
 void wlan_hdd_process_peer_unauthorised_pause(hdd_adapter_t *adapter)
 {
 	return;
@@ -1612,9 +1597,9 @@ uint16_t hdd_wmm_select_queue(struct net_device *dev, struct sk_buff *skb)
 {
 	sme_QosWmmUpType up = SME_QOS_WMM_UP_BE;
 	uint16_t queueIndex;
-	hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
-	bool is_eapol = false;
-	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(pAdapter);
+	hdd_adapter_t *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
+	bool is_crtical = false;
+	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 	int status;
 
 	status = wlan_hdd_validate_context(hdd_ctx);
@@ -1624,9 +1609,16 @@ uint16_t hdd_wmm_select_queue(struct net_device *dev, struct sk_buff *skb)
 	}
 
 	/* Get the user priority from IP header */
-	hdd_wmm_classify_pkt(pAdapter, skb, &up, &is_eapol);
+	hdd_wmm_classify_pkt(adapter, skb, &up, &is_crtical);
+	spin_lock_bh(&adapter->pause_map_lock);
+	if ((adapter->pause_map & (1 <<  WLAN_DATA_FLOW_CONTROL)) &&
+	   !(adapter->pause_map & (1 <<  WLAN_DATA_FLOW_CONTROL_PRIORITY))) {
+		if (qdf_nbuf_is_ipv4_arp_pkt(skb))
+			is_crtical = true;
+	}
+	spin_unlock_bh(&adapter->pause_map_lock);
 	skb->priority = up;
-	queueIndex = hdd_get_queue_index(skb->priority, is_eapol);
+	queueIndex = hdd_get_queue_index(skb->priority, is_crtical);
 
 	return queueIndex;
 }

@@ -197,13 +197,25 @@ struct ol_tx_desc_t *ol_tx_desc_alloc(struct ol_txrx_pdev_t *pdev,
 		if (pool->avail_desc) {
 			tx_desc = ol_tx_get_desc_flow_pool(pool);
 			ol_tx_desc_dup_detect_set(pdev, tx_desc);
-			if (qdf_unlikely(pool->avail_desc < pool->stop_th)) {
+			if (qdf_unlikely(pool->avail_desc < pool->stop_th)
+				&& (pool->status != FLOW_POOL_ACTIVE_PAUSED)) {
 				pool->status = FLOW_POOL_ACTIVE_PAUSED;
 				qdf_spin_unlock_bh(&pool->flow_pool_lock);
 				/* pause network queues */
 				pdev->pause_cb(vdev->vdev_id,
 					       WLAN_STOP_ALL_NETIF_QUEUE,
 					       WLAN_DATA_FLOW_CONTROL);
+				/* unpause priority queue */
+				pdev->pause_cb(vdev->vdev_id,
+					       WLAN_NETIF_PRIORITY_QUEUE_ON,
+					       WLAN_DATA_FLOW_CONTROL_PRIORITY);
+			} else if (qdf_unlikely(pool->avail_desc <
+						pool->stop_priority_th)) {
+				qdf_spin_unlock_bh(&pool->flow_pool_lock);
+				/* pause priority queue */
+				pdev->pause_cb(vdev->vdev_id,
+					       WLAN_NETIF_PRIORITY_QUEUE_OFF,
+					       WLAN_DATA_FLOW_CONTROL_PRIORITY);
 			} else {
 				qdf_spin_unlock_bh(&pool->flow_pool_lock);
 			}
@@ -454,6 +466,10 @@ void ol_tx_desc_free(struct ol_txrx_pdev_t *pdev, struct ol_tx_desc_t *tx_desc)
 	switch (pool->status) {
 	case FLOW_POOL_ACTIVE_PAUSED:
 		if (pool->avail_desc > pool->start_th) {
+			/* unpause priority queue */
+			pdev->pause_cb(pool->member_flow_id,
+				       WLAN_NETIF_PRIORITY_QUEUE_ON,
+				       WLAN_DATA_FLOW_CONTROL_PRIORITY);
 			pdev->pause_cb(pool->member_flow_id,
 				       WLAN_WAKE_ALL_NETIF_QUEUE,
 				       WLAN_DATA_FLOW_CONTROL);

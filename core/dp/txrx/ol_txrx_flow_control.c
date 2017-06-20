@@ -509,6 +509,7 @@ struct ol_tx_flow_pool_t *ol_tx_create_flow_pool(uint8_t flow_pool_id,
 	pool->status = FLOW_POOL_ACTIVE_UNPAUSED;
 	pool->start_th = (start_threshold * flow_pool_size)/100;
 	pool->stop_th = (stop_threshold * flow_pool_size)/100;
+	pool->stop_priority_th = (TX_STOP_PRIORITY_TH * pool->stop_th)/100;
 	qdf_spinlock_create(&pool->flow_pool_lock);
 	qdf_atomic_init(&pool->ref_cnt);
 	ol_tx_inc_pool_ref(pool);

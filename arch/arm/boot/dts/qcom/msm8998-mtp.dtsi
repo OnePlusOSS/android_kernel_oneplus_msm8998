@@ -292,19 +292,6 @@
 	qcom,led-strings-list = [00 01];
 };
 
-&red_led {
-	/delete-property/ linux,default-trigger;
-	qcom,start-idx = <0>;
-	qcom,idx-len = <10>;
-	qcom,duty-pcts = [00 19 32 4b 64
-			64 4b 32 19 00];
-	qcom,use-blink;
-};
-
-&green_led {
-	/delete-property/ linux,default-trigger;
-};
-
 &dsi_dual_nt35597_video {
 	qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_wled";
 	qcom,mdss-dsi-bl-min-level = <1>;
@@ -589,6 +576,7 @@
 /{
 	mtp_batterydata: qcom,battery-data {
 		qcom,batt-id-range-pct = <15>;
+		#include "OP-batterydata-3300mah.dtsi"
 		#include "fg-gen3-batterydata-itech-3000mah.dtsi"
 		#include "fg-gen3-batterydata-ascent-3450mah.dtsi"
 		#include "fg-gen3-batterydata-demo-6000mah.dtsi"

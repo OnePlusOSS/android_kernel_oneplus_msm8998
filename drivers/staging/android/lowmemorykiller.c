@@ -217,6 +217,22 @@ static int test_task_flag(struct task_struct *p, int flag)
 	return 0;
 }
 
+static int test_task_state(struct task_struct *p, int state)
+{
+	struct task_struct *t;
+
+	for_each_thread(p, t) {
+		task_lock(t);
+		if (t->state & state) {
+			task_unlock(t);
+			return 1;
+		}
+		task_unlock(t);
+	}
+
+	return 0;
+}
+
 static DEFINE_MUTEX(scan_mutex);
 
 int can_use_cma_pages(gfp_t gfp_mask)
@@ -404,7 +420,7 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 	int other_free;
 	int other_file;
 
-	if (mutex_lock_interruptible(&scan_mutex) < 0)
+	if (!mutex_trylock(&scan_mutex))
 		return 0;
 
 	other_free = global_page_state(NR_FREE_PAGES);
@@ -462,8 +478,6 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 		if (time_before_eq(jiffies, lowmem_deathpending_timeout)) {
 			if (test_task_flag(tsk, TIF_MEMDIE)) {
 				rcu_read_unlock();
-				/* give the system time to free up the memory */
-				msleep_interruptible(20);
 				mutex_unlock(&scan_mutex);
 				return 0;
 			}
@@ -497,6 +511,17 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 	}
 	if (selected) {
 		long cache_size, cache_limit, free;
+
+		if (test_task_flag(selected, TIF_MEMDIE) &&
+		    (test_task_state(selected, TASK_UNINTERRUPTIBLE))) {
+			lowmem_print(2, "'%s' (%d) is already killed\n",
+				     selected->comm,
+				     selected->pid);
+			rcu_read_unlock();
+			mutex_unlock(&scan_mutex);
+			return 0;
+		}
+
 		task_lock(selected);
 		send_sig(SIGKILL, selected, 0);
 		/*
@@ -519,6 +544,8 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 				"   Total reserve is %ldkB\n" \
 				"   Total free pages is %ldkB\n" \
 				"   Total file cache is %ldkB\n" \
+				"   SHMEM is %ldkB\n" \
+				"   SwapCached is %ldkB\n" \
 				"   Total zcache is %ldkB\n" \
 				"   GFP mask is 0x%x\n",
 			     selected->comm, selected->pid,
@@ -534,6 +561,10 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 			     global_page_state(NR_FREE_PAGES) *
 				(long)(PAGE_SIZE / 1024),
 			     global_page_state(NR_FILE_PAGES) *
+				(long)(PAGE_SIZE / 1024),
+				global_page_state(NR_SHMEM) *
+				(long)(PAGE_SIZE / 1024),
+				total_swapcache_pages() *
 				(long)(PAGE_SIZE / 1024),
 			     (long)zcache_pages() * (long)(PAGE_SIZE / 1024),
 			     sc->gfp_mask);
@@ -565,7 +596,8 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 static struct shrinker lowmem_shrinker = {
 	.scan_objects = lowmem_scan,
 	.count_objects = lowmem_count,
-	.seeks = DEFAULT_SEEKS * 16
+	.seeks = DEFAULT_SEEKS * 16,
+	.flags = SHRINKER_LMK
 };
 
 static int __init lowmem_init(void)

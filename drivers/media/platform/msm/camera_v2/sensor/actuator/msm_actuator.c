@@ -48,6 +48,251 @@ static struct msm_actuator *actuators[] = {
 	&msm_bivcm_actuator_table,
 };
 
+/* add by likelong@camera 2017.5.12 to update PID of eeprom in driver IC */
+static int32_t msm_actuator_update_PID(struct msm_actuator_ctrl_t *a_ctrl)
+{
+	int i;
+	int32_t rc = 0;
+	int32_t retry_times = 0;
+	int32_t download_retry_times = 0;
+	uint16_t reg_data = 0;
+	bool need_to_update = false;
+	static bool is_imx398_updated;
+	static bool is_imx350_updated;
+	unsigned short actuator_addr;
+	unsigned short eeprom_addr;
+	#define UPDATE_REG_SIZE 7
+	struct msm_camera_i2c_reg_array update_reg_arr[UPDATE_REG_SIZE] = {
+		{0x0E, 0x1C, 0x0},
+		{0x0F, 0xA0, 0x0},
+		{0x3C, 0x17, 0x0},
+		{0x3D, 0x03, 0x0},
+		{0x3E, 0x25, 0x0},
+		{0x3F, 0x15, 0x0},
+		{0x53, 0x06, 0x0},
+	};
+
+	struct msm_camera_i2c_reg_array enable_reg_arr[3] = {
+		{0x99, 0xAF, 0x0},
+		{0x9A, 0x85, 0x0},
+		{0x80, 0x01, 0x0},
+	};
+
+	struct msm_camera_i2c_reg_array disable_reg_arr[3] = {
+		{0x99, 0x00, 0x0},
+		{0x9A, 0x00, 0x0},
+		{0x80, 0x00, 0x0},
+	};
+
+	is_imx398_updated = false;
+	is_imx350_updated = false;
+
+  if ((!is_imx398_updated && (0xE4 >> 1 == a_ctrl->i2c_client.cci_client->sid))
+  || (!is_imx350_updated && (0xE8 >> 1 == a_ctrl->i2c_client.cci_client->sid))) {
+    actuator_addr = a_ctrl->i2c_client.cci_client->sid;
+
+    if (0xE4 >> 1 == actuator_addr)
+      is_imx398_updated = true;
+    else if (0xE8 >> 1 == actuator_addr)
+      is_imx350_updated = true;
+
+    if (0xE4 >> 1 == actuator_addr)/* 0xE4 means imx398 */
+      eeprom_addr = 0xE6 >> 1;/* E6>>1 is the slave addr of eeprom in imx398's driver IC */
+    else if (0xE8 >> 1 == actuator_addr)/* 0xE8 means imx350 */
+      eeprom_addr = 0xEA >> 1;/* EA>>1 is the slave addr of eeprom in imx398's driver IC */
+    CDBG("%s:%d actuator_addr = 0x%x, eeprom_addr = 0x%x\n", __func__, __LINE__,
+    actuator_addr<<1, eeprom_addr);
+
+    a_ctrl->i2c_client.cci_client->sid = actuator_addr;
+    rc = a_ctrl->i2c_client.i2c_func_tbl->i2c_read(
+					&a_ctrl->i2c_client,
+					0xF0,
+					&reg_data,
+					1);
+    if (rc < 0) {
+      pr_err("%s:%d i2c read error:%d\n", __func__, __LINE__, rc);
+      goto EXIT2;
+    }
+    CDBG("%s:%d 0xF0 = 0x%x\n", __func__, __LINE__, reg_data);
+    if (0x72 == reg_data) {
+      do {
+				msleep(1);
+				rc = a_ctrl->i2c_client.i2c_func_tbl->i2c_read(
+							&a_ctrl->i2c_client,
+							0xE0,
+							&reg_data,
+							1);
+				if (rc < 0) {
+					pr_err("%s:%d i2c read error:%d\n", __func__, __LINE__, rc);
+					goto EXIT2;
+				}
+			} while (((++download_retry_times) < 5) && (0x0 != reg_data));
+			CDBG("%s:%d 0xE0 = 0x%x\n", __func__, __LINE__, reg_data);
+			if (0x0 == reg_data) {
+				CDBG("%s:%d enable write\n", __func__, __LINE__);
+				for (i = 0; i < 3; i++) {
+					if (0x80 == enable_reg_arr[i].reg_addr) {
+						rc = a_ctrl->i2c_client.i2c_func_tbl->i2c_read(
+									&a_ctrl->i2c_client,
+									0x80,
+									&reg_data,
+									1);
+						if (rc < 0) {
+							pr_err("%s:%d i2c read error:%d\n", __func__, __LINE__, rc);
+							goto EXIT2;
+						}
+						enable_reg_arr[i].reg_data = reg_data | 0x01;
+					}
+					rc = a_ctrl->i2c_client.i2c_func_tbl->i2c_write(
+								&a_ctrl->i2c_client,
+								enable_reg_arr[i].reg_addr,
+								enable_reg_arr[i].reg_data,
+								1);
+					if (rc < 0) {
+						pr_err("%s:%d i2c write error:%d\n", __func__, __LINE__, rc);
+						goto EXIT2;
+					}
+				}
+				CDBG("%s:%d check eeprom data\n", __func__, __LINE__);
+				a_ctrl->i2c_client.cci_client->sid = eeprom_addr;
+				for (i = 0; i < UPDATE_REG_SIZE; i++) {
+					rc = a_ctrl->i2c_client.i2c_func_tbl->i2c_read(
+								&a_ctrl->i2c_client,
+								update_reg_arr[i].reg_addr,
+								&reg_data,
+								1);
+					if (rc < 0) {
+						pr_err("%s:%d i2c read error:%d\n", __func__, __LINE__, rc);
+						goto EXIT1;
+					}
+					if (reg_data != update_reg_arr[i].reg_data) {
+						need_to_update = true;
+						break;
+					}
+				}
+				if (need_to_update)
+					pr_err("%s:%d need to update", __func__, __LINE__);
+				else
+					pr_err("%s:%d no need to update", __func__, __LINE__);
+
+				while (need_to_update && (++retry_times < 4)) {
+					for (i = 0; i < UPDATE_REG_SIZE; i++) {
+						rc = a_ctrl->i2c_client.i2c_func_tbl->i2c_write(
+									&a_ctrl->i2c_client,
+									update_reg_arr[i].reg_addr,
+									update_reg_arr[i].reg_data,
+									1);
+						if (rc < 0) {
+							pr_err("%s:%d i2c write error:%d\n",
+							__func__, __LINE__, rc);
+							goto EXIT1;
+						}
+						msleep(30);
+						rc = a_ctrl->i2c_client.i2c_func_tbl->i2c_read(
+									&a_ctrl->i2c_client,
+									update_reg_arr[i].reg_addr,
+									&reg_data,
+									1);
+						if (rc < 0) {
+							pr_err("%s:%d i2c read error:%d\n",
+							__func__, __LINE__, rc);
+							goto EXIT1;
+						}
+						if (reg_data != update_reg_arr[i].reg_data)
+							break;
+					}
+					if (UPDATE_REG_SIZE == i) {
+						pr_err("%s:%d update successfully\n",
+						__func__, __LINE__);
+						break;
+					}
+				}
+				if (4 == retry_times) {
+					pr_err("%s:%d update failed\n",
+					__func__, __LINE__);
+					if (0xE4 >> 1 == actuator_addr)
+						is_imx398_updated = false;
+					else if (0xE8 >> 1 == actuator_addr)
+						is_imx350_updated = false;
+				}
+
+				a_ctrl->i2c_client.cci_client->sid = actuator_addr;
+				for (i = 0; i < 3; i++) {
+					if (0x80 == disable_reg_arr[i].reg_addr) {
+					rc = a_ctrl->i2c_client.i2c_func_tbl->i2c_read(
+									&a_ctrl->i2c_client,
+									0x80,
+									&reg_data,
+									1);
+						if (rc < 0) {
+							pr_err("%s:%d i2c read error:%d\n",
+							__func__, __LINE__, rc);
+							goto EXIT2;
+						}
+						disable_reg_arr[i].reg_data = reg_data & 0x0;
+					}
+					rc = a_ctrl->i2c_client.i2c_func_tbl->i2c_write(
+					&a_ctrl->i2c_client,
+						disable_reg_arr[i].reg_addr,
+						disable_reg_arr[i].reg_data,
+						1);
+					if (rc < 0) {
+						pr_err("%s:%d i2c write error:%d\n",
+						__func__, __LINE__, rc);
+						goto EXIT2;
+					}
+				}
+			} else {
+				pr_err("%s:%d 0xE0 = 0x%x, download not done\n",
+				__func__, __LINE__,
+				reg_data);
+				if (0xE4 >> 1 == actuator_addr)
+					is_imx398_updated = false;
+				else if (0xE8 >> 1 == actuator_addr)
+					is_imx350_updated = false;
+				return 0;
+			}
+		} else {
+			pr_err("%s:%d 0xF0 = 0x%x, is not LC898217\n",
+			__func__, __LINE__, reg_data);
+			return 0;
+		}
+	} else {
+		if (0xE4 >> 1 == a_ctrl->i2c_client.cci_client->sid)
+			pr_err("imx398 already updated\n");
+		else if (0xE8 >> 1 == a_ctrl->i2c_client.cci_client->sid)
+			pr_err("imx350 already updated\n");
+		return 0;
+	}
+
+	return 0;
+
+EXIT1:
+	a_ctrl->i2c_client.cci_client->sid = actuator_addr;
+	for (i = 0; i < 3; i++) {
+		if (0x80 == disable_reg_arr[i].reg_addr) {
+			rc = a_ctrl->i2c_client.i2c_func_tbl->i2c_read(
+						&a_ctrl->i2c_client,
+						0x80,
+						&reg_data,
+						1);
+			disable_reg_arr[i].reg_data = reg_data & 0x0;
+		}
+		rc = a_ctrl->i2c_client.i2c_func_tbl->i2c_write(
+					&a_ctrl->i2c_client,
+					disable_reg_arr[i].reg_addr,
+					disable_reg_arr[i].reg_data,
+					1);
+	}
+EXIT2:
+	if (0xE4 >> 1 == actuator_addr)
+		is_imx398_updated = false;
+	else if (0xE8 >> 1 == actuator_addr)
+		is_imx350_updated = false;
+
+	return rc;
+}
+
 static int32_t msm_actuator_piezo_set_default_focus(
 	struct msm_actuator_ctrl_t *a_ctrl,
 	struct msm_actuator_move_params_t *move_params)
@@ -1373,6 +1618,10 @@ static int32_t msm_actuator_set_param(struct msm_actuator_ctrl_t *a_ctrl,
 
 	a_ctrl->curr_step_pos = 0;
 	a_ctrl->curr_region_index = 0;
+
+/* add by likelong@camera 2017.5.12 to update PID of eeprom in driver IC */
+	msm_actuator_update_PID(a_ctrl);
+
 	CDBG("Exit\n");
 
 	return rc;

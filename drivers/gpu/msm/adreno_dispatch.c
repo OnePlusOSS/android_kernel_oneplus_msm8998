@@ -2083,8 +2083,9 @@ static int dispatcher_do_fault(struct adreno_device *adreno_dev)
 	/* Turn off all the timers */
 	del_timer_sync(&dispatcher->timer);
 	del_timer_sync(&dispatcher->fault_timer);
-	del_timer_sync(&adreno_dev->preempt.timer);
-
+	/*yankelong add qualcomm's patch*/
+	if (adreno_is_preemption_enabled(adreno_dev))
+		del_timer_sync(&adreno_dev->preempt.timer);
 	mutex_lock(&device->mutex);
 
 	/* hang opcode */

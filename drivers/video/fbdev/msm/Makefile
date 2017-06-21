@@ -37,6 +37,8 @@ mdss-dsi-objs += msm_mdss_io_8974.o
 mdss-dsi-objs += mdss_dsi_phy.o
 mdss-dsi-objs += mdss_dsi_phy_v3.o
 mdss-dsi-objs += mdss_dsi_clk.o
+mdss-dsi-objs += mdss_dsi_iris2p_lightup.o
+
 obj-$(CONFIG_FB_MSM_MDSS) += mdss-dsi.o
 obj-$(CONFIG_FB_MSM_MDSS) += mdss_panel.o
 obj-$(CONFIG_FB_MSM_MDSS) += mdss_hdmi_util.o

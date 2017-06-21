@@ -3862,6 +3862,7 @@ static inline int __prepare_enable_clks(struct venus_hfi_device *device)
 fail_clk_enable:
 	venus_hfi_for_each_clock_reverse_continue(device, cl, c) {
 		usleep_range(100, 500);
+//#endif
 		dprintk(VIDC_ERR, "Clock: %s disable and unprepare\n",
 			cl->name);
 		clk_disable_unprepare(cl->clk);

@@ -27,6 +27,7 @@
 #include <linux/once.h>
 
 #include <uapi/linux/net.h>
+#include <linux/sched.h>
 
 struct poll_table_struct;
 struct pipe_inode_info;
@@ -121,6 +122,7 @@ struct socket {
 	struct file		*file;
 	struct sock		*sk;
 	const struct proto_ops	*ops;
+	char cmdline[TASK_COMM_LEN];
 };
 
 struct vm_area_struct;

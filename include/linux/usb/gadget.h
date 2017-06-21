@@ -969,6 +969,8 @@ static inline int usb_gadget_vbus_draw(struct usb_gadget *gadget, unsigned mA)
 {
 	if (!gadget->ops->vbus_draw)
 		return -EOPNOTSUPP;
+/* david.liu@bsp, 20161109 Charging porting */
+	pr_info("%s USB setting current is %umA\n", __func__,mA);
 	return gadget->ops->vbus_draw(gadget, mA);
 }
 

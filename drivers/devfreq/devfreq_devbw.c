@@ -35,6 +35,20 @@
 #define MAX_PATHS	2
 #define DBL_BUF		2
 
+#include <linux/pm_qos.h>
+struct qos_request_v {
+	int max_state;
+	int max_devfreq;
+	int min_devfreq;
+};
+
+static bool cpubw_flag = false;
+static struct qos_request_v qos_request_value = {
+	.max_state = 0,
+	.max_devfreq = INT_MAX,
+	.min_devfreq = 0,
+};
+
 struct dev_data {
 	struct msm_bus_vectors vectors[MAX_PATHS * DBL_BUF];
 	struct msm_bus_paths bw_levels[DBL_BUF];
@@ -89,7 +103,6 @@ static void find_freq(struct devfreq_dev_profile *p, unsigned long *freq,
 {
 	int i;
 	unsigned long atmost, atleast, f;
-
 	atmost = p->freq_table[0];
 	atleast = p->freq_table[p->max_state-1];
 	for (i = 0; i < p->max_state; i++) {
@@ -104,6 +117,53 @@ static void find_freq(struct devfreq_dev_profile *p, unsigned long *freq,
 		*freq = atmost;
 	else
 		*freq = atleast;
+}
+
+static void find_freq_cpubw(struct devfreq_dev_profile *p, unsigned long *freq,
+                        u32 flags)
+{
+        int i;
+        unsigned long atmost, atleast, f;
+        int min_index, max_index;
+
+        if (cpubw_flag) {
+                min_index = qos_request_value.min_devfreq;
+                if (p->max_state > qos_request_value.max_devfreq)
+                        max_index = qos_request_value.max_devfreq;
+                else
+                        max_index = p->max_state;
+        } else {
+                min_index = 0;
+                max_index =  p->max_state;
+        }
+
+        atmost = p->freq_table[min_index];
+        atleast = p->freq_table[max_index-1];
+
+        for (i = min_index; i < max_index; i++) {
+                f = p->freq_table[i];
+                if (f <= *freq)
+                        atmost = max(f, atmost);
+                if (f >= *freq)
+                        atleast = min(f, atleast);
+        }
+
+        if (flags & DEVFREQ_FLAG_LEAST_UPPER_BOUND)
+                *freq = atmost;
+        else
+                *freq = atleast;
+}
+
+static int devbw_target_cpubw(struct device *dev, unsigned long *freq, u32 flags)
+{
+	struct dev_data *d = dev_get_drvdata(dev);
+
+	find_freq_cpubw(&d->dp, freq, flags);
+
+	if (!d->gov_ab)
+		return set_bw(dev, *freq, find_ab(d, freq));
+	else
+		return set_bw(dev, *freq, d->gov_ab);
 }
 
 static int devbw_target(struct device *dev, unsigned long *freq, u32 flags)
@@ -126,6 +186,43 @@ static int devbw_get_dev_status(struct device *dev,
 	stat->private_data = &d->gov_ab;
 	return 0;
 }
+
+static int devfreq_qos_handler(struct notifier_block *b, unsigned long val, void *v)
+{
+	unsigned int max_devfreq_index, min_devfreq_index;
+	unsigned int index_max, index_min;
+
+	max_devfreq_index = (unsigned int)pm_qos_request(PM_QOS_DEVFREQ_MAX);
+	min_devfreq_index = (unsigned int)pm_qos_request(PM_QOS_DEVFREQ_MIN);
+
+	/* add limit */
+	if (max_devfreq_index & MASK_CPUFREQ) {
+		index_max = MAX_CPUFREQ - max_devfreq_index;
+		if (index_max > qos_request_value.max_state)
+			index_max = 0;
+		index_max = qos_request_value.max_state - index_max;
+	} else {
+		if (max_devfreq_index > qos_request_value.max_state)
+			index_max = qos_request_value.max_state;
+	}
+	if (min_devfreq_index & MASK_CPUFREQ) {
+		index_min = MAX_CPUFREQ - min_devfreq_index;
+		if (index_min > (qos_request_value.max_state-1))
+			index_min = 0;
+		index_min = qos_request_value.max_state -1 - index_min;
+	} else {
+		if (min_devfreq_index > qos_request_value.max_state)
+			index_min = qos_request_value.max_state -1;
+	}
+
+	qos_request_value.min_devfreq = index_min;
+	qos_request_value.max_devfreq = index_max;
+
+	return NOTIFY_OK;
+}
+static struct notifier_block devfreq_qos_notifier = {
+        .notifier_call = devfreq_qos_handler,
+};
 
 #define PROP_PORTS "qcom,src-dst-ports"
 #define PROP_TBL "qcom,bw-tbl"
@@ -182,7 +279,11 @@ int devfreq_add_devbw(struct device *dev)
 
 	p = &d->dp;
 	p->polling_ms = 50;
-	p->target = devbw_target;
+	if (strstr(d->bw_data.name, "soc:qcom,cpubw") != NULL) {
+		p->target = devbw_target_cpubw;
+		cpubw_flag = true;
+	} else
+		p->target = devbw_target;
 	p->get_dev_status = devbw_get_dev_status;
 
 	if (of_find_property(dev->of_node, PROP_TBL, &len)) {
@@ -231,6 +332,11 @@ int devfreq_add_devbw(struct device *dev)
 		return PTR_ERR(d->df);
 	}
 
+	if (cpubw_flag) {
+		qos_request_value.max_state = len;
+		qos_request_value.min_devfreq = 0;
+		qos_request_value.max_devfreq = len;
+	}
 	return 0;
 }
 
@@ -281,6 +387,10 @@ static struct platform_driver devbw_driver = {
 
 static int __init devbw_init(void)
 {
+	/* add cpufreq qos notify */
+	cpubw_flag = false;
+	pm_qos_add_notifier(PM_QOS_DEVFREQ_MAX, &devfreq_qos_notifier);
+	pm_qos_add_notifier(PM_QOS_DEVFREQ_MIN, &devfreq_qos_notifier);
 	platform_driver_register(&devbw_driver);
 	return 0;
 }

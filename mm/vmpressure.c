@@ -171,7 +171,6 @@ static unsigned long vmpressure_calc_pressure(unsigned long scanned,
 out:
 	pr_debug("%s: %3lu  (s: %lu  r: %lu)\n", __func__, pressure,
 		 scanned, reclaimed);
-
 	return pressure;
 }
 

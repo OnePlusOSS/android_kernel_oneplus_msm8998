@@ -33,6 +33,8 @@
 #include "mdss_debug.h"
 #include "mdss_dsi_phy.h"
 #include "mdss_dba_utils.h"
+#include <linux/param_rw.h>
+//#endif
 
 #define CMDLINE_DSI_CTL_NUM_STRING_LEN 2
 
@@ -300,7 +302,15 @@ static int mdss_dsi_panel_power_off(struct mdss_panel_data *pdata)
 	if (ret)
 		pr_err("%s: failed to disable vregs for %s\n",
 			__func__, __mdss_dsi_pm_name(DSI_PANEL_PM));
-
+    mdss_dsi_disp_vci_en(pdata, 0);
+    if (ctrl_pdata->iris_enabled){
+        mdss_dsi_px_1v1_en(pdata, 0);
+    }
+//#endif
+    if (ctrl_pdata->iris_enabled){
+        mdss_dsi_px_clk_req(pdata, 0);
+    }
+    //#endif
 end:
 	return ret;
 }
@@ -317,7 +327,11 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata)
 
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
-
+    if (ctrl_pdata->iris_enabled){
+        mdss_dsi_px_clk_req(pdata, 1);
+        mdss_dsi_px_1v1_en(pdata, 1);
+    }
+//#endif
 	ret = msm_dss_enable_vreg(
 		ctrl_pdata->panel_power_data.vreg_config,
 		ctrl_pdata->panel_power_data.num_vreg, 1);
@@ -326,7 +340,8 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata)
 			__func__, __mdss_dsi_pm_name(DSI_PANEL_PM));
 		return ret;
 	}
-
+    mdss_dsi_disp_vci_en(pdata, 1);
+//#endif
 	/*
 	 * If continuous splash screen feature is enabled, then we need to
 	 * request all the GPIOs that have already been configured in the
@@ -628,6 +643,8 @@ struct buf_data {
 	char *string_buf; /* cmd buf as string, 3 bytes per number */
 	int sblen; /* string buffer length */
 	int sync_flag;
+    struct mdss_dsi_ctrl_pdata *ctrl;
+//#endif
 	struct mutex dbg_mutex; /* mutex to synchronize read/write/flush */
 };
 
@@ -822,9 +839,10 @@ static int mdss_dsi_cmd_flush(struct file *file, fl_owner_t id)
 	int blen, len, i;
 	char *buf, *bufp, *bp;
 	struct dsi_ctrl_hdr *dchdr;
+	struct mdss_dsi_ctrl_pdata * ctrl_data = pcmds->ctrl;
+	//#endif
 
 	mutex_lock(&pcmds->dbg_mutex);
-
 	if (!pcmds->string_buf) {
 		mutex_unlock(&pcmds->dbg_mutex);
 		return 0;
@@ -891,6 +909,10 @@ static int mdss_dsi_cmd_flush(struct file *file, fl_owner_t id)
 		pcmds->buf = buf;
 		pcmds->blen = blen;
 	}
+	if ((ctrl_data != NULL) && (ctrl_data->debugfs_info != NULL)){
+        ctrl_data->debugfs_info->override_flag = 1;
+    }
+//#endif
 	mutex_unlock(&pcmds->dbg_mutex);
 	return 0;
 }
@@ -962,7 +984,9 @@ static int mdss_dsi_debugfs_setup(struct mdss_panel_data *pdata,
 				ctrl_pdata->on_cmds);
 	DEBUGFS_CREATE_DCS_CMD("dsi_off_cmd", dfs->root, &dfs->off_cmd,
 				ctrl_pdata->off_cmds);
-
+    dfs->on_cmd.ctrl = ctrl_pdata;
+    dfs->off_cmd.ctrl = ctrl_pdata;
+//#endif
 	debugfs_create_u32("dsi_err_counter", 0644, dfs->root,
 			   &dfs_ctrl->err_cont.max_err_index);
 	debugfs_create_u32("dsi_err_time_delta", 0644, dfs->root,
@@ -1195,7 +1219,8 @@ static int mdss_dsi_off(struct mdss_panel_data *pdata, int power_state)
 		pr_err("%s: Invalid input data\n", __func__);
 		return -EINVAL;
 	}
-
+    pr_err("%s start\n", __func__);
+//#endif
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
 
@@ -1257,7 +1282,8 @@ panel_power_ctrl:
 	ctrl_pdata->cur_max_pkt_size = 0;
 end:
 	pr_debug("%s-:\n", __func__);
-
+    pr_err("%s end\n", __func__);
+//#endif
 	return ret;
 }
 
@@ -1378,7 +1404,8 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 		pr_err("%s: Invalid input data\n", __func__);
 		return -EINVAL;
 	}
-
+    pr_err("%s start\n", __func__);
+//#endif
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
 
@@ -1478,6 +1505,8 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 
 end:
 	pr_debug("%s-:\n", __func__);
+    pr_err("%s end\n", __func__);
+//#endif
 	return ret;
 }
 
@@ -1596,12 +1625,22 @@ static int mdss_dsi_unblank(struct mdss_panel_data *pdata)
 			ATRACE_END("dsi_panel_on");
 		}
 	}
-
+    if (!ctrl_pdata->setting_mode_loaded){
+        ctrl_pdata->setting_mode_loaded = true;
+        mutex_lock(&ctrl_pdata->panel_mode_lock);
+        ctrl_pdata->is_panel_on = true;
+        mutex_unlock(&ctrl_pdata->panel_mode_lock);
+    }
+//#endif
 	if ((pdata->panel_info.type == MIPI_CMD_PANEL) &&
 		mipi->vsync_enable && mipi->hw_vsync_mode) {
 		mdss_dsi_set_tear_on(ctrl_pdata);
 		if (mdss_dsi_is_te_based_esd(ctrl_pdata))
-			enable_irq(gpio_to_irq(ctrl_pdata->disp_te_gpio));
+		    schedule_delayed_work(&ctrl_pdata->techeck_work, msecs_to_jiffies(3000));
+		//#else
+		//if (mdss_dsi_is_te_based_esd(ctrl_pdata))
+		//	enable_irq(gpio_to_irq(ctrl_pdata->disp_te_gpio));
+		//#endif
 	}
 
 	ctrl_pdata->ctrl_state |= CTRL_STATE_PANEL_INIT;
@@ -1672,8 +1711,11 @@ static int mdss_dsi_blank(struct mdss_panel_data *pdata, int power_state)
 	if ((pdata->panel_info.type == MIPI_CMD_PANEL) &&
 		mipi->vsync_enable && mipi->hw_vsync_mode) {
 		if (mdss_dsi_is_te_based_esd(ctrl_pdata)) {
-				disable_irq(gpio_to_irq(
-					ctrl_pdata->disp_te_gpio));
+                cancel_delayed_work_sync(&ctrl_pdata->techeck_work);
+		//#else
+		//		disable_irq(gpio_to_irq(
+		//			ctrl_pdata->disp_te_gpio));
+		//#endif
 				atomic_dec(&ctrl_pdata->te_irq_ready);
 		}
 		mdss_dsi_set_tear_off(ctrl_pdata);
@@ -2746,6 +2788,57 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 					&ctrl_pdata->dba_work, HZ);
 		}
 		break;
+	case MDSS_EVENT_PANEL_SET_ACL:
+		ctrl_pdata->acl_mode = (int)(unsigned long) arg;
+		mdss_dsi_panel_set_acl(ctrl_pdata, (int)(unsigned long) ctrl_pdata->acl_mode);
+		break;
+	case MDSS_EVENT_PANEL_GET_ACL:
+		rc = mdss_dsi_panel_get_acl_mode(ctrl_pdata);
+		break;
+	//#endif
+	case MDSS_EVENT_PANEL_SET_HBM_MODE:
+		ctrl_pdata->hbm_mode = (int)(unsigned long) arg;
+		mdss_dsi_panel_set_hbm_mode(ctrl_pdata, (int)(unsigned long) ctrl_pdata->hbm_mode);
+		break;
+	case MDSS_EVENT_PANEL_GET_HBM_MODE:
+		rc = mdss_dsi_panel_get_hbm_mode(ctrl_pdata);
+		break;
+	//#endif
+	case MDSS_EVENT_PANEL_SET_SRGB_MODE:
+		ctrl_pdata->SRGB_mode= (int)(unsigned long) arg;
+		if(ctrl_pdata->SRGB_mode==1)
+			ctrl_pdata->dci_p3_mode=0;
+		mdss_dsi_panel_set_srgb_mode(ctrl_pdata, (int)(unsigned long) ctrl_pdata->SRGB_mode);
+		break;
+	case MDSS_EVENT_PANEL_GET_SRGB_MODE:
+		rc = mdss_dsi_panel_get_srgb_mode(ctrl_pdata);
+		break;
+	//#endif
+	case MDSS_EVENT_PANEL_SET_ADOBE_RGB_MODE:
+		ctrl_pdata->Adobe_RGB_mode= (int)(unsigned long) arg;
+		mdss_dsi_panel_set_adobe_rgb_mode(ctrl_pdata,(int)(unsigned long) ctrl_pdata->Adobe_RGB_mode);
+		break;
+	case MDSS_EVENT_PANEL_GET_ADOBE_RGB_MODE:
+		rc = mdss_dsi_panel_get_adobe_rgb_mode(ctrl_pdata);
+		break;
+	//#endif
+	case MDSS_EVENT_PANEL_SET_DCI_P3_MODE:
+		ctrl_pdata->dci_p3_mode= (int)(unsigned long) arg;
+		if(ctrl_pdata->dci_p3_mode==1)
+		ctrl_pdata->SRGB_mode=0;
+		mdss_dsi_panel_set_dci_p3_mode(ctrl_pdata,(int)(unsigned long) ctrl_pdata->dci_p3_mode);
+		break;
+	case MDSS_EVENT_PANEL_GET_DCI_P3_MODE:
+		rc = mdss_dsi_panel_get_dci_p3_mode(ctrl_pdata);
+		break;
+	//#endif
+	case MDSS_EVENT_PANEL_SET_NIGHT_MODE:
+		ctrl_pdata->night_mode= (int)(unsigned long) arg;
+		mdss_dsi_panel_set_night_mode(ctrl_pdata, (int)(unsigned long) ctrl_pdata->night_mode);
+		break;
+	case MDSS_EVENT_PANEL_GET_NIGHT_MODE:
+		rc = mdss_dsi_panel_get_night_mode(ctrl_pdata);
+		break;
 	case MDSS_EVENT_DSI_TIMING_DB_CTRL:
 		mdss_dsi_timing_db_ctrl(ctrl_pdata, (int)(unsigned long)arg);
 		break;
@@ -3202,7 +3295,33 @@ static int mdss_dsi_ctrl_validate_config(struct mdss_dsi_ctrl_pdata *ctrl)
 error:
 	return rc;
 }
-
+static void techeck_work_func(struct work_struct *work )
+{
+	int ret = 0;
+	int irq = 0;
+    struct mdss_dsi_ctrl_pdata *pdata = NULL;
+	pdata = container_of(to_delayed_work(work),
+		struct mdss_dsi_ctrl_pdata, techeck_work);
+    if (gpio_is_valid(pdata->disp_te_gpio)){
+      irq = gpio_to_irq(pdata->disp_te_gpio);
+    }else{
+        return;
+    }
+	pdata->te_comp.done = 0;
+	enable_irq(irq);
+    ret = wait_for_completion_killable_timeout(&pdata->te_comp,
+						msecs_to_jiffies(300));
+	if (!atomic_read(&pdata->te_irq_ready)){
+		atomic_inc(&pdata->te_irq_ready);
+	}
+	if (ret == 0){
+	    disable_irq(irq);
+		return;
+	}
+	disable_irq(irq);
+	schedule_delayed_work(&pdata->techeck_work, msecs_to_jiffies(3000));
+}
+//#endif
 static int mdss_dsi_ctrl_probe(struct platform_device *pdev)
 {
 	int rc = 0;
@@ -3324,7 +3443,11 @@ static int mdss_dsi_ctrl_probe(struct platform_device *pdev)
 		pr_err("%s: Failed to set dsi splash config\n", __func__);
 		return rc;
 	}
-
+	if (mdss_dsi_is_te_based_esd(ctrl_pdata)) {
+	    init_completion(&ctrl_pdata->te_comp);
+		INIT_DELAYED_WORK(&ctrl_pdata->techeck_work, techeck_work_func);
+	}
+//#endif
 	if (mdss_dsi_is_te_based_esd(ctrl_pdata)) {
 		rc = devm_request_irq(&pdev->dev,
 			gpio_to_irq(ctrl_pdata->disp_te_gpio),
@@ -4193,7 +4316,45 @@ static int mdss_dsi_parse_gpio_params(struct platform_device *ctrl_pdev,
 		pr_debug("%s:%d mode gpio not specified\n", __func__, __LINE__);
 		ctrl_pdata->lcd_mode_sel_gpio = -EINVAL;
 	}
+	ctrl_pdata->disp_vci_en_gpio = of_get_named_gpio(ctrl_pdev->dev.of_node,
+		"qcom,platform-vci-gpio", 0);
+	if (!gpio_is_valid(ctrl_pdata->disp_vci_en_gpio))
+		pr_err("%s:%d, vci gpio not specified\n",
+						__func__, __LINE__);
+	if (ctrl_pdata->iris_enabled){
+        ctrl_pdata->px_1v1_en_gpio = of_get_named_gpio(ctrl_pdev->dev.of_node,
+            "qcom,px-1v1-en-gpio", 0);
+        if (!gpio_is_valid(ctrl_pdata->px_1v1_en_gpio))
+            pr_err("%s:%d, px-1v1-en gpio not specified\n", __func__, __LINE__);
 
+        ctrl_pdata->px_bp_gpio = of_get_named_gpio(ctrl_pdev->dev.of_node, "qcom,px-bp-gpio", 0);
+        if (gpio_is_valid(ctrl_pdata->px_bp_gpio)){
+            if (gpio_request(ctrl_pdata->px_bp_gpio, "px-bp-gpio")){
+                pr_err("%s:%d, px_bp_gpio request fail.\n", __func__, __LINE__);
+            }else
+                gpio_direction_output(ctrl_pdata->px_bp_gpio, 0);
+        }else{
+            pr_err("%s:%d, px_bp_gpio gpio not specified\n", __func__, __LINE__);
+        }
+
+        if (!of_property_read_string(ctrl_pdev->dev.of_node, "qcom,px-ext-clk", &ctrl_pdata->px_clk_src_name)){
+            if (!strcmp(ctrl_pdata->px_clk_src_name, "BBCLK2")) {
+                ctrl_pdata->px_clk_src = clk_get(&ctrl_pdev->dev, "px_ext_clk");
+                if(IS_ERR(ctrl_pdata->px_clk_src)) {
+                    pr_err("can not get px_ext_clk\n");
+                }else{
+                     clk_set_rate(ctrl_pdata->px_clk_src, 19200000);
+                     if (clk_prepare_enable(ctrl_pdata->px_clk_src)){
+                        pr_err("Enable px_clk fail!\n");
+                        ctrl_pdata->px_clk_enabled = 0;
+                    }else{
+                        ctrl_pdata->px_clk_enabled = 1;
+                    }
+                }
+            }
+        }
+    }
+//#endif
 	return 0;
 }
 

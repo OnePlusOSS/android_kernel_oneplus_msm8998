@@ -649,6 +649,9 @@ struct fuse_conn {
 	/** number of dentries used in the above array */
 	int ctl_ndents;
 
+//liochen@filesystems, 2016/12/05, add for reserved memory
+	unsigned reserved_mem;
+
 	/** Key for lock owner ID scrambling */
 	u32 scramble_key[4];
 

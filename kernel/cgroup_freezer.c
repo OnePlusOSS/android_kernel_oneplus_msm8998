@@ -322,7 +322,8 @@ static void freeze_cgroup(struct freezer *freezer)
 
 	css_task_iter_start(&freezer->css, &it);
 	while ((task = css_task_iter_next(&it)))
-		freeze_task(task);
+            //huruihuan add for freezing task in cgroup despite of PF_FREEZER_SKIP flag
+                freeze_cgroup_task(task);
 	css_task_iter_end(&it);
 }
 
@@ -330,11 +331,23 @@ static void unfreeze_cgroup(struct freezer *freezer)
 {
 	struct css_task_iter it;
 	struct task_struct *task;
+	struct task_struct *tmp_tsk = NULL;
+	struct task_struct *g, *p;
 
 	css_task_iter_start(&freezer->css, &it);
-	while ((task = css_task_iter_next(&it)))
+	while ((task = css_task_iter_next(&it))) {
+		tmp_tsk = task;
 		__thaw_task(task);
+	}
 	css_task_iter_end(&it);
+/*make sure all the thread of one uid been wake up by huruihuan*/
+	read_lock(&tasklist_lock);
+	do_each_thread(g, p) {
+		if (tmp_tsk &&
+			p->real_cred->uid.val == tmp_tsk->real_cred->uid.val)
+			__thaw_task(p);
+	} while_each_thread(g, p);
+	read_unlock(&tasklist_lock);
 }
 
 /**

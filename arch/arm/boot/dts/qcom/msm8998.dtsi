@@ -1575,8 +1575,6 @@
 		qcom,bus-bw-vectors-bps = <0 400000 20000000 25000000 50000000
 						100000000 200000000 4294967295>;
 
-		qcom,sdr104-wa;
-
 		status = "disabled";
 	};
 
@@ -1770,7 +1768,6 @@
 			tx-fifo-resize;
 			snps,nominal-elastic-buffer;
 			snps,disable-clk-gating;
-			snps,has-lpm-erratum;
 			snps,hird-threshold = /bits/ 8 <0x10>;
 			snps,num-gsi-evt-buffs = <0x3>;
 		};

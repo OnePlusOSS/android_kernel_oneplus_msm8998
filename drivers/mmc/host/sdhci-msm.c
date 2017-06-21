@@ -1960,8 +1960,6 @@ struct sdhci_msm_pltfm_data *sdhci_msm_populate_pdata(struct device *dev,
 	if (of_get_property(np, "qcom,core_3_0v_support", NULL))
 		pdata->core_3_0v_support = true;
 
-	pdata->sdr104_wa = of_property_read_bool(np, "qcom,sdr104-wa");
-
 	return pdata;
 out:
 	return NULL;
@@ -2738,15 +2736,14 @@ static void sdhci_msm_check_power_status(struct sdhci_host *host, u32 req_type)
 					msm_host->offset;
 	unsigned long flags;
 	bool done = false;
-	u32 io_sig_sts = SWITCHABLE_SIGNALLING_VOL;
+	u32 io_sig_sts;
 
 	spin_lock_irqsave(&host->lock, flags);
 	pr_debug("%s: %s: request %d curr_pwr_state %x curr_io_level %x\n",
 			mmc_hostname(host->mmc), __func__, req_type,
 			msm_host->curr_pwr_state, msm_host->curr_io_level);
-	if (!msm_host->mci_removed)
-		io_sig_sts = sdhci_msm_readl_relaxed(host,
-				msm_host_offset->CORE_GENERICS);
+	io_sig_sts = sdhci_msm_readl_relaxed(host,
+			msm_host_offset->CORE_GENERICS);
 
 	/*
 	 * The IRQ for request type IO High/Low will be generated when -
@@ -4565,7 +4562,6 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	if (msm_host->pdata->nonhotplug)
 		msm_host->mmc->caps2 |= MMC_CAP2_NONHOTPLUG;
 
-	msm_host->mmc->sdr104_wa = msm_host->pdata->sdr104_wa;
 
 	/* Initialize ICE if present */
 	if (msm_host->ice.pdev) {

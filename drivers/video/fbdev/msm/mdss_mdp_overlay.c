@@ -577,9 +577,9 @@ static int __mdss_mdp_validate_qseed3_cfg(struct mdss_mdp_pipe *pipe)
 
 		vert_fetch_pixels = DECIMATED_DIMENSION(src_h +
 				(int8_t)(pipe->scaler.top_ftch[plane]
-					& 0xFF) +
+					& 0xFF)+
 				(int8_t)(pipe->scaler.btm_ftch[plane]
-				& 0xFF),
+					& 0xFF),
 			pipe->vert_deci);
 
 		if ((hor_req_pixels != hor_fetch_pixels) ||
@@ -6510,6 +6510,7 @@ int mdss_mdp_overlay_init(struct msm_fb_data_type *mfd)
 
 	if (mdss_mdp_pp_overlay_init(mfd))
 		pr_warn("Failed to initialize pp overlay data.\n");
+
 	return rc;
 init_fail:
 	kfree(mdp5_data);

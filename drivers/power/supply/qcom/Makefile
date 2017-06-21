@@ -1,8 +1,12 @@
+obj-$(CONFIG_QPNP_SMBCHARGER)	+= qpnp-smbcharger.o batterydata-lib.o pmic-voter.o
+obj-$(CONFIG_QPNP_FG)		+= qpnp-fg.o
 obj-$(CONFIG_QPNP_FG_GEN3)     += qpnp-fg-gen3.o fg-memif.o fg-util.o
 obj-$(CONFIG_SMB135X_CHARGER)   += smb135x-charger.o pmic-voter.o
 obj-$(CONFIG_SMB1351_USB_CHARGER) += smb1351-charger.o pmic-voter.o battery.o
 obj-$(CONFIG_MSM_BCL_CTL)	+= msm_bcl.o
 obj-$(CONFIG_MSM_BCL_PERIPHERAL_CTL) += bcl_peripheral.o
+obj-$(CONFIG_FG_BQ27541)	+= bq27541_fuelgauger.o
+obj-$(CONFIG_ONEPLUS_FASTCHG)	+= oneplus_fastcg.o
 obj-$(CONFIG_BATTERY_BCL) += battery_current_limit.o
 obj-$(CONFIG_QPNP_SMB2)		+= qpnp-smb2.o smb-lib.o pmic-voter.o storm-watch.o battery.o
 obj-$(CONFIG_SMB138X_CHARGER)	+= smb138x-charger.o smb-lib.o pmic-voter.o storm-watch.o battery.o

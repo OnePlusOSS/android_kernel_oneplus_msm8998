@@ -987,6 +987,10 @@ static int soc_bind_dai_link(struct snd_soc_card *card, int num)
 	if (!rtd->platform) {
 		dev_err(card->dev, "ASoC: platform %s not registered\n",
 			dai_link->platform_name);
+/*zhiguang.su@MultiMedia.AudioDrv, 2017-04-05, add for CBG-4927 debug*/
+		if (dai_link->platform_of_node)
+			dev_err(card->dev, "ASoC: platform of_name %s not registered\n",
+			dai_link->platform_of_node->full_name);
 		return -EPROBE_DEFER;
 	}
 

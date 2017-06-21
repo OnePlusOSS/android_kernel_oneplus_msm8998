@@ -30,14 +30,19 @@
 #include <linux/syscore_ops.h>
 #include <linux/reboot.h>
 #include <linux/irqchip/msm-mpm-irq.h>
+#include <linux/suspend.h>
 #include "../core.h"
 #include "../pinconf.h"
 #include "pinctrl-msm.h"
 #include "../pinctrl-utils.h"
+#include <linux/wakeup_reason.h>
+#include <linux/cpufreq.h>
 
 #define MAX_NR_GPIO 300
 #define PS_HOLD_OFFSET 0x820
 
+bool need_show_pinctrl_irq;
+bool fp_irq_cnt;
 /**
  * struct msm_pinctrl - state for a pinctrl-msm device
  * @dev:            device handle.
@@ -477,6 +482,9 @@ static void msm_gpio_dbg_show_one(struct seq_file *s,
 	int drive;
 	int pull;
 	u32 ctl_reg;
+#ifdef CONFIG_PM_SUSPEND_DEBUG_OP
+	char buf[200], *p;
+#endif
 
 	static const char * const pulls[] = {
 		"no pull",
@@ -492,10 +500,33 @@ static void msm_gpio_dbg_show_one(struct seq_file *s,
 	func = (ctl_reg >> g->mux_bit) & 7;
 	drive = (ctl_reg >> g->drv_bit) & 7;
 	pull = (ctl_reg >> g->pull_bit) & 3;
+#ifdef CONFIG_PM_SUSPEND_DEBUG_OP
+	p = buf;
+	if (s) {
+		seq_printf(s, " %-8s: %-3s fun%d", g->name, is_out ? "out" : "in", func);
+		if (gpio <= 149)//the ship real gpio
+			seq_printf(s, " %s", chip->get(chip, offset) ? "hi":"lo");
+	} else
+		p += sprintf(p, " %-8s: %-3s fun%d", g->name, is_out ? "out" : "in", func);
 
-	seq_printf(s, " %-8s: %-3s %d", g->name, is_out ? "out" : "in", func);
+#else
+	seq_printf(s, " %-8s: %-3s fun%d", g->name, is_out ? "out" : "in", func);
+	if (gpio <= 149)//the ship real gpio
+		seq_printf(s, " %s", chip->get(chip, offset) ? "hi":"lo");
+#endif
+#ifdef CONFIG_PM_SUSPEND_DEBUG_OP
+	if (s) {
+		seq_printf(s, " %dmA", msm_regval_to_drive(drive));
+		seq_printf(s, " %s", pulls[pull]);
+	} else {
+		p +=sprintf(p, " %dmA", msm_regval_to_drive(drive));
+		p +=sprintf(p, " %s\n", pulls[pull]);
+		pr_info("%s", buf);
+	}
+#else
 	seq_printf(s, " %dmA", msm_regval_to_drive(drive));
 	seq_printf(s, " %s", pulls[pull]);
+#endif
 }
 
 static void msm_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
@@ -504,8 +535,15 @@ static void msm_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 	unsigned i;
 
 	for (i = 0; i < chip->ngpio; i++, gpio++) {
+		if(gpio == 0 || gpio == 1 || gpio == 2 || gpio == 3 || gpio == 81 || gpio == 82 || gpio == 83 || gpio == 84)
+			continue;
 		msm_gpio_dbg_show_one(s, NULL, chip, i, gpio);
+#ifdef CONFIG_PM_SUSPEND_DEBUG_OP
+		if (s)
+			seq_puts(s, "\n");
+#else
 		seq_puts(s, "\n");
+#endif
 	}
 }
 
@@ -790,6 +828,17 @@ static void msm_gpio_irq_handler(struct irq_desc *desc)
 			irq_pin = irq_find_mapping(gc->irqdomain, i);
 			generic_handle_irq(irq_pin);
 			handled++;
+			//++add by lyb@bsp for printk wakeup irqs
+			if(!!need_show_pinctrl_irq){
+				need_show_pinctrl_irq = false;
+				if (strstr(irq_to_desc(irq_pin)->action->name, "soc:fpc_fpc1020") != NULL) { //it is fpc irq
+					fp_irq_cnt = true;
+					c0_cpufreq_limit_queue();
+				}
+				printk(KERN_ERR "hwirq %s [irq_num=%d ]triggered\n",irq_to_desc(irq_pin)->action->name,irq_pin);
+				log_wakeup_reason(irq_pin);
+			}
+			//--
 		}
 	}
 
@@ -899,6 +948,25 @@ static void msm_pinctrl_setup_pm_reset(struct msm_pinctrl *pctrl)
 		}
 }
 
+static int pm_pm_event(struct notifier_block *notifier,
+		unsigned long pm_event, void *unused)
+{
+	switch (pm_event) {
+	case PM_SUSPEND_PREPARE:
+                //do nothing
+		break;
+	case PM_POST_SUSPEND:
+		need_show_pinctrl_irq = false;
+		break;
+	default:
+		break;
+	}
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block pinctrl_pm_notifier_block = {
+	.notifier_call = pm_pm_event,
+};
 #ifdef CONFIG_PM
 static int msm_pinctrl_suspend(void)
 {
@@ -951,6 +1019,10 @@ int msm_pinctrl_probe(struct platform_device *pdev,
 	struct msm_pinctrl *pctrl;
 	struct resource *res;
 	int ret;
+	ret = register_pm_notifier(&pinctrl_pm_notifier_block);
+	if (ret)
+		printk(KERN_WARNING "[%s] failed to register PM notifier %d\n",
+				__func__, ret);
 
 	msm_pinctrl_data = pctrl = devm_kzalloc(&pdev->dev,
 				sizeof(*pctrl), GFP_KERNEL);
@@ -1007,7 +1079,7 @@ int msm_pinctrl_remove(struct platform_device *pdev)
 
 	gpiochip_remove(&pctrl->chip);
 	pinctrl_unregister(pctrl->pctrl);
-
+	unregister_pm_notifier(&pinctrl_pm_notifier_block);
 	unregister_restart_handler(&pctrl->restart_nb);
 	unregister_syscore_ops(&msm_pinctrl_pm_ops);
 

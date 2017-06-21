@@ -527,6 +527,63 @@ static ssize_t wake_unlock_store(struct kobject *kobj,
 power_attr(wake_unlock);
 
 #endif /* CONFIG_PM_WAKELOCKS */
+
+#ifdef CONFIG_PM_SUSPEND_DEBUG_OP
+static int pm_suspend_debug = 0;
+
+static ssize_t pm_suspend_debug_show(struct kobject *kobj, struct kobj_attribute *attr,
+			     char *buf)
+{
+	return sprintf(buf, "%d\n", pm_suspend_debug);
+}
+
+static ssize_t
+pm_suspend_debug_store(struct kobject *kobj, struct kobj_attribute *attr,
+	       const char *buf, size_t n)
+{
+	int val;
+
+	if (sscanf(buf, "%d", &val) == 1) {
+		pm_suspend_debug = val & 0x0F;
+		debug_print_suspend_stats();
+		pr_debug("pm_suspend_debug:%d",pm_suspend_debug); 
+		return n;
+	}
+	return -EINVAL;
+}
+
+power_attr(pm_suspend_debug);
+void debug_print_suspend_stats(void)
+{
+	if (likely(!pm_suspend_debug))
+		return;
+
+	switch (pm_suspend_debug) {
+	case 0x01:
+		print_pinctrl_stats_op();
+		break;
+	case 0x02:
+		print_clk_stats_op();
+		break;
+	case 0x04:
+		print_regulator_stats_op();
+		break;
+	case 0x06:
+		print_clk_stats_op();
+		print_regulator_stats_op();
+                break;
+	default:
+		pm_suspend_debug &= 0x08;
+		if (pm_suspend_debug) {
+			print_pinctrl_stats_op();
+			print_clk_stats_op();
+			print_regulator_stats_op();
+		}else
+			pr_info("%s: error value", __func__);
+	}
+}
+#endif /* CONFIG_SUSPEND_DEBUG_OP  */
+
 #endif /* CONFIG_PM_SLEEP */
 
 #ifdef CONFIG_PM_TRACE
@@ -614,6 +671,9 @@ static struct attribute * g[] = {
 #ifdef CONFIG_PM_WAKELOCKS
 	&wake_lock_attr.attr,
 	&wake_unlock_attr.attr,
+#endif
+#ifdef CONFIG_PM_SUSPEND_DEBUG_OP
+	&pm_suspend_debug_attr.attr,
 #endif
 #ifdef CONFIG_PM_DEBUG
 	&pm_test_attr.attr,

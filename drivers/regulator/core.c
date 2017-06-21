@@ -3890,6 +3890,7 @@ static void regulator_dev_release(struct device *dev)
 	kfree(rdev->constraints);
 	of_node_put(rdev->dev.of_node);
 	kfree(rdev);
+    rdev = NULL;
 }
 
 static struct class regulator_class = {
@@ -4864,3 +4865,60 @@ static int __init regulator_init_complete(void)
 	return 0;
 }
 late_initcall_sync(regulator_init_complete);
+
+#ifdef CONFIG_PM_SUSPEND_DEBUG_OP
+
+static int regulator_show_roots(struct device *dev, void *data)
+{
+	struct regulator_dev *rdev = dev_to_rdev(dev);
+        struct regulation_constraints *c;
+        char buf[200], *p;
+
+        if (!rdev)
+                return -1;
+	if (rdev->supply)
+		return -1;
+
+        p = buf;
+        p += sprintf(p, "%*s%-*s %3d %4d %6d ",
+                   1, "",
+                   25, rdev_get_name(rdev),
+                   rdev->use_count, rdev->open_count, rdev->bypass_count);
+
+#if 0
+        p += sprintf(p, "%5dmV ", _regulator_get_voltage(rdev) / 1000);
+        p += sprintf(p, "%5dmA ", _regulator_get_current_limit(rdev) / 1000);
+#endif
+
+        c = rdev->constraints;
+        if (c) {
+                switch (rdev->desc->type) {
+                case REGULATOR_VOLTAGE:
+                        p +=sprintf(p, "%5dmV %5dmV ",
+                                   c->min_uV / 1000, c->max_uV / 1000);
+                        break;
+                case REGULATOR_CURRENT:
+                        p += sprintf(p, "%5dmA %5dmA ",
+                                   c->min_uA / 1000, c->max_uA / 1000);
+                        break;
+                }
+        }
+
+        pr_info( "%s\n", buf);
+
+	return 0;
+}
+void print_regulator_stats_op(void)
+{
+	pr_info("Regulator Stats:");
+	pr_info(" --------------------------------------------\n");
+#if 0
+	pr_info(" regulator                 use open bypass voltage current     min     max\n");
+#endif
+	pr_info(" regulator                 use open bypass     min     max\n");
+
+	class_for_each_device(&regulator_class, NULL, NULL,
+                              regulator_show_roots);
+}
+#endif
+

@@ -564,6 +564,7 @@ int pfk_kc_load_key_start(const unsigned char *key, size_t key_size,
 		if (async && (!strcmp(s_type,
 				(char *)PFK_UFS)))
 			entry->loaded_ref_cnt++;
+
 		break;
 	case(SCM_ERROR):
 		ret = entry->scm_error;

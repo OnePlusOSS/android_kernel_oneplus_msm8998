@@ -14,6 +14,36 @@
 #define QPNP_PON_H
 
 #include <linux/errno.h>
+struct qpnp_pon {
+	struct platform_device	*pdev;
+	struct regmap		*regmap;
+	struct input_dev	*pon_input;
+	struct qpnp_pon_config	*pon_cfg;
+	struct pon_regulator	*pon_reg_cfg;
+	struct list_head	list;
+	struct delayed_work	bark_work;
+	struct delayed_work	press_work;
+	struct dentry		*debugfs;
+	int			pon_trigger_reason;
+	int			pon_power_off_reason;
+	int			num_pon_reg;
+	int			num_pon_config;
+	u32			dbc;
+	u32			uvlo;
+	int			warm_reset_poff_type;
+	int			hard_reset_poff_type;
+	int			shutdown_poff_type;
+	u16			base;
+	u8			subtype;
+	u8			pon_ver;
+	u8			warm_reset_reason1;
+	u8			warm_reset_reason2;
+	bool		is_spon;
+	bool		store_hard_reset_reason;
+	bool        kpd_dbc_enable;
+	ktime_t     kpd_release_time;
+	//#endif /* VENDOR_EDIT */
+};
 
 /**
  * enum pon_trigger_source: List of PON trigger sources
@@ -58,7 +88,29 @@ enum pon_restart_reason {
 	PON_RESTART_REASON_DMVERITY_CORRUPTED	= 0x04,
 	PON_RESTART_REASON_DMVERITY_ENFORCE	= 0x05,
 	PON_RESTART_REASON_KEYS_CLEAR		= 0x06,
+	PON_RESTART_REASON_AGING		= 0x07,
+	PON_RESTART_REASON_REBOOT		= 0x10,
+	PON_RESTART_REASON_FACTORY		= 0x11,
+	PON_RESTART_REASON_WLAN			= 0x12,
+	PON_RESTART_REASON_RF			= 0x13,
+	PON_RESTART_REASON_MOS			= 0x14,
+	PON_RESTART_REASON_KERNEL		= 0x15,
+	PON_RESTART_REASON_ANDROID		= 0x16,
+	PON_RESTART_REASON_MODEM		= 0x17,
+	PON_RESTART_REASON_PANIC		= 0x18,
 };
+
+/* Define OEM reboot mode magic*/
+#define AGING_MODE		0x77665510
+#define FACTORY_MODE		0x77665504
+#define WLAN_MODE		0x77665505
+#define RF_MODE			0x77665506
+#define MOS_MODE		0x77665507
+#define KERNEL_MODE		0x7766550d
+#define ANDROID_MODE		0x7766550c
+#define MODEM_MODE		0x7766550b
+#define OEM_PANIC		0x77665518
+
 
 #ifdef CONFIG_INPUT_QPNP_POWER_ON
 int qpnp_pon_system_pwr_off(enum pon_power_off_type type);

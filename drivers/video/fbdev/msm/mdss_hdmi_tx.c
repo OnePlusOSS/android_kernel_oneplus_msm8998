@@ -385,10 +385,8 @@ static inline bool hdmi_tx_is_dvi_mode(struct hdmi_tx_ctrl *hdmi_ctrl)
 static inline u32 hdmi_tx_is_in_splash(struct hdmi_tx_ctrl *hdmi_ctrl)
 {
 	struct mdss_data_type *mdata = mdss_mdp_get_mdata();
-
 	return mdata->handoff_pending;
 }
-
 static inline bool hdmi_tx_is_panel_on(struct hdmi_tx_ctrl *hdmi_ctrl)
 {
 	return hdmi_ctrl->hpd_state && hdmi_ctrl->panel_power_on;

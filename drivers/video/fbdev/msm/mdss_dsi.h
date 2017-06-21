@@ -570,7 +570,51 @@ struct mdss_dsi_ctrl_pdata {
 	struct mdss_dsi_debugfs_info *debugfs_info;
 
 	struct dsi_err_container err_cont;
-
+	struct mutex panel_mode_lock;
+//#endif
+    bool is_panel_on;
+//#endif
+    bool high_brightness_panel;
+//#endif
+	int acl_mode;
+	struct dsi_panel_cmds acl_cmds;
+	int acl_ncmds;
+	int acl_npayload;
+//#endif
+	struct dsi_panel_cmds hbm_on_cmds;
+	struct dsi_panel_cmds hbm_off_cmds;
+	int  hbm_mode;
+//#endif
+	bool setting_mode_loaded;
+//#endif
+	int SRGB_mode;
+	struct dsi_panel_cmds srgb_on_cmds;
+	struct dsi_panel_cmds srgb_off_cmds;
+//#endif
+	int Adobe_RGB_mode;
+	struct dsi_panel_cmds Adobe_RGB_on_cmds;
+	struct dsi_panel_cmds Adobe_RGB_off_cmds;
+//#endif
+	int dci_p3_mode;
+	struct dsi_panel_cmds dci_p3_on_cmds;
+	struct dsi_panel_cmds dci_p3_off_cmds;
+//#endif
+	int night_mode;
+	struct dsi_panel_cmds night_mode_on_cmds;
+	struct dsi_panel_cmds night_mode_off_cmds;
+//#endif
+	int disp_vci_en_gpio;
+	struct delayed_work techeck_work;
+	struct completion te_comp;
+//#endif
+	const char *px_clk_src_name;
+	struct	clk	*px_clk_src;
+	int px_clk_enabled;
+	int px_bp_gpio;
+	int px_1v1_en_gpio;
+    spinlock_t iris_lock;
+    bool iris_enabled;
+//#endif
 	struct kobject *kobj;
 	int fb_node;
 
@@ -703,6 +747,60 @@ void mdss_dsi_set_reg(struct mdss_dsi_ctrl_pdata *ctrl, int off,
 	u32 mask, u32 val);
 int mdss_dsi_phy_pll_reset_status(struct mdss_dsi_ctrl_pdata *ctrl);
 
+int mdss_dsi_px_clk_req(struct mdss_panel_data *pdata, int enable);
+int mdss_dsi_disp_vci_en(struct mdss_panel_data *pdata, int enable);
+int mdss_dsi_px_1v1_en(struct mdss_panel_data *pdata, int enable);
+//#endif
+int mdss_dsi_panel_set_acl(struct mdss_dsi_ctrl_pdata *ctrl, int mode);
+int mdss_dsi_panel_get_acl_mode(struct mdss_dsi_ctrl_pdata *ctrl);
+//#endif
+int mdss_dsi_panel_set_hbm_mode(struct mdss_dsi_ctrl_pdata *ctrl, int level);
+int mdss_dsi_panel_get_hbm_mode(struct mdss_dsi_ctrl_pdata *ctrl);
+//#endif
+int mdss_dsi_panel_set_srgb_mode(struct mdss_dsi_ctrl_pdata *ctrl, int level);
+int mdss_dsi_panel_get_srgb_mode(struct mdss_dsi_ctrl_pdata *ctrl);
+//#endif
+int mdss_dsi_panel_set_adobe_rgb_mode(struct mdss_dsi_ctrl_pdata *ctrl, int level);
+int mdss_dsi_panel_get_adobe_rgb_mode(struct mdss_dsi_ctrl_pdata *ctrl);
+//#endif
+int mdss_dsi_panel_set_dci_p3_mode(struct mdss_dsi_ctrl_pdata *ctrl, int level);
+int mdss_dsi_panel_get_dci_p3_mode(struct mdss_dsi_ctrl_pdata *ctrl);
+//#endif
+int mdss_dsi_panel_set_night_mode(struct mdss_dsi_ctrl_pdata *ctrl, int level);
+int mdss_dsi_panel_get_night_mode(struct mdss_dsi_ctrl_pdata *ctrl);
+int mdss_dsi_panel_set_night_mode3500k(struct mdss_dsi_ctrl_pdata *ctrl, int level);
+int mdss_dsi_panel_get_night_mode3500k(struct mdss_dsi_ctrl_pdata *ctrl);
+int mdss_dsi_panel_set_night_mode3800k(struct mdss_dsi_ctrl_pdata *ctrl, int level);
+int mdss_dsi_panel_get_night_mode3800k(struct mdss_dsi_ctrl_pdata *ctrl);
+int mdss_dsi_panel_set_night_mode4000k(struct mdss_dsi_ctrl_pdata *ctrl, int level);
+int mdss_dsi_panel_get_night_mode4000k(struct mdss_dsi_ctrl_pdata *ctrl);
+int mdss_dsi_panel_set_night_mode4300k(struct mdss_dsi_ctrl_pdata *ctrl, int level);
+int mdss_dsi_panel_get_night_mode4300k(struct mdss_dsi_ctrl_pdata *ctrl);
+int mdss_dsi_panel_set_night_mode4500k(struct mdss_dsi_ctrl_pdata *ctrl, int level);
+int mdss_dsi_panel_get_night_mode4500k(struct mdss_dsi_ctrl_pdata *ctrl);
+int mdss_dsi_panel_set_night_mode3100k(struct mdss_dsi_ctrl_pdata *ctrl, int level);
+int mdss_dsi_panel_get_night_mode3100k(struct mdss_dsi_ctrl_pdata *ctrl);
+int mdss_dsi_panel_set_night_mode4800k(struct mdss_dsi_ctrl_pdata *ctrl, int level);
+int mdss_dsi_panel_get_night_mode4800k(struct mdss_dsi_ctrl_pdata *ctrl);
+int mdss_dsi_panel_set_night_mode2800k(struct mdss_dsi_ctrl_pdata *ctrl, int level);
+int mdss_dsi_panel_get_night_mode2800k(struct mdss_dsi_ctrl_pdata *ctrl);
+int mdss_dsi_panel_set_night_mode5000k(struct mdss_dsi_ctrl_pdata *ctrl, int level);
+int mdss_dsi_panel_get_night_mode5000k(struct mdss_dsi_ctrl_pdata *ctrl);
+int mdss_dsi_panel_set_night_mode5500k(struct mdss_dsi_ctrl_pdata *ctrl, int level);
+int mdss_dsi_panel_get_night_mode5500k(struct mdss_dsi_ctrl_pdata *ctrl);
+int mdss_dsi_panel_set_night_mode6000k(struct mdss_dsi_ctrl_pdata *ctrl, int level);
+int mdss_dsi_panel_get_night_mode6000k(struct mdss_dsi_ctrl_pdata *ctrl);
+int mdss_dsi_panel_set_night_mode6500k(struct mdss_dsi_ctrl_pdata *ctrl, int level);
+int mdss_dsi_panel_get_night_mode6500k(struct mdss_dsi_ctrl_pdata *ctrl);
+int mdss_dsi_panel_set_night_mode6800k(struct mdss_dsi_ctrl_pdata *ctrl, int level);
+int mdss_dsi_panel_get_night_mode6800k(struct mdss_dsi_ctrl_pdata *ctrl);
+int mdss_dsi_panel_set_night_mode7200k(struct mdss_dsi_ctrl_pdata *ctrl, int level);
+int mdss_dsi_panel_get_night_mode7200k(struct mdss_dsi_ctrl_pdata *ctrl);
+
+//#endif
+int mdss_dsi_panel_set_reading_mode(struct mdss_dsi_ctrl_pdata *ctrl, int level);
+int mdss_dsi_panel_get_reading_mode(struct mdss_dsi_ctrl_pdata *ctrl);
+//#endif
 static inline const char *__mdss_dsi_pm_name(enum dsi_pm_type module)
 {
 	switch (module) {
@@ -945,5 +1043,4 @@ static inline enum dsi_physical_lane_id mdss_dsi_logical_to_physical_lane(
 
 	return i;
 }
-
 #endif /* MDSS_DSI_H */

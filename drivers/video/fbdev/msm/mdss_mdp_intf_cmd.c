@@ -3052,7 +3052,6 @@ static int mdss_mdp_cmd_kickoff(struct mdss_mdp_ctl *ctl, void *arg)
 		atomic_inc(&sctx->koff_cnt);
 
 	trace_mdp_cmd_kickoff(ctl->num, atomic_read(&ctx->koff_cnt));
-
 	/*
 	 * Call state machine with kickoff event, we just do it for
 	 * current CTL, but internally state machine will check and

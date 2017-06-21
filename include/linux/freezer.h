@@ -66,6 +66,9 @@ static inline bool try_to_freeze(void)
 	return try_to_freeze_unsafe();
 }
 
+//huruihuan add for freezing task in cgroup despite of PF_FREEZER_SKIP flag
+extern bool freeze_cgroup_task(struct task_struct *p);
+
 extern bool freeze_task(struct task_struct *p);
 extern bool set_freezable(void);
 

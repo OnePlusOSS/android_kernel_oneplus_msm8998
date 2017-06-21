@@ -153,6 +153,11 @@ static bool sleep_disabled;
 module_param_named(sleep_disabled,
 	sleep_disabled, bool, S_IRUGO | S_IWUSR | S_IWGRP);
 
+void msm_cpuidle_set_sleep_disable(bool disable)
+{
+	sleep_disabled = disable;
+}
+
 s32 msm_cpuidle_get_deep_idle_latency(void)
 {
 	return 10;
@@ -1802,7 +1807,9 @@ static int lpm_suspend_enter(suspend_state_t state)
 	if (idx > 0)
 		update_debug_pc_event(CPU_ENTER, idx, 0xdeaffeed,
 					0xdeaffeed, false);
-
+#ifdef  CONFIG_PM_SUSPEND_DEBUG_OP
+	debug_print_suspend_stats();
+#else
 	/*
 	 * Print the clocks which are enabled during system suspend
 	 * This debug information is useful to know which are the
@@ -1810,6 +1817,7 @@ static int lpm_suspend_enter(suspend_state_t state)
 	 * LPMs(XO and Vmin).
 	 */
 	clock_debug_print_enabled();
+#endif
 
 	BUG_ON(!use_psci);
 	psci_enter_sleep(cluster, idx, true);

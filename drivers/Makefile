@@ -181,3 +181,15 @@ obj-$(CONFIG_BIF)		+= bif/
 
 obj-$(CONFIG_SENSORS_SSC)	+= sensors/
 obj-$(CONFIG_ESOC)              += esoc/
+
+#ruanbanmao@nfc add for 15801 nfc 2015/10/16
+obj-$(CONFIG_NFC)		+= nfc/
+
+#hefaxi@filesystems, 2015/12/07, add for force dump function
+obj-y 	+= oem_debug/
+
+# hefaxi@filesystem,2015/05/05,support param partion read/write
+obj-y 	+= param_read_write/
+
+#porting for support oem trace
+obj-$(CONFIG_OEM_DEBUG_SUPORT)  += oneplus/

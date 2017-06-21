@@ -2,11 +2,11 @@
  * fs/sdcardfs/dentry.c
  *
  * Copyright (c) 2013 Samsung Electronics Co. Ltd
- *   Authors: Daeho Jeong, Woojoong Lee, Seunghwan Hyun,
+ *   Authors: Daeho Jeong, Woojoong Lee, Seunghwan Hyun, 
  *               Sunghwan Yun, Sungjong Seo
- *
+ *                      
  * This program has been developed as a stackable file system based on
- * the WrapFS which written by
+ * the WrapFS which written by 
  *
  * Copyright (c) 1998-2011 Erez Zadok
  * Copyright (c) 2009     Shrikar Archak
@@ -45,7 +45,7 @@ static int sdcardfs_d_revalidate(struct dentry *dentry, unsigned int flags)
 	}
 	spin_unlock(&dentry->d_lock);
 
-	/* check uninitialized obb_dentry and
+	/* check uninitialized obb_dentry and  
 	 * whether the base obbpath has been changed or not */
 	if (is_obbpath_invalid(dentry)) {
 		d_drop(dentry);
@@ -71,6 +71,12 @@ static int sdcardfs_d_revalidate(struct dentry *dentry, unsigned int flags)
 	if (parent_lower_dentry != lower_cur_parent_dentry) {
 		d_drop(dentry);
 		err = 0;
+		goto out;
+	}
+
+	if (dentry == lower_dentry) {
+		err = 0;
+		panic("sdcardfs: dentry is equal to lower_dentry\n");
 		goto out;
 	}
 
@@ -121,7 +127,7 @@ static void sdcardfs_d_release(struct dentry *dentry)
 static int sdcardfs_hash_ci(const struct dentry *dentry,
 				struct qstr *qstr)
 {
-	/*
+	/* 
 	 * This function is copy of vfat_hashi.
 	 * FIXME Should we support national language?
 	 *       Refer to vfat_hashi()
@@ -133,7 +139,7 @@ static int sdcardfs_hash_ci(const struct dentry *dentry,
 
 	name = qstr->name;
 	//len = vfat_striptail_len(qstr);
-	len = qstr->len;
+	len = qstr->len; 
 
 	hash = init_name_hash();
 	while (len--)
@@ -147,12 +153,11 @@ static int sdcardfs_hash_ci(const struct dentry *dentry,
 /*
  * Case insensitive compare of two vfat names.
  */
-static int sdcardfs_cmp_ci(const struct dentry *parent,
-		const struct dentry *dentry,
+static int sdcardfs_cmp_ci(const struct dentry *parent, const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
 	/* This function is copy of vfat_cmpi */
-	// FIXME Should we support national language?
+	// FIXME Should we support national language? 
 	//struct nls_table *t = MSDOS_SB(parent->d_sb)->nls_io;
 	//unsigned int alen, blen;
 
@@ -167,7 +172,7 @@ static int sdcardfs_cmp_ci(const struct dentry *parent,
 	*/
 	if (name->len == len) {
 		if (strncasecmp(name->name, str, len) == 0)
-			return 0;
+			return 0; 
 	}
 	return 1;
 }
@@ -179,7 +184,7 @@ static void sdcardfs_canonical_path(const struct path *path, struct path *actual
 const struct dentry_operations sdcardfs_ci_dops = {
 	.d_revalidate	= sdcardfs_d_revalidate,
 	.d_release	= sdcardfs_d_release,
-	.d_hash 	= sdcardfs_hash_ci,
+	.d_hash 	= sdcardfs_hash_ci, 
 	.d_compare	= sdcardfs_cmp_ci,
 	.d_canonical_path = sdcardfs_canonical_path,
 };

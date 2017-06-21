@@ -88,6 +88,8 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
 	seq_printf(m,
 		"MemTotal:       %8lu kB\n"
 		"MemFree:        %8lu kB\n"
+//		"DefragPoolFree: %8lu kB\n"
+//		"RealMemFree:    %8lu kB\n"
 		"MemAvailable:   %8lu kB\n"
 		"Buffers:        %8lu kB\n"
 		"Cached:         %8lu kB\n"
@@ -145,6 +147,8 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
 		,
 		K(i.totalram),
 		K(i.freeram),
+//		K(global_page_state(NR_FREE_DEFRAG_POOL)),
+//		K(i.freeram - global_page_state(NR_FREE_DEFRAG_POOL)),
 		K(available),
 		K(i.bufferram),
 		K(cached),

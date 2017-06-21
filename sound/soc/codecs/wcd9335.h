@@ -175,6 +175,9 @@ enum {
 	RX_GAIN_OFFSET_0_DB,
 };
 
+/*zhiguang.su@MultiMedia.AudioDrv, 2014-4-14, add for l21 power*/
+extern struct regulator *l21_power;
+
 extern void *tasha_get_afe_config(struct snd_soc_codec *codec,
 				  enum afe_config_type config_type);
 extern int tasha_cdc_mclk_enable(struct snd_soc_codec *codec, int enable,

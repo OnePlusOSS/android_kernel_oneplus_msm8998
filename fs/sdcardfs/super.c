@@ -2,11 +2,11 @@
  * fs/sdcardfs/super.c
  *
  * Copyright (c) 2013 Samsung Electronics Co. Ltd
- *   Authors: Daeho Jeong, Woojoong Lee, Seunghwan Hyun,
+ *   Authors: Daeho Jeong, Woojoong Lee, Seunghwan Hyun, 
  *               Sunghwan Yun, Sungjong Seo
- *
+ *                      
  * This program has been developed as a stackable file system based on
- * the WrapFS which written by
+ * the WrapFS which written by 
  *
  * Copyright (c) 1998-2011 Erez Zadok
  * Copyright (c) 2009     Shrikar Archak
@@ -36,15 +36,26 @@ static void sdcardfs_put_super(struct super_block *sb)
 	if (!spd)
 		return;
 
+	printk(KERN_ERR "sdcardfs: umounted dev_name %s\n", 
+				spd->devpath ? spd->devpath : "");
+	if(spd->devpath)
+		kfree(spd->devpath);
+
 	if(spd->obbpath_s) {
 		kfree(spd->obbpath_s);
 		path_put(&spd->obbpath);
 	}
 
+	if(spd->options.label)
+		kfree(spd->options.label);
+
 	/* decrement lower super references */
 	s = sdcardfs_lower_super(sb);
 	sdcardfs_set_lower_super(sb, NULL);
 	atomic_dec(&s->s_active);
+
+	if(spd->pkgl_id)
+		packagelist_destroy(spd->pkgl_id);
 
 	kfree(spd);
 	sb->s_fs_info = NULL;
@@ -67,15 +78,15 @@ static int sdcardfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 			printk(KERN_ERR "Returned block size is zero.\n");
 			return -EINVAL;
 		}
-
+	
 		min_blocks = ((sbi->options.reserved_mb * 1024 * 1024)/buf->f_bsize);
 		buf->f_blocks -= min_blocks;
-
+	
 		if (buf->f_bavail > min_blocks)
 			buf->f_bavail -= min_blocks;
 		else
 			buf->f_bavail = 0;
-
+	
 		/* Make reserved blocks invisiable to media storage */
 		buf->f_bfree = buf->f_bavail;
 	}
@@ -177,6 +188,52 @@ void sdcardfs_destroy_inode_cache(void)
 		kmem_cache_destroy(sdcardfs_inode_cachep);
 }
 
+static long sdcardfs_propagate_lookup(struct super_block *sb, char* pathname) {
+	long ret = 0;
+	char *propagate_path = NULL;
+	struct sdcardfs_sb_info *sbi;
+	struct path sibling_path;
+	const struct cred *saved_cred = NULL;
+
+	sbi = SDCARDFS_SB(sb);
+	propagate_path = kmalloc(PATH_MAX, GFP_KERNEL);
+	OVERRIDE_ROOT_CRED(saved_cred);
+	if (sbi->options.type != TYPE_NONE && sbi->options.type != TYPE_DEFAULT) {
+		snprintf(propagate_path, PATH_MAX, "/mnt/runtime/default/%s%s",
+				sbi->options.label, pathname);
+		ret = (long)kern_path(propagate_path, LOOKUP_FOLLOW, &sibling_path);
+		if (!ret)
+			path_put(&sibling_path);
+	}
+
+	if (sbi->options.type != TYPE_NONE && sbi->options.type != TYPE_READ) {
+		snprintf(propagate_path, PATH_MAX, "/mnt/runtime/read/%s%s",
+				sbi->options.label, pathname);
+		ret = (long)kern_path(propagate_path, LOOKUP_FOLLOW, &sibling_path);
+		if (!ret)
+			path_put(&sibling_path);
+	}
+
+	if (sbi->options.type != TYPE_NONE && sbi->options.type != TYPE_WRITE) {
+		snprintf(propagate_path, PATH_MAX, "/mnt/runtime/write/%s%s",
+				sbi->options.label, pathname);
+		ret = (long)kern_path(propagate_path, LOOKUP_FOLLOW, &sibling_path);
+		if (!ret)
+			path_put(&sibling_path);
+	}
+
+	if (sbi->options.type != TYPE_NONE) {
+		snprintf(propagate_path, PATH_MAX, "/storage/%s%s",
+				sbi->options.label, pathname);
+		ret = (long)kern_path(propagate_path, LOOKUP_FOLLOW, &sibling_path);
+		if (!ret)
+			path_put(&sibling_path);
+	}
+	REVERT_CRED(saved_cred);
+	kfree(propagate_path);
+	return ret;
+}
+
 /*
  * Used only in nfs, to kill any pending RPC tasks, so that subsequent
  * code can actually succeed and won't leave tasks that need handling.
@@ -196,13 +253,17 @@ static int sdcardfs_show_options(struct seq_file *m, struct dentry *root)
 	struct sdcardfs_mount_options *opts = &sbi->options;
 
 	if (opts->fs_low_uid != 0)
-		seq_printf(m, ",uid=%u", opts->fs_low_uid);
+		seq_printf(m, ",low_uid=%u", opts->fs_low_uid);
 	if (opts->fs_low_gid != 0)
-		seq_printf(m, ",gid=%u", opts->fs_low_gid);
-
-	if (opts->multiuser)
-		seq_printf(m, ",multiuser");
-
+		seq_printf(m, ",low_gid=%u", opts->fs_low_gid);
+	if (opts->gid != 0)
+		seq_printf(m, ",gid=%u", opts->gid);
+	if (opts->userid != 0)
+		seq_printf(m, ",userid=%u", opts->userid);
+	if (opts->multi_user)
+		seq_printf(m, ",multi_user");
+	if (opts->mask != 0)
+		seq_printf(m, ",mask=%04o", opts->mask);
 	if (opts->reserved_mb != 0)
 		seq_printf(m, ",reserved=%uMB", opts->reserved_mb);
 
@@ -219,4 +280,17 @@ const struct super_operations sdcardfs_sops = {
 	.alloc_inode	= sdcardfs_alloc_inode,
 	.destroy_inode	= sdcardfs_destroy_inode,
 	.drop_inode	= generic_delete_inode,
+};
+
+const struct super_operations sdcardfs_multimount_sops = {
+	.put_super	= sdcardfs_put_super,
+	.statfs		= sdcardfs_statfs,
+	.remount_fs	= sdcardfs_remount_fs,
+	.evict_inode	= sdcardfs_evict_inode,
+	.umount_begin	= sdcardfs_umount_begin,
+	.show_options	= sdcardfs_show_options,
+	.alloc_inode	= sdcardfs_alloc_inode,
+	.destroy_inode	= sdcardfs_destroy_inode,
+	.drop_inode	= generic_delete_inode,
+	.unlink_callback = sdcardfs_propagate_lookup,
 };

@@ -538,12 +538,15 @@ void *smem_find(unsigned id, unsigned size_in, unsigned to_proc, unsigned flags)
 		return ERR_PTR(-EPROBE_DEFER);
 
 	ptr = smem_get_entry(id, &size, to_proc, flags);
-	if (!ptr)
+	if (!ptr) {
+		pr_err("smem_get_entry return null\n");
 		return 0;
-
+	}
 	size_in = ALIGN(size_in, 8);
 	if (size_in != size) {
 		SMEM_INFO("smem_find(%u, %u, %u, %u): wrong size %u\n",
+			id, size_in, to_proc, flags, size);
+		pr_err("smem_find(%u, %u, %u, %u): wrong size %u\n",
 			id, size_in, to_proc, flags, size);
 		return 0;
 	}

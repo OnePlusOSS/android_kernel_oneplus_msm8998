@@ -1374,6 +1374,7 @@ static int qpnp_flash_led_parse_each_led_dt(struct qpnp_flash_led *led,
 		return rc;
 	}
 
+    fnode->cdev.flags |= LED_KEEP_TRIGGER;
 	fnode->ires_ua = FLASH_LED_IRES_DEFAULT_UA;
 	fnode->ires = FLASH_LED_IRES_DEFAULT_VAL;
 	rc = of_property_read_u32(node, "qcom,ires-ua", &val);

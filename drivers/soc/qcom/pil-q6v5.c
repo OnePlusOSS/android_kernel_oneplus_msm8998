@@ -565,6 +565,8 @@ int pil_q6v5_reset(struct pil_desc *pil)
 }
 EXPORT_SYMBOL(pil_q6v5_reset);
 
+static int clk_enable_check= 0 ;
+
 struct q6v5_data *pil_q6v5_init(struct platform_device *pdev)
 {
 	struct q6v5_data *drv;
@@ -703,6 +705,13 @@ struct q6v5_data *pil_q6v5_init(struct platform_device *pdev)
 		drv->qdss_clk = devm_clk_get(&pdev->dev, "qdss_clk");
 		if (IS_ERR(drv->qdss_clk))
 			return ERR_CAST(drv->qdss_clk);
+		/*fix print warning message  this file will run two time so we will check it*/
+		if(clk_enable_check == 0 )
+		{
+			clk_prepare_enable(drv->qdss_clk);
+			clk_enable_check = 1 ;
+			dev_err(&pdev->dev, "clk_enable=%d \n",clk_enable_check);
+		}
 	} else {
 		drv->qdss_clk = NULL;
 	}

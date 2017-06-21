@@ -88,6 +88,10 @@ const DECLARE_TLV_DB_LINEAR(msm_compr_vol_gain, 0,
  */
 #define DTS_EAGLE_MAX_PARAM_SIZE_FOR_ALSA ((64 * 4) - 40)
 
+//guoguangyi@mutimedia.2016.04.07
+//use 24bits to get rid of 16bits innate noise
+int gis_24bits = 0;
+
 struct msm_compr_gapless_state {
 	bool set_next_stream_id;
 	int32_t stream_opened[MAX_NUMBER_OF_STREAMS];
@@ -1121,6 +1125,15 @@ static int msm_compr_configure_dsp_for_playback
 		return -EINVAL;
 	}
 
+     //guoguangyi@mutimedia.2016.04.23,
+    //use 24bits to get rid of 16bits innate noise
+    //mark by globale value to open adm 24bits
+    //lifei modified in 20160430
+    if (prtd->codec_param.codec.bit_rate == 24) {
+        bits_per_sample = 24;
+        gis_24bits = 1;
+    }
+
 	if ((prtd->codec_param.codec.format == SNDRV_PCM_FORMAT_S24_LE) ||
 		(prtd->codec_param.codec.format == SNDRV_PCM_FORMAT_S24_3LE))
 		bits_per_sample = 24;
@@ -1924,7 +1937,15 @@ static int msm_compr_trigger(struct snd_compr_stream *cstream, int cmd)
 	unsigned long flags;
 	int stream_id;
 	uint32_t stream_index;
-	uint16_t bits_per_sample = 16;
+
+     //guoguangyi@mutimedia.2016.04.23,
+    //use 24bits to get rid of 16bits innate noise
+    //mark by globale value to open adm 24bits
+    //lifei modified in 20160430
+    uint16_t bits_per_sample = 16;
+    if (prtd->codec_param.codec.bit_rate == 24) {
+        bits_per_sample = 24;
+    }
 
 	spin_lock_irqsave(&prtd->lock, flags);
 	if (atomic_read(&prtd->error)) {

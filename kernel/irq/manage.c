@@ -634,6 +634,43 @@ int irq_set_irq_wake(unsigned int irq, unsigned int on)
 }
 EXPORT_SYMBOL(irq_set_irq_wake);
 
+static int mask_wake_irq_set(const char *buff, const struct kernel_param *kp)
+{
+	char buf[256], *b;
+	char *irq_num_str;
+	unsigned int irq_num;
+
+	pr_info("mask_wake_irq_set: %s\n",buff);
+	strlcpy(buf, buff, sizeof(buf));
+	b = strim(buf);
+
+	while (b) {
+		irq_num_str = strsep(&b, ",");
+		if (irq_num_str) {
+			sscanf(irq_num_str, "%u", &irq_num);
+			pr_info("mask_wake_irq_set irq_num: %d\n",irq_num);
+			irq_set_irq_wake(irq_num, 0);
+		}
+	}
+
+	return 0;
+}
+
+static int mask_wake_irq_get(char *buff, const struct kernel_param *kp)
+{
+	int cnt = 0;
+	cnt += snprintf(buff + cnt, PAGE_SIZE - cnt, "haha\n");
+	return cnt;
+}
+
+static const struct kernel_param_ops mask_wake_irq_ops = {
+	.set = mask_wake_irq_set,
+	.get = mask_wake_irq_get,
+};
+
+module_param_cb(mask_wake_irq, &mask_wake_irq_ops, NULL, 0644);
+
+
 /*
  * Internal function that tells the architecture code whether a
  * particular irq has been exclusively allocated or is available
@@ -1565,8 +1602,11 @@ void free_irq(unsigned int irq, void *dev_id)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 
-	if (!desc || WARN_ON(irq_settings_is_per_cpu_devid(desc)))
+/* david.liu@bsp, 20161109 Charging porting */
+	if (!desc || WARN_ON(irq_settings_is_per_cpu_devid(desc))) {
+		pr_err("free irq fail\n");
 		return;
+	}
 
 #ifdef CONFIG_SMP
 	if (WARN_ON(desc->affinity_notify))

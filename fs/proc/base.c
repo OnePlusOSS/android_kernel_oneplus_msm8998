@@ -1081,15 +1081,9 @@ static ssize_t oom_adj_write(struct file *file, const char __user *buf,
 		goto out;
 	}
 
-	task_lock(task);
-	if (!task->mm) {
-		err = -EINVAL;
-		goto err_task_lock;
-	}
-
 	if (!lock_task_sighand(task, &flags)) {
 		err = -ESRCH;
-		goto err_task_lock;
+		goto err_put_task;
 	}
 
 	/*
@@ -1119,8 +1113,7 @@ static ssize_t oom_adj_write(struct file *file, const char __user *buf,
 	trace_oom_score_adj_update(task);
 err_sighand:
 	unlock_task_sighand(task, &flags);
-err_task_lock:
-	task_unlock(task);
+err_put_task:
 	put_task_struct(task);
 out:
 	return err < 0 ? err : count;
@@ -1184,15 +1177,9 @@ static ssize_t oom_score_adj_write(struct file *file, const char __user *buf,
 		goto out;
 	}
 
-	task_lock(task);
-	if (!task->mm) {
-		err = -EINVAL;
-		goto err_task_lock;
-	}
-
 	if (!lock_task_sighand(task, &flags)) {
 		err = -ESRCH;
-		goto err_task_lock;
+		goto err_put_task;
 	}
 
 	if ((short)oom_score_adj < task->signal->oom_score_adj_min &&
@@ -1208,8 +1195,7 @@ static ssize_t oom_score_adj_write(struct file *file, const char __user *buf,
 
 err_sighand:
 	unlock_task_sighand(task, &flags);
-err_task_lock:
-	task_unlock(task);
+err_put_task:
 	put_task_struct(task);
 out:
 	return err < 0 ? err : count;
@@ -3013,6 +2999,8 @@ static int proc_pid_personality(struct seq_file *m, struct pid_namespace *ns,
 	return err;
 }
 
+static const struct file_operations proc_wakeup_operations;
+
 /*
  * Thread groups
  */
@@ -3095,7 +3083,7 @@ static const struct pid_entry tgid_base_stuff[] = {
 #endif
 	ONE("oom_score",  S_IRUGO, proc_oom_score),
 	REG("oom_adj",    S_IRUSR, proc_oom_adj_operations),
-	REG("oom_score_adj", S_IRUSR, proc_oom_score_adj_operations),
+	REG("oom_score_adj", S_IRUGO, proc_oom_score_adj_operations),
 #ifdef CONFIG_AUDITSYSCALL
 	REG("loginuid",   S_IWUSR|S_IRUGO, proc_loginuid_operations),
 	REG("sessionid",  S_IRUGO, proc_sessionid_operations),
@@ -3122,6 +3110,10 @@ static const struct pid_entry tgid_base_stuff[] = {
 	REG("timers",	  S_IRUGO, proc_timers_operations),
 #endif
 	REG("timerslack_ns", S_IRUGO|S_IWUGO, proc_pid_set_timerslack_ns_operations),
+	//MaJunhai@OnePlus..MultiMediaService, add /proc/process/task/taskid/wakeup || /proc/process/wakeup for ion tracking
+	REG("wakeup",  S_IRUGO, proc_wakeup_operations),
+	//#endif
+
 };
 
 static int proc_tgid_base_readdir(struct file *file, struct dir_context *ctx)
@@ -3504,6 +3496,9 @@ static const struct pid_entry tid_base_stuff[] = {
 	REG("projid_map", S_IRUGO|S_IWUSR, proc_projid_map_operations),
 	REG("setgroups",  S_IRUGO|S_IWUSR, proc_setgroups_operations),
 #endif
+//MaJunhai@OnePlus..MultiMediaService, add /proc/process/task/taskid/wakeup || /proc/process/wakeup for ion tracking
+    REG("wakeup",  S_IRUGO, proc_wakeup_operations),
+//#endif
 };
 
 static int proc_tid_base_readdir(struct file *file, struct dir_context *ctx)
@@ -3734,3 +3729,35 @@ static const struct file_operations proc_task_operations = {
 	.iterate	= proc_task_readdir,
 	.llseek		= default_llseek,
 };
+
+static ssize_t proc_wakeup_read(struct file * file, char __user * buf,
+                  size_t count, loff_t *ppos)
+{
+    pid_t pid, tgid;
+    unsigned long flags;
+    struct inode * inode = file->f_path.dentry->d_inode;
+    struct task_struct *task = get_proc_task(inode);
+    ssize_t length;
+    char tmpbuf[100];
+
+    if (!task)
+        return -ESRCH;
+
+    raw_spin_lock_irqsave(&task->pi_lock, flags);
+    pid = task_thread_info(task)->pid;
+    tgid = task_thread_info(task)->tgid;
+    raw_spin_unlock_irqrestore(&task->pi_lock, flags);
+
+    //printk("tgid %d pid %d\n", tgid, pid);
+
+    length = scnprintf(tmpbuf, 100, "%u %u\n",
+                tgid, pid);
+    put_task_struct(task);
+    return simple_read_from_buffer(buf, count, ppos, tmpbuf, length);
+}
+
+static const struct file_operations proc_wakeup_operations = {
+    .read       = proc_wakeup_read,
+    .llseek     = generic_file_llseek,
+};
+

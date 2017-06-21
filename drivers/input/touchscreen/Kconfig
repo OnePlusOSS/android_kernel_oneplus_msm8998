@@ -1128,16 +1128,6 @@ config TOUCHSCREEN_FT5X06_GESTURE
 
          If unsure, say N.
 
-config TOUCHSCREEN_SYNAPTICS_DSX_FW_UPDATE_EXTRA_SYSFS
-	bool "Synaptics DSX firmware update extra sysfs attributes"
-	depends on TOUCHSCREEN_SYNAPTICS_DSX_FW_UPDATE
-	help
-	  Say Y here to enable support for extra sysfs attributes
-	  supporting firmware update in a development environment.
-	  This does not affect the core or other subsystem attributes.
-
-	  If unsure, say N.
-
 config TOUCHSCREEN_ROHM_BU21023
 	tristate "ROHM BU21023/24 Dual touch support resistive touchscreens"
 	depends on I2C
@@ -1215,6 +1205,23 @@ config TOUCHSCREEN_IT7260_I2C
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called it7258_ts_i2c.
+
+
+config TOUCHSCREEN_GT9XX
+	bool "Goodix touchpanel GT9xx series"
+	depends on I2C
+	help
+	  Say Y here if you have a Goodix GT9xx touchscreen.
+	  Gt9xx controllers are multi touch controllers which can
+	  report 5 touches at a time.
+
+          If unsure, say N.
+config TOUCHSCREEN_SYNAPTICS_S3320_I2C_RMI
+	tristate "Synaptics s3320 i2c touchscreen"
+	depends on I2C
+	help
+	  This enables support for Synaptics s1302 RMI over I2C based touch key.
+
 
 config TOUCHSCREEN_ST
 	bool "STMicroelectronics Touchscreen Driver"

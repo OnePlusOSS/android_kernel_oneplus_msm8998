@@ -212,4 +212,15 @@ source "drivers/bif/Kconfig"
 
 source "drivers/sensors/Kconfig"
 
+#ruanbanmao add for 15801 nfc. 2015/10/16
+source "drivers/nfc/Kconfig"
+
+#hefaxi@filesystems, 2015/12/07, add for force dump function
+source "drivers/oem_debug/Kconfig"
+
+# hefaxi@filesystem,2015/10/27,support param partion read/write
+source "drivers/param_read_write/Kconfig"
+#porting for support oem trace,2015/10/27
+source "drivers/oneplus/Kconfig"
+
 endmenu

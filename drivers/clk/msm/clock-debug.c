@@ -27,6 +27,9 @@
 #include <linux/io.h>
 #include <linux/clk/msm-clk-provider.h>
 #include <trace/events/power.h>
+#ifdef CONFIG_PM_SUSPEND_DEBUG_OP
+#include <linux/suspend.h>
+#endif
 
 
 #include "clock.h"
@@ -681,3 +684,10 @@ void clock_debug_print_enabled(void)
 
 	clock_debug_print_enabled_clocks(NULL);
 }
+#ifdef CONFIG_PM_SUSPEND_DEBUG_OP
+/* Print clk stats when suspend */
+void print_clk_stats_op(void)
+{
+	clock_debug_print_enabled_clocks(NULL);
+}
+#endif

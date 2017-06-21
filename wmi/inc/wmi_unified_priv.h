@@ -1169,6 +1169,9 @@ uint16_t (*wmi_set_htc_tx_tag)(wmi_unified_t wmi_handle,
 
 QDF_STATUS (*send_get_rcpi_cmd)(wmi_unified_t wmi_handle,
 				struct rcpi_req *get_rcpi_param);
+
+QDF_STATUS (*send_limit_off_chan_cmd)(wmi_unified_t wmi_handle,
+			struct wmi_limit_off_chan_param *limit_off_chan_param);
 };
 
 struct target_abi_version {

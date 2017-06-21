@@ -569,7 +569,7 @@ QDF_STATUS wma_start_scan(tp_wma_handle wma_handle,
 			goto error;
 		}
 	}
-	if (scan_req->sessionId > wma_handle->max_bssid) {
+	if (scan_req->sessionId >= wma_handle->max_bssid) {
 		WMA_LOGE("%s: Invalid vdev_id %d, msg_type : 0x%x", __func__,
 			 scan_req->sessionId, msg_type);
 		goto error1;

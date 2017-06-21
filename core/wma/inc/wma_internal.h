@@ -456,7 +456,7 @@ void *wma_find_vdev_by_addr(tp_wma_handle wma, uint8_t *addr,
  */
 static inline void *wma_find_vdev_by_id(tp_wma_handle wma, uint8_t vdev_id)
 {
-	if (vdev_id > wma->max_bssid)
+	if (vdev_id >= wma->max_bssid)
 		return NULL;
 
 	return wma->interfaces[vdev_id].handle;

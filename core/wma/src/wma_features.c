@@ -5053,7 +5053,7 @@ void wma_register_wow_default_patterns(WMA_HANDLE handle, uint8_t vdev_id)
 	tp_wma_handle wma = handle;
 	struct wma_txrx_node *iface;
 
-	if (vdev_id > wma->max_bssid) {
+	if (vdev_id >= wma->max_bssid) {
 		WMA_LOGE("Invalid vdev id %d", vdev_id);
 		return;
 	}
@@ -5355,7 +5355,7 @@ QDF_STATUS wma_wow_add_pattern(tp_wma_handle wma, struct wow_add_pattern *ptrn)
 	QDF_STATUS ret = QDF_STATUS_SUCCESS;
 	uint8_t new_mask[SIR_WOWL_BCAST_PATTERN_MAX_SIZE];
 
-	if (ptrn->session_id > wma->max_bssid) {
+	if (ptrn->session_id >= wma->max_bssid) {
 		WMA_LOGE("Invalid vdev id (%d)", ptrn->session_id);
 		return QDF_STATUS_E_INVAL;
 	}
@@ -5424,7 +5424,7 @@ QDF_STATUS wma_wow_delete_user_pattern(tp_wma_handle wma,
 {
 	struct wma_txrx_node *iface;
 
-	if (pattern->session_id > wma->max_bssid) {
+	if (pattern->session_id >= wma->max_bssid) {
 		WMA_LOGE("Invalid vdev id %d", pattern->session_id);
 		return QDF_STATUS_E_INVAL;
 	}
@@ -5465,7 +5465,7 @@ QDF_STATUS wma_wow_enter(tp_wma_handle wma, tpSirHalWowlEnterParams info)
 
 	WMA_LOGD("wow enable req received for vdev id: %d", info->sessionId);
 
-	if (info->sessionId > wma->max_bssid) {
+	if (info->sessionId >= wma->max_bssid) {
 		WMA_LOGE("Invalid vdev id (%d)", info->sessionId);
 		qdf_mem_free(info);
 		return QDF_STATUS_E_INVAL;
@@ -5497,7 +5497,7 @@ QDF_STATUS wma_wow_exit(tp_wma_handle wma, tpSirHalWowlExitParams info)
 
 	WMA_LOGD("wow disable req received for vdev id: %d", info->sessionId);
 
-	if (info->sessionId > wma->max_bssid) {
+	if (info->sessionId >= wma->max_bssid) {
 		WMA_LOGE("Invalid vdev id (%d)", info->sessionId);
 		qdf_mem_free(info);
 		return QDF_STATUS_E_INVAL;

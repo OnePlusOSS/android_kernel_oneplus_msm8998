@@ -1518,6 +1518,29 @@ struct sta_ap_intf_check_work_ctx {
 	hdd_adapter_t *adapter;
 };
 
+enum tos {
+	TOS_BK = 0,
+	TOS_BE = 1,
+	TOS_VI = 2,
+	TOS_VO = 3,
+};
+
+#define HDD_AC_BK_BIT                   1
+#define HDD_AC_BE_BIT                   2
+#define HDD_AC_VI_BIT                   4
+#define HDD_AC_VO_BIT                   8
+
+#define HDD_MAX_OFF_CHAN_TIME_FOR_VO    20
+#define HDD_MAX_OFF_CHAN_TIME_FOR_VI    20
+#define HDD_MAX_OFF_CHAN_TIME_FOR_BE    40
+#define HDD_MAX_OFF_CHAN_TIME_FOR_BK    40
+
+#define HDD_MAX_AC                      4
+#define HDD_MAX_OFF_CHAN_ENTRIES        2
+
+#define HDD_AC_BIT_INDX                 0
+#define HDD_DWELL_TIME_INDX             1
+
 /** Adapter structure definition */
 struct hdd_context_s {
 	/** Global CDS context  */
@@ -1826,6 +1849,7 @@ struct hdd_context_s {
 	hdd_adapter_t *cap_tsf_context;
 #endif
 	struct sta_ap_intf_check_work_ctx *sta_ap_intf_check_work_info;
+	uint8_t active_ac;
 };
 
 int hdd_validate_channel_and_bandwidth(hdd_adapter_t *adapter,
@@ -2483,5 +2507,18 @@ int hdd_get_rssi_snr_by_bssid(hdd_adapter_t *adapter, const uint8_t *bssid,
  * Return: NONE
  */
 void hdd_dp_trace_init(struct hdd_config *config);
+
+/**
+ * hdd_set_limit_off_chan_for_tos() - set limit off-chan command parameters
+ * @adapter: pointer adapter context
+ * @tos: type of service
+ * @status: status of the traffic (active/inactive)
+ *
+ * This function updates the limit off-channel command parameters to WMA
+ *
+ * Return: 0 on success or non zero value on failure
+ */
+int hdd_set_limit_off_chan_for_tos(hdd_adapter_t *adapter, enum tos tos,
+		bool is_tos_active);
 
 #endif /* end #if !defined(WLAN_HDD_MAIN_H) */

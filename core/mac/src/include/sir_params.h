@@ -675,6 +675,8 @@ typedef struct sSirMbMsgP2p {
 #define SIR_HAL_GET_PEER_INFO_EXT           (SIR_HAL_ITC_MSG_TYPES_BEGIN + 387)
 #define SIR_HAL_RX_CHN_STATUS_EVENT         (SIR_HAL_ITC_MSG_TYPES_BEGIN + 388)
 
+#define SIR_HAL_SET_LIMIT_OFF_CHAN          (SIR_HAL_ITC_MSG_TYPES_BEGIN + 388)
+
 #define SIR_HAL_MSG_TYPES_END               (SIR_HAL_MSG_TYPES_BEGIN + 0x1FF)
 /* CFG message types */
 #define SIR_CFG_MSG_TYPES_BEGIN        (SIR_CFG_MODULE_ID << 8)

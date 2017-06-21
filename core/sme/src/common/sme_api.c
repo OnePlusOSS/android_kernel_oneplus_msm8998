@@ -2824,6 +2824,14 @@ QDF_STATUS sme_process_msg(tHalHandle hHal, cds_msg_t *pMsg)
 		}
 		break;
 	}
+	case eWNI_SME_FORCE_DISCONNECT:
+	{
+		sme_debug("Disconnecting from current AP vdev-id:%d",
+			  pMsg->bodyval);
+		csr_roam_disconnect(pMac, pMsg->bodyval,
+					eCSR_DISCONNECT_REASON_UNSPECIFIED);
+		break;
+	}
 	case eWNI_SME_MSG_GET_TEMPERATURE_IND:
 		if (pMac->sme.pGetTemperatureCb)
 			pMac->sme.pGetTemperatureCb(pMsg->bodyval,

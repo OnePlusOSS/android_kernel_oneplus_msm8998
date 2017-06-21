@@ -1374,12 +1374,7 @@ static int wlan_hdd_request_remain_on_channel(struct wiphy *wiphy,
 	if (0 != ret)
 		return ret;
 
-	if (pHddCtx->btCoexModeSet) {
-		hdd_debug("BTCoex Mode operation in progress");
-		isBusy = true;
-	}
-
-	if (!isBusy && cds_is_connection_in_progress(NULL, NULL)) {
+	if (cds_is_connection_in_progress(NULL, NULL)) {
 		hdd_debug("Connection is in progress");
 		isBusy = true;
 	}

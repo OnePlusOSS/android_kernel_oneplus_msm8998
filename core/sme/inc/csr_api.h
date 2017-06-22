@@ -247,7 +247,7 @@ typedef struct tagCsrChannelInfo {
 typedef struct tagCsrSSIDInfo {
 	tSirMacSSid SSID;
 	bool handoffPermitted;
-	bool ssidHidden;
+	uint8_t ssidHidden;
 } tCsrSSIDInfo;
 
 typedef struct tagCsrSSIDs {

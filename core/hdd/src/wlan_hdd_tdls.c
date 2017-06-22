@@ -295,8 +295,8 @@ void wlan_hdd_tdls_disable_offchan_and_teardown_links(hdd_context_t *hddctx)
 		hdd_roam_deregister_tdlssta(adapter,
 			hddctx->tdlsConnInfo[staidx].staId);
 		wlan_hdd_tdls_decrement_peer_count(adapter);
-		hddctx->tdlsConnInfo[staidx].staId =
-						OL_TXRX_INVALID_TDLS_PEER_ID;
+		hddctx->tdlsConnInfo[staidx].staId = 0;
+
 		hddctx->tdlsConnInfo[staidx].sessionId = 255;
 
 		qdf_mem_zero(&hddctx->tdlsConnInfo[staidx].peerMac,
@@ -1826,7 +1826,7 @@ static void wlan_hdd_tdls_set_mode(hdd_context_t *pHddCtx,
 		status = hdd_get_next_adapter(pHddCtx, pAdapterNode, &pNext);
 		pAdapterNode = pNext;
 	}
-	if (!bUpdateLast)
+	if (!bUpdateLast && (pHddCtx->tdls_mode > eTDLS_SUPPORT_DISABLED))
 		pHddCtx->tdls_mode_last = pHddCtx->tdls_mode;
 
 	pHddCtx->tdls_mode = tdls_mode;
@@ -2140,11 +2140,32 @@ done:
 void wlan_hdd_tdls_notify_connect(hdd_adapter_t *adapter,
 				  tCsrRoamInfo *csr_roam_info)
 {
+	hdd_context_t *hdd_ctx;
 	hdd_info("Check and update TDLS state");
 
-	if (cds_get_connection_count() > 1) {
-		hdd_debug("concurrent sessions exist, TDLS can't be enabled");
+	if (cds_mode_specific_connection_count(CDS_SAP_MODE, NULL) >= 1) {
+		hdd_debug("SAP sessions exist, TDLS can't be enabled");
 		return;
+	}
+
+	if (cds_mode_specific_connection_count(CDS_P2P_GO_MODE, NULL) >= 1) {
+		hdd_debug("P2P GO sessions exist, TDLS can't be enabled");
+		return;
+	}
+
+	if (cds_get_connection_count() > 1) {
+		hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+		mutex_lock(&hdd_ctx->tdls_lock);
+		/* If TDLS state already enabled in the firmware then host
+		 * needs to disable it, when the concurrent session comes
+		 * into the system
+		 */
+		if (hdd_ctx->set_state_info.set_state_cnt == 0) {
+			mutex_unlock(&hdd_ctx->tdls_lock);
+			hdd_debug("concurrency exist, TDLS can't be enabled");
+			return;
+		}
+		mutex_unlock(&hdd_ctx->tdls_lock);
 	}
 
 	/* Association event */
@@ -2198,16 +2219,32 @@ void wlan_hdd_check_conc_and_update_tdls_state(hdd_context_t *hdd_ctx,
 					       bool disable_tdls)
 {
 	hdd_adapter_t *temp_adapter;
+	uint16_t connected_tdls_peers;
 
 	temp_adapter = wlan_hdd_tdls_get_adapter(hdd_ctx);
 	if (NULL != temp_adapter) {
 		if (disable_tdls) {
+			connected_tdls_peers = wlan_hdd_tdls_connected_peers(
+								temp_adapter);
+			if (!connected_tdls_peers ||
+			   (eTDLS_SUPPORT_NOT_ENABLED == hdd_ctx->tdls_mode)) {
+				mutex_lock(&hdd_ctx->tdls_lock);
+				if (hdd_ctx->set_state_info.set_state_cnt !=
+					0) {
+					mutex_unlock(&hdd_ctx->tdls_lock);
+					wlan_hdd_update_tdls_info(temp_adapter,
+								  true, true);
+					return;
+				}
+				mutex_unlock(&hdd_ctx->tdls_lock);
+				hdd_debug("No TDLS connected peers to delete");
+				return;
+			}
 			wlan_hdd_tdls_disable_offchan_and_teardown_links(
 								hdd_ctx);
-			wlan_hdd_update_tdls_info(temp_adapter, true, true);
-		} else {
-			wlan_hdd_update_tdls_info(temp_adapter, false, false);
+			return;
 		}
+		wlan_hdd_update_tdls_info(temp_adapter, false, false);
 	}
 }
 

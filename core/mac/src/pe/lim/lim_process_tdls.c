@@ -3319,12 +3319,14 @@ tSirRetStatus lim_delete_tdls_peers(tpAniSirGlobal mac_ctx,
  *
  * Return: Success: eSIR_SUCCESS Failure: Error value
  */
-tSirRetStatus lim_process_sme_del_all_tdls_peers(tpAniSirGlobal p_mac,
+tSirRetStatus lim_process_sme_del_all_tdls_peers(tpAniSirGlobal mac_ctx,
 						 uint32_t *msg_buf)
 {
 	struct sir_del_all_tdls_peers *msg;
 	tpPESession session_entry;
 	uint8_t session_id;
+	cds_msg_t cds_msg;
+	struct sir_tdls_notify_set_state_disable *tdls_state_disable;
 
 	msg = (struct sir_del_all_tdls_peers *)msg_buf;
 	if (msg == NULL) {
@@ -3332,14 +3334,28 @@ tSirRetStatus lim_process_sme_del_all_tdls_peers(tpAniSirGlobal p_mac,
 		return eSIR_FAILURE;
 	}
 
-	session_entry = pe_find_session_by_bssid(p_mac,
+	session_entry = pe_find_session_by_bssid(mac_ctx,
 						 msg->bssid.bytes, &session_id);
 	if (NULL == session_entry) {
 		pe_err("NULL psessionEntry");
 		return eSIR_FAILURE;
 	}
 
-	lim_check_aid_and_delete_peer(p_mac, session_entry);
+	lim_check_aid_and_delete_peer(mac_ctx, session_entry);
+
+	if (mac_ctx->lim.sme_msg_callback) {
+		tdls_state_disable = qdf_mem_malloc(
+						sizeof(*tdls_state_disable));
+		if (NULL == tdls_state_disable) {
+			pe_err("memory allocation failed");
+			return eSIR_FAILURE;
+		}
+		tdls_state_disable->session_id = session_entry->smeSessionId;
+		cds_msg.type = eWNI_SME_TDLS_NOTIFY_SET_STATE_DISABLE;
+		cds_msg.bodyptr = tdls_state_disable;
+		cds_msg.bodyval = 0;
+		mac_ctx->lim.sme_msg_callback(mac_ctx, &cds_msg);
+	}
 
 	return eSIR_SUCCESS;
 }

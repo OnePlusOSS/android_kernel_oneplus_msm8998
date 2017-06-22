@@ -5815,7 +5815,6 @@ static bool wma_is_wow_applicable(tp_wma_handle wma)
  */
 static void wma_configure_dynamic_wake_events(tp_wma_handle wma)
 {
-
 	int vdev_id;
 	uint32_t enable_mask[BM_LEN] = {0};
 	uint32_t disable_mask[BM_LEN] = {0};
@@ -5829,7 +5828,7 @@ static void wma_configure_dynamic_wake_events(tp_wma_handle wma)
 		qdf_mem_set(disable_mask, sizeof(uint32_t) * BM_LEN, 0);
 		vdev = wma_find_vdev_by_id(wma, vdev_id);
 		if (NULL == vdev) {
-			WMA_LOGP("%s: Couldn't find vdev for vdev_id: %d",
+			WMA_LOGD("%s: Couldn't find vdev for vdev_id: %d",
 				 __func__, vdev_id);
 			continue;
 		}

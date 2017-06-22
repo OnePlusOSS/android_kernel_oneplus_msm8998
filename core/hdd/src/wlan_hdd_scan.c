@@ -1883,13 +1883,6 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 	}
 #endif
 
-	if (pHddCtx->btCoexModeSet) {
-		scan_ebusy_cnt++;
-		cds_info("BTCoex Mode operation in progress. scan_ebusy_cnt: %d",
-			 scan_ebusy_cnt);
-		return -EBUSY;
-	}
-
 	/* Check if scan is allowed at this point of time */
 	if (cds_is_connection_in_progress(&curr_session_id, &curr_reason)) {
 		scan_ebusy_cnt++;

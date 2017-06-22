@@ -2723,7 +2723,12 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 			pParam->fils_max_chan_guard_time;
 		pMac->roam.configParam.is_bssid_hint_priority =
 			pParam->is_bssid_hint_priority;
-
+		pMac->roam.configParam.disallow_duration =
+			pParam->disallow_duration;
+		pMac->roam.configParam.rssi_channel_penalization =
+			pParam->rssi_channel_penalization;
+		pMac->roam.configParam.num_disallowed_aps =
+			pParam->num_disallowed_aps;
 
 	}
 	return status;
@@ -2969,6 +2974,12 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 		pMac->roam.configParam.fils_max_chan_guard_time;
 	pParam->is_bssid_hint_priority =
 		pMac->roam.configParam.is_bssid_hint_priority;
+	pParam->disallow_duration =
+		pMac->roam.configParam.disallow_duration;
+	pParam->rssi_channel_penalization =
+		pMac->roam.configParam.rssi_channel_penalization;
+	pParam->num_disallowed_aps =
+		pMac->roam.configParam.num_disallowed_aps;
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -18245,15 +18256,24 @@ csr_create_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 		mac_ctx->roam.configParam.early_stop_scan_max_threshold;
 	req_buf->roamscan_adaptive_dwell_mode =
 		mac_ctx->roam.configParam.roamscan_adaptive_dwell_mode;
+	req_buf->lca_config_params.disallow_duration =
+		mac_ctx->roam.configParam.disallow_duration;
+	req_buf->lca_config_params.rssi_channel_penalization =
+		mac_ctx->roam.configParam.rssi_channel_penalization;
+	req_buf->lca_config_params.num_disallowed_aps =
+		mac_ctx->roam.configParam.num_disallowed_aps;
 
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-		  FL("HomeAwayTime=%d EarlyStopFeature Enable=%d, MinThresh=%d, MaxThresh=%d PMK len=%d"),
+		  FL("HomeAwayTime=%d EarlyStopFeature Enable=%d, MinThresh=%d, MaxThresh=%d PMK len=%d disallow_dur=%d rssi_chan_pen=%d num_disallowed_aps=%d"),
 		  req_buf->HomeAwayTime,
 		  req_buf->early_stop_scan_enable,
 		  req_buf->early_stop_scan_min_threshold,
 		  req_buf->early_stop_scan_max_threshold,
-		  req_buf->pmk_len);
+		  req_buf->pmk_len,
+		  req_buf->lca_config_params.disallow_duration,
+		  req_buf->lca_config_params.rssi_channel_penalization,
+		  req_buf->lca_config_params.num_disallowed_aps);
 	req_buf->RoamOffloadEnabled = csr_roamIsRoamOffloadEnabled(mac_ctx);
 	req_buf->RoamKeyMgmtOffloadEnabled = session->RoamKeyMgmtOffloadEnabled;
 	req_buf->pmkid_modes = session->pmkid_modes;
@@ -20248,13 +20268,6 @@ void csr_process_set_hw_mode(tpAniSirGlobal mac, tSmeCmd *command)
 	tSirMsgQ msg;
 	struct sir_set_hw_mode_resp *param;
 	enum cds_hw_mode_change cds_hw_mode;
-	hdd_context_t *hdd_ctx;
-
-	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
-	if (!hdd_ctx) {
-		cds_err("HDD context is NULL");
-		goto fail;
-	}
 
 	/* Setting HW mode is for the entire system.
 	 * So, no need to check session
@@ -20290,11 +20303,8 @@ void csr_process_set_hw_mode(tpAniSirGlobal mac, tSmeCmd *command)
 
 	if ((SIR_UPDATE_REASON_OPPORTUNISTIC ==
 	     command->u.set_hw_mode_cmd.reason) &&
-	    (hdd_ctx->btCoexModeSet ||
-		(cds_is_connection_in_progress(NULL, NULL)))) {
-		sme_err(
-		"Set HW mode refused: conn or btcoex(%d) is in progress",
-			hdd_ctx->btCoexModeSet);
+	    (true == cds_is_connection_in_progress(NULL, NULL))) {
+		sme_err("Set HW mode refused: conn in progress");
 		cds_restart_opportunistic_timer(false);
 		goto fail;
 	}

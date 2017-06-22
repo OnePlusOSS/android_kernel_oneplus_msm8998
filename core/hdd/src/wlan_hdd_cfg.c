@@ -4665,6 +4665,28 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_11AG_NUM_TX_CHAIN_DEFAULT,
 		CFG_11AG_NUM_TX_CHAIN_MIN,
 		CFG_11AG_NUM_TX_CHAIN_MAX),
+
+	REG_VARIABLE(CFG_ROAM_DISALLOW_DURATION_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, disallow_duration,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_ROAM_DISALLOW_DURATION_DEFAULT,
+		CFG_ROAM_DISALLOW_DURATION_MIN,
+		CFG_ROAM_DISALLOW_DURATION_MAX),
+
+	REG_VARIABLE(CFG_ROAM_RSSI_CHANNEL_PENALIZATION_NAME,
+		WLAN_PARAM_Integer, struct hdd_config,
+		rssi_channel_penalization,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_ROAM_RSSI_CHANNEL_PENALIZATION_DEFAULT,
+		CFG_ROAM_RSSI_CHANNEL_PENALIZATION_MIN,
+		CFG_ROAM_RSSI_CHANNEL_PENALIZATION_MAX),
+
+	REG_VARIABLE(CFG_ROAM_NUM_DISALLOWED_APS_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, num_disallowed_aps,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_ROAM_NUM_DISALLOWED_APS_DEFAULT,
+		CFG_ROAM_NUM_DISALLOWED_APS_MIN,
+		CFG_ROAM_NUM_DISALLOWED_APS_MAX),
 };
 
 /**
@@ -6235,6 +6257,15 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_debug("Name = [%s] value = [%u]",
 		 CFG_11AG_NUM_TX_CHAIN_NAME,
 		 pHddCtx->config->num_11ag_tx_chains);
+	hdd_debug("Name = [%s] Value = [%u]",
+		CFG_ROAM_DISALLOW_DURATION_NAME,
+		pHddCtx->config->disallow_duration);
+	hdd_debug("Name = [%s] Value = [%u]",
+		CFG_ROAM_RSSI_CHANNEL_PENALIZATION_NAME,
+		pHddCtx->config->rssi_channel_penalization);
+	hdd_debug("Name = [%s] Value = [%u]",
+		CFG_ROAM_NUM_DISALLOWED_APS_NAME,
+		pHddCtx->config->num_disallowed_aps);
 }
 
 /**
@@ -7832,6 +7863,13 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 			pHddCtx->config->pkt_err_disconn_th;
 	smeConfig->csrConfig.is_bssid_hint_priority =
 			pHddCtx->config->is_bssid_hint_priority;
+	smeConfig->csrConfig.disallow_duration =
+			pHddCtx->config->disallow_duration;
+	smeConfig->csrConfig.rssi_channel_penalization =
+			pHddCtx->config->rssi_channel_penalization;
+	smeConfig->csrConfig.num_disallowed_aps =
+			pHddCtx->config->num_disallowed_aps;
+
 	smeConfig->csrConfig.is_force_1x1 =
 			pHddCtx->config->is_force_1x1;
 	smeConfig->csrConfig.num_11b_tx_chains =

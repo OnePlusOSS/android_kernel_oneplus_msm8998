@@ -1752,7 +1752,7 @@ ol_attach_fail:
  */
 A_STATUS ol_txrx_pdev_attach_target(ol_txrx_pdev_handle pdev)
 {
-	return htt_attach_target(pdev->htt_pdev) == A_OK ? 0:1;
+	return htt_attach_target(pdev->htt_pdev) == QDF_STATUS_SUCCESS ? 0:1;
 }
 
 /**

@@ -24,7 +24,7 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <sound/tlv.h>
-#include <btfm_slim.h>
+#include "btfm_slim.h"
 
 int bt_soc_enable_status = 0;
 

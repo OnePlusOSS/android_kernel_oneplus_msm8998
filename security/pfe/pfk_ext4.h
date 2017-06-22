@@ -32,6 +32,6 @@ bool pfk_ext4_allow_merge_bio(const struct bio *bio1,
 
 int __init pfk_ext4_init(void);
 
-void __exit pfk_ext4_deinit(void);
+void pfk_ext4_deinit(void);
 
 #endif /* _PFK_EXT4_H_ */

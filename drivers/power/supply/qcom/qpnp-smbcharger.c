@@ -42,7 +42,7 @@
 #include <linux/msm_bcl.h>
 #include <linux/ktime.h>
 #include <linux/extcon.h>
-#include "pmic-voter.h"
+#include <linux/pmic-voter.h>
 
 /* Mask/Bit helpers */
 #define _SMB_MASK(BITS, POS) \

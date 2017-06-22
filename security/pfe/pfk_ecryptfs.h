@@ -34,6 +34,6 @@ bool pfk_ecryptfs_allow_merge_bio(const struct bio *bio1,
 
 int __init pfk_ecryptfs_init(void);
 
-void __exit pfk_ecryptfs_deinit(void);
+void pfk_ecryptfs_deinit(void);
 
 #endif /* _PFK_ECRYPTFS_H_ */

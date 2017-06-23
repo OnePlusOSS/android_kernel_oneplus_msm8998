@@ -1288,9 +1288,8 @@ int wlan_hdd_sap_cfg_dfs_override(hdd_adapter_t *adapter)
  * Return: None
  */
 
-static void wlan_hdd_set_acs_ch_range(hdd_context_t *hdd_ctx,
-			tsap_Config_t *sap_cfg, bool ht_enabled,
-			bool vht_enabled)
+static void wlan_hdd_set_acs_ch_range(tsap_Config_t *sap_cfg,
+			bool ht_enabled, bool vht_enabled)
 {
 	int i;
 	if (sap_cfg->acs_cfg.hw_mode == QCA_ACS_MODE_IEEE80211B) {
@@ -1325,13 +1324,6 @@ static void wlan_hdd_set_acs_ch_range(hdd_context_t *hdd_ctx,
 	sap_cfg->acs_cfg.start_ch = sap_cfg->acs_cfg.ch_list[0];
 	sap_cfg->acs_cfg.end_ch =
 		sap_cfg->acs_cfg.ch_list[sap_cfg->acs_cfg.ch_list_count - 1];
-	/* update the ACS channel list if force SCC is enabled */
-	if (hdd_ctx->config->WlanMccToSccSwitchMode ==
-		QDF_MCC_TO_SCC_SWITCH_FORCE_WITHOUT_DISCONNECTION) {
-		if (QDF_STATUS_SUCCESS !=
-			sap_update_acs_channel_list(&sap_cfg->acs_cfg))
-			hdd_debug("acs_channel_list couldn't be updated");
-	}
 	for (i = 0; i < sap_cfg->acs_cfg.ch_list_count; i++) {
 		/* avoid channel as start channel */
 		if (sap_cfg->acs_cfg.start_ch > sap_cfg->acs_cfg.ch_list[i] &&
@@ -1609,7 +1601,7 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 			sap_config->acs_cfg.ch_width = eHT_CHANNEL_WIDTH_40MHZ;
 	}
 
-	wlan_hdd_set_acs_ch_range(hdd_ctx, sap_config,
+	wlan_hdd_set_acs_ch_range(sap_config,
 			ht_enabled, vht_enabled);
 
 	hdd_debug("ACS Config for wlan%d: HW_MODE: %d ACS_BW: %d HT: %d VHT: %d START_CH: %d END_CH: %d",

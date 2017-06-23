@@ -954,4 +954,26 @@ QDF_STATUS cds_valid_sap_conc_channel_check(uint8_t *con_ch, uint8_t sap_ch);
  * Return: Success if the channel is LTE safe
  */
 bool cds_is_safe_channel(uint8_t channel);
+/**
+ * cds_disallow_mcc() - Check for mcc
+ *
+ * @channel: channel on which new connection is coming up
+ *
+ * When a new connection is about to come up check if current
+ * concurrency combination including the new connection is
+ * causing MCC
+ *
+ * Return: True if it is causing MCC
+ */
+bool cds_disallow_mcc(uint8_t channel);
+/**
+ * cds_get_alternate_channel_for_sap() - checks if any alternate channel can
+ * be obtained from PCL if current channel can't be allowed
+ *
+ * This function checks if any alternate channel can be obtained
+ * from PCL or other means if current channel for SAP can't be allowed
+ *
+ * Return: New channel
+ */
+uint8_t cds_get_alternate_channel_for_sap(void);
 #endif /* __CDS_CONCURRENCY_H */

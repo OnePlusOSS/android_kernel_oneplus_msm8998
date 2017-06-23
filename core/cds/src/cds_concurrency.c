@@ -5559,18 +5559,7 @@ QDF_STATUS cds_get_pcl(enum cds_con_mode mode,
 	return QDF_STATUS_SUCCESS;
 }
 
-/**
- * cds_disallow_mcc() - Check for mcc
- *
- * @channel: channel on which new connection is coming up
- *
- * When a new connection is about to come up check if current
- * concurrency combination including the new connection is
- * causing MCC
- *
- * Return: True/False
- */
-static bool cds_disallow_mcc(uint8_t channel)
+bool cds_disallow_mcc(uint8_t channel)
 {
 	uint32_t index = 0;
 	bool match = false;
@@ -7566,6 +7555,7 @@ static void cds_check_sta_ap_concurrent_ch_intf(void *data)
 	hdd_ap_ctx_t *hdd_ap_ctx;
 	uint16_t intf_ch = 0;
 	p_cds_contextType cds_ctx;
+	uint8_t temp_channel = 0;
 	hdd_station_ctx_t *hdd_sta_ctx =
 		WLAN_HDD_GET_STATION_CTX_PTR(sta_adapter);
 
@@ -7610,11 +7600,16 @@ static void cds_check_sta_ap_concurrent_ch_intf(void *data)
 			hdd_sta_ctx->conn_info.operationChannel) ||
 		!cds_is_safe_channel(hdd_sta_ctx->conn_info.operationChannel)) {
 		if (wma_is_hw_dbs_capable()) {
-			if (CDS_IS_CHANNEL_5GHZ(
+			temp_channel = cds_get_alternate_channel_for_sap();
+			if (temp_channel) {
+				intf_ch = temp_channel;
+			} else {
+				if (CDS_IS_CHANNEL_5GHZ(
 				hdd_sta_ctx->conn_info.operationChannel))
-				intf_ch = CDS_24_GHZ_CHANNEL_6;
-			else
-				intf_ch = CDS_5_GHZ_CHANNEL_36;
+					intf_ch = CDS_24_GHZ_CHANNEL_6;
+				else
+					intf_ch = CDS_5_GHZ_CHANNEL_36;
+			}
 		} else {
 			qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 			cds_debug("can't move sap to %d",
@@ -9573,9 +9568,26 @@ QDF_STATUS cds_get_sap_mandatory_channel(uint32_t *chan)
 	return QDF_STATUS_SUCCESS;
 }
 
+uint8_t cds_get_alternate_channel_for_sap(void)
+{
+	uint8_t pcl_channels[QDF_MAX_NUM_CHAN];
+	uint8_t pcl_weight[QDF_MAX_NUM_CHAN];
+	uint8_t channel = 0;
+	uint32_t pcl_len;
+
+	if (QDF_STATUS_SUCCESS == cds_get_pcl(CDS_SAP_MODE,
+		&pcl_channels[0], &pcl_len,
+		pcl_weight, QDF_ARRAY_SIZE(pcl_weight))) {
+		channel = pcl_channels[0];
+	}
+
+	return channel;
+}
+
 QDF_STATUS cds_valid_sap_conc_channel_check(uint8_t *con_ch, uint8_t sap_ch)
 {
 	uint8_t channel = *con_ch;
+	uint8_t temp_channel = 0;
 	/*
 	 * if force SCC is set, Check if conc channel is DFS
 	 * or passive or part of LTE avoided channel list.
@@ -9597,10 +9609,16 @@ QDF_STATUS cds_valid_sap_conc_channel_check(uint8_t *con_ch, uint8_t sap_ch)
 			CDS_IS_PASSIVE_OR_DISABLE_CH(channel) ||
 			!cds_is_safe_channel(channel)) {
 			if (wma_is_hw_dbs_capable()) {
-				if (CDS_IS_CHANNEL_5GHZ(channel))
-					channel = CDS_24_GHZ_CHANNEL_6;
-				else
-					channel = CDS_5_GHZ_CHANNEL_36;
+				temp_channel =
+					cds_get_alternate_channel_for_sap();
+				if (temp_channel) {
+					channel = temp_channel;
+				} else {
+					if (CDS_IS_CHANNEL_5GHZ(channel))
+						channel = CDS_24_GHZ_CHANNEL_6;
+					else
+						channel = CDS_5_GHZ_CHANNEL_36;
+				}
 			} else {
 				cds_warn("Can't have concurrency on %d",
 					channel);
@@ -9707,8 +9725,7 @@ QDF_STATUS cds_get_valid_chan_weights(struct sir_pcl_chan_weights *weight,
 		for (i = 0; i < weight->saved_num_chan; i++) {
 			if (cds_allow_concurrency(CDS_SAP_MODE,
 				weight->saved_chan_list[i],
-				HW_MODE_20_MHZ) &&
-				!cds_is_force_scc()) {
+				HW_MODE_20_MHZ)) {
 				weight->weighed_valid_list[i] =
 					WEIGHT_OF_NON_PCL_CHANNELS;
 			}

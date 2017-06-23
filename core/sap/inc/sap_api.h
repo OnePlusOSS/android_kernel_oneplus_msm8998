@@ -1003,16 +1003,6 @@ QDF_STATUS wlansap_set_tx_leakage_threshold(tHalHandle hal,
 
 QDF_STATUS wlansap_set_invalid_session(void *cds_ctx);
 QDF_STATUS sap_roam_session_close_callback(void *pContext);
-/**
- * sap_update_acs_channel_list() - Update the acs channel list
- * with PCL if force SCC is set
- * @acs_cfg: pointer to acs config structure for the sap
- *
- * Update the acs channel list with PCL if force SCC is set
- *
- * Return: Success if update happens succesfully
- */
-QDF_STATUS sap_update_acs_channel_list(struct sap_acs_cfg *acs_cfg);
 
 #ifdef __cplusplus
 }

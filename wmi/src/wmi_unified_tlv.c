@@ -7627,13 +7627,18 @@ QDF_STATUS send_action_frame_patterns_cmd_tlv(wmi_unified_t wmi_handle,
 	wmi_buf_t buf;
 	int i;
 	int32_t err;
+	uint32_t len = 0, *cmd_args;
+	uint8_t *buf_ptr;
 
-	buf = wmi_buf_alloc(wmi_handle, sizeof(*cmd));
+	len = (MAX_SUPPORTED_ACTION_SUBCATEGORY * sizeof(A_UINT32))
+				+ WMI_TLV_HDR_SIZE + sizeof(*cmd);
+	buf = wmi_buf_alloc(wmi_handle, len);
 	if (!buf) {
 		WMI_LOGE("Failed to allocate buffer to send action filter cmd");
 		return QDF_STATUS_E_NOMEM;
 	}
 	cmd = (WMI_WOW_SET_ACTION_WAKE_UP_CMD_fixed_param *) wmi_buf_data(buf);
+	buf_ptr = (uint8_t *)cmd;
 	WMITLV_SET_HDR(&cmd->tlv_header,
 		WMITLV_TAG_STRUC_wmi_wow_set_action_wake_up_cmd_fixed_param,
 		WMITLV_GET_STRUCT_TLVLEN(
@@ -7646,8 +7651,16 @@ QDF_STATUS send_action_frame_patterns_cmd_tlv(wmi_unified_t wmi_handle,
 		cmd->action_category_map[i] =
 				action_params->action_category_map[i];
 
+	buf_ptr += sizeof(WMI_WOW_SET_ACTION_WAKE_UP_CMD_fixed_param);
+	WMITLV_SET_HDR(buf_ptr, WMITLV_TAG_ARRAY_UINT32,
+			(MAX_SUPPORTED_ACTION_SUBCATEGORY * sizeof(A_UINT32)));
+	buf_ptr += WMI_TLV_HDR_SIZE;
+	cmd_args = (uint32_t *) buf_ptr;
+	for (i = 0; i < MAX_SUPPORTED_ACTION_SUBCATEGORY; i++)
+		cmd_args[i] = action_params->action_per_category[i];
+
 	err = wmi_unified_cmd_send(wmi_handle, buf,
-			sizeof(*cmd), WMI_WOW_SET_ACTION_WAKE_UP_CMDID);
+			len, WMI_WOW_SET_ACTION_WAKE_UP_CMDID);
 	if (err) {
 		WMI_LOGE("Failed to send ap_ps_egap cmd");
 		wmi_buf_free(buf);

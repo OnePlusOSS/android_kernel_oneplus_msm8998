@@ -6967,11 +6967,13 @@ struct rcpi_req {
  * @operation: 0 reset to fw default, 1 set the bits,
  *    2 add the setting bits, 3 delete the setting bits
  * @action_category_map: bit mapping.
+ * @action_per_category: action id bitmask per category
  */
 struct action_wakeup_set_param {
 	uint32_t vdev_id;
 	uint32_t operation;
 	uint32_t action_category_map[WMI_SUPPORTED_ACTION_CATEGORY_ELE_LIST];
+	uint32_t action_per_category[WMI_SUPPORTED_ACTION_CATEGORY];
 };
 
 /**

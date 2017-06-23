@@ -110,10 +110,12 @@ static struct dentry *qdf_mem_debugfs_root;
  * struct __qdf_mem_stat - qdf memory statistics
  * @kmalloc:	total kmalloc allocations
  * @dma:	total dma allocations
+ * @skb:	total skb allocations
  */
 static struct __qdf_mem_stat {
 	qdf_atomic_t kmalloc;
 	qdf_atomic_t dma;
+	qdf_atomic_t skb;
 } qdf_mem_stat;
 
 static inline void qdf_mem_kmalloc_inc(qdf_size_t size)
@@ -126,6 +128,11 @@ static inline void qdf_mem_dma_inc(qdf_size_t size)
 	qdf_atomic_add(size, &qdf_mem_stat.dma);
 }
 
+void qdf_mem_skb_inc(qdf_size_t size)
+{
+	qdf_atomic_add(size, &qdf_mem_stat.skb);
+}
+
 static inline void qdf_mem_kmalloc_dec(qdf_size_t size)
 {
 	qdf_atomic_sub(size, &qdf_mem_stat.kmalloc);
@@ -134,6 +141,11 @@ static inline void qdf_mem_kmalloc_dec(qdf_size_t size)
 static inline void qdf_mem_dma_dec(qdf_size_t size)
 {
 	qdf_atomic_sub(size, &qdf_mem_stat.dma);
+}
+
+void qdf_mem_skb_dec(qdf_size_t size)
+{
+	qdf_atomic_sub(size, &qdf_mem_stat.skb);
 }
 
 #ifdef MEMORY_DEBUG
@@ -495,6 +507,11 @@ static QDF_STATUS qdf_mem_debugfs_init(void)
 				S_IRUSR,
 				qdf_mem_debugfs_root,
 				&qdf_mem_stat.dma);
+
+	debugfs_create_atomic_t("skb",
+				S_IRUSR,
+				qdf_mem_debugfs_root,
+				&qdf_mem_stat.skb);
 
 	return QDF_STATUS_SUCCESS;
 }

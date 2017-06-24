@@ -4088,25 +4088,39 @@ static const struct file_operations fops_dbglog_block = {
 	.llseek = default_llseek,
 };
 
-static int dbglog_debugfs_init(wmi_unified_t wmi_handle)
+#ifdef WLAN_DEBUGFS
+
+static void dbglog_debugfs_init(wmi_unified_t wmi_handle)
 {
 
 	wmi_handle->debugfs_phy = debugfs_create_dir(CLD_DEBUGFS_DIR, NULL);
-	if (!wmi_handle->debugfs_phy)
-		return -ENOMEM;
+	if (!wmi_handle->debugfs_phy) {
+		qdf_print("Failed to create WMI debugfs");
+		return;
+	}
 
 	debugfs_create_file(DEBUGFS_BLOCK_NAME, 0400,
 			    wmi_handle->debugfs_phy, &wmi_handle->dbglog,
 			    &fops_dbglog_block);
-
-	return true;
 }
 
-static int dbglog_debugfs_remove(wmi_unified_t wmi_handle)
+static void dbglog_debugfs_remove(wmi_unified_t wmi_handle)
 {
 	debugfs_remove_recursive(wmi_handle->debugfs_phy);
-	return true;
 }
+
+#else
+
+static void dbglog_debugfs_init(wmi_unified_t wmi_handle)
+{
+}
+
+static void dbglog_debugfs_remove(wmi_unified_t wmi_handle)
+{
+}
+
+#endif /* End of WLAN_DEBUGFS */
+
 #endif /* WLAN_OPEN_SOURCE */
 
 /**

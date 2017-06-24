@@ -1288,8 +1288,8 @@ int wlan_hdd_sap_cfg_dfs_override(hdd_adapter_t *adapter)
  * Return: None
  */
 
-static void wlan_hdd_set_acs_ch_range(tsap_Config_t *sap_cfg, bool ht_enabled,
-							bool vht_enabled)
+static void wlan_hdd_set_acs_ch_range(tsap_Config_t *sap_cfg,
+			bool ht_enabled, bool vht_enabled)
 {
 	int i;
 	if (sap_cfg->acs_cfg.hw_mode == QCA_ACS_MODE_IEEE80211B) {
@@ -1601,7 +1601,8 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 			sap_config->acs_cfg.ch_width = eHT_CHANNEL_WIDTH_40MHZ;
 	}
 
-	wlan_hdd_set_acs_ch_range(sap_config, ht_enabled, vht_enabled);
+	wlan_hdd_set_acs_ch_range(sap_config,
+			ht_enabled, vht_enabled);
 
 	hdd_debug("ACS Config for wlan%d: HW_MODE: %d ACS_BW: %d HT: %d VHT: %d START_CH: %d END_CH: %d",
 		adapter->dev->ifindex, sap_config->acs_cfg.hw_mode,
@@ -3566,7 +3567,7 @@ __hdd_cfg80211_get_station_cmd(struct wiphy *wiphy,
 
 
 	status = nla_parse(tb, QCA_WLAN_VENDOR_ATTR_GET_STATION_MAX,
-			data, data_len, NULL);
+			data, data_len, hdd_get_station_policy);
 	if (status) {
 		hdd_err("Invalid ATTR");
 		goto out;
@@ -6141,7 +6142,8 @@ static int wlan_hdd_cfg80211_set_probable_oper_channel(struct wiphy *wiphy,
 static const struct
 nla_policy
 qca_wlan_vendor_attr_policy[QCA_WLAN_VENDOR_ATTR_MAX+1] = {
-	[QCA_WLAN_VENDOR_ATTR_MAC_ADDR] = { .type = NLA_UNSPEC },
+	[QCA_WLAN_VENDOR_ATTR_MAC_ADDR] = {
+		.type = NLA_BINARY, .len = QDF_MAC_ADDR_SIZE },
 };
 
 /**
@@ -6193,6 +6195,12 @@ static int __wlan_hdd_cfg80211_get_link_properties(struct wiphy *wiphy,
 	if (!tb[QCA_WLAN_VENDOR_ATTR_MAC_ADDR]) {
 		hdd_err("Attribute peerMac not provided for mode=%d",
 		       adapter->device_mode);
+		return -EINVAL;
+	}
+
+	if (nla_len(tb[QCA_WLAN_VENDOR_ATTR_MAC_ADDR]) < QDF_MAC_ADDR_SIZE) {
+		hdd_err("Attribute peerMac is invalid for mode=%d",
+			adapter->device_mode);
 		return -EINVAL;
 	}
 
@@ -13691,12 +13699,13 @@ static bool wlan_hdd_handle_sap_sta_dfs_conc(hdd_adapter_t *adapter,
 	}
 
 	/*
-	 * If channel is 0 or DFS then better to call pcl and find out the
-	 * best channel. If channel is non-dfs 5 GHz then better move SAP
-	 * to STA's channel to make scc, so we have room for 3port MCC
-	 * scenario.
+	 * If channel is 0 or DFS or LTE unsafe then better to call pcl and
+	 * find out the best channel. If channel is non-dfs 5 GHz then
+	 * better move SAP to STA's channel to make scc, so we have room
+	 * for 3port MCC scenario.
 	 */
-	if ((0 == channel) || CDS_IS_DFS_CH(channel))
+	if ((0 == channel) || CDS_IS_DFS_CH(channel) ||
+		!cds_is_safe_channel(channel))
 		channel = cds_get_nondfs_preferred_channel(CDS_SAP_MODE,
 								true);
 
@@ -13704,7 +13713,7 @@ static bool wlan_hdd_handle_sap_sta_dfs_conc(hdd_adapter_t *adapter,
 	qdf_event_reset(&hostapd_state->qdf_event);
 	status = wlansap_set_channel_change_with_csa(
 			WLAN_HDD_GET_SAP_CTX_PTR(ap_adapter), channel,
-			hdd_ap_ctx->sapConfig.ch_width_orig);
+			hdd_ap_ctx->sapConfig.ch_width_orig, false);
 
 	if (QDF_STATUS_SUCCESS != status) {
 		hdd_err("Set channel with CSA IE failed, can't allow STA");
@@ -16594,29 +16603,32 @@ static int wlan_hdd_cfg80211_add_station(struct wiphy *wiphy,
 static inline bool wlan_hdd_is_pmksa_valid(struct cfg80211_pmksa *pmksa)
 {
 	if (!pmksa->bssid) {
-		hdd_err("bssid (%p) is NULL",
-		       pmksa->bssid);
-	} else if (!pmksa->ssid || !pmksa->cache_id) {
-		hdd_err("either ssid (%p) or cache_id (%p) are NULL",
-		       pmksa->ssid, pmksa->cache_id);
-		return false;
+		hdd_warn("bssid (%p) is NULL",
+				pmksa->bssid);
+		if (!pmksa->ssid || !pmksa->cache_id) {
+			hdd_err("either ssid (%p) or cache_id (%p) are NULL",
+					pmksa->ssid, pmksa->cache_id);
+			return false;
+		}
 	}
+
 	return true;
 }
 
 /*
- * hdd_update_pmksa_info: API to update tPmkidCacheInfo from cfg80211_pmksa
+ * hdd_fill_pmksa_info: API to update tPmkidCacheInfo from cfg80211_pmksa
  * @pmk_cache: pmksa from supplicant
  * @pmk_cache: pmk needs to be updated
  *
  * Return: None
  */
-static void hdd_update_pmksa_info(tPmkidCacheInfo *pmk_cache,
+static void hdd_fill_pmksa_info(tPmkidCacheInfo *pmk_cache,
 				  struct cfg80211_pmksa *pmksa, bool is_delete)
 {
 	if (pmksa->bssid) {
-		hdd_debug("set PMKSA for " MAC_ADDRESS_STR,
-		MAC_ADDR_ARRAY(pmksa->bssid));
+		hdd_debug("%s PMKSA for " MAC_ADDRESS_STR,
+			is_delete ? "Delete" : "Set",
+			MAC_ADDR_ARRAY(pmksa->bssid));
 		qdf_mem_copy(pmk_cache->BSSID.bytes,
 				pmksa->bssid, QDF_MAC_ADDR_SIZE);
 	} else {
@@ -16624,7 +16636,8 @@ static void hdd_update_pmksa_info(tPmkidCacheInfo *pmk_cache,
 				SIR_MAC_MAX_SSID_LENGTH);
 		qdf_mem_copy(pmk_cache->cache_id, pmksa->cache_id, CACHE_ID_LEN);
 		pmk_cache->ssid_len = pmksa->ssid_len;
-		hdd_debug("set PMKSA for ssid %*.*s cache_id %x %x",
+		hdd_debug("%s PMKSA for ssid %*.*s cache_id %x %x",
+			is_delete ? "Delete" : "Set",
 			pmk_cache->ssid_len, pmk_cache->ssid_len,
 			pmksa->ssid, pmksa->cache_id[0], pmksa->cache_id[1]);
 	}
@@ -16656,16 +16669,16 @@ static inline bool wlan_hdd_is_pmksa_valid(struct cfg80211_pmksa *pmksa)
 }
 
 /*
- * hdd_update_pmksa_info: API to update tPmkidCacheInfo from cfg80211_pmksa
+ * hdd_fill_pmksa_info: API to update tPmkidCacheInfo from cfg80211_pmksa
  * @pmk_cache: pmksa from supplicant
  * @pmk_cache: pmk needs to be updated
  *
  * Return: None
  */
-static void hdd_update_pmksa_info(tPmkidCacheInfo *pmk_cache,
+static void hdd_fill_pmksa_info(tPmkidCacheInfo *pmk_cache,
 				  struct cfg80211_pmksa *pmksa, bool is_delete)
 {
-	hdd_debug("set PMKSA for " MAC_ADDRESS_STR,
+	hdd_debug("%s PMKSA for " MAC_ADDRESS_STR, is_delete ? "Delete" : "Set",
 	MAC_ADDR_ARRAY(pmksa->bssid));
 	qdf_mem_copy(pmk_cache->BSSID.bytes,
 				pmksa->bssid, QDF_MAC_ADDR_SIZE);
@@ -16731,7 +16744,7 @@ static int __wlan_hdd_cfg80211_set_pmksa(struct wiphy *wiphy,
 
 	qdf_mem_zero(&pmk_cache, sizeof(pmk_cache));
 
-	hdd_update_pmksa_info(&pmk_cache, pmksa, false);
+	hdd_fill_pmksa_info(&pmk_cache, pmksa, false);
 
 	/*
 	 * Add to the PMKSA Cache in CSR
@@ -16823,7 +16836,7 @@ static int __wlan_hdd_cfg80211_del_pmksa(struct wiphy *wiphy,
 
 	qdf_mem_zero(&pmk_cache, sizeof(pmk_cache));
 
-	hdd_update_pmksa_info(&pmk_cache, pmksa, true);
+	hdd_fill_pmksa_info(&pmk_cache, pmksa, true);
 
 	/* Delete the PMKID CSR cache */
 	if (QDF_STATUS_SUCCESS !=

@@ -541,6 +541,7 @@ pe_create_session(tpAniSirGlobal pMac, uint8_t *bssid, uint8_t *sessionId,
 	pe_init_pmf_comeback_timer(pMac, session_ptr, *sessionId);
 	session_ptr->deauthmsgcnt = 0;
 	session_ptr->disassocmsgcnt = 0;
+	session_ptr->ht_client_cnt = 0;
 
 	return &pMac->lim.gpSession[i];
 }

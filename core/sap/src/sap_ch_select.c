@@ -500,8 +500,6 @@ uint8_t sap_select_preferred_channel_from_channel_list(uint8_t best_chnl,
 				tSapChSelSpectInfo *spectinfo_param)
 {
 	uint8_t i = 0;
-	struct sir_pcl_chan_weights pcl_chan_weights;
-	QDF_STATUS status;
 
 	/*
 	 * If Channel List is not Configured don't do anything
@@ -516,34 +514,7 @@ uint8_t sap_select_preferred_channel_from_channel_list(uint8_t best_chnl,
 		return SAP_CHANNEL_NOT_SELECTED;
 
 	for (i = 0; i < sap_ctx->acs_cfg->ch_list_count; i++) {
-		pcl_chan_weights.saved_chan_list[i] =
-			sap_ctx->acs_cfg->ch_list[i];
-		pcl_chan_weights.weighed_valid_list[i] =
-			MAX_WEIGHT_OF_PCL_CHANNELS;
-	}
-	pcl_chan_weights.saved_num_chan = sap_ctx->acs_cfg->ch_list_count;
-
-	for (i = 0; i < sap_ctx->acs_cfg->pcl_ch_count; i++) {
-		pcl_chan_weights.pcl_list[i] =
-			sap_ctx->acs_cfg->pcl_channels[i];
-		pcl_chan_weights.weight_list[i] =
-			sap_ctx->acs_cfg->weight_list[i];
-	}
-	pcl_chan_weights.pcl_len = sap_ctx->acs_cfg->pcl_ch_count;
-
-	status = cds_get_valid_chan_weights(&pcl_chan_weights, CDS_SAP_MODE);
-	if (!QDF_IS_STATUS_SUCCESS(status)) {
-		QDF_TRACE(QDF_MODULE_ID_SAP,
-		QDF_TRACE_LEVEL_ERROR,
-		"Error in creating weighed pcl for acs");
-	}
-
-	/* Select the best channel from allowed list which doesn't have 0 PCL
-	 * weightage
-	 */
-	for (i = 0; i < sap_ctx->acs_cfg->ch_list_count; i++) {
-		if ((sap_ctx->acs_cfg->ch_list[i] == best_chnl) &&
-			pcl_chan_weights.weighed_valid_list[i]) {
+		if (sap_ctx->acs_cfg->ch_list[i] == best_chnl) {
 			QDF_TRACE(QDF_MODULE_ID_SAP,
 				QDF_TRACE_LEVEL_INFO_HIGH,
 				"Best channel is: %d",
@@ -2307,13 +2278,29 @@ uint8_t sap_select_channel(tHalHandle hal, ptSapContext sap_ctx,
 		if (best_ch_num == SAP_CHANNEL_NOT_SELECTED)
 			continue;
 
-		if (operating_band != eCSR_DOT11_MODE_11g)
+		if (operating_band != eCSR_DOT11_MODE_11g) {
+			QDF_TRACE(QDF_MODULE_ID_SAP,
+				QDF_TRACE_LEVEL_INFO_HIGH,
+				"operating_band %d", operating_band);
 			continue;
+		}
 
 		/* Give preference to Non-overlap channels */
 		if (false == sap_filter_over_lap_ch(sap_ctx,
-				spect_info->pSpectCh[count].chNum))
+				spect_info->pSpectCh[count].chNum)) {
+			QDF_TRACE(QDF_MODULE_ID_SAP,
+				QDF_TRACE_LEVEL_INFO_HIGH,
+				"sap_filter_over_lap_ch is false");
 			continue;
+		}
+
+		if (CDS_IS_DFS_CH(spect_info->pSpectCh[count].chNum) &&
+			cds_disallow_mcc(spect_info->pSpectCh[count].chNum)) {
+			QDF_TRACE(QDF_MODULE_ID_SAP,
+				QDF_TRACE_LEVEL_INFO_HIGH,
+				"No DFS MCC");
+			continue;
+		}
 
 		tmp_ch_num = spect_info->pSpectCh[count].chNum;
 		tmp_ch_num = sap_select_preferred_channel_from_channel_list(

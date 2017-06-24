@@ -104,8 +104,11 @@ ifeq ($(KERNEL_BUILD), 0)
 	#Flag to enable Fast Transition (11r) feature
 	CONFIG_QCOM_VOWIFI_11R := y
 
+	ifneq ($(CONFIG_ARCH_SDX20), y)
 	#Flag to enable FILS Feature (11ai)
 	CONFIG_WLAN_FEATURE_FILS := y
+	endif
+
 	ifneq ($(CONFIG_QCA_CLD_WLAN),)
 		ifeq (y,$(findstring y,$(CONFIG_CNSS) $(CONFIG_ICNSS)))
 		#Flag to enable Protected Managment Frames (11w) feature

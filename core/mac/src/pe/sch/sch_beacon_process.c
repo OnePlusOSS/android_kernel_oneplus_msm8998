@@ -540,17 +540,27 @@ sch_bcn_process_sta_ibss(tpAniSirGlobal mac_ctx,
 	/* check for VHT capability */
 	pStaDs = dph_lookup_hash_entry(mac_ctx, pMh->sa, &aid,
 			&session->dph.dphHashTable);
-	if ((NULL == pStaDs) ||
-	  (WNI_CFG_CHANNEL_BONDING_MODE_DISABLE == cb_mode) ||
-	  ((NULL != pStaDs) &&
-	   (STA_INVALID_IDX == pStaDs->staIndex)))
+	if ((NULL == pStaDs) || ((NULL != pStaDs) &&
+					(STA_INVALID_IDX == pStaDs->staIndex)))
 		return;
 
 	if (session->vhtCapability && bcn->OperatingMode.present) {
+		update_nss(mac_ctx, pStaDs, bcn, session, pMh);
 		operMode = get_operating_channel_width(pStaDs);
 		if ((operMode == eHT_CHANNEL_WIDTH_80MHZ) &&
 		    (bcn->OperatingMode.chanWidth > eHT_CHANNEL_WIDTH_80MHZ))
 			skip_opmode_update = true;
+		if (WNI_CFG_CHANNEL_BONDING_MODE_DISABLE == cb_mode) {
+			/*
+			 * if channel bonding is disabled from INI and
+			 * receiving beacon which has operating mode IE
+			 * containing channel width change then don't update
+			 * CH_WIDTH
+			 */
+			pe_err("CB disabled & CH_WIDTH changed old[%d] new[%d]",
+				operMode, bcn->OperatingMode.chanWidth);
+			return;
+		}
 
 		if (!skip_opmode_update &&
 			((operMode != bcn->OperatingMode.chanWidth) ||
@@ -600,7 +610,6 @@ sch_bcn_process_sta_ibss(tpAniSirGlobal mac_ctx,
 			lim_check_vht_op_mode_change(mac_ctx, session,
 					chWidth, session->dot11mode,
 					pStaDs->staIndex, pMh->sa);
-			update_nss(mac_ctx, pStaDs, bcn, session, pMh);
 		}
 		return;
 	}
@@ -613,6 +622,17 @@ sch_bcn_process_sta_ibss(tpAniSirGlobal mac_ctx,
 	    (operMode < bcn->VHTOperation.chanWidth))
 		skip_opmode_update = true;
 
+	if (WNI_CFG_CHANNEL_BONDING_MODE_DISABLE == cb_mode) {
+		/*
+		 * if channel bonding is disabled from INI and
+		 * receiving beacon which has operating mode IE
+		 * containing channel width change then don't update
+		 * the CH_WIDTH
+		 */
+		pe_err("CB disabled & VHT CH_WIDTH changed old[%d] new[%d]",
+			operMode, bcn->VHTOperation.chanWidth);
+		return;
+	}
 	if (!skip_opmode_update &&
 	    (operMode != bcn->VHTOperation.chanWidth)) {
 		pe_debug("received VHTOP CHWidth %d staIdx = %d",

@@ -6,39 +6,29 @@
  */
 #ifndef _ASM_UACCESS_H
 #define _ASM_UACCESS_H
-
 #ifdef __KERNEL__
 #include <linux/compiler.h>
 #include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/errno.h>
 #endif
-
 #ifndef __ASSEMBLY__
-
 #include <asm/processor.h>
-
 #define ARCH_HAS_SORT_EXTABLE
 #define ARCH_HAS_SEARCH_EXTABLE
-
 /* Sparc is not segmented, however we need to be able to fool access_ok()
  * when doing system calls from kernel mode legitimately.
  *
  * "For historical reasons, these macros are grossly misnamed." -Linus
  */
-
 #define KERNEL_DS   ((mm_segment_t) { 0 })
 #define USER_DS     ((mm_segment_t) { -1 })
-
 #define VERIFY_READ	0
 #define VERIFY_WRITE	1
-
 #define get_ds()	(KERNEL_DS)
 #define get_fs()	(current->thread.current_ds)
 #define set_fs(val)	((current->thread.current_ds) = (val))
-
 #define segment_eq(a, b) ((a).seg == (b).seg)
-
 /* We have there a nice not-mapped page at PAGE_OFFSET - PAGE_SIZE, so that this test
  * can be fairly lightweight.
  * No one can read/write anything from userland in the kernel space by setting
@@ -49,7 +39,6 @@
 #define __access_ok(addr, size) (__user_ok((addr) & get_fs().seg, (size)))
 #define access_ok(type, addr, size) \
 	({ (void)(type); __access_ok((unsigned long)(addr), size); })
-
 /*
  * The exception table consists of pairs of addresses: the first is the
  * address of an instruction that is allowed to fault, and the second is
@@ -71,17 +60,13 @@
  * (faulting_insn_address - first_insn_in_the_range_address)/4
  * in %g2 (ie. index of the faulting instruction in the range).
  */
-
 struct exception_table_entry
 {
         unsigned long insn, fixup;
 };
-
 /* Returns 0 if exception not found and fixup otherwise.  */
 unsigned long search_extables_range(unsigned long addr, unsigned long *g2);
-
 void __ret_efault(void);
-
 /* Uh, these should become the main single-value transfer routines..
  * They automatically use the right size if we just have the right
  * pointer type..
@@ -96,13 +81,11 @@ void __ret_efault(void);
 	__chk_user_ptr(ptr); \
 	__put_user_check((__typeof__(*(ptr)))(x), __pu_addr, sizeof(*(ptr))); \
 })
-
 #define get_user(x, ptr) ({ \
 	unsigned long __gu_addr = (unsigned long)(ptr); \
 	__chk_user_ptr(ptr); \
 	__get_user_check((x), __gu_addr, sizeof(*(ptr)), __typeof__(*(ptr))); \
 })
-
 /*
  * The "__xxx" versions do not do address space checking, useful when
  * doing multiple accesses to the same area (the user has to do the
@@ -112,10 +95,8 @@ void __ret_efault(void);
 	__put_user_nocheck((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
 #define __get_user(x, ptr) \
     __get_user_nocheck((x), (ptr), sizeof(*(ptr)), __typeof__(*(ptr)))
-
 struct __large_struct { unsigned long buf[100]; };
 #define __m(x) ((struct __large_struct __user *)(x))
-
 #define __put_user_check(x, addr, size) ({ \
 	register int __pu_ret; \
 	if (__access_ok(addr, size)) { \
@@ -141,7 +122,6 @@ struct __large_struct { unsigned long buf[100]; };
 	} \
 	__pu_ret; \
 })
-
 #define __put_user_nocheck(x, addr, size) ({			\
 	register int __pu_ret;					\
 	switch (size) {						\
@@ -153,7 +133,6 @@ struct __large_struct { unsigned long buf[100]; };
 	} \
 	__pu_ret; \
 })
-
 #define __put_user_asm(x, size, addr, ret)				\
 __asm__ __volatile__(							\
 		"/* Put user asm, inline. */\n"				\
@@ -172,9 +151,7 @@ __asm__ __volatile__(							\
 		".previous\n\n\t"					\
 	       : "=&r" (ret) : "r" (x), "m" (*__m(addr)),		\
 		 "i" (-EFAULT))
-
 int __put_user_bad(void);
-
 #define __get_user_check(x, addr, size, type) ({ \
 	register int __gu_ret; \
 	register unsigned long __gu_val; \
@@ -204,7 +181,6 @@ int __put_user_bad(void);
 	x = (__force type) __gu_val; \
 	__gu_ret; \
 })
-
 #define __get_user_check_ret(x, addr, size, type, retval) ({ \
 	register unsigned long __gu_val __asm__ ("l1"); \
 	if (__access_ok(addr, size)) { \
@@ -229,7 +205,6 @@ int __put_user_bad(void);
 	} else \
 		return retval; \
 })
-
 #define __get_user_nocheck(x, addr, size, type) ({			\
 	register int __gu_ret;						\
 	register unsigned long __gu_val;				\
@@ -246,7 +221,6 @@ int __put_user_bad(void);
 	x = (__force type) __gu_val;					\
 	__gu_ret;							\
 })
-
 #define __get_user_nocheck_ret(x, addr, size, type, retval) ({		\
 	register unsigned long __gu_val __asm__ ("l1");			\
 	switch (size) {							\
@@ -260,7 +234,6 @@ int __put_user_bad(void);
 	}								\
 	x = (__force type) __gu_val;					\
 })
-
 #define __get_user_asm(x, size, addr, ret)				\
 __asm__ __volatile__(							\
 		"/* Get user asm, inline. */\n"				\
@@ -280,7 +253,6 @@ __asm__ __volatile__(							\
 		".previous\n\t"						\
 	       : "=&r" (ret), "=&r" (x) : "m" (*__m(addr)),		\
 		 "i" (-EFAULT))
-
 #define __get_user_asm_ret(x, size, addr, retval)			\
 if (__builtin_constant_p(retval) && retval == -EFAULT)			\
 	__asm__ __volatile__(						\
@@ -306,50 +278,37 @@ else									\
 			".word	1b, 3b\n\n\t"				\
 			".previous\n\t"					\
 		       : "=&r" (x) : "m" (*__m(addr)), "i" (retval))
-
 int __get_user_bad(void);
-
 unsigned long __copy_user(void __user *to, const void __user *from, unsigned long size);
-
 static inline unsigned long copy_to_user(void __user *to, const void *from, unsigned long n)
 {
-	if (n && __access_ok((unsigned long) to, n)) {
-		if (!__builtin_constant_p(n))
-			check_object_size(from, n, true);
+	if (n && __access_ok((unsigned long) to, n))
 		return __copy_user(to, (__force void __user *) from, n);
-	} else
+	else
 		return n;
 }
-
 static inline unsigned long __copy_to_user(void __user *to, const void *from, unsigned long n)
 {
-	if (!__builtin_constant_p(n))
-		check_object_size(from, n, true);
 	return __copy_user(to, (__force void __user *) from, n);
 }
-
 static inline unsigned long copy_from_user(void *to, const void __user *from, unsigned long n)
 {
-	if (n && __access_ok((unsigned long) from, n)) {
-		if (!__builtin_constant_p(n))
-			check_object_size(to, n, false);
+	if (n && __access_ok((unsigned long) from, n))
 		return __copy_user((__force void __user *) to, from, n);
-	} else
+	else {
+		memset(to, 0, n);
 		return n;
+	}
 }
-
 static inline unsigned long __copy_from_user(void *to, const void __user *from, unsigned long n)
 {
 	return __copy_user((__force void __user *) to, from, n);
 }
-
 #define __copy_to_user_inatomic __copy_to_user
 #define __copy_from_user_inatomic __copy_from_user
-
 static inline unsigned long __clear_user(void __user *addr, unsigned long size)
 {
 	unsigned long ret;
-
 	__asm__ __volatile__ (
 		".section __ex_table,#alloc\n\t"
 		".align 4\n\t"
@@ -363,10 +322,8 @@ static inline unsigned long __clear_user(void __user *addr, unsigned long size)
 		: "=r" (ret) : "r" (addr), "r" (size) :
 		"o0", "o1", "o2", "o3", "o4", "o5", "o7",
 		"g1", "g2", "g3", "g4", "g5", "g7", "cc");
-
 	return ret;
 }
-
 static inline unsigned long clear_user(void __user *addr, unsigned long n)
 {
 	if (n && __access_ok((unsigned long) addr, n))
@@ -374,10 +331,7 @@ static inline unsigned long clear_user(void __user *addr, unsigned long n)
 	else
 		return n;
 }
-
 __must_check long strlen_user(const char __user *str);
 __must_check long strnlen_user(const char __user *str, long n);
-
 #endif  /* __ASSEMBLY__ */
-
 #endif /* _ASM_UACCESS_H */

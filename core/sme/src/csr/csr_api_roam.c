@@ -323,6 +323,8 @@ QDF_STATUS csr_process_same_ap_reassoc_cmd(tpAniSirGlobal mac_ctx,
 	fastreassoc->bssid[3] = session->connectedProfile.bssid.bytes[3];
 	fastreassoc->bssid[4] = session->connectedProfile.bssid.bytes[4];
 	fastreassoc->bssid[5] = session->connectedProfile.bssid.bytes[5];
+	fastreassoc->is_same_bssid = true;
+	sme_debug("bssid same, bssid[%pM]", fastreassoc->bssid);
 	sme_info("self reassoc on channe[%d] bssid[%pM]",
 		 fastreassoc->channel, fastreassoc->bssid);
 

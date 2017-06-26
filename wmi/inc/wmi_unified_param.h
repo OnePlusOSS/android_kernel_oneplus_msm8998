@@ -1882,6 +1882,7 @@ struct roam_offload_scan_rssi_params {
 	int traffic_threshold;
 	int8_t bg_scan_bad_rssi_thresh;
 	uint32_t bg_scan_client_bitmap;
+	int32_t rssi_thresh_offset_5g;
 };
 
 /**

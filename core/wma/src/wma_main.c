@@ -5175,8 +5175,16 @@ QDF_STATUS wma_get_caps_for_phyidx_hwmode(struct wma_caps_per_phy *caps_per_phy,
 	}
 
 	if (0 == wma_handle->phy_caps.num_hw_modes.num_hw_modes) {
-		WMA_LOGE("Invalid number of hw modes");
-		return QDF_STATUS_E_FAILURE;
+		WMA_LOGD("Invalid number of hw modes, use legacy HT/VHT caps");
+		caps_per_phy->ht_2g = wma_handle->ht_cap_info;
+		caps_per_phy->ht_5g = wma_handle->ht_cap_info;
+		caps_per_phy->vht_2g = wma_handle->vht_cap_info;
+		caps_per_phy->vht_5g = wma_handle->vht_cap_info;
+		/* legacy platform doesn't support HE IE */
+		caps_per_phy->he_2g = 0;
+		caps_per_phy->he_5g = 0;
+
+		return QDF_STATUS_SUCCESS;
 	}
 
 	if (!wma_is_dbs_enable())
@@ -5218,48 +5226,35 @@ QDF_STATUS wma_get_caps_for_phyidx_hwmode(struct wma_caps_per_phy *caps_per_phy,
 bool wma_is_rx_ldpc_supported_for_channel(uint32_t channel,
 			enum hw_mode_dbs_capab hw_mode)
 {
+	t_wma_handle *wma_handle = cds_get_context(QDF_MODULE_ID_WMA);
 	struct wma_caps_per_phy caps_per_phy = {0};
 	enum cds_band_type band;
 	bool status;
-	t_wma_handle *wma_handle;
-	struct hif_target_info *tgt_info;
-	struct hif_opaque_softc *scn = cds_get_context(QDF_MODULE_ID_HIF);
-
-	if (!scn) {
-		WMA_LOGE("%s: Invalid wma handle", __func__);
-		return false;
-	}
 
 	if (!CDS_IS_CHANNEL_24GHZ(channel))
 		band = CDS_BAND_5GHZ;
 	else
 		band = CDS_BAND_2GHZ;
 
-	tgt_info = hif_get_target_info_handle(scn);
-
-	if ((tgt_info->target_type == TARGET_TYPE_AR6320V1) ||
-	    (tgt_info->target_type == TARGET_TYPE_AR6320V2) ||
-	    (tgt_info->target_type == TARGET_TYPE_AR6320V3) ||
-	    (tgt_info->target_type == TARGET_TYPE_QCA9377V1)) {
-		wma_handle = cds_get_context(QDF_MODULE_ID_WMA);
-		if (!wma_handle) {
-			WMA_LOGE("Invalid wma handle");
-			return false;
-		}
-		if (wma_handle->ht_cap_info & WMI_HT_CAP_LDPC)
-			return true;
-		else
-			return false;
-	}
 	if (QDF_STATUS_SUCCESS != wma_get_caps_for_phyidx_hwmode(
 						&caps_per_phy,
 						hw_mode, band)) {
 		return false;
 	}
-	if (CDS_IS_CHANNEL_24GHZ(channel))
-		status = (!!(caps_per_phy.ht_2g & WMI_HT_CAP_RX_LDPC));
-	else
-		status = (!!(caps_per_phy.ht_5g & WMI_HT_CAP_RX_LDPC));
+
+	/*
+	 * Legacy platforms like Rome set WMI_HT_CAP_LDPC to specify RX LDPC
+	 * capability. But new platforms like Helium set WMI_HT_CAP_RX_LDPC
+	 * instead.
+	 */
+	if (wma_handle->phy_caps.num_hw_modes.num_hw_modes == 0) {
+		status = (!!(caps_per_phy.ht_2g & WMI_HT_CAP_LDPC));
+	} else {
+		if (CDS_IS_CHANNEL_24GHZ(channel))
+			status = (!!(caps_per_phy.ht_2g & WMI_HT_CAP_RX_LDPC));
+		else
+			status = (!!(caps_per_phy.ht_5g & WMI_HT_CAP_RX_LDPC));
+	}
 
 	return status;
 }

@@ -1156,10 +1156,7 @@ struct hdd_adapter_s {
 
 #ifdef WLAN_FEATURE_TSF
 	/* tsf value received from firmware */
-	uint32_t tsf_low;
-	uint32_t tsf_high;
-	/* TSF capture state */
-	enum hdd_tsf_capture_state tsf_state;
+	uint64_t cur_target_time;
 	uint64_t tsf_sync_soc_timer;
 #endif
 
@@ -1797,6 +1794,14 @@ struct hdd_context_s {
 #ifdef FEATURE_SPECTRAL_SCAN
 	struct vdev_spectral_configure_params ss_config;
 	int sscan_pid;
+#endif
+#ifdef WLAN_FEATURE_TSF
+	/* indicate whether tsf has been initialized */
+	qdf_atomic_t tsf_ready_flag;
+	/* indicate whether it's now capturing tsf(updating tstamp-pair) */
+	qdf_atomic_t cap_tsf_flag;
+	/* the context that is capturing tsf */
+	hdd_adapter_t *cap_tsf_context;
 #endif
 };
 

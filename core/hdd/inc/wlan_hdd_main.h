@@ -1778,6 +1778,7 @@ struct hdd_context_s {
 	qdf_mc_timer_t tdls_source_timer;
 	qdf_atomic_t disable_lro_in_concurrency;
 	qdf_atomic_t disable_lro_in_low_tput;
+	qdf_atomic_t vendor_disable_lro_flag;
 	bool fw_mem_dump_enabled;
 	uint8_t last_scan_reject_session_id;
 	scan_reject_states last_scan_reject_reason;

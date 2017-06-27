@@ -114,22 +114,10 @@ int xhci_halt(struct xhci_hcd *xhci)
 			STS_HALT, STS_HALT, XHCI_MAX_HALT_USEC);
 	if (!ret) {
 		xhci->xhc_state |= XHCI_STATE_HALTED;
-	} else {
-
-		//Anderson@, 2016/07/01, If host controller is not halted, otg can't work
-		xhci_warn(xhci, "Host not halted after %u microseconds. ret:%d\n",
-				XHCI_MAX_HALT_USEC, ret);
-	}
-
-	xhci->cmd_ring_state = CMD_RING_STATE_STOPPED;
-
-	if (timer_pending(&xhci->cmd_timer)) {
-		xhci_dbg_trace(xhci, trace_xhci_dbg_init,
-				"Cleanup command queue");
-		del_timer(&xhci->cmd_timer);
-		xhci_cleanup_command_queue(xhci);
-	}
-
+		xhci->cmd_ring_state = CMD_RING_STATE_STOPPED;
+	} else
+		xhci_warn(xhci, "Host not halted after %u microseconds.\n",
+				XHCI_MAX_HALT_USEC);
 	return ret;
 }
 
@@ -3839,8 +3827,10 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 
 	mutex_lock(&xhci->mutex);
 
-	if (xhci->xhc_state)	/* dying, removing or halted */
+	if (xhci->xhc_state) {	/* dying, removing or halted */
+		ret = -ESHUTDOWN;
 		goto out;
+	}
 
 	if (!udev->slot_id) {
 		xhci_dbg_trace(xhci, trace_xhci_dbg_address,

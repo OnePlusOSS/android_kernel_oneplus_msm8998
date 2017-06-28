@@ -411,7 +411,7 @@ QDF_STATUS cds_open(void)
 	 * into hdd context config entry, leads to pe_open() to fail, if
 	 * con_mode change happens from FTM mode to any other mode.
 	 */
-	if (DRIVER_TYPE_PRODUCTION == cds_cfg->driver_type)
+	if (QDF_DRIVER_TYPE_PRODUCTION == cds_cfg->driver_type)
 		pHddCtx->config->maxNumberOfPeers = cds_cfg->max_station;
 
 	HTCHandle = cds_get_context(QDF_MODULE_ID_HTC);

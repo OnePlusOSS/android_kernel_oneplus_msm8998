@@ -543,7 +543,7 @@ static bool __lim_process_sme_sys_ready_ind(tpAniSirGlobal pMac, uint32_t *pMsgB
 	msg.bodyptr = pMsgBuf;
 	msg.bodyval = 0;
 
-	if (ANI_DRIVER_TYPE(pMac) != eDRIVER_TYPE_MFG) {
+	if (ANI_DRIVER_TYPE(pMac) != QDF_DRIVER_TYPE_MFG) {
 		ready_req->pe_roam_synch_cb = pe_roam_synch_callback;
 		pe_register_callbacks_with_wma(pMac, ready_req);
 		pMac->lim.add_bssdescr_callback = ready_req->add_bssdescr_cb;

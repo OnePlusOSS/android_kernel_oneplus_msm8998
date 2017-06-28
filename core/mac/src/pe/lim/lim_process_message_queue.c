@@ -1287,7 +1287,7 @@ static void lim_process_messages(tpAniSirGlobal mac_ctx, tpSirMsgQ msg)
 	tSirMbMsgP2p *p2p_msg = NULL;
 	tSirSetActiveModeSetBncFilterReq *bcn_filter_req = NULL;
 
-	if (ANI_DRIVER_TYPE(mac_ctx) == eDRIVER_TYPE_MFG) {
+	if (ANI_DRIVER_TYPE(mac_ctx) == QDF_DRIVER_TYPE_MFG) {
 		qdf_mem_free(msg->bodyptr);
 		msg->bodyptr = NULL;
 		return;

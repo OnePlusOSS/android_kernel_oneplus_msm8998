@@ -4990,11 +4990,13 @@ QDF_STATUS sme_wow_delete_pattern(tHalHandle hal,
 	sme_debug("Sending WMA_WOWL_DEL_BCAST_PTRN");
 
 	ret_code = wma_post_ctrl_msg(pMac, &msg_q);
-	if (eSIR_SUCCESS != ret_code)
+	if (eSIR_SUCCESS != ret_code) {
 		sme_err("Posting WMA_WOWL_DEL_BCAST_PTRN failed, reason: %X",
 			ret_code);
+		return QDF_STATUS_E_FAILURE;
+	}
 
-	return ret_code;
+	return QDF_STATUS_SUCCESS;
 }
 
 /**

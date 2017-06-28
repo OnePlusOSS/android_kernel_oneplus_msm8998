@@ -10307,13 +10307,13 @@ static int iw_get_policy_manager_ut_ops(hdd_context_t *hdd_ctx,
 
 	case WE_POLICY_MANAGER_QUERY_ACTION_CMD:
 	{
-		enum cds_conc_next_action action;
+		QDF_STATUS status;
 
 		hdd_debug("<iwpriv wlan0 pm_query_action> is called");
-		action = cds_current_connections_update(adapter->sessionId,
+		status = cds_current_connections_update(adapter->sessionId,
 						apps_args[0],
 						SIR_UPDATE_REASON_UT);
-		pr_info("next action is %d {HDD_NOP = 0, HDD_DBS, HDD_DBS_DOWNGRADE, HDD_MCC, HDD_MCC_UPGRADE}", action);
+		pr_info("status is %d {HDD_NOP = 0, HDD_DBS, HDD_DBS_DOWNGRADE, HDD_MCC, HDD_MCC_UPGRADE}", status);
 	}
 	break;
 

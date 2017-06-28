@@ -11361,7 +11361,7 @@ int wlan_hdd_set_filter(hdd_context_t *hdd_ctx,
 		}
 		packetFilterSetReq.numFieldParams = request->num_params;
 		packetFilterSetReq.coalesceTime = 0;
-		packetFilterSetReq.filterType = HDD_RCV_FILTER_SET;
+		packetFilterSetReq.filterType = SIR_RCV_FILTER_TYPE_FILTER_PKT;
 		for (i = 0; i < request->num_params; i++) {
 			packetFilterSetReq.paramsData[i].protocolLayer =
 				request->params_data[i].protocol_layer;

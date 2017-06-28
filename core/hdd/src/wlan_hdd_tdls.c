@@ -48,6 +48,8 @@
 #include "cds_sched.h"
 #include "wma_types.h"
 #include "cds_concurrency.h"
+#include "wlan_hdd_scan.h"
+
 
 
 static int32_t wlan_hdd_tdls_peer_reset_discovery_processed(tdlsCtx_t *
@@ -939,6 +941,10 @@ void wlan_hdd_tdls_exit(hdd_adapter_t *pAdapter)
 
 	wlan_hdd_tdls_timers_destroy(pHddTdlsCtx);
 	wlan_hdd_tdls_free_list(pHddTdlsCtx);
+
+	if ((pHddCtx->tdls_scan_ctxt.source == VENDOR_SCAN) &&
+	    (NULL != pHddCtx->tdls_scan_ctxt.scan_request))
+		qdf_mem_free(pHddCtx->tdls_scan_ctxt.scan_request);
 
 	wlan_hdd_tdls_free_scan_request(&pHddCtx->tdls_scan_ctxt);
 

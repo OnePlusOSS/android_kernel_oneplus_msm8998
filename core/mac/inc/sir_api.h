@@ -129,6 +129,8 @@ typedef uint8_t tSirVersionString[SIR_VERSION_STRING_LEN];
 
 #define MAX_LEN_UDP_RESP_OFFLOAD 128
 
+#define MAX_RSSI_AVOID_BSSID_LIST    10
+
 /* Maximum number of realms present in fils indication element */
 #define SIR_MAX_REALM_COUNT 7
 /* Realm length */
@@ -8073,6 +8075,23 @@ struct sir_peer_set_rx_blocksize {
 	uint32_t vdev_id;
 	struct qdf_mac_addr peer_macaddr;
 	uint32_t rx_block_ack_win_limit;
+};
+
+/**
+ * struct sir_rssi_disallow_lst - Structure holding Rssi based avoid candidate
+ * list
+ * @node: Node pointer
+ * @bssid: BSSID of the AP
+ * @retry_delay: Retry delay received during last rejection in ms
+ * @ expected_rssi: RSSI at which STA can initate
+ * @time_during_rejection: Timestamp during last rejection in millisec
+ */
+struct sir_rssi_disallow_lst {
+	qdf_list_node_t node;
+	struct qdf_mac_addr bssid;
+	uint32_t retry_delay;
+	int8_t expected_rssi;
+	qdf_time_t time_during_rejection;
 };
 
 /*

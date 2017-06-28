@@ -7290,6 +7290,113 @@ QDF_STATUS lim_util_get_type_subtype(void *pkt, uint8_t *type,
 	return QDF_STATUS_SUCCESS;
 }
 
+/**
+ * lim_assoc_rej_get_remaining_delta() - Get remaining time delta for
+ * the rssi based disallowed list entry
+ * @node: rssi based disallowed list entry
+ *
+ * Return: remaining delta, can be -ve if time has already expired.
+ */
+static inline int
+lim_assoc_rej_get_remaining_delta(struct sir_rssi_disallow_lst *node)
+{
+	qdf_time_t cur_time;
+	uint32_t time_diff;
+
+	cur_time = qdf_do_div(qdf_get_monotonic_boottime(),
+				QDF_MC_TIMER_TO_MS_UNIT);
+	time_diff = cur_time - node->time_during_rejection;
+
+	return node->retry_delay - time_diff;
+}
+
+/**
+ * lim_assoc_rej_rem_entry_with_lowest_delta() - Remove the entry
+ * with lowest time delta
+ * @list: rssi based rejected BSSID list
+ *
+ * Return: QDF_STATUS
+ */
+static QDF_STATUS
+lim_assoc_rej_rem_entry_with_lowest_delta(qdf_list_t *list)
+{
+	struct sir_rssi_disallow_lst *oldest_node = NULL;
+	struct sir_rssi_disallow_lst *cur_node;
+	qdf_list_node_t *cur_list = NULL;
+	qdf_list_node_t *next_list = NULL;
+
+	qdf_list_peek_front(list, &cur_list);
+	while (cur_list) {
+		cur_node = qdf_container_of(cur_list,
+			struct sir_rssi_disallow_lst, node);
+		if (!oldest_node ||
+		   (lim_assoc_rej_get_remaining_delta(oldest_node) >
+		    lim_assoc_rej_get_remaining_delta(cur_node)))
+			oldest_node = cur_node;
+
+		qdf_list_peek_next(list, cur_list, &next_list);
+		cur_list = next_list;
+		next_list = NULL;
+	}
+
+	if (oldest_node) {
+		pe_debug("remove node %pM with lowest delta %d",
+			oldest_node->bssid.bytes,
+			lim_assoc_rej_get_remaining_delta(oldest_node));
+		qdf_list_remove_node(list, &oldest_node->node);
+		qdf_mem_free(oldest_node);
+		return QDF_STATUS_SUCCESS;
+	}
+
+	return QDF_STATUS_E_INVAL;
+}
+
+void lim_assoc_rej_add_to_rssi_based_reject_list(tpAniSirGlobal mac_ctx,
+	tDot11fTLVrssi_assoc_rej  *rssi_assoc_rej,
+	tSirMacAddr bssid, int8_t rssi)
+{
+	struct sir_rssi_disallow_lst *entry;
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+
+	entry = qdf_mem_malloc(sizeof(*entry));
+	if (!entry) {
+		pe_err("malloc failed for bssid entry");
+		return;
+	}
+
+	pe_debug("%pM: assoc resp rssi %d, delta rssi %d retry delay %d sec and list size %d",
+		bssid, rssi, rssi_assoc_rej->delta_rssi,
+		rssi_assoc_rej->retry_delay,
+		qdf_list_size(&mac_ctx->roam.rssi_disallow_bssid));
+
+	qdf_mem_copy(entry->bssid.bytes,
+		bssid, QDF_MAC_ADDR_SIZE);
+	entry->retry_delay = rssi_assoc_rej->retry_delay *
+		QDF_MC_TIMER_TO_MS_UNIT;
+	entry->expected_rssi = rssi + rssi_assoc_rej->delta_rssi;
+	entry->time_during_rejection =
+		qdf_do_div(qdf_get_monotonic_boottime(),
+		QDF_MC_TIMER_TO_MS_UNIT);
+
+	if (qdf_list_size(&mac_ctx->roam.rssi_disallow_bssid) >=
+		MAX_RSSI_AVOID_BSSID_LIST) {
+		status = lim_assoc_rej_rem_entry_with_lowest_delta(
+					&mac_ctx->roam.rssi_disallow_bssid);
+		if (QDF_IS_STATUS_ERROR(status))
+			pe_err("Failed to remove entry with lowest delta");
+	}
+
+	if (QDF_IS_STATUS_SUCCESS(status))
+		status = qdf_list_insert_back(
+				&mac_ctx->roam.rssi_disallow_bssid,
+				&entry->node);
+
+	if (QDF_IS_STATUS_ERROR(status)) {
+		pe_err("Failed to enqueue bssid entry");
+		qdf_mem_free(entry);
+	}
+}
+
 bool lim_check_if_vendor_oui_match(tpAniSirGlobal mac_ctx,
 					uint8_t *oui, uint8_t oui_len,
 			       uint8_t *ie, uint8_t ie_len)

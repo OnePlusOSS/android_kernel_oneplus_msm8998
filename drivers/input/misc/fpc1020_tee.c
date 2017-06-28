@@ -64,6 +64,8 @@ module_param(ignor_home_for_ESD, uint, S_IRUGO | S_IWUSR);
 
 #define ONEPLUS_EDIT  //Onplus modify for msm8996 platform and 15801 HW
 
+extern bool s3320_stop_buttons;
+
 struct fpc1020_data {
 	struct device *dev;
     struct wake_lock ttw_wl;
@@ -305,9 +307,12 @@ static ssize_t report_home_set(struct device *dev,
         if(virtual_key_enable){
                 key_home_pressed = true;
         }else{*/
-            input_report_key(fpc1020->input_dev,
-                            KEY_HOME, 1);
-            input_sync(fpc1020->input_dev);
+            if (!s3320_stop_buttons)
+            {
+				input_report_key(fpc1020->input_dev,
+								KEY_HOME, 1);
+				input_sync(fpc1020->input_dev);
+			}
 /*        }
 #endif*/
 	}

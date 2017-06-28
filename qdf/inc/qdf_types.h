@@ -194,6 +194,21 @@ typedef struct {
 	qdf_resource_type_t type;
 } qdf_resource_t;
 
+/**
+ * enum qdf_driver_type - Indicate the driver type and based on this
+ * do appropriate initialization.
+ *
+ * @QDF_DRIVER_TYPE_PRODUCTION: Driver used in the production
+ * @QDF_DRIVER_TYPE_MFG: Driver used in the Factory
+ * @QDF_DRIVER_TYPE_INVALID: Invalid and unrecognized type
+ *
+ */
+enum qdf_driver_type {
+	QDF_DRIVER_TYPE_PRODUCTION = 0,
+	QDF_DRIVER_TYPE_MFG = 1,
+	QDF_DRIVER_TYPE_INVALID = 0x7FFFFFFF
+};
+
 #define QDF_DMA_BIDIRECTIONAL __QDF_DMA_BIDIRECTIONAL
 #define QDF_DMA_TO_DEVICE __QDF_DMA_TO_DEVICE
 #define QDF_DMA_FROM_DEVICE __QDF_DMA_FROM_DEVICE

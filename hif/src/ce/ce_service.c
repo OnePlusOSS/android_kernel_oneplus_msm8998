@@ -1640,11 +1640,6 @@ static void ce_fastpath_rx_handle(struct CE_state *ce_state,
 	dest_ring->write_index = write_index;
 }
 
-#ifdef CONFIG_SLUB_DEBUG_ON
-#define MSG_FLUSH_NUM 16
-#else /* PERF build */
-#define MSG_FLUSH_NUM 32
-#endif /* SLUB_DEBUG_ON */
 /**
  * ce_per_engine_service_fast() - CE handler routine to service fastpath msgs
  * @scn: hif_context
@@ -1741,15 +1736,17 @@ more_data:
 		 * we are not posting the buffers back instead
 		 * reusing the buffers
 		 */
-		if (nbuf_cmpl_idx == MSG_FLUSH_NUM) {
+		if (nbuf_cmpl_idx == scn->ce_service_max_rx_ind_flush) {
 			hif_record_ce_desc_event(scn, ce_state->id,
 						 FAST_RX_SOFTWARE_INDEX_UPDATE,
 						 NULL, NULL, sw_index);
 			dest_ring->sw_index = sw_index;
 			ce_fastpath_rx_handle(ce_state, cmpl_msdus,
-					      MSG_FLUSH_NUM, ctrl_addr);
+					scn->ce_service_max_rx_ind_flush,
+					ctrl_addr);
 
-			ce_state->receive_count += MSG_FLUSH_NUM;
+			ce_state->receive_count +=
+					scn->ce_service_max_rx_ind_flush;
 			if (qdf_unlikely(hif_ce_service_should_yield(
 						scn, ce_state))) {
 				ce_state->force_break = 1;

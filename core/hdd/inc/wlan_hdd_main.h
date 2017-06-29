@@ -1508,6 +1508,16 @@ struct hdd_scan_chan_info {
 	uint32_t clock_freq;
 };
 
+/**
+ * struct sta_ap_intf_check_work_ctx - sta_ap_intf_check_work
+ * related info
+ * @adapter: adaptor of the interface to which SAP to do SCC
+ *         with
+ */
+struct sta_ap_intf_check_work_ctx {
+	hdd_adapter_t *adapter;
+};
+
 /** Adapter structure definition */
 struct hdd_context_s {
 	/** Global CDS context  */
@@ -1815,6 +1825,7 @@ struct hdd_context_s {
 	/* the context that is capturing tsf */
 	hdd_adapter_t *cap_tsf_context;
 #endif
+	struct sta_ap_intf_check_work_ctx *sta_ap_intf_check_work_info;
 };
 
 int hdd_validate_channel_and_bandwidth(hdd_adapter_t *adapter,

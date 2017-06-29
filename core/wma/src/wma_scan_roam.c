@@ -3106,6 +3106,11 @@ void wma_set_channel(tp_wma_handle wma, tpSwitchChannelParams params)
 		(params->restart_on_chan_switch == true))
 		wma->interfaces[req.vdev_id].is_channel_switch = true;
 
+	if (params->restart_on_chan_switch == true &&
+			wma->interfaces[req.vdev_id].beacon_filter_enabled)
+		wma_remove_beacon_filter(wma,
+				&wma->interfaces[req.vdev_id].beacon_filter);
+
 	if ((wma_is_vdev_in_ap_mode(wma, req.vdev_id) == true) &&
 		(params->reduced_beacon_interval)) {
 		/* Reduce the beacon interval just before the channel switch.

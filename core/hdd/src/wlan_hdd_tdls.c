@@ -1956,11 +1956,11 @@ static hdd_adapter_t *wlan_hdd_tdls_get_adapter(hdd_context_t *hdd_ctx)
 	if (cds_get_connection_count() > 1)
 		return NULL;
 
-	vdev_id = cds_mode_specific_vdev_id(QDF_STA_MODE);
+	vdev_id = cds_mode_specific_vdev_id(CDS_STA_MODE);
 	if (CDS_INVALID_VDEV_ID != vdev_id)
 		return hdd_get_adapter_by_vdev(hdd_ctx, vdev_id);
 
-	vdev_id = cds_mode_specific_vdev_id(QDF_P2P_CLIENT_MODE);
+	vdev_id = cds_mode_specific_vdev_id(CDS_P2P_CLIENT_MODE);
 	if (CDS_INVALID_VDEV_ID != vdev_id)
 		return hdd_get_adapter_by_vdev(hdd_ctx, vdev_id);
 

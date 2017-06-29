@@ -836,6 +836,8 @@ typedef enum {
     WMITLV_TAG_STRUC_wmi_oem_dma_buf_release_entry,
     WMITLV_TAG_STRUC_wmi_pdev_bss_chan_info_request_fixed_param,
     WMITLV_TAG_STRUC_wmi_pdev_bss_chan_info_event_fixed_param,
+    WMITLV_TAG_STRUC_wmi_roam_lca_disallow_config_tlv_param,
+    WMITLV_TAG_STRUC_wmi_vdev_limit_offchan_cmd_fixed_param,
 } WMITLV_TAG_ID;
 
 /*
@@ -1171,6 +1173,7 @@ typedef enum {
     OP(WMI_THERM_THROT_SET_CONF_CMDID) \
     OP(WMI_OEM_DMA_RING_CFG_REQ_CMDID) \
     OP(WMI_PDEV_BSS_CHAN_INFO_REQUEST_CMDID) \
+    OP(WMI_VDEV_LIMIT_OFFCHAN_CMDID) \
     /* add new CMD_LIST elements above this line */
 
 
@@ -2198,6 +2201,12 @@ WMITLV_CREATE_PARAM_STRUC(WMI_PDEV_BSS_CHAN_INFO_REQUEST_CMDID);
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_vdev_get_tx_power_cmd_fixed_param, wmi_vdev_get_tx_power_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
 WMITLV_CREATE_PARAM_STRUC(WMI_VDEV_GET_TX_POWER_CMDID);
 
+/* Limit Offchannel duration Cmd */
+#define WMITLV_TABLE_WMI_VDEV_LIMIT_OFFCHAN_CMDID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_vdev_limit_offchan_cmd_fixed_param, wmi_vdev_limit_offchan_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+
+WMITLV_CREATE_PARAM_STRUC(WMI_VDEV_LIMIT_OFFCHAN_CMDID);
+
 /* PDEV Set Base Mac Address Cmd */
 #define WMITLV_TABLE_WMI_PDEV_SET_BASE_MACADDR_CMDID(id,op,buf,len) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_pdev_set_base_macaddr_cmd_fixed_param, wmi_pdev_set_base_macaddr_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
@@ -2976,7 +2985,8 @@ WMITLV_CREATE_PARAM_STRUC(WMI_DCC_UPDATE_NDL_CMDID);
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_FIXED_STRUC, wmi_mac_addr, bssid_black_list, WMITLV_SIZE_VAR) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_FIXED_STRUC, wmi_ssid, ssid_white_list, WMITLV_SIZE_VAR) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_FIXED_STRUC, wmi_mac_addr, bssid_preferred_list, WMITLV_SIZE_VAR) \
-    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_UINT32, A_UINT32, bssid_preferred_factor, WMITLV_SIZE_VAR)
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_UINT32, A_UINT32, bssid_preferred_factor, WMITLV_SIZE_VAR) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_roam_lca_disallow_config_tlv_param, lca_disallow_param, WMITLV_SIZE_VAR)
 WMITLV_CREATE_PARAM_STRUC(WMI_ROAM_FILTER_CMDID);
 
 /* TSF timestamp action cmd */

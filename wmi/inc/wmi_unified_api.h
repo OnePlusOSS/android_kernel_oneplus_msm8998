@@ -780,8 +780,8 @@ QDF_STATUS wmi_unified_process_ch_avoid_update_cmd(void *wmi_hdl);
 
 QDF_STATUS wmi_unified_send_regdomain_info_to_fw_cmd(void *wmi_hdl,
 				   uint32_t reg_dmn, uint16_t regdmn2G,
-				   uint16_t regdmn5G, int8_t ctl2G,
-				   int8_t ctl5G);
+				   uint16_t regdmn5G, uint8_t ctl2G,
+				   uint8_t ctl5G);
 
 QDF_STATUS wmi_unified_set_tdls_offchan_mode_cmd(void *wmi_hdl,
 			      struct tdls_channel_switch_params *chan_switch_params);
@@ -1400,4 +1400,7 @@ void wmi_print_mgmt_event_log(wmi_unified_t wmi, uint32_t count,
 
 QDF_STATUS wmi_unified_send_dbs_scan_sel_params_cmd(void *wmi_hdl,
 				   struct wmi_dbs_scan_sel_params *wmi_param);
+
+QDF_STATUS wmi_unified_send_limit_off_chan_cmd(void *wmi_hdl,
+				   struct wmi_limit_off_chan_param *wmi_param);
 #endif /* _WMI_UNIFIED_API_H_ */

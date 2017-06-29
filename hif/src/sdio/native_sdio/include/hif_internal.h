@@ -44,7 +44,7 @@
 
 #define HIF_LINUX_MMC_SCATTER_SUPPORT
 
-#define BUS_REQUEST_MAX_NUM                64
+#define BUS_REQUEST_MAX_NUM                105
 
 #define SDIO_CLOCK_FREQUENCY_DEFAULT       25000000
 #define SDWLAN_ENABLE_DISABLE_TIMEOUT      20
@@ -179,6 +179,20 @@ enum hif_sdio_device_state {
 		HIF_DEVICE_STATE_DEEPSLEEP,
 		HIF_DEVICE_STATE_CUTPOWER,
 		HIF_DEVICE_STATE_WOW
+};
+
+/**
+ * struct bus_request_record - basic bus request struct
+ * @request: request info
+ * @address: address of sdio register
+ * @len: length of register that this request will read or write
+ * @time: record time
+ */
+struct bus_request_record {
+	u_int32_t request;
+	u_int32_t address;
+	u_int32_t len;
+	u_int64_t time;
 };
 
 struct bus_request {

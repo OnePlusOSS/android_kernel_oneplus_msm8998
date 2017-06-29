@@ -266,12 +266,12 @@ static inline void qdf_mempool_free(qdf_device_t osdev, qdf_mempool_t pool,
 void qdf_mem_dma_sync_single_for_device(qdf_device_t osdev,
 					qdf_dma_addr_t bus_addr,
 					qdf_size_t size,
-					__dma_data_direction direction);
+					qdf_dma_dir_t direction);
 
 void qdf_mem_dma_sync_single_for_cpu(qdf_device_t osdev,
 					qdf_dma_addr_t bus_addr,
 					qdf_size_t size,
-					__dma_data_direction direction);
+					qdf_dma_dir_t direction);
 /**
  * qdf_str_len() - returns the length of a string
  * @str: input string

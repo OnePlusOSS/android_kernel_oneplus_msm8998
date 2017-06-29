@@ -137,6 +137,11 @@ typedef __qdf_dma_size_t     qdf_dma_size_t;
 typedef __qdf_dma_context_t qdf_dma_context_t;
 
 /**
+ * typedef qdf_dma_dir_t - DMA data direction.
+ */
+typedef __qdf_dma_dir_t qdf_dma_dir_t;
+
+/**
  * struct qdf_dma_map_info - Information inside a DMA map.
  * @nsegs: total number mapped segments
  * struct __dma_segs - Information of physical address.
@@ -189,17 +194,9 @@ typedef struct {
 	qdf_resource_type_t type;
 } qdf_resource_t;
 
-/**
- * typedef qdf_dma_dir_t - DMA directions
- * @QDF_DMA_BIDIRECTIONAL: bidirectional data
- * @QDF_DMA_TO_DEVICE: data going from device to memory
- * @QDF_DMA_FROM_DEVICE: data going from memory to device
- */
-typedef enum {
-	QDF_DMA_BIDIRECTIONAL = __QDF_DMA_BIDIRECTIONAL,
-	QDF_DMA_TO_DEVICE = __QDF_DMA_TO_DEVICE,
-	QDF_DMA_FROM_DEVICE = __QDF_DMA_FROM_DEVICE,
-} qdf_dma_dir_t;
+#define QDF_DMA_BIDIRECTIONAL __QDF_DMA_BIDIRECTIONAL
+#define QDF_DMA_TO_DEVICE __QDF_DMA_TO_DEVICE
+#define QDF_DMA_FROM_DEVICE __QDF_DMA_FROM_DEVICE
 
 /* work queue(kernel thread)/DPC function callback */
 typedef void (*qdf_defer_fn_t)(void *);

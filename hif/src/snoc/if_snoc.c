@@ -458,3 +458,18 @@ int hif_snoc_bus_suspend_noirq(struct hif_softc *scn)
 	return 0;
 }
 
+/**
+ * hif_is_target_register_access_allowed(): Check target register access allow
+ * @scn: HIF Context
+ *
+ * This function help to check whether target register access is allowed or not
+ *
+ * Return: true if target access is allowed else false
+ */
+bool hif_is_target_register_access_allowed(struct hif_softc *scn)
+{
+	if (hif_is_recovery_in_progress(scn))
+		return hif_is_target_ready(scn);
+	else
+		return true;
+}

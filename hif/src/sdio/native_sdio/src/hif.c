@@ -55,6 +55,23 @@
 #define ATH_MODULE_NAME hif
 #include "a_debug.h"
 
+#define BUS_REQ_RECORD_SIZE 100
+u_int32_t g_bus_req_buf_idx = 0;
+qdf_spinlock_t g_bus_request_record_lock;
+struct bus_request_record bus_request_record_buf[BUS_REQ_RECORD_SIZE];
+
+#define BUS_REQUEST_RECORD(r, a, l) { \
+	qdf_spin_lock_irqsave(&g_bus_request_record_lock); \
+	if (g_bus_req_buf_idx == BUS_REQ_RECORD_SIZE) \
+		g_bus_req_buf_idx = 0; \
+	bus_request_record_buf[g_bus_req_buf_idx].request = r;  \
+	bus_request_record_buf[g_bus_req_buf_idx].address = a;  \
+	bus_request_record_buf[g_bus_req_buf_idx].len = l; \
+	bus_request_record_buf[g_bus_req_buf_idx].time = qdf_get_monotonic_boottime(); \
+	g_bus_req_buf_idx++; \
+	qdf_spin_unlock_irqrestore(&g_bus_request_record_lock); \
+}
+
 #if HIF_USE_DMA_BOUNCE_BUFFER
 /* macro to check if DMA buffer is WORD-aligned and DMA-able.
  * Most host controllers assume the
@@ -339,7 +356,7 @@ __hif_read_write(struct hif_sdio_dev *device,
 {
 	uint8_t opcode;
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
-	int ret;
+	int ret = A_OK;
 	uint8_t *tbuffer;
 	bool bounced = false;
 
@@ -484,7 +501,7 @@ __hif_read_write(struct hif_sdio_dev *device,
 					("%s: writesb ret=%d address: 0x%X, len: %d, 0x%X\n",
 					 __func__, ret, address, length,
 					 *(int *)tbuffer));
-			} else {
+			} else if (tbuffer) {
 				ret =
 					sdio_memcpy_toio(device->func, address,
 							 tbuffer, length);
@@ -522,7 +539,7 @@ __hif_read_write(struct hif_sdio_dev *device,
 					("%s: readsb ret=%d address: 0x%X, len: %d, 0x%X\n",
 					 __func__, ret, address, length,
 					 *(int *)tbuffer));
-			} else {
+			} else if (tbuffer) {
 				ret =
 					sdio_memcpy_fromio(device->func,
 							   tbuffer,
@@ -533,7 +550,7 @@ __hif_read_write(struct hif_sdio_dev *device,
 					 *(int *)tbuffer));
 			}
 #if HIF_USE_DMA_BOUNCE_BUFFER
-			if (bounced)
+			if (bounced && tbuffer)
 				memcpy(buffer, tbuffer, length);
 #endif
 		} else {
@@ -541,7 +558,7 @@ __hif_read_write(struct hif_sdio_dev *device,
 					("%s: Invalid direction: 0x%08x\n",
 					 __func__, request));
 			status = QDF_STATUS_E_INVAL;
-			break;
+			return status;
 		}
 
 		if (ret) {
@@ -633,11 +650,12 @@ hif_read_write(struct hif_sdio_dev *device,
 					 : "Synch"));
 			busrequest = hif_allocate_bus_request(device);
 			if (busrequest == NULL) {
-				AR_DEBUG_PRINTF(ATH_DEBUG_ERROR,
+				AR_DEBUG_PRINTF(ATH_DEBUG_INFO,
 					("no async bus requests available (%s, addr:0x%X, len:%d)\n",
 					 request & HIF_SDIO_READ ? "READ" :
 					 "WRITE", address, length));
-				return QDF_STATUS_E_FAILURE;
+				BUS_REQUEST_RECORD(request, address, length);
+				return QDF_STATUS_E_CANCELED;
 			}
 			busrequest->address = address;
 			busrequest->buffer = buffer;
@@ -1786,8 +1804,8 @@ static int hif_device_inserted(struct sdio_func *func,
 	}
 
 	qdf_spinlock_create(&device->lock);
-
 	qdf_spinlock_create(&device->asynclock);
+	qdf_spinlock_create(&g_bus_request_record_lock);
 
 	DL_LIST_INIT(&device->scatter_req_head);
 
@@ -2388,6 +2406,10 @@ int hif_device_resume(struct device *dev)
 	struct hif_sdio_dev *device;
 
 	device = get_hif_device(func);
+	if (!device) {
+		AR_DEBUG_PRINTF(ATH_DEBUG_ERROR, ("get hif device failed\n"));
+		return QDF_STATUS_E_FAILURE;
+	}
 
 	if (device->device_state == HIF_DEVICE_STATE_CUTPOWER) {
 		config = HIF_DEVICE_POWER_UP;
@@ -2419,7 +2441,7 @@ int hif_device_resume(struct device *dev)
 	AR_DEBUG_PRINTF(ATH_DEBUG_TRACE,
 			("%s: +hif_device_resume\n",
 			 __func__));
-	if (device && device->claimed_ctx
+	if (device->claimed_ctx
 	    && osdrv_callbacks.device_suspend_handler) {
 		status =
 		osdrv_callbacks.device_resume_handler(device->claimed_ctx);
@@ -2543,9 +2565,18 @@ static struct hif_sdio_dev *add_hif_device(struct sdio_func *func)
 	hifdevice = (struct hif_sdio_dev *) qdf_mem_malloc(sizeof(
 							struct hif_sdio_dev));
 	AR_DEBUG_ASSERT(hifdevice != NULL);
+	if (hifdevice == NULL) {
+		AR_DEBUG_PRINTF(ATH_DEBUG_ERROR, ("Alloc hif device fail\n"));
+		return NULL;
+	}
 #if HIF_USE_DMA_BOUNCE_BUFFER
 	hifdevice->dma_buffer = qdf_mem_malloc(HIF_DMA_BUFFER_SIZE);
 	AR_DEBUG_ASSERT(hifdevice->dma_buffer != NULL);
+	if (hifdevice->dma_buffer == NULL) {
+		qdf_mem_free(hifdevice);
+		AR_DEBUG_PRINTF(ATH_DEBUG_ERROR, ("Alloc dma buffer fail\n"));
+		return NULL;
+	}
 #endif
 	hifdevice->func = func;
 	hifdevice->power_config = HIF_DEVICE_POWER_UP;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -40,6 +40,8 @@
 	hif_target_sleep_state_adjust(scn, false, true)
 #define Q_TARGET_ACCESS_END(scn) \
 	hif_target_sleep_state_adjust(scn, true, false)
+#define TARGET_REGISTER_ACCESS_ALLOW(scn)\
+		hif_is_target_register_access_allowed(scn)
 
 /*
  * A_TARGET_ACCESS_LIKELY will not wait for the target to wake up before

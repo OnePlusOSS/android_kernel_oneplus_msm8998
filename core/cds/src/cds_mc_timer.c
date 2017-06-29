@@ -126,7 +126,7 @@ void cds_linux_timer_callback(unsigned long data)
 	msg.bodyptr = user_data;
 	msg.bodyval = 0;
 
-	if (cds_mq_post_message(CDS_MQ_ID_SYS, &msg) == QDF_STATUS_SUCCESS)
+	if (cds_mq_post_message(QDF_MODULE_ID_SYS, &msg) == QDF_STATUS_SUCCESS)
 		return;
 	QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
 		  "%s: Could not enqueue timer to any queue", __func__);

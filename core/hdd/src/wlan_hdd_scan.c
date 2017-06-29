@@ -610,26 +610,32 @@ static void hdd_update_dbs_scan_ctrl_ext_flag(hdd_context_t *hdd_ctx,
 	/* Resetting the scan_ctrl_flags_ext to 0 */
 	scan_req->scan_ctrl_flags_ext = 0;
 
+	if (!(hdd_ctx->is_dbs_scan_duty_cycle_enabled)) {
+		scan_dbs_policy = HDD_SCAN_DBS_POLICY_IGNORE_DUTY;
+		hdd_info("DBS scan duty cycle is disabled");
+		goto end;
+	}
+
 	if (hdd_ctx->config->dual_mac_feature_disable ==
 				DISABLE_DBS_CXN_AND_SCAN) {
-		hdd_info("DBS is disabled");
+		hdd_debug("DBS is disabled");
 		goto end;
 	}
 
 	if (scan_req->SSIDs.numOfSSIDs) {
-		hdd_info("Directed SSID");
+		hdd_debug("Directed SSID");
 		goto end;
 	}
 
 	if (!(qdf_is_macaddr_zero(&scan_req->bssid) ||
 			qdf_is_group_addr((u8 *)&scan_req->bssid))) {
-		hdd_info("Directed BSSID");
+		hdd_debug("Directed BSSID");
 		goto end;
 	}
 
 	num_chan = scan_req->ChannelInfo.numOfChannels;
 
-	hdd_info("num_chan = %u, threshold = %u", num_chan,
+	hdd_debug("num_chan = %u, threshold = %u", num_chan,
 			HDD_MIN_CHAN_DBS_SCAN_THRESHOLD);
 
 	/* num_chan=0 means all channels */
@@ -1261,7 +1267,7 @@ static void hdd_vendor_scan_callback(hdd_adapter_t *adapter,
 		goto nla_put_failure;
 	}
 	cfg80211_vendor_event(skb, GFP_KERNEL);
-	hdd_info("scan complete event sent to NL");
+	hdd_debug("scan complete event sent to NL");
 	qdf_mem_free(req);
 	return;
 
@@ -1399,7 +1405,7 @@ static QDF_STATUS hdd_cfg80211_scan_done_callback(tHalHandle halHandle,
 			 */
 			if (time_elapsed >
 			    MIN_TIME_REQUIRED_FOR_NEXT_BUG_REPORT) {
-				cds_flush_logs(WLAN_LOG_TYPE_NON_FATAL,
+				cds_flush_logs(WLAN_LOG_TYPE_FATAL,
 						WLAN_LOG_INDICATOR_HOST_DRIVER,
 						WLAN_LOG_REASON_NO_SCAN_RESULTS,
 						true, false);
@@ -1877,13 +1883,6 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 	}
 #endif
 
-	if (pHddCtx->btCoexModeSet) {
-		scan_ebusy_cnt++;
-		cds_info("BTCoex Mode operation in progress. scan_ebusy_cnt: %d",
-			 scan_ebusy_cnt);
-		return -EBUSY;
-	}
-
 	/* Check if scan is allowed at this point of time */
 	if (cds_is_connection_in_progress(&curr_session_id, &curr_reason)) {
 		scan_ebusy_cnt++;
@@ -2184,7 +2183,7 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 						pHddCtx->no_of_probe_req_ouis *
 						sizeof(struct vendor_oui));
 			if (!scan_req.voui) {
-				hdd_info("Not enough memory for voui");
+				hdd_debug("Not enough memory for voui");
 				scan_req.num_vendor_oui = 0;
 				status = -ENOMEM;
 				goto free_mem;

@@ -830,7 +830,9 @@ void hdd_wma_send_fastreassoc_cmd(hdd_adapter_t *adapter,
 {
 	QDF_STATUS status;
 	hdd_wext_state_t *wext_state = WLAN_HDD_GET_WEXT_STATE_PTR(adapter);
+	hdd_station_ctx_t *hdd_sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
 	tCsrRoamProfile *profile = &wext_state->roamProfile;
+	tSirMacAddr connected_bssid = {0};
 	struct wma_roam_invoke_cmd *fastreassoc;
 	cds_msg_t msg = {0};
 
@@ -838,6 +840,15 @@ void hdd_wma_send_fastreassoc_cmd(hdd_adapter_t *adapter,
 	if (NULL == fastreassoc) {
 		hdd_err("qdf_mem_malloc failed for fastreassoc");
 		return;
+	}
+	if (hdd_sta_ctx) {
+		qdf_mem_copy(connected_bssid,
+			     hdd_sta_ctx->conn_info.bssId.bytes, ETH_ALEN);
+		/* if both are same then set the flag */
+		if (!qdf_mem_cmp(connected_bssid, bssid, ETH_ALEN)) {
+			fastreassoc->is_same_bssid = true;
+			hdd_debug("bssid same, bssid[%pM]", bssid);
+		}
 	}
 	fastreassoc->vdev_id = adapter->sessionId;
 	fastreassoc->bssid[0] = bssid[0];
@@ -2967,8 +2978,8 @@ static int drv_cmd_country(hdd_adapter_t *adapter,
 			country_code,
 			adapter,
 			hdd_ctx->pcds_context,
-			eSIR_TRUE,
-			eSIR_TRUE);
+			true,
+			true);
 	if (status == QDF_STATUS_SUCCESS) {
 		rc = wait_for_completion_timeout(
 			&adapter->change_country_code,

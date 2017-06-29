@@ -896,7 +896,7 @@ lim_handle80211_frames(tpAniSirGlobal pMac, tpSirMsgQ limMsg, uint8_t *pDeferMsg
 	tpSirMacMgmtHdr pHdr = NULL;
 	tpPESession psessionEntry = NULL;
 	uint8_t sessionId;
-	tAniBool isFrmFt = false;
+	bool isFrmFt = false;
 
 	*pDeferMsg = false;
 	lim_get_b_dfrom_rx_packet(pMac, limMsg->bodyptr,
@@ -988,8 +988,8 @@ lim_handle80211_frames(tpAniSirGlobal pMac, tpSirMsgQ limMsg, uint8_t *pDeferMsg
 			psessionEntry = pe_find_session_by_peer_sta(pMac,
 						pHdr->sa, &sessionId);
 			if (psessionEntry == NULL) {
-				pe_err("session does not exist for bssId");
-				lim_print_mac_addr(pMac, pHdr->sa, LOGE);
+				pe_debug("session does not exist for bssId");
+				lim_print_mac_addr(pMac, pHdr->sa, LOGD);
 				goto end;
 			} else {
 				pe_debug("SessionId:%d exists for given Bssid",

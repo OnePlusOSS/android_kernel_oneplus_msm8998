@@ -2223,7 +2223,7 @@ send_response:
 	cds_msg.bodyval = 0;
 
 	if (QDF_STATUS_SUCCESS !=
-	    cds_mq_post_message(CDS_MQ_ID_SME, (cds_msg_t *) &cds_msg)) {
+	    cds_mq_post_message(QDF_MODULE_ID_SME, (cds_msg_t *) &cds_msg)) {
 		WMA_LOGE("%s: could not post peer info rsp msg to SME",
 			 __func__);
 		/* free the mem and return */
@@ -3040,7 +3040,7 @@ void ol_rx_aggregation_hole(uint32_t hole_info)
 	cds_msg.bodyptr = rx_aggr_hole_event;
 	cds_msg.bodyval = 0;
 
-	status = cds_mq_post_message(CDS_MQ_ID_SME, &cds_msg);
+	status = cds_mq_post_message(QDF_MODULE_ID_SME, &cds_msg);
 	if (status != QDF_STATUS_SUCCESS) {
 		WMA_LOGE("%s: Failed to post aggr event to SME", __func__);
 		qdf_mem_free(rx_aggr_hole_event);
@@ -3117,7 +3117,7 @@ void ol_rx_err(ol_pdev_handle pdev, uint8_t vdev_id,
 	cds_msg.bodyptr = (void *) mic_err_ind;
 
 	if (QDF_STATUS_SUCCESS !=
-		cds_mq_post_message(CDS_MQ_ID_SME, (cds_msg_t *) &cds_msg)) {
+		cds_mq_post_message(QDF_MODULE_ID_SME, (cds_msg_t *) &cds_msg)) {
 		WMA_LOGE("%s: could not post mic failure indication to SME",
 			 __func__);
 		qdf_mem_free((void *)mic_err_ind);
@@ -3271,7 +3271,7 @@ wma_indicate_err(
 		cds_msg.type = eWNI_SME_MIC_FAILURE_IND;
 		cds_msg.bodyptr = (void *) mic_err_ind;
 		if (QDF_STATUS_SUCCESS !=
-			cds_mq_post_message(CDS_MQ_ID_SME,
+			cds_mq_post_message(QDF_MODULE_ID_SME,
 				 (cds_msg_t *) &cds_msg)) {
 			WMA_LOGE("%s: mic failure ind post to SME failed",
 					 __func__);

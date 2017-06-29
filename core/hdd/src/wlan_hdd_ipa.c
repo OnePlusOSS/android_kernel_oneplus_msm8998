@@ -2289,7 +2289,11 @@ static void hdd_ipa_uc_op_cb(struct op_msg_type *op_msg, void *usr_ctxt)
 			  ipa_stat.tx_ch_stats.num_unexpected_db,
 			  ipa_stat.tx_ch_stats.num_bam_int_handled,
 			  ipa_stat.tx_ch_stats.
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0))
+			  num_bam_int_in_non_running_state,
+#else
 			  num_bam_int_in_non_runnning_state,
+#endif
 			  ipa_stat.tx_ch_stats.num_qmb_int_handled);
 
 		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
@@ -2383,7 +2387,11 @@ static void hdd_ipa_uc_offload_enable_disable(hdd_adapter_t *adapter,
 			    "Interface context is NULL");
 		return;
 	}
-
+	if (session_id >= CSR_ROAM_SESSION_MAX) {
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,
+			    "invalid session id: %d", session_id);
+		return;
+	}
 	if (enable == hdd_ipa->vdev_offload_enabled[session_id]) {
 		/* IPA offload status is already set as desired */
 		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,

@@ -197,10 +197,6 @@ struct tag_csrscan_result {
 	 * equal preferValue
 	 */
 	uint32_t capValue;
-	/* This member must be the last in the structure because the end of
-	 * tSirBssDescription (inside) is an
-	 * array with nonknown size at this time
-	 */
 	/* Preferred Encryption type that matched with profile. */
 	eCsrEncryptionType ucEncryptionType;
 	eCsrEncryptionType mcEncryptionType;
@@ -209,7 +205,12 @@ struct tag_csrscan_result {
 	int  bss_score;
 
 	tCsrScanResultInfo Result;
-	/* Do not add any element here */
+	/*
+	 * WARNING - Do not add any element here
+	 * This member Result must be the last in the structure because the end
+	 * of tSirBssDescription (inside) is an array with nonknown size at
+	 * this time.
+	 */
 };
 
 struct scan_result_list {
@@ -798,6 +799,8 @@ void csr_get_vdev_type_nss(tpAniSirGlobal mac_ctx,
 #define ENC_MODE_WEP104 2
 #define ENC_MODE_TKIP   3
 #define ENC_MODE_AES    4
+#define ENC_MODE_AES_GCMP    5
+#define ENC_MODE_AES_GCMP_256    6
 #ifdef FEATURE_WLAN_WAPI
 #define ENC_MODE_SMS4   5       /* WAPI */
 #endif /* FEATURE_WLAN_WAPI */

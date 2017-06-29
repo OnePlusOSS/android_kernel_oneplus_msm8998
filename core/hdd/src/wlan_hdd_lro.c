@@ -533,6 +533,14 @@ int hdd_lro_enable(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 		return 0;
 	}
 
+	/*
+	 * In case of USB tethering, LRO is disabled. If SSR happened
+	 * during that time, then as part of SSR init, do not enable
+	 * the LRO again. Keep the LRO state same as before SSR.
+	 */
+	if (qdf_atomic_read(&hdd_ctx->vendor_disable_lro_flag))
+		return 0;
+
 	adapter->dev->features |= NETIF_F_LRO;
 
 	if (hdd_ctx->config->enable_tcp_delack) {
@@ -611,7 +619,8 @@ enum hdd_lro_rx_status hdd_lro_rx(hdd_context_t *hdd_ctx,
 
 	if (((adapter->dev->features & NETIF_F_LRO) != NETIF_F_LRO) ||
 			qdf_atomic_read(&hdd_ctx->disable_lro_in_concurrency) ||
-			QDF_NBUF_CB_RX_PEER_CACHED_FRM(skb))
+			QDF_NBUF_CB_RX_PEER_CACHED_FRM(skb) ||
+			qdf_atomic_read(&hdd_ctx->disable_lro_in_low_tput))
 		return status;
 
 	if (QDF_NBUF_CB_RX_TCP_PROTO(skb)) {
@@ -711,4 +720,52 @@ void hdd_disable_lro_in_concurrency(hdd_context_t *hdd_ctx)
 		hdd_ctx->config->enable_tcp_delack = 1;
 	}
 	qdf_atomic_set(&hdd_ctx->disable_lro_in_concurrency, 1);
+}
+
+void hdd_disable_lro_for_low_tput(hdd_context_t *hdd_ctx, bool disable)
+{
+	if (disable)
+		qdf_atomic_set(&hdd_ctx->disable_lro_in_low_tput, 1);
+	else
+		qdf_atomic_set(&hdd_ctx->disable_lro_in_low_tput, 0);
+}
+
+/**
+ * hdd_lro_set_reset() - vendor command for Disable/Enable LRO
+ * @hdd_ctx: hdd context
+ * @hdd_adapter_t: adapter
+ * @enable_flag: enable or disable LRO.
+ *
+ * Return: none
+ */
+QDF_STATUS
+hdd_lro_set_reset(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
+			       uint8_t enable_flag)
+{
+	if (enable_flag) {
+		qdf_atomic_set(&hdd_ctx->vendor_disable_lro_flag, 0);
+		hdd_lro_enable(hdd_ctx, adapter);
+	} else {
+		if (!hdd_ctx->config->lro_enable ||
+		    QDF_STA_MODE != adapter->device_mode)
+			return 0;
+
+		/* Disable LRO, Enable tcpdelack*/
+		qdf_atomic_set(&hdd_ctx->vendor_disable_lro_flag, 1);
+		adapter->dev->features &= ~NETIF_F_LRO;
+		hdd_debug("LRO Disabled");
+
+		if (!hdd_ctx->config->enable_tcp_delack) {
+			struct wlan_rx_tp_data rx_tp_data;
+
+			hdd_debug("Enable TCP delack as LRO is disabled.");
+			rx_tp_data.rx_tp_flags = TCP_DEL_ACK_IND;
+			rx_tp_data.level = hdd_ctx->cur_rx_level;
+			wlan_hdd_send_svc_nlink_msg(hdd_ctx->radio_index,
+				WLAN_SVC_WLAN_TP_IND, &rx_tp_data,
+				sizeof(rx_tp_data));
+			hdd_ctx->config->enable_tcp_delack = 1;
+		}
+	}
+	return 0;
 }

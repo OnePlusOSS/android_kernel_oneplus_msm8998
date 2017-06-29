@@ -755,7 +755,7 @@ lim_fill_assoc_ind_params(tpAniSirGlobal mac_ctx,
 
 	/* Copy the new TITAN capabilities */
 	sme_assoc_ind->spectrumMgtIndicator = assoc_ind->spectrumMgtIndicator;
-	if (assoc_ind->spectrumMgtIndicator == eSIR_TRUE) {
+	if (assoc_ind->spectrumMgtIndicator == true) {
 		sme_assoc_ind->powerCap.minTxPower =
 			assoc_ind->powerCap.minTxPower;
 		sme_assoc_ind->powerCap.maxTxPower =
@@ -3265,7 +3265,7 @@ void lim_process_rx_scan_event(tpAniSirGlobal pMac, void *buf)
 	case SIR_SCAN_EVENT_START_FAILED:
 		if (ROC_SCAN_REQUESTOR_ID == pScanEvent->requestor) {
 			lim_send_sme_roc_rsp(pMac, eWNI_SME_REMAIN_ON_CHN_RSP,
-					 QDF_STATUS_SUCCESS,
+					 eSIR_SME_SUCCESS,
 					 pScanEvent->sessionId,
 					 pScanEvent->scanId);
 			qdf_mem_free(pMac->lim.gpLimRemainOnChanReq);
@@ -3293,7 +3293,7 @@ void lim_process_rx_scan_event(tpAniSirGlobal pMac, void *buf)
 			if (pMac->lim.gpLimRemainOnChanReq) {
 				lim_send_sme_roc_rsp(pMac,
 						 eWNI_SME_REMAIN_ON_CHN_RDY_IND,
-						 QDF_STATUS_SUCCESS,
+						 eSIR_SME_SUCCESS,
 						 pScanEvent->sessionId,
 						 pScanEvent->scanId);
 			} else {

@@ -201,12 +201,6 @@ typedef enum {
 	eSAP_USR_INITATED_DISASSOC
 } eSapDisassocReason;
 
-/*Handle bool over here*/
-typedef enum {
-	eSAP_FALSE,
-	eSAP_TRUE,
-} eSapBool;
-
 typedef enum {
 	eSAP_DFS_NOL_CLEAR,
 	eSAP_DFS_NOL_RANDOMIZE,
@@ -316,7 +310,7 @@ typedef struct sap_StationMICFailureEvent_s {
 	struct qdf_mac_addr srcMacAddr;    /* address used to compute MIC */
 	struct qdf_mac_addr staMac;        /* taMacAddr transmitter address */
 	struct qdf_mac_addr dstMacAddr;
-	eSapBool multicast;
+	bool   multicast;
 	uint8_t IV1;            /* first byte of IV */
 	uint8_t keyId;          /* second byte of IV */
 	uint8_t TSC[SIR_CIPHER_SEQ_CTR_SIZE];           /* sequence number */
@@ -922,7 +916,7 @@ QDF_STATUS wlansap_disassoc_sta(void *p_cds_gctx,
 QDF_STATUS wlansap_deauth_sta(void *p_cds_gctx,
 			struct tagCsrDelStaParams *pDelStaParams);
 QDF_STATUS wlansap_set_channel_change_with_csa(void *p_cds_gctx,
-			uint32_t targetChannel, enum phy_ch_width target_bw);
+	uint32_t targetChannel, enum phy_ch_width target_bw, bool strict);
 QDF_STATUS wlansap_set_key_sta(void *p_cds_gctx,
 	tCsrRoamSetKey *pSetKeyInfo);
 QDF_STATUS wlansap_get_assoc_stations(void *p_cds_gctx,

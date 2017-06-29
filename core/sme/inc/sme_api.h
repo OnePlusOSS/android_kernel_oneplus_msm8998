@@ -104,6 +104,7 @@ typedef void (*hdd_ftm_msg_processor)(void *);
 typedef struct _smeConfigParams {
 	tCsrConfigParam csrConfig;
 	struct rrm_config_param rrmConfig;
+	bool snr_monitor_enabled;
 } tSmeConfigParams, *tpSmeConfigParams;
 
 #ifdef FEATURE_WLAN_TDLS
@@ -468,8 +469,8 @@ QDF_STATUS sme_change_country_code(tHalHandle hHal,
 		uint8_t *pCountry,
 		void *pContext,
 		void *p_cds_context,
-		tAniBool countryFromUserSpace,
-		tAniBool sendRegHint);
+		bool countryFromUserSpace,
+		bool sendRegHint);
 QDF_STATUS sme_generic_change_country_code(tHalHandle hHal,
 					   uint8_t *pCountry);
 QDF_STATUS sme_tx_fail_monitor_start_stop_ind(tHalHandle hHal,
@@ -1752,4 +1753,30 @@ QDF_STATUS sme_get_peer_info_ext(tHalHandle hal,
 		void *context,
 		void (*callbackfn)(struct sir_peer_info_ext_resp *param,
 			void *pcontext));
+
+/**
+ * sme_cli_set_command() - SME wrapper API over WMA "set" command
+ * processor cmd
+ * @vdev_id: virtual device for the command
+ * @param_id: parameter id
+ * @sval: parameter value
+ * @vpdev: parameter category
+ *
+ * Command handler for set operations
+ *
+ * Return: 0 on success, errno on failure
+ */
+int sme_cli_set_command(int vdev_id, int param_id, int sval, int vpdev);
+
+/*
+ * sme_set_chan_info_callback() - set scan chan info call back
+ * @hal: Handle returned by mac_open
+ * @callback: scan chan info call back
+ *
+ * This function is used to set scan chan info call back.
+ *
+ * Return: None
+ */
+void sme_set_chan_info_callback(tHalHandle hal_handle,
+			void (*callback)(struct scan_chan_info *chan_info));
 #endif /* #if !defined( __SME_API_H ) */

@@ -63,12 +63,6 @@
 #define true    1
 #endif
 
-typedef enum eAniBool {
-	eSIR_FALSE,
-	eSIR_TRUE,
-	eSIR_DONOT_USE_BOOL = SIR_MAX_ENUM_SIZE
-} tAniBool;
-
 /* / Authentication type enum used with peer */
 typedef enum eAniAuthType {
 	eSIR_OPEN_SYSTEM,
@@ -98,6 +92,9 @@ typedef enum eAniEdType {
 	   Thus while setting BIP encryption mode in corresponding DPU Desc
 	   eSIR_ED_AES_128_CMAC should be set to eSIR_ED_CCMP */
 	eSIR_ED_AES_128_CMAC,
+	/* Firmware uses key length to find GCMP 128 or 256 */
+	eSIR_ED_GCMP,
+	eSIR_ED_GCMP_256,
 	eSIR_ED_NOT_IMPLEMENTED = SIR_MAX_ENUM_SIZE
 } tAniEdType;
 
@@ -183,7 +180,7 @@ typedef struct sSirMicFailureInfo {
 	tSirMacAddr srcMacAddr; /* address used to compute MIC */
 	tSirMacAddr taMacAddr;  /* transmitter address */
 	tSirMacAddr dstMacAddr;
-	tAniBool multicast;
+	bool multicast;
 	uint8_t IV1;            /* first byte of IV */
 	uint8_t keyId;          /* second byte of IV */
 	uint8_t TSC[SIR_CIPHER_SEQ_CTR_SIZE];   /* sequence number */

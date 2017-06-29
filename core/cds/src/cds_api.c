@@ -1423,7 +1423,7 @@ QDF_STATUS cds_free_context(void *p_cds_context, QDF_MODULE_ID moduleID,
  *         QDF_STATUS_E_FAILURE on failure
  *         QDF_STATUS_E_RESOURCES on resource allocation failure
  */
-QDF_STATUS cds_mq_post_message_by_priority(CDS_MQ_ID msgQueueId,
+QDF_STATUS cds_mq_post_message_by_priority(QDF_MODULE_ID msgQueueId,
 					   cds_msg_t *pMsg,
 					   int is_high_priority)
 {
@@ -1453,28 +1453,28 @@ QDF_STATUS cds_mq_post_message_by_priority(CDS_MQ_ID msgQueueId,
 
 	switch (msgQueueId) {
 	/* Message Queue ID for messages bound for SME */
-	case CDS_MQ_ID_SME:
+	case QDF_MODULE_ID_SME:
 	{
 		pTargetMq = &(gp_cds_context->qdf_sched.smeMcMq);
 		break;
 	}
 
 	/* Message Queue ID for messages bound for PE */
-	case CDS_MQ_ID_PE:
+	case QDF_MODULE_ID_PE:
 	{
 		pTargetMq = &(gp_cds_context->qdf_sched.peMcMq);
 		break;
 	}
 
 	/* Message Queue ID for messages bound for wma */
-	case CDS_MQ_ID_WMA:
+	case QDF_MODULE_ID_WMA:
 	{
 		pTargetMq = &(gp_cds_context->qdf_sched.wmaMcMq);
 		break;
 	}
 
 	/* Message Queue ID for messages bound for the SYS module */
-	case CDS_MQ_ID_SYS:
+	case QDF_MODULE_ID_SYS:
 	{
 		pTargetMq = &(gp_cds_context->qdf_sched.sysMcMq);
 		break;

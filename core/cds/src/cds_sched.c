@@ -608,6 +608,9 @@ static inline void cds_mc_thread_watchdog_warn(uint16_t msg_type_id)
 static void cds_mc_thread_watchdog_bite(void *arg)
 {
 	cds_mc_thread_watchdog_warn(*(uint16_t *)arg);
+	if (cds_is_driver_recovering())
+		return;
+
 	QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
 		  "%s: Going down for MC Thread Watchdog Bite!", __func__);
 	QDF_BUG(0);

@@ -282,14 +282,14 @@ typedef struct sPESession       /* Added to Support BT-AMP */
 	int8_t maxTxPower;   /* MIN (Regulatory and local power constraint) */
 	enum tQDF_ADAPTER_MODE pePersona;
 	int8_t txMgmtPower;
-	tAniBool is11Rconnection;
+	bool is11Rconnection;
 
 #ifdef FEATURE_WLAN_ESE
-	tAniBool isESEconnection;
+	bool isESEconnection;
 	tEsePEContext eseContext;
 #endif
-	tAniBool isFastTransitionEnabled;
-	tAniBool isFastRoamIniFeatureEnabled;
+	bool isFastTransitionEnabled;
+	bool isFastRoamIniFeatureEnabled;
 	tSirNoAParam p2pNoA;
 	tSirP2PNoaAttr p2pGoPsUpdate;
 	uint32_t defaultAuthFailureTimeout;
@@ -501,6 +501,7 @@ typedef struct sPESession       /* Added to Support BT-AMP */
 	uint8_t deauthmsgcnt;
 	uint8_t disassocmsgcnt;
 	bool enable_bcast_probe_rsp;
+	uint8_t ht_client_cnt;
 } tPESession, *tpPESession;
 
 /*-------------------------------------------------------------------------

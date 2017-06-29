@@ -1959,60 +1959,58 @@ lim_decide_sta_protection(tpAniSirGlobal mac_ctx,
 	}
 }
 
-#ifdef WLAN_FEATURE_ROAM_OFFLOAD
-static void lim_trigger_channel_switch_through_roaming(uint32_t sme_sessionid,
-			tSirMacAddr bssid, uint8_t channel)
+static void lim_trigger_disconnect_with_ap(uint32_t sme_sessionid)
 {
-	struct wma_roam_invoke_cmd *fastreassoc;
-	cds_msg_t msg = {0};
+	cds_msg_t msg = { 0 };
+	QDF_STATUS qdf_status;
 
-	fastreassoc = qdf_mem_malloc(sizeof(struct wma_roam_invoke_cmd));
-	if (NULL == fastreassoc) {
-		pe_err("qdf_mem_malloc failed for fastreassoc");
+	msg.type = eWNI_SME_FORCE_DISCONNECT;
+	msg.bodyptr = NULL;
+	msg.bodyval = sme_sessionid;
+	msg.callback = NULL;
+
+	pe_debug("disconneting due to Rx LDPC change for vdev-id:%d",
+		sme_sessionid);
+	qdf_status = cds_mq_post_message(QDF_MODULE_ID_SME, &msg);
+	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
+		pe_err("Fail to post eWNI_SME_FORCE_DISCONNECT msg to SME");
 		return;
-	}
-	fastreassoc->vdev_id = sme_sessionid;
-	fastreassoc->channel = channel;
-	fastreassoc->bssid[0] = bssid[0];
-	fastreassoc->bssid[1] = bssid[1];
-	fastreassoc->bssid[2] = bssid[2];
-	fastreassoc->bssid[3] = bssid[3];
-	fastreassoc->bssid[4] = bssid[4];
-	fastreassoc->bssid[5] = bssid[5];
-
-	msg.type = SIR_HAL_ROAM_INVOKE;
-	msg.reserved = 0;
-	msg.bodyptr = fastreassoc;
-	if (QDF_STATUS_SUCCESS != cds_mq_post_message(QDF_MODULE_ID_WMA,
-				&msg)) {
-		qdf_mem_free(fastreassoc);
-		pe_err("Not able to post ROAM_INVOKE_CMD message to WMA");
 	}
 }
 
 static void lim_csa_ecsa_handler(tpAniSirGlobal mac_ctx, tpPESession session)
 {
-	uint8_t old_channel, new_channel, is_fw_roaming_allowed;
+	uint8_t old_channel, new_channel, do_disconnect;
+	uint8_t is_dbs_supported, is_same_band, is_rx_ldpc_changed = 0;
+	uint8_t cur_cxn_rx_ldpc, new_cxn_rx_ldpc;
 
 	old_channel = session->currentOperChannel;
 	new_channel = session->gLimChannelSwitch.primaryChannel;
+	cur_cxn_rx_ldpc = session->htConfig.ht_rx_ldpc;
+	is_dbs_supported = wma_is_dbs_enable();
+	is_same_band = CDS_IS_SAME_BAND_CHANNELS(old_channel, new_channel);
+	new_cxn_rx_ldpc = wma_is_rx_ldpc_supported_for_channel(new_channel,
+						HW_MODE_DBS);
 
-	if (mac_ctx->roam.configParam.isRoamOffloadEnabled &&
-	   !CDS_IS_SAME_BAND_CHANNELS(old_channel, new_channel) &&
-	   (QDF_STA_MODE == session->pePersona)) {
-		pe_debug("Roam offload enabled & Bands are different & Persona is STA");
-		is_fw_roaming_allowed = 1;
+	if (cur_cxn_rx_ldpc && !new_cxn_rx_ldpc)
+		is_rx_ldpc_changed = 1;
+
+	if (mac_ctx->roam.configParam.rx_ldpc_enable &&
+			(QDF_STA_MODE == session->pePersona) &&
+			is_dbs_supported &&
+			!is_same_band && is_rx_ldpc_changed) {
+		pe_debug("Dynamic RX LDPC is on, do disconnect");
+		do_disconnect = 1;
 	} else {
 		pe_debug("use host driver CSA/ECSA mechanism");
-		is_fw_roaming_allowed = 0;
+		do_disconnect = 0;
 	}
+
 	switch (session->gLimChannelSwitch.state) {
 	case eLIM_CHANNEL_SWITCH_PRIMARY_ONLY:
 		pe_debug("CHANNEL_SWITCH_PRIMARY_ONLY");
-		if (is_fw_roaming_allowed)
-			lim_trigger_channel_switch_through_roaming(
-				session->smeSessionId, session->bssId,
-				session->gLimChannelSwitch.primaryChannel);
+		if (do_disconnect)
+			lim_trigger_disconnect_with_ap(session->smeSessionId);
 		else
 			lim_switch_primary_channel(mac_ctx,
 				session->gLimChannelSwitch.primaryChannel,
@@ -2021,10 +2019,8 @@ static void lim_csa_ecsa_handler(tpAniSirGlobal mac_ctx, tpPESession session)
 		break;
 	case eLIM_CHANNEL_SWITCH_PRIMARY_AND_SECONDARY:
 		pe_debug("CHANNEL_SWITCH_PRIMARY_AND_SECONDARY");
-		if (is_fw_roaming_allowed)
-			lim_trigger_channel_switch_through_roaming(
-				session->smeSessionId, session->bssId,
-				session->gLimChannelSwitch.primaryChannel);
+		if (do_disconnect)
+			lim_trigger_disconnect_with_ap(session->smeSessionId);
 		else
 			lim_switch_primary_secondary_channel(mac_ctx, session,
 				session->gLimChannelSwitch.primaryChannel,
@@ -2042,40 +2038,6 @@ static void lim_csa_ecsa_handler(tpAniSirGlobal mac_ctx, tpPESession session)
 		return;
 	}
 }
-#else
-static void lim_csa_ecsa_handler(tpAniSirGlobal mac_ctx, tpPESession session)
-{
-	uint8_t old_channel, new_channel;
-
-	old_channel = session->currentOperChannel;
-	new_channel = session->gLimChannelSwitch.primaryChannel;
-	switch (session->gLimChannelSwitch.state) {
-	case eLIM_CHANNEL_SWITCH_PRIMARY_ONLY:
-		pe_debug("CHANNEL_SWITCH_PRIMARY_ONLY");
-		lim_switch_primary_channel(mac_ctx,
-			session->gLimChannelSwitch.primaryChannel,
-			session);
-		session->gLimChannelSwitch.state = eLIM_CHANNEL_SWITCH_IDLE;
-		break;
-	case eLIM_CHANNEL_SWITCH_PRIMARY_AND_SECONDARY:
-		pe_debug("CHANNEL_SWITCH_PRIMARY_AND_SECONDARY");
-		lim_switch_primary_secondary_channel(mac_ctx, session,
-			session->gLimChannelSwitch.primaryChannel,
-			session->gLimChannelSwitch.ch_center_freq_seg0,
-			session->gLimChannelSwitch.ch_center_freq_seg1,
-			session->gLimChannelSwitch.ch_width);
-		session->gLimChannelSwitch.state = eLIM_CHANNEL_SWITCH_IDLE;
-		break;
-	case eLIM_CHANNEL_SWITCH_IDLE:
-	default:
-		pe_err("incorrect state");
-		if (lim_restore_pre_channel_switch_state(mac_ctx, session) !=
-				eSIR_SUCCESS)
-			pe_err("Can't restore state, reset the system");
-		return;
-	}
-}
-#endif
 
 /**
  * lim_process_channel_switch_timeout()
@@ -2754,7 +2716,6 @@ void lim_switch_primary_secondary_channel(tpAniSirGlobal pMac,
 					uint8_t ch_center_freq_seg1,
 					enum phy_ch_width ch_width)
 {
-	uint8_t subband = 0;
 
 	/* Assign the callback to resume TX once channel is changed. */
 	psessionEntry->currentReqChannel = newChannel;
@@ -2778,7 +2739,8 @@ void lim_switch_primary_secondary_channel(tpAniSirGlobal pMac,
 	if (psessionEntry->htSecondaryChannelOffset !=
 			psessionEntry->gLimChannelSwitch.sec_ch_offset) {
 		pe_warn("switch old sec chnl: %d --> new sec chnl: %d",
-			psessionEntry->htSecondaryChannelOffset, subband);
+			psessionEntry->htSecondaryChannelOffset,
+			psessionEntry->gLimChannelSwitch.sec_ch_offset);
 		psessionEntry->htSecondaryChannelOffset =
 			psessionEntry->gLimChannelSwitch.sec_ch_offset;
 		if (psessionEntry->htSecondaryChannelOffset ==
@@ -4423,6 +4385,11 @@ void lim_update_sta_run_time_ht_switch_chnl_params(tpAniSirGlobal pMac,
 		return;
 	}
 
+	if (!pHTInfo->primaryChannel) {
+		pe_debug("Ignore as primary channel is 0 in HT info");
+		return;
+	}
+
 	if (psessionEntry->htSecondaryChannelOffset !=
 	    (uint8_t) pHTInfo->secondaryChannelOffset
 	    || psessionEntry->htRecommendedTxWidthSet !=
@@ -5015,7 +4982,7 @@ void lim_resset_scan_channel_info(tpAniSirGlobal pMac)
  * @param  channel - New channel to which we are expected to move
  * @return None
  */
-tAniBool lim_is_channel_valid_for_channel_switch(tpAniSirGlobal pMac, uint8_t channel)
+bool lim_is_channel_valid_for_channel_switch(tpAniSirGlobal pMac, uint8_t channel)
 {
 	uint8_t index;
 	uint32_t validChannelListLen = WNI_CFG_VALID_CHANNEL_LIST_LEN;
@@ -5026,16 +4993,16 @@ tAniBool lim_is_channel_valid_for_channel_switch(tpAniSirGlobal pMac, uint8_t ch
 			     (uint32_t *) &validChannelListLen) !=
 			eSIR_SUCCESS) {
 		pe_err("could not retrieve valid channel list");
-		return eSIR_FALSE;
+		return false;
 	}
 
 	for (index = 0; index < validChannelListLen; index++) {
 		if (validChannelList[index] == channel)
-			return eSIR_TRUE;
+			return true;
 	}
 
 	/* channel does not belong to list of valid channels */
-	return eSIR_FALSE;
+	return false;
 }
 
 /**------------------------------------------------------

@@ -440,7 +440,7 @@ QDF_STATUS sme_ps_process_command(tpAniSirGlobal mac_ctx, uint32_t session_id,
 
 	if (!CSR_IS_SESSION_VALID(mac_ctx, session_id)) {
 		sme_err("Invalid Session_id: %d", session_id);
-		return eSIR_FAILURE;
+		return QDF_STATUS_E_INVAL;
 	}
 	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 			FL("Power Save command %d"), command);
@@ -973,7 +973,7 @@ tSirRetStatus sme_post_pe_message(tpAniSirGlobal mac_ctx, tpSirMsgQ msg)
 {
 	QDF_STATUS qdf_status;
 
-	qdf_status = cds_mq_post_message(CDS_MQ_ID_PE, (cds_msg_t *) msg);
+	qdf_status = cds_mq_post_message(QDF_MODULE_ID_PE, (cds_msg_t *) msg);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 		sme_err("cds_mq_post_message failed with status: %d",
 			qdf_status);

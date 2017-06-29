@@ -423,16 +423,6 @@
 
 #define SIR_MAC_MAX_ADD_IE_LENGTH       2048
 
-#ifdef WLAN_FEATURE_FILS_SK
-#define FILS_AUTH_IE_LEN	(sizeof(tSirMacRsnInfo) - \
-				 2 * sizeof(uint8_t) - \
-				 SIR_FILS_SESSION_LENGTH - \
-				 SIR_FILS_WRAPPED_DATA_MAX_SIZE - \
-				 SIR_FILS_NONCE_LENGTH)
-#else
-#define FILS_AUTH_IE_LEN 0
-#endif
-
 /* / Maximum length of each IE */
 #define SIR_MAC_MAX_IE_LENGTH       255
 
@@ -552,7 +542,6 @@
 #define SIR_MAC_AUTH_ALGO_OFFSET             0
 #define SIR_MAC_AUTH_XACT_SEQNUM_OFFSET      2
 #define SIR_MAC_AUTH_STATUS_CODE_OFFSET      4
-#define SIR_MAC_AUTH_CHALLENGE_OFFSET        6
 
 /* / Transaction sequence number definitions (used in Authentication frames) */
 #define    SIR_MAC_AUTH_FRAME_1        1
@@ -568,6 +557,11 @@
 #define SIR_MAC_AUTH_CHALLENGE_LENGTH        128
 #define SIR_MAC_WEP_IV_LENGTH                4
 #define SIR_MAC_WEP_ICV_LENGTH               4
+
+/* 2 bytes each for auth algo number, transaction number and status code */
+#define SIR_MAC_AUTH_FRAME_INFO_LEN          6
+/* 2 bytes for ID and length + SIR_MAC_AUTH_CHALLENGE_LENGTH */
+#define SIR_MAC_AUTH_CHALLENGE_BODY_LEN    (2 + SIR_MAC_AUTH_CHALLENGE_LENGTH)
 
 /* / MAX key length when ULA is used */
 #define SIR_MAC_MAX_KEY_LENGTH               32

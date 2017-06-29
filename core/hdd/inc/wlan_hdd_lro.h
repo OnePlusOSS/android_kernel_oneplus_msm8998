@@ -171,6 +171,10 @@ void hdd_lro_flush_all(hdd_context_t *hdd_ctx,
 void hdd_lro_display_stats(hdd_context_t *hdd_ctx);
 void hdd_enable_lro_in_concurrency(hdd_context_t *hdd_ctx);
 void hdd_disable_lro_in_concurrency(hdd_context_t *hdd_ctx);
+void hdd_disable_lro_for_low_tput(hdd_context_t *hdd_ctx, bool disable);
+QDF_STATUS hdd_lro_set_reset(hdd_context_t *hdd_ctx,
+					  hdd_adapter_t *adapter,
+					  uint8_t enable_flag);
 #else
 struct hdd_lro_s {};
 
@@ -214,6 +218,27 @@ static inline void hdd_enable_lro_in_concurrency(hdd_context_t *hdd_ctx)
 
 static inline void hdd_disable_lro_in_concurrency(hdd_context_t *hdd_ctx)
 {
+}
+
+/**
+ * hdd_disable_lro_for_low_tput() - enable/disable LRO based on tput
+ * hdd_ctx: hdd context
+ * disable: boolean to enable/disable LRO
+ *
+ * This API enables/disables LRO based on tput.
+ *
+ * Return: void
+ */
+static inline void
+hdd_disable_lro_for_low_tput(hdd_context_t *hdd_ctx, bool disable)
+{
+}
+
+static inline QDF_STATUS hdd_lro_set_reset(hdd_context_t *hdd_ctx,
+							hdd_adapter_t *adapter,
+							uint8_t enable_flag)
+{
+	return 0;
 }
 #endif /* FEATURE_LRO */
 #endif /* __WLAN_HDD_LRO_H__ */

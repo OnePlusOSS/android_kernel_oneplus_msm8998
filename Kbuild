@@ -61,6 +61,12 @@ ifeq ($(KERNEL_BUILD), 0)
 	CONFIG_WLAN_DISABLE_EXPORT_SYMBOL := y
 	endif
 
+	ifeq ($(CONFIG_ARCH_MSM8917), y)
+		ifeq ($(CONFIG_ROME_IF), sdio)
+			CONFIG_WLAN_SYNC_TSF_PLUS := y
+		endif
+	endif
+
 	#Flag to enable Legacy Fast Roaming2(LFR2)
 	CONFIG_QCACLD_WLAN_LFR2 := y
 	#Flag to enable Legacy Fast Roaming3(LFR3)
@@ -104,8 +110,11 @@ ifeq ($(KERNEL_BUILD), 0)
 	#Flag to enable Fast Transition (11r) feature
 	CONFIG_QCOM_VOWIFI_11R := y
 
+	ifneq ($(CONFIG_ARCH_SDX20), y)
 	#Flag to enable FILS Feature (11ai)
 	CONFIG_WLAN_FEATURE_FILS := y
+	endif
+
 	ifneq ($(CONFIG_QCA_CLD_WLAN),)
 		ifeq (y,$(findstring y,$(CONFIG_CNSS) $(CONFIG_ICNSS)))
 		#Flag to enable Protected Managment Frames (11w) feature
@@ -359,6 +368,10 @@ ifeq ($(CONFIG_IPA), y)
 CONFIG_IPA_OFFLOAD := 1
 CONFIG_NUM_IPA_IFACE := 3
 endif
+ifeq ($(CONFIG_IPA3), y)
+CONFIG_IPA_OFFLOAD := 1
+CONFIG_NUM_IPA_IFACE := 2
+endif
 
 #Enable Signed firmware support for split binary format
 CONFIG_QCA_SIGNED_SPLIT_BINARY_SUPPORT := 0
@@ -462,6 +475,10 @@ endif
 
 ifeq ($(CONFIG_QCOM_TDLS),y)
 HDD_OBJS +=	$(HDD_SRC_DIR)/wlan_hdd_tdls.o
+endif
+
+ifeq ($(CONFIG_WLAN_SYNC_TSF_PLUS), y)
+CONFIG_WLAN_SYNC_TSF := y
 endif
 
 ifeq ($(CONFIG_WLAN_SYNC_TSF),y)
@@ -1602,6 +1619,10 @@ endif
 # Enable featue sync tsf between multi devices
 ifeq ($(CONFIG_WLAN_SYNC_TSF), y)
 CDEFINES += -DWLAN_FEATURE_TSF
+endif
+
+ifeq ($(CONFIG_WLAN_SYNC_TSF_PLUS), y)
+CDEFINES += -DWLAN_FEATURE_TSF_PLUS
 endif
 
 # Enable full rx re-order offload for adrastea

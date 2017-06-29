@@ -61,6 +61,7 @@
 #include "cdp_txrx_peer_ops.h"
 #include "wlan_hdd_napi.h"
 #include <wlan_logging_sock_svc.h>
+#include "wlan_hdd_tsf.h"
 
 /* These are needed to recognize WPA and RSN suite types */
 #define HDD_WPA_OUI_SIZE 4
@@ -104,6 +105,12 @@ uint8_t ccp_rsn_oui07[HDD_RSN_OUI_SIZE] = { 0x00, 0x0F, 0xAC, 0x06 };
 /* RSN-8021X-SHA256 */
 uint8_t ccp_rsn_oui08[HDD_RSN_OUI_SIZE] = { 0x00, 0x0F, 0xAC, 0x05 };
 #endif
+
+/* AES-GCMP-128 */
+uint8_t ccp_rsn_oui09[HDD_RSN_OUI_SIZE] = { 0x00, 0x0F, 0xAC, 0x08 };
+
+/* AES-GCMP-256 */
+uint8_t ccp_rsn_oui0a[HDD_RSN_OUI_SIZE] = { 0x00, 0x0F, 0xAC, 0x09 };
 
 #ifdef WLAN_FEATURE_FILS_SK
 uint8_t ccp_rsn_oui_0e[HDD_RSN_OUI_SIZE] = {0x00, 0x0F, 0xAC, 0x0E};
@@ -176,6 +183,10 @@ void hdd_conn_set_connection_state(hdd_adapter_t *pAdapter,
 	hdd_debug("%pS Changed connectionState Changed from oldState:%d to State:%d",
 		(void *)_RET_IP_, pHddStaCtx->conn_info.connState,
 		connState);
+
+	hdd_tsf_notify_wlan_state_change(pAdapter,
+					 pHddStaCtx->conn_info.connState,
+					 connState);
 	pHddStaCtx->conn_info.connState = connState;
 
 	/* Check is pending ROC request or not when connection state changed */
@@ -2515,7 +2526,8 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 				}
 
 				if (ft_carrier_on) {
-					if (!hddDisconInProgress) {
+					if (!hddDisconInProgress &&
+						pRoamInfo->pBssDesc) {
 						struct cfg80211_bss *roam_bss;
 
 						/*
@@ -3012,10 +3024,10 @@ static void hdd_roam_ibss_indication_handler(hdd_adapter_t *pAdapter,
 
 			if (chan_no <= 14)
 				freq = ieee80211_channel_to_frequency(chan_no,
-					  NL80211_BAND_2GHZ);
+					  HDD_NL80211_BAND_2GHZ);
 			else
 				freq = ieee80211_channel_to_frequency(chan_no,
-					  NL80211_BAND_5GHZ);
+					  HDD_NL80211_BAND_5GHZ);
 
 			chan = ieee80211_get_channel(pAdapter->wdev.wiphy, freq);
 
@@ -3254,7 +3266,7 @@ hdd_roam_mic_error_indication_handler(hdd_adapter_t *pAdapter,
 		hdd_debug("MIC MAC " MAC_ADDRESS_STR,
 			 MAC_ADDR_ARRAY(msg.src_addr.sa_data));
 
-		if (pRoamInfo->u.pMICFailureInfo->multicast == eSIR_TRUE)
+		if (pRoamInfo->u.pMICFailureInfo->multicast == true)
 			msg.flags = IW_MICFAILURE_GROUP;
 		else
 			msg.flags = IW_MICFAILURE_PAIRWISE;
@@ -3268,7 +3280,7 @@ hdd_roam_mic_error_indication_handler(hdd_adapter_t *pAdapter,
 					     taMacAddr,
 					     ((pRoamInfo->u.pMICFailureInfo->
 					       multicast ==
-					       eSIR_TRUE) ?
+					       true) ?
 					      NL80211_KEYTYPE_GROUP :
 					      NL80211_KEYTYPE_PAIRWISE),
 					     pRoamInfo->u.pMICFailureInfo->
@@ -3358,6 +3370,10 @@ roam_roam_connect_status_update_handler(hdd_adapter_t *pAdapter,
 		    || eCSR_ENCRYPT_TYPE_TKIP ==
 		    pHddStaCtx->ibss_enc_key.encType
 		    || eCSR_ENCRYPT_TYPE_AES ==
+		    pHddStaCtx->ibss_enc_key.encType
+		    || eCSR_ENCRYPT_TYPE_AES_GCMP ==
+		    pHddStaCtx->ibss_enc_key.encType
+		    || eCSR_ENCRYPT_TYPE_AES_GCMP_256 ==
 		    pHddStaCtx->ibss_enc_key.encType) {
 			pHddStaCtx->ibss_enc_key.keyDirection =
 				eSIR_TX_RX;
@@ -5120,6 +5136,10 @@ hdd_translate_rsn_to_csr_encryption_type(uint8_t cipher_suite[4])
 
 	if (memcmp(cipher_suite, ccp_rsn_oui04, 4) == 0)
 		cipher_type = eCSR_ENCRYPT_TYPE_AES;
+	else if (memcmp(cipher_suite, ccp_rsn_oui09, 4) == 0)
+		cipher_type = eCSR_ENCRYPT_TYPE_AES_GCMP;
+	else if (memcmp(cipher_suite, ccp_rsn_oui0a, 4) == 0)
+		cipher_type = eCSR_ENCRYPT_TYPE_AES_GCMP_256;
 	else if (memcmp(cipher_suite, ccp_rsn_oui02, 4) == 0)
 		cipher_type = eCSR_ENCRYPT_TYPE_TKIP;
 	else if (memcmp(cipher_suite, ccp_rsn_oui00, 4) == 0)
@@ -5209,14 +5229,10 @@ static int32_t hdd_process_genie(hdd_adapter_t *pAdapter,
 				 uint16_t gen_ie_len, uint8_t *gen_ie)
 {
 	tHalHandle halHandle = WLAN_HDD_GET_HAL_CTX(pAdapter);
-	QDF_STATUS result;
 	tDot11fIERSN dot11RSNIE;
 	tDot11fIEWPA dot11WPAIE;
-	uint32_t i;
 	uint8_t *pRsnIe;
 	uint16_t RSNIeLen;
-	tPmkidCacheInfo PMKIDCache[4];  /* Local transfer memory */
-	bool updatePMKCache = false;
 
 	/*
 	 * Clear struct of tDot11fIERSN and tDot11fIEWPA specifically
@@ -5260,38 +5276,6 @@ static int32_t hdd_process_genie(hdd_adapter_t *pAdapter,
 		*pMfpRequired = (dot11RSNIE.RSN_Cap[0] >> 6) & 0x1;
 		*pMfpCapable = (dot11RSNIE.RSN_Cap[0] >> 7) & 0x1;
 #endif
-		/* Set the PMKSA ID Cache for this interface */
-		for (i = 0; i < dot11RSNIE.pmkid_count; i++) {
-			if (is_zero_ether_addr(bssid)) {
-				hdd_warn("MAC address is all zeroes");
-				break;
-			}
-			updatePMKCache = true;
-			/*
-			 * For right now, I assume setASSOCIATE() has passed
-			 * in the bssid.
-			 */
-			qdf_mem_copy(PMKIDCache[i].BSSID.bytes,
-				     bssid, QDF_MAC_ADDR_SIZE);
-			qdf_mem_copy(PMKIDCache[i].PMKID,
-				     dot11RSNIE.pmkid[i], CSR_RSN_PMKID_SIZE);
-		}
-
-		if (updatePMKCache && (!hdd_is_fils_connection(pAdapter))) {
-			/*
-			 * Calling csr_roam_set_pmkid_cache to configure the
-			 * PMKIDs into the cache.
-			 */
-			hdd_debug("Calling sme_roam_set_pmkid_cache with cache entry %d.",
-				 i);
-			/* Finally set the PMKSA ID Cache in CSR */
-			result =
-				sme_roam_set_pmkid_cache(halHandle,
-							 pAdapter->sessionId,
-							 PMKIDCache,
-							 dot11RSNIE.pmkid_count,
-							 false);
-		}
 	} else if (gen_ie[0] == DOT11F_EID_WPA) {
 		/* Validity checks */
 		if ((gen_ie_len < DOT11F_IE_WPA_MIN_LEN) ||
@@ -5384,6 +5368,8 @@ int hdd_set_genie_to_csr(hdd_adapter_t *pAdapter, eCsrAuthType *RSNAuthType)
 
 		if ((QDF_IBSS_MODE == pAdapter->device_mode) &&
 		    ((eCSR_ENCRYPT_TYPE_AES == mcRSNEncryptType) ||
+		     (eCSR_ENCRYPT_TYPE_AES_GCMP == mcRSNEncryptType) ||
+		     (eCSR_ENCRYPT_TYPE_AES_GCMP_256 == mcRSNEncryptType) ||
 		     (eCSR_ENCRYPT_TYPE_TKIP == mcRSNEncryptType))) {
 			/*
 			 * For wpa none supplicant sends the WPA IE with unicast

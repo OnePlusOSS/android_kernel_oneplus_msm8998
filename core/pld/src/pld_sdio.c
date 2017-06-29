@@ -156,6 +156,64 @@ static void pld_sdio_crash_shutdown(struct sdio_func *sdio_func)
 		pld_context->ops->crash_shutdown(dev, PLD_BUS_TYPE_SDIO);
 }
 
+/**
+ * pld_hif_sdio_get_virt_ramdump_mem() - Get virtual ramdump memory
+ * @dev: device
+ * @size: buffer to virtual memory size
+ *
+ * Return: virtual ramdump memory address
+ */
+void *pld_hif_sdio_get_virt_ramdump_mem(struct device *dev,
+						unsigned long *size)
+{
+	return cnss_common_get_virt_ramdump_mem(dev, size);
+}
+
+/**
+ * pld_hif_sdio_release_ramdump_mem() - Release virtual ramdump memory
+ * @address: virtual ramdump memory address
+ *
+ * Return: void
+ */
+void pld_hif_sdio_release_ramdump_mem(unsigned long *address)
+{
+}
+#else
+
+/**
+ * pld_hif_sdio_get_virt_ramdump_mem() - Get virtual ramdump memory
+ * @dev: device
+ * @size: buffer to virtual memory size
+ *
+ * Return: virtual ramdump memory address
+ */
+static inline void *pld_hif_sdio_get_virt_ramdump_mem(struct device *dev,
+						unsigned long *size)
+{
+	size_t length = 0;
+	int flags = GFP_KERNEL;
+
+	length = TOTAL_DUMP_SIZE;
+
+	if (size != NULL)
+		*size = (unsigned long)length;
+
+	if (in_interrupt() || irqs_disabled())
+		flags = GFP_ATOMIC;
+
+	return kzalloc(length, flags);
+}
+
+/**
+ * pld_hif_sdio_release_ramdump_mem() - Release virtual ramdump memory
+ * @address: virtual ramdump memory address
+ *
+ * Return: void
+ */
+static inline void pld_hif_sdio_release_ramdump_mem(unsigned long *address)
+{
+	kfree(address);
+}
 #endif
 
 #ifdef CONFIG_PM

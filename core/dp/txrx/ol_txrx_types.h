@@ -152,6 +152,7 @@ enum tx_peer_level {
 	TXRX_IEEE11_A_G,
 	TXRX_IEEE11_N,
 	TXRX_IEEE11_AC,
+	TXRX_IEEE11_AX,
 	TXRX_IEEE11_MAX,
 };
 
@@ -979,6 +980,7 @@ struct ol_txrx_pdev_t {
 		void (*lro_flush_cb)(void *);
 	} lro_info;
 	struct ol_txrx_peer_t *self_peer;
+	qdf_work_t peer_unmap_timer_work;
 };
 
 struct ol_txrx_ocb_chan_info {

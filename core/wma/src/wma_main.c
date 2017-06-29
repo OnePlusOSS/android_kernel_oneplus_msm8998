@@ -1685,7 +1685,7 @@ static int wma_process_fw_event_mc_thread_ctx(void *ctx, void *ev)
 	cds_msg.bodyval = 0;
 
 	if (QDF_STATUS_SUCCESS !=
-		cds_mq_post_message(CDS_MQ_ID_WMA, &cds_msg)) {
+		cds_mq_post_message(QDF_MODULE_ID_WMA, &cds_msg)) {
 		WMA_LOGE("%s: Failed to post WMA_PROCESS_FW_EVENT msg",
 			 __func__);
 		qdf_nbuf_free(ev);
@@ -2669,6 +2669,10 @@ QDF_STATUS wma_open(void *cds_context,
 					   wma_get_bpf_caps_event_handler,
 					   WMA_RX_SERIALIZER_CTX);
 	wmi_unified_register_event_handler(wma_handle->wmi_handle,
+					   WMI_CHAN_INFO_EVENTID,
+					   wma_chan_info_event_handler,
+					   WMA_RX_SERIALIZER_CTX);
+	wmi_unified_register_event_handler(wma_handle->wmi_handle,
 				WMI_VDEV_ENCRYPT_DECRYPT_DATA_RESP_EVENTID,
 				wma_encrypt_decrypt_msg_handler,
 				WMA_RX_SERIALIZER_CTX);
@@ -2805,7 +2809,7 @@ QDF_STATUS wma_pre_start(void *cds_ctx)
 	wma_msg.bodyptr = NULL;
 	wma_msg.bodyval = 0;
 
-	qdf_status = cds_mq_post_message(CDS_MQ_ID_WMA, &wma_msg);
+	qdf_status = cds_mq_post_message(QDF_MODULE_ID_WMA, &wma_msg);
 	if (QDF_STATUS_SUCCESS != qdf_status) {
 		WMA_LOGE("%s: Failed to post WNI_CFG_DNLD_REQ msg", __func__);
 		QDF_ASSERT(0);
@@ -2920,7 +2924,7 @@ static int wma_pdev_set_hw_mode_resp_evt_handler(void *handle,
 		 */
 		return QDF_STATUS_E_NULL_VALUE;
 	}
-
+	wma_release_wmi_resp_wakelock(wma);
 	hw_mode_resp = qdf_mem_malloc(sizeof(*hw_mode_resp));
 	if (!hw_mode_resp) {
 		WMA_LOGE("%s: Memory allocation failed", __func__);
@@ -5171,8 +5175,16 @@ QDF_STATUS wma_get_caps_for_phyidx_hwmode(struct wma_caps_per_phy *caps_per_phy,
 	}
 
 	if (0 == wma_handle->phy_caps.num_hw_modes.num_hw_modes) {
-		WMA_LOGE("Invalid number of hw modes");
-		return QDF_STATUS_E_FAILURE;
+		WMA_LOGD("Invalid number of hw modes, use legacy HT/VHT caps");
+		caps_per_phy->ht_2g = wma_handle->ht_cap_info;
+		caps_per_phy->ht_5g = wma_handle->ht_cap_info;
+		caps_per_phy->vht_2g = wma_handle->vht_cap_info;
+		caps_per_phy->vht_5g = wma_handle->vht_cap_info;
+		/* legacy platform doesn't support HE IE */
+		caps_per_phy->he_2g = 0;
+		caps_per_phy->he_5g = 0;
+
+		return QDF_STATUS_SUCCESS;
 	}
 
 	if (!wma_is_dbs_enable())
@@ -5214,48 +5226,35 @@ QDF_STATUS wma_get_caps_for_phyidx_hwmode(struct wma_caps_per_phy *caps_per_phy,
 bool wma_is_rx_ldpc_supported_for_channel(uint32_t channel,
 			enum hw_mode_dbs_capab hw_mode)
 {
+	t_wma_handle *wma_handle = cds_get_context(QDF_MODULE_ID_WMA);
 	struct wma_caps_per_phy caps_per_phy = {0};
 	enum cds_band_type band;
 	bool status;
-	t_wma_handle *wma_handle;
-	struct hif_target_info *tgt_info;
-	struct hif_opaque_softc *scn = cds_get_context(QDF_MODULE_ID_HIF);
-
-	if (!scn) {
-		WMA_LOGE("%s: Invalid wma handle", __func__);
-		return false;
-	}
 
 	if (!CDS_IS_CHANNEL_24GHZ(channel))
 		band = CDS_BAND_5GHZ;
 	else
 		band = CDS_BAND_2GHZ;
 
-	tgt_info = hif_get_target_info_handle(scn);
-
-	if ((tgt_info->target_type == TARGET_TYPE_AR6320V1) ||
-	    (tgt_info->target_type == TARGET_TYPE_AR6320V2) ||
-	    (tgt_info->target_type == TARGET_TYPE_AR6320V3) ||
-	    (tgt_info->target_type == TARGET_TYPE_QCA9377V1)) {
-		wma_handle = cds_get_context(QDF_MODULE_ID_WMA);
-		if (!wma_handle) {
-			WMA_LOGE("Invalid wma handle");
-			return false;
-		}
-		if (wma_handle->ht_cap_info & WMI_HT_CAP_LDPC)
-			return true;
-		else
-			return false;
-	}
 	if (QDF_STATUS_SUCCESS != wma_get_caps_for_phyidx_hwmode(
 						&caps_per_phy,
 						hw_mode, band)) {
 		return false;
 	}
-	if (CDS_IS_CHANNEL_24GHZ(channel))
-		status = (!!(caps_per_phy.ht_2g & WMI_HT_CAP_RX_LDPC));
-	else
-		status = (!!(caps_per_phy.ht_5g & WMI_HT_CAP_RX_LDPC));
+
+	/*
+	 * Legacy platforms like Rome set WMI_HT_CAP_LDPC to specify RX LDPC
+	 * capability. But new platforms like Helium set WMI_HT_CAP_RX_LDPC
+	 * instead.
+	 */
+	if (wma_handle->phy_caps.num_hw_modes.num_hw_modes == 0) {
+		status = (!!(caps_per_phy.ht_2g & WMI_HT_CAP_LDPC));
+	} else {
+		if (CDS_IS_CHANNEL_24GHZ(channel))
+			status = (!!(caps_per_phy.ht_2g & WMI_HT_CAP_RX_LDPC));
+		else
+			status = (!!(caps_per_phy.ht_5g & WMI_HT_CAP_RX_LDPC));
+	}
 
 	return status;
 }
@@ -7917,9 +7916,13 @@ QDF_STATUS wma_send_pdev_set_hw_mode_cmd(tp_wma_handle wma_handle,
 		goto fail;
 	}
 
+	wma_acquire_wmi_resp_wakelock(wma_handle,
+				WMA_VDEV_HW_MODE_REQUEST_TIMEOUT);
 	if (wmi_unified_soc_set_hw_mode_cmd(wma_handle->wmi_handle,
-				msg->hw_mode_index))
+				msg->hw_mode_index)) {
+		wma_release_wmi_resp_wakelock(wma_handle);
 		goto fail;
+	}
 
 	return QDF_STATUS_SUCCESS;
 fail:

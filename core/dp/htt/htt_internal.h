@@ -236,8 +236,13 @@ static inline void htt_print_rx_desc_lro(struct htt_host_rx_desc_base *rx_desc)
 static inline void htt_rx_extract_lro_info(qdf_nbuf_t msdu,
 	 struct htt_host_rx_desc_base *rx_desc)
 {
-	QDF_NBUF_CB_RX_LRO_ELIGIBLE(msdu) = rx_desc->msdu_end.lro_eligible;
-	if (rx_desc->msdu_end.lro_eligible) {
+	if (rx_desc->attention.tcp_udp_chksum_fail)
+		QDF_NBUF_CB_RX_LRO_ELIGIBLE(msdu) = 0;
+	else
+		QDF_NBUF_CB_RX_LRO_ELIGIBLE(msdu) =
+			rx_desc->msdu_end.lro_eligible;
+
+	if (QDF_NBUF_CB_RX_LRO_ELIGIBLE(msdu)) {
 		QDF_NBUF_CB_RX_TCP_PURE_ACK(msdu) =
 			rx_desc->msdu_start.tcp_only_ack;
 		QDF_NBUF_CB_RX_TCP_CHKSUM(msdu) =
@@ -257,7 +262,7 @@ static inline void htt_rx_extract_lro_info(qdf_nbuf_t msdu,
 		QDF_NBUF_CB_RX_TCP_OFFSET(msdu) =
 			rx_desc->msdu_start.l4_offset;
 		QDF_NBUF_CB_RX_FLOW_ID_TOEPLITZ(msdu) =
-			 rx_desc->msdu_start.flow_id_toeplitz;
+			rx_desc->msdu_start.flow_id_toeplitz;
 	}
 }
 #else
@@ -514,10 +519,10 @@ static inline void htt_t2h_msg_handler_fast(void *htt_pdev,
 
 void htt_h2t_send_complete(void *context, HTC_PACKET *pkt);
 
-A_STATUS htt_h2t_ver_req_msg(struct htt_pdev_t *pdev);
+QDF_STATUS htt_h2t_ver_req_msg(struct htt_pdev_t *pdev);
 
 #if defined(HELIUMPLUS)
-A_STATUS
+QDF_STATUS
 htt_h2t_frag_desc_bank_cfg_msg(struct htt_pdev_t *pdev);
 #endif /* defined(HELIUMPLUS) */
 

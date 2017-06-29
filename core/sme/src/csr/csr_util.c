@@ -93,9 +93,18 @@ uint8_t csr_rsn_oui[][CSR_RSN_OUI_SIZE] = {
 	{0x00, 0x0F, 0xAC, 0x10},
 #define ENUM_FT_FILS_SHA384 12
 	/* FILS FT SHA384 */
-	{0x00, 0x0F, 0xAC, 0x11}
+	{0x00, 0x0F, 0xAC, 0x11},
+#else
+	{0x00, 0x00, 0x00, 0x00},
+	{0x00, 0x00, 0x00, 0x00},
+	{0x00, 0x00, 0x00, 0x00},
+	{0x00, 0x00, 0x00, 0x00},
 #endif
-	/* define new oui here */
+	/* AES GCMP */
+	{0x00, 0x0F, 0xAC, 0x08},
+	/* AES GCMP-256 */
+	{0x00, 0x0F, 0xAC, 0x09},
+	/* define new oui here, update #define CSR_OUI_***_INDEX  */
 };
 
 #ifdef FEATURE_WLAN_WAPI
@@ -867,7 +876,7 @@ uint16_t csr_check_concurrent_channel_overlap(tpAniSirGlobal mac_ctx,
 			QDF_MCC_TO_SCC_SWITCH_FORCE_WITHOUT_DISCONNECTION) ||
 		(cc_switch_mode ==
 			QDF_MCC_TO_SCC_SWITCH_WITH_FAVORITE_CHANNEL))) {
-		if (!((intf_ch < 14 && sap_ch < 14) ||
+		if (!((intf_ch <= 14 && sap_ch <= 14) ||
 			(intf_ch > 14 && sap_ch > 14)))
 			intf_ch = 0;
 		else if (cc_switch_mode ==
@@ -1936,6 +1945,8 @@ bool csr_is_profile_rsn(tCsrRoamProfile *pProfile)
 		case eCSR_ENCRYPT_TYPE_WEP104:
 		case eCSR_ENCRYPT_TYPE_TKIP:
 		case eCSR_ENCRYPT_TYPE_AES:
+		case eCSR_ENCRYPT_TYPE_AES_GCMP:
+		case eCSR_ENCRYPT_TYPE_AES_GCMP_256:
 			fRSNProfile = true;
 			break;
 
@@ -2714,6 +2725,12 @@ static uint8_t csr_get_oui_index_from_cipher(eCsrEncryptionType enType)
 	case eCSR_ENCRYPT_TYPE_AES:
 		OUIIndex = CSR_OUI_AES_INDEX;
 		break;
+	case eCSR_ENCRYPT_TYPE_AES_GCMP:
+		OUIIndex = CSR_OUI_AES_GCMP_INDEX;
+		break;
+	case eCSR_ENCRYPT_TYPE_AES_GCMP_256:
+		OUIIndex = CSR_OUI_AES_GCMP_256_INDEX;
+		break;
 	case eCSR_ENCRYPT_TYPE_NONE:
 		OUIIndex = CSR_OUI_USE_GROUP_CIPHER_INDEX;
 		break;
@@ -3121,6 +3138,7 @@ static bool csr_lookup_pmkid_using_ssid(tpAniSirGlobal mac,
 				  pmk_cache->cache_id, CACHE_ID_LEN))) {
 			/* match found */
 			*index = i;
+			sme_debug("PMKID found at index %d", i);
 			return true;
 		}
 	}
@@ -3144,15 +3162,16 @@ static bool csr_lookup_pmkid_using_bssid(tpAniSirGlobal mac,
 {
 	uint32_t i;
 	tPmkidCacheInfo *session_pmk;
-	sme_debug("lookup PMKID using bssid: " MAC_ADDRESS_STR,
-		  MAC_ADDR_ARRAY(pmk_cache->BSSID.bytes));
 	for (i = 0; i < session->NumPmkidCache; i++) {
 		session_pmk = &session->PmkidCacheInfo[i];
+		sme_debug("Matching BSSID: " MAC_ADDRESS_STR " to cached BSSID:"
+			MAC_ADDRESS_STR, MAC_ADDR_ARRAY(pmk_cache->BSSID.bytes),
+			MAC_ADDR_ARRAY(session_pmk->BSSID.bytes));
 		if (qdf_is_macaddr_equal(&pmk_cache->BSSID,
 					 &session_pmk->BSSID)) {
 			/* match found */
 			*index = i;
-			sme_debug("PMKID found");
+			sme_debug("PMKID found at index %d", i);
 			return true;
 		}
 	}
@@ -3193,7 +3212,8 @@ static bool csr_lookup_pmkid(tpAniSirGlobal pMac, uint32_t sessionId,
 						pSession, pmk_cache, &Index);
 
 	if (!fMatchFound) {
-		sme_debug("no pmkid match found");
+		sme_debug("no pmkid match found NumPmkidCache = %d",
+			pSession->NumPmkidCache);
 		return false;
 	}
 
@@ -3207,7 +3227,7 @@ static bool csr_lookup_pmkid(tpAniSirGlobal pMac, uint32_t sessionId,
 	pmk_cache->pmk_len = pSession->PmkidCacheInfo[Index].pmk_len;
 
 	fRC = true;
-	sme_debug("csr_lookup_pmkid called return match = %d pMac->roam.NumPmkidCache = %d",
+	sme_debug("match = %d NumPmkidCache = %d",
 		fRC, pSession->NumPmkidCache);
 
 	return fRC;
@@ -4163,6 +4183,13 @@ tAniEdType csr_translate_encrypt_type_to_ed_type(eCsrEncryptionType EncryptType)
 	case eCSR_ENCRYPT_TYPE_AES_CMAC:
 		edType = eSIR_ED_AES_128_CMAC;
 		break;
+	case eCSR_ENCRYPT_TYPE_AES_GCMP:
+		edType = eSIR_ED_GCMP;
+		break;
+	case eCSR_ENCRYPT_TYPE_AES_GCMP_256:
+		edType = eSIR_ED_GCMP_256;
+		break;
+
 #endif
 	}
 
@@ -4375,7 +4402,19 @@ static bool csr_validate_any_default(tHalHandle hal, tCsrAuthList *auth_type,
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
 	/* It is allowed to match anything. Try the more secured ones first. */
 	if (ies_ptr) {
-		/* Check AES first */
+		/* Check GCMP-256 first */
+		*uc_cipher = eCSR_ENCRYPT_TYPE_AES_GCMP_256;
+		match_any = csr_is_rsn_match(hal, auth_type,
+				*uc_cipher, mc_enc_type, mfp_enabled,
+				mfp_required, mfp_capable, ies_ptr,
+				neg_auth_type, mc_cipher);
+		/* Check GCMP second */
+		*uc_cipher = eCSR_ENCRYPT_TYPE_AES_GCMP;
+		match_any = csr_is_rsn_match(hal, auth_type,
+				*uc_cipher, mc_enc_type, mfp_enabled,
+				mfp_required, mfp_capable, ies_ptr,
+				neg_auth_type, mc_cipher);
+		/* Check AES third */
 		*uc_cipher = eCSR_ENCRYPT_TYPE_AES;
 		match_any = csr_is_rsn_match(hal, auth_type,
 				*uc_cipher, mc_enc_type, mfp_enabled,
@@ -4504,6 +4543,8 @@ bool csr_is_security_match(tHalHandle hal, tCsrAuthList *auth_type,
 
 		case eCSR_ENCRYPT_TYPE_TKIP:
 		case eCSR_ENCRYPT_TYPE_AES:
+		case eCSR_ENCRYPT_TYPE_AES_GCMP:
+		case eCSR_ENCRYPT_TYPE_AES_GCMP_256:
 			if (!ies_ptr) {
 				match = false;
 				break;

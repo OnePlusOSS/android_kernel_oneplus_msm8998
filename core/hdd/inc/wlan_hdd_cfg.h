@@ -1632,6 +1632,52 @@ enum hdd_dot11_mode {
 
 /*
  * <ini>
+ * g11bNumTxChains - Number of Tx Chanins in 11b mode
+ * @Min: 0
+ * @Max: 2
+ * @Default: 0
+ *
+ * Number of Tx Chanins in 11b mode
+ *
+ *
+ * Related: None
+ *
+ * Supported Feature: connection
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_11B_NUM_TX_CHAIN_NAME      "g11bNumTxChains"
+#define CFG_11B_NUM_TX_CHAIN_MIN       (0)
+#define CFG_11B_NUM_TX_CHAIN_MAX       (2)
+#define CFG_11B_NUM_TX_CHAIN_DEFAULT   (0)
+
+/*
+ * <ini>
+ * g11agNumTxChains - Number of Tx Chanins in 11ag mode
+ * @Min: 0
+ * @Max: 2
+ * @Default: 0
+ *
+ * Number of Tx Chanins in 11ag mode
+ *
+ *
+ * Related: None
+ *
+ * Supported Feature: connection
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_11AG_NUM_TX_CHAIN_NAME      "g11agNumTxChains"
+#define CFG_11AG_NUM_TX_CHAIN_MIN       (1)
+#define CFG_11AG_NUM_TX_CHAIN_MAX       (4)
+#define CFG_11AG_NUM_TX_CHAIN_DEFAULT   (1)
+
+/*
+ * <ini>
  * gEnableFastRoamInConcurrency - Enable LFR roaming on STA during concurrency
  * @Min: 0
  * @Max: 1
@@ -4966,6 +5012,31 @@ enum hdd_link_speed_rpt_type {
 
 /*
  * <ini>
+ *
+ * gEnableCckTxFirOverride - Enable/disable CCK TxFIR Override
+ * @Min: 0 (disabled)
+ * @Max: 1 (enabled)
+ * @Default: 0 (disabled)
+ *
+ * When operating in an 802.11b mode, this configuration item forces a 2x2 radio
+ * configuration into 1x for Tx and 2x for Rx (ie 1x2) for regulatory compliance
+ * reasons.
+ *
+ * Related: enable2x2
+ *
+ * Supported Feature: 802.11b, 2x2
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+#define CFG_ENABLE_CCK_TX_FIR_OVERRIDE_NAME     "gEnableCckTxFirOverride"
+#define CFG_ENABLE_CCK_TX_FIR_OVERRIDE_MIN      (0)
+#define CFG_ENABLE_CCK_TX_FIR_OVERRIDE_MAX      (1)
+#define CFG_ENABLE_CCK_TX_FIR_OVERRIDE_DEFAULT  (0)
+
+/*
+ * <ini>
  * gDefaultRateIndex24Ghz -Set the rate index for 24Ghz
  * @Min: 1
  * @Max: 9
@@ -8261,9 +8332,11 @@ enum dot11p_mode {
 /*
  * <ini>
  * gdbs_scan_selection - DBS Scan Selection.
- * @Default: 5,2,2,16,2,2
+ * @Default: ""
  *
  * This ini is used to enable DBS scan selection.
+ * Example
+ : @Value: "5,2,2,16,2,2"
  * 1st argument is module_id, 2nd argument is number of DBS scan,
  * 3rd argument is number of non-DBS scan,
  * and other arguments follows.
@@ -8280,7 +8353,7 @@ enum dot11p_mode {
  * </ini>
  */
 #define CFG_DBS_SCAN_SELECTION_NAME          "gdbs_scan_selection"
-#define CFG_DBS_SCAN_SELECTION_DEFAULT       "5,2,2,16,2,2"
+#define CFG_DBS_SCAN_SELECTION_DEFAULT       ""
 
 /*
  * gPNOChannelPrediction will allow user to enable/disable the
@@ -9558,6 +9631,30 @@ enum dot11p_mode {
 #define CFG_PER_ROAM_MONITOR_TIME_MIN            (5)
 #define CFG_PER_ROAM_MONITOR_TIME_MAX            (25)
 #define CFG_PER_ROAM_MONTIOR_TIME_DEFAULT        (25)
+
+/*
+ * <ini>
+ * gper_min_rssi_threshold_for_roam -  Minimum roamable AP RSSI for
+ * candidate selection for PER based roam
+ * @Min: 0
+ * @Max: 96
+ * @Default: 83
+ *
+ * Minimum roamable AP RSSI for candidate selection for PER based roam
+ *
+ * Related: gper_roam_enabled, gper_roam_high_rate_th, gper_roam_low_rate_th,
+ *          gper_roam_th_percent, gper_roam_rest_time
+ *
+ * Supported Feature: LFR-3.0
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+#define CFG_PER_ROAM_MIN_CANDIDATE_RSSI           "gper_min_rssi_threshold_for_roam"
+#define CFG_PER_ROAM_MIN_CANDIDATE_RSSI_MIN       (0)
+#define CFG_PER_ROAM_MIN_CANDIDATE_RSSI_MAX       (96)
+#define CFG_PER_ROAM_MIN_CANDIDATE_RSSI_DEFAULT   (83)
 
 /*
  * <ini>
@@ -10975,6 +11072,89 @@ enum hw_filter_mode {
 #define CFG_SCAN_BACKOFF_MULTIPLIER_MAX		(255)
 #define CFG_SCAN_BACKOFF_MULTIPLIER_DEFAULT	(0)
 
+/*
+ * <ini>
+ * groam_disallow_duration -disallow duration before roaming
+ * @Min: 0
+ * @Max: 3600
+ * @Default: 30
+ *
+ * This ini is used to configure how long LCA[Last Connected AP] AP will
+ * be disallowed before it can be a roaming candidate again, in units of
+ * seconds.
+ *
+ * Related: LFR
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+#define CFG_ROAM_DISALLOW_DURATION_NAME    "groam_disallow_duration"
+#define CFG_ROAM_DISALLOW_DURATION_MIN     (0)
+#define CFG_ROAM_DISALLOW_DURATION_MAX     (3600)
+#define CFG_ROAM_DISALLOW_DURATION_DEFAULT (30)
+
+/*
+ * <ini>
+ * grssi_channel_penalization - RSSI penalization
+ * @Min: 0
+ * @Max: 15
+ * @Default: 5
+ *
+ * This ini is used to configure RSSI that will be penalized if candidate(s)
+ * are found to be in the same channel as disallowed AP's, in units of db.
+ *
+ * Related: LFR
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+#define CFG_ROAM_RSSI_CHANNEL_PENALIZATION_NAME    "grssi_channel_penalization"
+#define CFG_ROAM_RSSI_CHANNEL_PENALIZATION_MIN     (0)
+#define CFG_ROAM_RSSI_CHANNEL_PENALIZATION_MAX     (15)
+#define CFG_ROAM_RSSI_CHANNEL_PENALIZATION_DEFAULT (5)
+
+/*
+ * <ini>
+ * groam_num_disallowed_aps - Max number of AP's to maintain in LCA list
+ * @Min: 0
+ * @Max: 8
+ * @Default: 3
+ *
+ * This ini is used to set the maximum number of AP's to be maintained
+ * in LCA [Last Connected AP] list.
+ *
+ * Related: LFR
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+#define CFG_ROAM_NUM_DISALLOWED_APS_NAME    "groam_num_disallowed_aps"
+#define CFG_ROAM_NUM_DISALLOWED_APS_MIN     (0)
+#define CFG_ROAM_NUM_DISALLOWED_APS_MAX     (8)
+#define CFG_ROAM_NUM_DISALLOWED_APS_DEFAULT (3)
+/*
+ * <ini>
+ * gEnableTxOrphan- Enable/Disable orphaning of Tx packets
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to enable/disable orphaning of Tx packets.
+ *
+ * Related: None
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_TX_ORPHAN_ENABLE_NAME    "gEnableTxOrphan"
+#define CFG_TX_ORPHAN_ENABLE_DEFAULT (0)
+#define CFG_TX_ORPHAN_ENABLE_MIN     (0)
+#define CFG_TX_ORPHAN_ENABLE_MAX     (1)
+
 /*---------------------------------------------------------------------------
    Type declarations
    -------------------------------------------------------------------------*/
@@ -11430,6 +11610,7 @@ struct hdd_config {
 	uint8_t apMaxOffloadReorderBuffs;
 	bool advertiseConcurrentOperation;
 	bool enableMemDeepSleep;
+	bool enable_cck_tx_fir_override;
 
 	uint32_t defaultRateIndex24Ghz;
 #ifdef MEMORY_DEBUG
@@ -11691,6 +11872,7 @@ struct hdd_config {
 	uint32_t per_roam_th_percent;
 	uint32_t per_roam_rest_time;
 	uint32_t per_roam_mon_time;
+	uint32_t min_candidate_rssi;
 	uint32_t max_sched_scan_plan_interval;
 	uint32_t max_sched_scan_plan_iterations;
 	uint8_t enable_phy_reg_retention;
@@ -11743,9 +11925,17 @@ struct hdd_config {
 	uint16_t sap_max_mcs_txdata;
 	bool is_bssid_hint_priority;
 	bool is_fils_enabled;
+	bool tx_orphan_enable;
 	uint8_t dfs_beacon_tx_enhanced;
 	uint8_t scan_backoff_multiplier;
 	bool is_force_1x1;
+	uint16_t num_11b_tx_chains;
+	uint16_t num_11ag_tx_chains;
+
+	/* LCA(Last connected AP) disallow configs */
+	uint32_t disallow_duration;
+	uint32_t rssi_channel_penalization;
+	uint32_t num_disallowed_aps;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

@@ -402,6 +402,11 @@ wlansap_pre_start_bss_acs_scan_callback(tHalHandle hal_handle, void *pcontext,
 	sap_config_acs_result(hal_handle, sap_ctx,
 			sap_ctx->acs_cfg->ht_sec_ch);
 
+	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
+		  FL("Channel selected = %d"), sap_ctx->channel);
+	sap_ctx->sap_state = eSAP_ACS_CHANNEL_SELECTED;
+	sap_ctx->sap_status = eSAP_STATUS_SUCCESS;
+close_session:
 #ifdef SOFTAP_CHANNEL_RANGE
 	if (sap_ctx->channelList != NULL) {
 		/*
@@ -414,11 +419,6 @@ wlansap_pre_start_bss_acs_scan_callback(tHalHandle hal_handle, void *pcontext,
 		sap_ctx->num_of_channel = 0;
 	}
 #endif
-	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-		  FL("Channel selected = %d"), sap_ctx->channel);
-	sap_ctx->sap_state = eSAP_ACS_CHANNEL_SELECTED;
-	sap_ctx->sap_status = eSAP_STATUS_SUCCESS;
-close_session:
 	sap_hdd_signal_event_handler(sap_ctx);
 	return status;
 }
@@ -559,7 +559,7 @@ wlansap_roam_process_dfs_chansw_update(tHalHandle hHal,
 		 * beacon template will be cleared by now. A new beacon template
 		 * with no CSA IE will be sent to firmware.
 		 */
-		dfs_beacon_start_req = eSAP_TRUE;
+		dfs_beacon_start_req = true;
 		sap_ctx->pre_cac_complete = false;
 		*ret_status = sme_roam_start_beacon_req(hHal, sap_ctx->bssid,
 							dfs_beacon_start_req);
@@ -869,7 +869,7 @@ wlansap_roam_callback(void *ctx, tCsrRoamInfo *csr_roam_info, uint32_t roamId,
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
 			  FL("Session %d opened successfully"),
 			  sap_ctx->sessionId);
-		sap_ctx->isSapSessionOpen = eSAP_TRUE;
+		sap_ctx->isSapSessionOpen = true;
 		qdf_event_set(&sap_ctx->sap_session_opened_evt);
 		break;
 	case eCSR_ROAM_INFRA_IND:

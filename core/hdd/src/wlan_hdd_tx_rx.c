@@ -285,9 +285,10 @@ static inline struct sk_buff *hdd_skb_orphan(hdd_adapter_t *pAdapter,
 		struct sk_buff *skb) {
 
 	struct sk_buff *nskb;
+	hdd_context_t *hdd_ctx = pAdapter->pHddCtx;
 
 	nskb = skb_unshare(skb, GFP_ATOMIC);
-	if (nskb == skb) {
+	if (unlikely(hdd_ctx->config->tx_orphan_enable) && (nskb == skb)) {
 		/*
 		 * For UDP packets we want to orphan the packet to allow the app
 		 * to send more packets. The flow would ultimately be controlled
@@ -1770,11 +1771,10 @@ void hdd_send_rps_disable_ind(hdd_adapter_t *adapter)
  */
 void hdd_reset_tcp_delack(hdd_context_t *hdd_ctx)
 {
-	enum pld_bus_width_type next_level = WLAN_SVC_TP_LOW;
 	struct wlan_rx_tp_data rx_tp_data = {0};
 
 	rx_tp_data.rx_tp_flags |= TCP_DEL_ACK_IND;
-	rx_tp_data.level = next_level;
+	rx_tp_data.level = WLAN_SVC_TP_LOW;
 	hdd_ctx->rx_high_ind_cnt = 0;
 	wlan_hdd_send_svc_nlink_msg(hdd_ctx->radio_index, WLAN_SVC_WLAN_TP_IND,
 				    &rx_tp_data, sizeof(rx_tp_data));

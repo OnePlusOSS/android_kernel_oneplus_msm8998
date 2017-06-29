@@ -250,6 +250,15 @@ static int __wlan_hdd_ipv6_changed(struct notifier_block *nb,
 		status = wlan_hdd_validate_context(pHddCtx);
 		if (0 != status)
 			return NOTIFY_DONE;
+
+		/* Ignore if the interface is down */
+		if (!(ndev->flags & IFF_UP)) {
+			hdd_err("Rcvd change addr request on %s(flags 0x%X)",
+				ndev->name, ndev->flags);
+			hdd_err("NETDEV Interface is down, ignoring...");
+			return NOTIFY_DONE;
+		}
+
 		sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
 		hdd_debug("invoking sme_dhcp_done_ind");
 		sme_dhcp_done_ind(pHddCtx->hHal,
@@ -900,6 +909,14 @@ static int __wlan_hdd_ipv4_changed(struct notifier_block *nb,
 		status = wlan_hdd_validate_context(pHddCtx);
 		if (0 != status)
 			return NOTIFY_DONE;
+
+		/* Ignore if the interface is down */
+		if (!(ndev->flags & IFF_UP)) {
+			hdd_err("Rcvd change addr request on %s(flags 0x%X)",
+				ndev->name, ndev->flags);
+			hdd_err("NETDEV Interface is down, ignoring...");
+			return NOTIFY_DONE;
+		}
 
 		sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
 		hdd_debug("invoking sme_dhcp_done_ind");

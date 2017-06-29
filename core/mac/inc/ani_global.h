@@ -978,6 +978,9 @@ typedef struct sAniSirGlobal {
 	enum  country_src reg_hint_src;
 	uint32_t rx_packet_drop_counter;
 	struct candidate_chan_info candidate_channel_info[QDF_MAX_NUM_CHAN];
+	bool snr_monitor_enabled;
+	/* channel information callback */
+	void (*chan_info_cb)(struct scan_chan_info *chan_info);
 } tAniSirGlobal;
 
 typedef enum {

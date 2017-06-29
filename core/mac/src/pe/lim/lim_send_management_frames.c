@@ -1223,8 +1223,16 @@ lim_send_assoc_rsp_mgmt_frame(tpAniSirGlobal mac_ctx,
 					&frm.VHTOperation);
 			is_vht = true;
 		} else {
-			/* Advertise 1x1 if either is HT-STA */
-			if (frm.HTCaps.present && mac_ctx->hw_dbs_capable)
+			/*
+			 * 2G-AS platform: SAP associates with HT (11n)clients
+			 * as 2x1 in 2G and 2X2 in 5G
+			 * Non-2G-AS platform: SAP associates with HT (11n)
+			 * clients as 2X2 in 2G and 5G
+			 * 5G-AS: Don’t care
+			 */
+			if (frm.HTCaps.present && mac_ctx->hw_dbs_capable &&
+				mac_ctx->lteCoexAntShare &&
+				IS_24G_CH(pe_session->currentOperChannel))
 				frm.HTCaps.supportedMCSSet[1] = 0;
 		}
 		if (pe_session->vhtCapability &&
@@ -1643,6 +1651,7 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 	/* check this early to avoid unncessary operation */
 	if (NULL == pe_session->pLimJoinReq) {
 		pe_err("pe_session->pLimJoinReq is NULL");
+		qdf_mem_free(mlm_assoc_req);
 		return;
 	}
 	add_ie_len = pe_session->pLimJoinReq->addIEAssoc.length;
@@ -1651,6 +1660,7 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 	frm = qdf_mem_malloc(sizeof(tDot11fAssocRequest));
 	if (NULL == frm) {
 		pe_err("Unable to allocate memory");
+		qdf_mem_free(mlm_assoc_req);
 		return;
 	}
 	qdf_mem_set((uint8_t *) frm, sizeof(tDot11fAssocRequest), 0);
@@ -1712,7 +1722,7 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 		      LIM_BSS_CAPS_GET(WSM, pe_session->limCurrentBssQosCaps);
 
 	if (pe_session->lim11hEnable &&
-	    pe_session->pLimJoinReq->spectrumMgtIndicator == eSIR_TRUE) {
+	    pe_session->pLimJoinReq->spectrumMgtIndicator == true) {
 		power_caps = true;
 
 		populate_dot11f_power_caps(mac_ctx, &frm->PowerCaps,
@@ -1955,8 +1965,7 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 		lim_post_sme_message(mac_ctx, LIM_MLM_ASSOC_CNF,
 			(uint32_t *) &assoc_cnf);
 
-		qdf_mem_free(frm);
-		return;
+		goto end;
 	}
 	/* Paranoia: */
 	qdf_mem_set(frame, bytes, 0);
@@ -1971,8 +1980,7 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 	if (DOT11F_FAILED(status)) {
 		pe_err("Assoc request pack failure (0x%08x)", status);
 		cds_packet_free((void *)packet);
-		qdf_mem_free(frm);
-		return;
+		goto end;
 	} else if (DOT11F_WARNED(status)) {
 		pe_warn("Assoc request pack warning (0x%08x)", status);
 	}
@@ -1993,8 +2001,7 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 					pe_session, assoc_ack_status,
 					eSIR_FAILURE);
 			cds_packet_free((void *)packet);
-			qdf_mem_free(frm);
-			return;
+			goto end;
 		}
 	}
 
@@ -2046,10 +2053,10 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 		lim_diag_event_report(mac_ctx, WLAN_PE_DIAG_ASSOC_ACK_EVENT,
 				pe_session, assoc_ack_status, eSIR_FAILURE);
 		/* Pkt will be freed up by the callback */
-		qdf_mem_free(frm);
-		return;
+		goto end;
 	}
 
+end:
 	/* Free up buffer allocated for mlm_assoc_req */
 	qdf_mem_free(mlm_assoc_req);
 	mlm_assoc_req = NULL;
@@ -2119,6 +2126,7 @@ lim_send_auth_mgmt_frame(tpAniSirGlobal mac_ctx,
 	uint8_t tx_flag = 0;
 	uint8_t sme_sessionid = 0;
 	uint16_t ft_ies_length = 0, auth_ack_status;
+	bool challenge_req = false;
 
 	if (NULL == session) {
 		pe_err("Error: psession Entry is NULL");
@@ -2140,8 +2148,8 @@ lim_send_auth_mgmt_frame(tpAniSirGlobal mac_ctx,
 		pe_debug("Sending encrypted auth frame to " MAC_ADDRESS_STR,
 				MAC_ADDR_ARRAY(peer_addr));
 
-		frame_len = sizeof(tSirMacMgmtHdr) + LIM_ENCR_AUTH_BODY_LEN;
 		body_len = LIM_ENCR_AUTH_BODY_LEN;
+		frame_len = sizeof(tSirMacMgmtHdr) + body_len;
 
 		goto alloc_packet;
 	}
@@ -2162,9 +2170,8 @@ lim_send_auth_mgmt_frame(tpAniSirGlobal mac_ctx,
 		 * and status code.
 		 */
 
-		frame_len = sizeof(tSirMacMgmtHdr) +
-			   SIR_MAC_AUTH_CHALLENGE_OFFSET;
-		body_len = SIR_MAC_AUTH_CHALLENGE_OFFSET;
+		body_len = SIR_MAC_AUTH_FRAME_INFO_LEN;
+		frame_len = sizeof(tSirMacMgmtHdr) + body_len;
 
 		frame_len += lim_create_fils_auth_data(mac_ctx,
 						auth_frame, session);
@@ -2196,9 +2203,8 @@ lim_send_auth_mgmt_frame(tpAniSirGlobal mac_ctx,
 			 * transaction number and status code.
 			 */
 
-			frame_len = sizeof(tSirMacMgmtHdr) +
-				   SIR_MAC_AUTH_CHALLENGE_OFFSET;
-			body_len = SIR_MAC_AUTH_CHALLENGE_OFFSET;
+			body_len = SIR_MAC_AUTH_FRAME_INFO_LEN;
+			frame_len = sizeof(tSirMacMgmtHdr) + body_len;
 		} else {
 			/*
 			 * Shared Key algorithm with challenge text
@@ -2211,9 +2217,10 @@ lim_send_auth_mgmt_frame(tpAniSirGlobal mac_ctx,
 			 * for challenge text.
 			 */
 
-			frame_len = sizeof(tSirMacMgmtHdr) +
-				   sizeof(tSirMacAuthFrame);
-			body_len = sizeof(tSirMacAuthFrameBody);
+			challenge_req = true;
+			body_len = SIR_MAC_AUTH_FRAME_INFO_LEN +
+					SIR_MAC_AUTH_CHALLENGE_BODY_LEN;
+			frame_len = sizeof(tSirMacMgmtHdr) + body_len;
 		}
 		break;
 
@@ -2227,9 +2234,8 @@ lim_send_auth_mgmt_frame(tpAniSirGlobal mac_ctx,
 		 * status code.
 		 */
 
-		frame_len = sizeof(tSirMacMgmtHdr) +
-			   SIR_MAC_AUTH_CHALLENGE_OFFSET;
-		body_len = SIR_MAC_AUTH_CHALLENGE_OFFSET;
+		body_len = SIR_MAC_AUTH_FRAME_INFO_LEN;
+		frame_len = sizeof(tSirMacMgmtHdr) + body_len;
 		break;
 
 	case SIR_MAC_AUTH_FRAME_4:
@@ -2240,9 +2246,8 @@ lim_send_auth_mgmt_frame(tpAniSirGlobal mac_ctx,
 		 * status code.
 		 */
 
-		frame_len = sizeof(tSirMacMgmtHdr) +
-			   SIR_MAC_AUTH_CHALLENGE_OFFSET;
-		body_len = SIR_MAC_AUTH_CHALLENGE_OFFSET;
+		body_len = SIR_MAC_AUTH_FRAME_INFO_LEN;
+		frame_len = sizeof(tSirMacMgmtHdr) + body_len;
 
 		break;
 	default:
@@ -2298,11 +2303,29 @@ alloc_packet:
 			sir_swap_u16if_needed(auth_frame->authStatusCode);
 		body += sizeof(uint16_t);
 		body_len -= sizeof(uint16_t);
-		if (body_len <= (sizeof(auth_frame->type) +
-				sizeof(auth_frame->length) +
-				sizeof(auth_frame->challengeText)))
-			qdf_mem_copy(body, (uint8_t *) &auth_frame->type,
-				     body_len);
+
+		if (challenge_req) {
+			if (body_len < SIR_MAC_AUTH_CHALLENGE_BODY_LEN) {
+				qdf_mem_copy(body, (uint8_t *)&auth_frame->type,
+					     body_len);
+				pe_err("Incomplete challenge info: length: %d, expected: %d",
+				       body_len,
+				       SIR_MAC_AUTH_CHALLENGE_BODY_LEN);
+				body += body_len;
+				body_len = 0;
+			} else {
+				/* copy challenge IE id, len, challenge text */
+				*body = auth_frame->type;
+				body++;
+				*body = auth_frame->length;
+				body++;
+				qdf_mem_copy(body, auth_frame->challengeText,
+					     SIR_MAC_AUTH_CHALLENGE_LENGTH);
+				body += SIR_MAC_AUTH_CHALLENGE_LENGTH;
+
+				body_len -= SIR_MAC_AUTH_CHALLENGE_BODY_LEN;
+			}
+		}
 
 		if ((auth_frame->authAlgoNumber == eSIR_FT_AUTH) &&
 		    (auth_frame->authTransactionSeqNumber ==

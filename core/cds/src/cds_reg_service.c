@@ -357,6 +357,8 @@ enum channel_state cds_get_2g_bonded_channel_state(uint16_t oper_ch,
 		return chan_state;
 
 	chan_enum = cds_get_channel_enum(oper_ch);
+	if (INVALID_CHANNEL == chan_enum)
+		return CHANNEL_STATE_INVALID;
 	if (CH_WIDTH_5MHZ == ch_width)
 		bw_enabled = true;
 	else if (CH_WIDTH_10MHZ == ch_width)
@@ -402,6 +404,8 @@ enum channel_state cds_get_5g_bonded_channel_state(
 		return chan_state;
 
 	chan_enum = cds_get_channel_enum(chan_num);
+	if (INVALID_CHANNEL == chan_enum)
+		return CHANNEL_STATE_INVALID;
 	if (CH_WIDTH_5MHZ == ch_width)
 		bw_enabled = true;
 	else if (CH_WIDTH_10MHZ == ch_width)

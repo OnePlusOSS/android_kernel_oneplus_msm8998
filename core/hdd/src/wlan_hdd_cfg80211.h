@@ -2680,6 +2680,7 @@ enum qca_ignore_assoc_disallowed {
  * @QCA_WLAN_VENDOR_ATTR_CONFIG_MAX: max config
  * @QCA_WLAN_VENDOR_ATTR_CONFIG_LISTEN_INTERVAL:
  *		    override static/ini based listen interval
+ * @QCA_WLAN_VENDOR_ATTR_CONFIG_LRO: enable/disable LRO
  */
 enum qca_wlan_vendor_config {
 	QCA_WLAN_VENDOR_ATTR_CONFIG_INVALID = 0,
@@ -2790,6 +2791,12 @@ enum qca_wlan_vendor_config {
 	/* 32-bit unsigned value to configure the listen interval.
 	 *  This is in units of beacon interval */
 	QCA_WLAN_VENDOR_ATTR_CONFIG_LISTEN_INTERVAL = 48,
+	/*
+	 * 8 bit unsigned value to enable/disable LRO (Large Receive Offload)
+	 * on an interface.
+	 * 1 - Enable , 0 - Disable.
+	 */
+	QCA_WLAN_VENDOR_ATTR_CONFIG_LRO = 50,
 
 	/* keep last */
 	QCA_WLAN_VENDOR_ATTR_CONFIG_LAST,
@@ -4142,4 +4149,19 @@ void hdd_bt_activity_cb(void *context, uint32_t bt_activity);
 void hdd_update_cca_info_cb(void *context, uint32_t congestion,
 			uint32_t vdev_id);
 
+/**
+ * wlan_hdd_init_chan_info() - init chan info in hdd context
+ * @hdd_ctx: HDD context pointer
+ *
+ * Return: none
+ */
+void wlan_hdd_init_chan_info(hdd_context_t *hdd_ctx);
+
+/**
+ * wlan_hdd_deinit_chan_info() - deinit chan info in hdd context
+ * @hdd_ctx: hdd context pointer
+ *
+ * Return: none
+ */
+void wlan_hdd_deinit_chan_info(hdd_context_t *hdd_ctx);
 #endif

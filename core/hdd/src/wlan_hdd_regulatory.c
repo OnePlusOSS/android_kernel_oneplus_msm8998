@@ -643,11 +643,11 @@ void hdd_reg_notifier(struct wiphy *wiphy,
 
 	if (('K' == request->alpha2[0]) &&
 	    ('R' == request->alpha2[1]))
-		request->dfs_region = DFS_KR_REGION;
+		request->dfs_region = (enum nl80211_dfs_regions) DFS_KR_REGION;
 
 	if (('C' == request->alpha2[0]) &&
 	    ('N' == request->alpha2[1]))
-		request->dfs_region = DFS_CN_REGION;
+		request->dfs_region = (enum nl80211_dfs_regions) DFS_CN_REGION;
 
 	/* first check if this callback is in response to the driver callback */
 
@@ -709,7 +709,8 @@ void hdd_reg_notifier(struct wiphy *wiphy,
 
 		cds_fill_and_send_ctl_to_fw(&hdd_ctx->reg);
 
-		hdd_set_dfs_region(hdd_ctx, request->dfs_region);
+		hdd_set_dfs_region(hdd_ctx,
+				   (enum dfs_region) request->dfs_region);
 
 		cds_get_dfs_region(&dfs_reg);
 		cds_set_wma_dfs_region(dfs_reg);

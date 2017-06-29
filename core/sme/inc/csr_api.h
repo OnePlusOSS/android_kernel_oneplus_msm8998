@@ -82,7 +82,7 @@ typedef enum {
 	eCSR_ENCRYPT_TYPE_WEP40,
 	eCSR_ENCRYPT_TYPE_WEP104,
 	eCSR_ENCRYPT_TYPE_TKIP,
-	eCSR_ENCRYPT_TYPE_AES,
+	eCSR_ENCRYPT_TYPE_AES,/* CCMP */
 #ifdef FEATURE_WLAN_WAPI
 	/* WAPI */
 	eCSR_ENCRYPT_TYPE_WPI,
@@ -97,6 +97,8 @@ typedef enum {
 	/* 11w BIP */
 	eCSR_ENCRYPT_TYPE_AES_CMAC,
 #endif
+	eCSR_ENCRYPT_TYPE_AES_GCMP,
+	eCSR_ENCRYPT_TYPE_AES_GCMP_256,
 	eCSR_ENCRYPT_TYPE_ANY,
 	eCSR_NUM_OF_ENCRYPT_TYPE = eCSR_ENCRYPT_TYPE_ANY,
 
@@ -221,6 +223,8 @@ typedef enum {
 #define CSR_WEP104_KEY_LEN          13
 #define CSR_TKIP_KEY_LEN            32
 #define CSR_AES_KEY_LEN             16
+#define CSR_AES_GCMP_KEY_LEN        16
+#define CSR_AES_GCMP_256_KEY_LEN    32
 #define CSR_MAX_TX_POWER        (WNI_CFG_CURRENT_TX_POWER_LEVEL_STAMAX)
 #define CSR_MAX_RSC_LEN             16
 #ifdef FEATURE_WLAN_WAPI
@@ -243,7 +247,7 @@ typedef struct tagCsrChannelInfo {
 typedef struct tagCsrSSIDInfo {
 	tSirMacSSid SSID;
 	bool handoffPermitted;
-	bool ssidHidden;
+	uint8_t ssidHidden;
 } tCsrSSIDInfo;
 
 typedef struct tagCsrSSIDs {
@@ -538,6 +542,7 @@ typedef enum {
 /* comment inside indicates what roaming callback gets */
 typedef enum {
 	eCSR_ROAM_RESULT_NONE,
+	eCSR_ROAM_RESULT_SUCCESS = eCSR_ROAM_RESULT_NONE,
 	/*
 	 * If roamStatus is eCSR_ROAM_ASSOCIATION_COMPLETION,
 	 * tCsrRoamInfo's pBssDesc may pass back
@@ -937,7 +942,6 @@ typedef struct tagCsrRoamProfile {
 	uint8_t MFPCapable;
 #endif
 	tCsrKeys Keys;
-	eCsrCBChoice CBMode;
 	tCsrChannelInfo ChannelInfo;
 	uint8_t operationChannel;
 	struct ch_params_s ch_params;
@@ -1028,7 +1032,6 @@ typedef struct tagCsrRoamConnectedProfile {
 	tCsrEncryptionList EncryptionInfo;
 	eCsrEncryptionType mcEncryptionType;
 	tCsrEncryptionList mcEncryptionInfo;
-	eCsrCBChoice CBMode;
 	uint8_t operationChannel;
 	uint32_t vht_channel_width;
 	uint16_t beaconInterval;
@@ -1340,6 +1343,11 @@ typedef struct tagCsrConfigParam {
 	uint16_t pkt_err_disconn_th;
 	bool is_bssid_hint_priority;
 	bool is_force_1x1;
+	uint16_t num_11b_tx_chains;
+	uint16_t num_11ag_tx_chains;
+	uint32_t disallow_duration;
+	uint32_t rssi_channel_penalization;
+	uint32_t num_disallowed_aps;
 } tCsrConfigParam;
 
 /* Tush */

@@ -356,7 +356,7 @@ __hif_read_write(struct hif_sdio_dev *device,
 {
 	uint8_t opcode;
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
-	int ret;
+	int ret = A_OK;
 	uint8_t *tbuffer;
 	bool bounced = false;
 
@@ -558,7 +558,7 @@ __hif_read_write(struct hif_sdio_dev *device,
 					("%s: Invalid direction: 0x%08x\n",
 					 __func__, request));
 			status = QDF_STATUS_E_INVAL;
-			break;
+			return status;
 		}
 
 		if (ret) {

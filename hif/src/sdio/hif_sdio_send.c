@@ -25,6 +25,7 @@
  * to the Linux Foundation.
  */
 
+#define ATH_MODULE_NAME hif
 #include <qdf_types.h>
 #include <qdf_status.h>
 #include <qdf_timer.h>

@@ -269,9 +269,13 @@ QDF_STATUS wma_get_buf_start_scan_cmd(tp_wma_handle wma_handle,
 		cmd->dwell_time_passive = scan_req->maxChannelTime;
 
 	/* Ensure correct number of probes are sent on active channel */
-	cmd->repeat_probe_time =
-		cmd->dwell_time_active / WMA_SCAN_NPROBES_DEFAULT;
+	if (scan_req->scan_probe_repeat_time)
+		cmd->repeat_probe_time = scan_req->scan_probe_repeat_time;
+	else
+		cmd->repeat_probe_time =
+			cmd->dwell_time_active / WMA_SCAN_NPROBES_DEFAULT;
 
+	WMA_LOGD("Repeat probe time %d", cmd->repeat_probe_time);
 	/* CSR sends min_rest_Time, max_rest_time and idle_time
 	 * for staying on home channel to continue data traffic.
 	 * Rome fw has facility to monitor the traffic
@@ -492,8 +496,13 @@ QDF_STATUS wma_get_buf_start_scan_cmd(tp_wma_handle wma_handle,
 		WMA_LOGD("SAP: burst_duration: %d", cmd->burst_duration);
 	}
 
-	cmd->n_probes = (cmd->repeat_probe_time > 0) ?
+	if (scan_req->scan_num_probes)
+		cmd->n_probes = scan_req->scan_num_probes;
+	else
+		cmd->n_probes = (cmd->repeat_probe_time > 0) ?
 			cmd->dwell_time_active / cmd->repeat_probe_time : 0;
+
+	WMA_LOGD("Num Probes in each ch scan %d", cmd->n_probes);
 	if (scan_req->channelList.numChannels) {
 		cmd->num_chan = scan_req->channelList.numChannels;
 		for (i = 0; i < scan_req->channelList.numChannels; ++i) {

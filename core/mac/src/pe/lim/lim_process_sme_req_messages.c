@@ -1261,6 +1261,9 @@ static QDF_STATUS lim_send_hal_start_scan_offload_req(tpAniSirGlobal pMac,
 	pScanOffloadReq->scanType = pScanReq->scanType;
 	pScanOffloadReq->minChannelTime = pScanReq->minChannelTime;
 	pScanOffloadReq->maxChannelTime = pScanReq->maxChannelTime;
+	pScanOffloadReq->scan_num_probes = pScanReq->scan_num_probes;
+	pScanOffloadReq->scan_probe_repeat_time =
+		pScanReq->scan_probe_repeat_time;
 	pScanOffloadReq->restTime = pScanReq->restTime;
 	pScanOffloadReq->min_rest_time = pScanReq->min_rest_time;
 	pScanOffloadReq->idle_time = pScanReq->idle_time;

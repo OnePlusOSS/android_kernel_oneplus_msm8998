@@ -1662,69 +1662,29 @@ csr_save_ies(tpAniSirGlobal pMac,
 }
 
 /**
- * csr_calc_other_rssi_count_weight() - Calculate channel weight based on other
- *                           APs RSSI and count for candiate selection.
- * @rssi: Best rssi on that channel
- * @count: No. of APs on that channel
- *
- * Return : uint32_t
- */
-static uint32_t csr_calc_other_rssi_count_weight(int32_t rssi, int32_t count)
-{
-	int32_t rssi_weight = 0;
-	int32_t count_weight = 0;
-	int32_t rssi_count_weight = 0;
-
-	rssi_weight = BEST_CANDIDATE_RSSI_WEIGHT * (rssi - MIN_RSSI);
-
-	do_div(rssi_weight, (MAX_RSSI - MIN_RSSI));
-
-	if (rssi_weight > BEST_CANDIDATE_RSSI_WEIGHT)
-		rssi_weight = BEST_CANDIDATE_RSSI_WEIGHT;
-	else if (rssi_weight < 0)
-		rssi_weight = 0;
-
-	count_weight = BEST_CANDIDATE_AP_COUNT_WEIGHT *
-		(count + BEST_CANDIDATE_MIN_COUNT);
-
-	do_div(count_weight,
-			(BEST_CANDIDATE_MAX_COUNT + BEST_CANDIDATE_MIN_COUNT));
-
-	if (count_weight > BEST_CANDIDATE_AP_COUNT_WEIGHT)
-		count_weight = BEST_CANDIDATE_AP_COUNT_WEIGHT;
-
-	rssi_count_weight =  ROAM_MAX_CHANNEL_WEIGHT -
-				(rssi_weight + count_weight);
-
-	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-	FL("rssi_weight=%d, count_weight=%d, rssi_count_weight=%d rssi=%d count=%d"),
-		rssi_weight, count_weight, rssi_count_weight, rssi, count);
-
-	return rssi_count_weight;
-}
-
-/**
  * _csr_calculate_bss_score () - Calculate BSS score based on AP capabilty
  *                              and channel condition for best candidate
  *                              selection
  * @bss_info: bss information
- * @best_rssi :  Best rssi on BSS channel
  * @ap_cnt: No of AP count on BSS channel
  * @pcl_chan_weight: pcl weight of BSS channel
  *
  * Return : int32_t
  */
 static int32_t _csr_calculate_bss_score(tSirBssDescription *bss_info,
-		int32_t best_rssi, int32_t ap_cnt, int pcl_chan_weight)
+		int pcl_chan_weight, int nss)
 {
 	int32_t score = 0;
 	int32_t ap_load = 0;
 	int32_t normalised_width = BEST_CANDIDATE_20MHZ;
 	int32_t normalised_rssi = 0;
-	int32_t channel_weight;
 	int32_t pcl_score = 0;
 	int32_t modified_rssi = 0;
 	int32_t temp_pcl_chan_weight = 0;
+	int8_t  ap_nss = 0;
+	int32_t est_air_time_percentage = 0;
+	int32_t congestion = 0;
+	int32_t congestion_penalty = 0;
 
 	/*
 	 * Total weight of a BSSID is calculated on basis of 100 in which
@@ -1838,41 +1798,51 @@ static int32_t _csr_calculate_bss_score(tSirBssDescription *bss_info,
 			bss_info->rssi > RSSI_THRESHOLD_5GHZ)
 		score += BEST_CANDIDATE_MAX_WEIGHT * CHAN_BAND_WEIGHTAGE;
 
-	/*
-	 * If QBSS load is present, extra CCA weightage is given on based of AP
-	 * load as 10%.
-	 */
-	if (bss_info->QBSSLoad_present) {
-		/* calculate value in % */
+	if (bss_info->air_time_fraction) {
+		est_air_time_percentage =
+			bss_info->air_time_fraction * ROAM_MAX_CHANNEL_WEIGHT;
+		do_div(est_air_time_percentage,
+				MAX_ESTIMATED_AIR_TIME_FRACTION);
+		congestion = MAX_CHANNEL_UTILIZATION - est_air_time_percentage;
+	} else if (bss_info->QBSSLoad_present) {
 		ap_load = (bss_info->qbss_chan_load *
 				BEST_CANDIDATE_MAX_WEIGHT);
+		/*
+		 * Calculate ap_load in % from qbss channel load from 0-255
+		 * range
+		 */
 		do_div(ap_load, MAX_AP_LOAD);
+		congestion = ap_load;
 	}
-	/*
-	 * If doesn't announce its ap load, driver will take it as 50% of
-	 * CCA_WEIGHTAGE
-	 */
-	if (ap_load)
-		score += (MAX_CHANNEL_UTILIZATION - ap_load) * CCA_WEIGHTAGE;
-	else
-		score +=  DEFAULT_CHANNEL_UTILIZATION * CCA_WEIGHTAGE;
+	if (congestion >= CONSIDERABLE_CHANNEL_CONGESTION &&
+		congestion <= HIGH_CHANNEL_CONGESTION)
+		       congestion_penalty = 25;
+	else if (congestion > HIGH_CHANNEL_CONGESTION &&
+			congestion <= EXTREME_CHANNEL_CONGESTION)
+		congestion_penalty = 50;
+	else congestion_penalty = 0;
+	if (congestion_penalty)
+		score -= congestion_penalty*10;
 
-	if (ap_cnt == 0)
-		channel_weight = ROAM_MAX_CHANNEL_WEIGHT;
+	ap_nss = bss_info->nss;
+	if (wma_is_current_hwmode_dbs())
+		nss--;
+	if (nss == 2 && ap_nss == 1)
+		score += BEST_CANDIDATE_MAX_WEIGHT * NSS_1X1_WEIGHTAGE;
 	else
-		channel_weight = csr_calc_other_rssi_count_weight(
-				best_rssi, ap_cnt);
+		score += BEST_CANDIDATE_MAX_WEIGHT * NSS_WEIGHTAGE;
 
-	score += channel_weight * OTHER_AP_WEIGHT;
 	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-		FL("BSSID:"MAC_ADDRESS_STR" rssi=%d normalized_rssi=%d htcaps=%d vht=%d bw=%d channel=%d beamforming=%d ap_load=%d channel_weight=%d pcl_score %d Final Score %d "),
+		FL("BSSID:"MAC_ADDRESS_STR" rssi=%d normalized_rssi=%d htcaps=%d vht=%d bw=%d channel=%d beamforming=%d ap_load=%d est_air_time_percentage=%d pcl_score %d Final Score %d ap_NSS %d  nss %d"),
 		MAC_ADDR_ARRAY(bss_info->bssId),
 		bss_info->rssi, normalised_rssi, bss_info->ht_caps_present,
 		bss_info->vht_caps_present, bss_info->chan_width,
 		bss_info->channelId,
-		bss_info->beacomforming_capable, ap_load, channel_weight,
+		bss_info->beacomforming_capable, ap_load,
+		est_air_time_percentage,
 		pcl_score,
-		score);
+		score, ap_nss, nss);
+
 	return score;
 }
 /**
@@ -1892,17 +1862,16 @@ static void csr_calculate_bss_score(tpAniSirGlobal pMac,
 {
 	int32_t score = 0;
 	int channel_id;
+	int nss = 1;
 	tSirBssDescription *bss_info = &(pBss->Result.BssDescriptor);
 
 	channel_id = cds_get_channel_enum(pBss->Result.BssDescriptor.channelId);
-
+	if (pMac->roam.configParam.enable2x2)
+		nss = 2;
 
 	if (channel_id < NUM_CHANNELS)
 		score = _csr_calculate_bss_score(bss_info,
-			pMac->candidate_channel_info[channel_id].
-			max_rssi_on_channel,
-			pMac->candidate_channel_info[channel_id].
-			other_ap_count, pcl_chan_weight);
+			pcl_chan_weight, nss);
 
 	pBss->bss_score = score;
 	return;
@@ -2020,85 +1989,6 @@ csr_save_scan_entry(tpAniSirGlobal pMac,
 	(*count)++;
 	return status;
 }
-/**
- * csr_calculate_other_ap_count_n_rssi() - calculate channel load on matching
- * profile's channel
- * @mac_ctx: Global MAC Context pointer.
- * @pFilter: Filter to select candidate.
- *
- * This function processes scan list and match scan results
- * with candidate profile. If some scan result doesn't match
- * with candidate profile, this function calculates no of
- * those AP and best RSSI on that candidate's channel.
- *
- * Return : void
- */
-static void csr_calculate_other_ap_count_n_rssi(tpAniSirGlobal pMac,
-		tCsrScanResultFilter *pFilter)
-{
-	QDF_STATUS status = QDF_STATUS_SUCCESS;
-	tListElem *entry;
-	bool match = false;
-	struct tag_csrscan_result *bss = NULL;
-	tDot11fBeaconIEs *ies, *new_ies = NULL;
-	int channel_id;
-
-	csr_ll_lock(&pMac->scan.scanResultList);
-	entry = csr_ll_peek_head(&pMac->scan.scanResultList, LL_ACCESS_NOLOCK);
-	while (entry) {
-		bss = GET_BASE_ADDR(entry, struct tag_csrscan_result, Link);
-		ies = (tDot11fBeaconIEs *) (bss->Result.pvIes);
-		match = false;
-		new_ies = NULL;
-
-		status = csr_save_ies(pMac, pFilter, bss, &new_ies,
-				&match, NULL, NULL, NULL);
-		if (new_ies)
-			qdf_mem_free(new_ies);
-		if (!QDF_IS_STATUS_SUCCESS(status)) {
-			sme_info("save ies fail");
-			break;
-		}
-		/*
-		 * Calculate Count of APs and Best Rssi on matching profile's
-		 * channel. This information will be used to calculate
-		 * total congestion on that channel.
-		 */
-		if (!match) {
-			channel_id = cds_get_channel_enum(
-					bss->Result.BssDescriptor.channelId);
-			if (channel_id >= NUM_CHANNELS) {
-				sme_err("Invalid channel");
-				return;
-			}
-			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-			FL("channel_id %d ssid %s rssi %d mac address "MAC_ADDRESS_STR),
-					bss->Result.BssDescriptor.channelId,
-					bss->Result.ssId.ssId,
-					bss->Result.BssDescriptor.rssi,
-					MAC_ADDR_ARRAY(
-					bss->Result.BssDescriptor.bssId));
-			pMac->candidate_channel_info[channel_id].
-				other_ap_count++;
-			if (pMac->candidate_channel_info[channel_id].
-					max_rssi_on_channel >= 0)
-				pMac->candidate_channel_info[channel_id].
-					max_rssi_on_channel = -127;
-			if ((bss->Result.BssDescriptor.rssi >
-				pMac->candidate_channel_info[channel_id].
-						max_rssi_on_channel))
-				pMac->candidate_channel_info[channel_id].
-					max_rssi_on_channel =
-					bss->Result.BssDescriptor.rssi;
-		}
-		entry = csr_ll_next(&pMac->scan.scanResultList, entry,
-				LL_ACCESS_NOLOCK);
-
-	}
-	csr_ll_unlock(&pMac->scan.scanResultList);
-	return;
-}
-
 
 static QDF_STATUS
 csr_parse_scan_results(tpAniSirGlobal pMac,
@@ -2302,8 +2192,6 @@ QDF_STATUS csr_scan_get_result(tpAniSirGlobal pMac,
 
 	qdf_mem_set(&pMac->candidate_channel_info,
 			sizeof(struct candidate_chan_info), 0);
-	if (pFilter)
-		csr_calculate_other_ap_count_n_rssi(pMac, pFilter);
 
 	pRetList = qdf_mem_malloc(sizeof(struct scan_result_list));
 	if (NULL == pRetList) {

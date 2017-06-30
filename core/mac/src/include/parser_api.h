@@ -192,6 +192,30 @@ struct sir_fils_indication {
 	struct public_key_identifier key_identifier;
 };
 #endif
+#define ESP_INFORMATION_LIST_LENGTH 24
+enum access_category {
+	ESP_AC_BK,
+	ESP_AC_BE,
+	ESP_AC_VI,
+	ESP_AC_VO,
+
+};
+struct sir_esp_info {
+	uint8_t access_category:2;
+	uint8_t reserved:1;
+	uint8_t data_format:2;
+	uint8_t ba_window_size:3;
+	uint8_t estimated_air_fraction;
+	uint8_t ppdu_duration;
+};
+
+struct sir_esp_information {
+	bool is_present;
+	struct sir_esp_info esp_info_AC_BK;
+	struct sir_esp_info esp_info_AC_BE;
+	struct sir_esp_info esp_info_AC_VI;
+	struct sir_esp_info esp_info_AC_VO;
+};
 
 /* Structure common to Beacons & Probe Responses */
 typedef struct sSirProbeRespBeacon {
@@ -285,6 +309,7 @@ typedef struct sSirProbeRespBeacon {
 #ifdef WLAN_FEATURE_FILS_SK
 	struct sir_fils_indication fils_ind;
 #endif
+	struct sir_esp_information esp_information;
 } tSirProbeRespBeacon, *tpSirProbeRespBeacon;
 
 /* probe Request structure */

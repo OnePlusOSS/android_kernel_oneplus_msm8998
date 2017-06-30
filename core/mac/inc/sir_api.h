@@ -799,6 +799,7 @@ typedef struct sSirBssDescription {
 	uint8_t QBSSLoad_present;
 	uint8_t qbss_chan_load;
 	uint16_t QBSSLoad_avail;
+	uint16_t qbss_stacount;
 	/* To achieve 8-byte alignment with ESE enabled */
 	uint32_t reservedPadding5;
 	/* whether it is from a probe rsp */
@@ -817,6 +818,8 @@ typedef struct sSirBssDescription {
 #ifdef WLAN_FEATURE_FILS_SK
 	struct fils_ind_elements fils_info_element;
 #endif
+	uint8_t air_time_fraction;
+	uint8_t nss;
 	/* Please keep the structure 4 bytes aligned above the ieFields */
 	uint32_t ieFields[1];
 
@@ -3176,8 +3179,7 @@ typedef struct {
  */
 struct candidate_chan_info {
 	uint8_t    channel_num;
-	uint8_t    other_ap_count;
-	int8_t     max_rssi_on_channel;
+	uint8_t    ap_count;
 };
 
 /*

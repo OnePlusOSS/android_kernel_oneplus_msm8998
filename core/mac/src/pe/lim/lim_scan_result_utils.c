@@ -90,6 +90,7 @@ static inline void populate_qbss_load_status(tSirBssDescription *pBssDescr,
 		pBssDescr->QBSSLoad_present = true;
 		pBssDescr->QBSSLoad_avail = pBPR->QBSSLoad.avail;
 		pBssDescr->qbss_chan_load = pBPR->QBSSLoad.chautil;
+		pBssDescr->qbss_stacount = pBPR->QBSSLoad.stacount;
 	}
 }
 #else
@@ -98,6 +99,37 @@ static inline void populate_qbss_load_status(tSirBssDescription *pBssDescr,
 {
 }
 #endif
+
+/**
+ * lim_get_nss_supported_by_beacon() - finds out nss from beacom
+ * @bcn: beacon structure pointer
+ *
+ * Return: number of nss advertised by AP
+ */
+static uint8_t lim_get_nss_supported_by_ap(tpSirProbeRespBeacon bcn)
+{
+	if (bcn->VHTCaps.present) {
+		if ((bcn->VHTCaps.rxMCSMap & 0xC0) != 0xC0)
+			return 4;
+
+		if ((bcn->VHTCaps.rxMCSMap & 0x30) != 0x30)
+			return 3;
+
+		if ((bcn->VHTCaps.rxMCSMap & 0x0C) != 0x0C)
+			return 2;
+	} else if (bcn->HTCaps.present) {
+		if (bcn->HTCaps.supportedMCSSet[3])
+			return 4;
+
+		if (bcn->HTCaps.supportedMCSSet[2])
+			return 3;
+
+		if (bcn->HTCaps.supportedMCSSet[1])
+			return 2;
+	}
+
+	return 1;
+}
 
 /**
  * lim_collect_bss_description()
@@ -192,6 +224,34 @@ lim_collect_bss_description(tpAniSirGlobal pMac,
 	if (pBPR->VHTOperation.present)
 		if (pBPR->VHTOperation.chanWidth == 1)
 			pBssDescr->chan_width = eHT_CHANNEL_WIDTH_80MHZ;
+	/*
+	 * If the ESP metric is transmitting multiple airtime fractions, then
+	 * follow the sequence AC_BE, AC_VI, AC_VO, AC_BK and pick whichever is
+	 * the first one available
+	 */
+	if (pBPR->esp_information.is_present) {
+		if (pBPR->esp_information.esp_info_AC_BE.access_category
+				== ESP_AC_BE)
+			pBssDescr->air_time_fraction =
+				pBPR->esp_information.esp_info_AC_BE.
+				estimated_air_fraction;
+		else if (pBPR->esp_information.esp_info_AC_VI.access_category
+				== ESP_AC_VI)
+			pBssDescr->air_time_fraction =
+				pBPR->esp_information.esp_info_AC_VI.
+				estimated_air_fraction;
+		else if (pBPR->esp_information.esp_info_AC_VO.access_category
+				== ESP_AC_VO)
+			pBssDescr->air_time_fraction =
+				pBPR->esp_information.esp_info_AC_VO.
+				estimated_air_fraction;
+		else if (pBPR->esp_information.esp_info_AC_BK.access_category
+				== ESP_AC_BK)
+			pBssDescr->air_time_fraction =
+				pBPR->esp_information.esp_info_AC_BK.
+				estimated_air_fraction;
+	}
+	pBssDescr->nss = lim_get_nss_supported_by_ap(pBPR);
 
 	if (!pBssDescr->beaconInterval) {
 		pe_warn("Beacon Interval is ZERO, making it to default 100 "

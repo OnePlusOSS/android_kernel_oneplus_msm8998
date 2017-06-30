@@ -2686,6 +2686,8 @@ QDF_STATUS wma_open(void *cds_context,
 			wma_action_frame_filter_mac_event_handler,
 			WMA_RX_SERIALIZER_CTX);
 
+	wma_handle->ito_repeat_count = cds_cfg->ito_repeat_count;
+
 	wma_handle->auto_power_save_enabled =
 		cds_cfg->auto_power_save_fail_mode;
 	/* Register PWR_SAVE_FAIL event only in case of recovery(1) */
@@ -6873,6 +6875,7 @@ static QDF_STATUS wma_set_rx_blocksize(tp_wma_handle wma_handle,
 static QDF_STATUS wma_process_limit_off_chan(tp_wma_handle wma_handle,
 	struct sir_limit_off_chan *param)
 {
+
 	int32_t err;
 	struct wmi_limit_off_chan_param limit_off_chan_param;
 

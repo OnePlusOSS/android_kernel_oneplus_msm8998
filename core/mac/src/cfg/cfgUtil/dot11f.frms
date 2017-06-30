@@ -2550,6 +2550,11 @@ IE QCN_IE (EID_VENDOR_SPECIFIC) OUI ( 0x8C, 0xFD, 0xF0, 0x01 )
     version[4];
 }
 
+IE ESP_information (EID_EXTN_ID_ELEMENT) OUI ( 0x0B )
+{
+    variable_data[0..96];
+}
+
 IE fils_indication (EID_FILS_INDICATION)
 {
    // FILS Information element
@@ -3173,6 +3178,7 @@ FRAME Beacon                              // C.f. Sec. 7.2.3.1
     OPTIE  ESEVersion;
     OPTIE  MBO_IE;
     OPTIE  QCN_IE;
+    OPTIE  ESP_information;
 } // End frame Beacon.
 
 // Ok, here's  the story on  Beacon1 & Beacon2.   We presumably beacon  a lot
@@ -3263,6 +3269,7 @@ FRAME Beacon2
     OPTIE  QComVendorIE;
     OPTIE  ESEVersion;
     OPTIE  QCN_IE;
+    OPTIE  ESP_information;
 }
 
 // This frame is just Beacon with its Fixed Fields stripped out.  It's handy
@@ -3330,6 +3337,7 @@ FRAME BeaconIEs
     OPTIE  QComVendorIE;
     OPTIE  MBO_IE;
     OPTIE  QCN_IE;
+    OPTIE  ESP_information;
 } // End frame BeaconIEs.
 
 FRAME Disassociation                      // 7.3.3.3
@@ -3569,6 +3577,7 @@ FRAME ProbeResponse                       // 7.2.3.9
     OPTIE  ESEVersion;
     OPTIE  MBO_IE;
     OPTIE  QCN_IE;
+    OPTIE  ESP_information;
 } // End frame ProbeResponse.
 
 FRAME Authentication                      // 7.2.3.10

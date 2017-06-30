@@ -7867,6 +7867,13 @@ wlan_hdd_set_acs_dfs_config_policy[QCA_WLAN_VENDOR_ATTR_ACS_DFS_MAX + 1] = {
 	[QCA_WLAN_VENDOR_ATTR_ACS_CHANNEL_HINT] = {.type = NLA_U8 },
 };
 
+static const struct nla_policy
+wlan_hdd_set_limit_off_channel_param_policy
+[QCA_WLAN_VENDOR_ATTR_ACTIVE_TOS_MAX + 1] = {
+	[QCA_WLAN_VENDOR_ATTR_ACTIVE_TOS] = {.type = NLA_U8 },
+	[QCA_WLAN_VENDOR_ATTR_ACTIVE_TOS_START] = {.type = NLA_U8 },
+};
+
 /**
  * __wlan_hdd_cfg80211_acs_dfs_mode() - set ACS DFS mode and channel
  * @wiphy: Pointer to wireless phy
@@ -9486,6 +9493,91 @@ static int wlan_hdd_cfg80211_set_nud_stats(struct wiphy *wiphy,
 	return ret;
 }
 
+/**
+ * __wlan_hdd_cfg80211_set_limit_offchan_param() - set limit off-channel cmd
+ * parameters
+ * @wiphy: pointer to wireless wiphy structure.
+ * @wdev: pointer to wireless_dev structure.
+ * @data: pointer to limit off-channel command parameters.
+ * @data_len: the length in byte of  limit off-channel command parameters.
+ *
+ * This is called when application wants to limit the off channel time due to
+ * active voip traffic.
+ *
+ * Return: An error code or 0 on success.
+ */
+static int __wlan_hdd_cfg80211_set_limit_offchan_param(struct wiphy *wiphy,
+					     struct wireless_dev *wdev,
+					     const void *data, int data_len)
+{
+	struct nlattr *tb[QCA_WLAN_VENDOR_ATTR_ACTIVE_TOS_MAX + 1];
+	struct net_device   *dev = wdev->netdev;
+	hdd_adapter_t *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
+	hdd_context_t *hdd_ctx = wiphy_priv(wiphy);
+	int ret = 0;
+	uint8_t tos;
+	uint8_t tos_status;
+
+	ENTER();
+
+	ret = wlan_hdd_validate_context(hdd_ctx);
+	if (ret < 0)
+		return ret;
+
+	if (nla_parse(tb, QCA_WLAN_VENDOR_ATTR_ACTIVE_TOS_MAX, data, data_len,
+				wlan_hdd_set_limit_off_channel_param_policy)) {
+		hdd_err("Invalid ATTR");
+		return -EINVAL;
+	}
+
+	if (!tb[QCA_WLAN_VENDOR_ATTR_ACTIVE_TOS]) {
+		hdd_err("attr tos failed");
+		goto fail;
+	}
+
+	tos = nla_get_u8(tb[QCA_WLAN_VENDOR_ATTR_ACTIVE_TOS]);
+	hdd_debug("tos %d", tos);
+
+	if (!tb[QCA_WLAN_VENDOR_ATTR_ACTIVE_TOS_START]) {
+		hdd_err("attr tos active failed");
+		goto fail;
+	}
+	tos_status = nla_get_u8(tb[QCA_WLAN_VENDOR_ATTR_ACTIVE_TOS_START]);
+
+	hdd_debug("tos status %d", tos_status);
+	ret = hdd_set_limit_off_chan_for_tos(adapter, tos, tos_status);
+
+fail:
+	return ret;
+}
+
+/**
+ * wlan_hdd_cfg80211_set_limit_offchan_param() - set limit off-channel cmd
+ * parameters
+ * @wiphy: pointer to wireless wiphy structure.
+ * @wdev: pointer to wireless_dev structure.
+ * @data: pointer to limit off-channel command parameters.
+ * @data_len: the length in byte of  limit off-channel command parameters.
+ *
+ * This is called when application wants to limit the off channel time due to
+ * active voip traffic.
+ *
+ * Return: An error code or 0 on success.
+ */
+static int wlan_hdd_cfg80211_set_limit_offchan_param(struct wiphy *wiphy,
+		struct wireless_dev *wdev,
+		const void *data, int data_len)
+
+{
+	int ret = 0;
+
+	cds_ssr_protect(__func__);
+	ret = __wlan_hdd_cfg80211_set_limit_offchan_param(wiphy, wdev, data,
+			data_len);
+	cds_ssr_unprotect(__func__);
+
+	return ret;
+}
 #undef STATS_SET_INVALID
 #undef STATS_SET_START
 #undef STATS_GW_IPV4
@@ -10870,6 +10962,15 @@ const struct wiphy_vendor_command hdd_wiphy_vendor_commands[] = {
 		.doit = wlan_hdd_cfg80211_get_chain_rssi
 	},
 	FEATURE_SPECTRAL_SCAN_VENDOR_COMMANDS
+	{
+		.info.vendor_id = QCA_NL80211_VENDOR_ID,
+		.info.subcmd = QCA_NL80211_VENDOR_SUBCMD_ACTIVE_TOS,
+		.flags = WIPHY_VENDOR_CMD_NEED_WDEV |
+			 WIPHY_VENDOR_CMD_NEED_NETDEV |
+			 WIPHY_VENDOR_CMD_NEED_RUNNING,
+		.doit = wlan_hdd_cfg80211_set_limit_offchan_param
+	},
+
 };
 
 /**

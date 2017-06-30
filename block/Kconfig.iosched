@@ -32,6 +32,10 @@ config IOSCHED_DEADLINE
 	  a new point in the service tree and doing a batch of IO from there
 	  in case of expiry.
 
+config IOSCHED_MAPLE
+	tristate "Maple I/O scheduler"
+	default y
+
 config IOSCHED_CFQ
 	tristate "CFQ I/O scheduler"
 	default y
@@ -126,7 +130,7 @@ config IOSCHED_ZEN
 
 choice
 	prompt "Default I/O scheduler"
-	default DEFAULT_CFQ
+	default DEFAULT_BFQ
 	help
 	  Select the I/O scheduler which will be used by default for all
 	  block devices.
@@ -149,6 +153,9 @@ choice
 
 	config DEFAULT_FIOPS
 		bool "FIOPS" if IOSCHED_FIOPS=y
+
+	config DEFAULT_MAPLE
+		bool "Maple" if IOSCHED_MAPLE=y
 
 	config DEFAULT_NOOP
 		bool "No-op"
@@ -186,6 +193,7 @@ config DEFAULT_IOSCHED
 	default "tripndroid" if DEFAULT_TRIPNDROID
 	default "vr" if DEFAULT_VR
 	default "zen" if DEFAULT_ZEN
+	default "maple" if DEFAULT_MAPLE
 
 endmenu
 

@@ -6380,16 +6380,22 @@ static QDF_STATUS lim_send_ie(tpAniSirGlobal mac_ctx, uint32_t sme_session_id,
 /**
  * lim_get_rx_ldpc() - gets ldpc setting for given channel(band)
  * @mac_ctx: global mac context
- * @ch: channel for which ldpc setting is required
+ * @ch: channel enum for which ldpc setting is required
+ *      Note: ch param is not absolute channel number rather it is
+ *            channel number enum.
  *
  * Return: true if enabled and false otherwise
  */
-bool lim_get_rx_ldpc(tpAniSirGlobal mac_ctx, uint8_t ch,
+bool lim_get_rx_ldpc(tpAniSirGlobal mac_ctx, enum channel_enum ch,
 				   uint8_t is_hw_mode_dbs)
 {
 	enum hw_mode_dbs_capab hw_mode_to_use;
 	bool ret_val;
 
+	if (ch >= NUM_CHANNELS) {
+		pe_err("invalid number of channels, disable rx ldpc");
+		return false;
+	}
 	hw_mode_to_use = is_hw_mode_dbs ? HW_MODE_DBS : HW_MODE_DBS_NONE;
 	if (mac_ctx->roam.configParam.rx_ldpc_enable &&
 			wma_is_rx_ldpc_supported_for_channel(

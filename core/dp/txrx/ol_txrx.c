@@ -2487,7 +2487,7 @@ ol_txrx_peer_attach(ol_txrx_vdev_handle vdev, uint8_t *peer_mac_addr)
 			/* Added for debugging only */
 			wma_peer_debug_dump();
 			if (cds_is_self_recovery_enabled())
-				cds_trigger_recovery(false);
+				cds_trigger_recovery();
 			else
 				QDF_ASSERT(0);
 			vdev->wait_on_peer_id = OL_TXRX_INVALID_LOCAL_PEER_ID;
@@ -3357,7 +3357,7 @@ void peer_unmap_timer_work_function(void *param)
 	wma_peer_debug_dump();
 	if (cds_is_self_recovery_enabled()) {
 		if (!cds_is_driver_recovering())
-			cds_trigger_recovery(false);
+			cds_trigger_recovery();
 		else
 			WMA_LOGE("%s: Recovery is in progress, ignore!",
 					__func__);

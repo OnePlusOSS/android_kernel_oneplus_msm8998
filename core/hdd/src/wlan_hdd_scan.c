@@ -1977,7 +1977,7 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 				} else if (pHddCtx->config->
 					   enableSelfRecovery) {
 					hdd_err("Triggering SSR due to scan stuck");
-					cds_trigger_recovery(false);
+					cds_trigger_recovery();
 				} else {
 					hdd_err("QDF_BUG due to scan stuck");
 					QDF_BUG(0);

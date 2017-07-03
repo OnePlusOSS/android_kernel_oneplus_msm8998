@@ -608,7 +608,7 @@ tSmeCmd *sme_get_command_buffer(tpAniSirGlobal pMac)
 				false,
 				pMac->sme.enableSelfRecovery ? true : false);
 		else if (pMac->sme.enableSelfRecovery)
-			cds_trigger_recovery(false);
+			cds_trigger_recovery();
 		else
 			QDF_BUG(0);
 	}
@@ -11955,7 +11955,7 @@ void active_list_cmd_timeout_handle(void *userData)
 
 	if (mac_ctx->sme.enableSelfRecovery) {
 		sme_save_active_cmd_stats(hal);
-		cds_trigger_recovery(false);
+		cds_trigger_recovery();
 	} else {
 		if (!mac_ctx->roam.configParam.enable_fatal_event &&
 		   !(cds_is_load_or_unload_in_progress() ||

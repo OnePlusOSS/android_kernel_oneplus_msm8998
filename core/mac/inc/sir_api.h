@@ -7965,7 +7965,7 @@ struct INTERF_RSP {
 
 #define MAX_INTERF 10 /* 5 categories x (lower + upper) bands */
 #define MAX_NUM_BINS 520
-#define MAX_SPECTRAL_CHAINS  3
+#define MAX_SPECTRAL_CHAINS  4
 struct INTERF_SRC_RSP {
 	uint16_t count;
 	struct INTERF_RSP interf[MAX_INTERF];

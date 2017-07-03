@@ -26,7 +26,6 @@
 #define MAX_SPECTRAL_PAYLOAD 1500
 #define MAX_NUM_BINS 520
 #define SPECTRAL_SIGNATURE  0xdeadbeef
-#define MAX_SPECTRAL_CHAINS  3
 
 /* Used for the SWAR to obtain approximate combined rssi
  *  in secondary 80Mhz segment

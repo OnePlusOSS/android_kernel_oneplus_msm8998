@@ -864,6 +864,13 @@ static int set_sdp_current(struct smb_charger *chg, int icl_ua)
 	int rc;
 	u8 icl_options;
 
+	// AP: Fast charge for USB
+	if (icl_ua == USBIN_500MA)
+	{
+		icl_ua = USBIN_900MA;
+		pr_info("Boeffla-Kernel: Trigger USB fast charge with 900mA\n");
+	}
+
 	/* power source is SDP */
 	switch (icl_ua) {
 	case USBIN_100MA:

@@ -1944,6 +1944,13 @@ QDF_STATUS hdd_set_ibss_power_save_params(hdd_adapter_t *pAdapter);
 QDF_STATUS wlan_hdd_restart_driver(hdd_context_t *pHddCtx);
 void hdd_exchange_version_and_caps(hdd_context_t *pHddCtx);
 int wlan_hdd_validate_context(hdd_context_t *pHddCtx);
+/**
+ * wlan_hdd_validate_context_in_loading() - check the HDD context in loading
+ * @hdd_ctx:	HDD context pointer
+ *
+ * Return: 0 if the context is valid. Error code otherwise
+ */
+int wlan_hdd_validate_context_in_loading(hdd_context_t *hdd_ctx);
 bool hdd_is_valid_mac_address(const uint8_t *pMacAddr);
 QDF_STATUS hdd_issta_p2p_clientconnected(hdd_context_t *pHddCtx);
 bool wlan_hdd_modules_are_enabled(hdd_context_t *hdd_ctx);

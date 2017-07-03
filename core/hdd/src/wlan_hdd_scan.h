@@ -30,6 +30,7 @@
 #define WLAN_HDD_SCAN_H
 
 #include "wlan_hdd_main.h"
+#include "csr_inside_api.h"
 
 #define MAX_PENDING_LOG 5
 
@@ -47,6 +48,10 @@
 /* Minimum number of channels for enabling DBS Scan */
 #define HDD_MIN_CHAN_DBS_SCAN_THRESHOLD         8
 
+/* HDD Scan inactivity timeout set to 10 seconds
+ * more than the CSR CMD Timeout */
+#define HDD_SCAN_INACTIVITY_TIMEOUT \
+	(CSR_ACTIVE_SCAN_LIST_CMD_TIMEOUT + (10*1000))
 /*
  * enum scan_source - scan request source
  *

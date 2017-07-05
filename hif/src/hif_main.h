@@ -165,6 +165,9 @@ struct hif_softc {
 #ifdef QCA_NSS_WIFI_OFFLOAD_SUPPORT
 	uint32_t nss_wifi_ol_mode;
 #endif
+#ifdef IPA_OFFLOAD
+	qdf_shared_mem_t *ipa_ce_ring;
+#endif
 #ifdef WLAN_SUSPEND_RESUME_TEST
 	struct fake_apps_context fake_apps_ctx;
 #endif /* WLAN_SUSPEND_RESUME_TEST */

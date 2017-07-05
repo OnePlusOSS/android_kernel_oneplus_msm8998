@@ -5113,6 +5113,39 @@ QDF_STATUS csr_scan_age_results(tpAniSirGlobal pMac,
 	return status;
 }
 
+/**
+ * csr_populate_ie_whitelist_attrs() - Populates ie whitelist attrs
+ * @msg: pointer to sme scan req
+ * @scan_req: pointer to csr scan req
+ *
+ * This function populates ie whitelisting attributes of the sme scan req
+ * with corresponding whitelisting attrs in csr scan req
+ *
+ * Return: None
+ */
+static void csr_populate_ie_whitelist_attrs(tSirSmeScanReq *msg,
+					    tCsrScanRequest *scan_req)
+{
+	msg->ie_whitelist = scan_req->ie_whitelist;
+	msg->num_vendor_oui = scan_req->num_vendor_oui;
+
+	if (!msg->ie_whitelist)
+		return;
+
+	qdf_mem_copy(msg->probe_req_ie_bitmap, scan_req->probe_req_ie_bitmap,
+		     PROBE_REQ_BITMAP_LEN * sizeof(uint32_t));
+	msg->oui_field_len = scan_req->num_vendor_oui * sizeof(*scan_req->voui);
+	msg->oui_field_offset = (sizeof(tSirSmeScanReq) -
+				 sizeof(msg->channelList.channelNumber) +
+				 (sizeof(msg->channelList.channelNumber) *
+				 scan_req->ChannelInfo.numOfChannels)) +
+				 scan_req->uIEFieldLen;
+
+	if (scan_req->num_vendor_oui != 0)
+		qdf_mem_copy((uint8_t *)msg + msg->oui_field_offset,
+			     (uint8_t *)(scan_req->voui), msg->oui_field_len);
+}
+
 static QDF_STATUS csr_send_mb_scan_req(tpAniSirGlobal pMac, uint16_t sessionId,
 				       tCsrScanRequest *pScanReq,
 				       struct tag_scanreq_param *pScanReqParam)
@@ -5300,25 +5333,7 @@ static QDF_STATUS csr_send_mb_scan_req(tpAniSirGlobal pMac, uint16_t sessionId,
 			     QDF_MAC_ADDR_SIZE);
 	}
 
-	pMsg->ie_whitelist = pScanReq->ie_whitelist;
-	if (pMsg->ie_whitelist)
-		qdf_mem_copy(pMsg->probe_req_ie_bitmap,
-			     pScanReq->probe_req_ie_bitmap,
-			     PROBE_REQ_BITMAP_LEN * sizeof(uint32_t));
-	pMsg->num_vendor_oui = pScanReq->num_vendor_oui;
-	pMsg->oui_field_len = pScanReq->num_vendor_oui *
-				      sizeof(*pScanReq->voui);
-	pMsg->oui_field_offset = (sizeof(tSirSmeScanReq) -
-				sizeof(pMsg->channelList.channelNumber) +
-				(sizeof(pMsg->channelList.channelNumber) *
-				pScanReq->ChannelInfo.numOfChannels)) +
-				pScanReq->uIEFieldLen;
-
-	if (pScanReq->num_vendor_oui != 0) {
-		qdf_mem_copy((uint8_t *)pMsg + pMsg->oui_field_offset,
-			     (uint8_t *)(pScanReq->voui),
-			     pMsg->oui_field_len);
-	}
+	csr_populate_ie_whitelist_attrs(pMsg, pScanReq);
 
 	pMsg->scan_ctrl_flags_ext = pScanReq->scan_ctrl_flags_ext;
 
@@ -5699,6 +5714,42 @@ static bool csr_scan_filter_given_chnl_band(tpAniSirGlobal mac_ctx,
 }
 
 /**
+ * csr_scan_copy_ie_whitelist_attrs() - Copies ie whitelist attrs
+ * @dst_req: pointer to tCsrScanRequest
+ * @src_req: pointer to tCsrScanRequest
+ *
+ * This function makes a copy of ie whitelist attrs
+ *
+ * Return: QDF_STATUS_SUCCESS - for successful allocation and copy
+ *         QDF_STATUS_E_NOMEM - when failed to allocate memory
+ */
+static QDF_STATUS csr_scan_copy_ie_whitelist_attrs(tCsrScanRequest *dst_req,
+						   tCsrScanRequest *src_req)
+{
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+
+	if (!src_req->num_vendor_oui) {
+		dst_req->num_vendor_oui = 0;
+		dst_req->voui = NULL;
+		return status;
+	}
+
+	dst_req->voui = qdf_mem_malloc(src_req->num_vendor_oui *
+				       sizeof(*dst_req->voui));
+	if (!dst_req->voui) {
+		status = QDF_STATUS_E_NOMEM;
+		dst_req->num_vendor_oui = 0;
+		sme_err("No memory for voui");
+	} else {
+		dst_req->num_vendor_oui = src_req->num_vendor_oui;
+		qdf_mem_copy(dst_req->voui, src_req->voui,
+			     src_req->num_vendor_oui * sizeof(*dst_req->voui));
+	}
+
+	return status;
+}
+
+/**
  * csr_scan_copy_request() - Function to copy scan request
  * @mac_ctx : pointer to Global Mac Structure
  * @dst_req: pointer to tCsrScanRequest
@@ -5884,28 +5935,7 @@ QDF_STATUS csr_scan_copy_request(tpAniSirGlobal mac_ctx,
 	dst_req->scan_id = src_req->scan_id;
 	dst_req->timestamp = src_req->timestamp;
 
-	if (src_req->num_vendor_oui == 0) {
-		dst_req->num_vendor_oui = 0;
-		dst_req->voui = NULL;
-	} else {
-		dst_req->voui = qdf_mem_malloc(src_req->num_vendor_oui *
-					       sizeof(*dst_req->voui));
-		if (!dst_req->voui)
-			status = QDF_STATUS_E_NOMEM;
-		else
-			status = QDF_STATUS_SUCCESS;
-
-		if (QDF_IS_STATUS_SUCCESS(status)) {
-			dst_req->num_vendor_oui = src_req->num_vendor_oui;
-			qdf_mem_copy(dst_req->voui,
-				     src_req->voui,
-				     src_req->num_vendor_oui *
-				     sizeof(*dst_req->voui));
-		} else {
-			dst_req->num_vendor_oui = 0;
-			sme_err("No memory for voui");
-		}
-	}
+	status = csr_scan_copy_ie_whitelist_attrs(dst_req, src_req);
 
 complete:
 	if (!QDF_IS_STATUS_SUCCESS(status))

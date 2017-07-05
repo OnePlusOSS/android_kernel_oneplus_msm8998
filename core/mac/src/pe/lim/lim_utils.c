@@ -4965,6 +4965,60 @@ void lim_resset_scan_channel_info(tpAniSirGlobal pMac)
 	qdf_mem_set(&pMac->lim.scanChnInfo, sizeof(tLimScanChnInfo), 0);
 }
 
+void lim_add_channel_status_info(tpAniSirGlobal p_mac,
+				 struct lim_channel_status *channel_stat,
+				 uint8_t channel_id)
+{
+	uint8_t i;
+	bool found = false;
+	struct lim_scan_channel_status *channel_info =
+		&p_mac->lim.scan_channel_status;
+	struct lim_channel_status *channel_status_list =
+		channel_info->channel_status_list;
+	uint8_t total_channel = channel_info->total_channel;
+
+	if (!ACS_FW_REPORT_PARAM_CONFIGURED)
+		return;
+
+	for (i = 0; i < total_channel; i++) {
+		if (channel_status_list[i].channel_id == channel_id) {
+			if (channel_stat->cmd_flags ==
+			    WMA_CHAN_END_RESP &&
+			    channel_status_list[i].cmd_flags ==
+			    WMA_CHAN_START_RESP) {
+				/* adjust to delta value for counts */
+				channel_stat->rx_clear_count -=
+				    channel_status_list[i].rx_clear_count;
+				channel_stat->cycle_count -=
+				    channel_status_list[i].cycle_count;
+				channel_stat->rx_frame_count -=
+				    channel_status_list[i].rx_frame_count;
+				channel_stat->tx_frame_count -=
+				    channel_status_list[i].tx_frame_count;
+				channel_stat->bss_rx_cycle_count -=
+				    channel_status_list[i].bss_rx_cycle_count;
+			}
+			qdf_mem_copy(&channel_status_list[i], channel_stat,
+				     sizeof(*channel_status_list));
+			found = true;
+			break;
+		}
+	}
+
+	if (!found) {
+		if (total_channel < SIR_MAX_SUPPORTED_ACS_CHANNEL_LIST) {
+			qdf_mem_copy(&channel_status_list[total_channel++],
+				     channel_stat,
+				     sizeof(*channel_status_list));
+			channel_info->total_channel = total_channel;
+		} else {
+			pe_err("Chan cnt exceed, channel_id=%d", channel_id);
+		}
+	}
+
+	return;
+}
+
 /**
  * @function :  lim_is_channel_valid_for_channel_switch()
  *
@@ -6326,16 +6380,22 @@ static QDF_STATUS lim_send_ie(tpAniSirGlobal mac_ctx, uint32_t sme_session_id,
 /**
  * lim_get_rx_ldpc() - gets ldpc setting for given channel(band)
  * @mac_ctx: global mac context
- * @ch: channel for which ldpc setting is required
+ * @ch: channel enum for which ldpc setting is required
+ *      Note: ch param is not absolute channel number rather it is
+ *            channel number enum.
  *
  * Return: true if enabled and false otherwise
  */
-bool lim_get_rx_ldpc(tpAniSirGlobal mac_ctx, uint8_t ch,
+bool lim_get_rx_ldpc(tpAniSirGlobal mac_ctx, enum channel_enum ch,
 				   uint8_t is_hw_mode_dbs)
 {
 	enum hw_mode_dbs_capab hw_mode_to_use;
 	bool ret_val;
 
+	if (ch >= NUM_CHANNELS) {
+		pe_err("invalid number of channels, disable rx ldpc");
+		return false;
+	}
 	hw_mode_to_use = is_hw_mode_dbs ? HW_MODE_DBS : HW_MODE_DBS_NONE;
 	if (mac_ctx->roam.configParam.rx_ldpc_enable &&
 			wma_is_rx_ldpc_supported_for_channel(

@@ -57,7 +57,7 @@
 #include "wlan_hdd_nan_datapath.h"
 #include "pld_common.h"
 #include "wlan_hdd_power.h"
-
+#include <wlan_hdd_tsf.h>
 
 #ifdef QCA_LL_TX_FLOW_CONTROL_V2
 /*
@@ -1286,6 +1286,8 @@ QDF_STATUS hdd_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 	 * it to stack
 	 */
 	qdf_net_buf_debug_release_skb(rxBuf);
+
+	hdd_rx_timestamp(skb, ktime_to_us(skb->tstamp));
 
 	if (HDD_LRO_NO_RX ==
 		 hdd_lro_rx(pHddCtx, pAdapter, skb)) {

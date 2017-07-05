@@ -31,21 +31,6 @@
 #include "cdp_txrx_cfg.h"
 
 /**
- * enum driver_type - Indicate the driver type to the cds, and based on this
- * do appropriate initialization.
- *
- * @DRIVER_TYPE_PRODUCTION: Driver used in the production
- * @DRIVER_TYPE_MFG: Driver used in the Factory
- * @DRIVER_TYPE_INVALID: Invalid and unrecognized type
- *
- */
-enum driver_type {
-	DRIVER_TYPE_PRODUCTION = 0,
-	DRIVER_TYPE_MFG = 1,
-	DRIVER_TYPE_INVALID = 0x7FFFFFFF
-};
-
-/**
  * enum cfg_sub_20_channel_width: ini values for su 20 mhz channel width
  * @WLAN_SUB_20_CH_WIDTH_5: Use 5 mhz channel width
  * @WLAN_SUB_20_CH_WIDTH_10: Use 10 mhz channel width
@@ -121,6 +106,7 @@ enum active_bpf_mode {
  * @active_mc_bc_bpf_mode: Setting that determines how BPF is applied in
  * active mode for MC/BC packets
  * @rps_enabled: RPS enabled in SAP mode
+ * @ito_repeat_count: Indicates ito repeated count
  * Structure for holding cds ini parameters.
  */
 
@@ -131,7 +117,7 @@ struct cds_config_info {
 	uint8_t sta_maxlimod_dtim;
 	uint8_t sta_mod_dtim;
 	uint8_t sta_dynamic_dtim;
-	enum driver_type driver_type;
+	enum qdf_driver_type driver_type;
 	uint8_t max_wow_filters;
 	uint8_t wow_enable;
 	uint8_t ol_ini_info;
@@ -181,6 +167,7 @@ struct cds_config_info {
 	enum active_bpf_mode active_mc_bc_bpf_mode;
 	bool rps_enabled;
 	bool auto_power_save_fail_mode;
+	uint8_t ito_repeat_count;
 };
 
 #ifdef WLAN_FEATURE_FILS_SK

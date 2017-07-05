@@ -9067,6 +9067,27 @@ enum dot11p_mode {
 #define CFG_RX_MODE_DEFAULT  (CFG_ENABLE_RX_THREAD | CFG_ENABLE_NAPI)
 #endif
 
+/*
+ * <ini>
+ * ce_service_max_yield_time - Control to set ce service max yield time (in ms)
+ *
+ * @Min: 1
+ * @Max: 10
+ * @Default: 10
+ *
+ * This ini is used to set ce service max yield time (in ms)
+ *
+ * Supported Feature: NAPI
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+#define CFG_CE_SERVICE_MAX_YIELD_TIME_NAME     "ce_service_max_yield_time"
+#define CFG_CE_SERVICE_MAX_YIELD_TIME_MIN      (1)
+#define CFG_CE_SERVICE_MAX_YIELD_TIME_MAX      (10)
+#define CFG_CE_SERVICE_MAX_YIELD_TIME_DEFAULT  (10)
+
 /* List of RPS CPU maps for different rx queues registered by WLAN driver
  * Ref - Kernel/Documentation/networking/scaling.txt
  * RPS CPU map for a particular RX queue, selects CPU(s) for bottom half
@@ -11074,6 +11095,35 @@ enum hw_filter_mode {
 
 /*
  * <ini>
+ * gAutoChannelSelectWeight - ACS channel weight
+ * @Min: 0x1
+ * @Max: 0xFFFFFFFF
+ * @Default: 0x000000FF
+ *
+ * This ini is used to adjust weight of factors in
+ * acs algorithm.
+ *
+ * Supported Feature: ACS
+ *
+ * Usage: Internal/External
+ *
+ * bits 0-3:   rssi weight
+ * bits 4-7:   bss count weight
+ * bits 8-11:  noise floor weight
+ * bits 12-15: channel free weight
+ * bits 16-19: tx power range weight
+ * bits 20-23: tx power throughput weight
+ * bits 24-31: reserved
+ *
+ * </ini>
+ */
+#define CFG_AUTO_CHANNEL_SELECT_WEIGHT          "gAutoChannelSelectWeight"
+#define CFG_AUTO_CHANNEL_SELECT_WEIGHT_MIN      (0x1)
+#define CFG_AUTO_CHANNEL_SELECT_WEIGHT_MAX      (0xFFFFFFFF)
+#define CFG_AUTO_CHANNEL_SELECT_WEIGHT_DEFAULT  (0x000000FF)
+
+/*
+ * <ini>
  * groam_disallow_duration -disallow duration before roaming
  * @Min: 0
  * @Max: 3600
@@ -11154,6 +11204,25 @@ enum hw_filter_mode {
 #define CFG_TX_ORPHAN_ENABLE_DEFAULT (0)
 #define CFG_TX_ORPHAN_ENABLE_MIN     (0)
 #define CFG_TX_ORPHAN_ENABLE_MAX     (1)
+
+/*
+ * <ini>
+ * gItoRepeatCount - sets ito repeated count
+ * @Min: 0
+ * @Max: 5
+ * @Default: 0
+ *
+ * This ini sets the ito count in FW
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+
+#define CFG_ITO_REPEAT_COUNT_NAME "gItoRepeatCount"
+#define CFG_ITO_REPEAT_COUNT_MIN        (0)
+#define CFG_ITO_REPEAT_COUNT_MAX        (5)
+#define CFG_ITO_REPEAT_COUNT_DEFAULT    (0)
 
 /*---------------------------------------------------------------------------
    Type declarations
@@ -11591,6 +11660,7 @@ struct hdd_config {
 	uint8_t rate_for_tx_mgmt;
 	uint8_t rate_for_tx_mgmt_2g;
 	uint8_t rate_for_tx_mgmt_5g;
+	uint32_t auto_channel_select_weight;
 #ifdef QCA_LL_LEGACY_TX_FLOW_CONTROL
 	uint32_t TxFlowLowWaterMark;
 	uint32_t TxFlowHighWaterMarkOffset;
@@ -11749,6 +11819,7 @@ struct hdd_config {
 #endif
 	uint8_t dot11p_mode;
 	uint8_t rx_mode;
+	uint8_t ce_service_max_yield_time;
 	uint8_t cpu_map_list[CFG_RPS_RX_QUEUE_CPU_MAP_LIST_LEN];
 #ifdef FEATURE_WLAN_EXTSCAN
 	bool     extscan_enabled;
@@ -11936,6 +12007,8 @@ struct hdd_config {
 	uint32_t disallow_duration;
 	uint32_t rssi_channel_penalization;
 	uint32_t num_disallowed_aps;
+
+	uint8_t ito_repeat_count;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

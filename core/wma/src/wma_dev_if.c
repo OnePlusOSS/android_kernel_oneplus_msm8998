@@ -648,6 +648,9 @@ QDF_STATUS wma_vdev_detach(tp_wma_handle wma_handle,
 		return status;
 	}
 
+	if (iface->type == WMI_VDEV_TYPE_STA)
+		wma_pno_stop(wma_handle, vdev_id);
+
 	iface->vdev_active = false;
 	/* P2P Device */
 	if ((iface->type == WMI_VDEV_TYPE_AP) &&

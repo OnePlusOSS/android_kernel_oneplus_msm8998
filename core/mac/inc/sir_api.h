@@ -119,6 +119,14 @@ typedef uint8_t tSirVersionString[SIR_VERSION_STRING_LEN];
 	(QOS_MAP_LEN_MIN + 2 * QOS_MAP_MAX_EX)
 #define NUM_CHAINS_MAX  2
 
+#ifdef ACS_FW_REPORT_PARAM
+#define SIR_MAX_SUPPORTED_ACS_CHANNEL_LIST SIR_MAX_SUPPORTED_CHANNEL_LIST
+#define ACS_FW_REPORT_PARAM_CONFIGURED true
+#else
+#define SIR_MAX_SUPPORTED_ACS_CHANNEL_LIST 1
+#define ACS_FW_REPORT_PARAM_CONFIGURED false
+#endif
+
 #define MAX_LEN_UDP_RESP_OFFLOAD 128
 
 /* Maximum number of realms present in fils indication element */
@@ -994,7 +1002,7 @@ typedef struct sSirSmeScanReq {
 	   up to uIEFieldLen (can be 0)
 	   -----------------------------
 	   ... variable size upto num_vendor_oui
-	   struct vendor_oui voui;
+	   of type uint32_t
 	   -----------------------------------*/
 } tSirSmeScanReq, *tpSirSmeScanReq;
 
@@ -2316,6 +2324,49 @@ typedef struct sLimScanChn {
 	uint8_t channelId;
 } tLimScanChn;
 
+/**
+ * struct lim_channel_status
+ * @channelfreq: Channel freq
+ * @noise_floor: Noise Floor value
+ * @rx_clear_count: rx clear count
+ * @cycle_count: cycle count
+ * @chan_tx_pwr_range: channel tx power per range in 0.5dBm steps
+ * @chan_tx_pwr_throughput: channel tx power per throughput
+ * @rx_frame_count: rx frame count (cumulative)
+ * @bss_rx_cycle_count: BSS rx cycle count
+ * @rx_11b_mode_data_duration: b-mode data rx time (units are microseconds)
+ * @tx_frame_count: BSS tx cycle count	3045
+ * @mac_clk_mhz: sample frequency
+ * @channel_id: channel index
+ * @cmd_flags: indicate which stat event is this status coming from
+ */
+struct lim_channel_status {
+	uint32_t    channelfreq;
+	uint32_t    noise_floor;
+	uint32_t    rx_clear_count;
+	uint32_t    cycle_count;
+	uint32_t    chan_tx_pwr_range;
+	uint32_t    chan_tx_pwr_throughput;
+	uint32_t    rx_frame_count;
+	uint32_t    bss_rx_cycle_count;
+	uint32_t    rx_11b_mode_data_duration;
+	uint32_t    tx_frame_count;
+	uint32_t    mac_clk_mhz;
+	uint32_t    channel_id;
+	uint32_t    cmd_flags;
+};
+
+/**
+ * struct lim_scan_channel_status
+ * @total_channel: total number of be scanned channel
+ * @channel_status_list: channel status info store in this array
+ */
+struct lim_scan_channel_status {
+	uint8_t total_channel;
+	struct lim_channel_status
+	 channel_status_list[SIR_MAX_SUPPORTED_ACS_CHANNEL_LIST];
+};
+
 typedef struct sSmeGetScanChnRsp {
 	/* Message Type */
 	uint16_t mesgType;
@@ -3088,7 +3139,7 @@ typedef struct sSirPNOScanReq {
 	bool ie_whitelist;
 	uint32_t probe_req_ie_bitmap[PROBE_REQ_BITMAP_LEN];
 	uint32_t num_vendor_oui;
-	/* followed by one or more struct vendor_oui */
+	/* followed by one or more vendor ouis of type uint32_t */
 } tSirPNOScanReq, *tpSirPNOScanReq;
 
 /* Preferred Network Found Indication */
@@ -4010,7 +4061,7 @@ typedef struct sSirScanOffloadReq {
 	  up to uIEFieldLen (can be 0)
 	  -----------------------------
 	  ... variable size upto num_vendor_oui
-	  struct vendor_oui voui;
+	  of type uint32_t
 	  ------------------------*/
 } tSirScanOffloadReq, *tpSirScanOffloadReq;
 
@@ -5281,7 +5332,7 @@ typedef struct {
 	bool ie_whitelist;
 	uint32_t probe_req_ie_bitmap[PROBE_REQ_BITMAP_LEN];
 	uint32_t num_vendor_oui;
-	/* Followed by 0 or more struct vendor_oui */
+	/* Followed by 0 or more vendor_ouis of type uint32_t */
 } tSirScanMacOui, *tpSirScanMacOui;
 
 enum {
@@ -7914,7 +7965,7 @@ struct INTERF_RSP {
 
 #define MAX_INTERF 10 /* 5 categories x (lower + upper) bands */
 #define MAX_NUM_BINS 520
-#define MAX_SPECTRAL_CHAINS  3
+#define MAX_SPECTRAL_CHAINS  4
 struct INTERF_SRC_RSP {
 	uint16_t count;
 	struct INTERF_RSP interf[MAX_INTERF];
@@ -8039,5 +8090,21 @@ struct scan_chan_info {
 	uint32_t rx_clear_count;
 	uint32_t tx_frame_count;
 	uint32_t clock_freq;
+};
+
+/**
+ * struct sir_limit_off_chan - limit off-channel command parameters
+ * @vdev_id: vdev id
+ * @is_tos_active: status of the traffic (active/inactive)
+ * @max_off_chan_time: max allowed off channel time
+ * @rest_time: home channel time
+ * @skip_dfs_chans: skip dfs channels during scan
+ */
+struct sir_limit_off_chan {
+	uint8_t vdev_id;
+	bool is_tos_active;
+	uint32_t max_off_chan_time;
+	uint32_t rest_time;
+	bool skip_dfs_chans;
 };
 #endif /* __SIR_API_H */

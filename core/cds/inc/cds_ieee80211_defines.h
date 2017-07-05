@@ -138,7 +138,7 @@ typedef struct ieee80211_rx_status {
 	int rs_rateieee;
 	int rs_ratephy;
 
-#define IEEE80211_MAX_ANTENNA       3   /* Keep the same as ATH_MAX_ANTENNA */
+#define IEEE80211_MAX_ANTENNA       4   /* Keep the same as ATH_MAX_ANTENNA */
 	uint8_t rs_rssictl[IEEE80211_MAX_ANTENNA];      /* RSSI (noise floor ajusted) */
 	uint8_t rs_rssiextn[IEEE80211_MAX_ANTENNA];     /* RSSI (noise floor ajusted) */
 	uint8_t rs_isvalidrssi; /* rs_rssi is valid or not */

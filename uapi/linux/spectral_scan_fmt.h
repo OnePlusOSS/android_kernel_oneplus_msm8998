@@ -31,7 +31,6 @@
 
 #define MAX_INTERF 10 /* 5 categories x (lower + upper) bands */
 #define MAX_NUM_BINS 520
-#define MAX_SPECTRAL_CHAINS  3
 
 /**
  * struct INTERF_RSP_INFO - Interference source info

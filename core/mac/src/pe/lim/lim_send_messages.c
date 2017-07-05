@@ -270,8 +270,9 @@ tSirRetStatus lim_send_switch_chnl_params(tpAniSirGlobal pMac,
 	 */
 	if (QDF_STA_MODE == pSessionEntry->pePersona) {
 		is_current_hwmode_dbs = wma_is_current_hwmode_dbs();
-		pChnlParams->rx_ldpc = lim_get_rx_ldpc(pMac, chnlNumber,
-							is_current_hwmode_dbs);
+		pChnlParams->rx_ldpc =
+			lim_get_rx_ldpc(pMac, cds_get_channel_enum(chnlNumber),
+					is_current_hwmode_dbs);
 		if (CDS_IS_CHANNEL_24GHZ(chnlNumber))
 			pChnlParams->rx_ldpc = pChnlParams->rx_ldpc &&
 				pMac->roam.configParam.rx_ldpc_support_for_2g;

@@ -239,6 +239,9 @@ enum ds_mode {
 #define WMA_EXTSCAN_BURST_DURATION      150
 #endif
 
+#define WMA_CHAN_START_RESP             0
+#define WMA_CHAN_END_RESP               1
+
 #define WMA_BCN_BUF_MAX_SIZE 2500
 #define WMA_NOA_IE_SIZE(num_desc) (2 + (13 * (num_desc)))
 #define WMA_MAX_NOA_DESCRIPTORS 4
@@ -1476,6 +1479,7 @@ struct peer_debug_info {
  * @saved_chan: saved channel list sent as part of WMI_SCAN_CHAN_LIST_CMDID
  * @fw_mem_dump_enabled: Fw memory dump support
  * @ss_configs: spectral scan config parameters
+ * @ito_repeat_count: Indicates ito repeated count
  */
 typedef struct {
 	void *wmi_handle;
@@ -1489,7 +1493,7 @@ typedef struct {
 	qdf_event_t recovery_event;
 	uint16_t max_station;
 	uint16_t max_bssid;
-	enum driver_type driver_type;
+	enum qdf_driver_type driver_type;
 	uint8_t myaddr[IEEE80211_ADDR_LEN];
 	uint8_t hwaddr[IEEE80211_ADDR_LEN];
 	wmi_abi_version target_abi_vers;
@@ -1690,6 +1694,7 @@ typedef struct {
 #ifdef FEATURE_SPECTRAL_SCAN
 	struct vdev_spectral_configure_params ss_configs;
 #endif
+	uint8_t  ito_repeat_count;
 } t_wma_handle, *tp_wma_handle;
 
 /**
@@ -1718,7 +1723,7 @@ struct wma_target_cap {
 typedef struct {
 	void *pConfigBuffer;
 	uint16_t usConfigBufferLen;
-	enum driver_type driver_type;
+	enum qdf_driver_type driver_type;
 	void *pUserData;
 	void *pIndUserData;
 } t_wma_start_req;
@@ -1737,7 +1742,7 @@ typedef enum {
  * @uConfigBufferLen: length of config buffer
  */
 typedef struct qdf_packed sHalMacStartParameter {
-	tDriverType driverType;
+	enum qdf_driver_type driverType;
 	uint32_t uConfigBufferLen;
 
 	/* Following this there is a TLV formatted buffer of length

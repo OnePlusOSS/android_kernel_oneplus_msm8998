@@ -1508,6 +1508,39 @@ struct hdd_scan_chan_info {
 	uint32_t clock_freq;
 };
 
+/**
+ * struct sta_ap_intf_check_work_ctx - sta_ap_intf_check_work
+ * related info
+ * @adapter: adaptor of the interface to which SAP to do SCC
+ *         with
+ */
+struct sta_ap_intf_check_work_ctx {
+	hdd_adapter_t *adapter;
+};
+
+enum tos {
+	TOS_BK = 0,
+	TOS_BE = 1,
+	TOS_VI = 2,
+	TOS_VO = 3,
+};
+
+#define HDD_AC_BK_BIT                   1
+#define HDD_AC_BE_BIT                   2
+#define HDD_AC_VI_BIT                   4
+#define HDD_AC_VO_BIT                   8
+
+#define HDD_MAX_OFF_CHAN_TIME_FOR_VO    20
+#define HDD_MAX_OFF_CHAN_TIME_FOR_VI    20
+#define HDD_MAX_OFF_CHAN_TIME_FOR_BE    40
+#define HDD_MAX_OFF_CHAN_TIME_FOR_BK    40
+
+#define HDD_MAX_AC                      4
+#define HDD_MAX_OFF_CHAN_ENTRIES        2
+
+#define HDD_AC_BIT_INDX                 0
+#define HDD_DWELL_TIME_INDX             1
+
 /** Adapter structure definition */
 struct hdd_context_s {
 	/** Global CDS context  */
@@ -1798,7 +1831,7 @@ struct hdd_context_s {
 	int user_configured_pkt_filter_rules;
 
 	uint32_t no_of_probe_req_ouis;
-	struct vendor_oui *probe_req_voui;
+	uint32_t *probe_req_voui;
 	struct hdd_nud_stats_context nud_stats_context;
 	uint32_t track_arp_ip;
 	uint8_t bt_a2dp_active:1;
@@ -1815,6 +1848,8 @@ struct hdd_context_s {
 	/* the context that is capturing tsf */
 	hdd_adapter_t *cap_tsf_context;
 #endif
+	struct sta_ap_intf_check_work_ctx *sta_ap_intf_check_work_info;
+	uint8_t active_ac;
 };
 
 int hdd_validate_channel_and_bandwidth(hdd_adapter_t *adapter,
@@ -2299,6 +2334,7 @@ int hdd_wlan_start_modules(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 			   bool reinit);
 int hdd_wlan_stop_modules(hdd_context_t *hdd_ctx, bool ftm_mode);
 int hdd_start_adapter(hdd_adapter_t *adapter);
+void hdd_populate_random_mac_addr(hdd_context_t *hdd_ctx, uint32_t num);
 
 /**
  * hdd_get_bss_entry() - Get the bss entry matching the chan, bssid and ssid
@@ -2472,5 +2508,18 @@ int hdd_get_rssi_snr_by_bssid(hdd_adapter_t *adapter, const uint8_t *bssid,
  * Return: NONE
  */
 void hdd_dp_trace_init(struct hdd_config *config);
+
+/**
+ * hdd_set_limit_off_chan_for_tos() - set limit off-chan command parameters
+ * @adapter: pointer adapter context
+ * @tos: type of service
+ * @status: status of the traffic (active/inactive)
+ *
+ * This function updates the limit off-channel command parameters to WMA
+ *
+ * Return: 0 on success or non zero value on failure
+ */
+int hdd_set_limit_off_chan_for_tos(hdd_adapter_t *adapter, enum tos tos,
+		bool is_tos_active);
 
 #endif /* end #if !defined(WLAN_HDD_MAIN_H) */

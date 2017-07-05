@@ -911,8 +911,14 @@ void wma_ndp_add_wow_wakeup_event(tp_wma_handle wma_handle,
 {
 	uint32_t event_bitmap[WMI_WOW_MAX_EVENT_BM_LEN] = {0};
 
+	/* This enables to wake up host when Nan Management Frame is received */
 	wma_set_wow_event_bitmap(WOW_NAN_DATA_EVENT, WMI_WOW_MAX_EVENT_BM_LEN,
 				 event_bitmap);
+
+	/* This enables to wake up host when NDP data packet is received */
+	wma_set_wow_event_bitmap(WOW_PATTERN_MATCH_EVENT,
+				 WMI_WOW_MAX_EVENT_BM_LEN, event_bitmap);
+
 	WMA_LOGD("NDI specific default wake up event 0x%x vdev id %d",
 		 event_bitmap[0], vdev_id);
 	wma_add_wow_wakeup_event(wma_handle, vdev_id, event_bitmap, true);

@@ -247,8 +247,6 @@ int hdd_hif_open(struct device *dev, void *bdev, const struct hif_bus_id *bid,
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		hdd_err("hif_enable failed status: %d, reinit: %d",
 			status, reinit);
-		if (!cds_is_fw_down())
-			QDF_BUG(0);
 
 		ret = qdf_status_to_os_return(status);
 		goto err_hif_close;
@@ -267,6 +265,9 @@ int hdd_hif_open(struct device *dev, void *bdev, const struct hif_bus_id *bid,
 				(void *)hdd_ctx->napi_enable);
 		}
 	}
+
+	hif_set_ce_service_max_yield_time(cds_get_context(QDF_MODULE_ID_HIF),
+				hdd_ctx->config->ce_service_max_yield_time);
 
 	return 0;
 

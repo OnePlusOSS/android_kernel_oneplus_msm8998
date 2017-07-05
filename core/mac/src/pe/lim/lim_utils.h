@@ -413,6 +413,19 @@ tSirRetStatus lim_post_sm_state_update(tpAniSirGlobal pMac,
 void lim_delete_sta_context(tpAniSirGlobal pMac, tpSirMsgQ limMsg);
 void lim_delete_dialogue_token_list(tpAniSirGlobal pMac);
 void lim_resset_scan_channel_info(tpAniSirGlobal pMac);
+
+/**
+ * lim_add_channel_status_info() - store
+ * chan status info into Global MAC structure
+ * @p_mac: Pointer to Global MAC structure
+ * @channel_stat: Pointer to chan status info reported by firmware
+ * @channel_id: current channel id
+ *
+ * Return: None
+ */
+void lim_add_channel_status_info(tpAniSirGlobal p_mac,
+				 struct lim_channel_status *channel_stat,
+				 uint8_t channel_id);
 uint8_t lim_get_channel_from_beacon(tpAniSirGlobal pMac,
 		tpSchBeaconStruct pBeacon);
 tSirNwType lim_get_nw_type(tpAniSirGlobal pMac, uint8_t channelNum,
@@ -696,7 +709,7 @@ tSirRetStatus lim_strip_ie(tpAniSirGlobal mac_ctx,
 		uint8_t eid, eSizeOfLenField size_of_len_field,
 		uint8_t *oui, uint8_t out_len, uint8_t *extracted_ie,
 		uint32_t eid_max_len);
-bool lim_get_rx_ldpc(tpAniSirGlobal mac_ctx, uint8_t ch,
+bool lim_get_rx_ldpc(tpAniSirGlobal mac_ctx, enum channel_enum ch,
 			   uint8_t is_hw_mode_dbs);
 
 /**

@@ -118,7 +118,7 @@
 #define IBSS_CFG_PROTECTION_ENABLE_MASK 0x8282
 
 #define HDD2GHZCHAN(freq, chan, flag)   {     \
-		.band =  NL80211_BAND_2GHZ, \
+		.band = HDD_NL80211_BAND_2GHZ, \
 		.center_freq = (freq), \
 		.hw_value = (chan), \
 		.flags = (flag), \
@@ -301,7 +301,7 @@ static struct ieee80211_supported_band wlan_hdd_band_2_4_ghz = {
 static struct ieee80211_supported_band wlan_hdd_band_5_ghz = {
 	.channels = NULL,
 	.n_channels = ARRAY_SIZE(hdd_channels_5_ghz),
-	.band = NL80211_BAND_5GHZ,
+	.band = HDD_NL80211_BAND_5GHZ,
 	.bitrates = a_mode_rates,
 	.n_bitrates = a_mode_rates_size,
 	.ht_cap.ht_supported = 1,
@@ -1604,6 +1604,10 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 	wlan_hdd_set_acs_ch_range(sap_config,
 			ht_enabled, vht_enabled);
 
+	if (hdd_ctx->config->auto_channel_select_weight)
+		sap_config->auto_channel_select_weight =
+		    hdd_ctx->config->auto_channel_select_weight;
+
 	hdd_debug("ACS Config for wlan%d: HW_MODE: %d ACS_BW: %d HT: %d VHT: %d START_CH: %d END_CH: %d",
 		adapter->dev->ifindex, sap_config->acs_cfg.hw_mode,
 		ch_width, ht_enabled, vht_enabled,
@@ -2033,9 +2037,13 @@ __wlan_hdd_cfg80211_set_scanning_mac_oui(struct wiphy *wiphy,
 		hdd_err("Invalid ATTR");
 		return -EINVAL;
 	}
-	pReqMsg = qdf_mem_malloc(sizeof(*pReqMsg) +
-			(pHddCtx->no_of_probe_req_ouis) *
-			(sizeof(struct vendor_oui)));
+
+	if (pHddCtx->config->probe_req_ie_whitelist)
+		pReqMsg = qdf_mem_malloc(sizeof(*pReqMsg) +
+				pHddCtx->no_of_probe_req_ouis *
+				sizeof(*pHddCtx->probe_req_voui));
+	else
+		pReqMsg = qdf_mem_malloc(sizeof(*pReqMsg));
 
 	if (!pReqMsg) {
 		hdd_err("qdf_mem_malloc failed");
@@ -2065,11 +2073,10 @@ __wlan_hdd_cfg80211_set_scanning_mac_oui(struct wiphy *wiphy,
 	hdd_debug("Oui (%02x:%02x:%02x), vdev_id = %d", pReqMsg->oui[0],
 		   pReqMsg->oui[1], pReqMsg->oui[2], pReqMsg->vdev_id);
 
-	if (pHddCtx->config->probe_req_ie_whitelist)
-		wlan_hdd_fill_whitelist_ie_attrs(&pReqMsg->ie_whitelist,
+	wlan_hdd_fill_whitelist_ie_attrs(&pReqMsg->ie_whitelist,
 				pReqMsg->probe_req_ie_bitmap,
 				&pReqMsg->num_vendor_oui,
-				(struct vendor_oui *)((uint8_t *)pReqMsg +
+				(uint32_t *)((uint8_t *)pReqMsg +
 				sizeof(*pReqMsg)),
 				pHddCtx);
 
@@ -2396,6 +2403,42 @@ wlan_hdd_cfg80211_get_features(struct wiphy *wiphy,
 #define PRAM_SSID_LIST QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_WHITE_LIST_SSID_LIST
 #define PARAM_LIST_SSID  QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_WHITE_LIST_SSID
 
+#define MAX_ROAMING_PARAM \
+	QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_MAX
+
+static const struct nla_policy
+wlan_hdd_set_roam_param_policy[MAX_ROAMING_PARAM + 1] = {
+	[QCA_WLAN_VENDOR_ATTR_ROAMING_SUBCMD] = {.type = NLA_U32},
+	[QCA_WLAN_VENDOR_ATTR_ROAMING_REQ_ID] = {.type = NLA_U32},
+	[PARAM_NUM_NW] = {.type = NLA_U32},
+	[QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_A_BAND_BOOST_FACTOR] = {
+						.type = NLA_U32},
+	[QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_A_BAND_PENALTY_FACTOR] = {
+						.type = NLA_U32},
+	[QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_A_BAND_MAX_BOOST] = {
+						.type = NLA_U32},
+	[QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_LAZY_ROAM_HISTERESYS] = {
+						.type = NLA_S32},
+	[QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_A_BAND_BOOST_THRESHOLD] = {
+						.type = NLA_S32},
+	[QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_A_BAND_PENALTY_THRESHOLD] = {
+						.type = NLA_S32},
+	[QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_ALERT_ROAM_RSSI_TRIGGER] = {
+						.type = NLA_U32},
+	[QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_SET_LAZY_ROAM_ENABLE] = {
+						.type = NLA_S32},
+	[QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_SET_LAZY_ROAM_NUM_BSSID] = {
+						.type = NLA_U32},
+	[QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_SET_LAZY_ROAM_RSSI_MODIFIER] = {
+						.type = NLA_U32},
+	[QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_SET_BSSID_PARAMS_NUM_BSSID] = {
+						.type = NLA_U32},
+	[QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_SET_LAZY_ROAM_BSSID] = {
+						.type = NLA_UNSPEC,
+						.len = QDF_MAC_ADDR_SIZE},
+	[PARAM_SET_BSSID] = {.type = NLA_UNSPEC, .len = QDF_MAC_ADDR_SIZE},
+};
+
 /**
  * __wlan_hdd_cfg80211_set_ext_roam_params() - Settings for roaming parameters
  * @wiphy:                 The wiphy structure
@@ -2444,7 +2487,7 @@ __wlan_hdd_cfg80211_set_ext_roam_params(struct wiphy *wiphy,
 
 	if (nla_parse(tb, QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_MAX,
 		data, data_len,
-		NULL)) {
+		wlan_hdd_set_roam_param_policy)) {
 		hdd_err("Invalid ATTR");
 		return -EINVAL;
 	}
@@ -2486,7 +2529,7 @@ __wlan_hdd_cfg80211_set_ext_roam_params(struct wiphy *wiphy,
 				if (nla_parse(tb2,
 					QCA_WLAN_VENDOR_ATTR_ROAM_SUBCMD_MAX,
 					nla_data(curr_attr), nla_len(curr_attr),
-					NULL)) {
+					wlan_hdd_set_roam_param_policy)) {
 					hdd_err("nla_parse failed");
 					goto fail;
 				}
@@ -2646,7 +2689,7 @@ __wlan_hdd_cfg80211_set_ext_roam_params(struct wiphy *wiphy,
 			if (nla_parse(tb2,
 				QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_MAX,
 				nla_data(curr_attr), nla_len(curr_attr),
-				NULL)) {
+				wlan_hdd_set_roam_param_policy)) {
 				hdd_err("nla_parse failed");
 				goto fail;
 			}
@@ -2708,7 +2751,7 @@ __wlan_hdd_cfg80211_set_ext_roam_params(struct wiphy *wiphy,
 				if (nla_parse(tb2,
 				   QCA_WLAN_VENDOR_ATTR_ROAMING_PARAM_MAX,
 				   nla_data(curr_attr), nla_len(curr_attr),
-				   NULL)) {
+				   wlan_hdd_set_roam_param_policy)) {
 					hdd_err("nla_parse failed");
 					goto fail;
 				}
@@ -7814,6 +7857,8 @@ void hdd_init_bpf_completion(void)
 static const struct nla_policy
 wlan_hdd_sap_config_policy[QCA_WLAN_VENDOR_ATTR_SAP_CONFIG_MAX + 1] = {
 	[QCA_WLAN_VENDOR_ATTR_SAP_CONFIG_CHANNEL] = {.type = NLA_U8 },
+	[QCA_WLAN_VENDOR_ATTR_SAP_MANDATORY_FREQUENCY_LIST] = {
+							.type = NLA_NESTED },
 };
 
 static const struct nla_policy
@@ -8790,10 +8835,10 @@ static int wlan_hdd_cfg80211_sar_convert_band(u32 nl80211_value, u32 *wmi_value)
 	int ret = 0;
 
 	switch (nl80211_value) {
-	case NL80211_BAND_2GHZ:
+	case HDD_NL80211_BAND_2GHZ:
 		*wmi_value = WMI_SAR_2G_ID;
 		break;
-	case NL80211_BAND_5GHZ:
+	case HDD_NL80211_BAND_5GHZ:
 		*wmi_value = WMI_SAR_5G_ID;
 		break;
 	default:
@@ -10934,7 +10979,8 @@ int wlan_hdd_cfg80211_update_band(struct wiphy *wiphy, eCsrBand eBand)
 				cds_get_channel_state(band->channels[j].
 								 hw_value);
 
-			if (NL80211_BAND_2GHZ == i && eCSR_BAND_5G == eBand) {
+			if (HDD_NL80211_BAND_2GHZ == i &&
+				eCSR_BAND_5G == eBand) {
 				/* 5G only */
 #ifdef WLAN_ENABLE_SOCIAL_CHANNELS_5G_ONLY
 				/* Enable Social channels for P2P */
@@ -10949,7 +10995,7 @@ int wlan_hdd_cfg80211_update_band(struct wiphy *wiphy, eCsrBand eBand)
 				band->channels[j].flags |=
 					IEEE80211_CHAN_DISABLED;
 				continue;
-			} else if (NL80211_BAND_5GHZ == i &&
+			} else if (HDD_NL80211_BAND_5GHZ == i &&
 					eCSR_BAND_24 == eBand) {
 				/* 2G only */
 				band->channels[j].flags |=
@@ -11154,14 +11200,14 @@ int wlan_hdd_cfg80211_init(struct device *dev,
 	 * wiphy flags don't get reset because of static memory.
 	 * It's better not to store channel in static memory.
 	 */
-	wiphy->bands[NL80211_BAND_2GHZ] = &wlan_hdd_band_2_4_ghz;
-	wiphy->bands[NL80211_BAND_2GHZ]->channels =
+	wiphy->bands[HDD_NL80211_BAND_2GHZ] = &wlan_hdd_band_2_4_ghz;
+	wiphy->bands[HDD_NL80211_BAND_2GHZ]->channels =
 		qdf_mem_malloc(sizeof(hdd_channels_2_4_ghz));
-	if (wiphy->bands[NL80211_BAND_2GHZ]->channels == NULL) {
+	if (wiphy->bands[HDD_NL80211_BAND_2GHZ]->channels == NULL) {
 		hdd_err("Not enough memory to allocate channels");
 		return -ENOMEM;
 	}
-	qdf_mem_copy(wiphy->bands[NL80211_BAND_2GHZ]->channels,
+	qdf_mem_copy(wiphy->bands[HDD_NL80211_BAND_2GHZ]->channels,
 			&hdd_channels_2_4_ghz[0],
 			sizeof(hdd_channels_2_4_ghz));
 	if ((hdd_is_5g_supported(pHddCtx)) &&
@@ -11169,17 +11215,17 @@ int wlan_hdd_cfg80211_init(struct device *dev,
 		 (eHDD_DOT11_MODE_11g != pCfg->dot11Mode) &&
 		 (eHDD_DOT11_MODE_11b_ONLY != pCfg->dot11Mode) &&
 		 (eHDD_DOT11_MODE_11g_ONLY != pCfg->dot11Mode))) {
-		wiphy->bands[NL80211_BAND_5GHZ] = &wlan_hdd_band_5_ghz;
-		wiphy->bands[NL80211_BAND_5GHZ]->channels =
+		wiphy->bands[HDD_NL80211_BAND_5GHZ] = &wlan_hdd_band_5_ghz;
+		wiphy->bands[HDD_NL80211_BAND_5GHZ]->channels =
 			qdf_mem_malloc(sizeof(hdd_channels_5_ghz));
-		if (wiphy->bands[NL80211_BAND_5GHZ]->channels == NULL) {
+		if (wiphy->bands[HDD_NL80211_BAND_5GHZ]->channels == NULL) {
 			hdd_err("Not enough memory to allocate channels");
 			qdf_mem_free(wiphy->
-				bands[NL80211_BAND_2GHZ]->channels);
-			wiphy->bands[NL80211_BAND_2GHZ]->channels = NULL;
+				bands[HDD_NL80211_BAND_2GHZ]->channels);
+			wiphy->bands[HDD_NL80211_BAND_2GHZ]->channels = NULL;
 			return -ENOMEM;
 		}
-		qdf_mem_copy(wiphy->bands[NL80211_BAND_5GHZ]->channels,
+		qdf_mem_copy(wiphy->bands[HDD_NL80211_BAND_5GHZ]->channels,
 			&hdd_channels_5_ghz[0],
 			sizeof(hdd_channels_5_ghz));
 	}
@@ -11192,7 +11238,7 @@ int wlan_hdd_cfg80211_init(struct device *dev,
 		for (j = 0; j < wiphy->bands[i]->n_channels; j++) {
 			struct ieee80211_supported_band *band = wiphy->bands[i];
 
-			if (NL80211_BAND_2GHZ == i &&
+			if (HDD_NL80211_BAND_2GHZ == i &&
 				eCSR_BAND_5G == pCfg->nBandCapability) {
 				/* 5G only */
 #ifdef WLAN_ENABLE_SOCIAL_CHANNELS_5G_ONLY
@@ -11206,7 +11252,7 @@ int wlan_hdd_cfg80211_init(struct device *dev,
 				band->channels[j].flags |=
 					IEEE80211_CHAN_DISABLED;
 				continue;
-			} else if (NL80211_BAND_5GHZ == i &&
+			} else if (HDD_NL80211_BAND_5GHZ == i &&
 					eCSR_BAND_24 == pCfg->nBandCapability) {
 				/* 2G only */
 				band->channels[j].flags |=
@@ -11308,21 +11354,21 @@ static void wlan_hdd_update_band_cap(hdd_context_t *hdd_ctx)
 	ht_cap_info = (tSirMacHTCapabilityInfo *)&val16;
 
 	if (ht_cap_info->txSTBC == true) {
-		if (NULL != hdd_ctx->wiphy->bands[NL80211_BAND_2GHZ])
-			hdd_ctx->wiphy->bands[NL80211_BAND_2GHZ]->ht_cap.cap |=
+		if (NULL != hdd_ctx->wiphy->bands[HDD_NL80211_BAND_2GHZ])
+			hdd_ctx->wiphy->bands[HDD_NL80211_BAND_2GHZ]->ht_cap.cap |=
 						IEEE80211_HT_CAP_TX_STBC;
-		if (NULL != hdd_ctx->wiphy->bands[NL80211_BAND_5GHZ])
-			hdd_ctx->wiphy->bands[NL80211_BAND_5GHZ]->ht_cap.cap |=
+		if (NULL != hdd_ctx->wiphy->bands[HDD_NL80211_BAND_5GHZ])
+			hdd_ctx->wiphy->bands[HDD_NL80211_BAND_5GHZ]->ht_cap.cap |=
 						IEEE80211_HT_CAP_TX_STBC;
 	}
 
 	if (!sme_is_feature_supported_by_fw(DOT11AC)) {
-		hdd_ctx->wiphy->bands[NL80211_BAND_2GHZ]->
+		hdd_ctx->wiphy->bands[HDD_NL80211_BAND_2GHZ]->
 						vht_cap.vht_supported = 0;
-		hdd_ctx->wiphy->bands[NL80211_BAND_2GHZ]->vht_cap.cap = 0;
-		hdd_ctx->wiphy->bands[NL80211_BAND_5GHZ]->
+		hdd_ctx->wiphy->bands[HDD_NL80211_BAND_2GHZ]->vht_cap.cap = 0;
+		hdd_ctx->wiphy->bands[HDD_NL80211_BAND_5GHZ]->
 						vht_cap.vht_supported = 0;
-		hdd_ctx->wiphy->bands[NL80211_BAND_5GHZ]->vht_cap.cap = 0;
+		hdd_ctx->wiphy->bands[HDD_NL80211_BAND_5GHZ]->vht_cap.cap = 0;
 	}
 }
 
@@ -11521,7 +11567,6 @@ void wlan_hdd_cfg80211_set_key_wapi(hdd_adapter_t *pAdapter, uint8_t key_index,
 	int status = 0;
 	uint32_t roamId = 0xFF;
 	uint8_t *pKeyPtr = NULL;
-	int n = 0;
 
 	hdd_debug("Device_mode %s(%d)",
 		hdd_device_mode_to_string(pAdapter->device_mode),
@@ -11542,9 +11587,6 @@ void wlan_hdd_cfg80211_set_key_wapi(hdd_adapter_t *pAdapter, uint8_t key_index,
 	memcpy(pKeyPtr, key, key_Len);
 
 	hdd_debug("WAPI KEY LENGTH:0x%04x", key_Len);
-	for (n = 0; n < key_Len; n++)
-		hdd_debug("WAPI KEY Data[%d]:%02x ",
-			   n, setKey.Key[n]);
 
 	pHddStaCtx->roam_info.roamingState = HDD_ROAM_STATE_SETTING_KEY;
 	if (isConnected) {
@@ -13204,12 +13246,12 @@ struct cfg80211_bss *wlan_hdd_cfg80211_inform_bss_frame(hdd_adapter_t *pAdapter,
 	}
 
 	if (chan_no <= ARRAY_SIZE(hdd_channels_2_4_ghz) &&
-	    (wiphy->bands[NL80211_BAND_2GHZ] != NULL)) {
+	    (wiphy->bands[HDD_NL80211_BAND_2GHZ] != NULL)) {
 		freq =
 			ieee80211_channel_to_frequency(chan_no,
 						       HDD_NL80211_BAND_2GHZ);
 	} else if ((chan_no > ARRAY_SIZE(hdd_channels_2_4_ghz))
-		   && (wiphy->bands[NL80211_BAND_5GHZ] != NULL)) {
+		   && (wiphy->bands[HDD_NL80211_BAND_5GHZ] != NULL)) {
 		freq =
 			ieee80211_channel_to_frequency(chan_no,
 						       HDD_NL80211_BAND_5GHZ);

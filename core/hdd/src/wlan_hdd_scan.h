@@ -157,7 +157,7 @@ void wlan_hdd_cfg80211_abort_scan(struct wiphy *wiphy,
 void wlan_hdd_fill_whitelist_ie_attrs(bool *ie_whitelist,
 				      uint32_t *probe_req_ie_bitmap,
 				      uint32_t *num_vendor_oui,
-				      struct vendor_oui *voui,
+				      uint32_t *voui,
 				      hdd_context_t *hdd_ctx);
 
 /**

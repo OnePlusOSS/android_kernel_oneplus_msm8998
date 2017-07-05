@@ -396,6 +396,8 @@ typedef struct sAniSirLim {
 	uint8_t abortScan;
 	tLimScanChnInfo scanChnInfo;
 
+	struct lim_scan_channel_status scan_channel_status;
+
 	/* ////////////////////////////////////     SCAN/LEARN RELATED START /////////////////////////////////////////// */
 	tSirMacAddr gSelfMacAddr;       /* added for BT-AMP Support */
 
@@ -848,22 +850,9 @@ typedef struct sRrmContext {
 	tRrmPEContext rrmPEContext;
 } tRrmContext, *tpRrmContext;
 
-/**
- * enum tDriverType - Indicate the driver type to the mac, and based on this
- * do appropriate initialization.
- *
- * @eDRIVER_TYPE_PRODUCTION:
- * @eDRIVER_TYPE_MFG:
- *
- */
-typedef enum {
-	eDRIVER_TYPE_PRODUCTION = 0,
-	eDRIVER_TYPE_MFG = 1,
-} tDriverType;
-
 typedef struct sHalMacStartParameters {
 	/* parametes for the Firmware */
-	tDriverType driverType;
+	enum qdf_driver_type driverType;
 
 } tHalMacStartParameters;
 
@@ -908,7 +897,7 @@ struct vdev_type_nss {
 /* ------------------------------------------------------------------- */
 /* / MAC Sirius parameter structure */
 typedef struct sAniSirGlobal {
-	tDriverType gDriverType;
+	enum qdf_driver_type gDriverType;
 
 	tAniSirCfg cfg;
 	tAniSirLim lim;

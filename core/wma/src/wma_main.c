@@ -2686,6 +2686,8 @@ QDF_STATUS wma_open(void *cds_context,
 			wma_action_frame_filter_mac_event_handler,
 			WMA_RX_SERIALIZER_CTX);
 
+	wma_handle->ito_repeat_count = cds_cfg->ito_repeat_count;
+
 	wma_handle->auto_power_save_enabled =
 		cds_cfg->auto_power_save_fail_mode;
 	/* Register PWR_SAVE_FAIL event only in case of recovery(1) */
@@ -6862,6 +6864,37 @@ static QDF_STATUS wma_set_rx_blocksize(tp_wma_handle wma_handle,
 	return QDF_STATUS_SUCCESS;
 }
 
+
+/**
+ * wma_process_set_limit_off_chan() - set limit off chanel parameters
+ * @wma_handle: pointer to wma handle
+ * @param: pointer to sir_limit_off_chan
+ *
+ * Return: QDF_STATUS_SUCCESS for success or error code.
+ */
+static QDF_STATUS wma_process_limit_off_chan(tp_wma_handle wma_handle,
+	struct sir_limit_off_chan *param)
+{
+
+	int32_t err;
+	struct wmi_limit_off_chan_param limit_off_chan_param;
+
+	limit_off_chan_param.vdev_id = param->vdev_id;
+	limit_off_chan_param.status = param->is_tos_active;
+	limit_off_chan_param.max_offchan_time = param->max_off_chan_time;
+	limit_off_chan_param.rest_time = param->rest_time;
+	limit_off_chan_param.skip_dfs_chans = param->skip_dfs_chans;
+
+	err = wmi_unified_send_limit_off_chan_cmd(wma_handle->wmi_handle,
+			&limit_off_chan_param);
+	if (err) {
+		WMA_LOGE("\n failed to set limit off chan cmd");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
+
 /**
  * wma_mc_process_msg() - process wma messages and call appropriate function.
  * @cds_context: cds context
@@ -7763,6 +7796,11 @@ QDF_STATUS wma_mc_process_msg(void *cds_context, cds_msg_t *msg)
 		break;
 	case SIR_HAL_SET_RX_BLOCKSIZE_CMDID:
 		wma_set_rx_blocksize(wma_handle, msg->bodyptr);
+		qdf_mem_free(msg->bodyptr);
+		break;
+
+	case WMA_SET_LIMIT_OFF_CHAN:
+		wma_process_limit_off_chan(wma_handle, msg->bodyptr);
 		qdf_mem_free(msg->bodyptr);
 		break;
 

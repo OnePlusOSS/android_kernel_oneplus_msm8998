@@ -1525,16 +1525,21 @@ static bool wlan_hdd_sap_skip_scan_check(hdd_context_t *hdd_ctx,
 }
 #endif
 
-void wlan_hdd_cfg80211_scan_block_cb(struct work_struct *work)
+static void __wlan_hdd_cfg80211_scan_block_cb(struct work_struct *work)
 {
 	hdd_adapter_t *adapter = container_of(work,
 					      hdd_adapter_t, scan_block_work);
 	struct cfg80211_scan_request *request;
+	hdd_context_t *hdd_ctx;
 
 	if (WLAN_HDD_ADAPTER_MAGIC != adapter->magic) {
 		hdd_err("HDD adapter context is invalid");
 		return;
 	}
+
+	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+	if (0 != wlan_hdd_validate_context(hdd_ctx))
+		return;
 
 	request = adapter->request;
 	if (request) {
@@ -1548,6 +1553,13 @@ void wlan_hdd_cfg80211_scan_block_cb(struct work_struct *work)
 			hdd_vendor_scan_callback(adapter, request, true);
 		adapter->request = NULL;
 	}
+}
+
+void wlan_hdd_cfg80211_scan_block_cb(struct work_struct *work)
+{
+	cds_ssr_protect(__func__);
+	__wlan_hdd_cfg80211_scan_block_cb(work);
+	cds_ssr_unprotect(__func__);
 }
 
 /**
@@ -1722,6 +1734,63 @@ static void wlan_hdd_update_scan_rand_attrs(void *scan_req,
 #endif
 
 /**
+ * wlan_hdd_populate_ie_whitelist() - Allocate and populate ie whitelist attrs
+ * @adapter: Pointer to adapter
+ * @hdd_ctx: Pointer to hdd ctx info
+ * @scan_req: Pointer to csr scan req
+ * @is_p2p_scan: Used to check for p2p scan type
+ *
+ * After checking adapter mode, connection state and type of scan,
+ * this function allocates memory for csr scan request ie whitelist attrs
+ * and populates with wlan_hdd_fill_whitelist_ie_attrs
+ *
+ * Return: 0 for success, non zero for failure
+ */
+static int wlan_hdd_populate_ie_whitelist(hdd_adapter_t *adapter,
+					  hdd_context_t *hdd_ctx,
+					  tCsrScanRequest *scan_req,
+					  bool is_p2p_scan)
+{
+	hdd_station_ctx_t *station_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
+
+	if (!hdd_ctx->config->probe_req_ie_whitelist ||
+	    adapter->device_mode != QDF_STA_MODE ||
+	    is_p2p_scan ||
+	    hdd_conn_is_connected(station_ctx))
+		return 0;
+
+	if (hdd_ctx->no_of_probe_req_ouis) {
+		scan_req->voui = qdf_mem_malloc(hdd_ctx->no_of_probe_req_ouis *
+					sizeof(*hdd_ctx->probe_req_voui));
+		if (!scan_req->voui) {
+			hdd_err("Not enough memory for voui");
+			scan_req->num_vendor_oui = 0;
+			return -ENOMEM;
+		}
+	}
+
+	wlan_hdd_fill_whitelist_ie_attrs(&scan_req->ie_whitelist,
+					 scan_req->probe_req_ie_bitmap,
+					 &scan_req->num_vendor_oui,
+					 scan_req->voui,
+					 hdd_ctx);
+
+	return 0;
+}
+
+/**
+ * wlan_hdd_free_voui() - Deallocate csr scan req ie whitelist attrs
+ * @scan_req: Pointer to csr scan req
+ *
+ * Return: None
+ */
+static void wlan_hdd_free_voui(tCsrScanRequest *scan_req)
+{
+	if (scan_req->voui)
+		qdf_mem_free(scan_req->voui);
+}
+
+/**
  * __wlan_hdd_cfg80211_scan() - API to process cfg80211 scan request
  * @wiphy: Pointer to wiphy
  * @dev: Pointer to net device
@@ -1741,7 +1810,6 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 	hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
 	hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
 	hdd_wext_state_t *pwextBuf = WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
-	hdd_station_ctx_t *station_ctx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
 	struct hdd_config *cfg_param = NULL;
 	tCsrScanRequest scan_req;
 	uint8_t *channelList = NULL, i;
@@ -2174,28 +2242,10 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 	wlan_hdd_update_scan_rand_attrs((void *)&scan_req, (void *)request,
 					WLAN_HDD_HOST_SCAN);
 
-	if (pAdapter->device_mode == QDF_STA_MODE &&
-	    !is_p2p_scan &&
-	    !hdd_conn_is_connected(station_ctx) &&
-	    (pHddCtx->config->probe_req_ie_whitelist)) {
-		if (pHddCtx->no_of_probe_req_ouis != 0) {
-			scan_req.voui = qdf_mem_malloc(
-						pHddCtx->no_of_probe_req_ouis *
-						sizeof(struct vendor_oui));
-			if (!scan_req.voui) {
-				hdd_debug("Not enough memory for voui");
-				scan_req.num_vendor_oui = 0;
-				status = -ENOMEM;
-				goto free_mem;
-			}
-		}
-
-		wlan_hdd_fill_whitelist_ie_attrs(&scan_req.ie_whitelist,
-						scan_req.probe_req_ie_bitmap,
-						&scan_req.num_vendor_oui,
-						scan_req.voui,
-						pHddCtx);
-	}
+	status = wlan_hdd_populate_ie_whitelist(pAdapter, pHddCtx,
+						&scan_req, is_p2p_scan);
+	if (status)
+		goto free_mem;
 
 	hdd_update_dbs_scan_ctrl_ext_flag(pHddCtx, &scan_req);
 	qdf_runtime_pm_prevent_suspend(&pHddCtx->runtime_context.scan);
@@ -2233,8 +2283,7 @@ free_mem:
 	if (status == 0)
 		scan_ebusy_cnt = 0;
 
-	if (scan_req.voui)
-		qdf_mem_free(scan_req.voui);
+	wlan_hdd_free_voui(&scan_req);
 
 	EXIT();
 	return status;
@@ -3109,8 +3158,8 @@ static int __wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
 	    (pHddCtx->config->probe_req_ie_whitelist))
 		pPnoRequest =
 			(tpSirPNOScanReq)qdf_mem_malloc(sizeof(tSirPNOScanReq) +
-				(pHddCtx->no_of_probe_req_ouis) *
-				(sizeof(struct vendor_oui)));
+				pHddCtx->no_of_probe_req_ouis *
+				sizeof(*pHddCtx->probe_req_voui));
 	else
 		pPnoRequest = qdf_mem_malloc(sizeof(tSirPNOScanReq));
 
@@ -3282,12 +3331,11 @@ static int __wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
 	wlan_hdd_update_scan_rand_attrs((void *)pPnoRequest, (void *)request,
 					WLAN_HDD_PNO_SCAN);
 
-	if (pHddCtx->config->probe_req_ie_whitelist &&
-	    !hdd_conn_is_connected(station_ctx))
+	if (!hdd_conn_is_connected(station_ctx))
 		wlan_hdd_fill_whitelist_ie_attrs(&pPnoRequest->ie_whitelist,
 					pPnoRequest->probe_req_ie_bitmap,
 					&pPnoRequest->num_vendor_oui,
-					(struct vendor_oui *)(
+					(uint32_t *)(
 					(uint8_t *)pPnoRequest +
 					sizeof(*pPnoRequest)),
 					pHddCtx);
@@ -3607,10 +3655,17 @@ int hdd_scan_context_init(hdd_context_t *hdd_ctx)
 void wlan_hdd_fill_whitelist_ie_attrs(bool *ie_whitelist,
 				      uint32_t *probe_req_ie_bitmap,
 				      uint32_t *num_vendor_oui,
-				      struct vendor_oui *voui,
+				      uint32_t *voui,
 				      hdd_context_t *hdd_ctx)
 {
 	uint32_t i = 0;
+
+	*num_vendor_oui = 0;
+
+	if (!hdd_ctx->config->probe_req_ie_whitelist) {
+		*ie_whitelist = false;
+		return;
+	}
 
 	*ie_whitelist = true;
 	probe_req_ie_bitmap[0] = hdd_ctx->config->probe_req_ie_bitmap_0;
@@ -3622,14 +3677,10 @@ void wlan_hdd_fill_whitelist_ie_attrs(bool *ie_whitelist,
 	probe_req_ie_bitmap[6] = hdd_ctx->config->probe_req_ie_bitmap_6;
 	probe_req_ie_bitmap[7] = hdd_ctx->config->probe_req_ie_bitmap_7;
 
-	*num_vendor_oui = 0;
+	if (!hdd_ctx->no_of_probe_req_ouis || !voui)
+		return;
 
-	if ((hdd_ctx->no_of_probe_req_ouis != 0) && (voui != NULL)) {
-		*num_vendor_oui = hdd_ctx->no_of_probe_req_ouis;
-		for (i = 0; i < hdd_ctx->no_of_probe_req_ouis; i++) {
-			voui[i].oui_type = hdd_ctx->probe_req_voui[i].oui_type;
-			voui[i].oui_subtype =
-					hdd_ctx->probe_req_voui[i].oui_subtype;
-		}
-	}
+	*num_vendor_oui = hdd_ctx->no_of_probe_req_ouis;
+	for (i = 0; i < hdd_ctx->no_of_probe_req_ouis; i++)
+		voui[i] = hdd_ctx->probe_req_voui[i];
 }

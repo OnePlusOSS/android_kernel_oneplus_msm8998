@@ -5947,6 +5947,43 @@ void csr_disconnect_all_active_sessions(tpAniSirGlobal pMac)
 	}
 }
 
+struct lim_channel_status *csr_get_channel_status(
+	void *p_mac, uint32_t channel_id)
+{
+	uint8_t i;
+	struct lim_scan_channel_status *channel_status;
+	tpAniSirGlobal mac_ptr = (tpAniSirGlobal)p_mac;
+
+	if (!ACS_FW_REPORT_PARAM_CONFIGURED)
+		return NULL;
+
+	channel_status = (struct lim_scan_channel_status *)
+				&mac_ptr->lim.scan_channel_status;
+	for (i = 0; i < channel_status->total_channel; i++) {
+		if (channel_status->channel_status_list[i].channel_id ==
+		    channel_id)
+			return &channel_status->channel_status_list[i];
+	}
+	sme_warn("Channel %d status info not exist", channel_id);
+
+	return NULL;
+}
+
+void csr_clear_channel_status(void *p_mac)
+{
+	tpAniSirGlobal mac_ptr = (tpAniSirGlobal)p_mac;
+	struct lim_scan_channel_status *channel_status;
+
+	if (!ACS_FW_REPORT_PARAM_CONFIGURED)
+		return;
+
+	channel_status = (struct lim_scan_channel_status *)
+			&mac_ptr->lim.scan_channel_status;
+	channel_status->total_channel = 0;
+
+	return;
+}
+
 bool csr_is_channel_present_in_list(uint8_t *pChannelList,
 				    int numChannels, uint8_t channel)
 {

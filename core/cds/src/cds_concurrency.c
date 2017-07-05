@@ -10274,6 +10274,11 @@ void cds_save_wlan_unsafe_channels(uint16_t *unsafe_channel_list,
 {
 	cds_context_type *cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
 
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return;
+	}
+
 	if (unsafe_channel_count < NUM_CHANNELS)
 		cds_ctx->unsafe_channel_count = unsafe_channel_count;
 	else

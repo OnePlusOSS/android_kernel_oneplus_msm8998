@@ -5248,6 +5248,11 @@ bool wma_is_rx_ldpc_supported_for_channel(uint32_t channel,
 	enum cds_band_type band;
 	bool status;
 
+	if (!wma_handle) {
+		WMA_LOGE("Wma handle is null");
+		return false;
+	}
+
 	if (!CDS_IS_CHANNEL_24GHZ(channel))
 		band = CDS_BAND_5GHZ;
 	else

@@ -2830,7 +2830,6 @@ static ssize_t blink_store(struct device *dev,
 				led_blink(led, led->rgb_cfg->pwm_cfg);
 			else
 			{
-				led->cdev.brightness = convert_brightness(led->cdev.max_brightness);
 				if (led->in_order_command_processing)
 					queue_work(led->workqueue, &led->work);
 				else

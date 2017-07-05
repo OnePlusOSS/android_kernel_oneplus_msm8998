@@ -561,9 +561,9 @@
 			reg = <0x36>;
 			reset-gpio= <&tlmm 49 0>;
 			irq-gpio= <&tlmm 50 0>;
-			l21power-supply = <&pm8998_l21>;
-			qcom,l21power-voltage-level = <2950000 2960000>;
-			qcom,l21power-current-level = <200 800000>;
+			bob_power-supply = <&pmi8998_bob>;
+			qcom,bob_power-voltage-level = <2950000 2960000>;
+			qcom,bob_power-current-level = <200 800000>;
 			status = "ok";
 		};
 	};

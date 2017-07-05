@@ -1734,6 +1734,13 @@ ifeq ($(CONFIG_WLAN_SPECTRAL_SCAN), y)
 CDEFINES += -DFEATURE_SPECTRAL_SCAN
 endif
 
+#Flag to enable/disable WLAN D0-WOW
+ifeq ($(CONFIG_PCI_MSM), y)
+ifeq ($(CONFIG_ROME_IF),pci)
+CDEFINES += -DFEATURE_WLAN_D0WOW
+endif
+endif
+
 KBUILD_CPPFLAGS += $(CDEFINES)
 
 # Currently, for versions of gcc which support it, the kernel Makefile

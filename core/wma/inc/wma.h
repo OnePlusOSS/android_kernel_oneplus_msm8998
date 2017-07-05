@@ -1694,6 +1694,9 @@ typedef struct {
 	struct vdev_spectral_configure_params ss_configs;
 #endif
 	uint8_t  ito_repeat_count;
+#ifdef FEATURE_WLAN_D0WOW
+	atomic_t in_d0wow;
+#endif
 } t_wma_handle, *tp_wma_handle;
 
 /**

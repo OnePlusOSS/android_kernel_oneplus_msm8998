@@ -1440,18 +1440,17 @@ static void wmi_fill_vendor_oui(uint8_t *buf_ptr, uint32_t num_vendor_oui,
 				void *param_voui)
 {
 	wmi_vendor_oui *voui = NULL;
-	struct vendor_oui *pvoui = NULL;
+	uint32_t *pvoui = NULL;
 	uint32_t i;
 
 	voui = (wmi_vendor_oui *)buf_ptr;
-	pvoui = (struct vendor_oui *)param_voui;
+	pvoui = (uint32_t *)param_voui;
 
 	for (i = 0; i < num_vendor_oui; i++) {
 		WMITLV_SET_HDR(&voui[i].tlv_header,
 			       WMITLV_TAG_STRUC_wmi_vendor_oui,
 			       WMITLV_GET_STRUCT_TLVLEN(wmi_vendor_oui));
-		voui[i].oui_type_subtype = pvoui[i].oui_type |
-						(pvoui[i].oui_subtype << 24);
+		voui[i].oui_type_subtype = pvoui[i];
 	}
 }
 

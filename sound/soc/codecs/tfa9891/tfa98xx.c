@@ -107,8 +107,8 @@ struct tfa98xx *g_tfa98xx = NULL;
 EXPORT_SYMBOL_GPL(g_tfa98xx);
 
 /*zhiguang.su@MultiMedia.AudioDrv, 2014-4-14, add for l21 power*/
-struct regulator *l21_power;
-EXPORT_SYMBOL_GPL(l21_power);
+struct regulator *bob_power;
+EXPORT_SYMBOL_GPL(bob_power);
 
 static void tfa98xx_tapdet_check_update(struct tfa98xx *tfa98xx);
 static void tfa98xx_interrupt_restore(struct tfa98xx *tfa98xx);
@@ -3508,12 +3508,12 @@ static int tfa98xx_i2c_probe(struct i2c_client *i2c,
 		tfa98xx->flags |= TFA98XX_FLAG_SKIP_INTERRUPTS;
 	}
 
-/*zhiguang.su@MultiMedia.AudioDrv, 2014-4-14, add for l21 power*/
-	pr_err("%s request l21 power\n", __func__);
-	l21_power = NULL;
-	l21_power = regulator_get(&i2c->dev, "l21power");
-	if (IS_ERR(l21_power))
-		pr_err("%s request l21 power error!\n", __func__);
+/*zhiguang.su@MultiMedia.AudioDrv, 2014-4-14, add for bob power*/
+	pr_err("%s request bob power\n", __func__);
+	bob_power = NULL;
+	bob_power = regulator_get(&i2c->dev, "bob_power");
+	if (IS_ERR(bob_power))
+		pr_err("%s request bob power error!\n", __func__);
 
 
 #ifdef CONFIG_DEBUG_FS

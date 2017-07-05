@@ -267,14 +267,14 @@ void hif_dummy_dump_target_memory(struct hif_softc *hif_sc, void *ramdump_base,
 /**
  * hif_dummy_ipa_get_ce_resource - dummy call
  * @scn: HIF context
- * @sr_base_paddr: source base address
+ * @ce_sr: copyengine source ring resource info
  * @sr_ring_size: source ring size
  * @reg_paddr: bus physical address
  *
  * Return: None
  */
 void hif_dummy_ipa_get_ce_resource(struct hif_softc *hif_sc,
-				   qdf_dma_addr_t *sr_base_paddr,
+				   qdf_shared_mem_t **ce_sr,
 				   uint32_t *sr_ring_size,
 				   qdf_dma_addr_t *reg_paddr)
 {

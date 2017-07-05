@@ -34,25 +34,29 @@
 
 /**
  * ol_txrx_ipa_resources - Resources needed for IPA
+ * @ce_sr: copyengine source ring resource
+ * @ce_sr_ring_size: copyengine source ring size
+ * @ce_reg_paddr: copyengine BAR register physical addrss
+ * @tx_comp_ring: tx completion ring resource
+ * @tx_num_alloc_buffer: tx number of allocated buffers
+ * @rx_rdy_ring: rx ready ring resource
+ * @rx_proc_done_idx: rx process done index physical address
+ * @rx2_rdy_ring: rx2 ready ring resource
+ * @rx2_proc_done_idx: rx2 process done index physical address
  */
 struct ol_txrx_ipa_resources {
-	qdf_dma_addr_t ce_sr_base_paddr;
+	qdf_shared_mem_t *ce_sr;
 	uint32_t ce_sr_ring_size;
 	qdf_dma_addr_t ce_reg_paddr;
 
-	qdf_dma_addr_t tx_comp_ring_base_paddr;
-	uint32_t tx_comp_ring_size;
+	qdf_shared_mem_t *tx_comp_ring;
 	uint32_t tx_num_alloc_buffer;
 
-	qdf_dma_addr_t rx_rdy_ring_base_paddr;
-	uint32_t rx_rdy_ring_size;
-	qdf_dma_addr_t rx_proc_done_idx_paddr;
-	void *rx_proc_done_idx_vaddr;
+	qdf_shared_mem_t *rx_rdy_ring;
+	qdf_shared_mem_t *rx_proc_done_idx;
 
-	qdf_dma_addr_t rx2_rdy_ring_base_paddr;
-	uint32_t rx2_rdy_ring_size;
-	qdf_dma_addr_t rx2_proc_done_idx_paddr;
-	void *rx2_proc_done_idx_vaddr;
+	qdf_shared_mem_t *rx2_rdy_ring;
+	qdf_shared_mem_t *rx2_proc_done_idx;
 };
 
 #ifdef IPA_OFFLOAD
@@ -86,12 +90,6 @@ void ol_txrx_ipa_uc_set_quota(ol_txrx_pdev_handle pdev, uint64_t quota_bytes);
 
 qdf_nbuf_t ol_tx_send_ipa_data_frame(void *vdev, qdf_nbuf_t skb);
 #else
-
-static inline void
-ol_txrx_ipa_uc_get_resource(ol_txrx_pdev_handle pdev,
-		 struct ol_txrx_ipa_resources *ipa_res)
-{
-}
 
 static inline void
 ol_txrx_ipa_uc_set_doorbell_paddr(ol_txrx_pdev_handle pdev,

@@ -91,8 +91,6 @@
 		qcom,mdss-dsi-dma-trigger = "trigger_sw";
 		qcom,mdss-dsi-mdp-trigger = "trigger_sw";
 		qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
-		qcom,mdss-dsi-lp11-init;
-		qcom,mdss-dsi-init-delay-us = <10000>;
 		qcom,mdss-dsi-reset-sequence = <1 2>,<0 2>, <1 2>;
 		/*qcom,mdss-dsi-panel-inverted;*/
 		qcom,mdss-pan-physical-width-dimension = <68>;
@@ -172,5 +170,9 @@
 				39 01 00 00 00 00 03 F0 A5 A5
 				];
 				qcom,mdss-dsi-night-mode-command-state = "dsi_hs_mode";	
+                qcom,partial-update-enabled;
+  		qcom,panel-roi-alignment = <360 64 360 64 360 64>;
+                qcom,ulps-enabled;
+		qcom,panel-allow-phy-poweroff;          
 	};
 };

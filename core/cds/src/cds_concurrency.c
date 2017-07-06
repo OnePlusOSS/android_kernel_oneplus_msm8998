@@ -3746,6 +3746,7 @@ void cds_clear_concurrency_mode(enum tQDF_ADAPTER_MODE mode)
  *
  * Return: None
  */
+#if defined(QCA_WIFI_3_0)
 static void cds_pdev_set_pcl(enum tQDF_ADAPTER_MODE mode)
 {
 	QDF_STATUS status;
@@ -3797,7 +3798,11 @@ static void cds_pdev_set_pcl(enum tQDF_ADAPTER_MODE mode)
 	else
 		cds_debug("Set PCL to FW for mode:%d", mode);
 }
-
+#else
+static void cds_pdev_set_pcl(enum tQDF_ADAPTER_MODE mode)
+{
+}
+#endif
 
 /**
  * cds_set_pcl_for_existing_combo() - Set PCL for existing connection

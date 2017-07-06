@@ -16,6 +16,9 @@
 #include <linux/regmap.h>
 #include <linux/export.h>
 #include <sound/soc.h>
+#ifdef CONFIG_SOUND_CONTROL
+#include <linux/mfd/wcd9335/registers.h>
+#endif
 
 /**
  * snd_soc_component_read() - Read register value
@@ -209,6 +212,17 @@ EXPORT_SYMBOL_GPL(snd_soc_read);
 int snd_soc_write(struct snd_soc_codec *codec, unsigned int reg,
 	unsigned int val)
 {
+#ifdef CONFIG_SOUND_CONTROL
+	char caller[80];
+	sprintf(caller, "%ps", __builtin_return_address(0));
+	if ((		reg == WCD9335_CDC_RX1_RX_VOL_CTL ||
+			reg == WCD9335_CDC_RX1_RX_VOL_MIX_CTL ||
+			reg == WCD9335_CDC_RX2_RX_VOL_CTL ||
+			reg == WCD9335_CDC_RX2_RX_VOL_MIX_CTL) &&
+			strcmp("headphone_gain_store", caller) != 0) {
+		return 0;
+	}
+#endif
 	return snd_soc_component_write(&codec->component, reg, val);
 }
 EXPORT_SYMBOL_GPL(snd_soc_write);
@@ -227,6 +241,17 @@ EXPORT_SYMBOL_GPL(snd_soc_write);
 int snd_soc_update_bits(struct snd_soc_codec *codec, unsigned int reg,
 				unsigned int mask, unsigned int value)
 {
+#ifdef CONFIG_SOUND_CONTROL
+	char caller[80];
+	sprintf(caller, "%ps", __builtin_return_address(0));
+	if ((		reg == WCD9335_CDC_RX1_RX_VOL_CTL ||
+			reg == WCD9335_CDC_RX1_RX_VOL_MIX_CTL ||
+			reg == WCD9335_CDC_RX2_RX_VOL_CTL ||
+			reg == WCD9335_CDC_RX2_RX_VOL_MIX_CTL) &&
+			strcmp("headphone_gain_store", caller) != 0) {
+		return 0;
+	}
+#endif
 	return snd_soc_component_update_bits(&codec->component, reg, mask,
 		value);
 }

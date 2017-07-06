@@ -585,4 +585,15 @@ qdf_tso_seg_dbg_zero(struct qdf_tso_seg_elem_t *tsoseg)
 
 #endif /* CONFIG_MCL */
 
+#define QDF_SYMBOL_LEN __QDF_SYMBOL_LEN
+
+/**
+ * qdf_sprint_symbol() - prints the name of a symbol into a string buffer
+ * @buffer: the string buffer to print into
+ * @addr: address of the symbol to lookup and print
+ *
+ * Return: number of characters printed
+ */
+int qdf_sprint_symbol(char *buffer, void *addr);
+
 #endif /* __QDF_TRACE_H */

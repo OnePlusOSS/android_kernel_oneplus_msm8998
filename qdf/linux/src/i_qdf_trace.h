@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -34,6 +34,10 @@
 
 #if !defined(__I_QDF_TRACE_H)
 #define __I_QDF_TRACE_H
+
+/* older kernels have a bug in kallsyms, so ensure module.h is included */
+#include <module.h>
+#include <kallsyms.h>
 
 #if !defined(__printf)
 #define __printf(a, b)
@@ -119,6 +123,12 @@ static inline void qdf_trace_msg(QDF_MODULE_ID module, ...)
 		} \
 	} while (0)
 
+#endif
+
+#ifdef KSYM_SYMBOL_LEN
+#define __QDF_SYMBOL_LEN KSYM_SYMBOL_LEN
+#else
+#define __QDF_SYMBOL_LEN 1
 #endif
 
 #endif /* __I_QDF_TRACE_H */

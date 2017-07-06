@@ -1982,4 +1982,21 @@ void qdf_dp_trace_throttle_live_mode(bool high_bw_request)
 }
 qdf_export_symbol(qdf_dp_trace_throttle_live_mode);
 
+#ifdef CONFIG_KALLSYMS
+inline int qdf_sprint_symbol(char *buffer, void *addr)
+{
+	return sprint_symbol(buffer, (unsigned long)addr);
+}
+#else
+int qdf_sprint_symbol(char *buffer, void *addr)
+{
+	if (!buffer)
+		return 0;
+
+	buffer[0] = '\0';
+	return 1;
+}
+#endif
+EXPORT_SYMBOL(qdf_sprint_symbol);
+
 #endif

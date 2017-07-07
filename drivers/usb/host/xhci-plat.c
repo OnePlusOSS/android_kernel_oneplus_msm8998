@@ -136,6 +136,7 @@ static DEVICE_ATTR(config_imod, S_IRUGO | S_IWUSR,
 
 static int xhci_plat_probe(struct platform_device *pdev)
 {
+	struct device_node	*node = pdev->dev.of_node;
 	struct usb_xhci_pdata	*pdata = dev_get_platdata(&pdev->dev);
 	const struct hc_driver	*driver;
 	struct xhci_hcd		*xhci;
@@ -233,6 +234,10 @@ static int xhci_plat_probe(struct platform_device *pdev)
 
 	hcd_to_bus(xhci->shared_hcd)->skip_resume = true;
 
+	if ((node && of_property_read_bool(node, "usb3-lpm-capable")) ||
+			(pdata && pdata->usb3_lpm_capable))
+		xhci->quirks |= XHCI_LPM_SUPPORT;
+
 	hcd->usb_phy = devm_usb_get_phy_by_phandle(&pdev->dev, "usb-phy", 0);
 	if (IS_ERR(hcd->usb_phy)) {
 		ret = PTR_ERR(hcd->usb_phy);
@@ -276,7 +281,7 @@ static int xhci_plat_probe(struct platform_device *pdev)
 	if (ret)
 		dev_err(&pdev->dev, "%s: unable to create imod sysfs entry\n",
 					__func__);
-	
+
 	pm_runtime_mark_last_busy(&pdev->dev);
 	pm_runtime_put_autosuspend(&pdev->dev);
 

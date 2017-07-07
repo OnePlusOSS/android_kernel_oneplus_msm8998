@@ -495,6 +495,9 @@ irqreturn_t ce_dispatch_interrupt(int ce_id,
 		return IRQ_HANDLED;
 	}
 
+	if (qdf_tasklet_is_scheduled(&tasklet_entry->intr_tq))
+		return IRQ_HANDLED;
+
 	qdf_atomic_inc(&scn->active_tasklet_cnt);
 
 	if (hif_napi_enabled(hif_hdl, ce_id))

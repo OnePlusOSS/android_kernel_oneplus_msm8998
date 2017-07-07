@@ -404,4 +404,14 @@ __qdf_disable_bh(qdf_handle_t hdl, struct tasklet_struct *bh)
 	return QDF_STATUS_SUCCESS;
 }
 
+/**
+ * __qdf_tasklet_is_scheduled - check bh status
+ * @bh: pointer to bottom
+ * Return: tasklet schedule state
+ */
+static inline bool __qdf_tasklet_is_scheduled(struct tasklet_struct *bh)
+{
+	return test_bit(TASKLET_STATE_SCHED, &bh->state);
+}
+
 #endif /*_I_QDF_DEFER_H*/

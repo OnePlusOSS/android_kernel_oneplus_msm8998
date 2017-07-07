@@ -7840,11 +7840,6 @@ static int __wma_bus_suspend(enum qdf_suspend_type type, uint32_t wow_flags)
 		return -EFAULT;
 	}
 
-	if (wma_check_scan_in_progress(handle)) {
-		WMA_LOGE("%s: Scan in progress. Aborting suspend", __func__);
-		return -EBUSY;
-	}
-
 	wma_peer_debug_log(DEBUG_INVALID_VDEV_ID, DEBUG_BUS_SUSPEND,
 			   DEBUG_INVALID_PEER_ID, NULL, NULL,
 			   type, wow_flags);

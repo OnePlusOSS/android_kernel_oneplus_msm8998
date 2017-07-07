@@ -7552,9 +7552,8 @@ static void __cds_check_sta_ap_concurrent_ch_intf(void *data)
 	hdd_context_t *hdd_ctx = NULL;
 	tHalHandle *hal_handle;
 	hdd_ap_ctx_t *hdd_ap_ctx;
-	uint16_t intf_ch = 0;
+	uint8_t intf_ch = 0;
 	p_cds_contextType cds_ctx;
-	uint8_t temp_channel = 0;
 	hdd_station_ctx_t *hdd_sta_ctx;
 
 	cds_ctx = cds_get_global_context();
@@ -7613,37 +7612,23 @@ static void __cds_check_sta_ap_concurrent_ch_intf(void *data)
 	 * Need to take care of 3 port cases with 2 STA iface in future.
 	 */
 	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
-	if (CDS_IS_DFS_CH(hdd_sta_ctx->conn_info.operationChannel) ||
-		CDS_IS_PASSIVE_OR_DISABLE_CH(
-			hdd_sta_ctx->conn_info.operationChannel) ||
-		!cds_is_safe_channel(hdd_sta_ctx->conn_info.operationChannel)) {
-		if (wma_is_hw_dbs_capable()) {
-			temp_channel = cds_get_alternate_channel_for_sap();
-			if (temp_channel) {
-				intf_ch = temp_channel;
-			} else {
-				if (CDS_IS_CHANNEL_5GHZ(
-				hdd_sta_ctx->conn_info.operationChannel))
-					intf_ch = CDS_24_GHZ_CHANNEL_6;
-				else
-					intf_ch = CDS_5_GHZ_CHANNEL_36;
-			}
-		} else {
+	intf_ch = wlansap_check_cc_intf(hdd_ap_ctx->sapContext);
+	cds_debug("intf_ch:%d", intf_ch);
+	if (QDF_IS_STATUS_ERROR(
+		cds_valid_sap_conc_channel_check(&intf_ch,
+			cds_mode_specific_get_channel(CDS_SAP_MODE)))) {
 			qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 			cds_debug("can't move sap to %d",
 				hdd_sta_ctx->conn_info.operationChannel);
 			goto end;
-		}
-	} else {
-		intf_ch = wlansap_check_cc_intf(hdd_ap_ctx->sapContext);
-		cds_debug("intf_ch:%d", intf_ch);
 	}
 	if (intf_ch == 0) {
 		qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
+		cds_debug("No need for sap channel change");
 		goto end;
 	}
 
-	cds_debug("SAP restarts due to MCC->SCC/DBS switch, orig chan: %d, new chan: %d",
+	cds_debug("SAP moves due to MCC->SCC/DBS switch, orig chan: %d, new chan: %d",
 		hdd_ap_ctx->sapConfig.channel, intf_ch);
 
 	hdd_ap_ctx->sapConfig.channel = intf_ch;
@@ -9646,7 +9631,11 @@ QDF_STATUS cds_valid_sap_conc_channel_check(uint8_t *con_ch, uint8_t sap_ch)
 	if (!cds_is_force_scc())
 		return QDF_STATUS_SUCCESS;
 
-	/* if interference is 0, check if it is DBS */
+	/*
+	 * if interference is 0, check if it is DBS case. If DBS case
+	 * return from here. If SCC, check further if SAP can move to
+	 * STA's channel.
+	 */
 	if (!channel &&
 		(sap_ch != cds_mode_specific_get_channel(CDS_STA_MODE)))
 		return QDF_STATUS_SUCCESS;
@@ -9692,8 +9681,10 @@ bool cds_is_force_scc(void)
 		return false;
 	}
 
-	return hdd_ctx->config->WlanMccToSccSwitchMode ==
-		QDF_MCC_TO_SCC_SWITCH_FORCE_WITHOUT_DISCONNECTION;
+	return ((hdd_ctx->config->WlanMccToSccSwitchMode ==
+		QDF_MCC_TO_SCC_SWITCH_FORCE_WITHOUT_DISCONNECTION) ||
+			(hdd_ctx->config->WlanMccToSccSwitchMode ==
+		QDF_MCC_TO_SCC_SWITCH_WITH_FAVORITE_CHANNEL));
 }
 /**
  * cds_get_valid_chan_weights() - Get the weightage for all

@@ -307,4 +307,207 @@ void qdf_mem_skb_inc(qdf_size_t size);
  */
 void qdf_mem_skb_dec(qdf_size_t size);
 
+/**
+ * qdf_mem_map_table_alloc() - Allocate shared memory info structure
+ * @num: number of required storage
+ *
+ * Allocate mapping table for DMA memory allocation. This is needed for
+ * IPA-WLAN buffer sharing when SMMU Stage1 Translation is enabled.
+ *
+ * Return: shared memory info storage table pointer
+ */
+static inline qdf_mem_info_t *qdf_mem_map_table_alloc(uint32_t num)
+{
+	qdf_mem_info_t *mem_info_arr;
+
+	mem_info_arr = qdf_mem_malloc(num * sizeof(qdf_mem_info_t));
+	return mem_info_arr;
+}
+
+/**
+ * qdf_update_mem_map_table() - Update DMA memory map info
+ * @osdev: Parent device instance
+ * @mem_info: Pointer to shared memory information
+ * @dma_addr: dma address
+ * @mem_size: memory size allocated
+ *
+ * Store DMA shared memory information
+ *
+ * Return: none
+ */
+static inline void qdf_update_mem_map_table(qdf_device_t osdev,
+					    qdf_mem_info_t *mem_info,
+					    qdf_dma_addr_t dma_addr,
+					    uint32_t mem_size)
+{
+	if (!mem_info) {
+		__qdf_print("%s: NULL mem_info\n", __func__);
+		return;
+	}
+
+	mem_info->pa = __qdf_mem_paddr_from_dmaaddr(osdev, dma_addr);
+	mem_info->iova = dma_addr;
+	mem_info->size = mem_size;
+}
+
+/**
+ * qdf_mem_smmu_s1_enabled() - Return SMMU stage 1 translation enable status
+ * @osdev parent device instance
+ *
+ * @Return: true if smmu s1 enabled, false if smmu s1 is bypassed
+ */
+static inline bool qdf_mem_smmu_s1_enabled(qdf_device_t osdev)
+{
+	return __qdf_mem_smmu_s1_enabled(osdev);
+}
+
+/**
+ * qdf_mem_paddr_from_dmaaddr() - get actual physical address from dma address
+ * @osdev: Parent device instance
+ * @dma_addr: DMA/IOVA address
+ *
+ * Get actual physical address from dma_addr based on SMMU enablement status.
+ * IF SMMU Stage 1 tranlation is enabled, DMA APIs return IO virtual address
+ * (IOVA) otherwise returns physical address. So get SMMU physical address
+ * mapping from IOVA.
+ *
+ * Return: dmaable physical address
+ */
+static inline qdf_dma_addr_t qdf_mem_paddr_from_dmaaddr(qdf_device_t osdev,
+							qdf_dma_addr_t dma_addr)
+{
+	return __qdf_mem_paddr_from_dmaaddr(osdev, dma_addr);
+}
+
+/**
+ * qdf_os_mem_dma_get_sgtable() - Returns DMA memory scatter gather table
+ * @dev: device instace
+ * @sgt: scatter gather table pointer
+ * @cpu_addr: HLOS virtual address
+ * @dma_addr: dma address
+ * @size: allocated memory size
+ *
+ * @Return: physical address
+ */
+static inline int
+qdf_mem_dma_get_sgtable(struct device *dev, void *sgt, void *cpu_addr,
+			qdf_dma_addr_t dma_addr, size_t size)
+{
+	return __qdf_os_mem_dma_get_sgtable(dev, sgt, cpu_addr, dma_addr, size);
+}
+
+/**
+ * qdf_mem_get_dma_addr() - Return dma address based on SMMU translation status.
+ * @osdev: Parent device instance
+ * @mem_info: Pointer to allocated memory information
+ *
+ * Get dma address based on SMMU enablement status. If SMMU Stage 1
+ * tranlation is enabled, DMA APIs return IO virtual address otherwise
+ * returns physical address.
+ *
+ * @Return: dma address
+ */
+static inline qdf_dma_addr_t qdf_mem_get_dma_addr(qdf_device_t osdev,
+						  qdf_mem_info_t *mem_info)
+{
+	return __qdf_mem_get_dma_addr(osdev, mem_info);
+}
+
+/**
+ * qdf_mem_get_dma_addr_ptr() - Return DMA address pointer from mem info struct
+ * @osdev: Parent device instance
+ * @mem_info: Pointer to allocated memory information
+ *
+ * Based on smmu stage 1 translation enablement, return corresponding dma
+ * address storage pointer.
+ *
+ * @Return: dma address storage pointer
+ */
+static inline qdf_dma_addr_t *qdf_mem_get_dma_addr_ptr(qdf_device_t osdev,
+						       qdf_mem_info_t *mem_info)
+{
+	return __qdf_mem_get_dma_addr_ptr(osdev, mem_info);
+}
+
+/**
+ * qdf_mem_shared_mem_alloc() - Allocate DMA memory for shared resource
+ * @osdev: parent device instance
+ * @mem_info: Pointer to allocated memory information
+ * @size: size to be allocated
+ *
+ * Allocate DMA memory which will be shared with external kernel module. This
+ * information is needed for SMMU mapping.
+ *
+ * @Return: 0 suceess
+ */
+static inline qdf_shared_mem_t *qdf_mem_shared_mem_alloc(qdf_device_t osdev,
+							 uint32_t size)
+{
+	qdf_dma_addr_t dma_addr;
+	qdf_shared_mem_t *shared_mem;
+
+	shared_mem = qdf_mem_malloc(sizeof(qdf_shared_mem_t));
+	if (!shared_mem) {
+		__qdf_print("%s: Unable to allocate memory for shared resource struct\n",
+			    __func__);
+		return NULL;
+	}
+
+	shared_mem->vaddr = qdf_mem_alloc_consistent(osdev, osdev->dev,
+				size, __qdf_mem_get_dma_addr_ptr(osdev,
+						&shared_mem->mem_info));
+	if (!shared_mem->vaddr) {
+		__qdf_print("%s; Unable to allocate DMA memory for shared resource\n",
+			    __func__);
+		qdf_mem_free(shared_mem);
+		return NULL;
+	}
+
+	dma_addr = qdf_mem_get_dma_addr(osdev, &shared_mem->mem_info);
+	shared_mem->mem_info.size = size;
+	qdf_mem_zero(shared_mem->vaddr, shared_mem->mem_info.size);
+	shared_mem->mem_info.pa = __qdf_mem_paddr_from_dmaaddr(osdev,
+								 dma_addr);
+	qdf_mem_dma_get_sgtable(osdev->dev,
+				(void *)&shared_mem->sgtable,
+				shared_mem->vaddr,
+				qdf_mem_get_dma_addr(osdev,
+						     &shared_mem->mem_info),
+				shared_mem->mem_info.size);
+
+	shared_mem->sgtable.sgl->dma_address = shared_mem->mem_info.pa;
+
+	return shared_mem;
+}
+
+/**
+ * qdf_mem_shared_mem_free() - Free shared memory
+ * @osdev: parent device instance
+ * @shared_mem: shared memory information storage
+ *
+ * Free DMA shared memory resource
+ *
+ * @Return: None
+ */
+static inline void qdf_mem_shared_mem_free(qdf_device_t osdev,
+					   qdf_shared_mem_t *shared_mem)
+{
+	if (!shared_mem) {
+		__qdf_print("%s: NULL shared mem struct passed\n",
+			    __func__);
+		return;
+	}
+
+	if (shared_mem->vaddr) {
+		qdf_mem_free_consistent(osdev, osdev->dev,
+					shared_mem->mem_info.size,
+					shared_mem->vaddr,
+					qdf_mem_get_dma_addr(osdev,
+						&shared_mem->mem_info),
+					qdf_get_dma_mem_context(shared_mem,
+								memctx));
+	}
+	qdf_mem_free(shared_mem);
+}
+
 #endif /* __QDF_MEMORY_H */

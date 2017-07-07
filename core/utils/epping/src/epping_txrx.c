@@ -236,7 +236,7 @@ static void epping_stop_adapter(epping_adapter_t *pAdapter)
 	}
 
 	if (pAdapter && pAdapter->started) {
-		EPPING_LOG(LOG1, FL("Disabling queues"));
+		EPPING_LOG(QDF_TRACE_LEVEL_INFO, FL("Disabling queues"));
 		netif_tx_disable(pAdapter->dev);
 		netif_carrier_off(pAdapter->dev);
 		pAdapter->started = false;
@@ -264,7 +264,7 @@ static int epping_start_adapter(epping_adapter_t *pAdapter)
 		pld_request_bus_bandwidth(qdf_ctx->dev,
 					  PLD_BUS_WIDTH_HIGH);
 		netif_carrier_on(pAdapter->dev);
-		EPPING_LOG(LOG1, FL("Enabling queues"));
+		EPPING_LOG(QDF_TRACE_LEVEL_INFO, FL("Enabling queues"));
 		netif_tx_start_all_queues(pAdapter->dev);
 		pAdapter->started = true;
 	} else {
@@ -389,7 +389,7 @@ epping_adapter_t *epping_add_adapter(epping_context_t *pEpping_ctx,
 	dev->watchdog_timeo = 5 * HZ;   /* XXX */
 	dev->tx_queue_len = EPPING_TXBUF - 1;      /* 1 for mgmt frame */
 	if (epping_register_adapter(pAdapter) == 0) {
-		EPPING_LOG(LOG1, FL("Disabling queues"));
+		EPPING_LOG(QDF_TRACE_LEVEL_INFO, FL("Disabling queues"));
 		netif_tx_disable(dev);
 		netif_carrier_off(dev);
 		return pAdapter;

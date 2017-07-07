@@ -423,7 +423,7 @@ static int hdd_ocb_set_config_req(hdd_adapter_t *adapter,
 	context.adapter = adapter;
 	context.magic = HDD_OCB_MAGIC;
 
-	hdd_debug("Disabling queues");
+	hdd_info("Disabling queues");
 	wlan_hdd_netif_queue_control(adapter,
 				     WLAN_STOP_ALL_NETIF_QUEUE_N_CARRIER,
 				     WLAN_CONTROL_PATH);

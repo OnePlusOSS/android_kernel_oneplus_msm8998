@@ -6532,7 +6532,7 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_debug("Name = [%s] Value = [%u]",
 		CFG_SCAN_BACKOFF_MULTIPLIER_NAME,
 		pHddCtx->config->scan_backoff_multiplier);
-	hdd_info("Name = [gEnableConnectedScan] Value = %u",
+	hdd_debug("Name = [gEnableConnectedScan] Value = %u",
 		pHddCtx->config->enable_connected_scan);
 	hdd_debug("Name = [%s] value = [%u]",
 		 CFG_11B_NUM_TX_CHAIN_NAME,

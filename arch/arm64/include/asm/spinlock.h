@@ -338,6 +338,6 @@ static inline int arch_read_trylock(arch_rwlock_t *rw)
  * In cases where this is problematic (e.g. try_to_wake_up), an
  * smp_mb__before_spinlock() can restore the required ordering.
  */
-#define smp_mb__before_spinlock()    smp_mb()
+#define smp_mb__before_spinlock()	smp_mb()
 
 #endif /* __ASM_SPINLOCK_H */

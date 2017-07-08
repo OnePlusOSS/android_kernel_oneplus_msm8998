@@ -1638,7 +1638,7 @@ static inline int pct_task_load(struct task_struct *p) { return 0; }
 
 static inline int cpu_capacity(int cpu)
 {
-	return SCHED_LOAD_SCALE;
+	return SCHED_CAPACITY_SCALE;
 }
 
 static inline int same_cluster(int src_cpu, int dst_cpu) { return 1; }

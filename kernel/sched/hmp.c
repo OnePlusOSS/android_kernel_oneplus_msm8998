@@ -228,7 +228,7 @@ unsigned int min_possible_efficiency = UINT_MAX;
 
 unsigned long __weak arch_get_cpu_efficiency(int cpu)
 {
-	return SCHED_LOAD_SCALE;
+	return SCHED_CAPACITY_SCALE;
 }
 
 /* Keep track of max/min capacity possible across CPUs "currently" */

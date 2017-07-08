@@ -989,7 +989,7 @@ schedtune_test_nrg(unsigned long delta_pwr)
 
 		/* Normalize on max energy for target platform */
 		test_norm_pwr = reciprocal_divide(
-					test_delta_pwr << SCHED_LOAD_SHIFT,
+					test_delta_pwr << SCHED_CAPACITY_SCALE,
 					schedtune_target_nrg.rdiv);
 
 		pr_info("schedtune: max_pwr/2^%d: %4lu => norm_pwr: %5lu\n",

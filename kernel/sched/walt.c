@@ -743,7 +743,7 @@ done:
 
 unsigned long __weak arch_get_cpu_efficiency(int cpu)
 {
-	return SCHED_LOAD_SCALE;
+	return SCHED_CAPACITY_SCALE;
 }
 
 void walt_init_cpu_efficiency(void)

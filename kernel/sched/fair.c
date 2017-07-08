@@ -6145,7 +6145,7 @@ struct energy_env {
 
 /*
  * __cpu_norm_util() returns the cpu util relative to a specific capacity,
- * i.e. it's busy ratio, in the range [0..SCHED_LOAD_SCALE] which is useful for
+ * i.e. it's busy ratio, in the range [0..SCHED_CAPACITY_SCALE] which is useful for
  * energy calculations. Using the scale-invariant util returned by
  * cpu_util() and approximating scale-invariant util by:
  *
@@ -6192,7 +6192,7 @@ unsigned long group_max_util(struct energy_env *eenv)
 
 /*
  * group_norm_util() returns the approximated group util relative to it's
- * current capacity (busy ratio) in the range [0..SCHED_LOAD_SCALE] for use in
+ * current capacity (busy ratio) in the range [0..SCHED_CAPACITY_SCALE] for use in
  * energy calculations. Since task executions may or may not overlap in time in
  * the group the true normalized util is between max(cpu_norm_util(i)) and
  * sum(cpu_norm_util(i)) when iterating over all cpus in the group, i. The
@@ -6327,7 +6327,7 @@ static int sched_group_energy(struct energy_env *eenv)
 				group_util = group_norm_util(eenv, sg);
 				sg_busy_energy = (group_util * sg->sge->cap_states[cap_idx].power)
 								>> SCHED_CAPACITY_SHIFT;
-				sg_idle_energy = ((SCHED_LOAD_SCALE-group_util)
+				sg_idle_energy = ((SCHED_CAPACITY_SCALE-group_util)
 								* sg->sge->idle_states[idle_idx].power)
 								>> SCHED_CAPACITY_SHIFT;
 
@@ -6425,7 +6425,7 @@ struct target_nrg schedtune_target_nrg;
 
 /*
  * System energy normalization
- * Returns the normalized value, in the range [0..SCHED_LOAD_SCALE],
+ * Returns the normalized value, in the range [0..SCHED_CAPACITY_SCALE],
  * corresponding to the specified energy variation.
  */
 static inline int
@@ -6445,7 +6445,7 @@ normalize_energy(int energy_diff)
 	normalized_nrg = (energy_diff < 0) ? -energy_diff : energy_diff;
 
 	/* Scale by energy magnitude */
-	normalized_nrg <<= SCHED_LOAD_SHIFT;
+	normalized_nrg <<= SCHED_CAPACITY_SHIFT;
 
 	/* Normalize on max energy for target platform */
 	normalized_nrg = reciprocal_divide(
@@ -6635,12 +6635,12 @@ schedtune_margin(unsigned long signal, long boost)
 	 *
 	 * The Boost (B) value is used to compute a Margin (M) which is
 	 * proportional to the complement of the original Signal (S):
-	 *   M = B * (SCHED_LOAD_SCALE - S), if B is positive
+	 *   M = B * (SCHED_CAPACITY_SCALE - S), if B is positive
 	 *   M = B * S, if B is negative
 	 * The obtained M could be used by the caller to "boost" S.
 	 */
 	if (boost >= 0) {
-		margin  = SCHED_LOAD_SCALE - signal;
+		margin  = SCHED_CAPACITY_SCALE - signal;
 		margin *= boost;
 	} else
 		margin = -signal * boost;
@@ -6741,7 +6741,7 @@ find_idlest_group(struct sched_domain *sd, struct task_struct *p,
 	struct sched_group *fit_group = NULL, *spare_group = NULL;
 	unsigned long min_load = ULONG_MAX, this_load = 0;
 	unsigned long fit_capacity = ULONG_MAX;
-	unsigned long max_spare_capacity = capacity_margin - SCHED_LOAD_SCALE;
+	unsigned long max_spare_capacity = capacity_margin - SCHED_CAPACITY_SCALE;
 	int load_idx = sd->forkexec_idx;
 	int imbalance = 100 + (sd->imbalance_pct-100)/2;
 
@@ -8740,7 +8740,7 @@ group_is_overloaded(struct lb_env *env, struct sg_lb_stats *sgs)
 static inline bool
 group_smaller_cpu_capacity(struct sched_group *sg, struct sched_group *ref)
 {
-	return sg->sgc->max_capacity + capacity_margin - SCHED_LOAD_SCALE <
+	return sg->sgc->max_capacity + capacity_margin - SCHED_CAPACITY_SCALE <
 							ref->sgc->max_capacity;
 }
 

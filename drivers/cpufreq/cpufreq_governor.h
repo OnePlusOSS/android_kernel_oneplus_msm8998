@@ -126,6 +126,7 @@ static void *get_cpu_dbs_info_s(int cpu)				\
  * cdbs: common dbs
  * od_*: On-demand governor
  * cs_*: Conservative governor
+ * zz_*: ZZMoove governor
  */
 
 /* Common to all CPUs of a policy */
@@ -172,6 +173,13 @@ struct cs_cpu_dbs_info_s {
 	unsigned int requested_freq;
 };
 
+struct zz_cpu_dbs_info_s {
+	struct cpu_dbs_info cdbs;
+	struct cpufreq_frequency_table *freq_table;
+	unsigned int down_skip;
+	unsigned int requested_freq;
+};
+
 /* Per policy Governors sysfs tunables */
 struct od_dbs_tuners {
 	unsigned int ignore_nice_load;
@@ -191,12 +199,29 @@ struct cs_dbs_tuners {
 	unsigned int freq_step;
 };
 
+struct zz_dbs_tuners {
+	unsigned int ignore_nice_load;
+	unsigned int sampling_rate;
+	unsigned int sampling_down_factor;
+	unsigned int up_threshold;
+	unsigned int down_threshold;
+	unsigned int smooth_up;
+	unsigned int scaling_proportional;
+	unsigned int fast_scaling_up;
+	unsigned int fast_scaling_down;
+	unsigned int afs_threshold1;
+	unsigned int afs_threshold2;
+	unsigned int afs_threshold3;
+	unsigned int afs_threshold4;
+};
+
 /* Common Governor data across policies */
 struct dbs_data;
 struct common_dbs_data {
 	/* Common across governors */
 	#define GOV_ONDEMAND		0
 	#define GOV_CONSERVATIVE	1
+	#define GOV_ZZMOOVE		2
 	int governor;
 	struct attribute_group *attr_group_gov_sys; /* one governor - system */
 	struct attribute_group *attr_group_gov_pol; /* one governor - policy */
@@ -229,6 +254,22 @@ struct common_dbs_data {
 struct dbs_data {
 	struct common_dbs_data *cdata;
 	unsigned int min_sampling_rate;
+	struct cpufreq_frequency_table *freq_table;
+	/* following is only used by zzmoove governor */
+	bool freq_table_desc;				// table order ascending or descending (true)
+	bool scaling_init_eval_done;			// flag for initial scaling range evaluation
+	unsigned int freq_table_size;			// size of freq table (index count)
+	unsigned int zz_prev_load;			// previous load saved by governor for afs calculation
+	unsigned int pol_min;				// saved actual max policy for range detection
+	unsigned int pol_max;				// saved actual min policy for range detection
+	unsigned int min_scaling_freq;			// saved min freq for range detection
+	unsigned int limit_table_start;			// table start index for range detection
+	unsigned int limit_table_end;			// table end index for range detection
+	unsigned int max_scaling_freq_hard;		// hard limit table index
+	unsigned int max_scaling_freq_soft;		// soft limit table index
+	unsigned int scaling_mode_up;			// fast up scaling steps
+	unsigned int scaling_mode_down;			// fast down scaling steps
+	/* used by zzmoove governor end */
 	int usage_count;
 	void *tuners;
 };

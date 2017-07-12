@@ -2427,7 +2427,18 @@ int hif_device_resume(struct device *dev)
 	} else if (device->device_state == HIF_DEVICE_STATE_DEEPSLEEP) {
 		hif_un_mask_interrupt(device);
 	} else if (device->device_state == HIF_DEVICE_STATE_WOW) {
-		/*TODO:WOW support */
+		config = HIF_DEVICE_POWER_UP;
+		status = hif_configure_device(device,
+					      HIF_DEVICE_POWER_STATE_CHANGE,
+					      &config,
+					      sizeof(enum
+						 HIF_DEVICE_POWER_CHANGE_TYPE));
+		if (status) {
+			AR_DEBUG_PRINTF(ATH_DEBUG_ERROR,
+				("%s: hif_configure_device failed\n",
+				 __func__));
+			return status;
+		}
 		hif_un_mask_interrupt(device);
 	}
 

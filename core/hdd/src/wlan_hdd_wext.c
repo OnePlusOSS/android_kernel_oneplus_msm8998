@@ -3442,6 +3442,12 @@ static void hdd_get_rssi_cb(int8_t rssi, uint32_t staId, void *pContext)
 
 	pStatsContext = pContext;
 	pAdapter = pStatsContext->pAdapter;
+
+	if (!pAdapter) {
+		hdd_err("Invalid pAdapter");
+		return;
+	}
+
 	pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
 
 	/* update rssi only if its valid else return previous valid rssi */
@@ -3466,14 +3472,13 @@ static void hdd_get_rssi_cb(int8_t rssi, uint32_t staId, void *pContext)
 	 */
 	spin_lock(&hdd_context_lock);
 
-	if ((NULL == pAdapter) ||
-	    (RSSI_CONTEXT_MAGIC != pStatsContext->magic)) {
+	if (RSSI_CONTEXT_MAGIC != pStatsContext->magic) {
 		/* the caller presumably timed out so there is nothing
 		 * we can do
 		 */
 		spin_unlock(&hdd_context_lock);
-		hdd_warn("Invalid context, pAdapter [%p] magic [%08x]",
-			 pAdapter, pStatsContext->magic);
+		hdd_warn("Invalid context, magic [%08x]",
+				pStatsContext->magic);
 		return;
 	}
 

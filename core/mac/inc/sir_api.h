@@ -903,6 +903,8 @@ typedef struct sSirSmeScanReq {
 	 * WNI_CFG_PASSIVE_MAXIMUM_CHANNEL_TIME) is used.
 	 */
 	uint32_t maxChannelTime;
+	uint32_t scan_probe_repeat_time;
+	uint32_t scan_num_probes;
 	enum wmi_dwelltime_adaptive_mode scan_adaptive_dwell_mode;
 	/**
 	 * returnAfterFirstMatch can take following values:
@@ -4015,6 +4017,8 @@ typedef struct sSirScanOffloadReq {
 	tSirScanType scanType;
 	uint32_t minChannelTime;
 	uint32_t maxChannelTime;
+	uint32_t scan_probe_repeat_time;
+	uint32_t scan_num_probes;
 	uint32_t scan_id;
 	uint32_t scan_requestor_id;
 	/* in units of milliseconds, ignored when not connected */
@@ -4474,7 +4478,6 @@ typedef struct sSirChanChangeResponse {
 	uint8_t sessionId;
 	uint8_t newChannelNumber;
 	uint8_t channelChangeStatus;
-	ePhyChanBondState secondaryChannelOffset;
 } tSirChanChangeResponse, *tpSirChanChangeResponse;
 
 typedef struct sSirStartBeaconIndication {

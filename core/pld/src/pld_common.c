@@ -540,140 +540,6 @@ int pld_shadow_control(struct device *dev, bool enable)
 }
 
 /**
- * pld_set_wlan_unsafe_channel() - Set unsafe channel
- * @dev: device
- * @unsafe_ch_list: unsafe channel list
- * @ch_count: number of channel
- *
- * Return: 0 for success
- *         Non zero failure code for errors
- */
-int pld_set_wlan_unsafe_channel(struct device *dev,
-				u16 *unsafe_ch_list, u16 ch_count)
-{
-	int ret = 0;
-
-	switch (pld_get_bus_type(dev)) {
-	case PLD_BUS_TYPE_PCIE:
-		ret = pld_pcie_set_wlan_unsafe_channel(unsafe_ch_list,
-						       ch_count);
-		break;
-	case PLD_BUS_TYPE_SNOC:
-		ret = pld_snoc_set_wlan_unsafe_channel(unsafe_ch_list,
-						       ch_count);
-		break;
-	case PLD_BUS_TYPE_SDIO:
-		/* To do get unsafe channel via cnss sdio API */
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-
-	return ret;
-}
-
-/**
- * pld_get_wlan_unsafe_channel() - Get unsafe channel
- * @dev: device
- * @unsafe_ch_list: buffer to unsafe channel list
- * @ch_count: number of channel
- * @buf_len: buffer length
- *
- * Return WLAN unsafe channel to the buffer.
- *
- * Return: 0 for success
- *         Non zero failure code for errors
- */
-int pld_get_wlan_unsafe_channel(struct device *dev, u16 *unsafe_ch_list,
-				u16 *ch_count, u16 buf_len)
-{
-	int ret = 0;
-
-	switch (pld_get_bus_type(dev)) {
-	case PLD_BUS_TYPE_PCIE:
-		ret = pld_pcie_get_wlan_unsafe_channel(unsafe_ch_list,
-						       ch_count, buf_len);
-		break;
-	case PLD_BUS_TYPE_SNOC:
-		ret = pld_snoc_get_wlan_unsafe_channel(unsafe_ch_list,
-						       ch_count, buf_len);
-		break;
-	case PLD_BUS_TYPE_SDIO:
-		/* To do get unsafe channel via cnss sdio API */
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-
-	return ret;
-}
-
-/**
- * pld_wlan_set_dfs_nol() - Set DFS info
- * @dev: device
- * @info: DFS info
- * @info_len: info length
- *
- * Return: 0 for success
- *         Non zero failure code for errors
- */
-int pld_wlan_set_dfs_nol(struct device *dev, void *info, u16 info_len)
-{
-	int ret = 0;
-
-	switch (pld_get_bus_type(dev)) {
-	case PLD_BUS_TYPE_PCIE:
-		ret = pld_pcie_wlan_set_dfs_nol(info, info_len);
-		break;
-	case PLD_BUS_TYPE_SNOC:
-		ret = pld_snoc_wlan_set_dfs_nol(info, info_len);
-		break;
-	case PLD_BUS_TYPE_SDIO:
-		/* To do get nol via cnss sdio API */
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-
-	return ret;
-}
-
-/**
- * pld_wlan_get_dfs_nol() - Get DFS info
- * @dev: device
- * @info: buffer to DFS info
- * @info_len: info length
- *
- * Return DFS info to the buffer.
- *
- * Return: 0 for success
- *         Non zero failure code for errors
- */
-int pld_wlan_get_dfs_nol(struct device *dev, void *info, u16 info_len)
-{
-	int ret = 0;
-
-	switch (pld_get_bus_type(dev)) {
-	case PLD_BUS_TYPE_PCIE:
-		ret = pld_pcie_wlan_get_dfs_nol(info, info_len);
-		break;
-	case PLD_BUS_TYPE_SNOC:
-		ret = pld_snoc_wlan_get_dfs_nol(info, info_len);
-		break;
-	case PLD_BUS_TYPE_SDIO:
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-
-	return ret;
-}
-
-/**
  * pld_schedule_recovery_work() - Schedule recovery work
  * @dev: device
  *
@@ -1183,61 +1049,6 @@ void pld_disable_irq(struct device *dev, unsigned int ce_id)
 }
 
 /**
- * pld_increment_driver_load_cnt() - Maintain driver load count
- * @dev: device
- *
- * This function maintain a count which get increase whenever wiphy
- * is registered
- *
- * Return: void
- */
-void pld_increment_driver_load_cnt(struct device *dev)
-{
-	switch (pld_get_bus_type(dev)) {
-	case PLD_BUS_TYPE_PCIE:
-		pld_pcie_increment_driver_load_cnt();
-		break;
-	case PLD_BUS_TYPE_SNOC:
-		pld_snoc_increment_driver_load_cnt();
-		break;
-	case PLD_BUS_TYPE_SDIO:
-		break;
-	default:
-		pr_err("Invalid device type\n");
-		break;
-	}
-}
-
-/**
- * pld_get_driver_load_cnt() - get driver load count
- * @dev: device
- *
- * This function provide total wiphy registration count from starting
- *
- * Return: int
- */
-int pld_get_driver_load_cnt(struct device *dev)
-{
-	int ret = 0;
-
-	switch (pld_get_bus_type(dev)) {
-	case PLD_BUS_TYPE_PCIE:
-		ret = pld_pcie_get_driver_load_cnt();
-		break;
-	case PLD_BUS_TYPE_SNOC:
-		ret = pld_snoc_get_driver_load_cnt();
-		break;
-	case PLD_BUS_TYPE_SDIO:
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-
-	return ret;
-}
-
-/**
  * pld_get_soc_info() - Get SOC information
  * @dev: device
  * @info: buffer to SOC information
@@ -1570,40 +1381,6 @@ unsigned int pld_socinfo_get_serial_number(struct device *dev)
 	return ret;
 }
 
-/*
- * pld_get_wlan_mac_address() - API to query MAC address from Platform
- * Driver
- * @dev: Device Structure
- * @num: Pointer to number of MAC address supported
- *
- * Platform Driver can have MAC address stored. This API needs to be used
- * to get those MAC address
- *
- * Return: Pointer to the list of MAC address
- */
-uint8_t *pld_get_wlan_mac_address(struct device *dev, uint32_t *num)
-{
-	enum pld_bus_type type = pld_get_bus_type(dev);
-
-	switch (type) {
-	case PLD_BUS_TYPE_PCIE:
-		return pld_pcie_get_wlan_mac_address(dev, num);
-	case PLD_BUS_TYPE_SDIO:
-		return pld_sdio_get_wlan_mac_address(dev, num);
-	case PLD_BUS_TYPE_SNOC:
-		return pld_snoc_get_wlan_mac_address(dev, num);
-	case PLD_BUS_TYPE_USB:
-		pr_err("Not supported on type %d\n", type);
-		break;
-	default:
-		pr_err("Invalid device type\n");
-		break;
-	}
-
-	*num = 0;
-	return NULL;
-}
-
 /**
  * pld_is_qmi_disable() - Check QMI support is present or not
  * @dev: device
@@ -1661,6 +1438,30 @@ int pld_force_assert_target(struct device *dev)
 	default:
 		pr_err("Invalid device type %d\n", type);
 		ret = -EINVAL;
+		break;
+	}
+	return ret;
+}
+
+/**
+ * pld_is_fw_dump_skipped() - get fw dump skipped status.
+ *  The subsys ssr status help the driver to decide whether to skip
+ *  the FW memory dump when FW assert.
+ *  For SDIO case, the memory dump progress takes 1 minutes to
+ *  complete, which is not acceptable in SSR enabled.
+ *
+ *  Return: true if need to skip FW dump.
+ */
+bool pld_is_fw_dump_skipped(struct device *dev)
+{
+	bool ret = false;
+	enum pld_bus_type type = pld_get_bus_type(dev);
+
+	switch (type) {
+	case PLD_BUS_TYPE_SDIO:
+		ret = pld_sdio_is_fw_dump_skipped();
+		break;
+	default:
 		break;
 	}
 	return ret;

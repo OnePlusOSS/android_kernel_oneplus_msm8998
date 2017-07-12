@@ -1440,7 +1440,6 @@ QDF_STATUS hdd_wlan_shutdown(void)
 	wlan_deregister_txrx_packetdump();
 
 	hdd_cleanup_scan_queue(pHddCtx);
-	hdd_ipa_uc_ssr_deinit();
 	hdd_reset_all_adapters(pHddCtx);
 
 	/* Flush cached rx frame queue */
@@ -1468,6 +1467,7 @@ QDF_STATUS hdd_wlan_shutdown(void)
 		hdd_err("Failed to close CDS Scheduler");
 		QDF_ASSERT(false);
 	}
+	hdd_ipa_uc_ssr_deinit();
 
 	qdf_mc_timer_stop(&pHddCtx->tdls_source_timer);
 
@@ -1953,23 +1953,11 @@ next_adapter:
 			return -EAGAIN;
 		}
 
-		if (pScanInfo->mScanPending) {
-			INIT_COMPLETION(pScanInfo->abortscan_event_var);
-			hdd_abort_mac_scan(pHddCtx, pAdapter->sessionId,
-					   INVALID_SCAN_ID,
-					   eCSR_SCAN_ABORT_DEFAULT);
+		hdd_abort_mac_scan(pHddCtx, pAdapter->sessionId,
+				   INVALID_SCAN_ID, eCSR_SCAN_ABORT_DEFAULT);
 
-			status =
-				wait_for_completion_timeout(&pScanInfo->
-				    abortscan_event_var,
-				    msecs_to_jiffies(WLAN_WAIT_TIME_ABORTSCAN));
-			if (!status) {
-				hdd_err("Timeout occurred while waiting for abort scan");
-				wlan_hdd_inc_suspend_stats(pHddCtx,
-							   SUSPEND_FAIL_SCAN);
-				return -ETIME;
-			}
-		}
+		/* for suspend case, don't wait for scan cancel completion */
+
 		status = hdd_get_next_adapter(pHddCtx, pAdapterNode, &pNext);
 		pAdapterNode = pNext;
 	}

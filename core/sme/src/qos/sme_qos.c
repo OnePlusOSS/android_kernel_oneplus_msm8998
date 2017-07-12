@@ -325,7 +325,7 @@ struct sme_qos_searchinfo {
 	uint8_t sessionId;
 	uint8_t index;
 	union sme_qos_searchkey key;
-	sme_QosWmmDirType direction;
+	sme_qos_wmm_dir_type direction;
 	uint8_t tspec_mask;
 };
 /*
@@ -3525,7 +3525,7 @@ static QDF_STATUS sme_qos_process_ft_reassoc_req_ev(
  * Return: None
  */
 static void sme_qos_fill_aggr_info(int ac_id, int ts_id,
-				   sme_QosWmmDirType direction,
+				   sme_qos_wmm_dir_type direction,
 				   tSirAggrQosReq *msg,
 				   struct sme_qos_sessioninfo *session)
 {
@@ -3857,7 +3857,7 @@ static QDF_STATUS sme_qos_find_matching_tspec_lfr3(tpAniSirGlobal mac_ctx,
 	struct sme_qos_acinfo *ac_info;
 	uint8_t tspec_flow_idx;
 	bool found = false;
-	sme_QosWmmDirType direction, qos_dir;
+	sme_qos_wmm_dir_type direction, qos_dir;
 	uint8_t ac1;
 	tDot11fIERICDataDesc *ric_data = NULL;
 	uint32_t ric_len;

@@ -1365,18 +1365,15 @@ static QDF_STATUS hdd_cfg80211_scan_done_callback(tHalHandle halHandle,
 	uint32_t size = 0;
 
 	ret = wlan_hdd_validate_context(hddctx);
-	if (0 != ret)
+	if (ret) {
+		hdd_err("Invalid hdd_ctx; Drop results for scanId %d", scanId);
 		return QDF_STATUS_E_INVAL;
+	}
 
 	hdd_debug("called with hal = %p, pContext = %p, ID = %d, status = %d",
 		   halHandle, pContext, (int)scanId, (int)status);
 
 	pScanInfo->mScanPendingCounter = 0;
-
-	if (pScanInfo->mScanPending != true) {
-		QDF_ASSERT(pScanInfo->mScanPending);
-		goto allow_suspend;
-	}
 
 	if (QDF_STATUS_SUCCESS !=
 		wlan_hdd_scan_request_dequeue(hddctx, scanId, &req, &source,
@@ -1980,7 +1977,7 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 				} else if (pHddCtx->config->
 					   enableSelfRecovery) {
 					hdd_err("Triggering SSR due to scan stuck");
-					cds_trigger_recovery(false);
+					cds_trigger_recovery();
 				} else {
 					hdd_err("QDF_BUG due to scan stuck");
 					QDF_BUG(0);

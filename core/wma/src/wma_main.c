@@ -1836,7 +1836,7 @@ static void wma_cleanup_vdev_resp_queue(tp_wma_handle wma)
 		return;
 	}
 
-	while (qdf_list_peek_front(&wma->vdev_resp_queue, &node1) ==
+	while (qdf_list_remove_front(&wma->vdev_resp_queue, &node1) ==
 				   QDF_STATUS_SUCCESS) {
 		req_msg = qdf_container_of(node1, struct wma_target_req, node);
 		qdf_spin_unlock_bh(&wma->vdev_respq_lock);
@@ -1866,7 +1866,7 @@ static void wma_cleanup_hold_req(tp_wma_handle wma)
 	}
 
 	while (QDF_STATUS_SUCCESS ==
-			qdf_list_peek_front(&wma->wma_hold_req_queue, &node1)) {
+		qdf_list_remove_front(&wma->wma_hold_req_queue, &node1)) {
 		req_msg = qdf_container_of(node1, struct wma_target_req, node);
 		qdf_spin_unlock_bh(&wma->wma_hold_req_q_lock);
 		/* Cleanup timeout handler */
@@ -2468,7 +2468,6 @@ QDF_STATUS wma_open(void *cds_context,
 	qdf_spinlock_create(&wma_handle->wma_hold_req_q_lock);
 	qdf_atomic_init(&wma_handle->is_wow_bus_suspended);
 	qdf_atomic_init(&wma_handle->scan_id_counter);
-	qdf_atomic_init(&wma_handle->num_pending_scans);
 
 	/* Register vdev start response event handler */
 	wmi_unified_register_event_handler(wma_handle->wmi_handle,
@@ -3251,6 +3250,22 @@ QDF_STATUS wma_start(void *cds_ctx)
 			 __func__);
 		qdf_status = QDF_STATUS_E_FAILURE;
 		goto end;
+	}
+
+	if (!WMI_SERVICE_IS_ENABLED(wma_handle->wmi_service_bitmap,
+				WMI_SERVICE_UNIFIED_WOW_CAPABILITY)) {
+
+		status = wmi_unified_register_event_handler(
+					wma_handle->wmi_handle,
+					WMI_D0_WOW_DISABLE_ACK_EVENTID,
+					wma_d0_wow_disable_ack_event,
+					WMA_RX_TASKLET_CTX);
+		if (QDF_IS_STATUS_ERROR(status)) {
+			WMA_LOGE("%s: Failed to register D0-WOW disable event handler!",
+				__func__);
+			qdf_status = QDF_STATUS_E_FAILURE;
+			goto end;
+		}
 	}
 
 	status = wmi_unified_register_event_handler(wma_handle->wmi_handle,
@@ -5232,6 +5247,11 @@ bool wma_is_rx_ldpc_supported_for_channel(uint32_t channel,
 	struct wma_caps_per_phy caps_per_phy = {0};
 	enum cds_band_type band;
 	bool status;
+
+	if (!wma_handle) {
+		WMA_LOGE("Wma handle is null");
+		return false;
+	}
 
 	if (!CDS_IS_CHANNEL_24GHZ(channel))
 		band = CDS_BAND_5GHZ;

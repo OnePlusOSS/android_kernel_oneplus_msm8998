@@ -358,6 +358,16 @@ typedef enum {
  *	QCA_WLAN_VENDOR_ATTR_BTM_CANDIDATE_INFO_BSSID and
  *	QCA_WLAN_VENDOR_ATTR_BTM_CANDIDATE_INFO_STATUS pairs nested in
  *	QCA_WLAN_VENDOR_ATTR_BTM_CANDIDATE_INFO.
+ * @QCA_NL80211_VENDOR_SUBCMD_ACTIVE_TOS: Set the active Type Of Service on the
+ *	specific interface. This can be used to modify some of the low level
+ *	scan parameters (off channel dwell time, home channel time) in the
+ *	driver/firmware. These parameters are maintained within the host
+ *	driver.
+ *	This command is valid only when the interface is in the connected
+ *	state.
+ *	These scan parameters shall be reset by the driver/firmware once
+ *	disconnected. The attributes used with this command are defined in
+ *	enum qca_wlan_vendor_attr_active_tos.
  */
 
 enum qca_nl80211_vendor_subcmds {
@@ -526,6 +536,7 @@ enum qca_nl80211_vendor_subcmds {
 	/* spectral scan commands */
 	QCA_NL80211_VENDOR_SUBCMD_SPECTRAL_SCAN_START = 154,
 	QCA_NL80211_VENDOR_SUBCMD_SPECTRAL_SCAN_STOP = 155,
+	QCA_NL80211_VENDOR_SUBCMD_ACTIVE_TOS = 156,
 };
 
 /**
@@ -3839,6 +3850,28 @@ enum qca_wlan_vendor_attr_btm_candidate_info {
 	QCA_WLAN_VENDOR_ATTR_BTM_CANDIDATE_INFO_AFTER_LAST,
 	QCA_WLAN_VENDOR_ATTR_BTM_CANDIDATE_INFO_MAX =
 	QCA_WLAN_VENDOR_ATTR_BTM_CANDIDATE_INFO_AFTER_LAST - 1,
+};
+
+enum qca_wlan_vendor_tos {
+	QCA_WLAN_VENDOR_TOS_BK = 0,
+	QCA_WLAN_VENDOR_TOS_BE = 1,
+	QCA_WLAN_VENDOR_TOS_VI = 2,
+	QCA_WLAN_VENDOR_TOS_VO = 3,
+};
+
+/**
+ * enum qca_wlan_vendor_attr_active_tos - Used by the vendor command
+ * QCA_NL80211_VENDOR_SUBCMD_ACTIVE_TOS.
+ */
+enum qca_wlan_vendor_attr_active_tos {
+	QCA_WLAN_VENDOR_ATTR_ACTIVE_TOS_INVALID = 0,
+	/* Type Of Service - Represented by qca_wlan_vendor_tos */
+	QCA_WLAN_VENDOR_ATTR_ACTIVE_TOS = 1,
+	/* Flag attribute representing the start (attribute included) or stop
+	 * (attribute not included) of the respective TOS.
+	 */
+	QCA_WLAN_VENDOR_ATTR_ACTIVE_TOS_START = 2,
+	QCA_WLAN_VENDOR_ATTR_ACTIVE_TOS_MAX = 3,
 };
 
 struct cfg80211_bss *wlan_hdd_cfg80211_update_bss_db(hdd_adapter_t *pAdapter,

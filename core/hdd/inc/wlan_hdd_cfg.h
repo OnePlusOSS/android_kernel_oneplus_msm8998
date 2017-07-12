@@ -838,6 +838,52 @@ enum hdd_dot11_mode {
 #define CFG_ACTIVE_MIN_CHANNEL_TIME_MAX        (10000)
 #define CFG_ACTIVE_MIN_CHANNEL_TIME_DEFAULT    (20)
 
+/*
+ * <ini>
+ * gScanNumProbes - Set the number of probes on each channel for active scan
+ * @Min: 0
+ * @Max: 20
+ * @Default: 0
+ *
+ * This ini is used to set number of probes on each channel for
+ * active scan
+ *
+ * Related: None
+ *
+ * Supported Feature: Scan
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_SCAN_NUM_PROBES_NAME       "gScanNumProbes"
+#define CFG_SCAN_NUM_PROBES_MIN        (0)
+#define CFG_SCAN_NUM_PROBES_MAX        (20)
+#define CFG_SCAN_NUM_PROBES_DEFAULT    (0)
+
+/*
+ * <ini>
+ * gScanProbeRepeatTime - Set probe repeat time on each channel for active scan
+ * @Min: 0
+ * @Max: 30
+ * @Default: 0
+ *
+ * This ini is used to set probe repeat time on each channel for
+ * active scan
+ *
+ * Related: None
+ *
+ * Supported Feature: Scan
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_SCAN_PROBE_REPEAT_TIME_NAME       "gScanProbeRepeatTime"
+#define CFG_SCAN_PROBE_REPEAT_TIME_MIN        (0)
+#define CFG_SCAN_PROBE_REPEAT_TIME_MAX        (30)
+#define CFG_SCAN_PROBE_REPEAT_TIME_DEFAULT    (0)
+
 #ifdef FEATURE_WLAN_EXTSCAN
 /*
  * <ini>
@@ -11205,6 +11251,30 @@ enum hw_filter_mode {
 #define CFG_TX_ORPHAN_ENABLE_MIN     (0)
 #define CFG_TX_ORPHAN_ENABLE_MAX     (1)
 
+
+/*
+ * <ini>
+ * gEnableNDIMacRandomization - When enabled this will randomize NDI Mac
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * When enabled this will randomize NDI Mac
+ *
+ *
+ * Related: None
+ *
+ * Supported Feature: NAN
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_RANDOMIZE_NDI_MAC_NAME      "gEnableNDIMacRandomization"
+#define CFG_RANDOMIZE_NDI_MAC_MIN       (0)
+#define CFG_RANDOMIZE_NDI_MAC_MAX       (1)
+#define CFG_RANDOMIZE_NDI_MAC_DEFAULT   (1)
+
 /*
  * <ini>
  * gItoRepeatCount - sets ito repeated count
@@ -11319,6 +11389,8 @@ struct hdd_config {
 	uint32_t nPassiveMaxChnTime;    /* in units of milliseconds */
 	uint32_t nActiveMinChnTime;     /* in units of milliseconds */
 	uint32_t nActiveMaxChnTime;     /* in units of milliseconds */
+	uint32_t scan_probe_repeat_time;
+	uint32_t scan_num_probes;
 
 	uint32_t nInitialDwellTime;     /* in units of milliseconds */
 	bool initial_scan_no_dfs_chnl;
@@ -11375,28 +11447,28 @@ struct hdd_config {
 	bool bImplicitQosEnabled;
 
 	/* default TSPEC parameters for AC_VO */
-	sme_QosWmmDirType InfraDirAcVo;
+	sme_qos_wmm_dir_type InfraDirAcVo;
 	uint16_t InfraNomMsduSizeAcVo;
 	uint32_t InfraMeanDataRateAcVo;
 	uint32_t InfraMinPhyRateAcVo;
 	uint16_t InfraSbaAcVo;
 
 	/* default TSPEC parameters for AC_VI */
-	sme_QosWmmDirType InfraDirAcVi;
+	sme_qos_wmm_dir_type InfraDirAcVi;
 	uint16_t InfraNomMsduSizeAcVi;
 	uint32_t InfraMeanDataRateAcVi;
 	uint32_t InfraMinPhyRateAcVi;
 	uint16_t InfraSbaAcVi;
 
 	/* default TSPEC parameters for AC_BE */
-	sme_QosWmmDirType InfraDirAcBe;
+	sme_qos_wmm_dir_type InfraDirAcBe;
 	uint16_t InfraNomMsduSizeAcBe;
 	uint32_t InfraMeanDataRateAcBe;
 	uint32_t InfraMinPhyRateAcBe;
 	uint16_t InfraSbaAcBe;
 
 	/* default TSPEC parameters for AC_BK */
-	sme_QosWmmDirType InfraDirAcBk;
+	sme_qos_wmm_dir_type InfraDirAcBk;
 	uint16_t InfraNomMsduSizeAcBk;
 	uint32_t InfraMeanDataRateAcBk;
 	uint32_t InfraMinPhyRateAcBk;
@@ -12007,7 +12079,7 @@ struct hdd_config {
 	uint32_t disallow_duration;
 	uint32_t rssi_channel_penalization;
 	uint32_t num_disallowed_aps;
-
+	bool is_ndi_mac_randomized;
 	uint8_t ito_repeat_count;
 };
 

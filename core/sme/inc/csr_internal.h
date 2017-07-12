@@ -655,6 +655,8 @@ typedef struct tagCsrConfig {
 	uint32_t disallow_duration;
 	uint32_t rssi_channel_penalization;
 	uint32_t num_disallowed_aps;
+	uint32_t scan_probe_repeat_time;
+	uint32_t scan_num_probes;
 } tCsrConfig;
 
 typedef struct tagCsrChannelPowerInfo {

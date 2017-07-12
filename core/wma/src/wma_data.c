@@ -2926,8 +2926,10 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 			status = wmi_mgmt_unified_cmd_send(
 					wma_handle->wmi_handle,
 					&mgmt_param);
-			if (status)
+			if (status) {
+				wmi_desc->nbuf = NULL;
 				wmi_desc_put(wma_handle, wmi_desc);
+			}
 		}
 	} else {
 		/* Hand over the Tx Mgmt frame to TxRx */

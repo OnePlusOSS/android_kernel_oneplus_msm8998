@@ -3549,6 +3549,11 @@ static int wma_mgmt_rx_process(void *handle, uint8_t *data,
 	mgt_type = (wh)->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
 	mgt_subtype = (wh)->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
 
+	if (wma_read_d0wow_flag(wma_handle)) {
+		WMA_LOGE("%s: Frame subtype is 0x%x", __func__, mgt_subtype);
+		wma_set_d0wow_flag(wma_handle, false);
+	}
+
 	if (mgt_type == IEEE80211_FC0_TYPE_MGT &&
 	    (mgt_subtype == IEEE80211_FC0_SUBTYPE_DISASSOC ||
 	     mgt_subtype == IEEE80211_FC0_SUBTYPE_DEAUTH ||

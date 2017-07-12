@@ -4353,6 +4353,46 @@ static const char *wma_vdev_type_str(uint32_t vdev_type)
 	}
 }
 
+#ifdef FEATURE_WLAN_D0WOW
+ /**
+ * wma_d0_wow_disable_ack_event() - wakeup host event handler
+ * @handle: wma handle
+ * @event: event data
+ * @len: buffer length
+ *
+ * Handler to catch D0-WOW disable ACK event.  This event will have
+ * reason why the firmware has woken the host.
+ * This is for backward compatible with cld2.0.
+ *
+ * Return: 0 for success or error
+ */
+int wma_d0_wow_disable_ack_event(void *handle, u_int8_t *event,
+				u_int32_t len)
+{
+	tp_wma_handle wma = (tp_wma_handle) handle;
+	WMI_D0_WOW_DISABLE_ACK_EVENTID_param_tlvs *param_buf;
+	wmi_d0_wow_disable_ack_event_fixed_param *resp_data;
+
+	param_buf = (WMI_D0_WOW_DISABLE_ACK_EVENTID_param_tlvs *)event;
+	if (!param_buf) {
+		WMA_LOGE("Invalid D0-WOW disable ACK event buffer!");
+		return -EINVAL;
+	}
+
+	resp_data = param_buf->fixed_param;
+	qdf_event_set(&wma->wma_resume_event);
+	WMA_LOGD("Received D0-WOW disable ACK");
+
+	return 0;
+}
+#else
+int wma_d0_wow_disable_ack_event(void *handle, u_int8_t *event,
+				u_int32_t len)
+{
+	return 0;
+}
+#endif
+
 /**
  * wma_wow_wakeup_host_event() - wakeup host event handler
  * @handle: wma handle
@@ -5171,6 +5211,107 @@ void wma_enable_disable_wakeup_event(WMA_HANDLE handle,
 	wma_add_wow_wakeup_event(wma, vdev_id, event_bitmap, enable);
 }
 
+#ifdef FEATURE_WLAN_D0WOW
+void wma_set_d0wow_flag(WMA_HANDLE handle, bool flag)
+{
+	tp_wma_handle wma = handle;
+
+	atomic_set(&wma->in_d0wow, flag);
+}
+
+bool wma_read_d0wow_flag(WMA_HANDLE handle)
+{
+	tp_wma_handle wma = handle;
+
+	return atomic_read(&wma->in_d0wow);
+}
+
+/**
+ * wma_enable_d0wow_in_fw() - enable d0 wow in fw
+ * @wma: wma handle
+ *
+ * This is for backward compatible with cld2.0.
+ * Return: QDF status
+ */
+QDF_STATUS wma_enable_d0wow_in_fw(WMA_HANDLE handle)
+{
+	tp_wma_handle wma = handle;
+	int host_credits;
+	int wmi_pending_cmds;
+	QDF_STATUS status;
+
+	qdf_event_reset(&wma->target_suspend);
+	wma->wow_nack = 0;
+
+	host_credits = wmi_get_host_credits(wma->wmi_handle);
+	wmi_pending_cmds = wmi_get_pending_cmds(wma->wmi_handle);
+
+	WMA_LOGD("Credits:%d; Pending_Cmds: %d",
+		 host_credits, wmi_pending_cmds);
+
+	status = wmi_d0wow_enable_send(wma->wmi_handle,
+				WMA_WILDCARD_PDEV_ID);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		WMA_LOGE("Failed to enable D0-WOW in FW!");
+		return status;
+	}
+
+	status = qdf_wait_single_event(&wma->target_suspend,
+		WMA_TGT_SUSPEND_COMPLETE_TIMEOUT);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		WMA_LOGE("Failed to receive D0-WoW enable HTC ACK from FW! "
+			"Credits: %d, pending_cmds: %d",
+			wmi_get_host_credits(wma->wmi_handle),
+			wmi_get_pending_cmds(wma->wmi_handle));
+		if (!cds_is_driver_recovering())
+			cds_trigger_recovery();
+		else
+			WMA_LOGE("%s: LOGP is in progress, ignore!", __func__);
+
+		return status;
+	}
+
+	if (wma->wow_nack) {
+		WMA_LOGE("FW not ready for D0WOW.");
+		return QDF_STATUS_E_AGAIN;
+	}
+
+	host_credits = wmi_get_host_credits(wma->wmi_handle);
+	wmi_pending_cmds = wmi_get_pending_cmds(wma->wmi_handle);
+	if (host_credits < WMI_WOW_REQUIRED_CREDITS) {
+		WMA_LOGE("%s: No Credits after HTC ACK:%d, pending_cmds:%d, cannot resume back",
+			 __func__, host_credits, wmi_pending_cmds);
+		htc_dump_counter_info(wma->htc_handle);
+		if (!cds_is_driver_recovering())
+			cds_trigger_recovery();
+		else
+			WMA_LOGE("%s: SSR in progress, ignore no credit issue",
+				 __func__);
+	}
+
+	wma->wow.wow_enable_cmd_sent = true;
+	wma_set_d0wow_flag(wma, true);
+
+	WMA_LOGD("D0-WOW is enabled successfully in FW.");
+
+	return QDF_STATUS_SUCCESS;
+}
+#else
+void wma_set_d0wow_flag(WMA_HANDLE handle, bool flag)
+{
+}
+bool wma_read_d0wow_flag(WMA_HANDLE handle)
+{
+	return false;
+}
+QDF_STATUS wma_enable_d0wow_in_fw(WMA_HANDLE handle)
+{
+	WMA_LOGE("%s: ERROR- should never enter this function",
+		__func__);
+	return QDF_STATUS_E_INVAL;
+}
+#endif /* FEATURE_WLAN_D0WOW */
+
 /**
  * wma_enable_wow_in_fw() - wnable wow in fw
  * @wma: wma handle
@@ -5224,7 +5365,7 @@ QDF_STATUS wma_enable_wow_in_fw(WMA_HANDLE handle, uint32_t wow_flags)
 			 wmi_get_pending_cmds(wma->wmi_handle));
 		wmi_set_target_suspend(wma->wmi_handle, false);
 		if (!cds_is_driver_recovering()) {
-			cds_trigger_recovery(false);
+			cds_trigger_recovery();
 		} else {
 			WMA_LOGE("%s: LOGP is in progress, ignore!", __func__);
 		}
@@ -5246,7 +5387,7 @@ QDF_STATUS wma_enable_wow_in_fw(WMA_HANDLE handle, uint32_t wow_flags)
 			 __func__, host_credits, wmi_pending_cmds);
 		htc_dump_counter_info(wma->htc_handle);
 		if (!cds_is_driver_recovering())
-			cds_trigger_recovery(false);
+			cds_trigger_recovery();
 		else
 			WMA_LOGE("%s: SSR in progress, ignore no credit issue",
 				 __func__);
@@ -5990,7 +6131,7 @@ static QDF_STATUS wma_send_host_wakeup_ind_to_fw(tp_wma_handle wma)
 			 wmi_get_host_credits(wma->wmi_handle));
 		if (!cds_is_driver_recovering()) {
 			wmi_tag_crash_inject(wma->wmi_handle, true);
-			cds_trigger_recovery(false);
+			cds_trigger_recovery();
 		} else {
 			WMA_LOGE("%s: SSR in progress, ignore resume timeout",
 				 __func__);
@@ -6004,6 +6145,69 @@ static QDF_STATUS wma_send_host_wakeup_ind_to_fw(tp_wma_handle wma)
 
 	return qdf_status;
 }
+
+#ifdef FEATURE_WLAN_D0WOW
+/**
+ * wma_disable_d0wow_in_fw() -  Disable d0 wow in PCIe resume context.
+ * @handle: wma handle
+ *
+ * This is for backward compatible with cld2.0.
+ *
+ * Return: 0 for success or error code
+ */
+QDF_STATUS wma_disable_d0wow_in_fw(WMA_HANDLE handle)
+{
+	tp_wma_handle wma = handle;
+	int host_credits;
+	int wmi_pending_cmds;
+	QDF_STATUS status;
+
+	host_credits = wmi_get_host_credits(wma->wmi_handle);
+	wmi_pending_cmds = wmi_get_pending_cmds(wma->wmi_handle);
+
+	WMA_LOGD("Credits:%d; Pending_Cmds: %d",
+		 host_credits, wmi_pending_cmds);
+
+	qdf_event_reset(&wma->wma_resume_event);
+
+	status = wmi_d0wow_disable_send(wma->wmi_handle,
+				   WMA_WILDCARD_PDEV_ID);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		WMA_LOGE("Failed to disable D0-WOW in FW!");
+		return status;
+	}
+
+	status = qdf_wait_single_event(&(wma->wma_resume_event),
+				WMA_RESUME_TIMEOUT);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		WMA_LOGP("%s: Timeout waiting for resume event from FW!",
+			__func__);
+		WMA_LOGP("%s: Pending commands: %d credits: %d", __func__,
+			wmi_get_pending_cmds(wma->wmi_handle),
+			wmi_get_host_credits(wma->wmi_handle));
+
+		if (!cds_is_driver_recovering())
+			cds_trigger_recovery();
+		else
+			WMA_LOGE("%s: LOGP is in progress, ignore!", __func__);
+
+		return status;
+	}
+
+	wma->wow.wow_enable = false;
+	wma->wow.wow_enable_cmd_sent = false;
+
+	WMA_LOGD("D0-WOW is disabled successfully in FW.");
+
+	return QDF_STATUS_SUCCESS;
+}
+#else
+QDF_STATUS wma_disable_d0wow_in_fw(WMA_HANDLE handle)
+{
+	/* if not define FEATURE_D0_WOW, should not enter this function */
+	return QDF_STATUS_E_INVAL;
+}
+#endif /* FEATURE_WLAN_D0WOW */
 
 /**
  * wma_disable_wow_in_fw() -  Disable wow in PCIe resume context.
@@ -7834,15 +8038,15 @@ failure:
 static int __wma_bus_suspend(enum qdf_suspend_type type, uint32_t wow_flags)
 {
 	WMA_HANDLE handle = cds_get_context(QDF_MODULE_ID_WMA);
+	qdf_device_t qdf_dev = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
+	tp_wma_handle wma = handle;
+	bool wow_mode = wma_is_wow_mode_selected(handle);
+	bool can_suspend_link, is_unified_wow_supported;
+	QDF_STATUS status;
 
 	if (NULL == handle) {
 		WMA_LOGE("%s: wma context is NULL", __func__);
 		return -EFAULT;
-	}
-
-	if (wma_check_scan_in_progress(handle)) {
-		WMA_LOGE("%s: Scan in progress. Aborting suspend", __func__);
-		return -EBUSY;
 	}
 
 	wma_peer_debug_log(DEBUG_INVALID_VDEV_ID, DEBUG_BUS_SUSPEND,
@@ -7850,7 +8054,7 @@ static int __wma_bus_suspend(enum qdf_suspend_type type, uint32_t wow_flags)
 			   type, wow_flags);
 
 	if (type == QDF_RUNTIME_SUSPEND) {
-		QDF_STATUS status = wma_post_runtime_suspend_msg(handle);
+		status = wma_post_runtime_suspend_msg(handle);
 
 		if (status)
 			return qdf_status_to_os_return(status);
@@ -7860,13 +8064,28 @@ static int __wma_bus_suspend(enum qdf_suspend_type type, uint32_t wow_flags)
 		WMA_LOGD("%s: wow mode selected %d", __func__,
 				wma_is_wow_mode_selected(handle));
 
-	if (wma_is_wow_mode_selected(handle)) {
-		QDF_STATUS status = wma_enable_wow_in_fw(handle, wow_flags);
+	if (!wow_mode)
+		return qdf_status_to_os_return(wma_suspend_target(handle, 0));
 
+	can_suspend_link = htc_can_suspend_link(wma->htc_handle);
+	is_unified_wow_supported =  WMI_SERVICE_IS_ENABLED(
+				wma->wmi_service_bitmap,
+				WMI_SERVICE_UNIFIED_WOW_CAPABILITY);
+
+	WMA_LOGD("%s: bus_type %d, is_unified_wow_supported %d, can_suspend_link %d.",
+			__func__, qdf_dev->bus_type,
+			is_unified_wow_supported, can_suspend_link);
+
+	if (qdf_dev->bus_type == QDF_BUS_TYPE_PCI &&
+		!is_unified_wow_supported &&
+		!can_suspend_link) {
+		status = wma_enable_d0wow_in_fw(handle);
 		return qdf_status_to_os_return(status);
 	}
 
-	return wma_suspend_target(handle, 0);
+	status = wma_enable_wow_in_fw(handle, wow_flags);
+
+	return qdf_status_to_os_return(status);
 }
 
 /**
@@ -7898,7 +8117,6 @@ int wma_runtime_suspend(uint32_t wow_flags)
  */
 int wma_bus_suspend(uint32_t wow_flags)
 {
-
 	return __wma_bus_suspend(QDF_SYSTEM_SUSPEND, wow_flags);
 }
 
@@ -7911,9 +8129,10 @@ int wma_bus_suspend(uint32_t wow_flags)
  */
 static int __wma_bus_resume(WMA_HANDLE handle)
 {
+	qdf_device_t qdf_dev = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
 	bool wow_mode = wma_is_wow_mode_selected(handle);
-
 	tp_wma_handle wma = handle;
+	bool can_suspend_link, is_unified_wow_supported;
 	QDF_STATUS status;
 
 	WMA_LOGD("%s: wow mode %d", __func__, wow_mode);
@@ -7926,6 +8145,22 @@ static int __wma_bus_resume(WMA_HANDLE handle)
 
 	if (!wow_mode)
 		return qdf_status_to_os_return(wma_resume_target(handle));
+
+	can_suspend_link = htc_can_suspend_link(wma->htc_handle);
+	is_unified_wow_supported =  WMI_SERVICE_IS_ENABLED(
+				wma->wmi_service_bitmap,
+				WMI_SERVICE_UNIFIED_WOW_CAPABILITY);
+
+	WMA_LOGD("%s: bus_type %d, is_unified_wow_supported %d, can_suspend_link %d.",
+			__func__, qdf_dev->bus_type,
+			is_unified_wow_supported, can_suspend_link);
+
+	if (qdf_dev->bus_type == QDF_BUS_TYPE_PCI &&
+		!is_unified_wow_supported &&
+		!can_suspend_link) {
+		status = wma_disable_d0wow_in_fw(handle);
+		return qdf_status_to_os_return(status);
+	}
 
 	status = wma_disable_wow_in_fw(handle);
 	return qdf_status_to_os_return(status);
@@ -7993,7 +8228,7 @@ static inline void wma_suspend_target_timeout(bool is_self_recovery_enabled)
 		WMA_LOGE("%s: Module in bad state; Ignoring suspend timeout",
 			 __func__);
 	else
-		cds_trigger_recovery(false);
+		cds_trigger_recovery();
 }
 
 /**
@@ -8164,7 +8399,7 @@ QDF_STATUS wma_resume_target(WMA_HANDLE handle)
 			wmi_get_pending_cmds(wma->wmi_handle),
 			wmi_get_host_credits(wma->wmi_handle));
 		if (!cds_is_driver_recovering()) {
-			cds_trigger_recovery(false);
+			cds_trigger_recovery();
 		} else {
 			WMA_LOGE("%s: SSR in progress, ignore resume timeout",
 				__func__);

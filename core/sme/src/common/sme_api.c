@@ -608,7 +608,7 @@ tSmeCmd *sme_get_command_buffer(tpAniSirGlobal pMac)
 				false,
 				pMac->sme.enableSelfRecovery ? true : false);
 		else if (pMac->sme.enableSelfRecovery)
-			cds_trigger_recovery(false);
+			cds_trigger_recovery();
 		else
 			QDF_BUG(0);
 	}
@@ -11955,7 +11955,7 @@ void active_list_cmd_timeout_handle(void *userData)
 
 	if (mac_ctx->sme.enableSelfRecovery) {
 		sme_save_active_cmd_stats(hal);
-		cds_trigger_recovery(false);
+		cds_trigger_recovery();
 	} else {
 		if (!mac_ctx->roam.configParam.enable_fatal_event &&
 		   !(cds_is_load_or_unload_in_progress() ||
@@ -12766,8 +12766,6 @@ static QDF_STATUS sme_process_channel_change_resp(tpAniSirGlobal pMac,
 		proam_info.channelChangeRespEvent->sessionId = SessionId;
 		proam_info.channelChangeRespEvent->newChannelNumber =
 			pChnlParams->channelNumber;
-		proam_info.channelChangeRespEvent->secondaryChannelOffset =
-			pChnlParams->ch_width;
 
 		if (pChnlParams->status == QDF_STATUS_SUCCESS) {
 			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
@@ -15124,7 +15122,7 @@ QDF_STATUS sme_enable_uapsd_for_ac(void *cds_ctx, uint8_t sta_id,
 				   sme_ac_enum_type ac, uint8_t tid,
 				   uint8_t pri, uint32_t srvc_int,
 				   uint32_t sus_int,
-				   sme_tspec_dir_type dir,
+				   sme_qos_wmm_dir_type dir,
 				   uint8_t psb, uint32_t sessionId,
 				   uint32_t delay_interval)
 {

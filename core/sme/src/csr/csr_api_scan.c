@@ -5288,6 +5288,9 @@ static QDF_STATUS csr_send_mb_scan_req(tpAniSirGlobal pMac, uint16_t sessionId,
 
 	pMsg->minChannelTime = minChnTime;
 	pMsg->maxChannelTime = maxChnTime;
+	pMsg->scan_probe_repeat_time =
+		pMac->roam.configParam.scan_probe_repeat_time;
+	pMsg->scan_num_probes = pMac->roam.configParam.scan_num_probes;
 	/* hidden SSID option */
 	pMsg->hiddenSsid = pScanReqParam->hiddenSsid;
 	/* maximum rest time */

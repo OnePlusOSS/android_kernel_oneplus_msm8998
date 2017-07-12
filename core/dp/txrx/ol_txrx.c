@@ -1132,7 +1132,7 @@ ol_txrx_pdev_attach(ol_pdev_handle ctrl_pdev,
 		    HTC_HANDLE htc_pdev, qdf_device_t osdev)
 {
 	struct ol_txrx_pdev_t *pdev;
-	int i;
+	int i, tid;
 
 	pdev = qdf_mem_malloc(sizeof(*pdev));
 	if (!pdev)
@@ -1178,6 +1178,26 @@ ol_txrx_pdev_attach(ol_pdev_handle ctrl_pdev,
 
 	htt_register_rx_pkt_dump_callback(pdev->htt_pdev,
 			ol_rx_pkt_dump_call);
+
+	/*
+	 * Init the tid --> category table.
+	 * Regular tids (0-15) map to their AC.
+	 * Extension tids get their own categories.
+	 */
+	for (tid = 0; tid < OL_TX_NUM_QOS_TIDS; tid++) {
+		int ac = TXRX_TID_TO_WMM_AC(tid);
+
+		pdev->tid_to_ac[tid] = ac;
+	}
+	pdev->tid_to_ac[OL_TX_NON_QOS_TID] =
+		OL_TX_SCHED_WRR_ADV_CAT_NON_QOS_DATA;
+	pdev->tid_to_ac[OL_TX_MGMT_TID] =
+		OL_TX_SCHED_WRR_ADV_CAT_UCAST_MGMT;
+	pdev->tid_to_ac[OL_TX_NUM_TIDS + OL_TX_VDEV_MCAST_BCAST] =
+		OL_TX_SCHED_WRR_ADV_CAT_MCAST_DATA;
+	pdev->tid_to_ac[OL_TX_NUM_TIDS + OL_TX_VDEV_DEFAULT_MGMT] =
+		OL_TX_SCHED_WRR_ADV_CAT_MCAST_MGMT;
+
 	return pdev;
 
 fail3:
@@ -1782,8 +1802,7 @@ static void ol_tx_free_descs_inuse(ol_txrx_pdev_handle pdev)
 		 * been given to the target to transmit, for which the
 		 * target has never provided a response.
 		 */
-		if (qdf_atomic_read(&tx_desc->ref_cnt) &&
-				tx_desc->vdev_id != OL_TXRX_INVALID_VDEV_ID) {
+		if (qdf_atomic_read(&tx_desc->ref_cnt)) {
 			ol_txrx_dbg(
 				   "Warning: freeing tx frame (no compltn)\n");
 			ol_tx_desc_frame_free_nonstd(pdev,
@@ -2467,7 +2486,7 @@ ol_txrx_peer_attach(ol_txrx_vdev_handle vdev, uint8_t *peer_mac_addr)
 			/* Added for debugging only */
 			wma_peer_debug_dump();
 			if (cds_is_self_recovery_enabled())
-				cds_trigger_recovery(false);
+				cds_trigger_recovery();
 			else
 				QDF_ASSERT(0);
 			vdev->wait_on_peer_id = OL_TXRX_INVALID_LOCAL_PEER_ID;
@@ -3337,7 +3356,7 @@ void peer_unmap_timer_work_function(void *param)
 	wma_peer_debug_dump();
 	if (cds_is_self_recovery_enabled()) {
 		if (!cds_is_driver_recovering())
-			cds_trigger_recovery(false);
+			cds_trigger_recovery();
 		else
 			WMA_LOGE("%s: Recovery is in progress, ignore!",
 					__func__);

@@ -993,7 +993,8 @@ wma_unified_dfs_phyerr_filter_offload_enable(tp_wma_handle wma_handle);
 QDF_STATUS wma_pktlog_wmi_send_cmd(WMA_HANDLE handle,
 				   struct ath_pktlog_wmi_params *params);
 #endif
-
+int wma_d0_wow_disable_ack_event(void *handle, u_int8_t *event,
+				u_int32_t len);
 int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 				     uint32_t len);
 int wma_pdev_resume_event_handler(void *handle, uint8_t *event, uint32_t len);

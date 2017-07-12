@@ -56,6 +56,8 @@
 #include "epping_main.h"
 #include "sdio_api.h"
 #include "pld_sdio.h"
+#include "targaddrs.h"
+
 #ifndef ATH_BUS_PM
 #ifdef CONFIG_PM
 #define ATH_BUS_PM
@@ -229,6 +231,11 @@ static A_STATUS hif_sdio_remove(void *context, void *hif_handle)
 	iounmap(scn->ramdump_base);
 #endif
 
+	if (ol_sc) {
+		qdf_mem_free(ol_sc);
+		ol_sc = NULL;
+	}
+
 	if (scn) {
 		qdf_mem_free(scn);
 		scn = NULL;
@@ -288,7 +295,6 @@ static char *dev_info = "ath_hif_sdio";
  */
 static int init_ath_hif_sdio(void)
 {
-	static int probed;
 	QDF_STATUS status;
 	struct osdrv_callbacks osdrv_callbacks;
 
@@ -299,10 +305,6 @@ static int init_ath_hif_sdio(void)
 	osdrv_callbacks.device_suspend_handler = hif_sdio_suspend;
 	osdrv_callbacks.device_resume_handler = hif_sdio_resume;
 	osdrv_callbacks.device_power_change_handler = hif_sdio_power_change;
-
-	if (probed)
-		return -ENODEV;
-	probed++;
 
 	QDF_TRACE(QDF_MODULE_ID_HIF, QDF_TRACE_LEVEL_INFO, "%s %d", __func__,
 		  __LINE__);
@@ -534,15 +536,28 @@ void hif_trigger_dump(struct hif_opaque_softc *scn, uint8_t cmd_id, bool start)
 }
 
 /**
- * hif_check_fw_reg() - hif_check_fw_reg
- * @scn: scn
- * @state:
+ * hif_check_fw_reg() - check fw selfrecovery indication
+ * @hif_ctx: hif_opaque_softc
  *
  * Return: int
  */
-int hif_check_fw_reg(struct hif_opaque_softc *scn)
+int hif_check_fw_reg(struct hif_opaque_softc *hif_ctx)
 {
-	return 0;
+	int ret = 1;
+	uint32_t fw_indication = 0;
+	struct hif_sdio_softc *scn = HIF_GET_SDIO_SOFTC(hif_ctx);
+
+	if (hif_diag_read_access(hif_ctx, FW_INDICATOR_ADDRESS,
+				 &fw_indication) != QDF_STATUS_SUCCESS) {
+		HIF_ERROR("%s Get fw indication failed\n", __func__);
+		return 1;
+	}
+	HIF_INFO("%s: fw indication is 0x%x def 0x%x.\n", __func__,
+		fw_indication, FW_IND_HELPER);
+	if (fw_indication & FW_IND_HELPER)
+		ret = 0;
+
+	return ret;
 }
 
 /**

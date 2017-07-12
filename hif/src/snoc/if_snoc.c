@@ -218,6 +218,9 @@ static int hif_set_dma_coherent_mask(struct device *dev)
 {
 	uint8_t addr_bits;
 
+	if (false == hif_get_ipa_present())
+		return qdf_set_dma_coherent_mask(dev, 37);
+
 	if (hif_get_ipa_hw_type() < IPA_HW_v3_0)
 		addr_bits = DMA_COHERENT_MASK_BELOW_IPA_VER_3;
 	else

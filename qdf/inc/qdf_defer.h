@@ -95,6 +95,16 @@ static inline void qdf_destroy_bh(qdf_handle_t hdl, qdf_bh_t *bh)
 	__qdf_disable_bh(hdl, bh);
 }
 
+/**
+ * qdf_tasklet_is_scheduled - check bh status
+ * @bh: pointer to bottom
+ * Return: tasklet schedule state
+ */
+static inline bool qdf_tasklet_is_scheduled(struct tasklet_struct *bh)
+{
+	return __qdf_tasklet_is_scheduled(bh);
+}
+
 /*********************Non-Interrupt Context deferred Execution***************/
 
 /**

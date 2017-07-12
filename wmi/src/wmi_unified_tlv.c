@@ -850,6 +850,84 @@ QDF_STATUS send_resume_cmd_tlv(wmi_unified_t wmi_handle,
 	return ret;
 }
 
+#ifdef FEATURE_WLAN_D0WOW
+/**
+ *  send_d0wow_enable_cmd_tlv() - WMI d0 wow enable function
+ *  @param wmi_handle: handle to WMI.
+ *  @mac_id: radio context
+ *
+ *  Return: 0  on success  and  error code on failure.
+ */
+QDF_STATUS send_d0wow_enable_cmd_tlv(wmi_unified_t wmi_handle,
+				uint8_t mac_id)
+{
+	wmi_d0_wow_enable_disable_cmd_fixed_param *cmd;
+	wmi_buf_t buf;
+	int32_t len;
+	QDF_STATUS status;
+
+	len = sizeof(wmi_d0_wow_enable_disable_cmd_fixed_param);
+
+	buf = wmi_buf_alloc(wmi_handle, len);
+	if (!buf) {
+		WMI_LOGE("%s: Failed allocate wmi buffer", __func__);
+		return QDF_STATUS_E_NOMEM;
+	}
+	cmd = (wmi_d0_wow_enable_disable_cmd_fixed_param *) wmi_buf_data(buf);
+	WMITLV_SET_HDR(&cmd->tlv_header,
+		WMITLV_TAG_STRUC_wmi_d0_wow_enable_disable_cmd_fixed_param,
+		WMITLV_GET_STRUCT_TLVLEN
+		(wmi_d0_wow_enable_disable_cmd_fixed_param));
+
+	cmd->enable = true;
+
+	status = wmi_unified_cmd_send(wmi_handle, buf, len,
+			WMI_D0_WOW_ENABLE_DISABLE_CMDID);
+	if (QDF_IS_STATUS_ERROR(status))
+		wmi_buf_free(buf);
+
+	return status;
+}
+
+/**
+ *  send_d0wow_disable_cmd_tlv() - WMI d0 wow disable function
+ *  @param wmi_handle: handle to WMI.
+ *  @mac_id: radio context
+ *
+ *  Return: 0  on success  and  error code on failure.
+ */
+QDF_STATUS send_d0wow_disable_cmd_tlv(wmi_unified_t wmi_handle,
+				uint8_t mac_id)
+{
+	wmi_d0_wow_enable_disable_cmd_fixed_param *cmd;
+	wmi_buf_t buf;
+	int32_t len;
+	QDF_STATUS status;
+
+	len = sizeof(wmi_d0_wow_enable_disable_cmd_fixed_param);
+
+	buf = wmi_buf_alloc(wmi_handle, len);
+	if (!buf) {
+		WMI_LOGE("%s: Failed allocate wmi buffer", __func__);
+		return QDF_STATUS_E_NOMEM;
+	}
+	cmd = (wmi_d0_wow_enable_disable_cmd_fixed_param *) wmi_buf_data(buf);
+	WMITLV_SET_HDR(&cmd->tlv_header,
+		WMITLV_TAG_STRUC_wmi_d0_wow_enable_disable_cmd_fixed_param,
+		WMITLV_GET_STRUCT_TLVLEN
+		(wmi_d0_wow_enable_disable_cmd_fixed_param));
+
+	cmd->enable = false;
+
+	status = wmi_unified_cmd_send(wmi_handle, buf, len,
+			WMI_D0_WOW_ENABLE_DISABLE_CMDID);
+	if (QDF_IS_STATUS_ERROR(status))
+		wmi_buf_free(buf);
+
+	return status;
+}
+#endif
+
 /**
  *  send_wow_enable_cmd_tlv() - WMI wow enable function
  *  @param wmi_handle      : handle to WMI.
@@ -4966,8 +5044,21 @@ QDF_STATUS send_roam_scan_filter_cmd_tlv(wmi_unified_t wmi_handle,
 	wmi_roam_lca_disallow_config_tlv_param *blist_param;
 
 	len = sizeof(wmi_roam_filter_fixed_param);
+
 	len += WMI_TLV_HDR_SIZE;
-	len += roam_req->len;
+	if (roam_req->num_bssid_black_list)
+		len += roam_req->num_bssid_black_list * sizeof(wmi_mac_addr);
+	len += WMI_TLV_HDR_SIZE;
+	if (roam_req->num_ssid_white_list)
+		len += roam_req->num_ssid_white_list * sizeof(wmi_ssid);
+	len += 2 * WMI_TLV_HDR_SIZE;
+	if (roam_req->num_bssid_preferred_list) {
+		len += roam_req->num_bssid_preferred_list * sizeof(wmi_mac_addr);
+		len += roam_req->num_bssid_preferred_list * sizeof(A_UINT32);
+	}
+	if (roam_req->lca_disallow_config_present)
+		len += WMI_TLV_HDR_SIZE +
+			sizeof(wmi_roam_lca_disallow_config_tlv_param);
 
 	buf = wmi_buf_alloc(wmi_handle, len);
 	if (!buf) {
@@ -13227,6 +13318,10 @@ struct wmi_ops tlv_ops =  {
 	.send_pdev_param_cmd = send_pdev_param_cmd_tlv,
 	.send_suspend_cmd = send_suspend_cmd_tlv,
 	.send_resume_cmd = send_resume_cmd_tlv,
+#ifdef FEATURE_WLAN_D0WOW
+	.send_d0wow_enable_cmd = send_d0wow_enable_cmd_tlv,
+	.send_d0wow_disable_cmd = send_d0wow_disable_cmd_tlv,
+#endif
 	.send_wow_enable_cmd = send_wow_enable_cmd_tlv,
 	.send_set_ap_ps_param_cmd = send_set_ap_ps_param_cmd_tlv,
 	.send_set_sta_ps_param_cmd = send_set_sta_ps_param_cmd_tlv,

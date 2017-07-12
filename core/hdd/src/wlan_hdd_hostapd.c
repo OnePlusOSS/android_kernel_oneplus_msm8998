@@ -8113,11 +8113,6 @@ static int __wlan_hdd_cfg80211_stop_ap(struct wiphy *wiphy,
 	wlan_hdd_undo_acs(pAdapter);
 	qdf_mem_zero(&pConfig->acs_cfg, sizeof(struct sap_acs_cfg));
 
-	/* Remove the channel no from sap mandatory list if it is a
-	 * 5GHz channel */
-	if (CDS_IS_CHANNEL_5GHZ(pConfig->channel))
-		cds_remove_sap_mandatory_chan(pConfig->channel);
-
 	/* Stop all tx queues */
 	hdd_debug("Disabling queues");
 	wlan_hdd_netif_queue_control(pAdapter,

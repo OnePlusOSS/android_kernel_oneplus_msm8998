@@ -9189,6 +9189,9 @@ int hdd_configure_cds(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 	if (hdd_enable_egap(hdd_ctx))
 		hdd_debug("enhance green ap is not enabled");
 
+	if (0 != wlan_hdd_set_wow_pulse(hdd_ctx, true))
+		hdd_debug("Failed to set wow pulse");
+
 	return 0;
 
 hdd_features_deinit:
@@ -9600,9 +9603,6 @@ int hdd_wlan_startup(struct device *dev)
 	wlan_init_bug_report_lock();
 
 	wlan_hdd_update_wiphy(hdd_ctx);
-
-	if (0 != wlan_hdd_set_wow_pulse(hdd_ctx, true))
-		hdd_debug("Failed to set wow pulse");
 
 	hdd_ctx->hHal = cds_get_context(QDF_MODULE_ID_SME);
 

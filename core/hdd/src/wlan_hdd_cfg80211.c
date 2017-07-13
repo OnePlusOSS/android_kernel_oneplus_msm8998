@@ -17757,6 +17757,7 @@ static int __wlan_hdd_cfg80211_testmode(struct wiphy *wiphy,
 			return -ENOMEM;
 		}
 
+		qdf_mem_zero(hb_params, sizeof(tSirLPHBReq));
 		qdf_mem_copy(hb_params, buf, buf_len);
 		smeStatus =
 			sme_lphb_config_req((tHalHandle) (pHddCtx->hHal),

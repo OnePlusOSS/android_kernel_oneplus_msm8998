@@ -1822,7 +1822,12 @@ int hdd_start_adapter(hdd_adapter_t *adapter)
 	 * Action frame registered in one adapter which will
 	 * applicable to all interfaces
 	 */
-	wlan_hdd_cfg80211_register_frames(adapter);
+	ret = wlan_hdd_cfg80211_register_frames(adapter);
+
+	if (ret < 0) {
+		hdd_err("Failed to register frames - ret %d", ret);
+		goto err_start_adapter;
+	}
 exit:
 	EXIT();
 	return 0;

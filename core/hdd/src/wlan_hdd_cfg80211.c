@@ -11680,63 +11680,149 @@ void wlan_hdd_cfg80211_update_wiphy_caps(struct wiphy *wiphy)
 #endif
 }
 
+/**
+ * wlan_hdd_cfg80211_register_frames - Register for all callbacks and frames.
+ * @pAdapter: pointer to adapter
+ *
+ * This function registers for all frame which supplicant is interested in
+ * and callbacks for ack confirmation and mgmt indication.
+ *
+ * Return: 0 on success and non zero on failure
+ */
+
 /* This function registers for all frame which supplicant is interested in */
-void wlan_hdd_cfg80211_register_frames(hdd_adapter_t *pAdapter)
+int wlan_hdd_cfg80211_register_frames(hdd_adapter_t *pAdapter)
 {
 	tHalHandle hHal = WLAN_HDD_GET_HAL_CTX(pAdapter);
 	/* Register for all P2P action, public action etc frames */
 	uint16_t type = (SIR_MAC_MGMT_FRAME << 2) | (SIR_MAC_MGMT_ACTION << 4);
+	QDF_STATUS status;
 
 	ENTER();
 
 	/* Register frame indication call back */
-	sme_register_mgmt_frame_ind_callback(hHal, hdd_indicate_mgmt_frame);
+	status = sme_register_mgmt_frame_ind_callback(hHal,
+			hdd_indicate_mgmt_frame);
+	if (status != QDF_STATUS_SUCCESS) {
+		hdd_err("Failed to register hdd_indicate_mgmt_frame");
+		goto ret_status;
+	}
 
 	/* Register for p2p ack indication */
-	sme_register_p2p_ack_ind_callback(hHal, hdd_send_action_cnf_cb);
+	status = sme_register_p2p_ack_ind_callback(hHal,
+			hdd_send_action_cnf_cb);
+	if (status != QDF_STATUS_SUCCESS) {
+		hdd_err("Failed to register hdd_send_action_cnf_cb");
+		goto ret_status;
+	}
 
 	/* Right now we are registering these frame when driver is getting
 	   initialized. Once we will move to 2.6.37 kernel, in which we have
 	   frame register ops, we will move this code as a part of that */
 	/* GAS Initial Request */
-	sme_register_mgmt_frame(hHal, SME_SESSION_ID_ANY, type,
-				(uint8_t *) GAS_INITIAL_REQ,
-				GAS_INITIAL_REQ_SIZE);
+	status = sme_register_mgmt_frame(hHal, SME_SESSION_ID_ANY, type,
+			(uint8_t *) GAS_INITIAL_REQ,
+			GAS_INITIAL_REQ_SIZE);
+	if (status != QDF_STATUS_SUCCESS) {
+		hdd_err("Failed to register GAS_INITIAL_REQ");
+		goto ret_status;
+	}
 
 	/* GAS Initial Response */
-	sme_register_mgmt_frame(hHal, SME_SESSION_ID_ANY, type,
-				(uint8_t *) GAS_INITIAL_RSP,
-				GAS_INITIAL_RSP_SIZE);
+	status = sme_register_mgmt_frame(hHal, SME_SESSION_ID_ANY, type,
+			(uint8_t *) GAS_INITIAL_RSP,
+			GAS_INITIAL_RSP_SIZE);
+	if (status != QDF_STATUS_SUCCESS) {
+		hdd_err("Failed to register GAS_INITIAL_RSP");
+		goto dereg_gas_initial_req;
+	}
 
 	/* GAS Comeback Request */
-	sme_register_mgmt_frame(hHal, SME_SESSION_ID_ANY, type,
-				(uint8_t *) GAS_COMEBACK_REQ,
-				GAS_COMEBACK_REQ_SIZE);
+	status = sme_register_mgmt_frame(hHal, SME_SESSION_ID_ANY, type,
+			(uint8_t *) GAS_COMEBACK_REQ,
+			GAS_COMEBACK_REQ_SIZE);
+	if (status != QDF_STATUS_SUCCESS) {
+		hdd_err("Failed to register GAS_COMEBACK_REQ");
+		goto dereg_gas_initial_rsp;
+	}
 
 	/* GAS Comeback Response */
-	sme_register_mgmt_frame(hHal, SME_SESSION_ID_ANY, type,
-				(uint8_t *) GAS_COMEBACK_RSP,
-				GAS_COMEBACK_RSP_SIZE);
+	status = sme_register_mgmt_frame(hHal, SME_SESSION_ID_ANY, type,
+			(uint8_t *) GAS_COMEBACK_RSP,
+			GAS_COMEBACK_RSP_SIZE);
+	if (status != QDF_STATUS_SUCCESS) {
+		hdd_err("Failed to register GAS_COMEBACK_RSP");
+		goto dereg_gas_comeback_req;
+	}
 
 	/* P2P Public Action */
-	sme_register_mgmt_frame(hHal, SME_SESSION_ID_ANY, type,
-				(uint8_t *) P2P_PUBLIC_ACTION_FRAME,
-				P2P_PUBLIC_ACTION_FRAME_SIZE);
+	status = sme_register_mgmt_frame(hHal, SME_SESSION_ID_ANY, type,
+			(uint8_t *) P2P_PUBLIC_ACTION_FRAME,
+			P2P_PUBLIC_ACTION_FRAME_SIZE);
+	if (status != QDF_STATUS_SUCCESS) {
+		hdd_err("Failed to register P2P_PUBLIC_ACTION_FRAME");
+		goto dereg_gas_comeback_rsp;
+	}
 
 	/* P2P Action */
-	sme_register_mgmt_frame(hHal, SME_SESSION_ID_ANY, type,
-				(uint8_t *) P2P_ACTION_FRAME,
-				P2P_ACTION_FRAME_SIZE);
+	status = sme_register_mgmt_frame(hHal, SME_SESSION_ID_ANY, type,
+			(uint8_t *) P2P_ACTION_FRAME,
+			P2P_ACTION_FRAME_SIZE);
+	if (status != QDF_STATUS_SUCCESS) {
+		hdd_err("Failed to register P2P_ACTION_FRAME");
+		goto dereg_p2p_public_action_frm;
+	}
 
 	/* WNM BSS Transition Request frame */
-	sme_register_mgmt_frame(hHal, SME_SESSION_ID_ANY, type,
-				(uint8_t *) WNM_BSS_ACTION_FRAME,
-				WNM_BSS_ACTION_FRAME_SIZE);
+	status = sme_register_mgmt_frame(hHal, SME_SESSION_ID_ANY, type,
+			(uint8_t *) WNM_BSS_ACTION_FRAME,
+			WNM_BSS_ACTION_FRAME_SIZE);
+	if (status != QDF_STATUS_SUCCESS) {
+		hdd_err("Failed to register WNM_BSS_ACTION_FRAME");
+		goto dereg_p2p_action_frm;
+	}
 
 	/* WNM-Notification */
-	sme_register_mgmt_frame(hHal, pAdapter->sessionId, type,
-				(uint8_t *) WNM_NOTIFICATION_FRAME,
-				WNM_NOTIFICATION_FRAME_SIZE);
+	status = sme_register_mgmt_frame(hHal, pAdapter->sessionId, type,
+			(uint8_t *) WNM_NOTIFICATION_FRAME,
+			WNM_NOTIFICATION_FRAME_SIZE);
+	if (status != QDF_STATUS_SUCCESS) {
+		hdd_err("Failed to register hdd_send_action_cnf_cb");
+		goto dereg_wnm_bss_action_frm;
+	}
+	return qdf_status_to_os_return(status);
+
+dereg_wnm_bss_action_frm:
+	sme_deregister_mgmt_frame(hHal, SME_SESSION_ID_ANY, type,
+			(uint8_t *) WNM_BSS_ACTION_FRAME,
+			WNM_BSS_ACTION_FRAME_SIZE);
+dereg_p2p_action_frm:
+	sme_deregister_mgmt_frame(hHal, SME_SESSION_ID_ANY, type,
+			(uint8_t *) P2P_ACTION_FRAME,
+			P2P_ACTION_FRAME_SIZE);
+dereg_p2p_public_action_frm:
+	sme_deregister_mgmt_frame(hHal, SME_SESSION_ID_ANY, type,
+			(uint8_t *) P2P_PUBLIC_ACTION_FRAME,
+			P2P_PUBLIC_ACTION_FRAME_SIZE);
+dereg_gas_comeback_rsp:
+	sme_deregister_mgmt_frame(hHal, SME_SESSION_ID_ANY, type,
+			(uint8_t *) GAS_COMEBACK_RSP,
+			GAS_COMEBACK_RSP_SIZE);
+dereg_gas_comeback_req:
+	sme_deregister_mgmt_frame(hHal, SME_SESSION_ID_ANY, type,
+			(uint8_t *) GAS_COMEBACK_REQ,
+			GAS_COMEBACK_REQ_SIZE);
+dereg_gas_initial_rsp:
+	sme_deregister_mgmt_frame(hHal, SME_SESSION_ID_ANY, type,
+			(uint8_t *) GAS_INITIAL_RSP,
+			GAS_INITIAL_RSP_SIZE);
+dereg_gas_initial_req:
+	sme_deregister_mgmt_frame(hHal, SME_SESSION_ID_ANY, type,
+			(uint8_t *) GAS_INITIAL_REQ,
+			GAS_INITIAL_REQ_SIZE);
+ret_status:
+	return qdf_status_to_os_return(status);
+
 }
 
 void wlan_hdd_cfg80211_deregister_frames(hdd_adapter_t *pAdapter)

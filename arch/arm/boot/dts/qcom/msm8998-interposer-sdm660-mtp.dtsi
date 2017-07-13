@@ -66,9 +66,7 @@
 };
 
 &uartblsp2dm1 {
-	status = "ok";
-	pinctrl-names = "default";
-	pinctrl-0 = <&uart_console_active>;
+	status = "disabled";
 };
 
 &pm8998_gpios {

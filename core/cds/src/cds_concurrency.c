@@ -2115,6 +2115,51 @@ bool cds_set_connection_in_progress(bool value)
 }
 
 /**
+ * cds_current_concurrency_is_mcc() - To check the current
+ * concurrency combination if it is doing MCC
+ *
+ * This routine is called to check if it is doing MCC
+ *
+ * Return: True - MCC, False - Otherwise
+ */
+static bool cds_current_concurrency_is_mcc(void)
+{
+	uint32_t num_connections;
+	bool is_mcc = false;
+
+	num_connections = cds_get_connection_count();
+
+	switch (num_connections) {
+	case 1:
+		break;
+	case 2:
+		if ((conc_connection_list[0].chan !=
+			conc_connection_list[1].chan) &&
+		    (conc_connection_list[0].mac ==
+			conc_connection_list[1].mac)) {
+			is_mcc = true;
+		}
+		break;
+	case 3:
+		if ((conc_connection_list[0].chan !=
+			conc_connection_list[1].chan) ||
+		    (conc_connection_list[0].chan !=
+			conc_connection_list[2].chan) ||
+		    (conc_connection_list[1].chan !=
+			conc_connection_list[2].chan)){
+			is_mcc = true;
+		}
+		break;
+	default:
+		cds_err("unexpected num_connections value %d",
+			num_connections);
+		break;
+	}
+
+	return is_mcc;
+}
+
+/**
  * cds_update_conc_list() - Update the concurrent connection list
  * @conn_index: Connection index
  * @mode: Mode
@@ -2140,6 +2185,7 @@ static void cds_update_conc_list(uint32_t conn_index,
 		bool in_use)
 {
 	cds_context_type *cds_ctx;
+	bool mcc_mode;
 
 	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
 	if (!cds_ctx) {
@@ -2152,6 +2198,8 @@ static void cds_update_conc_list(uint32_t conn_index,
 			conn_index);
 		return;
 	}
+
+	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	conc_connection_list[conn_index].mode = mode;
 	conc_connection_list[conn_index].chan = chan;
 	conc_connection_list[conn_index].bw = bw;
@@ -2160,11 +2208,22 @@ static void cds_update_conc_list(uint32_t conn_index,
 	conc_connection_list[conn_index].original_nss = original_nss;
 	conc_connection_list[conn_index].vdev_id = vdev_id;
 	conc_connection_list[conn_index].in_use = in_use;
+	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 
 	cds_dump_connection_status_info();
 	if (cds_ctx->ol_txrx_update_mac_id_cb)
 		cds_ctx->ol_txrx_update_mac_id_cb(vdev_id, mac);
 
+
+	/* IPA only cares about STA or SAP mode */
+	if (mode == CDS_STA_MODE || mode == CDS_SAP_MODE) {
+		qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
+		mcc_mode = cds_current_concurrency_is_mcc();
+		qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
+
+		if (cds_ctx->hdd_ipa_set_mcc_mode_cb)
+			cds_ctx->hdd_ipa_set_mcc_mode_cb(mcc_mode);
+	}
 }
 
 /**
@@ -3256,51 +3315,6 @@ static void cds_dump_current_concurrency(void)
 }
 
 /**
- * cds_current_concurrency_is_mcc() - To check the current
- * concurrency combination if it is doing MCC
- *
- * This routine is called to check if it is doing MCC
- *
- * Return: True - MCC, False - Otherwise
- */
-static bool cds_current_concurrency_is_mcc(void)
-{
-	uint32_t num_connections = 0;
-	bool is_mcc = false;
-
-	num_connections = cds_get_connection_count();
-
-	switch (num_connections) {
-	case 1:
-		break;
-	case 2:
-		if ((conc_connection_list[0].chan !=
-			conc_connection_list[1].chan) &&
-		    (conc_connection_list[0].mac ==
-			conc_connection_list[1].mac)) {
-			is_mcc = true;
-		}
-		break;
-	case 3:
-		if ((conc_connection_list[0].chan !=
-			conc_connection_list[1].chan) ||
-		    (conc_connection_list[0].chan !=
-			conc_connection_list[2].chan) ||
-		    (conc_connection_list[1].chan !=
-			conc_connection_list[2].chan)){
-				is_mcc = true;
-		}
-		break;
-	default:
-		cds_err("unexpected num_connections value %d",
-			num_connections);
-		break;
-	}
-
-	return is_mcc;
-}
-
-/**
  * cds_dump_concurrency_info() - To dump concurrency info
  *
  * This routine is called to dump the concurrency info
@@ -3589,9 +3603,6 @@ void cds_dump_concurrency_info(void)
 		status = hdd_get_next_adapter(hdd_ctx, adapterNode, &pNext);
 		adapterNode = pNext;
 	}
-	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
-	hdd_ctx->mcc_mode = cds_current_concurrency_is_mcc();
-	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 }
 
 #ifdef FEATURE_WLAN_TDLS
@@ -4198,6 +4209,7 @@ QDF_STATUS cds_decr_active_session(enum tQDF_ADAPTER_MODE mode,
 	cds_context_type *cds_ctx;
 	hdd_adapter_t *sap_adapter;
 	QDF_STATUS qdf_status;
+	bool mcc_mode;
 
 	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
 	if (!cds_ctx) {
@@ -4268,6 +4280,19 @@ QDF_STATUS cds_decr_active_session(enum tQDF_ADAPTER_MODE mode,
 	cds_set_tdls_ct_mode(hdd_ctx);
 
 	cds_dump_current_concurrency();
+
+	/*
+	 * Check mode of entry being removed. Update mcc_mode only when STA
+	 * or SAP since IPA only cares about these two.
+	 */
+	if (mode == QDF_STA_MODE || mode == QDF_SAP_MODE) {
+		qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
+		mcc_mode = cds_current_concurrency_is_mcc();
+		qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
+
+		if (cds_ctx->hdd_ipa_set_mcc_mode_cb)
+			cds_ctx->hdd_ipa_set_mcc_mode_cb(mcc_mode);
+	}
 
 	return qdf_status;
 }

@@ -1376,8 +1376,6 @@ static void hdd_send_association_event(struct net_device *dev,
 #endif
 	}
 	cds_dump_concurrency_info();
-	/* Send SCC/MCC Switching event to IPA */
-	hdd_ipa_send_mcc_scc_msg(pHddCtx, pHddCtx->mcc_mode);
 
 	msg = NULL;
 	/* During the WLAN uninitialization, supplicant is stopped before the

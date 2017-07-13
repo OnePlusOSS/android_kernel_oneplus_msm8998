@@ -107,11 +107,20 @@ bool hdd_ipa_is_enabled(hdd_context_t *pHddCtx);
 bool hdd_ipa_uc_is_enabled(hdd_context_t *pHddCtx);
 #ifndef QCA_LL_TX_FLOW_CONTROL_V2
 int hdd_ipa_send_mcc_scc_msg(hdd_context_t *hdd_ctx, bool mcc_mode);
+void hdd_ipa_set_mcc_mode(bool mcc_mode);
 #else
 static inline int hdd_ipa_send_mcc_scc_msg(hdd_context_t *hdd_ctx,
 					   bool mcc_mode)
 {
 	return 0;
+}
+
+static inline void hdd_ipa_set_mcc_mode(bool mcc_mode)
+{
+}
+
+static inline void hdd_ipa_mcc_work_handler(struct work_struct *work)
+{
 }
 #endif
 int hdd_ipa_uc_ssr_reinit(hdd_context_t *hdd_ctx);
@@ -167,6 +176,14 @@ static inline int hdd_ipa_send_mcc_scc_msg(hdd_context_t *hdd_ctx,
 	bool mcc_mode)
 {
 	return 0;
+}
+
+static inline void hdd_ipa_set_mcc_mode(bool mcc_mode)
+{
+}
+
+static inline void hdd_ipa_mcc_work_handler(struct work_struct *work)
+{
 }
 
 static inline int hdd_ipa_set_perf_level(hdd_context_t *hdd_ctx,

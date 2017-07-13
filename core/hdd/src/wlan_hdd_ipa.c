@@ -457,6 +457,7 @@ struct hdd_ipa_priv {
 
 	qdf_spinlock_t q_lock;
 
+	struct work_struct mcc_work;
 	struct list_head pend_desc_head;
 	uint16_t tx_desc_size;
 	struct hdd_ipa_tx_desc *tx_desc_list;
@@ -5609,6 +5610,50 @@ int hdd_ipa_send_mcc_scc_msg(hdd_context_t *hdd_ctx, bool mcc_mode)
 
 	return ret;
 }
+
+void hdd_ipa_set_mcc_mode(bool mcc_mode)
+{
+	struct hdd_ipa_priv *hdd_ipa = ghdd_ipa;
+	hdd_context_t *hdd_ctx;
+
+	if (!hdd_ipa) {
+		hdd_err("hdd_ipa is NULL");
+		return;
+	}
+
+	hdd_ctx = hdd_ipa->hdd_ctx;
+	if (wlan_hdd_validate_context(hdd_ctx)) {
+		hdd_err("invalid hdd_ctx");
+		return;
+	}
+
+	if (!hdd_ipa_uc_sta_is_enabled(hdd_ctx)) {
+		hdd_err("IPA UC STA not enabled");
+		return;
+	}
+
+	if (mcc_mode == hdd_ctx->mcc_mode)
+		return;
+
+	hdd_ctx->mcc_mode = mcc_mode;
+	schedule_work(&hdd_ipa->mcc_work);
+}
+
+static void hdd_ipa_mcc_work_handler(struct work_struct *work)
+{
+	struct hdd_ipa_priv *hdd_ipa;
+	hdd_context_t *hdd_ctx;
+
+	hdd_ipa = container_of(work, struct hdd_ipa_priv, mcc_work);
+	hdd_ctx = hdd_ipa->hdd_ctx;
+
+	if (wlan_hdd_validate_context(hdd_ctx)) {
+		hdd_err("invalid hdd_ctx");
+		return;
+	}
+
+	hdd_ipa_send_mcc_scc_msg(hdd_ctx, hdd_ctx->mcc_mode);
+}
 #endif
 
 /**
@@ -6300,6 +6345,8 @@ static QDF_STATUS __hdd_ipa_init(hdd_context_t *hdd_ctx)
 			ret = hdd_ipa_setup_sys_pipe(hdd_ipa);
 			if (ret)
 				goto fail_create_sys_pipe;
+
+			INIT_WORK(&hdd_ipa->mcc_work, hdd_ipa_mcc_work_handler);
 		}
 		if (hdd_ipa_uc_register_uc_ready(hdd_ipa))
 			goto fail_create_sys_pipe;
@@ -6445,8 +6492,10 @@ static QDF_STATUS __hdd_ipa_cleanup(hdd_context_t *hdd_ctx)
 	}
 
 	/* Teardown IPA sys_pipe for MCC */
-	if (hdd_ipa_uc_sta_is_enabled(hdd_ipa->hdd_ctx))
+	if (hdd_ipa_uc_sta_is_enabled(hdd_ipa->hdd_ctx)) {
 		hdd_ipa_teardown_sys_pipe(hdd_ipa);
+		cancel_work_sync(&hdd_ipa->mcc_work);
+	}
 
 	hdd_ipa_destroy_rm_resource(hdd_ipa);
 

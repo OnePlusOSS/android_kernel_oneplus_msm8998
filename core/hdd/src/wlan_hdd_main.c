@@ -2941,9 +2941,7 @@ QDF_STATUS hdd_init_station_mode(hdd_adapter_t *adapter)
 		status = QDF_STATUS_E_FAILURE;
 		goto error_register_wext;
 	}
-	/* Set the Connection State to Not Connected */
-	hdd_debug("Set HDD connState to eConnectionState_NotConnected");
-	pHddStaCtx->conn_info.connState = eConnectionState_NotConnected;
+	hdd_conn_set_connection_state(adapter, eConnectionState_NotConnected);
 
 	qdf_mem_set(pHddStaCtx->conn_info.staId,
 		sizeof(pHddStaCtx->conn_info.staId), HDD_WLAN_INVALID_STA_ID);

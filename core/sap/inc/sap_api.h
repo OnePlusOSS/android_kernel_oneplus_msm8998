@@ -1005,6 +1005,17 @@ QDF_STATUS wlansap_set_tx_leakage_threshold(tHalHandle hal,
 QDF_STATUS wlansap_set_invalid_session(void *cds_ctx);
 QDF_STATUS sap_roam_session_close_callback(void *pContext);
 
+/**
+ * wlansap_cleanup_cac_timer() - Force cleanup DFS CAC timer
+ * @sap_ctx: sap context
+ *
+ * Force cleanup DFS CAC timer when reset all adapters. It will not
+ * check concurrency SAP since just called when reset all adapters.
+ *
+ * Return: None
+ */
+void wlansap_cleanup_cac_timer(void *sap_ctx);
+
 #ifdef __cplusplus
 }
 #endif

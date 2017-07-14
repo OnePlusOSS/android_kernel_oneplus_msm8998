@@ -5807,6 +5807,10 @@ static QDF_STATUS csr_roam_trigger_reassociate(tpAniSirGlobal mac_ctx,
 			if (!QDF_IS_STATUS_SUCCESS(status)) {
 				sme_err("failed status %d", status);
 				csr_release_command_roam(mac_ctx, cmd);
+			} else {
+				csr_neighbor_roam_state_transition(mac_ctx,
+					eCSR_NEIGHBOR_ROAM_STATE_REASSOCIATING,
+					session_id);
 			}
 
 			qdf_mem_free(pIes);

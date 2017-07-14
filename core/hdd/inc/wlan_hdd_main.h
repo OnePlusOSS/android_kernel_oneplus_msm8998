@@ -281,6 +281,7 @@
 #define HDD_SESSION_ID_INVALID    0xFF
 
 #define SCAN_REJECT_THRESHOLD_TIME 300000 /* Time is in msec, equal to 5 mins */
+#define SCAN_REJECT_THRESHOLD 15
 
 /* wait time for nud stats in milliseconds */
 #define WLAN_WAIT_TIME_NUD_STATS 800
@@ -1825,6 +1826,7 @@ struct hdd_context_s {
 	uint8_t last_scan_reject_session_id;
 	scan_reject_states last_scan_reject_reason;
 	unsigned long last_scan_reject_timestamp;
+	uint8_t scan_reject_cnt;
 	uint8_t beacon_probe_rsp_cnt_per_scan;
 	bool rcpi_enabled;
 	bool imps_enabled;

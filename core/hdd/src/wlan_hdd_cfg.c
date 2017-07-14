@@ -4849,12 +4849,11 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_ITO_REPEAT_COUNT_MAX),
 
 	REG_VARIABLE(CFG_LPRx_NAME, WLAN_PARAM_Integer,
-		struct hdd_config, enable_lprx,
-		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
-		CFG_LPRx_DEFAULT,
-		CFG_LPRx_MIN,
-		CFG_LPRx_MAX),
-
+		     struct hdd_config, enable_lprx,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_LPRx_DEFAULT,
+		     CFG_LPRx_MIN,
+		     CFG_LPRx_MAX),
 
 	REG_VARIABLE(CFG_UPPER_BRSSI_THRESH_NAME, WLAN_PARAM_Integer,
 		struct hdd_config, upper_brssi_thresh,
@@ -4890,6 +4889,13 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_OCE_ENABLE_SAP_DEFAULT,
 		CFG_OCE_ENABLE_SAP_MIN,
 		CFG_OCE_ENABLE_SAP_MAX),
+
+	REG_VARIABLE(CFG_ENABLE_11D_IN_WORLD_MODE_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, enable_11d_in_world_mode,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ENABLE_11D_IN_WORLD_MODE_DEFAULT,
+		     CFG_ENABLE_11D_IN_WORLD_MODE_MIN,
+		     CFG_ENABLE_11D_IN_WORLD_MODE_MAX),
 };
 
 /**
@@ -7827,6 +7833,8 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 		pConfig->FragmentationThreshold;
 	smeConfig->csrConfig.shortSlotTime = pConfig->ShortSlotTimeEnabled;
 	smeConfig->csrConfig.Is11dSupportEnabled = pConfig->Is11dSupportEnabled;
+	smeConfig->csrConfig.enable_11d_in_world_mode =
+		pConfig->enable_11d_in_world_mode;
 	smeConfig->csrConfig.HeartbeatThresh24 = pConfig->HeartbeatThresh24;
 
 	smeConfig->csrConfig.phyMode =

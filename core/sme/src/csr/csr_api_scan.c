@@ -3605,7 +3605,6 @@ QDF_STATUS csr_set_country_code(tpAniSirGlobal pMac, uint8_t *pCountry)
 	v_REGDOMAIN_t domainId;
 
 	if (pCountry) {
-
 		status = csr_get_regulatory_domain_for_country(pMac, pCountry,
 							     &domainId,
 							     SOURCE_USERSPACE);

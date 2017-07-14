@@ -5458,7 +5458,7 @@ QDF_STATUS sme_change_country_code(tHalHandle hHal,
 		    && (!pMac->roam.configParam.
 			fSupplicantCountryCodeHasPriority)) {
 
-			sme_warn("Set Country Code Fail since the STA is associated and userspace does not have priority");
+			sme_warn("Set Country Code Fail since the userspace does not have priority");
 
 			sme_release_global_lock(&pMac->sme);
 			status = QDF_STATUS_E_FAILURE;
@@ -7510,8 +7510,17 @@ void sme_set_cc_src(tHalHandle hHal, enum country_src cc_src)
 {
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hHal);
 
+	/*
+	 * in reg callback from kernel, for 11d source also
+	 * the source is SOURCE_USERSPACE
+	 */
+	if ((cc_src == SOURCE_USERSPACE) &&
+	    (SOURCE_11D == mac_ctx->reg_hint_src))
+		return;
+
 	mac_ctx->reg_hint_src = cc_src;
 }
+
 /*
  * sme_handle_change_country_code() - Change Country code, Reg Domain and
  * channel list
@@ -7661,19 +7670,23 @@ sme_handle_generic_change_country_code(tpAniSirGlobal mac_ctx,
 	tAniGenericChangeCountryCodeReq *msg = pMsgBuf;
 
 	if (SOURCE_11D != mac_ctx->reg_hint_src) {
-		if (SOURCE_DRIVER != mac_ctx->reg_hint_src) {
+		if (SOURCE_CORE == mac_ctx->reg_hint_src) {
+			if (mac_ctx->roam.configParam.enable_11d_in_world_mode
+			    == true)
+				mac_ctx->roam.configParam.Is11dSupportEnabled
+					= true;
+		} else if (SOURCE_USERSPACE == mac_ctx->reg_hint_src) {
 			if (user_ctry_priority)
 				mac_ctx->roam.configParam.Is11dSupportEnabled =
 					false;
 			else {
+				mac_ctx->roam.configParam.Is11dSupportEnabled =
+					mac_ctx->roam.configParam.
+					Is11dSupportEnabledOriginal;
 				if (mac_ctx->roam.configParam.
-					Is11dSupportEnabled &&
-					mac_ctx->scan.countryCode11d[0] != 0) {
-
+				    Is11dSupportEnabled) {
 					sme_debug("restore 11d");
-
-					status =
-					csr_get_regulatory_domain_for_country(
+					status = csr_get_regulatory_domain_for_country(
 						mac_ctx,
 						mac_ctx->scan.countryCode11d,
 						&reg_domain_id,
@@ -7681,16 +7694,18 @@ sme_handle_generic_change_country_code(tpAniSirGlobal mac_ctx,
 					return QDF_STATUS_E_FAILURE;
 				}
 			}
+		} else if (SOURCE_DRIVER == mac_ctx->reg_hint_src) {
+			mac_ctx->roam.configParam.Is11dSupportEnabled =
+				mac_ctx->roam.configParam.
+				Is11dSupportEnabledOriginal;
 		}
 	} else {
-		/* if kernel gets invalid country code; it
-		 *  resets the country code to world
-		 */
-		if (('0' != msg->countryCode[0]) ||
-		    ('0' != msg->countryCode[1]))
-			qdf_mem_copy(mac_ctx->scan.countryCode11d,
-				     msg->countryCode,
-				     WNI_CFG_COUNTRY_CODE_LEN);
+		qdf_mem_copy(mac_ctx->scan.countryCode11d,
+			     msg->countryCode,
+			     WNI_CFG_COUNTRY_CODE_LEN);
+		mac_ctx->roam.configParam.Is11dSupportEnabled =
+			mac_ctx->roam.configParam.Is11dSupportEnabledOriginal;
+		mac_ctx->reg_hint_src = SOURCE_USERSPACE;
 	}
 
 	qdf_mem_copy(mac_ctx->scan.countryCodeCurrent,

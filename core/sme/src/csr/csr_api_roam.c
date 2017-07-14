@@ -460,6 +460,7 @@ QDF_STATUS csr_set_reg_info(tHalHandle hHal, uint8_t *apCntryCode)
 	cntryCodeLength = WNI_CFG_COUNTRY_CODE_LEN;
 	status = csr_get_regulatory_domain_for_country(pMac, apCntryCode,
 						&regId, SOURCE_USERSPACE);
+
 	if (status != QDF_STATUS_SUCCESS) {
 		sme_err("fail to get regId for country Code %.2s",
 			apCntryCode);
@@ -1573,6 +1574,7 @@ static void init_config_param(tpAniSirGlobal pMac)
 	pMac->roam.configParam.HeartbeatThresh50 = 40;
 	pMac->roam.configParam.Is11dSupportEnabled = false;
 	pMac->roam.configParam.Is11dSupportEnabledOriginal = false;
+	pMac->roam.configParam.enable_11d_in_world_mode = false;
 	pMac->roam.configParam.Is11eSupportEnabled = true;
 	pMac->roam.configParam.Is11hSupportEnabled = true;
 	pMac->roam.configParam.RTSThreshold = 2346;
@@ -2322,10 +2324,16 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 			pParam->Is11eSupportEnabled;
 		pMac->roam.configParam.FragmentationThreshold =
 			pParam->FragmentationThreshold;
-		pMac->roam.configParam.Is11dSupportEnabled =
-			pParam->Is11dSupportEnabled;
 		pMac->roam.configParam.Is11dSupportEnabledOriginal =
 			pParam->Is11dSupportEnabled;
+		pMac->roam.configParam.enable_11d_in_world_mode =
+			pParam->enable_11d_in_world_mode;
+		if (pMac->roam.configParam.enable_11d_in_world_mode)
+			pMac->roam.configParam.Is11dSupportEnabled =
+				true;
+		else
+			pMac->roam.configParam.Is11dSupportEnabled =
+				pParam->Is11dSupportEnabled;
 		pMac->roam.configParam.Is11hSupportEnabled =
 			pParam->Is11hSupportEnabled;
 

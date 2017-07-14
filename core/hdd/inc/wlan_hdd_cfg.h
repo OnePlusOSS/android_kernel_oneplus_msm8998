@@ -11605,7 +11605,6 @@ enum hw_filter_mode {
  *
  * </ini>
  */
-
 #define CFG_LPRx_NAME       "gEnableLPRx"
 #define CFG_LPRx_MIN         (0)
 #define CFG_LPRx_MAX         (1)
@@ -11711,6 +11710,25 @@ enum hw_filter_mode {
 #define CFG_OCE_ENABLE_SAP_MIN     (0)
 #define CFG_OCE_ENABLE_SAP_MAX     (1)
 #define CFG_OCE_ENABLE_SAP_DEFAULT (1)
+
+/*
+ * <ini>
+ * enable_11d_in_world_mode - enable 11d in world mode
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini enables 11d in world mode
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+
+#define CFG_ENABLE_11D_IN_WORLD_MODE_NAME "enable_11d_in_world_mode"
+#define CFG_ENABLE_11D_IN_WORLD_MODE_MIN     (0)
+#define CFG_ENABLE_11D_IN_WORLD_MODE_MAX     (1)
+#define CFG_ENABLE_11D_IN_WORLD_MODE_DEFAULT (0)
 
 /*---------------------------------------------------------------------------
    Type declarations
@@ -12517,6 +12535,7 @@ struct hdd_config {
 	bool enable_dtim_1chrx;
 	bool oce_sta_enabled;
 	bool oce_sap_enabled;
+	bool enable_11d_in_world_mode;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

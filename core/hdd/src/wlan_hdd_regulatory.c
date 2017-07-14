@@ -502,7 +502,8 @@ int hdd_regulatory_init(hdd_context_t *hdd_ctx, struct wiphy *wiphy)
 
 	hdd_process_regulatory_data(hdd_ctx, wiphy, true);
 
-	reg_info->cc_src = SOURCE_DRIVER;
+	reg_info->cc_src = SOURCE_CORE;
+	sme_set_cc_src(hdd_ctx->hHal, SOURCE_CORE);
 
 	cds_put_default_country(reg_info->alpha2);
 
@@ -685,12 +686,14 @@ void hdd_reg_notifier(struct wiphy *wiphy,
 
 		if (NL80211_REGDOM_SET_BY_CORE == request->initiator) {
 			hdd_ctx->reg.cc_src = SOURCE_CORE;
+			sme_set_cc_src(hdd_ctx->hHal, SOURCE_CORE);
 			if (is_wiphy_custom_regulatory(wiphy))
 				reset = true;
 		} else if (NL80211_REGDOM_SET_BY_DRIVER == request->initiator) {
 			hdd_ctx->reg.cc_src = SOURCE_DRIVER;
 			sme_set_cc_src(hdd_ctx->hHal, SOURCE_DRIVER);
 		} else {
+			sme_set_cc_src(hdd_ctx->hHal, SOURCE_USERSPACE);
 			hdd_ctx->reg.cc_src = SOURCE_USERSPACE;
 			hdd_restore_custom_reg_settings(wiphy,
 							request->alpha2,

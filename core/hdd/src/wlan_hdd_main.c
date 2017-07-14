@@ -11614,29 +11614,6 @@ int hdd_get_rssi_snr_by_bssid(hdd_adapter_t *adapter, const uint8_t *bssid,
 }
 
 /**
- * hdd_send_limit_off_chan_cmd() - send limit off-channel command parameters
- * @param - pointer to sir_limit_off_chan
- *
- * Return: 0 on success and non zero value on failure
- */
-static int hdd_send_limit_off_chan_cmd(struct sir_limit_off_chan *param)
-{
-	cds_msg_t msg = {0};
-	QDF_STATUS status;
-
-	msg.type = SIR_HAL_SET_LIMIT_OFF_CHAN;
-	msg.reserved = 0;
-	msg.bodyptr = param;
-
-	status = cds_mq_post_message(QDF_MODULE_ID_WMA, &msg);
-	if (status != QDF_STATUS_SUCCESS) {
-		hdd_err("Not able to post limit off chan param message to WMA");
-		return -EIO;
-	}
-	return 0;
-}
-
-/**
  * hdd_set_limit_off_chan_for_tos() - set limit off-channel command parameters
  * @adapter - HDD adapter
  * @tos - type of service
@@ -11652,6 +11629,7 @@ int hdd_set_limit_off_chan_for_tos(hdd_adapter_t *adapter, enum tos tos,
 	struct sir_limit_off_chan *cmd;
 	hdd_context_t *hdd_ctx;
 	int ret;
+	tHalHandle hal;
 
 	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 	ret = wlan_hdd_validate_context(hdd_ctx);
@@ -11660,6 +11638,8 @@ int hdd_set_limit_off_chan_for_tos(hdd_adapter_t *adapter, enum tos tos,
 		hdd_err("failed to set limit off chan params");
 		return ret;
 	}
+
+	hal = hdd_ctx->hHal;
 
 	cmd = qdf_mem_malloc(sizeof(struct sir_limit_off_chan));
 	if (!cmd) {
@@ -11694,24 +11674,18 @@ int hdd_set_limit_off_chan_for_tos(hdd_adapter_t *adapter, enum tos tos,
 		cds_set_cur_conc_system_pref(hdd_ctx->config->conc_system_pref);
 	}
 
-	cmd = qdf_mem_malloc(sizeof(struct sir_limit_off_chan));
-	if (!cmd) {
-		hdd_err("qdf_mem_malloc failed for limit off channel");
-		return -ENOMEM;
-	}
-
-	qdf_mem_zero(cmd, sizeof(struct sir_limit_off_chan));
-
 	cmd->vdev_id = adapter->sessionId;
 	cmd->is_tos_active = is_tos_active;
 	cmd->rest_time = hdd_ctx->config->nRestTimeConc;
 	cmd->skip_dfs_chans = true;
 
-	ret = hdd_send_limit_off_chan_cmd(cmd);
-	if (ret)
+	ret = sme_send_limit_off_chan_cmd(hal, cmd);
+	if (ret) {
 		qdf_mem_free(cmd);
+		return -ENOMEM;
+	}
 
-	return ret;
+	return 0;
 }
 
 /* Register the module init/exit functions */

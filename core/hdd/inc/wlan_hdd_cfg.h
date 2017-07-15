@@ -884,6 +884,28 @@ enum hdd_dot11_mode {
 #define CFG_SCAN_PROBE_REPEAT_TIME_MAX        (30)
 #define CFG_SCAN_PROBE_REPEAT_TIME_DEFAULT    (0)
 
+/*
+ * <ini>
+ * allow_adj_chan_bcns - Set to accept the beacons from adjacent channels
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to accept the beacons from adjacent channels
+ *
+ * Related: None
+ *
+ * Supported Feature: Scan
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_SCAN_ALLOW_ADJ_CH_BCN_NAME       "allow_adj_chan_bcns"
+#define CFG_SCAN_ALLOW_ADJ_CH_BCN_MIN        (0)
+#define CFG_SCAN_ALLOW_ADJ_CH_BCN_MAX        (1)
+#define CFG_SCAN_ALLOW_ADJ_CH_BCN_DEFAULT    (0)
+
 #ifdef FEATURE_WLAN_EXTSCAN
 /*
  * <ini>
@@ -11408,6 +11430,7 @@ struct hdd_config {
 	uint32_t nActiveMaxChnTime;     /* in units of milliseconds */
 	uint32_t scan_probe_repeat_time;
 	uint32_t scan_num_probes;
+	bool allow_adj_ch_bcn;
 
 	uint32_t nInitialDwellTime;     /* in units of milliseconds */
 	bool initial_scan_no_dfs_chnl;

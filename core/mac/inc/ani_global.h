@@ -972,6 +972,7 @@ typedef struct sAniSirGlobal {
 	/* 802.11p enable */
 	bool enable_dot11p;
 
+	bool allow_adj_ch_bcn;
 	/* DBS capability based on INI and FW capability */
 	uint8_t hw_dbs_capable;
 	/* Based on INI parameter */

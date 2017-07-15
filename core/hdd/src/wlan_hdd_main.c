@@ -8847,6 +8847,8 @@ static int hdd_features_init(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 	sme_set_prefer_80MHz_over_160MHz(hdd_ctx->hHal,
 			hdd_ctx->config->sta_prefer_80MHz_over_160MHz);
 
+	sme_set_allow_adj_ch_bcn(hdd_ctx->hHal,
+			hdd_ctx->config->allow_adj_ch_bcn);
 
 	if (hdd_ctx->config->fIsImpsEnabled)
 		hdd_set_idle_ps_config(hdd_ctx, true);

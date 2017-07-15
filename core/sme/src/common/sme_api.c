@@ -11266,6 +11266,17 @@ void sme_set_prefer_80MHz_over_160MHz(tHalHandle hal,
 	mac_ctx->sta_prefer_80MHz_over_160MHz = sta_prefer_80MHz_over_160MHz;
 }
 
+/**
+ * sme_set_allow_adj_ch_bcn() - API to set allow_adj_ch_bcn
+ * @hal:           The handle returned by macOpen
+ * @allow_adj_ch_bcn: allow_adj_ch_bcn config param
+ */
+void sme_set_allow_adj_ch_bcn(tHalHandle hal, bool allow_adj_ch_bcn)
+{
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+
+	mac_ctx->allow_adj_ch_bcn = allow_adj_ch_bcn;
+}
 #ifdef WLAN_FEATURE_DSRC
 /**
  * sme_set_dot11p_config() - API to set the 802.11p config

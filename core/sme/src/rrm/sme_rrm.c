@@ -42,8 +42,8 @@
 #endif /* FEATURE_WLAN_DIAG_SUPPORT */
 
 #include "csr_inside_api.h"
-
 #include "rrm_global.h"
+#include "wma.h"
 
 /* Roam score for a neighbor AP will be calculated based on the below
  * definitions. The calculated roam score will be used to select the
@@ -650,7 +650,7 @@ static QDF_STATUS sme_rrm_issue_scan_req(tpAniSirGlobal mac_ctx)
 	tCsrScanRequest scan_req;
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	tpRrmSMEContext sme_rrm_ctx = &mac_ctx->rrm.rrmSmeContext;
-	uint32_t session_id;
+	uint32_t session_id, scan_req_id;
 	uint32_t max_chan_time;
 	tSirScanType scan_type;
 	uint64_t current_time;
@@ -764,6 +764,8 @@ static QDF_STATUS sme_rrm_issue_scan_req(tpAniSirGlobal mac_ctx)
 				sme_rrm_ctx->currentIndex]);
 		/* set requestType to full scan */
 		scan_req.requestType = eCSR_SCAN_REQUEST_FULL_SCAN;
+		wma_get_scan_id(&scan_req_id);
+		scan_req.scan_id = scan_req_id;
 		status = sme_scan_request(mac_ctx, (uint8_t) session_id,
 					&scan_req,
 					&sme_rrm_scan_request_callback, NULL);

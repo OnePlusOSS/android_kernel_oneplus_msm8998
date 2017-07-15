@@ -3276,7 +3276,7 @@ QDF_STATUS sme_scan_request(tHalHandle hal, uint8_t session_id,
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
 	struct ani_scan_req *scan_msg;
 	cds_msg_t msg;
-	uint32_t scan_req_id, scan_count;
+	uint32_t scan_count;
 
 	MTRACE(qdf_trace(QDF_MODULE_ID_SME,
 		 TRACE_CODE_SME_RX_HDD_MSG_SCAN_REQ, session_id,
@@ -3297,8 +3297,6 @@ QDF_STATUS sme_scan_request(tHalHandle hal, uint8_t session_id,
 		sme_err("Max scan reached");
 		return QDF_STATUS_E_FAILURE;
 	}
-	wma_get_scan_id(&scan_req_id);
-	scan_req->scan_id = scan_req_id;
 
 	status = sme_acquire_global_lock(&mac_ctx->sme);
 	if (!QDF_IS_STATUS_SUCCESS(status)) {

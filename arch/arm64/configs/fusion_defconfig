@@ -388,6 +388,7 @@ CONFIG_PCI_LABEL=y
 CONFIG_SOUND_CONTROL=y
 CONFIG_ADRENO_IDLER=y
 CONFIG_SWEEP2SLEEP=y
+CONFIG_STATE_NOTIFIER=y
 
 #
 # ARM errata workarounds via the alternatives framework

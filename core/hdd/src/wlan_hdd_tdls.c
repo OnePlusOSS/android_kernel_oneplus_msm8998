@@ -6516,6 +6516,7 @@ void hdd_tdls_notify_p2p_roc(hdd_context_t *hdd_ctx,
 {
 	enum tdls_support_mode tdls_mode;
 	uint16_t connectedTdlsPeers;
+	bool buf_sta, enable_tdls_scan;
 
 	qdf_mc_timer_stop(&hdd_ctx->tdls_source_timer);
 
@@ -6528,17 +6529,30 @@ void hdd_tdls_notify_p2p_roc(hdd_context_t *hdd_ctx,
 		if (!connectedTdlsPeers)
 			goto start_timer;
 
+
+		enable_tdls_scan =
+			wlan_hdd_tdls_check_enable_tdls_scan(hdd_ctx);
+
+		hdd_debug("enable_tdls_scan %d", enable_tdls_scan);
+
+		if (enable_tdls_scan) {
+			hdd_debug("Do not teardown tdls links");
+			goto start_timer;
+		}
+
 		mutex_lock(&hdd_ctx->tdls_lock);
-		if ((!wlan_hdd_tdls_check_enable_tdls_scan(hdd_ctx)) ||
-		    (!wlan_hdd_tdls_check_peer_buf_capable(
-			hdd_ctx, connectedTdlsPeers))) {
-			mutex_unlock(&hdd_ctx->tdls_lock);
-			hdd_debug("All peers (num %d) bufSTAs, we can be sleep sta, so allow scan, tdls mode changed to %d",
-				   connectedTdlsPeers, hdd_ctx->tdls_mode);
+		buf_sta = wlan_hdd_tdls_check_peer_buf_capable(hdd_ctx,
+				connectedTdlsPeers);
+		mutex_unlock(&hdd_ctx->tdls_lock);
+
+		hdd_debug("buf_sta %d, connected peers %d, sleep sta %d",
+				buf_sta, connectedTdlsPeers,
+				hdd_ctx->config->fEnableTDLSSleepSta);
+
+		if (!buf_sta) {
+			hdd_debug("teardown tdls links");
 			wlan_hdd_tdls_disable_offchan_and_teardown_links(
-								hdd_ctx);
-		} else {
-			mutex_unlock(&hdd_ctx->tdls_lock);
+					hdd_ctx);
 		}
 	}
 

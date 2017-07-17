@@ -1994,7 +1994,7 @@ more_watermarks:
 					   HOST_IS_COPY_COMPLETE_MASK);
 	} else {
 		HIF_ERROR("%s: target access is not allowed", __func__);
-		return CE_state->receive_count;
+		goto unlock_end;
 	}
 
 	/*

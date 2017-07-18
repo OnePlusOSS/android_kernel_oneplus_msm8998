@@ -2255,7 +2255,13 @@ void hdd_perform_roam_set_key_complete(hdd_adapter_t *pAdapter)
 #if defined(WLAN_FEATURE_FILS_SK) && defined(CFG80211_FILS_SK_OFFLOAD_SUPPORT)
 void hdd_clear_fils_connection_info(hdd_adapter_t *adapter)
 {
-	hdd_wext_state_t *wext_state = WLAN_HDD_GET_WEXT_STATE_PTR(adapter);
+	hdd_wext_state_t *wext_state;
+
+	if ((adapter->device_mode == QDF_SAP_MODE) ||
+	    (adapter->device_mode == QDF_P2P_GO_MODE))
+		return;
+
+	wext_state = WLAN_HDD_GET_WEXT_STATE_PTR(adapter);
 
 	if (wext_state->roamProfile.fils_con_info) {
 		qdf_mem_free(wext_state->roamProfile.fils_con_info);

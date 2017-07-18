@@ -7125,6 +7125,13 @@ void hdd_ch_avoid_cb(void *hdd_context, void *indi_param)
 	/* generate vendor specific event */
 	qdf_mem_zero((void *)&hdd_avoid_freq_list, sizeof(tHddAvoidFreqList));
 	for (i = 0; i < ch_avoid_indi->avoid_range_count; i++) {
+		if ((RESTART_24G_ONLY == hdd_ctxt->config->
+			restart_beaconing_on_chan_avoid_event) &&
+			CDS_IS_CHANNEL_5GHZ(ieee80211_frequency_to_channel(
+			ch_avoid_indi->avoid_freq_range[i].start_freq))) {
+			hdd_debug("skipping 5Ghz LTE Coex unsafe channel range");
+			continue;
+		}
 		hdd_avoid_freq_list.avoidFreqRange[i].startFreq =
 			ch_avoid_indi->avoid_freq_range[i].start_freq;
 		hdd_avoid_freq_list.avoidFreqRange[i].endFreq =

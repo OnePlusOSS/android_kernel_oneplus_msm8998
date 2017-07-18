@@ -3108,6 +3108,7 @@ void lim_process_switch_channel_rsp(tpAniSirGlobal pMac, void *body)
 		pe_err("session does not exist for given sessionId");
 		return;
 	}
+	psessionEntry->ch_switch_in_progress = false;
 	/* HAL fills in the tx power used for mgmt frames in this field. */
 	/* Store this value to use in TPC report IE. */
 	rrm_cache_mgmt_tx_power(pMac, pChnlParams->txMgmtPower, psessionEntry);

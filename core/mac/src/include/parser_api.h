@@ -403,6 +403,7 @@ typedef struct sSirAssocRsp {
 #endif
 	tDot11fIEvendor_vht_ie vendor_vht_ie;
 	tDot11fIEOBSSScanParameters obss_scanparams;
+	tDot11fTLVrssi_assoc_rej rssi_assoc_rej;
 	tSirQCNIE QCN_IE;
 #ifdef WLAN_FEATURE_FILS_SK
 	tDot11fIEfils_session fils_session;

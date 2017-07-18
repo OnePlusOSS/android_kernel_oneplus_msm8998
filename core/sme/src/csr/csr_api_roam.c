@@ -403,6 +403,9 @@ QDF_STATUS csr_open(tpAniSirGlobal pMac)
 			    (csr_ll_open(pMac->hHdd,
 					 &pMac->roam.roamCmdPendingList)))
 			break;
+
+		qdf_list_create(&pMac->roam.rssi_disallow_bssid,
+			MAX_RSSI_AVOID_BSSID_LIST);
 	} while (0);
 
 	return status;
@@ -500,12 +503,41 @@ QDF_STATUS csr_set_channels(tHalHandle hHal, tCsrConfigParam *pParam)
 	return status;
 }
 
+/**
+ * csr_assoc_rej_free_rssi_disallow_list() - Free the rssi diallowed
+ * BSSID entries and destroy the list
+ * @list: rssi based disallowed list entry
+ *
+ * Return: void
+ */
+static void csr_assoc_rej_free_rssi_disallow_list(qdf_list_t *list)
+{
+	QDF_STATUS status;
+	struct sir_rssi_disallow_lst *cur_node;
+	qdf_list_node_t *cur_lst = NULL, *next_lst = NULL;
+
+	qdf_list_peek_front(list, &cur_lst);
+	while (cur_lst) {
+		qdf_list_peek_next(list, cur_lst, &next_lst);
+		cur_node = qdf_container_of(cur_lst,
+			struct sir_rssi_disallow_lst, node);
+		status = qdf_list_remove_node(list, cur_lst);
+		if (QDF_IS_STATUS_SUCCESS(status))
+			qdf_mem_free(cur_node);
+		cur_lst = next_lst;
+		next_lst = NULL;
+	}
+	qdf_list_destroy(list);
+}
+
 QDF_STATUS csr_close(tpAniSirGlobal pMac)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	tSmeCmd *saved_scan_cmd;
 
 	csr_roam_close(pMac);
+	csr_assoc_rej_free_rssi_disallow_list(
+		&pMac->roam.rssi_disallow_bssid);
 	csr_scan_close(pMac);
 	csr_ll_close(&pMac->roam.statsClientReqList);
 	csr_ll_close(&pMac->roam.peStatsReqList);
@@ -8046,6 +8078,10 @@ static void csr_roam_print_candidate_aps(tpAniSirGlobal pMac,
 	struct scan_result_list *bss_list = NULL;
 
 	bss_list = (struct scan_result_list *)hScanList;
+	if (!bss_list ||
+	   !csr_ll_count(&bss_list->List))
+		return;
+
 	pEntry = csr_ll_peek_head(&bss_list->List, LL_ACCESS_NOLOCK);
 	while (pEntry) {
 		pBssDesc = GET_BASE_ADDR(pEntry,

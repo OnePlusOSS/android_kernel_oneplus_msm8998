@@ -53,7 +53,7 @@
 
 #define __qdf_virt_module_exit(_x)  module_exit(_x)
 
-#define __qdf_virt_module_name(_name) MODULE_LICENSE("Proprietary")
+#define __qdf_virt_module_name(_name) MODULE_LICENSE("Dual BSD/GPL")
 
 #ifdef WLAN_DISABLE_EXPORT_SYMBOL
 #define __qdf_export_symbol(_sym)

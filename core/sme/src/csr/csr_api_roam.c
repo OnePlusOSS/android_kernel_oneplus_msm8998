@@ -13986,9 +13986,10 @@ QDF_STATUS csr_roam_del_pmkid_from_cache(tpAniSirGlobal pMac,
 				&pmksa->BSSID))
 			fMatchFound = 1;
 
-		else if ((!qdf_mem_cmp(cached_pmksa->ssid,
-			pmksa->ssid, pmksa->ssid_len)) &&
-			(!qdf_mem_cmp(cached_pmksa->cache_id,
+		else if (cached_pmksa->ssid_len &&
+				(!qdf_mem_cmp(cached_pmksa->ssid,
+				pmksa->ssid, pmksa->ssid_len)) &&
+				(!qdf_mem_cmp(cached_pmksa->cache_id,
 				pmksa->cache_id, CACHE_ID_LEN)))
 			fMatchFound = 1;
 

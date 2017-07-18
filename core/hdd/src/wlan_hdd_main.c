@@ -6997,6 +6997,62 @@ next_adapater:
 		adapter_node = next;
 	}
 }
+
+int hdd_clone_local_unsafe_chan(hdd_context_t *hdd_ctx,
+	uint16_t **local_unsafe_list, uint16_t *local_unsafe_list_count)
+{
+	uint32_t size;
+	uint16_t *unsafe_list;
+	uint16_t chan_count;
+
+	if (!hdd_ctx || !local_unsafe_list_count || !local_unsafe_list_count)
+		return -EINVAL;
+
+	chan_count = QDF_MIN(hdd_ctx->unsafe_channel_count,
+			     NUM_CHANNELS);
+	if (chan_count) {
+		size = chan_count * sizeof(hdd_ctx->unsafe_channel_list[0]);
+		unsafe_list = qdf_mem_malloc(size);
+		if (!unsafe_list) {
+			hdd_err("No memory for unsafe chan list size%d",
+				size);
+			return -ENOMEM;
+		}
+		qdf_mem_copy(unsafe_list, hdd_ctx->unsafe_channel_list, size);
+	} else {
+		unsafe_list = NULL;
+	}
+
+	*local_unsafe_list = unsafe_list;
+	*local_unsafe_list_count = chan_count;
+
+	return 0;
+}
+
+bool hdd_local_unsafe_channel_updated(hdd_context_t *hdd_ctx,
+	uint16_t *local_unsafe_list, uint16_t local_unsafe_list_count)
+{
+	int i, j;
+
+	if (local_unsafe_list_count != hdd_ctx->unsafe_channel_count)
+		return true;
+
+	for (i = 0; i < local_unsafe_list_count; i++) {
+		for (j = 0; j < local_unsafe_list_count; j++)
+			if (local_unsafe_list[i] ==
+			    hdd_ctx->unsafe_channel_list[j])
+				break;
+		if (j >= local_unsafe_list_count)
+			break;
+	}
+	if (i >= local_unsafe_list_count) {
+		hdd_info("unsafe chan list same");
+		return false;
+	}
+
+	return true;
+}
+
 /**
  * hdd_ch_avoid_cb() - Avoid notified channels from FW handler
  * @adapter:	HDD adapter pointer
@@ -7020,6 +7076,8 @@ void hdd_ch_avoid_cb(void *hdd_context, void *indi_param)
 	v_CONTEXT_t cds_context;
 	tHddAvoidFreqList hdd_avoid_freq_list;
 	uint32_t i;
+	uint16_t *local_unsafe_list;
+	uint16_t local_unsafe_list_count;
 
 	/* Basic sanity */
 	if (!hdd_context || !indi_param) {
@@ -7046,6 +7104,10 @@ void hdd_ch_avoid_cb(void *hdd_context, void *indi_param)
 	hdd_avoid_freq_list.avoidFreqRangeCount =
 		ch_avoid_indi->avoid_range_count;
 
+	if (hdd_clone_local_unsafe_chan(hdd_ctxt,
+					&local_unsafe_list,
+					&local_unsafe_list_count) != 0)
+		return;
 	/* clear existing unsafe channel cache */
 	hdd_ctxt->unsafe_channel_count = 0;
 	qdf_mem_zero(hdd_ctxt->unsafe_channel_list,
@@ -7126,7 +7188,7 @@ void hdd_ch_avoid_cb(void *hdd_context, void *indi_param)
 		hdd_ctxt->unsafe_channel_count = 0;
 		qdf_mem_zero(hdd_ctxt->unsafe_channel_list,
 			sizeof(hdd_ctxt->unsafe_channel_list));
-
+		qdf_mem_free(local_unsafe_list);
 		return;
 	}
 
@@ -7143,16 +7205,21 @@ void hdd_ch_avoid_cb(void *hdd_context, void *indi_param)
 	 * first update the unsafe channel list to the platform driver and
 	 * send the avoid freq event to the application
 	 */
-	if (hdd_ctxt->config->restart_beaconing_on_chan_avoid_event) {
+	if (hdd_ctxt->config->restart_beaconing_on_chan_avoid_event &&
+	    hdd_local_unsafe_channel_updated(hdd_ctxt,
+					     local_unsafe_list,
+					     local_unsafe_list_count)) {
 		wlan_hdd_send_avoid_freq_event(hdd_ctxt, &hdd_avoid_freq_list);
 
 		if (!hdd_ctxt->unsafe_channel_count) {
 			hdd_debug("no unsafe channels - not restarting SAP");
+			qdf_mem_free(local_unsafe_list);
 			return;
 		}
 
 		hdd_unsafe_channel_restart_sap(hdd_ctxt);
 	}
+	qdf_mem_free(local_unsafe_list);
 }
 
 /**

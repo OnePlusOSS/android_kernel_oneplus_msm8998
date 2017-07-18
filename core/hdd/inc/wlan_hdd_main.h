@@ -2490,6 +2490,35 @@ int hdd_enable_disable_ca_event(hdd_context_t *hddctx,
 				uint8_t set_value);
 void wlan_hdd_undo_acs(hdd_adapter_t *adapter);
 
+/**
+ * hdd_clone_local_unsafe_chan() - clone hdd ctx unsafe chan list
+ * @hdd_ctx: hdd context pointer
+ * @local_unsafe_list: copied unsafe chan list array
+ * @local_unsafe_list_count: channel number in returned local_unsafe_list
+ *
+ * The function will allocate memory and make a copy the current unsafe
+ * channels from hdd ctx. The caller need to free the local_unsafe_list
+ * memory after use.
+ *
+ * Return: 0 if successfully clone unsafe chan list.
+ */
+int hdd_clone_local_unsafe_chan(hdd_context_t *hdd_ctx,
+	uint16_t **local_unsafe_list, uint16_t *local_unsafe_list_count);
+
+/**
+ * hdd_local_unsafe_channel_updated() - check unsafe chan list same or not
+ * @hdd_ctx: hdd context pointer
+ * @local_unsafe_list: unsafe chan list to be compared with hdd_ctx's list
+ * @local_unsafe_list_count: channel number in local_unsafe_list
+ *
+ * The function checked the input channel is same as current unsafe chan
+ * list in hdd_ctx.
+ *
+ * Return: true if input channel list is same as the list in hdd_ctx
+ */
+bool hdd_local_unsafe_channel_updated(hdd_context_t *hdd_ctx,
+	uint16_t *local_unsafe_list, uint16_t local_unsafe_list_count);
+
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 7, 0))
 static inline int
 hdd_wlan_nla_put_u64(struct sk_buff *skb, int attrtype, u64 value)

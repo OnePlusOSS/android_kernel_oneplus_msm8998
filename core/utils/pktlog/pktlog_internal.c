@@ -290,6 +290,12 @@ fill_ieee80211_hdr_data(struct ol_txrx_pdev_t *txrx_pdev,
 				      >> TX_DESC_ID_HIGH_SHIFT);
 			msdu_id += 1;
 		}
+		if (tx_desc_id >= txrx_pdev->tx_desc.pool_size) {
+			QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_DEBUG,
+				"%s: drop due to invalid msdu id = %x\n",
+				__func__, tx_desc_id);
+			return;
+		}
 		tx_desc = ol_tx_desc_find_check(txrx_pdev, tx_desc_id);
 		if (!tx_desc) {
 			qdf_print("%s: ignore invalid desc_id(%u)\n", __func__,

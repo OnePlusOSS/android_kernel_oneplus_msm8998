@@ -2294,7 +2294,9 @@ QDF_STATUS cds_check_conn_with_mode_and_vdev_id(enum cds_con_mode mode,
 /**
  * cds_store_and_del_conn_info() - Store and del a connection info
  * @mode: Mode whose entry has to be deleted
- * @info: Struture pointer where the connection info will be saved
+ * @all_matching_cxn_to_del: All the specified mode entries should be deleted
+ * @info: Struture array pointer where the connection info will be saved
+ * @num_cxn_del: Number of connection which are going to be deleted
  *
  * Saves the connection info corresponding to the provided mode
  * and deleted that corresponding entry based on vdev from the
@@ -2303,13 +2305,18 @@ QDF_STATUS cds_check_conn_with_mode_and_vdev_id(enum cds_con_mode mode,
  * Return: None
  */
 static void cds_store_and_del_conn_info(enum cds_con_mode mode,
-				struct cds_conc_connection_info *info)
+	bool all_matching_cxn_to_del,
+	struct cds_conc_connection_info *info, uint8_t *num_cxn_del)
 {
 	uint32_t conn_index = 0;
-	bool found = false;
+	uint32_t found_index = 0;
 	cds_context_type *cds_ctx;
 
-	qdf_mem_zero(info, sizeof(*info));
+	if (!num_cxn_del) {
+		cds_err("num_cxn_del is NULL");
+		return;
+	}
+	*num_cxn_del = 0;
 	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
 	if (!cds_ctx) {
 		cds_err("Invalid CDS Context");
@@ -2319,34 +2326,48 @@ static void cds_store_and_del_conn_info(enum cds_con_mode mode,
 	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	while (CONC_CONNECTION_LIST_VALID_INDEX(conn_index)) {
 		if (mode == conc_connection_list[conn_index].mode) {
-			found = true;
-			break;
+			/*
+			 * Storing the connection entry which will be
+			 * temporarily deleted.
+			 */
+			info[found_index] =
+				conc_connection_list[conn_index];
+			/* Deleting the connection entry */
+			cds_decr_connection_count(
+				info[found_index].vdev_id);
+			cds_debug("Stored %d (%d), deleted STA entry with vdev id %d, index %d",
+				info[found_index].vdev_id,
+				info[found_index].mode,
+				info[found_index].vdev_id, conn_index);
+			found_index++;
+			if (all_matching_cxn_to_del)
+				continue;
+			else
+				break;
 		}
 		conn_index++;
 	}
-
-	if (!found) {
-		qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
-		cds_err("Mode:%d not available in the conn info", mode);
-		return;
-	}
-
-	/* Storing the STA entry which will be temporarily deleted */
-	*info = conc_connection_list[conn_index];
 	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 
-	/* Deleting the STA entry */
-	cds_decr_connection_count(info->vdev_id);
+	if (!found_index) {
+		*num_cxn_del = 0;
+		cds_err("Mode:%d not available in the conn info", mode);
+	} else {
+		*num_cxn_del = found_index;
+		cds_info("Mode:%d number of conn %d temp del",
+			mode, *num_cxn_del);
+	}
 
-	cds_debug("Stored %d (%d), deleted STA entry with vdev id %d, index %d",
-		info->vdev_id, info->mode, info->vdev_id, conn_index);
-
-	/* Caller should set the PCL and restore the STA entry in conn info */
+	/*
+	 * Caller should set the PCL and restore the connection entry
+	 * in conn info.
+	 */
 }
 
 /**
  * cds_restore_deleted_conn_info() - Restore connection info
- * @info: Saved connection info that is to be restored
+ * @info: An array saving connection info that is to be restored
+ * @num_cxn_del: Number of connection temporary deleted
  *
  * Restores the connection info of STA that was saved before
  * updating the PCL to the FW
@@ -2354,10 +2375,16 @@ static void cds_store_and_del_conn_info(enum cds_con_mode mode,
  * Return: None
  */
 static void cds_restore_deleted_conn_info(
-					struct cds_conc_connection_info *info)
+	struct cds_conc_connection_info *info, uint8_t num_cxn_del)
 {
 	uint32_t conn_index;
 	cds_context_type *cds_ctx;
+
+	if (MAX_NUMBER_OF_CONC_CONNECTIONS <= num_cxn_del || 0 == num_cxn_del) {
+		cds_err("Failed to restore %d/%d deleted information",
+			num_cxn_del, MAX_NUMBER_OF_CONC_CONNECTIONS);
+		return;
+	}
 
 	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
 	if (!cds_ctx) {
@@ -2373,7 +2400,8 @@ static void cds_restore_deleted_conn_info(
 	}
 
 	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
-	conc_connection_list[conn_index] = *info;
+	qdf_mem_copy(&conc_connection_list[conn_index], info,
+			num_cxn_del * sizeof(*info));
 	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 
 	cds_debug("Restored the deleted conn info, vdev:%d, index:%d",
@@ -3814,7 +3842,9 @@ static void cds_pdev_set_pcl(enum tQDF_ADAPTER_MODE mode)
  */
 static void cds_set_pcl_for_existing_combo(enum cds_con_mode mode)
 {
-	struct cds_conc_connection_info info;
+	struct cds_conc_connection_info
+				info[MAX_NUMBER_OF_CONC_CONNECTIONS] = { {0} };
+	uint8_t num_cxn_del = 0;
 	enum tQDF_ADAPTER_MODE pcl_mode;
 	cds_context_type *cds_ctx;
 
@@ -3846,14 +3876,14 @@ static void cds_set_pcl_for_existing_combo(enum cds_con_mode mode)
 	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	if (cds_mode_specific_connection_count(mode, NULL) > 0) {
 		/* Check, store and temp delete the mode's parameter */
-		cds_store_and_del_conn_info(mode, &info);
+		cds_store_and_del_conn_info(mode, false, info, &num_cxn_del);
 		qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 		/* Set the PCL to the FW since connection got updated */
 		cds_pdev_set_pcl(pcl_mode);
 		qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 		cds_debug("Set PCL to FW for mode:%d", mode);
 		/* Restore the connection info */
-		cds_restore_deleted_conn_info(&info);
+		cds_restore_deleted_conn_info(info, num_cxn_del);
 	}
 	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 }
@@ -4053,6 +4083,7 @@ done:
  * @len: Pointer to the length of the PCL
  * @pcl_weight: Pointer to the weights of the PCL
  * @weight_len: Max length of the weights list
+ * @all_matching_cxn_to_del: Need remove all entries before getting pcl
  *
  * Get the PCL for an existing connection
  *
@@ -4060,10 +4091,12 @@ done:
  */
 QDF_STATUS cds_get_pcl_for_existing_conn(enum cds_con_mode mode,
 			uint8_t *pcl_ch, uint32_t *len,
-			uint8_t *pcl_weight, uint32_t weight_len)
+			uint8_t *pcl_weight, uint32_t weight_len,
+			bool all_matching_cxn_to_del)
 {
-	struct cds_conc_connection_info info;
-
+	struct cds_conc_connection_info
+				info[MAX_NUMBER_OF_CONC_CONNECTIONS] = { {0} };
+	uint8_t num_cxn_del = 0;
 	cds_context_type *cds_ctx;
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
@@ -4076,12 +4109,13 @@ QDF_STATUS cds_get_pcl_for_existing_conn(enum cds_con_mode mode,
 	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	if (cds_mode_specific_connection_count(mode, NULL) > 0) {
 		/* Check, store and temp delete the mode's parameter */
-		cds_store_and_del_conn_info(mode, &info);
+		cds_store_and_del_conn_info(mode, all_matching_cxn_to_del,
+					info, &num_cxn_del);
 		/* Get the PCL */
 		status = cds_get_pcl(mode, pcl_ch, len, pcl_weight, weight_len);
 		cds_debug("Get PCL to FW for mode:%d", mode);
 		/* Restore the connection info */
-		cds_restore_deleted_conn_info(&info);
+		cds_restore_deleted_conn_info(info, num_cxn_del);
 	}
 	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 	return status;
@@ -9021,7 +9055,8 @@ cds_get_nondfs_preferred_channel(enum cds_con_mode mode,
 
 		if (QDF_STATUS_SUCCESS != cds_get_pcl_for_existing_conn(mode,
 					&pcl_channels[0], &pcl_len,
-					pcl_weight, QDF_ARRAY_SIZE(pcl_weight)))
+					pcl_weight, QDF_ARRAY_SIZE(pcl_weight),
+					false))
 			return channel;
 	} else {
 		if (QDF_STATUS_SUCCESS != cds_get_pcl(mode,
@@ -9599,7 +9634,8 @@ QDF_STATUS cds_get_sap_mandatory_channel(uint32_t *chan)
 
 	status = cds_get_pcl_for_existing_conn(CDS_SAP_MODE,
 			pcl.pcl_list, &pcl.pcl_len,
-			pcl.weight_list, QDF_ARRAY_SIZE(pcl.weight_list));
+			pcl.weight_list, QDF_ARRAY_SIZE(pcl.weight_list),
+			false);
 	if (QDF_IS_STATUS_ERROR(status)) {
 		cds_err("Unable to get PCL for SAP");
 		return status;
@@ -9752,7 +9788,9 @@ QDF_STATUS cds_get_valid_chan_weights(struct sir_pcl_chan_weights *weight,
 {
 	uint32_t i, j;
 	cds_context_type *cds_ctx;
-	struct cds_conc_connection_info info;
+	struct cds_conc_connection_info
+				info[MAX_NUMBER_OF_CONC_CONNECTIONS] = { {0} };
+	uint8_t num_cxn_del = 0;
 
 	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
 	if (!cds_ctx) {
@@ -9786,7 +9824,8 @@ QDF_STATUS cds_get_valid_chan_weights(struct sir_pcl_chan_weights *weight,
 		 * check can be used as though a new connection is coming up,
 		 * allowing to detect the disallowed channels.
 		 */
-		cds_store_and_del_conn_info(CDS_STA_MODE, &info);
+		cds_store_and_del_conn_info(CDS_STA_MODE, false,
+						info, &num_cxn_del);
 		for (i = 0; i < weight->saved_num_chan; i++) {
 			if (cds_allow_concurrency(CDS_STA_MODE,
 						  weight->saved_chan_list[i],
@@ -9796,7 +9835,7 @@ QDF_STATUS cds_get_valid_chan_weights(struct sir_pcl_chan_weights *weight,
 			}
 		}
 		/* Restore the connection info */
-		cds_restore_deleted_conn_info(&info);
+		cds_restore_deleted_conn_info(info, num_cxn_del);
 	}
 	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 

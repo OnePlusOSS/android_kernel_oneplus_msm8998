@@ -4868,7 +4868,7 @@ static QDF_STATUS sap_get_5ghz_channel_list(ptSapContext sapContext)
 	} else  {
 		status = cds_get_pcl_for_existing_conn(CDS_SAP_MODE,
 				pcl.pcl_list, &pcl.pcl_len, pcl.weight_list,
-				QDF_ARRAY_SIZE(pcl.weight_list));
+				QDF_ARRAY_SIZE(pcl.weight_list), true);
 	}
 	if (status != QDF_STATUS_SUCCESS) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,

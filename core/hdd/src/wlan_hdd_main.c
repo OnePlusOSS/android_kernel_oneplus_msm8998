@@ -6875,7 +6875,8 @@ static uint8_t hdd_get_safe_channel_from_pcl_and_acs_range(
 
 	status = cds_get_pcl_for_existing_conn(CDS_SAP_MODE,
 			pcl.pcl_list, &pcl.pcl_len,
-			pcl.weight_list, QDF_ARRAY_SIZE(pcl.weight_list));
+			pcl.weight_list, QDF_ARRAY_SIZE(pcl.weight_list),
+			false);
 	if (QDF_IS_STATUS_ERROR(status)) {
 		hdd_err("Get PCL failed");
 		return INVALID_CHANNEL_ID;

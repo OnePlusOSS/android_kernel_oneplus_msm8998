@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011,2013-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011,2013-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -464,6 +464,63 @@ struct reg_dmn_tables g_reg_dmn_tbl = {
 	QDF_ARRAY_SIZE(g_all_countries),
 	QDF_ARRAY_SIZE(g_reg_dmns),
 };
+
+/*
+ *  ETSI is updating EN 301 893, which specifies 5 GHz channel access
+ *  in Europe
+ */
+static const char etsi_europe_country[][2] = {
+	{'A', 'T'},
+	{'B', 'E'},
+	{'B', 'G'},
+	{'C', 'Z'},
+	{'D', 'K'},
+	{'E', 'E'},
+	{'F', 'R'},
+
+	{'D', 'E'},
+	{'I', 'S'},
+	{'I', 'E'},
+	{'I', 'T'},
+	{'E', 'L'},
+	{'E', 'S'},
+	{'C', 'Y'},
+
+	{'L', 'V'},
+	{'L', 'I'},
+	{'L', 'T'},
+	{'L', 'U'},
+	{'H', 'U'},
+	{'M', 'T'},
+	{'N', 'L'},
+
+	{'N', 'O'},
+	{'P', 'L'},
+	{'P', 'T'},
+	{'R', 'O'},
+	{'S', 'I'},
+	{'S', 'K'},
+	{'T', 'R'},
+
+	{'F', 'I'},
+	{'S', 'E'},
+	{'C', 'H'},
+	{'U', 'K'},
+	{'H', 'R'},
+};
+
+bool cds_is_etsi_europe_country(uint8_t *country)
+{
+	int32_t i;
+
+	for (i = 0; i < QDF_ARRAY_SIZE(etsi_europe_country); i++) {
+		if (country[0] == etsi_europe_country[i][0] &&
+		    country[1] == etsi_europe_country[i][1])
+			return true;
+	}
+
+	return false;
+}
 
 /**
  * get_bdf_reg_dmn() - get regulatory domain from BDF

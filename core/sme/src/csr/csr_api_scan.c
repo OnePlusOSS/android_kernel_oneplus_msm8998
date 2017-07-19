@@ -43,6 +43,7 @@
 #include "wlan_hdd_main.h"
 #include "pld_common.h"
 #include "csr_internal.h"
+#include "sch_api.h"
 
 #define MIN_CHN_TIME_TO_FIND_GO 100
 #define MAX_CHN_TIME_TO_FIND_GO 100
@@ -4064,6 +4065,7 @@ void csr_apply_channel_power_info_to_fw(tpAniSirGlobal mac_ctx,
 		sme_err("11D channel list is empty");
 	}
 	csr_set_cfg_country_code(mac_ctx, countryCode);
+	sch_edca_profile_update_all(mac_ctx);
 }
 
 #ifdef FEATURE_WLAN_DIAG_SUPPORT_CSR
@@ -4252,6 +4254,7 @@ QDF_STATUS csr_set_country_code(tpAniSirGlobal pMac, uint8_t *pCountry)
 				     pCountry,
 				     WNI_CFG_COUNTRY_CODE_LEN);
 			csr_set_cfg_country_code(pMac, pCountry);
+			sch_edca_profile_update_all(pMac);
 		}
 	}
 	return status;

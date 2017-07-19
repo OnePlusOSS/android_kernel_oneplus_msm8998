@@ -2202,13 +2202,10 @@ static bool csr_remove_ap_due_to_rssi(qdf_list_t *list,
 		qdf_list_peek_next(list, cur_lst, &next_lst);
 
 		time_diff = cur_time - cur_node->time_during_rejection;
-		if ((time_diff > cur_node->retry_delay) ||
-		   (bss_descr->rssi_raw >= cur_node->expected_rssi)) {
-			sme_debug("Remove %pM as time diff %d is greater retry delay %d or RSSI %d is greater than expected %d",
+		if ((time_diff > cur_node->retry_delay)) {
+			sme_debug("Remove %pM as time diff %d is greater retry delay %d",
 				cur_node->bssid.bytes, time_diff,
-				cur_node->retry_delay,
-				bss_descr->rssi_raw,
-				cur_node->expected_rssi);
+				cur_node->retry_delay);
 			status = qdf_list_remove_node(list, cur_lst);
 			if (QDF_IS_STATUS_SUCCESS(status))
 				qdf_mem_free(cur_node);
@@ -2227,11 +2224,23 @@ static bool csr_remove_ap_due_to_rssi(qdf_list_t *list,
 	}
 
 	if (cur_node) {
-		sme_err("Don't Attempt to connect %pM (time diff %d retry delay %d rssi %d expected rssi %d)",
+		time_diff = cur_time - cur_node->time_during_rejection;
+		if (!(time_diff > cur_node->retry_delay ||
+		   bss_descr->rssi_raw >= cur_node->expected_rssi)) {
+			sme_err("Don't Attempt to connect %pM (time diff %d retry delay %d rssi %d expected rssi %d)",
 				cur_node->bssid.bytes, time_diff,
 				cur_node->retry_delay, bss_descr->rssi_raw,
 				cur_node->expected_rssi);
-		return true;
+			return true;
+		}
+		sme_debug("Remove %pM as time diff %d is greater retry delay %d or RSSI %d is greater than expected %d",
+				cur_node->bssid.bytes, time_diff,
+				cur_node->retry_delay,
+				bss_descr->rssi_raw,
+				cur_node->expected_rssi);
+		status = qdf_list_remove_node(list, cur_lst);
+		if (QDF_IS_STATUS_SUCCESS(status))
+			qdf_mem_free(cur_node);
 	}
 
 	return false;

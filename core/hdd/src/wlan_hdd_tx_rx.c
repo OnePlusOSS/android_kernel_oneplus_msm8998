@@ -1183,6 +1183,24 @@ static bool hdd_is_rx_wake_lock_needed(struct sk_buff *skb)
 	return false;
 }
 
+#ifdef WLAN_FEATURE_TSF_PLUS
+static inline void hdd_tsf_timestamp_rx(hdd_context_t *hdd_ctx,
+					qdf_nbuf_t netbuf,
+					uint64_t target_time)
+{
+	if (!HDD_TSF_IS_RX_SET(hdd_ctx))
+		return;
+
+	hdd_rx_timestamp(netbuf, target_time);
+}
+#else
+static inline void hdd_tsf_timestamp_rx(hdd_context_t *hdd_ctx,
+					qdf_nbuf_t netbuf,
+					uint64_t target_time)
+{
+}
+#endif
+
 /**
  * hdd_resolve_rx_ol_mode() - Resolve Rx offload method, LRO or GRO
  * @hdd_ctx: pointer to HDD Station Context
@@ -1531,7 +1549,7 @@ QDF_STATUS hdd_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 	 */
 	qdf_net_buf_debug_release_skb(rxBuf);
 
-	hdd_rx_timestamp(skb, ktime_to_us(skb->tstamp));
+	hdd_tsf_timestamp_rx(pHddCtx, skb, ktime_to_us(skb->tstamp));
 
 	if (hdd_can_handle_receive_offload(pHddCtx, skb) &&
 	    pHddCtx->receive_offload_cb)

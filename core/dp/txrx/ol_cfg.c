@@ -149,6 +149,9 @@ ol_pdev_handle ol_pdev_cfg_attach(qdf_device_t osdev,
 	cfg_ctx->rx_fwd_disabled = 0;
 	cfg_ctx->is_packet_log_enabled = 0;
 	cfg_ctx->is_full_reorder_offload = cfg_param.is_full_reorder_offload;
+#ifdef WLAN_FEATURE_TSF_PLUS
+	cfg_ctx->is_ptp_rx_opt_enabled = 0;
+#endif
 	cfg_ctx->ipa_uc_rsc.uc_offload_enabled =
 		cfg_param.is_uc_offload_enabled;
 	cfg_ctx->ipa_uc_rsc.tx_max_buf_cnt = cfg_param.uc_tx_buffer_count;
@@ -347,6 +350,22 @@ int ol_cfg_is_full_reorder_offload(ol_pdev_handle pdev)
 	struct txrx_pdev_cfg_t *cfg = (struct txrx_pdev_cfg_t *)pdev;
 	return cfg->is_full_reorder_offload;
 }
+
+#ifdef WLAN_FEATURE_TSF_PLUS
+void ol_set_cfg_ptp_rx_opt_enabled(ol_pdev_handle pdev, u_int8_t val)
+{
+	struct txrx_pdev_cfg_t *cfg = (struct txrx_pdev_cfg_t *)pdev;
+
+	cfg->is_ptp_rx_opt_enabled = val;
+}
+
+u_int8_t ol_cfg_is_ptp_rx_opt_enabled(ol_pdev_handle pdev)
+{
+	struct txrx_pdev_cfg_t *cfg = (struct txrx_pdev_cfg_t *)pdev;
+
+	return cfg->is_ptp_rx_opt_enabled;
+}
+#endif
 
 /**
  * ol_cfg_is_rx_thread_enabled() - return rx_thread is enable/disable

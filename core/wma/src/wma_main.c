@@ -2428,6 +2428,13 @@ QDF_STATUS wma_open(void *cds_context,
 						cfg_ctx,
 				      (uint8_t)cds_is_packet_log_enabled());
 
+	/* adjust the ptp rx option default value based on CFG INI setting */
+	ol_set_cfg_ptp_rx_opt_enabled((ol_pdev_handle)
+					  ((p_cds_contextType)cds_context)->
+					  cfg_ctx,
+					  (uint8_t)
+					  cds_is_ptp_rx_opt_enabled());
+
 	/* Allocate dfs_ic and initialize DFS */
 	wma_handle->dfs_ic = wma_dfs_attach(wma_handle->dfs_ic);
 	if (wma_handle->dfs_ic == NULL) {

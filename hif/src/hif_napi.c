@@ -368,6 +368,14 @@ int hif_napi_lro_flush_cb_register(struct hif_opaque_softc *hif_hdl,
 	return rc;
 }
 
+struct napi_struct *hif_get_napi(int napi_id, void *napi_d)
+{
+	struct qca_napi_data *napid = napi_d;
+	int id = NAPI_ID2PIPE(napi_id);
+
+	return &(napid->napis[id]->napi);
+}
+
 /**
  * hif_napi_lro_flush_cb_deregister() - Degregister and free LRO.
  * @hif: pointer to hif context

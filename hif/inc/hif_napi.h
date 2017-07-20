@@ -123,6 +123,7 @@ int hif_napi_destroy(struct hif_opaque_softc  *hif,
 		     int               force);
 
 struct qca_napi_data *hif_napi_get_all(struct hif_opaque_softc   *hif);
+struct napi_struct *hif_get_napi(int napi_id, void *napi_d);
 
 int hif_napi_event(struct hif_opaque_softc     *hif,
 		   enum  qca_napi_event event,

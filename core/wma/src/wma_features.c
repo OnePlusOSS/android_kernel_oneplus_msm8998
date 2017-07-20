@@ -4967,6 +4967,19 @@ static QDF_STATUS wma_configure_ssdp(tp_wma_handle wma, uint8_t vdev_id)
 }
 
 /**
+ * set_action_id_drop_pattern_for_spec_mgmt() - Set action id of action
+ * frames for spectrum mgmt frames to be droppped in fw.
+ *
+ * @action_id_per_category: Pointer to action id bitmaps.
+ */
+static void set_action_id_drop_pattern_for_spec_mgmt(
+					uint32_t *action_id_per_category)
+{
+	action_id_per_category[SIR_MAC_ACTION_SPECTRUM_MGMT]
+				= DROP_SPEC_MGMT_ACTION_FRAME_BITMAP;
+}
+
+/**
  * wma_register_action_frame_patterns() - register action frame map to fw
  * @handle: Pointer to wma handle
  * @vdev_id: VDEV ID
@@ -4980,36 +4993,49 @@ QDF_STATUS wma_register_action_frame_patterns(WMA_HANDLE handle,
 						uint8_t vdev_id)
 {
 	tp_wma_handle wma = handle;
-	struct action_wakeup_set_param cmd = {0};
+	struct action_wakeup_set_param *cmd;
 	int32_t err;
 	int i = 0;
 
-	cmd.vdev_id = vdev_id;
-	cmd.operation = WOW_ACTION_WAKEUP_OPERATION_SET;
+	cmd = qdf_mem_malloc(sizeof(*cmd));
+	if (!cmd) {
+		WMA_LOGE("failed to alloc memory");
+		return QDF_STATUS_E_FAILURE;
+	}
 
-	cmd.action_category_map[i++] = ALLOWED_ACTION_FRAMES_BITMAP0;
-	cmd.action_category_map[i++] = ALLOWED_ACTION_FRAMES_BITMAP1;
-	cmd.action_category_map[i++] = ALLOWED_ACTION_FRAMES_BITMAP2;
-	cmd.action_category_map[i++] = ALLOWED_ACTION_FRAMES_BITMAP3;
-	cmd.action_category_map[i++] = ALLOWED_ACTION_FRAMES_BITMAP4;
-	cmd.action_category_map[i++] = ALLOWED_ACTION_FRAMES_BITMAP5;
-	cmd.action_category_map[i++] = ALLOWED_ACTION_FRAMES_BITMAP6;
-	cmd.action_category_map[i++] = ALLOWED_ACTION_FRAMES_BITMAP7;
+	cmd->vdev_id = vdev_id;
+	cmd->operation = WOW_ACTION_WAKEUP_OPERATION_SET;
+
+	cmd->action_category_map[i++] = ALLOWED_ACTION_FRAMES_BITMAP0;
+	cmd->action_category_map[i++] = ALLOWED_ACTION_FRAMES_BITMAP1;
+	cmd->action_category_map[i++] = ALLOWED_ACTION_FRAMES_BITMAP2;
+	cmd->action_category_map[i++] = ALLOWED_ACTION_FRAMES_BITMAP3;
+	cmd->action_category_map[i++] = ALLOWED_ACTION_FRAMES_BITMAP4;
+	cmd->action_category_map[i++] = ALLOWED_ACTION_FRAMES_BITMAP5;
+	cmd->action_category_map[i++] = ALLOWED_ACTION_FRAMES_BITMAP6;
+	cmd->action_category_map[i++] = ALLOWED_ACTION_FRAMES_BITMAP7;
+
+	set_action_id_drop_pattern_for_spec_mgmt(cmd->action_per_category);
 
 	for (i = 0; i < WMI_SUPPORTED_ACTION_CATEGORY_ELE_LIST; i++) {
 		if (i < ALLOWED_ACTION_FRAME_MAP_WORDS)
 			WMA_LOGD("%s: %d action Wakeup pattern 0x%x in fw",
-				__func__, i, cmd.action_category_map[i]);
+				__func__, i, cmd->action_category_map[i]);
 		else
-			cmd.action_category_map[i] = 0;
+			cmd->action_category_map[i] = 0;
 	}
 
-	err = wmi_unified_action_frame_patterns_cmd(wma->wmi_handle, &cmd);
+	WMA_LOGD("Spectrum mgmt action id drop bitmap: 0x%x",
+			cmd->action_per_category[SIR_MAC_ACTION_SPECTRUM_MGMT]);
+
+	err = wmi_unified_action_frame_patterns_cmd(wma->wmi_handle, cmd);
 	if (err) {
 		WMA_LOGE("Failed to config wow action frame map, ret %d", err);
+		qdf_mem_free(cmd);
 		return QDF_STATUS_E_FAILURE;
 	}
 
+	qdf_mem_free(cmd);
 	return QDF_STATUS_SUCCESS;
 }
 

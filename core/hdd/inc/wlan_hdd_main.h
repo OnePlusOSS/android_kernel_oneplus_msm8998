@@ -1922,6 +1922,7 @@ struct hdd_context_s {
 	qdf_work_t sap_pre_cac_work;
 	bool hbw_requested;
 	uint32_t last_nil_scan_bug_report_timestamp;
+	uint32_t ol_enable;
 #ifdef WLAN_FEATURE_NAN_DATAPATH
 	bool nan_datapath_enabled;
 #endif
@@ -1948,6 +1949,8 @@ struct hdd_context_s {
 	unsigned long tdls_source_bitmap;
 	/* tdls source timer to enable/disable TDLS on p2p listen */
 	qdf_mc_timer_t tdls_source_timer;
+	QDF_STATUS (*receive_offload_cb)(hdd_adapter_t *,
+					struct sk_buff *);
 	qdf_atomic_t disable_lro_in_concurrency;
 	qdf_atomic_t disable_lro_in_low_tput;
 	qdf_atomic_t vendor_disable_lro_flag;

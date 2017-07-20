@@ -8299,7 +8299,6 @@ QDF_STATUS wma_crash_inject(tp_wma_handle wma_handle, uint32_t type,
 	return wmi_crash_inject(wma_handle->wmi_handle, &param);
 }
 
-#if defined(FEATURE_LRO)
 /**
  * wma_lro_init() - sends LRO configuration to FW
  * @lro_config:         pointer to the config parameters
@@ -8335,7 +8334,6 @@ int wma_lro_init(struct wma_lro_config_cmd_t *lro_config)
 	WMA_LOGD("sending the LRO configuration to the fw");
 	return 0;
 }
-#endif
 
 QDF_STATUS wma_configure_smps_params(uint32_t vdev_id, uint32_t param_id,
 							uint32_t param_val)

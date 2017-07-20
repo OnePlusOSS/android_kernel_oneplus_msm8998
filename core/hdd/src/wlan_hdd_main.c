@@ -3117,16 +3117,16 @@ QDF_STATUS hdd_init_station_mode(hdd_adapter_t *adapter)
 		goto error_tdls_init;
 
 	status = hdd_lro_enable(hdd_ctx, adapter);
-	if (status != QDF_STATUS_SUCCESS)
-		goto error_lro_enable;
+	if (status)
+		/* Err code from errno.h */
+		hdd_err("LRO is disabled either because of kernel doesnot support or disabled in INI or via vendor commandi. err code %d",
+		status);
 
 	/* rcpi info initialization */
 	qdf_mem_zero(&adapter->rcpi, sizeof(adapter->rcpi));
 
 	return QDF_STATUS_SUCCESS;
 
-error_lro_enable:
-	wlan_hdd_tdls_exit(adapter);
 error_tdls_init:
 	clear_bit(WMM_INIT_DONE, &adapter->event_flags);
 	hdd_wmm_adapter_close(adapter);
@@ -6293,9 +6293,9 @@ static void hdd_pld_request_bus_bandwidth(hdd_context_t *hdd_ctx,
 	hdd_ctx->prev_rx = rx_packets;
 
 	if (temp_rx < hdd_ctx->config->busBandwidthLowThreshold)
-		hdd_disable_lro_for_low_tput(hdd_ctx, true);
+		hdd_disable_rx_ol_for_low_tput(hdd_ctx, true);
 	else
-		hdd_disable_lro_for_low_tput(hdd_ctx, false);
+		hdd_disable_rx_ol_for_low_tput(hdd_ctx, false);
 
 	if (temp_rx > hdd_ctx->config->tcpDelackThresholdHigh) {
 		if ((hdd_ctx->cur_rx_level != WLAN_SVC_TP_HIGH) &&
@@ -9110,7 +9110,7 @@ static int hdd_features_init(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 	if (hdd_ctx->config->enable_go_cts2self_for_sta)
 		sme_set_cts2self_for_p2p_go(hdd_ctx->hHal);
 
-	if (hdd_lro_init(hdd_ctx))
+	if (hdd_rx_ol_init(hdd_ctx))
 		hdd_warn("Unable to initialize LRO in fw");
 
 	if (hdd_adaptive_dwelltime_init(hdd_ctx))
@@ -9299,10 +9299,10 @@ int hdd_configure_cds(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 		goto hdd_features_deinit;
 	}
 
-	if (hdd_ctx->config->lro_enable) {
-		dp_cbacks.hdd_en_lro_in_cc_cb = hdd_enable_lro_in_concurrency;
+	if (hdd_ctx->ol_enable) {
+		dp_cbacks.hdd_en_lro_in_cc_cb = hdd_enable_rx_ol_in_concurrency;
 		dp_cbacks.hdd_disble_lro_in_cc_cb =
-						hdd_disable_lro_in_concurrency;
+					hdd_disable_rx_ol_in_concurrency;
 	}
 
 	dp_cbacks.hdd_set_rx_mode_rps_cb = hdd_set_rx_mode_rps;

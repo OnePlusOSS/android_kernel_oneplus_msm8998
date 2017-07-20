@@ -293,9 +293,7 @@ struct wma_lro_config_cmd_t {
 	uint32_t toeplitz_hash_ipv6[LRO_IPV6_SEED_ARR_SZ];
 };
 
-#if defined(FEATURE_LRO)
 int wma_lro_init(struct wma_lro_config_cmd_t *lro_config);
-#endif
 bool wma_is_scan_simultaneous_capable(void);
 
 QDF_STATUS wma_remove_beacon_filter(WMA_HANDLE wma,

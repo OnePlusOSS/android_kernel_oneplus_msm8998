@@ -8384,15 +8384,15 @@ enum hdd_link_speed_rpt_type {
 
 /*
  * <ini>
- * LROEnable - Control to enable lro feature
+ * LROEnable - Control to enable LRO
  *
- * @Min: 0
+ * @Min: 0 Disable LRO
  * @Max: 1
  * @Default: 0
  *
- * This ini is used to enable LRO feature
- *
- * Supported Feature: LRO
+ * This ini is used to enable/disable LRO
+ * If this is enabled make sure to disable GRO.
+ * LRO and GRO are mutually exclusive.
  *
  * Usage: Internal
  *
@@ -8402,6 +8402,27 @@ enum hdd_link_speed_rpt_type {
 #define CFG_LRO_ENABLED_MIN            (0)
 #define CFG_LRO_ENABLED_MAX            (1)
 #define CFG_LRO_ENABLED_DEFAULT        (0)
+
+/*
+ * <ini>
+ * GROEnable - Control to enable GRO
+ *
+ * @Min: 0 Disable GRO
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to enable/disable GRO
+ * If this is enabled make sure to disable LRO.
+ * LRO and GRO are mutually exclusive.
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+#define CFG_GRO_ENABLED_NAME           "GROEnable"
+#define CFG_GRO_ENABLED_MIN            (0)
+#define CFG_GRO_ENABLED_MAX            (1)
+#define CFG_GRO_ENABLED_DEFAULT        (0)
 
 /*
  * Enable Rx traffic flow steering to enable Rx interrupts on multiple CEs based
@@ -12479,6 +12500,7 @@ struct hdd_config {
 	bool sendDeauthBeforeCon;
 	bool tso_enable;
 	bool lro_enable;
+	bool gro_enable;
 	bool flow_steering_enable;
 	bool active_mode_offload;
 	bool bpf_packet_filter_enable;

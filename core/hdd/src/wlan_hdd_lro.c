@@ -401,50 +401,6 @@ static void hdd_lro_flush(void *data)
 	}
 }
 
-/**
- * hdd_lro_init() - initialization for LRO
- * @hdd_ctx: HDD context
- *
- * This function sends the LRO configuration to the firmware
- * via WMA
- * Make sure that this function gets called after NAPI
- * instances have been created.
- *
- * Return: 0 - success, < 0 - failure
- */
-int hdd_lro_init(hdd_context_t *hdd_ctx)
-{
-	struct wma_lro_config_cmd_t lro_config;
-
-	if ((!hdd_ctx->config->lro_enable) &&
-	    (hdd_napi_enabled(HDD_NAPI_ANY) == 0)) {
-		hdd_warn("LRO and NAPI are both disabled");
-		return 0;
-	}
-
-	lro_config.lro_enable = 1;
-	lro_config.tcp_flag = TCPHDR_ACK;
-	lro_config.tcp_flag_mask = TCPHDR_FIN | TCPHDR_SYN | TCPHDR_RST |
-		TCPHDR_PSH | TCPHDR_ACK | TCPHDR_URG | TCPHDR_ECE | TCPHDR_CWR;
-
-	get_random_bytes(lro_config.toeplitz_hash_ipv4,
-		 (sizeof(lro_config.toeplitz_hash_ipv4[0]) *
-		 LRO_IPV4_SEED_ARR_SZ));
-
-	get_random_bytes(lro_config.toeplitz_hash_ipv6,
-		 (sizeof(lro_config.toeplitz_hash_ipv6[0]) *
-		 LRO_IPV6_SEED_ARR_SZ));
-
-	hdd_debug("sending the LRO configuration to the fw");
-	if (0 != wma_lro_init(&lro_config)) {
-		hdd_err("Failed to send LRO configuration!");
-		hdd_ctx->config->lro_enable = 0;
-		return -EAGAIN;
-	}
-
-	return 0;
-}
-
 static void *hdd_init_lro_mgr(void)
 {
 	struct hdd_lro_s *hdd_lro;
@@ -472,7 +428,7 @@ static void *hdd_init_lro_mgr(void)
 
 	if (NULL == lro_mem_ptr) {
 		hdd_err("Unable to allocate memory for LRO");
-		hdd_ctx->config->lro_enable = 0;
+		hdd_ctx->ol_enable = 0;
 		return NULL;
 	}
 
@@ -527,10 +483,9 @@ static void *hdd_init_lro_mgr(void)
 int hdd_lro_enable(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 {
 
-	if (!hdd_ctx->config->lro_enable ||
+	if ((hdd_ctx->ol_enable != CFG_LRO_ENABLED) ||
 		 QDF_STA_MODE != adapter->device_mode) {
-		hdd_debug("LRO Disabled");
-		return 0;
+		return EOPNOTSUPP;
 	}
 
 	/*
@@ -539,7 +494,7 @@ int hdd_lro_enable(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 	 * the LRO again. Keep the LRO state same as before SSR.
 	 */
 	if (qdf_atomic_read(&hdd_ctx->vendor_disable_lro_flag))
-		return 0;
+		return EPERM;
 
 	adapter->dev->features |= NETIF_F_LRO;
 
@@ -584,7 +539,7 @@ static void hdd_deinit_lro_mgr(void *lro_info)
  */
 void hdd_lro_disable(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 {
-	if (!hdd_ctx->config->lro_enable ||
+	if ((hdd_ctx->ol_enable != CFG_LRO_ENABLED) ||
 		 QDF_STA_MODE != adapter->device_mode)
 		return;
 
@@ -609,21 +564,17 @@ void hdd_lro_destroy(void)
  *
  * Delivers LRO eligible frames to the LRO manager
  *
- * Return: HDD_LRO_RX - frame delivered to LRO manager
- * HDD_LRO_NO_RX - frame not delivered
+ * Return: QDF_STATUS_SUCCESS - frame delivered to LRO manager
+ * QDF_STATUS_E_FAILURE - frame not delivered
  */
-enum hdd_lro_rx_status hdd_lro_rx(hdd_context_t *hdd_ctx,
-	 hdd_adapter_t *adapter, struct sk_buff *skb)
+QDF_STATUS hdd_lro_rx(hdd_adapter_t *adapter, struct sk_buff *skb)
 {
-	enum hdd_lro_rx_status status = HDD_LRO_NO_RX;
+	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 
-	if (((adapter->dev->features & NETIF_F_LRO) != NETIF_F_LRO) ||
-			qdf_atomic_read(&hdd_ctx->disable_lro_in_concurrency) ||
-			QDF_NBUF_CB_RX_PEER_CACHED_FRM(skb) ||
-			qdf_atomic_read(&hdd_ctx->disable_lro_in_low_tput))
+	if ((adapter->dev->features & NETIF_F_LRO) != NETIF_F_LRO)
 		return status;
 
-	if (QDF_NBUF_CB_RX_TCP_PROTO(skb)) {
+	{
 		struct iphdr *iph;
 		struct tcphdr *tcph;
 		struct net_lro_desc *lro_desc = NULL;
@@ -631,6 +582,7 @@ enum hdd_lro_rx_status hdd_lro_rx(hdd_context_t *hdd_ctx,
 		struct hif_opaque_softc *hif_hdl =
 			(struct hif_opaque_softc *)cds_get_context(
 							QDF_MODULE_ID_HIF);
+
 		if (hif_hdl == NULL) {
 			hdd_err("hif_hdl is NULL");
 			return status;
@@ -665,7 +617,7 @@ enum hdd_lro_rx_status hdd_lro_rx(hdd_context_t *hdd_ctx,
 			if (!hdd_lro_info.lro_desc->active)
 				hdd_lro_desc_free(lro_desc, lro_info);
 
-			status = HDD_LRO_RX;
+			status = QDF_STATUS_SUCCESS;
 		} else {
 			hdd_lro_flush_pkt(lro_info->lro_mgr,
 				 iph, tcph, lro_info);
@@ -686,51 +638,6 @@ void hdd_lro_display_stats(hdd_context_t *hdd_ctx)
 }
 
 /**
- * hdd_enable_lro_in_concurrency() - Enable LRO if concurrency is not active
- * @hdd_ctx: hdd context
- *
- * Return: none
- */
-void hdd_enable_lro_in_concurrency(hdd_context_t *hdd_ctx)
-{
-	if (hdd_ctx->config->enable_tcp_delack) {
-		hdd_debug("Disable TCP delack as LRO is enabled");
-		hdd_ctx->config->enable_tcp_delack = 0;
-		hdd_reset_tcp_delack(hdd_ctx);
-	}
-	qdf_atomic_set(&hdd_ctx->disable_lro_in_concurrency, 0);
-}
-
-/**
- * hdd_disable_lro_in_concurrency() - Disable LRO due to concurrency
- * @hdd_ctx: hdd context
- *
- * Return: none
- */
-void hdd_disable_lro_in_concurrency(hdd_context_t *hdd_ctx)
-{
-	if (!hdd_ctx->config->enable_tcp_delack) {
-		struct wlan_rx_tp_data rx_tp_data = {0};
-
-		hdd_debug("Enable TCP delack as LRO disabled in concurrency");
-		rx_tp_data.rx_tp_flags |= TCP_DEL_ACK_IND;
-		rx_tp_data.level = hdd_ctx->cur_rx_level;
-		wlan_hdd_send_svc_nlink_msg(hdd_ctx->radio_index,
-			WLAN_SVC_WLAN_TP_IND, &rx_tp_data, sizeof(rx_tp_data));
-		hdd_ctx->config->enable_tcp_delack = 1;
-	}
-	qdf_atomic_set(&hdd_ctx->disable_lro_in_concurrency, 1);
-}
-
-void hdd_disable_lro_for_low_tput(hdd_context_t *hdd_ctx, bool disable)
-{
-	if (disable)
-		qdf_atomic_set(&hdd_ctx->disable_lro_in_low_tput, 1);
-	else
-		qdf_atomic_set(&hdd_ctx->disable_lro_in_low_tput, 0);
-}
-
-/**
  * hdd_lro_set_reset() - vendor command for Disable/Enable LRO
  * @hdd_ctx: hdd context
  * @hdd_adapter_t: adapter
@@ -746,8 +653,8 @@ hdd_lro_set_reset(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 		qdf_atomic_set(&hdd_ctx->vendor_disable_lro_flag, 0);
 		hdd_lro_enable(hdd_ctx, adapter);
 	} else {
-		if (!hdd_ctx->config->lro_enable ||
-		    QDF_STA_MODE != adapter->device_mode)
+		if ((hdd_ctx->ol_enable != CFG_LRO_ENABLED) ||
+		    (adapter->device_mode != QDF_STA_MODE))
 			return 0;
 
 		/* Disable LRO, Enable tcpdelack*/

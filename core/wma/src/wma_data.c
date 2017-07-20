@@ -3226,7 +3226,6 @@ void wma_tx_abort(uint8_t vdev_id)
 					 &param);
 }
 
-#if defined(FEATURE_LRO)
 /**
  * wma_lro_config_cmd() - process the LRO config command
  * @wma: Pointer to WMA handle
@@ -3261,7 +3260,6 @@ QDF_STATUS wma_lro_config_cmd(tp_wma_handle wma_handle,
 	return wmi_unified_lro_config_cmd(wma_handle->wmi_handle,
 						&wmi_lro_cmd);
 }
-#endif
 
 /**
  * wma_indicate_err() - indicate an error to the protocol stack

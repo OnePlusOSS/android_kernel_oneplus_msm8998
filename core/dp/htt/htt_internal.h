@@ -182,7 +182,6 @@ static inline struct htt_host_rx_desc_base *htt_rx_desc(qdf_nbuf_t msdu)
 		~HTT_RX_DESC_ALIGN_MASK);
 }
 
-#if defined(FEATURE_LRO)
 /**
  * htt_print_rx_desc_lro() - print LRO information in the rx
  * descriptor
@@ -223,7 +222,7 @@ static inline void htt_print_rx_desc_lro(struct htt_host_rx_desc_base *rx_desc)
 }
 
 /**
- * htt_print_rx_desc_lro() - extract LRO information from the rx
+ * htt_rx_extract_lro_info() - extract LRO information from the rx
  * descriptor
  * @msdu: network buffer
  * @rx_desc: HTT rx descriptor
@@ -265,12 +264,6 @@ static inline void htt_rx_extract_lro_info(qdf_nbuf_t msdu,
 			rx_desc->msdu_start.flow_id_toeplitz;
 	}
 }
-#else
-static inline void htt_print_rx_desc_lro(struct htt_host_rx_desc_base *rx_desc)
-{}
-static inline void htt_rx_extract_lro_info(qdf_nbuf_t msdu,
-	 struct htt_host_rx_desc_base *rx_desc) {}
-#endif /* FEATURE_LRO */
 
 static inline void htt_print_rx_desc(struct htt_host_rx_desc_base *rx_desc)
 {

@@ -508,8 +508,6 @@ QDF_STATUS cds_open(void)
 		goto err_sme_close;
 	}
 
-	hdd_lro_create();
-
 	QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_INFO_HIGH,
 		  "%s: CDS successfully Opened", __func__);
 

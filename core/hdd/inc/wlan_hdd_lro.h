@@ -31,17 +31,6 @@
  *
  * WLAN LRO interface module headers
  */
-
-/**
- * enum hdd_lro_rx_status - LRO receive frame status
- * @HDD_LRO_RX: frame sent over the LRO interface
- * @HDD_LRO_NO_RX: frame not sent over the LRO interface
- */
-enum hdd_lro_rx_status {
-	HDD_LRO_RX = 0,
-	HDD_LRO_NO_RX = 1,
-};
-
 #if defined(FEATURE_LRO)
 
 #include <linux/inet_lro.h>
@@ -151,27 +140,20 @@ struct hdd_lro_s {
 	struct hdd_lro_desc_info lro_desc_info;
 };
 
-int hdd_lro_init(hdd_context_t *hdd_ctx);
-
 int hdd_lro_enable(hdd_context_t *hdd_ctx,
 	 hdd_adapter_t *adapter);
-
-void hdd_lro_create(void);
 
 void hdd_lro_disable(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter);
 
 void hdd_lro_destroy(void);
 
-enum hdd_lro_rx_status hdd_lro_rx(hdd_context_t *hdd_ctx,
-	 hdd_adapter_t *adapter, struct sk_buff *skb);
+QDF_STATUS hdd_lro_rx(hdd_adapter_t *adapter, struct sk_buff *skb);
 
 void hdd_lro_flush_all(hdd_context_t *hdd_ctx,
 	 hdd_adapter_t *adapter);
 
+void hdd_lro_create(void);
 void hdd_lro_display_stats(hdd_context_t *hdd_ctx);
-void hdd_enable_lro_in_concurrency(hdd_context_t *hdd_ctx);
-void hdd_disable_lro_in_concurrency(hdd_context_t *hdd_ctx);
-void hdd_disable_lro_for_low_tput(hdd_context_t *hdd_ctx, bool disable);
 QDF_STATUS hdd_lro_set_reset(hdd_context_t *hdd_ctx,
 					  hdd_adapter_t *adapter,
 					  uint8_t enable_flag);
@@ -181,26 +163,21 @@ struct hdd_lro_s {};
 static inline int hdd_lro_enable(hdd_context_t *hdd_ctx,
 	 hdd_adapter_t *adapter)
 {
-	return 0;
+	return ENOSYS;
 }
 
-static inline void hdd_lro_create(void)
+static inline QDF_STATUS hdd_lro_rx(hdd_adapter_t *adapter,
+						struct sk_buff *skb)
 {
-}
-
-static inline enum hdd_lro_rx_status hdd_lro_rx(hdd_context_t *hdd_ctx,
-	 hdd_adapter_t *adapter, struct sk_buff *skb)
-{
-	return HDD_LRO_NO_RX;
-}
-
-static inline int hdd_lro_init(hdd_context_t *hdd_ctx)
-{
-	return 0;
+	return QDF_STATUS_E_NOSUPPORT;
 }
 
 static inline void hdd_lro_disable(hdd_context_t *hdd_ctx,
 	 hdd_adapter_t *adapter)
+{
+}
+
+static inline void hdd_lro_create(void)
 {
 }
 

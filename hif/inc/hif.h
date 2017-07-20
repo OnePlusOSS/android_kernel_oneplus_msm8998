@@ -789,7 +789,7 @@ hif_reg_based_get_target_info(struct hif_opaque_softc *hif_ctx,
  * Return: void
  */
 void hif_set_ce_service_max_yield_time(struct hif_opaque_softc *hif,
-				       uint8_t ce_service_max_yield_time);
+				       uint32_t ce_service_max_yield_time);
 
 /**
  * hif_get_ce_service_max_yield_time() - get CE service max yield time

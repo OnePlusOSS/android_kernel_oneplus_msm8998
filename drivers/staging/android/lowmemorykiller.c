@@ -85,7 +85,7 @@ static unsigned long lowmem_count(struct shrinker *s,
 		global_page_state(NR_INACTIVE_FILE);
 }
 
-static int test_task_flag(struct task_struct *p, int flag)
+static inline int test_task_flag(struct task_struct *p, int flag)
 {
 	struct task_struct *t;
 
@@ -102,9 +102,9 @@ static int test_task_flag(struct task_struct *p, int flag)
 }
 
 #ifdef CONFIG_ANDROID_LMK_ADJ_RBTREE
-static struct task_struct *pick_next_from_adj_tree(struct task_struct *task);
-static struct task_struct *pick_first_task(void);
-static struct task_struct *pick_last_task(void);
+static inline struct task_struct *pick_next_from_adj_tree(struct task_struct *task);
+static inline struct task_struct *pick_first_task(void);
+static inline struct task_struct *pick_last_task(void);
 #endif
 
 static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
@@ -327,7 +327,7 @@ void delete_from_adj_tree(struct task_struct *task)
 	spin_unlock(&lmk_lock);
 }
 
-static struct task_struct *pick_next_from_adj_tree(struct task_struct *task)
+static inline struct task_struct *pick_next_from_adj_tree(struct task_struct *task)
 {
 	struct rb_node *next;
 
@@ -341,7 +341,7 @@ static struct task_struct *pick_next_from_adj_tree(struct task_struct *task)
 	return rb_entry(next, struct task_struct, adj_node);
 }
 
-static struct task_struct *pick_first_task(void)
+static inline struct task_struct *pick_first_task(void)
 {
 	struct rb_node *left;
 
@@ -354,7 +354,7 @@ static struct task_struct *pick_first_task(void)
 
 	return rb_entry(left, struct task_struct, adj_node);
 }
-static struct task_struct *pick_last_task(void)
+static inline struct task_struct *pick_last_task(void)
 {
 	struct rb_node *right;
 

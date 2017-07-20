@@ -33,6 +33,7 @@
 #include "wma_api.h"
 #include "wlan_hdd_assoc.h"
 #include "sme_nan_datapath.h"
+#include "wma.h"
 
 /* NLA policy */
 static const struct nla_policy
@@ -2058,6 +2059,46 @@ int wlan_hdd_cfg80211_process_ndp_cmd(struct wiphy *wiphy,
 }
 
 /**
+ * hdd_is_ndi_hw_mode_dbs() - Check if the current hw mode is dbs
+ * @adapter: handle to adapter context
+ *
+ * Returns: None
+ */
+static bool hdd_is_ndi_hw_mode_dbs(struct hdd_adapter_s *adapter)
+{
+	bool hw_mode_dbs;
+	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+
+	/*
+	 * 1) When DBS hwmode is disabled from INI then send HT/VHT IE as per
+	 *    non-dbs hw mode, so that there is no limitation applied for 2G/5G.
+	 * 2) When DBS hw mode is enabled, master Rx LDPC is enabled, 2G RX LDPC
+	 *    support is enabled, and if it is NDP connection then send HT/VHT
+	 *    IE as per non-dbs hw mode, so that there is no limitation applied
+	 *    for first connection (initial connections as well as roaming
+	 *    scenario). As soon as second connection comes up policy manager
+	 *    will take care of imposing Rx LDPC limitation of NDP connection
+	 *    (for current connection as well as roaming scenario).
+	 * 3) When DBS hw mode is supported but RX LDPC is disabled or 2G RXLPDC
+	 *    support is disabled then send HT/VHT IE as per DBS hw mode, so
+	 *    that STA will not use Rx LDPC for 2G connection.
+	 */
+	if (!wma_is_hw_dbs_capable() ||
+	    (((QDF_STA_MODE == adapter->device_mode) &&
+	    hdd_ctx->config->enable_rx_ldpc &&
+	    hdd_ctx->config->rx_ldpc_support_for_2g) &&
+	    !wma_is_current_hwmode_dbs())) {
+		hdd_debug("send HT/VHT IE per band using nondbs hwmode");
+		hw_mode_dbs = false;
+	} else {
+		hdd_debug("send HT/VHT IE per band using dbs hwmode");
+		hw_mode_dbs = true;
+	}
+
+	return hw_mode_dbs;
+}
+
+/**
  * hdd_init_nan_data_mode() - initialize nan data mode
  * @adapter: adapter context
  *
@@ -2073,6 +2114,7 @@ int hdd_init_nan_data_mode(struct hdd_adapter_s *adapter)
 	int32_t ret_val = 0;
 	unsigned long rc;
 	uint32_t timeout = WLAN_WAIT_TIME_SESSIONOPENCLOSE;
+	bool is_hw_mode_dbs;
 
 	INIT_COMPLETION(adapter->session_open_comp_var);
 	sme_set_curr_device_mode(hdd_ctx->hHal, adapter->device_mode);
@@ -2102,6 +2144,11 @@ int hdd_init_nan_data_mode(struct hdd_adapter_s *adapter)
 		ret_val = -ETIMEDOUT;
 		goto error_sme_open;
 	}
+
+	is_hw_mode_dbs = hdd_is_ndi_hw_mode_dbs(adapter);
+
+	/* Configure self HT/VHT capabilities */
+	sme_set_vdev_ies_per_band(adapter->sessionId, is_hw_mode_dbs);
 
 	/* Register wireless extensions */
 	ret_val = hdd_register_wext(wlan_dev);

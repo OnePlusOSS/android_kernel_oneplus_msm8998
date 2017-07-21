@@ -1284,6 +1284,7 @@ void sme_set_scan_disable(tHalHandle h_hal, int value)
 {
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(h_hal);
 
+	sme_info("scan disable %d", value);
 	mac_ctx->lim.scan_disabled = value;
 }
 /**

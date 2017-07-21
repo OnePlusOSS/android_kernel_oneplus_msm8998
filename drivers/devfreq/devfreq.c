@@ -45,7 +45,6 @@ static DEFINE_MUTEX(devfreq_list_lock);
 
 /* List of devices to boost when the screen is woken */
 static const char *boost_devices[] = {
-	"1da4000.ufshc",
 	"soc:qcom,cpubw"
 };
 

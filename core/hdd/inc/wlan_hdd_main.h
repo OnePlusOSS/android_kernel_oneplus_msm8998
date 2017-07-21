@@ -1626,6 +1626,24 @@ enum tos {
 #define HDD_AC_BIT_INDX                 0
 #define HDD_DWELL_TIME_INDX             1
 
+enum hdd_sta_smps_param {
+	/* RSSI threshold to enter Dynamic SMPS mode from inactive mode */
+	HDD_STA_SMPS_PARAM_UPPER_RSSI_THRESH = 0,
+	/*
+	 *  RSSI threshold to enter Stalled-D-SMPS mode from D-SMPS mode or
+	 * to enter D-SMPS mode from Stalled-D-SMPS mode
+	 */
+	HDD_STA_SMPS_PARAM_STALL_RSSI_THRESH = 1,
+	/* RSSI threshold to disable SMPS modes */
+	HDD_STA_SMPS_PARAM_LOWER_RSSI_THRESH = 2,
+	/* Upper threshold for beacon-RSSI. Used to reduce RX chainmask. */
+	HDD_STA_SMPS_PARAM_UPPER_BRSSI_THRESH = 3,
+	/* Lower threshold for beacon-RSSI. Used to increase RX chainmask. */
+	HDD_STA_SMPS_PARAM_LOWER_BRSSI_THRESH = 4,
+	/* Enable/Disable DTIM 1chRx feature */
+	HDD_STA_SMPS_PARAM_DTIM_1CHRX_ENABLE = 5
+};
+
 /** Adapter structure definition */
 struct hdd_context_s {
 	/** Global CDS context  */

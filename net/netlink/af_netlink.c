@@ -324,6 +324,7 @@ static void netlink_skb_set_owner_r(struct sk_buff *skb, struct sock *sk)
 
 static void netlink_sock_destruct(struct sock *sk)
 {
+<<<<<<< HEAD
 	struct netlink_sock *nlk = nlk_sk(sk);
 
 	if (nlk->cb_running) {
@@ -333,6 +334,8 @@ static void netlink_sock_destruct(struct sock *sk)
 		kfree_skb(nlk->cb.skb);
 	}
 
+=======
+>>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 	skb_queue_purge(&sk->sk_receive_queue);
 
 	if (!sock_flag(sk, SOCK_DEAD)) {

@@ -1206,9 +1206,12 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 		pr_err("%s: Invalid input data\n", __func__);
 		return -EINVAL;
 	}
+<<<<<<< HEAD
 	
 	display_on = true;
 	
+=======
+>>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
     pr_err("%s start\n", __func__);
 	pinfo = &pdata->panel_info;
 	ctrl = container_of(pdata, struct mdss_dsi_ctrl_pdata,

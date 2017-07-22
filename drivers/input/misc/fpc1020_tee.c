@@ -46,7 +46,10 @@
 
 #include <linux/wakelock.h>
 #include <linux/input.h>
+<<<<<<< HEAD
 #include <linux/display_state.h>
+=======
+>>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 
 #ifdef CONFIG_FB
 #include <linux/fb.h>
@@ -63,12 +66,17 @@ module_param(ignor_home_for_ESD, uint, S_IRUGO | S_IWUSR);
 #define FPC1020_RESET_HIGH2_US 1250
 #define FPC_TTW_HOLD_TIME 1000
 
+<<<<<<< HEAD
 #define KEY_FINGERPRINT 0x2ee
 
 #define ONEPLUS_EDIT  //Onplus modify for msm8996 platform and 15801 HW
 
 extern bool s3320_stop_buttons;
 
+=======
+#define ONEPLUS_EDIT  //Onplus modify for msm8996 platform and 15801 HW
+
+>>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 struct fpc1020_data {
 	struct device *dev;
     struct wake_lock ttw_wl;
@@ -310,12 +318,18 @@ static ssize_t report_home_set(struct device *dev,
         if(virtual_key_enable){
                 key_home_pressed = true;
         }else{*/
+<<<<<<< HEAD
             if (!s3320_stop_buttons)
             {
 				input_report_key(fpc1020->input_dev,
 								KEY_HOME, 1);
 				input_sync(fpc1020->input_dev);
 			}
+=======
+            input_report_key(fpc1020->input_dev,
+                            KEY_HOME, 1);
+            input_sync(fpc1020->input_dev);
+>>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 /*        }
 #endif*/
 	}
@@ -427,7 +441,10 @@ int fpc1020_input_init(struct fpc1020_data *fpc1020)
         set_bit(KEY_POWER, fpc1020->input_dev->keybit);
         set_bit(KEY_F2, fpc1020->input_dev->keybit);
         set_bit(KEY_HOME, fpc1020->input_dev->keybit);
+<<<<<<< HEAD
         set_bit(KEY_FINGERPRINT, fpc1020->input_dev->keybit);
+=======
+>>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 
 		/* Register the input device */
 		error = input_register_device(fpc1020->input_dev);
@@ -452,6 +469,7 @@ void fpc1020_input_destroy(struct fpc1020_data *fpc1020)
 		input_free_device(fpc1020->input_dev);
 }
 
+<<<<<<< HEAD
 static void set_fingerprintd_nice(int nice)
 {
 	struct task_struct *p;
@@ -466,6 +484,8 @@ static void set_fingerprintd_nice(int nice)
 	read_unlock(&tasklist_lock);
 }
 
+=======
+>>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 #if defined(CONFIG_FB)
 static int fb_notifier_callback(struct notifier_block *self, unsigned long event, void *data)
 {
@@ -479,15 +499,23 @@ static int fb_notifier_callback(struct notifier_block *self, unsigned long event
 	if((evdata) && (evdata->data) && (fpc1020)) {
 		blank = evdata->data;
 		if( *blank == FB_BLANK_UNBLANK && (event == FB_EARLY_EVENT_BLANK )) {
+<<<<<<< HEAD
 			set_fingerprintd_nice(0);
+=======
+>>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 			dev_err(fpc1020->dev, "%s screen on\n", __func__);
 			fpc1020->screen_state = 1;
 			sysfs_notify(&fpc1020->dev->kobj, NULL, dev_attr_screen_state.attr.name);
 
 		} else if( *blank == FB_BLANK_POWERDOWN && (event == FB_EARLY_EVENT_BLANK/*FB_EVENT_BLANK*/ )) {
+<<<<<<< HEAD
 			set_fingerprintd_nice(-1);
 			dev_err(fpc1020->dev, "%s screen off\n", __func__);
 			fpc1020->screen_state = 0;
+=======
+            dev_err(fpc1020->dev, "%s screen off\n", __func__);
+		    fpc1020->screen_state = 0;
+>>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 			sysfs_notify(&fpc1020->dev->kobj, NULL, dev_attr_screen_state.attr.name);
 		}
 	}
@@ -514,6 +542,7 @@ static irqreturn_t fpc1020_irq_handler(int irq, void *handle)
 	sysfs_notify(&fpc1020->dev->kobj, NULL, dev_attr_irq.attr.name);
 	//dev_err(fpc1020->dev, "%s after sysfs_notify\n", __func__);
 
+<<<<<<< HEAD
 	if (!is_display_on()) {
 		input_report_key(fpc1020->input_dev, KEY_FINGERPRINT, 1);
 		input_sync(fpc1020->input_dev);
@@ -521,6 +550,8 @@ static irqreturn_t fpc1020_irq_handler(int irq, void *handle)
 		input_sync(fpc1020->input_dev);
 	}
 
+=======
+>>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 	return IRQ_HANDLED;
 }
 

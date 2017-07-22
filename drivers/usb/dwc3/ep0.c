@@ -356,8 +356,15 @@ void dwc3_ep0_out_start(struct dwc3 *dwc)
 
 	dwc3_ep0_prepare_one_trb(dwc, 0, dwc->ctrl_req_addr, 8,
 			DWC3_TRBCTL_CONTROL_SETUP, false);
+<<<<<<< HEAD
 	ret = dwc3_ep0_start_trans(dwc, 0);
 	WARN_ON(ret < 0);
+=======
+
+	ret = dwc3_ep0_start_trans(dwc, 0);
+	if (WARN_ON_ONCE(ret < 0))
+		dbg_event(dwc->eps[0]->number, "EOUTSTART", ret);
+>>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 }
 
 static struct dwc3_ep *dwc3_wIndex_to_dep(struct dwc3 *dwc, __le16 wIndex_le)
@@ -951,7 +958,12 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 			dwc3_ep0_prepare_one_trb(dwc, epnum, dwc->ctrl_req_addr,
 					0, DWC3_TRBCTL_CONTROL_DATA, false);
 			ret = dwc3_ep0_start_trans(dwc, epnum);
+<<<<<<< HEAD
 			WARN_ON(ret < 0);
+=======
+			if (WARN_ON_ONCE(ret < 0))
+				dbg_event(epnum, "ECTRL_DATA", ret);
+>>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 		}
 	}
 }

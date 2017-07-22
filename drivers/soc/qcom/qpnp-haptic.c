@@ -1406,7 +1406,11 @@ static struct device_attribute qpnp_hap_attrs[] = {
 	__ATTR(rf_hz, (S_IRUGO | S_IWUSR | S_IWGRP),
 			qpnp_hap_rf_hz_show,
 			qpnp_hap_rf_hz_store),
+<<<<<<< HEAD
 	__ATTR(vmax_mv_strong, (S_IRUGO | S_IWUSR | S_IWGRP),
+=======
+	__ATTR(vmax, (S_IRUGO | S_IWUSR | S_IWGRP),
+>>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 			qpnp_hap_vmax_show,
 			qpnp_hap_vmax_store),
 	__ATTR(wf_s0, 0664, qpnp_hap_wf_s0_show, qpnp_hap_wf_s0_store),
@@ -1679,12 +1683,15 @@ static void qpnp_hap_td_enable(struct timed_output_dev *dev, int value)
 	} else {
 		value = (value > hap->timeout_ms ?
 				 hap->timeout_ms : value);
+<<<<<<< HEAD
 
 		if (hap->vmax_mv == QPNP_HAP_VMAX_MIN_MV) {
 			mutex_unlock(&hap->lock);
 			return;
 		}
 
+=======
+>>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 		//if value < 11ms,use overdrive
 		qpnp_hap_wf_samp_store_all(dev, (value<11?1:0));
 		hap->state = 1;
@@ -1695,11 +1702,14 @@ static void qpnp_hap_td_enable(struct timed_output_dev *dev, int value)
 	mutex_unlock(&hap->lock);
 	/* shankai 2015-07-7 modify end for optimizing the response speed of the vibrator*/
 	//schedule_work(&hap->work); wulaibin remove it 2017-02-22 for vibrete time nonuniform
+<<<<<<< HEAD
 }
 
 void set_vibrate(int value)
 {
 	qpnp_hap_td_enable(&ghap->timed_dev, value);
+=======
+>>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 }
 
 /* play pwm bytes */

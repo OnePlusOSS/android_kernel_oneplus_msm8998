@@ -532,7 +532,11 @@ int f2fs_add_inline_entry(struct inode *dir, const struct qstr *new_name,
 
 	f2fs_wait_on_page_writeback(ipage, NODE, true);
 
+<<<<<<< HEAD
 	name_hash = f2fs_dentry_hash(new_name);
+=======
+	name_hash = f2fs_dentry_hash(new_name, NULL);
+>>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 	make_dentry_ptr(NULL, &d, (void *)dentry_blk, 2);
 	f2fs_update_dentry(ino, mode, &d, new_name, name_hash, bit_pos);
 

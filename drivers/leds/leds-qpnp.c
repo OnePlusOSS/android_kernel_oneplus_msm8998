@@ -254,6 +254,7 @@
 #define KPDBL_MASTER_BIT_INDEX		0
 /*taokai@bsp add for indicator shows when Mobile phone completely shut down*/
 static u8	shutdown_enable = 0;
+<<<<<<< HEAD
 
 #define LED_SPEED_MAX			20
 #define LED_SPEED_STOCK_MODE	0
@@ -357,6 +358,8 @@ int convert_brightness (int brightness)
 	pr_debug("Boeffla-LED: brightness new = %d\n", brightness);
 	return brightness;
 }
+=======
+>>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 
 /**
  * enum qpnp_leds - QPNP supported led ids
@@ -2849,6 +2852,7 @@ static ssize_t blink_store(struct device *dev,
 	return count;
 }
 
+<<<<<<< HEAD
 static ssize_t show_led_fade(struct device *dev,
                     struct device_attribute *attr, char *buf)
 {
@@ -2929,6 +2933,8 @@ static ssize_t store_led_speed(struct device *dev,
 	return count;
 }
 
+=======
+>>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 /*taokai@bsp add for indicator shows when Mobile phone completely shut down*/
 static ssize_t shutdown_enable_show(struct device *dev,
 				 struct device_attribute *attr,
@@ -2976,9 +2982,12 @@ static DEVICE_ATTR(ramp_step_ms, 0664, NULL, ramp_step_ms_store);
 static DEVICE_ATTR(lut_flags, 0664, NULL, lut_flags_store);
 static DEVICE_ATTR(duty_pcts, 0664, NULL, duty_pcts_store);
 static DEVICE_ATTR(blink, 0664, NULL, blink_store);
+<<<<<<< HEAD
 static DEVICE_ATTR(led_fade, S_IWUSR | S_IRUGO, show_led_fade, store_led_fade);
 static DEVICE_ATTR(led_intensity, S_IWUSR | S_IRUGO, show_led_intensity, store_led_intensity);
 static DEVICE_ATTR(led_speed, S_IWUSR | S_IRUGO, show_led_speed, store_led_speed);
+=======
+>>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 static DEVICE_ATTR(enable, 0644, shutdown_enable_show, shutdown_enable_store);
 static struct attribute *led_attrs[] = {
 	&dev_attr_led_mode.attr,

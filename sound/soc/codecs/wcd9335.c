@@ -901,9 +901,15 @@ enum
 	HS_WITH_MIC	= 1,
 	HS_WITHOUT_MIC = 2,
 };
+<<<<<<< HEAD
 
 struct tasha_priv *priv_headset_type;
 
+=======
+
+struct tasha_priv *priv_headset_type;
+
+>>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 static ssize_t wcd9xxx_print_name(struct switch_dev *sdev, char *buf)
 {
 
@@ -13775,9 +13781,12 @@ static int tasha_codec_probe(struct snd_soc_codec *codec)
 /*zhiguang.su@MultiMedia.AudioDrv, 2017-03-27, add for debug*/
 pr_err("%s enter\n", __func__);
 
+<<<<<<< HEAD
 #ifdef CONFIG_SOUND_CONTROL
 	sound_control_codec_ptr = codec;
 #endif
+=======
+>>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 	control = dev_get_drvdata(codec->dev->parent);
 
 	dev_info(codec->dev, "%s()\n", __func__);

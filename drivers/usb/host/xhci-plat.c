@@ -259,7 +259,11 @@ static int xhci_plat_probe(struct platform_device *pdev)
 	if (HCC_MAX_PSA(xhci->hcc_params) >= 4)
 		xhci->shared_hcd->can_do_streams = 1;
 
+<<<<<<< HEAD
 	ret = usb_add_hcd(xhci->shared_hcd, irq, IRQF_SHARED);
+=======
+	ret = usb_add_hcd(xhci->shared_hcd, irq, IRQF_SHARED | IRQF_ONESHOT);
+>>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 	if (ret)
 		goto dealloc_usb2_hcd;
 
@@ -317,7 +321,10 @@ static int xhci_plat_remove(struct platform_device *dev)
 
 	device_remove_file(&dev->dev, &dev_attr_config_imod);
 	xhci->xhc_state |= XHCI_STATE_REMOVING;
+<<<<<<< HEAD
 
+=======
+>>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 	usb_remove_hcd(xhci->shared_hcd);
 	usb_phy_shutdown(hcd->usb_phy);
 

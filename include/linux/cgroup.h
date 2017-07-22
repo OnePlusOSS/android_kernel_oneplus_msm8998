@@ -548,6 +548,7 @@ static inline void pr_cont_cgroup_path(struct cgroup *cgrp)
 	pr_cont_kernfs_path(cgrp->kn);
 }
 
+<<<<<<< HEAD
 /*
  * Default Android check for whether the current process is allowed to move a
  * task across cgroups, either because CAP_SYS_NICE is set or because the uid
@@ -557,6 +558,8 @@ static inline void pr_cont_cgroup_path(struct cgroup *cgrp)
  */
 int subsys_cgroup_allow_attach(struct cgroup_taskset *tset);
 
+=======
+>>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 static inline void cgroup_init_kthreadd(void)
 {
 	/*
@@ -575,6 +578,19 @@ static inline void cgroup_kthread_ready(void)
 	 */
 	current->no_cgroup_migration = 0;
 }
+<<<<<<< HEAD
+=======
+
+/*
+ * Default Android check for whether the current process is allowed to move a
+ * task across cgroups, either because CAP_SYS_NICE is set or because the uid
+ * of the calling process is the same as the moved task or because we are
+ * running as root.
+ * Returns 0 if this is allowed, or -EACCES otherwise.
+ */
+int subsys_cgroup_allow_attach(struct cgroup_taskset *tset);
+
+>>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 
 #else /* !CONFIG_CGROUPS */
 

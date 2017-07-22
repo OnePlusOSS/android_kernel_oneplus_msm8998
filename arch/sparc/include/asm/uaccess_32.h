@@ -295,11 +295,7 @@ static inline unsigned long copy_from_user(void *to, const void __user *from, un
 {
 	if (n && __access_ok((unsigned long) from, n))
 		return __copy_user((__force void __user *) to, from, n);
-<<<<<<< HEAD
 	else {
-=======
-	} else {
->>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 		memset(to, 0, n);
 		return n;
 	}

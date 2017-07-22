@@ -1542,7 +1542,6 @@ static int regulator_resolve_supply(struct regulator_dev *rdev)
 		return ret;
 	}
 
-<<<<<<< HEAD
 	/* Cascade always-on state to supply */
 	if (_regulator_is_enabled(rdev) && rdev->supply) {
 		ret = regulator_enable(rdev->supply);
@@ -1553,8 +1552,6 @@ static int regulator_resolve_supply(struct regulator_dev *rdev)
 		}
 	}
 
-=======
->>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 	return 0;
 }
 

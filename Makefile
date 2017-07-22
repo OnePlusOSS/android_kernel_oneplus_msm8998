@@ -1,10 +1,6 @@
 VERSION = 4
 PATCHLEVEL = 4
-<<<<<<< HEAD
 SUBLEVEL = 77
-=======
-SUBLEVEL = 78
->>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 EXTRAVERSION =
 NAME = Blurry Fish Butt
 

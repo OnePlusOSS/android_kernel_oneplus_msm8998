@@ -29,9 +29,6 @@
 int bt_soc_enable_status = 0;
 
 
-int bt_soc_enable_status = 0;
-
-
 static int btfm_slim_codec_write(struct snd_soc_codec *codec, unsigned int reg,
 	unsigned int value)
 {

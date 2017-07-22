@@ -2714,11 +2714,6 @@ static int __ffs_data_got_strings(struct ffs_data *ffs,
 
 	ENTER();
 
-<<<<<<< HEAD
-=======
-	ffs_log("enter: len %zu", len);
-
->>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 	if (unlikely(len < 16 ||
 		     get_unaligned_le32(data) != FUNCTIONFS_STRINGS_MAGIC ||
 		     get_unaligned_le32(data + 4) != len))

@@ -636,9 +636,7 @@ static int hhf_init(struct Qdisc *sch, struct nlattr *opt)
 			q->hhf_arrays[i] = hhf_zalloc(HHF_ARRAYS_LEN *
 						      sizeof(u32));
 			if (!q->hhf_arrays[i]) {
-				/* Note: hhf_destroy() will be called
-				 * by our caller.
-				 */
+				hhf_destroy(sch);
 				return -ENOMEM;
 			}
 		}
@@ -649,9 +647,7 @@ static int hhf_init(struct Qdisc *sch, struct nlattr *opt)
 			q->hhf_valid_bits[i] = hhf_zalloc(HHF_ARRAYS_LEN /
 							  BITS_PER_BYTE);
 			if (!q->hhf_valid_bits[i]) {
-				/* Note: hhf_destroy() will be called
-				 * by our caller.
-				 */
+				hhf_destroy(sch);
 				return -ENOMEM;
 			}
 		}

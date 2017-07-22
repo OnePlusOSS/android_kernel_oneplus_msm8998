@@ -114,29 +114,10 @@ int xhci_halt(struct xhci_hcd *xhci)
 			STS_HALT, STS_HALT, XHCI_MAX_HALT_USEC);
 	if (!ret) {
 		xhci->xhc_state |= XHCI_STATE_HALTED;
-<<<<<<< HEAD
 		xhci->cmd_ring_state = CMD_RING_STATE_STOPPED;
 	} else
 		xhci_warn(xhci, "Host not halted after %u microseconds.\n",
 				XHCI_MAX_HALT_USEC);
-=======
-	} else {
-
-		//Anderson@, 2016/07/01, If host controller is not halted, otg can't work
-		xhci_warn(xhci, "Host not halted after %u microseconds. ret:%d\n",
-				XHCI_MAX_HALT_USEC, ret);
-	}
-
-	xhci->cmd_ring_state = CMD_RING_STATE_STOPPED;
-
-	if (delayed_work_pending(&xhci->cmd_timer)) {
-		xhci_dbg_trace(xhci, trace_xhci_dbg_init,
-				"Cleanup command queue");
-		cancel_delayed_work(&xhci->cmd_timer);
-		xhci_cleanup_command_queue(xhci);
-	}
-
->>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 	return ret;
 }
 

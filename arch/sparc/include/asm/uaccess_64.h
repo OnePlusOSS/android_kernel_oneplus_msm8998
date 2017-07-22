@@ -207,11 +207,6 @@ unsigned long __must_check ___copy_from_user(void *to,
 static inline unsigned long __must_check
 copy_from_user(void *to, const void __user *from, unsigned long size)
 {
-<<<<<<< HEAD
-=======
-	if (!__builtin_constant_p(size))
-		check_object_size(to, size, false);
->>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 	return ___copy_from_user(to, from, size);
 }
 #define __copy_from_user copy_from_user
@@ -222,11 +217,6 @@ unsigned long __must_check ___copy_to_user(void __user *to,
 static inline unsigned long __must_check
 copy_to_user(void __user *to, const void *from, unsigned long size)
 {
-<<<<<<< HEAD
-=======
-	if (!__builtin_constant_p(size))
-		check_object_size(from, size, true);
->>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 	return ___copy_to_user(to, from, size);
 }
 #define __copy_to_user copy_to_user

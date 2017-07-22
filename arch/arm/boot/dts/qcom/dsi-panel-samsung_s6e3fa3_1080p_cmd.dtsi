@@ -47,11 +47,7 @@
 		qcom,mdss-dsi-underflow-color = <0xff>;
 		qcom,mdss-dsi-border-color = <0>;
 		qcom,mdss-dsi-on-command = [
-<<<<<<< HEAD
       05 01 00 00 06 00 02 11 00
-=======
-      05 01 00 00 14 00 02 11 00
->>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 			39 01 00 00 00 00 03 F0 5A 5A
 			39 01 00 00 00 00 03 FC 5A 5A
 			39 01 00 00 00 00 02 B0 01
@@ -68,13 +64,8 @@
       15 01 00 00 00 00 02 55 00
       39 01 00 00 00 00 02 57 40
       ];
-<<<<<<< HEAD
 		qcom,mdss-dsi-off-command = [05 01 00 00 10 00 02 28 00
 					05 01 00 00 64 00 02 10 00];
-=======
-		qcom,mdss-dsi-off-command = [05 01 00 00 28 00 02 28 00
-					05 01 00 00 A0 00 02 10 00];
->>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 		qcom,mdss-dsi-post-panel-on-command = [05 01 00 00 00 00 02 29 00];
 		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
 		qcom,mdss-dsi-off-command-state = "dsi_hs_mode";
@@ -103,11 +94,6 @@
 		qcom,mdss-dsi-dma-trigger = "trigger_sw";
 		qcom,mdss-dsi-mdp-trigger = "trigger_sw";
 		qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
-<<<<<<< HEAD
-=======
-		qcom,mdss-dsi-lp11-init;
-		qcom,mdss-dsi-init-delay-us = <10000>;
->>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 		qcom,mdss-dsi-reset-sequence = <1 2>,<0 2>, <1 2>;
 		/*qcom,mdss-dsi-panel-inverted;*/
 		qcom,mdss-pan-physical-width-dimension = <68>;
@@ -145,14 +131,11 @@
 		qcom,mdss-dsi-id-command-state = "dsi_lp_mode";
 
 /*****************************************************************************/
-<<<<<<< HEAD
 
                 qcom,partial-update-enabled;
   		qcom,panel-roi-alignment = <360 64 360 64 360 64>;
                 qcom,ulps-enabled;
                 qcom,suspend-ulps-enabled;
 		qcom,panel-allow-phy-poweroff;
-=======
->>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 	};
 };

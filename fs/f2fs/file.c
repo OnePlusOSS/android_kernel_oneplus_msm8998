@@ -951,7 +951,6 @@ static int __clone_blkaddrs(struct inode *src_inode, struct inode *dst_inode,
 			ret = get_dnode_of_data(&dn, dst + i, ALLOC_NODE);
 			if (ret)
 				return ret;
-<<<<<<< HEAD
 
 			get_node_info(sbi, dn.nid, &ni);
 			ilen = min((pgoff_t)
@@ -979,35 +978,6 @@ static int __clone_blkaddrs(struct inode *src_inode, struct inode *dst_inode,
 					f2fs_i_size_write(dst_inode, new_size);
 			} while (--ilen && (do_replace[i] || blkaddr[i] == NULL_ADDR));
 
-=======
-
-			get_node_info(sbi, dn.nid, &ni);
-			ilen = min((pgoff_t)
-				ADDRS_PER_PAGE(dn.node_page, dst_inode) -
-						dn.ofs_in_node, len - i);
-			do {
-				dn.data_blkaddr = datablock_addr(dn.node_page,
-								dn.ofs_in_node);
-				truncate_data_blocks_range(&dn, 1);
-
-				if (do_replace[i]) {
-					f2fs_i_blocks_write(src_inode,
-								1, false);
-					f2fs_i_blocks_write(dst_inode,
-								1, true);
-					f2fs_replace_block(sbi, &dn, dn.data_blkaddr,
-					blkaddr[i], ni.version, true, false);
-
-					do_replace[i] = 0;
-				}
-				dn.ofs_in_node++;
-				i++;
-				new_size = (dst + i) << PAGE_SHIFT;
-				if (dst_inode->i_size < new_size)
-					f2fs_i_size_write(dst_inode, new_size);
-			} while (--ilen && (do_replace[i] || blkaddr[i] == NULL_ADDR));
-
->>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 			f2fs_put_dnode(&dn);
 		} else {
 			struct page *psrc, *pdst;
@@ -1804,19 +1774,8 @@ static int f2fs_ioc_set_encryption_policy(struct file *filp, unsigned long arg)
 		return -EFAULT;
 
 	f2fs_update_time(F2FS_I_SB(inode), REQ_TIME);
-<<<<<<< HEAD
 
 	return fscrypt_process_policy(filp, &policy);
-=======
-
-	mutex_lock(&inode->i_mutex);
-
-	err =  fscrypt_process_policy(filp, &policy);
-
-	mutex_unlock(&inode->i_mutex);
-
-	return err;
->>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 }
 
 static int f2fs_ioc_get_encryption_policy(struct file *filp, unsigned long arg)
@@ -1918,7 +1877,6 @@ static int f2fs_ioc_write_checkpoint(struct file *filp, unsigned long arg)
 	ret = mnt_want_write_file(filp);
 	if (ret)
 		return ret;
-<<<<<<< HEAD
 
 	ret = f2fs_sync_fs(sbi->sb, 1);
 
@@ -1926,15 +1884,6 @@ static int f2fs_ioc_write_checkpoint(struct file *filp, unsigned long arg)
 	return ret;
 }
 
-=======
-
-	ret = f2fs_sync_fs(sbi->sb, 1);
-
-	mnt_drop_write_file(filp);
-	return ret;
-}
-
->>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 static int f2fs_defragment_range(struct f2fs_sb_info *sbi,
 					struct file *filp,
 					struct f2fs_defragment *range)

@@ -129,12 +129,6 @@ struct f2fs_dir_entry *find_target_dentry(struct fscrypt_name *fname,
 			bit_pos++;
 			continue;
 		}
-<<<<<<< HEAD
-=======
-
-		if (de->hash_code != namehash)
-			goto not_match;
->>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 
 		/* encrypted case */
 		de_name.name = d->filename[bit_pos];
@@ -181,11 +175,7 @@ static struct f2fs_dir_entry *find_in_level(struct inode *dir,
 	if(fname->hash)
 		namehash = cpu_to_le32(fname->hash);
 	else
-<<<<<<< HEAD
 		namehash = f2fs_dentry_hash(&name);
-=======
-		namehash = f2fs_dentry_hash(&name, fname);
->>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 
 	nbucket = dir_buckets(level, F2FS_I(dir)->i_dir_level);
 	nblock = bucket_blocks(level);
@@ -281,15 +271,9 @@ struct f2fs_dir_entry *f2fs_find_entry(struct inode *dir,
 		*res_page = ERR_PTR(err);
 		return NULL;
 	}
-<<<<<<< HEAD
 
 	de = __f2fs_find_entry(dir, &fname, res_page);
 
-=======
-
-	de = __f2fs_find_entry(dir, &fname, res_page);
-
->>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 	fscrypt_free_filename(&fname);
 	return de;
 }
@@ -369,17 +353,10 @@ void do_make_empty_dir(struct inode *inode, struct inode *parent,
 {
 	struct qstr dot = QSTR_INIT(".", 1);
 	struct qstr dotdot = QSTR_INIT("..", 2);
-<<<<<<< HEAD
 
 	/* update dirent of "." */
 	f2fs_update_dentry(inode->i_ino, inode->i_mode, d, &dot, 0, 0);
 
-=======
-
-	/* update dirent of "." */
-	f2fs_update_dentry(inode->i_ino, inode->i_mode, d, &dot, 0, 0);
-
->>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 	/* update dirent of ".." */
 	f2fs_update_dentry(parent->i_ino, parent->i_mode, d, &dotdot, 0, 1);
 }
@@ -558,11 +535,7 @@ int f2fs_add_regular_entry(struct inode *dir, const struct qstr *new_name,
 
 	level = 0;
 	slots = GET_DENTRY_SLOTS(new_name->len);
-<<<<<<< HEAD
 	dentry_hash = f2fs_dentry_hash(new_name);
-=======
-	dentry_hash = f2fs_dentry_hash(&new_name, NULL);
->>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 
 	current_depth = F2FS_I(dir)->i_current_depth;
 	if (F2FS_I(dir)->chash == dentry_hash) {

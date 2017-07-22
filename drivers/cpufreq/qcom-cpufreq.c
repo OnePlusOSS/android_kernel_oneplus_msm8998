@@ -79,11 +79,7 @@ struct cpufreq_suspend_t {
 
 static DEFINE_PER_CPU(struct cpufreq_suspend_t, suspend_data);
 #define LITTLE_CPU_QOS_FREQ 1900800
-<<<<<<< HEAD
 #define BIG_CPU_QOS_FREQ    2457600
-=======
-#define BIG_CPU_QOS_FREQ    2361600
->>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 
 unsigned int cluster1_first_cpu = 0;
 static bool qos_cpufreq_flag = false;
@@ -716,11 +712,7 @@ static void c0_cpufreq_limit(struct work_struct *work)
 	policy = cpufreq_cpu_get(0);
 	if (policy)  {
 		qos_cpufreq_flag = true;
-<<<<<<< HEAD
 		cpufreq_driver_target(policy, LITTLE_CPU_QOS_FREQ, CPUFREQ_RELATION_H);
-=======
-		cpufreq_driver_target(policy, LITTLE_CPU_QOS_FREQ, CPUFREQ_RELATION_H);
->>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 		cpufreq_cpu_put(policy);
 	}
 	sched_set_boost(1);

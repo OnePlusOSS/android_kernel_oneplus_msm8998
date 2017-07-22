@@ -497,11 +497,7 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 
 		if (IS_ERR(data_page)) {
 			ret = PTR_ERR(data_page);
-<<<<<<< HEAD
 			if (ret == ENOMEM && wbc->sync_mode == WB_SYNC_ALL) {
-=======
-			if (ret == -ENOMEM && wbc->sync_mode == WB_SYNC_ALL) {
->>>>>>> 63bbe1efbadb4ce01b970187d237301a3305ba0b
 				if (io->io_bio) {
 					ext4_io_submit(io);
 					congestion_wait(BLK_RW_ASYNC, HZ/50);

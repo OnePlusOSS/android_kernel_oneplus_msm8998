@@ -623,6 +623,9 @@ QDF_STATUS wmi_unified_pno_start_cmd(void *wmi_hdl,
 		   uint32_t *gchannel_freq_list);
 #endif
 
+QDF_STATUS wmi_unified_nlo_mawc_cmd(void *wmi_hdl,
+		struct nlo_mawc_params *params);
+
 QDF_STATUS wmi_unified_set_ric_req_cmd(void *wmi_hdl, void *msg,
 			uint8_t is_add_ts);
 

@@ -453,6 +453,9 @@ QDF_STATUS (*send_pno_start_cmd)(wmi_unified_t wmi_handle,
 		   uint32_t *gchannel_freq_list);
 #endif
 
+QDF_STATUS (*send_nlo_mawc_cmd)(wmi_unified_t wmi_handle,
+		struct nlo_mawc_params *params);
+
 QDF_STATUS (*send_ipa_offload_control_cmd)(wmi_unified_t wmi_handle,
 		struct ipa_offload_control_params *ipa_offload);
 

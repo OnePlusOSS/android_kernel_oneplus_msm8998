@@ -318,6 +318,9 @@ QDF_STATUS send_pno_start_cmd_tlv(wmi_unified_t wmi_handle,
 		   struct pno_scan_req_params *pno,
 		   uint32_t *gchannel_freq_list);
 
+QDF_STATUS send_nlo_mawc_cmd_tlv(wmi_unified_t wmi_handle,
+		struct nlo_mawc_params *params);
+
 QDF_STATUS send_process_ll_stats_clear_cmd_tlv
 	(wmi_unified_t wmi_handle,
 	 const struct ll_stats_clear_params *clear_req,

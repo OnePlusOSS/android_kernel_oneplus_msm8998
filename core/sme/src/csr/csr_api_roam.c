@@ -15809,22 +15809,22 @@ QDF_STATUS csr_send_assoc_ind_to_upper_layer_cnf_msg(tpAniSirGlobal pMac,
 		*pBuf = pAssocInd->ecsa_capable;
 		/* ampdu */
 		pBuf = (uint8_t *)&pMsg->ampdu;
-		*pBuf = pAssocInd->ampdu;
+		*((bool *)pBuf) = pAssocInd->ampdu;
 		/* sgi_enable */
 		pBuf = (uint8_t *)&pMsg->sgi_enable;
-		*pBuf = pAssocInd->sgi_enable;
+		*((bool *)pBuf) = pAssocInd->sgi_enable;
 		/* tx stbc */
 		pBuf = (uint8_t *)&pMsg->tx_stbc;
-		*pBuf = pAssocInd->tx_stbc;
+		*((bool *)pBuf) = pAssocInd->tx_stbc;
 		/* ch_width */
 		pBuf = (uint8_t *)&pMsg->ch_width;
-		*pBuf = pAssocInd->ch_width;
+		*((tSirMacHTChannelWidth *)pBuf) = pAssocInd->ch_width;
 		/* mode */
 		pBuf = (uint8_t *)&pMsg->mode;
-		*pBuf = pAssocInd->mode;
+		*((enum sir_sme_phy_mode *)pBuf) = pAssocInd->mode;
 		/* rx stbc */
 		pBuf = (uint8_t *)&pMsg->rx_stbc;
-		*pBuf = pAssocInd->rx_stbc;
+		*((bool *)pBuf) = pAssocInd->rx_stbc;
 		/* max supported idx */
 		pBuf = (uint8_t *)&pMsg->max_supp_idx;
 		*pBuf = pAssocInd->max_supp_idx;

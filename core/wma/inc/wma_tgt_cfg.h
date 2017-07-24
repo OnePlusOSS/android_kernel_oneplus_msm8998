@@ -67,6 +67,7 @@ struct wma_tgt_services {
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 	bool en_roam_offload;
 #endif /* WLAN_FEATURE_ROAM_OFFLOAD */
+	bool get_peer_info_enabled;
 };
 
 /**

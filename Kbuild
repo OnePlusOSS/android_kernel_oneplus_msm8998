@@ -1552,6 +1552,9 @@ CDEFINES += -DQCA_HT_2040_COEX
 #features specific to mobile router use case
 ifeq ($(CONFIG_MOBILE_ROUTER), y)
 
+#MDM platform specific LL Legacy TX flow control
+CDEFINES += -DFEATURE_WLAN_LL_LEGACY_TX_FLOW_CT
+
 #enable MCC TO SCC switch
 CDEFINES += -DFEATURE_WLAN_MCC_TO_SCC_SWITCH
 

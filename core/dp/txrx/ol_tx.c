@@ -981,7 +981,12 @@ ol_tx_ll_wrapper(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list)
 
 #ifdef QCA_LL_LEGACY_TX_FLOW_CONTROL
 
+#ifdef FEATURE_WLAN_LL_LEGACY_TX_FLOW_CT
+#define OL_TX_VDEV_PAUSE_QUEUE_SEND_MARGIN 0
+#else
 #define OL_TX_VDEV_PAUSE_QUEUE_SEND_MARGIN 400
+#endif
+
 #define OL_TX_VDEV_PAUSE_QUEUE_SEND_PERIOD_MS 5
 static void ol_tx_vdev_ll_pause_queue_send_base(struct ol_txrx_vdev_t *vdev)
 {

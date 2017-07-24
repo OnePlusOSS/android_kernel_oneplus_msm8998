@@ -52,8 +52,6 @@ static const char *boost_devices[] = {
 static struct delayed_work wake_unboost_work;
 static struct work_struct wake_boost_work;
 
-static struct notifier_block notif;
-
 /**
  * find_device_devfreq() - find devfreq struct using device pointer
  * @dev:	device pointer used to lookup device devfreq.
@@ -1202,6 +1200,11 @@ static int state_notifier_callback(struct notifier_block *this,
 	return NOTIFY_OK;
 }
 
+static struct notifier_block notif = {
+	.notifier_call = state_notifier_callback,
+	.priority = INT_MAX,
+};
+
 static int __init devfreq_init(void)
 {
 	int ret = 0;
@@ -1224,7 +1227,6 @@ static int __init devfreq_init(void)
 
 	INIT_WORK(&wake_boost_work, wake_boost_fn);
 	INIT_DELAYED_WORK(&wake_unboost_work, wake_unboost_fn);
-	notif.notifier_call = state_notifier_callback;
 	ret = state_register_client(&notif);
 
 	return ret;

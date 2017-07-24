@@ -793,6 +793,23 @@ QDF_STATUS qdf_state_info_dump_all(char *buf, uint16_t size,
 }
 qdf_export_symbol(qdf_state_info_dump_all);
 
+#ifdef CONFIG_KALLSYMS
+inline int qdf_sprint_symbol(char *buffer, void *addr)
+{
+	return sprint_symbol(buffer, (unsigned long)addr);
+}
+#else
+int qdf_sprint_symbol(char *buffer, void *addr)
+{
+	if (!buffer)
+		return 0;
+
+	buffer[0] = '\0';
+	return 1;
+}
+#endif
+qdf_export_symbol(qdf_sprint_symbol);
+
 #ifdef FEATURE_DP_TRACE
 static void qdf_dp_unused(struct qdf_dp_trace_record_s *record,
 			  uint16_t index, bool live)
@@ -1981,22 +1998,5 @@ void qdf_dp_trace_throttle_live_mode(bool high_bw_request)
 
 }
 qdf_export_symbol(qdf_dp_trace_throttle_live_mode);
-
-#ifdef CONFIG_KALLSYMS
-inline int qdf_sprint_symbol(char *buffer, void *addr)
-{
-	return sprint_symbol(buffer, (unsigned long)addr);
-}
-#else
-int qdf_sprint_symbol(char *buffer, void *addr)
-{
-	if (!buffer)
-		return 0;
-
-	buffer[0] = '\0';
-	return 1;
-}
-#endif
-EXPORT_SYMBOL(qdf_sprint_symbol);
 
 #endif

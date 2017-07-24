@@ -277,6 +277,16 @@ QDF_STATUS send_roam_mawc_params_cmd_tlv(wmi_unified_t wmi_handle,
 QDF_STATUS send_roam_scan_filter_cmd_tlv(wmi_unified_t wmi_handle,
 				struct roam_scan_filter_params *roam_req);
 
+/**
+ * send_roam_scan_send_hlp_cmd_tlv() - send HLP info
+ * @wmi_handle: wmi handle
+ * @params: Pointer to HLP params
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS send_roam_scan_send_hlp_cmd_tlv(wmi_unified_t wmi_handle,
+				struct hlp_params *params);
+
 QDF_STATUS send_set_ric_req_cmd_tlv(wmi_unified_t wmi_handle, void *msg,
 			uint8_t is_add_ts);
 

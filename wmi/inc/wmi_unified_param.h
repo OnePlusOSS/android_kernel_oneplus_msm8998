@@ -1736,6 +1736,35 @@ typedef struct {
 	uint32_t mcsset[WMI_HOST_ROAM_OFFLOAD_NUM_MCS_SET >> 2];
 } roam_offload_param;
 
+#define WMI_FILS_MAX_RRK_LENGTH 64
+#define WMI_FILS_MAX_RIK_LENGTH WMI_FILS_MAX_RRK_LENGTH
+#define WMI_FILS_MAX_REALM_LENGTH 256
+#define WMI_FILS_MAX_USERNAME_LENGTH 16
+
+/**
+ * struct roam_fils_params - Roam FILS params
+ * @username: username
+ * @username_length: username length
+ * @next_erp_seq_num: next ERP sequence number
+ * @rrk: RRK
+ * @rrk_length: length of @rrk
+ * @rik: RIK
+ * @rik_length: length of @rik
+ * @realm: realm
+ * @realm_len: length of @realm
+ */
+struct roam_fils_params {
+	uint8_t username[WMI_FILS_MAX_USERNAME_LENGTH];
+	uint32_t username_length;
+	uint32_t next_erp_seq_num;
+	uint8_t rrk[WMI_FILS_MAX_RRK_LENGTH];
+	uint32_t rrk_length;
+	uint8_t rik[WMI_FILS_MAX_RIK_LENGTH];
+	uint32_t rik_length;
+	uint8_t realm[WMI_FILS_MAX_REALM_LENGTH];
+	uint32_t realm_len;
+};
+
 /* struct roam_offload_scan_params - structure
  *     containing roaming offload scan parameters
  * @is_roam_req_valid: flag to tell whether roam req
@@ -1760,6 +1789,10 @@ typedef struct {
  * @is_ese_assoc: flag to determine ese assoc
  * @mdid: mobility domain info
  * @roam_offload_params: roam offload tlv params
+ * @assoc_ie_length: Assoc IE length
+ * @assoc_ie: Assoc IE buffer
+ * @add_fils_tlv: add FILS TLV boolean
+ * @roam_fils_params: roam fils params
  */
 struct roam_offload_scan_params {
 	uint8_t is_roam_req_valid;
@@ -1792,6 +1825,10 @@ struct roam_offload_scan_params {
 #endif
 	uint32_t assoc_ie_length;
 	uint8_t  assoc_ie[MAX_ASSOC_IE_LENGTH];
+	bool add_fils_tlv;
+#ifdef WLAN_FEATURE_FILS_SK
+	struct roam_fils_params roam_fils_params;
+#endif
 };
 
 /* struct roam_offload_scan_rssi_params - structure containing
@@ -3055,7 +3092,7 @@ struct periodic_tx_pattern {
 	uint8_t ucPattern[WMI_PERIODIC_TX_PTRN_MAX_SIZE];
 };
 
-#define WMI_GTK_OFFLOAD_KEK_BYTES       16
+#define WMI_GTK_OFFLOAD_KEK_BYTES       64
 #define WMI_GTK_OFFLOAD_KCK_BYTES       16
 #define WMI_GTK_OFFLOAD_ENABLE          0
 #define WMI_GTK_OFFLOAD_DISABLE         1
@@ -3065,6 +3102,7 @@ struct periodic_tx_pattern {
  * @ulFlags: optional flags
  * @aKCK: Key confirmation key
  * @aKEK: key encryption key
+ * @kek_len: Kek length
  * @ullKeyReplayCounter: replay counter
  * @bssid: bss id
  */
@@ -3072,6 +3110,7 @@ struct gtk_offload_params {
 	uint32_t ulFlags;
 	uint8_t aKCK[WMI_GTK_OFFLOAD_KCK_BYTES];
 	uint8_t aKEK[WMI_GTK_OFFLOAD_KEK_BYTES];
+	uint32_t kek_len;
 	uint64_t ullKeyReplayCounter;
 	struct qdf_mac_addr bssid;
 };
@@ -3358,6 +3397,19 @@ struct roam_scan_filter_params {
 	uint32_t num_disallowed_aps;
 	uint32_t num_rssi_rejection_ap;
 	struct rssi_disallow_bssid rssi_rejection_ap[MAX_RSSI_AVOID_BSSID_LIST];
+};
+
+#define WMI_MAX_HLP_IE_LEN 2048
+/**
+ * struct hlp_params - HLP info params
+ * @vdev_id: vdev id
+ * @hlp_ie_len: HLP IE length
+ * @hlp_ie: HLP IE
+ */
+struct hlp_params {
+	uint8_t vdev_id;
+	uint32_t  hlp_ie_len;
+	uint8_t hlp_ie[WMI_MAX_HLP_IE_LEN];
 };
 
 /**

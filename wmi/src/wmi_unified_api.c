@@ -3576,6 +3576,34 @@ QDF_STATUS wmi_unified_get_arp_stats_req(void *wmi_hdl,
 	return QDF_STATUS_E_FAILURE;
 }
 
+QDF_STATUS wmi_unified_set_del_pmkid_cache(void *wmi_hdl,
+					   wmi_pmk_cache *req_buf,
+					   uint32_t vdev_id)
+{
+	wmi_unified_t wmi_handle = (wmi_unified_t) wmi_hdl;
+
+	if (wmi_handle->ops->send_set_del_pmkid_cache_cmd)
+		return wmi_handle->ops->send_set_del_pmkid_cache_cmd(wmi_handle,
+								     req_buf,
+								     vdev_id);
+
+	return QDF_STATUS_E_FAILURE;
+}
+
+#if defined (WLAN_FEATURE_FILS_SK)
+QDF_STATUS wmi_unified_roam_send_hlp_cmd(void *wmi_hdl,
+					 struct hlp_params *req_buf)
+{
+	wmi_unified_t wmi_handle = (wmi_unified_t) wmi_hdl;
+
+	if (wmi_handle->ops->send_roam_scan_send_hlp_cmd)
+		return wmi_handle->ops->send_roam_scan_send_hlp_cmd(wmi_handle,
+								    req_buf);
+
+	return QDF_STATUS_E_FAILURE;
+}
+#endif
+
 /**
  * wmi_unified_get_buf_extscan_hotlist_cmd() - prepare hotlist command
  * @wmi_hdl: wmi handle

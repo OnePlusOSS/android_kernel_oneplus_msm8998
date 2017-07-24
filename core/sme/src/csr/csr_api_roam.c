@@ -15809,22 +15809,22 @@ QDF_STATUS csr_send_assoc_ind_to_upper_layer_cnf_msg(tpAniSirGlobal pMac,
 		*pBuf = pAssocInd->ecsa_capable;
 		/* ampdu */
 		pBuf = (uint8_t *)&pMsg->ampdu;
-		*pBuf = pAssocInd->ampdu;
+		*((bool *)pBuf) = pAssocInd->ampdu;
 		/* sgi_enable */
 		pBuf = (uint8_t *)&pMsg->sgi_enable;
-		*pBuf = pAssocInd->sgi_enable;
+		*((bool *)pBuf) = pAssocInd->sgi_enable;
 		/* tx stbc */
 		pBuf = (uint8_t *)&pMsg->tx_stbc;
-		*pBuf = pAssocInd->tx_stbc;
+		*((bool *)pBuf) = pAssocInd->tx_stbc;
 		/* ch_width */
 		pBuf = (uint8_t *)&pMsg->ch_width;
-		*pBuf = pAssocInd->ch_width;
+		*((tSirMacHTChannelWidth *)pBuf) = pAssocInd->ch_width;
 		/* mode */
 		pBuf = (uint8_t *)&pMsg->mode;
-		*pBuf = pAssocInd->mode;
+		*((enum sir_sme_phy_mode *)pBuf) = pAssocInd->mode;
 		/* rx stbc */
 		pBuf = (uint8_t *)&pMsg->rx_stbc;
-		*pBuf = pAssocInd->rx_stbc;
+		*((bool *)pBuf) = pAssocInd->rx_stbc;
 		/* max supported idx */
 		pBuf = (uint8_t *)&pMsg->max_supp_idx;
 		*pBuf = pAssocInd->max_supp_idx;
@@ -18394,6 +18394,69 @@ static void check_allowed_ssid_list(tSirRoamOffloadScanReq *req_buffer,
 	}
 }
 
+/**
+ * csr_add_rssi_reject_ap_list() - add rssi reject AP list to the
+ * roam params
+ * @mac_ctx: mac ctx.
+ * @roam_params: roam params in which reject AP list needs
+ * to be populated.
+ *
+ * Return: None
+ */
+static void csr_add_rssi_reject_ap_list(tpAniSirGlobal mac_ctx,
+	struct roam_ext_params *roam_params)
+{
+	int i = 0;
+	struct sir_rssi_disallow_lst *cur_node;
+	qdf_list_node_t *cur_list = NULL;
+	qdf_list_node_t *next_list = NULL;
+	struct rssi_disallow_bssid *rssi_rejection_ap;
+	qdf_list_t *list = &mac_ctx->roam.rssi_disallow_bssid;
+	qdf_time_t cur_time =
+		qdf_do_div(qdf_get_monotonic_boottime(),
+		QDF_MC_TIMER_TO_MS_UNIT);
+
+	roam_params->num_rssi_rejection_ap = qdf_list_size(list);
+
+	if (!qdf_list_size(list))
+		return;
+
+	if (roam_params->num_rssi_rejection_ap > MAX_RSSI_AVOID_BSSID_LIST)
+		roam_params->num_rssi_rejection_ap = MAX_RSSI_AVOID_BSSID_LIST;
+
+	qdf_list_peek_front(list, &cur_list);
+	while (cur_list) {
+		int32_t rem_time;
+
+		rssi_rejection_ap = &roam_params->rssi_rejection_ap[i];
+		cur_node = qdf_container_of(cur_list,
+				struct sir_rssi_disallow_lst, node);
+		rem_time = cur_node->retry_delay -
+			(cur_time - cur_node->time_during_rejection);
+
+		if (rem_time > 0) {
+			qdf_copy_macaddr(&rssi_rejection_ap->bssid,
+					&cur_node->bssid);
+			rssi_rejection_ap->expected_rssi =
+					cur_node->expected_rssi;
+			rssi_rejection_ap->remaining_duration = rem_time;
+			i++;
+		}
+		qdf_list_peek_next(list, cur_list, &next_list);
+		cur_list = next_list;
+		next_list = NULL;
+
+		if (i >= MAX_RSSI_AVOID_BSSID_LIST)
+			break;
+	}
+	for (i = 0; i < roam_params->num_rssi_rejection_ap; i++) {
+		sme_debug("BSSID %pM expected rssi %d remaining duration %d",
+			roam_params->rssi_rejection_ap[i].bssid.bytes,
+			roam_params->rssi_rejection_ap[i].expected_rssi,
+			roam_params->rssi_rejection_ap[i].remaining_duration);
+	}
+}
+
 /*
  * Below Table describe whether RSO command can be send down to fimrware or not.
  * Host check it on the basis of previous RSO command sent down to firmware.
@@ -18857,6 +18920,15 @@ csr_roam_offload_scan(tpAniSirGlobal mac_ctx, uint8_t session_id,
 	roam_params_src = &mac_ctx->roam.configParam.roam_params;
 	if (reason == REASON_ROAM_SET_SSID_ALLOWED)
 		check_allowed_ssid_list(req_buf, roam_params_src);
+
+	/*
+	 * For CTX INT cmd if rssi disallow bssid list have any member
+	 * fill it and send it to firmware so that firmware does not
+	 * try to roam to these BSS untill RSSI OR time condition are
+	 * matched.
+	 */
+	if (reason == REASON_CTX_INIT)
+		csr_add_rssi_reject_ap_list(mac_ctx, roam_params_src);
 	/*
 	 * Configure the lookup threshold either from INI or from framework.
 	 * If both are present, give higher priority to the one from framework.

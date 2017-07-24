@@ -1018,7 +1018,8 @@ int htt_h2t_ipa_uc_rsc_cfg_msg(struct htt_pdev_t *pdev)
 	*msg_word = 0;
 	/* TX COMP RING BASE LO */
 	HTT_WDI_IPA_CFG_TX_COMP_RING_BASE_ADDR_LO_SET(*msg_word,
-		(unsigned int)pdev->ipa_uc_tx_rsc.tx_comp_base.paddr);
+		(unsigned int)qdf_mem_get_dma_addr(pdev->osdev,
+			&pdev->ipa_uc_tx_rsc.tx_comp_ring->mem_info));
 	msg_word++;
 	*msg_word = 0;
 	/* TX COMP RING BASE HI, NONE */
@@ -1038,14 +1039,16 @@ int htt_h2t_ipa_uc_rsc_cfg_msg(struct htt_pdev_t *pdev)
 	msg_word++;
 	*msg_word = 0;
 	HTT_WDI_IPA_CFG_TX_CE_WR_IDX_ADDR_LO_SET(*msg_word,
-		(unsigned int)pdev->ipa_uc_tx_rsc.tx_ce_idx.paddr);
+		(unsigned int)qdf_mem_get_dma_addr(pdev->osdev,
+			&pdev->ipa_uc_tx_rsc.tx_ce_idx->mem_info));
 	msg_word++;
 	*msg_word = 0;
 
 	msg_word++;
 	*msg_word = 0;
 	HTT_WDI_IPA_CFG_RX_IND_RING_BASE_ADDR_LO_SET(*msg_word,
-		(unsigned int)pdev->ipa_uc_rx_rsc.rx_ind_ring_base.paddr);
+		(unsigned int)qdf_mem_get_dma_addr(pdev->osdev,
+			&pdev->ipa_uc_rx_rsc.rx_ind_ring->mem_info));
 	msg_word++;
 	*msg_word = 0;
 	HTT_WDI_IPA_CFG_RX_IND_RING_BASE_ADDR_HI_SET(*msg_word,
@@ -1059,7 +1062,8 @@ int htt_h2t_ipa_uc_rsc_cfg_msg(struct htt_pdev_t *pdev)
 	msg_word++;
 	*msg_word = 0;
 	HTT_WDI_IPA_CFG_RX_IND_RD_IDX_ADDR_LO_SET(*msg_word,
-		(unsigned int)pdev->ipa_uc_rx_rsc.rx_ipa_prc_done_idx.paddr);
+		(unsigned int)qdf_mem_get_dma_addr(pdev->osdev,
+			&pdev->ipa_uc_rx_rsc.rx_ipa_prc_done_idx->mem_info));
 	msg_word++;
 	*msg_word = 0;
 	HTT_WDI_IPA_CFG_RX_IND_RD_IDX_ADDR_HI_SET(*msg_word,
@@ -1077,7 +1081,8 @@ int htt_h2t_ipa_uc_rsc_cfg_msg(struct htt_pdev_t *pdev)
 	msg_word++;
 	*msg_word = 0;
 	HTT_WDI_IPA_CFG_RX_RING2_BASE_ADDR_LO_SET(*msg_word,
-		(unsigned int)pdev->ipa_uc_rx_rsc.rx2_ind_ring_base.paddr);
+		(unsigned int)qdf_mem_get_dma_addr(pdev->osdev,
+			&pdev->ipa_uc_rx_rsc.rx2_ind_ring->mem_info));
 	msg_word++;
 	*msg_word = 0;
 	HTT_WDI_IPA_CFG_RX_RING2_BASE_ADDR_HI_SET(*msg_word,
@@ -1091,7 +1096,8 @@ int htt_h2t_ipa_uc_rsc_cfg_msg(struct htt_pdev_t *pdev)
 	msg_word++;
 	*msg_word = 0;
 	HTT_WDI_IPA_CFG_RX_RING2_RD_IDX_ADDR_LO_SET(*msg_word,
-		(unsigned int)pdev->ipa_uc_rx_rsc.rx2_ipa_prc_done_idx.paddr);
+		(unsigned int)qdf_mem_get_dma_addr(pdev->osdev,
+			&pdev->ipa_uc_rx_rsc.rx2_ipa_prc_done_idx->mem_info));
 	msg_word++;
 	*msg_word = 0;
 	HTT_WDI_IPA_CFG_RX_RING2_RD_IDX_ADDR_HI_SET(*msg_word,
@@ -1100,7 +1106,8 @@ int htt_h2t_ipa_uc_rsc_cfg_msg(struct htt_pdev_t *pdev)
 	msg_word++;
 	*msg_word = 0;
 	HTT_WDI_IPA_CFG_RX_RING2_WR_IDX_ADDR_LO_SET(*msg_word,
-		(unsigned int)pdev->ipa_uc_rx_rsc.rx2_ipa_prc_done_idx.paddr);
+		(unsigned int)qdf_mem_get_dma_addr(pdev->osdev,
+			&pdev->ipa_uc_rx_rsc.rx2_ipa_prc_done_idx->mem_info));
 	msg_word++;
 	*msg_word = 0;
 	HTT_WDI_IPA_CFG_RX_RING2_WR_IDX_ADDR_HI_SET(*msg_word,
@@ -1160,7 +1167,8 @@ int htt_h2t_ipa_uc_rsc_cfg_msg(struct htt_pdev_t *pdev)
 	msg_word++;
 	*msg_word = 0;
 	HTT_WDI_IPA_CFG_TX_COMP_RING_BASE_ADDR_SET(*msg_word,
-		(unsigned int)pdev->ipa_uc_tx_rsc.tx_comp_base.paddr);
+		(unsigned int)qdf_mem_get_dma_addr(pdev->osdev,
+			&pdev->ipa_uc_tx_rsc.tx_comp_ring->mem_info));
 
 	msg_word++;
 	*msg_word = 0;
@@ -1176,12 +1184,14 @@ int htt_h2t_ipa_uc_rsc_cfg_msg(struct htt_pdev_t *pdev)
 	msg_word++;
 	*msg_word = 0;
 	HTT_WDI_IPA_CFG_TX_CE_WR_IDX_ADDR_SET(*msg_word,
-		(unsigned int)pdev->ipa_uc_tx_rsc.tx_ce_idx.paddr);
+		(unsigned int)qdf_mem_get_dma_addr(pdev->osdev,
+			&pdev->ipa_uc_tx_rsc.tx_ce_idx->mem_info));
 
 	msg_word++;
 	*msg_word = 0;
 	HTT_WDI_IPA_CFG_RX_IND_RING_BASE_ADDR_SET(*msg_word,
-		(unsigned int)pdev->ipa_uc_rx_rsc.rx_ind_ring_base.paddr);
+		(unsigned int)qdf_mem_get_dma_addr(pdev->osdev,
+			&pdev->ipa_uc_rx_rsc.rx_ind_ring->mem_info));
 
 	msg_word++;
 	*msg_word = 0;
@@ -1191,7 +1201,8 @@ int htt_h2t_ipa_uc_rsc_cfg_msg(struct htt_pdev_t *pdev)
 	msg_word++;
 	*msg_word = 0;
 	HTT_WDI_IPA_CFG_RX_IND_RD_IDX_ADDR_SET(*msg_word,
-		(unsigned int)pdev->ipa_uc_rx_rsc.rx_ipa_prc_done_idx.paddr);
+		(unsigned int)qdf_mem_get_dma_addr(pdev->osdev,
+			&pdev->ipa_uc_rx_rsc.rx_ipa_prc_done_idx->mem_info));
 
 	msg_word++;
 	*msg_word = 0;
@@ -1237,6 +1248,16 @@ int htt_h2t_ipa_uc_set_active(struct htt_pdev_t *pdev,
 	 */
 	pkt->msdu_id = HTT_TX_COMPL_INV_MSDU_ID;
 	pkt->pdev_ctxt = NULL;  /* not used during send-done callback */
+
+	if (qdf_mem_smmu_s1_enabled(pdev->osdev) && uc_active && !is_tx) {
+		if (htt_rx_ipa_uc_buf_pool_map(pdev)) {
+			qdf_print("%s: Unable to create mapping for IPA rx buffers\n",
+				  __func__);
+			htt_htc_pkt_free(pdev, pkt);
+			return -A_NO_MEMORY;
+		}
+		pdev->uc_map_reqd = 1;
+	}
 
 	/* reserve room for HTC header */
 	msg = qdf_nbuf_alloc(pdev->osdev,

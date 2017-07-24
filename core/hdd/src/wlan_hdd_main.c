@@ -876,6 +876,7 @@ static void hdd_update_tgt_services(hdd_context_t *hdd_ctx,
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 	config->isRoamOffloadEnabled &= cfg->en_roam_offload;
 #endif
+	config->sap_get_peer_info &= cfg->get_peer_info_enabled;
 	sme_update_tgt_services(hdd_ctx->hHal, cfg);
 
 }
@@ -1822,7 +1823,12 @@ int hdd_start_adapter(hdd_adapter_t *adapter)
 	 * Action frame registered in one adapter which will
 	 * applicable to all interfaces
 	 */
-	wlan_hdd_cfg80211_register_frames(adapter);
+	ret = wlan_hdd_cfg80211_register_frames(adapter);
+
+	if (ret < 0) {
+		hdd_err("Failed to register frames - ret %d", ret);
+		goto err_start_adapter;
+	}
 exit:
 	EXIT();
 	return 0;
@@ -2941,9 +2947,7 @@ QDF_STATUS hdd_init_station_mode(hdd_adapter_t *adapter)
 		status = QDF_STATUS_E_FAILURE;
 		goto error_register_wext;
 	}
-	/* Set the Connection State to Not Connected */
-	hdd_debug("Set HDD connState to eConnectionState_NotConnected");
-	pHddStaCtx->conn_info.connState = eConnectionState_NotConnected;
+	hdd_conn_set_connection_state(adapter, eConnectionState_NotConnected);
 
 	qdf_mem_set(pHddStaCtx->conn_info.staId,
 		sizeof(pHddStaCtx->conn_info.staId), HDD_WLAN_INVALID_STA_ID);
@@ -5272,15 +5276,9 @@ static int hdd_register_notifiers(hdd_context_t *hdd_ctx)
 {
 	int ret;
 
-	ret = register_netdevice_notifier(&hdd_netdev_notifier);
-	if (ret) {
-		hdd_err("register_netdevice_notifier failed: %d", ret);
-		goto out;
-	}
-
 	ret = hdd_wlan_register_ip6_notifier(hdd_ctx);
 	if (ret)
-		goto unregister_notifier;
+		goto out;
 
 	hdd_ctx->ipv4_notifier.notifier_call = wlan_hdd_ipv4_changed;
 	ret = register_inetaddr_notifier(&hdd_ctx->ipv4_notifier);
@@ -5293,8 +5291,6 @@ static int hdd_register_notifiers(hdd_context_t *hdd_ctx)
 
 unregister_ip6_notifier:
 	hdd_wlan_unregister_ip6_notifier(hdd_ctx);
-unregister_notifier:
-	unregister_netdevice_notifier(&hdd_netdev_notifier);
 out:
 	return ret;
 
@@ -5313,8 +5309,6 @@ void hdd_unregister_notifiers(hdd_context_t *hdd_ctx)
 	hdd_wlan_unregister_ip6_notifier(hdd_ctx);
 
 	unregister_inetaddr_notifier(&hdd_ctx->ipv4_notifier);
-
-	unregister_netdevice_notifier(&hdd_netdev_notifier);
 }
 
 /**
@@ -5676,6 +5670,8 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 	hdd_runtime_suspend_context_deinit(hdd_ctx);
 	hdd_close_all_adapters(hdd_ctx, false);
 
+	unregister_netdevice_notifier(&hdd_netdev_notifier);
+
 	hdd_ipa_cleanup(hdd_ctx);
 
 	/* Free up RoC request queue and flush workqueue */
@@ -5695,6 +5691,7 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 	wlan_hdd_deinit_chan_info(hdd_ctx);
 	hdd_exit_netlink_services(hdd_ctx);
 	mutex_destroy(&hdd_ctx->iface_change_lock);
+	qdf_mem_free(hdd_ctx->target_hw_name);
 	hdd_context_destroy(hdd_ctx);
 }
 
@@ -9454,6 +9451,8 @@ int hdd_wlan_startup(struct device *dev)
 	uint32_t num_abg_tx_chains = 0;
 	uint32_t num_11b_tx_chains = 0;
 	uint32_t num_11ag_tx_chains = 0;
+	size_t target_hw_name_len;
+	const char *target_hw_name;
 
 	ENTER();
 
@@ -9509,6 +9508,12 @@ int hdd_wlan_startup(struct device *dev)
 
 	hdd_initialize_mac_address(hdd_ctx);
 
+	ret = register_netdevice_notifier(&hdd_netdev_notifier);
+	if (ret) {
+		hdd_err("register_netdevice_notifier failed: %d", ret);
+		goto err_ipa_cleanup;
+	}
+
 	rtnl_held = hdd_hold_rtnl_lock();
 
 	ret = hdd_open_interfaces(hdd_ctx, rtnl_held);
@@ -9528,7 +9533,13 @@ int hdd_wlan_startup(struct device *dev)
 	 */
 	hif_get_hw_info(hif_sc, &hdd_ctx->target_hw_version,
 			&hdd_ctx->target_hw_revision,
-			&hdd_ctx->target_hw_name);
+			&target_hw_name);
+
+	target_hw_name_len = strlen(target_hw_name) + 1;
+	hdd_ctx->target_hw_name = qdf_mem_malloc(target_hw_name_len);
+	if (hdd_ctx->target_hw_name)
+		qdf_mem_copy(hdd_ctx->target_hw_name, target_hw_name,
+			     target_hw_name_len);
 
 	/* Get the wlan hw/fw version */
 	hdd_wlan_get_version(hdd_ctx, NULL, NULL);
@@ -9601,6 +9612,13 @@ int hdd_wlan_startup(struct device *dev)
 				    set_value, PDEV_CMD);
 	}
 
+	if (hdd_ctx->config->sap_get_peer_info) {
+		set_value = hdd_ctx->config->sap_get_peer_info;
+		sme_cli_set_command(0,
+			(int)WMI_PDEV_PARAM_PEER_STATS_INFO_ENABLE,
+			set_value, PDEV_CMD);
+	}
+
 	if (hdd_ctx->config->is_force_1x1)
 		sme_cli_set_command(0, (int)WMI_PDEV_PARAM_SET_IOT_PATTERN,
 				1, PDEV_CMD);
@@ -9633,6 +9651,7 @@ err_release_rtnl_lock:
 	if (rtnl_held)
 		hdd_release_rtnl_lock();
 
+err_ipa_cleanup:
 	hdd_ipa_cleanup(hdd_ctx);
 
 err_wiphy_unregister:

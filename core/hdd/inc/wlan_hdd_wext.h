@@ -399,4 +399,16 @@ int wlan_hdd_update_phymode(struct net_device *net, tHalHandle hal,
 
 int wlan_hdd_get_temperature(hdd_adapter_t *pAdapter, int *temperature);
 int wlan_hdd_get_link_speed(hdd_adapter_t *sta_adapter, uint32_t *link_speed);
+
+/**
+ * wlan_hdd_get_peer_rssi() - get station's rssi
+ * @adapter: hostapd interface
+ * @macaddress: peer sta mac address or ff:ff:ff:ff:ff:ff to query all peer
+ *
+ * This function will call sme_get_peer_info to get rssi
+ *
+ * Return: 0 on success, otherwise error value
+ */
+int wlan_hdd_get_peer_rssi(hdd_adapter_t *adapter,
+			struct qdf_mac_addr *macaddress);
 #endif /* __WEXT_IW_H__ */

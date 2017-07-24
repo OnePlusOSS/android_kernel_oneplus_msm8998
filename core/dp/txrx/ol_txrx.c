@@ -4463,21 +4463,8 @@ inline void ol_txrx_flow_control_cb(ol_txrx_vdev_handle vdev,
 #ifdef IPA_OFFLOAD
 /**
  * ol_txrx_ipa_uc_get_resource() - Client request resource information
- * @pdev: handle to the HTT instance
- * @ce_sr_base_paddr: copy engine source ring base physical address
- * @ce_sr_ring_size: copy engine source ring size
- * @ce_reg_paddr: copy engine register physical address
- * @tx_comp_ring_base_paddr: tx comp ring base physical address
- * @tx_comp_ring_size: tx comp ring size
- * @tx_num_alloc_buffer: number of allocated tx buffer
- * @rx_rdy_ring_base_paddr: rx ready ring base physical address
- * @rx_rdy_ring_size: rx ready ring size
- * @rx_proc_done_idx_paddr: rx process done index physical address
- * @rx_proc_done_idx_vaddr: rx process done index virtual address
- * @rx2_rdy_ring_base_paddr: rx done ring base physical address
- * @rx2_rdy_ring_size: rx done ring size
- * @rx2_proc_done_idx_paddr: rx done index physical address
- * @rx2_proc_done_idx_vaddr: rx done index virtual address
+ * @pdev: txrx pdev
+ * @ipa_res: ipa resources
  *
  *  OL client will reuqest IPA UC related resource information
  *  Resource information will be distributted to IPA module
@@ -4490,20 +4477,15 @@ ol_txrx_ipa_uc_get_resource(ol_txrx_pdev_handle pdev,
 		 struct ol_txrx_ipa_resources *ipa_res)
 {
 	htt_ipa_uc_get_resource(pdev->htt_pdev,
-				&ipa_res->ce_sr_base_paddr,
+				&ipa_res->ce_sr,
+				&ipa_res->tx_comp_ring,
+				&ipa_res->rx_rdy_ring,
+				&ipa_res->rx2_rdy_ring,
+				&ipa_res->rx_proc_done_idx,
+				&ipa_res->rx2_proc_done_idx,
 				&ipa_res->ce_sr_ring_size,
 				&ipa_res->ce_reg_paddr,
-				&ipa_res->tx_comp_ring_base_paddr,
-				&ipa_res->tx_comp_ring_size,
-				&ipa_res->tx_num_alloc_buffer,
-				&ipa_res->rx_rdy_ring_base_paddr,
-				&ipa_res->rx_rdy_ring_size,
-				&ipa_res->rx_proc_done_idx_paddr,
-				&ipa_res->rx_proc_done_idx_vaddr,
-				&ipa_res->rx2_rdy_ring_base_paddr,
-				&ipa_res->rx2_rdy_ring_size,
-				&ipa_res->rx2_proc_done_idx_paddr,
-				&ipa_res->rx2_proc_done_idx_vaddr);
+				&ipa_res->tx_num_alloc_buffer);
 }
 
 /**

@@ -9670,6 +9670,7 @@ QDF_STATUS cds_valid_sap_conc_channel_check(uint8_t *con_ch, uint8_t sap_ch)
 			if (wma_is_hw_dbs_capable()) {
 				temp_channel =
 					cds_get_alternate_channel_for_sap();
+				cds_debug("temp_channel is %d", temp_channel);
 				if (temp_channel) {
 					channel = temp_channel;
 				} else {
@@ -9677,6 +9678,11 @@ QDF_STATUS cds_valid_sap_conc_channel_check(uint8_t *con_ch, uint8_t sap_ch)
 						channel = CDS_24_GHZ_CHANNEL_6;
 					else
 						channel = CDS_5_GHZ_CHANNEL_36;
+				}
+				if (!cds_is_safe_channel(channel)) {
+					cds_warn("Can't have concurrency on %d as it is not safe",
+						channel);
+					return QDF_STATUS_E_FAILURE;
 				}
 			} else {
 				cds_warn("Can't have concurrency on %d",

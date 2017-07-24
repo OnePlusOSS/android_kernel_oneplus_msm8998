@@ -606,6 +606,7 @@ static void hdd_update_dbs_scan_ctrl_ext_flag(hdd_context_t *hdd_ctx,
 {
 	uint32_t num_chan;
 	uint32_t scan_dbs_policy = HDD_SCAN_DBS_POLICY_FORCE_NONDBS;
+	uint32_t conn_cnt;
 
 	/* Resetting the scan_ctrl_flags_ext to 0 */
 	scan_req->scan_ctrl_flags_ext = 0;
@@ -619,6 +620,13 @@ static void hdd_update_dbs_scan_ctrl_ext_flag(hdd_context_t *hdd_ctx,
 	if (hdd_ctx->config->dual_mac_feature_disable ==
 				DISABLE_DBS_CXN_AND_SCAN) {
 		hdd_debug("DBS is disabled");
+		goto end;
+	}
+
+	conn_cnt = cds_get_connection_count();
+	if (conn_cnt > 0) {
+		hdd_debug("%d active connections, go for DBS scan", conn_cnt);
+		scan_dbs_policy = HDD_SCAN_DBS_POLICY_DEFAULT;
 		goto end;
 	}
 

@@ -5837,6 +5837,24 @@ enum hdd_link_speed_rpt_type {
 
 /*
  * <ini>
+ * gSapGetPeerInfo - Enable/Disable remote peer info query support
+ * @Min: 0 - Disable remote peer info query support
+ * @Max: 1 - Enable remote peer info query support
+ * @Default: 0
+ *
+ * This ini is used to enable/disable remote peer info query support
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_SAP_GET_PEER_INFO                      "gSapGetPeerInfo"
+#define CFG_SAP_GET_PEER_INFO_MIN                   (0)
+#define CFG_SAP_GET_PEER_INFO_MAX                   (1)
+#define CFG_SAP_GET_PEER_INFO_DEFAULT               (0)
+
+/*
+ * <ini>
  * gDisableABGRateForTxData - disable abg rate for tx data
  * @Min: 0
  * @Max: 1
@@ -6484,9 +6502,9 @@ enum hdd_link_speed_rpt_type {
 /*
  * <ini>
  * gTDLSEnableDeferTime - Timer to defer for enabling TDLS on P2P listen.
- * @Min: 2000
+ * @Min: 500
  * @Max: 6000
- * @Default: 5000
+ * @Default: 2000
  *
  * This ini is used to set the timer to defer for enabling TDLS on P2P
  * listen (value in milliseconds).
@@ -6500,9 +6518,9 @@ enum hdd_link_speed_rpt_type {
  * </ini>
  */
 #define CFG_TDLS_ENABLE_DEFER_TIMER                "gTDLSEnableDeferTime"
-#define CFG_TDLS_ENABLE_DEFER_TIMER_MIN            (2000)
+#define CFG_TDLS_ENABLE_DEFER_TIMER_MIN            (500)
 #define CFG_TDLS_ENABLE_DEFER_TIMER_MAX            (6000)
-#define CFG_TDLS_ENABLE_DEFER_TIMER_DEFAULT        (5000)
+#define CFG_TDLS_ENABLE_DEFER_TIMER_DEFAULT        (2000)
 
 /* Enable/Disable LPWR Image(cMEM uBSP) Transition */
 #define CFG_ENABLE_LPWR_IMG_TRANSITION_NAME        "gEnableLpwrImgTransition"
@@ -10381,7 +10399,7 @@ enum dot11p_mode {
  * <ini>
  * g_mc_bc_active_bpf_mode - Control MC/BC active BPF mode
  * @Min: 0 (disabled)
- * @Max: 2 (adaptive)
+ * @Max: 1 (enabled)
  * @Default: 0 (disabled)
  *
  * This config item is used to control MC/BC BPF mode.
@@ -10400,7 +10418,7 @@ enum dot11p_mode {
  */
 #define CFG_ACTIVE_MC_BC_BPF_MODE_NAME    "gActiveMcBcBpfMode"
 #define CFG_ACTIVE_MC_BC_BPF_MODE_MIN     (ACTIVE_BPF_DISABLED)
-#define CFG_ACTIVE_MC_BC_BPF_MODE_MAX     (ACTIVE_BPF_MODE_COUNT - 1)
+#define CFG_ACTIVE_MC_BC_BPF_MODE_MAX     (ACTIVE_BPF_ENABLED)
 #define CFG_ACTIVE_MC_BC_BPF_MODE_DEFAULT (ACTIVE_BPF_DISABLED)
 
 enum hw_filter_mode {
@@ -11768,6 +11786,7 @@ struct hdd_config {
 	bool gEnableOverLapCh;
 	bool fRegChangeDefCountry;
 	uint16_t max_ht_mcs_txdata;
+	bool sap_get_peer_info;
 	bool disable_abg_rate_txdata;
 	uint8_t rate_for_tx_mgmt;
 	uint8_t rate_for_tx_mgmt_2g;

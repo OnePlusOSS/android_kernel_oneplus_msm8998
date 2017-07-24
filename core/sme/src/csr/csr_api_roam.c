@@ -2328,7 +2328,8 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 			pParam->Is11dSupportEnabled;
 		pMac->roam.configParam.enable_11d_in_world_mode =
 			pParam->enable_11d_in_world_mode;
-		if (pMac->roam.configParam.enable_11d_in_world_mode)
+		if ((pMac->roam.configParam.enable_11d_in_world_mode) &&
+		    (pMac->reg_hint_src == SOURCE_CORE))
 			pMac->roam.configParam.Is11dSupportEnabled =
 				true;
 		else

@@ -502,8 +502,12 @@ int hdd_regulatory_init(hdd_context_t *hdd_ctx, struct wiphy *wiphy)
 
 	hdd_process_regulatory_data(hdd_ctx, wiphy, true);
 
-	reg_info->cc_src = SOURCE_CORE;
-	sme_set_cc_src(hdd_ctx->hHal, SOURCE_CORE);
+	if (hdd_is_world_regdomain(reg_info->reg_domain))
+		reg_info->cc_src = SOURCE_CORE;
+	else
+		reg_info->cc_src = SOURCE_DRIVER;
+
+	sme_set_cc_src(hdd_ctx->hHal, reg_info->cc_src);
 
 	cds_put_default_country(reg_info->alpha2);
 

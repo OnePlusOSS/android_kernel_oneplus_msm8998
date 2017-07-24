@@ -3374,6 +3374,21 @@ static int __wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
 	hdd_config_sched_scan_plan(pPnoRequest, request, pHddCtx);
 	pPnoRequest->scan_backoff_multiplier =
 		pHddCtx->config->scan_backoff_multiplier;
+	pPnoRequest->mawc_params.mawc_nlo_enabled =
+		pHddCtx->config->mawc_nlo_enabled &&
+		pHddCtx->config->MAWCEnabled;
+	pPnoRequest->mawc_params.exp_backoff_ratio =
+		pHddCtx->config->mawc_nlo_exp_backoff_ratio;
+	pPnoRequest->mawc_params.init_scan_interval =
+		pHddCtx->config->mawc_nlo_init_scan_interval;
+	pPnoRequest->mawc_params.max_scan_interval =
+		pHddCtx->config->mawc_nlo_max_scan_interval;
+	hdd_debug("MAWC NLO global:%d, en:%d, exp:%d, init:%d, max:%d",
+			pHddCtx->config->MAWCEnabled,
+			pHddCtx->config->mawc_nlo_enabled,
+			pPnoRequest->mawc_params.exp_backoff_ratio,
+			pPnoRequest->mawc_params.init_scan_interval,
+			pPnoRequest->mawc_params.max_scan_interval);
 	pPnoRequest->delay_start_time =
 		hdd_config_sched_scan_start_delay(request);
 	wlan_hdd_sched_scan_update_relative_rssi(pPnoRequest, request);

@@ -4763,6 +4763,34 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_SCAN_BACKOFF_MULTIPLIER_MIN,
 		CFG_SCAN_BACKOFF_MULTIPLIER_MAX),
 
+	REG_VARIABLE(CFG_MAWC_NLO_ENABLED_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, mawc_nlo_enabled,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_MAWC_NLO_ENABLED_DEFAULT,
+		CFG_MAWC_NLO_ENABLED_MIN,
+		CFG_MAWC_NLO_ENABLED_MAX),
+
+	REG_VARIABLE(CFG_MAWC_NLO_EXP_BACKOFF_RATIO_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, mawc_nlo_exp_backoff_ratio,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_MAWC_NLO_EXP_BACKOFF_RATIO_DEFAULT,
+		CFG_MAWC_NLO_EXP_BACKOFF_RATIO_MIN,
+		CFG_MAWC_NLO_EXP_BACKOFF_RATIO_MAX),
+
+	REG_VARIABLE(CFG_MAWC_NLO_INIT_SCAN_INTERVAL_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, mawc_nlo_init_scan_interval,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_MAWC_NLO_INIT_SCAN_INTERVAL_DEFAULT,
+		CFG_MAWC_NLO_INIT_SCAN_INTERVAL_MIN,
+		CFG_MAWC_NLO_INIT_SCAN_INTERVAL_MAX),
+
+	REG_VARIABLE(CFG_MAWC_NLO_MAX_SCAN_INTERVAL_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, mawc_nlo_max_scan_interval,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_MAWC_NLO_MAX_SCAN_INTERVAL_DEFAULT,
+		CFG_MAWC_NLO_MAX_SCAN_INTERVAL_MIN,
+		CFG_MAWC_NLO_MAX_SCAN_INTERVAL_MAX),
+
 	REG_VARIABLE(CFG_11B_NUM_TX_CHAIN_NAME, WLAN_PARAM_Integer,
 		struct hdd_config, num_11b_tx_chains,
 		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -6423,6 +6451,18 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_debug("Name = [%s] Value = [%u]",
 		CFG_HW_FILTER_MODE_NAME,
 		pHddCtx->config->hw_filter_mode);
+	hdd_debug("Name = [%s] Value = [%u]",
+		CFG_MAWC_NLO_ENABLED_NAME,
+		pHddCtx->config->mawc_nlo_enabled);
+	hdd_debug("Name = [%s] Value = [%u]",
+		CFG_MAWC_NLO_EXP_BACKOFF_RATIO_NAME,
+		pHddCtx->config->mawc_nlo_exp_backoff_ratio);
+	hdd_debug("Name = [%s] Value = [%u]",
+		CFG_MAWC_NLO_INIT_SCAN_INTERVAL_NAME,
+		pHddCtx->config->mawc_nlo_init_scan_interval);
+	hdd_debug("Name = [%s] Value = [%u]",
+		CFG_MAWC_NLO_MAX_SCAN_INTERVAL_NAME,
+		pHddCtx->config->mawc_nlo_max_scan_interval);
 	hdd_debug("Name = [%s] Value = [%u]",
 		CFG_AUTO_DETECT_POWER_FAIL_MODE_NAME,
 		pHddCtx->config->auto_pwr_save_fail_mode);

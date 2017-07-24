@@ -3091,6 +3091,19 @@ struct connected_pno_band_rssi_pref {
 };
 
 /**
+ * struct sir_nlo_mawc_params - MAWC based NLO configuration
+ * @mawc_nlo_enabled: enable/disable MAWC based NLO
+ * @exp_backoff_ratio: MAWC based NLO exponential backoff ratio
+ * @init_scan_interval: MAWC based NLO initial scan interval
+ * @max_scan_interval: MAWC based NLO maximum scan interval
+ */
+struct sir_nlo_mawc_params {
+	bool mawc_nlo_enabled;
+	uint32_t exp_backoff_ratio;
+	uint32_t init_scan_interval;
+	uint32_t max_scan_interval;
+};
+/**
  * struct sSirPNOScanReq - PNO Scan request structure
  * @enable: flag to enable or disable
  * @modePNO: PNO Mode
@@ -3124,6 +3137,7 @@ typedef struct sSirPNOScanReq {
 	uint32_t delay_start_time;
 	uint8_t fast_scan_max_cycles;
 	uint32_t scan_backoff_multiplier;
+	struct sir_nlo_mawc_params mawc_params;
 	uint32_t        active_min_time;
 	uint32_t        active_max_time;
 	uint32_t        passive_min_time;

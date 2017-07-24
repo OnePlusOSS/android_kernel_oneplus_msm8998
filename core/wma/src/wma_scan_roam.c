@@ -3286,6 +3286,7 @@ void wma_set_pno_channel_prediction(uint8_t *buf_ptr,
 QDF_STATUS wma_pno_start(tp_wma_handle wma, tpSirPNOScanReq pno)
 {
 	struct pno_scan_req_params *params;
+	struct nlo_mawc_params *mawc_params = NULL;
 	uint32_t i;
 	uint32_t num_channels;
 	uint32_t *channel_list = NULL;
@@ -3388,12 +3389,30 @@ QDF_STATUS wma_pno_start(tp_wma_handle wma, tpSirPNOScanReq pno)
 		WMA_LOGD("PNO start request sent successfully for vdev %d",
 			 pno->sessionId);
 	}
+	mawc_params = qdf_mem_malloc(sizeof(*mawc_params));
+	if (mawc_params == NULL) {
+		WMA_LOGE("%s : MAWC Memory allocation failed", __func__);
+		status = QDF_STATUS_E_NOMEM;
+		goto exit_pno_start;
+	}
+	mawc_params->vdev_id = pno->sessionId;
+	mawc_params->enable = pno->mawc_params.mawc_nlo_enabled;
+	mawc_params->exp_backoff_ratio = pno->mawc_params.exp_backoff_ratio;
+	mawc_params->init_scan_interval = pno->mawc_params.init_scan_interval;
+	mawc_params->max_scan_interval = pno->mawc_params.max_scan_interval;
+	status = wmi_unified_nlo_mawc_cmd(wma->wmi_handle, mawc_params);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		WMA_LOGD("Failed to send NLO MAWC cmd for vdev %d",
+			 pno->sessionId);
+	}
 
 exit_pno_start:
 	if (channel_list)
 		qdf_mem_free(channel_list);
 	if (params)
 		qdf_mem_free(params);
+	if (mawc_params)
+		qdf_mem_free(mawc_params);
 	return status;
 }
 

@@ -82,6 +82,39 @@ static atomic_t cds_wrapper_empty_count;
 static uint8_t cds_multicast_logging;
 
 void cds_sys_probe_thread_cback(void *pUserData);
+static void cds_trigger_recovery_work(void *param);
+
+/**
+ * cds_recovery_work_init() - Initialize recovery work queue
+ *
+ * Return: none
+ */
+static QDF_STATUS cds_recovery_work_init(void)
+{
+	qdf_create_work(0, &gp_cds_context->cds_recovery_work,
+			cds_trigger_recovery_work, NULL);
+	gp_cds_context->cds_recovery_wq =
+		qdf_create_workqueue("cds_recovery_workqueue");
+	if (NULL == gp_cds_context->cds_recovery_wq) {
+		cds_err("Failed to create cds_recovery_workqueue");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
+
+/**
+ * cds_recovery_work_deinit() - Initialize recovery work queue
+ *
+ * Return: none
+ */
+static void cds_recovery_work_deinit(void)
+{
+	if (gp_cds_context->cds_recovery_wq) {
+		qdf_flush_workqueue(0, gp_cds_context->cds_recovery_wq);
+		qdf_destroy_workqueue(0, gp_cds_context->cds_recovery_wq);
+	}
+}
 
 /**
  * cds_init() - Initialize CDS
@@ -113,6 +146,8 @@ v_CONTEXT_t cds_init(void)
 
 	cds_ssr_protect_init();
 
+	cds_recovery_work_init();
+
 	return gp_cds_context;
 }
 
@@ -126,6 +161,7 @@ void cds_deinit(void)
 	if (gp_cds_context == NULL)
 		return;
 
+	cds_recovery_work_deinit();
 	qdf_mc_timer_manager_exit();
 	qdf_mem_exit();
 	qdf_lock_stats_deinit();
@@ -1787,11 +1823,11 @@ schedule_recovery:
 #endif
 
 /**
- * cds_trigger_recovery() - trigger self recovery
+ * cds_trigger_recovery_work() - trigger self recovery work
  *
  * Return: none
  */
-void cds_trigger_recovery(void)
+static void cds_trigger_recovery_work(void *param)
 {
 	QDF_STATUS status;
 	struct qdf_runtime_lock recovery_lock;
@@ -1810,7 +1846,7 @@ void cds_trigger_recovery(void)
 
 	status = qdf_runtime_lock_init(&recovery_lock);
 	if (QDF_IS_STATUS_ERROR(status)) {
-		cds_err("Failed to acquire runtime pm lock; status:%d", status);
+		cds_err("qdf_runtime_lock_init failed, status: %d", status);
 		return;
 	}
 
@@ -1820,6 +1856,21 @@ void cds_trigger_recovery(void)
 
 	qdf_runtime_pm_allow_suspend(&recovery_lock);
 	qdf_runtime_lock_deinit(&recovery_lock);
+}
+
+/**
+ * cds_trigger_recovery() - trigger self recovery
+ *
+ * Return: none
+ */
+void cds_trigger_recovery(void)
+{
+	if (in_atomic()) {
+		qdf_queue_work(0, gp_cds_context->cds_recovery_wq,
+				&gp_cds_context->cds_recovery_work);
+		return;
+	}
+	cds_trigger_recovery_work(NULL);
 }
 
 /**

@@ -335,7 +335,8 @@ typedef struct _cds_context_type {
 	uint16_t unsafe_channel_list[NUM_CHANNELS];
 	/* current system preference */
 	uint8_t cur_conc_system_pref;
-
+	qdf_work_t cds_recovery_work;
+	qdf_workqueue_t *cds_recovery_wq;
 } cds_context_type, *p_cds_contextType;
 
 extern struct _cds_sched_context *gp_cds_sched_context;

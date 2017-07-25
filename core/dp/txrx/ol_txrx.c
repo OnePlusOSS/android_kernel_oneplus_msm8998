@@ -1834,6 +1834,8 @@ static void ol_tx_free_descs_inuse(ol_txrx_pdev_handle pdev)
  */
 void ol_txrx_pdev_pre_detach(ol_txrx_pdev_handle pdev, int force)
 {
+	struct hif_opaque_softc *osc =  cds_get_context(QDF_MODULE_ID_HIF);
+
 	/* preconditions */
 	TXRX_ASSERT2(pdev);
 
@@ -1914,6 +1916,8 @@ void ol_txrx_pdev_pre_detach(ol_txrx_pdev_handle pdev, int force)
 	OL_RX_REORDER_TRACE_DETACH(pdev);
 	OL_RX_PN_TRACE_DETACH(pdev);
 
+	htt_pktlogmod_exit(pdev, osc);
+
 	/*
 	 * WDI event detach
 	 */
@@ -1939,16 +1943,12 @@ void ol_txrx_pdev_pre_detach(ol_txrx_pdev_handle pdev, int force)
  */
 void ol_txrx_pdev_detach(ol_txrx_pdev_handle pdev)
 {
-	struct hif_opaque_softc *osc =  cds_get_context(QDF_MODULE_ID_HIF);
-
 	/*checking to ensure txrx pdev structure is not NULL */
 	if (!pdev) {
 		ol_txrx_err(
 			   "NULL pdev passed to %s\n", __func__);
 		return;
 	}
-
-	htt_pktlogmod_exit(pdev, osc);
 
 	OL_RX_REORDER_TIMEOUT_CLEANUP(pdev);
 

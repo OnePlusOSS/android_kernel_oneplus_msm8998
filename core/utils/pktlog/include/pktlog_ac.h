@@ -134,6 +134,8 @@ void pktlog_callback(void *pdev, enum WDI_EVENT event, void *log_data);
 void pktlog_init(struct hif_opaque_softc *scn);
 int pktlog_enable(struct hif_opaque_softc *scn, int32_t log_state,
 		 bool, uint8_t, uint32_t);
+int __pktlog_enable(struct hif_opaque_softc *scn, int32_t log_state,
+		 bool, uint8_t, uint32_t);
 int pktlog_setsize(struct hif_opaque_softc *scn, int32_t log_state);
 int pktlog_clearbuff(struct hif_opaque_softc *scn, bool clear_buff);
 int pktlog_disable(struct hif_opaque_softc *scn);
@@ -168,6 +170,12 @@ static int pktlog_enable(struct hif_opaque_softc *scn, int32_t log_state,
 {
 	return 0;
 }
+static int __pktlog_enable(struct hif_opaque_softc *scn, int32_t log_state,
+			 bool ini, uint8_t user, uint32_t is_iwpriv_command)
+{
+	return 0;
+}
+
 static int pktlog_setsize(struct hif_opaque_softc *scn, int32_t log_state)
 {
 	return 0;

@@ -388,7 +388,7 @@ void pktlog_init(struct hif_opaque_softc *scn)
 	PKTLOG_SW_EVENT_SUBSCRIBER.callback = pktlog_callback;
 }
 
-static int __pktlog_enable(struct hif_opaque_softc *scn, int32_t log_state,
+int __pktlog_enable(struct hif_opaque_softc *scn, int32_t log_state,
 		 bool ini_triggered, uint8_t user_triggered,
 		 uint32_t is_iwpriv_command)
 {

@@ -532,6 +532,12 @@ static void pktlog_detach(struct hif_opaque_softc *scn)
 	}
 
 	pl_info = pl_dev->pl_info;
+	if (!pl_info) {
+		qdf_print("%s: Invalid pktlog handle", __func__);
+		ASSERT(0);
+		return;
+	}
+	mutex_lock(&pl_info->pktlog_mutex);
 	remove_proc_entry(WLANDEV_BASENAME, g_pktlog_pde);
 	pktlog_sysctl_unregister(pl_dev);
 
@@ -542,6 +548,7 @@ static void pktlog_detach(struct hif_opaque_softc *scn)
 		pl_dev->tgt_pktlog_alloced = false;
 	}
 	spin_unlock_bh(&pl_info->log_lock);
+	mutex_unlock(&pl_info->pktlog_mutex);
 	pktlog_cleanup(pl_info);
 
 	if (pl_dev) {
@@ -555,33 +562,19 @@ static int __pktlog_open(struct inode *i, struct file *f)
 	struct hif_opaque_softc *scn;
 	struct ol_pktlog_dev_t *pl_dev;
 	struct ath_pktlog_info *pl_info;
+	struct ath_pktlog_info_lnx *pl_info_lnx;
 	int ret = 0;
 
 	PKTLOG_MOD_INC_USE_COUNT;
-	pl_info = (struct ath_pktlog_info *)
-			PDE_DATA(f->f_path.dentry->d_inode);
-
-	if (!pl_info) {
-		pr_err("%s: pl_info NULL", __func__);
-		return -EINVAL;
-	}
-
-	if (pl_info->curr_pkt_state != PKTLOG_OPR_NOT_IN_PROGRESS) {
-		pr_info("%s: plinfo state (%d) != PKTLOG_OPR_NOT_IN_PROGRESS",
-			__func__, pl_info->curr_pkt_state);
-		return -EBUSY;
-	}
 
 	if (cds_is_module_state_transitioning()) {
 		pr_info("%s: module transition in progress", __func__);
 		return -EAGAIN;
 	}
 
-	pl_info->curr_pkt_state = PKTLOG_OPR_IN_PROGRESS_READ_START;
 	scn = cds_get_context(QDF_MODULE_ID_HIF);
 	if (!scn) {
-		pl_info->curr_pkt_state = PKTLOG_OPR_NOT_IN_PROGRESS;
-		qdf_print("%s: Invalid scn context\n", __func__);
+		qdf_print("%s: Invalid scn context", __func__);
 		ASSERT(0);
 		return -EINVAL;
 	}
@@ -589,11 +582,37 @@ static int __pktlog_open(struct inode *i, struct file *f)
 	pl_dev = get_pl_handle((struct hif_opaque_softc *)scn);
 
 	if (!pl_dev) {
-		pl_info->curr_pkt_state = PKTLOG_OPR_NOT_IN_PROGRESS;
-		qdf_print("%s: Invalid pktlog handle\n", __func__);
+		qdf_print("%s: Invalid pktlog handle", __func__);
 		ASSERT(0);
 		return -ENODEV;
 	}
+
+	pl_info = pl_dev->pl_info;
+
+	if (!pl_info) {
+		qdf_print("%s: pl_info NULL", __func__);
+		return -EINVAL;
+	}
+
+	mutex_lock(&pl_info->pktlog_mutex);
+	pl_info_lnx = (pl_dev) ? PL_INFO_LNX(pl_dev->pl_info) :
+		      PL_INFO_LNX(g_pktlog_info);
+
+	if (!pl_info_lnx->sysctl_header) {
+		mutex_unlock(&pl_info->pktlog_mutex);
+		qdf_print("%s: pktlog sysctl is unergistered.", __func__);
+		ASSERT(0);
+		return -EINVAL;
+	}
+
+	if (pl_info->curr_pkt_state != PKTLOG_OPR_NOT_IN_PROGRESS) {
+		mutex_unlock(&pl_info->pktlog_mutex);
+		qdf_print("%s: plinfo state (%d) != PKTLOG_OPR_NOT_IN_PROGRESS",
+			__func__, pl_info->curr_pkt_state);
+		return -EBUSY;
+	}
+
+	pl_info->curr_pkt_state = PKTLOG_OPR_IN_PROGRESS_READ_START;
 
 	pl_info->init_saved_state = pl_info->log_state;
 	if (!pl_info->log_state) {
@@ -602,6 +621,7 @@ static int __pktlog_open(struct inode *i, struct file *f)
 		 */
 		pl_info->curr_pkt_state =
 			PKTLOG_OPR_IN_PROGRESS_READ_START_PKTLOG_DISABLED;
+		mutex_unlock(&pl_info->pktlog_mutex);
 		return ret;
 	}
 	/* Disbable the pktlog internally. */
@@ -609,6 +629,7 @@ static int __pktlog_open(struct inode *i, struct file *f)
 	pl_info->log_state = 0;
 	pl_info->curr_pkt_state =
 			PKTLOG_OPR_IN_PROGRESS_READ_START_PKTLOG_DISABLED;
+	mutex_unlock(&pl_info->pktlog_mutex);
 	return ret;
 }
 
@@ -628,15 +649,10 @@ static int __pktlog_release(struct inode *i, struct file *f)
 	struct hif_opaque_softc *scn;
 	struct ol_pktlog_dev_t *pl_dev;
 	struct ath_pktlog_info *pl_info;
+	struct ath_pktlog_info_lnx *pl_info_lnx;
 	int ret = 0;
 
 	PKTLOG_MOD_DEC_USE_COUNT;
-
-	pl_info = (struct ath_pktlog_info *)
-			PDE_DATA(f->f_path.dentry->d_inode);
-
-	if (!pl_info)
-		return -EINVAL;
 
 	if (cds_is_module_state_transitioning()) {
 		pr_info("%s: module transition in progress", __func__);
@@ -645,8 +661,7 @@ static int __pktlog_release(struct inode *i, struct file *f)
 
 	scn = cds_get_context(QDF_MODULE_ID_HIF);
 	if (!scn) {
-		pl_info->curr_pkt_state = PKTLOG_OPR_NOT_IN_PROGRESS;
-		qdf_print("%s: Invalid scn context\n", __func__);
+		qdf_print("%s: Invalid scn context", __func__);
 		ASSERT(0);
 		return -EINVAL;
 	}
@@ -654,10 +669,29 @@ static int __pktlog_release(struct inode *i, struct file *f)
 	pl_dev = get_pl_handle((struct hif_opaque_softc *)scn);
 
 	if (!pl_dev) {
-		pl_info->curr_pkt_state = PKTLOG_OPR_NOT_IN_PROGRESS;
-		qdf_print("%s: Invalid pktlog handle\n", __func__);
+		qdf_print("%s: Invalid pktlog handle", __func__);
 		ASSERT(0);
 		return -ENODEV;
+	}
+
+	pl_info = pl_dev->pl_info;
+
+	if (!pl_info) {
+		qdf_print("%s: Invalid pktlog info", __func__);
+		ASSERT(0);
+		return -EINVAL;
+	}
+
+	mutex_lock(&pl_info->pktlog_mutex);
+	pl_info_lnx = (pl_dev) ? PL_INFO_LNX(pl_dev->pl_info) :
+		      PL_INFO_LNX(g_pktlog_info);
+
+	if (!pl_info_lnx->sysctl_header) {
+		pl_info->curr_pkt_state = PKTLOG_OPR_NOT_IN_PROGRESS;
+		mutex_unlock(&pl_info->pktlog_mutex);
+		qdf_print("%s: pktlog sysctl is unergistered.", __func__);
+		ASSERT(0);
+		return -EINVAL;
 	}
 
 	pl_info->curr_pkt_state = PKTLOG_OPR_IN_PROGRESS_READ_COMPLETE;
@@ -667,14 +701,16 @@ static int __pktlog_release(struct inode *i, struct file *f)
 	pl_info->init_saved_state = 0;
 
 	/*Enable pktlog again*/
-	ret = pl_dev->pl_funcs->pktlog_enable(
+	ret = __pktlog_enable(
 			(struct hif_opaque_softc *)scn, pl_info->log_state,
 			cds_is_packet_log_enabled(), 0, 1);
-	if (ret != 0)
-		pr_warn("%s: pktlog cannot be enabled. ret value %d\n",
-			__func__, ret);
 
 	pl_info->curr_pkt_state = PKTLOG_OPR_NOT_IN_PROGRESS;
+	mutex_unlock(&pl_info->pktlog_mutex);
+	if (ret != 0)
+		qdf_print("%s: pktlog cannot be enabled. ret value %d",
+			__func__, ret);
+
 	return ret;
 }
 

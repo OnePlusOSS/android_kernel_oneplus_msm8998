@@ -1807,4 +1807,16 @@ void sme_set_chan_info_callback(tHalHandle hal_handle,
 
 QDF_STATUS sme_send_limit_off_chan_cmd(tHalHandle hal,
 		struct sir_limit_off_chan *param);
+
+/**
+ * sme_set_bmiss_bcnt() - set bmiss config parameters
+ * @vdev_id: virtual device for the command
+ * @first_cnt: bmiss first value
+ * @final_cnt: bmiss final value
+ *
+ * Return: QDF_STATUS_SUCCESS or non-zero on failure
+ */
+QDF_STATUS sme_set_bmiss_bcnt(uint32_t vdev_id, uint32_t first_cnt,
+		uint32_t final_cnt);
+
 #endif /* #if !defined( __SME_API_H ) */

@@ -2652,4 +2652,16 @@ QDF_STATUS wma_configure_smps_params(uint32_t vdev_id, uint32_t param_id,
  */
 int wma_chan_info_event_handler(void *handle, u_int8_t *event_buf,
 						u_int32_t len);
+
+/**
+ * wma_config_bmiss_bcnt_params() - set bmiss config parameters
+ * @vdev_id: virtual device for the command
+ * @first_cnt: bmiss first value
+ * @final_cnt: bmiss final value
+ *
+ * Return: QDF_STATUS_SUCCESS or non-zero on failure
+ */
+QDF_STATUS wma_config_bmiss_bcnt_params(uint32_t vdev_id, uint32_t first_cnt,
+		uint32_t final_cnt);
+
 #endif

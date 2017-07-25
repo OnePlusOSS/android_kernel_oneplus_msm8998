@@ -18273,3 +18273,17 @@ QDF_STATUS sme_send_limit_off_chan_cmd(tHalHandle hal,
 	}
 	return QDF_STATUS_SUCCESS;
 }
+
+/**
+ * sme_set_bmiss_bcnt() - set bmiss config parameters
+ * @vdev_id: virtual device for the command
+ * @first_cnt: bmiss first value
+ * @final_cnt: bmiss final value
+ *
+ * Return: QDF_STATUS_SUCCESS or non-zero on failure
+ */
+QDF_STATUS sme_set_bmiss_bcnt(uint32_t vdev_id, uint32_t first_cnt,
+		uint32_t final_cnt)
+{
+	return wma_config_bmiss_bcnt_params(vdev_id, first_cnt, final_cnt);
+}

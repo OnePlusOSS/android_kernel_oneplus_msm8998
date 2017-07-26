@@ -425,7 +425,7 @@ int hdd_lro_init(hdd_context_t *hdd_ctx)
 	lro_config.lro_enable = 1;
 	lro_config.tcp_flag = TCPHDR_ACK;
 	lro_config.tcp_flag_mask = TCPHDR_FIN | TCPHDR_SYN | TCPHDR_RST |
-		TCPHDR_ACK | TCPHDR_URG | TCPHDR_ECE | TCPHDR_CWR;
+		TCPHDR_PSH | TCPHDR_ACK | TCPHDR_URG | TCPHDR_ECE | TCPHDR_CWR;
 
 	get_random_bytes(lro_config.toeplitz_hash_ipv4,
 		 (sizeof(lro_config.toeplitz_hash_ipv4[0]) *

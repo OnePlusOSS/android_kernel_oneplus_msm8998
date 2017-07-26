@@ -476,7 +476,10 @@ static void wma_vdev_detach_callback(void *ctx)
 	if (iface->stats_rsp)
 		qdf_mem_free(iface->stats_rsp);
 
+	wma_vdev_deinit(iface);
 	qdf_mem_zero(iface, sizeof(*iface));
+	wma_vdev_init(iface);
+
 	param->status = QDF_STATUS_SUCCESS;
 	wma_send_del_sta_self_resp(param);
 }
@@ -585,15 +588,9 @@ static QDF_STATUS wma_handle_vdev_detach(tp_wma_handle wma_handle,
 
 	/* Acquire wake lock only when you expect a response from firmware */
 	if (WMI_SERVICE_IS_ENABLED(wma_handle->wmi_service_bitmap,
-				    WMI_SERVICE_SYNC_DELETE_CMDS)) {
-		cds_host_diag_log_work(&wma_handle->wmi_cmd_rsp_wake_lock,
-					 WMA_FW_RSP_EVENT_WAKE_LOCK_DURATION,
-					 WIFI_POWER_EVENT_WAKELOCK_WMI_CMD_RSP);
-		qdf_wake_lock_timeout_acquire(
-					 &wma_handle->wmi_cmd_rsp_wake_lock,
+				   WMI_SERVICE_SYNC_DELETE_CMDS)) {
+		wma_acquire_wakelock(&wma_handle->wmi_cmd_rsp_wake_lock,
 					 WMA_FW_RSP_EVENT_WAKE_LOCK_DURATION);
-		qdf_runtime_pm_prevent_suspend(
-					&wma_handle->wmi_cmd_rsp_runtime_lock);
 	}
 	WMA_LOGD("Call txrx detach with callback for vdev %d", vdev_id);
 	ol_txrx_vdev_detach(iface->handle, NULL, NULL);
@@ -920,14 +917,11 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 	tpAniSirGlobal mac_ctx = cds_get_context(QDF_MODULE_ID_PE);
 
 	if (NULL == mac_ctx) {
-		wma_release_wmi_resp_wakelock(wma);
 		WMA_LOGE("%s: Failed to get mac_ctx", __func__);
 		cds_set_do_hw_mode_change_flag(false);
 		return -EINVAL;
 	}
 #endif /* FEATURE_AP_MCC_CH_AVOIDANCE */
-
-	wma_release_wmi_resp_wakelock(wma);
 
 	WMA_LOGD("%s: Enter", __func__);
 	param_buf = (WMI_VDEV_START_RESP_EVENTID_param_tlvs *) cmd_param_info;
@@ -1075,18 +1069,15 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 
 			param.vdev_id = resp_event->vdev_id;
 			param.assoc_id = iface->aid;
-			status = wmi_unified_vdev_up_send(wma->wmi_handle,
-						 iface->bssid,
-						 &param);
+			status = wma_send_vdev_up_to_fw(wma, &param,
+							iface->bssid);
 			if (QDF_IS_STATUS_ERROR(status)) {
 				WMA_LOGE("%s:vdev_up failed vdev_id %d",
 					 __func__, resp_event->vdev_id);
-				wma->interfaces[resp_event->vdev_id].vdev_up =
-					false;
+				iface->vdev_up = false;
 				cds_set_do_hw_mode_change_flag(false);
 			} else {
-				wma->interfaces[resp_event->vdev_id].vdev_up =
-					true;
+				iface->vdev_up = true;
 				if (iface->beacon_filter_enabled)
 					wma_add_beacon_filter(wma,
 							&iface->beacon_filter);
@@ -1103,9 +1094,8 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 	} else if (req_msg->msg_type == WMA_OCB_SET_CONFIG_CMD) {
 		param.vdev_id = resp_event->vdev_id;
 		param.assoc_id = iface->aid;
-		if (wmi_unified_vdev_up_send(wma->wmi_handle,
-					     iface->bssid,
-					     &param) != QDF_STATUS_SUCCESS) {
+		if (wma_send_vdev_up_to_fw(wma, &param, iface->bssid) !=
+		    QDF_STATUS_SUCCESS) {
 			WMA_LOGE(FL("failed to send vdev up"));
 			cds_set_do_hw_mode_change_flag(false);
 			return -EEXIST;
@@ -1670,12 +1660,9 @@ wma_send_del_bss_response(tp_wma_handle wma, struct wma_target_req *req,
 		return;
 	}
 
-	params = (tpDeleteBssParams) req->user_data;
-	if (wmi_unified_vdev_down_send(wma->wmi_handle,
-				vdev_id) !=
-				QDF_STATUS_SUCCESS) {
-		WMA_LOGE("Failed to send vdev down cmd: vdev %d",
-		 vdev_id);
+	params = (tpDeleteBssParams)req->user_data;
+	if (wma_send_vdev_down_to_fw(wma, vdev_id) != QDF_STATUS_SUCCESS) {
+		WMA_LOGE("Failed to send vdev down cmd: vdev %d", vdev_id);
 	} else {
 		wma->interfaces[vdev_id].vdev_up = false;
 		wma_check_and_find_mcc_ap(wma, vdev_id);
@@ -1749,17 +1736,6 @@ int wma_vdev_stop_resp_handler(void *handle, uint8_t *cmd_param_info,
 	uint8_t peer_id;
 	struct wma_txrx_node *iface;
 	int32_t status = 0;
-#ifdef FEATURE_AP_MCC_CH_AVOIDANCE
-	tpAniSirGlobal mac_ctx = cds_get_context(QDF_MODULE_ID_PE);
-
-	if (NULL == mac_ctx) {
-		wma_release_wmi_resp_wakelock(wma);
-		WMA_LOGE("%s: Failed to get mac_ctx", __func__);
-		return -EINVAL;
-	}
-#endif /* FEATURE_AP_MCC_CH_AVOIDANCE */
-
-	wma_release_wmi_resp_wakelock(wma);
 
 	WMA_LOGD("%s: Enter", __func__);
 	param_buf = (WMI_VDEV_STOPPED_EVENTID_param_tlvs *) cmd_param_info;
@@ -1767,7 +1743,10 @@ int wma_vdev_stop_resp_handler(void *handle, uint8_t *cmd_param_info,
 		WMA_LOGE("Invalid event buffer");
 		return -EINVAL;
 	}
+
 	resp_event = param_buf->fixed_param;
+	iface = &wma->interfaces[resp_event->vdev_id];
+	wma_release_wakelock(&iface->vdev_stop_wakelock);
 
 	req_msg = wma_find_vdev_req(wma, resp_event->vdev_id,
 				    WMA_TARGET_REQ_TYPE_VDEV_STOP, true);
@@ -1824,7 +1803,6 @@ int wma_vdev_stop_resp_handler(void *handle, uint8_t *cmd_param_info,
 			goto free_req_msg;
 		}
 
-		iface = &wma->interfaces[resp_event->vdev_id];
 		if (iface->handle == NULL) {
 			WMA_LOGE("%s vdev id %d is already deleted",
 				 __func__, resp_event->vdev_id);
@@ -1912,9 +1890,8 @@ int wma_vdev_stop_resp_handler(void *handle, uint8_t *cmd_param_info,
 				}
 			}
 		}
-		if (wmi_unified_vdev_down_send(wma->wmi_handle,
-					req_msg->vdev_id) !=
-					QDF_STATUS_SUCCESS) {
+		if (wma_send_vdev_down_to_fw(wma, req_msg->vdev_id) !=
+		    QDF_STATUS_SUCCESS) {
 			WMA_LOGE("Failed to send vdev down cmd: vdev %d",
 				req_msg->vdev_id);
 		}
@@ -2617,9 +2594,9 @@ int wma_vdev_delete_handler(void *handle, uint8_t *cmd_param_info,
 				event->vdev_id);
 		return -EINVAL;
 	}
-	qdf_wake_lock_release(&wma->wmi_cmd_rsp_wake_lock,
-				WIFI_POWER_EVENT_WAKELOCK_WMI_CMD_RSP);
-	qdf_runtime_pm_allow_suspend(&wma->wmi_cmd_rsp_runtime_lock);
+
+	wma_release_wakelock(&wma->wmi_cmd_rsp_wake_lock);
+
 	/* Send response to upper layers */
 	wma_vdev_detach_callback(req_msg->user_data);
 	qdf_mc_timer_stop(&req_msg->event_timeout);
@@ -2674,10 +2651,9 @@ int wma_peer_delete_handler(void *handle, uint8_t *cmd_param_info,
 		return -EINVAL;
 	}
 
-	qdf_wake_lock_release(&wma->wmi_cmd_rsp_wake_lock,
-				WIFI_POWER_EVENT_WAKELOCK_WMI_CMD_RSP);
-	qdf_runtime_pm_allow_suspend(&wma->wmi_cmd_rsp_runtime_lock);
-		/* Cleanup timeout handler */
+	wma_release_wakelock(&wma->wmi_cmd_rsp_wake_lock);
+
+	/* Cleanup timeout handler */
 	qdf_mc_timer_stop(&req_msg->event_timeout);
 	qdf_mc_timer_destroy(&req_msg->event_timeout);
 
@@ -2701,9 +2677,8 @@ int wma_peer_delete_handler(void *handle, uint8_t *cmd_param_info,
 	} else if (req_msg->type == WMA_SET_LINK_PEER_RSP) {
 		tpLinkStateParams params =
 			(tpLinkStateParams) req_msg->user_data;
-		if (wmi_unified_vdev_down_send(wma->wmi_handle,
-				req_msg->vdev_id) !=
-				QDF_STATUS_SUCCESS) {
+		if (wma_send_vdev_down_to_fw(wma, req_msg->vdev_id) !=
+		    QDF_STATUS_SUCCESS) {
 			WMA_LOGE("Failed to send vdev down cmd: vdev %d",
 					req_msg->vdev_id);
 		}
@@ -3037,8 +3012,8 @@ void wma_vdev_resp_timer(void *data)
 					peer, false);
 		}
 
-		if (wmi_unified_vdev_down_send(wma->wmi_handle,
-				tgt_req->vdev_id) != QDF_STATUS_SUCCESS) {
+		if (wma_send_vdev_down_to_fw(wma, tgt_req->vdev_id) !=
+		    QDF_STATUS_SUCCESS) {
 			WMA_LOGE("Failed to send vdev down cmd: vdev %d",
 				 tgt_req->vdev_id);
 		} else {
@@ -3086,11 +3061,8 @@ void wma_vdev_resp_timer(void *data)
 			(struct del_sta_self_params *) iface->del_staself_req;
 
 		if (WMI_SERVICE_IS_ENABLED(wma->wmi_service_bitmap,
-			 WMI_SERVICE_SYNC_DELETE_CMDS)) {
-			qdf_wake_lock_release(&wma->wmi_cmd_rsp_wake_lock,
-				WIFI_POWER_EVENT_WAKELOCK_WMI_CMD_RSP);
-			qdf_runtime_pm_allow_suspend(
-				&wma->wmi_cmd_rsp_runtime_lock);
+					   WMI_SERVICE_SYNC_DELETE_CMDS)) {
+			wma_release_wakelock(&wma->wmi_cmd_rsp_wake_lock);
 		}
 		params->status = QDF_STATUS_E_TIMEOUT;
 
@@ -3140,9 +3112,8 @@ void wma_vdev_resp_timer(void *data)
 			wma_remove_peer(wma, params->bssid, tgt_req->vdev_id,
 					peer, false);
 		}
-		if (wmi_unified_vdev_down_send(wma->wmi_handle,
-					tgt_req->vdev_id) !=
-					QDF_STATUS_SUCCESS) {
+		if (wma_send_vdev_down_to_fw(wma, tgt_req->vdev_id) !=
+		    QDF_STATUS_SUCCESS) {
 			WMA_LOGE("Failed to send vdev down cmd: vdev %d",
 				tgt_req->vdev_id);
 		}
@@ -4496,8 +4467,8 @@ static void wma_add_sta_req_sta_mode(tp_wma_handle wma, tpAddStaParams params)
 
 	param.vdev_id = params->smesessionId;
 	param.assoc_id = params->assocId;
-	if (wmi_unified_vdev_up_send(wma->wmi_handle, params->bssId,
-				     &param) != QDF_STATUS_SUCCESS) {
+	if (wma_send_vdev_up_to_fw(wma, &param, params->bssId) !=
+	    QDF_STATUS_SUCCESS) {
 		WMA_LOGE("%s: Failed to send vdev up cmd: vdev %d bssid %pM",
 			 __func__, params->smesessionId, params->bssId);
 		cds_set_do_hw_mode_change_flag(false);
@@ -4606,16 +4577,10 @@ static void wma_delete_sta_req_ap_mode(tp_wma_handle wma,
 			del_sta->status = QDF_STATUS_E_NOMEM;
 			goto send_del_rsp;
 		}
-		/*
-		 * Acquire wake lock and bus lock till
-		 * firmware sends the response
-		 */
-		cds_host_diag_log_work(&wma->wmi_cmd_rsp_wake_lock,
-				      WMA_FW_RSP_EVENT_WAKE_LOCK_DURATION,
-				      WIFI_POWER_EVENT_WAKELOCK_WMI_CMD_RSP);
-		qdf_wake_lock_timeout_acquire(&wma->wmi_cmd_rsp_wake_lock,
-				      WMA_FW_RSP_EVENT_WAKE_LOCK_DURATION);
-		qdf_runtime_pm_prevent_suspend(&wma->wmi_cmd_rsp_runtime_lock);
+
+		wma_acquire_wakelock(&wma->wmi_cmd_rsp_wake_lock,
+				     WMA_FW_RSP_EVENT_WAKE_LOCK_DURATION);
+
 		return;
 	}
 
@@ -4691,19 +4656,9 @@ static void wma_del_tdls_sta(tp_wma_handle wma, tpDeleteStaParams del_sta)
 			del_sta->status = QDF_STATUS_E_NOMEM;
 			goto send_del_rsp;
 		}
-		/*
-		 * Acquire wake lock and bus lock till
-		 * firmware sends the response
-		 */
-		cds_host_diag_log_work(&wma->
-				wmi_cmd_rsp_wake_lock,
-				WMA_FW_RSP_EVENT_WAKE_LOCK_DURATION,
-				WIFI_POWER_EVENT_WAKELOCK_WMI_CMD_RSP);
-		qdf_wake_lock_timeout_acquire(&wma->
-				wmi_cmd_rsp_wake_lock,
+
+		wma_acquire_wakelock(&wma->wmi_cmd_rsp_wake_lock,
 				WMA_FW_RSP_EVENT_WAKE_LOCK_DURATION);
-		qdf_runtime_pm_prevent_suspend(&wma->
-				wmi_cmd_rsp_runtime_lock);
 	}
 
 	return;

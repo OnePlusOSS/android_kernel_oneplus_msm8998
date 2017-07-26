@@ -728,6 +728,22 @@ QDF_STATUS wma_tx_packet(void *pWMA,
 			 uint8_t txFlag, uint8_t sessionId, bool tdlsflag,
 			 uint16_t channel_freq);
 
+/**
+ * wma_vdev_init() - initialize a wma vdev
+ * @vdev: the vdev to initialize
+ *
+ * Return: None
+ */
+void wma_vdev_init(struct wma_txrx_node *vdev);
+
+/**
+ * wma_vdev_deinit() - de-initialize a wma vdev
+ * @vdev: the vdev to de-initialize
+ *
+ * Return: None
+ */
+void wma_vdev_deinit(struct wma_txrx_node *vdev);
+
 QDF_STATUS wma_open(void *p_cds_context,
 		    wma_tgt_cfg_cb pTgtUpdCB,
 		    wma_dfs_radar_indication_cb radar_ind_cb,

@@ -4939,6 +4939,12 @@ static int __wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
+	if (!peer) {
+		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
+			  "%s: Invalid arguments", __func__);
+		return -EINVAL;
+	}
+
 	ret = wlan_hdd_tdls_validate_mac_addr(peer);
 	if (ret)
 		return ret;
@@ -4946,11 +4952,6 @@ static int __wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy,
 	MTRACE(qdf_trace(QDF_MODULE_ID_HDD,
 			 TRACE_CODE_HDD_CFG80211_TDLS_OPER,
 			 pAdapter->sessionId, oper));
-	if (NULL == peer) {
-		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
-			  "%s: Invalid arguments", __func__);
-		return -EINVAL;
-	}
 
 	status = wlan_hdd_validate_context(pHddCtx);
 

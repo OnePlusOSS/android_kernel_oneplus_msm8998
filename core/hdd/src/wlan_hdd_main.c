@@ -9347,6 +9347,7 @@ int hdd_wlan_stop_modules(hdd_context_t *hdd_ctx, bool ftm_mode)
 
 	mutex_lock(&hdd_ctx->iface_change_lock);
 	hdd_ctx->stop_modules_in_progress = true;
+	cds_set_module_stop_in_progress(true);
 
 	active_threads = cds_return_external_threads_count();
 	if (active_threads > 0 || hdd_ctx->isWiphySuspended) {
@@ -9360,6 +9361,7 @@ int hdd_wlan_stop_modules(hdd_context_t *hdd_ctx, bool ftm_mode)
 			qdf_mc_timer_start(&hdd_ctx->iface_change_timer,
 				hdd_ctx->config->iface_change_wait_time);
 			hdd_ctx->stop_modules_in_progress = false;
+			cds_set_module_stop_in_progress(false);
 			return 0;
 		}
 	}
@@ -9437,6 +9439,7 @@ int hdd_wlan_stop_modules(hdd_context_t *hdd_ctx, bool ftm_mode)
 
 done:
 	hdd_ctx->stop_modules_in_progress = false;
+	cds_set_module_stop_in_progress(false);
 	mutex_unlock(&hdd_ctx->iface_change_lock);
 	EXIT();
 

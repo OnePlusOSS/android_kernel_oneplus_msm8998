@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -77,7 +77,7 @@ typedef enum {
 	SYS_MSG_ID_MC_STOP,
 	SYS_MSG_ID_FTM_RSP,
 	SYS_MSG_ID_QVIT,
-
+	SYS_MSG_ID_DATA_STALL_MSG,
 } SYS_MSG_ID;
 
 /*---------------------------------------------------------------------------

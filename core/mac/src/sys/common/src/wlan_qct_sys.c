@@ -142,6 +142,7 @@ QDF_STATUS sys_mc_process_msg(v_CONTEXT_t p_cds_context, cds_msg_t *pMsg)
 {
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
 	qdf_mc_timer_callback_t timerCB;
+	data_stall_detect_cb data_stall_detect_callback;
 	tpAniSirGlobal mac_ctx;
 	void *hHal;
 
@@ -243,6 +244,12 @@ QDF_STATUS sys_mc_process_msg(v_CONTEXT_t p_cds_context, cds_msg_t *pMsg)
 			qdf_mem_free(pMsg->bodyptr);
 			break;
 
+		case SYS_MSG_ID_DATA_STALL_MSG:
+			data_stall_detect_callback = pMsg->callback;
+			if (NULL != data_stall_detect_callback)
+				data_stall_detect_callback(pMsg->bodyptr);
+			qdf_mem_free(pMsg->bodyptr);
+			break;
 		default:
 			QDF_TRACE(QDF_MODULE_ID_SYS, QDF_TRACE_LEVEL_ERROR,
 				"Unknown message type msgType= %d [0x%08x]",

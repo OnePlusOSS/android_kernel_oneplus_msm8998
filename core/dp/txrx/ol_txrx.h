@@ -148,6 +148,24 @@ ol_txrx_update_last_real_peer(
 void
 ol_txrx_dump_pkt(qdf_nbuf_t nbuf, uint32_t nbuf_paddr, int len);
 
+
+/**
+ * ol_txrx_post_data_stall_event() - post data stall event
+ * @indicator: Module triggering data stall
+ * @data_stall_type: data stall event type
+ * @pdev_id: pdev id
+ * @vdev_id_bitmap: vdev id bitmap
+ * @recovery_type: data stall recovery type
+ *
+ * Return: None
+ */
+
+void ol_txrx_post_data_stall_event(
+			enum data_stall_log_event_indicator indicator,
+			enum data_stall_log_event_type data_stall_type,
+			uint32_t pdev_id, uint32_t vdev_id_bitmap,
+			enum data_stall_log_recovery_type recovery_type);
+
 /**
  * ol_txrx_fwd_desc_thresh_check() - check to forward packet to tx path
  * @vdev: which virtual device the frames were addressed to

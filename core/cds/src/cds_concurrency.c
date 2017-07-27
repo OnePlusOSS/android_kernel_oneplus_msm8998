@@ -7597,24 +7597,32 @@ static void __cds_check_sta_ap_concurrent_ch_intf(void *data)
 		cds_concurrent_open_sessions_running());
 
 	if ((hdd_ctx->config->WlanMccToSccSwitchMode ==
-				QDF_MCC_TO_SCC_SWITCH_DISABLE)
-			|| !cds_concurrent_open_sessions_running()
-			    || !(cds_get_concurrency_mode() ==
-					(QDF_STA_MASK | QDF_SAP_MASK)))
+			QDF_MCC_TO_SCC_SWITCH_DISABLE) ||
+			!cds_concurrent_open_sessions_running() ||
+			!(cds_get_concurrency_mode() ==
+				(QDF_STA_MASK | QDF_SAP_MASK))) {
+		cds_debug("No action taken at __cds_check_sta_ap_concurrent_ch_intf");
 		goto end;
+	}
 
 	ap_adapter = hdd_get_adapter(hdd_ctx, QDF_SAP_MODE);
-	if (ap_adapter == NULL)
+	if (ap_adapter == NULL) {
+		cds_err("Invalid ap_adapter");
 		goto end;
+	}
 
-	if (!test_bit(SOFTAP_BSS_STARTED, &ap_adapter->event_flags))
+	if (!test_bit(SOFTAP_BSS_STARTED, &ap_adapter->event_flags)) {
+		cds_err("SOFTAP_BSS_STARTED not set");
 		goto end;
+	}
 
 	hdd_ap_ctx = WLAN_HDD_GET_AP_CTX_PTR(ap_adapter);
 	hal_handle = WLAN_HDD_GET_HAL_CTX(ap_adapter);
 
-	if (hal_handle == NULL)
+	if (hal_handle == NULL) {
+		cds_err("Invalid hal_handle");
 		goto end;
+	}
 
 	/*
 	 * Check if STA's channel is DFS or passive or part of LTE avoided

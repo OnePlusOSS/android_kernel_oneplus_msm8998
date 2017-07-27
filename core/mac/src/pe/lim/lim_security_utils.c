@@ -487,29 +487,6 @@ lim_restore_from_auth_state(tpAniSirGlobal pMac, tSirResultCodes resultCode,
 	lim_post_sme_message(pMac, LIM_MLM_AUTH_CNF, (uint32_t *) &mlmAuthCnf);
 } /*** end lim_restore_from_auth_state() ***/
 
-#ifdef WLAN_FEATURE_FILS_SK
-/*
- * lim_get_fils_auth_data_len: This API will return
- * extra auth data len in case of fils session
- *
- * Return: fils data len in auth packet
- */
-static int lim_get_fils_auth_data_len(void)
-{
-	int len = sizeof(tSirMacRsnInfo) +
-			sizeof(uint8_t) + /* assoc_delay_info */
-			SIR_FILS_SESSION_LENGTH +
-			sizeof(uint8_t) + /* wrapped_data_len */
-			SIR_FILS_WRAPPED_DATA_MAX_SIZE + SIR_FILS_NONCE_LENGTH;
-	return len;
-}
-#else
-static inline int lim_get_fils_auth_data_len(void)
-{
-	return 0;
-}
-#endif
-
 /**
  * lim_encrypt_auth_frame()
  *
@@ -540,9 +517,10 @@ lim_encrypt_auth_frame(tpAniSirGlobal pMac, uint8_t keyId, uint8_t *pKey,
 		       uint32_t keyLength)
 {
 	uint8_t seed[LIM_SEED_LENGTH], icv[SIR_MAC_WEP_ICV_LENGTH];
-	int frame_len;
+	uint16_t frame_len;
 
-	frame_len = sizeof(tSirMacAuthFrameBody) - lim_get_fils_auth_data_len();
+	frame_len = ((tpSirMacAuthFrameBody)pPlainText)->length +
+		     SIR_MAC_AUTH_FRAME_INFO_LEN + SIR_MAC_CHALLENGE_ID_LEN;
 	keyLength += 3;
 
 	/* Bytes 3-7 of seed is key */
@@ -557,7 +535,7 @@ lim_encrypt_auth_frame(tpAniSirGlobal pMac, uint8_t keyId, uint8_t *pKey,
 	/* Run RC4 on plain text with the seed */
 	lim_rc4(pEncrBody + SIR_MAC_WEP_IV_LENGTH,
 		(uint8_t *) pPlainText, seed, keyLength,
-		LIM_ENCR_AUTH_BODY_LEN - SIR_MAC_WEP_IV_LENGTH);
+		frame_len + SIR_MAC_WEP_ICV_LENGTH);
 
 	/* Prepare IV */
 	pEncrBody[0] = seed[0];

@@ -727,12 +727,13 @@ static void lim_process_auth_frame_type2(tpAniSirGlobal mac_ctx,
 		((tpSirMacAuthFrameBody)plainbody)->type =
 			SIR_MAC_CHALLENGE_TEXT_EID;
 		((tpSirMacAuthFrameBody)plainbody)->length =
-			SIR_MAC_AUTH_CHALLENGE_LENGTH;
+			rx_auth_frm_body->length;
 		qdf_mem_copy((uint8_t *) (
 			(tpSirMacAuthFrameBody)plainbody)->challengeText,
 			rx_auth_frm_body->challengeText,
-			SIR_MAC_AUTH_CHALLENGE_LENGTH);
-		encr_auth_frame = qdf_mem_malloc(LIM_ENCR_AUTH_BODY_LEN);
+			rx_auth_frm_body->length);
+		encr_auth_frame = qdf_mem_malloc(rx_auth_frm_body->length +
+						 LIM_ENCR_AUTH_INFO_LEN);
 		if (!encr_auth_frame) {
 			pe_err("failed to allocate memory");
 			return;
@@ -746,7 +747,7 @@ static void lim_process_auth_frame_type2(tpAniSirGlobal mac_ctx,
 					pe_session->limMlmState));
 		lim_send_auth_mgmt_frame(mac_ctx,
 				(tpSirMacAuthFrameBody)encr_auth_frame,
-				mac_hdr->sa, LIM_WEP_IN_FC,
+				mac_hdr->sa, rx_auth_frm_body->length,
 				pe_session);
 		qdf_mem_free(encr_auth_frame);
 		return;

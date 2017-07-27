@@ -780,7 +780,10 @@ static int wlan_hdd_scan_request_enqueue(hdd_adapter_t *adapter,
 	hdd_scan_req->source = source;
 	hdd_scan_req->scan_id = scan_id;
 	hdd_scan_req->timestamp = timestamp;
-	hdd_scan_req->scan_req_flags = scan_req->flags;
+	if (scan_req != NULL)
+		hdd_scan_req->scan_req_flags = scan_req->flags;
+	else
+		hdd_scan_req->scan_req_flags = 0;
 
 	qdf_spin_lock(&hdd_ctx->hdd_scan_req_q_lock);
 	status = qdf_list_insert_back(&hdd_ctx->hdd_scan_req_q,

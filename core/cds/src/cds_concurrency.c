@@ -9111,6 +9111,22 @@ bool cds_is_any_dfs_beaconing_session_present(uint8_t *channel)
 	return status;
 }
 
+static void cds_remove_dsrc_channels(uint8_t *chan_list,
+				     uint32_t *num_channels)
+{
+	uint32_t num_chan_temp = 0;
+	int i;
+
+	for (i = 0; i < *num_channels; i++) {
+		if (!cds_is_dsrc_channel(cds_chan_to_freq(chan_list[i]))) {
+			chan_list[num_chan_temp] = chan_list[i];
+			num_chan_temp++;
+		}
+	}
+
+	*num_channels = num_chan_temp;
+}
+
 /**
  * cds_get_valid_chans() - Get the valid channel list
  * @chan_list: Pointer to the valid channel list
@@ -9153,6 +9169,8 @@ QDF_STATUS cds_get_valid_chans(uint8_t *chan_list, uint32_t *list_len)
 		*list_len = 0;
 		return status;
 	}
+
+	cds_remove_dsrc_channels(chan_list, list_len);
 
 	return QDF_STATUS_SUCCESS;
 }

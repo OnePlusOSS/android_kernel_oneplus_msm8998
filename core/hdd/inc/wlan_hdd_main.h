@@ -1747,7 +1747,6 @@ struct hdd_context_s {
 	uint16_t max_num_tdls_sta;
 	/* TDLS peer connected count */
 	uint16_t connected_peer_count;
-	tdls_scan_context_t tdls_scan_ctxt;
 	/* Lock to avoid race condition during TDLS operations */
 	qdf_spinlock_t tdls_ct_spinlock;
 	/*linear mac address table for counting the packets*/

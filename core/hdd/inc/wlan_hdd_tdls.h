@@ -145,28 +145,6 @@ typedef struct {
 } tdls_config_params_t;
 
 /**
- * struct tdls_scan_context_t - tdls scan context
- *
- * @wiphy: pointer to wiphy structure
- * @dev: pointer to netdev
- * @scan_request: scan request
- * @magic: magic
- * @attempt: attempt
- * @reject: reject
- * @source: scan request source(NL/Vendor scan)
- * @tdls_scan_work: delayed tdls scan work
- */
-typedef struct {
-	struct wiphy *wiphy;
-	struct cfg80211_scan_request *scan_request;
-	uint32_t magic;
-	int attempt;
-	int reject;
-	uint8_t source;
-	struct delayed_work tdls_scan_work;
-} tdls_scan_context_t;
-
-/**
  * enum tdls_spatial_streams - TDLS spatial streams
  * @TDLS_NSS_1x1_MODE: TDLS tx/rx spatial streams = 1
  * @TDLS_NSS_2x2_MODE: TDLS tx/rx spatial streams = 2

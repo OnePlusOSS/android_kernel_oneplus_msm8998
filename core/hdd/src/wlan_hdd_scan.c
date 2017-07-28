@@ -2001,13 +2001,9 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 	 */
 	status = wlan_hdd_tdls_scan_callback(pAdapter, wiphy,
 					request, source);
-	if (status <= 0) {
-		if (!status)
-			hdd_err("TDLS in progress.scan rejected %d",
-			status);
-		else
-			hdd_warn("TDLS teardown is ongoing %d",
-			       status);
+	if (status < 0) {
+		hdd_err("TDLS in progress.scan rejected %d",
+				status);
 		hdd_wlan_block_scan_by_tdls_event();
 		return status;
 	}

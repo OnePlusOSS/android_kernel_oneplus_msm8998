@@ -3334,7 +3334,10 @@ qdf_nbuf_t htt_rx_hash_list_lookup(struct htt_pdev_t *pdev,
 	if (netbuf == NULL) {
 		qdf_print("rx hash: %s: no entry found for %p!\n",
 			  __func__, (void *)paddr);
-		HTT_ASSERT_ALWAYS(0);
+		if (cds_is_self_recovery_enabled())
+			cds_trigger_recovery();
+		else
+			HTT_ASSERT_ALWAYS(0);
 	}
 
 	return netbuf;

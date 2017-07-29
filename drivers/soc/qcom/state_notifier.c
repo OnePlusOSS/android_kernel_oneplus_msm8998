@@ -9,12 +9,11 @@
  *
  */
 
-#include <linux/state_notifier.h>
-#include <linux/notifier.h>
 #include <linux/export.h>
 #include <linux/module.h>
+#include <linux/state_notifier.h>
 
-#define DEFAULT_SUSPEND_DEFER_TIME 	1
+#define DEFAULT_SUSPEND_DEFER_TIME 	10
 #define STATE_NOTIFIER			"state_notifier"
 
 /*
@@ -29,7 +28,7 @@ do {				\
 		pr_info(msg);	\
 } while (0)
 
-static bool enabled = true;
+static bool enabled;
 module_param_named(enabled, enabled, bool, 0664);
 static unsigned int suspend_defer_time = DEFAULT_SUSPEND_DEFER_TIME;
 module_param_named(suspend_defer_time, suspend_defer_time, uint, 0664);

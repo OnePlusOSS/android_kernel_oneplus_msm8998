@@ -1294,6 +1294,7 @@ typedef struct sSirSmeJoinReq {
 #endif
 	bool ignore_assoc_disallowed;
 	bool enable_bcast_probe_rsp;
+	bool force_24ghz_in_ht20;
 	tSirBssDescription bssDescription;
 	/*
 	 * WARNING: Pls make bssDescription as last variable in struct

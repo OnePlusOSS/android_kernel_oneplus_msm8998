@@ -1933,8 +1933,17 @@ ol_txrx_vdev_handle wma_vdev_attach(tp_wma_handle wma_handle,
 	u_int8_t vdev_id;
 	struct sir_set_tx_rx_aggregation_size tx_rx_aggregation_size;
 
+	WMA_LOGD("mac %pM, vdev_id %hu, type %d, sub_type %d, nss 2g %d, 5g %d",
+		self_sta_req->self_mac_addr, self_sta_req->session_id,
+		self_sta_req->type, self_sta_req->sub_type,
+		self_sta_req->nss_2g, self_sta_req->nss_5g);
 	if (NULL == mac) {
 		WMA_LOGE("%s: Failed to get mac", __func__);
+		goto end;
+	}
+	if (wma_handle->interfaces[self_sta_req->session_id].vdev_active) {
+		WMA_LOGE("%s: vdev %d already active",
+				__func__, self_sta_req->session_id);
 		goto end;
 	}
 
@@ -2056,8 +2065,6 @@ ol_txrx_vdev_handle wma_vdev_attach(tp_wma_handle wma_handle,
 	    (self_sta_req->type == WMI_VDEV_TYPE_OCB) ||
 	    (self_sta_req->type == WMI_VDEV_TYPE_MONITOR) ||
 	    (self_sta_req->type == WMI_VDEV_TYPE_NDI)) {
-		WMA_LOGD("Creating self peer %pM, vdev_id %hu",
-			 self_sta_req->self_mac_addr, self_sta_req->session_id);
 		status = wma_create_peer(wma_handle, txrx_pdev,
 					 txrx_vdev_handle,
 					 self_sta_req->self_mac_addr,

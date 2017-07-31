@@ -8049,12 +8049,17 @@ static int __wma_bus_suspend(enum qdf_suspend_type type, uint32_t wow_flags)
 	WMA_HANDLE handle = cds_get_context(QDF_MODULE_ID_WMA);
 	qdf_device_t qdf_dev = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
 	tp_wma_handle wma = handle;
-	bool wow_mode = wma_is_wow_mode_selected(handle);
+	bool wow_mode;
 	bool can_suspend_link, is_unified_wow_supported;
 	QDF_STATUS status;
 
 	if (NULL == handle) {
 		WMA_LOGE("%s: wma context is NULL", __func__);
+		return -EFAULT;
+	}
+
+	if (NULL == qdf_dev) {
+		WMA_LOGE("%s: qdf_dev is NULL", __func__);
 		return -EFAULT;
 	}
 
@@ -8069,9 +8074,10 @@ static int __wma_bus_suspend(enum qdf_suspend_type type, uint32_t wow_flags)
 			return qdf_status_to_os_return(status);
 	}
 
+	wow_mode = wma_is_wow_mode_selected(handle);
 	if (type == QDF_SYSTEM_SUSPEND)
 		WMA_LOGD("%s: wow mode selected %d", __func__,
-				wma_is_wow_mode_selected(handle));
+				wow_mode);
 
 	if (!wow_mode)
 		return qdf_status_to_os_return(wma_suspend_target(handle, 0));
@@ -8139,11 +8145,22 @@ int wma_bus_suspend(uint32_t wow_flags)
 static int __wma_bus_resume(WMA_HANDLE handle)
 {
 	qdf_device_t qdf_dev = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
-	bool wow_mode = wma_is_wow_mode_selected(handle);
+	bool wow_mode;
 	tp_wma_handle wma = handle;
 	bool can_suspend_link, is_unified_wow_supported;
 	QDF_STATUS status;
 
+	if (NULL == handle) {
+		WMA_LOGE("%s: wma context is NULL", __func__);
+		return -EFAULT;
+	}
+
+	if (NULL == qdf_dev) {
+		WMA_LOGE("%s: qdf_dev is NULL", __func__);
+		return -EFAULT;
+	}
+
+	wow_mode = wma_is_wow_mode_selected(handle);
 	WMA_LOGD("%s: wow mode %d", __func__, wow_mode);
 
 	wma_peer_debug_log(DEBUG_INVALID_VDEV_ID, DEBUG_BUS_RESUME,

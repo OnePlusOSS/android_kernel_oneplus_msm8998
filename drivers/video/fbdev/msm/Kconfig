@@ -120,4 +120,12 @@ config FB_MSM_MDSS_XLOG_DEBUG
 	driver during fatal errors and enable some display-driver logging
 	into an internal buffer (this avoids logging overhead).
 
+config FB_MSM_MDSS_KCAL_CTRL
+	depends on FB_MSM_MDSS
+	bool "MDSS color control"
+	default n
+	---help---
+	Enable sysfs for rgb/lut control for mdss-mdp display controllers
+	in the MDSS sub-system.
+
 endif

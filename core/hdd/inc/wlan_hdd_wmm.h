@@ -100,7 +100,6 @@ enum hdd_wmm_user_mode {
  * enum hdd_wmm_linuxac: AC/Queue Index values for Linux Qdisc to
  * operate on different traffic.
  */
-#ifdef QCA_LL_TX_FLOW_CONTROL_V2
 enum hdd_wmm_linuxac {
 	HDD_LINUX_AC_VO = 0,
 	HDD_LINUX_AC_VI = 1,
@@ -108,14 +107,6 @@ enum hdd_wmm_linuxac {
 	HDD_LINUX_AC_BK = 3,
 	HDD_LINUX_AC_HI_PRIO = 4,
 };
-#else
-enum hdd_wmm_linuxac {
-	HDD_LINUX_AC_VO = 0,
-	HDD_LINUX_AC_VI = 1,
-	HDD_LINUX_AC_BE = 2,
-	HDD_LINUX_AC_BK = 3
-};
-#endif
 
 /**
  * struct hdd_wmm_qos_context - HDD WMM QoS Context

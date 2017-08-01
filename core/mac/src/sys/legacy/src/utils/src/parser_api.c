@@ -2299,25 +2299,25 @@ static void update_esp_data(struct sir_esp_information *esp_information,
 		esp_info = (struct sir_esp_info *)data;
 		if (esp_info->access_category == ESP_AC_BK) {
 			qdf_mem_copy(&esp_information->esp_info_AC_BK,
-					data, ESP_INFORMATION_LIST_LENGTH);
+					data, 3);
 			data = data + ESP_INFORMATION_LIST_LENGTH;
 			continue;
 		}
 		if (esp_info->access_category == ESP_AC_BE) {
 			qdf_mem_copy(&esp_information->esp_info_AC_BE,
-					data, ESP_INFORMATION_LIST_LENGTH);
+					data, 3);
 			data = data + ESP_INFORMATION_LIST_LENGTH;
 			continue;
 		}
 		if (esp_info->access_category == ESP_AC_VI) {
 			qdf_mem_copy(&esp_information->esp_info_AC_VI,
-					data, ESP_INFORMATION_LIST_LENGTH);
+					data, 3);
 			data = data + ESP_INFORMATION_LIST_LENGTH;
 			continue;
 		}
 		if (esp_info->access_category == ESP_AC_VO) {
 			qdf_mem_copy(&esp_information->esp_info_AC_VO,
-					data, ESP_INFORMATION_LIST_LENGTH);
+					data, 3);
 			data = data + ESP_INFORMATION_LIST_LENGTH;
 			break;
 		}

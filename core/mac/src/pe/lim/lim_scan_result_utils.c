@@ -101,7 +101,7 @@ static inline void populate_qbss_load_status(tSirBssDescription *pBssDescr,
 #endif
 
 /**
- * lim_get_nss_supported_by_beacon() - finds out nss from beacom
+ * lim_get_nss_supported_by_ap() - finds out nss from AP
  * @bcn: beacon structure pointer
  *
  * Return: number of nss advertised by AP

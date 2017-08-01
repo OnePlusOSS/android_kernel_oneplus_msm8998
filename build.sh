@@ -15,13 +15,13 @@ DEFCONFIG="fusion_defconfig"
 
 # Kernel Details
 BASE_HC_VER="fusion"
-VER="-1.2"
+VER="-1.0"
 HC_VER="$BASE_HC_VER$VER"
 
 # Vars
 export ARCH=arm64
 export SUBARCH=arm64
-export CROSS_COMPILE=~/android/toolchain/out/uber_aarch64-linux-android-4.9/bin/aarch64-linux-android-
+export CROSS_COMPILE=~/android/toolchain/out/aarch64-linux-android-4.9/bin/aarch64-linux-android-
 export LOCALVERSION="-$HC_VER"
 
 # Paths

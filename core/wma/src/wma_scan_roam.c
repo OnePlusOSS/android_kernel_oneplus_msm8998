@@ -609,7 +609,9 @@ QDF_STATUS wma_start_scan(tp_wma_handle wma_handle,
 	WMA_LOGD("ActiveDwell %d, PassiveDwell %d, ScanFlags 0x%x NumChan %d",
 		 cmd.dwell_time_active, cmd.dwell_time_passive,
 		 cmd.scan_ctrl_flags, cmd.num_chan);
-	WMA_LOGD("ScanFlagsExt 0x%x", cmd.scan_ctrl_flags_ext);
+	WMA_LOGD("ScanFlagsExt 0x%x, dwellmode:%d",
+			cmd.scan_ctrl_flags_ext,
+			WMI_SCAN_GET_DWELL_MODE(cmd.scan_ctrl_flags));
 
 	/* Call the wmi api to request the scan */
 	qdf_status = wmi_unified_scan_start_cmd_send(wma_handle->wmi_handle,

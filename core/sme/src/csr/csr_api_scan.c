@@ -339,6 +339,7 @@ csr_set_scan_reason(tSmeCmd *scan_cmd, eCsrRequestType req_type)
 #endif
 	case eCSR_SCAN_REQUEST_FULL_SCAN:
 	case eCSR_SCAN_P2P_DISCOVERY:
+	case eCSR_SCAN_RRM:
 		scan_cmd->u.scanCmd.reason = eCsrScanUserRequest;
 		break;
 	case eCSR_SCAN_HO_PROBE_SCAN:
@@ -577,7 +578,14 @@ QDF_STATUS csr_scan_request(tpAniSirGlobal pMac, uint16_t sessionId,
 		sme_debug("updating dwell time for first scan %u",
 			scan_req->maxChnTime);
 	}
-	scan_req->scan_adaptive_dwell_mode = cfg_prm->scan_adaptive_dwell_mode;
+	/*
+	 * RRM is an internally triggered scan and to
+	 * achieve reliable results, Adaptive dwell scan is
+	 * disabled using the dwell_mode.
+	 */
+	if (scan_req->requestType != eCSR_SCAN_RRM)
+		scan_req->scan_adaptive_dwell_mode =
+			cfg_prm->scan_adaptive_dwell_mode;
 
 	status = csr_scan_copy_request(pMac, &scan_cmd->u.scanCmd.u.scanRequest,
 				       scan_req);

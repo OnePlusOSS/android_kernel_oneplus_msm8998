@@ -6017,6 +6017,7 @@ const char *sme_request_type_to_string(const uint8_t request_type)
 	CASE_RETURN_STRING(eCSR_SCAN_P2P_DISCOVERY);
 	CASE_RETURN_STRING(eCSR_SCAN_SOFTAP_CHANNEL_RANGE);
 	CASE_RETURN_STRING(eCSR_SCAN_P2P_FIND_PEER);
+	CASE_RETURN_STRING(eCSR_SCAN_RRM);
 	default:
 		return "Unknown Scan Request Type";
 	}

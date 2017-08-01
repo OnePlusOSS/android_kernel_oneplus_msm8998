@@ -170,6 +170,7 @@ typedef enum {
 
 	eCSR_SCAN_SOFTAP_CHANNEL_RANGE,
 	eCSR_SCAN_P2P_FIND_PEER,
+	eCSR_SCAN_RRM,
 } eCsrRequestType;
 
 typedef enum {

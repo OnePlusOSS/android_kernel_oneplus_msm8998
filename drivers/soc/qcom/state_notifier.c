@@ -2,7 +2,6 @@
  * State Notifier Driver
  *
  * Copyright (c) 2013-2016, Pranav Vashi <neobuddy89@gmail.com>
- *           (c) 2017, Joe Maples <joe@frap129.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -97,8 +96,7 @@ void state_suspend(void)
 
 	suspend_in_progress = true;
 
-	INIT_DELAYED_WORK(&suspend_work, _suspend_work);
-	queue_delayed_work(susp_wq, &suspend_work,
+	queue_delayed_work_on(0, susp_wq, &suspend_work, 
 		msecs_to_jiffies(suspend_defer_time * 1000));
 }
 
@@ -109,7 +107,7 @@ void state_resume(void)
 	suspend_in_progress = false;
 
 	if (state_suspended)
-		queue_work(susp_wq, &resume_work);
+		queue_work_on(0, susp_wq, &resume_work);
 }
 
 static int __init state_notifier_init(void)

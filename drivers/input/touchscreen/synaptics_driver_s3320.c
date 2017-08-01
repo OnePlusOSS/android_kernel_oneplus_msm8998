@@ -1529,6 +1529,9 @@ static void int_key_report_s3508(struct synaptics_ts_data *ts)
 	int F1A_0D_DATA00=0x00;
 	int button_key;
 
+	if (ts->is_suspended == 1)
+		return;
+
 	ret = synaptics_rmi4_i2c_write_byte(ts->client, 0xff, 0x02 );
 	if (ret < 0) {
 		TPD_ERR("%s: line[%d]Failed to change page!!\n",__func__,__LINE__);

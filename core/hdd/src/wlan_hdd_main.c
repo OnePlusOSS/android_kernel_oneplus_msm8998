@@ -669,6 +669,42 @@ int wlan_hdd_validate_context(hdd_context_t *hdd_ctx)
 	return 0;
 }
 
+int hdd_validate_adapter(hdd_adapter_t *adapter)
+{
+	if (!adapter) {
+		hdd_err("adapter is null");
+		return -EINVAL;
+	}
+
+	if (adapter->magic != WLAN_HDD_ADAPTER_MAGIC) {
+		hdd_err("bad adapter magic: 0x%x (should be 0x%x)",
+		adapter->magic, WLAN_HDD_ADAPTER_MAGIC);
+		return -EINVAL;
+	}
+
+	if (!adapter->dev) {
+		hdd_err("adapter net_device is null");
+		return -EINVAL;
+	}
+
+	if (!(adapter->dev->flags & IFF_UP)) {
+		hdd_info("adapter net_device is not up");
+		return -EAGAIN;
+	}
+
+	if (adapter->sessionId == HDD_SESSION_ID_INVALID) {
+		hdd_info("adapter session is not open");
+		return -EAGAIN;
+	}
+
+	if (adapter->sessionId >= MAX_NUMBER_OF_ADAPTERS) {
+		hdd_err("bad adapter session Id: %u", adapter->sessionId);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /**
  * wlan_hdd_modules_are_enabled() - Check modules status
  * @hdd_ctx: HDD context pointer
@@ -2532,6 +2568,10 @@ static void __hdd_set_multicast_list(struct net_device *dev)
 
 	status = wlan_hdd_validate_context(hdd_ctx);
 	if (0 != status)
+		return;
+
+	status = hdd_validate_adapter(adapter);
+	if (status)
 		return;
 
 	if (!hdd_ctx->config->fEnableMCAddrList) {

@@ -2071,6 +2071,17 @@ QDF_STATUS hdd_set_ibss_power_save_params(hdd_adapter_t *pAdapter);
 QDF_STATUS wlan_hdd_restart_driver(hdd_context_t *pHddCtx);
 void hdd_exchange_version_and_caps(hdd_context_t *pHddCtx);
 int wlan_hdd_validate_context(hdd_context_t *pHddCtx);
+
+/**
+ * hdd_validate_adapter() - Validate the given adapter
+ * @adapter: the adapter to validate
+ *
+ * This function validates the given adapter, and ensures that it is open.
+ *
+ * Return: Errno
+ */
+int hdd_validate_adapter(hdd_adapter_t *adapter);
+
 /**
  * wlan_hdd_validate_context_in_loading() - check the HDD context in loading
  * @hdd_ctx:	HDD context pointer

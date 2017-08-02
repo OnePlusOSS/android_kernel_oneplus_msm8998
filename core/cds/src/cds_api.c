@@ -901,6 +901,10 @@ QDF_STATUS cds_post_disable(void)
 	hif_disable_isr(hif_ctx);
 	hif_reset_soc(hif_ctx);
 
+	if (gp_cds_context->htc_ctx) {
+		htc_stop(gp_cds_context->htc_ctx);
+	}
+
 	ol_txrx_pdev_pre_detach(txrx_pdev, 1);
 
 	return QDF_STATUS_SUCCESS;
@@ -929,7 +933,6 @@ QDF_STATUS cds_close(v_CONTEXT_t cds_context)
 	hdd_lro_destroy();
 
 	if (gp_cds_context->htc_ctx) {
-		htc_stop(gp_cds_context->htc_ctx);
 		htc_destroy(gp_cds_context->htc_ctx);
 		gp_cds_context->htc_ctx = NULL;
 	}

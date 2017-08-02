@@ -2637,6 +2637,8 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 			pParam->send_smps_action;
 		pMac->roam.configParam.tx_ldpc_enable = pParam->enable_tx_ldpc;
 		pMac->roam.configParam.rx_ldpc_enable = pParam->enable_rx_ldpc;
+		pMac->roam.configParam.disable_high_ht_mcs_2x2 =
+					pParam->disable_high_ht_mcs_2x2;
 		pMac->roam.configParam.rx_ldpc_support_for_2g =
 					pParam->rx_ldpc_support_for_2g;
 		pMac->roam.configParam.ignore_peer_erp_info =
@@ -2921,6 +2923,7 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 #endif
 	pParam->enable_tx_ldpc = cfg_params->tx_ldpc_enable;
 	pParam->enable_rx_ldpc = cfg_params->rx_ldpc_enable;
+	pParam->disable_high_ht_mcs_2x2 = cfg_params->disable_high_ht_mcs_2x2;
 	pParam->rx_ldpc_support_for_2g =
 			cfg_params->rx_ldpc_support_for_2g;
 	pParam->max_amsdu_num = cfg_params->max_amsdu_num;

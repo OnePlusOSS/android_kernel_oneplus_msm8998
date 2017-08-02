@@ -2651,6 +2651,16 @@ uint8_t sap_select_channel(tHalHandle hal, ptSapContext sap_ctx,
 			continue;
 		}
 
+		if (spect_info->pSpectCh[count].weight_copy >
+				sap_ctx->acsBestChannelInfo.weight) {
+			QDF_TRACE(QDF_MODULE_ID_SAP,
+				QDF_TRACE_LEVEL_INFO_HIGH,
+				"candidate ch weight: %d, best ch weight: %d",
+				spect_info->pSpectCh[count].weight_copy,
+				sap_ctx->acsBestChannelInfo.weight);
+			continue;
+		}
+
 		if (CDS_IS_DFS_CH(spect_info->pSpectCh[count].chNum) &&
 			cds_disallow_mcc(spect_info->pSpectCh[count].chNum)) {
 			QDF_TRACE(QDF_MODULE_ID_SAP,

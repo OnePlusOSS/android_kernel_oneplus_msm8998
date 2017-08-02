@@ -10282,6 +10282,7 @@ enum cds_hw_mode_change cds_is_hw_mode_change_in_progress(void)
 void cds_save_wlan_unsafe_channels(uint16_t *unsafe_channel_list,
 		uint16_t unsafe_channel_count)
 {
+	uint8_t channel_loop;
 	cds_context_type *cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
 
 	if (!cds_ctx) {
@@ -10296,9 +10297,19 @@ void cds_save_wlan_unsafe_channels(uint16_t *unsafe_channel_list,
 
 	if (cds_ctx->unsafe_channel_count)
 		qdf_mem_copy(cds_ctx->unsafe_channel_list,
-			unsafe_channel_list, cds_ctx->unsafe_channel_count);
+			unsafe_channel_list,
+			sizeof(cds_ctx->unsafe_channel_list[0])
+				* cds_ctx->unsafe_channel_count);
 	else
 		qdf_mem_zero(cds_ctx->unsafe_channel_list, NUM_CHANNELS);
+
+	cds_debug("number of unsafe channels saved in cds_ctx is %d ",
+		cds_ctx->unsafe_channel_count);
+	for (channel_loop = 0;
+		channel_loop < cds_ctx->unsafe_channel_count; channel_loop++) {
+		cds_debug("channel %d is not safe ",
+			cds_ctx->unsafe_channel_list[channel_loop]);
+	}
 }
 
 /**

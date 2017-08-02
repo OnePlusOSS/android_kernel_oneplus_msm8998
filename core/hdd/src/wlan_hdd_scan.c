@@ -3113,7 +3113,8 @@ static void hdd_config_sched_scan_plan(tpSirPNOScanReq pno_req,
  *
  * Return: None
  */
-#if defined(CFG80211_REPORT_BETTER_BSS_IN_SCHED_SCAN)
+#if defined(CFG80211_REPORT_BETTER_BSS_IN_SCHED_SCAN) || \
+	(LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0))
 static inline void wlan_hdd_sched_scan_update_relative_rssi(
 			tpSirPNOScanReq pno_request,
 			struct cfg80211_sched_scan_request *request)

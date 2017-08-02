@@ -13949,7 +13949,7 @@ QDF_STATUS sme_set_epno_list(tHalHandle hal,
 	}
 
 	status = sme_acquire_global_lock(&mac->sme);
-	if (QDF_IS_STATUS_SUCCESS(status)) {
+	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		sme_err("sme_acquire_global_lock failed!(status=%d)",
 			status);
 		qdf_mem_free(req_msg);
@@ -14016,7 +14016,7 @@ QDF_STATUS sme_set_passpoint_list(tHalHandle hal,
 	}
 
 	status = sme_acquire_global_lock(&mac->sme);
-	if (QDF_IS_STATUS_SUCCESS(status)) {
+	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		sme_err("sme_acquire_global_lock failed!(status=%d)",
 			status);
 		qdf_mem_free(req_msg);
@@ -14063,7 +14063,7 @@ QDF_STATUS sme_reset_passpoint_list(tHalHandle hal,
 	req_msg->session_id = input->session_id;
 
 	status = sme_acquire_global_lock(&mac->sme);
-	if (QDF_IS_STATUS_SUCCESS(status)) {
+	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		sme_err("sme_acquire_global_lock failed!(status=%d)",
 			status);
 		qdf_mem_free(req_msg);
@@ -16733,6 +16733,7 @@ void sme_set_vdev_ies_per_band(uint8_t vdev_id, uint8_t is_hw_mode_dbs)
 	p_msg = qdf_mem_malloc(sizeof(*p_msg));
 	if (NULL == p_msg) {
 		sme_err("mem alloc failed for sme msg");
+		sme_release_global_lock(&p_mac->sme);
 		return;
 	}
 

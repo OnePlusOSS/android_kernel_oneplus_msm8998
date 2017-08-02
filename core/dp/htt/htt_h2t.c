@@ -1249,7 +1249,7 @@ int htt_h2t_ipa_uc_set_active(struct htt_pdev_t *pdev,
 	pkt->msdu_id = HTT_TX_COMPL_INV_MSDU_ID;
 	pkt->pdev_ctxt = NULL;  /* not used during send-done callback */
 
-	if (qdf_mem_smmu_s1_enabled(pdev->osdev) && uc_active && !is_tx) {
+	if (uc_active && !is_tx) {
 		if (htt_rx_ipa_uc_buf_pool_map(pdev)) {
 			qdf_print("%s: Unable to create mapping for IPA rx buffers\n",
 				  __func__);

@@ -5324,7 +5324,7 @@ static int32_t hdd_process_genie(hdd_adapter_t *pAdapter,
 					dot11RSNIE.gp_cipher_suite);
 #ifdef WLAN_FEATURE_11W
 		*pMfpRequired = (dot11RSNIE.RSN_Cap[0] >> 6) & 0x1;
-		*pMfpCapable = (dot11RSNIE.RSN_Cap[0] >> 7) & 0x1;
+		*pMfpCapable = csr_is_mfpc_capable(&dot11RSNIE);
 #endif
 	} else if (gen_ie[0] == DOT11F_EID_WPA) {
 		/* Validity checks */

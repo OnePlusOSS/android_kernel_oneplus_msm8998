@@ -1707,7 +1707,7 @@ typedef struct {
 	bool tx_bfee_8ss_enabled;
 	tSirAddonPsReq ps_setting;
 	struct peer_debug_info *peer_dbg;
-	bool auto_power_save_enabled;
+	enum cds_auto_pwr_detect_failure_mode_t auto_power_save_enabled;
 	uint8_t in_imps;
 	uint64_t tx_fail_cnt;
 	uint64_t wmi_desc_fail_count;

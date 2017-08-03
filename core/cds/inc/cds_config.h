@@ -82,6 +82,24 @@ enum cds_hang_reason {
 };
 
 /**
+ * enum cds_auto_pwr_detect_failure_mode_t - auto detect failure modes
+ * @CDS_FW_TO_CRASH_ON_PWR_FAILURE: Don't register wow wakeup event and FW
+ * crashes on power failure
+ * @CDS_FW_TO_SEND_WOW_IND_ON_PWR_FAILURE: Register wow wakeup event and FW
+ * sends failure event to host on power failure
+ * @CDS_FW_TO_REJUVENATE_ON_PWR_FAILURE: Don't register wow wakeup event and
+ * FW silently rejuvenate on power failure
+ * @CDS_AUTO_PWR_FAILURE_DETECT_DISABLE: Don't register wow wakeup event and the
+ * auto power failure detect feature is disabled in FW.
+ */
+enum cds_auto_pwr_detect_failure_mode_t {
+	CDS_FW_TO_CRASH_ON_PWR_FAILURE,
+	CDS_FW_TO_SEND_WOW_IND_ON_PWR_FAILURE,
+	CDS_FW_TO_REJUVENATE_ON_PWR_FAILURE,
+	CDS_AUTO_PWR_FAILURE_DETECT_DISABLE
+};
+
+/**
  * struct cds_config_info - Place Holder for cds configuration
  * @max_station: Max station supported
  * @max_bssid: Max Bssid Supported
@@ -192,7 +210,7 @@ struct cds_config_info {
 	enum active_bpf_mode active_uc_bpf_mode;
 	enum active_bpf_mode active_mc_bc_bpf_mode;
 	bool rps_enabled;
-	bool auto_power_save_fail_mode;
+	enum cds_auto_pwr_detect_failure_mode_t auto_power_save_fail_mode;
 	uint8_t ito_repeat_count;
 };
 

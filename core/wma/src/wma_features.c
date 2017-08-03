@@ -5192,7 +5192,8 @@ void wma_register_wow_wakeup_events(WMA_HANDLE handle,
 
 		if ((wma->interfaces[vdev_id].in_bmps == true ||
 		     wma->in_imps == true) &&
-		     wma->auto_power_save_enabled)
+		    (wma->auto_power_save_enabled ==
+		     CDS_FW_TO_SEND_WOW_IND_ON_PWR_FAILURE))
 			wma_set_wow_event_bitmap(
 					 WOW_CHIP_POWER_FAILURE_DETECT_EVENT,
 					 WMI_WOW_MAX_EVENT_BM_LEN,
@@ -6033,7 +6034,8 @@ static void wma_configure_dynamic_wake_events(tp_wma_handle wma)
 		      WMI_UNIFIED_VDEV_SUBTYPE_P2P_DEVICE ||
 		      wma->interfaces[vdev_id].sub_type ==
 		      WMI_UNIFIED_VDEV_SUBTYPE_P2P_CLIENT))) &&
-		     wma->auto_power_save_enabled) {
+		     (wma->auto_power_save_enabled ==
+		      CDS_FW_TO_SEND_WOW_IND_ON_PWR_FAILURE)) {
 			wma_set_wow_event_bitmap(EV_PWR,
 						 BM_LEN,
 						 enable_mask);

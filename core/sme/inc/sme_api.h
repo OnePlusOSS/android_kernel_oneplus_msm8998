@@ -1798,17 +1798,6 @@ void sme_set_chan_info_callback(tHalHandle hal_handle,
 			void (*callback)(struct scan_chan_info *chan_info));
 
 /**
- * sme_send_limit_off_chan_cmd() - send limit off-channel command parameters
- * @hal: hal handle for getting global mac struct
- * @param:  pointer to sir_limit_off_chan
- *
- * Return: 0 on success and non zero value on failure
- */
-
-QDF_STATUS sme_send_limit_off_chan_cmd(tHalHandle hal,
-		struct sir_limit_off_chan *param);
-
-/**
  * sme_set_bmiss_bcnt() - set bmiss config parameters
  * @vdev_id: virtual device for the command
  * @first_cnt: bmiss first value

@@ -5577,9 +5577,6 @@ static void csr_scan_copy_request_valid_channels_only(tpAniSirGlobal mac_ctx,
 			CSR_STA_ROAM_POLICY_DFS_DISABLED)
 		skip_dfs_chnl = true;
 
-	if (mac_ctx->limit_off_chan_params.is_active)
-		skip_dfs_chnl = true;
-
 	for (index = 0; index < src_req->ChannelInfo.numOfChannels; index++) {
 		/* Allow scan on valid channels only.
 		 * If it is p2p scan and valid channel list doesnt contain

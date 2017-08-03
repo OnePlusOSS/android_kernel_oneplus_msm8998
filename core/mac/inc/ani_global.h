@@ -896,23 +896,6 @@ struct vdev_type_nss {
 	uint8_t ocb;
 };
 
-/**
- * struct limit_off_chan_params - limit off channel parameters
- * @is_active: status of parameters.
- * @vdev_id: vdev_id
- * @max_offchan_time: max allowed off channel time
- * @rest_time: home channel time
- * @skip_dfs_chan: skip DFS channels during scan
- * Holds the limit off channel parameters.
- */
-struct limit_off_chan_params {
-	bool is_active;
-	uint32_t vdev_id;
-	uint32_t max_offchan_time;
-	uint32_t rest_time;
-	bool skip_dfs_chan;
-};
-
 /* ------------------------------------------------------------------- */
 /* / MAC Sirius parameter structure */
 typedef struct sAniSirGlobal {
@@ -990,7 +973,6 @@ typedef struct sAniSirGlobal {
 	bool snr_monitor_enabled;
 	/* channel information callback */
 	void (*chan_info_cb)(struct scan_chan_info *chan_info);
-	struct limit_off_chan_params limit_off_chan_params;
 } tAniSirGlobal;
 
 typedef enum {

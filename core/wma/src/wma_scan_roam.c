@@ -516,23 +516,6 @@ QDF_STATUS wma_get_buf_start_scan_cmd(tp_wma_handle wma_handle,
 				cmd->repeat_probe_time : 0;
 		}
 	}
-
-	if (pMac->limit_off_chan_params.is_active) {
-		cmd->dwell_time_active =
-			pMac->limit_off_chan_params.max_offchan_time;
-		cmd->dwell_time_passive =
-			pMac->limit_off_chan_params.max_offchan_time;
-		cmd->min_rest_time =
-			pMac->limit_off_chan_params.rest_time / 2;
-		cmd->max_rest_time =
-			pMac->limit_off_chan_params.rest_time;
-		cmd->repeat_probe_time =
-			cmd->dwell_time_active / WMA_SCAN_NPROBES_DEFAULT;
-
-		/* Disable bursting */
-		cmd->burst_duration = 0;
-	}
-
 	WMA_LOGD("Scan Type 0x%x, Active dwell time %u, Passive dwell time %u",
 		scan_req->scanType, cmd->dwell_time_active,
 		cmd->dwell_time_passive);

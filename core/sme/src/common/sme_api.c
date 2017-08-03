@@ -18255,39 +18255,6 @@ void sme_set_chan_info_callback(tHalHandle hal_handle,
 }
 
 /**
- * sme_send_limit_off_chan_cmd() - send limit off-channel command parameters
- * @hal: hal handle for getting global mac struct
- * @param - pointer to sir_limit_off_chan
- * Return: 0 on success and non zero value on failure
- */
-QDF_STATUS sme_send_limit_off_chan_cmd(tHalHandle hal,
-		struct sir_limit_off_chan *param)
-{
-	cds_msg_t msg = {0};
-	QDF_STATUS status;
-	tpAniSirGlobal  mac;
-
-	mac = PMAC_STRUCT(hal);
-
-	mac->limit_off_chan_params.is_active = param->is_tos_active;
-	mac->limit_off_chan_params.vdev_id = param->vdev_id;
-	mac->limit_off_chan_params.max_offchan_time = param->max_off_chan_time;
-	mac->limit_off_chan_params.rest_time = param->rest_time;
-	mac->limit_off_chan_params.skip_dfs_chan = param->skip_dfs_chans;
-
-	msg.type = SIR_HAL_SET_LIMIT_OFF_CHAN;
-	msg.reserved = 0;
-	msg.bodyptr = param;
-
-	status = cds_mq_post_message(QDF_MODULE_ID_WMA, &msg);
-	if (status != QDF_STATUS_SUCCESS) {
-		sme_err("Not able to post limit off chan param message to WMA");
-		return QDF_STATUS_E_NOMEM;
-	}
-	return QDF_STATUS_SUCCESS;
-}
-
-/**
  * sme_set_bmiss_bcnt() - set bmiss config parameters
  * @vdev_id: virtual device for the command
  * @first_cnt: bmiss first value

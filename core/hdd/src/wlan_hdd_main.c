@@ -2117,6 +2117,12 @@ static int __hdd_open(struct net_device *dev)
 	MTRACE(qdf_trace(QDF_MODULE_ID_HDD, TRACE_CODE_HDD_OPEN_REQUEST,
 		adapter->sessionId, adapter->device_mode));
 
+	/* Nothing to be done if device is unloading */
+	if (cds_is_driver_unloading()) {
+		hdd_err("Driver is unloading can not open the hdd");
+		return -EBUSY;
+	}
+
 	mutex_lock(&hdd_init_deinit_lock);
 
 	/*

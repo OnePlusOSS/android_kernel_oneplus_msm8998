@@ -2212,19 +2212,6 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 				pScanInfo->scanAddIE.addIEdata,
 				&pScanInfo->scanAddIE.length);
 
-		if ((QDF_STA_MODE == pAdapter->device_mode) ||
-		    (QDF_P2P_CLIENT_MODE == pAdapter->device_mode) ||
-		    (QDF_P2P_DEVICE_MODE == pAdapter->device_mode)
-		    ) {
-			pwextBuf->roamProfile.pAddIEScan =
-				pScanInfo->scanAddIE.addIEdata;
-			pwextBuf->roamProfile.nAddIEScanLength =
-				pScanInfo->scanAddIE.length;
-		}
-
-		scan_req.uIEFieldLen = pScanInfo->scanAddIE.length;
-		scan_req.pIEField = pScanInfo->scanAddIE.addIEdata;
-
 		pP2pIe = wlan_hdd_get_p2p_ie_ptr((uint8_t *) request->ie,
 						 request->ie_len);
 		if (pP2pIe != NULL) {
@@ -2285,6 +2272,19 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 					pScanInfo->default_scan_ies_len;
 		}
 	}
+
+	if ((QDF_STA_MODE == pAdapter->device_mode) ||
+		(QDF_P2P_CLIENT_MODE == pAdapter->device_mode) ||
+		(QDF_P2P_DEVICE_MODE == pAdapter->device_mode)
+		) {
+		pwextBuf->roamProfile.pAddIEScan =
+			pScanInfo->scanAddIE.addIEdata;
+		pwextBuf->roamProfile.nAddIEScanLength =
+			pScanInfo->scanAddIE.length;
+	}
+
+	scan_req.uIEFieldLen = pScanInfo->scanAddIE.length;
+	scan_req.pIEField = pScanInfo->scanAddIE.addIEdata;
 
 	/* acquire the wakelock to avoid the apps suspend during the scan. To
 	 * address the following issues.

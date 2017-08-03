@@ -4754,8 +4754,8 @@ static QDF_STATUS sap_get_channel_list(ptSapContext sap_ctx,
 
 #ifdef FEATURE_WLAN_CH_AVOID
 		for (i = 0; i < NUM_CHANNELS; i++) {
-			if ((safe_channels[i].channelNumber ==
-			     CDS_CHANNEL_NUM(loop_count))) {
+			if (safe_channels[i].channelNumber ==
+			     CDS_CHANNEL_NUM(loop_count)) {
 				/* Check if channel is safe */
 				if (true == safe_channels[i].isSafe) {
 #endif

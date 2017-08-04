@@ -4737,7 +4737,7 @@ static int __wlan_hdd_cfg80211_dump_survey(struct wiphy *wiphy,
 	mutex_lock(&pHddCtx->chan_info_lock);
 	freq = pHddCtx->chan_info[idx].freq;
 
-	for (i = 0; i < NUM_NL80211_BANDS && !filled; i++) {
+	for (i = 0; i < HDD_NUM_NL80211_BANDS && !filled; i++) {
 		struct ieee80211_supported_band *band = wiphy->bands[i];
 
 		if (NULL == wiphy->bands[i])

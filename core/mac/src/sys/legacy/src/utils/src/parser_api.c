@@ -2145,7 +2145,8 @@ sir_convert_probe_req_frame2_struct(tpAniSirGlobal pMac,
 	}
 
 	if (!pr.SuppRates.present) {
-		pe_warn("Mandatory IE Supported Rates not present!");
+		pe_debug_rate_limited(30,
+				"Mandatory IE Supported Rates not present!");
 		return eSIR_FAILURE;
 	} else {
 		pProbeReq->suppRatesPresent = 1;
@@ -2484,7 +2485,8 @@ tSirRetStatus sir_convert_probe_frame2_struct(tpAniSirGlobal pMac,
 	}
 
 	if (!pr->SuppRates.present) {
-		pe_warn("Mandatory IE Supported Rates not present!");
+		pe_debug_rate_limited(30,
+				"Mandatory IE Supported Rates not present!");
 	} else {
 		pProbeResp->suppRatesPresent = 1;
 		convert_supp_rates(pMac, &pProbeResp->supportedRates,
@@ -3073,7 +3075,8 @@ sir_convert_assoc_resp_frame2_struct(tpAniSirGlobal pMac,
 
 	if (!ar->SuppRates.present) {
 		pAssocRsp->suppRatesPresent = 0;
-		pe_warn("Mandatory IE Supported Rates not present!");
+		pe_debug_rate_limited(30,
+				"Mandatory IE Supported Rates not present!");
 	} else {
 		pAssocRsp->suppRatesPresent = 1;
 		convert_supp_rates(pMac, &pAssocRsp->supportedRates,
@@ -3449,7 +3452,8 @@ sir_beacon_ie_ese_bcn_report(tpAniSirGlobal pMac,
 	}
 
 	if (!pBies->SuppRates.present) {
-		pe_warn("Mandatory IE Supported Rates not present!");
+		pe_debug_rate_limited(30,
+				"Mandatory IE Supported Rates not present!");
 	} else {
 		eseBcnReportMandatoryIe.suppRatesPresent = 1;
 		convert_supp_rates(pMac, &eseBcnReportMandatoryIe.supportedRates,
@@ -3751,7 +3755,8 @@ sir_parse_beacon_ie(tpAniSirGlobal pMac,
 	}
 
 	if (!pBies->SuppRates.present) {
-		pe_warn("Mandatory IE Supported Rates not present!");
+		pe_debug_rate_limited(30,
+				"Mandatory IE Supported Rates not present!");
 	} else {
 		pBeaconStruct->suppRatesPresent = 1;
 		convert_supp_rates(pMac, &pBeaconStruct->supportedRates,
@@ -4122,7 +4127,8 @@ sir_convert_beacon_frame2_struct(tpAniSirGlobal pMac,
 	}
 
 	if (!pBeacon->SuppRates.present) {
-		pe_warn("Mandatory IE Supported Rates not present!");
+		pe_debug_rate_limited(30,
+				"Mandatory IE Supported Rates not present!");
 	} else {
 		pBeaconStruct->suppRatesPresent = 1;
 		convert_supp_rates(pMac, &pBeaconStruct->supportedRates,

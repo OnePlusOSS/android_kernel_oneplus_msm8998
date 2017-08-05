@@ -36,6 +36,7 @@
 #include <cds_api.h>
 #include <ani_global.h>
 #include <sir_types.h>
+#include <qdf_threads.h>
 #include <qdf_types.h>
 #include <lim_api.h>
 #include <sme_api.h>
@@ -620,6 +621,14 @@ static void cds_mc_thread_watchdog_timeout(void *arg)
 	cds_msg_t *msg = *(cds_msg_t **)arg;
 
 	cds_mc_thread_watchdog_notify(msg);
+
+	if (gp_cds_sched_context) {
+		qdf_thread_t *mc_thread =
+			(qdf_thread_t *)gp_cds_sched_context->McThread;
+		if (mc_thread)
+			qdf_print_thread_trace(mc_thread);
+	}
+
 	if (cds_is_driver_recovering())
 		return;
 

@@ -367,7 +367,7 @@ CC		= $(srctree)/scripts/gcc-wrapper.py $(REAL_CC)
 
 CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
 		  -Wbitwise -Wno-return-void $(CF)
-CFLAGS_MODULE   =
+CFLAGS_MODULE   = -fgcse-lm -fgcse-sm -fsched-spec-load -fforce-addr -ffast-math -fsingle-precision-constant -mcpu=cortex-a57 -mtune=cortex-a57 -ftree-vectorize
 AFLAGS_MODULE   =
 LDFLAGS_MODULE  =
 CFLAGS_KERNEL	=
@@ -400,7 +400,8 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -fno-strict-aliasing -fno-common \
 		   -Werror-implicit-function-declaration \
 		   -Wno-format-security \
-		   -std=gnu89 $(call cc-option,-fno-PIE)
+		   -std=gnu89 \
+		   -Wno-bool-compare -Wno-logical-not-parentheses -Wno-incompatible-pointer-types
 
 
 KBUILD_AFLAGS_KERNEL :=

@@ -111,6 +111,8 @@
 #define KDE_OUI_TYPE   "\x00\x0F\xAC"
 #define KDE_OUI_TYPE_SIZE  3
 
+#define SINGLE_ELEMENT_HASH_CNT 1
+
 /*
  * struct eap_auth_reserved: this structure defines flags format in eap packets
  * as defined in RFC 6696 5.3.1
@@ -186,10 +188,10 @@ struct fils_auth_rsp_info {
  * @cipher: cipher type
  * @fils_erp_reauth_pkt: pointer to fils reauth packet data
  * @fils_erp_reauth_pkt_len: reauth packet length
- * @fils_r_rk: pointer to fils rRk
- * @fils_r_rk_len: fils rRk length
- * @fils_r_ik: pointer to fils rIk
- * @fils_r_ik_len: fils rIk length
+ * @fils_rrk: pointer to fils rRk
+ * @fils_rrk_len: fils rRk length
+ * @fils_rik: pointer to fils rIk
+ * @fils_rik_len: fils rIk length
  * @sequence_number: sequence number needs to be used in eap packet
  * @fils_session: fils session IE element
  * @fils_nonce: fils snonce
@@ -233,10 +235,10 @@ struct pe_fils_session {
 	uint8_t cipher;
 	uint8_t *fils_erp_reauth_pkt;
 	uint32_t fils_erp_reauth_pkt_len;
-	uint8_t *fils_r_rk;
-	uint8_t fils_r_rk_len;
-	uint8_t *fils_r_ik;
-	uint32_t fils_r_ik_len;
+	uint8_t *fils_rrk;
+	uint8_t fils_rrk_len;
+	uint8_t *fils_rik;
+	uint32_t fils_rik_len;
 	uint16_t sequence_number;
 	uint8_t fils_session[SIR_FILS_SESSION_LENGTH];
 	uint8_t fils_nonce[SIR_FILS_NONCE_LENGTH];

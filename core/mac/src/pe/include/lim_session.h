@@ -495,6 +495,10 @@ typedef struct sPESession       /* Added to Support BT-AMP */
 	uint8_t lim_non_ecsa_cap_num;
 #ifdef WLAN_FEATURE_FILS_SK
 	struct pe_fils_session *fils_info;
+	struct qdf_mac_addr dst_mac;
+	struct qdf_mac_addr src_mac;
+	uint16_t hlp_data_len;
+	uint8_t *hlp_data;
 #endif
 	uint8_t deauthmsgcnt;
 	uint8_t disassocmsgcnt;

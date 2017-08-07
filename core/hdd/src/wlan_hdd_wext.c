@@ -14002,6 +14002,8 @@ static int hdd_set_wext(hdd_adapter_t *pAdapter)
 static void hdd_initialize_fils_info(hdd_wext_state_t *pwextBuf)
 {
 	pwextBuf->roamProfile.fils_con_info = NULL;
+	pwextBuf->roamProfile.hlp_ie = NULL;
+	pwextBuf->roamProfile.hlp_ie_len = 0;
 }
 #else
 static void hdd_initialize_fils_info(hdd_wext_state_t *pwextBuf)

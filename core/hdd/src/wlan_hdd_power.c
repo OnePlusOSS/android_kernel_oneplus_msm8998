@@ -810,7 +810,8 @@ static int hdd_set_grat_arp_keepalive(hdd_adapter_t *adapter)
  * This function performs the work initially trigged by a callback
  * from the IPv4 netdev notifier.  Since this means there has been a
  * change in IPv4 state for the interface, the ARP offload is
- * reconfigured.
+ * reconfigured. Also, Updates the HLP IE info with IP address info
+ * to fw if LFR3 is enabled
  *
  * Return: None
  */
@@ -823,6 +824,9 @@ static void __hdd_ipv4_notifier_work_queue(struct work_struct *work)
 	int status;
 	bool ndi_connected;
 	bool sta_associated;
+	hdd_wext_state_t *wext_state;
+	tCsrRoamProfile *roam_profile;
+	struct in_ifaddr *ifa;
 
 	hdd_debug("Configuring ARP Offload");
 
@@ -855,6 +859,13 @@ static void __hdd_ipv4_notifier_work_queue(struct work_struct *work)
 
 	if (pHddCtx->config->sta_keepalive_method == HDD_STA_KEEPALIVE_GRAT_ARP)
 		hdd_set_grat_arp_keepalive(pAdapter);
+
+	wext_state = WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
+	roam_profile = &wext_state->roamProfile;
+	ifa = hdd_lookup_ifaddr(pAdapter);
+	if (ifa)
+		sme_send_hlp_ie_info(pHddCtx->hHal, pAdapter->sessionId,
+				     roam_profile, ifa->ifa_local);
 }
 
 /**

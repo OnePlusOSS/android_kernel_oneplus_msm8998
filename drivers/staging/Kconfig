@@ -110,6 +110,4 @@ source "drivers/staging/wilc1000/Kconfig"
 
 source "drivers/staging/most/Kconfig"
 
-source "drivers/staging/qcacld-3.0/Kconfig"
-
 endif # STAGING

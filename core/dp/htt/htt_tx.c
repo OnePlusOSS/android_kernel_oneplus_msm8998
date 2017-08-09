@@ -1237,7 +1237,7 @@ static int htt_tx_ipa_uc_wdi_tx_buf_alloc(struct htt_pdev_t *pdev,
 	     tx_buffer_count < (uc_tx_buf_cnt - 1); tx_buffer_count++) {
 		shared_tx_buffer = qdf_mem_shared_mem_alloc(pdev->osdev,
 							    uc_tx_buf_sz);
-		if (!!shared_tx_buffer || !shared_tx_buffer->vaddr) {
+		if (!shared_tx_buffer || !shared_tx_buffer->vaddr) {
 			qdf_print("%s: TX BUF alloc fail, loop index: %d",
 				  __func__, tx_buffer_count);
 			tx_buffer_count_pwr2 = tx_buffer_count;

@@ -316,6 +316,7 @@ static void hdd_init_qdf_ctx(struct device *dev, void *bdev,
 	qdf_dev->drv_hdl = bdev;
 	qdf_dev->bus_type = bus_type;
 	qdf_dev->bid = bid;
+	cds_smmu_mem_map_setup(qdf_dev);
 }
 
 /**
@@ -356,7 +357,6 @@ static int wlan_hdd_probe(struct device *dev, void *bdev, const struct hif_bus_i
 		cds_set_load_in_progress(true);
 
 	hdd_init_qdf_ctx(dev, bdev, bus_type, (const struct hif_bus_id *)bid);
-	cds_smmu_mem_map_setup(cds_get_context(QDF_MODULE_ID_QDF_DEVICE));
 
 	if (reinit) {
 		ret = hdd_wlan_re_init();

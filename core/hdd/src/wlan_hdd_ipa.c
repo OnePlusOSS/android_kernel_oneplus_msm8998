@@ -2112,6 +2112,13 @@ static void hdd_ipa_uc_op_cb(struct op_msg_type *op_msg, void *usr_ctxt)
 		return;
 	}
 
+	if (!osdev) {
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_FATAL,
+			    "%s: qdf dev context is NULL", __func__);
+		qdf_mem_free(op_msg);
+		return;
+	}
+
 	hdd_ctx = (hdd_context_t *) usr_ctxt;
 
 	/*
@@ -2731,6 +2738,14 @@ QDF_STATUS hdd_ipa_uc_ol_init(hdd_context_t *hdd_ctx)
 		return stat;
 
 	ENTER();
+
+	if (!osdev) {
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_FATAL,
+			    "%s: qdf dev context is NULL", __func__);
+		stat = QDF_STATUS_E_INVAL;
+		goto fail_return;
+	}
+
 	/* Do only IPA Pipe specific configuration here. All one time
 	 * initialization wrt IPA UC shall in hdd_ipa_init and those need
 	 * to be reinit at SSR shall in be SSR deinit / reinit functions.
@@ -2985,6 +3000,14 @@ QDF_STATUS hdd_ipa_uc_ol_init(hdd_context_t *hdd_ctx)
 		return stat;
 
 	ENTER();
+
+	if (!osdev) {
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_FATAL,
+			    "%s: qdf dev context is NULL", __func__);
+		stat = QDF_STATUS_E_INVAL;
+		goto fail_return;
+	}
+
 	/* Do only IPA Pipe specific configuration here. All one time
 	 * initialization wrt IPA UC shall in hdd_ipa_init and those need
 	 * to be reinit at SSR shall in be SSR deinit / reinit functions.

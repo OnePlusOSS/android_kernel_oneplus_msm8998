@@ -3238,7 +3238,8 @@ send_resp:
 	params->status = status;
 	WMA_LOGD("%s: sending WMA_SWITCH_CHANNEL_RSP, status = 0x%x",
 		 __func__, status);
-	wma_send_msg(wma, WMA_SWITCH_CHANNEL_RSP, (void *)params, 0);
+	wma_send_msg_high_priority(wma, WMA_SWITCH_CHANNEL_RSP,
+					(void *)params, 0);
 }
 
 #ifdef FEATURE_WLAN_SCAN_PNO

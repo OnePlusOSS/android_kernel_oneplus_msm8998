@@ -354,9 +354,6 @@ static void gpio_keys_gpio_report_event(struct gpio_button_data *bdata)
 
 	state = (state ? 1 : 0) ^ button->active_low;
 
-//hefaxi@filesystems, 2015/12/07, add for force dump function
-	oem_check_force_dump_key(button->code,state);
-
 	if (type == EV_ABS) {
 		if (state)
 			input_event(input, type, button->code, button->value);
@@ -364,6 +361,8 @@ static void gpio_keys_gpio_report_event(struct gpio_button_data *bdata)
 		input_event(input, type, button->code, !!state);
 	}
 	input_sync(input);
+
+	oem_check_force_dump_key(button->code,state);
 }
 
 static void gpio_keys_gpio_work_func(struct work_struct *work)

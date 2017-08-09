@@ -7979,7 +7979,8 @@ QDF_STATUS wma_mc_process_msg(void *cds_context, cds_msg_t *msg)
 	case SIR_HAL_SET_DEL_PMKID_CACHE:
 		wma_set_del_pmkid_cache(wma_handle,
 			(wmi_pmk_cache *) msg->bodyptr, msg->reserved);
-		qdf_mem_free(msg->bodyptr);
+		if (msg->bodyptr)
+			qdf_mem_free(msg->bodyptr);
 		break;
 	case SIR_HAL_HLP_IE_INFO:
 		wma_roam_scan_send_hlp(wma_handle,

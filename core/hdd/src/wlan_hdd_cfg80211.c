@@ -17928,6 +17928,8 @@ static int __wlan_hdd_cfg80211_flush_pmksa(struct wiphy *wiphy,
 		hdd_err("Cannot flush PMKIDCache");
 		status = -EINVAL;
 	}
+
+	sme_set_del_pmkid_cache(halHandle, pAdapter->sessionId, NULL, false);
 	EXIT();
 	return status;
 }

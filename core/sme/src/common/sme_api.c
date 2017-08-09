@@ -17996,8 +17996,11 @@ QDF_STATUS sme_set_del_pmkid_cache(tHalHandle hal, uint8_t session_id,
 				   tPmkidCacheInfo *pmk_cache_info,
 				   bool is_add)
 {
-	wmi_pmk_cache *pmk_cache;
+	wmi_pmk_cache *pmk_cache = NULL;
 	cds_msg_t msg;
+
+	if (!pmk_cache_info)
+		goto send_flush_cmd;
 
 	pmk_cache = qdf_mem_malloc(sizeof(*pmk_cache));
 	if (!pmk_cache) {
@@ -18032,13 +18035,17 @@ QDF_STATUS sme_set_del_pmkid_cache(tHalHandle hal, uint8_t session_id,
 	qdf_mem_copy(pmk_cache->pmk, pmk_cache_info->pmk,
 		     pmk_cache->pmk_len);
 
+send_flush_cmd:
 	msg.type = SIR_HAL_SET_DEL_PMKID_CACHE;
 	msg.reserved = session_id;
 	msg.bodyptr = pmk_cache;
 	if (QDF_STATUS_SUCCESS !=
 	    cds_mq_post_message(QDF_MODULE_ID_WMA, &msg)) {
 		sme_err("Not able to post message to WDA");
-		qdf_mem_free(pmk_cache);
+
+		if (pmk_cache)
+			qdf_mem_free(pmk_cache);
+
 		return QDF_STATUS_E_FAILURE;
 	}
 

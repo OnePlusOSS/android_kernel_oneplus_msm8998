@@ -863,9 +863,15 @@ static void __hdd_ipv4_notifier_work_queue(struct work_struct *work)
 	wext_state = WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
 	roam_profile = &wext_state->roamProfile;
 	ifa = hdd_lookup_ifaddr(pAdapter);
-	if (ifa)
-		sme_send_hlp_ie_info(pHddCtx->hHal, pAdapter->sessionId,
-				     roam_profile, ifa->ifa_local);
+
+	hdd_debug("FILS Roaming support: %d",
+		  pHddCtx->config->is_fils_roaming_supported);
+
+	if (ifa && pHddCtx->config->is_fils_roaming_supported)
+		sme_send_hlp_ie_info(pHddCtx->hHal,
+				pAdapter->sessionId,
+				roam_profile,
+				ifa->ifa_local);
 }
 
 /**

@@ -6327,6 +6327,11 @@ QDF_STATUS sme_set_gtk_offload(tHalHandle hHal,
 
 	*request_buf = *pGtkOffload;
 
+	/* If FILS Roaming is not supported by fw, disable GTK Offload */
+	if (pSession->is_fils_connection &&
+	    !pMac->is_fils_roaming_supported)
+		request_buf->ulFlags = GTK_OFFLOAD_DISABLE;
+
 	msg.type = WMA_GTK_OFFLOAD_REQ;
 	msg.reserved = 0;
 	msg.bodyptr = request_buf;
@@ -16237,8 +16242,11 @@ void sme_update_tgt_services(tHalHandle hal, struct wma_tgt_services *cfg)
 	mac_ctx->lteCoexAntShare = cfg->lte_coex_ant_share;
 	mac_ctx->beacon_offload = cfg->beacon_offload;
 	mac_ctx->pmf_offload = cfg->pmf_offload;
+	mac_ctx->is_fils_roaming_supported =
+				cfg->is_fils_roaming_supported;
 	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-		FL("mac_ctx->pmf_offload: %d"), mac_ctx->pmf_offload);
+		  FL("mac_ctx->pmf_offload: %d fils_roam support %d"),
+		  mac_ctx->pmf_offload, mac_ctx->is_fils_roaming_supported);
 
 }
 

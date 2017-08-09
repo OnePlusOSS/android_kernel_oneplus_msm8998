@@ -12696,6 +12696,7 @@ struct hdd_config {
 	bool oce_sap_enabled;
 	bool enable_11d_in_world_mode;
 	int8_t rssi_thresh_offset_5g;
+	bool is_fils_roaming_supported;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

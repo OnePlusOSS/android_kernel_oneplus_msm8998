@@ -14995,6 +14995,7 @@ static int wlan_hdd_cfg80211_connect_start(hdd_adapter_t *pAdapter,
 					       connect);
 		hdd_prevent_suspend_timeout(HDD_WAKELOCK_TIMEOUT_CONNECT,
 					    WIFI_POWER_EVENT_WAKELOCK_CONNECT);
+
 		qdf_status = sme_roam_connect(WLAN_HDD_GET_HAL_CTX(pAdapter),
 					  pAdapter->sessionId, pRoamProfile,
 					  &roamId);
@@ -19099,8 +19100,11 @@ static int __wlan_hdd_cfg80211_update_connect_params(
 			req->fils_erp_rrk_len, req->fils_erp_realm_len,
 			roam_profile->fils_con_info->key_nai_length);
 
-	if (!adapter->fast_roaming_allowed) {
-		hdd_debug("LFR3 not enabled on this interface");
+	if (!adapter->fast_roaming_allowed ||
+	    !hdd_ctx->config->is_fils_roaming_supported) {
+		hdd_debug("LFR3: %d, FILS support %d",
+			  adapter->fast_roaming_allowed,
+			  hdd_ctx->config->is_fils_roaming_supported);
 		return 0;
 	}
 

@@ -1498,6 +1498,8 @@ void hdd_update_tgt_cfg(void *context, void *param)
 	temp_band_cap = hdd_ctx->config->nBandCapability;
 
 	hdd_ctx->config->nBandCapability = cfg->band_cap;
+	hdd_ctx->config->is_fils_roaming_supported =
+			cfg->services.is_fils_roaming_supported;
 
 	/* now overwrite the target band capability with INI
 	 * setting if INI setting is a subset

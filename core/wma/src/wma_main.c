@@ -2158,6 +2158,43 @@ void wma_vdev_deinit(struct wma_txrx_node *vdev)
 }
 
 /**
+ * wma_rx_service_available_event() - service available event handler
+ * @handle: pointer to wma handle
+ * @cmd_param_info: Pointer to service available event TLVs
+ * @length: length of the event buffer received
+ *
+ * Return: zero on success, error code on failure
+ */
+static int wma_rx_service_available_event(void *handle, uint8_t *cmd_param_info,
+					uint32_t length)
+{
+	tp_wma_handle wma_handle = (tp_wma_handle) handle;
+	WMI_SERVICE_AVAILABLE_EVENTID_param_tlvs *param_buf;
+	wmi_service_available_event_fixed_param *ev;
+
+	param_buf = (WMI_SERVICE_AVAILABLE_EVENTID_param_tlvs *) cmd_param_info;
+	if (!(handle && param_buf)) {
+		WMA_LOGE("%s: Invalid arguments", __func__);
+		return -EINVAL;
+	}
+
+	ev = param_buf->fixed_param;
+	if (!ev) {
+		WMA_LOGE("%s: Invalid buffer", __func__);
+		return -EINVAL;
+	}
+
+	WMA_LOGD("WMA <-- WMI_SERVICE_AVAILABLE_EVENTID");
+
+	wma_handle->wmi_service_ext_offset = ev->wmi_service_segment_offset;
+	qdf_mem_copy(wma_handle->wmi_service_ext_bitmap,
+				&ev->wmi_service_segment_bitmap[0],
+				WMI_SERVICE_EXT_BM_SIZE32);
+
+	return 0;
+}
+
+/**
  * wma_open() - Allocate wma context and initialize it.
  * @cds_context:  cds context
  * @wma_tgt_cfg_cb: tgt config callback fun
@@ -2246,6 +2283,10 @@ QDF_STATUS wma_open(void *cds_context,
 	}
 
 	WMA_LOGD("WMA --> wmi_unified_attach - success");
+	wmi_unified_register_event_handler(wmi_handle,
+					   WMI_SERVICE_AVAILABLE_EVENTID,
+					   wma_rx_service_available_event,
+					   WMA_RX_SERIALIZER_CTX);
 	wmi_unified_register_event_handler(wmi_handle,
 					   WMI_SERVICE_READY_EVENTID,
 					   wma_rx_service_ready_event,
@@ -4112,6 +4153,11 @@ static inline void wma_update_target_services(tp_wma_handle wh,
 	if (WMI_SERVICE_IS_ENABLED(wh->wmi_service_bitmap,
 			WMI_SERVICE_PEER_STATS_INFO))
 		cfg->get_peer_info_enabled = 1;
+
+	if (WMI_SERVICE_EXT_IS_ENABLED(wh->wmi_service_bitmap,
+			wh->wmi_service_ext_bitmap,
+			WMI_SERVICE_FILS_SUPPORT))
+		cfg->is_fils_roaming_supported = true;
 }
 
 /**

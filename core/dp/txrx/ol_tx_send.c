@@ -128,8 +128,9 @@ static void ol_tx_flow_ct_unpause_os_q(ol_txrx_pdev_handle pdev)
 	struct ol_txrx_vdev_t *vdev;
 
 	TAILQ_FOREACH(vdev, &pdev->vdev_list, vdev_list_elem) {
-		if (qdf_atomic_read(&vdev->os_q_paused) &&
-		    (vdev->tx_fl_hwm != 0)) {
+		if ((qdf_atomic_read(&vdev->os_q_paused) &&
+		    (vdev->tx_fl_hwm != 0)) ||
+		    ol_txrx_flow_control_is_pause(vdev)) {
 			qdf_spin_lock(&pdev->tx_mutex);
 			if (pdev->tx_desc.num_free > vdev->tx_fl_hwm) {
 				qdf_atomic_set(&vdev->os_q_paused, 0);

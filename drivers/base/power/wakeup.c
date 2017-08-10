@@ -21,6 +21,24 @@
 
 #include "power.h"
 
+static bool enable_qcom_rx_wakelock_ws = true;
+static bool enable_wlan_extscan_wl_ws = true;
+static bool enable_wlan_wow_wl_ws = true;
+static bool enable_ipa_ws = true;
+static bool enable_wlan_ws = true;
+static bool enable_timerfd_ws = true;
+static bool enable_netlink_ws = true;
+static bool enable_netmgr_wl_ws = true;
+
+module_param(enable_qcom_rx_wakelock_ws, bool, 0644);
+module_param(enable_wlan_extscan_wl_ws, bool, 0644);
+module_param(enable_wlan_wow_wl_ws, bool, 0644);
+module_param(enable_ipa_ws, bool, 0644);
+module_param(enable_wlan_ws, bool, 0644);
+module_param(enable_timerfd_ws, bool, 0644);
+module_param(enable_netlink_ws, bool, 0644);
+module_param(enable_netmgr_wl_ws, bool, 0644);
+
 /*
  * If set, the suspend/hibernate code will abort transitions to a sleep state
  * if wakeup events are registered during or immediately before the transition.
@@ -554,6 +572,42 @@ static void wakeup_source_activate(struct wakeup_source *ws)
 	cec = atomic_inc_return(&combined_event_count);
 
 	trace_wakeup_source_activate(ws->name, cec);
+}
+
+static bool wakeup_source_blocker(struct wakeup_source *ws)
+{
+        unsigned int wslen = 0;
+
+        if (ws) {
+                wslen = strlen(ws->name);
+
+                if ((!enable_ipa_ws && !strncmp(ws->name, "IPA_WS", wslen)) ||
+                        (!enable_wlan_extscan_wl_ws &&
+                                !strncmp(ws->name, "wlan_extscan_wl", wslen)) ||
+                        (!enable_qcom_rx_wakelock_ws &&
+                                !strncmp(ws->name, "qcom_rx_wakelock", wslen)) ||
+                        (!enable_wlan_wow_wl_ws &&
+				!strncmp(ws->name, "wlan_wow_wl", wslen)) ||
+                        (!enable_wlan_ws &&
+                                !strncmp(ws->name, "wlan", wslen)) ||
+                        (!enable_timerfd_ws &&
+                                !strncmp(ws->name, "[timerfd]", wslen)) ||
+                        (!enable_netmgr_wl_ws &&
+				!strncmp(ws->name, "netmgr_wl", wslen)) ||
+                        (!enable_netlink_ws &&
+                                !strncmp(ws->name, "NETLINK", wslen))) {
+
+                        if (ws->active) {
+                                wakeup_source_deactivate(ws);
+                                pr_info("forcefully deactivate wakeup source: %s\n",
+                                        ws->name);
+                        }
+
+                        return true;
+                }
+        }
+
+        return false;
 }
 
 /**

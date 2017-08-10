@@ -12568,7 +12568,8 @@ struct hdd_config {
 	enum active_bpf_mode active_mc_bc_bpf_mode;
 	enum hw_filter_mode hw_filter_mode;
 	bool sap_internal_restart;
-	bool restart_beaconing_on_chan_avoid_event;
+	enum restart_beaconing_on_ch_avoid_rule
+		restart_beaconing_on_chan_avoid_event;
 	bool enable_bcast_probe_rsp;
 	bool qcn_ie_support;
 	uint8_t fils_max_chan_guard_time;

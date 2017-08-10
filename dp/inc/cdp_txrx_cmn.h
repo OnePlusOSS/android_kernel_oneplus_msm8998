@@ -367,6 +367,110 @@ ol_txrx_mgmt_tx_cb_set(ol_txrx_pdev_handle pdev,
 int ol_txrx_get_tx_pending(ol_txrx_pdev_handle pdev);
 
 /**
+ * enum data_stall_log_event_indicator - Module triggering data stall
+ * @DATA_STALL_LOG_INDICATOR_UNUSED: Unused
+ * @DATA_STALL_LOG_INDICATOR_HOST_DRIVER: Host driver indicates data stall
+ * @DATA_STALL_LOG_INDICATOR_FIRMWARE: FW indicates data stall
+ * @DATA_STALL_LOG_INDICATOR_FRAMEWORK: Framework indicates data stall
+ *
+ * Enum indicating the module that indicates data stall event
+ */
+enum data_stall_log_event_indicator {
+	DATA_STALL_LOG_INDICATOR_UNUSED,
+	DATA_STALL_LOG_INDICATOR_HOST_DRIVER,
+	DATA_STALL_LOG_INDICATOR_FIRMWARE,
+	DATA_STALL_LOG_INDICATOR_FRAMEWORK,
+};
+
+/**
+ * enum data_stall_log_event_type - data stall event type
+ * @DATA_STALL_LOG_NONE
+ * @DATA_STALL_LOG_FW_VDEV_PAUSE
+ * @DATA_STALL_LOG_HWSCHED_CMD_FILTER
+ * @DATA_STALL_LOG_HWSCHED_CMD_FLUSH
+ * @DATA_STALL_LOG_FW_RX_REFILL_FAILED
+ * @DATA_STALL_LOG_FW_RX_FCS_LEN_ERROR
+ * @DATA_STALL_LOG_FW_WDOG_ERRORS
+ * @DATA_STALL_LOG_BB_WDOG_ERROR
+ * @DATA_STALL_LOG_HOST_STA_TX_TIMEOUT
+ * @DATA_STALL_LOG_HOST_SOFTAP_TX_TIMEOUT
+ * @DATA_STALL_LOG_NUD_FAILURE
+ *
+ * Enum indicating data stall event type
+ */
+enum data_stall_log_event_type {
+	DATA_STALL_LOG_NONE,
+	DATA_STALL_LOG_FW_VDEV_PAUSE,
+	DATA_STALL_LOG_HWSCHED_CMD_FILTER,
+	DATA_STALL_LOG_HWSCHED_CMD_FLUSH,
+	DATA_STALL_LOG_FW_RX_REFILL_FAILED,
+	DATA_STALL_LOG_FW_RX_FCS_LEN_ERROR,
+	DATA_STALL_LOG_FW_WDOG_ERRORS,
+	DATA_STALL_LOG_BB_WDOG_ERROR,
+	DATA_STALL_LOG_HOST_STA_TX_TIMEOUT,
+	DATA_STALL_LOG_HOST_SOFTAP_TX_TIMEOUT,
+	DATA_STALL_LOG_NUD_FAILURE,
+};
+
+
+/**
+ * enum data_stall_log_recovery_type - data stall recovery type
+ * @DATA_STALL_LOG_RECOVERY_NONE,
+ * @DATA_STALL_LOG_RECOVERY_CONNECT_DISCONNECT,
+ * @DATA_STALL_LOG_RECOVERY_TRIGGER_PDR
+ *
+ * Enum indicating data stall recovery type
+ */
+enum data_stall_log_recovery_type {
+	DATA_STALL_LOG_RECOVERY_NONE = 0,
+	DATA_STALL_LOG_RECOVERY_CONNECT_DISCONNECT,
+	DATA_STALL_LOG_RECOVERY_TRIGGER_PDR,
+};
+
+
+/**
+ * struct data_stall_event_info - data stall info
+ * @indicator: Module triggering data stall
+ * @data_stall_type: data stall event type
+ * @vdev_id_bitmap: vdev_id_bitmap
+ * @pdev_id: pdev id
+ * @recovery_type: data stall recovery type
+ */
+struct data_stall_event_info {
+	uint32_t indicator;
+	uint32_t data_stall_type;
+	uint32_t vdev_id_bitmap;
+	uint32_t pdev_id;
+	uint32_t recovery_type;
+};
+
+struct data_stall_event_info;
+typedef struct data_stall_event_info *data_stall_event_info_handle;
+
+
+typedef void (*data_stall_detect_cb)(data_stall_event_info_handle);
+
+/**
+ * ol_register_data_stall_detect_cb() - register data stall callback
+ * @data_stall_detect_callback: data stall callback function
+ *
+ *
+ * Return: QDF_STATUS Enumeration
+ */
+QDF_STATUS ol_register_data_stall_detect_cb(
+			data_stall_detect_cb data_stall_detect_callback);
+
+/**
+ * ol_deregister_data_stall_detect_cb() - de-register data stall callback
+ * @data_stall_detect_callback: data stall callback function
+ *
+ *
+ * Return: QDF_STATUS Enumeration
+ */
+QDF_STATUS ol_deregister_data_stall_detect_cb(
+			data_stall_detect_cb data_stall_detect_callback);
+
+/**
  * ol_txrx_data_tx_cb - Function registered with the data path
  * that is called when tx frames marked as "no free" are
  * done being transmitted

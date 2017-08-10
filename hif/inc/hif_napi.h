@@ -157,7 +157,7 @@ static inline void hif_napi_update_yield_stats(struct CE_state *ce_state,
 
 #ifdef FEATURE_NAPI_DEBUG
 #define NAPI_DEBUG(fmt, ...)			\
-	qdf_print("wlan: NAPI: %s:%d "fmt, __func__, __LINE__, ##__VA_ARGS__)
+	qdf_debug("wlan: NAPI: %s:%d "fmt, __func__, __LINE__, ##__VA_ARGS__)
 #else
 #define NAPI_DEBUG(fmt, ...) /* NO-OP */
 #endif /* FEATURE NAPI_DEBUG */

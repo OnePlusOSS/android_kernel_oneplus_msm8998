@@ -443,7 +443,6 @@ static inline qdf_dma_addr_t *qdf_mem_get_dma_addr_ptr(qdf_device_t osdev,
 static inline qdf_shared_mem_t *qdf_mem_shared_mem_alloc(qdf_device_t osdev,
 							 uint32_t size)
 {
-	qdf_dma_addr_t dma_addr;
 	qdf_shared_mem_t *shared_mem;
 
 	shared_mem = qdf_mem_malloc(sizeof(qdf_shared_mem_t));
@@ -453,9 +452,8 @@ static inline qdf_shared_mem_t *qdf_mem_shared_mem_alloc(qdf_device_t osdev,
 		return NULL;
 	}
 
-	shared_mem->vaddr = qdf_mem_alloc_consistent(osdev, osdev->dev,
-				size, __qdf_mem_get_dma_addr_ptr(osdev,
-						&shared_mem->mem_info));
+	shared_mem->vaddr = qdf_mem_alloc_consistent(osdev, osdev->dev, size,
+				(qdf_dma_addr_t *)&shared_mem->mem_info.iova);
 	if (!shared_mem->vaddr) {
 		__qdf_print("%s; Unable to allocate DMA memory for shared resource\n",
 			    __func__);
@@ -463,11 +461,10 @@ static inline qdf_shared_mem_t *qdf_mem_shared_mem_alloc(qdf_device_t osdev,
 		return NULL;
 	}
 
-	dma_addr = qdf_mem_get_dma_addr(osdev, &shared_mem->mem_info);
 	shared_mem->mem_info.size = size;
 	qdf_mem_zero(shared_mem->vaddr, shared_mem->mem_info.size);
 	shared_mem->mem_info.pa = __qdf_mem_paddr_from_dmaaddr(osdev,
-								 dma_addr);
+				    (qdf_dma_addr_t)shared_mem->mem_info.iova);
 	qdf_mem_dma_get_sgtable(osdev->dev,
 				(void *)&shared_mem->sgtable,
 				shared_mem->vaddr,

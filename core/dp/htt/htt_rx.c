@@ -446,7 +446,7 @@ static int htt_rx_ring_fill_n(struct htt_pdev_t *pdev, int num)
 	int num_alloc = 0;
 
 	idx = *(pdev->rx_ring.alloc_idx.vaddr);
-	if (pdev->uc_map_reqd) {
+	if (qdf_mem_smmu_s1_enabled(pdev->osdev) && pdev->uc_map_reqd) {
 		mem_map_table = qdf_mem_map_table_alloc(num);
 		if (!mem_map_table) {
 			qdf_print("%s: Failed to allocate memory for mem map table\n",
@@ -543,7 +543,7 @@ moretofill:
 			pdev->rx_ring.buf.netbufs_ring[idx] = rx_netbuf;
 		}
 
-		if (pdev->uc_map_reqd) {
+		if (qdf_mem_smmu_s1_enabled(pdev->osdev) && pdev->uc_map_reqd) {
 			qdf_update_mem_map_table(pdev->osdev, mem_info,
 						 paddr, HTT_RX_BUF_SIZE);
 			mem_info++;
@@ -565,7 +565,7 @@ moretofill:
 	}
 
 free_mem_map_table:
-	if (pdev->uc_map_reqd) {
+	if (qdf_mem_smmu_s1_enabled(pdev->osdev) && pdev->uc_map_reqd) {
 		cds_smmu_map_unmap(true, num_alloc, mem_map_table);
 		qdf_mem_free(mem_map_table);
 	}
@@ -2301,7 +2301,7 @@ htt_rx_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 	/* Get the total number of MSDUs */
 	msdu_count = HTT_RX_IN_ORD_PADDR_IND_MSDU_CNT_GET(*(msg_word + 1));
 	HTT_RX_CHECK_MSDU_COUNT(msdu_count);
-	if (pdev->uc_map_reqd) {
+	if (qdf_mem_smmu_s1_enabled(pdev->osdev) && pdev->uc_map_reqd) {
 		mem_map_table = qdf_mem_map_table_alloc(msdu_count);
 		if (!mem_map_table) {
 			qdf_print("%s: Failed to allocate memory for mem map table\n",
@@ -2334,7 +2334,7 @@ htt_rx_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 	}
 
 	while (msdu_count > 0) {
-		if (pdev->uc_map_reqd) {
+		if (qdf_mem_smmu_s1_enabled(pdev->osdev) && pdev->uc_map_reqd) {
 			qdf_update_mem_map_table(pdev->osdev, mem_info,
 						 QDF_NBUF_CB_PADDR(msdu),
 						 HTT_RX_BUF_SIZE);
@@ -2479,7 +2479,7 @@ htt_rx_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 	}
 
 free_mem_map_table:
-	if (pdev->uc_map_reqd) {
+	if (qdf_mem_smmu_s1_enabled(pdev->osdev) && pdev->uc_map_reqd) {
 		if (num_unmapped)
 			cds_smmu_map_unmap(false, num_unmapped,
 					   mem_map_table);

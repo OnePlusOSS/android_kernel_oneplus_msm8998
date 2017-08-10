@@ -1075,13 +1075,15 @@ static int htt_tx_ipa_uc_wdi_tx_buf_alloc(struct htt_pdev_t *pdev,
 	qdf_shared_mem_t *shared_tx_buffer;
 
 	ring_vaddr = (qdf_dma_addr_t *)pdev->ipa_uc_tx_rsc.tx_comp_ring->vaddr;
-	mem_map_table = qdf_mem_map_table_alloc(uc_tx_buf_cnt);
-	if (!mem_map_table) {
-		qdf_print("%s: Failed to allocate memory for mem map table\n",
-			  __func__);
-		return 0;
+	if (qdf_mem_smmu_s1_enabled(pdev->osdev)) {
+		mem_map_table = qdf_mem_map_table_alloc(uc_tx_buf_cnt);
+		if (!mem_map_table) {
+			qdf_print("%s: Failed to allocate memory for mem map table\n",
+				  __func__);
+			return 0;
+		}
+		mem_info = mem_map_table;
 	}
-	mem_info = mem_map_table;
 
 	/* Allocate TX buffers as many as possible */
 	for (tx_buffer_count = 0;
@@ -1137,10 +1139,12 @@ static int htt_tx_ipa_uc_wdi_tx_buf_alloc(struct htt_pdev_t *pdev,
 		/* Memory barrier to ensure actual value updated */
 
 		ring_vaddr++;
-		qdf_update_mem_map_table(pdev->osdev, mem_info,
-				shared_tx_buffer->mem_info.iova,
-				uc_tx_buf_sz);
-		mem_info++;
+		if (qdf_mem_smmu_s1_enabled(pdev->osdev)) {
+			qdf_update_mem_map_table(pdev->osdev, mem_info,
+					shared_tx_buffer->mem_info.iova,
+					uc_tx_buf_sz);
+			 mem_info++;
+		}
 	}
 
 	/*
@@ -1168,9 +1172,11 @@ static int htt_tx_ipa_uc_wdi_tx_buf_alloc(struct htt_pdev_t *pdev,
 	}
 
 free_mem_map_table:
-	cds_smmu_map_unmap(true, tx_buffer_count_pwr2,
-			   mem_map_table);
-	qdf_mem_free(mem_map_table);
+	if (qdf_mem_smmu_s1_enabled(pdev->osdev)) {
+		cds_smmu_map_unmap(true, tx_buffer_count_pwr2,
+				   mem_map_table);
+		qdf_mem_free(mem_map_table);
+	}
 
 	return tx_buffer_count_pwr2;
 }
@@ -1189,9 +1195,10 @@ static void htt_tx_buf_pool_free(struct htt_pdev_t *pdev)
 
 	for (idx = 0; idx < pdev->ipa_uc_tx_rsc.alloc_tx_buf_cnt; idx++) {
 		if (pdev->ipa_uc_tx_rsc.tx_buf_pool_strg[idx]) {
-			cds_smmu_map_unmap(false, 1,
-				&pdev->ipa_uc_tx_rsc.tx_buf_pool_strg[
-					idx]->mem_info);
+			if (qdf_mem_smmu_s1_enabled(pdev->osdev))
+				cds_smmu_map_unmap(false, 1,
+					&pdev->ipa_uc_tx_rsc.tx_buf_pool_strg[
+						idx]->mem_info);
 			qdf_mem_shared_mem_free(pdev->osdev,
 						pdev->ipa_uc_tx_rsc.
 							tx_buf_pool_strg[idx]);
@@ -1215,13 +1222,15 @@ static int htt_tx_ipa_uc_wdi_tx_buf_alloc(struct htt_pdev_t *pdev,
 	qdf_shared_mem_t *shared_tx_buffer;
 
 	ring_vaddr = pdev->ipa_uc_tx_rsc.tx_comp_ring->vaddr;
-	mem_map_table = qdf_mem_map_table_alloc(uc_tx_buf_cnt);
-	if (!mem_map_table) {
-		qdf_print("%s: Failed to allocate memory for mem map table\n",
-			  __func__);
-		return 0;
+	if (qdf_mem_smmu_s1_enabled(pdev->osdev)) {
+		mem_map_table = qdf_mem_map_table_alloc(uc_tx_buf_cnt);
+		if (!mem_map_table) {
+			qdf_print("%s: Failed to allocate memory for mem map table\n",
+				  __func__);
+			return 0;
+		}
+		mem_info = mem_map_table;
 	}
-	mem_info = mem_map_table;
 
 	/* Allocate TX buffers as many as possible */
 	for (tx_buffer_count = 0;
@@ -1266,10 +1275,12 @@ static int htt_tx_ipa_uc_wdi_tx_buf_alloc(struct htt_pdev_t *pdev,
 		/* Memory barrier to ensure actual value updated */
 
 		ring_vaddr++;
-		qdf_update_mem_map_table(pdev->osdev, mem_info,
-				shared_tx_buffer->mem_info.iova,
-				uc_tx_buf_sz);
-		mem_info++;
+		if (qdf_mem_smmu_s1_enabled(pdev->osdev)) {
+			qdf_update_mem_map_table(pdev->osdev, mem_info,
+					shared_tx_buffer->mem_info.iova,
+					uc_tx_buf_sz);
+			 mem_info++;
+		}
 	}
 
 	/*
@@ -1297,9 +1308,11 @@ static int htt_tx_ipa_uc_wdi_tx_buf_alloc(struct htt_pdev_t *pdev,
 	}
 
 free_mem_map_table:
-	cds_smmu_map_unmap(true, tx_buffer_count_pwr2,
-			   mem_map_table);
-	qdf_mem_free(mem_map_table);
+	if (qdf_mem_smmu_s1_enabled(pdev->osdev)) {
+		cds_smmu_map_unmap(true, tx_buffer_count_pwr2,
+				   mem_map_table);
+		qdf_mem_free(mem_map_table);
+	}
 
 	return tx_buffer_count_pwr2;
 }
@@ -1310,9 +1323,10 @@ static void htt_tx_buf_pool_free(struct htt_pdev_t *pdev)
 
 	for (idx = 0; idx < pdev->ipa_uc_tx_rsc.alloc_tx_buf_cnt; idx++) {
 		if (pdev->ipa_uc_tx_rsc.tx_buf_pool_strg[idx]) {
-			cds_smmu_map_unmap(false, 1,
-				&pdev->ipa_uc_tx_rsc.tx_buf_pool_strg[
-					idx]->mem_info);
+			if (qdf_mem_smmu_s1_enabled(pdev->osdev))
+				cds_smmu_map_unmap(false, 1,
+					&pdev->ipa_uc_tx_rsc.tx_buf_pool_strg[
+						idx]->mem_info);
 			qdf_mem_shared_mem_free(pdev->osdev,
 						pdev->ipa_uc_tx_rsc.
 							tx_buf_pool_strg[idx]);

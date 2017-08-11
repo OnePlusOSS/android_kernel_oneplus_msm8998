@@ -40,11 +40,7 @@
 
 #define MAX_NUMBER_OF_CONC_CONNECTIONS 3
 #define DBS_OPPORTUNISTIC_TIME    10
-#ifdef QCA_WIFI_3_0_EMU
 #define CONNECTION_UPDATE_TIMEOUT 3000
-#else
-#define CONNECTION_UPDATE_TIMEOUT 1000
-#endif
 
 /* Some max value greater than the max length of the channel list */
 #define MAX_WEIGHT_OF_PCL_CHANNELS 255

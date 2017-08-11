@@ -2198,14 +2198,14 @@ qdf_export_symbol(__qdf_nbuf_get_tso_num_seg);
 
 struct sk_buff *__qdf_nbuf_inc_users(struct sk_buff *skb)
 {
-	atomic_inc(&skb->users);
+	qdf_nbuf_users_inc(&skb->users);
 	return skb;
 }
 qdf_export_symbol(__qdf_nbuf_inc_users);
 
 int __qdf_nbuf_get_users(struct sk_buff *skb)
 {
-	return atomic_read(&skb->users);
+	return qdf_nbuf_users_read(&skb->users);
 }
 qdf_export_symbol(__qdf_nbuf_get_users);
 

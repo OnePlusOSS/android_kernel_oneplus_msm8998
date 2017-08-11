@@ -843,10 +843,9 @@ static inline qdf_nbuf_t qdf_nbuf_copy(qdf_nbuf_t buf)
  * Return: data pointer of this buf where new data has to be
  *         put, or NULL if there is not enough room in this buf.
  */
-
 static inline void qdf_nbuf_init_fast(qdf_nbuf_t nbuf)
 {
-	atomic_set(&nbuf->users, 1);
+	qdf_nbuf_users_set(&nbuf->users, 1);
 	nbuf->data = nbuf->head + NET_SKB_PAD;
 	skb_reset_tail_pointer(nbuf);
 }

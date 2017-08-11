@@ -64,7 +64,7 @@
 		qcom,base-leakage-coefficient = <34>;
 		qcom,lm-limit = <6000>;
 
-		qcom,initial-pwrlevel = <4>;
+		qcom,initial-pwrlevel = <5>;
 
 		qcom,idle-timeout = <80>; //<HZ/12>
 		qcom,no-nap;

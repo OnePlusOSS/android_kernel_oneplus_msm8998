@@ -4043,6 +4043,7 @@ QDF_STATUS hdd_stop_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 		break;
 
 	case QDF_SAP_MODE:
+		hdd_ipa_flush(hdd_ctx);
 	case QDF_P2P_GO_MODE:
 		if (hdd_ctx->config->conc_custom_rule1 &&
 			(QDF_SAP_MODE == adapter->device_mode)) {

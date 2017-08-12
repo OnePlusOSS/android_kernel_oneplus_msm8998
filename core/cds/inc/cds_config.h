@@ -201,6 +201,7 @@ struct cds_config_info {
 	uint16_t self_gen_frm_pwr;
 	enum cfg_sub_20_channel_width sub_20_channel_width;
 	bool flow_steering_enabled;
+	uint8_t max_msdus_per_rxinorderind;
 	bool self_recovery_enabled;
 	bool fw_timeout_crash;
 

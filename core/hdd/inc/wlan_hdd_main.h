@@ -2749,10 +2749,41 @@ static inline void hdd_update_hlp_info(struct net_device *dev,
 {}
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0)
+static inline int
+hdd_nla_parse(struct nlattr **tb, int maxtype, const struct nlattr *head,
+	      int len, const struct nla_policy *policy)
+{
+	return nla_parse(tb, maxtype, head, len, policy);
+}
+
+static inline int
+hdd_nla_parse_nested(struct nlattr *tb[], int maxtype, const struct nlattr *nla,
+		     const struct nla_policy *policy)
+{
+	return nla_parse_nested(tb, maxtype, nla, policy);
+}
+#else
+static inline int
+hdd_nla_parse(struct nlattr **tb, int maxtype, const struct nlattr *head,
+	      int len, const struct nla_policy *policy)
+{
+	return nla_parse(tb, maxtype, head, len, policy, NULL);
+}
+
+static inline int
+hdd_nla_parse_nested(struct nlattr *tb[], int maxtype, const struct nlattr *nla,
+		     const struct nla_policy *policy)
+{
+	return nla_parse_nested(tb, maxtype, nla, policy, NULL);
+}
+#endif /* KERNEL_VERSION(4, 12, 0) */
+
 /**
  * hdd_pld_ipa_uc_shutdown_pipes() - Disconnect IPA WDI pipes during PDR
  *
  * Return: None
  */
 void hdd_pld_ipa_uc_shutdown_pipes(void);
+
 #endif /* end #if !defined(WLAN_HDD_MAIN_H) */

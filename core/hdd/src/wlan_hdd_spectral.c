@@ -119,8 +119,8 @@ static int __wlan_hdd_cfg80211_spectral_scan_start(struct wiphy *wiphy,
 	/* initialize config parameters*/
 	config_req = hdd_ctx->ss_config;
 
-	if (nla_parse(tb, QCA_WLAN_VENDOR_ATTR_SPECTRAL_SCAN_CONFIG_MAX,
-		      data, data_len, spectral_scan_policy)) {
+	if (hdd_nla_parse(tb, QCA_WLAN_VENDOR_ATTR_SPECTRAL_SCAN_CONFIG_MAX,
+			  data, data_len, spectral_scan_policy)) {
 		hdd_err("Invalid Spectral Scan config ATTR");
 		return -EINVAL;
 	}

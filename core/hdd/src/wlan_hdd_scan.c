@@ -2621,8 +2621,8 @@ static int __wlan_hdd_cfg80211_vendor_scan(struct wiphy *wiphy,
 	if (0 != ret)
 		return ret;
 
-	if (nla_parse(tb, QCA_WLAN_VENDOR_ATTR_SCAN_MAX, data,
-		      data_len, scan_policy)) {
+	if (hdd_nla_parse(tb, QCA_WLAN_VENDOR_ATTR_SCAN_MAX, data, data_len,
+			  scan_policy)) {
 		hdd_err("Invalid ATTR");
 		return -EINVAL;
 	}
@@ -2887,9 +2887,9 @@ static int wlan_hdd_get_scanid(hdd_context_t *hdd_ctx,
  *
  * Return: zero for success and non zero for failure
  */
-static int __wlan_hdd_vendor_abort_scan(
-		struct wiphy *wiphy, const void *data,
-		int data_len)
+static int __wlan_hdd_vendor_abort_scan(struct wiphy *wiphy,
+					const void *data,
+					int data_len)
 {
 	hdd_context_t *hdd_ctx = wiphy_priv(wiphy);
 	struct nlattr *tb[QCA_WLAN_VENDOR_ATTR_SCAN_MAX + 1];
@@ -2903,31 +2903,28 @@ static int __wlan_hdd_vendor_abort_scan(
 	}
 
 	ret = wlan_hdd_validate_context(hdd_ctx);
-	if (0 != ret)
+	if (ret)
 		return ret;
 
-	ret = -EINVAL;
-	if (nla_parse(tb, QCA_WLAN_VENDOR_ATTR_SCAN_MAX, data,
-		      data_len, scan_policy)) {
+	ret = hdd_nla_parse(tb, QCA_WLAN_VENDOR_ATTR_SCAN_MAX, data,
+			    data_len, scan_policy);
+	if (ret) {
 		hdd_err("Invalid ATTR");
 		return ret;
 	}
 
-	if (tb[QCA_WLAN_VENDOR_ATTR_SCAN_COOKIE]) {
-		cookie = nla_get_u64(
-			    tb[QCA_WLAN_VENDOR_ATTR_SCAN_COOKIE]);
-		ret = wlan_hdd_get_scanid(hdd_ctx,
-					  &scan_id,
-					  cookie);
-		if (ret != 0)
-			return ret;
-		hdd_abort_mac_scan(hdd_ctx,
-				   HDD_SESSION_ID_INVALID,
-				   scan_id,
-				   eCSR_SCAN_ABORT_DEFAULT);
-	}
+	if (!tb[QCA_WLAN_VENDOR_ATTR_SCAN_COOKIE])
+		return -EINVAL;
 
-	return ret;
+	cookie = nla_get_u64(tb[QCA_WLAN_VENDOR_ATTR_SCAN_COOKIE]);
+	ret = wlan_hdd_get_scanid(hdd_ctx, &scan_id, cookie);
+	if (ret)
+		return ret;
+
+	hdd_abort_mac_scan(hdd_ctx, HDD_SESSION_ID_INVALID,
+			   scan_id, eCSR_SCAN_ABORT_DEFAULT);
+
+	return 0;
 }
 
 

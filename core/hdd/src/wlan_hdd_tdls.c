@@ -3273,8 +3273,8 @@ __wlan_hdd_cfg80211_exttdls_get_status(struct wiphy *wiphy,
 	if (pHddCtx->config->fTDLSExternalControl == false)
 		return -ENOTSUPP;
 
-	if (nla_parse(tb, QCA_WLAN_VENDOR_ATTR_TDLS_GET_STATUS_MAX,
-		      data, data_len, wlan_hdd_tdls_config_get_status_policy)) {
+	if (hdd_nla_parse(tb, QCA_WLAN_VENDOR_ATTR_TDLS_GET_STATUS_MAX, data,
+			  data_len, wlan_hdd_tdls_config_get_status_policy)) {
 		hdd_err("Invalid attribute");
 		return -EINVAL;
 	}
@@ -3363,9 +3363,8 @@ __wlan_hdd_cfg80211_configure_tdls_mode(struct wiphy *wiphy,
 	if (NULL == adapter)
 		return -EINVAL;
 
-	if (nla_parse(tb, QCA_WLAN_VENDOR_ATTR_TDLS_CONFIG_MAX,
-		      data, data_len,
-		      wlan_hdd_tdls_mode_configuration_policy)) {
+	if (hdd_nla_parse(tb, QCA_WLAN_VENDOR_ATTR_TDLS_CONFIG_MAX, data,
+			  data_len, wlan_hdd_tdls_mode_configuration_policy)) {
 		hdd_err("Invalid attribute");
 		return -EINVAL;
 	}
@@ -3607,8 +3606,8 @@ __wlan_hdd_cfg80211_exttdls_enable(struct wiphy *wiphy,
 		hdd_err("TDLS External Control is not enabled");
 		return -ENOTSUPP;
 	}
-	if (nla_parse(tb, QCA_WLAN_VENDOR_ATTR_TDLS_ENABLE_MAX,
-		      data, data_len, wlan_hdd_tdls_config_enable_policy)) {
+	if (hdd_nla_parse(tb, QCA_WLAN_VENDOR_ATTR_TDLS_ENABLE_MAX, data,
+			  data_len, wlan_hdd_tdls_config_enable_policy)) {
 		hdd_err("Invalid ATTR");
 		return -EINVAL;
 	}
@@ -3727,8 +3726,8 @@ static int __wlan_hdd_cfg80211_exttdls_disable(struct wiphy *wiphy,
 	if (pHddCtx->config->fTDLSExternalControl == false)
 		return -ENOTSUPP;
 
-	if (nla_parse(tb, QCA_WLAN_VENDOR_ATTR_TDLS_DISABLE_MAX,
-		      data, data_len, wlan_hdd_tdls_config_disable_policy)) {
+	if (hdd_nla_parse(tb, QCA_WLAN_VENDOR_ATTR_TDLS_DISABLE_MAX, data,
+			  data_len, wlan_hdd_tdls_config_disable_policy)) {
 		hdd_err("Invalid ATTR");
 		return -EINVAL;
 	}

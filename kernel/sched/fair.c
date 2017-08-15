@@ -7082,9 +7082,11 @@ static int energy_aware_wake_cpu(struct task_struct *p, int target, int sync)
 	int target_cpu = task_cpu(p);
 	unsigned long task_util_boosted, new_util;
 	int i;
+	int cpu = smp_processor_id();
+	bool about_to_idle = (cpu_rq(cpu)->nr_running < 2);
 
-	if (sysctl_sched_sync_hint_enable && sync) {
-		int cpu = smp_processor_id();
+	if (sysctl_sched_sync_hint_enable && sync
+			&& about_to_idle) {
 		cpumask_t search_cpus;
 		cpumask_and(&search_cpus, tsk_cpus_allowed(p), cpu_online_mask);
 		if (cpumask_test_cpu(cpu, &search_cpus))

@@ -2750,6 +2750,11 @@ static inline void hdd_update_hlp_info(struct net_device *dev,
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0)
+static inline void hdd_dev_setup_destructor(struct net_device *dev)
+{
+	dev->destructor = free_netdev;
+}
+
 static inline int
 hdd_nla_parse(struct nlattr **tb, int maxtype, const struct nlattr *head,
 	      int len, const struct nla_policy *policy)
@@ -2764,6 +2769,11 @@ hdd_nla_parse_nested(struct nlattr *tb[], int maxtype, const struct nlattr *nla,
 	return nla_parse_nested(tb, maxtype, nla, policy);
 }
 #else
+static inline void hdd_dev_setup_destructor(struct net_device *dev)
+{
+	dev->needs_free_netdev = true;
+}
+
 static inline int
 hdd_nla_parse(struct nlattr **tb, int maxtype, const struct nlattr *head,
 	      int len, const struct nla_policy *policy)

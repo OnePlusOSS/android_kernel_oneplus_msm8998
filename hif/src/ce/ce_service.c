@@ -623,6 +623,16 @@ int ce_send_fast(struct CE_handle *copyeng, qdf_nbuf_t msdu,
 
 	Q_TARGET_ACCESS_BEGIN(scn);
 
+	/*
+	 * Create a log assuming the call will go through, and if not, we would
+	 * add an error trace as well.
+	 * Please add the same failure log for any additional error paths.
+	 */
+	DPTRACE(qdf_dp_trace(msdu,
+			QDF_DP_TRACE_CE_FAST_PACKET_PTR_RECORD,
+			qdf_nbuf_data_addr(msdu),
+			sizeof(qdf_nbuf_data(msdu)), QDF_TX));
+
 	qdf_spin_lock_bh(&ce_state->ce_index_lock);
 	src_ring->sw_index = CE_SRC_RING_READ_IDX_GET_FROM_DDR(scn, ctrl_addr);
 	write_index = src_ring->write_index;
@@ -640,6 +650,11 @@ int ce_send_fast(struct CE_handle *copyeng, qdf_nbuf_t msdu,
 		OL_ATH_CE_PKT_ERROR_COUNT_INCR(scn, CE_RING_DELTA_FAIL);
 		Q_TARGET_ACCESS_END(scn);
 		qdf_spin_unlock_bh(&ce_state->ce_index_lock);
+
+		DPTRACE(qdf_dp_trace(NULL,
+				QDF_DP_TRACE_CE_FAST_PACKET_ERR_RECORD,
+				NULL, 0, QDF_TX));
+
 		return 0;
 	}
 
@@ -732,12 +747,6 @@ int ce_send_fast(struct CE_handle *copyeng, qdf_nbuf_t msdu,
 		hif_pm_runtime_put(hif_hdl);
 	}
 	qdf_spin_unlock_bh(&ce_state->ce_index_lock);
-
-	DPTRACE(qdf_dp_trace(msdu,
-			QDF_DP_TRACE_CE_FAST_PACKET_PTR_RECORD,
-			qdf_nbuf_data_addr(msdu),
-			sizeof(qdf_nbuf_data(msdu)), QDF_TX));
-
 
 	hif_record_ce_desc_event(scn, ce_state->id, type,
 				 NULL, NULL, write_index);

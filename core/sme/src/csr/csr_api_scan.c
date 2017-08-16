@@ -232,6 +232,10 @@ static void csr_set_default_scan_timing(tpAniSirGlobal pMac,
 
 		pScanRequest->min_rest_time =
 			pMac->roam.configParam.min_rest_time_conc;
+		/* IF AP is active set min rest time same as max rest time */
+		if (csr_is_infra_ap_started(pMac))
+			pScanRequest->min_rest_time = pScanRequest->restTime;
+
 		pScanRequest->idle_time =
 			pMac->roam.configParam.idle_time_conc;
 
@@ -538,6 +542,9 @@ QDF_STATUS csr_scan_request(tpAniSirGlobal pMac, uint16_t sessionId,
 	if (scan_req->restTime == 0 && csr_is_any_session_connected(pMac)) {
 		scan_req->restTime = cfg_prm->nRestTimeConc;
 		scan_req->min_rest_time = cfg_prm->min_rest_time_conc;
+		/* IF AP is active set min rest time same as max rest time */
+		if (csr_is_infra_ap_started(pMac))
+			scan_req->min_rest_time = scan_req->restTime;
 		scan_req->idle_time = cfg_prm->idle_time_conc;
 		if (scan_req->scanType == eSIR_ACTIVE_SCAN) {
 			scan_req->maxChnTime = cfg_prm->nActiveMaxChnTimeConc;

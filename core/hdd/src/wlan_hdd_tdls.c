@@ -212,10 +212,11 @@ static u8 wlan_hdd_tdls_hash_key(const u8 *mac)
  * wlan_hdd_tdls_disable_offchan_and_teardown_links - Disable offchannel
  * and teardown TDLS links
  * @hddCtx : pointer to hdd context
- *
+ * @disable_tdls_state: disable FW tdls state
  * Return: None
  */
-void wlan_hdd_tdls_disable_offchan_and_teardown_links(hdd_context_t *hddctx)
+void wlan_hdd_tdls_disable_offchan_and_teardown_links(hdd_context_t *hddctx,
+		bool disable_tdls_state)
 {
 	u16 connected_tdls_peers = 0;
 	u8 staidx;
@@ -259,7 +260,8 @@ void wlan_hdd_tdls_disable_offchan_and_teardown_links(hdd_context_t *hddctx)
 	hdd_set_tdls_offchannelmode(adapter, DISABLE_CHANSWITCH);
 
 	/* Send Msg to PE for deleting all the TDLS peers */
-	sme_delete_all_tdls_peers(hddctx->hHal, adapter->sessionId);
+	sme_delete_all_tdls_peers(hddctx->hHal, adapter->sessionId,
+			disable_tdls_state);
 
 	for (staidx = 0; staidx < hddctx->max_num_tdls_sta;
 							staidx++) {
@@ -315,7 +317,7 @@ void hdd_update_tdls_ct_and_teardown_links(hdd_context_t *hdd_ctx)
 {
 	/* set tdls connection tracker state */
 	cds_set_tdls_ct_mode(hdd_ctx);
-	wlan_hdd_tdls_disable_offchan_and_teardown_links(hdd_ctx);
+	wlan_hdd_tdls_disable_offchan_and_teardown_links(hdd_ctx, true);
 }
 
 /**
@@ -1995,7 +1997,7 @@ void wlan_hdd_update_tdls_info(hdd_adapter_t *adapter, bool tdls_prohibited,
 	    !tdls_prohibited) {
 		hdd_warn("Concurrency not allowed in TDLS! set state cnt %d",
 			hdd_ctx->set_state_info.set_state_cnt);
-		wlan_hdd_tdls_disable_offchan_and_teardown_links(hdd_ctx);
+		wlan_hdd_tdls_disable_offchan_and_teardown_links(hdd_ctx, true);
 		tdls_prohibited = true;
 		hdd_ctx->tdls_mode = eTDLS_SUPPORT_NOT_ENABLED;
 		tdls_param->vdev_id = hdd_ctx->set_state_info.vdev_id;
@@ -2179,7 +2181,7 @@ void wlan_hdd_check_conc_and_update_tdls_state(hdd_context_t *hdd_ctx,
 				return;
 			}
 			wlan_hdd_tdls_disable_offchan_and_teardown_links(
-								hdd_ctx);
+								hdd_ctx, true);
 			return;
 		}
 		wlan_hdd_update_tdls_info(temp_adapter, false, false);
@@ -2936,7 +2938,7 @@ int wlan_hdd_tdls_scan_callback(hdd_adapter_t *pAdapter, struct wiphy *wiphy,
 		if (connectedTdlsPeers) {
 			hdd_debug("teardown all the active tdls links");
 			wlan_hdd_tdls_disable_offchan_and_teardown_links(
-					pHddCtx);
+					pHddCtx, false);
 		}
 	}
 
@@ -6342,7 +6344,7 @@ void hdd_tdls_notify_p2p_roc(hdd_context_t *hdd_ctx,
 		if (!buf_sta) {
 			hdd_debug("teardown tdls links");
 			wlan_hdd_tdls_disable_offchan_and_teardown_links(
-					hdd_ctx);
+					hdd_ctx, false);
 		}
 	}
 

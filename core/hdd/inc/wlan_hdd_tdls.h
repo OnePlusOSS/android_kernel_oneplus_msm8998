@@ -715,7 +715,8 @@ bool wlan_hdd_tdls_check_enable_tdls_scan(hdd_context_t *hdd_ctx);
 bool wlan_hdd_tdls_check_peer_buf_capable(hdd_context_t *hdd_ctx,
 					  uint16_t connectedTdlsPeers);
 void hdd_update_tdls_ct_and_teardown_links(hdd_context_t *hdd_ctx);
-void wlan_hdd_tdls_disable_offchan_and_teardown_links(hdd_context_t *hddctx);
+void wlan_hdd_tdls_disable_offchan_and_teardown_links(hdd_context_t *hddctx,
+		bool disable_tdls_state);
 
 hddTdlsPeer_t *wlan_hdd_tdls_find_first_connected_peer(hdd_adapter_t *adapter);
 int hdd_set_tdls_offchannel(hdd_context_t *hdd_ctx, int offchannel);
@@ -851,7 +852,8 @@ static inline void hdd_update_tdls_ct_and_teardown_links(hdd_context_t *hdd_ctx)
 {
 }
 static inline void
-wlan_hdd_tdls_disable_offchan_and_teardown_links(hdd_context_t *hddctx)
+wlan_hdd_tdls_disable_offchan_and_teardown_links(hdd_context_t *hddctx,
+		bool disable_tdls_state);
 {
 }
 static inline void wlan_hdd_tdls_exit(hdd_adapter_t *adapter)

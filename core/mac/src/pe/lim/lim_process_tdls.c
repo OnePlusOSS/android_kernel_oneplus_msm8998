@@ -3344,18 +3344,20 @@ tSirRetStatus lim_process_sme_del_all_tdls_peers(tpAniSirGlobal mac_ctx,
 
 	lim_check_aid_and_delete_peer(mac_ctx, session_entry);
 
-	if (mac_ctx->lim.sme_msg_callback) {
-		tdls_state_disable = qdf_mem_malloc(
-						sizeof(*tdls_state_disable));
-		if (NULL == tdls_state_disable) {
-			pe_err("memory allocation failed");
-			return eSIR_FAILURE;
+	if (msg->disable_tdls_state) {
+		if (mac_ctx->lim.sme_msg_callback) {
+			tdls_state_disable = qdf_mem_malloc(
+					sizeof(*tdls_state_disable));
+			if (NULL == tdls_state_disable) {
+				pe_err("memory allocation failed");
+				return eSIR_FAILURE;
+			}
+			tdls_state_disable->session_id = session_entry->smeSessionId;
+			cds_msg.type = eWNI_SME_TDLS_NOTIFY_SET_STATE_DISABLE;
+			cds_msg.bodyptr = tdls_state_disable;
+			cds_msg.bodyval = 0;
+			mac_ctx->lim.sme_msg_callback(mac_ctx, &cds_msg);
 		}
-		tdls_state_disable->session_id = session_entry->smeSessionId;
-		cds_msg.type = eWNI_SME_TDLS_NOTIFY_SET_STATE_DISABLE;
-		cds_msg.bodyptr = tdls_state_disable;
-		cds_msg.bodyval = 0;
-		mac_ctx->lim.sme_msg_callback(mac_ctx, &cds_msg);
 	}
 
 	return eSIR_SUCCESS;

@@ -1599,7 +1599,8 @@ QDF_STATUS sme_congestion_register_callback(tHalHandle hal,
 tCsrScanResultInfo *sme_scan_get_result_for_bssid(tHalHandle hal_handle,
 						  struct qdf_mac_addr *bssid);
 
-QDF_STATUS sme_delete_all_tdls_peers(tHalHandle hal, uint8_t session_id);
+QDF_STATUS sme_delete_all_tdls_peers(tHalHandle hal, uint8_t session_id,
+		bool disable_tdls_state);
 
 /**
  * sme_set_random_mac() - Set random mac address filter

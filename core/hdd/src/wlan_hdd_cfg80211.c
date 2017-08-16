@@ -16765,7 +16765,8 @@ static int __wlan_hdd_cfg80211_disconnect(struct wiphy *wiphy,
 		/* First clean up the tdls peers
 		 * Send Msg to PE for deleting all the TDLS peers
 		 */
-		sme_delete_all_tdls_peers(pHddCtx->hHal, pAdapter->sessionId);
+		sme_delete_all_tdls_peers(pHddCtx->hHal, pAdapter->sessionId,
+				true);
 #endif
 		hdd_info("Disconnect request from user space with reason: %d (%s) internal reason code: %d",
 			reason, hdd_ieee80211_reason_code_to_str(reason), reasonCode);

@@ -87,25 +87,6 @@ static inline int pld_snoc_get_irq(int ce_id)
 {
 	return 0;
 }
-static inline int pld_snoc_set_wlan_unsafe_channel(u16 *unsafe_ch_list,
-						   u16 ch_count)
-{
-	return 0;
-}
-static inline int pld_snoc_get_wlan_unsafe_channel(u16 *unsafe_ch_list,
-						   u16 *ch_count,
-						   u16 buf_len)
-{
-	return 0;
-}
-static inline int pld_snoc_wlan_set_dfs_nol(const void *info, u16 info_len)
-{
-	return 0;
-}
-static inline int pld_snoc_wlan_get_dfs_nol(void *info, u16 info_len)
-{
-	return 0;
-}
 static inline int pld_snoc_athdiag_read(struct device *dev, uint32_t offset,
 					uint32_t memtype, uint32_t datalen,
 					uint8_t *output)
@@ -136,26 +117,11 @@ static inline int pld_snoc_is_qmi_disable(void)
 {
 	return 0;
 }
-static inline uint8_t *pld_snoc_get_wlan_mac_address(struct device *dev,
-						     uint32_t *num)
-{
-	*num = 0;
-	return NULL;
-}
 static inline int pld_snoc_force_assert_target(struct device *dev)
 {
 	return 0;
 }
 static inline int pld_snoc_set_fw_log_mode(u8 fw_log_mode)
-{
-	return 0;
-}
-
-static inline void pld_snoc_increment_driver_load_cnt(void)
-{
-}
-
-static inline int pld_snoc_get_driver_load_cnt(void)
 {
 	return 0;
 }
@@ -201,26 +167,6 @@ static inline int pld_snoc_get_irq(int ce_id)
 {
 	return icnss_get_irq(ce_id);
 }
-static inline int pld_snoc_set_wlan_unsafe_channel(u16 *unsafe_ch_list,
-						   u16 ch_count)
-{
-	return icnss_set_wlan_unsafe_channel(unsafe_ch_list, ch_count);
-}
-static inline int pld_snoc_get_wlan_unsafe_channel(u16 *unsafe_ch_list,
-						   u16 *ch_count,
-						   u16 buf_len)
-{
-	return icnss_get_wlan_unsafe_channel(unsafe_ch_list, ch_count,
-					     buf_len);
-}
-static inline int pld_snoc_wlan_set_dfs_nol(const void *info, u16 info_len)
-{
-	return icnss_wlan_set_dfs_nol(info, info_len);
-}
-static inline int pld_snoc_wlan_get_dfs_nol(void *info, u16 info_len)
-{
-	return icnss_wlan_get_dfs_nol(info, info_len);
-}
 static inline int pld_snoc_athdiag_read(struct device *dev, uint32_t offset,
 					uint32_t memtype, uint32_t datalen,
 					uint8_t *output)
@@ -251,12 +197,6 @@ static inline int pld_snoc_is_qmi_disable(void)
 {
 	return icnss_is_qmi_disable();
 }
-static inline uint8_t *pld_snoc_get_wlan_mac_address(struct device *dev,
-						      uint32_t *num)
-{
-	return icnss_get_wlan_mac_address(dev, num);
-}
-
 static inline int pld_snoc_force_assert_target(struct device *dev)
 {
 	return icnss_trigger_recovery(dev);
@@ -265,16 +205,6 @@ static inline int pld_snoc_force_assert_target(struct device *dev)
 static inline int pld_snoc_set_fw_log_mode(u8 fw_log_mode)
 {
 	return icnss_set_fw_log_mode(fw_log_mode);
-}
-
-static inline void pld_snoc_increment_driver_load_cnt(void)
-{
-	icnss_increment_driver_load_cnt();
-}
-
-static inline int pld_snoc_get_driver_load_cnt(void)
-{
-	return icnss_get_driver_load_cnt();
 }
 #endif
 #endif

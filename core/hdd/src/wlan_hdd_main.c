@@ -2054,9 +2054,14 @@ int hdd_wlan_start_modules(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 
 	switch (hdd_ctx->driver_status) {
 	case DRIVER_MODULES_UNINITIALIZED:
+		hdd_info("Wlan transition (UNINITIALIZED -> CLOSED)");
 		unint = true;
 		/* Fall through dont add break here */
 	case DRIVER_MODULES_CLOSED:
+		hdd_info("Wlan transition (CLOSED -> OPENED)");
+
+		qdf_mem_set_domain(QDF_MEM_DOMAIN_ACTIVE);
+
 		if (!reinit && !unint) {
 			ret = pld_power_on(qdf_dev->dev);
 			if (ret) {
@@ -2110,6 +2115,8 @@ int hdd_wlan_start_modules(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 		}
 
 		hdd_ctx->driver_status = DRIVER_MODULES_OPENED;
+		hdd_info("Wlan transition (now OPENED)");
+
 		hdd_update_hw_sw_info(hdd_ctx);
 
 		if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
@@ -2131,21 +2138,26 @@ int hdd_wlan_start_modules(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 
 	/* Fall through dont add break here */
 	case DRIVER_MODULES_OPENED:
+		hdd_info("Wlan transition (OPENED -> ENABLED)");
 		if (!adapter) {
 			hdd_err("adapter is Null");
 			goto post_disable;
 		}
+
 		if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
 			hdd_err("in ftm mode, no need to configure cds modules");
 			break;
 		}
+
 		if (hdd_configure_cds(hdd_ctx, adapter)) {
 			hdd_err("Failed to Enable cds modules");
 			goto post_disable;
 		}
+
 		hdd_enable_power_management();
 		hdd_info("Driver Modules Successfully Enabled");
 		hdd_ctx->driver_status = DRIVER_MODULES_ENABLED;
+
 		break;
 	case DRIVER_MODULES_ENABLED:
 		hdd_info("Driver modules already Enabled");
@@ -2178,6 +2190,10 @@ power_down:
 release_lock:
 	hdd_ctx->start_modules_in_progress = false;
 	mutex_unlock(&hdd_ctx->iface_change_lock);
+
+	qdf_mem_check_for_leaks();
+	qdf_mem_set_domain(QDF_MEM_DOMAIN_INIT);
+
 	EXIT();
 
 	return -EINVAL;
@@ -3262,7 +3278,6 @@ static void hdd_station_adapter_deinit(hdd_context_t *hdd_ctx,
 	}
 
 	hdd_cleanup_actionframe(hdd_ctx, adapter);
-	wlan_hdd_tdls_exit(adapter);
 
 	EXIT();
 }
@@ -3337,11 +3352,6 @@ static void hdd_cleanup_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 	}
 
 	hdd_debugfs_exit(adapter);
-
-	if (adapter->scan_info.default_scan_ies) {
-		qdf_mem_free(adapter->scan_info.default_scan_ies);
-		adapter->scan_info.default_scan_ies = NULL;
-	}
 
 	hdd_adapter_runtime_suspend_denit(adapter);
 
@@ -4141,6 +4151,7 @@ QDF_STATUS hdd_stop_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 			wlan_hdd_scan_abort(adapter);
 
 		hdd_lro_disable(hdd_ctx, adapter);
+		wlan_hdd_tdls_exit(adapter);
 		wlan_hdd_cleanup_remain_on_channel_ctx(adapter);
 		hdd_clear_fils_connection_info(adapter);
 
@@ -4265,6 +4276,11 @@ QDF_STATUS hdd_stop_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 		break;
 	default:
 		break;
+	}
+
+	if (adapter->scan_info.default_scan_ies) {
+		qdf_mem_free(adapter->scan_info.default_scan_ies);
+		adapter->scan_info.default_scan_ies = NULL;
 	}
 
 	EXIT();
@@ -5809,7 +5825,10 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 
 	hdd_unregister_notifiers(hdd_ctx);
 
-	qdf_mc_timer_destroy(&hdd_ctx->tdls_source_timer);
+	if (QDF_TIMER_STATE_RUNNING ==
+	    qdf_mc_timer_get_current_state(&hdd_ctx->tdls_source_timer)) {
+		qdf_mc_timer_stop(&hdd_ctx->tdls_source_timer);
+	}
 
 	hdd_bus_bandwidth_destroy(hdd_ctx);
 
@@ -5819,10 +5838,6 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 		qdf_mc_timer_stop(&hdd_ctx->skip_acs_scan_timer);
 	}
 
-	if (!QDF_IS_STATUS_SUCCESS
-		    (qdf_mc_timer_destroy(&hdd_ctx->skip_acs_scan_timer))) {
-		hdd_err("Cannot deallocate ACS Skip timer");
-	}
 	qdf_spin_lock(&hdd_ctx->acs_skip_lock);
 	qdf_mem_free(hdd_ctx->last_acs_channel_list);
 	hdd_ctx->last_acs_channel_list = NULL;
@@ -5868,6 +5883,18 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 	unregister_netdevice_notifier(&hdd_netdev_notifier);
 
 	hdd_wlan_stop_modules(hdd_ctx, false);
+
+	hdd_driver_memdump_deinit();
+	memdump_deinit();
+
+	qdf_mc_timer_destroy(&hdd_ctx->tdls_source_timer);
+
+#ifdef FEATURE_WLAN_AP_AP_ACS_OPTIMIZE
+	if (!QDF_IS_STATUS_SUCCESS
+		    (qdf_mc_timer_destroy(&hdd_ctx->skip_acs_scan_timer))) {
+		hdd_err("Cannot deallocate ACS Skip timer");
+	}
+#endif
 
 	qdf_nbuf_deinit_replenish_timer();
 
@@ -5919,9 +5946,6 @@ void __hdd_wlan_exit(void)
 		EXIT();
 		return;
 	}
-
-	memdump_deinit();
-	hdd_driver_memdump_deinit();
 
 	/* Do all the cleanup before deregistering the driver */
 	hdd_wlan_exit(hdd_ctx);
@@ -9571,17 +9595,22 @@ int hdd_wlan_stop_modules(hdd_context_t *hdd_ctx, bool ftm_mode)
 		hdd_info("Modules already closed");
 		goto done;
 	case DRIVER_MODULES_ENABLED:
+		hdd_info("Wlan transition (OPENED <- ENABLED)");
+
 		hdd_disable_power_management();
 		if (hdd_deconfigure_cds(hdd_ctx)) {
 			hdd_err("Failed to de-configure CDS");
 			QDF_ASSERT(0);
 			ret = -EINVAL;
 		}
+
 		hdd_debug("successfully Disabled the CDS modules!");
 		hdd_ctx->driver_status = DRIVER_MODULES_OPENED;
+
 		break;
 	case DRIVER_MODULES_OPENED:
 		hdd_debug("Closing CDS modules!");
+
 		break;
 	default:
 		hdd_err("Trying to stop wlan in a wrong state: %d",
@@ -9644,9 +9673,17 @@ int hdd_wlan_stop_modules(hdd_context_t *hdd_ctx, bool ftm_mode)
 			hdd_err("CNSS power down failed put device into Low power mode:%d",
 				ret);
 	}
+
+	/* many adapter resources are not freed by design in SSR case */
+	if (!is_recover_stop)
+		qdf_mem_check_for_leaks();
+
+	qdf_mem_set_domain(QDF_MEM_DOMAIN_INIT);
+
 	/* Once the firmware sequence is completed reset this flag */
 	hdd_ctx->imps_enabled = false;
 	hdd_ctx->driver_status = DRIVER_MODULES_CLOSED;
+	hdd_info("Wlan transition (now CLOSED)");
 
 done:
 	hdd_ctx->stop_modules_in_progress = false;
@@ -9654,10 +9691,10 @@ done:
 	mutex_unlock(&hdd_ctx->iface_change_lock);
 	hdd_alert("stop WLAN module: exit driver status=%d",
 		  hdd_ctx->driver_status);
+
 	EXIT();
 
 	return ret;
-
 }
 
 /**
@@ -9866,6 +9903,24 @@ int hdd_wlan_startup(struct device *dev)
 
 	hdd_init_spectral_scan(hdd_ctx);
 
+#ifdef FEATURE_WLAN_AP_AP_ACS_OPTIMIZE
+	status = qdf_mc_timer_init(&hdd_ctx->skip_acs_scan_timer,
+				   QDF_TIMER_TYPE_SW,
+				   hdd_skip_acs_scan_timer_handler,
+				   (void *)hdd_ctx);
+	if (!QDF_IS_STATUS_SUCCESS(status))
+		hdd_err("Failed to init ACS Skip timer");
+	qdf_spinlock_create(&hdd_ctx->acs_skip_lock);
+#endif
+
+	qdf_mc_timer_init(&hdd_ctx->tdls_source_timer,
+			  QDF_TIMER_TYPE_SW,
+			  wlan_hdd_change_tdls_mode,
+			  hdd_ctx);
+
+	memdump_init();
+	hdd_driver_memdump_init();
+
 	ret = hdd_wlan_start_modules(hdd_ctx, NULL, false);
 	if (ret) {
 		hdd_err("Failed to start modules: %d", ret);
@@ -9916,21 +9971,6 @@ int hdd_wlan_startup(struct device *dev)
 
 	wlan_hdd_update_11n_mode(hdd_ctx->config);
 
-#ifdef FEATURE_WLAN_AP_AP_ACS_OPTIMIZE
-	status = qdf_mc_timer_init(&hdd_ctx->skip_acs_scan_timer,
-				   QDF_TIMER_TYPE_SW,
-				   hdd_skip_acs_scan_timer_handler,
-				   (void *)hdd_ctx);
-	if (!QDF_IS_STATUS_SUCCESS(status))
-		hdd_err("Failed to init ACS Skip timer");
-	qdf_spinlock_create(&hdd_ctx->acs_skip_lock);
-#endif
-
-	qdf_mc_timer_init(&hdd_ctx->tdls_source_timer,
-			  QDF_TIMER_TYPE_SW,
-			  wlan_hdd_change_tdls_mode,
-			  hdd_ctx);
-
 	hdd_bus_bandwidth_init(hdd_ctx);
 
 	hdd_lpass_notify_wlan_version(hdd_ctx);
@@ -9947,8 +9987,6 @@ int hdd_wlan_startup(struct device *dev)
 		goto err_close_adapters;
 
 	hdd_runtime_suspend_context_init(hdd_ctx);
-	memdump_init();
-	hdd_driver_memdump_init();
 
 	if (hdd_ctx->config->fIsImpsEnabled)
 		hdd_set_idle_ps_config(hdd_ctx, true);

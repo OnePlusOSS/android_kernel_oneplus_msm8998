@@ -1545,7 +1545,7 @@ void qdf_netbuf_free_debug_add(qdf_nbuf_t net_buf,
 	p_node->line_num = line_num;
 	p_node->time = qdf_get_log_timestamp();
 }
-EXPORT_SYMBOL(qdf_netbuf_free_debug_add);
+qdf_export_symbol(qdf_netbuf_free_debug_add);
 
 /**
  * qdf_net_buf_debug_hash() - hash network buffer pointer

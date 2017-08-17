@@ -5751,8 +5751,6 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 		hdd_stop_all_adapters(hdd_ctx);
 	}
 
-	wlan_destroy_bug_report_lock();
-
 	/*
 	 * Close the scheduler before calling cds_close to make sure
 	 * no thread is scheduled after the each module close is
@@ -9679,8 +9677,6 @@ int hdd_wlan_startup(struct device *dev)
 		goto err_exit_nl_srv;
 	}
 
-	wlan_init_bug_report_lock();
-
 	wlan_hdd_update_wiphy(hdd_ctx);
 
 	hdd_ctx->hHal = cds_get_context(QDF_MODULE_ID_SME);
@@ -10902,6 +10898,9 @@ int hdd_init(void)
 	int ret = 0;
 
 	p_cds_context = cds_init();
+
+	wlan_init_bug_report_lock();
+
 #ifdef WLAN_LOGGING_SOCK_SVC_ENABLE
 	wlan_logging_sock_init_svc();
 #endif
@@ -10929,11 +10928,13 @@ err_out:
 void hdd_deinit(void)
 {
 	hdd_deinit_wowl();
-	cds_deinit();
 
 #ifdef WLAN_LOGGING_SOCK_SVC_ENABLE
 	wlan_logging_sock_deinit_svc();
 #endif
+
+	wlan_destroy_bug_report_lock();
+	cds_deinit();
 }
 
 #define HDD_WLAN_START_WAIT_TIME (CDS_WMA_TIMEOUT + 5000)

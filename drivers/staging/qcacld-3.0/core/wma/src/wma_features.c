@@ -4734,11 +4734,12 @@ static void wma_configure_dynamic_wake_events(tp_wma_handle wma)
 							 BM_LEN,
 							 enable_mask);
 				enable_configured = true;
-			} else
+			} else {
 				wma_set_wow_event_bitmap(EV_NLO,
 							 BM_LEN,
 							 disable_mask);
 				disable_configured = true;
+			}
 		}
 		if ((wma->interfaces[vdev_id].in_bmps == true ||
 		     wma->in_imps == true) &&

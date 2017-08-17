@@ -4056,13 +4056,13 @@ static void lim_handle_ht20coexist_ht20protection(tpAniSirGlobal mac_ctx,
 				session_entry->htOperMode)) {
 				if (session_entry->gLimHt20Params.
 					protectionEnabled) {
-				if (eHT_CHANNEL_WIDTH_20MHZ ==
-				session_entry->htSupportedChannelWidthSet)
-					session_entry->htOperMode =
-						eSIR_HT_OP_MODE_PURE;
-				else
-					session_entry->htOperMode =
-					eSIR_HT_OP_MODE_NO_LEGACY_20MHZ_HT;
+					if (eHT_CHANNEL_WIDTH_20MHZ ==
+					session_entry->htSupportedChannelWidthSet)
+						session_entry->htOperMode =
+							eSIR_HT_OP_MODE_PURE;
+					else
+						session_entry->htOperMode =
+						eSIR_HT_OP_MODE_NO_LEGACY_20MHZ_HT;
 
 					lim_enable_ht_rifs_protection(mac_ctx,
 						false, overlap, beaconparams,

@@ -295,7 +295,8 @@ static void soc_mitigate(struct work_struct *work)
 
 	if (!usb_psy)
 		usb_psy = power_supply_get_by_name("usb");
-		if (usb_psy) {
+
+	if (usb_psy) {
 		usb_state = power_supply_get_property(usb_psy,
 				POWER_SUPPLY_PROP_PRESENT, &ret);
 		if (usb_state == 0)

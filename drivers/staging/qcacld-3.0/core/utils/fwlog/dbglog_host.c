@@ -1351,11 +1351,11 @@ dbglog_set_mod_enable_bitmap(wmi_unified_t wmi_handle, A_UINT32 log_level,
 				    log_level, mod_enable_bitmap, bitmap_len);
 }
 
-int dbglog_report_enable(wmi_unified_t wmi_handle, bool isenable)
+int dbglog_report_enable(wmi_unified_t wmi_handle, uint32_t isenable)
 {
 	int bitmap[2] = { 0 };
 
-	if (isenable > true) {
+	if (isenable > 1) {
 		AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
 				("dbglog_report_enable:Invalid value %d\n",
 				 isenable));

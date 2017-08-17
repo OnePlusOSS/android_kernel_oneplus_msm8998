@@ -1337,10 +1337,10 @@ QDF_STATUS ol_download_firmware(struct ol_context *ol_ctx)
 		case QCA9379_REV1_VERSION:
 		case AR6320_REV4_VERSION:
 		case AR6320_DEV_VERSION:
-		if (hif_get_bus_type(scn) == QDF_BUS_TYPE_SDIO)
-			param = 19;
-		else
-			param = 6;
+			if (hif_get_bus_type(scn) == QDF_BUS_TYPE_SDIO)
+				param = 19;
+			else
+				param = 6;
 
 			break;
 		default:

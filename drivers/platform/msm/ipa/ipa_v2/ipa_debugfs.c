@@ -1836,9 +1836,10 @@ static ssize_t ipa_enable_ipc_low(struct file *file,
 		}
 
 	} else {
-		if (ipa_ctx->logbuf_low)
+		if (ipa_ctx->logbuf_low) {
 			ipc_log_context_destroy(ipa_ctx->logbuf_low);
 			ipa_ctx->logbuf_low = NULL;
+		}
 	}
 
 	return count;

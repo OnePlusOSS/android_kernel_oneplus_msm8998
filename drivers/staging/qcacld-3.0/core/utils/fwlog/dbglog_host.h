@@ -114,7 +114,7 @@ dbglog_set_timestamp_resolution(wmi_unified_t wmi_handle,
  * any debug information
  */
 int
-dbglog_report_enable(wmi_unified_t wmi_handle, A_BOOL isenable);
+dbglog_report_enable(wmi_unified_t wmi_handle, uint32_t isenable);
 
 /** Set the log level
  * @brief DBGLOG_INFO - Information lowest log level

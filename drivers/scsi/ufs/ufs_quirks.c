@@ -99,7 +99,7 @@ int ufs_fill_info(struct ufs_hba *hba)
 	int err=0;
 	u64 ufs_capacity = 0;
 	char ufs_vendor[9]={'\0'};
-	char ufs_rev[5]={'\0'};
+	char ufs_rev[7]={'\0'};
 
 	/* Error Handle: Before filling ufs info, we must confirm sdev_ufs_device structure is not NULL*/
 	if(!hba->sdev_ufs_device) {

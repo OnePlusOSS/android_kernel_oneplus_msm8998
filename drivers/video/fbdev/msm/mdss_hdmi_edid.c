@@ -1086,7 +1086,7 @@ static void hdmi_edid_parse_hvdb(struct hdmi_edid_ctrl *edid_ctrl,
 	sink_caps->scramble_support = (in_buf[4] & 0x08) ? true : false;
 	sink_caps->ind_view_support = (in_buf[4] & 0x04) ? true : false;
 	sink_caps->dual_view_support = (in_buf[4] & 0x02) ? true : false;
-	sink_caps->osd_disparity = (in_buf[4] * 0x01) ? true : false;
+	sink_caps->osd_disparity = (in_buf[4] & 0x01) ? true : false;
 
 }
 

@@ -8725,11 +8725,12 @@ static void hdd_state_info_dump(char **buf_ptr, uint16_t *size)
 
 	while (NULL != adapter_node && QDF_STATUS_SUCCESS == status) {
 		adapter = adapter_node->pAdapter;
-		if (adapter->dev)
+		if (adapter->dev) {
 			len += scnprintf(buf + len, *size - len,
 				"\n device name: %s", adapter->dev->name);
 			len += scnprintf(buf + len, *size - len,
 				"\n device_mode: %d", adapter->device_mode);
+		}
 		switch (adapter->device_mode) {
 		case QDF_STA_MODE:
 		case QDF_P2P_CLIENT_MODE:

@@ -5081,12 +5081,12 @@ bool ol_txrx_set_ocb_def_tx_param(ol_txrx_vdev_handle vdev,
 	struct ocb_tx_ctrl_hdr_t *def_tx_param =
 		(struct ocb_tx_ctrl_hdr_t *)_def_tx_param;
 
-		if (def_tx_param) {
-			/*
-			* Default TX parameters are provided.
-			* Validate the contents and
-			* save them in the vdev.
-			*/
+	if (def_tx_param) {
+		/*
+		 * Default TX parameters are provided.
+		 * Validate the contents and
+		 * save them in the vdev.
+		 */
 		if (def_tx_param_size != sizeof(struct ocb_tx_ctrl_hdr_t)) {
 			QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
 			"%sInvalid size of OCB default TX params", __func__);
@@ -5132,9 +5132,10 @@ bool ol_txrx_set_ocb_def_tx_param(ol_txrx_vdev_handle vdev,
 		if (vdev->ocb_def_tx_param == NULL)
 			vdev->ocb_def_tx_param =
 				qdf_mem_malloc(sizeof(*vdev->ocb_def_tx_param));
-			qdf_mem_copy(vdev->ocb_def_tx_param, def_tx_param,
-				sizeof(*vdev->ocb_def_tx_param));
-		} else {
+
+		qdf_mem_copy(vdev->ocb_def_tx_param, def_tx_param,
+			sizeof(*vdev->ocb_def_tx_param));
+	} else {
 		/*
 		* Default TX parameters are not provided.
 		* Delete the old defaults.

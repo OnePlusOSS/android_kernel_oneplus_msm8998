@@ -3188,17 +3188,6 @@ typedef struct {
 #endif /* FEATURE_WLAN_SCAN_PNO */
 
 
-/**
- * struct candidate_chan_info - channel information for candidate
- * @channel_num: channel number.
- * @other_ap_count: other ap count on candidate channel.
- * @max_rssi_on_channel: Max best  rssi on candiate channel
- */
-struct candidate_chan_info {
-	uint8_t    channel_num;
-	uint8_t    ap_count;
-};
-
 /*
  * ALLOWED_ACTION_FRAMES_BITMAP
  *

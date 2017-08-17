@@ -193,6 +193,13 @@ struct sir_fils_indication {
 };
 #endif
 #define ESP_INFORMATION_LIST_LENGTH 24
+/*
+ * enum access_category: tells about access category in ESP paramameter
+ * @ESP_AC_BK: ESP access category for background
+ * @ESP_AC_BE: ESP access category for best effort
+ * @ESP_AC_VI: ESP access category for video
+ * @ESP_AC_VO: ESP access category for Voice
+ */
 enum access_category {
 	ESP_AC_BK,
 	ESP_AC_BE,
@@ -200,6 +207,38 @@ enum access_category {
 	ESP_AC_VO,
 
 };
+/*
+ * struct sir_esp_info: structure for Esp information parameter
+ * @access_category: access category info
+ * @reserved: reserved
+ * @data_format: two bits in length and tells about data format
+ * i.e. 0 = No aggregation is expected to be performed for MSDUs or MPDUs with
+ * the Type subfield equal to Data for the corresponding AC
+ * 1 = A-MSDU aggregation is expected to be performed for MSDUs for the
+ * corresponding AC, but A-MPDU aggregation is not expected to be performed
+ * for MPDUs with the Type subfield equal to Data for the corresponding AC
+ * 2 = A-MPDU aggregation is expected to be performed for MPDUs with the Type
+ * subfield equal to Data for the corresponding AC, but A-MSDU aggregation is
+ * not expected to be performed for MSDUs for the corresponding AC
+ * 3 = A-MSDU aggregation is expected to be performed for MSDUs for the
+ * corresponding AC and A-MPDU aggregation is expected to be performed for
+ * MPDUs with the Type subfield equal to Data for the corresponding AC
+ * @ba_window_size: BA Window Size subfield is three bits in length and
+ * indicates the size of the Block Ack window that is
+ * expected for the corresponding access category
+ * @estimated_air_fraction: Estimated Air Time Fraction subfield is 8 bits in
+ * length and contains an unsigned integer that represents
+ * the predicted percentage of time, linearly scaled with 255 representing
+ * 100%, that a new STA joining the
+ * BSS will be allocated for PPDUs that contain only MPDUs with the Type
+ * subfield equal to Data of the
+ * corresponding access category for that STA.
+ * @ppdu_duration: Data PPDU Duration Target field is 8 bits in length and is
+ * an unsigned integer that indicates the
+ * expected target duration of PPDUs that contain only MPDUs with the Type
+ * subfield equal to Data for the
+ * corresponding access category in units of 50 μs.
+ */
 struct sir_esp_info {
 	uint8_t access_category:2;
 	uint8_t reserved:1;
@@ -208,7 +247,14 @@ struct sir_esp_info {
 	uint8_t estimated_air_fraction;
 	uint8_t ppdu_duration;
 };
-
+/*
+ * struct sir_esp_information: struct for ESP information
+ * @is_present: If ESP information is present or not
+ * @esp_info_AC_BK: ESP information related to BK category
+ * @esp_info_AC_BE: ESP information related to BE category
+ * @esp_info_AC_VI: ESP information related to VI category
+ * @esp_info_AC_VO: ESP information related to VO category
+ */
 struct sir_esp_information {
 	bool is_present;
 	struct sir_esp_info esp_info_AC_BK;

@@ -110,13 +110,14 @@ static inline void get_ese_version_ie_probe_response(tpAniSirGlobal mac_ctx,
 #endif
 
 /**
- * lim_get_nss_supported_by_beacon() - finds out nss from beacom
+ * lim_get_nss_supported_by_sta_and_ap() - finds out nss from session
+ * and beacon from AP
  * @bcn: beacon structure pointer
  * @session: pointer to pe session
  *
  * Return: number of nss advertised by beacon
  */
-static uint8_t lim_get_nss_supported_by_beacon(tpSchBeaconStruct bcn,
+static uint8_t lim_get_nss_supported_by_sta_and_ap(tpSchBeaconStruct bcn,
 						tpPESession session)
 {
 	if (session->vhtCapability && bcn->VHTCaps.present) {
@@ -196,7 +197,8 @@ lim_extract_ap_capability(tpAniSirGlobal mac_ctx, uint8_t *p_ie,
 	if (mac_ctx->roam.configParam.is_force_1x1 &&
 		cfg_get_vendor_ie_ptr_from_oui(mac_ctx, SIR_MAC_VENDOR_AP_1_OUI,
 				SIR_MAC_VENDOR_AP_1_OUI_LEN, p_ie, ie_len) &&
-		lim_get_nss_supported_by_beacon(beacon_struct, session) == 2 &&
+		lim_get_nss_supported_by_sta_and_ap(
+			beacon_struct, session) == 2 &&
 		mac_ctx->lteCoexAntShare &&
 		IS_24G_CH(session->currentOperChannel)) {
 		session->supported_nss_1x1 = true;
@@ -205,10 +207,10 @@ lim_extract_ap_capability(tpAniSirGlobal mac_ctx, uint8_t *p_ie,
 		pe_debug("For special ap, NSS: %d", session->nss);
 	}
 
-	if (session->nss > lim_get_nss_supported_by_beacon(beacon_struct,
+	if (session->nss > lim_get_nss_supported_by_sta_and_ap(beacon_struct,
 	    session)) {
-		session->nss = lim_get_nss_supported_by_beacon(beacon_struct,
-							       session);
+		session->nss = lim_get_nss_supported_by_sta_and_ap(
+				beacon_struct, session);
 		session->vdev_nss = session->nss;
 	}
 

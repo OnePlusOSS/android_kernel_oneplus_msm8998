@@ -2328,6 +2328,11 @@ uint32_t htt_rx_amsdu_rx_in_order_get_pktlog(qdf_nbuf_t rx_ind_msg)
 
 #ifndef CONFIG_HL_SUPPORT
 /* Return values: 1 - success, 0 - failure */
+#define RX_DESC_DISCARD_IS_SET ((*((u_int8_t *) &rx_desc->fw_desc.u.val)) & \
+							FW_RX_DESC_DISCARD_M)
+#define RX_DESC_MIC_ERR_IS_SET ((*((u_int8_t *) &rx_desc->fw_desc.u.val)) & \
+							FW_RX_DESC_ANY_ERR_M)
+
 static int
 htt_rx_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 				qdf_nbuf_t rx_ind_msg,
@@ -2460,15 +2465,16 @@ htt_rx_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 
 		/* calling callback function for packet logging */
 		if (pdev->rx_pkt_dump_cb) {
-			if (qdf_unlikely((*((u_int8_t *)
-				   &rx_desc->fw_desc.u.val)) &
-				   FW_RX_DESC_ANY_ERR_M))
+			if (qdf_unlikely(RX_DESC_MIC_ERR_IS_SET &&
+						!RX_DESC_DISCARD_IS_SET))
 				status = RX_PKT_FATE_FW_DROP_INVALID;
 			pdev->rx_pkt_dump_cb(msdu, peer_id, status);
 		}
-
-		if (qdf_unlikely((*((u_int8_t *) &rx_desc->fw_desc.u.val)) &
-				    FW_RX_DESC_ANY_ERR_M)) {
+		/* if discard flag is set (SA is self MAC), then
+		 * don't check mic failure.
+		 */
+		if (qdf_unlikely(RX_DESC_MIC_ERR_IS_SET &&
+					!RX_DESC_DISCARD_IS_SET)) {
 			uint8_t tid =
 				HTT_RX_IN_ORD_PADDR_IND_EXT_TID_GET(
 					*(u_int32_t *)rx_ind_data);

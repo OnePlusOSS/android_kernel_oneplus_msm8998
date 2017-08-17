@@ -15,7 +15,7 @@ DEFCONFIG="fusion_defconfig"
 
 # Kernel Details
 BASE_HC_VER="fusion"
-VER="-1.5"
+VER="-1.6"
 HC_VER="$BASE_HC_VER$VER"
 
 # Vars

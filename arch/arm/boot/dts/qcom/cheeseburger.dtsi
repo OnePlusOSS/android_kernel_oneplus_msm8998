@@ -600,9 +600,9 @@
 		qcom,us-euro-gpios = <>;
 		qcom,msm-mbhc-hphl-swh = <1>;
 		qcom,msm-mbhc-gnd-swh = <1>;
-		qcom,wsa-max-devs = <>;
-		qcom,wsa-devs = <>;
-		qcom,wsa-aux-dev-prefix = <>;
+		qcom,wsa-max-devs = <0>;
+		qcom,wsa-devs = <0>;
+		qcom,wsa-aux-dev-prefix = <0>;
 	};
 
 	sound-tavil {

@@ -608,4 +608,25 @@ void wlan_hdd_init_chan_info(hdd_context_t *hdd_ctx);
  * Return: none
  */
 void wlan_hdd_deinit_chan_info(hdd_context_t *hdd_ctx);
+
+/**
+ * wlan_hdd_save_gtk_offload_params() - Save gtk offload parameters in STA
+ *                                      context for offload operations.
+ * @adapter: Adapter context
+ * @kck_ptr: KCK buffer pointer
+ * @kek_ptr: KEK buffer pointer
+ * @kek_len: KEK length
+ * @replay_ctr: Pointer to 64 bit long replay counter
+ * @big_endian: true if replay_ctr is in big endian format
+ * @ul_flags: Offload flags
+ *
+ * Return: None
+ */
+void wlan_hdd_save_gtk_offload_params(hdd_adapter_t *adapter,
+					     uint8_t *kck_ptr,
+					     uint8_t *kek_ptr,
+					     uint32_t kek_len,
+					     uint8_t *replay_ctr,
+					     bool big_endian,
+					     uint32_t ul_flags);
 #endif

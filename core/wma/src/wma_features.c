@@ -6797,7 +6797,7 @@ static QDF_STATUS wma_send_gtk_offload_req(tp_wma_handle wma, uint8_t vdev_id,
 		qdf_mem_copy(offload_params.aKCK, params->aKCK,
 			GTK_OFFLOAD_KCK_BYTES);
 		qdf_mem_copy(offload_params.aKEK, params->aKEK,
-			GTK_OFFLOAD_KEK_BYTES);
+			params->kek_len);
 		qdf_mem_copy(&offload_params.ullKeyReplayCounter,
 			&params->ullKeyReplayCounter, GTK_REPLAY_COUNTER_BYTES);
 	} else {
@@ -6806,6 +6806,7 @@ static QDF_STATUS wma_send_gtk_offload_req(tp_wma_handle wma, uint8_t vdev_id,
 	}
 
 	enable_offload = params->ulFlags;
+	offload_params.kek_len = params->kek_len;
 
 	/* send the wmi command */
 	status = wmi_unified_send_gtk_offload_cmd(wma->wmi_handle,

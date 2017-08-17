@@ -6678,6 +6678,32 @@ static void wma_get_arp_req_stats(WMA_HANDLE handle,
 }
 
 /**
+ * wma_set_del_pmkid_cache() - API to set/delete PMKID cache entry in fw
+ * @handle: WMA handle
+ * @pmk_cache: PMK cache entry
+ * @vdev_id: vdev id
+ *
+ * Return: None
+ */
+static void wma_set_del_pmkid_cache(WMA_HANDLE handle,
+				    wmi_pmk_cache *pmk_cache,
+					uint32_t vdev_id)
+{
+	int status;
+	tp_wma_handle wma_handle = (tp_wma_handle) handle;
+
+	if (!wma_handle || !wma_handle->wmi_handle) {
+		WMA_LOGE("WMA is closed, cannot send set del pmkid");
+		return;
+	}
+
+	status = wmi_unified_set_del_pmkid_cache(wma_handle->wmi_handle,
+						 pmk_cache, vdev_id);
+	if (status != EOK)
+		WMA_LOGE("failed to send set/del pmkid cmd to fw");
+}
+
+/**
  * wma_process_action_frame_random_mac() - set/clear action frame random mac
  * @wma_handle: pointer to wma handle
  * @filter: pointer to buffer containing random mac, session_id and callback
@@ -6954,6 +6980,46 @@ static QDF_STATUS wma_process_limit_off_chan(tp_wma_handle wma_handle,
 
 	return QDF_STATUS_SUCCESS;
 }
+
+#if defined(WLAN_FEATURE_FILS_SK)
+/**
+ * wma_roam_scan_send_hlp() - API to send HLP IE info to fw
+ * @wma_handle: WMA handle
+ * @req: HLP params
+ *
+ * Return: QDF_STATUS
+ */
+static QDF_STATUS wma_roam_scan_send_hlp(tp_wma_handle wma_handle,
+					 struct hlp_params *req)
+{
+	struct hlp_params *params;
+	QDF_STATUS status;
+
+	params = qdf_mem_malloc(sizeof(*params));
+	if (!params) {
+		WMA_LOGE("%s : Memory allocation failed", __func__);
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	params->vdev_id = req->vdev_id;
+	params->hlp_ie_len = req->hlp_ie_len;
+	qdf_mem_copy(params->hlp_ie, req->hlp_ie, req->hlp_ie_len);
+	status = wmi_unified_roam_send_hlp_cmd(wma_handle->wmi_handle, params);
+
+	WMA_LOGD("Send HLP status %d vdev id %d", status, params->vdev_id);
+	qdf_trace_hex_dump(QDF_MODULE_ID_WMI, QDF_TRACE_LEVEL_DEBUG,
+				params->hlp_ie, 10);
+
+	qdf_mem_free(params);
+	return status;
+}
+#else
+static QDF_STATUS wma_roam_scan_send_hlp(tp_wma_handle wma_handle,
+					 struct hlp_params *req)
+{
+	return QDF_STATUS_SUCCESS;
+}
+#endif
 
 /**
  * wma_mc_process_msg() - process wma messages and call appropriate function.
@@ -7864,6 +7930,16 @@ QDF_STATUS wma_mc_process_msg(void *cds_context, cds_msg_t *msg)
 		qdf_mem_free(msg->bodyptr);
 		break;
 
+	case SIR_HAL_SET_DEL_PMKID_CACHE:
+		wma_set_del_pmkid_cache(wma_handle,
+			(wmi_pmk_cache *) msg->bodyptr, msg->reserved);
+		qdf_mem_free(msg->bodyptr);
+		break;
+	case SIR_HAL_HLP_IE_INFO:
+		wma_roam_scan_send_hlp(wma_handle,
+			(struct hlp_params *)msg->bodyptr);
+		qdf_mem_free(msg->bodyptr);
+		break;
 	default:
 		WMA_LOGE("Unhandled WMA message of type %d", msg->type);
 		if (msg->bodyptr)

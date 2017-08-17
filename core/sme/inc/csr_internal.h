@@ -860,7 +860,13 @@ typedef struct tagCsrRoamOffloadSynchStruct {
 	struct qdf_mac_addr bssid;      /* MAC address of roamed AP */
 	tCsrRoamOffloadAuthStatus authStatus;   /* auth status */
 	uint8_t kck[SIR_KCK_KEY_LEN];
-	uint8_t kek[SIR_KEK_KEY_LEN];
+	uint8_t kek[SIR_KEK_KEY_LEN_FILS];
+	uint32_t kek_len;
+	uint32_t pmk_len;
+	uint8_t pmk[SIR_PMK_LEN];
+	uint8_t pmkid[SIR_PMKID_LEN];
+	bool update_erp_next_seq_num;
+	uint16_t next_erp_seq_num;
 	uint8_t replay_ctr[SIR_REPLAY_CTR_LEN];
 	tpSirBssDescription  bss_desc_ptr;      /*BSS descriptor*/
 } csr_roam_offload_synch_params;

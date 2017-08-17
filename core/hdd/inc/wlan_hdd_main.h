@@ -2688,4 +2688,21 @@ void hdd_dp_trace_init(struct hdd_config *config);
 int hdd_set_limit_off_chan_for_tos(hdd_adapter_t *adapter, enum tos tos,
 		bool is_tos_active);
 
+#if defined(WLAN_FEATURE_FILS_SK)
+/**
+ * hdd_update_hlp_info() - Update HLP packet received in FILS (re)assoc rsp
+ * @dev: net device
+ * @roam_fils_params: Fils join rsp params
+ *
+ * This API is used to send the received HLP packet in Assoc rsp(FILS AKM)
+ * to the network layer.
+ *
+ * Return: None
+ */
+void hdd_update_hlp_info(struct net_device *dev, tCsrRoamInfo *roam_info);
+#else
+static inline void hdd_update_hlp_info(struct net_device *dev,
+				       tCsrRoamInfo *roam_info)
+{}
+#endif
 #endif /* end #if !defined(WLAN_HDD_MAIN_H) */

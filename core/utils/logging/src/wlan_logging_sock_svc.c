@@ -31,10 +31,10 @@
 ******************************************************************************/
 
 #ifdef WLAN_LOGGING_SOCK_SVC_ENABLE
-#include <vmalloc.h>
+#include <linux/vmalloc.h>
 #include <cds_api.h>
 #include <wlan_logging_sock_svc.h>
-#include <kthread.h>
+#include <linux/kthread.h>
 #include <qdf_time.h>
 #include <wlan_ptt_sock_svc.h>
 #include <host_diag_core_event.h>

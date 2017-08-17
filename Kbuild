@@ -1062,7 +1062,7 @@ endif
 
 TARGET_INC := -I$(WLAN_ROOT)/../fw-api/fw
 
-LINUX_INC :=	-Iinclude/linux
+LINUX_INC :=	-Iinclude
 
 INCS :=		$(HDD_INC) \
 		$(EPPING_INC) \

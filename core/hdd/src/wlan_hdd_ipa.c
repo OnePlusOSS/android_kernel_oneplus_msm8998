@@ -1894,7 +1894,6 @@ hdd_ipa_uc_rm_notify_handler(void *context, enum ipa_rm_event event)
 	switch (event) {
 	case IPA_RM_RESOURCE_GRANTED:
 		/* Differed RM Granted */
-		hdd_ipa_uc_enable_pipes(hdd_ipa);
 		qdf_mutex_acquire(&hdd_ipa->ipa_lock);
 		if ((false == hdd_ipa->resource_unloading) &&
 			(!hdd_ipa->activated_fw_pipe)) {

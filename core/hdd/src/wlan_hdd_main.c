@@ -1906,6 +1906,10 @@ static void hdd_update_hw_sw_info(hdd_context_t *hdd_ctx)
 			&target_hw_name);
 
 	target_hw_name_len = strlen(target_hw_name) + 1;
+
+	if (hdd_ctx->target_hw_name)
+		qdf_mem_free(hdd_ctx->target_hw_name);
+
 	hdd_ctx->target_hw_name = qdf_mem_malloc(target_hw_name_len);
 
 	if (hdd_ctx->target_hw_name)

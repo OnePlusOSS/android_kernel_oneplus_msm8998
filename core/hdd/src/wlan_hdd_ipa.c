@@ -1744,8 +1744,6 @@ static int hdd_ipa_uc_disable_pipes(struct hdd_ipa_priv *hdd_ipa)
 {
 	int result;
 
-	hdd_ipa->ipa_pipes_down = true;
-
 	HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "%s: Disable RX PIPE", __func__);
 	result = ipa_suspend_wdi_pipe(hdd_ipa->rx_pipe_handle);
 	if (result) {
@@ -1778,6 +1776,7 @@ static int hdd_ipa_uc_disable_pipes(struct hdd_ipa_priv *hdd_ipa)
 		return result;
 	}
 
+	hdd_ipa->ipa_pipes_down = true;
 	return 0;
 }
 
@@ -5893,10 +5892,10 @@ static int __hdd_ipa_wlan_evt(hdd_adapter_t *adapter, uint8_t sta_id,
 				msg_ex->name);
 		} else {
 			/* Disable IPA UC TX PIPE when STA disconnected */
-			if (!hdd_ipa->num_iface &&
+			if ((1 == hdd_ipa->num_iface) &&
 			    (HDD_IPA_UC_NUM_WDI_PIPE ==
-			    hdd_ipa->activated_fw_pipe) &&
-				!hdd_ipa->ipa_pipes_down)
+			     hdd_ipa->activated_fw_pipe) &&
+			    !hdd_ipa->ipa_pipes_down)
 				hdd_ipa_uc_handle_last_discon(hdd_ipa);
 		}
 
@@ -5925,10 +5924,9 @@ static int __hdd_ipa_wlan_evt(hdd_adapter_t *adapter, uint8_t sta_id,
 			return -EINVAL;
 		}
 
-		if ((!hdd_ipa->num_iface) &&
-			(HDD_IPA_UC_NUM_WDI_PIPE ==
-				hdd_ipa->activated_fw_pipe) &&
-				!hdd_ipa->ipa_pipes_down) {
+		if ((1 == hdd_ipa->num_iface) &&
+		    (HDD_IPA_UC_NUM_WDI_PIPE == hdd_ipa->activated_fw_pipe) &&
+		    !hdd_ipa->ipa_pipes_down) {
 			if (cds_is_driver_unloading()) {
 				/*
 				 * We disable WDI pipes directly here since

@@ -4565,7 +4565,7 @@ void wlan_hdd_save_gtk_offload_params(hdd_adapter_t *adapter,
 }
 #endif
 
-#ifdef WLAN_FEATURE_FILS_SK
+#if defined(WLAN_FEATURE_FILS_SK) && defined(WLAN_FEATURE_ROAM_OFFLOAD)
 /**
  * wlan_hdd_add_fils_params_roam_auth_event() - Adds FILS params in roam auth
  * @skb: SK buffer
@@ -18977,6 +18977,7 @@ void wlan_hdd_clear_link_layer_stats(hdd_adapter_t *adapter)
 }
 
 #if defined(WLAN_FEATURE_FILS_SK) &&\
+	defined(CFG80211_FILS_SK_OFFLOAD_SUPPORT) &&\
 	(defined(CFG80211_UPDATE_CONNECT_PARAMS) ||\
 		(LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)))
 
@@ -19396,6 +19397,7 @@ static struct cfg80211_ops wlan_hdd_cfg80211_ops = {
 	.abort_scan = wlan_hdd_cfg80211_abort_scan,
 #endif
 #if defined(WLAN_FEATURE_FILS_SK) &&\
+	defined(CFG80211_FILS_SK_OFFLOAD_SUPPORT) &&\
 	(defined(CFG80211_UPDATE_CONNECT_PARAMS) ||\
 		(LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)))
 	.update_connect_params = wlan_hdd_cfg80211_update_connect_params,

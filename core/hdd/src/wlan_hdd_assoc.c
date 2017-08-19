@@ -1932,6 +1932,33 @@ static inline void hdd_send_roamed_ind(struct net_device *dev,
 }
 #endif
 
+#if defined(WLAN_FEATURE_ROAM_OFFLOAD)
+void hdd_save_gtk_params(hdd_adapter_t *adapter,
+			 tCsrRoamInfo *csr_roam_info, bool is_reassoc)
+{
+	uint8_t *kek;
+	uint32_t kek_len;
+
+	if (is_reassoc) {
+		kek = csr_roam_info->kek;
+		kek_len = csr_roam_info->kek_len;
+	} else {
+		/*
+		 * This should come for FILS case only.
+		 * Caller should make sure fils_join_rsp is
+		 * not NULL, if there is need to use else where.
+		 */
+		kek = csr_roam_info->fils_join_rsp->kek;
+		kek_len = csr_roam_info->fils_join_rsp->kek_len;
+	}
+
+	wlan_hdd_save_gtk_offload_params(adapter, NULL, kek, kek_len,
+					 csr_roam_info->replay_ctr,
+					 true, GTK_OFFLOAD_ENABLE);
+
+	hdd_debug("Kek len %d", kek_len);
+}
+#endif
 /**
  * hdd_send_re_assoc_event() - send reassoc event
  * @dev: pointer to net device
@@ -2057,11 +2084,7 @@ static void hdd_send_re_assoc_event(struct net_device *dev,
 		(u8 *)pCsrRoamInfo->pbFrames + pCsrRoamInfo->nBeaconLength,
 		pCsrRoamInfo->nAssocReqLength);
 
-	wlan_hdd_save_gtk_offload_params(pAdapter, NULL,
-			pCsrRoamInfo->kek,
-			pCsrRoamInfo->kek_len,
-			pCsrRoamInfo->replay_ctr,
-			true, GTK_OFFLOAD_ENABLE);
+	hdd_save_gtk_params(pAdapter, pCsrRoamInfo, true);
 
 	hdd_debug("ReAssoc Req IE dump");
 	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_DEBUG,
@@ -2071,7 +2094,6 @@ static void hdd_send_re_assoc_event(struct net_device *dev,
 			assoc_req_ies, pCsrRoamInfo->nAssocReqLength,
 			rspRsnIe, rspRsnLength,
 			pCsrRoamInfo);
-	hdd_debug("Kek len %d", pCsrRoamInfo->kek_len);
 
 	hdd_update_hlp_info(dev, pCsrRoamInfo);
 

@@ -2375,6 +2375,9 @@ static int __hdd_stop(struct net_device *dev)
 		hdd_debug("Closing all modules from the hdd_stop");
 		qdf_mc_timer_start(&hdd_ctx->iface_change_timer,
 				   hdd_ctx->config->iface_change_wait_time);
+		hdd_prevent_suspend_timeout(
+			hdd_ctx->config->iface_change_wait_time,
+			WIFI_POWER_EVENT_WAKELOCK_IFACE_CHANGE_TIMER);
 	}
 
 	EXIT();
@@ -9474,6 +9477,9 @@ int hdd_wlan_stop_modules(hdd_context_t *hdd_ctx, bool ftm_mode)
 			mutex_unlock(&hdd_ctx->iface_change_lock);
 			qdf_mc_timer_start(&hdd_ctx->iface_change_timer,
 				hdd_ctx->config->iface_change_wait_time);
+			hdd_prevent_suspend_timeout(
+				hdd_ctx->config->iface_change_wait_time,
+				WIFI_POWER_EVENT_WAKELOCK_IFACE_CHANGE_TIMER);
 			hdd_ctx->stop_modules_in_progress = false;
 			cds_set_module_stop_in_progress(false);
 			return 0;
@@ -9910,6 +9916,9 @@ int hdd_wlan_startup(struct device *dev)
 
 	qdf_mc_timer_start(&hdd_ctx->iface_change_timer,
 			   hdd_ctx->config->iface_change_wait_time);
+	hdd_prevent_suspend_timeout(
+		hdd_ctx->config->iface_change_wait_time,
+		WIFI_POWER_EVENT_WAKELOCK_IFACE_CHANGE_TIMER);
 
 	hdd_start_complete(0);
 	goto success;

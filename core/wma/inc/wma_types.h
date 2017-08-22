@@ -511,7 +511,7 @@
 #define HAL_USE_BD_RATE2_FOR_MANAGEMENT_FRAME 0x40
 
 #define wma_tx_frame(hHal, pFrmBuf, frmLen, frmType, txDir, tid, pCompFunc, \
-		   pData, txFlag, sessionid, channel_freq) \
+		   pData, txFlag, sessionid, channel_freq, rid) \
 	(QDF_STATUS)( wma_tx_packet( \
 		      cds_get_context(QDF_MODULE_ID_WMA), \
 		      (pFrmBuf), \
@@ -525,11 +525,12 @@
 		      (txFlag), \
 		      (sessionid), \
 		      (false), \
-		      (channel_freq)))
+		      (channel_freq), \
+		      (rid)))
 
 #define wma_tx_frameWithTxComplete(hHal, pFrmBuf, frmLen, frmType, txDir, tid, \
 	 pCompFunc, pData, pCBackFnTxComp, txFlag, sessionid, tdlsflag, \
-	 channel_freq) \
+	 channel_freq, rid) \
 	(QDF_STATUS)( wma_tx_packet( \
 		      cds_get_context(QDF_MODULE_ID_WMA), \
 		      (pFrmBuf), \
@@ -543,7 +544,8 @@
 		      (txFlag), \
 		      (sessionid), \
 		      (tdlsflag), \
-		      (channel_freq)))
+		      (channel_freq), \
+		      (rid)))
 
 
 #define WMA_SetEnableSSR(enable_ssr) ((void)enable_ssr)
@@ -702,6 +704,22 @@ enum wma_tdls_off_chan_mode {
 
 #endif /* FEATURE_WLAN_TDLS */
 
+enum rateid {
+	RATEID_1MBPS = 0,
+	RATEID_2MBPS,
+	RATEID_5_5MBPS,
+	RATEID_11MBPS,
+	RATEID_6MBPS,
+	RATEID_9MBPS,
+	RATEID_12MBPS,
+	RATEID_18MBPS,
+	RATEID_24MBPS,
+	RATEID_36MBPS,
+	RATEID_48MBPS = 10,
+	RATEID_54MBPS,
+	RATEID_DEFAULT
+};
+
 tSirRetStatus wma_post_ctrl_msg(tpAniSirGlobal pMac, tSirMsgQ *pMsg);
 
 tSirRetStatus u_mac_post_ctrl_msg(void *pSirGlobal, tSirMbMsg *pMb);
@@ -726,7 +744,7 @@ QDF_STATUS wma_tx_packet(void *pWMA,
 			 void *pData,
 			 pWMAAckFnTxComp pAckTxComp,
 			 uint8_t txFlag, uint8_t sessionId, bool tdlsflag,
-			 uint16_t channel_freq);
+			 uint16_t channel_freq, enum rateid rid);
 
 /**
  * wma_vdev_init() - initialize a wma vdev

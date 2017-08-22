@@ -1912,85 +1912,6 @@ static void sap_mark_dfs_channels(ptSapContext sapContext, uint8_t *channels,
 	}
 }
 
-/*
- * This Function is to get bonding channels from primary channel.
- *
- */
-static uint8_t sap_get_bonding_channels(ptSapContext sapContext,
-					uint8_t channel,
-					uint8_t *channels, uint8_t size,
-					ePhyChanBondState chanBondState)
-{
-	tHalHandle hHal = CDS_GET_HAL_CB(sapContext->p_cds_gctx);
-	tpAniSirGlobal pMac;
-	uint8_t numChannel;
-
-	if (channels == NULL)
-		return 0;
-
-	if (size < MAX_BONDED_CHANNELS)
-		return 0;
-
-	if (NULL != hHal) {
-		pMac = PMAC_STRUCT(hHal);
-	} else
-		return 0;
-
-	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
-		  FL("cbmode: %d, channel: %d"), chanBondState, channel);
-
-	switch (chanBondState) {
-	case PHY_SINGLE_CHANNEL_CENTERED:
-		numChannel = 1;
-		channels[0] = channel;
-		break;
-	case PHY_DOUBLE_CHANNEL_HIGH_PRIMARY:
-		numChannel = 2;
-		channels[0] = channel - 4;
-		channels[1] = channel;
-		break;
-	case PHY_DOUBLE_CHANNEL_LOW_PRIMARY:
-		numChannel = 2;
-		channels[0] = channel;
-		channels[1] = channel + 4;
-		break;
-	case PHY_QUADRUPLE_CHANNEL_20MHZ_LOW_40MHZ_LOW:
-		numChannel = 4;
-		channels[0] = channel;
-		channels[1] = channel + 4;
-		channels[2] = channel + 8;
-		channels[3] = channel + 12;
-		break;
-	case PHY_QUADRUPLE_CHANNEL_20MHZ_HIGH_40MHZ_LOW:
-		numChannel = 4;
-		channels[0] = channel - 4;
-		channels[1] = channel;
-		channels[2] = channel + 4;
-		channels[3] = channel + 8;
-		break;
-	case PHY_QUADRUPLE_CHANNEL_20MHZ_LOW_40MHZ_HIGH:
-		numChannel = 4;
-		channels[0] = channel - 8;
-		channels[1] = channel - 4;
-		channels[2] = channel;
-		channels[3] = channel + 4;
-		break;
-	case PHY_QUADRUPLE_CHANNEL_20MHZ_HIGH_40MHZ_HIGH:
-		numChannel = 4;
-		channels[0] = channel - 12;
-		channels[1] = channel - 8;
-		channels[2] = channel - 4;
-		channels[3] = channel;
-		break;
-	default:
-		numChannel = 1;
-		channels[0] = channel;
-		break;
-	}
-
-	return numChannel;
-}
-
 /**
  * sap_dfs_check_if_channel_avaialable() - Check if a channel is out of NOL
  * @nol: Pointer to the Non-Occupancy List.
@@ -2072,6 +1993,67 @@ static bool sap_dfs_check_if_channel_avaialable(tSapDfsNolInfo *nol)
 }
 
 /**
+ * sap_ch_params_to_bonding_channels() - get bonding channels from channel param
+ * @ch_params: channel params ( bw, pri and sec channel info)
+ * @channels: bonded channel list
+ *
+ * Return: Number of sub channels
+ */
+static uint8_t sap_ch_params_to_bonding_channels(
+		struct ch_params_s *ch_params,
+		uint8_t *channels)
+{
+	uint8_t center_chan = ch_params->center_freq_seg0;
+	uint8_t nchannels = 0;
+
+	switch (ch_params->ch_width) {
+	case CH_WIDTH_160MHZ:
+		nchannels = 8;
+		center_chan = ch_params->center_freq_seg1;
+		channels[0] = center_chan - 14;
+		channels[1] = center_chan - 10;
+		channels[2] = center_chan - 6;
+		channels[3] = center_chan - 2;
+		channels[4] = center_chan + 2;
+		channels[5] = center_chan + 6;
+		channels[6] = center_chan + 10;
+		channels[7] = center_chan + 14;
+		break;
+	case CH_WIDTH_80P80MHZ:
+		nchannels = 8;
+		channels[0] = center_chan - 6;
+		channels[1] = center_chan - 2;
+		channels[2] = center_chan + 2;
+		channels[3] = center_chan + 6;
+
+		center_chan = ch_params->center_freq_seg1;
+		channels[4] = center_chan - 6;
+		channels[5] = center_chan - 2;
+		channels[6] = center_chan + 2;
+		channels[7] = center_chan + 6;
+		break;
+	case CH_WIDTH_80MHZ:
+		nchannels = 4;
+		channels[0] = center_chan - 6;
+		channels[1] = center_chan - 2;
+		channels[2] = center_chan + 2;
+		channels[3] = center_chan + 6;
+		break;
+	case CH_WIDTH_40MHZ:
+		nchannels = 2;
+		channels[0] = center_chan - 2;
+		channels[1] = center_chan + 2;
+		break;
+	default:
+		nchannels = 1;
+		channels[0] = center_chan;
+		break;
+	}
+
+	return nchannels;
+}
+
+/**
  * sap_dfs_is_channel_in_nol_list() - given bonded channel is available
  * @sap_context: Handle to SAP context.
  * @channel_number: Channel on which availability should be checked.
@@ -2115,8 +2097,8 @@ sap_dfs_is_channel_in_nol_list(ptSapContext sap_context,
 	}
 
 	/* get the bonded channels */
-	num_channels = sap_get_bonding_channels(sap_context, channel_number,
-				channels, MAX_BONDED_CHANNELS, chan_bondState);
+	num_channels = sap_ch_params_to_bonding_channels(
+					&sap_context->ch_params, channels);
 
 	/* check for NOL, first on will break the loop */
 	for (j = 0; j < num_channels; j++) {
@@ -5083,67 +5065,6 @@ sap_is_channel_bonding_etsi_weather_channel(ptSapContext sap_context)
 		return true;
 
 	return false;
-}
-
-/**
- * sap_ch_params_to_bonding_channels() - get bonding channels from channel param
- * @ch_params: channel params ( bw, pri and sec channel info)
- * @channels: bonded channel list
- *
- * Return: Number of sub channels
- */
-static uint8_t sap_ch_params_to_bonding_channels(
-		struct ch_params_s *ch_params,
-		uint8_t *channels)
-{
-	uint8_t center_chan = ch_params->center_freq_seg0;
-	uint8_t nchannels = 0;
-
-	switch (ch_params->ch_width) {
-	case CH_WIDTH_160MHZ:
-		nchannels = 8;
-		center_chan = ch_params->center_freq_seg1;
-		channels[0] = center_chan - 14;
-		channels[1] = center_chan - 10;
-		channels[2] = center_chan - 6;
-		channels[3] = center_chan - 2;
-		channels[4] = center_chan + 2;
-		channels[5] = center_chan + 6;
-		channels[6] = center_chan + 10;
-		channels[7] = center_chan + 14;
-		break;
-	case CH_WIDTH_80P80MHZ:
-		nchannels = 8;
-		channels[0] = center_chan - 6;
-		channels[1] = center_chan - 2;
-		channels[2] = center_chan + 2;
-		channels[3] = center_chan + 6;
-
-		center_chan = ch_params->center_freq_seg1;
-		channels[4] = center_chan - 6;
-		channels[5] = center_chan - 2;
-		channels[6] = center_chan + 2;
-		channels[7] = center_chan + 6;
-		break;
-	case CH_WIDTH_80MHZ:
-		nchannels = 4;
-		channels[0] = center_chan - 6;
-		channels[1] = center_chan - 2;
-		channels[2] = center_chan + 2;
-		channels[3] = center_chan + 6;
-		break;
-	case CH_WIDTH_40MHZ:
-		nchannels = 2;
-		channels[0] = center_chan - 2;
-		channels[1] = center_chan + 2;
-		break;
-	default:
-		nchannels = 1;
-		channels[0] = center_chan;
-		break;
-	}
-
-	return nchannels;
 }
 
 /**

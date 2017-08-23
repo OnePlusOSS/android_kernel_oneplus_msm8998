@@ -11906,6 +11906,190 @@ enum hw_filter_mode {
 #define CFG_ENABLE_11D_IN_WORLD_MODE_MAX     (1)
 #define CFG_ENABLE_11D_IN_WORLD_MODE_DEFAULT (0)
 
+/*
+ * <ini>
+ * rssi_weightage - Rssi Weightage to calculate best candidate
+ * @Min: 0
+ * @Max: 100
+ * @Default: 25
+ *
+ * This ini is used to increase/decrease rssi weightage in best candidate
+ * selection. AP with better RSSI will get more weightage.
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+
+#define CFG_RSSI_WEIGHTAGE_NAME    "rssi_weightage"
+#define CFG_RSSI_WEIGHTAGE_DEFAULT (25)
+#define CFG_RSSI_WEIGHTAGE_MIN     (0)
+#define CFG_RSSI_WEIGHTAGE_MAX     (100)
+/*
+ * <ini>
+ * ht_caps_weightage - HT caps weightage to calculate best candidate
+ * @Min: 0
+ * @Max: 100
+ * @Default: 7
+ *
+ * This ini is used to increase/decrease HT caps weightage in best candidate
+ * selection. If AP supports HT caps, AP will get additional Weightage with
+ * this param.
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+
+#define CFG_HT_CAPABILITY_WEIGHTAGE_NAME   "ht_caps_weightage"
+#define CFG_HT_CAPABILITY_WEIGHTAGE_DEFAULT (7)
+#define CFG_HT_CAPABILITY_WEIGHTAGE_MIN     (0)
+#define CFG_HT_CAPABILITY_WEIGHTAGE_MAX     (100)
+/*
+ * <ini>
+ * vht_caps_weightage - VHT caps Weightage to calculate best candidate
+ * @Min: 0
+ * @Max: 100
+ * @Default: 5
+ *
+ * This ini is used to increase/decrease VHT caps weightage in best candidate
+ * selection. If AP supports VHT caps, AP will get additional weightage with
+ * this param.
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+
+#define CFG_VHT_CAPABILITY_WEIGHTAGE_NAME    "vht_caps_weightage"
+#define CFG_VHT_CAPABILITY_WEIGHTAGE_DEFAULT (5)
+#define CFG_VHT_CAPABILITY_WEIGHTAGE_MIN     (0)
+#define CFG_VHT_CAPABILITY_WEIGHTAGE_MAX     (100)
+/*
+ * <ini>
+ * chan_width_weightage - Channel Width Weightage to calculate best candidate
+ * @Min: 0
+ * @Max: 100
+ * @Default: 10
+ *
+ * This ini is used to increase/decrease Channel Width weightage in best
+ * candidate selection. AP with Higher channel width will get higher weightage.
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+
+#define CFG_CHAN_WIDTH_WEIGHTAGE_NAME    "chan_width_weightage"
+#define CFG_CHAN_WIDTH_WEIGHTAGE_DEFAULT (10)
+#define CFG_CHAN_WIDTH_WEIGHTAGE_MIN     (0)
+#define CFG_CHAN_WIDTH_WEIGHTAGE_MAX     (100)
+/*
+ * <ini>
+ * chan_band_weightage - Channel Band perferance to 5GHZ to
+ * calculate best candidate
+ * @Min: 0
+ * @Max: 100
+ * @Default: 5
+ *
+ * This ini is used to increase/decrease Channel Band Perferance weightage
+ * in best candidate selection. 5GHZ AP get this additional boost compare
+ * to 2GHZ AP.
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+
+#define CFG_CHAN_BAND_WEIGHTAGE_NAME    "chan_band_weightage"
+#define CFG_CHAN_BAND_WEIGHTAGE_DEFAULT (5)
+#define CFG_CHAN_BAND_WEIGHTAGE_MIN     (0)
+#define CFG_CHAN_BAND_WEIGHTAGE_MAX     (100)
+/*
+ * <ini>
+ * nss_weightage - NSS Weightage to calculate best candidate
+ * @Min: 0
+ * @Max: 100
+ * @Default: 5
+ *
+ * This ini is used to increase/decrease NSS weightage in best candidate
+ * selection. If there are two AP, one AP supports 2x2 and another one
+ * supports 1x1 and station supports 2X2, first A will get this additional
+ * weightage.
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+
+#define CFG_NSS_WEIGHTAGE_NAME    "nss_weightage"
+#define CFG_NSS_WEIGHTAGE_DEFAULT (5)
+#define CFG_NSS_WEIGHTAGE_MIN     (0)
+#define CFG_NSS_WEIGHTAGE_MAX     (100)
+/*
+ * <ini>
+ * beamforming_cap_weightage - Beam Forming Weightage to
+ *                             calculate best candidate
+ * @Min: 0
+ * @Max: 100
+ * @Default: 2
+ *
+ * This ini is used to increase/decrease Beam forming Weightage if
+ * some AP support Beam forming or not. If AP suppoets Beam forming,
+ * that AP will get additional boost of this weightage
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+
+#define CFG_BEAMFORMING_CAP_WEIGHTAGE_NAME "beamforming_cap_weightage"
+#define CFG_BEAMFORMING_CAP_WEIGHTAGE_DEFAULT (2)
+#define CFG_BEAMFORMING_CAP_WEIGHTAGE_MIN     (0)
+#define CFG_BEAMFORMING_CAP_WEIGHTAGE_MAX     (100)
+/*
+ * <ini>
+ * pcl_weightage - PCL Weightage to calculate best candidate
+ * @Min: 0
+ * @Max: 100
+ * @Default: 10
+ *
+ * This ini is used to increase/decrease PCL weightage in best candidate
+ * selection. If some APs are in PCL list, those AP will get addition
+ * weightage.
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+
+#define CFG_PCL_WEIGHT_WEIGHTAGE_NAME "pcl_weightage"
+#define CFG_PCL_WEIGHT_DEFAULT        (10)
+#define CFG_PCL_WEIGHT_MIN            (0)
+#define CFG_PCL_WEIGHT_MAX            (100)
+/*
+ * <ini>
+ * channel_congestion_weightage - channel Congestion Weightage to
+ * calculate best candidate
+ * @Min: 0
+ * @Max: 100
+ * @Default: 5
+ *
+ * This ini is used to increase/decrease channel congestion weightage
+ * in candidate selection. Congestion is mesaured with the help of ESP/QBSS.
+ * selection.
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+
+#define CFG_CHANNEL_CONGESTION_WEIGHTAGE_NAME "channel_congestion_weightage"
+#define CFG_CHANNEL_CONGESTION_WEIGHTAGE_DEFAULT (5)
+#define CFG_CHANNEL_CONGESTION_WEIGHTAGE_MIN     (0)
+#define CFG_CHANNEL_CONGESTION_WEIGHTAGE_MAX     (100)
+
+
 /*---------------------------------------------------------------------------
    Type declarations
    -------------------------------------------------------------------------*/
@@ -12719,6 +12903,15 @@ struct hdd_config {
 	bool enable_11d_in_world_mode;
 	int8_t rssi_thresh_offset_5g;
 	bool is_fils_roaming_supported;
+	uint8_t rssi_weightage;
+	uint8_t ht_caps_weightage;
+	uint8_t vht_caps_weightage;
+	uint8_t chan_width_weightage;
+	uint8_t chan_band_weightage;
+	uint8_t nss_weightage;
+	uint8_t beamforming_cap_weightage;
+	uint8_t pcl_weightage;
+	uint8_t channel_congestion_weightage;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

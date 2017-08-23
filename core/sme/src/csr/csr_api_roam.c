@@ -1662,6 +1662,26 @@ static void init_config_param(tpAniSirGlobal pMac)
 		MAWC_ROAM_RSSI_HIGH_ADJUST_DEFAULT;
 	pMac->roam.configParam.csr_mawc_config.mawc_roam_rssi_low_adjust =
 		MAWC_ROAM_RSSI_LOW_ADJUST_DEFAULT;
+
+	pMac->roam.configParam.best_candidate_weight_config.
+		rssi_weightage = RSSI_WEIGHTAGE;
+	pMac->roam.configParam.best_candidate_weight_config.
+		ht_caps_weightage = HT_CAPABILITY_WEIGHTAGE;
+	pMac->roam.configParam.best_candidate_weight_config.
+		vht_caps_weightage = VHT_CAP_WEIGHTAGE;
+	pMac->roam.configParam.best_candidate_weight_config.
+		chan_width_weightage = CHAN_WIDTH_WEIGHTAGE;
+	pMac->roam.configParam.best_candidate_weight_config.
+		chan_band_weightage = CHAN_BAND_WEIGHTAGE;
+	pMac->roam.configParam.best_candidate_weight_config.
+		nss_weightage = NSS_WEIGHTAGE;
+	pMac->roam.configParam.best_candidate_weight_config.
+		beamforming_cap_weightage = BEAMFORMING_CAP_WEIGHTAGE;
+	pMac->roam.configParam.best_candidate_weight_config.
+		pcl_weightage = PCL_WEIGHT;
+	pMac->roam.configParam.best_candidate_weight_config.
+		channel_congestion_weightage = CHANNEL_CONGESTION_WEIGHTAGE;
+
 }
 
 eCsrBand csr_get_current_band(tHalHandle hHal)
@@ -2811,6 +2831,10 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 		pMac->roam.configParam.num_disallowed_aps =
 			pParam->num_disallowed_aps;
 
+		qdf_mem_copy(&pMac->roam.configParam.
+			best_candidate_weight_config,
+			&pParam->best_candidate_weight_config,
+			sizeof(struct csr_best_candidate_weight_config));
 	}
 	return status;
 }
@@ -3072,6 +3096,9 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 	qdf_mem_copy(&pParam->csr_mawc_config,
 		&pMac->roam.configParam.csr_mawc_config,
 		sizeof(pParam->csr_mawc_config));
+	qdf_mem_copy(&pParam->best_candidate_weight_config,
+		&pMac->roam.configParam.best_candidate_weight_config,
+		sizeof(struct best_candidate_wt_cfg_param));
 
 	return QDF_STATUS_SUCCESS;
 }

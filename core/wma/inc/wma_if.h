@@ -517,7 +517,7 @@ typedef struct {
 	uint8_t nss;
 	uint8_t nss_2g;
 	uint8_t nss_5g;
-	uint8_t beacon_tx_rate;
+	uint16_t beacon_tx_rate;
 	uint32_t tx_aggregation_size;
 	uint32_t rx_aggregation_size;
 } tAddBssParams, *tpAddBssParams;

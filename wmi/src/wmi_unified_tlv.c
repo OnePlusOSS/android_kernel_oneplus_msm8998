@@ -266,6 +266,10 @@ QDF_STATUS send_vdev_start_cmd_tlv(wmi_unified_t wmi_handle,
 	WMI_SET_CHANNEL_REG_POWER(chan, req->max_txpow);
 	WMI_SET_CHANNEL_MAX_TX_POWER(chan, req->max_txpow);
 
+	cmd->bcn_tx_rate = req->bcn_tx_rate_code;
+	if (req->bcn_tx_rate_code)
+		cmd->flags |= WMI_UNIFIED_VDEV_START_BCN_TX_RATE_PRESENT;
+
 	if (!req->is_restart) {
 		cmd->beacon_interval = req->beacon_intval;
 		cmd->dtim_period = req->dtim_period;

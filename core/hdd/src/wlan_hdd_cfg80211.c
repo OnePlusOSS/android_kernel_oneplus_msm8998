@@ -241,6 +241,9 @@ static const struct ieee80211_channel hdd_channels_5_ghz[] = {
 	HDD5GHZCHAN(5785, 157, 0),
 	HDD5GHZCHAN(5805, 161, 0),
 	HDD5GHZCHAN(5825, 165, 0),
+};
+
+static const struct ieee80211_channel hdd_channels_dot11p[] = {
 	HDD5GHZCHAN(5852, 170, 0),
 	HDD5GHZCHAN(5855, 171, 0),
 	HDD5GHZCHAN(5860, 172, 0),
@@ -11926,6 +11929,7 @@ int wlan_hdd_cfg80211_init(struct device *dev,
 {
 	int i, j;
 	hdd_context_t *pHddCtx = wiphy_priv(wiphy);
+	int len = 0;
 
 	ENTER();
 
@@ -12067,18 +12071,43 @@ int wlan_hdd_cfg80211_init(struct device *dev,
 		 (eHDD_DOT11_MODE_11b_ONLY != pCfg->dot11Mode) &&
 		 (eHDD_DOT11_MODE_11g_ONLY != pCfg->dot11Mode))) {
 		wiphy->bands[HDD_NL80211_BAND_5GHZ] = &wlan_hdd_band_5_ghz;
-		wiphy->bands[HDD_NL80211_BAND_5GHZ]->channels =
+
+		if (pCfg->dot11p_mode) {
+			wiphy->bands[HDD_NL80211_BAND_5GHZ]->channels =
+				qdf_mem_malloc(sizeof(hdd_channels_5_ghz) +
+						sizeof(hdd_channels_dot11p));
+			if (wiphy->bands[HDD_NL80211_BAND_5GHZ]->channels ==
+								NULL) {
+				hdd_err("Not enough memory to for channels");
+				goto mem_fail;
+			}
+			wiphy->bands[HDD_NL80211_BAND_5GHZ]->n_channels =
+					QDF_ARRAY_SIZE(hdd_channels_5_ghz) +
+					QDF_ARRAY_SIZE(hdd_channels_dot11p);
+
+			qdf_mem_copy(wiphy->bands[HDD_NL80211_BAND_5GHZ]->
+					channels, &hdd_channels_5_ghz[0],
+					sizeof(hdd_channels_5_ghz));
+			len = sizeof(hdd_channels_5_ghz);
+			qdf_mem_copy((char *)wiphy->
+					bands[HDD_NL80211_BAND_5GHZ]->channels
+						+ len,
+						&hdd_channels_dot11p[0],
+					sizeof(hdd_channels_dot11p));
+
+		} else {
+			wiphy->bands[HDD_NL80211_BAND_5GHZ]->channels =
 			qdf_mem_malloc(sizeof(hdd_channels_5_ghz));
-		if (wiphy->bands[HDD_NL80211_BAND_5GHZ]->channels == NULL) {
-			hdd_err("Not enough memory to allocate channels");
-			qdf_mem_free(wiphy->
-				bands[HDD_NL80211_BAND_2GHZ]->channels);
-			wiphy->bands[HDD_NL80211_BAND_2GHZ]->channels = NULL;
-			return -ENOMEM;
+			if (wiphy->bands[HDD_NL80211_BAND_5GHZ]->channels ==
+								NULL) {
+				hdd_err("Not enough memory to for channels");
+				goto mem_fail;
+			}
+			qdf_mem_copy(wiphy->
+				bands[HDD_NL80211_BAND_5GHZ]->channels,
+				&hdd_channels_5_ghz[0],
+				sizeof(hdd_channels_5_ghz));
 		}
-		qdf_mem_copy(wiphy->bands[HDD_NL80211_BAND_5GHZ]->channels,
-			&hdd_channels_5_ghz[0],
-			sizeof(hdd_channels_5_ghz));
 	}
 
 	for (i = 0; i < NUM_NL80211_BANDS; i++) {
@@ -12154,6 +12183,13 @@ int wlan_hdd_cfg80211_init(struct device *dev,
 
 	EXIT();
 	return 0;
+
+mem_fail:
+	if (wiphy->bands[HDD_NL80211_BAND_2GHZ]->channels != NULL) {
+		qdf_mem_free(wiphy->bands[HDD_NL80211_BAND_2GHZ]->channels);
+		wiphy->bands[HDD_NL80211_BAND_2GHZ]->channels = NULL;
+	}
+	return -ENOMEM;
 }
 
 /**

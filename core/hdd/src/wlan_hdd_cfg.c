@@ -6693,6 +6693,9 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_debug("Name = [%s] value = [%u]",
 		CFG_CHANNEL_CONGESTION_WEIGHTAGE_NAME,
 		pHddCtx->config->channel_congestion_weightage);
+	hdd_debug("Name = [%s] value = [%u]",
+		CFG_DOT11P_MODE_NAME,
+		pHddCtx->config->dot11p_mode);
 }
 
 /**

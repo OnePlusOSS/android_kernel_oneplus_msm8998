@@ -398,6 +398,14 @@ int wlan_hdd_send_avoid_freq_event(hdd_context_t *pHddCtx,
 				tHddAvoidFreqList * pAvoidFreqList);
 #endif /* FEATURE_WLAN_CH_AVOID || FEATURE_WLAN_FORCE_SAP_SCC */
 
+/**
+ * wlan_hdd_send_hang_reason_event() - Send hang reason to the userspace
+ * @hdd_ctx: Pointer to hdd context
+ * @reason: cds recovery reason
+ *
+ * Return: 0 on success or failure reason
+ */
+int wlan_hdd_send_hang_reason_event(hdd_context_t *pHddCtx, uint32_t reason);
 #ifdef FEATURE_WLAN_EXTSCAN
 void wlan_hdd_cfg80211_extscan_callback(void *ctx,
 					const uint16_t evType, void *pMsg);

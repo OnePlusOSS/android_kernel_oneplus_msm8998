@@ -338,6 +338,7 @@ typedef struct _cds_context_type {
 	uint8_t cur_conc_system_pref;
 	qdf_work_t cds_recovery_work;
 	qdf_workqueue_t *cds_recovery_wq;
+	enum cds_hang_reason recovery_reason;
 } cds_context_type, *p_cds_contextType;
 
 extern struct _cds_sched_context *gp_cds_sched_context;

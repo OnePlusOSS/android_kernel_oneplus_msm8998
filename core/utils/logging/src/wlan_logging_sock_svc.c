@@ -758,7 +758,7 @@ static void send_flush_completion_to_user(uint8_t ring_id)
 		return;
 
 	if (cds_is_self_recovery_enabled())
-		cds_trigger_recovery();
+		cds_trigger_recovery(CDS_REASON_UNSPECIFIED);
 	else
 		QDF_BUG(0);
 }

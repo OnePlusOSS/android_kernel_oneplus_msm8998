@@ -743,7 +743,7 @@ static void hdd_scan_inactivity_timer_handler(void *scan_req)
 		hdd_err("%s: Module in bad state; Ignore hdd scan req timeout",
 			 __func__);
 	else if (cds_is_self_recovery_enabled())
-		cds_trigger_recovery();
+		cds_trigger_recovery(CDS_SCAN_REQ_EXPIRED);
 	else
 		QDF_BUG(0);
 
@@ -1852,6 +1852,9 @@ static void wlan_hdd_free_voui(tCsrScanRequest *scan_req)
 		qdf_mem_free(scan_req->voui);
 }
 
+/* Define short name to use in cds_trigger_recovery */
+#define SCAN_FAILURE CDS_SCAN_ATTEMPT_FAILURES
+
 /**
  * __wlan_hdd_cfg80211_scan() - API to process cfg80211 scan request
  * @wiphy: Pointer to wiphy
@@ -2046,7 +2049,7 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 				} else if (pHddCtx->config->
 					   enableSelfRecovery) {
 					hdd_err("Triggering SSR due to scan stuck");
-					cds_trigger_recovery();
+					cds_trigger_recovery(SCAN_FAILURE);
 				} else {
 					hdd_err("QDF_BUG due to scan stuck");
 					QDF_BUG(0);
@@ -2361,6 +2364,7 @@ free_mem:
 	EXIT();
 	return status;
 }
+#undef SCAN_FAILURE
 
 /**
  * wlan_hdd_cfg80211_scan() - API to process cfg80211 scan request

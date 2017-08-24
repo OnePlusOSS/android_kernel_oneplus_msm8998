@@ -2061,6 +2061,7 @@ ol_txrx_vdev_attach(ol_txrx_pdev_handle pdev,
 			sizeof(union ol_txrx_align_mac_addr_t));
 	qdf_spinlock_create(&vdev->flow_control_lock);
 	vdev->osif_flow_control_cb = NULL;
+	vdev->osif_flow_control_is_pause = NULL;
 	vdev->osif_fc_ctx = NULL;
 
 	/* Default MAX Q depth for every VDEV */
@@ -2243,6 +2244,7 @@ ol_txrx_vdev_detach(ol_txrx_vdev_handle vdev,
 
 	qdf_spin_lock_bh(&vdev->flow_control_lock);
 	vdev->osif_flow_control_cb = NULL;
+	vdev->osif_flow_control_is_pause = NULL;
 	vdev->osif_fc_ctx = NULL;
 	qdf_spin_unlock_bh(&vdev->flow_control_lock);
 	qdf_spinlock_destroy(&vdev->flow_control_lock);
@@ -4303,17 +4305,9 @@ static ol_txrx_vdev_handle ol_txrx_get_vdev_from_sta_id(uint8_t sta_id)
 	return peer->vdev;
 }
 
-/**
- * ol_txrx_register_tx_flow_control() - register tx flow control callback
- * @vdev_id: vdev_id
- * @flowControl: flow control callback
- * @osif_fc_ctx: callback context
- *
- * Return: 0 for sucess or error code
- */
 int ol_txrx_register_tx_flow_control(uint8_t vdev_id,
-				      ol_txrx_tx_flow_control_fp flowControl,
-				      void *osif_fc_ctx)
+	ol_txrx_tx_flow_control_fp flowControl, void *osif_fc_ctx,
+	ol_txrx_tx_flow_control_is_pause_fp flow_control_is_pause)
 {
 	ol_txrx_vdev_handle vdev = ol_txrx_get_vdev_from_vdev_id(vdev_id);
 
@@ -4325,6 +4319,7 @@ int ol_txrx_register_tx_flow_control(uint8_t vdev_id,
 
 	qdf_spin_lock_bh(&vdev->flow_control_lock);
 	vdev->osif_flow_control_cb = flowControl;
+	vdev->osif_flow_control_is_pause = flow_control_is_pause;
 	vdev->osif_fc_ctx = osif_fc_ctx;
 	qdf_spin_unlock_bh(&vdev->flow_control_lock);
 	return 0;
@@ -4349,6 +4344,7 @@ int ol_txrx_deregister_tx_flow_control_cb(uint8_t vdev_id)
 
 	qdf_spin_lock_bh(&vdev->flow_control_lock);
 	vdev->osif_flow_control_cb = NULL;
+	vdev->osif_flow_control_is_pause = NULL;
 	vdev->osif_fc_ctx = NULL;
 	qdf_spin_unlock_bh(&vdev->flow_control_lock);
 	return 0;
@@ -4435,6 +4431,15 @@ inline void ol_txrx_flow_control_cb(ol_txrx_vdev_handle vdev,
 	if ((vdev->osif_flow_control_cb) && (vdev->osif_fc_ctx))
 		vdev->osif_flow_control_cb(vdev->osif_fc_ctx, tx_resume);
 	qdf_spin_unlock_bh(&vdev->flow_control_lock);
+}
+
+bool ol_txrx_flow_control_is_pause(ol_txrx_vdev_handle vdev)
+{
+	bool is_pause = false;
+	if ((vdev->osif_flow_control_is_pause) && (vdev->osif_fc_ctx))
+		is_pause = vdev->osif_flow_control_is_pause(vdev->osif_fc_ctx);
+
+	return is_pause;
 }
 #endif /* QCA_LL_LEGACY_TX_FLOW_CONTROL */
 

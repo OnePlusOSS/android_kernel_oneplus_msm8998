@@ -192,6 +192,8 @@ static const uint8_t
 csr_start_ibss_channels50[CSR_NUM_IBSS_START_CHANNELS_50] = { 36, 40, 44, 48 };
 static const uint8_t
 csr_start_ibss_channels24[CSR_NUM_IBSS_START_CHANNELS_24] = { 1, 6, 11 };
+static const uint8_t
+social_channel[MAX_SOCIAL_CHANNELS] = { 1, 6, 11 };
 static void init_config_param(tpAniSirGlobal pMac);
 static bool csr_roam_process_results(tpAniSirGlobal pMac, tSmeCmd *pCommand,
 				     enum csr_roamcomplete_result Result,
@@ -301,6 +303,11 @@ static void csr_ser_des_unpack_diassoc_rsp(uint8_t *pBuf,
 					   tSirSmeDisassocRsp *pRsp);
 static void csr_init_operating_classes(tHalHandle hHal);
 
+static void csr_add_len_of_social_channels(tpAniSirGlobal mac,
+		uint8_t *num_chan);
+static void csr_add_social_channels(tpAniSirGlobal mac,
+		tSirUpdateChanList *chan_list, tCsrScanStruct *pScan,
+		uint8_t *num_chan);
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 QDF_STATUS csr_process_same_ap_reassoc_cmd(tpAniSirGlobal mac_ctx,
 					tSmeCmd *sme_cmd)
@@ -789,6 +796,71 @@ scan_list_sort_error:
 	qdf_mem_free(chan_list_non_greedy);
 }
 
+#ifdef WLAN_ENABLE_SOCIAL_CHANNELS_5G_ONLY
+static void csr_add_len_of_social_channels(tpAniSirGlobal mac,
+		uint8_t *num_chan)
+{
+	uint8_t i;
+	uint8_t no_chan = *num_chan;
+
+	sme_debug("add len of social channels, before adding - num_chan:%hu",
+			*num_chan);
+	if (CSR_IS_5G_BAND_ONLY(mac)) {
+		for (i = 0; i < MAX_SOCIAL_CHANNELS; i++) {
+			if (cds_get_channel_state(social_channel[i])
+					== CHANNEL_STATE_ENABLE)
+				no_chan++;
+		}
+	}
+	*num_chan = no_chan;
+	sme_debug("after adding - num_chan:%hu", *num_chan);
+}
+
+static void csr_add_social_channels(tpAniSirGlobal mac,
+		tSirUpdateChanList *chan_list, tCsrScanStruct *pScan,
+		uint8_t *num_chan)
+{
+	uint8_t i;
+	uint8_t no_chan = *num_chan;
+
+	sme_debug("add social channels chan_list %p, num_chan %hu", chan_list,
+			*num_chan);
+	if (CSR_IS_5G_BAND_ONLY(mac)) {
+		for (i = 0; i < MAX_SOCIAL_CHANNELS; i++) {
+			if (cds_get_channel_state(social_channel[i])
+					!= CHANNEL_STATE_ENABLE)
+				continue;
+			chan_list->chanParam[no_chan].chanId =
+				social_channel[i];
+			chan_list->chanParam[no_chan].pwr =
+				csr_find_channel_pwr(pScan->defaultPowerTable,
+						social_channel[i]);
+			chan_list->chanParam[no_chan].dfsSet = false;
+			if (cds_is_5_mhz_enabled())
+				chan_list->chanParam[no_chan].quarter_rate
+					= 1;
+			else if (cds_is_10_mhz_enabled())
+				chan_list->chanParam[no_chan].half_rate = 1;
+			no_chan++;
+		}
+		sme_debug("after adding -num_chan %hu", no_chan);
+	}
+	*num_chan = no_chan;
+}
+#else
+static void csr_add_len_of_social_channels(tpAniSirGlobal mac,
+		uint8_t *num_chan)
+{
+	sme_debug("skip adding len of social channels");
+}
+static void csr_add_social_channels(tpAniSirGlobal mac,
+		tSirUpdateChanList *chan_list, tCsrScanStruct *pScan,
+		uint8_t *num_chan)
+{
+	sme_debug("skip social channels");
+}
+#endif
+
 QDF_STATUS csr_update_channel_list(tpAniSirGlobal pMac)
 {
 	tSirUpdateChanList *pChanList;
@@ -797,7 +869,7 @@ QDF_STATUS csr_update_channel_list(tpAniSirGlobal pMac)
 	uint8_t num_channel = 0;
 	uint32_t bufLen;
 	cds_msg_t msg;
-	uint8_t i, j, social_channel[MAX_SOCIAL_CHANNELS] = { 1, 6, 11 };
+	uint8_t i;
 	uint8_t channel_state;
 	uint16_t unsafe_chan[NUM_CHANNELS];
 	uint16_t unsafe_chan_cnt = 0;
@@ -815,13 +887,7 @@ QDF_STATUS csr_update_channel_list(tpAniSirGlobal pMac)
 		    &unsafe_chan_cnt,
 		    sizeof(unsafe_chan));
 
-	if (CSR_IS_5G_BAND_ONLY(pMac)) {
-		for (i = 0; i < MAX_SOCIAL_CHANNELS; i++) {
-			if (cds_get_channel_state(social_channel[i])
-			    == CHANNEL_STATE_ENABLE)
-				numChan++;
-		}
-	}
+	csr_add_len_of_social_channels(pMac, &numChan);
 
 	bufLen = sizeof(tSirUpdateChanList) +
 		 (sizeof(tSirUpdateChanParam) * (numChan));
@@ -930,25 +996,8 @@ QDF_STATUS csr_update_channel_list(tpAniSirGlobal pMac)
 		}
 	}
 
-	if (CSR_IS_5G_BAND_ONLY(pMac)) {
-		for (j = 0; j < MAX_SOCIAL_CHANNELS; j++) {
-			if (cds_get_channel_state(social_channel[j])
-			    != CHANNEL_STATE_ENABLE)
-				continue;
-			pChanList->chanParam[num_channel].chanId =
-				social_channel[j];
-			pChanList->chanParam[num_channel].pwr =
-				csr_find_channel_pwr(pScan->defaultPowerTable,
-						     social_channel[j]);
-			pChanList->chanParam[num_channel].dfsSet = false;
-			if (cds_is_5_mhz_enabled())
-				pChanList->chanParam[num_channel].quarter_rate
-									= 1;
-			else if (cds_is_10_mhz_enabled())
-				pChanList->chanParam[num_channel].half_rate = 1;
-			num_channel++;
-		}
-	}
+	csr_add_social_channels(pMac, pChanList, pScan, &num_channel);
+
 	if (pMac->roam.configParam.early_stop_scan_enable)
 		csr_roam_sort_channel_for_early_stop(pMac, pChanList,
 						     num_channel);

@@ -4627,6 +4627,7 @@ csr_scan_remove_dup_bss_description_from_interim_list(tpAniSirGlobal mac_ctx,
 	tListElem *pEntry;
 	struct tag_csrscan_result *scan_bss_dscp;
 	int8_t scan_entry_rssi = 0;
+	int8_t scan_entry_rssi_raw = 0;
 	/*
 	 * Walk through all the chained BssDescriptions. If we find a chained
 	 * BssDescription that matches the BssID of the BssDescription passed
@@ -4646,6 +4647,9 @@ csr_scan_remove_dup_bss_description_from_interim_list(tpAniSirGlobal mac_ctx,
 		 * Channel and NetworkType matches
 		 */
 		scan_entry_rssi = scan_bss_dscp->Result.BssDescriptor.rssi;
+		scan_entry_rssi_raw =
+				scan_bss_dscp->Result.BssDescriptor.rssi_raw;
+
 		if (csr_is_duplicate_bss_description(mac_ctx,
 			&scan_bss_dscp->Result.BssDescriptor, bss_dscp)) {
 
@@ -4666,6 +4670,12 @@ csr_scan_remove_dup_bss_description_from_interim_list(tpAniSirGlobal mac_ctx,
 					((((int32_t) bss_dscp->rssi *
 					CSR_SCAN_RESULT_RSSI_WEIGHT) +
 					((int32_t) scan_entry_rssi *
+					(100 - CSR_SCAN_RESULT_RSSI_WEIGHT)))
+					/ 100);
+				bss_dscp->rssi_raw = (int8_t)
+					((((int32_t) bss_dscp->rssi_raw *
+					CSR_SCAN_RESULT_RSSI_WEIGHT) +
+					((int32_t) scan_entry_rssi_raw *
 					(100 - CSR_SCAN_RESULT_RSSI_WEIGHT)))
 					/ 100);
 			}

@@ -1708,8 +1708,7 @@ static void wlan_hdd_tdls_set_mode(hdd_context_t *pHddCtx,
 				 */
 				if (pHddCtx->tdls_source_bitmap) {
 					mutex_unlock(&pHddCtx->tdls_lock);
-					hdd_debug("Don't enable TDLS, source"
-						"bitmap: %lu",
+					hdd_debug("Don't enable TDLS, source bitmap: %lu",
 						pHddCtx->tdls_source_bitmap);
 					return;
 				}
@@ -2079,6 +2078,7 @@ void wlan_hdd_tdls_notify_connect(hdd_adapter_t *adapter,
 				  tCsrRoamInfo *csr_roam_info)
 {
 	hdd_context_t *hdd_ctx;
+
 	hdd_info("Check and update TDLS state");
 
 	if (cds_mode_specific_connection_count(CDS_SAP_MODE, NULL) >= 1) {
@@ -4186,23 +4186,22 @@ static int __wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy,
 					  action_code, numCurrTdlsPeers,
 					  pHddCtx->max_num_tdls_sta);
 				return -EINVAL;
-			} else {
-				/* maximum reached. tweak to send error code to
-				 * peer and return error code to supplicant
-				 */
-				status_code = eSIR_MAC_UNSPEC_FAILURE_STATUS;
-				QDF_TRACE(QDF_MODULE_ID_HDD,
-					  QDF_TRACE_LEVEL_ERROR,
-					  "%s: " MAC_ADDRESS_STR
-					  " TDLS Max peer already connected, send response status (%d). Num of peers (%d), Max allowed (%d).",
-					  __func__, MAC_ADDR_ARRAY(peer),
-					  status_code, numCurrTdlsPeers,
-					  pHddCtx->max_num_tdls_sta);
-				max_sta_failed = -EPERM;
-				/* fall through to send setup resp with failure
-				 * status code
-				 */
 			}
+			/* maximum reached. tweak to send error code to
+			 * peer and return error code to supplicant
+			 */
+			status_code = eSIR_MAC_UNSPEC_FAILURE_STATUS;
+			QDF_TRACE(QDF_MODULE_ID_HDD,
+				  QDF_TRACE_LEVEL_ERROR,
+				  "%s: " MAC_ADDRESS_STR
+				  " TDLS Max peer already connected, send response status (%d). Num of peers (%d), Max allowed (%d).",
+				  __func__, MAC_ADDR_ARRAY(peer),
+				  status_code, numCurrTdlsPeers,
+				  pHddCtx->max_num_tdls_sta);
+			max_sta_failed = -EPERM;
+			/* fall through to send setup resp with failure
+			 * status code
+			 */
 		} else {
 			hddTdlsPeer_t *pTdlsPeer;
 
@@ -6255,9 +6254,8 @@ int wlan_hdd_tdls_antenna_switch(hdd_context_t *hdd_ctx,
 		if (hdd_ctx->tdls_nss_teardown_complete == false) {
 			hdd_err("TDLS antenna switch is in progress");
 			return -EAGAIN;
-		} else {
-			goto tdls_ant_sw_done;
 		}
+		goto tdls_ant_sw_done;
 	}
 
 	/* Check whether TDLS is connected or not */

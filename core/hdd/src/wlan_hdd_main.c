@@ -649,9 +649,8 @@ int wlan_hdd_validate_context(hdd_context_t *hdd_ctx)
 		return -EAGAIN;
 	}
 
-	if (cds_is_load_or_unload_in_progress()) {
+	if (cds_is_load_or_unload_in_progress())
 		return -EAGAIN;
-	}
 
 	if (hdd_ctx->start_modules_in_progress ||
 	    hdd_ctx->stop_modules_in_progress) {
@@ -1964,8 +1963,6 @@ static void hdd_update_hw_sw_info(hdd_context_t *hdd_ctx)
 
 	/* Get the wlan hw/fw version */
 	hdd_wlan_get_version(hdd_ctx, NULL, NULL);
-
-	return;
 }
 
 /**
@@ -4665,8 +4662,8 @@ static void hdd_connect_done(struct net_device *dev, const u8 *bssid,
 			     struct cfg80211_bss *bss, tCsrRoamInfo *roam_info,
 			     const u8 *req_ie, size_t req_ie_len,
 			     const u8 *resp_ie, size_t resp_ie_len, u16 status,
-			     gfp_t gfp, bool connect_timeout, tSirResultCodes
-			     timeout_reason)
+			     gfp_t gfp, bool connect_timeout,
+			     tSirResultCodes timeout_reason)
 {
 	struct cfg80211_connect_resp_params fils_params;
 	hdd_adapter_t *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
@@ -4718,8 +4715,8 @@ static inline void hdd_connect_done(struct net_device *dev, const u8 *bssid,
 				    *roam_info, const u8 *req_ie,
 				    size_t req_ie_len, const u8 *resp_ie,
 				    size_t resp_ie_len, u16 status, gfp_t gfp,
-				    bool connect_timeout, tSirResultCodes
-				    timeout_reason)
+				    bool connect_timeout,
+				    tSirResultCodes timeout_reason)
 { }
 #endif
 #endif

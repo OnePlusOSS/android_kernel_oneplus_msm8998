@@ -1053,7 +1053,6 @@ nla_put_failure:
 close_ndi:
 	hdd_close_ndi(adapter);
 	qdf_mem_free(roam_info);
-	return;
 }
 
 /**

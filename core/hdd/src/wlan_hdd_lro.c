@@ -485,7 +485,7 @@ int hdd_lro_enable(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 
 	if ((hdd_ctx->ol_enable != CFG_LRO_ENABLED) ||
 		 QDF_STA_MODE != adapter->device_mode) {
-		return EOPNOTSUPP;
+		return -EOPNOTSUPP;
 	}
 
 	/*
@@ -494,7 +494,7 @@ int hdd_lro_enable(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 	 * the LRO again. Keep the LRO state same as before SSR.
 	 */
 	if (qdf_atomic_read(&hdd_ctx->vendor_disable_lro_flag))
-		return EPERM;
+		return -EPERM;
 
 	adapter->dev->features |= NETIF_F_LRO;
 

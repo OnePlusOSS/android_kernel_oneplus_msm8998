@@ -4739,6 +4739,7 @@ static int __wlan_hdd_cfg80211_dump_survey(struct wiphy *wiphy,
 
 	for (i = 0; i < NUM_NL80211_BANDS && !filled; i++) {
 		struct ieee80211_supported_band *band = wiphy->bands[i];
+
 		if (NULL == wiphy->bands[i])
 			continue;
 		for (j = 0; j < wiphy->bands[i]->n_channels && !filled; j++) {

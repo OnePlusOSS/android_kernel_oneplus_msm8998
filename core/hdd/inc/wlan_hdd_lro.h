@@ -163,7 +163,7 @@ struct hdd_lro_s {};
 static inline int hdd_lro_enable(hdd_context_t *hdd_ctx,
 	 hdd_adapter_t *adapter)
 {
-	return ENOSYS;
+	return -ENOSYS;
 }
 
 static inline QDF_STATUS hdd_lro_rx(hdd_adapter_t *adapter,

@@ -2162,17 +2162,14 @@ void hdd_bus_bandwidth_destroy(hdd_context_t *hdd_ctx);
 
 void hdd_bus_bw_compute_timer_start(hdd_context_t *hdd_ctx)
 {
-	return;
 }
 
 void hdd_bus_bw_compute_timer_try_start(hdd_context_t *hdd_ctx)
 {
-	return;
 }
 
 void hdd_bus_bw_compute_timer_stop(hdd_context_t *hdd_ctx)
 {
-	return;
 }
 
 void hdd_bus_bw_compute_timer_try_stop(hdd_context_t *hdd_ctx)

@@ -785,11 +785,8 @@ static int __hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(pAdapter);
 #endif
 	hdd_station_ctx_t *pHddStaCtx = &pAdapter->sessionCtx.station;
+
 	uint8_t pkt_type = 0;
-	bool pkt_proto_logged = false;
-#ifdef QCA_PKT_PROTO_TRACE
-	uint8_t proto_type = 0;
-#endif /* QCA_PKT_PROTO_TRACE */
 	bool is_arp = false;
 
 #ifdef QCA_WIFI_FTM
@@ -929,19 +926,6 @@ static int __hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		skb->queue_mapping = hdd_linux_up_to_ac_map[up];
 	}
 
-#ifdef QCA_PKT_PROTO_TRACE
-	if ((hdd_ctx->config->gEnableDebugLog & CDS_PKT_TRAC_TYPE_EAPOL) ||
-	    (hdd_ctx->config->gEnableDebugLog & CDS_PKT_TRAC_TYPE_DHCP)) {
-		proto_type = cds_pkt_get_proto_type(skb,
-						    hdd_ctx->config->gEnableDebugLog,
-						    0);
-		if (CDS_PKT_TRAC_TYPE_EAPOL & proto_type)
-			cds_pkt_trace_buf_update("ST:T:EPL");
-		else if (CDS_PKT_TRAC_TYPE_DHCP & proto_type)
-			cds_pkt_trace_buf_update("ST:T:DHC");
-	}
-#endif /* QCA_PKT_PROTO_TRACE */
-
 	pAdapter->stats.tx_bytes += skb->len;
 
 	wlan_hdd_tdls_update_tx_pkt_cnt(pAdapter, skb);
@@ -952,8 +936,6 @@ static int __hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		++pAdapter->stats.tx_packets;
 
 	hdd_event_eapol_log(skb, QDF_TX);
-	pkt_proto_logged = qdf_dp_trace_log_pkt(pAdapter->sessionId,
-						skb, QDF_TX);
 	QDF_NBUF_CB_TX_PACKET_TRACK(skb) = QDF_NBUF_TX_PKT_DATA_TRACK;
 	QDF_NBUF_UPDATE_TX_PKT_COUNT(skb, QDF_NBUF_TX_PKT_HDD);
 
@@ -962,18 +944,6 @@ static int __hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	DPTRACE(qdf_dp_trace(skb, QDF_DP_TRACE_HDD_TX_PACKET_PTR_RECORD,
 			qdf_nbuf_data_addr(skb), sizeof(qdf_nbuf_data(skb)),
 			QDF_TX));
-	if (!pkt_proto_logged) {
-		DPTRACE(qdf_dp_trace(skb, QDF_DP_TRACE_HDD_TX_PACKET_RECORD,
-				(uint8_t *)skb->data,
-				qdf_nbuf_len(skb), QDF_TX));
-		if (qdf_nbuf_len(skb) > QDF_DP_TRACE_RECORD_SIZE) {
-			DPTRACE(qdf_dp_trace(skb,
-				QDF_DP_TRACE_HDD_TX_PACKET_RECORD,
-				(uint8_t *)&skb->data[QDF_DP_TRACE_RECORD_SIZE],
-				(qdf_nbuf_len(skb)-QDF_DP_TRACE_RECORD_SIZE),
-				QDF_TX));
-		}
-	}
 
 	/* Check if station is connected */
 	if (OL_TXRX_PEER_STATE_CONN ==
@@ -1015,15 +985,8 @@ drop_pkt_and_release_skb:
 drop_pkt:
 
 	if (skb) {
-		DPTRACE(qdf_dp_trace(skb, QDF_DP_TRACE_DROP_PACKET_RECORD,
-			(uint8_t *)skb->data, qdf_nbuf_len(skb), QDF_TX));
-		if (qdf_nbuf_len(skb) > QDF_DP_TRACE_RECORD_SIZE)
-			DPTRACE(qdf_dp_trace(skb,
-				 QDF_DP_TRACE_DROP_PACKET_RECORD,
-				(uint8_t *)&skb->data[QDF_DP_TRACE_RECORD_SIZE],
-				(qdf_nbuf_len(skb)-QDF_DP_TRACE_RECORD_SIZE),
-				 QDF_TX));
-
+		qdf_dp_trace_data_pkt(skb, QDF_DP_TRACE_DROP_PACKET_RECORD, 0,
+				      QDF_TX);
 		kfree_skb(skb);
 	}
 
@@ -1815,7 +1778,6 @@ QDF_STATUS hdd_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 	bool is_arp = false;
 	bool track_arp = false;
 	uint8_t pkt_type = 0;
-	bool proto_pkt_logged = false;
 
 	/* Sanity check on inputs */
 	if (unlikely((NULL == context) || (NULL == rxBuf))) {
@@ -1879,22 +1841,14 @@ QDF_STATUS hdd_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 	}
 
 	hdd_event_eapol_log(skb, QDF_RX);
-	proto_pkt_logged = qdf_dp_trace_log_pkt(pAdapter->sessionId,
-						skb, QDF_RX);
+	qdf_dp_trace_log_pkt(pAdapter->sessionId, skb, QDF_RX);
 	DPTRACE(qdf_dp_trace(skb,
 		QDF_DP_TRACE_RX_HDD_PACKET_PTR_RECORD,
 		qdf_nbuf_data_addr(skb),
 		sizeof(qdf_nbuf_data(skb)), QDF_RX));
-	if (!proto_pkt_logged) {
-		DPTRACE(qdf_dp_trace(skb, QDF_DP_TRACE_HDD_RX_PACKET_RECORD,
-			(uint8_t *)skb->data, qdf_nbuf_len(skb), QDF_RX));
-		if (qdf_nbuf_len(skb) > QDF_DP_TRACE_RECORD_SIZE)
-			DPTRACE(qdf_dp_trace(skb,
-				QDF_DP_TRACE_HDD_RX_PACKET_RECORD,
-				(uint8_t *)&skb->data[QDF_DP_TRACE_RECORD_SIZE],
-				(qdf_nbuf_len(skb)-QDF_DP_TRACE_RECORD_SIZE),
-				QDF_RX));
-	}
+
+	DPTRACE(qdf_dp_trace_data_pkt(skb, QDF_DP_TRACE_RX_PACKET_RECORD,
+				      0, QDF_RX));
 
 	wlan_hdd_tdls_update_rx_pkt_cnt(pAdapter, skb);
 

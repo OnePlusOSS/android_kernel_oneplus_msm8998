@@ -215,6 +215,8 @@ static inline struct sk_buff *hdd_skb_orphan(hdd_adapter_t *pAdapter,
 	struct sk_buff *nskb;
 	hdd_context_t *hdd_ctx = pAdapter->pHddCtx;
 
+	hdd_skb_fill_gso_size(pAdapter->dev, skb);
+
 	nskb = skb_unshare(skb, GFP_ATOMIC);
 	if (unlikely(hdd_ctx->config->tx_orphan_enable) && (nskb == skb)) {
 		/*

@@ -182,6 +182,7 @@ static inline struct htt_host_rx_desc_base *htt_rx_desc(qdf_nbuf_t msdu)
 		~HTT_RX_DESC_ALIGN_MASK);
 }
 
+#if defined(HELIUMPLUS)
 /**
  * htt_print_rx_desc_lro() - print LRO information in the rx
  * descriptor
@@ -264,7 +265,16 @@ static inline void htt_rx_extract_lro_info(qdf_nbuf_t msdu,
 			rx_desc->msdu_start.flow_id_toeplitz;
 	}
 }
+#else /* !HELIUMPLUS */
+static inline void htt_rx_extract_lro_info(qdf_nbuf_t msdu,
+	 struct htt_host_rx_desc_base *rx_desc)
+{
+}
 
+static inline void htt_print_rx_desc_lro(struct htt_host_rx_desc_base *rx_desc)
+{
+}
+#endif /* !HELIUMPLUS */
 static inline void htt_print_rx_desc(struct htt_host_rx_desc_base *rx_desc)
 {
 	qdf_print

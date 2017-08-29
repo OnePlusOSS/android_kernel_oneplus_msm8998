@@ -1208,6 +1208,69 @@ static inline void hdd_resolve_rx_ol_mode(hdd_context_t *hdd_ctx)
 	}
 }
 
+#ifdef HELIUMPLUS
+/**
+ * hdd_gro_rx() - Handle Rx procesing via GRO
+ * @pAdapter: pointer to adapter context
+ * @skb: pointer to sk_buff
+ *
+ * Return: QDF_STATUS_SUCCESS if processed via GRO or non zero return code
+ */
+static inline QDF_STATUS hdd_gro_rx(hdd_adapter_t *adapter,
+					       struct sk_buff *skb)
+{
+	struct napi_struct *napi;
+	void *napid;
+	QDF_STATUS status = QDF_STATUS_E_FAILURE;
+
+	/* Only enabling it for STA mode like LRO today */
+	if (QDF_STA_MODE != adapter->device_mode)
+		return QDF_STATUS_E_NOSUPPORT;
+
+	napid = hdd_napi_get_all();
+	if (unlikely(napid == NULL))
+		goto out;
+
+	napi = hif_get_napi(QDF_NBUF_CB_RX_CTX_ID(skb), napid);
+	if (unlikely(napi == NULL))
+		goto out;
+
+	skb_set_hash(skb, QDF_NBUF_CB_RX_FLOW_ID_TOEPLITZ(skb),
+			PKT_HASH_TYPE_L4);
+
+	if (GRO_DROP != napi_gro_receive(napi, skb))
+		status = QDF_STATUS_SUCCESS;
+
+out:
+	return status;
+}
+
+/**
+ * hdd_register_rx_ol() - Allocate LRO managers via callbacks
+ *
+ * Return: none
+ */
+static inline void hdd_register_rx_ol(void)
+{
+	hdd_context_t *hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+
+	if  (!hdd_ctx)
+		hdd_err("HDD context is NULL");
+
+	if (hdd_ctx->ol_enable == CFG_LRO_ENABLED) {
+		/* Register the flush callback */
+		hdd_lro_create();
+		hdd_ctx->receive_offload_cb = hdd_lro_rx;
+		hdd_debug("LRO is enabled");
+	} else if (hdd_ctx->ol_enable == CFG_GRO_ENABLED) {
+		hdd_ctx->receive_offload_cb = hdd_gro_rx;
+		hdd_debug("GRO is enabled");
+	}
+}
+#else
+static inline void hdd_register_rx_ol(void) { }
+#endif
+
 /**
  * hdd_rx_ol_init() - Initialize Rx mode(LRO or GRO) method
  * @hdd_ctx: pointer to HDD Station Context
@@ -1326,58 +1389,6 @@ static inline bool hdd_can_handle_receive_offload(hdd_context_t *hdd_ctx,
 		return false;
 	else
 		return true;
-}
-
-/**
- * hdd_gro_rx() - Handle Rx procesing via GRO
- * @pAdapter: pointer to adapter context
- * @skb: pointer to sk_buff
- *
- * Return: QDF_STATUS_SUCCESS if processed via GRO or non zero return code
- */
-static inline QDF_STATUS hdd_gro_rx(hdd_adapter_t *adapter,
-					       struct sk_buff *skb)
-{
-	struct napi_struct *napi;
-	void *napid;
-	QDF_STATUS status = QDF_STATUS_E_FAILURE;
-
-	/* Only enabling it for STA mode like LRO today */
-	if (QDF_STA_MODE != adapter->device_mode)
-		return QDF_STATUS_E_NOSUPPORT;
-
-	napid = hdd_napi_get_all();
-	napi = hif_get_napi(QDF_NBUF_CB_RX_CTX_ID(skb), napid);
-	skb_set_hash(skb, QDF_NBUF_CB_RX_FLOW_ID_TOEPLITZ(skb),
-			PKT_HASH_TYPE_L4);
-
-	if (GRO_DROP != napi_gro_receive(napi, skb))
-		status = QDF_STATUS_SUCCESS;
-
-	return status;
-}
-
-/**
- * hdd_register_rx_ol() - Allocate LRO managers via callbacks
- *
- * Return: none
- */
-void hdd_register_rx_ol(void)
-{
-	hdd_context_t *hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
-
-	if  (!hdd_ctx)
-		hdd_err("HDD context is NULL");
-
-	if (hdd_ctx->ol_enable == CFG_LRO_ENABLED) {
-		/* Register the flush callback */
-		hdd_lro_create();
-		hdd_ctx->receive_offload_cb = hdd_lro_rx;
-		hdd_debug("LRO is enabled");
-	} else if (hdd_ctx->ol_enable == CFG_GRO_ENABLED) {
-		hdd_ctx->receive_offload_cb = hdd_gro_rx;
-		hdd_debug("GRO is enabled");
-	}
 }
 
 /**

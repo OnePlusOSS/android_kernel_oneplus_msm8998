@@ -62,13 +62,6 @@ QDF_STATUS hdd_deinit_tx_rx(hdd_adapter_t *pAdapter);
 QDF_STATUS hdd_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf);
 
 /**
- * hdd_register_rx_ol() - Allocate LRO managers via callbacks
- *
- * Return: none
- */
-void hdd_register_rx_ol(void);
-
-/**
  * hdd_rx_ol_init() - Initialize Rx mode(LRO or GRO) method
  * @hdd_ctx: pointer to HDD Station Context
  *

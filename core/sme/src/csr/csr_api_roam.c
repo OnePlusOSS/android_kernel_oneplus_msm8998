@@ -19007,17 +19007,19 @@ QDF_STATUS csr_update_fils_config(tpAniSirGlobal mac, uint8_t session_id,
  * @str: Source string
  * @dst: Destination string
  * @c: Character before which all characters need to be copied
+ * @max_dst_len: Maximum length destination can accomodate.
  *
  * Return: length of the copied string, if success. zero otherwise.
  */
-static uint32_t copy_all_before_char(char *str, char *dst, char c)
+static uint32_t copy_all_before_char(char *str, char *dst,
+		char c, uint16_t max_dst_len)
 {
 	uint32_t len = 0;
 
 	if (!str)
 		return len;
 
-	while (*str != '\0' && *str != c) {
+	while (*str != '\0' && *str != c && (len < max_dst_len)) {
 		*dst++ = *str++;
 		len++;
 	}
@@ -19056,7 +19058,8 @@ static void csr_update_fils_params_rso(tpAniSirGlobal mac,
 	req_buffer->is_fils_connection = true;
 	roam_fils_params->username_length =
 			copy_all_before_char(fils_info->keyname_nai,
-				roam_fils_params->username, '@');
+				roam_fils_params->username, '@',
+				WMI_FILS_MAX_USERNAME_LENGTH);
 
 	roam_fils_params->next_erp_seq_num =
 			(fils_info->sequence_number + 1);

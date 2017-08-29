@@ -5993,6 +5993,7 @@ QDF_STATUS csr_scan_copy_request(tpAniSirGlobal mac_ctx,
 	dst_req->pIEField = NULL;
 	dst_req->ChannelInfo.ChannelList = NULL;
 	dst_req->SSIDs.SSIDList = NULL;
+	dst_req->SSIDs.numOfSSIDs = 0;
 	dst_req->voui = NULL;
 
 	if (src_req->uIEFieldLen) {

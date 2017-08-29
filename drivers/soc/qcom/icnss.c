@@ -4093,7 +4093,6 @@ static ssize_t cnss_version_information_show(struct device *dev,
 
 static DEVICE_ATTR(cnss_version_information, 0444,
                 cnss_version_information_show, NULL);
-//#endif /* VENDOR_EDIT */
 
 static int icnss_probe(struct platform_device *pdev)
 {

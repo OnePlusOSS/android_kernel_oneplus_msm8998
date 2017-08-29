@@ -282,14 +282,6 @@ static DEVICE_ATTR(irq, S_IRUSR | S_IWUSR, irq_get, irq_ack);
 
 //liuyan not merge now
 
-/*#ifdef VENDOR_EDIT //WayneChang, 2015/12/02, add for key to abs, simulate key in abs through virtual key system
-extern void int_touch(void);
-extern struct completion key_cm;
-extern bool virtual_key_enable;
-
-bool key_home_pressed = false;
-EXPORT_SYMBOL(key_home_pressed);
-#endif*/
 
 static ssize_t report_home_set(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
@@ -301,27 +293,15 @@ static ssize_t report_home_set(struct device *dev,
 		return -EINVAL;
 	if (!strncmp(buf, "down", strlen("down")))
 	{
-/*#ifdef VENDOR_EDIT //WayneChang, 2015/12/02, add for key to abs, simulate key in abs through virtual key system
-        if(virtual_key_enable){
-                key_home_pressed = true;
-        }else{*/
             input_report_key(fpc1020->input_dev,
                             KEY_HOME, 1);
             input_sync(fpc1020->input_dev);
-/*        }
-#endif*/
 	}
 	else if (!strncmp(buf, "up", strlen("up")))
 	{
-/*#ifdef VENDOR_EDIT //WayneChang, 2015/12/02, add for key to abs, simulate key in abs through virtual key system
-        if(virtual_key_enable){
-                key_home_pressed = false;
-        }else{*/
             input_report_key(fpc1020->input_dev,
                             KEY_HOME, 0);
             input_sync(fpc1020->input_dev);
-/*        }
-#endif*/
 	}
     else if (!strncmp(buf, "timeout", strlen("timeout")))
     {
@@ -332,18 +312,6 @@ static ssize_t report_home_set(struct device *dev,
     }
 	else
 		return -EINVAL;
-/*#ifdef VENDOR_EDIT //WayneChang, 2015/12/02, add for key to abs, simulate key in abs through virtual key system
-    if(virtual_key_enable){
-        if(!key_home_pressed){
-            reinit_completion(&key_cm);
-            time = wait_for_completion_timeout(&key_cm,msecs_to_jiffies(60));
-            if (!time)
-                int_touch();
-        }else{
-            int_touch();
-        }
-    }
-#endif*/
 	return count;
 }
 static DEVICE_ATTR(report_home, S_IWUSR, NULL, report_home_set);

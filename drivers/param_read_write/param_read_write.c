@@ -275,6 +275,146 @@ static int param_get_data_stage(char *val, struct kernel_param *kp)
 
 module_param_call(data_stage, param_set_data_stage, param_get_data_stage, &data_stage, 0644);
 
+/* liochen@BSP, 2017/07/31, Add cust_flag */
+static int cust_flag = 0;
+static int param_set_cust_flag(const char *val, struct kernel_param *kp)
+{
+        uint32 sid_index= PARAM_SID_SALEINFO;
+        uint32 offset = offsetof(param_saleinfo_t, cust_flag);
+
+        sscanf(val, "%d", &cust_flag);
+
+        pr_err("param_set_cust_flag(): cust_flag=%d\n", cust_flag);
+        set_param_by_index_and_offset(sid_index,offset, &cust_flag, sizeof(cust_flag));
+
+        return 0;
+}
+
+static int param_get_cust_flag(char *val, struct kernel_param *kp)
+{
+        int cnt = 0;
+        uint32 sid_index= PARAM_SID_SALEINFO;
+        uint32 offset = offsetof(param_saleinfo_t, cust_flag);
+
+        get_param_by_index_and_offset(sid_index,offset, &cust_flag, sizeof(cust_flag));
+        cnt = sprintf(val, "%d", cust_flag);
+        pr_err("param_get_cust_flag(): cust_flag=%d\n", cust_flag);
+
+        return cnt;
+
+}
+module_param_call(cust_flag, param_set_cust_flag, param_get_cust_flag, &cust_flag, 0644);
+
+/* liochen@BSP, 2017/06/30, Add normal_reboot_count and abnormal_reboot_count */
+static int normal_reboot_count = 0;
+static int param_set_normal_reboot_count(const char *val, struct kernel_param *kp)
+{
+        uint32 sid_index= PARAM_SID_PHONE_HISTORY;
+        uint32 offset = offsetof(param_phonehistory_t, normal_reboot_count);
+
+        get_param_by_index_and_offset(sid_index,offset, &normal_reboot_count, sizeof(normal_reboot_count));
+        normal_reboot_count = normal_reboot_count + 1;
+        pr_err("param_set_normal_reboot_count(): normal_reboot_count=%d\n", normal_reboot_count);
+        set_param_by_index_and_offset(sid_index,offset, &normal_reboot_count, sizeof(normal_reboot_count));
+
+        return 0;
+}
+
+static int param_get_normal_reboot_count(char *val, struct kernel_param *kp)
+{
+        int cnt = 0;
+        uint32 sid_index= PARAM_SID_PHONE_HISTORY;
+        uint32 offset = offsetof(param_phonehistory_t, normal_reboot_count);
+
+        get_param_by_index_and_offset(sid_index,offset, &normal_reboot_count, sizeof(normal_reboot_count));
+        cnt = sprintf(val, "%d", normal_reboot_count);
+        pr_err("param_get_normal_reboot_count(): normal_reboot_count=%d\n", normal_reboot_count);
+
+        return cnt;
+
+}
+module_param_call(normal_reboot_count, param_set_normal_reboot_count, param_get_normal_reboot_count, &normal_reboot_count, 0644);
+
+static int abnormal_reboot_count = 0;
+static int param_set_abnormal_reboot_count(const char *val, struct kernel_param *kp)
+{
+        uint32 sid_index= PARAM_SID_PHONE_HISTORY;
+        uint32 offset = offsetof(param_phonehistory_t, abnormal_reboot_count);
+
+        get_param_by_index_and_offset(sid_index,offset, &abnormal_reboot_count, sizeof(abnormal_reboot_count));
+        abnormal_reboot_count = abnormal_reboot_count + 1;
+        pr_err("param_set_abnormal_reboot_count(): abnormal_reboot_count=%d\n", abnormal_reboot_count);
+        set_param_by_index_and_offset(sid_index,offset, &abnormal_reboot_count, sizeof(abnormal_reboot_count));
+
+        return 0;
+}
+
+static int param_get_abnormal_reboot_count(char *val, struct kernel_param *kp)
+{
+        int cnt = 0;
+        uint32 sid_index= PARAM_SID_PHONE_HISTORY;
+        uint32 offset = offsetof(param_phonehistory_t, abnormal_reboot_count);
+
+        get_param_by_index_and_offset(sid_index,offset, &abnormal_reboot_count, sizeof(abnormal_reboot_count));
+        cnt = sprintf(val, "%d", abnormal_reboot_count);
+        pr_err("param_get_abnormal_reboot_count(): abnormal_reboot_count=%d\n", abnormal_reboot_count);
+
+        return cnt;
+
+}
+module_param_call(abnormal_reboot_count, param_set_abnormal_reboot_count, param_get_abnormal_reboot_count, &abnormal_reboot_count, 0644);
+/* liochen@BSP, 2017/06/30, Add normal_reboot_count and abnormal_reboot_count */
+
+
+/* liochen@BSP, 2017/05/15, Add update_count */
+static int update_count = 0;
+static int param_set_update_count(const char *val, struct kernel_param *kp)
+{
+	uint32 sid_index= PARAM_SID_PHONE_HISTORY;
+	uint32 offset = offsetof(param_phonehistory_t, update_count);
+
+	get_param_by_index_and_offset(sid_index,offset, &update_count, sizeof(update_count));
+	update_count = update_count + 1;
+	pr_err("param_set_update_count(): update_count=%d\n", update_count);
+	set_param_by_index_and_offset(sid_index,offset, &update_count, sizeof(update_count));
+
+	return 0;
+}
+
+static int param_get_update_count(char *val, struct kernel_param *kp)
+{
+	int cnt = 0;
+	uint32 sid_index= PARAM_SID_PHONE_HISTORY;
+	uint32 offset = offsetof(param_phonehistory_t, update_count);
+
+	get_param_by_index_and_offset(sid_index,offset, &update_count, sizeof(update_count));
+	cnt = sprintf(val, "%d", update_count);
+	pr_err("param_get_update_count(): update_count=%d\n", update_count);
+
+	return cnt;
+
+}
+
+module_param_call(update_count, param_set_update_count, param_get_update_count, &update_count, 0644);
+
+static int fastboot_count = 0;
+static int param_get_fastboot_count(char *val, struct kernel_param *kp)
+{
+        int cnt = 0;
+        uint32 sid_index= PARAM_SID_PHONE_HISTORY;
+        uint32 offset = offsetof(param_phonehistory_t, fastboot_count);
+
+        get_param_by_index_and_offset(sid_index,offset, &fastboot_count, sizeof(fastboot_count));
+        cnt = sprintf(val, "%d", fastboot_count);
+        pr_err("param_get_fastboot_count(): update_count=%d\n", fastboot_count);
+
+        return cnt;
+
+}
+
+module_param_call(fastboot_count, NULL, param_get_fastboot_count, &fastboot_count, 0644);
+/* liochen@BSP, 2017/05/15, Add update_count */
+
 static ssize_t param_read(struct file *file, char __user *buff,
             size_t count, loff_t *pos)
 {
@@ -555,15 +695,11 @@ static ssize_t param_crash_record_dump_show(struct device *dev,
     int i=0;
     char temp_crash_record_value[PARAM_CRASH_RECORD_SIZE];
     int count_size=0;
-    char temp_buffer[1024];
+    char temp_buffer[1024]={0};
     uint32 sid_index= PARAM_SID_CRASH_RECORD;
 
     /* Find the first crash record offset */
     uint32 offset = offsetof(param_crash_record_t, crash_record_0);
-
-    sprintf(temp_buffer,"============ PARAM CRASH RECORD DUMP ============\n");
-    count_size = count_size+50;
-
 
     for(i=0; i<MAX_RECORD_COUNT; i++) {
 
@@ -765,7 +901,6 @@ int get_param_nvm_boarddata(uint * nvm_boarddata_select)
 	return ret;
 }
 EXPORT_SYMBOL(get_param_nvm_boarddata);
-//#endif /* VENDOR_EDIT */
 
 int get_param_pcba_number(char *pcba_number_select)
 {

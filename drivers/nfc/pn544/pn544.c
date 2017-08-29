@@ -385,6 +385,12 @@ static int pn544_dev_open(struct inode *inode, struct file *filp)
 
     return 0;
 }
+
+/*we need set ese power always low.
+if ese power some time high or half high .this will cause snow ball open card  fail
+*/
+//#define USE_EXTERN_ESE_POWER
+
 #define QPAY_ESE_POWER
 #ifdef QPAY_ESE_POWER
 /*
@@ -397,6 +403,11 @@ static int nqx_ese_pwr_contrl(struct pn544_dev *pn544_dev, unsigned long int arg
 {
     int r = -1;
     pr_info("%s :, arg = %ld\n", __func__, arg);
+
+     /*we need set ese power always low.
+      if ese power some time high or half high .this will cause snow ball kaika fail
+      */
+    #ifdef USE_EXTERN_ESE_POWER
 
     /* Let's store the NFC_EN pin state */
     if (arg == 0) {
@@ -445,6 +456,13 @@ static int nqx_ese_pwr_contrl(struct pn544_dev *pn544_dev, unsigned long int arg
         }
     }
     return r;
+
+    #else
+    gpio_set_value(pn544_dev->ese_pwr_gpio, 0);
+    r=0;
+    return r;
+
+    #endif
 }
 #endif
 long  pn544_dev_ioctl(struct file *filp, unsigned int cmd,
@@ -728,7 +746,14 @@ long  pn544_dev_ioctl(struct file *filp, unsigned int cmd,
                     }
                 }
                 if((current_state & (P61_STATE_SPI|P61_STATE_SPI_PRIO)) == 0)
+                {
+                    #ifdef USE_EXTERN_ESE_POWER
                     gpio_set_value(pn544_dev->ese_pwr_gpio, 1);
+                    #else
+                    gpio_set_value(pn544_dev->ese_pwr_gpio, 0);
+                    #endif
+                }
+
             } else {
                 pr_info("%s : P61_SET_WIRED_ACCESS -  enabling failed \n", __func__);
                 p61_access_unlock(pn544_dev);

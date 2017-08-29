@@ -753,6 +753,19 @@ QDF_STATUS wmi_unified_add_clear_mcbc_filter_cmd(void *wmi_hdl,
 					 struct qdf_mac_addr multicast_addr,
 					 bool clearList);
 
+/**
+ * wmi_unified_multiple_add_clear_mcbc_filter_cmd() - send multiple mcast
+ *						      filter command to fw
+ * @wmi_handle: wmi handle
+ * @vdev_id: vdev id
+ * @mcast_filter_params: mcast filter params
+ *
+ * Return: QDF_STATUS_SUCCESS on success and QDF_STATUS_E_FAILURE for failure
+ */
+QDF_STATUS wmi_unified_multiple_add_clear_mcbc_filter_cmd(void *wmi_hdl,
+				uint8_t vdev_id,
+				struct mcast_filter_params *filter_param);
+
 QDF_STATUS wmi_unified_send_gtk_offload_cmd(void *wmi_hdl, uint8_t vdev_id,
 					   struct gtk_offload_params *params,
 					   bool enable_offload,

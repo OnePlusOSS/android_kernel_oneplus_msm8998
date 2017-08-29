@@ -2652,6 +2652,19 @@ QDF_STATUS wmi_unified_add_clear_mcbc_filter_cmd(void *wmi_hdl,
 	return QDF_STATUS_E_FAILURE;
 }
 
+QDF_STATUS wmi_unified_multiple_add_clear_mcbc_filter_cmd(void *wmi_hdl,
+				     uint8_t vdev_id,
+				     struct mcast_filter_params *filter_param)
+{
+	wmi_unified_t wmi_handle = (wmi_unified_t) wmi_hdl;
+
+	if (wmi_handle->ops->send_multiple_add_clear_mcbc_filter_cmd)
+		return wmi_handle->ops->send_multiple_add_clear_mcbc_filter_cmd(
+				wmi_handle, vdev_id, filter_param);
+
+	return QDF_STATUS_E_FAILURE;
+}
+
 /**
  * wmi_unified_send_gtk_offload_cmd() - send GTK offload command to fw
  * @wmi_handle: wmi handle

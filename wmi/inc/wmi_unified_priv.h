@@ -594,6 +594,10 @@ QDF_STATUS (*send_add_clear_mcbc_filter_cmd)(wmi_unified_t wmi_handle,
 				     struct qdf_mac_addr multicast_addr,
 				     bool clearList);
 
+QDF_STATUS (*send_multiple_add_clear_mcbc_filter_cmd)(wmi_unified_t wmi_handle,
+				uint8_t vdev_id,
+				struct mcast_filter_params *filter_param);
+
 QDF_STATUS (*send_gtk_offload_cmd)(wmi_unified_t wmi_handle, uint8_t vdev_id,
 					   struct gtk_offload_params *params,
 					   bool enable_offload,

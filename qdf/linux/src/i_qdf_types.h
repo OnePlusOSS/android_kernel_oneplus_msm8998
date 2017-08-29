@@ -67,7 +67,7 @@
 #include <linux/wireless.h>
 #include <linux/if.h>
 #ifdef IPA_OFFLOAD
-#include <ipa.h>
+#include <linux/ipa.h>
 #endif
 #else
 

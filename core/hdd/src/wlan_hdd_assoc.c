@@ -118,6 +118,8 @@ uint8_t ccp_rsn_oui_0f[HDD_RSN_OUI_SIZE] = {0x00, 0x0F, 0xAC, 0x0F};
 uint8_t ccp_rsn_oui_10[HDD_RSN_OUI_SIZE] = {0x00, 0x0F, 0xAC, 0x10};
 uint8_t ccp_rsn_oui_11[HDD_RSN_OUI_SIZE] = {0x00, 0x0F, 0xAC, 0x11};
 #endif
+static const
+uint8_t ccp_rsn_oui_12[HDD_RSN_OUI_SIZE] = {0x50, 0x6F, 0x9A, 0x02};
 
 static const
 uint8_t ccp_rsn_oui_0b[HDD_RSN_OUI_SIZE] = {0x00, 0x0F, 0xAC, 0x0B};
@@ -5476,6 +5478,8 @@ eCsrAuthType hdd_translate_rsn_to_csr_auth_type(uint8_t auth_suite[4])
 	} else if (memcmp(auth_suite, ccp_rsn_oui_0c, 4) == 0) {
 		/* Check for Suite B EAP 384 */
 		auth_type = eCSR_AUTH_TYPE_SUITEB_EAP_SHA384;
+	} else if (memcmp(auth_suite, ccp_rsn_oui_12, 4) == 0) {
+		auth_type = eCSR_AUTH_TYPE_DPP_RSN;
 	} else {
 		hdd_translate_fils_rsn_to_csr_auth(auth_suite, &auth_type);
 		hdd_translate_owe_rsn_to_csr_auth(auth_suite, &auth_type);
@@ -5992,8 +5996,10 @@ int hdd_set_csr_auth_type(hdd_adapter_t *pAdapter, eCsrAuthType RSNAuthType)
 					eCSR_AUTH_TYPE_CCKM_RSN;
 			} else
 #endif
-
-			if ((RSNAuthType == eCSR_AUTH_TYPE_FT_RSN) &&
+			if (RSNAuthType == eCSR_AUTH_TYPE_DPP_RSN) {
+				pRoamProfile->AuthType.authType[0] =
+							eCSR_AUTH_TYPE_DPP_RSN;
+			} else if ((RSNAuthType == eCSR_AUTH_TYPE_FT_RSN) &&
 			    ((pWextState->
 			      authKeyMgmt & IW_AUTH_KEY_MGMT_802_1X)
 			     == IW_AUTH_KEY_MGMT_802_1X)) {

@@ -3431,6 +3431,7 @@ static bool hdd_is_auth_type_rsn(eCsrAuthType authType)
 	case eCSR_AUTH_TYPE_RSN_PSK_SHA256:
 	case eCSR_AUTH_TYPE_RSN_8021X_SHA256:
 #endif
+	case eCSR_AUTH_TYPE_DPP_RSN:
 		rsnType = true;
 		break;
 	/* case eCSR_AUTH_TYPE_FAILED: */

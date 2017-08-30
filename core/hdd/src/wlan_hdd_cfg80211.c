@@ -17164,6 +17164,7 @@ static int wlan_hdd_set_akm_suite(hdd_adapter_t *pAdapter, u32 key_mgmt)
 	case WLAN_AKM_SUITE_PSK:
 	case WLAN_AKM_SUITE_PSK_SHA256:
 	case WLAN_AKM_SUITE_FT_PSK:
+	case WLAN_AKM_SUITE_DPP_RSN:
 		hdd_debug("setting key mgmt type to PSK");
 		pWextState->authKeyMgmt |= IW_AUTH_KEY_MGMT_PSK;
 		break;

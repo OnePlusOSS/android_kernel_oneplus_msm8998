@@ -2798,6 +2798,63 @@ static void csr_check_n_save_wsc_ie(tpAniSirGlobal pMac,
 	}
 }
 
+
+/**
+ * csr_check_hidden_ssid_entry() - Used for checking if probersp entry for
+ * hidden ssid ap has existed or not.
+ * @mac_ctx: pointer to Global MAC structure
+ * @bssdesc_old:  bss desc has existed in the list
+ * @bssdesc_new:  bss desc will be added to the list
+ *
+ * This function will return true if new desc's ssid is null and the existed
+ * bss desc's ssid is not null.
+ *
+ * Return:
+ *        true   - probersp entry has existed
+ *        false  - probersp entry doesn't exist
+ */
+static bool csr_check_hidden_ssid_entry(tpAniSirGlobal mac_ctx,
+				      tSirBssDescription *bssdesc_old,
+				      tSirBssDescription *bssdesc_new)
+{
+	bool is_hiddenap_probersp_entry_present = false;
+	tDot11fBeaconIEs *p_ies_old = NULL;
+	tDot11fBeaconIEs *p_ies_new = NULL;
+	QDF_STATUS status;
+
+	status = csr_get_parsed_bss_description_ies(mac_ctx, bssdesc_old,
+							&p_ies_old);
+	if (!QDF_IS_STATUS_SUCCESS(status))
+		goto free_ies;
+
+	status = csr_get_parsed_bss_description_ies(mac_ctx, bssdesc_new,
+							&p_ies_new);
+	if (!QDF_IS_STATUS_SUCCESS(status))
+		goto free_ies;
+
+
+	if (p_ies_old->SSID.present && p_ies_new->SSID.present
+		&& csr_is_nullssid(
+			p_ies_new->SSID.ssid, p_ies_new->SSID.num_ssid)
+		&& !csr_is_nullssid(
+			p_ies_old->SSID.ssid, p_ies_old->SSID.num_ssid)) {
+		/*
+		 * This is for hidden ssid. When beacon(null ssid) receives late
+		 * than probersp(non-null ssid), it should not duplicate the
+		 * non-null ssid scan entry. otherwise, it can't get match AP by
+		 * csr_scan_get_result when connection happens.
+		 */
+		is_hiddenap_probersp_entry_present = true;
+	}
+
+free_ies:
+	if (p_ies_old)
+		qdf_mem_free(p_ies_old);
+	if (p_ies_new)
+		qdf_mem_free(p_ies_new);
+	return is_hiddenap_probersp_entry_present;
+}
+
 /* pIes may be NULL */
 static bool csr_remove_dup_bss_description(tpAniSirGlobal pMac,
 					   tSirBssDescription *bss_dscp,
@@ -3417,6 +3474,7 @@ struct tag_csrscan_result *csr_scan_append_bss_description(tpAniSirGlobal pMac,
 	tmpSsid.length = 0;
 	result = csr_remove_dup_bss_description(pMac, pSirBssDescription,
 						&tmpSsid, &timer);
+
 	pCsrBssDescription = csr_scan_save_bss_description(pMac,
 					pSirBssDescription, pIes, sessionId);
 	if (result && (pCsrBssDescription != NULL)) {
@@ -4619,10 +4677,25 @@ bool csr_scan_complete(tpAniSirGlobal pMac, tSirSmeScanRsp *pScanRsp)
 	return fRemoveCommand;
 }
 
+/**
+ * csr_scan_remove_dup_bss_description_from_interim_list() - To remove duplicate
+ * entry in interim scan list
+ *
+ * @mac_ctx - MAC context
+ * @bss_dscp - new bss_dscp will be added to list
+ * @flags - flag to indicate if rssi update is needed
+ * @is_hiddenap_probersp_entry_present - value return to indicate if probersp
+ * entry for hidden ssid ap has existed
+ *
+ * To check and remove if duplicate entry existed in interim list.
+ *
+ * Return: none.
+ */
 static void
 csr_scan_remove_dup_bss_description_from_interim_list(tpAniSirGlobal mac_ctx,
-					tSirBssDescription *bss_dscp,
-					uint32_t flags)
+				tSirBssDescription *bss_dscp,
+				uint32_t flags,
+				bool *is_hiddenap_probersp_entry_present)
 {
 	tListElem *pEntry;
 	struct tag_csrscan_result *scan_bss_dscp;
@@ -4679,6 +4752,25 @@ csr_scan_remove_dup_bss_description_from_interim_list(tpAniSirGlobal mac_ctx,
 					(100 - CSR_SCAN_RESULT_RSSI_WEIGHT)))
 					/ 100);
 			}
+
+			*is_hiddenap_probersp_entry_present =
+				csr_check_hidden_ssid_entry(mac_ctx,
+					&scan_bss_dscp->Result.BssDescriptor,
+					bss_dscp);
+			if (*is_hiddenap_probersp_entry_present) {
+				/*
+				 * In the temp list we have a probe resp and we
+				 * don't want to overwrite this with beacon in
+				 * case of hidden AP scenario.
+				 * but rssi must be updated.
+				 */
+				scan_bss_dscp->Result.BssDescriptor.rssi =
+							bss_dscp->rssi;
+				scan_bss_dscp->Result.BssDescriptor.rssi_raw =
+							bss_dscp->rssi_raw;
+				break;
+			}
+
 			/* Remove the 'old' entry from the list */
 			if (csr_ll_remove_entry(&mac_ctx->scan.tempScanResults,
 				pEntry, LL_ACCESS_NOLOCK)) {
@@ -4783,7 +4875,6 @@ bool csr_is_duplicate_bss_description(tpAniSirGlobal pMac,
 	    qdf_is_macaddr_equal((struct qdf_mac_addr *) pSirBssDesc1->bssId,
 				 (struct qdf_mac_addr *) pSirBssDesc2->bssId)) {
 		fMatch = true;
-		/* Check for SSID match, if exists */
 	}
 	/* In case of P2P devices, ess and ibss will be set to zero */
 	else if (!pCap1->ess &&
@@ -4992,6 +5083,7 @@ QDF_STATUS csr_scan_process_single_bssdescr(tpAniSirGlobal mac_ctx,
 	uint32_t len = sizeof(mac_ctx->roam.validChannelList);
 	tCsrRoamInfo *roam_info;
 	uint8_t session_id;
+	bool is_hiddenap_probersp_entry_present = false;
 
 	session_id = csr_scan_get_session_id(mac_ctx);
 	sme_debug("CSR: Processing single bssdescr");
@@ -5010,7 +5102,12 @@ QDF_STATUS csr_scan_process_single_bssdescr(tpAniSirGlobal mac_ctx,
 			cnt_channels, bssdescr, &ies)) {
 
 		csr_scan_remove_dup_bss_description_from_interim_list
-			(mac_ctx, bssdescr, flags);
+			(mac_ctx, bssdescr, flags,
+			&is_hiddenap_probersp_entry_present);
+
+		if (is_hiddenap_probersp_entry_present)
+			goto exit;
+
 		csr_scan_save_bss_description_to_interim_list
 			(mac_ctx, bssdescr, ies);
 		roam_info = qdf_mem_malloc(sizeof(*roam_info));
@@ -5048,10 +5145,12 @@ QDF_STATUS csr_scan_process_single_bssdescr(tpAniSirGlobal mac_ctx,
 				csr_purge_scan_result_by_age(mac_ctx);
 		}
 		csr_update_scantype(mac_ctx, ies, bssdescr->channelId);
-		/* Free the resource */
-		if (ies != NULL)
-			qdf_mem_free(ies);
 	}
+
+exit:
+	/* Free the resource */
+	if (ies != NULL)
+		qdf_mem_free(ies);
 	return QDF_STATUS_SUCCESS;
 }
 

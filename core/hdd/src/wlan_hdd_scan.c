@@ -55,6 +55,11 @@
 #define SCAN_DONE_EVENT_BUF_SIZE 4096
 #define RATE_MASK 0x7f
 
+/*
+ * Count to ratelimit the HDD logs during Scan and connect
+ */
+#define HDD_SCAN_REJECT_RATE_LIMIT 5
+
 /**
  * enum essid_bcast_type - SSID broadcast type
  * @eBCAST_UNKNOWN: Broadcast unknown
@@ -2018,7 +2023,9 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 	/* Check if scan is allowed at this point of time */
 	if (cds_is_connection_in_progress(&curr_session_id, &curr_reason)) {
 		scan_ebusy_cnt++;
-		hdd_err("Scan not allowed. scan_ebusy_cnt: %d", scan_ebusy_cnt);
+		hdd_err_ratelimited(HDD_SCAN_REJECT_RATE_LIMIT,
+			"Scan not allowed. scan_ebusy_cnt: %d Session %d Reason %d",
+			scan_ebusy_cnt, curr_session_id, curr_reason);
 		if (pHddCtx->last_scan_reject_session_id != curr_session_id ||
 		    pHddCtx->last_scan_reject_reason != curr_reason ||
 		    !pHddCtx->last_scan_reject_timestamp) {
@@ -2030,14 +2037,13 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 			pHddCtx->scan_reject_cnt = 0;
 		} else {
 			pHddCtx->scan_reject_cnt++;
-			hdd_debug("curr_session id %d curr_reason %d count %d threshold time has elapsed? %d",
-				curr_session_id, curr_reason, pHddCtx->scan_reject_cnt,
-				qdf_system_time_after(jiffies_to_msecs(jiffies),
-				pHddCtx->last_scan_reject_timestamp));
 			if ((pHddCtx->scan_reject_cnt >=
 			   SCAN_REJECT_THRESHOLD) &&
 			   qdf_system_time_after(jiffies_to_msecs(jiffies),
 			   pHddCtx->last_scan_reject_timestamp)) {
+				hdd_err("scan reject threshold reached Session %d Reason %d count %d",
+					curr_session_id, curr_reason,
+					pHddCtx->scan_reject_cnt);
 				pHddCtx->last_scan_reject_timestamp = 0;
 				pHddCtx->scan_reject_cnt = 0;
 				if (pHddCtx->config->enable_fatal_event) {

@@ -2854,7 +2854,7 @@ bool cds_is_connection_in_progress(uint8_t *session_id,
 			&& (eConnectionState_Connecting ==
 				(WLAN_HDD_GET_STATION_CTX_PTR(adapter))->
 					conn_info.connState)) {
-			cds_err("%p(%d) Connection is in progress",
+			cds_debug("%p(%d) Connection is in progress",
 				WLAN_HDD_GET_STATION_CTX_PTR(adapter),
 				adapter->sessionId);
 			if (session_id && reason) {
@@ -2872,7 +2872,7 @@ bool cds_is_connection_in_progress(uint8_t *session_id,
 					WLAN_HDD_GET_HAL_CTX(adapter),
 					adapter->sessionId)) ||
 				hdd_is_roaming_in_progress(adapter)) {
-			cds_err("%p(%d) Reassociation in progress",
+			cds_debug("%p(%d) Reassociation in progress",
 				WLAN_HDD_GET_STATION_CTX_PTR(adapter),
 				adapter->sessionId);
 			if (session_id && reason) {
@@ -2892,7 +2892,7 @@ bool cds_is_connection_in_progress(uint8_t *session_id,
 				hdd_sta_ctx->conn_info.uIsAuthenticated)) {
 				sta_mac = (uint8_t *)
 					&(adapter->macAddressCurrent.bytes[0]);
-				cds_err("client " MAC_ADDRESS_STR
+				cds_debug("client " MAC_ADDRESS_STR
 					" is in middle of WPS/EAPOL exchange.",
 					MAC_ADDR_ARRAY(sta_mac));
 				if (session_id && reason) {
@@ -2913,7 +2913,7 @@ bool cds_is_connection_in_progress(uint8_t *session_id,
 				sta_mac = (uint8_t *)
 						&(adapter->aStaInfo[sta_id].
 							macAddrSTA.bytes[0]);
-				cds_err("client " MAC_ADDRESS_STR
+				cds_debug("client " MAC_ADDRESS_STR
 				" of SAP/GO is in middle of WPS/EAPOL exchange",
 				MAC_ADDR_ARRAY(sta_mac));
 				if (session_id && reason) {
@@ -2923,7 +2923,7 @@ bool cds_is_connection_in_progress(uint8_t *session_id,
 				return true;
 			}
 			if (hdd_ctx->connection_in_progress) {
-				cds_err("AP/GO: connection is in progress");
+				cds_debug("AP/GO: connection is in progress");
 				return true;
 			}
 		}

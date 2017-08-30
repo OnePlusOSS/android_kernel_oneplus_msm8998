@@ -2496,7 +2496,16 @@ int hdd_wlan_start_modules(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 int hdd_wlan_stop_modules(hdd_context_t *hdd_ctx, bool ftm_mode);
 int hdd_start_adapter(hdd_adapter_t *adapter);
 void hdd_populate_random_mac_addr(hdd_context_t *hdd_ctx, uint32_t num);
-
+/**
+ * hdd_is_interface_up()- Checkfor interface up before ssr
+ * @hdd_ctx: HDD context
+ *
+ * check  if there are any wlan interfaces before SSR accordingly start
+ * the interface.
+ *
+ * Return: 0 if interface was opened else false
+ */
+bool hdd_is_interface_up(hdd_adapter_t *adapter);
 /**
  * hdd_get_bss_entry() - Get the bss entry matching the chan, bssid and ssid
  * @wiphy: wiphy

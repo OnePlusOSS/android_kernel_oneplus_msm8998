@@ -1522,6 +1522,37 @@ static inline void hdd_wlan_ssr_reinit_event(void)
 #endif
 
 /**
+ * hdd_send_default_scan_ies - send default scan ies to fw
+ *
+ * This function is used to send default scan ies to fw
+ * in case of wlan re-init
+ *
+ * Return: void
+ */
+static void hdd_send_default_scan_ies(hdd_context_t *hdd_ctx)
+{
+	hdd_adapter_list_node_t *adapter_node, *next;
+	hdd_adapter_t *adapter;
+	QDF_STATUS status;
+
+	status = hdd_get_front_adapter(hdd_ctx, &adapter_node);
+	while (NULL != adapter_node && QDF_STATUS_SUCCESS == status) {
+		adapter = adapter_node->pAdapter;
+		if (hdd_is_interface_up(adapter) &&
+		    (adapter->device_mode == QDF_STA_MODE ||
+		    adapter->device_mode == QDF_P2P_DEVICE_MODE)) {
+			sme_set_default_scan_ie(hdd_ctx->hHal,
+				      adapter->sessionId,
+				      adapter->scan_info.default_scan_ies,
+				      adapter->scan_info.default_scan_ies_len);
+		}
+		status = hdd_get_next_adapter(hdd_ctx, adapter_node,
+					      &next);
+		adapter_node = next;
+	}
+}
+
+/**
  * hdd_wlan_re_init() - HDD SSR re-init function
  *
  * This function is called by the HIF to re-initialize the driver after SSR.
@@ -1612,6 +1643,7 @@ QDF_STATUS hdd_wlan_re_init(void)
 	sme_set_chip_pwr_save_fail_cb(pHddCtx->hHal,
 				      hdd_chip_pwr_save_fail_detected_cb);
 
+	hdd_send_default_scan_ies(pHddCtx);
 	hdd_info("WLAN host driver reinitiation completed!");
 	goto success;
 

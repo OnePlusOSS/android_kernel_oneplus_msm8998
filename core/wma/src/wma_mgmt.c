@@ -3490,6 +3490,16 @@ static int wma_mgmt_rx_process(void *handle, uint8_t *data,
 
 	rx_pkt->pkt_meta.roamCandidateInd = 0;
 
+	/*
+	 * If the mpdu_data_len is greater than Max (2k), drop the frame
+	 */
+	if (rx_pkt->pkt_meta.mpdu_data_len > WMA_MAX_MGMT_MPDU_LEN) {
+		WMA_LOGE("Data Len %d greater than max, dropping frame",
+			 rx_pkt->pkt_meta.mpdu_data_len);
+		qdf_mem_free(rx_pkt);
+		return -EINVAL;
+	}
+
 	/* Why not just use rx_event->hdr.buf_len? */
 	wbuf = qdf_nbuf_alloc(NULL, roundup(hdr->buf_len, 4), 0, 4, false);
 	if (!wbuf) {

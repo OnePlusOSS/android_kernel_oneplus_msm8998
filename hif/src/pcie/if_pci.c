@@ -2134,6 +2134,7 @@ static int hif_enable_pci(struct hif_pci_softc *sc,
 		goto err_iomap;
 	}
 	sc->mem = mem;
+	sc->mem_len = pci_resource_len(pdev, BAR_NUM);
 	sc->pdev = pdev;
 	sc->dev = &pdev->dev;
 	sc->devid = id->device;
@@ -4125,3 +4126,16 @@ void hif_runtime_lock_deinit(struct hif_opaque_softc *hif_ctx,
 	qdf_mem_free(context);
 }
 #endif /* FEATURE_RUNTIME_PM */
+
+int hif_pci_addr_in_boundary(struct hif_softc *scn, uint32_t offset)
+{
+	struct hif_pci_softc *sc = HIF_GET_PCI_SOFTC(scn);
+
+	if (unlikely(offset + sizeof(unsigned int) > sc->mem_len)) {
+		HIF_TRACE("Refusing to read memory at 0x%x - 0x%x (max 0x%x)\n",
+			  offset, offset + sizeof(unsigned int), sc->mem_len);
+		return -EINVAL;
+	}
+
+	return 0;
+}

@@ -331,3 +331,9 @@ int hif_dummy_bus_reset_resume(struct hif_softc *hif_ctx)
 {
 	return 0;
 }
+
+int hif_dummy_addr_in_boundary(struct hif_softc *scn, uint32_t offset)
+{
+	return 0;
+}
+

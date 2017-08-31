@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -85,6 +85,7 @@ QDF_STATUS hif_initialize_pci_ops(struct hif_softc *hif_sc)
 		&hif_pci_display_stats;
 	bus_ops->hif_clear_stats =
 		&hif_pci_clear_stats;
+	bus_ops->hif_addr_in_boundary = &hif_pci_addr_in_boundary;
 
 	return QDF_STATUS_SUCCESS;
 }

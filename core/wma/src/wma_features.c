@@ -2258,8 +2258,13 @@ static QDF_STATUS dfs_phyerr_offload_event_handler(void *handle,
 
 	/*
 	 * Index of peak magnitude
+	 * To do:
+	 * Need change interface of WMI_DFS_RADAR_EVENTID to get delta_diff and
+	 * delta_peak when DFS Phyerr filtering offload is enabled.
 	 */
-	event->sidx = radar_event->peak_sidx;
+	event->sidx = radar_event->peak_sidx & 0x0000ffff;
+	event->delta_diff = 0;
+	event->delta_peak = 0;
 	event->re_flags = 0;
 
 	/*

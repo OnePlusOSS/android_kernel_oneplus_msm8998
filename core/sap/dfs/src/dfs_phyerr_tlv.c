@@ -870,6 +870,8 @@ dfs_process_phyerr_bb_tlv(struct ath_dfs *dfs, void *buf, uint16_t datalen,
 	e->is_ext = 0;
 	e->is_dc = 0;
 	e->is_early = 0;
+	e->pulse_delta_peak = rs.delta_peak;
+	e->pulse_delta_diff = rs.delta_diff;
 
 	/*
 	 * Copy the segment ID from the radar summary report

@@ -237,6 +237,8 @@ enum {
 #define DFS_ETSI_TYPE3_WAR_PRI_UPPER_LIMIT 435
 #define DFS_ETSI_WAR_VALID_PULSE_DURATION 15
 
+#define DFS_BIG_SIDX          10000
+
 typedef qdf_spinlock_t dfsq_lock_t;
 
 #ifdef WIN32
@@ -244,8 +246,12 @@ typedef qdf_spinlock_t dfsq_lock_t;
 #endif
 struct dfs_pulseparams {
 	uint64_t p_time;        /* time for start of pulse in usecs */
-	uint8_t p_dur;          /* Duration of pulse in usecs */
-	uint8_t p_rssi;         /* Duration of pulse in usecs */
+	uint8_t  p_dur;          /* Duration of pulse in usecs */
+	uint8_t  p_rssi;         /* Duration of pulse in usecs */
+	uint8_t  p_seg_id;
+	int16_t  p_sidx;
+	int8_t   p_delta_peak;
+	uint32_t p_seq_num;
 } qdf_packed;
 #ifdef WIN32
 #pragma pack(pop, dfs_pulseparams)
@@ -329,7 +335,7 @@ struct dfs_event {
 	uint32_t re_freq;
 	uint32_t re_freq_lo;
 	uint32_t re_freq_hi;
-	int sidx;
+	uint16_t sidx;
 	int radar_80p80_segid;
 	uint8_t delta_peak;
 	uint8_t delta_diff;
@@ -387,6 +393,10 @@ struct dfs_delayelem {
 	uint8_t de_rssi;
 	/* time stamp for this delay element */
 	uint64_t de_ts;
+	uint8_t  de_seg_id;        /* HT80_80/HT160 use */
+	int16_t  de_sidx;
+	int8_t   de_delta_peak;
+	uint32_t de_seq_num;
 } qdf_packed;
 #ifdef WIN32
 #pragma pack(pop, dfs_delayelem)
@@ -408,6 +418,35 @@ struct dfs_delayline {
 	uint32_t dl_lastelem;
 	/* Number of elements in the delay line */
 	uint32_t dl_numelems;
+	/**
+	 * The following is to handle fractional PRI pulses that can cause false
+	 * detection
+	 * sequence number of first pulse that was part of threshold match
+	 */
+	uint32_t   dl_seq_num_start;
+	/* sequence number of last pulse that was part of threshold match */
+	uint32_t   dl_seq_num_stop;
+	/**
+	 * The following is required because the first pulse may or may not be
+	 * in the delay line but we will find it in the pulse line using
+	 * dl_seq_num_second's diff_ts value
+	 * sequence number of sesecond pulse that was part of threshold match
+	 */
+	uint32_t   dl_seq_num_second;
+	/* we need final search PRI to identify possible fractional PRI issue */
+	uint32_t   dl_search_pri;
+	/**
+	 * minimum sidx value of pulses used to match thershold. used for sidx
+	 * spread check
+	 */
+	int16_t     dl_min_sidx;
+	/**
+	* maximum sidx value of pulses used to match thershold. used for sidx
+	* spread check
+	*/
+	int8_t      dl_max_sidx;
+	/* number of pulse in the delay line that had valid delta peak value */
+	uint8_t    dl_delta_peak_match_count;
 } qdf_packed;
 #ifdef WIN32
 #pragma pack(pop, dfs_delayline)
@@ -442,6 +481,18 @@ struct dfs_filter {
 	uint32_t rf_ignore_pri_window;
 	/* Unique ID corresponding to the original filter ID */
 	uint32_t rf_pulseid;
+	/**
+	 * To reduce false detection, look at frequency spread. For now we will
+	 * use sidx spread. But for HT160 frequency spread will be a better
+	 * measure.
+	 * Maximum SIDX value spread in a matched sequence excluding FCC Bin 5
+	 */
+	uint16_t       rf_sidx_spread;
+	/**
+	 * Minimum allowed delta_peak value for a pulse to be considetred for
+	 * this filter's match
+	 */
+	int8_t          rf_check_delta_peak;
 } qdf_packed;
 #ifdef WIN32
 #pragma pack(pop, dfs_filter)
@@ -702,6 +753,7 @@ struct ath_dfs {
 	int8_t     disable_dfs_ch_switch;
 	uint32_t  test_ts; /* to capture timestamps on primary segment */
 	uint32_t  test_ts_ext_seg; /* to capture timestamps on ext segment */
+	u_int32_t  dfs_seq_num;
 };
 
 /* This should match the table from if_ath.c */
@@ -819,6 +871,8 @@ struct dfs_phy_err {
 	int peak_mag;
 	/* Radar summary report version */
 	int rsu_version;
+	uint8_t pulse_delta_diff;
+	int8_t pulse_delta_peak;
 };
 
 /* Attach, detach, handle ioctl prototypes */

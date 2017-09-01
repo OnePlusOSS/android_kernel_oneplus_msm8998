@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -119,7 +119,21 @@ struct dfs_pulse {
 				 * diff.
 				 */
 	uint32_t rp_ignore_pri_window;
-	uint32_t rp_pulseid;    /* Unique ID for identifying filter */
+	/**
+	 * To reduce false detection use sidx spread.
+	 * For HT160, for consistency, push all pulses at center of the channel
+	 * to 80MHz ext when both segments are DFS.
+	 * Maximum SIDX value spread in a matchedsequence excluding FCC Bin 5.
+	 */
+	uint16_t    rp_sidx_spread;
+	/**
+	 * This is mainly used for ETSI Type 4 5MHz chirp pulses which HW cnanot
+	 * identify reliably as chirping but can correctly characterize these
+	 * with delta_peak non-zero. It is disabled by default currently.
+	 * Is delta_peak check required for this filter.
+	 */
+	int8_t       rp_check_delta_peak;
+	uint16_t rp_pulseid;    /* Unique ID for identifying filter */
 };
 
 struct dfs_staggered_pulse {

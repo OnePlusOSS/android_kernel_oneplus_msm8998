@@ -62,6 +62,10 @@
 
 #define DFS_MAX_FREQ_SPREAD            1375 * 1
 
+#define DFS_INVALID_PRI_LIMIT 100  /* should we use 135? */
+#define DFS_BIG_SIDX          10000
+#define FRAC_PRI_SCORE_ARRAY_SIZE 40
+
 static char debug_dup[33];
 static int debug_dup_cnt;
 
@@ -102,6 +106,168 @@ static inline uint8_t dfs_process_pulse_dur(struct ath_dfs *dfs, uint8_t re_dur)
 	return (uint8_t) dfs_round((int32_t) ((dfs->dur_multiplier) * re_dur));
 }
 
+#ifdef WLAN_DFS_FALSE_DETECT
+/**
+ * dfs_confirm_radar() - more rigid check for radar detection
+ * check for jitter in frequency (sidx) to be within certain limit
+ * introduce a fractional PRI check
+ * add a check to look for chirp in ETSI type 4 radar
+ * @dfs: pointer to dfs structure
+ *
+ * Return: max dur difference in sidx1_sidx2 pulse line
+ */
+static int dfs_confirm_radar(struct ath_dfs *dfs, struct dfs_filter *rf,
+			int ext_chan_flag)
+{
+	int i = 0;
+	int index;
+	struct dfs_delayline *dl = &rf->rf_dl;
+	struct dfs_delayelem *de;
+	u_int64_t target_ts = 0;
+	struct dfs_pulseline *pl;
+	int start_index = 0, current_index, next_index;
+	unsigned char scores[FRAC_PRI_SCORE_ARRAY_SIZE];
+	u_int32_t pri_margin;
+	u_int64_t this_diff_ts;
+	u_int32_t search_bin;
+	unsigned char max_score = 0;
+	int max_score_index = 0;
+
+	pl = dfs->pulses;
+	OS_MEMZERO(scores, sizeof(scores));
+	scores[0] = rf->rf_threshold;
+	pri_margin = dfs_get_pri_margin(dfs, ext_chan_flag,
+					(rf->rf_patterntype == 1));
+
+	/**
+	 * look for the entry that matches dl_seq_num_second
+	 * we need the time stamp and diff_ts from there
+	 */
+	for (i = 0; i < dl->dl_numelems; i++) {
+		index = (dl->dl_firstelem + i) & DFS_MAX_DL_MASK;
+		de = &dl->dl_elems[index];
+		if (dl->dl_seq_num_second == de->de_seq_num)
+			target_ts = de->de_ts - de->de_time;
+	}
+
+	if (dfs->dfs_debug_mask & ATH_DEBUG_DFS2) {
+		dfs_print_delayline(dfs, &rf->rf_dl);
+
+		/* print pulse line */
+		DFS_DPRINTK(dfs, ATH_DEBUG_DFS2, "%s: Pulse Line\n", __func__);
+		for (i = 0; i < pl->pl_numelems; i++) {
+			index =  (pl->pl_firstelem + i) &
+				DFS_MAX_PULSE_BUFFER_MASK;
+			DFS_DPRINTK(dfs, ATH_DEBUG_DFS2,
+				"Elem %u: ts=%llu dur=%u, seq_num=%d, delta_peak=%d\n",
+				i, pl->pl_elems[index].p_time,
+				pl->pl_elems[index].p_dur,
+				pl->pl_elems[index].p_seq_num,
+				pl->pl_elems[index].p_delta_peak);
+		}
+	}
+
+	/**
+	 * walk through the pulse line and find pulse with target_ts
+	 * then continue until we find entry with seq_number dl_seq_num_stop
+	 */
+
+	for (i = 0; i < pl->pl_numelems; i++) {
+		index =  (pl->pl_firstelem + i) & DFS_MAX_PULSE_BUFFER_MASK;
+		if (pl->pl_elems[index].p_time == target_ts) {
+			dl->dl_seq_num_start = pl->pl_elems[index].p_seq_num;
+			/* save for future use */
+			start_index = index;
+		}
+	}
+
+	DFS_DPRINTK(dfs, ATH_DEBUG_DFS2, "%s: target_ts=%llu, dl_seq_num_start=%d, dl_seq_num_second=%d, dl_seq_num_stop=%d\n",
+					__func__, target_ts,
+					dl->dl_seq_num_start,
+					dl->dl_seq_num_second,
+					dl->dl_seq_num_stop);
+
+	current_index = start_index;
+	while (pl->pl_elems[current_index].p_seq_num < dl->dl_seq_num_stop) {
+		next_index = (current_index + 1) & DFS_MAX_PULSE_BUFFER_MASK;
+		this_diff_ts = pl->pl_elems[next_index].p_time -
+				pl->pl_elems[current_index].p_time;
+		/* now update the score for this diff_ts */
+		for (i = 1; i < FRAC_PRI_SCORE_ARRAY_SIZE; i++) {
+			search_bin = dl->dl_search_pri / (i + 1);
+
+			/**
+			 * we do not give score to PRI that is lower then the
+			 * limit
+			 */
+			if (search_bin < DFS_INVALID_PRI_LIMIT)
+				break;
+			/**
+			 * increment the score if this_diff_ts belongs to this
+			 * search_bin +/- margin
+			 */
+			if ((this_diff_ts >= (search_bin - pri_margin)) &&
+				(this_diff_ts <= (search_bin + pri_margin)))
+				/*increment score */
+				scores[i]++;
+		}
+		current_index = next_index;
+	}
+	for (i = 0; i < FRAC_PRI_SCORE_ARRAY_SIZE; i++) {
+		if (scores[i] > max_score) {
+			max_score = scores[i];
+			max_score_index = i;
+		}
+	}
+	if (max_score_index != 0) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
+			"%s, Rejecting Radar since Fractional PRI detected: searchpri=%d, threshold=%d, fractional PRI=%d, Fractional PRI score=%d\n",
+			__func__, dl->dl_search_pri, scores[0],
+			dl->dl_search_pri/(max_score_index + 1), max_score);
+		DFS_PRINTK("%s: Rejecting Radar since Fractional PRI detected: searchpri=%d, threshold=%d, fractional PRI=%d, Fractional PRI score=%d\n",
+			 __func__, dl->dl_search_pri, scores[0],
+			dl->dl_search_pri/(max_score_index + 1), max_score);
+		return 0;
+	}
+
+	/* check for frequency spread */
+	if (dl->dl_min_sidx > pl->pl_elems[start_index].p_sidx)
+		dl->dl_min_sidx = pl->pl_elems[start_index].p_sidx;
+	if (dl->dl_max_sidx < pl->pl_elems[start_index].p_sidx)
+		dl->dl_max_sidx = pl->pl_elems[start_index].p_sidx;
+	if ((dl->dl_max_sidx - dl->dl_min_sidx) > rf->rf_sidx_spread) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
+			"%s: Rejecting Radar since frequency spread is too large : min_sidx=%d, max_sidx=%d, rf_sidx_spread=%d\n",
+			__func__, dl->dl_min_sidx, dl->dl_max_sidx,
+			rf->rf_sidx_spread);
+		DFS_PRINTK("%s: Rejecting Radar since frequency spread is too large : min_sidx=%d, max_sidx=%d, rf_sidx_spread=%d\n",
+			__func__, dl->dl_min_sidx, dl->dl_max_sidx,
+			rf->rf_sidx_spread);
+		return 0;
+	}
+
+	if ((rf->rf_check_delta_peak) &&
+		((dl->dl_delta_peak_match_count) < rf->rf_threshold)) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
+			"%s: Rejecting Radar since delta peak values are invalid : dl_delta_peak_match_count=%d, rf_threshold=%d\n",
+			__func__, dl->dl_delta_peak_match_count,
+			rf->rf_threshold);
+
+		DFS_PRINTK("%s: Rejecting Radar since delta peak values are invalid : dl_delta_peak_match_count=%d, rf_threshold=%d\n",
+			__func__, dl->dl_delta_peak_match_count,
+			rf->rf_threshold);
+		return 0;
+	}
+	return 1;
+}
+#else
+static int dfs_confirm_radar(struct ath_dfs *dfs, struct dfs_filter *rf,
+			int ext_chan_flag)
+{
+	return 1;
+}
+#endif
+
 /*
  * Process a radar event.
  *
@@ -131,6 +297,7 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 	int i;
 	int seg_id = DFS_80P80_SEG0;
 	struct dfs_delayline *dl;
+	int false_radar_found = 0;
 
 	if (dfs == NULL) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
@@ -203,7 +370,8 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 	empty = STAILQ_EMPTY(&(dfs->dfs_radarq));
 	ATH_DFSQ_UNLOCK(dfs);
 
-	while ((!empty) && (!retval) && (events_processed < MAX_EVENTS)) {
+	while ((!empty) && (!retval) && (events_processed < MAX_EVENTS) &&
+		(!false_radar_found)) {
 		ATH_DFSQ_LOCK(dfs);
 		event = STAILQ_FIRST(&(dfs->dfs_radarq));
 		if (event != NULL)
@@ -381,6 +549,8 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 		pl->pl_elems[index].p_time = this_ts;
 		pl->pl_elems[index].p_dur = re.re_dur;
 		pl->pl_elems[index].p_rssi = re.re_rssi;
+		pl->pl_elems[index].p_sidx = re.sidx;
+		pl->pl_elems[index].p_delta_peak = re.delta_peak;
 		if (seg_id == 0) {
 			diff_ts = (uint32_t) this_ts - dfs->test_ts;
 			dfs->test_ts = (uint32_t) this_ts;
@@ -425,6 +595,8 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 				  re.re_rssi, diff_ts,
 				  (unsigned long long)pl->pl_elems[index].p_time);
 		}
+		dfs->dfs_seq_num++;
+		pl->pl_elems[index].p_seq_num = dfs->dfs_seq_num;
 
 		/* If diff_ts is very small, we might be getting false pulse detects
 		 * due to heavy interference. We might be getting spectral splatter
@@ -432,9 +604,25 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 		 * clear the delay-lines. This might impact positive detections under
 		 * harsh environments, but helps with false detects. */
 
-		if (diff_ts < 100) {
+		if (diff_ts < DFS_INVALID_PRI_LIMIT) {
+			dfs->dfs_seq_num = 0;
 			dfs_reset_alldelaylines(dfs, seg_id);
 			dfs_reset_radarq(dfs);
+			index = (pl->pl_lastelem + 1) &
+					DFS_MAX_PULSE_BUFFER_MASK;
+			if (pl->pl_numelems == DFS_MAX_PULSE_BUFFER_SIZE)
+				pl->pl_firstelem = (pl->pl_firstelem+1) &
+					DFS_MAX_PULSE_BUFFER_MASK;
+			else
+				pl->pl_numelems++;
+			pl->pl_lastelem = index;
+			pl->pl_elems[index].p_time = this_ts;
+			pl->pl_elems[index].p_dur = re.re_dur;
+			pl->pl_elems[index].p_rssi = re.re_rssi;
+			pl->pl_elems[index].p_sidx = re.sidx;
+			pl->pl_elems[index].p_delta_peak = re.delta_peak;
+			dfs->dfs_seq_num++;
+			pl->pl_elems[index].p_seq_num = dfs->dfs_seq_num;
 		}
 		found = 0;
 
@@ -599,7 +787,7 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 
 		while ((tabledepth < DFS_MAX_RADAR_OVERLAP) &&
 		       ((dfs->dfs_radartable[re.re_dur])[tabledepth] != -1) &&
-		       (!retval)) {
+		       (!retval) && (!false_radar_found)) {
 			ft = dfs->
 			     dfs_radarf[((dfs->
 					  dfs_radartable[re.
@@ -649,7 +837,8 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 				continue;
 			}
 			for (p = 0, found = 0;
-			     (p < ft->ft_numfilters) && (!found); p++) {
+			     (p < ft->ft_numfilters) && (!found) &&
+						(!false_radar_found); p++) {
 				rf = ft->ft_filters[p];
 				dl = (seg_id == 0) ? &rf->rf_dl :
 						     &rf->rf_dl_ext_seg;
@@ -766,12 +955,29 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 							    (uint32_t)deltaT,
 							    re.re_dur, seg_id);
 					} else {
-						found =
-							dfs_bin_check(dfs, rf,
+						found = dfs_bin_check(dfs, rf,
 							    (uint32_t)deltaT,
 							    re.re_dur,
 							    ext_chan_event_flag,
 							    seg_id);
+						/**
+						 * do additioal check to
+						 * conirm radar except
+						 * for the following
+						 * staggered, chirp FCC
+						 * Bin 5, frequency
+						 * hopping indicated by
+						 * rf_patterntype == 1
+						 */
+						if ((rf->rf_patterntype != 1) &&
+							found) {
+							found =
+							   dfs_confirm_radar(
+							   dfs, rf,
+							   ext_chan_event_flag);
+							false_radar_found =
+							   (found == 1) ? 0 : 1;
+						}
 					}
 					if (dfs->
 					    dfs_debug_mask & ATH_DEBUG_DFS2) {
@@ -879,6 +1085,14 @@ dfsfound:
 		dfs->dfs_phyerr_w53_counter = 0;
 	}
 	/* QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG, "IN FUNC %s[%d]: retval = %d ",__func__,__LINE__,retval); */
+	if (false_radar_found) {
+		dfs->dfs_seq_num = 0;
+		dfs_reset_radarq(dfs);
+		dfs_reset_alldelaylines(dfs, seg_id);
+		dfs->dfs_phyerr_freq_min     = 0x7fffffff;
+		dfs->dfs_phyerr_freq_max     = 0;
+		dfs->dfs_phyerr_w53_counter  = 0;
+	}
 	return retval;
 /* #endif */
 /*        return 1; */

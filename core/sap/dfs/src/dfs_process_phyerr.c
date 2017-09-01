@@ -850,6 +850,8 @@ dfs_process_phyerr(struct ieee80211com *ic, void *buf, uint16_t datalen,
 			event->re_ts = (e.rs_tstamp) & DFS_TSMASK;
 			event->re_rssi = e.rssi;
 			event->sidx = e.sidx;
+			event->delta_diff = e.pulse_delta_diff;
+			event->delta_peak = e.pulse_delta_peak;
 			if (e.rsu_version ==
 				DFS_RADAR_SUMMARY_REPORT_VERSION_3) {
 				event->delta_peak = e.delta_peak;

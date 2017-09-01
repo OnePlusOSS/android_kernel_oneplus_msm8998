@@ -178,6 +178,10 @@ dfs_add_pulse(struct ath_dfs *dfs, struct dfs_filter *rf, struct dfs_event *re,
 	window = deltaT;
 	dl->dl_elems[index].de_dur = re->re_dur;
 	dl->dl_elems[index].de_rssi = re->re_rssi;
+	dl->dl_elems[index].de_seg_id = re->radar_80p80_segid;
+	dl->dl_elems[index].de_sidx = re->sidx;
+	dl->dl_elems[index].de_delta_peak = re->delta_peak;
+	dl->dl_elems[index].de_seq_num = dfs->dfs_seq_num;
 
 	DFS_DPRINTK(dfs, ATH_DEBUG_DFS2,
 		    "%s: adding: filter id %d, dur=%d, rssi=%d, ts=%llu\n",
@@ -368,6 +372,12 @@ dfs_bin_pri_check(struct ath_dfs *dfs, struct dfs_filter *rf,
 		score, highscoreindex = 0;
 	int numpulses = 1;      /* first pulse in the burst is most likely being filtered out based on maxfilterlen */
 	int priscorechk = 1, numpulsetochk = 2, primatch = 0;
+	int32_t sidx_min = DFS_BIG_SIDX;
+	int32_t sidx_max = -DFS_BIG_SIDX;
+	uint8_t delta_peak_match_num = 1;
+	int8_t     de_delta_peak = 0;
+	int16_t    de_sidx = 0;
+	uint32_t  de_seq_num = 0;
 
 	/* Use the adjusted PRI margin to reduce false alarms */
 	/* For non fixed pattern types, rf->rf_patterntype=0 */
@@ -436,6 +446,9 @@ dfs_bin_pri_check(struct ath_dfs *dfs, struct dfs_filter *rf,
 		}
 		searchdur = dl->dl_elems[delayindex].de_dur;
 		searchrssi = dl->dl_elems[delayindex].de_rssi;
+		de_sidx = dl->dl_elems[delayindex].de_sidx;
+		de_delta_peak = dl->dl_elems[delayindex].de_delta_peak;
+		de_seq_num = dl->dl_elems[delayindex].de_seq_num;
 		deltadur = DFS_DIFF(searchdur, refdur);
 		deltapri = DFS_DIFF(searchpri, refpri);
 
@@ -460,6 +473,18 @@ dfs_bin_pri_check(struct ath_dfs *dfs, struct dfs_filter *rf,
 		if (primatch && (deltadur < durmargin)) {
 			if (numpulses == 1) {
 				numpulses++;
+				dl->dl_seq_num_second = de_seq_num;
+				/**
+				 * update sidx min/max for false detection
+				 * check later
+				 */
+				if (sidx_min > de_sidx)
+					sidx_min = de_sidx;
+				if (sidx_max < de_sidx)
+					sidx_max = de_sidx;
+				if ((rf->rf_check_delta_peak) &&
+					(de_delta_peak != 0))
+					delta_peak_match_num++;
 			} else {
 				delta_time_stamps =
 					dl->dl_elems[delayindex].de_ts -
@@ -483,6 +508,19 @@ dfs_bin_pri_check(struct ath_dfs *dfs, struct dfs_filter *rf,
 					if (delta_ts_variance <
 					    (2 * (j + 1) * primargin)) {
 						numpulses++;
+						dl->dl_seq_num_stop =
+								de_seq_num;
+						/**
+						 * update sidx min/max for
+						 * false detection check
+						 */
+						if (sidx_min > de_sidx)
+							sidx_min = de_sidx;
+						if (sidx_max < de_sidx)
+							sidx_max = de_sidx;
+						if ((rf->rf_check_delta_peak) &&
+							(de_delta_peak != 0))
+							delta_peak_match_num++;
 						if (rf->rf_ignore_pri_window >
 						    0) {
 							break;
@@ -491,7 +529,10 @@ dfs_bin_pri_check(struct ath_dfs *dfs, struct dfs_filter *rf,
 				}
 			}
 			prev_good_timestamp = dl->dl_elems[delayindex].de_ts;
-
+			dl->dl_search_pri = searchpri;
+			dl->dl_min_sidx = sidx_min;
+			dl->dl_max_sidx = sidx_max;
+			dl->dl_delta_peak_match_count = delta_peak_match_num;
 			DFS_DPRINTK(dfs, ATH_DEBUG_DFS2,
 				    "rf->minpri=%d rf->maxpri=%d searchpri = %d index = %d numpulses = %d deltapri=%d j=%d\n",
 				    rf->rf_minpri, rf->rf_maxpri, searchpri, i,

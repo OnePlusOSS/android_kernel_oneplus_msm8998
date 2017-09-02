@@ -1713,6 +1713,8 @@ static QDF_STATUS hdd_dis_connect_handler(hdd_adapter_t *pAdapter,
 
 	pAdapter->dad = false;
 
+	pAdapter->hdd_stats.hddTxRxStats.cont_txtimeout_cnt = 0;
+
 	/* Unblock anyone waiting for disconnect to complete */
 	complete(&pAdapter->disconnect_comp_var);
 	hdd_print_bss_info(pHddStaCtx);

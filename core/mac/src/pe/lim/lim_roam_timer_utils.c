@@ -70,26 +70,26 @@ err_roam_timer:
 	return TX_TIMER_ERROR;
 }
 
-/**
- * lim_delete_timers_host_roam() - Delete timers used in host based roaming
- * @mac_ctx: Global MAC context
- *
- * Delete reassoc and preauth timers
- *
- * Return: none
- */
 void lim_delete_timers_host_roam(tpAniSirGlobal mac_ctx)
 {
 	tLimTimers *lim_timer = &mac_ctx->lim.limTimers;
 
-	/* Deactivate and delete Reassociation failure timer. */
-	tx_timer_deactivate(&lim_timer->gLimReassocFailureTimer);
+	/* Delete Reassociation failure timer. */
 	tx_timer_delete(&lim_timer->gLimReassocFailureTimer);
-
-	/* Deactivate and delete FT Preauth response timer */
-	tx_timer_deactivate(&lim_timer->gLimFTPreAuthRspTimer);
+	/* Delete FT Preauth response timer */
 	tx_timer_delete(&lim_timer->gLimFTPreAuthRspTimer);
 }
+
+void lim_deactivate_timers_host_roam(tpAniSirGlobal mac_ctx)
+{
+	tLimTimers *lim_timer = &mac_ctx->lim.limTimers;
+
+	/* Deactivate Reassociation failure timer. */
+	tx_timer_deactivate(&lim_timer->gLimReassocFailureTimer);
+	/* Deactivate FT Preauth response timer */
+	tx_timer_deactivate(&lim_timer->gLimFTPreAuthRspTimer);
+}
+
 
 /**
  * lim_deactivate_and_change_timer_host_roam() - Change timers in host roaming

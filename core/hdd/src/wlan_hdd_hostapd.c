@@ -5254,88 +5254,78 @@ static int iw_softap_version(struct net_device *dev,
 	return ret;
 }
 
-static
-QDF_STATUS hdd_softap_get_sta_info(hdd_adapter_t *pAdapter, uint8_t *pBuf,
-				   int buf_len) {
-	uint8_t i;
-	uint8_t maxSta = 0;
-	int len = 0;
-	const char sta_info_header[] = "staId staAddress";
-	hdd_context_t *hdd_ctx;
+static int hdd_softap_get_sta_info(hdd_adapter_t *adapter,
+				   uint8_t *buf,
+				   int size)
+{
+	int i;
+	int written;
+	uint8_t bc_sta_id;
 
 	ENTER();
 
-	if (NULL == pAdapter) {
-		hdd_err("Adapter is NULL");
-		return -EINVAL;
-	}
+	bc_sta_id = WLAN_HDD_GET_AP_CTX_PTR(adapter)->uBCStaId;
 
-	hdd_ctx = WLAN_HDD_GET_CTX(pAdapter);
-	if (0 != wlan_hdd_validate_context(hdd_ctx))
-		return QDF_STATUS_E_FAULT;
+	written = scnprintf(buf, size, "\nstaId staAddress\n");
+	for (i = 0; i < WLAN_MAX_STA_COUNT; i++) {
+		hdd_station_info_t *sta = &adapter->aStaInfo[i];
 
-	len = scnprintf(pBuf, buf_len, sta_info_header);
-	pBuf += len;
-	buf_len -= len;
-
-	maxSta = hdd_ctx->config->maxNumberOfPeers;
-
-	for (i = 0; i <= maxSta; i++) {
-		if (!pAdapter->aStaInfo[i].isUsed)
-			continue;
-
-		if (CHAN_HOP_ALL_BANDS_ENABLE &&
-		    (i == (WLAN_HDD_GET_AP_CTX_PTR(pAdapter))->uBCStaId))
-			continue;
-
-		if (WE_GET_STA_INFO_SIZE > buf_len)
+		if (written >= size - 1)
 			break;
 
-		len = scnprintf(pBuf, buf_len,
-				"%5d .%02x:%02x:%02x:%02x:%02x:%02x "
-				"\t ecsa=%d\n",
-				pAdapter->aStaInfo[i].ucSTAId,
-				pAdapter->aStaInfo[i].macAddrSTA.bytes[0],
-				pAdapter->aStaInfo[i].macAddrSTA.bytes[1],
-				pAdapter->aStaInfo[i].macAddrSTA.bytes[2],
-				pAdapter->aStaInfo[i].macAddrSTA.bytes[3],
-				pAdapter->aStaInfo[i].macAddrSTA.bytes[4],
-				pAdapter->aStaInfo[i].macAddrSTA.bytes[5],
-				pAdapter->aStaInfo[i].ecsa_capable);
-		pBuf += len;
-		buf_len -= len;
+		if (!sta->isUsed)
+			continue;
+
+		if (i == bc_sta_id)
+			continue;
+
+		written += scnprintf(buf + written, size - written,
+				     "%5d .%02x:%02x:%02x:%02x:%02x:%02x \t ecsa=%d\n",
+				     sta->ucSTAId,
+				     sta->macAddrSTA.bytes[0],
+				     sta->macAddrSTA.bytes[1],
+				     sta->macAddrSTA.bytes[2],
+				     sta->macAddrSTA.bytes[3],
+				     sta->macAddrSTA.bytes[4],
+				     sta->macAddrSTA.bytes[5],
+				     sta->ecsa_capable);
 	}
 
 	EXIT();
-	return QDF_STATUS_SUCCESS;
+
+	return 0;
 }
 
 static int __iw_softap_get_sta_info(struct net_device *dev,
 				    struct iw_request_info *info,
 				    union iwreq_data *wrqu, char *extra)
 {
-	hdd_adapter_t *pHostapdAdapter = netdev_priv(dev);
-	QDF_STATUS status;
+	int errno;
+	hdd_adapter_t *adapter;
 	hdd_context_t *hdd_ctx;
-	int ret;
 
 	ENTER_DEV(dev);
 
-	hdd_ctx = WLAN_HDD_GET_CTX(pHostapdAdapter);
-	ret = wlan_hdd_validate_context(hdd_ctx);
-	if (0 != ret)
-		return ret;
+	adapter = netdev_priv(dev);
+	errno = hdd_validate_adapter(adapter);
+	if (errno)
+		return errno;
 
-	status =
-		hdd_softap_get_sta_info(pHostapdAdapter, extra,
-					WE_SAP_MAX_STA_INFO);
+	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+	errno = wlan_hdd_validate_context(hdd_ctx);
+	if (errno)
+		return errno;
 
-	if (!QDF_IS_STATUS_SUCCESS(status)) {
-		hdd_err("Failed to get sta info: %d", status);
-		return -EINVAL;
+	errno = hdd_softap_get_sta_info(adapter, extra, WE_SAP_MAX_STA_INFO);
+	if (errno) {
+		hdd_err("Failed to get sta info; errno:%d", errno);
+		return errno;
 	}
+
 	wrqu->data.length = strlen(extra);
+
 	EXIT();
+
 	return 0;
 }
 

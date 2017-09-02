@@ -184,7 +184,6 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(fg_current_now),
 	POWER_SUPPLY_ATTR(fg_voltage_now),
 	POWER_SUPPLY_ATTR(is_aging_test),
-	POWER_SUPPLY_ATTR(battery_health),
 	POWER_SUPPLY_ATTR(charge_type),
 	POWER_SUPPLY_ATTR(health),
 	POWER_SUPPLY_ATTR(present),

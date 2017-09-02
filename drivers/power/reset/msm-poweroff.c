@@ -141,7 +141,6 @@ static void set_dload_mode(int on)
 {
 	int ret;
         printk("set_dload_mode %s\n", on ? "ON" : "OFF");
-        //#endif /* VENDOR_EDIT */
 	if (dload_mode_addr) {
 		__raw_writel(on ? 0xE47B337D : 0, dload_mode_addr);
 		__raw_writel(on ? 0xCE14091A : 0,

@@ -42,7 +42,6 @@ struct qpnp_pon {
 	bool		store_hard_reset_reason;
 	bool        kpd_dbc_enable;
 	ktime_t     kpd_release_time;
-	//#endif /* VENDOR_EDIT */
 };
 
 /**

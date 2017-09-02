@@ -416,7 +416,6 @@ static int qpnp_pon_get_dbc(struct qpnp_pon *pon, u32 *delay)
 	(1 << (QPNP_PON_DELAY_BIT_SHIFT - val));
 	return rc;
 }
-//#endif /* VENDOR_EDIT */
 
 static ssize_t qpnp_pon_dbc_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -778,7 +777,6 @@ qpnp_pon_input_dispatch(struct qpnp_pon *pon, u32 pon_type)
 	u32 key_status;
 	uint pon_rt_sts;
 	u64 elapsed_us;
-	//#endif /* VENDOR_EDIT */
 
 	cfg = qpnp_get_cfg(pon, pon_type);
 	if (!cfg)
@@ -795,7 +793,6 @@ qpnp_pon_input_dispatch(struct qpnp_pon *pon, u32 pon_type)
 		return 0;
 		}
 	}
-	//#endif /* VENDOR_EDIT */
 
 	/* check the RT status to get the current status of the line */
 	rc = regmap_read(pon->regmap, QPNP_PON_RT_STS(pon), &pon_rt_sts);
@@ -815,7 +812,6 @@ qpnp_pon_input_dispatch(struct qpnp_pon *pon, u32 pon_type)
 			printk("Power-Key DOWN\n");
 			schedule_delayed_work(&pon->press_work,msecs_to_jiffies(3000));
 		}
-		//#endif /* VENDOR_EDIT */
 		break;
 	case PON_RESIN:
 		pon_rt_bit = QPNP_PON_RESIN_N_SET;
@@ -837,7 +833,6 @@ qpnp_pon_input_dispatch(struct qpnp_pon *pon, u32 pon_type)
 		if (!key_status)
 		pon->kpd_release_time = ktime_get();
 	}
-	//#endif /* VENDOR_EDIT */
 
 	/*
 	 * simulate press event in case release event occurred
@@ -2577,7 +2572,6 @@ static int qpnp_pon_probe(struct platform_device *pdev)
 
 	pon->kpd_dbc_enable = of_property_read_bool(pon->pdev->dev.of_node,
 	"qcom,kpd-dbc-enable");
-	//#endif /* VENDOR_EDIT */
 
 	rc = of_property_read_u32(pon->pdev->dev.of_node,
 				"qcom,warm-reset-poweroff-type",

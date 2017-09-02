@@ -248,7 +248,7 @@ static int tristate_dev_probe(struct platform_device *pdev)
 	}
 
 	ret = request_irq(switch_data->irq_key1, switch_dev_interrupt,
-			  IRQF_TRIGGER_FALLING, "tristate_key1", switch_data);
+			  IRQF_TRIGGER_FALLING|IRQF_TRIGGER_RISING, "tristate_key1", switch_data);
 	if (ret < 0)
 		goto err_request_irq;
 
@@ -286,7 +286,7 @@ static int tristate_dev_probe(struct platform_device *pdev)
 	}
 
 	ret = request_irq(switch_data->irq_key3, switch_dev_interrupt,
-			  IRQF_TRIGGER_FALLING, "tristate_key3", switch_data);
+			  IRQF_TRIGGER_FALLING|IRQF_TRIGGER_RISING, "tristate_key3", switch_data);
 	if (ret < 0)
 		goto err_request_irq;
 

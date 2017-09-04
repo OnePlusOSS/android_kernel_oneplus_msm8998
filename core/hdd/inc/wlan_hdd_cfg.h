@@ -12166,6 +12166,34 @@ enum hw_filter_mode {
 #define CFG_CHANNEL_CONGESTION_WEIGHTAGE_MIN     (0)
 #define CFG_CHANNEL_CONGESTION_WEIGHTAGE_MAX     (100)
 
+/*
+ * <ini>
+ * gChanSwitchHostapdRateEnabled - Enable/disable hostapd rate when doing SAP
+ * channel switch
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to set supported rates calculated from hostapd.conf file
+ * or not when doing SAP channel switch. It must set it to 0 when cross-band
+ * channel switch happens such as from 2G to 5G or 5G to 2G.
+ *
+ * Related: When doing SAP channel switch, if gChanSwitchHostapdRateEnabled is
+ * set to 1, supported rates will be calculated from hostapd.conf file,
+ * if gChanSwitchHostapdRateEnabled is set to 0, supported rates will be
+ * calculated from driver default rates.
+ *
+ * Supported Feature: SAP
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_CHAN_SWITCH_HOSTAPD_RATE_ENABLED_NAME \
+	"gChanSwitchHostapdRateEnabled"
+#define CFG_CHAN_SWITCH_HOSTAPD_RATE_ENABLED_MIN     (0)
+#define CFG_CHAN_SWITCH_HOSTAPD_RATE_ENABLED_MAX     (1)
+#define CFG_CHAN_SWITCH_HOSTAPD_RATE_ENABLED_DEFAULT (0)
 
 /*---------------------------------------------------------------------------
    Type declarations
@@ -12992,6 +13020,7 @@ struct hdd_config {
 	uint8_t beamforming_cap_weightage;
 	uint8_t pcl_weightage;
 	uint8_t channel_congestion_weightage;
+	bool chan_switch_hostapd_rate_enabled;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

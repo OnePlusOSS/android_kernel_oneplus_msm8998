@@ -1252,6 +1252,7 @@ static void wlan_hdd_pld_uevent(struct device *dev,
 	switch (uevent->uevent) {
 	case PLD_RECOVERY:
 		cds_set_recovery_in_progress(true);
+		hdd_pld_ipa_uc_shutdown_pipes();
 		break;
 	case PLD_FW_DOWN:
 		cds_set_fw_state(CDS_FW_STATE_DOWN);

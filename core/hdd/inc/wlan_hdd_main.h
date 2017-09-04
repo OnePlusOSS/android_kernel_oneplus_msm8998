@@ -2728,4 +2728,11 @@ static inline void hdd_update_hlp_info(struct net_device *dev,
 				       tCsrRoamInfo *roam_info)
 {}
 #endif
+
+/**
+ * hdd_pld_ipa_uc_shutdown_pipes() - Disconnect IPA WDI pipes during PDR
+ *
+ * Return: None
+ */
+void hdd_pld_ipa_uc_shutdown_pipes(void);
 #endif /* end #if !defined(WLAN_HDD_MAIN_H) */

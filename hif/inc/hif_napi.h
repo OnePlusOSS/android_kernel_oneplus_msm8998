@@ -240,6 +240,11 @@ static inline struct qca_napi_data *hif_napi_get_all(
 				struct hif_opaque_softc *hif)
 { return NULL; }
 
+static inline struct napi_struct *hif_get_napi(int napi_id, void *napi_d)
+{
+	return NULL;
+}
+
 static inline int hif_napi_event(struct hif_opaque_softc     *hif,
 				 enum  qca_napi_event event,
 				 void                *data)

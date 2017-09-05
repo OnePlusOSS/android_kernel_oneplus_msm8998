@@ -3392,6 +3392,9 @@ void peer_unmap_timer_handler(void *data)
 /**
  * ol_txrx_peer_detach() - Delete a peer's data object.
  * @peer - the object to detach
+ * @bool - Status whether PEER_DELETE is sent to fw
+ *         if value is false then we should not start peer unmap
+ *         timer.
  *
  * When the host's control SW disassociates a peer, it calls
  * this function to detach and delete the peer. The reference
@@ -3400,7 +3403,7 @@ void peer_unmap_timer_handler(void *data)
  *
  * Return: None
  */
-void ol_txrx_peer_detach(ol_txrx_peer_handle peer)
+void ol_txrx_peer_detach(ol_txrx_peer_handle peer, bool start_peer_unmap_timer)
 {
 	struct ol_txrx_vdev_t *vdev = peer->vdev;
 
@@ -3440,17 +3443,24 @@ void ol_txrx_peer_detach(ol_txrx_peer_handle peer)
 	 */
 	qdf_atomic_set(&peer->delete_in_progress, 1);
 
-	/*
-	 * Create a timer to track unmap events when the sta peer gets deleted.
-	 */
-	if (vdev->opmode == wlan_op_mode_sta) {
-		qdf_mem_copy(&peer->vdev->last_peer_mac_addr,
-			&peer->mac_addr,
-			sizeof(union ol_txrx_align_mac_addr_t));
-		qdf_timer_start(&peer->peer_unmap_timer,
-				OL_TXRX_PEER_UNMAP_TIMEOUT);
-		ol_txrx_info_high("%s: started peer_unmap_timer for peer %p",
-			     __func__, peer);
+	if (start_peer_unmap_timer) {
+		/*
+		 * Create a timer to track unmap events when the sta peer gets
+		 * deleted.
+		 */
+		if (vdev->opmode == wlan_op_mode_sta) {
+			qdf_mem_copy(&peer->vdev->last_peer_mac_addr,
+				     &peer->mac_addr,
+				     sizeof(union ol_txrx_align_mac_addr_t));
+			qdf_timer_start(&peer->peer_unmap_timer,
+					OL_TXRX_PEER_UNMAP_TIMEOUT);
+			ol_txrx_info_high(
+				"%s: started peer_unmap_timer for peer %p",
+				__func__, peer);
+		}
+	} else {
+		WMA_LOGE("%s Peer unmap timer not started because PEER_DELETE not sent to firmware",
+			__func__);
 	}
 
 	/*
@@ -3482,7 +3492,7 @@ void ol_txrx_peer_detach_force_delete(ol_txrx_peer_handle peer)
 
 	/* Clear the peer_id_to_obj map entries */
 	ol_txrx_peer_remove_obj_map_entries(pdev, peer);
-	ol_txrx_peer_detach(peer);
+	ol_txrx_peer_detach(peer, true);
 }
 
 ol_txrx_peer_handle

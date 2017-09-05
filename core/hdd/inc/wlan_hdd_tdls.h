@@ -853,7 +853,7 @@ static inline void hdd_update_tdls_ct_and_teardown_links(hdd_context_t *hdd_ctx)
 }
 static inline void
 wlan_hdd_tdls_disable_offchan_and_teardown_links(hdd_context_t *hddctx,
-		bool disable_tdls_state);
+		bool disable_tdls_state)
 {
 }
 static inline void wlan_hdd_tdls_exit(hdd_adapter_t *adapter)

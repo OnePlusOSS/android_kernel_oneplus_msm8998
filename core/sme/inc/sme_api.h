@@ -1868,4 +1868,12 @@ static inline QDF_STATUS sme_update_fils_config(tHalHandle hal,
 static inline void sme_free_join_rsp_fils_params(tCsrRoamInfo *roam_info)
 {}
 #endif
+/**
+ * sme_display_disconnect_stats() - Display per session Disconnect stats
+ * @hal: hal global context
+ * session_id: SME session id
+ *
+ * Return: None
+ */
+void sme_display_disconnect_stats(tHalHandle hal, uint8_t session_id);
 #endif /* #if !defined( __SME_API_H ) */

@@ -3053,6 +3053,10 @@ int hdd_wlan_dump_stats(hdd_adapter_t *adapter, int value)
 			ret = EFAULT;
 		}
 		break;
+	case WLAN_DISCONNECT_STATS:
+		sme_display_disconnect_stats(WLAN_HDD_GET_HAL_CTX(adapter),
+						adapter->sessionId);
+		break;
 	default:
 		status = ol_txrx_display_stats(value);
 		if (status == QDF_STATUS_E_INVAL) {

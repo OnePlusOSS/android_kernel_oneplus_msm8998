@@ -564,12 +564,12 @@ static void ol_tx_update_arp_stats(qdf_nbuf_t netbuf,
 }
 
 #ifdef WLAN_FEATURE_TSF_PLUS
-static inline struct htt_tx_compl_ind_append_txtstamp *ol_tx_get_txtstamps(
+static inline struct htt_tx_compl_ind_append_tx_tstamp *ol_tx_get_txtstamps(
 		u_int32_t *msg_word, int num_msdus)
 {
 	u_int32_t has_tx_tsf;
 	u_int32_t has_retry;
-	struct htt_tx_compl_ind_append_txtstamp *txtstamp_list = NULL;
+	struct htt_tx_compl_ind_append_tx_tstamp *txtstamp_list = NULL;
 	struct htt_tx_compl_ind_append_retries *retry_list = NULL;
 	int offset_dwords;
 
@@ -594,7 +594,7 @@ static inline struct htt_tx_compl_ind_append_txtstamp *ol_tx_get_txtstamps(
 		}
 		offset_dwords += retry_index * width_for_each_retry;
 	}
-	txtstamp_list = (struct htt_tx_compl_ind_append_txtstamp *)
+	txtstamp_list = (struct htt_tx_compl_ind_append_tx_tstamp *)
 		(msg_word + offset_dwords);
 
 	return txtstamp_list;
@@ -610,7 +610,7 @@ static inline void ol_tx_timestamp(ol_txrx_pdev_handle pdev,
 		pdev->ol_tx_timestamp_cb(netbuf, ts);
 }
 #else
-static inline struct htt_tx_compl_ind_append_txtstamp *ol_tx_get_txtstamps(
+static inline struct htt_tx_compl_ind_append_tx_tstamp *ol_tx_get_txtstamps(
 		u_int32_t *msg_word, int num_msdus)
 {
 	return NULL;
@@ -640,7 +640,7 @@ ol_tx_completion_handler(ol_txrx_pdev_handle pdev,
 	qdf_nbuf_t netbuf;
 	tp_ol_packetdump_cb packetdump_cb;
 	uint32_t is_tx_desc_freed = 0;
-	struct htt_tx_compl_ind_append_txtstamp *txtstamp_list = NULL;
+	struct htt_tx_compl_ind_append_tx_tstamp *txtstamp_list = NULL;
 	u_int32_t *msg_word = (u_int32_t *)msg;
 	u_int16_t *desc_ids = (u_int16_t *)(msg_word + 1);
 

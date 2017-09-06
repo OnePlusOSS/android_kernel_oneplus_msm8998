@@ -1912,6 +1912,91 @@ static void sap_mark_dfs_channels(ptSapContext sapContext, uint8_t *channels,
 	}
 }
 
+/*
+ * sap_get_bonding_channels() - get bonding channels from primary channel.
+ * @sapContext: Handle to SAP context.
+ * channel: Channel to get bonded channels.
+ * channels: Bonded channel list
+ * size: Max bonded channels
+ * chanBondState: The channel bonding mode of the passed channel.
+ *
+ * Return: Number of sub channels
+ */
+static uint8_t sap_get_bonding_channels(ptSapContext sapContext,
+					uint8_t channel,
+					uint8_t *channels, uint8_t size,
+					ePhyChanBondState chanBondState)
+{
+	tHalHandle hHal = CDS_GET_HAL_CB(sapContext->p_cds_gctx);
+	tpAniSirGlobal pMac;
+	uint8_t numChannel;
+
+	if (channels == NULL)
+		return 0;
+
+	if (size < MAX_BONDED_CHANNELS)
+		return 0;
+
+	if (NULL != hHal)
+		pMac = PMAC_STRUCT(hHal);
+	else
+		return 0;
+
+	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
+		  FL("cbmode: %d, channel: %d"), chanBondState, channel);
+
+	switch (chanBondState) {
+	case PHY_SINGLE_CHANNEL_CENTERED:
+		numChannel = 1;
+		channels[0] = channel;
+		break;
+	case PHY_DOUBLE_CHANNEL_HIGH_PRIMARY:
+		numChannel = 2;
+		channels[0] = channel - 4;
+		channels[1] = channel;
+		break;
+	case PHY_DOUBLE_CHANNEL_LOW_PRIMARY:
+		numChannel = 2;
+		channels[0] = channel;
+		channels[1] = channel + 4;
+		break;
+	case PHY_QUADRUPLE_CHANNEL_20MHZ_LOW_40MHZ_LOW:
+		numChannel = 4;
+		channels[0] = channel;
+		channels[1] = channel + 4;
+		channels[2] = channel + 8;
+		channels[3] = channel + 12;
+		break;
+	case PHY_QUADRUPLE_CHANNEL_20MHZ_HIGH_40MHZ_LOW:
+		numChannel = 4;
+		channels[0] = channel - 4;
+		channels[1] = channel;
+		channels[2] = channel + 4;
+		channels[3] = channel + 8;
+		break;
+	case PHY_QUADRUPLE_CHANNEL_20MHZ_LOW_40MHZ_HIGH:
+		numChannel = 4;
+		channels[0] = channel - 8;
+		channels[1] = channel - 4;
+		channels[2] = channel;
+		channels[3] = channel + 4;
+		break;
+	case PHY_QUADRUPLE_CHANNEL_20MHZ_HIGH_40MHZ_HIGH:
+		numChannel = 4;
+		channels[0] = channel - 12;
+		channels[1] = channel - 8;
+		channels[2] = channel - 4;
+		channels[3] = channel;
+		break;
+	default:
+		numChannel = 1;
+		channels[0] = channel;
+		break;
+	}
+
+	return numChannel;
+}
+
 /**
  * sap_dfs_check_if_channel_avaialable() - Check if a channel is out of NOL
  * @nol: Pointer to the Non-Occupancy List.
@@ -2097,8 +2182,14 @@ sap_dfs_is_channel_in_nol_list(ptSapContext sap_context,
 	}
 
 	/* get the bonded channels */
-	num_channels = sap_ch_params_to_bonding_channels(
+	if (channel_number == sap_context->channel && chan_bondState >=
+						PHY_CHANNEL_BONDING_STATE_MAX)
+		num_channels = sap_ch_params_to_bonding_channels(
 					&sap_context->ch_params, channels);
+	else
+		num_channels = sap_get_bonding_channels(sap_context,
+					channel_number, channels,
+					MAX_BONDED_CHANNELS, chan_bondState);
 
 	/* check for NOL, first on will break the loop */
 	for (j = 0; j < num_channels; j++) {
@@ -3673,7 +3764,6 @@ static QDF_STATUS sap_fsm_state_ch_select(ptSapContext sap_ctx,
 {
 	uint32_t msg = sap_event->event;
 	QDF_STATUS qdf_status = QDF_STATUS_E_FAILURE;
-	uint32_t cbmode;
 	bool b_leak_chan = false;
 #ifdef WLAN_ENABLE_CHNL_MATRIX_RESTRICTION
 	uint8_t temp_chan;
@@ -3681,20 +3771,12 @@ static QDF_STATUS sap_fsm_state_ch_select(ptSapContext sap_ctx,
 #endif
 
 	if (msg == eSAP_MAC_SCAN_COMPLETE) {
-		/* get the bonding mode */
-		if (sap_ctx->channel <= 14)
-			cbmode = sme_get_cb_phy_state_from_cb_ini_value(
-					sme_get_channel_bonding_mode24_g(hal));
-		else
-			cbmode = sme_get_cb_phy_state_from_cb_ini_value(
-					sme_get_channel_bonding_mode5_g(hal));
-
 #ifdef WLAN_ENABLE_CHNL_MATRIX_RESTRICTION
 		temp_chan = sap_ctx->channel;
 		p_nol = mac_ctx->sap.SapDfsInfo.sapDfsChannelNolList;
 
 		sap_mark_leaking_ch(sap_ctx,
-			cbmode, p_nol, 1, &temp_chan);
+			sap_ctx->ch_params.ch_width, p_nol, 1, &temp_chan);
 
 		/*
 		 * if selelcted channel has leakage to channels
@@ -3707,7 +3789,7 @@ static QDF_STATUS sap_fsm_state_ch_select(ptSapContext sap_ctx,
 		 * has leakage to the channels in NOL
 		 */
 		if (sap_dfs_is_channel_in_nol_list(sap_ctx, sap_ctx->channel,
-			cbmode) || b_leak_chan) {
+			PHY_CHANNEL_BONDING_STATE_MAX) || b_leak_chan) {
 			uint8_t ch;
 
 			/* find a new available channel */

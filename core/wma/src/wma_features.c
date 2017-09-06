@@ -5302,7 +5302,7 @@ QDF_STATUS wma_enable_d0wow_in_fw(WMA_HANDLE handle)
 			wmi_get_host_credits(wma->wmi_handle),
 			wmi_get_pending_cmds(wma->wmi_handle));
 		if (!cds_is_driver_recovering())
-			cds_trigger_recovery(CDS_RX_D0WOW_EN_HTC_ACK);
+			cds_trigger_recovery(CDS_SUSPEND_TIMEOUT);
 		else
 			WMA_LOGE("%s: LOGP is in progress, ignore!", __func__);
 
@@ -5321,7 +5321,7 @@ QDF_STATUS wma_enable_d0wow_in_fw(WMA_HANDLE handle)
 			 __func__, host_credits, wmi_pending_cmds);
 		htc_dump_counter_info(wma->htc_handle);
 		if (!cds_is_driver_recovering())
-			cds_trigger_recovery(CDS_NO_CREDIT_AFTER_D0WOW_EN);
+			cds_trigger_recovery(CDS_SUSPEND_TIMEOUT);
 		else
 			WMA_LOGE("%s: SSR in progress, ignore no credit issue",
 				 __func__);
@@ -6225,7 +6225,7 @@ QDF_STATUS wma_disable_d0wow_in_fw(WMA_HANDLE handle)
 			wmi_get_host_credits(wma->wmi_handle));
 
 		if (!cds_is_driver_recovering())
-			cds_trigger_recovery(CDS_DISABLE_D0WOW_RESUME_TIMEDOUT);
+			cds_trigger_recovery(CDS_RESUME_TIMEOUT);
 		else
 			WMA_LOGE("%s: LOGP is in progress, ignore!", __func__);
 

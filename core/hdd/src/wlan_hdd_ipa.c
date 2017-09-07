@@ -6404,6 +6404,9 @@ static void __hdd_ipa_flush(hdd_context_t *hdd_ctx)
 	qdf_nbuf_t skb;
 	struct hdd_ipa_pm_tx_cb *pm_tx_cb = NULL;
 
+	if (!hdd_ipa_is_enabled(hdd_ctx))
+		return;
+
 	cancel_work_sync(&hdd_ipa->pm_work);
 	qdf_spin_lock_bh(&hdd_ipa->pm_lock);
 

@@ -521,6 +521,10 @@ enum qdf_proto_subtype  __qdf_nbuf_data_get_icmp_subtype(uint8_t *data);
 enum qdf_proto_subtype  __qdf_nbuf_data_get_icmpv6_subtype(uint8_t *data);
 uint8_t __qdf_nbuf_data_get_ipv4_proto(uint8_t *data);
 uint8_t __qdf_nbuf_data_get_ipv6_proto(uint8_t *data);
+#ifdef CONFIG_MCL
+void __qdf_nbuf_init_replenish_timer(void);
+void __qdf_nbuf_deinit_replenish_timer(void);
+#endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 13, 0)
 #define qdf_nbuf_users_inc atomic_inc

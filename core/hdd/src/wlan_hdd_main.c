@@ -7834,7 +7834,6 @@ static hdd_context_t *hdd_context_create(struct device *dev)
 
 	cds_set_multicast_logging(hdd_ctx->config->multicast_host_fw_msgs);
 
-	wlan_hdd_init_chan_info(hdd_ctx);
 	ret = wlan_hdd_init_tx_rx_histogram(hdd_ctx);
 	if (ret)
 		goto err_deinit_hdd_context;
@@ -9780,6 +9779,8 @@ int hdd_wlan_startup(struct device *dev)
 		hdd_err("HAL context is null");
 		goto err_stop_modules;
 	}
+
+	wlan_hdd_init_chan_info(hdd_ctx);
 
 	ret = hdd_wiphy_init(hdd_ctx);
 	if (ret) {

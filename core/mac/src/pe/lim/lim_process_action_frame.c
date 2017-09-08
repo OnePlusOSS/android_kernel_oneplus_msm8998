@@ -1635,13 +1635,15 @@ static void lim_process_action_vendor_specific(tpAniSirGlobal mac_ctx,
 	uint32_t frame_len = 0;
 	uint8_t session_id = 0;
 	uint8_t p2p_oui[] = { 0x50, 0x6F, 0x9A, 0x09 };
+	uint8_t dpp_oui[] = { 0x50, 0x6F, 0x9A, 0x1A };
 
 	mac_hdr = WMA_GET_RX_MAC_HEADER(pkt_info);
 	frame_len = WMA_GET_RX_PAYLOAD_LEN(pkt_info);
 	if (session)
 		session_id = session->smeSessionId;
-	/* Check if it is a P2P public action frame. */
-	if (!qdf_mem_cmp(action_hdr->Oui, p2p_oui, 4)) {
+	/* Check if it is a P2P or DPP public action frame. */
+	if (!qdf_mem_cmp(action_hdr->Oui, p2p_oui, 4) ||
+	    !qdf_mem_cmp(action_hdr->Oui, dpp_oui, 4)) {
 		/* Forward to the SME to HDD to wpa_supplicant */
 		/* type is ACTION */
 		lim_send_sme_mgmt_frame_ind(mac_ctx, mac_hdr->fc.subType,

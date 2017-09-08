@@ -12041,16 +12041,19 @@ int hdd_set_limit_off_chan_for_tos(hdd_adapter_t *adapter, enum tos tos,
 	ac_bit = limit_off_chan_tbl[tos][HDD_AC_BIT_INDX];
 
 	if (is_tos_active)
-		hdd_ctx->active_ac |= ac_bit;
+		adapter->active_ac |= ac_bit;
 	else
-		hdd_ctx->active_ac &= ~ac_bit;
+		adapter->active_ac &= ~ac_bit;
 
-	if (hdd_ctx->active_ac) {
-		if (hdd_ctx->active_ac & HDD_AC_VO_BIT) {
+	hdd_debug("session id %hu active_ac %0x",
+			adapter->sessionId, adapter->active_ac);
+
+	if (adapter->active_ac) {
+		if (adapter->active_ac & HDD_AC_VO_BIT) {
 			cmd->max_off_chan_time =
 				limit_off_chan_tbl[TOS_VO][HDD_DWELL_TIME_INDX];
 			cds_set_cur_conc_system_pref(CDS_LATENCY);
-		} else if (hdd_ctx->active_ac & HDD_AC_VI_BIT) {
+		} else if (adapter->active_ac & HDD_AC_VI_BIT) {
 			cmd->max_off_chan_time =
 				limit_off_chan_tbl[TOS_VI][HDD_DWELL_TIME_INDX];
 			cds_set_cur_conc_system_pref(CDS_LATENCY);

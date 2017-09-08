@@ -1407,6 +1407,7 @@ struct hdd_adapter_s {
 	struct action_frame_random_mac random_mac[MAX_RANDOM_MAC_ADDRS];
 	uint32_t mon_chan;
 	uint32_t mon_bandwidth;
+	uint8_t active_ac;
 };
 
 #define WLAN_HDD_GET_STATION_CTX_PTR(pAdapter) (&(pAdapter)->sessionCtx.station)
@@ -1994,7 +1995,6 @@ struct hdd_context_s {
 	hdd_adapter_t *cap_tsf_context;
 #endif
 	struct sta_ap_intf_check_work_ctx *sta_ap_intf_check_work_info;
-	uint8_t active_ac;
 };
 
 int hdd_validate_channel_and_bandwidth(hdd_adapter_t *adapter,

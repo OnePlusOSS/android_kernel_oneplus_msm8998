@@ -323,6 +323,19 @@
 #define WLAN_NUD_STATS_ARP_PKT_TYPE 1
 
 /*
+ * @eHDD_DRV_OP_PROBE: Refers to .probe operation
+ * @eHDD_DRV_OP_REMOVE: Refers to .remove operation
+ * @eHDD_DRV_OP_SHUTDOWN: Refers to .shutdown operation
+ * @eHDD_DRV_OP_REINIT: Refers to .reinit operation
+ */
+enum {
+	eHDD_DRV_OP_PROBE = 0,
+	eHDD_DRV_OP_REMOVE,
+	eHDD_DRV_OP_SHUTDOWN,
+	eHDD_DRV_OP_REINIT
+};
+
+/*
  * @eHDD_SCAN_REJECT_DEFAULT: default value
  * @eHDD_CONNECTION_IN_PROGRESS: connection is in progress
  * @eHDD_REASSOC_IN_PROGRESS: reassociation is in progress
@@ -2795,5 +2808,28 @@ hdd_nla_parse_nested(struct nlattr *tb[], int maxtype, const struct nlattr *nla,
  * Return: None
  */
 void hdd_pld_ipa_uc_shutdown_pipes(void);
+
+/**
+ * hdd_drv_ops_inactivity_handler() - Timeout handler for driver ops
+ * inactivity timer
+ *
+ * Return: None
+ */
+void hdd_drv_ops_inactivity_handler(void);
+
+/**
+ * hdd_start_driver_ops_timer() - Starts driver ops inactivity timer
+ * @drv_op: Enum indicating driver op
+ *
+ * Return: none
+ */
+void hdd_start_driver_ops_timer(int drv_op);
+
+/**
+ * hdd_stop_driver_ops_timer() - Stops driver ops inactivity timer
+ *
+ * Return: none
+ */
+void hdd_stop_driver_ops_timer(void);
 
 #endif /* end #if !defined(WLAN_HDD_MAIN_H) */

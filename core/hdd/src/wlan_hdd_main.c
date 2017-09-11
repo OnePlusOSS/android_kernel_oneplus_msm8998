@@ -12075,6 +12075,49 @@ int hdd_set_limit_off_chan_for_tos(hdd_adapter_t *adapter, enum tos tos,
 	return ret;
 }
 
+/**
+ * hdd_reset_limit_off_chan() - reset limit off-channel command parameters
+ * @adapter - HDD adapter
+ *
+ * Return: 0 on success and non zero value on failure
+ */
+
+int hdd_reset_limit_off_chan(hdd_adapter_t *adapter)
+{
+	struct sir_limit_off_chan *cmd;
+	hdd_context_t *hdd_ctx;
+	int ret;
+
+	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+	ret = wlan_hdd_validate_context(hdd_ctx);
+
+	if (ret < 0)
+		return ret;
+
+	cmd = qdf_mem_malloc(sizeof(struct sir_limit_off_chan));
+	if (!cmd) {
+		hdd_err("qdf_mem_malloc failed for limit off channel");
+		return -ENOMEM;
+	}
+
+	cds_set_cur_conc_system_pref(hdd_ctx->config->conc_system_pref);
+
+	/* clear the bitmap */
+	adapter->active_ac = 0;
+
+	hdd_debug("reset ac_bitmap for session %hu active_ac %0x",
+			adapter->sessionId, adapter->active_ac);
+
+	cmd->vdev_id = adapter->sessionId;
+	cmd->is_tos_active = false;
+
+	ret = hdd_send_limit_off_chan_cmd(cmd);
+	if (ret)
+		qdf_mem_free(cmd);
+
+	return ret;
+}
+
 void hdd_pld_ipa_uc_shutdown_pipes(void)
 {
 	hdd_context_t *hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);

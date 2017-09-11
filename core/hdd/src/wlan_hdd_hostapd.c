@@ -8471,6 +8471,8 @@ static int __wlan_hdd_cfg80211_stop_ap(struct wiphy *wiphy,
 	/* Reset WNI_CFG_PROBE_RSP Flags */
 	wlan_hdd_reset_prob_rspies(pAdapter);
 
+	hdd_reset_limit_off_chan(pAdapter);
+
 #ifdef WLAN_FEATURE_P2P_DEBUG
 	if ((pAdapter->device_mode == QDF_P2P_GO_MODE) &&
 	    (global_p2p_connection_status == P2P_GO_COMPLETED_STATE)) {

@@ -1717,6 +1717,9 @@ static QDF_STATUS hdd_dis_connect_handler(hdd_adapter_t *pAdapter,
 
 	/* Unblock anyone waiting for disconnect to complete */
 	complete(&pAdapter->disconnect_comp_var);
+
+	hdd_reset_limit_off_chan(pAdapter);
+
 	hdd_print_bss_info(pHddStaCtx);
 	return status;
 }

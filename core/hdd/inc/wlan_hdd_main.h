@@ -2723,6 +2723,14 @@ void hdd_dp_trace_init(struct hdd_config *config);
 int hdd_set_limit_off_chan_for_tos(hdd_adapter_t *adapter, enum tos tos,
 		bool is_tos_active);
 
+/**
+ * hdd_reset_limit_off_chan() - reset limit off-channel command parameters
+ * @adapter - HDD adapter
+ *
+ * Return: 0 on success and non zero value on failure
+ */
+int hdd_reset_limit_off_chan(hdd_adapter_t *adapter);
+
 #if defined(WLAN_FEATURE_FILS_SK)
 /**
  * hdd_update_hlp_info() - Update HLP packet received in FILS (re)assoc rsp

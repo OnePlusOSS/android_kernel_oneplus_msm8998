@@ -318,8 +318,12 @@ void ol_txrx_pdev_detach(ol_txrx_pdev_handle pdev);
 ol_txrx_peer_handle
 ol_txrx_peer_attach(ol_txrx_vdev_handle vdev, uint8_t *peer_mac_addr);
 
+#ifdef CONFIG_MCL
 void
+ol_txrx_peer_detach(ol_txrx_peer_handle peer, bool start_peer_unmap_timer);
+#else
 ol_txrx_peer_detach(ol_txrx_peer_handle peer);
+#endif
 
 int
 ol_txrx_set_monitor_mode(ol_txrx_vdev_handle vdev);

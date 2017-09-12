@@ -1639,6 +1639,11 @@ static void lim_process_action_vendor_specific(tpAniSirGlobal mac_ctx,
 
 	mac_hdr = WMA_GET_RX_MAC_HEADER(pkt_info);
 	frame_len = WMA_GET_RX_PAYLOAD_LEN(pkt_info);
+	if (frame_len < sizeof(action_hdr)) {
+		pe_debug("Received action frame of invalid len %d", frame_len);
+		return;
+	}
+
 	if (session)
 		session_id = session->smeSessionId;
 	/* Check if it is a P2P or DPP public action frame. */

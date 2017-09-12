@@ -802,7 +802,6 @@ typedef struct sSirBssDescription {
 	uint8_t QBSSLoad_present;
 	uint8_t qbss_chan_load;
 	uint16_t QBSSLoad_avail;
-	uint16_t qbss_stacount;
 	/* To achieve 8-byte alignment with ESE enabled */
 	uint32_t reservedPadding5;
 	/* whether it is from a probe rsp */
@@ -823,6 +822,7 @@ typedef struct sSirBssDescription {
 #endif
 	uint8_t air_time_fraction;
 	uint8_t nss;
+	uint16_t reservedPadding3;
 	/* Please keep the structure 4 bytes aligned above the ieFields */
 	uint32_t ieFields[1];
 

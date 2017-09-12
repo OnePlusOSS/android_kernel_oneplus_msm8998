@@ -90,7 +90,6 @@ static inline void populate_qbss_load_status(tSirBssDescription *pBssDescr,
 		pBssDescr->QBSSLoad_present = true;
 		pBssDescr->QBSSLoad_avail = pBPR->QBSSLoad.avail;
 		pBssDescr->qbss_chan_load = pBPR->QBSSLoad.chautil;
-		pBssDescr->qbss_stacount = pBPR->QBSSLoad.stacount;
 	}
 }
 #else

@@ -192,7 +192,7 @@ struct sir_fils_indication {
 	struct public_key_identifier key_identifier;
 };
 #endif
-#define ESP_INFORMATION_LIST_LENGTH 24
+#define ESP_INFORMATION_LIST_LENGTH 3
 /*
  * enum access_category: tells about access category in ESP paramameter
  * @ESP_AC_BK: ESP access category for background

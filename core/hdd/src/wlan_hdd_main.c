@@ -3633,6 +3633,41 @@ error:
 }
 
 /**
+ * hdd_attach_adapter() - attach the given adapter to the hdd context
+ * @hdd_ctx: the hdd context to attach to
+ * @adapter: the hdd adapter to attach
+ *
+ * Return: QDF_STATUS
+ */
+static QDF_STATUS hdd_attach_adapter(hdd_context_t *hdd_ctx,
+				     hdd_adapter_t *adapter)
+{
+	QDF_STATUS status;
+	hdd_adapter_list_node_t *node;
+	int i;
+
+	node = NULL;
+	for (i = 0; i < CSR_ROAM_SESSION_MAX; ++i) {
+		if (hdd_ctx->adapter_nodes[i].pAdapter)
+			continue;
+
+		node = &hdd_ctx->adapter_nodes[i];
+		break;
+	}
+
+	if (!node)
+		return QDF_STATUS_E_RESOURCES;
+
+	node->pAdapter = adapter;
+
+	status = hdd_add_adapter_back(hdd_ctx, node);
+	if (QDF_IS_STATUS_ERROR(status))
+		node->pAdapter = NULL;
+
+	return status;
+}
+
+/**
  * hdd_open_adapter() - open and setup the hdd adatper
  * @hdd_ctx: global hdd context
  * @session_type: type of the interface to be created
@@ -3653,7 +3688,6 @@ hdd_adapter_t *hdd_open_adapter(hdd_context_t *hdd_ctx, uint8_t session_type,
 				bool rtnl_held)
 {
 	hdd_adapter_t *adapter = NULL;
-	hdd_adapter_list_node_t *pHddAdapterNode = NULL;
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	hdd_cfg80211_state_t *cfgState;
 
@@ -3813,25 +3847,14 @@ hdd_adapter_t *hdd_open_adapter(hdd_context_t *hdd_ctx, uint8_t session_type,
 	cfgState = WLAN_HDD_GET_CFG_STATE_PTR(adapter);
 	mutex_init(&cfgState->remain_on_chan_ctx_lock);
 
-	if (QDF_STATUS_SUCCESS == status) {
-		/* Add it to the hdd's session list. */
-		pHddAdapterNode =
-			qdf_mem_malloc(sizeof(hdd_adapter_list_node_t));
-		if (NULL == pHddAdapterNode) {
-			status = QDF_STATUS_E_NOMEM;
-		} else {
-			pHddAdapterNode->pAdapter = adapter;
-			status = hdd_add_adapter_back(hdd_ctx, pHddAdapterNode);
-		}
-	}
+	if (QDF_STATUS_SUCCESS == status)
+		status = hdd_attach_adapter(hdd_ctx, adapter);
 
 	if (QDF_STATUS_SUCCESS != status) {
-		if (NULL != adapter) {
+		if (adapter) {
 			hdd_cleanup_adapter(hdd_ctx, adapter, rtnl_held);
 			adapter = NULL;
 		}
-		if (NULL != pHddAdapterNode)
-			qdf_mem_free(pHddAdapterNode);
 
 		return NULL;
 	}
@@ -3894,7 +3917,7 @@ QDF_STATUS hdd_close_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 		cds_clear_concurrency_mode(adapter->device_mode);
 		hdd_cleanup_adapter(hdd_ctx, adapterNode->pAdapter, rtnl_held);
 		hdd_remove_adapter(hdd_ctx, adapterNode);
-		qdf_mem_free(adapterNode);
+		adapterNode->pAdapter = NULL;
 		adapterNode = NULL;
 
 		/* conditionally restart the bw timer */
@@ -3934,7 +3957,9 @@ QDF_STATUS hdd_close_all_adapters(hdd_context_t *hdd_ctx, bool rtnl_held)
 			pHddAdapterNode->pAdapter->macAddressCurrent.bytes);
 			hdd_cleanup_adapter(hdd_ctx, pHddAdapterNode->pAdapter,
 					    rtnl_held);
-			qdf_mem_free(pHddAdapterNode);
+
+			pHddAdapterNode->pAdapter = NULL;
+
 			/* Adapter removed. Decrement vdev count */
 			if (hdd_ctx->current_intf_count != 0)
 				hdd_ctx->current_intf_count--;

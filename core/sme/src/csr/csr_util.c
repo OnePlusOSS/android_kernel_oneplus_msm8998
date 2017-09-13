@@ -844,8 +844,8 @@ uint16_t csr_check_concurrent_channel_overlap(tpAniSirGlobal mac_ctx,
 		}
 	}
 
-	sme_debug("intf_ch:%d sap_ch:%d cc_switch_mode:%d",
-		intf_ch, sap_ch, cc_switch_mode);
+	sme_debug("intf_ch:%d sap_ch:%d cc_switch_mode:%d, dbs:%d",
+		intf_ch, sap_ch, cc_switch_mode, wma_is_dbs_enable());
 
 	if (intf_ch && sap_ch != intf_ch &&
 	    cc_switch_mode != QDF_MCC_TO_SCC_SWITCH_FORCE &&
@@ -877,8 +877,10 @@ uint16_t csr_check_concurrent_channel_overlap(tpAniSirGlobal mac_ctx,
 		(cc_switch_mode ==
 			QDF_MCC_TO_SCC_SWITCH_WITH_FAVORITE_CHANNEL))) {
 		if (!((intf_ch <= 14 && sap_ch <= 14) ||
-			(intf_ch > 14 && sap_ch > 14)))
-			intf_ch = 0;
+			(intf_ch > 14 && sap_ch > 14))) {
+			if (wma_is_hw_dbs_capable())
+				intf_ch = 0;
+		}
 		else if (cc_switch_mode ==
 			QDF_MCC_TO_SCC_SWITCH_WITH_FAVORITE_CHANNEL) {
 			status =

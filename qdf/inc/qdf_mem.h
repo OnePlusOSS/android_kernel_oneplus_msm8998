@@ -380,20 +380,32 @@ static inline qdf_dma_addr_t qdf_mem_paddr_from_dmaaddr(qdf_device_t osdev,
 }
 
 /**
- * qdf_os_mem_dma_get_sgtable() - Returns DMA memory scatter gather table
+ * qdf_mem_dma_get_sgtable() - Returns DMA memory scatter gather table
  * @dev: device instace
  * @sgt: scatter gather table pointer
  * @cpu_addr: HLOS virtual address
  * @dma_addr: dma address
  * @size: allocated memory size
  *
- * @Return: physical address
+ * @Return: status
  */
 static inline int
 qdf_mem_dma_get_sgtable(struct device *dev, void *sgt, void *cpu_addr,
 			qdf_dma_addr_t dma_addr, size_t size)
 {
 	return __qdf_os_mem_dma_get_sgtable(dev, sgt, cpu_addr, dma_addr, size);
+}
+
+/**
+ * qdf_dma_get_sgtable_dma_addr() - Assigns DMA address to scatterlist elements
+ * @sgt: scatter gather table pointer
+ *
+ * @Return: None
+ */
+static inline void
+qdf_dma_get_sgtable_dma_addr(struct sg_table *sgt)
+{
+	return __qdf_dma_get_sgtable_dma_addr(sgt);
 }
 
 /**
@@ -472,7 +484,7 @@ static inline qdf_shared_mem_t *qdf_mem_shared_mem_alloc(qdf_device_t osdev,
 						     &shared_mem->mem_info),
 				shared_mem->mem_info.size);
 
-	shared_mem->sgtable.sgl->dma_address = shared_mem->mem_info.pa;
+	qdf_dma_get_sgtable_dma_addr(&shared_mem->sgtable);
 
 	return shared_mem;
 }

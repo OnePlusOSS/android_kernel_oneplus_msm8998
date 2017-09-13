@@ -32,8 +32,17 @@
 #ifndef _CDP_TXRX_STATS_H_
 #define _CDP_TXRX_STATS_H_
 #include <qdf_status.h>
+#include <qdf_types.h>
 
-QDF_STATUS ol_txrx_display_stats(uint16_t bitmap);
+/**
+ * ol_txrx_display_stats() - Display OL TXRX stats
+ * @value: Module id for which stats needs to be displayed
+ * @verb_level: verbosity level for tx rx stats
+ *
+ * Return: QDF_STATUS_SUCCESS on success, QDF_STATUS_E code on failure
+ */
+QDF_STATUS ol_txrx_display_stats(uint16_t value,
+			enum qdf_stats_verb_lvl verb_level);
 QDF_STATUS ol_txrx_clear_stats(uint16_t bitmap);
 int ol_txrx_stats(uint8_t vdev_id, char *buffer, unsigned int buf_len);
 

@@ -9537,8 +9537,10 @@ int hdd_wlan_stop_modules(hdd_context_t *hdd_ctx, bool ftm_mode)
 		ret = -EINVAL;
 	}
 
-	if (hdd_ctx->target_hw_name)
+	if (hdd_ctx->target_hw_name) {
 		qdf_mem_free(hdd_ctx->target_hw_name);
+		hdd_ctx->target_hw_name = NULL;
+	}
 
 	hdd_hif_close(hif_ctx);
 

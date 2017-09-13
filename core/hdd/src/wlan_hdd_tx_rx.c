@@ -860,7 +860,7 @@ static void __hdd_tx_timeout(struct net_device *dev)
 	QDF_TRACE(QDF_MODULE_ID_HDD_DATA, QDF_TRACE_LEVEL_DEBUG,
 		  "carrier state: %d", netif_carrier_ok(dev));
 	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
-	wlan_hdd_display_netif_queue_history(hdd_ctx);
+	wlan_hdd_display_netif_queue_history(hdd_ctx, QDF_STATS_VERB_LVL_HIGH);
 	ol_tx_dump_flow_pool_info();
 
 	++adapter->hdd_stats.hddTxRxStats.tx_timeout_cnt;
@@ -1481,7 +1481,7 @@ QDF_STATUS hdd_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 		if (qdf_nbuf_data_is_arp_rsp(skb) &&
 		    (pHddCtx->track_arp_ip == qdf_nbuf_get_arp_src_ip(skb))) {
 			++pAdapter->hdd_stats.hdd_arp_stats.rx_arp_rsp_count;
-			QDF_TRACE(QDF_MODULE_ID_HDD_DATA, QDF_TRACE_LEVEL_INFO,
+			QDF_TRACE(QDF_MODULE_ID_HDD_DATA, QDF_TRACE_LEVEL_DEBUG,
 					"%s: ARP packet received", __func__);
 			track_arp = true;
 		}

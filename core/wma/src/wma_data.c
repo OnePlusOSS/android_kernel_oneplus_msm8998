@@ -3045,7 +3045,8 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 			 */
 
 			/* display scheduler stats */
-			ol_txrx_display_stats(WLAN_SCHEDULER_STATS);
+			ol_txrx_display_stats(WLAN_SCHEDULER_STATS,
+					QDF_STATS_VERB_LVL_HIGH);
 		}
 	}
 

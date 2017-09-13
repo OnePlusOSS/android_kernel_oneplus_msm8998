@@ -1075,8 +1075,8 @@ typedef struct multicast_addr_list {
  * @unpause_count - unpause counter
  */
 struct hdd_netif_queue_stats {
-	uint16_t pause_count;
-	uint16_t unpause_count;
+	uint32_t pause_count;
+	uint32_t unpause_count;
 	qdf_time_t total_pause_time;
 };
 
@@ -2353,7 +2353,8 @@ int hdd_wlan_dump_stats(hdd_adapter_t *adapter, int value);
 void wlan_hdd_deinit_tx_rx_histogram(hdd_context_t *hdd_ctx);
 void wlan_hdd_display_tx_rx_histogram(hdd_context_t *pHddCtx);
 void wlan_hdd_clear_tx_rx_histogram(hdd_context_t *pHddCtx);
-void wlan_hdd_display_netif_queue_history(hdd_context_t *hdd_ctx);
+void wlan_hdd_display_netif_queue_history(hdd_context_t *hdd_ctx,
+			enum qdf_stats_verb_lvl verb_lvl);
 void wlan_hdd_clear_netif_queue_history(hdd_context_t *hdd_ctx);
 const char *hdd_get_fwpath(void);
 void hdd_indicate_mgmt_frame(tSirSmeMgmtFrameInd *frame_ind);

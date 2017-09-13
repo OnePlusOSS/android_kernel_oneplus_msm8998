@@ -3062,7 +3062,8 @@ int hdd_wlan_dump_stats(hdd_adapter_t *adapter, int value)
 		wlan_hdd_display_tx_rx_histogram(hdd_ctx);
 		break;
 	case WLAN_HDD_NETIF_OPER_HISTORY:
-		wlan_hdd_display_netif_queue_history(hdd_ctx);
+		wlan_hdd_display_netif_queue_history(hdd_ctx,
+					QDF_STATS_VERB_LVL_HIGH);
 		break;
 	case WLAN_HIF_STATS:
 		hdd_display_hif_stats();
@@ -3080,7 +3081,8 @@ int hdd_wlan_dump_stats(hdd_adapter_t *adapter, int value)
 						adapter->sessionId);
 		break;
 	default:
-		status = ol_txrx_display_stats(value);
+		status = ol_txrx_display_stats(value,
+			QDF_STATS_VERB_LVL_HIGH);
 		if (status == QDF_STATUS_E_INVAL) {
 			hdd_display_stats_help();
 			ret = EINVAL;

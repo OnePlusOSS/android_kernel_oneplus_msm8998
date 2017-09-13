@@ -537,7 +537,7 @@ static void __hdd_softap_tx_timeout(struct net_device *dev)
 			  i, netif_tx_queue_stopped(txq), txq->trans_start);
 	}
 
-	wlan_hdd_display_netif_queue_history(hdd_ctx);
+	wlan_hdd_display_netif_queue_history(hdd_ctx, QDF_STATS_VERB_LVL_HIGH);
 	ol_tx_dump_flow_pool_info();
 	QDF_TRACE(QDF_MODULE_ID_HDD_DATA, QDF_TRACE_LEVEL_DEBUG,
 			"carrier state: %d", netif_carrier_ok(dev));

@@ -2316,8 +2316,9 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 		sme_scan_flush_result(WLAN_HDD_GET_HAL_CTX(pAdapter));
 	}
 #endif
-	wlan_hdd_update_scan_rand_attrs((void *)&scan_req, (void *)request,
-					WLAN_HDD_HOST_SCAN);
+	if (cfg_param->enable_mac_spoofing)
+		wlan_hdd_update_scan_rand_attrs((void *)&scan_req,
+				(void *)request, WLAN_HDD_HOST_SCAN);
 
 	status = wlan_hdd_populate_ie_whitelist(pAdapter, pHddCtx,
 						&scan_req, is_p2p_scan);
@@ -3423,8 +3424,11 @@ static int __wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
 	hdd_debug("SessionId %d, enable %d, modePNO %d",
 		pAdapter->sessionId, pPnoRequest->enable, pPnoRequest->modePNO);
 
-	wlan_hdd_update_scan_rand_attrs((void *)pPnoRequest, (void *)request,
-					WLAN_HDD_PNO_SCAN);
+	if (pHddCtx->config->enable_mac_spoofing)
+		wlan_hdd_update_scan_rand_attrs((void *)pPnoRequest,
+				(void *)request, WLAN_HDD_PNO_SCAN);
+	else
+		pPnoRequest->enable_pno_scan_randomization = false;
 
 	if (!hdd_conn_is_connected(station_ctx))
 		wlan_hdd_fill_whitelist_ie_attrs(&pPnoRequest->ie_whitelist,

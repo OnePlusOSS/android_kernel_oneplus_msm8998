@@ -1689,6 +1689,297 @@ csr_save_ies(tpAniSirGlobal pMac,
 }
 
 /**
+ * csr_calculate_rssi_score () - Calculate RSSI score based on AP RSSI
+ * @mac_ctx: Pointer to mac context
+ * @bss_info: bss information
+ * @rssi_weightage: rssi_weightage out of total weightage
+ *
+ * Return : rssi score
+ */
+static int32_t csr_calculate_rssi_score(tpAniSirGlobal mac_ctx,
+		tSirBssDescription *bss_info, uint8_t rssi_weightage)
+{
+	int8_t slot_index, slot_size;
+	int8_t rssi_diff;
+	int8_t num_slot;
+	int8_t rssi_pcnt;
+	int32_t total_rssi_score;
+	struct sir_rssi_cfg_score *score_param;
+	int32_t best_rssi_threshold;
+	int32_t good_rssi_threshold;
+	int32_t bad_rssi_threshold;
+	uint32_t good_rssi_pcnt;
+	uint32_t bad_rssi_pcnt;
+	uint32_t good_bucket_size;
+	uint32_t bad_bucket_size;
+
+	score_param = &mac_ctx->roam.configParam.bss_score_params.rssi_score;
+	best_rssi_threshold = score_param->best_rssi_threshold*(-1);
+	good_rssi_threshold = score_param->good_rssi_threshold*(-1);
+	bad_rssi_threshold = score_param->bad_rssi_threshold*(-1);
+	good_rssi_pcnt = score_param->good_rssi_pcnt;
+	bad_rssi_pcnt = score_param->bad_rssi_pcnt;
+	good_bucket_size = score_param->good_rssi_bucket_size;
+	bad_bucket_size = score_param->bad_rssi_bucket_size;
+	sme_debug("best_rssi_threshold %d good_rssi_threshold %d bad_rssi_threshold %d good_rssi_pcnt %d bad_rssi_pcnt %d good_bucket_size %d bad_bucket_size %d",
+		  best_rssi_threshold, good_rssi_threshold,
+		  bad_rssi_threshold, good_rssi_pcnt,
+		  bad_rssi_pcnt, good_bucket_size,
+		  bad_bucket_size);
+
+	total_rssi_score = (BEST_CANDIDATE_MAX_WEIGHT * rssi_weightage);
+
+	/*
+	 * If RSSI is better or equal to best rssi threshold then it return full
+	 * score.
+	 */
+	if (bss_info->rssi >= best_rssi_threshold)
+		return total_rssi_score;
+	/*
+	 * If RSSI is less or equal to bad rssi threshold then it return
+	 * least score.
+	 */
+	if (bss_info->rssi <= bad_rssi_threshold)
+		return (total_rssi_score * bad_rssi_pcnt) / 100;
+
+	/* RSSI lies between best to good rssi threshold */
+	if (bss_info->rssi > good_rssi_threshold) {
+		num_slot = (best_rssi_threshold -
+				good_rssi_threshold) / good_bucket_size;
+		slot_size = good_bucket_size;
+		rssi_diff = best_rssi_threshold - bss_info->rssi;
+		slot_index = (rssi_diff / good_bucket_size) + 1;
+		if (slot_index > num_slot)
+			rssi_pcnt = good_rssi_pcnt;
+		else
+			rssi_pcnt = 100 - slot_size *  (slot_index);
+	} else {
+		num_slot = (good_rssi_threshold -
+				bad_rssi_threshold) / bad_bucket_size;
+		slot_size = bad_bucket_size;
+		rssi_diff = good_rssi_threshold - bss_info->rssi;
+		slot_index = (rssi_diff / bad_bucket_size) + 1;
+		if (slot_index > num_slot)
+			rssi_pcnt = bad_rssi_pcnt;
+		else
+			rssi_pcnt = good_rssi_pcnt - slot_size *  (slot_index);
+	}
+	return (total_rssi_score * rssi_pcnt) / 100;
+
+}
+
+/**
+ * csr_calculate_pcl_score () - Calculate PCL score based on PCL weightage
+ * @mac_ctx: Pointer to mac context
+ * @bss_info: bss information
+ * @pcl_chan_weight: pcl weight of BSS channel
+ * @pcl_weightage: PCL _weightage out of total weightage
+ *
+ * Return : pcl score
+ */
+static int32_t csr_calculate_pcl_score(tpAniSirGlobal mac_ctx,
+		tSirBssDescription *bss_info, int pcl_chan_weight,
+		uint8_t pcl_weightage)
+{
+	int32_t pcl_score = 0;
+	int32_t score = 0;
+	int32_t temp_pcl_chan_weight = 0;
+
+	if (pcl_chan_weight) {
+		temp_pcl_chan_weight =
+			(MAX_WEIGHT_OF_PCL_CHANNELS - pcl_chan_weight);
+		do_div(temp_pcl_chan_weight,
+				PCL_GROUPS_WEIGHT_DIFFERENCE);
+		pcl_score = pcl_weightage -
+			temp_pcl_chan_weight;
+
+		if (pcl_score < 0)
+			pcl_score = 0;
+
+		score += pcl_score * BEST_CANDIDATE_MAX_WEIGHT;
+	}
+	return score;
+
+}
+
+/**
+ * csr_calculate_bandwidth_score () - Calculate BW score
+ * @mac_ctx: Pointer to mac context
+ * @bss_info: bss information
+ * @chan_width_weightage: PCL _weightage out of total weightage
+ *
+ * Return : bw score
+ */
+static int32_t csr_calculate_bandwidth_score(tpAniSirGlobal mac_ctx,
+		tSirBssDescription *bss_info,
+		uint8_t chan_width_weightage)
+{
+	uint32_t score;
+	int32_t bw_weight_per_idx;
+	uint8_t cbmode;
+
+	bw_weight_per_idx = mac_ctx->roam.configParam.
+			bss_score_params.bandwidth_weight_per_index;
+	if (CDS_IS_CHANNEL_24GHZ(bss_info->channelId)) {
+		cbmode =
+			mac_ctx->roam.configParam.channelBondingMode24GHz;
+	} else {
+		cbmode =
+			mac_ctx->roam.configParam.channelBondingMode5GHz;
+	}
+
+	if (cbmode) {
+		if (bss_info->chan_width == eHT_CHANNEL_WIDTH_160MHZ)
+			score = WLAN_GET_SCORE_PERCENTAGE(bw_weight_per_idx,
+					WLAN_SCORE_160MHZ_BW_INDEX);
+		else if (bss_info->chan_width == eHT_CHANNEL_WIDTH_80MHZ)
+			score = WLAN_GET_SCORE_PERCENTAGE(bw_weight_per_idx,
+					WLAN_SCORE_80MHZ_BW_INDEX);
+		else if (bss_info->chan_width == eHT_CHANNEL_WIDTH_40MHZ)
+			score = WLAN_GET_SCORE_PERCENTAGE(bw_weight_per_idx,
+					WLAN_SCORE_40MHZ_BW_INDEX);
+		else
+			score = WLAN_GET_SCORE_PERCENTAGE(bw_weight_per_idx,
+					WLAN_20MHZ_BW_INDEX);
+	} else {
+		score = WLAN_GET_SCORE_PERCENTAGE(bw_weight_per_idx,
+					WLAN_20MHZ_BW_INDEX);
+	}
+
+	return score * chan_width_weightage;
+}
+
+/**
+ * csr_calculate_congestion_score () - Calculate congestion score
+ * @mac_ctx: Pointer to mac context
+ * @bss_info: bss information
+ * @bss_score_params: bss score params
+ *
+ * Return : congestion score
+ */
+static int32_t csr_calculate_congestion_score(tpAniSirGlobal mac_ctx,
+		tSirBssDescription *bss_info,
+		struct sir_score_config *bss_score_params)
+{
+	uint32_t ap_load = 0;
+	uint32_t est_air_time_percentage = 0;
+	uint32_t congestion = 0;
+	uint32_t window_size;
+	uint8_t index;
+
+	if (!bss_score_params->esp_qbss_scoring.num_slot)
+		return 0;
+
+	if (bss_score_params->esp_qbss_scoring.num_slot >
+	    WLAN_ESP_QBSS_MAX_INDEX)
+		bss_score_params->esp_qbss_scoring.num_slot =
+			WLAN_ESP_QBSS_MAX_INDEX;
+
+	window_size = BEST_CANDIDATE_MAX_WEIGHT /
+			bss_score_params->esp_qbss_scoring.num_slot;
+
+	if (bss_info->air_time_fraction) {
+			/* Convert 0-255 range to percentage */
+			est_air_time_percentage =
+				bss_info->air_time_fraction *
+					ROAM_MAX_CHANNEL_WEIGHT;
+			qdf_do_div(est_air_time_percentage,
+					MAX_ESTIMATED_AIR_TIME_FRACTION);
+			/*
+			 * Calculate channel congestion from estimated air time
+			 * fraction.
+			 */
+			congestion = MAX_CHANNEL_UTILIZATION -
+					est_air_time_percentage;
+	} else if (bss_info->QBSSLoad_present) {
+			ap_load = (bss_info->qbss_chan_load *
+					BEST_CANDIDATE_MAX_WEIGHT);
+			/*
+			 * Calculate ap_load in % from qbss channel load from
+			 * 0-255 range
+			 */
+			qdf_do_div(ap_load, MAX_AP_LOAD);
+			congestion = ap_load;
+	} else {
+		return bss_score_params->weight_cfg.
+			channel_congestion_weightage *
+			   WLAN_GET_SCORE_PERCENTAGE(
+			   bss_score_params->esp_qbss_scoring.score_pcnt3_to_0,
+			   WLAN_ESP_QBSS_INDEX_0);
+	}
+	index = congestion;
+	qdf_do_div(index, window_size);
+	/* Desired values are from 1 to 15, as 0 is for not present. so do +1 */
+	index++;
+
+	if (index > bss_score_params->esp_qbss_scoring.num_slot)
+		index = bss_score_params->esp_qbss_scoring.num_slot;
+
+	if (index <= WLAN_ESP_QBSS_INDEX_3)
+		return bss_score_params->weight_cfg.
+			   channel_congestion_weightage *
+			   WLAN_GET_SCORE_PERCENTAGE(
+			   bss_score_params->esp_qbss_scoring.score_pcnt3_to_0,
+			   index);
+	else if (index <= WLAN_ESP_QBSS_INDEX_7)
+		return bss_score_params->weight_cfg.
+			   channel_congestion_weightage *
+			   WLAN_GET_SCORE_PERCENTAGE(
+			   bss_score_params->esp_qbss_scoring.score_pcnt7_to_4,
+			   index - WLAN_ESP_QBSS_OFFSET_INDEX_7_4);
+	else if (index <= WLAN_ESP_QBSS_INDEX_11)
+		return bss_score_params->weight_cfg.
+			   channel_congestion_weightage *
+			   WLAN_GET_SCORE_PERCENTAGE(
+			   bss_score_params->esp_qbss_scoring.score_pcnt11_to_8,
+			   index - WLAN_ESP_QBSS_OFFSET_INDEX_11_8);
+	else
+		return bss_score_params->weight_cfg.
+			  channel_congestion_weightage *
+			  WLAN_GET_SCORE_PERCENTAGE(
+			  bss_score_params->esp_qbss_scoring.score_pcnt15_to_12,
+			  index - WLAN_ESP_QBSS_OFFSET_INDEX_15_12);
+}
+
+/**
+ * csr_calculate_nss_score () - Calculate congestion score
+ * @sta_nss: sta nss supported
+ * @ap_nss: AP nss supported
+ * @nss_weight_per_index: nss wight per index
+ * @nss_weightage: weightage for nss
+ *
+ * Return : nss score
+ */
+static int32_t csr_calculate_nss_score(int sta_nss, int ap_nss,
+		uint32_t nss_weight_per_index, uint8_t nss_weightage)
+{
+	if (wma_is_current_hwmode_dbs())
+		sta_nss--;
+	if (sta_nss == 2)
+		if (ap_nss == 4)
+			return nss_weightage *
+				WLAN_GET_SCORE_PERCENTAGE(nss_weight_per_index,
+					WLAN_NSS_4x4_INDEX);
+		else if (ap_nss == 3)
+			return nss_weightage *
+				WLAN_GET_SCORE_PERCENTAGE(nss_weight_per_index,
+					WLAN_NSS_3x3_INDEX);
+		else if (ap_nss == 2)
+			return nss_weightage *
+				WLAN_GET_SCORE_PERCENTAGE(nss_weight_per_index,
+					WLAN_NSS_2x2_INDEX);
+		else
+			return nss_weightage *
+				WLAN_GET_SCORE_PERCENTAGE(nss_weight_per_index,
+					WLAN_NSS_1x1_INDEX);
+	else {
+		return nss_weightage *
+			WLAN_GET_SCORE_PERCENTAGE(nss_weight_per_index,
+					WLAN_NSS_1x1_INDEX);
+	}
+}
+
+/**
  * _csr_calculate_bss_score () - Calculate BSS score based on AP capabilty
  *                              and channel condition for best candidate
  *                              selection
@@ -1701,33 +1992,22 @@ csr_save_ies(tpAniSirGlobal pMac,
  */
 static int32_t _csr_calculate_bss_score(tpAniSirGlobal mac_ctx,
 		tSirBssDescription *bss_info,
-		int pcl_chan_weight, int nss)
+		int pcl_chan_weight, int sta_nss)
 {
 	int32_t score = 0;
-	int32_t ap_load = 0;
-	int32_t normalised_width = BEST_CANDIDATE_20MHZ;
+	int32_t rssi_score;
+	int32_t ht_score = 0;
+	int32_t vht_score = 0;
+	int32_t beamformee_score = 0;
+	int32_t nss_score = 0;
+	int32_t congestion_score = 0;
 	int32_t pcl_score = 0;
-	int32_t temp_pcl_chan_weight = 0;
-	int32_t est_air_time_percentage = 0;
-	int32_t congestion = 0;
-	int32_t rssi_diff = 0;
-	int32_t rssi_weight = 0;
-	int32_t low_channel_congestion_weight = 0;
-	int32_t moderate_channel_congestion_weight = 0;
-	int32_t considerable_channel_congestion_weight = 0;
-	int32_t high_channel_congestion_weight = 0;
-	int32_t nss_1x1 = 0;
-	int8_t  ap_nss = 0;
-	uint8_t rssi_weightage;
-	uint8_t ht_caps_weightage;
-	uint8_t vht_caps_weightage;
-	uint8_t chan_width_weightage;
-	uint8_t chan_band_weightage;
-	uint8_t nss_weightage;
-	uint8_t beamforming_cap_weightage;
-	uint8_t pcl_weightage;
-	uint8_t channel_congestion_weightage;
+	int32_t bandwidth_score = 0;
+	int32_t band_score = 0;
 	struct sir_weight_config *weight_config;
+	uint32_t beamformee_cap;
+	uint32_t dot11mode;
+	struct sir_score_config *bss_score_params;
 
 	/*
 	 * Total weight of a BSSID is calculated on basis of 100 in which
@@ -1743,199 +2023,82 @@ static int32_t _csr_calculate_bss_score(tpAniSirGlobal mac_ctx,
 	 * CHANNEL_CONGESTION: 5
 	 * Reserved : 31
 	 */
-	weight_config = &mac_ctx->roam.configParam.bss_score_params.weight_cfg;
-	rssi_weightage = weight_config->rssi_weightage;
-	ht_caps_weightage = weight_config->ht_caps_weightage;
-	vht_caps_weightage = weight_config->vht_caps_weightage;
-	chan_width_weightage = weight_config->chan_width_weightage;
-	chan_band_weightage = weight_config->chan_band_weightage;
-	nss_weightage = weight_config->nss_weightage;
-	beamforming_cap_weightage = weight_config->beamforming_cap_weightage;
-	pcl_weightage = weight_config->pcl_weightage;
-	channel_congestion_weightage =
-		weight_config->channel_congestion_weightage;
+	bss_score_params = &mac_ctx->roam.configParam.bss_score_params;
+	weight_config = &bss_score_params->weight_cfg;
+
+	rssi_score = csr_calculate_rssi_score(mac_ctx, bss_info,
+		weight_config->rssi_weightage);
+	score += rssi_score;
+
+	pcl_score = csr_calculate_pcl_score(mac_ctx, bss_info,
+			pcl_chan_weight, weight_config->pcl_weightage);
+	score += pcl_score;
+
+	dot11mode = csr_translate_to_wni_cfg_dot11_mode(mac_ctx,
+			mac_ctx->roam.configParam.uCfgDot11Mode);
+
+	/* If device and AP supports HT caps, extra 10% score will be added */
+	if (IS_DOT11_MODE_HT(dot11mode) && bss_info->ht_caps_present)
+		ht_score = BEST_CANDIDATE_MAX_WEIGHT *
+				weight_config->ht_caps_weightage;
+	score += ht_score;
 
 	/*
-	 * Further bucketization of rssi is also done out of 25 score.
-	 * RSSI > -55=> weight = 2500
-	 * RSSI > -60=> weight = 2250
-	 * RSSI >-65 =>weight = 2000
-	 * RSSI > -70=> weight = 1750
-	 * RSSI > -75=> weight = 1500
-	 * RSSI > -80=> weight = 1250
+	 * If device and AP supports VHT caps, Extra 6% score will
+	 * be added to score
 	 */
-
-	if (bss_info->rssi) {
-		/*
-		 * if RSSI of AP is less then -80, driver should ignore that
-		 * candidate.
-		 */
-		if (bss_info->rssi < BAD_RSSI) {
-			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-			FL("Drop this BSS "MAC_ADDRESS_STR " due to low rssi %d"),
-			MAC_ADDR_ARRAY(bss_info->bssId), bss_info->rssi);
-			score = 0;
-			return score;
-		}
-		if (bss_info->rssi >= EXCELLENT_RSSI) {
-			rssi_weight = EXCELLENT_RSSI_WEIGHT *
-				rssi_weightage;
-		} else {
-			rssi_diff = EXCELLENT_RSSI -
-				bss_info->rssi;
-			do_div(rssi_diff, 5);
-			rssi_weight = (rssi_diff + 1) * RSSI_WEIGHT_BUCKET;
-			rssi_weight = (EXCELLENT_RSSI_WEIGHT *
-				rssi_weightage) -
-				rssi_weight;
-
-		}
-		score += rssi_weight;
-	}
-
-	/* If BSS is in PCL list extra pcl Weight is added n % */
-	if (pcl_chan_weight) {
-		temp_pcl_chan_weight =
-			(MAX_WEIGHT_OF_PCL_CHANNELS - pcl_chan_weight);
-		do_div(temp_pcl_chan_weight,
-				PCL_GROUPS_WEIGHT_DIFFERENCE);
-		pcl_score = pcl_weightage -
-						temp_pcl_chan_weight;
-
-		if (pcl_score < 0)
-			pcl_score = 0;
-
-		score += pcl_score * BEST_CANDIDATE_MAX_WEIGHT;
-	}
-	/* If AP supports HT caps, extra 10% score will be added */
-	if (bss_info->ht_caps_present)
-		score += BEST_CANDIDATE_MAX_WEIGHT *
-				ht_caps_weightage;
-
-	/* If AP supports VHT caps, Extra 6% score will be added to score */
-	if (bss_info->vht_caps_present)
-		score += BEST_CANDIDATE_MAX_WEIGHT *
-				 vht_caps_weightage;
-
-	/* If AP supports beam forming, extra 2% score will be added to score.*/
-	if (bss_info->beacomforming_capable)
-		score += BEST_CANDIDATE_MAX_WEIGHT *
-			beamforming_cap_weightage;
+	if (IS_DOT11_MODE_VHT(dot11mode) && bss_info->vht_caps_present)
+		vht_score = BEST_CANDIDATE_MAX_WEIGHT *
+				 weight_config->vht_caps_weightage;
+	score += vht_score;
 
 	/*
-	 * Channel width is again calculated on basis of 100.
-	 * Where if AP is
-	 * 80MHZ = 100
-	 * 40MHZ = 70
-	 * 20MHZ = 30 weightage is given out of 100.
-	 * Channel width weightage is given as CHAN_WIDTH_WEIGHTAGE (10%).
+	 * If device and AP supports beam forming, extra 2% score
+	 * will be added to score.
 	 */
-	if (bss_info->chan_width == eHT_CHANNEL_WIDTH_80MHZ)
-		normalised_width = BEST_CANDIDATE_80MHZ;
-	else if (bss_info->chan_width == eHT_CHANNEL_WIDTH_40MHZ)
-		normalised_width = BEST_CANDIDATE_40MHZ;
-	else
-		normalised_width = BEST_CANDIDATE_20MHZ;
-	score += normalised_width *
-		chan_width_weightage;
+	wlan_cfg_get_int(mac_ctx,
+			 WNI_CFG_VHT_SU_BEAMFORMEE_CAP, &beamformee_cap);
+	if (beamformee_cap && bss_info->beacomforming_capable)
+		beamformee_score = BEST_CANDIDATE_MAX_WEIGHT *
+			weight_config->beamforming_cap_weightage;
+	score += beamformee_score;
+
+	bandwidth_score = csr_calculate_bandwidth_score(mac_ctx, bss_info,
+				weight_config->chan_width_weightage);
+	score += bandwidth_score;
 
 	/* If AP is on 5Ghz channel , extra score of 5% is added to BSS score.*/
-	if (get_rf_band(bss_info->channelId) == SIR_BAND_5_GHZ &&
-			bss_info->rssi > RSSI_THRESHOLD_5GHZ)
-		score += BEST_CANDIDATE_MAX_WEIGHT *
-				chan_band_weightage;
-	/*
-	 * If ESP is being transmitted by the AP, use the estimated airtime for
-	 * AC_BE from that, Estimated airtime 0-25% = 25%, 25-50% = 50%, 50-75%
-	 * = 75%, 75-100% = 100%.
-	 * Else if QBSSLoad is being transmitted and QBSSLoad < 25% = 100%
-	 * else assing default weight of 75%
-	 */
-	low_channel_congestion_weight =
-		channel_congestion_weightage *
-		BEST_CANDIDATE_MAX_WEIGHT;
+	if (CDS_IS_CHANNEL_5GHZ(bss_info->channelId) &&
+	    bss_info->rssi > ((-1) * bss_score_params->
+	    rssi_score.rssi_pref_5g_rssi_thresh))
+		band_score = BEST_CANDIDATE_MAX_WEIGHT *
+			 weight_config->chan_band_weightage;
 
-	moderate_channel_congestion_weight = low_channel_congestion_weight *
-		(EXTREME_CHANNEL_CONGESTION - MODERATE_CHANNEL_CONGESTION);
-
-	do_div(moderate_channel_congestion_weight, BEST_CANDIDATE_MAX_WEIGHT);
-
-	considerable_channel_congestion_weight = low_channel_congestion_weight *
-		(EXTREME_CHANNEL_CONGESTION - CONSIDERABLE_CHANNEL_CONGESTION);
-
-	do_div(considerable_channel_congestion_weight,
-			BEST_CANDIDATE_MAX_WEIGHT);
-
-	high_channel_congestion_weight = low_channel_congestion_weight *
-		(EXTREME_CHANNEL_CONGESTION - HIGH_CHANNEL_CONGESTION);
-
-	do_div(high_channel_congestion_weight, BEST_CANDIDATE_MAX_WEIGHT);
-
-	if (bss_info->air_time_fraction) {
-		/* Convert 0-255 range to percentage */
-		est_air_time_percentage =
-			bss_info->air_time_fraction * ROAM_MAX_CHANNEL_WEIGHT;
-		do_div(est_air_time_percentage,
-				MAX_ESTIMATED_AIR_TIME_FRACTION);
-		/*
-		 * Calculate channel congestion from estimated air time
-		 * fraction.
-		 */
-		congestion = MAX_CHANNEL_UTILIZATION - est_air_time_percentage;
-
-		if (congestion >= LOW_CHANNEL_CONGESTION &&
-				congestion < MODERATE_CHANNEL_CONGESTION)
-			score += low_channel_congestion_weight;
-		else if (congestion >= MODERATE_CHANNEL_CONGESTION &&
-				congestion < CONSIDERABLE_CHANNEL_CONGESTION)
-			score += moderate_channel_congestion_weight;
-		else if (congestion >= CONSIDERABLE_CHANNEL_CONGESTION &&
-				congestion < HIGH_CHANNEL_CONGESTION)
-			score += considerable_channel_congestion_weight;
-		else
-			score += high_channel_congestion_weight;
-	} else if (bss_info->QBSSLoad_present) {
-		ap_load = (bss_info->qbss_chan_load *
-				BEST_CANDIDATE_MAX_WEIGHT);
-		/*
-		 * Calculate ap_load in % from qbss channel load from 0-255
-		 * range
-		 */
-		do_div(ap_load, MAX_AP_LOAD);
-		congestion = ap_load;
-		if (congestion < MODERATE_CHANNEL_CONGESTION)
-			score += low_channel_congestion_weight;
-		else
-			score += high_channel_congestion_weight;
-	} else {
-		score += moderate_channel_congestion_weight;
-	}
+	score += band_score;
+	congestion_score = csr_calculate_congestion_score(mac_ctx,
+		bss_info, bss_score_params);
+	score += congestion_score;
 	/*
 	 * If station support nss as 2*2 but AP support NSS as 1*1,
 	 * this AP will be given half weight compare to AP which are having
 	 * NSS as 2*2
 	 */
-	nss_1x1 = nss_weightage;
-	do_div(nss_1x1, 2);
-	ap_nss = bss_info->nss;
-	if (wma_is_current_hwmode_dbs())
-		nss--;
-	if (nss == 2 && ap_nss == 1)
-		score += BEST_CANDIDATE_MAX_WEIGHT * nss_1x1;
-	else
-		score += BEST_CANDIDATE_MAX_WEIGHT *
-			nss_weightage;
+	nss_score = csr_calculate_nss_score(sta_nss, bss_info->nss,
+				bss_score_params->nss_weight_per_index,
+				weight_config->nss_weightage);
+	score += nss_score;
 
-	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-		FL("BSSID:"MAC_ADDRESS_STR" rssi=%d htcaps=%d vht=%d bw=%d channel=%d beamforming=%d ap_load=%d est_air_time_percentage=%d pcl_score %d Final Score %d ap_NSS %d  nss %d"),
+	sme_debug("BSSID:"MAC_ADDRESS_STR" rssi=%d dot11mode %d htcaps=%d vht=%d AP bw=%d channel=%d self beamformee %d AP beamforming %d ap_NSS %d sta nss %d",
 		MAC_ADDR_ARRAY(bss_info->bssId),
-		bss_info->rssi, bss_info->ht_caps_present,
+		bss_info->rssi, dot11mode,  bss_info->ht_caps_present,
 		bss_info->vht_caps_present, bss_info->chan_width,
-		bss_info->channelId,
-		bss_info->beacomforming_capable, ap_load,
-		est_air_time_percentage,
-		pcl_score,
-		score, ap_nss, nss);
+		bss_info->channelId, beamformee_cap,
+		bss_info->beacomforming_capable, bss_info->nss, sta_nss);
+
+	sme_debug("Scores : rssi %d pcl %d ht %d vht %d beamformee %d bw %d band %d congestion %d nss %d TOTAL score %d",
+		rssi_score, pcl_score, ht_score, vht_score, beamformee_score,
+		bandwidth_score, band_score,
+		congestion_score, nss_score, score);
 
 	return score;
 }

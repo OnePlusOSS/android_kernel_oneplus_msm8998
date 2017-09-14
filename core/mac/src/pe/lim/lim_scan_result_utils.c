@@ -217,7 +217,7 @@ lim_collect_bss_description(tpAniSirGlobal pMac,
 	/* VHT Parameters */
 	if (pBPR->VHTCaps.present) {
 		pBssDescr->vht_caps_present = 1;
-		if (pBPR->VHTCaps.muBeamformerCap)
+		if (pBPR->VHTCaps.suBeamFormerCap)
 			pBssDescr->beacomforming_capable = 1;
 	}
 	if (pBPR->VHTOperation.present)

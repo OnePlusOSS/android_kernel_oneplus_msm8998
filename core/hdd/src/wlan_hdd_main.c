@@ -9283,6 +9283,9 @@ static int hdd_features_init(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 	if (hdd_ctx->config->enable_go_cts2self_for_sta)
 		sme_set_cts2self_for_p2p_go(hdd_ctx->hHal);
 
+	if (sme_set_vc_mode_config(hdd_ctx->config->vc_mode_cfg_bitmap))
+		hdd_warn("Error in setting Voltage Corner mode config to FW");
+
 	if (hdd_rx_ol_init(hdd_ctx))
 		hdd_warn("Unable to initialize LRO in fw");
 

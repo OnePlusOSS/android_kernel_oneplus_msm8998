@@ -3601,6 +3601,7 @@ typedef struct sSirRoamOffloadScanReq {
 	bool is_fils_connection;
 	struct roam_fils_params roam_fils_params;
 #endif
+	struct scoring_param score_params;
 } tSirRoamOffloadScanReq, *tpSirRoamOffloadScanReq;
 
 typedef struct sSirRoamOffloadScanRsp {

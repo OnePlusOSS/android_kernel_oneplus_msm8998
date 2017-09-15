@@ -295,14 +295,19 @@ struct sk_buff *__qdf_nbuf_alloc(qdf_device_t osdev, size_t size, int reserve,
 
 	skb = dev_alloc_skb(size);
 
+	if (skb)
+		goto skb_alloc;
+
+	skb = pld_nbuf_pre_alloc(size);
+
 	if (!skb) {
 		pr_info("ERROR:NBUF alloc failed\n");
 		__qdf_nbuf_start_replenish_timer();
 		return NULL;
-	} else {
-		__qdf_nbuf_stop_replenish_timer();
 	}
 
+skb_alloc:
+	__qdf_nbuf_stop_replenish_timer();
 	memset(skb->cb, 0x0, sizeof(skb->cb));
 
 	/*
@@ -341,6 +346,9 @@ qdf_export_symbol(__qdf_nbuf_alloc);
  */
 void __qdf_nbuf_free(struct sk_buff *skb)
 {
+	if (pld_nbuf_pre_alloc_free(skb))
+		return;
+
 	if (nbuf_free_cb)
 		nbuf_free_cb(skb);
 	else

@@ -3182,10 +3182,11 @@ struct periodic_tx_pattern {
 	uint8_t ucPattern[WMI_PERIODIC_TX_PTRN_MAX_SIZE];
 };
 
-#define WMI_GTK_OFFLOAD_KEK_BYTES       64
-#define WMI_GTK_OFFLOAD_KCK_BYTES       16
-#define WMI_GTK_OFFLOAD_ENABLE          0
-#define WMI_GTK_OFFLOAD_DISABLE         1
+#define WMI_GTK_OFFLOAD_KEK_BYTES_LEGACY 16
+#define WMI_GTK_OFFLOAD_KEK_BYTES        64
+#define WMI_GTK_OFFLOAD_KCK_BYTES        16
+#define WMI_GTK_OFFLOAD_ENABLE            0
+#define WMI_GTK_OFFLOAD_DISABLE           1
 
 /**
  * struct gtk_offload_params - gtk offload parameters

@@ -8908,7 +8908,8 @@ QDF_STATUS send_gtk_offload_cmd_tlv(wmi_unified_t wmi_handle, uint8_t vdev_id,
 
 		/* Copy the keys and replay counter */
 		qdf_mem_copy(cmd->KCK, params->aKCK, WMI_GTK_OFFLOAD_KCK_BYTES);
-		qdf_mem_copy(cmd->KEK, params->aKEK, WMI_GTK_OFFLOAD_KEK_BYTES);
+		qdf_mem_copy(cmd->KEK, params->aKEK,
+			     WMI_GTK_OFFLOAD_KEK_BYTES_LEGACY);
 		qdf_mem_copy(cmd->replay_counter, &params->ullKeyReplayCounter,
 			     GTK_REPLAY_COUNTER_BYTES);
 	} else {

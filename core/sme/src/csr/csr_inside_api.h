@@ -126,29 +126,33 @@ bool csr_is_supported_channel(tpAniSirGlobal pMac, uint8_t channelId);
 #define HIGH_CHANNEL_CONGESTION 75
 #define EXTREME_CHANNEL_CONGESTION 100
 
-#define RSSI_WEIGHTAGE 25
-#define HT_CAPABILITY_WEIGHTAGE 7
-#define VHT_CAP_WEIGHTAGE 5
-#define CHAN_WIDTH_WEIGHTAGE 10
-#define CHAN_BAND_WEIGHTAGE 5
-#define NSS_WEIGHTAGE 5
-#define BEAMFORMING_CAP_WEIGHTAGE 2
-#define PCL_WEIGHT 10
-#define CHANNEL_CONGESTION_WEIGHTAGE 5
-#define RESERVED_WEIGHT 31
-
 #define EXCELLENT_RSSI -55
 #define BAD_RSSI  -80
 #define EXCELLENT_RSSI_WEIGHT 100
 #define RSSI_BUCKET 5
 #define RSSI_WEIGHT_BUCKET 250
 
-#define BEST_CANDIDATE_MAX_WEIGHT 100
 #define BEST_CANDIDATE_80MHZ 100
 #define BEST_CANDIDATE_40MHZ 70
 #define BEST_CANDIDATE_20MHZ 30
 #define BEST_CANDIDATE_MAX_BSS_SCORE 10000
 
+#define WLAN_20MHZ_BW_INDEX                  0
+#define WLAN_SCORE_40MHZ_BW_INDEX            1
+#define WLAN_SCORE_80MHZ_BW_INDEX            2
+#define WLAN_SCORE_160MHZ_BW_INDEX           3
+#define WLAN_SCORE_MAX_BW_INDEX              4
+
+#define WLAN_NSS_1x1_INDEX                   0
+#define WLAN_NSS_2x2_INDEX                   1
+#define WLAN_NSS_3x3_INDEX                   2
+#define WLAN_NSS_4x4_INDEX                   3
+#define WLAN_MAX_NSS_INDEX                   4
+
+#define WLAN_BAND_2G_INDEX                   0
+#define WLAN_BAND_5G_INDEX                   1
+/* 2 and 3 are reserved */
+#define WLAN_MAX_BAND_INDEX                  4
 
 enum csr_scancomplete_nextcommand {
 	eCsrNextScanNothing,

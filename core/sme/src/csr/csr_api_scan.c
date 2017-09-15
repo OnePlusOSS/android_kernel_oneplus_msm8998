@@ -1727,7 +1727,7 @@ static int32_t _csr_calculate_bss_score(tpAniSirGlobal mac_ctx,
 	uint8_t beamforming_cap_weightage;
 	uint8_t pcl_weightage;
 	uint8_t channel_congestion_weightage;
-	struct  csr_best_candidate_weight_config *weight_config;
+	struct sir_weight_config *weight_config;
 
 	/*
 	 * Total weight of a BSSID is calculated on basis of 100 in which
@@ -1743,7 +1743,7 @@ static int32_t _csr_calculate_bss_score(tpAniSirGlobal mac_ctx,
 	 * CHANNEL_CONGESTION: 5
 	 * Reserved : 31
 	 */
-	weight_config = &mac_ctx->roam.configParam.best_candidate_weight_config;
+	weight_config = &mac_ctx->roam.configParam.bss_score_params.weight_cfg;
 	rssi_weightage = weight_config->rssi_weightage;
 	ht_caps_weightage = weight_config->ht_caps_weightage;
 	vht_caps_weightage = weight_config->vht_caps_weightage;
@@ -1755,24 +1755,6 @@ static int32_t _csr_calculate_bss_score(tpAniSirGlobal mac_ctx,
 	channel_congestion_weightage =
 		weight_config->channel_congestion_weightage;
 
-	if ((rssi_weightage + ht_caps_weightage + vht_caps_weightage +
-		chan_width_weightage + chan_band_weightage +
-		nss_weightage + beamforming_cap_weightage +
-		pcl_weightage +
-		channel_congestion_weightage) > BEST_CANDIDATE_MAX_WEIGHT) {
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-			"Total weight to calcualte best candidate should be 100, Fallback to default values");
-		rssi_weightage = RSSI_WEIGHTAGE;
-		ht_caps_weightage = HT_CAPABILITY_WEIGHTAGE;
-		vht_caps_weightage = VHT_CAP_WEIGHTAGE;
-		chan_width_weightage = CHAN_WIDTH_WEIGHTAGE;
-		chan_band_weightage = CHAN_BAND_WEIGHTAGE;
-		nss_weightage = NSS_WEIGHTAGE;
-		beamforming_cap_weightage = BEAMFORMING_CAP_WEIGHTAGE;
-		pcl_weightage = PCL_WEIGHT;
-		channel_congestion_weightage = CHANNEL_CONGESTION_WEIGHTAGE;
-
-	}
 	/*
 	 * Further bucketization of rssi is also done out of 25 score.
 	 * RSSI > -55=> weight = 2500

@@ -2195,27 +2195,22 @@ lim_add_sta(tpAniSirGlobal mac_ctx,
 		add_sta_params->staIdx, add_sta_params->updateSta,
 		add_sta_params->htCapable, add_sta_params->vhtCapable);
 	/*
-	 * 2G-AS platform: SAP associates with HT (11n)clients as 2x1 in 2G and
-	 * 2X2 in 5G
-	 * Non-2G-AS platform: SAP associates with HT (11n) clients as 2X2 in 2G
-	 * and 5G; and disable async dbs scan when HT client connects
-	 * 5G-AS: Don't care
+	 * If HT client is connected to SAP DUT and self cap is NSS = 2 then
+	 * disable ASYNC DBS scan by sending WMI_VDEV_PARAM_SMPS_INTOLERANT
+	 * to FW, because HT client's can't drop down chain using SMPS frames.
 	 */
 	if (LIM_IS_AP_ROLE(session_entry) &&
 		(STA_ENTRY_PEER == sta_ds->staType) &&
 		!add_sta_params->vhtCapable &&
 		(session_entry->nss == 2)) {
 		session_entry->ht_client_cnt++;
-		if ((session_entry->ht_client_cnt == 1) &&
-			!(mac_ctx->lteCoexAntShare &&
-			IS_24G_CH(session_entry->currentOperChannel))) {
+		if (session_entry->ht_client_cnt == 1) {
 			pe_debug("setting SMPS intolrent vdev_param");
 			wma_cli_set_command(session_entry->smeSessionId,
 				(int)WMI_VDEV_PARAM_SMPS_INTOLERANT,
 				1, VDEV_CMD);
 		}
 	}
-
 
 	add_sta_params->greenFieldCapable = sta_ds->htGreenfield;
 	add_sta_params->maxAmpduDensity = sta_ds->htAMpduDensity;

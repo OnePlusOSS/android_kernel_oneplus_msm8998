@@ -1645,7 +1645,7 @@ ol_tx_queue_display(struct ol_tx_frms_queue_t *txq, int indent)
 
 	state = (txq->flag == ol_tx_queue_active) ? "active" : "paused";
 	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
-		  "%*stxq %p (%s): %d frms, %d bytes\n",
+		  "%*stxq %pK (%s): %d frms, %d bytes\n",
 		  indent, " ", txq, state, txq->frms, txq->bytes);
 }
 
@@ -1655,7 +1655,7 @@ ol_tx_queues_display(struct ol_txrx_pdev_t *pdev)
 	struct ol_txrx_vdev_t *vdev;
 
 	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
-		  "pdev %p tx queues:\n", pdev);
+		  "pdev %pK tx queues:\n", pdev);
 	TAILQ_FOREACH(vdev, &pdev->vdev_list, vdev_list_elem) {
 		struct ol_txrx_peer_t *peer;
 		int i;
@@ -1665,7 +1665,7 @@ ol_tx_queues_display(struct ol_txrx_pdev_t *pdev)
 				continue;
 
 			QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
-				  "vdev %d (%p), txq %d\n", vdev->vdev_id,
+				  "vdev %d (%pK), txq %d\n", vdev->vdev_id,
 				  vdev, i);
 			ol_tx_queue_display(&vdev->txqs[i], 4);
 		}
@@ -1676,7 +1676,7 @@ ol_tx_queues_display(struct ol_txrx_pdev_t *pdev)
 
 				QDF_TRACE(QDF_MODULE_ID_TXRX,
 					  QDF_TRACE_LEVEL_INFO_LOW,
-					  "peer %d (%p), txq %d\n",
+					  "peer %d (%pK), txq %d\n",
 					  peer->peer_ids[0], vdev, i);
 				ol_tx_queue_display(&peer->txqs[i], 6);
 			}

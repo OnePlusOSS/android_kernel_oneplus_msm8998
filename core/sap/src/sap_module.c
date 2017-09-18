@@ -524,7 +524,7 @@ QDF_STATUS wlansap_clean_cb(ptSapContext pSapCtx, uint32_t freeFlag      /* 0 / 
 	pSapCtx->sapsMachine = eSAP_DISCONNECTED;
 
 	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-		  "%s: Initializing State: %d, sapContext value = %p", __func__,
+		  "%s: Initializing State: %d, sapContext value = %pK", __func__,
 		  pSapCtx->sapsMachine, pSapCtx);
 	pSapCtx->sessionId = 0;
 	pSapCtx->channel = 0;
@@ -823,7 +823,7 @@ QDF_STATUS wlansap_start_bss(void *pCtx,     /* pwextCtx */
 	pSapCtx = CDS_GET_SAP_CB(pCtx);
 
 	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-		  "wlansap_start_bss: sapContext=%p", pSapCtx);
+		  "wlansap_start_bss: sapContext=%pK", pSapCtx);
 
 	if (NULL == pSapCtx) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
@@ -2237,7 +2237,7 @@ QDF_STATUS wlansap_send_action(void *pCtx, const uint8_t *pBuf,
 	hHal = CDS_GET_HAL_CB(pSapCtx->p_cds_gctx);
 	if ((NULL == hHal) || (true != pSapCtx->isSapSessionOpen)) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-			  "%s: HAL pointer (%p) NULL OR SME session is not open (%d)",
+			  "%s: HAL pointer (%pK) NULL OR SME session is not open (%d)",
 			  __func__, hHal, pSapCtx->isSapSessionOpen);
 		return QDF_STATUS_E_FAULT;
 	}
@@ -2291,7 +2291,7 @@ QDF_STATUS wlansap_remain_on_channel(void *pCtx,
 	hHal = CDS_GET_HAL_CB(pSapCtx->p_cds_gctx);
 	if ((NULL == hHal) || (true != pSapCtx->isSapSessionOpen)) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-			  "%s: HAL pointer (%p) NULL OR SME session is not open (%d)",
+			  "%s: HAL pointer (%pK) NULL OR SME session is not open (%d)",
 			  __func__, hHal, pSapCtx->isSapSessionOpen);
 		return QDF_STATUS_E_FAULT;
 	}
@@ -2339,7 +2339,7 @@ QDF_STATUS wlansap_cancel_remain_on_channel(void *pCtx,
 	if ((NULL == hHal) ||
 		(true != pSapCtx->isSapSessionOpen)) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-			  "%s: HAL pointer (%p) NULL OR SME session is not open (%d)",
+			  "%s: HAL pointer (%pK) NULL OR SME session is not open (%d)",
 			  __func__, hHal, pSapCtx->isSapSessionOpen);
 		return QDF_STATUS_E_FAULT;
 	}
@@ -2538,7 +2538,7 @@ QDF_STATUS wlansap_register_mgmt_frame
 	hHal = CDS_GET_HAL_CB(pSapCtx->p_cds_gctx);
 	if ((NULL == hHal) || (true != pSapCtx->isSapSessionOpen)) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-			  "%s: HAL pointer (%p) NULL OR SME session is not open (%d)",
+			  "%s: HAL pointer (%pK) NULL OR SME session is not open (%d)",
 			  __func__, hHal, pSapCtx->isSapSessionOpen);
 		return QDF_STATUS_E_FAULT;
 	}
@@ -2588,7 +2588,7 @@ QDF_STATUS wlansap_de_register_mgmt_frame
 	hHal = CDS_GET_HAL_CB(pSapCtx->p_cds_gctx);
 	if ((NULL == hHal) || (true != pSapCtx->isSapSessionOpen)) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-			  "%s: HAL pointer (%p) NULL OR SME session is not open (%d)",
+			  "%s: HAL pointer (%pK) NULL OR SME session is not open (%d)",
 			  __func__, hHal, pSapCtx->isSapSessionOpen);
 		return QDF_STATUS_E_FAULT;
 	}

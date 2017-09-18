@@ -488,7 +488,7 @@ wlansap_roam_process_ch_change_success(tpAniSirGlobal mac_ctx,
 			mac_ctx->sap.SapDfsInfo.cac_state)) {
 			sap_ctx->sapsMachine = eSAP_DISCONNECTED;
 			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_MED,
-				  FL("sapdfs: from state eSAP_DISCONNECTING => DISCONNECTED with ignore cac false on sapctx[%p]"),
+				  FL("sapdfs: from state eSAP_DISCONNECTING => DISCONNECTED with ignore cac false on sapctx[%pK]"),
 				  sap_ctx);
 			/* DFS Channel */
 			sap_event.event = eSAP_DFS_CHANNEL_CAC_START;
@@ -498,7 +498,7 @@ wlansap_roam_process_ch_change_success(tpAniSirGlobal mac_ctx,
 		} else {
 			QDF_TRACE(QDF_MODULE_ID_SAP,
 				  QDF_TRACE_LEVEL_INFO_MED,
-				  FL("sapdfs: from state eSAP_DISCONNECTING => eSAP_STARTING with ignore cac true on sapctx[%p]"),
+				  FL("sapdfs: from state eSAP_DISCONNECTING => eSAP_STARTING with ignore cac true on sapctx[%pK]"),
 				  sap_ctx);
 
 			/* Start beaconing on the new channel */
@@ -512,7 +512,7 @@ wlansap_roam_process_ch_change_success(tpAniSirGlobal mac_ctx,
 		}
 	} else {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_MED,
-			  FL("sapdfs: from state eSAP_DISCONNECTING => eSAP_STARTING on sapctx[%p]"),
+			  FL("sapdfs: from state eSAP_DISCONNECTING => eSAP_STARTING on sapctx[%pK]"),
 			  sap_ctx);
 		/* non-DFS channel */
 		sap_ctx->sapsMachine = eSAP_STARTING;
@@ -635,7 +635,7 @@ wlansap_roam_process_dfs_chansw_update(tHalHandle hHal,
 	if (false ==
 	    is_concurrent_sap_ready_for_channel_change(hHal, sap_ctx)) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_MED,
-			  FL("sapdfs: sapctx[%p] ready but not concurrent sap"),
+			  FL("sapdfs: sapctx[%pK] ready but not concurrent sap"),
 			  sap_ctx);
 		*ret_status = QDF_STATUS_SUCCESS;
 		return;
@@ -650,7 +650,7 @@ wlansap_roam_process_dfs_chansw_update(tHalHandle hHal,
 
 		pSapContext = mac_ctx->sap.sapCtxList[intf].pSapContext;
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_MED,
-			  FL("sapdfs:issue chnl change for sapctx[%p]"),
+			  FL("sapdfs:issue chnl change for sapctx[%pK]"),
 			  pSapContext);
 		/* Send channel switch request */
 		sap_event.event = eWNI_SME_CHANNEL_CHANGE_REQ;
@@ -661,7 +661,7 @@ wlansap_roam_process_dfs_chansw_update(tHalHandle hHal,
 		qdf_status = sap_fsm(pSapContext, &sap_event);
 		if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-				  FL("post chnl chng req failed, sap[%p]"),
+				  FL("post chnl chng req failed, sap[%pK]"),
 				  sap_ctx);
 			*ret_status = QDF_STATUS_E_FAILURE;
 		} else {
@@ -1011,7 +1011,7 @@ wlansap_roam_callback(void *ctx, tCsrRoamInfo *csr_roam_info, uint32_t roamId,
 				    mac_ctx->sap.sapCtxList[intf].pSapContext;
 				QDF_TRACE(QDF_MODULE_ID_SAP,
 					  QDF_TRACE_LEVEL_ERROR,
-					  FL("sapdfs: no available channel for sapctx[%p], StopBss"),
+					  FL("sapdfs: no available channel for sapctx[%pK], StopBss"),
 					  pSapContext);
 				wlansap_stop_bss(pSapContext);
 			}

@@ -5414,6 +5414,11 @@ void ol_txrx_post_data_stall_event(
 		return;
 	}
 	data_stall_info = qdf_mem_malloc(sizeof(*data_stall_info));
+	if (data_stall_info == NULL) {
+		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
+			  "%s: qdf_mem_malloc failed", __func__);
+		return;
+	}
 	data_stall_info->indicator = indicator;
 	data_stall_info->data_stall_type = data_stall_type;
 	data_stall_info->vdev_id_bitmap = vdev_id_bitmap;

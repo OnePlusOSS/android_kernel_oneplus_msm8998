@@ -12503,7 +12503,7 @@ enum hw_filter_mode {
  * esp_qbss_score_idx3_to_0 - esp/qbss load score for slots 0-3
  * @Min: 0x00000000
  * @Max: 0x64646464
- * @Default: 0x1919644B
+ * @Default: 0x19326432
  *
  * For esp/qbss load score weightage(5) is given. In this weightage
  * this ini divide individual index weight as num_esp_qbss_slots.
@@ -12525,7 +12525,7 @@ enum hw_filter_mode {
  * </ini>
  */
 #define CFG_ESP_QBSS_SCORE_IDX3_TO_0_NAME      "esp_qbss_score_idx3_to_0"
-#define CFG_ESP_QBSS_SCORE_IDX3_TO_0_DEFAULT   (0x1919644B)
+#define CFG_ESP_QBSS_SCORE_IDX3_TO_0_DEFAULT   (0x19326432)
 #define CFG_ESP_QBSS_SCORE_IDX3_TO_0_MIN       (0x00000000)
 #define CFG_ESP_QBSS_SCORE_IDX3_TO_0_MAX       (0x64646464)
 

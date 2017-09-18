@@ -3758,14 +3758,14 @@ void wma_get_stats_req(WMA_HANDLE handle,
 
 	node->fw_stats_set = 0;
 	if (node->stats_rsp) {
-		WMA_LOGD(FL("stats_rsp is not null, prev_value: %p"),
+		WMA_LOGD(FL("stats_rsp is not null, prev_value: %pK"),
 			node->stats_rsp);
 		qdf_mem_free(node->stats_rsp);
 		node->stats_rsp = NULL;
 	}
 	node->stats_rsp = pGetPEStatsRspParams;
 	wma_handle->get_sta_peer_info = false;
-	WMA_LOGD("stats_rsp allocated: %p, sta_id: %d, mask: %d, vdev_id: %d",
+	WMA_LOGD("stats_rsp allocated: %pK, sta_id: %d, mask: %d, vdev_id: %d",
 		node->stats_rsp, node->stats_rsp->staId,
 		node->stats_rsp->statsMask, get_stats_param->sessionId);
 
@@ -5690,7 +5690,7 @@ void wma_peer_debug_dump(void)
 		WMA_LOGD("info = %-24s vdev_id = %-3d mac addr = %pM",
 			 wma_peer_debug_string(dbg_rec->operation),
 			 (int8_t) dbg_rec->vdev_id, dbg_rec->mac_addr.bytes);
-		WMA_LOGD("peer obj = 0x%p peer_id = %-4d",
+		WMA_LOGD("peer obj = 0x%pK peer_id = %-4d",
 			 dbg_rec->peer_obj, (int8_t) dbg_rec->peer_id);
 		WMA_LOGD("arg1 = 0x%-8x arg2 = 0x%-8x",
 			 dbg_rec->arg1, dbg_rec->arg2);

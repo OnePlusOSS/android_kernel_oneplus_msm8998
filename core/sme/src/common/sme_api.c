@@ -7795,7 +7795,7 @@ QDF_STATUS sme_8023_multicast_list(tHalHandle hHal, uint8_t sessionId,
 	tCsrRoamSession *pSession = NULL;
 
 	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-		"%s: ulMulticastAddrCnt: %d, multicastAddr[0]: %p", __func__,
+		"%s: ulMulticastAddrCnt: %d, multicastAddr[0]: %pK", __func__,
 		  pMulticastAddrs->ulMulticastAddrCnt,
 		  pMulticastAddrs->multicastAddr[0].bytes);
 

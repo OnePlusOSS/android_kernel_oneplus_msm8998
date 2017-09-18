@@ -823,7 +823,7 @@ static void csr_add_social_channels(tpAniSirGlobal mac,
 	uint8_t i;
 	uint8_t no_chan = *num_chan;
 
-	sme_debug("add social channels chan_list %p, num_chan %hu", chan_list,
+	sme_debug("add social channels chan_list %pK, num_chan %hu", chan_list,
 			*num_chan);
 	if (CSR_IS_5G_BAND_ONLY(mac)) {
 		for (i = 0; i < MAX_SOCIAL_CHANNELS; i++) {
@@ -1504,7 +1504,7 @@ void csr_abort_command(tpAniSirGlobal pMac, tSmeCmd *pCommand, bool fStopping)
 			/* We need to inform the requester before dropping
 			 * the scan command
 			 */
-			sme_debug("Drop scan reason %d callback %p",
+			sme_debug("Drop scan reason %d callback %pK",
 				pCommand->u.scanCmd.reason,
 				pCommand->u.scanCmd.callback);
 			if (NULL != pCommand->u.scanCmd.callback) {

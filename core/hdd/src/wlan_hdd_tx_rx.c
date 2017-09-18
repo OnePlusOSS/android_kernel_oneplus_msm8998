@@ -172,7 +172,7 @@ bool hdd_tx_flow_control_is_pause(void *adapter_context)
 
 	if ((NULL == pAdapter) || (WLAN_HDD_ADAPTER_MAGIC != pAdapter->magic)) {
 		/* INVALID ARG */
-		hdd_err("invalid adapter %p", pAdapter);
+		hdd_err("invalid adapter %pK", pAdapter);
 		return false;
 	}
 
@@ -974,7 +974,7 @@ static QDF_STATUS hdd_mon_rx_packet_cbk(void *context, qdf_nbuf_t rxbuf)
 	adapter = (hdd_adapter_t *)context;
 	if ((NULL == adapter) || (WLAN_HDD_ADAPTER_MAGIC != adapter->magic)) {
 		QDF_TRACE(QDF_MODULE_ID_HDD_DATA, QDF_TRACE_LEVEL_ERROR,
-			  "invalid adapter %p", adapter);
+			  "invalid adapter %pK", adapter);
 		return QDF_STATUS_E_FAILURE;
 	}
 

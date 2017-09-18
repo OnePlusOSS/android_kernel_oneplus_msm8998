@@ -1223,20 +1223,20 @@ static void hdd_ipa_dump_hdd_ipa(struct hdd_ipa_priv *hdd_ipa)
 	hdd_info("==== HDD IPA ====\n"
 		"num_iface: %d\n"
 		"rm_state: %d\n"
-		"rm_lock: %p\n"
-		"uc_rm_work: %p\n"
-		"uc_op_work: %p\n"
-		"wake_lock: %p\n"
-		"wake_lock_work: %p\n"
+		"rm_lock: %pK\n"
+		"uc_rm_work: %pK\n"
+		"uc_op_work: %pK\n"
+		"wake_lock: %pK\n"
+		"wake_lock_work: %pK\n"
 		"wake_lock_released: %d\n"
 		"prod_client: %d\n"
 		"tx_ref_cnt: %d\n"
 		"pm_queue_head----\n"
-		"\thead: %p\n"
-		"\ttail: %p\n"
+		"\thead: %pK\n"
+		"\ttail: %pK\n"
 		"\tqlen: %d\n"
-		"pm_work: %p\n"
-		"pm_lock: %p\n"
+		"pm_work: %pK\n"
+		"pm_lock: %pK\n"
 		"suspended: %d\n",
 		hdd_ipa->num_iface,
 		hdd_ipa->rm_state,
@@ -1254,14 +1254,14 @@ static void hdd_ipa_dump_hdd_ipa(struct hdd_ipa_priv *hdd_ipa)
 		&hdd_ipa->pm_work,
 		&hdd_ipa->pm_lock,
 		hdd_ipa->suspended);
-	hdd_info("\nq_lock: %p\n"
+	hdd_info("\nq_lock: %pK\n"
 		"pend_desc_head----\n"
-		"\tnext: %p\n"
-		"\tprev: %p\n"
-		"hdd_ctx: %p\n"
-		"debugfs_dir: %p\n"
-		"stats: %p\n"
-		"ipv4_notifier: %p\n"
+		"\tnext: %pK\n"
+		"\tprev: %pK\n"
+		"hdd_ctx: %pK\n"
+		"debugfs_dir: %pK\n"
+		"stats: %pK\n"
+		"ipv4_notifier: %pK\n"
 		"curr_prod_bw: %d\n"
 		"curr_cons_bw: %d\n"
 		"activated_fw_pipe: %d\n"
@@ -1286,11 +1286,11 @@ static void hdd_ipa_dump_hdd_ipa(struct hdd_ipa_priv *hdd_ipa)
 		"resource_unloading: %d\n"
 		"pending_cons_req: %d\n"
 		"pending_event----\n"
-		"\tanchor.next: %p\n"
-		"\tanchor.prev: %p\n"
+		"\tanchor.next: %pK\n"
+		"\tanchor.prev: %pK\n"
 		"\tcount: %d\n"
 		"\tmax_size: %d\n"
-		"event_lock: %p\n"
+		"event_lock: %pK\n"
 		"ipa_tx_packets_diff: %d\n"
 		"ipa_rx_packets_diff: %d\n"
 		"ipa_p_tx_packets: %d\n"
@@ -1354,8 +1354,8 @@ static void hdd_ipa_dump_sys_pipe(struct hdd_ipa_priv *hdd_ipa)
 			"\tmode: %d\n"
 			"\tclient: %d\n"
 			"\tdesc_fifo_sz: %d\n"
-			"\tpriv: %p\n"
-			"\tnotify: %p\n"
+			"\tpriv: %pK\n"
+			"\tnotify: %pK\n"
 			"\tskip_ep_cfg: %d\n"
 			"\tkeep_ipa_awake: %d\n",
 			i,
@@ -1398,14 +1398,14 @@ static void hdd_ipa_dump_iface_context(struct hdd_ipa_priv *hdd_ipa)
 		iface_context = &hdd_ipa->iface_context[i];
 
 		hdd_info("iface_context[%d]----\n"
-			"\thdd_ipa: %p\n"
-			"\tadapter: %p\n"
-			"\ttl_context: %p\n"
+			"\thdd_ipa: %pK\n"
+			"\tadapter: %pK\n"
+			"\ttl_context: %pK\n"
 			"\tcons_client: %d\n"
 			"\tprod_client: %d\n"
 			"\tiface_id: %d\n"
 			"\tsta_id: %d\n"
-			"\tinterface_lock: %p\n"
+			"\tinterface_lock: %pK\n"
 			"\tifa_address: 0x%x\n",
 			i,
 			iface_context->hdd_ipa,
@@ -2971,7 +2971,7 @@ QDF_STATUS hdd_ipa_uc_ol_init(hdd_context_t *hdd_ctx)
 				      (void *)hdd_ctx);
 
 	HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG,
-	     "ipa_uc_op_cb=0x%p, tx_comp_idx_paddr=0x%x, rx_rdy_idx_paddr=0x%x",
+	     "ipa_uc_op_cb=0x%pK, tx_comp_idx_paddr=0x%x, rx_rdy_idx_paddr=0x%x",
 	     pdev->ipa_uc_op_cb,
 	     (unsigned int)pdev->htt_pdev->ipa_uc_tx_rsc.tx_comp_idx_paddr,
 	     (unsigned int)pdev->htt_pdev->ipa_uc_rx_rsc.rx_rdy_idx_paddr);
@@ -3178,7 +3178,7 @@ QDF_STATUS hdd_ipa_uc_ol_init(hdd_context_t *hdd_ctx)
 				      (void *)hdd_ctx);
 
 	HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG,
-	     "ipa_uc_op_cb=0x%p, tx_comp_idx_paddr=0x%x, rx_rdy_idx_paddr=0x%x",
+	     "ipa_uc_op_cb=0x%pK, tx_comp_idx_paddr=0x%x, rx_rdy_idx_paddr=0x%x",
 	     pdev->ipa_uc_op_cb,
 	     (unsigned int)pdev->htt_pdev->ipa_uc_tx_rsc.tx_comp_idx_paddr,
 	     (unsigned int)pdev->htt_pdev->ipa_uc_rx_rsc.rx_rdy_idx_paddr);
@@ -4186,7 +4186,7 @@ static void hdd_ipa_send_skb_to_network(qdf_nbuf_t skb,
 	unsigned int cpu_index;
 
 	if (!adapter || adapter->magic != WLAN_HDD_ADAPTER_MAGIC) {
-		HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "Invalid adapter: 0x%p",
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "Invalid adapter: 0x%pK",
 			    adapter);
 		HDD_IPA_INCREASE_INTERNAL_DROP_COUNT(hdd_ipa);
 		kfree_skb(skb);
@@ -5436,7 +5436,7 @@ static void hdd_ipa_cleanup_iface(struct hdd_ipa_iface_context *iface_context)
 		return;
 	if (iface_context->adapter->magic != WLAN_HDD_ADAPTER_MAGIC) {
 		HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG,
-			    "%s: bad adapter(%p).magic(%d)!",
+			    "%s: bad adapter(%pK).magic(%d)!",
 			    __func__, iface_context->adapter,
 			    iface_context->adapter->magic);
 		return;

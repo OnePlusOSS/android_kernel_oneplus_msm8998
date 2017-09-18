@@ -1065,7 +1065,7 @@ void wlan_hdd_cfg80211_link_layer_stats_callback(void *ctx,
 	switch (indType) {
 	case SIR_HAL_LL_STATS_RESULTS_RSP:
 	{
-		hdd_debug("LL_STATS RESP paramID = 0x%x, ifaceId = %u, respId= %u , moreResultToFollow = %u, num radio = %u result = %p",
+		hdd_debug("LL_STATS RESP paramID = 0x%x, ifaceId = %u, respId= %u , moreResultToFollow = %u, num radio = %u result = %pK",
 			linkLayerStatsResults->paramId,
 			linkLayerStatsResults->ifaceId,
 			linkLayerStatsResults->rspId,
@@ -2266,7 +2266,7 @@ void wlan_hdd_cfg80211_link_layer_stats_ext_callback(tHddHandle ctx,
 
 	results = linkLayer_stats_results->results;
 	param_id = linkLayer_stats_results->paramId;
-	hdd_info("LL_STATS RESP paramID = 0x%x, ifaceId = %u, result = %p",
+	hdd_info("LL_STATS RESP paramID = 0x%x, ifaceId = %u, result = %pK",
 		 linkLayer_stats_results->paramId,
 		 linkLayer_stats_results->ifaceId,
 		 linkLayer_stats_results->results);
@@ -3811,7 +3811,7 @@ static void wlan_hdd_get_peer_info_cb(struct sir_peer_info_ext_resp *sta_info,
 	hdd_ap_ctx_t *ap_ctx;
 
 	if ((sta_info == NULL) || (context == NULL)) {
-		hdd_err("Bad param, sta_info [%p] context [%p]",
+		hdd_err("Bad param, sta_info [%pK] context [%pK]",
 			sta_info, context);
 		return;
 	}

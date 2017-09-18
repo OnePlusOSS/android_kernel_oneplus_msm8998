@@ -522,7 +522,7 @@ void hdd_lro_create(void)
 static void hdd_deinit_lro_mgr(void *lro_info)
 {
 	if (lro_info) {
-		hdd_debug("LRO instance %p is being freed", lro_info);
+		hdd_debug("LRO instance %pK is being freed", lro_info);
 		qdf_mem_free(lro_info);
 	}
 }

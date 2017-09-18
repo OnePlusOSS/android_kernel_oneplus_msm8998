@@ -13924,6 +13924,303 @@ QDF_STATUS send_limit_off_chan_cmd_tlv(wmi_unified_t wmi_handle,
 }
 
 /**
+ * wmi_get_action_oui_id() - convert action id to firmware specific
+ * @action_id: host specific action id
+ * @id: output pointer to hold converted fw specific action id
+ *
+ * Return: true on conversion else failure
+ */
+static bool
+wmi_get_action_oui_id(enum wmi_action_oui_id action_id,
+		      wmi_vendor_oui_action_id *id)
+{
+	switch (action_id) {
+
+	case WMI_ACTION_OUI_CONNECT_1X1:
+		*id = WMI_VENDOR_OUI_ACTION_CONNECTION_1X1;
+		return true;
+
+	case WMI_ACTION_OUI_ITO_EXTENSION:
+		*id = WMI_VENDOR_OUI_ACTION_ITO_EXTENSION;
+		return true;
+
+	case WMI_ACTION_OUI_CCKM_1X1:
+		*id = WMI_VENDOR_OUI_ACTION_CCKM_1X1;
+		return true;
+
+	default:
+		return false;
+	}
+}
+
+/**
+ * wmi_get_action_oui_info_mask() - convert info mask to firmware specific
+ * @info_mask: host specific info mask
+ *
+ * Return: firmware specific information mask
+ */
+static uint32_t
+wmi_get_action_oui_info_mask(uint32_t info_mask)
+{
+	uint32_t info_presence = WMI_BEACON_INFO_PRESENCE_OUI_EXT;
+
+	if (info_mask & WMI_ACTION_OUI_INFO_MAC_ADDRESS)
+		info_presence |= WMI_BEACON_INFO_PRESENCE_MAC_ADDRESS;
+
+	if (info_mask & WMI_ACTION_OUI_INFO_AP_CAPABILITY_NSS)
+		info_presence |= WMI_BEACON_INFO_PRESENCE_AP_CAPABILITY_NSS;
+
+	if (info_mask & WMI_ACTION_OUI_INFO_AP_CAPABILITY_HT)
+		info_presence |= WMI_BEACON_INFO_PRESENCE_AP_CAPABILITY_HT;
+
+	if (info_mask & WMI_ACTION_OUI_INFO_AP_CAPABILITY_VHT)
+		info_presence |= WMI_BEACON_INFO_PRESENCE_AP_CAPABILITY_VHT;
+
+	if (info_mask & WMI_ACTION_OUI_INFO_AP_CAPABILITY_BAND)
+		info_presence |= WMI_BEACON_INFO_PRESENCE_AP_CAPABILITY_BAND;
+
+	return info_presence;
+}
+
+/**
+ * wmi_fill_oui_extensions() - populates wmi_vendor_oui_ext array
+ * @extension: pointer to user supplied action oui extensions
+ * @no_oui_extns: number of action oui extensions
+ * @cmd_ext: output pointer to TLV
+ *
+ * This function parses the user supplied input data and populates the
+ * array of variable structures TLV in WMI_PDEV_CONFIG_VENDOR_OUI_ACTION_CMDID
+ *
+ * Return: None
+ */
+static void
+wmi_fill_oui_extensions(struct wmi_action_oui_extension *extension,
+			uint32_t no_oui_extns, wmi_vendor_oui_ext *cmd_ext)
+{
+	uint32_t i;
+	uint32_t buffer_length;
+
+	for (i = 0; i < no_oui_extns; i++) {
+		WMITLV_SET_HDR(&cmd_ext->tlv_header,
+			       WMITLV_TAG_STRUC_wmi_vendor_oui_ext,
+			       WMITLV_GET_STRUCT_TLVLEN(wmi_vendor_oui_ext));
+		cmd_ext->info_presence_bit_mask =
+			wmi_get_action_oui_info_mask(extension->info_mask);
+
+		cmd_ext->oui_header_length = extension->oui_length;
+		cmd_ext->oui_data_length = extension->data_length;
+		cmd_ext->mac_address_length = extension->mac_addr_length;
+		cmd_ext->capability_data_length =
+					extension->capability_length;
+
+		buffer_length = extension->oui_length +
+				extension->data_length +
+				extension->data_mask_length +
+				extension->mac_addr_length +
+				extension->mac_mask_length +
+				extension->capability_length;
+
+		cmd_ext->buf_data_length = buffer_length + 1;
+
+		cmd_ext++;
+		extension++;
+	}
+
+}
+
+/**
+ * wmi_fill_oui_extensions_buffer() - populates data buffer in action oui cmd
+ * @extension: pointer to user supplied action oui extensions
+ * @cmd_ext: pointer to vendor_oui_ext TLV in action oui cmd
+ * @no_oui_extns: number of action oui extensions
+ * @rem_var_buf_len: remaining length of buffer to be populated
+ * @var_buf: output pointer to hold variable length data
+ *
+ * This function parses the user supplied input data and populates the variable
+ * buffer of type array byte TLV in WMI_PDEV_CONFIG_VENDOR_OUI_ACTION_CMDID
+ *
+ * Return: QDF_STATUS_SUCCESS for successful fill else QDF_STATUS_E_INVAL
+ */
+static QDF_STATUS
+wmi_fill_oui_extensions_buffer(struct wmi_action_oui_extension *extension,
+			       wmi_vendor_oui_ext *cmd_ext,
+			       uint32_t no_oui_extns, uint32_t rem_var_buf_len,
+			       uint8_t *var_buf)
+{
+	uint8_t i;
+
+	for (i = 0; i < (uint8_t)no_oui_extns; i++) {
+		if ((rem_var_buf_len - cmd_ext->buf_data_length) < 0) {
+			WMI_LOGE(FL("Invalid action oui command length"));
+			return QDF_STATUS_E_INVAL;
+		}
+
+		var_buf[0] = i;
+		var_buf++;
+
+		qdf_mem_copy(var_buf, extension->oui, extension->oui_length);
+		var_buf += extension->oui_length;
+
+		if (extension->data_length) {
+			qdf_mem_copy(var_buf, extension->data,
+				     extension->data_length);
+			var_buf += extension->data_length;
+		}
+
+		if (extension->data_mask_length) {
+			qdf_mem_copy(var_buf, extension->data_mask,
+				     extension->data_mask_length);
+			var_buf += extension->data_mask_length;
+		}
+
+		if (extension->mac_addr_length) {
+			qdf_mem_copy(var_buf, extension->mac_addr,
+				     extension->mac_addr_length);
+			var_buf += extension->mac_addr_length;
+		}
+
+		if (extension->mac_mask_length) {
+			qdf_mem_copy(var_buf, extension->mac_mask,
+				     extension->mac_mask_length);
+			var_buf += extension->mac_mask_length;
+		}
+
+		if (extension->capability_length) {
+			qdf_mem_copy(var_buf, extension->capability,
+				     extension->capability_length);
+			var_buf += extension->capability_length;
+		}
+
+		rem_var_buf_len -= cmd_ext->buf_data_length;
+		cmd_ext++;
+		extension++;
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
+
+/**
+ * send_action_oui_cmd_tlv() - send action oui cmd to firmware
+ * @wmi_handle: wmi handler
+ * @action_oui: pointer to action oui info
+ *
+ * Return: QDF_STATUS_SUCCESS on successful transmission else
+ *         QDF_STATUS_E_INVAL or QDF_STATUS_E_NOMEM
+ */
+static QDF_STATUS
+send_action_oui_cmd_tlv(wmi_unified_t wmi_handle,
+			struct wmi_action_oui *action_oui)
+{
+	wmi_pdev_config_vendor_oui_action_fixed_param *cmd;
+	wmi_vendor_oui_ext *cmd_ext;
+	wmi_buf_t wmi_buf;
+	struct wmi_action_oui_extension *extension;
+	uint32_t len;
+	uint32_t i;
+	uint8_t *buf_ptr;
+	uint32_t no_oui_extns;
+	uint32_t total_no_oui_extns;
+	uint32_t var_buf_len = 0;
+	wmi_vendor_oui_action_id action_id;
+	bool valid;
+	uint32_t rem_var_buf_len;
+	QDF_STATUS status;
+
+	if (!action_oui) {
+		WMI_LOGE(FL("action oui is empty"));
+		return QDF_STATUS_E_INVAL;
+	}
+
+	no_oui_extns = action_oui->no_oui_extensions;
+	total_no_oui_extns = action_oui->total_no_oui_extensions;
+
+	len = sizeof(*cmd);
+	len += WMI_TLV_HDR_SIZE; /* Array of wmi_vendor_oui_ext structures */
+
+	if (!no_oui_extns ||
+	    no_oui_extns > WMI_MAX_VENDOR_OUI_ACTION_SUPPORTED_PER_ACTION ||
+	    (total_no_oui_extns > WMI_VENDOR_OUI_ACTION_MAX_ACTION_ID *
+	     WMI_MAX_VENDOR_OUI_ACTION_SUPPORTED_PER_ACTION)) {
+		WMI_LOGE(FL("Invalid number of action oui extensions"));
+		return QDF_STATUS_E_INVAL;
+	}
+
+	valid = wmi_get_action_oui_id(action_oui->action_id, &action_id);
+	if (!valid) {
+		WMI_LOGE(FL("Invalid action id"));
+		return QDF_STATUS_E_INVAL;
+	}
+
+	len += no_oui_extns * sizeof(*cmd_ext);
+	len += WMI_TLV_HDR_SIZE; /* Variable length buffer */
+
+	extension = action_oui->extension;
+	for (i = 0; i < no_oui_extns; i++) {
+		var_buf_len += extension->oui_length +
+		       extension->data_length +
+		       extension->data_mask_length +
+		       extension->mac_addr_length +
+		       extension->mac_mask_length +
+		       extension->capability_length;
+		extension++;
+	}
+
+	var_buf_len += no_oui_extns; /* to store indexes */
+	rem_var_buf_len = var_buf_len;
+	var_buf_len = (var_buf_len + 3) & ~0x3;
+	len += var_buf_len;
+
+	wmi_buf = wmi_buf_alloc(wmi_handle, len);
+	if (!wmi_buf) {
+		WMI_LOGE(FL("Failed to allocate wmi buffer"));
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	buf_ptr = (uint8_t *)wmi_buf_data(wmi_buf);
+	cmd = (wmi_pdev_config_vendor_oui_action_fixed_param *)buf_ptr;
+
+	WMITLV_SET_HDR(&cmd->tlv_header,
+		WMITLV_TAG_STRUC_wmi_pdev_config_vendor_oui_action_fixed_param,
+		WMITLV_GET_STRUCT_TLVLEN(
+			wmi_pdev_config_vendor_oui_action_fixed_param));
+
+	cmd->action_id = action_id;
+	cmd->total_num_vendor_oui = total_no_oui_extns;
+	cmd->num_vendor_oui_ext = no_oui_extns;
+
+	buf_ptr += sizeof(*cmd);
+	WMITLV_SET_HDR(buf_ptr, WMITLV_TAG_ARRAY_STRUC,
+		       no_oui_extns * sizeof(*cmd_ext));
+	buf_ptr += WMI_TLV_HDR_SIZE;
+	cmd_ext = (wmi_vendor_oui_ext *)buf_ptr;
+	wmi_fill_oui_extensions(action_oui->extension, no_oui_extns, cmd_ext);
+
+	buf_ptr += no_oui_extns * sizeof(*cmd_ext);
+	WMITLV_SET_HDR(buf_ptr, WMITLV_TAG_ARRAY_BYTE, var_buf_len);
+	buf_ptr += WMI_TLV_HDR_SIZE;
+	status = wmi_fill_oui_extensions_buffer(action_oui->extension,
+						cmd_ext, no_oui_extns,
+						rem_var_buf_len, buf_ptr);
+	if (!QDF_IS_STATUS_SUCCESS(status)) {
+		wmi_buf_free(wmi_buf);
+		wmi_buf = NULL;
+		return QDF_STATUS_E_INVAL;
+	}
+
+	buf_ptr += var_buf_len;
+
+	if (wmi_unified_cmd_send(wmi_handle, wmi_buf, len,
+				 WMI_PDEV_CONFIG_VENDOR_OUI_ACTION_CMDID)) {
+		WMI_LOGE(FL("WMI_PDEV_CONFIG_VENDOR_OUI_ACTION send fail"));
+		wmi_buf_free(wmi_buf);
+		wmi_buf = NULL;
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
+
+/**
  * send_set_del_pmkid_cache_cmd_tlv() - send wmi cmd of set del pmkid
  * @wmi_handle: wmi handler
  * @pmk_info: pointer to PMK cache entry
@@ -14271,6 +14568,7 @@ struct wmi_ops tlv_ops =  {
 				send_encrypt_decrypt_send_cmd_tlv,
 	.send_sar_limit_cmd = send_sar_limit_cmd_tlv,
 	.send_per_roam_config_cmd = send_per_roam_config_cmd_tlv,
+	.send_action_oui_cmd = send_action_oui_cmd_tlv,
 	.wmi_set_htc_tx_tag = wmi_set_htc_tx_tag_tlv,
 	.send_get_rcpi_cmd = send_get_rcpi_cmd_tlv,
 	.send_set_arp_stats_req_cmd = send_set_arp_stats_req_cmd_tlv,

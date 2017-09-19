@@ -1438,9 +1438,11 @@ int htt_tx_ipa_uc_attach(struct htt_pdev_t *pdev,
 free_tx_comp_base:
 	qdf_mem_shared_mem_free(pdev->osdev,
 				pdev->ipa_uc_tx_rsc.tx_comp_ring);
+	pdev->ipa_uc_tx_rsc.tx_comp_ring = NULL;
 free_tx_ce_idx:
 	qdf_mem_shared_mem_free(pdev->osdev,
 				pdev->ipa_uc_tx_rsc.tx_ce_idx);
+	pdev->ipa_uc_tx_rsc.tx_ce_idx = NULL;
 
 	return return_code;
 }
@@ -1458,8 +1460,11 @@ int htt_tx_ipa_uc_detach(struct htt_pdev_t *pdev)
 {
 	qdf_mem_shared_mem_free(pdev->osdev,
 				pdev->ipa_uc_tx_rsc.tx_ce_idx);
+	pdev->ipa_uc_tx_rsc.tx_ce_idx = NULL;
+
 	qdf_mem_shared_mem_free(pdev->osdev,
 				pdev->ipa_uc_tx_rsc.tx_comp_ring);
+	pdev->ipa_uc_tx_rsc.tx_comp_ring = NULL;
 
 	/* Free each single buffer */
 	htt_tx_buf_pool_free(pdev);

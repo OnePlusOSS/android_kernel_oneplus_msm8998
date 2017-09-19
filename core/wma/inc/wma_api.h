@@ -473,4 +473,7 @@ static inline void wma_spectral_scan_config(WMA_HANDLE wma_handle,
 {
 }
 #endif
+
+QDF_STATUS wma_crash_inject(WMA_HANDLE wma_handle, uint32_t type,
+			    uint32_t delay_time_ms);
 #endif

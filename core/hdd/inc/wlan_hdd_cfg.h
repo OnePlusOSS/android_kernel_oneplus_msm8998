@@ -12000,7 +12000,7 @@ enum hw_filter_mode {
  * rssi_weightage - Rssi Weightage to calculate best candidate
  * @Min: 0
  * @Max: 100
- * @Default: 25
+ * @Default: 30
  *
  * This ini is used to increase/decrease rssi weightage in best candidate
  * selection. AP with better RSSI will get more weightage.
@@ -12011,7 +12011,7 @@ enum hw_filter_mode {
  */
 
 #define CFG_RSSI_WEIGHTAGE_NAME    "rssi_weightage"
-#define CFG_RSSI_WEIGHTAGE_DEFAULT (25)
+#define CFG_RSSI_WEIGHTAGE_DEFAULT (30)
 #define CFG_RSSI_WEIGHTAGE_MIN     (0)
 #define CFG_RSSI_WEIGHTAGE_MAX     (100)
 /*
@@ -12068,7 +12068,7 @@ enum hw_filter_mode {
  * chan_width_weightage - Channel Width Weightage to calculate best candidate
  * @Min: 0
  * @Max: 100
- * @Default: 10
+ * @Default: 5
  *
  * This ini is used to increase/decrease Channel Width weightage in best
  * candidate selection. AP with Higher channel width will get higher weightage.
@@ -12082,7 +12082,7 @@ enum hw_filter_mode {
  * </ini>
  */
 #define CFG_CHAN_WIDTH_WEIGHTAGE_NAME    "chan_width_weightage"
-#define CFG_CHAN_WIDTH_WEIGHTAGE_DEFAULT (10)
+#define CFG_CHAN_WIDTH_WEIGHTAGE_DEFAULT (5)
 #define CFG_CHAN_WIDTH_WEIGHTAGE_MIN     (0)
 #define CFG_CHAN_WIDTH_WEIGHTAGE_MAX     (100)
 
@@ -12284,7 +12284,7 @@ enum hw_filter_mode {
  * good_rssi_pcnt - Percent Score to Good RSSI out of total RSSI score.
  * @Min: 0
  * @Max: 100
- * @Default: 85
+ * @Default: 80
  *
  * This ini tells about how much percent should be given to good RSSI
  * out of RSSI weightage.
@@ -12298,7 +12298,7 @@ enum hw_filter_mode {
  * </ini>
  */
 #define CFG_GOOD_RSSI_PCNT_NAME            "good_rssi_pcnt"
-#define CFG_GOOD_RSSI_PCNT_DEFAULT         (85)
+#define CFG_GOOD_RSSI_PCNT_DEFAULT         (80)
 #define CFG_GOOD_RSSI_PCNT_MIN             (0)
 #define CFG_GOOD_RSSI_PCNT_MAX             (100)
 
@@ -12307,7 +12307,7 @@ enum hw_filter_mode {
  * bad_rssi_pcnt - Percent Score to BAD RSSI out of total RSSI score.
  * @Min: 0
  * @Max: 100
- * @Default: 40
+ * @Default: 25
  *
  * This ini tells about how much percent should be given to bad RSSI
  * out of RSSI weightage.
@@ -12321,7 +12321,7 @@ enum hw_filter_mode {
  * </ini>
  */
 #define CFG_BAD_RSSI_PCNT_NAME            "bad_rssi_pcnt"
-#define CFG_BAD_RSSI_PCNT_DEFAULT         (40)
+#define CFG_BAD_RSSI_PCNT_DEFAULT         (25)
 #define CFG_BAD_RSSI_PCNT_MIN             (0)
 #define CFG_BAD_RSSI_PCNT_MAX             (100)
 
@@ -12406,10 +12406,10 @@ enum hw_filter_mode {
  * For Bandwidth chan_width_weightage(10) is given. In this weightage
  * this ini divide individual index weight as per bandwidth.
  * Indexes are defined in this way.
- * 0 Index : 20 MHz - Def 0
- * 1 Index : 40 MHz - Def 80%
- * 2 Index : 80 MHX - Def 90%
- * 3 Index : 160 MHX - Def 100%
+ * 0 Index : 20 MHz - Def 10%
+ * 1 Index : 40 MHz - Def 20%
+ * 2 Index : 80 MHX - Def 40%
+ * 3 Index : 160 MHX - Def 80%
  *
  * These percentage values are stored in HEX. For any index max weight can be
  * 100 so Max value for each index will be 64.
@@ -12423,7 +12423,7 @@ enum hw_filter_mode {
  * </ini>
  */
 #define CFG_BAND_WIDTH_WEIGHT_PER_INDEX_NAME       "bandwidth_weight_per_index"
-#define CFG_BAND_WIDTH_WEIGHT_PER_INDEX_DEFAULT    (0x645A5000)
+#define CFG_BAND_WIDTH_WEIGHT_PER_INDEX_DEFAULT    (0x5028140A)
 #define CFG_BAND_WIDTH_WEIGHT_PER_INDEX_MIN        (0x00000000)
 #define CFG_BAND_WIDTH_WEIGHT_PER_INDEX_MAX        (0x64646464)
 /*
@@ -12492,7 +12492,7 @@ enum hw_filter_mode {
  * <ini>
  * num_esp_qbss_slots - number of slots in which the esp/qbss load will
  * be divided
- * @Min: 0
+ * @Min: 1
  * @Max: 15
  * @Default: 4
  *
@@ -12507,7 +12507,7 @@ enum hw_filter_mode {
  */
 #define CFG_ESP_QBSS_SLOTS_NAME      "num_esp_qbss_slots"
 #define CFG_ESP_QBSS_SLOTS_DEFAULT   (4)
-#define CFG_ESP_QBSS_SLOTS_MIN       (0)
+#define CFG_ESP_QBSS_SLOTS_MIN       (1)
 #define CFG_ESP_QBSS_SLOTS_MAX       (15)
 
 /*

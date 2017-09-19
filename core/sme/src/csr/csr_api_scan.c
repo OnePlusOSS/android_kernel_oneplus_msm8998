@@ -1689,22 +1689,54 @@ csr_save_ies(tpAniSirGlobal pMac,
 }
 
 /**
+ * csr_get_rssi_pcnt_for_slot () - calculate rssi % score based on the slot
+ * index between the high rssi and low rssi threshold
+ * @high_rssi_threshold: High rssi of the window
+ * @low_rssi_threshold: low rssi of the window
+ * @high_rssi_pcnt: % score for the high rssi
+ * @low_rssi_pcnt: %score for the low rssi
+ * @bucket_size: bucket size of the window
+ * @bss_rssi: Input rssi for which value need to be calculated
+ *
+ * Return : rssi pct to use for the given rssi
+ */
+static inline int8_t csr_get_rssi_pcnt_for_slot(int32_t high_rssi_threshold,
+	int32_t low_rssi_threshold, uint32_t high_rssi_pcnt,
+	uint32_t low_rssi_pcnt, uint32_t bucket_size, int8_t bss_rssi)
+{
+	int8_t slot_index, slot_size, rssi_diff, num_slot, rssi_pcnt;
+
+	num_slot = ((high_rssi_threshold -
+		     low_rssi_threshold) / bucket_size) + 1;
+	slot_size = ((high_rssi_pcnt - low_rssi_pcnt) +
+		     (num_slot / 2)) / (num_slot);
+	rssi_diff = high_rssi_threshold - bss_rssi;
+	slot_index = (rssi_diff / bucket_size) + 1;
+	rssi_pcnt = high_rssi_pcnt - (slot_size * slot_index);
+	if (rssi_pcnt < low_rssi_pcnt)
+		rssi_pcnt = low_rssi_pcnt;
+
+	sme_debug("Window %d -> %d pcnt range %d -> %d bucket_size %d bss_rssi %d num_slot %d slot_size %d rssi_diff %d slot_index %d rssi_pcnt %d",
+		  high_rssi_threshold, low_rssi_threshold, high_rssi_pcnt,
+		  low_rssi_pcnt, bucket_size, bss_rssi, num_slot, slot_size,
+		  rssi_diff, slot_index, rssi_pcnt);
+
+	return rssi_pcnt;
+}
+
+/**
  * csr_calculate_rssi_score () - Calculate RSSI score based on AP RSSI
- * @mac_ctx: Pointer to mac context
+ * @score_param: rssi score params
  * @bss_info: bss information
  * @rssi_weightage: rssi_weightage out of total weightage
  *
  * Return : rssi score
  */
-static int32_t csr_calculate_rssi_score(tpAniSirGlobal mac_ctx,
+static int32_t csr_calculate_rssi_score(struct sir_rssi_cfg_score *score_param,
 		tSirBssDescription *bss_info, uint8_t rssi_weightage)
 {
-	int8_t slot_index, slot_size;
-	int8_t rssi_diff;
-	int8_t num_slot;
 	int8_t rssi_pcnt;
 	int32_t total_rssi_score;
-	struct sir_rssi_cfg_score *score_param;
 	int32_t best_rssi_threshold;
 	int32_t good_rssi_threshold;
 	int32_t bad_rssi_threshold;
@@ -1713,7 +1745,6 @@ static int32_t csr_calculate_rssi_score(tpAniSirGlobal mac_ctx,
 	uint32_t good_bucket_size;
 	uint32_t bad_bucket_size;
 
-	score_param = &mac_ctx->roam.configParam.bss_score_params.rssi_score;
 	best_rssi_threshold = score_param->best_rssi_threshold*(-1);
 	good_rssi_threshold = score_param->good_rssi_threshold*(-1);
 	bad_rssi_threshold = score_param->bad_rssi_threshold*(-1);
@@ -1730,10 +1761,10 @@ static int32_t csr_calculate_rssi_score(tpAniSirGlobal mac_ctx,
 	total_rssi_score = (BEST_CANDIDATE_MAX_WEIGHT * rssi_weightage);
 
 	/*
-	 * If RSSI is better or equal to best rssi threshold then it return full
+	 * If RSSI is better than the best rssi threshold then it return full
 	 * score.
 	 */
-	if (bss_info->rssi >= best_rssi_threshold)
+	if (bss_info->rssi > best_rssi_threshold)
 		return total_rssi_score;
 	/*
 	 * If RSSI is less or equal to bad rssi threshold then it return
@@ -1743,29 +1774,55 @@ static int32_t csr_calculate_rssi_score(tpAniSirGlobal mac_ctx,
 		return (total_rssi_score * bad_rssi_pcnt) / 100;
 
 	/* RSSI lies between best to good rssi threshold */
-	if (bss_info->rssi > good_rssi_threshold) {
-		num_slot = (best_rssi_threshold -
-				good_rssi_threshold) / good_bucket_size;
-		slot_size = good_bucket_size;
-		rssi_diff = best_rssi_threshold - bss_info->rssi;
-		slot_index = (rssi_diff / good_bucket_size) + 1;
-		if (slot_index > num_slot)
-			rssi_pcnt = good_rssi_pcnt;
-		else
-			rssi_pcnt = 100 - slot_size *  (slot_index);
-	} else {
-		num_slot = (good_rssi_threshold -
-				bad_rssi_threshold) / bad_bucket_size;
-		slot_size = bad_bucket_size;
-		rssi_diff = good_rssi_threshold - bss_info->rssi;
-		slot_index = (rssi_diff / bad_bucket_size) + 1;
-		if (slot_index > num_slot)
-			rssi_pcnt = bad_rssi_pcnt;
-		else
-			rssi_pcnt = good_rssi_pcnt - slot_size *  (slot_index);
-	}
+	if (bss_info->rssi > good_rssi_threshold)
+		rssi_pcnt = csr_get_rssi_pcnt_for_slot(best_rssi_threshold,
+				good_rssi_threshold, 100, good_rssi_pcnt,
+				good_bucket_size, bss_info->rssi);
+	else
+		rssi_pcnt = csr_get_rssi_pcnt_for_slot(good_rssi_threshold,
+				bad_rssi_threshold, good_rssi_pcnt,
+				bad_rssi_pcnt, bad_bucket_size,
+				bss_info->rssi);
+
 	return (total_rssi_score * rssi_pcnt) / 100;
 
+}
+
+/**
+ * csr_roam_calculate_prorated_pcnt_by_rssi () - Calculate prorated RSSI score
+ * based on AP RSSI. This will be used to determine HT VHT score
+ * @score_param: rssi score params
+ * @bss_info: bss information
+ * @rssi_weightage: rssi_weightage out of total weightage
+ *
+ * If rssi is greater than good threshold return 100, if less than bad return 0,
+ * if between good and bad, return prorated rssi score for the index.
+ *
+ * Return : rssi prorated score
+ */
+static int8_t csr_roam_calculate_prorated_pcnt_by_rssi(
+	struct sir_rssi_cfg_score *score_param,
+	tSirBssDescription *bss_info, uint8_t rssi_weightage)
+{
+	int32_t good_rssi_threshold;
+	int32_t bad_rssi_threshold;
+
+	good_rssi_threshold = score_param->good_rssi_threshold * (-1);
+	bad_rssi_threshold = score_param->bad_rssi_threshold * (-1);
+
+	/* If RSSI is less or equal to bad rssi threshold then it return 0 */
+	if (bss_info->rssi <= bad_rssi_threshold)
+		return 0;
+
+	if (bss_info->rssi <= good_rssi_threshold)
+		return csr_get_rssi_pcnt_for_slot(good_rssi_threshold,
+					bad_rssi_threshold,
+					score_param->good_rssi_pcnt,
+					score_param->bad_rssi_pcnt,
+					score_param->bad_rssi_bucket_size,
+					bss_info->rssi);
+	else
+		return BEST_CANDIDATE_MAX_WEIGHT;
 }
 
 /**
@@ -2008,6 +2065,7 @@ static int32_t _csr_calculate_bss_score(tpAniSirGlobal mac_ctx,
 	uint32_t beamformee_cap;
 	uint32_t dot11mode;
 	struct sir_score_config *bss_score_params;
+	uint8_t prorated_pcnt;
 
 	/*
 	 * Total weight of a BSSID is calculated on basis of 100 in which
@@ -2026,8 +2084,8 @@ static int32_t _csr_calculate_bss_score(tpAniSirGlobal mac_ctx,
 	bss_score_params = &mac_ctx->roam.configParam.bss_score_params;
 	weight_config = &bss_score_params->weight_cfg;
 
-	rssi_score = csr_calculate_rssi_score(mac_ctx, bss_info,
-		weight_config->rssi_weightage);
+	rssi_score = csr_calculate_rssi_score(&bss_score_params->rssi_score,
+			bss_info, weight_config->rssi_weightage);
 	score += rssi_score;
 
 	pcl_score = csr_calculate_pcl_score(mac_ctx, bss_info,
@@ -2036,10 +2094,12 @@ static int32_t _csr_calculate_bss_score(tpAniSirGlobal mac_ctx,
 
 	dot11mode = csr_translate_to_wni_cfg_dot11_mode(mac_ctx,
 			mac_ctx->roam.configParam.uCfgDot11Mode);
-
+	prorated_pcnt = csr_roam_calculate_prorated_pcnt_by_rssi(
+				&bss_score_params->rssi_score, bss_info,
+				weight_config->rssi_weightage);
 	/* If device and AP supports HT caps, extra 10% score will be added */
 	if (IS_DOT11_MODE_HT(dot11mode) && bss_info->ht_caps_present)
-		ht_score = BEST_CANDIDATE_MAX_WEIGHT *
+		ht_score = prorated_pcnt *
 				weight_config->ht_caps_weightage;
 	score += ht_score;
 
@@ -2048,7 +2108,7 @@ static int32_t _csr_calculate_bss_score(tpAniSirGlobal mac_ctx,
 	 * be added to score
 	 */
 	if (IS_DOT11_MODE_VHT(dot11mode) && bss_info->vht_caps_present)
-		vht_score = BEST_CANDIDATE_MAX_WEIGHT *
+		vht_score = prorated_pcnt *
 				 weight_config->vht_caps_weightage;
 	score += vht_score;
 

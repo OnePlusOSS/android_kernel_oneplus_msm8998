@@ -1252,8 +1252,10 @@ static inline void hdd_register_rx_ol(void)
 {
 	hdd_context_t *hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
 
-	if  (!hdd_ctx)
+	if  (!hdd_ctx) {
 		hdd_err("HDD context is NULL");
+		return;
+	}
 
 	if (hdd_ctx->ol_enable == CFG_LRO_ENABLED) {
 		/* Register the flush callback */

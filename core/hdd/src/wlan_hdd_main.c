@@ -5800,8 +5800,6 @@ static void wlan_destroy_bug_report_lock(void)
  */
 static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 {
-	v_CONTEXT_t p_cds_context = hdd_ctx->pcds_context;
-	QDF_STATUS qdf_status;
 	struct wiphy *wiphy = hdd_ctx->wiphy;
 	int driver_status;
 
@@ -5868,17 +5866,6 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 	}
 
 	unregister_netdevice_notifier(&hdd_netdev_notifier);
-
-	/*
-	 * Close the scheduler before calling cds_close to make sure
-	 * no thread is scheduled after the each module close is
-	 * is called i.e after all the data structures are freed.
-	 */
-	qdf_status = cds_sched_close(p_cds_context);
-	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		hdd_alert("Failed to close CDS Scheduler");
-		QDF_ASSERT(QDF_IS_STATUS_SUCCESS(qdf_status));
-	}
 
 	hdd_wlan_stop_modules(hdd_ctx, false);
 
@@ -9611,6 +9598,17 @@ int hdd_wlan_stop_modules(hdd_context_t *hdd_ctx, bool ftm_mode)
 		ret = -EINVAL;
 		QDF_ASSERT(0);
 	}
+
+	/*
+	 * Close the scheduler before calling cds_close to make sure
+	 * no thread is scheduled after the each module close is
+	 * is called i.e after all the data structures are freed.
+	 */
+	qdf_status = cds_sched_close(hdd_ctx->pcds_context);
+	QDF_ASSERT(QDF_IS_STATUS_SUCCESS(qdf_status));
+	if (QDF_IS_STATUS_ERROR(qdf_status))
+		hdd_alert("Failed to close CDS Scheduler");
+
 	qdf_status = cds_close(hdd_ctx->pcds_context);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 		hdd_warn("Failed to stop CDS: %d", qdf_status);
@@ -9983,14 +9981,6 @@ err_stop_modules:
 	hdd_wlan_stop_modules(hdd_ctx, false);
 
 err_exit_nl_srv:
-	if (DRIVER_MODULES_CLOSED == hdd_ctx->driver_status) {
-		status = cds_sched_close(hdd_ctx->pcds_context);
-		if (!QDF_IS_STATUS_SUCCESS(status)) {
-			hdd_err("Failed to close CDS Scheduler");
-			QDF_ASSERT(QDF_IS_STATUS_SUCCESS(status));
-		}
-	}
-
 	hdd_green_ap_deinit(hdd_ctx);
 	hdd_exit_netlink_services(hdd_ctx);
 

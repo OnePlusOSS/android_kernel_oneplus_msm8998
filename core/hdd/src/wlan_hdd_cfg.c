@@ -45,6 +45,7 @@
 #include <wlan_hdd_misc.h>
 #include <wlan_hdd_napi.h>
 #include <cds_concurrency.h>
+#include <linux/ctype.h>
 
 static void
 cb_notify_set_roam_prefer5_g_hz(hdd_context_t *pHddCtx, unsigned long notifyId)
@@ -4997,6 +4998,29 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_LOWER_BRSSI_THRESH_MIN,
 		CFG_LOWER_BRSSI_THRESH_MAX),
 
+	REG_VARIABLE(CFG_ENABLE_ACTION_OUI, WLAN_PARAM_Integer,
+		     struct hdd_config, enable_action_oui,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ENABLE_ACTION_OUI_DEFAULT,
+		     CFG_ENABLE_ACTION_OUI_MIN,
+		     CFG_ENABLE_ACTION_OUI_MAX),
+
+	REG_VARIABLE_STRING(CFG_ACTION_OUI_CONNECT_1X1_NAME, WLAN_PARAM_String,
+			    struct hdd_config, action_oui_connect_1x1,
+			    VAR_FLAGS_OPTIONAL,
+			    (void *)CFG_ACTION_OUI_CONNECT_1X1_DEFAULT),
+
+	REG_VARIABLE_STRING(CFG_ACTION_OUI_ITO_EXTENSION_NAME,
+			    WLAN_PARAM_String,
+			    struct hdd_config, action_oui_ito_extension,
+			    VAR_FLAGS_OPTIONAL,
+			    (void *)CFG_ACTION_OUI_ITO_EXTENSION_DEFAULT),
+
+	REG_VARIABLE_STRING(CFG_ACTION_OUI_CCKM_1X1_NAME, WLAN_PARAM_String,
+			    struct hdd_config, action_oui_cckm_1x1,
+			    VAR_FLAGS_OPTIONAL,
+			    (void *)CFG_ACTION_OUI_CCKM_1X1_DEFAULT),
+
 	REG_VARIABLE(CFG_DTIM_1CHRX_ENABLE_NAME, WLAN_PARAM_Integer,
 		struct hdd_config, enable_dtim_1chrx,
 		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -8358,6 +8382,727 @@ hdd_to_csr_wmm_mode(enum hdd_wmm_user_mode mode)
 	}
 }
 
+/* Start of action oui functions */
+
+/**
+ * hdd_string_to_hex() - convert string to uint8_t hex array
+ * @token - string to be converted
+ * @hex_str - output string to hold converted string
+ * @no_of_lengths - count of possible lengths for input string
+ * @possible_lengths - array holding possible lengths
+ *
+ * This function converts the continuous input string of even length and
+ * containing hexa decimal characters into hexa decimal array of uint8_t type.
+ * Input string needs to be NULL terminated and the length should match with
+ * one of entries in @possible_lengths
+ *
+ * Return: If conversion is successful return true else false
+ */
+static bool hdd_string_to_hex(uint8_t *token, uint8_t *hex_str,
+			      uint32_t no_of_lengths,
+			      uint32_t *possible_lengths)
+{
+	uint32_t token_len = qdf_str_len(token);
+	uint32_t hex_str_len;
+	uint32_t i;
+
+	if (!token_len || (token_len & 0x01)) {
+		hdd_err("Token len is not multiple of 2");
+		return false;
+	}
+
+	for (i = 0; i < no_of_lengths; i++)
+		if (token_len == possible_lengths[i])
+			break;
+
+	if (i == no_of_lengths) {
+		hdd_err("Token len doesn't match with expected len");
+		return false;
+	}
+
+	hex_str_len = token_len / 2;
+
+	for (i = 0; i < hex_str_len; i++) {
+		if (!isxdigit(token[i * 2]) ||
+		    !isxdigit(token[i * 2 + 1])) {
+			hdd_err("Token doesn't contain hex digits");
+			return false;
+		}
+
+		hex_str[i] = (uint8_t)((parse_hex_digit(token[i * 2]) << 4) +
+					parse_hex_digit(token[i * 2 + 1]));
+	}
+
+	return true;
+}
+
+/**
+ * hdd_action_oui_token_string() - converts enum value to string
+ * token_id: enum value to be converted to string
+ *
+ * This function converts the enum value of type hdd_action_oui_token_type
+ * to string
+ *
+ * Return: converted string
+ */
+static
+uint8_t *hdd_action_oui_token_string(enum hdd_action_oui_token_type token_id)
+{
+	switch (token_id) {
+		CASE_RETURN_STRING(HDD_ACTION_OUI_TOKEN);
+		CASE_RETURN_STRING(HDD_ACTION_OUI_DATA_LENGTH_TOKEN);
+		CASE_RETURN_STRING(HDD_ACTION_OUI_DATA_TOKEN);
+		CASE_RETURN_STRING(HDD_ACTION_OUI_DATA_MASK_TOKEN);
+		CASE_RETURN_STRING(HDD_ACTION_OUI_INFO_MASK_TOKEN);
+		CASE_RETURN_STRING(HDD_ACTION_OUI_MAC_ADDR_TOKEN);
+		CASE_RETURN_STRING(HDD_ACTION_OUI_MAC_MASK_TOKEN);
+		CASE_RETURN_STRING(HDD_ACTION_OUI_CAPABILITY_TOKEN);
+		CASE_RETURN_STRING(HDD_ACTION_OUI_END_TOKEN);
+	}
+
+	return (uint8_t *) "UNKNOWN";
+}
+
+/**
+ * hdd_validate_and_convert_oui() - validate and convert OUI str to hex array
+ * @token: OUI string
+ * @hdd_ext: pointer to container which holds converted hex array
+ * @action_token: next action to be parsed
+ *
+ * This is an internal function invoked from hdd_parse_action_oui to validate
+ * the OUI string for action OUI inis, convert them to hex array and store it
+ * in hdd extension. After successful parsing update the @action_token to hold
+ * the next expected string
+ *
+ * Return: If conversion is successful return true else false
+ */
+static
+bool hdd_validate_and_convert_oui(uint8_t *token,
+				  struct wmi_action_oui_extension *hdd_ext,
+				  enum hdd_action_oui_token_type *action_token)
+{
+	bool valid;
+	uint32_t expected_token_len[2] = {6, 10};
+
+	valid = hdd_string_to_hex(token, hdd_ext->oui, 2, expected_token_len);
+	if (!valid)
+		return false;
+
+	hdd_ext->oui_length = qdf_str_len(token) / 2;
+
+	*action_token = HDD_ACTION_OUI_DATA_LENGTH_TOKEN;
+
+	return valid;
+}
+
+/**
+ * hdd_validate_and_convert_data_length() - validate data len str
+ * @token: data length string
+ * @hdd_ext: pointer to container which holds hex value formed from input str
+ * @action_token: next action to be parsed
+ *
+ * This is an internal function invoked from hdd_parse_action_oui to validate
+ * the data length string for action OUI inis, convert it to hex value and
+ * store it in hdd extension. After successful parsing update the @action_token
+ * to hold the next expected string
+ *
+ * Return: If conversion is successful return true else false
+ */
+static bool
+hdd_validate_and_convert_data_length(uint8_t *token,
+				struct wmi_action_oui_extension *hdd_ext,
+				enum hdd_action_oui_token_type *action_token)
+{
+	uint32_t token_len = qdf_str_len(token);
+	int ret;
+	uint8_t len = 0;
+
+	if (token_len != 1 && token_len != 2) {
+		hdd_err("Invalid str token len for action OUI data len");
+		return false;
+	}
+
+	ret = kstrtou8(token, 16, &len);
+	if (ret) {
+		hdd_err("Invalid char in action OUI data len str token");
+		return false;
+	}
+
+	if ((uint32_t)len > WMI_ACTION_OUI_MAX_DATA_LENGTH) {
+		hdd_err("action OUI data len is more than %u",
+			WMI_ACTION_OUI_MAX_DATA_LENGTH);
+		return false;
+	}
+
+	hdd_ext->data_length = len;
+
+	if (!hdd_ext->data_length)
+		*action_token = HDD_ACTION_OUI_INFO_MASK_TOKEN;
+	else
+		*action_token = HDD_ACTION_OUI_DATA_TOKEN;
+
+	return true;
+}
+
+/**
+ * hdd_validate_and_convert_data() - validate and convert data str to hex array
+ * @token: data string
+ * @hdd_ext: pointer to container which holds converted hex array
+ * @action_token: next action to be parsed
+ *
+ * This is an internal function invoked from hdd_parse_action_oui to validate
+ * the data string for action OUI inis, convert it to hex array and store in
+ * hdd extension. After successful parsing update the @action_token to hold
+ * the next expected string
+ *
+ * Return: If conversion is successful return true else false
+ */
+static bool
+hdd_validate_and_convert_data(uint8_t *token,
+			      struct wmi_action_oui_extension *hdd_ext,
+			      enum hdd_action_oui_token_type *action_token)
+{
+	bool valid;
+	uint32_t expected_token_len[1] = {2 * hdd_ext->data_length};
+
+	valid = hdd_string_to_hex(token, hdd_ext->data, 1, expected_token_len);
+	if (!valid)
+		return false;
+
+	*action_token = HDD_ACTION_OUI_DATA_MASK_TOKEN;
+
+	return true;
+}
+
+/**
+ * hdd_validate_and_convert_data_mask() - validate and convert data mask str
+ * @token: data mask string
+ * @hdd_ext: pointer to container which holds converted hex array
+ * @action_token: next action to be parsed
+ *
+ * This is an internal function invoked from hdd_parse_action_oui to validate
+ * the data mask string for action OUI inis, convert it to hex array and store
+ * in hdd extension. After successful parsing update the @action_token to hold
+ * the next expected string
+ *
+ * Return: If conversion is successful return true else false
+ */
+static bool
+hdd_validate_and_convert_data_mask(uint8_t *token,
+				   struct wmi_action_oui_extension *hdd_ext,
+				   enum hdd_action_oui_token_type *action_token)
+{
+	bool valid;
+	uint32_t expected_token_len[1];
+	uint32_t data_mask_length;
+	uint32_t data_length = hdd_ext->data_length;
+
+	if (data_length % 8 == 0)
+		data_mask_length = data_length / 8;
+	else
+		data_mask_length = ((data_length / 8) + 1);
+
+	if (data_mask_length > WMI_ACTION_OUI_MAX_DATA_MASK_LENGTH)
+		return false;
+
+	expected_token_len[0] = 2 * data_mask_length;
+
+	valid = hdd_string_to_hex(token, hdd_ext->data_mask, 1,
+				  expected_token_len);
+	if (!valid)
+		return false;
+
+	hdd_ext->data_mask_length = data_mask_length;
+
+	*action_token = HDD_ACTION_OUI_INFO_MASK_TOKEN;
+
+	return valid;
+}
+
+/**
+ * hdd_validate_and_convert_info_mask() - validate and convert info mask str
+ * @token: info mask string
+ * @hdd_ext: pointer to container which holds converted hex array
+ * @action_token: next action to be parsed
+ *
+ * This is an internal function invoked from hdd_parse_action_oui to validate
+ * the info mask string for action OUI inis, convert it to hex array and store
+ * in hdd extension. After successful parsing update the @action_token to hold
+ * the next expected string
+ *
+ * Return: If conversion is successful return true else false
+ */
+static bool
+hdd_validate_and_convert_info_mask(uint8_t *token,
+				   struct wmi_action_oui_extension *hdd_ext,
+				   enum hdd_action_oui_token_type *action_token)
+{
+	uint32_t token_len = qdf_str_len(token);
+	uint8_t hex_value = 0;
+	uint32_t info_mask;
+	int ret;
+
+	if (token_len != 2) {
+		hdd_err("action OUI info mask str token len is not of 2 chars");
+		return false;
+	}
+
+	ret = kstrtou8(token, 16, &hex_value);
+	if (ret) {
+		hdd_err("Invalid char in action OUI info mask str token");
+		return false;
+	}
+
+	info_mask = hex_value;
+
+	info_mask |= WMI_ACTION_OUI_INFO_OUI;
+	hdd_ext->info_mask = info_mask;
+
+	if (!info_mask || !(info_mask & ~WMI_ACTION_OUI_INFO_OUI)) {
+		*action_token = HDD_ACTION_OUI_END_TOKEN;
+		return true;
+	}
+
+	if (info_mask & ~WMI_ACTION_OUI_INFO_MASK) {
+		hdd_err("Invalid bits are set in action OUI info mask");
+		return false;
+	}
+
+	if (info_mask & WMI_ACTION_OUI_INFO_MAC_ADDRESS) {
+		*action_token = HDD_ACTION_OUI_MAC_ADDR_TOKEN;
+		return true;
+	}
+
+	*action_token = HDD_ACTION_OUI_CAPABILITY_TOKEN;
+	return true;
+}
+
+/**
+ * hdd_validate_and_convert_mac_addr() - validate and convert mac addr str
+ * @token: mac address string
+ * @hdd_ext: pointer to container which holds converted hex array
+ * @action_token: next action to be parsed
+ *
+ * This is an internal function invoked from hdd_parse_action_oui to validate
+ * the mac address string for action OUI inis, convert it to hex array and store
+ * in hdd extension. After successful parsing update the @action_token to hold
+ * the next expected string
+ *
+ * Return: If conversion is successful return true else false
+ */
+static bool
+hdd_validate_and_convert_mac_addr(uint8_t *token,
+				  struct wmi_action_oui_extension *hdd_ext,
+				  enum hdd_action_oui_token_type *action_token)
+{
+	uint32_t expected_token_len[1] = {2 * QDF_MAC_ADDR_SIZE};
+	bool valid;
+
+	valid = hdd_string_to_hex(token, hdd_ext->mac_addr, 1,
+				  expected_token_len);
+	if (!valid)
+		return false;
+
+	hdd_ext->mac_addr_length = QDF_MAC_ADDR_SIZE;
+
+	*action_token = HDD_ACTION_OUI_MAC_MASK_TOKEN;
+
+	return true;
+}
+
+/**
+ * hdd_validate_and_convert_mac_mask() - validate and convert mac mask
+ * @token: mac mask string
+ * @hdd_ext: pointer to container which holds converted hex value
+ * @action_token: next action to be parsed
+ *
+ * This is an internal function invoked from hdd_parse_action_oui to validate
+ * the mac mask string for action OUI inis, convert it to hex value and store
+ * in hdd extension. After successful parsing update the @action_token to hold
+ * the next expected string
+ *
+ * Return: If conversion is successful return true else false
+ */
+static bool
+hdd_validate_and_convert_mac_mask(uint8_t *token,
+				  struct wmi_action_oui_extension *hdd_ext,
+				  enum hdd_action_oui_token_type *action_token)
+{
+	uint32_t expected_token_len[1] = {2};
+	uint32_t info_mask = hdd_ext->info_mask;
+	bool valid;
+	uint32_t mac_mask_length;
+
+	valid = hdd_string_to_hex(token, hdd_ext->mac_mask, 1,
+				  expected_token_len);
+	if (!valid)
+		return false;
+
+	mac_mask_length = qdf_str_len(token) / 2;
+	if (mac_mask_length > WMI_ACTION_OUI_MAC_MASK_LENGTH) {
+		hdd_err("action OUI mac mask str token len is more than %u chars",
+			expected_token_len[0]);
+		return false;
+	}
+
+	hdd_ext->mac_mask_length = mac_mask_length;
+
+	if ((info_mask & WMI_ACTION_OUI_INFO_AP_CAPABILITY_NSS) ||
+	    (info_mask & WMI_ACTION_OUI_INFO_AP_CAPABILITY_HT) ||
+	    (info_mask & WMI_ACTION_OUI_INFO_AP_CAPABILITY_VHT) ||
+	    (info_mask & WMI_ACTION_OUI_INFO_AP_CAPABILITY_BAND)) {
+		*action_token = HDD_ACTION_OUI_CAPABILITY_TOKEN;
+		return true;
+	}
+
+	*action_token = HDD_ACTION_OUI_END_TOKEN;
+	return true;
+}
+
+/**
+ * hdd_validate_and_convert_capability() - validate and convert capability str
+ * @token: capability string
+ * @hdd_ext: pointer to container which holds converted hex value
+ * @action_token: next action to be parsed
+ *
+ * This is an internal function invoked from hdd_parse_action_oui to validate
+ * the capability string for action OUI inis, convert it to hex value and store
+ * in hdd extension. After successful parsing update the @action_token to hold
+ * the next expected string
+ *
+ * Return: If conversion is successful return true else false
+ */
+static bool
+hdd_validate_and_convert_capability(uint8_t *token,
+				struct wmi_action_oui_extension *hdd_ext,
+				enum hdd_action_oui_token_type *action_token)
+{
+	uint32_t expected_token_len[1] = {2};
+	uint32_t info_mask = hdd_ext->info_mask;
+	uint32_t capability_length;
+	uint8_t caps_0;
+	bool valid;
+
+	valid = hdd_string_to_hex(token, hdd_ext->capability, 1,
+				  expected_token_len);
+	if (!valid)
+		return false;
+
+	capability_length = qdf_str_len(token) / 2;
+	if (capability_length > WMI_ACTION_OUI_MAX_CAPABILITY_LENGTH) {
+		hdd_err("action OUI capability str token len is more than %u chars",
+			expected_token_len[0]);
+		return false;
+	}
+
+	caps_0 = hdd_ext->capability[0];
+
+	if ((info_mask & WMI_ACTION_OUI_INFO_AP_CAPABILITY_NSS) &&
+	    (!(caps_0 & WMI_ACTION_OUI_CAPABILITY_NSS_MASK))) {
+		hdd_err("Info presence for NSS is set but respective bits in capability are not set");
+		return false;
+	}
+
+	if ((info_mask & WMI_ACTION_OUI_INFO_AP_CAPABILITY_BAND) &&
+	    (!(caps_0 & WMI_ACTION_OUI_CAPABILITY_BAND_MASK))) {
+		hdd_err("Info presence for BAND is set but respective bits in capability are not set");
+		return false;
+	}
+
+	hdd_ext->capability_length = capability_length;
+
+	*action_token = HDD_ACTION_OUI_END_TOKEN;
+
+	return true;
+}
+
+/**
+ * hdd_set_action_oui_ext() - set action oui extension in sme
+ * @hdd_ctx: pointer to hdd context
+ * @hdd_ext: oui extension to store in sme
+ * @action_id: type of the action from enum wmi_action_oui_id
+ *
+ * This function invokes sme api to store the parsed oui extension
+ *
+ * Return: 0 - on success else negative value
+ *
+ */
+static int
+hdd_set_action_oui_ext(hdd_context_t *hdd_ctx,
+		       struct wmi_action_oui_extension hdd_ext,
+		       enum wmi_action_oui_id action_id)
+{
+	struct wmi_action_oui_extension *wmi_ext;
+	int ret = 0;
+	QDF_STATUS qdf_status;
+
+	if (!hdd_ext.oui_length) {
+		hdd_err("Invalid oui length");
+		return -EINVAL;
+	}
+
+	wmi_ext = qdf_mem_malloc(sizeof(*wmi_ext));
+	if (!wmi_ext) {
+		hdd_err("Failed to allocate memory for action oui extension");
+		return -ENOMEM;
+	}
+
+	*wmi_ext = hdd_ext;
+
+	qdf_status = sme_set_action_oui_ext(hdd_ctx->hHal, wmi_ext, action_id);
+	if (!QDF_IS_STATUS_SUCCESS(qdf_status))
+		ret = qdf_status_to_os_return(qdf_status);
+
+	qdf_mem_free(wmi_ext);
+	wmi_ext = NULL;
+
+	return ret;
+}
+
+/**
+ * hdd_parse_action_oui() - parse action oui ini string
+ * @hdd_ctx: pointer to hdd context
+ * @oui_string: ini string to be parsed
+ * @action_id: type of the action from enum wmi_action_oui_id
+ *
+ * This function parses the action oui string and extracts the several
+ * tokens mentioned in enum action_oui_token_type for each oui extension
+ * and sends the same to sme.
+ *
+ * Return: 0 - on success else negative value
+ *
+ */
+static int hdd_parse_action_oui(hdd_context_t *hdd_ctx, uint8_t *oui_string,
+			enum wmi_action_oui_id action_id)
+{
+	struct wmi_action_oui_extension hdd_ext = {0};
+	enum hdd_action_oui_token_type action_token = HDD_ACTION_OUI_TOKEN;
+
+	char *str1;
+	char *str2;
+	char *token;
+
+	bool valid = true;
+	bool oui_count_exceed = false;
+	uint32_t oui_index = 0;
+
+	int32_t ret = 0;
+
+	if (!oui_string) {
+		hdd_err("Invalid string for action oui: %u", action_id);
+		return -EINVAL;
+	}
+
+	str1 = strim((char *)oui_string);
+
+	while (str1) {
+		str2 = skip_spaces(str1);
+		if (str2[0] == '\0') {
+			hdd_err("Invalid spaces in action oui: %u at extension: %u for token: %s",
+				action_id,
+				oui_index + 1,
+				hdd_action_oui_token_string(action_token));
+			valid = false;
+			break;
+		}
+
+		token = strsep(&str2, " ");
+		if (!token) {
+			hdd_err("Invalid string for token: %s at extension: %u in action oui: %u",
+				hdd_action_oui_token_string(action_token),
+				oui_index + 1, action_id);
+			valid = false;
+			break;
+		}
+
+		str1 = str2;
+
+		switch (action_token) {
+
+		case HDD_ACTION_OUI_TOKEN:
+			valid = hdd_validate_and_convert_oui(token, &hdd_ext,
+							     &action_token);
+			break;
+
+		case HDD_ACTION_OUI_DATA_LENGTH_TOKEN:
+			valid = hdd_validate_and_convert_data_length(token,
+								&hdd_ext,
+								&action_token);
+			break;
+
+		case HDD_ACTION_OUI_DATA_TOKEN:
+			valid = hdd_validate_and_convert_data(token, &hdd_ext,
+							      &action_token);
+			break;
+
+		case HDD_ACTION_OUI_DATA_MASK_TOKEN:
+			valid = hdd_validate_and_convert_data_mask(token,
+								&hdd_ext,
+								&action_token);
+			break;
+
+		case HDD_ACTION_OUI_INFO_MASK_TOKEN:
+			valid = hdd_validate_and_convert_info_mask(token,
+								&hdd_ext,
+								&action_token);
+			break;
+
+		case HDD_ACTION_OUI_MAC_ADDR_TOKEN:
+			valid = hdd_validate_and_convert_mac_addr(token,
+								&hdd_ext,
+								&action_token);
+			break;
+
+		case HDD_ACTION_OUI_MAC_MASK_TOKEN:
+			valid = hdd_validate_and_convert_mac_mask(token,
+								&hdd_ext,
+								&action_token);
+			break;
+
+		case HDD_ACTION_OUI_CAPABILITY_TOKEN:
+			valid = hdd_validate_and_convert_capability(token,
+								&hdd_ext,
+								&action_token);
+			break;
+
+		default:
+			valid = false;
+			break;
+		}
+
+		if (!valid) {
+			hdd_err("Invalid string for token: %s at extension: %u in action oui: %u",
+				hdd_action_oui_token_string(action_token),
+				oui_index + 1,
+				action_id);
+			break;
+		}
+
+		if (action_token != HDD_ACTION_OUI_END_TOKEN)
+			continue;
+
+		ret = hdd_set_action_oui_ext(hdd_ctx, hdd_ext, action_id);
+		if (ret) {
+			valid = false;
+			hdd_err("sme set of extension: %u for action oui: %u failed",
+				oui_index + 1, action_id);
+			break;
+		}
+
+		oui_index++;
+		if (oui_index == WMI_ACTION_OUI_MAX_EXTENSIONS) {
+			if (str1)
+				oui_count_exceed = true;
+			break;
+		}
+
+		/* reset the params for next action OUI parse */
+		action_token = HDD_ACTION_OUI_TOKEN;
+		qdf_mem_zero(&hdd_ext, sizeof(hdd_ext));
+	}
+
+	if (oui_count_exceed) {
+		hdd_err("Reached Maximum extensions: %u in action_oui: %u, ignoring the rest",
+			WMI_ACTION_OUI_MAX_EXTENSIONS, action_id);
+		return 0;
+	}
+
+	if (action_token != HDD_ACTION_OUI_TOKEN &&
+	    action_token != HDD_ACTION_OUI_END_TOKEN &&
+	    valid && !str1) {
+		hdd_err("No string for token: %s at extension: %u in action oui: %u",
+			hdd_action_oui_token_string(action_token),
+			oui_index + 1,
+			action_id);
+		valid = false;
+	}
+
+	if (!oui_index) {
+		hdd_err("Not able to parse any extension in action oui: %u",
+			action_id);
+		return -EINVAL;
+	}
+
+	if (valid)
+		hdd_debug("All extensions: %u parsed successfully in action oui: %u",
+			  oui_index, action_id);
+	else
+		hdd_err("First %u extensions parsed successfully in action oui: %u",
+			oui_index, action_id);
+
+	return 0;
+}
+
+/**
+ * hdd_set_sme_action_oui() - wrapper to invoke action oui parsing logic
+ * @hdd_ctx: pointer to hdd context
+ * @ini_string: ini string to be parsed
+ * @action_id: type of the action from enum wmi_action_oui_id
+ *
+ * This function is used to invoke the parsing logic after performing the
+ * sanity checks on input passed.
+ *
+ * Return: None
+ *
+ */
+static void hdd_set_sme_action_oui(hdd_context_t *hdd_ctx,
+				   const uint8_t *ini_string,
+				   enum wmi_action_oui_id action_id)
+{
+	uint8_t *oui_string;
+	uint32_t ini_len;
+
+	ini_len = qdf_str_len(ini_string);
+	if (!ini_len)
+		return;
+
+	oui_string = qdf_mem_malloc(ini_len + 1);
+	if (!oui_string) {
+		hdd_err("mem alloc failed for ini string of action oui: %u",
+			action_id);
+		return;
+	}
+
+	qdf_mem_copy(oui_string, ini_string, ini_len);
+	oui_string[ini_len] = '\0';
+
+	hdd_parse_action_oui(hdd_ctx, oui_string, action_id);
+
+	qdf_mem_free(oui_string);
+}
+
+void hdd_set_all_sme_action_ouis(hdd_context_t *hdd_ctx)
+{
+	struct hdd_config *config;
+	uint8_t *ini_string;
+
+	if (!hdd_ctx) {
+		hdd_err("Invalid hdd context");
+		return;
+	}
+
+	config = hdd_ctx->config;
+	if (!config->enable_action_oui)
+		return;
+
+	ini_string = config->action_oui_connect_1x1;
+	ini_string[MAX_ACTION_OUI_STRING_LEN - 1] = '\0';
+	hdd_set_sme_action_oui(hdd_ctx, ini_string,
+			       WMI_ACTION_OUI_CONNECT_1X1);
+
+	ini_string = config->action_oui_ito_extension;
+	ini_string[MAX_ACTION_OUI_STRING_LEN - 1] = '\0';
+	hdd_set_sme_action_oui(hdd_ctx, ini_string,
+			       WMI_ACTION_OUI_ITO_EXTENSION);
+
+	ini_string = config->action_oui_cckm_1x1;
+	ini_string[MAX_ACTION_OUI_STRING_LEN - 1] = '\0';
+	hdd_set_sme_action_oui(hdd_ctx, ini_string,
+			       WMI_ACTION_OUI_CCKM_1X1);
+}
+
+/* End of action oui functions */
+
 /**
  * hdd_limit_max_per_index_score() -check if per index score doesnt exceed 100%
  * (0x64). If it exceed make it 100%
@@ -8886,6 +9631,8 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 	smeConfig->csrConfig.sta_roam_policy_params.skip_unsafe_channels = 0;
 
 	smeConfig->snr_monitor_enabled = pHddCtx->config->fEnableSNRMonitoring;
+
+	smeConfig->enable_action_oui = pHddCtx->config->enable_action_oui;
 
 	smeConfig->csrConfig.tx_aggregation_size =
 			pHddCtx->config->tx_aggregation_size;

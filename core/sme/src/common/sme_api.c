@@ -1375,6 +1375,32 @@ void sme_update_fine_time_measurement_capab(tHalHandle hal, uint8_t session_id,
 }
 
 /**
+ * sme_alloc_action_oui_info() - alloc wrapper struct to hold all action ouis
+ * @pmac: pointer to mac context
+ *
+ * This function allocates wrapper struct to hold all the action ouis info
+ * and stores in mac context
+ *
+ * Return: QDF_STATUS
+ */
+static QDF_STATUS sme_alloc_action_oui_info(tpAniSirGlobal pmac)
+{
+	struct action_oui_info *oui_info;
+
+	if (!pmac->enable_action_oui)
+		return QDF_STATUS_SUCCESS;
+
+	oui_info = qdf_mem_malloc(sizeof(*oui_info));
+	if (!oui_info) {
+		sme_err("Unable to alloc memory for action oui info");
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	pmac->oui_info = oui_info;
+	return QDF_STATUS_SUCCESS;
+}
+
+/**
  * sme_update_config() - Change configurations for all SME moduels
  * The function updates some configuration for modules in SME, CSR, etc
  *  during SMEs close open sequence.
@@ -1434,6 +1460,9 @@ QDF_STATUS sme_update_config(tHalHandle hHal, tpSmeConfigParams
 			  "Could not pass on WNI_CFG_SCAN_IN_POWERSAVE to CFG");
 
 	pMac->snr_monitor_enabled = pSmeConfigParams->snr_monitor_enabled;
+	pMac->enable_action_oui = pSmeConfigParams->enable_action_oui;
+
+	status = sme_alloc_action_oui_info(pMac);
 
 	return status;
 }
@@ -18659,4 +18688,305 @@ QDF_STATUS sme_send_limit_off_channel_params(tHalHandle hal, uint8_t vdev_id,
 	}
 
 	return QDF_STATUS_SUCCESS;
+}
+
+/**
+ * sme_alloc_action_oui() - allocate sme action oui
+ * @oui_info: wrapper structure holding all the action ouis
+ * @action_id: identifier of action oui for which memory is to be allocated
+ *
+ * This function allocates memory for action oui specified by action id
+ * and stores in the wrapper @oui_info
+ *
+ * Return: pointer to allocated action oui struct
+ */
+static struct
+ani_action_oui *sme_alloc_action_oui(struct action_oui_info *oui_info,
+				     enum wmi_action_oui_id action_id)
+{
+	struct ani_action_oui *action_oui;
+
+	action_oui = qdf_mem_malloc(sizeof(*action_oui));
+	if (!action_oui) {
+		sme_err("Failed to alloc memory for action oui");
+		return NULL;
+	}
+
+	action_oui->action_id = action_id;
+	qdf_list_create(&action_oui->oui_ext_list,
+			WMI_ACTION_OUI_MAX_EXTENSIONS);
+	qdf_mutex_create(&action_oui->oui_ext_list_lock);
+
+	oui_info->action_oui[action_id] = action_oui;
+	return action_oui;
+}
+
+QDF_STATUS sme_set_action_oui_ext(tHalHandle hal,
+				  struct wmi_action_oui_extension *wmi_ext,
+				  enum wmi_action_oui_id action_id)
+{
+	struct ani_action_oui_extension *sme_ext;
+	QDF_STATUS status;
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+	struct ani_action_oui *action_oui;
+
+	if (action_id > WMI_ACTION_OUI_MAXIMUM_ID) {
+		sme_err("Invalid OUI action ID");
+		return QDF_STATUS_E_INVAL;
+	}
+
+	if (!mac_ctx->oui_info) {
+		sme_err("action oui info not allocated");
+		return QDF_STATUS_E_INVAL;
+	}
+
+	action_oui = mac_ctx->oui_info->action_oui[action_id];
+	if (!action_oui) {
+		action_oui = sme_alloc_action_oui(mac_ctx->oui_info, action_id);
+		if (!action_oui)
+			return QDF_STATUS_E_NOMEM;
+	} else {
+		if (qdf_list_size(&action_oui->oui_ext_list) ==
+			WMI_ACTION_OUI_MAX_EXTENSIONS) {
+			sme_err("Reached maximum OUI extensions");
+			return QDF_STATUS_E_FAILURE;
+		}
+	}
+
+	sme_ext = qdf_mem_malloc(sizeof(*sme_ext));
+	if (!sme_ext) {
+		sme_err("Failed to allocate memory for sme action oui extn");
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	sme_ext->extension = *wmi_ext;
+
+	qdf_mutex_acquire(&action_oui->oui_ext_list_lock);
+	if (qdf_list_size(&action_oui->oui_ext_list) ==
+			  WMI_ACTION_OUI_MAX_EXTENSIONS) {
+		qdf_mutex_release(&action_oui->oui_ext_list_lock);
+		sme_err("Reached maximum OUI extensions");
+		status = QDF_STATUS_E_FAILURE;
+		goto mem_free;
+	}
+	qdf_list_insert_back(&action_oui->oui_ext_list, &sme_ext->item);
+	mac_ctx->oui_info->total_action_oui_extns++;
+	qdf_mutex_release(&action_oui->oui_ext_list_lock);
+
+	return QDF_STATUS_SUCCESS;
+
+mem_free:
+
+	qdf_mem_free(sme_ext);
+	sme_ext = NULL;
+
+	return status;
+}
+
+/**
+ * sme_prepare_action_oui() - allocate and prepare action oui extensions
+ * @mac_ctx: global mac context
+ * @sme_action: action oui for which wma message is to be prepared
+ * @wmi_action: output buffer to hold wma message contents
+ *
+ * Return: QDF_STATUS
+ */
+static QDF_STATUS
+sme_prepare_action_oui(tpAniSirGlobal mac_ctx,
+		       struct ani_action_oui *sme_action,
+		       struct wmi_action_oui **action)
+{
+	struct wmi_action_oui *wmi_action;
+	struct wmi_action_oui_extension *extension;
+	qdf_list_node_t *node = NULL;
+	qdf_list_node_t *next_node = NULL;
+	qdf_list_t *oui_ext_list;
+	uint32_t len;
+	QDF_STATUS qdf_status;
+	uint32_t no_oui_extensions;
+	struct ani_action_oui_extension *sme_ext;
+
+	*action = NULL;
+	oui_ext_list = &sme_action->oui_ext_list;
+
+	len = sizeof(*wmi_action);
+
+	qdf_mutex_acquire(&sme_action->oui_ext_list_lock);
+	if (qdf_list_empty(oui_ext_list)) {
+		qdf_mutex_release(&sme_action->oui_ext_list_lock);
+		return QDF_STATUS_SUCCESS;
+	}
+
+	no_oui_extensions = qdf_list_size(oui_ext_list);
+	len += no_oui_extensions * sizeof(*extension);
+
+	wmi_action = qdf_mem_malloc(len);
+	if (!wmi_action) {
+		sme_err("Failed to allocate memory for wmi_action_oui");
+		qdf_mutex_release(&sme_action->oui_ext_list_lock);
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	wmi_action->action_id = sme_action->action_id;
+	wmi_action->no_oui_extensions = no_oui_extensions;
+	wmi_action->total_no_oui_extensions =
+				mac_ctx->oui_info->total_action_oui_extns;
+
+	node = NULL;
+	next_node = NULL;
+
+	extension = wmi_action->extension;
+
+	qdf_list_peek_front(oui_ext_list, &node);
+	while (node) {
+		sme_ext = qdf_container_of(node,
+					   struct ani_action_oui_extension,
+					   item);
+
+		*extension = sme_ext->extension;
+
+		qdf_status = qdf_list_peek_next(oui_ext_list, node, &next_node);
+		if (!QDF_IS_STATUS_SUCCESS(qdf_status))
+			break;
+
+		node = next_node;
+		next_node = NULL;
+
+		extension++;
+	}
+
+	qdf_mutex_release(&sme_action->oui_ext_list_lock);
+
+	*action = wmi_action;
+	return QDF_STATUS_SUCCESS;
+}
+
+QDF_STATUS sme_send_action_oui(tHalHandle hal,
+			       enum wmi_action_oui_id action_id)
+{
+	QDF_STATUS status;
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+	struct wmi_action_oui *wmi_action;
+	struct ani_action_oui *sme_action;
+	void *wma_handle;
+
+	if (action_id > WMI_ACTION_OUI_MAXIMUM_ID) {
+		sme_warn("Invalid OUI action ID");
+		return QDF_STATUS_SUCCESS;
+	}
+
+	if (!mac_ctx->enable_action_oui || !mac_ctx->oui_info) {
+		sme_info("action oui support is disabled or oui info is empty");
+		return QDF_STATUS_SUCCESS;
+	}
+
+	sme_action = mac_ctx->oui_info->action_oui[action_id];
+	if (!sme_action)
+		return QDF_STATUS_SUCCESS;
+
+	status = sme_prepare_action_oui(mac_ctx, sme_action, &wmi_action);
+	if (!QDF_IS_STATUS_SUCCESS(status))
+		return QDF_STATUS_E_NOMEM;
+
+	if (!wmi_action)
+		return QDF_STATUS_SUCCESS;
+
+	wma_handle = cds_get_context(QDF_MODULE_ID_WMA);
+	if (!wma_handle) {
+		sme_err("wma handle is NULL");
+		status = QDF_STATUS_E_FAILURE;
+	} else {
+		status = wma_send_action_oui(wma_handle, wmi_action);
+	}
+
+	qdf_mem_free(wmi_action);
+	wmi_action = NULL;
+
+	return status;
+}
+
+/**
+ * sme_destroy_action_oui() - de-allocate memory for action oui extensions
+ * @action_oui: action_oui to be deleted
+ *
+ * Return: None
+ */
+static void sme_destroy_action_oui(struct ani_action_oui *action_oui)
+{
+	struct ani_action_oui_extension *sme_ext;
+	qdf_list_node_t *node = NULL;
+	qdf_list_t *oui_ext_list = &action_oui->oui_ext_list;
+	QDF_STATUS qdf_status;
+
+	if (!action_oui)
+		return;
+
+	qdf_mutex_acquire(&action_oui->oui_ext_list_lock);
+
+	if (qdf_list_empty(oui_ext_list))
+		goto free_action_oui;
+
+	while (!qdf_list_empty(oui_ext_list)) {
+		qdf_status = qdf_list_remove_front(oui_ext_list, &node);
+		if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
+			sme_err("Invalid node delete operation for action: %u",
+				action_oui->action_id);
+			break;
+		}
+
+		sme_ext = qdf_container_of(node,
+					   struct ani_action_oui_extension,
+					   item);
+		qdf_mem_free(sme_ext);
+		sme_ext = NULL;
+	}
+
+free_action_oui:
+
+	qdf_list_destroy(oui_ext_list);
+	qdf_mutex_release(&action_oui->oui_ext_list_lock);
+	qdf_mutex_destroy(&action_oui->oui_ext_list_lock);
+	qdf_mem_free(action_oui);
+	action_oui = NULL;
+}
+
+/**
+ * sme_destroy_action_oui_info() - destroy all action ouis info
+ * @pmac: pointer to mac context
+ *
+ * Return: QDF_STATUS
+ */
+static QDF_STATUS sme_destroy_action_oui_info(tpAniSirGlobal pmac)
+{
+	struct action_oui_info *oui_info;
+	struct ani_action_oui *action_oui;
+	uint32_t i;
+
+	if (!pmac->oui_info)
+		return QDF_STATUS_SUCCESS;
+
+	oui_info = pmac->oui_info;
+	pmac->oui_info = NULL;
+	oui_info->total_action_oui_extns = 0;
+	for (i = 0; i < WMI_ACTION_OUI_MAXIMUM_ID; i++) {
+		action_oui = oui_info->action_oui[i];
+		oui_info->action_oui[i] = NULL;
+		sme_destroy_action_oui(action_oui);
+	}
+
+	qdf_mem_free(oui_info);
+	oui_info = NULL;
+
+	return QDF_STATUS_SUCCESS;
+}
+
+QDF_STATUS sme_destroy_config(tHalHandle hal)
+{
+	QDF_STATUS status;
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+
+	mac_ctx->enable_action_oui = false;
+	status = sme_destroy_action_oui_info(mac_ctx);
+
+	return status;
 }

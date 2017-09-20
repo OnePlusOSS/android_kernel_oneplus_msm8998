@@ -119,6 +119,9 @@
 	QDF_TRACE(QDF_MODULE_ID_WMA, QDF_TRACE_LEVEL_ERROR, ## args)
 #define WMA_LOGP(args ...) \
 	QDF_TRACE(QDF_MODULE_ID_WMA, QDF_TRACE_LEVEL_FATAL, ## args)
+#define wma_log_rate_limit_err(rate, args...) \
+	QDF_TRACE_RATE_LIMITED(rate, QDF_MODULE_ID_WMA,\
+			QDF_TRACE_LEVEL_ERROR, ## args)
 
 #define WMA_DEBUG_ALWAYS
 

@@ -2337,8 +2337,9 @@ static QDF_STATUS dfs_phyerr_no_offload_event_handler(void *handle,
 		max_dfs_buf_length = DFS_MAX_BUF_LENGTH;
 
 	if (pe_hdr->buf_len > max_dfs_buf_length) {
-		WMA_LOGE("%s: Received Invalid Phyerror event buffer length = %d Maximum allowed buf length = %d",
-			__func__, pe_hdr->buf_len, max_dfs_buf_length);
+		wma_log_rate_limit_err(
+		16, "%s: Invalid Phyerr evt buf len %d Max allowed buf len %d",
+		__func__, pe_hdr->buf_len, max_dfs_buf_length);
 
 		return QDF_STATUS_E_FAILURE;
 	}

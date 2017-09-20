@@ -1020,6 +1020,7 @@ typedef struct tagCsrRoamSession {
 	bool is_fils_connection;
 	uint16_t fils_seq_num;
 	bool ignore_assoc_disallowed;
+	bool discon_in_progress;
 	struct csr_disconnect_stats disconnect_stats;
 } tCsrRoamSession;
 

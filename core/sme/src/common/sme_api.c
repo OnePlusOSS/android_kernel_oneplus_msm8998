@@ -9102,6 +9102,23 @@ QDF_STATUS sme_stop_roaming(tHalHandle hal, uint8_t session_id, uint8_t reason)
 	return QDF_STATUS_SUCCESS;
 }
 
+void sme_indicate_disconnect_inprogress(tHalHandle hal, uint8_t session_id)
+{
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	tCsrRoamSession *session;
+
+	status = sme_acquire_global_lock(&mac_ctx->sme);
+	if (QDF_IS_STATUS_SUCCESS(status)) {
+		if (CSR_IS_SESSION_VALID(mac_ctx, session_id)) {
+			session = CSR_GET_SESSION(mac_ctx, session_id);
+			if (session)
+				session->discon_in_progress = true;
+		}
+		sme_release_global_lock(&mac_ctx->sme);
+	}
+}
+
 /**
  * sme_start_roaming() - Start roaming for a given sessionId
  *  This is a synchronous call

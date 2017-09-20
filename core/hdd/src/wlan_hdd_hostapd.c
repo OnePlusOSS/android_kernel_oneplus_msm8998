@@ -8704,17 +8704,13 @@ static int __wlan_hdd_cfg80211_start_ap(struct wiphy *wiphy,
 
 	pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
 	status = wlan_hdd_validate_context(pHddCtx);
+
 	if (0 != status)
 		return status;
 
 	hdd_debug("pAdapter = %pK, Device mode %s(%d) sub20 %d",
 		pAdapter, hdd_device_mode_to_string(pAdapter->device_mode),
 		pAdapter->device_mode, cds_is_sub_20_mhz_enabled());
-
-	if (cds_is_connection_in_progress(NULL, NULL)) {
-		hdd_err("Can't start BSS: connection is in progress");
-		return -EBUSY;
-	}
 
 	if (cds_is_hw_mode_change_in_progress()) {
 		status = qdf_wait_for_connection_update();

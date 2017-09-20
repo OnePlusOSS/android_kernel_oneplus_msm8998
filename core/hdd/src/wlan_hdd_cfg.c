@@ -4347,6 +4347,14 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_INDOOR_CHANNEL_SUPPORT_MIN,
 		     CFG_INDOOR_CHANNEL_SUPPORT_MAX),
 
+	REG_VARIABLE(CFG_MARK_INDOOR_AS_DISABLE_NAME,
+		     WLAN_PARAM_Integer,
+		     struct hdd_config, disable_indoor_channel,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_MARK_INDOOR_AS_DISABLE_DEFAULT,
+		     CFG_MARK_INDOOR_AS_DISABLE_MIN,
+		     CFG_MARK_INDOOR_AS_DISABLE_MAX),
+
 	REG_VARIABLE(CFG_SAP_TX_LEAKAGE_THRESHOLD_NAME,
 		WLAN_PARAM_Integer,
 		struct hdd_config, sap_tx_leakage_threshold,
@@ -6078,7 +6086,8 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 
 	hdd_debug("Name = [gApEnableUapsd] value = [%u]",
 		  pHddCtx->config->apUapsdEnabled);
-
+	hdd_debug("Name = [g_mark_indoor_as_disable] Value = [%u]",
+		 pHddCtx->config->disable_indoor_channel);
 	hdd_debug("Name = [gEnableApProt] value = [%u]",
 		  pHddCtx->config->apProtEnabled);
 	hdd_debug("Name = [gAPAutoShutOff] Value = [%u]",

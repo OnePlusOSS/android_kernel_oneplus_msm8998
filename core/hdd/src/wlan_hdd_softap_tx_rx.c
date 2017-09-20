@@ -41,6 +41,7 @@
 #include <ol_txrx.h>
 #include <cdp_txrx_peer_ops.h>
 #include <cds_utils.h>
+#include <wlan_hdd_regulatory.h>
 
 #ifdef IPA_OFFLOAD
 #include <wlan_hdd_ipa.h>
@@ -1023,6 +1024,13 @@ QDF_STATUS hdd_softap_stop_bss(hdd_adapter_t *pAdapter)
 			}
 		}
 	}
+
+	/* Mark the indoor channel (passive) to enable */
+	if (pHddCtx->config->disable_indoor_channel) {
+		hdd_update_indoor_channel(pHddCtx, false);
+		sme_update_channel_list(pHddCtx->hHal);
+	}
+
 	return qdf_status;
 }
 

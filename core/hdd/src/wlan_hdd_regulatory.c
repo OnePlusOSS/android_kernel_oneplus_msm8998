@@ -362,6 +362,103 @@ static void hdd_modify_wiphy(struct wiphy  *wiphy,
 }
 
 /**
+ * hdd_modify_indoor_channel_state_flags() - modify wiphy flags and cds state
+ * @wiphy_chan: wiphy channel number
+ * @cds_chan: cds channel structure
+ * @disable: Disable/enable the flags
+ *
+ * Modify wiphy flags and cds state if channel is indoor.
+ *
+ * Return: void
+ */
+void hdd_modify_indoor_channel_state_flags(
+	hdd_context_t *hdd_ctx,
+	struct ieee80211_channel *wiphy_chan,
+	struct regulatory_channel *cds_chan,
+	enum channel_enum chan_enum, int chan_num, bool disable)
+{
+	bool indoor_support = hdd_ctx->config->indoor_channel_support;
+
+	/* Mark indoor channel to disable in wiphy and cds */
+	if (disable) {
+		if (wiphy_chan->flags & IEEE80211_CHAN_INDOOR_ONLY) {
+			wiphy_chan->flags |=
+				IEEE80211_CHAN_DISABLED;
+			hdd_info("Mark indoor channel %d as disable",
+				chan_mapping[chan_enum-1].chan_num);
+			cds_chan->state =
+				CHANNEL_STATE_DISABLE;
+		}
+	} else {
+		if (wiphy_chan->flags & IEEE80211_CHAN_INDOOR_ONLY) {
+			wiphy_chan->flags &=
+					~IEEE80211_CHAN_DISABLED;
+			/*
+			  * Indoor channels may be marked as dfs / enable
+			  * during regulatory processing
+			  */
+			if ((wiphy_chan->flags &
+				(IEEE80211_CHAN_RADAR |
+				IEEE80211_CHAN_PASSIVE_SCAN)) ||
+			     ((indoor_support == false) &&
+				(wiphy_chan->flags &
+				IEEE80211_CHAN_INDOOR_ONLY)))
+				cds_chan->state =
+					CHANNEL_STATE_DFS;
+			else
+				cds_chan->state =
+					CHANNEL_STATE_ENABLE;
+			hdd_info("Mark indoor channel %d as cds_chan state %d",
+				chan_mapping[chan_enum-1].chan_num,
+				cds_chan->state);
+		}
+	}
+
+}
+
+void hdd_update_indoor_channel(hdd_context_t *hdd_ctx,
+					bool disable)
+{
+	int band_num;
+	int chan_num;
+	enum channel_enum chan_enum = CHAN_ENUM_1;
+	struct ieee80211_channel *wiphy_chan, *wiphy_chan_144 = NULL;
+	struct regulatory_channel *cds_chan;
+	uint8_t band_capability;
+	struct wiphy *wiphy = hdd_ctx->wiphy;
+
+	ENTER();
+	hdd_info("disable: %d", disable);
+
+	band_capability = hdd_ctx->curr_band;
+	for (band_num = 0; band_num < HDD_NUM_NL80211_BANDS; band_num++) {
+
+		if (wiphy->bands[band_num] == NULL)
+			continue;
+
+		for (chan_num = 0;
+		     chan_num < wiphy->bands[band_num]->n_channels &&
+		     chan_enum < NUM_CHANNELS;
+		     chan_num++) {
+
+			wiphy_chan =
+				&(wiphy->bands[band_num]->channels[chan_num]);
+			cds_chan = &(reg_channels[chan_enum]);
+			if (chan_enum == CHAN_ENUM_144)
+				wiphy_chan_144 = wiphy_chan;
+
+			chan_enum++;
+			hdd_modify_indoor_channel_state_flags(hdd_ctx,
+				wiphy_chan, cds_chan,
+				chan_enum, chan_num, disable);
+			cds_chan->flags = wiphy_chan->flags;
+		}
+	}
+	EXIT();
+
+}
+
+/**
  * hdd_process_regulatory_data() - process regulatory data
  * @hdd_ctx: hdd context
  * @wiphy: wiphy

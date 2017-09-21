@@ -595,8 +595,7 @@ QDF_STATUS send_roam_scan_offload_cmd_tlv(wmi_unified_t wmi_handle,
 					 uint32_t command, uint32_t vdev_id);
 
 QDF_STATUS send_roam_scan_offload_ap_profile_cmd_tlv(wmi_unified_t wmi_handle,
-					    wmi_ap_profile *ap_profile_p,
-					    uint32_t vdev_id);
+					  struct ap_profile_params *ap_profile);
 
 QDF_STATUS send_roam_scan_offload_scan_period_cmd_tlv(wmi_unified_t wmi_handle,
 					     uint32_t scan_period,

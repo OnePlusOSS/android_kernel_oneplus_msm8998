@@ -44,7 +44,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/export.h>
-#include <stacktrace.h>
+#include <linux/stacktrace.h>
 
 /* Function declarations and documenation */
 

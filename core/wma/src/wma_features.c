@@ -6639,6 +6639,7 @@ int wma_process_receive_filter_set_filter_req(tp_wma_handle wma,
 {
 	int ret = 0;
 	uint8_t vdev_id;
+	struct wma_txrx_node *iface;
 
 	/* Get the vdev id */
 	if (!wma_find_vdev_by_bssid(wma,
@@ -6648,8 +6649,21 @@ int wma_process_receive_filter_set_filter_req(tp_wma_handle wma,
 		return -EINVAL;
 	}
 
-	ret = wma_config_packet_filter(wma, vdev_id, rcv_filter_param,
-				rcv_filter_param->filterId, true);
+	iface = &(wma->interfaces[vdev_id]);
+	if (!iface) {
+		WMA_LOGE("vdev is null");
+		return -EINVAL;
+	}
+
+	if (iface->type == WMI_VDEV_TYPE_STA &&
+		iface->sub_type == 0)
+		ret = wma_config_packet_filter(wma, vdev_id, rcv_filter_param,
+			rcv_filter_param->filterId, true);
+	else {
+		WMA_LOGE("Invalid vdev type %d sub_type %d for pkt filter cmd",
+			iface->type, iface->sub_type);
+		return -EINVAL;
+	}
 
 	return ret;
 }
@@ -6666,6 +6680,7 @@ int wma_process_receive_filter_clear_filter_req(tp_wma_handle wma,
 {
 	int ret = 0;
 	uint8_t vdev_id;
+	struct wma_txrx_node *iface;
 
 	/* Get the vdev id */
 	if (!wma_find_vdev_by_addr(wma,
@@ -6676,8 +6691,21 @@ int wma_process_receive_filter_clear_filter_req(tp_wma_handle wma,
 		return -EINVAL;
 	}
 
-	ret = wma_config_packet_filter(wma, vdev_id, NULL,
+	iface = &(wma->interfaces[vdev_id]);
+	if (!iface) {
+		WMA_LOGE("vdev is null");
+		return -EINVAL;
+	}
+
+	if (iface->type == WMI_VDEV_TYPE_STA &&
+		iface->sub_type == 0)
+		ret = wma_config_packet_filter(wma, vdev_id, NULL,
 			rcv_clear_param->filterId, false);
+	else {
+		WMA_LOGE("Invalid vdev type %d sub_type %d for pkt filter cmd",
+			iface->type, iface->sub_type);
+		return -EINVAL;
+	}
 
 	return ret;
 }

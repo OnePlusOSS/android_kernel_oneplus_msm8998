@@ -2184,6 +2184,11 @@ wma_action_frame_filter_mac_event_handler(void *handle, u_int8_t *event_buf,
 		return -EINVAL;
 	}
 
+	if (!wma_is_vdev_valid(event->vdev_id)) {
+		WMA_LOGE(FL("Invalid vdev id"));
+		return -EINVAL;
+	}
+
 	intr = &wma_handle->interfaces[event->vdev_id];
 	/* command is in progress */
 	if (!intr->action_frame_filter) {

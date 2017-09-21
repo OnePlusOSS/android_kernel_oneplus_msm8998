@@ -121,61 +121,7 @@ static inline void pld_sdio_device_self_recovery(struct device *dev)
 {
 	cnss_common_device_self_recovery(dev);
 }
-
-static inline void pld_sdio_set_cc_source(enum pld_cc_src cc_source)
-{
-	enum cnss_cc_src cc;
-
-	switch (cc_source) {
-	case PLD_SOURCE_CORE:
-		cc = CNSS_SOURCE_CORE;
-		break;
-	case PLD_SOURCE_11D:
-		cc = CNSS_SOURCE_11D;
-		break;
-	case PLD_SOURCE_USER:
-		cc = CNSS_SOURCE_USER;
-		break;
-	default:
-		cc = CNSS_SOURCE_CORE;
-		break;
-	}
-	cnss_set_cc_source(cc);
-}
-static inline enum pld_cc_src pld_sdio_get_cc_source(void)
-{
-	enum cnss_cc_src cc;
-	enum pld_cc_src cc_source;
-
-	cc = cnss_get_cc_source();
-	switch (cc) {
-	case CNSS_SOURCE_CORE:
-		cc_source = PLD_SOURCE_CORE;
-		break;
-	case CNSS_SOURCE_11D:
-		cc_source = PLD_SOURCE_11D;
-		break;
-	case CNSS_SOURCE_USER:
-		cc_source = PLD_SOURCE_USER;
-		break;
-	default:
-		cc_source = PLD_SOURCE_CORE;
-		break;
-	}
-
-	return cc_source;
-}
 #else
-static inline void pld_sdio_set_cc_source(enum pld_cc_src cc_source)
-{
-	return;
-}
-
-static inline enum pld_cc_src pld_sdio_get_cc_source(void)
-{
-	return PLD_SOURCE_CORE;
-}
-
 static inline void *pld_sdio_get_virt_ramdump_mem(struct device *dev,
 		unsigned long *size)
 {

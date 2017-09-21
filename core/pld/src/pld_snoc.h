@@ -34,15 +34,6 @@
 #include "pld_internal.h"
 
 #ifndef CONFIG_PLD_SNOC_ICNSS
-static inline void pld_snoc_set_cc_source(enum pld_cc_src cc_source)
-{
-	return;
-}
-static inline enum pld_cc_src pld_snoc_get_cc_source(void)
-{
-	`return PLD_SOURCE_CORE;
-}
-
 static inline int pld_snoc_register_driver(void)
 {
 	return 0;
@@ -214,48 +205,6 @@ static inline int pld_snoc_force_assert_target(struct device *dev)
 static inline int pld_snoc_set_fw_log_mode(u8 fw_log_mode)
 {
 	return icnss_set_fw_log_mode(fw_log_mode);
-}
-static inline void pld_snoc_set_cc_source(enum pld_cc_src cc_source)
-{
-	enum cnss_cc_src cc;
-	switch (cc_source) {
-	case PLD_SOURCE_CORE:
-		cc = CNSS_SOURCE_CORE;
-		break;
-	case PLD_SOURCE_11D:
-		cc = CNSS_SOURCE_11D;
-		break;
-	case PLD_SOURCE_USER:
-		cc = CNSS_SOURCE_USER;
-		break;
-	default:
-		cc = CNSS_SOURCE_CORE;
-		break;
-	}
-	icnss_set_cc_source(cc);
-}
-static inline enum pld_cc_src pld_snoc_get_cc_source(void)
-{
-	enum cnss_cc_src cc;
-	enum pld_cc_src cc_source;
-
-	cc = icnss_get_cc_source();
-	switch (cc) {
-	case CNSS_SOURCE_CORE:
-		cc_source = PLD_SOURCE_CORE;
-		break;
-	case CNSS_SOURCE_11D:
-		cc_source = PLD_SOURCE_11D;
-		break;
-	case CNSS_SOURCE_USER:
-		cc_source = PLD_SOURCE_USER;
-		break;
-	default:
-		cc_source = PLD_SOURCE_CORE;
-		break;
-	}
-
-	return cc_source;
 }
 #endif
 #endif

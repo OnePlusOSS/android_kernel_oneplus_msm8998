@@ -119,15 +119,6 @@ static inline int pld_pcie_wlan_pm_control(bool vote)
 #endif
 
 #ifndef CONFIG_PLD_PCIE_CNSS
-static inline void pld_pcie_set_cc_source(enum pld_cc_src cc_source)
-{
-	return;
-}
-static inline enum pld_cc_src pld_pcie_get_cc_source(void)
-{
-	return PLD_SOURCE_CORE;
-}
-
 static inline int
 pld_pcie_get_fw_files_for_target(struct pld_fw_files *pfw_files,
 				 u32 target_type, u32 target_version)
@@ -199,50 +190,6 @@ int pld_pcie_get_fw_files_for_target(struct pld_fw_files *pfw_files,
 				     u32 target_type, u32 target_version);
 int pld_pcie_get_platform_cap(struct pld_platform_cap *cap);
 void pld_pcie_set_driver_status(enum pld_driver_status status);
-
-static inline void pld_pcie_set_cc_source(enum pld_cc_src cc_source)
-{
-	enum cnss_cc_src cc;
-	switch (cc_source) {
-	case PLD_SOURCE_CORE:
-		cc = CNSS_SOURCE_CORE;
-		break;
-	case PLD_SOURCE_11D:
-		cc = CNSS_SOURCE_11D;
-		break;
-	case PLD_SOURCE_USER:
-		cc = CNSS_SOURCE_USER;
-		break;
-	default:
-		cc = CNSS_SOURCE_CORE;
-		break;
-	}
-	cnss_set_cc_source(cc);
-}
-
-static inline enum pld_cc_src pld_pcie_get_cc_source(void)
-{
-	enum cnss_cc_src cc;
-	enum pld_cc_src cc_source;
-
-	cc = cnss_get_cc_source();
-	switch (cc) {
-	case CNSS_SOURCE_CORE:
-		cc_source = PLD_SOURCE_CORE;
-		break;
-	case CNSS_SOURCE_11D:
-		cc_source = PLD_SOURCE_11D;
-		break;
-	case CNSS_SOURCE_USER:
-		cc_source = PLD_SOURCE_USER;
-		break;
-	default:
-		cc_source = PLD_SOURCE_CORE;
-		break;
-	}
-
-	return cc_source;
-}
 
 static inline void pld_pcie_link_down(void)
 {

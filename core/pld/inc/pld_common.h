@@ -79,12 +79,6 @@ enum pld_bus_width_type {
 	PLD_BUS_WIDTH_HIGH
 };
 
-enum pld_cc_src {
-	PLD_SOURCE_CORE,
-	PLD_SOURCE_11D,
-	PLD_SOURCE_USER
-};
-
 #define PLD_MAX_FILE_NAME NAME_MAX
 
 /**
@@ -536,8 +530,6 @@ void *pld_smmu_get_mapping(struct device *dev);
 int pld_smmu_map(struct device *dev, phys_addr_t paddr,
 		 uint32_t *iova_addr, size_t size);
 unsigned int pld_socinfo_get_serial_number(struct device *dev);
-void pld_set_cc_source(struct device *dev, enum pld_cc_src cc_source);
-enum pld_cc_src pld_get_cc_source(struct device *dev);
 int pld_is_qmi_disable(struct device *dev);
 int pld_force_assert_target(struct device *dev);
 bool pld_is_fw_dump_skipped(struct device *dev);

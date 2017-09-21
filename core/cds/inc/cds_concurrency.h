@@ -1005,4 +1005,15 @@ uint8_t cds_get_cur_conc_system_pref(void);
  */
 void cds_remove_dfs_passive_channels_from_pcl(uint8_t *pcl_channels,
 		uint32_t *len, uint8_t *weight_list, uint32_t weight_len);
+
+/**
+ * cds_is_valid_channel_for_channel_switch() - check for valid channel for
+ * channel switch
+ * @channel: channel to be validated
+ * This function validates whether the given channel is valid for channel
+ * switch.
+ *
+ * Return: true or false
+ */
+bool cds_is_valid_channel_for_channel_switch(uint8_t channel);
 #endif /* __CDS_CONCURRENCY_H */

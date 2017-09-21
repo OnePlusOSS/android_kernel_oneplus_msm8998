@@ -10498,3 +10498,44 @@ uint8_t cds_get_cur_conc_system_pref(void)
 	}
 	return cds_ctx->cur_conc_system_pref;
 }
+
+/**
+ * cds_is_valid_channel_for_channel_switch() - check for valid channel for
+ * channel switch
+ * @channel: channel to be validated
+ * This function validates whether the given channel is valid for channel
+ * switch.
+ *
+ * Return: true or false
+ */
+bool cds_is_valid_channel_for_channel_switch(uint8_t channel)
+{
+	uint32_t mcc_to_scc_mode;
+	uint32_t sap_count;
+	enum channel_state state;
+	hdd_context_t *hdd_ctx;
+
+	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+
+	if (!hdd_ctx) {
+		cds_err("HDD context is NULL");
+		return true;
+	}
+
+	mcc_to_scc_mode = hdd_ctx->config->WlanMccToSccSwitchMode;
+	sap_count = cds_mode_specific_connection_count(CDS_SAP_MODE, NULL);
+	state = cds_get_channel_state(channel);
+
+	cds_debug("mcc_to_scc_mode %u, sap_count %u, channel %u, state %u",
+			mcc_to_scc_mode, sap_count, channel, state);
+
+	if ((state == CHANNEL_STATE_ENABLE) ||
+			(mcc_to_scc_mode == QDF_MCC_TO_SCC_SWITCH_DISABLE) ||
+			(sap_count == 0)) {
+		cds_debug("Valid channel for channel switch");
+		return true;
+	}
+
+	cds_debug("Invalid channel for channel switch");
+	return false;
+}

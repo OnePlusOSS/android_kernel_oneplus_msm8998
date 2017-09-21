@@ -56,6 +56,7 @@
 #include "lim_ft_defs.h"
 #include "lim_session.h"
 #include "cds_reg_service.h"
+#include "cds_concurrency.h"
 #include "nan_datapath.h"
 #include "wma.h"
 
@@ -5092,6 +5093,7 @@ bool lim_is_channel_valid_for_channel_switch(tpAniSirGlobal pMac, uint8_t channe
 	uint8_t index;
 	uint32_t validChannelListLen = WNI_CFG_VALID_CHANNEL_LIST_LEN;
 	tSirMacChanNum validChannelList[WNI_CFG_VALID_CHANNEL_LIST_LEN];
+	bool status;
 
 	if (wlan_cfg_get_str(pMac, WNI_CFG_VALID_CHANNEL_LIST,
 			     (uint8_t *) validChannelList,
@@ -5102,8 +5104,13 @@ bool lim_is_channel_valid_for_channel_switch(tpAniSirGlobal pMac, uint8_t channe
 	}
 
 	for (index = 0; index < validChannelListLen; index++) {
-		if (validChannelList[index] == channel)
-			return true;
+
+		if (validChannelList[index] != channel)
+			continue;
+
+		status = cds_is_valid_channel_for_channel_switch(channel);
+
+		return status;
 	}
 
 	/* channel does not belong to list of valid channels */

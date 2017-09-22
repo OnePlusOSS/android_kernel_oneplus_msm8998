@@ -3367,6 +3367,18 @@ struct gtk_offload_params {
 };
 
 /**
+ * struct mcast_filter_params - mcast filter parameters
+ * @multicast_addr_cnt: num of addresses
+ * @multicast_addr: address array
+ * @action: operation to perform
+ */
+struct mcast_filter_params {
+	uint32_t multicast_addr_cnt;
+	struct qdf_mac_addr multicast_addr[WMI_MAX_NUM_MULTICAST_ADDRESS];
+	uint8_t action;
+};
+
+/**
  * struct flashing_req_params - led flashing parameter
  * @reqId: request id
  * @pattern_id: pattern identifier. 0: disconnected 1: connected

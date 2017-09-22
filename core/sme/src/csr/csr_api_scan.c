@@ -1940,8 +1940,9 @@ static int32_t csr_calculate_congestion_score(tpAniSirGlobal mac_ctx,
 			est_air_time_percentage =
 				bss_info->air_time_fraction *
 					ROAM_MAX_CHANNEL_WEIGHT;
-			qdf_do_div(est_air_time_percentage,
-					MAX_ESTIMATED_AIR_TIME_FRACTION);
+			est_air_time_percentage =
+				qdf_do_div(est_air_time_percentage,
+					   MAX_ESTIMATED_AIR_TIME_FRACTION);
 			/*
 			 * Calculate channel congestion from estimated air time
 			 * fraction.
@@ -1955,8 +1956,7 @@ static int32_t csr_calculate_congestion_score(tpAniSirGlobal mac_ctx,
 			 * Calculate ap_load in % from qbss channel load from
 			 * 0-255 range
 			 */
-			qdf_do_div(ap_load, MAX_AP_LOAD);
-			congestion = ap_load;
+			congestion = qdf_do_div(ap_load, MAX_AP_LOAD);
 	} else {
 		return bss_score_params->weight_cfg.
 			channel_congestion_weightage *
@@ -1964,10 +1964,8 @@ static int32_t csr_calculate_congestion_score(tpAniSirGlobal mac_ctx,
 			   bss_score_params->esp_qbss_scoring.score_pcnt3_to_0,
 			   WLAN_ESP_QBSS_INDEX_0);
 	}
-	index = congestion;
-	qdf_do_div(index, window_size);
 	/* Desired values are from 1 to 15, as 0 is for not present. so do +1 */
-	index++;
+	index = qdf_do_div(congestion, window_size) + 1;
 
 	if (index > bss_score_params->esp_qbss_scoring.num_slot)
 		index = bss_score_params->esp_qbss_scoring.num_slot;

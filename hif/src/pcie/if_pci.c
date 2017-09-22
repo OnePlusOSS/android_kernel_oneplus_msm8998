@@ -3368,7 +3368,7 @@ void hif_target_dump_access_log(void)
 
 	for (idx = 0; idx < len; idx++) {
 		cur_idx = (start_idx + idx) % PCIE_ACCESS_LOG_NUM;
-		HIF_ERROR("%s: idx:%d sn:%u wr:%d addr:%p val:%u.",
+		HIF_ERROR("%s: idx:%d sn:%u wr:%d addr:%pK val:%u.",
 		       __func__, idx,
 		       pcie_access_log[cur_idx].seqnum,
 		       pcie_access_log[cur_idx].is_write,

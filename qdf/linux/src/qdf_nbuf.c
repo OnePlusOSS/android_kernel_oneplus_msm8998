@@ -1718,7 +1718,7 @@ void qdf_net_buf_debug_add_node(qdf_nbuf_t net_buf, size_t size,
 	p_node = qdf_net_buf_debug_look_up(net_buf);
 
 	if (p_node) {
-		qdf_print("Double allocation of skb ! Already allocated from %p %s %d current alloc from %p %s %d",
+		qdf_print("Double allocation of skb ! Already allocated from %pK %s %d current alloc from %pK %s %d",
 			  p_node->net_buf, p_node->file_name, p_node->line_num,
 			  net_buf, file_name, line_num);
 		qdf_nbuf_track_free(new_node);
@@ -1788,7 +1788,7 @@ done:
 	spin_unlock_irqrestore(&g_qdf_net_buf_track_lock[i], irq_flag);
 
 	if (!found) {
-		qdf_print("Unallocated buffer ! Double free of net_buf %p ?",
+		qdf_print("Unallocated buffer ! Double free of net_buf %pK ?",
 			  net_buf);
 		QDF_ASSERT(0);
 	} else {
@@ -2036,7 +2036,7 @@ static inline void __qdf_nbuf_fill_tso_cmn_seg_info(
 	curr_seg->seg.total_len = curr_seg->seg.tso_frags[0].length;
 	curr_seg->seg.tso_frags[0].paddr = tso_cmn_info->eit_hdr_dma_map_addr;
 
-	TSO_DEBUG("%s %d eit hdr %p eit_hdr_len %d tcp_seq_num %u tso_info->total_len %u\n",
+	TSO_DEBUG("%s %d eit hdr %pK eit_hdr_len %d tcp_seq_num %u tso_info->total_len %u\n",
 		   __func__, __LINE__, tso_cmn_info->eit_hdr,
 		   tso_cmn_info->eit_hdr_len,
 		   curr_seg->seg.tso_flags.tcp_seq_num,
@@ -2139,7 +2139,7 @@ uint32_t __qdf_nbuf_get_tso_info(qdf_device_t osdev, struct sk_buff *skb,
 				curr_seg->seg.tso_frags[i].paddr =
 								tso_frag_paddr;
 				TSO_DEBUG("%s[%d] frag %d frag len %d "
-					"total_len %u vaddr %p\n",
+					"total_len %u vaddr %pK\n",
 					__func__, __LINE__,
 					i,
 					tso_frag_len,

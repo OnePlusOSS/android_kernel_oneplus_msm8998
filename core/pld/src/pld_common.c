@@ -1467,3 +1467,75 @@ bool pld_is_fw_dump_skipped(struct device *dev)
 	}
 	return ret;
 }
+
+#ifdef CONFIG_CNSS_UTILS
+/**
+ * pld_set_cc_source() - Set the country code source
+ * @dev: device
+ * @cc_source: country code
+ *
+ * return: void
+ */
+void pld_set_cc_source(struct device *dev,
+			enum pld_cc_src cc_source)
+{
+	enum cnss_utils_cc_src cc;
+
+	switch (cc_source) {
+	case PLD_SOURCE_CORE:
+		cc = CNSS_UTILS_SOURCE_CORE;
+		break;
+	case PLD_SOURCE_11D:
+		cc = CNSS_UTILS_SOURCE_11D;
+		break;
+	case PLD_SOURCE_USER:
+		cc = CNSS_UTILS_SOURCE_USER;
+		break;
+	default:
+		cc = CNSS_UTILS_SOURCE_CORE;
+		break;
+	}
+
+	cnss_utils_set_cc_source(dev, cc);
+}
+/**
+ * pld_get_cc_source() - Get the country code source
+ * @dev: device
+ *
+ * return: cc_source
+ */
+enum pld_cc_src pld_get_cc_source(struct device *dev)
+{
+	enum cnss_utils_cc_src cc;
+	enum pld_cc_src cc_source;
+
+	cc = cnss_utils_get_cc_source(dev);
+	switch (cc) {
+	case CNSS_UTILS_SOURCE_CORE:
+		cc_source = PLD_SOURCE_CORE;
+		break;
+	case CNSS_UTILS_SOURCE_11D:
+		cc_source = PLD_SOURCE_11D;
+		break;
+	case CNSS_UTILS_SOURCE_USER:
+		cc_source = PLD_SOURCE_USER;
+		break;
+	default:
+		cc_source = PLD_SOURCE_CORE;
+		break;
+	}
+
+	return cc_source;
+}
+#else
+void pld_set_cc_source(struct device *dev,
+			enum pld_cc_src cc_source)
+{
+	return;
+}
+
+enum pld_cc_src pld_get_cc_source(struct device *dev)
+{
+	return PLD_SOURCE_CORE;
+}
+#endif

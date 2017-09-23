@@ -12000,7 +12000,7 @@ enum hw_filter_mode {
  * rssi_weightage - Rssi Weightage to calculate best candidate
  * @Min: 0
  * @Max: 100
- * @Default: 30
+ * @Default: 25
  *
  * This ini is used to increase/decrease rssi weightage in best candidate
  * selection. AP with better RSSI will get more weightage.
@@ -12011,7 +12011,7 @@ enum hw_filter_mode {
  */
 
 #define CFG_RSSI_WEIGHTAGE_NAME    "rssi_weightage"
-#define CFG_RSSI_WEIGHTAGE_DEFAULT (30)
+#define CFG_RSSI_WEIGHTAGE_DEFAULT (25)
 #define CFG_RSSI_WEIGHTAGE_MIN     (0)
 #define CFG_RSSI_WEIGHTAGE_MAX     (100)
 /*
@@ -12378,7 +12378,7 @@ enum hw_filter_mode {
  * rssi_pref_5g_rssi_thresh - A RSSI threshold above which 5 GHz is not favored
  * @Min: 0
  * @Max: 127
- * @Default: 70
+ * @Default: 76
  *
  * 5G AP are given chan_band_weightage. This ini tells about RSSI threshold
  * above which 5GHZ is not favored.
@@ -12392,7 +12392,7 @@ enum hw_filter_mode {
  * </ini>
  */
 #define CFG_RSSI_PERF_5G_THRESHOLD_NAME    "rssi_pref_5g_rssi_thresh"
-#define CFG_RSSI_PERF_5G_THRESHOLD_DEFAULT (70)
+#define CFG_RSSI_PERF_5G_THRESHOLD_DEFAULT (76)
 #define CFG_RSSI_PERF_5G_THRESHOLD_MIN     (0)
 #define CFG_RSSI_PERF_5G_THRESHOLD_MAX     (127)
 
@@ -12401,15 +12401,15 @@ enum hw_filter_mode {
  * bandwidth_weight_per_index - Bandwidth weight per index
  * @Min: 0x00000000
  * @Max: 0x64646464
- * @Default: 0x645A5000
+ * @Default: 0x3C322314
  *
  * For Bandwidth chan_width_weightage(10) is given. In this weightage
  * this ini divide individual index weight as per bandwidth.
  * Indexes are defined in this way.
- * 0 Index : 20 MHz - Def 10%
- * 1 Index : 40 MHz - Def 20%
- * 2 Index : 80 MHX - Def 40%
- * 3 Index : 160 MHX - Def 80%
+ * 0 Index : 20 MHz - Def 20%
+ * 1 Index : 40 MHz - Def 35%
+ * 2 Index : 80 MHX - Def 50%
+ * 3 Index : 160 MHX - Def 60%
  *
  * These percentage values are stored in HEX. For any index max weight can be
  * 100 so Max value for each index will be 64.
@@ -12423,7 +12423,7 @@ enum hw_filter_mode {
  * </ini>
  */
 #define CFG_BAND_WIDTH_WEIGHT_PER_INDEX_NAME       "bandwidth_weight_per_index"
-#define CFG_BAND_WIDTH_WEIGHT_PER_INDEX_DEFAULT    (0x5028140A)
+#define CFG_BAND_WIDTH_WEIGHT_PER_INDEX_DEFAULT    (0x3C322314)
 #define CFG_BAND_WIDTH_WEIGHT_PER_INDEX_MIN        (0x00000000)
 #define CFG_BAND_WIDTH_WEIGHT_PER_INDEX_MAX        (0x64646464)
 /*
@@ -12431,13 +12431,13 @@ enum hw_filter_mode {
  * nss_weight_per_index - nss weight per index
  * @Min: 0x00000000
  * @Max: 0x64646464
- * @Default: 0x6464644B
+ * @Default: 0x64645046
  *
  * For NSS nss_weightage(5) is given. In this weightage
  * this ini divide individual index weight as per NSS supported.
  * Indexes are defined in this way.
- * 0 Index : 1X1 - Def 75%
- * 1 Index : 2X2 - Def 100%
+ * 0 Index : 1X1 - Def 70%
+ * 1 Index : 2X2 - Def 80%
  * 2 Index : 3X3 - Def 100%
  * 3 Index : 4X4 - Def 100%
  *
@@ -12453,7 +12453,7 @@ enum hw_filter_mode {
  * </ini>
  */
 #define CFG_NSS_WEIGHT_PER_INDEX_NAME       "nss_weight_per_index"
-#define CFG_NSS_WEIGHT_PER_INDEX_DEFAULT    (0x6464644B)
+#define CFG_NSS_WEIGHT_PER_INDEX_DEFAULT    (0x64645046)
 #define CFG_NSS_WEIGHT_PER_INDEX_MIN        (0x00000000)
 #define CFG_NSS_WEIGHT_PER_INDEX_MAX        (0x64646464)
 
@@ -12462,12 +12462,12 @@ enum hw_filter_mode {
  * band_weight_per_index - Band weight per index
  * @Min: 0x00000000
  * @Max: 0x64646464
- * @Default: 0x00006400
+ * @Default: 0x0000644B
  *
  * For Band chan_band_weightage(5) is given. In this weightage
  * this ini divide individual index weight as per Band supported.
  * Indexes are defined in this way.
- * 0 Index : 2.4GHz - Def 0%
+ * 0 Index : 2.4GHz - Def 75%
  * 1 Index : 5GHz - - Def 100%
  * 2 Index : Reserved
  * 3 Index : Reserved
@@ -12484,7 +12484,7 @@ enum hw_filter_mode {
  * </ini>
  */
 #define CFG_BAND_WEIGHT_PER_INDEX_NAME      "band_weight_per_index"
-#define CFG_BAND_WEIGHT_PER_INDEX_DEFAULT   (0x00006400)
+#define CFG_BAND_WEIGHT_PER_INDEX_DEFAULT   (0x0000644B)
 #define CFG_BAND_WEIGHT_PER_INDEX_MIN       (0x00000000)
 #define CFG_BAND_WEIGHT_PER_INDEX_MAX       (0x64646464)
 

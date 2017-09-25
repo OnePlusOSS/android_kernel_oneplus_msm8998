@@ -8720,6 +8720,8 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 	if (pHddCtx->config->is_fils_enabled)
 		smeConfig->csrConfig.enable_bcast_probe_rsp =
 			pHddCtx->config->enable_bcast_probe_rsp;
+	smeConfig->csrConfig.is_fils_enabled =
+			pHddCtx->config->is_fils_enabled;
 	smeConfig->csrConfig.qcn_ie_support =
 			pHddCtx->config->qcn_ie_support;
 	smeConfig->csrConfig.fils_max_chan_guard_time =

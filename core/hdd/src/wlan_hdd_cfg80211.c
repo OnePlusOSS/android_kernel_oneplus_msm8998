@@ -5679,6 +5679,25 @@ __wlan_hdd_cfg80211_wifi_configuration_set(struct wiphy *wiphy,
 		}
 
 	}
+	if (adapter->device_mode == QDF_STA_MODE &&
+	    tb[QCA_WLAN_VENDOR_ATTR_CONFIG_DISABLE_FILS]) {
+		uint8_t disable_fils;
+
+		disable_fils = nla_get_u8(tb[
+			QCA_WLAN_VENDOR_ATTR_CONFIG_DISABLE_FILS]);
+		hdd_debug("Set disable_fils - %d", disable_fils);
+
+		hdd_ctx->config->is_fils_enabled = !disable_fils;
+		hdd_ctx->config->enable_bcast_probe_rsp = !disable_fils;
+
+		qdf_status = sme_update_fils_setting(hdd_ctx->hHal,
+						     adapter->sessionId,
+						     disable_fils);
+		if (qdf_status != QDF_STATUS_SUCCESS) {
+			hdd_err("set disable_fils failed");
+			ret_val = -EINVAL;
+		}
+	}
 
 	return ret_val;
 }
@@ -16014,12 +16033,18 @@ static int wlan_hdd_cfg80211_set_fils_config(hdd_adapter_t *adapter,
 	tCsrRoamProfile *roam_profile;
 	int auth_type;
 	uint8_t *buf;
+	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 
 	wext_state = WLAN_HDD_GET_WEXT_STATE_PTR(adapter);
 	roam_profile = &wext_state->roamProfile;
 
 	if (!roam_profile) {
 		hdd_err("No valid Roam profile");
+		return -EINVAL;
+	}
+
+	if (!hdd_ctx->config->is_fils_enabled) {
+		hdd_err("FILS disabled");
 		return -EINVAL;
 	}
 
@@ -16033,6 +16058,7 @@ static int wlan_hdd_cfg80211_set_fils_config(hdd_adapter_t *adapter,
 	}
 	if (req->auth_type != NL80211_AUTHTYPE_FILS_SK) {
 		roam_profile->fils_con_info->is_fils_connection = false;
+		qdf_mem_free(roam_profile->fils_con_info);
 		return 0;
 	}
 
@@ -16042,6 +16068,7 @@ static int wlan_hdd_cfg80211_set_fils_config(hdd_adapter_t *adapter,
 	auth_type = wlan_hdd_get_fils_auth_type(req->auth_type);
 	if (auth_type < 0) {
 		hdd_err("invalid auth type for fils %d", req->auth_type);
+		qdf_mem_free(roam_profile->fils_con_info);
 		return -EINVAL;
 	}
 	roam_profile->fils_con_info->auth_type = auth_type;

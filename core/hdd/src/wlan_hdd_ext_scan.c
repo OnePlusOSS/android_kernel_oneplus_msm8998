@@ -3149,6 +3149,11 @@ __wlan_hdd_cfg80211_extscan_start(struct wiphy *wiphy,
 		return -EPERM;
 	}
 
+	if (QDF_NDI_MODE == pAdapter->device_mode) {
+		hdd_err("Command not allowed for NDI interface");
+		return -EPERM;
+	}
+
 	retval = wlan_hdd_validate_context(pHddCtx);
 	if (0 != retval)
 		return -EINVAL;

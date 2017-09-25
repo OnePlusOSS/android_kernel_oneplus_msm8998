@@ -618,7 +618,7 @@ void hdd_reg_notifier(struct wiphy *wiphy,
 	bool reset = false;
 	enum dfs_region dfs_reg;
 
-	hdd_info("country: %c%c, initiator %d, dfs_region: %d",
+	hdd_debug("country: %c%c, initiator %d, dfs_region: %d",
 		  request->alpha2[0],
 		  request->alpha2[1],
 		  request->initiator,

@@ -214,10 +214,15 @@ lim_collect_bss_description(tpAniSirGlobal pMac,
 		if (pBPR->HTCaps.supportedChannelWidthSet)
 			pBssDescr->chan_width = eHT_CHANNEL_WIDTH_40MHZ;
 	}
+
 	/* VHT Parameters */
-	if (pBPR->VHTCaps.present) {
+	if (IS_BSS_VHT_CAPABLE(pBPR->VHTCaps) ||
+	    IS_BSS_VHT_CAPABLE(pBPR->vendor_vht_ie.VHTCaps)) {
 		pBssDescr->vht_caps_present = 1;
-		if (pBPR->VHTCaps.suBeamFormerCap)
+		if ((IS_BSS_VHT_CAPABLE(pBPR->VHTCaps) &&
+		     pBPR->VHTCaps.suBeamFormerCap) ||
+		    (IS_BSS_VHT_CAPABLE(pBPR->vendor_vht_ie.VHTCaps) &&
+		     pBPR->vendor_vht_ie.VHTCaps.suBeamFormerCap))
 			pBssDescr->beacomforming_capable = 1;
 	}
 	if (pBPR->VHTOperation.present)

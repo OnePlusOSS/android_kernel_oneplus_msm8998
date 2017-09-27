@@ -2762,6 +2762,7 @@ static inline void hdd_update_hlp_info(struct net_device *dev,
 {}
 #endif
 
+#undef nla_parse
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0)
 static inline void hdd_dev_setup_destructor(struct net_device *dev)
 {
@@ -2801,6 +2802,7 @@ hdd_nla_parse_nested(struct nlattr *tb[], int maxtype, const struct nlattr *nla,
 	return nla_parse_nested(tb, maxtype, nla, policy, NULL);
 }
 #endif /* KERNEL_VERSION(4, 12, 0) */
+#define nla_parse(...) (obsolete, use wlan_cfg80211_nla_parse or hdd_nla_parse)
 
 /**
  * hdd_pld_ipa_uc_shutdown_pipes() - Disconnect IPA WDI pipes during PDR

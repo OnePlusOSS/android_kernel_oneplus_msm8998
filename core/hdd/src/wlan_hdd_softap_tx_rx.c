@@ -193,7 +193,34 @@ void hdd_softap_tx_resume_cb(void *adapter_context, bool tx_resume)
 static inline struct sk_buff *hdd_skb_orphan(hdd_adapter_t *pAdapter,
 		struct sk_buff *skb)
 {
-	if (pAdapter->tx_flow_low_watermark > 0)
+#if (LINUX_VERSION_CODE <= KERNEL_VERSION(3, 19, 0))
+	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(pAdapter);
+#endif
+	int need_orphan = 0;
+
+	if (pAdapter->tx_flow_low_watermark > 0) {
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(3, 19, 0))
+		/*
+		 * The TCP TX throttling logic is changed a little after
+		 * 3.19-rc1 kernel, the TCP sending limit will be smaller,
+		 * which will throttle the TCP packets to the host driver.
+		 * The TCP UP LINK throughput will drop heavily. In order to
+		 * fix this issue, need to orphan the socket buffer asap, which
+		 * will call skb's destructor to notify the TCP stack that the
+		 * SKB buffer is unowned. And then the TCP stack will pump more
+		 * packets to host driver.
+		 *
+		 * The TX packets might be dropped for UDP case in the iperf
+		 * testing. So need to be protected by follow control.
+		 */
+		need_orphan = 1;
+#else
+		if (hdd_ctx->config->tx_orphan_enable)
+			need_orphan = 1;
+#endif
+	}
+
+	if (need_orphan)
 		skb_orphan(skb);
 	else
 		skb = skb_unshare(skb, GFP_ATOMIC);
@@ -213,11 +240,13 @@ static inline struct sk_buff *hdd_skb_orphan(hdd_adapter_t *pAdapter,
 		struct sk_buff *skb) {
 
 	struct sk_buff *nskb;
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(3, 19, 0))
 	hdd_context_t *hdd_ctx = pAdapter->pHddCtx;
-
+#endif
 	hdd_skb_fill_gso_size(pAdapter->dev, skb);
 
 	nskb = skb_unshare(skb, GFP_ATOMIC);
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(3, 19, 0))
 	if (unlikely(hdd_ctx->config->tx_orphan_enable) && (nskb == skb)) {
 		/*
 		 * For UDP packets we want to orphan the packet to allow the app
@@ -227,6 +256,7 @@ static inline struct sk_buff *hdd_skb_orphan(hdd_adapter_t *pAdapter,
 		++pAdapter->hdd_stats.hddTxRxStats.txXmitOrphaned;
 		skb_orphan(skb);
 	}
+#endif
 	return nskb;
 }
 #endif /* QCA_LL_LEGACY_TX_FLOW_CONTROL */
@@ -360,26 +390,7 @@ static int __hdd_softap_hard_start_xmit(struct sk_buff *skb,
 	if (!qdf_nbuf_ipa_owned_get(skb)) {
 #endif
 
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(3, 19, 0))
-		/*
-		 * The TCP TX throttling logic is changed a little after
-		 * 3.19-rc1 kernel, the TCP sending limit will be smaller,
-		 * which will throttle the TCP packets to the host driver.
-		 * The TCP UP LINK throughput will drop heavily. In order to
-		 * fix this issue, need to orphan the socket buffer asap, which
-		 * will call skb's destructor to notify the TCP stack that the
-		 * SKB buffer is unowned. And then the TCP stack will pump more
-		 * packets to host driver.
-		 *
-		 * The TX packets might be dropped for UDP case in the iperf
-		 * testing. So need to be protected by follow control.
-		 */
 		skb = hdd_skb_orphan(pAdapter, skb);
-#else
-		/* Check if the buffer has enough header room */
-		skb = skb_unshare(skb, GFP_ATOMIC);
-#endif
-
 		if (!skb)
 			goto drop_pkt_accounting;
 

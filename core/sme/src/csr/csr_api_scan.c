@@ -1896,40 +1896,54 @@ static int32_t csr_calculate_pcl_score(tpAniSirGlobal mac_ctx,
  * @mac_ctx: Pointer to mac context
  * @bss_info: bss information
  * @chan_width_weightage: PCL _weightage out of total weightage
+ * @dot11mode: dot 11 mode
  *
  * Return : bw score
  */
 static int32_t csr_calculate_bandwidth_score(tpAniSirGlobal mac_ctx,
 		tSirBssDescription *bss_info,
-		uint8_t chan_width_weightage)
+		uint8_t chan_width_weightage, uint32_t dot11mode)
 {
 	uint32_t score;
 	int32_t bw_weight_per_idx;
 	uint8_t cbmode;
+	uint8_t width;
+	bool is_vht = false;
 
 	bw_weight_per_idx = mac_ctx->roam.configParam.
 			bss_score_params.bandwidth_weight_per_index;
 	if (CDS_IS_CHANNEL_24GHZ(bss_info->channelId)) {
 		cbmode =
 			mac_ctx->roam.configParam.channelBondingMode24GHz;
+		if (IS_DOT11_MODE_VHT(dot11mode) &&
+		    mac_ctx->roam.configParam.enableVhtFor24GHz)
+			is_vht = true;
 	} else {
 		cbmode =
 			mac_ctx->roam.configParam.channelBondingMode5GHz;
+		if (IS_DOT11_MODE_VHT(dot11mode))
+			is_vht = true;
 	}
 
-	if (cbmode) {
-		if (bss_info->chan_width == eHT_CHANNEL_WIDTH_160MHZ)
+	width = bss_info->chan_width;
+
+	if (!IS_DOT11_MODE_HT(dot11mode) && width > eHT_CHANNEL_WIDTH_20MHZ)
+		width = eHT_CHANNEL_WIDTH_20MHZ;
+
+	if (!is_vht && width > eHT_CHANNEL_WIDTH_40MHZ)
+		width = eHT_CHANNEL_WIDTH_40MHZ;
+
+	if (cbmode && width > eHT_CHANNEL_WIDTH_20MHZ) {
+		if (width == eHT_CHANNEL_WIDTH_160MHZ ||
+		    width == eHT_CHANNEL_WIDTH_80P80MHZ)
 			score = WLAN_GET_SCORE_PERCENTAGE(bw_weight_per_idx,
 					WLAN_SCORE_160MHZ_BW_INDEX);
-		else if (bss_info->chan_width == eHT_CHANNEL_WIDTH_80MHZ)
+		else if (width == eHT_CHANNEL_WIDTH_80MHZ)
 			score = WLAN_GET_SCORE_PERCENTAGE(bw_weight_per_idx,
 					WLAN_SCORE_80MHZ_BW_INDEX);
-		else if (bss_info->chan_width == eHT_CHANNEL_WIDTH_40MHZ)
-			score = WLAN_GET_SCORE_PERCENTAGE(bw_weight_per_idx,
-					WLAN_SCORE_40MHZ_BW_INDEX);
 		else
 			score = WLAN_GET_SCORE_PERCENTAGE(bw_weight_per_idx,
-					WLAN_20MHZ_BW_INDEX);
+					WLAN_SCORE_40MHZ_BW_INDEX);
 	} else {
 		score = WLAN_GET_SCORE_PERCENTAGE(bw_weight_per_idx,
 					WLAN_20MHZ_BW_INDEX);
@@ -2122,6 +2136,7 @@ static int32_t _csr_calculate_bss_score(tpAniSirGlobal mac_ctx,
 	struct sir_score_config *bss_score_params;
 	uint8_t prorated_pcnt;
 	bool same_bucket = false;
+	bool is_vht = false;
 	int8_t good_rssi_threshold;
 	int8_t rssi_pref_5g_rssi_thresh;
 
@@ -2161,17 +2176,24 @@ static int32_t _csr_calculate_bss_score(tpAniSirGlobal mac_ctx,
 				weight_config->ht_caps_weightage;
 	score += ht_score;
 
+	if (CDS_IS_CHANNEL_24GHZ(bss_info->channelId)) {
+		if (IS_DOT11_MODE_VHT(dot11mode) &&
+		    mac_ctx->roam.configParam.enableVhtFor24GHz)
+			is_vht = true;
+	} else if (IS_DOT11_MODE_VHT(dot11mode)) {
+		is_vht = true;
+	}
 	/*
 	 * If device and AP supports VHT caps, Extra 6% score will
 	 * be added to score
 	 */
-	if (IS_DOT11_MODE_VHT(dot11mode) && bss_info->vht_caps_present)
+	if (is_vht && bss_info->vht_caps_present)
 		vht_score = prorated_pcnt *
 				 weight_config->vht_caps_weightage;
 	score += vht_score;
 
 	bandwidth_score = csr_calculate_bandwidth_score(mac_ctx, bss_info,
-				weight_config->chan_width_weightage);
+				weight_config->chan_width_weightage, dot11mode);
 	score += bandwidth_score;
 
 	good_rssi_threshold =
@@ -2210,11 +2232,13 @@ static int32_t _csr_calculate_bss_score(tpAniSirGlobal mac_ctx,
 	 */
 	wlan_cfg_get_int(mac_ctx,
 			 WNI_CFG_VHT_SU_BEAMFORMEE_CAP, &beamformee_cap);
-	if ((bss_info->rssi > rssi_pref_5g_rssi_thresh) && !same_bucket &&
+	if (is_vht &&
+	    (bss_info->rssi > rssi_pref_5g_rssi_thresh) && !same_bucket &&
 	    beamformee_cap && bss_info->beacomforming_capable)
 		beamformee_score = BEST_CANDIDATE_MAX_WEIGHT *
 				weight_config->beamforming_cap_weightage;
 	score += beamformee_score;
+
 	congestion_score = csr_calculate_congestion_score(mac_ctx,
 		bss_info, bss_score_params);
 	score += congestion_score;
@@ -2228,10 +2252,12 @@ static int32_t _csr_calculate_bss_score(tpAniSirGlobal mac_ctx,
 				weight_config->nss_weightage);
 	score += nss_score;
 
-	sme_debug("BSSID:"MAC_ADDRESS_STR" rssi=%d dot11mode %d htcaps=%d vht=%d AP bw=%d channel=%d self beamformee %d AP beamforming %d air time fraction %d qbss load %d ap_NSS %d sta nss %d",
+	sme_debug("BSSID:"MAC_ADDRESS_STR" rssi=%d dot11mode %d htcaps=%d vht=%d enableVhtFor24GHz %d AP bw=%d channel=%d self beamformee %d AP beamforming %d air time fraction %d qbss load %d ap_NSS %d sta nss %d",
 		MAC_ADDR_ARRAY(bss_info->bssId),
 		bss_info->rssi, dot11mode,  bss_info->ht_caps_present,
-		bss_info->vht_caps_present, bss_info->chan_width,
+		bss_info->vht_caps_present,
+		mac_ctx->roam.configParam.enableVhtFor24GHz,
+		bss_info->chan_width,
 		bss_info->channelId, beamformee_cap,
 		bss_info->beacomforming_capable,
 		bss_info->air_time_fraction,

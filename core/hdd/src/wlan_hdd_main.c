@@ -954,6 +954,7 @@ static void hdd_update_tgt_services(hdd_context_t *hdd_ctx,
 	config->isRoamOffloadEnabled &= cfg->en_roam_offload;
 #endif
 	config->sap_get_peer_info &= cfg->get_peer_info_enabled;
+	config->MAWCEnabled &= cfg->is_fw_mawc_capable;
 	sme_update_tgt_services(hdd_ctx->hHal, cfg);
 
 }

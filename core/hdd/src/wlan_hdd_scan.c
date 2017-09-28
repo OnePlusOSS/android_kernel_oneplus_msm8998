@@ -3198,6 +3198,12 @@ static int __wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
 	if (0 != ret)
 		return ret;
 
+	if (pAdapter->device_mode != QDF_STA_MODE) {
+		hdd_info("Sched scan not supported for device mode:%d",
+			 pAdapter->device_mode);
+		return -EINVAL;
+	}
+
 	if ((eConnectionState_Associated ==
 				WLAN_HDD_GET_STATION_CTX_PTR(pAdapter)->
 							conn_info.connState) &&
@@ -3517,6 +3523,12 @@ int wlan_hdd_sched_scan_stop(struct net_device *dev)
 		hdd_err("HDD context is Null");
 		ret = -ENODEV;
 		goto exit;
+	}
+
+	if (adapter->device_mode != QDF_STA_MODE) {
+		hdd_info("Sched scan not supported for device mode:%d",
+			 adapter->device_mode);
+		return -EINVAL;
 	}
 
 	hHal = WLAN_HDD_GET_HAL_CTX(adapter);

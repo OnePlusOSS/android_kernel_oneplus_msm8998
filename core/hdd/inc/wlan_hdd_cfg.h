@@ -10888,9 +10888,10 @@ enum hw_filter_mode {
  * @Max: 1
  * @Default: 1
  *
- * This ini is used to enable/disable broadcast probe response
+ * This ini is used to enable/disable broadcast probe response.
+ * This is set only if g_is_fils_enabled is set to 1
  *
- * Related: None
+ * Related: g_is_fils_enabled
  *
  * Supported Feature: FILS
  *

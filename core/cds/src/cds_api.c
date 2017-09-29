@@ -1358,6 +1358,9 @@ QDF_STATUS cds_set_context(QDF_MODULE_ID module_id, void *context)
 	case QDF_MODULE_ID_HIF:
 		p_cds_context->pHIFContext = context;
 		break;
+	case QDF_MODULE_ID_HDD:
+		p_cds_context->pHDDContext = context;
+		break;
 	default:
 		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
 			  "%s: Module ID %i does not have its context managed by CDS",

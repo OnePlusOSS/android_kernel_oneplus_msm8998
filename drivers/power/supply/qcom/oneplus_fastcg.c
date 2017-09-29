@@ -18,6 +18,7 @@
 #include <linux/wakelock.h>
 #include <linux/interrupt.h>
 #include <linux/power/oem_external_fg.h>
+#include <linux/pm_qos.h>
 
 #define BYTE_OFFSET			2
 #define BYTES_TO_WRITE		16
@@ -27,6 +28,7 @@
 #define	FW_CHECK_SUCCESS	1
 
 #define SHOW_FW_VERSION_DELAY_MS 18000
+static struct pm_qos_request big_cpu_update_freq;
 
 struct fastchg_device_info {
 	struct i2c_client		*client;
@@ -36,6 +38,8 @@ struct fastchg_device_info {
 
 	struct pinctrl_state *pinctrl_state_active;
 	struct pinctrl_state *pinctrl_state_suspended;
+	struct pinctrl_state *pinctrl_mcu_data_state_active;
+	struct pinctrl_state *pinctrl_mcu_data_state_suspended;
 	struct pinctrl *pinctrl;
 	bool fast_chg_started;
 	bool fast_low_temp_full;
@@ -45,6 +49,8 @@ struct fastchg_device_info {
 	bool irq_enabled;
 	bool fast_chg_allow;
 	bool firmware_already_updated;
+	int adapter_update_report;
+	int adapter_update_real;
 	int battery_type;
 	int irq;
 	int mcu_en_gpio;
@@ -63,6 +69,7 @@ struct fastchg_device_info {
 
 	struct delayed_work		update_firmware;
 	struct delayed_work update_fireware_version_work;
+	struct delayed_work adapter_update_work;
 	char fw_id[12];
 	char manu_name[12];
 };
@@ -71,6 +78,18 @@ struct fastchg_device_info *fastchg_di;
 
 static unsigned char *dashchg_firmware_data;
 static struct i2c_client *mcu_client;
+enum pon_type {
+	PON_KPDPWR,
+	PON_RESIN,
+	PON_CBLPWR,
+	PON_KPDPWR_RESIN,
+};
+void opchg_set_data_active(struct fastchg_device_info *chip)
+{
+	gpio_direction_input(chip->ap_data);
+	pinctrl_select_state(chip->pinctrl,
+		chip->pinctrl_mcu_data_state_active);
+}
 
 void set_mcu_en_gpio_value(int value)
 {
@@ -97,12 +116,13 @@ void mcu_en_gpio_set(int value)
 		}
 	}
 }
+#define ADAPTER_UPDATE_DELAY              1400
 
 void usb_sw_gpio_set(int value)
 {
 	pr_info("set usb_sw_gpio=%d\n", value);
 
-	if (!gpio_is_valid(fastchg_di->usb_sw_1_gpio) 
+	if (!gpio_is_valid(fastchg_di->usb_sw_1_gpio)
 		&& !gpio_is_valid(fastchg_di->usb_sw_2_gpio)) {
 		pr_err("gpio is invalid\n");
 		return;
@@ -191,8 +211,10 @@ static bool dashchg_fw_check( void)
 			}
 			fw_line++;
 		} else {
-			//pr_err("%s addr dismatch,addr:0x%x,stm_data:0x%x\n",__func__,
-			//addr,(dashchg_firmware_data[fw_line * 34 + 1] << 8) | dashchg_firmware_data[fw_line * 34]);
+			pr_debug("%s addr dismatch,addr:0x%x,stm_data:0x%x\n",
+			__func__, addr,
+			(dashchg_firmware_data[fw_line * 34 + 1] << 8)
+			| dashchg_firmware_data[fw_line * 34]);
 		}
 		/* compare recv_buf with dashchg_firmware_data[] end */
 	}
@@ -244,7 +266,7 @@ static int dashchg_fw_write(unsigned char *data_buf, unsigned int offset, unsign
 }
 
 static irqreturn_t irq_rx_handler(int irq, void *dev_id);
-static void reset_mcu_and_requst_irq(struct fastchg_device_info *di)
+static void reset_mcu_and_request_irq(struct fastchg_device_info *di)
 {
 	int ret;
 
@@ -255,7 +277,7 @@ static void reset_mcu_and_requst_irq(struct fastchg_device_info *di)
 	msleep(10);
 	gpio_direction_output(di->mcu_en_gpio, 0);
 	msleep(5);
-	gpio_direction_input(di->ap_data);
+	opchg_set_data_active(di);
 	di->irq = gpio_to_irq(di->ap_data);
 
 	/* 0x01:rising edge, 0x02:falling edge */
@@ -284,7 +306,7 @@ static void dashchg_fw_update(struct work_struct *work)
 	rc = dashchg_fw_check();
 	if (rc == FW_CHECK_SUCCESS) {
 		di->firmware_already_updated = true;
-		reset_mcu_and_requst_irq(di);
+		reset_mcu_and_request_irq(di);
 		wake_unlock(&di->fastchg_update_fireware_lock);
 		set_property_on_smbcharger(POWER_SUPPLY_PROP_SWITCH_DASH, true);
 		pr_info("FW check success\n"); /* david@bsp add log */
@@ -335,7 +357,7 @@ update_fw:
 	oneplus_dash_i2c_read(mcu_client, 0x06, 1, &temp_buf[0]);
 	/* jump to app code end */
 	di->firmware_already_updated = true;
-	reset_mcu_and_requst_irq(di);
+	reset_mcu_and_request_irq(di);
 	wake_unlock(&di->fastchg_update_fireware_lock);
 	set_property_on_smbcharger(POWER_SUPPLY_PROP_SWITCH_DASH, true);
 	pr_info("result=success\n");
@@ -343,7 +365,7 @@ update_fw:
 
 update_fw_err:
 	di->firmware_already_updated = true;
-	reset_mcu_and_requst_irq(di);
+	reset_mcu_and_request_irq(di);
 	wake_unlock(&di->fastchg_update_fireware_lock);
 	set_property_on_smbcharger(POWER_SUPPLY_PROP_SWITCH_DASH, true);
 	pr_err("result=fail\n");
@@ -441,6 +463,14 @@ static bool fastchg_is_usb_switch_on(void)
 	return false;
 }
 
+int dash_get_adapter_update_status(void)
+{
+	if (!fastchg_di)
+		return ADAPTER_FW_UPDATE_NONE;
+	else
+		return fastchg_di->adapter_update_report;
+}
+
 static struct external_battery_gauge fastcharge_information  = {
 	.fast_chg_started 						= bq27541_fast_chg_started,
 	.get_fast_low_temp_full					= bq27541_get_fast_low_temp_full,
@@ -451,6 +481,7 @@ static struct external_battery_gauge fastcharge_information  = {
 	.set_switch_to_noraml_false				= bq27541_set_switch_to_noraml_false,
 	.get_fastchg_firmware_already_updated	= get_fastchg_firmware_already_updated,
 	.is_usb_switch_on						= fastchg_is_usb_switch_on,
+	.get_adapter_update = dash_get_adapter_update_status,
 };
 
 static struct notify_dash_event *notify_event = NULL;
@@ -579,18 +610,23 @@ static void request_mcu_irq(struct fastchg_device_info *di)
 {
 	int retval;
 
-	gpio_direction_input(di->ap_data);
+	opchg_set_data_active(di);
 	gpio_set_value(di->ap_clk, 0);
 	usleep_range(10000, 10000);
 	gpio_set_value(di->ap_clk, 1);
-
-	if (!di->irq_enabled) {
-		retval = request_irq(di->irq, irq_rx_handler,
-				IRQF_TRIGGER_RISING, "mcu_data", di);
-		if (retval < 0)
-			pr_err("request ap rx irq failed.\n");
-		else
-			di->irq_enabled = true;
+	if (di->adapter_update_real
+		!= ADAPTER_FW_NEED_UPDATE) {
+		pr_info("%s\n", __func__);
+		if (!di->irq_enabled) {
+			retval = request_irq(di->irq, irq_rx_handler,
+					IRQF_TRIGGER_RISING, "mcu_data", di);
+			if (retval < 0)
+				pr_err("request ap rx irq failed.\n");
+			else
+				di->irq_enabled = true;
+		}
+	} else {
+		di->irq_enabled = true;
 	}
 }
 
@@ -652,6 +688,8 @@ static void dash_write(struct fastchg_device_info *di, int data)
 
 	msleep(2);
 	gpio_direction_output(di->ap_data, 0);
+	pinctrl_select_state(di->pinctrl,
+		di->pinctrl_mcu_data_state_suspended);
 	for (i = 0; i < 3; i++) {
 		if (i == 0) {
 			gpio_set_value(di->ap_data, data >> 1);
@@ -723,6 +761,77 @@ static ssize_t dash_dev_read(struct file *filp, char __user *buf,
 fail:
 	mutex_unlock(&di->read_mutex);
 	return ret;
+}
+static struct op_adapter_chip *g_adapter_chip;
+
+static void adapter_update_work_func(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct fastchg_device_info *chip =
+		container_of(dwork,
+		struct fastchg_device_info, adapter_update_work);
+	bool update_result = false;
+	int i = 0;
+
+	if (!g_adapter_chip) {
+		pr_info("%s g_adapter_chip NULL\n", __func__);
+		return;
+	}
+	pr_info("%s begin\n", __func__);
+	opchg_set_data_active(chip);
+	oem_report_power_key(PON_KPDPWR);
+	pm_qos_update_request(&big_cpu_update_freq, MAX_CPUFREQ);
+	msleep(1000);
+	for (i = 0; i < 3; i++) {
+		update_result =
+			g_adapter_chip->vops->adapter_update(g_adapter_chip,
+			chip->ap_clk, chip->ap_data);
+		if (update_result == true)
+			break;
+		if (i < 1)
+			msleep(1650);
+	}
+	msleep(5000);
+	if (update_result) {
+		chip->adapter_update_real = ADAPTER_FW_UPDATE_SUCCESS;
+	} else {
+		chip->adapter_update_real = ADAPTER_FW_UPDATE_FAIL;
+		chip->adapter_update_report = chip->adapter_update_real;
+	}
+	msleep(20);
+	mcu_en_gpio_set(1);
+	chip->fast_chg_started = false;
+	chip->fast_chg_allow = false;
+	chip->fast_chg_ing = false;
+	msleep(1000);
+	notify_check_usb_suspend(true, false);
+	oneplus_notify_pmic_check_charger_present();
+	oneplus_notify_dash_charger_present(false);
+	reset_mcu_and_request_irq(chip);
+	if (update_result) {
+		msleep(2000);
+		chip->adapter_update_report = ADAPTER_FW_UPDATE_SUCCESS;
+	}
+	pm_qos_update_request(&big_cpu_update_freq, MIN_CPUFREQ);
+	pr_info("%s end update_result:%d\n",
+		__func__, update_result);
+	wake_unlock(&chip->fastchg_wake_lock);
+
+}
+
+static void dash_adapter_update(struct fastchg_device_info *chip)
+{
+	pr_err("%s\n", __func__);
+	/*schedule_delayed_work_on(5,*/
+	/*&chip->adapter_update_work,*/
+	/*round_jiffies_relative(*/
+	/*msecs_to_jiffies(ADAPTER_UPDATE_DELAY)));*/
+	schedule_delayed_work(&chip->adapter_update_work,
+			msecs_to_jiffies(ADAPTER_UPDATE_DELAY));
+}
+void op_adapter_init(struct op_adapter_chip *chip)
+{
+	g_adapter_chip = chip;
 }
 
 #define DASH_IOC_MAGIC					0xff
@@ -852,6 +961,21 @@ static long  dash_dev_ioctl(struct file *filp, unsigned int cmd,
 				oneplus_notify_pmic_check_charger_present();
 				oneplus_notify_dash_charger_present(false);
 				wake_unlock(&di->fastchg_wake_lock);
+			}
+			break;
+		case DASH_NOTIFY_ADAPTER_FW_UPDATE:
+			if (arg == DASH_NOTIFY_ADAPTER_FW_UPDATE + 1) {
+				di->adapter_update_real
+					= ADAPTER_FW_NEED_UPDATE;
+				di->adapter_update_report
+					= di->adapter_update_real;
+			} else if (arg == DASH_NOTIFY_ADAPTER_FW_UPDATE + 2) {
+				bq27541_data->set_allow_reading(true);
+				di->fast_chg_started = false;
+				oneplus_notify_dash_charger_present(true);
+				dash_write(di, ALLOW_DATA);
+				wake_lock(&di->fastchg_wake_lock);
+				dash_adapter_update(di);
 			}
 			break;
 		case DASH_NOTIFY_UNDEFINED_CMD:
@@ -1020,11 +1144,37 @@ static int dash_pinctrl_init(struct fastchg_device_info *di)
 			di->pinctrl = NULL;
 			return PTR_ERR(di->pinctrl_state_suspended);
 		}
+
+		di->pinctrl_mcu_data_state_active =
+			pinctrl_lookup_state(di->pinctrl,
+					"mcu_data_active");
+		if (IS_ERR_OR_NULL(di->pinctrl_mcu_data_state_active)) {
+			dev_err(&di->client->dev,
+					"Can not mcu_data_active state\n");
+			devm_pinctrl_put(di->pinctrl);
+			di->pinctrl = NULL;
+			return PTR_ERR(di->pinctrl_mcu_data_state_active);
+		}
+		di->pinctrl_mcu_data_state_suspended =
+					pinctrl_lookup_state(di->pinctrl,
+							"mcu_data_suspend");
+		if (IS_ERR_OR_NULL(di->pinctrl_mcu_data_state_suspended)) {
+			dev_err(&di->client->dev,
+					"Can not fastchg_suspend state\n");
+			devm_pinctrl_put(di->pinctrl);
+			di->pinctrl = NULL;
+			return PTR_ERR(di->pinctrl_mcu_data_state_suspended);
+		}
 	}
 
 	if (pinctrl_select_state(di->pinctrl,
 				di->pinctrl_state_active) < 0)
 		pr_err("pinctrl set active fail\n");
+
+	if (pinctrl_select_state(di->pinctrl,
+				di->pinctrl_mcu_data_state_active) < 0)
+		pr_err("pinctrl set pinctrl_mcu_data_state_active fail\n");
+
 	return 0;
 
 }
@@ -1074,6 +1224,10 @@ static int dash_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	INIT_WORK(&di->charger_present_status_work, update_charger_present_status);
 	INIT_DELAYED_WORK(&di->update_fireware_version_work, update_fireware_version_func);
 	INIT_DELAYED_WORK(&di->update_firmware, dashchg_fw_update);
+	INIT_DELAYED_WORK(&di->adapter_update_work, adapter_update_work_func);
+
+	pm_qos_add_request(&big_cpu_update_freq,
+		PM_QOS_C1_CPUFREQ_MIN, MIN_CPUFREQ);
 
 	init_timer(&di->watchdog);
 	di->watchdog.data = (unsigned long)di;
@@ -1082,7 +1236,8 @@ static int dash_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	di->dash_device.minor = MISC_DYNAMIC_MINOR;
 	di->dash_device.name = "dash";
 	di->dash_device.fops = &dash_dev_fops;
-	ret = misc_register(&di->dash_device);//when everything is ok, regist /dev/dash
+	/*when everything is ok, regist /dev/dash*/
+	ret = misc_register(&di->dash_device);
 	if (ret) {
 		pr_err("%s : misc_register failed\n", __FILE__);
 		goto err_misc_register_failed;
@@ -1098,6 +1253,7 @@ static int dash_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	return 0;
 
 err_misc_register_failed:
+	pm_qos_remove_request(&big_cpu_update_freq);
 err_read_dt:
 	kfree(di);
 err_check_functionality_failed:
@@ -1120,6 +1276,7 @@ static int dash_remove(struct i2c_client *client)
 		gpio_free(di->ap_clk);
 	if (gpio_is_valid(di->ap_data))
 		gpio_free(di->ap_data);
+	pm_qos_remove_request(&big_cpu_update_freq);
 
 	return 0;
 }

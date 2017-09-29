@@ -24,6 +24,8 @@
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/gpio.h>
+/*add for dash adapter update*/
+#include <linux/power/oem_external_fg.h>
 
 /* Implementation infrastructure for GPIO interfaces.
  *
@@ -1283,15 +1285,18 @@ static int _gpiod_get_raw_value(const struct gpio_desc *desc)
 
 	chip = desc->chip;
 	offset = gpio_chip_hwgpio(desc);
-	value = chip->get ? chip->get(chip, offset) : -EIO;
-	/*
-	 * FIXME: fix all drivers to clamp to [0,1] or return negative,
-	 * then change this to:
-	 * value = value < 0 ? value : !!value;
-	 * so we can properly propagate error codes.
-	 */
-	value = !!value;
-	trace_gpio_value(desc_to_gpio(desc), 1, value);
+	if (dash_adapter_update_is_rx_gpio(desc_to_gpio(desc))) {
+		if (chip->get_dash) {
+			value = chip->get_dash(chip, offset);
+		} else {
+			pr_err("%s get_dash not exist\n", __func__);
+			value = chip->get ? chip->get(chip, offset) : 0;
+		}
+	} else {
+		value = chip->get ? chip->get(chip, offset) : -EIO;
+		value = !!value;
+		trace_gpio_value(desc_to_gpio(desc), 1, value);
+	}
 	return value;
 }
 
@@ -1403,13 +1408,25 @@ static void _gpiod_set_raw_value(struct gpio_desc *desc, bool value)
 	struct gpio_chip	*chip;
 
 	chip = desc->chip;
-	trace_gpio_value(desc_to_gpio(desc), 0, value);
+	if (dash_adapter_update_is_tx_gpio(desc_to_gpio(desc)) == false)
+		trace_gpio_value(desc_to_gpio(desc), 0, value);
 	if (test_bit(FLAG_OPEN_DRAIN, &desc->flags))
 		_gpio_set_open_drain_value(desc, value);
 	else if (test_bit(FLAG_OPEN_SOURCE, &desc->flags))
 		_gpio_set_open_source_value(desc, value);
-	else
-		chip->set(chip, gpio_chip_hwgpio(desc), value);
+	else {
+		if (dash_adapter_update_is_tx_gpio(desc_to_gpio(desc))) {
+			if (chip->set_dash) {
+				chip->set_dash(chip,
+					gpio_chip_hwgpio(desc), value);
+			} else {
+				/*pr_err("%s set_dash not exist\n", __func__);*/
+				chip->set(chip, gpio_chip_hwgpio(desc), value);
+			}
+		} else {
+			chip->set(chip, gpio_chip_hwgpio(desc), value);
+		}
+	}
 }
 
 /*
@@ -2591,7 +2608,7 @@ void print_pinctrl_stats_op(void)
 		else
 			gpiolib_dbg_show(NULL, chip);
 	}
-	//	gpiolib_seq_show(NULL, chip);
+	/*	gpiolib_seq_show(NULL, chip);*/
 
 	spin_unlock_irqrestore(&gpio_lock, flags);
 }

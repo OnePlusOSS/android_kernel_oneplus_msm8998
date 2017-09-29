@@ -2,6 +2,28 @@
 #define __OEM_EXTERNAL_FG_H__
 #include <linux/regmap.h>
 #include <linux/input/qpnp-power-on.h>
+enum {
+	ADAPTER_FW_UPDATE_NONE,
+	ADAPTER_FW_NEED_UPDATE,
+	ADAPTER_FW_UPDATE_SUCCESS,
+	ADAPTER_FW_UPDATE_FAIL,
+};
+struct op_adapter_chip {
+	int		timer_delay;
+	bool	tx_byte_over;
+	bool	rx_byte_over;
+	bool	rx_timeout;
+	unsigned long uart_tx_gpio;
+	unsigned long uart_rx_gpio;
+	char	*adapter_firmware_data;
+	unsigned int	adapter_fw_data_count;
+	bool	adapter_update_ing;
+	struct op_adapter_operations	*vops;
+};
+struct op_adapter_operations {
+	bool (*adapter_update) (struct op_adapter_chip *chip,
+			unsigned long tx_pin, unsigned long rx_pin);
+};
 
 struct external_battery_gauge {
 	int (*get_battery_mvolts) (void);
@@ -25,6 +47,7 @@ struct external_battery_gauge {
 	bool (*get_fast_chg_allow) (void);
 	int (*fast_normal_to_warm)	(void);
 	int (*set_normal_to_warm_false)	(void);
+	int (*get_adapter_update)	(void);
 	bool (*get_fast_chg_ing)	(void);
 	bool (*get_fast_low_temp_full)	(void);
 	int (*set_low_temp_full_false)	(void);
@@ -79,4 +102,9 @@ void bq27541_information_unregister(struct external_battery_gauge *fast_chg);
 bool get_extern_fg_regist_done(void);
 bool get_extern_bq_present(void);
 int get_prop_pre_shutdown_soc(void);
+
+/*add for dash adapter update*/
+extern bool dash_adapter_update_is_tx_gpio(unsigned long gpio_num);
+extern bool dash_adapter_update_is_rx_gpio(unsigned long gpio_num);
+extern bool oem_report_power_key(u32 pon_type);
 #endif

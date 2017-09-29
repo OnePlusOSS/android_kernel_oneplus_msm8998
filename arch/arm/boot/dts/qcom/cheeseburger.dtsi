@@ -435,13 +435,30 @@
 				config {
 					pins = "gpio80";
 					drive-strength = <2>;
-					bias-disable;
+					bias-pull-down;
 				};
 			};
 		};
 	};
 };
 
+&i2c_7 {
+	 oneplus_fastcg@26{
+
+		pinctrl-names = "mux_fastchg_active",
+		"mux_fastchg_suspend",
+		"mcu_data_active",
+		"mcu_data_suspend";
+		pinctrl-0 = <&fastchg_active
+		&usb_sw_active
+		&ap_clk_active >;
+		pinctrl-1 = <&usb_sw_suspend
+		&fastchg_suspend
+		&ap_clk_suspend>;
+		pinctrl-2 =<&ap_data_active>;
+		pinctrl-3 =<&ap_data_suspend>;
+	};
+};
 &pmi8998_charger {
 	qcom,fcc-max-ua = <500000>; /*Set FCC MAX 500mA by default,FCC will be set again after check battery temperature*/
 	qcom,usb-icl-ua = <1800000>;
@@ -550,6 +567,10 @@
 
 &mdss_hdmi_pll {
 	status = "disabled";
+};
+
+&snd_9335 {
+	qcom,mbhc-audio-jack-type = "4-pole-jack";
 };
 
 /* Audio */

@@ -3895,6 +3895,12 @@ int wma_nlo_match_evt_handler(void *handle, uint8_t *event,
 	nlo_event = param_buf->fixed_param;
 	WMA_LOGD("PNO match event received for vdev %d", nlo_event->vdev_id);
 
+	if (nlo_event->vdev_id >= wma->max_bssid) {
+		WMA_LOGE("Invalid vdev id in the NLO event %d",
+				nlo_event->vdev_id);
+		return -EINVAL;
+	}
+
 	node = &wma->interfaces[nlo_event->vdev_id];
 	if (node)
 		node->nlo_match_evt_received = true;

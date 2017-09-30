@@ -1282,6 +1282,7 @@ struct hdd_adapter_s {
 	uint8_t snr;
 
 	struct work_struct monTxWorkQueue;
+	struct work_struct  sap_stop_bss_work;
 	struct sk_buff *skb_to_tx;
 
 	union {

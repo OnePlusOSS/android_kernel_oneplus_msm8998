@@ -1403,6 +1403,46 @@ static void hdd_fill_station_info(hdd_station_info_t *stainfo,
 			stainfo->tx_mcs_map);
 }
 
+/**
+ * hdd_stop_sap_due_to_invalid_channel() - to stop sap in case of invalid chnl
+ * @work: pointer to work structure
+ *
+ * Let's say SAP detected RADAR and trying to select the new channel and if no
+ * valid channel is found due to none of the channels are available or
+ * regulatory restriction then SAP needs to be stopped. so SAP state-machine
+ * will create a work to stop the bss
+ *
+ * stop bss has to happen through worker thread because radar indication comes
+ * from FW through mc thread or main host thread and if same thread is used to
+ * do stopbss then waiting for stopbss to finish operation will halt mc thread
+ * to freeze which will trigger stopbss timeout. Instead worker thread can do
+ * the stopbss operation while mc thread waits for stopbss to finish.
+ *
+ * Return: none
+ */
+static void
+hdd_stop_sap_due_to_invalid_channel(struct work_struct *work)
+{
+	/*
+	 * Extract the adapter from work structure. sap_stop_bss_work
+	 * is part of adapter context.
+	 */
+	hdd_adapter_t *sap_adapter = container_of(work, hdd_adapter_t,
+						  sap_stop_bss_work);
+	hdd_debug("work started for sap session[%d]", sap_adapter->sessionId);
+	cds_ssr_protect(__func__);
+	if (sap_adapter == NULL) {
+	    cds_err("sap_adapter is NULL, no work needed");
+	    cds_ssr_unprotect(__func__);
+	    return;
+	}
+	wlan_hdd_stop_sap(sap_adapter);
+	wlansap_set_invalid_session(WLAN_HDD_GET_SAP_CTX_PTR(sap_adapter));
+	wlansap_cleanup_cac_timer(WLAN_HDD_GET_SAP_CTX_PTR(sap_adapter));
+	hdd_debug("work finished for sap");
+	cds_ssr_unprotect(__func__);
+}
+
 QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 				    void *usrDataForCallback)
 {
@@ -2409,6 +2449,13 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 	case eSAP_UPDATE_SCAN_RESULT:
 		return hdd_update_scan_result(pSapEvent,
 					pHostapdAdapter);
+	case eSAP_STOP_BSS_DUE_TO_NO_CHNL:
+		hdd_debug("Stop sap session[%d]",
+			  pHostapdAdapter->sessionId);
+		INIT_WORK(&pHostapdAdapter->sap_stop_bss_work,
+			  hdd_stop_sap_due_to_invalid_channel);
+		schedule_work(&pHostapdAdapter->sap_stop_bss_work);
+		return QDF_STATUS_SUCCESS;
 	default:
 		hdd_debug("SAP message is not handled");
 		goto stopbss;
@@ -8382,6 +8429,7 @@ static int __wlan_hdd_cfg80211_stop_ap(struct wiphy *wiphy,
 		status = hdd_get_next_adapter(pHddCtx, pAdapterNode, &pNext);
 		pAdapterNode = pNext;
 	}
+	cds_flush_work(&pAdapter->sap_stop_bss_work);
 	/*
 	 * When ever stop ap adapter gets called, we need to check
 	 * whether any restart AP work is pending. If any restart is pending

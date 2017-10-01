@@ -2046,7 +2046,7 @@ hdd_adapter_t *hdd_open_adapter(hdd_context_t *pHddCtx, uint8_t session_type,
 QDF_STATUS hdd_close_adapter(hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter,
 			     bool rtnl_held);
 QDF_STATUS hdd_close_all_adapters(hdd_context_t *pHddCtx, bool rtnl_held);
-QDF_STATUS hdd_stop_all_adapters(hdd_context_t *pHddCtx);
+QDF_STATUS hdd_stop_all_adapters(hdd_context_t *pHddCtx, bool close_session);
 void hdd_deinit_all_adapters(hdd_context_t *hdd_ctx, bool rtnl_held);
 QDF_STATUS hdd_reset_all_adapters(hdd_context_t *pHddCtx);
 QDF_STATUS hdd_start_all_adapters(hdd_context_t *pHddCtx);

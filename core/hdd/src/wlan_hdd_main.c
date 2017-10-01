@@ -4277,7 +4277,7 @@ void  hdd_deinit_all_adapters(hdd_context_t *hdd_ctx, bool rtnl_held)
 	EXIT();
 }
 
-QDF_STATUS hdd_stop_all_adapters(hdd_context_t *hdd_ctx)
+QDF_STATUS hdd_stop_all_adapters(hdd_context_t *hdd_ctx, bool close_session)
 {
 	hdd_adapter_list_node_t *adapterNode = NULL, *pNext = NULL;
 	QDF_STATUS status;
@@ -4296,7 +4296,7 @@ QDF_STATUS hdd_stop_all_adapters(hdd_context_t *hdd_ctx)
 
 	while (NULL != adapterNode && QDF_STATUS_SUCCESS == status) {
 		adapter = adapterNode->pAdapter;
-		hdd_stop_adapter(hdd_ctx, adapter, true);
+		hdd_stop_adapter(hdd_ctx, adapter, close_session);
 		status = hdd_get_next_adapter(hdd_ctx, adapterNode, &pNext);
 		adapterNode = pNext;
 	}
@@ -5853,7 +5853,7 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 		hdd_cleanup_scan_queue(hdd_ctx);
 		hdd_abort_mac_scan_all_adapters(hdd_ctx);
 		hdd_abort_sched_scan_all_adapters(hdd_ctx);
-		hdd_stop_all_adapters(hdd_ctx);
+		hdd_stop_all_adapters(hdd_ctx, true);
 	}
 
 	unregister_netdevice_notifier(&hdd_netdev_notifier);
@@ -11548,6 +11548,29 @@ static enum tQDF_ADAPTER_MODE hdd_get_adpter_mode(
 	}
 }
 
+static void hdd_stop_present_mode(hdd_context_t *hdd_ctx,
+				  enum tQDF_GLOBAL_CON_MODE curr_mode)
+{
+
+	if (hdd_ctx->driver_status == DRIVER_MODULES_CLOSED)
+		return;
+
+	switch (curr_mode) {
+	case QDF_GLOBAL_MISSION_MODE:
+	case QDF_GLOBAL_MONITOR_MODE:
+	case QDF_GLOBAL_FTM_MODE:
+		hdd_abort_mac_scan_all_adapters(hdd_ctx);
+		hdd_cleanup_scan_queue(hdd_ctx);
+
+		/* re-use the existing session */
+		hdd_stop_all_adapters(hdd_ctx, false);
+		break;
+	default:
+		break;
+	}
+}
+
+
 static void hdd_cleanup_present_mode(hdd_context_t *hdd_ctx,
 				    enum tQDF_GLOBAL_CON_MODE curr_mode)
 {
@@ -11559,11 +11582,6 @@ static void hdd_cleanup_present_mode(hdd_context_t *hdd_ctx,
 	case QDF_GLOBAL_MISSION_MODE:
 	case QDF_GLOBAL_MONITOR_MODE:
 	case QDF_GLOBAL_FTM_MODE:
-		if (driver_status != DRIVER_MODULES_CLOSED) {
-			hdd_abort_mac_scan_all_adapters(hdd_ctx);
-			hdd_cleanup_scan_queue(hdd_ctx);
-			hdd_stop_all_adapters(hdd_ctx);
-		}
 		hdd_deinit_all_adapters(hdd_ctx, false);
 		hdd_close_all_adapters(hdd_ctx, false);
 		break;
@@ -11677,6 +11695,9 @@ static int __con_mode_handler(const char *kmessage, struct kernel_param *kp,
 		goto reset_flags;
 	}
 
+	/* ensure adapters are stopped */
+	hdd_stop_present_mode(hdd_ctx, curr_mode);
+
 	ret = hdd_wlan_stop_modules(hdd_ctx, true);
 	if (ret) {
 		hdd_err("Stop wlan modules failed");
@@ -11715,7 +11736,7 @@ static int __con_mode_handler(const char *kmessage, struct kernel_param *kp,
 	}
 
 	if (con_mode == QDF_GLOBAL_MONITOR_MODE ||
-		con_mode == QDF_GLOBAL_FTM_MODE) {
+	    con_mode == QDF_GLOBAL_FTM_MODE) {
 		if (hdd_start_adapter(adapter)) {
 			hdd_err("Failed to start %s adapter", kmessage);
 			ret = -EINVAL;

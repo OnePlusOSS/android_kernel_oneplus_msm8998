@@ -6107,6 +6107,11 @@ QDF_STATUS  wma_ipa_offload_enable_disable(tp_wma_handle wma,
 	params.vdev_id = ipa_offload->vdev_id;
 	params.enable = ipa_offload->enable;
 
+	WMA_LOGI("%s: offload_type=%d, vdev_id=%d, enable=%d",
+		__func__,
+		ipa_offload->offload_type, ipa_offload->vdev_id,
+		ipa_offload->enable);
+
 	status = wmi_unified_ipa_offload_control_cmd(wma->wmi_handle,
 						&params);
 	if (QDF_IS_STATUS_ERROR(status))
@@ -6123,7 +6128,7 @@ QDF_STATUS  wma_ipa_offload_enable_disable(tp_wma_handle wma,
 	/* Disable Intra-BSS FWD offload when gDisableIntraBssFwd=1 in INI */
 	rx_fwd_disabled = ol_txrx_is_rx_fwd_disabled(vdev);
 	if (!ipa_offload->enable || rx_fwd_disabled) {
-		WMA_LOGE("%s: ipa_offload->enable=%d, rx_fwd_disabled=%d",
+		WMA_LOGI("%s: ipa_offload->enable=%d, rx_fwd_disabled=%d",
 				__func__,
 				ipa_offload->enable, rx_fwd_disabled);
 		intra_bss_fwd = 1;

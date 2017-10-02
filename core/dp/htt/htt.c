@@ -835,6 +835,9 @@ int htt_ipa_uc_attach(struct htt_pdev_t *pdev)
 {
 	int error;
 
+	QDF_TRACE(QDF_MODULE_ID_HTT, QDF_TRACE_LEVEL_INFO, "%s: enter",
+		  __func__);
+
 	/* TX resource attach */
 	error = htt_tx_ipa_uc_attach(
 		pdev,
@@ -859,6 +862,8 @@ int htt_ipa_uc_attach(struct htt_pdev_t *pdev)
 		return error;
 	}
 
+	QDF_TRACE(QDF_MODULE_ID_HTT, QDF_TRACE_LEVEL_INFO, "%s: exit",
+		  __func__);
 	return 0;               /* success */
 }
 
@@ -870,11 +875,17 @@ int htt_ipa_uc_attach(struct htt_pdev_t *pdev)
  */
 void htt_ipa_uc_detach(struct htt_pdev_t *pdev)
 {
+	QDF_TRACE(QDF_MODULE_ID_HTT, QDF_TRACE_LEVEL_INFO, "%s: enter",
+		  __func__);
+
 	/* TX IPA micro controller detach */
 	htt_tx_ipa_uc_detach(pdev);
 
 	/* RX IPA micro controller detach */
 	htt_rx_ipa_uc_detach(pdev);
+
+	QDF_TRACE(QDF_MODULE_ID_HTT, QDF_TRACE_LEVEL_INFO, "%s: exit",
+		  __func__);
 }
 
 int

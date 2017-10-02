@@ -5417,7 +5417,7 @@ static int __init cgroup_wq_init(void)
 	 * We would prefer to do this in cgroup_init() above, but that
 	 * is called before init_workqueues(): so leave this until after.
 	 */
-	cgroup_destroy_wq = alloc_workqueue("cgroup_destroy", 0, 1);
+	cgroup_destroy_wq = create_workqueue("cgroup_destroy");
 	BUG_ON(!cgroup_destroy_wq);
 
 	/*

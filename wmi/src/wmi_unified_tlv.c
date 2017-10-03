@@ -4578,6 +4578,7 @@ QDF_STATUS send_roam_scan_offload_mode_cmd_tlv(wmi_unified_t wmi_handle,
 #endif /* WLAN_FEATURE_ROAM_OFFLOAD */
 	      sizeof(wmi_start_scan_cmd_fixed_param);
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
+	WMI_LOGD("auth_mode = %d", auth_mode);
 		if (roam_req->is_roam_req_valid &&
 				roam_req->roam_offload_enabled) {
 			len += sizeof(wmi_roam_offload_tlv_param);
@@ -4781,6 +4782,13 @@ QDF_STATUS send_roam_scan_offload_mode_cmd_tlv(wmi_unified_t wmi_handle,
 				WMITLV_SET_HDR(buf_ptr, WMITLV_TAG_ARRAY_STRUC,
 					       WMITLV_GET_STRUCT_TLVLEN(0));
 				buf_ptr += WMI_TLV_HDR_SIZE;
+				WMI_LOGD("psk_msk_len = %d",
+					roam_offload_11r->psk_msk_len);
+				if (roam_offload_11r->psk_msk_len)
+					QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_WMI,
+						QDF_TRACE_LEVEL_DEBUG,
+						roam_offload_11r->psk_msk,
+						roam_offload_11r->psk_msk_len);
 			} else {
 				WMITLV_SET_HDR(buf_ptr, WMITLV_TAG_ARRAY_STRUC,
 					sizeof(wmi_roam_11i_offload_tlv_param));
@@ -4825,6 +4833,13 @@ QDF_STATUS send_roam_scan_offload_mode_cmd_tlv(wmi_unified_t wmi_handle,
 				WMITLV_SET_HDR(buf_ptr, WMITLV_TAG_ARRAY_STRUC,
 					       0);
 				buf_ptr += WMI_TLV_HDR_SIZE;
+				WMI_LOGD("LFR3: pmk_len = %d",
+					roam_offload_11i->pmk_len);
+				if (roam_offload_11i->pmk_len)
+					QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_WMI,
+						QDF_TRACE_LEVEL_DEBUG,
+						roam_offload_11i->pmk,
+						roam_offload_11i->pmk_len);
 			}
 		} else {
 			WMITLV_SET_HDR(buf_ptr, WMITLV_TAG_ARRAY_STRUC,

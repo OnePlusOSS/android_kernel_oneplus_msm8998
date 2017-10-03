@@ -1698,7 +1698,10 @@ enum hdd_sta_smps_param {
 	HDD_STA_SMPS_PARAM_DTIM_1CHRX_ENABLE = 5
 };
 
-/** Adapter structure definition */
+/**
+ * struct hdd_context_s
+ * @adapter_nodes: an array of adapter nodes for keeping track of hdd adapters
+ */
 struct hdd_context_s {
 	/** Global CDS context  */
 	v_CONTEXT_t pcds_context;
@@ -1710,6 +1713,7 @@ struct hdd_context_s {
 	/* TODO Remove this from here. */
 
 	qdf_spinlock_t hdd_adapter_lock;
+	hdd_adapter_list_node_t adapter_nodes[CSR_ROAM_SESSION_MAX];
 	qdf_list_t hddAdapters; /* List of adapters */
 
 	/* One per STA: 1 for BCMC_STA_ID, 1 for each SAP_SELF_STA_ID,

@@ -1774,11 +1774,6 @@ static int32_t csr_calculate_rssi_score(struct sir_rssi_cfg_score *score_param,
 	bad_rssi_pcnt = score_param->bad_rssi_pcnt;
 	good_bucket_size = score_param->good_rssi_bucket_size;
 	bad_bucket_size = score_param->bad_rssi_bucket_size;
-	sme_debug("best_rssi_threshold %d good_rssi_threshold %d bad_rssi_threshold %d good_rssi_pcnt %d bad_rssi_pcnt %d good_bucket_size %d bad_bucket_size %d",
-		  best_rssi_threshold, good_rssi_threshold,
-		  bad_rssi_threshold, good_rssi_pcnt,
-		  bad_rssi_pcnt, good_bucket_size,
-		  bad_bucket_size);
 
 	total_rssi_score = (BEST_CANDIDATE_MAX_WEIGHT * rssi_weightage);
 
@@ -1897,12 +1892,14 @@ static int32_t csr_calculate_pcl_score(tpAniSirGlobal mac_ctx,
  * @bss_info: bss information
  * @chan_width_weightage: PCL _weightage out of total weightage
  * @dot11mode: dot 11 mode
+ * @prorated_pct: prorated % to return dependent on RSSI
  *
  * Return : bw score
  */
 static int32_t csr_calculate_bandwidth_score(tpAniSirGlobal mac_ctx,
 		tSirBssDescription *bss_info,
-		uint8_t chan_width_weightage, uint32_t dot11mode)
+		uint8_t chan_width_weightage, uint32_t dot11mode,
+		uint8_t prorated_pct)
 {
 	uint32_t score;
 	int32_t bw_weight_per_idx;
@@ -1949,7 +1946,8 @@ static int32_t csr_calculate_bandwidth_score(tpAniSirGlobal mac_ctx,
 					WLAN_20MHZ_BW_INDEX);
 	}
 
-	return score * chan_width_weightage;
+	return (prorated_pct * score *
+		chan_width_weightage) / BEST_CANDIDATE_MAX_WEIGHT;
 }
 
 /**
@@ -2072,13 +2070,16 @@ static int32_t csr_calculate_congestion_score(tpAniSirGlobal mac_ctx,
  * @ap_nss: AP nss supported
  * @nss_weight_per_index: nss wight per index
  * @nss_weightage: weightage for nss
+ * @prorated_pct: prorated % to return dependent on RSSI
  *
  * Return : nss score
  */
 static int32_t csr_calculate_nss_score(uint8_t sta_nss, uint8_t ap_nss,
-		uint32_t nss_weight_per_index, uint8_t nss_weightage)
+		uint32_t nss_weight_per_index, uint8_t nss_weightage,
+		uint8_t prorated_pct)
 {
 	uint8_t nss;
+	uint8_t score_pct;
 
 	if (wma_is_current_hwmode_dbs())
 		sta_nss--;
@@ -2088,21 +2089,20 @@ static int32_t csr_calculate_nss_score(uint8_t sta_nss, uint8_t ap_nss,
 		nss = sta_nss;
 
 	if (nss == 4)
-		return nss_weightage *
-			WLAN_GET_SCORE_PERCENTAGE(nss_weight_per_index,
+		score_pct = WLAN_GET_SCORE_PERCENTAGE(nss_weight_per_index,
 				WLAN_NSS_4x4_INDEX);
 	else if (nss == 3)
-		return nss_weightage *
-			WLAN_GET_SCORE_PERCENTAGE(nss_weight_per_index,
+		score_pct = WLAN_GET_SCORE_PERCENTAGE(nss_weight_per_index,
 				WLAN_NSS_3x3_INDEX);
 	else if (nss == 2)
-		return nss_weightage *
-			WLAN_GET_SCORE_PERCENTAGE(nss_weight_per_index,
+		score_pct = WLAN_GET_SCORE_PERCENTAGE(nss_weight_per_index,
 				WLAN_NSS_2x2_INDEX);
 	else
-		return nss_weightage *
-			WLAN_GET_SCORE_PERCENTAGE(nss_weight_per_index,
+		score_pct = WLAN_GET_SCORE_PERCENTAGE(nss_weight_per_index,
 				WLAN_NSS_1x1_INDEX);
+
+	return (nss_weightage * score_pct *
+		prorated_pct) / BEST_CANDIDATE_MAX_WEIGHT;
 }
 
 /**
@@ -2140,20 +2140,6 @@ static int32_t _csr_calculate_bss_score(tpAniSirGlobal mac_ctx,
 	int8_t good_rssi_threshold;
 	int8_t rssi_pref_5g_rssi_thresh;
 
-	/*
-	 * Total weight of a BSSID is calculated on basis of 100 in which
-	 * contribution of every factor is considered like this(default).
-	 * RSSI: RSSI_WEIGHTAGE : 25
-	 * HT_CAPABILITY_WEIGHTAGE: 7
-	 * VHT_CAP_WEIGHTAGE: 5
-	 * BEAMFORMING_CAP_WEIGHTAGE: 2
-	 * CHAN_WIDTH_WEIGHTAGE:10
-	 * CHAN_BAND_WEIGHTAGE: 5
-	 * NSS: 5
-	 * PCL: 10
-	 * CHANNEL_CONGESTION: 5
-	 * Reserved : 31
-	 */
 	bss_score_params = &mac_ctx->roam.configParam.bss_score_params;
 	weight_config = &bss_score_params->weight_cfg;
 
@@ -2193,7 +2179,8 @@ static int32_t _csr_calculate_bss_score(tpAniSirGlobal mac_ctx,
 	score += vht_score;
 
 	bandwidth_score = csr_calculate_bandwidth_score(mac_ctx, bss_info,
-				weight_config->chan_width_weightage, dot11mode);
+				weight_config->chan_width_weightage, dot11mode,
+				prorated_pcnt);
 	score += bandwidth_score;
 
 	good_rssi_threshold =
@@ -2249,7 +2236,7 @@ static int32_t _csr_calculate_bss_score(tpAniSirGlobal mac_ctx,
 	 */
 	nss_score = csr_calculate_nss_score(sta_nss, bss_info->nss,
 				bss_score_params->nss_weight_per_index,
-				weight_config->nss_weightage);
+				weight_config->nss_weightage, prorated_pcnt);
 	score += nss_score;
 
 	sme_debug("BSSID:"MAC_ADDRESS_STR" rssi=%d dot11mode %d htcaps=%d vht=%d enableVhtFor24GHz %d AP bw=%d channel=%d self beamformee %d AP beamforming %d air time fraction %d qbss load %d ap_NSS %d sta nss %d",

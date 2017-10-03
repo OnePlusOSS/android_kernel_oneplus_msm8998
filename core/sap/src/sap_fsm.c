@@ -2293,6 +2293,7 @@ QDF_STATUS sap_goto_channel_sel(ptSapContext sap_context,
 #endif
 	tHalHandle h_hal;
 	uint8_t con_ch;
+	bool sta_sap_scc_on_dfs_chan;
 
 	h_hal = cds_get_context(QDF_MODULE_ID_SME);
 	if (NULL == h_hal) {
@@ -2383,11 +2384,20 @@ QDF_STATUS sap_goto_channel_sel(ptSapContext sap_context,
 					FL("SAP can't start (no MCC)"));
 				return QDF_STATUS_E_ABORTED;
 			}
-			if (con_ch && !CDS_IS_DFS_CH(con_ch)) {
+
+			sta_sap_scc_on_dfs_chan =
+				cds_is_sta_sap_scc_allowed_on_dfs_channel();
+
+			if (con_ch && cds_is_safe_channel(con_ch) &&
+					(!CDS_IS_DFS_CH(con_ch) ||
+					 (CDS_IS_DFS_CH(con_ch) &&
+					  sta_sap_scc_on_dfs_chan))) {
+
 				QDF_TRACE(QDF_MODULE_ID_SAP,
-					QDF_TRACE_LEVEL_ERROR,
-					"%s: Override ch %d to %d due to CC Intf",
-					__func__, sap_context->channel, con_ch);
+						QDF_TRACE_LEVEL_ERROR,
+						"%s: Override ch %d to %d due to CC Intf",
+						__func__, sap_context->channel,
+						con_ch);
 				sap_context->channel = con_ch;
 				cds_set_channel_params(sap_context->channel, 0,
 						&sap_context->ch_params);
@@ -4043,9 +4053,9 @@ static QDF_STATUS sap_fsm_state_starting(ptSapContext sap_ctx,
 		 * (both without substates)
 		 */
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  FL("from state channel = %d %s => %s ch_width %d"),
-			  sap_ctx->channel, "eSAP_STARTING", "eSAP_STARTED",
-			  sap_ctx->ch_params.ch_width);
+			FL("from state channel = %d %s => %s ch_width %d"),
+			sap_ctx->channel, "eSAP_STARTING", "eSAP_STARTED",
+			sap_ctx->ch_params.ch_width);
 		sap_ctx->sapsMachine = eSAP_STARTED;
 
 		/* Action code for transition */
@@ -4053,6 +4063,10 @@ static QDF_STATUS sap_fsm_state_starting(ptSapContext sap_ctx,
 				eSAP_START_BSS_EVENT,
 				(void *) eSAP_STATUS_SUCCESS);
 
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
+			FL("ap_ctx->ch_params.ch_width %d, channel %d"),
+			sap_ctx->ch_params.ch_width,
+			cds_get_channel_state(sap_ctx->channel));
 		/*
 		 * The upper layers have been informed that AP is up and
 		 * running, however, the AP is still not beaconing, until
@@ -4074,12 +4088,19 @@ static QDF_STATUS sap_fsm_state_starting(ptSapContext sap_ctx,
 				is_dfs = true;
 		}
 
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
+				FL("is_dfs %d"), is_dfs);
 		if (is_dfs) {
 			sap_dfs_info = &mac_ctx->sap.SapDfsInfo;
+
 			if ((false == sap_dfs_info->ignore_cac) &&
-			    (eSAP_DFS_DO_NOT_SKIP_CAC ==
-					sap_dfs_info->cac_state) &&
-			    !sap_ctx->pre_cac_complete) {
+					(eSAP_DFS_DO_NOT_SKIP_CAC ==
+					 sap_dfs_info->cac_state) &&
+					!sap_ctx->pre_cac_complete) {
+				QDF_TRACE(QDF_MODULE_ID_SAP,
+						QDF_TRACE_LEVEL_INFO_HIGH,
+						FL("start cac timer"));
+
 				/* Move the device in CAC_WAIT_STATE */
 				sap_ctx->sapsMachine = eSAP_DFS_CAC_WAIT;
 
@@ -4095,6 +4116,9 @@ static QDF_STATUS sap_fsm_state_starting(ptSapContext sap_ctx,
 				qdf_status = sap_cac_start_notify(hal);
 
 			} else {
+				QDF_TRACE(QDF_MODULE_ID_SAP,
+						QDF_TRACE_LEVEL_INFO_HIGH,
+						FL("skip cac timer"));
 				wlansap_start_beacon_req(sap_ctx);
 			}
 		}

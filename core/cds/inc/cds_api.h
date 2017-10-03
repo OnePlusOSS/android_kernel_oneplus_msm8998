@@ -548,4 +548,23 @@ void cds_smmu_mem_map_setup(qdf_device_t osdev);
  * Return: Status of map operation
  */
 int cds_smmu_map_unmap(bool map, uint32_t num_buf, qdf_mem_info_t *buf_arr);
+
+/**
+ * cds_get_mcc_to_scc_switch_mode() - get mcc to scc swith mode
+ *
+ * Get the mcc to scc swith mode from ini
+ *
+ * Return: current mcc to scc swith mode
+ */
+uint32_t cds_get_mcc_to_scc_switch_mode(void);
+
+/**
+ * cds_is_sta_sap_scc_allowed_on_dfs_channel() - get the status sta, sap scc on
+ * dfs channel
+ *
+ * Get the status of sta, sap scc on dfs channel
+ *
+ * Return: true if sta, sap scc is allowed on dfs channel otherwise false
+ */
+bool cds_is_sta_sap_scc_allowed_on_dfs_channel(void);
 #endif /* if !defined __CDS_API_H */

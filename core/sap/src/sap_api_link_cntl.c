@@ -54,6 +54,7 @@
 /* SAP Internal API header file */
 #include "sap_internal.h"
 #include "cds_concurrency.h"
+#include "cds_api.h"
 #include "wma.h"
 
 /*----------------------------------------------------------------------------
@@ -876,6 +877,8 @@ wlansap_roam_callback(void *ctx, tCsrRoamInfo *csr_roam_info, uint32_t roamId,
 	tHalHandle hal;
 	tpAniSirGlobal mac_ctx = NULL;
 	uint8_t intf;
+	bool sta_sap_scc_on_dfs_chan;
+
 
 	if (QDF_IS_STATUS_ERROR(wlansap_context_get((ptSapContext)ctx)))
 		return QDF_STATUS_E_FAILURE;
@@ -892,6 +895,9 @@ wlansap_roam_callback(void *ctx, tCsrRoamInfo *csr_roam_info, uint32_t roamId,
 	mac_ctx = PMAC_STRUCT(hal);
 	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
 		  FL("Before switch on roam_status = %d"), roam_status);
+
+	sta_sap_scc_on_dfs_chan = cds_is_sta_sap_scc_allowed_on_dfs_channel();
+
 	switch (roam_status) {
 	case eCSR_ROAM_SESSION_OPENED:
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
@@ -980,6 +986,13 @@ wlansap_roam_callback(void *ctx, tCsrRoamInfo *csr_roam_info, uint32_t roamId,
 	case eCSR_ROAM_DFS_RADAR_IND:
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
 			  FL("Received Radar Indication"));
+
+		if (sta_sap_scc_on_dfs_chan) {
+			QDF_TRACE(QDF_MODULE_ID_SAP,
+					QDF_TRACE_LEVEL_INFO_HIGH,
+					FL("Ignore the Radar indication"));
+			break;
+		}
 
 		if (sap_ctx->is_pre_cac_on) {
 			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_MED,
@@ -1251,8 +1264,10 @@ wlansap_roam_callback(void *ctx, tCsrRoamInfo *csr_roam_info, uint32_t roamId,
 
 		break;
 	case eCSR_ROAM_RESULT_DFS_RADAR_FOUND_IND:
+		if (sta_sap_scc_on_dfs_chan)
+			break;
 		wlansap_roam_process_dfs_radar_found(mac_ctx, sap_ctx,
-						&qdf_ret_status);
+					&qdf_ret_status);
 		break;
 	case eCSR_ROAM_RESULT_DFS_CHANSW_UPDATE_SUCCESS:
 		wlansap_roam_process_dfs_chansw_update(hal, sap_ctx,

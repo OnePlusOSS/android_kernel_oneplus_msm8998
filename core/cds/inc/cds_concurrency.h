@@ -885,6 +885,9 @@ void cds_dump_connection_status_info(void);
 uint32_t cds_mode_specific_vdev_id(enum cds_con_mode mode);
 uint32_t cds_mode_specific_connection_count(enum cds_con_mode mode,
 						uint32_t *list);
+
+uint8_t cds_mode_specific_get_channel(enum cds_con_mode mode);
+
 /**
  * cds_check_conn_with_mode_and_vdev_id() - checks if any active
  * session with specific mode and vdev_id

@@ -2851,3 +2851,36 @@ int cds_smmu_map_unmap(bool map, uint32_t num_buf, qdf_mem_info_t *buf_arr)
 	return 0;
 }
 #endif
+
+uint32_t cds_get_mcc_to_scc_switch_mode(void)
+{
+	hdd_context_t *hdd_ctx;
+
+	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+	if (!hdd_ctx) {
+		cds_err("HDD context is NULL");
+		return false;
+	}
+
+	return hdd_ctx->config->WlanMccToSccSwitchMode;
+}
+
+bool cds_is_sta_sap_scc_allowed_on_dfs_channel(void)
+{
+	hdd_context_t *hdd_ctx;
+	bool ret = false;
+
+	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+
+	if (!hdd_ctx) {
+		cds_err("HDD context is NULL");
+		return false;
+	}
+
+	if ((hdd_ctx->config->WlanMccToSccSwitchMode !=
+				QDF_MCC_TO_SCC_SWITCH_DISABLE) &&
+			(hdd_ctx->config->sta_sap_scc_on_dfs_chan))
+		ret = true;
+
+	return ret;
+}

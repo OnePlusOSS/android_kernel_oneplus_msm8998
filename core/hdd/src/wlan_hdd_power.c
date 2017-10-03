@@ -1433,7 +1433,6 @@ QDF_STATUS hdd_wlan_shutdown(void)
 	v_CONTEXT_t p_cds_context = NULL;
 	hdd_context_t *pHddCtx;
 	p_cds_sched_context cds_sched_context = NULL;
-	QDF_STATUS qdf_status;
 
 	hdd_info("WLAN driver shutting down!");
 
@@ -1480,11 +1479,6 @@ QDF_STATUS hdd_wlan_shutdown(void)
 	}
 #endif
 
-	qdf_status = cds_sched_close(p_cds_context);
-	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		hdd_err("Failed to close CDS Scheduler");
-		QDF_ASSERT(false);
-	}
 	hdd_ipa_uc_ssr_deinit();
 
 	qdf_mc_timer_stop(&pHddCtx->tdls_source_timer);

@@ -369,20 +369,14 @@ QDF_STATUS cds_open(void)
 	}
 
 	/* Now Open the CDS Scheduler */
-
-	if (pHddCtx->driver_status == DRIVER_MODULES_UNINITIALIZED ||
-	    cds_is_driver_recovering()) {
-		qdf_status = cds_sched_open(gp_cds_context,
-					    &gp_cds_context->qdf_sched,
-					    sizeof(cds_sched_context));
-
-		if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-			/* Critical Error ...  Cannot proceed further */
-			QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_FATAL,
-				  "%s: Failed to open CDS Scheduler", __func__);
-			QDF_ASSERT(0);
-			goto err_concurrency_lock;
-		}
+	qdf_status = cds_sched_open(gp_cds_context,
+				    &gp_cds_context->qdf_sched,
+				    sizeof(cds_sched_context));
+	if (QDF_IS_STATUS_ERROR(qdf_status)) {
+		/* Critical Error ...  Cannot proceed further */
+		cds_alert("Failed to open CDS Scheduler");
+		QDF_ASSERT(0);
+		goto err_concurrency_lock;
 	}
 
 	scn = cds_get_context(QDF_MODULE_ID_HIF);
@@ -539,13 +533,10 @@ err_bmi_close:
 	bmi_cleanup(ol_ctx);
 
 err_sched_close:
-	if (pHddCtx->driver_status == DRIVER_MODULES_UNINITIALIZED ||
-	    cds_is_driver_recovering()) {
-		qdf_status = cds_sched_close(gp_cds_context);
-		if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-			hdd_err("Failed to close CDS Scheduler");
-			QDF_ASSERT(false);
-		}
+	qdf_status = cds_sched_close(gp_cds_context);
+	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
+		cds_err("Failed to close CDS Scheduler");
+		QDF_ASSERT(false);
 	}
 
 err_concurrency_lock:

@@ -289,6 +289,48 @@ void qdf_snprintf(char *str_buffer, unsigned int size, char *str_format, ...)
 qdf_export_symbol(qdf_snprintf);
 
 #ifdef QDF_ENABLE_TRACING
+void qdf_vtrace_msg(QDF_MODULE_ID module, QDF_TRACE_LEVEL level,
+		   char *str_format, va_list val)
+{
+	char str_buffer[QDF_TRACE_BUFFER_SIZE];
+	int n;
+
+	/* Print the trace message when the desired level bit is set in
+	 * the module tracel level mask
+	 */
+	if (g_qdf_trace_info[module].module_trace_level &
+	    QDF_TRACE_LEVEL_TO_MODULE_BITMASK(level)) {
+		/* the trace level strings in an array.  these are ordered in
+		 * the same order as the trace levels are defined in the enum
+		 * (see QDF_TRACE_LEVEL) so we can index into this array with
+		 * the level and get the right string. The qdf trace levels
+		 * are... none, Fatal, Error, Warning, Info, info_high, info_med,
+		 * info_low, Debug
+		 */
+		static const char * const TRACE_LEVEL_STR[] = { "  ", "F ",
+				"E ", "W ", "I ", "IH", "IM", "IL", "D" };
+
+		/* print the prefix string into the string buffer... */
+		n = snprintf(str_buffer, QDF_TRACE_BUFFER_SIZE,
+			     "wlan: [%d:%2s:%3s] ",
+			     in_interrupt() ? 0 : current->pid,
+			     (char *)TRACE_LEVEL_STR[level],
+			     (char *)g_qdf_trace_info[module].module_name_str);
+
+		/* print the formatted log message after the prefix string */
+		if ((n >= 0) && (n < QDF_TRACE_BUFFER_SIZE)) {
+			vsnprintf(str_buffer + n, QDF_TRACE_BUFFER_SIZE - n,
+				  str_format, val);
+#if defined(WLAN_LOGGING_SOCK_SVC_ENABLE)
+			wlan_log_to_user(level, (char *)str_buffer,
+					 strlen(str_buffer));
+#else
+			pr_err("%s\n", str_buffer);
+#endif
+		}
+	}
+}
+qdf_export_symbol(qdf_vtrace_msg);
 
 /**
  * qdf_trace_msg() - externally called trace function
@@ -308,46 +350,11 @@ qdf_export_symbol(qdf_snprintf);
 void qdf_trace_msg(QDF_MODULE_ID module, QDF_TRACE_LEVEL level,
 		   char *str_format, ...)
 {
-	char str_buffer[QDF_TRACE_BUFFER_SIZE];
-	int n;
+	va_list val;
 
-	/* Print the trace message when the desired level bit is set in
-	 * the module tracel level mask
-	 */
-	if (g_qdf_trace_info[module].module_trace_level &
-	    QDF_TRACE_LEVEL_TO_MODULE_BITMASK(level)) {
-		/* the trace level strings in an array.  these are ordered in
-		 * the same order as the trace levels are defined in the enum
-		 * (see QDF_TRACE_LEVEL) so we can index into this array with
-		 * the level and get the right string. The qdf trace levels
-		 * are... none, Fatal, Error, Warning, Info, info_high, info_med,
-		 * info_low, Debug
-		 */
-		static const char * const TRACE_LEVEL_STR[] = { "  ", "F ",
-				"E ", "W ", "I ", "IH", "IM", "IL", "D" };
-		va_list val;
-
-		va_start(val, str_format);
-		/* print the prefix string into the string buffer... */
-		n = snprintf(str_buffer, QDF_TRACE_BUFFER_SIZE,
-			     "wlan: [%d:%2s:%3s] ",
-			     in_interrupt() ? 0 : current->pid,
-			     (char *)TRACE_LEVEL_STR[level],
-			     (char *)g_qdf_trace_info[module].module_name_str);
-
-		/* print the formatted log message after the prefix string */
-		if ((n >= 0) && (n < QDF_TRACE_BUFFER_SIZE)) {
-			vsnprintf(str_buffer + n, QDF_TRACE_BUFFER_SIZE - n,
-				  str_format, val);
-#if defined(WLAN_LOGGING_SOCK_SVC_ENABLE)
-			wlan_log_to_user(level, (char *)str_buffer,
-					 strlen(str_buffer));
-#else
-			pr_err("%s\n", str_buffer);
-#endif
-		}
-		va_end(val);
-	}
+	va_start(val, str_format);
+	qdf_vtrace_msg(module, level, str_format, val);
+	va_end(val);
 }
 qdf_export_symbol(qdf_trace_msg);
 

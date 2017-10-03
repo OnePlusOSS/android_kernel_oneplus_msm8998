@@ -730,7 +730,7 @@ static void hdd_issue_stored_joinreq(hdd_adapter_t *sta_adapter,
 		hdd_context_t *hdd_ctx)
 {
 	tHalHandle hal_handle;
-	uint32_t roam_id;
+	uint32_t roam_id = INVALID_ROAM_ID;
 
 	if (NULL == sta_adapter) {
 		hdd_err("Invalid station adapter, ignore issueing join req");
@@ -741,7 +741,7 @@ static void hdd_issue_stored_joinreq(hdd_adapter_t *sta_adapter,
 	if (true ==  cds_is_sta_connection_pending()) {
 		MTRACE(qdf_trace(QDF_MODULE_ID_HDD,
 				TRACE_CODE_HDD_ISSUE_JOIN_REQ,
-				sta_adapter->sessionId, roam_id));
+				sta_adapter->sessionId, 0));
 		if (QDF_STATUS_SUCCESS !=
 			sme_issue_stored_joinreq(hal_handle,
 				&roam_id,

@@ -7254,7 +7254,7 @@ static bool cds_sta_p2pgo_concur_handle(hdd_adapter_t *sta_adapter,
 			if (true == cds_is_sta_connection_pending()) {
 				MTRACE(qdf_trace(QDF_MODULE_ID_HDD,
 					TRACE_CODE_HDD_CLEAR_JOIN_REQ,
-					sta_adapter->sessionId, *roam_id));
+					sta_adapter->sessionId, 0));
 				ret = sme_clear_joinreq_param(
 					WLAN_HDD_GET_HAL_CTX(sta_adapter),
 					sta_adapter->sessionId);
@@ -7267,7 +7267,7 @@ static bool cds_sta_p2pgo_concur_handle(hdd_adapter_t *sta_adapter,
 			}
 			MTRACE(qdf_trace(QDF_MODULE_ID_HDD,
 					TRACE_CODE_HDD_STORE_JOIN_REQ,
-					sta_adapter->sessionId, *roam_id));
+					sta_adapter->sessionId, 0));
 			/* store the scan cache here */
 			ret = sme_store_joinreq_param(
 					WLAN_HDD_GET_HAL_CTX(sta_adapter),

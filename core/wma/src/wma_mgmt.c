@@ -2718,6 +2718,10 @@ static int wma_process_mgmt_tx_completion(tp_wma_handle wma_handle,
 		WMA_LOGE("%s: NULL pdev pointer", __func__);
 		return -EINVAL;
 	}
+	if (desc_id >= WMI_DESC_POOL_MAX) {
+		WMA_LOGE("%s: Invalid desc id %d", __func__, desc_id);
+		return -EINVAL;
+	}
 
 	WMA_LOGD("%s: status: %s wmi_desc_id: %d", __func__,
 		wma_get_status_str(status), desc_id);

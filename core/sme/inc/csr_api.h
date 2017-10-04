@@ -1365,6 +1365,7 @@ typedef struct tagCsrConfigParam {
 	uint32_t scan_probe_repeat_time;
 	uint32_t scan_num_probes;
 	struct sir_score_config bss_score_params;
+	uint8_t oce_feature_bitmap;
 } tCsrConfigParam;
 
 /* Tush */

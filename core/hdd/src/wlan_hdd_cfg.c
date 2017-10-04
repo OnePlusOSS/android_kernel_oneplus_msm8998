@@ -5242,6 +5242,56 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_CHAN_SWITCH_HOSTAPD_RATE_ENABLED_MIN,
 		CFG_CHAN_SWITCH_HOSTAPD_RATE_ENABLED_MAX),
 
+	REG_VARIABLE(CFG_OCE_ENABLE_RSSI_BASED_ASSOC_REJECT_NAME,
+		     WLAN_PARAM_Integer,
+		     struct hdd_config, rssi_assoc_reject_enabled,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_OCE_ENABLE_RSSI_BASED_ASSOC_REJECT_DEFAULT,
+		     CFG_OCE_ENABLE_RSSI_BASED_ASSOC_REJECT_MIN,
+		     CFG_OCE_ENABLE_RSSI_BASED_ASSOC_REJECT_MAX),
+
+	REG_VARIABLE(CFG_OCE_PROBE_REQ_RATE_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, oce_probe_req_rate_enabled,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_OCE_PROBE_REQ_RATE_DEFAULT,
+		     CFG_OCE_PROBE_REQ_RATE_MIN,
+		     CFG_OCE_PROBE_REQ_RATE_MAX),
+
+	REG_VARIABLE(CFG_OCE_PROBE_RSP_RATE_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, oce_probe_resp_rate_enabled,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_OCE_PROBE_RSP_RATE_DEFAULT,
+		     CFG_OCE_PROBE_RSP_RATE_MIN,
+		     CFG_OCE_PROBE_RSP_RATE_MAX),
+
+	REG_VARIABLE(CFG_OCE_BEACON_RATE_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, oce_beacon_rate_enabled,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_OCE_BEACON_RATE_DEFAULT,
+		     CFG_OCE_BEACON_RATE_MIN,
+		     CFG_OCE_BEACON_RATE_MAX),
+
+	REG_VARIABLE(CFG_ENABLE_PROBE_REQ_DEFERRAL_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, probe_req_deferral_enabled,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ENABLE_PROBE_REQ_DEFERRAL_DEFAULT,
+		     CFG_ENABLE_PROBE_REQ_DEFERRAL_MIN,
+		     CFG_ENABLE_PROBE_REQ_DEFERRAL_MAX),
+
+	REG_VARIABLE(CFG_ENABLE_FILS_DISCOVERY_SAP_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, fils_discovery_sap_enabled,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ENABLE_FILS_DISCOVERY_SAP_DEFAULT,
+		     CFG_ENABLE_FILS_DISCOVERY_SAP_MIN,
+		     CFG_ENABLE_FILS_DISCOVERY_SAP_MAX),
+
+	REG_VARIABLE(CFG_ENABLE_ESP_FEATURE_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, esp_for_roam_enabled,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ENABLE_ESP_FEATURE_DEFAULT,
+		     CFG_ENABLE_ESP_FEATURE_MIN,
+		     CFG_ENABLE_ESP_FEATURE_MAX),
+
 };
 
 /**
@@ -8439,7 +8489,7 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	tSmeConfigParams *smeConfig;
-	uint8_t rrm_capab_len;
+	uint8_t rrm_capab_len, val;
 
 	struct hdd_config *pConfig = pHddCtx->config;
 
@@ -8847,6 +8897,21 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 			pHddCtx->config->num_11b_tx_chains;
 	smeConfig->csrConfig.num_11ag_tx_chains =
 			pHddCtx->config->num_11ag_tx_chains;
+	val = (pConfig->oce_probe_req_rate_enabled *
+		WMI_VDEV_OCE_PROBE_REQUEST_RATE_FEATURE_BITMAP) +
+		(pConfig->oce_probe_resp_rate_enabled *
+		WMI_VDEV_OCE_PROBE_RESPONSE_RATE_FEATURE_BITMAP) +
+		(pConfig->oce_beacon_rate_enabled *
+		WMI_VDEV_OCE_BEACON_RATE_FEATURE_BITMAP) +
+		(pConfig->probe_req_deferral_enabled *
+		WMI_VDEV_OCE_PROBE_REQUEST_DEFERRAL_FEATURE_BITMAP) +
+		(pConfig->fils_discovery_sap_enabled *
+		WMI_VDEV_OCE_FILS_DISCOVERY_FRAME_FEATURE_BITMAP) +
+		(pConfig->esp_for_roam_enabled *
+		WMI_VDEV_OCE_ESP_FEATURE_BITMAP) +
+		(pConfig->rssi_assoc_reject_enabled *
+		WMI_VDEV_OCE_REASSOC_REJECT_FEATURE_BITMAP);
+	smeConfig->csrConfig.oce_feature_bitmap = val;
 
 	hdd_update_bss_score_params(pHddCtx->config,
 			&smeConfig->csrConfig.bss_score_params);

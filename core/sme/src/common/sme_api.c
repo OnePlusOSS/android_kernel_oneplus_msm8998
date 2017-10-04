@@ -1977,7 +1977,7 @@ QDF_STATUS sme_set_plm_request(tHalHandle hHal, tpSirPlmReq pPlmReq)
 	QDF_STATUS status;
 	bool ret = false;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
-	uint8_t ch_list[WNI_CFG_VALID_CHANNEL_LIST] = { 0 };
+	uint8_t ch_list[WNI_CFG_VALID_CHANNEL_LIST_LEN] = { 0 };
 	uint8_t count, valid_count = 0;
 	cds_msg_t msg;
 	tCsrRoamSession *pSession = CSR_GET_SESSION(pMac, pPlmReq->sessionId);

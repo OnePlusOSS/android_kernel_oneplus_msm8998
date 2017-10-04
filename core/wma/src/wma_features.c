@@ -4650,6 +4650,11 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 
 	/* unspecified means apps-side wakeup, so there won't be a vdev */
 	if (wake_info->wake_reason != WOW_REASON_UNSPECIFIED) {
+		if (wake_info->vdev_id >= wma->max_bssid) {
+			WMA_LOGE("%s: received invalid vdev_id %d",
+				 __func__, wake_info->vdev_id);
+			return -EINVAL;
+		}
 		wma_vdev = &wma->interfaces[wake_info->vdev_id];
 		WMA_LOGA("WLAN triggered wakeup: %s (%d), vdev: %d (%s)",
 			 wma_wow_wake_reason_str(wake_info->wake_reason),

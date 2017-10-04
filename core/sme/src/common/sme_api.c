@@ -18615,3 +18615,36 @@ void sme_display_disconnect_stats(tHalHandle hal, uint8_t session_id)
 	sme_debug("No. of Disconnections due to Peer Kickout: %d",
 		  session->disconnect_stats.peer_kickout);
 }
+
+QDF_STATUS sme_send_limit_off_channel_params(tHalHandle hal, uint8_t vdev_id,
+		bool is_tos_active, uint32_t max_off_chan_time,
+		uint32_t rest_time, bool skip_dfs_chan)
+{
+	struct sir_limit_off_chan *cmd;
+	cds_msg_t msg;
+
+	cmd = qdf_mem_malloc(sizeof(*cmd));
+	if (!cmd) {
+		sme_err("qdf_mem_malloc failed for limit off channel");
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	cmd->vdev_id = vdev_id;
+	cmd->is_tos_active = is_tos_active;
+	cmd->max_off_chan_time = max_off_chan_time;
+	cmd->rest_time = rest_time;
+	cmd->skip_dfs_chans = skip_dfs_chan;
+
+	msg.type = WMA_SET_LIMIT_OFF_CHAN;
+	msg.reserved = 0;
+	msg.bodyptr = (void *) cmd;
+
+	if (QDF_STATUS_SUCCESS !=
+			cds_mq_post_message(QDF_MODULE_ID_WMA, &msg)) {
+		sme_err("Failed to post WMA_SET_LIMIT_OFF_CHAN to WMA");
+		qdf_mem_free(cmd);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	return QDF_STATUS_SUCCESS;
+}

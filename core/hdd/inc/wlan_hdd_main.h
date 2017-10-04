@@ -327,12 +327,14 @@
  * @eHDD_DRV_OP_REMOVE: Refers to .remove operation
  * @eHDD_DRV_OP_SHUTDOWN: Refers to .shutdown operation
  * @eHDD_DRV_OP_REINIT: Refers to .reinit operation
+ * @eHDD_DRV_OP_IFF_UP: Refers to IFF_UP operation
  */
 enum {
 	eHDD_DRV_OP_PROBE = 0,
 	eHDD_DRV_OP_REMOVE,
 	eHDD_DRV_OP_SHUTDOWN,
-	eHDD_DRV_OP_REINIT
+	eHDD_DRV_OP_REINIT,
+	eHDD_DRV_OP_IFF_UP
 };
 
 /*

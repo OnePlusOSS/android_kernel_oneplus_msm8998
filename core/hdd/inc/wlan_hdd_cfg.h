@@ -12672,6 +12672,28 @@ enum hw_filter_mode {
 
 /*
  * <ini>
+ * disable_scoring_for_roam - disable candidate selection logic for
+ * roaming
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This ini is used to enable/disable candidate selection logic to be used
+ * during Firmware roaming.
+ *
+ * Supported Feature: STA Candidate selection
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ENABLE_CANDIDATE_SEL_ROAM_NAME    "disable_scoring_for_roam"
+#define CFG_ENABLE_CANDIDATE_SEL_ROAM_DEFAULT (1)
+#define CFG_ENABLE_CANDIDATE_SEL_ROAM_MIN     (0)
+#define CFG_ENABLE_CANDIDATE_SEL_ROAM_MAX     (1)
+
+/*
+ * <ini>
  * gChanSwitchHostapdRateEnabled - Enable/disable hostapd rate when doing SAP
  * channel switch
  * @Min: 0
@@ -13546,6 +13568,7 @@ struct hdd_config {
 	uint32_t esp_qbss_score_slots7_to_4;
 	uint32_t esp_qbss_score_slots11_to_8;
 	uint32_t esp_qbss_score_slots15_to_12;
+	bool disable_scoring_for_roam;
 	bool chan_switch_hostapd_rate_enabled;
 };
 

@@ -4675,6 +4675,12 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 		 * Following the length is the actual buffer.
 		 */
 		wow_buf_pkt_len = *(uint32_t *)param_buf->wow_packet_buffer;
+		if (wow_buf_pkt_len !=
+				param_buf->num_wow_packet_buffer - 4) {
+			WMA_LOGE("Invalid wow buf pkt len from firmware");
+			return -EINVAL;
+		}
+
 		tlv_hdr = WMITLV_GET_HDR(
 				(uint8_t *)param_buf->wow_packet_buffer + 4);
 

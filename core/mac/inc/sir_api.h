@@ -3483,6 +3483,7 @@ struct sir_per_slot_scoring {
 };
 
 struct sir_score_config {
+	bool disable_scoring_for_roam;
 	struct sir_weight_config weight_cfg;
 	struct sir_rssi_cfg_score rssi_score;
 	struct sir_per_slot_scoring esp_qbss_scoring;

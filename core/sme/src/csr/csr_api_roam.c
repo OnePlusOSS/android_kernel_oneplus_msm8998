@@ -19133,6 +19133,10 @@ static void csr_update_score_params(tpAniSirGlobal mac_ctx,
 	weight_config = &bss_score_params->weight_cfg;
 	rssi_score = &bss_score_params->rssi_score;
 
+	if (bss_score_params->disable_scoring_for_roam)
+		req_score_params->disable_bitmap =
+			WLAN_ROAM_SCORING_DISABLE_ALL;
+
 	req_score_params->rssi_weightage = weight_config->rssi_weightage;
 	req_score_params->ht_weightage = weight_config->ht_caps_weightage;
 	req_score_params->vht_weightage = weight_config->vht_caps_weightage;

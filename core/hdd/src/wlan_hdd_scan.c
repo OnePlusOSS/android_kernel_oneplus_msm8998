@@ -1367,6 +1367,9 @@ static void hdd_cfg80211_scan_done(hdd_adapter_t *adapter,
 
 	if (adapter->dev->flags & IFF_UP)
 		cfg80211_scan_done(req, &info);
+	else
+		hdd_debug("IFF_UP flag reset for %s", adapter->dev->name);
+
 }
 #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0))
 /**
@@ -1385,6 +1388,8 @@ static void hdd_cfg80211_scan_done(hdd_adapter_t *adapter,
 {
 	if (adapter->dev->flags & IFF_UP)
 		cfg80211_scan_done(req, aborted);
+	else
+		hdd_debug("IFF_UP flag reset for %s", adapter->dev->name);
 }
 #else
 /**
@@ -3709,16 +3714,16 @@ void wlan_hdd_cfg80211_abort_scan(struct wiphy *wiphy,
  * Removes entries in scan queue and sends scan complete event to NL
  * Return: None
  */
-void hdd_cleanup_scan_queue(hdd_context_t *hdd_ctx)
+void hdd_cleanup_scan_queue(hdd_context_t *hdd_ctx, hdd_adapter_t *padapter)
 {
 	struct hdd_scan_req *hdd_scan_req;
-	qdf_list_node_t *node = NULL;
+	qdf_list_node_t *node = NULL, *next_node = NULL;
 	struct cfg80211_scan_request *req;
 	hdd_adapter_t *adapter;
 	uint8_t source;
 	bool aborted = true;
 	QDF_STATUS status;
-	hdd_adapter_list_node_t *adapter_node = NULL, *next_node = NULL;
+	hdd_adapter_list_node_t *adapter_node = NULL, *next_adapter_node = NULL;
 
 	if (NULL == hdd_ctx) {
 		hdd_err("HDD context is Null");
@@ -3726,51 +3731,79 @@ void hdd_cleanup_scan_queue(hdd_context_t *hdd_ctx)
 	}
 
 	qdf_spin_lock(&hdd_ctx->hdd_scan_req_q_lock);
-	while (!qdf_list_empty(&hdd_ctx->hdd_scan_req_q)) {
-		if (QDF_STATUS_SUCCESS !=
-			qdf_list_remove_front(&hdd_ctx->hdd_scan_req_q,
-						&node)) {
-			qdf_spin_unlock(&hdd_ctx->hdd_scan_req_q_lock);
-			hdd_err("Failed to remove scan request");
-			return;
-		}
+
+	if (qdf_list_empty(&hdd_ctx->hdd_scan_req_q)) {
 		qdf_spin_unlock(&hdd_ctx->hdd_scan_req_q_lock);
-		hdd_scan_req = container_of(node, struct hdd_scan_req, node);
+		return;
+	}
+
+	status = qdf_list_peek_front(&hdd_ctx->hdd_scan_req_q, &node);
+	if (status != QDF_STATUS_SUCCESS) {
+		qdf_spin_unlock(&hdd_ctx->hdd_scan_req_q_lock);
+		hdd_err("Failed to peek the Scan Req from queue");
+		return;
+	}
+	while (node != NULL) {
+		qdf_list_peek_next(&hdd_ctx->hdd_scan_req_q, node,
+				   &next_node);
+
+		hdd_scan_req  = qdf_container_of(node,
+					struct hdd_scan_req, node);
 		req = hdd_scan_req->scan_request;
 		source = hdd_scan_req->source;
 		adapter = hdd_scan_req->adapter;
 
-		qdf_timer_stop(&hdd_scan_req->hdd_scan_inactivity_timer);
-		qdf_timer_free(&hdd_scan_req->hdd_scan_inactivity_timer);
-		hdd_debug("Stopping HDD Scan inactivity timer");
+		if (!padapter || (padapter == adapter)) {
 
-		if (WLAN_HDD_ADAPTER_MAGIC != adapter->magic) {
-			hdd_err("HDD adapter magic is invalid");
-		} else if (!req) {
-			hdd_debug("pending scan is wext triggered");
-		} else {
-			if (NL_SCAN == source)
-				hdd_cfg80211_scan_done(adapter, req, aborted);
-			else
-				hdd_vendor_scan_callback(adapter, req, aborted);
-			hdd_debug("removed Scan id: %d, req = %pK",
+			status = qdf_list_remove_node(&hdd_ctx->hdd_scan_req_q,
+						      node);
+			if (QDF_IS_STATUS_ERROR(status)) {
+				qdf_spin_unlock(&hdd_ctx->hdd_scan_req_q_lock);
+				hdd_err("Failed to remove scan request from queue");
+				return;
+			}
+
+			qdf_spin_unlock(&hdd_ctx->hdd_scan_req_q_lock);
+
+			qdf_timer_stop(
+				&hdd_scan_req->hdd_scan_inactivity_timer);
+			qdf_timer_free(
+				&hdd_scan_req->hdd_scan_inactivity_timer);
+
+			hdd_debug("Stopping HDD Scan inactivity timer");
+			if (WLAN_HDD_ADAPTER_MAGIC != adapter->magic) {
+				hdd_err("HDD adapter magic is invalid");
+			} else if (!req) {
+				hdd_debug("pending scan is wext triggered");
+			} else {
+				if (NL_SCAN == source)
+					hdd_cfg80211_scan_done(adapter,
+								req, aborted);
+				else
+					hdd_vendor_scan_callback(adapter,
+								req, aborted);
+				hdd_debug("removed Scan id: %d, req = %pK",
 					hdd_scan_req->scan_id, req);
+			}
+			qdf_mem_free(hdd_scan_req);
+			qdf_spin_lock(&hdd_ctx->hdd_scan_req_q_lock);
 		}
-		qdf_mem_free(hdd_scan_req);
-		qdf_spin_lock(&hdd_ctx->hdd_scan_req_q_lock);
+		node = next_node;
+		next_node = NULL;
 	}
 	qdf_spin_unlock(&hdd_ctx->hdd_scan_req_q_lock);
 
 	status = hdd_get_front_adapter(hdd_ctx, &adapter_node);
 	while (NULL != adapter_node && QDF_IS_STATUS_SUCCESS(status)) {
 		adapter = adapter_node->pAdapter;
-		if (adapter->scan_info.mScanPending) {
+		if ((!padapter || (padapter == adapter)) &&
+		    (adapter->scan_info.mScanPending)) {
 			adapter->scan_info.mScanPending = false;
 			complete(&adapter->scan_info.abortscan_event_var);
 		}
 		status = hdd_get_next_adapter(hdd_ctx, adapter_node,
-					      &next_node);
-		adapter_node = next_node;
+					      &next_adapter_node);
+		adapter_node = next_adapter_node;
 	}
 }
 

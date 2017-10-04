@@ -1455,7 +1455,6 @@ QDF_STATUS hdd_wlan_shutdown(void)
 	hdd_debug("Invoking packetdump deregistration API");
 	wlan_deregister_txrx_packetdump();
 
-	hdd_cleanup_scan_queue(pHddCtx);
 	hdd_reset_all_adapters(pHddCtx);
 
 	/* Flush cached rx frame queue */

@@ -509,6 +509,14 @@ static int __hdd_netdev_notifier_call(struct notifier_block *nb,
 			cds_flush_work(&adapter->scan_block_work);
 			hdd_debug("Scan is not Pending from user");
 		}
+		/*
+		 * After NETDEV_GOING_DOWN, kernel calls hdd_stop.Irrespective
+		 * of return status of hdd_stop call, kernel resets the IFF_UP
+		 * flag after which driver does not send the cfg80211_scan_done.
+		 * Ensure to cleanup the scan queue in NETDEV_GOING_DOWN
+		 */
+
+		hdd_cleanup_scan_queue(hdd_ctx, adapter);
 		break;
 
 	default:
@@ -5925,7 +5933,7 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 		 * the expectation is that by the time Request Full Power has
 		 * completed, all scans will be cancelled
 		 */
-		hdd_cleanup_scan_queue(hdd_ctx);
+		hdd_cleanup_scan_queue(hdd_ctx, NULL);
 		hdd_abort_mac_scan_all_adapters(hdd_ctx);
 		hdd_abort_sched_scan_all_adapters(hdd_ctx);
 		hdd_stop_all_adapters(hdd_ctx, true);
@@ -11808,7 +11816,7 @@ static void hdd_stop_present_mode(hdd_context_t *hdd_ctx,
 	case QDF_GLOBAL_MONITOR_MODE:
 	case QDF_GLOBAL_FTM_MODE:
 		hdd_abort_mac_scan_all_adapters(hdd_ctx);
-		hdd_cleanup_scan_queue(hdd_ctx);
+		hdd_cleanup_scan_queue(hdd_ctx, NULL);
 
 		/* re-use the existing session */
 		hdd_stop_all_adapters(hdd_ctx, false);

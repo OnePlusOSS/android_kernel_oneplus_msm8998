@@ -2047,10 +2047,10 @@ int hdd_wlan_start_modules(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 		return -EINVAL;
 	}
 
+	qdf_cancel_delayed_work(&hdd_ctx->iface_idle_work);
+
 	mutex_lock(&hdd_ctx->iface_change_lock);
 	hdd_ctx->start_modules_in_progress = true;
-
-	qdf_cancel_delayed_work(&hdd_ctx->iface_idle_work);
 
 	switch (hdd_ctx->driver_status) {
 	case DRIVER_MODULES_UNINITIALIZED:

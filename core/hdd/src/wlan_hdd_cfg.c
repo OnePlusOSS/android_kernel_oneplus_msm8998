@@ -5155,12 +5155,12 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_ESP_QBSS_SCORE_IDX15_TO_12_MIN,
 		CFG_ESP_QBSS_SCORE_IDX15_TO_12_MAX),
 
-	REG_VARIABLE(CFG_ENABLE_CANDIDATE_SEL_ROAM_NAME, WLAN_PARAM_Integer,
-		struct hdd_config, disable_scoring_for_roam,
+	REG_VARIABLE(CFG_ENABLE_SCORING_FOR_ROAM_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, enable_scoring_for_roam,
 		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
-		CFG_ENABLE_CANDIDATE_SEL_ROAM_DEFAULT,
-		CFG_ENABLE_CANDIDATE_SEL_ROAM_MIN,
-		CFG_ENABLE_CANDIDATE_SEL_ROAM_MAX),
+		CFG_ENABLE_SCORING_FOR_ROAM_DEFAULT,
+		CFG_ENABLE_SCORING_FOR_ROAM_MIN,
+		CFG_ENABLE_SCORING_FOR_ROAM_MAX),
 
 	REG_VARIABLE(CFG_CHAN_SWITCH_HOSTAPD_RATE_ENABLED_NAME,
 		WLAN_PARAM_Integer,
@@ -6921,8 +6921,8 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 		CFG_ESP_QBSS_SCORE_IDX15_TO_12_NAME,
 		pHddCtx->config->esp_qbss_score_slots15_to_12);
 	hdd_debug("Name = [%s] value = [%u]",
-		CFG_ENABLE_CANDIDATE_SEL_ROAM_NAME,
-		pHddCtx->config->disable_scoring_for_roam);
+		CFG_ENABLE_SCORING_FOR_ROAM_NAME,
+		pHddCtx->config->enable_scoring_for_roam);
 
 	hdd_debug("Name = [%s] value = [%u]",
 		CFG_DOT11P_MODE_NAME,
@@ -8227,8 +8227,8 @@ static void hdd_update_bss_score_params(struct hdd_config *config,
 {
 	int total_weight;
 
-	score_params->disable_scoring_for_roam =
-		config->disable_scoring_for_roam;
+	score_params->enable_scoring_for_roam =
+		config->enable_scoring_for_roam;
 	score_params->weight_cfg.rssi_weightage = config->rssi_weightage;
 	score_params->weight_cfg.ht_caps_weightage = config->ht_caps_weightage;
 	score_params->weight_cfg.vht_caps_weightage =

@@ -2886,7 +2886,6 @@ QDF_STATUS sap_signal_hdd_event(ptSapContext sap_ctx,
 
 	/* Format the Start BSS Complete event to return... */
 	if (NULL == sap_ctx->pfnSapEventCallback) {
-		QDF_ASSERT(0);
 		return QDF_STATUS_E_FAILURE;
 	}
 	if (NULL == hal) {

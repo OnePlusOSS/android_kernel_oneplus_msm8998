@@ -1732,6 +1732,8 @@ static void init_config_param(tpAniSirGlobal pMac)
 		PCL_WEIGHT;
 	pMac->roam.configParam.bss_score_params.weight_cfg.
 		channel_congestion_weightage = CHANNEL_CONGESTION_WEIGHTAGE;
+	pMac->roam.configParam.bss_score_params.weight_cfg.oce_wan_weightage =
+						OCE_WAN_WEIGHTAGE;
 }
 
 eCsrBand csr_get_current_band(tHalHandle hHal)

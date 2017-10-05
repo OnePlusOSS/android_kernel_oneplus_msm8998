@@ -1951,41 +1951,35 @@ static int32_t csr_calculate_bandwidth_score(tpAniSirGlobal mac_ctx,
 }
 
 /**
- * csr_get_congestion_score_for_index () - get congetion score for the given
+ * csr_get_score_for_index () - get score for the given
  * index
  * @index: index for which we need the score
- * @bss_score_params: bss score params
+ * @weightage: weigtage for the param
+ * @score: per slot score
  *
- * Return : congestion score for the index
+ * Return : score for the index
  */
-static int32_t csr_get_congestion_score_for_index(uint8_t index,
-		struct sir_score_config *bss_score_params)
+static int32_t csr_get_score_for_index(uint8_t index, uint8_t weightage,
+				       struct sir_per_slot_scoring *score)
 {
-	if (index <= WLAN_ESP_QBSS_INDEX_3)
-		return bss_score_params->weight_cfg.
-			   channel_congestion_weightage *
-			   WLAN_GET_SCORE_PERCENTAGE(
-			   bss_score_params->esp_qbss_scoring.score_pcnt3_to_0,
-			   index);
-	else if (index <= WLAN_ESP_QBSS_INDEX_7)
-		return bss_score_params->weight_cfg.
-			   channel_congestion_weightage *
-			   WLAN_GET_SCORE_PERCENTAGE(
-			   bss_score_params->esp_qbss_scoring.score_pcnt7_to_4,
-			   index - WLAN_ESP_QBSS_OFFSET_INDEX_7_4);
-	else if (index <= WLAN_ESP_QBSS_INDEX_11)
-		return bss_score_params->weight_cfg.
-			   channel_congestion_weightage *
-			   WLAN_GET_SCORE_PERCENTAGE(
-			   bss_score_params->esp_qbss_scoring.score_pcnt11_to_8,
-			   index - WLAN_ESP_QBSS_OFFSET_INDEX_11_8);
+	if (index <= WLAN_SCORE_INDEX_3)
+		return weightage * WLAN_GET_SCORE_PERCENTAGE(
+				   score->score_pcnt3_to_0,
+				   index);
+	else if (index <= WLAN_SCORE_INDEX_7)
+		return weightage * WLAN_GET_SCORE_PERCENTAGE(
+				   score->score_pcnt7_to_4,
+				   index - WLAN_SCORE_OFFSET_INDEX_7_4);
+	else if (index <= WLAN_SCORE_INDEX_11)
+		return weightage * WLAN_GET_SCORE_PERCENTAGE(
+				   score->score_pcnt11_to_8,
+				   index - WLAN_SCORE_OFFSET_INDEX_11_8);
 	else
-		return bss_score_params->weight_cfg.
-			  channel_congestion_weightage *
-			  WLAN_GET_SCORE_PERCENTAGE(
-			  bss_score_params->esp_qbss_scoring.score_pcnt15_to_12,
-			  index - WLAN_ESP_QBSS_OFFSET_INDEX_15_12);
+		return weightage * WLAN_GET_SCORE_PERCENTAGE(
+				   score->score_pcnt15_to_12,
+				   index - WLAN_SCORE_OFFSET_INDEX_15_12);
 }
+
 /**
  * csr_calculate_congestion_score () - Calculate congestion score
  * @mac_ctx: Pointer to mac context
@@ -2009,18 +2003,20 @@ static int32_t csr_calculate_congestion_score(tpAniSirGlobal mac_ctx,
 		return 0;
 
 	if (bss_score_params->esp_qbss_scoring.num_slot >
-	    WLAN_ESP_QBSS_MAX_INDEX)
+	    WLAN_SCORE_MAX_INDEX)
 		bss_score_params->esp_qbss_scoring.num_slot =
-			WLAN_ESP_QBSS_MAX_INDEX;
+			WLAN_SCORE_MAX_INDEX;
 
 	good_rssi_threshold =
 		bss_score_params->rssi_score.good_rssi_threshold * (-1);
 
 	/* For bad zone rssi get score from last index */
 	if (bss_info->rssi < good_rssi_threshold)
-		return csr_get_congestion_score_for_index(
-			bss_score_params->esp_qbss_scoring.num_slot,
-			bss_score_params);
+		return csr_get_score_for_index(
+				bss_score_params->esp_qbss_scoring.num_slot,
+				bss_score_params->weight_cfg.
+				channel_congestion_weightage,
+				&bss_score_params->esp_qbss_scoring);
 
 	if (bss_info->air_time_fraction) {
 			/* Convert 0-255 range to percentage */
@@ -2046,10 +2042,10 @@ static int32_t csr_calculate_congestion_score(tpAniSirGlobal mac_ctx,
 			congestion = qdf_do_div(ap_load, MAX_AP_LOAD);
 	} else {
 		return bss_score_params->weight_cfg.
-			channel_congestion_weightage *
+			   channel_congestion_weightage *
 			   WLAN_GET_SCORE_PERCENTAGE(
 			   bss_score_params->esp_qbss_scoring.score_pcnt3_to_0,
-			   WLAN_ESP_QBSS_INDEX_0);
+			   WLAN_SCORE_INDEX_0);
 	}
 
 	window_size = BEST_CANDIDATE_MAX_WEIGHT /
@@ -2061,7 +2057,49 @@ static int32_t csr_calculate_congestion_score(tpAniSirGlobal mac_ctx,
 	if (index > bss_score_params->esp_qbss_scoring.num_slot)
 		index = bss_score_params->esp_qbss_scoring.num_slot;
 
-	return csr_get_congestion_score_for_index(index, bss_score_params);
+	return csr_get_score_for_index(index, bss_score_params->weight_cfg.
+				       channel_congestion_weightage,
+				       &bss_score_params->esp_qbss_scoring);
+}
+
+/**
+ * csr_calculate_oce_wan_score () - Calculate oce wan score
+ * @mac_ctx: Pointer to mac context
+ * @bss_info: bss information
+ * @bss_score_params: bss score params
+ *
+ * Return : oce wan score
+ */
+static int32_t csr_calculate_oce_wan_score(tpAniSirGlobal mac_ctx,
+		tSirBssDescription *bss_info,
+		struct sir_score_config *bss_score_params)
+{
+	uint32_t window_size;
+	uint8_t index;
+
+	if (!bss_score_params->oce_wan_scoring.num_slot)
+		return 0;
+
+	if (bss_score_params->oce_wan_scoring.num_slot >
+	    WLAN_SCORE_MAX_INDEX)
+		bss_score_params->oce_wan_scoring.num_slot =
+			WLAN_SCORE_MAX_INDEX;
+
+	window_size = MAX_OCE_WAN_DL_CAP/
+			bss_score_params->oce_wan_scoring.num_slot;
+
+	if (bss_info->oce_wan_present)
+		/* Desired values are from 1 to 15, as 0 is for not present */
+		index = qdf_do_div(bss_info->oce_wan_down_cap, window_size) + 1;
+	else
+		index = WLAN_SCORE_INDEX_0;
+
+	if (index > bss_score_params->oce_wan_scoring.num_slot)
+		index = bss_score_params->oce_wan_scoring.num_slot;
+
+	return csr_get_score_for_index(index,
+			bss_score_params->weight_cfg.oce_wan_weightage,
+			&bss_score_params->oce_wan_scoring);
 }
 
 /**
@@ -2130,6 +2168,7 @@ static int32_t _csr_calculate_bss_score(tpAniSirGlobal mac_ctx,
 	int32_t pcl_score = 0;
 	int32_t bandwidth_score = 0;
 	int32_t band_score = 0;
+	int32_t oce_wan_score = 0;
 	struct sir_weight_config *weight_config;
 	uint32_t beamformee_cap;
 	uint32_t dot11mode;
@@ -2239,7 +2278,11 @@ static int32_t _csr_calculate_bss_score(tpAniSirGlobal mac_ctx,
 				weight_config->nss_weightage, prorated_pcnt);
 	score += nss_score;
 
-	sme_debug("BSSID:"MAC_ADDRESS_STR" rssi=%d dot11mode %d htcaps=%d vht=%d enableVhtFor24GHz %d AP bw=%d channel=%d self beamformee %d AP beamforming %d air time fraction %d qbss load %d ap_NSS %d sta nss %d",
+	oce_wan_score = csr_calculate_oce_wan_score(mac_ctx, bss_info,
+						    bss_score_params);
+	score += oce_wan_score;
+
+	sme_debug("BSSID:"MAC_ADDRESS_STR" rssi=%d dot11mode %d htcaps=%d vht=%d enableVhtFor24GHz %d AP bw=%d channel=%d self beamformee %d AP beamforming %d air time fraction %d qbss load %d ap_NSS %d sta nss %d oce_wan_present %d oce_wan_down_cap %d",
 		MAC_ADDR_ARRAY(bss_info->bssId),
 		bss_info->rssi, dot11mode,  bss_info->ht_caps_present,
 		bss_info->vht_caps_present,
@@ -2249,12 +2292,14 @@ static int32_t _csr_calculate_bss_score(tpAniSirGlobal mac_ctx,
 		bss_info->beacomforming_capable,
 		bss_info->air_time_fraction,
 		bss_info->qbss_chan_load,
-		bss_info->nss, sta_nss);
+		bss_info->nss, sta_nss,
+		bss_info->oce_wan_present,
+		bss_info->oce_wan_down_cap);
 
-	sme_debug("Scores : rssi %d pcl %d prorated_pcnt %d ht %d vht %d beamformee %d bw %d band %d congestion %d nss %d TOTAL score %d",
+	sme_debug("Scores : rssi %d pcl %d prorated_pcnt %d ht %d vht %d beamformee %d bw %d band %d congestion %d nss %d oce wan %d TOTAL score %d",
 		rssi_score, pcl_score, prorated_pcnt, ht_score, vht_score,
 		beamformee_score, bandwidth_score, band_score,
-		congestion_score, nss_score, score);
+		congestion_score, nss_score, oce_wan_score, score);
 
 	return score;
 }

@@ -5050,6 +5050,13 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_CHANNEL_CONGESTION_WEIGHTAGE_MIN,
 		CFG_CHANNEL_CONGESTION_WEIGHTAGE_MAX),
 
+	REG_VARIABLE(CFG_OCE_WAN_WEIGHTAGE_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, oce_wan_weightage,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_OCE_WAN_WEIGHTAGE_DEFAULT,
+		CFG_OCE_WAN_WEIGHTAGE_MIN,
+		CFG_OCE_WAN_WEIGHTAGE_MAX),
+
 	REG_VARIABLE(CFG_BEST_RSSI_THRESHOLD_NAME, WLAN_PARAM_Integer,
 		struct hdd_config, best_rssi_threshold,
 		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -5162,6 +5169,41 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_ESP_QBSS_SCORE_IDX15_TO_12_DEFAULT,
 		CFG_ESP_QBSS_SCORE_IDX15_TO_12_MIN,
 		CFG_ESP_QBSS_SCORE_IDX15_TO_12_MAX),
+
+	REG_VARIABLE(CFG_OCE_WAN_SLOTS_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, num_oce_wan_slots,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_OCE_WAN_SLOTS_DEFAULT,
+		CFG_OCE_WAN_SLOTS_MIN,
+		CFG_OCE_WAN_SLOTS_MAX),
+
+	REG_VARIABLE(CFG_OCE_WAN_SCORE_IDX3_TO_0_NAME, WLAN_PARAM_HexInteger,
+		struct hdd_config, oce_wan_score_slots3_to_0,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_OCE_WAN_SCORE_IDX3_TO_0_DEFAULT,
+		CFG_OCE_WAN_SCORE_IDX3_TO_0_MIN,
+		CFG_OCE_WAN_SCORE_IDX3_TO_0_MAX),
+
+	REG_VARIABLE(CFG_OCE_WAN_SCORE_IDX7_TO_4_NAME, WLAN_PARAM_HexInteger,
+		struct hdd_config, oce_wan_score_slots7_to_4,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_OCE_WAN_SCORE_IDX7_TO_4_DEFAULT,
+		CFG_OCE_WAN_SCORE_IDX7_TO_4_MIN,
+		CFG_OCE_WAN_SCORE_IDX7_TO_4_MAX),
+
+	REG_VARIABLE(CFG_OCE_WAN_SCORE_IDX11_TO_8_NAME, WLAN_PARAM_HexInteger,
+		struct hdd_config, oce_wan_score_slots11_to_8,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_OCE_WAN_SCORE_IDX11_TO_8_DEFAULT,
+		CFG_OCE_WAN_SCORE_IDX11_TO_8_MIN,
+		CFG_OCE_WAN_SCORE_IDX11_TO_8_MAX),
+
+	REG_VARIABLE(CFG_OCE_WAN_SCORE_IDX15_TO_12_NAME, WLAN_PARAM_HexInteger,
+		struct hdd_config, oce_wan_score_slots15_to_12,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_OCE_WAN_SCORE_IDX15_TO_12_DEFAULT,
+		CFG_OCE_WAN_SCORE_IDX15_TO_12_MIN,
+		CFG_OCE_WAN_SCORE_IDX15_TO_12_MAX),
 
 	REG_VARIABLE(CFG_ENABLE_SCORING_FOR_ROAM_NAME, WLAN_PARAM_Integer,
 		struct hdd_config, enable_scoring_for_roam,
@@ -6882,6 +6924,9 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 		CFG_CHANNEL_CONGESTION_WEIGHTAGE_NAME,
 		pHddCtx->config->channel_congestion_weightage);
 	hdd_debug("Name = [%s] value = [%u]",
+		CFG_OCE_WAN_WEIGHTAGE_NAME,
+		pHddCtx->config->oce_wan_weightage);
+	hdd_debug("Name = [%s] value = [%u]",
 		CFG_BAND_WIDTH_WEIGHT_PER_INDEX_NAME,
 		pHddCtx->config->bandwidth_weight_per_index);
 	hdd_debug("Name = [%s] value = [%u]",
@@ -6932,6 +6977,22 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_debug("Name = [%s] value = [%u]",
 		CFG_ENABLE_SCORING_FOR_ROAM_NAME,
 		pHddCtx->config->enable_scoring_for_roam);
+
+	hdd_debug("Name = [%s] value = [%u]",
+			CFG_OCE_WAN_SLOTS_NAME,
+			pHddCtx->config->num_oce_wan_slots);
+	hdd_debug("Name = [%s] value = [%u]",
+			CFG_OCE_WAN_SCORE_IDX3_TO_0_NAME,
+			pHddCtx->config->oce_wan_score_slots3_to_0);
+	hdd_debug("Name = [%s] value = [%u]",
+			CFG_OCE_WAN_SCORE_IDX7_TO_4_NAME,
+			pHddCtx->config->oce_wan_score_slots7_to_4);
+	hdd_debug("Name = [%s] value = [%u]",
+			CFG_OCE_WAN_SCORE_IDX11_TO_8_NAME,
+			pHddCtx->config->oce_wan_score_slots11_to_8);
+	hdd_debug("Name = [%s] value = [%u]",
+			CFG_OCE_WAN_SCORE_IDX15_TO_12_NAME,
+			pHddCtx->config->oce_wan_score_slots15_to_12);
 
 	hdd_debug("Name = [%s] value = [%u]",
 		CFG_DOT11P_MODE_NAME,
@@ -8252,6 +8313,7 @@ static void hdd_update_bss_score_params(struct hdd_config *config,
 	score_params->weight_cfg.pcl_weightage = config->pcl_weightage;
 	score_params->weight_cfg.channel_congestion_weightage =
 			config->channel_congestion_weightage;
+	score_params->weight_cfg.oce_wan_weightage = config->oce_wan_weightage;
 
 	total_weight = score_params->weight_cfg.rssi_weightage +
 		       score_params->weight_cfg.ht_caps_weightage +
@@ -8261,7 +8323,8 @@ static void hdd_update_bss_score_params(struct hdd_config *config,
 		       score_params->weight_cfg.nss_weightage +
 		       score_params->weight_cfg.beamforming_cap_weightage +
 		       score_params->weight_cfg.pcl_weightage +
-		       score_params->weight_cfg.channel_congestion_weightage;
+		       score_params->weight_cfg.channel_congestion_weightage +
+		       score_params->weight_cfg.oce_wan_weightage;
 
 	if (total_weight > BEST_CANDIDATE_MAX_WEIGHT) {
 
@@ -8282,6 +8345,7 @@ static void hdd_update_bss_score_params(struct hdd_config *config,
 		score_params->weight_cfg.pcl_weightage = PCL_WEIGHT;
 		score_params->weight_cfg.channel_congestion_weightage =
 			CHANNEL_CONGESTION_WEIGHTAGE;
+		score_params->weight_cfg.oce_wan_weightage = OCE_WAN_WEIGHTAGE;
 	}
 
 	score_params->bandwidth_weight_per_index =
@@ -8320,6 +8384,20 @@ static void hdd_update_bss_score_params(struct hdd_config *config,
 	score_params->esp_qbss_scoring.score_pcnt15_to_12 =
 		hdd_limit_max_per_index_score(
 			config->esp_qbss_score_slots15_to_12);
+
+	score_params->oce_wan_scoring.num_slot = config->num_oce_wan_slots;
+	score_params->oce_wan_scoring.score_pcnt3_to_0 =
+		hdd_limit_max_per_index_score(
+			config->oce_wan_score_slots3_to_0);
+	score_params->oce_wan_scoring.score_pcnt7_to_4 =
+		hdd_limit_max_per_index_score(
+			config->oce_wan_score_slots7_to_4);
+	score_params->oce_wan_scoring.score_pcnt11_to_8 =
+		hdd_limit_max_per_index_score(
+			config->oce_wan_score_slots11_to_8);
+	score_params->oce_wan_scoring.score_pcnt15_to_12 =
+		hdd_limit_max_per_index_score(
+			config->oce_wan_score_slots15_to_12);
 }
 
 /**

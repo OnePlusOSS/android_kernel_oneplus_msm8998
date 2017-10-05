@@ -2705,6 +2705,11 @@ tSirRetStatus sir_convert_probe_frame2_struct(tpAniSirGlobal pMac,
 			pProbeResp->assoc_disallowed_reason =
 				pr->MBO_IE.assoc_disallowed.reason_code;
 		}
+		if (pr->MBO_IE.reduced_wan_metrics.present) {
+			pProbeResp->oce_wan_present = true;
+			pProbeResp->oce_wan_downlink_av_cap =
+				pr->MBO_IE.reduced_wan_metrics.downlink_av_cap;
+		}
 	}
 
 	if (pr->QCN_IE.present) {
@@ -4393,6 +4398,12 @@ sir_convert_beacon_frame2_struct(tpAniSirGlobal pMac,
 			pBeaconStruct->assoc_disallowed = true;
 			pBeaconStruct->assoc_disallowed_reason =
 				pBeacon->MBO_IE.assoc_disallowed.reason_code;
+		}
+		if (pBeacon->MBO_IE.reduced_wan_metrics.present) {
+			pBeaconStruct->oce_wan_present = true;
+			pBeaconStruct->oce_wan_downlink_av_cap =
+				pBeacon->MBO_IE.
+					reduced_wan_metrics.downlink_av_cap;
 		}
 	}
 

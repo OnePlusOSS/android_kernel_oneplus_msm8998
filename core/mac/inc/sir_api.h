@@ -822,7 +822,8 @@ typedef struct sSirBssDescription {
 #endif
 	uint8_t air_time_fraction;
 	uint8_t nss;
-	uint16_t reservedPadding3;
+	uint8_t oce_wan_present;
+	uint8_t oce_wan_down_cap;
 	/* Please keep the structure 4 bytes aligned above the ieFields */
 	uint32_t ieFields[1];
 

@@ -154,15 +154,16 @@ bool csr_is_supported_channel(tpAniSirGlobal pMac, uint8_t channelId);
 /* 2 and 3 are reserved */
 #define WLAN_MAX_BAND_INDEX                  4
 
-#define WLAN_ESP_QBSS_INDEX_0                   0
-#define WLAN_ESP_QBSS_INDEX_3                   3
-#define WLAN_ESP_QBSS_INDEX_7                   7
-#define WLAN_ESP_QBSS_OFFSET_INDEX_7_4          4
-#define WLAN_ESP_QBSS_INDEX_11                  11
-#define WLAN_ESP_QBSS_OFFSET_INDEX_11_8         8
-#define WLAN_ESP_QBSS_MAX_INDEX                 15
-#define WLAN_ESP_QBSS_OFFSET_INDEX_15_12        12
+#define WLAN_SCORE_INDEX_0                   0
+#define WLAN_SCORE_INDEX_3                   3
+#define WLAN_SCORE_INDEX_7                   7
+#define WLAN_SCORE_OFFSET_INDEX_7_4          4
+#define WLAN_SCORE_INDEX_11                  11
+#define WLAN_SCORE_OFFSET_INDEX_11_8         8
+#define WLAN_SCORE_MAX_INDEX                 15
+#define WLAN_SCORE_OFFSET_INDEX_15_12        12
 
+#define MAX_OCE_WAN_DL_CAP 16
 
 enum csr_scancomplete_nextcommand {
 	eCsrNextScanNothing,

@@ -351,6 +351,8 @@ typedef struct sSirProbeRespBeacon {
 	uint8_t MBO_capability;
 	bool assoc_disallowed;
 	uint8_t assoc_disallowed_reason;
+	bool oce_wan_present;
+	uint8_t oce_wan_downlink_av_cap;
 	tSirQCNIE QCN_IE;
 #ifdef WLAN_FEATURE_FILS_SK
 	struct sir_fils_indication fils_ind;

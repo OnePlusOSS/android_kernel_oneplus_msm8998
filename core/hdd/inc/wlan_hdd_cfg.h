@@ -12275,6 +12275,30 @@ enum hw_filter_mode {
 
 /*
  * <ini>
+ * oce_wan_weightage - OCE WAN DL capacity Weightage to calculate best candidate
+ * @Min: 0
+ * @Max: 100
+ * @Default: 0
+ *
+ * This ini is used to increase/decrease OCE WAN caps weightage in best
+ * candidate selection. If AP have OCE WAN information, give weightage depending
+ * on the downaload available capacity.
+ *
+ * Related: num_oce_wan_slots
+ *
+ * Supported Feature: STA Candidate selection
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_OCE_WAN_WEIGHTAGE_NAME    "oce_wan_weightage"
+#define CFG_OCE_WAN_WEIGHTAGE_DEFAULT (0)
+#define CFG_OCE_WAN_WEIGHTAGE_MIN     (0)
+#define CFG_OCE_WAN_WEIGHTAGE_MAX     (100)
+
+/*
+ * <ini>
  * best_rssi_threshold - Best Rssi for score calculation
  * @Min: 0
  * @Max: 96
@@ -12702,6 +12726,155 @@ enum hw_filter_mode {
 #define CFG_ESP_QBSS_SCORE_IDX15_TO_12_DEFAULT   (0x00000000)
 #define CFG_ESP_QBSS_SCORE_IDX15_TO_12_MIN       (0x00000000)
 #define CFG_ESP_QBSS_SCORE_IDX15_TO_12_MAX       (0x64646464)
+
+/*
+ * <ini>
+ * num_oce_wan_slots - number of slots in which the oce wan metrics will
+ * be divided
+ *
+ * @Min: 1
+ * @Max: 15
+ * @Default: 8
+ *
+ * Number of slots in which the oce wan metrics will be divided. Max 15. index 0
+ * is used for not_present. Num_slot will equally divide 100. e.g, if
+ * num_slot = 4 slot 1 = 0-3 DL CAP, slot 2 = 4-7 DL CAP, slot 3 = 8-11 DL CAP,
+ * slot 4 = 12-15 DL CAP. Remaining unused index can be 0.
+ *
+ * Related: oce_wan_weightage
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_OCE_WAN_SLOTS_NAME      "num_oce_wan_slots"
+#define CFG_OCE_WAN_SLOTS_DEFAULT   (8)
+#define CFG_OCE_WAN_SLOTS_MIN       (1)
+#define CFG_OCE_WAN_SLOTS_MAX       (15)
+
+/*
+ * <ini>
+ * oce_wan_score_idx3_to_0 - percentage for OCE WAN metrics score for slots 0-3
+ * @Min: 0x00000000
+ * @Max: 0x64646464
+ * @Default: 0x00000000
+ *
+ * This INI give percentage value of OCE WAN metrics DL CAP, to be used as
+ * index in which the DL CAP value falls. Index 0 is for percentage when
+ * OCE WAN metrics DL CAP is not present.
+ *
+ * Indexes are defined in this way.
+ *     0 Index (BITS 0-7): when OCE WAN metrics DL CAP is not present
+ *     1 Index (BITS 8-15): SLOT_1
+ *     2 Index (BITS 16-23): SLOT_2
+ *     3 Index (BITS 24-31): SLOT_3
+ * These percentage values are stored in HEX. For any index max value, can be 64
+ *
+ * Related: num_oce_wan_slots, oce_wan_weightage
+ *
+ * Supported Feature: STA Candidate selection
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_OCE_WAN_SCORE_IDX3_TO_0_NAME      "oce_wan_score_idx3_to_0"
+#define CFG_OCE_WAN_SCORE_IDX3_TO_0_DEFAULT   (0x00000000)
+#define CFG_OCE_WAN_SCORE_IDX3_TO_0_MIN       (0x00000000)
+#define CFG_OCE_WAN_SCORE_IDX3_TO_0_MAX       (0x64646464)
+
+/*
+ * <ini>
+ * oce_wan_score_idx7_to_4 - percentage for OCE WAN metrics score for slots 4-7
+ * @Min: 0x00000000
+ * @Max: 0x64646464
+ * @Default: 0x64640000
+ *
+ * This INI give percentage value of OCE WAN metrics DL CAP, to be used as
+ * index in which the DL CAP value falls. Used only if num_oce_wan_slots is
+ * greater than 3.
+ *
+ * Indexes are defined in this way.
+ *     0 Index (BITS 0-7): SLOT_4
+ *     1 Index (BITS 8-15): SLOT_5
+ *     2 Index (BITS 16-23): SLOT_6
+ *     3 Index (BITS 24-31): SLOT_7
+ * These percentage values are stored in HEX. For any index max value, can be 64
+ *
+ * Related: num_oce_wan_slots, oce_wan_weightage
+ *
+ * Supported Feature: STA Candidate selection
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_OCE_WAN_SCORE_IDX7_TO_4_NAME      "oce_wan_score_idx7_to_4"
+#define CFG_OCE_WAN_SCORE_IDX7_TO_4_DEFAULT   (0x64640000)
+#define CFG_OCE_WAN_SCORE_IDX7_TO_4_MIN       (0x00000000)
+#define CFG_OCE_WAN_SCORE_IDX7_TO_4_MAX       (0x64646464)
+
+/*
+ * <ini>
+ * oce_wan_score_idx11_to_8 - percentage for OCE WAN metrics score for slot 8-11
+ * @Min: 0x00000000
+ * @Max: 0x64646464
+ * @Default: 0x00000064
+ *
+ * This INI give percentage value of OCE WAN metrics DL CAP, to be used as
+ * index in which the DL CAP value falls. Used only if num_oce_wan_slots is
+ * greater than 7.
+ *
+ * Indexes are defined in this way.
+ *     0 Index (BITS 0-7): SLOT_8
+ *     1 Index (BITS 8-15): SLOT_9
+ *     2 Index (BITS 16-23): SLOT_10
+ *     3 Index (BITS 24-31): SLOT_11
+ * These percentage values are stored in HEX. For any index max value, can be 64
+ *
+ * Related: num_oce_wan_slots, oce_wan_weightage
+ *
+ * Supported Feature: STA Candidate selection
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_OCE_WAN_SCORE_IDX11_TO_8_NAME      "oce_wan_score_idx11_to_8"
+#define CFG_OCE_WAN_SCORE_IDX11_TO_8_DEFAULT   (0x00000064)
+#define CFG_OCE_WAN_SCORE_IDX11_TO_8_MIN       (0x00000000)
+#define CFG_OCE_WAN_SCORE_IDX11_TO_8_MAX       (0x64646464)
+
+/*
+ * <ini>
+ * oce_wan_score_idx15_to_12 - % for OCE WAN metrics score for slot 12-15
+ * @Min: 0x00000000
+ * @Max: 0x64646464
+ * @Default: 0x00000000
+ *
+ * This INI give percentage value of OCE WAN metrics DL CAP, to be used as
+ * index in which the DL CAP value falls. Used only if num_oce_wan_slots is
+ * greater than 11.
+ *
+ * Indexes are defined in this way.
+ *     0 Index (BITS 0-7): SLOT_12
+ *     1 Index (BITS 8-15): SLOT_13
+ *     2 Index (BITS 16-23): SLOT_14
+ *     3 Index (BITS 24-31): SLOT_15
+ * These percentage values are stored in HEX. For any index max value, can be 64
+ *
+ * Related: num_oce_wan_slots, oce_wan_weightage
+ *
+ * Supported Feature: STA Candidate selection
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_OCE_WAN_SCORE_IDX15_TO_12_NAME      "oce_wan_score_idx15_to_12"
+#define CFG_OCE_WAN_SCORE_IDX15_TO_12_DEFAULT   (0x00000000)
+#define CFG_OCE_WAN_SCORE_IDX15_TO_12_MIN       (0x00000000)
+#define CFG_OCE_WAN_SCORE_IDX15_TO_12_MAX       (0x64646464)
 
 /*
  * <ini>
@@ -13589,6 +13762,7 @@ struct hdd_config {
 	uint8_t beamforming_cap_weightage;
 	uint8_t pcl_weightage;
 	uint8_t channel_congestion_weightage;
+	uint8_t oce_wan_weightage;
 	uint32_t bandwidth_weight_per_index;
 	uint32_t nss_weight_per_index;
 	uint32_t band_weight_per_index;
@@ -13605,6 +13779,11 @@ struct hdd_config {
 	uint32_t esp_qbss_score_slots7_to_4;
 	uint32_t esp_qbss_score_slots11_to_8;
 	uint32_t esp_qbss_score_slots15_to_12;
+	uint8_t num_oce_wan_slots;
+	uint32_t oce_wan_score_slots3_to_0;
+	uint32_t oce_wan_score_slots7_to_4;
+	uint32_t oce_wan_score_slots11_to_8;
+	uint32_t oce_wan_score_slots15_to_12;
 	bool enable_scoring_for_roam;
 	bool chan_switch_hostapd_rate_enabled;
 };

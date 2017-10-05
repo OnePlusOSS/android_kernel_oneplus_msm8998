@@ -4791,6 +4791,9 @@ static void hdd_roam_channel_switch_handler(hdd_adapter_t *adapter,
 	if (QDF_IS_STATUS_ERROR(status))
 		hdd_err("channel change notification failed");
 
+	hdd_debug("check for SAP restart");
+	cds_check_concurrent_intf_and_restart_sap(adapter);
+
 	status = cds_set_hw_mode_on_channel_switch(adapter->sessionId);
 	if (QDF_IS_STATUS_ERROR(status))
 		hdd_debug("set hw mode change not done");

@@ -14218,8 +14218,8 @@ struct cfg80211_bss *wlan_hdd_cfg80211_inform_bss_frame(hdd_adapter_t *pAdapter,
 	struct ieee80211_channel *chan;
 	struct ieee80211_mgmt *mgmt = NULL;
 	struct cfg80211_bss *bss_status = NULL;
-	size_t frame_len = sizeof(tSirMacMgmtHdr) +
-			   SIR_MAC_B_PR_SSID_OFFSET + ie_length;
+	size_t frame_len = ie_length + offsetof(struct ieee80211_mgmt,
+						u.probe_resp.variable);
 	int rssi = 0;
 	hdd_context_t *pHddCtx;
 	struct timespec ts;

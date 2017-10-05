@@ -207,7 +207,9 @@ static int __wlan_hdd_cfg80211_spectral_scan_start(struct wiphy *wiphy,
 
 	ss_req.vdev_id = adapter->sessionId;
 	ss_req.active = 1;
+	ss_req.active_valid = 1;
 	ss_req.enabled = 1;
+	ss_req.enabled_valid = 1;
 
 	status = sme_start_spectral_scan(&ss_req);
 	if (QDF_STATUS_SUCCESS != status)
@@ -292,7 +294,9 @@ static int __wlan_hdd_cfg80211_spectral_scan_stop(struct wiphy *wiphy,
 
 	ss_req.vdev_id = adapter->sessionId;
 	ss_req.active = 0;
+	ss_req.active_valid = 1;
 	ss_req.enabled = 0;
+	ss_req.enabled_valid = 1;
 
 	status = sme_start_spectral_scan(&ss_req);
 	if (QDF_STATUS_SUCCESS != status)

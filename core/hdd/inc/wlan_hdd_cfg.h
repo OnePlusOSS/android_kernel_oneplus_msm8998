@@ -12672,25 +12672,27 @@ enum hw_filter_mode {
 
 /*
  * <ini>
- * disable_scoring_for_roam - disable candidate selection logic for
- * roaming
+ * enable_scoring_for_roam - enable/disable scoring logic in FW for candidate
+ * selection during roaming
+ *
  * @Min: 0
  * @Max: 1
- * @Default: 1
+ * @Default: 0
  *
- * This ini is used to enable/disable candidate selection logic to be used
- * during Firmware roaming.
+ * This ini is used to enable/disable scoring logic in FW for candidate
+ * selection during roaming.
  *
- * Supported Feature: STA Candidate selection
+ * Supported Feature: STA Candidate selection by FW during roaming based on
+ * scoring logic.
  *
  * Usage: External
  *
  * </ini>
  */
-#define CFG_ENABLE_CANDIDATE_SEL_ROAM_NAME    "disable_scoring_for_roam"
-#define CFG_ENABLE_CANDIDATE_SEL_ROAM_DEFAULT (1)
-#define CFG_ENABLE_CANDIDATE_SEL_ROAM_MIN     (0)
-#define CFG_ENABLE_CANDIDATE_SEL_ROAM_MAX     (1)
+#define CFG_ENABLE_SCORING_FOR_ROAM_NAME     "enable_scoring_for_roam"
+#define CFG_ENABLE_SCORING_FOR_ROAM_DEFAULT  (0)
+#define CFG_ENABLE_SCORING_FOR_ROAM_MIN      (0)
+#define CFG_ENABLE_SCORING_FOR_ROAM_MAX      (1)
 
 /*
  * <ini>
@@ -13568,7 +13570,7 @@ struct hdd_config {
 	uint32_t esp_qbss_score_slots7_to_4;
 	uint32_t esp_qbss_score_slots11_to_8;
 	uint32_t esp_qbss_score_slots15_to_12;
-	bool disable_scoring_for_roam;
+	bool enable_scoring_for_roam;
 	bool chan_switch_hostapd_rate_enabled;
 };
 

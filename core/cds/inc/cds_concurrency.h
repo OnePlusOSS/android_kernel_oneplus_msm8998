@@ -992,4 +992,17 @@ void cds_set_cur_conc_system_pref(uint8_t conc_system_pref);
  */
 uint8_t cds_get_cur_conc_system_pref(void);
 
+/**
+ * cds_remove_dfs_passive_channels_from_pcl() - set weight of dfs and passive
+ * channels to 0
+ * @pcl_channels: preferred channel list
+ * @len: length of preferred channel list
+ * @weight_list: preferred channel weight list
+ * @weight_len: length of weight list
+ * This function set the weight of dfs and passive channels to 0
+ *
+ * Return: None
+ */
+void cds_remove_dfs_passive_channels_from_pcl(uint8_t *pcl_channels,
+		uint32_t *len, uint8_t *weight_list, uint32_t weight_len);
 #endif /* __CDS_CONCURRENCY_H */

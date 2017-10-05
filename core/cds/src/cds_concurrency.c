@@ -3916,8 +3916,8 @@ void cds_incr_active_session(enum tQDF_ADAPTER_MODE mode,
 	hdd_context_t *hdd_ctx;
 	cds_context_type *cds_ctx;
 	hdd_adapter_t *sap_adapter;
-
 	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+
 	if (!hdd_ctx) {
 		cds_err("HDD context is NULL");
 		return;
@@ -5027,6 +5027,70 @@ void cds_update_with_safe_channel_list(uint8_t *pcl_channels, uint32_t *len,
 }
 
 /**
+ * cds_remove_dfs_passive_channels_from_pcl() - set weight of dfs and passive
+ * channels to 0
+ * @pcl_channels: preferred channel list
+ * @len: length of preferred channel list
+ * @weight_list: preferred channel weight list
+ * @weight_len: length of weight list
+ * This function set the weight of dfs and passive channels to 0
+ *
+ * Return: None
+ */
+void cds_remove_dfs_passive_channels_from_pcl(uint8_t *pcl_channels,
+		uint32_t *len, uint8_t *weight_list, uint32_t weight_len)
+{
+	uint8_t i;
+	uint32_t orig_channel_count = 0;
+	qdf_device_t qdf_ctx = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
+	hdd_context_t *hdd_ctx;
+	uint32_t mcc_to_scc_mode;
+	uint32_t sap_count;
+
+	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+	if (!hdd_ctx) {
+		cds_err("HDD context is NULL");
+		return;
+	}
+
+	if (!qdf_ctx) {
+		cds_err("qdf_ctx is NULL");
+		return;
+	}
+
+	mcc_to_scc_mode = hdd_ctx->config->WlanMccToSccSwitchMode;
+	sap_count = cds_mode_specific_connection_count(CDS_SAP_MODE, NULL);
+
+	cds_debug("mcc_to_scc_mode %u, sap_count %u", mcc_to_scc_mode,
+			sap_count);
+
+	if ((mcc_to_scc_mode == QDF_MCC_TO_SCC_SWITCH_DISABLE) ||
+			(sap_count == 0))
+		return;
+
+	if (len)
+		orig_channel_count = QDF_MIN(*len, QDF_MAX_NUM_CHAN);
+	else {
+		cds_err("invalid number of channel length");
+		return;
+	}
+
+	cds_debug("Set weight of DFS/passive channels to 0");
+
+	for (i = 0; i < orig_channel_count; i++) {
+		if (cds_get_channel_state(pcl_channels[i]) !=
+				CHANNEL_STATE_ENABLE) {
+			/* Set weight of inactive channels to 0 */
+			weight_list[i] = 0;
+		}
+		cds_debug("chan[%d] - %d, weight[%d] - %d",
+				i, pcl_channels[i], i, weight_list[i]);
+	}
+
+	return;
+}
+
+/**
  * cds_get_channel_list() - provides the channel list
  * suggestion for new connection
  * @pcl:	The preferred channel list enum
@@ -5356,6 +5420,9 @@ static QDF_STATUS cds_get_channel_list(enum cds_pcl_type pcl,
 	/* check the channel avoidance list */
 	cds_update_with_safe_channel_list(pcl_channels, len,
 				pcl_weights, weight_len);
+
+	cds_remove_dfs_passive_channels_from_pcl(pcl_channels, len,
+			pcl_weights, weight_len);
 
 	return status;
 }

@@ -344,6 +344,8 @@ void
 ol_txrx_vdev_register(ol_txrx_vdev_handle vdev,
 			 void *osif_vdev, struct ol_txrx_ops *txrx_ops);
 
+void ol_register_offld_flush_cb(void (gro_flush_cb)(void *),
+				void *(gro_init_cb)(void));
 int
 ol_txrx_mgmt_send(
 	ol_txrx_vdev_handle vdev,

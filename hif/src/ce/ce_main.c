@@ -2696,6 +2696,7 @@ void *hif_ce_get_lro_ctx(struct hif_opaque_softc *hif_hdl, int ctx_id)
 
 	return ce_state->lro_data;
 }
+#endif
 
 /**
  * ce_lro_flush_cb_register() - register the LRO flush
@@ -2774,7 +2775,6 @@ int ce_lro_flush_cb_deregister(struct hif_opaque_softc *hif_hdl,
 	}
 	return rc;
 }
-#endif
 
 /**
  * hif_map_service_to_pipe() - returns  the ce ids pertaining to

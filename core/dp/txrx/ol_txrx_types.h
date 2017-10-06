@@ -1024,8 +1024,8 @@ struct ol_txrx_pdev_t {
 	ol_tx_pause_callback_fp pause_cb;
 
 	struct {
-		void (*lro_flush_cb)(void *);
-	} lro_info;
+		void (*offld_flush_cb)(void *);
+	} rx_offld_info;
 	struct ol_txrx_peer_t *self_peer;
 };
 

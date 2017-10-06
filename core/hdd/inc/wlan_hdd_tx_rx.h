@@ -68,6 +68,8 @@ QDF_STATUS hdd_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf);
  * Return: 0 on success and non zero on failure.
  */
 int hdd_rx_ol_init(hdd_context_t *hdd_ctx);
+void hdd_gro_destroy(void);
+void ol_deregister_offld_flush_cb(void (*offload_deinit_cb)(void *data));
 
 /**
  * hdd_enable_rx_ol_in_concurrency() - Enable Rx offload

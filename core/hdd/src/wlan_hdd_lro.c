@@ -516,7 +516,7 @@ int hdd_lro_enable(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 void hdd_lro_create(void)
 {
 	/* Register the flush callback */
-	ol_register_lro_flush_cb(hdd_lro_flush, hdd_init_lro_mgr);
+	ol_register_offld_flush_cb(hdd_lro_flush, hdd_init_lro_mgr);
 }
 
 static void hdd_deinit_lro_mgr(void *lro_info)
@@ -552,8 +552,16 @@ void hdd_lro_disable(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
  */
 void hdd_lro_destroy(void)
 {
+	hdd_context_t *hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+
+	if  (!hdd_ctx) {
+		hdd_err("HDD context is NULL");
+		return;
+	}
+
 	/* Deregister the flush callback */
-	ol_deregister_lro_flush_cb(hdd_deinit_lro_mgr);
+	if (hdd_ctx->ol_enable == CFG_LRO_ENABLED)
+		ol_deregister_offld_flush_cb(hdd_deinit_lro_mgr);
 }
 
 /**

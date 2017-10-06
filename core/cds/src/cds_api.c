@@ -927,6 +927,7 @@ QDF_STATUS cds_close(v_CONTEXT_t cds_context)
 	}
 
 	hdd_lro_destroy();
+	hdd_gro_destroy();
 
 	if (gp_cds_context->htc_ctx) {
 		htc_destroy(gp_cds_context->htc_ctx);

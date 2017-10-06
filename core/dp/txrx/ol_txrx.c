@@ -5018,11 +5018,9 @@ void ol_rx_data_process(struct ol_txrx_peer_t *peer,
 				goto drop_rx_buf;
 
 			pkt = cds_alloc_ol_rx_pkt(sched_ctx);
-			if (!pkt) {
-				ol_txrx_info(
-					   "No available Rx message buffer");
+			if (!pkt)
 				goto drop_rx_buf;
-			}
+
 			pkt->callback = (cds_ol_rx_thread_cb)
 					ol_rx_data_cb;
 			pkt->context = (void *)pdev;
@@ -5039,7 +5037,8 @@ void ol_rx_data_process(struct ol_txrx_peer_t *peer,
 
 drop_rx_buf:
 	drop_count = ol_txrx_drop_nbuf_list(rx_buf_list);
-	ol_txrx_info("Dropped rx packets %u", drop_count);
+	QDF_TRACE_RATE_LIMITED(128, QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_DEBUG,
+			"Dropped rx packets %u", drop_count);
 }
 
 /**
@@ -5295,20 +5294,19 @@ QDF_STATUS ol_txrx_register_pause_cb(ol_tx_pause_callback_fp pause_cb)
 }
 #endif
 
-#if defined(FEATURE_LRO)
 /**
- * ol_txrx_lro_flush_handler() - LRO flush handler
+ * ol_txrx_offld_flush_handler() - Offload flush handler
  * @context: dev handle
  * @rxpkt: rx data
  * @staid: station id
  *
- * This function handles an LRO flush indication.
+ * This function handles an LRO/GRO flush indication.
  * If the rx thread is enabled, it will be invoked by the rx
  * thread else it will be called in the tasklet context
  *
  * Return: none
  */
-static void ol_txrx_lro_flush_handler(void *context,
+static void ol_txrx_offld_flush_handler(void *context,
 				      void *rxpkt,
 				      uint16_t staid)
 {
@@ -5321,104 +5319,23 @@ static void ol_txrx_lro_flush_handler(void *context,
 		return;
 	}
 
-	if (pdev->lro_info.lro_flush_cb)
-		pdev->lro_info.lro_flush_cb(context);
+	if (pdev->rx_offld_info.offld_flush_cb)
+		pdev->rx_offld_info.offld_flush_cb(context);
 	else
 		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
-			  "%s: lro_flush_cb NULL", __func__);
+			  "%s: offld_flush_cb NULL", __func__);
 }
 
 /**
- * ol_txrx_lro_flush() - LRO flush callback
- * @data: opaque data pointer
+ * ol_deregister_offld_flush_cb() - deregister the offld flush callback
+ * @offld_deinit_cb: callback function for deregistration.
  *
- * This is the callback registered with CE to trigger
- * an LRO flush
- *
- * Return: none
- */
-static void ol_txrx_lro_flush(void *data)
-{
-	p_cds_sched_context sched_ctx = get_cds_sched_ctxt();
-	struct cds_ol_rx_pkt *pkt;
-	ol_txrx_pdev_handle pdev = cds_get_context(QDF_MODULE_ID_TXRX);
-
-	if (qdf_unlikely(!sched_ctx))
-		return;
-
-	if (qdf_unlikely(!pdev)) {
-		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
-			  "Pdev is NULL");
-		return;
-	}
-
-	if (!ol_cfg_is_rx_thread_enabled(pdev->ctrl_pdev)) {
-		ol_txrx_lro_flush_handler(data, NULL, 0);
-	} else {
-		pkt = cds_alloc_ol_rx_pkt(sched_ctx);
-		if (qdf_unlikely(!pkt)) {
-			QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
-				  "%s: Not able to allocate context", __func__);
-			return;
-		}
-
-		pkt->callback =
-			 (cds_ol_rx_thread_cb) ol_txrx_lro_flush_handler;
-		pkt->context = data;
-		pkt->Rxpkt = NULL;
-		pkt->staId = 0;
-		cds_indicate_rxpkt(sched_ctx, pkt);
-	}
-}
-
-/**
- * ol_register_lro_flush_cb() - register the LRO flush callback
- * @lro_flush_cb: flush callback function
- * @lro_init_cb: Allocate and initialize LRO data structure.
- *
- * Store the LRO flush callback provided and in turn
- * register OL's LRO flush handler with CE
+ * Remove the offld flush callback provided and in turn
+ * deregister OL's offld flush handler with CE
  *
  * Return: none
  */
-void ol_register_lro_flush_cb(void (lro_flush_cb)(void *),
-			      void *(lro_init_cb)(void))
-{
-	struct hif_opaque_softc *hif_device;
-	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
-
-	if (pdev == NULL) {
-		ol_txrx_err("%s: pdev NULL!", __func__);
-		TXRX_ASSERT2(0);
-		goto out;
-	}
-	pdev->lro_info.lro_flush_cb = lro_flush_cb;
-	hif_device = (struct hif_opaque_softc *)
-				cds_get_context(QDF_MODULE_ID_HIF);
-
-	if (qdf_unlikely(hif_device == NULL)) {
-		ol_txrx_err(
-			"%s: hif_device NULL!", __func__);
-		qdf_assert(0);
-		goto out;
-	}
-
-	hif_lro_flush_cb_register(hif_device, ol_txrx_lro_flush, lro_init_cb);
-
-out:
-	return;
-}
-
-/**
- * ol_deregister_lro_flush_cb() - deregister the LRO flush callback
- * @lro_deinit_cb: callback function for deregistration.
- *
- * Remove the LRO flush callback provided and in turn
- * deregister OL's LRO flush handler with CE
- *
- * Return: none
- */
-void ol_deregister_lro_flush_cb(void (lro_deinit_cb)(void *))
+void ol_deregister_offld_flush_cb(void (offld_deinit_cb)(void *))
 {
 	struct hif_opaque_softc *hif_device;
 	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
@@ -5436,11 +5353,74 @@ void ol_deregister_lro_flush_cb(void (lro_deinit_cb)(void *))
 		return;
 	}
 
-	hif_lro_flush_cb_deregister(hif_device, lro_deinit_cb);
+	hif_offld_flush_cb_deregister(hif_device, offld_deinit_cb);
 
-	pdev->lro_info.lro_flush_cb = NULL;
+	pdev->rx_offld_info.offld_flush_cb = NULL;
 }
-#endif /* FEATURE_LRO */
+
+static void ol_txrx_offld_flush(void *data)
+{
+	p_cds_sched_context sched_ctx = get_cds_sched_ctxt();
+	struct cds_ol_rx_pkt *pkt;
+	ol_txrx_pdev_handle pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+
+	if (qdf_unlikely(!sched_ctx))
+		return;
+
+	if (qdf_unlikely(!pdev)) {
+		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
+			  "Pdev is NULL");
+		return;
+	}
+
+	if (!ol_cfg_is_rx_thread_enabled(pdev->ctrl_pdev)) {
+		ol_txrx_offld_flush_handler(data, NULL, 0);
+	} else {
+		pkt = cds_alloc_ol_rx_pkt(sched_ctx);
+		if (qdf_unlikely(!pkt)) {
+			QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
+				  "%s: Not able to allocate context", __func__);
+			return;
+		}
+
+		pkt->callback =
+			 (cds_ol_rx_thread_cb) ol_txrx_offld_flush_handler;
+		pkt->context = data;
+		pkt->Rxpkt = NULL;
+		pkt->staId = 0;
+		cds_indicate_rxpkt(sched_ctx, pkt);
+	}
+}
+
+void ol_register_offld_flush_cb(void (offld_flush_cb)(void *),
+			      void *(offld_init_cb)(void))
+{
+	struct hif_opaque_softc *hif_device;
+	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+
+	if (pdev == NULL) {
+		ol_txrx_err("%s: pdev NULL!", __func__);
+		TXRX_ASSERT2(0);
+		goto out;
+	}
+	pdev->rx_offld_info.offld_flush_cb = offld_flush_cb;
+	hif_device = (struct hif_opaque_softc *)
+				cds_get_context(QDF_MODULE_ID_HIF);
+
+	if (qdf_unlikely(hif_device == NULL)) {
+		ol_txrx_err(
+			"%s: hif_device NULL!", __func__);
+		qdf_assert(0);
+		goto out;
+	}
+
+	hif_offld_flush_cb_register(hif_device, ol_txrx_offld_flush,
+				    offld_init_cb);
+
+out:
+	return;
+}
+
 
 /**
  * ol_register_data_stall_detect_cb() - register data stall callback

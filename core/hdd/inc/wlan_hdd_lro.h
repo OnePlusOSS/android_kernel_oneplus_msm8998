@@ -146,6 +146,7 @@ int hdd_lro_enable(hdd_context_t *hdd_ctx,
 void hdd_lro_disable(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter);
 
 void hdd_lro_destroy(void);
+void hdd_gro_destroy(void);
 
 QDF_STATUS hdd_lro_rx(hdd_adapter_t *adapter, struct sk_buff *skb);
 

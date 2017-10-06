@@ -1251,7 +1251,7 @@ static inline void hdd_resolve_rx_ol_mode(hdd_context_t *hdd_ctx)
 static inline QDF_STATUS hdd_gro_rx(hdd_adapter_t *adapter,
 					       struct sk_buff *skb)
 {
-	struct napi_struct *napi;
+	struct qca_napi_info *qca_napii;
 	void *napid;
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 
@@ -1263,18 +1263,56 @@ static inline QDF_STATUS hdd_gro_rx(hdd_adapter_t *adapter,
 	if (unlikely(napid == NULL))
 		goto out;
 
-	napi = hif_get_napi(QDF_NBUF_CB_RX_CTX_ID(skb), napid);
-	if (unlikely(napi == NULL))
+	qca_napii = hif_get_napi(QDF_NBUF_CB_RX_CTX_ID(skb), napid);
+	if (unlikely(qca_napii == NULL))
 		goto out;
 
 	skb_set_hash(skb, QDF_NBUF_CB_RX_FLOW_ID_TOEPLITZ(skb),
 			PKT_HASH_TYPE_L4);
 
-	if (GRO_DROP != napi_gro_receive(napi, skb))
-		status = QDF_STATUS_SUCCESS;
+	local_bh_disable();
+	/* No need to check return value as it frees the skb */
+	napi_gro_receive((struct napi_struct *)qca_napii->offld_ctx, skb);
+	local_bh_enable();
 
+	status = QDF_STATUS_SUCCESS;
 out:
 	return status;
+}
+
+
+static inline int hdd_rxthread_napi_poll(struct napi_struct *napi, int budget)
+{
+	hdd_err("This napi_poll should not be polled as we dint schedule this napi");
+	QDF_ASSERT(0);
+	return 0;
+}
+
+static inline void *hdd_init_rx_thread_napi(void)
+{
+	struct net_device   *netdev; /* dummy net_dev */
+	struct napi_struct   *napi;
+
+	napi = qdf_mem_malloc(sizeof(struct napi_struct));
+	netdev = qdf_mem_malloc(sizeof(struct net_device));
+	init_dummy_netdev(netdev);
+	netif_napi_add(netdev, napi, hdd_rxthread_napi_poll, 64);
+	napi_enable(napi);
+
+	return napi;
+
+}
+static inline void hdd_gro_flush(void *data)
+{
+	local_bh_disable();
+	napi_gro_flush((struct napi_struct *)data, false);
+	local_bh_enable();
+}
+
+
+static inline void hdd_create_napi_for_rxthread(void)
+{
+	ol_register_offld_flush_cb(hdd_gro_flush, hdd_init_rx_thread_napi);
 }
 
 /**
@@ -1292,16 +1330,51 @@ static inline void hdd_register_rx_ol(void)
 	}
 
 	if (hdd_ctx->ol_enable == CFG_LRO_ENABLED) {
+		hdd_ctx->receive_offload_cb = hdd_lro_rx;
 		/* Register the flush callback */
 		hdd_lro_create();
-		hdd_ctx->receive_offload_cb = hdd_lro_rx;
 		hdd_debug("LRO is enabled");
 	} else if (hdd_ctx->ol_enable == CFG_GRO_ENABLED) {
 		hdd_ctx->receive_offload_cb = hdd_gro_rx;
+		if (hdd_ctx->enableRxThread)
+			hdd_create_napi_for_rxthread();
 		hdd_debug("GRO is enabled");
 	}
 }
-#else
+
+static void hdd_deinit_gro_mgr(void *data)
+{
+	struct net_device *netdev;
+	struct napi_struct *napi = data;
+
+	if (!napi) {
+		hdd_debug("NAPI instance is NAPI");
+		return;
+	}
+
+	netdev = napi->dev;
+	napi_disable(napi);
+	netif_napi_del(napi);
+	qdf_mem_free(napi);
+	qdf_mem_free(netdev);
+}
+
+
+void hdd_gro_destroy(void)
+{
+	hdd_context_t *hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+
+	if  (!hdd_ctx) {
+		hdd_err("HDD context is NULL");
+		return;
+	}
+
+	/* Deregister the flush callback */
+	if ((hdd_ctx->ol_enable == CFG_GRO_ENABLED) &&
+		hdd_ctx->enableRxThread)
+		ol_deregister_offld_flush_cb(hdd_deinit_gro_mgr);
+}
+#else /* HELIUMPLUS */
 static inline void hdd_register_rx_ol(void) { }
 #endif
 

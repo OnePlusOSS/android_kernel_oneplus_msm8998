@@ -6113,13 +6113,14 @@ int wma_scan_event_callback(WMA_HANDLE handle, uint8_t *data,
 	uint8_t vdev_id;
 	uint32_t scan_id;
 
+	param_buf = (WMI_SCAN_EVENTID_param_tlvs *) data;
+	wmi_event = param_buf->fixed_param;
+
 	if (wmi_event->vdev_id >= wma_handle->max_bssid) {
 		WMA_LOGE("Invalid vdev id from firmware");
 		return -EINVAL;
 	}
 
-	param_buf = (WMI_SCAN_EVENTID_param_tlvs *) data;
-	wmi_event = param_buf->fixed_param;
 	vdev_id = wmi_event->vdev_id;
 	scan_id = wma_handle->interfaces[vdev_id].scan_info.scan_id;
 

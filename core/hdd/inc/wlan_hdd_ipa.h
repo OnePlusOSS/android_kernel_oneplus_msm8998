@@ -145,7 +145,25 @@ int hdd_ipa_uc_ol_deinit(hdd_context_t *hdd_ctx);
  * Return: Status of map operation
  */
 int hdd_ipa_uc_smmu_map(bool map, uint32_t num_buf, qdf_mem_info_t *buf_arr);
+
+/**
+ * hdd_ipa_uc_stat() - Print IPA uC stats
+ * @adapter: network adapter
+ *
+ * Return: None
+ */
+void hdd_ipa_uc_stat(hdd_adapter_t *adapter);
+
+/**
+ * hdd_ipa_uc_info() - Print IPA uC resource and session information
+ * @adapter: network adapter
+ *
+ * Return: None
+ */
+void hdd_ipa_uc_info(hdd_context_t *hdd_ctx);
+
 #else
+
 static inline QDF_STATUS hdd_ipa_init(hdd_context_t *hdd_ctx)
 {
 	return QDF_STATUS_SUCCESS;
@@ -308,5 +326,14 @@ static inline int hdd_ipa_uc_smmu_map(bool map, uint32_t num_buf,
 {
 	return 0;
 }
+
+static inline void hdd_ipa_uc_stat(hdd_adapter_t *adapter)
+{
+}
+
+static inline void hdd_ipa_uc_info(hdd_context_t *hdd_ctx)
+{
+}
+
 #endif /* IPA_OFFLOAD */
 #endif /* #ifndef HDD_IPA_H__ */

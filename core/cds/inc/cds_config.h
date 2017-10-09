@@ -151,6 +151,7 @@ enum cds_auto_pwr_detect_failure_mode_t {
  * active mode for MC/BC packets
  * @rps_enabled: RPS enabled in SAP mode
  * @ito_repeat_count: Indicates ito repeated count
+ * @bandcapability: Configured band by user
  * Structure for holding cds ini parameters.
  */
 
@@ -213,6 +214,7 @@ struct cds_config_info {
 	bool rps_enabled;
 	enum cds_auto_pwr_detect_failure_mode_t auto_power_save_fail_mode;
 	uint8_t ito_repeat_count;
+	uint8_t bandcapability;
 };
 
 #ifdef WLAN_FEATURE_FILS_SK

@@ -1520,6 +1520,7 @@ struct peer_debug_info {
  * @saved_chan: saved channel list sent as part of WMI_SCAN_CHAN_LIST_CMDID
  * @fw_mem_dump_enabled: Fw memory dump support
  * @ss_configs: spectral scan config parameters
+ * @bandcapability: band capability configured through ini
  * @ito_repeat_count: Indicates ito repeated count
  */
 typedef struct {
@@ -1735,6 +1736,7 @@ typedef struct {
 	uint8_t in_imps;
 	uint64_t tx_fail_cnt;
 	uint64_t wmi_desc_fail_count;
+	uint8_t bandcapability;
 #ifdef FEATURE_SPECTRAL_SCAN
 	struct vdev_spectral_configure_params ss_configs;
 #endif

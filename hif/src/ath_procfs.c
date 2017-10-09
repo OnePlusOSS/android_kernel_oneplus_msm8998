@@ -72,17 +72,21 @@ static ssize_t ath_procfs_diag_read(struct file *file, char __user *buf,
 	struct hif_softc *scn;
 	uint32_t offset = 0, memtype = 0;
 
+	hif_hdl = get_hif_hdl_from_file(file);
+	scn = HIF_GET_SOFTC(hif_hdl);
+
+	if (scn->bus_ops.hif_addr_in_boundary(hif_hdl, (uint32_t)(*pos)))
+		return -EINVAL;
+
 	read_buffer = qdf_mem_malloc(count);
 	if (NULL == read_buffer) {
 		HIF_ERROR("%s: cdf_mem_alloc failed", __func__);
 		return -ENOMEM;
 	}
 
-	hif_hdl = get_hif_hdl_from_file(file);
 	HIF_DBG("rd buff 0x%pK cnt %zu offset 0x%x buf 0x%pK",
 		 read_buffer, count, (int)*pos, buf);
 
-	scn = HIF_GET_SOFTC(hif_hdl);
 	if (scn->bus_type == QDF_BUS_TYPE_SNOC) {
 		memtype = ((uint32_t)(*pos) & 0xff000000) >> 24;
 		offset = (uint32_t)(*pos) & 0xffffff;
@@ -127,6 +131,12 @@ static ssize_t ath_procfs_diag_write(struct file *file,
 	struct hif_softc *scn;
 	uint32_t offset = 0, memtype = 0;
 
+	hif_hdl = get_hif_hdl_from_file(file);
+	scn = HIF_GET_SOFTC(hif_hdl);
+
+	if (scn->bus_ops.hif_addr_in_boundary(hif_hdl, (uint32_t)(*pos)))
+		return -EINVAL;
+
 	write_buffer = qdf_mem_malloc(count);
 	if (NULL == write_buffer) {
 		HIF_ERROR("%s: cdf_mem_alloc failed", __func__);
@@ -139,12 +149,10 @@ static ssize_t ath_procfs_diag_write(struct file *file,
 		return -EFAULT;
 	}
 
-	hif_hdl = get_hif_hdl_from_file(file);
 	HIF_DBG("wr buff 0x%pK buf 0x%pK cnt %zu offset 0x%x value 0x%x",
 		 write_buffer, buf, count,
 		 (int)*pos, *((uint32_t *) write_buffer));
 
-	scn = HIF_GET_SOFTC(hif_hdl);
 	if (scn->bus_type == QDF_BUS_TYPE_SNOC) {
 		memtype = ((uint32_t)(*pos) & 0xff000000) >> 24;
 		offset = (uint32_t)(*pos) & 0xffffff;

@@ -6923,6 +6923,7 @@ QDF_STATUS wma_process_mcbc_set_filter_req(tp_wma_handle wma_handle,
 					   tSirRcvFltMcAddrList *mcbc_param)
 {
 	uint8_t vdev_id = 0;
+	struct mcast_filter_params *filter_params;
 
 	if (mcbc_param->ulMulticastAddrCnt <= 0) {
 		WMA_LOGW("Number of multicast addresses is 0");
@@ -6958,19 +6959,25 @@ QDF_STATUS wma_process_mcbc_set_filter_req(tp_wma_handle wma_handle,
 
 	if (WMI_SERVICE_IS_ENABLED(wma_handle->wmi_service_bitmap,
 		WMI_SERVICE_MULTIPLE_MCAST_FILTER_SET)) {
-		struct mcast_filter_params filter_params;
+		filter_params = qdf_mem_malloc(
+					    sizeof(struct mcast_filter_params));
 
+		if (!filter_params) {
+			WMA_LOGE("Memory alloc failed for filter_params");
+			return QDF_STATUS_E_FAILURE;
+		}
 		WMA_LOGD("%s: FW supports multiple mcast filter", __func__);
 
-		filter_params.multicast_addr_cnt =
+		filter_params->multicast_addr_cnt =
 					mcbc_param->ulMulticastAddrCnt;
-		qdf_mem_copy(filter_params.multicast_addr,
+		qdf_mem_copy(filter_params->multicast_addr,
 			     mcbc_param->multicastAddr,
 			     mcbc_param->ulMulticastAddrCnt * ATH_MAC_LEN);
-		filter_params.action = mcbc_param->action;
+		filter_params->action = mcbc_param->action;
 
 		wma_multiple_add_clear_mcbc_filter(wma_handle, vdev_id,
-						   &filter_params);
+						   filter_params);
+		qdf_mem_free(filter_params);
 	} else {
 		int i;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2014, 2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2014, 2016-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -51,6 +51,28 @@ void limCollectMeasurementData(tpAniSirGlobal, uint32_t *, tpSchBeaconStruct);
 void limCollectRSSI(tpAniSirGlobal);
 void limDeleteCurrentBssWdsNode(tpAniSirGlobal);
 uint32_t limComputeAvg(tpAniSirGlobal, uint32_t, uint32_t);
+
+/**
+ * lim_check_vendor_ap_present() - checks if the Vendor OUIs are present
+ * in the IE buffer
+ *
+ * @mac_ctx:       mac context.
+ * @beacon_struct: pointer to beacon structure
+ * @session:       pointer to pe session
+ * @ie:            ie buffer
+ * @ie_len:        length of ie buffer
+ * @id:            action oui id enum
+ *
+ * This function parses the IE buffer and finds if any of the vendor OUI
+ * is present in it.
+ *
+ * Return: true if the vendor OUI is present, else false
+ */
+bool lim_check_vendor_ap_present(tpAniSirGlobal mac_ctx,
+				 tSirProbeRespBeacon *beacon_struct,
+				 tpPESession session,
+				 uint8_t *ie, uint16_t ie_len,
+				 enum wmi_action_oui_id id);
 
 /* / Function to extract AP's HCF capability from IE fields */
 void lim_extract_ap_capability(tpAniSirGlobal, uint8_t *, uint16_t, uint8_t *,

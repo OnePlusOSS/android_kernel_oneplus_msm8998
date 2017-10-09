@@ -15365,6 +15365,28 @@ static bool hdd_validate_fils_info_ptr(hdd_wext_state_t *wext_state)
 }
 #endif
 
+#if defined(WLAN_FEATURE_FILS_SK) && \
+	(defined(CFG80211_FILS_SK_OFFLOAD_SUPPORT) || \
+		 (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)))
+static bool wlan_hdd_is_akm_suite_fils(uint32_t key_mgmt)
+{
+	switch (key_mgmt) {
+	case WLAN_AKM_SUITE_FILS_SHA256:
+	case WLAN_AKM_SUITE_FILS_SHA384:
+	case WLAN_AKM_SUITE_FT_FILS_SHA256:
+	case WLAN_AKM_SUITE_FT_FILS_SHA384:
+		return true;
+	default:
+		return false;
+	}
+}
+#else
+static bool wlan_hdd_is_akm_suite_fils(uint32_t key_mgmt)
+{
+	return false;
+}
+#endif
+
 /**
  * wlan_hdd_set_akm_suite() - set key management type
  * @pAdapter: Pointer to adapter
@@ -15381,7 +15403,8 @@ static int wlan_hdd_set_akm_suite(hdd_adapter_t *pAdapter, u32 key_mgmt)
 
 	roam_profile = &pWextState->roamProfile;
 
-	if (!hdd_validate_fils_info_ptr(pWextState))
+	if (wlan_hdd_is_akm_suite_fils(key_mgmt) &&
+		!hdd_validate_fils_info_ptr(pWextState))
 		return -EINVAL;
 #ifndef WLAN_AKM_SUITE_8021X_SHA256
 #define WLAN_AKM_SUITE_8021X_SHA256 0x000FAC05
@@ -16048,6 +16071,17 @@ static int wlan_hdd_cfg80211_set_fils_config(hdd_adapter_t *adapter,
 		return -EINVAL;
 	}
 
+	if (req->auth_type != NL80211_AUTHTYPE_FILS_SK) {
+		hdd_debug("Not a FILS auth type %d", req->auth_type);
+		return 0;
+	}
+
+	auth_type = wlan_hdd_get_fils_auth_type(req->auth_type);
+	if (auth_type < 0) {
+		hdd_err("invalid auth type for fils %d", req->auth_type);
+		return -EINVAL;
+	}
+
 	hdd_clear_fils_connection_info(adapter);
 	roam_profile->fils_con_info =
 		qdf_mem_malloc(sizeof(struct cds_fils_connection_info));
@@ -16056,21 +16090,9 @@ static int wlan_hdd_cfg80211_set_fils_config(hdd_adapter_t *adapter,
 		hdd_err("failed to allocate memory");
 		return -EINVAL;
 	}
-	if (req->auth_type != NL80211_AUTHTYPE_FILS_SK) {
-		roam_profile->fils_con_info->is_fils_connection = false;
-		qdf_mem_free(roam_profile->fils_con_info);
-		return 0;
-	}
-
 	roam_profile->fils_con_info->is_fils_connection = true;
 	roam_profile->fils_con_info->sequence_number =
 		req->fils_erp_next_seq_num;
-	auth_type = wlan_hdd_get_fils_auth_type(req->auth_type);
-	if (auth_type < 0) {
-		hdd_err("invalid auth type for fils %d", req->auth_type);
-		qdf_mem_free(roam_profile->fils_con_info);
-		return -EINVAL;
-	}
 	roam_profile->fils_con_info->auth_type = auth_type;
 
 	roam_profile->fils_con_info->r_rk_length =

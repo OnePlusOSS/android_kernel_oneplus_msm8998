@@ -405,7 +405,7 @@ int wlan_hdd_send_avoid_freq_event(hdd_context_t *pHddCtx,
  *
  * Return: 0 on success or failure reason
  */
-int wlan_hdd_send_hang_reason_event(hdd_context_t *pHddCtx, uint32_t reason);
+int wlan_hdd_send_hang_reason_event(hdd_context_t *hdd_ctx, uint32_t reason);
 #ifdef FEATURE_WLAN_EXTSCAN
 void wlan_hdd_cfg80211_extscan_callback(void *ctx,
 					const uint16_t evType, void *pMsg);

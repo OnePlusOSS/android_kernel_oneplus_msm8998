@@ -510,7 +510,7 @@ static inline void hdd_wlan_ssr_shutdown_event(void)
  */
 static void hdd_send_hang_reason(void)
 {
-	uint32_t reason = 0;
+	enum cds_hang_reason reason = CDS_REASON_UNSPECIFIED;
 	hdd_context_t *hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
 
 	if (wlan_hdd_validate_context(hdd_ctx))

@@ -111,6 +111,8 @@ static QDF_STATUS lim_send_hal_req_remain_on_chan_offload(tpAniSirGlobal pMac,
 	pScanOffloadReq->channelList.channelNumber[0] = pRemOnChnReq->chnNum;
 	pScanOffloadReq->scan_id = pRemOnChnReq->scan_id;
 	pScanOffloadReq->scan_requestor_id = ROC_SCAN_REQUESTOR_ID;
+	pScanOffloadReq->scan_ctrl_flags_ext |=
+		WMI_SCAN_FLAG_EXT_FILTER_PUBLIC_ACTION_FRAME;
 
 	pe_debug("Req-rem-on-channel: duration: %u session: %hu chan: %hu",
 		pRemOnChnReq->duration, pRemOnChnReq->sessionId,

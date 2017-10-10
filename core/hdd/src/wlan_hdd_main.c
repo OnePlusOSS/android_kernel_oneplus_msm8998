@@ -2103,7 +2103,7 @@ int hdd_wlan_start_modules(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 		status = cds_open();
 		if (!QDF_IS_STATUS_SUCCESS(status)) {
 			hdd_err("Failed to Open CDS: %d", status);
-			goto ol_cds_free;
+			goto deinit_config;
 		}
 
 		hdd_ctx->hHal = cds_get_context(QDF_MODULE_ID_SME);
@@ -2178,6 +2178,9 @@ post_disable:
 close:
 	hdd_ctx->driver_status = DRIVER_MODULES_CLOSED;
 	cds_close(p_cds_context);
+
+deinit_config:
+	cds_deinit_ini_config();
 
 ol_cds_free:
 	ol_cds_free();
@@ -10030,7 +10033,6 @@ err_exit_nl_srv:
 	hdd_green_ap_deinit(hdd_ctx);
 	hdd_exit_netlink_services(hdd_ctx);
 
-	cds_deinit_ini_config();
 err_hdd_free_context:
 	if (cds_is_fw_down())
 		hdd_err("Not setting the complete event as fw is down");

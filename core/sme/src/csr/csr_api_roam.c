@@ -2830,6 +2830,8 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 		pMac->fine_time_meas_cap = pParam->fine_time_meas_cap;
 		pMac->dual_mac_feature_disable =
 			pParam->dual_mac_feature_disable;
+		pMac->sta_sap_scc_on_dfs_chan =
+			pParam->sta_sap_scc_on_dfs_chan;
 		sme_update_roam_pno_channel_prediction_config(pMac, pParam,
 				SME_CONFIG_TO_ROAM_CONFIG);
 		pMac->roam.configParam.early_stop_scan_enable =
@@ -3085,6 +3087,8 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 	pParam->fine_time_meas_cap = pMac->fine_time_meas_cap;
 	pParam->dual_mac_feature_disable =
 		pMac->dual_mac_feature_disable;
+	pParam->sta_sap_scc_on_dfs_chan =
+		pMac->sta_sap_scc_on_dfs_chan;
 	pParam->is_ps_enabled = pMac->sme.ps_global_info.ps_enabled;
 	pParam->auto_bmps_timer_val =
 		pMac->sme.ps_global_info.auto_bmps_timer_val;

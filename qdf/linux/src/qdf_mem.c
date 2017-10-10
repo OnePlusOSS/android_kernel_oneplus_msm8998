@@ -56,16 +56,51 @@
 #include <net/cnss_prealloc.h>
 #endif
 
+static enum qdf_mem_domain qdf_mem_current_domain = QDF_MEM_DOMAIN_INIT;
+
+enum qdf_mem_domain qdf_mem_get_domain(void)
+{
+	return qdf_mem_current_domain;
+}
+
+void qdf_mem_set_domain(enum qdf_mem_domain domain)
+{
+	QDF_BUG(domain >= QDF_MEM_DOMAIN_INIT);
+	if (domain < QDF_MEM_DOMAIN_INIT)
+		return;
+
+	QDF_BUG(domain < QDF_MEM_DOMAIN_MAX_COUNT);
+	if (domain >= QDF_MEM_DOMAIN_MAX_COUNT)
+		return;
+
+	qdf_mem_current_domain = domain;
+}
+
+const uint8_t *qdf_mem_domain_name(enum qdf_mem_domain domain)
+{
+	switch (domain) {
+	case QDF_MEM_DOMAIN_INIT:
+		return "Init";
+	case QDF_MEM_DOMAIN_ACTIVE:
+		return "Active";
+	default:
+		return "Invalid";
+	}
+}
+
 #ifdef MEMORY_DEBUG
 #include <qdf_list.h>
 
-static enum qdf_mem_domain qdf_mem_current_domain;
 static qdf_list_t qdf_mem_domains[QDF_MEM_DOMAIN_MAX_COUNT];
-static qdf_list_t *qdf_mem_list;
 static qdf_spinlock_t qdf_mem_list_lock;
 
 static uint64_t WLAN_MEM_HEADER = 0x6162636465666768;
 static uint64_t WLAN_MEM_TAIL = 0x8081828384858687;
+
+static inline qdf_list_t *qdf_mem_active_list(void)
+{
+	return &qdf_mem_domains[qdf_mem_get_domain()];
+}
 
 /**
  * struct s_qdf_mem_struct - memory object to dubug
@@ -84,18 +119,6 @@ struct s_qdf_mem_struct {
 	uint64_t header;
 	enum qdf_mem_domain domain;
 };
-
-static const uint8_t *qdf_mem_domain_name(enum qdf_mem_domain domain)
-{
-	switch (domain) {
-	case QDF_MEM_DOMAIN_INIT:
-		return "Init";
-	case QDF_MEM_DOMAIN_ACTIVE:
-		return "Active";
-	default:
-		return "Invalid";
-	}
-}
 #endif /* MEMORY_DEBUG */
 
 /* Preprocessor Definitions and Constants */
@@ -787,7 +810,6 @@ static void qdf_mem_debug_init(void)
 
 	/* Initalizing the list with maximum size of 60000 */
 	qdf_mem_current_domain = QDF_MEM_DOMAIN_INIT;
-	qdf_mem_list = &qdf_mem_domains[QDF_MEM_DOMAIN_INIT];
 	for (i = 0; i < QDF_MEM_DOMAIN_MAX_COUNT; ++i)
 		qdf_list_create(&qdf_mem_domains[i], 60000);
 	qdf_spinlock_create(&qdf_mem_list_lock);
@@ -895,6 +917,7 @@ static void qdf_mem_debug_exit(void)
  */
 void *qdf_mem_malloc_debug(size_t size, char *file_name, uint32_t line_num)
 {
+	qdf_list_t *mem_list = qdf_mem_active_list();
 	struct s_qdf_mem_struct *mem_struct;
 	void *mem_ptr = NULL;
 	uint32_t new_size;
@@ -947,7 +970,7 @@ void *qdf_mem_malloc_debug(size_t size, char *file_name, uint32_t line_num)
 		qdf_mem_kmalloc_inc(ksize(mem_struct));
 
 		qdf_spin_lock_irqsave(&qdf_mem_list_lock);
-		status = qdf_list_insert_front(qdf_mem_list, &mem_struct->node);
+		status = qdf_list_insert_front(mem_list, &mem_struct->node);
 		qdf_spin_unlock_irqrestore(&qdf_mem_list_lock);
 		if (QDF_IS_STATUS_ERROR(status))
 			qdf_err("Unable to insert into list status %d", status);
@@ -1004,6 +1027,7 @@ static bool qdf_mem_validate_node_for_free(qdf_list_node_t *qdf_node)
  */
 void qdf_mem_free(void *ptr)
 {
+	qdf_list_t *mem_list = qdf_mem_active_list();
 	struct s_qdf_mem_struct *mem_struct;
 	uint64_t *trailer;
 
@@ -1069,7 +1093,7 @@ void qdf_mem_free(void *ptr)
 	 * The empty list check will guarantee that we avoid a race condition.
 	 */
 	list_del_init(&mem_struct->node);
-	qdf_mem_list->count--;
+	mem_list->count--;
 	qdf_mem_kmalloc_dec(ksize(mem_struct));
 	kfree(mem_struct);
 	qdf_spin_unlock_irqrestore(&qdf_mem_list_lock);
@@ -1077,7 +1101,7 @@ void qdf_mem_free(void *ptr)
 	return;
 
 error:
-	if (!qdf_list_has_node(qdf_mem_list, &mem_struct->node)) {
+	if (!qdf_list_has_node(mem_list, &mem_struct->node)) {
 		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_FATAL,
 			  "%s: Unallocated memory (double free?)",
 			  __func__);
@@ -1114,35 +1138,19 @@ error:
 }
 qdf_export_symbol(qdf_mem_free);
 
-void qdf_mem_set_domain(enum qdf_mem_domain domain)
-{
-	QDF_BUG(domain >= QDF_MEM_DOMAIN_INIT);
-	if (domain < QDF_MEM_DOMAIN_INIT)
-		return;
-
-	QDF_BUG(domain < QDF_MEM_DOMAIN_MAX_COUNT);
-	if (domain >= QDF_MEM_DOMAIN_MAX_COUNT)
-		return;
-
-	qdf_spin_lock(&qdf_mem_list_lock);
-	qdf_mem_current_domain = domain;
-	qdf_mem_list = &qdf_mem_domains[domain];
-	qdf_spin_unlock(&qdf_mem_list_lock);
-}
-
 void qdf_mem_check_for_leaks(void)
 {
-	/* get local copy in case qdf_mem_list changes after empty check */
-	qdf_list_t *domain = qdf_mem_list;
+	enum qdf_mem_domain domain = qdf_mem_current_domain;
+	qdf_list_t *mem_list = &qdf_mem_domains[domain];
 
-	if (!qdf_list_empty(domain)) {
-		qdf_err("Memory leaks detected in %s domain!",
-			qdf_mem_domain_name(qdf_mem_current_domain));
-		qdf_mem_domain_print(domain, qdf_err_printer, NULL);
-		qdf_mem_leak_panic();
-	}
+	if (qdf_list_empty(mem_list))
+		return;
+
+	qdf_err("Memory leaks detected in %s domain!",
+		qdf_mem_domain_name(domain));
+	qdf_mem_domain_print(mem_list, qdf_err_printer, NULL);
+	qdf_mem_leak_panic();
 }
-
 #else
 static void qdf_mem_debug_init(void) {}
 

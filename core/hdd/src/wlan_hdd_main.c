@@ -4080,6 +4080,7 @@ QDF_STATUS hdd_stop_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 	unsigned long rc;
 	hdd_scaninfo_t *scan_info = NULL;
 	void *sap_ctx;
+	tsap_Config_t *sap_config;
 
 	ENTER();
 
@@ -4179,6 +4180,10 @@ QDF_STATUS hdd_stop_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 
 	case QDF_SAP_MODE:
 		hdd_ipa_flush(hdd_ctx);
+		sap_config = &adapter->sessionCtx.ap.sapConfig;
+		if (sap_config)
+			wlansap_reset_sap_config_add_ie(sap_config,
+							eUPDATE_IE_ALL);
 	case QDF_P2P_GO_MODE:
 		if (hdd_ctx->config->conc_custom_rule1 &&
 			(QDF_SAP_MODE == adapter->device_mode)) {

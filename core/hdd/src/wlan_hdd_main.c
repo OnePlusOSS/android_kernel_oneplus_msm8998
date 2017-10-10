@@ -2007,6 +2007,12 @@ static void hdd_update_hw_sw_info(hdd_context_t *hdd_ctx)
 	hdd_wlan_get_version(hdd_ctx, NULL, NULL);
 }
 
+static void hdd_check_for_leaks(void)
+{
+	qdf_mc_timer_check_for_leaks();
+	qdf_mem_check_for_leaks();
+}
+
 /**
  * hdd_wlan_start_modules() - Single driver state machine for starting modules
  * @hdd_ctx: HDD context
@@ -2196,7 +2202,7 @@ release_lock:
 	hdd_ctx->start_modules_in_progress = false;
 	mutex_unlock(&hdd_ctx->iface_change_lock);
 
-	qdf_mem_check_for_leaks();
+	hdd_check_for_leaks();
 	qdf_mem_set_domain(QDF_MEM_DOMAIN_INIT);
 
 	EXIT();
@@ -9718,7 +9724,7 @@ int hdd_wlan_stop_modules(hdd_context_t *hdd_ctx, bool ftm_mode)
 
 	/* many adapter resources are not freed by design in SSR case */
 	if (!is_recover_stop)
-		qdf_mem_check_for_leaks();
+		hdd_check_for_leaks();
 
 	qdf_mem_set_domain(QDF_MEM_DOMAIN_INIT);
 

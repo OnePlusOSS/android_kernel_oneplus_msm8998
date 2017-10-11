@@ -83,6 +83,11 @@ static QDF_STATUS lim_send_hal_req_remain_on_chan_offload(tpAniSirGlobal pMac,
 	tSirMsgQ msg;
 	tSirRetStatus rc = eSIR_SUCCESS;
 
+	if (pMac->lim.scan_disabled) {
+		pe_err("Scan disabled, rejecting scan on ROC");
+		return QDF_STATUS_E_INVAL;
+	}
+
 	pScanOffloadReq = qdf_mem_malloc(sizeof(tSirScanOffloadReq));
 	if (NULL == pScanOffloadReq) {
 		pe_err("Memory allocation failed for pScanOffloadReq");

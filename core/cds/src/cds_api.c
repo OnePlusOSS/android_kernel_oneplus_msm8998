@@ -460,8 +460,7 @@ QDF_STATUS cds_open(void)
 
 	qdf_status = htc_wait_target(HTCHandle);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_FATAL,
-			  "%s: Failed to complete BMI phase", __func__);
+		cds_alert("Failed to complete BMI phase. status: %d", qdf_status);
 
 		if (qdf_status != QDF_STATUS_E_NOMEM
 				&& !cds_is_fw_down())
@@ -533,10 +532,12 @@ err_bmi_close:
 	bmi_cleanup(ol_ctx);
 
 err_sched_close:
-	qdf_status = cds_sched_close(gp_cds_context);
-	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		cds_err("Failed to close CDS Scheduler");
-		QDF_ASSERT(false);
+	if (QDF_IS_STATUS_SUCCESS(qdf_status)) {
+		qdf_status = cds_sched_close(gp_cds_context);
+		if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
+			cds_err("Failed to close CDS Scheduler");
+			QDF_ASSERT(false);
+		}
 	}
 
 err_concurrency_lock:
@@ -551,7 +552,7 @@ err_wma_complete_event:
 err_probe_event:
 	qdf_event_destroy(&gp_cds_context->ProbeEvent);
 
-	return QDF_STATUS_E_FAILURE;
+	return qdf_status;
 } /* cds_open() */
 
 /**

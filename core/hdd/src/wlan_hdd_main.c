@@ -2022,7 +2022,7 @@ static void hdd_update_hw_sw_info(hdd_context_t *hdd_ctx)
 int hdd_wlan_start_modules(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 			   bool reinit)
 {
-	int ret;
+	int ret = 0;
 	qdf_device_t qdf_dev;
 	QDF_STATUS status;
 	p_cds_contextType p_cds_context;
@@ -2103,6 +2103,7 @@ int hdd_wlan_start_modules(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 		status = cds_open();
 		if (!QDF_IS_STATUS_SUCCESS(status)) {
 			hdd_err("Failed to Open CDS: %d", status);
+			ret = (status == QDF_STATUS_E_NOMEM) ? -ENOMEM : -EINVAL;
 			goto deinit_config;
 		}
 
@@ -2111,6 +2112,7 @@ int hdd_wlan_start_modules(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 		status = cds_pre_enable(hdd_ctx->pcds_context);
 		if (!QDF_IS_STATUS_SUCCESS(status)) {
 			hdd_err("Failed to pre-enable CDS: %d", status);
+			ret = (status == QDF_STATUS_E_NOMEM) ? -ENOMEM : -EINVAL;
 			goto close;
 		}
 
@@ -2199,7 +2201,7 @@ release_lock:
 
 	EXIT();
 
-	return -EINVAL;
+	return ret;
 }
 
 /**
@@ -10071,7 +10073,7 @@ err_hdd_free_context:
 	qdf_nbuf_deinit_replenish_timer();
 	mutex_destroy(&hdd_ctx->iface_change_lock);
 	hdd_context_destroy(hdd_ctx);
-	return -EIO;
+	return ret;
 
 success:
 	EXIT();

@@ -1525,6 +1525,7 @@ struct peer_debug_info {
  * @ss_configs: spectral scan config parameters
  * @bandcapability: band capability configured through ini
  * @ito_repeat_count: Indicates ito repeated count
+ * @critical_events_in_flight: number of suspend preventing events in flight
  */
 typedef struct {
 	void *wmi_handle;
@@ -1744,6 +1745,7 @@ typedef struct {
 	struct vdev_spectral_configure_params ss_configs;
 #endif
 	uint8_t  ito_repeat_count;
+	qdf_atomic_t critical_events_in_flight;
 #ifdef FEATURE_WLAN_D0WOW
 	atomic_t in_d0wow;
 #endif

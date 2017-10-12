@@ -1592,6 +1592,16 @@ static void wma_process_cli_set_cmd(tp_wma_handle wma,
 	}
 }
 
+static bool wma_event_is_critical(uint32_t event_id)
+{
+	switch (event_id) {
+	case WMI_ROAM_SYNCH_EVENTID:
+		return true;
+	default:
+		return false;
+	}
+}
+
 /**
  * wma_process_fw_event() - process any fw event
  * @wma: wma handle
@@ -1605,8 +1615,15 @@ static int wma_process_fw_event(tp_wma_handle wma,
 				wma_process_fw_event_params *buf)
 {
 	struct wmi_unified *wmi_handle = (struct wmi_unified *)buf->wmi_handle;
+	uint32_t event_id;
 
 	wmi_process_fw_event(wmi_handle, buf->evt_buf);
+
+	event_id = WMI_GET_FIELD(qdf_nbuf_data(buf->evt_buf),
+				 WMI_CMD_HDR, COMMANDID);
+	if (wma_event_is_critical(event_id))
+		qdf_atomic_dec(&wma->critical_events_in_flight);
+
 	return 0;
 }
 
@@ -1675,6 +1692,8 @@ static int wma_process_fw_event_mc_thread_ctx(void *ctx, void *ev)
 {
 	wma_process_fw_event_params *params_buf;
 	cds_msg_t cds_msg = { 0 };
+	tp_wma_handle wma;
+	uint32_t event_id;
 
 	params_buf = qdf_mem_malloc(sizeof(wma_process_fw_event_params));
 	if (!params_buf) {
@@ -1685,6 +1704,12 @@ static int wma_process_fw_event_mc_thread_ctx(void *ctx, void *ev)
 
 	params_buf->wmi_handle = (struct wmi_unified *)ctx;
 	params_buf->evt_buf = (wmi_buf_t *)ev;
+
+	wma = cds_get_context(QDF_MODULE_ID_WMA);
+	event_id = WMI_GET_FIELD(qdf_nbuf_data(params_buf->evt_buf),
+				 WMI_CMD_HDR, COMMANDID);
+	if (wma && wma_event_is_critical(event_id))
+		qdf_atomic_inc(&wma->critical_events_in_flight);
 
 	cds_msg.type = WMA_PROCESS_FW_EVENT;
 	cds_msg.bodyptr = params_buf;

@@ -8675,6 +8675,7 @@ void wma_handle_initial_wake_up(void)
 int wma_is_target_wake_up_received(void)
 {
 	tp_wma_handle wma = cds_get_context(QDF_MODULE_ID_WMA);
+	int32_t event_count;
 
 	if (NULL == wma) {
 		WMA_LOGE("%s: wma is NULL", __func__);
@@ -8683,6 +8684,13 @@ int wma_is_target_wake_up_received(void)
 
 	if (wma->wow_initial_wake_up) {
 		WMA_LOGE("Target initial wake up received try again");
+		return -EAGAIN;
+	}
+
+	event_count = qdf_atomic_read(&wma->critical_events_in_flight);
+	if (event_count) {
+		WMA_LOGE("%d critical event(s) in flight; Try again",
+			 event_count);
 		return -EAGAIN;
 	}
 

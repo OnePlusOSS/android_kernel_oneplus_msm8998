@@ -98,10 +98,12 @@ enum qdf_mem_domain {
 	QDF_MEM_DOMAIN_MAX_COUNT,
 };
 
-#ifdef MEMORY_DEBUG
-#define qdf_mem_malloc(size) \
-	qdf_mem_malloc_debug(size, __FILE__, __LINE__)
-void *qdf_mem_malloc_debug(size_t size, char *file_name, uint32_t line_num);
+/**
+ * qdf_mem_get_domain() - Get the current memory domain
+ *
+ * Return: the current memory domain
+ */
+enum qdf_mem_domain qdf_mem_get_domain(void);
 
 /**
  * qdf_mem_set_domain() - Set the current memory domain
@@ -114,6 +116,19 @@ void *qdf_mem_malloc_debug(size_t size, char *file_name, uint32_t line_num);
  * Return: None
  */
 void qdf_mem_set_domain(enum qdf_mem_domain domain);
+
+/**
+ * qdf_mem_domain_name() - Get the human readable name of a memory domain
+ * @domain: The domain to return the name of
+ *
+ * Return: name of the given domain
+ */
+const uint8_t *qdf_mem_domain_name(enum qdf_mem_domain domain);
+
+#ifdef MEMORY_DEBUG
+#define qdf_mem_malloc(size) \
+	qdf_mem_malloc_debug(size, __FILE__, __LINE__)
+void *qdf_mem_malloc_debug(size_t size, char *file_name, uint32_t line_num);
 
 /**
  * qdf_mem_check_for_leaks() - Assert that the current memory domain is empty
@@ -148,7 +163,7 @@ void qdf_mem_set_domain(enum qdf_mem_domain domain);
 void qdf_mem_check_for_leaks(void);
 #else
 void *qdf_mem_malloc(qdf_size_t size);
-static inline void qdf_mem_set_domain(enum qdf_mem_domain domain) { }
+
 static inline void qdf_mem_check_for_leaks(void) { }
 #endif /* MEMORY_DEBUG */
 

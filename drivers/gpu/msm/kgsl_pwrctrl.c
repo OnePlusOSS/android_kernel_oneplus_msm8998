@@ -43,6 +43,13 @@
 
 #define DEFAULT_BUS_P 25
 
+/*
+ * The effective duration of qos request in usecs. After
+ * timeout, qos request is cancelled automatically.
+ * Kept 80ms default, inline with default GPU idle time.
+ */
+#define KGSL_L2PC_CPU_TIMEOUT	(80 * 1000)
+
 /* Order deeply matters here because reasons. New entries go on the end */
 static const char * const clocks[] = {
 	"src_clk",
@@ -513,14 +520,12 @@ EXPORT_SYMBOL(kgsl_pwrctrl_set_constraint);
 /**
  * kgsl_pwrctrl_update_l2pc() - Update existing qos request
  * @device: Pointer to the kgsl_device struct
- * @timeout_us: the effective duration of qos request in usecs.
  *
  * Updates an existing qos request to avoid L2PC on the
  * CPUs (which are selected through dtsi) on which GPU
  * thread is running. This would help for performance.
  */
-void kgsl_pwrctrl_update_l2pc(struct kgsl_device *device,
-			unsigned long timeout_us)
+void kgsl_pwrctrl_update_l2pc(struct kgsl_device *device)
 {
 	int cpu;
 
@@ -534,7 +539,7 @@ void kgsl_pwrctrl_update_l2pc(struct kgsl_device *device,
 		pm_qos_update_request_timeout(
 				&device->pwrctrl.l2pc_cpus_qos,
 				device->pwrctrl.pm_qos_cpu_mask_latency,
-				timeout_us);
+				KGSL_L2PC_CPU_TIMEOUT);
 	}
 }
 EXPORT_SYMBOL(kgsl_pwrctrl_update_l2pc);
@@ -2203,10 +2208,6 @@ int kgsl_pwrctrl_init(struct kgsl_device *device)
 
 	kgsl_property_read_u32(device, "qcom,l2pc-cpu-mask",
 			&pwr->l2pc_cpus_mask);
-
-	pwr->l2pc_update_queue = of_property_read_bool(
-				device->pdev->dev.of_node,
-				"qcom,l2pc-update-queue");
 
 	pm_runtime_enable(&pdev->dev);
 

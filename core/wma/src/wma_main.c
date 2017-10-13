@@ -1615,12 +1615,11 @@ static int wma_process_fw_event(tp_wma_handle wma,
 				wma_process_fw_event_params *buf)
 {
 	struct wmi_unified *wmi_handle = (struct wmi_unified *)buf->wmi_handle;
-	uint32_t event_id;
+	uint32_t event_id = WMI_GET_FIELD(qdf_nbuf_data(buf->evt_buf),
+					  WMI_CMD_HDR, COMMANDID);
 
 	wmi_process_fw_event(wmi_handle, buf->evt_buf);
 
-	event_id = WMI_GET_FIELD(qdf_nbuf_data(buf->evt_buf),
-				 WMI_CMD_HDR, COMMANDID);
 	if (wma_event_is_critical(event_id))
 		qdf_atomic_dec(&wma->critical_events_in_flight);
 
@@ -1724,7 +1723,6 @@ static int wma_process_fw_event_mc_thread_ctx(void *ctx, void *ev)
 		return -EFAULT;
 	}
 	return 0;
-
 }
 
 /**

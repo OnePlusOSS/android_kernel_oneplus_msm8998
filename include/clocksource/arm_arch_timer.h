@@ -47,7 +47,9 @@ enum arch_timer_reg {
 #define ARCH_TIMER_USR_VT_ACCESS_EN	(1 << 8) /* virtual timer registers */
 #define ARCH_TIMER_USR_PT_ACCESS_EN	(1 << 9) /* physical timer registers */
 
-#define ARCH_TIMER_EVT_STREAM_FREQ	10000	/* 100us */
+#define ARCH_TIMER_EVT_STREAM_PERIOD_US	100
+#define ARCH_TIMER_EVT_STREAM_FREQ				\
+	(USEC_PER_SEC / ARCH_TIMER_EVT_STREAM_PERIOD_US)
 
 #ifdef CONFIG_ARM_ARCH_TIMER
 

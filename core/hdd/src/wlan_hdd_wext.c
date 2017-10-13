@@ -3937,8 +3937,9 @@ static void hdd_get_peer_rssi_cb(struct sir_peer_info_resp *sta_rssi,
 {
 	struct statsContext *get_rssi_context;
 	struct sir_peer_info *rssi_info;
-	uint8_t peer_num;
+	uint8_t peer_num, i;
 	hdd_adapter_t *padapter;
+	hdd_station_info_t *stainfo;
 
 	if ((sta_rssi == NULL) || (context == NULL)) {
 		hdd_err("Bad param, sta_rssi [%pK] context [%pK]",
@@ -3982,6 +3983,19 @@ static void hdd_get_peer_rssi_cb(struct sir_peer_info_resp *sta_rssi,
 		peer_num * sizeof(*rssi_info));
 	padapter->peer_sta_info.sta_num = peer_num;
 
+	for (i = 0; i < peer_num; i++) {
+		stainfo = hdd_get_stainfo(padapter->cache_sta_info,
+					  rssi_info[i].peer_macaddr);
+		if (stainfo) {
+			stainfo->rssi = rssi_info[i].rssi;
+			stainfo->tx_rate = rssi_info[i].tx_rate;
+			stainfo->rx_rate = rssi_info[i].rx_rate;
+			hdd_info("rssi:%d tx_rate:%u rx_rate:%u %pM",
+				 stainfo->rssi, stainfo->tx_rate,
+				 stainfo->rx_rate, stainfo->macAddrSTA.bytes);
+		}
+	}
+
 	/* notify the caller */
 	complete(&get_rssi_context->completion);
 
@@ -3990,7 +4004,8 @@ static void hdd_get_peer_rssi_cb(struct sir_peer_info_resp *sta_rssi,
 }
 
 int wlan_hdd_get_peer_rssi(hdd_adapter_t *adapter,
-					struct qdf_mac_addr *macaddress)
+			   struct qdf_mac_addr *macaddress,
+			   int request_source)
 {
 	QDF_STATUS status;
 	int ret;
@@ -4004,6 +4019,7 @@ int wlan_hdd_get_peer_rssi(hdd_adapter_t *adapter,
 
 	init_completion(&context.completion);
 	context.magic = PEER_INFO_CONTEXT_MAGIC;
+	context.pAdapter = adapter;
 
 	qdf_mem_copy(&(rssi_req.peer_macaddr), macaddress,
 				QDF_MAC_ADDR_SIZE);
@@ -4015,7 +4031,9 @@ int wlan_hdd_get_peer_rssi(hdd_adapter_t *adapter,
 	if (status != QDF_STATUS_SUCCESS) {
 		hdd_err("Unable to retrieve statistics for rssi");
 		ret = -EFAULT;
-	} else {
+	}
+
+	else if (request_source != HDD_WLAN_GET_PEER_RSSI_SOURCE_DRIVER) {
 		if (!wait_for_completion_timeout(&context.completion,
 				msecs_to_jiffies(WLAN_WAIT_TIME_STATS))) {
 			hdd_err("SME timed out while retrieving rssi");
@@ -4023,8 +4041,12 @@ int wlan_hdd_get_peer_rssi(hdd_adapter_t *adapter,
 		} else {
 			ret = 0;
 		}
+		goto set_magic;
+	} else {
+		ret = 0;
+		return ret;
 	}
-
+set_magic:
 	/*
 	 * either we never sent a request, we sent a request and received a
 	 * response or we sent a request and timed out.  if we never sent a
@@ -4038,9 +4060,11 @@ int wlan_hdd_get_peer_rssi(hdd_adapter_t *adapter,
 	 * holding a shared spinlock which will cause us to block if the
 	 * callback is currently executing
 	 */
+
 	spin_lock(&hdd_context_lock);
 	context.magic = 0;
 	spin_unlock(&hdd_context_lock);
+
 	return ret;
 }
 

@@ -38,6 +38,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
+#include <linux/ieee80211.h>
 #include <qdf_list.h>
 #include <qdf_types.h>
 #include <wlan_hdd_main.h>
@@ -136,4 +137,9 @@ bool hdd_is_peer_associated(hdd_adapter_t *adapter,
 			    struct qdf_mac_addr *mac_addr);
 void hdd_sap_indicate_disconnect_for_sta(hdd_adapter_t *adapter);
 void hdd_sap_destroy_events(hdd_adapter_t *adapter);
+void hdd_copy_ht_caps(struct ieee80211_ht_cap *hdd_ht_cap,
+		      tDot11fIEHTCaps *roam_ht_cap);
+void hdd_copy_vht_caps(struct ieee80211_vht_cap *hdd_vht_cap,
+		       tDot11fIEVHTCaps *roam_vht_cap);
+
 #endif /* end #if !defined(WLAN_HDD_HOSTAPD_H) */

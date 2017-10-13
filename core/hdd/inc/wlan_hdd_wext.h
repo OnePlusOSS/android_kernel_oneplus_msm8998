@@ -152,6 +152,12 @@ enum hdd_wlan_wmm_ts_info_ack_policy {
 	HDD_WLAN_WMM_TS_INFO_ACK_POLICY_HT_IMMEDIATE_BLOCK_ACK = 1,
 };
 
+/* Source for peer rssi request */
+enum hdd_wlan_get_peer_rssi_source {
+	HDD_WLAN_GET_PEER_RSSI_SOURCE_USER = 0,
+	HDD_WLAN_GET_PEER_RSSI_SOURCE_DRIVER = 1,
+};
+
 /** Maximum Length of WPA/RSN IE */
 #define MAX_WPA_RSN_IE_LEN 40
 
@@ -403,13 +409,14 @@ int wlan_hdd_get_link_speed(hdd_adapter_t *sta_adapter, uint32_t *link_speed);
  * wlan_hdd_get_peer_rssi() - get station's rssi
  * @adapter: hostapd interface
  * @macaddress: peer sta mac address or ff:ff:ff:ff:ff:ff to query all peer
+ * @source : source of the request hdd_wlan_get_peer_rssi_source
  *
  * This function will call sme_get_peer_info to get rssi
  *
  * Return: 0 on success, otherwise error value
  */
 int wlan_hdd_get_peer_rssi(hdd_adapter_t *adapter,
-			struct qdf_mac_addr *macaddress);
+			struct qdf_mac_addr *macaddress, int request_source);
 /**
  * wlan_hdd_set_mon_chan() - Set capture channel on the monitor mode interface.
  * @adapter: Handle to adapter

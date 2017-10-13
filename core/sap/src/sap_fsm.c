@@ -3073,6 +3073,27 @@ QDF_STATUS sap_signal_hdd_event(ptSapContext sap_ctx,
 		reassoc_complete->max_mcs_idx = csr_roaminfo->max_mcs_idx;
 		reassoc_complete->rx_mcs_map = csr_roaminfo->rx_mcs_map;
 		reassoc_complete->tx_mcs_map = csr_roaminfo->tx_mcs_map;
+		if (csr_roaminfo->ht_caps.present)
+			reassoc_complete->ht_caps = csr_roaminfo->ht_caps;
+		if (csr_roaminfo->vht_caps.present)
+			reassoc_complete->vht_caps = csr_roaminfo->vht_caps;
+
+		break;
+
+	case eSAP_STA_LOSTLINK_DETECTED:
+		if (!csr_roaminfo) {
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+				  FL("Invalid CSR Roam Info"));
+			return QDF_STATUS_E_INVAL;
+		}
+		sap_ap_event.sapHddEventCode = eSAP_STA_LOSTLINK_DETECTED;
+		disassoc_comp =
+			&sap_ap_event.sapevt.sapStationDisassocCompleteEvent;
+
+		qdf_copy_macaddr(&disassoc_comp->staMac,
+				 &csr_roaminfo->peerMac);
+		disassoc_comp->reason_code = csr_roaminfo->reasonCode;
+
 		break;
 
 	case eSAP_STA_DISASSOC_EVENT:

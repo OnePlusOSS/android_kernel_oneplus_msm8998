@@ -346,11 +346,9 @@ static int hdd_add_beacon_filter(hdd_adapter_t *adapter)
  *
  * Return: None
  */
-static void hdd_copy_ht_caps(hdd_station_ctx_t *hdd_sta_ctx,
-				     tCsrRoamInfo *roam_info)
+void hdd_copy_ht_caps(struct ieee80211_ht_cap *hdd_ht_cap,
+		      tDot11fIEHTCaps *roam_ht_cap)
 {
-	tDot11fIEHTCaps *roam_ht_cap = &roam_info->ht_caps;
-	struct ieee80211_ht_cap *hdd_ht_cap = &hdd_sta_ctx->conn_info.ht_caps;
 	uint32_t i, temp_ht_cap;
 
 	qdf_mem_zero(hdd_ht_cap, sizeof(struct ieee80211_ht_cap));
@@ -540,12 +538,9 @@ static void hdd_copy_ht_caps(hdd_station_ctx_t *hdd_sta_ctx,
  *
  * Return: None
  */
-static void hdd_copy_vht_caps(hdd_station_ctx_t *hdd_sta_ctx,
-				     tCsrRoamInfo *roam_info)
+void hdd_copy_vht_caps(struct ieee80211_vht_cap *hdd_vht_cap,
+		       tDot11fIEVHTCaps *roam_vht_cap)
 {
-	tDot11fIEVHTCaps *roam_vht_cap = &roam_info->vht_caps;
-	struct ieee80211_vht_cap *hdd_vht_cap =
-		&hdd_sta_ctx->conn_info.vht_caps;
 	uint32_t temp_vht_cap;
 
 	qdf_mem_zero(hdd_vht_cap, sizeof(struct ieee80211_vht_cap));
@@ -799,13 +794,15 @@ static void hdd_save_bss_info(hdd_adapter_t *adapter,
 		hdd_sta_ctx->conn_info.operationChannel);
 	if (roam_info->vht_caps.present) {
 		hdd_sta_ctx->conn_info.conn_flag.vht_present = true;
-		hdd_copy_vht_caps(hdd_sta_ctx, roam_info);
+		hdd_copy_vht_caps(&hdd_sta_ctx->conn_info.vht_caps,
+				  &roam_info->vht_caps);
 	} else {
 		hdd_sta_ctx->conn_info.conn_flag.vht_present = false;
 	}
 	if (roam_info->ht_caps.present) {
 		hdd_sta_ctx->conn_info.conn_flag.ht_present = true;
-		hdd_copy_ht_caps(hdd_sta_ctx, roam_info);
+		hdd_copy_ht_caps(&hdd_sta_ctx->conn_info.ht_caps,
+				 &roam_info->ht_caps);
 	} else {
 		hdd_sta_ctx->conn_info.conn_flag.ht_present = false;
 	}

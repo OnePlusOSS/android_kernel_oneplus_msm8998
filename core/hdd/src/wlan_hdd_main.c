@@ -10038,6 +10038,8 @@ int hdd_wlan_startup(struct device *dev)
 
 	if (hdd_ctx->config->fIsImpsEnabled)
 		hdd_set_idle_ps_config(hdd_ctx, true);
+	else
+		hdd_set_idle_ps_config(hdd_ctx, false);
 
 	qdf_sched_delayed_work(&hdd_ctx->iface_idle_work,
 			       hdd_ctx->config->iface_change_wait_time);

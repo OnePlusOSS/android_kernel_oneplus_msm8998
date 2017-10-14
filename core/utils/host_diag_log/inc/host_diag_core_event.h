@@ -44,7 +44,6 @@
    Include Files
    ------------------------------------------------------------------------*/
 #include "qdf_types.h"
-#include "cds_pack_align.h"
 #include "i_host_diag_core_event.h"
 
 /*--------------------------------------------------------------------------
@@ -184,23 +183,6 @@ typedef struct {
 	char driverVersion[10];
 } host_event_wlan_bringup_status_payload_type;
 
-CDS_PACK_START
-/*-------------------------------------------------------------------------
-   Event ID: EVENT_WLAN_POWERSAVE_GENERIC
-   ------------------------------------------------------------------------*/
-typedef CDS_PACK_PRE struct {
-	uint8_t event_subtype;
-	uint8_t full_power_request_reason;
-	uint8_t pmc_current_state;
-	uint8_t enable_disable_powersave_mode;
-	uint8_t winmob_d_power_state;
-	uint8_t dtim_period;
-	uint16_t final_listen_intv;
-	uint16_t bmps_auto_timer_duration;
-	uint16_t bmps_period;
-} CDS_PACK_POST host_event_wlan_powersave_payload_type;
-
-CDS_PACK_END
 /*-------------------------------------------------------------------------
    Event ID: EVENT_WLAN_POWERSAVE_WOW
    ------------------------------------------------------------------------*/

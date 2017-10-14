@@ -48,7 +48,6 @@
 #include <cds_sched.h>
 #include <qdf_threads.h>
 #include <qdf_mc_timer.h>
-#include <cds_pack_align.h>
 
 /* Amount of time to wait for WMA to perform an asynchronous activity.
  * This value should be larger than the timeout used by WMI to wait for

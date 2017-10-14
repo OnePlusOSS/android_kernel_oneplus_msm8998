@@ -566,6 +566,7 @@ QDF_STATUS cds_pre_enable(v_CONTEXT_t cds_context)
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
 	p_cds_contextType p_cds_context = (p_cds_contextType) cds_context;
 	void *scn;
+
 	QDF_TRACE(QDF_MODULE_ID_SYS, QDF_TRACE_LEVEL_DEBUG, "cds prestart");
 
 	if (gp_cds_context != p_cds_context) {

@@ -1644,6 +1644,7 @@ lim_populate_peer_rate_set(tpAniSirGlobal pMac,
 	tSirMacRateSet tempRateSet;
 	tSirMacRateSet tempRateSet2;
 	uint32_t i, j, val, min, isArate;
+
 	isArate = 0;
 
 	/* copy operational rate set from psessionEntry */
@@ -1692,6 +1693,7 @@ lim_populate_peer_rate_set(tpAniSirGlobal pMac,
 	{
 		uint8_t aRateIndex = 0;
 		uint8_t bRateIndex = 0;
+
 		qdf_mem_set((uint8_t *) pRates, sizeof(tSirSupportedRates), 0);
 		for (i = 0; i < tempRateSet.numRates; i++) {
 			min = 0;
@@ -4543,6 +4545,7 @@ void lim_init_pre_auth_timer_table(tpAniSirGlobal pMac,
 {
 	uint32_t cfgValue;
 	uint32_t authNodeIdx;
+
 	tLimPreAuthNode **pAuthNode = pPreAuthTimerTable->pTable;
 
 	/* Get AUTH_RSP Timers value */
@@ -4581,6 +4584,7 @@ tLimPreAuthNode *lim_acquire_free_pre_auth_node(tpAniSirGlobal pMac,
 {
 	uint32_t i;
 	tLimPreAuthNode **pTempNode = pPreAuthTimerTable->pTable;
+
 	for (i = 0; i < pPreAuthTimerTable->numEntry; i++) {
 		if (pTempNode[i]->fFree == 1) {
 			pTempNode[i]->fFree = 0;

@@ -11939,6 +11939,7 @@ int wlan_hdd_cfg80211_update_band(struct wiphy *wiphy, eCsrBand eBand)
 static void wlan_hdd_cfg80211_scan_randomization_init(struct wiphy *wiphy)
 {
 	hdd_context_t *hdd_ctx;
+
 	hdd_ctx = wiphy_priv(wiphy);
 
 	if (false == hdd_ctx->config->enable_mac_spoofing) {
@@ -14129,6 +14130,7 @@ static int wlan_hdd_cfg80211_set_default_key(struct wiphy *wiphy,
 					     bool unicast, bool multicast)
 {
 	int ret;
+
 	cds_ssr_protect(__func__);
 	ret =
 		__wlan_hdd_cfg80211_set_default_key(wiphy, ndev, key_index, unicast,

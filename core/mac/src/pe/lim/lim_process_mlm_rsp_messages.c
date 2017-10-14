@@ -810,6 +810,7 @@ void lim_process_mlm_assoc_ind(tpAniSirGlobal pMac, uint32_t *pMsgBuf)
 	tSirSmeAssocInd *pSirSmeAssocInd;
 	tpDphHashNode pStaDs = 0;
 	tpPESession psessionEntry;
+
 	if (pMsgBuf == NULL) {
 		pe_err("Buffer is Pointing to NULL");
 		return;
@@ -887,6 +888,7 @@ void lim_process_mlm_disassoc_ind(tpAniSirGlobal pMac, uint32_t *pMsgBuf)
 {
 	tLimMlmDisassocInd *pMlmDisassocInd;
 	tpPESession psessionEntry;
+
 	pMlmDisassocInd = (tLimMlmDisassocInd *) pMsgBuf;
 	psessionEntry = pe_find_session_by_session_id(pMac,
 				pMlmDisassocInd->sessionId);
@@ -928,6 +930,7 @@ void lim_process_mlm_disassoc_cnf(tpAniSirGlobal mac_ctx,
 	tSirResultCodes result_code;
 	tLimMlmDisassocCnf *disassoc_cnf;
 	tpPESession session_entry;
+
 	disassoc_cnf = (tLimMlmDisassocCnf *) msg;
 
 	session_entry =
@@ -1015,6 +1018,7 @@ void lim_process_mlm_deauth_ind(tpAniSirGlobal pMac, uint32_t *pMsgBuf)
 	tLimMlmDeauthInd *pMlmDeauthInd;
 	tpPESession psessionEntry;
 	uint8_t sessionId;
+
 	pMlmDeauthInd = (tLimMlmDeauthInd *) pMsgBuf;
 	psessionEntry = pe_find_session_by_bssid(pMac,
 				pMlmDeauthInd->peerMacAddr, &sessionId);
@@ -1144,6 +1148,7 @@ void lim_process_mlm_purge_sta_ind(tpAniSirGlobal pMac, uint32_t *pMsgBuf)
 	tSirResultCodes resultCode;
 	tpLimMlmPurgeStaInd pMlmPurgeStaInd;
 	tpPESession psessionEntry;
+
 	if (pMsgBuf == NULL) {
 		pe_err("Buffer is Pointing to NULL");
 		return;
@@ -1497,6 +1502,7 @@ void lim_process_sta_mlm_add_sta_rsp(tpAniSirGlobal mac_ctx,
 		if (session_entry->limSmeState == eLIM_SME_WT_REASSOC_STATE) {
 			/* check if we have keys(PTK)to install in case of 11r */
 			tpftPEContext ft_ctx = &session_entry->ftPEContext;
+
 			ft_session = pe_find_session_by_bssid(mac_ctx,
 				session_entry->limReAssocbssId, &ft_session_id);
 			if (ft_session != NULL &&
@@ -1753,6 +1759,7 @@ void lim_process_mlm_del_sta_rsp(tpAniSirGlobal mac_ctx,
 	 */
 	tpPESession session_entry;
 	tpDeleteStaParams del_sta_params;
+
 	del_sta_params = (tpDeleteStaParams) msg->bodyptr;
 	if (NULL == del_sta_params) {
 		pe_err("null pointer del_sta_params msg");
@@ -1857,6 +1864,7 @@ void lim_process_ap_mlm_del_sta_rsp(tpAniSirGlobal mac_ctx,
 			 */
 			if (sta_ds->qos.addtsPresent) {
 				tpLimTspecInfo pTspecInfo;
+
 				if (eSIR_SUCCESS ==
 				    lim_tspec_find_by_assoc_id(mac_ctx,
 					sta_ds->assocId,
@@ -1896,6 +1904,7 @@ void lim_process_sta_mlm_del_sta_rsp(tpAniSirGlobal pMac, tpSirMsgQ limMsgQ,
 	tSirResultCodes statusCode = eSIR_SME_SUCCESS;
 	tpDeleteStaParams pDelStaParams = (tpDeleteStaParams) limMsgQ->bodyptr;
 	tpDphHashNode pStaDs = NULL;
+
 	if (NULL == pDelStaParams) {
 		pe_err("Encountered NULL Pointer");
 		goto end;
@@ -2050,6 +2059,7 @@ static void lim_process_ap_mlm_add_bss_rsp(tpAniSirGlobal pMac, tpSirMsgQ limMsg
 	tpPESession psessionEntry;
 	uint8_t isWepEnabled = false;
 	tpAddBssParams pAddBssParams = (tpAddBssParams) limMsgQ->bodyptr;
+
 	if (NULL == pAddBssParams) {
 		pe_err("Encountered NULL Pointer");
 		goto end;
@@ -2403,6 +2413,7 @@ lim_process_sta_mlm_add_bss_rsp(tpAniSirGlobal mac_ctx,
 	tpDphHashNode sta_ds = NULL;
 	uint16_t sta_idx = STA_INVALID_IDX;
 	uint8_t update_sta = false;
+
 	mlm_assoc_cnf.resultCode = eSIR_SME_SUCCESS;
 
 	if (eLIM_MLM_WT_ADD_BSS_RSP_PREASSOC_STATE ==
@@ -2883,6 +2894,7 @@ static void lim_process_switch_channel_re_assoc_req(tpAniSirGlobal pMac,
 {
 	tLimMlmReassocCnf mlmReassocCnf;
 	tLimMlmReassocReq *pMlmReassocReq;
+
 	pMlmReassocReq =
 		(tLimMlmReassocReq *) (psessionEntry->pLimMlmReassocReq);
 	if (pMlmReassocReq == NULL) {
@@ -2949,6 +2961,7 @@ static void lim_process_switch_channel_join_req(
 {
 	tSirMacSSid ssId;
 	tLimMlmJoinCnf join_cnf;
+
 	if (status != QDF_STATUS_SUCCESS) {
 		pe_err("Change channel failed!!");
 		goto error;

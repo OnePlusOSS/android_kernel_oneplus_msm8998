@@ -1864,6 +1864,7 @@ static void wma_set_vdev_suspend_dtim(tp_wma_handle wma, uint8_t vdev_id)
 
 		/* get mac to acess CFG data base */
 		struct sAniSirGlobal *mac = cds_get_context(QDF_MODULE_ID_PE);
+
 		if (!mac) {
 			WMA_LOGE(FL("Failed to get mac context"));
 			return;

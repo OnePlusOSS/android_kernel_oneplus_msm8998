@@ -3916,6 +3916,7 @@ void cds_incr_active_session(enum tQDF_ADAPTER_MODE mode,
 	hdd_context_t *hdd_ctx;
 	cds_context_type *cds_ctx;
 	hdd_adapter_t *sap_adapter;
+
 	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
 
 	if (!hdd_ctx) {
@@ -4110,6 +4111,7 @@ QDF_STATUS cds_get_pcl_for_existing_conn(enum cds_con_mode mode,
 	uint8_t num_cxn_del = 0;
 	cds_context_type *cds_ctx;
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
+
 	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
 	if (!cds_ctx) {
 		cds_err("Invalid CDS Context");
@@ -8632,6 +8634,7 @@ enum cds_con_mode cds_convert_device_mode_to_qdf_type(
 			enum tQDF_ADAPTER_MODE device_mode)
 {
 	enum cds_con_mode mode = CDS_MAX_NUM_OF_MODE;
+
 	switch (device_mode) {
 	case QDF_STA_MODE:
 		mode = CDS_STA_MODE;
@@ -8666,6 +8669,7 @@ enum cds_con_mode cds_convert_device_mode_to_qdf_type(
 enum tQDF_GLOBAL_CON_MODE cds_get_conparam(void)
 {
 	enum tQDF_GLOBAL_CON_MODE con_mode;
+
 	con_mode = hdd_get_conparam();
 	return con_mode;
 }
@@ -9183,6 +9187,7 @@ bool cds_is_any_nondfs_chnl_present(uint8_t *channel)
 	cds_context_type *cds_ctx;
 	bool status = false;
 	uint32_t conn_index = 0;
+
 	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
 
 	if (!cds_ctx) {
@@ -9217,6 +9222,7 @@ bool cds_is_any_dfs_beaconing_session_present(uint8_t *channel)
 	struct cds_conc_connection_info *conn_info;
 	bool status = false;
 	uint32_t conn_index = 0;
+
 	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
 
 	if (!cds_ctx) {
@@ -9517,6 +9523,7 @@ void cds_add_sap_mandatory_chan(uint8_t chan)
 bool cds_is_sap_mandatory_chan_list_enabled(void)
 {
 	cds_context_type *cds_ctx;
+
 	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
 
 	if (!cds_ctx) {
@@ -9538,6 +9545,7 @@ bool cds_is_sap_mandatory_chan_list_enabled(void)
 uint32_t cds_get_sap_mandatory_chan_list_len(void)
 {
 	cds_context_type *cds_ctx;
+
 	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
 
 	if (!cds_ctx) {
@@ -10332,6 +10340,7 @@ void cds_checkn_update_hw_mode_single_mac_mode(uint8_t channel)
 void cds_set_do_hw_mode_change_flag(bool flag)
 {
 	cds_context_type *cds_ctx;
+
 	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
 
 	if (!cds_ctx) {
@@ -10386,6 +10395,7 @@ bool cds_is_hw_mode_change_after_vdev_up(void)
 void cds_set_hw_mode_change_in_progress(enum cds_hw_mode_change value)
 {
 	cds_context_type *cds_ctx;
+
 	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
 
 	if (!cds_ctx) {
@@ -10412,6 +10422,7 @@ enum cds_hw_mode_change cds_is_hw_mode_change_in_progress(void)
 {
 	cds_context_type *cds_ctx;
 	enum cds_hw_mode_change value;
+
 	value = CDS_HW_MODE_NOT_IN_PROGRESS;
 
 	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);

@@ -1252,6 +1252,7 @@ static void sap_interference_rssi_count_5G(tSapSpectChInfo *spect_ch,
 {
 	uint16_t num_ch;
 	int32_t offset = 0;
+
 	if (NULL == spect_ch) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
 			  FL("spect_ch is NULL"));
@@ -1790,6 +1791,7 @@ static void set_ht80_chl_bit(chan_bonding_bitmap *channel_bitmap,
 	uint8_t i, j;
 	tSapSpectChInfo *spec_info;
 	int start_channel = 0;
+
 	channel_bitmap->chanBondingSet[0].startChannel =
 			acs_ht80_channels[0].chStartNum;
 	channel_bitmap->chanBondingSet[1].startChannel =

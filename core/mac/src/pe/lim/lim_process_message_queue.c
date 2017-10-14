@@ -663,6 +663,7 @@ __lim_handle_beacon(tpAniSirGlobal pMac, tpSirMsgQ pMsg,
 {
 	/* checking for global SME state... */
 	uint8_t *pRxPacketInfo;
+
 	lim_get_b_dfrom_rx_packet(pMac, pMsg->bodyptr,
 				  (uint32_t **) &pRxPacketInfo);
 

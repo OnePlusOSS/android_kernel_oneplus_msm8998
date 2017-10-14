@@ -3165,6 +3165,7 @@ static bool csr_lookup_pmkid_using_bssid(tpAniSirGlobal mac,
 {
 	uint32_t i;
 	tPmkidCacheInfo *session_pmk;
+
 	for (i = 0; i < session->NumPmkidCache; i++) {
 		session_pmk = &session->PmkidCacheInfo[i];
 		sme_debug("Matching BSSID: " MAC_ADDRESS_STR " to cached BSSID:"

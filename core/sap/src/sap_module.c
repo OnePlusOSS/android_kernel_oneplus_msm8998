@@ -1197,6 +1197,7 @@ wlansap_get_acl_accept_list(void *pCtx, struct qdf_mac_addr *pAcceptList,
 				uint8_t *nAcceptList)
 {
 	ptSapContext pSapCtx = CDS_GET_SAP_CB(pCtx);
+
 	if (NULL == pSapCtx) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
 			  "%s: Invalid SAP pointer from p_cds_gctx", __func__);
@@ -1215,6 +1216,7 @@ wlansap_get_acl_deny_list(void *pCtx, struct qdf_mac_addr *pDenyList,
 			  uint8_t *nDenyList)
 {
 	ptSapContext pSapCtx = CDS_GET_SAP_CB(pCtx);
+
 	if (NULL == pSapCtx) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
 			  "%s: Invalid SAP pointer from p_cds_gctx", __func__);
@@ -2646,6 +2648,7 @@ wlansap_channel_change_request(void *pSapCtx, uint8_t target_channel)
 	tpAniSirGlobal mac_ctx = NULL;
 	eCsrPhyMode phy_mode;
 	struct ch_params_s *ch_params;
+
 	sapContext = (ptSapContext) pSapCtx;
 
 	if (NULL == sapContext) {
@@ -2743,6 +2746,7 @@ QDF_STATUS wlansap_start_beacon_req(void *pSapCtx)
 	void *hHal = NULL;
 	uint8_t dfsCacWaitStatus = 0;
 	tpAniSirGlobal pMac = NULL;
+
 	sapContext = (ptSapContext) pSapCtx;
 
 	if (NULL == sapContext) {
@@ -2801,6 +2805,7 @@ QDF_STATUS wlansap_dfs_send_csa_ie_request(void *pSapCtx)
 	QDF_STATUS qdf_ret_status = QDF_STATUS_E_FAILURE;
 	void *hHal = NULL;
 	tpAniSirGlobal pMac = NULL;
+
 	sapContext = (ptSapContext) pSapCtx;
 
 	if (NULL == sapContext) {
@@ -2993,6 +2998,7 @@ QDF_STATUS
 wlan_sap_set_channel_avoidance(tHalHandle hal, bool sap_channel_avoidance)
 {
 	tpAniSirGlobal mac_ctx = NULL;
+
 	if (NULL != hal)
 		mac_ctx = PMAC_STRUCT(hal);
 	if (mac_ctx == NULL || hal == NULL) {
@@ -3479,6 +3485,7 @@ QDF_STATUS wlansap_set_dfs_nol(void *pSapCtx, eSapDfsNolType conf)
 		     i < pMac->sap.SapDfsInfo.numCurrentRegDomainDfsChannels;
 		     i++) {
 			uint32_t random_bytes = 0;
+
 			get_random_bytes(&random_bytes, 1);
 
 			if (!pMac->sap.SapDfsInfo.
@@ -3692,6 +3699,7 @@ wlansap_acs_chselect(void *pvos_gctx,
 void wlan_sap_enable_phy_error_logs(tHalHandle hal, bool enable_log)
 {
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+
 	mac_ctx->sap.enable_dfs_phy_error_logs = enable_log;
 }
 

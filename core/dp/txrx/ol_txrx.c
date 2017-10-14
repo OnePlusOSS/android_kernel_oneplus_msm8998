@@ -4551,6 +4551,7 @@ inline void ol_txrx_flow_control_cb(ol_txrx_vdev_handle vdev,
 bool ol_txrx_flow_control_is_pause(ol_txrx_vdev_handle vdev)
 {
 	bool is_pause = false;
+
 	if ((vdev->osif_flow_control_is_pause) && (vdev->osif_fc_ctx))
 		is_pause = vdev->osif_flow_control_is_pause(vdev->osif_fc_ctx);
 
@@ -4896,6 +4897,7 @@ static inline void ol_txrx_drop_frames(
 					qdf_nbuf_t rx_buf_list)
 {
 	uint32_t dropped = ol_txrx_drop_nbuf_list(rx_buf_list);
+
 	bufqi->dropped += dropped;
 	bufqi->qdepth_no_thresh += dropped;
 

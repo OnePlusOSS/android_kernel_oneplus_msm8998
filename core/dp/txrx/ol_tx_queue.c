@@ -615,6 +615,7 @@ void ol_txrx_vdev_unpause(ol_txrx_vdev_handle vdev, uint32_t reason)
 
 	TAILQ_FOREACH(peer, &vdev->peer_list, peer_list_elem) {
 		int i;
+
 		for (i = 0; i < QDF_ARRAY_SIZE(peer->txqs); i++)
 			ol_txrx_peer_tid_unpause_base(pdev, peer, i);
 	}
@@ -2213,6 +2214,7 @@ u_int32_t ol_tx_txq_group_credit_limit(
 	for (i = 0; i < OL_TX_MAX_GROUPS_PER_QUEUE; i++) {
 		if (txq->group_ptrs[i]) {
 			int group_credit;
+
 			group_credit = qdf_atomic_read(
 					&txq->group_ptrs[i]->credit);
 			updated_credit = QDF_MIN(updated_credit, group_credit);

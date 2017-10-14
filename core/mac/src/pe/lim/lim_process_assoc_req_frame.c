@@ -1135,6 +1135,7 @@ static bool lim_chk_wmm(tpAniSirGlobal mac_ctx, tpSirMacMgmtHdr hdr,
 			uint8_t sub_type, tHalBitVal qos_mode)
 {
 	tHalBitVal wme_mode;
+
 	limGetWmeMode(session, &wme_mode);
 	if ((qos_mode == eHAL_SET) || (wme_mode == eHAL_SET)) {
 		/*
@@ -1143,6 +1144,7 @@ static bool lim_chk_wmm(tpAniSirGlobal mac_ctx, tpSirMacMgmtHdr hdr,
 		 */
 		if (assoc_req->addtsPresent) {
 			uint8_t tspecIdx = 0;
+
 			if (lim_admit_control_add_ts(mac_ctx, hdr->sa,
 				&(assoc_req->addtsReq),
 				&(assoc_req->qosCapability),

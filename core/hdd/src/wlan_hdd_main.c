@@ -12408,6 +12408,7 @@ int hdd_reset_limit_off_chan(hdd_adapter_t *adapter)
 void hdd_pld_ipa_uc_shutdown_pipes(void)
 {
 	hdd_context_t *hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+
 	if (!hdd_ctx)
 		return;
 

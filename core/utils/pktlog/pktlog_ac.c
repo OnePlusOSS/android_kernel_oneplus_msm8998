@@ -351,6 +351,7 @@ void pktlog_init(struct hif_opaque_softc *scn)
 {
 	struct ath_pktlog_info *pl_info;
 	ol_txrx_pdev_handle pdev_txrx_handle;
+
 	pdev_txrx_handle = cds_get_context(QDF_MODULE_ID_TXRX);
 
 	if (pdev_txrx_handle == NULL ||

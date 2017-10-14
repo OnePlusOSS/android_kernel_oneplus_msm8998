@@ -1096,6 +1096,7 @@ static void sap_set_bitmap(chan_bonding_bitmap *pBitmap, uint8_t channel)
 {
 	int i = 0;
 	int start_channel = 0;
+
 	for (i = 0; i < MAX_80MHZ_BANDS; i++) {
 		start_channel = pBitmap->chanBondingSet[i].startChannel;
 		if (channel >= start_channel && channel <= start_channel + 12) {
@@ -1475,6 +1476,7 @@ static uint8_t select_rand_from_lst(tpAniSirGlobal mac_ctx, uint8_t *ch_lst,
 	uint8_t i, target_channel, non_dfs_num_ch = 0, dfs_num_ch = 0;
 	uint8_t dfs_ch[WNI_CFG_VALID_CHANNEL_LIST_LEN] = {0};
 	uint8_t non_dfs_ch[WNI_CFG_VALID_CHANNEL_LIST_LEN] = {0};
+
 	if (num_ch) {
 		for (i = 0; i < num_ch; i++) {
 			if (CDS_IS_DFS_CH(ch_lst[i]))
@@ -3013,6 +3015,7 @@ QDF_STATUS sap_signal_hdd_event(ptSapContext sap_ctx,
 #ifdef FEATURE_WLAN_WAPI
 		if (csr_roaminfo->wapiIELen) {
 			uint8_t len = reassoc_complete->iesLen;
+
 			reassoc_complete->iesLen += csr_roaminfo->wapiIELen;
 			qdf_mem_copy(&reassoc_complete->ies[len],
 				     csr_roaminfo->pwapiIE,
@@ -3021,6 +3024,7 @@ QDF_STATUS sap_signal_hdd_event(ptSapContext sap_ctx,
 #endif
 		if (csr_roaminfo->addIELen) {
 			uint8_t len = reassoc_complete->iesLen;
+
 			reassoc_complete->iesLen += csr_roaminfo->addIELen;
 			qdf_mem_copy(&reassoc_complete->ies[len],
 				     csr_roaminfo->paddIE,
@@ -3688,6 +3692,7 @@ static QDF_STATUS sap_fsm_state_disconnected(ptSapContext sap_ctx,
 
 		if (sap_ctx->isSapSessionOpen == false) {
 			uint32_t type, subtype;
+
 			if (sap_ctx->csr_roamProfile.csrPersona ==
 			    QDF_P2P_GO_MODE)
 				qdf_status = cds_get_vdev_types(QDF_P2P_GO_MODE,
@@ -4589,6 +4594,7 @@ sap_search_mac_list(struct qdf_mac_addr *macList,
 {
 	int32_t nRes = -1;
 	int8_t nStart = 0, nEnd, nMiddle;
+
 	nEnd = num_mac - 1;
 
 	if ((NULL == macList) || (num_mac > MAX_ACL_MAC_ADDRESS)) {
@@ -4697,6 +4703,7 @@ void sap_print_acl(struct qdf_mac_addr *macList, uint8_t size)
 {
 	int i;
 	uint8_t *macArray;
+
 	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
 		  "print acl entered");
 
@@ -4862,6 +4869,7 @@ static QDF_STATUS sap_get_channel_list(ptSapContext sap_ctx,
 #endif
 #ifdef FEATURE_WLAN_AP_AP_ACS_OPTIMIZE
 		uint8_t ch;
+
 		ch = CDS_CHANNEL_NUM(loop_count);
 		if ((sap_ctx->acs_cfg->skip_scan_status ==
 			eSAP_DO_PAR_ACS_SCAN)) {
@@ -4942,6 +4950,7 @@ static QDF_STATUS sap_get_5ghz_channel_list(ptSapContext sapContext)
 	struct sir_pcl_list pcl;
 	QDF_STATUS status;
 	enum channel_state ch_state;
+
 	pcl.pcl_len = 0;
 	if (NULL == sapContext) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
@@ -5142,6 +5151,7 @@ static int sap_stop_dfs_cac_timer(ptSapContext sapContext)
 {
 	tHalHandle hHal;
 	tpAniSirGlobal pMac;
+
 	if (sapContext == NULL)
 		return 0;
 

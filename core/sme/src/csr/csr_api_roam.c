@@ -5492,6 +5492,7 @@ static void csr_set_abort_roaming_command(tpAniSirGlobal pMac,
 static bool csr_roam_select_bss(tpAniSirGlobal mac_ctx,
 		tListElem *roam_bss_entry, tCsrScanResultInfo **csr_result_info,
 		struct tag_csrscan_result **csr_scan_result, uint32_t
+
 		session_id, uint32_t roam_id, eCsrJoinState *roam_state,
 		struct scan_result_list *bss_list)
 {

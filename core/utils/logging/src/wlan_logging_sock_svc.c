@@ -239,6 +239,7 @@ static int wlan_queue_logmsg_for_app(void)
 {
 	char *ptr;
 	int ret = 0;
+
 	ptr = &gwlan_logging.pcur_node->logbuf[sizeof(tAniHdr)];
 	ptr[gwlan_logging.pcur_node->filled_length] = '\0';
 

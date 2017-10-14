@@ -647,6 +647,7 @@ ol_tx_completion_handler(ol_txrx_pdev_handle pdev,
 	union ol_tx_desc_list_elem_t *lcl_freelist = NULL;
 	union ol_tx_desc_list_elem_t *tx_desc_last = NULL;
 	ol_tx_desc_list tx_descs;
+
 	TAILQ_INIT(&tx_descs);
 
 	ol_tx_delay_compute(pdev, status, desc_ids, num_msdus);

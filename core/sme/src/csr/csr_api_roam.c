@@ -5757,7 +5757,7 @@ static eCsrJoinState csr_roam_join_next_bss(tpAniSirGlobal mac_ctx,
 		return eCsrStopRoaming;
 	}
 
-	roam_info = qdf_mem_malloc(sizeof (*roam_info));
+	roam_info = qdf_mem_malloc(sizeof(*roam_info));
 	if (!roam_info) {
 		sme_err("failed to allocate memory");
 		return eCsrStopRoaming;

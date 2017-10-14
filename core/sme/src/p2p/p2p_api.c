@@ -119,7 +119,7 @@ QDF_STATUS sme_remain_on_chn_rsp(tpAniSirGlobal pMac, uint8_t *pMsg)
 
 	callback = pCommand->u.remainChlCmd.callback;
 	if (callback) {
-		if(rsp->status != eSIR_SME_SUCCESS)
+		if (rsp->status != eSIR_SME_SUCCESS)
 			status = QDF_STATUS_E_FAILURE;
 		callback(pMac, pCommand->u.remainChlCmd.callbackCtx,
 			status, rsp->scan_id);

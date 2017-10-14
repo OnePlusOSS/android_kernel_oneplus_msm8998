@@ -212,7 +212,7 @@ static inline void netif_trans_update(struct net_device *dev)
 #endif
 
 static inline void
-hdd_skb_fill_gso_size (struct net_device *dev,
+hdd_skb_fill_gso_size(struct net_device *dev,
 					struct sk_buff *skb) {
 	if (skb_cloned(skb) && skb_is_nonlinear(skb) &&
 		skb_shinfo(skb)->gso_size == 0 &&

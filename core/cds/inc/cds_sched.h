@@ -314,7 +314,7 @@ typedef struct _cds_context_type {
 		uint8_t *, uint8_t *);
 
 	/* Datapath callback functions */
-	void (*ol_txrx_update_mac_id_cb)(uint8_t , uint8_t);
+	void (*ol_txrx_update_mac_id_cb)(uint8_t, uint8_t);
 	void (*hdd_en_lro_in_cc_cb)(struct hdd_context_s *);
 	void (*hdd_disable_lro_in_cc_cb)(struct hdd_context_s *);
 	void (*hdd_set_rx_mode_rps_cb)(struct hdd_context_s *, void *, bool);

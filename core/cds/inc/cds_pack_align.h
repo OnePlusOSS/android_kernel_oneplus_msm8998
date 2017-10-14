@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014, 2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -25,7 +25,7 @@
  * to the Linux Foundation.
  */
 
-#if !defined( __CDS_PACK_ALIGN_H )
+#if !defined(__CDS_PACK_ALIGN_H)
 #define __CDS_PACK_ALIGN_H
 
 /**=========================================================================
@@ -93,7 +93,7 @@
 
 #elif defined _MSC_VER
 
-#define CDS_PACK_START  __pragma(pack(push,1))
+#define CDS_PACK_START  __pragma(pack(push, 1))
 #define CDS_PACK_END  __pragma(pack(pop))
 
 #define CDS_PACK_PRE

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -151,7 +151,7 @@ void host_diag_log_submit(void *plog_hdr_ptr)
 		pBuf += sizeof(uint32_t);
 
 		memcpy(pBuf, pHdr, data_len);
-		ptt_sock_send_msg_to_app (wmsg, 0, ANI_NL_MSG_PUMAC,
+		ptt_sock_send_msg_to_app(wmsg, 0, ANI_NL_MSG_PUMAC,
 			INVALID_PID);
 		qdf_mem_free((void *)wmsg);
 	}

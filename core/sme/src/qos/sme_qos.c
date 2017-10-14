@@ -346,6 +346,7 @@ struct sme_qos_cb_s {
 	/* counter for assigning Dialog Tokens */
 	uint8_t nextDialogToken;
 } sme_qos_cb;
+
 typedef QDF_STATUS (*sme_QosProcessSearchEntry)(tpAniSirGlobal pMac,
 						tListElem *pEntry);
 

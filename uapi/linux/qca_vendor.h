@@ -5067,7 +5067,7 @@ enum qca_wlan_vendor_attr_spectral_scan {
 		QCA_WLAN_VENDOR_ATTR_SPECTRAL_SCAN_CONFIG_AFTER_LAST - 1,
 };
 
-#if !(defined (SUPPORT_WDEV_CFG80211_VENDOR_EVENT_ALLOC)) &&	\
+#if !(defined(SUPPORT_WDEV_CFG80211_VENDOR_EVENT_ALLOC)) &&	\
 	(LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 0)) &&	\
 	!(defined(WITH_BACKPORTS))
 

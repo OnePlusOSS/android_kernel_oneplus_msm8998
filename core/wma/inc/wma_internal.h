@@ -1105,7 +1105,7 @@ void wma_config_plm(tp_wma_handle wma, tpSirPlmReq plm);
 #endif
 
 QDF_STATUS wma_process_mcbc_set_filter_req(tp_wma_handle wma_handle,
-					   tSirRcvFltMcAddrList * mcbc_param);
+					   struct sSirRcvFltMcAddrList *mcbc_param);
 #ifdef WLAN_FEATURE_GTK_OFFLOAD
 QDF_STATUS wma_process_gtk_offload_req(tp_wma_handle wma,
 					      tpSirGtkOffloadParams params);
@@ -1156,7 +1156,7 @@ QDF_STATUS wma_stats_ext_req(void *wma_ptr, tpStatsExtRequest preq);
 #endif
 
 QDF_STATUS wma_process_ibss_route_table_update_ind(void *wma_handle,
-						   tAniIbssRouteTable * pData);
+						   struct sAniIbssRouteTable *pData);
 
 #ifdef WLAN_FEATURE_EXTWOW_SUPPORT
 QDF_STATUS wma_enable_ext_wow(tp_wma_handle wma, tpSirExtWoWParams params);

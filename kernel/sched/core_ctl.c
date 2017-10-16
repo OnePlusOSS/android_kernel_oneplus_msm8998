@@ -23,6 +23,8 @@
 
 #include <trace/events/sched.h>
 
+#include "sched.h"
+
 #define MAX_CPUS_PER_CLUSTER 4
 #define MAX_CLUSTERS 2
 
@@ -575,7 +577,8 @@ static bool eval_need(struct cluster_data *cluster)
 		cluster->active_cpus = get_active_cpu_count(cluster);
 		thres_idx = cluster->active_cpus ? cluster->active_cpus - 1 : 0;
 		list_for_each_entry(c, &cluster->lru, sib) {
-			if (c->busy >= cluster->busy_up_thres[thres_idx])
+			if (c->busy >= cluster->busy_up_thres[thres_idx] ||
+			sched_cpu_high_irqload(c->cpu))
 				c->is_busy = true;
 			else if (c->busy < cluster->busy_down_thres[thres_idx])
 				c->is_busy = false;

@@ -15437,7 +15437,7 @@ static int wlan_hdd_cfg80211_set_fils_config(struct hdd_adapter_s *adapter,
 	auth_type = wlan_hdd_get_fils_auth_type(req->auth_type);
 	if (auth_type == eSIR_DONOT_USE_AUTH_TYPE) {
 		hdd_err("invalid auth type for fils %d", req->auth_type);
-		return -EINVAL;
+		goto fils_conn_fail;
 	}
 
 	hdd_debug("seq=%d auth=%d lengths: user=%zu rrk=%zu realm=%zu",
@@ -15448,7 +15448,7 @@ static int wlan_hdd_cfg80211_set_fils_config(struct hdd_adapter_s *adapter,
 		req->fils_erp_realm_len > WMI_FILS_MAX_REALM_LENGTH ||
 		req->fils_erp_username_len > WMI_FILS_MAX_USERNAME_LENGTH) {
 		hdd_err("FILS info length limit exceeded");
-		return -EINVAL;
+		goto fils_conn_fail;
 	}
 
 	roam_profile->fils_con_info->is_fils_connection = true;
@@ -15474,6 +15474,12 @@ static int wlan_hdd_cfg80211_set_fils_config(struct hdd_adapter_s *adapter,
 				req->fils_erp_realm_len;
 	hdd_debug("key_nai_length = %d",
 		  roam_profile->fils_con_info->key_nai_length);
+	if (roam_profile->fils_con_info->key_nai_length >
+		FILS_MAX_KEYNAME_NAI_LENGTH) {
+		hdd_err("Do not allow FILS conn due to excess NAI Length %d",
+			roam_profile->fils_con_info->key_nai_length);
+		goto fils_conn_fail;
+	}
 	if (req->fils_erp_username_len) {
 		buf = roam_profile->fils_con_info->keyname_nai;
 		qdf_mem_copy(buf,
@@ -15487,6 +15493,13 @@ static int wlan_hdd_cfg80211_set_fils_config(struct hdd_adapter_s *adapter,
 	}
 
 	return 0;
+
+fils_conn_fail:
+	if (roam_profile->fils_con_info) {
+		qdf_mem_free(roam_profile->fils_con_info);
+		roam_profile->fils_con_info = NULL;
+	}
+	return -EINVAL;
 }
 
 static bool wlan_hdd_is_akm_suite_fils(uint32_t key_mgmt)

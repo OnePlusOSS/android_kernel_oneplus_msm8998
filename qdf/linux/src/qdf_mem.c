@@ -1094,9 +1094,9 @@ void qdf_mem_free(void *ptr)
 	 */
 	list_del_init(&mem_struct->node);
 	mem_list->count--;
+	qdf_spin_unlock_irqrestore(&qdf_mem_list_lock);
 	qdf_mem_kmalloc_dec(ksize(mem_struct));
 	kfree(mem_struct);
-	qdf_spin_unlock_irqrestore(&qdf_mem_list_lock);
 
 	return;
 

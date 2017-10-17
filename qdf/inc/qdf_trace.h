@@ -322,18 +322,28 @@ struct qdf_dp_trace_record_s {
  * @print_pkt_cnt: count of number of packets printed in live mode
  *.@high_tput_thresh: thresh beyond which live mode is turned off
  *.@thresh_time_limit: max time, in terms of BW timer intervals to wait,
- *	         for determining if high_tput_thresh has been crossed. ~1s
- *.@arp_req: stats for arp reqs
- *.@arp_resp: stats for arp resps
- *.@icmp_req: stats for icmp reqs
- *.@icmp_resp: stats for icmp resps
- *.@icmpv6_req: stats for icmpv6 reqs
- *.@icmpv6_resp: stats for icmpv6 resps
+ *          for determining if high_tput_thresh has been crossed. ~1s
+ * @arp_req: stats for arp reqs
+ * @arp_resp: stats for arp resps
+ * @icmp_req: stats for icmp reqs
+ * @icmp_resp: stats for icmp resps
+ * @dhcp_disc: stats for dhcp discover msgs
+ * @dhcp_req: stats for dhcp req msgs
+ * @dhcp_off: stats for dhcp offer msgs
+ * @dhcp_ack: stats for dhcp ack msgs
+ * @dhcp_nack: stats for dhcp nack msgs
+ * @dhcp_others: stats for other dhcp pkts types
+ * @eapol_m1: stats for eapol m1
+ * @eapol_m2: stats for eapol m2
+ * @eapol_m3: stats for eapol m3
+ * @eapol_m4: stats for eapol m4
+ * @eapol_others: stats for other eapol pkt types
+ * @icmpv6_req: stats for icmpv6 reqs
+ * @icmpv6_resp: stats for icmpv6 resps
  *.@icmpv6_ns: stats for icmpv6 nss
  *.@icmpv6_na: stats for icmpv6 nas
  *.@icmpv6_rs: stats for icmpv6 rss
  *.@icmpv6_ra: stats for icmpv6 ras
-
  */
 struct s_qdf_dp_trace_data {
 	uint32_t head;
@@ -351,16 +361,27 @@ struct s_qdf_dp_trace_data {
 	/* Stats */
 	uint32_t tx_count;
 	uint32_t rx_count;
-	uint32_t arp_req;
-	uint32_t arp_resp;
-	uint32_t icmp_req;
-	uint32_t icmp_resp;
-	uint32_t icmpv6_req;
-	uint32_t icmpv6_resp;
-	uint32_t icmpv6_ns;
-	uint32_t icmpv6_na;
-	uint32_t icmpv6_rs;
-	uint32_t icmpv6_ra;
+	uint16_t arp_req;
+	uint16_t arp_resp;
+	uint16_t dhcp_disc;
+	uint16_t dhcp_req;
+	uint16_t dhcp_off;
+	uint16_t dhcp_ack;
+	uint16_t dhcp_nack;
+	uint16_t dhcp_others;
+	uint16_t eapol_m1;
+	uint16_t eapol_m2;
+	uint16_t eapol_m3;
+	uint16_t eapol_m4;
+	uint16_t eapol_others;
+	uint16_t icmp_req;
+	uint16_t icmp_resp;
+	uint16_t icmpv6_req;
+	uint16_t icmpv6_resp;
+	uint16_t icmpv6_ns;
+	uint16_t icmpv6_na;
+	uint16_t icmpv6_rs;
+	uint16_t icmpv6_ra;
 };
 
 
@@ -427,6 +448,13 @@ void qdf_dp_trace_set_track(qdf_nbuf_t nbuf, enum qdf_proto_dir dir);
 void qdf_dp_trace(qdf_nbuf_t nbuf, enum QDF_DP_TRACE_ID code,
 			uint8_t *data, uint8_t size, enum qdf_proto_dir dir);
 void qdf_dp_trace_dump_all(uint32_t count);
+
+/**
+ * qdf_dp_trace_dump_stats() - dump DP Trace stats
+ *
+ * Return: none
+ */
+void qdf_dp_trace_dump_stats(void);
 void qdf_dp_trace_throttle_live_mode(bool high_bw_request);
 typedef void (*tp_qdf_dp_trace_cb)(struct qdf_dp_trace_record_s*,
 					uint16_t index, bool live);
@@ -482,6 +510,10 @@ void qdf_dp_trace_set_value(uint8_t proto_bitmap, uint8_t no_of_records,
 }
 static inline
 void qdf_dp_trace_dump_all(uint32_t count)
+{
+}
+
+static inline void qdf_dp_trace_dump_stats(void)
 {
 }
 

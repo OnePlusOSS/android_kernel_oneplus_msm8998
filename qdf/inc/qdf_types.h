@@ -735,4 +735,14 @@ enum qdf_suspend_type {
 	QDF_RUNTIME_SUSPEND
 };
 
+/*
+ * Verbosity levels for stats for which want to have differet levels
+ * @QDF_STATS_VERB_LVL_LOW: Stats verbosity level low
+ * @QDF_STATS_VERB_LVL_HIGH: Stats verbosity level high
+ */
+enum qdf_stats_verb_lvl {
+	QDF_STATS_VERB_LVL_LOW,
+	QDF_STATS_VERB_LVL_HIGH
+};
+
 #endif /* __QDF_TYPES_H */

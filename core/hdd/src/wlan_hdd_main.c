@@ -2217,7 +2217,10 @@ release_lock:
 	hdd_ctx->start_modules_in_progress = false;
 	mutex_unlock(&hdd_ctx->iface_change_lock);
 
-	hdd_check_for_leaks();
+	/* many adapter resources are not freed by design in SSR case */
+	if (!reinit)
+		hdd_check_for_leaks();
+
 	qdf_mem_set_domain(QDF_MEM_DOMAIN_INIT);
 
 	EXIT();

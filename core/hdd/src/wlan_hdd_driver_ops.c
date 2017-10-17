@@ -1357,6 +1357,7 @@ static void wlan_hdd_pld_uevent(struct device *dev,
 {
 	ENTER();
 
+	hdd_info("pld event %d", uevent->uevent);
 	switch (uevent->uevent) {
 	case PLD_RECOVERY:
 		cds_set_recovery_in_progress(true);

@@ -4502,6 +4502,7 @@ int wlan_hdd_tdls_extctrl_config_peer(hdd_adapter_t *pAdapter,
 	hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
 	int status = 0;
 	int ret;
+	tdlsCtx_t *tdls_ctx;
 
 	QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_INFO,
 		  "%s : NL80211_TDLS_SETUP for " MAC_ADDRESS_STR,
@@ -4510,6 +4511,10 @@ int wlan_hdd_tdls_extctrl_config_peer(hdd_adapter_t *pAdapter,
 	ret = wlan_hdd_tdls_validate_mac_addr(peer);
 	if (ret)
 		return ret;
+
+	tdls_ctx = WLAN_HDD_GET_TDLS_CTX_PTR(pAdapter);
+	if (NULL == tdls_ctx)
+		return -EINVAL;
 
 	if ((false == pHddCtx->config->fTDLSExternalControl) ||
 	    (false == pHddCtx->config->fEnableTDLSImplicitTrigger)) {
@@ -4588,6 +4593,12 @@ int wlan_hdd_tdls_extctrl_config_peer(hdd_adapter_t *pAdapter,
 	/* set tdls connection tracker state */
 	cds_set_tdls_ct_mode(pHddCtx);
 
+	mutex_lock(&pHddCtx->tdls_lock);
+	if (pHddCtx->enable_tdls_connection_tracker)
+		wlan_hdd_tdls_implicit_enable(tdls_ctx);
+	mutex_unlock(&pHddCtx->tdls_lock);
+
+
 	return status;
 rel_lock:
 	mutex_unlock(&pHddCtx->tdls_lock);
@@ -4610,6 +4621,7 @@ int wlan_hdd_tdls_extctrl_deconfig_peer(hdd_adapter_t *pAdapter,
 	hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
 	int status = 0;
 	int ret;
+	tdlsCtx_t *tdls_ctx;
 
 	QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_INFO,
 		  "%s : NL80211_TDLS_TEARDOWN for " MAC_ADDRESS_STR,
@@ -4618,6 +4630,10 @@ int wlan_hdd_tdls_extctrl_deconfig_peer(hdd_adapter_t *pAdapter,
 	ret = wlan_hdd_tdls_validate_mac_addr(peer);
 	if (ret)
 		return ret;
+
+	tdls_ctx = WLAN_HDD_GET_TDLS_CTX_PTR(pAdapter);
+	if (NULL == tdls_ctx)
+		return -EINVAL;
 
 	if ((false == pHddCtx->config->fTDLSExternalControl) ||
 	    (false == pHddCtx->config->fEnableTDLSImplicitTrigger)) {
@@ -4684,6 +4700,12 @@ int wlan_hdd_tdls_extctrl_deconfig_peer(hdd_adapter_t *pAdapter,
 
 	/* set tdls connection tracker state */
 	cds_set_tdls_ct_mode(pHddCtx);
+
+	mutex_lock(&pHddCtx->tdls_lock);
+	if (pHddCtx->enable_tdls_connection_tracker)
+		wlan_hdd_tdls_implicit_disable(tdls_ctx);
+	mutex_unlock(&pHddCtx->tdls_lock);
+
 	goto ret_status;
 
 rel_lock:

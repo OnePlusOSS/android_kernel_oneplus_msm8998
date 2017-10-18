@@ -10563,3 +10563,39 @@ bool cds_is_valid_channel_for_channel_switch(uint8_t channel)
 	cds_debug("Invalid channel for channel switch");
 	return false;
 }
+
+bool cds_is_sta_connected_in_2g(void)
+{
+	QDF_STATUS status;
+	hdd_adapter_t *hdd_adapter = NULL;
+	hdd_adapter_list_node_t *adapter_node = NULL, *next = NULL;
+	bool ret = false;
+	hdd_station_ctx_t *sta_ctx;
+	hdd_context_t *hdd_ctx;
+
+	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+	if (!hdd_ctx) {
+		cds_err("HDD context is NULL");
+		return ret;
+	}
+
+	status =  hdd_get_front_adapter(hdd_ctx, &adapter_node);
+
+	/* loop through all adapters and check connection info for
+	 * STA adapters.
+	 */
+	while (NULL != adapter_node && QDF_STATUS_SUCCESS == status) {
+		hdd_adapter = adapter_node->pAdapter;
+		if (QDF_STA_MODE == hdd_adapter->device_mode) {
+			sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(hdd_adapter);
+			if (eConnectionState_Associated ==
+			    sta_ctx->conn_info.connState &&
+			    sta_ctx->conn_info.operationChannel <=
+			    SIR_11B_CHANNEL_END)
+				return true;
+		}
+		status = hdd_get_next_adapter(hdd_ctx, adapter_node, &next);
+		adapter_node = next;
+	}
+	return ret;
+}

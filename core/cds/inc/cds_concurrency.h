@@ -1019,4 +1019,15 @@ void cds_remove_dfs_passive_channels_from_pcl(uint8_t *pcl_channels,
  * Return: true or false
  */
 bool cds_is_valid_channel_for_channel_switch(uint8_t channel);
+
+/**
+ * cds_is_sta_connected_in_2g() - check if sta is connected in 2G
+ *
+ * This function loops through all sta adapters to check if any
+ * sta is connected in 2G
+ *
+ * Return: true for success and false for failure
+ */
+bool cds_is_sta_connected_in_2g(void);
+
 #endif /* __CDS_CONCURRENCY_H */

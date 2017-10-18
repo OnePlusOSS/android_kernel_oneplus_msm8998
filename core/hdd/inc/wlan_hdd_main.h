@@ -320,6 +320,9 @@
 /* session ID invalid */
 #define HDD_SESSION_ID_INVALID    0xFF
 
+/* Passive dwell time if bt_a2dp is enabled. Time in msecs*/
+#define PASSIVE_DWELL_TIME_BT_A2DP_ENABLED  28
+
 #define SCAN_REJECT_THRESHOLD_TIME 300000 /* Time is in msec, equal to 5 mins */
 #define SCAN_REJECT_THRESHOLD 15
 

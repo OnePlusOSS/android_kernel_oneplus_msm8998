@@ -7215,6 +7215,7 @@ static inline void hdd_display_periodic_stats(hdd_context_t *hdd_ctx, bool data_
 	static uint32_t counter;
 	static bool data_in_time_period;
 	ol_txrx_pdev_handle pdev;
+	uint32_t bw_compute_interval;
 
 	if (hdd_ctx->config->periodic_stats_disp_time == 0)
 		return;
@@ -7229,7 +7230,8 @@ static inline void hdd_display_periodic_stats(hdd_context_t *hdd_ctx, bool data_
 	if (data_in_interval == true)
 		data_in_time_period = data_in_interval;
 
-	if (counter * hdd_ctx->config->busBandwidthComputeInterval >=
+	bw_compute_interval = GET_BW_COMPUTE_INTV(hdd_ctx->config);
+	if (counter * bw_compute_interval >=
 		hdd_ctx->config->periodic_stats_disp_time * 1000) {
 		if (data_in_time_period) {
 			ol_txrx_display_stats(WLAN_TXRX_STATS,
@@ -11087,15 +11089,17 @@ void hdd_dp_trace_init(struct hdd_config *config)
 	uint8_t proto_bitmap = DP_TRACE_CONFIG_DEFAULT_BITMAP;
 	uint8_t config_params[DP_TRACE_CONFIG_NUM_PARAMS];
 	uint8_t num_entries = 0;
+	uint32_t bw_compute_interval;
 
 	hdd_string_to_u8_array(config->dp_trace_config, config_params,
 				&num_entries, sizeof(config_params));
 
 	/* calculating, num bw timer intervals in a second (1000ms) */
-	if (config->busBandwidthComputeInterval <= 1000 && config->busBandwidthComputeInterval > 0)
+	bw_compute_interval = GET_BW_COMPUTE_INTV(config);
+	if (bw_compute_interval <= 1000 && bw_compute_interval > 0)
 		thresh_time_limit =
-			(1000 / config->busBandwidthComputeInterval);
-	else if (config->busBandwidthComputeInterval > 1000) {
+			(1000 / bw_compute_interval);
+	else if (bw_compute_interval > 1000) {
 		hdd_err("busBandwidthComputeInterval > 1000, using 1000");
 		thresh_time_limit = 1;
 	} else

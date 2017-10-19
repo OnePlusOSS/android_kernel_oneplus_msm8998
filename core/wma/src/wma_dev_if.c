@@ -1086,9 +1086,11 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 				WMA_LOGE("%s:vdev_up failed vdev_id %d",
 					 __func__, resp_event->vdev_id);
 				iface->vdev_up = false;
+				WMA_LOGD(FL("Setting vdev_up flag to false"));
 				cds_set_do_hw_mode_change_flag(false);
 			} else {
 				iface->vdev_up = true;
+				WMA_LOGD(FL("Setting vdev_up flag to true"));
 				if (iface->beacon_filter_enabled)
 					wma_add_beacon_filter(wma,
 							&iface->beacon_filter);
@@ -1113,6 +1115,7 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 			return -EEXIST;
 		}
 		iface->vdev_up = true;
+		WMA_LOGD(FL("Setting vdev_up flag to true"));
 
 		wma_ocb_start_resp_ind_cont(wma);
 	}
@@ -1690,6 +1693,7 @@ wma_send_del_bss_response(tp_wma_handle wma, struct wma_target_req *req,
 		WMA_LOGE("Failed to send vdev down cmd: vdev %d", vdev_id);
 	} else {
 		wma->interfaces[vdev_id].vdev_up = false;
+		WMA_LOGD(FL("Setting vdev_up flag to false"));
 		wma_check_and_find_mcc_ap(wma, vdev_id);
 	}
 	ol_txrx_vdev_flush(iface->handle);
@@ -1792,6 +1796,7 @@ int wma_vdev_stop_resp_handler(void *handle, uint8_t *cmd_param_info,
 			__func__);
 
 		wma->interfaces[resp_event->vdev_id].vdev_up = false;
+		WMA_LOGD(FL("Setting vdev_up flag to false"));
 		new_req_msg = wma_fill_vdev_req(wma, resp_event->vdev_id,
 				WMA_HIDDEN_SSID_VDEV_RESTART,
 				WMA_TARGET_REQ_TYPE_VDEV_START,
@@ -1920,7 +1925,11 @@ int wma_vdev_stop_resp_handler(void *handle, uint8_t *cmd_param_info,
 		    QDF_STATUS_SUCCESS) {
 			WMA_LOGE("Failed to send vdev down cmd: vdev %d",
 				req_msg->vdev_id);
+		} else {
+			iface->vdev_up = false;
+			WMA_LOGD(FL("Setting vdev_up flag to false"));
 		}
+
 		wma_send_msg(wma, WMA_SET_LINK_STATE_RSP, (void *)params, 0);
 	}
 free_req_msg:
@@ -2562,6 +2571,7 @@ QDF_STATUS wma_vdev_start(tp_wma_handle wma,
 		 * in the firmware.
 		 */
 		intr[params.vdev_id].vdev_up = false;
+		WMA_LOGD(FL("Setting vdev_up flag to false"));
 	} else {
 		WMA_LOGD("%s, vdev_id: %d, unpausing tx_ll_queue at VDEV_START",
 			 __func__, params.vdev_id);
@@ -2787,10 +2797,16 @@ int wma_peer_delete_handler(void *handle, uint8_t *cmd_param_info,
 	} else if (req_msg->type == WMA_SET_LINK_PEER_RSP) {
 		tpLinkStateParams params =
 			(tpLinkStateParams) req_msg->user_data;
+		struct wma_txrx_node *iface;
+
+		iface = &wma->interfaces[req_msg->vdev_id];
 		if (wma_send_vdev_down_to_fw(wma, req_msg->vdev_id) !=
 		    QDF_STATUS_SUCCESS) {
 			WMA_LOGE("Failed to send vdev down cmd: vdev %d",
 					req_msg->vdev_id);
+		} else {
+			iface->vdev_up = false;
+			WMA_LOGD(FL("Setting vdev_up flag to false"));
 		}
 		wma_send_msg(wma, WMA_SET_LINK_STATE_RSP, (void *)params, 0);
 
@@ -3027,6 +3043,7 @@ void wma_vdev_resp_timer(void *data)
 	ol_txrx_pdev_handle pdev;
 	uint8_t peer_id;
 	struct wma_target_req *msg;
+	struct wma_txrx_node *iface;
 #ifdef FEATURE_AP_MCC_CH_AVOIDANCE
 	tpAniSirGlobal mac_ctx;
 #endif /* FEATURE_AP_MCC_CH_AVOIDANCE */
@@ -3067,6 +3084,7 @@ void wma_vdev_resp_timer(void *data)
 	}
 #endif /* FEATURE_AP_MCC_CH_AVOIDANCE */
 
+	iface = &wma->interfaces[tgt_req->vdev_id];
 	if (tgt_req->msg_type == WMA_CHNL_SWITCH_REQ) {
 		tpSwitchChannelParams params =
 			(tpSwitchChannelParams) tgt_req->user_data;
@@ -3137,6 +3155,7 @@ void wma_vdev_resp_timer(void *data)
 				 tgt_req->vdev_id);
 		} else {
 			wma->interfaces[tgt_req->vdev_id].vdev_up = false;
+			WMA_LOGD(FL("Setting vdev_up flag to false"));
 #ifdef FEATURE_AP_MCC_CH_AVOIDANCE
 		if (mac_ctx->sap.sap_channel_avoidance)
 			wma_find_mcc_ap(wma, tgt_req->vdev_id, false);
@@ -3216,11 +3235,9 @@ void wma_vdev_resp_timer(void *data)
 		goto free_tgt_req;
 
 	} else if (tgt_req->msg_type == WMA_OCB_SET_CONFIG_CMD) {
-		struct wma_txrx_node *iface;
-
 		WMA_LOGE(FL("Failed to send OCB set config cmd"));
-		iface = &wma->interfaces[tgt_req->vdev_id];
 		iface->vdev_up = false;
+		WMA_LOGD(FL("Setting vdev_up flag to false"));
 		wma_ocb_set_config_resp(wma, QDF_STATUS_E_TIMEOUT);
 	} else if (tgt_req->msg_type == WMA_HIDDEN_SSID_VDEV_RESTART) {
 		WMA_LOGE("Hidden ssid vdev restart Timed Out; vdev_id: %d, type = %d",
@@ -3240,6 +3257,9 @@ void wma_vdev_resp_timer(void *data)
 		    QDF_STATUS_SUCCESS) {
 			WMA_LOGE("Failed to send vdev down cmd: vdev %d",
 				tgt_req->vdev_id);
+		} else {
+			iface->vdev_up = false;
+			WMA_LOGD(FL("Setting vdev_up flag to false"));
 		}
 		params->status = QDF_STATUS_E_TIMEOUT;
 		WMA_LOGA("%s: WMA_SET_LINK_STATE timedout vdev %d", __func__,
@@ -4601,6 +4621,7 @@ static void wma_add_sta_req_sta_mode(tp_wma_handle wma, tpAddStaParams params)
 		status = QDF_STATUS_E_FAILURE;
 	} else {
 		wma->interfaces[params->smesessionId].vdev_up = true;
+		WMA_LOGD(FL("Setting vdev_up flag to true"));
 		wma_set_vdev_mgmt_rate(wma, params->smesessionId);
 	}
 
@@ -5043,6 +5064,7 @@ void wma_delete_bss_ho_fail(tp_wma_handle wma, tpDeleteBssParams params)
 	WMA_LOGD("%s: (type %d subtype %d) BSS is stopped",
 			__func__, iface->type, iface->sub_type);
 	iface->vdev_up = false;
+	WMA_LOGD(FL("Setting vdev_up flag to false"));
 	params->status = QDF_STATUS_SUCCESS;
 	if (!iface->peer_count) {
 		WMA_LOGE("%s: Can't remove peer with peer_addr %pM vdevid %d peer_count %d",
@@ -5201,6 +5223,7 @@ void wma_delete_bss(tp_wma_handle wma, tpDeleteBssParams params)
 		WMA_LOGD("LFR3:%s: Setting vdev_up to FALSE for session %d",
 			__func__, params->smesessionId);
 		iface->vdev_up = false;
+		WMA_LOGD(FL("Setting vdev_up flag to false"));
 		goto detach_peer;
 	}
 	msg = wma_fill_vdev_req(wma, params->smesessionId, WMA_DELETE_BSS_REQ,

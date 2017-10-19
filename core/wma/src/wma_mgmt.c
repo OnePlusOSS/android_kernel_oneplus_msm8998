@@ -2652,6 +2652,7 @@ void wma_send_beacon(tp_wma_handle wma, tpSendbeaconParams bcn_info)
 				return;
 			}
 			wma->interfaces[vdev_id].vdev_up = true;
+			WMA_LOGD(FL("Setting vdev_up flag to true"));
 			wma_set_sap_keepalive(wma, vdev_id);
 			wma_set_vdev_mgmt_rate(wma, vdev_id);
 		}

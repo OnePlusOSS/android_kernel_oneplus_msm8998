@@ -2657,6 +2657,7 @@ static void wma_roam_update_vdev(tp_wma_handle wma,
 	wma_add_bss(wma, (tpAddBssParams)roam_synch_ind_ptr->add_bss_params);
 	wma_add_sta(wma, add_sta_params);
 	wma->interfaces[vdev_id].vdev_up = true;
+	WMA_LOGD(FL("Setting vdev_up flag to true"));
 	qdf_mem_copy(wma->interfaces[vdev_id].bssid,
 			roam_synch_ind_ptr->bssid.bytes, IEEE80211_ADDR_LEN);
 	qdf_mem_free(del_bss_params);

@@ -185,6 +185,8 @@
 #define MAX_GENIE_LEN (512)
 #define MIN_GENIE_LEN (2)
 
+#define HDD_MAX_STA_COUNT (WLAN_MAX_STA_COUNT + QDF_MAX_NO_OF_SAP_MODE + 2)
+
 #define WLAN_CHIP_VERSION   "WCNSS"
 
 #define hdd_log_ratelimited(rate, level, args...) \
@@ -1723,7 +1725,7 @@ struct hdd_context_s {
 	/* One per STA: 1 for BCMC_STA_ID, 1 for each SAP_SELF_STA_ID,
 	 * 1 for WDS_STAID
 	 */
-	hdd_adapter_t *sta_to_adapter[WLAN_MAX_STA_COUNT + QDF_MAX_NO_OF_SAP_MODE + 2];
+	hdd_adapter_t *sta_to_adapter[HDD_MAX_STA_COUNT];
 
 	/** Pointer for firmware image data */
 	const struct firmware *fw;

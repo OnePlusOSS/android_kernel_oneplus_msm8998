@@ -4226,10 +4226,7 @@ QDF_STATUS hdd_stop_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 
 	case QDF_SAP_MODE:
 		hdd_ipa_flush(hdd_ctx);
-		sap_config = &adapter->sessionCtx.ap.sapConfig;
-		if (sap_config)
-			wlansap_reset_sap_config_add_ie(sap_config,
-							eUPDATE_IE_ALL);
+
 	case QDF_P2P_GO_MODE:
 		if (hdd_ctx->config->conc_custom_rule1 &&
 			(QDF_SAP_MODE == adapter->device_mode)) {
@@ -4247,7 +4244,11 @@ QDF_STATUS hdd_stop_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 			}
 		}
 		cds_flush_work(&adapter->sap_stop_bss_work);
+
 		/* Any softap specific cleanup here... */
+		sap_config = &adapter->sessionCtx.ap.sapConfig;
+		wlansap_reset_sap_config_add_ie(sap_config, eUPDATE_IE_ALL);
+		wlan_hdd_undo_acs(adapter);
 		if (adapter->device_mode == QDF_P2P_GO_MODE)
 			wlan_hdd_cleanup_remain_on_channel_ctx(adapter);
 

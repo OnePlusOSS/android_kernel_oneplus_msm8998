@@ -532,12 +532,9 @@ err_bmi_close:
 	bmi_cleanup(ol_ctx);
 
 err_sched_close:
-	if (QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		qdf_status = cds_sched_close(gp_cds_context);
-		if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-			cds_err("Failed to close CDS Scheduler");
-			QDF_ASSERT(false);
-		}
+	if (QDF_IS_STATUS_ERROR(cds_sched_close(gp_cds_context))) {
+		cds_err("Failed to close CDS Scheduler");
+		QDF_ASSERT(false);
 	}
 
 err_concurrency_lock:

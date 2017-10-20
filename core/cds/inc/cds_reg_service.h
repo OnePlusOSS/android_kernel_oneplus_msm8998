@@ -291,8 +291,9 @@ enum country_src {
  * @ctl_2g: 2G CTL value
  * @ctl_5g: 5G CTL value
  * @reg_pair: pointer to regulatory pair
- * @cc_src: country code src
+ * @cc_src: hdd country code src
  * @reg_flags: kernel regulatory flags
+ * @reset: whether to reset to 00
  */
 struct regulatory {
 	uint32_t reg_domain;
@@ -304,6 +305,7 @@ struct regulatory {
 	const void *regpair;
 	enum country_src cc_src;
 	uint32_t reg_flags;
+	bool reset;
 };
 
 /**

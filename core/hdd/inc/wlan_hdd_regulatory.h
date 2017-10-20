@@ -72,4 +72,12 @@ void hdd_modify_indoor_channel_state_flags(
 	struct regulatory_channel *cds_chan,
 	enum channel_enum chan_enum, int chan_num, bool disable);
 
+/**
+ * hdd_apply_cached_country_info() - apply cached ctry info
+ * @hdd_ctx: hdd context
+ *
+ * Return: void
+ */
+void hdd_apply_cached_country_info(hdd_context_t *hdd_ctx);
+
 #endif

@@ -7540,14 +7540,6 @@ void sme_set_cc_src(tHalHandle hHal, enum country_src cc_src)
 {
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hHal);
 
-	/*
-	 * in reg callback from kernel, for 11d source also
-	 * the source is SOURCE_USERSPACE
-	 */
-	if ((cc_src == SOURCE_USERSPACE) &&
-	    (SOURCE_11D == mac_ctx->reg_hint_src))
-		return;
-
 	mac_ctx->reg_hint_src = cc_src;
 }
 

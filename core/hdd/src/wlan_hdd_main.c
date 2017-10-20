@@ -10244,6 +10244,11 @@ err_stop_modules:
 	hdd_wlan_stop_modules(hdd_ctx, false);
 
 err_exit_nl_srv:
+	hdd_driver_memdump_deinit();
+	memdump_deinit();
+
+	qdf_mc_timer_destroy(&hdd_ctx->tdls_source_timer);
+
 	hdd_green_ap_deinit(hdd_ctx);
 	hdd_exit_netlink_services(hdd_ctx);
 

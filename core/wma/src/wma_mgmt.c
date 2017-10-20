@@ -3115,7 +3115,6 @@ void wma_hidden_ssid_vdev_restart(tp_wma_handle wma_handle,
 			       hidden_ssid_restart_in_progress, 0);
 		wma_remove_vdev_req(wma_handle, pReq->sessionId,
 					WMA_TARGET_REQ_TYPE_VDEV_STOP);
-		return;
 	}
 }
 

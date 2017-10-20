@@ -772,9 +772,10 @@ send_fail_resp:
 		WMA_LOGE("%s: ADD BSS failure %d", __func__, add_bss->status);
 
 		/* Send vdev stop if vdev start was success*/
-		if (!resp_event->status)
+		if (!resp_event->status) {
 			if (wma_send_vdev_stop_to_fw(wma, resp_event->vdev_id))
 				WMA_LOGE("%s: %d Failed to send vdev stop", __func__, __LINE__);
+		}
 
 		pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 		if (NULL == pdev)
@@ -1048,6 +1049,15 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 
 		WMA_LOGD("%s: Send channel switch resp vdev %d status %d",
 			 __func__, resp_event->vdev_id, resp_event->status);
+
+		if (QDF_IS_STATUS_ERROR(resp_event->status)) {
+			wma_cli_set_command(resp_event->vdev_id,
+				(int)WMI_VDEV_PARAM_ABG_MODE_TX_CHAIN_NUM, 0,
+				VDEV_CMD);
+			WMA_LOGD("vdev: %d WMI_VDEV_PARAM_ABG_MODE_TX_CHAIN_NUM 0",
+				resp_event->vdev_id);
+		}
+
 		params->chainMask = resp_event->chain_mask;
 		if ((2 != resp_event->cfgd_rx_streams) ||
 			(2 != resp_event->cfgd_tx_streams)) {
@@ -3100,7 +3110,13 @@ void wma_vdev_resp_timer(void *data)
 		tpSwitchChannelParams params =
 			(tpSwitchChannelParams) tgt_req->user_data;
 		params->status = QDF_STATUS_E_TIMEOUT;
+
 		WMA_LOGA("%s: WMA_SWITCH_CHANNEL_REQ timedout", __func__);
+
+		wma_cli_set_command(tgt_req->vdev_id,
+			(int)WMI_VDEV_PARAM_ABG_MODE_TX_CHAIN_NUM, 0, VDEV_CMD);
+		WMA_LOGD("vdev: %d WMI_VDEV_PARAM_ABG_MODE_TX_CHAIN_NUM 0",
+			tgt_req->vdev_id);
 
 		/*
 		 * Trigger host crash if the flag is set or if the timeout
@@ -5269,13 +5285,17 @@ void wma_delete_bss(tp_wma_handle wma, tpDeleteBssParams params)
 			   OL_TXQ_PAUSE_REASON_VDEV_STOP);
 	iface->pause_bitmap |= (1 << PAUSE_TYPE_HOST);
 
-	if (wma_send_vdev_stop_to_fw(wma, params->smesessionId)) {
+	status = wma_send_vdev_stop_to_fw(wma, params->smesessionId);
+	wma_cli_set_command(params->smesessionId,
+			(int)WMI_VDEV_PARAM_ABG_MODE_TX_CHAIN_NUM, 0, VDEV_CMD);
+	WMA_LOGD("vdev: %d WMI_VDEV_PARAM_ABG_MODE_TX_CHAIN_NUM 0",
+		 params->smesessionId);
+	if (QDF_IS_STATUS_ERROR(status)) {
 		WMA_LOGE("%s: %d Failed to send vdev stop", __func__, __LINE__);
 		wma_remove_vdev_req(wma, params->smesessionId,
 				WMA_TARGET_REQ_TYPE_VDEV_STOP);
-		status = QDF_STATUS_E_FAILURE;
 		goto detach_peer;
-		}
+	}
 	WMA_LOGD("%s: bssid %pM vdev_id %d",
 		 __func__, params->bssid, params->smesessionId);
 	return;

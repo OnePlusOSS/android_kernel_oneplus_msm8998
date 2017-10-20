@@ -1228,9 +1228,14 @@ void wma_set_linkstate(tp_wma_handle wma, tpLinkStateParams params)
 			WMA_LOGP(FL("Failed to fill vdev request for vdev_id %d"),
 				 vdev_id);
 			params->status = false;
-			status = QDF_STATUS_E_NOMEM;
 		}
-		if (wma_send_vdev_stop_to_fw(wma, vdev_id)) {
+
+		status = wma_send_vdev_stop_to_fw(wma, vdev_id);
+		wma_cli_set_command(vdev_id,
+			(int)WMI_VDEV_PARAM_ABG_MODE_TX_CHAIN_NUM, 0, VDEV_CMD);
+		WMA_LOGD("vdev: %d WMI_VDEV_PARAM_ABG_MODE_TX_CHAIN_NUM 0",
+			 vdev_id);
+		if (QDF_IS_STATUS_ERROR(status)) {
 			WMA_LOGP("%s: %d Failed to send vdev stop vdev %d",
 				 __func__, __LINE__, vdev_id);
 			wma_remove_vdev_req(wma, vdev_id,

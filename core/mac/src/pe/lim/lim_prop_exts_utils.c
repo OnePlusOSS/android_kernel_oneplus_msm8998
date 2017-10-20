@@ -222,9 +222,13 @@ lim_check_for_vendor_ap_capabilities(struct wmi_action_oui_extension *extension,
 					tSirProbeRespBeacon *beacon_struct,
 					tpPESession session)
 {
-	uint8_t nss = lim_get_nss_supported_by_sta_and_ap(beacon_struct,
+	uint8_t nss = 0, nss_mask = 0;
+
+	if (beacon_struct) {
+		nss = lim_get_nss_supported_by_sta_and_ap(beacon_struct,
 							  session);
-	uint8_t nss_mask = 1 << (nss - 1);
+		nss_mask = 1 << (nss - 1);
+	}
 
 	if (extension->info_mask & WMI_ACTION_OUI_INFO_AP_CAPABILITY_NSS) {
 		if (!((*extension->capability &
@@ -233,7 +237,8 @@ lim_check_for_vendor_ap_capabilities(struct wmi_action_oui_extension *extension,
 			return false;
 	}
 
-	if (extension->info_mask & WMI_ACTION_OUI_INFO_AP_CAPABILITY_HT) {
+	if (extension->info_mask & WMI_ACTION_OUI_INFO_AP_CAPABILITY_HT &&
+		beacon_struct) {
 		if (*extension->capability &
 		    WMI_ACTION_OUI_CAPABILITY_HT_ENABLE_MASK) {
 			if (!beacon_struct->HTCaps.present)
@@ -244,7 +249,8 @@ lim_check_for_vendor_ap_capabilities(struct wmi_action_oui_extension *extension,
 		}
 	}
 
-	if (extension->info_mask & WMI_ACTION_OUI_INFO_AP_CAPABILITY_VHT) {
+	if (extension->info_mask & WMI_ACTION_OUI_INFO_AP_CAPABILITY_VHT &&
+		beacon_struct) {
 		if (*extension->capability &
 		    WMI_ACTION_OUI_CAPABILITY_VHT_ENABLE_MASK) {
 			if (!beacon_struct->VHTCaps.present)
@@ -458,6 +464,19 @@ lim_extract_ap_capability(tpAniSirGlobal mac_ctx, uint8_t *p_ie,
 		session->vdev_nss = 1;
 		session->nss = 1;
 		pe_debug("For special ap, NSS: %d", session->nss);
+	}
+
+	/*
+	 * If CCK WAR is set for current AP, update to firmware via
+	 * WMI_VDEV_PARAM_ABG_MODE_TX_CHAIN_NUM
+	 */
+	is_vendor_ap_present = lim_check_vendor_ap_present(mac_ctx, NULL,
+				session, p_ie, ie_len, WMI_ACTION_OUI_CCKM_1X1);
+	if (is_vendor_ap_present) {
+		pe_debug("vdev: %d WMI_VDEV_PARAM_ABG_MODE_TX_CHAIN_NUM 1",
+			session->smeSessionId);
+		wma_cli_set_command(session->smeSessionId,
+			(int)WMI_VDEV_PARAM_ABG_MODE_TX_CHAIN_NUM, 1, VDEV_CMD);
 	}
 
 	if (session->nss > lim_get_nss_supported_by_sta_and_ap(beacon_struct,

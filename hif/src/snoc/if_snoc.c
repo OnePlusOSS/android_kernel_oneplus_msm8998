@@ -38,7 +38,6 @@
 #include "ce_main.h"
 #include "ce_tasklet.h"
 #include "snoc_api.h"
-#include <soc/qcom/icnss.h>
 #include "pld_common.h"
 #include "qdf_util.h"
 #ifdef IPA_OFFLOAD
@@ -389,7 +388,7 @@ QDF_STATUS hif_snoc_setup_wakeup_sources(struct hif_softc *scn, bool enable)
 		return status;
 	}
 
-	irq_to_wake_on = icnss_get_irq(dl_pipe);
+	irq_to_wake_on = pld_get_irq(scn->qdf_dev->dev, dl_pipe);
 	if (irq_to_wake_on < 0) {
 		HIF_ERROR("%s: failed to map ce to irq", __func__);
 		return QDF_STATUS_E_RESOURCES;

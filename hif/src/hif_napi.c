@@ -44,7 +44,7 @@
 #ifdef CONFIG_SCHED_CORE_CTL
 #include <linux/sched/core_ctl.h>
 #endif
-#include <pld_snoc.h>
+#include <pld_common.h>
 #endif
 #include <linux/pm.h>
 
@@ -63,12 +63,12 @@ enum napi_decision_vector {
 #define ENABLE_NAPI_MASK (HIF_NAPI_INITED | HIF_NAPI_CONF_UP)
 
 #ifdef HELIUMPLUS
-static inline int hif_get_irq_for_ce(int ce_id)
+static inline int hif_get_irq_for_ce(struct device *dev, int ce_id)
 {
-	return pld_snoc_get_irq(ce_id);
+	return pld_get_irq(dev, ce_id);
 }
 #else /* HELIUMPLUS */
-static inline int hif_get_irq_for_ce(int ce_id)
+static inline int hif_get_irq_for_ce(struct device *dev, int ce_id)
 {
 	return -EINVAL;
 }
@@ -173,7 +173,8 @@ int hif_napi_create(struct hif_opaque_softc   *hif_ctx,
 		napii->scale = scale;
 		napii->id    = NAPI_PIPE2ID(i);
 		napii->hif_ctx = hif_ctx;
-		napii->irq   = hif_get_irq_for_ce(i);
+		if (hif->qdf_dev)
+			napii->irq   = hif_get_irq_for_ce(hif->qdf_dev->dev, i);
 
 		if (napii->irq < 0)
 			HIF_WARN("%s: bad IRQ value for CE %d: %d",

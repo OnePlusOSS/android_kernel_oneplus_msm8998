@@ -1640,6 +1640,11 @@ struct wmi_probe_resp_params {
 	uint32_t ucProxyProbeReqValidIEBmap[8];
 };
 
+struct key_seq_counter {
+    uint32_t key_seq_counter_l;
+    uint32_t key_seq_counter_h;
+};
+
 /* struct set_key_params: structure containing
  *                        installation key parameters
  * @vdev_id: vdev id
@@ -1652,6 +1657,7 @@ struct wmi_probe_resp_params {
  * @key_rxmic_len: rx mic length
  * @rx_iv: receive IV, applicable only in case of WAPI
  * @tx_iv: transmit IV, applicable only in case of WAPI
+ * @key_rsc_counter: RSC key counter
  * @key_data: key data
  */
 struct set_key_params {
@@ -1668,6 +1674,7 @@ struct set_key_params {
 	uint8_t tx_iv[16];
 #endif
 	uint8_t key_data[WMI_MAC_MAX_KEY_LENGTH];
+	struct key_seq_counter key_rsc_counter;
 };
 
 /**

@@ -52,6 +52,7 @@
 #include "ol_txrx.h"
 #include "pktlog_ac.h"
 #include "wlan_hdd_ipa.h"
+#include "qdf_cpuhp.h"
 
 #ifdef ENABLE_SMMU_S1_TRANSLATION
 #include "pld_common.h"
@@ -129,6 +130,7 @@ v_CONTEXT_t cds_init(void)
 	qdf_mem_init();
 	qdf_mc_timer_manager_init();
 	qdf_event_list_init();
+	qdf_cpuhp_init();
 
 	gp_cds_context = &g_cds_context;
 
@@ -174,6 +176,7 @@ void cds_deinit(void)
 		return;
 
 	cds_recovery_work_deinit();
+	qdf_cpuhp_deinit();
 	qdf_mc_timer_manager_exit();
 	qdf_mem_exit();
 	qdf_lock_stats_deinit();

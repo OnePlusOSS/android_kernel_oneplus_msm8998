@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -75,6 +75,14 @@ void dfs_detach(struct ieee80211com *ic);
 int dfs_radar_enable(struct ieee80211com *ic,
 		     struct ath_dfs_radar_tab_info *ri);
 int dfs_radar_disable(struct ieee80211com *ic);
+
+/**
+ * is_dfs_radar_enable() - Is dfs radar enable.
+ * @ic: ieee80211com ptr
+ *
+ * Return: 1 for radar enable
+ */
+bool is_dfs_radar_enable(struct ieee80211com *ic);
 extern void dfs_process_phyerr(struct ieee80211com *ic, void *buf,
 			       uint16_t datalen, uint8_t rssi, uint8_t ext_rssi,
 			       uint32_t rs_tstamp, uint64_t fulltsf,

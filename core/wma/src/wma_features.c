@@ -2125,6 +2125,11 @@ static QDF_STATUS dfs_phyerr_offload_event_handler(void *handle,
 		WMA_LOGE("%s: dfs is  NULL ", __func__);
 		return QDF_STATUS_E_FAILURE;
 	}
+
+	if (!is_dfs_radar_enable(ic)) {
+		WMA_LOGD("%s: DFS_AR_EN not enabled", __func__);
+		return QDF_STATUS_E_FAILURE;
+	}
 	/*
 	 * This parameter holds the number
 	 * of phyerror interrupts to the host

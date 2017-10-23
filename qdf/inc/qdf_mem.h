@@ -469,6 +469,18 @@ qdf_mem_dma_get_sgtable(struct device *dev, void *sgt, void *cpu_addr,
 }
 
 /**
+ * qdf_mem_free_sgtable() - Free a previously allocated sg table
+ * @sgt: the mapped sg table header
+ *
+ * @Return: None
+ */
+static inline void
+qdf_mem_free_sgtable(struct sg_table *sgt)
+{
+	__qdf_os_mem_free_sgtable(sgt);
+}
+
+/**
  * qdf_dma_get_sgtable_dma_addr() - Assigns DMA address to scatterlist elements
  * @sgt: scatter gather table pointer
  *
@@ -528,6 +540,7 @@ static inline qdf_shared_mem_t *qdf_mem_shared_mem_alloc(qdf_device_t osdev,
 							 uint32_t size)
 {
 	qdf_shared_mem_t *shared_mem;
+	int ret;
 
 	shared_mem = qdf_mem_malloc(sizeof(qdf_shared_mem_t));
 	if (!shared_mem) {
@@ -549,12 +562,24 @@ static inline qdf_shared_mem_t *qdf_mem_shared_mem_alloc(qdf_device_t osdev,
 	qdf_mem_zero(shared_mem->vaddr, shared_mem->mem_info.size);
 	shared_mem->mem_info.pa = __qdf_mem_paddr_from_dmaaddr(osdev,
 				    (qdf_dma_addr_t)shared_mem->mem_info.iova);
-	qdf_mem_dma_get_sgtable(osdev->dev,
+	ret = qdf_mem_dma_get_sgtable(osdev->dev,
 				(void *)&shared_mem->sgtable,
 				shared_mem->vaddr,
 				qdf_mem_get_dma_addr(osdev,
 						     &shared_mem->mem_info),
 				shared_mem->mem_info.size);
+	if (ret) {
+		__qdf_print("%s; Unable to get DMA sgtable\n", __func__);
+		qdf_mem_free_consistent(osdev, osdev->dev,
+					shared_mem->mem_info.size,
+					shared_mem->vaddr,
+					qdf_mem_get_dma_addr(osdev,
+						&shared_mem->mem_info),
+					qdf_get_dma_mem_context(shared_mem,
+								memctx));
+		qdf_mem_free(shared_mem);
+		return NULL;
+	}
 
 	qdf_dma_get_sgtable_dma_addr(&shared_mem->sgtable);
 
@@ -588,6 +613,7 @@ static inline void qdf_mem_shared_mem_free(qdf_device_t osdev,
 					qdf_get_dma_mem_context(shared_mem,
 								memctx));
 	}
+	qdf_mem_free_sgtable(&(shared_mem->sgtable));
 	qdf_mem_free(shared_mem);
 }
 

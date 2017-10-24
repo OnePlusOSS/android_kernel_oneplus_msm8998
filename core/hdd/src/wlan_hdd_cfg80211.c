@@ -15956,12 +15956,6 @@ static bool wlan_hdd_is_conn_type_fils(struct cfg80211_connect_params *req)
 	return true;
 }
 #else
-static enum eAniAuthType wlan_hdd_get_fils_auth_type(
-		enum nl80211_auth_type auth)
-{
-	return eSIR_DONOT_USE_AUTH_TYPE;
-}
-
 static int wlan_hdd_cfg80211_set_fils_config(struct hdd_adapter_s *adapter,
 					 struct cfg80211_connect_params *req)
 {

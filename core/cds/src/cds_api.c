@@ -128,7 +128,14 @@ static void cds_recovery_work_deinit(void)
  */
 v_CONTEXT_t cds_init(void)
 {
-	qdf_debugfs_init();
+	QDF_STATUS ret;
+
+	ret = qdf_debugfs_init();
+	if (ret != QDF_STATUS_SUCCESS) {
+		cds_err("Failed to init debugfs");
+		goto err_ret;
+	}
+
 	qdf_lock_stats_init();
 	qdf_mem_init();
 	qdf_mc_timer_manager_init();
@@ -147,9 +154,23 @@ v_CONTEXT_t cds_init(void)
 
 	cds_ssr_protect_init();
 
-	cds_recovery_work_init();
+	ret = cds_recovery_work_init();
+	if (ret != QDF_STATUS_SUCCESS) {
+		cds_err("Failed to init recovery work");
+		goto deinit;
+	}
 
 	return gp_cds_context;
+deinit:
+	qdf_mc_timer_manager_exit();
+	qdf_mem_exit();
+	qdf_lock_stats_deinit();
+	qdf_debugfs_exit();
+	gp_cds_context->qdf_ctx = NULL;
+	gp_cds_context = NULL;
+	qdf_mem_zero(&g_cds_context, sizeof(g_cds_context));
+err_ret:
+	return NULL;
 }
 
 /**

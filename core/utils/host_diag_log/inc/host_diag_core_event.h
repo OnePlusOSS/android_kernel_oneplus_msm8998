@@ -606,6 +606,7 @@ enum wifi_connectivity_events {
  * @WIFI_POWER_EVENT_WAKELOCK_MGMT_TX: MGMT Tx wake lock
  * @WIFI_POWER_EVENT_WAKELOCK_CONNECT: connection in progress
  * @WIFI_POWER_EVENT_WAKELOCK_IFACE_CHANGE_TIMER: iface change timer running
+ * @WIFI_POWER_EVENT_WAKELOCK_MONITOR_MODE: Montitor mode wakelock
  *
  * Indicates the reason for which the wakelock was taken/released
  */
@@ -632,6 +633,7 @@ enum wake_lock_reason {
 	WIFI_POWER_EVENT_WAKELOCK_MGMT_TX,
 	WIFI_POWER_EVENT_WAKELOCK_CONNECT,
 	WIFI_POWER_EVENT_WAKELOCK_IFACE_CHANGE_TIMER,
+	WIFI_POWER_EVENT_WAKELOCK_MONITOR_MODE,
 };
 
 #ifdef __cplusplus

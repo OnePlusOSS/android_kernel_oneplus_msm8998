@@ -1737,7 +1737,7 @@ static int hif_device_inserted(struct sdio_func *func,
 					AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
 						("%s: CMD52 to set bus width failed: %d\n",
 						 __func__, ret));
-					return ret;
+					goto del_hif_dev;
 				}
 				device->host->ios.bus_width =
 					MMC_BUS_WIDTH_1;
@@ -1758,7 +1758,7 @@ static int hif_device_inserted(struct sdio_func *func,
 					("%s: CMD52 to bus width failed: %d\n",
 					 __func__,
 						 ret));
-					return ret;
+					goto del_hif_dev;
 				}
 				device->host->ios.bus_width =
 					MMC_BUS_WIDTH_4;
@@ -1779,7 +1779,7 @@ static int hif_device_inserted(struct sdio_func *func,
 					("%s: CMD52 to bus width failed: %d\n",
 							 __func__,
 							 ret));
-					return ret;
+					goto del_hif_dev;
 				}
 				device->host->ios.bus_width =
 					MMC_BUS_WIDTH_8;
@@ -1791,7 +1791,8 @@ static int hif_device_inserted(struct sdio_func *func,
 				("%s: MMC bus width %d is not supported.\n",
 						 __func__,
 						 mmcbuswidth));
-				return ret = QDF_STATUS_E_FAILURE;
+				ret = QDF_STATUS_E_FAILURE;
+				goto del_hif_dev;
 			}
 			AR_DEBUG_PRINTF(ATH_DEBUG_ANY,
 				("%s: Set MMC bus width to %dBit.\n",
@@ -1827,8 +1828,23 @@ static int hif_device_inserted(struct sdio_func *func,
 
 	ret = hif_enable_func(device, func);
 
-	return (ret == QDF_STATUS_SUCCESS || ret == QDF_STATUS_E_PENDING)
-						? 0 : QDF_STATUS_E_FAILURE;
+	if ((ret == QDF_STATUS_SUCCESS || ret == QDF_STATUS_E_PENDING))
+		return 0;
+	ret = QDF_STATUS_E_FAILURE;
+del_hif_dev:
+	del_hif_device(device);
+	for (i = 0; i < MAX_HIF_DEVICES; ++i) {
+		if (hif_devices[i] == device) {
+			hif_devices[i] = NULL;
+			break;
+		}
+	}
+	if (i == MAX_HIF_DEVICES) {
+		AR_DEBUG_PRINTF(ATH_DEBUG_ERROR,
+			("%s: No hif_devices[] slot for %pK",
+			__func__, device));
+	}
+	return ret;
 }
 
 /**

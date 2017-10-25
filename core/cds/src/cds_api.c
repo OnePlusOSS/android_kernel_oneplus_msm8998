@@ -502,6 +502,8 @@ QDF_STATUS cds_open(void)
 		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_FATAL,
 			  "%s: Failed to open TXRX", __func__);
 		QDF_ASSERT(0);
+
+		qdf_status = QDF_STATUS_E_FAILURE;
 		goto err_sme_close;
 	}
 

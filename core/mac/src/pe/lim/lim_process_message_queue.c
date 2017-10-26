@@ -898,6 +898,7 @@ lim_handle80211_frames(tpAniSirGlobal pMac, tpSirMsgQ limMsg, uint8_t *pDeferMsg
 	tpPESession psessionEntry = NULL;
 	uint8_t sessionId;
 	bool isFrmFt = false;
+	uint8_t channel;
 
 	*pDeferMsg = false;
 	lim_get_b_dfrom_rx_packet(pMac, limMsg->bodyptr,
@@ -905,9 +906,11 @@ lim_handle80211_frames(tpAniSirGlobal pMac, tpSirMsgQ limMsg, uint8_t *pDeferMsg
 
 	pHdr = WMA_GET_RX_MAC_HEADER(pRxPacketInfo);
 	isFrmFt = WMA_GET_RX_FT_DONE(pRxPacketInfo);
+	channel = WMA_GET_RX_CH(pRxPacketInfo);
 	fc = pHdr->fc;
 
-	if (pMac->sap.SapDfsInfo.is_dfs_cac_timer_running) {
+	if (IS_5G_CH(channel) &&
+	    pMac->sap.SapDfsInfo.is_dfs_cac_timer_running) {
 		psessionEntry = pe_find_session_by_bssid(pMac,
 					pHdr->bssId, &sessionId);
 		if (psessionEntry &&

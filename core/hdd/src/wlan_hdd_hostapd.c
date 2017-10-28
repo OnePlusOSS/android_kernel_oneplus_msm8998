@@ -1842,9 +1842,13 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 		}
 
 		hdd_debug("bss_stop_reason=%d", pHddApCtx->bss_stop_reason);
-		if (pHddApCtx->bss_stop_reason !=
-			BSS_STOP_DUE_TO_MCC_SCC_SWITCH) {
-			/* when MCC to SCC switching happens, key storage
+		if ((BSS_STOP_DUE_TO_MCC_SCC_SWITCH !=
+			pHddApCtx->bss_stop_reason) &&
+		    (BSS_STOP_DUE_TO_VENDOR_CONFIG_CHAN !=
+			pHddApCtx->bss_stop_reason)) {
+			/*
+			 * when MCC to SCC switching or vendor subcmd
+			 * setting sap config channel happens, key storage
 			 * should not be cleared due to hostapd will not
 			 * repopulate the original keys
 			 */

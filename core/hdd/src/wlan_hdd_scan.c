@@ -1619,11 +1619,17 @@ static void __wlan_hdd_cfg80211_scan_block_cb(struct work_struct *work)
 		request->n_channels = 0;
 
 		hdd_err("##In DFS Master mode. Scan aborted. Null result sent");
-		if (NL_SCAN == adapter->scan_source)
-			hdd_cfg80211_scan_done(adapter, request, true);
-		else
-			hdd_vendor_scan_callback(adapter, request, true);
+		hdd_cfg80211_scan_done(adapter, request, true);
 		adapter->request = NULL;
+	}
+	request = adapter->vendor_request;
+	if (request) {
+		request->n_ssids = 0;
+		request->n_channels = 0;
+
+		hdd_err("In DFS Master mode. Scan aborted. Null result sent");
+		hdd_vendor_scan_callback(adapter, request, true);
+		adapter->vendor_request = NULL;
 	}
 }
 
@@ -1924,8 +1930,10 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 						conn_info.connState) &&
 	    (!pHddCtx->config->enable_connected_scan)) {
 		hdd_info("enable_connected_scan is false, Aborting scan");
-		pAdapter->request = request;
-		pAdapter->scan_source = source;
+		if (NL_SCAN == source)
+			pAdapter->request = request;
+		else
+			pAdapter->vendor_request = request;
 		schedule_work(&pAdapter->scan_block_work);
 		return 0;
 	}
@@ -1981,9 +1989,10 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 			 * startup.
 			 */
 			hdd_err("##In DFS Master mode. Scan aborted");
-			pAdapter->request = request;
-			pAdapter->scan_source = source;
-
+			if (NL_SCAN == source)
+				pAdapter->request = request;
+			else
+				pAdapter->vendor_request = request;
 			schedule_work(&pAdapter->scan_block_work);
 			return 0;
 		}
@@ -2082,8 +2091,10 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 	if (pAdapter->device_mode == QDF_SAP_MODE &&
 	   wlan_hdd_sap_skip_scan_check(pHddCtx, request)) {
 		hdd_debug("sap scan skipped");
-		pAdapter->request = request;
-		pAdapter->scan_source = source;
+		if (NL_SCAN == source)
+			pAdapter->request = request;
+		else
+			pAdapter->vendor_request = request;
 		schedule_work(&pAdapter->scan_block_work);
 		return 0;
 	}

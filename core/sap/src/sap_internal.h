@@ -273,6 +273,7 @@ typedef struct sSapContext {
 	tSirMacRateSet extended_rate_set;
 	enum sap_acs_dfs_mode dfs_mode;
 	uint8_t sap_sta_id;
+	bool is_chan_change_inprogress;
 } *ptSapContext;
 
 /*----------------------------------------------------------------------------

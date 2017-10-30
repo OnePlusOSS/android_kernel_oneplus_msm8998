@@ -585,6 +585,7 @@ wlansap_roam_process_dfs_chansw_update(tHalHandle hHal,
 		  FL("sapdfs: from state eSAP_STARTED => eSAP_DISCONNECTING"));
 	/* SAP to be moved to DISCONNECTING state */
 	sap_ctx->sapsMachine = eSAP_DISCONNECTING;
+	sap_ctx->is_chan_change_inprogress = true;
 	/*
 	 * The associated stations have been informed to move to a different
 	 * channel. However, the AP may not always select the advertised channel
@@ -1068,6 +1069,8 @@ wlansap_roam_callback(void *ctx, tCsrRoamInfo *csr_roam_info, uint32_t roamId,
 	case eCSR_ROAM_SET_CHANNEL_RSP:
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
 			  FL("Received set channel response"));
+		/* SAP channel change request processing is completed */
+		sap_ctx->is_chan_change_inprogress = false;
 		break;
 	case eCSR_ROAM_EXT_CHG_CHNL_IND:
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,

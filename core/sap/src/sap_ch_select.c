@@ -440,7 +440,7 @@ void sap_update_unsafe_channel_list(ptSapContext pSapCtx)
 			if (CDS_IS_DFS_CH(safe_channels[i].channelNumber)) {
 				safe_channels[i].isSafe = false;
 				QDF_TRACE(QDF_MODULE_ID_SAP,
-					QDF_TRACE_LEVEL_INFO_HIGH,
+					QDF_TRACE_LEVEL_DEBUG,
 					"%s: DFS Ch %d is not safe in"
 					" Concurrent mode",
 					__func__,
@@ -461,7 +461,7 @@ void sap_update_unsafe_channel_list(ptSapContext pSapCtx)
 				/* Found unsafe channel, update it */
 				safe_channels[j].isSafe = false;
 				QDF_TRACE(QDF_MODULE_ID_SAP,
-					  QDF_TRACE_LEVEL_ERROR,
+					  QDF_TRACE_LEVEL_DEBUG,
 					  FL("CH %d is not safe"),
 					  unsafe_channel_list[i]);
 				break;
@@ -704,7 +704,7 @@ static bool sap_chan_sel_init(tHalHandle halHandle,
 			if ((safe_channels[i].channelNumber == *pChans) &&
 			    (false == safe_channels[i].isSafe)) {
 				QDF_TRACE(QDF_MODULE_ID_SAP,
-					  QDF_TRACE_LEVEL_INFO_HIGH,
+					  QDF_TRACE_LEVEL_DEBUG,
 					  "In %s, Ch %d is not safe", __func__,
 					  *pChans);
 				chSafe = false;

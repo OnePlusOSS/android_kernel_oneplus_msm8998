@@ -5009,7 +5009,7 @@ void cds_update_with_safe_channel_list(uint8_t *pcl_channels, uint32_t *len,
 					unsafe_channel_list[j]) {
 					/* Found unsafe channel, update it */
 					is_unsafe = 1;
-					cds_warn("CH %d is not safe",
+					cds_debug("CH %d is not safe",
 						current_channel_list[i]);
 					break;
 				}
@@ -7676,7 +7676,7 @@ bool cds_is_safe_channel(uint8_t channel)
 	for (j = 0; j < cds_ctx->unsafe_channel_count; j++) {
 		if (channel == cds_ctx->unsafe_channel_list[j]) {
 			is_safe = false;
-			cds_warn("CH %d is not safe", channel);
+			cds_debug("CH %d is not safe", channel);
 			break;
 		}
 	}

@@ -4444,8 +4444,10 @@ QDF_STATUS hdd_reset_all_adapters(hdd_context_t *hdd_ctx)
 				     &adapter->event_flags)) {
 				hdd_sap_indicate_disconnect_for_sta(adapter);
 				hdd_cleanup_actionframe(hdd_ctx, adapter);
-				hdd_sap_destroy_events(adapter);
 			}
+			if (test_bit(DEVICE_IFACE_OPENED,
+				     &adapter->event_flags))
+				hdd_sap_destroy_events(adapter);
 			clear_bit(SOFTAP_BSS_STARTED, &adapter->event_flags);
 		} else {
 			wlan_hdd_netif_queue_control(adapter,

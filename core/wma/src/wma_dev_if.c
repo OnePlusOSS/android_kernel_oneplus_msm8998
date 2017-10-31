@@ -668,7 +668,6 @@ QDF_STATUS wma_vdev_detach(tp_wma_handle wma_handle,
 	if (iface->type == WMI_VDEV_TYPE_STA)
 		wma_pno_stop(wma_handle, vdev_id);
 
-	iface->vdev_active = false;
 	/* P2P Device */
 	if ((iface->type == WMI_VDEV_TYPE_AP) &&
 	    (iface->sub_type == WMI_UNIFIED_VDEV_SUBTYPE_P2P_DEVICE)) {
@@ -682,6 +681,9 @@ QDF_STATUS wma_vdev_detach(tp_wma_handle wma_handle,
 		status = wma_handle_vdev_detach(wma_handle,
 				pdel_sta_self_req_param, generateRsp);
 	}
+
+	if (QDF_IS_STATUS_SUCCESS(status))
+		iface->vdev_active = false;
 
 	return status;
 
@@ -1134,14 +1136,24 @@ bool wma_is_vdev_valid(uint32_t vdev_id)
 {
 	tp_wma_handle wma_handle = cds_get_context(QDF_MODULE_ID_WMA);
 
-	if (NULL == wma_handle)
+	if (!wma_handle) {
+		WMA_LOGD("%s: vdev_id: %d, null wma_handle", __func__, vdev_id);
 		return false;
+	}
 
 	/* No of interface are allocated based on max_bssid value */
-	if (vdev_id >= wma_handle->max_bssid)
+	if (vdev_id >= wma_handle->max_bssid) {
+		WMA_LOGD("%s: vdev_id: %d is invalid, max_bssid: %d",
+				__func__, vdev_id, wma_handle->max_bssid);
 		return false;
+	}
 
-	return wma_handle->interfaces[vdev_id].vdev_active;
+	WMA_LOGD("%s: vdev_id: %d, vdev_active: %d, is_vdev_valid %d",
+		 __func__, vdev_id, wma_handle->interfaces[vdev_id].vdev_active,
+		 wma_handle->interfaces[vdev_id].is_vdev_valid);
+
+	return wma_handle->interfaces[vdev_id].vdev_active ||
+		wma_handle->interfaces[vdev_id].is_vdev_valid;
 }
 
 /**
@@ -1976,9 +1988,10 @@ ol_txrx_vdev_handle wma_vdev_attach(tp_wma_handle wma_handle,
 		WMA_LOGE("%s: Failed to get mac", __func__);
 		goto end;
 	}
-	if (wma_handle->interfaces[self_sta_req->session_id].vdev_active) {
-		WMA_LOGE("%s: vdev %d already active",
-				__func__, self_sta_req->session_id);
+
+	vdev_id = self_sta_req->session_id;
+	if (wma_is_vdev_valid(vdev_id)) {
+		WMA_LOGE("%s: vdev %d already active", __func__, vdev_id);
 		goto end;
 	}
 
@@ -1997,8 +2010,6 @@ ol_txrx_vdev_handle wma_vdev_attach(tp_wma_handle wma_handle,
 			 __func__);
 		goto end;
 	}
-
-	vdev_id = self_sta_req->session_id;
 
 	txrx_vdev_type = wma_get_txrx_vdev_type(self_sta_req->type);
 

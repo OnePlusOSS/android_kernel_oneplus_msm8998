@@ -1294,7 +1294,16 @@ static inline void *hdd_init_rx_thread_napi(void)
 	struct napi_struct   *napi;
 
 	napi = qdf_mem_malloc(sizeof(struct napi_struct));
+	if (napi == NULL) {
+		hdd_err("Failed to alloc memory for napi");
+		return NULL;
+	}
 	netdev = qdf_mem_malloc(sizeof(struct net_device));
+	if (netdev == NULL) {
+		qdf_mem_free(napi);
+		hdd_err("Failed to alloc memory for netdev");
+		return NULL;
+	}
 	init_dummy_netdev(netdev);
 	netif_napi_add(netdev, napi, hdd_rxthread_napi_poll, 64);
 	napi_enable(napi);

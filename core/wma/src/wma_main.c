@@ -3717,10 +3717,16 @@ QDF_STATUS wma_stop(void *cds_ctx, uint8_t reason)
 	}
 #endif /* QCA_WIFI_FTM */
 
-	if (wma_handle->ack_work_ctx) {
-		cds_flush_work(&wma_handle->ack_work_ctx->ack_cmp_work);
-		qdf_mem_free(wma_handle->ack_work_ctx);
-		wma_handle->ack_work_ctx = NULL;
+	if (wma_handle->data_ack_work_ctx) {
+		cds_flush_work(&wma_handle->data_ack_work_ctx->ack_cmp_work);
+		qdf_mem_free(wma_handle->data_ack_work_ctx);
+		wma_handle->data_ack_work_ctx = NULL;
+	}
+
+	if (wma_handle->mgmt_ack_work_ctx) {
+		cds_flush_work(&wma_handle->mgmt_ack_work_ctx->ack_cmp_work);
+		qdf_mem_free(wma_handle->mgmt_ack_work_ctx);
+		wma_handle->mgmt_ack_work_ctx = NULL;
 	}
 
 	/* Destroy the timer for log completion */

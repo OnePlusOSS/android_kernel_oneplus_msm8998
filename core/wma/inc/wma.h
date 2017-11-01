@@ -1611,7 +1611,8 @@ typedef struct {
 	 * with ns info suppose if ns also enabled
 	 */
 	tSirHostOffloadReq mArpInfo;
-	struct wma_tx_ack_work_ctx *ack_work_ctx;
+	struct wma_tx_ack_work_ctx *data_ack_work_ctx;
+	struct wma_tx_ack_work_ctx *mgmt_ack_work_ctx;
 	uint8_t powersave_mode;
 	bool ptrn_match_enable_all_vdev;
 	uint8_t wma_ptrn_id_def;

@@ -849,7 +849,7 @@ static void wma_data_tx_ack_work_handler(void *ack_work)
 	wma_handle->umac_data_ota_ack_cb = NULL;
 	wma_handle->last_umac_data_nbuf = NULL;
 	qdf_mem_free(work);
-	wma_handle->ack_work_ctx = NULL;
+	wma_handle->data_ack_work_ctx = NULL;
 }
 
 /**
@@ -900,7 +900,7 @@ wma_data_tx_ack_comp_hdlr(void *wma_context, qdf_nbuf_t netbuf, int32_t status)
 		struct wma_tx_ack_work_ctx *ack_work;
 
 		ack_work = qdf_mem_malloc(sizeof(struct wma_tx_ack_work_ctx));
-		wma_handle->ack_work_ctx = ack_work;
+		wma_handle->data_ack_work_ctx = ack_work;
 		if (ack_work) {
 			ack_work->wma_handle = wma_handle;
 			ack_work->sub_type = 0;
@@ -1401,7 +1401,7 @@ static void wma_mgmt_tx_ack_work_handler(void *ack_work)
 	       work->status ? 0 : 1);
 
 	qdf_mem_free(work);
-	wma_handle->ack_work_ctx = NULL;
+	wma_handle->mgmt_ack_work_ctx = NULL;
 }
 
 /**
@@ -1459,6 +1459,7 @@ wma_mgmt_tx_ack_comp_hdlr(void *wma_context, qdf_nbuf_t netbuf, int32_t status)
 
 			ack_work = qdf_mem_malloc(sizeof(
 						struct wma_tx_ack_work_ctx));
+			wma_handle->mgmt_ack_work_ctx = ack_work;
 
 			if (ack_work) {
 				ack_work->wma_handle = wma_handle;

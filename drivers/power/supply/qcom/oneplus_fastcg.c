@@ -19,6 +19,12 @@
 #include <linux/interrupt.h>
 #include <linux/power/oem_external_fg.h>
 #include <linux/pm_qos.h>
+#include <soc/qcom/clock-rpm.h>
+#include <dt-bindings/clock/msm-clocks-8998.h>
+#include <dt-bindings/clock/msm-clocks-hwio-8998.h>
+#include <linux/clk.h>
+#include <linux/clk/msm-clk-provider.h>
+#include <linux/clk/msm-clk.h>
 
 #define BYTE_OFFSET			2
 #define BYTES_TO_WRITE		16
@@ -77,13 +83,9 @@ struct fastchg_device_info {
 struct fastchg_device_info *fastchg_di;
 
 static unsigned char *dashchg_firmware_data;
+static struct clk *snoc_clk, *cnoc_clk;
 static struct i2c_client *mcu_client;
-enum pon_type {
-	PON_KPDPWR,
-	PON_RESIN,
-	PON_CBLPWR,
-	PON_KPDPWR_RESIN,
-};
+
 void opchg_set_data_active(struct fastchg_device_info *chip)
 {
 	gpio_direction_input(chip->ap_data);
@@ -779,7 +781,14 @@ static void adapter_update_work_func(struct work_struct *work)
 	}
 	pr_info("%s begin\n", __func__);
 	opchg_set_data_active(chip);
-	oem_report_power_key(PON_KPDPWR);
+	if (snoc_clk) {
+		clk_set_rate(snoc_clk, 200000000);
+		clk_prepare_enable(snoc_clk);
+	}
+	if (cnoc_clk) {
+		clk_set_rate(cnoc_clk, 75000000);
+		clk_prepare_enable(cnoc_clk);
+	}
 	pm_qos_update_request(&big_cpu_update_freq, MAX_CPUFREQ);
 	msleep(1000);
 	for (i = 0; i < 3; i++) {
@@ -804,15 +813,18 @@ static void adapter_update_work_func(struct work_struct *work)
 	chip->fast_chg_allow = false;
 	chip->fast_chg_ing = false;
 	msleep(1000);
-	notify_check_usb_suspend(true, false);
-	oneplus_notify_pmic_check_charger_present();
-	oneplus_notify_dash_charger_present(false);
-	reset_mcu_and_request_irq(chip);
 	if (update_result) {
 		msleep(2000);
 		chip->adapter_update_report = ADAPTER_FW_UPDATE_SUCCESS;
 	}
+	notify_check_usb_suspend(true, false);
+	oneplus_notify_pmic_check_charger_present();
+	oneplus_notify_dash_charger_present(false);
+	reset_mcu_and_request_irq(chip);
 	pm_qos_update_request(&big_cpu_update_freq, MIN_CPUFREQ);
+	clk_disable_unprepare(snoc_clk);
+	clk_disable_unprepare(cnoc_clk);
+
 	pr_info("%s end update_result:%d\n",
 		__func__, update_result);
 	wake_unlock(&chip->fastchg_wake_lock);
@@ -1248,6 +1260,8 @@ static int dash_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	fastcharge_information_register(&fastcharge_information);
 	schedule_delayed_work(&di->update_fireware_version_work,
 			msecs_to_jiffies(SHOW_FW_VERSION_DELAY_MS));
+	snoc_clk = clk_get(&client->dev, "snoc");
+	cnoc_clk = clk_get(&client->dev, "cnoc");
 	pr_info("dash_probe success\n");
 
 	return 0;

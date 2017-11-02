@@ -767,27 +767,6 @@ qpnp_get_cfg(struct qpnp_pon *pon, u32 pon_type)
 
 	return NULL;
 }
-bool oem_report_power_key(u32 pon_type)
-{
-	struct qpnp_pon *pon = sys_reset_dev;
-	struct qpnp_pon_config *cfg = NULL;
-
-	cfg = qpnp_get_cfg(pon, pon_type);
-	if (!cfg)
-	return -EINVAL;
-
-	/* Check if key reporting is supported */
-	if (!cfg->key_code)
-	return 0;
-
-	input_report_key(pon->pon_input, cfg->key_code, 1);
-	input_sync(pon->pon_input);
-	input_report_key(pon->pon_input, cfg->key_code, 0);
-	input_sync(pon->pon_input);
-
-	return true;
-}
-EXPORT_SYMBOL(oem_report_power_key);
 
 static int
 qpnp_pon_input_dispatch(struct qpnp_pon *pon, u32 pon_type)

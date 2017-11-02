@@ -457,6 +457,9 @@
 		&ap_clk_suspend>;
 		pinctrl-2 =<&ap_data_active>;
 		pinctrl-3 =<&ap_data_suspend>;
+		clocks = <&clock_gcc clk_uart_snoc_msmbus_a_clk>,
+			 <&clock_gcc clk_uart_cnoc_msmbus_a_clk>;
+		clock-names = "snoc", "cnoc";
 	};
 };
 &pmi8998_charger {

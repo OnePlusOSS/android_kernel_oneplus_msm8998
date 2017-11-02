@@ -17,6 +17,7 @@ struct op_adapter_chip {
 	unsigned long uart_rx_gpio;
 	char	*adapter_firmware_data;
 	unsigned int	adapter_fw_data_count;
+	unsigned int	tx_invalid_val;
 	bool	adapter_update_ing;
 	struct op_adapter_operations	*vops;
 };
@@ -106,5 +107,4 @@ int get_prop_pre_shutdown_soc(void);
 /*add for dash adapter update*/
 extern bool dash_adapter_update_is_tx_gpio(unsigned long gpio_num);
 extern bool dash_adapter_update_is_rx_gpio(unsigned long gpio_num);
-extern bool oem_report_power_key(u32 pon_type);
 #endif

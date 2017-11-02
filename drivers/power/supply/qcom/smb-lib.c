@@ -2190,9 +2190,7 @@ int smblib_get_prop_usb_online(struct smb_charger *chg,
 		val->intval = true;
 		return rc;
 	}
-	if (get_prop_fast_adapter_update(chg)
-	== ADAPTER_FW_NEED_UPDATE)
-	return rc;
+
 
 	rc = smblib_read(chg, POWER_PATH_STATUS_REG, &stat);
 	if (rc < 0) {
@@ -3281,15 +3279,6 @@ irqreturn_t smblib_handle_usbin_uv(int irq, void *data)
 	struct smb_irq_data *irq_data = data;
 	struct smb_charger *chg = irq_data->parent_data;
 	struct storm_watch *wdata;
-	if (get_prop_fast_adapter_update(chg)
-		== ADAPTER_FW_NEED_UPDATE)
-		return IRQ_HANDLED;
-
-	chg->dash_on = get_prop_fast_chg_started(chg);
-	if (chg->dash_on) {
-		pr_err("return directly because dash is online\n");
-		return IRQ_HANDLED;
-	}
 	smblib_dbg(chg, PR_INTERRUPT, "IRQ: %s\n", irq_data->name);
 	if (!chg->irq_info[SWITCH_POWER_OK_IRQ].irq_data)
 		return IRQ_HANDLED;
@@ -3346,9 +3335,6 @@ void smblib_usb_plugin(struct smb_charger *chg)
 	bool last_vbus_present;
 	int is_usb_supend;
 	last_vbus_present = chg->vbus_present;
-	if (get_prop_fast_adapter_update(chg)
-		== ADAPTER_FW_NEED_UPDATE)
-		return;
 	chg->dash_on = get_prop_fast_chg_started(chg);
 	if (chg->dash_on) {
 		pr_err("return directly because dash is online\n");
@@ -3846,15 +3832,7 @@ irqreturn_t smblib_handle_usb_source_change(int irq, void *data)
 	struct smb_charger *chg = irq_data->parent_data;
 	int rc = 0;
 	u8 stat;
-	if (get_prop_fast_adapter_update(chg)
-		== ADAPTER_FW_NEED_UPDATE)
-		return IRQ_HANDLED;
 
-	chg->dash_on = get_prop_fast_chg_started(chg);
-	if (chg->dash_on) {
-		pr_err("return directly because dash is online\n");
-		return IRQ_HANDLED;
-	}
 	rc = smblib_read(chg, APSD_STATUS_REG, &stat);
 	if (rc < 0) {
 		smblib_err(chg, "Couldn't read APSD_STATUS rc=%d\n", rc);
@@ -4112,14 +4090,6 @@ irqreturn_t smblib_handle_usb_typec_change(int irq, void *data)
 {
 	struct smb_irq_data *irq_data = data;
 	struct smb_charger *chg = irq_data->parent_data;
-	if (get_prop_fast_adapter_update(chg)
-		== ADAPTER_FW_NEED_UPDATE)
-		return IRQ_HANDLED;
-
-	chg->dash_on = get_prop_fast_chg_started(chg);
-	if (chg->dash_on) {
-		return IRQ_HANDLED;
-	}
 
 	if (chg->micro_usb_mode)
 		return smblib_handle_usb_typec_change_for_uusb(chg);
@@ -4159,15 +4129,7 @@ irqreturn_t smblib_handle_switcher_power_ok(int irq, void *data)
 	int usb_icl, aicl_result;
 	union power_supply_propval vbus_val;
 	smblib_dbg(chg, PR_INTERRUPT, "IRQ: %s\n", irq_data->name);
-	if (get_prop_fast_adapter_update(chg)
-		== ADAPTER_FW_NEED_UPDATE)
-		return IRQ_HANDLED;
 
-	chg->dash_on = get_prop_fast_chg_started(chg);
-	if (chg->dash_on) {
-		pr_err("return directly because dash is online\n");
-		return IRQ_HANDLED;
-	}
 	if (!(chg->wa_flags & BOOST_BACK_WA)) {
 		smblib_dbg(chg, PR_INTERRUPT, "DEBUG: no BOOST_BACK_WA\n");
 		return IRQ_HANDLED;
@@ -4808,6 +4770,9 @@ int op_contrl(int enable, bool check_power_ok)
 
 bool get_prop_fast_chg_started(struct smb_charger *chg)
 {
+	if (get_prop_fast_adapter_update(chg)
+		== ADAPTER_FW_NEED_UPDATE)
+	return true;
 	if (fast_charger && fast_charger->fast_chg_started)
 		return fast_charger->fast_chg_started();
 	else
@@ -5317,10 +5282,6 @@ int get_prop_batt_status(struct smb_charger *chg)
 	int capacity, batt_status, rc;
 	temp_region_type temp_region;
 	union power_supply_propval pval = {0, };
-	if (get_prop_fast_adapter_update(chg)
-		== ADAPTER_FW_NEED_UPDATE)
-		return POWER_SUPPLY_STATUS_CHARGING;
-
 	temp_region = op_battery_temp_region_get(chg);
 	capacity = get_prop_batt_capacity(chg);
 	chg->dash_on = get_prop_fast_chg_started(chg);

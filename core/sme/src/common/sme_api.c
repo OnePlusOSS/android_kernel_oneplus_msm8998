@@ -12262,6 +12262,8 @@ void active_list_cmd_timeout_handle(void *userData)
 		   !(cds_is_load_or_unload_in_progress() ||
 		    cds_is_driver_recovering() || cds_is_driver_in_bad_state()))
 			QDF_BUG(0);
+		else
+			QDF_ASSERT(0);
 	}
 }
 

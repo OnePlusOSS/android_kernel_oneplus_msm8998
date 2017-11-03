@@ -3149,9 +3149,20 @@ static QDF_STATUS sme_process_nss_update_resp(tpAniSirGlobal mac, uint8_t *msg)
  */
 void sme_free_msg(tHalHandle hHal, cds_msg_t *pMsg)
 {
+	struct ani_scan_req *scan_msg;
+
 	if (pMsg) {
-		if (pMsg->bodyptr)
+		if (pMsg->bodyptr) {
+			if (pMsg->type == eWNI_SME_SCAN_CMD) {
+				scan_msg = (struct ani_scan_req *)pMsg->bodyptr;
+				if (scan_msg->scan_param) {
+					csr_scan_free_request(NULL,
+						scan_msg->scan_param);
+					qdf_mem_free(scan_msg->scan_param);
+				}
+			}
 			qdf_mem_free(pMsg->bodyptr);
+		}
 	}
 
 }

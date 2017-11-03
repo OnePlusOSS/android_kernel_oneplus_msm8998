@@ -11271,6 +11271,9 @@ void wlan_hdd_start_sap(hdd_adapter_t *ap_adapter, bool reinit)
 		cds_incr_active_session(ap_adapter->device_mode,
 					ap_adapter->sessionId);
 	hostapd_state->bCommit = true;
+	mutex_unlock(&hdd_ctx->sap_lock);
+
+	return;
 
 end:
 	mutex_unlock(&hdd_ctx->sap_lock);

@@ -1507,13 +1507,13 @@ hdd_stop_sap_due_to_invalid_channel(struct work_struct *work)
 	 */
 	hdd_adapter_t *sap_adapter = container_of(work, hdd_adapter_t,
 						  sap_stop_bss_work);
-	hdd_debug("work started for sap session[%d]", sap_adapter->sessionId);
 	cds_ssr_protect(__func__);
 	if (sap_adapter == NULL) {
 	    cds_err("sap_adapter is NULL, no work needed");
 	    cds_ssr_unprotect(__func__);
 	    return;
 	}
+	hdd_debug("work started for sap session[%d]", sap_adapter->sessionId);
 	wlan_hdd_stop_sap(sap_adapter);
 	wlansap_set_invalid_session(WLAN_HDD_GET_SAP_CTX_PTR(sap_adapter));
 	wlansap_cleanup_cac_timer(WLAN_HDD_GET_SAP_CTX_PTR(sap_adapter));

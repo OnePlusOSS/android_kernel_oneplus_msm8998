@@ -91,7 +91,6 @@
 #include "wlan_hdd_debugfs.h"
 #include "wlan_hdd_driver_ops.h"
 #include "epping_main.h"
-#include "wlan_hdd_memdump.h"
 #include "wlan_hdd_data_stall_detection.h"
 
 #include <wlan_hdd_ipa.h>
@@ -1672,8 +1671,6 @@ void hdd_update_tgt_cfg(void *context, void *param)
 				hdd_ctx->config->bpf_packet_filter_enable);
 	hdd_ctx->rcpi_enabled = cfg->rcpi_enabled;
 	hdd_update_ra_rate_limit(hdd_ctx, cfg);
-
-	hdd_ctx->fw_mem_dump_enabled = cfg->fw_mem_dump_enabled;
 
 	if ((hdd_ctx->config->txBFCsnValue >
 		WNI_CFG_VHT_CSN_BEAMFORMEE_ANT_SUPPORTED_FW_DEF) &&
@@ -5959,7 +5956,6 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 	hdd_wlan_stop_modules(hdd_ctx, false);
 
 	hdd_driver_memdump_deinit();
-	memdump_deinit();
 
 	qdf_mc_timer_destroy(&hdd_ctx->tdls_source_timer);
 
@@ -10191,7 +10187,6 @@ int hdd_wlan_startup(struct device *dev)
 			  wlan_hdd_change_tdls_mode,
 			  hdd_ctx);
 
-	memdump_init();
 	hdd_driver_memdump_init();
 
 	ret = hdd_wlan_start_modules(hdd_ctx, NULL, false);
@@ -10295,7 +10290,6 @@ err_stop_modules:
 
 err_exit_nl_srv:
 	hdd_driver_memdump_deinit();
-	memdump_deinit();
 
 	qdf_mc_timer_destroy(&hdd_ctx->tdls_source_timer);
 
@@ -10417,13 +10411,6 @@ int hdd_register_cb(hdd_context_t *hdd_ctx)
 	sme_register_oem_data_rsp_callback(hdd_ctx->hHal,
 					hdd_send_oem_data_rsp_msg);
 
-	status = sme_fw_mem_dump_register_cb(hdd_ctx->hHal,
-					     wlan_hdd_cfg80211_fw_mem_dump_cb);
-	if (!QDF_IS_STATUS_SUCCESS(status)) {
-		hdd_err("Failed to register memdump callback");
-		ret = -EINVAL;
-		return ret;
-	}
 	sme_register_mgmt_frame_ind_callback(hdd_ctx->hHal,
 					     hdd_indicate_mgmt_frame);
 	sme_set_tsfcb(hdd_ctx->hHal, hdd_get_tsf_cb, hdd_ctx);
@@ -10538,10 +10525,6 @@ void hdd_deregister_cb(hdd_context_t *hdd_ctx)
 	status = sme_reset_tsfcb(hdd_ctx->hHal);
 	if (!QDF_IS_STATUS_SUCCESS(status))
 		hdd_err("Failed to de-register tsfcb the callback:%d",
-			status);
-	status = sme_fw_mem_dump_unregister_cb(hdd_ctx->hHal);
-	if (!QDF_IS_STATUS_SUCCESS(status))
-		hdd_err("Failed to de-register the fw mem dump callback: %d",
 			status);
 
 	ret = hdd_deregister_data_stall_detect_cb();

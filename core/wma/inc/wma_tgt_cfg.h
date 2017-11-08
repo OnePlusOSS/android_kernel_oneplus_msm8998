@@ -155,7 +155,6 @@ struct wma_dfs_radar_ind {
  * @egap_support: enhanced green ap support
  * @nan_datapath_enabled: nan data path support
  * @bool is_ra_rate_limit_enabled: RA filter support
- * @fw_mem_dump_enabled: Fw memory dump support
  * @tx_bfee_8ss_enabled: Tx Beamformee support for 8x8
  * @rcpi_enabled: for checking rcpi support
  */
@@ -187,7 +186,6 @@ struct wma_tgt_cfg {
 #endif
 	bool sub_20_support;
 	uint16_t wmi_max_len;
-	bool fw_mem_dump_enabled;
 	bool tx_bfee_8ss_enabled;
 	bool rcpi_enabled;
 };

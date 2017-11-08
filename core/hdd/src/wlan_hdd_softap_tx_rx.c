@@ -829,6 +829,13 @@ QDF_STATUS hdd_softap_deregister_sta(hdd_adapter_t *pAdapter, uint8_t staId)
 			staId, qdf_status, qdf_status);
 
 	if (pAdapter->aStaInfo[staId].isUsed) {
+		if (hdd_ipa_uc_is_enabled(pHddCtx)) {
+			hdd_ipa_wlan_evt(pAdapter,
+					 pAdapter->aStaInfo[staId].ucSTAId,
+					 HDD_IPA_CLIENT_DISCONNECT,
+					 pAdapter->aStaInfo[staId].macAddrSTA.
+					 bytes);
+		}
 		spin_lock_bh(&pAdapter->staInfo_lock);
 		qdf_mem_zero(&pAdapter->aStaInfo[staId],
 			     sizeof(hdd_station_info_t));

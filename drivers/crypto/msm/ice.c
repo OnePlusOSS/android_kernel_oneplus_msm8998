@@ -215,13 +215,16 @@ static int qcom_ice_bus_register(struct ice_device *ice_dev)
 	}
 	err = 0;
 
-	ice_dev->bus_vote.client_handle =
-			msm_bus_scale_register_client(bus_pdata);
+	/* register again only if we didn't register previously */
 	if (!ice_dev->bus_vote.client_handle) {
-		dev_err(dev, "%s: msm_bus_scale_register_client failed\n",
-				__func__);
-		err = -EFAULT;
-		goto out;
+		ice_dev->bus_vote.client_handle =
+				msm_bus_scale_register_client(bus_pdata);
+		if (!ice_dev->bus_vote.client_handle) {
+			dev_err(dev, "%s: msm_bus_scale_register_client failed\n",
+					__func__);
+			err = -EFAULT;
+			goto out;
+		}
 	}
 
 	/* cache the vote index for minimum and maximum bandwidth */
@@ -1609,8 +1612,6 @@ static struct ice_device *get_ice_device_from_storage_type
 
 	list_for_each_entry(ice_dev, &ice_devices, list) {
 		if (!strcmp(ice_dev->ice_instance_type, storage_type)) {
-			pr_debug("%s: found ice device %pK\n",
-				__func__, ice_dev);
 			break;
 		}
 	}

@@ -2634,12 +2634,6 @@ int mdss_mdp_overlay_kickoff(struct msm_fb_data_type *mfd,
 	 * sent before kickoff completes so that backlight
 	 * update happens after it.
 	 */
-	if (mdss_fb_is_power_off(mfd) &&
-		mfd->panel_info->type == MIPI_CMD_PANEL) {
-		pr_debug("wait for pp done after resume for cmd mode\n");
-		mdss_mdp_display_wait4pingpong(ctl, true);
-	}
-
 	/*
 	 * Configure Timing Engine, if new fps was set.
 	 * We need to do this after the wait for vsync
@@ -5023,15 +5017,12 @@ static int mdss_fb_get_metadata(struct msm_fb_data_type *mfd,
 		break;
 	case metadata_op_get_ion_fd:
 		if (mfd->fb_ion_handle && mfd->fb_ion_client) {
-			get_dma_buf(mfd->fbmem_buf);
 			metadata->data.fbmem_ionfd =
 				ion_share_dma_buf_fd(mfd->fb_ion_client,
 					mfd->fb_ion_handle);
-			if (metadata->data.fbmem_ionfd < 0) {
-				dma_buf_put(mfd->fbmem_buf);
+			if (metadata->data.fbmem_ionfd < 0)
 				pr_err("fd allocation failed. fd = %d\n",
 						metadata->data.fbmem_ionfd);
-			}
 		}
 		break;
 	case metadata_op_crc:
@@ -6597,6 +6588,7 @@ int mdss_mdp_overlay_init(struct msm_fb_data_type *mfd)
 
 	if (mdss_mdp_pp_overlay_init(mfd))
 		pr_warn("Failed to initialize pp overlay data.\n");
+
 	return rc;
 init_fail:
 	kfree(mdp5_data);

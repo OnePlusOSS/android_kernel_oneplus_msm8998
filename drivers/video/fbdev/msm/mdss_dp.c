@@ -1826,6 +1826,7 @@ static int mdss_dp_send_audio_notification(
 	if (mdss_dp_sink_audio_supp(dp) || dp->audio_test_req) {
 		dp->audio_test_req = false;
 
+		pr_debug("sending audio notification\n");
 		flags |= MSM_EXT_DISP_HPD_AUDIO;
 		pr_debug("sending audio notification = %d, flags = %d\n", val,
 				flags);
@@ -1910,8 +1911,6 @@ static int mdss_dp_edid_init(struct mdss_panel_data *pdata)
 	/* initialize EDID buffer pointers */
 	dp_drv->edid_buf = edid_init_data.buf;
 	dp_drv->edid_buf_size = edid_init_data.buf_size;
-
-	mdss_dp_set_default_resolution(dp_drv);
 
 	return 0;
 }
@@ -2190,13 +2189,11 @@ read_edid:
 		mdss_dp_dpcd_cap_read(dp);
 		dp->dpcd_read_required = false;
 	}
-
 	ret = hdmi_edid_parser(dp->panel_data.panel_info.edid_data);
 	if (ret) {
 		pr_err("edid parse failed, setting default resolution\n");
 		goto notify;
 	}
-
 notify:
 	if (ret) {
 		/* set failsafe parameters */
@@ -2204,7 +2201,6 @@ notify:
 		mdss_dp_set_default_resolution(dp);
 		mdss_dp_set_default_link_parameters(dp);
 	}
-
 	/* Check if there is a PHY_TEST_PATTERN request when we get HPD high.
 	 * Update the DP driver with the test parameters including link rate,
 	 * lane count, voltage level, and pre-emphasis level. Do not notify

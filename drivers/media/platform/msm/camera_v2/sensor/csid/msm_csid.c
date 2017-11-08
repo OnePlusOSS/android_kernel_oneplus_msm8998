@@ -59,7 +59,7 @@
 #define FALSE  0
 
 #define MAX_LANE_COUNT 4
-#define CSID_TIMEOUT msecs_to_jiffies(100)
+#define CSID_TIMEOUT msecs_to_jiffies(500)
 
 #undef CDBG
 #define CDBG(fmt, args...) pr_debug(fmt, ##args)
@@ -539,7 +539,7 @@ static int msm_csid_init(struct csid_device *csid_dev, uint32_t *csid_version)
 		return rc;
 	}
 
-	pr_info("%s: CSID_VERSION = 0x%x\n", __func__,
+	CDBG("%s: CSID_VERSION = 0x%x\n", __func__,
 		csid_dev->ctrl_reg->csid_reg.csid_version);
 	/* power up */
 	rc = msm_camera_config_vreg(&csid_dev->pdev->dev, csid_dev->csid_vreg,

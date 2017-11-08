@@ -641,6 +641,7 @@ static int camera_v4l2_open(struct file *filep)
 	}
 
 	if (!atomic_read(&pvdev->opened)) {
+		pr_err("VJ## V4L2_open: Request to be awake");
 		pm_stay_awake(&pvdev->vdev->dev);
 
 		/* Disable power collapse latency */
@@ -766,7 +767,7 @@ static int camera_v4l2_close(struct file *filep)
 		 * and application crashes */
 		camera_v4l2_vb2_q_release(filep);
 		msm_destroy_session(pvdev->vdev->num);
-
+		pr_err("VJ## V4L2_open: Can relax");
 		pm_relax(&pvdev->vdev->dev);
 	} else {
 		msm_delete_command_ack_q(pvdev->vdev->num,

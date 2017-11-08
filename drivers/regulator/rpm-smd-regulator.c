@@ -1745,7 +1745,11 @@ static int rpm_vreg_device_probe(struct platform_device *pdev)
 			init_data->constraints.valid_modes_mask
 				|= REGULATOR_MODE_NORMAL | REGULATOR_MODE_IDLE;
 	}
-
+	pr_warn("reg->rdesc.name %s type %d\n",
+		init_data->constraints.name,
+		regulator_type);
+	if (regulator_type == RPM_REGULATOR_TYPE_BOB)
+		init_data->constraints.valid_modes_mask |= REGULATOR_MODE_FAST;
 	reg->rdesc.name		= init_data->constraints.name;
 	reg->min_uV		= init_data->constraints.min_uV;
 	reg->max_uV		= init_data->constraints.max_uV;

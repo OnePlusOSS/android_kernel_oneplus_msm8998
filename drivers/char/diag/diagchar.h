@@ -547,6 +547,7 @@ struct diagchar_dev {
 	struct mutex cmd_reg_mutex;
 	uint32_t cmd_reg_count;
 	struct mutex diagfwd_channel_mutex[NUM_PERIPHERALS];
+	struct mutex diagfwd_untag_mutex;
 	/* Sizes that reflect memory pool sizes */
 	unsigned int poolsize;
 	unsigned int poolsize_hdlc;

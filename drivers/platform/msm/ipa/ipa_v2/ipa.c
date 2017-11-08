@@ -641,7 +641,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		/* add check in case user-space module compromised */
 		if (unlikely(((struct ipa_ioc_nat_dma_cmd *)param)->entries
 			!= pre_entry)) {
-			IPAERR_RL("current %d pre %d\n",
+			IPAERR("current %d pre %d\n",
 				((struct ipa_ioc_nat_dma_cmd *)param)->entries,
 				pre_entry);
 			retval = -EFAULT;
@@ -688,7 +688,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		/* add check in case user-space module compromised */
 		if (unlikely(((struct ipa_ioc_add_hdr *)param)->num_hdrs
 			!= pre_entry)) {
-			IPAERR_RL("current %d pre %d\n",
+			IPAERR("current %d pre %d\n",
 				((struct ipa_ioc_add_hdr *)param)->num_hdrs,
 				pre_entry);
 			retval = -EFAULT;
@@ -727,7 +727,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		/* add check in case user-space module compromised */
 		if (unlikely(((struct ipa_ioc_del_hdr *)param)->num_hdls
 			!= pre_entry)) {
-			IPAERR_RL("current %d pre %d\n",
+			IPAERR("current %d pre %d\n",
 				((struct ipa_ioc_del_hdr *)param)->num_hdls,
 				pre_entry);
 			retval = -EFAULT;
@@ -767,7 +767,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		/* add check in case user-space module compromised */
 		if (unlikely(((struct ipa_ioc_add_rt_rule *)param)->num_rules
 			!= pre_entry)) {
-			IPAERR_RL("current %d pre %d\n",
+			IPAERR("current %d pre %d\n",
 				((struct ipa_ioc_add_rt_rule *)param)->
 				num_rules,
 				pre_entry);
@@ -807,7 +807,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		/* add check in case user-space module compromised */
 		if (unlikely(((struct ipa_ioc_mdfy_rt_rule *)param)->num_rules
 			!= pre_entry)) {
-			IPAERR_RL("current %d pre %d\n",
+			IPAERR("current %d pre %d\n",
 				((struct ipa_ioc_mdfy_rt_rule *)param)->
 				num_rules,
 				pre_entry);
@@ -847,7 +847,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		/* add check in case user-space module compromised */
 		if (unlikely(((struct ipa_ioc_del_rt_rule *)param)->num_hdls
 			!= pre_entry)) {
-			IPAERR_RL("current %d pre %d\n",
+			IPAERR("current %d pre %d\n",
 				((struct ipa_ioc_del_rt_rule *)param)->num_hdls,
 				pre_entry);
 			retval = -EFAULT;
@@ -886,7 +886,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		/* add check in case user-space module compromised */
 		if (unlikely(((struct ipa_ioc_add_flt_rule *)param)->num_rules
 			!= pre_entry)) {
-			IPAERR_RL("current %d pre %d\n",
+			IPAERR("current %d pre %d\n",
 				((struct ipa_ioc_add_flt_rule *)param)->
 				num_rules,
 				pre_entry);
@@ -926,7 +926,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		/* add check in case user-space module compromised */
 		if (unlikely(((struct ipa_ioc_del_flt_rule *)param)->num_hdls
 			!= pre_entry)) {
-			IPAERR_RL("current %d pre %d\n",
+			IPAERR("current %d pre %d\n",
 				((struct ipa_ioc_del_flt_rule *)param)->
 				num_hdls,
 				pre_entry);
@@ -966,7 +966,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		/* add check in case user-space module compromised */
 		if (unlikely(((struct ipa_ioc_mdfy_flt_rule *)param)->num_rules
 			!= pre_entry)) {
-			IPAERR_RL("current %d pre %d\n",
+			IPAERR("current %d pre %d\n",
 				((struct ipa_ioc_mdfy_flt_rule *)param)->
 				num_rules,
 				pre_entry);
@@ -1104,7 +1104,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (unlikely(((struct ipa_ioc_query_intf_tx_props *)
 			param)->num_tx_props
 			!= pre_entry)) {
-			IPAERR_RL("current %d pre %d\n",
+			IPAERR("current %d pre %d\n",
 				((struct ipa_ioc_query_intf_tx_props *)
 				param)->num_tx_props, pre_entry);
 			retval = -EFAULT;
@@ -1149,7 +1149,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		/* add check in case user-space module compromised */
 		if (unlikely(((struct ipa_ioc_query_intf_rx_props *)
 			param)->num_rx_props != pre_entry)) {
-			IPAERR_RL("current %d pre %d\n",
+			IPAERR("current %d pre %d\n",
 				((struct ipa_ioc_query_intf_rx_props *)
 				param)->num_rx_props, pre_entry);
 			retval = -EFAULT;
@@ -1194,7 +1194,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		/* add check in case user-space module compromised */
 		if (unlikely(((struct ipa_ioc_query_intf_ext_props *)
 			param)->num_ext_props != pre_entry)) {
-			IPAERR_RL("current %d pre %d\n",
+			IPAERR("current %d pre %d\n",
 				((struct ipa_ioc_query_intf_ext_props *)
 				param)->num_ext_props, pre_entry);
 			retval = -EFAULT;
@@ -1232,7 +1232,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		/* add check in case user-space module compromised */
 		if (unlikely(((struct ipa_msg_meta *)param)->msg_len
 			!= pre_entry)) {
-			IPAERR_RL("current %d pre %d\n",
+			IPAERR("current %d pre %d\n",
 				((struct ipa_msg_meta *)param)->msg_len,
 				pre_entry);
 			retval = -EFAULT;
@@ -1372,7 +1372,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		/* add check in case user-space module compromised */
 		if (unlikely(((struct ipa_ioc_add_hdr_proc_ctx *)
 			param)->num_proc_ctxs != pre_entry)) {
-			IPAERR_RL("current %d pre %d\n",
+			IPAERR("current %d pre %d\n",
 				((struct ipa_ioc_add_hdr_proc_ctx *)
 				param)->num_proc_ctxs, pre_entry);
 			retval = -EFAULT;
@@ -1411,7 +1411,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		/* add check in case user-space module compromised */
 		if (unlikely(((struct ipa_ioc_del_hdr_proc_ctx *)
 			param)->num_hdls != pre_entry)) {
-			IPAERR_RL("current %d pre %d\n",
+			IPAERR("current %d pre %d\n",
 				((struct ipa_ioc_del_hdr_proc_ctx *)param)->
 				num_hdls,
 				pre_entry);
@@ -3698,6 +3698,7 @@ void ipa_suspend_handler(enum ipa_irq_type interrupt,
 						&ipa_ctx->sps_pm.dec_clients,
 						1);
 					ipa_sps_process_irq_schedule_rel();
+				mutex_unlock(&ipa_ctx->sps_pm.sps_pm_lock);
 				}
 				mutex_unlock(&ipa_ctx->sps_pm.sps_pm_lock);
 			} else {

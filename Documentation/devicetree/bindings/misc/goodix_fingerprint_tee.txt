@@ -1,0 +1,18 @@
+Goodix Fingerprint TEE driver
+
+Required properties:
+
+-compatible	: should be "goodix,fingerprint".
+-interrupt-parent : gpio interrupt parent declare
+-fp-gpio-irq : irq gpio declare
+-fp-gpio-reset : reset gpio declare
+
+Example:
+
+goodix_fp {
+	compatible = "goodix,fingerprint";
+	interrupt-parent = <&tlmm>;
+	fp-gpio-irq = <&tlmm 58 0x00>;
+	fp-gpio-reset = <&tlmm 59 0x00>;
+	status = "okay";
+};

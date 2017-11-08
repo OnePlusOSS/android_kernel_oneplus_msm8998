@@ -85,7 +85,6 @@ Optional properties:
 - qcom,kpdpwr-sw-debounce	Boolean property to enable the debounce logic
 				on the KPDPWR_N rising edge.
 
-
 All the below properties are in the sub-node section (properties of the child
 node).
 

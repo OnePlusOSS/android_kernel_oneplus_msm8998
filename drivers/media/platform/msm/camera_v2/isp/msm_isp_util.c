@@ -2068,10 +2068,9 @@ static void msm_isp_enqueue_tasklet_cmd(struct vfe_device *vfe_dev,
 	spin_lock_irqsave(&tasklet->tasklet_lock, flags);
 	queue_cmd = &tasklet->tasklet_queue_cmd[tasklet->taskletq_idx];
 	if (queue_cmd->cmd_used) {
-		pr_err_ratelimited("%s: Tasklet queue overflow: %d\n",
+		pr_err("%s: Tasklet queue overflow: %d\n",
 			__func__, vfe_dev->pdev->id);
-		spin_unlock_irqrestore(&tasklet->tasklet_lock, flags);
-		return;
+		list_del(&queue_cmd->list);
 	} else {
 		atomic_add(1, &vfe_dev->irq_cnt);
 	}
@@ -2225,6 +2224,8 @@ static void msm_vfe_iommu_fault_handler(struct iommu_domain *domain,
 
 		mutex_lock(&vfe_dev->core_mutex);
 		if (vfe_dev->vfe_open_cnt > 0) {
+			atomic_set(&vfe_dev->error_info.overflow_state,
+				HALT_ENFORCED);
 			pr_err_ratelimited("%s: fault address is %lx\n",
 				__func__, iova);
 			msm_isp_process_iommu_page_fault(vfe_dev);
@@ -2313,14 +2314,9 @@ int msm_isp_open_node(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	vfe_dev->reg_update_requested = 0;
 	/* Register page fault handler */
 	vfe_dev->buf_mgr->pagefault_debug_disable = 0;
-	/* initialize pd_buf_idx with an invalid index 0xF */
-	vfe_dev->common_data->pd_buf_idx = 0xF;
-
 	cam_smmu_reg_client_page_fault_handler(
 			vfe_dev->buf_mgr->iommu_hdl,
-			msm_vfe_iommu_fault_handler,
-			NULL,
-			vfe_dev);
+			msm_vfe_iommu_fault_handler, vfe_dev);
 	mutex_unlock(&vfe_dev->core_mutex);
 	mutex_unlock(&vfe_dev->realtime_mutex);
 	return 0;
@@ -2368,7 +2364,7 @@ int msm_isp_close_node(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	/* Unregister page fault handler */
 	cam_smmu_reg_client_page_fault_handler(
 		vfe_dev->buf_mgr->iommu_hdl,
-		NULL, NULL, vfe_dev);
+		NULL, vfe_dev);
 
 	rc = vfe_dev->hw_info->vfe_ops.axi_ops.halt(vfe_dev, 1);
 	if (rc <= 0)

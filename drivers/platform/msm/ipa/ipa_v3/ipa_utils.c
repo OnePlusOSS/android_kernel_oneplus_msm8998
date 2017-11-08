@@ -838,7 +838,7 @@ int ipa3_cfg_route(struct ipahal_reg_route *route)
  */
 int ipa3_cfg_filter(u32 disable)
 {
-	IPAERR_RL("Filter disable is not supported!\n");
+	IPAERR("Filter disable is not supported!\n");
 	return -EPERM;
 }
 
@@ -928,7 +928,7 @@ int ipa3_get_ep_mapping(enum ipa_client_type client)
 	int ipa_ep_idx;
 
 	if (client >= IPA_CLIENT_MAX || client < 0) {
-		IPAERR_RL("Bad client number! client =%d\n", client);
+		IPAERR("Bad client number! client =%d\n", client);
 		return IPA_EP_NOT_ALLOCATED;
 	}
 
@@ -2001,19 +2001,19 @@ int ipa3_write_qmap_id(struct ipa_ioc_write_qmapid *param_in)
 	int result = -EINVAL;
 
 	if (param_in->client  >= IPA_CLIENT_MAX) {
-		IPAERR_RL("bad parm client:%d\n", param_in->client);
+		IPAERR("bad parm client:%d\n", param_in->client);
 		goto fail;
 	}
 
 	ipa_ep_idx = ipa3_get_ep_mapping(param_in->client);
 	if (ipa_ep_idx == -1) {
-		IPAERR_RL("Invalid client.\n");
+		IPAERR("Invalid client.\n");
 		goto fail;
 	}
 
 	ep = &ipa3_ctx->ep[ipa_ep_idx];
 	if (!ep->valid) {
-		IPAERR_RL("EP not allocated.\n");
+		IPAERR("EP not allocated.\n");
 		goto fail;
 	}
 
@@ -2026,7 +2026,7 @@ int ipa3_write_qmap_id(struct ipa_ioc_write_qmapid *param_in)
 		ipa3_ctx->ep[ipa_ep_idx].cfg.meta = meta;
 		result = ipa3_write_qmapid_wdi_pipe(ipa_ep_idx, meta.qmap_id);
 		if (result)
-			IPAERR_RL("qmap_id %d write failed on ep=%d\n",
+			IPAERR("qmap_id %d write failed on ep=%d\n",
 					meta.qmap_id, ipa_ep_idx);
 		result = 0;
 	}

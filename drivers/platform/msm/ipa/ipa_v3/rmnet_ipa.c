@@ -2376,9 +2376,7 @@ static int rmnet_ipa_ap_suspend(struct device *dev)
 	struct net_device *netdev = IPA_NETDEV();
 	struct ipa3_wwan_private *wwan_ptr;
 	int ret;
-
 	IPAWANDBG("Enter...\n");
-
 	if (netdev == NULL) {
 		IPAWANERR("netdev is NULL.\n");
 		ret = 0;
@@ -2700,9 +2698,6 @@ static int rmnet_ipa3_set_data_quota_modem(
 	if (!data->set_quota)
 		ipa3_qmi_stop_data_qouta();
 
-	/* prevent string buffer overflows */
-	data->interface_name[IFNAMSIZ-1] = '\0';
-
 	index = find_vchannel_name_index(data->interface_name);
 	IPAWANERR("iface name %s, quota %lu\n",
 		  data->interface_name,
@@ -2944,10 +2939,6 @@ static int rmnet_ipa3_query_tethering_stats_modem(
 		kfree(req);
 		kfree(resp);
 		return 0;
-	} else if (data == NULL) {
-		kfree(req);
-		kfree(resp);
-		return 0;
 	}
 
 	if (resp->dl_dst_pipe_stats_list_valid) {
@@ -3088,10 +3079,7 @@ int rmnet_ipa3_query_tethering_stats(struct wan_ioctl_query_tether_stats *data,
 int rmnet_ipa3_reset_tethering_stats(struct wan_ioctl_reset_tether_stats *data)
 {
 	enum ipa_upstream_type upstream_type;
-	struct wan_ioctl_query_tether_stats tether_stats;
 	int rc = 0;
-
-	memset(&tether_stats, 0, sizeof(struct wan_ioctl_query_tether_stats));
 
 	/* get IPA backhaul type */
 	upstream_type = find_upstream_type(data->upstreamIface);
@@ -3110,7 +3098,7 @@ int rmnet_ipa3_reset_tethering_stats(struct wan_ioctl_reset_tether_stats *data)
 	} else {
 		IPAWANERR(" reset modem-backhaul stats\n");
 		rc = rmnet_ipa3_query_tethering_stats_modem(
-			&tether_stats, true);
+			NULL, true);
 		if (rc) {
 			IPAWANERR("reset MODEM stats failed\n");
 			return rc;

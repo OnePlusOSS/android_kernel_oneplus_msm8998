@@ -17,7 +17,11 @@
 #include "msm_sd.h"
 #include "msm_cci.h"
 #include "msm_eeprom.h"
-
+#define EEPROM_REG_MODULE_DAY      0x02
+#define EEPROM_REG_MODULE_MONTH    0x03
+#define EEPROM_REG_MODULE_YEAR_L   0x04
+#define EEPROM_REG_MODULE_YEAR_H   0x05
+bool is_date_after_20170401 = false;
 #undef CDBG
 #define CDBG(fmt, args...) pr_debug(fmt, ##args)
 
@@ -25,6 +29,52 @@ DEFINE_MSM_MUTEX(msm_eeprom_mutex);
 #ifdef CONFIG_COMPAT
 static struct v4l2_file_operations msm_eeprom_v4l2_subdev_fops;
 #endif
+
+#define EEPROM_YEAR  2017
+#define EEPROM_MONTH 4
+#define EEPROM_DAY   1
+static void msm_eeprom_compare_dateinfo(struct msm_eeprom_ctrl_t *e_ctrl)
+{
+	uint16_t year_low = 0, year_high = 0;
+	uint16_t day = 0, month = 0;
+	uint8_t *memptr = NULL;
+	uint16_t  year;
+
+	is_date_after_20170401 = false;
+	memptr = e_ctrl->cal_data.mapdata;
+	if (!memptr) {
+		pr_err("memptr is NULL\n");
+		return;
+	}
+
+	/*read date info*/
+	year_low = memptr[EEPROM_REG_MODULE_YEAR_L];
+	year_high = memptr[EEPROM_REG_MODULE_YEAR_H];
+	year = (year_high*100)+year_low;
+
+	month = memptr[EEPROM_REG_MODULE_MONTH];
+	day = memptr[EEPROM_REG_MODULE_DAY];
+
+	CDBG("position %d, year = %04d, month = %02d, day = %02d\n",
+		e_ctrl->position, year, month, day);
+
+	if (year > EEPROM_YEAR) {
+		is_date_after_20170401 = true;
+	} else if (year == EEPROM_YEAR) {
+		if (month > EEPROM_MONTH) {
+			is_date_after_20170401 = true;
+		} else if (month == EEPROM_MONTH) {
+			if (day >= EEPROM_DAY)
+				is_date_after_20170401 = true;
+		}
+	}
+	CDBG("is_date_after_20170401 %d\n", is_date_after_20170401);
+}
+
+bool msm_eeprom_is_date_after_0401(void)
+{
+	return is_date_after_20170401;
+}
 
 /**
   * msm_get_read_mem_size - Get the total size for allocation
@@ -1516,6 +1566,8 @@ static int msm_eeprom_config32(struct msm_eeprom_ctrl_t *e_ctrl,
 	case CFG_EEPROM_READ_CAL_DATA:
 		CDBG("%s E CFG_EEPROM_READ_CAL_DATA\n", __func__);
 		rc = eeprom_config_read_cal_data32(e_ctrl, argp);
+		if (e_ctrl->position == 0)
+			msm_eeprom_compare_dateinfo(e_ctrl);
 		break;
 	case CFG_EEPROM_INIT:
 		if (e_ctrl->userspace_probe == 0) {
@@ -1681,6 +1733,12 @@ static int msm_eeprom_platform_probe(struct platform_device *pdev)
 	if (rc < 0)
 		goto board_free;
 
+	rc = of_property_read_u32(of_node, "position",
+		&e_ctrl->position);
+	if (rc < 0) {
+		e_ctrl->position = -1;
+		CDBG("%s failed %d\n", __func__, __LINE__);
+	}
 	if (e_ctrl->userspace_probe == 0) {
 		rc = of_property_read_u32(of_node, "qcom,slave-addr",
 			&temp);

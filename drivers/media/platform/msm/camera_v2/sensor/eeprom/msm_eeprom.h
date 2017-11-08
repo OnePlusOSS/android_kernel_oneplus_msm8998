@@ -46,6 +46,9 @@ struct msm_eeprom_ctrl_t {
 	int32_t userspace_probe;
 	struct msm_eeprom_memory_block_t cal_data;
 	uint8_t is_supported;
+	/*from dts*/
+	int32_t position;
 };
 
+bool msm_eeprom_is_date_after_0401(void);
 #endif

@@ -15,8 +15,28 @@
 #include <linux/workqueue.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
+#include <linux/pm_qos.h>
+#include <linux/cpufreq.h>
 
 #include "power.h"
+
+/* Define number of little/big cpu's and frequency
+values based on projects like 8996/8998/sdm845 etc */
+#if defined(CONFIG_ARCH_MSM8998)
+#define LITTLE_CLUSTER_CPU_NUMBER 0
+#define BIG_CLUSTER_CPU_NUMBER 4
+#define RESUME_BOOST_LITTLE_CPU_QOS_FREQ 1900800
+#define RESUME_BOOST_BIG_CPU_QOS_FREQ 2361600
+#elif defined(CONFIG_ARCH_MSM8996)
+#define LITTLE_CLUSTER_CPU_NUMBER 0
+#define BIG_CLUSTER_CPU_NUMBER 2
+#define RESUME_BOOST_LITTLE_CPU_QOS_FREQ 1593600
+#define RESUME_BOOST_BIG_CPU_QOS_FREQ    2073600
+#endif
+static struct pm_qos_request resumeboost_little_cpu_qos;
+static struct pm_qos_request resumeboost_big_cpu_qos;
+extern int get_resume_wakeup_flag(void);
+extern int get_qpnp_kpdpwr_resume_wakeup_flag(void);
 
 DEFINE_MUTEX(pm_mutex);
 
@@ -351,6 +371,31 @@ static suspend_state_t decode_state(const char *buf, size_t n)
 	return PM_SUSPEND_ON;
 }
 
+void resumeboost_fn(void)
+{
+        struct cpufreq_policy *policy;
+
+       if(get_resume_wakeup_flag() || get_qpnp_kpdpwr_resume_wakeup_flag()) {
+               /* Fetch little cpu policy and drive the CPU towards target frequency */
+                policy = cpufreq_cpu_get(LITTLE_CLUSTER_CPU_NUMBER);
+                if (policy)  {
+                        cpufreq_driver_target(policy, RESUME_BOOST_LITTLE_CPU_QOS_FREQ, CPUFREQ_RELATION_H);
+                        pm_qos_update_request_timeout(&resumeboost_little_cpu_qos, MAX_CPUFREQ, 1000000);
+                } else
+                       return;
+                cpufreq_cpu_put(policy);
+
+               /* Fetch big cpu policy and drive big cpu towards target frequency */
+               policy = cpufreq_cpu_get(BIG_CLUSTER_CPU_NUMBER);
+               if (policy)  {
+                       cpufreq_driver_target(policy, RESUME_BOOST_BIG_CPU_QOS_FREQ, CPUFREQ_RELATION_H);
+                       pm_qos_update_request_timeout(&resumeboost_big_cpu_qos, MAX_CPUFREQ-1, 1000000);
+               } else
+                       return;
+               cpufreq_cpu_put(policy);
+       }
+}
+
 static ssize_t state_store(struct kobject *kobj, struct kobj_attribute *attr,
 			   const char *buf, size_t n)
 {
@@ -376,6 +421,7 @@ static ssize_t state_store(struct kobject *kobj, struct kobj_attribute *attr,
 
  out:
 	pm_autosleep_unlock();
+	resumeboost_fn();
 	return error ? error : n;
 }
 
@@ -527,6 +573,63 @@ static ssize_t wake_unlock_store(struct kobject *kobj,
 power_attr(wake_unlock);
 
 #endif /* CONFIG_PM_WAKELOCKS */
+
+#ifdef CONFIG_PM_SUSPEND_DEBUG_OP
+static int pm_suspend_debug = 0;
+
+static ssize_t pm_suspend_debug_show(struct kobject *kobj, struct kobj_attribute *attr,
+			     char *buf)
+{
+	return sprintf(buf, "%d\n", pm_suspend_debug);
+}
+
+static ssize_t
+pm_suspend_debug_store(struct kobject *kobj, struct kobj_attribute *attr,
+	       const char *buf, size_t n)
+{
+	int val;
+
+	if (sscanf(buf, "%d", &val) == 1) {
+		pm_suspend_debug = val & 0x0F;
+		debug_print_suspend_stats();
+		pr_debug("pm_suspend_debug:%d",pm_suspend_debug); 
+		return n;
+	}
+	return -EINVAL;
+}
+
+power_attr(pm_suspend_debug);
+void debug_print_suspend_stats(void)
+{
+	if (likely(!pm_suspend_debug))
+		return;
+
+	switch (pm_suspend_debug) {
+	case 0x01:
+		print_pinctrl_stats_op();
+		break;
+	case 0x02:
+		print_clk_stats_op();
+		break;
+	case 0x04:
+		print_regulator_stats_op();
+		break;
+	case 0x06:
+		print_clk_stats_op();
+		print_regulator_stats_op();
+                break;
+	default:
+		pm_suspend_debug &= 0x08;
+		if (pm_suspend_debug) {
+			print_pinctrl_stats_op();
+			print_clk_stats_op();
+			print_regulator_stats_op();
+		}else
+			pr_info("%s: error value", __func__);
+	}
+}
+#endif /* CONFIG_SUSPEND_DEBUG_OP  */
+
 #endif /* CONFIG_PM_SLEEP */
 
 #ifdef CONFIG_PM_TRACE
@@ -615,6 +718,9 @@ static struct attribute * g[] = {
 	&wake_lock_attr.attr,
 	&wake_unlock_attr.attr,
 #endif
+#ifdef CONFIG_PM_SUSPEND_DEBUG_OP
+	&pm_suspend_debug_attr.attr,
+#endif
 #ifdef CONFIG_PM_DEBUG
 	&pm_test_attr.attr,
 #endif
@@ -661,3 +767,12 @@ static int __init pm_init(void)
 }
 
 core_initcall(pm_init);
+
+static int __init init_pm_qos(void)
+{
+	pm_qos_add_request(&resumeboost_little_cpu_qos, PM_QOS_C0_CPUFREQ_MIN, MIN_CPUFREQ);
+	pm_qos_add_request(&resumeboost_big_cpu_qos, PM_QOS_C1_CPUFREQ_MIN, MIN_CPUFREQ);
+
+	return 0;
+}
+late_initcall(init_pm_qos);

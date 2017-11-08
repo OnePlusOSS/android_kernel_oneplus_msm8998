@@ -461,6 +461,14 @@ static inline void unlock_system_sleep(void)
 	current->flags &= ~PF_FREEZER_SKIP;
 	mutex_unlock(&pm_mutex);
 }
+#ifdef CONFIG_PM_SUSPEND_DEBUG_OP
+/* print pinctrl clk regulator stats, when susoend to lpm_suspend */
+//extern int pm_suspend_debug;
+extern void debug_print_suspend_stats(void);
+extern void print_pinctrl_stats_op(void);
+extern void print_clk_stats_op(void);
+extern void print_regulator_stats_op(void);
+#endif
 
 #else /* !CONFIG_PM_SLEEP */
 

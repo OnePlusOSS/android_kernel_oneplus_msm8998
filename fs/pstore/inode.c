@@ -348,6 +348,9 @@ int pstore_mkfile(enum pstore_type_id type, char *psname, u64 id, int count,
 	case PSTORE_TYPE_FTRACE:
 		scnprintf(name, sizeof(name), "ftrace-%s-%lld", psname, id);
 		break;
+	case PSTORE_TYPE_DEVICE_INFO:
+		scnprintf(name, sizeof(name), "device-info-%s-%lld", psname, id);
+		break;
 	case PSTORE_TYPE_MCE:
 		scnprintf(name, sizeof(name), "mce-%s-%lld", psname, id);
 		break;

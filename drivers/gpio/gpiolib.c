@@ -16,11 +16,15 @@
 #include <linux/gpio/driver.h>
 #include <linux/gpio/machine.h>
 #include <linux/pinctrl/consumer.h>
+#ifdef CONFIG_PM_SUSPEND_DEBUG_OP
+#include <linux/suspend.h>
+#endif
 
 #include "gpiolib.h"
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/gpio.h>
+#include <linux/power/oem_external_fg.h>
 
 /* Implementation infrastructure for GPIO interfaces.
  *
@@ -40,6 +44,16 @@
 #define	extra_checks	1
 #else
 #define	extra_checks	0
+#endif
+
+#ifdef CONFIG_PM_SUSPEND_DEBUG_OP
+#define seq_printf(m, fmt, ...)         \
+do {                                                    \
+        if (m)                                          \
+                seq_printf(m, fmt, ##__VA_ARGS__);      \
+        else                                            \
+                pr_info(fmt, ##__VA_ARGS__);            \
+} while (0)
 #endif
 
 /* gpio_lock prevents conflicts during gpio_desc[] table updates.
@@ -1270,15 +1284,18 @@ static int _gpiod_get_raw_value(const struct gpio_desc *desc)
 
 	chip = desc->chip;
 	offset = gpio_chip_hwgpio(desc);
-	value = chip->get ? chip->get(chip, offset) : -EIO;
-	/*
-	 * FIXME: fix all drivers to clamp to [0,1] or return negative,
-	 * then change this to:
-	 * value = value < 0 ? value : !!value;
-	 * so we can properly propagate error codes.
-	 */
-	value = !!value;
-	trace_gpio_value(desc_to_gpio(desc), 1, value);
+	if (dash_adapter_update_is_rx_gpio(desc_to_gpio(desc))) {
+		if (chip->get_dash) {
+			value = chip->get_dash(chip, offset);
+		} else {
+			pr_err("%s get_dash not exist\n", __func__);
+			value = chip->get ? chip->get(chip, offset) : 0;
+		}
+	} else {
+		value = chip->get ? chip->get(chip, offset) : -EIO;
+		value = !!value;
+		trace_gpio_value(desc_to_gpio(desc), 1, value);
+	}
 	return value;
 }
 
@@ -1390,13 +1407,25 @@ static void _gpiod_set_raw_value(struct gpio_desc *desc, bool value)
 	struct gpio_chip	*chip;
 
 	chip = desc->chip;
-	trace_gpio_value(desc_to_gpio(desc), 0, value);
+	if (dash_adapter_update_is_tx_gpio(desc_to_gpio(desc)) == false)
+		trace_gpio_value(desc_to_gpio(desc), 0, value);
 	if (test_bit(FLAG_OPEN_DRAIN, &desc->flags))
 		_gpio_set_open_drain_value(desc, value);
 	else if (test_bit(FLAG_OPEN_SOURCE, &desc->flags))
 		_gpio_set_open_source_value(desc, value);
-	else
-		chip->set(chip, gpio_chip_hwgpio(desc), value);
+	else {
+		if (dash_adapter_update_is_tx_gpio(desc_to_gpio(desc))) {
+			if (chip->set_dash) {
+				chip->set_dash(chip,
+					gpio_chip_hwgpio(desc), value);
+			} else {
+				/*pr_err("%s set_dash not exist\n", __func__);*/
+				chip->set(chip, gpio_chip_hwgpio(desc), value);
+			}
+		} else {
+			chip->set(chip, gpio_chip_hwgpio(desc), value);
+		}
+	}
 }
 
 /*
@@ -2537,3 +2566,50 @@ static int __init gpiolib_debugfs_init(void)
 subsys_initcall(gpiolib_debugfs_init);
 
 #endif	/* DEBUG_FS */
+
+#ifdef CONFIG_PM_SUSPEND_DEBUG_OP
+#ifndef CONFIG_DEBUG_FS
+static int gpiolib_seq_show(struct seq_file *s, void *v)
+{
+	return 0;
+}
+#endif
+void print_pinctrl_stats_op(void)
+{
+	struct gpio_chip *chip = NULL;
+	unsigned long flags;
+	struct device *dev;
+	char buf[200], *p;
+
+	spin_lock_irqsave(&gpio_lock, flags);
+
+	p = buf;	
+	p +=sprintf(p, "GPIO stats:\n");
+	p +=sprintf(p, "--------------------------------------------\n");
+	list_for_each_entry(chip, &gpio_chips, list){
+		p += sprintf(p, "GPIOs %d-%d",
+			chip->base, chip->base + chip->ngpio - 1);
+		dev = chip->dev;
+		if (dev)
+			p += sprintf(p, ", %s/%s", dev->bus ? dev->bus->name : "no-bus",
+				dev_name(dev));
+		if (chip->label)
+			p +=sprintf(p, ", %s", chip->label);
+		if (chip->can_sleep)
+			seq_printf(NULL, ", can sleep");
+		p +=sprintf(p, ":\n");
+
+		pr_info("%s", buf);
+		p = buf;
+		memset(p, '\0', 200);
+		if (chip->dbg_show)
+			chip->dbg_show(NULL, chip);
+		else
+			gpiolib_dbg_show(NULL, chip);
+	}
+	//	gpiolib_seq_show(NULL, chip);
+
+	spin_unlock_irqrestore(&gpio_lock, flags);
+}
+
+#endif

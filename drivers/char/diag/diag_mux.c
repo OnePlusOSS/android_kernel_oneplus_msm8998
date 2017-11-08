@@ -153,15 +153,12 @@ int diag_mux_write(int proc, unsigned char *buf, int len, int ctx)
 			upd = PERIPHERAL_CDSP;
 			break;
 		case UPD_WLAN:
-			if (!driver->pd_logging_mode[0])
+			if (!driver->num_pd_session)
 				upd = PERIPHERAL_MODEM;
 			break;
 		case UPD_AUDIO:
-			if (!driver->pd_logging_mode[1])
-				upd = PERIPHERAL_LPASS;
-			break;
 		case UPD_SENSORS:
-			if (!driver->pd_logging_mode[2])
+			if (!driver->num_pd_session)
 				upd = PERIPHERAL_LPASS;
 			break;
 		default:

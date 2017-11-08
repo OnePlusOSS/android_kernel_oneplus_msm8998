@@ -54,8 +54,6 @@
 #include "debug.h"
 #include "xhci.h"
 
-#define SDP_CONNETION_CHECK_TIME 10000 /* in ms */
-
 /* time out to wait for USB cable status notification (in ms)*/
 #define SM_INIT_TIMEOUT 30000
 
@@ -83,6 +81,7 @@ MODULE_PARM_DESC(cpu_to_affin, "affin usb irq to this cpu");
 #define CGCTL_REG		(QSCRATCH_REG_OFFSET + 0x28)
 #define PWR_EVNT_IRQ_STAT_REG    (QSCRATCH_REG_OFFSET + 0x58)
 #define PWR_EVNT_IRQ_MASK_REG    (QSCRATCH_REG_OFFSET + 0x5C)
+#define QSCRATCH_USB30_STS_REG	(QSCRATCH_REG_OFFSET + 0xF8)
 
 #define PWR_EVNT_POWERDOWN_IN_P3_MASK		BIT(2)
 #define PWR_EVNT_POWERDOWN_OUT_P3_MASK		BIT(3)
@@ -229,7 +228,6 @@ struct dwc3_msm {
 	int pm_qos_latency;
 	struct pm_qos_request pm_qos_req_dma;
 	struct delayed_work perf_vote_work;
-	struct delayed_work sdp_check;
 };
 
 #define USB_HSPHY_3P3_VOL_MIN		3050000 /* uV */
@@ -1931,8 +1929,19 @@ static int dwc3_msm_prepare_suspend(struct dwc3_msm *mdwc)
 		if (reg & PWR_EVNT_LPM_IN_L2_MASK)
 			break;
 	}
-	if (!(reg & PWR_EVNT_LPM_IN_L2_MASK))
-		dev_err(mdwc->dev, "could not transition HS PHY to L2\n");
+	if (!(reg & PWR_EVNT_LPM_IN_L2_MASK)) {
+		dbg_event(0xFF, "PWR_EVNT_LPM",
+			dwc3_msm_read_reg(mdwc->base, PWR_EVNT_IRQ_STAT_REG));
+		dbg_event(0xFF, "QUSB_STS",
+			dwc3_msm_read_reg(mdwc->base, QSCRATCH_USB30_STS_REG));
+		/* Mark fatal error for host mode or USB bus suspend case */
+		if (mdwc->in_host_mode || (mdwc->vbus_active
+			&& mdwc->otg_state == OTG_STATE_B_SUSPEND)) {
+			queue_work(mdwc->dwc3_wq, &mdwc->resume_work);
+			dev_err(mdwc->dev, "could not transition HS PHY to L2\n");
+			return -EBUSY;
+		}
+	}
 
 	/* Clear L2 event bit */
 	dwc3_msm_write_reg(mdwc->base, PWR_EVNT_IRQ_STAT_REG,
@@ -2628,25 +2637,6 @@ done:
 	return NOTIFY_DONE;
 }
 
-
-static void check_for_sdp_connection(struct work_struct *w)
-{
-	struct dwc3_msm *mdwc =
-		container_of(w, struct dwc3_msm, sdp_check.work);
-	struct dwc3 *dwc = platform_get_drvdata(mdwc->dwc3);
-
-	if (!mdwc->vbus_active)
-		return;
-
-	/* floating D+/D- lines detected */
-	if (dwc->gadget.state < USB_STATE_DEFAULT &&
-		dwc3_gadget_get_link_state(dwc) != DWC3_LINK_STATE_CMPLY) {
-		mdwc->vbus_active = 0;
-		dbg_event(0xFF, "Q RW SPD CHK", mdwc->vbus_active);
-		queue_work(mdwc->dwc3_wq, &mdwc->resume_work);
-	}
-}
-
 static int dwc3_msm_vbus_notifier(struct notifier_block *nb,
 	unsigned long event, void *ptr)
 {
@@ -2851,7 +2841,6 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 	INIT_WORK(&mdwc->vbus_draw_work, dwc3_msm_vbus_draw_work);
 	INIT_DELAYED_WORK(&mdwc->sm_work, dwc3_otg_sm_work);
 	INIT_DELAYED_WORK(&mdwc->perf_vote_work, msm_dwc3_perf_vote_work);
-	INIT_DELAYED_WORK(&mdwc->sdp_check, check_for_sdp_connection);
 
 	mdwc->dwc3_wq = alloc_ordered_workqueue("dwc3_wq", 0);
 	if (!mdwc->dwc3_wq) {
@@ -3353,8 +3342,8 @@ static void msm_dwc3_perf_vote_work(struct work_struct *w)
 	if (dwc->irq_cnt - dwc->last_irq_cnt >= PM_QOS_THRESHOLD)
 		in_perf_mode = true;
 
-	pr_debug("%s: in_perf_mode:%u, interrupts in last sample:%lu\n",
-		 __func__, in_perf_mode, (dwc->irq_cnt - dwc->last_irq_cnt));
+	//pr_debug("%s: in_perf_mode:%u, interrupts in last sample:%lu\n",
+	//	 __func__, in_perf_mode, (dwc->irq_cnt - last_irq_cnt));
 
 	dwc->last_irq_cnt = dwc->irq_cnt;
 	msm_dwc3_perf_vote_update(mdwc, in_perf_mode);
@@ -3604,46 +3593,32 @@ static int dwc3_otg_start_peripheral(struct dwc3_msm *mdwc, int on)
 	return 0;
 }
 
-int get_psy_type(struct dwc3_msm *mdwc)
+static int dwc3_msm_gadget_vbus_draw(struct dwc3_msm *mdwc, unsigned mA)
 {
 	union power_supply_propval pval = {0};
+	int ret;
 
 	if (mdwc->charging_disabled)
-		return -EINVAL;
+		return 0;
+
 
 	if (!mdwc->usb_psy) {
 		mdwc->usb_psy = power_supply_get_by_name("usb");
 		if (!mdwc->usb_psy) {
-			dev_err(mdwc->dev, "Could not get usb psy\n");
+			dev_warn(mdwc->dev, "Could not get usb power_supply\n");
 			return -ENODEV;
 		}
 	}
 
-	power_supply_get_property(mdwc->usb_psy, POWER_SUPPLY_PROP_REAL_TYPE,
-			&pval);
-
-	return pval.intval;
-}
-
-static int dwc3_msm_gadget_vbus_draw(struct dwc3_msm *mdwc, unsigned mA)
-{
-	union power_supply_propval pval = {0};
-	int ret, psy_type;
-
-	if (mdwc->max_power == mA)
+	power_supply_get_property(mdwc->usb_psy,
+			POWER_SUPPLY_PROP_REAL_TYPE, &pval);
+	if (pval.intval != POWER_SUPPLY_TYPE_USB)
 		return 0;
 
-	psy_type = get_psy_type(mdwc);
-	if (psy_type == POWER_SUPPLY_TYPE_USB) {
-		dev_info(mdwc->dev, "Avail curr from USB = %u\n", mA);
-		/* Set max current limit in uA */
-		pval.intval = 1000 * mA;
-	} else if (psy_type == POWER_SUPPLY_TYPE_USB_FLOAT) {
-		pval.intval = -ETIMEDOUT;
-	} else {
-		return 0;
-	}
+	dev_info(mdwc->dev, "Avail curr from USB = %u\n", mA);
 
+	/* Set max current limit in uA */
+	pval.intval = 1000 * mA;
 	ret = power_supply_set_property(mdwc->usb_psy,
 				POWER_SUPPLY_PROP_CURRENT_MAX, &pval);
 	if (ret) {
@@ -3714,10 +3689,6 @@ static void dwc3_otg_sm_work(struct work_struct *w)
 			work = 1;
 		} else if (test_bit(B_SESS_VLD, &mdwc->inputs)) {
 			dev_dbg(mdwc->dev, "b_sess_vld\n");
-			if (get_psy_type(mdwc) == POWER_SUPPLY_TYPE_USB_FLOAT)
-				queue_delayed_work(mdwc->dwc3_wq,
-						&mdwc->sdp_check,
-				msecs_to_jiffies(SDP_CONNETION_CHECK_TIME));
 			/*
 			 * Increment pm usage count upon cable connect. Count
 			 * is decremented in OTG_STATE_B_PERIPHERAL state on
@@ -3741,7 +3712,6 @@ static void dwc3_otg_sm_work(struct work_struct *w)
 				!test_bit(ID, &mdwc->inputs)) {
 			dev_dbg(mdwc->dev, "!id || !bsv\n");
 			mdwc->otg_state = OTG_STATE_B_IDLE;
-			cancel_delayed_work_sync(&mdwc->sdp_check);
 			dwc3_otg_start_peripheral(mdwc, 0);
 			/*
 			 * Decrement pm usage count upon cable disconnect
@@ -3774,7 +3744,6 @@ static void dwc3_otg_sm_work(struct work_struct *w)
 		if (!test_bit(B_SESS_VLD, &mdwc->inputs)) {
 			dev_dbg(mdwc->dev, "BSUSP: !bsv\n");
 			mdwc->otg_state = OTG_STATE_B_IDLE;
-			cancel_delayed_work_sync(&mdwc->sdp_check);
 			dwc3_otg_start_peripheral(mdwc, 0);
 		} else if (!test_bit(B_SUSPEND, &mdwc->inputs)) {
 			dev_dbg(mdwc->dev, "BSUSP !susp\n");

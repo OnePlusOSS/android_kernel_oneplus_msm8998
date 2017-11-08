@@ -1,0 +1,33 @@
+oneplus_fastcg
+
+BQ27541 is a single-cell switching mode battery charger. It can charge
+the battery and power the system via the USB and AC adapter input.
+
+The BQ27541 interface is via I2C bus.
+
+Required Properties:
+- compatible:			Must be "ompatible = "microchip,oneplus_fastcg".
+- reg:				    The device 7-bit I2C address.
+
+
+Example:
+
+&i2c_7 {
+        oneplus_fastcg@26{
+                status = "ok";
+                compatible = "microchip,oneplus_fastcg";
+                reg = <0x26>;
+                microchip,mcu-en-gpio = <&tlmm 96 0x00>;
+                microchip,usb-sw-1-gpio = <&tlmm 90 0x00>;
+                microchip,usb-sw-2-gpio = <&tlmm 91 0x00>;
+                microchip,ap-clk = <&tlmm 79 0x00>;
+                microchip,ap-data = <&tlmm 80 0x00>;
+
+                pinctrl-names = "mux_fastchg_active", "mux_fastchg_suspend";
+                pinctrl-0 = <&fastchg_active &usb_sw_active
+                        &ap_clk_active &ap_data_active>;
+                pinctrl-1 = <&usb_sw_suspend &fastchg_suspend
+                        &ap_clk_suspend &ap_data_suspend>;
+        };
+
+	};

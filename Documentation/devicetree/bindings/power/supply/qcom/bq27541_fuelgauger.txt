@@ -1,0 +1,23 @@
+BQ27541 battery charger
+
+BQ27541 is a single-cell switching mode battery charger. It can charge
+the battery and power the system via the USB and AC adapter input.
+
+The BQ27541 interface is via I2C bus.
+
+Required Properties:
+- compatible:			Must be "ti,bq27541-battery".
+- reg:				The device 7-bit I2C address.
+
+
+Example:
+
+&i2c_7 {
+        bq27541-battery@55 {
+                status = "ok";
+                compatible = "ti,bq27541-battery";
+                reg = <0x55>;
+                qcom,modify-soc-smooth;
+                };
+
+	};

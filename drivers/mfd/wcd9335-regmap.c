@@ -1535,6 +1535,10 @@ static bool wcd9335_is_volatile_register(struct device *dev, unsigned int reg)
 	    reg <= WCD9335_RCO_CAL_OUT_5)
 		return true;
 
+	if (reg >= WCD9335_CDC_TOP_HPHL_COMP_WR_LSB &&
+	    reg <= WCD9335_CDC_TOP_HPHR_COMP_RD_MSB)
+		return true;
+
 	switch (reg) {
 	case WCD9335_CPE_SS_INBOX1_TRG:
 	case WCD9335_CPE_SS_INBOX2_TRG:

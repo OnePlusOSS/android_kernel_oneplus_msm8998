@@ -44,7 +44,7 @@
 #include "msm-ds2-dap-config.h"
 #include "q6voice.h"
 #include "sound/q6lsm.h"
-
+#include <sound/sounddebug.h>
 #ifndef CONFIG_DOLBY_DAP
 #undef DOLBY_ADM_COPP_TOPOLOGY_ID
 #define DOLBY_ADM_COPP_TOPOLOGY_ID 0xFFFFFFFE
@@ -13276,8 +13276,7 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"SEC_MI2S_RX", NULL, "SEC_MI2S_RX_DL_HL"},
 	{"TERT_MI2S_RX_DL_HL", "Switch", "TERT_MI2S_DL_HL"},
 	{"TERT_MI2S_RX", NULL, "TERT_MI2S_RX_DL_HL"},
-
-	{"QUAT_MI2S_RX_DL_HL", "Switch", "QUAT_MI2S_DL_HL"},
+        {"QUAT_MI2S_RX_DL_HL", "Switch", "SLIM0_DL_HL"},
 	{"QUAT_MI2S_RX", NULL, "QUAT_MI2S_RX_DL_HL"},
 	{"MI2S_UL_HL", NULL, "TERT_MI2S_TX"},
 	{"INT3_MI2S_UL_HL", NULL, "INT3_MI2S_TX"},

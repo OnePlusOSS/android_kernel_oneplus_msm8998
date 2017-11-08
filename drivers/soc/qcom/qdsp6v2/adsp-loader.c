@@ -113,7 +113,7 @@ static void adsp_load_fw(struct work_struct *adsp_ldr_work)
 			"%s: MDSP state = %x\n", __func__, adsp_state);
 		}
 
-		dev_dbg(&pdev->dev, "%s: Q6/MDSP image is loaded\n", __func__);
+		dev_err(&pdev->dev, "%s: Q6/MDSP image is loaded\n", __func__);
 		return;
 	}
 load_adsp:
@@ -141,11 +141,12 @@ load_adsp:
 			"%s: ADSP state = %x\n", __func__, adsp_state);
 		}
 
-		dev_dbg(&pdev->dev, "%s: Q6/ADSP image is loaded\n", __func__);
+		dev_err(&pdev->dev, "%s: Q6/ADSP image is loaded\n", __func__);
 		return;
 	}
 fail:
 	dev_err(&pdev->dev, "%s: Q6 image loading failed\n", __func__);
+	panic("Q6 image loading failed crash");
 	return;
 }
 

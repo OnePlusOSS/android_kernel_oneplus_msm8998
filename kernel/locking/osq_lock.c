@@ -106,7 +106,6 @@ bool osq_lock(struct optimistic_spin_queue *lock)
 
 	prev = decode_cpu(old);
 	node->prev = prev;
-
 	/*
 	 * We need to avoid reordering of link updation sequence of osq.
 	 * A case in which the status of optimistic spin queue is
@@ -131,7 +130,6 @@ bool osq_lock(struct optimistic_spin_queue *lock)
 	 * true.
 	 */
 	smp_mb();
-
 	WRITE_ONCE(prev->next, node);
 
 	/*
@@ -146,7 +144,7 @@ bool osq_lock(struct optimistic_spin_queue *lock)
 	while (!READ_ONCE(node->locked)) {
 		/*
 		 * If we need to reschedule bail... so we can block.
-		 * If a task spins on owner on a CPU after acquiring
+		 * If a task spins on owner on a CPU0 after acquiring
 		 * osq_lock while a RT task spins on another CPU  to
 		 * acquire osq_lock, it will starve the owner from
 		 * completing if owner is to be scheduled on the same CPU.

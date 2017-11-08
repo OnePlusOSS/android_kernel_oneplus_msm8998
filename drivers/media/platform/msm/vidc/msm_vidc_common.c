@@ -3291,9 +3291,9 @@ static bool reuse_internal_buffers(struct msm_vidc_inst *inst,
 	return reused;
 }
 
-int allocate_and_set_internal_bufs(struct msm_vidc_inst *inst,
+static int allocate_and_set_internal_bufs(struct msm_vidc_inst *inst,
 			struct hal_buffer_requirements *internal_bufreq,
-			struct msm_vidc_list *buf_list, bool set_on_fw)
+			struct msm_vidc_list *buf_list)
 {
 	struct msm_smem *handle;
 	struct internal_buf *binfo;
@@ -3312,7 +3312,7 @@ int allocate_and_set_internal_bufs(struct msm_vidc_inst *inst,
 
 	for (i = 0; i < internal_bufreq->buffer_count_actual; i++) {
 		handle = msm_comm_smem_alloc(inst, internal_bufreq->buffer_size,
-				1, smem_flags, internal_bufreq->buffer_type, 0);
+			1, smem_flags, internal_bufreq->buffer_type, 1);
 		if (!handle) {
 			dprintk(VIDC_ERR,
 				"Failed to allocate scratch memory\n");
@@ -3330,13 +3330,11 @@ int allocate_and_set_internal_bufs(struct msm_vidc_inst *inst,
 		binfo->handle = handle;
 		binfo->buffer_type = internal_bufreq->buffer_type;
 
-		if (set_on_fw) {
-			rc = set_internal_buf_on_fw(inst,
-					internal_bufreq->buffer_type,
-					handle, false);
-			if (rc)
-				goto fail_set_buffers;
-		}
+		rc = set_internal_buf_on_fw(inst, internal_bufreq->buffer_type,
+				handle, false);
+		if (rc)
+			goto fail_set_buffers;
+
 		mutex_lock(&buf_list->lock);
 		list_add_tail(&binfo->list, &buf_list->list);
 		mutex_unlock(&buf_list->lock);
@@ -3377,7 +3375,7 @@ static int set_internal_buffers(struct msm_vidc_inst *inst,
 		return 0;
 
 	return allocate_and_set_internal_bufs(inst, internal_buf,
-				buf_list, true);
+				buf_list);
 }
 
 int msm_comm_try_state(struct msm_vidc_inst *inst, int state)
@@ -3538,6 +3536,39 @@ int msm_vidc_comm_cmd(void *instance, union msm_v4l2_cmd *cmd)
 				"Failed to flush buffers: %d\n", rc);
 		}
 		break;
+	case V4L2_DEC_QCOM_CMD_RECONFIG_HINT:
+	{
+		u32 *ptr = NULL;
+		struct hal_buffer_requirements *output_buf;
+
+		rc = msm_comm_try_get_bufreqs(inst);
+		if (rc) {
+			dprintk(VIDC_ERR,
+					"Getting buffer requirements failed: %d\n",
+					rc);
+			break;
+		}
+
+		output_buf = get_buff_req_buffer(inst,
+				msm_comm_get_hal_output_buffer(inst));
+		if (output_buf) {
+			if (dec) {
+				ptr = (u32 *)dec->raw.data;
+				ptr[0] = output_buf->buffer_size;
+				ptr[1] = output_buf->buffer_count_actual;
+				dprintk(VIDC_DBG,
+					"Reconfig hint, size is %u, count is %u\n",
+					ptr[0], ptr[1]);
+			} else {
+				dprintk(VIDC_ERR, "Null decoder\n");
+			}
+		} else {
+			dprintk(VIDC_DBG,
+					"This output buffer not required, buffer_type: %x\n",
+					HAL_BUFFER_OUTPUT);
+		}
+		break;
+	}
 	default:
 		dprintk(VIDC_ERR, "Unknown Command %d\n", which_cmd);
 		rc = -ENOTSUPP;
@@ -4371,15 +4402,15 @@ error:
 	return rc;
 }
 
-int msm_comm_set_scratch_buffers(struct msm_vidc_inst *inst,
-						bool max_int_buffer) {
+int msm_comm_set_scratch_buffers(struct msm_vidc_inst *inst)
+{
 	int rc = 0;
 	if (!inst || !inst->core || !inst->core->device) {
 		dprintk(VIDC_ERR, "%s invalid parameters\n", __func__);
 		return -EINVAL;
 	}
 
-	if (!max_int_buffer && msm_comm_release_scratch_buffers(inst, true))
+	if (msm_comm_release_scratch_buffers(inst, true))
 		dprintk(VIDC_WARN, "Failed to release scratch buffers\n");
 
 	rc = set_internal_buffers(inst, HAL_BUFFER_INTERNAL_SCRATCH,

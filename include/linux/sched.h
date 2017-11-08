@@ -1543,6 +1543,10 @@ struct task_struct {
 	atomic_t usage;
 	unsigned int flags;	/* per process flags, defined below */
 	unsigned int ptrace;
+	unsigned int kill_flag;
+	struct timespec ttu;
+
+    bool dump_fd_leak;
 
 #ifdef CONFIG_SMP
 	struct llist_node wake_entry;
@@ -1991,6 +1995,11 @@ struct task_struct {
 #ifdef CONFIG_DEBUG_ATOMIC_SLEEP
 	unsigned long	task_state_change;
 #endif
+	u64 utask_tag;
+	u64 utask_tag_base;
+	int etask_claim;
+	int claim_cpu;
+	bool utask_slave;
 	int pagefault_disabled;
 /* CPU-specific state of this task */
 	struct thread_struct thread;

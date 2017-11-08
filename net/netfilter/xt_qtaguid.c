@@ -2041,9 +2041,12 @@ static int ctrl_cmd_delete(const char *input)
 			rb_erase(&st_entry->sock_node, &sock_tag_tree);
 			/* Can't sockfd_put() within spinlock, do it later. */
 			sock_tag_tree_insert(st_entry, &st_to_free_tree);
+			spin_lock_bh(&uid_tag_data_tree_lock); /* add by xcb */
 			tr_entry = lookup_tag_ref(st_entry->tag, NULL);
 			BUG_ON(tr_entry->num_sock_tags <= 0);
 			tr_entry->num_sock_tags--;
+			/* add by xcb */
+			spin_unlock_bh(&uid_tag_data_tree_lock);
 			/*
 			 * TODO: remove if, and start failing.
 			 * This is a hack to work around the fact that in some
@@ -2286,11 +2289,14 @@ static int ctrl_cmd_tag(const char *input)
 		 * it can be done within the spinlock.
 		 */
 		sockfd_put(sock_tag_entry->socket);
+		spin_lock_bh(&uid_tag_data_tree_lock); /* add by xcb */
 		prev_tag_ref_entry = lookup_tag_ref(sock_tag_entry->tag,
 						    &uid_tag_data_entry);
 		BUG_ON(IS_ERR_OR_NULL(prev_tag_ref_entry));
 		BUG_ON(prev_tag_ref_entry->num_sock_tags <= 0);
 		prev_tag_ref_entry->num_sock_tags--;
+		/* add by xcb */
+		spin_unlock_bh(&uid_tag_data_tree_lock);
 		sock_tag_entry->tag = full_tag;
 	} else {
 		CT_DEBUG("qtaguid: ctrl_tag(%s): newtag for sk=%p\n",
@@ -2397,10 +2403,11 @@ static int ctrl_cmd_untag(const char *input)
 	 */
 	rb_erase(&sock_tag_entry->sock_node, &sock_tag_tree);
 
+	spin_lock_bh(&uid_tag_data_tree_lock); /* add by xcb */
 	tag_ref_entry = lookup_tag_ref(sock_tag_entry->tag, &utd_entry);
 	BUG_ON(!tag_ref_entry);
 	BUG_ON(tag_ref_entry->num_sock_tags <= 0);
-	spin_lock_bh(&uid_tag_data_tree_lock);
+	/* spin_lock_bh(&uid_tag_data_tree_lock); delete by xcb */
 	pqd_entry = proc_qtu_data_tree_search(
 		&proc_qtu_data_tree, current->tgid);
 	/*

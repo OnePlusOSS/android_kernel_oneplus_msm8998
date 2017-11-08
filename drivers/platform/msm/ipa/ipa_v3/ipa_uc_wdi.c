@@ -784,9 +784,14 @@ int ipa3_connect_wdi_pipe(struct ipa_wdi_in_params *in,
 
 	ep = &ipa3_ctx->ep[ipa_ep_idx];
 
+	/*
+	 * modify by xcb for avoid wlan ep are not clear
+	 * at last time unload wlan module.
+	 */
 	if (ep->valid) {
-		IPAERR("EP already allocated.\n");
-		goto fail;
+		IPAERR("EP %d already allocated!!!\n", ipa_ep_idx);
+		/* goto fail; delete by xcb */
+		ipa3_disconnect_wdi_pipe(ipa_ep_idx);
 	}
 
 	memset(&ipa3_ctx->ep[ipa_ep_idx], 0, sizeof(struct ipa3_ep_context));
@@ -1662,7 +1667,7 @@ int ipa3_write_qmapid_wdi_pipe(u32 clnt_hdl, u8 qmap_id)
 
 	if (clnt_hdl >= ipa3_ctx->ipa_num_pipes ||
 	    ipa3_ctx->ep[clnt_hdl].valid == 0) {
-		IPAERR_RL("bad parm, %d\n", clnt_hdl);
+		IPAERR("bad parm, %d\n", clnt_hdl);
 		return -EINVAL;
 	}
 
@@ -1675,7 +1680,7 @@ int ipa3_write_qmapid_wdi_pipe(u32 clnt_hdl, u8 qmap_id)
 	ep = &ipa3_ctx->ep[clnt_hdl];
 
 	if (!(ep->uc_offload_state & IPA_WDI_CONNECTED)) {
-		IPAERR_RL("WDI channel bad state %d\n", ep->uc_offload_state);
+		IPAERR("WDI channel bad state %d\n", ep->uc_offload_state);
 		return -EFAULT;
 	}
 	IPA_ACTIVE_CLIENTS_INC_EP(ipa3_get_client_mapping(clnt_hdl));

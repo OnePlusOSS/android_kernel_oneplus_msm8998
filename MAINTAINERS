@@ -11973,6 +11973,29 @@ L:	linux-mm@kvack.org
 S:	Maintained
 F:	mm/zswap.c
 
+TRI_STATE_KEY
+M:      zenk <taokai@oneplus.net>
+S:	Maintained
+F:      Documentation/devicetree/bindings/input/tri_state_key.txt
+
+FASTCHARGE
+M:      zenk <taokai@oneplus.net>
+S:	Maintained
+F:      Documentation/devicetree/bindings/power/supply/qcom/oneplus_fastcg.txt
+F:      Documentation/devicetree/bindings/power/supply/qcom/bq27541_fuelgauger.txt
+
+DTSI
+M:      zenk <taokai@oneplus.net>
+S:	Maintained
+F:      arch/arm/boot/dts/qcom/dumpling-t0.dtsi
+F:      arch/arm/boot/dts/qcom/dumpling-v2.1-t0.dts
+F:      arch/arm/boot/dts/qcom/dumpling-evt1.dtsi
+F:      arch/arm/boot/dts/qcom/dumpling-v2.1-evt1.dts
+F:      arch/arm/boot/dts/qcom/dumpling-evt2.dtsi
+F:      arch/arm/boot/dts/qcom/dumpling-v2.1-evt2.dts
+F:      arch/arm/boot/dts/qcom/dumpling-dvt.dtsi
+F:      arch/arm/boot/dts/qcom/dumpling-v2.1-dvt.dts
+
 THE REST
 M:	Linus Torvalds <torvalds@linux-foundation.org>
 L:	linux-kernel@vger.kernel.org

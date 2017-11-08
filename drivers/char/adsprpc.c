@@ -211,7 +211,6 @@ struct fastrpc_channel_ctx {
 	struct device *dev;
 	struct fastrpc_session_ctx session[NUM_SESSIONS];
 	struct completion work;
-	struct completion workport;
 	struct notifier_block nb;
 	struct kref kref;
 	int sesscount;
@@ -288,7 +287,6 @@ struct fastrpc_file {
 	int cid;
 	int ssrcount;
 	int pd;
-	int file_close;
 	struct fastrpc_apps *apps;
 	struct fastrpc_perf perf;
 	struct dentry *debugfs_file;
@@ -1425,7 +1423,6 @@ static void fastrpc_init(struct fastrpc_apps *me)
 	me->channel = &gcinfo[0];
 	for (i = 0; i < NUM_CHANNELS; i++) {
 		init_completion(&me->channel[i].work);
-	init_completion(&me->channel[i].workport);
 		me->channel[i].sesscount = 0;
 	}
 }
@@ -1540,6 +1537,7 @@ static int fastrpc_init_process(struct fastrpc_file *fl,
 	struct smq_phy_page pages[1];
 	struct fastrpc_mmap *file = 0, *mem = 0;
 	char *proc_name = NULL;
+
 	int srcVM[1] = {VMID_HLOS};
 	int destVM[1] = {VMID_ADSP_Q6};
 	int destVMperm[1] = {PERM_READ | PERM_WRITE | PERM_EXEC};
@@ -2082,7 +2080,7 @@ void fastrpc_glink_notify_state(void *handle, const void *priv, unsigned event)
 	switch (event) {
 	case GLINK_CONNECTED:
 		link->port_state = FASTRPC_LINK_CONNECTED;
-		complete(&me->channel[cid].workport);
+		complete(&me->channel[cid].work);
 		break;
 	case GLINK_LOCAL_DISCONNECTED:
 		link->port_state = FASTRPC_LINK_DISCONNECTED;
@@ -2142,9 +2140,6 @@ static int fastrpc_file_free(struct fastrpc_file *fl)
 		return 0;
 	}
 	(void)fastrpc_release_current_dsp_process(fl);
-	spin_lock(&fl->hlock);
-	fl->file_close = 1;
-	spin_unlock(&fl->hlock);
 	fastrpc_context_list_dtor(fl);
 	fastrpc_buf_list_free(fl);
 	hlist_for_each_entry_safe(map, n, &fl->maps, hn) {
@@ -2237,7 +2232,8 @@ static void fastrpc_glink_close(void *chan, int cid)
 		return;
 	link = &gfa.channel[cid].link;
 
-	if (link->port_state == FASTRPC_LINK_CONNECTED) {
+	if (link->port_state == FASTRPC_LINK_CONNECTED ||
+		link->port_state == FASTRPC_LINK_CONNECTING) {
 		link->port_state = FASTRPC_LINK_DISCONNECTING;
 		glink_close(chan);
 	}
@@ -2426,9 +2422,8 @@ static int fastrpc_channel_open(struct fastrpc_file *fl)
 		if (err)
 			goto bail;
 
-		VERIFY(err,
-			wait_for_completion_timeout(&me->channel[cid].workport,
-							RPC_TIMEOUT));
+		VERIFY(err, wait_for_completion_timeout(&me->channel[cid].work,
+						RPC_TIMEOUT));
 		if (err) {
 			me->channel[cid].chan = 0;
 			goto bail;
@@ -2524,14 +2519,6 @@ static long fastrpc_device_ioctl(struct file *file, unsigned int ioctl_num,
 
 	p.inv.fds = 0;
 	p.inv.attrs = 0;
-	spin_lock(&fl->hlock);
-	if (fl->file_close == 1) {
-		err = EBADF;
-		pr_warn("ADSPRPC: fastrpc_device_release is happening, So not sending any new requests to DSP");
-		spin_unlock(&fl->hlock);
-		goto bail;
-	}
-	spin_unlock(&fl->hlock);
 
 	switch (ioctl_num) {
 	case FASTRPC_IOCTL_INVOKE:

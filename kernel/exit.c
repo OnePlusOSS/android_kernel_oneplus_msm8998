@@ -289,6 +289,11 @@ kill_orphaned_pgrp(struct task_struct *tsk, struct task_struct *parent)
 	    task_session(parent) == task_session(tsk) &&
 	    will_become_orphaned_pgrp(pgrp, ignored_task) &&
 	    has_stopped_jobs(pgrp)) {
+		if (tsk->cred->uid.val >= 10000) {
+			printk(KERN_ERR "ignore orphaned app:%d %s\n",
+				tsk->pid, tsk->comm);
+			return;
+		}
 		__kill_pgrp_info(SIGHUP, SEND_SIG_PRIV, pgrp);
 		__kill_pgrp_info(SIGCONT, SEND_SIG_PRIV, pgrp);
 	}

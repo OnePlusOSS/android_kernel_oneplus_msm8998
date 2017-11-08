@@ -1,0 +1,5 @@
+config FINGERPRINT_DETECT
+	default y
+	tristate "fingerprint detect support"
+	depends on SPI_MASTER
+

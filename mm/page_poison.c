@@ -5,28 +5,23 @@
 #include <linux/page_ext.h>
 #include <linux/poison.h>
 #include <linux/ratelimit.h>
-
 static bool want_page_poisoning __read_mostly
 		= IS_ENABLED(CONFIG_PAGE_POISONING_ENABLE_DEFAULT);
-
 static int early_page_poison_param(char *buf)
 {
 	if (!buf)
 		return -EINVAL;
-
 	if (strcmp(buf, "on") == 0)
 		want_page_poisoning = true;
 	else if (strcmp(buf, "off") == 0)
 		want_page_poisoning = false;
-
 	return 0;
 }
 early_param("page_poison", early_page_poison_param);
-
 bool page_poisoning_enabled(void)
 {
-	/*
-	 * Assumes that debug_pagealloc_enabled is set before
+    /*
+     *  Assumes that debug_pagealloc_enabled is set before
 	 * free_all_bootmem.
 	 * Page poisoning is debug page alloc for some arches. If
 	 * either of those options are enabled, enable poisoning.
@@ -38,12 +33,11 @@ bool page_poisoning_enabled(void)
 
 static void poison_page(struct page *page)
 {
-	void *addr = kmap_atomic(page);
+    void *addr = kmap_atomic(page);
 
 	memset(addr, PAGE_POISON, PAGE_SIZE);
 	kunmap_atomic(addr);
 }
-
 static void poison_pages(struct page *page, int n)
 {
 	int i;
@@ -51,14 +45,12 @@ static void poison_pages(struct page *page, int n)
 	for (i = 0; i < n; i++)
 		poison_page(page + i);
 }
-
 static bool single_bit_flip(unsigned char a, unsigned char b)
 {
 	unsigned char error = a ^ b;
 
 	return error && !(error & (error - 1));
 }
-
 static void check_poison_mem(struct page *page,
 			     unsigned char *mem, size_t bytes)
 {
@@ -66,18 +58,15 @@ static void check_poison_mem(struct page *page,
 	unsigned char *start;
 	unsigned char *end;
 
-	if (IS_ENABLED(CONFIG_PAGE_POISONING_NO_SANITY))
+    if (IS_ENABLED(CONFIG_PAGE_POISONING_NO_SANITY))
 		return;
-
 	start = memchr_inv(mem, PAGE_POISON, bytes);
 	if (!start)
 		return;
-
 	for (end = mem + bytes - 1; end > start; end--) {
 		if (*end != PAGE_POISON)
 			break;
 	}
-
 	if (!__ratelimit(&ratelimit))
 		return;
 	else if (start == end && single_bit_flip(*start, PAGE_POISON))
@@ -86,13 +75,11 @@ static void check_poison_mem(struct page *page,
 	else
 		pr_err("pagealloc: memory corruption on page with phys start 0x%lx\n",
 			(unsigned long)page_to_phys(page));
-
 	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 16, 1, start,
 			end - start + 1, 1);
 	BUG_ON(PANIC_CORRUPTION);
 	dump_stack();
 }
-
 static void unpoison_page(struct page *page)
 {
 	void *addr;
@@ -106,7 +93,6 @@ static void unpoison_page(struct page *page)
 	check_poison_mem(page, addr, PAGE_SIZE);
 	kunmap_atomic(addr);
 }
-
 static void unpoison_pages(struct page *page, int n)
 {
 	int i;
@@ -114,18 +100,15 @@ static void unpoison_pages(struct page *page, int n)
 	for (i = 0; i < n; i++)
 		unpoison_page(page + i);
 }
-
 void kernel_poison_pages(struct page *page, int numpages, int enable)
 {
 	if (!page_poisoning_enabled())
 		return;
-
 	if (enable)
 		unpoison_pages(page, numpages);
 	else
 		poison_pages(page, numpages);
 }
-
 #ifndef CONFIG_ARCH_SUPPORTS_DEBUG_PAGEALLOC
 void __kernel_map_pages(struct page *page, int numpages, int enable)
 {

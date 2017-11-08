@@ -5371,8 +5371,7 @@ ext4_ext_shift_extents(struct inode *inode, handle_t *handle,
 	if (!extent)
 		goto out;
 
-	stop = le32_to_cpu(extent->ee_block) +
-			ext4_ext_get_actual_len(extent);
+	stop = le32_to_cpu(extent->ee_block);
 
        /*
 	 * In case of left shift, Don't start shifting extents until we make
@@ -5411,8 +5410,12 @@ ext4_ext_shift_extents(struct inode *inode, handle_t *handle,
 	else
 		iterator = &stop;
 
-	/* Its safe to start updating extents */
-	while (start < stop) {
+	/*
+	 * Its safe to start updating extents.  Start and stop are unsigned, so
+	 * in case of right shift if extent with 0 block is reached, iterator
+	 * becomes NULL to indicate the end of the loop.
+	 */
+	while (iterator && start <= stop) {
 		path = ext4_find_extent(inode, *iterator, &path, 0);
 		if (IS_ERR(path))
 			return PTR_ERR(path);
@@ -5440,8 +5443,11 @@ ext4_ext_shift_extents(struct inode *inode, handle_t *handle,
 					ext4_ext_get_actual_len(extent);
 		} else {
 			extent = EXT_FIRST_EXTENT(path[depth].p_hdr);
-			*iterator =  le32_to_cpu(extent->ee_block) > 0 ?
-				le32_to_cpu(extent->ee_block) - 1 : 0;
+			if (le32_to_cpu(extent->ee_block) > 0)
+				*iterator = le32_to_cpu(extent->ee_block) - 1;
+			else
+				/* Beginning is reached, end of the loop */
+				iterator = NULL;
 			/* Update path extent in case we need to stop */
 			while (le32_to_cpu(extent->ee_block) < start)
 				extent++;
@@ -5738,6 +5744,9 @@ int ext4_insert_range(struct inode *inode, loff_t offset, loff_t len)
 			up_write(&EXT4_I(inode)->i_data_sem);
 			goto out_stop;
 		}
+	} else {
+		ext4_ext_drop_refs(path);
+		kfree(path);
 	}
 
 	ret = ext4_es_remove_extent(inode, offset_lblk,

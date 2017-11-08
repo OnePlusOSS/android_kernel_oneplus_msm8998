@@ -301,7 +301,7 @@ static inline u32 arch_gettimeoffset(void) { return 0; }
 static inline s64 timekeeping_get_ns(struct tk_read_base *tkr)
 {
 	cycle_t delta;
-	s64 nsec;
+	u64 nsec;
 
 	delta = timekeeping_get_delta(tkr);
 

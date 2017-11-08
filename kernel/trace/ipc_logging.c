@@ -508,7 +508,7 @@ int ipc_log_string(void *ilctxt, const char *fmt, ...)
 	avail_size = (MAX_MSG_SIZE - (ectxt.offset + hdr_size));
 	va_start(arg_list, fmt);
 	data_size = vscnprintf((ectxt.buff + ectxt.offset + hdr_size),
-				avail_size, fmt, arg_list);
+			      avail_size, fmt, arg_list);
 	va_end(arg_list);
 	tsv_write_header(&ectxt, TSV_TYPE_BYTE_ARRAY, data_size);
 	ectxt.offset += data_size;

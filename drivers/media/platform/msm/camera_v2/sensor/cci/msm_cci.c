@@ -31,8 +31,7 @@
 #define CCI_I2C_Q1_SIZE_32W 32
 #define CYCLES_PER_MICRO_SEC_DEFAULT 4915
 #define CCI_MAX_DELAY 1000000
-
-#define CCI_TIMEOUT msecs_to_jiffies(100)
+#define CCI_TIMEOUT msecs_to_jiffies(500)
 
 /* TODO move this somewhere else */
 #define MSM_CCI_DRV_NAME "msm_cci"

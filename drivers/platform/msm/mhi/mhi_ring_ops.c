@@ -48,9 +48,6 @@ static int add_element(struct mhi_ring *ring, void **rp,
 		*assigned_addr = (char *)ring->wp;
 	*wp = (void *)(((d_wp + 1) % ring_size) * ring->el_size +
 						(uintptr_t)ring->base);
-
-	/* force update visible to other cores */
-	smp_wmb();
 	return 0;
 }
 
@@ -104,9 +101,6 @@ int delete_element(struct mhi_ring *ring, void **rp,
 
 	*rp = (void *)(((d_rp + 1) % ring_size) * ring->el_size +
 						(uintptr_t)ring->base);
-
-	/* force update visible to other cores */
-	smp_wmb();
 	return 0;
 }
 

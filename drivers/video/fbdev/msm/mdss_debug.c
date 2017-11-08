@@ -79,7 +79,6 @@ static u32 dsi_dbg_bus_sdm660[] = {
 	0x2361, 0x0371, 0x0381, 0x0391,
 	0x03C1, 0x03D1, 0x03E1, 0x03F1,
 };
-
 static DEFINE_MUTEX(mdss_debug_lock);
 
 static char panel_reg[2] = {DEFAULT_READ_PANEL_POWER_MODE_REG, 0x00};

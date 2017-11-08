@@ -18,7 +18,7 @@
 
 #define SET_DELAY (2 * HZ)
 #define PROC_AWAKE_ID 12 /* 12th bit */
-static int slst_gpio_base_id;
+int slst_gpio_base_id;
 
 /**
  * sleepstate_pm_notifier() - PM notifier callback function.
@@ -34,11 +34,11 @@ static int sleepstate_pm_notifier(struct notifier_block *nb,
 {
 	switch (event) {
 	case PM_SUSPEND_PREPARE:
-		gpio_set_value(slst_gpio_base_id + PROC_AWAKE_ID, 0);
+		//gpio_set_value(slst_gpio_base_id + PROC_AWAKE_ID, 0);
 		break;
 
 	case PM_POST_SUSPEND:
-		gpio_set_value(slst_gpio_base_id + PROC_AWAKE_ID, 1);
+		//gpio_set_value(slst_gpio_base_id + PROC_AWAKE_ID, 1);
 		break;
 	}
 	return NOTIFY_DONE;
@@ -46,6 +46,7 @@ static int sleepstate_pm_notifier(struct notifier_block *nb,
 
 static struct notifier_block sleepstate_pm_nb = {
 	.notifier_call = sleepstate_pm_notifier,
+	.priority = INT_MAX,
 };
 
 static int smp2p_sleepstate_probe(struct platform_device *pdev)

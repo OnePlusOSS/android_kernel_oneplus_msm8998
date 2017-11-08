@@ -797,7 +797,13 @@ static bool get_rx_fifo(struct edge_info *einfo)
 		einfo->rx_fifo = smem_get_entry(SMEM_GLINK_NATIVE_XPRT_FIFO_1,
 							&einfo->rx_fifo_size,
 							einfo->remote_proc_id,
-							SMEM_ITEM_CACHED_FLAG);
+					SMEM_ITEM_CACHED_FLAG);
+		if (!einfo->rx_fifo)
+			einfo->rx_fifo = smem_get_entry(
+						SMEM_GLINK_NATIVE_XPRT_FIFO_1,
+							&einfo->rx_fifo_size,
+							einfo->remote_proc_id,
+							0);
 		if (!einfo->rx_fifo)
 			einfo->rx_fifo = smem_get_entry(
 						SMEM_GLINK_NATIVE_XPRT_FIFO_1,
@@ -806,6 +812,7 @@ static bool get_rx_fifo(struct edge_info *einfo)
 							0);
 		if (!einfo->rx_fifo)
 			return false;
+
 	}
 
 	return true;

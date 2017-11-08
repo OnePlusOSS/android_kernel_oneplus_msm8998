@@ -1,0 +1,4 @@
+config FINGERPRINT_GOODIX
+	default y
+	tristate "goodix fingerprint sensor support"
+	depends on SPI_MASTER

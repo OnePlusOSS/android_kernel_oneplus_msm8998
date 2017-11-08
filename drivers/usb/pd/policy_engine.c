@@ -182,7 +182,7 @@ static void *usbpd_ipc_log;
 #define PS_HARD_RESET_TIME	25
 #define PS_SOURCE_ON		400
 #define PS_SOURCE_OFF		750
-#define FIRST_SOURCE_CAP_TIME	200
+#define SWAP_SOURCE_START_TIME	20
 #define VDM_BUSY_TIME		50
 #define VCONN_ON_TIME		100
 
@@ -286,6 +286,7 @@ module_param(check_vsafe0v, bool, S_IRUSR | S_IWUSR);
 
 static int min_sink_current = 900;
 module_param(min_sink_current, int, S_IRUSR | S_IWUSR);
+
 
 static const u32 default_src_caps[] = { 0x36019096 };	/* VSafe5V @ 1.5A */
 static const u32 default_snk_caps[] = { 0x2601912C };	/* VSafe5V @ 3A */
@@ -615,6 +616,8 @@ static void kick_sm(struct usbpd *pd, int ms)
 static void phy_sig_received(struct usbpd *pd, enum pd_sig_type type)
 {
 	union power_supply_propval val = {1};
+	usbpd_info(&pd->dev, "%s return by oem\n", __func__);
+	return;
 
 	if (type != HARD_RESET_SIG) {
 		usbpd_err(&pd->dev, "invalid signal (%d) received\n", type);
@@ -760,7 +763,6 @@ static void usbpd_set_state(struct usbpd *pd, enum usbpd_state next_state)
 			 */
 		}
 
-		dual_role_instance_changed(pd->dual_role);
 
 		/* Set CC back to DRP toggle for the next disconnect */
 		val.intval = POWER_SUPPLY_TYPEC_PR_DUAL;
@@ -790,27 +792,17 @@ static void usbpd_set_state(struct usbpd *pd, enum usbpd_state next_state)
 			pd->pd_phy_opened = true;
 		}
 
+		pd->current_state = PE_SRC_SEND_CAPABILITIES;
 		if (pd->in_pr_swap) {
+			kick_sm(pd, SWAP_SOURCE_START_TIME);
 			pd->in_pr_swap = false;
 			val.intval = 0;
 			power_supply_set_property(pd->usb_psy,
 					POWER_SUPPLY_PROP_PR_SWAP, &val);
+			break;
 		}
 
-		/*
-		 * A sink might remove its terminations (during some Type-C
-		 * compliance tests or a sink attempting to do Try.SRC)
-		 * at this point just after we enabled VBUS. Sending PD
-		 * messages now would delay detecting the detach beyond the
-		 * required timing. Instead, delay sending out the first
-		 * source capabilities to allow for the other side to
-		 * completely settle CC debounce and allow HW to detect detach
-		 * sooner in the meantime. PD spec allows up to
-		 * tFirstSourceCap (250ms).
-		 */
-		pd->current_state = PE_SRC_SEND_CAPABILITIES;
-		kick_sm(pd, FIRST_SOURCE_CAP_TIME);
-		break;
+		/* fall-through */
 
 	case PE_SRC_SEND_CAPABILITIES:
 		kick_sm(pd, 0);
@@ -920,12 +912,12 @@ static void usbpd_set_state(struct usbpd *pd, enum usbpd_state next_state)
 
 			if (pd->psy_type == POWER_SUPPLY_TYPE_USB ||
 				pd->psy_type == POWER_SUPPLY_TYPE_USB_CDP ||
-				pd->psy_type == POWER_SUPPLY_TYPE_USB_FLOAT ||
-				usb_compliance_mode)
+				usb_compliance_mode) {
+				usbpd_err(&pd->dev, "sink start:pd start peripheral\n");
 				start_usb_peripheral(pd);
+			}
 		}
 
-		dual_role_instance_changed(pd->dual_role);
 
 		ret = power_supply_get_property(pd->usb_psy,
 				POWER_SUPPLY_PROP_PD_ALLOWED, &val);
@@ -1022,6 +1014,7 @@ static void usbpd_set_state(struct usbpd *pd, enum usbpd_state next_state)
 
 	case PE_SNK_TRANSITION_TO_DEFAULT:
 		if (pd->current_dr != DR_UFP) {
+			usbpd_err(&pd->dev, "to default:pd start peripheral\n");
 			stop_usb_host(pd);
 			start_usb_peripheral(pd);
 			pd->current_dr = DR_UFP;
@@ -1677,18 +1670,14 @@ static void usbpd_sm(struct work_struct *w)
 		reset_vdm_state(pd);
 		kobject_uevent(&pd->dev.kobj, KOBJ_CHANGE);
 
-		if (pd->current_pr == PR_SINK) {
-			usbpd_set_state(pd, PE_SNK_TRANSITION_TO_DEFAULT);
-		} else {
-			pd->current_state = PE_SRC_TRANSITION_TO_DEFAULT;
-			kick_sm(pd, PS_HARD_RESET_TIME);
-		}
 
 		goto sm_done;
 	}
 
 	/* Soft reset? */
 	if (IS_CTRL(rx_msg, MSG_SOFT_RESET)) {
+		usbpd_info(&pd->dev, "soft rst return by oem\n");
+		goto sm_done;
 		usbpd_dbg(&pd->dev, "Handle soft reset\n");
 
 		if (pd->current_pr == PR_SRC)
@@ -1702,6 +1691,7 @@ static void usbpd_sm(struct work_struct *w)
 		if (pd->current_pr == PR_SINK) {
 			usbpd_set_state(pd, PE_SNK_STARTUP);
 		} else if (pd->current_pr == PR_SRC) {
+			enable_vbus(pd);
 			if (!pd->vconn_enabled &&
 					pd->typec_mode ==
 					POWER_SUPPLY_TYPEC_SINK_POWERED_CABLE) {
@@ -1711,7 +1701,6 @@ static void usbpd_sm(struct work_struct *w)
 				else
 					pd->vconn_enabled = true;
 			}
-			enable_vbus(pd);
 
 			usbpd_set_state(pd, PE_SRC_STARTUP);
 		}
@@ -1722,41 +1711,23 @@ static void usbpd_sm(struct work_struct *w)
 		break;
 
 	case PE_SRC_SEND_CAPABILITIES:
-		ret = pd_send_msg(pd, MSG_SOURCE_CAPABILITIES, default_src_caps,
-				ARRAY_SIZE(default_src_caps), SOP_MSG);
+		ret = pd_send_msg(pd, MSG_PS_RDY, NULL, 0, SOP_MSG);
 		if (ret) {
 			pd->caps_count++;
 
-			if (pd->caps_count == 10 && pd->current_dr == DR_DFP) {
-				/* Likely not PD-capable, start host now */
+			if (pd->caps_count < 10 && pd->current_dr == DR_DFP) {
 				start_usb_host(pd, true);
-			} else if (pd->caps_count >= PD_CAPS_COUNT) {
-				usbpd_dbg(&pd->dev, "Src CapsCounter exceeded, disabling PD\n");
+			} else if (pd->caps_count >= 10) {
 				usbpd_set_state(pd, PE_SRC_DISABLED);
-
-				val.intval = 0;
-				power_supply_set_property(pd->usb_psy,
-						POWER_SUPPLY_PROP_PD_ACTIVE,
-						&val);
 				break;
 			}
-
 			kick_sm(pd, SRC_CAP_TIME);
 			break;
 		}
 
-		/* transmit was successful if GoodCRC was received */
-		pd->caps_count = 0;
-		pd->hard_reset_count = 0;
-		pd->pd_connected = true; /* we know peer is PD capable */
-
-		/* wait for REQUEST */
-		pd->current_state = PE_SRC_SEND_CAPABILITIES_WAIT;
-		kick_sm(pd, SENDER_RESPONSE_TIME);
-
-		val.intval = 1;
-		power_supply_set_property(pd->usb_psy,
-				POWER_SUPPLY_PROP_PD_ACTIVE, &val);
+		usbpd_info(&pd->dev, "Start host snd msg ok\n");
+		if (pd->current_dr == DR_DFP)
+			start_usb_host(pd, true);
 		break;
 
 	case PE_SRC_SEND_CAPABILITIES_WAIT:
@@ -2166,6 +2137,7 @@ static void usbpd_sm(struct work_struct *w)
 		break;
 
 	case PE_SNK_TRANSITION_TO_DEFAULT:
+		usbpd_err(&pd->dev, "default: sink startup\n");
 		usbpd_set_state(pd, PE_SNK_STARTUP);
 		break;
 
@@ -2447,9 +2419,18 @@ static int psy_changed(struct notifier_block *nb, unsigned long evt, void *ptr)
 	if (pd->typec_mode == typec_mode)
 		return 0;
 
+	if ((typec_mode == POWER_SUPPLY_TYPEC_SOURCE_DEFAULT) ||
+		(typec_mode == POWER_SUPPLY_TYPEC_SOURCE_MEDIUM) ||
+		(typec_mode == POWER_SUPPLY_TYPEC_SOURCE_HIGH)) {
+		if (pd->psy_type == POWER_SUPPLY_TYPE_UNKNOWN) {
+			usbpd_err(&pd->dev, "typec_mode:%d, psy_type:%d\n", typec_mode, pd->psy_type);
+			return 0;
+		}
+	}
+
 	pd->typec_mode = typec_mode;
 
-	usbpd_dbg(&pd->dev, "typec mode:%d present:%d type:%d orientation:%d\n",
+	usbpd_err(&pd->dev, "typec mode:%d present:%d type:%d orientation:%d\n",
 			typec_mode, pd->vbus_present, pd->psy_type,
 			usbpd_get_plug_orientation(pd));
 
@@ -2567,7 +2548,7 @@ static int usbpd_dr_set_property(struct dual_role_phy_instance *dual_role,
 {
 	struct usbpd *pd = dual_role_get_drvdata(dual_role);
 	bool do_swap = false;
-	int wait_count = 5;
+	int wait_count = 20;
 
 	if (!pd)
 		return -ENODEV;
@@ -2595,8 +2576,12 @@ static int usbpd_dr_set_property(struct dual_role_phy_instance *dual_role,
 
 		/* wait until it takes effect */
 		while (pd->forced_pr != POWER_SUPPLY_TYPEC_PR_NONE &&
-							--wait_count)
+				wait_count--)
 			msleep(20);
+		if (!wait_count) {
+			usbpd_err(&pd->dev, "setting mode timed out\n");
+			return -ETIMEDOUT;
+		}
 
 		if (!wait_count) {
 			usbpd_err(&pd->dev, "setting mode timed out\n");

@@ -273,8 +273,10 @@ int extcon_update_state(struct extcon_dev *edev, u32 mask, u32 state)
 	unsigned long flags;
 	bool attached;
 
-	if (!edev)
+	if (!edev) {
+		dev_err(&edev->dev, "enval err\n");
 		return -EINVAL;
+	}
 
 	spin_lock_irqsave(&edev->lock, flags);
 
@@ -284,6 +286,7 @@ int extcon_update_state(struct extcon_dev *edev, u32 mask, u32 state)
 		if (check_mutually_exclusive(edev, (edev->state & ~mask) |
 						   (state & mask))) {
 			spin_unlock_irqrestore(&edev->lock, flags);
+			dev_err(&edev->dev, "out because of mutually_exclusive\n");
 			return -EPERM;
 		}
 
@@ -293,9 +296,11 @@ int extcon_update_state(struct extcon_dev *edev, u32 mask, u32 state)
 
 		for (index = 0; index < edev->max_supported; index++) {
 			if (is_extcon_changed(old_state, edev->state, index,
-					      &attached))
+					      &attached)) {
+				dev_err(&edev->dev, "index=%d,attached=%d\n", index, attached);
 				raw_notifier_call_chain(&edev->nh[index],
 							attached, edev);
+			}
 		}
 
 		/* This could be in interrupt handler */
@@ -412,15 +417,21 @@ int extcon_set_cable_state_(struct extcon_dev *edev, unsigned int id,
 	u32 state;
 	int index;
 
-	if (!edev)
+	if (!edev) {
+		dev_err(&edev->dev, "dev enval err\n");
 		return -EINVAL;
+	}
 
 	index = find_cable_index_by_id(edev, id);
-	if (index < 0)
+	if (index < 0) {
+		dev_err(&edev->dev, "index is valid\n");
 		return index;
+	}
 
-	if (edev->max_supported && edev->max_supported <= index)
+	if (edev->max_supported && edev->max_supported <= index) {
+		dev_err(&edev->dev, "index is larger than max_supported\n");
 		return -EINVAL;
+	}
 
 	state = cable_state ? (1 << index) : 0;
 	return extcon_update_state(edev, 1 << index, state);
@@ -592,6 +603,7 @@ int extcon_register_notifier(struct extcon_dev *edev, unsigned int id,
 		return -EINVAL;
 
 	idx = find_cable_index_by_id(edev, id);
+	dev_err(&edev->dev, "register nt id:%d(%d)\n", id, idx);
 
 	spin_lock_irqsave(&edev->lock, flags);
 	ret = raw_notifier_chain_register(&edev->nh[idx], nb);

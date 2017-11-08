@@ -87,6 +87,7 @@ static uint32_t gpu_limit;
 			__q->len--;				\
 			list_del_init(&node->member);		\
 			kzfree(node);				\
+            node = NULL;                \
 			break;					\
 		}						\
 	}							\
@@ -104,6 +105,7 @@ static uint32_t gpu_limit;
 			__q->len--;				\
 			list_del_init(&node->member);		\
 			kzfree(node);				\
+            node = NULL;                \
 			break;					\
 		}						\
 	}							\
@@ -123,6 +125,7 @@ static uint32_t gpu_limit;
 			if (&node->member) \
 				list_del_init(&node->member);		\
 			kzfree(node);	\
+            node = NULL;    \
 		}	\
 	}	\
 	spin_unlock_irqrestore(&__q->lock, flags);		\
@@ -152,7 +155,7 @@ typedef int (*msm_queue_find_func)(void *d1, void *d2);
 	typeof(node) __ret = NULL; \
 	msm_queue_find_func __f = (func); \
 	spin_lock_irqsave(&__q->lock, flags);			\
-	if (!list_empty(&__q->list)) { \
+	if (!list_empty(&__q->list) && (__q->len != 0)) { \
 		list_for_each_entry(node, &__q->list, member) \
 		if ((__f) && __f(node, data)) { \
 			__ret = node; \
@@ -287,7 +290,7 @@ void msm_delete_stream(unsigned int session_id, unsigned int stream_id)
 		return;
 
 	while (1) {
-		unsigned long wl_flags;
+        unsigned long wl_flags;
 
 		if (try_count > 5) {
 			pr_err("%s : not able to delete stream %d\n",
@@ -302,13 +305,13 @@ void msm_delete_stream(unsigned int session_id, unsigned int stream_id)
 
 		if (!stream) {
 			write_unlock_irqrestore(&session->stream_rwlock,
-				wl_flags);
+                    wl_flags);
 			return;
 		}
 
 		if (msm_vb2_get_stream_state(stream) != 1) {
 			write_unlock_irqrestore(&session->stream_rwlock,
-				wl_flags);
+                    wl_flags);
 			continue;
 		}
 
@@ -1020,6 +1023,7 @@ static int msm_close(struct file *filep)
 	spin_unlock_irqrestore(&msm_pid_lock, flags);
 
 	atomic_set(&pvdev->opened, 0);
+	pr_err("VJ## msm_clse: Set the opened flag");
 
 	return rc;
 }

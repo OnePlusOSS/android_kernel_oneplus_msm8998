@@ -195,7 +195,6 @@ struct spcom_channel {
 	 * glink state: CONNECTED / LOCAL_DISCONNECTED, REMOTE_DISCONNECTED
 	 */
 	unsigned glink_state;
-	bool is_closing;
 
 	/* Events notification */
 	struct completion connect;
@@ -245,7 +244,7 @@ struct spcom_device {
 	int channel_count;
 
 	/* private */
-	struct mutex cmd_lock;
+	struct mutex lock;
 
 	/* Link state */
 	struct completion link_state_changed;
@@ -483,17 +482,7 @@ static void spcom_notify_state(void *handle, const void *priv, unsigned event)
 	switch (event) {
 	case GLINK_CONNECTED:
 		pr_debug("GLINK_CONNECTED, ch name [%s].\n", ch->name);
-		mutex_lock(&ch->lock);
-
-		if (ch->is_closing) {
-			pr_err("Unexpected CONNECTED while closing [%s].\n",
-				ch->name);
-			mutex_unlock(&ch->lock);
-			return;
-		}
-
 		ch->glink_state = event;
-
 		/*
 		 * if spcom_notify_state() is called within glink_open()
 		 * then ch->glink_handle is not updated yet.
@@ -503,16 +492,7 @@ static void spcom_notify_state(void *handle, const void *priv, unsigned event)
 			ch->glink_handle = handle;
 		}
 
-		/* signal before unlock mutex & before calling glink */
-		complete_all(&ch->connect);
-
-		/*
-		 * Prepare default rx buffer.
-		 * glink_queue_rx_intent() can be called only AFTER connected.
-		 * We do it here, ASAP, to allow rx data.
-		 */
-
-		pr_debug("call glink_queue_rx_intent() ch [%s].\n", ch->name);
+		/* prepare default rx buffer after connected */
 		ret = glink_queue_rx_intent(ch->glink_handle,
 					    ch, ch->rx_buf_size);
 		if (ret) {
@@ -522,9 +502,7 @@ static void spcom_notify_state(void *handle, const void *priv, unsigned event)
 				 ch->rx_buf_size);
 			ch->rx_buf_ready = true;
 		}
-
-		pr_debug("GLINK_CONNECTED, ch name [%s] done.\n", ch->name);
-		mutex_unlock(&ch->lock);
+		complete_all(&ch->connect);
 		break;
 	case GLINK_LOCAL_DISCONNECTED:
 		/*
@@ -689,13 +667,6 @@ static int spcom_init_channel(struct spcom_channel *ch, const char *name)
 	ch->glink_state = GLINK_LOCAL_DISCONNECTED;
 	ch->actual_rx_size = 0;
 	ch->rx_buf_size = SPCOM_RX_BUF_SIZE;
-	ch->is_closing = false;
-	ch->glink_handle = NULL;
-	ch->ref_count = 0;
-	ch->rx_abort = false;
-	ch->tx_abort = false;
-	ch->txn_id = INITIAL_TXN_ID; /* use non-zero nonce for debug */
-	ch->pid = 0;
 
 	return 0;
 }
@@ -764,8 +735,6 @@ static int spcom_open(struct spcom_channel *ch, unsigned int timeout_msec)
 	/* init completion before calling glink_open() */
 	reinit_completion(&ch->connect);
 
-	ch->is_closing = false;
-
 	handle = glink_open(&cfg);
 	if (IS_ERR_OR_NULL(handle)) {
 		pr_err("glink_open failed.\n");
@@ -779,8 +748,6 @@ static int spcom_open(struct spcom_channel *ch, unsigned int timeout_msec)
 	ch->ref_count++;
 	ch->pid = current_pid();
 	ch->txn_id = INITIAL_TXN_ID;
-
-	mutex_unlock(&ch->lock);
 
 	pr_debug("Wait for connection on channel [%s] timeout_msec [%d].\n",
 		 name, timeout_msec);
@@ -797,6 +764,8 @@ static int spcom_open(struct spcom_channel *ch, unsigned int timeout_msec)
 		wait_for_completion(&(ch->connect));
 		pr_debug("Channel [%s] opened, no timeout.\n", name);
 	}
+
+	mutex_unlock(&ch->lock);
 
 	return 0;
 exit_err:
@@ -824,8 +793,6 @@ static int spcom_close(struct spcom_channel *ch)
 		return 0;
 	}
 
-	ch->is_closing = true;
-
 	ret = glink_close(ch->glink_handle);
 	if (ret)
 		pr_err("glink_close() fail, ret [%d].\n", ret);
@@ -841,7 +808,6 @@ static int spcom_close(struct spcom_channel *ch)
 	ch->pid = 0;
 
 	pr_debug("Channel closed [%s].\n", ch->name);
-
 	mutex_unlock(&ch->lock);
 
 	return 0;
@@ -1861,7 +1827,6 @@ static int spcom_handle_lock_ion_buf_command(struct spcom_channel *ch,
 	pr_err("no free entry to store ion handle of fd [%d].\n", fd);
 	/* decrement back the ref count */
 	ion_free(spcom_dev->ion_client, ion_handle);
-
 	mutex_unlock(&ch->lock);
 
 	return -EFAULT;
@@ -1983,8 +1948,6 @@ static int spcom_handle_write(struct spcom_channel *ch,
 	swap_id = htonl(cmd->cmd_id);
 	memcpy(cmd_name, &swap_id, sizeof(int));
 
-	mutex_lock(&spcom_dev->cmd_lock);
-
 	pr_debug("cmd_id [0x%x] cmd_name [%s].\n", cmd_id, cmd_name);
 
 	switch (cmd_id) {
@@ -2005,10 +1968,8 @@ static int spcom_handle_write(struct spcom_channel *ch,
 		break;
 	default:
 		pr_err("Invalid Command Id [0x%x].\n", (int) cmd->cmd_id);
-		ret = -EINVAL;
+		return -EINVAL;
 	}
-
-	mutex_unlock(&spcom_dev->cmd_lock);
 
 	return ret;
 }
@@ -2710,7 +2671,7 @@ static int spcom_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	spcom_dev = dev;
-	mutex_init(&spcom_dev->cmd_lock);
+	mutex_init(&dev->lock);
 	init_completion(&dev->link_state_changed);
 	spcom_dev->link_state = GLINK_LINK_STATE_DOWN;
 
@@ -2783,7 +2744,7 @@ static int __init spcom_init(void)
 {
 	int ret;
 
-	pr_info("spcom driver version 1.1 17-July-2017.\n");
+	pr_info("spcom driver Ver 1.0 23-Nov-2015.\n");
 
 	ret = platform_driver_register(&spcom_driver);
 	if (ret)

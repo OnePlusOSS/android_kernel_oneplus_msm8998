@@ -87,7 +87,7 @@ static void sync_print_pt(struct seq_file *s, struct sync_pt *pt, bool fence)
 	int status = 1;
 	struct sync_timeline *parent = sync_pt_parent(pt);
 
-	if (test_bit(FENCE_FLAG_SIGNALED_BIT, &pt->base.flags))
+	if (fence_is_signaled_locked(&pt->base))
 		status = pt->base.status;
 
 	seq_printf(s, "  %s%spt %s",
@@ -149,7 +149,7 @@ static void sync_print_fence(struct seq_file *s, struct sync_fence *fence)
 	unsigned long flags;
 	int i;
 
-	seq_printf(s, "[%pK] %s: %s\n", fence, fence->name,
+	seq_printf(s, "[%p] %s: %s\n", fence, fence->name,
 		   sync_status_str(atomic_read(&fence->status)));
 
 	for (i = 0; i < fence->num_fences; ++i) {

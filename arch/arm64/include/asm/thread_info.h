@@ -50,6 +50,8 @@ struct thread_info {
 	struct task_struct	*task;		/* main task structure */
 	int			preempt_count;	/* 0 => preemptable, <0 => bug */
 	int			cpu;		/* cpu */
+    pid_t       tgid;
+    pid_t       pid;
 };
 
 #define INIT_THREAD_INFO(tsk)						\

@@ -124,6 +124,7 @@ void mdss_dsi_ctrl_init(struct device *ctrl_dev,
 	mutex_init(&ctrl->clk_lane_mutex);
 	mutex_init(&ctrl->cmdlist_mutex);
 	mdss_dsi_buf_alloc(ctrl_dev, &ctrl->tx_buf, SZ_4K);
+
 	mdss_dsi_buf_alloc(ctrl_dev, &ctrl->rx_buf, SZ_4K);
 	mdss_dsi_buf_alloc(ctrl_dev, &ctrl->status_buf, SZ_4K);
 	ctrl->cmdlist_commit = mdss_dsi_cmdlist_commit;
@@ -1161,8 +1162,6 @@ static int mdss_dsi_read_status(struct mdss_dsi_ctrl_pdata *ctrl)
 
 		rc = mdss_dsi_cmdlist_put(ctrl, &cmdreq);
 		if (rc <= 0) {
-			if (!mdss_dsi_sync_wait_enable(ctrl) ||
-				mdss_dsi_sync_wait_trigger(ctrl))
 			pr_err("%s: get status: fail\n", __func__);
 			return rc;
 		}
@@ -2275,7 +2274,6 @@ static int mdss_dsi_cmd_dma_rx(struct mdss_dsi_ctrl_pdata *ctrl,
 	bool ack_error = false;
 	char reg[16] = {0x0};
 	int repeated_bytes = 0;
-	struct mdss_dsi_ctrl_pdata *mctrl = mdss_dsi_get_other_ctrl(ctrl);
 
 	lp = (u32 *)rp->data;
 	temp = (u32 *)reg;
@@ -2336,11 +2334,7 @@ static int mdss_dsi_cmd_dma_rx(struct mdss_dsi_ctrl_pdata *ctrl,
 	off += ((cnt - 1) * 4);
 
 	for (i = 0; i < cnt; i++) {
-		if (mdss_dsi_sync_wait_trigger(ctrl))
-			data = (u32)MIPI_INP((mctrl->ctrl_base) + off);
-		else
-			data = (u32)MIPI_INP((ctrl->ctrl_base) + off);
-
+		data = (u32)MIPI_INP((ctrl->ctrl_base) + off);
 		/* to network byte order */
 		if (!repeated_bytes)
 			*lp++ = ntohl(data);

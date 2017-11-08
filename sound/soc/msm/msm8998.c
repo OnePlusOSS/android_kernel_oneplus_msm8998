@@ -40,7 +40,7 @@
 #include "../codecs/wcd934x/wcd934x.h"
 #include "../codecs/wcd934x/wcd934x-mbhc.h"
 #include "../codecs/wsa881x.h"
-
+#include <sound/sounddebug.h>
 #define DRV_NAME "msm8998-asoc-snd"
 
 #define __CHIPSET__ "MSM8998 "
@@ -515,6 +515,8 @@ static int msm_snd_enable_codec_ext_clk(struct snd_soc_codec *codec,
 					int enable, bool dapm);
 static int msm_wsa881x_init(struct snd_soc_component *component);
 
+int op_project_17801;
+
 /*
  * Need to report LINEIN
  * if R/L channel impedance is larger than 5K ohm
@@ -527,9 +529,9 @@ static struct wcd_mbhc_config wcd_mbhc_cfg = {
 	.swap_gnd_mic = NULL,
 	.hs_ext_micbias = true,
 	.key_code[0] = KEY_MEDIA,
-	.key_code[1] = KEY_VOICECOMMAND,
-	.key_code[2] = KEY_VOLUMEUP,
-	.key_code[3] = KEY_VOLUMEDOWN,
+	.key_code[1] = KEY_VOLUMEUP,
+	.key_code[2] = KEY_VOLUMEDOWN,
+	.key_code[3] = 0,
 	.key_code[4] = 0,
 	.key_code[5] = 0,
 	.key_code[6] = 0,
@@ -2914,6 +2916,37 @@ static const struct snd_soc_dapm_widget msm_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Digital Mic5", NULL),
 };
 
+static const struct snd_soc_dapm_widget msm_dapm_widgets_17801[] = {
+
+	SND_SOC_DAPM_SUPPLY("MCLK",  SND_SOC_NOPM, 0, 0,
+			    msm_mclk_event,
+			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+
+	SND_SOC_DAPM_SUPPLY("MCLK TX",  SND_SOC_NOPM, 0, 0,
+	msm_mclk_tx_event, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+
+	SND_SOC_DAPM_SPK("Lineout_1 amp", NULL),
+	SND_SOC_DAPM_SPK("Lineout_3 amp", NULL),
+	SND_SOC_DAPM_SPK("Lineout_2 amp", NULL),
+	SND_SOC_DAPM_SPK("Lineout_4 amp", NULL),
+	SND_SOC_DAPM_SPK("hifi amp", msm_hifi_ctrl_event),
+	SND_SOC_DAPM_MIC("Handset Mic", NULL),
+	SND_SOC_DAPM_MIC("Headset Mic", NULL),
+	SND_SOC_DAPM_MIC("ANCRight Headset Mic", NULL),
+	SND_SOC_DAPM_MIC("ANCLeft Headset Mic", NULL),
+	SND_SOC_DAPM_MIC("Analog Mic3", NULL),
+	SND_SOC_DAPM_MIC("Analog Mic4", NULL),
+	SND_SOC_DAPM_MIC("Analog Mic5", NULL),
+	SND_SOC_DAPM_MIC("Analog Mic6", NULL),
+
+	SND_SOC_DAPM_MIC("Digital Mic0", NULL),
+	SND_SOC_DAPM_MIC("Digital Mic1", NULL),
+	SND_SOC_DAPM_MIC("Digital Mic2", NULL),
+	SND_SOC_DAPM_MIC("Digital Mic3", NULL),
+	SND_SOC_DAPM_MIC("Digital Mic4", NULL),
+	SND_SOC_DAPM_MIC("Digital Mic5", NULL),
+};
+
 static inline int param_is_mask(int p)
 {
 	return (p >= SNDRV_PCM_HW_PARAM_FIRST_MASK) &&
@@ -3550,8 +3583,13 @@ static int msm_audrx_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
-	snd_soc_dapm_new_controls(dapm, msm_dapm_widgets,
-				ARRAY_SIZE(msm_dapm_widgets));
+	if (op_project_17801) {
+		snd_soc_dapm_new_controls(dapm, msm_dapm_widgets_17801,
+					ARRAY_SIZE(msm_dapm_widgets_17801));
+	} else {
+		snd_soc_dapm_new_controls(dapm, msm_dapm_widgets,
+					ARRAY_SIZE(msm_dapm_widgets));
+	}
 
 	if (!strcmp(dev_name(codec_dai->dev), "tasha_codec"))
 		snd_soc_dapm_add_routes(dapm, wcd_audio_paths_tasha,
@@ -3570,6 +3608,10 @@ static int msm_audrx_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_ignore_suspend(dapm, "Digital Mic3");
 	snd_soc_dapm_ignore_suspend(dapm, "Digital Mic4");
 	snd_soc_dapm_ignore_suspend(dapm, "Digital Mic5");
+	if (op_project_17801) {
+		snd_soc_dapm_ignore_suspend(dapm, "Analog Mic3");
+		snd_soc_dapm_ignore_suspend(dapm, "Analog Mic4");
+	}
 	snd_soc_dapm_ignore_suspend(dapm, "Analog Mic5");
 	snd_soc_dapm_ignore_suspend(dapm, "Analog Mic6");
 	snd_soc_dapm_ignore_suspend(dapm, "MADINPUT");
@@ -3682,13 +3724,6 @@ static int msm_audrx_init(struct snd_soc_pcm_runtime *rtd)
 		pdata->codec_root = entry;
 		tavil_codec_info_create_codec_entry(pdata->codec_root, codec);
 	} else {
-		if (rtd->card->num_aux_devs && rtd_aux && rtd_aux->component)
-			if (!strcmp(rtd_aux->component->name, WSA8810_NAME_1) ||
-			    !strcmp(rtd_aux->component->name, WSA8810_NAME_2)) {
-				tasha_set_spkr_mode(rtd->codec, SPKR_MODE_1);
-				tasha_set_spkr_gain_offset(rtd->codec,
-							RX_GAIN_OFFSET_M1P5_DB);
-		}
 		card = rtd->card->snd_card;
 		entry = snd_register_module_info(card->module, "codecs",
 						 card->proc_root);
@@ -3732,7 +3767,8 @@ static void *def_tasha_mbhc_cal(void)
 		return NULL;
 
 #define S(X, Y) ((WCD_MBHC_CAL_PLUG_TYPE_PTR(tasha_wcd_cal)->X) = (Y))
-	S(v_hs_max, 1600);
+    S(v_hs_max, 1700);
+
 #undef S
 #define S(X, Y) ((WCD_MBHC_CAL_BTN_DET_PTR(tasha_wcd_cal)->X) = (Y))
 	S(num_btn, WCD_MBHC_DEF_BUTTONS);
@@ -3741,11 +3777,10 @@ static void *def_tasha_mbhc_cal(void)
 	btn_cfg = WCD_MBHC_CAL_BTN_DET_PTR(tasha_wcd_cal);
 	btn_high = ((void *)&btn_cfg->_v_btn_low) +
 		(sizeof(btn_cfg->_v_btn_low[0]) * btn_cfg->num_btn);
-
 	btn_high[0] = 75;
-	btn_high[1] = 150;
-	btn_high[2] = 237;
-	btn_high[3] = 500;
+	btn_high[1] = 240;
+	btn_high[2] = 450;
+	btn_high[3] = 470;
 	btn_high[4] = 500;
 	btn_high[5] = 500;
 	btn_high[6] = 500;
@@ -4204,6 +4239,13 @@ static int msm_set_pinctrl(struct msm_pinctrl_info *pinctrl_info,
 		ret = -EINVAL;
 		goto err;
 	}
+
+        if (pinctrl_info->pinctrl == NULL) {
+                pr_debug("%s: pinctrl_info->pinctrl is NULL\n", __func__);
+                //ret = -EINVAL;
+                goto err;
+        }
+
 	curr_state = pinctrl_info->curr_state;
 	pinctrl_info->curr_state = new_state;
 	pr_debug("%s: curr_state = %s new_state = %s\n", __func__,
@@ -4490,7 +4532,6 @@ static int msm_mi2s_snd_startup(struct snd_pcm_substream *substream)
 		if (ret) {
 			pr_err("%s: MI2S TLMM pinctrl set failed with %d\n",
 				__func__, ret);
-			goto done;
 		}
 	}
 
@@ -6131,39 +6172,6 @@ static struct snd_soc_dai_link msm_wcn_be_dai_links[] = {
 	},
 };
 
-static struct snd_soc_dai_link ext_disp_be_dai_link[] = {
-	/* HDMI BACK END DAI Link */
-	{
-		.name = LPASS_BE_HDMI,
-		.stream_name = "HDMI Playback",
-		.cpu_dai_name = "msm-dai-q6-hdmi.8",
-		.platform_name = "msm-pcm-routing",
-		.codec_name = "msm-ext-disp-audio-codec-rx",
-		.codec_dai_name = "msm_hdmi_audio_codec_rx_dai",
-		.no_pcm = 1,
-		.dpcm_playback = 1,
-		.be_id = MSM_BACKEND_DAI_HDMI_RX,
-		.be_hw_params_fixup = msm_be_hw_params_fixup,
-		.ignore_pmdown_time = 1,
-		.ignore_suspend = 1,
-	},
-	/* DISP PORT BACK END DAI Link */
-	{
-		.name = LPASS_BE_DISPLAY_PORT,
-		.stream_name = "Display Port Playback",
-		.cpu_dai_name = "msm-dai-q6-dp.24608",
-		.platform_name = "msm-pcm-routing",
-		.codec_name = "msm-ext-disp-audio-codec-rx",
-		.codec_dai_name = "msm_dp_audio_codec_rx_dai",
-		.no_pcm = 1,
-		.dpcm_playback = 1,
-		.be_id = MSM_BACKEND_DAI_DISPLAY_PORT_RX,
-		.be_hw_params_fixup = msm_be_hw_params_fixup,
-		.ignore_pmdown_time = 1,
-		.ignore_suspend = 1,
-	},
-};
-
 static struct snd_soc_dai_link msm_mi2s_be_dai_links[] = {
 	{
 		.name = LPASS_BE_PRI_MI2S_RX,
@@ -6257,8 +6265,8 @@ static struct snd_soc_dai_link msm_mi2s_be_dai_links[] = {
 		.stream_name = "Quaternary MI2S Playback",
 		.cpu_dai_name = "msm-dai-q6-mi2s.3",
 		.platform_name = "msm-pcm-routing",
-		.codec_name = "msm-stub-codec.1",
-		.codec_dai_name = "msm-stub-rx",
+		.codec_name = "tfa98xx.9-0036",//tfa98xx.9-0036
+		.codec_dai_name = "tfa98xx_codec-9-36",//tfa98xx_codec-9-36
 		.no_pcm = 1,
 		.dpcm_playback = 1,
 		.be_id = MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
@@ -6279,6 +6287,40 @@ static struct snd_soc_dai_link msm_mi2s_be_dai_links[] = {
 		.be_id = MSM_BACKEND_DAI_QUATERNARY_MI2S_TX,
 		.be_hw_params_fixup = msm_be_hw_params_fixup,
 		.ops = &msm_mi2s_be_ops,
+		.ignore_suspend = 1,
+	},
+};
+
+
+static struct snd_soc_dai_link ext_disp_be_dai_link[] = {
+	/* HDMI BACK END DAI Link */
+	{
+		.name = LPASS_BE_HDMI,
+		.stream_name = "HDMI Playback",
+		.cpu_dai_name = "msm-dai-q6-hdmi.8",
+		.platform_name = "msm-pcm-routing",
+		.codec_name = "msm-ext-disp-audio-codec-rx",
+		.codec_dai_name = "msm_hdmi_audio_codec_rx_dai",
+		.no_pcm = 1,
+		.dpcm_playback = 1,
+		.be_id = MSM_BACKEND_DAI_HDMI_RX,
+		.be_hw_params_fixup = msm_be_hw_params_fixup,
+		.ignore_pmdown_time = 1,
+		.ignore_suspend = 1,
+	},
+	/* DISP PORT BACK END DAI Link */
+	{
+		.name = LPASS_BE_DISPLAY_PORT,
+		.stream_name = "Display Port Playback",
+		.cpu_dai_name = "msm-dai-q6-dp.24608",
+		.platform_name = "msm-pcm-routing",
+		.codec_name = "msm-ext-disp-audio-codec-rx",
+		.codec_dai_name = "msm_dp_audio_codec_rx_dai",
+		.no_pcm = 1,
+		.dpcm_playback = 1,
+		.be_id = MSM_BACKEND_DAI_DISPLAY_PORT_RX,
+		.be_hw_params_fixup = msm_be_hw_params_fixup,
+		.ignore_pmdown_time = 1,
 		.ignore_suspend = 1,
 	},
 };
@@ -6636,9 +6678,13 @@ static int msm_audrx_stub_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
-	snd_soc_dapm_new_controls(dapm, msm_dapm_widgets,
-				ARRAY_SIZE(msm_dapm_widgets));
-
+	if (op_project_17801) {
+		snd_soc_dapm_new_controls(dapm, msm_dapm_widgets_17801,
+					ARRAY_SIZE(msm_dapm_widgets_17801));
+	} else {
+		snd_soc_dapm_new_controls(dapm, msm_dapm_widgets,
+					ARRAY_SIZE(msm_dapm_widgets));
+	}
 	return 0;
 }
 
@@ -6970,7 +7016,7 @@ static int msm_init_wsa_dev(struct platform_device *pdev,
 	char *dev_name_str = NULL;
 	int found = 0;
 	int ret = 0;
-
+    return ret;
 	/* Get maximum WSA device count for this platform */
 	ret = of_property_read_u32(pdev->dev.of_node,
 				   "qcom,wsa-max-devs", &wsa_max_devs);
@@ -7235,6 +7281,13 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 	card->dev = &pdev->dev;
 	platform_set_drvdata(pdev, card);
 	snd_soc_card_set_drvdata(card, pdata);
+
+	ret = of_property_read_bool(card->dev->of_node, "op,project_17801");
+	if (ret)
+		op_project_17801 = 0;
+	else
+		op_project_17801 = 1;
+	pr_err("%s project name: %d", __func__, op_project_17801);
 
 	ret = snd_soc_of_parse_card_name(card, "qcom,model");
 	if (ret) {

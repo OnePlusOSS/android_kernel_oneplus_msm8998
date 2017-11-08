@@ -1968,7 +1968,7 @@ void ol_txrx_pdev_detach(ol_txrx_pdev_handle pdev)
 		TAILQ_REMOVE(&pdev->req_list, req, req_list_elem);
 		pdev->req_list_depth--;
 		ol_txrx_err(
-			"%d: %p,verbose(%d), concise(%d), up_m(0x%x), reset_m(0x%x)\n",
+			"%d: %pK,verbose(%d), concise(%d), up_m(0x%x), reset_m(0x%x)\n",
 			i++,
 			req,
 			req->base.print.verbose,
@@ -3807,7 +3807,7 @@ ol_txrx_fw_stats_handler(ol_txrx_pdev_handle pdev,
 
 	if (!found) {
 		ol_txrx_err(
-			"req(%p) from firmware can't be found in the list\n", req);
+			"req(%pK) from firmware can't be found in the list\n", req);
 		return;
 	}
 

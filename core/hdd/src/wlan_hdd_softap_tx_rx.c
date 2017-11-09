@@ -42,10 +42,7 @@
 #include <cdp_txrx_peer_ops.h>
 #include <cds_utils.h>
 #include <wlan_hdd_regulatory.h>
-
-#ifdef IPA_OFFLOAD
 #include <wlan_hdd_ipa.h>
-#endif
 
 /* Preprocessor definitions and constants */
 #undef QCA_HDD_SAP_DUMP_SK_BUFF

@@ -7617,7 +7617,10 @@ static int wlan_hdd_setup_driver_overrides(hdd_adapter_t *ap_adapter)
 			(sap_cfg->SapHw_mode == eCSR_DOT11_MODE_11n ||
 			sap_cfg->SapHw_mode == eCSR_DOT11_MODE_11ac ||
 			sap_cfg->SapHw_mode == eCSR_DOT11_MODE_11ac_ONLY) &&
-			!hdd_ctx->config->sap_force_11n_for_11ac) {
+			!(((ap_adapter->device_mode == QDF_SAP_MODE) &&
+			(hdd_ctx->config->sap_force_11n_for_11ac)) ||
+			((ap_adapter->device_mode == QDF_P2P_GO_MODE) &&
+			(hdd_ctx->config->go_force_11n_for_11ac)))) {
 		hdd_debug("** Driver force 11AC override for SAP/Go **");
 
 		/* 11n only shall not be overridden since it may be on purpose*/
@@ -7668,7 +7671,10 @@ setup_acs_overrides:
 	if (sap_cfg->SapHw_mode == eCSR_DOT11_MODE_AUTO)
 		sap_cfg->SapHw_mode = eCSR_DOT11_MODE_11ac;
 
-	if (hdd_ctx->config->sap_force_11n_for_11ac) {
+	if (((ap_adapter->device_mode == QDF_SAP_MODE) &&
+	     (hdd_ctx->config->sap_force_11n_for_11ac)) ||
+	     ((ap_adapter->device_mode == QDF_P2P_GO_MODE) &&
+	     (hdd_ctx->config->go_force_11n_for_11ac))) {
 		if (sap_cfg->SapHw_mode == eCSR_DOT11_MODE_11ac ||
 		    sap_cfg->SapHw_mode == eCSR_DOT11_MODE_11ac_ONLY)
 			sap_cfg->SapHw_mode = eCSR_DOT11_MODE_11n;
@@ -8290,7 +8296,10 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 	if (!cds_is_sub_20_mhz_enabled())
 		wlan_hdd_set_sap_hwmode(pHostapdAdapter);
 
-	if (pHddCtx->config->sap_force_11n_for_11ac) {
+	if (((pHostapdAdapter->device_mode == QDF_SAP_MODE) &&
+	     (pHddCtx->config->sap_force_11n_for_11ac)) ||
+	     ((pHostapdAdapter->device_mode == QDF_P2P_GO_MODE) &&
+	     (pHddCtx->config->go_force_11n_for_11ac))) {
 		if (pConfig->SapHw_mode == eCSR_DOT11_MODE_11ac ||
 		    pConfig->SapHw_mode == eCSR_DOT11_MODE_11ac_ONLY)
 			pConfig->SapHw_mode = eCSR_DOT11_MODE_11n;
@@ -8311,7 +8320,10 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 		sme_config->csrConfig.WMMSupportMode = eCsrRoamWmmNoQos;
 	sme_update_config(pHddCtx->hHal, sme_config);
 
-	if (!pHddCtx->config->sap_force_11n_for_11ac) {
+	if (!((pHostapdAdapter->device_mode == QDF_SAP_MODE) &&
+	     (pHddCtx->config->sap_force_11n_for_11ac)) ||
+	     ((pHostapdAdapter->device_mode == QDF_P2P_GO_MODE) &&
+	     (pHddCtx->config->go_force_11n_for_11ac))) {
 		pConfig->ch_width_orig =
 			hdd_map_nl_chan_width(pConfig->ch_width_orig);
 	} else {

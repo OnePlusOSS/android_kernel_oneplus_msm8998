@@ -1620,7 +1620,10 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 	else
 		vht_enabled = 0;
 
-	if (hdd_ctx->config->sap_force_11n_for_11ac) {
+	if (((adapter->device_mode == QDF_SAP_MODE) &&
+	     (hdd_ctx->config->sap_force_11n_for_11ac)) ||
+	     ((adapter->device_mode == QDF_P2P_GO_MODE) &&
+	     (hdd_ctx->config->go_force_11n_for_11ac))) {
 		vht_enabled = 0;
 		hdd_log(LOG1, FL("VHT is Disabled in ACS"));
 	}
@@ -1634,7 +1637,9 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 			ch_width = 20;
 	}
 
-	/* this may be possible, when sap_force_11n_for_11ac is set */
+	/* this may be possible, when sap_force_11n_for_11ac or
+	 * go_force_11n_for_11ac is set
+	 */
 	if ((ch_width == 80 || ch_width == 160) && !vht_enabled) {
 		if (ht_enabled && ht40_enabled)
 			ch_width = 40;
@@ -1708,7 +1713,10 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 
 	/* ACS override for android */
 	if (hdd_ctx->config->sap_p2p_11ac_override && ht_enabled &&
-	    !hdd_ctx->config->sap_force_11n_for_11ac) {
+	    !(((adapter->device_mode == QDF_SAP_MODE) &&
+	      (hdd_ctx->config->sap_force_11n_for_11ac)) ||
+	      ((adapter->device_mode == QDF_P2P_GO_MODE) &&
+	      (hdd_ctx->config->go_force_11n_for_11ac)))) {
 		hdd_debug("ACS Config override for 11AC");
 		vht_enabled = 1;
 		sap_config->acs_cfg.hw_mode = eCSR_DOT11_MODE_11ac;

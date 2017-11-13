@@ -142,6 +142,7 @@ typedef uint8_t tSirVersionString[SIR_VERSION_STRING_LEN];
 /* Maximum peer station number query one time */
 #define MAX_PEER_STA 12
 
+#define SIR_NAN_CH_INFO_MAX_CHANNELS 4
 /**
  * enum sir_conn_update_reason: Reason for conc connection update
  * @SIR_UPDATE_REASON_SET_OPER_CHAN: Set probable operating channel
@@ -7715,6 +7716,19 @@ struct ndp_responder_rsp_event {
 };
 
 /**
+ * struct ndp_channel_info - ndp channel and channel bandwidth
+ * @channel: channel freq in mhz of the ndp connection
+ * @ch_width: channel width (wmi_channel_width) of the ndp connection
+ * @nss: nss used for ndp connection
+ *
+ */
+struct ndp_channel_info {
+	uint32_t channel;
+	uint32_t ch_width;
+	uint32_t nss;
+};
+
+/**
  * struct ndp_confirm_event - ndp confirmation event from FW
  * @vdev_id: session id of the interface over which ndp is being created
  * @ndp_instance_id: ndp instance id for which confirm is being generated
@@ -7722,6 +7736,8 @@ struct ndp_responder_rsp_event {
  * @num_active_ndps_on_peer: number of ndp instances on peer
  * @peer_ndi_mac_addr: peer NDI mac address
  * @rsp_code: ndp response code
+ * @num_channels: num channels
+ * @ch: channel info struct array
  * @ndp_info: ndp application info
  *
  */
@@ -7732,6 +7748,8 @@ struct ndp_confirm_event {
 	uint32_t num_active_ndps_on_peer;
 	struct qdf_mac_addr peer_ndi_mac_addr;
 	enum ndp_response_code rsp_code;
+	uint32_t num_channels;
+	struct ndp_channel_info ch[SIR_NAN_CH_INFO_MAX_CHANNELS];
 	struct ndp_app_info ndp_info;
 };
 
@@ -7819,6 +7837,27 @@ struct ndp_schedule_update_rsp {
 	uint32_t vdev_id;
 	uint32_t status;
 	uint32_t reason;
+};
+
+/**
+ * struct ndp_sch_update_event - ndp schedule update indication
+ * @vdev_id: vdev id on which ndp schedule update was received
+ * @peer_addr: peer for which schedule update was received
+ * @flags: reason for sch update
+ * @num_channels: num of channels
+ * @num_ndp_instances: num of ndp instances
+ * @ch: channel info array
+ * @ndp_instances: array of ndp instances
+ *
+ */
+struct ndp_sch_update_event {
+	uint32_t vdev_id;
+	struct qdf_mac_addr peer_addr;
+	uint32_t flags;
+	uint32_t num_channels;
+	uint32_t num_ndp_instances;
+	struct ndp_channel_info ch[SIR_NAN_CH_INFO_MAX_CHANNELS];
+	uint32_t *ndp_instances;
 };
 
 /**

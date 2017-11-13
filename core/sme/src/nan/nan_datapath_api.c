@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -688,11 +688,19 @@ void sme_ndp_msg_processor(tpAniSirGlobal mac_ctx, cds_msg_t *msg)
 		cmd = GET_BASE_ADDR(entry, tSmeCmd, Link);
 
 	switch (msg->type) {
+	case eWNI_SME_NDP_SCH_UPDATE_IND: {
+		result = eCSR_ROAM_RESULT_NDP_SCH_UPDATE_IND;
+		/* copy msg from msg body to roam info passed to callback */
+		qdf_mem_copy(&roam_info.ndp.sch_update_params, msg->bodyptr,
+			     sizeof(roam_info.ndp.sch_update_params));
+		session_id = roam_info.ndp.sch_update_params.vdev_id;
+		break;
+	}
 	case eWNI_SME_NDP_CONFIRM_IND: {
 		result = eCSR_ROAM_RESULT_NDP_CONFIRM_IND;
 		/* copy msg from msg body to roam info passed to callback */
 		qdf_mem_copy(&roam_info.ndp.ndp_confirm_params, msg->bodyptr,
-			sizeof(roam_info.ndp.ndp_confirm_params));
+			     sizeof(roam_info.ndp.ndp_confirm_params));
 		session_id = roam_info.ndp.ndp_confirm_params.vdev_id;
 		break;
 	}
@@ -822,7 +830,14 @@ void sme_ndp_msg_processor(tpAniSirGlobal mac_ctx, cds_msg_t *msg)
 			cmd->u.data_end_req = NULL;
 		}
 		break;
-	case eWNI_SME_NDP_END_IND:
+	case eWNI_SME_NDP_CONFIRM_IND:
+		qdf_mem_free(
+			roam_info.ndp.ndp_confirm_params.ndp_info.ndp_app_info);
+		roam_info.ndp.ndp_confirm_params.ndp_info.ndp_app_info = NULL;
+		break;
+	case eWNI_SME_NDP_SCH_UPDATE_IND:
+		qdf_mem_free(roam_info.ndp.sch_update_params.ndp_instances);
+		roam_info.ndp.sch_update_params.ndp_instances = NULL;
 		break;
 	default:
 		break;

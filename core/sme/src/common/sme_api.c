@@ -3001,6 +3001,7 @@ QDF_STATUS sme_process_msg(tHalHandle hHal, cds_msg_t *pMsg)
 	case eWNI_SME_NDP_END_RSP:
 	case eWNI_SME_NDP_END_IND:
 	case eWNI_SME_NDP_PEER_DEPARTED_IND:
+	case eWNI_SME_NDP_SCH_UPDATE_IND:
 		sme_ndp_msg_processor(pMac, pMsg);
 		break;
 	case eWNI_SME_LOST_LINK_INFO_IND:

@@ -624,19 +624,24 @@ static int wma_ndp_responder_rsp_event_handler(void *handle,
 static int wma_ndp_confirm_event_handler(void *handle, uint8_t *event_info,
 					 uint32_t len)
 {
-	struct ndp_confirm_event ndp_confirm = {0};
+	uint8_t i;
 	cds_msg_t msg = {0};
+	WLAN_PHY_MODE ch_mode;
+	tp_wma_handle wma_handle = handle;
+	struct ndp_confirm_event ndp_confirm = {0};
 	WMI_NDP_CONFIRM_EVENTID_param_tlvs *event;
 	wmi_ndp_confirm_event_fixed_param *fixed_params;
-	tp_wma_handle wma_handle = handle;
 
-	event = (WMI_NDP_CONFIRM_EVENTID_param_tlvs *) event_info;
+	event = (WMI_NDP_CONFIRM_EVENTID_param_tlvs *)event_info;
 	fixed_params = (wmi_ndp_confirm_event_fixed_param *)event->fixed_param;
-	WMA_LOGE(FL("WMI_NDP_CONFIRM_EVENTID(0x%X) recieved. vdev %d, ndp_instance %d, rsp_code %d, reason_code: %d, num_active_ndps_on_peer: %d"),
-		 WMI_NDP_CONFIRM_EVENTID, fixed_params->vdev_id,
-		 fixed_params->ndp_instance_id, fixed_params->rsp_code,
-		 fixed_params->reason_code,
-		 fixed_params->num_active_ndps_on_peer);
+	WMA_LOGD(FL("WMI_NDP_CONFIRM_EVENTID(0x%X) recieved"),
+		 WMI_NDP_CONFIRM_EVENTID);
+	WMA_LOGD(FL("vdev %d, ndp_instance %d, rsp_code %d, reason_code: %d"),
+		 fixed_params->vdev_id, fixed_params->ndp_instance_id,
+		 fixed_params->rsp_code, fixed_params->reason_code);
+	WMA_LOGD(FL("num_active_ndps_on_peer: %d, num_ch: %d"),
+		 fixed_params->num_active_ndps_on_peer,
+		 fixed_params->num_ndp_channels);
 
 	if (fixed_params->ndp_cfg_len > event->num_ndp_cfg) {
 		WMA_LOGE("FW message ndp cfg length %d larger than TLV hdr %d",
@@ -644,7 +649,7 @@ static int wma_ndp_confirm_event_handler(void *handle, uint8_t *event_info,
 		return -EINVAL;
 	}
 
-	WMA_LOGE(FL("ndp_cfg - %d bytes"), fixed_params->ndp_cfg_len);
+	WMA_LOGD(FL("ndp_cfg - %d bytes"), fixed_params->ndp_cfg_len);
 	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_WMA, QDF_TRACE_LEVEL_DEBUG,
 		&event->ndp_cfg, fixed_params->ndp_cfg_len);
 
@@ -655,7 +660,7 @@ static int wma_ndp_confirm_event_handler(void *handle, uint8_t *event_info,
 		return -EINVAL;
 	}
 
-	WMA_LOGE(FL("ndp_app_info - %d bytes"), fixed_params->ndp_app_info_len);
+	WMA_LOGD(FL("ndp_app_info - %d bytes"), fixed_params->ndp_app_info_len);
 	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_WMA, QDF_TRACE_LEVEL_DEBUG,
 		&event->ndp_app_info, fixed_params->ndp_app_info_len);
 
@@ -665,6 +670,7 @@ static int wma_ndp_confirm_event_handler(void *handle, uint8_t *event_info,
 	ndp_confirm.reason_code = fixed_params->reason_code;
 	ndp_confirm.num_active_ndps_on_peer =
 				fixed_params->num_active_ndps_on_peer;
+	ndp_confirm.num_channels = fixed_params->num_ndp_channels;
 
 	WMI_MAC_ADDR_TO_CHAR_ARRAY(&fixed_params->peer_ndi_mac_addr,
 				   ndp_confirm.peer_ndi_mac_addr.bytes);
@@ -687,6 +693,23 @@ static int wma_ndp_confirm_event_handler(void *handle, uint8_t *event_info,
 			     event->ndp_app_info,
 			     ndp_confirm.ndp_info.ndp_app_info_len);
 	}
+
+	if (ndp_confirm.num_channels > SIR_NAN_CH_INFO_MAX_CHANNELS) {
+		WMA_LOGE(FL("too many channels"));
+		ndp_confirm.num_channels = SIR_NAN_CH_INFO_MAX_CHANNELS;
+	}
+
+	for (i = 0; i < ndp_confirm.num_channels; i++) {
+		ndp_confirm.ch[i].channel = event->ndp_channel_list[i].mhz;
+		ndp_confirm.ch[i].nss = event->nss_list[i];
+		ch_mode = WMI_GET_CHANNEL_MODE(&event->ndp_channel_list[i]);
+		ndp_confirm.ch[i].ch_width = chanmode_to_chanwidth(ch_mode);
+		WMA_LOGD(FL("ch: %d, ch_mode: %d, nss: %d"),
+			 ndp_confirm.ch[i].channel,
+			 ndp_confirm.ch[i].ch_width,
+			 ndp_confirm.ch[i].nss);
+	}
+
 	msg.type = SIR_HAL_NDP_CONFIRM;
 	msg.bodyptr = &ndp_confirm;
 	return wma_handle->pe_ndp_event_handler(wma_handle->mac_context, &msg);
@@ -860,6 +883,77 @@ static int wma_ndp_initiator_rsp_event_handler(void *handle,
 						&pe_msg);
 }
 
+static int wma_ndp_sch_update_event_handler(void *handle, uint8_t *evinfo,
+					    uint32_t len)
+{
+	uint8_t i;
+	uint32_t buff_len;
+	WLAN_PHY_MODE ch_mode;
+	struct cds_msg_s msg = {0};
+	tp_wma_handle wma_handle = handle;
+	struct ndp_sch_update_event sch_update_ev = {0};
+	WMI_NDL_SCHEDULE_UPDATE_EVENTID_param_tlvs *event;
+	wmi_ndl_schedule_update_fixed_param *fixed_params;
+
+	event = (WMI_NDL_SCHEDULE_UPDATE_EVENTID_param_tlvs *)evinfo;
+	fixed_params = event->fixed_param;
+	WMA_LOGD(FL("WMI_NDL_SCHEDULE_UPDATE_EVENTID(0x%X) recieved"),
+		 WMI_NDL_SCHEDULE_UPDATE_EVENTID);
+	WMA_LOGD(FL("flags: %d, num_ch: %d, num_ndp_instances: %d"),
+		 fixed_params->flags, fixed_params->num_channels,
+		 fixed_params->num_ndp_instances);
+
+	if (fixed_params->vdev_id >= wma_handle->max_bssid) {
+		WMA_LOGE(FL("incorrect vdev_id: %d"), fixed_params->vdev_id);
+		return -EINVAL;
+	}
+
+	sch_update_ev.vdev_id = fixed_params->vdev_id;
+	sch_update_ev.flags = fixed_params->flags;
+	sch_update_ev.num_channels = fixed_params->num_channels;
+	sch_update_ev.num_ndp_instances = fixed_params->num_ndp_instances;
+	WMI_MAC_ADDR_TO_CHAR_ARRAY(&fixed_params->peer_macaddr,
+				   sch_update_ev.peer_addr.bytes);
+
+	if ((sch_update_ev.num_ndp_instances * sizeof(uint32_t)) >
+	    wmi_get_max_msg_len(wma_handle->wmi_handle)) {
+		WMA_LOGE(FL("ndp_instances overflows wmi packet size"));
+		return -EINVAL;
+	}
+
+	buff_len = sizeof(uint32_t) * sch_update_ev.num_ndp_instances;
+	sch_update_ev.ndp_instances = qdf_mem_malloc(buff_len);
+	if (!sch_update_ev.ndp_instances) {
+		WMA_LOGE(FL("malloc failed"));
+		return -ENOMEM;
+	}
+	qdf_mem_copy(sch_update_ev.ndp_instances, event->ndp_instance_list,
+		     buff_len);
+
+	if (sch_update_ev.num_channels > SIR_NAN_CH_INFO_MAX_CHANNELS) {
+		WMA_LOGE(FL("too many channels"));
+		sch_update_ev.num_channels = SIR_NAN_CH_INFO_MAX_CHANNELS;
+	}
+	for (i = 0; i < sch_update_ev.num_channels; i++) {
+		sch_update_ev.ch[i].channel = event->ndl_channel_list[i].mhz;
+		sch_update_ev.ch[i].nss = event->nss_list[i];
+		ch_mode = WMI_GET_CHANNEL_MODE(&event->ndl_channel_list[i]);
+		sch_update_ev.ch[i].ch_width = chanmode_to_chanwidth(ch_mode);
+		WMA_LOGD(FL("ch: %d, ch_mode: %d, nss: %d"),
+			 sch_update_ev.ch[i].channel,
+			 sch_update_ev.ch[i].ch_width,
+			 sch_update_ev.ch[i].nss);
+	}
+
+	for (i = 0; i < fixed_params->num_ndp_instances; i++)
+		WMA_LOGD(FL("instance_id[%d]: %d"),
+			 i, event->ndp_instance_list[i]);
+
+	msg.type = SIR_HAL_NDP_SCH_UPDATE_IND;
+	msg.bodyptr = &sch_update_ev;
+	return wma_handle->pe_ndp_event_handler(wma_handle->mac_context, &msg);
+}
+
 /**
  * wma_ndp_register_all_event_handlers() - Register all NDP event handlers
  * @wma_handle: WMA context
@@ -872,39 +966,45 @@ void wma_ndp_register_all_event_handlers(tp_wma_handle wma_handle)
 {
 	WMA_LOGD(FL("Register WMI_NDP_INITIATOR_RSP_EVENTID"));
 	wmi_unified_register_event_handler(wma_handle->wmi_handle,
-		WMI_NDP_INITIATOR_RSP_EVENTID,
-		wma_ndp_initiator_rsp_event_handler,
-		WMA_RX_SERIALIZER_CTX);
+					   WMI_NDP_INITIATOR_RSP_EVENTID,
+					   wma_ndp_initiator_rsp_event_handler,
+					   WMA_RX_SERIALIZER_CTX);
 
 	WMA_LOGD(FL("Register WMI_NDP_RESPONDER_RSP_EVENTID"));
 	wmi_unified_register_event_handler(wma_handle->wmi_handle,
-		WMI_NDP_RESPONDER_RSP_EVENTID,
-		wma_ndp_responder_rsp_event_handler,
-		WMA_RX_SERIALIZER_CTX);
+					   WMI_NDP_RESPONDER_RSP_EVENTID,
+					   wma_ndp_responder_rsp_event_handler,
+					   WMA_RX_SERIALIZER_CTX);
 
 	WMA_LOGD(FL("Register WMI_NDP_END_RSP_EVENTID"));
 	wmi_unified_register_event_handler(wma_handle->wmi_handle,
-		WMI_NDP_END_RSP_EVENTID,
-		wma_ndp_end_response_event_handler,
-		WMA_RX_SERIALIZER_CTX);
+					   WMI_NDP_END_RSP_EVENTID,
+					   wma_ndp_end_response_event_handler,
+					   WMA_RX_SERIALIZER_CTX);
 
 	WMA_LOGD(FL("Register WMI_NDP_INDICATION_EVENTID"));
 	wmi_unified_register_event_handler(wma_handle->wmi_handle,
-		WMI_NDP_INDICATION_EVENTID,
-		wma_ndp_indication_event_handler,
-		WMA_RX_SERIALIZER_CTX);
+					   WMI_NDP_INDICATION_EVENTID,
+					   wma_ndp_indication_event_handler,
+					   WMA_RX_SERIALIZER_CTX);
 
 	WMA_LOGD(FL("Register WMI_NDP_CONFIRM_EVENTID"));
 	wmi_unified_register_event_handler(wma_handle->wmi_handle,
-		WMI_NDP_CONFIRM_EVENTID,
-		wma_ndp_confirm_event_handler,
-		WMA_RX_SERIALIZER_CTX);
+					   WMI_NDP_CONFIRM_EVENTID,
+					   wma_ndp_confirm_event_handler,
+					   WMA_RX_SERIALIZER_CTX);
 
 	WMA_LOGD(FL("Register WMI_NDP_END_INDICATION_EVENTID"));
 	wmi_unified_register_event_handler(wma_handle->wmi_handle,
-		WMI_NDP_END_INDICATION_EVENTID,
-		wma_ndp_end_indication_event_handler,
-		WMA_RX_SERIALIZER_CTX);
+					   WMI_NDP_END_INDICATION_EVENTID,
+					   wma_ndp_end_indication_event_handler,
+					   WMA_RX_SERIALIZER_CTX);
+
+	WMA_LOGD(FL("Register WMI_NDL_SCHEDULE_UPDATE_EVENTID"));
+	wmi_unified_register_event_handler(wma_handle->wmi_handle,
+					   WMI_NDL_SCHEDULE_UPDATE_EVENTID,
+					   wma_ndp_sch_update_event_handler,
+					   WMA_RX_SERIALIZER_CTX);
 }
 
 /**

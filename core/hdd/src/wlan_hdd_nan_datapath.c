@@ -71,6 +71,9 @@ qca_wlan_vendor_ndp_policy[QCA_WLAN_VENDOR_ATTR_NDP_PARAMS_MAX + 1] = {
 					.len = NAN_PASSPHRASE_MAX_LEN },
 	[QCA_WLAN_VENDOR_ATTR_NDP_SERVICE_NAME] = { .type = NLA_BINARY,
 					.len = NAN_MAX_SERVICE_NAME_LEN },
+	[QCA_WLAN_VENDOR_ATTR_NDP_CHANNEL_INFO] = { .type = NLA_BINARY,
+					.len = NAN_CH_INFO_MAX_LEN },
+	[QCA_WLAN_VENDOR_ATTR_NDP_NSS] = { .type = NLA_U32 },
 };
 
 /**
@@ -1410,13 +1413,13 @@ static void hdd_ndp_confirm_ind_handler(hdd_adapter_t *adapter,
 						void *ind_params)
 {
 	int idx;
-	uint32_t ndp_qos_config = 0;
-	struct ndp_confirm_event *ndp_confirm = ind_params;
-	struct sk_buff *vendor_event;
-	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
-	struct nan_datapath_ctx *ndp_ctx = WLAN_HDD_GET_NDP_CTX_PTR(adapter);
-	hdd_station_ctx_t *sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
 	uint32_t data_len;
+	struct sk_buff *vendor_event;
+	struct nlattr *ch_array, *ch_element;
+	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+	struct ndp_confirm_event *ndp_confirm = ind_params;
+	hdd_station_ctx_t *sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
+	struct nan_datapath_ctx *ndp_ctx = WLAN_HDD_GET_NDP_CTX_PTR(adapter);
 
 	ENTER();
 	if (!ndp_confirm) {
@@ -1435,9 +1438,11 @@ static void hdd_ndp_confirm_ind_handler(hdd_adapter_t *adapter,
 	else if (ndp_confirm->rsp_code == NDP_RESPONSE_ACCEPT)
 		ndp_ctx->active_ndp_sessions[idx]++;
 
-	data_len = (4 * sizeof(uint32_t)) + QDF_MAC_ADDR_SIZE + IFNAMSIZ +
-			+ NLMSG_HDRLEN + (7 * NLA_HDRLEN) +
-			ndp_confirm->ndp_info.ndp_app_info_len;
+	data_len = NLMSG_HDRLEN + (8 * NLA_HDRLEN) + (5 * sizeof(uint32_t))
+		   + QDF_MAC_ADDR_SIZE + IFNAMSIZ
+		   + ndp_confirm->ndp_info.ndp_app_info_len
+		   + (ndp_confirm->num_channels * 3 * sizeof(uint32_t))
+		   + (ndp_confirm->num_channels * 4 * NLA_HDRLEN);
 
 	if (ndp_confirm->ndp_info.ndp_app_info_len)
 		data_len += NLA_HDRLEN + ndp_confirm->ndp_info.ndp_app_info_len;
@@ -1459,17 +1464,18 @@ static void hdd_ndp_confirm_ind_handler(hdd_adapter_t *adapter,
 		goto ndp_confirm_nla_failed;
 
 	if (nla_put(vendor_event, QCA_WLAN_VENDOR_ATTR_NDP_NDI_MAC_ADDR,
-		QDF_MAC_ADDR_SIZE, ndp_confirm->peer_ndi_mac_addr.bytes))
+		    QDF_MAC_ADDR_SIZE, ndp_confirm->peer_ndi_mac_addr.bytes))
 		goto ndp_confirm_nla_failed;
 
 	if (nla_put(vendor_event, QCA_WLAN_VENDOR_ATTR_NDP_IFACE_STR,
 		    IFNAMSIZ, adapter->dev->name))
 		goto ndp_confirm_nla_failed;
 
-	if (ndp_confirm->ndp_info.ndp_app_info_len && nla_put(vendor_event,
-			QCA_WLAN_VENDOR_ATTR_NDP_APP_INFO,
-			ndp_confirm->ndp_info.ndp_app_info_len,
-			ndp_confirm->ndp_info.ndp_app_info))
+	if (ndp_confirm->ndp_info.ndp_app_info_len &&
+	    nla_put(vendor_event,
+		    QCA_WLAN_VENDOR_ATTR_NDP_APP_INFO,
+		    ndp_confirm->ndp_info.ndp_app_info_len,
+		    ndp_confirm->ndp_info.ndp_app_info))
 		goto ndp_confirm_nla_failed;
 
 	if (nla_put_u32(vendor_event,
@@ -1482,14 +1488,50 @@ static void hdd_ndp_confirm_ind_handler(hdd_adapter_t *adapter,
 			ndp_confirm->reason_code))
 		goto ndp_confirm_nla_failed;
 
-	cfg80211_vendor_event(vendor_event, GFP_KERNEL);
-	hdd_info("NDP confim sent, ndp instance id: %d, peer addr: %pM, ndp_cfg: %d, rsp_code: %d, reason_code: %d",
-		ndp_confirm->ndp_instance_id,
-		ndp_confirm->peer_ndi_mac_addr.bytes,
-		ndp_qos_config, ndp_confirm->rsp_code,
-		ndp_confirm->reason_code);
+	if (nla_put_u32(vendor_event, QCA_WLAN_VENDOR_ATTR_NDP_NUM_CHANNELS,
+			ndp_confirm->num_channels))
+		goto ndp_confirm_nla_failed;
 
-	hdd_info("NDP confim, ndp app info dump");
+	hdd_debug("num_ch: %d", ndp_confirm->num_channels);
+	if (ndp_confirm->num_channels) {
+		ch_array = nla_nest_start(vendor_event,
+				QCA_WLAN_VENDOR_ATTR_NDP_CHANNEL_INFO);
+		if (!ch_array)
+			goto ndp_confirm_nla_failed;
+
+		for (idx = 0; idx < ndp_confirm->num_channels; idx++) {
+			hdd_debug("ch[%d]: freq: %d, width: %d, nss: %d",
+				  idx, ndp_confirm->ch[idx].channel,
+				  ndp_confirm->ch[idx].ch_width,
+				  ndp_confirm->ch[idx].nss);
+			ch_element = nla_nest_start(vendor_event, idx);
+			if (!ch_element)
+				goto ndp_confirm_nla_failed;
+			if (nla_put_u32(vendor_event,
+					QCA_WLAN_VENDOR_ATTR_NDP_CHANNEL,
+					ndp_confirm->ch[idx].channel))
+				goto ndp_confirm_nla_failed;
+			if (nla_put_u32(vendor_event,
+					QCA_WLAN_VENDOR_ATTR_NDP_CHANNEL_WIDTH,
+					ndp_confirm->ch[idx].ch_width))
+				goto ndp_confirm_nla_failed;
+			if (nla_put_u32(vendor_event,
+					QCA_WLAN_VENDOR_ATTR_NDP_NSS,
+					ndp_confirm->ch[idx].nss))
+				goto ndp_confirm_nla_failed;
+			nla_nest_end(vendor_event, ch_element);
+		}
+		nla_nest_end(vendor_event, ch_array);
+	}
+
+	cfg80211_vendor_event(vendor_event, GFP_KERNEL);
+	hdd_debug("NDP confim sent, ndp instance id: %d, peer addr: %pM",
+		  ndp_confirm->ndp_instance_id,
+		  ndp_confirm->peer_ndi_mac_addr.bytes);
+	hdd_debug("rsp_code: %d, reason_code: %d",
+		  ndp_confirm->rsp_code, ndp_confirm->reason_code);
+
+	hdd_debug("NDP confim, ndp app info dump");
 	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_DEBUG,
 			   ndp_confirm->ndp_info.ndp_app_info,
 			   ndp_confirm->ndp_info.ndp_app_info_len);
@@ -1902,6 +1944,119 @@ ndp_end_ind_nla_failed:
 }
 
 /**
+ * hdd_ndp_sch_update_ind_handler() - NDP end indication handler
+ * @adapter: pointer to adapter context
+ * @ind_params: indication parameters
+ *
+ * Following vendor event is sent to cfg80211:
+ *
+ * Return: none
+ */
+static void hdd_ndp_sch_update_ind_handler(hdd_adapter_t *adapter,
+				struct ndp_sch_update_event *sch_update)
+{
+	uint8_t idx;
+	uint32_t data_len;
+	struct sk_buff *vendor_event;
+	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+	struct nlattr *ch_array, *ch_element;
+
+	ENTER();
+	if (!sch_update) {
+		hdd_err("Invalid sch update params");
+		return;
+	}
+
+	if (0 != wlan_hdd_validate_context(hdd_ctx))
+		return;
+
+	data_len = NLMSG_HDRLEN + (6 * NLA_HDRLEN) + (3 * sizeof(uint32_t))
+		   + QDF_MAC_ADDR_SIZE
+		   + (sch_update->num_ndp_instances * sizeof(uint32_t))
+		   + (sch_update->num_channels * 3 * sizeof(uint32_t))
+		   + (sch_update->num_channels * 4 * NLA_HDRLEN);
+
+	vendor_event = cfg80211_vendor_event_alloc(hdd_ctx->wiphy, NULL,
+				data_len, QCA_NL80211_VENDOR_SUBCMD_NDP_INDEX,
+				GFP_KERNEL);
+	if (!vendor_event) {
+		hdd_err("cfg80211_vendor_event_alloc failed");
+		return;
+	}
+
+	if (nla_put_u32(vendor_event, QCA_WLAN_VENDOR_ATTR_NDP_SUBCMD,
+			QCA_WLAN_VENDOR_ATTR_NDP_SCHEDULE_UPDATE_IND))
+		goto ndp_sch_ind_nla_failed;
+
+	if (nla_put(vendor_event,
+		    QCA_WLAN_VENDOR_ATTR_NDP_PEER_DISCOVERY_MAC_ADDR,
+		    QDF_MAC_ADDR_SIZE, sch_update->peer_addr.bytes))
+		goto ndp_sch_ind_nla_failed;
+
+	if (nla_put(vendor_event, QCA_WLAN_VENDOR_ATTR_NDP_INSTANCE_ID_ARRAY,
+		    sch_update->num_ndp_instances * sizeof(uint32_t),
+		    sch_update->ndp_instances))
+		goto ndp_sch_ind_nla_failed;
+
+	if (nla_put_u32(vendor_event,
+			QCA_WLAN_VENDOR_ATTR_NDP_SCHEDULE_UPDATE_REASON,
+			sch_update->flags))
+		goto ndp_sch_ind_nla_failed;
+
+	if (nla_put_u32(vendor_event, QCA_WLAN_VENDOR_ATTR_NDP_NUM_CHANNELS,
+			sch_update->num_channels))
+		goto ndp_sch_ind_nla_failed;
+
+	hdd_debug("num_ch: %d", sch_update->num_channels);
+	if (sch_update->num_channels) {
+		ch_array = nla_nest_start(vendor_event,
+				QCA_WLAN_VENDOR_ATTR_NDP_CHANNEL_INFO);
+		if (!ch_array)
+			goto ndp_sch_ind_nla_failed;
+
+		for (idx = 0; idx < sch_update->num_channels; idx++) {
+			hdd_debug("ch[%d]: freq: %d, width: %d, nss: %d",
+				  idx, sch_update->ch[idx].channel,
+				  sch_update->ch[idx].ch_width,
+				  sch_update->ch[idx].nss);
+			ch_element = nla_nest_start(vendor_event, idx);
+			if (!ch_element)
+				goto ndp_sch_ind_nla_failed;
+			if (nla_put_u32(vendor_event,
+					QCA_WLAN_VENDOR_ATTR_NDP_CHANNEL,
+					sch_update->ch[idx].channel))
+				goto ndp_sch_ind_nla_failed;
+			if (nla_put_u32(vendor_event,
+					QCA_WLAN_VENDOR_ATTR_NDP_CHANNEL_WIDTH,
+					sch_update->ch[idx].ch_width))
+				goto ndp_sch_ind_nla_failed;
+			if (nla_put_u32(vendor_event,
+					QCA_WLAN_VENDOR_ATTR_NDP_NSS,
+					sch_update->ch[idx].nss))
+				goto ndp_sch_ind_nla_failed;
+			nla_nest_end(vendor_event, ch_element);
+		}
+		nla_nest_end(vendor_event, ch_array);
+	}
+
+	hdd_debug("Flags: %d, num_instance_id: %d",
+		  sch_update->flags, sch_update->num_ndp_instances);
+
+	for (idx = 0; idx < sch_update->num_ndp_instances; idx++)
+		hdd_debug("ndp_instance[%d]: %d", idx,
+			  sch_update->ndp_instances[idx]);
+
+	cfg80211_vendor_event(vendor_event, GFP_KERNEL);
+	EXIT();
+	return;
+
+ndp_sch_ind_nla_failed:
+	hdd_err("nla_put api failed");
+	kfree_skb(vendor_event);
+	EXIT();
+}
+
+/**
  * hdd_ndp_event_handler() - ndp response and indication handler
  * @adapter: adapter context
  * @roam_info: pointer to roam_info structure
@@ -1956,6 +2111,10 @@ void hdd_ndp_event_handler(hdd_adapter_t *adapter,
 		case eCSR_ROAM_RESULT_NDP_END_IND:
 			hdd_ndp_end_ind_handler(adapter,
 				roam_info->ndp.ndp_end_ind_params);
+			break;
+		case eCSR_ROAM_RESULT_NDP_SCH_UPDATE_IND:
+			hdd_ndp_sch_update_ind_handler(adapter,
+				&roam_info->ndp.sch_update_params);
 			break;
 		default:
 			hdd_err("Unknown NDP response event from SME %d",

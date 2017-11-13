@@ -2730,5 +2730,11 @@ QDF_STATUS wma_config_bmiss_bcnt_params(uint32_t vdev_id, uint32_t first_cnt,
  */
 QDF_STATUS wma_send_action_oui(WMA_HANDLE handle,
 			       struct wmi_action_oui *action_oui);
-
+/**
+ * chanmode_to_chanwidth() - get channel width through channel mode
+ * @chanmode:   channel phy mode
+ *
+ * Return: channel width
+ */
+wmi_channel_width chanmode_to_chanwidth(WLAN_PHY_MODE chanmode);
 #endif

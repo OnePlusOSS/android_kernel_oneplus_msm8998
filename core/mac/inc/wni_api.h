@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -252,6 +252,7 @@ enum eWniMsgTypes {
 	eWNI_SME_NDP_INITIATOR_RSP,
 	eWNI_SME_NDP_NEW_PEER_IND,
 	eWNI_SME_NDP_CONFIRM_IND,
+	eWNI_SME_NDP_SCH_UPDATE_IND,
 	eWNI_SME_NDP_INDICATION,
 	eWNI_SME_NDP_RESPONDER_REQ,
 	eWNI_SME_NDP_RESPONDER_RSP,

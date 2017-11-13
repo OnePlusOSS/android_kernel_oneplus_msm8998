@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -521,6 +521,13 @@ QDF_STATUS lim_handle_ndp_event_message(tpAniSirGlobal mac_ctx, cds_msg_t *msg)
 	case SIR_HAL_NDP_END_IND:
 		status = lim_ndp_end_indication_handler(mac_ctx, msg->bodyptr);
 		break;
+	case SIR_HAL_NDP_SCH_UPDATE_IND: {
+		lim_send_ndp_event_to_sme(mac_ctx, eWNI_SME_NDP_SCH_UPDATE_IND,
+					  msg->bodyptr,
+					  sizeof(struct ndp_sch_update_event),
+					  0);
+		break;
+	}
 	default:
 		pe_err("Unhandled NDP event: %d", msg->type);
 		status = QDF_STATUS_E_NOSUPPORT;

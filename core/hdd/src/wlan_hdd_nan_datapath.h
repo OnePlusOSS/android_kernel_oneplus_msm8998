@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -49,6 +49,9 @@ struct wireless_dev;
 
 #define NDP_BROADCAST_STAID           (0)
 
+#define NAN_CH_INFO_MAX_LEN \
+	(SIR_NAN_CH_INFO_MAX_CHANNELS * sizeof(uint32_t) * 2)
+
 #ifdef WLAN_FEATURE_NAN_DATAPATH
 #define WLAN_HDD_IS_NDI(adapter) ((adapter)->device_mode == QDF_NDI_MODE)
 
@@ -84,6 +87,11 @@ struct wireless_dev;
  * @QCA_WLAN_VENDOR_ATTR_NDP_SCID: Security Context ID
  * @QCA_WLAN_VENDOR_ATTR_NDP_PASSPHRASE - pass phrase
  * @QCA_WLAN_VENDOR_ATTR_NDP_SERVICE_NAME - service name
+ * @QCA_WLAN_VENDOR_ATTR_NDP_SCHEDULE_UPDATE_REASON: reason for sch update
+ * @QCA_WLAN_VENDOR_ATTR_NDP_NSS: NSS
+ * @QCA_WLAN_VENDOR_ATTR_NDP_NUM_CHANNELS: num of channels
+ * @QCA_WLAN_VENDOR_ATTR_NDP_CHANNEL_WIDTH: channel width
+ * @QCA_WLAN_VENDOR_ATTR_NDP_CHANNEL_INFO: channel info struct array
  */
 enum qca_wlan_vendor_attr_ndp_params {
 	QCA_WLAN_VENDOR_ATTR_NDP_PARAM_INVALID = 0,
@@ -109,6 +117,11 @@ enum qca_wlan_vendor_attr_ndp_params {
 	QCA_WLAN_VENDOR_ATTR_NDP_SCID,
 	QCA_WLAN_VENDOR_ATTR_NDP_PASSPHRASE,
 	QCA_WLAN_VENDOR_ATTR_NDP_SERVICE_NAME,
+	QCA_WLAN_VENDOR_ATTR_NDP_SCHEDULE_UPDATE_REASON,
+	QCA_WLAN_VENDOR_ATTR_NDP_NSS,
+	QCA_WLAN_VENDOR_ATTR_NDP_NUM_CHANNELS,
+	QCA_WLAN_VENDOR_ATTR_NDP_CHANNEL_WIDTH,
+	QCA_WLAN_VENDOR_ATTR_NDP_CHANNEL_INFO,
 
 	QCA_WLAN_VENDOR_ATTR_NDP_PARAMS_AFTER_LAST,
 	QCA_WLAN_VENDOR_ATTR_NDP_PARAMS_MAX =
@@ -145,6 +158,7 @@ enum qca_wlan_vendor_attr_ndp_qos {
  * @QCA_WLAN_VENDOR_ATTR_NDP_REQUEST_IND: NDP request indication
  * @QCA_WLAN_VENDOR_ATTR_NDP_CONFIRM_IND: NDP confirm indication
  * @QCA_WLAN_VENDOR_ATTR_NDP_END_IND: NDP End indication
+ * @QCA_WLAN_VENDOR_ATTR_NDP_SCHEDULE_UPDATE_IND: NDP schedule update indication
  */
 enum qca_wlan_vendor_attr_ndp_sub_cmd_value {
 	QCA_WLAN_VENDOR_ATTR_NDP_INVALID = 0,
@@ -158,7 +172,8 @@ enum qca_wlan_vendor_attr_ndp_sub_cmd_value {
 	QCA_WLAN_VENDOR_ATTR_NDP_END_RESPONSE = 8,
 	QCA_WLAN_VENDOR_ATTR_NDP_REQUEST_IND = 9,
 	QCA_WLAN_VENDOR_ATTR_NDP_CONFIRM_IND = 10,
-	QCA_WLAN_VENDOR_ATTR_NDP_END_IND = 11
+	QCA_WLAN_VENDOR_ATTR_NDP_END_IND = 11,
+	QCA_WLAN_VENDOR_ATTR_NDP_SCHEDULE_UPDATE_IND = 12,
 };
 
 /** enum nan_datapath_state - NAN datapath states

@@ -310,6 +310,7 @@ enum reg_domain {
 	ETSI9_WORLD = 0x3E,
 	ETSI10_WORLD = 0x24,
 	ETSI11_WORLD = 0x26,
+	ETSI13_WORLD = 0x28,
 
 	APL4_WORLD = 0x42,
 	APL3_FCCA = 0x50,
@@ -412,6 +413,7 @@ enum reg_domain {
 	ETSI9 = 0x0930,
 	ETSI10 = 0x0D30,
 	ETSI11 = 0x0E30,
+	ETSI13 = 0x0E39,
 
 	APL1 = 0x0150,
 	APL2 = 0x0250,

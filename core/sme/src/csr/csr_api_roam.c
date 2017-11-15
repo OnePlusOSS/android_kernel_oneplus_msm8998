@@ -10116,7 +10116,7 @@ void csr_roaming_state_msg_processor(tpAniSirGlobal pMac, void *pMsgBuf)
 {
 	tSirSmeRsp *pSmeRsp;
 	tSmeIbssPeerInd *pIbssPeerInd;
-	tCsrRoamInfo roamInfo;
+	tCsrRoamInfo *roam_info;
 
 	pSmeRsp = (tSirSmeRsp *) pMsgBuf;
 	sme_debug("Message %d[0x%04X] received in substate %s",
@@ -10194,14 +10194,19 @@ void csr_roaming_state_msg_processor(tpAniSirGlobal pMac, void *pMsgBuf)
 	case eWNI_SME_IBSS_PEER_DEPARTED_IND:
 		pIbssPeerInd = (tSmeIbssPeerInd *) pSmeRsp;
 		sme_err("Peer departed ntf from LIM in joining state");
-		qdf_mem_set(&roamInfo, sizeof(tCsrRoamInfo), 0);
-		roamInfo.staId = (uint8_t) pIbssPeerInd->staId;
-		roamInfo.ucastSig = (uint8_t) pIbssPeerInd->ucastSig;
-		roamInfo.bcastSig = (uint8_t) pIbssPeerInd->bcastSig;
-		qdf_copy_macaddr(&roamInfo.peerMac, &pIbssPeerInd->peer_addr);
-		csr_roam_call_callback(pMac, pSmeRsp->sessionId, &roamInfo, 0,
+		roam_info = qdf_mem_malloc(sizeof(*roam_info));
+		if (!roam_info) {
+			sme_err("failed to allocate memory for roam_info");
+			break;
+		}
+		roam_info->staId = (uint8_t) pIbssPeerInd->staId;
+		roam_info->ucastSig = (uint8_t) pIbssPeerInd->ucastSig;
+		roam_info->bcastSig = (uint8_t) pIbssPeerInd->bcastSig;
+		qdf_copy_macaddr(&roam_info->peerMac, &pIbssPeerInd->peer_addr);
+		csr_roam_call_callback(pMac, pSmeRsp->sessionId, roam_info, 0,
 				       eCSR_ROAM_CONNECT_STATUS_UPDATE,
 				       eCSR_ROAM_RESULT_IBSS_PEER_DEPARTED);
+		qdf_mem_free(roam_info);
 		break;
 	case eWNI_SME_GET_RSSI_REQ:
 	{

@@ -360,6 +360,7 @@ static int wlan_hdd_probe(struct device *dev, void *bdev, const struct hif_bus_i
 	int ret = 0;
 
 	mutex_lock(&hdd_init_deinit_lock);
+	cds_set_driver_in_bad_state(false);
 	if (!reinit)
 		hdd_start_driver_ops_timer(eHDD_DRV_OP_PROBE);
 	else
@@ -411,7 +412,6 @@ static int wlan_hdd_probe(struct device *dev, void *bdev, const struct hif_bus_i
 
 	cds_clear_fw_state(CDS_FW_STATE_DOWN);
 
-	cds_set_driver_in_bad_state(false);
 	probe_fail_cnt = 0;
 	re_init_fail_cnt = 0;
 	hdd_stop_driver_ops_timer();

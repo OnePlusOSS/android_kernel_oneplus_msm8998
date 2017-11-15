@@ -3153,7 +3153,7 @@ QDF_STATUS hdd_ipa_uc_ol_init(hdd_context_t *hdd_ctx)
 		ret = ipa_connect_wdi_pipe(&ipa_ctxt->cons_pipe_in, &pipe_out);
 		if (ret) {
 			HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,
-				"ipa_connect_wdi_pipe falied for Tx: ret=%d",
+				"ipa_connect_wdi_pipe failed for Tx: ret=%d",
 				ret);
 			stat = QDF_STATUS_E_FAILURE;
 			goto fail_return;
@@ -3397,7 +3397,7 @@ QDF_STATUS hdd_ipa_uc_ol_init(hdd_context_t *hdd_ctx)
 		ret = ipa_connect_wdi_pipe(&ipa_ctxt->cons_pipe_in, &pipe_out);
 		if (ret) {
 			HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,
-				"ipa_connect_wdi_pipe falied for Tx: ret=%d",
+				"ipa_connect_wdi_pipe failed for Tx: ret=%d",
 				ret);
 			stat = QDF_STATUS_E_FAILURE;
 			goto fail_return;

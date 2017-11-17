@@ -302,8 +302,10 @@ static int hdd_get_random_nan_mac_addr(hdd_context_t *hdd_ctx,
 {
 	hdd_adapter_t *adapter;
 	uint8_t i, attempts, max_attempt = 16;
+	bool found;
 
 	for (attempts = 0; attempts < max_attempt; attempts++) {
+		found = false;
 		cds_rand_get_bytes(0, (uint8_t *)mac_addr, sizeof(*mac_addr));
 
 		/*
@@ -317,11 +319,26 @@ static int hdd_get_random_nan_mac_addr(hdd_context_t *hdd_ctx,
 		 */
 		mac_addr->bytes[5] &= 0xFE;
 
-		for (i = 0; i < QDF_MAX_CONCURRENCY_PERSONA; i++) {
-			if (!qdf_mem_cmp(hdd_ctx->config->intfMacAddr[i].bytes,
-					 mac_addr, sizeof(*mac_addr)))
-				continue;
+		for (i = 0; i < hdd_ctx->num_provisioned_addr; i++) {
+			if ((!qdf_mem_cmp(hdd_ctx->
+					  provisioned_mac_addr[i].bytes,
+			      mac_addr, sizeof(*mac_addr))))
+				found = true;
+				break;
 		}
+
+		if (found)
+			continue;
+
+		for (i = 0; i < hdd_ctx->num_derived_addr; i++) {
+			if ((!qdf_mem_cmp(hdd_ctx->
+					  derived_mac_addr[i].bytes,
+					  mac_addr, sizeof(*mac_addr))))
+				found = true;
+				break;
+		}
+		if (found)
+			continue;
 
 		adapter = hdd_get_adapter_by_macaddr(hdd_ctx, mac_addr->bytes);
 		if (!adapter)
@@ -383,7 +400,7 @@ static int hdd_ndi_create_req_handler(hdd_context_t *hdd_ctx,
 		}
 		ndi_mac_addr = &random_ndi_mac.bytes[0];
 	} else {
-		ndi_mac_addr = wlan_hdd_get_intf_addr(hdd_ctx);
+		ndi_mac_addr = wlan_hdd_get_intf_addr(hdd_ctx, QDF_NDI_MODE);
 		if (!ndi_mac_addr) {
 			hdd_err("get intf address failed");
 			return -EINVAL;

@@ -2803,7 +2803,9 @@ struct wireless_dev *__wlan_hdd_add_virtual_intf(struct wiphy *wiphy,
 		pAdapter = hdd_open_adapter(pHddCtx,
 					    session_type,
 					    name,
-					    wlan_hdd_get_intf_addr(pHddCtx),
+					    wlan_hdd_get_intf_addr(
+								pHddCtx,
+								session_type),
 					    name_assign_type,
 					    true);
 	}

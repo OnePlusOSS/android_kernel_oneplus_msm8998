@@ -1994,7 +1994,6 @@ struct hdd_context_s {
 	bool napi_enable;
 	bool stop_modules_in_progress;
 	bool start_modules_in_progress;
-	bool update_mac_addr_to_fw;
 	struct acs_dfs_policy acs_policy;
 	uint16_t wmi_max_len;
 	struct suspend_resume_stats suspend_resume_stats;
@@ -2041,6 +2040,14 @@ struct hdd_context_s {
 	struct sta_ap_intf_check_work_ctx *sta_ap_intf_check_work_info;
 	qdf_wake_lock_t monitor_mode_wakelock;
 	bool lte_coex_ant_share;
+
+	struct qdf_mac_addr hw_macaddr;
+	struct qdf_mac_addr provisioned_mac_addr[QDF_MAX_CONCURRENCY_PERSONA];
+	struct qdf_mac_addr derived_mac_addr[QDF_MAX_CONCURRENCY_PERSONA];
+	uint32_t num_provisioned_addr;
+	uint32_t num_derived_addr;
+	unsigned long provisioned_intf_addr_mask;
+	unsigned long derived_intf_addr_mask;
 };
 
 int hdd_validate_channel_and_bandwidth(hdd_adapter_t *adapter,
@@ -2108,7 +2115,20 @@ void hdd_deinit_adapter(hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter,
 QDF_STATUS hdd_stop_adapter(hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter,
 			    const bool bCloseSession);
 void hdd_set_station_ops(struct net_device *pWlanDev);
-uint8_t *wlan_hdd_get_intf_addr(hdd_context_t *pHddCtx);
+
+/**
+ * wlan_hdd_get_intf_addr() - Get address for the interface
+ * @pHddCtx: Pointer to hdd context
+ * @interface_type: type of the interface for which address is queried
+ *
+ * This function is used to get mac address for every new interface
+ *
+ * Return: If addr is present then return pointer to MAC address
+ *         else NULL
+ */
+
+uint8_t *wlan_hdd_get_intf_addr(hdd_context_t *pHddCtx,
+				enum tQDF_ADAPTER_MODE interface_type);
 void wlan_hdd_release_intf_addr(hdd_context_t *pHddCtx, uint8_t *releaseAddr);
 uint8_t hdd_get_operating_channel(hdd_context_t *pHddCtx,
 			enum tQDF_ADAPTER_MODE mode);
@@ -2320,8 +2340,37 @@ void hdd_get_fw_version(hdd_context_t *hdd_ctx,
 			uint32_t *major_spid, uint32_t *minor_spid,
 			uint32_t *siid, uint32_t *crmid);
 
-void hdd_update_macaddr(struct hdd_config *config,
-			struct qdf_mac_addr hw_macaddr);
+/**
+ * hdd_free_mac_address_lists() - Free both the MAC address lists
+ * @hdd_ctx: HDD context
+ *
+ * This API clears/memset provisioned address list and
+ * derived address list
+ *
+ */
+void hdd_free_mac_address_lists(hdd_context_t *hdd_ctx);
+
+/**
+ * hdd_update_macaddr() - update mac address
+ * @hdd_ctx:	hdd contxt
+ * @hw_macaddr:	mac address
+ * @generate_mac_auto: Indicates whether the first address is
+ * provisioned address or derived address.
+ *
+ * Mac address for multiple virtual interface is found as following
+ * i) The mac address of the first interface is just the actual hw mac address.
+ * ii) MSM 3 or 4 bits of byte5 of the actual mac address are used to
+ *     define the mac address for the remaining interfaces and locally
+ *     admistered bit is set. INTF_MACADDR_MASK is based on the number of
+ *     supported virtual interfaces, right now this is 0x07 (meaning 8
+ *     interface).
+ *     Byte[3] of second interface will be hw_macaddr[3](bit5..7) + 1,
+ *     for third interface it will be hw_macaddr[3](bit5..7) + 2, etc.
+ *
+ * Return: None
+ */
+void hdd_update_macaddr(hdd_context_t *hdd_ctx,
+			struct qdf_mac_addr hw_macaddr, bool generate_mac_auto);
 void wlan_hdd_disable_roaming(hdd_adapter_t *pAdapter);
 void wlan_hdd_enable_roaming(hdd_adapter_t *pAdapter);
 

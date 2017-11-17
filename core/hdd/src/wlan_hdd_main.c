@@ -2897,6 +2897,7 @@ static hdd_adapter_t *hdd_alloc_station_adapter(hdd_context_t *hdd_ctx,
 	struct net_device *pWlanDev = NULL;
 	hdd_adapter_t *adapter = NULL;
 	hdd_station_ctx_t *sta_ctx;
+	QDF_STATUS qdf_status;
 	/*
 	 * cfg80211 initialization and registration....
 	 */
@@ -2923,8 +2924,22 @@ static hdd_adapter_t *hdd_alloc_station_adapter(hdd_context_t *hdd_ctx,
 		adapter->magic = WLAN_HDD_ADAPTER_MAGIC;
 		adapter->sessionId = HDD_SESSION_ID_INVALID;
 
-		init_completion(&adapter->session_open_comp_var);
-		init_completion(&adapter->session_close_comp_var);
+		qdf_status = qdf_event_create(
+				&adapter->qdf_session_open_event);
+		if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
+			hdd_err("Session open QDF event init failed!");
+			free_netdev(adapter->dev);
+			return NULL;
+		}
+
+		qdf_status = qdf_event_create(
+				&adapter->qdf_session_close_event);
+		if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
+			hdd_err("Session close QDF event init failed!");
+			free_netdev(adapter->dev);
+			return NULL;
+		}
+
 		init_completion(&adapter->disconnect_comp_var);
 		init_completion(&adapter->roaming_comp_var);
 		init_completion(&adapter->linkup_event_var);
@@ -3054,7 +3069,7 @@ QDF_STATUS hdd_sme_close_session_callback(void *pContext)
 	 * valid, before signaling completion
 	 */
 	if (WLAN_HDD_ADAPTER_MAGIC == adapter->magic)
-		complete(&adapter->session_close_comp_var);
+		qdf_event_set(&adapter->qdf_session_close_event);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -3096,10 +3111,13 @@ QDF_STATUS hdd_init_station_mode(hdd_adapter_t *adapter)
 	QDF_STATUS qdf_ret_status = QDF_STATUS_SUCCESS;
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	uint32_t type, subType;
-	unsigned long rc;
 	int ret_val;
 
-	INIT_COMPLETION(adapter->session_open_comp_var);
+	status = qdf_event_reset(&adapter->qdf_session_open_event);
+	if (QDF_STATUS_SUCCESS != status) {
+		hdd_err("failed to reinit session open event");
+		goto error_sme_open;
+	}
 	sme_set_curr_device_mode(hdd_ctx->hHal, adapter->device_mode);
 	sme_set_pdev_ht_vht_ies(hdd_ctx->hHal, hdd_ctx->config->enable2x2);
 	status = cds_get_vdev_types(adapter->device_mode, &type, &subType);
@@ -3119,14 +3137,26 @@ QDF_STATUS hdd_init_station_mode(hdd_adapter_t *adapter)
 		goto error_sme_open;
 	}
 	/* Block on a completion variable. Can't wait forever though. */
-	rc = wait_for_completion_timeout(
-		&adapter->session_open_comp_var,
-		msecs_to_jiffies(WLAN_WAIT_TIME_SESSIONOPENCLOSE));
-	if (!rc) {
-		hdd_err("Session is not opened within timeout period code %ld",
-			rc);
-		status = QDF_STATUS_E_FAILURE;
-		goto error_register_wext;
+	status = qdf_wait_for_event_completion(&adapter->qdf_session_open_event,
+			WLAN_WAIT_TIME_SESSIONOPENCLOSE);
+	if (QDF_STATUS_SUCCESS != status) {
+		if (adapter->qdf_session_open_event.force_set) {
+			/*
+			 * SSR/PDR has caused shutdown, which has forcefully
+			 * set the event. Return without the closing session.
+			 */
+			adapter->sessionId = HDD_SESSION_ID_INVALID;
+			hdd_err("Session open event forcefully set");
+			goto error_sme_open;
+		} else {
+			if (QDF_STATUS_E_TIMEOUT == status)
+				hdd_err("Session failed to open within timeout period");
+			else
+				hdd_err("Failed to wait for session open event(status-%d)",
+					status);
+
+			goto error_register_wext;
+		}
 	}
 
 	/*
@@ -3230,7 +3260,7 @@ error_init_txrx:
 	hdd_unregister_wext(pWlanDev);
 error_register_wext:
 	if (adapter->sessionId != HDD_SESSION_ID_INVALID) {
-		INIT_COMPLETION(adapter->session_close_comp_var);
+		qdf_event_reset(&adapter->qdf_session_close_event);
 		if (QDF_STATUS_SUCCESS == sme_close_session(hdd_ctx->hHal,
 						adapter->sessionId, true,
 						hdd_sme_close_session_callback,
@@ -3239,13 +3269,12 @@ error_register_wext:
 			 * Block on a completion variable.
 			 * Can't wait forever though.
 			 */
-			rc = wait_for_completion_timeout(
-				&adapter->session_close_comp_var,
-				msecs_to_jiffies
-					(WLAN_WAIT_TIME_SESSIONOPENCLOSE));
-			if (rc <= 0)
-				hdd_err("Session is not closed within timeout period code %ld",
-				       rc);
+			status = qdf_wait_for_event_completion(
+				&adapter->qdf_session_close_event,
+				WLAN_WAIT_TIME_SESSIONOPENCLOSE);
+			if (QDF_STATUS_SUCCESS != status)
+				hdd_err("Unable to close session (%u)",
+					status);
 		}
 		adapter->sessionId = HDD_SESSION_ID_INVALID;
 	}
@@ -4088,14 +4117,18 @@ static void hdd_wait_for_sme_close_sesion(hdd_context_t *hdd_ctx,
 					hdd_adapter_t *adapter,
 					bool flush_all_sme_cmds)
 {
-	unsigned long rc;
+	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 
 	if (!test_bit(SME_SESSION_OPENED, &adapter->event_flags)) {
 		hdd_err("session is not opened:%d", adapter->sessionId);
 		return;
 	}
 
-	INIT_COMPLETION(adapter->session_close_comp_var);
+	status = qdf_event_reset(&adapter->qdf_session_close_event);
+	if (QDF_STATUS_SUCCESS != status) {
+		hdd_err("failed to reinit session_close QDF event");
+		return;
+	}
 	if (QDF_STATUS_SUCCESS ==
 			sme_close_session(hdd_ctx->hHal, adapter->sessionId,
 				flush_all_sme_cmds,
@@ -4105,12 +4138,11 @@ static void hdd_wait_for_sme_close_sesion(hdd_context_t *hdd_ctx,
 		 * Block on a completion variable. Can't wait
 		 * forever though.
 		 */
-		rc = wait_for_completion_timeout(
-				&adapter->session_close_comp_var,
-				msecs_to_jiffies
-				(WLAN_WAIT_TIME_SESSIONOPENCLOSE));
-		if (!rc) {
-			hdd_err("failure waiting for session_close_comp_var");
+		status = qdf_wait_for_event_completion(
+				&adapter->qdf_session_close_event,
+				WLAN_WAIT_TIME_SESSIONOPENCLOSE);
+		if (QDF_STATUS_SUCCESS != status) {
+			hdd_err("failure waiting for session_close QDF event");
 			if (adapter->device_mode == QDF_NDI_MODE)
 				hdd_ndp_session_end_handler(adapter);
 			clear_bit(SME_SESSION_OPENED, &adapter->event_flags);

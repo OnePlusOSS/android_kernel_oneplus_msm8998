@@ -6530,8 +6530,6 @@ QDF_STATUS hdd_init_ap_mode(hdd_adapter_t *pAdapter, bool reinit)
 		return qdf_status;
 	}
 
-	init_completion(&pAdapter->session_close_comp_var);
-	init_completion(&pAdapter->session_open_comp_var);
 
 	sema_init(&(WLAN_HDD_GET_AP_CTX_PTR(pAdapter))->semWpsPBCOverlapInd, 1);
 
@@ -6601,6 +6599,7 @@ hdd_adapter_t *hdd_wlan_create_ap_dev(hdd_context_t *pHddCtx,
 {
 	struct net_device *pWlanHostapdDev = NULL;
 	hdd_adapter_t *pHostapdAdapter = NULL;
+	QDF_STATUS qdf_status;
 
 	hdd_debug("iface_name = %s", iface_name);
 
@@ -6666,6 +6665,23 @@ hdd_adapter_t *hdd_wlan_create_ap_dev(hdd_context_t *pHddCtx,
 		spin_lock_init(&pHostapdAdapter->pause_map_lock);
 		pHostapdAdapter->start_time =
 			pHostapdAdapter->last_time = qdf_system_ticks();
+
+		qdf_status = qdf_event_create(
+				&pHostapdAdapter->qdf_session_open_event);
+		if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
+			hdd_err("failed to create session open QDF event!");
+			free_netdev(pHostapdAdapter->dev);
+			return NULL;
+		}
+
+		qdf_status = qdf_event_create(
+				&pHostapdAdapter->qdf_session_close_event);
+		if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
+			hdd_err("failed to create session close QDF event!");
+			free_netdev(pHostapdAdapter->dev);
+			return NULL;
+		}
+
 	}
 	return pHostapdAdapter;
 }

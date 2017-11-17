@@ -4862,7 +4862,7 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 	switch (roamStatus) {
 	case eCSR_ROAM_SESSION_OPENED:
 		set_bit(SME_SESSION_OPENED, &pAdapter->event_flags);
-		complete(&pAdapter->session_open_comp_var);
+		qdf_event_set(&pAdapter->qdf_session_open_event);
 		hdd_debug("session %d opened", pAdapter->sessionId);
 		break;
 

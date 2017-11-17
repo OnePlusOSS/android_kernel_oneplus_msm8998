@@ -116,7 +116,7 @@ void hdd_nan_datapath_target_config(hdd_context_t *hdd_ctx,
  */
 static int hdd_close_ndi(hdd_adapter_t *adapter)
 {
-	int rc;
+	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 	uint32_t timeout = WLAN_WAIT_TIME_SESSIONOPENCLOSE;
 
@@ -143,15 +143,18 @@ static int hdd_close_ndi(hdd_adapter_t *adapter)
 #endif
 	/* check if the session is open */
 	if (test_bit(SME_SESSION_OPENED, &adapter->event_flags)) {
-		INIT_COMPLETION(adapter->session_close_comp_var);
+		status = qdf_event_reset(&adapter->qdf_session_close_event);
+		if (QDF_STATUS_SUCCESS != status) {
+			hdd_err("failed to reinit session_close QDF event");
+			return -EINVAL;
+		}
 		if (QDF_STATUS_SUCCESS == sme_close_session(hdd_ctx->hHal,
 				adapter->sessionId, true,
 				hdd_sme_close_session_callback, adapter)) {
 			/* Block on a timed completion variable */
-			rc = wait_for_completion_timeout(
-				&adapter->session_close_comp_var,
-				msecs_to_jiffies(timeout));
-			if (!rc)
+			status = qdf_wait_for_event_completion(
+				&adapter->qdf_session_close_event, timeout);
+			if (QDF_STATUS_SUCCESS != status)
 				hdd_err("session close timeout");
 		}
 	}
@@ -2110,11 +2113,14 @@ int hdd_init_nan_data_mode(struct hdd_adapter_s *adapter)
 	QDF_STATUS status;
 	uint32_t type, sub_type;
 	int32_t ret_val = 0;
-	unsigned long rc;
 	uint32_t timeout = WLAN_WAIT_TIME_SESSIONOPENCLOSE;
 	bool is_hw_mode_dbs;
 
-	INIT_COMPLETION(adapter->session_open_comp_var);
+	status = qdf_event_reset(&adapter->qdf_session_open_event);
+	if (QDF_STATUS_SUCCESS != status) {
+		hdd_err("failed to reinit session_close QDF event");
+		goto error_sme_open;
+	}
 	sme_set_curr_device_mode(hdd_ctx->hHal, adapter->device_mode);
 	status = cds_get_vdev_types(adapter->device_mode, &type, &sub_type);
 	if (QDF_STATUS_SUCCESS != status) {
@@ -2134,11 +2140,10 @@ int hdd_init_nan_data_mode(struct hdd_adapter_s *adapter)
 	}
 
 	/* Block on a completion variable. Can't wait forever though */
-	rc = wait_for_completion_timeout(
-			&adapter->session_open_comp_var,
-			msecs_to_jiffies(timeout));
-	if (!rc) {
-		hdd_err("Failed to open session, timeout code: %ld", rc);
+	status = qdf_wait_for_event_completion(
+			&adapter->qdf_session_open_event, timeout);
+	if (QDF_STATUS_SUCCESS != status) {
+		hdd_err("Failed to open session, timeout code: %u", status);
 		ret_val = -ETIMEDOUT;
 		goto error_sme_open;
 	}
@@ -2195,17 +2200,21 @@ error_init_txrx:
 
 error_register_wext:
 	if (test_bit(SME_SESSION_OPENED, &adapter->event_flags)) {
-		INIT_COMPLETION(adapter->session_close_comp_var);
+		status = qdf_event_reset(&adapter->qdf_session_close_event);
+		if (QDF_STATUS_SUCCESS != status) {
+			hdd_err("failed to reinit session_close QDF event");
+			return -EINVAL;
+		}
 		if (QDF_STATUS_SUCCESS ==
 				sme_close_session(hdd_ctx->hHal,
 					adapter->sessionId, true,
 					hdd_sme_close_session_callback,
 					adapter)) {
-			rc = wait_for_completion_timeout(
-					&adapter->session_close_comp_var,
-					msecs_to_jiffies(timeout));
-			if (rc <= 0) {
-				hdd_err("Session close failed status %ld", rc);
+			status = qdf_wait_for_event_completion(
+					&adapter->qdf_session_close_event,
+					timeout);
+			if (QDF_STATUS_SUCCESS != status) {
+				hdd_err("Session close failed status %u", status);
 				ret_val = -ETIMEDOUT;
 			}
 		}

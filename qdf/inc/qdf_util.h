@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -540,4 +540,16 @@ uint64_t qdf_do_mod(uint64_t dividend, uint32_t divisor)
 {
 	return __qdf_do_mod(dividend, divisor);
 }
+
+#ifdef ENABLE_SMMU_S1_TRANSLATION
+/**
+ * qdf_get_ipa_smmu_status() - to get IPA SMMU status
+ *
+ * Return: IPA SMMU status
+ */
+static inline bool qdf_get_ipa_smmu_status(void)
+{
+	return __qdf_get_ipa_smmu_status();
+}
+#endif
 #endif /*_QDF_UTIL_H*/

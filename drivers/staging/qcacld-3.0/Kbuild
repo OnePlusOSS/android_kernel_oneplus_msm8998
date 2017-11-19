@@ -1908,6 +1908,8 @@ endif
 
 KBUILD_CPPFLAGS += $(CDEFINES)
 
+EXTRA_CFLAGS += -Wno-unused-function -Wno-unused-variable
+
 # Currently, for versions of gcc which support it, the kernel Makefile
 # is disabling the maybe-uninitialized warning.  Re-enable it for the
 # WLAN driver.  Note that we must use EXTRA_CFLAGS here so that it

@@ -1457,7 +1457,18 @@ struct super_block {
 	struct list_head	s_inodes;	/* all inodes */
 };
 
-extern struct timespec current_fs_time(struct super_block *sb);
+/**
+ * current_fs_time - Return FS time
+ * @sb: Superblock.
+ *
+ * Return the current time truncated to the time granularity supported by
+ * the fs.
+ */
+static inline struct timespec current_fs_time(struct super_block *sb)
+{
+	struct timespec now = current_kernel_time();
+	return timespec_trunc(now, sb->s_time_gran);
+}
 
 /*
  * Snapshotting support.

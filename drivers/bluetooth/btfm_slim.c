@@ -23,9 +23,9 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <sound/tlv.h>
-#include <btfm_slim.h>
-#include <btfm_slim_wcn3990.h>
 #include <linux/bluetooth-power.h>
+#include "btfm_slim.h"
+#include "btfm_slim_wcn3990.h"
 
 int btfm_slim_write(struct btfmslim *btfmslim,
 		uint16_t reg, int bytes, void *src, uint8_t pgd)

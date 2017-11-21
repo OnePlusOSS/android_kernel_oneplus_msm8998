@@ -780,6 +780,10 @@ ifeq ($(CONFIG_WLAN_DEBUGFS), y)
 QDF_OBJS += $(QDF_OBJ_DIR)/qdf_debugfs.o
 endif
 
+QDF_CLEAN_FILES := $(QDF_OBJ_DIR)/*.o \
+		   $(QDF_OBJ_DIR)/*.o.* \
+		   $(QDF_OBJ_DIR)/.*.o.*
+
 ############ CDS (Connectivity driver services) ############
 CDS_DIR :=	core/cds
 CDS_INC_DIR :=	$(CDS_DIR)/inc
@@ -823,6 +827,10 @@ WMI_OBJS := $(WMI_OBJ_DIR)/wmi_unified.o \
 	    $(WMI_OBJ_DIR)/wmi_unified_tlv.o \
 	    $(WMI_OBJ_DIR)/wmi_unified_api.o \
 	    $(WMI_OBJ_DIR)/wmi_unified_non_tlv.o
+
+WMI_CLEAN_FILES := $(WMI_OBJ_DIR)/*.o \
+		   $(WMI_OBJ_DIR)/*.o.* \
+		   $(WMI_OBJ_DIR)/.*.o.*
 
 ########### FWLOG ###########
 FWLOG_DIR := core/utils/fwlog
@@ -895,6 +903,10 @@ HTC_OBJS := $(WLAN_COMMON_ROOT)/$(HTC_DIR)/htc.o \
             $(WLAN_COMMON_ROOT)/$(HTC_DIR)/htc_recv.o \
             $(WLAN_COMMON_ROOT)/$(HTC_DIR)/htc_services.o
 
+HTC_CLEAN_FILES := $(WLAN_COMMON_ROOT)/$(HTC_DIR)/*.o \
+		   $(WLAN_COMMON_ROOT)/$(HTC_DIR)/*.o.* \
+		   $(WLAN_COMMON_ROOT)/$(HTC_DIR)/.*.o.*
+
 ########### HIF ###########
 HIF_DIR := hif
 HIF_CE_DIR := $(HIF_DIR)/src/ce
@@ -940,6 +952,10 @@ HIF_COMMON_OBJS := $(WLAN_COMMON_ROOT)/$(HIF_DIR)/src/ath_procfs.o \
                 $(WLAN_COMMON_ROOT)/$(HIF_DIR)/src/hif_main.o \
                 $(WLAN_COMMON_ROOT)/$(HIF_DIR)/src/mp_dev.o
 
+HIF_CLEAN_FILES := $(WLAN_COMMON_ROOT)/$(HIF_DIR)/src/*.o \
+		   $(WLAN_COMMON_ROOT)/$(HIF_DIR)/src/*.o.* \
+		   $(WLAN_COMMON_ROOT)/$(HIF_DIR)/src/.*.o.*
+
 HIF_CE_OBJS :=  $(WLAN_COMMON_ROOT)/$(HIF_CE_DIR)/ce_bmi.o \
                 $(WLAN_COMMON_ROOT)/$(HIF_CE_DIR)/ce_diag.o \
                 $(WLAN_COMMON_ROOT)/$(HIF_CE_DIR)/ce_main.o \
@@ -947,10 +963,18 @@ HIF_CE_OBJS :=  $(WLAN_COMMON_ROOT)/$(HIF_CE_DIR)/ce_bmi.o \
                 $(WLAN_COMMON_ROOT)/$(HIF_CE_DIR)/ce_tasklet.o \
                 $(WLAN_COMMON_ROOT)/$(HIF_DIR)/src/regtable.o
 
+HIF_CLEAN_FILES += $(WLAN_COMMON_ROOT)/$(HIF_CE_DIR)/*.o \
+		   $(WLAN_COMMON_ROOT)/$(HIF_CE_DIR)/*.o.* \
+		   $(WLAN_COMMON_ROOT)/$(HIF_CE_DIR)/.*.o.*
+
 HIF_USB_OBJS := $(WLAN_COMMON_ROOT)/$(HIF_USB_DIR)/usbdrv.o \
                 $(WLAN_COMMON_ROOT)/$(HIF_USB_DIR)/hif_usb.o \
                 $(WLAN_COMMON_ROOT)/$(HIF_USB_DIR)/if_usb.o \
                 $(WLAN_COMMON_ROOT)/$(HIF_USB_DIR)/regtable_usb.o
+
+HIF_CLEAN_FILES += $(WLAN_COMMON_ROOT)/$(HIF_USB_DIR)/*.o \
+		   $(WLAN_COMMON_ROOT)/$(HIF_USB_DIR)/*.o.* \
+		   $(WLAN_COMMON_ROOT)/$(HIF_USB_DIR)/.*.o.*
 
 HIF_SDIO_OBJS := $(WLAN_COMMON_ROOT)/$(HIF_SDIO_DIR)/hif_sdio_send.o \
                  $(WLAN_COMMON_ROOT)/$(HIF_SDIO_DIR)/hif_bmi_reg_access.o \
@@ -960,8 +984,16 @@ HIF_SDIO_OBJS := $(WLAN_COMMON_ROOT)/$(HIF_SDIO_DIR)/hif_sdio_send.o \
                  $(WLAN_COMMON_ROOT)/$(HIF_SDIO_DIR)/hif_sdio_recv.o \
                  $(WLAN_COMMON_ROOT)/$(HIF_SDIO_DIR)/regtable_sdio.o
 
+HIF_CLEAN_FILES += $(WLAN_COMMON_ROOT)/$(HIF_SDIO_DIR)/*.o \
+		   $(WLAN_COMMON_ROOT)/$(HIF_SDIO_DIR)/*.o.* \
+		   $(WLAN_COMMON_ROOT)/$(HIF_SDIO_DIR)/.*.o.*
+
 HIF_SDIO_NATIVE_OBJS := $(WLAN_COMMON_ROOT)/$(HIF_SDIO_NATIVE_SRC_DIR)/hif.o \
                         $(WLAN_COMMON_ROOT)/$(HIF_SDIO_NATIVE_SRC_DIR)/hif_scatter.o
+
+HIF_CLEAN_FILES += $(WLAN_COMMON_ROOT)/$(HIF_SDIO_NATIVE_SRC_DIR)/*.o \
+		   $(WLAN_COMMON_ROOT)/$(HIF_SDIO_NATIVE_SRC_DIR)/*.o.* \
+		   $(WLAN_COMMON_ROOT)/$(HIF_SDIO_NATIVE_SRC_DIR)/.*.o.*
 
 ifeq ($(CONFIG_WLAN_NAPI), y)
 HIF_OBJS += $(WLAN_COMMON_ROOT)/$(HIF_DIR)/src/hif_napi.o
@@ -973,6 +1005,19 @@ HIF_SDIO_OBJS += $(WLAN_COMMON_ROOT)/$(HIF_SDIO_DIR)/if_sdio.o
 
 HIF_OBJS += $(WLAN_COMMON_ROOT)/$(HIF_DISPATCHER_DIR)/multibus.o
 HIF_OBJS += $(WLAN_COMMON_ROOT)/$(HIF_DISPATCHER_DIR)/dummy.o
+
+HIF_CLEAN_FILES += $(WLAN_COMMON_ROOT)/$(HIF_PCIE_DIR)/*.o \
+		   $(WLAN_COMMON_ROOT)/$(HIF_PCIE_DIR)/*.o.* \
+		   $(WLAN_COMMON_ROOT)/$(HIF_PCIE_DIR)/.*.o.* \
+		   $(WLAN_COMMON_ROOT)/$(HIF_SNOC_DIR)/*.o \
+		   $(WLAN_COMMON_ROOT)/$(HIF_SNOC_DIR)/*.o.* \
+		   $(WLAN_COMMON_ROOT)/$(HIF_SNOC_DIR)/.*.o.* \
+		   $(WLAN_COMMON_ROOT)/$(HIF_SDIO_DIR)/*.o \
+		   $(WLAN_COMMON_ROOT)/$(HIF_SDIO_DIR)/*.o.* \
+		   $(WLAN_COMMON_ROOT)/$(HIF_SDIO_DIR)/.*.o.* \
+		   $(WLAN_COMMON_ROOT)/$(HIF_DISPATCHER_DIR)/*.o \
+		   $(WLAN_COMMON_ROOT)/$(HIF_DISPATCHER_DIR)/*.o.* \
+		   $(WLAN_COMMON_ROOT)/$(HIF_DISPATCHER_DIR)/.*.o.*
 
 ifeq ($(CONFIG_HIF_PCI), 1)
 HIF_OBJS += $(HIF_PCIE_OBJS)
@@ -1138,6 +1183,10 @@ ifeq ($(BUILD_DIAG_VERSION), 1)
 OBJS +=		$(HOST_DIAG_LOG_OBJS)
 endif
 
+CLEAN_FILES :=  $(HIF_CLEAN_FILES) \
+		$(HTC_CLEAN_FILES) \
+		$(QDF_CLEAN_FILES) \
+		$(WMI_CLEAN_FILES)
 
 EXTRA_CFLAGS += $(INCS)
 
@@ -1813,3 +1862,4 @@ endif
 # Module information used by KBuild framework
 obj-$(CONFIG_QCA_CLD_WLAN) += $(MODNAME).o
 $(MODNAME)-y := $(OBJS)
+clean-files := $(CLEAN_FILES)

@@ -152,6 +152,8 @@ enum cds_auto_pwr_detect_failure_mode_t {
  * @rps_enabled: RPS enabled in SAP mode
  * @ito_repeat_count: Indicates ito repeated count
  * @bandcapability: Configured band by user
+ * @etsi_srd_chan_in_master_mode: Use of ETSI SRD chan in SAP/P2P-GO ACS/PCL
+ * @dot11p_mode: dot11p user configuration
  * Structure for holding cds ini parameters.
  */
 
@@ -215,6 +217,8 @@ struct cds_config_info {
 	enum cds_auto_pwr_detect_failure_mode_t auto_power_save_fail_mode;
 	uint8_t ito_repeat_count;
 	uint8_t bandcapability;
+	bool etsi_srd_chan_in_master_mode;
+	uint8_t dot11p_mode;
 };
 
 #ifdef WLAN_FEATURE_FILS_SK

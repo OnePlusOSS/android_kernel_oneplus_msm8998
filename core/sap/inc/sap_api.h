@@ -754,6 +754,7 @@ typedef struct tagSapStruct {
 	bool sap_channel_avoidance;
 #endif /* FEATURE_AP_MCC_CH_AVOIDANCE */
 	bool enable_dfs_phy_error_logs;
+	bool enable_etsi_srd_chan_support;
 } tSapStruct, *tpSapStruct;
 
 #define WPS_PROBRSP_VER_PRESENT                          0x00000001
@@ -1022,6 +1023,17 @@ QDF_STATUS wlansap_set_tx_leakage_threshold(tHalHandle hal,
 
 QDF_STATUS wlansap_set_invalid_session(void *cds_ctx);
 QDF_STATUS sap_roam_session_close_callback(void *pContext);
+
+/**
+ * wlansap_set_etsi_srd_chan_support() - set SRD channel support.
+ * @hal: HAL pointer
+ * @srd_chan_support: SRD channel support
+ *
+ * This function set sap SRD channel support
+ *
+ * Return: None
+ */
+void wlansap_set_etsi_srd_chan_support(tHalHandle hal, bool srd_chan_support);
 
 /**
  * wlansap_cleanup_cac_timer() - Force cleanup DFS CAC timer

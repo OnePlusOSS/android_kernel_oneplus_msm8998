@@ -491,6 +491,17 @@ static void hdd_process_regulatory_data(hdd_context_t *hdd_ctx,
 
 			wiphy_chan =
 				&(wiphy->bands[band_num]->channels[chan_num]);
+
+			while ((wiphy_chan->center_freq !=
+					chan_mapping[chan_enum].center_freq) &&
+					(chan_enum < NUM_CHANNELS))
+				chan_enum++;
+			if (NUM_CHANNELS == chan_enum) {
+				hdd_alert("wiphy channel freq %d not found",
+						wiphy_chan->center_freq);
+				break;
+			}
+
 			cds_chan = &(reg_channels[chan_enum]);
 			if (CHAN_ENUM_144 == chan_enum)
 				wiphy_chan_144 = wiphy_chan;

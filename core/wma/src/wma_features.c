@@ -1001,9 +1001,9 @@ WLAN_PHY_MODE wma_chan_phy_mode(u8 chan, enum phy_ch_width chan_width,
 				break;
 			}
 		}
-	} else if (CDS_IS_CHANNEL_DSRC(chan))
+	} else if (cds_is_dsrc_channel(cds_chan_to_freq(chan))) {
 		phymode = MODE_11A;
-	else {
+	} else {
 		if (((CH_WIDTH_5MHZ == chan_width) ||
 		     (CH_WIDTH_10MHZ == chan_width)) &&
 		    ((WNI_CFG_DOT11_MODE_11A == dot11_mode) ||

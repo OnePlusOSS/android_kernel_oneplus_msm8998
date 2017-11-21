@@ -5122,16 +5122,16 @@ static QDF_STATUS cds_get_channel_list(enum cds_pcl_type pcl,
 	uint8_t channel_list_24[QDF_MAX_NUM_CHAN] = {0};
 	uint8_t channel_list_5[QDF_MAX_NUM_CHAN] = {0};
 	bool skip_dfs_channel = false;
-	hdd_context_t *hdd_ctx;
+	bool skip_srd_chan = false;
 	uint32_t i = 0, j = 0;
 	bool sta_sap_scc_on_dfs_chan;
+	struct cds_config_info *cds_cfg;
 
-	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
-	if (!hdd_ctx) {
-		cds_err("HDD context is NULL");
+	cds_cfg = cds_get_ini_config();
+	if (!cds_cfg) {
+		cds_err("cds config is NULL");
 		return status;
 	}
-
 	if ((NULL == pcl_channels) || (NULL == len)) {
 		cds_err("pcl_channels or len is NULL");
 		return status;
@@ -5169,6 +5169,10 @@ static QDF_STATUS cds_get_channel_list(enum cds_pcl_type pcl,
 		skip_dfs_channel = true;
 	}
 
+	if ((mode == CDS_SAP_MODE) || (mode == CDS_P2P_GO_MODE)) {
+		skip_srd_chan = !cds_cfg->etsi_srd_chan_in_master_mode &&
+			cds_is_5g_regdmn_etsi13();
+	}
 	/* Let's divide the list in 2.4 & 5 Ghz lists */
 	while ((chan_index < QDF_MAX_NUM_CHAN) &&
 		(channel_list[chan_index] <= 11) &&
@@ -5195,6 +5199,12 @@ static QDF_STATUS cds_get_channel_list(enum cds_pcl_type pcl,
 		(chan_index_5 < QDF_MAX_NUM_CHAN)) {
 		if ((true == skip_dfs_channel) &&
 		    CDS_IS_DFS_CH(channel_list[chan_index])) {
+			chan_index++;
+			continue;
+		}
+		if ((true == skip_srd_chan) &&
+				cds_is_etsi13_regdmn_srd_chan(cds_chan_to_freq(
+					channel_list[chan_index]))) {
 			chan_index++;
 			continue;
 		}

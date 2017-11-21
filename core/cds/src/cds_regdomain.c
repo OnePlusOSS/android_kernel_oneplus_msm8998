@@ -751,7 +751,7 @@ void cds_fill_and_send_ctl_to_fw(struct regulatory *reg)
 	ctl_2g = reg_dmn_2g->conformance_test_limit;
 	ctl_5g = reg_dmn_5g->conformance_test_limit;
 
-
+	cds_set_5G_regdmn(reg_dmn_5g->reg_dmn);
 	reg->ctl_5g = ctl_5g;
 	reg->ctl_2g = ctl_2g;
 

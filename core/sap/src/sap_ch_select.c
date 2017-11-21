@@ -723,6 +723,11 @@ static bool sap_chan_sel_init(tHalHandle halHandle,
 		if (cds_is_dsrc_channel(cds_chan_to_freq(*pChans)))
 			continue;
 
+		if (!pSapCtx->enable_etsi_srd_chan_support &&
+				cds_is_etsi13_regdmn_srd_chan(
+				cds_chan_to_freq(*pChans)))
+			continue;
+
 		if (true == chSafe) {
 			pSpectCh->chNum = *pChans;
 			pSpectCh->valid = true;

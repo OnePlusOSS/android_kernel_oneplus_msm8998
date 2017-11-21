@@ -8752,6 +8752,9 @@ static int hdd_update_cds_config(hdd_context_t *hdd_ctx)
 	cds_cfg->sta_maxlimod_dtim = hdd_ctx->config->fMaxLIModulatedDTIM;
 	cds_cfg->wow_enable = hdd_ctx->config->wowEnable;
 	cds_cfg->max_wow_filters = hdd_ctx->config->maxWoWFilters;
+	cds_cfg->etsi_srd_chan_in_master_mode =
+		hdd_ctx->config->etsi_srd_chan_in_master_mode;
+	cds_cfg->dot11p_mode = hdd_ctx->config->dot11p_mode;
 
 	/* Here ol_ini_info is used to store ini status of arp offload
 	 * ns offload and others. Currently 1st bit is used for arp

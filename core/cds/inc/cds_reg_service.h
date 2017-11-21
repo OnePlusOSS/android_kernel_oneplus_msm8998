@@ -57,10 +57,6 @@
 #define CDS_MIN_5GHZ_CHANNEL_NUMBER chan_mapping[MIN_5GHZ_CHANNEL].chan_num
 #define CDS_MAX_5GHZ_CHANNEL_NUMBER chan_mapping[MAX_5GHZ_CHANNEL].chan_num
 
-#define CDS_IS_CHANNEL_DSRC(chan_num) \
-	((chan_num >= CDS_MIN_59GHZ_CHANNEL_NUMBER) && \
-	 (chan_num <= CDS_MAX_59GHZ_CHANNEL_NUMBER))
-
 #define CDS_IS_CHANNEL_5GHZ(chan_num) \
 	((chan_num >= CDS_MIN_5GHZ_CHANNEL_NUMBER) && \
 	 (chan_num <= CDS_MAX_5GHZ_CHANNEL_NUMBER))
@@ -72,8 +68,6 @@
 #define CDS_IS_SAME_BAND_CHANNELS(chan_num1, chan_num2) \
 	(chan_num1 && chan_num2 && \
 	(CDS_IS_CHANNEL_5GHZ(chan_num1) == CDS_IS_CHANNEL_5GHZ(chan_num2)))
-
-#define CDS_MIN_11P_CHANNEL chan_mapping[MIN_59GHZ_CHANNEL].chan_num
 
 typedef enum {
 	REGDOMAIN_FCC,
@@ -185,6 +179,7 @@ enum channel_enum {
 	CHAN_ENUM_161,
 	CHAN_ENUM_165,
 
+	CHAN_ENUM_169,
 	CHAN_ENUM_170,
 	CHAN_ENUM_171,
 	CHAN_ENUM_172,
@@ -409,6 +404,23 @@ QDF_STATUS cds_set_reg_domain(void *client_ctxt, v_REGDOMAIN_t reg_domain);
 QDF_STATUS cds_put_default_country(uint8_t *def_country);
 uint16_t cds_bw_value(enum phy_ch_width bw);
 uint8_t cds_skip_dfs_and_2g(uint32_t rf_channel);
+
+/**
+ * cds_is_5g_regdmn_etsi13() - is the 5G regdomain ETSI13
+ *
+ * Return: true on ETSI13 regdomain, false otherwise
+ */
+bool cds_is_5g_regdmn_etsi13(void);
+
+/*
+ * cds_is_etsi13_regdmn_srd_chan() - is the channel ETSI SRD channel
+ * @center_freq: center freq of the channel
+ *
+ * Return: true if channel is etsi13 domain SRD channel
+ *         false otherwise
+ */
+bool cds_is_etsi13_regdmn_srd_chan(uint16_t center_freq);
+
 /**
  * cds_get_channel_enum() - get the channel enumeration
  * @chan_num: channel number
@@ -416,4 +428,12 @@ uint8_t cds_skip_dfs_and_2g(uint32_t rf_channel);
  * Return: enum for the channel
  */
 enum channel_enum cds_get_channel_enum(uint32_t chan_num);
+
+/**
+ * cds_set_5G_regdmn() - save 5G reg domain value
+ * @regdmn_5g: 5G reg domain value
+ *
+ * Return: None
+ */
+void cds_set_5G_regdmn(uint16_t regdmn_5g);
 #endif /* __CDS_REG_SERVICE_H */

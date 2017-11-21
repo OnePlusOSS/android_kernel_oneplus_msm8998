@@ -6266,8 +6266,8 @@ static void csr_scan_copy_request_valid_channels_only(tpAniSirGlobal mac_ctx,
 		 * that is the only way to find p2p peers.
 		 * This can happen only if band is set to 5Ghz mode.
 		 */
-		if (src_req->ChannelInfo.ChannelList[index] <
-		    CDS_MIN_11P_CHANNEL &&
+		if (!cds_is_dsrc_channel(cds_chan_to_freq(
+			src_req->ChannelInfo.ChannelList[index])) &&
 			((csr_roam_is_valid_channel(mac_ctx,
 			src_req->ChannelInfo.ChannelList[index])) ||
 			((eCSR_SCAN_P2P_DISCOVERY == src_req->requestType) &&
@@ -6382,7 +6382,7 @@ static bool csr_scan_filter_given_chnl_band(tpAniSirGlobal mac_ctx,
 		 * Don't allow DSRC channel when IBSS or SAP DFS concurrent
 		 * connection is up
 		 */
-		if (valid_chnl_list[i] >= CDS_MIN_11P_CHANNEL)
+		if (cds_is_dsrc_channel(cds_chan_to_freq(valid_chnl_list[i])))
 			continue;
 		if (CDS_IS_CHANNEL_5GHZ(channel) &&
 			CDS_IS_CHANNEL_24GHZ(valid_chnl_list[i])) {
@@ -6530,10 +6530,10 @@ QDF_STATUS csr_scan_copy_request(tpAniSirGlobal mac_ctx,
 					cds_get_channel_state(src_req->
 							ChannelInfo.
 							ChannelList[index]);
-				if (src_req->ChannelInfo.ChannelList[index] <
-						CDS_MIN_11P_CHANNEL &&
-					((CHANNEL_STATE_ENABLE ==
-						channel_state) ||
+				if (!cds_is_dsrc_channel(cds_chan_to_freq(
+					src_req->ChannelInfo.ChannelList[index]
+					)) && ((CHANNEL_STATE_ENABLE ==
+					channel_state) ||
 					((CHANNEL_STATE_DFS == channel_state) &&
 					!skip_dfs_chnl))) {
 					dst_req->ChannelInfo.ChannelList
@@ -6561,8 +6561,9 @@ QDF_STATUS csr_scan_copy_request(tpAniSirGlobal mac_ctx,
 			new_index = 0;
 			for (index = 0; index < src_req->ChannelInfo.
 					numOfChannels; index++) {
-				if (src_req->ChannelInfo.ChannelList[index] <
-						CDS_MIN_11P_CHANNEL) {
+				if (!cds_is_dsrc_channel(cds_chan_to_freq(
+					src_req->ChannelInfo.ChannelList[index]
+					))) {
 					dst_req->ChannelInfo.
 						ChannelList[new_index] =
 						src_req->ChannelInfo.

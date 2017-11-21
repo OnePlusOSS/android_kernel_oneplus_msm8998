@@ -274,6 +274,7 @@ typedef struct sSapContext {
 	enum sap_acs_dfs_mode dfs_mode;
 	uint8_t sap_sta_id;
 	bool is_chan_change_inprogress;
+	bool enable_etsi_srd_chan_support;
 } *ptSapContext;
 
 /*----------------------------------------------------------------------------

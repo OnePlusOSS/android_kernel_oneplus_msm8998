@@ -2671,6 +2671,9 @@ QDF_STATUS sap_open_session(tHalHandle hHal, ptSapContext sapContext,
 	sapContext->is_pre_cac_on = false;
 	sapContext->pre_cac_complete = false;
 	sapContext->chan_before_pre_cac = 0;
+	sapContext->enable_etsi_srd_chan_support =
+		pMac->sap.enable_etsi_srd_chan_support;
+
 	return QDF_STATUS_SUCCESS;
 }
 

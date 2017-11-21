@@ -906,7 +906,8 @@ QDF_STATUS csr_update_channel_list(tpAniSirGlobal pMac)
 		struct csr_sta_roam_policy_params *roam_policy =
 			&pMac->roam.configParam.sta_roam_policy;
 		/* Scan is not performed on DSRC channels*/
-		if (pScan->base_channels.channelList[i] >= CDS_MIN_11P_CHANNEL)
+		if (cds_is_dsrc_channel(cds_chan_to_freq(
+					pScan->base_channels.channelList[i])))
 			continue;
 		channel = pScan->base_channels.channelList[i];
 

@@ -21,6 +21,7 @@
 #include "sched.h"
 
 #include <trace/events/sched.h>
+#include <../drivers/oneplus/coretech/opchain/opchain_helper.h>
 
 #define CSTATE_LATENCY_GRANULARITY_SHIFT (6)
 
@@ -234,13 +235,17 @@ unsigned long __weak arch_get_cpu_efficiency(int cpu)
 /* Keep track of max/min capacity possible across CPUs "currently" */
 static void __update_min_max_capacity(void)
 {
-	int i;
 	int max_cap = 0, min_cap = INT_MAX;
+		struct sched_cluster *cluster;
 
-	for_each_online_cpu(i) {
-		max_cap = max(max_cap, cpu_capacity(i));
-		min_cap = min(min_cap, cpu_capacity(i));
-	}
+		for_each_sched_cluster(cluster) {
+			if (cluster->capacity > max_cap)
+				max_cap = cluster->capacity;
+			if (cluster->capacity < min_cap)
+				min_cap = cluster->capacity;
+		}
+		op_min_cap_load = div64_u64((u64)min_cap * (u64)sched_ravg_window, max_possible_capacity);
+		opc_update_cpu_cravg_demand(op_min_cap_load);
 
 	max_capacity = max_cap;
 	min_capacity = min_cap;
@@ -4299,7 +4304,7 @@ int update_preferred_cluster(struct related_thread_group *grp,
 {
 	u32 new_load = task_load(p);
 
-	if (!grp)
+	if (!grp || !p->grp)
 		return 0;
 
 	/*

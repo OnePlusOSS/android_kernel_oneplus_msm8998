@@ -1,0 +1,13 @@
+synaptics,s3320
+
+Required properties:
+- compatible : should be "synaptics,s3320"
+- compatible : should be "HWK,synaptics,s3320"
+
+Example:
+	synaptics-rmi-ts@20 {
+		compatible = "synaptics,s3320";
+	};
+	synaptics-rmi-ts@20 {
+		compatible = "HWK,synaptics,s3320";
+	};

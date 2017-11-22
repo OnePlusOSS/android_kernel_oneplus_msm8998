@@ -2637,12 +2637,6 @@ int mdss_mdp_overlay_kickoff(struct msm_fb_data_type *mfd,
 	 * sent before kickoff completes so that backlight
 	 * update happens after it.
 	 */
-	if (mdss_fb_is_power_off(mfd) &&
-		mfd->panel_info->type == MIPI_CMD_PANEL) {
-		pr_debug("wait for pp done after resume for cmd mode\n");
-		mdss_mdp_display_wait4pingpong(ctl, true);
-	}
-
 	/*
 	 * Configure Timing Engine, if new fps was set.
 	 * We need to do this after the wait for vsync

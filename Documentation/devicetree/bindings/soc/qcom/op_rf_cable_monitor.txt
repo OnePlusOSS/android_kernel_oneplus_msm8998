@@ -1,0 +1,9 @@
+Op_rf_cable_monitor
+
+Required properties:
+- compatible : should be "oem,rf_cable"
+
+Example:
+	oem_rf_cable {
+		compatible = "oem,rf_cable";
+	};

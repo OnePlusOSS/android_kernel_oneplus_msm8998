@@ -166,6 +166,10 @@
 #define LPASS_BE_INT5_MI2S_TX "INT5_MI2S_TX"
 #define LPASS_BE_INT6_MI2S_RX "INT6_MI2S_RX"
 #define LPASS_BE_INT6_MI2S_TX "INT6_MI2S_TX"
+
+/* guoguangyi@mutlmedia,2016.4.23,offload and headset,force use 24bits*/
+extern int gis_24bits;
+
 /* For multimedia front-ends, asm session is allocated dynamically.
  * Hence, asm session/multimedia front-end mapping has to be maintained.
  * Due to this reason, additional multimedia front-end must be placed before

@@ -35,6 +35,9 @@
 #include "sched.h"
 #include <trace/events/sched.h>
 #include "tune.h"
+#include <../drivers/oneplus/coretech/opchain/opchain_helper.h>
+
+#define opc_claim_bit_test(claim, cpu) (claim & ((1 << cpu) | (1 << (cpu + num_present_cpus()))))
 /*
  * Targeted preemption latency for CPU-bound tasks:
  * (default: 6ms * (1 + ilog(ncpus)), units: nanoseconds)
@@ -2771,6 +2774,9 @@ struct cpu_select_env {
 	u32 sbc_best_flag;
 	u32 sbc_best_cluster_flag;
 	struct cpumask search_cpus;
+	u64 cpu_cravg;
+	int op_path;
+	unsigned int claims;
 };
 
 struct cluster_cpu_stats {
@@ -2983,12 +2989,16 @@ struct cpu_select_env *env, struct cluster_cpu_stats *stats)
 
 		cpumask_and(&search_cpus, &env->search_cpus, &next->cpus);
 		for_each_cpu(i, &search_cpus) {
+			if (env->claims)
+				env->cpu_cravg = opc_cpu_cravg_sync(i, env->sync, env->op_path);
+			else
+				env->cpu_cravg = cpu_cravg_sync(i, env->sync);
 			trace_sched_cpu_load_wakeup(cpu_rq(i), idle_cpu(i),
 			sched_irqload(i), power_cost(i, task_load(env->p) +
-					cpu_cravg_sync(i, env->sync)), 0);
+					env->cpu_cravg), 0);
 
 			update_spare_capacity(stats, env, i, next->capacity,
-					  cpu_load_sync(i, env->sync));
+					  scale_load_to_cpu(env->cpu_cravg, i));
 		}
 		env->sbc_best_cluster_flag = SBC_FLAG_BACKUP_CLUSTER;
 	}
@@ -3131,18 +3141,16 @@ static void __update_cluster_stats(int cpu, struct cluster_cpu_stats *stats,
 static void update_cluster_stats(int cpu, struct cluster_cpu_stats *stats,
 					 struct cpu_select_env *env)
 {
-	int cpu_cost;
+	unsigned int cpu_cost;
+	u64 load_t;
 
-	/*
-	 * We try to find the least loaded *busy* CPU irrespective
-	 * of the power cost.
-	 */
 	if (env->pack_task)
 		cpu_cost = cpu_min_power_cost(cpu);
 
-	else
-		cpu_cost = power_cost(cpu, task_load(env->p) +
-				cpu_cravg_sync(cpu, env->sync));
+	else {
+		load_t = task_load(env->p) + env->cpu_cravg;
+		cpu_cost = power_cost(cpu, load_t);
+	}
 
 	if (cpu_cost <= stats->min_cost)
 		__update_cluster_stats(cpu, stats, env, cpu_cost);
@@ -3159,12 +3167,11 @@ static void find_best_cpu_in_cluster(struct sched_cluster *c,
 	env->need_idle = wake_to_idle(env->p) || c->wake_up_idle;
 
 	for_each_cpu(i, &search_cpus) {
-		env->cpu_load = cpu_load_sync(i, env->sync);
-
-		trace_sched_cpu_load_wakeup(cpu_rq(i), idle_cpu(i),
-			sched_irqload(i),
-			power_cost(i, task_load(env->p) +
-					cpu_cravg_sync(i, env->sync)), 0);
+		if (env->claims)
+			env->cpu_cravg = opc_cpu_cravg_sync(i, env->sync, env->op_path);
+		else
+			env->cpu_cravg = cpu_cravg_sync(i, env->sync);
+		env->cpu_load = scale_load_to_cpu(env->cpu_cravg, i);
 
 		if (skip_cpu(i, env))
 			continue;
@@ -3216,14 +3223,17 @@ bias_to_prev_cpu(struct cpu_select_env *env, struct cluster_cpu_stats *stats)
 	int prev_cpu;
 	struct task_struct *task = env->p;
 	struct sched_cluster *cluster;
+	int normal_path = env->op_path == OP_PATH_NORMAL;
 
-	if (!task->ravg.mark_start || !sched_short_sleep_task_threshold)
+	if (!task->ravg.mark_start ||
+	    (normal_path && !sched_short_sleep_task_threshold))
 		return false;
 
 	prev_cpu = env->prev_cpu;
 	if (!cpumask_test_cpu(prev_cpu, &env->search_cpus))
 		return false;
 
+	if (normal_path)
 	if (task->ravg.mark_start - task->last_cpu_selected_ts >=
 				sched_long_cpu_selection_threshold)
 		return false;
@@ -3234,6 +3244,7 @@ bias_to_prev_cpu(struct cpu_select_env *env, struct cluster_cpu_stats *stats)
 	 * p->last_switch_out_ts can denote last preemption time as well as
 	 * last sleep time.
 	 */
+	if (normal_path)
 	if (task->ravg.mark_start - task->last_switch_out_ts >=
 					sched_short_sleep_task_threshold)
 		return false;
@@ -3249,12 +3260,18 @@ bias_to_prev_cpu(struct cpu_select_env *env, struct cluster_cpu_stats *stats)
 		return false;
 	}
 
-	env->cpu_load = cpu_load_sync(prev_cpu, env->sync);
+	if (env->claims)
+		env->cpu_load = scale_load_to_cpu(opc_cpu_cravg_sync(prev_cpu, env->sync, env->op_path), prev_cpu);
+	else
+		env->cpu_load = cpu_load_sync(prev_cpu, env->sync);
+
 	if (sched_cpu_high_irqload(prev_cpu) ||
 			spill_threshold_crossed(env, cpu_rq(prev_cpu))) {
-		update_spare_capacity(stats, env, prev_cpu,
+		if (normal_path) {
+			update_spare_capacity(stats, env, prev_cpu,
 				cluster->capacity, env->cpu_load);
-		cpumask_clear_cpu(prev_cpu, &env->search_cpus);
+			cpumask_clear_cpu(prev_cpu, &env->search_cpus);
+		}
 		return false;
 	}
 
@@ -3305,6 +3322,8 @@ static int select_best_cpu(struct task_struct *p, int target, int reason,
 		.sbc_best_flag		= 0,
 		.sbc_best_cluster_flag	= 0,
 		.pack_task              = false,
+		.op_path = opc_select_path(current, p, target),
+		.claims = opc_get_claims(),
 	};
 
 	env.boost_policy = task_sched_boost(p) ?
@@ -3318,6 +3337,10 @@ static int select_best_cpu(struct task_struct *p, int target, int reason,
 
 	init_cluster_cpu_stats(&stats);
 	special = env_has_special_flags(&env);
+	if (env.op_path >= 0 && env.op_path != target) {
+		env.prev_cpu = env.op_path;
+		target = env.op_path;
+	}
 
 	rcu_read_lock();
 
@@ -3344,7 +3367,9 @@ static int select_best_cpu(struct task_struct *p, int target, int reason,
 				env.sbc_best_cluster_flag =
 							SBC_FLAG_WAKER_CLUSTER;
 			}
-		} else if (bias_to_prev_cpu(&env, &stats)) {
+		} else if (env.op_path == OP_PATH_OCCUPIED)
+			cpumask_clear_cpu(env.prev_cpu, &env.search_cpus);
+		else if (env.op_path != OP_PATH_CLAIM && bias_to_prev_cpu(&env, &stats)) {
 			sbc_flag = SBC_FLAG_PREV_CPU;
 			goto out;
 		}
@@ -3418,6 +3443,7 @@ out:
 	rcu_read_unlock();
 	trace_sched_task_load(p, sched_boost_policy() && task_sched_boost(p),
 		env.reason, env.sync, env.need_idle, sbc_flag, target);
+
 	return target;
 }
 
@@ -5844,6 +5870,7 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 	int task_new = flags & ENQUEUE_WAKEUP_NEW;
 	int task_wakeup = flags & ENQUEUE_WAKEUP;
 #endif
+	opc_task_switch(true, cpu_of(rq), p, 0);
 
 	/*
 	 * If in_iowait is set, the code below may not trigger any cpufreq
@@ -5949,6 +5976,7 @@ static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 	struct sched_entity *se = &p->se;
 	int task_sleep = flags & DEQUEUE_SLEEP;
 
+	opc_task_switch(false, cpu_of(rq), p, rq->clock);
 	for_each_sched_entity(se) {
 		cfs_rq = cfs_rq_of(se);
 		dequeue_entity(cfs_rq, se, flags);
@@ -8516,11 +8544,26 @@ static int detach_tasks(struct lb_env *env)
 	unsigned long load;
 	int detached = 0;
 	int orig_loop = env->loop;
+	int nr_to_move = 0;
+	bool opc_not_migrate, is_utf;
+	unsigned int claims = opc_get_claims();
+	int src_claim = 0;
 
 	lockdep_assert_held(&env->src_rq->lock);
 
 	if (env->imbalance <= 0)
 		return 0;
+	if (claims) {
+		src_claim = opc_get_claim_on_cpu(env->src_cpu);
+		if (src_claim){
+			if (cpu_capacity(env->dst_cpu) > cpu_capacity(env->src_cpu) ||
+			    env->dst_cpu == num_present_cpus() - 1) {
+				nr_to_move = (src_claim + 1) >> 1;
+			}
+			else
+				nr_to_move = src_claim >> 1;
+		}
+	}
 
 	if (!same_cluster(env->dst_cpu, env->src_cpu))
 		env->flags |= LBF_IGNORE_PREFERRED_CLUSTER_TASKS;
@@ -8551,7 +8594,19 @@ redo:
 			break;
 		}
 
-		if (!can_migrate_task(p, env))
+		if (src_claim) {
+			is_utf = is_opc_task(p, UT_FORE);
+			if (is_utf && !nr_to_move)
+				opc_not_migrate = true;
+			else if (opc_not_migrate)
+				opc_not_migrate = false;
+		} else {
+			if (is_utf)
+				is_utf = false;
+			if (opc_not_migrate)
+				opc_not_migrate = false;
+		}
+		if (!can_migrate_task(p, env) || opc_not_migrate)
 			goto next;
 
 		load = task_h_load(p);
@@ -8559,8 +8614,12 @@ redo:
 		if (sched_feat(LB_MIN) && load < 16 && !env->sd->nr_balance_failed)
 			goto next;
 
-		if ((load / 2) > env->imbalance)
+		if ((load / 2) > env->imbalance && !claims)
 			goto next;
+		if (is_utf) {
+			src_claim--;
+			nr_to_move--;
+		}
 
 		detach_task(p, env);
 		list_add(&p->se.group_node, &env->tasks);
@@ -8596,6 +8655,7 @@ next:
 		env->flags &= ~(LBF_IGNORE_BIG_TASKS |
 				LBF_IGNORE_PREFERRED_CLUSTER_TASKS);
 		env->loop = orig_loop;
+		src_claim = 0;
 		goto redo;
 	}
 
@@ -10149,7 +10209,8 @@ redo:
 
 	env.src_cpu = busiest->cpu;
 	env.src_rq = busiest;
-
+	if (opc_get_claim_on_cpu(busiest->cpu) == 1 && busiest->nr_running == 2)
+		goto out_balanced;
 	ld_moved = 0;
 	if (busiest->nr_running > 1) {
 		/*

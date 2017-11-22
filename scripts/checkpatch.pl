@@ -2556,15 +2556,15 @@ sub process {
 		}
 
 # Check for added, moved or deleted files
-		if (!$reported_maintainer_file && !$in_commit_log &&
-		    ($line =~ /^(?:new|deleted) file mode\s*\d+\s*$/ ||
-		     $line =~ /^rename (?:from|to) [\w\/\.\-]+\s*$/ ||
-		     ($line =~ /\{\s*([\w\/\.\-]*)\s*\=\>\s*([\w\/\.\-]*)\s*\}/ &&
-		      (defined($1) || defined($2))))) {
-			$reported_maintainer_file = 1;
-			WARN("FILE_PATH_CHANGES",
-			     "added, moved or deleted file(s), does MAINTAINERS need updating?\n" . $herecurr);
-		}
+##		if (!$reported_maintainer_file && !$in_commit_log &&
+##		    ($line =~ /^(?:new|deleted) file mode\s*\d+\s*$/ ||
+##		     $line =~ /^rename (?:from|to) [\w\/\.\-]+\s*$/ ||
+##		     ($line =~ /\{\s*([\w\/\.\-]*)\s*\=\>\s*([\w\/\.\-]*)\s*\}/ &&
+##		      (defined($1) || defined($2))))) {
+##			$reported_maintainer_file = 1;
+##			WARN("FILE_PATH_CHANGES",
+##			     "added, moved or deleted file(s), does MAINTAINERS need updating?\n" . $herecurr);
+##		}
 
 #check the patch for invalid author credentials
 		if ($chk_author && !($line =~ /^From:.*qca\.qualcomm\.com/) &&
@@ -3650,18 +3650,18 @@ sub process {
 		}
 
 # avoid BUG() or BUG_ON()
-		if ($line =~ /\b(?:BUG|BUG_ON)\b/) {
-			my $msg_type = \&WARN;
-			$msg_type = \&CHK if ($file);
-			&{$msg_type}("AVOID_BUG",
-				     "Avoid crashing the kernel - try using WARN_ON & recovery code rather than BUG() or BUG_ON()\n" . $herecurr);
-		}
+##		if ($line =~ /\b(?:BUG|BUG_ON)\b/) {
+##			my $msg_type = \&WARN;
+##			$msg_type = \&CHK if ($file);
+##			&{$msg_type}("AVOID_BUG",
+##				     "Avoid crashing the kernel - try using WARN_ON & recovery code rather than BUG() or BUG_ON()\n" . $herecurr);
+##		}
 
 # avoid LINUX_VERSION_CODE
-		if ($line =~ /\bLINUX_VERSION_CODE\b/) {
-			WARN("LINUX_VERSION_CODE",
-			     "LINUX_VERSION_CODE should be avoided, code should be for the version to which it is merged\n" . $herecurr);
-		}
+#		if ($line =~ /\bLINUX_VERSION_CODE\b/) {
+#			WARN("LINUX_VERSION_CODE",
+#			     "LINUX_VERSION_CODE should be avoided, code should be for the version to which it is merged\n" . $herecurr);
+#		}
 
 # check for uses of printk_ratelimit
 		if ($line =~ /\bprintk_ratelimit\s*\(/) {

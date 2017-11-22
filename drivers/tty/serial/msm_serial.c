@@ -39,6 +39,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/wait.h>
+#include <linux/miscdevice.h>
 
 #define UART_MR1			0x0000
 
@@ -160,6 +161,22 @@
 #define UARTDM_TX_AIGN(x)		((x) & ~0x3) /* valid for > 1p3 */
 #define UARTDM_TX_MAX			256   /* in bytes, valid for <= 1p3 */
 #define UARTDM_RX_SIZE			(UART_XMIT_SIZE / 4)
+
+/*zyh we use dynamic add console , so we can't use __init  __exit,
+*this will cause can't find func
+*/
+#ifdef __init
+#undef __init
+#endif
+
+#ifdef __exit
+#undef __exit
+#endif
+
+#define __init
+#define __exit
+
+
 
 enum {
 	UARTDM_1P1 = 1,
@@ -1729,6 +1746,31 @@ msm_serial_early_console_setup_dm(struct earlycon_device *device,
 OF_EARLYCON_DECLARE(msm_serial_dm, "qcom,msm-uartdm",
 		    msm_serial_early_console_setup_dm);
 
+/*Anderson-Config_UARTPIN_as_GPIO+[*/
+
+struct oemconsole {
+	bool default_console;
+	bool force_console;
+	bool console_initialized;
+};
+
+static struct oemconsole oem_console  = {
+	.default_console       = false,
+	.force_console         = false,
+	.console_initialized   = false,
+};
+
+
+static int __init parse_console_config(char *str)
+{
+	if(str != NULL){
+		oem_console.default_console = true;
+	}
+	return 0;
+}
+early_param("console", parse_console_config);
+/*Anderson-Config_UARTPIN_as_GPIO+]*/
+
 static struct uart_driver msm_uart_driver;
 
 static struct console msm_console = {
@@ -1772,6 +1814,10 @@ static int msm_serial_probe(struct platform_device *pdev)
 	struct uart_port *port;
 	const struct of_device_id *id;
 	int irq, line;
+	/*Anderson-Config_UARTPIN_as_GPIO+[*/
+	struct pinctrl *pinctrl = NULL;
+	struct pinctrl_state *set_state = NULL;
+	/*Anderson-Config_UARTPIN_as_GPIO+]*/
 
 	if (pdev->dev.of_node)
 		line = of_alias_get_id(pdev->dev.of_node, "serial");
@@ -1789,6 +1835,24 @@ static int msm_serial_probe(struct platform_device *pdev)
 	port = msm_get_port_from_line(line);
 	port->dev = &pdev->dev;
 	msm_port = UART_TO_MSM(port);
+
+	/*Anderson-Config_UARTPIN_as_GPIO+[*/
+	pinctrl = devm_pinctrl_get(port->dev);
+	if (pinctrl != NULL) {
+		if (!oem_console.default_console &&
+			!oem_console.force_console) {
+			set_state = pinctrl_lookup_state(pinctrl,
+											"uart_deactive");
+			if(set_state != NULL)
+				pinctrl_select_state(pinctrl, set_state);
+		} else {
+			set_state = pinctrl_lookup_state(pinctrl,
+											"uart_active");
+			if (set_state != NULL)
+				pinctrl_select_state(pinctrl, set_state);
+		}
+	}
+	/*Anderson-Config_UARTPIN_as_GPIO+]*/
 
 	id = of_match_device(msm_uartdm_table, &pdev->dev);
 	if (id)
@@ -1828,6 +1892,7 @@ static int msm_serial_remove(struct platform_device *pdev)
 {
 	struct uart_port *port = platform_get_drvdata(pdev);
 
+	msm_power(port,3,0);
 	uart_remove_one_port(&msm_uart_driver, port);
 
 	return 0;
@@ -1873,11 +1938,29 @@ static struct platform_driver msm_platform_driver = {
 		.pm = &msm_serial_pm_ops,
 	},
 };
-
+static int  msm_serial_pinctrl_init(void);
 static int __init msm_serial_init(void)
 {
-	int ret;
+	int ret = 0;
 
+	pr_err("%s\n", __func__);
+	if (oem_console.console_initialized == 1) {
+		pr_err("%s int=%d\n", __func__,
+			oem_console.console_initialized);
+		return 0;
+	}
+
+	if (!oem_console.default_console && !oem_console.force_console) {
+		pr_err("don'tinit serial %s force_console=%d default_console=%d\n",
+			__func__, oem_console.force_console,
+			oem_console.default_console);
+		/*
+		*zyh we set serial gpio pown down,
+		*use register unregister will cause boot up slow
+		*/
+		msm_serial_pinctrl_init();
+		return 0;
+	}
 	ret = uart_register_driver(&msm_uart_driver);
 	if (unlikely(ret))
 		return ret;
@@ -1885,18 +1968,191 @@ static int __init msm_serial_init(void)
 	ret = platform_driver_register(&msm_platform_driver);
 	if (unlikely(ret))
 		uart_unregister_driver(&msm_uart_driver);
-
-	pr_info("msm_serial: driver initialized\n");
+	/*Anderson-Config_UARTPIN_as_GPIO*[*/
+	if (!oem_console.default_console && !oem_console.force_console) {
+		platform_driver_unregister(&msm_platform_driver);
+		uart_unregister_driver(&msm_uart_driver);
+		pr_info("msm_platform_driver and msm_uart_driver unregister\n");
+	} else {
+		oem_console.console_initialized = 1;
+		pr_info("msm_serial: driver initialized\n");
+	}
+	/*Anderson-Config_UARTPIN_as_GPIO*]*/
 
 	return ret;
 }
 
 static void __exit msm_serial_exit(void)
 {
+	pr_err("%s\n", __func__);
+
+	if (oem_console.console_initialized == 0) {
+		pr_err("msm_serial: driver already exit %s int=%d\n",
+		__func__, oem_console.console_initialized);
+		return;
+	}
+	oem_console.console_initialized = 0;
 	platform_driver_unregister(&msm_platform_driver);
 	uart_unregister_driver(&msm_uart_driver);
 }
 
+static int msm_serial_pinctrl_probe(struct platform_device *pdev)
+{
+
+	struct pinctrl *pinctrl = NULL;
+	struct pinctrl_state *set_state = NULL;
+	struct device *dev = &pdev->dev;
+
+	pr_err("%s\n", __func__);
+	pinctrl = devm_pinctrl_get(dev);
+
+	if (pinctrl != NULL) {
+
+		set_state = pinctrl_lookup_state(
+				pinctrl, "uart_pinctrl_deactive");
+
+		if (set_state != NULL)
+			pinctrl_select_state(pinctrl, set_state);
+
+		devm_pinctrl_put(pinctrl);
+	}
+	return 0;
+}
+
+static int msm_serial_pinctrl_remove(struct platform_device *pdev)
+{
+	return 0;
+}
+
+
+static const struct of_device_id oem_serial_pinctrl_of_match[] = {
+	{ .compatible = "oem,oem_serial_pinctrl" },
+	{}
+};
+
+
+static struct platform_driver msm_platform_serial_pinctrl_driver = {
+	.remove = msm_serial_pinctrl_remove,
+	.probe = msm_serial_pinctrl_probe,
+	.driver = {
+		.name = "oem_serial_pinctrl",
+	   .of_match_table = oem_serial_pinctrl_of_match,
+	},
+};
+
+static int	msm_serial_pinctrl_init(void)
+{
+	int ret = 0;
+
+	pr_err("%s\n", __func__);
+
+	ret = platform_driver_register(&msm_platform_serial_pinctrl_driver);
+
+	return ret;
+}
+
+#define OEM_SERIAL_MAGIC 0xEA
+#define OEM_FORCE_SERIAL_OPEN	 _IOW(OEM_SERIAL_MAGIC, 0x01, int)
+#define OEM_FORCE_SERIAL_CLOSE	 _IOW(OEM_SERIAL_MAGIC, 0x02, int)
+#define SERIAL_CMDLINE "ttyMSM0,115200,n8"
+
+struct miscdevice	fore_serial_device;
+char oem_force_cmdline_str[60];
+
+int  msm_serial_oem_init(void)
+{
+	int ret = 0;
+
+	pr_err("%s\n", __func__);
+	oem_console.force_console = true;
+	memcpy(oem_force_cmdline_str, SERIAL_CMDLINE, sizeof(SERIAL_CMDLINE));
+	force_oem_console_setup(&oem_force_cmdline_str[0]);
+	msm_serial_init();
+	return ret;
+}
+EXPORT_SYMBOL(msm_serial_oem_init);
+
+void  msm_serial_oem_exit(void)
+{
+	pr_err("%s\n", __func__);
+	msm_serial_exit();
+	oem_console.force_console = false;
+}
+EXPORT_SYMBOL(msm_serial_oem_exit);
+
+static ssize_t oem_force_serial_dev_read
+(struct file *filp, char __user *buf, size_t count, loff_t *offset)
+{
+	return 0;
+}
+
+static ssize_t oem_force_serial_dev_write
+(struct file *filp, const char __user *buf, size_t count, loff_t *offset)
+{
+	return 0;
+}
+
+static int oem_force_serial_dev_open
+(struct inode *inode, struct file *filp)
+{
+	return 0;
+}
+
+static long  oem_force_serial_dev_ioctl
+(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+	pr_info("%s : cmd = %d, arg = %ld\n", __func__, _IOC_NR(cmd), arg);
+	switch (cmd) {
+	case OEM_FORCE_SERIAL_OPEN:
+	   msm_serial_oem_init();
+	   break;
+	case OEM_FORCE_SERIAL_CLOSE:
+	   msm_serial_oem_exit();
+	   break;
+	}
+	return 0;
+}
+
+static const struct file_operations oem_force_serial_dev_fops = {
+	.owner	= THIS_MODULE,
+	.read	= oem_force_serial_dev_read,
+	.write	= oem_force_serial_dev_write,
+	.open	= oem_force_serial_dev_open,
+	.unlocked_ioctl  = oem_force_serial_dev_ioctl,
+};
+
+static int oem_force_serial_probe(struct platform_device *pdev)
+{
+	int ret = 0;
+
+	pr_err("%s\n", __func__);
+	fore_serial_device.minor = MISC_DYNAMIC_MINOR;
+	fore_serial_device.name = "oem_force_serial";
+	fore_serial_device.fops = &oem_force_serial_dev_fops;
+
+	ret = misc_register(&fore_serial_device);
+
+	if (ret)
+		pr_err("%s : misc_register failed\n", __func__);
+
+	return ret;
+}
+
+static const struct of_device_id oem_force_serial_of_match[] = {
+	{.compatible = "oem,force_serial" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, oem_force_serial_of_match);
+
+static struct platform_driver oem_force_serial_driver = {
+	.driver = {
+		.name		= "force_serial",
+		.owner		= THIS_MODULE,
+		.of_match_table = oem_force_serial_of_match,
+	},
+	.probe = oem_force_serial_probe,
+};
+module_platform_driver(oem_force_serial_driver);
 module_init(msm_serial_init);
 module_exit(msm_serial_exit);
 

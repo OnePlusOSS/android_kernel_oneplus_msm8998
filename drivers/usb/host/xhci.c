@@ -115,8 +115,10 @@ int xhci_halt(struct xhci_hcd *xhci)
 	if (!ret) {
 		xhci->xhc_state |= XHCI_STATE_HALTED;
 	} else {
-		xhci_warn(xhci, "Host not halted after %u microseconds.\n",
-				XHCI_MAX_HALT_USEC);
+
+		//Anderson@, 2016/07/01, If host controller is not halted, otg can't work
+		xhci_warn(xhci, "Host not halted after %u microseconds. ret:%d\n",
+				XHCI_MAX_HALT_USEC, ret);
 	}
 
 	xhci->cmd_ring_state = CMD_RING_STATE_STOPPED;
@@ -955,6 +957,19 @@ int xhci_suspend(struct xhci_hcd *xhci, bool do_wakeup)
 		xhci_warn(xhci, "WARN: xHC CMD_RUN timeout\n");
 		spin_unlock_irq(&xhci->lock);
 		return -ETIMEDOUT;
+	}
+	if ((readl(&xhci->op_regs->status) & STS_EINT) ||
+			(readl(&xhci->op_regs->status) & STS_PORT)) {
+		xhci_warn(xhci, "WARN: xHC EINT/PCD set status:%x\n",
+			readl(&xhci->op_regs->status));
+		set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
+		set_bit(HCD_FLAG_HW_ACCESSIBLE, &xhci->shared_hcd->flags);
+		/* step 4: set Run/Stop bit */
+		command = readl(&xhci->op_regs->command);
+		command |= CMD_RUN;
+		writel(command, &xhci->op_regs->command);
+		spin_unlock_irq(&xhci->lock);
+		return -EBUSY;
 	}
 	xhci_clear_command_ring(xhci);
 
@@ -2811,6 +2826,12 @@ int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 	xhci_dbg(xhci, "New Input Control Context:\n");
 	xhci_dbg_ctx(xhci, virt_dev->in_ctx,
 		     LAST_CTX_TO_EP_NUM(le32_to_cpu(slot_ctx->dev_info)));
+
+	//Anderson@, 2016/07/01, If host controller is not halted, otg can't work
+	if(hcd->state == HC_STATE_QUIESCING){
+		xhci_warn(xhci, "hcd->state:%d\n",hcd->state);
+		goto command_cleanup;
+	}
 
 	ret = xhci_configure_endpoint(xhci, udev, command,
 			false, false);

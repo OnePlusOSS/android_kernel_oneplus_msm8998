@@ -1,0 +1,16 @@
+config OEM_DEBUG_SUPPORT
+        bool
+        default y
+
+config OEM_TRACE_SUPPORT
+	default y
+	depends on OEM_DEBUG_SUPPORT
+	bool "OEM debug function, enable it will register the device, which under /dev/otracer."
+
+config OEM_SYSRQ_X
+	default y
+	depends on OEM_DEBUG_SUPPORT
+	bool "echo x > /proc/sysrq-trigger to get init process stacktrace"
+
+source "drivers/oneplus/coretech/Kconfig"
+source "drivers/oneplus/coretech/Kconfig"

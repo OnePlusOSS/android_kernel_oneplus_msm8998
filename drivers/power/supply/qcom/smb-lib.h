@@ -17,6 +17,9 @@
 #include <linux/irqreturn.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/consumer.h>
+/* david.liu@bsp, 20161014 Add charging standard */
+#include <linux/power/oem_external_fg.h>
+#include <linux/wakelock.h>
 #include <linux/extcon.h>
 #include "storm-watch.h"
 
@@ -26,7 +29,23 @@ enum print_reason {
 	PR_MISC		= BIT(2),
 	PR_PARALLEL	= BIT(3),
 	PR_OTG		= BIT(4),
+	PR_OP_DEBUG	= BIT(5),
 };
+
+/* david.liu@bsp, 20161014 Add charging standard */
+#define BATT_TYPE_FCC_VOTER "BATT_TYPE_FCC_VOTER"
+#define PSY_ICL_VOTER		"PSY_ICL_VOTER"
+#define TEMP_REGION_MAX               9
+#define NON_STANDARD_CHARGER_CHECK_S 90
+#define TIME_1000MS 1000
+#define REDET_COUTNT 5
+#define APSD_CHECK_COUTNT 15
+#define DASH_CHECK_COUNT 4
+#define BOOST_BACK_COUNT 8
+#define TIME_200MS 200
+#define TIME_100MS 100
+
+#define TIME_3S 3000
 
 #define DEFAULT_VOTER			"DEFAULT_VOTER"
 #define USER_VOTER			"USER_VOTER"
@@ -243,6 +262,7 @@ struct smb_charger {
 	struct mutex		ps_change_lock;
 	struct mutex		otg_oc_lock;
 	struct mutex		vconn_oc_lock;
+	struct mutex		sw_dash_lock;
 
 	/* power supplies */
 	struct power_supply		*batt_psy;
@@ -256,6 +276,9 @@ struct smb_charger {
 
 	/* notifiers */
 	struct notifier_block	nb;
+#if defined(CONFIG_FB)
+	struct notifier_block		fb_notif;
+#endif /* CONFIG_FB */
 
 	/* parallel charging */
 	struct parallel_params	pl;
@@ -289,6 +312,17 @@ struct smb_charger {
 	struct work_struct	rdstd_cc2_detach_work;
 	struct delayed_work	hvdcp_detect_work;
 	struct delayed_work	ps_change_timeout_work;
+/* david.liu@bsp, 20160926 Add dash charging */
+	struct delayed_work rechk_sw_dsh_work;
+	struct delayed_work	re_kick_work;
+	struct delayed_work	recovery_suspend_work;
+	struct delayed_work	check_switch_dash_work;
+	struct delayed_work non_standard_charger_check_work;
+	struct delayed_work heartbeat_work;
+	struct delayed_work re_det_work;
+	struct delayed_work op_re_set_work;
+	struct delayed_work	op_check_apsd_work;
+	struct wake_lock	chg_wake_lock;
 	struct delayed_work	clear_hdc_work;
 	struct work_struct	otg_oc_work;
 	struct work_struct	vconn_oc_work;
@@ -300,6 +334,67 @@ struct smb_charger {
 	struct delayed_work	bb_removal_work;
 
 	/* cached status */
+/* david.liu@bsp, 20160926 Add dash charging */
+	int				BATT_TEMP_T0;
+	int				BATT_TEMP_T1;
+	int				BATT_TEMP_T2;
+	int				BATT_TEMP_T3;
+	int				BATT_TEMP_T4;
+	int				BATT_TEMP_T5;
+	int				BATT_TEMP_T6;
+	int				batt_health;
+	int				ibatmax[TEMP_REGION_MAX];
+	int				vbatmax[TEMP_REGION_MAX];
+	int				vbatdet[TEMP_REGION_MAX];
+	int				fake_chgvol;
+	int				fake_temp;
+	int				fake_protect_sts;
+	int				non_stand_chg_current;
+	int				non_stand_chg_count;
+	int				redet_count;
+	int				reset_count;
+	int				dump_count;
+	int				ck_apsd_count;
+	int				ck_dash_count;
+	int				recovery_boost_count;
+
+	bool				otg_switch;
+	bool				use_fake_chgvol;
+	bool				use_fake_temp;
+	bool				use_fake_protect_sts;
+	bool				vbus_present;
+	bool				hvdcp_present;
+	bool				dash_present;
+	bool				charger_collpse;
+	bool				usb_enum_status;
+	bool				non_std_chg_present;
+	bool				usb_type_redet_done;
+	bool				time_out;
+	bool				disable_normal_chg_for_dash;
+	bool				ship_mode;
+	bool				dash_on;
+	bool				chg_ovp;
+	bool				is_power_changed;
+	bool				recharge_pending;
+	bool				recharge_status;
+	bool temp_littel_cool_set_current_0_point_25c;
+	bool				oem_lcd_is_on;
+	bool				chg_enabled;
+	bool				pd_disabled;
+	bool				op_apsd_done;
+	bool				re_trigr_dash_done;
+	bool				boot_usb_present;
+	bool				is_aging_test;
+	bool				revert_boost_trigger;
+	enum temp_region_type		mBattTempRegion;
+	enum batt_status_type		battery_status;
+	short				mBattTempBoundT0;
+	short				mBattTempBoundT1;
+	short				mBattTempBoundT2;
+	short				mBattTempBoundT3;
+	short				mBattTempBoundT4;
+	short				mBattTempBoundT5;
+	short				mBattTempBoundT6;
 	int			voltage_min_uv;
 	int			voltage_max_uv;
 	int			pd_active;
@@ -354,6 +449,13 @@ struct smb_charger {
 	int			usb_icl_delta_ua;
 	int			pulse_cnt;
 };
+int smblib_set_prop_charge_parameter_set(struct smb_charger *chg);
+extern void set_mcu_en_gpio_value(int value);
+extern void usb_sw_gpio_set(int value);
+extern bool op_set_fast_chg_allow(struct smb_charger *chg, bool enable);
+extern bool get_prop_fast_chg_started(struct smb_charger *chg);
+extern void mcu_en_gpio_set(int value);
+extern void switch_mode_to_normal(void);
 
 int smblib_read(struct smb_charger *chg, u16 addr, u8 *val);
 int smblib_masked_write(struct smb_charger *chg, u16 addr, u8 mask, u8 val);
@@ -434,6 +536,29 @@ int smblib_set_prop_batt_capacity(struct smb_charger *chg,
 				const union power_supply_propval *val);
 int smblib_set_prop_system_temp_level(struct smb_charger *chg,
 				const union power_supply_propval *val);
+/* david.liu@bsp, 20160926 Add dash charging */
+int get_prop_fast_adapter_update(struct smb_charger *chg);
+void op_handle_usb_plugin(struct smb_charger *chg);
+int op_rerun_apsd(struct smb_charger *chg);
+irqreturn_t smblib_handle_aicl_done(int irq, void *data);
+void op_charge_info_init(struct smb_charger *chg);
+int update_dash_unplug_status(void);
+int get_prop_batt_status(struct smb_charger *chg);
+int get_prop_chg_protect_status(struct smb_charger *chg);
+int op_set_prop_otg_switch(struct smb_charger *chg,
+				const union power_supply_propval *val);
+int check_allow_switch_dash(struct smb_charger *chg,
+				const union power_supply_propval *val);
+int smblib_set_prop_chg_voltage(struct smb_charger *chg,
+				const union power_supply_propval *val);
+int smblib_set_prop_batt_temp(struct smb_charger *chg,
+				const union power_supply_propval *val);
+int smblib_set_prop_chg_protect_status(struct smb_charger *chg,
+				const union power_supply_propval *val);
+bool op_get_fastchg_ing(struct smb_charger *chg);
+bool get_prop_fastchg_status(struct smb_charger *chg);
+int op_usb_icl_set(struct smb_charger *chg, int icl_ua);
+int op_get_aicl_result(struct smb_charger *chg);
 int smblib_set_prop_input_current_limited(struct smb_charger *chg,
 				const union power_supply_propval *val);
 

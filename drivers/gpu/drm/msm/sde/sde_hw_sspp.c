@@ -903,7 +903,6 @@ static struct sde_sspp_cfg *_sspp_offset(enum sde_sspp sspp,
 			if (sspp == catalog->sspp[i].id) {
 				b->base_off = addr;
 				b->blk_off = catalog->sspp[i].base;
-				b->length = catalog->sspp[i].len;
 				b->hwversion = catalog->hwversion;
 				b->log_mask = SDE_DBG_MASK_SSPP;
 				return &catalog->sspp[i];
@@ -918,26 +917,26 @@ struct sde_hw_pipe *sde_hw_sspp_init(enum sde_sspp idx,
 			void __iomem *addr,
 			struct sde_mdss_cfg *catalog)
 {
-	struct sde_hw_pipe *hw_pipe;
+	struct sde_hw_pipe *ctx;
 	struct sde_sspp_cfg *cfg;
 
-	hw_pipe = kzalloc(sizeof(*hw_pipe), GFP_KERNEL);
-	if (!hw_pipe)
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 
-	cfg = _sspp_offset(idx, addr, catalog, &hw_pipe->hw);
+	cfg = _sspp_offset(idx, addr, catalog, &ctx->hw);
 	if (IS_ERR_OR_NULL(cfg)) {
-		kfree(hw_pipe);
+		kfree(ctx);
 		return ERR_PTR(-EINVAL);
 	}
 
 	/* Assign ops */
-	hw_pipe->idx = idx;
-	hw_pipe->cap = cfg;
-	_setup_layer_ops(hw_pipe, hw_pipe->cap->features);
-	hw_pipe->highest_bank_bit = catalog->mdp[0].highest_bank_bit;
+	ctx->idx = idx;
+	ctx->cap = cfg;
+	_setup_layer_ops(ctx, ctx->cap->features);
+	ctx->highest_bank_bit = catalog->mdp[0].highest_bank_bit;
 
-	return hw_pipe;
+	return ctx;
 }
 
 void sde_hw_sspp_destroy(struct sde_hw_pipe *ctx)

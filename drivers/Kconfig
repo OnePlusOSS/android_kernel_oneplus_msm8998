@@ -211,5 +211,8 @@ source "drivers/firmware/Kconfig"
 source "drivers/bif/Kconfig"
 
 source "drivers/sensors/Kconfig"
-
+#porting for support oem trace,2015/10/27
+source "drivers/oneplus/Kconfig"
+# liochen@filesystem,2017/09/10, support param partion read/write
+source "drivers/param_read_write/Kconfig"
 endmenu

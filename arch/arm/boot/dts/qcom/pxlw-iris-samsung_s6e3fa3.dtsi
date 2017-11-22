@@ -1,0 +1,87 @@
+/*---------------------------------------------------------------------------
+ *						Iris2p Setting for Samsung S6e3fa3 Panel
+ *---------------------------------------------------------------------------*/
+     /* iris mipi mode */
+		 qcom,iris-mipitx-type = "dsi_cmd_mode"; /* dsi_video_mode/dsi_cmd_mode */
+     qcom,iris-mipirx-channel = <0x1>;    /*dual channel*/
+     qcom,iris-mipitx-channel = <0x1>;
+     qcom,iris-mipirx-dsc = <0x0>;        /*non DSC*/
+     qcom,iris-mipitx-dsc = <0x0>;
+     qcom,iris-mipirx-pxl-mode = <0x0>;
+     qcom,iris-mipitx-pxl-mode = <0x1>;
+
+     qcom,mdss-dsi-on-command-to-video-panel = [
+              05 01 00 00 32 00 02 11 00
+              29 01 00 00 00 00 03 F0 5A 5A
+              29 01 00 00 00 00 02 B9 01
+              29 01 00 00 00 00 03 F0 A5 A5
+              29 01 00 00 00 00 03 F0 5A 5A
+              29 01 00 00 00 00 03 FC 5A 5A
+              29 01 00 00 00 00 03 F4 00 01
+              29 01 00 00 00 00 02 C0 32
+              29 01 00 00 00 00 02 F7 03
+              29 01 00 00 00 00 03 F0 A5 A5
+              29 01 00 00 00 00 03 FC A5 A5
+              29 01 00 00 00 00 02 53 20
+              29 01 00 00 00 00 02 57 40
+              29 01 00 00 00 00 02 55 00
+              //05 01 00 00 10 00 02 29 00
+     ];
+     qcom,mdss-dsi-on-command-to-video-panel-state = "dsi_lp_mode";
+
+		qcom,mdss-dsi-off-command-to-video-panel = [
+			39 01 00 00 32 00 02 28 00
+			39 01 00 00 78 00 02 10 00
+		];
+		qcom,mdss-dsi-off-command-to-video-panel-state = "dsi_hs_mode";
+
+     qcom,mdss-dsi-on-command-to-iris-mipirx = [
+              15 01 00 00 01 00 02 3a 77 /* rgb_888 */
+              15 01 00 00 01 00 02 35 00 /* set tearing on */
+              39 01 00 00 01 00 05 2a 00 00 04 37
+              39 01 00 00 01 00 05 2b 00 00 07 7f
+     ];
+     qcom,mdss-dsi-on-command-to-iris-mipirx-state = "dsi_hs_mode";
+    /* iris sys */
+		qcom,iris-pll-setting = <
+		0x0002 0x430901 0x655555 /*PPLL_CTRL0 PPLL_CTRL1 PPLL_CTRL2*/
+		0x2002 0x201101 0x41D97F /*DPLL_CTRL0 DPLL_CTRL1 DPLL_CTRL2*/
+		0x003f 0x3E0901 0x800000 /*MPLL_CTRL0 MPLL_CTRL1 MPLL_CTRL2*/
+		0x0000 0x000002 0x000000 /*TXPLL_DIV  TXPLL_SEL  reserved*/
+		>;
+		qcom,iris-clock-setting = [01 01 09 12 09 72]; /* Dclk Inclk Mcuclk Pclk Mclk Escclk */
+
+		iris,analog-bypass-mode-enabled;
+
+		/* iris mipi rx */
+		qcom,mipirx-dsi-functional-program = <0x64>;
+		qcom,mipirx-data-lane-timing-param = <0xFF08>;
+		qcom,mipirx-eot-ecc-crc-disable = <0x7>;
+
+		/* iris2p mipitx */
+		qcom,mipitx-dsi-tx-ctrl = <0xA00C139>;
+		qcom,mipitx-hs-tx-timer = <0x762125>;
+		qcom,mipitx-bta-lp-timer = <0xFFFF17>;
+		qcom,mipitx-initialization-reset-timer = <0xA8C078F>;
+		qcom,mipitx-dphy-timing-margin = <0x40401>;
+		qcom,mipitx-lp-timing-para = <0xE010006>;
+		qcom,mipitx-data-lane-timing-param1 = <0x120B1005>;
+		qcom,mipitx-clock-lane-timing-param = <0x120A2805>;
+		qcom,mipitx-dphy-pll-para = <0x78F>;
+		qcom,mipitx-dphy-trim-1 = <0xEDB5380C>;
+
+
+		/*iris out timing*/
+		qcom,iris-out-panel-width = <1080>;
+		qcom,iris-out-panel-height = <1920>;
+		qcom,iris-out-h-pulse-width = <19>;
+		qcom,iris-out-h-back-porch = <70>;
+		qcom,iris-out-h-front-porch = <120>;
+		qcom,iris-out-v-pulse-width = <2>;
+		qcom,iris-out-v-back-porch = <4>;
+		qcom,iris-out-v-front-porch = <76>;
+
+		qcom,iris-delta-period-min = <50>;
+		qcom,iris-delta-period-max = <58>;
+		qcom,iris-reset-sequence = <0 3>,<1 2>;
+		qcom,iris-enabled;

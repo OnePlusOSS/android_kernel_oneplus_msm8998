@@ -1081,15 +1081,9 @@ static ssize_t oom_adj_write(struct file *file, const char __user *buf,
 		goto out;
 	}
 
-	task_lock(task);
-	if (!task->mm) {
-		err = -EINVAL;
-		goto err_task_lock;
-	}
-
 	if (!lock_task_sighand(task, &flags)) {
 		err = -ESRCH;
-		goto err_task_lock;
+		goto err_put_task;
 	}
 
 	/*
@@ -1119,8 +1113,7 @@ static ssize_t oom_adj_write(struct file *file, const char __user *buf,
 	trace_oom_score_adj_update(task);
 err_sighand:
 	unlock_task_sighand(task, &flags);
-err_task_lock:
-	task_unlock(task);
+err_put_task:
 	put_task_struct(task);
 out:
 	return err < 0 ? err : count;
@@ -1184,15 +1177,9 @@ static ssize_t oom_score_adj_write(struct file *file, const char __user *buf,
 		goto out;
 	}
 
-	task_lock(task);
-	if (!task->mm) {
-		err = -EINVAL;
-		goto err_task_lock;
-	}
-
 	if (!lock_task_sighand(task, &flags)) {
 		err = -ESRCH;
-		goto err_task_lock;
+		goto err_put_task;
 	}
 
 	if ((short)oom_score_adj < task->signal->oom_score_adj_min &&
@@ -1208,8 +1195,7 @@ static ssize_t oom_score_adj_write(struct file *file, const char __user *buf,
 
 err_sighand:
 	unlock_task_sighand(task, &flags);
-err_task_lock:
-	task_unlock(task);
+err_put_task:
 	put_task_struct(task);
 out:
 	return err < 0 ? err : count;
@@ -3090,7 +3076,7 @@ static const struct pid_entry tgid_base_stuff[] = {
 #endif
 	ONE("oom_score",  S_IRUGO, proc_oom_score),
 	REG("oom_adj",    S_IRUSR, proc_oom_adj_operations),
-	REG("oom_score_adj", S_IRUSR, proc_oom_score_adj_operations),
+	REG("oom_score_adj", S_IRUGO, proc_oom_score_adj_operations),
 #ifdef CONFIG_AUDITSYSCALL
 	REG("loginuid",   S_IWUSR|S_IRUGO, proc_loginuid_operations),
 	REG("sessionid",  S_IRUGO, proc_sessionid_operations),

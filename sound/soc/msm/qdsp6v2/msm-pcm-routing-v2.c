@@ -14871,7 +14871,7 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"TERT_MI2S_RX_DL_HL", "Switch", "TERT_MI2S_DL_HL"},
 	{"TERT_MI2S_RX", NULL, "TERT_MI2S_RX_DL_HL"},
 
-	{"QUAT_MI2S_RX_DL_HL", "Switch", "QUAT_MI2S_DL_HL"},
+	{"QUAT_MI2S_RX_DL_HL", "Switch", "SLIM0_DL_HL"},
 	{"QUAT_MI2S_RX", NULL, "QUAT_MI2S_RX_DL_HL"},
 	{"MI2S_UL_HL", NULL, "TERT_MI2S_TX"},
 	{"INT3_MI2S_UL_HL", NULL, "INT3_MI2S_TX"},
@@ -16200,8 +16200,7 @@ int msm_routing_set_downmix_control_data(int be_id, int session_id,
 	uint16_t ii;
 	uint16_t *dst_gain_ptr = NULL;
 
-	if (be_id < MSM_BACKEND_DAI_PRI_I2S_RX ||
-	    be_id >= MSM_BACKEND_DAI_MAX) {
+	if (be_id >= MSM_BACKEND_DAI_MAX) {
 		rc = -EINVAL;
 		return rc;
 	}

@@ -94,6 +94,16 @@ config POWER_RESET_QCOM
 	help
 	  Power off and restart support for Qualcomm boards.
 
+#ifdef VENDOR_EIDT
+config DLOAD_MODE_DEFAULT
+	bool "Qualcomm download mode default"
+	depends on POWER_RESET_QCOM
+	help
+		This makes the SoC enter download mode when it resets
+		due to a kernel panic. Note that this doesn't by itself
+		make the kernel reboot on a kernel panic - that must be
+		enabled via another mechanism.
+#endif
 config QCOM_DLOAD_MODE
 	bool "Qualcomm download mode"
 	depends on POWER_RESET_QCOM

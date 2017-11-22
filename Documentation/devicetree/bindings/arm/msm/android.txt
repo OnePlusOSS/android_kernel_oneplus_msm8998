@@ -17,7 +17,7 @@ fstab entry to specify mount attributes of vendor partition.
 Required properties:
 
 -compatible: "android,fstab"
-
+-compatible: "android,system"
 Child nodes:
 ------------
 
@@ -49,6 +49,9 @@ Example:
 					fsmgr_flags = "wait,slotselect";
 					status = "ok";
 				};
+				system {
+					compatible = "android,system";
+				}
 			};
 		};
 	};

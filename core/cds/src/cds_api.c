@@ -423,9 +423,10 @@ QDF_STATUS cds_open(void)
 		status = QDF_STATUS_E_FAILURE;
 		goto err_sched_close;
 	}
-	hdd_enable_fastpath(pHddCtx->config, scn);
-	hdd_wlan_update_target_info(pHddCtx, scn);
 
+	hdd_enable_fastpath(pHddCtx->config, scn);
+
+	/* Initialize BMI and Download firmware */
 	ol_ctx = cds_get_context(QDF_MODULE_ID_BMI);
 	/* Initialize BMI and Download firmware */
 	status = bmi_download_firmware(ol_ctx);
@@ -434,6 +435,9 @@ QDF_STATUS cds_open(void)
 			  "BMI FIALED status:%d", status);
 		goto err_bmi_close;
 	}
+
+	hdd_wlan_update_target_info(pHddCtx, scn);
+
 	htcInfo.pContext = ol_ctx;
 	htcInfo.TargetFailure = ol_target_failure;
 	htcInfo.TargetSendSuspendComplete = wma_target_suspend_acknowledge;

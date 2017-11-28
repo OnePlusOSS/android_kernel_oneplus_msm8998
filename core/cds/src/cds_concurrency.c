@@ -9910,21 +9910,6 @@ QDF_STATUS cds_get_valid_chan_weights(struct sir_pcl_chan_weights *weight,
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	if (!weight->pcl_list) {
-		cds_err("Invalid pcl");
-		return QDF_STATUS_E_FAILURE;
-	}
-
-	if (!weight->saved_chan_list) {
-		cds_err("Invalid valid channel list");
-		return QDF_STATUS_E_FAILURE;
-	}
-
-	if (!weight->weighed_valid_list) {
-		cds_err("Invalid weighed valid channel list");
-		return QDF_STATUS_E_FAILURE;
-	}
-
 	qdf_mem_set(weight->weighed_valid_list, QDF_MAX_NUM_CHAN,
 		    WEIGHT_OF_DISALLOWED_CHANNELS);
 	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);

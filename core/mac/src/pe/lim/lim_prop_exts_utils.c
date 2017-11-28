@@ -333,7 +333,7 @@ lim_check_vendor_ap_present(tpAniSirGlobal mac_ctx,
 		if (!oui_ptr)
 			goto next;
 
-		if (extension->data_length && extension->data &&
+		if (extension->data_length &&
 		    !lim_check_for_vendor_oui_data(extension, oui_ptr))
 			goto next;
 

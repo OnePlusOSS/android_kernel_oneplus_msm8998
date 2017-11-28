@@ -3932,7 +3932,7 @@ static void hdd_get_peer_txrx_rate_cb(struct sir_peer_info_ext_resp *peer_info,
 		return;
 	}
 
-	if (!peer_info->count || !peer_info->info) {
+	if (!peer_info->count) {
 		spin_unlock(&hdd_context_lock);
 		hdd_err("Fail to get remote peer info");
 		return;

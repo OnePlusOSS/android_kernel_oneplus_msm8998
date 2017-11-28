@@ -4793,7 +4793,7 @@ void hdd_update_hlp_info(struct net_device *dev, tCsrRoamInfo *roam_info)
 	if (!roam_fils_params)
 		return;
 
-	if (!roam_fils_params->hlp_data_len || !roam_fils_params->hlp_data)
+	if (!roam_fils_params->hlp_data_len)
 		return;
 
 	hlp_data = roam_fils_params->hlp_data;

@@ -111,6 +111,7 @@
 #include "sir_api.h"
 #include "wlan_hdd_spectralscan.h"
 #include "sme_power_save_api.h"
+#include "wlan_hdd_sysfs.h"
 
 #ifdef CNSS_GENL
 #include <net/cnss_nl.h>
@@ -2140,6 +2141,8 @@ int hdd_wlan_start_modules(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 			ret = (status == QDF_STATUS_E_NOMEM) ? -ENOMEM : -EINVAL;
 			goto close;
 		}
+
+		hdd_sysfs_create_version_interface();
 
 		hdd_ctx->driver_status = DRIVER_MODULES_OPENED;
 		hdd_info("Wlan transition (now OPENED)");
@@ -6040,7 +6043,6 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 	hdd_runtime_suspend_context_deinit(hdd_ctx);
 	hdd_close_all_adapters(hdd_ctx, false);
 	hdd_ipa_cleanup(hdd_ctx);
-
 
 	wlansap_global_deinit();
 	/*
@@ -11657,8 +11659,10 @@ static void __hdd_module_exit(void)
 
 	qdf_wake_lock_destroy(&wlan_wake_lock);
 
+	hdd_sysfs_destroy_version_interface();
 	hdd_deinit();
 	pld_deinit();
+
 	wlan_hdd_state_ctrl_param_destroy();
 }
 

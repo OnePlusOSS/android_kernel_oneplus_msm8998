@@ -1050,6 +1050,8 @@ static int msm_open(struct file *filep)
 	if (atomic_cmpxchg(&pvdev->opened, 0, 1))
 		return -EBUSY;
 
+	pr_err("VJ## msm_open: Set the opened flag");
+
 	spin_lock_irqsave(&msm_pid_lock, flags);
 	msm_pid = get_pid(task_pid(current));
 	spin_unlock_irqrestore(&msm_pid_lock, flags);

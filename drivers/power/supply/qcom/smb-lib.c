@@ -1000,7 +1000,6 @@ int smblib_set_icl_current(struct smb_charger *chg, int icl_ua)
 			goto enable_icl_changed_interrupt;
 		}
 	} else {
-		set_sdp_current(chg, 100000);
 		rc = smblib_set_charge_param(chg, &chg->param.usb_icl, icl_ua);
 		if (rc < 0) {
 			smblib_err(chg, "Couldn't set HC ICL rc=%d\n", rc);
@@ -4594,6 +4593,7 @@ static void op_handle_usb_removal(struct smb_charger *chg)
 	set_prop_fast_switch_to_normal_false(chg);
 	set_usb_switch(chg, false);
 	set_dash_charger_present(false);
+	vote(chg->usb_icl_votable, OP_CHG_DONE_VOTER, false, 0);
 
 	chg->chg_ovp = false;
 	chg->dash_on = false;

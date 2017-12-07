@@ -201,8 +201,7 @@ static int LCD_HEIGHT ;
 static int get_tp_base = 0;
 #define ENABLE_TPEDGE_LIMIT
 #ifdef ENABLE_TPEDGE_LIMIT
-static int F51_GRIP_CONFIGURATION;
-static int limit_enable=1;
+static int limit_enable = 1;
 static void synaptics_tpedge_limitfunc(void);
 #endif
 //static int ch_getbase_status = 0;
@@ -3349,68 +3348,63 @@ static const struct file_operations touch_press_status = {
 };
 
 #ifdef ENABLE_TPEDGE_LIMIT
-static ssize_t limit_enable_read(struct file *file, char __user *user_buf, size_t count, loff_t *ppos)
+static ssize_t limit_enable_read(struct file *file,
+char __user *user_buf, size_t count, loff_t *ppos)
 {
-	ssize_t ret =0;
+	ssize_t ret = 0;
 	char page[PAGESIZE];
 
 	TPD_DEBUG("the limit_enable is: %d\n", limit_enable);
-	ret = sprintf(page, "%d\n", limit_enable);
-	ret = simple_read_from_buffer(user_buf, count, ppos, page, strlen(page));
+	ret = snprintf(page, 4, "%d\n", limit_enable);
+	ret = simple_read_from_buffer(user_buf, count,
+	ppos, page, strlen(page));
+
 	return ret;
 }
 
-static ssize_t limit_enable_write(struct file *file, const char __user *buffer, size_t count, loff_t *ppos)
+static ssize_t limit_enable_write(struct file *file,
+const char __user *buffer, size_t count, loff_t *ppos)
 {
-        int ret;
-	char buf[8]={0};
-        int limit_mode = 0;
+	int ret;
+	char buf[8] = {0};
+	int limit_mode = 0;
 
-	if (version_is_s3508) {
-		if (ts_g->support_1080x2160_tp)
-			F51_GRIP_CONFIGURATION = 0x0438;
-		else if (TP_FW > 0xeb101014)
-			F51_GRIP_CONFIGURATION = 0x0435;
-		else
-			F51_GRIP_CONFIGURATION = 0x0437;
-	} else {
-		F51_GRIP_CONFIGURATION = 0x044D;
-	}
-
-	if( count > 2)
+	if (count > 2)
 		count = 2;
-	if(ts_g == NULL)
-	{
+	if (ts_g == NULL) {
 		TPD_ERR("ts_g is NULL!\n");
-		return -1;
+		return -ENOMEM;
 	}
-	if(copy_from_user(buf, buffer, count))
-	{
+	if (copy_from_user(buf, buffer, count)) {
 		TPD_DEBUG("%s: read proc input error.\n", __func__);
 		return count;
 	}
 
-	if('0' == buf[0]){
+	if ('0' == buf[0])
 		limit_enable = 0;
-	}else if('1' == buf[0]){
+	else if ('1' == buf[0])
 		limit_enable = 1;
-	}
+
 	msleep(30);
 	mutex_lock(&ts_g->mutex);
 	ret = i2c_smbus_write_byte_data(ts_g->client, 0xff, 0x4);
-	limit_mode = i2c_smbus_read_byte_data(ts_g->client, F51_GRIP_CONFIGURATION);
-	TPD_ERR("%s_proc limit_enable =%d,mode:0x%x !\n", __func__, limit_enable, limit_mode);
-	if(limit_mode){
+
+	limit_mode = i2c_smbus_read_byte_data(ts_g->client,
+	F51_CUSTOM_CTRL_BASE+0x1b);
+
+	TPD_ERR("%s_proc limit_enable =%d,mode:0x%x !\n",
+	__func__, limit_enable, limit_mode);
+
+	if (limit_mode) {
 		i2c_smbus_write_byte_data(ts_g->client, 0xff, 0x4);
-		if(0 == limit_enable)
-		{
+		if (limit_enable == 0) {
 			limit_mode = limit_mode & 0xFE;
-			ret = i2c_smbus_write_byte_data(ts_g->client, F51_GRIP_CONFIGURATION, limit_mode);
-		}
-		else if(1 == limit_enable)
-		{
+			ret = i2c_smbus_write_byte_data(ts_g->client,
+			F51_CUSTOM_CTRL_BASE+0x1b, limit_mode);
+		} else if (limit_enable == 1) {
 			limit_mode = limit_mode | 0x1;
-			ret = i2c_smbus_write_byte_data(ts_g->client, F51_GRIP_CONFIGURATION, limit_mode);
+			ret = i2c_smbus_write_byte_data(ts_g->client,
+			F51_CUSTOM_CTRL_BASE+0x1b, limit_mode);
 		}
 	}
 	i2c_smbus_write_byte_data(ts_g->client, 0xff, 0x0);
@@ -4073,40 +4067,30 @@ static int synapitcs_ts_update(struct i2c_client *client, const uint8_t *data, u
 #ifdef ENABLE_TPEDGE_LIMIT
 static void synaptics_tpedge_limitfunc(void)
 {
-	int limit_mode=0;
+	int limit_mode = 0;
 	int ret;
 
-	if (version_is_s3508) {
-		if (ts_g->support_1080x2160_tp)
-			F51_GRIP_CONFIGURATION = 0x0438;
-		else if (TP_FW > 0xeb101014)
-			F51_GRIP_CONFIGURATION = 0x0435;
-		else
-			F51_GRIP_CONFIGURATION = 0x0437;
-	} else
-		F51_GRIP_CONFIGURATION = 0x044D;
-
-	TPD_DEBUG("%s line %d F51_GRIP_CONFIGURATION = 0x%x\n", __func__, __LINE__, F51_GRIP_CONFIGURATION);
+	TPD_ERR("%s line %d F51_GRIP_CONFIGURATION = 0x%x\n",
+	__func__, __LINE__, F51_CUSTOM_CTRL_BASE+0x1b);
 	msleep(60);
 	ret = i2c_smbus_write_byte_data(ts_g->client, 0xff, 0x4);
-	limit_mode = i2c_smbus_read_byte_data(ts_g->client, F51_GRIP_CONFIGURATION);
-	TPD_ERR("%s limit_enable =%d,mode:0x%x !\n", __func__, limit_enable, limit_mode);
-	if(limit_mode){
+	limit_mode = i2c_smbus_read_byte_data(ts_g->client,
+	F51_CUSTOM_CTRL_BASE+0x1b);
+	TPD_ERR("%s limit_enable =%d,mode:0x%x !\n",
+	__func__, limit_enable, limit_mode);
+	if (limit_mode) {
 		i2c_smbus_write_byte_data(ts_g->client, 0xff, 0x4);
-		if(0 == limit_enable)
-		{
-			if(limit_mode & 0x1){
-				//TPD_ERR("000 limit_enable:0x%xs  !\n",limit_mode);
+		if (limit_enable == 0) {
+			if (limit_mode & 0x1) {
 				limit_mode = limit_mode & 0xFE;
-				ret = i2c_smbus_write_byte_data(ts_g->client, F51_GRIP_CONFIGURATION, limit_mode);
+				ret = i2c_smbus_write_byte_data(ts_g->client,
+				F51_CUSTOM_CTRL_BASE+0x1b, limit_mode);
 			}
-		}
-		else if(1 == limit_enable)
-		{
-			if(!(limit_mode & 0x1)){
-				//TPD_ERR("111 limit_enable:x%xs  !\n",limit_mode);
+		} else if (limit_enable == 1) {
+			if (!(limit_mode & 0x1)) {
 				limit_mode = limit_mode | 0x1;
-				ret = i2c_smbus_write_byte_data(ts_g->client, F51_GRIP_CONFIGURATION, limit_mode);
+				ret = i2c_smbus_write_byte_data(ts_g->client,
+				F51_CUSTOM_CTRL_BASE+0x1b, limit_mode);
 			}
 		}
 	}
@@ -4900,6 +4884,8 @@ static int fb_notifier_callback(struct notifier_block *self, unsigned long event
 			if (gesture_flag == 1) {
 				ts->gesture_enable = 0;
 				DouTap_gesture = 0;
+				synaptics_enable_interrupt_for_gesture(ts, 0);
+				set_doze_time(1);
 				gesture_flag = 0;
 			} else if (gesture_flag == 2) {
 				DouTap_gesture = 0;
@@ -4930,6 +4916,8 @@ static int fb_notifier_callback(struct notifier_block *self, unsigned long event
 			if (gesture_flag == 1) {
 				ts->gesture_enable = 0;
 				DouTap_gesture = 0;
+				synaptics_enable_interrupt_for_gesture(ts, 0);
+				set_doze_time(1);
 				ts->is_suspended = 0;
 				gesture_flag = 0;
 			} else if (gesture_flag == 2) {

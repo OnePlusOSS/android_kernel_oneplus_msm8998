@@ -2040,6 +2040,7 @@ struct hdd_context_s {
 #endif
 	struct sta_ap_intf_check_work_ctx *sta_ap_intf_check_work_info;
 	qdf_wake_lock_t monitor_mode_wakelock;
+	bool lte_coex_ant_share;
 };
 
 int hdd_validate_channel_and_bandwidth(hdd_adapter_t *adapter,

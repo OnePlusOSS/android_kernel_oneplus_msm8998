@@ -2431,15 +2431,19 @@ void wmi_desc_pool_deinit(tp_wma_handle wma_handle)
 {
 	struct wmi_desc_t *wmi_desc;
 	uint8_t i;
-	ol_txrx_pdev_handle pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+	qdf_device_t qdf_dev = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
 
+	if (NULL == qdf_dev) {
+		WMA_LOGE("%s: Failed to get qdf_dev_ctx", __func__);
+		return;
+	}
 	qdf_spin_lock_bh(&wma_handle->wmi_desc_pool.wmi_desc_pool_lock);
 	if (wma_handle->wmi_desc_pool.array) {
 		for (i = 0; i < wma_handle->wmi_desc_pool.pool_size; i++) {
 			wmi_desc = (struct wmi_desc_t *)
 				    (&wma_handle->wmi_desc_pool.array[i]);
 			if (wmi_desc && wmi_desc->nbuf) {
-				qdf_nbuf_unmap_single(pdev->osdev,
+				qdf_nbuf_unmap_single(qdf_dev,
 						wmi_desc->nbuf,
 						QDF_DMA_TO_DEVICE);
 				cds_packet_free(wmi_desc->nbuf);

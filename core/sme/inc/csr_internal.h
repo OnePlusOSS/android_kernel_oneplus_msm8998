@@ -1073,6 +1073,7 @@ typedef struct tagCsrRoamStruct {
 	uint16_t reassocRespLen;        /* length of reassociation response */
 	qdf_mc_timer_t packetdump_timer;
 	qdf_list_t rssi_disallow_bssid;
+	spinlock_t roam_state_lock;
 } tCsrRoamStruct;
 
 #define GET_NEXT_ROAM_ID(pRoamStruct)  (((pRoamStruct)->nextRoamId + 1 == 0) ? \

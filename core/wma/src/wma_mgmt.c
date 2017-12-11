@@ -1745,7 +1745,8 @@ static QDF_STATUS wma_setup_install_key_cmd(tp_wma_handle wma_handle,
 		wma_release_wakelock(&iface->vdev_set_key_wakelock);
 	}
 	/* install key was requested */
-	iface->is_waiting_for_key = false;
+	if (iface)
+		iface->is_waiting_for_key = false;
 
 	return status;
 }

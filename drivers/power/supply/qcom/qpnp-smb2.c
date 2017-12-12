@@ -2582,7 +2582,7 @@ static int smb2_remove(struct platform_device *pdev)
 
 /* david.liu@bsp, 20170330 Fix system crash */
 	if (chg->usb_psy)
-		power_supply_unregister(chg->batt_psy);
+		power_supply_unregister(chg->usb_psy);
 	if (chg->batt_psy)
 		power_supply_unregister(chg->batt_psy);
 	if (chg->vconn_vreg && chg->vconn_vreg->rdev)

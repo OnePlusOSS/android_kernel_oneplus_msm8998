@@ -10,10 +10,7 @@
  * GNU General Public License for more details.
  */
 
-#include "dsi-panel-samsung_s6e3fa3_1080p_cmd.dtsi"
-#include "dsi-panel-samsung_s6e3fa3_1080p_video.dtsi"
-#include "dsi-panel-samsung_s6e3fa5_1080p_cmd.dtsi"
-#include "dsi-panel-samsung_s6e3fa6_1080p_cmd.dtsi"
+#include "cheeseburger-panels.dtsi"
 
 &mdss_dsi_active {
 	mux {
@@ -58,26 +55,6 @@
 		"byte_clk_rcg", "pixel_clk_rcg",
 		"byte_intf_clk",
 		"px_ext_clk";
-};
-
-&dsi_samsung_s6e3fa3_1080p_cmd {
-  qcom,panel-supply-entries = <&dsi_panel_pwr_supply_no_labibb>;
-	#include "pxlw-iris-samsung_s6e3fa3.dtsi"
-};
-
-&dsi_samsung_s6e3fa3_1080p_video {
-  qcom,panel-supply-entries = <&dsi_panel_pwr_supply_no_labibb>;
-	#include "pxlw-iris-samsung_s6e3fa3.dtsi"
-};
-
-&dsi_samsung_s6e3fa5_1080p_cmd {
-  qcom,panel-supply-entries = <&dsi_panel_pwr_supply_no_labibb>;
-	#include "pxlw-iris-samsung_s6e3fa3.dtsi"
-};
-
-&dsi_samsung_s6e3fa6_1080p_cmd {
-  qcom,panel-supply-entries = <&dsi_panel_pwr_supply_no_labibb>;
-	#include "pxlw-iris-samsung_s6e3fa3.dtsi"
 };
 
 /* Charging */

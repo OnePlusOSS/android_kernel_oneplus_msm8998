@@ -595,9 +595,14 @@ QDF_STATUS csr_scan_request(tpAniSirGlobal pMac, uint16_t sessionId,
 	 * achieve reliable results, Adaptive dwell scan is
 	 * disabled using the dwell_mode.
 	 */
-	if (scan_req->requestType != eCSR_SCAN_RRM)
-		scan_req->scan_adaptive_dwell_mode =
-			cfg_prm->scan_adaptive_dwell_mode;
+	if (scan_req->requestType != eCSR_SCAN_RRM) {
+		if (csr_is_conn_state_disconnected(pMac, sessionId))
+			scan_req->scan_adaptive_dwell_mode =
+				cfg_prm->scan_adaptive_dwell_mode_nc;
+		else
+			scan_req->scan_adaptive_dwell_mode =
+				cfg_prm->scan_adaptive_dwell_mode;
+	}
 
 	status = csr_scan_copy_request(pMac, &scan_cmd->u.scanCmd.u.scanRequest,
 				       scan_req);

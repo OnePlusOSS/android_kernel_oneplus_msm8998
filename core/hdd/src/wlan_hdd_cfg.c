@@ -4280,6 +4280,13 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_ADAPTIVE_SCAN_DWELL_MODE_MIN,
 		CFG_ADAPTIVE_SCAN_DWELL_MODE_MAX),
 
+	REG_VARIABLE(CFG_ADAPTIVE_SCAN_DWELL_MODE_NC_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, scan_adaptive_dwell_mode_nc,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ADAPTIVE_SCAN_DWELL_MODE_NC_DEFAULT,
+		     CFG_ADAPTIVE_SCAN_DWELL_MODE_NC_MIN,
+		     CFG_ADAPTIVE_SCAN_DWELL_MODE_NC_MAX),
+
 	REG_VARIABLE(CFG_ADAPTIVE_ROAMSCAN_DWELL_MODE_NAME, WLAN_PARAM_Integer,
 		struct hdd_config, roamscan_adaptive_dwell_mode,
 		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -6980,6 +6987,9 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_debug("Name = [%s] Value = [%u]",
 		CFG_ADAPTIVE_SCAN_DWELL_MODE_NAME,
 		pHddCtx->config->scan_adaptive_dwell_mode);
+	hdd_debug("Name = [%s] Value = [%u]",
+		  CFG_ADAPTIVE_SCAN_DWELL_MODE_NC_NAME,
+		  pHddCtx->config->scan_adaptive_dwell_mode_nc);
 	hdd_debug("Name = [%s] Value = [%u]",
 		CFG_ADAPTIVE_ROAMSCAN_DWELL_MODE_NAME,
 		pHddCtx->config->roamscan_adaptive_dwell_mode);
@@ -9718,6 +9728,8 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 			pConfig->enable_fatal_event;
 	smeConfig->csrConfig.scan_adaptive_dwell_mode =
 			pHddCtx->config->scan_adaptive_dwell_mode;
+	smeConfig->csrConfig.scan_adaptive_dwell_mode_nc =
+			pHddCtx->config->scan_adaptive_dwell_mode_nc;
 	smeConfig->csrConfig.roamscan_adaptive_dwell_mode =
 			pHddCtx->config->roamscan_adaptive_dwell_mode;
 

@@ -4252,11 +4252,6 @@ static void hub_set_initial_usb2_lpm_policy(struct usb_device *udev)
 	if(udev->bos == NULL)
 		return;
 
-	if ((udev->bos->ext_cap->bmAttributes & cpu_to_le32(USB_BESL_SUPPORT)) ||
-			connect_type == USB_PORT_CONNECT_TYPE_HARD_WIRED) {
-		udev->usb2_hw_lpm_allowed = 1;
-		usb_set_usb2_hardware_lpm(udev, 1);
-	}
 }
 
 static int hub_enable_device(struct usb_device *udev)

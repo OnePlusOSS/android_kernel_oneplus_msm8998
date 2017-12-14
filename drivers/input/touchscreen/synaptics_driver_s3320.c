@@ -205,7 +205,7 @@ static int LCD_HEIGHT;
 static int get_tp_base;
 #define ENABLE_TPEDGE_LIMIT
 #ifdef ENABLE_TPEDGE_LIMIT
-static int limit_enable;
+static int limit_enable = 1;
 static void synaptics_tpedge_limitfunc(void);
 #endif
 /*static int ch_getbase_status = 0;*/
@@ -5198,6 +5198,8 @@ static int fb_notifier_callback(struct notifier_block *self,
 			if (gesture_flag == 1) {
 				ts->gesture_enable = 0;
 				DouTap_gesture = 0;
+				synaptics_enable_interrupt_for_gesture(ts, 0);
+				set_doze_time(1);
 				gesture_flag = 0;
 			} else if (gesture_flag == 2) {
 				DouTap_gesture = 0;
@@ -5232,9 +5234,13 @@ static int fb_notifier_callback(struct notifier_block *self,
 			if (gesture_flag == 1) {
 				ts->gesture_enable = 0;
 				DouTap_gesture = 0;
+				synaptics_enable_interrupt_for_gesture(ts, 0);
+				set_doze_time(1);
+				ts->is_suspended = 0;
 				gesture_flag = 0;
 			} else if (gesture_flag == 2) {
 				DouTap_gesture = 0;
+				ts->is_suspended = 0;
 				gesture_flag = 0;
 			}
 			if (ts->is_suspended == 0) {

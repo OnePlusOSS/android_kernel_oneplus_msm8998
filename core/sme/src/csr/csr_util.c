@@ -3325,6 +3325,7 @@ uint8_t csr_construct_rsn_ie(tHalHandle hHal, uint32_t sessionId,
 			     tSirBssDescription *pSirBssDesc,
 			     tDot11fBeaconIEs *pIes, tCsrRSNIe *pRSNIe)
 {
+	uint32_t ret;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 	bool fRSNMatch;
 	uint8_t cbRSNIe = 0;
@@ -3360,12 +3361,18 @@ uint8_t csr_construct_rsn_ie(tHalHandle hHal, uint32_t sessionId,
 		 * the AP, so that only common capability are enabled.
 		 */
 		if (pProfile->pRSNReqIE && pProfile->nRSNReqIELength) {
-			dot11f_unpack_ie_rsn(pMac, pProfile->pRSNReqIE + 2,
-				  pProfile->nRSNReqIELength -2, &rsn_ie, false);
-			pIesLocal->RSN.RSN_Cap[0] = pIesLocal->RSN.RSN_Cap[0] &
-						    rsn_ie.RSN_Cap[0];
-			pIesLocal->RSN.RSN_Cap[1] = pIesLocal->RSN.RSN_Cap[1] &
-						    rsn_ie.RSN_Cap[1];
+			ret = dot11f_unpack_ie_rsn(pMac,
+						   pProfile->pRSNReqIE + 2,
+						   pProfile->nRSNReqIELength -2,
+						   &rsn_ie, false);
+			if (!DOT11F_FAILED(ret)) {
+				pIesLocal->RSN.RSN_Cap[0] =
+						pIesLocal->RSN.RSN_Cap[0] &
+						rsn_ie.RSN_Cap[0];
+				pIesLocal->RSN.RSN_Cap[1] =
+						pIesLocal->RSN.RSN_Cap[1] &
+						rsn_ie.RSN_Cap[1];
+			}
 		}
 		/* See if the cyphers in the Bss description match with the
 		 * settings in the profile.

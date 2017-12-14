@@ -114,7 +114,7 @@ void hdd_sysfs_create_version_interface(void)
 {
 	int error = 0;
 
-	wlan_kobject = kobject_create_and_add("wlan", kernel_kobj);
+	wlan_kobject = kobject_create_and_add("wifi", kernel_kobj);
 	if (!wlan_kobject) {
 		hdd_err("could not allocate wlan kobject");
 		return;

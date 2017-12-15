@@ -2639,12 +2639,14 @@ uint8_t *wlan_hdd_get_intf_addr(hdd_context_t *hdd_ctx,
 	uint8_t *mac_addr = NULL;
 
 	if (qdf_atomic_test_bit(interface_type,
-				&hdd_ctx->config->provisioned_intf_pool))
+				(unsigned long *)
+				(&hdd_ctx->config->provisioned_intf_pool)))
 		mac_addr = wlan_hdd_get_provisioned_intf_addr(hdd_ctx);
 
 	if ((!mac_addr) &&
 	    (qdf_atomic_test_bit(interface_type,
-				 &hdd_ctx->config->derived_intf_pool)))
+				 (unsigned long *)
+				 (&hdd_ctx->config->derived_intf_pool))))
 		mac_addr = wlan_hdd_get_derived_intf_addr(hdd_ctx);
 
 	if (!mac_addr)

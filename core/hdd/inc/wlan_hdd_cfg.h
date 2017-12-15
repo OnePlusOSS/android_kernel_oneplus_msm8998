@@ -14766,8 +14766,8 @@ struct hdd_config {
 	uint8_t tx_chain_mask_5g;
 	uint8_t rx_chain_mask_5g;
 	bool mac_provision;
-	unsigned long provisioned_intf_pool;
-	unsigned long derived_intf_pool;
+	uint32_t provisioned_intf_pool;
+	uint32_t derived_intf_pool;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

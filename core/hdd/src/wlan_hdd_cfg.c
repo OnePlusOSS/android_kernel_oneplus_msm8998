@@ -7227,10 +7227,10 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_debug("Name = [%s] value = [0x%x]",
 		  CFG_ENABLE_MAC_PROVISION_NAME,
 		  pHddCtx->config->mac_provision);
-	hdd_debug("Name = [%s] value = [0x%lx]",
+	hdd_debug("Name = [%s] value = [0x%x]",
 		  CFG_PROVISION_INTERFACE_POOL_NAME,
 		  pHddCtx->config->provisioned_intf_pool);
-	hdd_debug("Name = [%s] value = [0x%lx]",
+	hdd_debug("Name = [%s] value = [0x%x]",
 		  CFG_DERIVED_INTERFACE_POOL_NAME,
 		  pHddCtx->config->derived_intf_pool);
 }

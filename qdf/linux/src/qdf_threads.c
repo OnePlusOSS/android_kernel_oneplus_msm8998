@@ -140,4 +140,4 @@ qdf_thread_t *qdf_get_current_task(void)
 {
 	return current;
 }
-EXPORT_SYMBOL(qdf_get_current_task);
+qdf_export_symbol(qdf_get_current_task);

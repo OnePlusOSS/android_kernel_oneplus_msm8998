@@ -6589,7 +6589,8 @@ QDF_STATUS csr_scan_copy_request(tpAniSirGlobal mac_ctx,
 	 */
 	if (cds_is_ibss_conn_exist(&channel)) {
 		sme_debug("Conc IBSS exist, channel list will be modified");
-	} else if (cds_is_any_dfs_beaconing_session_present(&channel)) {
+	} else if (cds_is_any_dfs_beaconing_session_present(&channel) &&
+			!cds_is_sta_sap_scc_allowed_on_dfs_channel()) {
 		/*
 		 * 1) if agile & DFS scans are supported
 		 * 2) if hardware is DBS capable

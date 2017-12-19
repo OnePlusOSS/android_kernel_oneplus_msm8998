@@ -12203,7 +12203,7 @@ enum hw_filter_mode {
  * </ini>
  */
 #define CFG_IS_BSSID_HINT_PRIORITY_NAME    "g_is_bssid_hint_priority"
-#define CFG_IS_BSSID_HINT_PRIORITY_DEFAULT (1)
+#define CFG_IS_BSSID_HINT_PRIORITY_DEFAULT (0)
 #define CFG_IS_BSSID_HINT_PRIORITY_MIN     (0)
 #define CFG_IS_BSSID_HINT_PRIORITY_MAX     (1)
 

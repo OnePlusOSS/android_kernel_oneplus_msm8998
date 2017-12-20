@@ -473,6 +473,17 @@ typedef struct tagCsrNeighborRoamConfig {
 	int32_t nhi_rssi_scan_rssi_ub;
 } tCsrNeighborRoamConfig;
 
+/*
+ * Neighbor Report Params Bitmask
+ */
+#define NEIGHBOR_REPORT_PARAMS_TIME_OFFSET            0x01
+#define NEIGHBOR_REPORT_PARAMS_LOW_RSSI_OFFSET        0x02
+#define NEIGHBOR_REPORT_PARAMS_BMISS_COUNT_TRIGGER    0x04
+#define NEIGHBOR_REPORT_PARAMS_PER_THRESHOLD_OFFSET   0x08
+#define NEIGHBOR_REPORT_PARAMS_CACHE_TIMEOUT          0x10
+#define NEIGHBOR_REPORT_PARAMS_MAX_REQ_CAP            0x20
+#define NEIGHBOR_REPORT_PARAMS_ALL                    0x3F
+
 typedef struct tagCsrConfig {
 	uint32_t agingCount;
 	uint32_t FragmentationThreshold;
@@ -669,6 +680,8 @@ typedef struct tagCsrConfig {
 	uint32_t wlm_latency_flags[CSR_NUM_WLM_LATENCY_LEVEL];
 	struct sir_score_config bss_score_params;
 	uint8_t oce_feature_bitmap;
+	uint32_t offload_11k_enable_bitmask;
+	struct csr_neighbor_report_offload_params neighbor_report_offload;
 } tCsrConfig;
 
 typedef struct tagCsrChannelPowerInfo {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -697,6 +697,8 @@ typedef struct sSirMbMsgP2p {
 
 #define SIR_HAL_SET_DEL_PMKID_CACHE         (SIR_HAL_ITC_MSG_TYPES_BEGIN + 389)
 #define SIR_HAL_HLP_IE_INFO                 (SIR_HAL_ITC_MSG_TYPES_BEGIN + 390)
+#define SIR_HAL_SET_11K_OFFLOAD             (SIR_HAL_ITC_MSG_TYPES_BEGIN + 391)
+#define SIR_HAL_INVOKE_NEIGHBOR_REPORT      (SIR_HAL_ITC_MSG_TYPES_BEGIN + 392)
 #define SIR_HAL_MSG_TYPES_END               (SIR_HAL_MSG_TYPES_BEGIN + 0x1FF)
 /* CFG message types */
 #define SIR_CFG_MSG_TYPES_BEGIN        (SIR_CFG_MODULE_ID << 8)

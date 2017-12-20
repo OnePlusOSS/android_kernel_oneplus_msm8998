@@ -1637,6 +1637,9 @@ void hdd_update_tgt_cfg(void *context, void *param)
 	hdd_ctx->config->is_fils_roaming_supported =
 			cfg->services.is_fils_roaming_supported;
 
+	hdd_ctx->config->is_11k_offload_supported =
+			cfg->services.is_11k_offload_supported;
+
 	/* now overwrite the target band capability with INI
 	 * setting if INI setting is a subset
 	 */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1013,6 +1013,9 @@ typedef struct sAniSirGlobal {
 	/* action ouis info */
 	bool enable_action_oui;
 	struct action_oui_info *oui_info;
+
+	/* 11k Offload Support */
+	bool is_11k_offload_supported;
 } tAniSirGlobal;
 
 typedef enum {

@@ -1124,6 +1124,32 @@ struct csr_sta_roam_policy_params {
 	uint8_t sap_operating_band;
 };
 
+/**
+ * struct csr_neighbor_report_offload_params - neighbor report offload params
+ * @params_bitmask: bitmask to specify which of the below are enabled
+ * @time_offset: time offset after 11k offload command to trigger a neighbor
+ *		report request (in seconds)
+ * @low_rssi_offset: Offset from rssi threshold to trigger neighbor
+ *	report request (in dBm)
+ * @bmiss_count_trigger: Number of beacon miss events to trigger neighbor
+ *		report request
+ * @per_threshold_offset: offset from PER threshold to trigger neighbor
+ *		report request (in %)
+ * @neighbor_report_cache_timeout: timeout after which new trigger can enable
+ *		sending of a neighbor report request (in seconds)
+ * @max_neighbor_report_req_cap: max number of neighbor report requests that
+ *		can be sent to the peer in the current session
+ */
+struct csr_neighbor_report_offload_params {
+	uint8_t params_bitmask;
+	uint32_t time_offset;
+	uint32_t low_rssi_offset;
+	uint32_t bmiss_count_trigger;
+	uint32_t per_threshold_offset;
+	uint32_t neighbor_report_cache_timeout;
+	uint32_t max_neighbor_report_req_cap;
+};
+
 typedef struct tagCsrConfigParam {
 	uint32_t FragmentationThreshold;
 	/* keep this uint32_t. This gets converted to ePhyChannelBondState */
@@ -1365,6 +1391,8 @@ typedef struct tagCsrConfigParam {
 	uint32_t wlm_latency_flags[CSR_NUM_WLM_LATENCY_LEVEL];
 	struct sir_score_config bss_score_params;
 	uint8_t oce_feature_bitmap;
+	uint32_t offload_11k_enable_bitmask;
+	struct csr_neighbor_report_offload_params neighbor_report_offload;
 } tCsrConfigParam;
 
 /* Tush */

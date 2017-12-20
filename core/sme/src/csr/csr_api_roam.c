@@ -2387,6 +2387,40 @@ uint32_t csr_convert_phy_cb_state_to_ini_value(ePhyChanBondState phyCbState)
 	return cbIniValue;
 }
 
+/**
+ * csr_set_11k_offload_config_param() - Update 11k neighbor report config
+ *
+ * @csr_config: pointer to csr_config in MAC context
+ * @pParam: pointer to config params from HDD
+ *
+ * Return: none
+ */
+static
+void csr_set_11k_offload_config_param(tCsrConfig *csr_config,
+					tCsrConfigParam *param)
+{
+	csr_config->offload_11k_enable_bitmask =
+		param->offload_11k_enable_bitmask;
+	csr_config->neighbor_report_offload.params_bitmask =
+		param->neighbor_report_offload.params_bitmask;
+	csr_config->neighbor_report_offload.time_offset =
+		param->neighbor_report_offload.time_offset;
+	csr_config->neighbor_report_offload.low_rssi_offset =
+		param->neighbor_report_offload.low_rssi_offset;
+	csr_config->neighbor_report_offload.bmiss_count_trigger =
+		param->neighbor_report_offload.bmiss_count_trigger;
+	csr_config->neighbor_report_offload.per_threshold_offset =
+		param->neighbor_report_offload.per_threshold_offset;
+	csr_config->neighbor_report_offload.
+		neighbor_report_cache_timeout =
+		param->neighbor_report_offload.
+		neighbor_report_cache_timeout;
+	csr_config->neighbor_report_offload.
+		max_neighbor_report_req_cap =
+		param->neighbor_report_offload.
+		max_neighbor_report_req_cap;
+}
+
 QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 					   tCsrConfigParam *pParam)
 {
@@ -2911,8 +2945,42 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 			     &pParam->bss_score_params,
 			     sizeof(struct sir_score_config));
 
+		csr_set_11k_offload_config_param(&pMac->roam.configParam,
+						 pParam);
 	}
 	return status;
+}
+
+/**
+ * csr_get_11k_offload_config_param() - Get 11k neighbor report config
+ *
+ * @csr_config: pointer to csr_config in MAC context
+ * @pParam: pointer to config params from HDD
+ *
+ * Return: none
+ */
+static
+void csr_get_11k_offload_config_param(tCsrConfig *csr_config,
+					tCsrConfigParam *param)
+{
+	param->offload_11k_enable_bitmask =
+		csr_config->offload_11k_enable_bitmask;
+	param->neighbor_report_offload.params_bitmask =
+		csr_config->neighbor_report_offload.params_bitmask;
+	param->neighbor_report_offload.time_offset =
+		csr_config->neighbor_report_offload.time_offset;
+	param->neighbor_report_offload.low_rssi_offset =
+		csr_config->neighbor_report_offload.low_rssi_offset;
+	param->neighbor_report_offload.bmiss_count_trigger =
+		csr_config->neighbor_report_offload.bmiss_count_trigger;
+	param->neighbor_report_offload.per_threshold_offset =
+		csr_config->neighbor_report_offload.per_threshold_offset;
+	param->neighbor_report_offload.neighbor_report_cache_timeout =
+		csr_config->neighbor_report_offload.
+		neighbor_report_cache_timeout;
+	param->neighbor_report_offload.max_neighbor_report_req_cap =
+		csr_config->neighbor_report_offload.
+		max_neighbor_report_req_cap;
 }
 
 QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
@@ -3187,6 +3255,8 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 	qdf_mem_copy(&pParam->bss_score_params,
 		&pMac->roam.configParam.bss_score_params,
 		sizeof(struct sir_score_config));
+
+	csr_get_11k_offload_config_param(&pMac->roam.configParam, pParam);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -19606,6 +19676,179 @@ csr_roam_offload_scan(tpAniSirGlobal mac_ctx, uint8_t session_id,
 	csr_roam_offload_per_scan(mac_ctx, session_id);
 	return status;
 }
+
+#define NEIGHBOR_REPORT_PARAM_INVALID (0xFFFFFFFFU)
+
+QDF_STATUS csr_send_11k_offload_params(tpAniSirGlobal mac_ctx,
+					uint8_t session_id)
+{
+	tCsrRoamSession *session;
+	struct wmi_11k_offload_params *params;
+	cds_msg_t msg = {0};
+	QDF_STATUS status;
+	tCsrConfig *csr_config = &mac_ctx->roam.configParam;
+	struct csr_neighbor_report_offload_params *neighbor_report_offload =
+		&csr_config->neighbor_report_offload;
+
+	if ((csr_config->offload_11k_enable_bitmask &
+	    WMI_11K_OFFLOAD_BITMAP_NEIGHBOR_REPORT_REQ) == 0) {
+		sme_debug("Neighbor report offload not enabled");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	if ((neighbor_report_offload->params_bitmask &
+	    NEIGHBOR_REPORT_PARAMS_ALL) == 0) {
+		sme_err("No valid neighbor report offload params %x",
+			neighbor_report_offload->params_bitmask);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	status = sme_acquire_global_lock(&mac_ctx->sme);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		sme_err("sme_acquire_global_lock failed");
+		return status;
+	}
+
+	session = CSR_GET_SESSION(mac_ctx, session_id);
+	if (!session) {
+		sme_release_global_lock(&mac_ctx->sme);
+		sme_err("Session not found");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	if (!session->connectedProfile.SSID.length) {
+		sme_err("SSID Len 0");
+		sme_release_global_lock(&mac_ctx->sme);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	params = qdf_mem_malloc(sizeof(*params));
+
+	if (!params) {
+		sme_release_global_lock(&mac_ctx->sme);
+		sme_err("Memory allocation failure");
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	params->vdev_id = session_id;
+	params->offload_11k_bitmask = csr_config->offload_11k_enable_bitmask;
+
+	/*
+	 * First initialize all params to NEIGHBOR_REPORT_PARAM_INVALID
+	 * Then set the values that are enabled
+	 */
+	params->neighbor_report_params.time_offset =
+		NEIGHBOR_REPORT_PARAM_INVALID;
+	params->neighbor_report_params.low_rssi_offset =
+		NEIGHBOR_REPORT_PARAM_INVALID;
+	params->neighbor_report_params.bmiss_count_trigger =
+		NEIGHBOR_REPORT_PARAM_INVALID;
+	params->neighbor_report_params.per_threshold_offset =
+		NEIGHBOR_REPORT_PARAM_INVALID;
+	params->neighbor_report_params.neighbor_report_cache_timeout =
+		NEIGHBOR_REPORT_PARAM_INVALID;
+	params->neighbor_report_params.max_neighbor_report_req_cap =
+		NEIGHBOR_REPORT_PARAM_INVALID;
+
+	if (neighbor_report_offload->params_bitmask &
+	    NEIGHBOR_REPORT_PARAMS_TIME_OFFSET)
+		params->neighbor_report_params.time_offset =
+			neighbor_report_offload->time_offset;
+
+	if (neighbor_report_offload->params_bitmask &
+	    NEIGHBOR_REPORT_PARAMS_LOW_RSSI_OFFSET)
+		params->neighbor_report_params.low_rssi_offset =
+			neighbor_report_offload->low_rssi_offset;
+
+	if (neighbor_report_offload->params_bitmask &
+	    NEIGHBOR_REPORT_PARAMS_BMISS_COUNT_TRIGGER)
+		params->neighbor_report_params.bmiss_count_trigger =
+			neighbor_report_offload->bmiss_count_trigger;
+
+	if (neighbor_report_offload->params_bitmask &
+	    NEIGHBOR_REPORT_PARAMS_PER_THRESHOLD_OFFSET)
+		params->neighbor_report_params.per_threshold_offset =
+			neighbor_report_offload->per_threshold_offset;
+
+	if (neighbor_report_offload->params_bitmask &
+	    NEIGHBOR_REPORT_PARAMS_CACHE_TIMEOUT)
+		params->neighbor_report_params.neighbor_report_cache_timeout =
+			neighbor_report_offload->neighbor_report_cache_timeout;
+
+	if (neighbor_report_offload->params_bitmask &
+	    NEIGHBOR_REPORT_PARAMS_MAX_REQ_CAP)
+		params->neighbor_report_params.max_neighbor_report_req_cap =
+			neighbor_report_offload->max_neighbor_report_req_cap;
+
+	params->neighbor_report_params.ssid.length =
+		session->connectedProfile.SSID.length;
+	qdf_mem_copy(params->neighbor_report_params.ssid.mac_ssid,
+			session->connectedProfile.SSID.ssId,
+			session->connectedProfile.SSID.length);
+	sme_release_global_lock(&mac_ctx->sme);
+
+	sme_debug("Sending SIR_HAL_SET_11K_OFFLOAD");
+
+	msg.type = SIR_HAL_SET_11K_OFFLOAD;
+	msg.reserved = 0;
+	msg.bodyptr = params;
+
+	if (QDF_STATUS_SUCCESS !=
+			cds_mq_post_message(QDF_MODULE_ID_WMA, &msg)) {
+		sme_err("Not able to post message to WMA");
+		qdf_mem_free(params);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
+
+QDF_STATUS csr_invoke_neighbor_report_request(uint8_t session_id,
+				struct sRrmNeighborReq *neighbor_report_req,
+				bool send_resp_to_host)
+{
+	struct wmi_invoke_neighbor_report_params *invoke_params;
+	cds_msg_t msg = {0};
+
+	if (!neighbor_report_req) {
+		sme_err("Invalid params");
+		return QDF_STATUS_E_INVAL;
+	}
+
+	invoke_params = qdf_mem_malloc(sizeof(*invoke_params));
+	if (!invoke_params) {
+		sme_err("Memory allocation failure");
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	invoke_params->vdev_id = session_id;
+	invoke_params->send_resp_to_host = send_resp_to_host;
+
+	if (!neighbor_report_req->no_ssid) {
+		invoke_params->ssid.length = neighbor_report_req->ssid.length;
+		qdf_mem_copy(invoke_params->ssid.mac_ssid,
+				neighbor_report_req->ssid.ssId,
+				neighbor_report_req->ssid.length);
+	} else {
+		invoke_params->ssid.length = 0;
+	}
+
+	sme_debug("Sending SIR_HAL_INVOKE_NEIGHBOR_REPORT");
+
+	msg.type = SIR_HAL_INVOKE_NEIGHBOR_REPORT;
+	msg.reserved = 0;
+	msg.bodyptr = invoke_params;
+
+	if (QDF_STATUS_SUCCESS !=
+	    cds_mq_post_message(QDF_MODULE_ID_WMA, &msg)) {
+		sme_err("Not able to post message to WMA");
+		qdf_mem_free(invoke_params);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
+
 
 QDF_STATUS csr_roam_offload_scan_rsp_hdlr(tpAniSirGlobal pMac,
 					  tpSirRoamOffloadScanRsp

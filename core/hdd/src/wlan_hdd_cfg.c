@@ -5436,6 +5436,71 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_ENABLE_GCMP_MIN,
 		     CFG_ENABLE_GCMP_MAX),
 
+	REG_VARIABLE(CFG_OFFLOAD_11K_ENABLE_BITMASK_NAME,
+		     WLAN_PARAM_Integer,
+		     struct hdd_config, offload_11k_enable_bitmask,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_OFFLOAD_11K_ENABLE_BITMASK_DEFAULT,
+		     CFG_OFFLOAD_11K_ENABLE_BITMASK_MIN,
+		     CFG_OFFLOAD_11K_ENABLE_BITMASK_MAX),
+
+	REG_VARIABLE(CFG_OFFLOAD_NEIGHBOR_REPORT_PARAMS_BITMASK_NAME,
+		     WLAN_PARAM_Integer,
+		     struct hdd_config, neighbor_report_offload_params_bitmask,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_OFFLOAD_NEIGHBOR_REPORT_PARAMS_BITMASK_DEFAULT,
+		     CFG_OFFLOAD_NEIGHBOR_REPORT_PARAMS_BITMASK_MIN,
+		     CFG_OFFLOAD_NEIGHBOR_REPORT_PARAMS_BITMASK_MAX),
+
+	REG_VARIABLE(CFG_OFFLOAD_NEIGHBOR_REPORT_TIME_OFFSET_NAME,
+		     WLAN_PARAM_Integer,
+		     struct hdd_config, neighbor_report_offload_time_offset,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_OFFLOAD_NEIGHBOR_REPORT_TIME_OFFSET_DEFAULT,
+		     CFG_OFFLOAD_NEIGHBOR_REPORT_TIME_OFFSET_MIN,
+		     CFG_OFFLOAD_NEIGHBOR_REPORT_TIME_OFFSET_MAX),
+
+	REG_VARIABLE(CFG_OFFLOAD_NEIGHBOR_REPORT_LOW_RSSI_OFFSET_NAME,
+		     WLAN_PARAM_Integer,
+		     struct hdd_config, neighbor_report_offload_low_rssi_offset,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_OFFLOAD_NEIGHBOR_REPORT_LOW_RSSI_OFFSET_DEFAULT,
+		     CFG_OFFLOAD_NEIGHBOR_REPORT_LOW_RSSI_OFFSET_MIN,
+		     CFG_OFFLOAD_NEIGHBOR_REPORT_LOW_RSSI_OFFSET_MAX),
+
+	REG_VARIABLE(CFG_OFFLOAD_NEIGHBOR_REPORT_BMISS_COUNT_TRIGGER_NAME,
+		     WLAN_PARAM_Integer,
+		     struct hdd_config,
+		     neighbor_report_offload_bmiss_count_trigger,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_OFFLOAD_NEIGHBOR_REPORT_BMISS_COUNT_TRIGGER_DEFAULT,
+		     CFG_OFFLOAD_NEIGHBOR_REPORT_BMISS_COUNT_TRIGGER_MIN,
+		     CFG_OFFLOAD_NEIGHBOR_REPORT_BMISS_COUNT_TRIGGER_MAX),
+
+	REG_VARIABLE(CFG_OFFLOAD_NEIGHBOR_REPORT_PER_THRESHOLD_OFFSET_NAME,
+		     WLAN_PARAM_Integer,
+		     struct hdd_config,
+		     neighbor_report_offload_per_threshold_offset,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_OFFLOAD_NEIGHBOR_REPORT_PER_THRESHOLD_OFFSET_DEFAULT,
+		     CFG_OFFLOAD_NEIGHBOR_REPORT_PER_THRESHOLD_OFFSET_MIN,
+		     CFG_OFFLOAD_NEIGHBOR_REPORT_PER_THRESHOLD_OFFSET_MAX),
+
+	REG_VARIABLE(CFG_OFFLOAD_NEIGHBOR_REPORT_CACHE_TIMEOUT_NAME,
+		     WLAN_PARAM_Integer,
+		     struct hdd_config, neighbor_report_offload_cache_timeout,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_OFFLOAD_NEIGHBOR_REPORT_CACHE_TIMEOUT_DEFAULT,
+		     CFG_OFFLOAD_NEIGHBOR_REPORT_CACHE_TIMEOUT_MIN,
+		     CFG_OFFLOAD_NEIGHBOR_REPORT_CACHE_TIMEOUT_MAX),
+
+	REG_VARIABLE(CFG_OFFLOAD_NEIGHBOR_REPORT_MAX_REQ_CAP_NAME,
+		     WLAN_PARAM_Integer,
+		     struct hdd_config, neighbor_report_offload_max_req_cap,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_OFFLOAD_NEIGHBOR_REPORT_MAX_REQ_CAP_DEFAULT,
+		     CFG_OFFLOAD_NEIGHBOR_REPORT_MAX_REQ_CAP_MIN,
+		     CFG_OFFLOAD_NEIGHBOR_REPORT_MAX_REQ_CAP_MAX),
 };
 
 /**
@@ -6333,6 +6398,42 @@ static void hdd_wlm_cfg_log(hdd_context_t *pHddCtx)
 	hdd_debug("Name = [%s] value = [%u]",
 		  CFG_LATENCY_FLAGS_ULTRALOW_NAME,
 		  pHddCtx->config->wlm_latency_flags_ultralow);
+}
+
+/**
+ * hdd_cgf_print_11k_offload_params() - Print 11k offload related parameters
+ * @hdd_ctx: Pointer to HDD context
+ *
+ * Return: None
+ */
+static
+void hdd_cfg_print_11k_offload_params(hdd_context_t *hdd_ctx)
+{
+	hdd_debug("Name = [%s] value = [%u]",
+		  CFG_OFFLOAD_11K_ENABLE_BITMASK_NAME,
+		  hdd_ctx->config->offload_11k_enable_bitmask);
+	hdd_debug("Name = [%s] value = [%u]",
+		  CFG_OFFLOAD_NEIGHBOR_REPORT_PARAMS_BITMASK_NAME,
+		  hdd_ctx->config->neighbor_report_offload_params_bitmask);
+	hdd_debug("Name = [%s] value = [%u]",
+		  CFG_OFFLOAD_NEIGHBOR_REPORT_TIME_OFFSET_NAME,
+		  hdd_ctx->config->neighbor_report_offload_time_offset);
+	hdd_debug("Name = [%s] value = [%u]",
+		  CFG_OFFLOAD_NEIGHBOR_REPORT_LOW_RSSI_OFFSET_NAME,
+		  hdd_ctx->config->neighbor_report_offload_low_rssi_offset);
+	hdd_debug("Name = [%s] value = [%u]",
+		  CFG_OFFLOAD_NEIGHBOR_REPORT_BMISS_COUNT_TRIGGER_NAME,
+		  hdd_ctx->config->neighbor_report_offload_bmiss_count_trigger);
+	hdd_debug("Name = [%s] value = [%u]",
+		  CFG_OFFLOAD_NEIGHBOR_REPORT_PER_THRESHOLD_OFFSET_NAME,
+		  hdd_ctx->config->
+		  neighbor_report_offload_per_threshold_offset);
+	hdd_debug("Name = [%s] value = [%u]",
+		  CFG_OFFLOAD_NEIGHBOR_REPORT_CACHE_TIMEOUT_NAME,
+		  hdd_ctx->config->neighbor_report_offload_cache_timeout);
+	hdd_debug("Name = [%s] value = [%u]",
+		  CFG_OFFLOAD_NEIGHBOR_REPORT_MAX_REQ_CAP_NAME,
+		  hdd_ctx->config->neighbor_report_offload_max_req_cap);
 }
 
 /**
@@ -7261,6 +7362,8 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_debug("Name = [%s] value = [%d]",
 		  CFG_ENABLE_GCMP_NAME,
 		  pHddCtx->config->gcmp_enabled);
+
+	hdd_cfg_print_11k_offload_params(pHddCtx);
 }
 
 /**
@@ -9389,6 +9492,36 @@ static void hdd_update_bss_score_params(struct hdd_config *config,
 }
 
 /**
+ * hdd_update_11k_offload_params() - initializes the 11k offload related params
+ *
+ * @config: pointer to hdd_config structure
+ * @csr_config: pointer to the csr config structure
+ *
+ * Return: None
+ */
+static
+void hdd_update_11k_offload_params(struct hdd_config *config,
+				tCsrConfigParam *csr_config)
+{
+	csr_config->offload_11k_enable_bitmask =
+		config->offload_11k_enable_bitmask;
+	csr_config->neighbor_report_offload.params_bitmask =
+		config->neighbor_report_offload_params_bitmask;
+	csr_config->neighbor_report_offload.time_offset =
+		config->neighbor_report_offload_time_offset;
+	csr_config->neighbor_report_offload.low_rssi_offset =
+		config->neighbor_report_offload_low_rssi_offset;
+	csr_config->neighbor_report_offload.bmiss_count_trigger =
+		config->neighbor_report_offload_bmiss_count_trigger;
+	csr_config->neighbor_report_offload.per_threshold_offset =
+		config->neighbor_report_offload_per_threshold_offset;
+	csr_config->neighbor_report_offload.neighbor_report_cache_timeout =
+		config->neighbor_report_offload_cache_timeout;
+	csr_config->neighbor_report_offload.max_neighbor_report_req_cap =
+		config->neighbor_report_offload_max_req_cap;
+}
+
+/**
  * hdd_set_sme_config() -initializes the sme configuration parameters
  *
  * @pHddCtx: the pointer to hdd context
@@ -9844,6 +9977,8 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 	hdd_update_bss_score_params(pHddCtx->config,
 			&smeConfig->csrConfig.bss_score_params);
 
+	hdd_update_11k_offload_params(pHddCtx->config,
+					&smeConfig->csrConfig);
 
 	status = sme_update_config(pHddCtx->hHal, smeConfig);
 	if (!QDF_IS_STATUS_SUCCESS(status))

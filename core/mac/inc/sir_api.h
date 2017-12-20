@@ -1333,6 +1333,7 @@ typedef struct sSirSmeJoinReq {
 	bool ignore_assoc_disallowed;
 	bool enable_bcast_probe_rsp;
 	bool force_24ghz_in_ht20;
+	bool force_rsne_override;
 	tSirBssDescription bssDescription;
 	/*
 	 * WARNING: Pls make bssDescription as last variable in struct

@@ -13900,6 +13900,30 @@ enum hw_filter_mode {
 
 /*
  * <ini>
+ * force_rsne_override - force rsnie override from user
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to enable/disable test mode to force rsne override used in
+ * security enhancement test cases to pass the RSNIE sent by user in
+ * assoc request.
+ *
+ * Related: None
+ *
+ * Supported Feature: STA
+ *
+ * Usage: internal
+ *
+ * </ini>
+ */
+#define CFG_FORCE_RSNE_OVERRIDE_NAME    "force_rsne_override"
+#define CFG_FORCE_RSNE_OVERRIDE_MIN     (0)
+#define CFG_FORCE_RSNE_OVERRIDE_MAX     (1)
+#define CFG_FORCE_RSNE_OVERRIDE_DEFAULT (0)
+
+/*
+ * <ini>
  * enable_mac_provision - Enable/disable MAC address provisioning feature
  * @Min: 0
  * @Max: 1
@@ -15124,6 +15148,7 @@ struct hdd_config {
 	uint8_t rx_chain_mask_2g;
 	uint8_t tx_chain_mask_5g;
 	uint8_t rx_chain_mask_5g;
+	bool force_rsne_override;
 	bool mac_provision;
 	uint32_t provisioned_intf_pool;
 	uint32_t derived_intf_pool;

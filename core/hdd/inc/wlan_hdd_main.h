@@ -2123,6 +2123,7 @@ struct hdd_context_s {
 	hdd_adapter_t *cap_tsf_context;
 #endif
 	struct sta_ap_intf_check_work_ctx *sta_ap_intf_check_work_info;
+	bool force_rsne_override;
 	qdf_wake_lock_t monitor_mode_wakelock;
 	bool lte_coex_ant_share;
 

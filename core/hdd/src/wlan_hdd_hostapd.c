@@ -2734,7 +2734,7 @@ int hdd_softap_unpack_ie(tHalHandle halHandle,
 		ret = dot11f_unpack_ie_rsn((tpAniSirGlobal) halHandle,
 					   pRsnIe, RSNIeLen, &dot11RSNIE,
 					   false);
-		if (DOT11F_FAILED(ret)) {
+		if (!DOT11F_SUCCEEDED(ret)) {
 			hdd_err("unpack failed, ret: 0x%x", ret);
 			return -EINVAL;
 		}

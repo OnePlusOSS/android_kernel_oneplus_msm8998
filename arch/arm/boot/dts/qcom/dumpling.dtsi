@@ -381,8 +381,6 @@
 
 &pmi8998_haptics {
 	status = "okay";
-	interrupts = <0x3 0xc0 0x0 IRQ_TYPE_NONE>,
-	<0x3 0xc0 0x1 IRQ_TYPE_NONE>;
 	qcom,wave-shape = "sine";
 	qcom,play-mode = "buffer";
 	qcom,wave-samples = [28 28 28 28 28 28 28 28];
@@ -390,6 +388,7 @@
 	qcom,brake-pattern = [03 03 03 03];
 	qcom,wave-rep-cnt = <1>;
 	qcom,wave-samp-rep-cnt = <1>;
+	qcom,use-play-irq;
 	qcom,vmax-mv = <2088>;
 	qcom,wave-play-rate-us = <4255>;
 	qcom,lra-auto-res-mode = "zxd-eop";

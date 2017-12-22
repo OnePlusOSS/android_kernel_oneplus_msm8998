@@ -276,7 +276,6 @@ static int param_get_data_stage(char *val, struct kernel_param *kp)
 
 module_param_call(data_stage, param_set_data_stage, param_get_data_stage, &data_stage, 0644);
 
-/* liochen@BSP, 2017/07/17, Add param unlock_count */
 static int unlock_count = 0;
 static int param_get_unlock_count(char *val, struct kernel_param *kp)
 {
@@ -296,18 +295,6 @@ module_param_call(unlock_count, NULL, param_get_unlock_count, &unlock_count, 064
 
 /* liochen@BSP, 2017/07/31, Add cust_flag */
 static int cust_flag = 0;
-static int param_set_cust_flag(const char *val, struct kernel_param *kp)
-{
-        uint32 sid_index= PARAM_SID_SALEINFO;
-        uint32 offset = offsetof(param_saleinfo_t, cust_flag);
-
-        sscanf(val, "%d", &cust_flag);
-
-        pr_err("param_set_cust_flag(): cust_flag=%d\n", cust_flag);
-        set_param_by_index_and_offset(sid_index,offset, &cust_flag, sizeof(cust_flag));
-
-        return 0;
-}
 
 static int param_get_cust_flag(char *val, struct kernel_param *kp)
 {
@@ -322,7 +309,7 @@ static int param_get_cust_flag(char *val, struct kernel_param *kp)
         return cnt;
 
 }
-module_param_call(cust_flag, param_set_cust_flag, param_get_cust_flag, &cust_flag, 0644);
+module_param_call(cust_flag, NULL, param_get_cust_flag, &cust_flag, 0444);
 
 /* liochen@BSP, 2017/06/30, Add normal_reboot_count and abnormal_reboot_count */
 static int normal_reboot_count = 0;

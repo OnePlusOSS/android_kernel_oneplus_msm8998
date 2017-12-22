@@ -2005,4 +2005,15 @@ QDF_STATUS sme_fast_reassoc(tHalHandle hal, tCsrRoamProfile *profile,
 			    const tSirMacAddr bssid, int channel,
 			    uint8_t vdev_id, const tSirMacAddr connected_bssid);
 
+/**
+ * sme_enable_roaming_on_connected_sta() - Enable roaming on an connected sta
+ * @hal: handle returned by mac_open
+ *
+ * The function check if any connected STA is present on which roaming is not
+ * enabled and if present enabled roaming on that STA.
+ *
+ * Return: none
+ */
+void sme_enable_roaming_on_connected_sta(tHalHandle hal);
+
 #endif /* #if !defined( __SME_API_H ) */

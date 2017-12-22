@@ -1439,8 +1439,6 @@ struct hdd_adapter_s {
 	struct hdd_connect_pm_context connect_rpm_ctx;
 	struct power_stats_response *chip_power_stats;
 
-	bool fast_roaming_allowed;
-
 	/* rcpi information */
 	struct rcpi_info rcpi;
 	/*

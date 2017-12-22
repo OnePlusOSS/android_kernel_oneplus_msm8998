@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1727,6 +1727,9 @@ static QDF_STATUS hdd_dis_connect_handler(hdd_adapter_t *pAdapter,
 	hdd_reset_limit_off_chan(pAdapter);
 
 	hdd_print_bss_info(pHddStaCtx);
+
+	if (cds_mode_specific_connection_count(CDS_STA_MODE, NULL))
+		sme_enable_roaming_on_connected_sta(pHddCtx->hHal);
 	return status;
 }
 

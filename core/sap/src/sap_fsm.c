@@ -2238,22 +2238,30 @@ sap_dfs_is_channel_in_nol_list(ptSapContext sap_context,
 	return false;
 }
 
-/**
- * sap_select_default_oper_chan() - Select operating channel based on acs hwmode
- * @hal: pointer to HAL
- * @acs_hwmode: HW mode of ACS
- *
- * Return: selected operating channel
- */
-uint8_t sap_select_default_oper_chan(tHalHandle hal, uint32_t acs_hwmode)
+uint8_t sap_select_default_oper_chan(struct sap_acs_cfg *acs_cfg)
 {
 	uint8_t channel;
 
-	if ((acs_hwmode == QCA_ACS_MODE_IEEE80211A) ||
-			(acs_hwmode == QCA_ACS_MODE_IEEE80211AD))
+	if (NULL == acs_cfg) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			  "ACS config invalid!");
+		QDF_BUG(0);
+		return 0;
+	}
+
+	if (acs_cfg->hw_mode == eCSR_DOT11_MODE_11a) {
 		channel = SAP_DEFAULT_5GHZ_CHANNEL;
-	else
+	} else if ((acs_cfg->hw_mode == eCSR_DOT11_MODE_11n) ||
+		   (acs_cfg->hw_mode == eCSR_DOT11_MODE_11n_ONLY) ||
+		   (acs_cfg->hw_mode == eCSR_DOT11_MODE_11ac) ||
+		   (acs_cfg->hw_mode == eCSR_DOT11_MODE_11ac_ONLY)) {
+		if (CDS_IS_CHANNEL_5GHZ(acs_cfg->start_ch))
+			channel = SAP_DEFAULT_5GHZ_CHANNEL;
+		else
+			channel = SAP_DEFAULT_24GHZ_CHANNEL;
+	} else {
 		channel = SAP_DEFAULT_24GHZ_CHANNEL;
+	}
 
 	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
 			FL("channel selected to start bss %d"), channel);
@@ -2508,9 +2516,8 @@ QDF_STATUS sap_goto_channel_sel(ptSapContext sap_context,
 			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
 				  FL("SAP Configuring default channel, Ch=%d"),
 				  sap_context->channel);
-			sap_context->channel =
-				sap_select_default_oper_chan(h_hal,
-					sap_context->acs_cfg->hw_mode);
+			sap_context->channel = sap_select_default_oper_chan(
+					sap_context->acs_cfg);
 
 #ifdef SOFTAP_CHANNEL_RANGE
 			if (sap_context->channelList != NULL) {

@@ -216,7 +216,6 @@ static bool key_back_disable, key_appselect_disable;
 #endif
 static struct synaptics_ts_data *ts_g;
 static struct workqueue_struct *synaptics_wq;
-static struct workqueue_struct *synaptics_report;
 static struct workqueue_struct *get_base_report;
 static struct proc_dir_entry *prEntry_tp;
 
@@ -481,7 +480,6 @@ struct synaptics_ts_data {
 	uint32_t pre_finger_state;
 	uint32_t pre_btn_state;
 	struct delayed_work base_work;
-	struct work_struct report_work;
 	struct delayed_work speed_up_work;
 	struct input_dev *input_dev;
 	struct hrtimer timer;
@@ -1607,18 +1605,30 @@ static int synaptics_rmi4_free_fingers(struct synaptics_ts_data *ts)
 	return 0;
 }
 
-static void synaptics_ts_work_func(struct work_struct *work)
+#ifndef TPD_USE_EINT
+static enum hrtimer_restart synaptics_ts_timer_func(struct hrtimer *timer)
 {
+	struct synaptics_ts_data *ts =
+	    container_of(timer, struct synaptics_ts_data, timer);
+
+	mutex_lock(&ts->mutex);
+	synaptics_ts_work_func(ts);
+	mutex_unlock(&ts->mutex);
+	hrtimer_start(&ts->timer, ktime_set(0, 12500000), HRTIMER_MODE_REL);
+
+	return HRTIMER_NORESTART;
+}
+#else
+static irqreturn_t synaptics_irq_thread_fn(int irq, void *dev_id)
+{
+	struct synaptics_ts_data *ts = (struct synaptics_ts_data *)dev_id;
 	int ret, status_check;
 	uint8_t status = 0;
 	uint8_t inte = 0;
 
-	struct synaptics_ts_data *ts = ts_g;
-
-	if (atomic_read(&ts->is_stop) == 1) {
-		touch_disable(ts);
-		return;
-	}
+	touch_disable(ts);
+	if (atomic_read(&ts->is_stop) == 1)
+		return IRQ_HANDLED;
 
 	if (ts->enable_remote)
 		goto END;
@@ -1659,28 +1669,6 @@ static void synaptics_ts_work_func(struct work_struct *work)
 
  END:
 	touch_enable(ts);
-}
-
-#ifndef TPD_USE_EINT
-static enum hrtimer_restart synaptics_ts_timer_func(struct hrtimer *timer)
-{
-	struct synaptics_ts_data *ts =
-	    container_of(timer, struct synaptics_ts_data, timer);
-
-	mutex_lock(&ts->mutex);
-	synaptics_ts_work_func(ts);
-	mutex_unlock(&ts->mutex);
-	hrtimer_start(&ts->timer, ktime_set(0, 12500000), HRTIMER_MODE_REL);
-
-	return HRTIMER_NORESTART;
-}
-#else
-static irqreturn_t synaptics_irq_thread_fn(int irq, void *dev_id)
-{
-	struct synaptics_ts_data *ts = (struct synaptics_ts_data *)dev_id;
-
-	touch_disable(ts);
-	synaptics_ts_work_func(&ts->report_work);
 
 	return IRQ_HANDLED;
 }
@@ -5044,8 +5032,6 @@ static int synaptics_ts_probe(struct i2c_client *client,
  exit_createworkqueue_failed:
 	destroy_workqueue(synaptics_wq);
 	synaptics_wq = NULL;
-	destroy_workqueue(synaptics_report);
-	synaptics_report = NULL;
 	destroy_workqueue(get_base_report);
 	get_base_report = NULL;
 

@@ -581,9 +581,6 @@ struct mdss_dsi_ctrl_pdata {
 	struct mdss_dsi_debugfs_info *debugfs_info;
 	struct dsi_err_container err_cont;
 
-	struct delayed_work techeck_work;
-	struct completion te_comp;
-
 	int disp_vci_en_gpio;
 	int disp_poc_en_gpio;
 

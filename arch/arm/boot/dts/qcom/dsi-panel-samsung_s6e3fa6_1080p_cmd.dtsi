@@ -72,7 +72,7 @@
 		qcom,mdss-dsi-te-v-sync-rd-ptr-irq-line = <0x2c>;
 		qcom,mdss-dsi-te-v-sync-continue-lines = <0x3c>;
 		qcom,mdss-dsi-te-dcs-command = <1>;
-		qcom,esd-check-enabled;
+		//qcom,esd-check-enabled;
 		qcom,mdss-dsi-panel-status-check-mode = "te_signal_check";
 		qcom,mdss-dsi-te-check-enable;
 		qcom,mdss-dsi-te-using-te-pin;

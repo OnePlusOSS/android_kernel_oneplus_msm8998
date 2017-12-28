@@ -12095,7 +12095,7 @@ enum hw_filter_mode {
  */
 #define CFG_SAP_CH_SWITCH_BEACON_CNT         "g_sap_chanswitch_beacon_cnt"
 #define CFG_SAP_CH_SWITCH_BEACON_CNT_MIN     (1)
-#define CFG_SAP_CH_SWITCH_BEACON_CNT_MAX     (5)
+#define CFG_SAP_CH_SWITCH_BEACON_CNT_MAX     (10)
 #define CFG_SAP_CH_SWITCH_BEACON_CNT_DEFAULT (5)
 
 /*

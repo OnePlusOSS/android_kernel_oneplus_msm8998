@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -802,6 +802,7 @@ int hif_get_rx_ctx_id(int ctx_id, struct hif_opaque_softc *hif_hdl)
 		return ctx_id;
 }
 
+#if defined(HIF_PCI) || defined(HIF_SNOC) || defined(HIF_AHB)
 /**
  * hif_offld_flush_cb_register - API to register for LRO Flush Callback
  * @scn: HIF Context
@@ -821,6 +822,32 @@ void hif_offld_flush_cb_register(struct hif_opaque_softc *scn,
 		ce_lro_flush_cb_register(scn, offld_flush_handler,
 					offld_init_handler);
 }
+
+/**
+ * hif_offld_flush_cb_deregister - API to deregister offload Flush Callbacks
+ * @hif_hdl: HIF Context
+ * @offld_deinit_cb: Rx offload deinit callback
+ *
+ * Return: void
+ */
+void hif_offld_flush_cb_deregister(struct hif_opaque_softc *hif_hdl,
+				 void (offld_deinit_cb)(void *))
+{
+	hif_napi_lro_flush_cb_deregister(hif_hdl, offld_deinit_cb);
+	ce_lro_flush_cb_deregister(hif_hdl, offld_deinit_cb);
+}
+#else
+void hif_offld_flush_cb_register(struct hif_opaque_softc *scn,
+			       void (offld_flush_handler)(void *),
+			       void *(offld_init_handler)(void))
+{
+}
+
+void hif_offld_flush_cb_deregister(struct hif_opaque_softc *hif_hdl,
+				 void (offld_deinit_cb)(void *))
+{
+}
+#endif
 
 #if defined(FEATURE_LRO)
 /**
@@ -844,19 +871,6 @@ void *hif_get_lro_info(int ctx_id, struct hif_opaque_softc *hif_hdl)
 
 
 #endif
-/**
- * hif_offld_flush_cb_deregister - API to deregister offload Flush Callbacks
- * @hif_hdl: HIF Context
- * @offld_deinit_cb: Rx offload deinit callback
- *
- * Return: void
- */
-void hif_offld_flush_cb_deregister(struct hif_opaque_softc *hif_hdl,
-				 void (offld_deinit_cb)(void *))
-{
-	hif_napi_lro_flush_cb_deregister(hif_hdl, offld_deinit_cb);
-	ce_lro_flush_cb_deregister(hif_hdl, offld_deinit_cb);
-}
 
 /**
  * hif_get_target_status - API to get target status

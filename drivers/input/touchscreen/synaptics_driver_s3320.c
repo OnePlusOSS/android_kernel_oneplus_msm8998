@@ -152,22 +152,22 @@ struct test_header {
 #define BIT6 (0x1 << 6)
 #define BIT7 (0x1 << 7)
 
-int LeftVee_gesture;		/* > */
-int RightVee_gesture;		/* < */
-int DouSwip_gesture;		/* || */
-int Circle_gesture;		/* O */
-int UpVee_gesture;		/* V */
-int DownVee_gesture;		/* ^ */
-int DouTap_gesture;		/* double tap */
+static int LeftVee_gesture;		/* > */
+static int RightVee_gesture;		/* < */
+static int DouSwip_gesture;		/* || */
+static int Circle_gesture;		/* O */
+static int UpVee_gesture;		/* V */
+static int DownVee_gesture;		/* ^ */
+static int DouTap_gesture;		/* double tap */
 
-int Left2RightSwip_gesture;	/* --> */
-int Right2LeftSwip_gesture;	/* <-- */
-int Up2DownSwip_gesture;	/* |v */
-int Down2UpSwip_gesture;	/* |^ */
+static int Left2RightSwip_gesture;	/* --> */
+static int Right2LeftSwip_gesture;	/* <-- */
+static int Up2DownSwip_gesture;	/* |v */
+static int Down2UpSwip_gesture;	/* |^ */
 
-int Wgestrue_gesture;		/* W */
-int Mgestrue_gesture;		/* M */
-int Sgestrue_gesture;		/* S */
+static int Wgestrue_gesture;		/* W */
+static int Mgestrue_gesture;		/* M */
+static int Sgestrue_gesture;		/* S */
 static int gesture_switch;
 #endif
 
@@ -1314,9 +1314,9 @@ static char prlog_count;
 static unsigned char pres_value;
 #endif
 #ifdef SUPPORT_VIRTUAL_KEY
-bool key_back_pressed;
-bool key_appselect_pressed;
-bool key_home_pressed;
+static bool key_back_pressed;
+static bool key_appselect_pressed;
+static bool key_home_pressed;
 #endif
 static inline void int_touch(void)
 {

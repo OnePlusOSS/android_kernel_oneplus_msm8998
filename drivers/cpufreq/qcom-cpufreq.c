@@ -114,8 +114,8 @@ static int msm_cpufreq_target(struct cpufreq_policy *policy,
 		if (likely(qos_cpufreq_flag)) {
 			qos_cpufreq_flag = false;
 		} else {
-			pr_debug("cpufreq: cpu%d scheduling frequency change "
-				"in suspend.\n", policy->cpu);
+			pr_debug("cpufreq: cpu%d change in suspend.\n",
+				policy->cpu);
 			ret = -EFAULT;
 			goto done;
 		}
@@ -128,14 +128,17 @@ static int msm_cpufreq_target(struct cpufreq_policy *policy,
 		ret = -ENODEV;
 		goto done;
 	}
-
 	if (cluster1_first_cpu) {
 		if (policy->cpu >= cluster1_first_cpu) {
-			target_freq = min(c1_qos_request_value.max_cpufreq, target_freq);
-			target_freq = max(c1_qos_request_value.min_cpufreq, target_freq);
-		}else {
-			target_freq = min(c0_qos_request_value.max_cpufreq, target_freq);
-			target_freq = max(c0_qos_request_value.min_cpufreq, target_freq);
+			target_freq = min(c1_qos_request_value.max_cpufreq,
+				target_freq);
+			target_freq = max(c1_qos_request_value.min_cpufreq,
+				target_freq);
+		} else {
+			target_freq = min(c0_qos_request_value.max_cpufreq,
+				target_freq);
+			target_freq = max(c0_qos_request_value.min_cpufreq,
+				target_freq);
 		}
 	}
 
@@ -489,9 +492,11 @@ static int __init msm_cpufreq_probe(struct platform_device *pdev)
 			}
 			ftbl = per_cpu(freq_table, cpu - 1);
 		} else {
-			if(!IS_ERR(ftbl))
+			if (!IS_ERR(ftbl))
 				cluster1_first_cpu = cpu;
-			//pr_info("cluster1_first_cpu: %d",cluster1_first_cpu);
+			/* pr_info("cluster1_first_cpu: %d",
+			* cluster1_first_cpu);
+			*/
 		}
 		per_cpu(freq_table, cpu) = ftbl;
 	}
@@ -512,116 +517,89 @@ static struct platform_driver msm_cpufreq_plat_driver = {
 	},
 };
 
-static int get_c0_available_cpufreq(void)
+static int get_available_cpufreq(bool c0)
 {
-	unsigned int max_cpufreq_index, min_cpufreq_index;
-	unsigned int max_index;
-	unsigned int index_max, index_min;
 	struct cpufreq_frequency_table *table, *pos;
+	int max_cpufreq_index, min_cpufreq_index;
+	int max_index;
+	int index_max, index_min;
+	int cpu = c0 ? 0 : cluster1_first_cpu;
 
-      	table = cpufreq_frequency_get_table(0);
-        if (!table) {
-		pr_err("cpufreq: Failed to get frequency table for CPU%u\n",0);
+	table = cpufreq_frequency_get_table(cpu);
+	if (!table) {
+		pr_err("cpufreq:Failed to get frequency table for CPU%u\n", cpu);
 		return -EINVAL;
 	}
 
-        max_cpufreq_index = (unsigned int)pm_qos_request(PM_QOS_C0_CPUFREQ_MAX);
-        min_cpufreq_index = (unsigned int)pm_qos_request(PM_QOS_C0_CPUFREQ_MIN);
-        /* you can limit the min cpufreq*/
-        if (min_cpufreq_index > max_cpufreq_index)
-                max_cpufreq_index = min_cpufreq_index;
+	max_cpufreq_index = pm_qos_request(c0 ? PM_QOS_C0_CPUFREQ_MAX : PM_QOS_C1_CPUFREQ_MAX);
+	min_cpufreq_index = pm_qos_request(c0 ? PM_QOS_C0_CPUFREQ_MIN : PM_QOS_C1_CPUFREQ_MIN);
+	/* you can limit the min cpufreq*/
+	if (min_cpufreq_index > max_cpufreq_index)
+		max_cpufreq_index = min_cpufreq_index;
 
-        /*get the available cpufreq*/
-	/* lock for the max available cpufreq*/
+	/* get the available cpufreq
+	* lock for the max available cpufreq
+	*/
+	max_index = 0;
 	cpufreq_for_each_valid_entry(pos, table) {
 		max_index = pos - table;
 	}
+	if (!max_index) {
+		pr_err("qcom-cpufreq: error while getting max_index\n");
+		return -EINVAL;
+	}
+
 	if (max_cpufreq_index & MASK_CPUFREQ) {
 		index_max = MAX_CPUFREQ - max_cpufreq_index;
-		if (index_max> max_index)
+		if (index_max > max_index)
 			index_max = 0;
 		index_max = max_index - index_max;
 	} else {
-		if (max_cpufreq_index > max_index)
+		if (max_cpufreq_index > max_index) {
 			index_max = max_index;
+		} else {
+			pr_debug("qcom-cpufreq: unable to set index_max\n");
+			index_max = 0;
+		}
 	}
 	if (min_cpufreq_index & MASK_CPUFREQ) {
-                index_min = MAX_CPUFREQ - min_cpufreq_index;
-                if (index_min > max_index)
-                        index_min = 0;
+		index_min = MAX_CPUFREQ - min_cpufreq_index;
+		if (index_min > max_index)
+			index_min = 0;
 		index_min = max_index - index_min;
-        } else {
-                if (min_cpufreq_index > max_index)
-                        index_min = max_index;
-        }
-        c0_qos_request_value.max_cpufreq = table[index_max].frequency;
-        c0_qos_request_value.min_cpufreq = table[index_min].frequency;
-	pr_debug("::: m:%d, ii:%d-, mm:%d-",max_index, index_min,index_max);
+	} else {
+		if (min_cpufreq_index > max_index) {
+			index_min = max_index;
+		} else {
+			pr_debug("qcom-cpufreq: unable to set index_min\n");
+			index_min = 0;
+		}
+	}
+
+	if (c0) {
+		c0_qos_request_value.max_cpufreq = table[index_max].frequency;
+		c0_qos_request_value.min_cpufreq = table[index_min].frequency;
+	} else {
+		c1_qos_request_value.max_cpufreq = table[index_max].frequency;
+		c1_qos_request_value.min_cpufreq = table[index_min].frequency;
+	}
+
+	pr_debug("::: m:%d, ii:%d-, mm:%d-", max_index, index_min, index_max);
 
 	return 0;
 }
 
-static int get_c1_available_cpufreq(void)
+static int __cpufreq_qos_handler(struct notifier_block *b,
+	unsigned long val, void *v, bool c0)
 {
-        unsigned int max_cpufreq_index, min_cpufreq_index;
-        unsigned int max_index;
-        unsigned int index_max, index_min;
-        struct cpufreq_frequency_table *table, *pos;
-
-	table = cpufreq_frequency_get_table(cluster1_first_cpu);
-	if (!table) {
-		pr_err("cpufreq: Failed to get frequency table for CPU%u\n",
-			cluster1_first_cpu);
-		return -EINVAL;
-	}
-
-	max_cpufreq_index = (unsigned int)pm_qos_request(PM_QOS_C1_CPUFREQ_MAX);
-	min_cpufreq_index = (unsigned int)pm_qos_request(PM_QOS_C1_CPUFREQ_MIN);
-        /* you can limit the min cpufreq*/
-        if (min_cpufreq_index > max_cpufreq_index)
-                max_cpufreq_index = min_cpufreq_index;
-
-        /*get the available cpufreq*/
-        /* lock for the max available cpufreq*/
-        cpufreq_for_each_valid_entry(pos, table) {
-                max_index = pos - table;
-        }
-		/* add limits */
-        if (max_cpufreq_index & MASK_CPUFREQ) {
-                index_max = MAX_CPUFREQ - max_cpufreq_index;
-                if (index_max> max_index)
-                        index_max = 0;
-                index_max = max_index - index_max;
-        } else {
-                if (max_cpufreq_index > max_index)
-                        index_max = max_index;
-        }
-        if (min_cpufreq_index & MASK_CPUFREQ) {
-                index_min = MAX_CPUFREQ - min_cpufreq_index;
-                if (index_min > max_index)
-                        index_min = 0;
-                index_min = max_index - index_min;
-        } else {
-                if (min_cpufreq_index > max_index)
-                        index_min = max_index;
-        }
-        c1_qos_request_value.max_cpufreq = table[index_max].frequency;
-        c1_qos_request_value.min_cpufreq = table[index_min].frequency;
-        pr_debug("::: m:%d, ii:%d-, mm:%d-",max_index, index_min,index_max);
-
-        return 0;
-}
-
-static int c0_cpufreq_qos_handler(struct notifier_block *b, unsigned long val, void *v)
-{
-        struct cpufreq_policy *policy;
+	struct cpufreq_policy *policy;
 	int ret = -1;
 
-	//get_online_cpus();
-        policy = cpufreq_cpu_get(0);
+	/* get_online_cpus(); */
+	policy = cpufreq_cpu_get(c0 ? 0 : cluster1_first_cpu);
 
-        if (!policy)
-        	return NOTIFY_BAD;
+	if (!policy)
+		return NOTIFY_BAD;
 
 	if (!policy->governor) {
 		cpufreq_cpu_put(policy);
@@ -633,80 +611,68 @@ static int c0_cpufreq_qos_handler(struct notifier_block *b, unsigned long val, v
 		return NOTIFY_OK;
 	}
 
-	ret = get_c0_available_cpufreq();
-	if (!ret) {
-        	cpufreq_cpu_put(policy);
+	if (c0)
+		ret = get_available_cpufreq(true);
+	else
+		ret = get_available_cpufreq(false);
+
+	if (ret) {
+		cpufreq_cpu_put(policy);
 		return NOTIFY_BAD;
 	}
 
-	__cpufreq_driver_target(policy,
-		c0_qos_request_value.min_cpufreq, CPUFREQ_RELATION_H);
+	if (c0) {
+		__cpufreq_driver_target(policy,
+			c0_qos_request_value.min_cpufreq, CPUFREQ_RELATION_H);
+	} else {
+		c1_cpufreq_update_flag = true;
+		__cpufreq_driver_target(policy,
+			c1_qos_request_value.min_cpufreq, CPUFREQ_RELATION_H);
+	}
 
-        cpufreq_cpu_put(policy);
-	//put_online_cpus();
-        return NOTIFY_OK;
+	cpufreq_cpu_put(policy);
+
+	/* put_online_cpus(); */
+	return NOTIFY_OK;
+}
+
+static int c0_cpufreq_qos_handler(struct notifier_block *b,
+	unsigned long val, void *v) {
+	return __cpufreq_qos_handler(b, val, v, true);
+}
+
+static int c1_cpufreq_qos_handler(struct notifier_block *b,
+	unsigned long val, void *v) {
+	return __cpufreq_qos_handler(b, val, v, false);
 }
 
 static struct notifier_block c0_cpufreq_qos_notifier = {
-        .notifier_call = c0_cpufreq_qos_handler,
+	.notifier_call = c0_cpufreq_qos_handler,
 };
-
-static int c1_cpufreq_qos_handler(struct notifier_block *b, unsigned long val, void *v)
-{
-        struct cpufreq_policy *policy;
-	int ret = -1;
-
-	pr_info(":::update_policy\n");
-	/* in use, policy may be NULL, because hotplug can close first cpu core*/
-	//get_online_cpus();
-        policy = cpufreq_cpu_get(cluster1_first_cpu);
-
-        if (!policy)
-        	return NOTIFY_BAD;
-
-	if (!policy->governor) {
-		cpufreq_cpu_put(policy);
-		return NOTIFY_BAD;
-	}
-
-	if (strcmp(policy->governor->name, "interactive")) {
-		cpufreq_cpu_put(policy);
-		return NOTIFY_OK;
-	}
-
-	ret = get_c1_available_cpufreq();
-	if (ret) {
-        	cpufreq_cpu_put(policy);
-		return NOTIFY_BAD;
-	}
-
-	c1_cpufreq_update_flag = true;
-	__cpufreq_driver_target(policy,
-		c1_qos_request_value.min_cpufreq, CPUFREQ_RELATION_H);
-
-	//__cpufreq_driver_target(policy, val, CPUFREQ_RELATION_H);
-        cpufreq_cpu_put(policy);
-
-	//put_online_cpus();
-    return NOTIFY_OK;
-}
 
 static struct notifier_block c1_cpufreq_qos_notifier = {
-        .notifier_call = c1_cpufreq_qos_handler,
+	.notifier_call = c1_cpufreq_qos_handler,
 };
 
-static void c0_cpufreq_limit(struct work_struct *work)
+static void __cpufreq_limit(bool c0)
 {
 	struct cpufreq_policy *policy;
 
-	policy = cpufreq_cpu_get(0);
+	policy = cpufreq_cpu_get(c0 ? 0 : cluster1_first_cpu);
 	if (policy)  {
 		qos_cpufreq_flag = true;
 		cpufreq_driver_target(policy,
-			LITTLE_CPU_QOS_FREQ, CPUFREQ_RELATION_H);
+			c0 ? LITTLE_CPU_QOS_FREQ : BIG_CPU_QOS_FREQ, CPUFREQ_RELATION_H);
 		cpufreq_cpu_put(policy);
 	}
-	sched_set_boost(1);
+
+	if (c0)
+		sched_set_boost(1);
+}
+
+static void c0_cpufreq_limit(struct work_struct *work)
+{
+	__cpufreq_limit(true);
 }
 
 void c0_cpufreq_limit_queue(void)
@@ -718,22 +684,13 @@ EXPORT_SYMBOL_GPL(c0_cpufreq_limit_queue);
 
 static void c1_cpufreq_limit(struct work_struct *work)
 {
-       struct cpufreq_policy *policy;
-
-       policy = cpufreq_cpu_get(cluster1_first_cpu);
-       if (policy)  {
-               qos_cpufreq_flag = true;
-               cpufreq_driver_target(policy,
-                       BIG_CPU_QOS_FREQ, CPUFREQ_RELATION_H);
-               cpufreq_cpu_put(policy);
-       }
-
+	__cpufreq_limit(false);
 }
 
 void c1_cpufreq_limit_queue(void)
 {
-       if (qos_cpufreq_work_queue)
-               queue_work(qos_cpufreq_work_queue, &c1_cpufreq_limit_work);
+	if (qos_cpufreq_work_queue)
+		queue_work(qos_cpufreq_work_queue, &c1_cpufreq_limit_work);
 }
 EXPORT_SYMBOL_GPL(c1_cpufreq_limit_queue);
 

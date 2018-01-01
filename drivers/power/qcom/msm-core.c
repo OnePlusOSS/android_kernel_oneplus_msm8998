@@ -111,11 +111,12 @@ static struct cpu_pwr_stats cpu_stats[NR_CPUS];
 static uint32_t scaling_factor;
 ALLOCATE_2D_ARRAY(uint32_t);
 
-static int poll_ms;
-module_param_named(polling_interval, poll_ms, int,
+static __read_mostly int poll_ms;
+static __read_mostly int poll_ms_dummy;
+module_param_named(polling_interval, poll_ms_dummy, int,
 		S_IRUGO | S_IWUSR | S_IWGRP);
 
-static int disabled;
+static __read_mostly int disabled;
 module_param_named(disabled, disabled, int,
 		S_IRUGO | S_IWUSR | S_IWGRP);
 static bool in_suspend;

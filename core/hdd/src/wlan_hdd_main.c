@@ -7117,7 +7117,8 @@ hdd_display_netif_queue_history_compact(hdd_context_t *hdd_ctx)
 	qdf_time_t total, pause, unpause, curr_time, delta;
 	QDF_STATUS status;
 	char temp_str[20 * WLAN_REASON_TYPE_MAX];
-	char comb_log_str[(ADAP_NETIFQ_LOG_LEN * MAX_NUMBER_OF_ADAPTERS) + 1];
+	char *comb_log_str;
+	uint32_t comb_log_str_size;
 	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 	hdd_adapter_t *adapter = NULL;
 	hdd_adapter_list_node_t *adapter_node = NULL, *next = NULL;
@@ -7127,8 +7128,14 @@ hdd_display_netif_queue_history_compact(hdd_context_t *hdd_ctx)
 		return;
 	}
 
+	comb_log_str_size = (ADAP_NETIFQ_LOG_LEN * MAX_NUMBER_OF_ADAPTERS) + 1;
+	comb_log_str = qdf_mem_malloc(comb_log_str_size);
+	if (!comb_log_str) {
+		hdd_err("failed to alloc comb_log_str");
+		return;
+	}
+
 	bytes_written = 0;
-	qdf_mem_set(comb_log_str, 0, sizeof(comb_log_str));
 	status = hdd_get_front_adapter(hdd_ctx, &adapter_node);
 	while (NULL != adapter_node && QDF_STATUS_SUCCESS == status) {
 		adapter = adapter_node->pAdapter;
@@ -7167,8 +7174,8 @@ hdd_display_netif_queue_history_compact(hdd_context_t *hdd_ctx)
 			hdd_warn("log truncated");
 
 		bytes_written += snprintf(&comb_log_str[bytes_written],
-			bytes_written >= sizeof(comb_log_str) ? 0 :
-					sizeof(comb_log_str) - bytes_written,
+			bytes_written >= comb_log_str_size ? 0 :
+					comb_log_str_size - bytes_written,
 			"[%d %d] (%d) %u/%ums %s|",
 			adapter->sessionId, adapter->device_mode,
 			adapter->pause_map,
@@ -7187,9 +7194,10 @@ hdd_display_netif_queue_history_compact(hdd_context_t *hdd_ctx)
 		pdev->tx_desc.num_free,
 		pdev->tx_desc.pool_size, comb_log_str);
 
-	if (bytes_written >= sizeof(comb_log_str))
+	if (bytes_written >= comb_log_str_size)
 		hdd_warn("log string truncated");
 
+	qdf_mem_free(comb_log_str);
 }
 
 /**

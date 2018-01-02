@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -38,9 +38,10 @@
 
 #include "wlan_hdd_main.h"
 
-#define MAX_NUMBER_OF_CONC_CONNECTIONS 3
-#define DBS_OPPORTUNISTIC_TIME    10
-#define CONNECTION_UPDATE_TIMEOUT 3000
+#define MAX_NUMBER_OF_CONC_CONNECTIONS    3
+#define DBS_OPPORTUNISTIC_TIME            10
+#define CONNECTION_UPDATE_TIMEOUT         3000
+#define CHANNEL_SWITCH_COMPLETE_TIMEOUT   1000
 
 /* Some max value greater than the max length of the channel list */
 #define MAX_WEIGHT_OF_PCL_CHANNELS 255

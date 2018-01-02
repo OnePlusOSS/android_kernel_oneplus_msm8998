@@ -1914,7 +1914,7 @@ static int32_t csr_calculate_pcl_score(tpAniSirGlobal mac_ctx,
 {
 	int32_t pcl_score = 0;
 	int32_t score = 0;
-	int32_t temp_pcl_chan_weight = 0;
+	uint64_t temp_pcl_chan_weight = 0;
 
 	if (pcl_chan_weight) {
 		temp_pcl_chan_weight =

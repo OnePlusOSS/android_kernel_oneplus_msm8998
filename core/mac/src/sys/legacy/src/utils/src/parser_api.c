@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -2266,7 +2266,7 @@ static void update_esp_data(struct sir_esp_information *esp_information,
 
 	uint8_t *data;
 	int i = 0;
-	int total_elements;
+	uint64_t total_elements;
 	struct sir_esp_info *esp_info;
 
 	data = esp_indication->variable_data;

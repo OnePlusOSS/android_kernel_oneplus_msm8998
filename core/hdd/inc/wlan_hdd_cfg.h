@@ -15251,7 +15251,9 @@ enum hw_filter_mode {
  * 001 match if at least one top priority BSSID only
  * 010, 011, 100, 101, 110, 111 reserved
  *
- * BIT 6-31: Reserved
+ * BIT 6: Set this to 1 will send BTM query frame and 0 not sent.
+ *
+ * BIT 7-31: Reserved
  *
  * Supported Feature: STA
  *
@@ -15262,7 +15264,69 @@ enum hw_filter_mode {
 #define CFG_BTM_ENABLE_NAME      "btm_offload_config"
 #define CFG_BTM_ENABLE_MIN       (0x00000000)
 #define CFG_BTM_ENABLE_MAX       (0xffffffff)
-#define CFG_BTM_ENABLE_DEFAULT   (0x00000001)
+#define CFG_BTM_ENABLE_DEFAULT   (0x00000041)
+
+/*
+ * <ini>
+ * btm_solicited_timeout - timeout value for waiting BTM request
+ * @Min: 1
+ * @Max: 10000
+ * @Default: 100
+ *
+ * This ini is used to configure timeout value for waiting BTM request.
+ * Unit: millionsecond
+ *
+ * Supported Feature: STA
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_BTM_SOLICITED_TIMEOUT           "btm_solicited_timeout"
+#define CFG_BTM_SOLICITED_TIMEOUT_MIN       (1)
+#define CFG_BTM_SOLICITED_TIMEOUT_MAX       (10000)
+#define CFG_BTM_SOLICITED_TIMEOUT_DEFAULT   (100)
+
+/*
+ * <ini>
+ * btm_max_attempt_cnt - Maximum attempt for sending BTM query to ESS
+ * @Min: 1
+ * @Max: 0xFFFFFFFF
+ * @Default: 3
+ *
+ * This ini is used to configure maximum attempt for sending BTM query to ESS.
+ *
+ * Supported Feature: STA
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_BTM_MAX_ATTEMPT_CNT           "btm_max_attempt_cnt"
+#define CFG_BTM_MAX_ATTEMPT_CNT_MIN       (0x00000001)
+#define CFG_BTM_MAX_ATTEMPT_CNT_MAX       (0xFFFFFFFF)
+#define CFG_BTM_MAX_ATTEMPT_CNT_DEFAULT   (0x00000003)
+
+/*
+ * <ini>
+ * sticky_time - Stick time after roaming to new AP by BTM
+ * @Min: 1
+ * @Max: 0x0000FFFF
+ * @Default: 300
+ *
+ * This ini is used to configure Stick time after roaming to new AP by BTM.
+ * Unit: seconds
+ *
+ * Supported Feature: STA
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_BTM_STICKY_TIME           "btm_sticky_time"
+#define CFG_BTM_STICKY_TIME_MIN       (0x00000001)
+#define CFG_BTM_STICKY_TIME_MAX       (0x0000FFFF)
+#define CFG_BTM_STICKY_TIME_DEFAULT   (300)
 
 /*
  * Type declarations
@@ -16215,6 +16279,9 @@ struct hdd_config {
 	uint32_t roam_preauth_no_ack_timeout;
 	uint32_t enable_rtt_support;
 	uint32_t btm_offload_config;
+	uint32_t btm_solicited_timeout;
+	uint32_t btm_max_attempt_cnt;
+	uint32_t btm_sticky_time;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

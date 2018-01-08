@@ -4525,6 +4525,43 @@ static void hdd_ipa_destroy_rm_resource(struct hdd_ipa_priv *hdd_ipa)
 			    "RM CONS resource delete failed %d", ret);
 }
 
+#ifdef PF_WAKE_UP_IDLE
+/**
+ * hdd_ipa_get_wake_up_idle() - Get PF_WAKE_UP_IDLE flag in the task structure
+ *
+ * Get PF_WAKE_UP_IDLE flag in the task structure
+ *
+ * Return: 1 if PF_WAKE_UP_IDLE flag is set, 0 otherwise
+ */
+static uint32_t hdd_ipa_get_wake_up_idle(void)
+{
+	return sched_get_wake_up_idle(current);
+}
+
+/**
+ * hdd_ipa_set_wake_up_idle() - Set PF_WAKE_UP_IDLE flag in the task structure
+ *
+ * Set PF_WAKE_UP_IDLE flag in the task structure
+ * This task and any task woken by this will be waken to idle CPU
+ *
+ * Return: None
+ */
+static void hdd_ipa_set_wake_up_idle(bool wake_up_idle)
+{
+	sched_set_wake_up_idle(current, wake_up_idle);
+
+}
+#else
+static uint32_t hdd_ipa_get_wake_up_idle(void)
+{
+	return 0;
+}
+
+static void hdd_ipa_set_wake_up_idle(bool wake_up_idle)
+{
+}
+#endif
+
 #ifdef QCA_CONFIG_SMP
 static int hdd_ipa_aggregated_rx_ind(qdf_nbuf_t skb)
 {
@@ -4595,9 +4632,9 @@ static void hdd_ipa_send_skb_to_network(qdf_nbuf_t skb,
 	 * Set PF_WAKE_UP_IDLE flag in the task structure
 	 * This task and any task woken by this will be waken to idle CPU
 	 */
-	enabled = sched_get_wake_up_idle(current);
+	enabled = hdd_ipa_get_wake_up_idle();
 	if (!enabled)
-		sched_set_wake_up_idle(current, true);
+		hdd_ipa_set_wake_up_idle(true);
 
 	skb->destructor = hdd_ipa_uc_rt_debug_destructor;
 	skb->dev = adapter->dev;
@@ -4619,7 +4656,7 @@ static void hdd_ipa_send_skb_to_network(qdf_nbuf_t skb,
 	 * Restore PF_WAKE_UP_IDLE flag in the task structure
 	 */
 	if (!enabled)
-		sched_set_wake_up_idle(current, false);
+		hdd_ipa_set_wake_up_idle(false);
 }
 
 /**

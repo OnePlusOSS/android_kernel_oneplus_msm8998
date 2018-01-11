@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -577,8 +577,6 @@ tpPESession pe_find_session_by_bssid(tpAniSirGlobal pMac, uint8_t *bssid,
 		}
 	}
 
-	pe_debug("Session lookup fails for BSSID:");
-	lim_print_mac_addr(pMac, bssid, LOGD);
 	return NULL;
 
 }

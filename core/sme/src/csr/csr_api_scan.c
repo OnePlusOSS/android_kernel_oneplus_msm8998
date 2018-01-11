@@ -5108,8 +5108,6 @@ csr_scan_remove_dup_bss_description_from_interim_list(tpAniSirGlobal mac_ctx,
 	 * in, then these must be duplicate scan results for this Bss. In that
 	 * case, remove the 'old' Bss description from the linked list.
 	 */
-	sme_debug("for BSS " MAC_ADDRESS_STR " ",
-		MAC_ADDR_ARRAY(bss_dscp->bssId));
 	csr_ll_lock(&mac_ctx->scan.tempScanResults);
 	pEntry = csr_ll_peek_head(&mac_ctx->scan.tempScanResults,
 				 LL_ACCESS_NOLOCK);
@@ -5217,19 +5215,12 @@ static struct tag_csrscan_result *csr_scan_save_bss_description_to_interim_list(
 
 	cbAllocated = sizeof(struct tag_csrscan_result) + cbBSSDesc;
 
-	sme_debug("new BSS description, length %d, cbBSSDesc %d",
-		cbAllocated, cbBSSDesc);
 	pCsrBssDescription = qdf_mem_malloc(cbAllocated);
 	if (NULL != pCsrBssDescription) {
 		qdf_mem_copy(&pCsrBssDescription->Result.BssDescriptor,
 			     pBSSDescription, cbBSSDesc);
 		pCsrBssDescription->AgingCount =
 			(int32_t) pMac->roam.configParam.agingCount;
-		sme_debug(
-			"Set Aging Count = %d for BSS " MAC_ADDRESS_STR " ",
-			pCsrBssDescription->AgingCount,
-			MAC_ADDR_ARRAY(pCsrBssDescription->Result.BssDescriptor.
-				       bssId));
 		/* Save SSID separately for later use */
 		if (pIes->SSID.present
 		    && !csr_is_nullssid(pIes->SSID.ssid, pIes->SSID.num_ssid)) {
@@ -5491,7 +5482,6 @@ QDF_STATUS csr_scan_process_single_bssdescr(tpAniSirGlobal mac_ctx,
 	bool is_hiddenap_probersp_entry_present = false;
 
 	session_id = csr_scan_get_session_id(mac_ctx);
-	sme_debug("CSR: Processing single bssdescr");
 	if (QDF_IS_STATUS_SUCCESS(
 		csr_get_cfg_valid_channels(mac_ctx,
 			(uint8_t *) mac_ctx->roam.validChannelList,

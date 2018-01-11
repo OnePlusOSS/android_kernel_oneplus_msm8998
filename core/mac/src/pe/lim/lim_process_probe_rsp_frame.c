@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -347,10 +347,6 @@ lim_process_probe_rsp_frame_no_session(tpAniSirGlobal mac_ctx,
 
 	header = WMA_GET_RX_MAC_HEADER(rx_packet_info);
 
-	pe_debug("Received Probe Response frame with length=%d from",
-		WMA_GET_RX_MPDU_LEN(rx_packet_info));
-	lim_print_mac_addr(mac_ctx, header->sa, LOGD);
-
 	/* Validate IE information before processing Probe Response Frame */
 	if (lim_validate_ie_information_in_probe_rsp_frame(mac_ctx,
 				rx_packet_info) !=
@@ -361,11 +357,6 @@ lim_process_probe_rsp_frame_no_session(tpAniSirGlobal mac_ctx,
 	}
 
 	frame_len = WMA_GET_RX_PAYLOAD_LEN(rx_packet_info);
-	pe_debug("Probe Resp Frame Received: BSSID "
-		  MAC_ADDRESS_STR " (RSSI %d)",
-		  MAC_ADDR_ARRAY(header->bssId),
-		  (uint) abs((int8_t)WMA_GET_RX_RSSI_NORMALIZED(
-					rx_packet_info)));
 	/*
 	 * Get pointer to Probe Response frame body
 	 */
@@ -378,7 +369,6 @@ lim_process_probe_rsp_frame_no_session(tpAniSirGlobal mac_ctx,
 		return;
 	}
 
-	pe_debug("Save this probe rsp in LFR cache");
 	lim_check_and_add_bss_description(mac_ctx, probe_rsp,
 		  rx_packet_info, false, true);
 	qdf_mem_free(probe_rsp);

@@ -4246,7 +4246,7 @@ sir_convert_beacon_frame2_struct(tpAniSirGlobal pMac,
 		pBeaconStruct->channelNumber = pBeacon->HTInfo.primaryChannel;
 	} else {
 		pBeaconStruct->channelNumber = mappedRXCh;
-		pe_debug("Channel info is not present in Beacon");
+		pe_debug_rate_limited(30, "In Beacon No Channel info");
 	}
 
 	if (pBeacon->RSN.present) {
@@ -4347,7 +4347,6 @@ sir_convert_beacon_frame2_struct(tpAniSirGlobal pMac,
 	if (pBeacon->vendor_vht_ie.present) {
 		pBeaconStruct->vendor_vht_ie.sub_type =
 			pBeacon->vendor_vht_ie.sub_type;
-		pe_debug("Vendor Specific VHT caps present in Beacon Frame!");
 	}
 
 	if (pBeacon->vendor_vht_ie.VHTCaps.present) {
@@ -4362,9 +4361,6 @@ sir_convert_beacon_frame2_struct(tpAniSirGlobal pMac,
 	}
 	/* Update HS 2.0 Information Element */
 	if (pBeacon->hs20vendor_ie.present) {
-		pe_debug("HS20 Indication Element Present, rel#:%u, id:%u",
-			pBeacon->hs20vendor_ie.release_num,
-			pBeacon->hs20vendor_ie.hs_id_present);
 		qdf_mem_copy(&pBeaconStruct->hs20vendor_ie,
 			&pBeacon->hs20vendor_ie,
 			sizeof(tDot11fIEhs20vendor_ie) -

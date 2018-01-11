@@ -4894,9 +4894,9 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	struct cfg80211_bss *bss_status;
 
-	hdd_debug("CSR Callback: status= %d result= %d roamID=%d",
-		 roamStatus, roamResult, roamId);
-
+	if (eCSR_ROAM_UPDATE_SCAN_RESULT != roamStatus)
+		hdd_debug("CSR Callback: status= %d result= %d roamID=%d",
+			  roamStatus, roamResult, roamId);
 	/* Sanity check */
 	if ((NULL == pAdapter) || (WLAN_HDD_ADAPTER_MAGIC != pAdapter->magic)) {
 		hdd_err("Invalid adapter or adapter has invalid magic");

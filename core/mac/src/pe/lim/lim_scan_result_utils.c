@@ -311,12 +311,11 @@ lim_collect_bss_description(tpAniSirGlobal pMac,
 	pBssDescr->tsf_delta = WMA_GET_RX_TSF_DELTA(pRxPacketInfo);
 	pBssDescr->seq_ctrl = pHdr->seqControl;
 
-	pe_debug(MAC_ADDRESS_STR
-		" rssi: norm %d abs %d tsf_delta %u RcvdTime %llu ssid %s",
-		MAC_ADDR_ARRAY(pHdr->bssId), pBssDescr->rssi,
-		pBssDescr->rssi_raw, pBssDescr->tsf_delta,
-		pBssDescr->received_time,
-		((pBPR->ssidPresent) ? (char *)pBPR->ssId.ssId : ""));
+	pe_debug("Received %s from BSSID: %pM tsf_delta = %u Seq Num: %x ssid:%.*s, rssi: %d",
+		 pBssDescr->fProbeRsp ? "Probe Rsp" : "Beacon", pHdr->bssId,
+		 pBssDescr->tsf_delta, ((pHdr->seqControl.seqNumHi <<
+		 HIGH_SEQ_NUM_OFFSET) | pHdr->seqControl.seqNumLo),
+		 pBPR->ssId.length, pBPR->ssId.ssId, pBssDescr->rssi_raw);
 
 	if (fScanning) {
 		rrm_get_start_tsf(pMac, pBssDescr->startTSF);
@@ -351,8 +350,6 @@ lim_collect_bss_description(tpAniSirGlobal pMac,
 	/*set channel number in beacon in case it is not present */
 	pBPR->channelNumber = pBssDescr->channelId;
 
-	pe_debug("Collected BSS Description for Channel: %1d length: %u IE Fields: %u",
-		pBssDescr->channelId, pBssDescr->length, ieLen);
 	pMac->lim.beacon_probe_rsp_cnt_per_scan++;
 
 	return;

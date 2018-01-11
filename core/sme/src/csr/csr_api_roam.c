@@ -3827,8 +3827,6 @@ QDF_STATUS csr_roam_call_callback(tpAniSirGlobal pMac, uint32_t sessionId,
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	sme_debug("Received RoamCmdStatus %d with Roam Result %d", u1, u2);
-
 	if (eCSR_ROAM_ASSOCIATION_COMPLETION == u1 &&
 			eCSR_ROAM_RESULT_ASSOCIATED == u2 && pRoamInfo) {
 		sme_debug("Assoc complete result: %d status: %d reason: %d",

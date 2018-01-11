@@ -3664,10 +3664,17 @@ static int wma_mgmt_rx_process(void *handle, uint8_t *data,
 #else
 	qdf_mem_copy(wh, param_tlvs->bufp, hdr->buf_len);
 #endif
+	/* If it is a beacon/probe response, save it for future use */
+	mgt_type = (wh)->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
+	mgt_subtype = (wh)->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
 
-	WMA_LOGD(FL("BSSID: "MAC_ADDRESS_STR" snr = %d, rssi = %d, rssi_raw = %d tsf_delta: %u"),
+	WMA_LOGD(FL("BSSID: "MAC_ADDRESS_STR" snr = %d, Type = %x, Subtype = %x, seq_num = %x, rssi = %d, rssi_raw = %d tsf_delta: %u"),
 			MAC_ADDR_ARRAY(wh->i_addr3),
-			hdr->snr, rx_pkt->pkt_meta.rssi,
+			hdr->snr, mgt_type, mgt_subtype,
+			(((*(uint16_t *)wh->i_seq) &
+				IEEE80211_SEQ_SEQ_MASK) >>
+				IEEE80211_SEQ_SEQ_SHIFT),
+			rx_pkt->pkt_meta.rssi,
 			rx_pkt->pkt_meta.rssi_raw,
 			hdr->tsf_delta);
 	if (!wma_handle->mgmt_rx) {
@@ -3675,10 +3682,6 @@ static int wma_mgmt_rx_process(void *handle, uint8_t *data,
 		cds_pkt_return_packet(rx_pkt);
 		return -EINVAL;
 	}
-
-	/* If it is a beacon/probe response, save it for future use */
-	mgt_type = (wh)->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
-	mgt_subtype = (wh)->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
 
 	if (wma_read_d0wow_flag(wma_handle)) {
 		WMA_LOGE("%s: Frame subtype is 0x%x", __func__, mgt_subtype);

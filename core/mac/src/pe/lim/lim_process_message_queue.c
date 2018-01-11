@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1388,10 +1388,13 @@ static void lim_process_messages(tpAniSirGlobal mac_ctx, tpSirMsgQ msg)
 			cds_pkt_return_packet(body_ptr);
 			break;
 		}
+		if (WMA_GET_ROAMCANDIDATEIND(new_msg.bodyptr))
+			pe_debug("roamCandidateInd: %d",
+				 WMA_GET_ROAMCANDIDATEIND(new_msg.bodyptr));
 
-		pe_debug("roamCandidateInd: %d offloadScanLearn: %d",
-				WMA_GET_ROAMCANDIDATEIND(new_msg.bodyptr),
-				WMA_GET_OFFLOADSCANLEARN(new_msg.bodyptr));
+		if (WMA_GET_OFFLOADSCANLEARN(new_msg.bodyptr))
+			pe_debug("offloadScanLearn: %d",
+				 WMA_GET_OFFLOADSCANLEARN(new_msg.bodyptr));
 
 		lim_handle80211_frames(mac_ctx, &new_msg, &defer_msg);
 

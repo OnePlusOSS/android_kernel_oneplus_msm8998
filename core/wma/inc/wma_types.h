@@ -79,6 +79,9 @@
 #define WMA_GET_RX_MPDU_DATA(pRxMeta) \
 	(((t_packetmeta *)pRxMeta)->mpdu_data_ptr)
 
+#define WMA_GET_RX_RSSI_CTL_PTR(pRxMeta) \
+		(((t_packetmeta *)pRxMeta)->rssi_per_chain)
+
 #define WMA_GET_RX_MPDU_HEADER_OFFSET(pRxMeta) 0
 
 #define WMA_GET_RX_UNKNOWN_UCAST(pRxMeta) 0

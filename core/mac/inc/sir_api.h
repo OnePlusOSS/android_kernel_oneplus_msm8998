@@ -836,6 +836,7 @@ typedef struct sSirBssDescription {
 	uint8_t nss;
 	uint8_t oce_wan_present;
 	uint8_t oce_wan_down_cap;
+	uint32_t rssi_per_chain[ATH_MAX_ANTENNA];
 	/* Please keep the structure 4 bytes aligned above the ieFields */
 	uint32_t ieFields[1];
 

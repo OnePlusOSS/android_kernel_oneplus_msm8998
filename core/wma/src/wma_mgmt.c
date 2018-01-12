@@ -3607,6 +3607,10 @@ static int wma_mgmt_rx_process(void *handle, uint8_t *data,
 
 	rx_pkt->pkt_meta.roamCandidateInd = 0;
 
+	/* Copy per chain rssi to rx_pkt */
+	qdf_mem_copy(rx_pkt->pkt_meta.rssi_per_chain, hdr->rssi_ctl,
+				sizeof(rx_pkt->pkt_meta.rssi_per_chain));
+
 	/*
 	 * If the mpdu_data_len is greater than Max (2k), drop the frame
 	 */

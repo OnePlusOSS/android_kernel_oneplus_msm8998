@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -167,6 +167,7 @@ lim_collect_bss_description(tpAniSirGlobal pMac,
 	uint8_t channelNum;
 	uint8_t rxChannel;
 	uint8_t rfBand = 0;
+	uint32_t *rssi_per_chain;
 
 	pHdr = WMA_GET_RX_MAC_HEADER(pRxPacketInfo);
 
@@ -297,6 +298,12 @@ lim_collect_bss_description(tpAniSirGlobal pMac,
 
 	pBssDescr->rssi = (int8_t) WMA_GET_RX_RSSI_NORMALIZED(pRxPacketInfo);
 	pBssDescr->rssi_raw = (int8_t) WMA_GET_RX_RSSI_RAW(pRxPacketInfo);
+
+	/* Copy per chain rssi */
+
+	rssi_per_chain = WMA_GET_RX_RSSI_CTL_PTR(pRxPacketInfo);
+	qdf_mem_copy(pBssDescr->rssi_per_chain, rssi_per_chain,
+					sizeof(pBssDescr->rssi_per_chain));
 
 	/* SINR no longer reported by HW */
 	pBssDescr->sinr = 0;

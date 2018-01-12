@@ -116,7 +116,6 @@
  * enable obss, fromllb, overlapOBSS and overlapFromllb protection.
  */
 #define IBSS_CFG_PROTECTION_ENABLE_MASK 0x8282
-
 #define HDD2GHZCHAN(freq, chan, flag)   {     \
 		.band = HDD_NL80211_BAND_2GHZ, \
 		.center_freq = (freq), \
@@ -15856,6 +15855,33 @@ static int wlan_hdd_cfg80211_set_default_key(struct wiphy *wiphy,
 	return ret;
 }
 
+#if defined(CFG80211_SCAN_PER_CHAIN_RSSI_SUPPORT) || \
+	   (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 16, 0))
+static void wlan_hdd_fill_per_chain_rssi(struct cfg80211_inform_bss *data,
+						 uint32_t *rssi_per_chain)
+{
+	uint32_t i;
+
+	if (rssi_per_chain == NULL) {
+		hdd_err("Received NULL rssi per chain");
+		return;
+	}
+	for (i = 0; i < ATH_MAX_ANTENNA; i++) {
+		if (rssi_per_chain[i] == WMI_INVALID_PER_CHAIN_RSSI)
+			continue;
+		/* Add noise margin to SNR to convert it to RSSI */
+		data->chain_signal[i] = rssi_per_chain[i] +
+						WMI_NOISE_FLOOR_DBM_DEFAULT;
+		data->chains |= BIT(i);
+	}
+}
+#else
+static void wlan_hdd_fill_per_chain_rssi(struct cfg80211_inform_bss *data,
+						 uint32_t *rssi_per_chain)
+{
+}
+#endif
+
 /*
  * wlan_hdd_cfg80211_update_bss_list :to inform nl80211
  * interface that BSS might have been lost.
@@ -15884,7 +15910,7 @@ struct cfg80211_bss *wlan_hdd_cfg80211_update_bss_list(
 	return bss;
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)) || \
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)) || \
 	defined(CFG80211_INFORM_BSS_FRAME_DATA)
 static struct cfg80211_bss *
 wlan_hdd_cfg80211_inform_bss_frame_data(struct wiphy *wiphy,
@@ -15892,10 +15918,14 @@ wlan_hdd_cfg80211_inform_bss_frame_data(struct wiphy *wiphy,
 		struct ieee80211_mgmt *mgmt,
 		size_t frame_len,
 		int rssi, gfp_t gfp,
-		uint64_t boottime_ns)
+		tSirBssDescription *bss_desc)
 {
 	struct cfg80211_bss *bss_status  = NULL;
 	struct cfg80211_inform_bss data  = {0};
+	uint64_t boottime_ns = bss_desc->scansystimensec;
+	uint32_t *rssi_per_chain = bss_desc->rssi_per_chain;
+
+	wlan_hdd_fill_per_chain_rssi(&data, rssi_per_chain);
 
 	data.chan = chan;
 	data.boottime_ns = boottime_ns;
@@ -15911,7 +15941,7 @@ wlan_hdd_cfg80211_inform_bss_frame_data(struct wiphy *wiphy,
 		struct ieee80211_mgmt *mgmt,
 		size_t frame_len,
 		int rssi, gfp_t gfp,
-		uint64_t boottime_ns)
+		tSirBssDescription *bss_desc)
 {
 	struct cfg80211_bss *bss_status = NULL;
 
@@ -16096,7 +16126,6 @@ struct cfg80211_bss *wlan_hdd_cfg80211_inform_bss_frame(hdd_adapter_t *pAdapter,
 
 	/* Supplicant takes the signal strength in terms of mBm(100*dBm) */
 	rssi = QDF_MIN(rssi, 0) * 100;
-
 	hdd_debug("BSSID: " MAC_ADDRESS_STR " Channel:%d RSSI:%d TSF %u",
 	       MAC_ADDR_ARRAY(mgmt->bssid), chan->center_freq,
 	       (int)(rssi / 100),
@@ -16105,7 +16134,7 @@ struct cfg80211_bss *wlan_hdd_cfg80211_inform_bss_frame(hdd_adapter_t *pAdapter,
 	bss_status = wlan_hdd_cfg80211_inform_bss_frame_data(wiphy, chan, mgmt,
 							     frame_len, rssi,
 							     GFP_KERNEL,
-						   bss_desc->scansystimensec);
+							     bss_desc);
 	pHddCtx->beacon_probe_rsp_cnt_per_scan++;
 	qdf_mem_free(mgmt);
 	return bss_status;

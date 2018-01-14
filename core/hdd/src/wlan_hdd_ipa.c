@@ -704,6 +704,14 @@ static void hdd_ipa_uc_loaded_uc_cb(void *priv_ctxt)
 	}
 
 	hdd_ipa = (struct hdd_ipa_priv *)priv_ctxt;
+	hdd_ipa->uc_loaded = true;
+
+	uc_op_work = &hdd_ipa->uc_op_work[HDD_IPA_UC_OPCODE_UC_READY];
+
+	if (!list_empty(&uc_op_work->work.entry))
+		/* uc_op_work is not initialized yet */
+		return;
+
 	msg = (struct op_msg_type *)qdf_mem_malloc(sizeof(*msg));
 	if (!msg) {
 		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR, "op_msg allocation fails");
@@ -711,8 +719,6 @@ static void hdd_ipa_uc_loaded_uc_cb(void *priv_ctxt)
 	}
 
 	msg->op_code = HDD_IPA_UC_OPCODE_UC_READY;
-
-	uc_op_work = &hdd_ipa->uc_op_work[msg->op_code];
 
 	/* When the same uC OPCODE is already pended, just return */
 	if (uc_op_work->msg)
@@ -2118,7 +2124,6 @@ static void hdd_ipa_uc_loaded_handler(struct hdd_ipa_priv *ipa_ctxt)
 		return;
 	}
 
-	ipa_ctxt->uc_loaded = true;
 	/* Connect pipe */
 	ipa_connect_wdi_pipe(&ipa_ctxt->cons_pipe_in, &pipe_out);
 	ipa_ctxt->tx_pipe_handle = pipe_out.clnt_hdl;
@@ -3350,7 +3355,7 @@ static void hdd_ipa_cleanup_pending_event(struct hdd_ipa_priv *hdd_ipa)
 int hdd_ipa_uc_ol_deinit(hdd_context_t *hdd_ctx)
 {
 	struct hdd_ipa_priv *hdd_ipa = hdd_ctx->hdd_ipa;
-	int ret = 0;
+	int i, ret = 0;
 
 	HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "enter");
 
@@ -3374,6 +3379,12 @@ int hdd_ipa_uc_ol_deinit(hdd_context_t *hdd_ctx)
 	qdf_mutex_acquire(&hdd_ipa->ipa_lock);
 	hdd_ipa_cleanup_pending_event(hdd_ipa);
 	qdf_mutex_release(&hdd_ipa->ipa_lock);
+
+	for (i = 0; i < HDD_IPA_UC_OPCODE_MAX; i++) {
+		cancel_work_sync(&hdd_ipa->uc_op_work[i].work);
+		qdf_mem_free(hdd_ipa->uc_op_work[i].msg);
+		hdd_ipa->uc_op_work[i].msg = NULL;
+	}
 
 	HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "exit: ret=%d", ret);
 	return ret;
@@ -6717,6 +6728,7 @@ static QDF_STATUS __hdd_ipa_cleanup(hdd_context_t *hdd_ctx)
 
 		for (i = 0; i < HDD_IPA_UC_OPCODE_MAX; i++) {
 			cancel_work_sync(&hdd_ipa->uc_op_work[i].work);
+			qdf_mem_free(hdd_ipa->uc_op_work[i].msg);
 			hdd_ipa->uc_op_work[i].msg = NULL;
 		}
 	}

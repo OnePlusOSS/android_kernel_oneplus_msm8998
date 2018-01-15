@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -603,22 +603,36 @@ static int hdd_indicate_scan_result(struct hdd_scan_info *scanInfo,
  *     2. Directed scan
  *     3. Channel list has only few channels
  *     4. Channel list has single band channels
- * For remaining cases, dbs scan is requested.
+ *     5. A high accuracy scan request is sent by kernel.
  *
+ * DBS scan is enabled for these conditions:
+ *     1. A low power or low span scan request is sent by kernel.
+ * For remaining cases DBS is enabled by default.
  * Return: void
  */
 static void hdd_update_dbs_scan_ctrl_ext_flag(hdd_context_t *hdd_ctx,
 					      tCsrScanRequest *scan_req)
 {
 	uint32_t num_chan;
-	uint32_t scan_dbs_policy = HDD_SCAN_DBS_POLICY_FORCE_NONDBS;
+	uint32_t scan_dbs_policy = SME_SCAN_DBS_POLICY_FORCE_NONDBS;
 	uint32_t conn_cnt;
 
 	/* Resetting the scan_ctrl_flags_ext to 0 */
 	scan_req->scan_ctrl_flags_ext = 0;
 
+	if (scan_req->scan_flags & SME_SCAN_FLAG_HIGH_ACCURACY) {
+		hdd_debug("DBS disabled due to high accuracy scan request");
+		goto end;
+	}
+	if (scan_req->scan_flags & SME_SCAN_FLAG_LOW_POWER ||
+	    scan_req->scan_flags & SME_SCAN_FLAG_LOW_SPAN) {
+		hdd_debug("DBS enable due to Low span/power request 0x%x",
+							scan_req->scan_flags);
+		scan_dbs_policy = SME_SCAN_DBS_POLICY_IGNORE_DUTY;
+		goto end;
+	}
 	if (!(hdd_ctx->is_dbs_scan_duty_cycle_enabled)) {
-		scan_dbs_policy = HDD_SCAN_DBS_POLICY_IGNORE_DUTY;
+		scan_dbs_policy = SME_SCAN_DBS_POLICY_IGNORE_DUTY;
 		hdd_info("DBS scan duty cycle is disabled");
 		goto end;
 	}
@@ -632,7 +646,7 @@ static void hdd_update_dbs_scan_ctrl_ext_flag(hdd_context_t *hdd_ctx,
 	conn_cnt = cds_get_connection_count();
 	if (conn_cnt > 0) {
 		hdd_debug("%d active connections, go for DBS scan", conn_cnt);
-		scan_dbs_policy = HDD_SCAN_DBS_POLICY_DEFAULT;
+		scan_dbs_policy = SME_SCAN_DBS_POLICY_DEFAULT;
 		goto end;
 	}
 
@@ -654,7 +668,7 @@ static void hdd_update_dbs_scan_ctrl_ext_flag(hdd_context_t *hdd_ctx,
 
 	/* num_chan=0 means all channels */
 	if (!num_chan)
-		scan_dbs_policy = HDD_SCAN_DBS_POLICY_DEFAULT;
+		scan_dbs_policy = SME_SCAN_DBS_POLICY_DEFAULT;
 
 	if (num_chan < HDD_MIN_CHAN_DBS_SCAN_THRESHOLD)
 		goto end;
@@ -663,7 +677,7 @@ static void hdd_update_dbs_scan_ctrl_ext_flag(hdd_context_t *hdd_ctx,
 		if (!CDS_IS_SAME_BAND_CHANNELS(
 			scan_req->ChannelInfo.ChannelList[0],
 			scan_req->ChannelInfo.ChannelList[num_chan-1])) {
-			scan_dbs_policy = HDD_SCAN_DBS_POLICY_DEFAULT;
+			scan_dbs_policy = SME_SCAN_DBS_POLICY_DEFAULT;
 			break;
 		}
 		num_chan--;
@@ -671,8 +685,8 @@ static void hdd_update_dbs_scan_ctrl_ext_flag(hdd_context_t *hdd_ctx,
 
 end:
 	scan_req->scan_ctrl_flags_ext |=
-		((scan_dbs_policy << HDD_SCAN_FLAG_EXT_DBS_SCAN_POLICY_BIT)
-		 & HDD_SCAN_FLAG_EXT_DBS_SCAN_POLICY_MASK);
+		((scan_dbs_policy << SME_SCAN_FLAG_EXT_DBS_SCAN_POLICY_BIT)
+		 & SME_SCAN_FLAG_EXT_DBS_SCAN_POLICY_MASK);
 	hdd_debug("scan_ctrl_flags_ext: 0x%x", scan_req->scan_ctrl_flags_ext);
 }
 
@@ -1855,6 +1869,34 @@ static int wlan_hdd_populate_ie_whitelist(hdd_adapter_t *adapter,
 }
 
 /**
+ * wlan_hdd_scan_flags() - Set scan flags according to scan request
+ * @scan_req: Pointer to csr scan req
+ *
+ * Return: None
+ */
+#if defined(CFG80211_SCAN_DBS_CONTROL_SUPPORT) || \
+	   (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 16, 0))
+static void hdd_update_scan_flags(tCsrScanRequest *scan_req,
+					struct cfg80211_scan_request *request)
+{
+	if (!request)
+		return;
+
+	if (request->flags & NL80211_SCAN_FLAG_HIGH_ACCURACY)
+		scan_req->scan_flags |= SME_SCAN_FLAG_HIGH_ACCURACY;
+	if (request->flags & NL80211_SCAN_FLAG_LOW_SPAN)
+		scan_req->scan_flags |= SME_SCAN_FLAG_LOW_SPAN;
+	if (request->flags & NL80211_SCAN_FLAG_LOW_POWER)
+		scan_req->scan_flags |= SME_SCAN_FLAG_LOW_POWER;
+
+}
+#else
+static void hdd_update_scan_flags(tCsrScanRequest *scan_req,
+					struct cfg80211_scan_request *request)
+{
+}
+#endif
+/**
  * wlan_hdd_free_voui() - Deallocate csr scan req ie whitelist attrs
  * @scan_req: Pointer to csr scan req
  *
@@ -2354,6 +2396,7 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 	if (status)
 		goto free_mem;
 
+	hdd_update_scan_flags(&scan_req, request);
 	hdd_update_dbs_scan_ctrl_ext_flag(pHddCtx, &scan_req);
 	qdf_runtime_pm_prevent_suspend(&pHddCtx->runtime_context.scan);
 	wma_get_scan_id(&scan_req_id);

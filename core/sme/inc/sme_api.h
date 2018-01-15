@@ -77,6 +77,14 @@
 #define SME_ENTER() sme_logfl(QDF_TRACE_LEVEL_DEBUG, "enter")
 #define SME_EXIT() sme_logfl(QDF_TRACE_LEVEL_DEBUG, "exit")
 
+/* DBS Scan policy selection ext flags */
+#define SME_SCAN_FLAG_EXT_DBS_SCAN_POLICY_MASK  0x00000003
+#define SME_SCAN_FLAG_EXT_DBS_SCAN_POLICY_BIT   0
+#define SME_SCAN_DBS_POLICY_DEFAULT             0x0
+#define SME_SCAN_DBS_POLICY_FORCE_NONDBS        0x1
+#define SME_SCAN_DBS_POLICY_IGNORE_DUTY         0x2
+#define SME_SCAN_DBS_POLICY_MAX                 0x3
+
 #define SME_SESSION_ID_ANY        50
 
 #define SME_INVALID_COUNTRY_CODE "XX"
@@ -223,6 +231,29 @@ struct sme_oem_capability {
 	uint32_t reserved2;
 };
 
+/**
+ * enum sme_scan_flags -  scan request control flags
+ *
+ * @SME_SCAN_FLAG_LOW_SPAN: Span corresponds to the total time
+ *      taken to accomplish the scan. Thus, this flag intends the driver to
+ *      perform the scan request with lesser span/duration. It is specific to
+ *      the driver implementations on how this is accomplished. Scan accuracy
+ *      may get impacted with this flag. This flag cannot be used with
+ * @SME_SCAN_FLAG_LOW_POWER: This flag intends the scan attempts
+ *      to consume optimal possible power. Drivers can resort to their
+ *      specific means to optimize the power. Scan accuracy may get impacted
+ *      with this flag.
+ * @SME_SCAN_FLAG_HIGH_ACCURACY: Accuracy here intends to the
+ *      extent of scan results obtained. Thus HIGH_ACCURACY scan flag aims to
+ *      get maximum possible scan results. This flag hints the driver to use
+ *      the best possible scan configuration to improve the accuracy in
+ *      scanning.Latency and power use may get impacted with this flag.
+ */
+enum sme_scan_flags {
+	SME_SCAN_FLAG_LOW_SPAN = 1<<0,
+	SME_SCAN_FLAG_LOW_POWER = 1<<1,
+	SME_SCAN_FLAG_HIGH_ACCURACY = 1<<2,
+};
 /**
  * struct sme_5g_pref_params : 5G preference params to be read from ini
  * @rssi_boost_threshold_5g: RSSI threshold above which 5 GHz is favored

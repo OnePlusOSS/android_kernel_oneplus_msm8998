@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -36,14 +36,6 @@
 
 /* (30 Mins) */
 #define MIN_TIME_REQUIRED_FOR_NEXT_BUG_REPORT (30 * 60 * 1000)
-
-/* DBS Scan policy selection ext flags */
-#define HDD_SCAN_FLAG_EXT_DBS_SCAN_POLICY_MASK  0x00000003
-#define HDD_SCAN_FLAG_EXT_DBS_SCAN_POLICY_BIT   0
-#define HDD_SCAN_DBS_POLICY_DEFAULT             0x0
-#define HDD_SCAN_DBS_POLICY_FORCE_NONDBS        0x1
-#define HDD_SCAN_DBS_POLICY_IGNORE_DUTY         0x2
-#define HDD_SCAN_DBS_POLICY_MAX                 0x3
 
 /* Minimum number of channels for enabling DBS Scan */
 #define HDD_MIN_CHAN_DBS_SCAN_THRESHOLD         8

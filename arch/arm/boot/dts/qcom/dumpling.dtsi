@@ -217,6 +217,19 @@
 				output-low;
 			};
 		};
+		goodixfp_irq_init: goodixfp_irq_init {
+			mux {
+				pins = "gpio121";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio121";
+				drive-strength = <2>;
+				bias-disable;
+				input-enable;
+			};
+		};
 	};
 
 	goodix_fp {
@@ -226,7 +239,7 @@
 	fp-gpio-reset = <&tlmm 75 0x00>;
 	fp-gpio-enable = <&tlmm 65 0x00>;
 	pinctrl-names = "fp_en_init", "fp_dis_init";
-	pinctrl-0 = <&goodixfp_enable_init>;
+	pinctrl-0 = <&goodixfp_enable_init &goodixfp_irq_init>;
 	pinctrl-1 = <&goodixfp_disable_init>;
 	status = "okay";
 	oem,dumpling;

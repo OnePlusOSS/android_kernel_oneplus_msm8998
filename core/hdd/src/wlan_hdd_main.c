@@ -10134,7 +10134,8 @@ int hdd_configure_cds(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 	dp_cbacks.hdd_ipa_set_mcc_mode_cb = hdd_ipa_set_mcc_mode;
 	if (cds_register_dp_cb(&dp_cbacks) != QDF_STATUS_SUCCESS)
 		hdd_err("Unable to register datapath callbacks in CDS");
-
+	if (cds_register_mode_change_cb(wlan_hdd_send_mode_change_event))
+		hdd_err("Unable to register mode change callback in CDS");
 	if (hdd_ctx->config->enable_phy_reg_retention)
 		sme_cli_set_command(0, WMI_PDEV_PARAM_FAST_PWR_TRANSITION,
 			hdd_ctx->config->enable_phy_reg_retention, PDEV_CMD);
@@ -10200,6 +10201,12 @@ static int hdd_deconfigure_cds(hdd_context_t *hdd_ctx)
 	qdf_status = cds_deregister_dp_cb();
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 		hdd_err("Failed to deregister datapath callbacks from CDS :%d",
+			qdf_status);
+	}
+
+	qdf_status = cds_deregister_mode_change_cb();
+	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
+		hdd_err("Failed to deregister mode change callback from CDS :%d",
 			qdf_status);
 	}
 

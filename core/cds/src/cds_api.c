@@ -2949,3 +2949,33 @@ bool cds_is_sta_sap_scc_allowed_on_dfs_channel(void)
 
 	return ret;
 }
+
+QDF_STATUS cds_register_mode_change_cb(send_mode_change_event_cb callback)
+{
+	p_cds_contextType cds_ctx;
+
+	cds_ctx = cds_get_global_context();
+	if (!cds_ctx) {
+		cds_err("Invalid CDS context");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	cds_ctx->mode_change_cb = callback;
+
+	return QDF_STATUS_SUCCESS;
+}
+
+QDF_STATUS cds_deregister_mode_change_cb(void)
+{
+	p_cds_contextType cds_ctx;
+
+	cds_ctx = cds_get_global_context();
+	if (!cds_ctx) {
+		cds_err("Invalid CDS context");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	cds_ctx->mode_change_cb = NULL;
+
+	return QDF_STATUS_SUCCESS;
+}

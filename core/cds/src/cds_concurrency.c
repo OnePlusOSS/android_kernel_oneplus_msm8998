@@ -2214,6 +2214,8 @@ static void cds_update_conc_list(uint32_t conn_index,
 	if (cds_ctx->ol_txrx_update_mac_id_cb)
 		cds_ctx->ol_txrx_update_mac_id_cb(vdev_id, mac);
 
+	if (cds_ctx->mode_change_cb)
+		cds_ctx->mode_change_cb();
 
 	/* IPA only cares about STA or SAP mode */
 	if (mode == CDS_STA_MODE || mode == CDS_SAP_MODE) {
@@ -2675,6 +2677,13 @@ static void cds_pdev_set_hw_mode_cb(uint32_t status,
 	QDF_STATUS ret;
 	struct sir_hw_mode_params hw_mode;
 	uint32_t i;
+	cds_context_type *cds_ctx;
+
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return;
+	}
 
 	cds_set_hw_mode_change_in_progress(CDS_HW_MODE_NOT_IN_PROGRESS);
 
@@ -2723,6 +2732,9 @@ static void cds_pdev_set_hw_mode_cb(uint32_t status,
 	if (!QDF_IS_STATUS_SUCCESS(ret))
 		cds_err("ERROR: set connection_update_done event failed");
 
+	if (cds_ctx->mode_change_cb)
+		cds_ctx->mode_change_cb();
+
 	return;
 }
 
@@ -2746,6 +2758,13 @@ void cds_hw_mode_transition_cb(uint32_t old_hw_mode_index,
 	QDF_STATUS status;
 	struct sir_hw_mode_params hw_mode;
 	uint32_t i;
+	cds_context_type *cds_ctx;
+
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return;
+	}
 
 	if (!vdev_mac_map) {
 		cds_err("vdev_mac_map is NULL");
@@ -2777,6 +2796,9 @@ void cds_hw_mode_transition_cb(uint32_t old_hw_mode_index,
 	cds_update_hw_mode_conn_info(num_vdev_mac_entries,
 					  vdev_mac_map,
 					  hw_mode);
+
+	if (cds_ctx->mode_change_cb)
+		cds_ctx->mode_change_cb();
 
 	return;
 }
@@ -4748,7 +4770,6 @@ QDF_STATUS cds_update_connection_info(uint32_t vdev_id)
  * cds_decr_connection_count() - remove the old connection
  * from the current connections list
  * @vdev_id: vdev id of the old connection
- *
  *
  * This function removes the old connection from the current
  * connections list
@@ -7958,7 +7979,7 @@ static bool cds_valid_sta_channel_check(uint8_t sta_channel)
 void cds_check_concurrent_intf_and_restart_sap(hdd_adapter_t *adapter)
 {
 	hdd_context_t *hdd_ctx;
-	hdd_station_ctx_t *hdd_sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
+	hdd_station_ctx_t *hdd_sta_ctx;
 	bool restart_sap = false;
 	uint8_t sap_ch;
 
@@ -7971,6 +7992,12 @@ void cds_check_concurrent_intf_and_restart_sap(hdd_adapter_t *adapter)
 	/* don't restart sap if driver is loading/unloading/recovering */
 	if (wlan_hdd_validate_context(hdd_ctx))
 		return;
+
+	if (!adapter) {
+		cds_err("HDD adapter is NULL");
+		return;
+	}
+	hdd_sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
 
 	if (cds_get_connection_count() == 1) {
 		/*
@@ -10741,4 +10768,31 @@ bool cds_is_sta_connected_in_2g(void)
 		adapter_node = next;
 	}
 	return ret;
+}
+
+uint32_t cds_get_connection_info(struct connection_info *info)
+{
+	cds_context_type *cds_ctx;
+	uint32_t conn_index, count = 0;
+
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return count;
+	}
+
+	for (conn_index = 0; conn_index < MAX_NUMBER_OF_CONC_CONNECTIONS;
+	     conn_index++) {
+		if (CONC_CONNECTION_LIST_VALID_INDEX(conn_index)) {
+			info[count].vdev_id =
+				       conc_connection_list[conn_index].vdev_id;
+			info[count].mac_id =
+					   conc_connection_list[conn_index].mac;
+			info[count].channel =
+					  conc_connection_list[conn_index].chan;
+			count++;
+		}
+	}
+
+	return count;
 }

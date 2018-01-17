@@ -675,4 +675,11 @@ void wlan_hdd_save_gtk_offload_params(hdd_adapter_t *adapter,
 					     uint8_t *replay_ctr,
 					     bool big_endian,
 					     uint32_t ul_flags);
+/**
+ * wlan_hdd_send_mode_change_event() - API to send hw mode change event to
+ * userspace
+ *
+ * Return : 0 on success and errno on failure
+ */
+int wlan_hdd_send_mode_change_event(void);
 #endif

@@ -89,6 +89,8 @@
 
 typedef void (*cds_ol_rx_thread_cb)(void *context, void *rxpkt, uint16_t staid);
 
+typedef int (*send_mode_change_event_cb)(void);
+
 /*
 ** QDF Message queue definition.
 */
@@ -341,6 +343,7 @@ typedef struct _cds_context_type {
 	qdf_workqueue_t *cds_recovery_wq;
 	enum cds_hang_reason recovery_reason;
 	qdf_event_t channel_switch_complete;
+	send_mode_change_event_cb mode_change_cb;
 } cds_context_type, *p_cds_contextType;
 
 extern struct _cds_sched_context *gp_cds_sched_context;

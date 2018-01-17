@@ -576,4 +576,17 @@ uint32_t cds_get_mcc_to_scc_switch_mode(void);
  * Return: true if sta, sap scc is allowed on dfs channel otherwise false
  */
 bool cds_is_sta_sap_scc_allowed_on_dfs_channel(void);
+/**
+ * cds_register_mode_change_cb() - Register mode change callback with CDS
+ * @callback: HDD callback to be registered
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS cds_register_mode_change_cb(send_mode_change_event_cb callback);
+/**
+ * cds_deregister_mode_change_cb() - Deregister mode change callback with CDS
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS cds_deregister_mode_change_cb(void);
 #endif /* if !defined __CDS_API_H */

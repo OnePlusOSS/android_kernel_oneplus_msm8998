@@ -3793,6 +3793,10 @@ hdd_add_link_standard_info(struct sk_buff *skb,
 		hdd_err("put fail");
 		goto fail;
 	}
+	if (nla_put(skb, NL80211_ATTR_MAC, QDF_MAC_ADDR_SIZE,
+		    hdd_sta_ctx->conn_info.bssId.bytes)) {
+		goto fail;
+	}
 	if (hdd_add_survey_info(skb, hdd_sta_ctx, NL80211_ATTR_SURVEY_INFO))
 		goto fail;
 	if (hdd_add_sta_info(skb, hdd_sta_ctx, NL80211_ATTR_STA_INFO))
@@ -3859,6 +3863,7 @@ static int hdd_get_station_info(hdd_context_t *hdd_ctx,
 
 	nl_buf_len = NLMSG_HDRLEN;
 	nl_buf_len += sizeof(hdd_sta_ctx->conn_info.last_ssid.SSID.length) +
+		      QDF_MAC_ADDR_SIZE +
 		      sizeof(hdd_sta_ctx->conn_info.freq) +
 		      sizeof(hdd_sta_ctx->conn_info.noise) +
 		      sizeof(hdd_sta_ctx->conn_info.signal) +

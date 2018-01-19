@@ -13959,6 +13959,30 @@ enum hw_filter_mode {
 #define CFG_DERIVED_INTERFACE_POOL_MAX     (0xffffffff)
 #define CFG_DERIVED_INTERFACE_POOL_DEFAULT (0xffffffff)
 
+/*
+ * <ini>
+ * gcmp_enabled - ini to enable/disable GCMP
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * Currently Firmware update the sequence number for each TID with 2^3
+ * because of security issues. But with this PN mechanism, throughput drop
+ * is observed. With this ini FW takes the decision to trade off between
+ * security and throughput
+ *
+ * Supported Feature: STA/SAP/P2P
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+
+#define CFG_ENABLE_GCMP_NAME    "gcmp_enabled"
+#define CFG_ENABLE_GCMP_MIN     (0)
+#define CFG_ENABLE_GCMP_MAX     (1)
+#define CFG_ENABLE_GCMP_DEFAULT (0)
+
 /*---------------------------------------------------------------------------
    Type declarations
    -------------------------------------------------------------------------*/
@@ -14849,6 +14873,7 @@ struct hdd_config {
 	bool mac_provision;
 	uint32_t provisioned_intf_pool;
 	uint32_t derived_intf_pool;
+	bool gcmp_enabled;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

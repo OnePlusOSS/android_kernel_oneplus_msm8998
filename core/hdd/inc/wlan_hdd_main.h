@@ -1246,15 +1246,6 @@ struct hdd_runtime_pm_context {
 	qdf_runtime_lock_t scan;
 	qdf_runtime_lock_t roc;
 	qdf_runtime_lock_t dfs;
-};
-
-/**
- * struct hdd_connect_pm_context - Runtime PM connect context per adapter
- * @connect: Runtime Connect Context
- *
- * Structure to hold runtime pm connect context for each adapter.
- */
-struct hdd_connect_pm_context {
 	qdf_runtime_lock_t connect;
 };
 
@@ -1537,7 +1528,6 @@ struct hdd_adapter_s {
 	 * channel needs to be moved from the existing 2.4GHz channel.
 	 */
 	uint8_t pre_cac_chan;
-	struct hdd_connect_pm_context connect_rpm_ctx;
 	struct power_stats_response *chip_power_stats;
 
 	/* rcpi information */

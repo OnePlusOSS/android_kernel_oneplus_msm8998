@@ -885,6 +885,43 @@ QDF_STATUS hdd_set_ibss_power_save_params(hdd_adapter_t *adapter)
 	return QDF_STATUS_SUCCESS;
 }
 
+#ifdef FEATURE_RUNTIME_PM
+/**
+ * hdd_runtime_suspend_context_init() - API to initialize HDD Runtime Contexts
+ * @hdd_ctx: HDD context
+ *
+ * Return: None
+ */
+static void hdd_runtime_suspend_context_init(hdd_context_t *hdd_ctx)
+{
+	struct hdd_runtime_pm_context *ctx = &hdd_ctx->runtime_context;
+
+	qdf_runtime_lock_init(&ctx->scan);
+	qdf_runtime_lock_init(&ctx->roc);
+	qdf_runtime_lock_init(&ctx->dfs);
+	qdf_runtime_lock_init(&ctx->connect);
+}
+
+/**
+ * hdd_runtime_suspend_context_deinit() - API to deinit HDD runtime context
+ * @hdd_ctx: HDD Context
+ *
+ * Return: None
+ */
+static void hdd_runtime_suspend_context_deinit(hdd_context_t *hdd_ctx)
+{
+	struct hdd_runtime_pm_context *ctx = &hdd_ctx->runtime_context;
+
+	qdf_runtime_lock_deinit(&ctx->scan);
+	qdf_runtime_lock_deinit(&ctx->roc);
+	qdf_runtime_lock_deinit(&ctx->dfs);
+	qdf_runtime_lock_deinit(&ctx->connect);
+}
+#else /* FEATURE_RUNTIME_PM */
+static void hdd_runtime_suspend_context_init(hdd_context_t *hdd_ctx) {}
+static void hdd_runtime_suspend_context_deinit(hdd_context_t *hdd_ctx) {}
+#endif /* FEATURE_RUNTIME_PM */
+
 #define INTF_MACADDR_MASK       0x7
 
 void hdd_update_macaddr(hdd_context_t *hdd_ctx,
@@ -2140,6 +2177,8 @@ int hdd_wlan_start_modules(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 			goto deinit_config;
 		}
 
+		hdd_runtime_suspend_context_init(hdd_ctx);
+
 		hdd_ctx->hHal = cds_get_context(QDF_MODULE_ID_SME);
 		if (NULL == hdd_ctx->hHal) {
 			hdd_err("HAL context is null");
@@ -2909,58 +2948,6 @@ void hdd_set_station_ops(struct net_device *pWlanDev)
 		pWlanDev->netdev_ops = &wlan_drv_ops;
 }
 
-#ifdef FEATURE_RUNTIME_PM
-/**
- * hdd_runtime_suspend_context_init() - API to initialize HDD Runtime Contexts
- * @hdd_ctx: HDD context
- *
- * Return: None
- */
-static void hdd_runtime_suspend_context_init(hdd_context_t *hdd_ctx)
-{
-	struct hdd_runtime_pm_context *ctx = &hdd_ctx->runtime_context;
-
-	qdf_runtime_lock_init(&ctx->scan);
-	qdf_runtime_lock_init(&ctx->roc);
-	qdf_runtime_lock_init(&ctx->dfs);
-}
-
-/**
- * hdd_runtime_suspend_context_deinit() - API to deinit HDD runtime context
- * @hdd_ctx: HDD Context
- *
- * Return: None
- */
-static void hdd_runtime_suspend_context_deinit(hdd_context_t *hdd_ctx)
-{
-	struct hdd_runtime_pm_context *ctx = &hdd_ctx->runtime_context;
-
-	qdf_runtime_lock_deinit(&ctx->scan);
-	qdf_runtime_lock_deinit(&ctx->roc);
-	qdf_runtime_lock_deinit(&ctx->dfs);
-}
-
-static void hdd_adapter_runtime_suspend_init(hdd_adapter_t *adapter)
-{
-	struct hdd_connect_pm_context *ctx = &adapter->connect_rpm_ctx;
-
-	qdf_runtime_lock_init(&ctx->connect);
-}
-
-static void hdd_adapter_runtime_suspend_denit(hdd_adapter_t *adapter)
-{
-	struct hdd_connect_pm_context *ctx = &adapter->connect_rpm_ctx;
-
-	qdf_runtime_lock_deinit(&ctx->connect);
-	ctx->connect = NULL;
-}
-#else /* FEATURE_RUNTIME_PM */
-static void hdd_runtime_suspend_context_init(hdd_context_t *hdd_ctx) {}
-static void hdd_runtime_suspend_context_deinit(hdd_context_t *hdd_ctx) {}
-static inline void hdd_adapter_runtime_suspend_init(hdd_adapter_t *adapter) {}
-static inline void hdd_adapter_runtime_suspend_denit(hdd_adapter_t *adapter) {}
-#endif /* FEATURE_RUNTIME_PM */
-
 /**
  * hdd_adapter_init_action_frame_random_mac() - Initialze attributes needed for
  * randomization of SA in management action frames
@@ -3086,7 +3073,6 @@ static hdd_adapter_t *hdd_alloc_station_adapter(hdd_context_t *hdd_ctx,
 		/* set pWlanDev's parent to underlying device */
 		SET_NETDEV_DEV(pWlanDev, hdd_ctx->parent_dev);
 		hdd_wmm_init(adapter);
-		hdd_adapter_runtime_suspend_init(adapter);
 		spin_lock_init(&adapter->pause_map_lock);
 		adapter->start_time = adapter->last_time = qdf_system_ticks();
 	}
@@ -3514,8 +3500,6 @@ static void hdd_cleanup_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 	}
 
 	hdd_debugfs_exit(adapter);
-
-	hdd_adapter_runtime_suspend_denit(adapter);
 
 	/*
 	 * The adapter is marked as closed. When hdd_wlan_exit() call returns,
@@ -5240,6 +5224,7 @@ void hdd_connect_result(struct net_device *dev, const u8 *bssid,
 {
 	hdd_adapter_t *padapter = (hdd_adapter_t *) netdev_priv(dev);
 	struct cfg80211_bss *bss = NULL;
+	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(padapter);
 
 	if (WLAN_STATUS_SUCCESS == status) {
 		struct ieee80211_channel *chan;
@@ -5267,7 +5252,7 @@ void hdd_connect_result(struct net_device *dev, const u8 *bssid,
 			req_ie_len, resp_ie, resp_ie_len,
 			status, gfp, connect_timeout, timeout_reason);
 	}
-	qdf_runtime_pm_allow_suspend(&padapter->connect_rpm_ctx.connect);
+	qdf_runtime_pm_allow_suspend(&hdd_ctx->runtime_context.connect);
 	hdd_allow_suspend(WIFI_POWER_EVENT_WAKELOCK_CONNECT);
 }
 #else
@@ -5279,10 +5264,11 @@ void hdd_connect_result(struct net_device *dev, const u8 *bssid,
 			tSirResultCodes timeout_reason)
 {
 	hdd_adapter_t *padapter = (hdd_adapter_t *) netdev_priv(dev);
+	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(padapter);
 
 	cfg80211_connect_result(dev, bssid, req_ie, req_ie_len,
 				resp_ie, resp_ie_len, status, gfp);
-	qdf_runtime_pm_allow_suspend(&padapter->connect_rpm_ctx.connect);
+	qdf_runtime_pm_allow_suspend(&hdd_ctx->runtime_context.connect);
 	hdd_allow_suspend(WIFI_POWER_EVENT_WAKELOCK_CONNECT);
 }
 #endif
@@ -6257,7 +6243,6 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 	hdd_green_ap_deinit(hdd_ctx);
 	hdd_request_manager_deinit();
 
-	hdd_runtime_suspend_context_deinit(hdd_ctx);
 	hdd_close_all_adapters(hdd_ctx, false);
 	hdd_ipa_cleanup(hdd_ctx);
 
@@ -10328,6 +10313,8 @@ int hdd_wlan_stop_modules(hdd_context_t *hdd_ctx, bool ftm_mode)
 		QDF_ASSERT(0);
 	}
 
+	hdd_runtime_suspend_context_deinit(hdd_ctx);
+
 	qdf_status = cds_close(hdd_ctx->pcds_context);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 		hdd_warn("Failed to stop CDS: %d", qdf_status);
@@ -10648,8 +10635,6 @@ int hdd_wlan_startup(struct device *dev)
 	status = wlansap_global_init();
 	if (QDF_IS_STATUS_ERROR(status))
 		goto err_close_adapters;
-
-	hdd_runtime_suspend_context_init(hdd_ctx);
 
 	if (hdd_ctx->config->fIsImpsEnabled)
 		hdd_set_idle_ps_config(hdd_ctx, true);

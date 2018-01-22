@@ -5508,6 +5508,13 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_OFFLOAD_NEIGHBOR_REPORT_MAX_REQ_CAP_DEFAULT,
 		     CFG_OFFLOAD_NEIGHBOR_REPORT_MAX_REQ_CAP_MIN,
 		     CFG_OFFLOAD_NEIGHBOR_REPORT_MAX_REQ_CAP_MAX),
+
+	REG_VARIABLE(CFG_CHANNEL_SELECT_LOGIC_CONC_NAME, WLAN_PARAM_HexInteger,
+		     struct hdd_config, channel_select_logic_conc,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_CHANNEL_SELECT_LOGIC_CONC_DEFAULT,
+		     CFG_CHANNEL_SELECT_LOGIC_CONC_MIN,
+		     CFG_CHANNEL_SELECT_LOGIC_CONC_MAX),
 };
 
 /**
@@ -7371,6 +7378,9 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 		  pHddCtx->config->gcmp_enabled);
 
 	hdd_cfg_print_11k_offload_params(pHddCtx);
+	hdd_debug("Name = [%s] value = [0x%x]",
+		  CFG_CHANNEL_SELECT_LOGIC_CONC_NAME,
+		  pHddCtx->config->channel_select_logic_conc);
 }
 
 /**

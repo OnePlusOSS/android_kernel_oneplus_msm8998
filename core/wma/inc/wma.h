@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -206,6 +206,19 @@
 #define WMA_BEACON_TX_RATE_36_M           360
 #define WMA_BEACON_TX_RATE_48_M           480
 #define WMA_BEACON_TX_RATE_54_M           540
+
+#define WMA_FW_MODE_STA_STA_BIT_POS       0
+#define WMA_FW_MODE_STA_P2P_BIT_POS       1
+
+#define WMA_FW_MODE_STA_STA_BIT_MASK      (0x1 << WMA_FW_MODE_STA_STA_BIT_POS)
+#define WMA_FW_MODE_STA_P2P_BIT_MASK      (0x1 << WMA_FW_MODE_STA_P2P_BIT_POS)
+
+#define WMA_CHANNEL_SELECT_LOGIC_STA_STA_GET(channel_select_logic_conc)  \
+	((channel_select_logic_conc & WMA_FW_MODE_STA_STA_BIT_MASK) >>   \
+	 WMA_FW_MODE_STA_STA_BIT_POS)
+#define WMA_CHANNEL_SELECT_LOGIC_STA_P2P_GET(channel_select_logic_conc)  \
+	((channel_select_logic_conc & WMA_FW_MODE_STA_P2P_BIT_MASK) >>   \
+	 WMA_FW_MODE_STA_P2P_BIT_POS)
 
 /**
  * ds_mode: distribution system mode

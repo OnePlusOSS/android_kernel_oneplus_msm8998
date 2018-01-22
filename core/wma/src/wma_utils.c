@@ -5082,7 +5082,8 @@ QDF_STATUS wma_get_updated_scan_config(uint32_t *scan_config,
 }
 
 QDF_STATUS wma_get_updated_scan_and_fw_mode_config(uint32_t *scan_config,
-			uint32_t *fw_mode_config, uint32_t dual_mac_disable_ini)
+			uint32_t *fw_mode_config, uint32_t dual_mac_disable_ini,
+			uint32_t channel_select_logic_conc)
 {
 	tp_wma_handle wma;
 
@@ -5121,6 +5122,11 @@ QDF_STATUS wma_get_updated_scan_and_fw_mode_config(uint32_t *scan_config,
 	default:
 		break;
 	}
+
+	WMI_DBS_FW_MODE_CFG_DBS_FOR_STA_PLUS_STA_SET(*fw_mode_config,
+	       WMA_CHANNEL_SELECT_LOGIC_STA_STA_GET(channel_select_logic_conc));
+	WMI_DBS_FW_MODE_CFG_DBS_FOR_STA_PLUS_P2P_SET(*fw_mode_config,
+	       WMA_CHANNEL_SELECT_LOGIC_STA_P2P_GET(channel_select_logic_conc));
 	WMA_LOGD("%s: *scan_config:%x ", __func__, *scan_config);
 	WMA_LOGD("%s: *fw_mode_config:%x ", __func__, *fw_mode_config);
 

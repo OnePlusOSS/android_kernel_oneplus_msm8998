@@ -14190,6 +14190,33 @@ enum hw_filter_mode {
 #define CFG_OFFLOAD_NEIGHBOR_REPORT_MAX_REQ_CAP_MAX     (300)
 #define CFG_OFFLOAD_NEIGHBOR_REPORT_MAX_REQ_CAP_DEFAULT (3)
 
+/*
+ * <ini>
+ * channel_select_logic_conc - Set channel selection logic
+ * for different concurrency combinations to DBS or inter band
+ * MCC. Default is DBS for STA+STA and STA+P2P.
+ * @Min: 0x00000000
+ * @Max: 0xFFFFFFFF
+ * @Default: 0x00000000
+ *
+ * 0 - inter-band MCC
+ * 1 - DBS
+ *
+ * BIT 0: STA+STA
+ * BIT 1: STA+P2P
+ * BIT 2-31: Reserved
+ *
+ * Supported Feature: STA+STA, STA+P2P
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_CHANNEL_SELECT_LOGIC_CONC_NAME    "channel_select_logic_conc"
+#define CFG_CHANNEL_SELECT_LOGIC_CONC_MIN     (0x00000000)
+#define CFG_CHANNEL_SELECT_LOGIC_CONC_MAX     (0xFFFFFFFF)
+#define CFG_CHANNEL_SELECT_LOGIC_CONC_DEFAULT (0x00000003)
+
 /*---------------------------------------------------------------------------
    Type declarations
    -------------------------------------------------------------------------*/
@@ -15091,6 +15118,7 @@ struct hdd_config {
 	uint32_t neighbor_report_offload_per_threshold_offset;
 	uint32_t neighbor_report_offload_cache_timeout;
 	uint32_t neighbor_report_offload_max_req_cap;
+	uint32_t channel_select_logic_conc;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

@@ -75,6 +75,7 @@
 #define WMI_ROAM_SCAN_PSK_SIZE    32
 #endif
 #define WMI_NOISE_FLOOR_DBM_DEFAULT      (-96)
+#define WMI_INVALID_PER_CHAIN_RSSI       0x80
 #define WMI_MAC_IPV6_ADDR_LEN                            16
 #define WMI_OFFLOAD_DISABLE                         0
 #define WMI_OFFLOAD_ENABLE                          1

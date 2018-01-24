@@ -536,7 +536,6 @@ void sap_cleanup_channel_list(void *p_cds_gctx)
  *
  * Return: channel number if in acs channel list or SAP_CHANNEL_NOT_SELECTED
  */
-static
 uint8_t sap_channel_in_acs_channel_list(uint8_t channel_num,
 					ptSapContext sap_ctx,
 					tSapChSelSpectInfo *spect_info_params)

@@ -6289,7 +6289,6 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 		hdd_lpass_notify_stop(hdd_ctx);
 	}
 
-	wlan_hdd_deinit_chan_info(hdd_ctx);
 	hdd_exit_netlink_services(hdd_ctx);
 	mutex_destroy(&hdd_ctx->iface_change_lock);
 	hdd_context_destroy(hdd_ctx);
@@ -10040,6 +10039,8 @@ static int hdd_features_init(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 	if (ret)
 		goto deregister_cb;
 
+	wlan_hdd_init_chan_info(hdd_ctx);
+
 	EXIT();
 	return 0;
 
@@ -10063,6 +10064,7 @@ out:
  */
 static void hdd_features_deinit(hdd_context_t *hdd_ctx)
 {
+	wlan_hdd_deinit_chan_info(hdd_ctx);
 	wlan_hdd_tsf_deinit(hdd_ctx);
 }
 
@@ -10630,8 +10632,6 @@ int hdd_wlan_startup(struct device *dev)
 		hdd_err("HAL context is null");
 		goto err_stop_modules;
 	}
-
-	wlan_hdd_init_chan_info(hdd_ctx);
 
 	ret = hdd_wiphy_init(hdd_ctx);
 	if (ret) {

@@ -105,6 +105,8 @@ void hdd_ipa_uc_set_quota(hdd_adapter_t *adapter, uint8_t set_quota,
 			  uint64_t quota_bytes);
 bool hdd_ipa_is_enabled(hdd_context_t *pHddCtx);
 bool hdd_ipa_uc_is_enabled(hdd_context_t *pHddCtx);
+bool hdd_ipa_is_fw_wdi_actived(hdd_context_t *hdd_ctx);
+
 #ifndef QCA_LL_TX_FLOW_CONTROL_V2
 int hdd_ipa_send_mcc_scc_msg(hdd_context_t *hdd_ctx, bool mcc_mode);
 void hdd_ipa_set_mcc_mode(bool mcc_mode);
@@ -252,6 +254,11 @@ static inline bool hdd_ipa_is_enabled(hdd_context_t *pHddCtx)
 }
 
 static inline bool hdd_ipa_uc_is_enabled(hdd_context_t *pHddCtx)
+{
+	return false;
+}
+
+static inline bool hdd_ipa_is_fw_wdi_actived(hdd_context_t *hdd_ctx)
 {
 	return false;
 }

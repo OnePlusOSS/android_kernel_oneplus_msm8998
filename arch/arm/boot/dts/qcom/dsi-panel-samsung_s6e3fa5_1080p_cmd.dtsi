@@ -190,5 +190,7 @@
 				qcom,mdss-dsi-night-mode-command-state = "dsi_hs_mode";
 			qcom,ulps-enabled;
 			qcom,panel-allow-phy-poweroff;
+			qcom,partial-update-enabled = "single_roi";
+			qcom,panel-roi-alignment = <1080 8 1080 8 1080 8>;
 	};
 };

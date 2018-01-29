@@ -10,8 +10,6 @@
  * GNU General Public License for more details.
  */
 
-#include "dsi-panel-samsung_s6e3fa3_1080p_cmd.dtsi"
-#include "dsi-panel-samsung_s6e3fa3_1080p_video.dtsi"
 #include "dsi-panel-samsung_s6e3fa5_1080p_cmd.dtsi"
 #include "dsi-panel-samsung_s6e3fa6_1080p_cmd.dtsi"
 
@@ -34,7 +32,7 @@
 };
 
 &mdss_dsi0 {
-	qcom,dsi-pref-prim-pan = <&dsi_samsung_s6e3fa3_1080p_cmd>;
+	qcom,dsi-pref-prim-pan = <&dsi_samsung_s6e3fa5_1080p_cmd>;
 	pinctrl-names = "mdss_default", "mdss_sleep";
 	pinctrl-0 = <&mdss_dsi_active &mdss_te_active>;
 	pinctrl-1 = <&mdss_dsi_suspend &mdss_te_suspend>;
@@ -55,14 +53,6 @@
 		"byte_intf_clk";
 };
 
-&dsi_samsung_s6e3fa3_1080p_cmd {
-  qcom,panel-supply-entries = <&dsi_panel_pwr_supply_no_labibb>;
-};
-
-&dsi_samsung_s6e3fa3_1080p_video {
-  qcom,panel-supply-entries = <&dsi_panel_pwr_supply_no_labibb>;
-};
-
 &dsi_samsung_s6e3fa5_1080p_cmd {
   qcom,panel-supply-entries = <&dsi_panel_pwr_supply_no_labibb>;
 };
@@ -70,7 +60,6 @@
 &dsi_samsung_s6e3fa6_1080p_cmd {
   qcom,panel-supply-entries = <&dsi_panel_pwr_supply_no_labibb>;
 };
-
 
 &soc {
 	tlmm: pinctrl@03400000 {

@@ -682,4 +682,22 @@ void wlan_hdd_save_gtk_offload_params(hdd_adapter_t *adapter,
  * Return : 0 on success and errno on failure
  */
 int wlan_hdd_send_mode_change_event(void);
+
+/*
+ * wlan_hdd_send_sta_authorized_event() - Function to send station authorized
+ * event to user space in case of SAP
+ * @pAdapter: Pointer to the adapter
+ * @pHddCtx: HDD Context
+ * @mac_addr: MAC address of the STA for which the Authorized event needs to
+ * be sent
+ *
+ * This api is used to send station authorized event to user space
+ *
+ * Return: Returns QDF_STATUS_SUCCESS on success else rturns error value
+ */
+
+QDF_STATUS wlan_hdd_send_sta_authorized_event(
+					hdd_adapter_t *pAdapter,
+					hdd_context_t *pHddCtx,
+					const struct qdf_mac_addr *mac_addr);
 #endif

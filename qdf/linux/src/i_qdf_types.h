@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -278,6 +278,9 @@ enum __qdf_net_wireless_evcode {
 #define __qdf_vprint              vprintk
 #define __qdf_snprint             snprintf
 #define __qdf_vsnprint            vsnprintf
+#define qdf_kstrtoint	__qdf_kstrtoint
+
+#define __qdf_kstrtoint		kstrtoint
 
 #define __QDF_DMA_BIDIRECTIONAL  DMA_BIDIRECTIONAL
 #define __QDF_DMA_TO_DEVICE      DMA_TO_DEVICE

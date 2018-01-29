@@ -311,10 +311,6 @@ static int smb2_parse_dt(struct smb2 *chip)
 
 	chg->pd_disabled = of_property_read_bool(node,
 						"disable-pd");
-#ifdef	CONFIG_OP_DEBUG_CHG
-	chg->BATT_TEMP_T0 = -150;
-	chg->BATT_TEMP_T6 = 550;
-#endif
 	pr_info("T0=%d, T1=%d, T2=%d, T3=%d, T4=%d, T5=%d, T6=%d\n",
 		chg->BATT_TEMP_T0, chg->BATT_TEMP_T1, chg->BATT_TEMP_T2,
 		chg->BATT_TEMP_T3, chg->BATT_TEMP_T4, chg->BATT_TEMP_T5,

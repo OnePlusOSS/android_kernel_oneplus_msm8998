@@ -34,9 +34,13 @@
 
 #ifdef CONFIG_HL_SUPPORT
 #define TGT_NUM_VDEV                3
-#else
+#else /* CONFIG_HL_SUPPORT */
+#ifdef QCA_WIFI_3_0_ADRASTEA
+#define TGT_NUM_VDEV                5
+#else /* QCA_WIFI_3_0_ADRASTEA */
 #define TGT_NUM_VDEV                4
-#endif
+#endif /* QCA_WIFI_3_0_ADRASTEA */
+#endif /* CONFIG_HL_SUPPORT */
 
 /*
  * We would need 1 AST entry per peer. Scale it by a factor of 2 to minimize

@@ -36,6 +36,7 @@
 /* Include Files */
 #include <i_qdf_types.h>
 #include <qdf_atomic.h>
+#include "target_if_def_config.h"
 
 /* Preprocessor definitions and constants */
 #define QDF_MAX_SGLIST 4
@@ -456,15 +457,10 @@ void qdf_vtrace_msg(QDF_MODULE_ID module, QDF_TRACE_LEVEL level,
 
 #define qdf_vprint    __qdf_vprint
 #define qdf_snprint   __qdf_snprint
-
 #define qdf_kstrtoint	__qdf_kstrtoint
 
-#ifdef WLAN_OPEN_P2P_INTERFACE
-/* This should match with WLAN_MAX_INTERFACES */
-#define QDF_MAX_CONCURRENCY_PERSONA  (4)
-#else
-#define QDF_MAX_CONCURRENCY_PERSONA  (3)
-#endif
+/* This should match with WLAN MAX INTERFACES */
+#define QDF_MAX_CONCURRENCY_PERSONA  (TGT_NUM_VDEV)
 
 #define QDF_STA_MASK (1 << QDF_STA_MODE)
 #define QDF_SAP_MASK (1 << QDF_SAP_MODE)

@@ -44,11 +44,7 @@
 #include "wmi_unified.h"
 #include "wni_cfg.h"
 #include "cfg_api.h"
-#if defined(CONFIG_HL_SUPPORT)
-#include "wlan_tgt_def_config_hl.h"
-#else
-#include "wlan_tgt_def_config.h"
-#endif
+#include "target_if_def_config.h"
 #include "qdf_nbuf.h"
 #include "qdf_types.h"
 #include "qdf_mem.h"
@@ -195,7 +191,7 @@ static uint32_t wma_get_number_of_tids_supported(uint8_t no_of_peers_supported)
 #else
 static uint32_t wma_get_number_of_tids_supported(uint8_t no_of_peers_supported)
 {
-	return 2 * (no_of_peers_supported + CFG_TGT_NUM_VDEV + 2);
+	return 2 * (no_of_peers_supported + TGT_NUM_VDEV + 2);
 }
 #endif
 
@@ -210,51 +206,51 @@ static void wma_set_default_tgt_config(tp_wma_handle wma_handle)
 	uint8_t no_of_peers_supported;
 	wmi_resource_config tgt_cfg = {
 		0,              /* Filling zero for TLV Tag and Length fields */
-		CFG_TGT_NUM_VDEV,
-		CFG_TGT_NUM_PEERS + CFG_TGT_NUM_VDEV + 2,
-		CFG_TGT_NUM_OFFLOAD_PEERS,
-		CFG_TGT_NUM_OFFLOAD_REORDER_BUFFS,
-		CFG_TGT_NUM_PEER_KEYS,
-		CFG_TGT_NUM_TIDS,
-		CFG_TGT_AST_SKID_LIMIT,
-		CFG_TGT_DEFAULT_TX_CHAIN_MASK,
-		CFG_TGT_DEFAULT_RX_CHAIN_MASK,
-		{CFG_TGT_RX_TIMEOUT_LO_PRI, CFG_TGT_RX_TIMEOUT_LO_PRI,
-		 CFG_TGT_RX_TIMEOUT_LO_PRI, CFG_TGT_RX_TIMEOUT_HI_PRI},
-		CFG_TGT_RX_DECAP_MODE,
-		CFG_TGT_DEFAULT_SCAN_MAX_REQS,
-		CFG_TGT_DEFAULT_BMISS_OFFLOAD_MAX_VDEV,
-		CFG_TGT_DEFAULT_ROAM_OFFLOAD_MAX_VDEV,
-		CFG_TGT_DEFAULT_ROAM_OFFLOAD_MAX_PROFILES,
-		CFG_TGT_DEFAULT_NUM_MCAST_GROUPS,
-		CFG_TGT_DEFAULT_NUM_MCAST_TABLE_ELEMS,
-		CFG_TGT_DEFAULT_MCAST2UCAST_MODE,
-		CFG_TGT_DEFAULT_TX_DBG_LOG_SIZE,
-		CFG_TGT_WDS_ENTRIES,
-		CFG_TGT_DEFAULT_DMA_BURST_SIZE,
-		CFG_TGT_DEFAULT_MAC_AGGR_DELIM,
-		CFG_TGT_DEFAULT_RX_SKIP_DEFRAG_TIMEOUT_DUP_DETECTION_CHECK,
-		CFG_TGT_DEFAULT_VOW_CONFIG,
-		CFG_TGT_DEFAULT_GTK_OFFLOAD_MAX_VDEV,
-		CFG_TGT_NUM_MSDU_DESC,
-		CFG_TGT_MAX_FRAG_TABLE_ENTRIES,
-		CFG_TGT_NUM_TDLS_VDEVS,
-		CFG_TGT_NUM_TDLS_CONN_TABLE_ENTRIES,
-		CFG_TGT_DEFAULT_BEACON_TX_OFFLOAD_MAX_VDEV,
-		CFG_TGT_MAX_MULTICAST_FILTER_ENTRIES,
+		TGT_NUM_VDEV,
+		TGT_NUM_PEERS + TGT_NUM_VDEV + 2,
+		TGT_NUM_OFFLOAD_PEERS,
+		TGT_NUM_OFFLOAD_REORDER_BUFFS,
+		TGT_NUM_PEER_KEYS,
+		TGT_NUM_TIDS,
+		TGT_AST_SKID_LIMIT,
+		TGT_DEFAULT_TX_CHAIN_MASK,
+		TGT_DEFAULT_RX_CHAIN_MASK,
+		{TGT_RX_TIMEOUT_LO_PRI, TGT_RX_TIMEOUT_LO_PRI,
+		 TGT_RX_TIMEOUT_LO_PRI, TGT_RX_TIMEOUT_HI_PRI},
+		TGT_RX_DECAP_MODE,
+		TGT_DEFAULT_SCAN_MAX_REQS,
+		TGT_DEFAULT_BMISS_OFFLOAD_MAX_VDEV,
+		TGT_DEFAULT_ROAM_OFFLOAD_MAX_VDEV,
+		TGT_DEFAULT_ROAM_OFFLOAD_MAX_PROFILES,
+		TGT_DEFAULT_NUM_MCAST_GROUPS,
+		TGT_DEFAULT_NUM_MCAST_TABLE_ELEMS,
+		TGT_DEFAULT_MCAST2UCAST_MODE,
+		TGT_DEFAULT_TX_DBG_LOG_SIZE,
+		TGT_WDS_ENTRIES,
+		TGT_DEFAULT_DMA_BURST_SIZE,
+		TGT_DEFAULT_MAC_AGGR_DELIM,
+		TGT_DEFAULT_RX_SKIP_DEFRAG_TIMEOUT_DUP_DETECTION_CHECK,
+		TGT_DEFAULT_VOW_CONFIG,
+		TGT_DEFAULT_GTK_OFFLOAD_MAX_VDEV,
+		TGT_NUM_MSDU_DESC,
+		TGT_MAX_FRAG_TABLE_ENTRIES,
+		TGT_NUM_TDLS_VDEVS,
+		TGT_NUM_TDLS_CONN_TABLE_ENTRIES,
+		TGT_DEFAULT_BEACON_TX_OFFLOAD_MAX_VDEV,
+		TGT_MAX_MULTICAST_FILTER_ENTRIES,
 		0,
 		0,
 		0,
-		CFG_TGT_NUM_TDLS_CONC_SLEEP_STAS,
-		CFG_TGT_NUM_TDLS_CONC_BUFFER_STAS,
+		TGT_NUM_TDLS_CONC_SLEEP_STAS,
+		TGT_NUM_TDLS_CONC_BUFFER_STAS,
 		0,
-		CFG_TGT_NUM_OCB_VDEVS,
-		CFG_TGT_NUM_OCB_CHANNELS,
-		CFG_TGT_NUM_OCB_SCHEDULES,
+		TGT_NUM_OCB_VDEVS,
+		TGT_NUM_OCB_CHANNELS,
+		TGT_NUM_OCB_SCHEDULES,
 	};
 
 	no_of_peers_supported = wma_get_number_of_peers_supported(wma_handle);
-	tgt_cfg.num_peers = no_of_peers_supported + CFG_TGT_NUM_VDEV + 2;
+	tgt_cfg.num_peers = no_of_peers_supported + TGT_NUM_VDEV + 2;
 	tgt_cfg.num_tids = wma_get_number_of_tids_supported(
 				no_of_peers_supported);
 	tgt_cfg.scan_max_pending_req = wma_handle->max_scan;
@@ -266,18 +262,18 @@ static void wma_set_default_tgt_config(tp_wma_handle wma_handle)
 	WMITLV_SET_HDR(&tgt_cfg.tlv_header,
 		       WMITLV_TAG_STRUC_wmi_resource_config,
 		       WMITLV_GET_STRUCT_TLVLEN(wmi_resource_config));
-	/* reduce the peer/vdev if CFG_TGT_NUM_MSDU_DESC exceeds 1000 */
+	/* reduce the peer/vdev if TGT_NUM_MSDU_DESC exceeds 1000 */
 #ifdef PERE_IP_HDR_ALIGNMENT_WAR
 	if (scn->host_80211_enable) {
 		/*
 		 * To make the IP header begins at dword aligned address,
 		 * we make the decapsulation mode as Native Wifi.
 		 */
-		tgt_cfg.rx_decap_mode = CFG_TGT_RX_DECAP_MODE_NWIFI;
+		tgt_cfg.rx_decap_mode = TGT_RX_DECAP_MODE_NWIFI;
 	}
 #endif /* PERE_IP_HDR_ALIGNMENT_WAR */
 	if (QDF_GLOBAL_MONITOR_MODE == cds_get_conparam())
-		tgt_cfg.rx_decap_mode = CFG_TGT_RX_DECAP_MODE_RAW;
+		tgt_cfg.rx_decap_mode = TGT_RX_DECAP_MODE_RAW;
 
 	wma_handle->wlan_resource_config = tgt_cfg;
 }

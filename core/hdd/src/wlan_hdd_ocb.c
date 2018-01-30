@@ -36,7 +36,7 @@
 #include "wlan_hdd_main.h"
 #include "wlan_hdd_ocb.h"
 #include "wlan_hdd_trace.h"
-#include "wlan_tgt_def_config.h"
+#include "target_if_def_config.h"
 #include "sch_api.h"
 #include "wma_api.h"
 #include "ol_txrx.h"
@@ -310,8 +310,8 @@ struct sir_ocb_config *hdd_ocb_config_new(uint32_t num_channels,
 	uint32_t len;
 	void *cursor;
 
-	if (num_channels > CFG_TGT_NUM_OCB_CHANNELS ||
-			num_schedule > CFG_TGT_NUM_OCB_SCHEDULES)
+	if (num_channels > TGT_NUM_OCB_CHANNELS ||
+			num_schedule > TGT_NUM_OCB_SCHEDULES)
 		return NULL;
 
 	len = sizeof(*ret) +

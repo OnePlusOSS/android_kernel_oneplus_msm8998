@@ -2528,9 +2528,9 @@ QDF_STATUS wma_vdev_start(tp_wma_handle wma,
 	intr[params.vdev_id].ht_capable = req->ht_capable;
 	intr[params.vdev_id].vht_capable = req->vht_capable;
 	intr[params.vdev_id].config.gtx_info.gtxRTMask[0] =
-		CFG_TGT_DEFAULT_GTX_HT_MASK;
+		TGT_DEFAULT_GTX_HT_MASK;
 	intr[params.vdev_id].config.gtx_info.gtxRTMask[1] =
-		CFG_TGT_DEFAULT_GTX_VHT_MASK;
+		TGT_DEFAULT_GTX_VHT_MASK;
 
 	if (wlan_cfg_get_int(mac_ctx, WNI_CFG_TGT_GTX_USR_CFG,
 	    &intr[params.vdev_id].config.gtx_info.gtxUsrcfg) != eSIR_SUCCESS) {
@@ -2541,15 +2541,15 @@ QDF_STATUS wma_vdev_start(tp_wma_handle wma,
 	}
 
 	intr[params.vdev_id].config.gtx_info.gtxPERThreshold =
-		CFG_TGT_DEFAULT_GTX_PER_THRESHOLD;
+		TGT_DEFAULT_GTX_PER_THRESHOLD;
 	intr[params.vdev_id].config.gtx_info.gtxPERMargin =
-		CFG_TGT_DEFAULT_GTX_PER_MARGIN;
+		TGT_DEFAULT_GTX_PER_MARGIN;
 	intr[params.vdev_id].config.gtx_info.gtxTPCstep =
-		CFG_TGT_DEFAULT_GTX_TPC_STEP;
+		TGT_DEFAULT_GTX_TPC_STEP;
 	intr[params.vdev_id].config.gtx_info.gtxTPCMin =
-		CFG_TGT_DEFAULT_GTX_TPC_MIN;
+		TGT_DEFAULT_GTX_TPC_MIN;
 	intr[params.vdev_id].config.gtx_info.gtxBWMask =
-		CFG_TGT_DEFAULT_GTX_BW_MASK;
+		TGT_DEFAULT_GTX_BW_MASK;
 	intr[params.vdev_id].mhz = params.chan_freq;
 	intr[params.vdev_id].chan_width = ch_width;
 

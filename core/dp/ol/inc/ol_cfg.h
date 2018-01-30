@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -32,11 +32,7 @@
 #include <cdp_txrx_cmn.h>       /* ol_pdev_handle */
 #include <cds_ieee80211_common.h>   /* ieee80211_qosframe_htc_addr4 */
 #include <enet.h>               /* LLC_SNAP_HDR_LEN */
-#if defined(CONFIG_HL_SUPPORT)
-#include "wlan_tgt_def_config_hl.h"
-#else
-#include "wlan_tgt_def_config.h"
-#endif
+#include "target_if_def_config.h"
 #include "ol_txrx_ctrl_api.h"   /* txrx_pdev_cfg_param_t */
 
 
@@ -276,8 +272,8 @@ void ol_cfg_set_tx_free_at_download(ol_pdev_handle pdev);
  */
 #define OL_CFG_NUM_MSDU_REAP 512
 #define ol_cfg_tx_credit_lwm(pdev)					       \
-	((CFG_TGT_NUM_MSDU_DESC >  OL_CFG_NUM_MSDU_REAP) ?		       \
-	 (CFG_TGT_NUM_MSDU_DESC -  OL_CFG_NUM_MSDU_REAP) : 0)
+	((TGT_NUM_MSDU_DESC >  OL_CFG_NUM_MSDU_REAP) ?		       \
+	 (TGT_NUM_MSDU_DESC -  OL_CFG_NUM_MSDU_REAP) : 0)
 
 /**
  * @brief In a HL system, specify the target initial credit count.

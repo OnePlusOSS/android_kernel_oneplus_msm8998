@@ -60,11 +60,7 @@
 #include "cdp_txrx_flow_ctrl_legacy.h"
 #include <cdp_txrx_peer_ops.h>
 #include "wlan_hdd_nan_datapath.h"
-#if defined(CONFIG_HL_SUPPORT)
-#include "wlan_tgt_def_config_hl.h"
-#else
-#include "wlan_tgt_def_config.h"
-#endif
+#include "target_if_def_config.h"
 
 /** Number of Tx Queues */
 #ifdef QCA_LL_TX_FLOW_CONTROL_V2
@@ -172,7 +168,7 @@
 
 #define WLAN_WAIT_TIME_CHAIN_RSSI	1000
 
-#define MAX_NUMBER_OF_ADAPTERS 4
+#define MAX_NUMBER_OF_ADAPTERS 5
 
 #define MAX_CFG_STRING_LEN  255
 
@@ -1187,7 +1183,7 @@ typedef struct hdd_scaninfo_s {
 
 } hdd_scaninfo_t;
 
-#define WLAN_HDD_MAX_MC_ADDR_LIST CFG_TGT_MAX_MULTICAST_FILTER_ENTRIES
+#define WLAN_HDD_MAX_MC_ADDR_LIST TGT_MAX_MULTICAST_FILTER_ENTRIES
 
 #ifdef WLAN_FEATURE_PACKET_FILTERING
 typedef struct multicast_addr_list {

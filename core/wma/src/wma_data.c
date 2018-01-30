@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -44,11 +44,7 @@
 #include "cfg_api.h"
 #include "ol_txrx_ctrl_api.h"
 #include <cdp_txrx_tx_throttle.h>
-#if defined(CONFIG_HL_SUPPORT)
-#include "wlan_tgt_def_config_hl.h"
-#else
-#include "wlan_tgt_def_config.h"
-#endif
+#include "target_if_def_config.h"
 #include "ol_txrx.h"
 #include "qdf_nbuf.h"
 #include "qdf_types.h"

@@ -7003,10 +7003,10 @@ QDF_STATUS wma_process_mcbc_set_filter_req(tp_wma_handle wma_handle,
 		WMA_LOGW("Number of multicast addresses is 0");
 		return QDF_STATUS_E_FAILURE;
 	} else if (mcbc_param->ulMulticastAddrCnt >
-		   CFG_TGT_MAX_MULTICAST_FILTER_ENTRIES) {
+		   TGT_MAX_MULTICAST_FILTER_ENTRIES) {
 		WMA_LOGW("Number of multicast addresses %u is more than max %u",
 			 mcbc_param->ulMulticastAddrCnt,
-			 CFG_TGT_MAX_MULTICAST_FILTER_ENTRIES);
+			 TGT_MAX_MULTICAST_FILTER_ENTRIES);
 		return QDF_STATUS_E_FAILURE;
 	}
 

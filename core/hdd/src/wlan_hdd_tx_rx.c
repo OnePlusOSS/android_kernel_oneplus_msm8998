@@ -1664,6 +1664,10 @@ void hdd_gro_destroy(void)
 }
 #else /* HELIUMPLUS */
 static inline void hdd_register_rx_ol(void) { }
+
+void hdd_gro_destroy(void)
+{
+}
 #endif
 
 /**

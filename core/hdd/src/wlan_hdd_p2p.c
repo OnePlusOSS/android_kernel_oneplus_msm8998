@@ -716,7 +716,11 @@ QDF_STATUS wlan_hdd_remain_on_channel_callback(tHalHandle hHal, void *pCtx,
 		hdd_warn("No Rem on channel pending for which Rsp is received");
 		return QDF_STATUS_SUCCESS;
 	}
-
+	if (pRemainChanCtx->scan_id != scan_id) {
+		mutex_unlock(&cfgState->remain_on_chan_ctx_lock);
+		hdd_warn("RoC scan id is not matching");
+		return QDF_STATUS_SUCCESS;
+	}
 	hdd_debug("Received remain on channel rsp");
 	if (qdf_mc_timer_stop(&pRemainChanCtx->hdd_remain_on_chan_timer)
 			!= QDF_STATUS_SUCCESS)
@@ -1105,6 +1109,7 @@ static int wlan_hdd_execute_remain_on_channel(hdd_adapter_t *pAdapter,
 	cfgState->remain_on_chan_ctx = pRemainChanCtx;
 	cfgState->current_freq = pRemainChanCtx->chan.center_freq;
 	pAdapter->is_roc_inprogress = true;
+	pRemainChanCtx->is_recd_roc_ready = false;
 	mutex_unlock(&cfgState->remain_on_chan_ctx_lock);
 
 	/* Initialize Remain on chan timer */
@@ -1642,6 +1647,7 @@ void hdd_remain_chan_ready_handler(hdd_adapter_t *pAdapter,
 	mutex_lock(&cfgState->remain_on_chan_ctx_lock);
 	pRemainChanCtx = cfgState->remain_on_chan_ctx;
 	if (pRemainChanCtx != NULL) {
+		pRemainChanCtx->is_recd_roc_ready = true;
 		MTRACE(qdf_trace(QDF_MODULE_ID_HDD,
 				 TRACE_CODE_HDD_REMAINCHANREADYHANDLER,
 				 pAdapter->sessionId,
@@ -1936,7 +1942,8 @@ static int __wlan_hdd_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	uint8_t home_ch = 0;
 	bool enb_random_mac = false;
 	uint32_t mgmt_hdr_len = sizeof(struct ieee80211_hdr_3addr);
-
+	tHalHandle hHal = pHddCtx->hHal;
+	uint32_t scan_id;
 	ENTER();
 
 	if (len < mgmt_hdr_len + 1) {
@@ -2217,16 +2224,27 @@ static int __wlan_hdd_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 			(QDF_TIMER_STATE_RUNNING !=
 			 qdf_mc_timer_get_current_state(
 				 &pRemainChanCtx->hdd_remain_on_chan_timer))) {
-				 mutex_unlock(
-				 &cfgState->remain_on_chan_ctx_lock);
-			hdd_debug("remain_on_chan_ctx exists but RoC timer not running. wait for ready on channel");
-			rc = wait_for_completion_timeout(&pAdapter->
-					rem_on_chan_ready_event,
-					msecs_to_jiffies
-					(WAIT_REM_CHAN_READY));
-			if (!rc)
-				hdd_err("timeout waiting for remain on channel ready indication");
-
+			if (!pRemainChanCtx->is_recd_roc_ready) {
+				mutex_unlock(
+				    &cfgState->remain_on_chan_ctx_lock);
+				hdd_debug("remain_on_chan_ctx exists but RoC timer not running. wait for ready on channel");
+				rc = wait_for_completion_timeout(&pAdapter->
+						rem_on_chan_ready_event,
+						msecs_to_jiffies
+						(WAIT_REM_CHAN_READY));
+				if (!rc)
+					hdd_err("timeout waiting for remain on channel ready indication");
+			} else {
+				/* Timer expired and posted msg to mc thread
+				 * but is not yet processed clean the roc ctx
+				 * and send response to upper layer.
+				 */
+				scan_id = pRemainChanCtx->scan_id;
+				mutex_unlock(
+				    &cfgState->remain_on_chan_ctx_lock);
+				wlan_hdd_remain_on_channel_callback(hHal,
+					pAdapter, QDF_STATUS_SUCCESS, scan_id);
+			}
 			mutex_lock(&cfgState->remain_on_chan_ctx_lock);
 			pRemainChanCtx = cfgState->remain_on_chan_ctx;
 		}

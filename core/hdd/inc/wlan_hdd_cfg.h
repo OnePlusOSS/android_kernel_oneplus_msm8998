@@ -12447,7 +12447,7 @@ enum hw_filter_mode {
 /*
  * <ini>
  * gAutoChannelSelectWeight - ACS channel weight
- * @Min: 0x1
+ * @Min: 0
  * @Max: 0xFFFFFFFF
  * @Default: 0x000000FF
  *
@@ -12469,7 +12469,7 @@ enum hw_filter_mode {
  * </ini>
  */
 #define CFG_AUTO_CHANNEL_SELECT_WEIGHT          "gAutoChannelSelectWeight"
-#define CFG_AUTO_CHANNEL_SELECT_WEIGHT_MIN      (0x1)
+#define CFG_AUTO_CHANNEL_SELECT_WEIGHT_MIN      (0)
 #define CFG_AUTO_CHANNEL_SELECT_WEIGHT_MAX      (0xFFFFFFFF)
 #define CFG_AUTO_CHANNEL_SELECT_WEIGHT_DEFAULT  (0x000000FF)
 

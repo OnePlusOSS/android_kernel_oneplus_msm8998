@@ -253,7 +253,7 @@ if (cds_is_load_or_unload_in_progress() || cds_is_driver_recovering() ||
 */
 static inline bool cds_is_fw_down(void)
 {
-return pld_is_fw_down();
+	return pld_is_fw_down();
 }
 
 /**
@@ -263,9 +263,9 @@ return pld_is_fw_down();
 */
 static inline bool cds_is_target_ready(void)
 {
-enum cds_driver_state state = cds_get_driver_state();
+	enum cds_driver_state state = cds_get_driver_state();
 
-return __CDS_IS_DRIVER_STATE(state, CDS_DRIVER_STATE_FW_READY);
+	return __CDS_IS_DRIVER_STATE(state, CDS_DRIVER_STATE_FW_READY);
 }
 
 /**

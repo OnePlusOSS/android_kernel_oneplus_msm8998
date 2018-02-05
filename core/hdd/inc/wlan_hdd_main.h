@@ -2248,6 +2248,18 @@ void hdd_cleanup_actionframe_no_wait(hdd_context_t *pHddCtx,
 void crda_regulatory_entry_default(uint8_t *countryCode, int domain_id);
 void wlan_hdd_reset_prob_rspies(hdd_adapter_t *pHostapdAdapter);
 void hdd_prevent_suspend(uint32_t reason);
+
+/*
+ * hdd_get_first_valid_adapter() - Get the first valid adapter from adapter list
+ *
+ * This function is used to fetch the first valid adapter from the adapter
+ * list. If there is no valid adapter then it returns NULL
+ *
+ * Return: NULL if no valid adapter found in the adapter list
+ *
+ */
+hdd_adapter_t *hdd_get_first_valid_adapter(void);
+
 void hdd_allow_suspend(uint32_t reason);
 void hdd_prevent_suspend_timeout(uint32_t timeout, uint32_t reason);
 

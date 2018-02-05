@@ -3711,6 +3711,13 @@ static int hdd_configure_chain_mask(hdd_adapter_t *adapter)
 		return 0;
 	}
 
+	if (hdd_ctx->config->dual_mac_feature_disable !=
+	    DISABLE_DBS_CXN_AND_SCAN) {
+		hdd_info("DBS enabled(%d). skip chain mask programming",
+			 hdd_ctx->config->dual_mac_feature_disable);
+		return 0;
+	}
+
 	if (hdd_ctx->config->txchainmask1x1) {
 		ret_val = sme_cli_set_command(adapter->sessionId,
 					      WMI_PDEV_PARAM_TX_CHAIN_MASK,
@@ -3737,11 +3744,6 @@ static int hdd_configure_chain_mask(hdd_adapter_t *adapter)
 	if (hdd_ctx->config->txchainmask1x1 ||
 	    hdd_ctx->config->rxchainmask1x1) {
 		hdd_info("band agnostic tx/rx chain mask set. skip per band chain mask");
-		return 0;
-	}
-
-	if (!hdd_ctx->config->dual_mac_feature_disable) {
-		hdd_info("DBS enabled. skip per band chain mask");
 		return 0;
 	}
 

@@ -642,14 +642,10 @@ static QDF_STATUS sme_rrm_scan_request_callback(tHalHandle halHandle,
  */
 static QDF_STATUS sme_rrm_issue_scan_req(tpAniSirGlobal mac_ctx)
 {
-	/* Issue scan request. */
-	tCsrScanRequest scan_req;
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	tpRrmSMEContext sme_rrm_ctx = &mac_ctx->rrm.rrmSmeContext;
-	uint32_t session_id, scan_req_id;
-	uint32_t max_chan_time;
+	uint32_t session_id;
 	tSirScanType scan_type;
-	uint64_t current_time;
 
 	status = csr_roam_get_session_id_from_bssid(mac_ctx,
 			&sme_rrm_ctx->sessionBssId, &session_id);
@@ -674,6 +670,11 @@ static QDF_STATUS sme_rrm_issue_scan_req(tpAniSirGlobal mac_ctx)
 
 	if ((eSIR_ACTIVE_SCAN == scan_type) ||
 			(eSIR_PASSIVE_SCAN == scan_type)) {
+		tCsrScanRequest scan_req;
+		uint32_t scan_req_id;
+		uint32_t max_chan_time;
+		uint64_t current_time;
+
 		qdf_mem_zero(&scan_req, sizeof(scan_req));
 		/* set scan_type, active or passive */
 		scan_req.bcnRptReqScan = true;

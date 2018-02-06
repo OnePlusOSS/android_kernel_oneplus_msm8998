@@ -303,25 +303,45 @@ static int hdd_ndi_start_bss(hdd_adapter_t *adapter,
 static int hdd_get_random_nan_mac_addr(hdd_context_t *hdd_ctx,
 				       struct qdf_mac_addr *mac_addr)
 {
-	hdd_adapter_t *adapter;
-	uint8_t i, attempts, max_attempt = 16;
 	bool found;
+	hdd_adapter_t *adapter;
+	uint8_t pos, bit_pos, byte_pos, mask;
+	uint8_t i, attempts, max_attempt = 16;
 
 	for (attempts = 0; attempts < max_attempt; attempts++) {
 		found = false;
-		cds_rand_get_bytes(0, (uint8_t *)mac_addr, sizeof(*mac_addr));
+		/* if NDI is present next addr is required to be 1 bit apart  */
+		adapter = hdd_get_adapter(hdd_ctx, QDF_NDI_MODE);
+		if (adapter) {
+			hdd_debug("NDI already exists, deriving next NDI's mac");
+			qdf_mem_copy(mac_addr, &adapter->macAddressCurrent,
+				     sizeof(*mac_addr));
+			cds_rand_get_bytes(0, &pos, sizeof(pos));
+			/* skipping byte 0, 5 leaves 8*4=32 positions */
+			pos = pos % 32;
+			bit_pos = pos % 8;
+			byte_pos = pos / 8;
+			mask = 1 << bit_pos;
+			/* flip the required bit */
+			mac_addr->bytes[byte_pos + 1] ^= mask;
+		} else {
+			cds_rand_get_bytes(0, (uint8_t *)mac_addr,
+					   sizeof(*mac_addr));
 
-		/*
-		 * Reset multicast bit (bit-0) and set locally-administered bit
-		 */
-		mac_addr->bytes[0] = 0x2;
+			/*
+			 * Reset multicast bit (bit-0) and set
+			 * locally-administered bit
+			 */
+			mac_addr->bytes[0] = 0x2;
 
-		/*
-		 * to avoid potential conflict with FW's generated NMI mac addr,
-		 * host sets LSB if 6th byte to 0
-		 */
-		mac_addr->bytes[5] &= 0xFE;
+			/*
+			 * to avoid potential conflict with FW's generated NMI
+			 * mac addr, host sets LSB if 6th byte to 0
+			 */
+			mac_addr->bytes[5] &= 0xFE;
+		}
 
+		/* check for generated mac addr against provisioned addr */
 		for (i = 0; i < hdd_ctx->num_provisioned_addr; i++) {
 			if ((!qdf_mem_cmp(hdd_ctx->
 					  provisioned_mac_addr[i].bytes,
@@ -334,6 +354,7 @@ static int hdd_get_random_nan_mac_addr(hdd_context_t *hdd_ctx,
 		if (found)
 			continue;
 
+		/* check for generated mac addr against derived addr */
 		for (i = 0; i < hdd_ctx->num_derived_addr; i++) {
 			if ((!qdf_mem_cmp(hdd_ctx->
 					  derived_mac_addr[i].bytes,
@@ -345,6 +366,7 @@ static int hdd_get_random_nan_mac_addr(hdd_context_t *hdd_ctx,
 		if (found)
 			continue;
 
+		/* check for generated mac addr against taken addr */
 		adapter = hdd_get_adapter_by_macaddr(hdd_ctx, mac_addr->bytes);
 		if (!adapter)
 			return 0;

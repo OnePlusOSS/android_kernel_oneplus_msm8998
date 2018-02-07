@@ -8222,7 +8222,7 @@ static void hdd_override_ini_config(hdd_context_t *hdd_ctx)
 		hdd_debug("Module enable_11d set to %d", enable_11d);
 	}
 
-	if (!hdd_ipa_is_present(hdd_ctx)) {
+	if (!hdd_ipa_is_present()) {
 		hdd_ctx->config->IpaConfig = 0;
 		hdd_debug("IpaConfig override to %d",
 			hdd_ctx->config->IpaConfig);

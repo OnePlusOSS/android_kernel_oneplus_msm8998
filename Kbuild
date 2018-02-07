@@ -59,6 +59,10 @@ ifeq ($(KERNEL_BUILD), 0)
 	CONFIG_MOBILE_ROUTER := y
 	endif
 
+	ifeq ($(CONFIG_ARCH_SDXPOORWILLS), y)
+	CONFIG_MOBILE_ROUTER := y
+	endif
+
 	# If platform wants to support two driver base on this source
 	# code, below feature WLAN_DISABLE_EXPORT_SYMBOL needs to be
 	# enabled, otherwise when loading the second the driver,

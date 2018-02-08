@@ -1754,26 +1754,25 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 	if (QDF_STATUS_SUCCESS != status)
 		hdd_err("Get PCL failed");
 
+	wlan_hdd_set_acs_ch_range(sap_config, hw_mode,
+				  ht_enabled, vht_enabled);
+
 	/* ACS override for android */
 	if (hdd_ctx->config->sap_p2p_11ac_override && ht_enabled &&
+	    sap_config->acs_cfg.end_ch >= CDS_CHANNEL_NUM(CHAN_ENUM_36) &&
 	    !(((adapter->device_mode == QDF_SAP_MODE) &&
 	      (hdd_ctx->config->sap_force_11n_for_11ac)) ||
 	      ((adapter->device_mode == QDF_P2P_GO_MODE) &&
 	      (hdd_ctx->config->go_force_11n_for_11ac)))) {
 		hdd_debug("ACS Config override for 11AC");
 		vht_enabled = 1;
-		hw_mode = eCSR_DOT11_MODE_11ac;
+		sap_config->acs_cfg.hw_mode = eCSR_DOT11_MODE_11ac;
 		sap_config->acs_cfg.ch_width =
 					hdd_ctx->config->vhtChannelWidth;
-		wlan_hdd_set_acs_ch_range(sap_config, hw_mode,
-					  ht_enabled, vht_enabled);
 		/* No VHT80 in 2.4G so perform ACS accordingly */
 		if (sap_config->acs_cfg.end_ch <= 14 &&
 			sap_config->acs_cfg.ch_width == eHT_CHANNEL_WIDTH_80MHZ)
 			sap_config->acs_cfg.ch_width = eHT_CHANNEL_WIDTH_40MHZ;
-	} else {
-		wlan_hdd_set_acs_ch_range(sap_config, hw_mode,
-					  ht_enabled, vht_enabled);
 	}
 
 	if (hdd_ctx->config->auto_channel_select_weight)

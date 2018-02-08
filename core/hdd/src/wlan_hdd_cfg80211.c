@@ -1594,7 +1594,8 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 	hdd_context_t *hdd_ctx = wiphy_priv(wiphy);
 	tsap_Config_t *sap_config;
 	struct sk_buff *temp_skbuff;
-	int status = -EINVAL, i = 0;
+	int ret, i;
+	QDF_STATUS status;
 	struct nlattr *tb[QCA_WLAN_VENDOR_ATTR_ACS_MAX + 1];
 	bool ht_enabled, ht40_enabled, vht_enabled;
 	uint8_t ch_width;
@@ -1620,28 +1621,28 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 		return -EPERM;
 	}
 
-	status = wlan_hdd_validate_context(hdd_ctx);
-	if (status)
+	ret = wlan_hdd_validate_context(hdd_ctx);
+	if (ret)
 		goto out;
 
 	if (cds_is_sub_20_mhz_enabled()) {
 		hdd_err("ACS not supported in sub 20 MHz ch wd.");
-		status = -EINVAL;
+		ret = -EINVAL;
 		goto out;
 	}
 
 	if (qdf_atomic_inc_return(&hdd_ctx->is_acs_allowed) > 1) {
 		hdd_err("ACS rejected as previous req already in progress");
-		status = -EINVAL;
+		ret = -EINVAL;
 		goto out;
 	}
 
 	sap_config = &adapter->sessionCtx.ap.sapConfig;
 	qdf_mem_zero(&sap_config->acs_cfg, sizeof(struct sap_acs_cfg));
 
-	status = hdd_nla_parse(tb, QCA_WLAN_VENDOR_ATTR_ACS_MAX, data, data_len,
-			       wlan_hdd_cfg80211_do_acs_policy);
-	if (status) {
+	ret = hdd_nla_parse(tb, QCA_WLAN_VENDOR_ATTR_ACS_MAX, data, data_len,
+			    wlan_hdd_cfg80211_do_acs_policy);
+	if (ret) {
 		hdd_err("Invalid ATTR");
 		qdf_atomic_set(&hdd_ctx->is_acs_allowed, 0);
 		goto out;
@@ -1730,6 +1731,7 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 					sap_config->acs_cfg.ch_list_count);
 			if (sap_config->acs_cfg.ch_list == NULL) {
 				qdf_atomic_set(&hdd_ctx->is_acs_allowed, 0);
+				ret = -ENOMEM;
 				goto out;
 			}
 
@@ -1747,8 +1749,8 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 				sap_config->acs_cfg.ch_list_count);
 			if (sap_config->acs_cfg.ch_list == NULL) {
 				hdd_err("ACS config alloc fail");
-				status = -ENOMEM;
 				qdf_atomic_set(&hdd_ctx->is_acs_allowed, 0);
+				ret = -ENOMEM;
 				goto out;
 			}
 
@@ -1757,6 +1759,11 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 				sap_config->acs_cfg.ch_list[i] =
 					ieee80211_frequency_to_channel(freq[i]);
 		}
+	}
+
+	if (!sap_config->acs_cfg.ch_list_count) {
+		ret = -EINVAL;
+		goto out;
 	}
 
 	hdd_debug("get pcl for DO_ACS vendor command");
@@ -1822,13 +1829,13 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 		 */
 		set_bit(ACS_PENDING, &adapter->event_flags);
 		hdd_debug("ACS Pending for %s", adapter->dev->name);
-		status = 0;
+		ret = 0;
 	} else {
-		status = wlan_hdd_cfg80211_start_acs(adapter);
+		ret = wlan_hdd_cfg80211_start_acs(adapter);
 	}
 
 out:
-	if (0 == status) {
+	if (ret == 0) {
 		temp_skbuff = cfg80211_vendor_cmd_alloc_reply_skb(wiphy,
 							      NLMSG_HDRLEN);
 		if (temp_skbuff != NULL)
@@ -1837,7 +1844,7 @@ out:
 	wlan_hdd_undo_acs(adapter);
 	clear_bit(ACS_IN_PROGRESS, &hdd_ctx->g_event_flags);
 
-	return status;
+	return ret;
 }
 
  /**

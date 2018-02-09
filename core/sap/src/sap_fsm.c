@@ -4861,6 +4861,7 @@ static QDF_STATUS sap_get_channel_list(ptSapContext sap_ctx,
 	uint8_t loop_count;
 	uint8_t *list;
 	uint8_t ch_count;
+	uint8_t new_chan_count = 0;
 	uint8_t start_ch_num, band_start_ch;
 	uint8_t end_ch_num, band_end_ch;
 	uint32_t en_lte_coex;
@@ -4997,6 +4998,19 @@ static QDF_STATUS sap_get_channel_list(ptSapContext sap_ctx,
 		}
 #endif
 	}
+
+	for (i = 0; i < ch_count; i++) {
+		if (cds_is_etsi13_regdmn_srd_chan(cds_chan_to_freq(list[i]))) {
+			if (!sap_ctx->enable_etsi_srd_chan_support)
+				continue;
+		}
+
+		list[new_chan_count] = list[i];
+		new_chan_count++;
+	}
+
+	ch_count = new_chan_count;
+
 	if (0 == ch_count) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
 		    FL("No active channels present for the current region"));

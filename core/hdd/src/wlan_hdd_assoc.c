@@ -119,6 +119,11 @@ uint8_t ccp_rsn_oui_10[HDD_RSN_OUI_SIZE] = {0x00, 0x0F, 0xAC, 0x10};
 uint8_t ccp_rsn_oui_11[HDD_RSN_OUI_SIZE] = {0x00, 0x0F, 0xAC, 0x11};
 #endif
 
+#ifdef WLAN_FEATURE_OWE
+/* OWE https://tools.ietf.org/html/rfc8110 */
+uint8_t ccp_rsn_oui_18[HDD_RSN_OUI_SIZE] = {0x00, 0x0F, 0xAC, 0x12};
+#endif
+
 /* Offset where the EID-Len-IE, start. */
 #define FT_ASSOC_RSP_IES_OFFSET 6  /* Capability(2) + AID(2) + Status Code(2) */
 #define FT_ASSOC_REQ_IES_OFFSET 4  /* Capability(2) + LI(2) */
@@ -5334,6 +5339,27 @@ static inline void hdd_translate_fils_rsn_to_csr_auth(int8_t auth_suite[4],
 }
 #endif
 
+#ifdef WLAN_FEATURE_OWE
+/**
+ * hdd_translate_owe_rsn_to_csr_auth() - Translate OWE RSN to CSR auth type
+ * @auth_suite: auth suite
+ * @auth_type: pointer to eCsrAuthType
+ *
+ * Return: None
+ */
+static void hdd_translate_owe_rsn_to_csr_auth(int8_t auth_suite[4],
+					eCsrAuthType *auth_type)
+{
+	if (memcmp(auth_suite, ccp_rsn_oui_18, 4) == 0)
+		*auth_type = eCSR_AUTH_TYPE_OWE;
+}
+#else
+static inline void hdd_translate_owe_rsn_to_csr_auth(int8_t auth_suite[4],
+					eCsrAuthType *auth_type)
+{
+}
+#endif
+
 /**
  * hdd_translate_rsn_to_csr_auth_type() - Translate RSN to CSR auth type
  * @auth_suite: auth suite
@@ -5369,6 +5395,7 @@ eCsrAuthType hdd_translate_rsn_to_csr_auth_type(uint8_t auth_suite[4])
 #endif
 	{
 		hdd_translate_fils_rsn_to_csr_auth(auth_suite, &auth_type);
+		hdd_translate_owe_rsn_to_csr_auth(auth_suite, &auth_type);
 	}
 	hdd_debug("auth_type: %d", auth_type);
 	return auth_type;
@@ -5770,6 +5797,33 @@ static bool hdd_check_fils_rsn_n_set_auth_type(tCsrRoamProfile *roam_profile,
 }
 #endif
 
+#ifdef WLAN_FEATURE_OWE
+/**
+ * hdd_check_is_owe_auth_type() - This API checks whether a give
+ * auth type is OWE if yes, sets it in profile.
+ * @rsn_auth_type: auth type
+ *
+ * Return: true if OWE auth else false
+ */
+static bool hdd_check_is_owe_auth_type(tCsrRoamProfile *roam_profile,
+			    eCsrAuthType rsn_auth_type)
+{
+	bool is_owe_rsn = false;
+
+	if (rsn_auth_type == eCSR_AUTH_TYPE_OWE)
+		is_owe_rsn = true;
+
+	return is_owe_rsn;
+}
+#else
+static bool hdd_check_is_owe_auth_type(tCsrRoamProfile *roam_profile,
+			    eCsrAuthType rsn_auth_type)
+{
+	return false;
+}
+#endif
+
+
 /**
  * hdd_set_csr_auth_type() - set csr auth type
  * @pAdapter: pointer to adapter
@@ -5784,8 +5838,9 @@ int hdd_set_csr_auth_type(hdd_adapter_t *pAdapter, eCsrAuthType RSNAuthType)
 	hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
 
 	pRoamProfile->AuthType.numEntries = 1;
-	hdd_debug("pHddStaCtx->conn_info.authType = %d",
-		 pHddStaCtx->conn_info.authType);
+	hdd_debug("authType = %d RSNAuthType %d wpa_version %d",
+		  pHddStaCtx->conn_info.authType, RSNAuthType,
+		  pWextState->wpaVersion);
 
 	switch (pHddStaCtx->conn_info.authType) {
 	case eCSR_AUTH_TYPE_OPEN_SYSTEM:
@@ -5874,6 +5929,12 @@ int hdd_set_csr_auth_type(hdd_adapter_t *pAdapter, eCsrAuthType RSNAuthType)
 				hdd_debug("updated profile authtype as %d",
 					RSNAuthType);
 
+			} else if (hdd_check_is_owe_auth_type(
+				   pRoamProfile, RSNAuthType)) {
+				pRoamProfile->AuthType.authType[0] =
+					RSNAuthType;
+				hdd_debug("updated profile authtype as %d",
+					RSNAuthType);
 			} else if ((pWextState->
 			     authKeyMgmt & IW_AUTH_KEY_MGMT_802_1X)
 			    == IW_AUTH_KEY_MGMT_802_1X) {

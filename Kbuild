@@ -188,6 +188,9 @@ ifneq ($(CONFIG_ROME_IF),sdio)
 	#Flag to enable DISA
 	CONFIG_WLAN_FEATURE_DISA := y
 
+	#Flag to enable OWE
+	CONFIG_WLAN_FEATURE_OWE := y
+
 	#Flag to enable Fast Path feature
 	CONFIG_WLAN_FASTPATH := y
 
@@ -1400,6 +1403,10 @@ endif
 
 ifeq ($(CONFIG_WLAN_POWER_DEBUGFS), y)
 CDEFINES += -DWLAN_POWER_DEBUGFS
+endif
+
+ifeq ($(CONFIG_WLAN_FEATURE_OWE),y)
+CDEFINES += -DWLAN_FEATURE_OWE
 endif
 
 ifeq ($(BUILD_DIAG_VERSION),1)

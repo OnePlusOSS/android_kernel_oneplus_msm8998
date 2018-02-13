@@ -104,6 +104,13 @@ uint8_t csr_rsn_oui[][CSR_RSN_OUI_SIZE] = {
 	{0x00, 0x0F, 0xAC, 0x08},
 	/* AES GCMP-256 */
 	{0x00, 0x0F, 0xAC, 0x09},
+#ifdef WLAN_FEATURE_OWE
+#define ENUM_OWE 15
+	/* OWE https://tools.ietf.org/html/rfc8110 */
+	{0x00, 0x0F, 0xAC, 0x12},
+#else
+	{0x00, 0x00, 0x00, 0x00},
+#endif
 	/* define new oui here, update #define CSR_OUI_***_INDEX  */
 };
 
@@ -1946,6 +1953,7 @@ bool csr_is_profile_rsn(tCsrRoamProfile *pProfile)
 	case eCSR_AUTH_TYPE_FILS_SHA384:
 	case eCSR_AUTH_TYPE_FT_FILS_SHA256:
 	case eCSR_AUTH_TYPE_FT_FILS_SHA384:
+	case eCSR_AUTH_TYPE_OWE:
 		fRSNProfile = true;
 		break;
 
@@ -2709,6 +2717,25 @@ static bool csr_is_auth_fils_ft_sha384(tpAniSirGlobal mac,
 }
 #endif
 
+#ifdef WLAN_FEATURE_OWE
+/*
+ * csr_is_auth_wpa_owe() - check whether oui is OWE
+ * @mac: Global MAC context
+ * @all_suites: pointer to all supported akm suites
+ * @suite_count: all supported akm suites count
+ * @oui: Oui needs to be matched
+ *
+ * Return: True if OUI is OWE, false otherwise
+ */
+static bool csr_is_auth_wpa_owe(tpAniSirGlobal mac,
+			       uint8_t all_suites[][CSR_RSN_OUI_SIZE],
+			       uint8_t suite_count, uint8_t oui[])
+{
+	return csr_is_oui_match
+		(mac, all_suites, suite_count, csr_rsn_oui[ENUM_OWE], oui);
+}
+#endif
+
 static bool csr_is_auth_wpa(tpAniSirGlobal pMac,
 			    uint8_t AllSuites[][CSR_WPA_OUI_SIZE],
 			    uint8_t cAllSuites, uint8_t Oui[])
@@ -2825,6 +2852,43 @@ static void csr_is_fils_auth(tpAniSirGlobal mac_ctx,
 {
 }
 #endif
+
+#ifdef WLAN_FEATURE_OWE
+/**
+ * csr_check_n_set_owe_auth() - update negotiated auth if matches to OWE auth type
+ * @mac_ctx: pointer to mac context
+ * @authsuites: auth suites
+ * @c_auth_suites: auth suites count
+ * @authentication: authentication
+ * @auth_type: authentication type list
+ * @index: current counter
+ * @neg_authtype: pointer to negotiated auth
+ *
+ * Return: None
+ */
+static void csr_check_n_set_owe_auth(tpAniSirGlobal mac_ctx,
+	uint8_t authsuites[][CSR_RSN_OUI_SIZE], uint8_t c_auth_suites,
+	uint8_t authentication[], tCsrAuthList *auth_type,
+	uint8_t index, eCsrAuthType *neg_authtype)
+{
+	if ((*neg_authtype == eCSR_AUTH_TYPE_UNKNOWN) &&
+	    csr_is_auth_wpa_owe(mac_ctx, authsuites,
+	    c_auth_suites, authentication)) {
+		if (eCSR_AUTH_TYPE_OWE == auth_type->authType[index])
+			*neg_authtype = eCSR_AUTH_TYPE_OWE;
+	}
+
+	sme_debug("negotiated auth type is %d", *neg_authtype);
+}
+#else
+static void csr_check_n_set_owe_auth(tpAniSirGlobal mac_ctx,
+	uint8_t authsuites[][CSR_RSN_OUI_SIZE], uint8_t c_auth_suites,
+	uint8_t authentication[], tCsrAuthList *auth_type,
+	uint8_t index, eCsrAuthType *neg_authtype)
+{
+}
+#endif
+
 /**
  * csr_get_rsn_information() - to get RSN infomation
  * @hal: pointer to HAL
@@ -2964,6 +3028,8 @@ static bool csr_get_rsn_information(tHalHandle hal, tCsrAuthList *auth_type,
 				neg_authtype = eCSR_AUTH_TYPE_RSN_8021X_SHA256;
 		}
 #endif
+		csr_check_n_set_owe_auth(mac_ctx, authsuites, c_auth_suites,
+			authentication, auth_type, i, &neg_authtype);
 
 		/*
 		 * The 1st auth type in the APs RSN IE, to match stations

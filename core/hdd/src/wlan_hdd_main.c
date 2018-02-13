@@ -3712,6 +3712,11 @@ static int hdd_configure_chain_mask(hdd_adapter_t *adapter)
 		  hdd_ctx->config->tx_chain_mask_5g,
 		  hdd_ctx->config->rx_chain_mask_5g);
 
+	if (hdd_ctx->num_rf_chains < 2) {
+		hdd_info("firmware not capable. skip chain mask programming");
+		return 0;
+	}
+
 	if (hdd_ctx->config->enable2x2) {
 		hdd_info("2x2 enabled. skip chain mask programming");
 		return 0;

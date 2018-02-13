@@ -4871,6 +4871,7 @@ static QDF_STATUS sap_get_channel_list(ptSapContext sap_ctx,
 #endif
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
 	tSapChSelSpectInfo spect_info_obj = { NULL, 0 };
+	uint16_t ch_width;
 
 	if (NULL == hal) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
@@ -4882,10 +4883,11 @@ static QDF_STATUS sap_get_channel_list(ptSapContext sap_ctx,
 
 	start_ch_num = sap_ctx->acs_cfg->start_ch;
 	end_ch_num = sap_ctx->acs_cfg->end_ch;
+	ch_width = sap_ctx->acs_cfg->ch_width;
 	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
-			FL("startChannel %d, EndChannel %d, HW:%d"),
-			start_ch_num, end_ch_num,
-			sap_ctx->acs_cfg->hw_mode);
+		  FL("startChannel %d, EndChannel %d, ch_width %d, HW:%d"),
+		     start_ch_num, end_ch_num, ch_width,
+		     sap_ctx->acs_cfg->hw_mode);
 
 	wlansap_extend_to_acs_range(&start_ch_num, &end_ch_num,
 					    &band_start_ch, &band_end_ch);
@@ -4947,6 +4949,26 @@ static QDF_STATUS sap_get_channel_list(ptSapContext sap_ctx,
 				CDS_CHANNEL_NUM(loop_count),
 				sap_ctx, &spect_info_obj))
 			continue;
+
+		/*
+		 * If we have any 5Ghz channel in the channel list
+		 * and bw is 40/80/160 Mhz then we don't want SAP to
+		 * come up in 2.4Ghz as for 40Mhz, 2.4Ghz channel is
+		 * not preferred and 80/160Mhz is not allowed for 2.4Ghz
+		 * band. So, don't even scan on 2.4Ghz channels if bw is
+		 * 40/80/160Mhz and channel list has any 5Ghz channel.
+		 */
+		if (end_ch_num >= CDS_CHANNEL_NUM(CHAN_ENUM_36) &&
+		    ((ch_width == CH_WIDTH_40MHZ) ||
+		     (ch_width == CH_WIDTH_80MHZ) ||
+		     (ch_width == CH_WIDTH_80P80MHZ) ||
+		     (ch_width == CH_WIDTH_160MHZ))) {
+			if (CDS_CHANNEL_NUM(loop_count) >=
+			    CDS_CHANNEL_NUM(CHAN_ENUM_1) &&
+			    CDS_CHANNEL_NUM(loop_count) <=
+			    CDS_CHANNEL_NUM(CHAN_ENUM_14))
+				continue;
+		}
 
 #ifdef FEATURE_WLAN_CH_AVOID
 		for (i = 0; i < NUM_CHANNELS; i++) {

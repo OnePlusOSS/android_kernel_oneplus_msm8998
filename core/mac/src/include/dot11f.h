@@ -8067,6 +8067,47 @@ uint32_t dot11f_get_packed_ie_wsc_reassoc_res(
 }; /* End extern "C". */
 #endif /* C++ */
 
+/* EID 255 (0xff) Extended EID 32 (0x20) */
+typedef struct sDot11fIEdh_parameter_element {
+	uint8_t             present;
+	uint8_t             group[2];
+	uint8_t             num_public_key;
+	uint8_t             public_key[255];
+} tDot11fIEdh_parameter_element;
+
+#define DOT11F_EID_DH_PARAMETER_ELEMENT (255)
+
+/* N.B. These #defines do *not* include the EID & length */
+#define DOT11F_IE_DH_PARAMETER_ELEMENT_MIN_LEN (2)
+
+#define DOT11F_IE_DH_PARAMETER_ELEMENT_MAX_LEN (257)
+
+#ifdef __cplusplus
+extern "C" {
+#endif /* C++ */
+__must_check uint32_t dot11f_unpack_ie_dh_parameter_element(
+	tpAniSirGlobal,
+	uint8_t *,
+	uint8_t,
+	tDot11fIEdh_parameter_element*,
+	bool);
+
+uint32_t dot11f_pack_ie_dh_parameter_element(
+	tpAniSirGlobal,
+	tDot11fIEdh_parameter_element *,
+	uint8_t *,
+	uint32_t,
+	uint32_t*);
+
+uint32_t dot11f_get_packed_ie_dh_parameter_element(
+	tpAniSirGlobal,
+	tDot11fIEdh_parameter_element *,
+	uint32_t*);
+
+#ifdef __cplusplus
+}; /* End extern "C". */
+#endif /* C++ */
+
 /* EID 60 (0x3c) */
 typedef struct sDot11fIEext_chan_switch_ann {
 	uint8_t             present;
@@ -8877,6 +8918,7 @@ typedef struct sDot11fAssocRequest{
 	tDot11fIEfils_key_confirmation        fils_key_confirmation;
 	tDot11fIEfils_hlp_container           fils_hlp_container;
 	tDot11fIEfragment_ie                  fragment_ie;
+	tDot11fIEdh_parameter_element         dh_parameter_element;
 	tDot11fIEWPAOpaque                    WPAOpaque;
 	tDot11fIEWMMCaps                      WMMCaps;
 	tDot11fIEWMMInfoStation               WMMInfoStation;

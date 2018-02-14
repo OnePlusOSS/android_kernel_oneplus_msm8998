@@ -10674,6 +10674,34 @@ csr_update_key_cmd(tpAniSirGlobal mac_ctx, tCsrRoamSession *session,
 			     CSR_AES_KEY_LEN);
 		*enqueue_cmd = true;
 		break;
+
+#ifdef WLAN_FEATURE_GMAC
+	case eCSR_ENCRYPT_TYPE_AES_GMAC_128:
+		if (set_key->keyLength < CSR_AES_GMAC_128_KEY_LEN) {
+			sme_warn("Invalid AES GMAC 128 keylength [= %d]",
+				set_key->keyLength);
+			*enqueue_cmd = false;
+			return QDF_STATUS_E_INVAL;
+		}
+		set_key_cmd->u.setKeyCmd.keyLength = CSR_AES_GMAC_128_KEY_LEN;
+		qdf_mem_copy(set_key_cmd->u.setKeyCmd.Key, set_key->Key,
+			     CSR_AES_GMAC_128_KEY_LEN);
+		*enqueue_cmd = true;
+		break;
+
+	case eCSR_ENCRYPT_TYPE_AES_GMAC_256:
+		if (set_key->keyLength < CSR_AES_GMAC_256_KEY_LEN) {
+			sme_warn("Invalid AES GMAC 256 keylength [= %d]",
+				set_key->keyLength);
+			*enqueue_cmd = false;
+			return QDF_STATUS_E_INVAL;
+		}
+		set_key_cmd->u.setKeyCmd.keyLength = CSR_AES_GMAC_256_KEY_LEN;
+		qdf_mem_copy(set_key_cmd->u.setKeyCmd.Key, set_key->Key,
+			     CSR_AES_GMAC_256_KEY_LEN);
+		*enqueue_cmd = true;
+		break;
+#endif
 #endif /* WLAN_FEATURE_11W */
 	default:
 		/* for open security also we want to enqueue command */
@@ -14909,8 +14937,13 @@ bool csr_is_mfpc_capable(struct sDot11fIERSN *rsn)
 static void csr_set_mgmt_enc_type(tCsrRoamProfile *profile,
 	tDot11fBeaconIEs *ies, tSirSmeJoinReq *csr_join_req)
 {
+	sme_debug("mgmt encryption type %d MFPe %d MFPr %d",
+		 profile->mgmt_encryption_type,
+		 profile->MFPEnabled, profile->MFPRequired);
+
 	if (profile->MFPEnabled)
-		csr_join_req->MgmtEncryptionType = eSIR_ED_AES_128_CMAC;
+		csr_join_req->MgmtEncryptionType =
+					profile->mgmt_encryption_type;
 	else
 		csr_join_req->MgmtEncryptionType = eSIR_ED_NONE;
 	if (profile->MFPEnabled &&

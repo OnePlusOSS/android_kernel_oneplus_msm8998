@@ -1772,7 +1772,13 @@ __lim_process_sme_join_req(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 
 		/* Record if management frames need to be protected */
 #ifdef WLAN_FEATURE_11W
-		if (eSIR_ED_AES_128_CMAC == sme_join_req->MgmtEncryptionType)
+		if ((eSIR_ED_AES_128_CMAC ==
+					    sme_join_req->MgmtEncryptionType)
+#ifdef WLAN_FEATURE_GMAC
+		   || (eSIR_ED_AES_GMAC_128 == sme_join_req->MgmtEncryptionType)
+		   || (eSIR_ED_AES_GMAC_256 == sme_join_req->MgmtEncryptionType)
+#endif
+		   )
 			session->limRmfEnabled = 1;
 		else
 			session->limRmfEnabled = 0;

@@ -113,6 +113,7 @@
 #include "wlan_hdd_spectralscan.h"
 #include "sme_power_save_api.h"
 #include "wlan_hdd_sysfs.h"
+#include "wlan_hdd_apf.h"
 
 #ifdef CNSS_GENL
 #include <net/cnss_nl.h>

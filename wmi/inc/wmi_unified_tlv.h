@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -640,22 +640,6 @@ QDF_STATUS send_per_roam_config_cmd_tlv(wmi_unified_t wmi_handle,
 QDF_STATUS send_get_buf_extscan_hotlist_cmd_tlv(wmi_unified_t wmi_handle,
 				   struct ext_scan_setbssi_hotlist_params *
 				   photlist, int *buf_len);
-
-/**
- * send_set_active_bpf_mode_cmd_tlv() - configure active BPF mode in FW
- * @wmi_handle: the WMI handle
- * @vdev_id: the Id of the vdev to apply the configuration to
- * @ucast_mode: the active BPF mode to configure for unicast packets
- * @mcast_bcast_mode: the active BPF mode to configure for multicast/broadcast
- *	packets
- *
- * Return: QDF status
- */
-QDF_STATUS
-send_set_active_bpf_mode_cmd_tlv(wmi_unified_t wmi_handle,
-				 uint8_t vdev_id,
-				 FW_ACTIVE_BPF_MODE ucast_mode,
-				 FW_ACTIVE_BPF_MODE mcast_bcast_mode);
 
 QDF_STATUS send_set_arp_stats_req_cmd_tlv(wmi_unified_t wmi_handle,
 					  struct set_arp_stats *req_buf);

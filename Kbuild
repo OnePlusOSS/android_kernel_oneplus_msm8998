@@ -191,6 +191,9 @@ ifneq ($(CONFIG_ROME_IF),sdio)
 	#Flag to enable OWE
 	CONFIG_WLAN_FEATURE_OWE := y
 
+	#Flag to enable GMAC
+	CONFIG_WLAN_FEATURE_GMAC := y
+
 	#Flag to enable Fast Path feature
 	CONFIG_WLAN_FASTPATH := y
 
@@ -1408,6 +1411,10 @@ endif
 
 ifeq ($(CONFIG_WLAN_FEATURE_OWE),y)
 CDEFINES += -DWLAN_FEATURE_OWE
+endif
+
+ifeq ($(CONFIG_WLAN_FEATURE_GMAC),y)
+CDEFINES += -DWLAN_FEATURE_GMAC
 endif
 
 ifeq ($(BUILD_DIAG_VERSION),1)

@@ -148,6 +148,9 @@ typedef struct {
 #define WLAN_AKM_SUITE_OWE 0x000FAC12
 #endif
 
+#define WLAN_AKM_SUITE_EAP_SHA256 0x000FAC0B
+#define WLAN_AKM_SUITE_EAP_SHA384 0x000FAC0C
+
 #ifdef FEATURE_WLAN_TDLS
 #define WLAN_IS_TDLS_SETUP_ACTION(action) \
 	((SIR_MAC_TDLS_SETUP_REQ <= action) && \

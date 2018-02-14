@@ -17194,6 +17194,16 @@ static int wlan_hdd_set_akm_suite(hdd_adapter_t *pAdapter, u32 key_mgmt)
 		break;
 #endif
 
+	case WLAN_AKM_SUITE_EAP_SHA256:
+		hdd_debug("setting key mgmt type to EAP_SHA256");
+		pWextState->authKeyMgmt |= IW_AUTH_KEY_MGMT_802_1X;
+		break;
+
+	case WLAN_AKM_SUITE_EAP_SHA384:
+		hdd_debug("setting key mgmt type to EAP_SHA384");
+		pWextState->authKeyMgmt |= IW_AUTH_KEY_MGMT_802_1X;
+		break;
+
 	default:
 		hdd_err("Unsupported key mgmt type: %d", key_mgmt);
 		return -EINVAL;

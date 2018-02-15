@@ -436,6 +436,26 @@ typedef enum eSirRFBand {
 	SIR_BAND_MAX = SIR_BAND_UNKNOWN,
 } tSirRFBand;
 
+/**
+ * enum set_hw_mode_status - Status of set HW mode command
+ * @SET_HW_MODE_STATUS_OK: command successful
+ * @SET_HW_MODE_STATUS_EINVAL: Requested invalid hw_mode
+ * @SET_HW_MODE_STATUS_ECANCELED: HW mode change cancelled
+ * @SET_HW_MODE_STATUS_ENOTSUP: HW mode not supported
+ * @SET_HW_MODE_STATUS_EHARDWARE: HW mode change prevented by hardware
+ * @SET_HW_MODE_STATUS_EPENDING: HW mode change is pending
+ * @SET_HW_MODE_STATUS_ECOEX: HW mode change conflict with Coex
+ */
+enum set_hw_mode_status {
+	SET_HW_MODE_STATUS_OK,
+	SET_HW_MODE_STATUS_EINVAL,
+	SET_HW_MODE_STATUS_ECANCELED,
+	SET_HW_MODE_STATUS_ENOTSUP,
+	SET_HW_MODE_STATUS_EHARDWARE,
+	SET_HW_MODE_STATUS_EPENDING,
+	SET_HW_MODE_STATUS_ECOEX,
+};
+
 typedef struct sSirRemainOnChnReq {
 	uint16_t messageType;
 	uint16_t length;
@@ -522,6 +542,9 @@ struct s_sir_set_hw_mode {
 	struct sir_hw_mode set_hw;
 };
 
+typedef void (*dual_mac_cb)(enum set_hw_mode_status status,
+		uint32_t scan_config,
+		uint32_t fw_mode_config);
 /**
  * struct sir_dual_mac_config - Dual MAC configuration
  * @scan_config: Scan configuration
@@ -531,7 +554,7 @@ struct s_sir_set_hw_mode {
 struct sir_dual_mac_config {
 	uint32_t scan_config;
 	uint32_t fw_mode_config;
-	void *set_dual_mac_cb;
+	dual_mac_cb set_dual_mac_cb;
 };
 
 /**
@@ -3838,26 +3861,6 @@ enum hw_mode_bandwidth {
 };
 
 /**
- * enum set_hw_mode_status - Status of set HW mode command
- * @SET_HW_MODE_STATUS_OK: command successful
- * @SET_HW_MODE_STATUS_EINVAL: Requested invalid hw_mode
- * @SET_HW_MODE_STATUS_ECANCELED: HW mode change cancelled
- * @SET_HW_MODE_STATUS_ENOTSUP: HW mode not supported
- * @SET_HW_MODE_STATUS_EHARDWARE: HW mode change prevented by hardware
- * @SET_HW_MODE_STATUS_EPENDING: HW mode change is pending
- * @SET_HW_MODE_STATUS_ECOEX: HW mode change conflict with Coex
- */
-enum set_hw_mode_status {
-	SET_HW_MODE_STATUS_OK,
-	SET_HW_MODE_STATUS_EINVAL,
-	SET_HW_MODE_STATUS_ECANCELED,
-	SET_HW_MODE_STATUS_ENOTSUP,
-	SET_HW_MODE_STATUS_EHARDWARE,
-	SET_HW_MODE_STATUS_EPENDING,
-	SET_HW_MODE_STATUS_ECOEX,
-};
-
-/**
  * struct sir_pcl_list - Format of PCL
  * @pcl_list: List of preferred channels
  * @weight_list: Weights of the PCL
@@ -6722,8 +6725,6 @@ typedef void (*hw_mode_transition_cb)(uint32_t old_hw_mode_index,
 		uint32_t new_hw_mode_index,
 		uint32_t num_vdev_mac_entries,
 		struct sir_vdev_mac_map *vdev_mac_map);
-typedef void (*dual_mac_cb)(uint32_t status, uint32_t scan_config,
-		uint32_t fw_mode_config);
 typedef void (*antenna_mode_cb)(uint32_t status);
 
 /**

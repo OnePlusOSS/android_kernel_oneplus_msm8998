@@ -2588,7 +2588,7 @@ void cds_set_dual_mac_scan_config(uint8_t dbs_val,
 		return;
 	}
 
-	cfg.set_dual_mac_cb = (void *)cds_soc_set_dual_mac_cfg_cb;
+	cfg.set_dual_mac_cb = cds_soc_set_dual_mac_cfg_cb;
 
 	cds_debug("scan_config:%x fw_mode_config:%x",
 			cfg.scan_config, cfg.fw_mode_config);
@@ -2644,7 +2644,7 @@ void cds_set_dual_mac_fw_mode_config(uint8_t dbs, uint8_t dfs)
 		return;
 	}
 
-	cfg.set_dual_mac_cb = (void *)cds_soc_set_dual_mac_cfg_cb;
+	cfg.set_dual_mac_cb = cds_soc_set_dual_mac_cfg_cb;
 
 	cds_debug("scan_config:%x fw_mode_config:%x",
 			cfg.scan_config, cfg.fw_mode_config);

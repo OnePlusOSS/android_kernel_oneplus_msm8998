@@ -90,6 +90,7 @@
 #include "wlan_hdd_ocb.h"
 #include "wlan_hdd_nan.h"
 #include "wlan_hdd_debugfs.h"
+#include "wlan_hdd_debugfs_csr.h"
 #include "wlan_hdd_driver_ops.h"
 #include "epping_main.h"
 #include "wlan_hdd_data_stall_detection.h"
@@ -4515,6 +4516,12 @@ QDF_STATUS hdd_stop_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 	case QDF_IBSS_MODE:
 	case QDF_P2P_DEVICE_MODE:
 	case QDF_NDI_MODE:
+
+		if (adapter->device_mode == QDF_STA_MODE) {
+			hdd_debug("Destroy CSR debugfs files");
+			wlan_hdd_debugfs_csr_deinit(adapter);
+		}
+
 		if ((QDF_NDI_MODE == adapter->device_mode) ||
 			hdd_conn_is_connected(
 				WLAN_HDD_GET_STATION_CTX_PTR(adapter)) ||
@@ -8679,6 +8686,11 @@ int hdd_start_station_adapter(hdd_adapter_t *adapter)
 		hdd_tx_resume_timer_expired_handler,
 		hdd_tx_resume_cb,
 		hdd_tx_flow_control_is_pause);
+
+	if (adapter->device_mode == QDF_STA_MODE) {
+		hdd_debug("Create CSR debugfs files");
+		wlan_hdd_debugfs_csr_init(adapter);
+	}
 
 	EXIT();
 	return 0;

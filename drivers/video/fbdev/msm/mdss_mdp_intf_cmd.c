@@ -23,7 +23,7 @@
 #include "mdss_dsi_clk.h"
 #include <linux/interrupt.h>
 
-#define MAX_RECOVERY_TRIALS 10
+#define MAX_RECOVERY_TRIALS 3
 #define MAX_SESSIONS 2
 
 #define SPLIT_MIXER_OFFSET 0x800

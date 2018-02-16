@@ -1052,4 +1052,13 @@ bool cds_is_sta_connected_in_2g(void);
  * Return: Connection count
  */
 uint32_t cds_get_connection_info(struct connection_info *info);
+
+/**
+ * cds_trim_acs_channel_list() - Trim the ACS channel list based
+ * on the number of active station connections
+ * @sap_cfg: SAP configuration info
+ *
+ * Return: None
+ */
+void cds_trim_acs_channel_list(tsap_Config_t *sap_cfg);
 #endif /* __CDS_CONCURRENCY_H */

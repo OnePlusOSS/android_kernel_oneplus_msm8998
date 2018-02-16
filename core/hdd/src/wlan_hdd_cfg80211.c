@@ -1770,6 +1770,9 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 	if (QDF_STATUS_SUCCESS != status)
 		hdd_err("Get PCL failed");
 
+	if (hw_mode == QCA_ACS_MODE_IEEE80211ANY)
+		cds_trim_acs_channel_list(sap_config);
+
 	wlan_hdd_set_acs_ch_range(sap_config, hw_mode,
 				  ht_enabled, vht_enabled);
 

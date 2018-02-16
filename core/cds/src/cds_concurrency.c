@@ -10889,3 +10889,76 @@ uint32_t cds_get_connection_info(struct connection_info *info)
 
 	return count;
 }
+
+void cds_trim_acs_channel_list(tsap_Config_t *sap_cfg)
+{
+	uint32_t list[MAX_NUMBER_OF_CONC_CONNECTIONS];
+	uint32_t index, count, i, ch_list_count;
+	uint8_t band_mask = 0, ch_5g = 0, ch_24g = 0;
+	uint8_t ch_list[QDF_MAX_NUM_CHAN];
+
+	if (sap_cfg->acs_cfg.ch_list_count >= QDF_MAX_NUM_CHAN) {
+		cds_err("acs_cfg.ch_list_count too big %d",
+			sap_cfg->acs_cfg.ch_list_count);
+		return;
+	}
+	/*
+	 * if force SCC is enabled and there is a STA connection, trim the
+	 * ACS channel list on the band on which STA connection is present
+	 */
+	count = cds_mode_specific_connection_count(CDS_STA_MODE, list);
+	if (cds_is_force_scc() && count) {
+		index = 0;
+		while (index < count) {
+			if (CDS_IS_CHANNEL_24GHZ(
+				conc_connection_list[list[index]].chan) &&
+				cds_is_safe_channel(
+				conc_connection_list[list[index]].chan)) {
+				band_mask |= 1;
+				ch_24g = conc_connection_list[list[index]].chan;
+			}
+			if (CDS_IS_CHANNEL_5GHZ(
+				conc_connection_list[list[index]].chan) &&
+				cds_is_safe_channel(
+				conc_connection_list[list[index]].chan) &&
+				!CDS_IS_DFS_CH(
+				conc_connection_list[list[index]].chan) &&
+				!CDS_IS_PASSIVE_OR_DISABLE_CH(
+				conc_connection_list[list[index]].chan)) {
+				band_mask |= 2;
+				ch_5g = conc_connection_list[list[index]].chan;
+			}
+			index++;
+		}
+		ch_list_count = 0;
+		if (band_mask == 1) {
+			ch_list[ch_list_count++] = ch_24g;
+			for (i = 0; i < sap_cfg->acs_cfg.ch_list_count; i++) {
+				if (CDS_IS_CHANNEL_24GHZ(
+					sap_cfg->acs_cfg.ch_list[i]))
+					continue;
+				ch_list[ch_list_count++] =
+					sap_cfg->acs_cfg.ch_list[i];
+			}
+		} else if (band_mask == 2) {
+			ch_list[ch_list_count++] = ch_5g;
+			for (i = 0; i < sap_cfg->acs_cfg.ch_list_count; i++) {
+				if (CDS_IS_CHANNEL_5GHZ(
+					sap_cfg->acs_cfg.ch_list[i]))
+					continue;
+				ch_list[ch_list_count++] =
+					sap_cfg->acs_cfg.ch_list[i];
+			}
+		} else if (band_mask == 3) {
+			ch_list[ch_list_count++] = ch_24g;
+			ch_list[ch_list_count++] = ch_5g;
+		} else {
+			cds_debug("unexpected band_mask value %d", band_mask);
+			return;
+		}
+
+		sap_cfg->acs_cfg.ch_list_count = ch_list_count;
+		for (i = 0; i < sap_cfg->acs_cfg.ch_list_count; i++)
+			sap_cfg->acs_cfg.ch_list[i] = ch_list[i];
+	}
+}

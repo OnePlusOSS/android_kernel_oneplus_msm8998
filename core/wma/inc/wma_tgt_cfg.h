@@ -178,7 +178,7 @@ struct wma_tgt_cfg {
 	bool egap_support;
 #endif
 	uint32_t fine_time_measurement_cap;
-	bool bpf_enabled;
+	bool apf_enabled;
 #ifdef FEATURE_WLAN_RA_FILTERING
 	bool is_ra_rate_limit_enabled;
 #endif

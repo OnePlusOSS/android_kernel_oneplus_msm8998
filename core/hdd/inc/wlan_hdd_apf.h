@@ -38,9 +38,9 @@
 #include "wlan_hdd_main.h"
 
 /**
- * hdd_get_bpf_offload_cb() - Callback function to BPF Offload
+ * hdd_get_apf_offload_cb() - Callback function to APF Offload
  * @hdd_context: hdd_context
- * @bpf_get_offload: struct for get offload
+ * @apf_get_offload: struct for get offload
  *
  * This function receives the response/data from the lower layer and
  * checks to see if the thread is still waiting then post the results to
@@ -48,18 +48,18 @@
  *
  * Return: None
  */
-void hdd_get_bpf_offload_cb(void *hdd_context,
-			    struct sir_bpf_get_offload *data);
+void hdd_get_apf_offload_cb(void *hdd_context,
+			    struct sir_apf_get_offload *data);
 
 /**
- * hdd_init_bpf_completion() - Initialize the completion event for bpf
+ * hdd_init_apf_completion() - Initialize the completion event for apf
  *
  * Return: None
  */
-void hdd_init_bpf_completion(void);
+void hdd_init_apf_completion(void);
 
 /**
- * wlan_hdd_cfg80211_bpf_offload() - SSR Wrapper to BPF Offload
+ * wlan_hdd_cfg80211_apf_offload() - SSR Wrapper to APF Offload
  * @wiphy:    wiphy structure pointer
  * @wdev:     Wireless device structure pointer
  * @data:     Pointer to the data received
@@ -68,7 +68,7 @@ void hdd_init_bpf_completion(void);
  * Return: 0 on success; errno on failure
  */
 
-int wlan_hdd_cfg80211_bpf_offload(struct wiphy *wiphy,
+int wlan_hdd_cfg80211_apf_offload(struct wiphy *wiphy,
 				  struct wireless_dev *wdev,
 				  const void *data, int data_len);
 #endif /* WLAN_HDD_APF_H */

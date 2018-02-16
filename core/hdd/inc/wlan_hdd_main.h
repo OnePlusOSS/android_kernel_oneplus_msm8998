@@ -163,7 +163,7 @@
 #define WLAN_WAIT_TIME_ANTENNA_MODE_REQ 3000
 #define WLAN_WAIT_TIME_SET_DUAL_MAC_CFG 1500
 
-#define WLAN_WAIT_TIME_BPF     1000
+#define WLAN_WAIT_TIME_APF     1000
 
 /* rcpi request timeout in milli seconds */
 #define WLAN_WAIT_TIME_RCPI 500
@@ -444,7 +444,7 @@ extern struct mutex hdd_init_deinit_lock;
 #define LINK_CONTEXT_MAGIC  0x4C494E4B  /* LINKSPEED */
 #define LINK_STATUS_MAGIC   0x4C4B5354  /* LINKSTATUS(LNST) */
 #define TEMP_CONTEXT_MAGIC  0x74656d70   /* TEMP (temperature) */
-#define BPF_CONTEXT_MAGIC 0x4575354    /* BPF */
+#define APF_CONTEXT_MAGIC 0x4575354    /* APF */
 #define POWER_STATS_MAGIC 0x14111990
 #define RCPI_CONTEXT_MAGIC  0x7778888  /* RCPI */
 #define ACTION_FRAME_RANDOM_CONTEXT_MAGIC 0x87878787
@@ -1680,15 +1680,15 @@ struct hdd_offloaded_packets_ctx {
 #endif
 
 /**
- * struct hdd_bpf_context - hdd Context for bpf
+ * struct hdd_apf_context - hdd Context for apf
  * @magic: magic number
- * @completion: Completion variable for BPF Get Capability
+ * @completion: Completion variable for APF Get Capability
  * @capability_response: capabilities response received from fw
  */
-struct hdd_bpf_context {
+struct hdd_apf_context {
 	unsigned int magic;
 	struct completion completion;
-	struct sir_bpf_get_offload capability_response;
+	struct sir_apf_get_offload capability_response;
 };
 
 /**
@@ -2071,7 +2071,7 @@ struct hdd_context_s {
 	struct completion set_antenna_mode_cmpl;
 	/* Current number of TX X RX chains being used */
 	enum antenna_mode current_antenna_mode;
-	bool bpf_enabled;
+	bool apf_enabled;
 
 	/* the radio index assigned by cnss_logger */
 	int radio_index;

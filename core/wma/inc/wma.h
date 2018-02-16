@@ -1532,10 +1532,10 @@ struct peer_debug_info {
  * It contains global wma module parameters and
  * handle of other modules.
  * @saved_wmi_init_cmd: Saved WMI INIT command
- * @bpf_packet_filter_enable: BPF filter enabled or not
- * @active_uc_bpf_mode: Setting that determines how BPF is applied in active
+ * @apf_packet_filter_enable: APF filter enabled or not
+ * @active_uc_apf_mode: Setting that determines how APF is applied in active
  * mode for uc packets
- * @active_mc_bc_bpf_mode: Setting that determines how BPF is applied in
+ * @active_mc_bc_apf_mode: Setting that determines how APF is applied in
  * active mode for MC/BC packets
  * @service_ready_ext_evt: Wait event for service ready ext
  * @wmi_cmd_rsp_wake_lock: wmi command response wake lock
@@ -1737,10 +1737,10 @@ typedef struct {
 	qdf_runtime_lock_t wmi_cmd_rsp_runtime_lock;
 	qdf_runtime_lock_t wma_runtime_resume_lock;
 	uint32_t fine_time_measurement_cap;
-	bool bpf_enabled;
-	bool bpf_packet_filter_enable;
-	enum active_bpf_mode active_uc_bpf_mode;
-	enum active_bpf_mode active_mc_bc_bpf_mode;
+	bool apf_enabled;
+	bool apf_packet_filter_enable;
+	enum active_apf_mode active_uc_apf_mode;
+	enum active_apf_mode active_mc_bc_apf_mode;
 	struct wma_ini_config ini_config;
 	struct wma_valid_channels saved_chan;
 	/* NAN datapath support enabled in firmware */
@@ -2456,13 +2456,13 @@ void wma_process_fw_test_cmd(WMA_HANDLE handle,
 QDF_STATUS wma_send_ht40_obss_scanind(tp_wma_handle wma,
 	struct obss_ht40_scanind *req);
 
-int wma_get_bpf_caps_event_handler(void *handle,
+int wma_get_apf_caps_event_handler(void *handle,
 				u_int8_t *cmd_param_info,
 				u_int32_t len);
 uint32_t wma_get_num_of_setbits_from_bitmask(uint32_t mask);
-QDF_STATUS wma_get_bpf_capabilities(tp_wma_handle wma);
-QDF_STATUS wma_set_bpf_instructions(tp_wma_handle wma,
-			struct sir_bpf_set_offload *bpf_set_offload);
+QDF_STATUS wma_get_apf_capabilities(tp_wma_handle wma);
+QDF_STATUS wma_set_apf_instructions(tp_wma_handle wma,
+			struct sir_apf_set_offload *apf_set_offload);
 void wma_process_set_pdev_ie_req(tp_wma_handle wma,
 		struct set_ie_param *ie_params);
 void wma_process_set_pdev_ht_ie_req(tp_wma_handle wma,

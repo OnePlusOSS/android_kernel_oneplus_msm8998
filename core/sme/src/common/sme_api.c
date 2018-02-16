@@ -16715,13 +16715,13 @@ void sme_send_disassoc_req_frame(tHalHandle hal, uint8_t session_id,
 }
 
 /**
- * sme_get_bpf_offload_capabilities() - Get length for BPF offload
+ * sme_get_apf_offload_capabilities() - Get length for APF offload
  * @hal: Global HAL handle
  * This function constructs the cds message and fill in message type,
  * post the same to WDA.
  * Return: QDF_STATUS enumeration
  */
-QDF_STATUS sme_get_bpf_offload_capabilities(tHalHandle hal)
+QDF_STATUS sme_get_apf_offload_capabilities(tHalHandle hal)
 {
 	QDF_STATUS          status     = QDF_STATUS_SUCCESS;
 	tpAniSirGlobal      mac_ctx      = PMAC_STRUCT(hal);
@@ -16733,11 +16733,11 @@ QDF_STATUS sme_get_bpf_offload_capabilities(tHalHandle hal)
 	if (QDF_STATUS_SUCCESS == status) {
 		/* Serialize the req through MC thread */
 		cds_msg.bodyptr = NULL;
-		cds_msg.type = WDA_BPF_GET_CAPABILITIES_REQ;
+		cds_msg.type = WDA_APF_GET_CAPABILITIES_REQ;
 		status = cds_mq_post_message(QDF_MODULE_ID_WMA, &cds_msg);
 		if (!QDF_IS_STATUS_SUCCESS(status)) {
 			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-					FL("Post bpf get offload msg fail"));
+					FL("Post apf get offload msg fail"));
 			status = QDF_STATUS_E_FAILURE;
 		}
 		sme_release_global_lock(&mac_ctx->sme);
@@ -16752,19 +16752,19 @@ QDF_STATUS sme_get_bpf_offload_capabilities(tHalHandle hal)
 
 
 /**
- * sme_set_bpf_instructions() - Set BPF bpf filter instructions.
+ * sme_set_apf_instructions() - Set APF apf filter instructions.
  * @hal: HAL handle
- * @bpf_set_offload: struct to set bpf filter instructions.
+ * @apf_set_offload: struct to set apf filter instructions.
  *
  * Return: QDF_STATUS enumeration.
  */
-QDF_STATUS sme_set_bpf_instructions(tHalHandle hal,
-				    struct sir_bpf_set_offload *req)
+QDF_STATUS sme_set_apf_instructions(tHalHandle hal,
+				    struct sir_apf_set_offload *req)
 {
 	QDF_STATUS          status     = QDF_STATUS_SUCCESS;
 	tpAniSirGlobal      mac_ctx    = PMAC_STRUCT(hal);
 	cds_msg_t           cds_msg;
-	struct sir_bpf_set_offload *set_offload;
+	struct sir_apf_set_offload *set_offload;
 
 	set_offload = qdf_mem_malloc(sizeof(*set_offload) +
 					req->current_length);
@@ -16790,12 +16790,12 @@ QDF_STATUS sme_set_bpf_instructions(tHalHandle hal,
 	if (QDF_STATUS_SUCCESS == status) {
 		/* Serialize the req through MC thread */
 		cds_msg.bodyptr = set_offload;
-		cds_msg.type = WDA_BPF_SET_INSTRUCTIONS_REQ;
+		cds_msg.type = WDA_APF_SET_INSTRUCTIONS_REQ;
 		status = cds_mq_post_message(QDF_MODULE_ID_WMA, &cds_msg);
 
 		if (!QDF_IS_STATUS_SUCCESS(status)) {
 			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-				FL("Post BPF set offload msg fail"));
+				FL("Post APF set offload msg fail"));
 			status = QDF_STATUS_E_FAILURE;
 			qdf_mem_free(set_offload);
 		}
@@ -16809,7 +16809,7 @@ QDF_STATUS sme_set_bpf_instructions(tHalHandle hal,
 }
 
 /**
- * sme_bpf_offload_register_callback() - Register get bpf offload callbacK
+ * sme_apf_offload_register_callback() - Register get apf offload callbacK
  *
  * @hal - MAC global handle
  * @callback_routine - callback routine from HDD
@@ -16818,16 +16818,16 @@ QDF_STATUS sme_set_bpf_instructions(tHalHandle hal,
  *
  * Return: QDF_STATUS
  */
-QDF_STATUS sme_bpf_offload_register_callback(tHalHandle hal,
-				void (*pbpf_get_offload_cb)(void *context,
-					struct sir_bpf_get_offload *))
+QDF_STATUS sme_apf_offload_register_callback(tHalHandle hal,
+				void (*papf_get_offload_cb)(void *context,
+					struct sir_apf_get_offload *))
 {
 	QDF_STATUS status   = QDF_STATUS_SUCCESS;
 	tpAniSirGlobal mac  = PMAC_STRUCT(hal);
 
 	status = sme_acquire_global_lock(&mac->sme);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
-		mac->sme.pbpf_get_offload_cb = pbpf_get_offload_cb;
+		mac->sme.papf_get_offload_cb = papf_get_offload_cb;
 		sme_release_global_lock(&mac->sme);
 	} else {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
@@ -16851,7 +16851,7 @@ uint32_t sme_get_wni_dot11_mode(tHalHandle hal)
 }
 
 /**
- * sme_bpf_offload_deregister_callback() - Register get bpf offload callbacK
+ * sme_apf_offload_deregister_callback() - Register get apf offload callbacK
  *
  * @h_hal - MAC global handle
  * @callback_routine - callback routine from HDD
@@ -16860,7 +16860,7 @@ uint32_t sme_get_wni_dot11_mode(tHalHandle hal)
  *
  * Return: QDF_STATUS Enumeration
  */
-QDF_STATUS sme_bpf_offload_deregister_callback(tHalHandle h_hal)
+QDF_STATUS sme_apf_offload_deregister_callback(tHalHandle h_hal)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	tpAniSirGlobal mac;
@@ -16875,7 +16875,7 @@ QDF_STATUS sme_bpf_offload_deregister_callback(tHalHandle h_hal)
 
 	status = sme_acquire_global_lock(&mac->sme);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
-		mac->sme.pbpf_get_offload_cb = NULL;
+		mac->sme.papf_get_offload_cb = NULL;
 		sme_release_global_lock(&mac->sme);
 	} else {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,

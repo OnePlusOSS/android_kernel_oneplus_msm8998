@@ -1617,53 +1617,53 @@ static void wma_cleanup_target_req_param(struct wma_target_req *tgt_req)
 }
 
 /**
- * get_fw_active_bpf_mode() - convert HDD BPF mode to FW configurable BPF
+ * get_fw_active_apf_mode() - convert HDD APF mode to FW configurable APF
  * mode
- * @mode: BPF mode maintained in HDD
+ * @mode: APF mode maintained in HDD
  *
  * Return: FW configurable BP mode
  */
-static FW_ACTIVE_BPF_MODE get_fw_active_bpf_mode(enum active_bpf_mode mode)
+static FW_ACTIVE_BPF_MODE get_fw_active_apf_mode(enum active_apf_mode mode)
 {
-	FW_ACTIVE_BPF_MODE fw_bpf_mode;
+	FW_ACTIVE_BPF_MODE fw_apf_mode;
 
 	switch (mode) {
-	case ACTIVE_BPF_DISABLED:
-		fw_bpf_mode = FW_ACTIVE_BPF_MODE_DISABLE;
+	case ACTIVE_APF_DISABLED:
+		fw_apf_mode = FW_ACTIVE_BPF_MODE_DISABLE;
 		break;
-	case ACTIVE_BPF_ENABLED:
-		fw_bpf_mode = FW_ACTIVE_BPF_MODE_FORCE_ENABLE;
+	case ACTIVE_APF_ENABLED:
+		fw_apf_mode = FW_ACTIVE_BPF_MODE_FORCE_ENABLE;
 		break;
-	case ACTIVE_BPF_ADAPTIVE:
-		fw_bpf_mode = FW_ACTIVE_BPF_MODE_ADAPTIVE_ENABLE;
+	case ACTIVE_APF_ADAPTIVE:
+		fw_apf_mode = FW_ACTIVE_BPF_MODE_ADAPTIVE_ENABLE;
 		break;
 	default:
-		WMA_LOGE("Invalid Active BPF Mode %d; Using 'disabled'", mode);
-		fw_bpf_mode = FW_ACTIVE_BPF_MODE_DISABLE;
+		WMA_LOGE("Invalid Active APF Mode %d; Using 'disabled'", mode);
+		fw_apf_mode = FW_ACTIVE_BPF_MODE_DISABLE;
 		break;
 	}
 
-	return fw_bpf_mode;
+	return fw_apf_mode;
 }
 
 /**
- * wma_config_active_bpf_mode() - Config active BPF mode in FW
+ * wma_config_active_apf_mode() - Config active APF mode in FW
  * @wma: the WMA handle
  * @vdev_id: the Id of the vdev for which the configuration should be applied
  *
  * Return: QDF status
  */
-static QDF_STATUS wma_config_active_bpf_mode(t_wma_handle *wma, uint8_t vdev_id)
+static QDF_STATUS wma_config_active_apf_mode(t_wma_handle *wma, uint8_t vdev_id)
 {
 	FW_ACTIVE_BPF_MODE uc_mode, mcbc_mode;
 
-	uc_mode = get_fw_active_bpf_mode(wma->active_uc_bpf_mode);
-	mcbc_mode = get_fw_active_bpf_mode(wma->active_mc_bc_bpf_mode);
+	uc_mode = get_fw_active_apf_mode(wma->active_uc_apf_mode);
+	mcbc_mode = get_fw_active_apf_mode(wma->active_mc_bc_apf_mode);
 
-	WMA_LOGD("Configuring Active BPF Mode UC:%d MC/BC:%d for vdev %u",
+	WMA_LOGD("Configuring Active APF Mode UC:%d MC/BC:%d for vdev %u",
 		  uc_mode, mcbc_mode, vdev_id);
 
-	return wmi_unified_set_active_bpf_mode_cmd(wma->wmi_handle, vdev_id,
+	return wmi_unified_set_active_apf_mode_cmd(wma->wmi_handle, vdev_id,
 						   uc_mode, mcbc_mode);
 }
 
@@ -2305,10 +2305,10 @@ ol_txrx_vdev_handle wma_vdev_attach(tp_wma_handle wma_handle,
 	wma_register_wow_default_patterns(wma_handle, self_sta_req->session_id);
 
 	if (self_sta_req->type == WMI_VDEV_TYPE_STA) {
-		status = wma_config_active_bpf_mode(wma_handle,
+		status = wma_config_active_apf_mode(wma_handle,
 						    self_sta_req->session_id);
 		if (QDF_IS_STATUS_ERROR(status))
-			WMA_LOGE("Failed to configure active BPF mode");
+			WMA_LOGE("Failed to configure active APF mode");
 	}
 
 end:

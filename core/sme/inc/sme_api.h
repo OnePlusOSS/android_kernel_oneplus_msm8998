@@ -1370,14 +1370,14 @@ bool sme_is_sta_smps_allowed(tHalHandle hHal, uint8_t session_id);
 QDF_STATUS sme_add_beacon_filter(tHalHandle hal,
 				uint32_t session_id, uint32_t *ie_map);
 QDF_STATUS sme_remove_beacon_filter(tHalHandle hal, uint32_t session_id);
-QDF_STATUS sme_bpf_offload_register_callback(tHalHandle hal,
-					void (*pbpf_get_offload_cb)(void *,
-					struct sir_bpf_get_offload *));
-QDF_STATUS sme_bpf_offload_deregister_callback(tHalHandle hal);
+QDF_STATUS sme_apf_offload_register_callback(tHalHandle hal,
+					void (*papf_get_offload_cb)(void *,
+					struct sir_apf_get_offload *));
+QDF_STATUS sme_apf_offload_deregister_callback(tHalHandle hal);
 
-QDF_STATUS sme_get_bpf_offload_capabilities(tHalHandle hal);
-QDF_STATUS sme_set_bpf_instructions(tHalHandle hal,
-				struct sir_bpf_set_offload *);
+QDF_STATUS sme_get_apf_offload_capabilities(tHalHandle hal);
+QDF_STATUS sme_set_apf_instructions(tHalHandle hal,
+				struct sir_apf_set_offload *);
 uint32_t sme_get_wni_dot11_mode(tHalHandle hal);
 QDF_STATUS sme_create_mon_session(tHalHandle hal_handle, uint8_t *bssid);
 QDF_STATUS sme_set_adaptive_dwelltime_config(tHalHandle hal,

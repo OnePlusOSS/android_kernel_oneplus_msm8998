@@ -1710,8 +1710,8 @@ void hdd_update_tgt_cfg(void *context, void *param)
 	hdd_debug("Init current antenna mode: %d",
 		 hdd_ctx->current_antenna_mode);
 
-	hdd_ctx->bpf_enabled = (cfg->bpf_enabled &&
-				hdd_ctx->config->bpf_packet_filter_enable);
+	hdd_ctx->apf_enabled = (cfg->apf_enabled &&
+				hdd_ctx->config->apf_packet_filter_enable);
 	hdd_ctx->rcpi_enabled = cfg->rcpi_enabled;
 	hdd_update_ra_rate_limit(hdd_ctx, cfg);
 
@@ -1727,8 +1727,8 @@ void hdd_update_tgt_cfg(void *context, void *param)
 		hdd_err("fw update WNI_CFG_VHT_CSN_BEAMFORMEE_ANT_SUPPORTED to CFG fails");
 
 
-	hdd_debug("Target BPF %d Host BPF %d 8ss fw support %d txBFCsnValue %d",
-		cfg->bpf_enabled, hdd_ctx->config->bpf_packet_filter_enable,
+	hdd_debug("Target APF %d Host APF %d 8ss fw support %d txBFCsnValue %d",
+		cfg->apf_enabled, hdd_ctx->config->apf_packet_filter_enable,
 		cfg->tx_bfee_8ss_enabled, hdd_ctx->config->txBFCsnValue);
 
 	/*
@@ -1736,11 +1736,11 @@ void hdd_update_tgt_cfg(void *context, void *param)
 	 */
 	hdd_update_wiphy_vhtcap(hdd_ctx);
 	/*
-	 * If BPF is enabled, maxWowFilters set to WMA_STA_WOW_DEFAULT_PTRN_MAX
+	 * If APF is enabled, maxWowFilters set to WMA_STA_WOW_DEFAULT_PTRN_MAX
 	 * because we need atleast WMA_STA_WOW_DEFAULT_PTRN_MAX free slots to
 	 * configure the STA mode wow pattern.
 	 */
-	if (hdd_ctx->bpf_enabled)
+	if (hdd_ctx->apf_enabled)
 		hdd_ctx->config->maxWoWFilters = WMA_STA_WOW_DEFAULT_PTRN_MAX;
 
 	hdd_ctx->wmi_max_len = cfg->wmi_max_len;
@@ -8284,7 +8284,7 @@ static int hdd_context_init(hdd_context_t *hdd_ctx)
 	init_completion(&hdd_ctx->mc_sus_event_var);
 	init_completion(&hdd_ctx->ready_to_suspend);
 
-	hdd_init_bpf_completion();
+	hdd_init_apf_completion();
 
 	qdf_spinlock_create(&hdd_ctx->connection_status_lock);
 	qdf_spinlock_create(&hdd_ctx->sta_update_info_lock);
@@ -8974,8 +8974,8 @@ static int hdd_update_cds_config(hdd_context_t *hdd_ctx)
 	cds_cfg->enable_rxthread = hdd_ctx->enableRxThread;
 	cds_cfg->ce_classify_enabled =
 		hdd_ctx->config->ce_classify_enabled;
-	cds_cfg->bpf_packet_filter_enable =
-		hdd_ctx->config->bpf_packet_filter_enable;
+	cds_cfg->apf_packet_filter_enable =
+		hdd_ctx->config->apf_packet_filter_enable;
 	cds_cfg->tx_chain_mask_cck = hdd_ctx->config->tx_chain_mask_cck;
 	cds_cfg->self_gen_frm_pwr = hdd_ctx->config->self_gen_frm_pwr;
 	cds_cfg->max_station = hdd_ctx->config->maxNumberOfPeers;
@@ -8985,8 +8985,8 @@ static int hdd_update_cds_config(hdd_context_t *hdd_ctx)
 		hdd_ctx->config->max_msdus_per_rxinorderind;
 	cds_cfg->self_recovery_enabled = hdd_ctx->config->enableSelfRecovery;
 	cds_cfg->fw_timeout_crash = hdd_ctx->config->fw_timeout_crash;
-	cds_cfg->active_uc_bpf_mode = hdd_ctx->config->active_uc_bpf_mode;
-	cds_cfg->active_mc_bc_bpf_mode = hdd_ctx->config->active_mc_bc_bpf_mode;
+	cds_cfg->active_uc_apf_mode = hdd_ctx->config->active_uc_apf_mode;
+	cds_cfg->active_mc_bc_apf_mode = hdd_ctx->config->active_mc_bc_apf_mode;
 	cds_cfg->auto_power_save_fail_mode =
 		hdd_ctx->config->auto_pwr_save_fail_mode;
 
@@ -10905,10 +10905,10 @@ int hdd_register_cb(hdd_context_t *hdd_ctx)
 	sme_set_nud_debug_stats_cb(hdd_ctx->hHal,
 				   hdd_get_nud_stats_cb);
 
-	status = sme_bpf_offload_register_callback(hdd_ctx->hHal,
-						   hdd_get_bpf_offload_cb);
+	status = sme_apf_offload_register_callback(hdd_ctx->hHal,
+						   hdd_get_apf_offload_cb);
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
-		hdd_err("set bpf offload callback failed");
+		hdd_err("set apf offload callback failed");
 		ret = -EINVAL;
 		return ret;
 	}
@@ -10974,9 +10974,9 @@ void hdd_deregister_cb(hdd_context_t *hdd_ctx)
 			status);
 
 	sme_reset_link_layer_stats_ind_cb(hdd_ctx->hHal);
-	status = sme_bpf_offload_deregister_callback(hdd_ctx->hHal);
+	status = sme_apf_offload_deregister_callback(hdd_ctx->hHal);
 	if (!QDF_IS_STATUS_SUCCESS(status))
-		hdd_warn("De-register bpf offload callback failed: %d",
+		hdd_warn("De-register apf offload callback failed: %d",
 			status);
 	sme_reset_rssi_threshold_breached_cb(hdd_ctx->hHal);
 

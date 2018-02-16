@@ -3651,19 +3651,19 @@ QDF_STATUS wmi_unified_get_buf_extscan_hotlist_cmd(void *wmi_hdl,
 }
 
 QDF_STATUS
-wmi_unified_set_active_bpf_mode_cmd(void *wmi_hdl,
+wmi_unified_set_active_apf_mode_cmd(void *wmi_hdl,
 				    uint8_t vdev_id,
 				    FW_ACTIVE_BPF_MODE ucast_mode,
 				    FW_ACTIVE_BPF_MODE mcast_bcast_mode)
 {
 	wmi_unified_t wmi = (wmi_unified_t)wmi_hdl;
 
-	if (!wmi->ops->send_set_active_bpf_mode_cmd) {
-		WMI_LOGD("send_set_active_bpf_mode_cmd op is NULL");
+	if (!wmi->ops->send_set_active_apf_mode_cmd) {
+		WMI_LOGD("send_set_active_apf_mode_cmd op is NULL");
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	return wmi->ops->send_set_active_bpf_mode_cmd(wmi, vdev_id,
+	return wmi->ops->send_set_active_apf_mode_cmd(wmi, vdev_id,
 						      ucast_mode,
 						      mcast_bcast_mode);
 }

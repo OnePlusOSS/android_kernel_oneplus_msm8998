@@ -963,15 +963,15 @@ QDF_STATUS wmi_unified_get_buf_extscan_hotlist_cmd(void *wmi_hdl,
 				   photlist, int *buf_len);
 
 /**
- * wmi_unified_set_active_bpf_mode_cmd() - config active BPF mode in FW
+ * wmi_unified_set_active_apf_mode_cmd() - config active APF mode in FW
  * @wmi_hdl: the WMI handle
  * @vdev_id: the Id of the vdev to apply the configuration to
- * @ucast_mode: the active BPF mode to configure for unicast packets
- * @mcast_bcast_mode: the active BPF mode to configure for multicast/broadcast
+ * @ucast_mode: the active APF mode to configure for unicast packets
+ * @mcast_bcast_mode: the active APF mode to configure for multicast/broadcast
  *	packets
  */
 QDF_STATUS
-wmi_unified_set_active_bpf_mode_cmd(void *wmi_hdl,
+wmi_unified_set_active_apf_mode_cmd(void *wmi_hdl,
 				    uint8_t vdev_id,
 				    FW_ACTIVE_BPF_MODE ucast_mode,
 				    FW_ACTIVE_BPF_MODE mcast_bcast_mode);

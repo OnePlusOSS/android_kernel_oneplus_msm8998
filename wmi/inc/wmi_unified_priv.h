@@ -759,7 +759,7 @@ QDF_STATUS (*send_get_buf_extscan_hotlist_cmd)(wmi_unified_t wmi_handle,
 				   struct ext_scan_setbssi_hotlist_params *
 				   photlist, int *buf_len);
 
-QDF_STATUS (*send_set_active_bpf_mode_cmd)(wmi_unified_t wmi_handle,
+QDF_STATUS (*send_set_active_apf_mode_cmd)(wmi_unified_t wmi_handle,
 					   uint8_t vdev_id,
 					   FW_ACTIVE_BPF_MODE ucast_mode,
 					   FW_ACTIVE_BPF_MODE mcast_bcast_mode);

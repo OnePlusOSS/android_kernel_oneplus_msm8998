@@ -746,8 +746,8 @@ static bool lim_chk_n_process_wpa_rsn_ie(tpAniSirGlobal mac_ctx,
 					 uint8_t sub_type, bool *pmf_connection)
 {
 	uint8_t *wps_ie = NULL;
-	tDot11fIEWPA dot11f_ie_wpa;
-	tDot11fIERSN dot11f_ie_rsn;
+	tDot11fIEWPA dot11f_ie_wpa = {0};
+	tDot11fIERSN dot11f_ie_rsn = {0};
 	tSirRetStatus status = eSIR_SUCCESS;
 	/*
 	 * Clear the buffers so that frame parser knows that there isn't a

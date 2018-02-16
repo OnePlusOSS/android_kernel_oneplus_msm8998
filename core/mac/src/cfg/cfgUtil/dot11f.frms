@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006-2007, 2014-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2006-2007, 2014-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1385,8 +1385,8 @@ IE RSN (EID_RSN)                          // 7.3.2.25
 {
     // The version is 2 octets, and we only support version 1.
     version, 2 MUSTBE 1;
-    // The next four octets will be the Group Cipher Suite
-    gp_cipher_suite[4];
+    // The next four octets will be the Optional Group Cipher Suite
+    OPTIONAL gp_cipher_suite[4];
     // The IE *may* stop here; if there's any more, we should see two more
     // octets giving the number of Pairwise Cipher Suites
     OPTIONAL pwise_cipher_suite_count, 2;
@@ -1395,10 +1395,10 @@ IE RSN (EID_RSN)                          // 7.3.2.25
     // to 61.  However, that seems needlessly wasteful of space.
     pwise_cipher_suites[4][0..6] COUNTIS pwise_cipher_suite_count;
     // Optional count of AKM suite selectors
-    OPTIONAL akm_suite_count, 2;
+    OPTIONAL akm_suite_cnt, 2;
     // Again, I see nothing in the Standard explicitly limiting the number of
     // AKM suite selectors other than the maximum size of an IE.
-    akm_suites[4][0..6] COUNTIS akm_suite_count;
+    akm_suite[4][0..6] COUNTIS akm_suite_cnt;
     OPTIONAL RSN_Cap[2];
     // Finally, the IE may contain zero or more PMKIDs:
     OPTIONAL pmkid_count, 2;

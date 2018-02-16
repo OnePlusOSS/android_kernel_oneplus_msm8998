@@ -19020,6 +19020,15 @@ free_action_oui:
 	action_oui = NULL;
 }
 
+uint32_t sme_unpack_rsn_ie(tHalHandle hal, uint8_t *buf,
+				  uint8_t buf_len, tDot11fIERSN *rsn_ie,
+				  bool append_ie)
+{
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+
+	return dot11f_unpack_ie_rsn(mac_ctx, buf, buf_len, rsn_ie, append_ie);
+}
+
 /**
  * sme_destroy_action_oui_info() - destroy all action ouis info
  * @pmac: pointer to mac context

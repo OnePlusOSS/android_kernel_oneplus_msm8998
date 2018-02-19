@@ -2768,6 +2768,9 @@ uint32_t cds_get_connectivity_stats_pkt_bitmap(void *context)
 {
 	hdd_adapter_t *adapter = NULL;
 
+	if (!context)
+		return 0;
+
 	adapter = (hdd_adapter_t *)context;
 	if (unlikely(adapter->magic != WLAN_HDD_ADAPTER_MAGIC)) {
 		QDF_TRACE(QDF_MODULE_ID_HDD_DATA, QDF_TRACE_LEVEL_ERROR,
@@ -2785,7 +2788,12 @@ uint32_t cds_get_connectivity_stats_pkt_bitmap(void *context)
  */
 uint32_t cds_get_arp_stats_gw_ip(void *context)
 {
-	hdd_adapter_t *adapter = (hdd_adapter_t *)context;
+	hdd_adapter_t *adapter = NULL;
+
+	if (!context)
+		return 0;
+
+	adapter = (hdd_adapter_t *)context;
 
 	if (unlikely(adapter->magic != WLAN_HDD_ADAPTER_MAGIC)) {
 		QDF_TRACE(QDF_MODULE_ID_HDD_DATA, QDF_TRACE_LEVEL_ERROR,

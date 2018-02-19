@@ -96,7 +96,10 @@
 #include "wlan_hdd_nan_datapath.h"
 #include "wlan_hdd_disa.h"
 #include "wlan_hdd_spectralscan.h"
+
+#ifdef WLAN_FEATURE_APF
 #include "wlan_hdd_apf.h"
+#endif
 
 #include "wmi_unified.h"
 #include "wmi_unified_param.h"

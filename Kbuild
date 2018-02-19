@@ -851,8 +851,11 @@ WMI_OBJS := $(WMI_OBJ_DIR)/wmi_unified.o \
 	    $(WMI_OBJ_DIR)/wmi_tlv_helper.o \
 	    $(WMI_OBJ_DIR)/wmi_unified_tlv.o \
 	    $(WMI_OBJ_DIR)/wmi_unified_api.o \
-	    $(WMI_OBJ_DIR)/wmi_unified_non_tlv.o \
-	    $(WMI_OBJ_DIR)/wmi_unified_apf_tlv.o
+	    $(WMI_OBJ_DIR)/wmi_unified_non_tlv.o
+
+ifeq ($(CONFIG_WLAN_FEATURE_APF), y)
+WMI_OBJS += $(WMI_OBJ_DIR)/wmi_unified_apf_tlv.o
+endif
 
 WMI_CLEAN_FILES := $(WMI_OBJ_DIR)/*.o \
 		   $(WMI_OBJ_DIR)/*.o.* \

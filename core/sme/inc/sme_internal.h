@@ -283,6 +283,8 @@ typedef struct tagSmeStruct {
 			struct spectral_samp_msg *samp_msg);
 	void (*stats_ext2_cb)(void *, struct stats_ext2_event *);
 	void (*congestion_cb)(void *, uint32_t congestion, uint32_t vdev_id);
+	void (*apf_read_mem_cb)(void *context,
+			struct wmi_apf_read_memory_resp_event_params *params);
 } tSmeStruct, *tpSmeStruct;
 
 

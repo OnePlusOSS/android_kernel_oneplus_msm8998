@@ -2813,6 +2813,10 @@ QDF_STATUS wma_open(void *cds_context,
 					   wma_get_apf_caps_event_handler,
 					   WMA_RX_SERIALIZER_CTX);
 	wmi_unified_register_event_handler(wma_handle->wmi_handle,
+				WMI_BPF_GET_VDEV_WORK_MEMORY_RESP_EVENTID,
+				wma_apf_read_work_memory_event_handler,
+				WMA_RX_SERIALIZER_CTX);
+	wmi_unified_register_event_handler(wma_handle->wmi_handle,
 					   WMI_CHAN_INFO_EVENTID,
 					   wma_chan_info_event_handler,
 					   WMA_RX_SERIALIZER_CTX);
@@ -2854,7 +2858,6 @@ QDF_STATUS wma_open(void *cds_context,
 				WMI_REPORT_RX_AGGR_FAILURE_EVENTID,
 				wma_rx_aggr_failure_event_handler,
 				WMA_RX_SERIALIZER_CTX);
-
 	wma_register_debug_callback();
 
 	wma_handle->peer_dbg = qdf_mem_malloc(sizeof(*wma_handle->peer_dbg));

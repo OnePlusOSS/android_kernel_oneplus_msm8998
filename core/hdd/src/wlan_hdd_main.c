@@ -113,7 +113,9 @@
 #include "wlan_hdd_spectralscan.h"
 #include "sme_power_save_api.h"
 #include "wlan_hdd_sysfs.h"
+#ifdef WLAN_FEATURE_APF
 #include "wlan_hdd_apf.h"
+#endif
 
 #ifdef CNSS_GENL
 #include <net/cnss_nl.h>
@@ -6154,6 +6156,8 @@ static int hdd_context_deinit(hdd_context_t *hdd_ctx)
 
 	qdf_list_destroy(&hdd_ctx->hddAdapters);
 
+	hdd_apf_context_destroy();
+
 	return 0;
 }
 
@@ -8284,7 +8288,7 @@ static int hdd_context_init(hdd_context_t *hdd_ctx)
 	init_completion(&hdd_ctx->mc_sus_event_var);
 	init_completion(&hdd_ctx->ready_to_suspend);
 
-	hdd_init_apf_completion();
+	hdd_apf_context_init();
 
 	qdf_spinlock_create(&hdd_ctx->connection_status_lock);
 	qdf_spinlock_create(&hdd_ctx->sta_update_info_lock);
@@ -10906,7 +10910,7 @@ int hdd_register_cb(hdd_context_t *hdd_ctx)
 				   hdd_get_nud_stats_cb);
 
 	status = sme_apf_offload_register_callback(hdd_ctx->hHal,
-						   hdd_get_apf_offload_cb);
+						   hdd_get_apf_capabilities_cb);
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		hdd_err("set apf offload callback failed");
 		ret = -EINVAL;
@@ -10947,6 +10951,9 @@ int hdd_register_cb(hdd_context_t *hdd_ctx)
 					     hdd_update_cca_info_cb);
 	if (!QDF_IS_STATUS_SUCCESS(status))
 		hdd_err("set congestion callback failed");
+
+	sme_apf_read_memory_register_callback(hdd_ctx->hHal,
+					  hdd_apf_read_memory_callback);
 
 	EXIT();
 
@@ -11000,6 +11007,7 @@ void hdd_deregister_cb(hdd_context_t *hdd_ctx)
 
 	sme_deregister_oem_data_rsp_callback(hdd_ctx->hHal);
 	sme_deregister11d_scan_done_callback(hdd_ctx->hHal);
+	sme_apf_read_memory_deregister_callback(hdd_ctx->hHal);
 
 	EXIT();
 }

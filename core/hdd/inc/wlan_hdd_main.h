@@ -163,8 +163,6 @@
 #define WLAN_WAIT_TIME_ANTENNA_MODE_REQ 3000
 #define WLAN_WAIT_TIME_SET_DUAL_MAC_CFG 1500
 
-#define WLAN_WAIT_TIME_APF     1000
-
 /* rcpi request timeout in milli seconds */
 #define WLAN_WAIT_TIME_RCPI 500
 /* Maximum time(ms) to wait for RSO CMD status event */
@@ -1678,18 +1676,6 @@ struct hdd_offloaded_packets_ctx {
 	struct mutex op_lock;
 };
 #endif
-
-/**
- * struct hdd_apf_context - hdd Context for apf
- * @magic: magic number
- * @completion: Completion variable for APF Get Capability
- * @capability_response: capabilities response received from fw
- */
-struct hdd_apf_context {
-	unsigned int magic;
-	struct completion completion;
-	struct sir_apf_get_offload capability_response;
-};
 
 /**
  * enum driver_status: Driver Modules status

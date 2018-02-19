@@ -1370,14 +1370,118 @@ bool sme_is_sta_smps_allowed(tHalHandle hHal, uint8_t session_id);
 QDF_STATUS sme_add_beacon_filter(tHalHandle hal,
 				uint32_t session_id, uint32_t *ie_map);
 QDF_STATUS sme_remove_beacon_filter(tHalHandle hal, uint32_t session_id);
+
+/**
+ * sme_apf_offload_register_callback() - Register get apf offload callback
+ *
+ * @hal - MAC global handle
+ * @callback_routine - callback routine from HDD
+ *
+ * API used by HDD to register its APF get caps callback in SME.
+ *
+ * Return: QDF_STATUS
+ */
 QDF_STATUS sme_apf_offload_register_callback(tHalHandle hal,
 					void (*papf_get_offload_cb)(void *,
 					struct sir_apf_get_offload *));
+
+/**
+ * sme_apf_offload_deregister_callback() - De-register get apf offload callback
+ *
+ * @hal - MAC global handle
+ *
+ * API used by HDD to de-register its APF get caps callback in SME.
+ *
+ * Return: QDF_STATUS
+ */
 QDF_STATUS sme_apf_offload_deregister_callback(tHalHandle hal);
 
-QDF_STATUS sme_get_apf_offload_capabilities(tHalHandle hal);
+/**
+ * sme_get_apf_capabilities() - Get length for APF offload
+ * @hal: Global HAL handle
+ *
+ * API to get APF version and max filter size.
+ *
+ * Return: QDF_STATUS enumeration
+ */
+QDF_STATUS sme_get_apf_capabilities(tHalHandle hal);
+
+/**
+ * sme_set_apf_instructions() - Set APF apf filter instructions.
+ * @hal: HAL handle
+ * @apf_set_offload: struct to set apf filter instructions.
+ *
+ * APFv2 (Legacy APF) API to set the APF packet filter.
+ *
+ * Return: QDF_STATUS enumeration.
+ */
 QDF_STATUS sme_set_apf_instructions(tHalHandle hal,
 				struct sir_apf_set_offload *);
+
+/**
+ * sme_set_apf_enable_disable - Send apf enable/disable cmd
+ * @hal: global hal handle
+ * @vdev_id: vdev id
+ * @apf_enable: true: Enable APF Int., false: Disable APF Int.
+ *
+ * API to either enable or disable the APF interpreter.
+ *
+ * Return: QDF_STATUS enumeration.
+ */
+QDF_STATUS sme_set_apf_enable_disable(tHalHandle hal, uint8_t vdev_id,
+				      bool apf_enable);
+
+/**
+ * sme_apf_write_work_memory - Write into the apf work memory
+ * @hal: global hal handle
+ * @write_params: APF parameters for the write operation
+ *
+ * API for writing into the APF work memory.
+ *
+ * Return: QDF_STATUS enumeration.
+ */
+QDF_STATUS sme_apf_write_work_memory(tHalHandle hal,
+				    struct wmi_apf_write_memory_params
+								*write_params);
+
+/**
+ * sme_apf_read_work_memory - Read part of apf work memory
+ * @hal: global hal handle
+ * @read_params: APF parameters for the get operation
+ *
+ * API for issuing a APF read memory request.
+ *
+ * Return: QDF_STATUS enumeration.
+ */
+QDF_STATUS
+sme_apf_read_work_memory(tHalHandle hal,
+			 struct wmi_apf_read_memory_params *read_params);
+
+/**
+ * sme_apf_read_memory_register_callback() - Register apf mem callback
+ *
+ * @hal - MAC global handle
+ * @callback_routine - callback routine from HDD
+ *
+ * API used by HDD to register its APF read memory callback in SME.
+ *
+ * Return: QDF_STATUS Enumeration
+ */
+QDF_STATUS sme_apf_read_memory_register_callback(tHalHandle hal,
+			void (*apf_read_mem_cb)(void *context,
+			struct wmi_apf_read_memory_resp_event_params *));
+
+/**
+ * sme_apf_read_memory_deregister_callback() - De-register apf mem callback
+ *
+ * @h_hal - MAC global handle
+ *
+ * API used by HDD to de-register its APF read memory callback in SME.
+ *
+ * Return: QDF_STATUS Enumeration
+ */
+QDF_STATUS sme_apf_read_memory_deregister_callback(tHalHandle h_hal);
+
 uint32_t sme_get_wni_dot11_mode(tHalHandle hal);
 QDF_STATUS sme_create_mon_session(tHalHandle hal_handle, uint8_t *bssid);
 QDF_STATUS sme_set_adaptive_dwelltime_config(tHalHandle hal,
@@ -2058,5 +2162,4 @@ void sme_enable_roaming_on_connected_sta(tHalHandle hal);
  *         false - if not in progress
  */
 bool sme_is_sta_key_exchange_in_progress(tHalHandle hal, uint8_t session_id);
-
 #endif /* #if !defined( __SME_API_H ) */

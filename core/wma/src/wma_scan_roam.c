@@ -170,6 +170,25 @@ static inline int wma_get_burst_duration(int max_ch_time, int miracast_value)
 }
 
 /**
+ * wma_valid_bssid_in_scan_req() - Check if scan req has valid bssid
+ * @scan_req: scan request
+ *
+ * Return: true if bssid is valid else false
+ */
+static bool wma_valid_bssid_in_scan_req(tSirScanOffloadReq *scan_req)
+{
+	uint8_t i = 0;
+
+	while (i < QDF_MAC_ADDR_SIZE && scan_req->bssId.bytes[i] == 0xFF)
+		i += 1;
+
+	if (i == QDF_MAC_ADDR_SIZE)
+		return false;
+	else
+		return true;
+}
+
+/**
  * wma_get_buf_start_scan_cmd() - Fill start scan command
  * @wma_handle: wma handle
  * @scan_req: scan request
@@ -312,7 +331,8 @@ QDF_STATUS wma_get_buf_start_scan_cmd(tp_wma_handle wma_handle,
 	if (!scan_req->p2pScanType) {
 		WMA_LOGD("Normal Scan request");
 		cmd->scan_ctrl_flags |= WMI_SCAN_ADD_CCK_RATES;
-		if (!scan_req->numSsid)
+		if (!scan_req->numSsid &&
+		    !wma_valid_bssid_in_scan_req(scan_req))
 			cmd->scan_ctrl_flags |= WMI_SCAN_ADD_BCAST_PROBE_REQ;
 		if (scan_req->scanType == eSIR_PASSIVE_SCAN)
 			cmd->scan_ctrl_flags |= WMI_SCAN_FLAG_PASSIVE;

@@ -8636,7 +8636,7 @@ static int __wlan_hdd_cfg80211_stop_ap(struct wiphy *wiphy,
 	hdd_adapter_list_node_t *pNext = NULL;
 	tsap_Config_t *pConfig;
 
-	ENTER();
+	hdd_info("enter(%s)", netdev_name(dev));
 
 	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
 		hdd_err("Command not allowed in FTM mode");
@@ -8981,7 +8981,7 @@ static int __wlan_hdd_cfg80211_start_ap(struct wiphy *wiphy,
 	bool sta_sap_scc_on_dfs_chan;
 	uint16_t sta_cnt;
 
-	ENTER();
+	hdd_info("enter(%s)", netdev_name(dev));
 
 	clear_bit(SOFTAP_INIT_DONE, &pAdapter->event_flags);
 	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {

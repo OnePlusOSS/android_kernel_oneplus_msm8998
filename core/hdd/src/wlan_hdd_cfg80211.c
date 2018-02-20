@@ -1605,7 +1605,7 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 	 * config shall be set only from start_acs.
 	 */
 
-	ENTER_DEV(ndev);
+	hdd_info("enter(%s)", netdev_name(adapter->dev));
 
 	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
 		hdd_err("Command not allowed in FTM mode");
@@ -1871,12 +1871,16 @@ static int wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 
 void wlan_hdd_undo_acs(hdd_adapter_t *adapter)
 {
+	hdd_info("enter(%s)", netdev_name(adapter->dev));
+
 	if (adapter == NULL)
 		return;
 	if (adapter->sessionCtx.ap.sapConfig.acs_cfg.ch_list) {
 		qdf_mem_free(adapter->sessionCtx.ap.sapConfig.acs_cfg.ch_list);
 		adapter->sessionCtx.ap.sapConfig.acs_cfg.ch_list = NULL;
 	}
+
+	EXIT();
 }
 
 /**

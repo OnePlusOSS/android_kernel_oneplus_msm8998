@@ -41,7 +41,7 @@
 #define MAX_NUMBER_OF_CONC_CONNECTIONS    3
 #define DBS_OPPORTUNISTIC_TIME            10
 #define CONNECTION_UPDATE_TIMEOUT         3000
-#define CHANNEL_SWITCH_COMPLETE_TIMEOUT   1000
+#define CHANNEL_SWITCH_COMPLETE_TIMEOUT   2000
 
 /* Some max value greater than the max length of the channel list */
 #define MAX_WEIGHT_OF_PCL_CHANNELS 255

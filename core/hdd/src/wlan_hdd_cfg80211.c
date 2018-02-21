@@ -1788,11 +1788,12 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 		sap_config->acs_cfg.hw_mode = eCSR_DOT11_MODE_11ac;
 		sap_config->acs_cfg.ch_width =
 					hdd_ctx->config->vhtChannelWidth;
-		/* No VHT80 in 2.4G so perform ACS accordingly */
-		if (sap_config->acs_cfg.end_ch <= 14 &&
-			sap_config->acs_cfg.ch_width == eHT_CHANNEL_WIDTH_80MHZ)
-			sap_config->acs_cfg.ch_width = eHT_CHANNEL_WIDTH_40MHZ;
 	}
+
+	/* No VHT80 in 2.4G so perform ACS accordingly */
+	if (sap_config->acs_cfg.end_ch <= 14 &&
+	    sap_config->acs_cfg.ch_width == eHT_CHANNEL_WIDTH_80MHZ)
+		sap_config->acs_cfg.ch_width = eHT_CHANNEL_WIDTH_40MHZ;
 
 	if (hdd_ctx->config->auto_channel_select_weight)
 		sap_config->auto_channel_select_weight =

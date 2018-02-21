@@ -917,6 +917,8 @@ struct hdd_station_ctx {
 	/* Connection information*/
 	connection_info_t conn_info;
 
+	connection_info_t cache_conn_info;
+
 	roaming_info_t roam_info;
 
 	int ft_carrier_on;

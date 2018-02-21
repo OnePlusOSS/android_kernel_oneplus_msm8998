@@ -1061,4 +1061,16 @@ uint32_t cds_get_connection_info(struct connection_info *info);
  * Return: None
  */
 void cds_trim_acs_channel_list(tsap_Config_t *sap_cfg);
+
+/**
+ * cds_allow_multi_sap_go_concurrency() - check whether multiple SAP/GO
+ * interfaces are allowed
+ * @cds_con_mode: operating mode of the new interface
+ * @channel: operating channel of the new interface
+ * This function checks whether second SAP/GO interface is allowed on the same
+ * MAC.
+ *
+ * Return: true or false
+ */
+bool cds_allow_sap_go_concurrency(enum cds_con_mode mode, uint8_t channel);
 #endif /* __CDS_CONCURRENCY_H */

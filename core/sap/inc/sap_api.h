@@ -1046,6 +1046,20 @@ void wlansap_set_etsi_srd_chan_support(tHalHandle hal, bool srd_chan_support);
  */
 void wlansap_cleanup_cac_timer(void *sap_ctx);
 
+/**
+ * wlansap_set_stop_bss_inprogress - sets the stop_bss_in_progress flag
+ *
+ * @ctx: Pointer to the global cds context from which the handle to the SAP
+ *     ctx can be extracted.
+ * @in_progress: the value to be set to the stop_bss_in_progress_flag
+ *
+ * This function sets the value in in_progress parameter to the
+ * stop_bss_in_progress flag in sap_context.
+ *
+ * Return: None
+ */
+void wlansap_set_stop_bss_inprogress(void *ctx, bool in_progress);
+
 #ifdef __cplusplus
 }
 #endif

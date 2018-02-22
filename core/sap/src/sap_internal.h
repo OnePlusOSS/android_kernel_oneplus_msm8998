@@ -275,6 +275,7 @@ typedef struct sSapContext {
 	uint8_t sap_sta_id;
 	bool is_chan_change_inprogress;
 	bool enable_etsi_srd_chan_support;
+	bool stop_bss_in_progress;
 } *ptSapContext;
 
 /*----------------------------------------------------------------------------

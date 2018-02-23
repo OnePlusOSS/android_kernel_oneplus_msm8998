@@ -7649,5 +7649,19 @@ struct wmi_apf_read_memory_resp_event_params {
 	uint8_t *data;
 };
 
+/**
+ * struct wmi_hw_filter_req_params - HW Filter mode parameters
+ * @vdev: VDEV id
+ * @enable: True: Enable HW filter, False: Disable
+ * @mode_bitmap: the hardware filter mode to configure
+ * @bssid: bss_id for get session.
+ */
+struct wmi_hw_filter_req_params {
+	uint8_t vdev_id;
+	bool enable;
+	uint8_t mode_bitmap;
+	struct qdf_mac_addr bssid;
+};
+
 #endif /* _WMI_UNIFIED_PARAM_H_ */
 

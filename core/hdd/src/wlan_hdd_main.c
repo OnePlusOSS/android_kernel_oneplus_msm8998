@@ -9409,8 +9409,7 @@ static int hdd_platform_wlan_mac(hdd_context_t *hdd_ctx)
 
 	addr = hdd_get_platform_wlan_mac_buff(dev, &no_of_mac_addr);
 
-	if (no_of_mac_addr == 0 || !addr ||
-	    (hdd_ctx->config->mac_provision && (no_of_mac_addr < 2))) {
+	if (no_of_mac_addr == 0 || !addr) {
 		hdd_err("Platform Driver doesn't have provisioned mac addr");
 		return -EINVAL;
 	}
@@ -9512,10 +9511,7 @@ static int hdd_initialize_mac_address(hdd_context_t *hdd_ctx)
 	bool update_mac_addr_to_fw = true;
 
 	ret = hdd_platform_wlan_mac(hdd_ctx);
-	if (hdd_ctx->config->mac_provision)
-		return ret;
-
-	if (ret == 0)
+	if (hdd_ctx->config->mac_provision || !ret)
 		return ret;
 
 	hdd_info("MAC is not programmed in platform driver ret: %d, use wlan_mac.bin",

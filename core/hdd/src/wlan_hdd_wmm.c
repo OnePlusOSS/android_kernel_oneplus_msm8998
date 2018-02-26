@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -63,6 +63,7 @@
 #include <cds_sched.h>
 #include "sme_api.h"
 
+#define WLAN_HDD_HIPRI_TOS 0xc0
 #define WLAN_HDD_MAX_DSCP 0x3f
 
 #define HDD_WMM_UP_TO_AC_MAP_SIZE 8
@@ -1374,6 +1375,22 @@ QDF_STATUS hdd_wmm_adapter_close(hdd_adapter_t *pAdapter)
 	return QDF_STATUS_SUCCESS;
 }
 
+static inline unsigned char hdd_wmm_check_ip_proto(unsigned char ip_proto,
+						   unsigned char ip_tos,
+						   bool *is_hipri)
+{
+	switch (ip_proto) {
+	case IPPROTO_ICMP:
+	case IPPROTO_ICMPV6:
+		*is_hipri = true;
+		return WLAN_HDD_HIPRI_TOS;
+
+	default:
+		*is_hipri = false;
+		return ip_tos;
+	}
+}
+
 /**
  * hdd_wmm_classify_pkt() - Function which will classify an OS packet
  * into a WMM AC based on DSCP
@@ -1381,7 +1398,7 @@ QDF_STATUS hdd_wmm_adapter_close(hdd_adapter_t *pAdapter)
  * @adapter: adapter upon which the packet is being transmitted
  * @skb: pointer to network buffer
  * @user_pri: user priority of the OS packet
- * @is_eapol: eapol packet flag
+ * @is_hipri: high priority packet flag
  *
  * Return: None
  */
@@ -1389,7 +1406,7 @@ static
 void hdd_wmm_classify_pkt(hdd_adapter_t *adapter,
 			  struct sk_buff *skb,
 			  sme_QosWmmUpType *user_pri,
-			  bool *is_eapol)
+			  bool *is_hipri)
 {
 	unsigned char dscp;
 	unsigned char tos;
@@ -1416,14 +1433,16 @@ void hdd_wmm_classify_pkt(hdd_adapter_t *adapter,
 	if (eth_hdr->eth_II.h_proto == htons(ETH_P_IP)) {
 		/* case 1: Ethernet II IP packet */
 		ip_hdr = (struct iphdr *)&pkt[sizeof(eth_hdr->eth_II)];
-		tos = ip_hdr->tos;
+		tos = hdd_wmm_check_ip_proto(ip_hdr->protocol, ip_hdr->tos,
+					     is_hipri);
 #ifdef HDD_WMM_DEBUG
 		hdd_info("Ethernet II IP Packet, tos is %d", tos);
 #endif /* HDD_WMM_DEBUG */
-
 	} else if (eth_hdr->eth_II.h_proto == htons(ETH_P_IPV6)) {
 		ipv6hdr = ipv6_hdr(skb);
-		tos = ntohs(*(const __be16 *)ipv6hdr) >> 4;
+		tos = hdd_wmm_check_ip_proto(
+			ipv6hdr->nexthdr, ntohs(*(const __be16 *)ipv6hdr) >> 4,
+			is_hipri);
 #ifdef HDD_WMM_DEBUG
 		hdd_info("Ethernet II IPv6 Packet, tos is %d", tos);
 #endif /* HDD_WMM_DEBUG */
@@ -1434,7 +1453,8 @@ void hdd_wmm_classify_pkt(hdd_adapter_t *adapter,
 		  (eth_hdr->eth_8023.h_proto == htons(ETH_P_IP))) {
 		/* case 2: 802.3 LLC/SNAP IP packet */
 		ip_hdr = (struct iphdr *)&pkt[sizeof(eth_hdr->eth_8023)];
-		tos = ip_hdr->tos;
+		tos = hdd_wmm_check_ip_proto(ip_hdr->protocol, ip_hdr->tos,
+					     is_hipri);
 #ifdef HDD_WMM_DEBUG
 		hdd_info("802.3 LLC/SNAP IP Packet, tos is %d", tos);
 #endif /* HDD_WMM_DEBUG */
@@ -1447,7 +1467,8 @@ void hdd_wmm_classify_pkt(hdd_adapter_t *adapter,
 			ip_hdr =
 				(struct iphdr *)
 				&pkt[sizeof(eth_hdr->eth_IIv)];
-			tos = ip_hdr->tos;
+			tos = hdd_wmm_check_ip_proto(ip_hdr->protocol,
+						     ip_hdr->tos, is_hipri);
 #ifdef HDD_WMM_DEBUG
 			hdd_info("Ethernet II VLAN tagged IP Packet, tos is %d",
 				 tos);
@@ -1467,30 +1488,39 @@ void hdd_wmm_classify_pkt(hdd_adapter_t *adapter,
 			ip_hdr =
 				(struct iphdr *)
 				&pkt[sizeof(eth_hdr->eth_8023v)];
-			tos = ip_hdr->tos;
+			tos = hdd_wmm_check_ip_proto(ip_hdr->protocol,
+						     ip_hdr->tos, is_hipri);
 #ifdef HDD_WMM_DEBUG
 			hdd_info("802.3 LLC/SNAP VLAN tagged IP Packet, tos is %d",
 				 tos);
 #endif /* HDD_WMM_DEBUG */
 		} else {
 			/* default */
+			*is_hipri = false;
+			tos = 0;
 #ifdef HDD_WMM_DEBUG
 			hdd_warn("VLAN tagged Unhandled Protocol, using default tos");
 #endif /* HDD_WMM_DEBUG */
-			tos = 0;
 		}
+	} else if (eth_hdr->eth_II.h_proto == htons(HDD_ETHERTYPE_802_1_X)) {
+		*is_hipri = true;
+		tos = WLAN_HDD_HIPRI_TOS;
+#ifdef HDD_WMM_DEBUG
+		hdd_info("802.1x packet, tos is %d", tos);
+#endif /* HDD_WMM_DEBUG */
+	} else if (skb->protocol == htons(ETH_P_ARP)) {
+		*is_hipri = true;
+		tos = WLAN_HDD_HIPRI_TOS;
+#ifdef HDD_WMM_DEBUG
+		hdd_info("ARP packet, tos is %d", tos);
+#endif /* HDD_WMM_DEBUG */
 	} else {
 		/* default */
+		*is_hipri = false;
+		tos = 0;
 #ifdef HDD_WMM_DEBUG
 		hdd_warn("Unhandled Protocol, using default tos");
 #endif /* HDD_WMM_DEBUG */
-		/* Give the highest priority to 802.1x packet */
-		if (eth_hdr->eth_II.h_proto ==
-			htons(HDD_ETHERTYPE_802_1_X)) {
-			tos = 0xC0;
-			*is_eapol = true;
-		} else
-			tos = 0;
 	}
 
 	dscp = (tos >> 2) & 0x3f;
@@ -1518,20 +1548,20 @@ static uint16_t __hdd_get_queue_index(uint16_t up)
 /**
  * hdd_get_queue_index() - get queue index
  * @up: user priority
- * @is_eapol: is_eapol flag
+ * @is_hipri: high priority packet flag
  *
  * Return: queue_index
  */
 static
-uint16_t hdd_get_queue_index(uint16_t up, bool is_eapol)
+uint16_t hdd_get_queue_index(u16 up, bool is_hipri)
 {
-	if (qdf_unlikely(is_eapol == true))
+	if (qdf_unlikely(is_hipri))
 		return HDD_LINUX_AC_HI_PRIO;
 	return __hdd_get_queue_index(up);
 }
 #else
 static
-uint16_t hdd_get_queue_index(uint16_t up, bool is_eapol)
+uint16_t hdd_get_queue_index(u16 up, bool is_hipri)
 {
 	return __hdd_get_queue_index(up);
 }
@@ -1561,7 +1591,7 @@ uint16_t hdd_hostapd_select_queue(struct net_device *dev, struct sk_buff *skb
 	uint16_t queueIndex;
 	hdd_adapter_t *adapter = (hdd_adapter_t *) netdev_priv(dev);
 	hdd_context_t *hddctx = WLAN_HDD_GET_CTX(adapter);
-	bool is_eapol = false;
+	bool is_hipri = false;
 	int status = 0;
 
 	status = wlan_hdd_validate_context(hddctx);
@@ -1572,9 +1602,9 @@ uint16_t hdd_hostapd_select_queue(struct net_device *dev, struct sk_buff *skb
 	}
 
 	/* Get the user priority from IP header */
-	hdd_wmm_classify_pkt(adapter, skb, &up, &is_eapol);
+	hdd_wmm_classify_pkt(adapter, skb, &up, &is_hipri);
 	skb->priority = up;
-	queueIndex = hdd_get_queue_index(skb->priority, is_eapol);
+	queueIndex = hdd_get_queue_index(skb->priority, is_hipri);
 
 	return queueIndex;
 }

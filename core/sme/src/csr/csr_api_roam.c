@@ -11083,6 +11083,7 @@ csr_roam_prepare_filter_from_profile(tpAniSirGlobal mac_ctx,
 		}
 		scan_fltr->EncryptionType.numEntries = idx;
 		scan_fltr->mcEncryptionType.numEntries = idx;
+		scan_fltr->ignore_pmf_cap = true;
 	} else {
 		scan_fltr->authType = profile->AuthType;
 		scan_fltr->EncryptionType = profile->EncryptionType;

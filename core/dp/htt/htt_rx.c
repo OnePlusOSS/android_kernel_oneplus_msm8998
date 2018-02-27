@@ -724,7 +724,7 @@ static int htt_rx_ring_fill_level(struct htt_pdev_t *pdev)
 	return size;
 }
 
-static void htt_rx_ring_refill_retry(void *arg)
+static void htt_rx_ring_refill_retry(unsigned long arg)
 {
 	htt_pdev_handle pdev = (htt_pdev_handle) arg;
 	int             filled = 0;

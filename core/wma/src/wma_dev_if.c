@@ -5612,7 +5612,7 @@ void wma_set_vdev_intrabss_fwd(tp_wma_handle wma_handle,
  *
  * Return: void
  */
-static void wma_vdev_reset_beacon_interval_timer(void *data)
+static void wma_vdev_reset_beacon_interval_timer(unsigned long data)
 {
 	tp_wma_handle wma;
 	struct wma_beacon_interval_reset_req *req =

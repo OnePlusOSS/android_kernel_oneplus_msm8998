@@ -610,7 +610,7 @@ static void cds_mc_thread_watchdog_notify(cds_msg_t *msg)
 }
 
 #ifdef CONFIG_SLUB_DEBUG_ON
-static void cds_mc_thread_watchdog_timeout(void *arg)
+static void cds_mc_thread_watchdog_timeout(unsigned long arg)
 {
 	cds_msg_t *msg = *(cds_msg_t **)arg;
 
@@ -630,7 +630,7 @@ static void cds_mc_thread_watchdog_timeout(void *arg)
 	QDF_BUG(0);
 }
 #else
-static inline void cds_mc_thread_watchdog_timeout(void *arg)
+static inline void cds_mc_thread_watchdog_timeout(unsigned long arg)
 {
 	cds_msg_t *msg = *(cds_msg_t **)arg;
 

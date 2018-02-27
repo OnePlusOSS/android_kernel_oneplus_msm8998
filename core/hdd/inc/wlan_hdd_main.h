@@ -3089,7 +3089,7 @@ void hdd_pld_ipa_uc_shutdown_pipes(void);
  *
  * Return: None
  */
-void hdd_drv_ops_inactivity_handler(void);
+void hdd_drv_ops_inactivity_handler(unsigned long arg);
 
 /**
  * hdd_start_driver_ops_timer() - Starts driver ops inactivity timer

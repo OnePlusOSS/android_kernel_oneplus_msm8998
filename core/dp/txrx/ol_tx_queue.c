@@ -848,7 +848,7 @@ ol_txrx_bad_peer_txctl_update_threshold(struct ol_txrx_pdev_t *pdev,
  * Return: None
  */
 static void
-ol_tx_pdev_peer_bal_timer(void *context)
+ol_tx_pdev_peer_bal_timer(unsigned long context)
 {
 	int i;
 	struct ol_txrx_pdev_t *pdev = (struct ol_txrx_pdev_t *)context;
@@ -1959,7 +1959,7 @@ void ol_txrx_thermal_unpause(struct ol_txrx_pdev_t *pdev)
 }
 #endif
 
-static void ol_tx_pdev_throttle_phase_timer(void *context)
+static void ol_tx_pdev_throttle_phase_timer(unsigned long context)
 {
 	struct ol_txrx_pdev_t *pdev = (struct ol_txrx_pdev_t *)context;
 	int ms;

@@ -45,7 +45,7 @@
 static int epping_start_adapter(epping_adapter_t *pAdapter);
 static void epping_stop_adapter(epping_adapter_t *pAdapter);
 
-static void epping_timer_expire(void *data)
+static void epping_timer_expire(unsigned long data)
 {
 	struct net_device *dev = (struct net_device *)data;
 	epping_adapter_t *pAdapter;

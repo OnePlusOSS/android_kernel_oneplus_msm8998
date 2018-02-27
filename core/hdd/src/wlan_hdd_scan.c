@@ -744,9 +744,9 @@ static bool wlan_hdd_is_scan_pending(hdd_adapter_t *adapter)
  *
  * Return: void
  */
-static void hdd_scan_inactivity_timer_handler(void *scan_req)
+static void hdd_scan_inactivity_timer_handler(unsigned long scan_req)
 {
-	struct hdd_scan_req *hdd_scan_req = scan_req;
+	struct hdd_scan_req *hdd_scan_req = (struct hdd_scan_req *)scan_req;
 
 	hdd_debug("scan_id %d, enqueue timestamp %u, flags 0x%X",
 		hdd_scan_req->scan_id, hdd_scan_req->timestamp,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -124,7 +124,7 @@ void hif_trigger_dump(struct hif_opaque_softc *hif_ctx,
 	}
 }
 
-static void ce_poll_timeout(void *arg)
+static void ce_poll_timeout(unsigned long arg)
 {
 	struct CE_state *CE_state = (struct CE_state *)arg;
 

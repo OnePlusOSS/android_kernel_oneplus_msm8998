@@ -201,7 +201,7 @@ static void send_packet_completion(HTC_TARGET *target, HTC_PACKET *pPacket)
 
 }
 
-void htc_send_complete_check_cleanup(void *context)
+void htc_send_complete_check_cleanup(unsigned long context)
 {
 	HTC_ENDPOINT *pEndpoint = (HTC_ENDPOINT *) context;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -152,7 +152,7 @@ static inline unsigned char *os_malloc(osdev_t nic_dev,
  * different argument types for timer function in different OS.
  */
 #define os_timer_func(_fn) \
-	void _fn(void *timer_arg)
+	void _fn(unsigned long timer_arg)
 
 #define OS_GET_TIMER_ARG(_arg, _type) \
 	((_arg) = (_type)(timer_arg))

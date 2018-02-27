@@ -1711,9 +1711,9 @@ static inline void wmi_workqueue_watchdog_warn(uint32_t msg_type_id)
 }
 
 #ifdef CONFIG_SLUB_DEBUG_ON
-static void wmi_workqueue_watchdog_bite(void *arg)
+static void wmi_workqueue_watchdog_bite(unsigned long arg)
 {
-	struct wmi_wq_dbg_info *info = arg;
+	struct wmi_wq_dbg_info *info = (struct wmi_wq_dbg_info *)arg;
 
 	wmi_workqueue_watchdog_warn(info->wd_msg_type_id);
 	qdf_print_thread_trace(info->task);
@@ -1723,9 +1723,9 @@ static void wmi_workqueue_watchdog_bite(void *arg)
 	QDF_BUG(0);
 }
 #else
-static inline void wmi_workqueue_watchdog_bite(void *arg)
+static inline void wmi_workqueue_watchdog_bite(unsigned long arg)
 {
-	struct wmi_wq_dbg_info *info = arg;
+	struct wmi_wq_dbg_info *info = (struct wmi_wq_dbg_info *)arg;
 
 	wmi_workqueue_watchdog_warn(info->wd_msg_type_id);
 }

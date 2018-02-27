@@ -789,28 +789,39 @@ static int hdd_ndp_responder_req_handler(hdd_context_t *hdd_ctx,
 
 	ENTER();
 
-	if (!tb[QCA_WLAN_VENDOR_ATTR_NDP_IFACE_STR]) {
-		hdd_err("Interface name string is unavailable");
-		return -EINVAL;
-	}
+	if (tb[QCA_WLAN_VENDOR_ATTR_NDP_IFACE_STR]) {
+		iface_name = nla_data(tb[QCA_WLAN_VENDOR_ATTR_NDP_IFACE_STR]);
 
-	iface_name = nla_data(tb[QCA_WLAN_VENDOR_ATTR_NDP_IFACE_STR]);
-	/* Check if there is already an existing NAN interface */
-	adapter = hdd_get_adapter_by_iface_name(hdd_ctx, iface_name);
-	if (!adapter) {
-		hdd_err("NAN data interface %s not available", iface_name);
-		return -EINVAL;
-	}
+		/* Check if iface exists */
+		adapter = hdd_get_adapter_by_iface_name(hdd_ctx, iface_name);
+		if (!adapter) {
+			hdd_err("NAN data iface %s is unavailable", iface_name);
+			return -ENODEV;
+		}
 
-	if (!WLAN_HDD_IS_NDI(adapter)) {
-		hdd_err("Interface %s is not in NDI mode", iface_name);
-		return -EINVAL;
+		if (!WLAN_HDD_IS_NDI(adapter)) {
+			hdd_err("Interface %s is not in NDI mode", iface_name);
+			return -ENODEV;
+		}
+	} else {
+		/*
+		 * If the data indication is rejected, the userspace
+		 * may not send the iface name. Use the first available NDI
+		 * in that case
+		 */
+		hdd_info("Iface name string is unavailable, use first NDI");
+
+		adapter = hdd_get_adapter(hdd_ctx, QDF_NDI_MODE);
+		if (!adapter) {
+			hdd_err("No active NDIs, rejecting the request");
+			return -ENODEV;
+		}
 	}
 
 	/* NAN data path coexists only with STA interface */
 	if (!hdd_is_ndp_allowed(hdd_ctx)) {
 		hdd_err("Unsupported concurrency for NAN datapath");
-		return -EINVAL;
+		return -EPERM;
 	}
 
 	ndp_ctx = WLAN_HDD_GET_NDP_CTX_PTR(adapter);

@@ -821,6 +821,8 @@ qdf_export_symbol(qdf_sprint_symbol);
 
 #ifdef FEATURE_DP_TRACE
 #define QDF_DP_TRACE_PREPEND_STR_SIZE 100
+/* one dp trace record can't be greater than 200 bytes*/
+#define QD_DP_TRACE_MAX_RECORD_SIZE 200
 static void qdf_dp_unused(struct qdf_dp_trace_record_s *record,
 			  uint16_t index, u8 info)
 {
@@ -2358,7 +2360,12 @@ QDF_STATUS qdf_dpt_dump_stats_debugfs(qdf_debugfs_file_t file,
 	p_record = g_qdf_dp_trace_tbl[i];
 	spin_unlock_bh(&l_dp_trace_lock);
 	for (;; ) {
-		if ((file->size - file->count) < 100) {
+		/*
+		 * Initially we get file as 1 page size, and
+		 * if remaining size in file is less than one record max size,
+		 * then return so that it gets an extra page.
+		 */
+		if ((file->size - file->count) < QD_DP_TRACE_MAX_RECORD_SIZE) {
 			spin_lock_bh(&l_dp_trace_lock);
 			g_qdf_dp_trace_data.curr_pos = i;
 			spin_unlock_bh(&l_dp_trace_lock);

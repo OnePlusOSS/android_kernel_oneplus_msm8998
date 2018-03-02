@@ -1233,6 +1233,14 @@ QDF_STATUS (*send_limit_off_chan_cmd)(wmi_unified_t wmi_handle,
 QDF_STATUS (*send_wow_timer_pattern_cmd)(wmi_unified_t wmi_handle,
 			uint8_t vdev_id, uint32_t cookie, uint32_t time);
 
+QDF_STATUS (*send_roam_scan_stats_cmd)(wmi_unified_t wmi_handle,
+				       struct wmi_roam_scan_stats_req *params);
+
+QDF_STATUS (*extract_roam_scan_stats_res_evt)(wmi_unified_t wmi_handle,
+				void *evt_buf,
+				uint32_t *vdev_id,
+				struct wmi_roam_scan_stats_res **res_param);
+
 QDF_STATUS (*send_offload_11k_cmd)(wmi_unified_t wmi_handle,
 		struct wmi_11k_offload_params *params);
 

@@ -14423,6 +14423,237 @@ send_cmd:
 }
 
 /**
+ * send_roam_scan_stats_cmd_tlv() - Send roam scan stats req command to fw
+ * @wmi_handle: wmi handler
+ * @params: pointer to request structure
+ *
+ * Return: QDF_STATUS
+ */
+static QDF_STATUS
+send_roam_scan_stats_cmd_tlv(wmi_unified_t wmi_handle,
+			     struct wmi_roam_scan_stats_req *params)
+{
+	wmi_buf_t buf;
+	wmi_request_roam_scan_stats_cmd_fixed_param *cmd;
+	uint8_t len = sizeof(*cmd);
+
+	buf = wmi_buf_alloc(wmi_handle, len);
+	if (!buf) {
+		WMI_LOGE(FL("Failed to allocate wmi buffer"));
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	cmd = (wmi_request_roam_scan_stats_cmd_fixed_param *)wmi_buf_data(buf);
+	WMITLV_SET_HDR(&cmd->tlv_header,
+	 WMITLV_TAG_STRUC_wmi_request_roam_scan_stats_cmd_fixed_param,
+	 WMITLV_GET_STRUCT_TLVLEN(wmi_request_roam_scan_stats_cmd_fixed_param));
+
+	cmd->vdev_id = params->vdev_id;
+
+	WMI_LOGD(FL("Roam Scan Stats Req vdev_id: %u"), cmd->vdev_id);
+	if (wmi_unified_cmd_send(wmi_handle, buf, len,
+				 WMI_REQUEST_ROAM_SCAN_STATS_CMDID)) {
+		WMI_LOGE("%s: Failed to send WMI_REQUEST_ROAM_SCAN_STATS_CMDID",
+			 __func__);
+		wmi_buf_free(buf);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
+
+/**
+ * extract_roam_scan_stats_res_evt_tlv() - Extract roam scan stats event
+ * @wmi_handle: wmi handle
+ * @evt_buf: pointer to event buffer
+ * @vdev_id: output pointer to hold vdev id
+ * @res_param: output pointer to hold the allocated response
+ *
+ * Return: QDF_STATUS
+ */
+static QDF_STATUS
+extract_roam_scan_stats_res_evt_tlv(wmi_unified_t wmi_handle, void *evt_buf,
+				    uint32_t *vdev_id,
+				    struct wmi_roam_scan_stats_res **res_param)
+{
+	WMI_ROAM_SCAN_STATS_EVENTID_param_tlvs *param_buf;
+	wmi_roam_scan_stats_event_fixed_param *fixed_param;
+	uint32_t *client_id = NULL;
+	wmi_roaming_timestamp *timestamp = NULL;
+	uint32_t *num_channels = NULL;
+	uint32_t *chan_info = NULL;
+	wmi_mac_addr *old_bssid = NULL;
+	uint32_t *is_roaming_success = NULL;
+	wmi_mac_addr *new_bssid = NULL;
+	uint32_t *num_roam_candidates = NULL;
+	wmi_roam_scan_trigger_reason *roam_reason = NULL;
+	wmi_mac_addr *bssid = NULL;
+	uint32_t *score = NULL;
+	uint32_t *channel = NULL;
+	uint32_t *rssi = NULL;
+	int chan_idx = 0, cand_idx = 0;
+	uint32_t total_len;
+	struct wmi_roam_scan_stats_res *res;
+	uint32_t i, j;
+	uint32_t num_scans;
+
+	*res_param = NULL;
+	*vdev_id = 0xFF; /* Initialize to invalid vdev id */
+	param_buf = (WMI_ROAM_SCAN_STATS_EVENTID_param_tlvs *)evt_buf;
+	if (!param_buf) {
+		WMI_LOGP("%s: Invalid roam scan stats event", __func__);
+		return QDF_STATUS_E_INVAL;
+	}
+
+	fixed_param = param_buf->fixed_param;
+	total_len = sizeof(*res) + fixed_param->num_roam_scans *
+		    sizeof(struct wmi_roam_scan_stats_params);
+
+	*vdev_id = fixed_param->vdev_id;
+	num_scans = fixed_param->num_roam_scans;
+
+	res = qdf_mem_malloc(total_len);
+	if (!res) {
+		WMI_LOGP("Failed to allocate roam scan stats response memory");
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	if (!num_scans) {
+		*res_param = res;
+		return QDF_STATUS_SUCCESS;
+	}
+
+	if (param_buf->client_id &&
+	    param_buf->num_client_id == num_scans)
+		client_id = param_buf->client_id;
+
+	if (param_buf->timestamp &&
+	    param_buf->num_timestamp == num_scans)
+		timestamp = param_buf->timestamp;
+
+	if (param_buf->old_bssid &&
+	    param_buf->num_old_bssid == num_scans)
+		old_bssid = param_buf->old_bssid;
+
+	if (param_buf->new_bssid &&
+	    param_buf->num_new_bssid == num_scans)
+		new_bssid = param_buf->new_bssid;
+
+	if (param_buf->is_roaming_success &&
+	    param_buf->num_is_roaming_success == num_scans)
+		is_roaming_success = param_buf->is_roaming_success;
+
+	if (param_buf->roam_reason &&
+	    param_buf->num_roam_reason == num_scans)
+		roam_reason = param_buf->roam_reason;
+
+	if (param_buf->num_channels &&
+	    param_buf->num_num_channels == num_scans)
+		num_channels = param_buf->num_channels;
+
+	if (param_buf->num_num_channels) {
+		uint32_t count, chan_info_sum = 0;
+
+		for (count = 0; count < param_buf->num_num_channels; count++)
+			chan_info_sum += param_buf->num_channels[count];
+
+		if (param_buf->chan_info &&
+		    param_buf->num_chan_info == chan_info_sum)
+			chan_info = param_buf->chan_info;
+	}
+
+	if (param_buf->num_roam_candidates &&
+	    param_buf->num_num_roam_candidates == num_scans)
+		num_roam_candidates = param_buf->num_roam_candidates;
+
+	if (param_buf->num_num_roam_candidates) {
+		uint32_t count, roam_cand_sum = 0;
+
+		for (count = 0; count < param_buf->num_num_roam_candidates;
+			count++)
+			roam_cand_sum += param_buf->num_roam_candidates[count];
+
+		if (param_buf->bssid &&
+		    param_buf->num_bssid == roam_cand_sum)
+			bssid = param_buf->bssid;
+
+		if (param_buf->score &&
+		    param_buf->num_score == roam_cand_sum)
+			score = param_buf->score;
+
+		if (param_buf->channel &&
+		    param_buf->num_channel == roam_cand_sum)
+			channel = param_buf->channel;
+
+		if (param_buf->rssi &&
+		    param_buf->num_rssi == roam_cand_sum)
+			rssi = param_buf->rssi;
+	}
+
+	res->num_roam_scans = num_scans;
+	for (i = 0; i < num_scans; i++) {
+		struct wmi_roam_scan_stats_params *roam = &res->roam_scan[i];
+
+		if (timestamp)
+			roam->time_stamp = timestamp[i].lower32bit |
+						(timestamp[i].upper32bit << 31);
+
+		if (client_id)
+			roam->client_id = client_id[i];
+
+		if (num_channels)
+			roam->num_scan_chans = num_channels[i];
+
+		if (is_roaming_success)
+			roam->is_roam_successful = is_roaming_success[i];
+
+		if (num_roam_candidates)
+			roam->num_roam_candidates = num_roam_candidates[i];
+
+		if (roam_reason) {
+			roam->trigger_id = roam_reason[i].trigger_id;
+			roam->trigger_value = roam_reason[i].trigger_value;
+		}
+
+		if (chan_info) {
+			for (j = 0; j < num_channels[i]; j++)
+				roam->scan_freqs[j] = chan_info[chan_idx++];
+		}
+
+		if (num_roam_candidates) {
+			for (j = 0; j < num_roam_candidates[i]; j++) {
+				if (score)
+					roam->cand[j].score = score[cand_idx];
+				if (rssi)
+					roam->cand[j].rssi = rssi[cand_idx];
+				if (chan_info)
+					roam->cand[j].freq =
+						channel[cand_idx];
+
+				if (bssid)
+					WMI_MAC_ADDR_TO_CHAR_ARRAY(
+							&bssid[cand_idx],
+							roam->cand[j].bssid);
+
+				cand_idx++;
+			}
+		}
+
+		if (old_bssid)
+			WMI_MAC_ADDR_TO_CHAR_ARRAY(&old_bssid[i],
+						   roam->old_bssid);
+
+		if (new_bssid)
+			WMI_MAC_ADDR_TO_CHAR_ARRAY(&new_bssid[i],
+						   roam->new_bssid);
+	}
+
+	*res_param = res;
+
+	return QDF_STATUS_SUCCESS;
+}
+
+/**
  * send_offload_11k_cmd_tlv() - send wmi cmd with 11k offload params
  * @wmi_handle: wmi handler
  * @params: pointer to 11k offload params
@@ -14862,6 +15093,8 @@ struct wmi_ops tlv_ops =  {
 				send_roam_scan_send_hlp_cmd_tlv,
 #endif
 	.send_wow_timer_pattern_cmd = send_wow_timer_pattern_cmd_tlv,
+	.send_roam_scan_stats_cmd = send_roam_scan_stats_cmd_tlv,
+	.extract_roam_scan_stats_res_evt = extract_roam_scan_stats_res_evt_tlv,
 	.send_offload_11k_cmd = send_offload_11k_cmd_tlv,
 	.send_invoke_neighbor_report_cmd = send_invoke_neighbor_report_cmd_tlv,
 };
@@ -15210,6 +15443,7 @@ static void populate_tlv_events_id(uint32_t *event_ids)
 	event_ids[wmi_update_rcpi_event_id] = WMI_UPDATE_RCPI_EVENTID;
 	event_ids[wmi_get_arp_stats_req_id] = WMI_VDEV_GET_ARP_STATS_EVENTID;
 	event_ids[wmi_sar_get_limits_event_id] = WMI_SAR_GET_LIMITS_EVENTID;
+	event_ids[wmi_roam_scan_stats_event_id] = WMI_ROAM_SCAN_STATS_EVENTID;
 }
 }
 

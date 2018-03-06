@@ -2055,8 +2055,10 @@ static ssize_t store_tp(struct device_driver *ddri,
 const char *buf, size_t count)
 {
 	int tmp = 0;
+	int ret;
 
-	if (kstrtoint(buf, 10, &tmp) == 1) {
+	ret = kstrtoint(buf, 10, &tmp);
+	if (ret >= 0) {
 		tp_debug = tmp;
 	} else {
 		TPDTM_DMESG("invalid content: '%s', length = %zd\n",

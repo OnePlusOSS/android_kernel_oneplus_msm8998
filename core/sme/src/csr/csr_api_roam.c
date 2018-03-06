@@ -4453,6 +4453,9 @@ QDF_STATUS csr_roam_prepare_bss_config(tpAniSirGlobal pMac,
 	case eCSR_AUTH_TYPE_AUTOSWITCH:
 		pBssConfig->authType = eSIR_AUTO_SWITCH;
 		break;
+	case eCSR_AUTH_TYPE_SAE:
+		pBssConfig->authType = eSIR_AUTH_TYPE_SAE;
+		break;
 	}
 	/* short slot time */
 	if (eCSR_CFG_DOT11_MODE_11B != cfgDot11Mode)
@@ -4591,6 +4594,9 @@ QDF_STATUS csr_roam_prepare_bss_config_from_profile(tpAniSirGlobal pMac,
 		break;
 	case eCSR_AUTH_TYPE_AUTOSWITCH:
 		pBssConfig->authType = eSIR_AUTO_SWITCH;
+		break;
+	case eCSR_AUTH_TYPE_SAE:
+		pBssConfig->authType = eSIR_AUTH_TYPE_SAE;
 		break;
 	}
 	/* short slot time */
@@ -5546,6 +5552,11 @@ static void csr_roam_assign_default_param(tpAniSirGlobal pMac,
 	case eCSR_AUTH_TYPE_AUTOSWITCH:
 		pCommand->u.roamCmd.roamProfile.negotiatedAuthType =
 			eCSR_AUTH_TYPE_AUTOSWITCH;
+		break;
+
+	case eCSR_AUTH_TYPE_SAE:
+		pCommand->u.roamCmd.roamProfile.negotiatedAuthType =
+			eCSR_AUTH_TYPE_SAE;
 		break;
 	}
 	pCommand->u.roamCmd.roamProfile.negotiatedUCEncryptionType =
@@ -6552,7 +6563,7 @@ static QDF_STATUS csr_roam_save_security_rsp_ie(tpAniSirGlobal pMac,
 		|| (eCSR_AUTH_TYPE_RSN_PSK_SHA256 == authType) ||
 		(eCSR_AUTH_TYPE_RSN_8021X_SHA256 == authType)
 #endif /* FEATURE_WLAN_WAPI */
-	) {
+		|| (eCSR_AUTH_TYPE_SAE == authType)) {
 		if (!pIesLocal && !QDF_IS_STATUS_SUCCESS
 				(csr_get_parsed_bss_description_ies(pMac,
 				pSirBssDesc, &pIesLocal)))

@@ -5537,6 +5537,15 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_DTIM_SELECTION_DIVERSITY_DEFAULT,
 		     CFG_DTIM_SELECTION_DIVERSITY_MIN,
 		     CFG_DTIM_SELECTION_DIVERSITY_MAX),
+
+#ifdef WLAN_FEATURE_SAE
+	REG_VARIABLE(CFG_IS_SAE_ENABLED_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, is_sae_enabled,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_IS_SAE_ENABLED_DEFAULT,
+		CFG_IS_SAE_ENABLED_MIN,
+		CFG_IS_SAE_ENABLED_MAX),
+#endif
 };
 
 /**
@@ -6471,6 +6480,19 @@ void hdd_cfg_print_11k_offload_params(hdd_context_t *hdd_ctx)
 		  CFG_OFFLOAD_NEIGHBOR_REPORT_MAX_REQ_CAP_NAME,
 		  hdd_ctx->config->neighbor_report_offload_max_req_cap);
 }
+
+#ifdef WLAN_FEATURE_SAE
+static void hdd_cfg_print_sae(hdd_context_t *hdd_ctx)
+{
+	hdd_debug("Name = [%s] value = [%u]",
+		CFG_IS_SAE_ENABLED_NAME,
+		hdd_ctx->config->is_sae_enabled);
+}
+#else
+static void hdd_cfg_print_sae(hdd_context_t *hdd_ctx)
+{
+}
+#endif
 
 /**
  * hdd_cfg_print() - print the hdd configuration
@@ -7412,6 +7434,7 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_debug("Name = [%s] value = [0x%x]",
 		  CFG_CHANNEL_SELECT_LOGIC_CONC_NAME,
 		  pHddCtx->config->channel_select_logic_conc);
+	hdd_cfg_print_sae(pHddCtx);
 }
 
 /**

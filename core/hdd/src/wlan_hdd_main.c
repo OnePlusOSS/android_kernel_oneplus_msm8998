@@ -3733,6 +3733,8 @@ static void hdd_set_fw_log_params(hdd_context_t *hdd_ctx,
 static int hdd_configure_chain_mask(hdd_adapter_t *adapter)
 {
 	int ret_val;
+	QDF_STATUS status;
+	struct wma_caps_per_phy non_dbs_phy_cap;
 	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 
 	hdd_debug("enable2x2: %d, lte_coex: %d, ChainMask1x1: tx: %d rx: %d",
@@ -3747,7 +3749,18 @@ static int hdd_configure_chain_mask(hdd_adapter_t *adapter)
 		  hdd_ctx->config->tx_chain_mask_5g,
 		  hdd_ctx->config->rx_chain_mask_5g);
 
-	if (hdd_ctx->num_rf_chains < 2) {
+	status = wma_get_caps_for_phyidx_hwmode(&non_dbs_phy_cap,
+						HW_MODE_DBS_NONE,
+						CDS_BAND_ALL);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		hdd_info("couldn't get phy caps. skip chain mask programming");
+		return 0;
+	}
+
+	if (non_dbs_phy_cap.tx_chain_mask_2G < 3 ||
+	    non_dbs_phy_cap.rx_chain_mask_2G < 3 ||
+	    non_dbs_phy_cap.tx_chain_mask_5G < 3 ||
+	    non_dbs_phy_cap.rx_chain_mask_5G < 3) {
 		hdd_info("firmware not capable. skip chain mask programming");
 		return 0;
 	}

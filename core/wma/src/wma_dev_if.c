@@ -2553,6 +2553,7 @@ QDF_STATUS wma_vdev_start(tp_wma_handle wma,
 		TGT_DEFAULT_GTX_BW_MASK;
 	intr[params.vdev_id].mhz = params.chan_freq;
 	intr[params.vdev_id].chan_width = ch_width;
+	intr[params.vdev_id].channel = req->chan;
 
 	temp_chan_info &= 0xffffffc0;
 	temp_chan_info |= params.chan_mode;

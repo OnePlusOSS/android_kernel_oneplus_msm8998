@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1305,7 +1305,7 @@ void *pld_smmu_get_mapping(struct device *dev)
 		ptr = pld_snoc_smmu_get_mapping(dev);
 		break;
 	case PLD_BUS_TYPE_PCIE:
-		pr_err("Not supported on type %d\n", type);
+		ptr = pld_pcie_smmu_get_mapping();
 		break;
 	default:
 		pr_err("Invalid device type %d\n", type);
@@ -1336,8 +1336,7 @@ int pld_smmu_map(struct device *dev, phys_addr_t paddr,
 		ret = pld_snoc_smmu_map(dev, paddr, iova_addr, size);
 		break;
 	case PLD_BUS_TYPE_PCIE:
-		pr_err("Not supported on type %d\n", type);
-		ret = -ENODEV;
+		ret = pld_pcie_smmu_map(paddr, iova_addr, size);
 		break;
 	default:
 		pr_err("Invalid device type %d\n", type);

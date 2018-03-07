@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1281,5 +1281,19 @@ static inline bool csr_is_mfpc_capable(struct sDot11fIERSN *rsn)
 	return false;
 }
 #endif
+
+/**
+ * csr_lookup_pmkid_using_bssid() - lookup pmkid using bssid
+ * @mac: pointer to mac
+ * @session: sme session pointer
+ * @pmk_cache: pointer to pmk cache
+ * @index: index value needs to be seached
+ *
+ * Return: true if pmkid is found else false
+ */
+bool csr_lookup_pmkid_using_bssid(tpAniSirGlobal mac,
+					tCsrRoamSession *session,
+					tPmkidCacheInfo *pmk_cache,
+					uint32_t *index);
 
 #endif /* CSR_INSIDE_API_H__ */

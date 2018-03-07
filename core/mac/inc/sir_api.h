@@ -1330,6 +1330,7 @@ typedef struct sSirSmeJoinReq {
 #ifdef WLAN_FEATURE_FILS_SK
 	struct cds_fils_connection_info fils_con_info;
 #endif
+	bool sae_pmk_cached;
 	bool ignore_assoc_disallowed;
 	bool enable_bcast_probe_rsp;
 	bool force_24ghz_in_ht20;

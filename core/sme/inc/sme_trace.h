@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2016, 2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -144,6 +144,7 @@ enum {
 	TRACE_CODE_SME_RX_HDD_LPHB_CONFIG_REQ,
 #endif /* FEATURE_WLAN_LPHB */
 	TRACE_CODE_SME_RX_HDD_ROAM_DEL_PMKIDCACHE,
+	TRACE_CODE_SME_RX_HDD_SEND_MGMT_TX,
 	/*
 	 * New trace commands to be added before this comment not at the end
 	 * Trace codes for SME commands

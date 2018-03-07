@@ -19195,3 +19195,54 @@ bool sme_is_sta_key_exchange_in_progress(tHalHandle hal, uint8_t session_id)
 	return CSR_IS_WAIT_FOR_KEY(mac_ctx, session_id);
 }
 
+/**
+ * sme_prepare_mgmt_tx() - Prepares mgmt frame
+ * @hal: The handle returned by mac_open
+ * @session_id: session id
+ * @buf: pointer to frame
+ * @len: frame length
+ *
+ * Return: QDF_STATUS
+ */
+static QDF_STATUS sme_prepare_mgmt_tx(tHalHandle hal, uint8_t session_id,
+			   const uint8_t *buf, uint32_t len)
+{
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	struct sir_mgmt_msg *msg;
+	uint16_t msg_len;
+
+	sme_debug("prepares auth frame");
+
+	msg_len = sizeof(*msg) + len;
+	msg = qdf_mem_malloc(msg_len);
+	if (msg == NULL) {
+		status = QDF_STATUS_E_NOMEM;
+	} else {
+		msg->type = eWNI_SME_SEND_MGMT_FRAME_TX;
+		msg->msg_len = msg_len;
+		msg->session_id = session_id;
+		msg->data = (uint8_t *)msg + sizeof(*msg);
+		qdf_mem_copy(msg->data, buf, len);
+
+		status = cds_send_mb_message_to_mac(msg);
+	}
+	return status;
+}
+
+QDF_STATUS sme_send_mgmt_tx(tHalHandle hal, uint8_t session_id,
+			   const uint8_t *buf, uint32_t len)
+{
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	tpAniSirGlobal mac = PMAC_STRUCT(hal);
+
+	MTRACE(qdf_trace(QDF_MODULE_ID_SME,
+			 TRACE_CODE_SME_RX_HDD_SEND_MGMT_TX, session_id, 0));
+
+	status = sme_acquire_global_lock(&mac->sme);
+	if (QDF_IS_STATUS_SUCCESS(status)) {
+		status = sme_prepare_mgmt_tx(hal, session_id, buf, len);
+		sme_release_global_lock(&mac->sme);
+	}
+
+	return status;
+}

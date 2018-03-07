@@ -1008,4 +1008,14 @@ void lim_process_auth_failure_timeout(tpAniSirGlobal mac_ctx);
 void lim_process_assoc_failure_timeout(tpAniSirGlobal mac_ctx,
 						     uint32_t msg_type);
 
+/**
+ * lim_send_mgmt_frame_tx() - Sends mgmt frame
+ * @mac_ctx Pointer to Global MAC structure
+ * @msg: Received message info
+ *
+ * Return: None
+ */
+void lim_send_mgmt_frame_tx(tpAniSirGlobal mac_ctx,
+		uint32_t *msg_buf);
+
 #endif /* __LIM_TYPES_H */

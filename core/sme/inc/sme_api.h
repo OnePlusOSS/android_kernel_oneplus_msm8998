@@ -2190,4 +2190,16 @@ uint32_t sme_unpack_rsn_ie(tHalHandle hal, uint8_t *buf,
  */
 bool sme_is_sta_key_exchange_in_progress(tHalHandle hal, uint8_t session_id);
 
+/**
+ * sme_send_mgmt_tx() - Sends mgmt frame from CSR to LIM
+ * @hal: The handle returned by mac_open
+ * @session_id: session id
+ * @buf: pointer to frame
+ * @len: frame length
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS sme_send_mgmt_tx(tHalHandle hal, uint8_t session_id,
+			   const uint8_t *buf, uint32_t len);
+
 #endif /* #if !defined( __SME_API_H ) */

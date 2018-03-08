@@ -12466,6 +12466,25 @@ enum hw_filter_mode {
 #define CFG_ACTION_OUI_CCKM_1X1_NAME    "gActionOUICCKM1X1"
 #define CFG_ACTION_OUI_CCKM_1X1_DEFAULT ""
 
+/*
+ * <ini>
+ * gActionOUIITOAlternate - Used to specify action OUIs to have alternate ITO in
+ * weak RSSI state
+ *
+ * This ini is used to specify AP OUIs for which the stations will have
+ * alternate ITOs for the case when the RSSI is weak.
+ *
+ * Related: None
+ *
+ * Supported Feature: Action OUIs
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+ #define CFG_ACTION_OUI_ITO_ALTERNATE_NAME    "gActionOUIITOAlternate"
+ #define CFG_ACTION_OUI_ITO_ALTERNATE_DEFAULT "001018 06 0202001c0000 FC 01"
+
 /* End of action oui inis */
 
 /*
@@ -15556,6 +15575,7 @@ struct hdd_config {
 	uint8_t action_oui_connect_1x1[MAX_ACTION_OUI_STRING_LEN];
 	uint8_t action_oui_ito_extension[MAX_ACTION_OUI_STRING_LEN];
 	uint8_t action_oui_cckm_1x1[MAX_ACTION_OUI_STRING_LEN];
+	uint8_t action_oui_ito_alternate[MAX_ACTION_OUI_STRING_LEN];
 	uint8_t rssi_weightage;
 	uint8_t ht_caps_weightage;
 	uint8_t vht_caps_weightage;

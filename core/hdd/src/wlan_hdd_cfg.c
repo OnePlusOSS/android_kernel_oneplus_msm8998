@@ -5143,6 +5143,12 @@ struct reg_table_entry g_registry_table[] = {
 			    VAR_FLAGS_OPTIONAL,
 			    (void *)CFG_ACTION_OUI_CCKM_1X1_DEFAULT),
 
+	REG_VARIABLE_STRING(CFG_ACTION_OUI_ITO_ALTERNATE_NAME,
+			    WLAN_PARAM_String,
+			    struct hdd_config, action_oui_ito_alternate,
+			    VAR_FLAGS_OPTIONAL,
+			    (void *)CFG_ACTION_OUI_ITO_ALTERNATE_DEFAULT),
+
 	REG_VARIABLE(CFG_DTIM_1CHRX_ENABLE_NAME, WLAN_PARAM_Integer,
 		struct hdd_config, enable_dtim_1chrx,
 		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -9520,7 +9526,6 @@ static void hdd_set_sme_action_oui(hdd_context_t *hdd_ctx,
 	ini_len = qdf_str_len(ini_string);
 	if (!ini_len)
 		return;
-
 	oui_string = qdf_mem_malloc(ini_len + 1);
 	if (!oui_string) {
 		hdd_err("mem alloc failed for ini string of action oui: %u",
@@ -9564,6 +9569,11 @@ void hdd_set_all_sme_action_ouis(hdd_context_t *hdd_ctx)
 	ini_string[MAX_ACTION_OUI_STRING_LEN - 1] = '\0';
 	hdd_set_sme_action_oui(hdd_ctx, ini_string,
 			       WMI_ACTION_OUI_CCKM_1X1);
+
+	ini_string = config->action_oui_ito_alternate;
+	ini_string[MAX_ACTION_OUI_STRING_LEN - 1] = '\0';
+	hdd_set_sme_action_oui(hdd_ctx, ini_string,
+			       WMI_ACTION_OUI_ITO_ALTERNATE);
 }
 
 /* End of action oui functions */

@@ -1818,6 +1818,13 @@ typedef QDF_STATUS (*csr_roamSessionCloseCallback)(void *pContext);
 #define CSR_IS_AUTH_TYPE_OWE(auth_type) (false)
 #endif
 
+#ifdef WLAN_FEATURE_SAE
+#define CSR_IS_AUTH_TYPE_SAE(auth_type) \
+	(eCSR_AUTH_TYPE_SAE == auth_type)
+#else
+#define CSR_IS_AUTH_TYPE_SAE(auth_type) (false)
+#endif
+
 QDF_STATUS csr_set_channels(tHalHandle hHal, tCsrConfigParam *pParam);
 
 QDF_STATUS csr_set_reg_info(tHalHandle hHal, uint8_t *apCntryCode);

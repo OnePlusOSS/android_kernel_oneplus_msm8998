@@ -14142,6 +14142,10 @@ wmi_get_action_oui_id(enum wmi_action_oui_id action_id,
 		*id = WMI_VENDOR_OUI_ACTION_CCKM_1X1;
 		return true;
 
+	case WMI_ACTION_OUI_ITO_ALTERNATE:
+		*id = WMI_VENDOR_OUI_ACTION_ALT_ITO;
+		return true;
+
 	default:
 		return false;
 	}

@@ -8170,15 +8170,14 @@ wlan_hdd_update_dbs_scan_and_fw_mode_config(hdd_context_t *hdd_ctx)
 		hdd_err("HDD context is NULL");
 		return QDF_STATUS_E_FAILURE;
 	}
+	if (!wma_is_hw_dbs_capable())
+		return QDF_STATUS_SUCCESS;
 
 	cfg.scan_config = 0;
 	cfg.fw_mode_config = 0;
 	cfg.set_dual_mac_cb = cds_soc_set_dual_mac_cfg_cb;
 
-	if (!wma_is_dbs_enable())
-		channel_select_logic_conc = 0;
-	else
-		channel_select_logic_conc = hdd_ctx->config->
+	channel_select_logic_conc = hdd_ctx->config->
 						channel_select_logic_conc;
 
 	if (hdd_ctx->config->dual_mac_feature_disable !=

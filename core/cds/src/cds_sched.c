@@ -612,7 +612,7 @@ static void cds_mc_thread_watchdog_notify(cds_msg_t *msg)
 	if (msg->callback)
 		qdf_sprint_symbol(symbol, msg->callback);
 
-	cds_err("Callback %s (type 0x%x) exceeded its allotted time of %ds",
+	cds_err("WLAN_BUG_RCA: Callback %s (type 0x%x) exceeded its allotted time of %ds",
 		msg->callback ? symbol : "<null>", msg->type,
 		MC_THRD_WD_TIMEOUT / 1000);
 }

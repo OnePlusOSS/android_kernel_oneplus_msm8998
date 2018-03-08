@@ -154,6 +154,55 @@ static const int beacon_filter_table[] = {
 	SIR_MAC_VHT_OPERATION_EID,
 };
 
+#ifdef WLAN_FEATURE_SAE
+/**
+ * wlan_hdd_sae_callback() - Sends SAE info to supplicant
+ * @adapter: pointer adapter context
+ * @roam_info: pointer to roam info
+ *
+ * This API is used to send required SAE info to trigger SAE in supplicant.
+ *
+ * Return: None
+ */
+static void wlan_hdd_sae_callback(hdd_adapter_t *adapter,
+				  tCsrRoamInfo *roam_info)
+{
+	hdd_context_t *hdd_ctx = adapter->pHddCtx;
+	int flags;
+	struct sir_sae_info *sae_info = roam_info->sae_info;
+	struct cfg80211_external_auth_params params = {0};
+
+	if (wlan_hdd_validate_context(hdd_ctx))
+		return;
+
+	if (!sae_info) {
+		hdd_err("SAE info in NULL");
+		return;
+	}
+
+	flags = cds_get_gfp_flags();
+
+	params.key_mgmt_suite = 0x00;
+	params.key_mgmt_suite |= 0x0F << 8;
+	params.key_mgmt_suite |= 0xAC << 16;
+	params.key_mgmt_suite |= 0x8 << 24;
+
+	params.action = NL80211_EXTERNAL_AUTH_START;
+	qdf_mem_copy(params.bssid, sae_info->peer_mac_addr.bytes,
+		     QDF_MAC_ADDR_SIZE);
+	qdf_mem_copy(params.ssid.ssid, sae_info->ssid.ssId,
+		     sae_info->ssid.length);
+	params.ssid.ssid_len = sae_info->ssid.length;
+
+	cfg80211_external_auth_request(adapter->dev, &params, flags);
+	hdd_debug("SAE: sent cmd");
+}
+#else
+static inline void wlan_hdd_sae_callback(hdd_adapter_t *adapter,
+					 tCsrRoamInfo *roam_info)
+{ }
+#endif
+
 /**
  * hdd_conn_set_authenticated() - set authentication state
  * @pAdapter: pointer to the adapter
@@ -5314,6 +5363,10 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 		pHddStaCtx->ft_carrier_on = false;
 		complete(&pAdapter->roaming_comp_var);
 		schedule_delayed_work(&pHddCtx->roc_req_work, 0);
+		break;
+	case eCSR_ROAM_SAE_COMPUTE:
+		if (pRoamInfo)
+			wlan_hdd_sae_callback(pAdapter, pRoamInfo);
 		break;
 
 	default:

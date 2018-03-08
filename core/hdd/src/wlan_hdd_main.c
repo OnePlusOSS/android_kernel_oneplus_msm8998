@@ -6504,6 +6504,9 @@ QDF_STATUS hdd_post_cds_enable_config(hdd_context_t *hdd_ctx)
 		return QDF_STATUS_E_FAILURE;
 	}
 
+	sme_generic_change_country_code(hdd_ctx->hHal,
+					hdd_ctx->reg.alpha2);
+
 	return QDF_STATUS_SUCCESS;
 }
 
@@ -9699,6 +9702,7 @@ static int hdd_pre_enable_configure(hdd_context_t *hdd_ctx)
 		hdd_err("reg info update failed");
 		goto out;
 	}
+
 	cds_fill_and_send_ctl_to_fw(&hdd_ctx->reg);
 
 	status = hdd_set_sme_chan_list(hdd_ctx);

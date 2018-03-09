@@ -536,8 +536,8 @@ qdf_nbuf_t ol_tx_ll(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list)
  *
  * Return: None
  */
-static void ol_tx_trace_pkt(qdf_nbuf_t skb, uint16_t msdu_id,
-			    uint8_t vdev_id)
+static inline void ol_tx_trace_pkt(qdf_nbuf_t skb, uint16_t msdu_id,
+				   uint8_t vdev_id)
 {
 	DPTRACE(qdf_dp_trace_ptr(skb,
 				 QDF_DP_TRACE_TXRX_FAST_PACKET_PTR_RECORD,

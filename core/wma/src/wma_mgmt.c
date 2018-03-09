@@ -3276,6 +3276,8 @@ int wma_process_bip(tp_wma_handle wma_handle,
 		return -EINVAL;
 	}
 
+	WMA_LOGD(FL("key_cipher %d key_id %d"), iface->key.key_cipher, key_id);
+
 	switch (iface->key.key_cipher) {
 	case WMI_CIPHER_AES_CMAC:
 		if (WMI_SERVICE_IS_ENABLED(wma_handle->wmi_service_bitmap,
@@ -3301,15 +3303,28 @@ int wma_process_bip(tp_wma_handle wma_handle,
 		break;
 
 	case WMI_CIPHER_AES_GMAC:
-		if (cds_is_gmac_mmie_valid(iface->key.key,
-		   iface->key.key_id[key_id - WMA_IGTK_KEY_INDEX_4].ipn,
-		   (uint8_t *) wh, efrm, iface->key.key_length)) {
-			WMA_LOGD(FL("Protected BC/MC frame GMAC MMIE validation successful"));
-			/* Remove MMIE */
+		if (WMI_SERVICE_EXT_IS_ENABLED(wma_handle->wmi_service_bitmap,
+		    wma_handle->wmi_service_ext_bitmap,
+		    WMI_SERVICE_GMAC_OFFLOAD_SUPPORT)) {
+			/*
+			 * if gmac offload is enabled then mmie validation is
+			 * performed in firmware, host just need to trim the
+			 * mmie.
+			 */
+			WMA_LOGD(FL("Trim GMAC MMIE"));
 			qdf_nbuf_trim_tail(wbuf, cds_get_gmac_mmie_size());
 		} else {
-			WMA_LOGD(FL("BC/MC GMAC MIC error or MMIE not present, dropping the frame"));
-			return -EINVAL;
+			if (cds_is_gmac_mmie_valid(iface->key.key,
+			   iface->key.key_id[key_id - WMA_IGTK_KEY_INDEX_4].ipn,
+			   (uint8_t *) wh, efrm, iface->key.key_length)) {
+				WMA_LOGD(FL("Protected BC/MC frame GMAC MMIE validation successful"));
+				/* Remove MMIE */
+				qdf_nbuf_trim_tail(wbuf,
+						   cds_get_gmac_mmie_size());
+			} else {
+				WMA_LOGD(FL("BC/MC GMAC MIC error or MMIE not present, dropping the frame"));
+				return -EINVAL;
+			}
 		}
 		break;
 

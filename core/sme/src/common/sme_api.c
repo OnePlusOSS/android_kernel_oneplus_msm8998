@@ -11693,6 +11693,22 @@ void sme_set_prefer_80MHz_over_160MHz(tHalHandle hal,
 	mac_ctx->sta_prefer_80MHz_over_160MHz = sta_prefer_80MHz_over_160MHz;
 }
 
+void sme_set_etsi_srd_ch_in_master_mode(tHalHandle hal,
+					bool etsi_srd_chan_support)
+{
+	tpAniSirGlobal mac;
+
+	if (NULL == hal) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			"%s: Invalid hal pointer", __func__);
+		return;
+	}
+
+	mac = PMAC_STRUCT(hal);
+	mac->sap.enable_etsi_srd_chan_support = etsi_srd_chan_support;
+	sme_debug("srd_ch_support %d", mac->sap.enable_etsi_srd_chan_support);
+}
+
 /**
  * sme_set_allow_adj_ch_bcn() - API to set allow_adj_ch_bcn
  * @hal:           The handle returned by macOpen

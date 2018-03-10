@@ -8169,8 +8169,6 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 	wlansap_set_tx_leakage_threshold(hHal,
 		iniConfig->sap_tx_leakage_threshold);
 
-	wlansap_set_etsi_srd_chan_support(hHal,
-			iniConfig->etsi_srd_chan_in_master_mode);
 	capab_info = pMgmt_frame->u.beacon.capab_info;
 
 	pConfig->privacy = (pMgmt_frame->u.beacon.capab_info &

@@ -3311,14 +3311,14 @@ void wlansap_extend_to_acs_range(uint8_t *startChannelNum,
 				 (*endChannelNum + ACS_2G_EXTEND) : 14;
 	} else if (*startChannelNum >= 36 && *endChannelNum >= 36) {
 		*bandStartChannel = CHAN_ENUM_36;
-		*bandEndChannel = CHAN_ENUM_165;
+		*bandEndChannel = CHAN_ENUM_173;
 		tmp_startChannelNum = (*startChannelNum - ACS_5G_EXTEND) > 36 ?
 				   (*startChannelNum - ACS_5G_EXTEND) : 36;
 		tmp_endChannelNum = (*endChannelNum + ACS_5G_EXTEND) <= 165 ?
 				 (*endChannelNum + ACS_5G_EXTEND) : 165;
 	} else {
 		*bandStartChannel = CHAN_ENUM_1;
-		*bandEndChannel = CHAN_ENUM_165;
+		*bandEndChannel = CHAN_ENUM_173;
 		tmp_startChannelNum = *startChannelNum > 5 ?
 			(*startChannelNum - ACS_2G_EXTEND) : 1;
 		tmp_endChannelNum = (*endChannelNum + ACS_5G_EXTEND) <= 165 ?
@@ -3776,32 +3776,6 @@ QDF_STATUS wlansap_set_tx_leakage_threshold(tHalHandle hal,
 	return QDF_STATUS_SUCCESS;
 }
 
-/**
- * wlansap_set_etsi_srd_chan_support() - set UNI-III band channel support
- * @hal: HAL pointer
- * @srd_chan_support: ETSI SRD channel support
- *
- * This function set sap ETSI SRD channel support
- *
- * Return: None
- */
-void wlansap_set_etsi_srd_chan_support(tHalHandle hal,
-		bool etsi_srd_chan_support)
-{
-	tpAniSirGlobal mac;
-
-	if (NULL == hal) {
-		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-			"%s: Invalid hal pointer", __func__);
-		return;
-	}
-
-	mac = PMAC_STRUCT(hal);
-	mac->sap.enable_etsi_srd_chan_support = etsi_srd_chan_support;
-	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
-			"%s: srd_ch_support %d", __func__,
-			mac->sap.enable_etsi_srd_chan_support);
-}
 /*
  * wlansap_set_invalid_session() - set session ID to invalid
  * @cds_ctx: pointer of global context

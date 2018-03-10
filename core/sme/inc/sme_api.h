@@ -1609,6 +1609,18 @@ QDF_STATUS sme_update_short_retry_limit_threshold(tHalHandle hal_handle,
 QDF_STATUS sme_update_long_retry_limit_threshold(tHalHandle hal_handle,
 		struct sme_long_retry_limit  *long_retry_limit_th);
 /**
+ * sme_set_etsi_srd_ch_in_master_mode() - master mode UNI-III band ch support
+ * @hal: HAL pointer
+ * @srd_chan_support: ETSI SRD channel support
+ *
+ * This function set master ETSI SRD channel support
+ *
+ * Return: None
+ */
+void sme_set_etsi_srd_ch_in_master_mode(tHalHandle hal,
+					bool etsi_srd_chan_support);
+
+/**
  * sme_roam_is_ese_assoc() - Check if association type is ESE
  * @roam_info: Pointer to roam info
  *

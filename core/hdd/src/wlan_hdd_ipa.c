@@ -941,6 +941,9 @@ bool hdd_ipa_is_fw_wdi_actived(hdd_context_t *hdd_ctx)
 {
 	struct hdd_ipa_priv *hdd_ipa = hdd_ctx->hdd_ipa;
 
+	if (!hdd_ipa)
+		return false;
+
 	return (HDD_IPA_UC_NUM_WDI_PIPE == hdd_ipa->activated_fw_pipe);
 }
 

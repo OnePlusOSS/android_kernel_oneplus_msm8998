@@ -38,6 +38,7 @@
 #include <wlan_hdd_includes.h>
 
 #define DEBUGFS_CONNECT_INFO_BUF_SIZE    (4 * 1024)
+#define DEBUGFS_OFFLOAD_INFO_BUF_SIZE    (4 * 1024)
 
 /**
  * struct wlan_hdd_debugfs_buffer_info - Debugfs buffer info
@@ -98,6 +99,19 @@ wlan_hdd_debugfs_update_connect_info(hdd_context_t *hdd_ctx,
 				     hdd_adapter_t *adapter,
 				     uint8_t *buf, ssize_t buf_avail_len);
 
+/**
+ * wlan_hdd_debugfs_update_filters_info() - API to get offload info
+ * into user buffer
+ * @buf: output buffer to hold offload info
+ * @buf_avail_len: available buffer length
+ *
+ * Return: No.of bytes copied
+ */
+ssize_t
+wlan_hdd_debugfs_update_filters_info(hdd_context_t *hdd_ctx,
+				     hdd_adapter_t *adapter,
+				     uint8_t *buf, ssize_t buf_avail_len);
+
 #else
 /**
  * wlan_hdd_debugfs_csr_init() - Create wifi diagnostic debugfs files
@@ -142,6 +156,22 @@ wlan_hdd_current_time_info_debugfs(uint8_t *buf, ssize_t buf_avail_len)
  */
 static inline ssize_t
 wlan_hdd_debugfs_update_connect_info(hdd_context_t *hdd_ctx,
+				     hdd_adapter_t *adapter,
+				     uint8_t *buf, ssize_t buf_avail_len)
+{
+	return 0;
+}
+
+/**
+ * wlan_hdd_debugfs_update_filters_info() - API to get offload info
+ * into user buffer
+ * @buf: output buffer to hold offload info
+ * @buf_avail_len: available buffer length
+ *
+ * Return: No.of bytes copied
+ */
+static inline ssize_t
+wlan_hdd_debugfs_update_filters_info(hdd_context_t *hdd_ctx,
 				     hdd_adapter_t *adapter,
 				     uint8_t *buf, ssize_t buf_avail_len)
 {

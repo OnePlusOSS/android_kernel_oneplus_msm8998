@@ -399,6 +399,10 @@ static void hdd_disable_ns_offload(hdd_adapter_t *adapter)
 	tSirHostOffloadReq offloadReq;
 	QDF_STATUS status;
 
+	qdf_mutex_acquire(&adapter->ns_offload_info_lock);
+	adapter->ns_offload_info.offload = false;
+	qdf_mutex_release(&adapter->ns_offload_info_lock);
+
 	qdf_mem_zero((void *)&offloadReq, sizeof(tSirHostOffloadReq));
 	hdd_wlan_offload_event(SIR_IPV6_NS_OFFLOAD, SIR_OFFLOAD_DISABLE);
 	offloadReq.enableOrDisable = SIR_OFFLOAD_DISABLE;
@@ -499,6 +503,12 @@ static void hdd_enable_ns_offload(hdd_adapter_t *adapter)
 
 	/* set number of ns offload address count */
 	offloadReq.num_ns_offload_count = count;
+
+	qdf_mutex_acquire(&adapter->ns_offload_info_lock);
+	adapter->ns_offload_info.offload = true;
+	adapter->ns_offload_info.num_ns_offload_count = count;
+	adapter->ns_offload_info.nsOffloadInfo = offloadReq.nsOffloadInfo;
+	qdf_mutex_release(&adapter->ns_offload_info_lock);
 
 	/* Configure the Firmware with this */
 	status = sme_set_host_offload(WLAN_HDD_GET_HAL_CTX(adapter),
@@ -1030,6 +1040,13 @@ QDF_STATUS hdd_conf_arp_offload(hdd_adapter_t *pAdapter, bool fenable)
 				hdd_err("Failed to enable HostOffload feature");
 				return QDF_STATUS_E_FAILURE;
 			}
+
+			qdf_mutex_acquire(&pAdapter->arp_offload_info_lock);
+			pAdapter->arp_offload_info.offload = fenable;
+			qdf_mem_copy(pAdapter->arp_offload_info.ipv4,
+				     offLoadRequest.params.hostIpv4Addr,
+				     SIR_IPV4_ADDR_LEN);
+			qdf_mutex_release(&pAdapter->arp_offload_info_lock);
 		} else {
 			hdd_debug("IP Address is not assigned");
 		}
@@ -1049,6 +1066,11 @@ QDF_STATUS hdd_conf_arp_offload(hdd_adapter_t *pAdapter, bool fenable)
 		hdd_err("Failure to disable host offload feature");
 		return QDF_STATUS_E_FAILURE;
 	}
+
+	qdf_mutex_acquire(&pAdapter->arp_offload_info_lock);
+	pAdapter->arp_offload_info.offload = fenable;
+	qdf_mutex_release(&pAdapter->arp_offload_info_lock);
+
 	return QDF_STATUS_SUCCESS;
 }
 

@@ -1199,6 +1199,30 @@ typedef struct multicast_addr_list {
 } t_multicast_add_list;
 #endif
 
+/**
+ * struct hdd_arp_offload_info - arp offloads set in firmware
+ * @offload: currently enabled or disabled
+ * @ipv4: IPv4 address set
+ */
+struct hdd_arp_offload_info {
+	bool offload;
+	uint8_t ipv4[SIR_IPV4_ADDR_LEN];
+};
+
+#ifdef WLAN_NS_OFFLOAD
+/**
+ * struct hdd_ns_offload_info - ns offloads set in firmware
+ * @offload: currently enabled or disabled
+ * @num_ns_offload_count: count of addresses configured
+ * @nsOffloadInfo: addresses are formatted using @tSirNsOffloadReq
+ */
+struct hdd_ns_offload_info {
+	bool offload;
+	uint32_t num_ns_offload_count;
+	tSirNsOffloadReq nsOffloadInfo;
+};
+#endif
+
 #define WLAN_HDD_MAX_HISTORY_ENTRY		10
 
 /**
@@ -1586,6 +1610,13 @@ struct hdd_adapter_s {
 	uint32_t mon_bandwidth;
 	uint8_t active_ac;
 	struct hdd_debugfs_file_info csr_file[HDD_DEBUGFS_FILE_ID_MAX];
+	struct hdd_arp_offload_info arp_offload_info;
+	qdf_mutex_t arp_offload_info_lock;
+#ifdef WLAN_NS_OFFLOAD
+	struct hdd_ns_offload_info ns_offload_info;
+	qdf_mutex_t ns_offload_info_lock;
+#endif
+	bool apf_enabled;
 };
 
 #define WLAN_HDD_GET_STATION_CTX_PTR(pAdapter) (&(pAdapter)->sessionCtx.station)

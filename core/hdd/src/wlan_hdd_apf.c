@@ -225,6 +225,7 @@ static int hdd_set_reset_apf_offload(hdd_context_t *hdd_ctx,
 	QDF_STATUS status;
 	int prog_len;
 	int ret = 0;
+	bool apf_enabled = false;
 
 	ENTER();
 
@@ -250,6 +251,7 @@ static int hdd_set_reset_apf_offload(hdd_context_t *hdd_ctx,
 
 	if (!apf_set_offload->total_length) {
 		hdd_debug("APF reset packet filter received");
+		apf_enabled = false;
 		goto post_sme;
 	}
 
@@ -292,6 +294,7 @@ static int hdd_set_reset_apf_offload(hdd_context_t *hdd_ctx,
 		goto fail;
 	}
 	apf_set_offload->current_offset = nla_get_u32(tb[APF_CURRENT_OFFSET]);
+	apf_enabled = true;
 
 post_sme:
 	hdd_debug("Posting APF SET/RESET to SME, session_id: %d APF Version: %d filter ID: %d total_length: %d current_length: %d current offset: %d",
@@ -314,6 +317,10 @@ fail:
 	if (apf_set_offload->current_length)
 		qdf_mem_free(apf_set_offload->program);
 	qdf_mem_free(apf_set_offload);
+
+	if (ret == 0)
+		adapter->apf_enabled = apf_enabled;
+
 	return ret;
 }
 
@@ -687,11 +694,15 @@ __wlan_hdd_cfg80211_apf_offload(struct wiphy *wiphy,
 		ret_val = hdd_enable_disable_apf(hdd_ctx,
 						 session_id,
 						 true);
+		if (ret_val == 0)
+			adapter->apf_enabled = true;
 		break;
 	case QCA_WLAN_DISABLE_PACKET_FILTER:
 		ret_val = hdd_enable_disable_apf(hdd_ctx,
 						 session_id,
 						 false);
+		if (ret_val == 0)
+			adapter->apf_enabled = false;
 		break;
 	default:
 		hdd_err("Unknown APF Sub-command: %d", apf_subcmd);

@@ -3725,6 +3725,50 @@ static void hdd_set_fw_log_params(hdd_context_t *hdd_ctx,
 
 #endif
 
+#ifdef WLAN_NS_OFFLOAD
+/**
+ * hdd_ns_offload_info_lock_create() - Create mutex lock for ns offload info
+ * @adapter: pointer to adapter for which lock is to be created
+ *
+ * Return: None
+ */
+static void hdd_ns_offload_info_lock_create(hdd_adapter_t *adapter)
+{
+	qdf_mutex_create(&adapter->ns_offload_info_lock);
+}
+
+/**
+ * hdd_ns_offload_info_lock_destroy() - Destroy mutex lock for ns offload info
+ * @adapter: pointer to adapter for which lock is to be destroyed
+ *
+ * Return: None
+ */
+static void hdd_ns_offload_info_lock_destroy(hdd_adapter_t *adapter)
+{
+	qdf_mutex_destroy(&adapter->ns_offload_info_lock);
+}
+#else
+/**
+ * hdd_ns_offload_info_lock_create() - Create mutex lock for ns offload info
+ * @adapter: pointer to adapter for which lock is to be created
+ *
+ * Return: None
+ */
+static void hdd_ns_offload_info_lock_create(hdd_adapter_t *adapter)
+{
+}
+
+/**
+ * hdd_ns_offload_info_lock_destroy() - Destroy mutex lock for ns offload info
+ * @adapter: pointer to adapter for which lock is to be destroyed
+ *
+ * Return: None
+ */
+static void hdd_ns_offload_info_lock_destroy(hdd_adapter_t *adapter)
+{
+}
+#endif
+
 /**
  * hdd_configure_chain_mask() - programs chain mask to firmware
  * @adapter: HDD adapter
@@ -4245,6 +4289,9 @@ hdd_adapter_t *hdd_open_adapter(hdd_context_t *hdd_ctx, uint8_t session_type,
 	hdd_info("%s interface created. iftype: %d", netdev_name(adapter->dev),
 		 session_type);
 
+	qdf_mutex_create(&adapter->arp_offload_info_lock);
+	hdd_ns_offload_info_lock_create(adapter);
+
 	return adapter;
 
 err_free_netdev:
@@ -4281,6 +4328,9 @@ QDF_STATUS hdd_close_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 		hdd_debug("wait for bus bw work to flush");
 		hdd_bus_bw_compute_timer_stop(hdd_ctx);
 		cancel_work_sync(&hdd_ctx->bus_bw_work);
+
+		qdf_mutex_destroy(&adapter->arp_offload_info_lock);
+		hdd_ns_offload_info_lock_destroy(adapter);
 
 		/* cleanup adapter */
 		cds_clear_concurrency_mode(adapter->device_mode);

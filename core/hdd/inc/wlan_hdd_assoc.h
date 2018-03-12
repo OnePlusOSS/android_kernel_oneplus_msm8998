@@ -179,6 +179,8 @@ struct hdd_conn_flag {
  * @congestion: holds congestion percentage
  * @last_ssid: holds last ssid
  * @last_auth_type: holds last auth type
+ * @auth_time: last authentication established time
+ * @connect_time: last association established time
  */
 typedef struct connection_info_s {
 	eConnectionState connState;
@@ -213,6 +215,8 @@ typedef struct connection_info_s {
 	uint32_t cca;
 	tCsrSSIDInfo last_ssid;
 	eCsrAuthType last_auth_type;
+	char auth_time[HDD_TIME_STRING_LEN];
+	char connect_time[HDD_TIME_STRING_LEN];
 } connection_info_t;
 
 /* Forward declarations */

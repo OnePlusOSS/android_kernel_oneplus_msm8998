@@ -74,6 +74,8 @@ wlan_hdd_debugfs_update_csr(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 	switch (id) {
 	case HDD_DEBUFS_FILE_ID_CONNECT_INFO:
 		/* populate connect info */
+		len = wlan_hdd_debugfs_update_connect_info(hdd_ctx, adapter,
+							   buf, buf_avail_len);
 		break;
 	case HDD_DEBUFS_FILE_ID_ROAM_SCAN_STATS_INFO:
 		/* populate roam scan stats info */
@@ -293,10 +295,25 @@ static const struct file_operations fops_csr_debugfs = {
 
 void wlan_hdd_debugfs_csr_init(hdd_adapter_t *adapter)
 {
+	struct hdd_debugfs_file_info *csr;
+	const uint32_t max_len = HDD_DEBUGFS_FILE_NAME_MAX;
+
 	/*
 	 * Create debufs diagnostic files for connect, offload info
 	 * and roam info and store in csr_file member of adapter
 	 */
+
+	csr = &adapter->csr_file[HDD_DEBUFS_FILE_ID_CONNECT_INFO];
+	if (!csr->entry) {
+		strlcpy(csr->name, "connect_info", max_len);
+		csr->id = HDD_DEBUFS_FILE_ID_CONNECT_INFO;
+		csr->buf_max_size = DEBUGFS_CONNECT_INFO_BUF_SIZE;
+		csr->entry = debugfs_create_file(csr->name, 0444,
+						 adapter->debugfs_phy,
+						 csr, &fops_csr_debugfs);
+		if (!csr->entry)
+			hdd_err("Failed to create connect_info debugfs file");
+	}
 }
 
 void wlan_hdd_debugfs_csr_deinit(hdd_adapter_t *adapter)

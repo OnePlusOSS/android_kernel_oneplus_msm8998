@@ -713,6 +713,7 @@ struct sir_mgmt_msg {
 #define SIR_HAL_HLP_IE_INFO                 (SIR_HAL_ITC_MSG_TYPES_BEGIN + 390)
 #define SIR_HAL_INVOKE_NEIGHBOR_REPORT      (SIR_HAL_ITC_MSG_TYPES_BEGIN + 391)
 #define SIR_HAL_NDP_SCH_UPDATE_IND          (SIR_HAL_ITC_MSG_TYPES_BEGIN + 392)
+#define SIR_HAL_GET_ROAM_SCAN_STATS         (SIR_HAL_ITC_MSG_TYPES_BEGIN + 393)
 
 #define SIR_HAL_MSG_TYPES_END               (SIR_HAL_MSG_TYPES_BEGIN + 0x1FF)
 /* CFG message types */

@@ -2711,6 +2711,11 @@ QDF_STATUS wma_open(void *cds_context,
 					WMA_RX_SERIALIZER_CTX);
 
 	wmi_unified_register_event_handler(wma_handle->wmi_handle,
+					   WMI_ROAM_SCAN_STATS_EVENTID,
+					   wma_roam_scan_stats_event_handler,
+					   WMA_RX_SERIALIZER_CTX);
+
+	wmi_unified_register_event_handler(wma_handle->wmi_handle,
 					   WMI_UPDATE_VDEV_RATE_STATS_EVENTID,
 					   wma_link_status_event_handler,
 					   WMA_RX_SERIALIZER_CTX);
@@ -3854,6 +3859,14 @@ QDF_STATUS wma_wmi_service_close(void *cds_ctx)
 			qdf_mem_free(wma_handle->
 				     interfaces[i].action_frame_filter);
 			wma_handle->interfaces[i].action_frame_filter = NULL;
+		}
+
+		if (wma_handle->interfaces[i].roam_scan_stats_req) {
+			struct sir_roam_scan_stats *req;
+
+			req = wma_handle->interfaces[i].roam_scan_stats_req;
+			wma_handle->interfaces[i].roam_scan_stats_req = NULL;
+			qdf_mem_free(req);
 		}
 
 		if (wma_handle->interfaces[i].roam_synch_frame_ind.
@@ -8231,6 +8244,10 @@ QDF_STATUS wma_mc_process_msg(void *cds_context, cds_msg_t *msg)
 	case WMA_INVOKE_NEIGHBOR_REPORT:
 		wma_send_invoke_neighbor_report(wma_handle,
 		(struct wmi_invoke_neighbor_report_params *)msg->bodyptr);
+		qdf_mem_free(msg->bodyptr);
+		break;
+	case WMA_GET_ROAM_SCAN_STATS:
+		wma_get_roam_scan_stats(wma_handle, msg->bodyptr);
 		qdf_mem_free(msg->bodyptr);
 		break;
 	default:

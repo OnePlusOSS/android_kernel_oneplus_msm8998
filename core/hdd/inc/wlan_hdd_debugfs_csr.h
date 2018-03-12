@@ -39,6 +39,7 @@
 
 #define DEBUGFS_CONNECT_INFO_BUF_SIZE    (4 * 1024)
 #define DEBUGFS_OFFLOAD_INFO_BUF_SIZE    (4 * 1024)
+#define DEBUGFS_ROAM_SCAN_STATS_INFO_BUF_SIZE (4 * 1024)
 
 /**
  * struct wlan_hdd_debugfs_buffer_info - Debugfs buffer info
@@ -57,6 +58,14 @@ struct wlan_hdd_debugfs_buffer_info {
 	enum hdd_debugfs_file_id id;
 	uint8_t *data;
 	hdd_adapter_t *adapter;
+};
+
+/**
+ * struct hdd_roam_scan_stats_debugfs_priv - private data for request mgr
+ * @res: pointer to roam scan stats response
+ */
+struct hdd_roam_scan_stats_debugfs_priv {
+	struct wmi_roam_scan_stats_res *roam_scan_stats_res;
 };
 
 #ifdef WLAN_DEBUGFS
@@ -111,6 +120,19 @@ ssize_t
 wlan_hdd_debugfs_update_filters_info(hdd_context_t *hdd_ctx,
 				     hdd_adapter_t *adapter,
 				     uint8_t *buf, ssize_t buf_avail_len);
+
+/**
+ * wlan_hdd_debugfs_update_roam_stats() - API to get roam scan stats info
+ * into user buffer
+ * @buf: output buffer to hold roam scan stats info
+ * @buf_avail_len: available buffer length
+ *
+ * Return: No.of bytes copied
+ */
+ssize_t
+wlan_hdd_debugfs_update_roam_stats(hdd_context_t *hdd_ctx,
+				   hdd_adapter_t *adapter,
+				   uint8_t *buf, ssize_t buf_avail_len);
 
 #else
 /**
@@ -174,6 +196,22 @@ static inline ssize_t
 wlan_hdd_debugfs_update_filters_info(hdd_context_t *hdd_ctx,
 				     hdd_adapter_t *adapter,
 				     uint8_t *buf, ssize_t buf_avail_len)
+{
+	return 0;
+}
+
+/**
+ * wlan_hdd_debugfs_update_roam_stats() - API to get roam scan stats info
+ * into user buffer
+ * @buf: output buffer to hold roam scan stats info
+ * @buf_avail_len: available buffer length
+ *
+ * Return: No.of bytes copied
+ */
+static inline ssize_t
+wlan_hdd_debugfs_update_roam_stats(hdd_context_t *hdd_ctx,
+				   hdd_adapter_t *adapter,
+				   uint8_t *buf, ssize_t buf_avail_len)
 {
 	return 0;
 }

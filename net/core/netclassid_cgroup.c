@@ -81,13 +81,19 @@ static void update_classid(struct cgroup_subsys_state *css, void *v)
 	css_task_iter_end(&it);
 }
 
+/*remove unnecessary iterating tasks by huruihuan*/
 static void cgrp_attach(struct cgroup_taskset *tset)
 {
 	struct cgroup_subsys_state *css;
+	struct task_struct *task;
 
 	cgroup_taskset_first(tset, &css);
-	update_classid(css,
-		       (void *)(unsigned long)css_cls_state(css)->classid);
+	cgroup_taskset_for_each(task, css, tset) {
+		task_lock(task);
+		iterate_fd(task->files, 0, update_classid_sock,
+			   (void *)(unsigned long)css_cls_state(css)->classid);
+		task_unlock(task);
+	}
 }
 
 static u64 read_classid(struct cgroup_subsys_state *css, struct cftype *cft)

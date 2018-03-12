@@ -801,9 +801,13 @@ const struct file_operations dwc3_ep_trb_list_fops = {
 	.release		= single_release,
 };
 
-static unsigned int ep_addr_rxdbg_mask = 1;
+/* neiltsai, 20170331, add qualcomm patch */
+static unsigned int ep_addr_rxdbg_mask = 0xFF;
+/* neiltsai, 20170331, add qualcomm patch */
 module_param(ep_addr_rxdbg_mask, uint, S_IRUGO | S_IWUSR);
-static unsigned int ep_addr_txdbg_mask = 1;
+/* neiltsai, 20170331, add qualcomm patch */
+static unsigned int ep_addr_txdbg_mask = 0xFF;
+/* neiltsai, 20170331, add qualcomm patch */
 module_param(ep_addr_txdbg_mask, uint, S_IRUGO | S_IWUSR);
 
 /* Maximum debug message length */

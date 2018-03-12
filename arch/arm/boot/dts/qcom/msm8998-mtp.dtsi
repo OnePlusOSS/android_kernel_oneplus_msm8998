@@ -11,7 +11,7 @@
  */
 
 #include <dt-bindings/interrupt-controller/irq.h>
-#include "msm8998-camera-sensor-mtp.dtsi"
+//#include "msm8998-camera-sensor-mtp.dtsi"
 &vendor {
 	bluetooth: bt_wcn3990 {
 		compatible = "qca,wcn3990";
@@ -147,16 +147,6 @@
 		qcom,out-strength = <1>;
 		qcom,src-sel = <3>;
 		qcom,master-en = <1>;
-		status = "okay";
-	};
-
-	gpio@d200 { /* GPIO 19 - wil6210 refclk3_en */
-		qcom,mode = <0>;		/* Input */
-		qcom,pull = <5>;		/* No Pull */
-		qcom,vin-sel = <1>;		/* VIN1 GPIO_MV */
-		qcom,src-sel = <0>;		/* GPIO */
-		qcom,invert = <0>;		/* Invert */
-		qcom,master-en = <1>;		/* Enable GPIO */
 		status = "okay";
 	};
 
@@ -600,6 +590,7 @@
 &vendor {
 	mtp_batterydata: qcom,battery-data {
 		qcom,batt-id-range-pct = <15>;
+		#include "OP-batterydata-3300mah.dtsi"
 		#include "fg-gen3-batterydata-itech-3000mah.dtsi"
 		#include "fg-gen3-batterydata-ascent-3450mah.dtsi"
 		#include "fg-gen3-batterydata-demo-6000mah.dtsi"

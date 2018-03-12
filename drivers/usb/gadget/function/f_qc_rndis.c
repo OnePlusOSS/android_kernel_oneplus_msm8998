@@ -1144,14 +1144,18 @@ rndis_qc_unbind(struct usb_configuration *c, struct usb_function *f)
 void rndis_ipa_reset_trigger(void)
 {
 	struct f_rndis_qc *rndis;
+	unsigned long flags;
 
+	spin_lock_irqsave(&rndis_lock, flags);
 	rndis = _rndis_qc;
 	if (!rndis) {
 		pr_err("%s: No RNDIS instance", __func__);
+		spin_unlock_irqrestore(&rndis_lock, flags);
 		return;
 	}
 
 	rndis->net_ready_trigger = false;
+	spin_unlock_irqrestore(&rndis_lock, flags);
 }
 
 /*
@@ -1534,6 +1538,12 @@ static struct usb_function_instance *qcrndis_alloc_inst(void)
 	return &opts->func_inst;
 }
 
+static void rndis_qc_cleanup(void)
+{
+	pr_debug("rndis QC cleanup\n");
+	misc_deregister(&rndis_qc_device);
+}
+
 void *rndis_qc_get_ipa_rx_cb(void)
 {
 	return rndis_ipa_params.ipa_rx_notify;
@@ -1571,6 +1581,7 @@ static int __init usb_qcrndis_init(void)
 static void __exit usb_qcrndis_exit(void)
 {
 	usb_function_unregister(&rndis_bamusb_func);
+	rndis_qc_cleanup();
 }
 
 module_init(usb_qcrndis_init);

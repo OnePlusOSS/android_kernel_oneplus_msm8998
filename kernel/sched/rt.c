@@ -9,6 +9,7 @@
 #include <linux/slab.h>
 #include <linux/irq_work.h>
 #include <trace/events/sched.h>
+#include <../drivers/oneplus/coretech/opchain/opchain_helper.h>
 
 int sched_rr_timeslice = RR_TIMESLICE;
 
@@ -1865,7 +1866,15 @@ retry:
 					continue;
 				}
 			}
-
+			if (best_cpu != -1) {
+				if (opc_get_claim_on_cpu(i))
+					continue;
+				else if (opc_get_claim_on_cpu(best_cpu)) {
+					min_load = cpu_load;
+					best_cpu = i;
+					continue;
+				}
+			}
 			if (cpu_load < min_load ||
 				(cpu_load == min_load &&
 				(i == prev_cpu || (best_cpu != prev_cpu &&

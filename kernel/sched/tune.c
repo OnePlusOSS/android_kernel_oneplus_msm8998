@@ -378,7 +378,6 @@ static int sched_colocate_write(struct cgroup_subsys_state *css,
 		return -EPERM;
 
 	st->colocate = !!colocate;
-	st->colocate_update_disabled = true;
 	return 0;
 }
 

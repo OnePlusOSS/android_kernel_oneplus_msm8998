@@ -30,6 +30,7 @@
 #include <linux/uaccess.h>
 #include <linux/kobject.h>
 #include <linux/ctype.h>
+#include <linux/module.h>
 
 /* selinuxfs pseudo filesystem for exporting the security policy API.
    Based on the proc code and the fs/nfsd/nfsctl.c code. */
@@ -128,6 +129,8 @@ static unsigned long sel_last_ino = SEL_INO_NEXT - 1;
 #define SEL_INO_MASK			0x00ffffff
 
 #define TMPBUFLEN	12
+static int selinux_switch;
+
 static ssize_t sel_read_enforce(struct file *filp, char __user *buf,
 				size_t count, loff_t *ppos)
 {
@@ -137,6 +140,28 @@ static ssize_t sel_read_enforce(struct file *filp, char __user *buf,
 	length = scnprintf(tmpbuf, TMPBUFLEN, "%d", selinux_enforcing);
 	return simple_read_from_buffer(buf, count, ppos, tmpbuf, length);
 }
+
+int open_selinux_switch(void)
+{
+	selinux_switch = 1;
+
+	return 0;
+}
+EXPORT_SYMBOL(open_selinux_switch);
+
+int set_selinux_switch(const char __user *buf, struct kernel_param *kp)
+{
+	int val = 0;
+
+	if (kstrtoint(buf, 0, &val))
+		return 0;
+	if (val == 1)
+		selinux_switch = 1;
+
+	return 0;
+}
+module_param_call(selinux_switch, set_selinux_switch,
+			 NULL, NULL, 0644);
 
 #ifdef CONFIG_SECURITY_SELINUX_DEVELOP
 static ssize_t sel_write_enforce(struct file *file, const char __user *buf,
@@ -511,8 +536,9 @@ static ssize_t sel_write_load(struct file *file, const char __user *buf,
 	mutex_lock(&sel_mutex);
 
 	length = task_has_security(current, SECURITY__LOAD_POLICY);
-	if (length)
+	if (length && !selinux_switch)
 		goto out;
+	selinux_switch = 0;
 
 	/* No partial writes. */
 	length = -EINVAL;

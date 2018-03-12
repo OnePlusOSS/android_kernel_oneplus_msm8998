@@ -164,6 +164,8 @@
 #define	FLASH_LED_IRES12P5_MAX_CURR_MA		1600
 #define	MAX_IRES_LEVELS				4
 
+#define	FLASH_LED_MIN_CURRENT_MA		25
+
 /* notifier call chain for flash-led irqs */
 static ATOMIC_NOTIFIER_HEAD(irq_notifier_list);
 
@@ -949,14 +951,12 @@ static void qpnp_flash_led_node_set(struct flash_node_data *fnode, int value)
 {
 	int i = 0;
 	int prgm_current_ma = value;
-	int min_ma = fnode->ires_ua / 1000;
 	struct qpnp_flash_led *led = dev_get_drvdata(&fnode->pdev->dev);
 
 	if (value <= 0)
 		prgm_current_ma = 0;
-	else if (value < min_ma)
-		prgm_current_ma = min_ma;
-
+	else if (value < FLASH_LED_MIN_CURRENT_MA)
+		prgm_current_ma = FLASH_LED_MIN_CURRENT_MA;
 	fnode->ires_idx = fnode->default_ires_idx;
 	fnode->ires_ua = fnode->default_ires_ua;
 

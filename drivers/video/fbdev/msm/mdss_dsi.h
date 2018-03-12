@@ -576,7 +576,72 @@ struct mdss_dsi_ctrl_pdata {
 	struct mdss_dsi_debugfs_info *debugfs_info;
 
 	struct dsi_err_container err_cont;
-
+	struct mutex panel_mode_lock;
+//#endif
+    bool is_panel_on;
+//#endif
+    bool high_brightness_panel;
+//#endif
+    bool bl_high2bit;
+    int  disp_poc_en_gpio;
+//#endif
+	int acl_mode;
+	struct dsi_panel_cmds acl_cmds;
+	int acl_ncmds;
+	int acl_npayload;
+//#endif
+	struct dsi_panel_cmds hbm_on_cmds;
+	struct dsi_panel_cmds hbm_off_cmds;
+	int  hbm_mode;
+//#endif
+	bool setting_mode_loaded;
+//#endif
+	int SRGB_mode;
+	struct dsi_panel_cmds srgb_on_cmds;
+	struct dsi_panel_cmds srgb_off_cmds;
+//#endif
+	int Adobe_RGB_mode;
+	struct dsi_panel_cmds Adobe_RGB_on_cmds;
+	struct dsi_panel_cmds Adobe_RGB_off_cmds;
+//#endif
+	int dci_p3_mode;
+	struct dsi_panel_cmds dci_p3_on_cmds;
+	struct dsi_panel_cmds dci_p3_off_cmds;
+//#endif
+	int night_mode;
+	struct dsi_panel_cmds night_mode_on_cmds;
+	struct dsi_panel_cmds night_mode_off_cmds;
+	int oneplus_mode;
+	struct dsi_panel_cmds oneplus_mode_on_cmds;
+	struct dsi_panel_cmds oneplus_mode_off_cmds;
+	int adaption_mode;
+	struct dsi_panel_cmds adaption_mode_on_cmds;
+	struct dsi_panel_cmds adaption_mode_off_cmds;
+//#endif
+	struct dsi_panel_cmds panel_serial_num_cmds;
+	int panel_year;
+	int panel_mon;
+	int panel_day;
+	int panel_hour;
+	int panel_min;
+    int panel_year_index;
+	int panel_mon_index;
+	int panel_day_index;
+	int panel_hour_index;
+	int panel_min_index;
+//#endif
+	int disp_vci_en_gpio;
+	struct delayed_work techeck_work;
+	struct completion te_comp;
+//#endif
+	const char *px_clk_src_name;
+	struct	clk	*px_clk_src;
+	int px_clk_enabled;
+	int px_bp_gpio;
+	int px_1v1_en_gpio;
+    spinlock_t iris_lock;
+    bool iris_enabled;
+//#endif
 	struct kobject *kobj;
 	int fb_node;
 
@@ -713,6 +778,48 @@ int mdss_dsi_phy_pll_reset_status(struct mdss_dsi_ctrl_pdata *ctrl);
 int mdss_dsi_check_panel_status(struct mdss_dsi_ctrl_pdata *ctrl, void *arg);
 
 void mdss_dsi_debug_bus_init(struct mdss_dsi_data *sdata);
+
+int mdss_dsi_px_clk_req(struct mdss_panel_data *pdata, int enable);
+int mdss_dsi_disp_vci_en(struct mdss_panel_data *pdata, int enable);
+int mdss_dsi_px_1v1_en(struct mdss_panel_data *pdata, int enable);
+//#endif
+int mdss_dsi_panel_set_acl(struct mdss_dsi_ctrl_pdata *ctrl, int mode);
+int mdss_dsi_panel_get_acl_mode(struct mdss_dsi_ctrl_pdata *ctrl);
+//#endif
+int mdss_dsi_panel_set_hbm_mode(struct mdss_dsi_ctrl_pdata *ctrl, int level);
+int mdss_dsi_panel_get_hbm_mode(struct mdss_dsi_ctrl_pdata *ctrl);
+//#endif
+int mdss_dsi_panel_set_srgb_mode(struct mdss_dsi_ctrl_pdata *ctrl, int level);
+int mdss_dsi_panel_get_srgb_mode(struct mdss_dsi_ctrl_pdata *ctrl);
+//#endif
+int mdss_dsi_panel_set_adobe_rgb_mode(struct mdss_dsi_ctrl_pdata *ctrl, int level);
+int mdss_dsi_panel_get_adobe_rgb_mode(struct mdss_dsi_ctrl_pdata *ctrl);
+//#endif
+int mdss_dsi_panel_set_dci_p3_mode(struct mdss_dsi_ctrl_pdata *ctrl, int level);
+int mdss_dsi_panel_get_dci_p3_mode(struct mdss_dsi_ctrl_pdata *ctrl);
+//#endif
+int mdss_dsi_panel_set_night_mode(struct mdss_dsi_ctrl_pdata *ctrl, int level);
+int mdss_dsi_panel_get_night_mode(struct mdss_dsi_ctrl_pdata *ctrl);
+
+
+int mdss_dsi_panel_set_oneplus_mode(struct mdss_dsi_ctrl_pdata *ctrl, int level);
+int mdss_dsi_panel_get_oneplus_mode(struct mdss_dsi_ctrl_pdata *ctrl);
+
+
+int mdss_dsi_panel_set_adaption_mode(struct mdss_dsi_ctrl_pdata *ctrl, int level);
+int mdss_dsi_panel_get_adaption_mode(struct mdss_dsi_ctrl_pdata *ctrl);
+
+
+//#endif
+int mdss_dsi_panel_set_reading_mode(struct mdss_dsi_ctrl_pdata *ctrl, int level);
+int mdss_dsi_panel_get_reading_mode(struct mdss_dsi_ctrl_pdata *ctrl);
+//#endif
+
+int mdss_dsi_disp_poc_en(struct mdss_panel_data *pdata, int enable);
+//#endif
+
+int mdss_dsi_panel_get_serial_number(struct mdss_dsi_ctrl_pdata *ctrl);
+//#endif
 
 static inline const char *__mdss_dsi_pm_name(enum dsi_pm_type module)
 {

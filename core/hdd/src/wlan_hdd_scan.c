@@ -1787,7 +1787,6 @@ static void wlan_hdd_update_scan_rand_attrs(void *scan_req,
 		flags = request->flags;
 		if (!(flags & NL80211_SCAN_FLAG_RANDOM_ADDR))
 			return;
-
 		cfg_mac_addr = request->mac_addr;
 		cfg_mac_addr_mask = request->mac_addr_mask;
 		scan_randomization = &csr_scan_req->enable_scan_randomization;
@@ -2398,6 +2397,10 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 		sme_scan_flush_result(WLAN_HDD_GET_HAL_CTX(pAdapter));
 	}
 #endif
+
+	hdd_debug("enable_mac_spoofing:- %d. Scan flag value received from kernel:- 0x%x",
+		  cfg_param->enable_mac_spoofing, request->flags);
+
 	if (cfg_param->enable_mac_spoofing)
 		wlan_hdd_update_scan_rand_attrs((void *)&scan_req,
 				(void *)request, WLAN_HDD_HOST_SCAN);

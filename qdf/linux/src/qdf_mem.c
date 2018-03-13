@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -59,6 +59,7 @@
 /* Preprocessor Definitions and Constants */
 #define QDF_MEM_MAX_MALLOC (1024 * 1024) /* 1MiB */
 #define QDF_MEM_WARN_THRESHOLD 300 /* ms */
+#define QDF_DEBUG_STRING_SIZE 512
 
 static enum qdf_mem_domain qdf_mem_current_domain = QDF_MEM_DOMAIN_INIT;
 
@@ -455,6 +456,12 @@ static void qdf_mem_meta_table_print(struct __qdf_mem_info *table,
 				     void *print_priv)
 {
 	int i;
+	char debug_str[QDF_DEBUG_STRING_SIZE];
+	size_t len = 0;
+	char *debug_prefix = "WLAN_BUG_RCA: memory leak detected";
+
+	len += qdf_scnprintf(debug_str, sizeof(debug_str) - len,
+			     "%s", debug_prefix);
 
 	for (i = 0; i < QDF_MEM_STAT_TABLE_SIZE; i++) {
 		if (!table[i].count)
@@ -467,7 +474,13 @@ static void qdf_mem_meta_table_print(struct __qdf_mem_info *table,
 		      table[i].count * table[i].size,
 		      kbasename(table[i].file),
 		      table[i].line);
+		len += qdf_scnprintf(debug_str + len,
+				     sizeof(debug_str) - len,
+				     " @ %s:%u",
+				     kbasename(table[i].file),
+				     table[i].line);
 	}
+	print(print_priv, "%s", debug_str);
 }
 
 /**

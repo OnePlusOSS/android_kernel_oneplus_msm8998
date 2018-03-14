@@ -9907,6 +9907,8 @@ void cds_init_sap_mandatory_2g_chan(void)
 		cds_err("Error in getting valid channels");
 		return;
 	}
+	cds_ctx->sap_mandatory_channels_len = 0;
+
 	for (i = 0; i < len; i++) {
 		if (CDS_IS_CHANNEL_24GHZ(chan_list[i])) {
 			cds_err("Add chan %hu to mandatory list", chan_list[i]);

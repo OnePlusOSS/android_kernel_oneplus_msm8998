@@ -9077,13 +9077,14 @@ static int __wlan_hdd_cfg80211_start_ap(struct wiphy *wiphy,
 	}
 
 	if (cds_is_sap_mandatory_chan_list_enabled()) {
-		if (!cds_get_sap_mandatory_chan_list_len())
-			cds_init_sap_mandatory_2g_chan();
-
 		if (CDS_IS_CHANNEL_5GHZ(channel)) {
 			hdd_debug("channel %hu, sap mandatory chan list enabled",
 					channel);
+			if (!cds_get_sap_mandatory_chan_list_len())
+				cds_init_sap_mandatory_2g_chan();
 			cds_add_sap_mandatory_chan(channel);
+		} else {
+			cds_init_sap_mandatory_2g_chan();
 		}
 	}
 

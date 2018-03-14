@@ -706,4 +706,14 @@ QDF_STATUS wlan_hdd_send_sta_authorized_event(
 					hdd_adapter_t *pAdapter,
 					hdd_context_t *pHddCtx,
 					const struct qdf_mac_addr *mac_addr);
+
+/**
+ * wlan_hdd_restore_channels() - Restore the channels which were cached
+ * and disabled in wlan_hdd_disable_channels api.
+ * @hdd_ctx: Pointer to the HDD context
+ *
+ * Return: 0 on success, Error code on failure
+ */
+int wlan_hdd_restore_channels(hdd_context_t *hdd_ctx);
+
 #endif

@@ -3367,7 +3367,7 @@ int hdd_wlan_get_frag_threshold(hdd_adapter_t *pAdapter,
  * @channel: channel to be converted
  * @pfreq: where to store the frequency
  *
- * Return: 1 on success, otherwise a negative errno
+ * Return: 0 on success, otherwise a negative errno
  */
 int hdd_wlan_get_freq(uint32_t channel, uint32_t *pfreq)
 {
@@ -3377,7 +3377,7 @@ int hdd_wlan_get_freq(uint32_t channel, uint32_t *pfreq)
 		for (i = 0; i < FREQ_CHAN_MAP_TABLE_SIZE; i++) {
 			if (channel == freq_chan_map[i].chan) {
 				*pfreq = freq_chan_map[i].freq;
-				return 1;
+				return 0;
 			}
 		}
 	}
@@ -4865,7 +4865,7 @@ static int __iw_get_freq(struct net_device *dev, struct iw_request_info *info,
 			return -EIO;
 		}
 		status = hdd_wlan_get_freq(channel, &freq);
-		if (true == status) {
+		if (0 == status) {
 			/* Set Exponent parameter as 6 (MHZ)
 			 * in struct iw_freq iwlist & iwconfig
 			 * command shows frequency into proper

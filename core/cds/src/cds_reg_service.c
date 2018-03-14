@@ -224,6 +224,16 @@ enum channel_enum cds_get_channel_enum(uint32_t chan_num)
 	return INVALID_CHANNEL;
 }
 
+void cds_set_channel_state(uint32_t chan_num, enum channel_state state)
+{
+	enum channel_enum chan_enum;
+
+	chan_enum = cds_get_channel_enum(chan_num);
+	if (INVALID_CHANNEL == chan_enum)
+		return;
+
+	reg_channels[chan_enum].state = state;
+}
 
 /**
  * cds_get_channel_state() - get the channel state

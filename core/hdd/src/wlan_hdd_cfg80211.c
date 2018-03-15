@@ -1629,31 +1629,28 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 
 	ret = wlan_hdd_validate_context(hdd_ctx);
 	if (ret)
-		goto out;
+		return ret;
 
 	if (cds_is_sub_20_mhz_enabled()) {
 		hdd_err("ACS not supported in sub 20 MHz ch wd.");
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
-
-	if (qdf_atomic_inc_return(&hdd_ctx->is_acs_allowed) > 1) {
+	if (qdf_atomic_read(&adapter->sessionCtx.ap.acs_in_progress) > 0) {
 		hdd_err("ACS rejected as previous req already in progress");
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
+	} else {
+		qdf_atomic_set(&adapter->sessionCtx.ap.acs_in_progress, 1);
 	}
 
 	ret = hdd_nla_parse(tb, QCA_WLAN_VENDOR_ATTR_ACS_MAX, data, data_len,
 			    wlan_hdd_cfg80211_do_acs_policy);
 	if (ret) {
 		hdd_err("Invalid ATTR");
-		qdf_atomic_set(&hdd_ctx->is_acs_allowed, 0);
 		goto out;
 	}
 
 	if (!tb[QCA_WLAN_VENDOR_ATTR_ACS_HW_MODE]) {
 		hdd_err("Attr hw_mode failed");
-		qdf_atomic_set(&hdd_ctx->is_acs_allowed, 0);
 		goto out;
 	}
 	hw_mode = nla_get_u8(tb[QCA_WLAN_VENDOR_ATTR_ACS_HW_MODE]);
@@ -1739,7 +1736,6 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 					sizeof(uint8_t) *
 					sap_config->acs_cfg.ch_list_count);
 			if (sap_config->acs_cfg.ch_list == NULL) {
-				qdf_atomic_set(&hdd_ctx->is_acs_allowed, 0);
 				ret = -ENOMEM;
 				goto out;
 			}
@@ -1758,7 +1754,6 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 				sap_config->acs_cfg.ch_list_count);
 			if (sap_config->acs_cfg.ch_list == NULL) {
 				hdd_err("ACS config alloc fail");
-				qdf_atomic_set(&hdd_ctx->is_acs_allowed, 0);
 				ret = -ENOMEM;
 				goto out;
 			}
@@ -1850,6 +1845,8 @@ out:
 		if (temp_skbuff != NULL)
 			return cfg80211_vendor_cmd_reply(temp_skbuff);
 	}
+
+	qdf_atomic_set(&adapter->sessionCtx.ap.acs_in_progress, 0);
 	wlan_hdd_undo_acs(adapter);
 	clear_bit(ACS_IN_PROGRESS, &hdd_ctx->g_event_flags);
 

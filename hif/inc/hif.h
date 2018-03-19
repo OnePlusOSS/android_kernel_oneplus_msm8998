@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -52,6 +52,7 @@ typedef void __iomem *A_target_id_t;
 typedef void *hif_handle_t;
 
 #define HIF_DBG_PRINT_RATE 1000
+#define HIF_RATE_LIMIT_CE_ACCESS_LOG (64)
 
 #define HIF_TYPE_AR6002   2
 #define HIF_TYPE_AR6003   3

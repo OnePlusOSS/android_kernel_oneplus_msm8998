@@ -1475,6 +1475,18 @@ QDF_STATUS wmi_unified_extract_sar_limit_event(void *wmi_hdl,
 					       uint8_t *evt_buf,
 					       struct sar_limit_event *event);
 
+/**
+ * wmi_unified_extract_sar2_result_event() - extract SAR limits from FW event
+ * @handle: wmi handle
+ * @event: event buffer received from firmware
+ * @len: length of the event buffer
+ *
+ * Return: QDF_STATUS_SUCCESS for success or error code
+ */
+QDF_STATUS wmi_unified_extract_sar2_result_event(void *handle,
+						 uint8_t *event, uint32_t len);
+
+
 QDF_STATUS wmi_unified_send_adapt_dwelltime_params_cmd(void *wmi_hdl,
 				   struct wmi_adaptive_dwelltime_params *
 				   wmi_param);

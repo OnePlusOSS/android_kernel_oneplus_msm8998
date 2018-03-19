@@ -8178,6 +8178,20 @@ QDF_STATUS wma_set_led_flashing(tp_wma_handle wma_handle,
 }
 #endif /* WLAN_FEATURE_GPIO_LED_FLASHING */
 
+int wma_sar_rsp_evt_handler(void *handle, uint8_t *event, uint32_t len)
+{
+	QDF_STATUS status;
+
+	status = wmi_unified_extract_sar2_result_event(handle,
+						       event, len);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		WMA_LOGE(FL("Event extract failure: %d"), status);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 #ifdef FEATURE_WLAN_CH_AVOID
 /**
  * wma_channel_avoid_evt_handler() -  process channel to avoid event from FW.

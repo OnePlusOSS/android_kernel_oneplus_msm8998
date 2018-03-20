@@ -6266,12 +6266,12 @@ static int __iw_get_essid(struct net_device *dev,
  */
 int iw_get_essid(struct net_device *dev,
 		 struct iw_request_info *info,
-		 struct iw_point *wrqu, char *extra)
+		 union iwreq_data *wrqu, char *extra)
 {
 	int ret;
 
 	cds_ssr_protect(__func__);
-	ret = __iw_get_essid(dev, info, wrqu, extra);
+	ret = __iw_get_essid(dev, info, &wrqu->essid, extra);
 	cds_ssr_unprotect(__func__);
 
 	return ret;

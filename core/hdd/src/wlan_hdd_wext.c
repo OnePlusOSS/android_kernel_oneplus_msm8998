@@ -4523,13 +4523,13 @@ static int __iw_get_name(struct net_device *dev,
  * Return: 0 on success, error number otherwise
  */
 static int iw_get_name(struct net_device *dev,
-			 struct iw_request_info *info,
-			 char *wrqu, char *extra)
+		       struct iw_request_info *info,
+		       union iwreq_data *wrqu, char *extra)
 {
 	int ret;
 
 	cds_ssr_protect(__func__);
-	ret = __iw_get_name(dev, info, wrqu, extra);
+	ret = __iw_get_name(dev, info, wrqu->name, extra);
 	cds_ssr_unprotect(__func__);
 
 	return ret;
@@ -4910,12 +4910,12 @@ static int __iw_get_freq(struct net_device *dev, struct iw_request_info *info,
  * Return: 0 on success, error number otherwise
  */
 static int iw_get_freq(struct net_device *dev, struct iw_request_info *info,
-		       struct iw_freq *fwrq, char *extra)
+		       union iwreq_data *fwrq, char *extra)
 {
 	int ret;
 
 	cds_ssr_protect(__func__);
-	ret = __iw_get_freq(dev, info, fwrq, extra);
+	ret = __iw_get_freq(dev, info, &fwrq->freq, extra);
 	cds_ssr_unprotect(__func__);
 
 	return ret;
@@ -5590,12 +5590,12 @@ static int __iw_get_encode(struct net_device *dev,
  * Return: 0 on success, error number otherwise
  */
 static int iw_get_encode(struct net_device *dev, struct iw_request_info *info,
-			 struct iw_point *dwrq, char *extra)
+			 union iwreq_data *dwrq, char *extra)
 {
 	int ret;
 
 	cds_ssr_protect(__func__);
-	ret = __iw_get_encode(dev, info, dwrq, extra);
+	ret = __iw_get_encode(dev, info, &dwrq->encoding, extra);
 	cds_ssr_unprotect(__func__);
 
 	return ret;
@@ -6793,12 +6793,12 @@ static int __iw_get_encodeext(struct net_device *dev,
  */
 static int iw_get_encodeext(struct net_device *dev,
 			    struct iw_request_info *info,
-			    struct iw_point *dwrq, char *extra)
+			    union iwreq_data *dwrq, char *extra)
 {
 	int ret;
 
 	cds_ssr_protect(__func__);
-	ret = __iw_get_encodeext(dev, info, dwrq, extra);
+	ret = __iw_get_encodeext(dev, info, &dwrq->encoding, extra);
 	cds_ssr_unprotect(__func__);
 
 	return ret;
@@ -12776,61 +12776,61 @@ static int iw_set_two_ints_getnone(struct net_device *dev,
 /* A number of these routines are NULL (meaning they are not implemented.) */
 
 static const iw_handler we_handler[] = {
-	(iw_handler) iw_set_commit,     /* SIOCSIWCOMMIT */
-	(iw_handler) iw_get_name,       /* SIOCGIWNAME */
-	(iw_handler) NULL,      /* SIOCSIWNWID */
-	(iw_handler) NULL,      /* SIOCGIWNWID */
-	(iw_handler) iw_set_freq,       /* SIOCSIWFREQ */
-	(iw_handler) iw_get_freq,       /* SIOCGIWFREQ */
-	(iw_handler) iw_set_mode,       /* SIOCSIWMODE */
-	(iw_handler) iw_get_mode,       /* SIOCGIWMODE */
-	(iw_handler) NULL,      /* SIOCSIWSENS */
-	(iw_handler) NULL,      /* SIOCGIWSENS */
-	(iw_handler) NULL,      /* SIOCSIWRANGE */
-	(iw_handler) iw_get_range,      /* SIOCGIWRANGE */
-	(iw_handler) NULL,      /* SIOCSIWPRIV */
-	(iw_handler) NULL,      /* SIOCGIWPRIV */
-	(iw_handler) NULL,      /* SIOCSIWSTATS */
-	(iw_handler) NULL,      /* SIOCGIWSTATS */
-	(iw_handler) NULL,      /* SIOCSIWSPY */
-	(iw_handler) NULL,      /* SIOCGIWSPY */
-	(iw_handler) NULL,      /* SIOCSIWTHRSPY */
-	(iw_handler) NULL,      /* SIOCGIWTHRSPY */
-	(iw_handler) iw_set_ap_address, /* SIOCSIWAP */
-	(iw_handler) iw_get_ap_address, /* SIOCGIWAP */
-	(iw_handler) iw_set_mlme,       /* SIOCSIWMLME */
-	(iw_handler) NULL,      /* SIOCGIWAPLIST */
-	(iw_handler) iw_set_scan,       /* SIOCSIWSCAN */
-	(iw_handler) iw_get_scan,       /* SIOCGIWSCAN */
-	(iw_handler) iw_set_essid,      /* SIOCSIWESSID */
-	(iw_handler) iw_get_essid,      /* SIOCGIWESSID */
-	(iw_handler) iw_set_nick,       /* SIOCSIWNICKN */
-	(iw_handler) iw_get_nick,       /* SIOCGIWNICKN */
-	(iw_handler) NULL,      /* -- hole -- */
-	(iw_handler) NULL,      /* -- hole -- */
-	(iw_handler) iw_set_bitrate,    /* SIOCSIWRATE */
-	(iw_handler) iw_get_bitrate,    /* SIOCGIWRATE */
-	(iw_handler) iw_set_rts_threshold,      /* SIOCSIWRTS */
-	(iw_handler) iw_get_rts_threshold,      /* SIOCGIWRTS */
-	(iw_handler) iw_set_frag_threshold,     /* SIOCSIWFRAG */
-	(iw_handler) iw_get_frag_threshold,     /* SIOCGIWFRAG */
-	(iw_handler) iw_set_tx_power,   /* SIOCSIWTXPOW */
-	(iw_handler) iw_get_tx_power,   /* SIOCGIWTXPOW */
-	(iw_handler) iw_set_retry,      /* SIOCSIWRETRY */
-	(iw_handler) iw_get_retry,      /* SIOCGIWRETRY */
-	(iw_handler) iw_set_encode,     /* SIOCSIWENCODE */
-	(iw_handler) iw_get_encode,     /* SIOCGIWENCODE */
-	(iw_handler) iw_set_power_mode, /* SIOCSIWPOWER */
-	(iw_handler) iw_get_power_mode, /* SIOCGIWPOWER */
-	(iw_handler) NULL,      /* -- hole -- */
-	(iw_handler) NULL,      /* -- hole -- */
-	(iw_handler) iw_set_genie,      /* SIOCSIWGENIE */
-	(iw_handler) iw_get_genie,      /* SIOCGIWGENIE */
-	(iw_handler) iw_set_auth,       /* SIOCSIWAUTH */
-	(iw_handler) iw_get_auth,       /* SIOCGIWAUTH */
-	(iw_handler) iw_set_encodeext,  /* SIOCSIWENCODEEXT */
-	(iw_handler) iw_get_encodeext,  /* SIOCGIWENCODEEXT */
-	(iw_handler) NULL,      /* SIOCSIWPMKSA */
+	iw_set_commit,     /* SIOCSIWCOMMIT */
+	iw_get_name,       /* SIOCGIWNAME */
+	NULL,      /* SIOCSIWNWID */
+	NULL,      /* SIOCGIWNWID */
+	iw_set_freq,       /* SIOCSIWFREQ */
+	iw_get_freq,       /* SIOCGIWFREQ */
+	iw_set_mode,       /* SIOCSIWMODE */
+	iw_get_mode,       /* SIOCGIWMODE */
+	NULL,      /* SIOCSIWSENS */
+	NULL,      /* SIOCGIWSENS */
+	NULL,      /* SIOCSIWRANGE */
+	iw_get_range,      /* SIOCGIWRANGE */
+	NULL,      /* SIOCSIWPRIV */
+	NULL,      /* SIOCGIWPRIV */
+	NULL,      /* SIOCSIWSTATS */
+	NULL,      /* SIOCGIWSTATS */
+	NULL,      /* SIOCSIWSPY */
+	NULL,      /* SIOCGIWSPY */
+	NULL,      /* SIOCSIWTHRSPY */
+	NULL,      /* SIOCGIWTHRSPY */
+	iw_set_ap_address, /* SIOCSIWAP */
+	iw_get_ap_address, /* SIOCGIWAP */
+	iw_set_mlme,       /* SIOCSIWMLME */
+	NULL,      /* SIOCGIWAPLIST */
+	iw_set_scan,       /* SIOCSIWSCAN */
+	iw_get_scan,       /* SIOCGIWSCAN */
+	iw_set_essid,      /* SIOCSIWESSID */
+	iw_get_essid,      /* SIOCGIWESSID */
+	iw_set_nick,       /* SIOCSIWNICKN */
+	iw_get_nick,       /* SIOCGIWNICKN */
+	NULL,      /* -- hole -- */
+	NULL,      /* -- hole -- */
+	iw_set_bitrate,    /* SIOCSIWRATE */
+	iw_get_bitrate,    /* SIOCGIWRATE */
+	iw_set_rts_threshold,      /* SIOCSIWRTS */
+	iw_get_rts_threshold,      /* SIOCGIWRTS */
+	iw_set_frag_threshold,     /* SIOCSIWFRAG */
+	iw_get_frag_threshold,     /* SIOCGIWFRAG */
+	iw_set_tx_power,   /* SIOCSIWTXPOW */
+	iw_get_tx_power,   /* SIOCGIWTXPOW */
+	iw_set_retry,      /* SIOCSIWRETRY */
+	iw_get_retry,      /* SIOCGIWRETRY */
+	iw_set_encode,     /* SIOCSIWENCODE */
+	iw_get_encode,     /* SIOCGIWENCODE */
+	iw_set_power_mode, /* SIOCSIWPOWER */
+	iw_get_power_mode, /* SIOCGIWPOWER */
+	NULL,      /* -- hole -- */
+	NULL,      /* -- hole -- */
+	iw_set_genie,      /* SIOCSIWGENIE */
+	iw_get_genie,      /* SIOCGIWGENIE */
+	iw_set_auth,       /* SIOCSIWAUTH */
+	iw_get_auth,       /* SIOCGIWAUTH */
+	iw_set_encodeext,  /* SIOCSIWENCODEEXT */
+	iw_get_encodeext,  /* SIOCGIWENCODEEXT */
+	NULL,      /* SIOCSIWPMKSA */
 };
 
 static const iw_handler we_private[] = {

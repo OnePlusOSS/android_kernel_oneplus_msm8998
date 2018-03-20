@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -37,7 +37,7 @@
 #include <wlan_hdd_hostapd.h>
 #include <cdp_txrx_peer_ops.h>
 
-int hdd_softap_hard_start_xmit(struct sk_buff *skb,
+netdev_tx_t hdd_softap_hard_start_xmit(struct sk_buff *skb,
 			       struct net_device *dev);
 void hdd_softap_tx_timeout(struct net_device *dev);
 QDF_STATUS hdd_softap_init_tx_rx(hdd_adapter_t *pAdapter);

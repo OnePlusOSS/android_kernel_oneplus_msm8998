@@ -787,27 +787,36 @@ static int hdd_ndp_responder_req_handler(hdd_context_t *hdd_ctx,
 
 	ENTER();
 
-	if (tb[QCA_WLAN_VENDOR_ATTR_NDP_IFACE_STR]) {
-		iface_name = nla_data(tb[QCA_WLAN_VENDOR_ATTR_NDP_IFACE_STR]);
+	/* First validate the response code from the user space */
+	if (!tb[QCA_WLAN_VENDOR_ATTR_NDP_RESPONSE_CODE]) {
+		hdd_err("ndp_rsp code is unavailable");
+		return -EINVAL;
+	}
+	req.ndp_rsp = nla_get_u32(tb[QCA_WLAN_VENDOR_ATTR_NDP_RESPONSE_CODE]);
 
-		/* Check if iface exists */
-		adapter = hdd_get_adapter_by_iface_name(hdd_ctx, iface_name);
-		if (!adapter) {
-			hdd_err("NAN data iface %s is unavailable", iface_name);
+	if (req.ndp_rsp == NDP_RESPONSE_ACCEPT) {
+		/* iface on which NDP is requested to be created */
+		if (!tb[QCA_WLAN_VENDOR_ATTR_NDP_IFACE_STR]) {
+			hdd_err("NAN iface name not provided");
 			return -ENODEV;
 		}
-
+		iface_name = nla_data(tb[QCA_WLAN_VENDOR_ATTR_NDP_IFACE_STR]);
+		adapter = hdd_get_adapter_by_iface_name(hdd_ctx, iface_name);
+		if (!adapter) {
+			hdd_err("NAN iface %s unavailable", iface_name);
+			return -ENODEV;
+		}
 		if (!WLAN_HDD_IS_NDI(adapter)) {
-			hdd_err("Interface %s is not in NDI mode", iface_name);
+			hdd_err("Iface %s not in NDI mode", iface_name);
 			return -ENODEV;
 		}
 	} else {
 		/*
-		 * If the data indication is rejected, the userspace
-		 * may not send the iface name. Use the first available NDI
-		 * in that case
+		 * If the data indication is rejected, iface name in cmd is not
+		 * required, hence the user provided iface name is discarded and
+		 * first available NDI is used.
 		 */
-		hdd_info("Iface name string is unavailable, use first NDI");
+		hdd_debug("ndp response rejected, use first available NDI");
 
 		adapter = hdd_get_adapter(hdd_ctx, QDF_NDI_MODE);
 		if (!adapter) {
@@ -847,12 +856,6 @@ static int hdd_ndp_responder_req_handler(hdd_context_t *hdd_ctx,
 	}
 	req.ndp_instance_id =
 		nla_get_u32(tb[QCA_WLAN_VENDOR_ATTR_NDP_INSTANCE_ID]);
-
-	if (!tb[QCA_WLAN_VENDOR_ATTR_NDP_RESPONSE_CODE]) {
-		hdd_err("ndp_rsp is unavailable");
-		return -EINVAL;
-	}
-	req.ndp_rsp = nla_get_u32(tb[QCA_WLAN_VENDOR_ATTR_NDP_RESPONSE_CODE]);
 
 	if (tb[QCA_WLAN_VENDOR_ATTR_NDP_APP_INFO]) {
 		req.ndp_info.ndp_app_info_len =

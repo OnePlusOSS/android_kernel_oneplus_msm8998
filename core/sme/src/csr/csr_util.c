@@ -5491,6 +5491,22 @@ bool csr_match_bss(tHalHandle hal, tSirBssDescription *bss_descr,
 			if (check)
 				break;
 		}
+		/*
+		 * In OWE transition mode, ssid is hidden. And supplicant does
+		 * not issue scan with specific ssid prior to connect as in
+		 * other hidden ssid cases. Add explicit check to allow OWE
+		 * when ssid is hidden.
+		 */
+		if (!check && csr_is_nullssid(ie_ptr->SSID.ssid,
+					      ie_ptr->SSID.num_ssid)) {
+			for (i = 0; i < filter->authType.numEntries; i++) {
+				if (filter->authType.authType[i] ==
+				    eCSR_AUTH_TYPE_OWE) {
+					check = true;
+					break;
+				}
+			}
+		}
 		if (!check)
 			goto end;
 	}

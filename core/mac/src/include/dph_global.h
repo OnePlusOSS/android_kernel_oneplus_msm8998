@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -173,6 +173,11 @@ typedef struct sDphHashNode {
 	tDphQosParams qos;
 	/* station version info - valid only if versionPresent is set */
 	tSirMacPropVersion version;
+	/* Previous authentication packet sequence number */
+	uint16_t prev_auth_seq_no;
+	/* Previous association packet sequence number */
+	uint16_t prev_assoc_seq_no;
+
 #ifdef PLM_WDS
 	uint8_t wdsIndex;
 	uint8_t wdsPeerBeaconSeen;

@@ -73,6 +73,7 @@
 #include <linux/semaphore.h>
 #include <linux/ctype.h>
 #include <linux/compat.h>
+#include <linux/reboot.h>
 #ifdef MSM_PLATFORM
 #include <soc/qcom/subsystem_restart.h>
 #endif
@@ -146,6 +147,7 @@
 #define PANIC_ON_BUG_STR ""
 #endif
 
+bool g_is_system_reboot_triggered;
 int wlan_start_ret_val;
 static DECLARE_COMPLETION(wlan_start_comp);
 static unsigned int dev_num = 1;
@@ -234,8 +236,8 @@ int limit_off_chan_tbl[HDD_MAX_AC][HDD_MAX_OFF_CHAN_ENTRIES] = {
 	{ HDD_AC_VO_BIT, HDD_MAX_OFF_CHAN_TIME_FOR_VO },
 };
 
-/* internal function declaration */
 struct notifier_block hdd_netdev_notifier;
+struct notifier_block system_reboot_notifier;
 
 struct sock *cesium_nl_srv_sock;
 #ifdef FEATURE_WLAN_AUTO_SHUTDOWN
@@ -418,6 +420,12 @@ static bool hdd_wait_for_recovery_completion(void)
 	while (cds_is_driver_recovering()) {
 		if (retry == HDD_MOD_EXIT_SSR_MAX_RETRIES/2)
 			hdd_err("Recovery in progress; wait here!!!");
+
+		if (g_is_system_reboot_triggered) {
+			hdd_info("System Reboot happening ignore unload!!");
+			return false;
+		}
+
 		msleep(1000);
 		if (retry++ == HDD_MOD_EXIT_SSR_MAX_RETRIES) {
 			hdd_err("SSR never completed, error");
@@ -435,6 +443,7 @@ static bool hdd_wait_for_recovery_completion(void)
 	hdd_info("Recovery completed successfully!");
 	return true;
 }
+
 
 static int __hdd_netdev_notifier_call(struct notifier_block *nb,
 				    unsigned long state, void *data)
@@ -561,6 +570,27 @@ static int hdd_netdev_notifier_call(struct notifier_block *nb,
 
 struct notifier_block hdd_netdev_notifier = {
 	.notifier_call = hdd_netdev_notifier_call,
+};
+
+static int system_reboot_notifier_call(struct notifier_block *nb,
+				       unsigned long msg_type, void *_unused)
+{
+	switch (msg_type) {
+	case SYS_DOWN:
+	case SYS_HALT:
+	case SYS_POWER_OFF:
+		g_is_system_reboot_triggered = true;
+		hdd_info("reboot, reason: %ld", msg_type);
+		break;
+	default:
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+struct notifier_block system_reboot_notifier = {
+	.notifier_call = system_reboot_notifier_call,
 };
 
 /* variable to hold the insmod parameters */
@@ -6401,6 +6431,7 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 		hdd_deinit_all_adapters(hdd_ctx, false);
 	}
 
+	unregister_reboot_notifier(&system_reboot_notifier);
 	unregister_netdevice_notifier(&hdd_netdev_notifier);
 
 	/* Free up RoC request queue and flush workqueue */
@@ -10841,6 +10872,12 @@ int hdd_wlan_startup(struct device *dev)
 		goto err_ipa_cleanup;
 	}
 
+	ret = register_reboot_notifier(&system_reboot_notifier);
+	if (ret) {
+		hdd_err("Failed to register reboot notifier: %d", ret);
+		goto err_unregister_netdev;
+	}
+
 	rtnl_held = hdd_hold_rtnl_lock();
 
 	ret = hdd_open_interfaces(hdd_ctx, rtnl_held);
@@ -10886,9 +10923,11 @@ err_close_adapters:
 	hdd_close_all_adapters(hdd_ctx, rtnl_held);
 
 err_release_rtnl_lock:
+	unregister_reboot_notifier(&system_reboot_notifier);
 	if (rtnl_held)
 		hdd_release_rtnl_lock();
 
+err_unregister_netdev:
 	unregister_netdevice_notifier(&hdd_netdev_notifier);
 
 err_ipa_cleanup:
@@ -12206,7 +12245,8 @@ static void __hdd_module_exit(void)
 	pr_info("%s: Unloading driver v%s\n", WLAN_MODULE_NAME,
 		QWLAN_VERSIONSTR);
 
-	hdd_wait_for_recovery_completion();
+	if (!hdd_wait_for_recovery_completion())
+		return;
 
 	wlan_hdd_unregister_driver();
 

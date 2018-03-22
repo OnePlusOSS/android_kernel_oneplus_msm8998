@@ -1946,8 +1946,6 @@ static int __wlan_hdd_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	uint8_t home_ch = 0;
 	bool enb_random_mac = false;
 	uint32_t mgmt_hdr_len = sizeof(struct ieee80211_hdr_3addr);
-	tHalHandle hHal = pHddCtx->hHal;
-	uint32_t scan_id;
 	QDF_STATUS qdf_status;
 
 	ENTER();
@@ -2261,11 +2259,18 @@ static int __wlan_hdd_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 				 * but is not yet processed clean the roc ctx
 				 * and send response to upper layer.
 				 */
-				scan_id = pRemainChanCtx->scan_id;
 				mutex_unlock(
 				    &cfgState->remain_on_chan_ctx_lock);
-				wlan_hdd_remain_on_channel_callback(hHal,
-					pAdapter, QDF_STATUS_SUCCESS, scan_id);
+				INIT_COMPLETION(pAdapter->
+						cancel_rem_on_chan_var);
+				rc = wait_for_completion_timeout(&pAdapter->
+						cancel_rem_on_chan_var,
+						msecs_to_jiffies(
+							WAIT_CANCEL_REM_CHAN));
+				if (!rc) {
+					hdd_err("Timeout waiting for cancel ROC indication");
+					goto err_rem_channel;
+				}
 			}
 			mutex_lock(&cfgState->remain_on_chan_ctx_lock);
 			pRemainChanCtx = cfgState->remain_on_chan_ctx;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1295,6 +1295,7 @@ __lim_process_radio_measure_request(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 	tDot11fRadioMeasurementRequest *frm;
 	uint32_t frameLen, nStatus;
 	uint8_t *pBody;
+	uint16_t curr_seq_num;
 
 	pHdr = WMA_GET_RX_MAC_HEADER(pRxPacketInfo);
 	pBody = WMA_GET_RX_MPDU_DATA(pRxPacketInfo);
@@ -1304,6 +1305,17 @@ __lim_process_radio_measure_request(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 		return;
 	}
 
+	curr_seq_num = ((pHdr->seqControl.seqNumHi <<
+			 HIGH_SEQ_NUM_OFFSET) |
+			pHdr->seqControl.seqNumLo);
+	if (curr_seq_num == pMac->rrm.rrmPEContext.prev_rrm_report_seq_num &&
+	    pMac->rrm.rrmPEContext.pCurrentReq) {
+		pe_err("rrm report req frame, seq num: %d is already in progress, drop it",
+			curr_seq_num);
+		return;
+	}
+	/* Save seq no of currently processing rrm report req frame */
+	pMac->rrm.rrmPEContext.prev_rrm_report_seq_num = curr_seq_num;
 	lim_send_sme_mgmt_frame_ind(pMac, pHdr->fc.subType, (uint8_t *)pHdr,
 		frameLen + sizeof(tSirMacMgmtHdr), 0,
 		WMA_GET_RX_CH(pRxPacketInfo), psessionEntry,

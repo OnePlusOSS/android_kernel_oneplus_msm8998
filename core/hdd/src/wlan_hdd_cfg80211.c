@@ -1894,10 +1894,11 @@ static int wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 
 void wlan_hdd_undo_acs(hdd_adapter_t *adapter)
 {
-	hdd_info("enter(%s)", netdev_name(adapter->dev));
-
 	if (adapter == NULL)
 		return;
+
+	hdd_info("enter(%s)", netdev_name(adapter->dev));
+
 	if (adapter->sessionCtx.ap.sapConfig.acs_cfg.ch_list) {
 		qdf_mem_free(adapter->sessionCtx.ap.sapConfig.acs_cfg.ch_list);
 		adapter->sessionCtx.ap.sapConfig.acs_cfg.ch_list = NULL;

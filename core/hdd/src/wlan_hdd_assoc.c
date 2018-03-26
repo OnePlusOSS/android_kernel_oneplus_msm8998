@@ -154,7 +154,8 @@ static const int beacon_filter_table[] = {
 	SIR_MAC_VHT_OPERATION_EID,
 };
 
-#ifdef WLAN_FEATURE_SAE
+#if defined(WLAN_FEATURE_SAE) && \
+	defined(CFG80211_EXTERNAL_AUTH_SUPPORT)
 /**
  * wlan_hdd_sae_callback() - Sends SAE info to supplicant
  * @adapter: pointer adapter context

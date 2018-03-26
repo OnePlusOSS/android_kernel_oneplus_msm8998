@@ -1607,6 +1607,7 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 	tSap_StationDisassocCompleteEvent *disassoc_comp;
 	hdd_station_info_t *stainfo;
 	cds_context_type *cds_ctx;
+	hdd_adapter_t *sta_adapter;
 
 	dev = (struct net_device *)usrDataForCallback;
 	if (!dev) {
@@ -1840,6 +1841,12 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 		we_event = IWEVCUSTOM;
 		we_custom_event_generic = we_custom_start_event;
 		cds_dump_concurrency_info();
+
+		sta_adapter = hdd_get_adapter(pHddCtx, QDF_STA_MODE);
+		if (sta_adapter != NULL) {
+			hdd_debug("check for SAP restart");
+			cds_check_concurrent_intf_and_restart_sap(sta_adapter);
+		}
 
 		if (cds_is_hw_mode_change_after_vdev_up()) {
 			hdd_debug("check for possible hw mode change");

@@ -3937,9 +3937,8 @@ static void hdd_get_peer_rssi_cb(struct sir_peer_info_resp *sta_rssi,
 {
 	struct statsContext *get_rssi_context;
 	struct sir_peer_info *rssi_info;
-	uint8_t peer_num, i;
+	uint8_t peer_num;
 	hdd_adapter_t *padapter;
-	hdd_station_info_t *stainfo;
 
 	if ((sta_rssi == NULL) || (context == NULL)) {
 		hdd_err("Bad param, sta_rssi [%pK] context [%pK]",
@@ -3982,19 +3981,6 @@ static void hdd_get_peer_rssi_cb(struct sir_peer_info_resp *sta_rssi,
 	qdf_mem_copy(padapter->peer_sta_info.info, rssi_info,
 		peer_num * sizeof(*rssi_info));
 	padapter->peer_sta_info.sta_num = peer_num;
-
-	for (i = 0; i < peer_num; i++) {
-		stainfo = hdd_get_stainfo(padapter->cache_sta_info,
-					  rssi_info[i].peer_macaddr);
-		if (stainfo) {
-			stainfo->rssi = rssi_info[i].rssi;
-			stainfo->tx_rate = rssi_info[i].tx_rate;
-			stainfo->rx_rate = rssi_info[i].rx_rate;
-			hdd_info("rssi:%d tx_rate:%u rx_rate:%u %pM",
-				 stainfo->rssi, stainfo->tx_rate,
-				 stainfo->rx_rate, stainfo->macAddrSTA.bytes);
-		}
-	}
 
 	/* notify the caller */
 	complete(&get_rssi_context->completion);

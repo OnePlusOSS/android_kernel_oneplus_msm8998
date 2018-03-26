@@ -217,6 +217,11 @@
 #define SIR_MAC_ACTION_EXT_CHANNEL_SWITCH_ID    4
 #define SIR_MAC_ACTION_MEASUREMENT_PILOT        7
 
+/* Public Action frames for GAS */
+#define SIR_MAC_ACTION_GAS_INITIAL_REQUEST      0x0A
+#define SIR_MAC_ACTION_GAS_INITIAL_RESPONSE     0x0B
+#define SIR_MAC_ACTION_GAS_COMEBACK_REQUEST     0x0C
+#define SIR_MAC_ACTION_GAS_COMEBACK_RESPONSE    0x0D
 
 #ifdef WLAN_FEATURE_11W
 /* 11w SA query request/response action frame category code */

@@ -683,6 +683,7 @@ typedef struct tagCsrConfig {
 	uint8_t oce_feature_bitmap;
 	uint32_t offload_11k_enable_bitmask;
 	struct csr_neighbor_report_offload_params neighbor_report_offload;
+	bool enable_ftopen;
 } tCsrConfig;
 
 typedef struct tagCsrChannelPowerInfo {

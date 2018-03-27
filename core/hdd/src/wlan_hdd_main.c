@@ -8221,6 +8221,8 @@ void hdd_indicate_mgmt_frame(tSirSmeMgmtFrameInd *frame_ind)
 	hdd_adapter_t *adapter = NULL;
 	void *cds_context = NULL;
 	int i;
+	hdd_adapter_list_node_t *adapter_node, *next;
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
 
 	/* Get the global VOSS context.*/
 	cds_context = cds_get_global_context();
@@ -8241,6 +8243,24 @@ void hdd_indicate_mgmt_frame(tSirSmeMgmtFrameInd *frame_ind)
 			if (adapter)
 				break;
 		}
+	} else if (SME_SESSION_ID_BROADCAST == frame_ind->sessionId) {
+		status = hdd_get_front_adapter(hdd_ctx, &adapter_node);
+		while (NULL != adapter_node && QDF_STATUS_SUCCESS == status) {
+			adapter = adapter_node->pAdapter;
+			if ((NULL != adapter) &&
+			    (WLAN_HDD_ADAPTER_MAGIC == adapter->magic)) {
+				__hdd_indicate_mgmt_frame(adapter,
+						frame_ind->frame_len,
+						frame_ind->frameBuf,
+						frame_ind->frameType,
+						frame_ind->rxChan,
+						frame_ind->rxRssi);
+			}
+			status = hdd_get_next_adapter(hdd_ctx,
+						adapter_node, &next);
+			adapter_node = next;
+		}
+		adapter = NULL;
 	} else {
 		adapter = hdd_get_adapter_by_sme_session_id(hdd_ctx,
 					frame_ind->sessionId);

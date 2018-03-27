@@ -107,6 +107,7 @@
 #define SME_SCAN_REJECT_RATE_LIMIT              5
 
 #define SME_SESSION_ID_ANY        50
+#define SME_SESSION_ID_BROADCAST  0xFF
 
 #define SME_INVALID_COUNTRY_CODE "XX"
 #define INVALID_ROAM_ID 0

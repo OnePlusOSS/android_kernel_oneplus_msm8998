@@ -14307,6 +14307,23 @@ enum hw_filter_mode {
 #define CFG_DTIM_SELECTION_DIVERSITY_MAX     (30)
 #define CFG_DTIM_SELECTION_DIVERSITY_DEFAULT (5)
 
+/*
+ * <ini>
+ * gTxSchDelay - Enable/Disable Tx sch delay
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+
+#define CFG_TX_SCH_DELAY_NAME          "gTxSchDelay"
+#define CFG_TX_SCH_DELAY_MIN           (0)
+#define CFG_TX_SCH_DELAY_MAX           (1)
+#define CFG_TX_SCH_DELAY_DEFAULT       (1)
+
 /*---------------------------------------------------------------------------
    Type declarations
    -------------------------------------------------------------------------*/
@@ -15212,6 +15229,7 @@ struct hdd_config {
 	uint32_t neighbor_report_offload_max_req_cap;
 	uint32_t channel_select_logic_conc;
 	bool enable_dtim_selection_diversity;
+	bool enable_tx_sch_delay;
 #ifdef WLAN_FEATURE_SAE
 	bool is_sae_enabled;
 #endif

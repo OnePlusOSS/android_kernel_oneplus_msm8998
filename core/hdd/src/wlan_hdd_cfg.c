@@ -5538,6 +5538,14 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_DTIM_SELECTION_DIVERSITY_MIN,
 		     CFG_DTIM_SELECTION_DIVERSITY_MAX),
 
+	REG_VARIABLE(CFG_TX_SCH_DELAY_NAME,
+		     WLAN_PARAM_Integer,
+		     struct hdd_config, enable_tx_sch_delay,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_TX_SCH_DELAY_DEFAULT,
+		     CFG_TX_SCH_DELAY_MIN,
+		     CFG_TX_SCH_DELAY_MAX),
+
 #ifdef WLAN_FEATURE_SAE
 	REG_VARIABLE(CFG_IS_SAE_ENABLED_NAME, WLAN_PARAM_Integer,
 		struct hdd_config, is_sae_enabled,
@@ -7429,6 +7437,9 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_debug("Name = [%s] value = [%d]",
 		  CFG_DTIM_SELECTION_DIVERSITY_NAME,
 		  pHddCtx->config->enable_dtim_selection_diversity);
+	hdd_debug("Name = [%s] value = [%d]",
+		  CFG_TX_SCH_DELAY_NAME,
+		  pHddCtx->config->enable_tx_sch_delay);
 
 	hdd_cfg_print_11k_offload_params(pHddCtx);
 	hdd_debug("Name = [%s] value = [0x%x]",

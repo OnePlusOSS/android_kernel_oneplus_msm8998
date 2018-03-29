@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -519,6 +519,10 @@ typedef struct {
 	uint8_t nss_5g;
 	uint16_t beacon_tx_rate;
 	uint32_t tx_aggregation_size;
+	uint32_t tx_aggregation_size_be;
+	uint32_t tx_aggregation_size_bk;
+	uint32_t tx_aggregation_size_vi;
+	uint32_t tx_aggregation_size_vo;
 	uint32_t rx_aggregation_size;
 } tAddBssParams, *tpAddBssParams;
 
@@ -1166,6 +1170,10 @@ struct add_sta_self_params {
 	uint8_t nss_5g;
 	uint32_t status;
 	uint32_t tx_aggregation_size;
+	uint32_t tx_aggregation_size_be;
+	uint32_t tx_aggregation_size_bk;
+	uint32_t tx_aggregation_size_vi;
+	uint32_t tx_aggregation_size_vo;
 	uint32_t rx_aggregation_size;
 	bool enable_bcast_probe_rsp;
 	uint8_t fils_max_chan_guard_time;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -44,6 +44,7 @@
 #endif
 #include "i_bmi.h"
 #include "cds_api.h"
+#include "cds_concurrency.h"
 
 #ifdef CONFIG_DISABLE_SLEEP_BMI_OPTION
 static inline void ol_sdio_disable_sleep(struct ol_context *ol_ctx)
@@ -164,8 +165,11 @@ QDF_STATUS ol_sdio_extra_initialization(struct ol_context *ol_ctx)
 		goto exit;
 	}
 
-	param |= (HI_ACS_FLAGS_SDIO_SWAP_MAILBOX_SET |
-		HI_ACS_FLAGS_ALT_DATA_CREDIT_SIZE);
+	param |= HI_ACS_FLAGS_ALT_DATA_CREDIT_SIZE;
+
+	/* disable swap mailbox for FTM */
+	if (cds_get_conparam() != QDF_GLOBAL_FTM_MODE)
+		param |= HI_ACS_FLAGS_SDIO_SWAP_MAILBOX_SET;
 
 	if (!cds_is_ptp_tx_opt_enabled())
 		param |= HI_ACS_FLAGS_SDIO_REDUCE_TX_COMPL_SET;

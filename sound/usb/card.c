@@ -282,7 +282,6 @@ static int snd_usb_create_streams(struct snd_usb_audio *chip, int ctrlif)
 	struct usb_host_interface *host_iface;
 	struct usb_interface_descriptor *altsd;
 	struct usb_interface *usb_iface;
-	void *control_header;
 	int i, protocol;
 	int rest_bytes;
 
@@ -308,15 +307,6 @@ static int snd_usb_create_streams(struct snd_usb_audio *chip, int ctrlif)
 	 * UAC 2.0 and 3.0 devices use IAD for linking AS interfaces
 	 */
 
-	rest_bytes = (void *)(host_iface->extra + host_iface->extralen) -
-		control_header;
-
-	/* just to be sure -- this shouldn't hit at all */
-	if (rest_bytes <= 0) {
-		dev_err(&dev->dev, "invalid control header\n");
-		return -EINVAL;
-	}
-
 	switch (protocol) {
 	default:
 		dev_warn(&dev->dev,
@@ -336,6 +326,14 @@ static int snd_usb_create_streams(struct snd_usb_audio *chip, int ctrlif)
 		}
 
 		h1 = control_header;
+		rest_bytes = (void *)(host_iface->extra +
+			host_iface->extralen) - control_header;
+
+		/* just to be sure -- this shouldn't hit at all */
+		if (rest_bytes <= 0) {
+			dev_err(&dev->dev, "invalid control header\n");
+			return -EINVAL;
+		}
 
 		if (rest_bytes < sizeof(*h1)) {
 			dev_err(&dev->dev, "too short v1 buffer descriptor\n");

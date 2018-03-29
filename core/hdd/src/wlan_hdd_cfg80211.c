@@ -1766,6 +1766,8 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 	}
 
 	if (!sap_config->acs_cfg.ch_list_count) {
+		qdf_atomic_set(&adapter->sessionCtx.ap.acs_in_progress, 0);
+		hdd_err("acs config chan count 0");
 		ret = -EINVAL;
 		goto out;
 	}

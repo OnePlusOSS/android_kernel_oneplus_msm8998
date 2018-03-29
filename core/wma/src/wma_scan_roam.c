@@ -1125,6 +1125,63 @@ QDF_STATUS wma_roam_scan_offload_rssi_thresh(tp_wma_handle wma_handle,
 	return status;
 }
 
+static const char *wma_roam_reason_to_string(uint32_t roam_reason)
+{
+	switch (roam_reason) {
+	CASE_RETURN_STRING(WMI_ROAM_TRIGGER_REASON_NONE);
+	CASE_RETURN_STRING(WMI_ROAM_TRIGGER_REASON_PER);
+	CASE_RETURN_STRING(WMI_ROAM_TRIGGER_REASON_BMISS);
+	CASE_RETURN_STRING(WMI_ROAM_TRIGGER_REASON_LOW_RSSI);
+	CASE_RETURN_STRING(WMI_ROAM_TRIGGER_REASON_HIGH_RSSI);
+	CASE_RETURN_STRING(WMI_ROAM_TRIGGER_REASON_PERIODIC);
+	CASE_RETURN_STRING(WMI_ROAM_TRIGGER_REASON_MAWC);
+	CASE_RETURN_STRING(WMI_ROAM_TRIGGER_REASON_DENSE);
+	CASE_RETURN_STRING(WMI_ROAM_TRIGGER_REASON_BACKGROUND);
+	CASE_RETURN_STRING(WMI_ROAM_TRIGGER_REASON_FORCED);
+	CASE_RETURN_STRING(WMI_ROAM_TRIGGER_REASON_BTM);
+	CASE_RETURN_STRING(WMI_ROAM_TRIGGER_REASON_UNIT_TEST);
+	CASE_RETURN_STRING(WMI_ROAM_TRIGGER_REASON_MAX);
+
+	default:
+		return "unknown";
+	}
+}
+
+static const char *wma_roam_event_to_string(uint32_t roam_reason)
+{
+	switch (roam_reason) {
+	CASE_RETURN_STRING(WMI_ROAM_REASON_INVALID);
+	CASE_RETURN_STRING(WMI_ROAM_REASON_BETTER_AP);
+	CASE_RETURN_STRING(WMI_ROAM_REASON_BMISS);
+	CASE_RETURN_STRING(WMI_ROAM_REASON_LOW_RSSI);
+	CASE_RETURN_STRING(WMI_ROAM_REASON_SUITABLE_AP);
+	CASE_RETURN_STRING(WMI_ROAM_REASON_HO_FAILED);
+	CASE_RETURN_STRING(WMI_ROAM_REASON_INVOKE_ROAM_FAIL);
+	CASE_RETURN_STRING(WMI_ROAM_REASON_RSO_STATUS);
+	CASE_RETURN_STRING(WMI_ROAM_REASON_BTM);
+
+	default:
+		return "unknown";
+	}
+}
+
+static const char *wma_roam_notif_to_string(uint32_t notif)
+{
+	switch (notif) {
+	CASE_RETURN_STRING(WMI_ROAM_NOTIF_INVALID);
+	CASE_RETURN_STRING(WMI_ROAM_NOTIF_ROAM_START);
+	CASE_RETURN_STRING(WMI_ROAM_NOTIF_ROAM_ABORT);
+	CASE_RETURN_STRING(WMI_ROAM_NOTIF_ROAM_REASSOC);
+	CASE_RETURN_STRING(WMI_ROAM_NOTIF_SCAN_MODE_SUCCESS);
+	CASE_RETURN_STRING(WMI_ROAM_NOTIF_SCAN_MODE_FAIL);
+	CASE_RETURN_STRING(WMI_ROAM_NOTIF_DISCONNECT);
+	CASE_RETURN_STRING(WMI_ROAM_NOTIF_SUBNET_CHANGED);
+
+	default:
+		return "unknown";
+	}
+}
+
 /**
  * wma_roam_scan_offload_scan_period() - set roam offload scan period
  * @wma_handle: wma handle
@@ -2600,9 +2657,11 @@ static int wma_fill_roam_synch_buffer(tp_wma_handle wma,
 	roam_synch_ind_ptr->rssi = synch_event->rssi;
 	WMI_MAC_ADDR_TO_CHAR_ARRAY(&synch_event->bssid,
 				   roam_synch_ind_ptr->bssid.bytes);
-	WMA_LOGD("%s: roamedVdevId %d authStatus %d roamReason %d rssi %d isBeacon %d",
-		__func__, roam_synch_ind_ptr->roamedVdevId,
+	WMA_LOGD(FL("LFR3:- BSSID:- "MAC_ADDRESS_STR" roamedVdevId %d authStatus %d roamReason %d %s rssi %d isBeacon %d"),
+		MAC_ADDR_ARRAY(roam_synch_ind_ptr->bssid.bytes),
+		roam_synch_ind_ptr->roamedVdevId,
 		roam_synch_ind_ptr->authStatus, roam_synch_ind_ptr->roamReason,
+		wma_roam_reason_to_string(roam_synch_ind_ptr->roamReason),
 		roam_synch_ind_ptr->rssi, roam_synch_ind_ptr->isBeacon);
 
 	if (!QDF_IS_STATUS_SUCCESS(
@@ -6613,8 +6672,11 @@ int wma_roam_event_callback(WMA_HANDLE handle, uint8_t *event_buf,
 	}
 
 	wmi_event = param_buf->fixed_param;
-	WMA_LOGD("%s: Reason %x, Notif %x for vdevid %x, rssi %d",
-		 __func__, wmi_event->reason, wmi_event->notif,
+	WMA_LOGD("%s: Reason %x %s, Notif %x %s for vdevid %x, rssi %d",
+		 __func__, wmi_event->reason,
+		 wma_roam_event_to_string(wmi_event->reason),
+		 wmi_event->notif,
+		 wma_roam_notif_to_string(wmi_event->notif),
 		 wmi_event->vdev_id, wmi_event->rssi);
 	wma_peer_debug_log(wmi_event->vdev_id, DEBUG_ROAM_EVENT,
 			   DEBUG_INVALID_PEER_ID, NULL, NULL,

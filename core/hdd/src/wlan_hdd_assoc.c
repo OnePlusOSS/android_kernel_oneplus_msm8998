@@ -1800,7 +1800,8 @@ static QDF_STATUS hdd_dis_connect_handler(hdd_adapter_t *pAdapter,
 		}
 	} else {
 		sta_id = pHddStaCtx->conn_info.staId[0];
-		hdd_debug("roamResult: %d", roamResult);
+		hdd_debug("roamResult is: %d %s", roamResult,
+			   get_e_csr_roam_result_str(roamResult));
 
 		/* clear scan cache for Link Lost */
 		if (pRoamInfo && !pRoamInfo->reasonCode &&
@@ -2605,9 +2606,12 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 	    pHddStaCtx->conn_info.connState)) &&
 	    ((eCSR_ROAM_RESULT_ASSOCIATED == roamResult) ||
 	    (eCSR_ROAM_ASSOCIATION_FAILURE == roamStatus))) {
-		hdd_info("hddDisconInProgress state=%d, result=%d, status=%d",
+		hdd_info("hddDisconInProgress state=%d, result=%d %s, status=%d %s",
 				pHddStaCtx->conn_info.connState,
-				roamResult, roamStatus);
+				roamResult,
+				get_e_csr_roam_result_str(roamResult),
+				roamStatus,
+				get_e_roam_cmd_status_str(roamStatus));
 		hddDisconInProgress = true;
 	}
 
@@ -2968,10 +2972,13 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 					else {
 						hdd_debug("sending connect indication to nl80211:for bssid "
 							 MAC_ADDRESS_STR
-							 " result:%d and Status:%d",
+							 " result:%d %s and Status:%d %s",
 							 MAC_ADDR_ARRAY
 							 (pRoamInfo->bssid.bytes),
-							 roamResult, roamStatus);
+							 roamResult,
+							 get_e_csr_roam_result_str(roamResult),
+							 roamStatus,
+							 get_e_roam_cmd_status_str(roamStatus));
 
 						/* inform connect result to nl80211 */
 						hdd_connect_result(dev,
@@ -3105,14 +3112,20 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 
 		if (pRoamInfo)
 			hdd_err("wlan: connection failed with " MAC_ADDRESS_STR
-				 " result: %d and Status: %d",
+				 " result: %d %s and Status: %d %s",
 				 MAC_ADDR_ARRAY(pRoamInfo->bssid.bytes),
-				 roamResult, roamStatus);
+				 roamResult,
+				 get_e_csr_roam_result_str(roamResult),
+				 roamStatus,
+				 get_e_roam_cmd_status_str(roamStatus));
 		else
 			hdd_err("wlan: connection failed with " MAC_ADDRESS_STR
-				 " result: %d and Status: %d",
+				 " result: %d %s and Status: %d %s",
 				 MAC_ADDR_ARRAY(pWextState->req_bssId.bytes),
-				 roamResult, roamStatus);
+				 roamResult,
+				 get_e_csr_roam_result_str(roamResult),
+				 roamStatus,
+				 get_e_roam_cmd_status_str(roamStatus));
 
 		if ((eCSR_ROAM_RESULT_SCAN_FOR_SSID_FAILURE == roamResult) ||
 		   (pRoamInfo &&
@@ -3142,18 +3155,24 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 			if (pRoamInfo) {
 				hdd_err("send connect failure to nl80211: for bssid "
 					MAC_ADDRESS_STR
-					" result: %d and Status: %d reasoncode: %d",
+					" result: %d %s and Status: %d %s reasoncode: %d",
 					MAC_ADDR_ARRAY(pRoamInfo->bssid.bytes),
-					roamResult, roamStatus,
+					roamResult,
+					get_e_csr_roam_result_str(roamResult),
+					roamStatus,
+					get_e_roam_cmd_status_str(roamStatus),
 					pRoamInfo->reasonCode);
 				pHddStaCtx->conn_info.assoc_status_code =
 					pRoamInfo->statusCode;
 			} else {
 				hdd_err("connect failed: for bssid "
 				       MAC_ADDRESS_STR
-				       " result: %d and status: %d ",
+				       " result: %d %s and status: %d %s",
 				       MAC_ADDR_ARRAY(pWextState->req_bssId.bytes),
-				       roamResult, roamStatus);
+				       roamResult,
+				       get_e_csr_roam_result_str(roamResult),
+				       roamStatus,
+				       get_e_roam_cmd_status_str(roamStatus));
 			}
 			hdd_debug("Invoking packetdump deregistration API");
 			wlan_deregister_txrx_packetdump();
@@ -5009,8 +5028,12 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 	hdd_context_t *pHddCtx;
 
 	if (eCSR_ROAM_UPDATE_SCAN_RESULT != roamStatus)
-		hdd_debug("CSR Callback: status= %d result= %d roamID=%d",
-			  roamStatus, roamResult, roamId);
+		hdd_debug("CSR Callback: status= %d %s result= %d %s roamID=%d",
+			  roamStatus,
+			  get_e_roam_cmd_status_str(roamStatus),
+			  roamResult,
+			  get_e_csr_roam_result_str(roamResult),
+			  roamId);
 	/* Sanity check */
 	if ((NULL == pAdapter) || (WLAN_HDD_ADAPTER_MAGIC != pAdapter->magic)) {
 		hdd_err("Invalid adapter or adapter has invalid magic");

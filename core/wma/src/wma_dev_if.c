@@ -1841,7 +1841,7 @@ wma_remove_peer_by_reference(ol_txrx_pdev_handle pdev,
 	struct wma_target_req *del_req;
 	QDF_STATUS status;
 
-	status = QDF_STATUS_SUCCESS;
+	status = QDF_STATUS_E_FAILURE;
 	peer = ol_txrx_find_peer_by_addr_inc_ref(pdev,
 						 bssid,
 						 peer_id);
@@ -1872,6 +1872,8 @@ wma_remove_peer_by_reference(ol_txrx_pdev_handle pdev,
 			WMA_LOGE(FL("Failed to allocate request. vdev_id %d"),
 				 vdev_id);
 			status = QDF_STATUS_E_NOMEM;
+		} else {
+			status = QDF_STATUS_SUCCESS;
 		}
 	}
 

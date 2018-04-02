@@ -968,7 +968,10 @@ void hdd_update_macaddr(hdd_context_t *hdd_ctx,
 			 MAC_ADDRESS_STR,
 			 MAC_ADDR_ARRAY(hdd_ctx->derived_mac_addr[0].bytes));
 	}
-	for (i = 1; i < QDF_MAX_CONCURRENCY_PERSONA; i++) {
+
+	for (i = hdd_ctx->num_derived_addr;
+		i < QDF_MAX_CONCURRENCY_PERSONA - hdd_ctx->num_provisioned_addr;
+		i++) {
 		qdf_mem_copy(hdd_ctx->derived_mac_addr[i].bytes,
 			     hw_macaddr.bytes,
 			     QDF_MAC_ADDR_SIZE);

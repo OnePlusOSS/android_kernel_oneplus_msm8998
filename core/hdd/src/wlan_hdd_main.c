@@ -3583,6 +3583,50 @@ void hdd_deinit_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 	EXIT();
 }
 
+#ifdef WLAN_NS_OFFLOAD
+/**
+ * hdd_ns_offload_info_lock_create() - Create mutex lock for ns offload info
+ * @adapter: pointer to adapter for which lock is to be created
+ *
+ * Return: None
+ */
+static void hdd_ns_offload_info_lock_create(hdd_adapter_t *adapter)
+{
+	qdf_mutex_create(&adapter->ns_offload_info_lock);
+}
+
+/**
+ * hdd_ns_offload_info_lock_destroy() - Destroy mutex lock for ns offload info
+ * @adapter: pointer to adapter for which lock is to be destroyed
+ *
+ * Return: None
+ */
+static void hdd_ns_offload_info_lock_destroy(hdd_adapter_t *adapter)
+{
+	qdf_mutex_destroy(&adapter->ns_offload_info_lock);
+}
+#else
+/**
+ * hdd_ns_offload_info_lock_create() - Create mutex lock for ns offload info
+ * @adapter: pointer to adapter for which lock is to be created
+ *
+ * Return: None
+ */
+static void hdd_ns_offload_info_lock_create(hdd_adapter_t *adapter)
+{
+}
+
+/**
+ * hdd_ns_offload_info_lock_destroy() - Destroy mutex lock for ns offload info
+ * @adapter: pointer to adapter for which lock is to be destroyed
+ *
+ * Return: None
+ */
+static void hdd_ns_offload_info_lock_destroy(hdd_adapter_t *adapter)
+{
+}
+#endif
+
 static void hdd_cleanup_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 				bool rtnl_held)
 {
@@ -3594,6 +3638,10 @@ static void hdd_cleanup_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 		hdd_err("adapter is Null");
 		return;
 	}
+
+	wlan_hdd_debugfs_csr_deinit(adapter);
+	qdf_mutex_destroy(&adapter->arp_offload_info_lock);
+	hdd_ns_offload_info_lock_destroy(adapter);
 
 	hdd_debugfs_exit(adapter);
 
@@ -3738,50 +3786,6 @@ static void hdd_set_fw_log_params(hdd_context_t *hdd_ctx,
 {
 }
 
-#endif
-
-#ifdef WLAN_NS_OFFLOAD
-/**
- * hdd_ns_offload_info_lock_create() - Create mutex lock for ns offload info
- * @adapter: pointer to adapter for which lock is to be created
- *
- * Return: None
- */
-static void hdd_ns_offload_info_lock_create(hdd_adapter_t *adapter)
-{
-	qdf_mutex_create(&adapter->ns_offload_info_lock);
-}
-
-/**
- * hdd_ns_offload_info_lock_destroy() - Destroy mutex lock for ns offload info
- * @adapter: pointer to adapter for which lock is to be destroyed
- *
- * Return: None
- */
-static void hdd_ns_offload_info_lock_destroy(hdd_adapter_t *adapter)
-{
-	qdf_mutex_destroy(&adapter->ns_offload_info_lock);
-}
-#else
-/**
- * hdd_ns_offload_info_lock_create() - Create mutex lock for ns offload info
- * @adapter: pointer to adapter for which lock is to be created
- *
- * Return: None
- */
-static void hdd_ns_offload_info_lock_create(hdd_adapter_t *adapter)
-{
-}
-
-/**
- * hdd_ns_offload_info_lock_destroy() - Destroy mutex lock for ns offload info
- * @adapter: pointer to adapter for which lock is to be destroyed
- *
- * Return: None
- */
-static void hdd_ns_offload_info_lock_destroy(hdd_adapter_t *adapter)
-{
-}
 #endif
 
 /**
@@ -4317,6 +4321,9 @@ hdd_adapter_t *hdd_open_adapter(hdd_context_t *hdd_ctx, uint8_t session_type,
 	qdf_mutex_create(&adapter->arp_offload_info_lock);
 	hdd_ns_offload_info_lock_create(adapter);
 
+	if (adapter->device_mode == QDF_STA_MODE)
+		wlan_hdd_debugfs_csr_init(adapter);
+
 	return adapter;
 
 err_free_netdev:
@@ -4353,9 +4360,6 @@ QDF_STATUS hdd_close_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 		hdd_debug("wait for bus bw work to flush");
 		hdd_bus_bw_compute_timer_stop(hdd_ctx);
 		cancel_work_sync(&hdd_ctx->bus_bw_work);
-
-		qdf_mutex_destroy(&adapter->arp_offload_info_lock);
-		hdd_ns_offload_info_lock_destroy(adapter);
 
 		/* cleanup adapter */
 		cds_clear_concurrency_mode(adapter->device_mode);
@@ -4591,11 +4595,6 @@ QDF_STATUS hdd_stop_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 	case QDF_IBSS_MODE:
 	case QDF_P2P_DEVICE_MODE:
 	case QDF_NDI_MODE:
-
-		if (adapter->device_mode == QDF_STA_MODE) {
-			hdd_debug("Destroy CSR debugfs files");
-			wlan_hdd_debugfs_csr_deinit(adapter);
-		}
 
 		if ((QDF_NDI_MODE == adapter->device_mode) ||
 			hdd_conn_is_connected(
@@ -8784,11 +8783,6 @@ int hdd_start_station_adapter(hdd_adapter_t *adapter)
 		hdd_tx_resume_cb,
 		hdd_tx_flow_control_is_pause);
 
-	if (adapter->device_mode == QDF_STA_MODE) {
-		hdd_debug("Create CSR debugfs files");
-		wlan_hdd_debugfs_csr_init(adapter);
-	}
-
 	EXIT();
 	return 0;
 }
@@ -10467,6 +10461,7 @@ int hdd_wlan_stop_modules(hdd_context_t *hdd_ctx, bool ftm_mode)
 	bool is_recover_stop = cds_is_driver_recovering();
 	bool is_idle_stop = !is_unload_stop && !is_recover_stop;
 	int active_threads;
+	int debugfs_threads;
 
 	ENTER();
 	hdd_alert("stop WLAN module: entering driver status=%d",
@@ -10483,11 +10478,15 @@ int hdd_wlan_stop_modules(hdd_context_t *hdd_ctx, bool ftm_mode)
 	cds_set_module_stop_in_progress(true);
 
 	active_threads = cds_return_external_threads_count();
-	if (active_threads > 0 || hdd_ctx->isWiphySuspended) {
-		hdd_warn("External threads %d wiphy suspend %d",
-			 active_threads, hdd_ctx->isWiphySuspended);
+	debugfs_threads = hdd_return_debugfs_threads_count();
+	if (active_threads > 0 || debugfs_threads > 0 ||
+	    hdd_ctx->isWiphySuspended) {
+		hdd_warn("External threads %d, Debugfs threads %d, wiphy suspend %d",
+			 active_threads, debugfs_threads,
+			 hdd_ctx->isWiphySuspended);
 
-		cds_print_external_threads();
+		if (active_threads)
+			cds_print_external_threads();
 
 		if (is_idle_stop && !ftm_mode) {
 			mutex_unlock(&hdd_ctx->iface_change_lock);

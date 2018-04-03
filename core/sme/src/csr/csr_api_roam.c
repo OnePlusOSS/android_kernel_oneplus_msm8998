@@ -16458,8 +16458,18 @@ QDF_STATUS csr_send_mb_set_context_req_msg(tpAniSirGlobal pMac,
 					pKey, keyLength);
 		cds_msg.type = eWNI_SME_SETCONTEXT_REQ;
 		cds_msg.bodyptr = pMsg;
-		status = cds_mq_post_message_by_priority(QDF_MODULE_ID_PE, &cds_msg,
+
+		/*
+		 * Post to PE queue in high priority only for unicast key
+		 */
+		if (fUnicast)
+			status = cds_mq_post_message_by_priority(
+					QDF_MODULE_ID_PE, &cds_msg,
 					HIGH_PRIORITY);
+		else
+			status = cds_mq_post_message_by_priority(
+					QDF_MODULE_ID_PE, &cds_msg,
+					LOW_PRIORITY);
 		if (QDF_IS_STATUS_ERROR(status))
 			qdf_mem_free(pMsg);
 	} while (0);

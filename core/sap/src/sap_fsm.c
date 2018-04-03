@@ -4949,6 +4949,13 @@ static QDF_STATUS sap_get_channel_list(ptSapContext sap_ctx,
 				CDS_CHANNEL_NUM(loop_count),
 				sap_ctx, &spect_info_obj))
 			continue;
+		/* Dont scan DFS channels in case of MCC disallowed
+		 * As it can result in SAP starting on DFS channel
+		 * resulting  MCC on DFS channel
+		 */
+		if (CDS_IS_DFS_CH(CDS_CHANNEL_NUM(loop_count)) &&
+				  cds_disallow_mcc(CDS_CHANNEL_NUM(loop_count)))
+			continue;
 
 		/*
 		 * If we have any 5Ghz channel in the channel list

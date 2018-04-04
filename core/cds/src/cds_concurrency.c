@@ -3696,6 +3696,8 @@ void cds_set_tdls_ct_mode(hdd_context_t *hdd_ctx)
 	if (hdd_ctx->config->fTDLSExternalControl) {
 		if (hdd_ctx->tdls_external_peer_count)
 			state = true;
+		else if (hdd_ctx->connected_peer_count >= 1)
+			state = true;
 		else
 			state = false;
 	}

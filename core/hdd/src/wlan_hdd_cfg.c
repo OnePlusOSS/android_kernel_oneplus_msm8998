@@ -5148,6 +5148,11 @@ struct reg_table_entry g_registry_table[] = {
 			    struct hdd_config, action_oui_ito_alternate,
 			    VAR_FLAGS_OPTIONAL,
 			    (void *)CFG_ACTION_OUI_ITO_ALTERNATE_DEFAULT),
+	REG_VARIABLE_STRING(CFG_ACTION_OUI_SWITCH_TO_11N_MODE_NAME,
+			    WLAN_PARAM_String,
+			    struct hdd_config, action_oui_switch_to_11n,
+			    VAR_FLAGS_OPTIONAL,
+			    (void *)CFG_ACTION_OUI_SWITCH_TO_11N_MODE_DEFAULT),
 
 	REG_VARIABLE(CFG_DTIM_1CHRX_ENABLE_NAME, WLAN_PARAM_Integer,
 		struct hdd_config, enable_dtim_1chrx,
@@ -9585,6 +9590,12 @@ void hdd_set_all_sme_action_ouis(hdd_context_t *hdd_ctx)
 	ini_string[MAX_ACTION_OUI_STRING_LEN - 1] = '\0';
 	hdd_set_sme_action_oui(hdd_ctx, ini_string,
 			       WMI_ACTION_OUI_ITO_ALTERNATE);
+
+	ini_string = config->action_oui_switch_to_11n;
+	ini_string[MAX_ACTION_OUI_STRING_LEN - 1] = '\0';
+	hdd_set_sme_action_oui(hdd_ctx, ini_string,
+			       WMI_ACTION_OUI_SWITCH_TO_11N_MODE);
+
 }
 
 /* End of action oui functions */

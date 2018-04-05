@@ -12485,7 +12485,25 @@ enum hw_filter_mode {
  #define CFG_ACTION_OUI_ITO_ALTERNATE_NAME    "gActionOUIITOAlternate"
  #define CFG_ACTION_OUI_ITO_ALTERNATE_DEFAULT "001018 06 0202001c0000 FC 01"
 
-/* End of action oui inis */
+/*
+ * <ini>
+ * gActionOUISwitchTo11nMode - Used to specify action OUIs for switching to 11n
+ *
+ * This ini is used to specify which AP for which the connection has to be
+ * made in 2x2 mode with HT capabilities only and not VHT.
+ *
+ * Related: None
+ *
+ * Supported Feature: Action OUIs
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ACTION_OUI_SWITCH_TO_11N_MODE_NAME    "gActionOUISwitchTo11nMode"
+#define CFG_ACTION_OUI_SWITCH_TO_11N_MODE_DEFAULT "00904C 03 FFFFBF 20 21 40"
+
+ /* End of action oui inis */
 
 /*
  * <ini>
@@ -15601,6 +15619,7 @@ struct hdd_config {
 	uint8_t action_oui_ito_extension[MAX_ACTION_OUI_STRING_LEN];
 	uint8_t action_oui_cckm_1x1[MAX_ACTION_OUI_STRING_LEN];
 	uint8_t action_oui_ito_alternate[MAX_ACTION_OUI_STRING_LEN];
+	uint8_t action_oui_switch_to_11n[MAX_ACTION_OUI_STRING_LEN];
 	uint8_t rssi_weightage;
 	uint8_t ht_caps_weightage;
 	uint8_t vht_caps_weightage;

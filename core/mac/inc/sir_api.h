@@ -3651,6 +3651,7 @@ typedef struct sSirRoamOffloadScanReq {
 #endif
 	struct scoring_param score_params;
 	struct wmi_11k_offload_params offload_11k_params;
+	uint32_t ho_delay_for_rx;
 } tSirRoamOffloadScanReq, *tpSirRoamOffloadScanReq;
 
 typedef struct sSirRoamOffloadScanRsp {

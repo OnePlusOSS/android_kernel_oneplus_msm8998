@@ -182,12 +182,13 @@ cleanup:
 }
 
 /**
- * roam_scan_trigger_to_str() - Get string for enum WMI_ROAM_TRIGGER_REASON_ID
+ * hdd_roam_scan_trigger_to_str() - Get string for
+ * enum WMI_ROAM_TRIGGER_REASON_ID
  * @roam_scan_trigger: roam scan trigger ID
  *
  * Return: Meaningful string from enum WMI_ROAM_TRIGGER_REASON_ID
  */
-static char *roam_scan_trigger_to_str(uint32_t roam_scan_trigger)
+static char *hdd_roam_scan_trigger_to_str(uint32_t roam_scan_trigger)
 {
 	switch (roam_scan_trigger) {
 	case WMI_ROAM_TRIGGER_REASON_PER:
@@ -216,6 +217,36 @@ static char *roam_scan_trigger_to_str(uint32_t roam_scan_trigger)
 		return "UNKNOWN REASON";
 	}
 	return "UNKNOWN REASON";
+}
+
+/**
+ * hdd_roam_scan_trigger_value_to_str() - Get trigger value string for
+ * enum WMI_ROAM_TRIGGER_REASON_ID
+ * @roam_scan_trigger: roam scan trigger ID
+ * @bool: output pointer to hold whether to print trigger value
+ *
+ * Return: Meaningful string from trigger value
+ */
+static char *hdd_roam_scan_trigger_value(uint32_t roam_scan_trigger,
+					 bool *print)
+{
+	*print = true;
+
+	switch (roam_scan_trigger) {
+	case WMI_ROAM_TRIGGER_REASON_PER:
+		return "percentage";
+	case WMI_ROAM_TRIGGER_REASON_LOW_RSSI:
+		return "dB";
+	case WMI_ROAM_TRIGGER_REASON_HIGH_RSSI:
+		return "dB";
+	case WMI_ROAM_TRIGGER_REASON_PERIODIC:
+		return "ms";
+	case WMI_ROAM_TRIGGER_REASON_DENSE:
+		return "(1 - Rx, 2 - Tx)";
+	default:
+		*print = false;
+		return NULL;
+	}
 }
 
 /**
@@ -251,6 +282,95 @@ static char *hdd_client_id_to_str(uint32_t client_id)
 		return "UNKNOWN";
 	}
 	return "UNKNOWN";
+}
+
+/**
+ * hdd_roam_scan_trigger() - Print roam scan trigger info into buffer
+ * @scan: roam scan event data
+ * @buf: buffer to write roam scan trigger info
+ * @buf_avail_len: available buffer length
+ *
+ * Return: No.of bytes populated by this function in buffer
+ */
+static ssize_t
+hdd_roam_scan_trigger(struct wmi_roam_scan_stats_params *scan,
+		      uint8_t *buf, ssize_t buf_avail_len)
+{
+	ssize_t length = 0;
+	int ret_val;
+	char *str;
+	bool print_trigger_value;
+
+	ret_val = scnprintf(buf, buf_avail_len,
+			    "Trigger reason is %s\n",
+			    hdd_roam_scan_trigger_to_str(scan->trigger_id));
+	if (ret_val <= 0)
+		return length;
+
+	length = ret_val;
+
+	str = hdd_roam_scan_trigger_value(scan->trigger_id,
+					  &print_trigger_value);
+	if (!print_trigger_value || !str)
+		return length;
+
+	if (length >= buf_avail_len) {
+		hdd_err("No sufficient buf_avail_len");
+		length = buf_avail_len;
+		return length;
+	}
+
+	ret_val = scnprintf(buf + length, buf_avail_len - length,
+			    "Trigger value is: %u %s\n",
+			    scan->trigger_value, str);
+	if (ret_val <= 0)
+		return length;
+
+	length += ret_val;
+	return length;
+}
+
+/**
+ * hdd_roam_scan_chan() - Print roam scan chan freq info into buffer
+ * @scan: roam scan event data
+ * @buf: buffer to write roam scan freq info
+ * @buf_avail_len: available buffer length
+ *
+ * Return: No.of bytes populated by this function in buffer
+ */
+static ssize_t
+hdd_roam_scan_chan(struct wmi_roam_scan_stats_params *scan,
+		   uint8_t *buf, ssize_t buf_avail_len)
+{
+	ssize_t length = 0;
+	uint32_t i;
+	int ret_val;
+
+	ret_val = scnprintf(buf, buf_avail_len,
+			    "Num of scan channels: %u\n"
+			    "scan channel list:",
+			    scan->num_scan_chans);
+	if (ret_val <= 0)
+		return length;
+
+	length = ret_val;
+
+	for (i = 0; i < scan->num_scan_chans; i++) {
+		if (length >= buf_avail_len) {
+			hdd_err("No sufficient buf_avail_len");
+			length = buf_avail_len;
+			return length;
+		}
+
+		ret_val = scnprintf(buf + length, buf_avail_len - length,
+				    "%u ", scan->scan_freqs[i]);
+		if (ret_val <= 0)
+			return length;
+
+		length += ret_val;
+	}
+
+	return length;
 }
 
 /**
@@ -312,10 +432,8 @@ wlan_hdd_update_roam_stats(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 		}
 
 		ret_val = scnprintf(buf + length, buf_avail_len - length,
-				"This scan is triggered by \"%s\" scan client\n"
-				"Trigger reason is %s\n",
-				hdd_client_id_to_str(scan->client_id),
-				roam_scan_trigger_to_str(scan->trigger_id));
+			   "This scan is triggered by \"%s\" scan client\n",
+			   hdd_client_id_to_str(scan->client_id));
 
 		if (ret_val <= 0)
 			goto free_mem;
@@ -327,17 +445,33 @@ wlan_hdd_update_roam_stats(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 			goto free_mem;
 		}
 
+		length += hdd_roam_scan_trigger(scan, buf + length,
+						buf_avail_len - length);
+		if (length >= buf_avail_len) {
+			hdd_err("No sufficient buf_avail_len");
+			length = buf_avail_len;
+			goto free_mem;
+		}
+
+		length += hdd_roam_scan_chan(scan, buf + length,
+					     buf_avail_len - length);
+		if (length >= buf_avail_len) {
+			hdd_err("No sufficient buf_avail_len");
+			length = buf_avail_len;
+			goto free_mem;
+		}
+
 		if (scan->is_roam_successful) {
 			ret_val = scnprintf(buf + length,
 					buf_avail_len - length,
-				"STA roamed from " MAC_ADDRESS_STR " to "
+				"\nSTA roamed from " MAC_ADDRESS_STR " to "
 				MAC_ADDRESS_STR "\n",
 				MAC_ADDR_ARRAY(scan->old_bssid),
 				MAC_ADDR_ARRAY(scan->new_bssid));
 		} else {
 			ret_val = scnprintf(buf + length,
 					buf_avail_len - length,
-					"STA is connected to " MAC_ADDRESS_STR
+					"\nSTA is connected to " MAC_ADDRESS_STR
 					" before and after scan, not roamed\n",
 					MAC_ADDR_ARRAY(scan->old_bssid));
 		}

@@ -1402,7 +1402,6 @@ static void wlan_hdd_pld_uevent(struct device *dev,
 
 	ENTER();
 
-	mutex_lock(&hdd_init_deinit_lock);
 
 	hdd_info("pld event %d", uevent->uevent);
 
@@ -1416,6 +1415,7 @@ static void wlan_hdd_pld_uevent(struct device *dev,
 
 	wlan_hdd_set_the_pld_uevent(uevent);
 
+	mutex_lock(&hdd_init_deinit_lock);
 	switch (uevent->uevent) {
 	case PLD_RECOVERY:
 		hdd_pld_ipa_uc_shutdown_pipes();
@@ -1425,9 +1425,9 @@ static void wlan_hdd_pld_uevent(struct device *dev,
 		hdd_cleanup_on_fw_down();
 		break;
 	}
-uevent_not_allowed:
 	mutex_unlock(&hdd_init_deinit_lock);
 
+uevent_not_allowed:
 	EXIT();
 	return;
 }

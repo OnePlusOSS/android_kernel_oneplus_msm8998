@@ -1334,6 +1334,9 @@ typedef struct sSirSmeJoinReq {
 	bool enable_bcast_probe_rsp;
 	bool force_24ghz_in_ht20;
 	bool force_rsne_override;
+	bool supported_nss_1x1;
+	uint8_t vdev_nss;
+	uint8_t nss;
 	tSirBssDescription bssDescription;
 	/*
 	 * WARNING: Pls make bssDescription as last variable in struct

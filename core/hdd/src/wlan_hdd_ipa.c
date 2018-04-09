@@ -656,6 +656,26 @@ static int hdd_ipa_uc_enable_pipes(struct hdd_ipa_priv *hdd_ipa);
 static int hdd_ipa_wdi_init(struct hdd_ipa_priv *hdd_ipa);
 
 /**
+ * hdd_ipa_uc_get_db_paddr() - Get Doorbell physical address
+ * @db_paddr: Doorbell physical address given by IPA
+ * @client: IPA client type
+ *
+ * Query doorbell physical address from IPA
+ * IPA will give physical address for TX COMP and RX READY
+ *
+ * Return: None
+ */
+static void hdd_ipa_uc_get_db_paddr(qdf_dma_addr_t *db_paddr,
+		enum ipa_client_type client)
+{
+	struct ipa_wdi_db_params dbpa;
+
+	dbpa.client = client;
+	ipa_uc_wdi_get_dbpa(&dbpa);
+	*db_paddr = dbpa.uc_door_bell_pa;
+}
+
+/**
  * hdd_ipa_uc_loaded_uc_cb() - IPA UC loaded event callback
  * @priv_ctxt: hdd ipa local context
  *
@@ -676,13 +696,14 @@ static void hdd_ipa_uc_loaded_uc_cb(void *priv_ctxt)
 	}
 
 	hdd_ipa = (struct hdd_ipa_priv *)priv_ctxt;
-	hdd_ipa->uc_loaded = true;
 
 	uc_op_work = &hdd_ipa->uc_op_work[HDD_IPA_UC_OPCODE_UC_READY];
 
-	if (!list_empty(&uc_op_work->work.entry))
+	if (!list_empty(&uc_op_work->work.entry)) {
 		/* uc_op_work is not initialized yet */
+		hdd_ipa->uc_loaded = true;
 		return;
+	}
 
 	msg = (struct op_msg_type *)qdf_mem_malloc(sizeof(*msg));
 	if (!msg) {
@@ -3707,8 +3728,6 @@ static void hdd_ipa_uc_loaded_handler(struct hdd_ipa_priv *ipa_ctxt)
 	struct ol_txrx_ipa_resources *ipa_res = &ipa_ctxt->ipa_resource;
 	qdf_device_t osdev = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
 	struct ol_txrx_pdev_t *pdev;
-	uint32_t tx_comp_db_dmaaddr = 0;
-	uint32_t rx_rdy_db_dmaaddr = 0;
 	int ret;
 
 	HDD_IPA_LOG(QDF_TRACE_LEVEL_INFO, "UC READY");
@@ -3716,6 +3735,8 @@ static void hdd_ipa_uc_loaded_handler(struct hdd_ipa_priv *ipa_ctxt)
 		HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "UC already loaded");
 		return;
 	}
+
+	ipa_ctxt->uc_loaded = true;
 
 	if (!osdev) {
 		HDD_IPA_LOG(QDF_TRACE_LEVEL_FATAL, "invalid qdf dev context");
@@ -3735,24 +3756,6 @@ static void hdd_ipa_uc_loaded_handler(struct hdd_ipa_priv *ipa_ctxt)
 				"ipa wdi conn pipes failed ret=%d", ret);
 		return;
 	}
-
-	if (hdd_ipa_wdi_is_smmu_enabled(ipa_ctxt, osdev)) {
-		pld_smmu_map(osdev->dev,
-				ipa_ctxt->tx_comp_doorbell_dmaaddr,
-				&tx_comp_db_dmaaddr,
-				sizeof(uint32_t));
-		ipa_ctxt->tx_comp_doorbell_dmaaddr = tx_comp_db_dmaaddr;
-
-		pld_smmu_map(osdev->dev,
-				ipa_ctxt->rx_ready_doorbell_dmaaddr,
-				&rx_rdy_db_dmaaddr,
-				sizeof(uint32_t));
-		ipa_ctxt->rx_ready_doorbell_dmaaddr = rx_rdy_db_dmaaddr;
-	}
-
-	ol_txrx_ipa_uc_set_doorbell_paddr(pdev,
-			ipa_ctxt->tx_comp_doorbell_dmaaddr,
-			ipa_ctxt->rx_ready_doorbell_dmaaddr);
 
 	/* If already any STA connected, enable IPA/FW PIPEs */
 	if (ipa_ctxt->sap_num_connected_sta) {
@@ -4571,25 +4574,30 @@ QDF_STATUS hdd_ipa_uc_ol_init(hdd_context_t *hdd_ctx)
 			stat = QDF_STATUS_E_FAILURE;
 			goto fail_return;
 		}
-
-		if (hdd_ipa_wdi_is_smmu_enabled(ipa_ctxt, osdev)) {
-			pld_smmu_map(osdev->dev,
-					ipa_ctxt->tx_comp_doorbell_dmaaddr,
-					&tx_comp_db_dmaaddr,
-					sizeof(uint32_t));
-			ipa_ctxt->tx_comp_doorbell_dmaaddr = tx_comp_db_dmaaddr;
-
-			pld_smmu_map(osdev->dev,
-					ipa_ctxt->rx_ready_doorbell_dmaaddr,
-					&rx_rdy_db_dmaaddr,
-					sizeof(uint32_t));
-			ipa_ctxt->rx_ready_doorbell_dmaaddr = rx_rdy_db_dmaaddr;
-		}
-
-		ol_txrx_ipa_uc_set_doorbell_paddr(pdev,
-				ipa_ctxt->tx_comp_doorbell_dmaaddr,
-				ipa_ctxt->rx_ready_doorbell_dmaaddr);
+	} else {
+		hdd_ipa_uc_get_db_paddr(&ipa_ctxt->tx_comp_doorbell_dmaaddr,
+				IPA_CLIENT_WLAN1_CONS);
+		hdd_ipa_uc_get_db_paddr(&ipa_ctxt->rx_ready_doorbell_dmaaddr,
+				IPA_CLIENT_WLAN1_PROD);
 	}
+
+	if (hdd_ipa_wdi_is_smmu_enabled(ipa_ctxt, osdev)) {
+		pld_smmu_map(osdev->dev,
+				ipa_ctxt->tx_comp_doorbell_dmaaddr,
+				&tx_comp_db_dmaaddr,
+				sizeof(uint32_t));
+		ipa_ctxt->tx_comp_doorbell_dmaaddr = tx_comp_db_dmaaddr;
+
+		pld_smmu_map(osdev->dev,
+				ipa_ctxt->rx_ready_doorbell_dmaaddr,
+				&rx_rdy_db_dmaaddr,
+				sizeof(uint32_t));
+		ipa_ctxt->rx_ready_doorbell_dmaaddr = rx_rdy_db_dmaaddr;
+	}
+
+	ol_txrx_ipa_uc_set_doorbell_paddr(pdev,
+			ipa_ctxt->tx_comp_doorbell_dmaaddr,
+			ipa_ctxt->rx_ready_doorbell_dmaaddr);
 
 	for (i = 0; i < HDD_IPA_UC_OPCODE_MAX; i++) {
 		hdd_ipa_init_uc_op_work(&ipa_ctxt->uc_op_work[i].work,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1192,6 +1192,7 @@ static int hnc_cpu_notify_cb(struct notifier_block *nb,
 
 	switch (action) {
 	case CPU_ONLINE:
+	case CPU_ONLINE_FROZEN:
 		napid->napi_cpu[cpu].state = QCA_NAPI_CPU_UP;
 		NAPI_DEBUG("%s: CPU %ld marked %d",
 			   __func__, cpu, napid->napi_cpu[cpu].state);

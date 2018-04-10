@@ -545,4 +545,21 @@ QDF_STATUS wma_wow_set_wake_time(WMA_HANDLE wma_handle, uint8_t vdev_id,
  */
 void wma_wmi_stop(void);
 
+/**
+ * wma_dual_beacon_on_single_mac_scc_capable() - get capability that whether
+ * Support dual beacon on same channel on single MAC
+ *
+ *  Return: bool: capable
+ */
+bool wma_dual_beacon_on_single_mac_scc_capable(void);
+
+/**
+ * wma_dual_beacon_on_single_mac_mcc_capable() - get capability that whether
+ * Support dual beacon on different channel on single MAC
+ *
+ *  Return: bool: capable
+ */
+bool wma_dual_beacon_on_single_mac_mcc_capable(void);
+
+
 #endif

@@ -11351,3 +11351,51 @@ int wma_rx_aggr_failure_event_handler(void *handle, u_int8_t *event_buf,
 
 	return 0;
 }
+
+
+bool wma_dual_beacon_on_single_mac_scc_capable(void)
+{
+	tp_wma_handle wma_handle = NULL;
+
+	wma_handle = cds_get_context(QDF_MODULE_ID_WMA);
+	if (NULL == wma_handle) {
+		WMA_LOGE("%s : Failed to get wma_handle", __func__);
+		return false;
+	}
+	if (WMI_SERVICE_EXT_IS_ENABLED(wma_handle->wmi_service_bitmap,
+		wma_handle->wmi_service_ext_bitmap,
+		WMI_SERVICE_DUAL_BEACON_ON_SINGLE_MAC_SCC_SUPPORT)) {
+		WMA_LOGD("Support dual beacon on same channel on single MAC");
+		return true;
+	}
+	if (WMI_SERVICE_EXT_IS_ENABLED(wma_handle->wmi_service_bitmap,
+		wma_handle->wmi_service_ext_bitmap,
+		WMI_SERVICE_DUAL_BEACON_ON_SINGLE_MAC_MCC_SUPPORT)) {
+		WMA_LOGD("Support dual beacon on both different and same channel on single MAC");
+		return true;
+	} else {
+		WMA_LOGD("Not support dual beacon on same channel on single MAC");
+		return false;
+	}
+}
+
+bool wma_dual_beacon_on_single_mac_mcc_capable(void)
+{
+	tp_wma_handle wma_handle = NULL;
+
+	wma_handle = cds_get_context(QDF_MODULE_ID_WMA);
+	if (NULL == wma_handle) {
+		WMA_LOGE("%s : Failed to get wma_handle", __func__);
+		return false;
+	}
+
+	if (WMI_SERVICE_EXT_IS_ENABLED(wma_handle->wmi_service_bitmap,
+		wma_handle->wmi_service_ext_bitmap,
+		WMI_SERVICE_DUAL_BEACON_ON_SINGLE_MAC_MCC_SUPPORT)) {
+		WMA_LOGD("Support dual beacon on different channel on single MAC");
+		return true;
+	} else {
+		WMA_LOGD("Not support dual beacon on different channel on single MAC");
+		return false;
+	}
+}

@@ -2482,10 +2482,11 @@ int wma_get_apf_caps_event_handler(void *handle,
 /**
  * wma_get_apf_capabilities - Send get apf capability to firmware
  * @wma_handle: wma handle
+ * @context: APF context
  *
  * Return: QDF_STATUS enumeration.
  */
-QDF_STATUS wma_get_apf_capabilities(tp_wma_handle wma);
+QDF_STATUS wma_get_apf_capabilities(tp_wma_handle wma, void *context);
 
 /**
  *  wma_set_apf_instructions - Set apf instructions to firmware

@@ -9801,6 +9801,8 @@ QDF_STATUS wma_process_set_ie_info(tp_wma_handle wma,
 	return ret;
 }
 
+static void *apf_context;
+
 int wma_get_apf_caps_event_handler(void *handle,
 			u_int8_t *cmd_param_info,
 			u_int32_t len)
@@ -9838,12 +9840,12 @@ int wma_get_apf_caps_event_handler(void *handle,
 	apf_get_offload->max_bytes_for_apf_inst);
 
 	WMA_LOGD("%s: sending apf capabilities event to hdd", __func__);
-	pmac->sme.papf_get_offload_cb(pmac->hHdd, apf_get_offload);
+	pmac->sme.papf_get_offload_cb(apf_context, apf_get_offload);
 	qdf_mem_free(apf_get_offload);
 	return 0;
 }
 
-QDF_STATUS wma_get_apf_capabilities(tp_wma_handle wma)
+QDF_STATUS wma_get_apf_capabilities(tp_wma_handle wma, void *context)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	wmi_bpf_get_capability_cmd_fixed_param *cmd;
@@ -9862,6 +9864,7 @@ QDF_STATUS wma_get_apf_capabilities(tp_wma_handle wma)
 		return QDF_STATUS_E_FAILURE;
 	}
 
+	apf_context = context;
 	len = sizeof(*cmd);
 	wmi_buf = wmi_buf_alloc(wma->wmi_handle, len);
 	if (!wmi_buf) {

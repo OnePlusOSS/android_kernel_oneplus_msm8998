@@ -16780,7 +16780,7 @@ void sme_send_disassoc_req_frame(tHalHandle hal, uint8_t session_id,
 			FL("cds_send_mb_message Failed"));
 }
 
-QDF_STATUS sme_get_apf_capabilities(tHalHandle hal)
+QDF_STATUS sme_get_apf_capabilities(tHalHandle hal, void *context)
 {
 	QDF_STATUS          status     = QDF_STATUS_SUCCESS;
 	tpAniSirGlobal      mac_ctx      = PMAC_STRUCT(hal);
@@ -16791,7 +16791,7 @@ QDF_STATUS sme_get_apf_capabilities(tHalHandle hal)
 	status = sme_acquire_global_lock(&mac_ctx->sme);
 	if (QDF_STATUS_SUCCESS == status) {
 		/* Serialize the req through MC thread */
-		cds_msg.bodyptr = NULL;
+		cds_msg.bodyptr = context;
 		cds_msg.type = WDA_APF_GET_CAPABILITIES_REQ;
 		status = cds_mq_post_message(QDF_MODULE_ID_WMA, &cds_msg);
 		if (!QDF_IS_STATUS_SUCCESS(status)) {

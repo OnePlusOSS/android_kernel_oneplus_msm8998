@@ -1761,7 +1761,7 @@ void hdd_update_tgt_cfg(void *context, void *param)
 	hdd_debug("Init current antenna mode: %d",
 		 hdd_ctx->current_antenna_mode);
 
-	hdd_ctx->apf_enabled = (cfg->apf_enabled &&
+	hdd_ctx->apf_supported = (cfg->apf_enabled &&
 				hdd_ctx->config->apf_packet_filter_enable);
 	hdd_ctx->rcpi_enabled = cfg->rcpi_enabled;
 	hdd_update_ra_rate_limit(hdd_ctx, cfg);
@@ -1787,11 +1787,12 @@ void hdd_update_tgt_cfg(void *context, void *param)
 	 */
 	hdd_update_wiphy_vhtcap(hdd_ctx);
 	/*
-	 * If APF is enabled, maxWowFilters set to WMA_STA_WOW_DEFAULT_PTRN_MAX
-	 * because we need atleast WMA_STA_WOW_DEFAULT_PTRN_MAX free slots to
-	 * configure the STA mode wow pattern.
+	 * If APF is supported, maxWowFilters set to
+	 * WMA_STA_WOW_DEFAULT_PTRN_MAX	because we need atleast
+	 * WMA_STA_WOW_DEFAULT_PTRN_MAX free slots to configure the STA mode
+	 * wow pattern.
 	 */
-	if (hdd_ctx->apf_enabled)
+	if (hdd_ctx->apf_supported)
 		hdd_ctx->config->maxWoWFilters = WMA_STA_WOW_DEFAULT_PTRN_MAX;
 
 	hdd_ctx->wmi_max_len = cfg->wmi_max_len;
@@ -3689,6 +3690,7 @@ static void hdd_cleanup_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 	wlan_hdd_debugfs_csr_deinit(adapter);
 	qdf_mutex_destroy(&adapter->arp_offload_info_lock);
 	hdd_ns_offload_info_lock_destroy(adapter);
+	hdd_apf_context_destroy(adapter);
 
 	hdd_debugfs_exit(adapter);
 
@@ -4377,6 +4379,7 @@ hdd_adapter_t *hdd_open_adapter(hdd_context_t *hdd_ctx, uint8_t session_type,
 
 	qdf_mutex_create(&adapter->arp_offload_info_lock);
 	hdd_ns_offload_info_lock_create(adapter);
+	hdd_apf_context_init(adapter);
 
 	if (adapter->device_mode == QDF_STA_MODE)
 		wlan_hdd_debugfs_csr_init(adapter);
@@ -6333,8 +6336,6 @@ static int hdd_context_deinit(hdd_context_t *hdd_ctx)
 	hdd_scan_context_destroy(hdd_ctx);
 
 	qdf_list_destroy(&hdd_ctx->hddAdapters);
-
-	hdd_apf_context_destroy();
 
 	return 0;
 }
@@ -8493,8 +8494,6 @@ static int hdd_context_init(hdd_context_t *hdd_ctx)
 	init_completion(&hdd_ctx->chain_rssi_context.response_event);
 	init_completion(&hdd_ctx->mc_sus_event_var);
 	init_completion(&hdd_ctx->ready_to_suspend);
-
-	hdd_apf_context_init();
 
 	qdf_spinlock_create(&hdd_ctx->connection_status_lock);
 	qdf_spinlock_create(&hdd_ctx->sta_update_info_lock);

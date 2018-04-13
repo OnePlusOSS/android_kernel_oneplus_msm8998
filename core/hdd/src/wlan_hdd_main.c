@@ -6685,8 +6685,6 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 
 	ENTER();
 
-	qdf_cancel_delayed_work(&hdd_ctx->iface_idle_work);
-
 	hdd_unregister_notifiers(hdd_ctx);
 
 	if (QDF_TIMER_STATE_RUNNING ==
@@ -12544,11 +12542,16 @@ err_hdd_init:
  */
 static void __hdd_module_exit(void)
 {
+	hdd_context_t *hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+
 	pr_info("%s: Unloading driver v%s\n", WLAN_MODULE_NAME,
 		QWLAN_VERSIONSTR);
 
 	if (!hdd_wait_for_recovery_completion())
 		return;
+
+	if (hdd_ctx)
+		qdf_cancel_delayed_work(&hdd_ctx->iface_idle_work);
 
 	wlan_hdd_unregister_driver();
 

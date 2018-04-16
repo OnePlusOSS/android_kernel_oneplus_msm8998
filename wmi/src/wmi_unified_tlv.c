@@ -10111,6 +10111,8 @@ QDF_STATUS send_update_fw_tdls_state_cmd_tlv(wmi_unified_t wmi_handle,
 		wmi_tdls->teardown_notification_ms;
 	cmd->tdls_peer_kickout_threshold =
 		wmi_tdls->tdls_peer_kickout_threshold;
+	cmd->tdls_discovery_wake_timeout =
+		wmi_tdls->tdls_discovery_wake_timeout;
 
 	WMI_LOGD("%s: tdls_state: %d, state: %d, "
 		 "notification_interval_ms: %d, "
@@ -10125,7 +10127,8 @@ QDF_STATUS send_update_fw_tdls_state_cmd_tlv(wmi_unified_t wmi_handle,
 		 "tdls_puapsd_inactivity_time: %d, "
 		 "tdls_puapsd_rx_frame_threshold: %d, "
 		 "teardown_notification_ms: %d, "
-		 "tdls_peer_kickout_threshold: %d",
+		 "tdls_peer_kickout_threshold: %d, "
+		 "tdls_discovery_wake_timeout: %d",
 		 __func__, tdls_state, cmd->state,
 		 cmd->notification_interval_ms,
 		 cmd->tx_discovery_threshold,
@@ -10139,7 +10142,8 @@ QDF_STATUS send_update_fw_tdls_state_cmd_tlv(wmi_unified_t wmi_handle,
 		 cmd->tdls_puapsd_inactivity_time_ms,
 		 cmd->tdls_puapsd_rx_frame_threshold,
 		 cmd->teardown_notification_ms,
-		 cmd->tdls_peer_kickout_threshold);
+		 cmd->tdls_peer_kickout_threshold,
+		 cmd->tdls_discovery_wake_timeout);
 
 	if (wmi_unified_cmd_send(wmi_handle, wmi_buf, len,
 				 WMI_TDLS_SET_STATE_CMDID)) {

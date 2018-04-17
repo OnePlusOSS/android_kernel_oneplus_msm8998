@@ -3679,6 +3679,7 @@ static __iw_softap_setparam(struct net_device *dev,
 		ret = wma_cli_set_command(pHostapdAdapter->sessionId,
 					  WMI_PDEV_PARAM_TX_CHAIN_MASK,
 					  set_value, PDEV_CMD);
+		ret = hdd_set_antenna_mode(pHostapdAdapter, hdd_ctx, set_value);
 		break;
 	}
 
@@ -3688,6 +3689,7 @@ static __iw_softap_setparam(struct net_device *dev,
 		ret = wma_cli_set_command(pHostapdAdapter->sessionId,
 					  WMI_PDEV_PARAM_RX_CHAIN_MASK,
 					  set_value, PDEV_CMD);
+		ret = hdd_set_antenna_mode(pHostapdAdapter, hdd_ctx, set_value);
 		break;
 	}
 
@@ -3799,7 +3801,6 @@ static __iw_softap_setparam(struct net_device *dev,
 					(int)WMI_PDEV_PARAM_ENABLE_RTS_SIFS_BURSTING,
 					set_value, PDEV_CMD);
 		break;
-
 	default:
 		hdd_err("Invalid setparam command %d value %d",
 		       sub_cmd, set_value);

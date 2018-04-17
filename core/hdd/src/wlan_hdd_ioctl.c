@@ -7177,8 +7177,6 @@ static const struct hdd_drv_cmd hdd_drv_cmds[] = {
 	{"COUNTRY",                   drv_cmd_country, true},
 	{"SETSUSPENDMODE",            drv_cmd_dummy, false},
 	{"SET_AP_WPS_P2P_IE",         drv_cmd_dummy, false},
-	{"BTCOEXSCAN",                drv_cmd_dummy, false},
-	{"RXFILTER",                  drv_cmd_dummy, false},
 	{"SETROAMTRIGGER",            drv_cmd_set_roam_trigger, true},
 	{"GETROAMTRIGGER",            drv_cmd_get_roam_trigger, false},
 	{"SETROAMSCANPERIOD",         drv_cmd_set_roam_scan_period, true},
@@ -7276,7 +7274,12 @@ static const struct hdd_drv_cmd hdd_drv_cmds[] = {
 	{"GETANTENNAMODE",            drv_cmd_get_antenna_mode, false},
 	{"SET_DISABLE_CHANNEL_LIST",  drv_cmd_set_disable_chan_list, true},
 	{"GET_DISABLE_CHANNEL_LIST",  drv_cmd_get_disable_chan_list, false},
+	/* Deprecated commands */
 	{"STOP",                      drv_cmd_dummy, false},
+	{"RXFILTER-START",            drv_cmd_dummy, false},
+	{"RXFILTER-STOP",             drv_cmd_dummy, false},
+	{"BTCOEXSCAN-START",          drv_cmd_dummy, false},
+	{"BTCOEXSCAN-STOP",           drv_cmd_dummy, false},
 };
 
 /**

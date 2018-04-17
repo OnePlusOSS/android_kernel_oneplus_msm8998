@@ -298,6 +298,7 @@ int wlan_hdd_ipv6_changed(struct notifier_block *nb,
  * @idev: pointer to net device
  * @ipv6addr: destination array to fill IPv6 addresses
  * @ipv6addr_type: IPv6 Address type
+ * @scope_array: IPv6 Address scope
  * @count: number of IPv6 addresses
  *
  * This is the IPv6 utility function to populate unicast addresses.
@@ -306,7 +307,9 @@ int wlan_hdd_ipv6_changed(struct notifier_block *nb,
  */
 static int hdd_fill_ipv6_uc_addr(struct inet6_dev *idev,
 				uint8_t ipv6_uc_addr[][SIR_MAC_IPV6_ADDR_LEN],
-				uint8_t *ipv6addr_type, uint32_t *count)
+				uint8_t *ipv6addr_type,
+				enum sir_ipv6_addr_scope *scope_array,
+				uint32_t *count)
 {
 	struct inet6_ifaddr *ifa;
 	struct list_head *p;
@@ -328,6 +331,7 @@ static int hdd_fill_ipv6_uc_addr(struct inet6_dev *idev,
 			qdf_mem_copy(ipv6_uc_addr[*count], &ifa->addr.s6_addr,
 				sizeof(ifa->addr.s6_addr));
 			ipv6addr_type[*count] = SIR_IPV6_ADDR_UC_TYPE;
+			scope_array[*count] = sir_get_ipv6_addr_scope(scope);
 			hdd_debug("Index %d scope = %s UC-Address: %pI6",
 				*count, (scope == IPV6_ADDR_SCOPE_LINKLOCAL) ?
 				"LINK LOCAL" : "GLOBAL", ipv6_uc_addr[*count]);
@@ -347,6 +351,7 @@ static int hdd_fill_ipv6_uc_addr(struct inet6_dev *idev,
  * @idev: pointer to net device
  * @ipv6addr: destination array to fill IPv6 addresses
  * @ipv6addr_type: IPv6 Address type
+ * @scope_array: IPv6 Address scope
  * @count: number of IPv6 addresses
  *
  * This is the IPv6 utility function to populate anycast addresses.
@@ -355,7 +360,9 @@ static int hdd_fill_ipv6_uc_addr(struct inet6_dev *idev,
  */
 static int hdd_fill_ipv6_ac_addr(struct inet6_dev *idev,
 				uint8_t ipv6_ac_addr[][SIR_MAC_IPV6_ADDR_LEN],
-				uint8_t *ipv6addr_type, uint32_t *count)
+				uint8_t *ipv6addr_type,
+				enum sir_ipv6_addr_scope *scope_array,
+				uint32_t *count)
 {
 	struct ifacaddr6 *ifaca;
 	uint32_t scope;
@@ -374,6 +381,7 @@ static int hdd_fill_ipv6_ac_addr(struct inet6_dev *idev,
 			qdf_mem_copy(ipv6_ac_addr[*count], &ifaca->aca_addr,
 				sizeof(ifaca->aca_addr));
 			ipv6addr_type[*count] = SIR_IPV6_ADDR_AC_TYPE;
+			scope_array[*count] = sir_get_ipv6_addr_scope(scope);
 			hdd_debug("Index %d scope = %s AC-Address: %pI6",
 				*count, (scope == IPV6_ADDR_SCOPE_LINKLOCAL) ?
 				"LINK LOCAL" : "GLOBAL", ipv6_ac_addr[*count]);
@@ -427,6 +435,7 @@ static void hdd_enable_ns_offload(hdd_adapter_t *adapter)
 	uint8_t ipv6_addr[SIR_MAC_NUM_TARGET_IPV6_NS_OFFLOAD_NA]
 					[SIR_MAC_IPV6_ADDR_LEN] = { {0,} };
 	uint8_t ipv6_addr_type[SIR_MAC_NUM_TARGET_IPV6_NS_OFFLOAD_NA] = { 0 };
+	enum sir_ipv6_addr_scope scope[SIR_MAC_NUM_TARGET_IPV6_NS_OFFLOAD_NA];
 	tSirHostOffloadReq offloadReq;
 	QDF_STATUS status;
 	uint32_t count = 0;
@@ -438,8 +447,11 @@ static void hdd_enable_ns_offload(hdd_adapter_t *adapter)
 		return;
 	}
 
+	qdf_mem_zero(scope, sizeof(scope));
+
 	/* Unicast Addresses */
-	err = hdd_fill_ipv6_uc_addr(in6_dev, ipv6_addr, ipv6_addr_type, &count);
+	err = hdd_fill_ipv6_uc_addr(in6_dev, ipv6_addr, ipv6_addr_type, scope,
+				    &count);
 	if (err) {
 		hdd_disable_ns_offload(adapter);
 		hdd_debug("Max supported addresses: disabling NS offload");
@@ -447,7 +459,8 @@ static void hdd_enable_ns_offload(hdd_adapter_t *adapter)
 	}
 
 	/* Anycast Addresses */
-	err = hdd_fill_ipv6_ac_addr(in6_dev, ipv6_addr, ipv6_addr_type, &count);
+	err = hdd_fill_ipv6_ac_addr(in6_dev, ipv6_addr, ipv6_addr_type, scope,
+				    &count);
 	if (err) {
 		hdd_disable_ns_offload(adapter);
 		hdd_debug("Max supported addresses: disabling NS offload");
@@ -484,6 +497,7 @@ static void hdd_enable_ns_offload(hdd_adapter_t *adapter)
 			SIR_IPV6_ADDR_VALID;
 		offloadReq.nsOffloadInfo.target_ipv6_addr_ac_type[i] =
 			ipv6_addr_type[i];
+		offloadReq.nsOffloadInfo.scope[i] = scope[i];
 
 		qdf_mem_copy(&offloadReq.params.hostIpv6Addr,
 			&offloadReq.nsOffloadInfo.targetIPv6Addr[i],

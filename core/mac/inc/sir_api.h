@@ -2902,6 +2902,24 @@ typedef struct sSirUpdateAPWPARSNIEsReq {
 #define SIR_OFFLOAD_ENABLE                          1
 
 #ifdef WLAN_NS_OFFLOAD
+/**
+ * enum sir_ipv6_addr_scope - Internal identification of IPv6 addr scope
+ * @SIR_IPV6_ADDR_SCOPE_INVALID: invalid scope
+ * @SIR_IPV6_ADDR_SCOPE_NODELOCAL: node local scope
+ * @SIR_IPV6_ADDR_SCOPE_LINKLOCAL: link local scope
+ * @SIR_IPV6_ADDR_SCOPE_SITELOCAL: site local scope
+ * @SIR_IPV6_ADDR_SCOPE_ORGLOCAL: org local scope
+ * @SIR_IPV6_ADDR_SCOPE_GLOBAL: global scope
+ */
+enum sir_ipv6_addr_scope {
+	SIR_IPV6_ADDR_SCOPE_INVALID = 0,
+	SIR_IPV6_ADDR_SCOPE_NODELOCAL = 1,
+	SIR_IPV6_ADDR_SCOPE_LINKLOCAL = 2,
+	SIR_IPV6_ADDR_SCOPE_SITELOCAL = 3,
+	SIR_IPV6_ADDR_SCOPE_ORGLOCAL = 4,
+	SIR_IPV6_ADDR_SCOPE_GLOBAL = 5
+};
+
 typedef struct sSirNsOffloadReq {
 	uint8_t srcIPv6Addr[SIR_MAC_IPV6_ADDR_LEN];
 	uint8_t selfIPv6Addr[SIR_MAC_NUM_TARGET_IPV6_NS_OFFLOAD_NA][SIR_MAC_IPV6_ADDR_LEN];
@@ -2911,7 +2929,35 @@ typedef struct sSirNsOffloadReq {
 	uint8_t targetIPv6AddrValid[SIR_MAC_NUM_TARGET_IPV6_NS_OFFLOAD_NA];
 	uint8_t target_ipv6_addr_ac_type[SIR_MAC_NUM_TARGET_IPV6_NS_OFFLOAD_NA];
 	uint8_t slotIdx;
+	enum sir_ipv6_addr_scope scope[SIR_MAC_NUM_TARGET_IPV6_NS_OFFLOAD_NA];
 } tSirNsOffloadReq, *tpSirNsOffloadReq;
+
+/**
+ * sir_get_ipv6_addr_scope() - Convert linux specific IPv6 addr scope to
+ *                             WLAN driver specific value
+ * @scope: linux specific IPv6 addr scope
+ *
+ * Return: WLAN driver sepcific IPv6 addr scope
+ */
+static inline
+enum sir_ipv6_addr_scope
+sir_get_ipv6_addr_scope(uint32_t ipv6_scope)
+{
+	switch (ipv6_scope) {
+	case IPV6_ADDR_SCOPE_NODELOCAL:
+		return SIR_IPV6_ADDR_SCOPE_NODELOCAL;
+	case IPV6_ADDR_SCOPE_LINKLOCAL:
+		return SIR_IPV6_ADDR_SCOPE_LINKLOCAL;
+	case IPV6_ADDR_SCOPE_SITELOCAL:
+		return SIR_IPV6_ADDR_SCOPE_SITELOCAL;
+	case IPV6_ADDR_SCOPE_ORGLOCAL:
+		return SIR_IPV6_ADDR_SCOPE_ORGLOCAL;
+	case IPV6_ADDR_SCOPE_GLOBAL:
+		return SIR_IPV6_ADDR_SCOPE_GLOBAL;
+	default:
+		return SIR_IPV6_ADDR_SCOPE_INVALID;
+	}
+}
 #endif /* WLAN_NS_OFFLOAD */
 
 typedef struct sSirHostOffloadReq {

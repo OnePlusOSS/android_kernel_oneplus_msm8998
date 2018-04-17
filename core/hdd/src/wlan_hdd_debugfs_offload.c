@@ -171,6 +171,30 @@ static void ipv6_addr_string(uint8_t *buffer, uint8_t *IPv6_addr)
 }
 
 /**
+ * hdd_ipv6_scope_str() - Get string for IPv6 Addr scope
+ * @scope: scope id from enum sir_ipv6_addr_scope
+ *
+ * Return: Meaningful string for enum sir_ipv6_addr_scope
+ */
+static uint8_t *hdd_ipv6_scope_str(enum sir_ipv6_addr_scope scope)
+{
+	switch (scope) {
+	case SIR_IPV6_ADDR_SCOPE_NODELOCAL:
+		return "Node Local";
+	case SIR_IPV6_ADDR_SCOPE_LINKLOCAL:
+		return "Link Local";
+	case SIR_IPV6_ADDR_SCOPE_SITELOCAL:
+		return "Site Local";
+	case SIR_IPV6_ADDR_SCOPE_ORGLOCAL:
+		return "Org Local";
+	case SIR_IPV6_ADDR_SCOPE_GLOBAL:
+		return "Global";
+	default:
+		return "Invalid";
+	}
+}
+
+/**
  * wlan_hdd_ns_offload_info_debugfs() - Populate ns offload info
  * @hdd_ctx: pointer to hdd context
  * @adapter: pointer to adapter
@@ -226,6 +250,7 @@ wlan_hdd_ns_offload_info_debugfs(hdd_context_t *hdd_ctx,
 	for (i = 0; i < info.num_ns_offload_count; i++) {
 		uint8_t ipv6_str[IPV6_MAC_ADDRESS_STR_LEN];
 		uint8_t cast_string[12];
+		uint8_t *scope_string;
 
 		if (length >= buf_avail_len) {
 			hdd_err("No sufficient buf_avail_len");
@@ -233,6 +258,7 @@ wlan_hdd_ns_offload_info_debugfs(hdd_context_t *hdd_ctx,
 		}
 
 		ipv6_addr_string(ipv6_str, ns_info->targetIPv6Addr[i]);
+		scope_string = hdd_ipv6_scope_str(ns_info->scope[i]);
 
 		if (ns_info->target_ipv6_addr_ac_type[i] ==
 		    SIR_IPV6_ADDR_AC_TYPE)
@@ -241,8 +267,9 @@ wlan_hdd_ns_offload_info_debugfs(hdd_context_t *hdd_ctx,
 			strlcpy(cast_string, "(UNI CAST)", 12);
 
 		ret_val = scnprintf(buf + length, buf_avail_len - length,
-				    "%u. %s %s\n",
-				    (i + 1), ipv6_str, cast_string);
+				    "%u. %s %s and scope is: %s\n",
+				    (i + 1), ipv6_str, cast_string,
+				    scope_string);
 		if (ret_val <= 0)
 			return length;
 		length += ret_val;

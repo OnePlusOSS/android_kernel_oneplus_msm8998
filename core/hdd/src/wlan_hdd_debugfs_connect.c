@@ -81,6 +81,35 @@ wlan_hdd_version_info_debugfs(hdd_context_t *hdd_ctx, uint8_t *buf,
 }
 
 /**
+ * wlan_hdd_add_nss_info() - Populate NSS info
+ * @conn_info: station connection information
+ * @buf: output buffer to hold version info
+ * @buf_avail_len: available buffer length
+ *
+ * Return: No.of bytes populated by this function in buffer
+ */
+static ssize_t
+wlan_hdd_add_nss_info(connection_info_t *conn_info,
+		      uint8_t *buf, ssize_t buf_avail_len)
+{
+	ssize_t length = 0;
+	int ret_val;
+
+	if (!conn_info->conn_flag.ht_present &&
+	    !conn_info->conn_flag.vht_present)
+		return length;
+
+	ret_val = scnprintf(buf, buf_avail_len,
+			    "nss = %u\n",
+			    conn_info->txrate.nss);
+	if (ret_val <= 0)
+		return length;
+
+	length = ret_val;
+	return length;
+}
+
+/**
  * wlan_hdd_add_ht_cap_info() - Populate HT info
  * @conn_info: station connection information
  * @buf: output buffer to hold version info
@@ -257,7 +286,7 @@ wlan_hdd_connect_info_debugfs(hdd_adapter_t *adapter, uint8_t *buf,
 	ssize_t length = 0;
 	hdd_station_ctx_t *hdd_sta_ctx;
 	connection_info_t *conn_info;
-	uint32_t bit_rate, bit_rate_compat;
+	uint32_t bit_rate;
 	int ret_val;
 
 	hdd_sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
@@ -290,7 +319,6 @@ wlan_hdd_connect_info_debugfs(hdd_adapter_t *adapter, uint8_t *buf,
 
 	conn_info = &hdd_sta_ctx->conn_info;
 	bit_rate = cfg80211_calculate_bitrate(&conn_info->txrate);
-	bit_rate_compat = bit_rate < (1UL << 16) ? bit_rate : 0;
 
 	if (length >= buf_avail_len) {
 		hdd_err("No sufficient buf_avail_len");
@@ -302,11 +330,8 @@ wlan_hdd_connect_info_debugfs(hdd_adapter_t *adapter, uint8_t *buf,
 			    "connect_time = %s\n"
 			    "auth_time = %s\n"
 			    "freq = %u\n"
-			    "noise = %ddBm\n"
 			    "signal = %ddBm\n"
 			    "bit_rate = %u\n"
-			    "bit_rate_compat = %u\n"
-			    "nss = %u\n"
 			    "last_auth_type = %s\n"
 			    "dot11Mode = %s\n",
 			    conn_info->last_ssid.SSID.ssId,
@@ -314,11 +339,8 @@ wlan_hdd_connect_info_debugfs(hdd_adapter_t *adapter, uint8_t *buf,
 			    conn_info->connect_time,
 			    conn_info->auth_time,
 			    conn_info->freq,
-			    (conn_info->noise + 100),
-			    (conn_info->signal + 100),
+			    conn_info->signal,
 			    bit_rate,
-			    bit_rate_compat,
-			    conn_info->txrate.nss,
 			    hdd_auth_type_str(conn_info->last_auth_type),
 			    hdd_dot11_mode_str(conn_info->dot11Mode));
 
@@ -330,6 +352,14 @@ wlan_hdd_connect_info_debugfs(hdd_adapter_t *adapter, uint8_t *buf,
 		hdd_err("No sufficient buf_avail_len");
 		return buf_avail_len;
 	}
+	length += wlan_hdd_add_nss_info(conn_info, buf + length,
+					buf_avail_len - length);
+
+	if (length >= buf_avail_len) {
+		hdd_err("No sufficient buf_avail_len");
+		return buf_avail_len;
+	}
+
 	length += wlan_hdd_add_ht_cap_info(conn_info, buf + length,
 					   buf_avail_len - length);
 

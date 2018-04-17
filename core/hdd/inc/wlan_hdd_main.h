@@ -2259,6 +2259,10 @@ struct hdd_context_s {
 #endif
 	struct hdd_cache_channels *original_channels;
 	qdf_mutex_t cache_channel_lock;
+
+	/* defining the board related information */
+	uint32_t hw_bd_id;
+	struct board_info hw_bd_info;
 };
 
 int hdd_validate_channel_and_bandwidth(hdd_adapter_t *adapter,

@@ -2285,7 +2285,7 @@ static void lim_process_periodic_probe_req_timer(tpAniSirGlobal mac_ctx)
 				&mlm_scan_req->ssId[i], mlm_scan_req->bssId,
 				channel_num, mac_ctx->lim.gSelfMacAddr,
 				mlm_scan_req->dot11mode,
-				mlm_scan_req->uIEFieldLen,
+				&mlm_scan_req->uIEFieldLen,
 				(uint8_t *) (mlm_scan_req) +
 					mlm_scan_req->uIEFieldOffset);
 		if (status != eSIR_SUCCESS) {
@@ -2394,7 +2394,7 @@ static void lim_process_periodic_join_probe_req_timer(tpAniSirGlobal mac_ctx)
 			session->pLimMlmJoinReq->bssDescription.bssId,
 			session->currentOperChannel /*chanNum */,
 			session->selfMacAddr, session->dot11mode,
-			session->pLimJoinReq->addIEScan.length,
+			&session->pLimJoinReq->addIEScan.length,
 			session->pLimJoinReq->addIEScan.addIEdata);
 		lim_deactivate_and_change_timer(mac_ctx,
 				eLIM_PERIODIC_JOIN_PROBE_REQ_TIMER);

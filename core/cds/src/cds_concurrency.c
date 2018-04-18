@@ -9350,6 +9350,23 @@ static enum cds_conc_next_action cds_get_current_pref_hw_mode(void)
 
 }
 
+QDF_STATUS cds_stop_opportunistic_timer(void)
+{
+	p_cds_contextType cds_ctx;
+
+	cds_ctx = cds_get_global_context();
+	if (!cds_ctx) {
+		cds_err("Invalid CDS context");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	if (cds_ctx->dbs_opportunistic_timer.state != QDF_TIMER_STATE_RUNNING)
+		return QDF_STATUS_SUCCESS;
+
+	qdf_mc_timer_stop(&cds_ctx->dbs_opportunistic_timer);
+	return QDF_STATUS_SUCCESS;
+}
+
 /**
  * cds_restart_opportunistic_timer() - Restarts opportunistic timer
  * @check_state: check timer state if this flag is set, else restart

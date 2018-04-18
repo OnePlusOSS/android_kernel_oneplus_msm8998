@@ -842,6 +842,13 @@ QDF_STATUS qdf_wait_for_connection_update(void);
 QDF_STATUS qdf_reset_connection_update(void);
 QDF_STATUS qdf_set_connection_update(void);
 QDF_STATUS qdf_init_connection_update(void);
+
+/**
+ * cds_stop_opportunistic_timer() - Stops opportunistic timer
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS cds_stop_opportunistic_timer(void);
 QDF_STATUS cds_restart_opportunistic_timer(bool check_state);
 QDF_STATUS cds_modify_sap_pcl_based_on_mandatory_channel(uint8_t *pcl_list_org,
 		uint8_t *weight_list_org,

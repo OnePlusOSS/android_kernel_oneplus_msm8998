@@ -1148,7 +1148,15 @@ lim_process_auth_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 		pe_session->limMlmState, MAC_ADDR_ARRAY(mac_hdr->bssId),
 		(uint) abs((int8_t) WMA_GET_RX_RSSI_NORMALIZED(rx_pkt_info)));
 
-	if (pe_session->prev_auth_seq_num == curr_seq_num) {
+	/*
+	 * IOT AP configured in WEP open type sends auth frame with
+	 * same sequence number. DUT sends auth frame, first with auth
+	 * algo as shared key and then as open system. Since, AP sends
+	 * auth frame with same sequence number, DUT drops the second
+	 * auth frame from AP which results in authentication failure.
+	 */
+	if (pe_session->prev_auth_seq_num == curr_seq_num &&
+	    mac_hdr->fc.retry) {
 		pe_err("auth frame, seq num: %d is already processed, drop it",
 			curr_seq_num);
 		return;

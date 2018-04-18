@@ -8092,8 +8092,7 @@ sap_restart:
 				hdd_ap_ctx->sapConfig.channel, intf_ch);
 	}
 	hdd_ap_ctx->sapConfig.channel = intf_ch;
-	hdd_ap_ctx->sapConfig.ch_params.ch_width =
-		hdd_ap_ctx->sapConfig.ch_width_orig;
+	hdd_ap_ctx->sapConfig.ch_params.ch_width = CH_WIDTH_MAX;
 	hdd_ap_ctx->bss_stop_reason = BSS_STOP_DUE_TO_MCC_SCC_SWITCH;
 	cds_set_channel_params(hdd_ap_ctx->sapConfig.channel,
 			hdd_ap_ctx->sapConfig.sec_ch,

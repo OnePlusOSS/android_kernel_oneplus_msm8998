@@ -7936,8 +7936,7 @@ static void hdd_restart_sap(hdd_adapter_t *adapter, uint8_t channel)
 	}
 
 	hdd_ap_ctx->sapConfig.channel = channel;
-	hdd_ap_ctx->sapConfig.ch_params.ch_width =
-		hdd_ap_ctx->sapConfig.ch_width_orig;
+	hdd_ap_ctx->sapConfig.ch_params.ch_width = CH_WIDTH_MAX;
 
 	hdd_debug("chan:%d width:%d",
 		channel, hdd_ap_ctx->sapConfig.ch_width_orig);

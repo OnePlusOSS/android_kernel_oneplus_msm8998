@@ -1669,6 +1669,13 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 		pHostapdAdapter->sessionId =
 			pSapEvent->sapevt.sapStartBssCompleteEvent.sessionId;
 
+		pHostapdAdapter->sessionCtx.ap.sapConfig.channel =
+			pSapEvent->sapevt.sapStartBssCompleteEvent.
+			operatingChannel;
+
+		pHostapdAdapter->sessionCtx.ap.sapConfig.ch_params.ch_width =
+			pSapEvent->sapevt.sapStartBssCompleteEvent.ch_width;
+
 		pHostapdState->qdf_status =
 			pSapEvent->sapevt.sapStartBssCompleteEvent.status;
 
@@ -8402,6 +8409,12 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 	if (!cds_is_sub_20_mhz_enabled())
 		wlan_hdd_set_sap_hwmode(pHostapdAdapter);
 
+	if (IS_24G_CH(pConfig->channel) &&
+	    pHddCtx->config->enableVhtFor24GHzBand &&
+	    (pConfig->SapHw_mode == eCSR_DOT11_MODE_11n ||
+	    pConfig->SapHw_mode == eCSR_DOT11_MODE_11n_ONLY))
+		pConfig->SapHw_mode = eCSR_DOT11_MODE_11ac;
+
 	if (((pHostapdAdapter->device_mode == QDF_SAP_MODE) &&
 	     (pHddCtx->config->sap_force_11n_for_11ac)) ||
 	     ((pHostapdAdapter->device_mode == QDF_P2P_GO_MODE) &&
@@ -8446,7 +8459,9 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 		pConfig->channel = cds_mode_specific_get_channel(CDS_STA_MODE);
 		hdd_debug("DBS is disabled, force SCC is enabled and STA is active, override the SAP channel to %d",
 				pConfig->channel);
-	} else if (wlan_hdd_setup_driver_overrides(pHostapdAdapter)) {
+	}
+
+	if (wlan_hdd_setup_driver_overrides(pHostapdAdapter)) {
 		ret = -EINVAL;
 		goto error;
 	}

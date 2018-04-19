@@ -10863,18 +10863,29 @@ end:
 static int hdd_post_get_chain_rssi_rsp(hdd_context_t *hdd_ctx)
 {
 	struct sk_buff *skb = NULL;
-	int data_len = sizeof(hdd_ctx->chain_rssi_context.result);
+	struct chain_rssi_result *result =
+			&hdd_ctx->chain_rssi_context.result;
 
 	skb = cfg80211_vendor_cmd_alloc_reply_skb(hdd_ctx->wiphy,
-		data_len+NLMSG_HDRLEN);
+			(sizeof(result->chain_rssi) + NLA_HDRLEN) +
+			(sizeof(result->ant_id) + NLA_HDRLEN) +
+			NLMSG_HDRLEN);
 
 	if (!skb) {
 		hdd_err(FL("cfg80211_vendor_event_alloc failed"));
 		return -ENOMEM;
 	}
 
-	if (nla_put(skb, QCA_WLAN_VENDOR_ATTR_CHAIN_RSSI, data_len,
-			&hdd_ctx->chain_rssi_context.result)) {
+	if (nla_put(skb, QCA_WLAN_VENDOR_ATTR_CHAIN_RSSI,
+			sizeof(result->chain_rssi),
+			result->chain_rssi)) {
+		hdd_err(FL("put fail"));
+		goto nla_put_failure;
+	}
+
+	if (nla_put(skb, QCA_WLAN_VENDOR_ATTR_ANTENNA_INFO,
+			sizeof(result->ant_id),
+			result->ant_id)) {
 		hdd_err(FL("put fail"));
 		goto nla_put_failure;
 	}
@@ -11016,8 +11027,7 @@ void wlan_hdd_cfg80211_chainrssi_callback(void *ctx, void *pmsg)
 		return;
 	}
 
-	memcpy(&context->result, data->chain_rssi,
-		sizeof(data->chain_rssi));
+	memcpy(&context->result, data, sizeof(*data));
 
 	complete(&context->response_event);
 	spin_unlock(&hdd_context_lock);

@@ -564,8 +564,6 @@ do { \
 		ipa_ctxt->ipa_resource.rx2_proc_done_idx->vaddr; \
 } while (0)
 
-#define HDD_IPA_CHECK_HW() ipa_uc_reg_rdyCB(NULL)
-
 #define IPA_RESOURCE_READY(ipa_resource, osdev) \
 	((0 == qdf_mem_get_dma_addr(osdev, &ipa_resource->ce_sr->mem_info)) || \
 	 (0 == qdf_mem_get_dma_addr(osdev, &ipa_resource->tx_comp_ring->mem_info)) || \
@@ -574,7 +572,6 @@ do { \
 #else
 /* Do nothing */
 #define HDD_IPA_WDI2_SET(pipe_in, ipa_ctxt, osdev)
-#define HDD_IPA_CHECK_HW() 0
 
 #define IPA_RESOURCE_READY(ipa_resource, osdev) \
 	((0 == qdf_mem_get_dma_addr(osdev, &ipa_resource->ce_sr->mem_info)) || \
@@ -5763,8 +5760,11 @@ static void hdd_ipa_send_pkt_to_tl(
  */
 bool hdd_ipa_is_present(void)
 {
-	/* Check if ipa hw is enabled */
-	if (HDD_IPA_CHECK_HW() != -EPERM)
+	/*
+	 * Check if ipa hw is enabled
+	 * TODO: Add support for WDI unified API
+	 */
+	if (ipa_uc_reg_rdyCB(NULL) != -EPERM)
 		return true;
 	else
 		return false;

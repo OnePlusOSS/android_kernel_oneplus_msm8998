@@ -14672,7 +14672,7 @@ enum hw_filter_mode {
  * gTxSchDelay - Enable/Disable Tx sch delay
  * @Min: 0
  * @Max: 5
- * @Default: 2
+ * @Default: 0
  *
  * Usage: Internal/External
  *
@@ -14682,7 +14682,7 @@ enum hw_filter_mode {
 #define CFG_TX_SCH_DELAY_NAME          "gTxSchDelay"
 #define CFG_TX_SCH_DELAY_MIN           (0)
 #define CFG_TX_SCH_DELAY_MAX           (5)
-#define CFG_TX_SCH_DELAY_DEFAULT       (2)
+#define CFG_TX_SCH_DELAY_DEFAULT       (0)
 
 /*
  * <ini>

@@ -1644,7 +1644,7 @@ QDF_STATUS hdd_wlan_re_init(void)
 		goto err_re_init;
 	}
 
-	hdd_wlan_get_version(pHddCtx, NULL, NULL);
+	hdd_update_hw_sw_info(pHddCtx);
 
 	wlan_hdd_send_svc_nlink_msg(pHddCtx->radio_index,
 				WLAN_SVC_FW_CRASHED_IND, NULL, 0);

@@ -1049,6 +1049,7 @@ typedef struct tagCsrRoamSession {
 	bool ignore_assoc_disallowed;
 	bool discon_in_progress;
 	struct csr_disconnect_stats disconnect_stats;
+	struct rsn_caps rsn_caps;
 } tCsrRoamSession;
 
 typedef struct tagCsrRoamStruct {

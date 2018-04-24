@@ -9287,7 +9287,7 @@ enum hdd_link_speed_rpt_type {
  *
  * Supported Feature: STA
  *
- * Usage: Internal/External
+ * Usage: Internal
  *
  * </ini>
  */
@@ -9313,7 +9313,7 @@ enum hdd_link_speed_rpt_type {
  *
  * Supported Feature: STA
  *
- * Usage: Internal/External
+ * Usage: Internal
  *
  * </ini>
  */
@@ -9339,7 +9339,7 @@ enum hdd_link_speed_rpt_type {
  *
  * Supported Feature: STA
  *
- * Usage: Internal/External
+ * Usage: Internal
  *
  * </ini>
  */
@@ -9365,7 +9365,7 @@ enum hdd_link_speed_rpt_type {
  *
  * Supported Feature: STA
  *
- * Usage: Internal/External
+ * Usage: Internal
  *
  * </ini>
  */
@@ -9414,7 +9414,7 @@ enum hdd_link_speed_rpt_type {
  *
  * Supported Feature: STA
  *
- * Usage: External
+ * Usage: Internal
  *
  * </ini>
  */
@@ -9438,7 +9438,7 @@ enum hdd_link_speed_rpt_type {
  *
  * Supported Feature: STA
  *
- * Usage: External
+ * Usage: Internal
  *
  * </ini>
  */
@@ -9462,7 +9462,7 @@ enum hdd_link_speed_rpt_type {
  *
  * Supported Feature: STA
  *
- * Usage: External
+ * Usage: Internal
  *
  * </ini>
  */
@@ -9486,7 +9486,7 @@ enum hdd_link_speed_rpt_type {
  *
  * Supported Feature: STA
  *
- * Usage: External
+ * Usage: Internal
  *
  * </ini>
  */

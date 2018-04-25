@@ -6428,6 +6428,19 @@ QDF_STATUS wmi_unified_extract_sar_limit_event(void *wmi_hdl,
 	return QDF_STATUS_E_FAILURE;
 }
 
+QDF_STATUS wmi_unified_extract_sar2_result_event(void *handle,
+						 uint8_t *event, uint32_t len)
+{
+	wmi_unified_t wmi_handle = handle;
+
+	if (wmi_handle->ops->extract_sar2_result_event)
+		return wmi_handle->ops->extract_sar2_result_event(wmi_handle,
+								  event,
+								  len);
+
+	return QDF_STATUS_E_FAILURE;
+}
+
 /**
  * wmi_unified_encrypt_decrypt_send_cmd() - send encryptdecrypt cmd to fw
  * @wmi_hdl: wmi handle

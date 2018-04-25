@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -875,7 +875,7 @@ enum {
 
 #define WNI_CFG_VHT_CSN_BEAMFORMEE_ANT_SUPPORTED_STAMIN    0
 #define WNI_CFG_VHT_CSN_BEAMFORMEE_ANT_SUPPORTED_STAMAX    8
-#define WNI_CFG_VHT_CSN_BEAMFORMEE_ANT_SUPPORTED_STADEF    8
+#define WNI_CFG_VHT_CSN_BEAMFORMEE_ANT_SUPPORTED_STADEF    4
 /*
  * WNI_CFG_VHT_CSN_BEAMFORMEE_ANT_SUPPORTED_FW_DEF + 1 is
  * assumed to be the default fw supported BF antennas, if fw

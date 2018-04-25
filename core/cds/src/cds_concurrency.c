@@ -3696,6 +3696,8 @@ void cds_set_tdls_ct_mode(hdd_context_t *hdd_ctx)
 	if (hdd_ctx->config->fTDLSExternalControl) {
 		if (hdd_ctx->tdls_external_peer_count)
 			state = true;
+		else if (hdd_ctx->connected_peer_count >= 1)
+			state = true;
 		else
 			state = false;
 	}
@@ -5931,13 +5933,30 @@ bool cds_allow_sap_go_concurrency(enum cds_con_mode mode, uint8_t channel)
 
 	if ((mode == CDS_SAP_MODE || mode == CDS_P2P_GO_MODE) && (sap_cnt ||
 				go_cnt)) {
-		if (!wma_is_dbs_enable()) {
-			/* Don't allow second SAP/GO interface if DBS is not
-			 * supported */
-			cds_debug("DBS is not supported, don't allow second SAP interface");
+		if (wma_dual_beacon_on_single_mac_mcc_capable())
+			return true;
+		if (wma_dual_beacon_on_single_mac_scc_capable()) {
+			for (id = 0; id < MAX_NUMBER_OF_CONC_CONNECTIONS;
+				id++) {
+				if (conc_connection_list[id].in_use) {
+					con_mode =
+						conc_connection_list[id].mode;
+					con_chan =
+						conc_connection_list[id].chan;
+					if (((con_mode == CDS_SAP_MODE) ||
+					    (con_mode == CDS_P2P_GO_MODE)) &&
+						(channel != con_chan)) {
+						cds_debug("Scc is supported, but first SAP and second SAP are not in same channel, So don't allow second SAP interface");
+						return false;
+					}
+				}
+			}
+			return true;
+		}
+		if (!wma_is_hw_dbs_capable()) {
+			cds_debug("DBS is not supported, mcc and scc are not supported too, don't allow second SAP interface");
 			return false;
 		}
-
 		/* If DBS is supported then allow second SAP/GO session only if
 		 * the freq band of the second SAP/GO interface is different
 		 * than the first SAP/GO interface.
@@ -9393,7 +9412,8 @@ QDF_STATUS cds_restart_opportunistic_timer(bool check_state)
  * Return: QDF_STATUS
  */
 QDF_STATUS cds_register_sap_restart_channel_switch_cb(
-		void (*sap_restart_chan_switch_cb)(void *, uint32_t, uint32_t))
+		void (*sap_restart_chan_switch_cb)(struct hdd_adapter_s *,
+						   uint32_t, uint32_t))
 {
 	p_cds_contextType cds_ctx;
 

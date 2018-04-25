@@ -1998,7 +1998,6 @@ bool csr_roam_is_ese_assoc(tpAniSirGlobal mac_ctx, uint32_t session_id)
 	return mac_ctx->roam.neighborRoamInfo[session_id].isESEAssoc;
 }
 
-
 /**
  * csr_roam_is_ese_ini_feature_enabled() - is ese feature enabled
  * @mac_ctx: Global MAC context
@@ -2806,6 +2805,8 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 					pParam->enable_subfee_vendor_vhtie;
 		pMac->roam.configParam.enable_txbf_sap_mode =
 			pParam->enable_txbf_sap_mode;
+		pMac->roam.configParam.enable_vht20_mcs9 =
+			pParam->enable_vht20_mcs9;
 		pMac->roam.configParam.enable2x2 = pParam->enable2x2;
 		pMac->roam.configParam.enableVhtFor24GHz =
 			pParam->enableVhtFor24GHz;
@@ -2828,6 +2829,12 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 			pParam->max_amsdu_num;
 		pMac->roam.configParam.nSelect5GHzMargin =
 			pParam->nSelect5GHzMargin;
+		pMac->roam.configParam.ho_delay_for_rx =
+			pParam->ho_delay_for_rx;
+		pMac->roam.configParam.min_delay_btw_roam_scans =
+			pParam->min_delay_btw_roam_scans;
+		pMac->roam.configParam.roam_trigger_reason_bitmask =
+			pParam->roam_trigger_reason_bitmask;
 		pMac->roam.configParam.isCoalesingInIBSSAllowed =
 			pParam->isCoalesingInIBSSAllowed;
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
@@ -2875,7 +2882,8 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 		pMac->roam.configParam.roam_params.
 			roam_bad_rssi_thresh_offset_2g =
 			pParam->roam_bad_rssi_thresh_offset_2g;
-
+		pMac->roam.configParam.enable_ftopen =
+			pParam->enable_ftopen;
 		pMac->roam.configParam.scan_adaptive_dwell_mode =
 			pParam->scan_adaptive_dwell_mode;
 		pMac->roam.configParam.scan_adaptive_dwell_mode_nc =
@@ -2974,8 +2982,24 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 
 		pMac->roam.configParam.tx_aggregation_size =
 			pParam->tx_aggregation_size;
+		pMac->roam.configParam.tx_aggregation_size_be =
+			pParam->tx_aggregation_size_be;
+		pMac->roam.configParam.tx_aggregation_size_bk =
+			pParam->tx_aggregation_size_bk;
+		pMac->roam.configParam.tx_aggregation_size_vi =
+			pParam->tx_aggregation_size_vi;
+		pMac->roam.configParam.tx_aggregation_size_vo =
+			pParam->tx_aggregation_size_vo;
 		pMac->roam.configParam.rx_aggregation_size =
 			pParam->rx_aggregation_size;
+		pMac->roam.configParam.tx_aggr_sw_retry_threshold_be =
+			pParam->tx_aggr_sw_retry_threshold_be;
+		pMac->roam.configParam.tx_aggr_sw_retry_threshold_bk =
+			pParam->tx_aggr_sw_retry_threshold_bk;
+		pMac->roam.configParam.tx_aggr_sw_retry_threshold_vi =
+			pParam->tx_aggr_sw_retry_threshold_vi;
+		pMac->roam.configParam.tx_aggr_sw_retry_threshold_vo =
+			pParam->tx_aggr_sw_retry_threshold_vo;
 		pMac->roam.configParam.enable_bcast_probe_rsp =
 			pParam->enable_bcast_probe_rsp;
 		pMac->roam.configParam.is_fils_enabled =
@@ -3120,6 +3144,7 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 				cfg_params->enable_subfee_vendor_vhtie;
 	pParam->enable_txbf_sap_mode =
 		cfg_params->enable_txbf_sap_mode;
+	pParam->enable_vht20_mcs9 = cfg_params->enable_vht20_mcs9;
 	pParam->enableVhtFor24GHz = cfg_params->enableVhtFor24GHz;
 	pParam->ignore_peer_erp_info = cfg_params->ignore_peer_erp_info;
 	pParam->enable2x2 = cfg_params->enable2x2;
@@ -3164,6 +3189,10 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 			cfg_params->rx_ldpc_support_for_2g;
 	pParam->max_amsdu_num = cfg_params->max_amsdu_num;
 	pParam->nSelect5GHzMargin = cfg_params->nSelect5GHzMargin;
+	pParam->ho_delay_for_rx = cfg_params->ho_delay_for_rx;
+	pParam->min_delay_btw_roam_scans = cfg_params->min_delay_btw_roam_scans;
+	pParam->roam_trigger_reason_bitmask =
+			cfg_params->roam_trigger_reason_bitmask;
 	pParam->isCoalesingInIBSSAllowed = cfg_params->isCoalesingInIBSSAllowed;
 	pParam->allowDFSChannelRoam = cfg_params->allowDFSChannelRoam;
 	pParam->nInitialDwellTime = cfg_params->nInitialDwellTime;
@@ -3189,7 +3218,7 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 		cfg_params->roam_params.bg_scan_client_bitmap;
 	pParam->roam_bad_rssi_thresh_offset_2g =
 		cfg_params->roam_params.roam_bad_rssi_thresh_offset_2g;
-
+	pParam->enable_ftopen = cfg_params->enable_ftopen;
 	pParam->scan_adaptive_dwell_mode =
 			cfg_params->scan_adaptive_dwell_mode;
 	pParam->scan_adaptive_dwell_mode_nc =
@@ -3292,6 +3321,14 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 		pMac->roam.configParam.sta_roam_policy.skip_unsafe_channels;
 	pParam->tx_aggregation_size =
 		pMac->roam.configParam.tx_aggregation_size;
+	pParam->tx_aggregation_size_be =
+		pMac->roam.configParam.tx_aggregation_size_be;
+	pParam->tx_aggregation_size_bk =
+		pMac->roam.configParam.tx_aggregation_size_bk;
+	pParam->tx_aggregation_size_vi =
+		pMac->roam.configParam.tx_aggregation_size_vi;
+	pParam->tx_aggregation_size_vo =
+		pMac->roam.configParam.tx_aggregation_size_vo;
 	pParam->rx_aggregation_size =
 		pMac->roam.configParam.rx_aggregation_size;
 	pParam->enable_bcast_probe_rsp =
@@ -3321,6 +3358,13 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 		sizeof(struct sir_score_config));
 
 	csr_get_11k_offload_config_param(&pMac->roam.configParam, pParam);
+
+	pParam->wlm_latency_enable = pMac->roam.configParam.wlm_latency_enable;
+	pParam->wlm_latency_level = pMac->roam.configParam.wlm_latency_level;
+	for (i = 0; i < CSR_NUM_WLM_LATENCY_LEVEL; i++) {
+		pParam->wlm_latency_flags[i] =
+			pMac->roam.configParam.wlm_latency_flags[i];
+	}
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -6195,11 +6239,6 @@ QDF_STATUS csr_roam_process_command(tpAniSirGlobal pMac, tSmeCmd *pCommand)
 
 	switch (pCommand->u.roamCmd.roamReason) {
 	case eCsrForcedDisassoc:
-		if (eCSR_ROAMING_STATE_IDLE == pMac->roam.curState[sessionId]) {
-			sme_err("Ignore eCsrForcedDisassoc cmd on roam state %d",
-				eCSR_ROAMING_STATE_IDLE);
-			return QDF_STATUS_E_FAILURE;
-		}
 		status = csr_roam_process_disassoc_deauth(pMac, pCommand,
 				true, false);
 		csr_free_roam_profile(pMac, sessionId);
@@ -15498,7 +15537,7 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 		ese_config =  pMac->roam.configParam.isEseIniFeatureEnabled;
 #endif
 		pProfile->MDID.mdiePresent = pBssDescription->mdiePresent;
-		if (csr_is_profile11r(pProfile)
+		if (csr_is_profile11r(pMac, pProfile)
 #ifdef FEATURE_WLAN_ESE
 		    &&
 		    !((pProfile->negotiatedAuthType ==
@@ -16458,8 +16497,18 @@ QDF_STATUS csr_send_mb_set_context_req_msg(tpAniSirGlobal pMac,
 					pKey, keyLength);
 		cds_msg.type = eWNI_SME_SETCONTEXT_REQ;
 		cds_msg.bodyptr = pMsg;
-		status = cds_mq_post_message_by_priority(QDF_MODULE_ID_PE, &cds_msg,
+
+		/*
+		 * Post to PE queue in high priority only for unicast key
+		 */
+		if (fUnicast)
+			status = cds_mq_post_message_by_priority(
+					QDF_MODULE_ID_PE, &cds_msg,
 					HIGH_PRIORITY);
+		else
+			status = cds_mq_post_message_by_priority(
+					QDF_MODULE_ID_PE, &cds_msg,
+					LOW_PRIORITY);
 		if (QDF_IS_STATUS_ERROR(status))
 			qdf_mem_free(pMsg);
 	} while (0);
@@ -16841,6 +16890,14 @@ QDF_STATUS csr_process_add_sta_session_command(tpAniSirGlobal pMac,
 	add_sta_self_req->nss_5g = nss_5g;
 	add_sta_self_req->tx_aggregation_size =
 			pMac->roam.configParam.tx_aggregation_size;
+	add_sta_self_req->tx_aggregation_size_be =
+			pMac->roam.configParam.tx_aggregation_size_be;
+	add_sta_self_req->tx_aggregation_size_bk =
+			pMac->roam.configParam.tx_aggregation_size_bk;
+	add_sta_self_req->tx_aggregation_size_vi =
+			pMac->roam.configParam.tx_aggregation_size_vi;
+	add_sta_self_req->tx_aggregation_size_vo =
+			pMac->roam.configParam.tx_aggregation_size_vo;
 	add_sta_self_req->rx_aggregation_size =
 			pMac->roam.configParam.rx_aggregation_size;
 	add_sta_self_req->enable_bcast_probe_rsp =
@@ -16851,6 +16908,14 @@ QDF_STATUS csr_process_add_sta_session_command(tpAniSirGlobal pMac,
 			pMac->roam.configParam.pkt_err_disconn_th;
 	add_sta_self_req->oce_feature_bitmap =
 			pMac->roam.configParam.oce_feature_bitmap;
+	add_sta_self_req->tx_aggr_sw_retry_threshold_be =
+			pMac->roam.configParam.tx_aggr_sw_retry_threshold_be;
+	add_sta_self_req->tx_aggr_sw_retry_threshold_bk =
+			pMac->roam.configParam.tx_aggr_sw_retry_threshold_bk;
+	add_sta_self_req->tx_aggr_sw_retry_threshold_vi =
+			pMac->roam.configParam.tx_aggr_sw_retry_threshold_vi;
+	add_sta_self_req->tx_aggr_sw_retry_threshold_vo =
+			pMac->roam.configParam.tx_aggr_sw_retry_threshold_vo;
 	msg.type = WMA_ADD_STA_SELF_REQ;
 	msg.reserved = 0;
 	msg.bodyptr = add_sta_self_req;
@@ -18322,6 +18387,11 @@ csr_update_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 	req_buf->Prefer5GHz = mac_ctx->roam.configParam.nRoamPrefer5GHz;
 	req_buf->RoamRssiCatGap = mac_ctx->roam.configParam.bCatRssiOffset;
 	req_buf->Select5GHzMargin = mac_ctx->roam.configParam.nSelect5GHzMargin;
+	req_buf->ho_delay_for_rx = mac_ctx->roam.configParam.ho_delay_for_rx;
+	req_buf->min_delay_btw_roam_scans =
+			mac_ctx->roam.configParam.min_delay_btw_roam_scans;
+	req_buf->roam_trigger_reason_bitmask =
+			mac_ctx->roam.configParam.roam_trigger_reason_bitmask;
 	if (wlan_cfg_get_int(mac_ctx, WNI_CFG_REASSOCIATION_FAILURE_TIMEOUT,
 			     (uint32_t *) &req_buf->ReassocFailureTimeout)
 	    != eSIR_SUCCESS) {
@@ -18795,6 +18865,7 @@ csr_create_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 			eCSR_AUTH_TYPE_OPEN_SYSTEM)  ||
 		(csr_is_auth_type_ese(req_buf->
 			ConnectedNetwork.authentication)));
+	req_buf->is_11r_assoc = roam_info->is11rAssoc;
 	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 			"IsEseAssoc: %d middle of roaming: %d ese_neighbor_list_recvd: %d cur no of chan: %d",
 			req_buf->IsESEAssoc,

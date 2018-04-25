@@ -2102,6 +2102,28 @@ enum hdd_dot11_mode {
 
 /*
  * <ini>
+ * enable_ftopen - enable/disable FT open feature
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This INI is used to enable/disable FT open feature
+ *
+ * Related: None
+ *
+ * Supported Feature: Roaming
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ROAM_FT_OPEN_ENABLE_NAME                "enable_ftopen"
+#define CFG_ROAM_FT_OPEN_ENABLE_MIN                 (0)
+#define CFG_ROAM_FT_OPEN_ENABLE_MAX                 (1)
+#define CFG_ROAM_FT_OPEN_ENABLE_DEFAULT             (1)
+
+/*
+ * <ini>
  * groam_dense_min_aps - Sets minimum number of AP for dense roam
  * @Min: 1
  * @Max: 5
@@ -2186,6 +2208,53 @@ enum hdd_dot11_mode {
 
 /*
  * <ini>
+ * min_delay_btw_roam_scans - Min duration (in sec) allowed btw two
+ * consecutive roam scans
+ * @Min: 0
+ * @Max: 60
+ * @Default: 10
+ *
+ * Roam scan is not allowed if duration between two consecutive
+ * roam scans is less than this time.
+ *
+ * Related: None
+ *
+ * Supported Feature: Roaming
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_MIN_DELAY_BTW_ROAM_SCAN_NAME    "min_delay_btw_roam_scans"
+#define CFG_MIN_DELAY_BTW_ROAM_SCAN_MIN     (0)
+#define CFG_MIN_DELAY_BTW_ROAM_SCAN_MAX     (60)
+#define CFG_MIN_DELAY_BTW_ROAM_SCAN_DEFAULT (10)
+
+/*
+ * <ini>
+ * roam_trigger_reason_bitmask - Contains roam_trigger_reasons
+ * @Min: 0
+ * @Max: 0xFFFFFFFF
+ * @Default: 0xDA
+ *
+ * Bitmask containing roam_trigger_reasons for which
+ * min_delay_btw_roam_scans constraint should be applied.
+ *
+ * Related: None
+ *
+ * Supported Feature: Roaming
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ROAM_SCAN_TRIGGER_REASON_BITMASK_NAME "roam_trigger_reason_bitmask"
+#define CFG_ROAM_SCAN_TRIGGER_REASON_BITMASK_MIN     (0)
+#define CFG_ROAM_SCAN_TRIGGER_REASON_BITMASK_MAX     (0xFFFFFFFF)
+#define CFG_ROAM_SCAN_TRIGGER_REASON_BITMASK_DEFAULT (0xDA)
+
+/*
+ * <ini>
  * roam_bad_rssi_thresh_offset_2g - RSSI threshold offset for 2G to 5G roam
  * @Min: 0
  * @Max: 86
@@ -2213,6 +2282,31 @@ enum hdd_dot11_mode {
 #define CFG_ROAM_BG_SCAN_BAD_RSSI_OFFSET_2G_MIN     (0)
 #define CFG_ROAM_BG_SCAN_BAD_RSSI_OFFSET_2G_MAX     (86)
 #define CFG_ROAM_BG_SCAN_BAD_RSSI_OFFSET_2G_DEFAULT (40)
+
+/*
+ * <ini>
+ * ho_delay_for_rx - Delay Hand-off (In msec) by this duration to receive
+ * pending rx frames from current BSS
+ * @Min: 0
+ * @Max: 200
+ * @Default: 0
+ *
+ * For LFR 3.0 roaming scenario, once roam candidate is found, firmware
+ * waits for minimum this much duration to receive pending rx frames from
+ * current BSS before switching to new channel for handoff to new AP.
+ *
+ * Related: None
+ *
+ * Supported Feature: Roaming
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ROAM_HO_DELAY_FOR_RX_NAME    "ho_delay_for_rx"
+#define CFG_ROAM_HO_DELAY_FOR_RX_MIN     (0)
+#define CFG_ROAM_HO_DELAY_FOR_RX_MAX     (200)
+#define CFG_ROAM_HO_DELAY_FOR_RX_DEFAULT (0)
 
 /*
  * <ini>
@@ -5112,6 +5206,27 @@ enum hdd_link_speed_rpt_type {
 #define CFG_VHT_ENABLE_TX_MCS2x2_8_9_MIN           (0)
 #define CFG_VHT_ENABLE_TX_MCS2x2_8_9_MAX           (2)
 #define CFG_VHT_ENABLE_TX_MCS2x2_8_9_DEFAULT       (0)
+
+/*
+ * <ini>
+ * enable_vht20_mcs9 - Enables VHT MCS9 in 20M BW operation
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * Related: NA
+ *
+ * Supported Feature: 11AC
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+
+#define CFG_ENABLE_VHT20_MCS9               "enable_vht20_mcs9"
+#define CFG_ENABLE_VHT20_MCS9_MIN           (0)
+#define CFG_ENABLE_VHT20_MCS9_MAX           (1)
+#define CFG_ENABLE_VHT20_MCS9_DEFAULT       (1)
 
 /*
  * <ini>
@@ -9132,6 +9247,110 @@ enum hdd_link_speed_rpt_type {
 
 /*
  * <ini>
+ * gTxAggregationSizeBE - To configure Tx aggregation size for BE queue
+ * in no of MPDUs
+ * @Min: 0
+ * @Max: 64
+ * @Default: 0
+ *
+ * gTxAggregationSizeBE gives an option to configure Tx aggregation size
+ * for BE queue in no of MPDUs.This can be useful in debugging
+ * throughput issues
+ *
+ * Related: None
+ *
+ * Supported Feature: STA
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+
+#define CFG_TX_AGGREGATION_SIZEBE      "gTxAggregationSizeBE"
+#define CFG_TX_AGGREGATION_SIZEBE_MIN      (0)
+#define CFG_TX_AGGREGATION_SIZEBE_MAX      (64)
+#define CFG_TX_AGGREGATION_SIZEBE_DEFAULT  (0)
+
+/*
+ * <ini>
+ * gTxAggregationSizeBK - To configure Tx aggregation size for BK queue
+ * in no of MPDUs
+ * @Min: 0
+ * @Max: 64
+ * @Default: 0
+ *
+ * gTxAggregationSizeBK gives an option to configure Tx aggregation size
+ * for BK queue in no of MPDUs.This can be useful in debugging
+ * throughput issues
+ *
+ * Related: None
+ *
+ * Supported Feature: STA
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+
+#define CFG_TX_AGGREGATION_SIZEBK      "gTxAggregationSizeBK"
+#define CFG_TX_AGGREGATION_SIZEBK_MIN      (0)
+#define CFG_TX_AGGREGATION_SIZEBK_MAX      (64)
+#define CFG_TX_AGGREGATION_SIZEBK_DEFAULT  (0)
+
+/*
+ * <ini>
+ * gTxAggregationSizeVI - To configure Tx aggregation size for VI queue
+ * in no of MPDUs
+ * @Min: 0
+ * @Max: 64
+ * @Default: 0
+ *
+ * gTxAggregationSizeVI gives an option to configure Tx aggregation size
+ * for VI queue in no of MPDUs.This can be useful in debugging
+ * throughput issues
+ *
+ * Related: None
+ *
+ * Supported Feature: STA
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+
+#define CFG_TX_AGGREGATION_SIZEVI      "gTxAggregationSizeVI"
+#define CFG_TX_AGGREGATION_SIZEVI_MIN      (0)
+#define CFG_TX_AGGREGATION_SIZEVI_MAX      (64)
+#define CFG_TX_AGGREGATION_SIZEVI_DEFAULT  (0)
+
+/*
+ * <ini>
+ * gTxAggregationSizeVO - To configure Tx aggregation size for VO queue
+ * in no of MPDUs
+ * @Min: 0
+ * @Max: 64
+ * @Default: 0
+ *
+ * gTxAggregationSizeVO gives an option to configure Tx aggregation size
+ * for BE queue in no of MPDUs.This can be useful in debugging
+ * throughput issues
+ *
+ * Related: None
+ *
+ * Supported Feature: STA
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+
+#define CFG_TX_AGGREGATION_SIZEVO      "gTxAggregationSizeVO"
+#define CFG_TX_AGGREGATION_SIZEVO_MIN      (0)
+#define CFG_TX_AGGREGATION_SIZEVO_MAX      (64)
+#define CFG_TX_AGGREGATION_SIZEVO_DEFAULT  (0)
+
+/*
+ * <ini>
  * gRxAggregationSize - Gives an option to configure Rx aggregation size
  * in no of MPDUs
  * @Min: 1
@@ -9154,6 +9373,102 @@ enum hdd_link_speed_rpt_type {
 #define CFG_RX_AGGREGATION_SIZE_MIN      (1)
 #define CFG_RX_AGGREGATION_SIZE_MAX      (64)
 #define CFG_RX_AGGREGATION_SIZE_DEFAULT  (64)
+
+/*
+ * <ini>
+ * gTxAggSwRetryBE - Configure Tx aggregation sw retry for BE
+ * @Min: 0
+ * @Max: 64
+ * @Default: 0
+ *
+ * gTxAggSwRetryBE gives an option to configure Tx aggregation sw
+ * retry for BE. This can be useful in debugging throughput issues.
+ *
+ * Related: None
+ *
+ * Supported Feature: STA
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+
+#define CFG_TX_AGGR_SW_RETRY_BE      "gTxAggSwRetryBE"
+#define CFG_TX_AGGR_SW_RETRY_BE_MIN      (0)
+#define CFG_TX_AGGR_SW_RETRY_BE_MAX      (64)
+#define CFG_TX_AGGR_SW_RETRY_BE_DEFAULT  (0)
+
+/*
+ * <ini>
+ * gTxAggSwRetryBK - Configure Tx aggregation sw retry for BK
+ * @Min: 0
+ * @Max: 64
+ * @Default: 0
+ *
+ * gTxAggSwRetryBK gives an option to configure Tx aggregation sw
+ * retry for BK. This can be useful in debugging throughput issues.
+ *
+ * Related: None
+ *
+ * Supported Feature: STA
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+
+#define CFG_TX_AGGR_SW_RETRY_BK      "gTxAggSwRetryBK"
+#define CFG_TX_AGGR_SW_RETRY_BK_MIN      (0)
+#define CFG_TX_AGGR_SW_RETRY_BK_MAX      (64)
+#define CFG_TX_AGGR_SW_RETRY_BK_DEFAULT  (0)
+
+/*
+ * <ini>
+ * gTxAggSwRetryVI - Configure Tx aggregation sw retry for VI
+ * @Min: 0
+ * @Max: 64
+ * @Default: 0
+ *
+ * gTxAggSwRetryVI gives an option to configure Tx aggregation sw
+ * retry for VI. This can be useful in debugging throughput issues.
+ *
+ * Related: None
+ *
+ * Supported Feature: STA
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+
+#define CFG_TX_AGGR_SW_RETRY_VI      "gTxAggSwRetryVI"
+#define CFG_TX_AGGR_SW_RETRY_VI_MIN      (0)
+#define CFG_TX_AGGR_SW_RETRY_VI_MAX      (64)
+#define CFG_TX_AGGR_SW_RETRY_VI_DEFAULT  (0)
+
+/*
+ * <ini>
+ * gTxAggSwRetryVO - Configure Tx aggregation sw retry for VO
+ * @Min: 0
+ * @Max: 64
+ * @Default: 0
+ *
+ * gTxAggSwRetryVO gives an option to configure Tx aggregation sw
+ * retry for VO. This can be useful in debugging throughput issues.
+ *
+ * Related: None
+ *
+ * Supported Feature: STA
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+
+#define CFG_TX_AGGR_SW_RETRY_VO      "gTxAggSwRetryVO"
+#define CFG_TX_AGGR_SW_RETRY_VO_MIN      (0)
+#define CFG_TX_AGGR_SW_RETRY_VO_MAX      (64)
+#define CFG_TX_AGGR_SW_RETRY_VO_DEFAULT  (0)
 
 /*
  * fine timing measurement capability information
@@ -12853,7 +13168,7 @@ enum hw_filter_mode {
  */
 
 #define CFG_IS_SAE_ENABLED_NAME    "sae_enabled"
-#define CFG_IS_SAE_ENABLED_DEFAULT (0)
+#define CFG_IS_SAE_ENABLED_DEFAULT (1)
 #define CFG_IS_SAE_ENABLED_MIN     (0)
 #define CFG_IS_SAE_ENABLED_MAX     (1)
 
@@ -14077,7 +14392,7 @@ enum hw_filter_mode {
 #define CFG_ENABLE_GCMP_NAME    "gcmp_enabled"
 #define CFG_ENABLE_GCMP_MIN     (0)
 #define CFG_ENABLE_GCMP_MAX     (1)
-#define CFG_ENABLE_GCMP_DEFAULT (0)
+#define CFG_ENABLE_GCMP_DEFAULT (1)
 
 /*
  * <ini>
@@ -14339,6 +14654,23 @@ enum hw_filter_mode {
 #define CFG_ENABLE_RTT_MAC_RANDOMIZATION_MIN     (0)
 #define CFG_ENABLE_RTT_MAC_RANDOMIZATION_MAX     (1)
 #define CFG_ENABLE_RTT_MAC_RANDOMIZATION_DEFAULT (0)
+
+/*
+ * <ini>
+ * gEnableUnitTestFramework - Enable/Disable unit test framework
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * Usage: Internal (only for dev and test team)
+ *
+ * </ini>
+ */
+#define CFG_ENABLE_UNIT_TEST_FRAMEWORK_NAME    "gEnableUnitTestFramework"
+#define CFG_ENABLE_UNIT_TEST_FRAMEWORK_MIN     (0)
+#define CFG_ENABLE_UNIT_TEST_FRAMEWORK_MAX     (1)
+#define CFG_ENABLE_UINT_TEST_FRAMEWORK_DEFAULT (0)
+
 
 /*---------------------------------------------------------------------------
    Type declarations
@@ -14655,6 +14987,7 @@ struct hdd_config {
 	bool enableTxBF;
 	bool enable_subfee_vendor_vhtie;
 	bool enable_txbf_sap_mode;
+	bool enable_vht20_mcs9;
 	uint8_t txBFCsnValue;
 	bool enable_su_tx_bformer;
 	uint8_t vhtRxMCS2x2;
@@ -15015,6 +15348,9 @@ struct hdd_config {
 	uint32_t roam_dense_min_aps;
 	int8_t roam_bg_scan_bad_rssi_thresh;
 	uint8_t roam_bad_rssi_thresh_offset_2g;
+	uint32_t ho_delay_for_rx;
+	uint32_t min_delay_btw_roam_scans;
+	uint32_t roam_trigger_reason_bitmask;
 	uint32_t roam_bg_scan_client_bitmap;
 	bool enable_edca_params;
 	uint32_t edca_vo_cwmin;
@@ -15076,7 +15412,15 @@ struct hdd_config {
 	bool goptimize_chan_avoid_event;
 	bool enable_go_cts2self_for_sta;
 	uint32_t tx_aggregation_size;
+	uint32_t tx_aggregation_size_be;
+	uint32_t tx_aggregation_size_bk;
+	uint32_t tx_aggregation_size_vi;
+	uint32_t tx_aggregation_size_vo;
 	uint32_t rx_aggregation_size;
+	uint32_t tx_aggr_sw_retry_threshold_be;
+	uint32_t tx_aggr_sw_retry_threshold_bk;
+	uint32_t tx_aggr_sw_retry_threshold_vi;
+	uint32_t tx_aggr_sw_retry_threshold_vo;
 	bool sta_prefer_80MHz_over_160MHz;
 	uint8_t sap_max_inactivity_override;
 	bool fw_timeout_crash;
@@ -15250,6 +15594,8 @@ struct hdd_config {
 	bool is_sae_enabled;
 #endif
 	bool enable_rtt_mac_randomization;
+	bool enable_ftopen;
+	bool is_unit_test_framework_enabled;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

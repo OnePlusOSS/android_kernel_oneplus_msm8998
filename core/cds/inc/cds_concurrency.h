@@ -66,6 +66,8 @@
 
 #define MAX_MAC 2
 
+struct hdd_adapter_s;
+
 /**
  * enum hw_mode_ss_config - Possible spatial stream configuration
  * @SS_0x0: Unused Tx and Rx of MAC
@@ -865,7 +867,8 @@ QDF_STATUS cds_set_sap_mandatory_channels(uint8_t *channels, uint32_t len);
 QDF_STATUS cds_reset_sap_mandatory_channels(void);
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
 QDF_STATUS cds_register_sap_restart_channel_switch_cb(
-		void (*sap_restart_chan_switch_cb)(void *, uint32_t, uint32_t));
+		void (*sap_restart_chan_switch_cb)(struct hdd_adapter_s *,
+						   uint32_t, uint32_t));
 QDF_STATUS cds_deregister_sap_restart_channel_switch_cb(void);
 #endif
 bool cds_is_any_mode_active_on_band_along_with_session(uint8_t session_id,

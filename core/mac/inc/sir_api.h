@@ -783,7 +783,6 @@ typedef struct sSirSmeStartBssReq {
 	uint8_t sap_dot11mc;
 	uint16_t beacon_tx_rate;
 	bool vendor_vht_sap;
-
 } tSirSmeStartBssReq, *tpSirSmeStartBssReq;
 
 #define GET_IE_LEN_IN_BSS(lenInBss) (lenInBss + sizeof(lenInBss) - \
@@ -3608,6 +3607,7 @@ typedef struct sSirRoamOffloadScanReq {
 	uint8_t ValidChannelCount;
 	uint8_t ValidChannelList[SIR_ROAM_MAX_CHANNELS];
 	bool IsESEAssoc;
+	bool is_11r_assoc;
 	uint8_t nProbes;
 	uint16_t HomeAwayTime;
 	tSirRoamNetworkType ConnectedNetwork;
@@ -3651,6 +3651,9 @@ typedef struct sSirRoamOffloadScanReq {
 #endif
 	struct scoring_param score_params;
 	struct wmi_11k_offload_params offload_11k_params;
+	uint32_t ho_delay_for_rx;
+	uint32_t min_delay_btw_roam_scans;
+	uint32_t roam_trigger_reason_bitmask;
 } tSirRoamOffloadScanReq, *tpSirRoamOffloadScanReq;
 
 typedef struct sSirRoamOffloadScanRsp {
@@ -7876,12 +7879,36 @@ struct sme_ndp_peer_ind {
  * struct sir_set_tx_rx_aggregation_size - sets tx rx aggregation size
  * @vdev_id: vdev id of the session
  * @tx_aggregation_size: Tx aggregation size
+ * @tx_aggregation_size_be: Tx aggregation size for be queue
+ * @tx_aggregation_size_bk: Tx aggregation size for bk queue
+ * @tx_aggregation_size_vi: Tx aggregation size for vi queue
+ * @tx_aggregation_size_vo: Tx aggregation size for vo queue
  * @rx_aggregation_size: Rx aggregation size
  */
 struct sir_set_tx_rx_aggregation_size {
 	uint8_t vdev_id;
 	uint32_t tx_aggregation_size;
+	uint32_t tx_aggregation_size_be;
+	uint32_t tx_aggregation_size_bk;
+	uint32_t tx_aggregation_size_vi;
+	uint32_t tx_aggregation_size_vo;
 	uint32_t rx_aggregation_size;
+};
+
+/**
+ * struct sir_set_tx_aggr_sw_retry_threshold - set sw retry threshold
+ * @vdev_id: vdev id of the session
+ * @tx_aggr_sw_retry_threshold_be: sw retry threshold for BE
+ * @tx_aggr_sw_retry_threshold_bk: sw retry threshold for BK
+ * @tx_aggr_sw_retry_threshold_vi: sw retry threshold for VI
+ * @tx_aggr_sw_retry_threshold_vo: sw retry threshold for VO
+ */
+struct sir_set_tx_aggr_sw_retry_threshold {
+	uint8_t vdev_id;
+	uint32_t tx_aggr_sw_retry_threshold_be;
+	uint32_t tx_aggr_sw_retry_threshold_bk;
+	uint32_t tx_aggr_sw_retry_threshold_vi;
+	uint32_t tx_aggr_sw_retry_threshold_vo;
 };
 
 /**

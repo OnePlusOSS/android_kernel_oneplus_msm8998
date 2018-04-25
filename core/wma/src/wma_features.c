@@ -4256,7 +4256,7 @@ static void wma_wow_parse_data_pkt_buffer(uint8_t *data,
 
 	WMA_LOGD("wow_buf_pkt_len: %u", buf_len);
 	if (buf_len >= QDF_NBUF_TRAC_IPV4_OFFSET)
-		WMA_LOGD("Src_mac: "MAC_ADDRESS_STR" Dst_mac: "MAC_ADDRESS_STR,
+		WMA_LOGI("Src_mac: "MAC_ADDRESS_STR" Dst_mac: "MAC_ADDRESS_STR,
 			MAC_ADDR_ARRAY(data + QDF_NBUF_SRC_MAC_OFFSET),
 			MAC_ADDR_ARRAY(data + QDF_NBUF_DEST_MAC_OFFSET));
 	else
@@ -4268,7 +4268,7 @@ static void wma_wow_parse_data_pkt_buffer(uint8_t *data,
 	case QDF_PROTO_EAPOL_M2:
 	case QDF_PROTO_EAPOL_M3:
 	case QDF_PROTO_EAPOL_M4:
-		WMA_LOGD("WOW Wakeup: %s rcvd",
+		WMA_LOGI("WOW Wakeup: %s rcvd",
 			wma_pkt_proto_subtype_to_string(proto_subtype));
 		if (buf_len >= WMA_EAPOL_INFO_GET_MIN_LEN) {
 			pkt_len = (uint16_t)(*(uint16_t *)(data +
@@ -4289,7 +4289,7 @@ static void wma_wow_parse_data_pkt_buffer(uint8_t *data,
 	case QDF_PROTO_DHCP_RELEASE:
 	case QDF_PROTO_DHCP_INFORM:
 	case QDF_PROTO_DHCP_DECLINE:
-		WMA_LOGD("WOW Wakeup: %s rcvd",
+		WMA_LOGI("WOW Wakeup: %s rcvd",
 			wma_pkt_proto_subtype_to_string(proto_subtype));
 		if (buf_len >= WMA_DHCP_INFO_GET_MIN_LEN) {
 			pkt_len = (uint16_t)(*(uint16_t *)(data +
@@ -4304,13 +4304,13 @@ static void wma_wow_parse_data_pkt_buffer(uint8_t *data,
 
 	case QDF_PROTO_ARP_REQ:
 	case QDF_PROTO_ARP_RES:
-		WMA_LOGD("WOW Wakeup: %s rcvd",
+		WMA_LOGI("WOW Wakeup: %s rcvd",
 			wma_pkt_proto_subtype_to_string(proto_subtype));
 		break;
 
 	case QDF_PROTO_ICMP_REQ:
 	case QDF_PROTO_ICMP_RES:
-		WMA_LOGD("WOW Wakeup: %s rcvd",
+		WMA_LOGI("WOW Wakeup: %s rcvd",
 			wma_pkt_proto_subtype_to_string(proto_subtype));
 		if (buf_len >= WMA_IPV4_PKT_INFO_GET_MIN_LEN) {
 			pkt_len = (uint16_t)(*(uint16_t *)(data +
@@ -4329,7 +4329,7 @@ static void wma_wow_parse_data_pkt_buffer(uint8_t *data,
 	case QDF_PROTO_ICMPV6_RA:
 	case QDF_PROTO_ICMPV6_NS:
 	case QDF_PROTO_ICMPV6_NA:
-		WMA_LOGD("WOW Wakeup: %s rcvd",
+		WMA_LOGI("WOW Wakeup: %s rcvd",
 			wma_pkt_proto_subtype_to_string(proto_subtype));
 		if (buf_len >= WMA_IPV6_PKT_INFO_GET_MIN_LEN) {
 			pkt_len = (uint16_t)(*(uint16_t *)(data +
@@ -4344,7 +4344,7 @@ static void wma_wow_parse_data_pkt_buffer(uint8_t *data,
 
 	case QDF_PROTO_IPV4_UDP:
 	case QDF_PROTO_IPV4_TCP:
-		WMA_LOGD("WOW Wakeup: %s rcvd",
+		WMA_LOGI("WOW Wakeup: %s rcvd",
 			wma_pkt_proto_subtype_to_string(proto_subtype));
 		if (buf_len >= WMA_IPV4_PKT_INFO_GET_MIN_LEN) {
 			pkt_len = (uint16_t)(*(uint16_t *)(data +
@@ -4361,7 +4361,7 @@ static void wma_wow_parse_data_pkt_buffer(uint8_t *data,
 				IPV4_DST_PORT_OFFSET));
 			WMA_LOGD("Pkt_len: %u",
 				ani_cpu_to_be16(pkt_len));
-			WMA_LOGD("src_port: %u, dst_port: %u",
+			WMA_LOGI("src_port: %u, dst_port: %u",
 				ani_cpu_to_be16(src_port),
 				ani_cpu_to_be16(dst_port));
 			if (proto_subtype == QDF_PROTO_IPV4_TCP) {
@@ -4375,7 +4375,7 @@ static void wma_wow_parse_data_pkt_buffer(uint8_t *data,
 
 	case QDF_PROTO_IPV6_UDP:
 	case QDF_PROTO_IPV6_TCP:
-		WMA_LOGD("WOW Wakeup: %s rcvd",
+		WMA_LOGI("WOW Wakeup: %s rcvd",
 			wma_pkt_proto_subtype_to_string(proto_subtype));
 		if (buf_len >= WMA_IPV6_PKT_INFO_GET_MIN_LEN) {
 			pkt_len = (uint16_t)(*(uint16_t *)(data +
@@ -4400,7 +4400,7 @@ static void wma_wow_parse_data_pkt_buffer(uint8_t *data,
 				IPV6_DST_PORT_OFFSET));
 			WMA_LOGD("Pkt_len: %u",
 				ani_cpu_to_be16(pkt_len));
-			WMA_LOGD("src_port: %u, dst_port: %u",
+			WMA_LOGI("src_port: %u, dst_port: %u",
 				ani_cpu_to_be16(src_port),
 				ani_cpu_to_be16(dst_port));
 			if (proto_subtype == QDF_PROTO_IPV6_TCP) {
@@ -8178,6 +8178,20 @@ QDF_STATUS wma_set_led_flashing(tp_wma_handle wma_handle,
 }
 #endif /* WLAN_FEATURE_GPIO_LED_FLASHING */
 
+int wma_sar_rsp_evt_handler(void *handle, uint8_t *event, uint32_t len)
+{
+	QDF_STATUS status;
+
+	status = wmi_unified_extract_sar2_result_event(handle,
+						       event, len);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		WMA_LOGE(FL("Event extract failure: %d"), status);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 #ifdef FEATURE_WLAN_CH_AVOID
 /**
  * wma_channel_avoid_evt_handler() -  process channel to avoid event from FW.
@@ -10150,6 +10164,156 @@ QDF_STATUS wma_set_tx_rx_aggregation_size(
 	return QDF_STATUS_SUCCESS;
 }
 
+QDF_STATUS wma_set_tx_rx_aggregation_size_per_ac(
+	struct sir_set_tx_rx_aggregation_size *tx_rx_aggregation_size)
+{
+	tp_wma_handle wma_handle;
+	wmi_vdev_set_custom_aggr_size_cmd_fixed_param *cmd;
+	int32_t len;
+	wmi_buf_t buf;
+	u_int8_t *buf_ptr;
+	int ret;
+	int queue_num;
+	uint32_t tx_aggr_size[4];
+
+	wma_handle = cds_get_context(QDF_MODULE_ID_WMA);
+
+	if (!tx_rx_aggregation_size) {
+		WMA_LOGE("%s: invalid pointer", __func__);
+		return QDF_STATUS_E_INVAL;
+	}
+
+	if (!wma_handle) {
+		WMA_LOGE("%s: WMA context is invald!", __func__);
+		return QDF_STATUS_E_INVAL;
+	}
+
+	tx_aggr_size[0] = tx_rx_aggregation_size->tx_aggregation_size_be;
+	tx_aggr_size[1] = tx_rx_aggregation_size->tx_aggregation_size_bk;
+	tx_aggr_size[2] = tx_rx_aggregation_size->tx_aggregation_size_vi;
+	tx_aggr_size[3] = tx_rx_aggregation_size->tx_aggregation_size_vo;
+
+	for (queue_num = 0; queue_num < 4; queue_num++) {
+		if (tx_aggr_size[queue_num] == 0)
+			continue;
+
+		len = sizeof(*cmd);
+		buf = wmi_buf_alloc(wma_handle->wmi_handle, len);
+
+		if (!buf) {
+			WMA_LOGE("%s: Failed allocate wmi buffer", __func__);
+			return QDF_STATUS_E_NOMEM;
+		}
+
+		buf_ptr = (u_int8_t *)wmi_buf_data(buf);
+		cmd = (wmi_vdev_set_custom_aggr_size_cmd_fixed_param *)buf_ptr;
+
+		WMITLV_SET_HDR(&cmd->tlv_header,
+			       WMITLV_TAG_STRUC_wmi_vdev_set_custom_aggr_size_cmd_fixed_param,
+			       WMITLV_GET_STRUCT_TLVLEN(
+					wmi_vdev_set_custom_aggr_size_cmd_fixed_param));
+
+		cmd->vdev_id = tx_rx_aggregation_size->vdev_id;
+		cmd->rx_aggr_size =
+				  tx_rx_aggregation_size->rx_aggregation_size;
+
+		cmd->tx_aggr_size = tx_aggr_size[queue_num];
+		/* bit 5: tx_ac_enable, if set, ac bitmap is valid. */
+		cmd->enable_bitmap = 0x20 | queue_num;
+
+		WMA_LOGD("queue_num: %d, tx aggr: %d rx aggr: %d vdev: %d",
+			 queue_num, cmd->tx_aggr_size,
+			 cmd->rx_aggr_size, cmd->vdev_id);
+
+		ret = wmi_unified_cmd_send(wma_handle->wmi_handle, buf, len,
+					WMI_VDEV_SET_CUSTOM_AGGR_SIZE_CMDID);
+		if (ret) {
+			WMA_LOGE("%s: Failed to send aggregation size command",
+				 __func__);
+			wmi_buf_free(buf);
+			return QDF_STATUS_E_FAILURE;
+		}
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
+
+QDF_STATUS wma_set_sw_retry_threshold(
+	struct sir_set_tx_aggr_sw_retry_threshold *tx_sw_retry_threshold)
+{
+	tp_wma_handle wma_handle;
+	wmi_vdev_set_custom_sw_retry_th_cmd_fixed_param *cmd;
+	int32_t len;
+	wmi_buf_t buf;
+	u_int8_t *buf_ptr;
+	int ret;
+	int queue_num;
+	uint32_t tx_aggr_retry[WMI_AC_MAX];
+
+	wma_handle = cds_get_context(QDF_MODULE_ID_WMA);
+
+	if (!tx_sw_retry_threshold) {
+		WMA_LOGE("%s: invalid pointer", __func__);
+		return QDF_STATUS_E_INVAL;
+	}
+
+	if (!wma_handle) {
+		WMA_LOGE("%s: WMA context is invald!", __func__);
+		return QDF_STATUS_E_INVAL;
+	}
+
+	tx_aggr_retry[0] =
+		tx_sw_retry_threshold->tx_aggr_sw_retry_threshold_be;
+	tx_aggr_retry[1] =
+		tx_sw_retry_threshold->tx_aggr_sw_retry_threshold_bk;
+	tx_aggr_retry[2] =
+		tx_sw_retry_threshold->tx_aggr_sw_retry_threshold_vi;
+	tx_aggr_retry[3] =
+		tx_sw_retry_threshold->tx_aggr_sw_retry_threshold_vo;
+
+	for (queue_num = 0; queue_num < WMI_AC_MAX; queue_num++) {
+		if (tx_aggr_retry[queue_num] == 0)
+			continue;
+
+		len = sizeof(*cmd);
+		buf = wmi_buf_alloc(wma_handle->wmi_handle, len);
+
+		if (!buf) {
+			WMA_LOGE("%s: Failed allocate wmi buffer", __func__);
+			return QDF_STATUS_E_NOMEM;
+		}
+
+		buf_ptr = (u_int8_t *)wmi_buf_data(buf);
+		cmd =
+		    (wmi_vdev_set_custom_sw_retry_th_cmd_fixed_param *)buf_ptr;
+
+		WMITLV_SET_HDR(&cmd->tlv_header,
+			       WMITLV_TAG_STRUC_wmi_vdev_set_custom_sw_retry_th_cmd_fixed_param,
+			       WMITLV_GET_STRUCT_TLVLEN(
+				   wmi_vdev_set_custom_sw_retry_th_cmd_fixed_param));
+
+		cmd->vdev_id = tx_sw_retry_threshold->vdev_id;
+		cmd->ac_type = queue_num;
+		cmd->sw_retry_type = WMI_VDEV_CUSTOM_SW_RETRY_TYPE_AGGR;
+		cmd->sw_retry_th = tx_aggr_retry[queue_num];
+
+		WMA_LOGD("queue: %d type: %d threadhold: %d vdev: %d",
+			 queue_num, cmd->sw_retry_type,
+			 cmd->sw_retry_th, cmd->vdev_id);
+
+		ret = wmi_unified_cmd_send(wma_handle->wmi_handle, buf, len,
+					   WMI_VDEV_SET_CUSTOM_SW_RETRY_TH_CMDID);
+		if (ret) {
+			WMA_LOGE("%s: Failed to send retry threshold command",
+				 __func__);
+			wmi_buf_free(buf);
+			return QDF_STATUS_E_FAILURE;
+		}
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
+
 /**
  *  wma_p2p_lo_start() - P2P listen offload start
  *  @params: p2p listen offload parameters
@@ -11262,4 +11426,52 @@ int wma_rx_aggr_failure_event_handler(void *handle, u_int8_t *event_buf,
 	WMA_LOGD("%s: stats ext event Posted to SME", __func__);
 
 	return 0;
+}
+
+
+bool wma_dual_beacon_on_single_mac_scc_capable(void)
+{
+	tp_wma_handle wma_handle = NULL;
+
+	wma_handle = cds_get_context(QDF_MODULE_ID_WMA);
+	if (NULL == wma_handle) {
+		WMA_LOGE("%s : Failed to get wma_handle", __func__);
+		return false;
+	}
+	if (WMI_SERVICE_EXT_IS_ENABLED(wma_handle->wmi_service_bitmap,
+		wma_handle->wmi_service_ext_bitmap,
+		WMI_SERVICE_DUAL_BEACON_ON_SINGLE_MAC_SCC_SUPPORT)) {
+		WMA_LOGD("Support dual beacon on same channel on single MAC");
+		return true;
+	}
+	if (WMI_SERVICE_EXT_IS_ENABLED(wma_handle->wmi_service_bitmap,
+		wma_handle->wmi_service_ext_bitmap,
+		WMI_SERVICE_DUAL_BEACON_ON_SINGLE_MAC_MCC_SUPPORT)) {
+		WMA_LOGD("Support dual beacon on both different and same channel on single MAC");
+		return true;
+	} else {
+		WMA_LOGD("Not support dual beacon on same channel on single MAC");
+		return false;
+	}
+}
+
+bool wma_dual_beacon_on_single_mac_mcc_capable(void)
+{
+	tp_wma_handle wma_handle = NULL;
+
+	wma_handle = cds_get_context(QDF_MODULE_ID_WMA);
+	if (NULL == wma_handle) {
+		WMA_LOGE("%s : Failed to get wma_handle", __func__);
+		return false;
+	}
+
+	if (WMI_SERVICE_EXT_IS_ENABLED(wma_handle->wmi_service_bitmap,
+		wma_handle->wmi_service_ext_bitmap,
+		WMI_SERVICE_DUAL_BEACON_ON_SINGLE_MAC_MCC_SUPPORT)) {
+		WMA_LOGD("Support dual beacon on different channel on single MAC");
+		return true;
+	} else {
+		WMA_LOGD("Not support dual beacon on different channel on single MAC");
+		return false;
+	}
 }

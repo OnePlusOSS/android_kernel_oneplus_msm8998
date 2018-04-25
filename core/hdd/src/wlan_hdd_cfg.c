@@ -2143,6 +2143,13 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_VHT_ENABLE_TX_MCS2x2_8_9_MIN,
 		     CFG_VHT_ENABLE_TX_MCS2x2_8_9_MAX),
 
+	REG_VARIABLE(CFG_ENABLE_VHT20_MCS9, WLAN_PARAM_Integer,
+		     struct hdd_config, enable_vht20_mcs9,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK,
+		     CFG_ENABLE_VHT20_MCS9_DEFAULT,
+		     CFG_ENABLE_VHT20_MCS9_MIN,
+		     CFG_ENABLE_VHT20_MCS9_MAX),
+
 	REG_VARIABLE(CFG_VHT_ENABLE_2x2_CAP_FEATURE, WLAN_PARAM_Integer,
 		     struct hdd_config, enable2x2,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -4074,6 +4081,13 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_ROAM_DENSE_RSSI_THRE_OFFSET_MIN,
 		CFG_ROAM_DENSE_RSSI_THRE_OFFSET_MAX),
 
+	REG_VARIABLE(CFG_ROAM_FT_OPEN_ENABLE_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, enable_ftopen,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_ROAM_FT_OPEN_ENABLE_DEFAULT,
+		CFG_ROAM_FT_OPEN_ENABLE_MIN,
+		CFG_ROAM_FT_OPEN_ENABLE_MAX),
+
 	REG_VARIABLE(CFG_IGNORE_PEER_HT_MODE_NAME, WLAN_PARAM_Integer,
 			struct hdd_config, ignore_peer_ht_opmode,
 			VAR_FLAGS_OPTIONAL |
@@ -4111,6 +4125,30 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_ROAM_BG_SCAN_BAD_RSSI_OFFSET_2G_DEFAULT,
 		CFG_ROAM_BG_SCAN_BAD_RSSI_OFFSET_2G_MIN,
 		CFG_ROAM_BG_SCAN_BAD_RSSI_OFFSET_2G_MAX),
+
+	REG_VARIABLE(CFG_ROAM_HO_DELAY_FOR_RX_NAME,
+		WLAN_PARAM_Integer, struct hdd_config,
+		ho_delay_for_rx,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_ROAM_HO_DELAY_FOR_RX_DEFAULT,
+		CFG_ROAM_HO_DELAY_FOR_RX_MIN,
+		CFG_ROAM_HO_DELAY_FOR_RX_MAX),
+
+	REG_VARIABLE(CFG_MIN_DELAY_BTW_ROAM_SCAN_NAME,
+		WLAN_PARAM_Integer, struct hdd_config,
+		min_delay_btw_roam_scans,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_MIN_DELAY_BTW_ROAM_SCAN_DEFAULT,
+		CFG_MIN_DELAY_BTW_ROAM_SCAN_MIN,
+		CFG_MIN_DELAY_BTW_ROAM_SCAN_MAX),
+
+	REG_VARIABLE(CFG_ROAM_SCAN_TRIGGER_REASON_BITMASK_NAME,
+		WLAN_PARAM_HexInteger, struct hdd_config,
+		roam_trigger_reason_bitmask,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_ROAM_SCAN_TRIGGER_REASON_BITMASK_DEFAULT,
+		CFG_ROAM_SCAN_TRIGGER_REASON_BITMASK_MIN,
+		CFG_ROAM_SCAN_TRIGGER_REASON_BITMASK_MAX),
 
 	REG_VARIABLE(CFG_ENABLE_FATAL_EVENT_TRIGGER, WLAN_PARAM_Integer,
 			struct hdd_config, enable_fatal_event,
@@ -4475,11 +4513,39 @@ struct reg_table_entry g_registry_table[] = {
 			CFG_OPTIMIZE_CA_EVENT_ENABLE),
 
 	REG_VARIABLE(CFG_TX_AGGREGATION_SIZE, WLAN_PARAM_Integer,
-		struct hdd_config, tx_aggregation_size,
-		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
-		CFG_TX_AGGREGATION_SIZE_DEFAULT,
-		CFG_TX_AGGREGATION_SIZE_MIN,
-		CFG_TX_AGGREGATION_SIZE_MAX),
+		     struct hdd_config, tx_aggregation_size,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_TX_AGGREGATION_SIZE_DEFAULT,
+		     CFG_TX_AGGREGATION_SIZE_MIN,
+		     CFG_TX_AGGREGATION_SIZE_MAX),
+
+	REG_VARIABLE(CFG_TX_AGGREGATION_SIZEBE, WLAN_PARAM_Integer,
+		     struct hdd_config, tx_aggregation_size_be,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_TX_AGGREGATION_SIZEBE_DEFAULT,
+		     CFG_TX_AGGREGATION_SIZEBE_MIN,
+		     CFG_TX_AGGREGATION_SIZEBE_MAX),
+
+	REG_VARIABLE(CFG_TX_AGGREGATION_SIZEBK, WLAN_PARAM_Integer,
+		     struct hdd_config, tx_aggregation_size_bk,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_TX_AGGREGATION_SIZEBK_DEFAULT,
+		     CFG_TX_AGGREGATION_SIZEBK_MIN,
+		     CFG_TX_AGGREGATION_SIZEBK_MAX),
+
+	REG_VARIABLE(CFG_TX_AGGREGATION_SIZEVI, WLAN_PARAM_Integer,
+		     struct hdd_config, tx_aggregation_size_vi,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_TX_AGGREGATION_SIZEVI_DEFAULT,
+		     CFG_TX_AGGREGATION_SIZEVI_MIN,
+		     CFG_TX_AGGREGATION_SIZEVI_MAX),
+
+	REG_VARIABLE(CFG_TX_AGGREGATION_SIZEVO, WLAN_PARAM_Integer,
+		     struct hdd_config, tx_aggregation_size_vo,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_TX_AGGREGATION_SIZEVO_DEFAULT,
+		     CFG_TX_AGGREGATION_SIZEVO_MIN,
+		     CFG_TX_AGGREGATION_SIZEVO_MAX),
 
 	REG_VARIABLE(CFG_RX_AGGREGATION_SIZE, WLAN_PARAM_Integer,
 		struct hdd_config, rx_aggregation_size,
@@ -4487,6 +4553,35 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_RX_AGGREGATION_SIZE_DEFAULT,
 		CFG_RX_AGGREGATION_SIZE_MIN,
 		CFG_RX_AGGREGATION_SIZE_MAX),
+
+	REG_VARIABLE(CFG_TX_AGGR_SW_RETRY_BE, WLAN_PARAM_Integer,
+		     struct hdd_config, tx_aggr_sw_retry_threshold_be,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_TX_AGGR_SW_RETRY_BE_DEFAULT,
+		     CFG_TX_AGGR_SW_RETRY_BE_MIN,
+		     CFG_TX_AGGR_SW_RETRY_BE_MAX),
+
+	REG_VARIABLE(CFG_TX_AGGR_SW_RETRY_BK, WLAN_PARAM_Integer,
+		     struct hdd_config, tx_aggr_sw_retry_threshold_bk,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_TX_AGGR_SW_RETRY_BK_DEFAULT,
+		     CFG_TX_AGGR_SW_RETRY_BK_MIN,
+		     CFG_TX_AGGR_SW_RETRY_BK_MAX),
+
+	REG_VARIABLE(CFG_TX_AGGR_SW_RETRY_VI, WLAN_PARAM_Integer,
+		     struct hdd_config, tx_aggr_sw_retry_threshold_vi,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_TX_AGGR_SW_RETRY_VI_DEFAULT,
+		     CFG_TX_AGGR_SW_RETRY_VI_MIN,
+		     CFG_TX_AGGR_SW_RETRY_VI_MAX),
+
+	REG_VARIABLE(CFG_TX_AGGR_SW_RETRY_VO, WLAN_PARAM_Integer,
+		     struct hdd_config, tx_aggr_sw_retry_threshold_vo,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_TX_AGGR_SW_RETRY_VO_DEFAULT,
+		     CFG_TX_AGGR_SW_RETRY_VO_MIN,
+		     CFG_TX_AGGR_SW_RETRY_VO_MAX),
+
 	REG_VARIABLE(CFG_SAP_MAX_INACTIVITY_OVERRIDE_NAME, WLAN_PARAM_Integer,
 		struct hdd_config, sap_max_inactivity_override,
 		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -5562,6 +5657,14 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_ENABLE_RTT_MAC_RANDOMIZATION_DEFAULT,
 		     CFG_ENABLE_RTT_MAC_RANDOMIZATION_MIN,
 		     CFG_ENABLE_RTT_MAC_RANDOMIZATION_MAX),
+
+	REG_VARIABLE(CFG_ENABLE_UNIT_TEST_FRAMEWORK_NAME,
+		     WLAN_PARAM_Integer,
+		     struct hdd_config, is_unit_test_framework_enabled,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ENABLE_UINT_TEST_FRAMEWORK_DEFAULT,
+		     CFG_ENABLE_UNIT_TEST_FRAMEWORK_MIN,
+		     CFG_ENABLE_UNIT_TEST_FRAMEWORK_MAX),
 };
 
 /**
@@ -7097,6 +7200,18 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 		CFG_ROAM_BG_SCAN_BAD_RSSI_OFFSET_2G_NAME,
 		pHddCtx->config->roam_bad_rssi_thresh_offset_2g);
 	hdd_debug("Name = [%s] Value = [%u]",
+		CFG_ROAM_FT_OPEN_ENABLE_NAME,
+		pHddCtx->config->enable_ftopen);
+	hdd_debug("Name = [%s] Value = [%u]",
+		CFG_ROAM_HO_DELAY_FOR_RX_NAME,
+		pHddCtx->config->ho_delay_for_rx);
+	hdd_debug("Name = [%s] Value = [%u]",
+		CFG_MIN_DELAY_BTW_ROAM_SCAN_NAME,
+		pHddCtx->config->min_delay_btw_roam_scans);
+	hdd_debug("Name = [%s] Value = [%u]",
+		CFG_ROAM_SCAN_TRIGGER_REASON_BITMASK_NAME,
+		pHddCtx->config->roam_trigger_reason_bitmask);
+	hdd_debug("Name = [%s] Value = [%u]",
 		CFG_MIN_REST_TIME_NAME,
 		pHddCtx->config->min_rest_time_conc);
 	hdd_debug("Name = [%s] Value = [%u]",
@@ -7454,6 +7569,9 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 		  CFG_CHANNEL_SELECT_LOGIC_CONC_NAME,
 		  pHddCtx->config->channel_select_logic_conc);
 	hdd_cfg_print_sae(pHddCtx);
+	hdd_debug("Name = [%s] value = [0x%x]",
+		  CFG_ENABLE_UNIT_TEST_FRAMEWORK_NAME,
+		  pHddCtx->config->is_unit_test_framework_enabled);
 }
 
 /**
@@ -9864,6 +9982,7 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 					pConfig->disable_high_ht_mcs_2x2;
 	smeConfig->csrConfig.rx_ldpc_support_for_2g =
 					pConfig->rx_ldpc_support_for_2g;
+	smeConfig->csrConfig.enable_vht20_mcs9 = pConfig->enable_vht20_mcs9;
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
 	smeConfig->csrConfig.cc_switch_mode = pConfig->WlanMccToSccSwitchMode;
 #endif
@@ -9953,6 +10072,14 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 		pHddCtx->config->roam_bg_scan_client_bitmap;
 	smeConfig->csrConfig.roam_bad_rssi_thresh_offset_2g =
 		pHddCtx->config->roam_bad_rssi_thresh_offset_2g;
+	smeConfig->csrConfig.enable_ftopen =
+		pHddCtx->config->enable_ftopen;
+	smeConfig->csrConfig.ho_delay_for_rx =
+		pHddCtx->config->ho_delay_for_rx;
+	smeConfig->csrConfig.min_delay_btw_roam_scans =
+		pHddCtx->config->min_delay_btw_roam_scans;
+	smeConfig->csrConfig.roam_trigger_reason_bitmask =
+		pHddCtx->config->roam_trigger_reason_bitmask;
 	smeConfig->csrConfig.obss_width_interval =
 			pHddCtx->config->obss_width_trigger_interval;
 	smeConfig->csrConfig.obss_active_dwelltime =
@@ -10011,8 +10138,24 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 
 	smeConfig->csrConfig.tx_aggregation_size =
 			pHddCtx->config->tx_aggregation_size;
+	smeConfig->csrConfig.tx_aggregation_size_be =
+			pHddCtx->config->tx_aggregation_size_be;
+	smeConfig->csrConfig.tx_aggregation_size_bk =
+			pHddCtx->config->tx_aggregation_size_bk;
+	smeConfig->csrConfig.tx_aggregation_size_vi =
+			pHddCtx->config->tx_aggregation_size_vi;
+	smeConfig->csrConfig.tx_aggregation_size_vo =
+			pHddCtx->config->tx_aggregation_size_vo;
 	smeConfig->csrConfig.rx_aggregation_size =
 			pHddCtx->config->rx_aggregation_size;
+	smeConfig->csrConfig.tx_aggr_sw_retry_threshold_be =
+			pHddCtx->config->tx_aggr_sw_retry_threshold_be;
+	smeConfig->csrConfig.tx_aggr_sw_retry_threshold_bk =
+			pHddCtx->config->tx_aggr_sw_retry_threshold_bk;
+	smeConfig->csrConfig.tx_aggr_sw_retry_threshold_vi =
+			pHddCtx->config->tx_aggr_sw_retry_threshold_vi;
+	smeConfig->csrConfig.tx_aggr_sw_retry_threshold_vo =
+			pHddCtx->config->tx_aggr_sw_retry_threshold_vo;
 	smeConfig->csrConfig.enable_bcast_probe_rsp =
 			pHddCtx->config->enable_bcast_probe_rsp;
 	smeConfig->csrConfig.is_fils_enabled =

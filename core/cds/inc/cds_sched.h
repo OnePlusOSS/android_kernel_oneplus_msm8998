@@ -248,6 +248,7 @@ typedef struct _cds_msg_wrapper {
 
 /* forward-declare hdd_context_s as it is used ina function type */
 struct hdd_context_s;
+struct hdd_adapter_s;
 typedef struct _cds_context_type {
 	/* Messages buffers */
 	cds_msg_t aMsgBuffers[CDS_CORE_MAX_MESSAGES];
@@ -308,7 +309,8 @@ typedef struct _cds_context_type {
 	qdf_mutex_t qdf_conc_list_lock;
 	qdf_mc_timer_t dbs_opportunistic_timer;
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
-	void (*sap_restart_chan_switch_cb)(void *, uint32_t, uint32_t);
+	void (*sap_restart_chan_switch_cb)(struct hdd_adapter_s *,
+					   uint32_t, uint32_t);
 #endif
 	QDF_STATUS (*sme_get_valid_channels)(void*, uint16_t cfg_id,
 		uint8_t *, uint32_t *);

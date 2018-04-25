@@ -33,6 +33,7 @@
 #include "qwlan_version.h"
 #include "wmi_unified_param.h"
 #include "wlan_hdd_request_manager.h"
+#include "wlan_hdd_debugfs.h"
 
 ssize_t
 wlan_hdd_current_time_info_debugfs(uint8_t *buf, ssize_t buf_avail_len)
@@ -132,6 +133,11 @@ __wlan_hdd_read_debugfs_csr(struct file *file, char __user *buf,
 	if (ret)
 		return 0;
 
+	if (!test_bit(DEVICE_IFACE_OPENED, &adapter->event_flags)) {
+		hdd_err("Interface is not enabled");
+		return 0;
+	}
+
 	if (*pos == 0) {
 		info->length =
 			wlan_hdd_debugfs_update_csr(hdd_ctx, adapter,
@@ -183,6 +189,8 @@ static int __wlan_hdd_open_debugfs_csr(struct inode *inode,
 	struct wlan_hdd_debugfs_buffer_info *info;
 	struct hdd_debugfs_file_info *csr;
 	hdd_adapter_t *adapter = NULL;
+	hdd_context_t *hdd_ctx;
+	int ret;
 
 	ENTER();
 
@@ -196,6 +204,16 @@ static int __wlan_hdd_open_debugfs_csr(struct inode *inode,
 				   csr_file[csr->id]);
 	if ((adapter == NULL) || (adapter->magic != WLAN_HDD_ADAPTER_MAGIC)) {
 		hdd_err("Invalid adapter or adapter has invalid magic");
+		return -EINVAL;
+	}
+
+	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+	ret = wlan_hdd_validate_context(hdd_ctx);
+	if (ret)
+		return -EINVAL;
+
+	if (!test_bit(DEVICE_IFACE_OPENED, &adapter->event_flags)) {
+		hdd_err("Interface is not enabled");
 		return -EINVAL;
 	}
 
@@ -222,7 +240,6 @@ static int __wlan_hdd_open_debugfs_csr(struct inode *inode,
 	return 0;
 }
 
-
 /**
  * wlan_hdd_open_debugfs_csr() - SSR wrapper function to allocate memory for
  * private data on file open
@@ -237,7 +254,12 @@ static int wlan_hdd_open_debugfs_csr(struct inode *inode,
 	int ret;
 
 	cds_ssr_protect(__func__);
+
+	hdd_debugfs_thread_increment();
 	ret = __wlan_hdd_open_debugfs_csr(inode, file);
+	if (ret)
+		hdd_debugfs_thread_decrement();
+
 	cds_ssr_unprotect(__func__);
 
 	return ret;
@@ -284,6 +306,7 @@ static int wlan_hdd_release_debugfs_csr(struct inode *inode, struct file *file)
 
 	cds_ssr_protect(__func__);
 	ret = __wlan_hdd_release_debugfs_csr(inode, file);
+	hdd_debugfs_thread_decrement();
 	cds_ssr_unprotect(__func__);
 
 	return ret;
@@ -316,7 +339,8 @@ void wlan_hdd_debugfs_csr_init(hdd_adapter_t *adapter)
 						 adapter->debugfs_phy,
 						 csr, &fops_csr_debugfs);
 		if (!csr->entry)
-			hdd_err("Failed to create connect_info debugfs file");
+			hdd_err("Failed to create debugfs file: %s",
+				csr->name);
 	}
 
 	csr = &adapter->csr_file[HDD_DEBUFS_FILE_ID_OFFLOAD_INFO];
@@ -328,7 +352,8 @@ void wlan_hdd_debugfs_csr_init(hdd_adapter_t *adapter)
 						 adapter->debugfs_phy,
 						 csr, &fops_csr_debugfs);
 		if (!csr->entry)
-			hdd_err("Failed to create generic_info debugfs file");
+			hdd_err("Failed to create debugfs file: %s",
+				csr->name);
 	}
 
 	csr = &adapter->csr_file[HDD_DEBUFS_FILE_ID_ROAM_SCAN_STATS_INFO];
@@ -340,7 +365,8 @@ void wlan_hdd_debugfs_csr_init(hdd_adapter_t *adapter)
 						 adapter->debugfs_phy,
 						 csr, &fops_csr_debugfs);
 		if (!csr->entry)
-			hdd_err("Failed to create generic_info debugfs file");
+			hdd_err("Failed to create debugfs file: %s",
+				csr->name);
 	}
 }
 

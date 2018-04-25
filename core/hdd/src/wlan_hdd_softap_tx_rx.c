@@ -432,6 +432,16 @@ static netdev_tx_t __hdd_softap_hard_start_xmit(struct sk_buff *skb,
 			qdf_nbuf_data_addr(skb), sizeof(qdf_nbuf_data(skb)),
 			QDF_TX));
 
+	/* check whether need to linearize skb, like non-linear udp data */
+	if (hdd_skb_nontso_linearize(skb) != QDF_STATUS_SUCCESS) {
+		QDF_TRACE(QDF_MODULE_ID_HDD_DATA,
+			  QDF_TRACE_LEVEL_INFO_HIGH,
+			  "%s: skb %pK linearize failed. drop the pkt",
+			  __func__, skb);
+		++pAdapter->hdd_stats.hddTxRxStats.txXmitDroppedAC[ac];
+		goto drop_pkt_and_release_skb;
+	}
+
 	if (pAdapter->tx_fn(ol_txrx_get_vdev_by_sta_id(STAId),
 		 (qdf_nbuf_t) skb) != NULL) {
 		QDF_TRACE(QDF_MODULE_ID_HDD_SAP_DATA, QDF_TRACE_LEVEL_INFO_HIGH,
@@ -1019,7 +1029,8 @@ QDF_STATUS hdd_softap_stop_bss(hdd_adapter_t *pAdapter)
 		wlan_hdd_restore_channels(pHddCtx);
 
 	/* Mark the indoor channel (passive) to enable */
-	if (pHddCtx->config->disable_indoor_channel) {
+	if (pHddCtx->config->disable_indoor_channel &&
+			pAdapter->device_mode == QDF_SAP_MODE) {
 		hdd_update_indoor_channel(pHddCtx, false);
 		sme_update_channel_list(pHddCtx->hHal);
 	}

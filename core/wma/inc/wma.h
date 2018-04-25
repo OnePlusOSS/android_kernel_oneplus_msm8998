@@ -1359,6 +1359,7 @@ struct hw_mode_idx_to_mac_cap_idx {
  * @each_phy_cap_per_hwmode: PHY's caps for each hw mode
  * @num_phy_for_hal_reg_cap: number of phy for hal reg cap
  * @hw_mode_to_mac_cap_map: map between hw_mode to capabilities
+ * @sar_capability: supported SAR versions
  */
 struct extended_caps {
 	WMI_SOC_MAC_PHY_HW_MODE_CAPS num_hw_modes;
@@ -1367,6 +1368,7 @@ struct extended_caps {
 	WMI_SOC_HAL_REG_CAPABILITIES num_phy_for_hal_reg_cap;
 	WMI_HAL_REG_CAPABILITIES_EXT *each_phy_hal_reg_cap;
 	struct hw_mode_idx_to_mac_cap_idx *hw_mode_to_mac_cap_map;
+	WMI_SAR_CAPABILITIES sar_capability;
 };
 
 /**

@@ -392,6 +392,27 @@ QDF_STATUS wma_set_tx_rx_aggregation_size
 	(struct sir_set_tx_rx_aggregation_size *tx_rx_aggregation_size);
 
 /**
+ * wma_set_tx_rx_aggregation_size_per_ac() - set aggregation size per ac
+ * @tx_rx_aggregation_size: the parameter for aggregation size
+ *
+ *  This function try to set the aggregation size per AC.
+ *
+ *  Return: QDF_STATUS enumeration
+ */
+QDF_STATUS wma_set_tx_rx_aggregation_size_per_ac
+	(struct sir_set_tx_rx_aggregation_size *tx_rx_aggregation_size);
+/**
+ * wma_set_sw_retry_threshold() - set sw retry threshold per AC for tx
+ * @tx_rx_aggregation_size: value needs to set to firmware
+ *
+ * This function sends WMI command to set the sw retry threshold per AC
+ * for Tx.
+ *
+ * Return: QDF_STATUS.
+ */
+QDF_STATUS wma_set_sw_retry_threshold
+	(struct sir_set_tx_aggr_sw_retry_threshold *tx_rx_aggregation_size);
+/**
  * wma_get_sar_limit() - get SAR limits from the target
  * @handle: wma handle
  * @callback: Callback function to invoke with the results
@@ -534,5 +555,22 @@ QDF_STATUS wma_wow_set_wake_time(WMA_HANDLE wma_handle, uint8_t vdev_id,
  *  Return: None
  */
 void wma_wmi_stop(void);
+
+/**
+ * wma_dual_beacon_on_single_mac_scc_capable() - get capability that whether
+ * Support dual beacon on same channel on single MAC
+ *
+ *  Return: bool: capable
+ */
+bool wma_dual_beacon_on_single_mac_scc_capable(void);
+
+/**
+ * wma_dual_beacon_on_single_mac_mcc_capable() - get capability that whether
+ * Support dual beacon on different channel on single MAC
+ *
+ *  Return: bool: capable
+ */
+bool wma_dual_beacon_on_single_mac_mcc_capable(void);
+
 
 #endif

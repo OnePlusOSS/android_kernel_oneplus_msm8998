@@ -98,6 +98,7 @@
 #define HDD_FINISH_ULA_TIME_OUT         800
 #define HDD_SET_MCBC_FILTERS_TO_FW      1
 #define HDD_DELETE_MCBC_FILTERS_FROM_FW 0
+#define HDD_UT_SUSPEND_RESUME_LOG_RL (1024)
 
 /* To Validate Channel against the Frequency and Vice-Versa */
 static const struct ccp_freq_chan_map freq_chan_map[] = {
@@ -3431,6 +3432,7 @@ static bool hdd_is_auth_type_rsn(eCsrAuthType authType)
 	case eCSR_AUTH_TYPE_RSN_PSK_SHA256:
 	case eCSR_AUTH_TYPE_RSN_8021X_SHA256:
 #endif
+	case eCSR_AUTH_TYPE_DPP_RSN:
 		rsnType = true;
 		break;
 	/* case eCSR_AUTH_TYPE_FAILED: */
@@ -3478,9 +3480,7 @@ static void hdd_get_rssi_cb(int8_t rssi, uint32_t staId, void *pContext)
 
 	pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
 
-	/* update rssi only if its valid else return previous valid rssi */
-	if (rssi)
-		pAdapter->rssi = rssi;
+	pAdapter->rssi = rssi;
 
 	/* for new connection there might be no valid previous RSSI
 	 * Do not keep hdd_get_rssi_snr_by_bssid under spin_lock
@@ -4516,188 +4516,6 @@ static int iw_get_name(struct net_device *dev,
 
 	cds_ssr_protect(__func__);
 	ret = __iw_get_name(dev, info, wrqu->name, extra);
-	cds_ssr_unprotect(__func__);
-
-	return ret;
-}
-
-/**
- * __iw_set_mode() - ioctl handler
- * @dev: device upon which the ioctl was received
- * @info: ioctl request information
- * @wrqu: ioctl request data
- * @extra: ioctl extra data
- *
- * Return: 0 on success, non-zero on error
- */
-static int __iw_set_mode(struct net_device *dev,
-			 struct iw_request_info *info,
-			 union iwreq_data *wrqu, char *extra)
-{
-	hdd_wext_state_t *pWextState;
-	hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
-	hdd_context_t *hdd_ctx;
-	tCsrRoamProfile *pRoamProfile;
-	eCsrRoamBssType LastBSSType;
-	struct hdd_config *pConfig;
-	struct wireless_dev *wdev;
-	int ret;
-
-	ENTER_DEV(dev);
-
-	hdd_ctx = WLAN_HDD_GET_CTX(pAdapter);
-	ret = wlan_hdd_validate_context(hdd_ctx);
-	if (0 != ret)
-		return ret;
-
-	pWextState = WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
-	wdev = dev->ieee80211_ptr;
-	pRoamProfile = &pWextState->roamProfile;
-	LastBSSType = pRoamProfile->BSSType;
-
-	hdd_debug("Old Bss type = %d", LastBSSType);
-
-	switch (wrqu->mode) {
-	case IW_MODE_ADHOC:
-		hdd_debug("Setting AP Mode as IW_MODE_ADHOC");
-		pRoamProfile->BSSType = eCSR_BSS_TYPE_START_IBSS;
-		/* Set the phymode correctly for IBSS. */
-		pConfig = (WLAN_HDD_GET_CTX(pAdapter))->config;
-		pWextState->roamProfile.phyMode =
-			hdd_cfg_xlate_to_csr_phy_mode(pConfig->dot11Mode);
-		pAdapter->device_mode = QDF_IBSS_MODE;
-		wdev->iftype = NL80211_IFTYPE_ADHOC;
-		break;
-	case IW_MODE_INFRA:
-		hdd_debug("Setting AP Mode as IW_MODE_INFRA");
-		pRoamProfile->BSSType = eCSR_BSS_TYPE_INFRASTRUCTURE;
-		wdev->iftype = NL80211_IFTYPE_STATION;
-		break;
-	case IW_MODE_AUTO:
-		hdd_debug("Setting AP Mode as IW_MODE_AUTO");
-		pRoamProfile->BSSType = eCSR_BSS_TYPE_ANY;
-		break;
-	default:
-		hdd_err("Unknown AP Mode value %d", wrqu->mode);
-		return -EOPNOTSUPP;
-	}
-
-	if (LastBSSType != pRoamProfile->BSSType) {
-		/* the BSS mode changed.  We need to issue disconnect
-		 * if connected or in IBSS disconnect state
-		 */
-		if (hdd_conn_is_connected
-			    (WLAN_HDD_GET_STATION_CTX_PTR(pAdapter))
-		    || (eCSR_BSS_TYPE_START_IBSS == LastBSSType)) {
-			QDF_STATUS qdf_status;
-			/* need to issue a disconnect to CSR. */
-			INIT_COMPLETION(pAdapter->disconnect_comp_var);
-			qdf_status =
-				sme_roam_disconnect(WLAN_HDD_GET_HAL_CTX(pAdapter),
-						    pAdapter->sessionId,
-						    eCSR_DISCONNECT_REASON_IBSS_LEAVE);
-			if (QDF_STATUS_SUCCESS == qdf_status) {
-				unsigned long rc;
-
-				rc = wait_for_completion_timeout(&pAdapter->
-								 disconnect_comp_var,
-								 msecs_to_jiffies
-									 (WLAN_WAIT_TIME_DISCONNECT));
-				if (!rc)
-					hdd_err("disconnect_comp_var failed");
-			}
-		}
-	}
-
-	EXIT();
-	return 0;
-}
-
-/**
- * iw_set_mode() - SSR wrapper for __iw_set_mode()
- * @dev: pointer to net_device
- * @info: pointer to iw_request_info
- * @wrqu: pointer to iwreq_data
- * @extra: pointer to extra ioctl payload
- *
- * Return: 0 on success, error number otherwise
- */
-static int iw_set_mode(struct net_device *dev, struct iw_request_info *info,
-		       union iwreq_data *wrqu, char *extra)
-{
-	int ret;
-
-	cds_ssr_protect(__func__);
-	ret = __iw_set_mode(dev, info, wrqu, extra);
-	cds_ssr_unprotect(__func__);
-
-	return ret;
-}
-
-/**
- * __iw_get_mode() - SIOCGIWMODE ioctl handler
- * @dev: device upon which the ioctl was received
- * @info: ioctl request information
- * @wrqu: ioctl request data
- * @extra: ioctl extra data
- *
- * Return: 0 on success, non-zero on error
- */
-static int
-__iw_get_mode(struct net_device *dev, struct iw_request_info *info,
-	      union iwreq_data *wrqu, char *extra)
-{
-	hdd_wext_state_t *pWextState;
-	hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
-	hdd_context_t *hdd_ctx;
-	int ret;
-
-	ENTER_DEV(dev);
-
-	hdd_ctx = WLAN_HDD_GET_CTX(pAdapter);
-	ret = wlan_hdd_validate_context(hdd_ctx);
-	if (0 != ret)
-		return ret;
-
-	pWextState = WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
-
-	switch (pWextState->roamProfile.BSSType) {
-	case eCSR_BSS_TYPE_INFRASTRUCTURE:
-		hdd_debug("returns IW_MODE_INFRA");
-		wrqu->mode = IW_MODE_INFRA;
-		break;
-	case eCSR_BSS_TYPE_IBSS:
-	case eCSR_BSS_TYPE_START_IBSS:
-		hdd_debug("returns IW_MODE_ADHOC");
-		wrqu->mode = IW_MODE_ADHOC;
-		break;
-	case eCSR_BSS_TYPE_ANY:
-	default:
-		hdd_debug("returns IW_MODE_AUTO");
-		wrqu->mode = IW_MODE_AUTO;
-		break;
-	}
-
-	EXIT();
-	return 0;
-}
-
-/**
- * iw_get_mode() - SSR wrapper for __iw_get_mode()
- * @dev: pointer to net_device
- * @info: pointer to iw_request_info
- * @wrqu: pointer to iwreq_data
- * @extra: pointer to extra ioctl payload
- *
- * Return: 0 on success, error number otherwise
- */
-static int iw_get_mode(struct net_device *dev, struct iw_request_info *info,
-		       union iwreq_data *wrqu, char *extra)
-{
-	int ret;
-
-	cds_ssr_protect(__func__);
-	ret = __iw_get_mode(dev, info, wrqu, extra);
 	cds_ssr_unprotect(__func__);
 
 	return ret;
@@ -12724,9 +12542,19 @@ static int __iw_set_two_ints_getnone(struct net_device *dev,
 		ret = wlan_hdd_set_mon_chan(pAdapter, value[1], value[2]);
 		break;
 	case WE_SET_WLAN_SUSPEND:
+		if (!hdd_ctx->config->is_unit_test_framework_enabled) {
+			hdd_warn_ratelimited(HDD_UT_SUSPEND_RESUME_LOG_RL,
+					     "UT suspend is disabled");
+			return 0;
+		}
 		ret = hdd_wlan_fake_apps_suspend(hdd_ctx->wiphy, dev);
 		break;
 	case WE_SET_WLAN_RESUME:
+		if (!hdd_ctx->config->is_unit_test_framework_enabled) {
+			hdd_warn_ratelimited(HDD_UT_SUSPEND_RESUME_LOG_RL,
+					     "UT resume is disabled");
+			return 0;
+		}
 		ret = hdd_wlan_fake_apps_resume(hdd_ctx->wiphy, dev);
 		break;
 	case WE_LOG_BUFFER: {
@@ -12768,8 +12596,8 @@ static const iw_handler we_handler[] = {
 	NULL,      /* SIOCGIWNWID */
 	iw_set_freq,       /* SIOCSIWFREQ */
 	iw_get_freq,       /* SIOCGIWFREQ */
-	iw_set_mode,       /* SIOCSIWMODE */
-	iw_get_mode,       /* SIOCGIWMODE */
+	NULL,       /* SIOCSIWMODE */
+	NULL,       /* SIOCGIWMODE */
 	NULL,      /* SIOCSIWSENS */
 	NULL,      /* SIOCGIWSENS */
 	NULL,      /* SIOCSIWRANGE */

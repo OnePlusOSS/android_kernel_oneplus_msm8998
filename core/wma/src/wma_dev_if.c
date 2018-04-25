@@ -1841,7 +1841,7 @@ wma_remove_peer_by_reference(ol_txrx_pdev_handle pdev,
 	struct wma_target_req *del_req;
 	QDF_STATUS status;
 
-	status = QDF_STATUS_SUCCESS;
+	status = QDF_STATUS_E_FAILURE;
 	peer = ol_txrx_find_peer_by_addr_inc_ref(pdev,
 						 bssid,
 						 peer_id);
@@ -1872,6 +1872,8 @@ wma_remove_peer_by_reference(ol_txrx_pdev_handle pdev,
 			WMA_LOGE(FL("Failed to allocate request. vdev_id %d"),
 				 vdev_id);
 			status = QDF_STATUS_E_NOMEM;
+		} else {
+			status = QDF_STATUS_SUCCESS;
 		}
 	}
 
@@ -2071,6 +2073,7 @@ ol_txrx_vdev_handle wma_vdev_attach(tp_wma_handle wma_handle,
 	struct vdev_create_params params = { 0 };
 	u_int8_t vdev_id;
 	struct sir_set_tx_rx_aggregation_size tx_rx_aggregation_size;
+	struct sir_set_tx_aggr_sw_retry_threshold tx_aggr_sw_retry_threshold;
 
 	WMA_LOGD("mac %pM, vdev_id %hu, type %d, sub_type %d, nss 2g %d, 5g %d",
 		self_sta_req->self_mac_addr, self_sta_req->session_id,
@@ -2169,8 +2172,34 @@ ol_txrx_vdev_handle wma_vdev_attach(tp_wma_handle wma_handle,
 	if (status != QDF_STATUS_SUCCESS)
 		WMA_LOGE("failed to set aggregation sizes(err=%d)", status);
 
+	tx_rx_aggregation_size.tx_aggregation_size_be =
+				self_sta_req->tx_aggregation_size_be;
+	tx_rx_aggregation_size.tx_aggregation_size_bk =
+				self_sta_req->tx_aggregation_size_bk;
+	tx_rx_aggregation_size.tx_aggregation_size_vi =
+				self_sta_req->tx_aggregation_size_vi;
+	tx_rx_aggregation_size.tx_aggregation_size_vo =
+				self_sta_req->tx_aggregation_size_vo;
+
+	tx_aggr_sw_retry_threshold.tx_aggr_sw_retry_threshold_be =
+				self_sta_req->tx_aggr_sw_retry_threshold_be;
+	tx_aggr_sw_retry_threshold.tx_aggr_sw_retry_threshold_bk =
+				self_sta_req->tx_aggr_sw_retry_threshold_bk;
+	tx_aggr_sw_retry_threshold.tx_aggr_sw_retry_threshold_vi =
+				self_sta_req->tx_aggr_sw_retry_threshold_vi;
+	tx_aggr_sw_retry_threshold.tx_aggr_sw_retry_threshold_vo =
+				self_sta_req->tx_aggr_sw_retry_threshold_vo;
+	tx_aggr_sw_retry_threshold.vdev_id = self_sta_req->session_id;
+
+
 	switch (self_sta_req->type) {
 	case WMI_VDEV_TYPE_STA:
+		status = wma_set_tx_rx_aggregation_size_per_ac(
+						&tx_rx_aggregation_size);
+		if (status != QDF_STATUS_SUCCESS)
+			WMA_LOGE("failed to set aggr sizes per ac(err=%d)",
+				 status);
+
 		if (wlan_cfg_get_int(mac, WNI_CFG_INFRA_STA_KEEP_ALIVE_PERIOD,
 				     &cfg_val) != eSIR_SUCCESS) {
 			WMA_LOGE("Failed to get value for WNI_CFG_INFRA_STA_KEEP_ALIVE_PERIOD");
@@ -2188,6 +2217,12 @@ ol_txrx_vdev_handle wma_vdev_attach(tp_wma_handle wma_handle,
 			wma_set_sta_sa_query_param(wma_handle,
 						   self_sta_req->session_id);
 		}
+
+		status = wma_set_sw_retry_threshold(
+						&tx_aggr_sw_retry_threshold);
+		if (status != QDF_STATUS_SUCCESS)
+			WMA_LOGE("failed to set retry threshold(err=%d)",
+				 status);
 		break;
 	}
 
@@ -5013,9 +5048,9 @@ static void wma_del_tdls_sta(tp_wma_handle wma, tpDeleteStaParams del_sta)
 				WMA_DELETE_STA_TIMEOUT);
 		if (!msg) {
 			WMA_LOGE(FL("Failed to allocate vdev_id %d"),
-					peerStateParams->vdevId);
+					del_sta->smesessionId);
 			wma_remove_req(wma,
-					peerStateParams->vdevId,
+					del_sta->smesessionId,
 					WMA_DELETE_STA_RSP_START);
 			del_sta->status = QDF_STATUS_E_NOMEM;
 			goto send_del_rsp;

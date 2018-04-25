@@ -1068,6 +1068,25 @@ populate_dot11f_vht_caps(tpAniSirGlobal pMac,
 				VHT_TX_HIGHEST_SUPPORTED_DATA_RATE_1_1;
 			pDot11f->rxHighSupDataRate =
 				VHT_RX_HIGHEST_SUPPORTED_DATA_RATE_1_1;
+			if (!psessionEntry->ch_width &&
+			    !pMac->roam.configParam.enable_vht20_mcs9 &&
+			    ((pDot11f->txMCSMap & VHT_1x1_MCS_MASK) ==
+			     VHT_1x1_MCS9_MAP)) {
+				DISABLE_VHT_MCS_9(pDot11f->txMCSMap,
+						NSS_1x1_MODE);
+				DISABLE_VHT_MCS_9(pDot11f->rxMCSMap,
+						NSS_1x1_MODE);
+			}
+		} else {
+			if (!psessionEntry->ch_width &&
+			    !pMac->roam.configParam.enable_vht20_mcs9 &&
+			    ((pDot11f->txMCSMap & VHT_2x2_MCS_MASK) ==
+			     VHT_2x2_MCS9_MAP)) {
+				DISABLE_VHT_MCS_9(pDot11f->txMCSMap,
+						NSS_2x2_MODE);
+				DISABLE_VHT_MCS_9(pDot11f->rxMCSMap,
+						NSS_2x2_MODE);
+			}
 		}
 	}
 	lim_log_vht_cap(pMac, pDot11f);
@@ -2205,7 +2224,7 @@ sir_validate_and_rectify_ies(tpAniSirGlobal mac_ctx,
 				uint32_t *missing_rsn_bytes)
 {
 	uint32_t length = SIZE_OF_FIXED_PARAM;
-	uint8_t *ref_frame;
+	uint8_t *ref_frame = NULL;
 
 	/* Frame contains atleast one IE */
 	if (frame_bytes > (SIZE_OF_FIXED_PARAM +
@@ -2225,7 +2244,7 @@ sir_validate_and_rectify_ies(tpAniSirGlobal mac_ctx,
 			 * Capability with junk value. To avoid this, add RSN
 			 * Capability value with default value.
 			 */
-			if ((*ref_frame == RSNIEID) &&
+			if (ref_frame && (*ref_frame == RSNIEID) &&
 				(length == (frame_bytes +
 					RSNIE_CAPABILITY_LEN))) {
 				/* Assume RSN Capability as 00 */

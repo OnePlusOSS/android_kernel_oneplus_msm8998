@@ -74,6 +74,7 @@ typedef enum {
 	eCSR_AUTH_TYPE_OWE,
 	eCSR_AUTH_TYPE_SUITEB_EAP_SHA256,
 	eCSR_AUTH_TYPE_SUITEB_EAP_SHA384,
+	eCSR_AUTH_TYPE_DPP_RSN,
 	eCSR_NUM_OF_SUPPORT_AUTH_TYPE,
 	eCSR_AUTH_TYPE_FAILED = 0xff,
 	eCSR_AUTH_TYPE_UNKNOWN = eCSR_AUTH_TYPE_FAILED,
@@ -363,9 +364,8 @@ typedef struct tagCsrEseCckmInfo {
 #endif
 } tCsrEseCckmInfo;
 
-#define CSR_DOT11F_IE_RSN_MAX_LEN   (114)
 typedef struct tagCsrEseCckmIe {
-	uint8_t cckmIe[CSR_DOT11F_IE_RSN_MAX_LEN];
+	uint8_t cckmIe[DOT11F_IE_RSN_MAX_LEN];
 	uint8_t cckmIeLen;
 } tCsrEseCckmIe;
 #endif /* FEATURE_WLAN_ESE */
@@ -1308,8 +1308,12 @@ typedef struct tagCsrConfigParam {
 	uint8_t enable_rx_ldpc;
 	uint8_t disable_high_ht_mcs_2x2;
 	uint8_t rx_ldpc_support_for_2g;
+	bool enable_vht20_mcs9;
 	uint8_t max_amsdu_num;
 	uint8_t nSelect5GHzMargin;
+	uint32_t ho_delay_for_rx;
+	uint32_t min_delay_btw_roam_scans;
+	uint32_t roam_trigger_reason_bitmask;
 	uint8_t isCoalesingInIBSSAllowed;
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
 	uint8_t cc_switch_mode;
@@ -1382,7 +1386,15 @@ typedef struct tagCsrConfigParam {
 	enum wmi_dwelltime_adaptive_mode roamscan_adaptive_dwell_mode;
 	struct csr_sta_roam_policy_params sta_roam_policy_params;
 	uint32_t tx_aggregation_size;
+	uint32_t tx_aggregation_size_be;
+	uint32_t tx_aggregation_size_bk;
+	uint32_t tx_aggregation_size_vi;
+	uint32_t tx_aggregation_size_vo;
 	uint32_t rx_aggregation_size;
+	uint32_t tx_aggr_sw_retry_threshold_be;
+	uint32_t tx_aggr_sw_retry_threshold_bk;
+	uint32_t tx_aggr_sw_retry_threshold_vi;
+	uint32_t tx_aggr_sw_retry_threshold_vo;
 	struct wmi_per_roam_config per_roam_config;
 	bool enable_bcast_probe_rsp;
 	bool is_fils_enabled;
@@ -1405,6 +1417,7 @@ typedef struct tagCsrConfigParam {
 	uint8_t oce_feature_bitmap;
 	uint32_t offload_11k_enable_bitmask;
 	struct csr_neighbor_report_offload_params neighbor_report_offload;
+	bool enable_ftopen;
 } tCsrConfigParam;
 
 /* Tush */

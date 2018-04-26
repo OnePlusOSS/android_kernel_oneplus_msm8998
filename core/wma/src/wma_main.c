@@ -6032,13 +6032,15 @@ static void wma_populate_soc_caps(t_wma_handle *wma_handle,
 		return;
 	}
 
-	qdf_mem_copy(&phy_caps->sar_capability,
-		     param_buf->sar_caps,
-		     sizeof(WMI_SAR_CAPABILITIES));
-	if (phy_caps->sar_capability.active_version > SAR_VERSION_2) {
-		WMA_LOGE("%s: incorrect SAR version", __func__);
-		wma_cleanup_dbs_phy_caps(wma_handle);
-		return;
+	if (param_buf->sar_caps) {
+		qdf_mem_copy(&phy_caps->sar_capability,
+			     param_buf->sar_caps,
+			     sizeof(WMI_SAR_CAPABILITIES));
+		if (phy_caps->sar_capability.active_version > SAR_VERSION_2) {
+			WMA_LOGE("%s: incorrect SAR version", __func__);
+			wma_cleanup_dbs_phy_caps(wma_handle);
+			return;
+		}
 	}
 
 	phy_caps->each_phy_hal_reg_cap =

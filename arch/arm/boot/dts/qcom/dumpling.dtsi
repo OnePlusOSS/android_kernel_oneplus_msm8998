@@ -749,8 +749,10 @@
 &snd_9335 {
 	qcom,mbhc-audio-jack-type = "4-pole-jack";
 };
-/* liuhaituo@MultiMediaAudio modified for adapation phone headset 2018/3/2 */
 /*
+ * liuhaituo@MultiMediaAudio modified for adapation phone
+ * headset and AKG headset-mic 2018/4/26
+ */
 &slim_aud {
 	tasha_codec {
 		qcom,cdc-micbias1-mv = <1800>;
@@ -759,7 +761,6 @@
 		qcom,cdc-micbias4-mv = <1800>;
 	};
 };
-*/
 
 /* Audio */
 &soc {

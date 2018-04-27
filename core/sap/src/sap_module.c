@@ -853,6 +853,7 @@ QDF_STATUS wlansap_start_bss(void *pCtx,     /* pwextCtx */
 	pSapCtx->pUsrContext = pUsrContext;
 	pSapCtx->enableOverLapCh = pConfig->enOverLapCh;
 	pSapCtx->acs_cfg = &pConfig->acs_cfg;
+	pSapCtx->secondary_ch = pConfig->sec_ch;
 	pSapCtx->isCacEndNotified = false;
 	pSapCtx->is_chan_change_inprogress = false;
 	pSapCtx->stop_bss_in_progress = false;

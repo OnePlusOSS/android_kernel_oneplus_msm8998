@@ -1044,6 +1044,9 @@ hdd_conn_save_connect_info(hdd_adapter_t *pAdapter, tCsrRoamInfo *pRoamInfo,
 
 			pHddStaCtx->conn_info.rate_flags =
 				pRoamInfo->chan_info.rate_flags;
+
+			pHddStaCtx->conn_info.ch_width =
+				pRoamInfo->chan_info.ch_width;
 		}
 		hdd_save_bss_info(pAdapter, pRoamInfo);
 	}

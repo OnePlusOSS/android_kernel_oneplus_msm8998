@@ -282,6 +282,39 @@ uint8_t *hdd_dot11_mode_str(uint32_t dot11mode)
 }
 
 /**
+ * hdd_ch_width_str() - Get string for channel width
+ * @ch_width: channel width from connect info
+ *
+ * Return: User readable string for channel width
+ */
+static
+uint8_t *hdd_ch_width_str(enum phy_ch_width ch_width)
+{
+	switch (ch_width) {
+	case CH_WIDTH_20MHZ:
+		return "20MHz";
+	case CH_WIDTH_40MHZ:
+		return "40MHz";
+	case CH_WIDTH_80MHZ:
+		return "80MHz";
+	case CH_WIDTH_160MHZ:
+		return "160MHz";
+	case CH_WIDTH_80P80MHZ:
+		return "(80 + 80)MHz";
+	case CH_WIDTH_5MHZ:
+		return "5MHz";
+	case CH_WIDTH_10MHZ:
+		return "10MHz";
+	case CH_WIDTH_INVALID:
+		/* Fallthrough */
+	case CH_WIDTH_MAX:
+		/* Fallthrough */
+	default:
+		return "UNKNOWN";
+	}
+}
+
+/**
  * wlan_hdd_connect_info_debugfs() - Populate connect info
  * @adapter: pointer to sta adapter for which connect info is required
  * @buf: output buffer to hold version info
@@ -340,6 +373,7 @@ wlan_hdd_connect_info_debugfs(hdd_adapter_t *adapter, uint8_t *buf,
 			    "connect_time = %s\n"
 			    "auth_time = %s\n"
 			    "freq = %u\n"
+			    "ch_width = %s\n"
 			    "signal = %ddBm\n"
 			    "bit_rate = %u\n"
 			    "last_auth_type = %s\n"
@@ -349,6 +383,7 @@ wlan_hdd_connect_info_debugfs(hdd_adapter_t *adapter, uint8_t *buf,
 			    conn_info->connect_time,
 			    conn_info->auth_time,
 			    conn_info->freq,
+			    hdd_ch_width_str(conn_info->ch_width),
 			    conn_info->signal,
 			    bit_rate,
 			    hdd_auth_type_str(conn_info->last_auth_type),

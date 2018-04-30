@@ -984,10 +984,12 @@ wlansap_roam_callback(void *ctx, tCsrRoamInfo *csr_roam_info, uint32_t roamId,
 		break;
 	case eCSR_ROAM_REMAIN_CHAN_READY:
 		/* roamId contains scan identifier */
-		sap_ctx->roc_ind_scan_id = csr_roam_info->roc_scan_id;
-		sap_signal_hdd_event(sap_ctx, csr_roam_info,
-				     eSAP_REMAIN_CHAN_READY,
-				     (void *) eSAP_STATUS_SUCCESS);
+		if (csr_roam_info) {
+			sap_ctx->roc_ind_scan_id = csr_roam_info->roc_scan_id;
+			sap_signal_hdd_event(sap_ctx, csr_roam_info,
+					     eSAP_REMAIN_CHAN_READY,
+					     (void *) eSAP_STATUS_SUCCESS);
+		}
 		break;
 	case eCSR_ROAM_DISCONNECT_ALL_P2P_CLIENTS:
 		sap_signal_hdd_event(sap_ctx, csr_roam_info,

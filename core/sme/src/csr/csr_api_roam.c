@@ -4001,8 +4001,8 @@ QDF_STATUS csr_roam_call_callback(tpAniSirGlobal pMac, uint32_t sessionId,
 		 * failure, decrement bRefAssocStartCnt.
 		 */
 		pSession->bRefAssocStartCnt--;
-	} else if (u1 == eCSR_ROAM_SET_CHANNEL_RSP && u2 ==
-				eCSR_ROAM_RESULT_CHANNEL_CHANGE_SUCCESS)
+	} else if (pRoamInfo && (u1 == eCSR_ROAM_SET_CHANNEL_RSP)
+		   && (u2 == eCSR_ROAM_RESULT_CHANNEL_CHANGE_SUCCESS))
 		pSession->connectedProfile.operationChannel =
 			pRoamInfo->channelChangeRespEvent->newChannelNumber;
 

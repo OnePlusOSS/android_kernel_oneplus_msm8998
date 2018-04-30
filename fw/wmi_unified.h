@@ -450,6 +450,8 @@ typedef enum {
     WMI_VDEV_GET_TX_POWER_CMDID,
     /* limit STA offchannel activity */
     WMI_VDEV_LIMIT_OFFCHAN_CMDID,
+    /** To set custom software retries per-AC for vdev */
+    WMI_VDEV_SET_CUSTOM_SW_RETRY_TH_CMDID,
 
     /* peer specific commands */
 
@@ -4300,6 +4302,20 @@ typedef enum {
 #define WMI_VDEV_CUSTOM_TX_AC_EN_GET(param)         \
     WMI_GET_BITS(param, WMI_VDEV_CUSTOM_TX_AC_EN_BITPOS, \
         WMI_VDEV_CUSTOM_TX_AC_EN_NUM_BITS)
+
+typedef enum {
+    WMI_VDEV_CUSTOM_SW_RETRY_TYPE_NONAGGR = 0,
+    WMI_VDEV_CUSTOM_SW_RETRY_TYPE_AGGR = 1,
+    WMI_VDEV_CUSTOM_SW_RETRY_TYPE_MAX,
+} wmi_vdev_custom_sw_retry_type_t;
+
+typedef struct {
+    A_UINT32 tlv_header;   /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_vdev_set_custom_sw_retry_th_cmd_fixed_param */
+    A_UINT32 vdev_id;      /* vdev id indicating to which the vdev custom software retries will be applied. */
+    A_UINT32 ac_type;      /* access category (VI, VO, BE, BK) enum wmi_traffic_ac */
+    A_UINT32 sw_retry_type; /* 0 = non-aggr retry, 1 = aggr retry (wmi_vdev_custom_sw_retry_type_t enum) */
+    A_UINT32 sw_retry_th;   /* max retry count per AC base on ac_type for the vdev mentioned in vdev id*/
+} wmi_vdev_set_custom_sw_retry_th_cmd_fixed_param;
 
 /*
  * Command to enable/disable Green AP Power Save.
@@ -8335,6 +8351,17 @@ typedef enum {
       * valid values: 0-Disable random mac 1-Enable random mac
       */
     WMI_VDEV_PARAM_ENABLE_DISABLE_RTT_INITIATOR_RANDOM_MAC, /* 0x81 */
+
+    /**
+     * For each AC, configure how many tx retries to send without RTS
+     * before enabling RTS
+     *  bits 0:7    :BE
+     *  bits 8:15   :BK
+     *  bits 16:23  :VI
+     *  bits 24:31  :VO
+     * A value of 0 in specific AC means default configuration for that AC.
+     */
+    WMI_VDEV_PARAM_TX_RETRIES_BEFORE_RTS_PER_AC,           /* 0x82 */
 
 
     /*=== ADD NEW VDEV PARAM TYPES ABOVE THIS LINE ===
@@ -13035,6 +13062,8 @@ typedef enum
     WMI_VENDOR_OUI_ACTION_CONNECTION_1X1 = 0, /* Connect in 1X1 only */
     WMI_VENDOR_OUI_ACTION_ITO_EXTENSION = 1,  /* Extend the Immediate Time-Out (ITO) if data is not received from AP after beacon with TIM bit set */
     WMI_VENDOR_OUI_ACTION_CCKM_1X1 = 2,       /* TX (only) CCKM rates with 1 chain only */
+    WMI_VENDOR_OUI_ACTION_ALT_ITO = 3, /* inactivity time-out */
+    WMI_VENDOR_OUI_ACTION_SWITCH_TO_11N_MODE = 4, /* Switch from 11ac to 11n mode to avoid IOT issues with ONM frame */
     /* Add any action before this line */
     WMI_VENDOR_OUI_ACTION_MAX_ACTION_ID
 } wmi_vendor_oui_action_id;
@@ -21542,6 +21571,7 @@ static INLINE A_UINT8 *wmi_id_to_name(A_UINT32 wmi_command)
         WMI_RETURN_STRING(WMI_TWT_RESUME_DIALOG_CMDID);
         WMI_RETURN_STRING(WMI_REQUEST_ROAM_SCAN_STATS_CMDID);
         WMI_RETURN_STRING(WMI_PEER_TID_CONFIGURATIONS_CMDID);
+        WMI_RETURN_STRING(WMI_VDEV_SET_CUSTOM_SW_RETRY_TH_CMDID);
     }
 
     return "Invalid WMI cmd";

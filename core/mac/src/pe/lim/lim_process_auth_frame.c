@@ -364,8 +364,11 @@ static void lim_process_auth_frame_type1(tpAniSirGlobal mac_ctx,
 		 * modify the state of the existing association until the
 		 * SA-Query procedure determines that the original SA is
 		 * invalid.
+		 * If the Auth sequence number is same as the previous auth seq
+		 * number, dont send a deauth as the auth packet is just the
+		 * duplicate of previous auth.
 		 */
-		if (isConnected
+		if (isConnected && sta_ds_ptr->prev_auth_seq_no != curr_seq_num
 #ifdef WLAN_FEATURE_11W
 			&& !sta_ds_ptr->rmfEnabled
 #endif
@@ -385,14 +388,15 @@ static void lim_process_auth_frame_type1(tpAniSirGlobal mac_ctx,
 	auth_node = lim_search_pre_auth_list(mac_ctx, mac_hdr->sa);
 	if (auth_node) {
 		/* Pre-auth context exists for the STA */
-		if (!(mac_hdr->fc.retry == 0 ||
-					auth_node->seq_num != curr_seq_num)) {
+		if (auth_node->seq_num == curr_seq_num) {
 			/*
-			 * This can happen when first authentication frame is
-			 * received but ACK lost at STA side, in this case 2nd
-			 * auth frame is already in transmission queue
+			 * If a STA is already present in authnode and the host receives an auth
+			 * request with the same sequence number , do not process it, as the
+			 * previous auth has already been processed and the response will be
+			 * retried by the firmware if the peer hasnt received the response yet
 			 */
-			pe_warn("STA is initiating Auth after ACK lost");
+			pe_warn("STA is initiating Auth with SN: %d after ACK lost",
+							auth_node->seq_num);
 			return;
 		}
 		/*
@@ -1144,8 +1148,7 @@ lim_process_auth_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 		pe_session->limMlmState, MAC_ADDR_ARRAY(mac_hdr->bssId),
 		(uint) abs((int8_t) WMA_GET_RX_RSSI_NORMALIZED(rx_pkt_info)));
 
-	if (pe_session->prev_auth_seq_num == curr_seq_num &&
-	    mac_hdr->fc.retry) {
+	if (pe_session->prev_auth_seq_num == curr_seq_num) {
 		pe_err("auth frame, seq num: %d is already processed, drop it",
 			curr_seq_num);
 		return;

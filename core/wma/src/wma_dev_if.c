@@ -1841,7 +1841,7 @@ wma_remove_peer_by_reference(ol_txrx_pdev_handle pdev,
 	struct wma_target_req *del_req;
 	QDF_STATUS status;
 
-	status = QDF_STATUS_SUCCESS;
+	status = QDF_STATUS_E_FAILURE;
 	peer = ol_txrx_find_peer_by_addr_inc_ref(pdev,
 						 bssid,
 						 peer_id);
@@ -1872,6 +1872,8 @@ wma_remove_peer_by_reference(ol_txrx_pdev_handle pdev,
 			WMA_LOGE(FL("Failed to allocate request. vdev_id %d"),
 				 vdev_id);
 			status = QDF_STATUS_E_NOMEM;
+		} else {
+			status = QDF_STATUS_SUCCESS;
 		}
 	}
 
@@ -1917,6 +1919,10 @@ int wma_vdev_stop_resp_handler(void *handle, uint8_t *cmd_param_info,
 	}
 
 	iface = &wma->interfaces[resp_event->vdev_id];
+
+	/* vdev in stopped state, no more waiting for key */
+	iface->is_waiting_for_key = false;
+
 	wma_release_wakelock(&iface->vdev_stop_wakelock);
 
 	req_msg = wma_find_vdev_req(wma, resp_event->vdev_id,
@@ -2456,6 +2462,12 @@ QDF_STATUS wma_vdev_start(tp_wma_handle wma,
 	if (mac_ctx == NULL) {
 		WMA_LOGE("%s: vdev start failed as mac_ctx is NULL", __func__);
 		return QDF_STATUS_E_FAILURE;
+	}
+
+	if (req->chan == 0) {
+		WMA_LOGE("%s: invalid channel: %d", __func__, req->chan);
+		QDF_ASSERT(0);
+		return QDF_STATUS_E_INVAL;
 	}
 
 	params.band_center_freq1 = cds_chan_to_freq(req->chan);
@@ -4100,8 +4112,11 @@ static void wma_add_bss_sta_mode(tp_wma_handle wma, tpAddBssParams add_bss)
 				pps_val, status);
 		wma_send_peer_assoc(wma, add_bss->nwType,
 					    &add_bss->staContext);
+
 		/* we just had peer assoc, so install key will be done later */
-		iface->is_waiting_for_key = true;
+		if (add_bss->staContext.encryptType != eSIR_ED_NONE)
+			iface->is_waiting_for_key = true;
+
 		peer_assoc_sent = true;
 
 		if (add_bss->rmfEnabled)

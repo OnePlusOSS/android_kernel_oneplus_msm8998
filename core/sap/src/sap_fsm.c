@@ -3103,22 +3103,6 @@ QDF_STATUS sap_signal_hdd_event(ptSapContext sap_ctx,
 
 		break;
 
-	case eSAP_STA_LOSTLINK_DETECTED:
-		if (!csr_roaminfo) {
-			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-				  FL("Invalid CSR Roam Info"));
-			return QDF_STATUS_E_INVAL;
-		}
-		sap_ap_event.sapHddEventCode = eSAP_STA_LOSTLINK_DETECTED;
-		disassoc_comp =
-			&sap_ap_event.sapevt.sapStationDisassocCompleteEvent;
-
-		qdf_copy_macaddr(&disassoc_comp->staMac,
-				 &csr_roaminfo->peerMac);
-		disassoc_comp->reason_code = csr_roaminfo->reasonCode;
-
-		break;
-
 	case eSAP_STA_DISASSOC_EVENT:
 
 		if (!csr_roaminfo) {
@@ -3140,6 +3124,10 @@ QDF_STATUS sap_signal_hdd_event(ptSapContext sap_ctx,
 
 		disassoc_comp->statusCode = csr_roaminfo->statusCode;
 		disassoc_comp->status = (eSapStatus) context;
+		disassoc_comp->rssi = csr_roaminfo->rssi;
+		disassoc_comp->rx_rate = csr_roaminfo->rx_rate;
+		disassoc_comp->tx_rate = csr_roaminfo->tx_rate;
+		disassoc_comp->reason_code = csr_roaminfo->disassoc_reason;
 		break;
 
 	case eSAP_STA_SET_KEY_EVENT:
@@ -4004,6 +3992,11 @@ static QDF_STATUS sap_fsm_state_dfs_cac_wait(ptSapContext sap_ctx,
 			cds_set_channel_params(
 				mac_ctx->sap.SapDfsInfo.target_channel, 0,
 				&sap_ctx->ch_params);
+		} else {
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+				FL("Invalid target channel %d"),
+				mac_ctx->sap.SapDfsInfo.target_channel);
+			return qdf_status;
 		}
 
 		for (intf = 0; intf < SAP_MAX_NUM_SESSION; intf++) {
@@ -4242,6 +4235,13 @@ static QDF_STATUS sap_fsm_state_started(ptSapContext sap_ctx,
 		qdf_status = sap_goto_disconnecting(sap_ctx);
 	} else if (eSAP_DFS_CHNL_SWITCH_ANNOUNCEMENT_START == msg) {
 		uint8_t intf;
+
+		if (!mac_ctx->sap.SapDfsInfo.target_channel) {
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+				FL("Invalid target channel %d"),
+				mac_ctx->sap.SapDfsInfo.target_channel);
+			return qdf_status;
+		}
 		/*
 		 * Radar is seen on the current operating channel
 		 * send CSA IE for all associated stations
@@ -4948,6 +4948,13 @@ static QDF_STATUS sap_get_channel_list(ptSapContext sap_ctx,
 			sap_channel_in_acs_channel_list(
 				CDS_CHANNEL_NUM(loop_count),
 				sap_ctx, &spect_info_obj))
+			continue;
+		/* Dont scan DFS channels in case of MCC disallowed
+		 * As it can result in SAP starting on DFS channel
+		 * resulting  MCC on DFS channel
+		 */
+		if (CDS_IS_DFS_CH(CDS_CHANNEL_NUM(loop_count)) &&
+				  cds_disallow_mcc(CDS_CHANNEL_NUM(loop_count)))
 			continue;
 
 		/*

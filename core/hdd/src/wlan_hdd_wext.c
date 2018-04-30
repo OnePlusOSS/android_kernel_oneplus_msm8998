@@ -3367,7 +3367,7 @@ int hdd_wlan_get_frag_threshold(hdd_adapter_t *pAdapter,
  * @channel: channel to be converted
  * @pfreq: where to store the frequency
  *
- * Return: 1 on success, otherwise a negative errno
+ * Return: 0 on success, otherwise a negative errno
  */
 int hdd_wlan_get_freq(uint32_t channel, uint32_t *pfreq)
 {
@@ -3377,7 +3377,7 @@ int hdd_wlan_get_freq(uint32_t channel, uint32_t *pfreq)
 		for (i = 0; i < FREQ_CHAN_MAP_TABLE_SIZE; i++) {
 			if (channel == freq_chan_map[i].chan) {
 				*pfreq = freq_chan_map[i].freq;
-				return 1;
+				return 0;
 			}
 		}
 	}
@@ -3431,6 +3431,7 @@ static bool hdd_is_auth_type_rsn(eCsrAuthType authType)
 	case eCSR_AUTH_TYPE_RSN_PSK_SHA256:
 	case eCSR_AUTH_TYPE_RSN_8021X_SHA256:
 #endif
+	case eCSR_AUTH_TYPE_DPP_RSN:
 		rsnType = true;
 		break;
 	/* case eCSR_AUTH_TYPE_FAILED: */
@@ -3937,9 +3938,8 @@ static void hdd_get_peer_rssi_cb(struct sir_peer_info_resp *sta_rssi,
 {
 	struct statsContext *get_rssi_context;
 	struct sir_peer_info *rssi_info;
-	uint8_t peer_num, i;
+	uint8_t peer_num;
 	hdd_adapter_t *padapter;
-	hdd_station_info_t *stainfo;
 
 	if ((sta_rssi == NULL) || (context == NULL)) {
 		hdd_err("Bad param, sta_rssi [%pK] context [%pK]",
@@ -3982,19 +3982,6 @@ static void hdd_get_peer_rssi_cb(struct sir_peer_info_resp *sta_rssi,
 	qdf_mem_copy(padapter->peer_sta_info.info, rssi_info,
 		peer_num * sizeof(*rssi_info));
 	padapter->peer_sta_info.sta_num = peer_num;
-
-	for (i = 0; i < peer_num; i++) {
-		stainfo = hdd_get_stainfo(padapter->cache_sta_info,
-					  rssi_info[i].peer_macaddr);
-		if (stainfo) {
-			stainfo->rssi = rssi_info[i].rssi;
-			stainfo->tx_rate = rssi_info[i].tx_rate;
-			stainfo->rx_rate = rssi_info[i].rx_rate;
-			hdd_info("rssi:%d tx_rate:%u rx_rate:%u %pM",
-				 stainfo->rssi, stainfo->tx_rate,
-				 stainfo->rx_rate, stainfo->macAddrSTA.bytes);
-		}
-	}
 
 	/* notify the caller */
 	complete(&get_rssi_context->completion);
@@ -4879,7 +4866,7 @@ static int __iw_get_freq(struct net_device *dev, struct iw_request_info *info,
 			return -EIO;
 		}
 		status = hdd_wlan_get_freq(channel, &freq);
-		if (true == status) {
+		if (0 == status) {
 			/* Set Exponent parameter as 6 (MHZ)
 			 * in struct iw_freq iwlist & iwconfig
 			 * command shows frequency into proper

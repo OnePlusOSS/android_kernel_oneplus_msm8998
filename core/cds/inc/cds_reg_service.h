@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -384,6 +384,19 @@ QDF_STATUS cds_read_default_country(uint8_t *default_country);
 QDF_STATUS cds_get_channel_list_with_power(struct channel_power
 					   *base_channels,
 					   uint8_t *num_base_channels);
+
+/**
+ * cds_set_channel_state() - API to set the channel state in reg table
+ * @chan_num  - input channel enum
+ * @state - state of the channel to be set
+ * CHANNEL_STATE_DISABLE
+ * CHANNEL_STATE_DFS
+ * CHANNEL_STATE_ENABLE
+ * CHANNEL_STATE_INVALID
+ *
+ * Return: Void
+ */
+void cds_set_channel_state(uint32_t chan_num, enum channel_state state);
 
 enum channel_state cds_get_channel_state(uint32_t chan_num);
 QDF_STATUS cds_get_dfs_region(enum dfs_region *dfs_reg);

@@ -1998,7 +1998,6 @@ bool csr_roam_is_ese_assoc(tpAniSirGlobal mac_ctx, uint32_t session_id)
 	return mac_ctx->roam.neighborRoamInfo[session_id].isESEAssoc;
 }
 
-
 /**
  * csr_roam_is_ese_ini_feature_enabled() - is ese feature enabled
  * @mac_ctx: Global MAC context
@@ -2806,6 +2805,8 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 					pParam->enable_subfee_vendor_vhtie;
 		pMac->roam.configParam.enable_txbf_sap_mode =
 			pParam->enable_txbf_sap_mode;
+		pMac->roam.configParam.enable_vht20_mcs9 =
+			pParam->enable_vht20_mcs9;
 		pMac->roam.configParam.enable2x2 = pParam->enable2x2;
 		pMac->roam.configParam.enableVhtFor24GHz =
 			pParam->enableVhtFor24GHz;
@@ -2875,7 +2876,8 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 		pMac->roam.configParam.roam_params.
 			roam_bad_rssi_thresh_offset_2g =
 			pParam->roam_bad_rssi_thresh_offset_2g;
-
+		pMac->roam.configParam.enable_ftopen =
+			pParam->enable_ftopen;
 		pMac->roam.configParam.scan_adaptive_dwell_mode =
 			pParam->scan_adaptive_dwell_mode;
 		pMac->roam.configParam.scan_adaptive_dwell_mode_nc =
@@ -3120,6 +3122,7 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 				cfg_params->enable_subfee_vendor_vhtie;
 	pParam->enable_txbf_sap_mode =
 		cfg_params->enable_txbf_sap_mode;
+	pParam->enable_vht20_mcs9 = cfg_params->enable_vht20_mcs9;
 	pParam->enableVhtFor24GHz = cfg_params->enableVhtFor24GHz;
 	pParam->ignore_peer_erp_info = cfg_params->ignore_peer_erp_info;
 	pParam->enable2x2 = cfg_params->enable2x2;
@@ -3189,7 +3192,7 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 		cfg_params->roam_params.bg_scan_client_bitmap;
 	pParam->roam_bad_rssi_thresh_offset_2g =
 		cfg_params->roam_params.roam_bad_rssi_thresh_offset_2g;
-
+	pParam->enable_ftopen = cfg_params->enable_ftopen;
 	pParam->scan_adaptive_dwell_mode =
 			cfg_params->scan_adaptive_dwell_mode;
 	pParam->scan_adaptive_dwell_mode_nc =
@@ -3945,11 +3948,6 @@ QDF_STATUS csr_roam_call_callback(tpAniSirGlobal pMac, uint32_t sessionId,
 				eCSR_ROAM_RESULT_CHANNEL_CHANGE_SUCCESS)
 		pSession->connectedProfile.operationChannel =
 			pRoamInfo->channelChangeRespEvent->newChannelNumber;
-
-	if (eCSR_ROAM_RESULT_LOSTLINK == u2 ||
-	    eCSR_ROAM_LOSTLINK_DETECTED == u1) {
-		sme_debug("eCSR_ROAM_RESULT_LOSTLINK ");
-	}
 
 	if (NULL != pSession->callback) {
 		if (pRoamInfo) {
@@ -6939,6 +6937,10 @@ static void csr_roam_process_results_default(tpAniSirGlobal mac_ctx,
 		break;
 	case eCsrForcedDisassocSta:
 	case eCsrForcedDeauthSta:
+		roam_info.rssi = mac_ctx->peer_rssi;
+		roam_info.tx_rate = mac_ctx->peer_txrate;
+		roam_info.rx_rate = mac_ctx->peer_rxrate;
+
 		csr_roam_state_change(mac_ctx, eCSR_ROAMING_STATE_JOINED,
 			session_id);
 		session = CSR_GET_SESSION(mac_ctx, session_id);
@@ -6950,6 +6952,9 @@ static void csr_roam_process_results_default(tpAniSirGlobal mac_ctx,
 					cmd->u.roamCmd.peerMac,
 					sizeof(tSirMacAddr));
 			roam_info.reasonCode = eCSR_ROAM_RESULT_FORCED;
+			/* Update the MAC reason code */
+			roam_info.disassoc_reason = cmd->u.roamCmd.reason;
+
 			roam_info.statusCode = eSIR_SME_SUCCESS;
 			status = csr_roam_call_callback(mac_ctx, session_id,
 					&roam_info, cmd->u.roamCmd.roamId,
@@ -11606,6 +11611,11 @@ csr_roam_send_disconnect_done_indication(tpAniSirGlobal mac_ctx, tSirSmeRsp
 		roam_info.statusCode = eSIR_SME_STA_NOT_ASSOCIATED;
 		qdf_mem_copy(roam_info.peerMac.bytes, discon_ind->peer_mac,
 			     ETH_ALEN);
+		roam_info.rssi = mac_ctx->peer_rssi;
+		roam_info.tx_rate = mac_ctx->peer_txrate;
+		roam_info.rx_rate = mac_ctx->peer_rxrate;
+		roam_info.disassoc_reason = discon_ind->reason_code;
+
 		csr_roam_call_callback(mac_ctx, discon_ind->session_id,
 				       &roam_info, 0, eCSR_ROAM_LOSTLINK,
 				       eCSR_ROAM_RESULT_DISASSOC_IND);
@@ -12945,12 +12955,16 @@ QDF_STATUS csr_roam_lost_link(tpAniSirGlobal pMac, uint32_t sessionId,
 
 	sme_debug("RC: %d", roamInfo.reasonCode);
 
-	if (type == eWNI_SME_DISASSOC_IND || type == eWNI_SME_DEAUTH_IND)
-		csr_roam_call_callback(pMac, sessionId, &roamInfo, 0,
-				       eCSR_ROAM_LOSTLINK_DETECTED, result);
-	else
-		csr_roam_call_callback(pMac, sessionId, NULL, 0,
-				       eCSR_ROAM_LOSTLINK_DETECTED, result);
+	if (type == eWNI_SME_DISASSOC_IND || type == eWNI_SME_DEAUTH_IND) {
+		struct sir_peer_info_req req;
+
+		req.sessionid = sessionId;
+		req.peer_macaddr = roamInfo.peerMac;
+		sme_get_peer_stats(pMac, req);
+	}
+
+	csr_roam_call_callback(pMac, sessionId, NULL, 0,
+			       eCSR_ROAM_LOSTLINK_DETECTED, result);
 
 	if (eWNI_SME_DISASSOC_IND == type)
 		status = csr_send_mb_disassoc_cnf_msg(pMac, pDisassocIndMsg);
@@ -15487,7 +15501,7 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 		ese_config =  pMac->roam.configParam.isEseIniFeatureEnabled;
 #endif
 		pProfile->MDID.mdiePresent = pBssDescription->mdiePresent;
-		if (csr_is_profile11r(pProfile)
+		if (csr_is_profile11r(pMac, pProfile)
 #ifdef FEATURE_WLAN_ESE
 		    &&
 		    !((pProfile->negotiatedAuthType ==
@@ -16447,8 +16461,18 @@ QDF_STATUS csr_send_mb_set_context_req_msg(tpAniSirGlobal pMac,
 					pKey, keyLength);
 		cds_msg.type = eWNI_SME_SETCONTEXT_REQ;
 		cds_msg.bodyptr = pMsg;
-		status = cds_mq_post_message_by_priority(QDF_MODULE_ID_PE, &cds_msg,
+
+		/*
+		 * Post to PE queue in high priority only for unicast key
+		 */
+		if (fUnicast)
+			status = cds_mq_post_message_by_priority(
+					QDF_MODULE_ID_PE, &cds_msg,
 					HIGH_PRIORITY);
+		else
+			status = cds_mq_post_message_by_priority(
+					QDF_MODULE_ID_PE, &cds_msg,
+					LOW_PRIORITY);
 		if (QDF_IS_STATUS_ERROR(status))
 			qdf_mem_free(pMsg);
 	} while (0);
@@ -18784,6 +18808,7 @@ csr_create_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 			eCSR_AUTH_TYPE_OPEN_SYSTEM)  ||
 		(csr_is_auth_type_ese(req_buf->
 			ConnectedNetwork.authentication)));
+	req_buf->is_11r_assoc = roam_info->is11rAssoc;
 	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 			"IsEseAssoc: %d middle of roaming: %d ese_neighbor_list_recvd: %d cur no of chan: %d",
 			req_buf->IsESEAssoc,

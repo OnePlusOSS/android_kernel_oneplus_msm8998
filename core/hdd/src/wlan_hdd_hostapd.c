@@ -203,7 +203,6 @@ int hdd_sap_context_init(hdd_context_t *hdd_ctx)
 	qdf_spinlock_create(&hdd_ctx->sap_update_info_lock);
 
 	qdf_atomic_init(&hdd_ctx->dfs_radar_found);
-	qdf_atomic_init(&hdd_ctx->is_acs_allowed);
 
 	return 0;
 }
@@ -1605,9 +1604,10 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 	struct ch_params_s sap_ch_param = {0};
 	eCsrPhyMode phy_mode;
 	bool legacy_phymode;
-	tSap_StationDisassocCompleteEvent *disconnect_event;
+	tSap_StationDisassocCompleteEvent *disassoc_comp;
 	hdd_station_info_t *stainfo;
 	cds_context_type *cds_ctx;
+	hdd_adapter_t *sta_adapter;
 
 	dev = (struct net_device *)usrDataForCallback;
 	if (!dev) {
@@ -1841,6 +1841,12 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 		we_event = IWEVCUSTOM;
 		we_custom_event_generic = we_custom_start_event;
 		cds_dump_concurrency_info();
+
+		sta_adapter = hdd_get_adapter(pHddCtx, QDF_STA_MODE);
+		if (sta_adapter != NULL) {
+			hdd_debug("check for SAP restart");
+			cds_check_concurrent_intf_and_restart_sap(sta_adapter);
+		}
 
 		if (cds_is_hw_mode_change_after_vdev_up()) {
 			hdd_debug("check for possible hw mode change");
@@ -2206,34 +2212,21 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 		hdd_green_ap_add_sta(pHddCtx);
 		break;
 
-	case eSAP_STA_LOSTLINK_DETECTED:
-		disconnect_event =
-			&pSapEvent->sapevt.sapStationDisassocCompleteEvent;
-
-		wlan_hdd_get_peer_rssi(pHostapdAdapter,
-				       &disconnect_event->staMac,
-				       HDD_WLAN_GET_PEER_RSSI_SOURCE_DRIVER);
-
-		/*
-		 * For user initiated disconnect, reason_code is updated while
-		 * issuing the disconnect from HDD.
-		 */
-		if (disconnect_event->reason != eSAP_USR_INITATED_DISASSOC) {
-			stainfo = hdd_get_stainfo(
-					pHostapdAdapter->cache_sta_info,
-					disconnect_event->staMac);
-			if (stainfo)
-				stainfo->reason_code =
-					disconnect_event->reason_code;
-		}
-		return QDF_STATUS_SUCCESS;
-
 	case eSAP_STA_DISASSOC_EVENT:
+		disassoc_comp =
+			&pSapEvent->sapevt.sapStationDisassocCompleteEvent;
 		memcpy(wrqu.addr.sa_data,
-		       &pSapEvent->sapevt.sapStationDisassocCompleteEvent.
-		       staMac, QDF_MAC_ADDR_SIZE);
+		       &disassoc_comp->staMac, QDF_MAC_ADDR_SIZE);
 		hdd_notice(" disassociated " MAC_ADDRESS_STR,
 		       MAC_ADDR_ARRAY(wrqu.addr.sa_data));
+		stainfo = hdd_get_stainfo(pHostapdAdapter->cache_sta_info,
+					  disassoc_comp->staMac);
+		if (stainfo) {
+			stainfo->rssi = disassoc_comp->rssi;
+			stainfo->tx_rate = disassoc_comp->tx_rate;
+			stainfo->rx_rate = disassoc_comp->rx_rate;
+			stainfo->reason_code = disassoc_comp->reason_code;
+		}
 
 		qdf_status = qdf_event_set(&pHostapdState->qdf_sta_disassoc_event);
 		if (!QDF_IS_STATUS_SUCCESS(qdf_status))
@@ -2577,7 +2570,8 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 		/* send vendor event to hostapd only for hostapd based acs*/
 		if (!pHddCtx->config->force_sap_acs)
 			wlan_hdd_cfg80211_acs_ch_select_evt(pHostapdAdapter);
-		qdf_atomic_set(&pHddCtx->is_acs_allowed, 0);
+		qdf_atomic_set(
+			&pHostapdAdapter->sessionCtx.ap.acs_in_progress, 0);
 		return QDF_STATUS_SUCCESS;
 	case eSAP_ECSA_CHANGE_CHAN_IND:
 		hdd_debug("Channel change indication from peer for channel %d",
@@ -4519,7 +4513,6 @@ static __iw_softap_disassoc_sta(struct net_device *dev,
 	uint8_t *peerMacAddr;
 	int ret;
 	struct tagCsrDelStaParams del_sta_params;
-	hdd_station_info_t *stainfo;
 
 	ENTER_DEV(dev);
 
@@ -4545,11 +4538,6 @@ static __iw_softap_disassoc_sta(struct net_device *dev,
 			(SIR_MAC_MGMT_DISASSOC >> 4),
 			&del_sta_params);
 	hdd_softap_sta_disassoc(pHostapdAdapter, &del_sta_params);
-
-	stainfo = hdd_get_stainfo(pHostapdAdapter->cache_sta_info,
-				  del_sta_params.peerMacAddr);
-	if (stainfo)
-		stainfo->reason_code = del_sta_params.reason_code;
 
 	EXIT();
 	return 0;
@@ -5290,7 +5278,7 @@ static int __iw_get_ap_freq(struct net_device *dev,
 			return -EIO;
 		}
 		status = hdd_wlan_get_freq(channel, &freq);
-		if (true == status) {
+		if (0 == status) {
 			/* Set Exponent parameter as 6 (MHZ) in struct
 			 * iw_freq * iwlist & iwconfig command
 			 * shows frequency into proper
@@ -5302,7 +5290,7 @@ static int __iw_get_ap_freq(struct net_device *dev,
 	} else {
 		channel = pHddApCtx->operatingChannel;
 		status = hdd_wlan_get_freq(channel, &freq);
-		if (true == status) {
+		if (0 == status) {
 			/* Set Exponent parameter as 6 (MHZ) in struct iw_freq
 			 * iwlist & iwconfig command shows frequency into proper
 			 * format (2.412 GHz instead of 246.2 MHz)
@@ -6522,7 +6510,7 @@ QDF_STATUS hdd_init_ap_mode(hdd_adapter_t *pAdapter, bool reinit)
 	ENTER();
 
 	hdd_info("SSR in progress: %d", reinit);
-
+	qdf_atomic_init(&pAdapter->sessionCtx.ap.acs_in_progress);
 	if (reinit)
 		sapContext = pAdapter->sessionCtx.ap.sapContext;
 	else {
@@ -7918,6 +7906,173 @@ static void hdd_check_and_disconnect_sta_on_invalid_channel(
 }
 
 /**
+ * wlan_hdd_get_wiphy_channel() - Get wiphy channel
+ * @wiphy: Pointer to wiphy structure
+ * @freq: Frequency of the channel for which the wiphy hw value is required
+ *
+ * Return: wiphy channel for valid frequency else return NULL
+ */
+static struct ieee80211_channel *wlan_hdd_get_wiphy_channel(
+						struct wiphy *wiphy,
+						uint32_t freq)
+{
+	uint32_t band_num, channel_num;
+	struct ieee80211_channel *wiphy_channel = NULL;
+
+	for (band_num = 0; band_num < HDD_NUM_NL80211_BANDS; band_num++) {
+		for (channel_num = 0; channel_num <
+				wiphy->bands[band_num]->n_channels;
+				channel_num++) {
+			wiphy_channel = &(wiphy->bands[band_num]->
+							channels[channel_num]);
+			if (wiphy_channel->center_freq == freq)
+				return wiphy_channel;
+		}
+	}
+	return wiphy_channel;
+}
+
+int wlan_hdd_restore_channels(hdd_context_t *hdd_ctx)
+{
+	struct hdd_cache_channels *cache_chann;
+	struct wiphy *wiphy;
+	int freq, status, rf_channel;
+	int i;
+	struct ieee80211_channel *wiphy_channel = NULL;
+
+	ENTER();
+
+	if (!hdd_ctx) {
+		hdd_err("HDD Context is NULL");
+		return -EINVAL;
+	}
+
+	wiphy = hdd_ctx->wiphy;
+	if (!wiphy) {
+		hdd_err("Wiphy is NULL");
+		return -EINVAL;
+	}
+
+	qdf_mutex_acquire(&hdd_ctx->cache_channel_lock);
+
+	cache_chann = hdd_ctx->original_channels;
+
+	if (!cache_chann || !cache_chann->num_channels) {
+		qdf_mutex_release(&hdd_ctx->cache_channel_lock);
+		hdd_err("channel list is NULL or num channels are zero");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < cache_chann->num_channels; i++) {
+		status = hdd_wlan_get_freq(
+				cache_chann->channel_info[i].channel_num,
+				&freq);
+		if (status)
+			continue;
+
+		wiphy_channel = wlan_hdd_get_wiphy_channel(wiphy, freq);
+		if (!wiphy_channel)
+			continue;
+		rf_channel = wiphy_channel->hw_value;
+		/*
+		 * Restore the orginal states of the channels
+		 * only if we have cached non zero values
+		 */
+		if (cache_chann->channel_info[i].reg_status)
+			cds_set_channel_state(rf_channel,
+					      cache_chann->
+						channel_info[i].reg_status);
+
+		if (cache_chann->channel_info[i].wiphy_status && wiphy_channel)
+			wiphy_channel->flags =
+				cache_chann->channel_info[i].wiphy_status;
+	}
+
+	qdf_mutex_release(&hdd_ctx->cache_channel_lock);
+
+	status = sme_update_channel_list(hdd_ctx->hHal);
+	if (status)
+		hdd_err("Can't Restore channel list");
+	EXIT();
+
+	return 0;
+}
+
+/**
+ * wlan_hdd_disable_channels() - Cache the channels
+ * and current state of the channels from the channel list
+ * received in the command and disable the channels on the
+ * wiphy and reg table.
+ * @hdd_ctx: Pointer to hdd context
+ *
+ * Return: 0 on success, Error code on failure
+ */
+static int wlan_hdd_disable_channels(hdd_context_t *hdd_ctx)
+{
+	struct hdd_cache_channels *cache_chann;
+	struct wiphy *wiphy;
+	int freq, status, rf_channel;
+	int i;
+	struct ieee80211_channel *wiphy_channel = NULL;
+
+	ENTER();
+
+	if (!hdd_ctx) {
+		hdd_err("HDD Context is NULL");
+		return -EINVAL;
+	}
+
+	wiphy = hdd_ctx->wiphy;
+	if (!wiphy) {
+		hdd_err("Wiphy is NULL");
+		return -EINVAL;
+	}
+
+	qdf_mutex_acquire(&hdd_ctx->cache_channel_lock);
+	cache_chann = hdd_ctx->original_channels;
+
+	if (!cache_chann || !cache_chann->num_channels) {
+		qdf_mutex_release(&hdd_ctx->cache_channel_lock);
+		hdd_err("channel list is NULL or num channels are zero");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < cache_chann->num_channels; i++) {
+		status = hdd_wlan_get_freq(
+				cache_chann->channel_info[i].channel_num,
+				&freq);
+		if (status)
+			continue;
+		wiphy_channel = wlan_hdd_get_wiphy_channel(wiphy, freq);
+		if (!wiphy_channel)
+			continue;
+		rf_channel = wiphy_channel->hw_value;
+		/*
+		 * Cache the current states of
+		 * the channels
+		 */
+		cache_chann->channel_info[i].reg_status =
+						cds_get_channel_state(
+							rf_channel);
+		cache_chann->channel_info[i].wiphy_status =
+							wiphy_channel->flags;
+		hdd_debug("Disable channel %d reg_stat %d wiphy_stat 0x%x",
+			  cache_chann->channel_info[i].channel_num,
+			  cache_chann->channel_info[i].reg_status,
+			  wiphy_channel->flags);
+
+		cds_set_channel_state(rf_channel, CHANNEL_STATE_DISABLE);
+		wiphy_channel->flags |= IEEE80211_CHAN_DISABLED;
+	}
+
+	qdf_mutex_release(&hdd_ctx->cache_channel_lock);
+	status = sme_update_channel_list(hdd_ctx->hHal);
+
+	EXIT();
+	return status;
+}
+
+/**
  * wlan_hdd_cfg80211_start_bss() - start bss
  * @pHostapdAdapter: Pointer to hostapd adapter
  * @params: Pointer to start bss beacon parameters
@@ -8027,6 +8182,17 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 		if (cds_is_force_scc())
 			hdd_check_and_disconnect_sta_on_invalid_channel(
 								       pHddCtx);
+	}
+
+	if (pHostapdAdapter->device_mode == QDF_SAP_MODE) {
+		/*
+		 * Disable the channels received in command
+		 * SET_DISABLE_CHANNEL_LIST
+		 */
+		status = wlan_hdd_disable_channels(pHddCtx);
+		if (!QDF_IS_STATUS_SUCCESS(status))
+			hdd_err("Disable channel list fail");
+		hdd_check_and_disconnect_sta_on_invalid_channel(pHddCtx);
 	}
 
 	pConfig = &pHostapdAdapter->sessionCtx.ap.sapConfig;
@@ -8635,6 +8801,8 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 	return 0;
 
 error:
+	if (pHostapdAdapter->device_mode == QDF_SAP_MODE)
+		wlan_hdd_restore_channels(pHddCtx);
 	/* Revert the indoor to passive marking if START BSS fails */
 	if (iniConfig->disable_indoor_channel) {
 		hdd_update_indoor_channel(pHddCtx, false);
@@ -8643,6 +8811,8 @@ error:
 	if (sme_config)
 		qdf_mem_free(sme_config);
 	clear_bit(SOFTAP_INIT_DONE, &pHostapdAdapter->event_flags);
+	qdf_atomic_set(
+		&pHostapdAdapter->sessionCtx.ap.acs_in_progress, 0);
 	wlan_hdd_undo_acs(pHostapdAdapter);
 
 ret_status:
@@ -8779,6 +8949,8 @@ static int __wlan_hdd_cfg80211_stop_ap(struct wiphy *wiphy,
 
 	pConfig = &pAdapter->sessionCtx.ap.sapConfig;
 	pConfig->acs_cfg.acs_mode = false;
+	qdf_atomic_set(
+		&pAdapter->sessionCtx.ap.acs_in_progress, 0);
 	wlan_hdd_undo_acs(pAdapter);
 	qdf_mem_zero(&pConfig->acs_cfg, sizeof(struct sap_acs_cfg));
 
@@ -9092,13 +9264,14 @@ static int __wlan_hdd_cfg80211_start_ap(struct wiphy *wiphy,
 	}
 
 	if (cds_is_sap_mandatory_chan_list_enabled()) {
-		if (!cds_get_sap_mandatory_chan_list_len())
-			cds_init_sap_mandatory_2g_chan();
-
 		if (CDS_IS_CHANNEL_5GHZ(channel)) {
 			hdd_debug("channel %hu, sap mandatory chan list enabled",
 					channel);
+			if (!cds_get_sap_mandatory_chan_list_len())
+				cds_init_sap_mandatory_2g_chan();
 			cds_add_sap_mandatory_chan(channel);
+		} else {
+			cds_init_sap_mandatory_2g_chan();
 		}
 	}
 

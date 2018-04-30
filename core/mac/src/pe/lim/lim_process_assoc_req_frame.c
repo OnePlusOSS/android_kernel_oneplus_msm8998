@@ -1102,6 +1102,7 @@ static bool lim_process_assoc_req_sta_ctx(tpAniSirGlobal mac_ctx,
 			eLIM_MLM_AUTHENTICATED_STATE)) {
 			/* STA has triggered pre-auth again */
 			*auth_type = sta_pre_auth_ctx->authType;
+			sta_ds->prev_auth_seq_no = sta_pre_auth_ctx->seq_num;
 			lim_delete_pre_auth_node(mac_ctx, hdr->sa);
 		} else {
 			*auth_type = sta_ds->mlmStaContext.authType;
@@ -1248,6 +1249,9 @@ static bool lim_update_sta_ds(tpAniSirGlobal mac_ctx, tpSirMacMgmtHdr hdr,
 	sta_ds->qos.addts = assoc_req->addtsReq;
 	sta_ds->qos.capability = assoc_req->qosCapability;
 	sta_ds->versionPresent = 0;
+	sta_ds->prev_assoc_seq_no = (((hdr->seqControl.seqNumHi <<
+					HIGH_SEQ_NUM_OFFSET) |
+					hdr->seqControl.seqNumLo));
 	/*
 	 * short slot and short preamble should be updated before doing
 	 * limaddsta
@@ -1768,19 +1772,21 @@ void lim_process_assoc_req_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 	}
 
 	/*
-	 * If a STA is already present in DPH and it is initiating a Assoc
-	 * re-transmit, do not process it. This can happen when first Assoc Req
-	 * frame is received but ACK lost at STA side. The ACK for this dropped
-	 * Assoc Req frame should be sent by HW. Host simply does not process it
-	 * once the entry for the STA is already present in DPH.
+	 * If a STA is already present in DPH and the host receives an assoc
+	 * request with the same sequence number , do not process it, as the
+	 * previous assoc has already been processed and the response will be
+	 * retried by the firmware if the peer hasnt received the response yet
 	 */
 	sta_ds = dph_lookup_hash_entry(mac_ctx, hdr->sa, &assoc_id,
 				&session->dph.dphHashTable);
 	if (NULL != sta_ds) {
-		if (hdr->fc.retry > 0) {
-			pe_err("STA is initiating Assoc Req after ACK lost. Do not process sessionid: %d sys sub_type=%d for role=%d from: "
-				MAC_ADDRESS_STR, session->peSessionId,
-			sub_type, GET_LIM_SYSTEM_ROLE(session),
+		if (sta_ds->prev_assoc_seq_no == (((hdr->seqControl.seqNumHi <<
+						  HIGH_SEQ_NUM_OFFSET) |
+						  hdr->seqControl.seqNumLo))) {
+			pe_err("Got an Assoc Req with same seq no. SN:%d .Do not process sessionid: %d sys sub_type=%d for role=%d from: "
+				MAC_ADDRESS_STR, sta_ds->prev_assoc_seq_no,
+				session->peSessionId,
+				sub_type, GET_LIM_SYSTEM_ROLE(session),
 			MAC_ADDR_ARRAY(hdr->sa));
 			return;
 		} else if (!sta_ds->rmfEnabled && (sub_type == LIM_REASSOC)) {

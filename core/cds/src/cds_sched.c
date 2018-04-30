@@ -358,7 +358,8 @@ __cds_cpu_hotplug_notify(struct notifier_block *block,
 	if ((NULL == pSchedContext) || (NULL == pSchedContext->ol_rx_thread))
 		return NOTIFY_OK;
 
-	if (cds_is_load_or_unload_in_progress())
+	if (cds_is_load_or_unload_in_progress() ||
+	    cds_is_module_stop_in_progress() || cds_is_driver_recovering())
 		return NOTIFY_OK;
 
 	num_cpus = num_possible_cpus();

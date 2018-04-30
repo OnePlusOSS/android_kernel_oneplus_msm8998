@@ -155,6 +155,10 @@ typedef struct {
 #define WLAN_AKM_SUITE_SAE 0x000FAC08
 #endif
 
+#ifndef WLAN_AKM_SUITE_DPP_RSN
+#define WLAN_AKM_SUITE_DPP_RSN 0x506F9A02
+#endif
+
 #ifdef FEATURE_WLAN_TDLS
 #define WLAN_IS_TDLS_SETUP_ACTION(action) \
 	((SIR_MAC_TDLS_SETUP_REQ <= action) && \
@@ -706,4 +710,14 @@ QDF_STATUS wlan_hdd_send_sta_authorized_event(
 					hdd_adapter_t *pAdapter,
 					hdd_context_t *pHddCtx,
 					const struct qdf_mac_addr *mac_addr);
+
+/**
+ * wlan_hdd_restore_channels() - Restore the channels which were cached
+ * and disabled in wlan_hdd_disable_channels api.
+ * @hdd_ctx: Pointer to the HDD context
+ *
+ * Return: 0 on success, Error code on failure
+ */
+int wlan_hdd_restore_channels(hdd_context_t *hdd_ctx);
+
 #endif

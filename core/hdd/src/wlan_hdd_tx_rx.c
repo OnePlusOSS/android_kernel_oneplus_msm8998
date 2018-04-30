@@ -506,6 +506,56 @@ static void hdd_get_transmit_sta_id(hdd_adapter_t *adapter,
 }
 
 /**
+ * hdd_clear_tx_rx_connectivity_stats() - clear connectivity stats
+ * @hdd_ctx: pointer to HDD Station Context
+ *
+ * Return: None
+ */
+static void hdd_clear_tx_rx_connectivity_stats(hdd_adapter_t *adapter)
+{
+	QDF_TRACE(QDF_MODULE_ID_HDD_DATA, QDF_TRACE_LEVEL_DEBUG,
+		"Clear txrx connectivity stats");
+	qdf_mem_zero(&adapter->hdd_stats.hdd_arp_stats,
+		     sizeof(adapter->hdd_stats.hdd_arp_stats));
+	qdf_mem_zero(&adapter->hdd_stats.hdd_dns_stats,
+		     sizeof(adapter->hdd_stats.hdd_dns_stats));
+	qdf_mem_zero(&adapter->hdd_stats.hdd_tcp_stats,
+		     sizeof(adapter->hdd_stats.hdd_tcp_stats));
+	qdf_mem_zero(&adapter->hdd_stats.hdd_icmpv4_stats,
+		     sizeof(adapter->hdd_stats.hdd_icmpv4_stats));
+	adapter->pkt_type_bitmap = 0;
+	adapter->track_arp_ip = 0;
+	qdf_mem_zero(adapter->dns_payload, adapter->track_dns_domain_len);
+	adapter->track_dns_domain_len = 0;
+	adapter->track_src_port = 0;
+	adapter->track_dest_port = 0;
+	adapter->track_dest_ipv4 = 0;
+}
+
+void hdd_reset_all_adapters_connectivity_stats(hdd_context_t *hdd_ctx)
+{
+	hdd_adapter_list_node_t *adapterNode = NULL, *pNext = NULL;
+	QDF_STATUS status;
+	hdd_adapter_t *adapter;
+
+	ENTER();
+
+	status = hdd_get_front_adapter(hdd_ctx, &adapterNode);
+
+	while (NULL != adapterNode && QDF_STATUS_SUCCESS == status) {
+		adapter = adapterNode->pAdapter;
+		hdd_clear_tx_rx_connectivity_stats(adapter);
+
+		status = hdd_get_next_adapter(hdd_ctx, adapterNode, &pNext);
+		adapterNode = pNext;
+	}
+
+	EXIT();
+
+}
+
+
+/**
  * hdd_tx_rx_is_dns_domain_name_match() - function to check whether dns
  * domain name in the received skb matches with the tracking dns domain
  * name or not
@@ -790,7 +840,8 @@ static inline bool hdd_is_tx_allowed(struct sk_buff *skb, uint8_t peer_id)
 	if (OL_TXRX_PEER_STATE_AUTH == peer_state)
 		return true;
 	else if (OL_TXRX_PEER_STATE_CONN == peer_state &&
-			ntohs(skb->protocol) == HDD_ETHERTYPE_802_1_X)
+			(ntohs(skb->protocol) == HDD_ETHERTYPE_802_1_X
+			|| IS_HDD_ETHERTYPE_WAI(skb)))
 		return true;
 	DPTRACE(qdf_dp_trace(skb, QDF_DP_TRACE_DROP_PACKET_RECORD,
 				(uint8_t *)skb->data,
@@ -996,6 +1047,10 @@ static netdev_tx_t __hdd_hard_start_xmit(struct sk_buff *skb,
 		goto drop_pkt_and_release_skb;
 	}
 	if (!hdd_is_tx_allowed(skb, STAId)) {
+		QDF_TRACE(QDF_MODULE_ID_HDD_DATA,
+			  QDF_TRACE_LEVEL_INFO_HIGH,
+			  "%s: Tx is not allowed. drop the pkt",
+			  __func__);
 		++pAdapter->hdd_stats.hddTxRxStats.txXmitDroppedAC[ac];
 		goto drop_pkt_and_release_skb;
 	}

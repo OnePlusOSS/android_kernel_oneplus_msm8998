@@ -2102,6 +2102,28 @@ enum hdd_dot11_mode {
 
 /*
  * <ini>
+ * enable_ftopen - enable/disable FT open feature
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This INI is used to enable/disable FT open feature
+ *
+ * Related: None
+ *
+ * Supported Feature: Roaming
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ROAM_FT_OPEN_ENABLE_NAME                "enable_ftopen"
+#define CFG_ROAM_FT_OPEN_ENABLE_MIN                 (0)
+#define CFG_ROAM_FT_OPEN_ENABLE_MAX                 (1)
+#define CFG_ROAM_FT_OPEN_ENABLE_DEFAULT             (1)
+
+/*
+ * <ini>
  * groam_dense_min_aps - Sets minimum number of AP for dense roam
  * @Min: 1
  * @Max: 5
@@ -5112,6 +5134,27 @@ enum hdd_link_speed_rpt_type {
 #define CFG_VHT_ENABLE_TX_MCS2x2_8_9_MIN           (0)
 #define CFG_VHT_ENABLE_TX_MCS2x2_8_9_MAX           (2)
 #define CFG_VHT_ENABLE_TX_MCS2x2_8_9_DEFAULT       (0)
+
+/*
+ * <ini>
+ * enable_vht20_mcs9 - Enables VHT MCS9 in 20M BW operation
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * Related: NA
+ *
+ * Supported Feature: 11AC
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+
+#define CFG_ENABLE_VHT20_MCS9               "enable_vht20_mcs9"
+#define CFG_ENABLE_VHT20_MCS9_MIN           (0)
+#define CFG_ENABLE_VHT20_MCS9_MAX           (1)
+#define CFG_ENABLE_VHT20_MCS9_DEFAULT       (1)
 
 /*
  * <ini>
@@ -10847,7 +10890,7 @@ enum restart_beaconing_on_ch_avoid_rule {
  * gAutoBmpsTimerValue - Set Auto BMPS Timer value
  * @Min: 0
  * @Max: 120
- * @Default: 0
+ * @Default: 5
  *
  * This ini is used to set Auto BMPS Timer value in seconds
  *
@@ -10862,7 +10905,7 @@ enum restart_beaconing_on_ch_avoid_rule {
 #define CFG_AUTO_PS_ENABLE_TIMER_NAME          "gAutoBmpsTimerValue"
 #define CFG_AUTO_PS_ENABLE_TIMER_MIN           (0)
 #define CFG_AUTO_PS_ENABLE_TIMER_MAX           (120)
-#define CFG_AUTO_PS_ENABLE_TIMER_DEFAULT       (0)
+#define CFG_AUTO_PS_ENABLE_TIMER_DEFAULT       (5)
 
 #ifdef WLAN_ICMP_DISABLE_PS
 /*
@@ -14307,6 +14350,39 @@ enum hw_filter_mode {
 #define CFG_DTIM_SELECTION_DIVERSITY_MAX     (30)
 #define CFG_DTIM_SELECTION_DIVERSITY_DEFAULT (5)
 
+/*
+ * <ini>
+ * gTxSchDelay - Enable/Disable Tx sch delay
+ * @Min: 0
+ * @Max: 5
+ * @Default: 2
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+
+#define CFG_TX_SCH_DELAY_NAME          "gTxSchDelay"
+#define CFG_TX_SCH_DELAY_MIN           (0)
+#define CFG_TX_SCH_DELAY_MAX           (5)
+#define CFG_TX_SCH_DELAY_DEFAULT       (2)
+
+/*
+ * <ini>
+ * enable_rtt_mac_randomization - Enable/Disable rtt mac randomization
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ENABLE_RTT_MAC_RANDOMIZATION_NAME    "enable_rtt_mac_randomization"
+#define CFG_ENABLE_RTT_MAC_RANDOMIZATION_MIN     (0)
+#define CFG_ENABLE_RTT_MAC_RANDOMIZATION_MAX     (1)
+#define CFG_ENABLE_RTT_MAC_RANDOMIZATION_DEFAULT (0)
+
 /*---------------------------------------------------------------------------
    Type declarations
    -------------------------------------------------------------------------*/
@@ -14622,6 +14698,7 @@ struct hdd_config {
 	bool enableTxBF;
 	bool enable_subfee_vendor_vhtie;
 	bool enable_txbf_sap_mode;
+	bool enable_vht20_mcs9;
 	uint8_t txBFCsnValue;
 	bool enable_su_tx_bformer;
 	uint8_t vhtRxMCS2x2;
@@ -15212,9 +15289,12 @@ struct hdd_config {
 	uint32_t neighbor_report_offload_max_req_cap;
 	uint32_t channel_select_logic_conc;
 	bool enable_dtim_selection_diversity;
+	uint8_t enable_tx_sch_delay;
 #ifdef WLAN_FEATURE_SAE
 	bool is_sae_enabled;
 #endif
+	bool enable_rtt_mac_randomization;
+	bool enable_ftopen;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

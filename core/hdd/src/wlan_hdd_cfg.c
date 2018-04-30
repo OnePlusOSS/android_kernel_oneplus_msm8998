@@ -2143,6 +2143,13 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_VHT_ENABLE_TX_MCS2x2_8_9_MIN,
 		     CFG_VHT_ENABLE_TX_MCS2x2_8_9_MAX),
 
+	REG_VARIABLE(CFG_ENABLE_VHT20_MCS9, WLAN_PARAM_Integer,
+		     struct hdd_config, enable_vht20_mcs9,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK,
+		     CFG_ENABLE_VHT20_MCS9_DEFAULT,
+		     CFG_ENABLE_VHT20_MCS9_MIN,
+		     CFG_ENABLE_VHT20_MCS9_MAX),
+
 	REG_VARIABLE(CFG_VHT_ENABLE_2x2_CAP_FEATURE, WLAN_PARAM_Integer,
 		     struct hdd_config, enable2x2,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -4074,6 +4081,13 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_ROAM_DENSE_RSSI_THRE_OFFSET_MIN,
 		CFG_ROAM_DENSE_RSSI_THRE_OFFSET_MAX),
 
+	REG_VARIABLE(CFG_ROAM_FT_OPEN_ENABLE_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, enable_ftopen,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_ROAM_FT_OPEN_ENABLE_DEFAULT,
+		CFG_ROAM_FT_OPEN_ENABLE_MIN,
+		CFG_ROAM_FT_OPEN_ENABLE_MAX),
+
 	REG_VARIABLE(CFG_IGNORE_PEER_HT_MODE_NAME, WLAN_PARAM_Integer,
 			struct hdd_config, ignore_peer_ht_opmode,
 			VAR_FLAGS_OPTIONAL |
@@ -5538,6 +5552,14 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_DTIM_SELECTION_DIVERSITY_MIN,
 		     CFG_DTIM_SELECTION_DIVERSITY_MAX),
 
+	REG_VARIABLE(CFG_TX_SCH_DELAY_NAME,
+		     WLAN_PARAM_Integer,
+		     struct hdd_config, enable_tx_sch_delay,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_TX_SCH_DELAY_DEFAULT,
+		     CFG_TX_SCH_DELAY_MIN,
+		     CFG_TX_SCH_DELAY_MAX),
+
 #ifdef WLAN_FEATURE_SAE
 	REG_VARIABLE(CFG_IS_SAE_ENABLED_NAME, WLAN_PARAM_Integer,
 		struct hdd_config, is_sae_enabled,
@@ -5546,6 +5568,14 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_IS_SAE_ENABLED_MIN,
 		CFG_IS_SAE_ENABLED_MAX),
 #endif
+
+	REG_VARIABLE(CFG_ENABLE_RTT_MAC_RANDOMIZATION_NAME,
+		     WLAN_PARAM_Integer,
+		     struct hdd_config, enable_rtt_mac_randomization,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ENABLE_RTT_MAC_RANDOMIZATION_DEFAULT,
+		     CFG_ENABLE_RTT_MAC_RANDOMIZATION_MIN,
+		     CFG_ENABLE_RTT_MAC_RANDOMIZATION_MAX),
 };
 
 /**
@@ -7081,6 +7111,9 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 		CFG_ROAM_BG_SCAN_BAD_RSSI_OFFSET_2G_NAME,
 		pHddCtx->config->roam_bad_rssi_thresh_offset_2g);
 	hdd_debug("Name = [%s] Value = [%u]",
+		CFG_ROAM_FT_OPEN_ENABLE_NAME,
+		pHddCtx->config->enable_ftopen);
+	hdd_debug("Name = [%s] Value = [%u]",
 		CFG_MIN_REST_TIME_NAME,
 		pHddCtx->config->min_rest_time_conc);
 	hdd_debug("Name = [%s] Value = [%u]",
@@ -7429,6 +7462,9 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_debug("Name = [%s] value = [%d]",
 		  CFG_DTIM_SELECTION_DIVERSITY_NAME,
 		  pHddCtx->config->enable_dtim_selection_diversity);
+	hdd_debug("Name = [%s] value = [%d]",
+		  CFG_TX_SCH_DELAY_NAME,
+		  pHddCtx->config->enable_tx_sch_delay);
 
 	hdd_cfg_print_11k_offload_params(pHddCtx);
 	hdd_debug("Name = [%s] value = [0x%x]",
@@ -9845,6 +9881,7 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 					pConfig->disable_high_ht_mcs_2x2;
 	smeConfig->csrConfig.rx_ldpc_support_for_2g =
 					pConfig->rx_ldpc_support_for_2g;
+	smeConfig->csrConfig.enable_vht20_mcs9 = pConfig->enable_vht20_mcs9;
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
 	smeConfig->csrConfig.cc_switch_mode = pConfig->WlanMccToSccSwitchMode;
 #endif
@@ -9934,6 +9971,8 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 		pHddCtx->config->roam_bg_scan_client_bitmap;
 	smeConfig->csrConfig.roam_bad_rssi_thresh_offset_2g =
 		pHddCtx->config->roam_bad_rssi_thresh_offset_2g;
+	smeConfig->csrConfig.enable_ftopen =
+		pHddCtx->config->enable_ftopen;
 	smeConfig->csrConfig.obss_width_interval =
 			pHddCtx->config->obss_width_trigger_interval;
 	smeConfig->csrConfig.obss_active_dwelltime =

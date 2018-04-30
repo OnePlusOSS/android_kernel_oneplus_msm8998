@@ -730,13 +730,13 @@ int wlan_hdd_validate_context(hdd_context_t *hdd_ctx)
 	if (cds_is_driver_in_bad_state()) {
 		hdd_debug("%pS driver in bad State: 0x%x Ignore!!!",
 			(void *)_RET_IP_, cds_get_driver_state());
-		return -ENODEV;
+		return -EAGAIN;
 	}
 
 	if (cds_is_fw_down()) {
 		hdd_debug("%pS FW is down: 0x%x Ignore!!!",
 			(void *)_RET_IP_, cds_get_driver_state());
-		return -ENODEV;
+		return -EAGAIN;
 	}
 
 	return 0;
@@ -968,7 +968,10 @@ void hdd_update_macaddr(hdd_context_t *hdd_ctx,
 			 MAC_ADDRESS_STR,
 			 MAC_ADDR_ARRAY(hdd_ctx->derived_mac_addr[0].bytes));
 	}
-	for (i = 1; i < QDF_MAX_CONCURRENCY_PERSONA; i++) {
+
+	for (i = hdd_ctx->num_derived_addr;
+		i < QDF_MAX_CONCURRENCY_PERSONA - hdd_ctx->num_provisioned_addr;
+		i++) {
 		qdf_mem_copy(hdd_ctx->derived_mac_addr[i].bytes,
 			     hw_macaddr.bytes,
 			     QDF_MAC_ADDR_SIZE);
@@ -3293,6 +3296,17 @@ QDF_STATUS hdd_init_station_mode(hdd_adapter_t *adapter)
 		}
 	}
 
+	if (adapter->device_mode == QDF_STA_MODE) {
+		hdd_debug("setting RTT mac randomization param: %d",
+			hdd_ctx->config->enable_rtt_mac_randomization);
+		ret_val = sme_cli_set_command(adapter->sessionId,
+			WMI_VDEV_PARAM_ENABLE_DISABLE_RTT_INITIATOR_RANDOM_MAC,
+			hdd_ctx->config->enable_rtt_mac_randomization,
+			VDEV_CMD);
+		if (0 != ret_val)
+			hdd_err("RTT mac randomization param set failed %d",
+				ret_val);
+	}
 	/*
 	 * 1) When DBS hwmode is disabled from INI then send HT/VHT IE as per
 	 *    non-dbs hw mode, so that there is no limitation applied for 2G/5G.
@@ -3530,6 +3544,7 @@ static void hdd_ap_adapter_deinit(hdd_context_t *hdd_ctx,
 		hdd_wmm_adapter_close(adapter);
 		clear_bit(WMM_INIT_DONE, &adapter->event_flags);
 	}
+	qdf_atomic_set(&adapter->sessionCtx.ap.acs_in_progress, 0);
 	wlan_hdd_undo_acs(adapter);
 
 	hdd_cleanup_actionframe(hdd_ctx, adapter);
@@ -3568,6 +3583,50 @@ void hdd_deinit_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 	EXIT();
 }
 
+#ifdef WLAN_NS_OFFLOAD
+/**
+ * hdd_ns_offload_info_lock_create() - Create mutex lock for ns offload info
+ * @adapter: pointer to adapter for which lock is to be created
+ *
+ * Return: None
+ */
+static void hdd_ns_offload_info_lock_create(hdd_adapter_t *adapter)
+{
+	qdf_mutex_create(&adapter->ns_offload_info_lock);
+}
+
+/**
+ * hdd_ns_offload_info_lock_destroy() - Destroy mutex lock for ns offload info
+ * @adapter: pointer to adapter for which lock is to be destroyed
+ *
+ * Return: None
+ */
+static void hdd_ns_offload_info_lock_destroy(hdd_adapter_t *adapter)
+{
+	qdf_mutex_destroy(&adapter->ns_offload_info_lock);
+}
+#else
+/**
+ * hdd_ns_offload_info_lock_create() - Create mutex lock for ns offload info
+ * @adapter: pointer to adapter for which lock is to be created
+ *
+ * Return: None
+ */
+static void hdd_ns_offload_info_lock_create(hdd_adapter_t *adapter)
+{
+}
+
+/**
+ * hdd_ns_offload_info_lock_destroy() - Destroy mutex lock for ns offload info
+ * @adapter: pointer to adapter for which lock is to be destroyed
+ *
+ * Return: None
+ */
+static void hdd_ns_offload_info_lock_destroy(hdd_adapter_t *adapter)
+{
+}
+#endif
+
 static void hdd_cleanup_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 				bool rtnl_held)
 {
@@ -3579,6 +3638,10 @@ static void hdd_cleanup_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 		hdd_err("adapter is Null");
 		return;
 	}
+
+	wlan_hdd_debugfs_csr_deinit(adapter);
+	qdf_mutex_destroy(&adapter->arp_offload_info_lock);
+	hdd_ns_offload_info_lock_destroy(adapter);
 
 	hdd_debugfs_exit(adapter);
 
@@ -3723,50 +3786,6 @@ static void hdd_set_fw_log_params(hdd_context_t *hdd_ctx,
 {
 }
 
-#endif
-
-#ifdef WLAN_NS_OFFLOAD
-/**
- * hdd_ns_offload_info_lock_create() - Create mutex lock for ns offload info
- * @adapter: pointer to adapter for which lock is to be created
- *
- * Return: None
- */
-static void hdd_ns_offload_info_lock_create(hdd_adapter_t *adapter)
-{
-	qdf_mutex_create(&adapter->ns_offload_info_lock);
-}
-
-/**
- * hdd_ns_offload_info_lock_destroy() - Destroy mutex lock for ns offload info
- * @adapter: pointer to adapter for which lock is to be destroyed
- *
- * Return: None
- */
-static void hdd_ns_offload_info_lock_destroy(hdd_adapter_t *adapter)
-{
-	qdf_mutex_destroy(&adapter->ns_offload_info_lock);
-}
-#else
-/**
- * hdd_ns_offload_info_lock_create() - Create mutex lock for ns offload info
- * @adapter: pointer to adapter for which lock is to be created
- *
- * Return: None
- */
-static void hdd_ns_offload_info_lock_create(hdd_adapter_t *adapter)
-{
-}
-
-/**
- * hdd_ns_offload_info_lock_destroy() - Destroy mutex lock for ns offload info
- * @adapter: pointer to adapter for which lock is to be destroyed
- *
- * Return: None
- */
-static void hdd_ns_offload_info_lock_destroy(hdd_adapter_t *adapter)
-{
-}
 #endif
 
 /**
@@ -3930,6 +3949,16 @@ int hdd_set_fw_params(hdd_adapter_t *adapter)
 			PDEV_CMD);
 	if (ret) {
 		hdd_err("Failed to set DTIM_OPTIMIZED_CHAIN_SELECTION");
+		goto error;
+	}
+
+	ret = sme_cli_set_command(
+			adapter->sessionId,
+			WMI_PDEV_PARAM_TX_SCH_DELAY,
+			hdd_ctx->config->enable_tx_sch_delay,
+			PDEV_CMD);
+	if (ret) {
+		hdd_err("Failed to set WMI_PDEV_PARAM_TX_SCH_DELAY");
 		goto error;
 	}
 
@@ -4292,6 +4321,9 @@ hdd_adapter_t *hdd_open_adapter(hdd_context_t *hdd_ctx, uint8_t session_type,
 	qdf_mutex_create(&adapter->arp_offload_info_lock);
 	hdd_ns_offload_info_lock_create(adapter);
 
+	if (adapter->device_mode == QDF_STA_MODE)
+		wlan_hdd_debugfs_csr_init(adapter);
+
 	return adapter;
 
 err_free_netdev:
@@ -4328,9 +4360,6 @@ QDF_STATUS hdd_close_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 		hdd_debug("wait for bus bw work to flush");
 		hdd_bus_bw_compute_timer_stop(hdd_ctx);
 		cancel_work_sync(&hdd_ctx->bus_bw_work);
-
-		qdf_mutex_destroy(&adapter->arp_offload_info_lock);
-		hdd_ns_offload_info_lock_destroy(adapter);
 
 		/* cleanup adapter */
 		cds_clear_concurrency_mode(adapter->device_mode);
@@ -4567,11 +4596,6 @@ QDF_STATUS hdd_stop_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 	case QDF_P2P_DEVICE_MODE:
 	case QDF_NDI_MODE:
 
-		if (adapter->device_mode == QDF_STA_MODE) {
-			hdd_debug("Destroy CSR debugfs files");
-			wlan_hdd_debugfs_csr_deinit(adapter);
-		}
-
 		if ((QDF_NDI_MODE == adapter->device_mode) ||
 			hdd_conn_is_connected(
 				WLAN_HDD_GET_STATION_CTX_PTR(adapter)) ||
@@ -4678,6 +4702,7 @@ QDF_STATUS hdd_stop_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 		/* Any softap specific cleanup here... */
 		sap_config = &adapter->sessionCtx.ap.sapConfig;
 		wlansap_reset_sap_config_add_ie(sap_config, eUPDATE_IE_ALL);
+		qdf_atomic_set(&adapter->sessionCtx.ap.acs_in_progress, 0);
 		wlan_hdd_undo_acs(adapter);
 		if (adapter->device_mode == QDF_P2P_GO_MODE)
 			wlan_hdd_cleanup_remain_on_channel_ctx(adapter);
@@ -6405,6 +6430,7 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 	qdf_spinlock_destroy(&hdd_ctx->hdd_adapter_lock);
 	qdf_spinlock_destroy(&hdd_ctx->sta_update_info_lock);
 	qdf_spinlock_destroy(&hdd_ctx->connection_status_lock);
+	qdf_mutex_destroy(&hdd_ctx->cache_channel_lock);
 
 	/*
 	 * Close CDS
@@ -8197,6 +8223,8 @@ void hdd_indicate_mgmt_frame(tSirSmeMgmtFrameInd *frame_ind)
 	hdd_adapter_t *adapter = NULL;
 	void *cds_context = NULL;
 	int i;
+	hdd_adapter_list_node_t *adapter_node, *next;
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
 
 	/* Get the global VOSS context.*/
 	cds_context = cds_get_global_context();
@@ -8217,6 +8245,24 @@ void hdd_indicate_mgmt_frame(tSirSmeMgmtFrameInd *frame_ind)
 			if (adapter)
 				break;
 		}
+	} else if (SME_SESSION_ID_BROADCAST == frame_ind->sessionId) {
+		status = hdd_get_front_adapter(hdd_ctx, &adapter_node);
+		while (NULL != adapter_node && QDF_STATUS_SUCCESS == status) {
+			adapter = adapter_node->pAdapter;
+			if ((NULL != adapter) &&
+			    (WLAN_HDD_ADAPTER_MAGIC == adapter->magic)) {
+				__hdd_indicate_mgmt_frame(adapter,
+						frame_ind->frame_len,
+						frame_ind->frameBuf,
+						frame_ind->frameType,
+						frame_ind->rxChan,
+						frame_ind->rxRssi);
+			}
+			status = hdd_get_next_adapter(hdd_ctx,
+						adapter_node, &next);
+			adapter_node = next;
+		}
+		adapter = NULL;
 	} else {
 		adapter = hdd_get_adapter_by_sme_session_id(hdd_ctx,
 					frame_ind->sessionId);
@@ -8736,11 +8782,6 @@ int hdd_start_station_adapter(hdd_adapter_t *adapter)
 		hdd_tx_resume_timer_expired_handler,
 		hdd_tx_resume_cb,
 		hdd_tx_flow_control_is_pause);
-
-	if (adapter->device_mode == QDF_STA_MODE) {
-		hdd_debug("Create CSR debugfs files");
-		wlan_hdd_debugfs_csr_init(adapter);
-	}
 
 	EXIT();
 	return 0;
@@ -10420,6 +10461,7 @@ int hdd_wlan_stop_modules(hdd_context_t *hdd_ctx, bool ftm_mode)
 	bool is_recover_stop = cds_is_driver_recovering();
 	bool is_idle_stop = !is_unload_stop && !is_recover_stop;
 	int active_threads;
+	int debugfs_threads;
 
 	ENTER();
 	hdd_alert("stop WLAN module: entering driver status=%d",
@@ -10436,11 +10478,15 @@ int hdd_wlan_stop_modules(hdd_context_t *hdd_ctx, bool ftm_mode)
 	cds_set_module_stop_in_progress(true);
 
 	active_threads = cds_return_external_threads_count();
-	if (active_threads > 0 || hdd_ctx->isWiphySuspended) {
-		hdd_warn("External threads %d wiphy suspend %d",
-			 active_threads, hdd_ctx->isWiphySuspended);
+	debugfs_threads = hdd_return_debugfs_threads_count();
+	if (active_threads > 0 || debugfs_threads > 0 ||
+	    hdd_ctx->isWiphySuspended) {
+		hdd_warn("External threads %d, Debugfs threads %d, wiphy suspend %d",
+			 active_threads, debugfs_threads,
+			 hdd_ctx->isWiphySuspended);
 
-		cds_print_external_threads();
+		if (active_threads)
+			cds_print_external_threads();
 
 		if (is_idle_stop && !ftm_mode) {
 			mutex_unlock(&hdd_ctx->iface_change_lock);
@@ -10533,6 +10579,8 @@ int hdd_wlan_stop_modules(hdd_context_t *hdd_ctx, bool ftm_mode)
 			hdd_err("CNSS power down failed put device into Low power mode:%d",
 				ret);
 	}
+	/* Free the cache channels of the command SET_DISABLE_CHANNEL_LIST */
+	wlan_hdd_free_cache_channels(hdd_ctx);
 
 	/* many adapter resources are not freed by design in SSR case */
 	if (!is_recover_stop)
@@ -10726,6 +10774,10 @@ int hdd_wlan_startup(struct device *dev)
 
 	ret = hdd_init_netlink_services(hdd_ctx);
 	if (ret)
+		goto err_hdd_free_context;
+
+	ret = qdf_mutex_create(&hdd_ctx->cache_channel_lock);
+	if (QDF_IS_STATUS_ERROR(ret))
 		goto err_hdd_free_context;
 
 	hdd_request_manager_init();
@@ -11162,8 +11214,6 @@ void hdd_softap_sta_disassoc(hdd_adapter_t *adapter,
 	if (pDelStaParams->peerMacAddr.bytes[0] & 0x1)
 		return;
 
-	wlan_hdd_get_peer_rssi(adapter, &pDelStaParams->peerMacAddr,
-			       HDD_WLAN_GET_PEER_RSSI_SOURCE_DRIVER);
 	wlansap_disassoc_sta(WLAN_HDD_GET_SAP_CTX_PTR(adapter),
 			     pDelStaParams);
 }

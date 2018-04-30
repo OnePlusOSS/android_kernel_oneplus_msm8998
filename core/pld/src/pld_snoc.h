@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -143,7 +143,6 @@ int pld_snoc_wlan_enable(struct device *dev,
 int pld_snoc_wlan_disable(struct device *dev, enum pld_driver_mode mode);
 int pld_snoc_get_soc_info(struct device *dev, struct pld_soc_info *info);
 
-#ifdef ICNSS_API_WITH_DEV
 static inline int pld_snoc_ce_request_irq(struct device *dev,
 					  unsigned int ce_id,
 					  irqreturn_t (*handler)(int, void *),
@@ -192,42 +191,6 @@ static inline int pld_snoc_get_irq(struct device *dev, int ce_id)
 
 	return icnss_get_irq(dev, ce_id);
 }
-#else
-static inline int pld_snoc_ce_request_irq(struct device *dev,
-					  unsigned int ce_id,
-					  irqreturn_t (*handler)(int, void *),
-					  unsigned long flags,
-					  const char *name, void *ctx)
-{
-	return icnss_ce_request_irq(ce_id, handler, flags, name, ctx);
-}
-
-static inline void pld_snoc_enable_irq(struct device *dev, unsigned int ce_id)
-{
-	icnss_enable_irq(ce_id);
-}
-
-static inline void pld_snoc_disable_irq(struct device *dev, unsigned int ce_id)
-{
-	icnss_disable_irq(ce_id);
-}
-
-static inline int pld_snoc_ce_free_irq(struct device *dev,
-				       unsigned int ce_id, void *ctx)
-{
-	return icnss_ce_free_irq(ce_id, ctx);
-}
-
-static inline int pld_snoc_get_ce_id(struct device *dev, int irq)
-{
-	return icnss_get_ce_id(irq);
-}
-
-static inline int pld_snoc_get_irq(struct device *dev, int ce_id)
-{
-	return icnss_get_irq(ce_id);
-}
-#endif
 
 static inline int pld_snoc_power_on(struct device *dev)
 {
@@ -269,7 +232,6 @@ static inline int pld_snoc_is_fw_down(void)
 	return icnss_is_fw_down();
 }
 
-#ifdef ICNSS_API_WITH_DEV
 static inline int pld_snoc_is_qmi_disable(struct device *dev)
 {
 	if (!dev)
@@ -285,17 +247,6 @@ static inline int pld_snoc_set_fw_log_mode(struct device *dev, u8 fw_log_mode)
 
 	return icnss_set_fw_log_mode(dev, fw_log_mode);
 }
-#else
-static inline int pld_snoc_is_qmi_disable(struct device *dev)
-{
-	return icnss_is_qmi_disable();
-}
-
-static inline int pld_snoc_set_fw_log_mode(struct device *dev, u8 fw_log_mode)
-{
-	return icnss_set_fw_log_mode(fw_log_mode);
-}
-#endif
 
 static inline int pld_snoc_force_assert_target(struct device *dev)
 {

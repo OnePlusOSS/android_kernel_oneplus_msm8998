@@ -107,6 +107,7 @@
 #define SME_SCAN_REJECT_RATE_LIMIT              5
 
 #define SME_SESSION_ID_ANY        50
+#define SME_SESSION_ID_BROADCAST  0xFF
 
 #define SME_INVALID_COUNTRY_CODE "XX"
 #define INVALID_ROAM_ID 0
@@ -1969,6 +1970,17 @@ QDF_STATUS sme_ipa_uc_stat_request(tHalHandle hal,
 
 QDF_STATUS sme_set_smps_cfg(uint32_t vdev_id, uint32_t param_id,
 				uint32_t param_val);
+
+/**
+ * sme_get_peer_stats() - sme api to post peer info request
+ * @mac: mac handle
+ * @req: peer info request struct send to wma
+ *
+ * Return: QDF_STATUS_SUCCESS or non-zero on failure
+ */
+QDF_STATUS sme_get_peer_stats(tpAniSirGlobal mac,
+			      struct sir_peer_info_req req);
+
 /**
  * sme_get_peer_info() - sme api to get peer info
  * @hal: hal handle for getting global mac struct

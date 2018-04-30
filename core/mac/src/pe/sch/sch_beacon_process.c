@@ -794,7 +794,9 @@ static void __sch_beacon_process_for_session(tpAniSirGlobal mac_ctx,
 			 * for channel switch
 			 */
 			if (LIM_IS_STA_ROLE(session)) {
+#ifdef FEATURE_WLAN_TDLS
 				session->is_tdls_csa = true;
+#endif
 				lim_delete_tdls_peers(mac_ctx, session);
 			}
 

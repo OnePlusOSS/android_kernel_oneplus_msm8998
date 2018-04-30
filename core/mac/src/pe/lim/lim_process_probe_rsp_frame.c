@@ -236,12 +236,14 @@ lim_process_probe_rsp_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_Packet_info,
 		if (LIM_IS_STA_ROLE(session_entry) &&
 				!wma_is_csa_offload_enabled()) {
 			if (probe_rsp->channelSwitchPresent) {
+#ifdef FEATURE_WLAN_TDLS
 				/*
 				 * on receiving channel switch announcement
 				 * from AP, delete all TDLS peers before
 				 * leaving BSS and proceed for channel switch
 				 */
 				session_entry->is_tdls_csa = true;
+#endif
 				lim_delete_tdls_peers(mac_ctx, session_entry);
 
 				lim_update_channel_switch(mac_ctx,

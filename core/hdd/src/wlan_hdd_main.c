@@ -4611,7 +4611,6 @@ static void hdd_wait_for_sme_close_sesion(hdd_context_t *hdd_ctx,
 				hdd_ndp_session_end_handler(adapter);
 			sme_print_commands(hdd_ctx->hHal);
 			clear_bit(SME_SESSION_OPENED, &adapter->event_flags);
-			return;
 		}
 		adapter->sessionId = HDD_SESSION_ID_INVALID;
 	}

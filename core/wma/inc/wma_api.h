@@ -572,5 +572,13 @@ bool wma_dual_beacon_on_single_mac_scc_capable(void);
  */
 bool wma_dual_beacon_on_single_mac_mcc_capable(void);
 
+/**
+ * wma_cleanup_vdev_resp_and_hold_req() - cleaunup the vdev resp and hold req
+ * queue
+ * @priv : WMA handle
+ *
+ * Return: None
+ */
+void wma_cleanup_vdev_resp_and_hold_req(void *priv);
 
 #endif

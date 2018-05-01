@@ -417,7 +417,7 @@ void qdf_trace_hex_dump(QDF_MODULE_ID module, QDF_TRACE_LEVEL level,
 {
 	const u8 *ptr = data;
 	int i, linelen, remaining = buf_len;
-	unsigned char linebuf[BUFFER_SIZE];
+	unsigned char linebuf[BUFFER_SIZE] = {0};
 
 	if (!(g_qdf_trace_info[module].module_trace_level &
 		QDF_TRACE_LEVEL_TO_MODULE_BITMASK(level)))

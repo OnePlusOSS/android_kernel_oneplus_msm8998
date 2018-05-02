@@ -1366,7 +1366,7 @@ static void hdd_send_association_event(struct net_device *dev,
 	if (eConnectionState_Associated == pHddStaCtx->conn_info.connState) {
 		tSirSmeChanInfo chan_info;
 
-		if (!pCsrRoamInfo) {
+		if (!pCsrRoamInfo || !pCsrRoamInfo->pBssDesc) {
 			hdd_warn("STA in associated state but pCsrRoamInfo is null");
 			return;
 		}
@@ -2184,7 +2184,8 @@ static void hdd_send_re_assoc_event(struct net_device *dev,
 		hdd_err("Unable to allocate Assoc Req IE");
 		goto done;
 	}
-	if (pCsrRoamInfo == NULL) {
+
+	if (!pCsrRoamInfo || !pCsrRoamInfo->pBssDesc) {
 		hdd_err("Invalid CSR roam info");
 		goto done;
 	}

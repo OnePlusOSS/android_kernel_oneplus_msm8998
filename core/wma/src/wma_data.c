@@ -2890,12 +2890,8 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 					tx_frm_ota_comp_cb;
 			}
 		} else {
-			if (downld_comp_required)
-				tx_frm_index =
-					GENERIC_DOWNLD_COMP_NOACK_COMP_INDEX;
-			else
-				tx_frm_index =
-					GENERIC_NODOWNLD_NOACK_COMP_INDEX;
+			tx_frm_index =
+				GENERIC_NODOWNLD_NOACK_COMP_INDEX;
 		}
 	}
 

@@ -14807,7 +14807,7 @@ enum hw_filter_mode {
  *
  * @Min: 0x0
  * @Max: 0x3F
- * @Default: 0x18
+ * @Default: 0x17
  *
  * It is a 32 bit value such that the various bits represent as below -
  * Bit-0 : is Enable/Disable Control for "PPDU Secondary Retry Support"
@@ -14825,7 +14825,7 @@ enum hw_filter_mode {
 #define CFG_ENABLE_SECONDARY_RATE_NAME          "gEnableSecondaryRate"
 #define CFG_ENABLE_SECONDARY_RATE_MIN           (0)
 #define CFG_ENABLE_SECONDARY_RATE_MAX           (0x3F)
-#define CFG_ENABLE_SECONDARY_RATE_DEFAULT       (0x18)
+#define CFG_ENABLE_SECONDARY_RATE_DEFAULT       (0x17)
 
 /*---------------------------------------------------------------------------
    Type declarations

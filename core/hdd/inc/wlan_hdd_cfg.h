@@ -6151,30 +6151,6 @@ enum hdd_link_speed_rpt_type {
 #define CFG_VC_MODE_BITMAP_DEFAULT          (0x00000005)
 
 /*
- * Driver Force ACS is reintroduced for android SAP legacy configuration method.
- * If Driver force acs is enabled, channel/ hw config from hostapd is ignored.
- * Driver uses INI params dot11Mode, channel bonding mode and vht chan width
- * to derive ACS HW mode and operating BW.
- *
- * Non android platforms shall not use force ACS method and rely on hostapd
- * driven ACS method for concurrent SAP ACS configuration, OBSS etc.
- */
-#define CFG_FORCE_SAP_ACS                  "gApAutoChannelSelection"
-#define CFG_FORCE_SAP_ACS_MIN              (0)
-#define CFG_FORCE_SAP_ACS_MAX              (1)
-#define CFG_FORCE_SAP_ACS_DEFAULT          (0)
-
-#define CFG_FORCE_SAP_ACS_START_CH         "gAPChannelSelectStartChannel"
-#define CFG_FORCE_SAP_ACS_START_CH_MIN     (0)
-#define CFG_FORCE_SAP_ACS_START_CH_MAX     (0xFF)
-#define CFG_FORCE_SAP_ACS_START_CH_DEFAULT (1)
-
-#define CFG_FORCE_SAP_ACS_END_CH           "gAPChannelSelectEndChannel"
-#define CFG_FORCE_SAP_ACS_END_CH_MIN       (0)
-#define CFG_FORCE_SAP_ACS_END_CH_MAX       (0xFF)
-#define CFG_FORCE_SAP_ACS_END_CH_DEFAULT   (11)
-
-/*
  * <ini>
  * gEnableSAPManadatoryChanList - Enable SAP Mandatory channel list
  * Options.
@@ -15374,9 +15350,6 @@ struct hdd_config {
 #endif
 	/* Flag to indicate crash inject enabled or not */
 	bool crash_inject_enabled;
-	uint8_t force_sap_acs;
-	uint8_t force_sap_acs_st_ch;
-	uint8_t force_sap_acs_end_ch;
 	uint8_t enable_sap_mandatory_chan_list;
 	int32_t dfsRadarPriMultiplier;
 	uint8_t reorderOffloadSupport;

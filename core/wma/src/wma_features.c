@@ -3774,22 +3774,35 @@ static const u8 *wma_wow_wake_reason_str(A_INT32 wake_reason)
  */
 static void wma_wow_stats_display(struct sir_vdev_wow_stats *stats)
 {
-	WMA_LOGA("uc %d bc %d v4_mc %d v6_mc %d ra %d ns %d na %d pno_match %d pno_complete %d gscan %d low_rssi %d rssi_breach %d icmp %d icmpv6 %d oem %d",
-		stats->ucast,
-		stats->bcast,
-		stats->ipv4_mcast,
-		stats->ipv6_mcast,
-		stats->ipv6_mcast_ra,
-		stats->ipv6_mcast_ns,
-		stats->ipv6_mcast_na,
-		stats->pno_match,
-		stats->pno_complete,
-		stats->gscan,
-		stats->low_rssi,
-		stats->rssi_breach,
-		stats->icmpv4,
-		stats->icmpv6,
-		stats->oem_response);
+	WMA_LOGA("WLAN wake reason counters:");
+	WMA_LOGA("uc:%d bc:%d v4_mc:%d v6_mc:%d ra:%d ns:%d na:%d icmp:%d icmpv6:%d",
+		 stats->ucast,
+		 stats->bcast,
+		 stats->ipv4_mcast,
+		 stats->ipv6_mcast,
+		 stats->ipv6_mcast_ra,
+		 stats->ipv6_mcast_ns,
+		 stats->ipv6_mcast_na,
+		 stats->icmpv4,
+		 stats->icmpv6);
+
+	WMA_LOGA("assoc:%d disassoc:%d assoc_resp:%d reassoc:%d reassoc_resp:%d auth:%d deauth:%d action:%d",
+		 stats->mgmt_assoc,
+		 stats->mgmt_disassoc,
+		 stats->mgmt_assoc_resp,
+		 stats->mgmt_reassoc,
+		 stats->mgmt_reassoc_resp,
+		 stats->mgmt_auth,
+		 stats->mgmt_deauth,
+		 stats->mgmt_action);
+
+	WMA_LOGA("pno_match:%d pno_complete:%d gscan:%d low_rssi:%d rssi_breach:%d oem:%d",
+		 stats->pno_match,
+		 stats->pno_complete,
+		 stats->gscan,
+		 stats->low_rssi,
+		 stats->rssi_breach,
+		 stats->oem_response);
 }
 
 /**
@@ -3845,6 +3858,38 @@ static void wma_inc_wow_stats(struct sir_vdev_wow_stats *stats, uint8_t *data,
 			      int32_t len, WOW_WAKE_REASON_TYPE reason)
 {
 	switch (reason) {
+	case WOW_REASON_ASSOC_REQ_RECV:
+		stats->mgmt_assoc++;
+		break;
+
+	case WOW_REASON_DISASSOC_RECVD:
+		stats->mgmt_disassoc++;
+		break;
+
+	case WOW_REASON_ASSOC_RES_RECV:
+		stats->mgmt_assoc_resp++;
+		break;
+
+	case WOW_REASON_REASSOC_REQ_RECV:
+		stats->mgmt_reassoc++;
+		break;
+
+	case WOW_REASON_REASSOC_RES_RECV:
+		stats->mgmt_reassoc_resp++;
+		break;
+
+	case WOW_REASON_AUTH_REQ_RECV:
+		stats->mgmt_auth++;
+		break;
+
+	case WOW_REASON_DEAUTH_RECVD:
+		stats->mgmt_deauth++;
+		break;
+
+	case WOW_REASON_ACTION_FRAME_RECV:
+		stats->mgmt_action++;
+		break;
+
 	case WOW_REASON_BPF_ALLOW:
 	case WOW_REASON_PATTERN_MATCH_FOUND:
 		if (!data || len == 0) {

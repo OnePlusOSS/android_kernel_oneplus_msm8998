@@ -7367,6 +7367,14 @@ struct sir_wake_lock_stats {
  * @pno_match: pno match wakeup count
  * @oem_response: oem response wakeup count
  * @pwr_save_fail_detected: pwr save fail detected wakeup count
+ * @mgmt_assoc: association request management frame
+ * @mgmt_disassoc: disassociation management frame
+ * @mgmt_assoc_resp: association response management frame
+ * @mgmt_reassoc: reassociate request management frame
+ * @mgmt_reassoc_resp: reassociate response management frame
+ * @mgmt_auth: authentication managament frame
+ * @mgmt_deauth: deauthentication management frame
+ * @mgmt_action: action managament frame
  */
 struct sir_vdev_wow_stats {
 	uint32_t ucast;
@@ -7385,6 +7393,14 @@ struct sir_vdev_wow_stats {
 	uint32_t pno_match;
 	uint32_t oem_response;
 	uint32_t pwr_save_fail_detected;
+	uint32_t mgmt_assoc;
+	uint32_t mgmt_disassoc;
+	uint32_t mgmt_assoc_resp;
+	uint32_t mgmt_reassoc;
+	uint32_t mgmt_reassoc_resp;
+	uint32_t mgmt_auth;
+	uint32_t mgmt_deauth;
+	uint32_t mgmt_action;
 };
 
 /**

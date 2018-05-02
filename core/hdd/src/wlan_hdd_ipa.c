@@ -651,6 +651,8 @@ static void hdd_ipa_uc_proc_pending_event(struct hdd_ipa_priv *hdd_ipa,
 					  bool is_loading);
 static int hdd_ipa_uc_enable_pipes(struct hdd_ipa_priv *hdd_ipa);
 static int hdd_ipa_wdi_init(struct hdd_ipa_priv *hdd_ipa);
+static void hdd_ipa_send_pkt_to_tl(struct hdd_ipa_iface_context *iface_context,
+		struct ipa_rx_data *ipa_tx_desc);
 
 /**
  * hdd_ipa_uc_get_db_paddr() - Get Doorbell physical address
@@ -1445,6 +1447,57 @@ static inline int hdd_ipa_wdi_rm_notify_completion(enum ipa_rm_event event,
 		enum ipa_rm_resource_name resource_name)
 {
 	return 0;
+}
+
+static inline bool hdd_ipa_is_rm_released(struct hdd_ipa_priv *hdd_ipa)
+{
+	return true;
+}
+
+/**
+ * hdd_ipa_pm_flush() - flush queued packets
+ * @work: pointer to the scheduled work
+ *
+ * Called during PM resume to send packets to TL which were queued
+ * while host was in the process of suspending.
+ *
+ * Return: None
+ */
+static void hdd_ipa_pm_flush(struct work_struct *work)
+{
+	struct hdd_ipa_priv *hdd_ipa = container_of(work,
+						    struct hdd_ipa_priv,
+						    pm_work);
+	struct hdd_ipa_pm_tx_cb *pm_tx_cb = NULL;
+	qdf_nbuf_t skb;
+	uint32_t dequeued = 0;
+
+	qdf_spin_lock_bh(&hdd_ipa->pm_lock);
+	while (((skb = qdf_nbuf_queue_remove(&hdd_ipa->pm_queue_head))
+								!= NULL)) {
+		qdf_spin_unlock_bh(&hdd_ipa->pm_lock);
+
+		pm_tx_cb = (struct hdd_ipa_pm_tx_cb *)skb->cb;
+		dequeued++;
+		if (pm_tx_cb->exception) {
+			HDD_IPA_LOG(QDF_TRACE_LEVEL_INFO,
+				"Flush Exception");
+			if (pm_tx_cb->adapter->dev)
+				hdd_softap_hard_start_xmit(skb,
+					  pm_tx_cb->adapter->dev);
+			else
+				ipa_free_skb(pm_tx_cb->ipa_tx_desc);
+		} else {
+			hdd_ipa_send_pkt_to_tl(pm_tx_cb->iface_context,
+				       pm_tx_cb->ipa_tx_desc);
+		}
+		qdf_spin_lock_bh(&hdd_ipa->pm_lock);
+	}
+	qdf_spin_unlock_bh(&hdd_ipa->pm_lock);
+
+	hdd_ipa->stats.num_tx_dequeued += dequeued;
+	if (dequeued > hdd_ipa->stats.num_max_pm_queue)
+		hdd_ipa->stats.num_max_pm_queue = dequeued;
 }
 #else /* CONFIG_IPA_WDI_UNIFIED_API */
 static inline void hdd_ipa_wdi_get_wdi_version(struct hdd_ipa_priv *hdd_ipa)
@@ -2666,6 +2719,70 @@ static int hdd_ipa_wdi_rm_notify_completion(enum ipa_rm_event event,
 		enum ipa_rm_resource_name resource_name)
 {
 	return ipa_rm_notify_completion(event, resource_name);
+}
+
+static bool hdd_ipa_is_rm_released(struct hdd_ipa_priv *hdd_ipa)
+{
+	qdf_spin_lock_bh(&hdd_ipa->rm_lock);
+
+	if (hdd_ipa->rm_state != HDD_IPA_RM_RELEASED) {
+		qdf_spin_unlock_bh(&hdd_ipa->rm_lock);
+		return false;
+	}
+
+	qdf_spin_unlock_bh(&hdd_ipa->rm_lock);
+
+	return true;
+}
+
+/**
+ * hdd_ipa_pm_flush() - flush queued packets
+ * @work: pointer to the scheduled work
+ *
+ * Called during PM resume to send packets to TL which were queued
+ * while host was in the process of suspending.
+ *
+ * Return: None
+ */
+static void hdd_ipa_pm_flush(struct work_struct *work)
+{
+	struct hdd_ipa_priv *hdd_ipa = container_of(work,
+						    struct hdd_ipa_priv,
+						    pm_work);
+	struct hdd_ipa_pm_tx_cb *pm_tx_cb = NULL;
+	qdf_nbuf_t skb;
+	uint32_t dequeued = 0;
+
+	qdf_wake_lock_acquire(&hdd_ipa->wake_lock,
+			      WIFI_POWER_EVENT_WAKELOCK_IPA);
+	qdf_spin_lock_bh(&hdd_ipa->pm_lock);
+	while (((skb = qdf_nbuf_queue_remove(&hdd_ipa->pm_queue_head))
+								!= NULL)) {
+		qdf_spin_unlock_bh(&hdd_ipa->pm_lock);
+
+		pm_tx_cb = (struct hdd_ipa_pm_tx_cb *)skb->cb;
+		dequeued++;
+		if (pm_tx_cb->exception) {
+			HDD_IPA_LOG(QDF_TRACE_LEVEL_INFO,
+				"Flush Exception");
+			if (pm_tx_cb->adapter->dev)
+				hdd_softap_hard_start_xmit(skb,
+					  pm_tx_cb->adapter->dev);
+			else
+				ipa_free_skb(pm_tx_cb->ipa_tx_desc);
+		} else {
+			hdd_ipa_send_pkt_to_tl(pm_tx_cb->iface_context,
+				       pm_tx_cb->ipa_tx_desc);
+		}
+		qdf_spin_lock_bh(&hdd_ipa->pm_lock);
+	}
+	qdf_spin_unlock_bh(&hdd_ipa->pm_lock);
+	qdf_wake_lock_release(&hdd_ipa->wake_lock,
+			      WIFI_POWER_EVENT_WAKELOCK_IPA);
+
+	hdd_ipa->stats.num_tx_dequeued += dequeued;
+	if (dequeued > hdd_ipa->stats.num_max_pm_queue)
+		hdd_ipa->stats.num_max_pm_queue = dequeued;
 }
 #endif /* CONFIG_IPA_WDI_UNIFIED_API */
 
@@ -5771,56 +5888,6 @@ bool hdd_ipa_is_present(void)
 }
 
 /**
- * hdd_ipa_pm_flush() - flush queued packets
- * @work: pointer to the scheduled work
- *
- * Called during PM resume to send packets to TL which were queued
- * while host was in the process of suspending.
- *
- * Return: None
- */
-static void hdd_ipa_pm_flush(struct work_struct *work)
-{
-	struct hdd_ipa_priv *hdd_ipa = container_of(work,
-						    struct hdd_ipa_priv,
-						    pm_work);
-	struct hdd_ipa_pm_tx_cb *pm_tx_cb = NULL;
-	qdf_nbuf_t skb;
-	uint32_t dequeued = 0;
-
-	qdf_wake_lock_acquire(&hdd_ipa->wake_lock,
-			      WIFI_POWER_EVENT_WAKELOCK_IPA);
-	qdf_spin_lock_bh(&hdd_ipa->pm_lock);
-	while (((skb = qdf_nbuf_queue_remove(&hdd_ipa->pm_queue_head))
-								!= NULL)) {
-		qdf_spin_unlock_bh(&hdd_ipa->pm_lock);
-
-		pm_tx_cb = (struct hdd_ipa_pm_tx_cb *)skb->cb;
-		dequeued++;
-		if (pm_tx_cb->exception) {
-			HDD_IPA_LOG(QDF_TRACE_LEVEL_INFO,
-				"Flush Exception");
-			if (pm_tx_cb->adapter->dev)
-				hdd_softap_hard_start_xmit(skb,
-					  pm_tx_cb->adapter->dev);
-			else
-				ipa_free_skb(pm_tx_cb->ipa_tx_desc);
-		} else {
-			hdd_ipa_send_pkt_to_tl(pm_tx_cb->iface_context,
-				       pm_tx_cb->ipa_tx_desc);
-		}
-		qdf_spin_lock_bh(&hdd_ipa->pm_lock);
-	}
-	qdf_spin_unlock_bh(&hdd_ipa->pm_lock);
-	qdf_wake_lock_release(&hdd_ipa->wake_lock,
-			      WIFI_POWER_EVENT_WAKELOCK_IPA);
-
-	hdd_ipa->stats.num_tx_dequeued += dequeued;
-	if (dequeued > hdd_ipa->stats.num_max_pm_queue)
-		hdd_ipa->stats.num_max_pm_queue = dequeued;
-}
-
-/**
  * __hdd_ipa_i2w_cb() - IPA to WLAN callback
  * @priv: pointer to private data registered with IPA (we register a
  *	pointer to the interface-specific IPA context)
@@ -5950,13 +6017,8 @@ static int __hdd_ipa_suspend(hdd_context_t *hdd_ctx)
 	if (atomic_read(&hdd_ipa->tx_ref_cnt))
 		return -EAGAIN;
 
-	qdf_spin_lock_bh(&hdd_ipa->rm_lock);
-
-	if (hdd_ipa->rm_state != HDD_IPA_RM_RELEASED) {
-		qdf_spin_unlock_bh(&hdd_ipa->rm_lock);
+	if (!hdd_ipa_is_rm_released(hdd_ipa))
 		return -EAGAIN;
-	}
-	qdf_spin_unlock_bh(&hdd_ipa->rm_lock);
 
 	qdf_spin_lock_bh(&hdd_ipa->pm_lock);
 	hdd_ipa->suspended = true;

@@ -3011,6 +3011,20 @@ int wma_peer_delete_handler(void *handle, uint8_t *cmd_param_info,
 	return status;
 }
 
+static void wma_trigger_recovery_assert_on_fw_timeout(
+			uint16_t wma_msg)
+{
+	if (cds_is_self_recovery_enabled()) {
+		WMA_LOGE("%s timed out, triggering recovery",
+			 mac_trace_get_wma_msg_string(wma_msg));
+		cds_trigger_recovery(CDS_REASON_UNSPECIFIED);
+	} else {
+		WMA_LOGE("%s timed out, BUG_ON()",
+			 mac_trace_get_wma_msg_string(wma_msg));
+		QDF_BUG(0);
+	}
+}
+
 static inline bool wma_crash_on_fw_timeout(bool crash_enabled)
 {
 	/* Discard FW timeouts and dont crash during SSR */
@@ -3066,11 +3080,13 @@ void wma_hold_req_timer(void *data)
 		WMA_LOGA(FL("WMA_ADD_STA_REQ timed out"));
 		WMA_LOGD(FL("Sending add sta rsp to umac (mac:%pM, status:%d)"),
 			 params->staMac, params->status);
-		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true)
-			QDF_BUG(0);
-		else
+		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true) {
+			wma_trigger_recovery_assert_on_fw_timeout(
+				WMA_ADD_STA_REQ);
+		} else {
 			wma_send_msg_high_priority(wma,
 				WMA_ADD_STA_RSP, (void *)params, 0);
+		}
 	} else if (tgt_req->msg_type == WMA_ADD_BSS_REQ) {
 		tpAddBssParams  params = (tpAddBssParams) tgt_req->user_data;
 
@@ -3078,11 +3094,13 @@ void wma_hold_req_timer(void *data)
 		WMA_LOGA(FL("WMA_ADD_BSS_REQ timed out"));
 		WMA_LOGD(FL("Sending add bss rsp to umac (mac:%pM, status:%d)"),
 			params->selfMacAddr, params->status);
-		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true)
-			QDF_BUG(0);
-		else
+		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true) {
+			wma_trigger_recovery_assert_on_fw_timeout(
+				WMA_ADD_BSS_REQ);
+		} else {
 			wma_send_msg_high_priority(wma,
 				WMA_ADD_BSS_RSP, (void *)params, 0);
+		}
 	} else if ((tgt_req->msg_type == WMA_DELETE_STA_REQ) &&
 		(tgt_req->type == WMA_DELETE_STA_RSP_START)) {
 		tpDeleteStaParams params =
@@ -3093,7 +3111,8 @@ void wma_hold_req_timer(void *data)
 			 params->staMac, params->status);
 
 		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true) {
-			QDF_BUG(0);
+			wma_trigger_recovery_assert_on_fw_timeout(
+				WMA_DELETE_STA_REQ);
 		} else {
 			/*
 			 * Assert in development build only.
@@ -3112,7 +3131,8 @@ void wma_hold_req_timer(void *data)
 		WMA_LOGA(FL("wma delete sta p2p request timed out"));
 
 		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash)) {
-			QDF_BUG(0);
+			wma_trigger_recovery_assert_on_fw_timeout(
+				WMA_DELETE_STA_REQ);
 		} else {
 			if (del_sta->generate_rsp)
 				wma_send_del_sta_self_resp(
@@ -3126,11 +3146,13 @@ void wma_hold_req_timer(void *data)
 
 		params->status = false;
 		WMA_LOGA(FL("wma delete peer for set link timed out"));
-		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true)
-			QDF_BUG(0);
-		else
+		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true) {
+			wma_trigger_recovery_assert_on_fw_timeout(
+				WMA_DELETE_STA_REQ);
+		} else {
 			wma_send_msg(wma, WMA_SET_LINK_STATE_RSP,
 					params, 0);
+		}
 	} else if ((tgt_req->msg_type == WMA_DELETE_STA_REQ) &&
 			(tgt_req->type == WMA_DELETE_PEER_RSP)) {
 		tpDeleteBssParams params =
@@ -3138,11 +3160,13 @@ void wma_hold_req_timer(void *data)
 
 		params->status = QDF_STATUS_E_TIMEOUT;
 		WMA_LOGE(FL("wma delete peer for del bss req timed out"));
-		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true)
-			QDF_BUG(0);
-		else
+		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true) {
+			wma_trigger_recovery_assert_on_fw_timeout(
+				WMA_DELETE_STA_REQ);
+		} else {
 			wma_send_msg_high_priority(wma,
 				WMA_DELETE_BSS_RSP, params, 0);
+		}
 	} else {
 		WMA_LOGE(FL("Unhandled timeout for msg_type:%d and type:%d"),
 				tgt_req->msg_type, tgt_req->type);
@@ -3300,11 +3324,13 @@ void wma_vdev_resp_timer(void *data)
 		 * Trigger host crash if the flag is set or if the timeout
 		 * is not due to fw down
 		 */
-		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true)
-			QDF_BUG(0);
-		else
+		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true) {
+			wma_trigger_recovery_assert_on_fw_timeout(
+				WMA_CHNL_SWITCH_REQ);
+		} else {
 			wma_send_msg_high_priority(wma, WMA_SWITCH_CHANNEL_RSP,
 				    (void *)params, 0);
+		}
 		if (wma->interfaces[tgt_req->vdev_id].is_channel_switch) {
 			wma->interfaces[tgt_req->vdev_id].is_channel_switch =
 				false;
@@ -3336,7 +3362,8 @@ void wma_vdev_resp_timer(void *data)
 		 * is not due to fw down
 		 */
 		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true) {
-			QDF_BUG(0);
+			wma_trigger_recovery_assert_on_fw_timeout(
+				WMA_DELETE_BSS_REQ);
 			return;
 		}
 
@@ -3412,7 +3439,8 @@ void wma_vdev_resp_timer(void *data)
 
 		WMA_LOGA("%s: WMA_DEL_STA_SELF_REQ timedout", __func__);
 		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true) {
-			QDF_BUG(0);
+			wma_trigger_recovery_assert_on_fw_timeout(
+				WMA_DEL_STA_SELF_REQ);
 		} else if (!cds_is_driver_unloading() &&
 			   (cds_is_fw_down() || cds_is_driver_recovering())) {
 			qdf_mem_free(iface->del_staself_req);
@@ -3442,7 +3470,8 @@ void wma_vdev_resp_timer(void *data)
 		WMA_LOGD("%s: bssid %pM vdev_id %d", __func__, params->bssId,
 			 tgt_req->vdev_id);
 		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true) {
-			QDF_BUG(0);
+			wma_trigger_recovery_assert_on_fw_timeout(
+				WMA_ADD_BSS_REQ);
 		} else {
 			wma_send_msg_high_priority(wma,
 				WMA_ADD_BSS_RSP, (void *)params, 0);

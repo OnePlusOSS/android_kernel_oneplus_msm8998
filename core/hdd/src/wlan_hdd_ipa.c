@@ -1489,6 +1489,21 @@ static void hdd_ipa_pm_flush(struct work_struct *work)
 	if (dequeued > hdd_ipa->stats.num_max_pm_queue)
 		hdd_ipa->stats.num_max_pm_queue = dequeued;
 }
+
+int hdd_ipa_uc_smmu_map(bool map, uint32_t num_buf, qdf_mem_info_t *buf_arr)
+{
+	if (!num_buf) {
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "No buffers to map/unmap");
+		return 0;
+	}
+
+	if (map)
+		return ipa_wdi_create_smmu_mapping(num_buf,
+			   (struct ipa_wdi_buffer_info *)buf_arr);
+	else
+		return ipa_wdi_release_smmu_mapping(num_buf,
+			   (struct ipa_wdi_buffer_info *)buf_arr);
+}
 #else /* CONFIG_IPA_WDI_UNIFIED_API */
 static inline void hdd_ipa_wdi_get_wdi_version(struct hdd_ipa_priv *hdd_ipa)
 {
@@ -2773,6 +2788,21 @@ static void hdd_ipa_pm_flush(struct work_struct *work)
 	hdd_ipa->stats.num_tx_dequeued += dequeued;
 	if (dequeued > hdd_ipa->stats.num_max_pm_queue)
 		hdd_ipa->stats.num_max_pm_queue = dequeued;
+}
+
+int hdd_ipa_uc_smmu_map(bool map, uint32_t num_buf, qdf_mem_info_t *buf_arr)
+{
+	if (!num_buf) {
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "No buffers to map/unmap");
+		return 0;
+	}
+
+	if (map)
+		return ipa_create_wdi_mapping(num_buf,
+			   (struct ipa_wdi_buffer_info *)buf_arr);
+	else
+		return ipa_release_wdi_mapping(num_buf,
+			   (struct ipa_wdi_buffer_info *)buf_arr);
 }
 #endif /* CONFIG_IPA_WDI_UNIFIED_API */
 
@@ -7423,21 +7453,6 @@ QDF_STATUS hdd_ipa_cleanup(hdd_context_t *hdd_ctx)
 	cds_ssr_unprotect(__func__);
 
 	return ret;
-}
-
-int hdd_ipa_uc_smmu_map(bool map, uint32_t num_buf, qdf_mem_info_t *buf_arr)
-{
-	if (!num_buf) {
-		HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "No buffers to map/unmap");
-		return 0;
-	}
-
-	if (map)
-		return ipa_create_wdi_mapping(num_buf,
-			   (struct ipa_wdi_buffer_info *)buf_arr);
-	else
-		return ipa_release_wdi_mapping(num_buf,
-			   (struct ipa_wdi_buffer_info *)buf_arr);
 }
 
 void hdd_ipa_clean_adapter_iface(hdd_adapter_t *adapter)

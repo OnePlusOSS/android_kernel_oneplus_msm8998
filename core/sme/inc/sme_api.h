@@ -1421,12 +1421,13 @@ QDF_STATUS sme_apf_offload_deregister_callback(tHalHandle hal);
 /**
  * sme_get_apf_capabilities() - Get length for APF offload
  * @hal: Global HAL handle
+ * @context: Context pointer
  *
  * API to get APF version and max filter size.
  *
  * Return: QDF_STATUS enumeration
  */
-QDF_STATUS sme_get_apf_capabilities(tHalHandle hal);
+QDF_STATUS sme_get_apf_capabilities(tHalHandle hal, void *context);
 
 /**
  * sme_set_apf_instructions() - Set APF apf filter instructions.

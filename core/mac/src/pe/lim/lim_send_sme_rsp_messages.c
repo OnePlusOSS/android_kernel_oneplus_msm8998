@@ -2244,10 +2244,13 @@ void lim_handle_csa_offload_msg(tpAniSirGlobal mac_ctx, tpSirMsgQ msg)
 		goto err;
 	}
 
+#ifdef FEATURE_WLAN_TDLS
 	/*
 	 * on receiving channel switch announcement from AP, delete all
 	 * TDLS peers before leaving BSS and proceed for channel switch
 	 */
+	session_entry->is_tdls_csa = true;
+#endif
 	lim_delete_tdls_peers(mac_ctx, session_entry);
 
 	lim_ch_switch = &session_entry->gLimChannelSwitch;

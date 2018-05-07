@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -508,13 +508,13 @@ void lim_handle_heart_beat_failure(tpAniSirGlobal mac_ctx,
 					session->bssId, curr_chan,
 					session->selfMacAddr,
 					session->dot11mode,
-					scan_ie->length, scan_ie->addIEdata);
+					&scan_ie->length, scan_ie->addIEdata);
 			} else {
 				lim_send_probe_req_mgmt_frame(mac_ctx,
 					&session->ssId,
 					session->bssId, curr_chan,
 					session->selfMacAddr,
-					session->dot11mode, 0, NULL);
+					session->dot11mode, NULL, NULL);
 			}
 		} else {
 			pe_debug("HB missed from AP on DFS chanel moving to passive");

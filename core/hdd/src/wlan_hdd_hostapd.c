@@ -573,6 +573,12 @@ static int __hdd_hostapd_set_mac_address(struct net_device *dev, void *addr)
 
 	qdf_mem_copy(&mac_addr, psta_mac_addr->sa_data, QDF_MAC_ADDR_SIZE);
 
+	if (hdd_get_adapter_by_macaddr(hdd_ctx, mac_addr.bytes)) {
+		hdd_err("adapter exist with same mac address " MAC_ADDRESS_STR,
+			MAC_ADDR_ARRAY(mac_addr.bytes));
+		return -EINVAL;
+	}
+
 	if (qdf_is_macaddr_zero(&mac_addr)) {
 		hdd_err("MAC is all zero");
 		return -EINVAL;
@@ -588,6 +594,9 @@ static int __hdd_hostapd_set_mac_address(struct net_device *dev, void *addr)
 		return -EINVAL;
 	}
 
+	hdd_info("Changing MAC to " MAC_ADDRESS_STR " of interface %s ",
+		 MAC_ADDR_ARRAY(mac_addr.bytes),
+		 dev->name);
 	memcpy(dev->dev_addr, psta_mac_addr->sa_data, ETH_ALEN);
 	EXIT();
 	return 0;
@@ -5392,7 +5401,8 @@ __iw_softap_version(struct net_device *dev,
 	if (0 != ret)
 		return ret;
 
-	hdd_wlan_get_version(hdd_ctx, wrqu, extra);
+	wrqu->data.length = hdd_wlan_get_version(hdd_ctx, WE_MAX_STR_LEN,
+						 extra);
 	EXIT();
 	return 0;
 }

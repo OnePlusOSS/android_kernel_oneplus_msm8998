@@ -2227,6 +2227,7 @@ typedef struct wma_tdls_params {
 	uint32_t puapsd_rx_frame_threshold;
 	uint32_t teardown_notification_ms;
 	uint32_t tdls_peer_kickout_threshold;
+	uint32_t tdls_discovery_wake_timeout;
 } t_wma_tdls_params;
 
 /**
@@ -2481,10 +2482,11 @@ int wma_get_apf_caps_event_handler(void *handle,
 /**
  * wma_get_apf_capabilities - Send get apf capability to firmware
  * @wma_handle: wma handle
+ * @context: APF context
  *
  * Return: QDF_STATUS enumeration.
  */
-QDF_STATUS wma_get_apf_capabilities(tp_wma_handle wma);
+QDF_STATUS wma_get_apf_capabilities(tp_wma_handle wma, void *context);
 
 /**
  *  wma_set_apf_instructions - Set apf instructions to firmware

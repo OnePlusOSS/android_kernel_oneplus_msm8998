@@ -2395,6 +2395,131 @@ free:
 	return retval;
 }
 
+#ifdef WLAN_AP_STA_CONCURRENCY
+/**
+ * hdd_conc_set_dwell_time() - Set Concurrent dwell time parameters
+ * @adapter: Adapter upon which the command was received
+ * @command: ASCII text command that is received
+ *
+ * Driver commands:
+ * wpa_cli DRIVER CONCSETDWELLTIME ACTIVE MAX <value>
+ * wpa_cli DRIVER CONCSETDWELLTIME ACTIVE MIN <value>
+ * wpa_cli DRIVER CONCSETDWELLTIME PASSIVE MAX <value>
+ * wpa_cli DRIVER CONCSETDWELLTIME PASSIVE MIN <value>
+ *
+ * Return: 0 for success non-zero for failure
+ */
+static int hdd_conc_set_dwell_time(hdd_context_t *hdd_ctx, uint8_t *command)
+{
+	tHalHandle hhal;
+	struct hdd_config *p_cfg;
+	u8 *value = command;
+	tSmeConfigParams *sme_config;
+	int val = 0, temp = 0;
+	int retval = 0;
+
+	p_cfg = hdd_ctx->config;
+	hhal = hdd_ctx->hHal;
+	if (!p_cfg || !hhal) {
+		hdd_err("Argument passed for CONCSETDWELLTIME is incorrect");
+		return -EINVAL;
+	}
+
+	sme_config = qdf_mem_malloc(sizeof(*sme_config));
+	if (!sme_config) {
+		hdd_err("Failed to allocate memory for sme_config");
+		return -ENOMEM;
+	}
+
+	qdf_mem_zero(sme_config, sizeof(*sme_config));
+	sme_get_config_param(hhal, sme_config);
+
+	if (strncmp(command, "CONCSETDWELLTIME ACTIVE MAX", 27) == 0) {
+		if (drv_cmd_validate(command, 27)) {
+			hdd_err("Invalid driver command");
+			retval = -EINVAL;
+			goto sme_config_free;
+		}
+
+		value = value + 28;
+		temp = kstrtou32(value, 10, &val);
+		if (temp != 0 || val < CFG_ACTIVE_MAX_CHANNEL_TIME_CONC_MIN ||
+		    val > CFG_ACTIVE_MAX_CHANNEL_TIME_CONC_MAX) {
+			hdd_err("Argument passed for CONCSETDWELLTIME ACTIVE MAX is incorrect");
+			retval = -EFAULT;
+			goto sme_config_free;
+		}
+
+		p_cfg->nActiveMaxChnTimeConc = val;
+		sme_config->csrConfig.nActiveMaxChnTimeConc = val;
+		sme_update_config(hhal, sme_config);
+	} else if (strncmp(command, "CONCSETDWELLTIME ACTIVE MIN", 27) == 0) {
+		if (drv_cmd_validate(command, 27)) {
+			hdd_err("Invalid driver command");
+			retval = -EINVAL;
+			goto sme_config_free;
+		}
+
+		value = value + 28;
+		temp = kstrtou32(value, 10, &val);
+		if (temp != 0 || val < CFG_ACTIVE_MIN_CHANNEL_TIME_CONC_MIN ||
+		    val > CFG_ACTIVE_MIN_CHANNEL_TIME_CONC_MAX) {
+			hdd_err("argument passed for CONCSETDWELLTIME ACTIVE MIN is incorrect");
+			retval = -EFAULT;
+			goto sme_config_free;
+		}
+
+		p_cfg->nActiveMinChnTimeConc = val;
+		sme_config->csrConfig.nActiveMinChnTimeConc = val;
+		sme_update_config(hhal, sme_config);
+	} else if (strncmp(command, "CONCSETDWELLTIME PASSIVE MAX", 28) == 0) {
+		if (drv_cmd_validate(command, 28)) {
+			hdd_err("Invalid driver command");
+			retval = -EINVAL;
+			goto sme_config_free;
+		}
+
+		value = value + 29;
+		temp = kstrtou32(value, 10, &val);
+		if (temp != 0 || val < CFG_PASSIVE_MAX_CHANNEL_TIME_CONC_MIN ||
+		    val > CFG_PASSIVE_MAX_CHANNEL_TIME_CONC_MAX) {
+			hdd_err("Argument passed for CONCSETDWELLTIME PASSIVE MAX is incorrect");
+			retval = -EFAULT;
+			goto sme_config_free;
+		}
+
+		p_cfg->nPassiveMaxChnTimeConc = val;
+		sme_config->csrConfig.nPassiveMaxChnTimeConc = val;
+		sme_update_config(hhal, sme_config);
+	} else if (strncmp(command, "CONCSETDWELLTIME PASSIVE MIN", 28) == 0) {
+		if (drv_cmd_validate(command, 28)) {
+			hdd_err("Invalid driver command");
+			retval = -EINVAL;
+			goto sme_config_free;
+		}
+
+		value = value + 29;
+		temp = kstrtou32(value, 10, &val);
+		if (temp != 0 || val < CFG_PASSIVE_MIN_CHANNEL_TIME_CONC_MIN ||
+		    val > CFG_PASSIVE_MIN_CHANNEL_TIME_CONC_MAX) {
+			hdd_err("argument passed for SETDWELLTIME PASSIVE MIN is incorrect");
+			retval = -EFAULT;
+			goto sme_config_free;
+		}
+
+		p_cfg->nPassiveMinChnTimeConc = val;
+		sme_config->csrConfig.nPassiveMinChnTimeConc = val;
+		sme_update_config(hhal, sme_config);
+	} else {
+		retval = -EINVAL;
+	}
+
+sme_config_free:
+	qdf_mem_free(sme_config);
+	return retval;
+}
+#endif
+
 static void hdd_get_link_status_cb(uint8_t status, void *context)
 {
 	struct statsContext *pLinkContext;
@@ -2900,25 +3025,23 @@ static int drv_cmd_p2p_dev_addr(hdd_adapter_t *adapter,
 				uint8_t command_len,
 				hdd_priv_data_t *priv_data)
 {
-	int ret = 0;
+	struct qdf_mac_addr *addr = &hdd_ctx->p2pDeviceAddress;
+	size_t user_size = QDF_MIN(sizeof(addr->bytes), priv_data->total_len);
 
 	MTRACE(qdf_trace(QDF_MODULE_ID_HDD,
 			 TRACE_CODE_HDD_P2P_DEV_ADDR_IOCTL,
 			 adapter->sessionId,
-			(unsigned int)(*(hdd_ctx->p2pDeviceAddress.bytes + 2)
-				<< 24 | *(hdd_ctx->p2pDeviceAddress.bytes
-				+ 3) << 16 | *(hdd_ctx->
-				p2pDeviceAddress.bytes + 4) << 8 |
-				*(hdd_ctx->p2pDeviceAddress.bytes +
-				5))));
+			 (unsigned int)(*(addr->bytes + 2) << 24 |
+				*(addr->bytes + 3) << 16 |
+				*(addr->bytes + 4) << 8 |
+				*(addr->bytes + 5))));
 
-	if (copy_to_user(priv_data->buf, hdd_ctx->p2pDeviceAddress.bytes,
-			 sizeof(tSirMacAddr))) {
+	if (copy_to_user(priv_data->buf, addr->bytes, user_size)) {
 		hdd_err("failed to copy data to user buffer");
-		ret = -EFAULT;
+		return -EFAULT;
 	}
 
-	return ret;
+	return 0;
 }
 
 /**
@@ -4726,6 +4849,17 @@ static int drv_cmd_set_dwell_time(hdd_adapter_t *adapter,
 	return hdd_set_dwell_time(adapter, command);
 }
 
+#ifdef WLAN_AP_STA_CONCURRENCY
+static int drv_cmd_conc_set_dwell_time(hdd_adapter_t *adapter,
+				       hdd_context_t *hdd_ctx,
+				       u8 *command,
+				       u8 command_len,
+				       hdd_priv_data_t *priv_data)
+{
+	return hdd_conc_set_dwell_time(hdd_ctx, command);
+}
+#endif
+
 static int drv_cmd_miracast(hdd_adapter_t *adapter,
 			    hdd_context_t *hdd_ctx,
 			    uint8_t *command,
@@ -5081,13 +5215,16 @@ static int drv_cmd_get_ibss_peer_info_all(hdd_adapter_t *adapter,
 	/* Handle the command */
 	status = hdd_cfg80211_get_ibss_peer_info_all(adapter);
 	if (QDF_STATUS_SUCCESS == status) {
+		size_t user_size = QDF_MIN(WLAN_MAX_BUF_SIZE,
+					   priv_data->total_len);
+
 		/*
 		 * The variable extra needed to be allocated on the heap since
 		 * amount of memory required to copy the data for 32 devices
 		 * exceeds the size of 1024 bytes of default stack size. On
 		 * 64 bit devices, the default max stack size of 2048 bytes
 		 */
-		extra = qdf_mem_malloc(WLAN_MAX_BUF_SIZE);
+		extra = qdf_mem_malloc(user_size);
 
 		if (NULL == extra) {
 			hdd_err("memory allocation failed");
@@ -5096,7 +5233,7 @@ static int drv_cmd_get_ibss_peer_info_all(hdd_adapter_t *adapter,
 		}
 
 		/* Copy number of stations */
-		length = scnprintf(extra, WLAN_MAX_BUF_SIZE, "%d ",
+		length = scnprintf(extra, user_size, "%d ",
 				   pHddStaCtx->ibss_peer_info.numPeers);
 		numOfBytestoPrint = length;
 		for (idx = 0; idx < pHddStaCtx->ibss_peer_info.numPeers;
@@ -5119,8 +5256,8 @@ static int drv_cmd_get_ibss_peer_info_all(hdd_adapter_t *adapter,
 			rssi = pHddStaCtx->ibss_peer_info.peerInfoParams[idx].
 									rssi;
 
-			length += scnprintf((extra + length),
-				WLAN_MAX_BUF_SIZE - length,
+			length += scnprintf(extra + length,
+				user_size - length,
 				"%02x:%02x:%02x:%02x:%02x:%02x %d %d ",
 				mac_addr[0], mac_addr[1], mac_addr[2],
 				mac_addr[3], mac_addr[4], mac_addr[5],
@@ -5256,7 +5393,7 @@ static int drv_cmd_get_ibss_peer_info(hdd_adapter_t *adapter,
 	}
 
 	/* Success ! */
-	hdd_debug("%s", priv_data->buf);
+	hdd_debug("%s", extra);
 	ret = 0;
 
 exit:
@@ -6303,7 +6440,7 @@ static int hdd_driver_rxfilter_comand_handler(uint8_t *command,
 		value = command + 13;
 	ret = kstrtou8(value, 10, &type);
 	if (ret < 0) {
-		hdd_err("kstrtou8 failed invalid input value %d", type);
+		hdd_err("kstrtou8 failed invalid input value");
 		return -EINVAL;
 	}
 
@@ -7177,8 +7314,6 @@ static const struct hdd_drv_cmd hdd_drv_cmds[] = {
 	{"COUNTRY",                   drv_cmd_country, true},
 	{"SETSUSPENDMODE",            drv_cmd_dummy, false},
 	{"SET_AP_WPS_P2P_IE",         drv_cmd_dummy, false},
-	{"BTCOEXSCAN",                drv_cmd_dummy, false},
-	{"RXFILTER",                  drv_cmd_dummy, false},
 	{"SETROAMTRIGGER",            drv_cmd_set_roam_trigger, true},
 	{"GETROAMTRIGGER",            drv_cmd_get_roam_trigger, false},
 	{"SETROAMSCANPERIOD",         drv_cmd_set_roam_scan_period, true},
@@ -7231,6 +7366,9 @@ static const struct hdd_drv_cmd hdd_drv_cmds[] = {
 	{"BTCOEXMODE",                drv_cmd_bt_coex_mode, true},
 	{"SCAN-ACTIVE",               drv_cmd_scan_active, false},
 	{"SCAN-PASSIVE",              drv_cmd_scan_passive, false},
+#ifdef WLAN_AP_STA_CONCURRENCY
+	{"CONCSETDWELLTIME",          drv_cmd_conc_set_dwell_time, true},
+#endif
 	{"GETDWELLTIME",              drv_cmd_get_dwell_time, false},
 	{"SETDWELLTIME",              drv_cmd_set_dwell_time, true},
 	{"MIRACAST",                  drv_cmd_miracast, true},
@@ -7276,7 +7414,12 @@ static const struct hdd_drv_cmd hdd_drv_cmds[] = {
 	{"GETANTENNAMODE",            drv_cmd_get_antenna_mode, false},
 	{"SET_DISABLE_CHANNEL_LIST",  drv_cmd_set_disable_chan_list, true},
 	{"GET_DISABLE_CHANNEL_LIST",  drv_cmd_get_disable_chan_list, false},
+	/* Deprecated commands */
 	{"STOP",                      drv_cmd_dummy, false},
+	{"RXFILTER-START",            drv_cmd_dummy, false},
+	{"RXFILTER-STOP",             drv_cmd_dummy, false},
+	{"BTCOEXSCAN-START",          drv_cmd_dummy, false},
+	{"BTCOEXSCAN-STOP",           drv_cmd_dummy, false},
 };
 
 /**

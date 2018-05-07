@@ -525,7 +525,7 @@ static void dump_tdls_state_param_setting(tdlsInfo_t *info)
 	if (!info)
 		return;
 
-	hdd_debug("Setting tdls state and param in fw: vdev_id: %d, tdls_state: %d, notification_interval_ms: %d, tx_discovery_threshold: %d, tx_teardown_threshold: %d, rssi_teardown_threshold: %d, rssi_delta: %d, tdls_options: 0x%x, peer_traffic_ind_window: %d, peer_traffic_response_timeout: %d, puapsd_mask: 0x%x, puapsd_inactivity_time: %d, puapsd_rx_frame_threshold: %d, teardown_notification_ms: %d, tdls_peer_kickout_threshold: %d",
+	hdd_debug("Setting tdls state and param in fw: vdev_id: %d, tdls_state: %d, notification_interval_ms: %d, tx_discovery_threshold: %d, tx_teardown_threshold: %d, rssi_teardown_threshold: %d, rssi_delta: %d, tdls_options: 0x%x, peer_traffic_ind_window: %d, peer_traffic_response_timeout: %d, puapsd_mask: 0x%x, puapsd_inactivity_time: %d, puapsd_rx_frame_threshold: %d, teardown_notification_ms: %d, tdls_peer_kickout_threshold: %d, tdls_discovery_wake_timeout: %d",
 		   info->vdev_id,
 		   info->tdls_state,
 		   info->notification_interval_ms,
@@ -540,7 +540,8 @@ static void dump_tdls_state_param_setting(tdlsInfo_t *info)
 		   info->puapsd_inactivity_time,
 		   info->puapsd_rx_frame_threshold,
 		   info->teardown_notification_ms,
-		   info->tdls_peer_kickout_threshold);
+		   info->tdls_peer_kickout_threshold,
+		   info->tdls_discovery_wake_timeout);
 
 }
 
@@ -1710,11 +1711,17 @@ static void wlan_hdd_tdls_set_mode(hdd_context_t *pHddCtx,
 		switch (tdls_mode) {
 		/* TDLS is already enabled hence clear source mask, return */
 		case eTDLS_SUPPORT_ENABLED:
-		case eTDLS_SUPPORT_EXPLICIT_TRIGGER_ONLY:
 		case eTDLS_SUPPORT_EXTERNAL_CONTROL:
 			clear_bit((unsigned long)source,
 				  &pHddCtx->tdls_source_bitmap);
-			hdd_debug("clear source mask:%d", source);
+			hdd_debug("clear source mask:%d tdls mode %d",
+				   source, tdls_mode);
+			break;
+		case eTDLS_SUPPORT_EXPLICIT_TRIGGER_ONLY:
+			clear_bit((unsigned long)source,
+				  &pHddCtx->tdls_source_bitmap);
+			hdd_debug("clear source mask:%d tdls mode %d",
+				   source, tdls_mode);
 			return;
 		/* TDLS is already disabled hence set source mask, return */
 		case eTDLS_SUPPORT_DISABLED:
@@ -1725,6 +1732,24 @@ static void wlan_hdd_tdls_set_mode(hdd_context_t *pHddCtx,
 		default:
 			return;
 		}
+
+		status = hdd_get_front_adapter(pHddCtx, &pAdapterNode);
+		while (pAdapterNode != NULL && status == QDF_STATUS_SUCCESS) {
+			pAdapter = pAdapterNode->pAdapter;
+			pHddTdlsCtx = WLAN_HDD_GET_TDLS_CTX_PTR(pAdapter);
+			if (pHddTdlsCtx != NULL &&
+			    !pHddCtx->tdls_source_bitmap &&
+			    (qdf_mc_timer_get_current_state(&pHddTdlsCtx->
+			    peer_update_timer) == QDF_TIMER_STATE_STOPPED)) {
+				hdd_debug("Start timer again,source bitmap:%lu",
+						pHddCtx->tdls_source_bitmap);
+				wlan_hdd_tdls_implicit_enable(pHddTdlsCtx);
+			}
+			status = hdd_get_next_adapter(pHddCtx,
+						      pAdapterNode, &pNext);
+			pAdapterNode = pNext;
+		}
+		return;
 	}
 
 	status = hdd_get_front_adapter(pHddCtx, &pAdapterNode);
@@ -1902,6 +1927,8 @@ int wlan_hdd_tdls_set_params(struct net_device *dev,
 		pHddCtx->config->tdls_idle_timeout;
 	tdlsParams->tdls_peer_kickout_threshold =
 		pHddCtx->config->tdls_peer_kickout_threshold;
+	tdlsParams->tdls_discovery_wake_timeout =
+		pHddCtx->config->tdls_discovery_wake_timeout;
 
 	dump_tdls_state_param_setting(tdlsParams);
 
@@ -2044,6 +2071,8 @@ void wlan_hdd_update_tdls_info(hdd_adapter_t *adapter, bool tdls_prohibited,
 		hdd_ctx->config->tdls_idle_timeout;
 	tdls_param->tdls_peer_kickout_threshold =
 		hdd_ctx->config->tdls_peer_kickout_threshold;
+	tdls_param->tdls_discovery_wake_timeout =
+		hdd_ctx->config->tdls_discovery_wake_timeout;
 
 	dump_tdls_state_param_setting(tdls_param);
 

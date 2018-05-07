@@ -1269,6 +1269,7 @@ static void hdd_update_tgt_vht_cap(hdd_context_t *hdd_ctx,
 	uint32_t temp = 0;
 	uint32_t ch_width = eHT_CHANNEL_WIDTH_80MHZ;
 	uint32_t hw_rx_ldpc_enabled;
+	struct wma_caps_per_phy caps_per_phy;
 
 	if (!band_5g) {
 		hdd_debug("5GHz band disabled, skipping capability population");
@@ -1572,8 +1573,22 @@ static void hdd_update_tgt_vht_cap(hdd_context_t *hdd_ctx,
 	if (cfg->vht_short_gi_160 & WMI_VHT_CAP_SGI_160MHZ)
 		band_5g->vht_cap.cap |= IEEE80211_VHT_CAP_SHORT_GI_160;
 
-	if (cfg->vht_rx_ldpc & WMI_VHT_CAP_RX_LDPC)
+	if (cfg->vht_rx_ldpc & WMI_VHT_CAP_RX_LDPC) {
 		band_5g->vht_cap.cap |= IEEE80211_VHT_CAP_RXLDPC;
+		hdd_debug("VHT RxLDPC capability is set");
+	} else {
+		/*
+		 * Get the RX LDPC capability for the NON DBS
+		 * hardware mode for 5G band
+		 */
+		status = wma_get_caps_for_phyidx_hwmode(&caps_per_phy,
+					HW_MODE_DBS_NONE, CDS_BAND_5GHZ);
+		if ((QDF_IS_STATUS_SUCCESS(status)) &&
+			(caps_per_phy.vht_5g & WMI_VHT_CAP_RX_LDPC)) {
+			band_5g->vht_cap.cap |= IEEE80211_VHT_CAP_RXLDPC;
+			hdd_debug("VHT RX LDPC capability is set");
+		}
+	}
 
 	if (cfg->vht_short_gi_80 & WMI_VHT_CAP_SGI_80MHZ)
 		band_5g->vht_cap.cap |= IEEE80211_VHT_CAP_SHORT_GI_80;
@@ -1719,6 +1734,10 @@ void hdd_update_tgt_cfg(void *context, void *param)
 	hdd_ctx->target_fw_version = cfg->target_fw_version;
 	hdd_ctx->target_fw_vers_ext = cfg->target_fw_vers_ext;
 
+	hdd_ctx->hw_bd_id = cfg->hw_bd_id;
+	qdf_mem_copy(&hdd_ctx->hw_bd_info, &cfg->hw_bd_info,
+		     sizeof(cfg->hw_bd_info));
+
 	hdd_ctx->max_intf_count = cfg->max_intf_count;
 
 	hdd_lpass_target_config(hdd_ctx, cfg);
@@ -1746,7 +1765,7 @@ void hdd_update_tgt_cfg(void *context, void *param)
 	hdd_debug("Init current antenna mode: %d",
 		 hdd_ctx->current_antenna_mode);
 
-	hdd_ctx->apf_enabled = (cfg->apf_enabled &&
+	hdd_ctx->apf_supported = (cfg->apf_enabled &&
 				hdd_ctx->config->apf_packet_filter_enable);
 	hdd_ctx->rcpi_enabled = cfg->rcpi_enabled;
 	hdd_update_ra_rate_limit(hdd_ctx, cfg);
@@ -1772,11 +1791,12 @@ void hdd_update_tgt_cfg(void *context, void *param)
 	 */
 	hdd_update_wiphy_vhtcap(hdd_ctx);
 	/*
-	 * If APF is enabled, maxWowFilters set to WMA_STA_WOW_DEFAULT_PTRN_MAX
-	 * because we need atleast WMA_STA_WOW_DEFAULT_PTRN_MAX free slots to
-	 * configure the STA mode wow pattern.
+	 * If APF is supported, maxWowFilters set to
+	 * WMA_STA_WOW_DEFAULT_PTRN_MAX	because we need atleast
+	 * WMA_STA_WOW_DEFAULT_PTRN_MAX free slots to configure the STA mode
+	 * wow pattern.
 	 */
-	if (hdd_ctx->apf_enabled)
+	if (hdd_ctx->apf_supported)
 		hdd_ctx->config->maxWoWFilters = WMA_STA_WOW_DEFAULT_PTRN_MAX;
 
 	hdd_ctx->wmi_max_len = cfg->wmi_max_len;
@@ -2057,18 +2077,13 @@ static void hdd_disable_power_management(void)
 	hif_disable_power_management(hif_ctx);
 }
 
-/**
- * hdd_update_hw_sw_info() - API to update the HW/SW information
- *
- * API to update the HW and SW information in the driver
- *
- * Return: None
- */
-static void hdd_update_hw_sw_info(hdd_context_t *hdd_ctx)
+void hdd_update_hw_sw_info(hdd_context_t *hdd_ctx)
 {
 	void *hif_sc;
 	size_t target_hw_name_len;
 	const char *target_hw_name;
+	uint8_t *buf;
+	uint32_t buf_len;
 
 
 	hif_sc = cds_get_context(QDF_MODULE_ID_HIF);
@@ -2077,10 +2092,6 @@ static void hdd_update_hw_sw_info(hdd_context_t *hdd_ctx)
 		return;
 	}
 
-	/*
-	 * target hw version/revision would only be retrieved after firmware
-	 * download
-	 */
 	hif_get_hw_info(hif_sc, &hdd_ctx->target_hw_version,
 			&hdd_ctx->target_hw_revision,
 			&target_hw_name);
@@ -2096,8 +2107,12 @@ static void hdd_update_hw_sw_info(hdd_context_t *hdd_ctx)
 		qdf_mem_copy(hdd_ctx->target_hw_name, target_hw_name,
 			     target_hw_name_len);
 
-	/* Get the wlan hw/fw version */
-	hdd_wlan_get_version(hdd_ctx, NULL, NULL);
+	buf = qdf_mem_malloc(WE_MAX_STR_LEN);
+	if (buf) {
+		buf_len = hdd_wlan_get_version(hdd_ctx, WE_MAX_STR_LEN, buf);
+		hdd_info("%s", buf);
+		qdf_mem_free(buf);
+	}
 }
 
 /**
@@ -2120,6 +2135,42 @@ static void hdd_check_for_leaks(void)
 	qdf_mc_timer_check_for_leaks();
 	qdf_nbuf_map_check_for_leaks();
 	qdf_mem_check_for_leaks();
+}
+
+uint32_t hdd_wlan_get_version(hdd_context_t *hdd_ctx,
+			      const size_t version_len, uint8_t *version)
+{
+	uint32_t size;
+	uint32_t msp_id = 0, mspid = 0, siid = 0, crmid = 0, sub_id = 0;
+
+	if (!hdd_ctx) {
+		hdd_err("Invalid context, HDD context is null");
+		return 0;
+	}
+
+	if (!version && version_len == 0) {
+		hdd_err("Invalid buffer pointr or buffer len\n");
+		return 0;
+	}
+
+	msp_id = (hdd_ctx->target_fw_version & 0xf0000000) >> 28;
+	mspid = (hdd_ctx->target_fw_version & 0xf000000) >> 24;
+	siid = (hdd_ctx->target_fw_version & 0xf00000) >> 20;
+	crmid = hdd_ctx->target_fw_version & 0x7fff;
+	sub_id = (hdd_ctx->target_fw_vers_ext & 0xf0000000) >> 28;
+
+	size = scnprintf(version, version_len,
+			 "Host SW:%s, FW:%d.%d.%d.%d.%d, HW:%s, Board ver: %x Ref design id: %x, Customer id: %x, Project id: %x, Board Data Rev: %x",
+			 QWLAN_VERSIONSTR,
+			 msp_id, mspid, siid, crmid, sub_id,
+			 hdd_ctx->target_hw_name,
+			 hdd_ctx->hw_bd_info.bdf_version,
+			 hdd_ctx->hw_bd_info.ref_design_id,
+			 hdd_ctx->hw_bd_info.customer_id,
+			 hdd_ctx->hw_bd_info.project_id,
+			 hdd_ctx->hw_bd_info.board_data_rev);
+
+	return size;
 }
 
 /**
@@ -2706,6 +2757,12 @@ static int __hdd_set_mac_address(struct net_device *dev, void *addr)
 
 	qdf_mem_copy(&mac_addr, psta_mac_addr->sa_data, QDF_MAC_ADDR_SIZE);
 
+	if (hdd_get_adapter_by_macaddr(hdd_ctx, mac_addr.bytes)) {
+		hdd_err("adapter exist with same mac address " MAC_ADDRESS_STR,
+			MAC_ADDR_ARRAY(mac_addr.bytes));
+		return -EINVAL;
+	}
+
 	if (qdf_is_macaddr_zero(&mac_addr)) {
 		hdd_err("MAC is all zero");
 		return -EINVAL;
@@ -2720,6 +2777,8 @@ static int __hdd_set_mac_address(struct net_device *dev, void *addr)
 		hdd_err("MAC is Multicast");
 		return -EINVAL;
 	}
+	hdd_info("Changing MAC to " MAC_ADDRESS_STR " of the interface %s ",
+		 MAC_ADDR_ARRAY(mac_addr.bytes), dev->name);
 
 	memcpy(&adapter->macAddressCurrent, psta_mac_addr->sa_data, ETH_ALEN);
 	memcpy(dev->dev_addr, psta_mac_addr->sa_data, ETH_ALEN);
@@ -3672,6 +3731,7 @@ static void hdd_cleanup_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 	wlan_hdd_debugfs_csr_deinit(adapter);
 	qdf_mutex_destroy(&adapter->arp_offload_info_lock);
 	hdd_ns_offload_info_lock_destroy(adapter);
+	hdd_apf_context_destroy(adapter);
 
 	hdd_debugfs_exit(adapter);
 
@@ -3989,6 +4049,16 @@ int hdd_set_fw_params(hdd_adapter_t *adapter)
 			PDEV_CMD);
 	if (ret) {
 		hdd_err("Failed to set WMI_PDEV_PARAM_TX_SCH_DELAY");
+		goto error;
+	}
+
+	ret = sme_cli_set_command(
+			adapter->sessionId,
+			WMI_PDEV_PARAM_SECONDARY_RETRY_ENABLE,
+			hdd_ctx->config->enable_secondary_rate,
+			PDEV_CMD);
+	if (ret) {
+		hdd_err("Failed to set WMI_PDEV_PARAM_SECONDARY_RETRY_ENABLE");
 		goto error;
 	}
 
@@ -4350,6 +4420,7 @@ hdd_adapter_t *hdd_open_adapter(hdd_context_t *hdd_ctx, uint8_t session_type,
 
 	qdf_mutex_create(&adapter->arp_offload_info_lock);
 	hdd_ns_offload_info_lock_create(adapter);
+	hdd_apf_context_init(adapter);
 
 	if (adapter->device_mode == QDF_STA_MODE)
 		wlan_hdd_debugfs_csr_init(adapter);
@@ -4540,7 +4611,6 @@ static void hdd_wait_for_sme_close_sesion(hdd_context_t *hdd_ctx,
 				hdd_ndp_session_end_handler(adapter);
 			sme_print_commands(hdd_ctx->hHal);
 			clear_bit(SME_SESSION_OPENED, &adapter->event_flags);
-			return;
 		}
 		adapter->sessionId = HDD_SESSION_ID_INVALID;
 	}
@@ -6307,8 +6377,6 @@ static int hdd_context_deinit(hdd_context_t *hdd_ctx)
 
 	qdf_list_destroy(&hdd_ctx->hddAdapters);
 
-	hdd_apf_context_destroy();
-
 	return 0;
 }
 
@@ -7170,6 +7238,9 @@ static void hdd_bus_bw_work_handler(struct work_struct *work)
 				      &ipa_rx_packets);
 		tx_packets += (uint64_t)ipa_tx_packets;
 		rx_packets += (uint64_t)ipa_rx_packets;
+
+		adapter->stats.tx_packets += ipa_tx_packets;
+		adapter->stats.rx_packets += ipa_rx_packets;
 
 		hdd_ipa_set_perf_level(hdd_ctx, tx_packets, rx_packets);
 		hdd_ipa_uc_stat_request(adapter, 2);
@@ -8463,8 +8534,6 @@ static int hdd_context_init(hdd_context_t *hdd_ctx)
 	init_completion(&hdd_ctx->chain_rssi_context.response_event);
 	init_completion(&hdd_ctx->mc_sus_event_var);
 	init_completion(&hdd_ctx->ready_to_suspend);
-
-	hdd_apf_context_init();
 
 	qdf_spinlock_create(&hdd_ctx->connection_status_lock);
 	qdf_spinlock_create(&hdd_ctx->sta_update_info_lock);
@@ -12502,6 +12571,7 @@ static void hdd_stop_present_mode(hdd_context_t *hdd_ctx,
 		hdd_info("Release wakelock for monitor mode!");
 		qdf_wake_lock_release(&hdd_ctx->monitor_mode_wakelock,
 				      WIFI_POWER_EVENT_WAKELOCK_MONITOR_MODE);
+		/* fallthrough */
 	case QDF_GLOBAL_MISSION_MODE:
 	case QDF_GLOBAL_FTM_MODE:
 		hdd_abort_mac_scan_all_adapters(hdd_ctx);

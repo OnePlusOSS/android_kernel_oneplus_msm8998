@@ -7332,6 +7332,32 @@ enum hdd_link_speed_rpt_type {
 #define CFG_TDLS_PEER_KICKOUT_THRESHOLD_MAX        (5000)
 #define CFG_TDLS_PEER_KICKOUT_THRESHOLD_DEFAULT    (96)
 
+/*
+ * <ini>
+ * gTDLSDiscoveryWakeTimeout - TDLS discovery WAKE timeout in ms.
+ * @Min: 10
+ * @Max: 5000
+ * @Default: 96
+ *
+ * DUT will wake until this timeout to receive TDLS discovery response
+ * from peer. If tdls_discovery_wake_timeout is 0x0, the DUT will
+ * choose autonomously what wake timeout value to use.
+ *
+ *
+ * Related: gEnableTDLSSupport.
+ *
+ * Supported Feature: TDLS
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_TDLS_DISCOVERY_WAKE_TIMEOUT            "gTDLSDiscoveryWakeTimeout"
+#define CFG_TDLS_DISCOVERY_WAKE_TIMEOUT_MIN        (0)
+#define CFG_TDLS_DISCOVERY_WAKE_TIMEOUT_MAX        (2000)
+#define CFG_TDLS_DISCOVERY_WAKE_TIMEOUT_DEFAULT    (200)
+
+
 #endif
 
 /*
@@ -8895,6 +8921,97 @@ enum hdd_link_speed_rpt_type {
 #define CFG_STA_MIRACAST_MCC_REST_TIME_VAL_MAX     (500)
 #define CFG_STA_MIRACAST_MCC_REST_TIME_VAL_DEFAULT (400)
 
+/*
+ * <ini>
+ * sta_scan_burst_duration - Burst duration in case of split scan.
+ * @Min: 0
+ * @Max: 180
+ * @Default: 0
+ *
+ * This ini is used to set burst duration of scan only when STA is active.
+ *
+ * Related: None.
+ *
+ * Supported Feature: Concurrency
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_STA_SCAN_BURST_DURATION_VAL                 "sta_scan_burst_duration"
+#define CFG_STA_SCAN_BURST_DURATION_VAL_MIN             (0)
+#define CFG_STA_SCAN_BURST_DURATION_VAL_MAX             (180)
+#define CFG_STA_SCAN_BURST_DURATION_VAL_DEFAULT         (0)
+
+/*
+ * <ini>
+ * p2p_scan_burst_duration - Burst duration in case of split scan for p2p scan.
+ * @Min: 0
+ * @Max: 180
+ * @Default: 0
+ *
+ * This ini is used to set burst duration of scan for p2p scan requests.
+ *
+ * Related: None.
+ *
+ * Supported Feature: Concurrency
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_P2P_SCAN_BURST_DURATION_VAL                 "p2p_scan_burst_duration"
+#define CFG_P2P_SCAN_BURST_DURATION_VAL_MIN             (0)
+#define CFG_P2P_SCAN_BURST_DURATION_VAL_MAX             (180)
+#define CFG_P2P_SCAN_BURST_DURATION_VAL_DEFAULT         (0)
+
+/*
+ * <ini>
+ * go_scan_burst_duration - Burst duration in case of split scan when GO is
+ * active.
+ * @Min: 0
+ * @Max: 180
+ * @Default: 0
+ *
+ * This ini is used to set burst duration of scan when GO is active.
+ *
+ * Related: None.
+ *
+ * Supported Feature: Concurrency
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_GO_SCAN_BURST_DURATION_VAL                 "go_scan_burst_duration"
+#define CFG_GO_SCAN_BURST_DURATION_VAL_MIN             (0)
+#define CFG_GO_SCAN_BURST_DURATION_VAL_MAX             (180)
+#define CFG_GO_SCAN_BURST_DURATION_VAL_DEFAULT         (0)
+
+/*
+ * <ini>
+ * ap_scan_burst_duration - Burst duration in case of split scan when ap
+ * is active.
+ * @Min: 0
+ * @Max: 32
+ * @Default: 0
+ *
+ * This ini is used to set burst duration of scan when SAP is active.
+ *
+ * Related: None.
+ *
+ * Supported Feature: Concurrency
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_AP_SCAN_BURST_DURATION_VAL                 "ap_scan_burst_duration"
+#define CFG_AP_SCAN_BURST_DURATION_VAL_MIN             (0)
+#define CFG_AP_SCAN_BURST_DURATION_VAL_MAX             (32)
+#define CFG_AP_SCAN_BURST_DURATION_VAL_DEFAULT         (0)
+
+
 #ifdef FEATURE_AP_MCC_CH_AVOIDANCE
 /*
  * <ini>
@@ -9261,7 +9378,7 @@ enum hdd_link_speed_rpt_type {
  *
  * Supported Feature: STA
  *
- * Usage: Internal/External
+ * Usage: Internal
  *
  * </ini>
  */
@@ -9287,7 +9404,7 @@ enum hdd_link_speed_rpt_type {
  *
  * Supported Feature: STA
  *
- * Usage: Internal/External
+ * Usage: Internal
  *
  * </ini>
  */
@@ -9313,7 +9430,7 @@ enum hdd_link_speed_rpt_type {
  *
  * Supported Feature: STA
  *
- * Usage: Internal/External
+ * Usage: Internal
  *
  * </ini>
  */
@@ -9339,7 +9456,7 @@ enum hdd_link_speed_rpt_type {
  *
  * Supported Feature: STA
  *
- * Usage: Internal/External
+ * Usage: Internal
  *
  * </ini>
  */
@@ -9388,7 +9505,7 @@ enum hdd_link_speed_rpt_type {
  *
  * Supported Feature: STA
  *
- * Usage: External
+ * Usage: Internal
  *
  * </ini>
  */
@@ -9412,7 +9529,7 @@ enum hdd_link_speed_rpt_type {
  *
  * Supported Feature: STA
  *
- * Usage: External
+ * Usage: Internal
  *
  * </ini>
  */
@@ -9436,7 +9553,7 @@ enum hdd_link_speed_rpt_type {
  *
  * Supported Feature: STA
  *
- * Usage: External
+ * Usage: Internal
  *
  * </ini>
  */
@@ -9460,7 +9577,7 @@ enum hdd_link_speed_rpt_type {
  *
  * Supported Feature: STA
  *
- * Usage: External
+ * Usage: Internal
  *
  * </ini>
  */
@@ -11229,29 +11346,6 @@ enum restart_beaconing_on_ch_avoid_rule {
 
 /*
  * <ini>
- * gBmpsModListenInterval - Set BMPS Moderate Listen Interval
- * @Min: 1
- * @Max: 65535
- * @Default: 1
- *
- * This ini is used to set BMPS Moderate Listen Interval. If gPowerUsage
- * is set "Mod", this INI need to be set.
- *
- * Related: gEnableBmps, gPowerUsage
- *
- * Supported Feature: Power Save
- *
- * Usage: External
- *
- * </ini>
- */
-#define CFG_BMPS_MODERATE_LI_NAME              "gBmpsModListenInterval"
-#define CFG_BMPS_MODERATE_LI_MIN               (1)
-#define CFG_BMPS_MODERATE_LI_MAX               (65535)
-#define CFG_BMPS_MODERATE_LI_DEFAULT           (1)
-
-/*
- * <ini>
  * gBmpsMaxListenInterval - Set BMPS Maximum Listen Interval
  * @Min: 1
  * @Max: 65535
@@ -12440,7 +12534,44 @@ enum hw_filter_mode {
 #define CFG_ACTION_OUI_CCKM_1X1_NAME    "gActionOUICCKM1X1"
 #define CFG_ACTION_OUI_CCKM_1X1_DEFAULT ""
 
-/* End of action oui inis */
+/*
+ * <ini>
+ * gActionOUIITOAlternate - Used to specify action OUIs to have alternate ITO in
+ * weak RSSI state
+ *
+ * This ini is used to specify AP OUIs for which the stations will have
+ * alternate ITOs for the case when the RSSI is weak.
+ *
+ * Related: None
+ *
+ * Supported Feature: Action OUIs
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+ #define CFG_ACTION_OUI_ITO_ALTERNATE_NAME    "gActionOUIITOAlternate"
+ #define CFG_ACTION_OUI_ITO_ALTERNATE_DEFAULT "001018 06 0202001c0000 FC 01"
+
+/*
+ * <ini>
+ * gActionOUISwitchTo11nMode - Used to specify action OUIs for switching to 11n
+ *
+ * This ini is used to specify which AP for which the connection has to be
+ * made in 2x2 mode with HT capabilities only and not VHT.
+ *
+ * Related: None
+ *
+ * Supported Feature: Action OUIs
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ACTION_OUI_SWITCH_TO_11N_MODE_NAME    "gActionOUISwitchTo11nMode"
+#define CFG_ACTION_OUI_SWITCH_TO_11N_MODE_DEFAULT "00904C 03 FFFFBF 20 21 40"
+
+ /* End of action oui inis */
 
 /*
  * <ini>
@@ -14627,7 +14758,7 @@ enum hw_filter_mode {
  * gTxSchDelay - Enable/Disable Tx sch delay
  * @Min: 0
  * @Max: 5
- * @Default: 2
+ * @Default: 0
  *
  * Usage: Internal/External
  *
@@ -14637,7 +14768,7 @@ enum hw_filter_mode {
 #define CFG_TX_SCH_DELAY_NAME          "gTxSchDelay"
 #define CFG_TX_SCH_DELAY_MIN           (0)
 #define CFG_TX_SCH_DELAY_MAX           (5)
-#define CFG_TX_SCH_DELAY_DEFAULT       (2)
+#define CFG_TX_SCH_DELAY_DEFAULT       (0)
 
 /*
  * <ini>
@@ -14671,6 +14802,31 @@ enum hw_filter_mode {
 #define CFG_ENABLE_UNIT_TEST_FRAMEWORK_MAX     (1)
 #define CFG_ENABLE_UINT_TEST_FRAMEWORK_DEFAULT (0)
 
+/*
+ * <ini>
+ * gEnableSecondaryRate - Enable/Disable Secondary Retry Rate feature subset
+ *
+ * @Min: 0x0
+ * @Max: 0x3F
+ * @Default: 0x18
+ *
+ * It is a 32 bit value such that the various bits represent as below -
+ * Bit-0 : is Enable/Disable Control for "PPDU Secondary Retry Support"
+ * Bit-1 : is Enable/Disable Control for "RTS Black/White-listing Support"
+ * Bit-2 : is Enable/Disable Control for "Higher MCS retry restriction
+ *         on XRETRY failures"
+ * Bit 3-5 : is "Xretry threshold" to use
+ * Bit 3~31 : reserved for future use.
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+
+#define CFG_ENABLE_SECONDARY_RATE_NAME          "gEnableSecondaryRate"
+#define CFG_ENABLE_SECONDARY_RATE_MIN           (0)
+#define CFG_ENABLE_SECONDARY_RATE_MAX           (0x3F)
+#define CFG_ENABLE_SECONDARY_RATE_DEFAULT       (0x18)
 
 /*---------------------------------------------------------------------------
    Type declarations
@@ -14696,7 +14852,6 @@ struct hdd_config {
 	bool is_ps_enabled;
 	uint32_t auto_bmps_timer_val;
 	uint32_t icmp_disable_ps_val;
-	uint32_t nBmpsModListenInterval;
 	uint32_t nBmpsMaxListenInterval;
 	uint32_t nBmpsMinListenInterval;
 	enum hdd_dot11_mode dot11Mode;
@@ -15041,6 +15196,7 @@ struct hdd_config {
 	uint8_t fTDLSPrefOffChanBandwidth;
 	uint8_t enable_tdls_scan;
 	uint32_t tdls_peer_kickout_threshold;
+	uint32_t tdls_discovery_wake_timeout;
 #endif
 #ifdef WLAN_SOFTAP_VSTA_FEATURE
 	bool fEnableVSTASupport;
@@ -15264,6 +15420,10 @@ struct hdd_config {
 	uint8_t is_sta_connection_in_5gz_enabled;
 	uint16_t p2p_listen_defer_interval;
 	uint32_t sta_miracast_mcc_rest_time_val;
+	uint32_t sta_scan_burst_duration;
+	uint32_t p2p_scan_burst_duration;
+	uint32_t go_scan_burst_duration;
+	uint32_t ap_scan_burst_duration;
 	bool is_ramdump_enabled;
 #ifdef FEATURE_AP_MCC_CH_AVOIDANCE
 	bool sap_channel_avoidance;
@@ -15529,6 +15689,8 @@ struct hdd_config {
 	uint8_t action_oui_connect_1x1[MAX_ACTION_OUI_STRING_LEN];
 	uint8_t action_oui_ito_extension[MAX_ACTION_OUI_STRING_LEN];
 	uint8_t action_oui_cckm_1x1[MAX_ACTION_OUI_STRING_LEN];
+	uint8_t action_oui_ito_alternate[MAX_ACTION_OUI_STRING_LEN];
+	uint8_t action_oui_switch_to_11n[MAX_ACTION_OUI_STRING_LEN];
 	uint8_t rssi_weightage;
 	uint8_t ht_caps_weightage;
 	uint8_t vht_caps_weightage;
@@ -15596,6 +15758,7 @@ struct hdd_config {
 	bool enable_rtt_mac_randomization;
 	bool enable_ftopen;
 	bool is_unit_test_framework_enabled;
+	uint32_t enable_secondary_rate;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

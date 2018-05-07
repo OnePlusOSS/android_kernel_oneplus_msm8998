@@ -390,23 +390,33 @@ QDF_STATUS wma_get_buf_start_scan_cmd(tp_wma_handle wma_handle,
 				 * of channels in every transition by using
 				 * burst scan.
 				 */
-				cmd->burst_duration =
-					 wma_get_burst_duration(
-						scan_req->maxChannelTime,
-						wma_handle->miracast_value);
+				 if (pMac->go_scan_burst_duration) {
+					 cmd->burst_duration =
+						 pMac->go_scan_burst_duration;
+				 } else {
+					 cmd->burst_duration =
+						 wma_get_burst_duration(
+						 scan_req->maxChannelTime,
+						 wma_handle->miracast_value);
+				 }
 
 				break;
 			}
 			if (wma_is_sta_active(wma_handle) ||
 			    wma_is_p2p_cli_active(wma_handle)) {
-				if (scan_req->burst_scan_duration)
-					cmd->burst_duration =
-						scan_req->burst_scan_duration;
-				else
-					/* Typical background scan.
-					 * Disable burst scan for now.
-					 */
-					cmd->burst_duration = 0;
+				 if (pMac->sta_scan_burst_duration) {
+					 cmd->burst_duration =
+						 pMac->sta_scan_burst_duration;
+				 } else {
+					 if (scan_req->burst_scan_duration)
+						 cmd->burst_duration =
+						 scan_req->burst_scan_duration;
+					 else
+						 /* Typical background scan.
+						  * Disable burst scan for now.
+						  */
+						 cmd->burst_duration = 0;
+				 }
 				break;
 			}
 			if (wma_is_ndi_active(wma_handle)) {
@@ -449,20 +459,28 @@ QDF_STATUS wma_get_buf_start_scan_cmd(tp_wma_handle wma_handle,
 				cmd->repeat_probe_time =
 					scan_req->maxChannelTime / 3;
 
-			cmd->burst_duration =
-				WMA_BURST_SCAN_MAX_NUM_OFFCHANNELS *
-				scan_req->maxChannelTime;
-			if (cmd->burst_duration >
-			    WMA_P2P_SCAN_MAX_BURST_DURATION) {
-				uint8_t channels =
-					WMA_P2P_SCAN_MAX_BURST_DURATION /
+			if (pMac->p2p_scan_burst_duration) {
+				cmd->burst_duration =
+					pMac->p2p_scan_burst_duration;
+			} else {
+				cmd->burst_duration =
+					WMA_BURST_SCAN_MAX_NUM_OFFCHANNELS *
 					scan_req->maxChannelTime;
-				if (channels)
-					cmd->burst_duration =
-						channels * scan_req->maxChannelTime;
-				else
-					cmd->burst_duration =
+				if (cmd->burst_duration >
+					WMA_P2P_SCAN_MAX_BURST_DURATION) {
+					uint8_t channels =
+						WMA_P2P_SCAN_MAX_BURST_DURATION
+						/ scan_req->maxChannelTime;
+					if (channels) {
+						cmd->burst_duration =
+							channels *
+							scan_req->
+							maxChannelTime;
+					} else {
+						cmd->burst_duration =
 						WMA_P2P_SCAN_MAX_BURST_DURATION;
+					}
+				}
 			}
 			cmd->scan_priority = WMI_SCAN_PRIORITY_MEDIUM;
 			break;
@@ -488,11 +506,16 @@ QDF_STATUS wma_get_buf_start_scan_cmd(tp_wma_handle wma_handle,
 					cds_get_channel(CDS_SAP_MODE, NULL)))) {
 			cmd->dwell_time_passive = cmd->dwell_time_active;
 		}
-		cmd->burst_duration = 0;
-		if (CDS_IS_DFS_CH(cds_get_channel(CDS_SAP_MODE, NULL)))
-			cmd->burst_duration =
-				WMA_BURST_SCAN_MAX_NUM_OFFCHANNELS *
-				scan_req->maxChannelTime;
+
+		if (pMac->ap_scan_burst_duration) {
+			cmd->burst_duration = pMac->ap_scan_burst_duration;
+		} else {
+			cmd->burst_duration = 0;
+			if (CDS_IS_DFS_CH(cds_get_channel(CDS_SAP_MODE, NULL)))
+				cmd->burst_duration =
+					WMA_BURST_SCAN_MAX_NUM_OFFCHANNELS *
+					scan_req->maxChannelTime;
+		}
 		WMA_LOGD("SAP: burst_duration: %d", cmd->burst_duration);
 	}
 
@@ -2732,7 +2755,16 @@ static int wma_fill_roam_synch_buffer(tp_wma_handle wma,
 
 	fils_info = (wmi_roam_fils_synch_tlv_param *)
 			(param_buf->roam_fils_synch_info);
-	if (param_buf->roam_fils_synch_info) {
+	if (fils_info) {
+		if ((fils_info->kek_len > SIR_KEK_KEY_LEN_FILS) ||
+		    (fils_info->pmk_len > SIR_PMK_LEN)) {
+			WMA_LOGE("%s: Invalid kek_len %d or pmk_len %d",
+				 __func__,
+				 fils_info->kek_len,
+				 fils_info->pmk_len);
+			return -EINVAL;
+		}
+
 		roam_synch_ind_ptr->kek_len = fils_info->kek_len;
 		qdf_mem_copy(roam_synch_ind_ptr->kek, fils_info->kek,
 			     fils_info->kek_len);

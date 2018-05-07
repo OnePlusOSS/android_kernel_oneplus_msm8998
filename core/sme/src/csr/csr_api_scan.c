@@ -3849,12 +3849,10 @@ static struct tag_csrscan_result *csr_scan_save_bss_description(tpAniSirGlobal
 				       bssId));
 		qdf_mem_copy(&pCsrBssDescription->Result.BssDescriptor,
 			     pBSSDescription, cbBSSDesc);
-#if defined(QDF_ENSBALED)
 		if (NULL != pCsrBssDescription->Result.pvIes) {
 			QDF_ASSERT(pCsrBssDescription->Result.pvIes == NULL);
 			return NULL;
 		}
-#endif
 		csr_scan_add_result(pMac, pCsrBssDescription, pIes, sessionId);
 	}
 

@@ -459,13 +459,6 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_BMPS_MAXIMUM_LI_MIN,
 		     CFG_BMPS_MAXIMUM_LI_MAX),
 
-	REG_VARIABLE(CFG_BMPS_MODERATE_LI_NAME, WLAN_PARAM_Integer,
-		     struct hdd_config, nBmpsModListenInterval,
-		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
-		     CFG_BMPS_MODERATE_LI_DEFAULT,
-		     CFG_BMPS_MODERATE_LI_MIN,
-		     CFG_BMPS_MODERATE_LI_MAX),
-
 	REG_VARIABLE(CFG_DOT11_MODE_NAME, WLAN_PARAM_Integer,
 		     struct hdd_config, dot11Mode,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK,
@@ -2521,6 +2514,13 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_TDLS_PEER_KICKOUT_THRESHOLD_MIN,
 		     CFG_TDLS_PEER_KICKOUT_THRESHOLD_MAX),
 
+	REG_VARIABLE(CFG_TDLS_DISCOVERY_WAKE_TIMEOUT, WLAN_PARAM_Integer,
+		     struct hdd_config, tdls_discovery_wake_timeout,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_TDLS_DISCOVERY_WAKE_TIMEOUT_DEFAULT,
+		     CFG_TDLS_DISCOVERY_WAKE_TIMEOUT_MIN,
+		     CFG_TDLS_DISCOVERY_WAKE_TIMEOUT_MAX),
+
 #endif
 
 #ifdef WLAN_SOFTAP_VSTA_FEATURE
@@ -3650,6 +3650,34 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_STA_MIRACAST_MCC_REST_TIME_VAL_DEFAULT,
 		     CFG_STA_MIRACAST_MCC_REST_TIME_VAL_MIN,
 		     CFG_STA_MIRACAST_MCC_REST_TIME_VAL_MAX),
+
+	REG_VARIABLE(CFG_STA_SCAN_BURST_DURATION_VAL, WLAN_PARAM_Integer,
+		     struct hdd_config, sta_scan_burst_duration,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_STA_SCAN_BURST_DURATION_VAL_DEFAULT,
+		     CFG_STA_SCAN_BURST_DURATION_VAL_MIN,
+		     CFG_STA_SCAN_BURST_DURATION_VAL_MAX),
+
+	REG_VARIABLE(CFG_P2P_SCAN_BURST_DURATION_VAL, WLAN_PARAM_Integer,
+		     struct hdd_config, p2p_scan_burst_duration,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_P2P_SCAN_BURST_DURATION_VAL_DEFAULT,
+		     CFG_P2P_SCAN_BURST_DURATION_VAL_MIN,
+		     CFG_P2P_SCAN_BURST_DURATION_VAL_MAX),
+
+	REG_VARIABLE(CFG_GO_SCAN_BURST_DURATION_VAL, WLAN_PARAM_Integer,
+		     struct hdd_config, go_scan_burst_duration,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_GO_SCAN_BURST_DURATION_VAL_DEFAULT,
+		     CFG_GO_SCAN_BURST_DURATION_VAL_MIN,
+		     CFG_GO_SCAN_BURST_DURATION_VAL_MAX),
+
+	REG_VARIABLE(CFG_AP_SCAN_BURST_DURATION_VAL, WLAN_PARAM_Integer,
+		     struct hdd_config, ap_scan_burst_duration,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_AP_SCAN_BURST_DURATION_VAL_DEFAULT,
+		     CFG_AP_SCAN_BURST_DURATION_VAL_MIN,
+		     CFG_AP_SCAN_BURST_DURATION_VAL_MAX),
 
 #ifdef FEATURE_AP_MCC_CH_AVOIDANCE
 	REG_VARIABLE(CFG_SAP_MCC_CHANNEL_AVOIDANCE_NAME,
@@ -5136,6 +5164,17 @@ struct reg_table_entry g_registry_table[] = {
 			    VAR_FLAGS_OPTIONAL,
 			    (void *)CFG_ACTION_OUI_CCKM_1X1_DEFAULT),
 
+	REG_VARIABLE_STRING(CFG_ACTION_OUI_ITO_ALTERNATE_NAME,
+			    WLAN_PARAM_String,
+			    struct hdd_config, action_oui_ito_alternate,
+			    VAR_FLAGS_OPTIONAL,
+			    (void *)CFG_ACTION_OUI_ITO_ALTERNATE_DEFAULT),
+	REG_VARIABLE_STRING(CFG_ACTION_OUI_SWITCH_TO_11N_MODE_NAME,
+			    WLAN_PARAM_String,
+			    struct hdd_config, action_oui_switch_to_11n,
+			    VAR_FLAGS_OPTIONAL,
+			    (void *)CFG_ACTION_OUI_SWITCH_TO_11N_MODE_DEFAULT),
+
 	REG_VARIABLE(CFG_DTIM_1CHRX_ENABLE_NAME, WLAN_PARAM_Integer,
 		struct hdd_config, enable_dtim_1chrx,
 		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -5665,6 +5704,14 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_ENABLE_UINT_TEST_FRAMEWORK_DEFAULT,
 		     CFG_ENABLE_UNIT_TEST_FRAMEWORK_MIN,
 		     CFG_ENABLE_UNIT_TEST_FRAMEWORK_MAX),
+
+	REG_VARIABLE(CFG_ENABLE_SECONDARY_RATE_NAME,
+		     WLAN_PARAM_HexInteger,
+		     struct hdd_config, enable_secondary_rate,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ENABLE_SECONDARY_RATE_DEFAULT,
+		     CFG_ENABLE_SECONDARY_RATE_MIN,
+		     CFG_ENABLE_SECONDARY_RATE_MAX),
 };
 
 /**
@@ -6415,8 +6462,6 @@ static void hdd_set_power_save_offload_config(hdd_context_t *pHddCtx)
 		listenInterval = pConfig->nBmpsMinListenInterval;
 	else if (strcmp(pConfig->PowerUsageControl, "Max") == 0)
 		listenInterval = pConfig->nBmpsMaxListenInterval;
-	else if (strcmp(pConfig->PowerUsageControl, "Mod") == 0)
-		listenInterval = pConfig->nBmpsModListenInterval;
 
 	/*
 	 * Based on Mode Set the LI
@@ -7572,6 +7617,9 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_debug("Name = [%s] value = [0x%x]",
 		  CFG_ENABLE_UNIT_TEST_FRAMEWORK_NAME,
 		  pHddCtx->config->is_unit_test_framework_enabled);
+	hdd_debug("Name = [%s] value = [0x%x]",
+		  CFG_ENABLE_SECONDARY_RATE_NAME,
+		  pHddCtx->config->enable_secondary_rate);
 }
 
 /**
@@ -9513,7 +9561,6 @@ static void hdd_set_sme_action_oui(hdd_context_t *hdd_ctx,
 	ini_len = qdf_str_len(ini_string);
 	if (!ini_len)
 		return;
-
 	oui_string = qdf_mem_malloc(ini_len + 1);
 	if (!oui_string) {
 		hdd_err("mem alloc failed for ini string of action oui: %u",
@@ -9557,6 +9604,17 @@ void hdd_set_all_sme_action_ouis(hdd_context_t *hdd_ctx)
 	ini_string[MAX_ACTION_OUI_STRING_LEN - 1] = '\0';
 	hdd_set_sme_action_oui(hdd_ctx, ini_string,
 			       WMI_ACTION_OUI_CCKM_1X1);
+
+	ini_string = config->action_oui_ito_alternate;
+	ini_string[MAX_ACTION_OUI_STRING_LEN - 1] = '\0';
+	hdd_set_sme_action_oui(hdd_ctx, ini_string,
+			       WMI_ACTION_OUI_ITO_ALTERNATE);
+
+	ini_string = config->action_oui_switch_to_11n;
+	ini_string[MAX_ACTION_OUI_STRING_LEN - 1] = '\0';
+	hdd_set_sme_action_oui(hdd_ctx, ini_string,
+			       WMI_ACTION_OUI_SWITCH_TO_11N_MODE);
+
 }
 
 /* End of action oui functions */
@@ -10026,6 +10084,14 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 	smeConfig->csrConfig.f_sta_miracast_mcc_rest_time_val =
 		pHddCtx->config->sta_miracast_mcc_rest_time_val;
 
+	smeConfig->csrConfig.sta_scan_burst_duration =
+		pHddCtx->config->sta_scan_burst_duration;
+	smeConfig->csrConfig.p2p_scan_burst_duration =
+		pHddCtx->config->p2p_scan_burst_duration;
+	smeConfig->csrConfig.go_scan_burst_duration =
+		pHddCtx->config->go_scan_burst_duration;
+	smeConfig->csrConfig.ap_scan_burst_duration =
+		pHddCtx->config->ap_scan_burst_duration;
 #ifdef FEATURE_AP_MCC_CH_AVOIDANCE
 	smeConfig->csrConfig.sap_channel_avoidance =
 		pHddCtx->config->sap_channel_avoidance;

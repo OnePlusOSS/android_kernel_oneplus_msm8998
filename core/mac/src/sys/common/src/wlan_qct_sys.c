@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -245,6 +245,9 @@ QDF_STATUS sys_mc_process_msg(v_CONTEXT_t p_cds_context, cds_msg_t *pMsg)
 			if (NULL != data_stall_detect_callback)
 				data_stall_detect_callback(pMsg->bodyptr);
 			qdf_mem_free(pMsg->bodyptr);
+			break;
+		case SYS_MSG_ID_CLEAN_VDEV_RSP_QUEUE:
+			wma_cleanup_vdev_resp_and_hold_req(pMsg->bodyptr);
 			break;
 		default:
 			QDF_TRACE(QDF_MODULE_ID_SYS, QDF_TRACE_LEVEL_ERROR,

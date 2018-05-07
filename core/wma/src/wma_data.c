@@ -1224,6 +1224,7 @@ void wma_set_linkstate(tp_wma_handle wma, tpLinkStateParams params)
 			WMA_LOGP(FL("Failed to fill vdev request for vdev_id %d"),
 				 vdev_id);
 			params->status = false;
+			goto out;
 		}
 
 		status = wma_send_vdev_stop_to_fw(wma, vdev_id);

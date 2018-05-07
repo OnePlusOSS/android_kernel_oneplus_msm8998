@@ -217,6 +217,7 @@ typedef struct connection_info_s {
 	eCsrAuthType last_auth_type;
 	char auth_time[HDD_TIME_STRING_LEN];
 	char connect_time[HDD_TIME_STRING_LEN];
+	enum phy_ch_width ch_width;
 } connection_info_t;
 
 /* Forward declarations */

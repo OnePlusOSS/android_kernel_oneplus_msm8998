@@ -1065,7 +1065,8 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 	if ((resp_event->vdev_id < wma->max_bssid) &&
 	    (qdf_atomic_read(
 	    &wma->interfaces[resp_event->vdev_id].vdev_restart_params.hidden_ssid_restart_in_progress))
-	    && (wma_is_vdev_in_ap_mode(wma, resp_event->vdev_id) == true)) {
+	    && (wma_is_vdev_in_ap_mode(wma, resp_event->vdev_id) == true)
+	    && (req_msg->msg_type == WMA_HIDDEN_SSID_VDEV_RESTART)) {
 		tpHalHiddenSsidVdevRestart hidden_ssid_restart =
 			(tpHalHiddenSsidVdevRestart)req_msg->user_data;
 		WMA_LOGE("%s: vdev restart event recevied for hidden ssid set using IOCTL",
@@ -3178,6 +3179,11 @@ struct wma_target_req *wma_fill_hold_req(tp_wma_handle wma,
 	struct wma_target_req *req;
 	QDF_STATUS status;
 
+	if (!cds_is_target_ready()) {
+		WMA_LOGE("target not ready, drop the request");
+		return NULL;
+	}
+
 	req = qdf_mem_malloc(sizeof(*req));
 	if (!req) {
 		WMA_LOGE(FL("Failed to allocate memory for msg %d vdev %d"),
@@ -3414,15 +3420,25 @@ void wma_vdev_resp_timer(void *data)
 		params->status = QDF_STATUS_E_TIMEOUT;
 
 		WMA_LOGA("%s: WMA_DEL_STA_SELF_REQ timedout", __func__);
-		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true)
+		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true) {
 			QDF_BUG(0);
-		else
+		} else if (!cds_is_driver_unloading() &&
+			   (cds_is_fw_down() || cds_is_driver_recovering())) {
+			qdf_mem_free(iface->del_staself_req);
+			iface->del_staself_req = NULL;
+		} else {
 			wma_send_del_sta_self_resp(iface->del_staself_req);
+		}
 
-		if (iface->addBssStaContext)
+		if (iface->addBssStaContext) {
 			qdf_mem_free(iface->addBssStaContext);
-		if (iface->staKeyParams)
+			iface->addBssStaContext = NULL;
+		}
+
+		if (iface->staKeyParams) {
 			qdf_mem_free(iface->staKeyParams);
+			iface->staKeyParams = NULL;
+		}
 
 		wma_vdev_deinit(iface);
 		qdf_mem_zero(iface, sizeof(*iface));
@@ -3497,6 +3513,11 @@ struct wma_target_req *wma_fill_vdev_req(tp_wma_handle wma,
 {
 	struct wma_target_req *req;
 	QDF_STATUS status;
+
+	if (!cds_is_target_ready()) {
+		WMA_LOGE("target not ready, drop the request");
+		return NULL;
+	}
 
 	req = qdf_mem_malloc(sizeof(*req));
 	if (!req) {

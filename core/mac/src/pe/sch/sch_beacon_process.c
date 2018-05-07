@@ -793,8 +793,12 @@ static void __sch_beacon_process_for_session(tpAniSirGlobal mac_ctx,
 			 * delete all TDLS peers before leaving BSS and proceed
 			 * for channel switch
 			 */
-			if (LIM_IS_STA_ROLE(session))
+			if (LIM_IS_STA_ROLE(session)) {
+#ifdef FEATURE_WLAN_TDLS
+				session->is_tdls_csa = true;
+#endif
 				lim_delete_tdls_peers(mac_ctx, session);
+			}
 
 			lim_update_channel_switch(mac_ctx, bcn, session);
 		} else if (session->gLimSpecMgmt.dot11hChanSwState ==
@@ -860,7 +864,7 @@ static void __sch_beacon_process_for_session(tpAniSirGlobal mac_ctx,
 	if (sendProbeReq)
 		lim_send_probe_req_mgmt_frame(mac_ctx, &session->ssId,
 			session->bssId, session->currentOperChannel,
-			session->selfMacAddr, session->dot11mode, 0, NULL);
+			session->selfMacAddr, session->dot11mode, NULL, NULL);
 
 	if ((false == mac_ctx->sap.SapDfsInfo.is_dfs_cac_timer_running)
 	    && beaconParams.paramChangeBitmap) {

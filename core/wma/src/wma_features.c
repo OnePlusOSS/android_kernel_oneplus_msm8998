@@ -9138,6 +9138,8 @@ QDF_STATUS wma_update_fw_tdls_state(WMA_HANDLE handle, void *pwmaTdlsparams)
 		wma_tdls->teardown_notification_ms;
 	params.tdls_peer_kickout_threshold =
 		wma_tdls->tdls_peer_kickout_threshold;
+	params.tdls_discovery_wake_timeout =
+		wma_tdls->tdls_discovery_wake_timeout;
 
 	ret = wmi_unified_update_fw_tdls_state_cmd(wma_handle->wmi_handle,
 					&params, tdls_state);
@@ -9799,6 +9801,8 @@ QDF_STATUS wma_process_set_ie_info(tp_wma_handle wma,
 	return ret;
 }
 
+static void *apf_context;
+
 int wma_get_apf_caps_event_handler(void *handle,
 			u_int8_t *cmd_param_info,
 			u_int32_t len)
@@ -9836,12 +9840,12 @@ int wma_get_apf_caps_event_handler(void *handle,
 	apf_get_offload->max_bytes_for_apf_inst);
 
 	WMA_LOGD("%s: sending apf capabilities event to hdd", __func__);
-	pmac->sme.papf_get_offload_cb(pmac->hHdd, apf_get_offload);
+	pmac->sme.papf_get_offload_cb(apf_context, apf_get_offload);
 	qdf_mem_free(apf_get_offload);
 	return 0;
 }
 
-QDF_STATUS wma_get_apf_capabilities(tp_wma_handle wma)
+QDF_STATUS wma_get_apf_capabilities(tp_wma_handle wma, void *context)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	wmi_bpf_get_capability_cmd_fixed_param *cmd;
@@ -9860,6 +9864,7 @@ QDF_STATUS wma_get_apf_capabilities(tp_wma_handle wma)
 		return QDF_STATUS_E_FAILURE;
 	}
 
+	apf_context = context;
 	len = sizeof(*cmd);
 	wmi_buf = wmi_buf_alloc(wma->wmi_handle, len);
 	if (!wmi_buf) {
@@ -10894,7 +10899,7 @@ int wma_get_arp_stats_handler(void *handle, uint8_t *data,
 	wmi_vdev_get_arp_stats_event_fixed_param *data_event;
 	wmi_vdev_get_connectivity_check_stats *connect_stats_event;
 	uint8_t *buf_ptr;
-	struct rsp_stats rsp;
+	struct rsp_stats rsp = {0};
 	tpAniSirGlobal mac = cds_get_context(QDF_MODULE_ID_PE);
 
 	ENTER();

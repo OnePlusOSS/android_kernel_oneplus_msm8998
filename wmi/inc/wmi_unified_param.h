@@ -3236,6 +3236,7 @@ struct wmi_tdls_params {
 	uint32_t puapsd_rx_frame_threshold;
 	uint32_t teardown_notification_ms;
 	uint32_t tdls_peer_kickout_threshold;
+	uint32_t tdls_discovery_wake_timeout;
 };
 
 /**
@@ -7389,7 +7390,9 @@ enum wmi_action_oui_id {
 	WMI_ACTION_OUI_CONNECT_1X1 = 0,
 	WMI_ACTION_OUI_ITO_EXTENSION = 1,
 	WMI_ACTION_OUI_CCKM_1X1 = 2,
-	WMI_ACTION_OUI_MAXIMUM_ID = 3,
+	WMI_ACTION_OUI_ITO_ALTERNATE = 3,
+	WMI_ACTION_OUI_SWITCH_TO_11N_MODE = 4,
+	WMI_ACTION_OUI_MAXIMUM_ID = 5,
 };
 
 /**

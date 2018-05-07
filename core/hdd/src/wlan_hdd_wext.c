@@ -3042,6 +3042,7 @@ int hdd_wlan_dump_stats(hdd_adapter_t *adapter, int value)
 		break;
 	case WLAN_LRO_STATS:
 		hdd_lro_display_stats(hdd_ctx);
+		break;
 	case WLAN_NAPI_STATS:
 		if (hdd_display_napi_stats()) {
 			hdd_err("error displaying napi stats");

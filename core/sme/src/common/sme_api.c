@@ -2980,6 +2980,7 @@ QDF_STATUS sme_process_msg(tHalHandle hHal, cds_msg_t *pMsg)
 		} else {
 			sme_err("Empty message for: %d", pMsg->type);
 		}
+		break;
 	case eWNI_SME_SET_THERMAL_LEVEL_IND:
 		if (pMac->sme.set_thermal_level_cb)
 			pMac->sme.set_thermal_level_cb(pMac->hHdd,

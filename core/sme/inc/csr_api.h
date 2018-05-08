@@ -1000,6 +1000,7 @@ typedef struct tagCsrRoamProfile {
 	struct qdf_mac_addr bssid_hint;
 	bool force_24ghz_in_ht20;
 	bool supplicant_disabled_roaming;
+	bool driver_disabled_roaming;
 #ifdef WLAN_FEATURE_FILS_SK
 	bool fils_connection;
 	uint8_t *hlp_ie;

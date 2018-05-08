@@ -3466,7 +3466,7 @@ QDF_STATUS hdd_init_station_mode(hdd_adapter_t *adapter)
 
 	ret_val = sme_cli_set_command(adapter->sessionId,
 				      WMI_PDEV_PARAM_BURST_ENABLE,
-				      hdd_ctx->config->enableSifsBurst,
+				      HDD_ENABLE_SIFS_BURST_DEFAULT,
 				      PDEV_CMD);
 
 	if (0 != ret_val) {
@@ -10152,15 +10152,6 @@ static int hdd_features_init(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 	uint32_t num_11ag_tx_chains = 0;
 
 	ENTER();
-
-	if (hdd_ctx->config->sifs_burst_duration) {
-		set_value = (SIFS_BURST_DUR_MULTIPLIER) *
-			hdd_ctx->config->sifs_burst_duration;
-
-		if ((set_value > 0) && (set_value <= SIFS_BURST_DUR_MAX))
-			sme_cli_set_command(0, WMI_PDEV_PARAM_BURST_DUR,
-					    set_value, PDEV_CMD);
-	}
 
 	sme_set_chip_pwr_save_fail_cb(hdd_ctx->hHal,
 				      hdd_chip_pwr_save_fail_detected_cb);

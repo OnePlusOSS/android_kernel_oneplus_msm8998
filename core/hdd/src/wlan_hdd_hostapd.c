@@ -1805,21 +1805,6 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 			}
 		}
 
-
-		if ((CHANNEL_STATE_DFS ==
-		     cds_get_channel_state(pHddApCtx->operatingChannel))
-		    && (pHddCtx->config->IsSapDfsChSifsBurstEnabled == 0)) {
-
-			hdd_debug("Set SIFS Burst disable for DFS channel %d",
-			       pHddApCtx->operatingChannel);
-
-			if (wma_cli_set_command(pHostapdAdapter->sessionId,
-						WMI_PDEV_PARAM_BURST_ENABLE,
-						0, PDEV_CMD)) {
-				hdd_err("Failed to Set SIFS Burst channel: %d",
-				       pHddApCtx->operatingChannel);
-			}
-		}
 		/* Fill the params for sending IWEVCUSTOM Event
 		 * with SOFTAP.enabled
 		 */
@@ -6484,7 +6469,7 @@ QDF_STATUS hdd_init_ap_mode(hdd_adapter_t *pAdapter, bool reinit)
 
 	ret = wma_cli_set_command(pAdapter->sessionId,
 				  WMI_PDEV_PARAM_BURST_ENABLE,
-				  pHddCtx->config->enableSifsBurst,
+				  HDD_ENABLE_SIFS_BURST_DEFAULT,
 				  PDEV_CMD);
 
 	if (0 != ret)

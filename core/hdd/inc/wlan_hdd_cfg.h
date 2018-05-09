@@ -9027,21 +9027,44 @@ enum hdd_link_speed_rpt_type {
 #define CFG_SAP_MCC_CHANNEL_AVOIDANCE_MAX          (1)
 #define CFG_SAP_MCC_CHANNEL_AVOIDANCE_DEFAULT      (0)
 #endif /* FEATURE_AP_MCC_CH_AVOIDANCE */
+
 /*
  * <ini>
- * gAP11ACOverride - Override 11AC when GO follow SAP channel
+ * gSAP11ACOverride - Override bw to 11ac for SAP
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to enable/disable 11AC override for SAP.
+ * Android UI does not provide advanced configuration options
+ * for SoftAP for Android O and below.
+ * Default override disabled for android. Can be enabled from
+ * ini for Android O and below.
+ *
+ *
+ * Supported Feature: SAP
+ *
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+#define CFG_SAP_11AC_OVERRIDE_NAME             "gSAP11ACOverride"
+#define CFG_SAP_11AC_OVERRIDE_MIN              (0)
+#define CFG_SAP_11AC_OVERRIDE_MAX              (1)
+#define CFG_SAP_11AC_OVERRIDE_DEFAULT          (0)
+
+/*
+ * <ini>
+ * gGO11ACOverride - Override bw to 11ac for P2P GO
  * @Min: 0
  * @Max: 1
  * @Default: 1
  *
- * This ini is used to enable/disable 11AC override.
- * 1. P2P GO also follows start_bss and since p2p GO could not be
- *    configured to setup VHT channel width in wpa_supplicant, driver
- *    can override 11AC.
- * 2. Android UI does not provide advanced configuration options
- *    for SoftAP
- *    Default override enabled for android. MDM shall
- *    disable it in ini
+ * This ini is used to enable/disable 11AC override for GO.
+ * P2P GO also follows start_bss and since P2P GO could not be
+ * configured to setup VHT channel width in wpa_supplicant, driver
+ * can override 11AC.
  *
  *
  * Supported Feature: P2P
@@ -9051,10 +9074,10 @@ enum hdd_link_speed_rpt_type {
  *
  * </ini>
  */
-#define CFG_SAP_P2P_11AC_OVERRIDE_NAME             "gAP11ACOverride"
-#define CFG_SAP_P2P_11AC_OVERRIDE_MIN              (0)
-#define CFG_SAP_P2P_11AC_OVERRIDE_MAX              (1)
-#define CFG_SAP_P2P_11AC_OVERRIDE_DEFAULT          (1)
+#define CFG_GO_11AC_OVERRIDE_NAME             "gGO11ACOverride"
+#define CFG_GO_11AC_OVERRIDE_MIN              (0)
+#define CFG_GO_11AC_OVERRIDE_MAX              (1)
+#define CFG_GO_11AC_OVERRIDE_DEFAULT          (1)
 
 #define CFG_SAP_DOT11MC               "gSapDot11mc"
 #define CFG_SAP_DOT11MC_MIN           (0)
@@ -15441,7 +15464,8 @@ struct hdd_config {
 #ifdef FEATURE_AP_MCC_CH_AVOIDANCE
 	bool sap_channel_avoidance;
 #endif /* FEATURE_AP_MCC_CH_AVOIDANCE */
-	uint8_t sap_p2p_11ac_override;
+	uint8_t sap_11ac_override;
+	uint8_t go_11ac_override;
 	uint8_t sap_dot11mc;
 	uint8_t prefer_non_dfs_on_radar;
 	bool ignore_peer_erp_info;

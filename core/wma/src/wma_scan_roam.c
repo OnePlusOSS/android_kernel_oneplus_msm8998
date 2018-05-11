@@ -381,33 +381,32 @@ QDF_STATUS wma_get_buf_start_scan_cmd(tp_wma_handle wma_handle,
 				 * of channels in every transition by using
 				 * burst scan.
 				 */
-				 if (pMac->go_scan_burst_duration) {
-					 cmd->burst_duration =
-						 pMac->go_scan_burst_duration;
-				 } else {
-					 cmd->burst_duration =
-						 wma_get_burst_duration(
-						 scan_req->maxChannelTime,
-						 wma_handle->miracast_value);
-				 }
+				if (pMac->go_scan_burst_duration)
+					cmd->burst_duration =
+						pMac->go_scan_burst_duration;
+				else
+					cmd->burst_duration =
+						wma_get_burst_duration(
+						scan_req->maxChannelTime,
+						wma_handle->miracast_value);
 
 				break;
 			}
 			if (wma_is_sta_active(wma_handle) ||
 			    wma_is_p2p_cli_active(wma_handle)) {
-				 if (pMac->sta_scan_burst_duration) {
-					 cmd->burst_duration =
-						 pMac->sta_scan_burst_duration;
-				 } else {
-					 if (scan_req->burst_scan_duration)
-						 cmd->burst_duration =
-						 scan_req->burst_scan_duration;
-					 else
-						 /* Typical background scan.
-						  * Disable burst scan for now.
-						  */
-						 cmd->burst_duration = 0;
-				 }
+				if (pMac->sta_scan_burst_duration) {
+					cmd->burst_duration =
+						pMac->sta_scan_burst_duration;
+				} else {
+					if (scan_req->burst_scan_duration)
+						cmd->burst_duration =
+						scan_req->burst_scan_duration;
+					else
+						/* Typical background scan.
+						 * Disable burst scan for now.
+						 */
+						cmd->burst_duration = 0;
+				}
 				break;
 			}
 			if (wma_is_ndi_active(wma_handle)) {

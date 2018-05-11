@@ -1004,7 +1004,13 @@ wlansap_roam_callback(void *ctx, tCsrRoamInfo *csr_roam_info, uint32_t roamId,
 					FL("Ignore the Radar indication"));
 			break;
 		}
-
+		if (sap_ctx->sapsMachine != eSAP_STARTED &&
+		    sap_ctx->sapsMachine != eSAP_DFS_CAC_WAIT) {
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
+				  FL("Ignore Radar event in sap state %d"),
+				  sap_ctx->sapsMachine);
+			break;
+		}
 		if (sap_ctx->is_pre_cac_on) {
 			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_MED,
 				FL("sapdfs: Radar detect on pre cac:%d"),

@@ -982,7 +982,7 @@ enum hdd_dot11_mode {
 #define CFG_SCAN_ALLOW_ADJ_CH_BCN_NAME       "allow_adj_chan_bcns"
 #define CFG_SCAN_ALLOW_ADJ_CH_BCN_MIN        (0)
 #define CFG_SCAN_ALLOW_ADJ_CH_BCN_MAX        (1)
-#define CFG_SCAN_ALLOW_ADJ_CH_BCN_DEFAULT    (0)
+#define CFG_SCAN_ALLOW_ADJ_CH_BCN_DEFAULT    (1)
 
 #ifdef FEATURE_WLAN_EXTSCAN
 /*

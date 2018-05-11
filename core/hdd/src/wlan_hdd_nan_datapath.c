@@ -451,8 +451,8 @@ static int hdd_ndi_create_req_handler(hdd_context_t *hdd_ctx,
 	 * does not have any such formal requests. The NDI create request
 	 * is responsible for starting the BSS as well.
 	 */
-	if (op_channel != NAN_SOCIAL_CHANNEL_2_4GHZ ||
-	    op_channel != NAN_SOCIAL_CHANNEL_5GHZ_LOWER_BAND ||
+	if (op_channel != NAN_SOCIAL_CHANNEL_2_4GHZ &&
+	    op_channel != NAN_SOCIAL_CHANNEL_5GHZ_LOWER_BAND &&
 	    op_channel != NAN_SOCIAL_CHANNEL_5GHZ_UPPER_BAND) {
 		/* start NDI on the default 2.4 GHz social channel */
 		op_channel = NAN_SOCIAL_CHANNEL_2_4GHZ;

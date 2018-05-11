@@ -4806,10 +4806,15 @@ static int __wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy,
 			 pAdapter->sessionId, oper));
 
 	status = wlan_hdd_validate_context(pHddCtx);
-	tdls_ctx = WLAN_HDD_GET_TDLS_CTX_PTR(pAdapter);
-
 	if (0 != status)
 		return status;
+
+	tdls_ctx = WLAN_HDD_GET_TDLS_CTX_PTR(pAdapter);
+	if (!tdls_ctx) {
+		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
+			  "%s: Invalid tdls context", __func__);
+		return -EINVAL;
+	}
 
 	/* QCA 2.0 Discrete ANDs feature capability in HDD config with that
 	 * received from target, so HDD config gives combined intersected result

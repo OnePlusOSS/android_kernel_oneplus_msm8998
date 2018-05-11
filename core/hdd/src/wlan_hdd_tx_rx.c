@@ -816,7 +816,12 @@ static inline bool hdd_is_tx_allowed(struct sk_buff *skb, uint8_t peer_id)
 	void *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 	void *peer;
 
-	QDF_ASSERT(pdev);
+	if (qdf_unlikely(NULL == pdev)) {
+		QDF_TRACE(QDF_MODULE_ID_HDD_DATA, QDF_TRACE_LEVEL_ERROR,
+			  "%s: pdev is NULL", __func__);
+		QDF_ASSERT(pdev);
+		return false;
+	}
 	peer = ol_txrx_peer_find_by_local_id(pdev, peer_id);
 
 	if (peer == NULL) {

@@ -1577,6 +1577,14 @@ static int hdd_ipa_wdi_conn_pipes(struct hdd_ipa_priv *hdd_ipa,
 	qdf_device_t osdev = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
 	int ret;
 
+	if (qdf_unlikely(NULL == osdev)) {
+		QDF_TRACE(QDF_MODULE_ID_HDD_DATA, QDF_TRACE_LEVEL_ERROR,
+			  "%s: osdev is NULL", __func__);
+		stat = QDF_STATUS_E_FAILURE;
+		goto fail_return;
+	}
+
+
 	qdf_mem_zero(&hdd_ipa->cons_pipe_in, sizeof(struct ipa_wdi_in_params));
 	qdf_mem_zero(&hdd_ipa->prod_pipe_in, sizeof(struct ipa_wdi_in_params));
 	qdf_mem_zero(&pipe_in, sizeof(struct ipa_wdi_in_params));
@@ -3630,6 +3638,11 @@ static int hdd_ipa_uc_enable_pipes(struct hdd_ipa_priv *hdd_ipa)
 	int result = 0;
 
 	HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "enter");
+	if (qdf_unlikely(NULL == pdev)) {
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR, "pdev is NULL");
+		result = QDF_STATUS_E_FAILURE;
+		goto end;
+	}
 
 	if (!hdd_ipa->ipa_pipes_down) {
 		/*

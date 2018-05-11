@@ -3113,7 +3113,7 @@ void lim_process_switch_channel_rsp(tpAniSirGlobal pMac, void *body)
 	psessionEntry = pe_find_session_by_session_id(pMac, peSessionId);
 	if (psessionEntry == NULL) {
 		pe_err("session does not exist for given sessionId");
-		return;
+		goto free;
 	}
 	psessionEntry->ch_switch_in_progress = false;
 	/* HAL fills in the tx power used for mgmt frames in this field. */
@@ -3179,6 +3179,7 @@ void lim_process_switch_channel_rsp(tpAniSirGlobal pMac, void *body)
 	default:
 		break;
 	}
+free:
 	qdf_mem_free(body);
 }
 

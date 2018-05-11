@@ -5687,8 +5687,7 @@ __iw_get_peer_rssi(struct net_device *dev, struct iw_request_info *info,
 			hdd_err("String to Hex conversion Failed");
 	}
 
-	ret = wlan_hdd_get_peer_rssi(adapter, &macaddress,
-				     HDD_WLAN_GET_PEER_RSSI_SOURCE_USER);
+	ret = wlan_hdd_get_peer_rssi(adapter, &macaddress);
 	if (ret) {
 		hdd_err("Unable to retrieve peer rssi: %d", ret);
 		return ret;

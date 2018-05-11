@@ -3805,8 +3805,7 @@ static void hdd_get_peer_rssi_cb(struct sir_peer_info_resp *sta_rssi,
 }
 
 int wlan_hdd_get_peer_rssi(hdd_adapter_t *adapter,
-			   struct qdf_mac_addr *macaddress,
-			   int request_source)
+			   struct qdf_mac_addr *macaddress)
 {
 	QDF_STATUS status;
 	void *cookie;
@@ -3843,7 +3842,7 @@ int wlan_hdd_get_peer_rssi(hdd_adapter_t *adapter,
 	if (status != QDF_STATUS_SUCCESS) {
 		hdd_err("Unable to retrieve statistics for rssi");
 		ret = -EFAULT;
-	} else if (request_source != HDD_WLAN_GET_PEER_RSSI_SOURCE_DRIVER) {
+	} else {
 		ret = hdd_request_wait_for_response(request);
 		if (ret) {
 			hdd_err("SME timed out while retrieving rssi");
@@ -3853,8 +3852,6 @@ int wlan_hdd_get_peer_rssi(hdd_adapter_t *adapter,
 			adapter->peer_sta_info = priv->peer_sta_info;
 			ret = 0;
 		}
-	} else {
-		ret = 0;
 	}
 
 	hdd_request_put(request);

@@ -639,14 +639,20 @@ QDF_STATUS cds_get_reg_domain_from_country_code(v_REGDOMAIN_t *reg_domain_ptr,
 
 	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
 
+	if (!hdd_ctx) {
+		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
+			  "hdd_ctx is NULL");
+		return QDF_STATUS_E_ENXIO;
+	}
+
 	if (cds_is_driver_unloading()) {
 		hdd_err("Driver is unloading can not open the hdd");
-		return -EBUSY;
+		return QDF_STATUS_E_BUSY;
 	}
 
 	if (cds_is_driver_recovering()) {
 		hdd_err("WLAN is currently recovering; Please try again.");
-		return -EBUSY;
+		return QDF_STATUS_E_BUSY;
 	}
 
 	if (NULL == reg_domain_ptr) {

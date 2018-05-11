@@ -445,6 +445,10 @@ hdd_apf_read_memory_callback(void *hdd_context,
 	}
 
 	adapter = hdd_get_adapter_by_vdev(hdd_ctx, read_mem_evt->vdev_id);
+	if (hdd_validate_adapter(adapter)) {
+		hdd_err("Adapter is invalid");
+		return;
+	}
 	context = &adapter->apf_context;
 
 	if (context->magic != APF_CONTEXT_MAGIC) {

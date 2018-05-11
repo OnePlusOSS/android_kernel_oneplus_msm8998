@@ -2301,6 +2301,31 @@ enum hdd_dot11_mode {
 
 /*
  * <ini>
+ * roam_force_rssi_trigger - To set roam scan mode
+ * irrespective of channel list
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This ini is used to set roam scan mode
+ * WMI_ROAM_SCAN_MODE_RSSI_CHANGE, irrespective of whether
+ * channel list type is CHANNEL_LIST_STATIC or not
+ *
+ * Related: None
+ *
+ * Supported Feature: Roaming
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ROAM_FORCE_RSSI_TRIGGER_NAME  "roam_force_rssi_trigger"
+#define CFG_ROAM_FORCE_RSSI_TRIGGER_MIN     (0)
+#define CFG_ROAM_FORCE_RSSI_TRIGGER_MAX     (1)
+#define CFG_ROAM_FORCE_RSSI_TRIGGER_DEFAULT (1)
+
+/*
+ * <ini>
  * roamscan_adaptive_dwell_mode - Sets dwell time adaptive mode
  * @Min: 0
  * @Max: 4
@@ -15748,6 +15773,7 @@ struct hdd_config {
 	bool enable_ftopen;
 	bool is_unit_test_framework_enabled;
 	uint32_t enable_secondary_rate;
+	bool roam_force_rssi_trigger;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

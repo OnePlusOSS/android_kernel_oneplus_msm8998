@@ -257,6 +257,11 @@ static ssize_t qdf_seq_write(struct file *filp, const char __user *ubuf,
 	fops = seq->private;
 	if (fops && fops->write) {
 		buf = qdf_mem_malloc(len + 1);
+		if (!buf) {
+			QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
+				  "Insufficient memory");
+			return rc;
+		}
 		buf[len] = '\0';
 		rc = simple_write_to_buffer(buf, len, ppos, ubuf, len);
 		fops->write(fops->priv, buf, len + 1);

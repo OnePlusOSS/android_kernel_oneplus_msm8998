@@ -2982,7 +2982,7 @@ static void hdd_ipa_uc_rt_debug_handler(void *ctext)
 	if (!dummy_ptr) {
 		hdd_ipa_uc_rt_debug_host_dump(hdd_ctx);
 		hdd_ipa_uc_stat_request(
-			hdd_get_adapter(hdd_ctx, QDF_SAP_MODE),
+			hdd_ctx,
 			HDD_IPA_UC_STAT_REASON_DEBUG);
 	} else {
 		kfree(dummy_ptr);
@@ -3440,20 +3440,14 @@ void hdd_ipa_uc_stat_query(hdd_context_t *hdd_ctx,
 
 /**
  * __hdd_ipa_uc_stat_request() - Get IPA stats from IPA.
- * @adapter: network adapter
+ * @hdd_ctx: Global HDD context
  * @reason: STAT REQ Reason
  *
  * Return: None
  */
-static void __hdd_ipa_uc_stat_request(hdd_adapter_t *adapter, uint8_t reason)
+static void __hdd_ipa_uc_stat_request(hdd_context_t *hdd_ctx, uint8_t reason)
 {
-	hdd_context_t *hdd_ctx;
 	struct hdd_ipa_priv *hdd_ipa;
-
-	if (hdd_validate_adapter(adapter))
-		return;
-
-	hdd_ctx = (hdd_context_t *)adapter->pHddCtx;
 
 	if (wlan_hdd_validate_context(hdd_ctx))
 		return;
@@ -3469,8 +3463,7 @@ static void __hdd_ipa_uc_stat_request(hdd_adapter_t *adapter, uint8_t reason)
 		(false == hdd_ipa->resource_loading)) {
 		hdd_ipa->stat_req_reason = reason;
 		qdf_mutex_release(&hdd_ipa->ipa_lock);
-		sme_ipa_uc_stat_request(WLAN_HDD_GET_HAL_CTX(adapter),
-			adapter->sessionId,
+		sme_ipa_uc_stat_request(hdd_ctx->hHal, 0,
 			WMA_VDEV_TXRX_GET_IPA_UC_FW_STATS_CMDID,
 			0, VDEV_CMD);
 	} else {
@@ -3480,15 +3473,15 @@ static void __hdd_ipa_uc_stat_request(hdd_adapter_t *adapter, uint8_t reason)
 
 /**
  * hdd_ipa_uc_stat_request() - SSR wrapper for __hdd_ipa_uc_stat_request
- * @adapter: network adapter
+ * @hdd_ctx: Global HDD context
  * @reason: STAT REQ Reason
  *
  * Return: None
  */
-void hdd_ipa_uc_stat_request(hdd_adapter_t *adapter, uint8_t reason)
+void hdd_ipa_uc_stat_request(hdd_context_t *hdd_ctx, uint8_t reason)
 {
 	cds_ssr_protect(__func__);
-	__hdd_ipa_uc_stat_request(adapter, reason);
+	__hdd_ipa_uc_stat_request(hdd_ctx, reason);
 	cds_ssr_unprotect(__func__);
 }
 
@@ -4375,7 +4368,7 @@ void hdd_ipa_uc_stat(hdd_adapter_t *adapter)
 	/* IPA WDI stats */
 	hdd_ipa_print_ipa_wdi_stats(hdd_ipa);
 	/* WLAN FW WDI stats */
-	hdd_ipa_uc_stat_request(adapter, HDD_IPA_UC_STAT_REASON_DEBUG);
+	hdd_ipa_uc_stat_request(hdd_ctx, HDD_IPA_UC_STAT_REASON_DEBUG);
 }
 
 /**

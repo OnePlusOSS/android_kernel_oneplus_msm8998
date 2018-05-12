@@ -88,7 +88,7 @@ int hdd_ipa_resume(hdd_context_t *hdd_ctx);
 void hdd_ipa_uc_stat_query(hdd_context_t *hdd_ctx, uint32_t *ipa_tx_diff,
 	uint32_t *ipa_rx_diff);
 void hdd_ipa_uc_rt_debug_host_dump(hdd_context_t *hdd_ctx);
-void hdd_ipa_uc_stat_request(hdd_adapter_t *adapter, uint8_t reason);
+void hdd_ipa_uc_stat_request(hdd_context_t *hdd_ctx, uint8_t reason);
 void hdd_ipa_uc_sharing_stats_request(hdd_adapter_t *adapter,
 				      uint8_t reset_stats);
 void hdd_ipa_uc_set_quota(hdd_adapter_t *adapter, uint8_t set_quota,

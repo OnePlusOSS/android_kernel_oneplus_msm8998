@@ -1196,7 +1196,7 @@ static int pn544_suspend(struct device *dev)
 
 	printk("%s pn544_dev->clk_gpio = %d\n", __func__,
 		   gpio_get_value(pn544_dev->clk_gpio));
-	if (gpio_get_value(pn544_dev->clk_gpio)) {
+	if (pn544_dev->nfc_ven_enabled && gpio_get_value(pn544_dev->clk_gpio)) {
 		__pm_wakeup_event(&pn544_dev->pn544_ws,
 				msecs_to_jiffies(CLOCK_HOLD_TIME));
 		pn544_enable_clk(pn544_dev);

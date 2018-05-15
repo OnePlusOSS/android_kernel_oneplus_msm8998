@@ -2140,7 +2140,7 @@ uint32_t hdd_wlan_get_version(hdd_context_t *hdd_ctx,
 		return 0;
 	}
 
-	if (!version && version_len == 0) {
+	if (!version || version_len == 0) {
 		hdd_err("Invalid buffer pointr or buffer len\n");
 		return 0;
 	}

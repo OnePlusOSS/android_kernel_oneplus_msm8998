@@ -3236,16 +3236,14 @@ static hdd_adapter_t *hdd_alloc_station_adapter(hdd_context_t *hdd_ctx,
 				&adapter->qdf_session_open_event);
 		if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 			hdd_err("Session open QDF event init failed!");
-			free_netdev(adapter->dev);
-			return NULL;
+			goto err_qdf_init;
 		}
 
 		qdf_status = qdf_event_create(
 				&adapter->qdf_session_close_event);
 		if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 			hdd_err("Session close QDF event init failed!");
-			free_netdev(adapter->dev);
-			return NULL;
+			goto err_qdf_init;
 		}
 
 		init_completion(&adapter->disconnect_comp_var);
@@ -3263,7 +3261,11 @@ static hdd_adapter_t *hdd_alloc_station_adapter(hdd_context_t *hdd_ctx,
 		init_completion(&adapter->tdls_link_establish_req_comp);
 #endif
 		init_completion(&adapter->ibss_peer_info_comp);
-		init_completion(&adapter->change_country_code);
+		qdf_status = qdf_event_create(&adapter->change_country_code);
+		if (QDF_IS_STATUS_ERROR(qdf_status)) {
+			hdd_err("Change country code event init failed!");
+			goto err_qdf_init;
+		}
 
 
 		init_completion(&adapter->scan_info.abortscan_event_var);
@@ -3302,8 +3304,11 @@ static hdd_adapter_t *hdd_alloc_station_adapter(hdd_context_t *hdd_ctx,
 		spin_lock_init(&adapter->pause_map_lock);
 		adapter->start_time = adapter->last_time = qdf_system_ticks();
 	}
-
 	return adapter;
+
+err_qdf_init:
+	free_netdev(adapter->dev);
+	return NULL;
 }
 
 static QDF_STATUS hdd_register_interface(hdd_adapter_t *adapter, bool rtnl_held)
@@ -9171,12 +9176,11 @@ static int hdd_update_country_code(hdd_context_t *hdd_ctx,
 {
 	QDF_STATUS status;
 	int ret = 0;
-	unsigned long rc;
 
 	if (country_code == NULL)
 		return 0;
 
-	INIT_COMPLETION(adapter->change_country_code);
+	qdf_event_reset(&adapter->change_country_code);
 
 	status = sme_change_country_code(hdd_ctx->hHal,
 					 wlan_hdd_change_country_code_callback,
@@ -9191,9 +9195,9 @@ static int hdd_update_country_code(hdd_context_t *hdd_ctx,
 		return -EINVAL;
 	}
 
-	rc = wait_for_completion_timeout(&adapter->change_country_code,
-			 msecs_to_jiffies(WLAN_WAIT_TIME_COUNTRY));
-	if (!rc) {
+	status = qdf_wait_for_event_completion(&adapter->change_country_code,
+					       WLAN_WAIT_TIME_COUNTRY);
+	if (QDF_IS_STATUS_ERROR(status)) {
 		hdd_err("SME while setting country code timed out");
 		ret = -ETIMEDOUT;
 	}

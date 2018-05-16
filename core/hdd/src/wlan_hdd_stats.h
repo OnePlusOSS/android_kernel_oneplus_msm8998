@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -80,17 +80,14 @@ struct index_data_rate_type {
 #ifdef WLAN_FEATURE_LINK_LAYER_STATS
 
 /**
- * struct hdd_ll_stats_context - hdd link layer stats context
+ * struct hdd_ll_stats_priv - hdd link layer stats private
  *
  * @request_id: userspace-assigned link layer stats request id
  * @request_bitmap: userspace-assigned link layer stats request bitmap
- * @response_event: LL stats request wait event
  */
-struct hdd_ll_stats_context {
+struct hdd_ll_stats_priv {
 	uint32_t request_id;
 	uint32_t request_bitmap;
-	struct completion response_event;
-	spinlock_t context_lock;
 };
 
 /*
@@ -283,8 +280,8 @@ void wlan_hdd_cfg80211_stats_ext_callback(void *ctx,
 void wlan_hdd_cfg80211_stats_ext2_callback(void *ctx,
 	struct stats_ext2_event *pmsg);
 
-void wlan_hdd_cfg80211_link_layer_stats_callback(void *ctx,
-						 int indType, void *pRsp);
+void wlan_hdd_cfg80211_link_layer_stats_callback(void *ctx, int indType,
+						 void *pRsp, void *context);
 
 /**
  * wlan_hdd_get_rcpi() - Wrapper to get current RCPI

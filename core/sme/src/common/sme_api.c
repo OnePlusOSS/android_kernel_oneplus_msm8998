@@ -14741,11 +14741,12 @@ QDF_STATUS sme_ll_stats_set_req(tHalHandle hHal, tSirLLStatsSetReq
  *
  * @hHal
  * @pgetStatsReq: Link Layer get stats request params structure
+ * @context: Callback context for ll stats
  *
  * Return QDF_STATUS
  */
 QDF_STATUS sme_ll_stats_get_req(tHalHandle hHal, tSirLLStatsGetReq
-				*pgetStatsReq)
+				*pgetStatsReq, void *context)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
@@ -14764,6 +14765,7 @@ QDF_STATUS sme_ll_stats_get_req(tHalHandle hHal, tSirLLStatsGetReq
 
 	*get_stats_req = *pgetStatsReq;
 
+	pMac->sme.ll_stats_context = context;
 	if (QDF_STATUS_SUCCESS == sme_acquire_global_lock(&pMac->sme)) {
 		/* Serialize the req through MC thread */
 		cds_message.bodyptr = get_stats_req;
@@ -14793,16 +14795,17 @@ QDF_STATUS sme_ll_stats_get_req(tHalHandle hHal, tSirLLStatsGetReq
 
 /**
  * sme_set_link_layer_stats_ind_cb() - SME API to trigger the stats are
- * available  after get request
+ * available after get request
  *
- * @hHal
- * @callback_routine - HDD callback which needs to be invoked after
- *	   getting status notification from FW
+ * @hHal: handle in hdd context
+ * @callback_routine: HDD callback which needs to be invoked after
+ * getting status notification from FW
  *
  * Return QDF_STATUS
  */
 QDF_STATUS sme_set_link_layer_stats_ind_cb(tHalHandle hHal,
-	void (*callback_routine)(void *callbackCtx, int indType, void *pRsp))
+	void (*callback_routine)(void *callbackCtx, int indType, void *pRsp,
+				 void *context))
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);

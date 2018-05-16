@@ -18640,26 +18640,38 @@ QDF_STATUS sme_get_chain_rssi(tHalHandle phal,
 	return status;
 }
 
-/**
- * sme_chain_rssi_register_callback - chain rssi callback
- * @hal: global hal handle
- * @pchain_rssi_ind_cb: callback function pointer
- *
- * Return: QDF_STATUS enumeration.
- */
-QDF_STATUS sme_chain_rssi_register_callback(tHalHandle phal,
-			void (*pchain_rssi_ind_cb)(void *, void *))
+QDF_STATUS
+sme_chain_rssi_register_callback(tHalHandle phal,
+				 void (*pchain_rssi_ind_cb)(void *, void *,
+							    void *),
+				 void *context)
 {
 	QDF_STATUS status;
 	tpAniSirGlobal pmac = PMAC_STRUCT(phal);
 
 	status = sme_acquire_global_lock(&pmac->sme);
 	if (QDF_STATUS_SUCCESS == status) {
+		pmac->sme.pchain_rssi_ind_ctx = context;
 		pmac->sme.pchain_rssi_ind_cb = pchain_rssi_ind_cb;
 		sme_release_global_lock(&pmac->sme);
 	}
 
 	return status;
+}
+
+void sme_chain_rssi_deregister_callback(tHalHandle hal)
+{
+	tpAniSirGlobal pmac;
+
+	if (!hal) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			  FL("hHal is not valid"));
+		return;
+	}
+
+	pmac = PMAC_STRUCT(hal);
+	if (pmac->sme.pchain_rssi_ind_cb)
+		pmac->sme.pchain_rssi_ind_cb = NULL;
 }
 
 QDF_STATUS sme_set_reorder_timeout(tHalHandle hal,

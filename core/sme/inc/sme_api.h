@@ -1910,11 +1910,26 @@ QDF_STATUS sme_get_chain_rssi(tHalHandle phal,
  * sme_chain_rssi_register_callback - chain rssi callback
  * @phal: global hal handle
  * @pchain_rssi_ind_cb: callback function pointer
+ * @context: callback context
  *
  * Return: QDF_STATUS enumeration.
  */
-QDF_STATUS sme_chain_rssi_register_callback(tHalHandle phal,
-			void (*pchain_rssi_ind_cb)(void *ctx, void *pmsg));
+QDF_STATUS
+sme_chain_rssi_register_callback(tHalHandle phal,
+				 void (*pchain_rssi_ind_cb)(void *ctx,
+							    void *pmsg,
+							    void *context),
+				 void *context);
+
+/**
+ * sme_chain_rssi_deregister_callback() - De-register chain rssi callback
+ * @hal: global hal handle
+ *
+ * This function De-registers the scandone callback  to SME
+ *
+ * Return: None
+ */
+void sme_chain_rssi_deregister_callback(tHalHandle hal);
 
 /**
  * sme_process_msg_callback() - process callback message from LIM

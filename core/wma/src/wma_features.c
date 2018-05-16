@@ -11348,6 +11348,11 @@ int wma_pdev_div_info_evt_handler(void *handle, u_int8_t *event_buf,
 		return -EINVAL;
 	}
 
+	if (!pmac->sme.pchain_rssi_ind_cb) {
+		WMA_LOGE("%s: callback not registered", __func__);
+		return -EINVAL;
+	}
+
 	param_buf = (WMI_PDEV_DIV_RSSI_ANTID_EVENTID_param_tlvs *) event_buf;
 	if (!param_buf) {
 		WMA_LOGE(FL("Invalid rssi antid event buffer"));
@@ -11378,7 +11383,8 @@ int wma_pdev_div_info_evt_handler(void *handle, u_int8_t *event_buf,
 	qdf_mem_copy(chain_rssi_result.ant_id, event->ant_id,
 						sizeof(event->ant_id));
 
-	pmac->sme.pchain_rssi_ind_cb(pmac->hHdd, &chain_rssi_result);
+	pmac->sme.pchain_rssi_ind_cb(pmac->hHdd, &chain_rssi_result,
+				     pmac->sme.pchain_rssi_ind_ctx);
 
 	return 0;
 }

@@ -1729,14 +1729,10 @@ enum smps_mode {
 };
 
 /**
- * struct hdd_chain_rssi_context - hdd chain rssi context
- * @response_event: chain rssi request wait event
- * @ignore_result: Flag to ignore the result or not
- * @chain_rssi: chain rssi array
+ * struct hdd_chain_rssi_priv - hdd chain rssi private
+ * @result: chain rssi array
  */
-struct hdd_chain_rssi_context {
-	struct completion response_event;
-	bool ignore_result;
+struct hdd_chain_rssi_priv {
 	struct chain_rssi_result result;
 };
 
@@ -2140,7 +2136,6 @@ struct hdd_context_s {
 	struct hdd_offloaded_packets_ctx op_ctx;
 #endif
 	bool mcc_mode;
-	struct hdd_chain_rssi_context chain_rssi_context;
 
 	struct mutex memdump_lock;
 	uint16_t driver_dump_size;

@@ -260,8 +260,9 @@ typedef struct tagSmeStruct {
 	p2p_lo_callback p2p_lo_event_callback;
 	void *p2p_lo_event_context;
 	sme_send_oem_data_rsp_msg oem_data_rsp_callback;
-	void (*encrypt_decrypt_cb)(void *,
-			struct sir_encrypt_decrypt_rsp_params *);
+	void *encrypt_decrypt_context;
+	void (*encrypt_decrypt_cb)(void *cookie,
+				   struct sir_encrypt_decrypt_rsp_params *rsp);
 	void (*lost_link_info_cb)(void *context,
 			struct sir_lost_link_info *lost_link_info);
 	void (*rso_cmd_status_cb)(void *hdd_context,

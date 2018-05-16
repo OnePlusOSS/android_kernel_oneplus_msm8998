@@ -17646,11 +17646,13 @@ QDF_STATUS sme_set_sar_power_limits(tHalHandle hal,
  * sme_encrypt_decrypt_msg() - handles encrypt/decrypt mesaage
  * @hal: HAL handle
  * @encrypt_decrypt_params: struct to set encryption/decryption params.
+ * @context: callback context
  *
  * Return: QDF_STATUS enumeration.
  */
 QDF_STATUS sme_encrypt_decrypt_msg(tHalHandle hal,
-	struct encrypt_decrypt_req_params *encrypt_decrypt_params)
+	struct encrypt_decrypt_req_params *encrypt_decrypt_params,
+	void *context)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
@@ -17677,6 +17679,7 @@ QDF_STATUS sme_encrypt_decrypt_msg(tHalHandle hal,
 					params->data_len);
 	}
 
+	mac_ctx->sme.encrypt_decrypt_context = context;
 	status = sme_acquire_global_lock(&mac_ctx->sme);
 	if (status == QDF_STATUS_SUCCESS) {
 		/* Serialize the req through MC thread */
@@ -17705,16 +17708,17 @@ QDF_STATUS sme_encrypt_decrypt_msg(tHalHandle hal,
  * encrypt/decrypt message callback
  *
  * @hal - MAC global handle
- * @callback_routine - callback routine from HDD
+ * @encrypt_decrypt_cb - callback routine from HDD
+ * @context - callback context
  *
  * This API is invoked by HDD to register its callback in SME
  *
  * Return: QDF_STATUS
  */
 QDF_STATUS sme_encrypt_decrypt_msg_register_callback(tHalHandle hal,
-		void (*encrypt_decrypt_cb)(void *hdd_context,
-			struct sir_encrypt_decrypt_rsp_params
-				*encrypt_decrypt_rsp_params))
+		void (*encrypt_decrypt_cb)(void *cookie,
+					   struct sir_encrypt_decrypt_rsp_params
+					   *encrypt_decrypt_rsp_params))
 {
 	QDF_STATUS status   = QDF_STATUS_SUCCESS;
 	tpAniSirGlobal mac;

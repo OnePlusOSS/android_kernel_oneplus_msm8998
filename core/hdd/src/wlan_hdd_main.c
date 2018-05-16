@@ -10444,7 +10444,6 @@ static int hdd_features_init(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 		hdd_err("Error setting txlimit in sme: %d", status);
 
 	wlan_hdd_tsf_init(hdd_ctx);
-	hdd_encrypt_decrypt_init(hdd_ctx);
 
 	if (hdd_ctx->config->goptimize_chan_avoid_event) {
 		status = sme_enable_disable_chanavoidind_event(
@@ -10661,8 +10660,6 @@ static int hdd_deconfigure_cds(hdd_context_t *hdd_ctx)
 
 	/* De-init features */
 	hdd_features_deinit(hdd_ctx);
-
-	hdd_encrypt_decrypt_deinit(hdd_ctx);
 
 	sme_destroy_config(hdd_ctx->hHal);
 

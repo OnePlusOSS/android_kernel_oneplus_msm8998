@@ -11613,7 +11613,6 @@ static int __wlan_hdd_cfg80211_get_nud_stats(struct wiphy *wiphy,
 					     const void *data, int data_len)
 {
 	int err = 0;
-	unsigned long rc;
 	struct hdd_nud_stats_context *context;
 	struct net_device *dev = wdev->netdev;
 	hdd_adapter_t *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
@@ -11648,7 +11647,7 @@ static int __wlan_hdd_cfg80211_get_nud_stats(struct wiphy *wiphy,
 
 	spin_lock(&hdd_context_lock);
 	context = &hdd_ctx->nud_stats_context;
-	INIT_COMPLETION(context->response_event);
+	qdf_event_reset(&context->response_event);
 	spin_unlock(&hdd_context_lock);
 
 	pkt_type_bitmap = adapter->pkt_type_bitmap;
@@ -11669,10 +11668,9 @@ static int __wlan_hdd_cfg80211_get_nud_stats(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
-	rc = wait_for_completion_timeout(&context->response_event,
-					 msecs_to_jiffies(
-						WLAN_WAIT_TIME_NUD_STATS));
-	if (!rc) {
+	if (qdf_wait_for_event_completion(&context->response_event,
+					  WLAN_WAIT_TIME_NUD_STATS) !=
+					  QDF_STATUS_SUCCESS) {
 		hdd_err("Target response timed out request ");
 		return -ETIMEDOUT;
 	}

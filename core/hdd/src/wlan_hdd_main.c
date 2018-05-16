@@ -11110,7 +11110,7 @@ static void hdd_get_nud_stats_cb(void *data, struct rsp_stats *rsp)
 
 	spin_lock(&hdd_context_lock);
 	context = &hdd_ctx->nud_stats_context;
-	complete(&context->response_event);
+	qdf_event_set(&context->response_event);
 	spin_unlock(&hdd_context_lock);
 
 	EXIT();

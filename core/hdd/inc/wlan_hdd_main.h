@@ -1789,7 +1789,7 @@ struct suspend_resume_stats {
  * @response_event: NUD stats request wait event
  */
 struct hdd_nud_stats_context {
-	struct completion response_event;
+	qdf_event_t response_event;
 };
 
 /**
@@ -2889,7 +2889,9 @@ void hdd_set_rx_mode_rps(hdd_context_t *hdd_ctx, void *padapter, bool enable);
  */
 static inline void hdd_init_nud_stats_ctx(hdd_context_t *hdd_ctx)
 {
-	init_completion(&hdd_ctx->nud_stats_context.response_event);
+	if (qdf_event_create(&hdd_ctx->nud_stats_context.response_event) !=
+			     QDF_STATUS_SUCCESS)
+		hdd_err("NUD stats response event init failed!");
 }
 
 /**

@@ -2153,8 +2153,6 @@ struct hdd_context_s {
 	 */
 	uint32_t fine_time_meas_cap_target;
 	uint32_t rx_high_ind_cnt;
-	/* completion variable to indicate set antenna mode complete*/
-	struct completion set_antenna_mode_cmpl;
 	/* Current number of TX X RX chains being used */
 	enum antenna_mode current_antenna_mode;
 	bool apf_supported;
@@ -2596,8 +2594,6 @@ QDF_STATUS wlan_hdd_check_custom_con_channel_rules(hdd_adapter_t *sta_adapter,
 						  bool *concurrent_chnl_same);
 void wlan_hdd_stop_sap(hdd_adapter_t *ap_adapter);
 void wlan_hdd_start_sap(hdd_adapter_t *ap_adapter, bool reinit);
-
-void wlan_hdd_soc_set_antenna_mode_cb(enum set_antenna_mode_status status);
 
 #ifdef QCA_CONFIG_SMP
 int wlan_hdd_get_cpu(void);

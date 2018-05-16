@@ -641,7 +641,7 @@ void lim_send_p2p_action_frame(tpAniSirGlobal mac_ctx,
 			if (NULL != p2p_ie) {
 				/* extract the presence of NoA attribute inside
 				 * P2P IE */
-				presence_noa_attr =  lim_get_ie_ptr_new(mac_ctx,
+				presence_noa_attr =  wlan_cfg_get_ie_ptr(
 					p2p_ie + SIR_P2P_IE_HEADER_LEN,
 					p2p_ie[1], SIR_P2P_NOA_ATTR, TWO_BYTE);
 			}

@@ -5678,38 +5678,6 @@ void lim_diag_event_report(tpAniSirGlobal pMac, uint16_t eventType,
 
 #endif /* FEATURE_WLAN_DIAG_SUPPORT */
 
-uint8_t *lim_get_ie_ptr_new(tpAniSirGlobal pMac, uint8_t *pIes, int length,
-				 uint8_t eid, eSizeOfLenField size_of_len_field)
-{
-	int left = length;
-	uint8_t *ptr = pIes;
-	uint8_t elem_id;
-	uint16_t elem_len;
-
-	while (left >= (size_of_len_field + 1)) {
-		elem_id = ptr[0];
-		if (size_of_len_field == TWO_BYTE) {
-			elem_len = ((uint16_t) ptr[1]) | (ptr[2] << 8);
-		} else {
-			elem_len = ptr[1];
-		}
-
-		left -= (size_of_len_field + 1);
-		if (elem_len > left) {
-			pe_err("Invalid IEs eid: %d elem_len: %d left: %d",
-				eid, elem_len, left);
-			return NULL;
-		}
-		if (elem_id == eid) {
-			return ptr;
-		}
-
-		left -= elem_len;
-		ptr += (elem_len + (size_of_len_field + 1));
-	}
-	return NULL;
-}
-
 /* Returns length of P2P stream and Pointer ie passed to this function is filled with noa stream */
 
 uint8_t lim_build_p2p_ie(tpAniSirGlobal pMac, uint8_t *ie, uint8_t *data,
@@ -6097,8 +6065,8 @@ void lim_set_ht_caps(tpAniSirGlobal p_mac, tpPESession p_session_entry,
 	tDot11fIEHTCaps dot11_ht_cap = {0,};
 
 	populate_dot11f_ht_caps(p_mac, p_session_entry, &dot11_ht_cap);
-	p_ie = lim_get_ie_ptr_new(p_mac, p_ie_start, num_bytes,
-			DOT11F_EID_HTCAPS, ONE_BYTE);
+	p_ie = wlan_cfg_get_ie_ptr(p_ie_start, num_bytes,
+				   DOT11F_EID_HTCAPS, ONE_BYTE);
 	pe_debug("p_ie: %pK dot11_ht_cap.supportedMCSSet[0]: 0x%x",
 		p_ie, dot11_ht_cap.supportedMCSSet[0]);
 	if (p_ie) {
@@ -6172,8 +6140,8 @@ void lim_set_vht_caps(tpAniSirGlobal p_mac, tpPESession p_session_entry,
 	tDot11fIEVHTCaps     dot11_vht_cap;
 
 	populate_dot11f_vht_caps(p_mac, p_session_entry, &dot11_vht_cap);
-	p_ie = lim_get_ie_ptr_new(p_mac, p_ie_start, num_bytes,
-				  DOT11F_EID_VHTCAPS, ONE_BYTE);
+	p_ie = wlan_cfg_get_ie_ptr(p_ie_start, num_bytes,
+				   DOT11F_EID_VHTCAPS, ONE_BYTE);
 
 	if (p_ie) {
 		tSirMacVHTCapabilityInfo *vht_cap =
@@ -6573,7 +6541,7 @@ QDF_STATUS lim_send_ext_cap_ie(tpAniSirGlobal mac_ctx,
  */
 tSirRetStatus lim_strip_ie(tpAniSirGlobal mac_ctx,
 		uint8_t *addn_ie, uint16_t *addn_ielen,
-		uint8_t eid, eSizeOfLenField size_of_len_field,
+		uint8_t eid, enum size_of_len_field size_of_len_field,
 		uint8_t *oui, uint8_t oui_length, uint8_t *extracted_ie,
 		uint32_t eid_max_len)
 {

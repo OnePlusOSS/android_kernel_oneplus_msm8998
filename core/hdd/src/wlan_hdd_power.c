@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /**
@@ -1324,7 +1315,8 @@ hdd_suspend_wlan(void (*callback)(void *callbackContext, bool suspended),
 		pAdapter = pAdapterNode->pAdapter;
 
 		/* stop all TX queues before suspend */
-		hdd_info("Disabling queues");
+		hdd_info("Disabling queues for dev mode %s",
+			 hdd_device_mode_to_string(pAdapter->device_mode));
 		wlan_hdd_netif_queue_control(pAdapter,
 					     WLAN_STOP_ALL_NETIF_QUEUE,
 					     WLAN_CONTROL_PATH);
@@ -1384,7 +1376,8 @@ static void hdd_resume_wlan(void)
 		pAdapter = pAdapterNode->pAdapter;
 
 		/* wake the tx queues */
-		hdd_info("Enabling queues");
+		hdd_info("Enabling queues for dev mode %s",
+			 hdd_device_mode_to_string(pAdapter->device_mode));
 		wlan_hdd_netif_queue_control(pAdapter,
 					WLAN_WAKE_ALL_NETIF_QUEUE,
 					WLAN_CONTROL_PATH);
@@ -1994,7 +1987,7 @@ static int __wlan_hdd_cfg80211_suspend_wlan(struct wiphy *wiphy,
 		pAdapter = pAdapterNode->pAdapter;
 
 		if (wlan_hdd_validate_session_id(pAdapter->sessionId)) {
-			hdd_err("invalid session id: %d", pAdapter->sessionId);
+			hdd_debug("invalid session id: %d", pAdapter->sessionId);
 			goto next_adapter;
 		}
 

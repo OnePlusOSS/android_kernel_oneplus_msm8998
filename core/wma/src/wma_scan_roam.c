@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /**
@@ -443,6 +434,9 @@ QDF_STATUS wma_get_buf_start_scan_cmd(tp_wma_handle wma_handle,
 		case P2P_SCAN_TYPE_SEARCH:
 			WMA_LOGD("P2P_SCAN_TYPE_SEARCH");
 			cmd->scan_ctrl_flags |= WMI_SCAN_FILTER_PROBE_REQ;
+			if (!scan_req->numSsid)
+				cmd->scan_ctrl_flags |=
+					WMI_SCAN_ADD_BCAST_PROBE_REQ;
 			/* Default P2P burst duration of 120 ms will cover
 			 * 3 channels with default max dwell time 40 ms.
 			 * Cap limit will be set by
@@ -3878,7 +3872,7 @@ QDF_STATUS wma_pno_start(tp_wma_handle wma, tpSirPNOScanReq pno)
 			pno->aNetworks[i].ssId.length;
 		qdf_mem_copy(params->aNetworks[i].ssid.mac_ssid,
 			pno->aNetworks[i].ssId.ssId,
-				WMI_MAC_MAX_SSID_LENGTH);
+				pno->aNetworks[i].ssId.length);
 	}
 
 	params->enable_pno_scan_randomization =
@@ -6366,7 +6360,7 @@ QDF_STATUS wma_set_epno_network_list(tp_wma_handle wma,
 					req->networks[i].ssid.length;
 			qdf_mem_copy(params->networks[i].ssid.mac_ssid,
 					req->networks[i].ssid.ssId,
-					WMI_MAC_MAX_SSID_LENGTH);
+					req->networks[i].ssid.length);
 		}
 	}
 

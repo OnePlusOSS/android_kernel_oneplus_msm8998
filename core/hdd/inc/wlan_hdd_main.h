@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 #if !defined(WLAN_HDD_MAIN_H)
@@ -412,12 +403,6 @@ struct statsContext {
 	unsigned int magic;
 };
 
-struct linkspeedContext {
-	struct completion completion;
-	hdd_adapter_t *pAdapter;
-	unsigned int magic;
-};
-
 /**
  * struct hdd_apf_context - hdd Context for apf
  * @magic: magic number
@@ -462,12 +447,9 @@ extern struct mutex hdd_init_deinit_lock;
 #define PEER_INFO_CONTEXT_MAGIC 0x50494E46  /* PEER_INFO(PINF) */
 #define POWER_CONTEXT_MAGIC 0x504F5752  /* POWR */
 #define SNR_CONTEXT_MAGIC   0x534E5200  /* SNR */
-#define LINK_CONTEXT_MAGIC  0x4C494E4B  /* LINKSPEED */
 #define LINK_STATUS_MAGIC   0x4C4B5354  /* LINKSTATUS(LNST) */
-#define TEMP_CONTEXT_MAGIC  0x74656d70   /* TEMP (temperature) */
 #define APF_CONTEXT_MAGIC 0x4575354    /* APF */
 #define POWER_STATS_MAGIC 0x14111990
-#define RCPI_CONTEXT_MAGIC  0x7778888  /* RCPI */
 #define ACTION_FRAME_RANDOM_CONTEXT_MAGIC 0x87878787
 
 /* MAX OS Q block time value in msec
@@ -1407,8 +1389,9 @@ struct hdd_adapter_s {
 	struct net_device_stats stats;
 	/** HDD statistics*/
 	hdd_stats_t hdd_stats;
-	/** linkspeed statistics */
-	tSirLinkSpeedInfo ls_stats;
+
+	/* estimated link speed */
+	u32 estimated_linkspeed;
 	/* SAP peer station info */
 	struct sir_peer_sta_info peer_sta_info;
 
@@ -1577,14 +1560,8 @@ struct hdd_adapter_s {
 	/* Time stamp for start RoC request */
 	uint64_t start_roc_ts;
 
-	/* State for synchronous OCB requests to WMI */
-	struct sir_ocb_set_config_response ocb_set_config_resp;
-	struct sir_ocb_get_tsf_timer_response ocb_get_tsf_timer_resp;
-	struct sir_dcc_get_stats_response *dcc_get_stats_resp;
-	struct sir_dcc_update_ndl_response dcc_update_ndl_resp;
-
-	/* MAC addresses used for OCB interfaces */
 #ifdef WLAN_FEATURE_DSRC
+	/* MAC addresses used for OCB interfaces */
 	struct qdf_mac_addr ocb_mac_address[QDF_MAX_CONCURRENCY_PERSONA];
 	int ocb_mac_addr_count;
 #endif
@@ -3106,7 +3083,7 @@ void hdd_pld_ipa_uc_shutdown_pipes(void);
  *
  * Return: None
  */
-void hdd_drv_ops_inactivity_handler(void);
+void hdd_drv_ops_inactivity_handler(unsigned long arg);
 
 /**
  * hdd_start_driver_ops_timer() - Starts driver ops inactivity timer

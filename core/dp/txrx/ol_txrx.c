@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /*=== includes ===*/
@@ -3768,7 +3759,7 @@ QDF_STATUS ol_txrx_clear_peer(uint8_t sta_id)
  *
  * Return: none
  */
-void peer_unmap_timer_handler(void *data)
+void peer_unmap_timer_handler(unsigned long data)
 {
 	ol_txrx_peer_handle peer = (ol_txrx_peer_handle)data;
 
@@ -5196,9 +5187,10 @@ static inline int ol_txrx_drop_nbuf_list(qdf_nbuf_t buf_list)
  *
  * Return: None
  */
-static void ol_rx_data_cb(struct ol_txrx_pdev_t *pdev,
-			  qdf_nbuf_t buf_list, uint16_t staid)
+static void ol_rx_data_cb(void *_pdev, void *_buf_list, uint16_t staid)
 {
+	struct ol_txrx_pdev_t *pdev = (struct ol_txrx_pdev_t *)_pdev;
+	qdf_nbuf_t buf_list = (qdf_nbuf_t)_buf_list;
 	void *cds_ctx = cds_get_global_context();
 	void *osif_dev;
 	uint8_t drop_count = 0;
@@ -5398,8 +5390,7 @@ void ol_rx_data_process(struct ol_txrx_peer_t *peer,
 			if (!pkt)
 				goto drop_rx_buf;
 
-			pkt->callback = (cds_ol_rx_thread_cb)
-					ol_rx_data_cb;
+			pkt->callback = ol_rx_data_cb;
 			pkt->context = (void *)pdev;
 			pkt->Rxpkt = (void *)rx_buf_list;
 			pkt->staId = peer->local_id;

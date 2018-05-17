@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /**
@@ -52,6 +43,7 @@
 #include <wlan_hdd_wmm.h>
 #include "utils_api.h"
 #include "wlan_hdd_p2p.h"
+#include "wlan_hdd_request_manager.h"
 #ifdef FEATURE_WLAN_TDLS
 #include "wlan_hdd_tdls.h"
 #endif
@@ -613,25 +605,7 @@ static const struct ccp_freq_chan_map freq_chan_map[] = {
  * </ioctl>
  */
 #define  WE_PPS_RSSI_CHECK              53
-/*
- * <ioctl>
- * setAutoChannel - set ACS enable/disable
- *
- * @INPUT: None
- *
- * @OUTPUT:  None
- *
- * This IOCTL is used to set SAP ACS eanble/disable
- *
- * @E.g: iwpriv wlan0 setAutoChannel 0
- *
- * Supported Feature: SAP
- *
- * Usage: Internal/External
- *
- * </ioctl>
- */
-#define WE_SET_SAP_AUTO_CHANNEL_SELECTION     54
+
 /*
  * <ioctl>
  * htsmps - Sets the htsmps
@@ -1073,11 +1047,8 @@ static const struct ccp_freq_chan_map freq_chan_map[] = {
 /* Private ioctls and their sub-ioctls */
 #define WLAN_PRIV_SET_NONE_GET_INT    (SIOCIWFIRSTPRIV + 1)
 #define WE_GET_11D_STATE     1
-#define WE_SET_SAP_CHANNELS  3
 #define WE_GET_WLAN_DBG      4
 #define WE_GET_MAX_ASSOC     6
-/* 7 is unused */
-#define WE_GET_SAP_AUTO_CHANNEL_SELECTION 8
 
 /*
  * <ioctl>
@@ -1782,7 +1753,6 @@ static const struct ccp_freq_chan_map freq_chan_map[] = {
 #define WLAN_PRIV_SET_THREE_INT_GET_NONE   (SIOCIWFIRSTPRIV + 4)
 #define WE_SET_WLAN_DBG      1
 #define WE_SET_DP_TRACE      2
-#define WE_SET_SAP_CHANNELS  3
 #define WE_SET_FW_TEST       4
 
 /* Private ioctls and their sub-ioctls */
@@ -3641,139 +3611,92 @@ QDF_STATUS wlan_hdd_get_snr(hdd_adapter_t *pAdapter, int8_t *snr)
 	return QDF_STATUS_SUCCESS;
 }
 
-/**
- * hdd_get_link_speed_cb() - Get link speed callback function
- * @pLinkSpeed: pointer to the link speed record
- * @pContext: pointer to the user context passed to SME
- *
- * This function is passed as the callback function to
- * sme_get_link_speed() by wlan_hdd_get_linkspeed_for_peermac().  By
- * agreement a &struct linkspeedContext is passed as @pContext.  If
- * the context is valid, then the contents of @pLinkSpeed are copied
- * into the adapter record referenced by @pContext where they can be
- * subsequently retrieved.  If the context is invalid, then this
- * function does nothing since it is assumed the caller has already
- * timed-out and destroyed the context.
- *
- * Return: None.
- */
+struct linkspeed_priv {
+	tSirLinkSpeedInfo linkspeed_info;
+};
+
 static void
-hdd_get_link_speed_cb(tSirLinkSpeedInfo *pLinkSpeed, void *pContext)
+hdd_get_link_speed_cb(tSirLinkSpeedInfo *linkspeed_info, void *context)
 {
-	struct linkspeedContext *pLinkSpeedContext;
-	hdd_adapter_t *pAdapter;
+	struct hdd_request *request;
+	struct linkspeed_priv *priv;
 
-	if ((NULL == pLinkSpeed) || (NULL == pContext)) {
-		hdd_err("Bad param, pLinkSpeed [%pK] pContext [%pK]",
-			pLinkSpeed, pContext);
-		return;
-	}
-	spin_lock(&hdd_context_lock);
-	pLinkSpeedContext = pContext;
-	pAdapter = pLinkSpeedContext->pAdapter;
-
-	/* there is a race condition that exists between this callback
-	 * function and the caller since the caller could time out either
-	 * before or while this code is executing.  we use a spinlock to
-	 * serialize these actions
-	 */
-
-	if ((NULL == pAdapter) ||
-	    (LINK_CONTEXT_MAGIC != pLinkSpeedContext->magic)) {
-		/* the caller presumably timed out so there is nothing
-		 * we can do
-		 */
-		spin_unlock(&hdd_context_lock);
-		hdd_warn("Invalid context, pAdapter [%pK] magic [%08x]",
-			 pAdapter, pLinkSpeedContext->magic);
+	if (!linkspeed_info) {
+		hdd_err("NULL linkspeed");
 		return;
 	}
 
-	/* context is valid so caller is still waiting */
+	request = hdd_request_get(context);
+	if (!request) {
+		hdd_err("Obsolete request");
+		return;
+	}
 
-	/* paranoia: invalidate the magic */
-	pLinkSpeedContext->magic = 0;
-
-	/* copy over the stats. do so as a struct copy */
-	pAdapter->ls_stats = *pLinkSpeed;
-
-	/* notify the caller */
-	complete(&pLinkSpeedContext->completion);
-
-	/* serialization is complete */
-	spin_unlock(&hdd_context_lock);
+	priv = hdd_request_priv(request);
+	priv->linkspeed_info = *linkspeed_info;
+	hdd_request_complete(request);
+	hdd_request_put(request);
 }
 
-/**
- * wlan_hdd_get_linkspeed_for_peermac() - Get link speed for a peer
- * @pAdapter: adapter upon which the peer is active
- * @macAddress: MAC address of the peer
- *
- * This function will send a query to SME for the linkspeed of the
- * given peer, and then wait for the callback to be invoked.
- *
- * Return: Errno
- */
-int wlan_hdd_get_linkspeed_for_peermac(hdd_adapter_t *pAdapter,
-				       struct qdf_mac_addr macAddress)
+int wlan_hdd_get_linkspeed_for_peermac(hdd_adapter_t *adapter,
+				       struct qdf_mac_addr *mac_address,
+				       uint32_t *linkspeed)
 {
+	int ret;
 	QDF_STATUS status;
-	int errno;
-	unsigned long rc;
-	static struct linkspeedContext context;
-	tSirLinkSpeedInfo *linkspeed_req;
+	void *cookie;
+	tSirLinkSpeedInfo *linkspeed_info;
+	struct hdd_request *request;
+	struct linkspeed_priv *priv;
+	static const struct hdd_request_params params = {
+		.priv_size = sizeof(*priv),
+		.timeout_ms = WLAN_WAIT_TIME_STATS,
+	};
 
-	if (NULL == pAdapter) {
-		hdd_err("pAdapter is NULL");
+	if ((!adapter) || (!linkspeed)) {
+		hdd_err("NULL argument");
 		return -EINVAL;
 	}
 
-	linkspeed_req = qdf_mem_malloc(sizeof(*linkspeed_req));
-	if (NULL == linkspeed_req) {
-		hdd_err("Request Buffer Alloc Fail");
-		return -ENOMEM;
+	request = hdd_request_alloc(&params);
+	if (!request) {
+		hdd_err("Request allocation failure");
+		ret = -ENOMEM;
+		goto return_cached_value;
 	}
 
-	init_completion(&context.completion);
-	context.pAdapter = pAdapter;
-	context.magic = LINK_CONTEXT_MAGIC;
+	cookie = hdd_request_cookie(request);
+	priv = hdd_request_priv(request);
 
-	qdf_copy_macaddr(&linkspeed_req->peer_macaddr, &macAddress);
-	status = sme_get_link_speed(WLAN_HDD_GET_HAL_CTX(pAdapter),
-				    linkspeed_req,
-				    &context, hdd_get_link_speed_cb);
-	qdf_mem_free(linkspeed_req);
-	errno = qdf_status_to_os_return(status);
-	if (errno) {
+	linkspeed_info = &priv->linkspeed_info;
+	qdf_copy_macaddr(&linkspeed_info->peer_macaddr, mac_address);
+	status = sme_get_link_speed(WLAN_HDD_GET_HAL_CTX(adapter),
+				    linkspeed_info,
+				    cookie, hdd_get_link_speed_cb);
+	if (QDF_IS_STATUS_ERROR(status)) {
 		hdd_err("Unable to retrieve statistics for link speed");
-	} else {
-		rc = wait_for_completion_timeout
-			(&context.completion,
-			 msecs_to_jiffies(WLAN_WAIT_TIME_STATS));
-		if (!rc) {
-			hdd_err("SME timed out while retrieving link speed");
-			errno = -ETIMEDOUT;
-		}
+		ret = qdf_status_to_os_return(status);
+		goto cleanup;
 	}
+	ret = hdd_request_wait_for_response(request);
+	if (ret) {
+		hdd_err("SME timed out while retrieving link speed");
+		goto cleanup;
+	}
+	adapter->estimated_linkspeed = linkspeed_info->estLinkSpeed;
 
-	/* either we never sent a request, we sent a request and
-	 * received a response or we sent a request and timed out.  if
-	 * we never sent a request or if we sent a request and got a
-	 * response, we want to clear the magic out of paranoia.  if
-	 * we timed out there is a race condition such that the
-	 * callback function could be executing at the same time we
-	 * are. of primary concern is if the callback function had
-	 * already verified the "magic" but had not yet set the
-	 * completion variable when a timeout occurred. we serialize
-	 * these activities by invalidating the magic while holding a
-	 * shared spinlock which will cause us to block if the
-	 * callback is currently executing
+cleanup:
+	/*
+	 * either we never sent a request, we sent a request and
+	 * received a response or we sent a request and timed out.
+	 * regardless we are done with the request.
 	 */
-	spin_lock(&hdd_context_lock);
-	context.magic = 0;
-	spin_unlock(&hdd_context_lock);
+	hdd_request_put(request);
 
-	return errno;
+return_cached_value:
+	*linkspeed = adapter->estimated_linkspeed;
+
+	return ret;
 }
 
 /**
@@ -3814,12 +3737,12 @@ int wlan_hdd_get_link_speed(hdd_adapter_t *sta_adapter, uint32_t *link_speed)
 
 		qdf_copy_macaddr(&bssid, &hdd_stactx->conn_info.bssId);
 
-		errno = wlan_hdd_get_linkspeed_for_peermac(sta_adapter, bssid);
+		errno = wlan_hdd_get_linkspeed_for_peermac(sta_adapter, &bssid,
+							   link_speed);
 		if (errno) {
 			hdd_err("Unable to retrieve SME linkspeed: %d", errno);
 			return errno;
 		}
-		*link_speed = sta_adapter->ls_stats.estLinkSpeed;
 		/* linkspeed in units of 500 kbps */
 		*link_speed = (*link_speed) / 500;
 	}
@@ -7282,10 +7205,14 @@ free:
 	return retval;
 }
 
+struct temperature_priv {
+	int temperature;
+};
+
 /**
  * hdd_get_temperature_cb() - "Get Temperature" callback function
  * @temperature: measured temperature
- * @pContext: callback context
+ * @context: callback context
  *
  * This function is passed to sme_get_temperature() as the callback
  * function to be invoked when the temperature measurement is
@@ -7293,30 +7220,24 @@ free:
  *
  * Return: None
  */
-static void hdd_get_temperature_cb(int temperature, void *pContext)
+static void hdd_get_temperature_cb(int temperature, void *context)
 {
-	struct statsContext *pTempContext;
-	hdd_adapter_t *pAdapter;
+	struct hdd_request *request;
+	struct temperature_priv *priv;
 
 	ENTER();
-	if (NULL == pContext) {
-		hdd_err("pContext is NULL");
-		return;
-	}
-	pTempContext = pContext;
-	pAdapter = pTempContext->pAdapter;
-	spin_lock(&hdd_context_lock);
-	if ((NULL == pAdapter) || (TEMP_CONTEXT_MAGIC != pTempContext->magic)) {
-		spin_unlock(&hdd_context_lock);
-		hdd_warn("Invalid context, pAdapter [%pK] magic [%08x]",
-		       pAdapter, pTempContext->magic);
-		return;
-	}
-	if (temperature != 0)
-		pAdapter->temperature = temperature;
 
-	complete(&pTempContext->completion);
-	spin_unlock(&hdd_context_lock);
+	request = hdd_request_get(context);
+	if (!request) {
+		hdd_err("Obsolete request");
+		return;
+	}
+
+	priv = hdd_request_priv(request);
+	priv->temperature = temperature;
+	hdd_request_complete(request);
+	hdd_request_put(request);
+
 	EXIT();
 }
 
@@ -7329,35 +7250,54 @@ static void hdd_get_temperature_cb(int temperature, void *pContext)
  * returned, otherwise a negative errno is returned.
  *
  */
-int wlan_hdd_get_temperature(hdd_adapter_t *pAdapter, int *temperature)
+int wlan_hdd_get_temperature(hdd_adapter_t *p_adapter, int *temperature)
 {
 	QDF_STATUS status;
-	static struct statsContext tempContext;
-	unsigned long rc;
+	int ret;
+	void *cookie;
+	struct hdd_request *request;
+	struct temperature_priv *priv;
+	static const struct hdd_request_params params = {
+		.priv_size = sizeof(*priv),
+		.timeout_ms = WLAN_WAIT_TIME_STATS,
+	};
 
 	ENTER();
-	if (NULL == pAdapter) {
+	if (!p_adapter) {
 		hdd_err("pAdapter is NULL");
 		return -EPERM;
 	}
-	init_completion(&tempContext.completion);
-	tempContext.pAdapter = pAdapter;
-	tempContext.magic = TEMP_CONTEXT_MAGIC;
-	status = sme_get_temperature(WLAN_HDD_GET_HAL_CTX(pAdapter),
-				     &tempContext, hdd_get_temperature_cb);
+
+	request = hdd_request_alloc(&params);
+	if (!request) {
+		hdd_err("Request allocation failure");
+		return -ENOMEM;
+	}
+	cookie = hdd_request_cookie(request);
+	status = sme_get_temperature(WLAN_HDD_GET_HAL_CTX(p_adapter),
+				     cookie, hdd_get_temperature_cb);
 	if (QDF_STATUS_SUCCESS != status) {
 		hdd_err("Unable to retrieve temperature");
 	} else {
-		rc = wait_for_completion_timeout(&tempContext.completion,
-						 msecs_to_jiffies
-							 (WLAN_WAIT_TIME_STATS));
-		if (!rc)
+		ret = hdd_request_wait_for_response(request);
+		if (ret) {
 			hdd_err("SME timed out while retrieving temperature");
+		} else {
+			/* update the adapter with the fresh results */
+			priv = hdd_request_priv(request);
+			if (priv->temperature)
+				p_adapter->temperature = priv->temperature;
+		}
 	}
-	spin_lock(&hdd_context_lock);
-	tempContext.magic = 0;
-	spin_unlock(&hdd_context_lock);
-	*temperature = pAdapter->temperature;
+
+	/*
+	 * either we never sent a request, we sent a request and
+	 * received a response or we sent a request and timed out.
+	 * regardless we are done with the request.
+	 */
+	hdd_request_put(request);
+
+	*temperature = p_adapter->temperature;
 	EXIT();
 	return 0;
 }
@@ -7504,14 +7444,6 @@ static int __iw_setint_getnone(struct net_device *dev,
 		}
 		break;
 	}
-
-	case WE_SET_SAP_AUTO_CHANNEL_SELECTION:
-		if (set_value == 0 || set_value == 1)
-			(WLAN_HDD_GET_CTX(pAdapter))->config->force_sap_acs =
-								set_value;
-		else
-			ret = -EINVAL;
-		break;
 
 	case WE_SET_DATA_INACTIVITY_TO:
 		if (!hHal) {
@@ -8916,10 +8848,6 @@ static int __iw_setnone_getint(struct net_device *dev,
 		}
 		break;
 	}
-	case WE_GET_SAP_AUTO_CHANNEL_SELECTION:
-		*value = (WLAN_HDD_GET_CTX(
-				pAdapter))->config->force_sap_acs;
-		break;
 
 	case WE_GET_CONCURRENCY_MODE:
 	{
@@ -9447,21 +9375,6 @@ static int __iw_set_three_ints_getnone(struct net_device *dev,
 		qdf_dp_trace_set_value(value[1], value[2], value[3]);
 		break;
 
-	/* value[3] the acs band is not required as start and end channels are
-	 * enough but this cmd is maintained under set three ints for historic
-	 * reasons.
-	 */
-	case WE_SET_SAP_CHANNELS:
-		if (wlan_hdd_validate_operation_channel(pAdapter, value[1]) !=
-			QDF_STATUS_SUCCESS ||
-			wlan_hdd_validate_operation_channel(pAdapter,
-					value[2]) != QDF_STATUS_SUCCESS) {
-			ret = -EINVAL;
-		} else {
-			hdd_ctx->config->force_sap_acs_st_ch = value[1];
-			hdd_ctx->config->force_sap_acs_end_ch = value[2];
-		}
-		break;
 	case WE_SET_DUAL_MAC_SCAN_CONFIG:
 		hdd_debug("Ioctl to set dual mac scan config");
 		if (hdd_ctx->config->dual_mac_feature_disable ==
@@ -12606,10 +12519,6 @@ static const struct iw_priv_args we_private_args[] = {
 	 0,
 	 "setMaxAssoc"},
 
-	{WE_SET_SAP_AUTO_CHANNEL_SELECTION,
-		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0,
-		"setAutoChannel" },
-
 	{WE_SET_SCAN_DISABLE,
 	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
 	 0,
@@ -13041,10 +12950,6 @@ static const struct iw_priv_args we_private_args[] = {
 	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
 	 "getMaxAssoc"},
 
-	{WE_GET_SAP_AUTO_CHANNEL_SELECTION,
-		0, IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-		"getAutoChannel" },
-
 	{WE_GET_CONCURRENCY_MODE,
 	 0,
 	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
@@ -13324,11 +13229,6 @@ static const struct iw_priv_args we_private_args[] = {
 	IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 3,
 	0,
 	"set_dp_trace"},
-
-	{WE_SET_SAP_CHANNELS,
-	IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 3,
-	0,
-	"setsapchannels"},
 
 	{WE_SET_FW_TEST,
 	IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 3,

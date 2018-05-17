@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /*
@@ -4001,8 +3992,8 @@ QDF_STATUS csr_roam_call_callback(tpAniSirGlobal pMac, uint32_t sessionId,
 		 * failure, decrement bRefAssocStartCnt.
 		 */
 		pSession->bRefAssocStartCnt--;
-	} else if (u1 == eCSR_ROAM_SET_CHANNEL_RSP && u2 ==
-				eCSR_ROAM_RESULT_CHANNEL_CHANGE_SUCCESS)
+	} else if (pRoamInfo && (u1 == eCSR_ROAM_SET_CHANNEL_RSP)
+		   && (u2 == eCSR_ROAM_RESULT_CHANNEL_CHANGE_SUCCESS))
 		pSession->connectedProfile.operationChannel =
 			pRoamInfo->channelChangeRespEvent->newChannelNumber;
 
@@ -11682,6 +11673,12 @@ csr_roam_send_disconnect_done_indication(tpAniSirGlobal mac_ctx, tSirSmeRsp
 	} else
 		sme_err("Inactive session %d",
 			discon_ind->session_id);
+
+	/*
+	 * Release WM status change command as eWNI_SME_DISCONNECT_DONE_IND
+	 * has been sent to HDD and there is nothing else left to do.
+	 */
+	csr_roam_wm_status_change_complete(mac_ctx);
 }
 
 static void
@@ -13031,7 +13028,7 @@ QDF_STATUS csr_roam_lost_link(tpAniSirGlobal pMac, uint32_t sessionId,
 }
 
 
-static void csr_roam_wm_status_change_complete(tpAniSirGlobal pMac)
+void csr_roam_wm_status_change_complete(tpAniSirGlobal pMac)
 {
 	tListElem *pEntry;
 	tSmeCmd *pCommand;
@@ -13066,7 +13063,7 @@ void csr_roam_process_wm_status_change_command(tpAniSirGlobal pMac,
 
 	if (!pSession) {
 		sme_err("session %d not found", pCommand->sessionId);
-		return;
+		goto end;
 	}
 	sme_debug("session:%d, CmdType : %d",
 		pCommand->sessionId, pCommand->u.wmStatusChangeCmd.Type);
@@ -13093,10 +13090,15 @@ void csr_roam_process_wm_status_change_command(tpAniSirGlobal pMac,
 			pCommand->u.wmStatusChangeCmd.Type);
 		break;
 	}
-	/* Lost Link just triggers a roaming sequence.  We can complte the
-	 * Lost Link command here since there is nothing else to do.
-	 */
-	csr_roam_wm_status_change_complete(pMac);
+
+end:
+	if (status != QDF_STATUS_SUCCESS) {
+		/*
+		 * As status returned is not success, there is nothing else
+		 * left to do so release WM status change command here.
+		 */
+		csr_roam_wm_status_change_complete(pMac);
+	}
 }
 
 

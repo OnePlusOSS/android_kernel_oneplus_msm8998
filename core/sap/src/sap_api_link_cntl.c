@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /*===========================================================================
@@ -984,10 +975,12 @@ wlansap_roam_callback(void *ctx, tCsrRoamInfo *csr_roam_info, uint32_t roamId,
 		break;
 	case eCSR_ROAM_REMAIN_CHAN_READY:
 		/* roamId contains scan identifier */
-		sap_ctx->roc_ind_scan_id = csr_roam_info->roc_scan_id;
-		sap_signal_hdd_event(sap_ctx, csr_roam_info,
-				     eSAP_REMAIN_CHAN_READY,
-				     (void *) eSAP_STATUS_SUCCESS);
+		if (csr_roam_info) {
+			sap_ctx->roc_ind_scan_id = csr_roam_info->roc_scan_id;
+			sap_signal_hdd_event(sap_ctx, csr_roam_info,
+					     eSAP_REMAIN_CHAN_READY,
+					     (void *) eSAP_STATUS_SUCCESS);
+		}
 		break;
 	case eCSR_ROAM_DISCONNECT_ALL_P2P_CLIENTS:
 		sap_signal_hdd_event(sap_ctx, csr_roam_info,

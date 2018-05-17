@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /**
@@ -753,9 +744,9 @@ static bool wlan_hdd_is_scan_pending(hdd_adapter_t *adapter)
  *
  * Return: void
  */
-static void hdd_scan_inactivity_timer_handler(void *scan_req)
+static void hdd_scan_inactivity_timer_handler(unsigned long scan_req)
 {
-	struct hdd_scan_req *hdd_scan_req = scan_req;
+	struct hdd_scan_req *hdd_scan_req = (struct hdd_scan_req *)scan_req;
 
 	hdd_debug("scan_id %d, enqueue timestamp %u, flags 0x%X",
 		hdd_scan_req->scan_id, hdd_scan_req->timestamp,

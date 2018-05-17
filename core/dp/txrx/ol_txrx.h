@@ -32,6 +32,13 @@
 #define OL_TXRX_PEER_UNREF_DELETE(peer) \
 	ol_txrx_peer_unref_delete(peer, __func__, __LINE__)
 
+/* ol_txrx_is_peer_eligible_for_deletion() - check if peer to be deleted
+ * @peer: peer handler
+ *
+ * Return: true if eligible for deletion else false
+ */
+bool ol_txrx_is_peer_eligible_for_deletion(ol_txrx_peer_handle peer);
+
 int ol_txrx_peer_unref_delete(ol_txrx_peer_handle peer,
 					      const char *fname,
 					      int line);

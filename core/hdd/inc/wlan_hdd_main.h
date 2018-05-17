@@ -2259,6 +2259,7 @@ struct hdd_context_s {
 
 	enum sar_version sar_version;
 
+	bool is_ssr_in_progress;
 };
 
 int hdd_validate_channel_and_bandwidth(hdd_adapter_t *adapter,

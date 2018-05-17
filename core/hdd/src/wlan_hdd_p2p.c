@@ -802,7 +802,9 @@ QDF_STATUS wlan_hdd_remain_on_channel_callback(tHalHandle hHal, void *pCtx,
 	 * Always schedule below work queue only after completing the
 	 * cancel_rem_on_chan_var event.
 	 */
-	schedule_delayed_work(&hdd_ctx->roc_req_work, 0);
+	/* If ssr is inprogress, do not schedule next roc req */
+	if (!hdd_ctx->is_ssr_in_progress)
+		schedule_delayed_work(&hdd_ctx->roc_req_work, 0);
 
 	return QDF_STATUS_SUCCESS;
 }

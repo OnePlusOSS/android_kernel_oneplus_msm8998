@@ -2146,6 +2146,7 @@ QDF_STATUS send_set_mimops_cmd_tlv(wmi_unified_t wmi_handle,
 		break;
 	default:
 		WMI_LOGE("%s:INVALID Mimo PS CONFIG", __func__);
+		wmi_buf_free(buf);
 		return QDF_STATUS_E_FAILURE;
 	}
 
@@ -14573,6 +14574,9 @@ extract_roam_scan_stats_res_evt_tlv(wmi_unified_t wmi_handle, void *evt_buf,
 		WMI_LOGP("%s: Invalid roam scan stats event", __func__);
 		return QDF_STATUS_E_INVAL;
 	}
+	if (!(param_buf->num_channels && param_buf->num_roam_candidates &&
+	      param_buf->channel))
+		return QDF_STATUS_E_INVAL;
 
 	fixed_param = param_buf->fixed_param;
 	total_len = sizeof(*res) + fixed_param->num_roam_scans *

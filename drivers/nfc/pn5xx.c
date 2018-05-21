@@ -1194,9 +1194,14 @@ static int pn544_suspend(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct pn544_dev *pn544_dev = i2c_get_clientdata(client);
 
-	printk("%s pn544_dev->clk_gpio = %d\n", __func__,
-		   gpio_get_value(pn544_dev->clk_gpio));
-	if (pn544_dev->nfc_ven_enabled && gpio_get_value(pn544_dev->clk_gpio)) {
+	pr_warn("%s pn544_dev->clk_gpio = %d, pn544_dev->irq_gpio = %d\n",
+		__func__,
+		gpio_get_value(pn544_dev->clk_gpio),
+		gpio_get_value(pn544_dev->irq_gpio));
+	if (pn544_dev->nfc_ven_enabled &&
+		gpio_get_value(pn544_dev->clk_gpio) &&
+		gpio_get_value(pn544_dev->irq_gpio)) {
+
 		__pm_wakeup_event(&pn544_dev->pn544_ws,
 				msecs_to_jiffies(CLOCK_HOLD_TIME));
 		pn544_enable_clk(pn544_dev);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -131,7 +131,7 @@ int ptt_sock_send_msg_to_app(tAniHdr *wmsg, int radio, int src_mod, int pid)
 			  __func__, radio);
 		return -EINVAL;
 	}
-	payload_len = wmsg_length + sizeof(wnl->radio) + sizeof(*wmsg);
+	payload_len = wmsg_length + sizeof(wnl->radio);
 	tot_msg_len = NLMSG_SPACE(payload_len);
 	skb = dev_alloc_skb(tot_msg_len);
 	if (skb  == NULL) {
@@ -287,18 +287,9 @@ static void ptt_cmd_handler(const void *data, int data_len, void *ctx, int pid)
 
 	payload = (struct sptt_app_reg_req *)(nla_data(tb[CLD80211_ATTR_DATA]));
 	length = be16_to_cpu(payload->wmsg.length);
-	if ((USHRT_MAX - length) < (sizeof(payload->radio) + sizeof(tAniHdr))) {
-		PTT_TRACE(QDF_TRACE_LEVEL_ERROR,
-			"u16 overflow length %d %zu %zu",
-			length,
-			sizeof(payload->radio),
-			sizeof(tAniHdr));
-		return;
-	}
 
 	if (nla_len(tb[CLD80211_ATTR_DATA]) <  (length +
-						sizeof(payload->radio) +
-						sizeof(tAniHdr))) {
+						sizeof(payload->radio))) {
 		PTT_TRACE(QDF_TRACE_LEVEL_ERROR, "ATTR_DATA len check failed");
 		return;
 	}

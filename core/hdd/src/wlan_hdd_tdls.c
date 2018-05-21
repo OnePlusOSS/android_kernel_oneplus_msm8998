@@ -654,6 +654,12 @@ static void wlan_hdd_tdls_del_non_forced_peers(tdlsCtx_t *hdd_tdls_ctx)
 		list_for_each_safe(pos, q, head) {
 			peer = list_entry(pos, hddTdlsPeer_t, node);
 			if (false == peer->isForcedPeer) {
+				if (peer->is_peer_idle_timer_initialised) {
+					hdd_debug(MAC_ADDRESS_STR ": destroy idle timer",
+					 MAC_ADDR_ARRAY(peer->peerMac));
+					qdf_mc_timer_destroy(
+						&peer->peer_idle_timer);
+				}
 				list_del(pos);
 				qdf_mem_free(peer);
 			} else {

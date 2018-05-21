@@ -10714,7 +10714,7 @@ enum restart_beaconing_on_ch_avoid_rule {
  * fw_timeout_crash - Enable/Disable BUG ON
  * @Min: 0
  * @Max: 1
- * @Default: 0
+ * @Default: 1
  *
  * This ini is used to Trigger host crash when firmware fails to send the
  * response to host
@@ -10732,7 +10732,7 @@ enum restart_beaconing_on_ch_avoid_rule {
 #define CFG_CRASH_FW_TIMEOUT_NAME       "fw_timeout_crash"
 #define CFG_CRASH_FW_TIMEOUT_DISABLE    (0)
 #define CFG_CRASH_FW_TIMEOUT_ENABLE     (1)
-#define CFG_CRASH_FW_TIMEOUT_DEFAULT    (0)
+#define CFG_CRASH_FW_TIMEOUT_DEFAULT    (1)
 
 /* Hold wakelock for unicast RX packets for the specified duration  */
 #define CFG_RX_WAKELOCK_TIMEOUT_NAME     "rx_wakelock_timeout"

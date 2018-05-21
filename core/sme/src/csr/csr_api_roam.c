@@ -19366,6 +19366,7 @@ csr_create_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 		roam_info->cfgParams.nRoamBmissFinalBcnt;
 	req_buf->RoamBeaconRssiWeight =
 		roam_info->cfgParams.nRoamBeaconRssiWeight;
+	req_buf->rsn_caps = session->rsn_caps;
 	qdf_mem_copy(&req_buf->mawc_roam_params,
 		&mac_ctx->roam.configParam.csr_mawc_config,
 		sizeof(req_buf->mawc_roam_params));

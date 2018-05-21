@@ -579,15 +579,13 @@ void hdd_tx_rx_collect_connectivity_stats_info(struct sk_buff *skb,
 			uint8_t *pkt_type)
 {
 	uint32_t pkt_type_bitmap;
+	int errno;
 	hdd_adapter_t *adapter = NULL;
 
 	adapter = (hdd_adapter_t *)context;
-	if (unlikely(adapter->magic != WLAN_HDD_ADAPTER_MAGIC)) {
-		QDF_TRACE(QDF_MODULE_ID_HDD_DATA, QDF_TRACE_LEVEL_ERROR,
-			  "Magic cookie(%x) for adapter sanity verification is invalid",
-			  adapter->magic);
+	errno = hdd_validate_adapter(adapter);
+	if (errno)
 		return;
-	}
 
 	/* ARP tracking is done already. */
 	pkt_type_bitmap = adapter->pkt_type_bitmap;
@@ -1085,9 +1083,15 @@ drop_pkt_and_release_skb:
 drop_pkt:
 
 	if (skb) {
+		/* track connectivity stats */
+		if (pAdapter->pkt_type_bitmap)
+			hdd_tx_rx_collect_connectivity_stats_info(skb, pAdapter,
+						PKT_TYPE_TX_DROPPED, &pkt_type);
+
 		qdf_dp_trace_data_pkt(skb, QDF_DP_TRACE_DROP_PACKET_RECORD, 0,
 				      QDF_TX);
 		kfree_skb(skb);
+		skb = NULL;
 	}
 
 drop_pkt_accounting:
@@ -1099,11 +1103,6 @@ drop_pkt_accounting:
 		QDF_TRACE(QDF_MODULE_ID_HDD_DATA, QDF_TRACE_LEVEL_INFO_HIGH,
 				  "%s : ARP packet dropped", __func__);
 	}
-
-	/* track connectivity stats */
-	if (pAdapter->pkt_type_bitmap)
-		hdd_tx_rx_collect_connectivity_stats_info(skb, pAdapter,
-						PKT_TYPE_TX_DROPPED, &pkt_type);
 
 	return NETDEV_TX_OK;
 }

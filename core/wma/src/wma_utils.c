@@ -452,8 +452,8 @@ int wma_stats_ext_event_handler(void *handle, uint8_t *event_buf,
 	alloc_len += stats_ext_info->data_len;
 
 	if (stats_ext_info->data_len > (WMI_SVC_MSG_MAX_SIZE -
-	    sizeof(*stats_ext_info)) || stats_ext_info->data_len >
-	    param_buf->num_data) {
+	    WMI_TLV_HDR_SIZE - sizeof(*stats_ext_info)) ||
+	    stats_ext_info->data_len > param_buf->num_data) {
 		WMA_LOGE("Excess data_len:%d, num_data:%d",
 			stats_ext_info->data_len, param_buf->num_data);
 		return -EINVAL;
@@ -6020,6 +6020,7 @@ QDF_STATUS wma_send_vdev_down_to_fw(t_wma_handle *wma, uint8_t vdev_id)
 	QDF_STATUS status;
 	struct wma_txrx_node *vdev = &wma->interfaces[vdev_id];
 
+	wma->interfaces[vdev_id].roaming_in_progress = false;
 	status = wmi_unified_vdev_down_send(wma->wmi_handle, vdev_id);
 	wma_release_wakelock(&vdev->vdev_start_wakelock);
 

@@ -5072,6 +5072,7 @@ __wlan_hdd_cfg80211_get_logger_supp_feature(struct wiphy *wiphy,
 	features |= WIFI_LOGGER_CONNECT_EVENT_SUPPORTED;
 	features |= WIFI_LOGGER_WAKE_LOCK_SUPPORTED;
 	features |= WIFI_LOGGER_DRIVER_DUMP_SUPPORTED;
+	features |= WIFI_LOGGER_PACKET_FATE_SUPPORTED;
 
 	reply_skb = cfg80211_vendor_cmd_alloc_reply_skb(wiphy,
 			sizeof(uint32_t) + NLA_HDRLEN + NLMSG_HDRLEN);
@@ -17440,9 +17441,9 @@ static int wlan_hdd_cfg80211_set_ie(hdd_adapter_t *pAdapter, const uint8_t *ie,
 	uint16_t remLen = ie_len;
 #ifdef FEATURE_WLAN_WAPI
 	uint32_t akmsuite[MAX_NUM_AKM_SUITES];
-	u16 *tmp;
+	uint8_t *tmp;
 	uint16_t akmsuiteCount;
-	int *akmlist;
+	uint32_t *akmlist;
 #endif
 	int status;
 
@@ -17636,12 +17637,12 @@ static int wlan_hdd_cfg80211_set_ie(hdd_adapter_t *pAdapter, const uint8_t *ie,
 			}
 			break;
 		case DOT11F_EID_RSN:
-			hdd_debug("Set RSN IE(len %d)", eLen + 2);
-			if (eLen > (MAX_WPA_RSN_IE_LEN - 2)) {
+			if  (eLen  > DOT11F_IE_RSN_MAX_LEN) {
 				hdd_err("%s: Invalid WPA RSN IE length[%d]",
-					__func__, eLen);
+						__func__, eLen);
 				return -EINVAL;
 			}
+			hdd_debug("Set RSN IE(len %d)", eLen + 2);
 			memset(pWextState->WPARSNIE, 0, MAX_WPA_RSN_IE_LEN);
 			memcpy(pWextState->WPARSNIE, genie - 2,
 			       (eLen + 2));
@@ -17687,13 +17688,16 @@ static int wlan_hdd_cfg80211_set_ie(hdd_adapter_t *pAdapter, const uint8_t *ie,
 			/* Setting WAPI Mode to ON=1 */
 			pAdapter->wapi_info.nWapiMode = 1;
 			hdd_debug("WAPI MODE IS %u", pAdapter->wapi_info.nWapiMode);
-			tmp = (u16 *) ie;
-			tmp = tmp + 2;  /* Skip element Id and Len, Version */
+			tmp = (uint8_t *)ie;
+			tmp = tmp + 4;  /* Skip element Id and Len, Version */
+			/* Get the number of AKM suite */
 			akmsuiteCount = WPA_GET_LE16(tmp);
-			tmp = tmp + 1;
-			akmlist = (int *)(tmp);
+			/* Skip the number of AKM suite */
+			tmp = tmp + 2;
+			/* AKM suite list, each OUI contains 4 bytes */
+			akmlist = (uint32_t *)(tmp);
 			if (akmsuiteCount <= MAX_NUM_AKM_SUITES) {
-				memcpy(akmsuite, akmlist, (4 * akmsuiteCount));
+				memcpy(akmsuite, akmlist, akmsuiteCount);
 			} else {
 				hdd_err("Invalid akmSuite count: %u",
 					akmsuiteCount);
@@ -18037,20 +18041,18 @@ disconnected:
  * wlan_hdd_reassoc_bssid_hint() - Start reassociation if bssid is present
  * @adapter: Pointer to the HDD adapter
  * @req: Pointer to the structure cfg_connect_params receieved from user space
- * @status: out variable for status of reassoc request
  *
  * This function will start reassociation if prev_bssid is set and bssid/
  * bssid_hint, channel/channel_hint parameters are present in connect request.
  *
- * Return: true if connect was for ReAssociation, false otherwise
+ * Return: 0 if connect was for ReAssociation, non-zero error code otherwise
  */
 #if defined(CFG80211_CONNECT_PREV_BSSID) || \
 	(LINUX_VERSION_CODE >= KERNEL_VERSION(4, 7, 0))
-static bool wlan_hdd_reassoc_bssid_hint(hdd_adapter_t *adapter,
-					struct cfg80211_connect_params *req,
-					int *status)
+static int wlan_hdd_reassoc_bssid_hint(hdd_adapter_t *adapter,
+					struct cfg80211_connect_params *req)
 {
-	bool reassoc = false;
+	int status = -EINVAL;
 	const uint8_t *bssid = NULL;
 	uint16_t channel = 0;
 	hdd_wext_state_t *wext_state = WLAN_HDD_GET_WEXT_STATE_PTR(adapter);
@@ -18063,7 +18065,7 @@ static bool wlan_hdd_reassoc_bssid_hint(hdd_adapter_t *adapter,
 	if (CSR_IS_AUTH_TYPE_FILS(
 	   wext_state->roamProfile.AuthType.authType[0])) {
 		hdd_info("connection is FILS, dropping roaming..");
-		return reassoc;
+		return status;
 	}
 
 	if (req->channel)
@@ -18072,7 +18074,6 @@ static bool wlan_hdd_reassoc_bssid_hint(hdd_adapter_t *adapter,
 		channel = req->channel_hint->hw_value;
 
 	if (bssid && channel && req->prev_bssid) {
-		reassoc = true;
 		hdd_debug(FL("REASSOC Attempt on channel %d to "MAC_ADDRESS_STR),
 				channel, MAC_ADDR_ARRAY(bssid));
 		/*
@@ -18084,18 +18085,17 @@ static bool wlan_hdd_reassoc_bssid_hint(hdd_adapter_t *adapter,
 		qdf_mem_copy(wext_state->req_bssId.bytes, bssid,
 			     QDF_MAC_ADDR_SIZE);
 
-		*status = hdd_reassoc(adapter, bssid, channel,
+		status = hdd_reassoc(adapter, bssid, channel,
 				      CONNECT_CMD_USERSPACE);
-		hdd_debug("hdd_reassoc: status: %d", *status);
+		hdd_debug("hdd_reassoc: status: %d", status);
 	}
-	return reassoc;
+	return status;
 }
 #else
-static bool wlan_hdd_reassoc_bssid_hint(hdd_adapter_t *adapter,
-					struct cfg80211_connect_params *req,
-					int *status)
+static int wlan_hdd_reassoc_bssid_hint(hdd_adapter_t *adapter,
+					struct cfg80211_connect_params *req)
 {
-	return false;
+	return -EINVAL;
 }
 #endif
 
@@ -18221,7 +18221,11 @@ static int __wlan_hdd_cfg80211_connect(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
-	if (true == wlan_hdd_reassoc_bssid_hint(pAdapter, req, &status))
+	/*
+	 * Check if this is reassoc to same bssid, if reassoc is success, return
+	 */
+	status = wlan_hdd_reassoc_bssid_hint(pAdapter, req);
+	if (!status)
 		return status;
 
 	/* Try disconnecting if already in connected state */
@@ -19617,8 +19621,7 @@ static void hdd_fill_pmksa_info(tPmkidCacheInfo *pmk_cache,
 		qdf_mem_copy(pmk_cache->BSSID.bytes,
 			     pmksa->bssid, QDF_MAC_ADDR_SIZE);
 	} else {
-		qdf_mem_copy(pmk_cache->ssid, pmksa->ssid,
-			     SIR_MAC_MAX_SSID_LENGTH);
+		qdf_mem_copy(pmk_cache->ssid, pmksa->ssid, pmksa->ssid_len);
 		qdf_mem_copy(pmk_cache->cache_id, pmksa->cache_id,
 			     CACHE_ID_LEN);
 		pmk_cache->ssid_len = pmksa->ssid_len;

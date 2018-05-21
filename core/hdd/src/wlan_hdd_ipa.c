@@ -1394,11 +1394,15 @@ static inline int hdd_ipa_wdi_teardown_sys_pipe(struct hdd_ipa_priv *hdd_ipa,
 	return 0;
 }
 
-static inline int hdd_ipa_wdi_rm_set_perf_profile(struct hdd_ipa_priv *hdd_ipa,
-		enum ipa_rm_resource_name resource_name,
-		struct ipa_rm_perf_profile *profile)
+static int hdd_ipa_wdi_rm_set_perf_profile(struct hdd_ipa_priv *hdd_ipa,
+		int client, uint32_t max_supported_bw_mbps)
 {
-	return 0;
+	struct ipa_wdi_perf_profile profile;
+
+	profile.client = client;
+	profile.max_supported_bw_mbps = max_supported_bw_mbps;
+
+	return ipa_wdi_set_perf_profile(&profile);
 }
 
 static inline int hdd_ipa_wdi_rm_request_resource(struct hdd_ipa_priv *hdd_ipa,
@@ -1488,6 +1492,21 @@ static void hdd_ipa_pm_flush(struct work_struct *work)
 	hdd_ipa->stats.num_tx_dequeued += dequeued;
 	if (dequeued > hdd_ipa->stats.num_max_pm_queue)
 		hdd_ipa->stats.num_max_pm_queue = dequeued;
+}
+
+int hdd_ipa_uc_smmu_map(bool map, uint32_t num_buf, qdf_mem_info_t *buf_arr)
+{
+	if (!num_buf) {
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "No buffers to map/unmap");
+		return 0;
+	}
+
+	if (map)
+		return ipa_wdi_create_smmu_mapping(num_buf,
+			   (struct ipa_wdi_buffer_info *)buf_arr);
+	else
+		return ipa_wdi_release_smmu_mapping(num_buf,
+			   (struct ipa_wdi_buffer_info *)buf_arr);
 }
 #else /* CONFIG_IPA_WDI_UNIFIED_API */
 static inline void hdd_ipa_wdi_get_wdi_version(struct hdd_ipa_priv *hdd_ipa)
@@ -2237,10 +2256,24 @@ static int hdd_ipa_wdi_teardown_sys_pipe(struct hdd_ipa_priv *hdd_ipa,
 }
 
 static int hdd_ipa_wdi_rm_set_perf_profile(struct hdd_ipa_priv *hdd_ipa,
-		enum ipa_rm_resource_name resource_name,
-		struct ipa_rm_perf_profile *profile)
+		int client, uint32_t max_supported_bw_mbps)
 {
-	return ipa_rm_set_perf_profile(resource_name, profile);
+	enum ipa_rm_resource_name resource_name;
+	struct ipa_rm_perf_profile profile;
+
+	if (client == IPA_CLIENT_WLAN1_PROD) {
+		resource_name = IPA_RM_RESOURCE_WLAN_PROD;
+	} else if (client == IPA_CLIENT_WLAN1_CONS) {
+		resource_name = IPA_RM_RESOURCE_WLAN_CONS;
+	} else {
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,
+				"not supported client: %d", client);
+		return -EINVAL;
+	}
+
+	profile.max_supported_bandwidth_mbps = max_supported_bw_mbps;
+
+	return ipa_rm_set_perf_profile(resource_name, &profile);
 }
 
 static int hdd_ipa_wdi_rm_request_resource(struct hdd_ipa_priv *hdd_ipa,
@@ -2773,6 +2806,21 @@ static void hdd_ipa_pm_flush(struct work_struct *work)
 	hdd_ipa->stats.num_tx_dequeued += dequeued;
 	if (dequeued > hdd_ipa->stats.num_max_pm_queue)
 		hdd_ipa->stats.num_max_pm_queue = dequeued;
+}
+
+int hdd_ipa_uc_smmu_map(bool map, uint32_t num_buf, qdf_mem_info_t *buf_arr)
+{
+	if (!num_buf) {
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "No buffers to map/unmap");
+		return 0;
+	}
+
+	if (map)
+		return ipa_create_wdi_mapping(num_buf,
+			   (struct ipa_wdi_buffer_info *)buf_arr);
+	else
+		return ipa_release_wdi_mapping(num_buf,
+			   (struct ipa_wdi_buffer_info *)buf_arr);
 }
 #endif /* CONFIG_IPA_WDI_UNIFIED_API */
 
@@ -4334,13 +4382,14 @@ static void hdd_ipa_uc_op_cb(struct op_msg_type *op_msg, void *usr_ctxt)
 	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 
-	if (!pdev) {
-		HDD_IPA_LOG(QDF_TRACE_LEVEL_FATAL, "pdev is NULL");
+	if (!op_msg) {
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR, "INVALID ARG");
 		return;
 	}
 
-	if (!op_msg || !usr_ctxt) {
-		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR, "INVALID ARG");
+	if (!pdev) {
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_FATAL, "pdev is NULL");
+		qdf_mem_free(op_msg);
 		return;
 	}
 
@@ -5247,7 +5296,6 @@ static int __hdd_ipa_set_perf_level(hdd_context_t *hdd_ctx, uint64_t tx_packets,
 {
 	uint32_t next_cons_bw, next_prod_bw;
 	struct hdd_ipa_priv *hdd_ipa;
-	struct ipa_rm_perf_profile profile;
 	int ret;
 
 	if (wlan_hdd_validate_context(hdd_ctx))
@@ -5258,8 +5306,6 @@ static int __hdd_ipa_set_perf_level(hdd_context_t *hdd_ctx, uint64_t tx_packets,
 	if ((!hdd_ipa_is_enabled(hdd_ctx)) ||
 		(!hdd_ipa_is_clk_scaling_enabled(hdd_ctx)))
 		return 0;
-
-	memset(&profile, 0, sizeof(profile));
 
 	if (tx_packets > (hdd_ctx->config->busBandwidthHighThreshold / 2))
 		next_cons_bw = hdd_ctx->config->IpaHighBandwidthMbps;
@@ -5287,9 +5333,8 @@ static int __hdd_ipa_set_perf_level(hdd_context_t *hdd_ctx, uint64_t tx_packets,
 	if (hdd_ipa->curr_cons_bw != next_cons_bw) {
 		hdd_debug("Requesting CONS perf curr: %d, next: %d",
 			    hdd_ipa->curr_cons_bw, next_cons_bw);
-		profile.max_supported_bandwidth_mbps = next_cons_bw;
 		ret = hdd_ipa_wdi_rm_set_perf_profile(hdd_ipa,
-				IPA_RM_RESOURCE_WLAN_CONS, &profile);
+				IPA_CLIENT_WLAN1_CONS, next_cons_bw);
 		if (ret) {
 			hdd_err("RM CONS set perf profile failed: %d", ret);
 
@@ -5302,9 +5347,8 @@ static int __hdd_ipa_set_perf_level(hdd_context_t *hdd_ctx, uint64_t tx_packets,
 	if (hdd_ipa->curr_prod_bw != next_prod_bw) {
 		hdd_debug("Requesting PROD perf curr: %d, next: %d",
 			    hdd_ipa->curr_prod_bw, next_prod_bw);
-		profile.max_supported_bandwidth_mbps = next_prod_bw;
 		ret = hdd_ipa_wdi_rm_set_perf_profile(hdd_ipa,
-				IPA_RM_RESOURCE_WLAN_PROD, &profile);
+				IPA_CLIENT_WLAN1_PROD, next_prod_bw);
 		if (ret) {
 			hdd_err("RM PROD set perf profile failed: %d", ret);
 			return ret;
@@ -7154,7 +7198,6 @@ static QDF_STATUS __hdd_ipa_init(hdd_context_t *hdd_ctx)
 	int ret, i;
 	struct hdd_ipa_iface_context *iface_context = NULL;
 	struct ol_txrx_pdev_t *pdev = NULL;
-	struct ipa_rm_perf_profile profile;
 
 	HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "enter");
 
@@ -7246,19 +7289,18 @@ static QDF_STATUS __hdd_ipa_init(hdd_context_t *hdd_ctx)
 
 	/* When IPA clock scaling is disabled, initialze maximum clock */
 	if (!hdd_ipa_is_clk_scaling_enabled(hdd_ctx)) {
-		profile.max_supported_bandwidth_mbps = HDD_IPA_MAX_BANDWIDTH;
 		hdd_debug("IPA clock scaling is disabled.");
 		hdd_debug("Set initial CONS/PROD perf: %d",
-			  profile.max_supported_bandwidth_mbps);
+				HDD_IPA_MAX_BANDWIDTH);
 		ret = hdd_ipa_wdi_rm_set_perf_profile(hdd_ipa,
-				IPA_RM_RESOURCE_WLAN_CONS, &profile);
+				IPA_CLIENT_WLAN1_CONS, HDD_IPA_MAX_BANDWIDTH);
 		if (ret) {
 			hdd_err("RM CONS set perf profile failed: %d", ret);
 			goto fail_create_sys_pipe;
 		}
 
 		ret = hdd_ipa_wdi_rm_set_perf_profile(hdd_ipa,
-				IPA_RM_RESOURCE_WLAN_PROD, &profile);
+				IPA_CLIENT_WLAN1_PROD, HDD_IPA_MAX_BANDWIDTH);
 		if (ret) {
 			hdd_err("RM PROD set perf profile failed: %d", ret);
 			goto fail_create_sys_pipe;
@@ -7422,21 +7464,6 @@ QDF_STATUS hdd_ipa_cleanup(hdd_context_t *hdd_ctx)
 	cds_ssr_unprotect(__func__);
 
 	return ret;
-}
-
-int hdd_ipa_uc_smmu_map(bool map, uint32_t num_buf, qdf_mem_info_t *buf_arr)
-{
-	if (!num_buf) {
-		HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "No buffers to map/unmap");
-		return 0;
-	}
-
-	if (map)
-		return ipa_create_wdi_mapping(num_buf,
-			   (struct ipa_wdi_buffer_info *)buf_arr);
-	else
-		return ipa_release_wdi_mapping(num_buf,
-			   (struct ipa_wdi_buffer_info *)buf_arr);
 }
 
 void hdd_ipa_clean_adapter_iface(hdd_adapter_t *adapter)

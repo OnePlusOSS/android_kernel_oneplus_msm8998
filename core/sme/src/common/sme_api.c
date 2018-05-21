@@ -11702,6 +11702,9 @@ QDF_STATUS sme_set_wlm_latency_level(tHalHandle hal, uint16_t session_id,
 	struct wlm_latency_level_param params;
 	void *wma = cds_get_context(QDF_MODULE_ID_WMA);
 
+	if (!wma)
+		return QDF_STATUS_E_FAILURE;
+
 	if (!mac_ctx->roam.configParam.wlm_latency_enable) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 			  "%s: WLM latency level setting is disabled",
@@ -19402,3 +19405,37 @@ QDF_STATUS sme_handle_sae_msg(tHalHandle hal, uint8_t session_id,
 	return qdf_status;
 }
 #endif
+
+bool sme_validate_channel_list(tHalHandle hal,
+				      uint8_t *chan_list,
+				      uint8_t num_channels)
+{
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+	uint8_t i = 0;
+	uint8_t j;
+	bool found;
+	tCsrChannel *ch_lst_info = &mac_ctx->scan.base_channels;
+
+	if (!chan_list || !num_channels) {
+		sme_err("Chan list empty %pK or num_channels is 0", chan_list);
+		return false;
+	}
+
+	while (i < num_channels) {
+		found = false;
+		for (j = 0; j < ch_lst_info->numChannels; j++) {
+			if (ch_lst_info->channelList[j] == chan_list[i]) {
+				found = true;
+				break;
+			}
+		}
+
+		if (!found) {
+			sme_debug("Invalid channel %d", chan_list[i]);
+			return false;
+		}
+
+		i++;
+	}
+	return true;
+}

@@ -2675,7 +2675,7 @@ static void __lim_process_sme_disassoc_cnf(tpAniSirGlobal pMac, uint32_t *pMsgBu
 		if ((pStaDs->mlmStaContext.mlmState ==
 				eLIM_MLM_WT_DEL_STA_RSP_STATE) ||
 			(pStaDs->mlmStaContext.mlmState ==
-				eLIM_MLM_WT_DEL_STA_RSP_STATE)) {
+				eLIM_MLM_WT_DEL_BSS_RSP_STATE)) {
 			pe_err("No need of cleanup for addr:" MAC_ADDRESS_STR "as MLM state is %d",
 				MAC_ADDR_ARRAY(smeDisassocCnf.peer_macaddr.bytes),
 				pStaDs->mlmStaContext.mlmState);
@@ -5068,7 +5068,7 @@ static void lim_process_sme_update_access_policy_vendor_ie(
 {
 	struct sme_update_access_policy_vendor_ie *update_vendor_ie;
 	struct sPESession *pe_session_entry;
-	uint8_t num_bytes;
+	uint16_t num_bytes;
 
 	if (!msg) {
 		pe_err("Buffer is Pointing to NULL");

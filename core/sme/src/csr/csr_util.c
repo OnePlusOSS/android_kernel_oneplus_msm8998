@@ -3096,7 +3096,7 @@ static bool csr_get_rsn_information(tHalHandle hal, tCsrAuthList *auth_type,
 				    tCsrEncryptionList *mc_encryption,
 				    tDot11fIERSN *rsn_ie, uint8_t *ucast_cipher,
 				    uint8_t *mcast_cipher, uint8_t *auth_suite,
-				    tCsrRSNCapabilities *capabilities,
+				    struct rsn_caps *capabilities,
 				    eCsrAuthType *negotiated_authtype,
 				    eCsrEncryptionType *negotiated_mccipher,
 				    uint8_t *gp_mgmt_cipher,
@@ -3625,6 +3625,7 @@ uint8_t csr_construct_rsn_ie(tHalHandle hHal, uint32_t sessionId,
 {
 	uint32_t ret;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+	tCsrRoamSession *session = CSR_GET_SESSION(pMac, sessionId);
 	bool fRSNMatch;
 	uint8_t cbRSNIe = 0;
 	uint8_t UnicastCypher[CSR_RSN_OUI_SIZE];
@@ -3632,7 +3633,7 @@ uint8_t csr_construct_rsn_ie(tHalHandle hHal, uint32_t sessionId,
 	uint8_t gp_mgmt_cipher_suite[CSR_RSN_OUI_SIZE];
 	uint8_t AuthSuite[CSR_RSN_OUI_SIZE];
 	tCsrRSNAuthIe *pAuthSuite;
-	tCsrRSNCapabilities RSNCapabilities;
+	struct rsn_caps RSNCapabilities;
 	tCsrRSNPMKIe *pPMK;
 	tPmkidCacheInfo pmkid_cache;
 #ifdef WLAN_FEATURE_11W
@@ -3642,6 +3643,8 @@ uint8_t csr_construct_rsn_ie(tHalHandle hHal, uint32_t sessionId,
 	eCsrAuthType negAuthType = eCSR_AUTH_TYPE_UNKNOWN;
 	tDot11fIERSN rsn_ie = {0};
 
+	if (!CSR_IS_SESSION_VALID(pMac, sessionId) || !session)
+		return 0;
 	qdf_mem_zero(&pmkid_cache, sizeof(pmkid_cache));
 	do {
 		if (!csr_is_profile_rsn(pProfile))
@@ -3727,7 +3730,8 @@ uint8_t csr_construct_rsn_ie(tHalHandle hHal, uint32_t sessionId,
 
 		pPMK = (tCsrRSNPMKIe *) (((uint8_t *) (&pAuthSuite->AuthOui[1]))
 				+ sizeof(uint16_t));
-
+		/* Store RSN capabilities in session */
+		session->rsn_caps = RSNCapabilities;
 		if (!csr_update_pmksa_for_cache_id(pSirBssDesc,
 			pProfile, &pmkid_cache))
 			qdf_mem_copy(pmkid_cache.BSSID.bytes,
@@ -3774,7 +3778,7 @@ uint8_t csr_construct_rsn_ie(tHalHandle hHal, uint32_t sessionId,
 		pRSNIe->IeHeader.Length =
 			(uint8_t) (sizeof(*pRSNIe) - sizeof(pRSNIe->IeHeader) +
 				   sizeof(*pAuthSuite) +
-				   sizeof(tCsrRSNCapabilities));
+				   sizeof(struct rsn_caps));
 		if (pPMK->cPMKIDs)
 			pRSNIe->IeHeader.Length += (uint8_t) (sizeof(uint16_t) +
 							      (pPMK->cPMKIDs *

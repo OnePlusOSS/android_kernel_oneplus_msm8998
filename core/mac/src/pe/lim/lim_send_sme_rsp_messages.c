@@ -1618,7 +1618,7 @@ lim_send_sme_set_context_rsp(tpAniSirGlobal pMac,
 			     tpPESession psessionEntry, uint8_t smesessionId,
 			     uint16_t smetransactionId)
 {
-	tSirMsgQ mmhMsg;
+	cds_msg_t msg;
 	tSirSmeSetContextRsp *pSirSmeSetContextRsp;
 
 	pSirSmeSetContextRsp = qdf_mem_malloc(sizeof(tSirSmeSetContextRsp));
@@ -1638,15 +1638,15 @@ lim_send_sme_set_context_rsp(tpAniSirGlobal pMac,
 	pSirSmeSetContextRsp->sessionId = smesessionId;
 	pSirSmeSetContextRsp->transactionId = smetransactionId;
 
-	mmhMsg.type = eWNI_SME_SETCONTEXT_RSP;
-	mmhMsg.bodyptr = pSirSmeSetContextRsp;
-	mmhMsg.bodyval = 0;
+	msg.type = eWNI_SME_SETCONTEXT_RSP;
+	msg.bodyptr = pSirSmeSetContextRsp;
+	msg.bodyval = 0;
 	if (NULL == psessionEntry) {
 		MTRACE(mac_trace(pMac, TRACE_CODE_TX_SME_MSG,
-				 NO_SESSION, mmhMsg.type));
+				 NO_SESSION, msg.type));
 	} else {
 		MTRACE(mac_trace(pMac, TRACE_CODE_TX_SME_MSG,
-				 psessionEntry->peSessionId, mmhMsg.type));
+				 psessionEntry->peSessionId, msg.type));
 	}
 
 #ifdef FEATURE_WLAN_DIAG_SUPPORT_LIM    /* FEATURE_WLAN_DIAG_SUPPORT */
@@ -1654,7 +1654,7 @@ lim_send_sme_set_context_rsp(tpAniSirGlobal pMac,
 			      psessionEntry, (uint16_t) resultCode, 0);
 #endif /* FEATURE_WLAN_DIAG_SUPPORT */
 
-	lim_sys_process_mmh_msg_api(pMac, &mmhMsg, ePROT);
+	pMac->lim.sme_msg_callback(pMac, &msg);
 } /*** end lim_send_sme_set_context_rsp() ***/
 
 /**

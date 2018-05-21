@@ -987,6 +987,13 @@
 	status = "disabled";
 };
 
+&pm8998_gpios {
+	gpio@d400 {
+		qcom,pull = <4>;
+	};
+};
+
+
 &i2c_6 { /* BLSP1 QUP6 (NFC) */
 	nq@28 {
 		status = "disabled";

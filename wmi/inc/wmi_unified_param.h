@@ -788,6 +788,8 @@ struct beacon_tmpl_params {
  * struct beacon_params - beacon cmd parameter
  * @vdev_id: vdev id
  * @tim_ie_offset: tim ie offset
+ * @csa_count_offset: Offset of Switch count field in CSA IE
+ * @ecsa_count_offset: Offset of Switch count field in ECSA IE
  * @tmpl_len: beacon template length
  * @tmpl_len_aligned: beacon template alignment
  * @frm: beacon template parameter
@@ -795,6 +797,8 @@ struct beacon_tmpl_params {
 struct beacon_params {
 	uint8_t vdev_id;
 	uint32_t tim_ie_offset;
+	uint32_t csa_count_offset;
+	uint32_t ecsa_count_offset;
 	uint32_t tmpl_len;
 	uint32_t tmpl_len_aligned;
 	uint8_t *frm;

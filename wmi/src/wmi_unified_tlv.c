@@ -1301,6 +1301,8 @@ QDF_STATUS send_beacon_send_cmd_tlv(wmi_unified_t wmi_handle,
 		       WMITLV_GET_STRUCT_TLVLEN(wmi_bcn_tmpl_cmd_fixed_param));
 	cmd->vdev_id = param->vdev_id;
 	cmd->tim_ie_offset = param->tim_ie_offset;
+	cmd->csa_switch_count_offset = param->csa_count_offset;
+	cmd->ext_csa_switch_count_offset = param->ecsa_count_offset;
 	cmd->buf_len = param->tmpl_len;
 	buf_ptr += sizeof(wmi_bcn_tmpl_cmd_fixed_param);
 

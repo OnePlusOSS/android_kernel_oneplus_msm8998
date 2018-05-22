@@ -1691,7 +1691,7 @@ static void wlan_hdd_tdls_set_mode(hdd_context_t *pHddCtx,
 
 	ENTER();
 
-	hdd_debug("mode %d", (int)tdls_mode);
+	hdd_debug("mode %d, source %d", (int)tdls_mode, source);
 
 	if (0 != (wlan_hdd_validate_context(pHddCtx)))
 		return;
@@ -1993,12 +1993,18 @@ void wlan_hdd_update_tdls_info(hdd_adapter_t *adapter, bool tdls_prohibited,
 	if (tdls_prohibited) {
 		hdd_ctx->tdls_mode = eTDLS_SUPPORT_NOT_ENABLED;
 	} else {
-		if (false == hdd_ctx->config->fEnableTDLSImplicitTrigger)
+		if (false == hdd_ctx->config->fEnableTDLSImplicitTrigger) {
 			hdd_ctx->tdls_mode = eTDLS_SUPPORT_EXPLICIT_TRIGGER_ONLY;
-		else if (true == hdd_ctx->config->fTDLSExternalControl)
+		} else if (true == hdd_ctx->config->fTDLSExternalControl) {
 			hdd_ctx->tdls_mode = eTDLS_SUPPORT_EXTERNAL_CONTROL;
-		else
+			if (!hdd_ctx->tdls_source_bitmap &&
+				hdd_ctx->tdls_external_peer_count)
+				wlan_hdd_tdls_implicit_enable(hdd_tdls_ctx);
+		} else {
 			hdd_ctx->tdls_mode = eTDLS_SUPPORT_ENABLED;
+			if (!hdd_ctx->tdls_source_bitmap)
+				wlan_hdd_tdls_implicit_enable(hdd_tdls_ctx);
+		}
 	}
 	tdls_param = qdf_mem_malloc(sizeof(*tdls_param));
 	if (!tdls_param) {

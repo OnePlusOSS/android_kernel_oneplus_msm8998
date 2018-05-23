@@ -3535,6 +3535,12 @@ enum qca_wlan_vendor_attr_rssi_monitoring {
  *     2:80 MHz,
  *     3:160 MHz
  * @QCA_WLAN_VENDOR_ATTR_NDP_CHANNEL_INFO: Array of channel/band width
+ * @QCA_WLAN_VENDOR_ATTR_NDP_IPV6_ADDR: IPv6 address used by NDP, 16 bytes array
+ * @QCA_WLAN_VENDOR_ATTR_NDP_TRANSPORT_PORT: Unsigned 16-bit value indicating
+ * transport port used by NDP.
+ * QCA_WLAN_VENDOR_ATTR_NDP_TRANSPORT_PROTOCOL: Unsigned 8-bit value indicating
+ * protocol used by NDP and assigned by the Internet Assigned Numbers Authority
+ * as per: www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml
  * @QCA_WLAN_VENDOR_ATTR_NDP_PARAMS_AFTER_LAST: id after last valid attribute
  * @QCA_WLAN_VENDOR_ATTR_NDP_PARAMS_MAX: max value of this enum type
  */
@@ -3566,6 +3572,9 @@ enum qca_wlan_vendor_attr_ndp_params {
 	QCA_WLAN_VENDOR_ATTR_NDP_NUM_CHANNELS = 24,
 	QCA_WLAN_VENDOR_ATTR_NDP_CHANNEL_WIDTH = 25,
 	QCA_WLAN_VENDOR_ATTR_NDP_CHANNEL_INFO = 26,
+	QCA_WLAN_VENDOR_ATTR_NDP_IPV6_ADDR = 27,
+	QCA_WLAN_VENDOR_ATTR_NDP_TRANSPORT_PORT = 28,
+	QCA_WLAN_VENDOR_ATTR_NDP_TRANSPORT_PROTOCOL = 29,
 
 	/* keep last */
 	QCA_WLAN_VENDOR_ATTR_NDP_PARAMS_AFTER_LAST,

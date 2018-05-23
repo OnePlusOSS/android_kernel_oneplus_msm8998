@@ -4010,7 +4010,7 @@ hdd_roam_tdls_status_update_handler(hdd_adapter_t *pAdapter,
 			for (staIdx = 0;
 			     staIdx < pHddCtx->max_num_tdls_sta;
 			     staIdx++) {
-				if (0 ==
+				if (HDD_WLAN_INVALID_STA_ID ==
 				    pHddCtx->tdlsConnInfo[staIdx].
 				    staId) {
 					pHddCtx->tdlsConnInfo[staIdx].
@@ -4141,7 +4141,8 @@ hdd_roam_tdls_status_update_handler(hdd_adapter_t *pAdapter,
 							 peerMac.bytes);
 				mutex_unlock(&pHddCtx->tdls_lock);
 
-				pHddCtx->tdlsConnInfo[staIdx].staId = 0;
+				pHddCtx->tdlsConnInfo[staIdx].staId =
+						HDD_WLAN_INVALID_STA_ID;
 				pHddCtx->tdlsConnInfo[staIdx].
 				sessionId = 255;
 				qdf_mem_zero(&pHddCtx->

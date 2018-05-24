@@ -59,7 +59,7 @@ ifeq ($(KERNEL_BUILD), 0)
 	CONFIG_MOBILE_ROUTER := y
 	endif
 
-	ifeq ($(CONFIG_ARCH_SDX24), y)
+	ifeq ($(CONFIG_ARCH_SDXPOORWILLS), y)
 	CONFIG_MOBILE_ROUTER := y
 	endif
 
@@ -71,7 +71,7 @@ ifeq ($(KERNEL_BUILD), 0)
 	CONFIG_WLAN_DISABLE_EXPORT_SYMBOL := y
 	endif
 
-	ifeq ($(CONFIG_ARCH_SDX24), y)
+	ifeq ($(CONFIG_ARCH_SDXPOORWILLS), y)
 	CONFIG_WLAN_DISABLE_EXPORT_SYMBOL := y
 	endif
 

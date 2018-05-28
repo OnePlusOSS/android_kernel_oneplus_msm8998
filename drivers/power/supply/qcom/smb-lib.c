@@ -6101,12 +6101,13 @@ static int usb_enum_check(const char *val, struct kernel_param *kp)
 		return 0;
 	/* if not SDP, return */
 	apsd_result = smblib_get_apsd_result(chg);
-	if (apsd_result->bit != SDP_CHARGER_BIT)
+	if (apsd_result->bit != SDP_CHARGER_BIT
+		&& apsd_result->bit != CDP_CHARGER_BIT)
 		return 0;
 
 	pr_info("usb don't enum for longtime in boot\n");
 	op_handle_usb_removal(chg);
-	chg->non_stand_chg_count = 0;
+	chg->re_trigr_dash_done = true;
 	schedule_delayed_work(
 		&chg->non_standard_charger_check_work,
 		msecs_to_jiffies(TIME_1000MS));

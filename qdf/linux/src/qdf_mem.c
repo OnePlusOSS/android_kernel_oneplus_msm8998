@@ -132,6 +132,7 @@ static inline qdf_list_t *qdf_mem_dma_active_list(void)
  * @line: line number of the file the allocation was made from
  * @size: size of the allocation in bytes
  * @header: a known value, used to detect out-of-bounds access
+ * @time : the time at which allocation happened
  */
 struct qdf_mem_header {
 	qdf_list_node_t node;
@@ -141,6 +142,7 @@ struct qdf_mem_header {
 	uint32_t line;
 	uint32_t size;
 	uint64_t header;
+	uint64_t time;
 };
 
 static inline struct qdf_mem_header *qdf_mem_get_header(void *ptr)
@@ -193,6 +195,7 @@ static void qdf_mem_header_init(struct qdf_mem_header *header, qdf_size_t size,
 	header->line = line;
 	header->size = size;
 	header->header = WLAN_MEM_HEADER;
+	header->time = qdf_get_log_timestamp();
 }
 
 enum qdf_mem_validation_bitmap {
@@ -402,13 +405,14 @@ static int seq_printf_printer(void *priv, const char *fmt, ...)
  * @line: the line at which allocation happened
  * @size: the size of allocation
  * @count: how many allocations of same type
- *
+ * @time: the time at which allocation happened
  */
 struct __qdf_mem_info {
 	const char *file;
 	uint32_t line;
 	uint32_t size;
 	uint32_t count;
+	uint64_t time;
 };
 
 /*
@@ -429,7 +433,7 @@ static void qdf_mem_domain_print_header(qdf_abstract_print print,
 {
 	print(print_priv,
 	      "--------------------------------------------------------------");
-	print(print_priv, " count    size     total    filename");
+	print(print_priv, " count    size     total    filename    timestamp");
 	print(print_priv,
 	      "--------------------------------------------------------------");
 }
@@ -459,17 +463,19 @@ static void qdf_mem_meta_table_print(struct __qdf_mem_info *table,
 			break;
 
 		print(print_priv,
-		      "%6u x %5u = %7uB @ %s:%u",
+		      "%6u x %5u = %7uB @ %s:%u %llu",
 		      table[i].count,
 		      table[i].size,
 		      table[i].count * table[i].size,
 		      kbasename(table[i].file),
-		      table[i].line);
+		      table[i].line,
+		      table[i].time);
 		len += qdf_scnprintf(debug_str + len,
 				     sizeof(debug_str) - len,
-				     " @ %s:%u",
+				     " @ %s:%u:%llu",
 				     kbasename(table[i].file),
-				     table[i].line);
+				     table[i].line,
+				     table[i].time);
 	}
 	print(print_priv, "%s", debug_str);
 }
@@ -492,12 +498,14 @@ static bool qdf_mem_meta_table_insert(struct __qdf_mem_info *table,
 			table[i].line = meta->line;
 			table[i].size = meta->size;
 			table[i].count = 1;
+			table[i].time = meta->time;
 			break;
 		}
 
 		if (table[i].file == meta->file &&
 		    table[i].line == meta->line &&
-		    table[i].size == meta->size) {
+		    table[i].size == meta->size &&
+		    table[i].time == meta->time) {
 			table[i].count++;
 			break;
 		}

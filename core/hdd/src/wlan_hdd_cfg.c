@@ -3595,13 +3595,21 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_SAP_MCC_CHANNEL_AVOIDANCE_MAX),
 #endif /* FEATURE_AP_MCC_CH_AVOIDANCE */
 
-	REG_VARIABLE(CFG_SAP_P2P_11AC_OVERRIDE_NAME, WLAN_PARAM_Integer,
-			struct hdd_config, sap_p2p_11ac_override,
-			VAR_FLAGS_OPTIONAL |
-					VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
-			CFG_SAP_P2P_11AC_OVERRIDE_DEFAULT,
-			CFG_SAP_P2P_11AC_OVERRIDE_MIN,
-			CFG_SAP_P2P_11AC_OVERRIDE_MAX),
+	REG_VARIABLE(CFG_SAP_11AC_OVERRIDE_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, sap_11ac_override,
+		     VAR_FLAGS_OPTIONAL |
+				VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_SAP_11AC_OVERRIDE_DEFAULT,
+		     CFG_SAP_11AC_OVERRIDE_MIN,
+		     CFG_SAP_11AC_OVERRIDE_MAX),
+
+	REG_VARIABLE(CFG_GO_11AC_OVERRIDE_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, go_11ac_override,
+		     VAR_FLAGS_OPTIONAL |
+				VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_GO_11AC_OVERRIDE_DEFAULT,
+		     CFG_GO_11AC_OVERRIDE_MIN,
+		     CFG_GO_11AC_OVERRIDE_MAX),
 
 	REG_VARIABLE(CFG_ENABLE_RAMDUMP_COLLECTION, WLAN_PARAM_Integer,
 		     struct hdd_config, is_ramdump_enabled,
@@ -5623,6 +5631,15 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_ENABLE_SECONDARY_RATE_DEFAULT,
 		     CFG_ENABLE_SECONDARY_RATE_MIN,
 		     CFG_ENABLE_SECONDARY_RATE_MAX),
+
+	REG_VARIABLE(CFG_ROAM_FORCE_RSSI_TRIGGER_NAME,
+		     WLAN_PARAM_Integer, struct hdd_config,
+		     roam_force_rssi_trigger,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ROAM_FORCE_RSSI_TRIGGER_DEFAULT,
+		     CFG_ROAM_FORCE_RSSI_TRIGGER_MIN,
+		     CFG_ROAM_FORCE_RSSI_TRIGGER_MAX),
+
 };
 
 /**
@@ -6615,8 +6632,10 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_debug("Name = [sap_channel_avoidance] value = [%u]",
 		  pHddCtx->config->sap_channel_avoidance);
 #endif /* FEATURE_AP_MCC_CH_AVOIDANCE */
-	hdd_debug("Name = [%s] value = [%u]", CFG_SAP_P2P_11AC_OVERRIDE_NAME,
-				pHddCtx->config->sap_p2p_11ac_override);
+	hdd_debug("Name = [%s] value = [%u]", CFG_SAP_11AC_OVERRIDE_NAME,
+		  pHddCtx->config->sap_11ac_override);
+	hdd_debug("Name = [%s] value = [%u]", CFG_GO_11AC_OVERRIDE_NAME,
+		  pHddCtx->config->go_11ac_override);
 	hdd_debug("Name = [ChannelBondingMode] Value = [%u]",
 		  pHddCtx->config->nChannelBondingMode24GHz);
 	hdd_debug("Name = [%s] Value = [%u] ",
@@ -7528,6 +7547,10 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_debug("Name = [%s] value = [0x%x]",
 		  CFG_ENABLE_SECONDARY_RATE_NAME,
 		  pHddCtx->config->enable_secondary_rate);
+	hdd_debug("Name = [%s] Value = [%u]",
+		  CFG_ROAM_FORCE_RSSI_TRIGGER_NAME,
+		  pHddCtx->config->roam_force_rssi_trigger);
+
 }
 
 /**
@@ -10070,6 +10093,8 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 			pHddCtx->config->scan_adaptive_dwell_mode_nc;
 	smeConfig->csrConfig.roamscan_adaptive_dwell_mode =
 			pHddCtx->config->roamscan_adaptive_dwell_mode;
+	smeConfig->csrConfig.roam_force_rssi_trigger =
+			pHddCtx->config->roam_force_rssi_trigger;
 
 	hdd_update_per_config_to_sme(pHddCtx, smeConfig);
 

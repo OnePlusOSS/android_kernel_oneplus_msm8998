@@ -2079,6 +2079,7 @@ static int wma_flush_complete_evt_handler(void *handle,
 
 	wmi_event = param_buf->fixed_param;
 	reason_code = wmi_event->reserved0;
+	WMA_LOGD("Received reason code %d from FW", reason_code);
 
 	buf_ptr = (uint8_t *)wmi_event;
 	buf_ptr = buf_ptr + sizeof(wmi_debug_mesg_flush_complete_fixed_param) +
@@ -6032,13 +6033,15 @@ static void wma_populate_soc_caps(t_wma_handle *wma_handle,
 		return;
 	}
 
-	qdf_mem_copy(&phy_caps->sar_capability,
-		     param_buf->sar_caps,
-		     sizeof(WMI_SAR_CAPABILITIES));
-	if (phy_caps->sar_capability.active_version > SAR_VERSION_2) {
-		WMA_LOGE("%s: incorrect SAR version", __func__);
-		wma_cleanup_dbs_phy_caps(wma_handle);
-		return;
+	if (param_buf->sar_caps) {
+		qdf_mem_copy(&phy_caps->sar_capability,
+			     param_buf->sar_caps,
+			     sizeof(WMI_SAR_CAPABILITIES));
+		if (phy_caps->sar_capability.active_version > SAR_VERSION_2) {
+			WMA_LOGE("%s: incorrect SAR version", __func__);
+			wma_cleanup_dbs_phy_caps(wma_handle);
+			return;
+		}
 	}
 
 	phy_caps->each_phy_hal_reg_cap =

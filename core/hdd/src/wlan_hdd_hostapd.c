@@ -3679,6 +3679,7 @@ static __iw_softap_setparam(struct net_device *dev,
 		ret = wma_cli_set_command(pHostapdAdapter->sessionId,
 					  WMI_PDEV_PARAM_TX_CHAIN_MASK,
 					  set_value, PDEV_CMD);
+		ret = hdd_set_antenna_mode(pHostapdAdapter, hdd_ctx, set_value);
 		break;
 	}
 
@@ -3688,6 +3689,7 @@ static __iw_softap_setparam(struct net_device *dev,
 		ret = wma_cli_set_command(pHostapdAdapter->sessionId,
 					  WMI_PDEV_PARAM_RX_CHAIN_MASK,
 					  set_value, PDEV_CMD);
+		ret = hdd_set_antenna_mode(pHostapdAdapter, hdd_ctx, set_value);
 		break;
 	}
 
@@ -3799,7 +3801,6 @@ static __iw_softap_setparam(struct net_device *dev,
 					(int)WMI_PDEV_PARAM_ENABLE_RTS_SIFS_BURSTING,
 					set_value, PDEV_CMD);
 		break;
-
 	default:
 		hdd_err("Invalid setparam command %d value %d",
 		       sub_cmd, set_value);
@@ -5686,8 +5687,7 @@ __iw_get_peer_rssi(struct net_device *dev, struct iw_request_info *info,
 			hdd_err("String to Hex conversion Failed");
 	}
 
-	ret = wlan_hdd_get_peer_rssi(adapter, &macaddress,
-				     HDD_WLAN_GET_PEER_RSSI_SOURCE_USER);
+	ret = wlan_hdd_get_peer_rssi(adapter, &macaddress);
 	if (ret) {
 		hdd_err("Unable to retrieve peer rssi: %d", ret);
 		return ret;
@@ -7546,14 +7546,15 @@ static int wlan_hdd_setup_driver_overrides(hdd_adapter_t *ap_adapter)
 	 * enable_sub_20_channel_width is non zero
 	 */
 	if (!hdd_ctx->config->enable_sub_20_channel_width &&
-			hdd_ctx->config->sap_p2p_11ac_override &&
 			(sap_cfg->SapHw_mode == eCSR_DOT11_MODE_11n ||
 			sap_cfg->SapHw_mode == eCSR_DOT11_MODE_11ac ||
 			sap_cfg->SapHw_mode == eCSR_DOT11_MODE_11ac_ONLY) &&
-			!(((ap_adapter->device_mode == QDF_SAP_MODE) &&
-			(hdd_ctx->config->sap_force_11n_for_11ac)) ||
-			((ap_adapter->device_mode == QDF_P2P_GO_MODE) &&
-			(hdd_ctx->config->go_force_11n_for_11ac)))) {
+			((ap_adapter->device_mode == QDF_SAP_MODE &&
+			!hdd_ctx->config->sap_force_11n_for_11ac &&
+			hdd_ctx->config->sap_11ac_override) ||
+			(ap_adapter->device_mode == QDF_P2P_GO_MODE &&
+			!hdd_ctx->config->go_force_11n_for_11ac &&
+			hdd_ctx->config->go_11ac_override))) {
 		hdd_debug("** Driver force 11AC override for SAP/Go **");
 
 		/* 11n only shall not be overridden since it may be on purpose*/

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -272,6 +272,25 @@ void host_log_low_resource_failure(uint8_t event_sub_type)
 
 	WLAN_HOST_DIAG_EVENT_REPORT(&wlan_diag_event,
 					EVENT_WLAN_LOW_RESOURCE_FAILURE);
+}
+
+void host_log_rsn_info(uint8_t *ucast_cipher, uint8_t *mcast_cipher,
+		       uint8_t *akm_suite, uint8_t *group_mgmt)
+{
+	WLAN_HOST_DIAG_EVENT_DEF(wlan_diag_event,
+				 struct event_wlan_csr_rsn_info);
+
+	qdf_mem_copy(wlan_diag_event.ucast_cipher, ucast_cipher,
+		     RSN_OUI_SIZE);
+	qdf_mem_copy(wlan_diag_event.mcast_cipher, mcast_cipher,
+		     RSN_OUI_SIZE);
+	qdf_mem_copy(wlan_diag_event.akm_suite, akm_suite,
+		     RSN_OUI_SIZE);
+	qdf_mem_copy(wlan_diag_event.group_mgmt, group_mgmt,
+		     RSN_OUI_SIZE);
+
+	WLAN_HOST_DIAG_EVENT_REPORT(&wlan_diag_event,
+				    EVENT_WLAN_RSN_INFO);
 }
 
 #ifdef FEATURE_WLAN_DIAG_SUPPORT

@@ -2140,7 +2140,7 @@ uint32_t hdd_wlan_get_version(hdd_context_t *hdd_ctx,
 		return 0;
 	}
 
-	if (!version && version_len == 0) {
+	if (!version || version_len == 0) {
 		hdd_err("Invalid buffer pointr or buffer len\n");
 		return 0;
 	}
@@ -7244,7 +7244,7 @@ static void hdd_bus_bw_work_handler(struct work_struct *work)
 		adapter->stats.rx_packets += ipa_rx_packets;
 
 		hdd_ipa_set_perf_level(hdd_ctx, tx_packets, rx_packets);
-		hdd_ipa_uc_stat_request(adapter, 2);
+		hdd_ipa_uc_stat_request(hdd_ctx, 2);
 	}
 
 	hdd_pld_request_bus_bandwidth(hdd_ctx, tx_packets, rx_packets);
@@ -11110,7 +11110,7 @@ static void hdd_get_nud_stats_cb(void *data, struct rsp_stats *rsp)
 
 	spin_lock(&hdd_context_lock);
 	context = &hdd_ctx->nud_stats_context;
-	complete(&context->response_event);
+	qdf_event_set(&context->response_event);
 	spin_unlock(&hdd_context_lock);
 
 	EXIT();

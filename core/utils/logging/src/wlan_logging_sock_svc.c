@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -741,8 +741,8 @@ static void send_flush_completion_to_user(uint8_t ring_id)
 
 	/* Error on purpose, so that it will get logged in the kmsg */
 	LOGGING_TRACE(QDF_TRACE_LEVEL_DEBUG,
-		      "%s: Sending flush done to userspace, recovery: %d",
-		      __func__, recovery_needed);
+		      "%s: Sending flush done to userspace reson_code %d, recovery: %d",
+		      __func__, reason_code, recovery_needed);
 
 	wlan_report_log_completion(is_fatal, indicator, reason_code, ring_id);
 

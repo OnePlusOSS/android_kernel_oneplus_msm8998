@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -45,6 +45,7 @@ extern "C" {
 #endif /* __cplusplus */
 
 #define WAKE_LOCK_NAME_LEN 80
+#define RSN_OUI_SIZE 4
 
 /*-------------------------------------------------------------------------
    Event ID: EVENT_WLAN_SECURITY
@@ -305,6 +306,27 @@ struct host_event_wlan_low_resource_failure {
  */
 enum resource_failure_type {
 	WIFI_EVENT_MEMORY_FAILURE,
+};
+
+/*-------------------------------------------------------------------------
+  Event ID: EVENT_WLAN_RSN_INFO
+  -------------------------------------------------------------------------
+ */
+/**
+ * struct event_wlan_csr_rsn_info - Structure holding the
+ * RSN information for assoc request
+ * @akm_suite: Gives information about akm suites used in assoc request
+ * @ucast_cipher: Unicast cipher used in assoc request
+ * @mcast_cipher: Multicast cipher used in assoc request
+ * @group_mgmt: Requested group mgmt cipher suite
+ *
+ * This structure will hold the RSN information for assoc request
+ */
+struct event_wlan_csr_rsn_info {
+	uint8_t   akm_suite[RSN_OUI_SIZE];
+	uint8_t   ucast_cipher[RSN_OUI_SIZE];
+	uint8_t   mcast_cipher[RSN_OUI_SIZE];
+	uint8_t   group_mgmt[RSN_OUI_SIZE];
 };
 
 /*-------------------------------------------------------------------------

@@ -1285,6 +1285,8 @@ static bool sap_is_valid_acs_channel(ptSapContext sap_ctx, uint8_t channel)
 	int i = 0;
 
 	/* Check whether acs is enabled */
+	if (!sap_ctx->acs_cfg)
+		return true;
 	if (!sap_ctx->acs_cfg->acs_mode)
 		return true;
 

@@ -3805,8 +3805,7 @@ static void hdd_get_peer_rssi_cb(struct sir_peer_info_resp *sta_rssi,
 }
 
 int wlan_hdd_get_peer_rssi(hdd_adapter_t *adapter,
-			   struct qdf_mac_addr *macaddress,
-			   int request_source)
+			   struct qdf_mac_addr *macaddress)
 {
 	QDF_STATUS status;
 	void *cookie;
@@ -3843,7 +3842,7 @@ int wlan_hdd_get_peer_rssi(hdd_adapter_t *adapter,
 	if (status != QDF_STATUS_SUCCESS) {
 		hdd_err("Unable to retrieve statistics for rssi");
 		ret = -EFAULT;
-	} else if (request_source != HDD_WLAN_GET_PEER_RSSI_SOURCE_DRIVER) {
+	} else {
 		ret = hdd_request_wait_for_response(request);
 		if (ret) {
 			hdd_err("SME timed out while retrieving rssi");
@@ -3853,8 +3852,6 @@ int wlan_hdd_get_peer_rssi(hdd_adapter_t *adapter,
 			adapter->peer_sta_info = priv->peer_sta_info;
 			ret = 0;
 		}
-	} else {
-		ret = 0;
 	}
 
 	hdd_request_put(request);
@@ -5720,9 +5717,8 @@ static void hdd_get_class_a_statistics_cb(void *stats, void *context)
 	tCsrGlobalClassAStatsInfo *returned_stats;
 
 	ENTER();
-	if ((NULL == stats) || (NULL == context)) {
-		hdd_err("Bad param, stats [%p] context [%p]",
-			stats, context);
+	if (NULL == stats) {
+		hdd_err("Bad param, stats");
 		return;
 	}
 
@@ -7990,6 +7986,7 @@ static int __iw_setint_getnone(struct net_device *dev,
 		ret = wma_cli_set_command(pAdapter->sessionId,
 					  WMI_PDEV_PARAM_TX_CHAIN_MASK,
 					  set_value, PDEV_CMD);
+		ret = hdd_set_antenna_mode(pAdapter, hdd_ctx, set_value);
 		break;
 	}
 
@@ -8000,6 +7997,7 @@ static int __iw_setint_getnone(struct net_device *dev,
 		ret = wma_cli_set_command(pAdapter->sessionId,
 					  WMI_PDEV_PARAM_RX_CHAIN_MASK,
 					  set_value, PDEV_CMD);
+		ret = hdd_set_antenna_mode(pAdapter, hdd_ctx, set_value);
 		break;
 	}
 
@@ -10103,6 +10101,13 @@ static int iw_get_policy_manager_ut_ops(hdd_context_t *hdd_ctx,
 	case WE_POLICY_MANAGER_CLIST_CMD:
 	{
 		hdd_debug("<iwpriv wlan0 pm_clist> is called");
+		if ((apps_args[0] < 0) || (apps_args[1] < 0) ||
+			(apps_args[2] < 0) || (apps_args[3] < 0) ||
+			(apps_args[4] < 0) || (apps_args[5] < 0) ||
+			(apps_args[6] < 0) || (apps_args[7] < 0)) {
+			hdd_err("Invalid input params recieved for the IOCTL");
+			return 0;
+		}
 		cds_incr_connection_count_utfw(apps_args[0],
 			apps_args[1], apps_args[2], apps_args[3],
 			apps_args[4], apps_args[5], apps_args[6],
@@ -10113,6 +10118,11 @@ static int iw_get_policy_manager_ut_ops(hdd_context_t *hdd_ctx,
 	case WE_POLICY_MANAGER_DLIST_CMD:
 	{
 		hdd_debug("<iwpriv wlan0 pm_dlist> is called");
+		if ((apps_args[0] < 0) || (apps_args[1] < 0)) {
+			hdd_err("Invalid input params recieved for the IOCTL");
+			return 0;
+		}
+
 		cds_decr_connection_count_utfw(apps_args[0],
 			apps_args[1]);
 	}
@@ -10121,6 +10131,13 @@ static int iw_get_policy_manager_ut_ops(hdd_context_t *hdd_ctx,
 	case WE_POLICY_MANAGER_ULIST_CMD:
 	{
 		hdd_debug("<iwpriv wlan0 pm_ulist> is called");
+		if ((apps_args[0] < 0) || (apps_args[1] < 0) ||
+			(apps_args[2] < 0) || (apps_args[3] < 0) ||
+			(apps_args[4] < 0) || (apps_args[5] < 0) ||
+			(apps_args[6] < 0) || (apps_args[7] < 0)) {
+			hdd_err("Invalid input params recieved for the IOCTL");
+			return 0;
+		}
 		cds_update_connection_info_utfw(apps_args[0],
 			apps_args[1], apps_args[2], apps_args[3],
 			apps_args[4], apps_args[5], apps_args[6],
@@ -10131,6 +10148,11 @@ static int iw_get_policy_manager_ut_ops(hdd_context_t *hdd_ctx,
 	case WE_POLICY_MANAGER_DBS_CMD:
 	{
 		hdd_debug("<iwpriv wlan0 pm_dbs> is called");
+		if (apps_args[0] < 0) {
+			hdd_err("Invalid input param recieved for the IOCTL");
+			return 0;
+		}
+
 		if (apps_args[0] == 0)
 			wma_set_dbs_capability_ut(0);
 		else
@@ -10152,6 +10174,10 @@ static int iw_get_policy_manager_ut_ops(hdd_context_t *hdd_ctx,
 
 		hdd_debug("<iwpriv wlan0 pm_pcl> is called");
 
+		if (apps_args[0] < 0) {
+			hdd_err("Invalid input param recieved for the IOCTL");
+			return 0;
+		}
 		cds_get_pcl(apps_args[0],
 				pcl, &pcl_len,
 				weight_list, QDF_ARRAY_SIZE(weight_list));
@@ -10195,6 +10221,11 @@ static int iw_get_policy_manager_ut_ops(hdd_context_t *hdd_ctx,
 		QDF_STATUS status;
 
 		hdd_debug("<iwpriv wlan0 pm_query_action> is called");
+		if (apps_args[0] < 0) {
+			hdd_err("Invalid input params recieved for the IOCTL");
+			return 0;
+		}
+
 		status = cds_current_connections_update(adapter->sessionId,
 						apps_args[0],
 						SIR_UPDATE_REASON_UT);
@@ -10207,6 +10238,11 @@ static int iw_get_policy_manager_ut_ops(hdd_context_t *hdd_ctx,
 		bool allow;
 
 		hdd_debug("<iwpriv wlan0 pm_query_allow> is called");
+		if ((apps_args[0] < 0) || (apps_args[1] < 0) ||
+			(apps_args[2] < 0)) {
+			hdd_err("Invalid input params recieved for the IOCTL");
+			return 0;
+		}
 		allow = cds_allow_concurrency(
 				apps_args[0], apps_args[1], apps_args[2]);
 		pr_info("allow %d {0 = don't allow, 1 = allow}", allow);
@@ -11712,8 +11748,6 @@ static int __iw_set_pno(struct net_device *dev,
 	if (ret)
 		return ret;
 
-	hdd_debug("PNO data len %d data %s", wrqu->data.length, extra);
-
 	/* making sure argument string ends with '\0' */
 	len = (wrqu->data.length + 1);
 	data = qdf_mem_malloc(len);
@@ -11724,6 +11758,8 @@ static int __iw_set_pno(struct net_device *dev,
 	qdf_mem_zero(data, len);
 	qdf_mem_copy(data, extra, (len-1));
 	ptr = data;
+
+	hdd_debug("PNO data len %d data %s", wrqu->data.length, data);
 
 	request.enable = 0;
 	request.ucNetworksCount = 0;

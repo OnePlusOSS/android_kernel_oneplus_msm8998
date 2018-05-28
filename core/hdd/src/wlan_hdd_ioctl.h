@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014, 2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, 2017-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -38,5 +38,15 @@ int wlan_hdd_set_mc_rate(hdd_adapter_t *pAdapter, int targetRate);
  * Return: QDF_STATUS
  */
 QDF_STATUS hdd_update_smps_antenna_mode(hdd_context_t *hdd_ctx, int mode);
+
+/**
+ * hdd_set_antenna_mode() - SET ANTENNA MODE command handler
+ * @adapter: Pointer to network adapter
+ * @hdd_ctx: Pointer to hdd context
+ * @mode: new anteena mode
+ */
+int hdd_set_antenna_mode(hdd_adapter_t *adapter,
+				  hdd_context_t *hdd_ctx, int mode);
+
 #endif /* end #if !defined(WLAN_HDD_IOCTL_H) */
 

@@ -5000,8 +5000,7 @@ static int hdd_ipa_uc_disconnect_client(hdd_adapter_t *adapter)
  *
  * Return: 0 - Success
  */
-
-static int hdd_ipa_uc_disconnect_ap(hdd_adapter_t *adapter)
+int hdd_ipa_uc_disconnect_ap(hdd_adapter_t *adapter)
 {
 	int ret = 0;
 

@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 #include "cds_api.h"
@@ -558,6 +549,12 @@ lim_mlm_add_bss(tpAniSirGlobal mac_ctx,
 		mlm_start_req->cfParamSet.cfpDurRemaining;
 
 	addbss_param->rateSet.numRates = mlm_start_req->rateSet.numRates;
+	if (addbss_param->rateSet.numRates > SIR_MAC_RATESET_EID_MAX) {
+		pe_warn("num of sup rates %d exceeding the limit %d, resetting",
+			addbss_param->rateSet.numRates,
+			SIR_MAC_RATESET_EID_MAX);
+		addbss_param->rateSet.numRates = SIR_MAC_RATESET_EID_MAX;
+	}
 	qdf_mem_copy(addbss_param->rateSet.rate, mlm_start_req->rateSet.rate,
 		     mlm_start_req->rateSet.numRates);
 
@@ -582,9 +579,16 @@ lim_mlm_add_bss(tpAniSirGlobal mac_ctx,
 	addbss_param->sessionId = mlm_start_req->sessionId;
 
 	/* Send the SSID to HAL to enable SSID matching for IBSS */
-	qdf_mem_copy(&(addbss_param->ssId.ssId),
-		     mlm_start_req->ssId.ssId, mlm_start_req->ssId.length);
 	addbss_param->ssId.length = mlm_start_req->ssId.length;
+	if (addbss_param->ssId.length > SIR_MAC_MAX_SSID_LENGTH) {
+		pe_err("Invalid ssid length %d, max length allowed %d",
+		       addbss_param->ssId.length,
+		       SIR_MAC_MAX_SSID_LENGTH);
+		qdf_mem_free(addbss_param);
+		return eSIR_SME_INVALID_PARAMETERS;
+	}
+	qdf_mem_copy(addbss_param->ssId.ssId,
+		     mlm_start_req->ssId.ssId, addbss_param->ssId.length);
 	addbss_param->bHiddenSSIDEn = mlm_start_req->ssidHidden;
 	pe_debug("TRYING TO HIDE SSID %d", addbss_param->bHiddenSSIDEn);
 	/* CR309183. Disable Proxy Probe Rsp.  Host handles Probe Requests.  Until FW fixed. */
@@ -634,6 +638,14 @@ lim_mlm_add_bss(tpAniSirGlobal mac_ctx,
 		addbss_param->nss_5g = mac_ctx->vdev_type_nss_5g.ibss;
 		addbss_param->tx_aggregation_size =
 			mac_ctx->roam.configParam.tx_aggregation_size;
+		addbss_param->tx_aggregation_size_be =
+			mac_ctx->roam.configParam.tx_aggregation_size_be;
+		addbss_param->tx_aggregation_size_bk =
+			mac_ctx->roam.configParam.tx_aggregation_size_bk;
+		addbss_param->tx_aggregation_size_vi =
+			mac_ctx->roam.configParam.tx_aggregation_size_vi;
+		addbss_param->tx_aggregation_size_vo =
+			mac_ctx->roam.configParam.tx_aggregation_size_vo;
 		addbss_param->rx_aggregation_size =
 			mac_ctx->roam.configParam.rx_aggregation_size;
 	}
@@ -1220,6 +1232,10 @@ static void lim_process_mlm_auth_req(tpAniSirGlobal mac_ctx, uint32_t *msg)
 			goto end;
 		} else {
 			pe_debug("lim_process_mlm_auth_req_sae is successful");
+			lim_diag_event_report(mac_ctx,
+					      WLAN_PE_DIAG_AUTH_ALGO_NUM,
+					      session, eSIR_SUCCESS,
+					      eSIR_AUTH_TYPE_SAE);
 			return;
 		}
 	} else
@@ -1236,6 +1252,9 @@ static void lim_process_mlm_auth_req(tpAniSirGlobal mac_ctx, uint32_t *msg)
 		auth_frame_body.authAlgoNumber =
 		(uint8_t) mac_ctx->lim.gpLimMlmAuthReq->authType;
 	}
+	lim_diag_event_report(mac_ctx, WLAN_PE_DIAG_AUTH_ALGO_NUM,
+			      session, eSIR_SUCCESS,
+			      auth_frame_body.authAlgoNumber);
 
 	/* Prepare & send Authentication frame */
 	auth_frame_body.authTransactionSeqNumber = SIR_MAC_AUTH_FRAME_1;
@@ -2277,7 +2296,7 @@ static void lim_process_periodic_probe_req_timer(tpAniSirGlobal mac_ctx)
 				&mlm_scan_req->ssId[i], mlm_scan_req->bssId,
 				channel_num, mac_ctx->lim.gSelfMacAddr,
 				mlm_scan_req->dot11mode,
-				mlm_scan_req->uIEFieldLen,
+				&mlm_scan_req->uIEFieldLen,
 				(uint8_t *) (mlm_scan_req) +
 					mlm_scan_req->uIEFieldOffset);
 		if (status != eSIR_SUCCESS) {
@@ -2386,7 +2405,7 @@ static void lim_process_periodic_join_probe_req_timer(tpAniSirGlobal mac_ctx)
 			session->pLimMlmJoinReq->bssDescription.bssId,
 			session->currentOperChannel /*chanNum */,
 			session->selfMacAddr, session->dot11mode,
-			session->pLimJoinReq->addIEScan.length,
+			&session->pLimJoinReq->addIEScan.length,
 			session->pLimJoinReq->addIEScan.addIEdata);
 		lim_deactivate_and_change_timer(mac_ctx,
 				eLIM_PERIODIC_JOIN_PROBE_REQ_TIMER);

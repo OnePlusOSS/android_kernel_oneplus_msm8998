@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /*===========================================================================
@@ -1294,6 +1285,8 @@ static bool sap_is_valid_acs_channel(ptSapContext sap_ctx, uint8_t channel)
 	int i = 0;
 
 	/* Check whether acs is enabled */
+	if (!sap_ctx->acs_cfg)
+		return true;
 	if (!sap_ctx->acs_cfg->acs_mode)
 		return true;
 
@@ -2302,6 +2295,13 @@ QDF_STATUS sap_goto_channel_sel(ptSapContext sap_context,
 	tHalHandle h_hal;
 	uint8_t con_ch;
 	bool sta_sap_scc_on_dfs_chan;
+	hdd_context_t *hdd_ctx;
+
+	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+	if (!hdd_ctx) {
+		cds_err("HDD context is NULL");
+		return QDF_STATUS_E_FAILURE;
+	}
 
 	h_hal = cds_get_context(QDF_MODULE_ID_SME);
 	if (NULL == h_hal) {
@@ -2384,6 +2384,9 @@ QDF_STATUS sap_goto_channel_sel(ptSapContext sap_context,
 					sap_context->channel,
 					sap_context->csr_roamProfile.phyMode,
 					sap_context->cc_switch_mode);
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
+				  FL("After check overlap: con_ch:%d"),
+					con_ch);
 			if (QDF_IS_STATUS_ERROR(
 				cds_valid_sap_conc_channel_check(&con_ch,
 					sap_context->channel))) {
@@ -2392,14 +2395,20 @@ QDF_STATUS sap_goto_channel_sel(ptSapContext sap_context,
 					FL("SAP can't start (no MCC)"));
 				return QDF_STATUS_E_ABORTED;
 			}
-
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
+				  FL("After check concurrency: con_ch:%d"),
+				con_ch);
 			sta_sap_scc_on_dfs_chan =
 				cds_is_sta_sap_scc_allowed_on_dfs_channel();
 
-			if (con_ch && cds_is_safe_channel(con_ch) &&
-					(!CDS_IS_DFS_CH(con_ch) ||
-					 (CDS_IS_DFS_CH(con_ch) &&
-					  sta_sap_scc_on_dfs_chan))) {
+			if (con_ch &&
+			    (cds_is_safe_channel(con_ch) ||
+			     (!cds_is_safe_channel(con_ch) &&
+			      hdd_ctx->config->sta_sap_scc_on_lte_coex_chan)
+			    ) &&
+			    (!CDS_IS_DFS_CH(con_ch) ||
+			     (CDS_IS_DFS_CH(con_ch) &&
+			      sta_sap_scc_on_dfs_chan))) {
 
 				QDF_TRACE(QDF_MODULE_ID_SAP,
 						QDF_TRACE_LEVEL_ERROR,
@@ -3236,8 +3245,7 @@ QDF_STATUS sap_signal_hdd_event(ptSapContext sap_ctx,
 		sap_ctx->acs_cfg->pri_ch = sap_ctx->channel;
 		sap_ctx->acs_cfg->ch_width =
 				sap_ctx->csr_roamProfile.ch_params.ch_width;
-		sap_config_acs_result(hal, sap_ctx,
-			sap_ctx->csr_roamProfile.ch_params.sec_ch_offset);
+		sap_config_acs_result(hal, sap_ctx, sap_ctx->secondary_ch);
 
 		sap_ap_event.sapHddEventCode = eSAP_CHANNEL_CHANGE_EVENT;
 

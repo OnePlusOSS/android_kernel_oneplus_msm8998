@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2011, 2014-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 #include <qdf_net_types.h>      /* QDF_NBUF_EXEMPT_NO_EXEMPTION, etc. */
@@ -740,7 +731,14 @@ void ol_tx_desc_frame_list_free(struct ol_txrx_pdev_t *pdev,
 		/* restore original hdr offset */
 		OL_TX_RESTORE_HDR(tx_desc, msdu);
 #endif
-		if (qdf_nbuf_get_users(msdu) <= 1)
+
+		/*
+		 * In MCC IPA tx context, IPA driver provides skb with directly
+		 * DMA mapped address. In such case, there's no need for WLAN
+		 * driver to DMA unmap the skb.
+		 */
+		if ((qdf_nbuf_get_users(msdu) <= 1) &&
+				!qdf_nbuf_ipa_owned_get(msdu))
 			qdf_nbuf_unmap(pdev->osdev, msdu, QDF_DMA_TO_DEVICE);
 
 		/* free the tx desc */

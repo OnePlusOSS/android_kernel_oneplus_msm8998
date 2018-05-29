@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -19,12 +16,6 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
- */
-
 #if !defined(WLAN_HDD_SOFTAP_TX_RX_H)
 #define WLAN_HDD_SOFTAP_TX_RX_H
 
@@ -38,7 +29,7 @@
 #include <cdp_txrx_peer_ops.h>
 
 netdev_tx_t hdd_softap_hard_start_xmit(struct sk_buff *skb,
-			       struct net_device *dev);
+				       struct net_device *dev);
 void hdd_softap_tx_timeout(struct net_device *dev);
 QDF_STATUS hdd_softap_init_tx_rx(hdd_adapter_t *pAdapter);
 QDF_STATUS hdd_softap_deinit_tx_rx(hdd_adapter_t *pAdapter);

@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /* Host Debug log implementation */
@@ -1770,6 +1761,9 @@ send_diag_netlink_data(const uint8_t *buffer, A_UINT32 len, A_UINT32 cmd)
 		slot->dropped = get_version;
 		memcpy(slot->payload, buffer, len);
 
+		/* Need to pad each record to fixed length ATH6KL_FWLOG_PAYLOAD_SIZE */
+		memset(slot->payload + len, 0, ATH6KL_FWLOG_PAYLOAD_SIZE - len);
+
 		res = nl_srv_bcast_fw_logs(skb_out);
 		if ((res < 0) && (res != -ESRCH)) {
 			AR_DEBUG_PRINTF(ATH_DEBUG_RSVD1,
@@ -1829,6 +1823,9 @@ dbglog_process_netlink_data(wmi_unified_t wmi_handle, const uint8_t *buffer,
 		slot->length = cpu_to_le32(len);
 		slot->dropped = cpu_to_le32(dropped);
 		memcpy(slot->payload, buffer, len);
+
+		/* Need to pad each record to fixed length ATH6KL_FWLOG_PAYLOAD_SIZE */
+		memset(slot->payload + len, 0, ATH6KL_FWLOG_PAYLOAD_SIZE - len);
 
 		res = nl_srv_bcast_fw_logs(skb_out);
 		if ((res < 0) && (res != -ESRCH)) {

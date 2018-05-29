@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2014-2016 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 #if !defined(__I_HOST_DIAG_CORE_EVENT_H)
@@ -110,6 +101,32 @@ static inline void host_diag_log_wlock(uint32_t reason,
 void host_log_low_resource_failure(uint8_t event_sub_type);
 #else
 static inline void host_log_low_resource_failure(uint8_t event_sub_type)
+{
+
+}
+#endif /* FEATURE_WLAN_DIAG_SUPPORT */
+
+#ifdef FEATURE_WLAN_DIAG_SUPPORT
+/**
+ * host_log_rsn_info() - This function is used to send
+ * requested rsn info in assoc request
+ * @ucast_cipher: Unicast ciphers used in assoc request
+ * @mcast_cipher: Group ciphers used in assoc request
+ * @akm_suite: Gives information about akm suites used in assoc request
+ * @group_mgmt: Requested group mgmt cipher suite
+ *
+ * This function is used to send RSN info used in assoc req to user space
+ *
+ * Return: None
+ *
+ */
+void host_log_rsn_info(uint8_t *ucast_cipher, uint8_t *mcast_cipher,
+		       uint8_t *auth_suite, uint8_t *gp_mgmt_cipher);
+#else
+static inline void host_log_rsn_info(uint8_t *ucast_cipher,
+				     uint8_t *mcast_cipher,
+				     uint8_t *auth_suite,
+				     uint8_t *gp_mgmt_cipher);
 {
 
 }

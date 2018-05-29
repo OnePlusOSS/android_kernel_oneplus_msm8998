@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /*=== header file includes ===*/
@@ -124,7 +115,7 @@ void ol_rx_reorder_timeout_update(struct ol_txrx_peer_t *peer, uint8_t tid)
 	ol_rx_reorder_timeout_add(peer, tid);
 }
 
-static void ol_rx_reorder_timeout(void *arg)
+static void ol_rx_reorder_timeout(unsigned long arg)
 {
 	struct ol_txrx_pdev_t *pdev;
 	struct ol_rx_reorder_timeout_list_elem_t *list_elem, *tmp;

@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /*
@@ -4112,7 +4103,6 @@ static QDF_STATUS sme_qos_del_ts_req(tpAniSirGlobal pMac,
 	struct sme_qos_acinfo *pACInfo;
 	tSirDeltsReq *pMsg;
 	sme_QosWmmTspecInfo *pTspecInfo;
-	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 
 #ifdef FEATURE_WLAN_DIAG_SUPPORT
 	WLAN_HOST_DIAG_EVENT_DEF(qos, host_event_wlan_qos_payload_type);
@@ -4182,23 +4172,23 @@ static QDF_STATUS sme_qos_del_ts_req(tpAniSirGlobal pMac,
 		  pTspecInfo->ts_info.up, pTspecInfo->ts_info.tid);
 	qdf_mem_zero(&pACInfo->curr_QoSInfo[tspec_mask - 1],
 		     sizeof(sme_QosWmmTspecInfo));
-	if (QDF_IS_STATUS_SUCCESS(cds_send_mb_message_to_mac(pMsg))) {
-		status = QDF_STATUS_SUCCESS;
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-			  "%s: %d: sme_qos_del_ts_req:Test: sent down a DELTS req to PE",
-			  __func__, __LINE__);
-		/* event: EVENT_WLAN_QOS */
-#ifdef FEATURE_WLAN_DIAG_SUPPORT
-		qos.eventId = SME_QOS_DIAG_DELTS;
-		qos.reasonCode = SME_QOS_DIAG_USER_REQUESTED;
-		WLAN_HOST_DIAG_EVENT_REPORT(&qos, EVENT_WLAN_QOS);
-#endif /* FEATURE_WLAN_DIAG_SUPPORT */
-	}
-	sme_set_tspec_uapsd_mask_per_session(pMac,
-			&pMsg->req.tspec.tsinfo,
-			sessionId);
 
-	return status;
+	if (!QDF_IS_STATUS_SUCCESS(cds_send_mb_message_to_mac(pMsg))) {
+		sme_err("DELTS req to PE failed");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	sme_debug("sent down a DELTS req to PE");
+#ifdef FEATURE_WLAN_DIAG_SUPPORT
+	qos.eventId = SME_QOS_DIAG_DELTS;
+	qos.reasonCode = SME_QOS_DIAG_USER_REQUESTED;
+	WLAN_HOST_DIAG_EVENT_REPORT(&qos, EVENT_WLAN_QOS);
+#endif
+
+	sme_set_tspec_uapsd_mask_per_session(pMac, &pMsg->req.tspec.tsinfo,
+					     sessionId);
+
+	return QDF_STATUS_SUCCESS;
 }
 
 /*
@@ -7020,6 +7010,7 @@ static QDF_STATUS sme_qos_add_ts_failure_fnp(tpAniSirGlobal pMac, tListElem
 	case SME_QOS_REASON_MODIFY:
 		flow_info->reason = SME_QOS_REASON_REQ_SUCCESS;
 	case SME_QOS_REASON_REQ_SUCCESS:
+	/* fallthrough */
 	default:
 		inform_hdd = false;
 		break;
@@ -7210,6 +7201,7 @@ static QDF_STATUS sme_qos_add_ts_success_fnp(tpAniSirGlobal mac_ctx,
 	case SME_QOS_REASON_REQ_SUCCESS:
 		hdd_status = SME_QOS_STATUS_SETUP_MODIFIED_IND;
 		inform_hdd = true;
+	/* fallthrough */
 	default:
 		delete_entry = false;
 		break;

@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /**
@@ -1065,7 +1056,8 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 	if ((resp_event->vdev_id < wma->max_bssid) &&
 	    (qdf_atomic_read(
 	    &wma->interfaces[resp_event->vdev_id].vdev_restart_params.hidden_ssid_restart_in_progress))
-	    && (wma_is_vdev_in_ap_mode(wma, resp_event->vdev_id) == true)) {
+	    && (wma_is_vdev_in_ap_mode(wma, resp_event->vdev_id) == true)
+	    && (req_msg->msg_type == WMA_HIDDEN_SSID_VDEV_RESTART)) {
 		tpHalHiddenSsidVdevRestart hidden_ssid_restart =
 			(tpHalHiddenSsidVdevRestart)req_msg->user_data;
 		WMA_LOGE("%s: vdev restart event recevied for hidden ssid set using IOCTL",
@@ -2073,6 +2065,7 @@ ol_txrx_vdev_handle wma_vdev_attach(tp_wma_handle wma_handle,
 	struct vdev_create_params params = { 0 };
 	u_int8_t vdev_id;
 	struct sir_set_tx_rx_aggregation_size tx_rx_aggregation_size;
+	struct sir_set_tx_aggr_sw_retry_threshold tx_aggr_sw_retry_threshold;
 
 	WMA_LOGD("mac %pM, vdev_id %hu, type %d, sub_type %d, nss 2g %d, 5g %d",
 		self_sta_req->self_mac_addr, self_sta_req->session_id,
@@ -2171,8 +2164,34 @@ ol_txrx_vdev_handle wma_vdev_attach(tp_wma_handle wma_handle,
 	if (status != QDF_STATUS_SUCCESS)
 		WMA_LOGE("failed to set aggregation sizes(err=%d)", status);
 
+	tx_rx_aggregation_size.tx_aggregation_size_be =
+				self_sta_req->tx_aggregation_size_be;
+	tx_rx_aggregation_size.tx_aggregation_size_bk =
+				self_sta_req->tx_aggregation_size_bk;
+	tx_rx_aggregation_size.tx_aggregation_size_vi =
+				self_sta_req->tx_aggregation_size_vi;
+	tx_rx_aggregation_size.tx_aggregation_size_vo =
+				self_sta_req->tx_aggregation_size_vo;
+
+	tx_aggr_sw_retry_threshold.tx_aggr_sw_retry_threshold_be =
+				self_sta_req->tx_aggr_sw_retry_threshold_be;
+	tx_aggr_sw_retry_threshold.tx_aggr_sw_retry_threshold_bk =
+				self_sta_req->tx_aggr_sw_retry_threshold_bk;
+	tx_aggr_sw_retry_threshold.tx_aggr_sw_retry_threshold_vi =
+				self_sta_req->tx_aggr_sw_retry_threshold_vi;
+	tx_aggr_sw_retry_threshold.tx_aggr_sw_retry_threshold_vo =
+				self_sta_req->tx_aggr_sw_retry_threshold_vo;
+	tx_aggr_sw_retry_threshold.vdev_id = self_sta_req->session_id;
+
+
 	switch (self_sta_req->type) {
 	case WMI_VDEV_TYPE_STA:
+		status = wma_set_tx_rx_aggregation_size_per_ac(
+						&tx_rx_aggregation_size);
+		if (status != QDF_STATUS_SUCCESS)
+			WMA_LOGE("failed to set aggr sizes per ac(err=%d)",
+				 status);
+
 		if (wlan_cfg_get_int(mac, WNI_CFG_INFRA_STA_KEEP_ALIVE_PERIOD,
 				     &cfg_val) != eSIR_SUCCESS) {
 			WMA_LOGE("Failed to get value for WNI_CFG_INFRA_STA_KEEP_ALIVE_PERIOD");
@@ -2190,6 +2209,12 @@ ol_txrx_vdev_handle wma_vdev_attach(tp_wma_handle wma_handle,
 			wma_set_sta_sa_query_param(wma_handle,
 						   self_sta_req->session_id);
 		}
+
+		status = wma_set_sw_retry_threshold(
+						&tx_aggr_sw_retry_threshold);
+		if (status != QDF_STATUS_SUCCESS)
+			WMA_LOGE("failed to set retry threshold(err=%d)",
+				 status);
 		break;
 	}
 
@@ -2986,6 +3011,20 @@ int wma_peer_delete_handler(void *handle, uint8_t *cmd_param_info,
 	return status;
 }
 
+static void wma_trigger_recovery_assert_on_fw_timeout(
+			uint16_t wma_msg)
+{
+	if (cds_is_self_recovery_enabled()) {
+		WMA_LOGE("%s timed out, triggering recovery",
+			 mac_trace_get_wma_msg_string(wma_msg));
+		cds_trigger_recovery(CDS_REASON_UNSPECIFIED);
+	} else {
+		WMA_LOGE("%s timed out, BUG_ON()",
+			 mac_trace_get_wma_msg_string(wma_msg));
+		QDF_BUG(0);
+	}
+}
+
 static inline bool wma_crash_on_fw_timeout(bool crash_enabled)
 {
 	/* Discard FW timeouts and dont crash during SSR */
@@ -3041,11 +3080,13 @@ void wma_hold_req_timer(void *data)
 		WMA_LOGA(FL("WMA_ADD_STA_REQ timed out"));
 		WMA_LOGD(FL("Sending add sta rsp to umac (mac:%pM, status:%d)"),
 			 params->staMac, params->status);
-		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true)
-			QDF_BUG(0);
-		else
+		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true) {
+			wma_trigger_recovery_assert_on_fw_timeout(
+				WMA_ADD_STA_REQ);
+		} else {
 			wma_send_msg_high_priority(wma,
 				WMA_ADD_STA_RSP, (void *)params, 0);
+		}
 	} else if (tgt_req->msg_type == WMA_ADD_BSS_REQ) {
 		tpAddBssParams  params = (tpAddBssParams) tgt_req->user_data;
 
@@ -3053,11 +3094,13 @@ void wma_hold_req_timer(void *data)
 		WMA_LOGA(FL("WMA_ADD_BSS_REQ timed out"));
 		WMA_LOGD(FL("Sending add bss rsp to umac (mac:%pM, status:%d)"),
 			params->selfMacAddr, params->status);
-		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true)
-			QDF_BUG(0);
-		else
+		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true) {
+			wma_trigger_recovery_assert_on_fw_timeout(
+				WMA_ADD_BSS_REQ);
+		} else {
 			wma_send_msg_high_priority(wma,
 				WMA_ADD_BSS_RSP, (void *)params, 0);
+		}
 	} else if ((tgt_req->msg_type == WMA_DELETE_STA_REQ) &&
 		(tgt_req->type == WMA_DELETE_STA_RSP_START)) {
 		tpDeleteStaParams params =
@@ -3068,7 +3111,8 @@ void wma_hold_req_timer(void *data)
 			 params->staMac, params->status);
 
 		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true) {
-			QDF_BUG(0);
+			wma_trigger_recovery_assert_on_fw_timeout(
+				WMA_DELETE_STA_REQ);
 		} else {
 			/*
 			 * Assert in development build only.
@@ -3087,7 +3131,8 @@ void wma_hold_req_timer(void *data)
 		WMA_LOGA(FL("wma delete sta p2p request timed out"));
 
 		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash)) {
-			QDF_BUG(0);
+			wma_trigger_recovery_assert_on_fw_timeout(
+				WMA_DELETE_STA_REQ);
 		} else {
 			if (del_sta->generate_rsp)
 				wma_send_del_sta_self_resp(
@@ -3101,11 +3146,13 @@ void wma_hold_req_timer(void *data)
 
 		params->status = false;
 		WMA_LOGA(FL("wma delete peer for set link timed out"));
-		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true)
-			QDF_BUG(0);
-		else
+		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true) {
+			wma_trigger_recovery_assert_on_fw_timeout(
+				WMA_DELETE_STA_REQ);
+		} else {
 			wma_send_msg(wma, WMA_SET_LINK_STATE_RSP,
 					params, 0);
+		}
 	} else if ((tgt_req->msg_type == WMA_DELETE_STA_REQ) &&
 			(tgt_req->type == WMA_DELETE_PEER_RSP)) {
 		tpDeleteBssParams params =
@@ -3113,11 +3160,13 @@ void wma_hold_req_timer(void *data)
 
 		params->status = QDF_STATUS_E_TIMEOUT;
 		WMA_LOGE(FL("wma delete peer for del bss req timed out"));
-		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true)
-			QDF_BUG(0);
-		else
+		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true) {
+			wma_trigger_recovery_assert_on_fw_timeout(
+				WMA_DELETE_STA_REQ);
+		} else {
 			wma_send_msg_high_priority(wma,
 				WMA_DELETE_BSS_RSP, params, 0);
+		}
 	} else {
 		WMA_LOGE(FL("Unhandled timeout for msg_type:%d and type:%d"),
 				tgt_req->msg_type, tgt_req->type);
@@ -3144,6 +3193,11 @@ struct wma_target_req *wma_fill_hold_req(tp_wma_handle wma,
 {
 	struct wma_target_req *req;
 	QDF_STATUS status;
+
+	if (!cds_is_target_ready()) {
+		WMA_LOGE("target not ready, drop the request");
+		return NULL;
+	}
 
 	req = qdf_mem_malloc(sizeof(*req));
 	if (!req) {
@@ -3270,11 +3324,13 @@ void wma_vdev_resp_timer(void *data)
 		 * Trigger host crash if the flag is set or if the timeout
 		 * is not due to fw down
 		 */
-		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true)
-			QDF_BUG(0);
-		else
+		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true) {
+			wma_trigger_recovery_assert_on_fw_timeout(
+				WMA_CHNL_SWITCH_REQ);
+		} else {
 			wma_send_msg_high_priority(wma, WMA_SWITCH_CHANNEL_RSP,
 				    (void *)params, 0);
+		}
 		if (wma->interfaces[tgt_req->vdev_id].is_channel_switch) {
 			wma->interfaces[tgt_req->vdev_id].is_channel_switch =
 				false;
@@ -3306,7 +3362,8 @@ void wma_vdev_resp_timer(void *data)
 		 * is not due to fw down
 		 */
 		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true) {
-			QDF_BUG(0);
+			wma_trigger_recovery_assert_on_fw_timeout(
+				WMA_DELETE_BSS_REQ);
 			return;
 		}
 
@@ -3381,15 +3438,26 @@ void wma_vdev_resp_timer(void *data)
 		params->status = QDF_STATUS_E_TIMEOUT;
 
 		WMA_LOGA("%s: WMA_DEL_STA_SELF_REQ timedout", __func__);
-		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true)
-			QDF_BUG(0);
-		else
+		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true) {
+			wma_trigger_recovery_assert_on_fw_timeout(
+				WMA_DEL_STA_SELF_REQ);
+		} else if (!cds_is_driver_unloading() &&
+			   (cds_is_fw_down() || cds_is_driver_recovering())) {
+			qdf_mem_free(iface->del_staself_req);
+			iface->del_staself_req = NULL;
+		} else {
 			wma_send_del_sta_self_resp(iface->del_staself_req);
+		}
 
-		if (iface->addBssStaContext)
+		if (iface->addBssStaContext) {
 			qdf_mem_free(iface->addBssStaContext);
-		if (iface->staKeyParams)
+			iface->addBssStaContext = NULL;
+		}
+
+		if (iface->staKeyParams) {
 			qdf_mem_free(iface->staKeyParams);
+			iface->staKeyParams = NULL;
+		}
 
 		wma_vdev_deinit(iface);
 		qdf_mem_zero(iface, sizeof(*iface));
@@ -3402,7 +3470,8 @@ void wma_vdev_resp_timer(void *data)
 		WMA_LOGD("%s: bssid %pM vdev_id %d", __func__, params->bssId,
 			 tgt_req->vdev_id);
 		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true) {
-			QDF_BUG(0);
+			wma_trigger_recovery_assert_on_fw_timeout(
+				WMA_ADD_BSS_REQ);
 		} else {
 			wma_send_msg_high_priority(wma,
 				WMA_ADD_BSS_RSP, (void *)params, 0);
@@ -3464,6 +3533,11 @@ struct wma_target_req *wma_fill_vdev_req(tp_wma_handle wma,
 {
 	struct wma_target_req *req;
 	QDF_STATUS status;
+
+	if (!cds_is_target_ready()) {
+		WMA_LOGE("target not ready, drop the request");
+		return NULL;
+	}
 
 	req = qdf_mem_malloc(sizeof(*req));
 	if (!req) {
@@ -5015,9 +5089,9 @@ static void wma_del_tdls_sta(tp_wma_handle wma, tpDeleteStaParams del_sta)
 				WMA_DELETE_STA_TIMEOUT);
 		if (!msg) {
 			WMA_LOGE(FL("Failed to allocate vdev_id %d"),
-					peerStateParams->vdevId);
+					del_sta->smesessionId);
 			wma_remove_req(wma,
-					peerStateParams->vdevId,
+					del_sta->smesessionId,
 					WMA_DELETE_STA_RSP_START);
 			del_sta->status = QDF_STATUS_E_NOMEM;
 			goto send_del_rsp;
@@ -5567,7 +5641,7 @@ void wma_set_vdev_intrabss_fwd(tp_wma_handle wma_handle,
  *
  * Return: void
  */
-static void wma_vdev_reset_beacon_interval_timer(void *data)
+static void wma_vdev_reset_beacon_interval_timer(unsigned long data)
 {
 	tp_wma_handle wma;
 	struct wma_beacon_interval_reset_req *req =

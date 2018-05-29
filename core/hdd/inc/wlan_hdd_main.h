@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 #if !defined(WLAN_HDD_MAIN_H)
@@ -61,6 +52,7 @@
 #include <cdp_txrx_peer_ops.h>
 #include "wlan_hdd_nan_datapath.h"
 #include "target_if_def_config.h"
+#include "wlan_hdd_apf.h"
 
 /** Number of Tx Queues */
 #ifdef QCA_LL_TX_FLOW_CONTROL_V2
@@ -411,24 +403,27 @@ struct statsContext {
 	unsigned int magic;
 };
 
-struct linkspeedContext {
-	struct completion completion;
-	hdd_adapter_t *pAdapter;
-	unsigned int magic;
-};
-
 /**
- * struct random_mac_context - Context used with hdd_random_mac_callback
- * @random_mac_completion: Event on which hdd_set_random_mac will wait
- * @adapter: Pointer to adapter
- * @magic: For valid context this is set to ACTION_FRAME_RANDOM_CONTEXT_MAGIC
- * @set_random_addr: Status of random filter set
+ * struct hdd_apf_context - hdd Context for apf
+ * @magic: magic number
+ * @qdf_apf_event: Completion variable for APF get operations
+ * @capability_response: capabilities response received from fw
+ * @apf_enabled: True: APF Interpreter enabled, False: Disabled
+ * @cmd_in_progress: Flag that indicates an APF command is in progress
+ * @buf: Buffer to accumulate read memory chunks
+ * @buf_len: Length of the read memory requested
+ * @offset: APF work memory offset to fetch from
+ * @lock: APF Context lock
  */
-struct random_mac_context {
-	struct completion random_mac_completion;
-	hdd_adapter_t *adapter;
+struct hdd_apf_context {
 	unsigned int magic;
-	bool set_random_addr;
+	qdf_event_t qdf_apf_event;
+	bool apf_enabled;
+	bool cmd_in_progress;
+	uint8_t *buf;
+	uint32_t buf_len;
+	uint32_t offset;
+	qdf_spinlock_t lock;
 };
 
 extern spinlock_t hdd_context_lock;
@@ -438,12 +433,9 @@ extern struct mutex hdd_init_deinit_lock;
 #define PEER_INFO_CONTEXT_MAGIC 0x50494E46  /* PEER_INFO(PINF) */
 #define POWER_CONTEXT_MAGIC 0x504F5752  /* POWR */
 #define SNR_CONTEXT_MAGIC   0x534E5200  /* SNR */
-#define LINK_CONTEXT_MAGIC  0x4C494E4B  /* LINKSPEED */
 #define LINK_STATUS_MAGIC   0x4C4B5354  /* LINKSTATUS(LNST) */
-#define TEMP_CONTEXT_MAGIC  0x74656d70   /* TEMP (temperature) */
 #define APF_CONTEXT_MAGIC 0x4575354    /* APF */
 #define POWER_STATS_MAGIC 0x14111990
-#define RCPI_CONTEXT_MAGIC  0x7778888  /* RCPI */
 #define ACTION_FRAME_RANDOM_CONTEXT_MAGIC 0x87878787
 
 /* MAX OS Q block time value in msec
@@ -1383,8 +1375,9 @@ struct hdd_adapter_s {
 	struct net_device_stats stats;
 	/** HDD statistics*/
 	hdd_stats_t hdd_stats;
-	/** linkspeed statistics */
-	tSirLinkSpeedInfo ls_stats;
+
+	/* estimated link speed */
+	u32 estimated_linkspeed;
 	/* SAP peer station info */
 	struct sir_peer_sta_info peer_sta_info;
 
@@ -1553,14 +1546,8 @@ struct hdd_adapter_s {
 	/* Time stamp for start RoC request */
 	uint64_t start_roc_ts;
 
-	/* State for synchronous OCB requests to WMI */
-	struct sir_ocb_set_config_response ocb_set_config_resp;
-	struct sir_ocb_get_tsf_timer_response ocb_get_tsf_timer_resp;
-	struct sir_dcc_get_stats_response *dcc_get_stats_resp;
-	struct sir_dcc_update_ndl_response dcc_update_ndl_resp;
-
-	/* MAC addresses used for OCB interfaces */
 #ifdef WLAN_FEATURE_DSRC
+	/* MAC addresses used for OCB interfaces */
 	struct qdf_mac_addr ocb_mac_address[QDF_MAX_CONCURRENCY_PERSONA];
 	int ocb_mac_addr_count;
 #endif
@@ -1617,7 +1604,7 @@ struct hdd_adapter_s {
 	struct hdd_ns_offload_info ns_offload_info;
 	qdf_mutex_t ns_offload_info_lock;
 #endif
-	bool apf_enabled;
+	struct hdd_apf_context apf_context;
 };
 
 #define WLAN_HDD_GET_STATION_CTX_PTR(pAdapter) (&(pAdapter)->sessionCtx.station)
@@ -1802,7 +1789,7 @@ struct suspend_resume_stats {
  * @response_event: NUD stats request wait event
  */
 struct hdd_nud_stats_context {
-	struct completion response_event;
+	qdf_event_t response_event;
 };
 
 /**
@@ -2150,7 +2137,9 @@ struct hdd_context_s {
 	struct completion set_antenna_mode_cmpl;
 	/* Current number of TX X RX chains being used */
 	enum antenna_mode current_antenna_mode;
-	bool apf_enabled;
+	bool apf_supported;
+	bool apf_enabled_v2;
+	uint32_t apf_version;
 
 	/* the radio index assigned by cnss_logger */
 	int radio_index;
@@ -2233,6 +2222,10 @@ struct hdd_context_s {
 #endif
 	struct hdd_cache_channels *original_channels;
 	qdf_mutex_t cache_channel_lock;
+
+	/* defining the board related information */
+	uint32_t hw_bd_id;
+	struct board_info hw_bd_info;
 };
 
 int hdd_validate_channel_and_bandwidth(hdd_adapter_t *adapter,
@@ -2873,7 +2866,7 @@ static inline int wlan_hdd_validate_session_id(u8 session_id)
 	return -EINVAL;
 }
 
-bool hdd_is_roaming_in_progress(hdd_adapter_t *adapter);
+bool hdd_is_roaming_in_progress(hdd_context_t *hdd_ctx);
 void hdd_set_roaming_in_progress(bool value);
 /**
  * hdd_check_for_opened_interfaces()- Check for interface up
@@ -2896,7 +2889,9 @@ void hdd_set_rx_mode_rps(hdd_context_t *hdd_ctx, void *padapter, bool enable);
  */
 static inline void hdd_init_nud_stats_ctx(hdd_context_t *hdd_ctx)
 {
-	init_completion(&hdd_ctx->nud_stats_context.response_event);
+	if (qdf_event_create(&hdd_ctx->nud_stats_context.response_event) !=
+			     QDF_STATUS_SUCCESS)
+		hdd_err("NUD stats response event init failed!");
 }
 
 /**
@@ -3076,7 +3071,7 @@ void hdd_pld_ipa_uc_shutdown_pipes(void);
  *
  * Return: None
  */
-void hdd_drv_ops_inactivity_handler(void);
+void hdd_drv_ops_inactivity_handler(unsigned long arg);
 
 /**
  * hdd_start_driver_ops_timer() - Starts driver ops inactivity timer
@@ -3124,5 +3119,33 @@ bool hdd_is_cli_iface_up(hdd_context_t *hdd_ctx);
  * Return: None
  */
 void wlan_hdd_free_cache_channels(hdd_context_t *hdd_ctx);
+
+/**
+ * hdd_wlan_get_version() - Get version information
+ * @hdd_ctx: Global HDD context
+ * @version_len: length of the version buffer size
+ * @version: the buffer to the version string
+ *
+ * This function is used to get Wlan Driver, Firmware, Hardware Version
+ * & the Board related information.
+ *
+ * Return: the length of the version string
+ */
+uint32_t hdd_wlan_get_version(hdd_context_t *hdd_ctx,
+			      const size_t version_len, uint8_t *version);
+
+/**
+ * hdd_update_hw_sw_info() - API to update the HW/SW information
+ * @hdd_ctx: Global HDD context
+ *
+ * API to update the HW and SW information in the driver
+ *
+ * Note:
+ * All the version/revision information would only be retrieved after
+ * firmware download
+ *
+ * Return: None
+ */
+void hdd_update_hw_sw_info(hdd_context_t *hdd_ctx);
 
 #endif /* end #if !defined(WLAN_HDD_MAIN_H) */

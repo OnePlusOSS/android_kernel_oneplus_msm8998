@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /**
@@ -49,30 +40,6 @@
 #define WLAN_WAIT_TIME_APF_READ_MEM     10000
 
 /**
- * struct hdd_apf_context - hdd Context for apf
- * @magic: magic number
- * @qdf_apf_event: Completion variable for APF get operations
- * @capability_response: capabilities response received from fw
- * @apf_enabled: True: APF Interpreter enabled, False: Disabled
- * @cmd_in_progress: Flag that indicates an APF command is in progress
- * @buf: Buffer to accumulate read memory chunks
- * @buf_len: Length of the read memory requested
- * @offset: APF work memory offset to fetch from
- * @lock: APF Context lock
- */
-struct hdd_apf_context {
-	unsigned int magic;
-	qdf_event_t qdf_apf_event;
-	struct sir_apf_get_offload capability_response;
-	bool apf_enabled;
-	bool cmd_in_progress;
-	uint8_t *buf;
-	uint32_t buf_len;
-	uint32_t offset;
-	qdf_spinlock_t lock;
-};
-
-/**
  * hdd_apf_read_memory_callback - HDD Callback for the APF read memory
  *	operation
  * @context: Hdd context
@@ -90,14 +57,14 @@ hdd_apf_read_memory_callback(void *context,
  *
  * Return: None
  */
-void hdd_apf_context_init(void);
+void hdd_apf_context_init(hdd_adapter_t *adapter);
 
 /**
  * hdd_apf_context_destroy - APF Context de-init operations
  *
  * Return: None
  */
-void hdd_apf_context_destroy(void);
+void hdd_apf_context_destroy(hdd_adapter_t *adapter);
 
 /**
  * hdd_get_apf_capabilities_cb() - Callback function to get APF capabilities

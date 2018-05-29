@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /*
@@ -897,7 +888,7 @@ lim_send_sme_disassoc_ntf(tpAniSirGlobal pMac,
 	tpPESession session = NULL;
 	uint16_t i, assoc_id;
 	tpDphHashNode sta_ds = NULL;
-	struct sir_sme_discon_done_ind *sir_sme_dis_ind;
+	QDF_STATUS status;
 
 	pe_debug("Disassoc Ntf with trigger : %d reasonCode: %d",
 		disassocTrigger, reasonCode);
@@ -985,36 +976,13 @@ lim_send_sme_disassoc_ntf(tpAniSirGlobal pMac,
 
 	case eLIM_PEER_ENTITY_DISASSOC:
 	case eLIM_LINK_MONITORING_DISASSOC:
-		sir_sme_dis_ind =
-			qdf_mem_malloc(sizeof(*sir_sme_dis_ind));
-		if (!sir_sme_dis_ind) {
-			pe_err("call to AllocateMemory failed for disconnect indication");
+		status = lim_prepare_disconnect_done_ind(pMac, &pMsg,
+						smesessionId,
+						reasonCode, &peerMacAddr[0]);
+		if (!QDF_IS_STATUS_SUCCESS(status)) {
+			pe_err("Failed to prepare message");
 			return;
 		}
-
-		pe_debug("send  eWNI_SME_DISCONNECT_DONE_IND with retCode: %d",
-				reasonCode);
-
-		sir_sme_dis_ind->message_type =
-			eWNI_SME_DISCONNECT_DONE_IND;
-		sir_sme_dis_ind->length =
-			sizeof(*sir_sme_dis_ind);
-		qdf_mem_copy(sir_sme_dis_ind->peer_mac, peerMacAddr,
-			     sizeof(tSirMacAddr));
-		sir_sme_dis_ind->session_id   = smesessionId;
-		sir_sme_dis_ind->reason_code  = reasonCode;
-		/*
-		 * Instead of sending deauth reason code as 505 which is
-		 * internal value(eSIR_SME_LOST_LINK_WITH_PEER_RESULT_CODE)
-		 * Send reason code as zero to Supplicant
-		 */
-		if (reasonCode == eSIR_SME_LOST_LINK_WITH_PEER_RESULT_CODE)
-			sir_sme_dis_ind->reason_code = 0;
-		else
-			sir_sme_dis_ind->reason_code = reasonCode;
-
-		pMsg = (uint32_t *)sir_sme_dis_ind;
-
 		break;
 
 	default:
@@ -1371,6 +1339,45 @@ void lim_send_sme_tdls_event_notify(tpAniSirGlobal pMac, uint16_t msgType,
 }
 #endif /* FEATURE_WLAN_TDLS */
 
+QDF_STATUS lim_prepare_disconnect_done_ind(tpAniSirGlobal mac_ctx,
+					   uint32_t **msg,
+					   uint8_t session_id,
+					   tSirResultCodes reason_code,
+					   uint8_t *peer_mac_addr)
+{
+	struct sir_sme_discon_done_ind *sir_sme_dis_ind;
+
+	sir_sme_dis_ind = qdf_mem_malloc(sizeof(*sir_sme_dis_ind));
+	if (!sir_sme_dis_ind) {
+		pe_err("Failed to allocate memory");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	pe_debug("Prepare eWNI_SME_DISCONNECT_DONE_IND withretCode: %d",
+		 reason_code);
+
+	sir_sme_dis_ind->message_type = eWNI_SME_DISCONNECT_DONE_IND;
+	sir_sme_dis_ind->length = sizeof(*sir_sme_dis_ind);
+	sir_sme_dis_ind->session_id = session_id;
+	if (peer_mac_addr)
+		qdf_mem_copy(&sir_sme_dis_ind->peer_mac,
+			     &peer_mac_addr, ETH_ALEN);
+
+	/*
+	 * Instead of sending deauth reason code as 505 which is
+	 * internal value(eSIR_SME_LOST_LINK_WITH_PEER_RESULT_CODE)
+	 * Send reason code as zero to Supplicant
+	 */
+	if (reason_code == eSIR_SME_LOST_LINK_WITH_PEER_RESULT_CODE)
+		sir_sme_dis_ind->reason_code = 0;
+	else
+		sir_sme_dis_ind->reason_code = reason_code;
+
+	*msg = (uint32_t *)sir_sme_dis_ind;
+
+	return QDF_STATUS_SUCCESS;
+}
+
 /**
  * lim_send_sme_deauth_ntf()
  *
@@ -1409,8 +1416,8 @@ lim_send_sme_deauth_ntf(tpAniSirGlobal pMac, tSirMacAddr peerMacAddr,
 	tSirSmeDeauthInd *pSirSmeDeauthInd;
 	tpPESession psessionEntry;
 	uint8_t sessionId;
-	uint32_t *pMsg;
-	struct sir_sme_discon_done_ind *sir_sme_dis_ind;
+	uint32_t *pMsg = NULL;
+	QDF_STATUS status;
 
 	psessionEntry = pe_find_session_by_bssid(pMac, peerMacAddr, &sessionId);
 	switch (deauthTrigger) {
@@ -1446,38 +1453,14 @@ lim_send_sme_deauth_ntf(tpAniSirGlobal pMac, tSirMacAddr peerMacAddr,
 
 	case eLIM_PEER_ENTITY_DEAUTH:
 	case eLIM_LINK_MONITORING_DEAUTH:
-		sir_sme_dis_ind =
-			qdf_mem_malloc(sizeof(*sir_sme_dis_ind));
-		if (!sir_sme_dis_ind) {
-			pe_err("call to AllocateMemory failed for disconnect indication");
+		status = lim_prepare_disconnect_done_ind(pMac, &pMsg,
+						smesessionId, reasonCode,
+						&peerMacAddr[0]);
+		if (!QDF_IS_STATUS_SUCCESS(status)) {
+			pe_err("Failed to prepare message");
 			return;
 		}
-
-		pe_debug("send eWNI_SME_DISCONNECT_DONE_IND withretCode: %d",
-				reasonCode);
-
-		sir_sme_dis_ind->message_type =
-			eWNI_SME_DISCONNECT_DONE_IND;
-		sir_sme_dis_ind->length =
-			sizeof(*sir_sme_dis_ind);
-		sir_sme_dis_ind->session_id = smesessionId;
-		sir_sme_dis_ind->reason_code = reasonCode;
-		qdf_mem_copy(sir_sme_dis_ind->peer_mac, peerMacAddr,
-			 ETH_ALEN);
-		/*
-		 * Instead of sending deauth reason code as 505 which is
-		 * internal value(eSIR_SME_LOST_LINK_WITH_PEER_RESULT_CODE)
-		 * Send reason code as zero to Supplicant
-		 */
-		if (reasonCode == eSIR_SME_LOST_LINK_WITH_PEER_RESULT_CODE)
-			sir_sme_dis_ind->reason_code = 0;
-		else
-			sir_sme_dis_ind->reason_code = reasonCode;
-
-		pMsg = (uint32_t *)sir_sme_dis_ind;
-
 		break;
-
 	default:
 		/**
 		 * Deauthentication indication due to Deauthentication
@@ -1641,7 +1624,7 @@ lim_send_sme_set_context_rsp(tpAniSirGlobal pMac,
 			     tpPESession psessionEntry, uint8_t smesessionId,
 			     uint16_t smetransactionId)
 {
-	tSirMsgQ mmhMsg;
+	cds_msg_t msg;
 	tSirSmeSetContextRsp *pSirSmeSetContextRsp;
 
 	pSirSmeSetContextRsp = qdf_mem_malloc(sizeof(tSirSmeSetContextRsp));
@@ -1661,15 +1644,15 @@ lim_send_sme_set_context_rsp(tpAniSirGlobal pMac,
 	pSirSmeSetContextRsp->sessionId = smesessionId;
 	pSirSmeSetContextRsp->transactionId = smetransactionId;
 
-	mmhMsg.type = eWNI_SME_SETCONTEXT_RSP;
-	mmhMsg.bodyptr = pSirSmeSetContextRsp;
-	mmhMsg.bodyval = 0;
+	msg.type = eWNI_SME_SETCONTEXT_RSP;
+	msg.bodyptr = pSirSmeSetContextRsp;
+	msg.bodyval = 0;
 	if (NULL == psessionEntry) {
 		MTRACE(mac_trace(pMac, TRACE_CODE_TX_SME_MSG,
-				 NO_SESSION, mmhMsg.type));
+				 NO_SESSION, msg.type));
 	} else {
 		MTRACE(mac_trace(pMac, TRACE_CODE_TX_SME_MSG,
-				 psessionEntry->peSessionId, mmhMsg.type));
+				 psessionEntry->peSessionId, msg.type));
 	}
 
 #ifdef FEATURE_WLAN_DIAG_SUPPORT_LIM    /* FEATURE_WLAN_DIAG_SUPPORT */
@@ -1677,7 +1660,7 @@ lim_send_sme_set_context_rsp(tpAniSirGlobal pMac,
 			      psessionEntry, (uint16_t) resultCode, 0);
 #endif /* FEATURE_WLAN_DIAG_SUPPORT */
 
-	lim_sys_process_mmh_msg_api(pMac, &mmhMsg, ePROT);
+	pMac->lim.sme_msg_callback(pMac, &msg);
 } /*** end lim_send_sme_set_context_rsp() ***/
 
 /**
@@ -2244,10 +2227,13 @@ void lim_handle_csa_offload_msg(tpAniSirGlobal mac_ctx, tpSirMsgQ msg)
 		goto err;
 	}
 
+#ifdef FEATURE_WLAN_TDLS
 	/*
 	 * on receiving channel switch announcement from AP, delete all
 	 * TDLS peers before leaving BSS and proceed for channel switch
 	 */
+	session_entry->is_tdls_csa = true;
+#endif
 	lim_delete_tdls_peers(mac_ctx, session_entry);
 
 	lim_ch_switch = &session_entry->gLimChannelSwitch;

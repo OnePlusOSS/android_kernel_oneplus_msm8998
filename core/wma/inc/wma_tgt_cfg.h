@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 #ifndef WMA_TGT_CFG_H
@@ -141,6 +132,26 @@ struct wma_dfs_radar_ind {
 };
 
 /**
+ * struct board_info - Structure for board related information
+ * @bdf_version: board file version
+ * @ref_design_id: reference design id
+ * @customer_id: customer id
+ * @project_id: project id
+ * @board_data_rev: board data revision
+ *
+ * This board information will be stored in board file during the
+ * calibration and customization.
+ *
+ */
+struct board_info {
+	uint32_t bdf_version;
+	uint32_t ref_design_id;
+	uint32_t customer_id;
+	uint32_t project_id;
+	uint32_t board_data_rev;
+};
+
+/**
  * struct wma_tgt_cfg - target config
  * @target_fw_version: target fw version
  * @target_fw_vers_ext: target fw extended sub version
@@ -189,5 +200,7 @@ struct wma_tgt_cfg {
 	uint16_t wmi_max_len;
 	bool tx_bfee_8ss_enabled;
 	bool rcpi_enabled;
+	uint32_t hw_bd_id;
+	struct board_info hw_bd_info;
 };
 #endif /* WMA_TGT_CFG_H */

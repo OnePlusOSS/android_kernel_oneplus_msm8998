@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 #ifndef QWLAN_VERSION_H
@@ -41,9 +32,9 @@
 #define QWLAN_VERSION_MAJOR            5
 #define QWLAN_VERSION_MINOR            1
 #define QWLAN_VERSION_PATCH            1
-#define QWLAN_VERSION_EXTRA            "R"
-#define QWLAN_VERSION_BUILD            52
+#define QWLAN_VERSION_EXTRA            "V"
+#define QWLAN_VERSION_BUILD            57
 
-#define QWLAN_VERSIONSTR               "5.1.1.52R"
+#define QWLAN_VERSIONSTR               "5.1.1.57V"
 
 #endif /* QWLAN_VERSION_H */

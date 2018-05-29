@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /**
@@ -212,6 +203,13 @@ static void htt_t2h_lp_msg_handler(void *context, qdf_nbuf_t htt_t2h_msg,
 	{
 		uint16_t msdu_cnt;
 
+		if (!pdev->cfg.is_high_latency &&
+		    pdev->cfg.is_full_reorder_offload) {
+			qdf_print("HTT_T2H_MSG_TYPE_RX_OFFLOAD_DELIVER_IND not ");
+			qdf_print("supported when full reorder offload is ");
+			qdf_print("enabled in the configuration.\n");
+			break;
+		}
 		msdu_cnt =
 			HTT_RX_OFFLOAD_DELIVER_IND_MSDU_CNT_GET(*msg_word);
 		ol_rx_offload_deliver_ind_handler(pdev->txrx_pdev,
@@ -994,8 +992,10 @@ void htt_t2h_msg_handler_fast(void *context, qdf_nbuf_t *cmpl_msdus,
 		{
 			unsigned int num_mpdu_ranges;
 			unsigned int num_msdu_bytes;
+			unsigned int calculated_msg_len;
 			u_int16_t peer_id;
 			u_int8_t tid;
+			msg_len = qdf_nbuf_len(htt_t2h_msg);
 
 			peer_id = HTT_RX_IND_PEER_ID_GET(*msg_word);
 			tid = HTT_RX_IND_EXT_TID_GET(*msg_word);
@@ -1005,7 +1005,6 @@ void htt_t2h_msg_handler_fast(void *context, qdf_nbuf_t *cmpl_msdus,
 				WARN_ON(1);
 				break;
 			}
-
 			num_msdu_bytes =
 				HTT_RX_IND_FW_RX_DESC_BYTES_GET(
 				*(msg_word + 2 +
@@ -1025,6 +1024,34 @@ void htt_t2h_msg_handler_fast(void *context, qdf_nbuf_t *cmpl_msdus,
 				HTT_RX_IND_NUM_MPDU_RANGES_GET(*(msg_word
 								 + 1));
 			pdev->rx_ind_msdu_byte_idx = 0;
+			if (qdf_unlikely(pdev->rx_mpdu_range_offset_words >
+					 msg_len)) {
+				qdf_print("HTT_T2H_MSG_TYPE_RX_IND, invalid rx_mpdu_range_offset_words %d\n",
+					  pdev->rx_mpdu_range_offset_words);
+				WARN_ON(1);
+				break;
+			}
+			calculated_msg_len = pdev->rx_mpdu_range_offset_words +
+					     (num_mpdu_ranges *
+					     (int)sizeof(uint32_t));
+			/*
+			 * Check that the addition and multiplication
+			 * do not cause integer overflow
+			 */
+			if (qdf_unlikely(calculated_msg_len <
+					 pdev->rx_mpdu_range_offset_words)) {
+				qdf_print("HTT_T2H_MSG_TYPE_RX_IND, invalid mpdu_ranges %u\n",
+					  (num_mpdu_ranges *
+					   (int)sizeof(uint32_t)));
+				WARN_ON(1);
+				break;
+			}
+			if (qdf_unlikely(calculated_msg_len > msg_len)) {
+				qdf_print("HTT_T2H_MSG_TYPE_RX_IND, invalid offset_words + mpdu_ranges %u\n",
+					  calculated_msg_len);
+				WARN_ON(1);
+				break;
+			}
 			ol_rx_indication_handler(pdev->txrx_pdev, htt_t2h_msg,
 						 peer_id, tid, num_mpdu_ranges);
 			break;

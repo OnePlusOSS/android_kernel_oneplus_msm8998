@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /**
@@ -1898,6 +1889,19 @@ static void wma_cleanup_hold_req(tp_wma_handle wma)
 	qdf_spin_unlock_bh(&wma->wma_hold_req_q_lock);
 }
 
+void wma_cleanup_vdev_resp_and_hold_req(void *priv)
+{
+	tp_wma_handle wma_handle = priv;
+
+	if (!wma_handle) {
+		WMA_LOGE(FL("wma_handle is invald!"));
+		return;
+	}
+
+	wma_cleanup_vdev_resp_queue(wma_handle);
+	wma_cleanup_hold_req(wma_handle);
+}
+
 /**
  * wma_shutdown_notifier_cb - Shutdown notifer call back
  * @priv : WMA handle
@@ -1913,10 +1917,16 @@ static void wma_cleanup_hold_req(tp_wma_handle wma)
 static void wma_shutdown_notifier_cb(void *priv)
 {
 	tp_wma_handle wma_handle = priv;
+	cds_msg_t msg = { 0 };
+	QDF_STATUS status;
 
 	qdf_event_set(&wma_handle->wma_resume_event);
-	wma_cleanup_vdev_resp_queue(wma_handle);
-	wma_cleanup_hold_req(wma_handle);
+
+	sys_build_message_header(SYS_MSG_ID_CLEAN_VDEV_RSP_QUEUE, &msg);
+	msg.bodyptr = priv;
+	status = cds_mq_post_message(QDF_MODULE_ID_SYS, &msg);
+	if (QDF_IS_STATUS_ERROR(status))
+		WMA_LOGE(FL("Failed to post SYS_MSG_ID_CLEAN_VDEV_RSP_QUEUE"));
 }
 
 struct wma_version_info g_wmi_version_info;
@@ -2069,6 +2079,7 @@ static int wma_flush_complete_evt_handler(void *handle,
 
 	wmi_event = param_buf->fixed_param;
 	reason_code = wmi_event->reserved0;
+	WMA_LOGD("Received reason code %d from FW", reason_code);
 
 	buf_ptr = (uint8_t *)wmi_event;
 	buf_ptr = buf_ptr + sizeof(wmi_debug_mesg_flush_complete_fixed_param) +
@@ -3220,7 +3231,13 @@ void wma_process_pdev_hw_mode_trans_ind(void *handle,
 {
 	uint32_t i;
 	tp_wma_handle wma = (tp_wma_handle) handle;
-
+	if (fixed_param->num_vdev_mac_entries > MAX_VDEV_SUPPORTED) {
+		WMA_LOGE("Number of Vdev mac entries %d exceeded"
+			 " max vdev supported %d",
+			 fixed_param->num_vdev_mac_entries,
+			 MAX_VDEV_SUPPORTED);
+		return;
+	}
 	hw_mode_trans_ind->old_hw_mode_index = fixed_param->old_hw_mode_index;
 	hw_mode_trans_ind->new_hw_mode_index = fixed_param->new_hw_mode_index;
 	hw_mode_trans_ind->num_vdev_mac_entries =
@@ -3538,6 +3555,18 @@ QDF_STATUS wma_start(void *cds_ctx)
 		goto end;
 	}
 #endif /* FEATURE_WLAN_CH_AVOID */
+	WMA_LOGD("Registering SAR2 response handler");
+
+	status = wmi_unified_register_event_handler(wma_handle->wmi_handle,
+						WMI_SAR2_RESULT_EVENTID,
+						wma_sar_rsp_evt_handler,
+						WMA_RX_SERIALIZER_CTX);
+	if (status) {
+		WMA_LOGE("Failed to register sar response event cb");
+		qdf_status = QDF_STATUS_E_FAILURE;
+		goto end;
+	}
+
 #ifdef FEATURE_WLAN_AUTO_SHUTDOWN
 	WMA_LOGD("Registering auto shutdown handler");
 	status = wmi_unified_register_event_handler(wma_handle->wmi_handle,
@@ -4811,6 +4840,16 @@ static void wma_update_hdd_cfg(tp_wma_handle wma_handle)
 
 	tgt_cfg.target_fw_version = wma_handle->target_fw_version;
 	tgt_cfg.target_fw_vers_ext = wma_handle->target_fw_vers_ext;
+	tgt_cfg.hw_bd_id = wma_handle->hw_bd_id;
+
+	tgt_cfg.hw_bd_info.bdf_version = wma_handle->hw_bd_info[BDF_VERSION];
+	tgt_cfg.hw_bd_info.ref_design_id =
+		wma_handle->hw_bd_info[REF_DESIGN_ID];
+	tgt_cfg.hw_bd_info.customer_id = wma_handle->hw_bd_info[CUSTOMER_ID];
+	tgt_cfg.hw_bd_info.project_id = wma_handle->hw_bd_info[PROJECT_ID];
+	tgt_cfg.hw_bd_info.board_data_rev =
+		wma_handle->hw_bd_info[BOARD_DATA_REV];
+
 #ifdef WLAN_FEATURE_LPSS
 	tgt_cfg.lpss_support = wma_handle->lpss_support;
 #endif /* WLAN_FEATURE_LPSS */
@@ -5124,24 +5163,27 @@ int wma_rx_service_ready_event(void *handle, uint8_t *cmd_param_info,
 		 __func__, ev->fw_build_vers);
 	WMA_LOGD("FW fine time meas cap: 0x%x", ev->wmi_fw_sub_feat_caps);
 
-	if (ev->hw_bd_id) {
-		wma_handle->hw_bd_id = ev->hw_bd_id;
-		qdf_mem_copy(wma_handle->hw_bd_info,
-			     ev->hw_bd_info, sizeof(ev->hw_bd_info));
-
-		WMA_LOGI("%s: Board version: %x.%x",
-			 __func__,
-			 wma_handle->hw_bd_info[0], wma_handle->hw_bd_info[1]);
-	} else {
-		wma_handle->hw_bd_id = 0;
-		qdf_mem_zero(wma_handle->hw_bd_info,
-			     sizeof(wma_handle->hw_bd_info));
-		WMA_LOGW("%s: Board version is unknown!", __func__);
-	}
+	wma_handle->hw_bd_id = ev->hw_bd_id;
 	wma_handle->dfs_ic->dfs_hw_bd_id = wma_handle->hw_bd_id;
 
-	/* TODO: Recheck below line to dump service ready event */
-	/* dbg_print_wmi_service_11ac(ev); */
+	wma_handle->hw_bd_info[BDF_VERSION] =
+		WMI_GET_BDF_VERSION(ev->hw_bd_info);
+	wma_handle->hw_bd_info[REF_DESIGN_ID] =
+		WMI_GET_REF_DESIGN(ev->hw_bd_info);
+	wma_handle->hw_bd_info[CUSTOMER_ID] =
+		WMI_GET_CUSTOMER_ID(ev->hw_bd_info);
+	wma_handle->hw_bd_info[PROJECT_ID] =
+		WMI_GET_PROJECT_ID(ev->hw_bd_info);
+	wma_handle->hw_bd_info[BOARD_DATA_REV] =
+		WMI_GET_BOARD_DATA_REV(ev->hw_bd_info);
+
+	WMA_LOGI("%s: Board id: %x, Board version: %x %x %x %x %x",
+		 __func__, wma_handle->hw_bd_id,
+		 wma_handle->hw_bd_info[BDF_VERSION],
+		 wma_handle->hw_bd_info[REF_DESIGN_ID],
+		 wma_handle->hw_bd_info[CUSTOMER_ID],
+		 wma_handle->hw_bd_info[PROJECT_ID],
+		 wma_handle->hw_bd_info[BOARD_DATA_REV]);
 
 	/* wmi service is ready */
 	qdf_mem_copy(wma_handle->wmi_service_bitmap,
@@ -5990,6 +6032,18 @@ static void wma_populate_soc_caps(t_wma_handle *wma_handle,
 		wma_cleanup_dbs_phy_caps(wma_handle);
 		return;
 	}
+
+	if (param_buf->sar_caps) {
+		qdf_mem_copy(&phy_caps->sar_capability,
+			     param_buf->sar_caps,
+			     sizeof(WMI_SAR_CAPABILITIES));
+		if (phy_caps->sar_capability.active_version > SAR_VERSION_2) {
+			WMA_LOGE("%s: incorrect SAR version", __func__);
+			wma_cleanup_dbs_phy_caps(wma_handle);
+			return;
+		}
+	}
+
 	phy_caps->each_phy_hal_reg_cap =
 		qdf_mem_malloc(phy_caps->num_phy_for_hal_reg_cap.num_phy *
 				sizeof(WMI_HAL_REG_CAPABILITIES_EXT));
@@ -8114,7 +8168,7 @@ QDF_STATUS wma_mc_process_msg(void *cds_context, cds_msg_t *msg)
 		qdf_mem_free(msg->bodyptr);
 		break;
 	case WDA_APF_GET_CAPABILITIES_REQ:
-		wma_get_apf_capabilities(wma_handle);
+		wma_get_apf_capabilities(wma_handle, msg->bodyptr);
 		break;
 	case WDA_APF_SET_INSTRUCTIONS_REQ:
 		wma_set_apf_instructions(wma_handle, msg->bodyptr);

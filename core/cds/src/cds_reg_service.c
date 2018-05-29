@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /*============================================================================
@@ -648,14 +639,20 @@ QDF_STATUS cds_get_reg_domain_from_country_code(v_REGDOMAIN_t *reg_domain_ptr,
 
 	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
 
+	if (!hdd_ctx) {
+		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
+			  "hdd_ctx is NULL");
+		return QDF_STATUS_E_ENXIO;
+	}
+
 	if (cds_is_driver_unloading()) {
 		hdd_err("Driver is unloading can not open the hdd");
-		return -EBUSY;
+		return QDF_STATUS_E_BUSY;
 	}
 
 	if (cds_is_driver_recovering()) {
 		hdd_err("WLAN is currently recovering; Please try again.");
-		return -EBUSY;
+		return QDF_STATUS_E_BUSY;
 	}
 
 	if (NULL == reg_domain_ptr) {

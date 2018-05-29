@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /**
@@ -175,6 +166,8 @@ typedef enum {
 	eCsrLostLink1Abort,
 	eCsrLostLink2Abort,
 	eCsrLostLink3Abort,
+	/* Roaming disabled from driver during connect/start BSS */
+	eCsrDriverDisabled,
 } eCsrRoamReason;
 
 typedef enum {
@@ -612,6 +605,9 @@ typedef struct tagCsrConfig {
 	bool enableHeartBeatOffload;
 	uint8_t max_amsdu_num;
 	uint8_t nSelect5GHzMargin;
+	uint32_t ho_delay_for_rx;
+	uint32_t min_delay_btw_roam_scans;
+	uint32_t roam_trigger_reason_bitmask;
 	uint8_t isCoalesingInIBSSAllowed;
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
 	uint8_t cc_switch_mode;
@@ -661,7 +657,15 @@ typedef struct tagCsrConfig {
 	enum wmi_dwelltime_adaptive_mode roamscan_adaptive_dwell_mode;
 	struct csr_sta_roam_policy_params sta_roam_policy;
 	uint32_t tx_aggregation_size;
+	uint32_t tx_aggregation_size_be;
+	uint32_t tx_aggregation_size_bk;
+	uint32_t tx_aggregation_size_vi;
+	uint32_t tx_aggregation_size_vo;
 	uint32_t rx_aggregation_size;
+	uint32_t tx_aggr_sw_retry_threshold_be;
+	uint32_t tx_aggr_sw_retry_threshold_bk;
+	uint32_t tx_aggr_sw_retry_threshold_vi;
+	uint32_t tx_aggr_sw_retry_threshold_vo;
 	struct wmi_per_roam_config per_roam_config;
 	bool enable_bcast_probe_rsp;
 	bool is_fils_enabled;
@@ -685,6 +689,7 @@ typedef struct tagCsrConfig {
 	uint32_t offload_11k_enable_bitmask;
 	struct csr_neighbor_report_offload_params neighbor_report_offload;
 	bool enable_ftopen;
+	bool roam_force_rssi_trigger;
 } tCsrConfig;
 
 typedef struct tagCsrChannelPowerInfo {
@@ -1035,6 +1040,8 @@ typedef struct tagCsrRoamSession {
 	bool ch_switch_in_progress;
 	bool roam_synch_in_progress;
 	bool supported_nss_1x1;
+	uint8_t vdev_nss;
+	uint8_t nss;
 	bool disable_hi_rssi;
 	bool dhcp_done;
 	uint8_t disconnect_reason;
@@ -1045,6 +1052,7 @@ typedef struct tagCsrRoamSession {
 	bool ignore_assoc_disallowed;
 	bool discon_in_progress;
 	struct csr_disconnect_stats disconnect_stats;
+	struct rsn_caps rsn_caps;
 } tCsrRoamSession;
 
 typedef struct tagCsrRoamStruct {

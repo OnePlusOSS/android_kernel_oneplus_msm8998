@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 #include "wmi_unified_tlv.h"
@@ -2155,6 +2146,7 @@ QDF_STATUS send_set_mimops_cmd_tlv(wmi_unified_t wmi_handle,
 		break;
 	default:
 		WMI_LOGE("%s:INVALID Mimo PS CONFIG", __func__);
+		wmi_buf_free(buf);
 		return QDF_STATUS_E_FAILURE;
 	}
 
@@ -4057,6 +4049,63 @@ static QDF_STATUS get_sar_limit_cmd_tlv(wmi_unified_t wmi_handle)
 	return status;
 }
 
+
+/**
+ * wmi_sar2_result_string() - return string conversion of sar2 result
+ * @result: sar2 result value
+ *
+ * This utility function helps log string conversion of sar2 result.
+ *
+ * Return: string conversion of sar 2 result, if match found;
+ *	   "Unknown response" otherwise.
+ */
+static const char *wmi_sar2_result_string(uint32_t result)
+{
+	switch (result) {
+	CASE_RETURN_STRING(WMI_SAR2_SUCCESS);
+	CASE_RETURN_STRING(WMI_SAR2_INVALID_ANTENNA_INDEX);
+	CASE_RETURN_STRING(WMI_SAR2_INVALID_TABLE_INDEX);
+	CASE_RETURN_STRING(WMI_SAR2_STATE_ERROR);
+	CASE_RETURN_STRING(WMI_SAR2_BDF_NO_TABLE);
+	default:
+		return "Unknown response";
+	}
+}
+
+/**
+ * extract_sar2_result_event_tlv() -  process sar response event from FW.
+ * @handle: wma handle
+ * @event: event buffer
+ * @len: buffer length
+ *
+ * Return: 0 for success or error code
+ */
+static QDF_STATUS extract_sar2_result_event_tlv(void *handle,
+						uint8_t *event,
+						uint32_t len)
+{
+	wmi_sar2_result_event_fixed_param *sar2_fixed_param;
+
+	WMI_SAR2_RESULT_EVENTID_param_tlvs *param_buf =
+		(WMI_SAR2_RESULT_EVENTID_param_tlvs *) event;
+
+	if (!param_buf) {
+		WMI_LOGI("Invalid sar2 result event buffer");
+		return QDF_STATUS_E_INVAL;;
+	}
+
+	sar2_fixed_param = param_buf->fixed_param;
+	if (!sar2_fixed_param) {
+		WMI_LOGI("Invalid sar2 result event fixed param buffer");
+		return QDF_STATUS_E_INVAL;;
+	}
+
+	WMI_LOGI("SAR2 result: %s",
+		 wmi_sar2_result_string(sar2_fixed_param->result));
+
+	return QDF_STATUS_SUCCESS;
+}
+
 static QDF_STATUS extract_sar_limit_event_tlv(wmi_unified_t wmi_handle,
 					      uint8_t *evt_buf,
 					      struct sar_limit_event *event)
@@ -4743,6 +4792,10 @@ QDF_STATUS send_roam_scan_offload_mode_cmd_tlv(wmi_unified_t wmi_handle,
 		       WMITLV_GET_STRUCT_TLVLEN
 			       (wmi_roam_scan_mode_fixed_param));
 
+	roam_scan_mode_fp->min_delay_roam_trigger_reason_bitmask =
+			roam_req->roam_trigger_reason_bitmask;
+	roam_scan_mode_fp->min_delay_btw_scans =
+			WMI_SEC_TO_MSEC(roam_req->min_delay_btw_roam_scans);
 	roam_scan_mode_fp->roam_scan_mode = roam_req->mode;
 	roam_scan_mode_fp->vdev_id = roam_req->vdev_id;
 	if (roam_req->mode == (WMI_ROAM_SCAN_MODE_NONE |
@@ -4778,6 +4831,8 @@ QDF_STATUS send_roam_scan_offload_mode_cmd_tlv(wmi_unified_t wmi_handle,
 		roam_offload_params->rssi_cat_gap = roam_req->roam_rssi_cat_gap;
 		roam_offload_params->select_5g_margin =
 			roam_req->select_5ghz_margin;
+		roam_offload_params->handoff_delay_for_rx =
+			roam_req->roam_offload_params.ho_delay_for_rx;
 		roam_offload_params->reassoc_failure_timeout =
 			roam_req->reassoc_failure_timeout;
 
@@ -9731,6 +9786,18 @@ QDF_STATUS send_nan_req_cmd_tlv(wmi_unified_t wmi_handle,
 	nan_data_len = nan_req->request_data_len;
 	nan_data_len_aligned = roundup(nan_req->request_data_len,
 				       sizeof(uint32_t));
+	if (nan_data_len_aligned < nan_req->request_data_len) {
+		WMI_LOGE("%s: integer overflow while rounding up data_len",
+			 __func__);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	if (nan_data_len_aligned > WMI_SVC_MSG_MAX_SIZE - WMI_TLV_HDR_SIZE) {
+		WMI_LOGE("%s: wmi_max_msg_size overflow for given datalen",
+			 __func__);
+		return QDF_STATUS_E_FAILURE;
+	}
+
 	len += WMI_TLV_HDR_SIZE + nan_data_len_aligned;
 	buf = wmi_buf_alloc(wmi_handle, len);
 	if (!buf) {
@@ -10048,6 +10115,8 @@ QDF_STATUS send_update_fw_tdls_state_cmd_tlv(wmi_unified_t wmi_handle,
 		wmi_tdls->teardown_notification_ms;
 	cmd->tdls_peer_kickout_threshold =
 		wmi_tdls->tdls_peer_kickout_threshold;
+	cmd->tdls_discovery_wake_timeout =
+		wmi_tdls->tdls_discovery_wake_timeout;
 
 	WMI_LOGD("%s: tdls_state: %d, state: %d, "
 		 "notification_interval_ms: %d, "
@@ -10062,7 +10131,8 @@ QDF_STATUS send_update_fw_tdls_state_cmd_tlv(wmi_unified_t wmi_handle,
 		 "tdls_puapsd_inactivity_time: %d, "
 		 "tdls_puapsd_rx_frame_threshold: %d, "
 		 "teardown_notification_ms: %d, "
-		 "tdls_peer_kickout_threshold: %d",
+		 "tdls_peer_kickout_threshold: %d, "
+		 "tdls_discovery_wake_timeout: %d",
 		 __func__, tdls_state, cmd->state,
 		 cmd->notification_interval_ms,
 		 cmd->tx_discovery_threshold,
@@ -10076,7 +10146,8 @@ QDF_STATUS send_update_fw_tdls_state_cmd_tlv(wmi_unified_t wmi_handle,
 		 cmd->tdls_puapsd_inactivity_time_ms,
 		 cmd->tdls_puapsd_rx_frame_threshold,
 		 cmd->teardown_notification_ms,
-		 cmd->tdls_peer_kickout_threshold);
+		 cmd->tdls_peer_kickout_threshold,
+		 cmd->tdls_discovery_wake_timeout);
 
 	if (wmi_unified_cmd_send(wmi_handle, wmi_buf, len,
 				 WMI_TDLS_SET_STATE_CMDID)) {
@@ -14075,6 +14146,13 @@ wmi_get_action_oui_id(enum wmi_action_oui_id action_id,
 		*id = WMI_VENDOR_OUI_ACTION_CCKM_1X1;
 		return true;
 
+	case WMI_ACTION_OUI_ITO_ALTERNATE:
+		*id = WMI_VENDOR_OUI_ACTION_ALT_ITO;
+
+	case WMI_ACTION_OUI_SWITCH_TO_11N_MODE:
+		*id = WMI_VENDOR_OUI_ACTION_SWITCH_TO_11N_MODE;
+		return true;
+
 	default:
 		return false;
 	}
@@ -14508,6 +14586,9 @@ extract_roam_scan_stats_res_evt_tlv(wmi_unified_t wmi_handle, void *evt_buf,
 		WMI_LOGP("%s: Invalid roam scan stats event", __func__);
 		return QDF_STATUS_E_INVAL;
 	}
+	if (!(param_buf->num_channels && param_buf->num_roam_candidates &&
+	      param_buf->channel))
+		return QDF_STATUS_E_INVAL;
 
 	fixed_param = param_buf->fixed_param;
 	total_len = sizeof(*res) + fixed_param->num_roam_scans *
@@ -15076,6 +15157,7 @@ struct wmi_ops tlv_ops =  {
 	.send_sar_limit_cmd = send_sar_limit_cmd_tlv,
 	.get_sar_limit_cmd = get_sar_limit_cmd_tlv,
 	.extract_sar_limit_event = extract_sar_limit_event_tlv,
+	.extract_sar2_result_event = extract_sar2_result_event_tlv,
 	.send_per_roam_config_cmd = send_per_roam_config_cmd_tlv,
 	.send_action_oui_cmd = send_action_oui_cmd_tlv,
 	.wmi_set_htc_tx_tag = wmi_set_htc_tx_tag_tlv,
@@ -15448,7 +15530,7 @@ static void populate_tlv_events_id(uint32_t *event_ids)
 	event_ids[wmi_get_arp_stats_req_id] = WMI_VDEV_GET_ARP_STATS_EVENTID;
 	event_ids[wmi_sar_get_limits_event_id] = WMI_SAR_GET_LIMITS_EVENTID;
 	event_ids[wmi_roam_scan_stats_event_id] = WMI_ROAM_SCAN_STATS_EVENTID;
-}
+	event_ids[wmi_wlan_sar2_result_event_id] = WMI_SAR2_RESULT_EVENTID;
 }
 
 /**

@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 #include "htc_debug.h"
@@ -210,7 +201,7 @@ static void send_packet_completion(HTC_TARGET *target, HTC_PACKET *pPacket)
 
 }
 
-void htc_send_complete_check_cleanup(void *context)
+void htc_send_complete_check_cleanup(unsigned long context)
 {
 	HTC_ENDPOINT *pEndpoint = (HTC_ENDPOINT *) context;
 
@@ -303,9 +294,13 @@ void free_htc_bundle_packet(HTC_TARGET *target, HTC_PACKET *pPacket)
 
 	/* restore queue */
 	pQueueSave = (HTC_PACKET_QUEUE *) pPacket->pContext;
-	AR_DEBUG_ASSERT(pQueueSave);
-
-	INIT_HTC_PACKET_QUEUE(pQueueSave);
+	if (qdf_unlikely(!pQueueSave)) {
+		AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
+				("\n%s: Invalid pQueueSave in HTC Packet\n",
+				__func__));
+		AR_DEBUG_ASSERT(pQueueSave);
+	} else
+		INIT_HTC_PACKET_QUEUE(pQueueSave);
 
 	LOCK_HTC_TX(target);
 	if (target->pBundleFreeList == NULL) {

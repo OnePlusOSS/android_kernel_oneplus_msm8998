@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /*
@@ -1825,6 +1816,7 @@ typedef struct {
 	uint32_t wmm_caps;
 	/* since this is 4 byte aligned, we don't declare it as tlv array */
 	uint32_t mcsset[WMI_HOST_ROAM_OFFLOAD_NUM_MCS_SET >> 2];
+	uint32_t ho_delay_for_rx;
 } roam_offload_param;
 
 #define WMI_FILS_MAX_RRK_LENGTH 64
@@ -1868,6 +1860,8 @@ struct roam_fils_params {
  * @prefer_5ghz: prefer select 5G candidate
  * @roam_rssi_cat_gap: gap for every category bucket
  * @select_5ghz_margin: select 5 Ghz margin
+ * @min_delay_btw_roam_scans: Delay btw two roam scans
+ * @roam_trigger_reason_bitmask: Roam reason bitmark
  * @krk: KRK
  * @btk: BTK
  * @reassoc_failure_timeout: reassoc failure timeout
@@ -1906,6 +1900,8 @@ struct roam_offload_scan_params {
 	bool fw_okc;
 	bool fw_pmksa_cache;
 #endif
+	uint32_t min_delay_btw_roam_scans;
+	uint32_t roam_trigger_reason_bitmask;
 	bool is_ese_assoc;
 	bool is_11r_assoc;
 	struct mobility_domain_info mdid;
@@ -3231,6 +3227,7 @@ struct wmi_tdls_params {
 	uint32_t puapsd_rx_frame_threshold;
 	uint32_t teardown_notification_ms;
 	uint32_t tdls_peer_kickout_threshold;
+	uint32_t tdls_discovery_wake_timeout;
 };
 
 /**
@@ -5301,7 +5298,7 @@ typedef enum {
 	wmi_get_arp_stats_req_id,
 	wmi_sar_get_limits_event_id,
 	wmi_roam_scan_stats_event_id,
-
+	wmi_wlan_sar2_result_event_id,
 	wmi_events_max,
 } wmi_conv_event_id;
 
@@ -7384,7 +7381,9 @@ enum wmi_action_oui_id {
 	WMI_ACTION_OUI_CONNECT_1X1 = 0,
 	WMI_ACTION_OUI_ITO_EXTENSION = 1,
 	WMI_ACTION_OUI_CCKM_1X1 = 2,
-	WMI_ACTION_OUI_MAXIMUM_ID = 3,
+	WMI_ACTION_OUI_ITO_ALTERNATE = 3,
+	WMI_ACTION_OUI_SWITCH_TO_11N_MODE = 4,
+	WMI_ACTION_OUI_MAXIMUM_ID = 5,
 };
 
 /**

@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /**
@@ -426,7 +417,7 @@ void qdf_trace_hex_dump(QDF_MODULE_ID module, QDF_TRACE_LEVEL level,
 {
 	const u8 *ptr = data;
 	int i, linelen, remaining = buf_len;
-	unsigned char linebuf[BUFFER_SIZE];
+	unsigned char linebuf[BUFFER_SIZE] = {0};
 
 	if (!(g_qdf_trace_info[module].module_trace_level &
 		QDF_TRACE_LEVEL_TO_MODULE_BITMASK(level)))
@@ -1240,12 +1231,10 @@ static bool qdf_dp_enable_check(qdf_nbuf_t nbuf, enum QDF_DP_TRACE_ID code,
 	if (qdf_dp_trace_enable_track(code) == false)
 		return false;
 
-	if (!nbuf)
-		return false;
-
-	if ((QDF_NBUF_CB_TX_PACKET_TRACK(nbuf) != QDF_NBUF_TX_PKT_DATA_TRACK) ||
-	    ((dir == QDF_TX) && (QDF_NBUF_CB_TX_DP_TRACE(nbuf) == 0)) ||
-	    ((dir == QDF_RX) && (QDF_NBUF_CB_RX_DP_TRACE(nbuf) == 0)))
+	if ((nbuf) && ((QDF_NBUF_CB_TX_PACKET_TRACK(nbuf) !=
+		 QDF_NBUF_TX_PKT_DATA_TRACK) ||
+		 ((dir == QDF_TX) && (QDF_NBUF_CB_TX_DP_TRACE(nbuf) == 0)) ||
+		 ((dir == QDF_RX) && (QDF_NBUF_CB_RX_DP_TRACE(nbuf) == 0))))
 		return false;
 
 	return true;
@@ -2024,7 +2013,7 @@ void qdf_dp_trace(qdf_nbuf_t nbuf, enum QDF_DP_TRACE_ID code,
 	if (qdf_dp_enable_check(nbuf, code, dir) == false)
 		return;
 
-	qdf_dp_add_record(code, qdf_nbuf_data(nbuf), size, NULL, 0,
+	qdf_dp_add_record(code, data, size, NULL, 0,
 		(nbuf != NULL) ? QDF_NBUF_CB_DP_TRACE_PRINT(nbuf) : false);
 }
 qdf_export_symbol(qdf_dp_trace);
@@ -2267,9 +2256,14 @@ static void qdf_dpt_display_record_debugfs(qdf_debugfs_file_t file,
 {
 	int loc;
 	char prepend_str[QDF_DP_TRACE_PREPEND_STR_SIZE];
+	struct qdf_dp_trace_data_buf *buf =
+		(struct qdf_dp_trace_data_buf *)record->data;
 
 	loc = qdf_dp_trace_fill_meta_str(prepend_str, sizeof(prepend_str),
 					 index, 0, record);
+	if (loc < sizeof(prepend_str))
+		loc += snprintf(&prepend_str[loc], sizeof(prepend_str) - loc,
+				"[%d]", buf->msdu_id);
 	qdf_dpt_dump_hex_trace_debugfs(file, prepend_str,
 				       record->data, record->size);
 }

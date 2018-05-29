@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -17,12 +14,6 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
  */
 
 /**
@@ -2334,9 +2325,20 @@ void qdf_net_buf_debug_release_skb(qdf_nbuf_t net_buf)
 		qdf_nbuf_t next;
 
 		next = qdf_nbuf_queue_next(ext_list);
+
+		if (qdf_nbuf_is_tso(ext_list) &&
+			qdf_nbuf_get_users(ext_list) > 1) {
+			ext_list = next;
+			continue;
+		}
+
 		qdf_net_buf_debug_delete_node(ext_list);
 		ext_list = next;
 	}
+
+	if (qdf_nbuf_is_tso(net_buf) && qdf_nbuf_get_users(net_buf) > 1)
+		return;
+
 	qdf_net_buf_debug_delete_node(net_buf);
 }
 qdf_export_symbol(qdf_net_buf_debug_release_skb);

@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -19,11 +16,6 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
- */
 #include "targcfg.h"
 #include "qdf_lock.h"
 #include "qdf_status.h"
@@ -132,7 +124,7 @@ void hif_trigger_dump(struct hif_opaque_softc *hif_ctx,
 	}
 }
 
-static void ce_poll_timeout(void *arg)
+static void ce_poll_timeout(unsigned long arg)
 {
 	struct CE_state *CE_state = (struct CE_state *)arg;
 

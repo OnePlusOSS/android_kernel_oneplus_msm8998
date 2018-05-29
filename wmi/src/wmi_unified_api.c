@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
  *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all
@@ -19,11 +16,6 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
- */
 #include "wmi_unified_priv.h"
 #include "wmi_unified_param.h"
 
@@ -6424,6 +6416,19 @@ QDF_STATUS wmi_unified_extract_sar_limit_event(void *wmi_hdl,
 		return wmi_handle->ops->extract_sar_limit_event(wmi_handle,
 								evt_buf,
 								event);
+
+	return QDF_STATUS_E_FAILURE;
+}
+
+QDF_STATUS wmi_unified_extract_sar2_result_event(void *handle,
+						 uint8_t *event, uint32_t len)
+{
+	wmi_unified_t wmi_handle = handle;
+
+	if (wmi_handle->ops->extract_sar2_result_event)
+		return wmi_handle->ops->extract_sar2_result_event(wmi_handle,
+								  event,
+								  len);
 
 	return QDF_STATUS_E_FAILURE;
 }

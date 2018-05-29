@@ -1777,22 +1777,6 @@ static void wlan_hdd_tdls_set_mode(hdd_context_t *pHddCtx,
 					return;
 				}
 				wlan_hdd_tdls_implicit_enable(pHddTdlsCtx);
-				/* tdls implicit mode is enabled, so
-				 * enable the connection tracker
-				 */
-				pHddCtx->enable_tdls_connection_tracker
-					= true;
-
-				if  (tdls_mode == eTDLS_SUPPORT_EXTERNAL_CONTROL
-					&& !pHddCtx->tdls_external_peer_count
-					&& !pHddCtx->connected_peer_count) {
-					/* Disable connection tracker if tdls
-					 * mode is external and no force peers
-					 * were configured by application.
-					 */
-					pHddCtx->enable_tdls_connection_tracker
-						= false;
-				}
 
 			} else if (eTDLS_SUPPORT_DISABLED == tdls_mode) {
 				set_bit((unsigned long)source,
@@ -1834,6 +1818,7 @@ static void wlan_hdd_tdls_set_mode(hdd_context_t *pHddCtx,
 	pHddCtx->tdls_mode = tdls_mode;
 
 	mutex_unlock(&pHddCtx->tdls_lock);
+	cds_set_tdls_ct_mode(pHddCtx);
 	EXIT();
 }
 
@@ -1892,6 +1877,9 @@ int wlan_hdd_tdls_set_params(struct net_device *dev,
 		config->idle_packet_n,
 		config->rssi_trigger_threshold,
 		config->rssi_teardown_threshold);
+
+	if (pHddCtx->tdls_mode == eTDLS_SUPPORT_NOT_ENABLED)
+		return -EINVAL;
 
 	wlan_hdd_tdls_set_mode(pHddCtx, req_tdls_mode, true,
 			       HDD_SET_TDLS_MODE_SOURCE_USER);
@@ -1975,8 +1963,9 @@ void wlan_hdd_update_tdls_info(hdd_adapter_t *adapter, bool tdls_prohibited,
 		goto done;
 	}
 
-	hdd_debug("tdls_prohibited: %d, tdls_chan_swit_prohibited: %d",
-		 tdls_prohibited, tdls_chan_swit_prohibited);
+	hdd_debug("tdls_prohibited: %d, tdls_chan_swit_prohibited: %d, source bitmap:%lu",
+		tdls_prohibited, tdls_chan_swit_prohibited,
+		hdd_ctx->tdls_source_bitmap);
 
 	mutex_lock(&hdd_ctx->tdls_lock);
 
@@ -1997,6 +1986,14 @@ void wlan_hdd_update_tdls_info(hdd_adapter_t *adapter, bool tdls_prohibited,
 	/* If AP or caller indicated TDLS Prohibited then disable tdls mode */
 	if (tdls_prohibited) {
 		hdd_ctx->tdls_mode = eTDLS_SUPPORT_NOT_ENABLED;
+		/* If the source bit is non zero then tdls mode is
+		 * eTDLS_SUPPORT_DISABLED before changing the mode to
+		 * eTDLS_SUPPORT_NOT_ENABlED, make the source bit to 0
+		 * as the wlan_hdd_tdls_set_mode is not called to
+		 * clear the source bit, if the current mode is
+		 * eTDLS_SUPPORT_NOT_ENABLED.
+		 */
+		hdd_ctx->tdls_source_bitmap = 0;
 	} else {
 		if (false == hdd_ctx->config->fEnableTDLSImplicitTrigger) {
 			hdd_ctx->tdls_mode = eTDLS_SUPPORT_EXPLICIT_TRIGGER_ONLY;
@@ -2101,8 +2098,9 @@ void wlan_hdd_update_tdls_info(hdd_adapter_t *adapter, bool tdls_prohibited,
 		hdd_ctx->set_state_info.set_state_cnt--;
 	}
 
-	hdd_debug("TDLS Set state cnt %d",
-		hdd_ctx->set_state_info.set_state_cnt);
+	hdd_debug("TDLS Set state cnt %d, source bitmap:%lu",
+			hdd_ctx->set_state_info.set_state_cnt,
+			hdd_ctx->tdls_source_bitmap);
 
 	mutex_unlock(&hdd_ctx->tdls_lock);
 done:
@@ -3016,7 +3014,7 @@ void wlan_hdd_tdls_scan_done_callback(hdd_adapter_t *pAdapter)
 		return;
 
 	if (eTDLS_SUPPORT_NOT_ENABLED == pHddCtx->tdls_mode) {
-		hdd_debug("TDLS mode is disabled OR not enabled");
+		hdd_debug("TDLS mode is not enabled don't change the tdls mode");
 		return;
 	}
 
@@ -3438,6 +3436,10 @@ __wlan_hdd_cfg80211_configure_tdls_mode(struct wiphy *wiphy,
 	default:
 		hdd_err("Invalid TDLS trigger mode");
 		return -EINVAL;
+	}
+	if (hdd_ctx->tdls_mode == eTDLS_SUPPORT_NOT_ENABLED) {
+		hdd_err("TDLS mode is Not Enabled");
+		return -EPERM;
 	}
 	wlan_hdd_tdls_set_mode(hdd_ctx, tdls_mode, false,
 			HDD_SET_TDLS_MODE_SOURCE_USER);
@@ -6405,6 +6407,10 @@ void wlan_hdd_change_tdls_mode(void *data)
 {
 	hdd_context_t *hdd_ctx = (hdd_context_t *)data;
 
+	if (hdd_ctx->tdls_mode == eTDLS_SUPPORT_NOT_ENABLED) {
+		hdd_debug("TDLS mode is not enabled, don't change the tdls mode");
+		return;
+	}
 	wlan_hdd_tdls_set_mode(hdd_ctx, hdd_ctx->tdls_mode_last, false,
 			       HDD_SET_TDLS_MODE_SOURCE_P2P);
 }
@@ -6417,6 +6423,11 @@ void hdd_tdls_notify_p2p_roc(hdd_context_t *hdd_ctx,
 	bool buf_sta, enable_tdls_scan;
 
 	qdf_mc_timer_stop(&hdd_ctx->tdls_source_timer);
+
+	if (eTDLS_SUPPORT_NOT_ENABLED == hdd_ctx->tdls_mode) {
+		hdd_debug("TDLS mode is not enabled continue with roc");
+		return;
+	}
 
 	if (event == P2P_ROC_START) {
 		tdls_mode = eTDLS_SUPPORT_DISABLED;
@@ -6489,6 +6500,11 @@ void hdd_tdls_notify_hw_mode_change(bool is_dbs_hw_mode)
 
 	if (!hdd_ctx)
 		return;
+
+	if (hdd_ctx->tdls_mode == eTDLS_SUPPORT_NOT_ENABLED) {
+		hdd_debug("TDLS mode is not enabled continue with hw mode change");
+		return;
+	}
 
 	if (is_dbs_hw_mode) {
 		hdd_debug("hw mode is DBS");

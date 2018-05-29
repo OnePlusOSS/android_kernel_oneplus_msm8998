@@ -243,6 +243,7 @@ typedef enum {
     WMI_GRP_WLM,            /* 0x3c WLAN Latency Manager */
     WMI_GRP_11K_OFFLOAD,    /* 0x3d */
     WMI_GRP_TWT,            /* 0x3e TWT (Target Wake Time) for STA and AP */
+    WMI_GRP_MOTION_DET,     /* 0x3f */
 } WMI_GRP_ID;
 
 #define WMI_CMD_GRP_START_ID(grp_id) (((grp_id) << 12) | 0x1)
@@ -901,6 +902,8 @@ typedef enum {
     WMI_THERM_THROT_SET_CONF_CMDID,
     /* set runtime dpd recalibration params */
     WMI_RUNTIME_DPD_RECAL_CMDID,
+    /* get TX power for input HALPHY parameters */
+    WMI_GET_TPC_POWER_CMDID,
 
     /*  Offload 11k related requests */
     WMI_11K_OFFLOAD_REPORT_CMDID = WMI_CMD_GRP_START_ID(WMI_GRP_11K_OFFLOAD),
@@ -1130,6 +1133,12 @@ typedef enum {
     WMI_TWT_DEL_DIALOG_CMDID,
     WMI_TWT_PAUSE_DIALOG_CMDID,
     WMI_TWT_RESUME_DIALOG_CMDID,
+
+    /** WMI commands related to motion detection **/
+    WMI_MOTION_DET_CONFIG_PARAM_CMDID = WMI_CMD_GRP_START_ID(WMI_GRP_MOTION_DET),
+    WMI_MOTION_DET_BASE_LINE_CONFIG_PARAM_CMDID,
+    WMI_MOTION_DET_START_STOP_CMDID,
+    WMI_MOTION_DET_BASE_LINE_START_STOP_CMDID,
 } WMI_CMD_ID;
 
 typedef enum {
@@ -1347,6 +1356,10 @@ typedef enum {
     /** software FILS Discovery Frame alert event to Host, requesting host to Queue an FD frame for transmission */
     WMI_HOST_SWFDA_EVENTID,
 
+    /** software beacon alert event to Host requesting host to Queue a beacon for transmission.
+     *   Used only in host beacon mode. */
+    WMI_HOST_SWBA_V2_EVENTID,
+
     /* ADDBA Related WMI Events*/
     /** Indication the completion of the prior
      WMI_PEER_TID_DELBA_CMDID(initiator) */
@@ -1563,6 +1576,9 @@ typedef enum {
     /** event to report result of host configure SAR2 */
     WMI_SAR2_RESULT_EVENTID,
 
+    /** event to get TX power per input HALPHY parameters */
+    WMI_GET_TPC_POWER_EVENTID,
+
     /* GPIO Event */
     WMI_GPIO_INPUT_EVENTID = WMI_EVT_GRP_START_ID(WMI_GRP_GPIO),
     /** upload H_CV info WMI event
@@ -1680,6 +1696,10 @@ typedef enum {
     WMI_NDP_END_INDICATION_EVENTID,
     WMI_WLAN_COEX_BT_ACTIVITY_EVENTID,
     WMI_NDL_SCHEDULE_UPDATE_EVENTID,
+
+    /** WMI events related to motion detection */
+    WMI_MOTION_DET_HOST_EVENTID = WMI_EVT_GRP_START_ID(WMI_GRP_MOTION_DET),
+    WMI_MOTION_DET_BASE_LINE_HOST_EVENTID,
 } WMI_EVT_ID;
 
 /* defines for OEM message sub-types */
@@ -2123,6 +2143,34 @@ typedef struct _wmi_abi_version {
 #define WMI_PDEV_ID_1ST         1 /* first pdev  (pdev 0) */
 #define WMI_PDEV_ID_2ND         2 /* second pdev (pdev 1) */
 #define WMI_PDEV_ID_3RD         3 /* third pdev  (pdev 2) */
+
+/*
+ * Enum regarding which BDF elements are provided in which elements of the
+ * wmi_service_ready_event_fixed_param.hw_bd_info[] array
+ */
+typedef enum {
+    BDF_VERSION = 0,
+    REF_DESIGN_ID = 1,
+    CUSTOMER_ID = 2,
+    PROJECT_ID = 3,
+    BOARD_DATA_REV = 4,
+} wmi_hw_bd_info_e;
+
+/*
+ * Macros to get/set BDF details within the
+ * wmi_service_ready_event_fixed_param.hw_bd_info[] array
+ */
+#define WMI_GET_BDF_VERSION(hw_bd_info)         ((hw_bd_info)[BDF_VERSION])
+#define WMI_GET_REF_DESIGN(hw_bd_info)          ((hw_bd_info)[REF_DESIGN_ID])
+#define WMI_GET_CUSTOMER_ID(hw_bd_info)         ((hw_bd_info)[CUSTOMER_ID])
+#define WMI_GET_PROJECT_ID(hw_bd_info)          ((hw_bd_info)[PROJECT_ID])
+#define WMI_GET_BOARD_DATA_REV(hw_bd_info)      ((hw_bd_info)[BOARD_DATA_REV])
+
+#define WMI_SET_BDF_VERSION(hw_bd_info, val)    ((hw_bd_info)[BDF_VERSION]    = (val))
+#define WMI_SET_REF_DESIGN(hw_bd_info, val)     ((hw_bd_info)[REF_DESIGN_ID]  = (val))
+#define WMI_SET_CUSTOMER_ID(hw_bd_info, val)    ((hw_bd_info)[CUSTOMER_ID]    = (val))
+#define WMI_SET_PROJECT_ID(hw_bd_info, val)     ((hw_bd_info)[PROJECT_ID]     = (val))
+#define WMI_SET_BOARD_DATA_REV(hw_bd_info, val) ((hw_bd_info)[BOARD_DATA_REV] = (val))
 
 /**
  * The following struct holds optional payload for
@@ -2706,6 +2754,12 @@ typedef struct {
     #define WMI_RSRC_CFG_FLAG_TCL_CCE_DISABLE_S 12
     #define WMI_RSRC_CFG_FLAG_TCL_CCE_DISABLE_M 0x1000
 
+    #define WMI_RSRC_CFG_FLAG_TIM_V2_SUPPORT_ENABLE_S 13
+    #define WMI_RSRC_CFG_FLAG_TIM_V2_SUPPORT_ENABLE_M 0x2000
+
+    #define WMI_RSRC_CFG_FLAG_EAPOL_REKEY_MINRATE_SUPPORT_ENABLE_S 14
+    #define WMI_RSRC_CFG_FLAG_EAPOL_REKEY_MINRATE_SUPPORT_ENABLE_M 0x4000
+
     A_UINT32 flag1;
 
     /** @brief smart_ant_cap - Smart Antenna capabilities information
@@ -2897,6 +2951,16 @@ typedef struct {
     WMI_RSRC_CFG_FLAG_SET((word32), TCL_CCE_DISABLE, (value))
 #define WMI_RSRC_CFG_FLAG_TCL_CCE_DISABLE_GET(word32) \
     WMI_RSRC_CFG_FLAG_GET((word32), TCL_CCE_DISABLE)
+
+#define WMI_RSRC_CFG_FLAG_TIM_V2_SUPPORT_ENABLE_SET(word32, value) \
+    WMI_RSRC_CFG_FLAG_SET((word32), TIM_V2_SUPPORT_ENABLE, (value))
+#define WMI_RSRC_CFG_FLAG_TIM_V2_SUPPORT_ENABLE_GET(word32) \
+    WMI_RSRC_CFG_FLAG_GET((word32), TIM_V2_SUPPORT_ENABLE)
+
+#define WMI_RSRC_CFG_FLAG_EAPOL_REKEY_MINRATE_SUPPORT_ENABLE_SET(word32, value) \
+    WMI_RSRC_CFG_FLAG_SET((word32), EAPOL_REKEY_MINRATE_SUPPORT_ENABLE, (value))
+#define WMI_RSRC_CFG_FLAG_EAPOL_REKEY_MINRATE_SUPPORT_ENABLE_GET(word32) \
+    WMI_RSRC_CFG_FLAG_GET((word32), EAPOL_REKEY_MINRATE_SUPPORT_ENABLE)
 
 typedef struct {
     A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_init_cmd_fixed_param */
@@ -4419,6 +4483,8 @@ typedef struct {
 
 #define WMI_BEACON_CTRL_TX_DISABLE  0
 #define WMI_BEACON_CTRL_TX_ENABLE   1
+#define WMI_BEACON_CTRL_SWBA_EVENT_DISABLE  2
+#define WMI_BEACON_CTRL_SWBA_EVENT_ENABLE   3
 
 typedef struct {
     A_UINT32 tlv_header; /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_bcn_offload_ctrl_cmd_fixed_param */
@@ -4513,6 +4579,27 @@ typedef enum {
 
     PKT_PWR_SAVE_FSM_ENABLE     = 0x80000000,
 } WMI_PDEV_PKT_PWR_SAVE_LEVEL;
+
+/** MACROs to get user setting for enabling/disabling Secondary Rate Feature set
+ * Bit-0    : Enable/Disable Control for "PPDU Secondary Retry Support"
+ * Bit-1    : Enable/Disable Control for "RTS Black/White-listing Support"
+ * Bit-2    : Enable/Disable Control for "Higher MCS retry restriction on XRETRY failures"
+ * Bit 3-5  : "Xretry threshold" to use
+ * Bit 6~31 : reserved for future use.
+ */
+#define WMI_PDEV_PARAM_SECONDARY_RATE_ENABLE_BIT_S      0
+#define WMI_PDEV_PARAM_SECONDARY_RATE_ENABLE_BIT        0x00000001
+#define WMI_PDEV_PARAM_RTS_BL_WL_ENABLE_BIT_S           1
+#define WMI_PDEV_PARAM_RTS_BL_WL_ENABLE_BIT             0x00000002
+#define WMI_PDEV_PARAM_HIGHER_MCS_XRETRY_RESTRICTION_S  2
+#define WMI_PDEV_PARAM_HIGHER_MCS_XRETRY_RESTRICTION    0x00000004
+#define WMI_PDEV_PARAM_XRETRY_THRESHOLD_S               3
+#define WMI_PDEV_PARAM_XRETRY_THRESHOLD                 0x00000038
+
+#define WMI_PDEV_PARAM_IS_SECONDARY_RATE_ENABLED(word32)            WMI_F_MS(word32, WMI_PDEV_PARAM_SECONDARY_RATE_ENABLE_BIT)
+#define WMI_PDEV_PARAM_IS_RTS_BL_WL_ENABLED(word32)                 WMI_F_MS(word32, WMI_PDEV_PARAM_RTS_BL_WL_ENABLE_BIT)
+#define WMI_PDEV_PARAM_IS_HIGHER_MCS_XRETRY_RESTRICTION_SET(word32) WMI_F_MS(word32, WMI_PDEV_PARAM_HIGHER_MCS_XRETRY_RESTRICTION)
+#define WMI_PDEV_PARAM_GET_XRETRY_THRESHOLD(word32)                 WMI_F_MS(word32, WMI_PDEV_PARAM_XRETRY_THRESHOLD)
 
 typedef enum {
     /** TX chain mask */
@@ -4957,6 +5044,22 @@ typedef enum {
      * rate will be used instead.
      */
     WMI_PDEV_PARAM_CCK_TX_ENABLE,                     /* 0x9e */
+    /*
+     * Set the user-specified antenna gain, but in 0.5 dB units.
+     * This is a finer-granularity version of WMI_PDEV_PARAM_ANTENNA_GAIN.
+     * E.g. to set a gain of 15.5 dB, a value of 31 could be provided as the
+     * value accompanying the PDEV_PARAM_ANTENNA_GAIN_HALF_DB parameter type.
+     */
+    WMI_PDEV_PARAM_ANTENNA_GAIN_HALF_DB,              /* 0x9f */
+    /*
+     * Global Enable/Disable control for Secondary Retry Feature Set
+     *
+     * Bit-0  : Enable/Disable Control for "PPDU Secondary Retry Support"
+     * Bit-1  : Enable/Disable Control for "RTS Black/White-listing Support"
+     * Bit-2  : Enable/Disable Control for "Higher MCS retry restriction on XRETRY failures"
+     * Bit 3-5: "Xretry threshold" to use
+     */
+    WMI_PDEV_PARAM_SECONDARY_RETRY_ENABLE,            /* 0xA0 */
 } WMI_PDEV_PARAM;
 
 typedef struct {
@@ -7050,8 +7153,14 @@ typedef struct {
 #define WMI_HEOPS_DEFPE_SET(he_ops, value) WMI_SET_BITS(he_ops, 6, 3, value)
 
 /* TWT required */
-#define WMI_HEOPS_TWT_GET(he_ops) WMI_GET_BITS(he_ops, 9, 1)
-#define WMI_HEOPS_TWT_SET(he_ops, value) WMI_SET_BITS(he_ops, 9, 1, value)
+#define WMI_HEOPS_TWT_REQUIRED_GET(he_ops) WMI_GET_BITS(he_ops, 9, 1)
+#define WMI_HEOPS_TWT_REQUIRED_SET(he_ops, value) WMI_SET_BITS(he_ops, 9, 1, value)
+/* DEPRECATED, use WMI_HEOPS_TWT_REQUIRED_GET instead */
+#define WMI_HEOPS_TWT_GET(he_ops) \
+    WMI_HEOPS_TWT_REQUIRED_GET(he_ops)
+/* DEPRECATED, use WMI_HEOPS_TWT_REQUIRED_SET instead */
+#define WMI_HEOPS_TWT_SET(he_ops, value) \
+    WMI_HEOPS_TWT_REQUIRED_SET(he_ops, value)
 
 /* RTS threshold in units of 32 us,0 - always use RTS 1023 - this is disabled */
 #define WMI_HEOPS_RTSTHLD_GET(he_ops) WMI_GET_BITS(he_ops, 10, 10)
@@ -8363,6 +8472,29 @@ typedef enum {
      */
     WMI_VDEV_PARAM_TX_RETRIES_BEFORE_RTS_PER_AC,           /* 0x82 */
 
+    /**
+     * Parameter to enable/disable AMSDU aggregation size auto-selection logic.
+     * We have logic where AMSDU aggregation size is dynamically decided
+     * based on MCS. That logic is enabled by default.
+     * For certain tests, we need a method to disable this optimization,
+     * and base AMSDU size only on the peer's capability rather than our logic.
+     * A value of 0 means disable internal optimization,
+     * 1 means enable internal optimzation.
+     */
+    WMI_VDEV_PARAM_AMSDU_AGGREGATION_SIZE_OPTIMIZATION,    /* 0x83 */
+
+    /**
+     * In RAW mode, FW will not know whether the encryption is enabled
+     * on this vdev or not.
+     * Because of this, FW will not program the right info into the
+     * RawNwifi TLV resulting in the connection failure in RAW mode.
+     * So to program the right info, FW should know whether the security
+     * is enabled on this VDEV.
+     * Host will send this VDEV param command (With Value = 1) in case of
+     * RAW secure mode.
+     */
+    WMI_VDEV_PARAM_RAW_IS_ENCRYPTED,                       /* 0x84 */
+
 
     /*=== ADD NEW VDEV PARAM TYPES ABOVE THIS LINE ===
      * The below vdev param types are used for prototyping, and are
@@ -9199,6 +9331,21 @@ typedef struct {
     /** unique id identifying the VDEV */
     A_UINT32 vdev_id;
 } wmi_tim_info;
+
+typedef struct {
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_tim_info  */
+    /** TIM Partial Virtual Bitmap */
+    A_UINT32 tim_mcast;
+    A_UINT32 tim_changed;
+    A_UINT32 tim_num_ps_pending;
+    /** Use the vdev_id only if vdev_id_valid is set */
+    A_UINT32 vdev_id_valid;
+    /** unique id identifying the VDEV */
+    A_UINT32 vdev_id;
+    /** TIM bitmap len (in bytes) */
+    A_UINT32 tim_len;
+    /* followed by WMITLV_TAG_ARRAY_BYTE holding the TIM bitmap */
+} wmi_tim_info_v2;
 
 typedef struct {
     /** Flag to enable quiet period IE support */
@@ -10224,6 +10371,19 @@ typedef struct {
     A_UINT32 roam_scan_mode;
     A_UINT32 vdev_id;
     A_UINT32 flags; /* see WMI_ROAM_SCAN_MODE_FLAG defs */
+    /*
+     * Minimum duration allowed between two consecutive roam scans.
+     * Roam scan is not allowed, if duration between two consecutive
+     * roam scans is less than this time.
+     */
+    A_UINT32 min_delay_btw_scans; /* In msec */
+    /*
+     * Bitmask (with enum WMI_ROAM_TRIGGER_REASON_ID identifying the bit
+     * positions) showing for which roam_trigger_reasons the
+     * min_delay_btw_scans constraint should be applied.
+     * 0x0 means there is no time restrictions between successive roam scans.
+     */
+    A_UINT32 min_delay_roam_trigger_reason_bitmask;
 } wmi_roam_scan_mode_fixed_param;
 
 #define WMI_ROAM_SCAN_MODE_NONE        0x0
@@ -10932,6 +11092,7 @@ typedef struct {
     A_UINT32 qos_caps;
     A_UINT32 wmm_caps;
     A_UINT32 mcsset[ROAM_OFFLOAD_NUM_MCS_SET>>2]; /* since this 4 byte aligned, we don't declare it as tlv array */
+    A_UINT32 handoff_delay_for_rx; /* In msec. Delay Hand-Off by this duration to receive pending Rx frames from current BSS */
 } wmi_roam_offload_tlv_param;
 
 
@@ -11686,6 +11847,7 @@ typedef enum event_type_e {
     WOW_11D_SCAN_EVENT,
     WOW_SAP_OBSS_DETECTION_EVENT,
     WOW_BSS_COLOR_COLLISION_DETECT_EVENT,
+    WOW_TKIP_MIC_ERR_FRAME_RECVD_EVENT,
 } WOW_WAKE_EVENT_TYPE;
 
 typedef enum wake_reason_e {
@@ -11744,6 +11906,9 @@ typedef enum wake_reason_e {
     WOW_REASON_WLAN_DHCP_RENEW,
     WOW_REASON_SAP_OBSS_DETECTION,
     WOW_REASON_BSS_COLOR_COLLISION_DETECT,
+    WOW_REASON_TKIP_MIC_ERR_FRAME_RECVD_DETECT,
+    WOW_REASON_WLAN_MD, /* motion detected */
+    WOW_REASON_WLAN_BL, /* baselining done */
 
     WOW_REASON_DEBUG_TEST = 0xFF,
 } WOW_WAKE_REASON_TYPE;
@@ -13684,8 +13849,15 @@ typedef struct {
     A_UINT32 tdls_puapsd_rx_frame_threshold;
     /**Duration (in ms) over which to check whether TDLS link needs to be torn down */
     A_UINT32 teardown_notification_ms;
-    /**STA kickout threshold for TDLS peer */
+    /** STA kickout threshold for TDLS peer */
     A_UINT32 tdls_peer_kickout_threshold;
+    /* TDLS discovery WAKE timeout in ms.
+     * DUT will wake until this timeout to receive TDLS discovery response
+     * from peer.
+     * If tdls_discovery_wake_timeout is 0x0, the DUT will choose autonomously
+     * what wake timeout value to use.
+     */
+    A_UINT32 tdls_discovery_wake_timeout;
 } wmi_tdls_set_state_cmd_fixed_param;
 
 /* WMI_TDLS_PEER_UPDATE_CMDID */
@@ -15053,6 +15225,10 @@ typedef struct {
     wmi_mac_addr next_hop_mac_addr;
 } wmi_mhf_offload_routing_table_entry;
 
+enum {
+    WMI_DFS_RADAR_PULSE_FLAG_MASK_PSIDX_DIFF_VALID = 0x00000001,
+};
+
 typedef struct {
     /** tlv tag and len, tag equals
       * WMITLV_TAG_STRUC_wmi_dfs_radar_event */
@@ -15113,6 +15289,16 @@ typedef struct {
 
     /** Max pulse chirp velocity variance in delta bins */
     A_INT32 pulse_delta_diff;
+
+    /** the difference in the FFT peak index between short FFT and the first long FFT
+     * psidx_diff = (first_long_fft_psidx - 4*first_short_fft_psidx),
+     */
+    A_INT32 psidx_diff;
+
+    /** pulse_flags: see WMI_DFS_RADAR_PULSE_FLAG_MASK enum values
+     *  0x0001 - set if psidx_diff is valid
+     */
+    A_UINT32 pulse_flags;
 
 } wmi_dfs_radar_event_fixed_param;
 
@@ -21572,6 +21758,11 @@ static INLINE A_UINT8 *wmi_id_to_name(A_UINT32 wmi_command)
         WMI_RETURN_STRING(WMI_REQUEST_ROAM_SCAN_STATS_CMDID);
         WMI_RETURN_STRING(WMI_PEER_TID_CONFIGURATIONS_CMDID);
         WMI_RETURN_STRING(WMI_VDEV_SET_CUSTOM_SW_RETRY_TH_CMDID);
+        WMI_RETURN_STRING(WMI_GET_TPC_POWER_CMDID);
+        WMI_RETURN_STRING(WMI_MOTION_DET_CONFIG_PARAM_CMDID);
+        WMI_RETURN_STRING(WMI_MOTION_DET_BASE_LINE_CONFIG_PARAM_CMDID);
+        WMI_RETURN_STRING(WMI_MOTION_DET_START_STOP_CMDID);
+        WMI_RETURN_STRING(WMI_MOTION_DET_BASE_LINE_START_STOP_CMDID);
     }
 
     return "Invalid WMI cmd";
@@ -22251,8 +22442,8 @@ typedef struct {
     /* 1. wake_intvl_mantis must be <= 0xFFFF
      * 2. wake_intvl_us must be divided evenly by wake_intvl_mantis,
      *    i.e., wake_intvl_us % wake_intvl_mantis == 0
-     * 2. the quotient of wake_intvl_us/wake_intvl_mantis must be 2 to N-th(0<=N<=31) power,
-          i.e., wake_intvl_us/wake_intvl_mantis == 2^N, 0<=N<=31
+     * 3. the quotient of wake_intvl_us/wake_intvl_mantis must be 2 to N-th(0<=N<=31) power,
+     *    i.e., wake_intvl_us/wake_intvl_mantis == 2^N, 0<=N<=31
      */
     A_UINT32 wake_intvl_us;         /* TWT Wake Interval in units of us */
     A_UINT32 wake_intvl_mantis;     /* TWT Wake Interval Mantissa */
@@ -22338,6 +22529,7 @@ typedef struct {
     A_UINT32 vdev_id;       /* VDEV identifier */
     A_UINT32 dialog_id;     /* TWT dialog ID */
     A_UINT32 sp_offset_us;  /* this long time after TWT resumed the 1st SP will start */
+    A_UINT32 next_twt_size; /* Next TWT subfield Size, refer to IEEE 802.11ax sectin "9.4.1.60 TWT Information field" */
 } wmi_twt_resume_dialog_cmd_fixed_param;
 
 /* status code of resuming TWT dialog */
@@ -22451,8 +22643,10 @@ typedef struct {
     A_UINT32 pdev_id;       /** ID of pdev whose DMA ring produced the data */
     A_UINT32 mod_id;        /* see WMI_DMA_RING_SUPPORTED_MODULE */
     A_UINT32 num_buf_release_entry;
+    A_UINT32 num_meta_data_entry;
     /* This TLV is followed by another TLV of array of structs.
-     * wmi_dma_buf_release_entry entries;
+     * wmi_dma_buf_release_entry entries[num_buf_release_entry];
+     * wmi_dma_buf_release_spectral_meta_data meta_datat[num_meta_data_entry];
      */
 } wmi_dma_buf_release_fixed_param;
 
@@ -22468,6 +22662,19 @@ typedef struct {
      */
     A_UINT32 paddr_hi;
 } wmi_dma_buf_release_entry;
+
+typedef struct {
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_dma_buf_release_spectral_meta_data */
+    /**
+     * meta data information.
+     * Host uses the noise floor values as one of the major parameter
+     * to classify the spectral data.
+     * This information will not be provided by ucode unlike the fft reports
+     * which gets DMAed to DDR buffer.
+     * Hence sending the NF values in dBm units as meta data information.
+     */
+    A_INT32 noise_floor[WMI_MAX_CHAINS];
+} wmi_dma_buf_release_spectral_meta_data;
 
 typedef struct {
     A_UINT32 tlv_header;  /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_runtime_dpd_recal_cmd_fixed_param  */
@@ -22588,6 +22795,152 @@ typedef struct {
      *       and the last 3 elements from the second scan.
      */
 } wmi_roam_scan_stats_event_fixed_param;
+
+typedef struct {
+    A_UINT32 tlv_header;    /* TLV tag and len; tag equals wmi_txpower_query_cmd_fixed_param  */
+    A_UINT32 request_id;    /* unique request ID to distinguish the command / event set */
+
+    /* The mode value has the following meaning :
+     * 0  : 11a
+     * 1  : 11bg
+     * 2  : 11b
+     * 3  : 11g only
+     * 4  : 11a HT20
+     * 5  : 11g HT20
+     * 6  : 11a HT40
+     * 7  : 11g HT40
+     * 8  : 11a VHT20
+     * 9  : 11a VHT40
+     * 10 : 11a VHT80
+     * 11 : 11g VHT20
+     * 12 : 11g VHT40
+     * 13 : 11g VHT80
+     * 14 : unknown
+     */
+    A_UINT32 mode;
+    A_UINT32 rate;          /* rate index */
+    A_UINT32 nss;           /* number of spacial stream */
+    A_UINT32 beamforming;   /* beamforming parameter 0:disabled, 1:enabled */
+    A_UINT32 chain_mask;    /* mask for the antenna set to get power */
+    A_UINT32 chain_index;   /* index for the antenna */
+} wmi_get_tpc_power_cmd_fixed_param;
+
+typedef struct {
+    A_UINT32 tlv_header;    /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_get_tpc_power_evt_fixed_param  */
+    A_UINT32 request_id;    /* request ID set by the command */
+    A_INT32  tx_power;      /* TX power for the specified HALPHY parameters in half dBm unit */
+} wmi_get_tpc_power_evt_fixed_param;
+
+/* below structures are related to Motion Detection. */
+typedef struct {
+    /** TLV tag and len; tag equals
+     *  WMITLV_TAG_STRUC_wmi_motion_det_config_params_cmd_fixed_param */
+    A_UINT32 tlv_header;         /** TLV Header */
+    A_UINT32 vdev_id;            /** Vdev ID */
+    A_UINT32 time_t1;            /** Time gap of successive bursts of
+                                  * measurement frames during coarse
+                                  * motion detection (in ms) */
+    A_UINT32 time_t2;            /** Time gap of successive bursts of
+                                  * measurement frames during fine
+                                  * motion detection (in ms) */
+    A_UINT32 n1;                 /** number of measurement frames in one
+                                  * burst, for coarse detection */
+    A_UINT32 n2;                 /** number of measurement frames in one
+                                  * burst, for fine detection */
+    A_UINT32 time_t1_gap;        /** gap between measurement frames in
+                                  * course detection (in ms) */
+    A_UINT32 time_t2_gap;        /** gap between measurement frames in
+                                  * fine detection (in ms) */
+    A_UINT32 coarse_K;           /** number of times motion detection has to
+                                  * be performed for coarse detection */
+    A_UINT32 fine_K;             /** number of times motion detection has to
+                                  * be performed for fine detection */
+    A_UINT32 coarse_Q;           /** number of times motion is expected
+                                  * to be detected for success case in
+                                  * coarse detection */
+    A_UINT32 fine_Q;             /** number of times motion is expected
+                                  * to be detected for success case in
+                                  * fine detection */
+    A_UINT32 md_coarse_thr_high; /** higher threshold value (in percent)
+                                  * from host to FW, which will be used in
+                                  * coarse detection phase of motion detection.
+                                  * This is the threshold for the correlation
+                                  * of the old RF local-scattering environment
+                                  * with the current RF local-scattering
+                                  * environment.  A value of 100(%) indicates
+                                  * that neither the transceiver nor any
+                                  * nearby objects have changed position. */
+    A_UINT32 md_fine_thr_high;   /** higher threshold value (in percent)
+                                  * from host to FW, which will be used in
+                                  * fine detection phase of motion detection.
+                                  * This is the threshold for correlation
+                                  * between the old and current RF environments,
+                                  * as explained above. */
+    A_UINT32 md_coarse_thr_low;  /** lower threshold value (in percent)
+                                  * for immediate detection of motion in
+                                  * coarse detection phase.
+                                  * This is the threshold for correlation
+                                  * between the old and current RF environments,
+                                  * as explained above. */
+    A_UINT32 md_fine_thr_low;    /** lower threshold value (in percent)
+                                  * for immediate detection of motion in
+                                  * fine detection phase.
+                                  * This is the threshold for correlation
+                                  * between the old and current RF environments,
+                                  * as explained above. */
+} wmi_motion_det_config_params_cmd_fixed_param;
+
+typedef struct {
+    /** TLV tag and len; tag equals
+     *  WMITLV_TAG_STRUC_wmi_motion_det_base_line_config_params_cmd_fixed_param */
+    A_UINT32 tlv_header;    /** TLV Header */
+    A_UINT32 vdev_id;       /** Vdev ID */
+    A_UINT32 bl_time_t;     /** time T for baseline (in ms)
+                             * Every bl_time_t, bl_n packets are sent */
+    A_UINT32 bl_packet_gap; /** gap between measurement frames for baseline
+                             * (in ms) */
+    A_UINT32 bl_n;          /** number of measurement frames to be sent
+                             * during one baseline */
+    A_UINT32 bl_num_meas;   /** number of times the baseline measurement
+                             * to be done */
+} wmi_motion_det_base_line_config_params_cmd_fixed_param;
+
+typedef struct {
+    /** TLV tag and len; tag equals
+     *  WMITLV_TAG_STRUC_wmi_motion_det_start_stop_cmd_fixed_param */
+    A_UINT32 tlv_header; /** TLV Header */
+    A_UINT32 vdev_id;    /** Vdev ID */
+    A_UINT32 enable;     /** start = 1, stop =0 */
+} wmi_motion_det_start_stop_cmd_fixed_param;
+
+typedef struct {
+    /** TLV tag and len; tag equals
+     *  WMITLV_TAG_STRUC_wmi_motion_det_base_line_start_stop_cmd_fixed_param */
+    A_UINT32 tlv_header; /** TLV Header */
+    A_UINT32 vdev_id;    /** Vdev ID */
+    A_UINT32 enable;     /** start = 1, stop =0 */
+} wmi_motion_det_base_line_start_stop_cmd_fixed_param;
+
+typedef struct {
+    /** TLV tag and len; tag equals
+     *  WMITLV_TAG_STRUC_wmi_motion_det_event */
+    A_UINT32 tlv_header; /** TLV Header */
+    A_UINT32 vdev_id;    /** Vdev ID */
+    A_UINT32 status;     /** status = 1 -> motion detected */
+} wmi_motion_det_event;
+
+typedef struct {
+    /** TLV tag and len; tag equals
+     *  WMITLV_TAG_STRUC_wmi_motion_det_base_line_event */
+    A_UINT32 tlv_header;           /** TLV Header */
+    A_UINT32 vdev_id;              /** Vdev ID */
+    A_UINT32 bl_baseline_value;    /** baseline correlation value calculated
+                                    * during baselining phase (in %) */
+    A_UINT32 bl_max_corr_reserved; /** max corr value obtained during baselining
+                                    * phase (in %); reserved for future */
+    A_UINT32 bl_min_corr_reserved; /** min corr value obtained during baselining
+                                    * phase (in %); reserved for future */
+} wmi_motion_det_base_line_event;
 
 
 /* ADD NEW DEFS HERE */

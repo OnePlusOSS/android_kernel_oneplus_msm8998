@@ -80,4 +80,29 @@ void hdd_softap_tx_resume_cb(void *adapter_context, bool tx_resume)
 }
 #endif /* QCA_LL_LEGACY_TX_FLOW_CONTROL */
 
+/**
+ * hdd_post_dhcp_ind() - Send DHCP START/STOP indication to FW
+ * @adapter: pointer to hdd adapter
+ * @sta_id: peer station ID
+ * @type: WMA message type
+ *
+ * Return: None
+ */
+QDF_STATUS hdd_post_dhcp_ind(hdd_adapter_t *adapter,
+			     uint8_t sta_id, uint16_t type);
+
+/**
+ * hdd_dhcp_indication() - Send DHCP START/STOP indication to FW
+ * @adapter: pointer to hdd adapter
+ * @sta_id: peer station ID
+ * @skb: pointer to OS packet (sk_buff)
+ * @dir: direction
+ *
+ * Return: None
+ */
+void hdd_dhcp_indication(hdd_adapter_t *adapter,
+			 uint8_t sta_id,
+			 struct sk_buff *skb,
+			 enum qdf_proto_dir dir);
+
 #endif /* end #if !defined(WLAN_HDD_SOFTAP_TX_RX_H) */

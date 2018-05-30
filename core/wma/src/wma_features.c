@@ -11530,3 +11530,44 @@ bool wma_dual_beacon_on_single_mac_mcc_capable(void)
 		return false;
 	}
 }
+
+/**
+ * wma_send_dhcp_ind() - Send DHCP Start/Stop Indication to FW.
+ * @type - WMA message type.
+ * @device_mode - mode(AP, SAP etc) of the device.
+ * @mac_addr - MAC address of the adapter.
+ * @sta_mac_addr - MAC address of the peer station.
+ *
+ * Return: QDF_STATUS.
+ */
+QDF_STATUS wma_send_dhcp_ind(uint16_t type, uint8_t device_mode,
+			     uint8_t *mac_addr, uint8_t *peer_mac_addr)
+{
+	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
+	tAniDHCPInd *msg;
+
+	msg = (tAniDHCPInd *) qdf_mem_malloc(sizeof(tAniDHCPInd));
+	if (NULL == msg) {
+		QDF_TRACE(QDF_MODULE_ID_WMA, QDF_TRACE_LEVEL_ERROR,
+				"%s: Not able to allocate memory for dhcp ind",
+				__func__);
+		return QDF_STATUS_E_NOMEM;
+	}
+	msg->msgType = type;
+	msg->msgLen = (uint16_t) sizeof(tAniDHCPInd);
+	msg->device_mode = device_mode;
+	qdf_mem_copy(msg->adapterMacAddr.bytes, mac_addr, QDF_MAC_ADDR_SIZE);
+	qdf_mem_copy(msg->peerMacAddr.bytes, peer_mac_addr, QDF_MAC_ADDR_SIZE);
+
+	qdf_status = wma_process_dhcp_ind(cds_get_context(QDF_MODULE_ID_WMA),
+			     (tAniDHCPInd *)msg);
+	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
+		QDF_TRACE(QDF_MODULE_ID_WMA, QDF_TRACE_LEVEL_ERROR,
+				"%s: Failed to send DHCP indication", __func__);
+		qdf_status = QDF_STATUS_E_FAILURE;
+	}
+
+	qdf_mem_free(msg);
+
+	return qdf_status;
+}

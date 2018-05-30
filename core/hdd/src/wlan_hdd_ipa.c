@@ -5488,6 +5488,8 @@ static void hdd_ipa_send_skb_to_network(qdf_nbuf_t skb,
 	struct hdd_ipa_priv *hdd_ipa = ghdd_ipa;
 	unsigned int cpu_index;
 	uint32_t enabled;
+	struct qdf_mac_addr src_mac;
+	uint8_t staid;
 
 	if (hdd_validate_adapter(adapter)) {
 		HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "Invalid adapter: 0x%pK",
@@ -5510,6 +5512,15 @@ static void hdd_ipa_send_skb_to_network(qdf_nbuf_t skb,
 	enabled = hdd_ipa_get_wake_up_idle();
 	if (!enabled)
 		hdd_ipa_set_wake_up_idle(true);
+
+	if (adapter->device_mode == QDF_SAP_MODE) {
+		/* Send DHCP Indication to FW */
+		qdf_mem_copy(&src_mac, skb->data + QDF_NBUF_SRC_MAC_OFFSET,
+			     sizeof(src_mac));
+		if (QDF_STATUS_SUCCESS ==
+			hdd_softap_get_sta_id(adapter, &src_mac, &staid))
+			hdd_dhcp_indication(adapter, staid, skb, QDF_RX);
+	}
 
 	skb->destructor = hdd_ipa_uc_rt_debug_destructor;
 	skb->dev = adapter->dev;

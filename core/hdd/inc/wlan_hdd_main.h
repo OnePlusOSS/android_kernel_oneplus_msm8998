@@ -973,6 +973,33 @@ enum bss_stop_reason {
 };
 
 /**
+ * struct dhcp_phase - Per Peer DHCP Phases
+ * @DHCP_PHASE_ACK: upon receiving DHCP_ACK/NAK message in REQUEST phase or
+ *         DHCP_DELINE message in OFFER phase
+ * @DHCP_PHASE_DISCOVER: upon receiving DHCP_DISCOVER message in ACK phase
+ * @DHCP_PHASE_OFFER: upon receiving DHCP_OFFER message in DISCOVER phase
+ * @DHCP_PHASE_REQUEST: upon receiving DHCP_REQUEST message in OFFER phase or
+ *         ACK phase (Renewal process)
+ */
+enum dhcp_phase {
+	DHCP_PHASE_ACK,
+	DHCP_PHASE_DISCOVER,
+	DHCP_PHASE_OFFER,
+	DHCP_PHASE_REQUEST
+};
+
+/**
+ * struct dhcp_nego_status - Per Peer DHCP Negotiation Status
+ * @DHCP_NEGO_STOP: when the peer is in ACK phase or client disassociated
+ * @DHCP_NEGO_IN_PROGRESS: when the peer is in DISCOVER or REQUEST
+ *         (Renewal process) phase
+ */
+enum dhcp_nego_status {
+	DHCP_NEGO_STOP,
+	DHCP_NEGO_IN_PROGRESS
+};
+
+/**
  * typedef struct hdd_station_info_t - Per station structure kept in HDD for
  *                                     multiple station support for SoftAP
  * @isUsed: The station entry is used or not
@@ -1053,6 +1080,8 @@ typedef struct {
 	struct ieee80211_vht_cap vht_caps;
 	uint32_t reason_code;
 	int8_t rssi;
+	enum dhcp_phase dhcp_phase;
+	enum dhcp_nego_status dhcp_nego_status;
 } hdd_station_info_t;
 
 /**

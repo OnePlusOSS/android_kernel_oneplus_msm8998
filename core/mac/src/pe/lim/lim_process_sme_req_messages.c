@@ -1531,7 +1531,6 @@ __lim_process_sme_join_req(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 	uint16_t ie_len;
 	uint8_t *vendor_ie;
 	tSirBssDescription *bss_desc;
-	struct vdev_type_nss *vdev_type_nss;
 
 	if (!mac_ctx || !msg_buf) {
 		QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_ERROR,
@@ -1727,15 +1726,6 @@ __lim_process_sme_join_req(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 			  sme_join_req->force_24ghz_in_ht20);
 		/* Copy The channel Id to the session Table */
 		session->currentOperChannel = bss_desc->channelId;
-		if (IS_5G_CH(session->currentOperChannel))
-			vdev_type_nss = &mac_ctx->vdev_type_nss_5g;
-		else
-			vdev_type_nss = &mac_ctx->vdev_type_nss_2g;
-		if (session->pePersona == QDF_P2P_CLIENT_MODE)
-			session->vdev_nss = vdev_type_nss->p2p_cli;
-		else
-			session->vdev_nss = vdev_type_nss->sta;
-		session->nss = session->vdev_nss;
 		session->vhtCapability =
 			IS_DOT11_MODE_VHT(session->dot11mode);
 		if (session->vhtCapability) {
@@ -1889,6 +1879,11 @@ __lim_process_sme_join_req(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 		session->supported_nss_1x1 = sme_join_req->supported_nss_1x1;
 		session->vdev_nss = sme_join_req->vdev_nss;
 		session->nss = sme_join_req->nss;
+
+		pe_debug("nss %d, vdev_nss %d, supported_nss_1x1 %d",
+			 session->nss,
+			 session->vdev_nss,
+			 session->supported_nss_1x1);
 
 		mlm_join_req->bssDescription.length =
 			session->pLimJoinReq->bssDescription.length;

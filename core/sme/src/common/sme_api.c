@@ -19481,3 +19481,8 @@ bool sme_validate_channel_list(tHalHandle hal,
 	}
 	return true;
 }
+
+QDF_STATUS sme_get_scan_id(uint32_t *scan_id)
+{
+	return wma_get_scan_id(scan_id);
+}

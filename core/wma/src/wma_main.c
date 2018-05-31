@@ -4274,6 +4274,9 @@ static inline void wma_update_target_services(tp_wma_handle wh,
 	/* Enable WOW */
 	g_fw_wlan_feat_caps |= (1 << WOW);
 
+	if (WMI_SERVICE_IS_ENABLED(wh->wmi_service_bitmap, WMI_SERVICE_NLO))
+		g_fw_wlan_feat_caps |= (1 << PNO);
+
 	/* ARP offload */
 	cfg->arp_offload = WMI_SERVICE_IS_ENABLED(wh->wmi_service_bitmap,
 						  WMI_SERVICE_ARPNS_OFFLOAD);

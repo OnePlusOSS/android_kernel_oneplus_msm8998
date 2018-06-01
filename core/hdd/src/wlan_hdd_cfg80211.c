@@ -14103,7 +14103,8 @@ void wlan_hdd_cfg80211_deregister_frames(hdd_adapter_t *pAdapter)
 }
 
 #ifdef FEATURE_WLAN_WAPI
-void wlan_hdd_cfg80211_set_key_wapi(hdd_adapter_t *pAdapter, uint8_t key_index,
+static void wlan_hdd_cfg80211_set_key_wapi(struct hdd_adapter_s *pAdapter,
+				    uint8_t key_index,
 				    const uint8_t *mac_addr, const uint8_t *key,
 				    int key_Len)
 {

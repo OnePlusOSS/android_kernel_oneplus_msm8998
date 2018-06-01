@@ -34,10 +34,12 @@
 
 /* ol_txrx_is_peer_eligible_for_deletion() - check if peer to be deleted
  * @peer: peer handler
+ * @pdev: pointer to pdev
  *
  * Return: true if eligible for deletion else false
  */
-bool ol_txrx_is_peer_eligible_for_deletion(ol_txrx_peer_handle peer);
+bool ol_txrx_is_peer_eligible_for_deletion(ol_txrx_peer_handle peer,
+					   struct ol_txrx_pdev_t *pdev);
 
 int ol_txrx_peer_unref_delete(ol_txrx_peer_handle peer,
 					      const char *fname,

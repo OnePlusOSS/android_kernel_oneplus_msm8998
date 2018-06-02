@@ -2469,6 +2469,7 @@ void ol_txrx_vdev_register(ol_txrx_vdev_handle vdev,
 	vdev->osif_dev = osif_vdev;
 	vdev->rx = txrx_ops->rx.rx;
 	vdev->stats_rx = txrx_ops->rx.stats_rx;
+	vdev->tx_comp = txrx_ops->tx.tx_comp;
 	txrx_ops->tx.tx = ol_tx_data;
 }
 

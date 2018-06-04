@@ -791,6 +791,7 @@ static QDF_STATUS sme_rrm_issue_scan_req(tpAniSirGlobal mac_ctx)
 		scan_req.requestType = eCSR_SCAN_RRM;
 		wma_get_scan_id(&scan_req_id);
 		scan_req.scan_id = scan_req_id;
+		scan_req.scan_requestor_id = USER_SCAN_REQUESTOR_ID;
 		status = sme_scan_request(mac_ctx, (uint8_t) session_id,
 					&scan_req,
 					&sme_rrm_scan_request_callback, NULL);

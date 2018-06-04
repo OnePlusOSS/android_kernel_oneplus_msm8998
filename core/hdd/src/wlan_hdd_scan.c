@@ -1115,6 +1115,7 @@ static int __iw_set_scan(struct net_device *dev, struct iw_request_info *info,
 	hdd_update_dbs_scan_ctrl_ext_flag(hdd_ctx, &scanRequest);
 	scanRequest.timestamp = qdf_mc_timer_get_system_time();
 	wma_get_scan_id(&scanRequest.scan_id);
+	scanRequest.scan_requestor_id = USER_SCAN_REQUESTOR_ID;
 	pAdapter->scan_info.mScanPending = true;
 	wlan_hdd_scan_request_enqueue(pAdapter, NULL, NL_SCAN,
 			scanRequest.scan_id,
@@ -2412,6 +2413,7 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 	qdf_runtime_pm_prevent_suspend(&pHddCtx->runtime_context.scan);
 	wma_get_scan_id(&scan_req_id);
 	scan_req.scan_id = scan_req_id;
+	scan_req.scan_requestor_id = USER_SCAN_REQUESTOR_ID;
 	wlan_hdd_scan_request_enqueue(pAdapter, request, source,
 			scan_req.scan_id, scan_req.timestamp);
 	pAdapter->scan_info.mScanPending = true;

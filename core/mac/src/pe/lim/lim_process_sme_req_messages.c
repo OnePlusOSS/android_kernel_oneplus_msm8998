@@ -1287,7 +1287,7 @@ static QDF_STATUS lim_send_hal_start_scan_offload_req(tpAniSirGlobal pMac,
 
 	pScanOffloadReq->sessionId = pScanReq->sessionId;
 	pScanOffloadReq->scan_id = pScanReq->scan_id;
-	pScanOffloadReq->scan_requestor_id = USER_SCAN_REQUESTOR_ID;
+	pScanOffloadReq->scan_requestor_id = pScanReq->scan_requestor_id;
 	pScanOffloadReq->scan_adaptive_dwell_mode =
 			pScanReq->scan_adaptive_dwell_mode;
 	pScanOffloadReq->scan_ctrl_flags_ext =

@@ -1137,6 +1137,12 @@ static int wlan_hdd_execute_remain_on_channel(hdd_adapter_t *pAdapter,
 			duration *= P2P_ROC_DURATION_MULTIPLIER_GO_PRESENT;
 		else
 			duration *= P2P_ROC_DURATION_MULTIPLIER_GO_ABSENT;
+
+		/* this is to protect too huge value if some customers
+		 * give a higher value from supplicant
+		 */
+		if (duration > HDD_P2P_MAX_ROC_DURATION)
+			duration = HDD_P2P_MAX_ROC_DURATION;
 	}
 
 	hdd_prevent_suspend(WIFI_POWER_EVENT_WAKELOCK_ROC);

@@ -1743,7 +1743,9 @@ static void wlan_hdd_tdls_set_mode(hdd_context_t *pHddCtx,
 			    peer_update_timer) == QDF_TIMER_STATE_STOPPED)) {
 				hdd_debug("Start timer again,source bitmap:%lu",
 						pHddCtx->tdls_source_bitmap);
+				mutex_lock(&pHddCtx->tdls_lock);
 				wlan_hdd_tdls_implicit_enable(pHddTdlsCtx);
+				mutex_unlock(&pHddCtx->tdls_lock);
 			}
 			status = hdd_get_next_adapter(pHddCtx,
 						      pAdapterNode, &pNext);

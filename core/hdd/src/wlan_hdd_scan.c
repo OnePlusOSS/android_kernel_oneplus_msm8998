@@ -1127,7 +1127,9 @@ static int __iw_set_scan(struct net_device *dev, struct iw_request_info *info,
 		hdd_err("sme_scan_request  fail %d!!!", status);
 		wlan_hdd_scan_request_dequeue(hdd_ctx, scanRequest.scan_id,
 			&req, &source, &timestamp);
-		pAdapter->scan_info.mScanPending = false;
+		/* Scan is no longer pending */
+		if (!wlan_hdd_is_scan_pending(pAdapter))
+			pAdapter->scan_info.mScanPending = false;
 		goto error;
 	}
 error:

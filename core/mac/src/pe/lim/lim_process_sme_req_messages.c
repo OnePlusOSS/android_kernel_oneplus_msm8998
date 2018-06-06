@@ -1879,6 +1879,7 @@ __lim_process_sme_join_req(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 		session->supported_nss_1x1 = sme_join_req->supported_nss_1x1;
 		session->vdev_nss = sme_join_req->vdev_nss;
 		session->nss = sme_join_req->nss;
+		session->nss_forced_1x1 = sme_join_req->nss_forced_1x1;
 
 		pe_debug("nss %d, vdev_nss %d, supported_nss_1x1 %d",
 			 session->nss,
@@ -2141,6 +2142,7 @@ static void __lim_process_sme_reassoc_req(tpAniSirGlobal mac_ctx,
 	session_entry->supported_nss_1x1 = reassoc_req->supported_nss_1x1;
 	session_entry->vdev_nss = reassoc_req->vdev_nss;
 	session_entry->nss = reassoc_req->nss;
+	session_entry->nss_forced_1x1 = reassoc_req->nss_forced_1x1;
 
 	pe_debug("vhtCapability: %d su_beam_formee: %d su_tx_bformer %d",
 		session_entry->vhtCapability,

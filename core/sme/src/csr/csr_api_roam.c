@@ -15799,6 +15799,7 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 			pSession->supported_nss_1x1 = true;
 			pSession->vdev_nss = 1;
 			pSession->nss = 1;
+			pSession->nss_forced_1x1 = true;
 			sme_debug("For special ap, NSS: %d", pSession->nss);
 		}
 
@@ -15838,6 +15839,7 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 		csr_join_req->supported_nss_1x1 = pSession->supported_nss_1x1;
 		csr_join_req->vdev_nss = pSession->vdev_nss;
 		csr_join_req->nss = pSession->nss;
+		csr_join_req->nss_forced_1x1 = pSession->nss_forced_1x1;
 		csr_join_req->dot11mode = (uint8_t) ucDot11Mode;
 		sme_debug("dot11mode=%d, uCfgDot11Mode=%d, nss=%d",
 			  csr_join_req->dot11mode,

@@ -1961,6 +1961,64 @@ static int hdd_mon_open(struct net_device *dev)
 }
 
 /**
+ * wlan_hdd_update_dbs_scan_and_fw_mode_config() - Send updated dual mac scan
+ * configuration and fw mode configuration
+ *
+ * This is called from hdd_start_adapter after the device specific adapter is
+ * started
+ *
+ * Return: 0 for success; non-zero for failure
+ */
+static QDF_STATUS
+wlan_hdd_update_dbs_scan_and_fw_mode_config(void)
+{
+		struct sir_dual_mac_config cfg = {0};
+		QDF_STATUS status;
+		uint32_t channel_select_logic_conc;
+		hdd_context_t *hdd_ctx;
+
+		hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+		if (!hdd_ctx) {
+			hdd_err("HDD context is NULL");
+			return QDF_STATUS_E_FAILURE;
+		}
+		if (!wma_is_hw_dbs_capable())
+			return QDF_STATUS_SUCCESS;
+
+		cfg.scan_config = 0;
+		cfg.fw_mode_config = 0;
+		cfg.set_dual_mac_cb = cds_soc_set_dual_mac_cfg_cb;
+
+		channel_select_logic_conc = hdd_ctx->config->
+						channel_select_logic_conc;
+
+		if (hdd_ctx->config->dual_mac_feature_disable !=
+		    DISABLE_DBS_CXN_AND_SCAN) {
+			status = wma_get_updated_scan_and_fw_mode_config(
+				 &cfg.scan_config, &cfg.fw_mode_config,
+				 hdd_ctx->config->dual_mac_feature_disable,
+				 channel_select_logic_conc);
+
+			if (status != QDF_STATUS_SUCCESS) {
+				hdd_err("wma_get_updated_scan_and_fw_mode_config failed %d",
+					status);
+				return status;
+			}
+		}
+
+		hdd_debug("send scan_cfg: 0x%x fw_mode_cfg: 0x%x to fw",
+			  cfg.scan_config, cfg.fw_mode_config);
+
+		status = sme_soc_set_dual_mac_config(hdd_ctx->hHal, cfg);
+		if (status != QDF_STATUS_SUCCESS) {
+			hdd_err("sme_soc_set_dual_mac_config failed %d",
+				status);
+			return status;
+		}
+
+		return QDF_STATUS_SUCCESS;
+}
+/**
  * hdd_start_adapter() - Wrapper function for device specific adapter
  * @adapter: pointer to HDD adapter
  *
@@ -2023,6 +2081,7 @@ int hdd_start_adapter(hdd_adapter_t *adapter)
 		hdd_err("Failed to register frames - ret %d", ret);
 		goto err_start_adapter;
 	}
+	wlan_hdd_update_dbs_scan_and_fw_mode_config();
 exit:
 	EXIT();
 	return 0;
@@ -8414,53 +8473,6 @@ void hdd_indicate_mgmt_frame(tSirSmeMgmtFrameInd *frame_ind)
 						frame_ind->rxRssi);
 }
 
-static QDF_STATUS
-wlan_hdd_update_dbs_scan_and_fw_mode_config(hdd_context_t *hdd_ctx)
-{
-	struct sir_dual_mac_config cfg = {0};
-	QDF_STATUS status;
-	uint32_t channel_select_logic_conc;
-
-	if (!hdd_ctx) {
-		hdd_err("HDD context is NULL");
-		return QDF_STATUS_E_FAILURE;
-	}
-	if (!wma_is_hw_dbs_capable())
-		return QDF_STATUS_SUCCESS;
-
-	cfg.scan_config = 0;
-	cfg.fw_mode_config = 0;
-	cfg.set_dual_mac_cb = cds_soc_set_dual_mac_cfg_cb;
-
-	channel_select_logic_conc = hdd_ctx->config->
-						channel_select_logic_conc;
-
-	if (hdd_ctx->config->dual_mac_feature_disable !=
-	    DISABLE_DBS_CXN_AND_SCAN) {
-		status = wma_get_updated_scan_and_fw_mode_config(
-				&cfg.scan_config, &cfg.fw_mode_config,
-				hdd_ctx->config->dual_mac_feature_disable,
-				channel_select_logic_conc);
-
-		if (status != QDF_STATUS_SUCCESS) {
-			hdd_err("wma_get_updated_scan_and_fw_mode_config failed %d",
-				status);
-			return status;
-		}
-	}
-
-	hdd_debug("send scan_cfg: 0x%x fw_mode_cfg: 0x%x to fw",
-		  cfg.scan_config, cfg.fw_mode_config);
-
-	status = sme_soc_set_dual_mac_config(hdd_ctx->hHal, cfg);
-	if (status != QDF_STATUS_SUCCESS) {
-		hdd_err("sme_soc_set_dual_mac_config failed %d", status);
-		return status;
-	}
-
-	return QDF_STATUS_SUCCESS;
-}
-
 /**
  * hdd_override_ini_config - Override INI config
  * @hdd_ctx: HDD context
@@ -10294,11 +10306,6 @@ static int hdd_features_init(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 	wlan_hdd_tsf_init(hdd_ctx);
 	hdd_encrypt_decrypt_init(hdd_ctx);
 
-	status = wlan_hdd_update_dbs_scan_and_fw_mode_config(hdd_ctx);
-	if (!QDF_IS_STATUS_SUCCESS(status)) {
-		hdd_err("Failed to set dbs scan and fw mode cfg");
-		goto deregister_frames;
-	}
 	if (hdd_ctx->config->goptimize_chan_avoid_event) {
 		status = sme_enable_disable_chanavoidind_event(
 							hdd_ctx->hHal, 0);

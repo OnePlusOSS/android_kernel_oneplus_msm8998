@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014, 2016-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2014, 2016-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -443,18 +443,6 @@ QDF_STATUS htc_wait_target(HTC_HANDLE HTCHandle);
 QDF_STATUS htc_start(HTC_HANDLE HTCHandle);
 
 /**
- * htc_add_receive_pkt - Add receive packet to HTC
- * @HTCHandle - HTC handle
- * @pPacket - HTC receive packet to add
- *
- * User must supply HTC packets for capturing incoming HTC frames.
- * The caller must initialize each HTC packet using the
- * SET_HTC_PACKET_INFO_RX_REFILL() macro.
- * Return: A_OK on success
- */
-A_STATUS htc_add_receive_pkt(HTC_HANDLE HTCHandle, HTC_PACKET *pPacket);
-
-/**
  * htc_connect_service - Connect to an HTC service
  * @HTCHandle - HTC handle
  * @pReq - connection details
@@ -695,18 +683,6 @@ struct ol_ath_htc_stats *ieee80211_ioctl_get_htc_stats(HTC_HANDLE
  * Return: htc_handle tx queue depth
  */
 int htc_get_tx_queue_depth(HTC_HANDLE *htc_handle, HTC_ENDPOINT_ID endpoint_id);
-
-#ifdef HIF_USB
-#define HTCReturnReceivePkt(target, p, osbuf) \
-	do { \
-		A_NETBUF_FREE(osbuf);  \
-		if (p->Status == A_CLONE) {  \
-			qdf_mem_free(p);  \
-		} \
-	} while (0)
-#else
-#define HTCReturnReceivePkt(target, p, osbuf)   htc_add_receive_pkt(target, p)
-#endif
 
 #ifdef WLAN_FEATURE_FASTPATH
 void htc_ctrl_msg_cmpl(HTC_HANDLE htc_pdev, HTC_ENDPOINT_ID htc_ep_id);

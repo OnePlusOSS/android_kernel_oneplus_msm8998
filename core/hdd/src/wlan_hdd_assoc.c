@@ -1841,6 +1841,7 @@ static QDF_STATUS hdd_dis_connect_handler(hdd_adapter_t *pAdapter,
 		sme_ps_disable_auto_ps_timer(WLAN_HDD_GET_HAL_CTX
 				(pAdapter),
 				pAdapter->sessionId);
+		pAdapter->send_mode_change = true;
 	}
 	wlan_hdd_clear_link_layer_stats(pAdapter);
 

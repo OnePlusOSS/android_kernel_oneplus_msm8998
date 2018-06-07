@@ -1636,6 +1636,7 @@ struct hdd_adapter_s {
 	qdf_mutex_t ns_offload_info_lock;
 #endif
 	struct hdd_apf_context apf_context;
+	bool send_mode_change;
 };
 
 #define WLAN_HDD_GET_STATION_CTX_PTR(pAdapter) (&(pAdapter)->sessionCtx.station)

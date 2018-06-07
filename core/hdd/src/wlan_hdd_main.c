@@ -3255,6 +3255,7 @@ static hdd_adapter_t *hdd_alloc_station_adapter(hdd_context_t *hdd_ctx,
 		adapter->offloads_configured = false;
 		adapter->isLinkUpSvcNeeded = false;
 		adapter->higherDtimTransition = true;
+		adapter->send_mode_change = true;
 		/* Init the net_device structure */
 		strlcpy(pWlanDev->name, name, IFNAMSIZ);
 

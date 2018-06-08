@@ -5693,14 +5693,54 @@ void hdd_connect_result(struct net_device *dev, const u8 *bssid,
 #endif
 
 
+#ifdef MSM_PLATFORM
+/**
+ * hdd_stop_p2p_go() - call cfg80211 API to stop P2P GO
+ * @adapter: pointer to adapter
+ *
+ * This function calls cfg80211 API to stop P2P GO
+ *
+ * Return: None
+ */
+static void hdd_stop_p2p_go(hdd_adapter_t *adapter)
+{
+	hdd_debug("[SSR] send stop ap to supplicant");
+	cfg80211_ap_stopped(adapter->dev, GFP_KERNEL);
+}
+
+static inline void hdd_delete_sta(hdd_adapter_t *adapter)
+{
+}
+#else
+static inline void hdd_stop_p2p_go(hdd_adapter_t *adapter)
+{
+}
+
+/**
+ * hdd_delete_sta() - call cfg80211 API to delete STA
+ * @adapter: pointer to adapter
+ *
+ * This function calls cfg80211 API to delete STA
+ *
+ * Return: None
+ */
+static void hdd_delete_sta(hdd_adapter_t *adapter)
+{
+	struct qdf_mac_addr bcast_mac = QDF_MAC_ADDR_BROADCAST_INITIALIZER;
+
+	hdd_debug("[SSR] send restart supplicant");
+	/* event supplicant to restart */
+	cfg80211_del_sta(adapter->dev,
+			 (const u8 *)&bcast_mac.bytes[0],
+			 GFP_KERNEL);
+}
+#endif
+
 QDF_STATUS hdd_start_all_adapters(hdd_context_t *hdd_ctx)
 {
 	hdd_adapter_list_node_t *adapterNode = NULL, *pNext = NULL;
 	QDF_STATUS status;
 	hdd_adapter_t *adapter;
-#ifndef MSM_PLATFORM
-	struct qdf_mac_addr bcastMac = QDF_MAC_ADDR_BROADCAST_INITIALIZER;
-#endif
 	eConnectionState connState;
 
 	ENTER();
@@ -5778,16 +5818,7 @@ QDF_STATUS hdd_start_all_adapters(hdd_context_t *hdd_ctx)
 			break;
 
 		case QDF_P2P_GO_MODE:
-#ifdef MSM_PLATFORM
-			hdd_debug("[SSR] send stop ap to supplicant");
-			cfg80211_ap_stopped(adapter->dev, GFP_KERNEL);
-#else
-			hdd_debug("[SSR] send restart supplicant");
-			/* event supplicant to restart */
-			cfg80211_del_sta(adapter->dev,
-					 (const u8 *)&bcastMac.bytes[0],
-					 GFP_KERNEL);
-#endif
+			hdd_delete_sta(adapter);
 			break;
 		case QDF_MONITOR_MODE:
 			hdd_init_station_mode(adapter);
@@ -5806,6 +5837,20 @@ QDF_STATUS hdd_start_all_adapters(hdd_context_t *hdd_ctx)
 		wlan_hdd_cfg80211_register_frames(adapter);
 
 get_adapter:
+		status = hdd_get_next_adapter(hdd_ctx, adapterNode, &pNext);
+		adapterNode = pNext;
+	}
+
+	status = hdd_get_front_adapter(hdd_ctx, &adapterNode);
+	while (NULL != adapterNode && QDF_STATUS_SUCCESS == status) {
+		adapter = adapterNode->pAdapter;
+
+		if (!hdd_is_interface_up(adapter))
+			goto get_adapter_sec;
+
+		if (adapter->device_mode == QDF_P2P_GO_MODE)
+			hdd_stop_p2p_go(adapter);
+get_adapter_sec:
 		status = hdd_get_next_adapter(hdd_ctx, adapterNode, &pNext);
 		adapterNode = pNext;
 	}

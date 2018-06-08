@@ -561,9 +561,23 @@ do { \
 	 (0 == qdf_mem_get_dma_addr(osdev, &ipa_resource->tx_comp_ring->mem_info)) || \
 	 (0 == qdf_mem_get_dma_addr(osdev, &ipa_resource->rx_rdy_ring->mem_info)) || \
 	 (0 == qdf_mem_get_dma_addr(osdev, &ipa_resource->rx2_rdy_ring->mem_info)))
+
+#define HDD_IPA_WDI2_SET_SMMU() \
+do { \
+	qdf_mem_copy(&pipe_in.u.ul_smmu.rdy_comp_ring, \
+		     &ipa_res->rx2_rdy_ring->sgtable, \
+		     sizeof(sgtable_t)); \
+	pipe_in.u.ul_smmu.rdy_comp_ring_size = \
+		ipa_res->rx2_rdy_ring->mem_info.size; \
+	pipe_in.u.ul_smmu.rdy_comp_ring_wp_pa = \
+		ipa_res->rx2_proc_done_idx->mem_info.pa; \
+	pipe_in.u.ul_smmu.rdy_comp_ring_wp_va = \
+		ipa_res->rx2_proc_done_idx->vaddr; \
+} while (0)
 #else
 /* Do nothing */
 #define HDD_IPA_WDI2_SET(pipe_in, ipa_ctxt, osdev)
+#define HDD_IPA_WDI2_SET_SMMU()
 
 #define IPA_RESOURCE_READY(ipa_resource, osdev) \
 	((0 == qdf_mem_get_dma_addr(osdev, &ipa_resource->ce_sr->mem_info)) || \
@@ -1215,13 +1229,15 @@ static int hdd_ipa_wdi_conn_pipes(struct hdd_ipa_priv *hdd_ipa,
 		info_smmu->transfer_ring_doorbell_pa =
 			ipa_res->rx_proc_done_idx->mem_info.pa;
 
-		qdf_mem_copy(&info_smmu->event_ring_base,
-				&ipa_res->rx2_rdy_ring->sgtable,
-				sizeof(sgtable_t));
-		info_smmu->event_ring_size =
-			ipa_res->rx2_rdy_ring->mem_info.size;
-		info_smmu->event_ring_doorbell_pa =
-			ipa_res->rx2_proc_done_idx->mem_info.pa;
+		if (hdd_ipa->wdi_version == IPA_WDI_2) {
+			qdf_mem_copy(&info_smmu->event_ring_base,
+				     &ipa_res->rx2_rdy_ring->sgtable,
+				     sizeof(sgtable_t));
+			info_smmu->event_ring_size =
+				ipa_res->rx2_rdy_ring->mem_info.size;
+			info_smmu->event_ring_doorbell_pa =
+				ipa_res->rx2_proc_done_idx->mem_info.pa;
+		}
 	} else {
 		/* TX */
 		info = &in->u_tx.tx;
@@ -1736,18 +1752,7 @@ static int hdd_ipa_wdi_conn_pipes(struct hdd_ipa_priv *hdd_ipa,
 		pipe_in.u.ul_smmu.rdy_ring_rp_va =
 			ipa_res->rx_proc_done_idx->vaddr;
 
-		qdf_mem_copy(&pipe_in.u.ul_smmu.rdy_comp_ring,
-			     &ipa_res->rx2_rdy_ring->sgtable,
-			     sizeof(sgtable_t));
-
-		pipe_in.u.ul_smmu.rdy_comp_ring_size =
-			ipa_res->rx2_rdy_ring->mem_info.size;
-
-		pipe_in.u.ul_smmu.rdy_comp_ring_wp_pa =
-			ipa_res->rx2_proc_done_idx->mem_info.pa;
-
-		pipe_in.u.ul_smmu.rdy_comp_ring_wp_va =
-			ipa_res->rx2_proc_done_idx->vaddr;
+		HDD_IPA_WDI2_SET_SMMU();
 	} else {
 		pipe_in.u.ul.rdy_ring_base_pa =
 			ipa_res->rx_rdy_ring->mem_info.pa;

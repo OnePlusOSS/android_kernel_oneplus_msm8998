@@ -388,8 +388,8 @@ bool hdd_dhcp_indication(hdd_adapter_t *adapter,
 		case QDF_PROTO_DHCP_ACK:
 		case QDF_PROTO_DHCP_NACK:
 			hdd_sta_info->dhcp_phase = DHCP_PHASE_ACK;
-			if ((hdd_sta_info->dhcp_nego_status ==
-				DHCP_NEGO_IN_PROGRESS))
+			if (hdd_sta_info->dhcp_nego_status ==
+				DHCP_NEGO_IN_PROGRESS)
 				notify_tx_comp = true;
 			hdd_sta_info->dhcp_nego_status = DHCP_NEGO_STOP;
 			break;

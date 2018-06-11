@@ -89,6 +89,8 @@
 
 #define HDD_IPA_MAX_BANDWIDTH 800
 
+#define HDD_IPA_UC_STAT_LOG_RATE 10
+
 enum hdd_ipa_uc_op_code {
 	HDD_IPA_UC_OPCODE_TX_SUSPEND = 0,
 	HDD_IPA_UC_OPCODE_TX_RESUME = 1,
@@ -3464,8 +3466,9 @@ static void __hdd_ipa_uc_stat_query(hdd_context_t *hdd_ctx,
 		(false == hdd_ipa->resource_loading)) {
 		*ipa_tx_diff = hdd_ipa->ipa_tx_packets_diff;
 		*ipa_rx_diff = hdd_ipa->ipa_rx_packets_diff;
-		hdd_debug("STAT Query TX DIFF %d, RX DIFF %d",
-			    *ipa_tx_diff, *ipa_rx_diff);
+		hdd_debug_ratelimited(HDD_IPA_UC_STAT_LOG_RATE,
+				      "STAT Query TX DIFF %d, RX DIFF %d",
+				      *ipa_tx_diff, *ipa_rx_diff);
 	}
 	qdf_mutex_release(&hdd_ipa->ipa_lock);
 }

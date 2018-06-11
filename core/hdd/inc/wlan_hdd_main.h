@@ -287,10 +287,7 @@
 #define HDD_MIN_TX_POWER (-100) /* minimum tx power */
 #define HDD_MAX_TX_POWER (+100) /* maximum tx power */
 
-/* FW expects burst duration in 1020*ms */
-#define SIFS_BURST_DUR_MULTIPLIER 1020
-#define SIFS_BURST_DUR_MAX        12240
-
+#define HDD_ENABLE_SIFS_BURST_DEFAULT              (0)
 /* If IPA UC data path is enabled, target should reserve extra tx descriptors
  * for IPA data path.
  * Then host data path should allow less TX packet pumping in case
@@ -1785,14 +1782,6 @@ struct suspend_resume_stats {
 };
 
 /**
- * struct hdd_nud_stats_context - hdd NUD stats context
- * @response_event: NUD stats request wait event
- */
-struct hdd_nud_stats_context {
-	qdf_event_t response_event;
-};
-
-/**
  * struct hdd_scan_chan_info - channel info
  * @freq: radio frequence
  * @cmd flag: cmd flag
@@ -2189,7 +2178,6 @@ struct hdd_context_s {
 	uint8_t curr_band;
 	uint32_t no_of_probe_req_ouis;
 	uint32_t *probe_req_voui;
-	struct hdd_nud_stats_context nud_stats_context;
 	uint8_t bt_a2dp_active:1;
 	uint8_t bt_vo_active:1;
 #ifdef FEATURE_SPECTRAL_SCAN
@@ -2882,19 +2870,6 @@ void wlan_hdd_start_sap(hdd_adapter_t *ap_adapter, bool reinit);
 void hdd_set_rx_mode_rps(hdd_context_t *hdd_ctx, void *padapter, bool enable);
 
 /**
- * hdd_init_nud_stats_ctx() - initialize NUD stats context
- * @hdd_ctx: Pointer to hdd context
- *
- * Return: none
- */
-static inline void hdd_init_nud_stats_ctx(hdd_context_t *hdd_ctx)
-{
-	if (qdf_event_create(&hdd_ctx->nud_stats_context.response_event) !=
-			     QDF_STATUS_SUCCESS)
-		hdd_err("NUD stats response event init failed!");
-}
-
-/**
  * hdd_dbs_scan_selection_init() - initialization for DBS scan selection config
  * @hdd_ctx: HDD context
  *
@@ -3147,5 +3122,18 @@ uint32_t hdd_wlan_get_version(hdd_context_t *hdd_ctx,
  * Return: None
  */
 void hdd_update_hw_sw_info(hdd_context_t *hdd_ctx);
+
+/**
+ * hdd_get_nud_stats_cb() - callback api to update the stats received from FW
+ * @data: pointer to hdd context.
+ * @rsp: pointer to data received from FW.
+ * @context: callback context
+ *
+ * This is called when wlan driver received response event for
+ * get arp stats to firmware.
+ *
+ * Return: None
+ */
+void hdd_get_nud_stats_cb(void *data, struct rsp_stats *rsp, void *context);
 
 #endif /* end #if !defined(WLAN_HDD_MAIN_H) */

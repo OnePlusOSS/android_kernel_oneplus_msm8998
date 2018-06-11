@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2012, 2015-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2012, 2015-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -118,5 +118,21 @@ uint8_t *cfg_get_vendor_ie_ptr_from_oui(tpAniSirGlobal mac_ctx,
 					uint8_t oui_size,
 					uint8_t *ie,
 					uint16_t ie_len);
+
+/**
+ * wlan_cfg_get_ie_ptr() - to get IE ptr corresponding
+ *             to a particular eid
+ * @p_ie: ptr to complete IE of beacon/probe response
+ * @length: complete IE length
+ * @eid: IE id
+ * @size_of_len_field: ONE_BYTE/TWO_BYTE
+ *
+ * This function is called to get IE ptr corresponding
+ * to a particular eid
+ *
+ * @Return: ptr to IE
+ */
+uint8_t *wlan_cfg_get_ie_ptr(uint8_t *p_ie, int length, uint8_t eid,
+			     enum size_of_len_field size_of_len_field);
 
 #endif /* __CFGAPI_H */

@@ -420,6 +420,18 @@ QDF_STATUS sme_roam_set_pmkid_cache(tHalHandle hHal, uint8_t sessionId,
 		tPmkidCacheInfo *pPMKIDCache,
 		uint32_t numItems,
 		bool update_entire_cache);
+
+/**
+ * sme_get_pmk_info(): A wrapper function to request CSR to save PMK
+ * @hal: Global structure
+ * @session_id: SME session_id
+ * @pmk_cache: pointer to a structure of pmk
+ *
+ * Return: none
+ */
+void sme_get_pmk_info(tHalHandle hal, uint8_t session_id,
+		      tPmkidCacheInfo *pmk_cache);
+
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 QDF_STATUS sme_roam_set_psk_pmk(tHalHandle hHal, uint8_t sessionId,
 		uint8_t *pPSK_PMK, size_t pmk_len);
@@ -1733,7 +1745,8 @@ QDF_STATUS sme_get_nud_debug_stats(tHalHandle hal,
 				   struct get_arp_stats_params
 				   *get_stats_param);
 QDF_STATUS sme_set_nud_debug_stats_cb(tHalHandle hal,
-				      void (*cb)(void *, struct rsp_stats *));
+			void (*cb)(void *, struct rsp_stats *, void *context),
+			void *context);
 
 
 #ifdef WLAN_FEATURE_UDP_RESPONSE_OFFLOAD

@@ -576,7 +576,7 @@ static const struct ccp_freq_chan_map freq_chan_map[] = {
  */
 #define WE_SET_MAX_TX_POWER_5_0   43
 #define WE_SET_PKTLOG                   44
-/* Private ioctl for packet powe save */
+/* Private ioctl for packet power save */
 #define  WE_PPS_PAID_MATCH              45
 #define  WE_PPS_GID_MATCH               46
 #define  WE_PPS_EARLY_TIM_CLEAR         47
@@ -587,7 +587,7 @@ static const struct ccp_freq_chan_map freq_chan_map[] = {
 #define  WE_PPS_GID_NSTS_ZERO           52
 /*
  * <ioctl>
- * rssi_chk - Chek the rssi
+ * rssi_chk - Check the rssi
  *
  * @INPUT: One argument as input
  *
@@ -630,44 +630,6 @@ static const struct ccp_freq_chan_map freq_chan_map[] = {
 #define WE_SET_QPOWER_MAX_TX_BEFORE_WAKE          57
 #define WE_SET_QPOWER_SPEC_PSPOLL_WAKE_INTERVAL   58
 #define WE_SET_QPOWER_SPEC_MAX_SPEC_NODATA_PSPOLL 59
-/*
- * <ioctl>
- * burst_enable - Enables or disables the burst feature
- *
- * @INPUT: 0-Disable, 1-Enable
- *
- * @OUTPUT: None
- *
- * This IOCTL enables or disables the burst feature.
- *
- * @E.g: iwpriv wlan0 burst_enable 0
- *
- * Supported Feature: STA
- *
- * Usage: Internal/External
- *
- * </ioctl>
- */
-#define WE_SET_BURST_ENABLE             60
-/*
- * <ioctl>
- * burst_dur - Enables or disables the burst feature
- *
- * @INPUT: int 1…..int 8191 in microseconds
- *
- * @OUTPUT: None
- *
- * This IOCTL sets the burst duration.
- *
- * @E.g: iwpriv wlan0 burst_dur <value>
- *
- * Supported Feature: STA
- *
- * Usage: Internal/External
- *
- * </ioctl>
- */
-#define WE_SET_BURST_DUR                61
 /* GTX Commands */
 /*
  * <ioctl>
@@ -1496,47 +1458,6 @@ static const struct ccp_freq_chan_map freq_chan_map[] = {
 #define WE_GET_QPOWER_MAX_TX_BEFORE_WAKE          42
 #define WE_GET_QPOWER_SPEC_PSPOLL_WAKE_INTERVAL   43
 #define WE_GET_QPOWER_SPEC_MAX_SPEC_NODATA_PSPOLL 44
-/*
- * <ioctl>
- * get_burst_en - Enables or disables the burst feature
- *
- * @INPUT: None
- *
- * @OUTPUT: Enable/disable of burst feature
- *  wlan0     get_burst_en:1
- *
- * This IOCTL enables or disables the burst feature
- *
- * @E.g: iwpriv wlan0 get_burst_en
- *
- * Supported Feature:STA
- *
- * Usage: Internal/External
- *
- * </ioctl>
- */
-#define WE_GET_BURST_ENABLE             45
-/*
- * <ioctl>
- * get_burst_dur - Get the burst duration
- *
- * @INPUT: None
- *
- * @OUTPUT: Duration in microseconds
- *  wlan0     get_burst_dur:8160
- *
- * This IOCTL gets the burst duration
- * This command is useful if setting burst enable
- *
- * @E.g: iwpriv wlan0 get_burst_dur
- *
- * Supported Feature: STA
- *
- * Usage: Internal/External
- *
- * </ioctl>
- */
-#define WE_GET_BURST_DUR                46
 /* GTX Commands */
 /*
  * <ioctl>
@@ -7956,29 +7877,6 @@ static int __iw_setint_getnone(struct net_device *dev,
 		break;
 	}
 
-	case WE_SET_BURST_ENABLE:
-	{
-		hdd_debug("SET Burst enable val %d", set_value);
-		if ((set_value == 0) || (set_value == 1)) {
-			ret = wma_cli_set_command(pAdapter->sessionId,
-						  WMI_PDEV_PARAM_BURST_ENABLE,
-						  set_value, PDEV_CMD);
-		} else
-			ret = -EINVAL;
-		break;
-	}
-	case WE_SET_BURST_DUR:
-	{
-		hdd_debug("SET Burst duration val %d", set_value);
-		if ((set_value > 0) && (set_value <= 102400))
-			ret = wma_cli_set_command(pAdapter->sessionId,
-						  WMI_PDEV_PARAM_BURST_DUR,
-						  set_value,  PDEV_CMD);
-		else
-			ret = -EINVAL;
-		break;
-	}
-
 	case WE_SET_TX_CHAINMASK:
 	{
 		hdd_debug("WMI_PDEV_PARAM_TX_CHAIN_MASK val %d",
@@ -9042,23 +8940,6 @@ static int __iw_setnone_getint(struct net_device *dev,
 		break;
 	}
 
-	case WE_GET_BURST_ENABLE:
-	{
-		hdd_debug("GET Burst enable value");
-		*value = wma_cli_get_command(pAdapter->sessionId,
-					     WMI_PDEV_PARAM_BURST_ENABLE,
-					     PDEV_CMD);
-		break;
-	}
-	case WE_GET_BURST_DUR:
-	{
-		hdd_debug("GET Burst Duration value");
-		*value = wma_cli_get_command(pAdapter->sessionId,
-					     WMI_PDEV_PARAM_BURST_DUR,
-					     PDEV_CMD);
-		break;
-	}
-
 	case WE_GET_TX_CHAINMASK:
 	{
 		hdd_debug("GET WMI_PDEV_PARAM_TX_CHAIN_MASK");
@@ -10102,10 +9983,10 @@ static int iw_get_policy_manager_ut_ops(hdd_context_t *hdd_ctx,
 	{
 		hdd_debug("<iwpriv wlan0 pm_clist> is called");
 		if ((apps_args[0] < 0) || (apps_args[1] < 0) ||
-			(apps_args[2] < 0) || (apps_args[3] < 0) ||
-			(apps_args[4] < 0) || (apps_args[5] < 0) ||
-			(apps_args[6] < 0) || (apps_args[7] < 0)) {
-			hdd_err("Invalid input params recieved for the IOCTL");
+		    (apps_args[2] < 0) || (apps_args[3] < 0) ||
+		    (apps_args[4] < 0) || (apps_args[5] < 0) ||
+		    (apps_args[6] < 0) || (apps_args[7] < 0)) {
+			hdd_err("Invalid input params received for the IOCTL");
 			return 0;
 		}
 		cds_incr_connection_count_utfw(apps_args[0],
@@ -10119,7 +10000,7 @@ static int iw_get_policy_manager_ut_ops(hdd_context_t *hdd_ctx,
 	{
 		hdd_debug("<iwpriv wlan0 pm_dlist> is called");
 		if ((apps_args[0] < 0) || (apps_args[1] < 0)) {
-			hdd_err("Invalid input params recieved for the IOCTL");
+			hdd_err("Invalid input params received for the IOCTL");
 			return 0;
 		}
 
@@ -10132,10 +10013,10 @@ static int iw_get_policy_manager_ut_ops(hdd_context_t *hdd_ctx,
 	{
 		hdd_debug("<iwpriv wlan0 pm_ulist> is called");
 		if ((apps_args[0] < 0) || (apps_args[1] < 0) ||
-			(apps_args[2] < 0) || (apps_args[3] < 0) ||
-			(apps_args[4] < 0) || (apps_args[5] < 0) ||
-			(apps_args[6] < 0) || (apps_args[7] < 0)) {
-			hdd_err("Invalid input params recieved for the IOCTL");
+		    (apps_args[2] < 0) || (apps_args[3] < 0) ||
+		    (apps_args[4] < 0) || (apps_args[5] < 0) ||
+		    (apps_args[6] < 0) || (apps_args[7] < 0)) {
+			hdd_err("Invalid input params received for the IOCTL");
 			return 0;
 		}
 		cds_update_connection_info_utfw(apps_args[0],
@@ -10149,7 +10030,7 @@ static int iw_get_policy_manager_ut_ops(hdd_context_t *hdd_ctx,
 	{
 		hdd_debug("<iwpriv wlan0 pm_dbs> is called");
 		if (apps_args[0] < 0) {
-			hdd_err("Invalid input param recieved for the IOCTL");
+			hdd_err("Invalid input param received for the IOCTL");
 			return 0;
 		}
 
@@ -10175,7 +10056,7 @@ static int iw_get_policy_manager_ut_ops(hdd_context_t *hdd_ctx,
 		hdd_debug("<iwpriv wlan0 pm_pcl> is called");
 
 		if (apps_args[0] < 0) {
-			hdd_err("Invalid input param recieved for the IOCTL");
+			hdd_err("Invalid input param received for the IOCTL");
 			return 0;
 		}
 		cds_get_pcl(apps_args[0],
@@ -10222,7 +10103,7 @@ static int iw_get_policy_manager_ut_ops(hdd_context_t *hdd_ctx,
 
 		hdd_debug("<iwpriv wlan0 pm_query_action> is called");
 		if (apps_args[0] < 0) {
-			hdd_err("Invalid input params recieved for the IOCTL");
+			hdd_err("Invalid input params received for the IOCTL");
 			return 0;
 		}
 
@@ -10239,8 +10120,8 @@ static int iw_get_policy_manager_ut_ops(hdd_context_t *hdd_ctx,
 
 		hdd_debug("<iwpriv wlan0 pm_query_allow> is called");
 		if ((apps_args[0] < 0) || (apps_args[1] < 0) ||
-			(apps_args[2] < 0)) {
-			hdd_err("Invalid input params recieved for the IOCTL");
+		    (apps_args[2] < 0)) {
+			hdd_err("Invalid input params received for the IOCTL");
 			return 0;
 		}
 		allow = cds_allow_concurrency(
@@ -12741,16 +12622,6 @@ static const struct iw_priv_args we_private_args[] = {
 	 0,
 	 "amsdu"},
 
-	{WE_SET_BURST_ENABLE,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 0,
-	 "burst_enable"},
-
-	{WE_SET_BURST_DUR,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 0,
-	 "burst_dur"},
-
 	{WE_SET_TXPOW_2G,
 	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
 	 0,
@@ -13092,16 +12963,6 @@ static const struct iw_priv_args we_private_args[] = {
 	 0,
 	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
 	 "get_amsdu"},
-
-	{WE_GET_BURST_ENABLE,
-	 0,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 "get_burst_en"},
-
-	{WE_GET_BURST_DUR,
-	 0,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	 "get_burst_dur"},
 
 	{WE_GET_TXPOW_2G,
 	 0,

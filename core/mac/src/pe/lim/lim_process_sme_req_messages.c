@@ -2602,7 +2602,7 @@ static void __lim_process_sme_disassoc_cnf(tpAniSirGlobal pMac, uint32_t *pMsgBu
 	if (psessionEntry == NULL) {
 		pe_err("session does not exist for given bssId");
 		status = lim_prepare_disconnect_done_ind(pMac, &msg,
-						CSR_SESSION_ID_INVALID,
+						smeDisassocCnf.sme_session_id,
 						eSIR_SME_INVALID_SESSION,
 						NULL);
 		if (QDF_IS_STATUS_SUCCESS(status))
@@ -2614,7 +2614,8 @@ static void __lim_process_sme_disassoc_cnf(tpAniSirGlobal pMac, uint32_t *pMsgBu
 
 	if (!lim_is_sme_disassoc_cnf_valid(pMac, &smeDisassocCnf, psessionEntry)) {
 		pe_err("received invalid SME_DISASSOC_CNF message");
-		status = lim_prepare_disconnect_done_ind(pMac, &msg, sessionId,
+		status = lim_prepare_disconnect_done_ind(pMac, &msg,
+						psessionEntry->smeSessionId,
 						eSIR_SME_INVALID_PARAMETERS,
 						&smeDisassocCnf.bssid.bytes[0]);
 		if (QDF_IS_STATUS_SUCCESS(status))
@@ -2645,10 +2646,10 @@ static void __lim_process_sme_disassoc_cnf(tpAniSirGlobal pMac, uint32_t *pMsgBu
 			lim_print_sme_state(pMac, LOGE,
 					    psessionEntry->limSmeState);
 			status = lim_prepare_disconnect_done_ind(pMac, &msg,
-							sessionId,
-							eSIR_SME_INVALID_STATE,
-							&smeDisassocCnf.bssid.
-							bytes[0]);
+						psessionEntry->smeSessionId,
+						eSIR_SME_INVALID_STATE,
+						&smeDisassocCnf.bssid.
+						bytes[0]);
 			if (QDF_IS_STATUS_SUCCESS(status))
 				lim_send_sme_disassoc_deauth_ntf(pMac,
 							QDF_STATUS_SUCCESS,
@@ -2665,7 +2666,8 @@ static void __lim_process_sme_disassoc_cnf(tpAniSirGlobal pMac, uint32_t *pMsgBu
 	default:                /* eLIM_UNKNOWN_ROLE */
 		pe_err("received unexpected SME_DISASSOC_CNF role %d",
 			GET_LIM_SYSTEM_ROLE(psessionEntry));
-		status = lim_prepare_disconnect_done_ind(pMac, &msg, sessionId,
+		status = lim_prepare_disconnect_done_ind(pMac, &msg,
+						psessionEntry->smeSessionId,
 						eSIR_SME_INVALID_STATE,
 						&smeDisassocCnf.bssid.bytes[0]);
 		if (QDF_IS_STATUS_SUCCESS(status))
@@ -2686,7 +2688,7 @@ static void __lim_process_sme_disassoc_cnf(tpAniSirGlobal pMac, uint32_t *pMsgBu
 				MAC_ADDRESS_STR,
 				MAC_ADDR_ARRAY(smeDisassocCnf.peer_macaddr.bytes));
 			status = lim_prepare_disconnect_done_ind(pMac, &msg,
-						sessionId,
+						psessionEntry->smeSessionId,
 						eSIR_SME_INVALID_PARAMETERS,
 						&smeDisassocCnf.bssid.bytes[0]);
 			if (QDF_IS_STATUS_SUCCESS(status))
@@ -2704,9 +2706,9 @@ static void __lim_process_sme_disassoc_cnf(tpAniSirGlobal pMac, uint32_t *pMsgBu
 				MAC_ADDR_ARRAY(smeDisassocCnf.peer_macaddr.bytes),
 				pStaDs->mlmStaContext.mlmState);
 			status = lim_prepare_disconnect_done_ind(pMac, &msg,
-							CSR_SESSION_ID_INVALID,
-							eSIR_SME_SUCCESS,
-							NULL);
+						psessionEntry->smeSessionId,
+						eSIR_SME_SUCCESS,
+						NULL);
 			if (QDF_IS_STATUS_SUCCESS(status))
 				lim_send_sme_disassoc_deauth_ntf(pMac,
 							QDF_STATUS_SUCCESS,
@@ -4874,9 +4876,9 @@ static void lim_set_pdev_ht_ie(tpAniSirGlobal mac_ctx, uint8_t pdev_id,
 				ie_params->ie_len);
 
 		if (NSS_1x1_MODE == i) {
-			p_ie = lim_get_ie_ptr_new(mac_ctx, ie_params->ie_ptr,
-					ie_params->ie_len,
-					DOT11F_EID_HTCAPS, ONE_BYTE);
+			p_ie = wlan_cfg_get_ie_ptr(ie_params->ie_ptr,
+						   ie_params->ie_len,
+						   DOT11F_EID_HTCAPS, ONE_BYTE);
 			if (NULL == p_ie) {
 				qdf_mem_free(ie_params->ie_ptr);
 				qdf_mem_free(ie_params);
@@ -4948,9 +4950,10 @@ static void lim_set_pdev_vht_ie(tpAniSirGlobal mac_ctx, uint8_t pdev_id,
 				ie_params->ie_len);
 
 		if (NSS_1x1_MODE == i) {
-			p_ie = lim_get_ie_ptr_new(mac_ctx, ie_params->ie_ptr,
-					ie_params->ie_len,
-					DOT11F_EID_VHTCAPS, ONE_BYTE);
+			p_ie = wlan_cfg_get_ie_ptr(ie_params->ie_ptr,
+						   ie_params->ie_len,
+						   DOT11F_EID_VHTCAPS,
+						   ONE_BYTE);
 			if (NULL == p_ie) {
 				qdf_mem_free(ie_params->ie_ptr);
 				qdf_mem_free(ie_params);

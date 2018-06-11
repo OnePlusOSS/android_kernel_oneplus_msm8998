@@ -1669,6 +1669,13 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 		pHostapdAdapter->sessionId =
 			pSapEvent->sapevt.sapStartBssCompleteEvent.sessionId;
 
+		pHostapdAdapter->sessionCtx.ap.sapConfig.channel =
+			pSapEvent->sapevt.sapStartBssCompleteEvent.
+			operatingChannel;
+
+		pHostapdAdapter->sessionCtx.ap.sapConfig.ch_params.ch_width =
+			pSapEvent->sapevt.sapStartBssCompleteEvent.ch_width;
+
 		pHostapdState->qdf_status =
 			pSapEvent->sapevt.sapStartBssCompleteEvent.status;
 
@@ -1805,21 +1812,6 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 			}
 		}
 
-
-		if ((CHANNEL_STATE_DFS ==
-		     cds_get_channel_state(pHddApCtx->operatingChannel))
-		    && (pHddCtx->config->IsSapDfsChSifsBurstEnabled == 0)) {
-
-			hdd_debug("Set SIFS Burst disable for DFS channel %d",
-			       pHddApCtx->operatingChannel);
-
-			if (wma_cli_set_command(pHostapdAdapter->sessionId,
-						WMI_PDEV_PARAM_BURST_ENABLE,
-						0, PDEV_CMD)) {
-				hdd_err("Failed to Set SIFS Burst channel: %d",
-				       pHddApCtx->operatingChannel);
-			}
-		}
 		/* Fill the params for sending IWEVCUSTOM Event
 		 * with SOFTAP.enabled
 		 */
@@ -6484,7 +6476,7 @@ QDF_STATUS hdd_init_ap_mode(hdd_adapter_t *pAdapter, bool reinit)
 
 	ret = wma_cli_set_command(pAdapter->sessionId,
 				  WMI_PDEV_PARAM_BURST_ENABLE,
-				  pHddCtx->config->enableSifsBurst,
+				  HDD_ENABLE_SIFS_BURST_DEFAULT,
 				  PDEV_CMD);
 
 	if (0 != ret)
@@ -8417,6 +8409,12 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 	if (!cds_is_sub_20_mhz_enabled())
 		wlan_hdd_set_sap_hwmode(pHostapdAdapter);
 
+	if (IS_24G_CH(pConfig->channel) &&
+	    pHddCtx->config->enableVhtFor24GHzBand &&
+	    (pConfig->SapHw_mode == eCSR_DOT11_MODE_11n ||
+	    pConfig->SapHw_mode == eCSR_DOT11_MODE_11n_ONLY))
+		pConfig->SapHw_mode = eCSR_DOT11_MODE_11ac;
+
 	if (((pHostapdAdapter->device_mode == QDF_SAP_MODE) &&
 	     (pHddCtx->config->sap_force_11n_for_11ac)) ||
 	     ((pHostapdAdapter->device_mode == QDF_P2P_GO_MODE) &&
@@ -8461,7 +8459,9 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 		pConfig->channel = cds_mode_specific_get_channel(CDS_STA_MODE);
 		hdd_debug("DBS is disabled, force SCC is enabled and STA is active, override the SAP channel to %d",
 				pConfig->channel);
-	} else if (wlan_hdd_setup_driver_overrides(pHostapdAdapter)) {
+	}
+
+	if (wlan_hdd_setup_driver_overrides(pHostapdAdapter)) {
 		ret = -EINVAL;
 		goto error;
 	}

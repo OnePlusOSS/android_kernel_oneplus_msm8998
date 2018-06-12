@@ -2810,6 +2810,7 @@ QDF_STATUS sme_process_msg(tHalHandle hHal, cds_msg_t *pMsg)
 				pMac->peer_rssi = peer_stats[0].rssi;
 				pMac->peer_txrate = peer_stats[0].tx_rate;
 				pMac->peer_rxrate = peer_stats[0].rx_rate;
+				pMac->rx_mc_bc_cnt = peer_stats[0].rx_mc_bc_cnt;
 			}
 		}
 		qdf_mem_free(pMsg->bodyptr);

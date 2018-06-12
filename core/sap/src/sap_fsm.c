@@ -3111,6 +3111,8 @@ QDF_STATUS sap_signal_hdd_event(ptSapContext sap_ctx,
 			reassoc_complete->ht_caps = csr_roaminfo->ht_caps;
 		if (csr_roaminfo->vht_caps.present)
 			reassoc_complete->vht_caps = csr_roaminfo->vht_caps;
+		reassoc_complete->capability_info =
+						csr_roaminfo->capability_info;
 
 		break;
 
@@ -3138,6 +3140,7 @@ QDF_STATUS sap_signal_hdd_event(ptSapContext sap_ctx,
 		disassoc_comp->rssi = csr_roaminfo->rssi;
 		disassoc_comp->rx_rate = csr_roaminfo->rx_rate;
 		disassoc_comp->tx_rate = csr_roaminfo->tx_rate;
+		disassoc_comp->rx_mc_bc_cnt = mac_ctx->rx_mc_bc_cnt;
 		disassoc_comp->reason_code = csr_roaminfo->disassoc_reason;
 		break;
 

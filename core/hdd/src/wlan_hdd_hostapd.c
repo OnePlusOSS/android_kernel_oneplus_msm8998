@@ -1454,6 +1454,8 @@ static void hdd_fill_station_info(hdd_adapter_t *pHostapdAdapter,
 		return;
 	}
 
+	qdf_mem_copy(&stainfo->capability, &event->capability_info,
+		     sizeof(uint16_t));
 	stainfo->freq = cds_chan_to_freq(event->chan_info.chan_id);
 	stainfo->dot11_mode =
 		hdd_convert_dot11mode_from_phymode(event->chan_info.info);
@@ -2270,6 +2272,7 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 		stainfo->rssi = disassoc_comp->rssi;
 		stainfo->tx_rate = disassoc_comp->tx_rate;
 		stainfo->rx_rate = disassoc_comp->rx_rate;
+		stainfo->rx_mc_bc_cnt = disassoc_comp->rx_mc_bc_cnt;
 		stainfo->reason_code = disassoc_comp->reason_code;
 
 		qdf_status = qdf_event_set(&pHostapdState->qdf_sta_disassoc_event);

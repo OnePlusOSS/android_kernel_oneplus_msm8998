@@ -779,6 +779,7 @@ lim_fill_assoc_ind_params(tpAniSirGlobal mac_ctx,
 		sme_assoc_ind->HTCaps = assoc_ind->HTCaps;
 	if (assoc_ind->VHTCaps.present)
 		sme_assoc_ind->VHTCaps = assoc_ind->VHTCaps;
+	sme_assoc_ind->capability_info = assoc_ind->capabilityInfo;
 
 }
 

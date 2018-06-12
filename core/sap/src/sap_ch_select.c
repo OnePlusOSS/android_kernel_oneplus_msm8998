@@ -1724,8 +1724,11 @@ static void sap_compute_spect_weight(tSapChSelSpectInfo *pSpectInfoParams,
 		 */
 
 		rssi = (int8_t) pSpectCh->rssiAgr;
-		if (ch_in_pcl(sap_ctx, chn_num))
+		if (ch_in_pcl(sap_ctx, pSpectCh->chNum))
 			rssi -= PCL_RSSI_DISCOUNT;
+
+		if (rssi < SOFTAP_MIN_RSSI)
+			rssi = SOFTAP_MIN_RSSI;
 
 		if (pSpectCh->weight == SAP_ACS_WEIGHT_MAX)
 			goto debug_info;
@@ -1743,9 +1746,9 @@ static void sap_compute_spect_weight(tSapChSelSpectInfo *pSpectInfoParams,
 debug_info:
 		/* ------ Debug Info ------ */
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  "In %s, Chan=%d Weight= %d rssiAgr=%d bssCount=%d",
+			  "In %s, Chan=%d Weight= %d rssiAgr=%d, rssi_pcl_discount: %d, bssCount=%d",
 			  __func__, pSpectCh->chNum, pSpectCh->weight,
-			  pSpectCh->rssiAgr, pSpectCh->bssCount);
+			  pSpectCh->rssiAgr, rssi, pSpectCh->bssCount);
 		/* ------ Debug Info ------ */
 		pSpectCh++;
 	}

@@ -865,19 +865,6 @@ static inline bool hdd_ipa_is_rt_debugging_enabled(hdd_context_t *hdd_ctx)
 }
 
 /**
- * hdd_ipa_is_clk_scaling_enabled() - Is IPA clock scaling enabled?
- * @hdd_ipa: Global HDD IPA context
- *
- * Return: true if clock scaling is enabled, otherwise false
- */
-static inline bool hdd_ipa_is_clk_scaling_enabled(hdd_context_t *hdd_ctx)
-{
-	return HDD_IPA_IS_CONFIG_ENABLED(hdd_ctx,
-					 HDD_IPA_CLK_SCALING_ENABLE_MASK |
-					 HDD_IPA_RM_ENABLE_MASK);
-}
-
-/**
  * hdd_ipa_is_fw_wdi_actived() - Are FW WDI pipes activated?
  * @hdd_ipa: Global HDD IPA context
  *
@@ -1040,6 +1027,19 @@ static void hdd_ipa_wdi_init_metering(struct hdd_ipa_priv *ipa_ctxt, void *in)
 #endif /* FEATURE_METERING */
 
 #ifdef CONFIG_IPA_WDI_UNIFIED_API
+
+/**
+ * hdd_ipa_is_clk_scaling_enabled() - Is IPA clock scaling enabled?
+ * @hdd_ipa: Global HDD IPA context
+ *
+ * Return: true if clock scaling is enabled, otherwise false
+ */
+static inline bool hdd_ipa_is_clk_scaling_enabled(hdd_context_t *hdd_ctx)
+{
+	return HDD_IPA_IS_CONFIG_ENABLED(hdd_ctx,
+					 HDD_IPA_CLK_SCALING_ENABLE_MASK);
+}
+
 /*
  * TODO: Get WDI version through FW capabilities
  */
@@ -1550,6 +1550,20 @@ int hdd_ipa_uc_smmu_map(bool map, uint32_t num_buf, qdf_mem_info_t *buf_arr)
 			   (struct ipa_wdi_buffer_info *)buf_arr);
 }
 #else /* CONFIG_IPA_WDI_UNIFIED_API */
+
+/**
+ * hdd_ipa_is_clk_scaling_enabled() - Is IPA clock scaling enabled?
+ * @hdd_ipa: Global HDD IPA context
+ *
+ * Return: true if clock scaling is enabled, otherwise false
+ */
+static inline bool hdd_ipa_is_clk_scaling_enabled(hdd_context_t *hdd_ctx)
+{
+	return HDD_IPA_IS_CONFIG_ENABLED(hdd_ctx,
+					 HDD_IPA_CLK_SCALING_ENABLE_MASK |
+					 HDD_IPA_RM_ENABLE_MASK);
+}
+
 static inline void hdd_ipa_wdi_get_wdi_version(struct hdd_ipa_priv *hdd_ipa)
 {
 }

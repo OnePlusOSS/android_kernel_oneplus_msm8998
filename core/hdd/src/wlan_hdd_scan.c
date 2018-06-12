@@ -2363,6 +2363,12 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 			pAdapter->sessionId);
 	}
 	if (request->ie_len) {
+		if (request->ie_len > SIR_MAC_MAX_ADD_IE_LENGTH) {
+			hdd_debug("Invalid ie_len: %zu", request->ie_len);
+			status = -EINVAL;
+			goto free_mem;
+		}
+
 		/* save this for future association (join requires this) */
 		memset(&pScanInfo->scanAddIE, 0, sizeof(pScanInfo->scanAddIE));
 		memcpy(pScanInfo->scanAddIE.addIEdata, request->ie,

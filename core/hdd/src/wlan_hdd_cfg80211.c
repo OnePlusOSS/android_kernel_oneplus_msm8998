@@ -6374,7 +6374,7 @@ static int __wlan_hdd_cfg80211_wifi_logger_start(struct wiphy *wiphy,
 	QDF_STATUS status;
 	hdd_context_t *hdd_ctx = wiphy_priv(wiphy);
 	struct nlattr *tb[QCA_WLAN_VENDOR_ATTR_WIFI_LOGGER_START_MAX + 1];
-	struct sir_wifi_start_log start_log;
+	struct sir_wifi_start_log start_log = { 0 };
 
 	ENTER_DEV(wdev->netdev);
 
@@ -6425,6 +6425,8 @@ static int __wlan_hdd_cfg80211_wifi_logger_start(struct wiphy *wiphy,
 	start_log.is_iwpriv_command = nla_get_u32(
 			tb[QCA_WLAN_VENDOR_ATTR_WIFI_LOGGER_FLAGS]);
 	hdd_debug("is_iwpriv_command =%d", start_log.is_iwpriv_command);
+
+	start_log.user_triggered = 1;
 
 	/* size is buff size which can be set using iwpriv command*/
 	start_log.size = 0;

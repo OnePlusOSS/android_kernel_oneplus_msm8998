@@ -8101,10 +8101,7 @@ sap_restart:
 	if (!QDF_IS_STATUS_SUCCESS(status))
 		cds_err("wait for event failed, still continue with channel switch");
 
-	if (((hdd_ctx->config->WlanMccToSccSwitchMode ==
-		QDF_MCC_TO_SCC_SWITCH_FORCE_WITHOUT_DISCONNECTION) ||
-		(hdd_ctx->config->WlanMccToSccSwitchMode ==
-		QDF_MCC_TO_SCC_SWITCH_WITH_FAVORITE_CHANNEL)) &&
+	if (cds_is_force_scc() &&
 		(cds_ctx->sap_restart_chan_switch_cb)) {
 		cds_debug("SAP chan change without restart");
 		cds_ctx->sap_restart_chan_switch_cb(ap_adapter,
@@ -10251,7 +10248,9 @@ bool cds_is_force_scc(void)
 	return ((hdd_ctx->config->WlanMccToSccSwitchMode ==
 		QDF_MCC_TO_SCC_SWITCH_FORCE_WITHOUT_DISCONNECTION) ||
 			(hdd_ctx->config->WlanMccToSccSwitchMode ==
-		QDF_MCC_TO_SCC_SWITCH_WITH_FAVORITE_CHANNEL));
+		QDF_MCC_TO_SCC_SWITCH_WITH_FAVORITE_CHANNEL) ||
+			(hdd_ctx->config->WlanMccToSccSwitchMode ==
+		QDF_MCC_TO_SCC_WITH_PREFERRED_BAND));
 }
 /**
  * cds_get_valid_chan_weights() - Get the weightage for all

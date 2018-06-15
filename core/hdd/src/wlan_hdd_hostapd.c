@@ -670,6 +670,10 @@ static void hdd_hostapd_inactivity_timer_cb(void *context)
 		return;
 	}
 #endif /* DISABLE_CONCURRENCY_AUTOSAVE */
+	if (event_len > sizeof(we_custom_event)) {
+		hdd_err("Event len exceeds event buffer size: %d", event_len);
+		return;
+	}
 	memset(&we_custom_event, '\0', sizeof(we_custom_event));
 	memcpy(&we_custom_event, autoShutEvent, event_len);
 

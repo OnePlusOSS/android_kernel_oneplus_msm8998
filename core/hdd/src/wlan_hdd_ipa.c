@@ -1521,7 +1521,7 @@ static void hdd_ipa_pm_flush(struct work_struct *work)
 				hdd_softap_hard_start_xmit(skb,
 					  pm_tx_cb->adapter->dev);
 			else
-				ipa_free_skb(pm_tx_cb->ipa_tx_desc);
+				dev_kfree_skb_any(skb);
 		} else {
 			hdd_ipa_send_pkt_to_tl(pm_tx_cb->iface_context,
 				       pm_tx_cb->ipa_tx_desc);
@@ -2857,7 +2857,7 @@ static void hdd_ipa_pm_flush(struct work_struct *work)
 				hdd_softap_hard_start_xmit(skb,
 					  pm_tx_cb->adapter->dev);
 			else
-				ipa_free_skb(pm_tx_cb->ipa_tx_desc);
+				dev_kfree_skb_any(skb);
 		} else {
 			hdd_ipa_send_pkt_to_tl(pm_tx_cb->iface_context,
 				       pm_tx_cb->ipa_tx_desc);
@@ -7447,8 +7447,12 @@ static void __hdd_ipa_flush(hdd_context_t *hdd_ctx)
 		qdf_spin_unlock_bh(&hdd_ipa->pm_lock);
 
 		pm_tx_cb = (struct hdd_ipa_pm_tx_cb *)skb->cb;
-		if (pm_tx_cb->ipa_tx_desc)
-			ipa_free_skb(pm_tx_cb->ipa_tx_desc);
+		if (pm_tx_cb->exception) {
+			dev_kfree_skb_any(skb);
+		} else {
+			if (pm_tx_cb->ipa_tx_desc)
+				ipa_free_skb(pm_tx_cb->ipa_tx_desc);
+		}
 
 		qdf_spin_lock_bh(&hdd_ipa->pm_lock);
 	}

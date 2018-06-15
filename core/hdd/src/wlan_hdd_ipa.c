@@ -2750,15 +2750,6 @@ static int hdd_ipa_wdi_setup_rm(struct hdd_ipa_priv *hdd_ipa)
 		goto timer_init_failed;
 	}
 
-	/* Set the lowest bandwidth to start with */
-	ret = hdd_ipa_set_perf_level(hdd_ipa->hdd_ctx, 0, 0);
-
-	if (ret) {
-		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,
-			    "Set perf level failed: %d", ret);
-		goto set_perf_failed;
-	}
-
 	qdf_wake_lock_create(&hdd_ipa->wake_lock, "wlan_ipa");
 	INIT_DELAYED_WORK(&hdd_ipa->wake_lock_work,
 			  hdd_ipa_wake_lock_timer_func);
@@ -2768,9 +2759,6 @@ static int hdd_ipa_wdi_setup_rm(struct hdd_ipa_priv *hdd_ipa)
 	atomic_set(&hdd_ipa->tx_ref_cnt, 0);
 
 	return ret;
-
-set_perf_failed:
-	ipa_rm_inactivity_timer_destroy(IPA_RM_RESOURCE_WLAN_PROD);
 
 timer_init_failed:
 	ipa_rm_delete_resource(IPA_RM_RESOURCE_WLAN_CONS);
@@ -2900,6 +2888,47 @@ int hdd_ipa_uc_smmu_map(bool map, uint32_t num_buf, qdf_mem_info_t *buf_arr)
 			   (struct ipa_wdi_buffer_info *)buf_arr);
 }
 #endif /* CONFIG_IPA_WDI_UNIFIED_API */
+
+/**
+ * hdd_ipa_init_perf_level() - Initialize IPA performance level
+ * @hdd_cxt: HDD context
+ *
+ * If IPA clock scaling is disabled, initialize perf level to maximum.
+ * Else set the lowest level to start with
+ *
+ * Return: QDF_STATUS
+ */
+static QDF_STATUS hdd_ipa_init_perf_level(hdd_context_t *hdd_ctx)
+{
+	int ret;
+
+	/* Set lowest bandwidth to start with if clk scaling enabled */
+	if (hdd_ipa_is_clk_scaling_enabled(hdd_ctx)) {
+		if (hdd_ipa_set_perf_level(hdd_ctx, 0, 0))
+			return QDF_STATUS_E_FAILURE;
+		else
+			return QDF_STATUS_SUCCESS;
+	}
+
+	hdd_debug("IPA clock scaling is disabled. Set perf level to max %d",
+		  HDD_IPA_MAX_BANDWIDTH);
+
+	ret = hdd_ipa_wdi_rm_set_perf_profile(hdd_ctx->hdd_ipa,
+			IPA_CLIENT_WLAN1_CONS, HDD_IPA_MAX_BANDWIDTH);
+	if (ret) {
+		hdd_err("CONS set perf profile failed: %d", ret);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	ret = hdd_ipa_wdi_rm_set_perf_profile(hdd_ctx->hdd_ipa,
+			IPA_CLIENT_WLAN1_PROD, HDD_IPA_MAX_BANDWIDTH);
+	if (ret) {
+		hdd_err("PROD set perf profile failed: %d", ret);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
 
 /**
  * hdd_ipa_uc_rt_debug_host_fill - fill rt debug buffer
@@ -3985,6 +4014,10 @@ static void hdd_ipa_uc_loaded_handler(struct hdd_ipa_priv *ipa_ctxt)
 		return;
 	}
 
+	if (hdd_ipa_init_perf_level(ipa_ctxt->hdd_ctx) != QDF_STATUS_SUCCESS)
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,
+				"Failed to init perf level");
+
 	/* If already any STA connected, enable IPA/FW PIPEs */
 	if (ipa_ctxt->sap_num_connected_sta) {
 		HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG,
@@ -4769,6 +4802,10 @@ QDF_STATUS hdd_ipa_uc_ol_init(hdd_context_t *hdd_ctx)
 			stat = QDF_STATUS_E_FAILURE;
 			goto fail_return;
 		}
+
+		if (hdd_ipa_init_perf_level(hdd_ctx) != QDF_STATUS_SUCCESS)
+			HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,
+					"Failed to init perf level");
 	} else {
 		hdd_ipa_uc_get_db_paddr(&ipa_ctxt->tx_comp_doorbell_dmaaddr,
 				IPA_CLIENT_WLAN1_CONS);
@@ -7347,26 +7384,6 @@ static QDF_STATUS __hdd_ipa_init(hdd_context_t *hdd_ctx)
 		ret = hdd_ipa_setup_sys_pipe(hdd_ipa);
 		if (ret)
 			goto fail_create_sys_pipe;
-	}
-
-	/* When IPA clock scaling is disabled, initialze maximum clock */
-	if (!hdd_ipa_is_clk_scaling_enabled(hdd_ctx)) {
-		hdd_debug("IPA clock scaling is disabled.");
-		hdd_debug("Set initial CONS/PROD perf: %d",
-				HDD_IPA_MAX_BANDWIDTH);
-		ret = hdd_ipa_wdi_rm_set_perf_profile(hdd_ipa,
-				IPA_CLIENT_WLAN1_CONS, HDD_IPA_MAX_BANDWIDTH);
-		if (ret) {
-			hdd_err("RM CONS set perf profile failed: %d", ret);
-			goto fail_create_sys_pipe;
-		}
-
-		ret = hdd_ipa_wdi_rm_set_perf_profile(hdd_ipa,
-				IPA_CLIENT_WLAN1_PROD, HDD_IPA_MAX_BANDWIDTH);
-		if (ret) {
-			hdd_err("RM PROD set perf profile failed: %d", ret);
-			goto fail_create_sys_pipe;
-		}
 	}
 
 	init_completion(&hdd_ipa->ipa_resource_comp);

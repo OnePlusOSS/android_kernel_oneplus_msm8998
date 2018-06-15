@@ -3118,7 +3118,7 @@ static QDF_STATUS hdd_wlan_get_ibss_peer_info_all(hdd_adapter_t *pAdapter)
 
 /**
  * hdd_wlan_get_rts_threshold() - Get RTS threshold
- * @pAdapter: adapter upon which the request was received
+ * @adapter: adapter upon which the request was received
  * @wrqu: pointer to the ioctl request
  *
  * This function retrieves the current RTS threshold value and stores
@@ -3126,27 +3126,28 @@ static QDF_STATUS hdd_wlan_get_ibss_peer_info_all(hdd_adapter_t *pAdapter)
  *
  * Return: 0 if valid data was returned, non-zero on error
  */
-int hdd_wlan_get_rts_threshold(hdd_adapter_t *pAdapter, union iwreq_data *wrqu)
+int hdd_wlan_get_rts_threshold(hdd_adapter_t *adapter, union iwreq_data *wrqu)
 {
-	tHalHandle hHal = WLAN_HDD_GET_HAL_CTX(pAdapter);
+	tHalHandle hal;
 	uint32_t threshold = 0;
 	hdd_context_t *hdd_ctx;
 	int ret = 0;
 
 	ENTER();
 
-	if (NULL == pAdapter) {
+	if (!adapter) {
 		hdd_err("Adapter is NULL");
 		return -EINVAL;
 	}
+	hal = WLAN_HDD_GET_HAL_CTX(adapter);
 
-	hdd_ctx = WLAN_HDD_GET_CTX(pAdapter);
+	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 	ret = wlan_hdd_validate_context(hdd_ctx);
 	if (0 != ret)
 		return ret;
 
 	if (QDF_STATUS_SUCCESS !=
-	    sme_cfg_get_int(hHal, WNI_CFG_RTS_THRESHOLD, &threshold)) {
+	    sme_cfg_get_int(hal, WNI_CFG_RTS_THRESHOLD, &threshold)) {
 		hdd_err("Failed to get ini parameter, WNI_CFG_RTS_THRESHOLD");
 		return -EIO;
 	}

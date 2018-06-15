@@ -3513,6 +3513,9 @@ bool ol_txrx_is_peer_eligible_for_deletion(ol_txrx_peer_handle peer,
 	for (i = 0; i < MAX_NUM_PEER_ID_PER_PEER; i++) {
 		peer_id = peer->peer_ids[i];
 
+		if (peer_id == HTT_INVALID_PEER)
+			continue;
+
 		if (!pdev->peer_id_to_obj_map[peer_id].peer_ref)
 			continue;
 

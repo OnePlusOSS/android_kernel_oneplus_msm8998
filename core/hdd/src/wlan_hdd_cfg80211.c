@@ -11405,7 +11405,7 @@ static int __wlan_hdd_cfg80211_set_nud_stats(struct wiphy *wiphy,
 		}
 	}
 
-	QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_INFO,
+	QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_DEBUG,
 		  "%s STATS_SET_START Received flag %d!!", __func__,
 		  arp_stats_params.flag);
 

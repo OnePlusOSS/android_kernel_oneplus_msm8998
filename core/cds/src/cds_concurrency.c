@@ -11044,3 +11044,36 @@ void cds_trim_acs_channel_list(tsap_Config_t *sap_cfg)
 			sap_cfg->acs_cfg.ch_list[i] = ch_list[i];
 	}
 }
+
+bool cds_is_sta_sap_scc(uint8_t sap_ch)
+{
+	uint32_t conn_index;
+	cds_context_type *cds_ctx;
+	bool is_scc = false;
+
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return is_scc;
+	}
+
+	if (!cds_mode_specific_connection_count(CDS_STA_MODE, NULL)) {
+		cds_debug("There is no STA+SAP conc");
+		return is_scc;
+	}
+
+	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
+	for (conn_index = 0; conn_index < MAX_NUMBER_OF_CONC_CONNECTIONS;
+		 conn_index++) {
+		if (conc_connection_list[conn_index].in_use &&
+			(conc_connection_list[conn_index].mode == CDS_STA_MODE) &&
+			(sap_ch == conc_connection_list[conn_index].chan)) {
+			is_scc = true;
+			break;
+		}
+	}
+	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
+
+	return is_scc;
+}
+

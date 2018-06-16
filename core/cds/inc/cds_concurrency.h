@@ -1074,4 +1074,14 @@ void cds_trim_acs_channel_list(tsap_Config_t *sap_cfg);
  * Return: true or false
  */
 bool cds_allow_sap_go_concurrency(enum cds_con_mode mode, uint8_t channel);
+
+/**
+ * cds_is_sta_sap_scc() - check whether SAP is doing SCC with
+ * STA
+ * @sap_ch: operating channel of SAP interface
+ * This function checks whether SAP is doing SCC with STA
+ *
+ * Return: true or false
+ */
+bool cds_is_sta_sap_scc(uint8_t sap_ch);
 #endif /* __CDS_CONCURRENCY_H */

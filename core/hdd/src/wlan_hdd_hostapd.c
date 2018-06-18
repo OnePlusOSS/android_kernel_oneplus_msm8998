@@ -8718,6 +8718,8 @@ static int __wlan_hdd_cfg80211_stop_ap(struct wiphy *wiphy,
 	if (0 != ret)
 		return ret;
 
+	cds_flush_sta_ap_intf_work(pHddCtx);
+
 	/*
 	 * If a STA connection is in progress in another adapter, disconnect
 	 * the STA and complete the SAP operation. STA will reconnect

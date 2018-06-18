@@ -5037,11 +5037,7 @@ QDF_STATUS hdd_stop_all_adapters(hdd_context_t *hdd_ctx, bool close_session)
 	ENTER();
 
 	cds_flush_work(&hdd_ctx->sap_pre_cac_work);
-	if (hdd_ctx->sta_ap_intf_check_work_info) {
-		cds_flush_work(&hdd_ctx->sta_ap_intf_check_work);
-		qdf_mem_free(hdd_ctx->sta_ap_intf_check_work_info);
-		hdd_ctx->sta_ap_intf_check_work_info = NULL;
-	}
+	cds_flush_sta_ap_intf_work(hdd_ctx);
 
 	status = hdd_get_front_adapter(hdd_ctx, &adapterNode);
 
@@ -5093,11 +5089,7 @@ QDF_STATUS hdd_reset_all_adapters(hdd_context_t *hdd_ctx)
 	ENTER();
 
 	cds_flush_work(&hdd_ctx->sap_pre_cac_work);
-	if (hdd_ctx->sta_ap_intf_check_work_info) {
-		cds_flush_work(&hdd_ctx->sta_ap_intf_check_work);
-		qdf_mem_free(hdd_ctx->sta_ap_intf_check_work_info);
-		hdd_ctx->sta_ap_intf_check_work_info = NULL;
-	}
+	cds_flush_sta_ap_intf_work(hdd_ctx);
 
 	status = hdd_get_front_adapter(hdd_ctx, &adapterNode);
 

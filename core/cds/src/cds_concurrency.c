@@ -7957,6 +7957,26 @@ static bool cds_is_sap_restart_required_after_sta_disconnect(
 	return true;
 }
 
+void cds_flush_sta_ap_intf_work(hdd_context_t *hdd_ctx)
+{
+	ENTER();
+
+	if (hdd_ctx->sta_ap_intf_check_work_info)
+		cds_flush_work(&hdd_ctx->sta_ap_intf_check_work);
+	/*
+	 * when sta_ap_intf_check_work is flushed above the work could already
+	 * been running which will free the sta_ap_intf_check_work_info memory.
+	 * So sanitize the sta_ap_intf_check_work_info and free the memory
+	 * if not already freed.
+	 */
+	if (hdd_ctx->sta_ap_intf_check_work_info) {
+		qdf_mem_free(hdd_ctx->sta_ap_intf_check_work_info);
+		hdd_ctx->sta_ap_intf_check_work_info = NULL;
+	}
+
+	EXIT();
+}
+
 /**
  * __cds_check_sta_ap_concurrent_ch_intf() - Restart SAP in
  * STA-AP case

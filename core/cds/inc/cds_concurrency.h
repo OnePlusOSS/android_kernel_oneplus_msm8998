@@ -1084,4 +1084,15 @@ bool cds_allow_sap_go_concurrency(enum cds_con_mode mode, uint8_t channel);
  * Return: true or false
  */
 bool cds_is_sta_sap_scc(uint8_t sap_ch);
+
+/**
+ * cds_flush_sta_ap_intf_work - Flush the restart sap work
+ * @hdd_ctx: HDD context pointer
+ *
+ * Flush the restart sap work and also free the memory
+ * if not already freed.
+ *
+ * Restart: None
+ */
+void cds_flush_sta_ap_intf_work(hdd_context_t *hdd_ctx);
 #endif /* __CDS_CONCURRENCY_H */

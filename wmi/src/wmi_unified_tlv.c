@@ -14702,7 +14702,7 @@ extract_roam_scan_stats_res_evt_tlv(wmi_unified_t wmi_handle, void *evt_buf,
 			roam->trigger_value = roam_reason[i].trigger_value;
 		}
 
-		if (chan_info) {
+		if (chan_info && num_channels) {
 			for (j = 0; j < num_channels[i]; j++)
 				roam->scan_freqs[j] = chan_info[chan_idx++];
 		}

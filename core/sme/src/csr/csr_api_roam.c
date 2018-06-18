@@ -15554,7 +15554,7 @@ csr_check_vendor_ap_present(tpAniSirGlobal mac_ctx,
 	uint8_t *oui_ptr;
 	uint8_t *ie_fields = (uint8_t *)bss_desc->ieFields;
 
-	if (action_id > WMI_ACTION_OUI_MAXIMUM_ID) {
+	if (action_id >= WMI_ACTION_OUI_MAXIMUM_ID) {
 		pe_debug("Invalid OUI action ID");
 		return false;
 	}

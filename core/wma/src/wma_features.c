@@ -4745,6 +4745,11 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 	int tlv_ok_status;
 
 	pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+	if (!pdev) {
+		WMA_LOGE("Invalid pdev");
+		return -EINVAL;
+	}
+
 	param_buf = (WMI_WOW_WAKEUP_HOST_EVENTID_param_tlvs *) event;
 	if (!param_buf) {
 		WMA_LOGE("Invalid wow wakeup host event buf");

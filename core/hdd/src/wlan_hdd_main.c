@@ -2797,6 +2797,7 @@ static void hdd_close_cesium_nl_sock(void)
 static int __hdd_set_mac_address(struct net_device *dev, void *addr)
 {
 	hdd_adapter_t *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
+	hdd_adapter_t *adapter_temp;
 	hdd_context_t *hdd_ctx;
 	struct sockaddr *psta_mac_addr = addr;
 	QDF_STATUS qdf_ret_status = QDF_STATUS_SUCCESS;
@@ -2816,9 +2817,12 @@ static int __hdd_set_mac_address(struct net_device *dev, void *addr)
 		return ret;
 
 	qdf_mem_copy(&mac_addr, psta_mac_addr->sa_data, QDF_MAC_ADDR_SIZE);
-
-	if (hdd_get_adapter_by_macaddr(hdd_ctx, mac_addr.bytes)) {
-		hdd_err("adapter exist with same mac address " MAC_ADDRESS_STR,
+	adapter_temp = hdd_get_adapter_by_macaddr(hdd_ctx, mac_addr.bytes);
+	if (adapter_temp) {
+		if (!qdf_str_cmp(adapter_temp->dev->name, dev->name))
+			return 0;
+		hdd_err("%s adapter exist with same address " MAC_ADDRESS_STR,
+			adapter_temp->dev->name,
 			MAC_ADDR_ARRAY(mac_addr.bytes));
 		return -EINVAL;
 	}

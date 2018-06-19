@@ -6271,7 +6271,14 @@ static int __iw_set_essid(struct net_device *dev,
 	}
 #endif /* FEATURE_WLAN_WAPI */
 	/* if previous genIE is not NULL, update AssocIE */
-	if (0 != pWextState->genIE.length) {
+	if (pWextState->genIE.length != 0) {
+		if (pWextState->genIE.length >
+		    (SIR_MAC_MAX_ADD_IE_LENGTH + 2)) {
+			hdd_err("genIE length exceeds the maximum value: %d",
+				pWextState->genIE.length);
+			return -EINVAL;
+		}
+
 		memset(&pWextState->assocAddIE, 0,
 		       sizeof(pWextState->assocAddIE));
 		memcpy(pWextState->assocAddIE.addIEdata,

@@ -607,7 +607,14 @@ static QDF_STATUS htc_issue_packets(HTC_TARGET *target,
 
 			pHtcHdr = (HTC_FRAME_HDR *)
 				qdf_nbuf_get_frag_vaddr(netbuf, 0);
-			AR_DEBUG_ASSERT(pHtcHdr);
+			if (qdf_unlikely(!pHtcHdr)) {
+				AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
+						("%s Invalid pHtcHdr\n",
+						 __func__));
+				AR_DEBUG_ASSERT(pHtcHdr);
+				status = QDF_STATUS_E_FAILURE;
+				break;
+			}
 
 			HTC_WRITE32(pHtcHdr,
 					SM(payloadLen,
@@ -2080,6 +2087,30 @@ void htc_flush_endpoint_tx(HTC_TARGET *target, HTC_ENDPOINT *pEndpoint,
 		}
 	}
 	UNLOCK_HTC_TX(target);
+}
+
+/* flush endpoint TX Lookup queue */
+void htc_flush_endpoint_txlookupQ(HTC_TARGET *target)
+{
+	int i;
+	HTC_PACKET *pPacket;
+	HTC_ENDPOINT *pEndpoint;
+
+	for (i = 0; i < ENDPOINT_MAX; i++) {
+		pEndpoint = &target->endpoint[i];
+
+		if (!pEndpoint && pEndpoint->service_id == 0)
+			continue;
+
+		while (HTC_PACKET_QUEUE_DEPTH(&pEndpoint->TxLookupQueue)) {
+			pPacket = htc_packet_dequeue(&pEndpoint->TxLookupQueue);
+
+			if (pPacket) {
+				pPacket->Status = QDF_STATUS_E_CANCELED;
+				send_packet_completion(target, pPacket);
+			}
+		}
+	}
 }
 
 /* HTC API to flush an endpoint's TX queue*/

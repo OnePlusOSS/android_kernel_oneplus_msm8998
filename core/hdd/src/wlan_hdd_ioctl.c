@@ -3094,7 +3094,26 @@ static int drv_cmd_country(hdd_adapter_t *adapter,
 	char *country_code;
 	int32_t cc_from_db;
 
-	country_code = command + 8;
+	country_code = strnchr(command, strlen(command), ' ');
+	/* no argument after the command*/
+	if (!country_code)
+		return -EINVAL;
+
+	/* no space after the command*/
+	if (SPACE_ASCII_VALUE != *country_code)
+		return -EINVAL;
+
+	country_code++;
+
+	/* removing empty spaces*/
+	while ((SPACE_ASCII_VALUE  == *country_code) &&
+		   ('\0' !=  *country_code))
+		country_code++;
+
+	/* no or less than 2  arguments followed by spaces*/
+	if (*country_code == '\0' || *(country_code + 1) == '\0')
+		return -EINVAL;
+
 	if (!((country_code[0] == 'X' && country_code[1] == 'X') ||
 	    (country_code[0] == '0' && country_code[1] == '0'))) {
 		cc_from_db = cds_get_country_from_alpha2(country_code);

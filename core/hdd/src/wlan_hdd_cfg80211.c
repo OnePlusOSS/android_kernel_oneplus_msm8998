@@ -3725,24 +3725,37 @@ static int32_t hdd_add_tx_bitrate(struct sk_buff *skb,
 	uint32_t bitrate, bitrate_compat;
 
 	nla_attr = nla_nest_start(skb, idx);
-	if (!nla_attr)
+	if (!nla_attr) {
+		hdd_err("nla_nest_start failed");
 		goto fail;
+	}
+
 	/* cfg80211_calculate_bitrate will return 0 for mcs >= 32 */
 	bitrate = cfg80211_calculate_bitrate(&hdd_sta_ctx->
 						cache_conn_info.txrate);
 
 	/* report 16-bit bitrate only if we can */
 	bitrate_compat = bitrate < (1UL << 16) ? bitrate : 0;
-	if (bitrate > 0 &&
-	    nla_put_u32(skb, NL80211_RATE_INFO_BITRATE32, bitrate)) {
-		hdd_err("put fail");
-		goto fail;
+
+	if (bitrate > 0) {
+		if (nla_put_u32(skb, NL80211_RATE_INFO_BITRATE32, bitrate)) {
+			hdd_err("put fail bitrate: %u", bitrate);
+			goto fail;
+		}
+	} else {
+		hdd_err("Invalid bitrate: %u", bitrate);
 	}
-	if (bitrate_compat > 0 &&
-	    nla_put_u16(skb, NL80211_RATE_INFO_BITRATE, bitrate_compat)) {
-		hdd_err("put fail");
-		goto fail;
+
+	if (bitrate_compat > 0) {
+		if (nla_put_u16(skb, NL80211_RATE_INFO_BITRATE,
+				bitrate_compat)) {
+			hdd_err("put fail bitrate_compat: %u", bitrate_compat);
+			goto fail;
+		}
+	} else {
+		hdd_err("Invalid bitrate_compat: %u", bitrate_compat);
 	}
+
 	if (nla_put_u8(skb, NL80211_RATE_INFO_VHT_NSS,
 		       hdd_sta_ctx->cache_conn_info.txrate.nss)) {
 		hdd_err("put fail");
@@ -3768,15 +3781,21 @@ static int32_t hdd_add_sta_info(struct sk_buff *skb,
 	struct nlattr *nla_attr;
 
 	nla_attr = nla_nest_start(skb, idx);
-	if (!nla_attr)
+	if (!nla_attr) {
+		hdd_err("nla_nest_start failed");
 		goto fail;
+	}
+
 	if (nla_put_u8(skb, NL80211_STA_INFO_SIGNAL,
 		       (hdd_sta_ctx->cache_conn_info.signal + 100))) {
 		hdd_err("put fail");
 		goto fail;
 	}
-	if (hdd_add_tx_bitrate(skb, hdd_sta_ctx, NL80211_STA_INFO_TX_BITRATE))
+	if (hdd_add_tx_bitrate(skb, hdd_sta_ctx, NL80211_STA_INFO_TX_BITRATE)) {
+		hdd_err("hdd_add_tx_bitrate failed");
 		goto fail;
+	}
+
 	nla_nest_end(skb, nla_attr);
 	return 0;
 fail:
@@ -3828,8 +3847,11 @@ hdd_add_link_standard_info(struct sk_buff *skb,
 	struct nlattr *nla_attr;
 
 	nla_attr = nla_nest_start(skb, idx);
-	if (!nla_attr)
+	if (!nla_attr) {
+		hdd_err("nla_nest_start failed");
 		goto fail;
+	}
+
 	if (nla_put(skb,
 		    NL80211_ATTR_SSID,
 		    hdd_sta_ctx->cache_conn_info.last_ssid.SSID.length,
@@ -3839,12 +3861,18 @@ hdd_add_link_standard_info(struct sk_buff *skb,
 	}
 	if (nla_put(skb, NL80211_ATTR_MAC, QDF_MAC_ADDR_SIZE,
 		    hdd_sta_ctx->cache_conn_info.bssId.bytes)) {
+		hdd_err("put bssid failed");
 		goto fail;
 	}
-	if (hdd_add_survey_info(skb, hdd_sta_ctx, NL80211_ATTR_SURVEY_INFO))
+	if (hdd_add_survey_info(skb, hdd_sta_ctx, NL80211_ATTR_SURVEY_INFO)) {
+		hdd_err("hdd_add_survey_info failed");
 		goto fail;
-	if (hdd_add_sta_info(skb, hdd_sta_ctx, NL80211_ATTR_STA_INFO))
+	}
+
+	if (hdd_add_sta_info(skb, hdd_sta_ctx, NL80211_ATTR_STA_INFO)) {
+		hdd_err("hdd_add_sta_info failed");
 		goto fail;
+	}
 	nla_nest_end(skb, nla_attr);
 	return 0;
 fail:
@@ -14075,7 +14103,8 @@ void wlan_hdd_cfg80211_deregister_frames(hdd_adapter_t *pAdapter)
 }
 
 #ifdef FEATURE_WLAN_WAPI
-void wlan_hdd_cfg80211_set_key_wapi(hdd_adapter_t *pAdapter, uint8_t key_index,
+static void wlan_hdd_cfg80211_set_key_wapi(struct hdd_adapter_s *pAdapter,
+				    uint8_t key_index,
 				    const uint8_t *mac_addr, const uint8_t *key,
 				    int key_Len)
 {
@@ -18000,6 +18029,7 @@ int wlan_hdd_try_disconnect(hdd_adapter_t *pAdapter)
 	hdd_context_t *hdd_ctx;
 	int status, result = 0;
 	tHalHandle hal;
+	uint32_t wait_time = WLAN_WAIT_TIME_DISCONNECT;
 
 	hdd_ctx = WLAN_HDD_GET_CTX(pAdapter);
 	pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
@@ -18035,6 +18065,9 @@ int wlan_hdd_try_disconnect(hdd_adapter_t *pAdapter)
 	  (eConnectionState_Associated == pHddStaCtx->conn_info.connState) ||
 	  (eConnectionState_Connecting == pHddStaCtx->conn_info.connState) ||
 	  (eConnectionState_IbssConnected == pHddStaCtx->conn_info.connState)) {
+		eConnectionState prev_conn_state;
+
+		prev_conn_state = pHddStaCtx->conn_info.connState;
 		hdd_conn_set_connection_state(pAdapter,
 						eConnectionState_Disconnecting);
 		/* Issue disconnect to CSR */
@@ -18043,13 +18076,25 @@ int wlan_hdd_try_disconnect(hdd_adapter_t *pAdapter)
 		status = sme_roam_disconnect(WLAN_HDD_GET_HAL_CTX(pAdapter),
 				pAdapter->sessionId,
 				eCSR_DISCONNECT_REASON_UNSPECIFIED);
-		/*
-		 * Wait here instead of returning directly, this will block the
-		 * next connect command and allow processing of the scan for
-		 * ssid and the previous connect command in CSR. Else we might
-		 * hit some race conditions leading to SME and HDD out of sync.
-		 */
-		if (QDF_STATUS_CMD_NOT_QUEUED == status) {
+
+		if ((status == QDF_STATUS_CMD_NOT_QUEUED) &&
+		    prev_conn_state != eConnectionState_Connecting) {
+			hdd_debug("Already disconnect in progress");
+			result = 0;
+			/*
+			 * Wait here instead of returning directly. This will
+			 * block the connect command and allow processing
+			 * of the disconnect in SME. As disconnect is already
+			 * in progress, wait here for 1 sec instead of 5 sec.
+			 */
+			wait_time = WLAN_WAIT_DISCONNECT_ALREADY_IN_PROGRESS;
+		} else if (status == QDF_STATUS_CMD_NOT_QUEUED) {
+			/*
+			 * Wait here instead of returning directly, this will
+			 * block the connect command and allow processing
+			 * of the scan for ssid and the previous connect command
+			 * in CSR.
+			 */
 			hdd_debug("Already disconnected or connect was in sme/roam pending list and removed by disconnect");
 		} else if (0 != status) {
 			hdd_err("sme_roam_disconnect failure, status: %d",
@@ -18059,9 +18104,8 @@ int wlan_hdd_try_disconnect(hdd_adapter_t *pAdapter)
 			goto disconnected;
 		}
 
-		rc = wait_for_completion_timeout(
-			&pAdapter->disconnect_comp_var,
-			msecs_to_jiffies(WLAN_WAIT_TIME_DISCONNECT));
+		rc = wait_for_completion_timeout(&pAdapter->disconnect_comp_var,
+						 msecs_to_jiffies(wait_time));
 		if (!rc && (QDF_STATUS_CMD_NOT_QUEUED != status)) {
 			hdd_err("Sme disconnect event timed out session Id: %d staDebugState: %d",
 				pAdapter->sessionId, pHddStaCtx->staDebugState);
@@ -18070,7 +18114,7 @@ int wlan_hdd_try_disconnect(hdd_adapter_t *pAdapter)
 	} else if (eConnectionState_Disconnecting ==
 				pHddStaCtx->conn_info.connState) {
 		rc = wait_for_completion_timeout(&pAdapter->disconnect_comp_var,
-				msecs_to_jiffies(WLAN_WAIT_TIME_DISCONNECT));
+						 msecs_to_jiffies(wait_time));
 		if (!rc) {
 			hdd_err("Disconnect event timed out session Id: %d staDebugState: %d",
 				pAdapter->sessionId, pHddStaCtx->staDebugState);

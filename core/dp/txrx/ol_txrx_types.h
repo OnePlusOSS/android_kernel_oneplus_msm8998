@@ -203,6 +203,7 @@ struct ol_tx_desc_t {
 #endif
 	void *tso_desc;
 	void *tso_num_desc;
+	bool notify_tx_comp;
 };
 
 typedef TAILQ_HEAD(some_struct_name, ol_tx_desc_t) ol_tx_desc_list;
@@ -1058,6 +1059,9 @@ struct ol_txrx_vdev_t {
 	ol_txrx_rx_fp rx; /* receive function used by this vdev */
 	ol_txrx_stats_rx_fp stats_rx; /* receive function used by this vdev */
 
+	/* completion function used by this vdev*/
+	ol_txrx_completion_fp tx_comp;
+
 	struct {
 		/*
 		 * If the vdev object couldn't be deleted immediately because
@@ -1339,8 +1343,7 @@ struct ol_txrx_peer_t {
 	u_int16_t tx_pause_flag;
 #endif
 	qdf_time_t last_assoc_rcvd;
-	qdf_time_t last_disassoc_rcvd;
-	qdf_time_t last_deauth_rcvd;
+	qdf_time_t last_disassoc_deauth_rcvd;
 	qdf_atomic_t fw_create_pending;
 	qdf_timer_t peer_unmap_timer;
 };

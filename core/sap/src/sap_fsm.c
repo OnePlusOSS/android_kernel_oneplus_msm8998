@@ -2485,6 +2485,7 @@ QDF_STATUS sap_goto_channel_sel(ptSapContext sap_context,
 #endif
 		wma_get_scan_id(&scan_req_id);
 		scan_request.scan_id = scan_req_id;
+		scan_request.scan_requestor_id = ACS_SCAN_REQUESTOR_ID;
 		/* Set requestType to Full scan */
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
 			  FL("calling sme_scan_request"));

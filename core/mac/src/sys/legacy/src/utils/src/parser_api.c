@@ -3205,8 +3205,7 @@ sir_convert_assoc_resp_frame2_struct(tpAniSirGlobal pMac,
 		for (cnt = 0; cnt < ar->num_WMMTSPEC; cnt++) {
 			qdf_mem_copy(&pAssocRsp->TSPECInfo[cnt],
 					&ar->WMMTSPEC[cnt],
-					(sizeof(tDot11fIEWMMTSPEC) *
-					 ar->num_WMMTSPEC));
+					sizeof(tDot11fIEWMMTSPEC));
 		}
 		pAssocRsp->tspecPresent = true;
 	}
@@ -5943,8 +5942,10 @@ tSirRetStatus populate_dot11f_wfatpc(tpAniSirGlobal pMac,
 }
 
 tSirRetStatus populate_dot11f_beacon_report(tpAniSirGlobal pMac,
-					    tDot11fIEMeasurementReport *pDot11f,
-					    tSirMacBeaconReport *pBeaconReport)
+				tDot11fIEMeasurementReport *pDot11f,
+				tSirMacBeaconReport *pBeaconReport,
+				struct rrm_beacon_report_last_beacon_params
+				*last_beacon_report_params)
 {
 
 	pDot11f->report.Beacon.regClass = pBeaconReport->regClass;
@@ -5972,6 +5973,36 @@ tSirRetStatus populate_dot11f_beacon_report(tpAniSirGlobal pMac,
 			pBeaconReport->numIes;
 	}
 
+	if (last_beacon_report_params &&
+	    last_beacon_report_params->last_beacon_ind) {
+		pe_debug("Including Last Beacon Report in RRM Frame, report_id %d, frag_id %d",
+			last_beacon_report_params->report_id,
+			last_beacon_report_params->frag_id);
+		pDot11f->report.Beacon.beacon_report_frm_body_fragment_id.
+			present = 1;
+		pDot11f->report.Beacon.beacon_report_frm_body_fragment_id.
+			beacon_report_id = last_beacon_report_params->report_id;
+		pDot11f->report.Beacon.beacon_report_frm_body_fragment_id.
+			fragment_id_number = last_beacon_report_params->frag_id;
+
+		pDot11f->report.Beacon.last_beacon_report_indication.present = 1;
+
+		if (last_beacon_report_params->frag_id ==
+		    (last_beacon_report_params->num_frags - 1)) {
+			pDot11f->report.Beacon.
+				beacon_report_frm_body_fragment_id.
+				more_fragments = 0;
+			pDot11f->report.Beacon.last_beacon_report_indication.
+				last_fragment = 1;
+			pe_debug("Last Fragment");
+		} else {
+			pDot11f->report.Beacon.
+				beacon_report_frm_body_fragment_id.
+				more_fragments = 1;
+			pDot11f->report.Beacon.last_beacon_report_indication.
+				last_fragment = 0;
+		}
+	}
 	return eSIR_SUCCESS;
 
 }

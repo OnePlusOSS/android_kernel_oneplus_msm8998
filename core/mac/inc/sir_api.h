@@ -940,6 +940,7 @@ typedef struct sSirSmeScanReq {
 	uint8_t dot11mode;
 	tSirScanType scanType;
 	uint32_t scan_id;
+	uint32_t scan_requestor_id;
 	/**
 	 * minChannelTime. Not used if scanType is passive.
 	 * 0x0 - Dont Use min channel timer. Only max channel timeout will used.
@@ -1340,6 +1341,7 @@ typedef struct sSirSmeJoinReq {
 	bool supported_nss_1x1;
 	uint8_t vdev_nss;
 	uint8_t nss;
+	bool nss_forced_1x1;
 	tSirBssDescription bssDescription;
 	/*
 	 * WARNING: Pls make bssDescription as last variable in struct
@@ -4283,6 +4285,7 @@ typedef struct sAniHandoffReq {
 #define USER_SCAN_REQUESTOR_ID  0xA000
 #define ROC_SCAN_REQUESTOR_ID   0xB000
 #define PREAUTH_REQUESTOR_ID    0xC000
+#define ACS_SCAN_REQUESTOR_ID   0xD000
 
 typedef struct sSirScanOffloadReq {
 	uint8_t sessionId;

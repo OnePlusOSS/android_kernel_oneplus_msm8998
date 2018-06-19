@@ -15659,6 +15659,7 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 	enum hw_mode_dbs_capab hw_mode_to_use;
 	tDot11fIEVHTCaps *vht_caps = NULL;
 	bool is_vendor_ap_present;
+	struct vdev_type_nss *vdev_type_nss;
 
 	if (!pSession) {
 		sme_err("session %d not found", sessionId);
@@ -15758,6 +15759,29 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 			ucDot11Mode = WNI_CFG_DOT11_MODE_11N;
 		}
 
+		if (IS_5G_CH(pBssDescription->channelId))
+			vdev_type_nss = &pMac->vdev_type_nss_5g;
+		else
+			vdev_type_nss = &pMac->vdev_type_nss_2g;
+		if (pSession->pCurRoamProfile->csrPersona ==
+		    QDF_P2P_CLIENT_MODE)
+			pSession->vdev_nss = vdev_type_nss->p2p_cli;
+		else
+			pSession->vdev_nss = vdev_type_nss->sta;
+		pSession->nss = pSession->vdev_nss;
+
+		if (pSession->nss > csr_get_nss_supported_by_sta_and_ap(
+						&pIes->VHTCaps,
+						&pIes->HTCaps, ucDot11Mode)) {
+			pSession->nss = csr_get_nss_supported_by_sta_and_ap(
+						&pIes->VHTCaps, &pIes->HTCaps,
+						ucDot11Mode);
+			pSession->vdev_nss = pSession->nss;
+		}
+
+		if (pSession->nss == 1)
+			pSession->supported_nss_1x1 = true;
+
 		ieLen = csr_get_ielen_from_bss_description(pBssDescription);
 		is_vendor_ap_present = csr_check_vendor_ap_present(
 						pMac, pBssDescription,
@@ -15775,6 +15799,7 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 			pSession->supported_nss_1x1 = true;
 			pSession->vdev_nss = 1;
 			pSession->nss = 1;
+			pSession->nss_forced_1x1 = true;
 			sme_debug("For special ap, NSS: %d", pSession->nss);
 		}
 
@@ -15795,18 +15820,6 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 				VDEV_CMD);
 		}
 
-		if (pSession->nss > csr_get_nss_supported_by_sta_and_ap(
-						&pIes->VHTCaps,
-						&pIes->HTCaps, ucDot11Mode)) {
-			pSession->nss = csr_get_nss_supported_by_sta_and_ap(
-						&pIes->VHTCaps, &pIes->HTCaps,
-						ucDot11Mode);
-			pSession->vdev_nss = pSession->nss;
-		}
-
-		if (pSession->nss == 1)
-			pSession->supported_nss_1x1 = true;
-
 		/*
 		 * If Switch to 11N WAR is set for current AP, change dot11
 		 * mode to 11N.
@@ -15826,10 +15839,12 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 		csr_join_req->supported_nss_1x1 = pSession->supported_nss_1x1;
 		csr_join_req->vdev_nss = pSession->vdev_nss;
 		csr_join_req->nss = pSession->nss;
+		csr_join_req->nss_forced_1x1 = pSession->nss_forced_1x1;
 		csr_join_req->dot11mode = (uint8_t) ucDot11Mode;
-		sme_debug("dot11mode=%d, uCfgDot11Mode=%d",
-			csr_join_req->dot11mode,
-			pSession->bssParams.uCfgDot11Mode);
+		sme_debug("dot11mode=%d, uCfgDot11Mode=%d, nss=%d",
+			  csr_join_req->dot11mode,
+			  pSession->bssParams.uCfgDot11Mode,
+			  csr_join_req->nss);
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
 		csr_join_req->cc_switch_mode =
 			pMac->roam.configParam.cc_switch_mode;

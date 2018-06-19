@@ -4677,7 +4677,8 @@ static int __iw_set_bitrate(struct net_device *dev,
 	hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
 	hdd_wext_state_t *pWextState;
 	hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
-	uint8_t supp_rates[WNI_CFG_SUPPORTED_RATES_11A_LEN];
+	uint8_t supp_rates[WNI_CFG_SUPPORTED_RATES_11A_LEN +
+			   WNI_CFG_SUPPORTED_RATES_11B_LEN];
 	uint32_t a_len = WNI_CFG_SUPPORTED_RATES_11A_LEN;
 	uint32_t b_len = WNI_CFG_SUPPORTED_RATES_11B_LEN;
 	uint32_t i, rate;
@@ -4713,7 +4714,8 @@ static int __iw_set_bitrate(struct net_device *dev,
 				     &a_len) == QDF_STATUS_SUCCESS)
 			    &&
 			    (sme_cfg_get_str(WLAN_HDD_GET_HAL_CTX(pAdapter),
-				     WNI_CFG_SUPPORTED_RATES_11B, supp_rates,
+				     WNI_CFG_SUPPORTED_RATES_11B,
+				     supp_rates + a_len,
 				     &b_len) == QDF_STATUS_SUCCESS)) {
 				for (i = 0; i < (b_len + a_len); ++i) {
 					/* supported rates returned is double
@@ -11265,6 +11267,38 @@ int wlan_hdd_set_filter(hdd_context_t *hdd_ctx,
 }
 
 /**
+ * validate_packet_filter_params_size() - Validate the size of the params rcvd
+ * @priv_data: Pointer to the priv data from user space
+ * @request: Pointer to the struct containing the copied data from user space
+ *
+ * Return: False on invalid length, true otherwise
+ */
+static bool validate_packet_filter_params_size(struct pkt_filter_cfg *request,
+						uint16_t length)
+{
+	int max_params_size, rcvd_params_size;
+
+	max_params_size = HDD_MAX_CMP_PER_PACKET_FILTER *
+					sizeof(struct pkt_filter_param_cfg);
+
+	if (length < sizeof(struct pkt_filter_cfg) - max_params_size) {
+		hdd_err("Less than minimum number of arguments needed");
+		return false;
+	}
+
+	rcvd_params_size = request->num_params *
+					sizeof(struct pkt_filter_param_cfg);
+
+	if (length != sizeof(struct pkt_filter_cfg) -
+					max_params_size + rcvd_params_size) {
+		hdd_err("Arguments do not match the number of params provided");
+		return false;
+	}
+
+	return true;
+}
+
+/**
  * __iw_set_packet_filter_params() - set packet filter parameters in target
  * @dev: Pointer to netdev
  * @info: Pointer to iw request info
@@ -11300,8 +11334,7 @@ static int __iw_set_packet_filter_params(struct net_device *dev,
 		return -EINVAL;
 	}
 
-	if ((NULL == priv_data.pointer) || (0 == priv_data.length) ||
-	   priv_data.length < sizeof(struct pkt_filter_cfg)) {
+	if ((NULL == priv_data.pointer) || (0 == priv_data.length)) {
 		hdd_err("invalid priv data %pK or invalid priv data length %d",
 			priv_data.pointer, priv_data.length);
 		return -EINVAL;
@@ -11321,9 +11354,16 @@ static int __iw_set_packet_filter_params(struct net_device *dev,
 	/* copy data using copy_from_user */
 	request = mem_alloc_copy_from_user_helper(priv_data.pointer,
 						   priv_data.length);
+
 	if (NULL == request) {
 		hdd_err("mem_alloc_copy_from_user_helper fail");
 		return -ENOMEM;
+	}
+
+	if (!validate_packet_filter_params_size(request, priv_data.length)) {
+		hdd_err("Invalid priv data length %d", priv_data.length);
+		qdf_mem_free(request);
+		return -EINVAL;
 	}
 
 	if (request->filter_action == HDD_RCV_FILTER_SET)

@@ -3154,6 +3154,11 @@ static int wma_pdev_set_hw_mode_resp_evt_handler(void *handle,
 			QDF_BUG(0);
 			goto fail;
 		}
+		if (vdev_id >= wma->max_bssid) {
+			WMA_LOGE("%s: vdev_id: %d is invalid, max_bssid: %d",
+					__func__, vdev_id, wma->max_bssid);
+			goto fail;
+		}
 		mac_id = WMA_PDEV_TO_MAC_MAP(vdev_mac_entry[i].pdev_id);
 
 		WMA_LOGE("%s: vdev_id:%d mac_id:%d",
@@ -3240,6 +3245,11 @@ void wma_process_pdev_hw_mode_trans_ind(void *handle,
 			WMA_LOGE("%s: soc level id received for mac id)",
 					__func__);
 			QDF_BUG(0);
+			return;
+		}
+		if (vdev_id >= wma->max_bssid) {
+			WMA_LOGE("%s: vdev_id: %d is invalid, max_bssid: %d",
+					__func__, vdev_id, wma->max_bssid);
 			return;
 		}
 
@@ -4263,6 +4273,9 @@ static inline void wma_update_target_services(tp_wma_handle wh,
 
 	/* Enable WOW */
 	g_fw_wlan_feat_caps |= (1 << WOW);
+
+	if (WMI_SERVICE_IS_ENABLED(wh->wmi_service_bitmap, WMI_SERVICE_NLO))
+		g_fw_wlan_feat_caps |= (1 << PNO);
 
 	/* ARP offload */
 	cfg->arp_offload = WMI_SERVICE_IS_ENABLED(wh->wmi_service_bitmap,

@@ -575,6 +575,41 @@ void ol_tx_flow_pool_unlock(struct ol_tx_desc_t *tx_desc)
 #endif
 
 /**
+ * ol_tx_notify_completion() - Notify tx completion for this desc
+ * @tx_desc: tx desc
+ * @netbuf:  buffer
+ *
+ * Return: none
+ */
+static void ol_tx_notify_completion(struct ol_tx_desc_t *tx_desc,
+				    qdf_nbuf_t netbuf)
+{
+	void *osif_dev;
+	ol_txrx_completion_fp tx_compl_cbk = NULL;
+
+	qdf_assert(tx_desc);
+
+	ol_tx_flow_pool_lock(tx_desc);
+	/*
+	 * In cases when vdev has gone down and tx completion
+	 * are received, leads to NULL vdev access.
+	 * So, check for NULL before dereferencing it.
+	 */
+	if (!tx_desc->vdev ||
+	    !tx_desc->vdev->osif_dev ||
+	    !tx_desc->vdev->tx_comp ||
+	    !tx_desc->notify_tx_comp) {
+		ol_tx_flow_pool_unlock(tx_desc);
+		return;
+	}
+	osif_dev = tx_desc->vdev->osif_dev;
+	tx_compl_cbk = tx_desc->vdev->tx_comp;
+	ol_tx_flow_pool_unlock(tx_desc);
+
+	tx_compl_cbk(netbuf, osif_dev);
+}
+
+/**
  * ol_tx_update_connectivity_stats() - update connectivity stats
  * @tx_desc: tx desc
  * @netbuf:  buffer
@@ -771,6 +806,9 @@ ol_tx_completion_handler(ol_txrx_pdev_handle pdev,
 			if (qdf_nbuf_data_is_arp_req(netbuf))
 				ol_tx_update_arp_stats(tx_desc, netbuf, status);
 		}
+
+		/* check tx completion notification */
+		ol_tx_notify_completion(tx_desc, netbuf);
 
 		/* track connectivity stats */
 		ol_tx_update_connectivity_stats(tx_desc, netbuf,

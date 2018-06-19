@@ -86,6 +86,10 @@ struct nla_policy scan_policy[QCA_WLAN_VENDOR_ATTR_SCAN_MAX + 1] = {
 	[QCA_WLAN_VENDOR_ATTR_SCAN_COOKIE] = {.type = NLA_U64},
 	[QCA_WLAN_VENDOR_ATTR_SCAN_IE] = {.type = NLA_BINARY,
 					  .len = MAX_DEFAULT_SCAN_IE_LEN},
+	[QCA_WLAN_VENDOR_ATTR_SCAN_MAC] = {.type = NLA_UNSPEC,
+					   .len = QDF_MAC_ADDR_SIZE},
+	[QCA_WLAN_VENDOR_ATTR_SCAN_MAC_MASK] = {.type = NLA_UNSPEC,
+						.len = QDF_MAC_ADDR_SIZE},
 };
 
 /**
@@ -1111,6 +1115,7 @@ static int __iw_set_scan(struct net_device *dev, struct iw_request_info *info,
 	hdd_update_dbs_scan_ctrl_ext_flag(hdd_ctx, &scanRequest);
 	scanRequest.timestamp = qdf_mc_timer_get_system_time();
 	wma_get_scan_id(&scanRequest.scan_id);
+	scanRequest.scan_requestor_id = USER_SCAN_REQUESTOR_ID;
 	pAdapter->scan_info.mScanPending = true;
 	wlan_hdd_scan_request_enqueue(pAdapter, NULL, NL_SCAN,
 			scanRequest.scan_id,
@@ -1122,7 +1127,9 @@ static int __iw_set_scan(struct net_device *dev, struct iw_request_info *info,
 		hdd_err("sme_scan_request  fail %d!!!", status);
 		wlan_hdd_scan_request_dequeue(hdd_ctx, scanRequest.scan_id,
 			&req, &source, &timestamp);
-		pAdapter->scan_info.mScanPending = false;
+		/* Scan is no longer pending */
+		if (!wlan_hdd_is_scan_pending(pAdapter))
+			pAdapter->scan_info.mScanPending = false;
 		goto error;
 	}
 error:
@@ -1616,35 +1623,35 @@ static void __wlan_hdd_cfg80211_scan_block_cb(struct work_struct *work)
 	hdd_adapter_t *adapter = container_of(work,
 					      hdd_adapter_t, scan_block_work);
 	struct cfg80211_scan_request *request;
-	hdd_context_t *hdd_ctx;
+	struct hdd_scan_req *blocked_scan_req;
+	qdf_list_node_t *node = NULL;
 
 	if (WLAN_HDD_ADAPTER_MAGIC != adapter->magic) {
 		hdd_err("HDD adapter context is invalid");
 		return;
 	}
 
-	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
-	if (0 != wlan_hdd_validate_context(hdd_ctx))
-		return;
+	qdf_mutex_acquire(&adapter->blocked_scan_request_q_lock);
 
-	request = adapter->request;
-	if (request) {
+	while (!qdf_list_empty(&adapter->blocked_scan_request_q)) {
+		qdf_list_remove_front(&adapter->blocked_scan_request_q,
+				      &node);
+		blocked_scan_req = qdf_container_of(node, struct hdd_scan_req,
+						    node);
+		request = blocked_scan_req->scan_request;
 		request->n_ssids = 0;
 		request->n_channels = 0;
-
-		hdd_err("##In DFS Master mode. Scan aborted. Null result sent");
-		hdd_cfg80211_scan_done(adapter, request, true);
-		adapter->request = NULL;
+		if (blocked_scan_req->source == NL_SCAN) {
+			hdd_err("Scan aborted. Null result sent");
+			hdd_cfg80211_scan_done(adapter, request, true);
+		} else {
+			hdd_err("Vendor scan aborted. Null result sent");
+			hdd_vendor_scan_callback(adapter, request, true);
+		}
+		qdf_mem_free(blocked_scan_req);
 	}
-	request = adapter->vendor_request;
-	if (request) {
-		request->n_ssids = 0;
-		request->n_channels = 0;
 
-		hdd_err("In DFS Master mode. Scan aborted. Null result sent");
-		hdd_vendor_scan_callback(adapter, request, true);
-		adapter->vendor_request = NULL;
-	}
+	qdf_mutex_release(&adapter->blocked_scan_request_q_lock);
 }
 
 void wlan_hdd_cfg80211_scan_block_cb(struct work_struct *work)
@@ -1909,6 +1916,43 @@ static void wlan_hdd_free_voui(tCsrScanRequest *scan_req)
 		qdf_mem_free(scan_req->voui);
 }
 
+static int
+wlan_hdd_enqueue_blocked_scan_request(struct net_device *dev,
+				      struct cfg80211_scan_request *request,
+				      uint8_t source)
+{
+	hdd_adapter_t *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
+	struct hdd_scan_req *blocked_scan_req =
+		qdf_mem_malloc(sizeof(*blocked_scan_req));
+	int ret = 0;
+
+	if (!blocked_scan_req) {
+		hdd_err("Failed to allocate scan_req");
+		return -EINVAL;
+	}
+
+	blocked_scan_req->adapter = adapter;
+	blocked_scan_req->scan_request = request;
+	blocked_scan_req->source = source;
+	blocked_scan_req->scan_id = 0;
+
+	qdf_mutex_acquire(&adapter->blocked_scan_request_q_lock);
+	if (qdf_list_size(&adapter->blocked_scan_request_q) <
+		CFG_MAX_SCAN_COUNT_MAX)
+		qdf_list_insert_back(&adapter->blocked_scan_request_q,
+				     &blocked_scan_req->node);
+	else
+		ret = -EINVAL;
+	qdf_mutex_release(&adapter->blocked_scan_request_q_lock);
+
+	if (ret) {
+		hdd_err("Maximum number of block scan request reached!");
+		qdf_mem_free(blocked_scan_req);
+	}
+
+	return ret;
+}
+
 /* Define short name to use in cds_trigger_recovery */
 #define SCAN_FAILURE CDS_SCAN_ATTEMPT_FAILURES
 
@@ -1976,10 +2020,8 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 						conn_info.connState) &&
 	    (!pHddCtx->config->enable_connected_scan)) {
 		hdd_info("enable_connected_scan is false, Aborting scan");
-		if (NL_SCAN == source)
-			pAdapter->request = request;
-		else
-			pAdapter->vendor_request = request;
+		if (wlan_hdd_enqueue_blocked_scan_request(dev, request, source))
+			return -EAGAIN;
 		schedule_work(&pAdapter->scan_block_work);
 		return 0;
 	}
@@ -2036,10 +2078,9 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 			 * startup.
 			 */
 			hdd_err("##In DFS Master mode. Scan aborted");
-			if (NL_SCAN == source)
-				pAdapter->request = request;
-			else
-				pAdapter->vendor_request = request;
+			if (wlan_hdd_enqueue_blocked_scan_request(dev, request,
+								  source))
+				return -EAGAIN;
 			schedule_work(&pAdapter->scan_block_work);
 			return 0;
 		}
@@ -2140,10 +2181,8 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 	if (pAdapter->device_mode == QDF_SAP_MODE &&
 	   wlan_hdd_sap_skip_scan_check(pHddCtx, request)) {
 		hdd_debug("sap scan skipped");
-		if (NL_SCAN == source)
-			pAdapter->request = request;
-		else
-			pAdapter->vendor_request = request;
+		if (wlan_hdd_enqueue_blocked_scan_request(dev, request, source))
+			return -EAGAIN;
 		schedule_work(&pAdapter->scan_block_work);
 		return 0;
 	}
@@ -2408,6 +2447,7 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 	qdf_runtime_pm_prevent_suspend(&pHddCtx->runtime_context.scan);
 	wma_get_scan_id(&scan_req_id);
 	scan_req.scan_id = scan_req_id;
+	scan_req.scan_requestor_id = USER_SCAN_REQUESTOR_ID;
 	wlan_hdd_scan_request_enqueue(pAdapter, request, source,
 			scan_req.scan_id, scan_req.timestamp);
 	pAdapter->scan_info.mScanPending = true;

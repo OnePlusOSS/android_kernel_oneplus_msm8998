@@ -390,21 +390,21 @@ int __pktlog_enable(struct hif_opaque_softc *scn, int32_t log_state,
 	int error;
 
 	if (!scn) {
-		printk("%s: Invalid scn context\n", __func__);
+		qdf_print("%s: Invalid scn context\n", __func__);
 		ASSERT(0);
 		return -1;
 	}
 
 	txrx_pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 	if (!txrx_pdev) {
-		printk("%s: Invalid txrx_pdev context\n", __func__);
+		qdf_print("%s: Invalid txrx_pdev context\n", __func__);
 		ASSERT(0);
 		return -1;
 	}
 
 	pl_dev = txrx_pdev->pl_dev;
 	if (!pl_dev) {
-		printk("%s: Invalid pktlog context\n", __func__);
+		qdf_print("%s: Invalid pktlog context\n", __func__);
 		ASSERT(0);
 		return -1;
 	}
@@ -442,8 +442,8 @@ int __pktlog_enable(struct hif_opaque_softc *scn, int32_t log_state,
 			if (!pl_info->buf) {
 				pl_info->curr_pkt_state =
 					PKTLOG_OPR_NOT_IN_PROGRESS;
-				printk("%s: pktlog buf alloc failed\n",
-				       __func__);
+				qdf_print("%s: pktlog buf alloc failed\n",
+					  __func__);
 				ASSERT(0);
 				return -1;
 			}
@@ -469,20 +469,29 @@ int __pktlog_enable(struct hif_opaque_softc *scn, int32_t log_state,
 
 	if (log_state != 0) {
 		/* WDI subscribe */
-		if ((!pl_dev->is_pktlog_cb_subscribed) &&
-			wdi_pktlog_subscribe(txrx_pdev, log_state)) {
-			pl_info->curr_pkt_state = PKTLOG_OPR_NOT_IN_PROGRESS;
-			printk("Unable to subscribe to the WDI %s\n", __func__);
-			return -1;
+		if (!pl_dev->is_pktlog_cb_subscribed) {
+			error = wdi_pktlog_subscribe(txrx_pdev, log_state);
+			if (error) {
+				pl_info->curr_pkt_state =
+					PKTLOG_OPR_NOT_IN_PROGRESS;
+				qdf_print("Unable to subscribe to the WDI %s\n",
+					  __func__);
+				return -EINVAL;
+			}
+		} else {
+			qdf_print("Unable to subscribe %d to the WDI %s\n",
+				  log_state, __func__);
+			return -EINVAL;
 		}
-		pl_dev->is_pktlog_cb_subscribed = true;
+
 		/* WMI command to enable pktlog on the firmware */
 		if (pktlog_enable_tgt(scn, log_state, ini_triggered,
 				user_triggered)) {
 			pl_info->curr_pkt_state = PKTLOG_OPR_NOT_IN_PROGRESS;
-			printk("Device cannot be enabled, %s\n", __func__);
+			qdf_print("Device cannot be enabled, %s\n", __func__);
 			return -1;
 		}
+		pl_dev->is_pktlog_cb_subscribed = true;
 
 		if (is_iwpriv_command == 0)
 			pl_dev->vendor_cmd_send = true;

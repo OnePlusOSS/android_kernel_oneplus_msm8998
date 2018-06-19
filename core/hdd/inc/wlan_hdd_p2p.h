@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -42,10 +42,10 @@
 					 MAC_ADDR_LEN)
 
 
-#define P2P_ROC_DURATION_MULTIPLIER_GO_PRESENT   2
-#define P2P_ROC_DURATION_MULTIPLIER_GO_ABSENT    3
+#define P2P_ROC_DURATION_MULTIPLIER_GO_PRESENT   6
+#define P2P_ROC_DURATION_MULTIPLIER_GO_ABSENT    10
 
-#define HDD_P2P_MAX_ROC_DURATION 1000
+#define HDD_P2P_MAX_ROC_DURATION 1500
 #define MAX_ROC_REQ_QUEUE_ENTRY 10
 
 #define P2P_POWER_SAVE_TYPE_OPPORTUNISTIC        (1 << 0)

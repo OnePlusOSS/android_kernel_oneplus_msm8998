@@ -644,8 +644,8 @@ static void hdd_update_dbs_scan_ctrl_ext_flag(hdd_context_t *hdd_ctx,
 	}
 	if (!(hdd_ctx->is_dbs_scan_duty_cycle_enabled)) {
 		scan_dbs_policy = SME_SCAN_DBS_POLICY_IGNORE_DUTY;
-		hdd_info_ratelimited(HDD_DBS_SCAN_DISABLE_RATE_LIMIT,
-				     "DBS scan duty cycle is disabled");
+		hdd_debug_ratelimited(HDD_DBS_SCAN_DISABLE_RATE_LIMIT,
+				      "DBS scan duty cycle is disabled");
 		goto end;
 	}
 

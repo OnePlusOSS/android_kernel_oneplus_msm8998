@@ -11550,6 +11550,13 @@ QDF_STATUS wma_send_dhcp_ind(uint16_t type, uint8_t device_mode,
 {
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
 	tAniDHCPInd *msg;
+	tp_wma_handle wma_handle;
+
+	wma_handle = cds_get_context(QDF_MODULE_ID_WMA);
+	if (!wma_handle) {
+		WMA_LOGE("%s : Failed to get wma_handle", __func__);
+		return QDF_STATUS_E_INVAL;
+	}
 
 	msg = (tAniDHCPInd *) qdf_mem_malloc(sizeof(tAniDHCPInd));
 	if (NULL == msg) {
@@ -11564,8 +11571,7 @@ QDF_STATUS wma_send_dhcp_ind(uint16_t type, uint8_t device_mode,
 	qdf_mem_copy(msg->adapterMacAddr.bytes, mac_addr, QDF_MAC_ADDR_SIZE);
 	qdf_mem_copy(msg->peerMacAddr.bytes, peer_mac_addr, QDF_MAC_ADDR_SIZE);
 
-	qdf_status = wma_process_dhcp_ind(cds_get_context(QDF_MODULE_ID_WMA),
-			     (tAniDHCPInd *)msg);
+	qdf_status = wma_process_dhcp_ind(wma_handle, (tAniDHCPInd *)msg);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 		QDF_TRACE(QDF_MODULE_ID_WMA, QDF_TRACE_LEVEL_ERROR,
 				"%s: Failed to send DHCP indication", __func__);

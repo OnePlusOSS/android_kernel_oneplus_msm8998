@@ -12232,6 +12232,12 @@ static int __iw_set_two_ints_getnone(struct net_device *dev,
 			hdd_warn("Crash Inject ini disabled");
 			return 0;
 		}
+
+		if (value[1] == 3) {
+			hdd_warn("Trigger host initiated recovery");
+			cds_trigger_recovery(CDS_REASON_UNSPECIFIED);
+			return 0;
+		}
 		ret = wma_cli_set2_command(pAdapter->sessionId,
 					   GEN_PARAM_CRASH_INJECT,
 					   value[1], value[2], GEN_CMD);

@@ -3947,6 +3947,8 @@ void hdd_cleanup_scan_queue(hdd_context_t *hdd_ctx, hdd_adapter_t *padapter)
 			} else if (!req) {
 				hdd_debug("pending scan is wext triggered");
 			} else {
+				hdd_debug("Removing scan id: %d, req = %pK",
+					  scan_id, req);
 				if (NL_SCAN == source)
 					hdd_cfg80211_scan_done(adapter,
 								req, aborted);
@@ -3954,8 +3956,6 @@ void hdd_cleanup_scan_queue(hdd_context_t *hdd_ctx, hdd_adapter_t *padapter)
 					hdd_vendor_scan_callback(adapter,
 								 req, aborted,
 								 scan_id);
-				hdd_debug("removed Scan id: %d, req = %pK",
-					scan_id, req);
 			}
 			qdf_mem_free(hdd_scan_req);
 			qdf_spin_lock(&hdd_ctx->hdd_scan_req_q_lock);

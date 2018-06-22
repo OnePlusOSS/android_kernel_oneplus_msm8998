@@ -536,6 +536,9 @@ int wcd9xxx_irq_init(struct wcd9xxx_core_resource *wcd9xxx_res)
 			wcd9xxx_res->irq_masks_cur[i]);
 	}
 
+	regmap_write(wcd9xxx_res->wcd_core_regmap,
+			0x00EA, 0x2);
+
 	ret = request_threaded_irq(wcd9xxx_res->irq, NULL, wcd9xxx_irq_thread,
 				   IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
 				   "wcd9xxx", wcd9xxx_res);

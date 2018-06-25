@@ -5257,7 +5257,8 @@ static QDF_STATUS cds_get_channel_list(enum cds_pcl_type pcl,
 	}
 
 	while ((chan_index < num_channels) &&
-		(chan_index_5 < QDF_MAX_NUM_CHAN)) {
+	       (chan_index_5 < QDF_MAX_NUM_CHAN) &&
+	       (chan_index < QDF_MAX_NUM_CHAN)) {
 		if ((true == skip_dfs_channel) &&
 		    CDS_IS_DFS_CH(channel_list[chan_index])) {
 			chan_index++;

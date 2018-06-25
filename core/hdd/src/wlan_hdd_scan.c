@@ -986,8 +986,8 @@ static int __iw_set_scan(struct net_device *dev, struct iw_request_info *info,
 		union iwreq_data *wrqu, char *extra)
 {
 	hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
-	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(pAdapter);
-	hdd_wext_state_t *pwextBuf = WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
+	hdd_context_t *hdd_ctx;
+	hdd_wext_state_t *pwextBuf;
 	tCsrScanRequest scanRequest;
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	struct iw_scan_req *scanReq = (struct iw_scan_req *)extra;
@@ -1000,10 +1000,17 @@ static int __iw_set_scan(struct net_device *dev, struct iw_request_info *info,
 
 	ENTER_DEV(dev);
 
+	if (!pAdapter) {
+		hdd_err("hdd adapter is NULL");
+		return -ENODEV;
+	}
+
 	hdd_ctx = WLAN_HDD_GET_CTX(pAdapter);
 	ret = wlan_hdd_validate_context(hdd_ctx);
 	if (0 != ret)
 		return ret;
+
+	pwextBuf = WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
 
 	/* Block All Scan during DFS operation and send null scan result */
 	con_sap_adapter = hdd_get_con_sap_adapter(pAdapter, true);
@@ -1089,7 +1096,14 @@ static int __iw_set_scan(struct net_device *dev, struct iw_request_info *info,
 	scanRequest.requestType = eCSR_SCAN_REQUEST_FULL_SCAN;
 
 	/* if previous genIE is not NULL, update ScanIE */
-	if (0 != pwextBuf->genIE.length) {
+	if (pwextBuf->genIE.length) {
+		if (pwextBuf->genIE.length > (SIR_MAC_MAX_ADD_IE_LENGTH + 2)) {
+			hdd_err("genIE length exceeds max length: %d",
+				pwextBuf->genIE.length);
+			status = QDF_STATUS_E_FAILURE;
+			goto error;
+		}
+
 		memset(&pAdapter->scan_info.scanAddIE, 0,
 		       sizeof(pAdapter->scan_info.scanAddIE));
 		memcpy(pAdapter->scan_info.scanAddIE.addIEdata,

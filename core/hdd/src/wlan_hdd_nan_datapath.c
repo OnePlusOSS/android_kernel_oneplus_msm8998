@@ -59,7 +59,7 @@ qca_wlan_vendor_ndp_policy[QCA_WLAN_VENDOR_ATTR_NDP_PARAMS_MAX + 1] = {
 					NLA_U32 },
 	[QCA_WLAN_VENDOR_ATTR_NDP_DRV_RETURN_VALUE] = { .type = NLA_U32 },
 	[QCA_WLAN_VENDOR_ATTR_NDP_CHANNEL_CONFIG] = { .type = NLA_U32 },
-	[QCA_WLAN_VENDOR_ATTR_NDP_NCS_SK_TYPE] = { .type = NLA_U32 },
+	[QCA_WLAN_VENDOR_ATTR_NDP_CSID] = { .type = NLA_U32 },
 	[QCA_WLAN_VENDOR_ATTR_NDP_PMK] = { .type = NLA_BINARY,
 					.len = NDP_PMK_LEN },
 	[QCA_WLAN_VENDOR_ATTR_NDP_SCID] = { .type = NLA_BINARY,
@@ -572,9 +572,9 @@ static int ndp_parse_security_params(struct nlattr **tb,
 		return -EINVAL;
 	}
 
-	if (tb[QCA_WLAN_VENDOR_ATTR_NDP_NCS_SK_TYPE]) {
+	if (tb[QCA_WLAN_VENDOR_ATTR_NDP_CSID]) {
 		*ncs_sk_type =
-			nla_get_u32(tb[QCA_WLAN_VENDOR_ATTR_NDP_NCS_SK_TYPE]);
+			nla_get_u32(tb[QCA_WLAN_VENDOR_ATTR_NDP_CSID]);
 	}
 
 	if (tb[QCA_WLAN_VENDOR_ATTR_NDP_PMK]) {
@@ -626,7 +626,7 @@ static int ndp_parse_security_params(struct nlattr **tb,
  * QCA_WLAN_VENDOR_ATTR_NDP_APP_INFO - optional
  * QCA_WLAN_VENDOR_ATTR_NDP_CONFIG_QOS - optional
  * QCA_WLAN_VENDOR_ATTR_NDP_PMK - optional
- * QCA_WLAN_VENDOR_ATTR_NDP_NCS_SK_TYPE - optional
+ * QCA_WLAN_VENDOR_ATTR_NDP_CSID - optional
  * QCA_WLAN_VENDOR_ATTR_NDP_PASSPHRASE - optional
  * QCA_WLAN_VENDOR_ATTR_NDP_SERVICE_NAME - optional
  *
@@ -767,7 +767,7 @@ static int hdd_ndp_initiator_req_handler(hdd_context_t *hdd_ctx,
  * QCA_WLAN_VENDOR_ATTR_NDP_APP_INFO - optional
  * QCA_WLAN_VENDOR_ATTR_NDP_CONFIG_QOS - optional
  * QCA_WLAN_VENDOR_ATTR_NDP_PMK - optional
- * QCA_WLAN_VENDOR_ATTR_NDP_NCS_SK_TYPE - optional
+ * QCA_WLAN_VENDOR_ATTR_NDP_CSID - optional
  *
  * Return: 0 on success or error code on failure
  */
@@ -1589,7 +1589,7 @@ ndp_confirm_nla_failed:
  * QCA_WLAN_VENDOR_ATTR_NDP_INSTANCE_ID (4 bytes)
  * QCA_WLAN_VENDOR_ATTR_NDP_APP_INFO (ndp_app_info_len size)
  * QCA_WLAN_VENDOR_ATTR_NDP_CONFIG_QOS (4 bytes)
- * QCA_WLAN_VENDOR_ATTR_NDP_NCS_SK_TYPE(4 bytes)
+ * QCA_WLAN_VENDOR_ATTR_NDP_CSID(4 bytes)
  * QCA_WLAN_VENDOR_ATTR_NDP_SCID(scid_len in size)
  *
  * Return: none
@@ -1702,7 +1702,7 @@ static void hdd_ndp_indication_handler(hdd_adapter_t *adapter,
 
 	if (event->scid.scid_len) {
 		if (nla_put_u32(vendor_event,
-				QCA_WLAN_VENDOR_ATTR_NDP_NCS_SK_TYPE,
+				QCA_WLAN_VENDOR_ATTR_NDP_CSID,
 				event->ncs_sk_type))
 			goto ndp_indication_nla_failed;
 

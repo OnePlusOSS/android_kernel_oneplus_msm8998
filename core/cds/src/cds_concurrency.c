@@ -5540,8 +5540,6 @@ static QDF_STATUS cds_modify_pcl_based_on_enabled_channels(
 {
 	cds_context_type *cds_ctx;
 	uint32_t i, pcl_len = 0;
-	uint8_t pcl_list[QDF_MAX_NUM_CHAN];
-	uint8_t weight_list[QDF_MAX_NUM_CHAN];
 
 	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
 	if (!cds_ctx) {
@@ -5551,15 +5549,10 @@ static QDF_STATUS cds_modify_pcl_based_on_enabled_channels(
 
 	for (i = 0; i < *pcl_len_org; i++) {
 		if (!CDS_IS_PASSIVE_OR_DISABLE_CH(pcl_list_org[i])) {
-			pcl_list[pcl_len] = pcl_list_org[i];
-			weight_list[pcl_len++] = weight_list_org[i];
+			pcl_list_org[pcl_len] = pcl_list_org[i];
+			weight_list_org[pcl_len++] = weight_list_org[i];
 		}
 	}
-
-	qdf_mem_zero(pcl_list_org, QDF_ARRAY_SIZE(pcl_list_org));
-	qdf_mem_zero(weight_list_org, QDF_ARRAY_SIZE(weight_list_org));
-	qdf_mem_copy(pcl_list_org, pcl_list, pcl_len);
-	qdf_mem_copy(weight_list_org, weight_list, pcl_len);
 	*pcl_len_org = pcl_len;
 
 	return QDF_STATUS_SUCCESS;
@@ -8101,10 +8094,7 @@ sap_restart:
 	if (!QDF_IS_STATUS_SUCCESS(status))
 		cds_err("wait for event failed, still continue with channel switch");
 
-	if (((hdd_ctx->config->WlanMccToSccSwitchMode ==
-		QDF_MCC_TO_SCC_SWITCH_FORCE_WITHOUT_DISCONNECTION) ||
-		(hdd_ctx->config->WlanMccToSccSwitchMode ==
-		QDF_MCC_TO_SCC_SWITCH_WITH_FAVORITE_CHANNEL)) &&
+	if (cds_is_force_scc() &&
 		(cds_ctx->sap_restart_chan_switch_cb)) {
 		cds_debug("SAP chan change without restart");
 		cds_ctx->sap_restart_chan_switch_cb(ap_adapter,
@@ -10038,8 +10028,6 @@ QDF_STATUS cds_modify_sap_pcl_based_on_mandatory_channel(uint8_t *pcl_list_org,
 {
 	cds_context_type *cds_ctx;
 	uint32_t i, j, pcl_len = 0;
-	uint8_t pcl_list[QDF_MAX_NUM_CHAN];
-	uint8_t weight_list[QDF_MAX_NUM_CHAN];
 	bool found;
 
 	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
@@ -10070,15 +10058,10 @@ QDF_STATUS cds_modify_sap_pcl_based_on_mandatory_channel(uint8_t *pcl_list_org,
 			}
 		}
 		if (found) {
-			pcl_list[pcl_len] = pcl_list_org[i];
-			weight_list[pcl_len++] = weight_list_org[i];
+			pcl_list_org[pcl_len] = pcl_list_org[i];
+			weight_list_org[pcl_len++] = weight_list_org[i];
 		}
 	}
-
-	qdf_mem_zero(pcl_list_org, QDF_ARRAY_SIZE(pcl_list_org));
-	qdf_mem_zero(weight_list_org, QDF_ARRAY_SIZE(weight_list_org));
-	qdf_mem_copy(pcl_list_org, pcl_list, pcl_len);
-	qdf_mem_copy(weight_list_org, weight_list, pcl_len);
 	*pcl_len_org = pcl_len;
 
 	return QDF_STATUS_SUCCESS;
@@ -10251,7 +10234,9 @@ bool cds_is_force_scc(void)
 	return ((hdd_ctx->config->WlanMccToSccSwitchMode ==
 		QDF_MCC_TO_SCC_SWITCH_FORCE_WITHOUT_DISCONNECTION) ||
 			(hdd_ctx->config->WlanMccToSccSwitchMode ==
-		QDF_MCC_TO_SCC_SWITCH_WITH_FAVORITE_CHANNEL));
+		QDF_MCC_TO_SCC_SWITCH_WITH_FAVORITE_CHANNEL) ||
+			(hdd_ctx->config->WlanMccToSccSwitchMode ==
+		QDF_MCC_TO_SCC_WITH_PREFERRED_BAND));
 }
 /**
  * cds_get_valid_chan_weights() - Get the weightage for all

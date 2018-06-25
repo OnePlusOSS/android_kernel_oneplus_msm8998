@@ -2861,8 +2861,8 @@ QDF_STATUS wma_open(void *cds_context,
 
 	wma_ndp_register_all_event_handlers(wma_handle);
 	wmi_unified_register_event_handler(wma_handle->wmi_handle,
-				WMI_PEER_ANTDIV_INFO_EVENTID,
-				wma_peer_ant_info_evt_handler,
+				WMI_PDEV_DIV_RSSI_ANTID_EVENTID,
+				wma_pdev_div_info_evt_handler,
 				WMA_RX_SERIALIZER_CTX);
 
 	wmi_unified_register_event_handler(wma_handle->wmi_handle,
@@ -7140,9 +7140,9 @@ wma_process_action_frame_random_mac(tp_wma_handle wma_handle,
 static QDF_STATUS wma_get_chain_rssi(tp_wma_handle wma_handle,
 		struct get_chain_rssi_req_params *req_params)
 {
-	wmi_peer_antdiv_info_req_cmd_fixed_param *cmd;
+	wmi_pdev_div_get_rssi_antid_fixed_param *cmd;
 	wmi_buf_t wmi_buf;
-	uint32_t len = sizeof(wmi_peer_antdiv_info_req_cmd_fixed_param);
+	uint32_t len = sizeof(wmi_pdev_div_get_rssi_antid_fixed_param);
 	u_int8_t *buf_ptr;
 
 	if (!wma_handle) {
@@ -7158,16 +7158,16 @@ static QDF_STATUS wma_get_chain_rssi(tp_wma_handle wma_handle,
 
 	buf_ptr = (u_int8_t *)wmi_buf_data(wmi_buf);
 
-	cmd = (wmi_peer_antdiv_info_req_cmd_fixed_param *)buf_ptr;
+	cmd = (wmi_pdev_div_get_rssi_antid_fixed_param *)buf_ptr;
 	WMITLV_SET_HDR(&cmd->tlv_header,
 		WMITLV_TAG_STRUC_wmi_peer_antdiv_info_req_cmd_fixed_param,
-		WMITLV_GET_STRUCT_TLVLEN(wmi_peer_antdiv_info_req_cmd_fixed_param));
-	cmd->vdev_id = req_params->session_id;
+		WMITLV_GET_STRUCT_TLVLEN(wmi_pdev_div_get_rssi_antid_fixed_param));
+	cmd->pdev_id = 0;
 	WMI_CHAR_ARRAY_TO_MAC_ADDR(req_params->peer_macaddr.bytes,
-				&cmd->peer_mac_address);
+				&cmd->macaddr);
 
 	if (wmi_unified_cmd_send(wma_handle->wmi_handle, wmi_buf, len,
-		WMI_PEER_ANTDIV_INFO_REQ_CMDID)) {
+		WMI_PDEV_DIV_GET_RSSI_ANTID_CMDID)) {
 			WMA_LOGE(FL("failed to send get chain rssi command"));
 			wmi_buf_free(wmi_buf);
 			return QDF_STATUS_E_FAILURE;

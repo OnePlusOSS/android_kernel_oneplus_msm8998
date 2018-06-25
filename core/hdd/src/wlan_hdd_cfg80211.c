@@ -169,6 +169,11 @@
  */
 #define WLAN_DEAUTH_DPTRACE_DUMP_COUNT 100
 
+/*
+ * Count to ratelimit the HDD logs during NL parsing
+ */
+#define HDD_NL_ERR_RATE_LIMIT 5
+
 static const u32 hdd_gcmp_cipher_suits[] = {
 	WLAN_CIPHER_SUITE_GCMP,
 	WLAN_CIPHER_SUITE_GCMP_256,
@@ -5488,6 +5493,7 @@ wlan_hdd_wifi_config_policy[QCA_WLAN_VENDOR_ATTR_CONFIG_MAX + 1] = {
 			.type = NLA_U8},
 	[QCA_WLAN_VENDOR_ATTR_CONFIG_LATENCY_LEVEL] = {.type = NLA_U16 },
 	[QCA_WLAN_VENDOR_ATTR_CONFIG_RSN_IE] = {.type = NLA_U8},
+	[QCA_WLAN_VENDOR_ATTR_CONFIG_GTX] = {.type = NLA_U8},
 };
 
 /**
@@ -6285,6 +6291,23 @@ __wlan_hdd_cfg80211_wifi_configuration_set(struct wiphy *wiphy,
 		hdd_ctx->force_rsne_override = force_rsne_override;
 		hdd_debug("force_rsne_override - %d",
 			   hdd_ctx->force_rsne_override);
+	}
+
+	if (tb[QCA_WLAN_VENDOR_ATTR_CONFIG_GTX]) {
+		uint8_t config_gtx;
+
+		config_gtx = nla_get_u8(tb[QCA_WLAN_VENDOR_ATTR_CONFIG_GTX]);
+		if (config_gtx > 1) {
+			hdd_err_ratelimited(HDD_NL_ERR_RATE_LIMIT,
+					    "Invalid config_gtx value %d",
+					     config_gtx);
+			return -EINVAL;
+		}
+		ret_val = sme_cli_set_command(adapter->sessionId,
+					      WMI_VDEV_PARAM_GTX_ENABLE,
+					      config_gtx, VDEV_CMD);
+		if (ret_val)
+			hdd_err("Failed to set GTX");
 	}
 
 	return ret_val;
@@ -10863,18 +10886,29 @@ end:
 static int hdd_post_get_chain_rssi_rsp(hdd_context_t *hdd_ctx)
 {
 	struct sk_buff *skb = NULL;
-	int data_len = sizeof(hdd_ctx->chain_rssi_context.result);
+	struct chain_rssi_result *result =
+			&hdd_ctx->chain_rssi_context.result;
 
 	skb = cfg80211_vendor_cmd_alloc_reply_skb(hdd_ctx->wiphy,
-		data_len+NLMSG_HDRLEN);
+			(sizeof(result->chain_rssi) + NLA_HDRLEN) +
+			(sizeof(result->ant_id) + NLA_HDRLEN) +
+			NLMSG_HDRLEN);
 
 	if (!skb) {
 		hdd_err(FL("cfg80211_vendor_event_alloc failed"));
 		return -ENOMEM;
 	}
 
-	if (nla_put(skb, QCA_WLAN_VENDOR_ATTR_CHAIN_RSSI, data_len,
-			&hdd_ctx->chain_rssi_context.result)) {
+	if (nla_put(skb, QCA_WLAN_VENDOR_ATTR_CHAIN_RSSI,
+			sizeof(result->chain_rssi),
+			result->chain_rssi)) {
+		hdd_err(FL("put fail"));
+		goto nla_put_failure;
+	}
+
+	if (nla_put(skb, QCA_WLAN_VENDOR_ATTR_ANTENNA_INFO,
+			sizeof(result->ant_id),
+			result->ant_id)) {
 		hdd_err(FL("put fail"));
 		goto nla_put_failure;
 	}
@@ -11016,8 +11050,7 @@ void wlan_hdd_cfg80211_chainrssi_callback(void *ctx, void *pmsg)
 		return;
 	}
 
-	memcpy(&context->result, data->chain_rssi,
-		sizeof(data->chain_rssi));
+	memcpy(&context->result, data, sizeof(*data));
 
 	complete(&context->response_event);
 	spin_unlock(&hdd_context_lock);
@@ -17769,7 +17802,8 @@ static int wlan_hdd_cfg80211_set_ie(hdd_adapter_t *pAdapter, const uint8_t *ie,
 			/* AKM suite list, each OUI contains 4 bytes */
 			akmlist = (uint32_t *)(tmp);
 			if (akmsuiteCount <= MAX_NUM_AKM_SUITES) {
-				memcpy(akmsuite, akmlist, akmsuiteCount);
+				qdf_mem_copy(akmsuite, akmlist,
+					     sizeof(uint32_t) * akmsuiteCount);
 			} else {
 				hdd_err("Invalid akmSuite count: %u",
 					akmsuiteCount);

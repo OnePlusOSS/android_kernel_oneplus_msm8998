@@ -670,6 +670,10 @@ static void hdd_hostapd_inactivity_timer_cb(void *context)
 		return;
 	}
 #endif /* DISABLE_CONCURRENCY_AUTOSAVE */
+	if (event_len > sizeof(we_custom_event)) {
+		hdd_err("Event len exceeds event buffer size: %d", event_len);
+		return;
+	}
 	memset(&we_custom_event, '\0', sizeof(we_custom_event));
 	memcpy(&we_custom_event, autoShutEvent, event_len);
 
@@ -8470,15 +8474,6 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 			pConfig->ch_width_orig = CH_WIDTH_40MHZ;
 		else
 			pConfig->ch_width_orig = CH_WIDTH_20MHZ;
-	}
-
-	if (!wma_is_hw_dbs_capable() &&
-			(pHostapdAdapter->device_mode == QDF_SAP_MODE) &&
-			cds_is_force_scc() &&
-			cds_mode_specific_get_channel(CDS_STA_MODE)) {
-		pConfig->channel = cds_mode_specific_get_channel(CDS_STA_MODE);
-		hdd_debug("DBS is disabled, force SCC is enabled and STA is active, override the SAP channel to %d",
-				pConfig->channel);
 	}
 
 	if (wlan_hdd_setup_driver_overrides(pHostapdAdapter)) {

@@ -52,7 +52,6 @@
 #include <cdp_txrx_peer_ops.h>
 #include "wlan_hdd_nan_datapath.h"
 #include "target_if_def_config.h"
-#include "wlan_hdd_apf.h"
 #include <qdf_idr.h>
 
 /** Number of Tx Queues */

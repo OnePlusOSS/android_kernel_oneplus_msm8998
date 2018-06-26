@@ -11407,7 +11407,10 @@ void wma_spectral_scan_config(WMA_HANDLE wma_handle,
 
 	if (wma == NULL)
 		return;
-
+	if (!wma_is_vdev_valid(req->vdev_id)) {
+		WMA_LOGE(FL("Invalid vdev id"));
+		return;
+	}
 	/* save the copy of the config params */
 	qdf_mem_copy(&wma->ss_configs, req, sizeof(*req));
 

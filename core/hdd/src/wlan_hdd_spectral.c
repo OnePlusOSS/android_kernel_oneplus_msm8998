@@ -115,7 +115,10 @@ static int __wlan_hdd_cfg80211_spectral_scan_start(struct wiphy *wiphy,
 		return -EPERM;
 	}
 	adapter = WLAN_HDD_GET_PRIV_PTR(dev);
-
+	if (wlan_hdd_validate_session_id(adapter->sessionId)) {
+		hdd_err("invalid session id: %d", adapter->sessionId);
+		return -EINVAL;
+	}
 	/* initialize config parameters*/
 	config_req = hdd_ctx->ss_config;
 

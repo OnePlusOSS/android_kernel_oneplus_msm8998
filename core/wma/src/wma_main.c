@@ -7160,8 +7160,8 @@ static QDF_STATUS wma_get_chain_rssi(tp_wma_handle wma_handle,
 
 	cmd = (wmi_pdev_div_get_rssi_antid_fixed_param *)buf_ptr;
 	WMITLV_SET_HDR(&cmd->tlv_header,
-		WMITLV_TAG_STRUC_wmi_peer_antdiv_info_req_cmd_fixed_param,
-		WMITLV_GET_STRUCT_TLVLEN(wmi_pdev_div_get_rssi_antid_fixed_param));
+	     WMITLV_TAG_STRUC_wmi_pdev_div_get_rssi_antid_fixed_param,
+	     WMITLV_GET_STRUCT_TLVLEN(wmi_pdev_div_get_rssi_antid_fixed_param));
 	cmd->pdev_id = 0;
 	WMI_CHAR_ARRAY_TO_MAC_ADDR(req_params->peer_macaddr.bytes,
 				&cmd->macaddr);

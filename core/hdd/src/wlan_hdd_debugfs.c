@@ -593,8 +593,7 @@ static void hdd_power_debugstats_cb(struct power_stats_response *response,
 	power_stats->cumulative_sleep_time_ms
 		= response->cumulative_sleep_time_ms;
 	power_stats->cumulative_total_on_time_ms
-		= response->cumulative_total_on_time_ms -
-				response->cumulative_sleep_time_ms;
+		= response->cumulative_total_on_time_ms;
 	power_stats->deep_sleep_enter_counter
 		= response->deep_sleep_enter_counter;
 	power_stats->last_deep_sleep_enter_tstamp_ms

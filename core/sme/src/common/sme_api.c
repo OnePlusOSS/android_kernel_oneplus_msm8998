@@ -4490,6 +4490,7 @@ QDF_STATUS sme_roam_del_pmkid_from_cache(tHalHandle hHal, uint8_t sessionId,
 	return status;
 }
 
+#ifdef WLAN_FEATURE_ROAM_OFFLOAD
 void sme_get_pmk_info(tHalHandle hal, uint8_t session_id,
 			   tPmkidCacheInfo *pmk_cache)
 {
@@ -4502,6 +4503,13 @@ void sme_get_pmk_info(tHalHandle hal, uint8_t session_id,
 		sme_release_global_lock(&mac_ctx->sme);
 	}
 }
+#else
+static inline
+void sme_get_pmk_info(tHalHandle hal, uint8_t session_id,
+			tPmkidCacheInfo *pmk_cache)
+{}
+#endif
+
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 /**
  * sme_roam_set_psk_pmk() - A wrapper function to request CSR to save PSK/PMK

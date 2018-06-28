@@ -3219,7 +3219,7 @@ hdd_sched_scan_callback(void *callbackContext,
 	hdd_prevent_suspend_timeout(HDD_WAKELOCK_TIMEOUT_CONNECT,
 				    WIFI_POWER_EVENT_WAKELOCK_SCAN);
 
-	cfg80211_sched_scan_results(pHddCtx->wiphy);
+	hdd_sched_scan_results(pHddCtx->wiphy, 0);
 	hdd_debug("cfg80211 scan result database updated");
 }
 

@@ -1578,7 +1578,7 @@ static inline void hdd_resolve_rx_ol_mode(hdd_context_t *hdd_ctx)
 	}
 }
 
-#ifdef HELIUMPLUS
+#if defined(MSM_PLATFORM) && defined(HELIUMPLUS)
 /**
  * hdd_gro_rx() - Handle Rx procesing via GRO
  * @pAdapter: pointer to adapter context
@@ -1693,7 +1693,7 @@ static inline void hdd_register_rx_ol(void)
 		if (hdd_ctx->enableRxThread)
 			hdd_create_napi_for_rxthread();
 		hdd_debug("GRO is enabled");
-	} else if (hdd_ctx->config->enable_tcp_delack) {
+	} else if (HDD_MSM_CFG(hdd_ctx->config->enable_tcp_delack)) {
 		hdd_ctx->tcp_delack_on = 1;
 	}
 }
@@ -1740,7 +1740,7 @@ static inline void hdd_register_rx_ol(void)
 		return;
 	}
 
-	if (hdd_ctx->config->enable_tcp_delack)
+	if (HDD_MSM_CFG(hdd_ctx->config->enable_tcp_delack))
 		hdd_ctx->tcp_delack_on = 1;
 	else
 		hdd_ctx->tcp_delack_on = 0;
@@ -1799,6 +1799,7 @@ int hdd_rx_ol_init(hdd_context_t *hdd_ctx)
 	return 0;
 }
 
+#ifdef MSM_PLATFORM
 /**
  * hdd_enable_rx_ol_in_concurrency() - Enable Rx offload
  * @hdd_ctx: hdd context
@@ -1837,6 +1838,7 @@ void hdd_disable_rx_ol_in_concurrency(hdd_context_t *hdd_ctx)
 	}
 	qdf_atomic_set(&hdd_ctx->disable_lro_in_concurrency, 1);
 }
+#endif
 
 /**
  * hdd_disable_rx_ol_for_low_tput() - Disable Rx offload in low TPUT scenario

@@ -5282,6 +5282,11 @@ void ol_txrx_ipa_uc_set_quota(ol_txrx_pdev_handle pdev, uint64_t quota_bytes)
 {
 	htt_h2t_ipa_uc_set_quota(pdev->htt_pdev, quota_bytes);
 }
+
+int ol_txrx_rx_hash_smmu_map(ol_txrx_pdev_handle pdev, bool map)
+{
+	return htt_rx_hash_smmu_map_update(pdev->htt_pdev, map);
+}
 #endif /* IPA_UC_OFFLOAD */
 
 QDF_STATUS ol_txrx_display_stats(uint16_t value,
@@ -6197,9 +6202,4 @@ QDF_STATUS ol_txrx_set_wisa_mode(ol_txrx_vdev_handle vdev, bool enable)
 
 	vdev->is_wisa_mode_enable = enable;
 	return QDF_STATUS_SUCCESS;
-}
-
-int ol_txrx_rx_hash_smmu_map(ol_txrx_pdev_handle pdev, bool map)
-{
-	return htt_rx_hash_smmu_map_update(pdev->htt_pdev, map);
 }

@@ -32,6 +32,15 @@
 #define OL_TXRX_PEER_UNREF_DELETE(peer) \
 	ol_txrx_peer_unref_delete(peer, __func__, __LINE__)
 
+/* ol_txrx_is_peer_eligible_for_deletion() - check if peer to be deleted
+ * @peer: peer handler
+ * @pdev: pointer to pdev
+ *
+ * Return: true if eligible for deletion else false
+ */
+bool ol_txrx_is_peer_eligible_for_deletion(ol_txrx_peer_handle peer,
+					   struct ol_txrx_pdev_t *pdev);
+
 int ol_txrx_peer_unref_delete(ol_txrx_peer_handle peer,
 					      const char *fname,
 					      int line);
@@ -181,6 +190,7 @@ bool ol_txrx_fwd_desc_thresh_check(struct ol_txrx_vdev_t *vdev);
 ol_txrx_vdev_handle ol_txrx_get_vdev_from_vdev_id(uint8_t vdev_id);
 
 void htt_pkt_log_init(struct ol_txrx_pdev_t *handle, void *scn);
+void htt_pktlogmod_exit(struct ol_txrx_pdev_t *handle, void *scn);
 QDF_STATUS ol_txrx_set_wisa_mode(ol_txrx_vdev_handle vdev,
 			bool enable);
 void ol_txrx_update_mac_id(uint8_t vdev_id, uint8_t mac_id);

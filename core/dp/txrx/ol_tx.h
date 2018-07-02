@@ -30,13 +30,17 @@
 
 #include <ol_txrx_types.h>      /* ol_tx_desc_t, ol_txrx_msdu_info_t */
 
-qdf_nbuf_t ol_tx_ll(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list);
-qdf_nbuf_t ol_tx_ll_wrapper(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list);
+qdf_nbuf_t ol_tx_ll(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list,
+		    bool notify_tx_comp);
+qdf_nbuf_t ol_tx_ll_wrapper(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list,
+			    bool notify_tx_comp);
 #ifdef WLAN_FEATURE_FASTPATH
-qdf_nbuf_t ol_tx_ll_fast(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list);
+qdf_nbuf_t ol_tx_ll_fast(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list,
+			 bool notify_tx_comp);
 #endif
 
-qdf_nbuf_t ol_tx_ll_queue(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list);
+qdf_nbuf_t ol_tx_ll_queue(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list,
+			  bool notify_tx_comp);
 
 #ifdef CONFIG_HL_SUPPORT
 #define OL_TX_SEND ol_tx_hl
@@ -79,11 +83,12 @@ ol_tx_non_std_hl(ol_txrx_vdev_handle data_vdev,
  * ol_tx_hl() - transmit tx frames for a HL system.
  * @vdev: the virtual device transmit the data
  * @msdu_list: the tx frames to send
+ * @notify_tx_comp: is OTA to be notified
  *
  * Return: NULL if all MSDUs are accepted
  */
 qdf_nbuf_t
-ol_tx_hl(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list);
+ol_tx_hl(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list, bool notify_tx_comp);
 
 qdf_nbuf_t
 ol_tx_non_std_ll(ol_txrx_vdev_handle data_vdev,

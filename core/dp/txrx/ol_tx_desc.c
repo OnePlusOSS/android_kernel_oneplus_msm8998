@@ -415,6 +415,7 @@ static void ol_tx_desc_free_common(struct ol_txrx_pdev_t *pdev,
 	/* clear the ref cnt */
 	qdf_atomic_init(&tx_desc->ref_cnt);
 	tx_desc->vdev_id = OL_TXRX_INVALID_VDEV_ID;
+	tx_desc->notify_tx_comp = 0;
 }
 
 #ifndef QCA_LL_TX_FLOW_CONTROL_V2

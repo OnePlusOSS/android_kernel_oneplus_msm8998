@@ -26,6 +26,7 @@
 #include "sme_inside.h"
 #include "sme_api.h"
 #include "cfg_api.h"
+#include "cds_regdomain.h"
 
 #ifdef FEATURE_WLAN_DIAG_SUPPORT
 #include "host_diag_core_event.h"
@@ -414,6 +415,7 @@ static QDF_STATUS sme_rrm_send_scan_result(tpAniSirGlobal mac_ctx,
 	tpRrmSMEContext rrm_ctx = &mac_ctx->rrm.rrmSmeContext;
 	uint32_t session_id;
 	tCsrRoamInfo *roam_info;
+	tSirScanType scan_type;
 
 	qdf_mem_zero(&filter, sizeof(filter));
 	qdf_mem_zero(scanresults_arr,
@@ -510,11 +512,41 @@ static QDF_STATUS sme_rrm_send_scan_result(tpAniSirGlobal mac_ctx,
 		goto rrm_send_scan_results_done;
 	}
 
+	if (eRRM_MSG_SOURCE_ESE_UPLOAD == rrm_ctx->msgSource ||
+	    eRRM_MSG_SOURCE_LEGACY_ESE == rrm_ctx->msgSource)
+		scan_type = rrm_ctx->measMode[rrm_ctx->currentIndex];
+	else
+		scan_type = rrm_ctx->measMode[0];
+
 	while (scan_results) {
+		/*
+		 * In passive scan, sta listens beacon. Connected AP beacon
+		 * is offloaded to firmware. Firmware will discard
+		 * connected AP beacon except that special IE exists.
+		 * Connected AP beacon will not be sent to host. Hence, timer
+		 * of connected AP in scan results is not updated and can
+		 * not meet "pScanResult->timer >= RRM_scan_timer".
+		 */
+		tCsrRoamSession *session;
+		uint8_t is_conn_bss_found = false;
+
+		if (scan_type == eSIR_PASSIVE_SCAN) {
+			session = CSR_GET_SESSION(mac_ctx, session_id);
+			if (csr_is_conn_state_connected_infra(mac_ctx,
+			    session_id) &&
+			    (NULL != session->pConnectBssDesc) &&
+			    (csr_is_duplicate_bss_description(mac_ctx,
+			     &scan_results->BssDescriptor,
+			     session->pConnectBssDesc))) {
+				is_conn_bss_found = true;
+				sme_debug("Connected BSS in scan results");
+			}
+		}
 		next_result = sme_scan_result_get_next(mac_ctx, result_handle);
 		sme_debug("Scan res timer:%lu, rrm scan timer:%llu",
 				scan_results->timer, rrm_scan_timer);
-		if (scan_results->timer >= rrm_scan_timer) {
+		if ((scan_results->timer >= rrm_scan_timer) ||
+		    (is_conn_bss_found == true)) {
 			roam_info->pBssDesc = &scan_results->BssDescriptor;
 			csr_roam_call_callback(mac_ctx, session_id, roam_info,
 						0, eCSR_ROAM_UPDATE_SCAN_RESULT,
@@ -759,6 +791,7 @@ static QDF_STATUS sme_rrm_issue_scan_req(tpAniSirGlobal mac_ctx)
 		scan_req.requestType = eCSR_SCAN_RRM;
 		wma_get_scan_id(&scan_req_id);
 		scan_req.scan_id = scan_req_id;
+		scan_req.scan_requestor_id = USER_SCAN_REQUESTOR_ID;
 		status = sme_scan_request(mac_ctx, (uint8_t) session_id,
 					&scan_req,
 					&sme_rrm_scan_request_callback, NULL);
@@ -833,6 +866,7 @@ QDF_STATUS sme_rrm_process_beacon_report_req_ind(tpAniSirGlobal pMac,
 	tpSirBeaconReportReqInd pBeaconReq = (tpSirBeaconReportReqInd) pMsgBuf;
 	tpRrmSMEContext pSmeRrmContext = &pMac->rrm.rrmSmeContext;
 	uint32_t len = 0, i = 0;
+	uint8_t temp = 0;
 
 	sme_debug("Received Beacon report request ind Channel = %d",
 		pBeaconReq->channelInfo.channelNum);
@@ -850,7 +884,19 @@ QDF_STATUS sme_rrm_process_beacon_report_req_ind(tpAniSirGlobal pMac,
 		}
 		csr_get_cfg_valid_channels(pMac, pSmeRrmContext->channelList.
 					ChannelList, &len);
-		pSmeRrmContext->channelList.numOfChannels = (uint8_t) len;
+
+		for (i = 0; i < len; i++) {
+			if (cds_reg_dmn_get_opclass_from_channel(
+			    pMac->scan.countryCodeCurrent,
+			    pSmeRrmContext->channelList.ChannelList[i],
+			    BWALL) ==
+			    pBeaconReq->channelInfo.regulatoryClass) {
+				pSmeRrmContext->channelList.ChannelList[temp] =
+				  pSmeRrmContext->channelList.ChannelList[i];
+				temp++;
+			}
+		}
+		pSmeRrmContext->channelList.numOfChannels = (uint8_t) temp;
 	} else {
 		len = 0;
 		pSmeRrmContext->channelList.numOfChannels = 0;

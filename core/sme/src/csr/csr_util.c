@@ -876,10 +876,7 @@ uint16_t csr_check_concurrent_channel_overlap(tpAniSirGlobal mac_ctx,
 
 	if (intf_ch && sap_ch != intf_ch &&
 	    cc_switch_mode != QDF_MCC_TO_SCC_SWITCH_FORCE &&
-	    cc_switch_mode !=
-	    QDF_MCC_TO_SCC_SWITCH_FORCE_WITHOUT_DISCONNECTION &&
-	    cc_switch_mode !=
-	    QDF_MCC_TO_SCC_SWITCH_WITH_FAVORITE_CHANNEL) {
+	    !cds_is_force_scc()) {
 		sap_lfreq = sap_cfreq - sap_hbw;
 		sap_hfreq = sap_cfreq + sap_hbw;
 		intf_lfreq = intf_cfreq - intf_hbw;
@@ -898,14 +895,14 @@ uint16_t csr_check_concurrent_channel_overlap(tpAniSirGlobal mac_ctx,
 			(intf_hfreq > sap_lfreq && intf_hfreq < sap_hfreq))))
 			intf_ch = 0;
 	} else if (intf_ch && sap_ch != intf_ch &&
-		((cc_switch_mode == QDF_MCC_TO_SCC_SWITCH_FORCE) ||
-		(cc_switch_mode ==
-			QDF_MCC_TO_SCC_SWITCH_FORCE_WITHOUT_DISCONNECTION) ||
-		(cc_switch_mode ==
-			QDF_MCC_TO_SCC_SWITCH_WITH_FAVORITE_CHANNEL))) {
+		(cc_switch_mode == QDF_MCC_TO_SCC_SWITCH_FORCE ||
+		 cds_is_force_scc())) {
 		if (!((intf_ch <= 14 && sap_ch <= 14) ||
 			(intf_ch > 14 && sap_ch > 14))) {
 			if (wma_is_hw_dbs_capable())
+				intf_ch = 0;
+			else if (cc_switch_mode ==
+				 QDF_MCC_TO_SCC_WITH_PREFERRED_BAND)
 				intf_ch = 0;
 		}
 		else if (cc_switch_mode ==

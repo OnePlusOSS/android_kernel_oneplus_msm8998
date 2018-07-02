@@ -203,6 +203,7 @@ struct ol_tx_desc_t {
 #endif
 	void *tso_desc;
 	void *tso_num_desc;
+	bool notify_tx_comp;
 };
 
 typedef TAILQ_HEAD(some_struct_name, ol_tx_desc_t) ol_tx_desc_list;
@@ -521,6 +522,7 @@ struct ol_tx_flow_pool_t {
 /*
  * struct ol_txrx_peer_id_map - Map of firmware peer_ids to peers on host
  * @peer: Pointer to peer object
+ * @peer_ref: Pointer to peer marked as stale
  * @peer_id_ref_cnt: No. of firmware references to the peer_id
  * @del_peer_id_ref_cnt: No. of outstanding unmap events for peer_id
  *                       after the peer object is deleted on the host.
@@ -529,6 +531,7 @@ struct ol_tx_flow_pool_t {
  */
 struct ol_txrx_peer_id_map {
 	struct ol_txrx_peer_t *peer;
+	struct ol_txrx_peer_t *peer_ref;
 	qdf_atomic_t peer_id_ref_cnt;
 	qdf_atomic_t del_peer_id_ref_cnt;
 };
@@ -665,6 +668,8 @@ struct ol_txrx_pdev_t {
 	TAILQ_HEAD(, ol_txrx_stats_req_internal) req_list;
 	int req_list_depth;
 	qdf_spinlock_t req_list_spinlock;
+
+	TAILQ_HEAD(, ol_txrx_roam_stale_peer_t) roam_stale_peer_list;
 
 	/* peer ID to peer object map (array of pointers to peer objects) */
 	struct ol_txrx_peer_id_map *peer_id_to_obj_map;
@@ -1054,6 +1059,9 @@ struct ol_txrx_vdev_t {
 	ol_txrx_rx_fp rx; /* receive function used by this vdev */
 	ol_txrx_stats_rx_fp stats_rx; /* receive function used by this vdev */
 
+	/* completion function used by this vdev*/
+	ol_txrx_completion_fp tx_comp;
+
 	struct {
 		/*
 		 * If the vdev object couldn't be deleted immediately because
@@ -1221,6 +1229,12 @@ struct ol_txrx_cached_bufq_t {
 	uint32_t dropped;
 };
 
+struct ol_txrx_roam_stale_peer_t {
+	ol_txrx_peer_handle peer;
+
+	TAILQ_ENTRY(ol_txrx_roam_stale_peer_t) next_stale_entry;
+};
+
 struct ol_txrx_peer_t {
 	struct ol_txrx_vdev_t *vdev;
 
@@ -1329,8 +1343,7 @@ struct ol_txrx_peer_t {
 	u_int16_t tx_pause_flag;
 #endif
 	qdf_time_t last_assoc_rcvd;
-	qdf_time_t last_disassoc_rcvd;
-	qdf_time_t last_deauth_rcvd;
+	qdf_time_t last_disassoc_deauth_rcvd;
 	qdf_atomic_t fw_create_pending;
 	qdf_timer_t peer_unmap_timer;
 };

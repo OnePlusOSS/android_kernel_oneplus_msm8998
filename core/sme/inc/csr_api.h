@@ -300,6 +300,7 @@ typedef struct tagCsrScanRequest {
 	bool skipDfsChnlInP2pSearch;
 	bool bcnRptReqScan;     /* is Scan issued by Beacon Report Request */
 	uint32_t scan_id;
+	uint32_t scan_requestor_id;
 	uint32_t timestamp;
 
 	bool enable_scan_randomization;

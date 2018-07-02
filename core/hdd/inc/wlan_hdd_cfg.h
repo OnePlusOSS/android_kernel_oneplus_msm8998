@@ -982,7 +982,7 @@ enum hdd_dot11_mode {
 #define CFG_SCAN_ALLOW_ADJ_CH_BCN_NAME       "allow_adj_chan_bcns"
 #define CFG_SCAN_ALLOW_ADJ_CH_BCN_MIN        (0)
 #define CFG_SCAN_ALLOW_ADJ_CH_BCN_MAX        (1)
-#define CFG_SCAN_ALLOW_ADJ_CH_BCN_DEFAULT    (0)
+#define CFG_SCAN_ALLOW_ADJ_CH_BCN_DEFAULT    (1)
 
 #ifdef FEATURE_WLAN_EXTSCAN
 /*
@@ -3225,7 +3225,7 @@ enum hdd_dot11_mode {
 #define CFG_WLAN_MCC_TO_SCC_SWITCH_MODE          "gWlanMccToSccSwitchMode"
 #define CFG_WLAN_MCC_TO_SCC_SWITCH_MODE_MIN      (QDF_MCC_TO_SCC_SWITCH_DISABLE)
 #define CFG_WLAN_MCC_TO_SCC_SWITCH_MODE_MAX \
-				   (QDF_MCC_TO_SCC_SWITCH_WITH_FAVORITE_CHANNEL)
+				   (QDF_MCC_TO_SCC_SWITCH_MAX - 1)
 #define CFG_WLAN_MCC_TO_SCC_SWITCH_MODE_DEFAULT  (QDF_MCC_TO_SCC_SWITCH_DISABLE)
 #endif
 
@@ -8638,11 +8638,6 @@ enum hdd_link_speed_rpt_type {
 #define CFG_IGNORE_CAC_MAX                         (1)
 #define CFG_IGNORE_CAC_DEFAULT                     (0)
 
-#define CFG_ENABLE_SAP_DFS_CH_SIFS_BURST_NAME      "gEnableSAPDfsChSifsBurst"
-#define CFG_ENABLE_SAP_DFS_CH_SIFS_BURST_MIN       (0)
-#define CFG_ENABLE_SAP_DFS_CH_SIFS_BURST_MAX       (1)
-#define CFG_ENABLE_SAP_DFS_CH_SIFS_BURST_DEFAULT   (1)
-
 #define CFG_DFS_RADAR_PRI_MULTIPLIER_NAME          "gDFSradarMappingPriMultiplier"
 #define CFG_DFS_RADAR_PRI_MULTIPLIER_DEFAULT       (4)
 #define CFG_DFS_RADAR_PRI_MULTIPLIER_MIN           (0)
@@ -8706,32 +8701,6 @@ enum hdd_link_speed_rpt_type {
 #define CFG_WLAN_LOGGING_CONSOLE_SUPPORT_DISABLE (0)
 #define CFG_WLAN_LOGGING_CONSOLE_SUPPORT_DEFAULT (1)
 #endif /* WLAN_LOGGING_SOCK_SVC_ENABLE */
-
-/*
- * <ini>
- * gEnableSifsBurst - Enables Sifs Burst
- * @Min: 0
- * @Max: 3
- * @Default: 0
- *
- * Sifs burst mode configuration
- *     0) disabled
- *     1) enabled, but disabled for legacy mode
- *     3) enabled
- *
- * Related: None
- *
- * Supported Feature: STA
- *
- * Usage: Internal/External
- *
- * </ini>
- */
-
-#define CFG_ENABLE_SIFS_BURST                      "gEnableSifsBurst"
-#define CFG_ENABLE_SIFS_BURST_MIN                  (0)
-#define CFG_ENABLE_SIFS_BURST_MAX                  (3)
-#define CFG_ENABLE_SIFS_BURST_DEFAULT              (0)
 
 #ifdef WLAN_FEATURE_LPSS
 #define CFG_ENABLE_LPASS_SUPPORT                          "gEnableLpassSupport"
@@ -10741,15 +10710,6 @@ enum restart_beaconing_on_ch_avoid_rule {
 #define CFG_FILTER_MULTICAST_REPLAY_MIN      (0)
 #define CFG_FILTER_MULTICAST_REPLAY_MAX      (1)
 #define CFG_FILTER_MULTICAST_REPLAY_DEFAULT  (1)
-
-/*
- * This parameter will control SIFS burst duration in FW from 0 to 12 ms.
- * Default value is set to 8ms.
- */
-#define CFG_SIFS_BURST_DURATION_NAME     "g_sifs_burst_duration"
-#define CFG_SIFS_BURST_DURATION_MIN      (0)
-#define CFG_SIFS_BURST_DURATION_MAX      (12)
-#define CFG_SIFS_BURST_DURATION_DEFAULT  (8)
 
 /* Optimize channel avoidance indication comming from firmware */
 #define CFG_OPTIMIZE_CA_EVENT_NAME       "goptimize_chan_avoid_event"
@@ -14847,7 +14807,7 @@ enum hw_filter_mode {
  *
  * @Min: 0x0
  * @Max: 0x3F
- * @Default: 0x18
+ * @Default: 0x17
  *
  * It is a 32 bit value such that the various bits represent as below -
  * Bit-0 : is Enable/Disable Control for "PPDU Secondary Retry Support"
@@ -14865,7 +14825,7 @@ enum hw_filter_mode {
 #define CFG_ENABLE_SECONDARY_RATE_NAME          "gEnableSecondaryRate"
 #define CFG_ENABLE_SECONDARY_RATE_MIN           (0)
 #define CFG_ENABLE_SECONDARY_RATE_MAX           (0x3F)
-#define CFG_ENABLE_SECONDARY_RATE_DEFAULT       (0x18)
+#define CFG_ENABLE_SECONDARY_RATE_DEFAULT       (0x17)
 
 /*---------------------------------------------------------------------------
    Type declarations
@@ -15387,7 +15347,6 @@ struct hdd_config {
 	uint8_t gMaxConcurrentActiveSessions;
 
 	uint8_t ignoreCAC;
-	bool IsSapDfsChSifsBurstEnabled;
 
 #ifdef FEATURE_GREEN_AP
 	bool enableGreenAP;
@@ -15415,8 +15374,6 @@ struct hdd_config {
 	bool wlanLoggingEnable;
 	bool wlanLoggingToConsole;
 #endif /* WLAN_LOGGING_SOCK_SVC_ENABLE */
-
-	uint8_t enableSifsBurst;
 
 #ifdef WLAN_FEATURE_LPSS
 	bool enable_lpass_support;
@@ -15605,8 +15562,6 @@ struct hdd_config {
 	bool go_force_11n_for_11ac;
 	uint16_t sap_tx_leakage_threshold;
 	bool multicast_replay_filter;
-	/* parameter for indicating sifs burst duration to fw */
-	uint8_t sifs_burst_duration;
 	bool goptimize_chan_avoid_event;
 	bool enable_go_cts2self_for_sta;
 	uint32_t tx_aggregation_size;

@@ -384,12 +384,6 @@ int wma_cli_get_command(int vdev_id, int param_id, int vpdev)
 		case WMI_PDEV_PARAM_TXPOWER_LIMIT5G:
 			ret = wma->pdevconfig.txpow5g;
 			break;
-		case WMI_PDEV_PARAM_BURST_ENABLE:
-			ret = wma->pdevconfig.burst_enable;
-			break;
-		case WMI_PDEV_PARAM_BURST_DUR:
-			ret = wma->pdevconfig.burst_dur;
-			break;
 		default:
 			WMA_LOGE("Invalid cli_get pdev command/Not yet implemented 0x%x",
 				 param_id);
@@ -1503,18 +1497,6 @@ static void wma_process_cli_set_cmd(tp_wma_handle wma,
 			break;
 		case WMI_PDEV_PARAM_RX_CHAIN_MASK:
 			wma->pdevconfig.rxchainmask = privcmd->param_value;
-			break;
-		case WMI_PDEV_PARAM_BURST_ENABLE:
-			wma->pdevconfig.burst_enable = privcmd->param_value;
-			if ((wma->pdevconfig.burst_enable == 1) &&
-			    (wma->pdevconfig.burst_dur == 0))
-				wma->pdevconfig.burst_dur =
-					WMA_DEFAULT_SIFS_BURST_DURATION;
-			else if (wma->pdevconfig.burst_enable == 0)
-				wma->pdevconfig.burst_dur = 0;
-			break;
-		case WMI_PDEV_PARAM_BURST_DUR:
-			wma->pdevconfig.burst_dur = privcmd->param_value;
 			break;
 		case WMI_PDEV_PARAM_TXPOWER_LIMIT2G:
 			wma->pdevconfig.txpow2g = privcmd->param_value;
@@ -2879,8 +2861,8 @@ QDF_STATUS wma_open(void *cds_context,
 
 	wma_ndp_register_all_event_handlers(wma_handle);
 	wmi_unified_register_event_handler(wma_handle->wmi_handle,
-				WMI_PEER_ANTDIV_INFO_EVENTID,
-				wma_peer_ant_info_evt_handler,
+				WMI_PDEV_DIV_RSSI_ANTID_EVENTID,
+				wma_pdev_div_info_evt_handler,
 				WMA_RX_SERIALIZER_CTX);
 
 	wmi_unified_register_event_handler(wma_handle->wmi_handle,
@@ -3172,6 +3154,11 @@ static int wma_pdev_set_hw_mode_resp_evt_handler(void *handle,
 			QDF_BUG(0);
 			goto fail;
 		}
+		if (vdev_id >= wma->max_bssid) {
+			WMA_LOGE("%s: vdev_id: %d is invalid, max_bssid: %d",
+					__func__, vdev_id, wma->max_bssid);
+			goto fail;
+		}
 		mac_id = WMA_PDEV_TO_MAC_MAP(vdev_mac_entry[i].pdev_id);
 
 		WMA_LOGE("%s: vdev_id:%d mac_id:%d",
@@ -3258,6 +3245,11 @@ void wma_process_pdev_hw_mode_trans_ind(void *handle,
 			WMA_LOGE("%s: soc level id received for mac id)",
 					__func__);
 			QDF_BUG(0);
+			return;
+		}
+		if (vdev_id >= wma->max_bssid) {
+			WMA_LOGE("%s: vdev_id: %d is invalid, max_bssid: %d",
+					__func__, vdev_id, wma->max_bssid);
 			return;
 		}
 
@@ -4281,6 +4273,9 @@ static inline void wma_update_target_services(tp_wma_handle wh,
 
 	/* Enable WOW */
 	g_fw_wlan_feat_caps |= (1 << WOW);
+
+	if (WMI_SERVICE_IS_ENABLED(wh->wmi_service_bitmap, WMI_SERVICE_NLO))
+		g_fw_wlan_feat_caps |= (1 << PNO);
 
 	/* ARP offload */
 	cfg->arp_offload = WMI_SERVICE_IS_ENABLED(wh->wmi_service_bitmap,
@@ -7145,9 +7140,9 @@ wma_process_action_frame_random_mac(tp_wma_handle wma_handle,
 static QDF_STATUS wma_get_chain_rssi(tp_wma_handle wma_handle,
 		struct get_chain_rssi_req_params *req_params)
 {
-	wmi_peer_antdiv_info_req_cmd_fixed_param *cmd;
+	wmi_pdev_div_get_rssi_antid_fixed_param *cmd;
 	wmi_buf_t wmi_buf;
-	uint32_t len = sizeof(wmi_peer_antdiv_info_req_cmd_fixed_param);
+	uint32_t len = sizeof(wmi_pdev_div_get_rssi_antid_fixed_param);
 	u_int8_t *buf_ptr;
 
 	if (!wma_handle) {
@@ -7163,16 +7158,16 @@ static QDF_STATUS wma_get_chain_rssi(tp_wma_handle wma_handle,
 
 	buf_ptr = (u_int8_t *)wmi_buf_data(wmi_buf);
 
-	cmd = (wmi_peer_antdiv_info_req_cmd_fixed_param *)buf_ptr;
+	cmd = (wmi_pdev_div_get_rssi_antid_fixed_param *)buf_ptr;
 	WMITLV_SET_HDR(&cmd->tlv_header,
 		WMITLV_TAG_STRUC_wmi_peer_antdiv_info_req_cmd_fixed_param,
-		WMITLV_GET_STRUCT_TLVLEN(wmi_peer_antdiv_info_req_cmd_fixed_param));
-	cmd->vdev_id = req_params->session_id;
+		WMITLV_GET_STRUCT_TLVLEN(wmi_pdev_div_get_rssi_antid_fixed_param));
+	cmd->pdev_id = 0;
 	WMI_CHAR_ARRAY_TO_MAC_ADDR(req_params->peer_macaddr.bytes,
-				&cmd->peer_mac_address);
+				&cmd->macaddr);
 
 	if (wmi_unified_cmd_send(wma_handle->wmi_handle, wmi_buf, len,
-		WMI_PEER_ANTDIV_INFO_REQ_CMDID)) {
+		WMI_PDEV_DIV_GET_RSSI_ANTID_CMDID)) {
 			WMA_LOGE(FL("failed to send get chain rssi command"));
 			wmi_buf_free(wmi_buf);
 			return QDF_STATUS_E_FAILURE;
@@ -7934,6 +7929,7 @@ QDF_STATUS wma_mc_process_msg(void *cds_context, cds_msg_t *msg)
 	case WMA_RESET_PASSPOINT_LIST_REQ:
 		wma_reset_passpoint_network_list(wma_handle,
 			(struct wifi_passpoint_req *)msg->bodyptr);
+		qdf_mem_free(msg->bodyptr);
 		break;
 #endif /* FEATURE_WLAN_EXTSCAN */
 	case WMA_SET_SCAN_MAC_OUI_REQ:

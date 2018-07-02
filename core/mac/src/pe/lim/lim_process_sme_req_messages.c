@@ -1287,7 +1287,7 @@ static QDF_STATUS lim_send_hal_start_scan_offload_req(tpAniSirGlobal pMac,
 
 	pScanOffloadReq->sessionId = pScanReq->sessionId;
 	pScanOffloadReq->scan_id = pScanReq->scan_id;
-	pScanOffloadReq->scan_requestor_id = USER_SCAN_REQUESTOR_ID;
+	pScanOffloadReq->scan_requestor_id = pScanReq->scan_requestor_id;
 	pScanOffloadReq->scan_adaptive_dwell_mode =
 			pScanReq->scan_adaptive_dwell_mode;
 	pScanOffloadReq->scan_ctrl_flags_ext =
@@ -1531,7 +1531,6 @@ __lim_process_sme_join_req(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 	uint16_t ie_len;
 	uint8_t *vendor_ie;
 	tSirBssDescription *bss_desc;
-	struct vdev_type_nss *vdev_type_nss;
 
 	if (!mac_ctx || !msg_buf) {
 		QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_ERROR,
@@ -1727,15 +1726,6 @@ __lim_process_sme_join_req(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 			  sme_join_req->force_24ghz_in_ht20);
 		/* Copy The channel Id to the session Table */
 		session->currentOperChannel = bss_desc->channelId;
-		if (IS_5G_CH(session->currentOperChannel))
-			vdev_type_nss = &mac_ctx->vdev_type_nss_5g;
-		else
-			vdev_type_nss = &mac_ctx->vdev_type_nss_2g;
-		if (session->pePersona == QDF_P2P_CLIENT_MODE)
-			session->vdev_nss = vdev_type_nss->p2p_cli;
-		else
-			session->vdev_nss = vdev_type_nss->sta;
-		session->nss = session->vdev_nss;
 		session->vhtCapability =
 			IS_DOT11_MODE_VHT(session->dot11mode);
 		if (session->vhtCapability) {
@@ -1889,6 +1879,12 @@ __lim_process_sme_join_req(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 		session->supported_nss_1x1 = sme_join_req->supported_nss_1x1;
 		session->vdev_nss = sme_join_req->vdev_nss;
 		session->nss = sme_join_req->nss;
+		session->nss_forced_1x1 = sme_join_req->nss_forced_1x1;
+
+		pe_debug("nss %d, vdev_nss %d, supported_nss_1x1 %d",
+			 session->nss,
+			 session->vdev_nss,
+			 session->supported_nss_1x1);
 
 		mlm_join_req->bssDescription.length =
 			session->pLimJoinReq->bssDescription.length;
@@ -2146,6 +2142,7 @@ static void __lim_process_sme_reassoc_req(tpAniSirGlobal mac_ctx,
 	session_entry->supported_nss_1x1 = reassoc_req->supported_nss_1x1;
 	session_entry->vdev_nss = reassoc_req->vdev_nss;
 	session_entry->nss = reassoc_req->nss;
+	session_entry->nss_forced_1x1 = reassoc_req->nss_forced_1x1;
 
 	pe_debug("vhtCapability: %d su_beam_formee: %d su_tx_bformer %d",
 		session_entry->vhtCapability,
@@ -2602,7 +2599,7 @@ static void __lim_process_sme_disassoc_cnf(tpAniSirGlobal pMac, uint32_t *pMsgBu
 	if (psessionEntry == NULL) {
 		pe_err("session does not exist for given bssId");
 		status = lim_prepare_disconnect_done_ind(pMac, &msg,
-						CSR_SESSION_ID_INVALID,
+						smeDisassocCnf.sme_session_id,
 						eSIR_SME_INVALID_SESSION,
 						NULL);
 		if (QDF_IS_STATUS_SUCCESS(status))
@@ -2614,7 +2611,8 @@ static void __lim_process_sme_disassoc_cnf(tpAniSirGlobal pMac, uint32_t *pMsgBu
 
 	if (!lim_is_sme_disassoc_cnf_valid(pMac, &smeDisassocCnf, psessionEntry)) {
 		pe_err("received invalid SME_DISASSOC_CNF message");
-		status = lim_prepare_disconnect_done_ind(pMac, &msg, sessionId,
+		status = lim_prepare_disconnect_done_ind(pMac, &msg,
+						psessionEntry->smeSessionId,
 						eSIR_SME_INVALID_PARAMETERS,
 						&smeDisassocCnf.bssid.bytes[0]);
 		if (QDF_IS_STATUS_SUCCESS(status))
@@ -2645,10 +2643,10 @@ static void __lim_process_sme_disassoc_cnf(tpAniSirGlobal pMac, uint32_t *pMsgBu
 			lim_print_sme_state(pMac, LOGE,
 					    psessionEntry->limSmeState);
 			status = lim_prepare_disconnect_done_ind(pMac, &msg,
-							sessionId,
-							eSIR_SME_INVALID_STATE,
-							&smeDisassocCnf.bssid.
-							bytes[0]);
+						psessionEntry->smeSessionId,
+						eSIR_SME_INVALID_STATE,
+						&smeDisassocCnf.bssid.
+						bytes[0]);
 			if (QDF_IS_STATUS_SUCCESS(status))
 				lim_send_sme_disassoc_deauth_ntf(pMac,
 							QDF_STATUS_SUCCESS,
@@ -2665,7 +2663,8 @@ static void __lim_process_sme_disassoc_cnf(tpAniSirGlobal pMac, uint32_t *pMsgBu
 	default:                /* eLIM_UNKNOWN_ROLE */
 		pe_err("received unexpected SME_DISASSOC_CNF role %d",
 			GET_LIM_SYSTEM_ROLE(psessionEntry));
-		status = lim_prepare_disconnect_done_ind(pMac, &msg, sessionId,
+		status = lim_prepare_disconnect_done_ind(pMac, &msg,
+						psessionEntry->smeSessionId,
 						eSIR_SME_INVALID_STATE,
 						&smeDisassocCnf.bssid.bytes[0]);
 		if (QDF_IS_STATUS_SUCCESS(status))
@@ -2686,7 +2685,7 @@ static void __lim_process_sme_disassoc_cnf(tpAniSirGlobal pMac, uint32_t *pMsgBu
 				MAC_ADDRESS_STR,
 				MAC_ADDR_ARRAY(smeDisassocCnf.peer_macaddr.bytes));
 			status = lim_prepare_disconnect_done_ind(pMac, &msg,
-						sessionId,
+						psessionEntry->smeSessionId,
 						eSIR_SME_INVALID_PARAMETERS,
 						&smeDisassocCnf.bssid.bytes[0]);
 			if (QDF_IS_STATUS_SUCCESS(status))
@@ -2704,9 +2703,9 @@ static void __lim_process_sme_disassoc_cnf(tpAniSirGlobal pMac, uint32_t *pMsgBu
 				MAC_ADDR_ARRAY(smeDisassocCnf.peer_macaddr.bytes),
 				pStaDs->mlmStaContext.mlmState);
 			status = lim_prepare_disconnect_done_ind(pMac, &msg,
-							CSR_SESSION_ID_INVALID,
-							eSIR_SME_SUCCESS,
-							NULL);
+						psessionEntry->smeSessionId,
+						eSIR_SME_SUCCESS,
+						NULL);
 			if (QDF_IS_STATUS_SUCCESS(status))
 				lim_send_sme_disassoc_deauth_ntf(pMac,
 							QDF_STATUS_SUCCESS,
@@ -4874,9 +4873,9 @@ static void lim_set_pdev_ht_ie(tpAniSirGlobal mac_ctx, uint8_t pdev_id,
 				ie_params->ie_len);
 
 		if (NSS_1x1_MODE == i) {
-			p_ie = lim_get_ie_ptr_new(mac_ctx, ie_params->ie_ptr,
-					ie_params->ie_len,
-					DOT11F_EID_HTCAPS, ONE_BYTE);
+			p_ie = wlan_cfg_get_ie_ptr(ie_params->ie_ptr,
+						   ie_params->ie_len,
+						   DOT11F_EID_HTCAPS, ONE_BYTE);
 			if (NULL == p_ie) {
 				qdf_mem_free(ie_params->ie_ptr);
 				qdf_mem_free(ie_params);
@@ -4948,9 +4947,10 @@ static void lim_set_pdev_vht_ie(tpAniSirGlobal mac_ctx, uint8_t pdev_id,
 				ie_params->ie_len);
 
 		if (NSS_1x1_MODE == i) {
-			p_ie = lim_get_ie_ptr_new(mac_ctx, ie_params->ie_ptr,
-					ie_params->ie_len,
-					DOT11F_EID_VHTCAPS, ONE_BYTE);
+			p_ie = wlan_cfg_get_ie_ptr(ie_params->ie_ptr,
+						   ie_params->ie_len,
+						   DOT11F_EID_VHTCAPS,
+						   ONE_BYTE);
 			if (NULL == p_ie) {
 				qdf_mem_free(ie_params->ie_ptr);
 				qdf_mem_free(ie_params);

@@ -3297,13 +3297,6 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_IGNORE_CAC_MIN,
 		     CFG_IGNORE_CAC_MAX),
 
-	REG_VARIABLE(CFG_ENABLE_SAP_DFS_CH_SIFS_BURST_NAME, WLAN_PARAM_Integer,
-		     struct hdd_config, IsSapDfsChSifsBurstEnabled,
-		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
-		     CFG_ENABLE_SAP_DFS_CH_SIFS_BURST_DEFAULT,
-		     CFG_ENABLE_SAP_DFS_CH_SIFS_BURST_MIN,
-		     CFG_ENABLE_SAP_DFS_CH_SIFS_BURST_MAX),
-
 	REG_VARIABLE(CFG_DFS_RADAR_PRI_MULTIPLIER_NAME, WLAN_PARAM_Integer,
 		     struct hdd_config, dfsRadarPriMultiplier,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -3361,13 +3354,6 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_WLAN_LOGGING_CONSOLE_SUPPORT_DISABLE,
 		     CFG_WLAN_LOGGING_CONSOLE_SUPPORT_ENABLE),
 #endif /* WLAN_LOGGING_SOCK_SVC_ENABLE */
-
-	REG_VARIABLE(CFG_ENABLE_SIFS_BURST, WLAN_PARAM_Integer,
-		     struct hdd_config, enableSifsBurst,
-		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
-		     CFG_ENABLE_SIFS_BURST_DEFAULT,
-		     CFG_ENABLE_SIFS_BURST_MIN,
-		     CFG_ENABLE_SIFS_BURST_MAX),
 
 #ifdef WLAN_FEATURE_LPSS
 	REG_VARIABLE(CFG_ENABLE_LPASS_SUPPORT, WLAN_PARAM_Integer,
@@ -4436,13 +4422,6 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_FILTER_MULTICAST_REPLAY_DEFAULT,
 		CFG_FILTER_MULTICAST_REPLAY_MIN,
 		CFG_FILTER_MULTICAST_REPLAY_MAX),
-
-	REG_VARIABLE(CFG_SIFS_BURST_DURATION_NAME, WLAN_PARAM_Integer,
-		     struct hdd_config, sifs_burst_duration,
-		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
-		     CFG_SIFS_BURST_DURATION_DEFAULT,
-		     CFG_SIFS_BURST_DURATION_MIN,
-		     CFG_SIFS_BURST_DURATION_MAX),
 
 	REG_VARIABLE(CFG_ENABLE_PHY_REG_NAME, WLAN_PARAM_HexInteger,
 		     struct hdd_config, enable_phy_reg_retention,
@@ -5958,11 +5937,7 @@ static QDF_STATUS hdd_apply_cfg_ini(hdd_context_t *pHddCtx,
 	int i;
 	int rv;
 
-	if (MAX_CFG_INI_ITEMS < cRegTableEntries) {
-		hdd_err("MAX_CFG_INI_ITEMS too small, must be at least %ld",
-		       cRegTableEntries);
-		WARN_ON(1);
-	}
+	BUILD_BUG_ON(MAX_CFG_INI_ITEMS < cRegTableEntries);
 
 	for (idx = 0; idx < cRegTableEntries; idx++, pRegEntry++) {
 		/* Calculate the address of the destination field in the structure. */
@@ -6997,8 +6972,6 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_debug("Name = [isRoamOffloadEnabled] Value = [%u]",
 		  pHddCtx->config->isRoamOffloadEnabled);
 #endif
-	hdd_debug("Name = [gEnableSifsBurst] Value = [%u]",
-		  pHddCtx->config->enableSifsBurst);
 
 #ifdef WLAN_FEATURE_LPSS
 	hdd_debug("Name = [gEnableLpassSupport] Value = [%u] ",
@@ -7763,7 +7736,9 @@ static void hdd_set_rx_mode_value(hdd_context_t *hdd_ctx)
  */
 QDF_STATUS hdd_parse_config_ini(hdd_context_t *pHddCtx)
 {
-	int status, i = 0;
+	int status = 0;
+	int i = 0;
+	int retry = 0;
 	/** Pointer for firmware image data */
 	const struct firmware *fw = NULL;
 	char *buffer, *line, *pTemp = NULL;
@@ -7775,7 +7750,15 @@ QDF_STATUS hdd_parse_config_ini(hdd_context_t *pHddCtx)
 
 	memset(cfgIniTable, 0, sizeof(cfgIniTable));
 
-	status = request_firmware(&fw, WLAN_INI_FILE, pHddCtx->parent_dev);
+	do {
+		if (status == -EAGAIN)
+			msleep(HDD_CFG_REQUEST_FIRMWARE_DELAY);
+
+		status = request_firmware(&fw, WLAN_INI_FILE,
+					  pHddCtx->parent_dev);
+		retry++;
+	} while ((retry < HDD_CFG_REQUEST_FIRMWARE_RETRIES) &&
+		 (status == -EAGAIN));
 
 	if (status) {
 		hdd_alert("request_firmware failed %d", status);

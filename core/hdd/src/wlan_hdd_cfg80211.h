@@ -345,11 +345,6 @@ QDF_STATUS wlan_hdd_cfg80211_roam_metrics_handover(hdd_adapter_t *pAdapter,
 						   tCsrRoamInfo *pRoamInfo);
 #endif
 
-#ifdef FEATURE_WLAN_WAPI
-void wlan_hdd_cfg80211_set_key_wapi(hdd_adapter_t *pAdapter, uint8_t key_index,
-				    const uint8_t *mac_addr, const uint8_t *key,
-				    int key_Len);
-#endif
 hdd_context_t *hdd_cfg80211_wiphy_alloc(int priv_size);
 
 int wlan_hdd_cfg80211_tdls_scan(struct wiphy *wiphy,

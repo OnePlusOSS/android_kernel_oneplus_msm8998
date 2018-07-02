@@ -3044,8 +3044,8 @@ tSirRetStatus lim_process_sme_tdls_del_sta_req(tpAniSirGlobal pMac,
 		goto lim_tdls_del_sta_error;
 	}
 
-	lim_tdls_del_sta(pMac, pDelStaReq->peermac, psessionEntry, true);
-	return eSIR_SUCCESS;
+	if (lim_tdls_del_sta(pMac, pDelStaReq->peermac, psessionEntry, true))
+		return eSIR_SUCCESS;
 
 lim_tdls_del_sta_error:
 	lim_send_sme_tdls_del_sta_rsp(pMac, psessionEntry->smeSessionId,

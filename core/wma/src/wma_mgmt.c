@@ -1712,10 +1712,11 @@ static QDF_STATUS wma_setup_install_key_cmd(tp_wma_handle wma_handle,
 	params.key_len = key_params->key_len;
 
 #ifdef WLAN_FEATURE_11W
+	iface = &wma_handle->interfaces[key_params->vdev_id];
+
 	if ((key_params->key_type == eSIR_ED_AES_128_CMAC) ||
 	   (key_params->key_type == eSIR_ED_AES_GMAC_128) ||
 	   (key_params->key_type == eSIR_ED_AES_GMAC_256)) {
-		iface = &wma_handle->interfaces[key_params->vdev_id];
 		if (iface) {
 			iface->key.key_length = key_params->key_len;
 			iface->key.key_cipher = params.key_cipher;
@@ -1729,6 +1730,9 @@ static QDF_STATUS wma_setup_install_key_cmd(tp_wma_handle wma_handle,
 					     CMAC_IPN_LEN);
 		}
 	}
+
+	if (key_params->unicast && iface)
+		iface->ucast_key_cipher = params.key_cipher;
 #endif /* WLAN_FEATURE_11W */
 
 	WMA_LOGD("Key setup : vdev_id %d key_idx %d key_type %d key_len %d",
@@ -2374,6 +2378,14 @@ static QDF_STATUS wma_unified_bcn_tmpl_send(tp_wma_handle wma,
 	params.tmpl_len = tmpl_len;
 	params.frm = frm;
 	params.tmpl_len_aligned = tmpl_len_aligned;
+	if (bcn_info->csa_count_offset &&
+	    (bcn_info->csa_count_offset > bytes_to_strip))
+		params.csa_count_offset =
+			bcn_info->csa_count_offset - bytes_to_strip;
+	if (bcn_info->ecsa_count_offset &&
+	    (bcn_info->ecsa_count_offset > bytes_to_strip))
+		params.ecsa_count_offset =
+			bcn_info->ecsa_count_offset - bytes_to_strip;
 
 	ret = wmi_unified_beacon_send_cmd(wma->wmi_handle,
 				 &params);
@@ -3340,6 +3352,7 @@ int wma_process_rmf_frame(tp_wma_handle wma_handle,
 {
 	uint8_t *orig_hdr;
 	uint8_t *ccmp;
+	uint8_t mic_len, hdr_len;
 
 	if ((wh)->i_fc[1] & IEEE80211_FC1_WEP) {
 		if (IEEE80211_IS_BROADCAST(wh->i_addr1) ||
@@ -3366,15 +3379,22 @@ int wma_process_rmf_frame(tp_wma_handle wma_handle,
 			return -EINVAL;
 		}
 
+		if (iface->ucast_key_cipher == WMI_CIPHER_AES_GCM) {
+			hdr_len = WLAN_IEEE80211_GCMP_HEADERLEN;
+			mic_len = WLAN_IEEE80211_GCMP_MICLEN;
+		} else {
+			hdr_len = IEEE80211_CCMP_HEADERLEN;
+			mic_len = IEEE80211_CCMP_MICLEN;
+		}
 		/* Strip privacy headers (and trailer)
 		 * for a received frame
 		 */
 		qdf_mem_move(orig_hdr +
-			IEEE80211_CCMP_HEADERLEN, wh,
+			hdr_len, wh,
 			sizeof(*wh));
 		qdf_nbuf_pull_head(wbuf,
-			IEEE80211_CCMP_HEADERLEN);
-		qdf_nbuf_trim_tail(wbuf, IEEE80211_CCMP_MICLEN);
+			hdr_len);
+		qdf_nbuf_trim_tail(wbuf, mic_len);
 		/*
 		 * CCMP header has been pulled off
 		 * reinitialize the start pointer of mac header
@@ -3496,37 +3516,33 @@ static bool wma_is_pkt_drop_candidate(tp_wma_handle wma_handle,
 	}
 
 	switch (subtype) {
-	case SIR_MAC_MGMT_ASSOC_REQ:
-		if (peer->last_assoc_rcvd) {
-			if (qdf_get_system_timestamp() - peer->last_assoc_rcvd <
-					WMA_MGMT_FRAME_DETECT_DOS_TIMER) {
-				WMA_LOGD(FL("Dropping Assoc Req received"));
-				should_drop = true;
-			}
+	case IEEE80211_FC0_SUBTYPE_ASSOC_REQ:
+		if (peer->last_assoc_rcvd &&
+		    qdf_system_time_before(qdf_get_system_timestamp(),
+		    peer->last_assoc_rcvd + WMA_MGMT_FRAME_DETECT_DOS_TIMER)) {
+			WMA_LOGD(FL("Dropping Assoc Req as it is received after %d ms of last frame. Allow it only after %d ms"),
+				 (int) (qdf_get_system_timestamp() -
+				  peer->last_assoc_rcvd),
+				  WMA_MGMT_FRAME_DETECT_DOS_TIMER);
+			should_drop = true;
+			break;
 		}
 		peer->last_assoc_rcvd = qdf_get_system_timestamp();
 		break;
-	case SIR_MAC_MGMT_DISASSOC:
-		if (peer->last_disassoc_rcvd) {
-			if (qdf_get_system_timestamp() -
-					peer->last_disassoc_rcvd <
-					WMA_MGMT_FRAME_DETECT_DOS_TIMER) {
-				WMA_LOGI(FL("Dropping DisAssoc received"));
-				should_drop = true;
-			}
+	case IEEE80211_FC0_SUBTYPE_DISASSOC:
+	case IEEE80211_FC0_SUBTYPE_DEAUTH:
+		if (peer->last_disassoc_deauth_rcvd &&
+		    qdf_system_time_before(qdf_get_system_timestamp(),
+		    peer->last_disassoc_deauth_rcvd +
+		    WMA_MGMT_FRAME_DETECT_DOS_TIMER)) {
+			WMA_LOGD(FL("Dropping subtype %x frame as it is received after %d ms of last frame. Allow it only after %d ms"),
+				 subtype, (int) (qdf_get_system_timestamp() -
+				 peer->last_disassoc_deauth_rcvd),
+				 WMA_MGMT_FRAME_DETECT_DOS_TIMER);
+			should_drop = true;
+			break;
 		}
-		peer->last_disassoc_rcvd = qdf_get_system_timestamp();
-		break;
-	case SIR_MAC_MGMT_DEAUTH:
-		if (peer->last_deauth_rcvd) {
-			if (qdf_get_system_timestamp() -
-					peer->last_deauth_rcvd <
-					WMA_MGMT_FRAME_DETECT_DOS_TIMER) {
-				WMA_LOGI(FL("Dropping Deauth received"));
-				should_drop = true;
-			}
-		}
-		peer->last_deauth_rcvd = qdf_get_system_timestamp();
+		peer->last_disassoc_deauth_rcvd = qdf_get_system_timestamp();
 		break;
 	default:
 		break;
@@ -3707,6 +3723,9 @@ static int wma_mgmt_rx_process(void *handle, uint8_t *data,
 	qdf_nbuf_put_tail(wbuf, hdr->buf_len);
 	qdf_nbuf_set_protocol(wbuf, ETH_P_CONTROL);
 	wh = (struct ieee80211_frame *)qdf_nbuf_data(wbuf);
+	qdf_mem_zero(((uint8_t *)wh + hdr->buf_len), roundup(hdr->buf_len +
+							RESERVE_BYTES, 4) -
+							hdr->buf_len);
 
 	rx_pkt->pkt_meta.mpdu_hdr_ptr = qdf_nbuf_data(wbuf);
 	rx_pkt->pkt_meta.mpdu_data_ptr = rx_pkt->pkt_meta.mpdu_hdr_ptr +

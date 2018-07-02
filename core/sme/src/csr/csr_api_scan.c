@@ -2062,7 +2062,7 @@ static int32_t csr_calculate_congestion_score(tpAniSirGlobal mac_ctx,
 		bss_score_params->rssi_score.good_rssi_threshold * (-1);
 
 	/* For bad zone rssi get score from last index */
-	if (bss_info->rssi < good_rssi_threshold)
+	if (bss_info->rssi <= good_rssi_threshold)
 		return csr_get_score_for_index(
 				bss_score_params->esp_qbss_scoring.num_slot,
 				bss_score_params->weight_cfg.
@@ -6031,6 +6031,7 @@ static QDF_STATUS csr_send_mb_scan_req(tpAniSirGlobal pMac, uint16_t sessionId,
 	}
 	pMsg->p2pSearch = pScanReq->p2pSearch;
 	pMsg->scan_id = pScanReq->scan_id;
+	pMsg->scan_requestor_id = pScanReq->scan_requestor_id;
 
 	pMsg->enable_scan_randomization =
 					pScanReq->enable_scan_randomization;
@@ -6644,6 +6645,7 @@ QDF_STATUS csr_scan_copy_request(tpAniSirGlobal mac_ctx,
 	dst_req->skipDfsChnlInP2pSearch =
 		src_req->skipDfsChnlInP2pSearch;
 	dst_req->scan_id = src_req->scan_id;
+	dst_req->scan_requestor_id = src_req->scan_requestor_id;
 	dst_req->timestamp = src_req->timestamp;
 
 	status = csr_scan_copy_ie_whitelist_attrs(dst_req, src_req);

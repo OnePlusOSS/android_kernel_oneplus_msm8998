@@ -2231,7 +2231,14 @@ void wlan_hdd_check_conc_and_update_tdls_state(hdd_context_t *hdd_ctx,
 								hdd_ctx, true);
 			return;
 		}
-		wlan_hdd_update_tdls_info(temp_adapter, false, false);
+		mutex_lock(&hdd_ctx->tdls_lock);
+		if (eTDLS_SUPPORT_NOT_ENABLED == hdd_ctx->tdls_mode ||
+		    hdd_ctx->set_state_info.set_state_cnt == 0) {
+			mutex_unlock(&hdd_ctx->tdls_lock);
+			wlan_hdd_update_tdls_info(temp_adapter, false, false);
+			return;
+		}
+		mutex_unlock(&hdd_ctx->tdls_lock);
 	}
 }
 

@@ -1674,6 +1674,11 @@ void hdd_update_tgt_cfg(void *context, void *param)
 	struct cds_config_info *cds_cfg = cds_get_ini_config();
 	uint8_t antenna_mode;
 
+	if (!hdd_ctx) {
+		hdd_err("hdd context is NULL");
+		return;
+	}
+
 	if (cds_cfg) {
 		if (hdd_ctx->config->enable_sub_20_channel_width !=
 			WLAN_SUB_20_CH_WIDTH_NONE && !cfg->sub_20_support) {

@@ -163,6 +163,14 @@ void hdd_ipa_uc_info(hdd_context_t *hdd_ctx);
 void hdd_ipa_clean_adapter_iface(hdd_adapter_t *adapter);
 
 /**
+ * hdd_ipa_fw_rejuvenate() - send fw rejuvenate message to IPA driver
+ * @hdd_ctx: hdd context
+ *
+ * Return: void
+ */
+void hdd_ipa_fw_rejuvenate_send_msg(hdd_context_t *hdd_ctx);
+
+/**
  * hdd_ipa_uc_disconnect_ap() - send ap disconnect event
  * @hdd_ctx: pointer to hdd adapter
  *
@@ -346,6 +354,10 @@ static inline void hdd_ipa_uc_stat(hdd_adapter_t *adapter)
 }
 
 static inline void hdd_ipa_uc_info(hdd_context_t *hdd_ctx)
+{
+}
+
+static inline void hdd_ipa_fw_rejuvenate_send_msg(hdd_context_t *hdd_ctx)
 {
 }
 

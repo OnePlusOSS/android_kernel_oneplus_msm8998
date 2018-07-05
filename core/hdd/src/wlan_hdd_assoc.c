@@ -5320,16 +5320,19 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 							    roamResult);
 		break;
 	case eCSR_ROAM_RESULT_MGMT_TX_COMPLETE_IND:
-		wlan_hdd_tdls_mgmt_completion_callback(pAdapter,
+		if (pRoamInfo)
+			wlan_hdd_tdls_mgmt_completion_callback(pAdapter,
 						       pRoamInfo->reasonCode);
 		break;
 	case eCSR_ROAM_TDLS_SET_STATE_DISABLE:
-		hdd_tdls_notify_set_state_disable(pRoamInfo->sessionId);
+		if (pRoamInfo)
+			hdd_tdls_notify_set_state_disable(pRoamInfo->sessionId);
 		break;
 #endif
 #ifdef WLAN_FEATURE_11W
 	case eCSR_ROAM_UNPROT_MGMT_FRAME_IND:
-		hdd_indicate_unprot_mgmt_frame(pAdapter,
+		if (pRoamInfo)
+			hdd_indicate_unprot_mgmt_frame(pAdapter,
 					       pRoamInfo->nFrameLength,
 					       pRoamInfo->pbFrames,
 					       pRoamInfo->frameType);
@@ -5337,7 +5340,8 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 #endif
 #ifdef FEATURE_WLAN_ESE
 	case eCSR_ROAM_TSM_IE_IND:
-		hdd_indicate_tsm_ie(pAdapter, pRoamInfo->tsmIe.tsid,
+		if (pRoamInfo)
+			hdd_indicate_tsm_ie(pAdapter, pRoamInfo->tsmIe.tsid,
 				    pRoamInfo->tsmIe.state,
 				    pRoamInfo->tsmIe.msmt_interval);
 		break;

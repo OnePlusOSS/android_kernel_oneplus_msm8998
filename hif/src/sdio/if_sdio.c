@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -178,8 +178,6 @@ static A_STATUS hif_sdio_probe(void *context, void *hif_handle)
 	if (athdiag_procfs_init(scn) != 0) {
 		QDF_TRACE(QDF_MODULE_ID_HIF, QDF_TRACE_LEVEL_ERROR,
 			  "%s athdiag_procfs_init failed", __func__);
-		ret = QDF_STATUS_E_FAILURE;
-		goto err_attach1;
 	}
 
 	atomic_set(&hif_sdio_load_state, true);
@@ -187,10 +185,6 @@ static A_STATUS hif_sdio_probe(void *context, void *hif_handle)
 
 	return 0;
 
-err_attach1:
-	if (scn->ramdump_base)
-		pld_hif_sdio_release_ramdump_mem(scn->ramdump_base);
-	qdf_mem_free(ol_sc);
 err_attach:
 	qdf_mem_free(scn);
 	scn = NULL;
@@ -429,6 +423,11 @@ QDF_STATUS hif_sdio_enable_bus(struct hif_softc *hif_sc,
 	wait_event_interruptible_timeout(sync_wait_queue,
 			  atomic_read(&hif_sdio_load_state) == true,
 			  HIF_SDIO_LOAD_TIMEOUT);
+
+	if (!ol_sc || !scn) {
+		HIF_ERROR("wlan: %s ol_sc or scn is null", __func__);
+		return QDF_STATUS_E_INVAL;
+	}
 	hif_sc->hostdef = ol_sc->hostdef;
 	hif_sc->targetdef = ol_sc->targetdef;
 	hif_sc->bus_type = ol_sc->bus_type;

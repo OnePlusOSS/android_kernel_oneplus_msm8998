@@ -5619,6 +5619,20 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_ROAM_FORCE_RSSI_TRIGGER_MIN,
 		     CFG_ROAM_FORCE_RSSI_TRIGGER_MAX),
 
+#ifdef MWS_COEX
+	REG_VARIABLE(CFG_MWS_COEX_4G_QUICK_FTDM_NAME, WLAN_PARAM_HexInteger,
+		     struct hdd_config, g_mws_coex_4g_quick_tdm,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_MWS_COEX_4G_QUICK_FTDM_DEFAULT,
+		     CFG_MWS_COEX_4G_QUICK_FTDM_MIN,
+		     CFG_MWS_COEX_4G_QUICK_FTDM_MAX),
+	REG_VARIABLE(CFG_MWS_COEX_5G_NR_PWR_LIMIT_NAME, WLAN_PARAM_HexInteger,
+		     struct hdd_config, g_mws_coex_5g_nr_pwr_limit,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_MWS_COEX_5G_NR_PWR_LIMIT_DEFAULT,
+		     CFG_MWS_COEX_5G_NR_PWR_LIMIT_MIN,
+		     CFG_MWS_COEX_5G_NR_PWR_LIMIT_MAX),
+#endif
 };
 
 /**
@@ -6557,6 +6571,29 @@ static void hdd_cfg_print_sae(hdd_context_t *hdd_ctx)
 }
 #else
 static void hdd_cfg_print_sae(hdd_context_t *hdd_ctx)
+{
+}
+#endif
+
+#ifdef MWS_COEX
+/**
+ * hdd_cfg_print_mws_coex() - Print MWS-COEX parameters
+ * @hdd_ctx: Pointer to HDD context
+ *
+ * Return: None
+ */
+static void hdd_cfg_print_mws_coex(hdd_context_t *hdd_ctx)
+{
+	hdd_debug("Name = [%s] Value = [%u]",
+		  CFG_MWS_COEX_4G_QUICK_FTDM_NAME,
+		  hdd_ctx->config->g_mws_coex_4g_quick_tdm);
+
+	hdd_debug("Name = [%s] Value = [%u]",
+		  CFG_MWS_COEX_5G_NR_PWR_LIMIT_NAME,
+		  hdd_ctx->config->g_mws_coex_5g_nr_pwr_limit);
+}
+#else
+static void hdd_cfg_print_mws_coex(hdd_context_t *hdd_ctx)
 {
 }
 #endif
@@ -7523,7 +7560,7 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_debug("Name = [%s] Value = [%u]",
 		  CFG_ROAM_FORCE_RSSI_TRIGGER_NAME,
 		  pHddCtx->config->roam_force_rssi_trigger);
-
+	hdd_cfg_print_mws_coex(pHddCtx);
 }
 
 /**

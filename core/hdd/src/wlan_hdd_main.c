@@ -10264,6 +10264,53 @@ static int hdd_set_auto_shutdown_cb(hdd_context_t *hdd_ctx)
 }
 #endif
 
+#ifdef MWS_COEX
+/**
+ * hdd_set_mws_coex() - Set MWS coex configurations
+ * @adapter: HDD adapter
+ *
+ * This function sends MWS-COEX 4G quick FTDM and
+ * MWS-COEX 5G-NR power limit to FW
+ *
+ * Return: 0 on success and errno on failure.
+ */
+static int hdd_init_mws_coex(hdd_adapter_t *adapter)
+{
+	int ret = 0;
+	hdd_context_t *hdd_ctx;
+
+	if (!adapter) {
+		hdd_err("Invalid Param");
+		return -EINVAL;
+	}
+	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+
+	ret = sme_cli_set_command(adapter->sessionId,
+				  WMI_PDEV_PARAM_MWSCOEX_4G_ALLOW_QUICK_FTDM,
+				  hdd_ctx->config->g_mws_coex_4g_quick_tdm,
+				  PDEV_CMD);
+	if (ret) {
+		hdd_warn("Unable to send MWS-COEX 4G quick FTDM policy");
+		return ret;
+	}
+
+	ret = sme_cli_set_command(adapter->sessionId,
+				  WMI_PDEV_PARAM_MWSCOEX_SET_5GNR_PWR_LIMIT,
+				  hdd_ctx->config->g_mws_coex_5g_nr_pwr_limit,
+				  PDEV_CMD);
+	if (ret) {
+		hdd_warn("Unable to send MWS-COEX 4G quick FTDM policy");
+		return ret;
+	}
+	return ret;
+}
+#else
+static int hdd_init_mws_coex(hdd_adapter_t *adapter)
+{
+	return 0;
+}
+#endif
+
 /**
  * hdd_features_init() - Init features
  * @hdd_ctx:	HDD context
@@ -10329,6 +10376,12 @@ static int hdd_features_init(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 	ret = hdd_update_country_code(hdd_ctx, adapter);
 	if (ret) {
 		hdd_err("Failed to update country code: %d", ret);
+		goto out;
+	}
+
+	ret = hdd_init_mws_coex(adapter);
+	if (ret) {
+		hdd_err("Error initializing mws-coex");
 		goto out;
 	}
 

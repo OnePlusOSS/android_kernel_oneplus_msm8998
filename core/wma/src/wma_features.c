@@ -10908,6 +10908,9 @@ int wma_encrypt_decrypt_msg_handler(void *handle, uint8_t *data,
 	}
 
 	data_event = param_buf->fixed_param;
+	/* initialize the memory to zero for encrypt_decrypt_rsp_params */
+	qdf_mem_zero(&encrypt_decrypt_rsp_params,
+		     sizeof(encrypt_decrypt_rsp_params));
 
 	encrypt_decrypt_rsp_params.vdev_id = data_event->vdev_id;
 	encrypt_decrypt_rsp_params.status = data_event->status;

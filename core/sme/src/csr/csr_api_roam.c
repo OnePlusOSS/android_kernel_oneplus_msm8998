@@ -578,10 +578,6 @@ QDF_STATUS csr_set_reg_info(tHalHandle hHal, uint8_t *apCntryCode)
 	qdf_mem_copy(pMac->scan.countryCodeDefault, apCntryCode,
 		     cntryCodeLength);
 
-	/* If 2 bytes country code, 3rd byte must be filled with space */
-	if ((WNI_CFG_COUNTRY_CODE_LEN - 1) == cntryCodeLength)
-		qdf_mem_set(pMac->scan.countryCodeDefault + 2, 1, 0x20);
-
 	qdf_mem_copy(pMac->scan.countryCodeCurrent,
 		     pMac->scan.countryCodeDefault, WNI_CFG_COUNTRY_CODE_LEN);
 	status = csr_get_channel_and_power_list(pMac);

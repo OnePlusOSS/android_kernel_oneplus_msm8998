@@ -889,13 +889,6 @@ QDF_STATUS wlansap_start_bss(void *pCtx,     /* pwextCtx */
 	}
 
 	pmac = PMAC_STRUCT(hHal);
-	if (NULL == pmac) {
-		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  "%s: Invalid MAC context from p_cds_gctx",
-			  __func__);
-		qdf_status = QDF_STATUS_E_FAULT;
-		goto fail;
-	}
 	/*
 	 * Copy the DFS Test Mode setting to pmac for
 	 * access in lower layers

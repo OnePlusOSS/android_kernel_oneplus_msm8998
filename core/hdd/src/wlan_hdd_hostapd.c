@@ -1582,6 +1582,38 @@ hdd_stop_sap_due_to_invalid_channel(struct work_struct *work)
 	cds_ssr_unprotect(__func__);
 }
 
+QDF_STATUS hdd_softap_set_peer_authorized(hdd_adapter_t *adapter,
+					  struct qdf_mac_addr *peer_mac)
+{
+	QDF_STATUS status;
+	hdd_context_t *hdd_ctx;
+
+	if (hdd_validate_adapter(adapter)) {
+		hdd_err("Invalid adapter");
+		return QDF_STATUS_E_INVAL;
+	}
+
+	hdd_ctx = (hdd_context_t *) (adapter->pHddCtx);
+	if (wlan_hdd_validate_context(hdd_ctx)) {
+		hdd_err("Invalid HDD Context");
+		return QDF_STATUS_E_INVAL;
+	}
+
+	status = hdd_softap_change_sta_state(adapter, peer_mac,
+					     OL_TXRX_PEER_STATE_AUTH);
+
+	if (QDF_IS_STATUS_ERROR(status)) {
+		hdd_debug("Not able to change TL state to AUTHENTICATED");
+		return status;
+	}
+
+	status = wlan_hdd_send_sta_authorized_event(adapter, hdd_ctx, peer_mac);
+	if (QDF_IS_STATUS_ERROR(status))
+		hdd_debug("Failed to sent STA authorized event");
+
+	return status;
+}
+
 QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 				    void *usrDataForCallback)
 {
@@ -1614,6 +1646,7 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	struct hdd_chan_change_params chan_change;
 	tSap_StationAssocReassocCompleteEvent *event;
+	tSap_StationSetKeyCompleteEvent *key_complete;
 	int ret = 0;
 	struct ch_params_s sap_ch_param = {0};
 	eCsrPhyMode phy_mode;
@@ -2018,9 +2051,17 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 		 * forward the message to hostapd once implementation
 		 * is done for now just print
 		 */
+
+		key_complete = &pSapEvent->sapevt.sapStationSetKeyCompleteEvent;
 		hdd_debug("SET Key: configured status = %s",
-		       pSapEvent->sapevt.sapStationSetKeyCompleteEvent.
-		       status ? "eSAP_STATUS_FAILURE" : "eSAP_STATUS_SUCCESS");
+			  key_complete->status ?
+			  "eSAP_STATUS_FAILURE" : "eSAP_STATUS_SUCCESS");
+
+		if (QDF_IS_STATUS_SUCCESS(key_complete->status)) {
+			hdd_softap_set_peer_authorized(pHostapdAdapter,
+						&key_complete->peerMacAddr);
+		}
+
 		return QDF_STATUS_SUCCESS;
 	case eSAP_STA_MIC_FAILURE_EVENT:
 	{

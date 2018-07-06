@@ -14823,6 +14823,7 @@ static int __wlan_hdd_change_station(struct wiphy *wiphy,
 	hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
 	hdd_context_t *pHddCtx;
 	hdd_station_ctx_t *pHddStaCtx;
+	hdd_ap_ctx_t *hdd_ap_ctx;
 	struct qdf_mac_addr STAMacAddress;
 #ifdef FEATURE_WLAN_TDLS
 	tCsrStaParams StaParams = { 0 };
@@ -14860,20 +14861,23 @@ static int __wlan_hdd_change_station(struct wiphy *wiphy,
 	if ((pAdapter->device_mode == QDF_SAP_MODE) ||
 	    (pAdapter->device_mode == QDF_P2P_GO_MODE)) {
 		if (params->sta_flags_set & BIT(NL80211_STA_FLAG_AUTHORIZED)) {
-			status =
-				hdd_softap_change_sta_state(pAdapter,
-							    &STAMacAddress,
-							    OL_TXRX_PEER_STATE_AUTH);
-
-			if (status != QDF_STATUS_SUCCESS) {
-				hdd_debug("Not able to change TL state to AUTHENTICATED");
-				return -EINVAL;
+			hdd_ap_ctx = WLAN_HDD_GET_AP_CTX_PTR(pAdapter);
+			/*
+			 * For Encrypted SAP session, this will be done as
+			 * part of eSAP_STA_SET_KEY_EVENT
+			 */
+			if (hdd_ap_ctx->ucEncryptType !=
+			    eCSR_ENCRYPT_TYPE_NONE) {
+				hdd_debug("Encrypt type %d, not setting peer authorized now",
+					  hdd_ap_ctx->ucEncryptType);
+				return 0;
 			}
-			status = wlan_hdd_send_sta_authorized_event(
-								pAdapter,
-								pHddCtx,
-								&STAMacAddress);
-			if (status != QDF_STATUS_SUCCESS) {
+
+			status = hdd_softap_set_peer_authorized(pAdapter,
+							&STAMacAddress);
+
+			if (QDF_IS_STATUS_ERROR(status)) {
+				hdd_debug("Failed to authorize peer");
 				return -EINVAL;
 			}
 		}

@@ -340,8 +340,8 @@ static inline bool is_non_rsn_cipher(uint8_t cipher_suite)
  * frame handling to determine whether received RSN in
  * Assoc/Reassoc request frames include supported cipher suites or not.
  *
- * Return: eSIR_SUCCESS if ALL BSS basic rates are present in the
- *                  received rateset else failure status.
+ * Return: eSIR_SUCCESS if ALL supported cipher suites are present in the
+ *                  received rsn IE else failure status.
  */
 
 uint8_t
@@ -452,8 +452,8 @@ lim_check_rx_rsn_ie_match(tpAniSirGlobal mac_ctx, tDot11fIERSN rx_rsn_ie,
  * frame handling to determine whether received RSN in
  * Assoc/Reassoc request frames include supported cipher suites or not.
  *
- * Return: Success if ALL BSS basic rates are present in the
- *                  received rateset else failure status.
+ * Return: Success if ALL supported cipher suites are present in the
+ *                  received wpa IE else failure status.
  */
 
 uint8_t

@@ -14150,6 +14150,7 @@ wmi_get_action_oui_id(enum wmi_action_oui_id action_id,
 
 	case WMI_ACTION_OUI_ITO_ALTERNATE:
 		*id = WMI_VENDOR_OUI_ACTION_ALT_ITO;
+		return true;
 
 	case WMI_ACTION_OUI_SWITCH_TO_11N_MODE:
 		*id = WMI_VENDOR_OUI_ACTION_SWITCH_TO_11N_MODE;

@@ -5223,9 +5223,9 @@ static QDF_STATUS cds_get_channel_list(enum cds_pcl_type pcl,
 	sta_sap_scc_on_dfs_chan = cds_is_sta_sap_scc_allowed_on_dfs_channel();
 	cds_debug("sta_sap_scc_on_dfs_chan %u", sta_sap_scc_on_dfs_chan);
 
-	if ((((mode == CDS_SAP_MODE) || (mode == CDS_P2P_GO_MODE)) &&
-		(cds_mode_specific_connection_count(CDS_STA_MODE, NULL) > 0)) ||
-		!sta_sap_scc_on_dfs_chan) {
+	if (((mode == CDS_SAP_MODE) || (mode == CDS_P2P_GO_MODE)) &&
+		(cds_mode_specific_connection_count(CDS_STA_MODE, NULL) > 0) &&
+		(!sta_sap_scc_on_dfs_chan)) {
 		cds_debug("STA present, skip DFS channels from pcl for SAP/Go");
 		skip_dfs_channel = true;
 	}

@@ -854,7 +854,7 @@ QDF_STATUS wlansap_start_bss(void *pCtx,     /* pwextCtx */
 	pSapCtx->is_chan_change_inprogress = false;
 	pSapCtx->stop_bss_in_progress = false;
 	/* Set the BSSID to your "self MAC Addr" read the mac address
-		from Configuation ITEM received from HDD */
+		from configuration ITEM received from HDD */
 	pSapCtx->csr_roamProfile.BSSIDs.numOfBSSIDs = 1;
 	qdf_mem_copy(pSapCtx->csr_roamProfile.BSSIDs.bssid,
 		     pSapCtx->self_mac_addr, sizeof(struct qdf_mac_addr));
@@ -878,7 +878,7 @@ QDF_STATUS wlansap_start_bss(void *pCtx,     /* pwextCtx */
 	} else {
 		/* If concurrent session is running that is already associated
 		 * then we just follow that sessions country info (whether
-		 * present or not doesn't maater as we have to follow whatever
+		 * present or not doesn't matter as we have to follow whatever
 		 * STA session does) */
 		if ((0 == sme_get_concurrent_operation_channel(hHal)) &&
 		    pConfig->ieee80211d) {

@@ -2062,7 +2062,7 @@ static int32_t csr_calculate_congestion_score(tpAniSirGlobal mac_ctx,
 		bss_score_params->rssi_score.good_rssi_threshold * (-1);
 
 	/* For bad zone rssi get score from last index */
-	if (bss_info->rssi < good_rssi_threshold)
+	if (bss_info->rssi <= good_rssi_threshold)
 		return csr_get_score_for_index(
 				bss_score_params->esp_qbss_scoring.num_slot,
 				bss_score_params->weight_cfg.
@@ -2169,9 +2169,6 @@ static int32_t csr_calculate_nss_score(uint8_t sta_nss, uint8_t ap_nss,
 {
 	uint8_t nss;
 	uint8_t score_pct;
-
-	if (wma_is_current_hwmode_dbs())
-		sta_nss--;
 
 	nss = ap_nss;
 	if (sta_nss < nss)

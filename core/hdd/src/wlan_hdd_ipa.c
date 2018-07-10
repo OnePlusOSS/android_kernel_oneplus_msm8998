@@ -1377,6 +1377,12 @@ static int hdd_ipa_wdi_enable_pipes(struct hdd_ipa_priv *hdd_ipa)
 	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 	int ret;
 
+	if (!pdev) {
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR, "pdev is NULL");
+		ret = QDF_STATUS_E_FAILURE;
+		return ret;
+	}
+
 	/* Map IPA SMMU for all Rx hash table */
 	ret = ol_txrx_rx_hash_smmu_map(pdev, true);
 	if (ret) {
@@ -1404,6 +1410,12 @@ static int hdd_ipa_wdi_disable_pipes(struct hdd_ipa_priv *hdd_ipa)
 {
 	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 	int ret;
+
+	if (!pdev) {
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR, "pdev is NULL");
+		ret = QDF_STATUS_E_FAILURE;
+		return ret;
+	}
 
 	ret = ipa_wdi_disable_pipes();
 	if (ret) {
@@ -1521,7 +1533,7 @@ static void hdd_ipa_pm_flush(struct work_struct *work)
 				hdd_softap_hard_start_xmit(skb,
 					  pm_tx_cb->adapter->dev);
 			else
-				ipa_free_skb(pm_tx_cb->ipa_tx_desc);
+				dev_kfree_skb_any(skb);
 		} else {
 			hdd_ipa_send_pkt_to_tl(pm_tx_cb->iface_context,
 				       pm_tx_cb->ipa_tx_desc);
@@ -2750,15 +2762,6 @@ static int hdd_ipa_wdi_setup_rm(struct hdd_ipa_priv *hdd_ipa)
 		goto timer_init_failed;
 	}
 
-	/* Set the lowest bandwidth to start with */
-	ret = hdd_ipa_set_perf_level(hdd_ipa->hdd_ctx, 0, 0);
-
-	if (ret) {
-		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,
-			    "Set perf level failed: %d", ret);
-		goto set_perf_failed;
-	}
-
 	qdf_wake_lock_create(&hdd_ipa->wake_lock, "wlan_ipa");
 	INIT_DELAYED_WORK(&hdd_ipa->wake_lock_work,
 			  hdd_ipa_wake_lock_timer_func);
@@ -2768,9 +2771,6 @@ static int hdd_ipa_wdi_setup_rm(struct hdd_ipa_priv *hdd_ipa)
 	atomic_set(&hdd_ipa->tx_ref_cnt, 0);
 
 	return ret;
-
-set_perf_failed:
-	ipa_rm_inactivity_timer_destroy(IPA_RM_RESOURCE_WLAN_PROD);
 
 timer_init_failed:
 	ipa_rm_delete_resource(IPA_RM_RESOURCE_WLAN_CONS);
@@ -2869,7 +2869,7 @@ static void hdd_ipa_pm_flush(struct work_struct *work)
 				hdd_softap_hard_start_xmit(skb,
 					  pm_tx_cb->adapter->dev);
 			else
-				ipa_free_skb(pm_tx_cb->ipa_tx_desc);
+				dev_kfree_skb_any(skb);
 		} else {
 			hdd_ipa_send_pkt_to_tl(pm_tx_cb->iface_context,
 				       pm_tx_cb->ipa_tx_desc);
@@ -2900,6 +2900,47 @@ int hdd_ipa_uc_smmu_map(bool map, uint32_t num_buf, qdf_mem_info_t *buf_arr)
 			   (struct ipa_wdi_buffer_info *)buf_arr);
 }
 #endif /* CONFIG_IPA_WDI_UNIFIED_API */
+
+/**
+ * hdd_ipa_init_perf_level() - Initialize IPA performance level
+ * @hdd_cxt: HDD context
+ *
+ * If IPA clock scaling is disabled, initialize perf level to maximum.
+ * Else set the lowest level to start with
+ *
+ * Return: QDF_STATUS
+ */
+static QDF_STATUS hdd_ipa_init_perf_level(hdd_context_t *hdd_ctx)
+{
+	int ret;
+
+	/* Set lowest bandwidth to start with if clk scaling enabled */
+	if (hdd_ipa_is_clk_scaling_enabled(hdd_ctx)) {
+		if (hdd_ipa_set_perf_level(hdd_ctx, 0, 0))
+			return QDF_STATUS_E_FAILURE;
+		else
+			return QDF_STATUS_SUCCESS;
+	}
+
+	hdd_debug("IPA clock scaling is disabled. Set perf level to max %d",
+		  HDD_IPA_MAX_BANDWIDTH);
+
+	ret = hdd_ipa_wdi_rm_set_perf_profile(hdd_ctx->hdd_ipa,
+			IPA_CLIENT_WLAN1_CONS, HDD_IPA_MAX_BANDWIDTH);
+	if (ret) {
+		hdd_err("CONS set perf profile failed: %d", ret);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	ret = hdd_ipa_wdi_rm_set_perf_profile(hdd_ctx->hdd_ipa,
+			IPA_CLIENT_WLAN1_PROD, HDD_IPA_MAX_BANDWIDTH);
+	if (ret) {
+		hdd_err("PROD set perf profile failed: %d", ret);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
 
 /**
  * hdd_ipa_uc_rt_debug_host_fill - fill rt debug buffer
@@ -3985,6 +4026,10 @@ static void hdd_ipa_uc_loaded_handler(struct hdd_ipa_priv *ipa_ctxt)
 		return;
 	}
 
+	if (hdd_ipa_init_perf_level(ipa_ctxt->hdd_ctx) != QDF_STATUS_SUCCESS)
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,
+				"Failed to init perf level");
+
 	/* If already any STA connected, enable IPA/FW PIPEs */
 	if (ipa_ctxt->sap_num_connected_sta) {
 		HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG,
@@ -4769,6 +4814,10 @@ QDF_STATUS hdd_ipa_uc_ol_init(hdd_context_t *hdd_ctx)
 			stat = QDF_STATUS_E_FAILURE;
 			goto fail_return;
 		}
+
+		if (hdd_ipa_init_perf_level(hdd_ctx) != QDF_STATUS_SUCCESS)
+			HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,
+					"Failed to init perf level");
 	} else {
 		hdd_ipa_uc_get_db_paddr(&ipa_ctxt->tx_comp_doorbell_dmaaddr,
 				IPA_CLIENT_WLAN1_CONS);
@@ -5363,13 +5412,6 @@ static int __hdd_ipa_set_perf_level(hdd_context_t *hdd_ctx, uint64_t tx_packets,
 		next_prod_bw = hdd_ctx->config->IpaMediumBandwidthMbps;
 	else
 		next_prod_bw = hdd_ctx->config->IpaLowBandwidthMbps;
-
-	HDD_IPA_DP_LOG(QDF_TRACE_LEVEL_DEBUG,
-		"CONS perf curr: %d, next: %d",
-		hdd_ipa->curr_cons_bw, next_cons_bw);
-	HDD_IPA_DP_LOG(QDF_TRACE_LEVEL_DEBUG,
-		"PROD perf curr: %d, next: %d",
-		hdd_ipa->curr_prod_bw, next_prod_bw);
 
 	if (hdd_ipa->curr_cons_bw != next_cons_bw) {
 		hdd_debug("Requesting CONS perf curr: %d, next: %d",
@@ -7349,26 +7391,6 @@ static QDF_STATUS __hdd_ipa_init(hdd_context_t *hdd_ctx)
 			goto fail_create_sys_pipe;
 	}
 
-	/* When IPA clock scaling is disabled, initialze maximum clock */
-	if (!hdd_ipa_is_clk_scaling_enabled(hdd_ctx)) {
-		hdd_debug("IPA clock scaling is disabled.");
-		hdd_debug("Set initial CONS/PROD perf: %d",
-				HDD_IPA_MAX_BANDWIDTH);
-		ret = hdd_ipa_wdi_rm_set_perf_profile(hdd_ipa,
-				IPA_CLIENT_WLAN1_CONS, HDD_IPA_MAX_BANDWIDTH);
-		if (ret) {
-			hdd_err("RM CONS set perf profile failed: %d", ret);
-			goto fail_create_sys_pipe;
-		}
-
-		ret = hdd_ipa_wdi_rm_set_perf_profile(hdd_ipa,
-				IPA_CLIENT_WLAN1_PROD, HDD_IPA_MAX_BANDWIDTH);
-		if (ret) {
-			hdd_err("RM PROD set perf profile failed: %d", ret);
-			goto fail_create_sys_pipe;
-		}
-	}
-
 	init_completion(&hdd_ipa->ipa_resource_comp);
 
 	HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "exit: success");
@@ -7430,8 +7452,12 @@ static void __hdd_ipa_flush(hdd_context_t *hdd_ctx)
 		qdf_spin_unlock_bh(&hdd_ipa->pm_lock);
 
 		pm_tx_cb = (struct hdd_ipa_pm_tx_cb *)skb->cb;
-		if (pm_tx_cb->ipa_tx_desc)
-			ipa_free_skb(pm_tx_cb->ipa_tx_desc);
+		if (pm_tx_cb->exception) {
+			dev_kfree_skb_any(skb);
+		} else {
+			if (pm_tx_cb->ipa_tx_desc)
+				ipa_free_skb(pm_tx_cb->ipa_tx_desc);
+		}
 
 		qdf_spin_lock_bh(&hdd_ipa->pm_lock);
 	}

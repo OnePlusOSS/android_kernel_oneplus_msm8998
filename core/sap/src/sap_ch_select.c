@@ -643,8 +643,9 @@ static bool sap_chan_sel_init(tHalHandle halHandle,
 
 	/* Allocate memory for weight computation of 2.4GHz */
 	pSpectCh =
-		(tSapSpectChInfo *) qdf_mem_malloc((pSpectInfoParams->numSpectChans)
-						   * sizeof(*pSpectCh));
+		(tSapSpectChInfo *)qdf_mem_malloc(
+					(pSpectInfoParams->numSpectChans) *
+					sizeof(*pSpectCh));
 
 	if (pSpectCh == NULL) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
@@ -673,9 +674,18 @@ static bool sap_chan_sel_init(tHalHandle halHandle,
 	     channelnum++, pChans++, pSpectCh++) {
 		chSafe = true;
 
+		pSpectCh->chNum = *pChans;
+		/* Initialise for all channels */
+		pSpectCh->rssiAgr = SOFTAP_MIN_RSSI;
+		/* Initialise 20MHz for all the Channels */
+		pSpectCh->channelWidth = SOFTAP_HT20_CHANNELWIDTH;
+		/* Initialise max ACS weight for all channels */
+		pSpectCh->weight = SAP_ACS_WEIGHT_MAX;
+
 		/* check if the channel is in NOL blacklist */
-		if (sap_dfs_is_channel_in_nol_list(pSapCtx, *pChans,
-						   PHY_SINGLE_CHANNEL_CENTERED)) {
+		if (sap_dfs_is_channel_in_nol_list(
+					pSapCtx, *pChans,
+					PHY_SINGLE_CHANNEL_CENTERED)) {
 			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
 				  "In %s, Ch %d is in NOL list", __func__,
 				  *pChans);
@@ -725,12 +735,7 @@ static bool sap_chan_sel_init(tHalHandle halHandle,
 			continue;
 
 		if (true == chSafe) {
-			pSpectCh->chNum = *pChans;
 			pSpectCh->valid = true;
-			pSpectCh->rssiAgr = SOFTAP_MIN_RSSI;    /* Initialise for all channels */
-			pSpectCh->channelWidth = SOFTAP_HT20_CHANNELWIDTH;      /* Initialise 20MHz for all the Channels */
-			/* Initialise max ACS weight for all channels */
-			pSpectCh->weight = SAP_ACS_WEIGHT_MAX;
 			for (chan_num = 0; chan_num < pSapCtx->num_of_channel;
 			     chan_num++) {
 				if (pSpectCh->chNum !=
@@ -1567,6 +1572,8 @@ static void sap_compute_spect_weight(tSapChSelSpectInfo *pSpectInfoParams,
 	int8_t rssi = 0;
 	uint8_t chn_num = 0;
 	uint8_t channel_id = 0;
+	uint8_t i;
+	bool found = false;
 
 	tCsrScanResultInfo *pScanResult;
 	tSapSpectChInfo *pSpectCh = pSpectInfoParams->pSpectCh;
@@ -1630,15 +1637,31 @@ static void sap_compute_spect_weight(tSapChSelSpectInfo *pSpectInfoParams,
 		     chn_num++) {
 
 			/*
-			 *  if the Beacon has channel ID, use it other wise we will
-			 *  rely on the channelIdSelf
+			 * If the Beacon has channel ID, use it other wise we
+			 * will rely on the channelIdSelf
 			 */
 			if (pScanResult->BssDescriptor.channelId == 0)
 				channel_id =
-					pScanResult->BssDescriptor.channelIdSelf;
+				      pScanResult->BssDescriptor.channelIdSelf;
 			else
 				channel_id =
-					pScanResult->BssDescriptor.channelId;
+				      pScanResult->BssDescriptor.channelId;
+
+			/*
+			 * Check if channel is present in scan channel list or
+			 * not. If not present, then continue as no need to
+			 * process the beacon on this channel.
+			 */
+			for (i = 0; i < sap_ctx->num_of_channel; i++) {
+				if (channel_id ==
+				    sap_ctx->channelList[i]) {
+					found = true;
+					break;
+				}
+			}
+
+			if (!found)
+				continue;
 
 			if (pSpectCh && (channel_id == pSpectCh->chNum)) {
 				if (pSpectCh->rssiAgr <

@@ -3173,7 +3173,6 @@ int hdd_wlan_get_rts_threshold(hdd_adapter_t *adapter, union iwreq_data *wrqu)
 int hdd_wlan_get_frag_threshold(hdd_adapter_t *pAdapter,
 				union iwreq_data *wrqu)
 {
-	tHalHandle hHal = WLAN_HDD_GET_HAL_CTX(pAdapter);
 	uint32_t threshold = 0, status = 0;
 	hdd_context_t *hdd_ctx;
 
@@ -3189,7 +3188,9 @@ int hdd_wlan_get_frag_threshold(hdd_adapter_t *pAdapter,
 	if (0 != status)
 		return status;
 
-	if (sme_cfg_get_int(hHal, WNI_CFG_FRAGMENTATION_THRESHOLD, &threshold)
+	if (sme_cfg_get_int(WLAN_HDD_GET_HAL_CTX(pAdapter),
+			    WNI_CFG_FRAGMENTATION_THRESHOLD,
+			    &threshold)
 	    != QDF_STATUS_SUCCESS) {
 		hdd_err("WNI_CFG_FRAGMENTATION_THRESHOLD failed");
 		return -EIO;
@@ -12229,6 +12230,12 @@ static int __iw_set_two_ints_getnone(struct net_device *dev,
 			   value[1], value[2]);
 		if (!hdd_ctx->config->crash_inject_enabled) {
 			hdd_warn("Crash Inject ini disabled");
+			return 0;
+		}
+
+		if (value[1] == 3) {
+			hdd_warn("Trigger host initiated recovery");
+			cds_trigger_recovery(CDS_REASON_UNSPECIFIED);
 			return 0;
 		}
 		ret = wma_cli_set2_command(pAdapter->sessionId,

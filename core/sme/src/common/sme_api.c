@@ -18948,7 +18948,7 @@ QDF_STATUS sme_set_action_oui_ext(tHalHandle hal,
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
 	struct ani_action_oui *action_oui;
 
-	if (action_id > WMI_ACTION_OUI_MAXIMUM_ID) {
+	if (action_id >= WMI_ACTION_OUI_MAXIMUM_ID) {
 		sme_err("Invalid OUI action ID");
 		return QDF_STATUS_E_INVAL;
 	}
@@ -19088,7 +19088,7 @@ QDF_STATUS sme_send_action_oui(tHalHandle hal,
 	struct ani_action_oui *sme_action;
 	void *wma_handle;
 
-	if (action_id > WMI_ACTION_OUI_MAXIMUM_ID) {
+	if (action_id >= WMI_ACTION_OUI_MAXIMUM_ID) {
 		sme_warn("Invalid OUI action ID");
 		return QDF_STATUS_SUCCESS;
 	}
@@ -19480,4 +19480,9 @@ bool sme_validate_channel_list(tHalHandle hal,
 		i++;
 	}
 	return true;
+}
+
+QDF_STATUS sme_get_scan_id(uint32_t *scan_id)
+{
+	return wma_get_scan_id(scan_id);
 }

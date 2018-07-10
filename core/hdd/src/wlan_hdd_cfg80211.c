@@ -1919,9 +1919,8 @@ void wlan_hdd_undo_acs(hdd_adapter_t *adapter)
 static void wlan_hdd_cfg80211_start_pending_acs(struct work_struct *work)
 {
 	hdd_adapter_t *adapter = container_of(work, hdd_adapter_t,
-							acs_pending_work.work);
-	if (!adapter)
-		return;
+					      acs_pending_work.work);
+
 	clear_bit(ACS_PENDING, &adapter->event_flags);
 	wlan_hdd_cfg80211_start_acs(adapter);
 }
@@ -6374,7 +6373,7 @@ static int __wlan_hdd_cfg80211_wifi_logger_start(struct wiphy *wiphy,
 	QDF_STATUS status;
 	hdd_context_t *hdd_ctx = wiphy_priv(wiphy);
 	struct nlattr *tb[QCA_WLAN_VENDOR_ATTR_WIFI_LOGGER_START_MAX + 1];
-	struct sir_wifi_start_log start_log;
+	struct sir_wifi_start_log start_log = { 0 };
 
 	ENTER_DEV(wdev->netdev);
 
@@ -6425,6 +6424,8 @@ static int __wlan_hdd_cfg80211_wifi_logger_start(struct wiphy *wiphy,
 	start_log.is_iwpriv_command = nla_get_u32(
 			tb[QCA_WLAN_VENDOR_ATTR_WIFI_LOGGER_FLAGS]);
 	hdd_debug("is_iwpriv_command =%d", start_log.is_iwpriv_command);
+
+	start_log.user_triggered = 1;
 
 	/* size is buff size which can be set using iwpriv command*/
 	start_log.size = 0;
@@ -14520,18 +14521,23 @@ static int __wlan_hdd_cfg80211_change_iface(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
+	pConfig = pHddCtx->config;
+	wdev = ndev->ieee80211_ptr;
+
+	/* Reset the current device mode bit mask */
+	cds_clear_concurrency_mode(pAdapter->device_mode);
+
+	/*
+	 * must be called after cds_clear_concurrency_mode's invocation so the
+	 * current adapter's old device mode mapping is removed from our
+	 * internal records.
+	 */
 	if (!cds_allow_concurrency(
 				wlan_hdd_convert_nl_iftype_to_hdd_type(type),
 				0, HW_MODE_20_MHZ)) {
 		hdd_debug("This concurrency combination is not allowed");
 		return -EINVAL;
 	}
-
-	pConfig = pHddCtx->config;
-	wdev = ndev->ieee80211_ptr;
-
-	/* Reset the current device mode bit mask */
-	cds_clear_concurrency_mode(pAdapter->device_mode);
 
 	hdd_update_tdls_ct_and_teardown_links(pHddCtx);
 	if ((pAdapter->device_mode == QDF_STA_MODE) ||
@@ -15381,6 +15387,11 @@ static int __wlan_hdd_cfg80211_add_key(struct wiphy *wiphy,
 			pHddStaCtx->roam_info.roamingState =
 				HDD_ROAM_STATE_NONE;
 			return -EINVAL;
+		}
+
+		if (pAdapter->send_mode_change) {
+			wlan_hdd_send_mode_change_event();
+			pAdapter->send_mode_change = false;
 		}
 
 		/* in case of IBSS as there was no information available about WEP keys during
@@ -17793,12 +17804,25 @@ static int wlan_hdd_cfg80211_set_ie(hdd_adapter_t *pAdapter, const uint8_t *ie,
 			/* Setting WAPI Mode to ON=1 */
 			pAdapter->wapi_info.nWapiMode = 1;
 			hdd_debug("WAPI MODE IS %u", pAdapter->wapi_info.nWapiMode);
-			tmp = (uint8_t *)ie;
-			tmp = tmp + 4;  /* Skip element Id and Len, Version */
+			/* genie is pointing to data field of WAPI IE's buffer */
+			tmp = (uint8_t *)genie;
+			/* Validate length for Version(2 bytes) and Number
+			 * of AKM suite (2 bytes) in WAPI IE buffer, coming from
+			 * supplicant*/
+			if (eLen < 4) {
+				hdd_err("Invalid IE Len: %u", eLen);
+				return -EINVAL;
+			}
+			tmp = tmp + 2;  /* Skip Version */
 			/* Get the number of AKM suite */
 			akmsuiteCount = WPA_GET_LE16(tmp);
 			/* Skip the number of AKM suite */
 			tmp = tmp + 2;
+			/* Validate total length for WAPI IE's buffer */
+			if (eLen < (4 + (akmsuiteCount * sizeof(uint32_t)))) {
+				hdd_err("Invalid IE Len: %u", eLen);
+				return -EINVAL;
+			}
 			/* AKM suite list, each OUI contains 4 bytes */
 			akmlist = (uint32_t *)(tmp);
 			if (akmsuiteCount <= MAX_NUM_AKM_SUITES) {
@@ -18348,8 +18372,10 @@ static int __wlan_hdd_cfg80211_connect(struct wiphy *wiphy,
 	 * Check if this is reassoc to same bssid, if reassoc is success, return
 	 */
 	status = wlan_hdd_reassoc_bssid_hint(pAdapter, req);
-	if (!status)
+	if (!status) {
+		hdd_set_roaming_in_progress(true);
 		return status;
+	}
 
 	/* Try disconnecting if already in connected state */
 	status = wlan_hdd_try_disconnect(pAdapter);
@@ -18358,7 +18384,20 @@ static int __wlan_hdd_cfg80211_connect(struct wiphy *wiphy,
 		return -EALREADY;
 	}
 
-	/* Check for max concurrent connections after doing disconnect if any */
+	/*initialise security parameters */
+	status = wlan_hdd_cfg80211_set_privacy(pAdapter, req);
+
+	if (0 > status) {
+		hdd_err("Failed to set security params");
+		return status;
+	}
+
+	/*
+	 * Check for max concurrent connections after doing disconnect if any,
+	 * must be called after the invocation of wlan_hdd_cfg80211_set_privacy
+	 * so privacy is already set for the current adapter before it's
+	 * checked against concurrency.
+	 */
 	if (req->channel) {
 		if (!cds_allow_concurrency(
 				cds_convert_device_mode_to_qdf_type(
@@ -18374,14 +18413,6 @@ static int __wlan_hdd_cfg80211_connect(struct wiphy *wiphy,
 			hdd_warn("This concurrency combination is not allowed");
 			return -ECONNREFUSED;
 		}
-	}
-
-	/*initialise security parameters */
-	status = wlan_hdd_cfg80211_set_privacy(pAdapter, req);
-
-	if (0 > status) {
-		hdd_err("Failed to set security params");
-		return status;
 	}
 
 	if (req->channel)

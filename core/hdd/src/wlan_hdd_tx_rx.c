@@ -1453,10 +1453,10 @@ static bool hdd_is_duplicate_ip_arp(struct sk_buff *skb)
 	if (NULL == skb)
 		return false;
 
-	arp_ip = hdd_get_arp_src_ip(skb);
-
 	if (!skb->dev)
 		return false;
+
+	arp_ip = hdd_get_arp_src_ip(skb);
 
 	in_dev = __in_dev_get_rtnl(skb->dev);
 	if (in_dev) {

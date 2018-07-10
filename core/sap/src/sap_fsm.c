@@ -769,7 +769,7 @@ static QDF_STATUS sap_get_channel_list(ptSapContext sapContext,
 #endif
 
 /*==========================================================================
-   FUNCTION    sap_get_5ghz_channel_list
+   FUNCTION    sap_get_24ghz_5ghz_channel_list
 
    DESCRIPTION
     Function for initializing list of  2.4/5 Ghz [NON-DFS/DFS] available
@@ -788,7 +788,7 @@ static QDF_STATUS sap_get_channel_list(ptSapContext sapContext,
 
    SIDE EFFECTS
    ============================================================================*/
-static QDF_STATUS sap_get_5ghz_channel_list(ptSapContext sapContext);
+static QDF_STATUS sap_get_24ghz_5ghz_channel_list(ptSapContext sapContext);
 
 /*==========================================================================
    FUNCTION    sapStopDfsCacTimer
@@ -1709,9 +1709,9 @@ static uint8_t sap_random_channel_sel(ptSapContext sap_ctx)
 		ch_wd = mac_ctx->sap.SapDfsInfo.orig_chanWidth;
 	}
 
-	if (sap_get_5ghz_channel_list(sap_ctx)) {
+	if (sap_get_24ghz_5ghz_channel_list(sap_ctx)) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_LOW,
-			  FL("Getting 5Ghz channel list failed"));
+			  FL("Getting 2.4Ghz/5Ghz channel list failed"));
 		return 0;
 	}
 
@@ -5083,7 +5083,7 @@ static QDF_STATUS sap_get_channel_list(ptSapContext sap_ctx,
  * Function for initializing list of  2.4/5 Ghz [NON-DFS/DFS]
  * available channels in the current regulatory domain.
  */
-static QDF_STATUS sap_get_5ghz_channel_list(ptSapContext sapContext)
+static QDF_STATUS sap_get_24ghz_5ghz_channel_list(ptSapContext sapContext)
 {
 	uint8_t count = 0;
 	int i;
@@ -5125,7 +5125,8 @@ static QDF_STATUS sap_get_5ghz_channel_list(ptSapContext sapContext)
 				"Get PCL failed");
 		return status;
 	}
-	for (i = 0; i <= pcl.pcl_len; i++) {
+
+	for (i = 0; i < pcl.pcl_len; i++) {
 		if (CDS_IS_CHANNEL_5GHZ(pcl.pcl_list[i])) {
 			ch_state = cds_get_channel_state(pcl.pcl_list[i]);
 			if (!(ch_state == CHANNEL_STATE_ENABLE ||
@@ -5136,6 +5137,43 @@ static QDF_STATUS sap_get_5ghz_channel_list(ptSapContext sapContext)
 			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_LOW,
 				  "%s[%d] CHANNEL = %d", __func__, __LINE__,
 				  pcl.pcl_list[i]);
+			sapContext->SapAllChnlList.channelList[count].valid =
+				true;
+			count++;
+		}
+	}
+
+	if (!count) {
+		for (i = 0; i < pcl.pcl_len; i++) {
+			if (CDS_IS_CHANNEL_24GHZ(pcl.pcl_list[i])) {
+				ch_state = cds_get_channel_state(
+						pcl.pcl_list[i]);
+				if (ch_state != CHANNEL_STATE_ENABLE)
+					continue;
+				sapContext->SapAllChnlList.channelList[count].
+						channel = pcl.pcl_list[i];
+				QDF_TRACE(QDF_MODULE_ID_SAP,
+					  QDF_TRACE_LEVEL_INFO_LOW,
+					  "%s[%d] CHANNEL = %d",
+					  __func__, __LINE__, pcl.pcl_list[i]);
+				sapContext->SapAllChnlList.channelList[count].
+						valid =	true;
+				count++;
+			}
+		}
+	}
+
+	if (!count) {
+		for (i = 0; i < sapContext->acs_cfg->ch_list_count; i++) {
+			ch_state = cds_get_channel_state(
+					sapContext->acs_cfg->ch_list[i]);
+			if (ch_state != CHANNEL_STATE_ENABLE)
+				continue;
+			sapContext->SapAllChnlList.channelList[count].channel =
+				sapContext->acs_cfg->ch_list[i];
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_LOW,
+				  "%s[%d] CHANNEL = %d", __func__, __LINE__,
+				  sapContext->acs_cfg->ch_list[i]);
 			sapContext->SapAllChnlList.channelList[count].valid =
 				true;
 			count++;

@@ -2282,6 +2282,14 @@ QDF_STATUS
 sme_get_roam_scan_stats(tHalHandle hal, roam_scan_stats_cb cb, void *context,
 			uint32_t vdev_id);
 
+/**
+ * sme_get_scan_id() - Sme wrapper to get scan ID
+ * @scan_id: output pointer to hold scan_id
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS sme_get_scan_id(uint32_t *scan_id);
+
 /*
  * sme_validate_channel_list() - Validate the given channel list
  * @hal: handle to global hal context

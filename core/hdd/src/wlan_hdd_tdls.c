@@ -5620,7 +5620,8 @@ static void wlan_hdd_tdls_ct_sampling_tx_rx(hdd_adapter_t *adapter,
 		return;
 	}
 
-	valid_mac_entries = hdd_ctx->valid_mac_entries;
+	valid_mac_entries = QDF_MIN(hdd_ctx->valid_mac_entries,
+				    TDLS_CT_MAC_MAX_TABLE_SIZE);
 
 	memcpy(ct_peer_mac_table, hdd_ctx->ct_peer_mac_table,
 	       (sizeof(struct tdls_ct_mac_table)) * valid_mac_entries);

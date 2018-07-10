@@ -155,16 +155,6 @@ QDF_STATUS wlansap_scan_callback(tHalHandle hal_handle,
 				  __func__, scan_id);
 #endif
 		operChannel = sap_select_channel(hal_handle, sap_ctx, result);
-		if (!operChannel) {
-			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-				"No channel was selected from preferred channel for Operating channel");
-
-			operChannel = sap_ctx->acs_cfg->start_ch;
-
-			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-				"Selecting operating channel as starting channel from preferred channel list: %d",
-				operChannel);
-		}
 		sme_scan_result_purge(hal_handle, result);
 		break;
 
@@ -364,16 +354,6 @@ wlansap_pre_start_bss_acs_scan_callback(tHalHandle hal_handle, void *pcontext,
 		}
 #endif
 		oper_channel = sap_select_channel(hal_handle, sap_ctx, presult);
-		if (!oper_channel) {
-			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-				"No channel was selected from preferred channel for Operating channel");
-
-			oper_channel = sap_ctx->acs_cfg->start_ch;
-
-			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-				"Selecting operating channel as starting channel from preferred channel list: %d",
-				oper_channel);
-		}
 		sme_scan_result_purge(hal_handle, presult);
 	}
 
@@ -1029,6 +1009,14 @@ wlansap_roam_callback(void *ctx, tCsrRoamInfo *csr_roam_info, uint32_t roamId,
 
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_MED,
 			  FL("sapdfs: Indicate eSAP_DFS_RADAR_DETECT to HDD"));
+
+		if (!csr_roam_info) {
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+				  FL("Invalid CSR Roam Info"));
+			wlansap_context_put(sap_ctx);
+			return -QDF_STATUS_E_INVAL;
+		}
+
 		sap_signal_hdd_event(sap_ctx, NULL, eSAP_DFS_RADAR_DETECT,
 				     (void *) eSAP_STATUS_SUCCESS);
 		/* sync to latest DFS-NOL */
@@ -1104,13 +1092,23 @@ wlansap_roam_callback(void *ctx, tCsrRoamInfo *csr_roam_info, uint32_t roamId,
 
 	switch (roam_result) {
 	case eCSR_ROAM_RESULT_INFRA_ASSOCIATION_IND:
-		wlansap_roam_process_infra_assoc_ind(sap_ctx, roam_result,
-						csr_roam_info, &qdf_ret_status);
+		if (csr_roam_info)
+			wlansap_roam_process_infra_assoc_ind(sap_ctx,
+						roam_result, csr_roam_info,
+						&qdf_ret_status);
 		break;
 	case eCSR_ROAM_RESULT_INFRA_ASSOCIATION_CNF:
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
 			  FL("CSR roam_result = eCSR_ROAM_RESULT_INFRA_ASSOCIATION_CNF (%d)"),
 			  roam_result);
+
+		if (!csr_roam_info) {
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+				  FL("Invalid CSR Roam Info"));
+			qdf_ret_status = QDF_STATUS_E_INVAL;
+			break;
+		}
+
 		sap_ctx->nStaWPARSnReqIeLength = csr_roam_info->rsnIELen;
 		if (sap_ctx->nStaWPARSnReqIeLength)
 			qdf_mem_copy(sap_ctx->pStaWpaRsnReqIE,
@@ -1198,6 +1196,14 @@ wlansap_roam_callback(void *ctx, tCsrRoamInfo *csr_roam_info, uint32_t roamId,
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
 			  FL("CSR roam_result = eCSR_ROAM_RESULT_INFRA_STARTED (%d)"),
 			  roam_result);
+
+		if (!csr_roam_info) {
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+				  FL("Invalid CSR Roam Info"));
+			qdf_ret_status = QDF_STATUS_E_INVAL;
+			break;
+		}
+
 		/*
 		 * In the current implementation, hostapd is not aware that
 		 * drive will support DFS. Hence, driver should inform

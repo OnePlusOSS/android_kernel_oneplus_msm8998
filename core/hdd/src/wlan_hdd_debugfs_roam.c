@@ -213,7 +213,6 @@ static char *hdd_roam_scan_trigger_to_str(uint32_t roam_scan_trigger)
 	default:
 		return "UNKNOWN REASON";
 	}
-	return "UNKNOWN REASON";
 }
 
 /**
@@ -278,7 +277,6 @@ static char *hdd_client_id_to_str(uint32_t client_id)
 	default:
 		return "UNKNOWN";
 	}
-	return "UNKNOWN";
 }
 
 /**

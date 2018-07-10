@@ -3405,6 +3405,7 @@ struct periodic_tx_pattern {
  * @kek_len: Kek length
  * @ullKeyReplayCounter: replay counter
  * @bssid: bss id
+ * @is_fils_connection: Whether the present connection with the AP is FILS
  */
 struct gtk_offload_params {
 	uint32_t ulFlags;
@@ -3413,6 +3414,7 @@ struct gtk_offload_params {
 	uint32_t kek_len;
 	uint64_t ullKeyReplayCounter;
 	struct qdf_mac_addr bssid;
+	bool is_fils_connection;
 };
 
 /**

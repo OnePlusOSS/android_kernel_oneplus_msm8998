@@ -1183,11 +1183,6 @@ bool sap_dfs_is_w53_invalid(tHalHandle hHal, uint8_t channelID)
 	tpAniSirGlobal pMac;
 
 	pMac = PMAC_STRUCT(hHal);
-	if (NULL == pMac) {
-		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-			  FL("invalid pMac"));
-		return false;
-	}
 
 	/*
 	 * Check for JAPAN W53 Channel operation capability
@@ -1218,14 +1213,8 @@ bool sap_dfs_is_w53_invalid(tHalHandle hHal, uint8_t channelID)
  */
 bool sap_dfs_is_channel_in_preferred_location(tHalHandle hHal, uint8_t channelID)
 {
-	tpAniSirGlobal pMac;
+	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 
-	pMac = PMAC_STRUCT(hHal);
-	if (NULL == pMac) {
-		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-			  FL("invalid pMac"));
-		return true;
-	}
 	if ((SAP_CHAN_PREFERRED_INDOOR ==
 	     pMac->sap.SapDfsInfo.sap_operating_chan_preferred_location) &&
 	    (true == IS_CHAN_JAPAN_OUTDOOR(channelID))) {
@@ -1338,11 +1327,6 @@ static uint8_t sap_apply_rules(ptSapContext sap_ctx)
 	}
 
 	mac_ctx = PMAC_STRUCT(hal);
-	if (NULL == mac_ctx) {
-		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-			  FL("mac_ctx pointer NULL"));
-		return 0;
-	}
 
 	preferred_location =
 		mac_ctx->sap.SapDfsInfo.sap_operating_chan_preferred_location;
@@ -1691,11 +1675,6 @@ static uint8_t sap_random_channel_sel(ptSapContext sap_ctx)
 	}
 
 	mac_ctx = PMAC_STRUCT(hal);
-	if (NULL == mac_ctx) {
-		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-			  FL("invalid mac_ctx"));
-		return 0;
-	}
 
 	/*
 	 * Retrieve the original one and store it.
@@ -1837,12 +1816,11 @@ static void sap_mark_dfs_channels(ptSapContext sapContext, uint8_t *channels,
 	int i, j;
 	tSapDfsNolInfo *psapDfsChannelNolList = NULL;
 	uint8_t nRegDomainDfsChannels;
-	tHalHandle hHal;
+	tHalHandle hHal = CDS_GET_HAL_CB(sapContext->p_cds_gctx);
 	tpAniSirGlobal pMac;
 	uint64_t time_elapsed_since_last_radar;
 	uint64_t time_when_radar_found;
 
-	hHal = CDS_GET_HAL_CB(sapContext->p_cds_gctx);
 	if (NULL == channels)
 		return;
 	if (NULL == hHal) {
@@ -1851,11 +1829,6 @@ static void sap_mark_dfs_channels(ptSapContext sapContext, uint8_t *channels,
 		return;
 	}
 	pMac = PMAC_STRUCT(hHal);
-	if (NULL == pMac) {
-		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-			  FL("invalid pMac"));
-		return;
-	}
 
 	/*
 	 * Mark the current channel on which Radar is found
@@ -2312,11 +2285,6 @@ QDF_STATUS sap_goto_channel_sel(ptSapContext sap_context,
 	}
 
 	mac_ctx = PMAC_STRUCT(h_hal);
-	if (NULL == mac_ctx) {
-		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-				FL("Invalid MAC context"));
-		return QDF_STATUS_E_FAILURE;
-	}
 
 	if (cds_concurrent_beaconing_sessions_running()) {
 		con_ch =
@@ -2938,11 +2906,6 @@ QDF_STATUS sap_signal_hdd_event(ptSapContext sap_ctx,
 		return QDF_STATUS_E_FAILURE;
 	}
 	mac_ctx = PMAC_STRUCT(hal);
-	if (NULL == mac_ctx) {
-		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-			  FL("Invalid MAC context"));
-		return QDF_STATUS_E_FAILURE;
-	}
 
 	if (sap_hddevent != eSAP_UPDATE_SCAN_RESULT)
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
@@ -4417,11 +4380,6 @@ QDF_STATUS sap_fsm(ptSapContext sap_ctx, ptWLAN_SAPEvent sap_event)
 	}
 
 	mac_ctx = PMAC_STRUCT(hal);
-	if (NULL == mac_ctx) {
-		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-			  FL("Invalid MAC context"));
-		return QDF_STATUS_E_FAILURE;
-	}
 
 	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
 		  FL("sap_ctx=%pK, state_var=%d, msg=0x%x"),
@@ -4882,7 +4840,7 @@ static QDF_STATUS sap_get_channel_list(ptSapContext sap_ctx,
 #ifdef FEATURE_WLAN_CH_AVOID
 	uint8_t i;
 #endif
-	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+	tpAniSirGlobal mac_ctx;
 	tSapChSelSpectInfo spect_info_obj = { NULL, 0 };
 	uint16_t ch_width;
 
@@ -4894,6 +4852,7 @@ static QDF_STATUS sap_get_channel_list(ptSapContext sap_ctx,
 		return QDF_STATUS_E_FAULT;
 	}
 
+	mac_ctx = PMAC_STRUCT(hal);
 	start_ch_num = sap_ctx->acs_cfg->start_ch;
 	end_ch_num = sap_ctx->acs_cfg->end_ch;
 	ch_width = sap_ctx->acs_cfg->ch_width;

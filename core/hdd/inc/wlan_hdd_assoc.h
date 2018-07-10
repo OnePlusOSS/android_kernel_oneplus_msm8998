@@ -225,6 +225,15 @@ typedef struct hdd_ap_ctx_s hdd_ap_ctx_t;
  */
 bool hdd_is_connecting(hdd_station_ctx_t *hdd_sta_ctx);
 
+/*
+ * hdd_is_fils_connection: API to determine if connection is FILS
+ * @adapter: hdd adapter
+ *
+ * Return: true if fils connection else false
+ */
+bool hdd_is_fils_connection(hdd_adapter_t *adapter);
+
+
 /**
  * hdd_conn_is_connected() - Function to check connection status
  * @pHddStaCtx:    pointer to global HDD Station context

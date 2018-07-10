@@ -5634,13 +5634,7 @@ hdd_translate_wpa_to_csr_encryption_type(uint8_t cipher_suite[4])
 }
 
 #ifdef WLAN_FEATURE_FILS_SK
-/*
- * hdd_is_fils_connection: API to determine if connection is FILS
- * @adapter: hdd adapter
- *
- * Return: true if fils connection else false
- */
-static inline bool hdd_is_fils_connection(hdd_adapter_t *adapter)
+bool hdd_is_fils_connection(hdd_adapter_t *adapter)
 {
 	hdd_wext_state_t *wext_state = WLAN_HDD_GET_WEXT_STATE_PTR(adapter);
 
@@ -5651,7 +5645,7 @@ static inline bool hdd_is_fils_connection(hdd_adapter_t *adapter)
 	return false;
 }
 #else
-static inline bool hdd_is_fils_connection(hdd_adapter_t *adapter)
+bool hdd_is_fils_connection(hdd_adapter_t *adapter)
 {
 	return false;
 }

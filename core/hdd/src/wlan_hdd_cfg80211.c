@@ -5222,6 +5222,8 @@ void wlan_hdd_save_gtk_offload_params(hdd_adapter_t *adapter, uint8_t *kck_ptr,
 	qdf_copy_macaddr(&hdd_sta_ctx->gtkOffloadReqParams.bssid,
 			 &hdd_sta_ctx->conn_info.bssId);
 	hdd_sta_ctx->gtkOffloadReqParams.kek_len = kek_len;
+	hdd_sta_ctx->gtkOffloadReqParams.is_fils_connection =
+			hdd_is_fils_connection(adapter);
 	/*
 	 * changing from big to little endian since driver
 	 * works on little endian format

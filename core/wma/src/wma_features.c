@@ -7268,6 +7268,7 @@ static QDF_STATUS wma_send_gtk_offload_req(tp_wma_handle wma, uint8_t vdev_id,
 
 	enable_offload = params->ulFlags;
 	offload_params.kek_len = params->kek_len;
+	offload_params.is_fils_connection = params->is_fils_connection;
 
 	/* send the wmi command */
 	status = wmi_unified_send_gtk_offload_cmd(wma->wmi_handle,

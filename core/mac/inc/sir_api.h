@@ -3860,6 +3860,7 @@ typedef struct {
 	uint32_t kek_len;
 	uint64_t ullKeyReplayCounter;   /* replay counter */
 	struct qdf_mac_addr bssid;
+	bool is_fils_connection;
 } tSirGtkOffloadParams, *tpSirGtkOffloadParams;
 
 /*---------------------------------------------------------------------------

@@ -2293,7 +2293,7 @@ static int wmi_unified_probe_rsp_tmpl_send(tp_wma_handle wma,
 
 	WMA_LOGD(FL("Send probe response template for vdev %d"), vdev_id);
 
-	frm = probe_rsp_info->pProbeRespTemplate;
+	frm = probe_rsp_info->probeRespTemplate;
 
 	/*
 	 * Make the TSF offset negative so probe response in the same
@@ -2305,7 +2305,7 @@ static int wmi_unified_probe_rsp_tmpl_send(tp_wma_handle wma,
 	wh = (struct ieee80211_frame *)frm;
 	A_MEMCPY(&wh[1], &adjusted_tsf_le, sizeof(adjusted_tsf_le));
 
-	params.pProbeRespTemplate = probe_rsp_info->pProbeRespTemplate;
+	params.pProbeRespTemplate = probe_rsp_info->probeRespTemplate;
 	params.probeRespTemplateLen = probe_rsp_info->probeRespTemplateLen;
 	qdf_mem_copy(params.bssId, probe_rsp_info->bssId,
 		     IEEE80211_ADDR_LEN);
@@ -2530,7 +2530,8 @@ int wma_tbttoffset_update_event_handler(void *handle, uint8_t *event,
 
 		qdf_spin_lock_bh(&bcn->lock);
 		qdf_mem_zero(&bcn_info, sizeof(bcn_info));
-		bcn_info.beacon = qdf_nbuf_data(bcn->buf);
+		qdf_mem_copy(bcn_info.beacon, qdf_nbuf_data(bcn->buf),
+			     bcn->len);
 		bcn_info.p2pIeOffset = bcn->p2p_ie_offset;
 		bcn_info.beaconLength = bcn->len;
 		bcn_info.timIeOffset = bcn->tim_ie_offset;
@@ -2585,7 +2586,7 @@ void wma_send_probe_rsp_tmpl(tp_wma_handle wma,
 	}
 
 	probe_rsp = (struct sAniProbeRspStruct *)
-				 (probe_rsp_info->pProbeRespTemplate);
+				 (probe_rsp_info->probeRespTemplate);
 	if (!probe_rsp) {
 		WMA_LOGE(FL("probe_rsp is NULL"));
 		return;

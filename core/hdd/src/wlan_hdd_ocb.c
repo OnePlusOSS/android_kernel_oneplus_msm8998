@@ -1303,6 +1303,7 @@ static void hdd_ocb_get_tsf_timer_callback(void *context_ptr,
 		return;
 	}
 
+	priv = hdd_request_priv(hdd_request);
 	if (response) {
 		priv->response = *response;
 		priv->status = 0;

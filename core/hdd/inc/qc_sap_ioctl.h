@@ -35,11 +35,6 @@
 
 typedef uint8_t qcmacaddr[QCSAP_ADDR_LEN];
 
-struct qc_mac_acl_entry {
-	qcmacaddr addr;
-	int vlan_id;
-};
-
 /*
  * Retrieve the WPA/RSN information element for an associated station.
  */

@@ -802,7 +802,7 @@ static int hdd_parse_reassoc_command_v1_data(const uint8_t *pValue,
 }
 
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
-void hdd_wma_send_fastreassoc_cmd(hdd_adapter_t *adapter,
+QDF_STATUS hdd_wma_send_fastreassoc_cmd(hdd_adapter_t *adapter,
 				const tSirMacAddr bssid, int channel)
 {
 	hdd_wext_state_t *wext_state = WLAN_HDD_GET_WEXT_STATE_PTR(adapter);
@@ -813,9 +813,10 @@ void hdd_wma_send_fastreassoc_cmd(hdd_adapter_t *adapter,
 
 	qdf_mem_copy(connected_bssid, hdd_sta_ctx->conn_info.bssId.bytes,
 		     ETH_ALEN);
-	sme_fast_reassoc(WLAN_HDD_GET_HAL_CTX(adapter),
-			 profile, bssid, channel, adapter->sessionId,
-			 connected_bssid);
+	return sme_fast_reassoc(WLAN_HDD_GET_HAL_CTX(adapter),
+				profile, bssid, channel,
+				adapter->sessionId,
+				connected_bssid);
 }
 #endif
 
@@ -878,8 +879,10 @@ int hdd_reassoc(hdd_adapter_t *adapter, const uint8_t *bssid,
 
 	/* Proceed with reassoc */
 	if (roaming_offload_enabled(hdd_ctx)) {
-		hdd_wma_send_fastreassoc_cmd(adapter,
-					bssid, (int)channel);
+		if (QDF_STATUS_SUCCESS !=
+		    hdd_wma_send_fastreassoc_cmd(adapter, bssid,
+						 (int)channel))
+		    ret = -EINVAL;
 	} else {
 		tCsrHandoffRequest handoffInfo;
 

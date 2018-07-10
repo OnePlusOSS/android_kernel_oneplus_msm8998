@@ -19290,6 +19290,20 @@ QDF_STATUS sme_fast_reassoc(tHalHandle hal, tCsrRoamProfile *profile,
 	struct wma_roam_invoke_cmd *fastreassoc;
 	cds_msg_t msg = {0};
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+	tCsrRoamSession *session;
+	session = CSR_GET_SESSION(mac_ctx, vdev_id);
+	if (!session || !session->pCurRoamProfile) {
+		sme_err("session %d not found", vdev_id);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	if (session->pCurRoamProfile->supplicant_disabled_roaming ||
+	    session->pCurRoamProfile->driver_disabled_roaming) {
+		sme_debug("roaming status in Supplicant %d and in driver %d",
+			session->pCurRoamProfile->supplicant_disabled_roaming,
+			session->pCurRoamProfile->driver_disabled_roaming);
+		return QDF_STATUS_E_FAILURE;
+	}
 
 	fastreassoc = qdf_mem_malloc(sizeof(*fastreassoc));
 	if (NULL == fastreassoc) {

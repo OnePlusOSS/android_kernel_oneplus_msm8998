@@ -446,9 +446,6 @@ sch_set_fixed_beacon_fields(tpAniSirGlobal mac_ctx, tpPESession session)
 		/*
 		populate_dot11f_vht_ext_bss_load( mac_ctx, &bcn2.VHTExtBssLoad);
 		*/
-		if (session->gLimOperatingMode.present)
-			populate_dot11f_operating_mode(mac_ctx,
-						&bcn_2->OperatingMode, session);
 	}
 	if (session->limSystemRole != eLIM_STA_IN_IBSS_ROLE)
 		populate_dot11f_ext_cap(mac_ctx, is_vht_enabled, &bcn_2->ExtCap,
@@ -559,6 +556,14 @@ sch_set_fixed_beacon_fields(tpAniSirGlobal mac_ctx, tpPESession session)
 						&extracted_extcap,
 						true);
 
+	}
+
+	if (session->vhtCapability && session->gLimOperatingMode.present) {
+		populate_dot11f_operating_mode(mac_ctx, &bcn_2->OperatingMode,
+					       session);
+		lim_strip_ie(mac_ctx, addn_ie, &addn_ielen,
+			     SIR_MAC_VHT_OPMODE_EID, ONE_BYTE, NULL, 0,
+			     NULL, SIR_MAC_VHT_OPMODE_SIZE - 2);
 	}
 
 	n_status = dot11f_pack_beacon2(mac_ctx, bcn_2,

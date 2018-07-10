@@ -3822,6 +3822,10 @@ static struct tag_csrscan_result *csr_scan_save_bss_description(tpAniSirGlobal
 	/* figure out how big the BSS description is (the BSSDesc->length does
 	 * NOT include the size of the length field itself).
 	 */
+	if (CSR_SCAN_IS_OVER_BSS_LIMIT(pMac)) {
+		sme_debug("BSS Limit reached");
+		return NULL;
+	}
 	cbBSSDesc = pBSSDescription->length + sizeof(pBSSDescription->length);
 
 	cbAllocated = sizeof(struct tag_csrscan_result) + cbBSSDesc;
@@ -3837,10 +3841,7 @@ static struct tag_csrscan_result *csr_scan_save_bss_description(tpAniSirGlobal
 				       bssId));
 		qdf_mem_copy(&pCsrBssDescription->Result.BssDescriptor,
 			     pBSSDescription, cbBSSDesc);
-		if (NULL != pCsrBssDescription->Result.pvIes) {
-			QDF_ASSERT(pCsrBssDescription->Result.pvIes == NULL);
-			return NULL;
-		}
+
 		csr_scan_add_result(pMac, pCsrBssDescription, pIes, sessionId);
 	}
 

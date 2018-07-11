@@ -2446,8 +2446,15 @@ csr_save_scan_entry(tpAniSirGlobal pMac,
 				pcl_chan_weight);
 		}
 	}
-	if (pFilter)
+	if (pFilter && pMac->roam.configParam.is_bssid_hint_priority &&
+	    !qdf_mem_cmp(pResult->Result.BssDescriptor.bssId,
+			 pFilter->bssid_hint.bytes, QDF_MAC_ADDR_SIZE)) {
+		sme_debug("BSSID hint AP "MAC_ADDRESS_STR " give max score",
+			  MAC_ADDR_ARRAY(pFilter->bssid_hint.bytes));
+		pResult->bss_score = BEST_CANDIDATE_MAX_BSS_SCORE;
+	} else if (pFilter) {
 		csr_calculate_bss_score(pMac, pResult, pcl_chan_weight);
+	}
 
 	/*
 	 * No need to lock pRetList because it is locally allocated and no
@@ -2459,17 +2466,7 @@ csr_save_scan_entry(tpAniSirGlobal pMac,
 		(*count)++;
 		return status;
 	}
-	if (pFilter &&
-	   !qdf_mem_cmp(pResult->Result.BssDescriptor.bssId,
-	   pFilter->bssid_hint.bytes, QDF_MAC_ADDR_SIZE) &&
-	   pMac->roam.configParam.is_bssid_hint_priority) {
-		/* bssid hint AP should be on head */
-		csr_ll_insert_head(&pRetList->List,
-			&pResult->Link, LL_ACCESS_NOLOCK);
-		(*count)++;
-		pResult->bss_score = BEST_CANDIDATE_MAX_BSS_SCORE;
-		return status;
-	}
+
 	pTmpEntry = csr_ll_peek_head(&pRetList->List, LL_ACCESS_NOLOCK);
 	while (pTmpEntry) {
 		pTmpResult = GET_BASE_ADDR(pTmpEntry, struct tag_csrscan_result,

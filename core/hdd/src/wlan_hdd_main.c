@@ -8384,7 +8384,8 @@ void hdd_ch_avoid_cb(void *hdd_context, void *indi_param)
 				if (CDS_CHANNEL_FREQ(channel_loop) >
 						ch_avoid_indi->avoid_freq_range[
 						range_loop].end_freq)
-					end_channel_idx--;
+					if (end_channel_idx)
+						end_channel_idx--;
 				break;
 			}
 		}

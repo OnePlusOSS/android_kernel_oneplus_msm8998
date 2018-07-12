@@ -4827,14 +4827,9 @@ QDF_STATUS hdd_stop_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 					hdd_ctx->hHal,
 					adapter->sessionId,
 					eCSR_DISCONNECT_REASON_IBSS_LEAVE);
-			else if (QDF_STA_MODE == adapter->device_mode) {
-				qdf_ret_status =
-					wlan_hdd_try_disconnect(adapter);
-				hdd_debug("Send disconnected event to userspace");
-				wlan_hdd_cfg80211_indicate_disconnect(
-					adapter->dev, true,
-					WLAN_REASON_UNSPECIFIED);
-			}
+			else if (QDF_STA_MODE == adapter->device_mode)
+				 wlan_hdd_disconnect(adapter,
+						eCSR_DISCONNECT_REASON_DEAUTH);
 			else
 				qdf_ret_status = sme_roam_disconnect(
 					hdd_ctx->hHal,

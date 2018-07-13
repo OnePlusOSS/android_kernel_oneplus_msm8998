@@ -142,4 +142,13 @@ void hdd_sap_destroy_events(hdd_adapter_t *adapter);
 QDF_STATUS hdd_softap_set_peer_authorized(hdd_adapter_t *adapter,
 					  struct qdf_mac_addr *peer_mac);
 
+/**
+ * hdd_ipa_ap_disconnect() - call hdd_ipa_wlan_evt if
+ * ipa is enabled
+ * @pAdapter: pointer to adapter context
+ *
+ * Return: QDF_STATUS_SUCCESS on success, QDF_STATUS_E_** on error
+ */
+void hdd_ipa_ap_disconnect(hdd_adapter_t *pAdapter);
+
 #endif /* end #if !defined(WLAN_HDD_HOSTAPD_H) */

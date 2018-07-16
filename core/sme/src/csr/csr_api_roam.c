@@ -2867,6 +2867,10 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 			pParam->nSelect5GHzMargin;
 		pMac->roam.configParam.ho_delay_for_rx =
 			pParam->ho_delay_for_rx;
+		pMac->roam.configParam.roam_preauth_retry_count =
+			pParam->roam_preauth_retry_count;
+		pMac->roam.configParam.roam_preauth_no_ack_timeout =
+			pParam->roam_preauth_no_ack_timeout;
 		pMac->roam.configParam.min_delay_btw_roam_scans =
 			pParam->min_delay_btw_roam_scans;
 		pMac->roam.configParam.roam_trigger_reason_bitmask =
@@ -3236,6 +3240,9 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 	pParam->max_amsdu_num = cfg_params->max_amsdu_num;
 	pParam->nSelect5GHzMargin = cfg_params->nSelect5GHzMargin;
 	pParam->ho_delay_for_rx = cfg_params->ho_delay_for_rx;
+	pParam->roam_preauth_no_ack_timeout =
+		cfg_params->roam_preauth_no_ack_timeout;
+	pParam->roam_preauth_retry_count = cfg_params->roam_preauth_retry_count;
 	pParam->min_delay_btw_roam_scans = cfg_params->min_delay_btw_roam_scans;
 	pParam->roam_trigger_reason_bitmask =
 			cfg_params->roam_trigger_reason_bitmask;
@@ -19113,6 +19120,10 @@ csr_update_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 	req_buf->RoamRssiCatGap = mac_ctx->roam.configParam.bCatRssiOffset;
 	req_buf->Select5GHzMargin = mac_ctx->roam.configParam.nSelect5GHzMargin;
 	req_buf->ho_delay_for_rx = mac_ctx->roam.configParam.ho_delay_for_rx;
+	req_buf->roam_preauth_retry_count =
+		mac_ctx->roam.configParam.roam_preauth_retry_count;
+	req_buf->roam_preauth_no_ack_timeout =
+		mac_ctx->roam.configParam.roam_preauth_no_ack_timeout;
 	req_buf->min_delay_btw_roam_scans =
 			mac_ctx->roam.configParam.min_delay_btw_roam_scans;
 	req_buf->roam_trigger_reason_bitmask =

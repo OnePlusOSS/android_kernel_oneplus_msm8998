@@ -5646,6 +5646,21 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_MWS_COEX_5G_NR_PWR_LIMIT_MIN,
 		     CFG_MWS_COEX_5G_NR_PWR_LIMIT_MAX),
 #endif
+	REG_VARIABLE(CFG_ROAM_PREAUTH_RETRY_COUNT_NAME,
+		     WLAN_PARAM_Integer,
+		     struct hdd_config, roam_preauth_retry_count,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ROAM_PREAUTH_RETRY_COUNT_DEFAULT,
+		     CFG_ROAM_PREAUTH_RETRY_COUNT_MIN,
+		     CFG_ROAM_PREAUTH_RETRY_COUNT_MAX),
+
+	REG_VARIABLE(CFG_ROAM_PREAUTH_NO_ACK_TIMEOUT_NAME,
+		     WLAN_PARAM_Integer,
+		     struct hdd_config, roam_preauth_no_ack_timeout,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ROAM_PREAUTH_NO_ACK_TIMEOUT_DEFAULT,
+		     CFG_ROAM_PREAUTH_NO_ACK_TIMEOUT_MIN,
+		     CFG_ROAM_PREAUTH_NO_ACK_TIMEOUT_MAX),
 };
 
 /**
@@ -7617,7 +7632,12 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 		  CFG_ROAM_FORCE_RSSI_TRIGGER_NAME,
 		  pHddCtx->config->roam_force_rssi_trigger);
 	hdd_cfg_print_mws_coex(pHddCtx);
-
+	hdd_debug("Name = [%s] Value = [%u]",
+		  CFG_ROAM_PREAUTH_RETRY_COUNT_NAME,
+		  pHddCtx->config->roam_preauth_retry_count);
+	hdd_debug("Name = [%s] Value = [%u]",
+		  CFG_ROAM_PREAUTH_NO_ACK_TIMEOUT_NAME,
+		  pHddCtx->config->roam_preauth_no_ack_timeout);
 	hdd_cfg_print_action_oui(pHddCtx);
 }
 
@@ -10160,6 +10180,10 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 		pHddCtx->config->enable_ftopen;
 	smeConfig->csrConfig.ho_delay_for_rx =
 		pHddCtx->config->ho_delay_for_rx;
+	smeConfig->csrConfig.roam_preauth_no_ack_timeout =
+		pHddCtx->config->roam_preauth_no_ack_timeout;
+	smeConfig->csrConfig.roam_preauth_retry_count =
+		pHddCtx->config->roam_preauth_retry_count;
 	smeConfig->csrConfig.min_delay_btw_roam_scans =
 		pHddCtx->config->min_delay_btw_roam_scans;
 	smeConfig->csrConfig.roam_trigger_reason_bitmask =

@@ -5603,6 +5603,13 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_ENABLE_UNIT_TEST_FRAMEWORK_MIN,
 		     CFG_ENABLE_UNIT_TEST_FRAMEWORK_MAX),
 
+	REG_VARIABLE(CFG_ENABLE_DISABLE_CHANNEL_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, disable_channel,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ENABLE_DISABLE_CHANNEL_DEFAULT,
+		     CFG_ENABLE_DISABLE_CHANNEL_MIN,
+		     CFG_ENABLE_DISABLE_CHANNEL_MAX),
+
 	REG_VARIABLE(CFG_ENABLE_SECONDARY_RATE_NAME,
 		     WLAN_PARAM_HexInteger,
 		     struct hdd_config, enable_secondary_rate,
@@ -7527,6 +7534,9 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_debug("Name = [%s] Value = [%u]",
 		CFG_FORCE_RSNE_OVERRIDE_NAME,
 		pHddCtx->config->force_rsne_override);
+	hdd_debug("Name = [%s] value = [%d]",
+		  CFG_ENABLE_DISABLE_CHANNEL_NAME,
+		  pHddCtx->config->disable_channel);
 	hdd_debug("Name = [%s] value = [0x%x]",
 		  CFG_ENABLE_MAC_PROVISION_NAME,
 		  pHddCtx->config->mac_provision);

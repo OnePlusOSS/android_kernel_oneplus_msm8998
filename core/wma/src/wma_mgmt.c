@@ -2938,6 +2938,29 @@ void wma_process_update_opmode(tp_wma_handle wma_handle,
 }
 
 /**
+ * wma_update_txrx_chainmask() - process txrx chainmask
+ * @num_rf_chains: rf chains
+ * @cmd_value: rx nss value
+ *
+ * Return: none
+ */
+static void wma_update_txrx_chainmask(int num_rf_chains, int *cmd_value)
+{
+	int tmp;
+
+	tmp = WMA_MAX_RF_CHAINS(num_rf_chains);
+	if (*cmd_value > tmp) {
+		WMA_LOGE("%s: exceed the maximum! Request %d, Update %d",
+			 __func__, *cmd_value, tmp);
+		*cmd_value = tmp;
+	} else if (*cmd_value < WMA_MIN_RF_CHAINS) {
+		WMA_LOGE("%s: less than the minimum! Request %d Update %d",
+			 __func__, *cmd_value, WMA_MIN_RF_CHAINS);
+		*cmd_value = WMA_MIN_RF_CHAINS;
+	}
+}
+
+/**
  * wma_process_update_rx_nss() - process update RX NSS cmd from UMAC
  * @wma_handle: wma handle
  * @update_rx_nss: rx nss value
@@ -2950,6 +2973,8 @@ void wma_process_update_rx_nss(tp_wma_handle wma_handle,
 	struct wma_txrx_node *intr =
 		&wma_handle->interfaces[update_rx_nss->smesessionId];
 	int rx_nss = update_rx_nss->rxNss;
+
+	wma_update_txrx_chainmask(wma_handle->num_rf_chains, &rx_nss);
 
 	if (rx_nss > WMA_MAX_NSS)
 		rx_nss = WMA_MAX_NSS;

@@ -53,6 +53,7 @@
 #include "wlan_hdd_nan_datapath.h"
 #include "target_if_def_config.h"
 #include <qdf_idr.h>
+#include "wma_sar_public_structs.h"
 
 /** Number of Tx Queues */
 #ifdef QCA_LL_TX_FLOW_CONTROL_V2
@@ -2262,6 +2263,9 @@ struct hdd_context_s {
 	/* defining the board related information */
 	uint32_t hw_bd_id;
 	struct board_info hw_bd_info;
+
+	enum sar_version sar_version;
+
 };
 
 int hdd_validate_channel_and_bandwidth(hdd_adapter_t *adapter,

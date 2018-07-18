@@ -1863,6 +1863,10 @@ ifeq ($(CONFIG_WLAN_FEATURE_APF), y)
 CDEFINES += -DWLAN_FEATURE_APF
 endif
 
+ifeq ($(CONFIG_WLAN_FEATURE_SARV1_TO_SARV2), y)
+CDEFINES += -DWLAN_FEATURE_SARV1_TO_SARV2
+endif
+
 #Flag to enable/disable WLAN D0-WOW
 ifeq ($(CONFIG_PCI_MSM), y)
 ifeq ($(CONFIG_ROME_IF),pci)

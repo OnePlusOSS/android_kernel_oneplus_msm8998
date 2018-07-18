@@ -4806,6 +4806,15 @@ static void wma_update_ra_rate_limit(tp_wma_handle wma_handle,
 }
 #endif
 
+static void wma_update_sar_version(tp_wma_handle wma_handle,
+				   struct wma_tgt_cfg *cfg)
+{
+	struct extended_caps *phy_caps;
+
+	phy_caps = &wma_handle->phy_caps;
+	cfg->sar_version = phy_caps->sar_capability.active_version;
+}
+
 /**
  * wma_update_hdd_cfg() - update HDD config
  * @wma_handle: wma handle
@@ -4873,6 +4882,7 @@ static void wma_update_hdd_cfg(tp_wma_handle wma_handle)
 	tgt_cfg.apf_enabled = wma_handle->apf_enabled;
 	tgt_cfg.rcpi_enabled = wma_handle->rcpi_enabled;
 	wma_update_ra_rate_limit(wma_handle, &tgt_cfg);
+	wma_update_sar_version(wma_handle, &tgt_cfg);
 	tgt_cfg.fine_time_measurement_cap =
 		wma_handle->fine_time_measurement_cap;
 	tgt_cfg.wmi_max_len = wmi_get_max_msg_len(wma_handle->wmi_handle)

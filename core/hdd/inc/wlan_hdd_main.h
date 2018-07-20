@@ -52,7 +52,6 @@
 #include <cdp_txrx_peer_ops.h>
 #include "wlan_hdd_nan_datapath.h"
 #include "target_if_def_config.h"
-#include "wlan_hdd_apf.h"
 #include <qdf_idr.h>
 
 /** Number of Tx Queues */
@@ -1636,6 +1635,7 @@ struct hdd_adapter_s {
 	qdf_mutex_t ns_offload_info_lock;
 #endif
 	struct hdd_apf_context apf_context;
+	bool send_mode_change;
 };
 
 #define WLAN_HDD_GET_STATION_CTX_PTR(pAdapter) (&(pAdapter)->sessionCtx.station)

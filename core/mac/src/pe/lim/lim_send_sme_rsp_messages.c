@@ -2193,7 +2193,7 @@ void lim_handle_csa_offload_msg(tpAniSirGlobal mac_ctx, tpSirMsgQ msg)
 	uint8_t session_id;
 	uint16_t aid = 0;
 	uint16_t chan_space = 0;
-	struct ch_params_s ch_params;
+	struct ch_params_s ch_params = {0};
 
 	tLimWiderBWChannelSwitchInfo *chnl_switch_info = NULL;
 	tLimChannelSwitchInfo *lim_ch_switch = NULL;
@@ -2217,6 +2217,7 @@ void lim_handle_csa_offload_msg(tpAniSirGlobal mac_ctx, tpSirMsgQ msg)
 	if (!session_entry) {
 		pe_err("Session does not exists for %pM",
 				csa_params->bssId);
+		qdf_mem_free(csa_offload_ind);
 		goto err;
 	}
 
@@ -2225,11 +2226,13 @@ void lim_handle_csa_offload_msg(tpAniSirGlobal mac_ctx, tpSirMsgQ msg)
 
 	if (!sta_ds) {
 		pe_err("sta_ds does not exist");
+		qdf_mem_free(csa_offload_ind);
 		goto err;
 	}
 
 	if (!LIM_IS_STA_ROLE(session_entry)) {
 		pe_debug("Invalid role to handle CSA");
+		qdf_mem_free(csa_offload_ind);
 		goto err;
 	}
 
@@ -2406,6 +2409,7 @@ void lim_handle_csa_offload_msg(tpAniSirGlobal mac_ctx, tpSirMsgQ msg)
 		(session_entry->ch_width ==
 		 session_entry->gLimChannelSwitch.ch_width)) {
 		pe_err("Ignore CSA, no change in ch and bw");
+		qdf_mem_free(csa_offload_ind);
 		goto err;
 	}
 

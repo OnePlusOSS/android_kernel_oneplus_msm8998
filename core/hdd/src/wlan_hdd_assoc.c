@@ -1841,6 +1841,7 @@ static QDF_STATUS hdd_dis_connect_handler(hdd_adapter_t *pAdapter,
 		sme_ps_disable_auto_ps_timer(WLAN_HDD_GET_HAL_CTX
 				(pAdapter),
 				pAdapter->sessionId);
+		pAdapter->send_mode_change = true;
 	}
 	wlan_hdd_clear_link_layer_stats(pAdapter);
 
@@ -1874,6 +1875,10 @@ static void hdd_set_peer_authorized_event(uint32_t vdev_id)
 	hdd_context_t *hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
 	hdd_adapter_t *adapter = NULL;
 
+	if (!hdd_ctx) {
+		hdd_err("Invalid hdd context");
+		return;
+	}
 	adapter = hdd_get_adapter_by_vdev(hdd_ctx, vdev_id);
 	if (adapter == NULL) {
 		hdd_err("Invalid vdev_id");
@@ -6266,7 +6271,14 @@ static int __iw_set_essid(struct net_device *dev,
 	}
 #endif /* FEATURE_WLAN_WAPI */
 	/* if previous genIE is not NULL, update AssocIE */
-	if (0 != pWextState->genIE.length) {
+	if (pWextState->genIE.length != 0) {
+		if (pWextState->genIE.length >
+		    (SIR_MAC_MAX_ADD_IE_LENGTH + 2)) {
+			hdd_err("genIE length exceeds the maximum value: %d",
+				pWextState->genIE.length);
+			return -EINVAL;
+		}
+
 		memset(&pWextState->assocAddIE, 0,
 		       sizeof(pWextState->assocAddIE));
 		memcpy(pWextState->assocAddIE.addIEdata,

@@ -1572,6 +1572,8 @@ static void sap_compute_spect_weight(tSapChSelSpectInfo *pSpectInfoParams,
 	int8_t rssi = 0;
 	uint8_t chn_num = 0;
 	uint8_t channel_id = 0;
+	uint8_t i;
+	bool found = false;
 
 	tCsrScanResultInfo *pScanResult;
 	tSapSpectChInfo *pSpectCh = pSpectInfoParams->pSpectCh;
@@ -1635,15 +1637,31 @@ static void sap_compute_spect_weight(tSapChSelSpectInfo *pSpectInfoParams,
 		     chn_num++) {
 
 			/*
-			 *  if the Beacon has channel ID, use it other wise we will
-			 *  rely on the channelIdSelf
+			 * If the Beacon has channel ID, use it other wise we
+			 * will rely on the channelIdSelf
 			 */
 			if (pScanResult->BssDescriptor.channelId == 0)
 				channel_id =
-					pScanResult->BssDescriptor.channelIdSelf;
+				      pScanResult->BssDescriptor.channelIdSelf;
 			else
 				channel_id =
-					pScanResult->BssDescriptor.channelId;
+				      pScanResult->BssDescriptor.channelId;
+
+			/*
+			 * Check if channel is present in scan channel list or
+			 * not. If not present, then continue as no need to
+			 * process the beacon on this channel.
+			 */
+			for (i = 0; i < sap_ctx->num_of_channel; i++) {
+				if (channel_id ==
+				    sap_ctx->channelList[i]) {
+					found = true;
+					break;
+				}
+			}
+
+			if (!found)
+				continue;
 
 			if (pSpectCh && (channel_id == pSpectCh->chNum)) {
 				if (pSpectCh->rssiAgr <

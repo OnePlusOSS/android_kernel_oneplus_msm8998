@@ -4745,6 +4745,11 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 	int tlv_ok_status;
 
 	pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+	if (!pdev) {
+		WMA_LOGE("Invalid pdev");
+		return -EINVAL;
+	}
+
 	param_buf = (WMI_WOW_WAKEUP_HOST_EVENTID_param_tlvs *) event;
 	if (!param_buf) {
 		WMA_LOGE("Invalid wow wakeup host event buf");
@@ -10907,7 +10912,9 @@ int wma_encrypt_decrypt_msg_handler(void *handle, uint8_t *data,
 	encrypt_decrypt_rsp_params.vdev_id = data_event->vdev_id;
 	encrypt_decrypt_rsp_params.status = data_event->status;
 
-	if (data_event->data_length > param_buf->num_enc80211_frame) {
+	if ((data_event->data_length > param_buf->num_enc80211_frame) ||
+	    (data_event->data_length > WMI_SVC_MSG_MAX_SIZE - WMI_TLV_HDR_SIZE -
+	     sizeof(*data_event))) {
 		WMA_LOGE("FW msg data_len %d more than TLV hdr %d",
 			 data_event->data_length,
 			 param_buf->num_enc80211_frame);
@@ -11550,6 +11557,13 @@ QDF_STATUS wma_send_dhcp_ind(uint16_t type, uint8_t device_mode,
 {
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
 	tAniDHCPInd *msg;
+	tp_wma_handle wma_handle;
+
+	wma_handle = cds_get_context(QDF_MODULE_ID_WMA);
+	if (!wma_handle) {
+		WMA_LOGE("%s : Failed to get wma_handle", __func__);
+		return QDF_STATUS_E_INVAL;
+	}
 
 	msg = (tAniDHCPInd *) qdf_mem_malloc(sizeof(tAniDHCPInd));
 	if (NULL == msg) {
@@ -11564,8 +11578,7 @@ QDF_STATUS wma_send_dhcp_ind(uint16_t type, uint8_t device_mode,
 	qdf_mem_copy(msg->adapterMacAddr.bytes, mac_addr, QDF_MAC_ADDR_SIZE);
 	qdf_mem_copy(msg->peerMacAddr.bytes, peer_mac_addr, QDF_MAC_ADDR_SIZE);
 
-	qdf_status = wma_process_dhcp_ind(cds_get_context(QDF_MODULE_ID_WMA),
-			     (tAniDHCPInd *)msg);
+	qdf_status = wma_process_dhcp_ind(wma_handle, (tAniDHCPInd *)msg);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 		QDF_TRACE(QDF_MODULE_ID_WMA, QDF_TRACE_LEVEL_ERROR,
 				"%s: Failed to send DHCP indication", __func__);

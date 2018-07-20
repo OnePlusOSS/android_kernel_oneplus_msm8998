@@ -5413,13 +5413,6 @@ static int __hdd_ipa_set_perf_level(hdd_context_t *hdd_ctx, uint64_t tx_packets,
 	else
 		next_prod_bw = hdd_ctx->config->IpaLowBandwidthMbps;
 
-	HDD_IPA_DP_LOG(QDF_TRACE_LEVEL_DEBUG,
-		"CONS perf curr: %d, next: %d",
-		hdd_ipa->curr_cons_bw, next_cons_bw);
-	HDD_IPA_DP_LOG(QDF_TRACE_LEVEL_DEBUG,
-		"PROD perf curr: %d, next: %d",
-		hdd_ipa->curr_prod_bw, next_prod_bw);
-
 	if (hdd_ipa->curr_cons_bw != next_cons_bw) {
 		hdd_debug("Requesting CONS perf curr: %d, next: %d",
 			    hdd_ipa->curr_cons_bw, next_cons_bw);

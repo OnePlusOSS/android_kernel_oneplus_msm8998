@@ -532,14 +532,16 @@ static QDF_STATUS sme_rrm_send_scan_result(tpAniSirGlobal mac_ctx,
 
 		if (scan_type == eSIR_PASSIVE_SCAN) {
 			session = CSR_GET_SESSION(mac_ctx, session_id);
-			if (csr_is_conn_state_connected_infra(mac_ctx,
-			    session_id) &&
-			    (NULL != session->pConnectBssDesc) &&
-			    (csr_is_duplicate_bss_description(mac_ctx,
-			     &scan_results->BssDescriptor,
-			     session->pConnectBssDesc))) {
-				is_conn_bss_found = true;
-				sme_debug("Connected BSS in scan results");
+			if (session) {
+				if (csr_is_conn_state_connected_infra(mac_ctx,
+				    session_id) &&
+				    (NULL != session->pConnectBssDesc) &&
+				    (csr_is_duplicate_bss_description(mac_ctx,
+				     &scan_results->BssDescriptor,
+				     session->pConnectBssDesc))) {
+					is_conn_bss_found = true;
+					sme_debug("Connected BSS in scan results");
+				}
 			}
 		}
 		next_result = sme_scan_result_get_next(mac_ctx, result_handle);

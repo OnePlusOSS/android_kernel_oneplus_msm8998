@@ -2160,6 +2160,8 @@ static bool cds_current_concurrency_is_mcc(void)
  * @chain_mask: Chain mask
  * @vdev_id: vdev id
  * @in_use: Flag to indicate if the index is in use or not
+ * @update_conn: Flag to indicate if mode change event should
+ *  be sent or not
  *
  * Updates the index value of the concurrent connection list
  *
@@ -2173,7 +2175,8 @@ static void cds_update_conc_list(uint32_t conn_index,
 		enum cds_chain_mode chain_mask,
 		uint32_t original_nss,
 		uint32_t vdev_id,
-		bool in_use)
+		bool in_use,
+		bool update_conn)
 {
 	cds_context_type *cds_ctx;
 	bool mcc_mode;
@@ -2205,7 +2208,13 @@ static void cds_update_conc_list(uint32_t conn_index,
 	if (cds_ctx->ol_txrx_update_mac_id_cb)
 		cds_ctx->ol_txrx_update_mac_id_cb(vdev_id, mac);
 
-	if (cds_ctx->mode_change_cb)
+	/*
+	 * For STA and P2P client mode, the mode change event sent as part
+	 * of the callback causes delay in processing M1 frame at supplicant
+	 * resulting in cert test case failure. The mode change event is sent
+	 * as part of add key for STA and P2P client mode.
+	 */
+	if (cds_ctx->mode_change_cb && update_conn)
 		cds_ctx->mode_change_cb();
 
 	/* IPA only cares about STA or SAP mode */
@@ -4642,6 +4651,7 @@ QDF_STATUS cds_incr_connection_count(uint32_t vdev_id)
 	enum cds_con_mode mode;
 	uint8_t chan;
 	uint32_t nss = 0;
+	bool update_conn = true;
 
 	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
 	if (!hdd_ctx) {
@@ -4683,6 +4693,8 @@ QDF_STATUS cds_incr_connection_count(uint32_t vdev_id)
 		cds_err("Error in getting nss");
 	}
 
+	if (mode == CDS_STA_MODE || mode == CDS_P2P_CLIENT_MODE)
+		update_conn = false;
 
 	/* add the entry */
 	cds_update_conc_list(conn_index,
@@ -4691,7 +4703,7 @@ QDF_STATUS cds_incr_connection_count(uint32_t vdev_id)
 			cds_get_bw(wma_conn_table_entry->chan_width),
 			wma_conn_table_entry->mac_id,
 			chain_mask,
-			nss, vdev_id, true);
+			nss, vdev_id, true, update_conn);
 	cds_debug("Add at idx:%d vdev %d mac=%d",
 		conn_index, vdev_id,
 		wma_conn_table_entry->mac_id);
@@ -4777,7 +4789,7 @@ QDF_STATUS cds_update_connection_info(uint32_t vdev_id)
 			cds_get_bw(wma_conn_table_entry->chan_width),
 			wma_conn_table_entry->mac_id,
 			chain_mask,
-			nss, vdev_id, true);
+			nss, vdev_id, true, true);
 	return QDF_STATUS_SUCCESS;
 }
 
@@ -5245,7 +5257,8 @@ static QDF_STATUS cds_get_channel_list(enum cds_pcl_type pcl,
 	}
 
 	while ((chan_index < num_channels) &&
-		(chan_index_5 < QDF_MAX_NUM_CHAN)) {
+	       (chan_index_5 < QDF_MAX_NUM_CHAN) &&
+	       (chan_index < QDF_MAX_NUM_CHAN)) {
 		if ((true == skip_dfs_channel) &&
 		    CDS_IS_DFS_CH(channel_list[chan_index])) {
 			chan_index++;
@@ -6269,6 +6282,11 @@ bool cds_allow_concurrency(enum cds_con_mode mode,
 
 	if (!cds_allow_sap_go_concurrency(mode, channel)) {
 		hdd_err("This concurrency combination is not allowed");
+		goto done;
+	}
+
+	if (!cds_check_privacy_with_concurrency()) {
+		hdd_err("Privacy setting not allowed with current concurrency setting!");
 		goto done;
 	}
 
@@ -7957,6 +7975,26 @@ static bool cds_is_sap_restart_required_after_sta_disconnect(
 	return true;
 }
 
+void cds_flush_sta_ap_intf_work(hdd_context_t *hdd_ctx)
+{
+	ENTER();
+
+	if (hdd_ctx->sta_ap_intf_check_work_info)
+		cds_flush_work(&hdd_ctx->sta_ap_intf_check_work);
+	/*
+	 * when sta_ap_intf_check_work is flushed above the work could already
+	 * been running which will free the sta_ap_intf_check_work_info memory.
+	 * So sanitize the sta_ap_intf_check_work_info and free the memory
+	 * if not already freed.
+	 */
+	if (hdd_ctx->sta_ap_intf_check_work_info) {
+		qdf_mem_free(hdd_ctx->sta_ap_intf_check_work_info);
+		hdd_ctx->sta_ap_intf_check_work_info = NULL;
+	}
+
+	EXIT();
+}
+
 /**
  * __cds_check_sta_ap_concurrent_ch_intf() - Restart SAP in
  * STA-AP case
@@ -8865,7 +8903,7 @@ QDF_STATUS cds_update_connection_info_utfw(
 	cds_update_conc_list(conn_index,
 			cds_get_mode(type, sub_type),
 			channelid, HW_MODE_20_MHZ,
-			mac_id, chain_mask, 0, vdev_id, true);
+			mac_id, chain_mask, 0, vdev_id, true, true);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -8879,6 +8917,8 @@ QDF_STATUS cds_incr_connection_count_utfw(
 	uint32_t conn_index = 0;
 	hdd_context_t *hdd_ctx;
 	cds_context_type *cds_ctx;
+	bool update_conn = true;
+	enum cds_con_mode mode;
 
 	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
 	if (!hdd_ctx) {
@@ -8901,10 +8941,15 @@ QDF_STATUS cds_incr_connection_count_utfw(
 	}
 	cds_debug("--> filling entry at index[%d]", conn_index);
 
+	mode = cds_get_mode(type, sub_type);
+	if (mode == CDS_STA_MODE || mode == CDS_P2P_CLIENT_MODE)
+		update_conn = false;
+
 	cds_update_conc_list(conn_index,
-				cds_get_mode(type, sub_type),
+				mode,
 				channelid, HW_MODE_20_MHZ,
-				mac_id, chain_mask, 0, vdev_id, true);
+				mac_id, chain_mask, 0, vdev_id, true,
+				update_conn);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -11077,3 +11122,45 @@ bool cds_is_sta_sap_scc(uint8_t sap_ch)
 	return is_scc;
 }
 
+#ifdef FEATURE_WLAN_WAPI
+bool cds_check_privacy_with_concurrency(void)
+{
+	bool ret = true;
+	uint32_t con_count;
+	hdd_adapter_t *adapter;
+	hdd_context_t *hdd_ctx;
+	hdd_adapter_list_node_t *adapter_node, *next;
+	QDF_STATUS status;
+	bool wapi_sta_present = false;
+
+	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+	if (NULL == hdd_ctx) {
+		cds_err("HDD context is NULL");
+		return false;
+	}
+
+	status = hdd_get_front_adapter(hdd_ctx, &adapter_node);
+	while (NULL != adapter_node && QDF_STATUS_SUCCESS == status) {
+		adapter = adapter_node->pAdapter;
+		if (adapter &&
+		    (QDF_STA_MODE == adapter->device_mode) &&
+		    adapter->wapi_info.nWapiMode &&
+		    (adapter->wapi_info.wapiAuthMode != WAPI_AUTH_MODE_OPEN)) {
+				wapi_sta_present = true;
+				break;
+		}
+		status = hdd_get_next_adapter(hdd_ctx, adapter_node, &next);
+		adapter_node = next;
+	}
+
+	con_count = cds_get_connection_count();
+	cds_debug("No. of concurrent connections: %d", con_count);
+
+	if (wapi_sta_present && con_count) {
+		cds_err("STA with WAPI not allowed when concurrent session(s) exist!");
+		ret = false;
+	}
+
+	return ret;
+}
+#endif

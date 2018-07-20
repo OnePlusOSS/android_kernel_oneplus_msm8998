@@ -2170,9 +2170,6 @@ static int32_t csr_calculate_nss_score(uint8_t sta_nss, uint8_t ap_nss,
 	uint8_t nss;
 	uint8_t score_pct;
 
-	if (wma_is_current_hwmode_dbs())
-		sta_nss--;
-
 	nss = ap_nss;
 	if (sta_nss < nss)
 		nss = sta_nss;

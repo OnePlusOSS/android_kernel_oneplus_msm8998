@@ -1213,6 +1213,17 @@ __wlan_hdd_cfg80211_ll_stats_set(struct wiphy *wiphy,
 	if (0 != status)
 		return -EINVAL;
 
+	if (hdd_validate_adapter(pAdapter)) {
+		hdd_err("Invalid Adapter");
+		return -EINVAL;
+	}
+
+	if (pAdapter->device_mode != QDF_STA_MODE) {
+		hdd_debug("Cannot set LL_STATS for device mode %d",
+			  pAdapter->device_mode);
+		return -EINVAL;
+	}
+
 	if (hdd_nla_parse(tb_vendor, QCA_WLAN_VENDOR_ATTR_LL_STATS_SET_MAX,
 			  (struct nlattr *)data, data_len,
 			  qca_wlan_vendor_ll_set_policy)) {
@@ -1355,9 +1366,10 @@ int wlan_hdd_ll_stats_get(hdd_adapter_t *adapter, uint32_t req_id,
 		return -EBUSY;
 	}
 
-	if (!adapter->isLinkLayerStatsSet)
-		hdd_info("isLinkLayerStatsSet: %d; STATs will be all zero",
-			adapter->isLinkLayerStatsSet);
+	if (!adapter->isLinkLayerStatsSet) {
+		hdd_info("LL_STATs not set");
+		return -EINVAL;
+	}
 
 	get_req.reqId = req_id;
 	get_req.paramIdMask = req_mask;

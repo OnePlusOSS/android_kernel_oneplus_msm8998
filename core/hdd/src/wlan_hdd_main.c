@@ -6620,8 +6620,6 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 		qdf_mc_timer_stop(&hdd_ctx->tdls_source_timer);
 	}
 
-	hdd_bus_bandwidth_destroy(hdd_ctx);
-
 #ifdef FEATURE_WLAN_AP_AP_ACS_OPTIMIZE
 	if (QDF_TIMER_STATE_RUNNING ==
 	    qdf_mc_timer_get_current_state(&hdd_ctx->skip_acs_scan_timer)) {
@@ -6691,6 +6689,7 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 #endif
 
 	qdf_nbuf_deinit_replenish_timer();
+	hdd_bus_bandwidth_destroy(hdd_ctx);
 
 	if (QDF_GLOBAL_MONITOR_MODE ==  hdd_get_conparam()) {
 		hdd_info("Release wakelock for monitor mode!");
@@ -7438,6 +7437,7 @@ void hdd_bus_bandwidth_destroy(hdd_context_t *hdd_ctx)
 	    hdd_ctx->config->enable_tcp_delack)
 		hdd_reset_tcp_delack(hdd_ctx);
 
+	hdd_bus_bw_compute_timer_stop(hdd_ctx);
 	qdf_mc_timer_destroy(&hdd_ctx->bus_bw_timer);
 }
 #endif
@@ -10974,7 +10974,6 @@ int hdd_wlan_startup(struct device *dev)
 	int ret;
 	bool rtnl_held;
 
-
 	ENTER();
 
 	hdd_ctx = hdd_context_create(dev);
@@ -10983,6 +10982,7 @@ int hdd_wlan_startup(struct device *dev)
 		return PTR_ERR(hdd_ctx);
 
 	qdf_nbuf_init_replenish_timer();
+	hdd_bus_bandwidth_init(hdd_ctx);
 
 	ret = hdd_init_netlink_services(hdd_ctx);
 	if (ret)
@@ -11073,8 +11073,6 @@ int hdd_wlan_startup(struct device *dev)
 
 	wlan_hdd_update_11n_mode(hdd_ctx->config);
 
-	hdd_bus_bandwidth_init(hdd_ctx);
-
 	hdd_lpass_notify_wlan_version(hdd_ctx);
 
 	if (hdd_ctx->rps)
@@ -11125,6 +11123,7 @@ err_exit_nl_srv:
 	hdd_driver_memdump_deinit();
 
 	qdf_mc_timer_destroy(&hdd_ctx->tdls_source_timer);
+	hdd_bus_bandwidth_destroy(hdd_ctx);
 
 	hdd_green_ap_deinit(hdd_ctx);
 	hdd_request_manager_deinit();

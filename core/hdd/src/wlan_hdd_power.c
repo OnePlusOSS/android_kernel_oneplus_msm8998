@@ -1522,9 +1522,9 @@ QDF_STATUS hdd_wlan_shutdown(void)
 
 	qdf_mc_timer_stop(&pHddCtx->tdls_source_timer);
 
-	hdd_bus_bandwidth_destroy(pHddCtx);
-
 	hdd_wlan_stop_modules(pHddCtx, false);
+
+	hdd_bus_bandwidth_destroy(pHddCtx);
 
 	hdd_lpass_notify_stop(pHddCtx);
 

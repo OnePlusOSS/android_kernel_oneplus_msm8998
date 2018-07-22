@@ -10982,7 +10982,6 @@ int hdd_wlan_startup(struct device *dev)
 		return PTR_ERR(hdd_ctx);
 
 	qdf_nbuf_init_replenish_timer();
-	hdd_bus_bandwidth_init(hdd_ctx);
 
 	ret = hdd_init_netlink_services(hdd_ctx);
 	if (ret)
@@ -11012,6 +11011,7 @@ int hdd_wlan_startup(struct device *dev)
 			  wlan_hdd_change_tdls_mode,
 			  hdd_ctx);
 
+	hdd_bus_bandwidth_init(hdd_ctx);
 	hdd_driver_memdump_init();
 
 	ret = hdd_wlan_start_modules(hdd_ctx, NULL, false);

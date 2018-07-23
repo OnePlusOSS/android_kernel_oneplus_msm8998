@@ -2035,6 +2035,7 @@ struct hdd_context_s {
 	enum tdls_nss_transition_type tdls_nss_transition_mode;
 	int32_t tdls_teardown_peers_cnt;
 	struct tdls_set_state_info set_state_info;
+	bool enable_tdls_in_fw;
 #endif
 
 	void *hdd_ipa;

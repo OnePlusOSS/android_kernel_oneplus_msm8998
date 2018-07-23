@@ -1959,7 +1959,7 @@ void wlan_hdd_update_tdls_info(hdd_adapter_t *adapter, bool tdls_prohibited,
 
 	/* If TDLS support is disabled then no need to update target */
 	if (false == hdd_ctx->config->fEnableTDLSSupport) {
-		hdd_err("TDLS not enabled");
+		hdd_err("TDLS not supported");
 		goto done;
 	}
 
@@ -1995,6 +1995,11 @@ void wlan_hdd_update_tdls_info(hdd_adapter_t *adapter, bool tdls_prohibited,
 		 */
 		hdd_ctx->tdls_source_bitmap = 0;
 	} else {
+		if (!hdd_ctx->enable_tdls_in_fw) {
+			hdd_debug("Current HW mode is dbs, don't enable tdls in FW, wait for HW mode change");
+			mutex_unlock(&hdd_ctx->tdls_lock);
+			goto done;
+		}
 		if (false == hdd_ctx->config->fEnableTDLSImplicitTrigger) {
 			hdd_ctx->tdls_mode = eTDLS_SUPPORT_EXPLICIT_TRIGGER_ONLY;
 		} else if (true == hdd_ctx->config->fTDLSExternalControl) {
@@ -6498,6 +6503,7 @@ void hdd_tdls_notify_hw_mode_change(bool is_dbs_hw_mode)
 	hdd_context_t *hdd_ctx;
 	v_CONTEXT_t g_context;
 	enum tdls_support_mode tdls_mode;
+	hdd_adapter_t *temp_adapter;
 
 	g_context = cds_get_global_context();
 
@@ -6509,7 +6515,14 @@ void hdd_tdls_notify_hw_mode_change(bool is_dbs_hw_mode)
 	if (!hdd_ctx)
 		return;
 
-	if (hdd_ctx->tdls_mode == eTDLS_SUPPORT_NOT_ENABLED) {
+	mutex_lock(&hdd_ctx->tdls_lock);
+	if (is_dbs_hw_mode)
+		hdd_ctx->enable_tdls_in_fw = false;
+	else
+		hdd_ctx->enable_tdls_in_fw = true;
+	mutex_unlock(&hdd_ctx->tdls_lock);
+
+	if (hdd_ctx->tdls_mode == eTDLS_SUPPORT_NOT_ENABLED && is_dbs_hw_mode) {
 		hdd_debug("TDLS mode is not enabled continue with hw mode change");
 		return;
 	}
@@ -6542,8 +6555,17 @@ void hdd_tdls_notify_hw_mode_change(bool is_dbs_hw_mode)
 revert_tdls_mode:
 	hdd_debug("hw mode is non DBS, so revert to last tdls mode %d",
 					tdls_mode);
-	wlan_hdd_tdls_set_mode(hdd_ctx,
-			       tdls_mode,
-			       false,
-			       HDD_SET_TDLS_MODE_SOURCE_POLICY_MGR);
+	temp_adapter = wlan_hdd_tdls_get_adapter(hdd_ctx);
+	if (temp_adapter) {
+		mutex_lock(&hdd_ctx->tdls_lock);
+		if (hdd_ctx->set_state_info.set_state_cnt == 0) {
+			mutex_unlock(&hdd_ctx->tdls_lock);
+			hdd_debug("HW mode is changed to Non DBS enable TDLS in FW");
+			wlan_hdd_update_tdls_info(temp_adapter, false, false);
+		} else {
+			mutex_unlock(&hdd_ctx->tdls_lock);
+		}
+		wlan_hdd_tdls_set_mode(hdd_ctx, tdls_mode, false,
+				       HDD_SET_TDLS_MODE_SOURCE_POLICY_MGR);
+	}
 }

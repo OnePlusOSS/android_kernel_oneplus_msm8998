@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2014-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011, 2014-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -563,5 +563,11 @@ uint16_t cds_reg_dmn_get_chanwidth_from_opclass(uint8_t *country,
 						uint8_t opclass);
 uint16_t cds_reg_dmn_set_curr_opclasses(uint8_t num_classes, uint8_t *class);
 uint16_t cds_reg_dmn_get_curr_opclasses(uint8_t *num_classes, uint8_t *class);
-
+/**
+ * cds_is_etsi_europe_country - check ETSI Europe country or not
+ * @country: country string with two Characters
+ *
+ * Return: true if country in ETSI Europe country list
+ */
+bool cds_is_etsi_europe_country(uint8_t *country);
 #endif /* __CDS_REGDOMAIN_H */

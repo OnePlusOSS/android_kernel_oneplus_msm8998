@@ -286,6 +286,7 @@ typedef struct sap_StationAssocReassocCompleteEvent_s {
 	uint8_t tx_mcs_map;
 	tDot11fIEHTCaps ht_caps;
 	tDot11fIEVHTCaps vht_caps;
+	tSirMacCapabilityInfo capability_info;
 } tSap_StationAssocReassocCompleteEvent;
 
 typedef struct sap_StationDisassocCompleteEvent_s {
@@ -298,6 +299,7 @@ typedef struct sap_StationDisassocCompleteEvent_s {
 	int rssi;
 	int tx_rate;
 	int rx_rate;
+	uint32_t rx_mc_bc_cnt;
 } tSap_StationDisassocCompleteEvent;
 
 typedef struct sap_StationSetKeyCompleteEvent_s {

@@ -728,7 +728,7 @@ static void lim_print_ht_cap(tpAniSirGlobal mac_ctx, tpPESession session,
  *
  * wpa ie related checks
  *
- * Return: true of no error, false otherwise
+ * Return: true if no error, false otherwise
  */
 static bool lim_chk_n_process_wpa_rsn_ie(tpAniSirGlobal mac_ctx,
 					 tpSirMacMgmtHdr hdr,
@@ -737,6 +737,7 @@ static bool lim_chk_n_process_wpa_rsn_ie(tpAniSirGlobal mac_ctx,
 					 uint8_t sub_type, bool *pmf_connection)
 {
 	uint8_t *wps_ie = NULL;
+	uint32_t ret;
 	tDot11fIEWPA dot11f_ie_wpa = {0};
 	tDot11fIERSN dot11f_ie_rsn = {0};
 	tSirRetStatus status = eSIR_SUCCESS;
@@ -767,11 +768,11 @@ static bool lim_chk_n_process_wpa_rsn_ie(tpAniSirGlobal mac_ctx,
 			if (assoc_req->rsnPresent) {
 				if (assoc_req->rsn.length) {
 					/* Unpack the RSN IE */
-					if (dot11f_unpack_ie_rsn(mac_ctx,
+					ret = dot11f_unpack_ie_rsn(mac_ctx,
 						&assoc_req->rsn.info[0],
 						assoc_req->rsn.length,
-						&dot11f_ie_rsn, false) !=
-							DOT11F_PARSE_SUCCESS) {
+						&dot11f_ie_rsn, false);
+					if (!DOT11F_SUCCEEDED(ret)) {
 						pe_err("Invalid RSN ie");
 						return false;
 					}
@@ -843,11 +844,11 @@ static bool lim_chk_n_process_wpa_rsn_ie(tpAniSirGlobal mac_ctx,
 				/* Unpack the WPA IE */
 				if (assoc_req->wpa.length) {
 					/* OUI is not taken care */
-					if (dot11f_unpack_ie_wpa(mac_ctx,
-						&assoc_req->wpa.info[4],
-						assoc_req->wpa.length,
-						&dot11f_ie_wpa, false) !=
-							DOT11F_PARSE_SUCCESS) {
+					ret = dot11f_unpack_ie_wpa(mac_ctx,
+						   &assoc_req->wpa.info[4],
+						   (assoc_req->wpa.length - 4),
+						   &dot11f_ie_wpa, false);
+					if (!DOT11F_SUCCEEDED(ret)) {
 						pe_err("Invalid WPA IE");
 						return false;
 					}

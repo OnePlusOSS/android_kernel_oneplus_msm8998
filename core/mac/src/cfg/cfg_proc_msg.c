@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1164,6 +1164,30 @@ cgstatic cfg_static[CFG_PARAM_MAX_NUM] = {
 	WNI_CFG_RATE_FOR_TX_MGMT_5G_STAMIN,
 	WNI_CFG_RATE_FOR_TX_MGMT_5G_STAMAX,
 	WNI_CFG_RATE_FOR_TX_MGMT_5G_STADEF},
+	{WNI_CFG_EDCA_ETSI_ACBK_LOCAL,
+	 CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_RESTART,
+	 0, 0, 0},
+	{WNI_CFG_EDCA_ETSI_ACBE_LOCAL,
+	 CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_RESTART,
+	 0, 0, 0},
+	{WNI_CFG_EDCA_ETSI_ACVI_LOCAL,
+	 CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_RESTART,
+	 0, 0, 0},
+	{WNI_CFG_EDCA_ETSI_ACVO_LOCAL,
+	 CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_RESTART,
+	 0, 0, 0},
+	{WNI_CFG_EDCA_ETSI_ACBK,
+	 CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_RESTART,
+	 0, 0, 0},
+	{WNI_CFG_EDCA_ETSI_ACBE,
+	 CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_RESTART,
+	 0, 0, 0},
+	{WNI_CFG_EDCA_ETSI_ACVI,
+	 CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_RESTART,
+	 0, 0, 0},
+	{WNI_CFG_EDCA_ETSI_ACVO,
+	 CFG_CTL_VALID | CFG_CTL_RE | CFG_CTL_WE | CFG_CTL_RESTART,
+	 0, 0, 0},
 };
 
 
@@ -1360,7 +1384,47 @@ cfgstatic_string cfg_static_string[CFG_MAX_STATIC_STRING] = {
 	{WNI_CFG_WPS_UUID,
 	WNI_CFG_WPS_UUID_LEN,
 	6,
-	{0xa, 0xb, 0xc, 0xd, 0xe, 0xf} }
+	{0xa, 0xb, 0xc, 0xd, 0xe, 0xf} },
+	{WNI_CFG_EDCA_ETSI_ACBK_LOCAL,
+	 WNI_CFG_EDCA_ETSI_ACBK_LOCAL_LEN,
+	 17,
+	 {0x0, 0x7, 0x0, 0xf, 0x3, 0xff, 0xbb, 0x0, 0x1f, 0x3, 0xff, 0x0, 0x0,
+	  0xf, 0x3, 0xff, 0x0} },
+	{WNI_CFG_EDCA_ETSI_ACBE_LOCAL,
+	 WNI_CFG_EDCA_ETSI_ACBE_LOCAL_LEN,
+	 17,
+	 {0x0, 0x3, 0x0, 0xf, 0x0, 0x3f, 0xbb, 0x0, 0x1f, 0x3, 0xff, 0x0, 0x0,
+	  0xf, 0x0, 0x3f, 0x0} },
+	{WNI_CFG_EDCA_ETSI_ACVI_LOCAL,
+	 WNI_CFG_EDCA_ETSI_ACVI_LOCAL_LEN,
+	 17,
+	 {0x0, 0x1, 0x0, 0x7, 0x0, 0xf, 0x7d, 0x0, 0x7, 0x0, 0xf, 0xbc, 0x0,
+	  0x7, 0x0, 0xf, 0x5e} },
+	{WNI_CFG_EDCA_ETSI_ACVO_LOCAL,
+	 WNI_CFG_EDCA_ETSI_ACVO_LOCAL_LEN,
+	 17,
+	 {0x0, 0x1, 0x0, 0x3, 0x0, 0x7, 0x3e, 0x0, 0x3, 0x0, 0x7, 0x66, 0x0,
+	  0x3, 0x0, 0x7, 0x2f} },
+	{WNI_CFG_EDCA_ETSI_ACBK,
+	 WNI_CFG_EDCA_ETSI_ACBK_LEN,
+	 17,
+	 {0x0, 0x7, 0x0, 0xf, 0x3, 0xff, 0xbb, 0x0, 0xf, 0x3, 0xff, 0x0, 0x0,
+	  0xf, 0x3, 0xff, 0x0} },
+	{WNI_CFG_EDCA_ETSI_ACBE,
+	 WNI_CFG_EDCA_ETSI_ACBE_LEN,
+	 17,
+	 {0x0, 0x3, 0x0, 0xf, 0x3, 0xff, 0xbb, 0x0, 0xf, 0x3, 0xff, 0x0, 0x0,
+	  0xf, 0x3, 0xff, 0x0} },
+	{WNI_CFG_EDCA_ETSI_ACVI,
+	 WNI_CFG_EDCA_ETSI_ACVI_LEN,
+	 17,
+	 {0x0, 0x2, 0x0, 0x7, 0x0, 0xf, 0x7d, 0x0, 0x7, 0x0, 0xf, 0xbc, 0x0,
+	  0x7, 0x0, 0xf, 0x5e} },
+	{WNI_CFG_EDCA_ETSI_ACVO,
+	 WNI_CFG_EDCA_ETSI_ACVO_LEN,
+	 17,
+	 {0x0, 0x2, 0x0, 0x3, 0x0, 0x7, 0x3e, 0x0, 0x3, 0x0, 0x7, 0x66, 0x0,
+	  0x3, 0x0, 0x7, 0x2f} },
 };
 
 /*--------------------------------------------------------------------*/
@@ -1861,8 +1925,11 @@ process_cfg_download_req(tpAniSirGlobal pMac)
 
 			if ((pMac->cfg.gCfgEntry[i].control & CFG_CTL_VALID) == 0)
 				continue;
-			if (index >= pMac->cfg.gCfgMaxSBufSize)
+			if (index >= pMac->cfg.gCfgMaxSBufSize) {
+				pe_debug("No space id:%d BufSize:%d index:%d",
+					 i, pMac->cfg.gCfgMaxSBufSize, index);
 				continue;
+			}
 
 			pDstTest = &pMac->cfg.gCfgSBuf[index];
 			pStrCfg = (cfgstatic_string*)cfg_static[i].pStrData;

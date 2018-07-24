@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2002-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -616,30 +616,6 @@ int dfs_process_radarevent(struct ath_dfs *dfs,
 			pl->pl_elems[index].p_seq_num = dfs->dfs_seq_num;
 		}
 		found = 0;
-
-		/*
-		 * Use this fix only when device is not in test mode, as
-		 * it drops some valid phyerrors.
-		 * In FCC or JAPAN domain,if the follwing signature matches
-		 * its likely that this is a false radar pulse pattern
-		 * so process the next pulse in the queue.
-		 */
-		if ((dfs->disable_dfs_ch_switch == false) &&
-			 (DFS_FCC_REGION == dfs->dfsdomain ||
-			  DFS_MKK_REGION == dfs->dfsdomain) &&
-			 (re.re_dur >= 11 && re.re_dur <= 20) &&
-			 (diff_ts > 500 || diff_ts <= 305) &&
-			 (re.sidx == -4)) {
-
-			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
-			"\n%s: Rejecting on Peak Index = %d,re.re_dur = %d,diff_ts = %d\n",
-			__func__, re.sidx, re.re_dur, diff_ts);
-
-			ATH_DFSQ_LOCK(dfs);
-			empty = STAILQ_EMPTY(&(dfs->dfs_radarq));
-			ATH_DFSQ_UNLOCK(dfs);
-			continue;
-		}
 
 		/*
 		 * Modifying the pulse duration for FCC Type 4

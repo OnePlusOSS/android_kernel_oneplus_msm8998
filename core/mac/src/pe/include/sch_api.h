@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2015,2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -51,6 +51,7 @@ extern void sch_qos_update_local(tpAniSirGlobal pMac, tpPESession psessionEntry)
 extern void sch_edca_profile_update(tpAniSirGlobal pMac,
 				    tpPESession psessionEntry);
 
+void sch_edca_profile_update_all(tpAniSirGlobal pmac);
 /* / Set the fixed fields in a beacon frame */
 extern tSirRetStatus sch_set_fixed_beacon_fields(tpAniSirGlobal pMac,
 						 tpPESession psessionEntry);

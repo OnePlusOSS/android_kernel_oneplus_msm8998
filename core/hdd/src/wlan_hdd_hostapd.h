@@ -129,4 +129,17 @@ bool hdd_is_peer_associated(hdd_adapter_t *adapter,
 void hdd_sap_indicate_disconnect_for_sta(hdd_adapter_t *adapter);
 void hdd_sap_destroy_events(hdd_adapter_t *adapter);
 
+/**
+ * hdd_softap_set_peer_authorized() - set peer authorized
+ * @adapter: pointer to the hostapd adapter
+ * @peer_mac: MAC address of the peer
+ *
+ * This functions sends the PEER authorize command to the SME/WMI and also
+ * notifies the hostapd that the peer is authorized.
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS hdd_softap_set_peer_authorized(hdd_adapter_t *adapter,
+					  struct qdf_mac_addr *peer_mac);
+
 #endif /* end #if !defined(WLAN_HDD_HOSTAPD_H) */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -304,7 +304,7 @@ int wlan_hdd_qcmbr_unified_ioctl(hdd_adapter_t *adapter, struct ifreq *ifr)
 {
 	int ret = 0;
 
-	if (is_compat_task())
+	if (in_compat_syscall())
 		ret = wlan_hdd_qcmbr_compat_ioctl(adapter, ifr);
 	else
 		ret = wlan_hdd_qcmbr_ioctl(adapter, ifr);

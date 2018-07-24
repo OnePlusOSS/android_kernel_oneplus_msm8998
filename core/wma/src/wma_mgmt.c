@@ -3257,6 +3257,11 @@ int wma_process_bip(tp_wma_handle wma_handle,
 	uint8_t *efrm;
 
 	efrm = qdf_nbuf_data(wbuf) + qdf_nbuf_len(wbuf);
+	/* Check if frame is invalid length */
+	if (efrm - (uint8_t *)wh < sizeof(*wh) + sizeof(struct ieee80211_mmie)) {
+		WMA_LOGE(FL("Invalid frame length"));
+		return -EINVAL;
+	}
 
 	if (iface->key.key_cipher == WMI_CIPHER_AES_CMAC) {
 		key_id = (uint16_t)*(efrm - cds_get_mmie_size() + 2);

@@ -1779,8 +1779,9 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 
 	if (skip_etsi13_srd_chan) {
 		for (i = 0; i < sap_config->acs_cfg.ch_list_count; i++) {
-			if (cds_is_etsi13_regdmn_srd_chan(sap_config->acs_cfg.
-							  ch_list[i]))
+			if (cds_is_etsi13_regdmn_srd_chan(cds_chan_to_freq(
+							  sap_config->acs_cfg.
+							  ch_list[i])))
 				continue;
 			sap_config->acs_cfg.ch_list[ch_cnt++] =
 				sap_config->acs_cfg.ch_list[i];

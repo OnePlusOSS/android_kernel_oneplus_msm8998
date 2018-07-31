@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -36,7 +36,20 @@ int wlan_hdd_cfg80211_nan_request(struct wiphy *wiphy,
 				  const void *data,
 				  int data_len);
 
-bool wlan_hdd_nan_is_supported(void);
+/**
+ * wlan_hdd_nan_is_supported() - HDD NAN support query function
+ *
+ * This function is called to determine if NAN is supported by the
+ * driver and by the firmware.
+ *
+ * Return: true if NAN is supported by the driver and firmware
+ */
+static inline bool wlan_hdd_nan_is_supported(hdd_context_t *hdd_ctx)
+{
+	return hdd_ctx->config->enable_nan_support &&
+		sme_is_feature_supported_by_fw(NAN);
+}
+
 /**
  * hdd_nan_populate_cds_config() - Populate NAN cds configuration
  * @cds_cfg: CDS Configuration
@@ -51,7 +64,7 @@ static inline void hdd_nan_populate_cds_config(struct cds_config_info *cds_cfg,
 }
 void wlan_hdd_cfg80211_nan_callback(void *ctx, tSirNanEvent *msg);
 #else
-static inline bool wlan_hdd_nan_is_supported(void)
+static inline bool wlan_hdd_nan_is_supported(hdd_context_t *hdd_ctx)
 {
 	return false;
 }

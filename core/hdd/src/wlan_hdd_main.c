@@ -464,7 +464,7 @@ static int __hdd_netdev_notifier_call(struct notifier_block *nb,
 	}
 
 	if (!dev->ieee80211_ptr) {
-		hdd_err("ieee80211_ptr is NULL!!!");
+		hdd_debug("ieee80211_ptr is NULL!!!");
 		return NOTIFY_DONE;
 	}
 
@@ -476,12 +476,19 @@ static int __hdd_netdev_notifier_call(struct notifier_block *nb,
 	}
 
 	if (hdd_ctx->driver_status == DRIVER_MODULES_CLOSED) {
-		hdd_err("%s: Driver module is closed", __func__);
+		hdd_debug("%s: Driver module is closed", __func__);
 		return NOTIFY_DONE;
 	}
 
-	if (cds_is_driver_recovering() || cds_is_driver_in_bad_state())
+	if (cds_is_driver_recovering()) {
+		hdd_debug("Driver is recovering");
 		return NOTIFY_DONE;
+	}
+
+	if (cds_is_driver_in_bad_state()) {
+		hdd_debug("Driver is in failed recovery state");
+		return NOTIFY_DONE;
+	}
 
 	hdd_debug("%s New Net Device State = %lu",
 	       dev->name, state);

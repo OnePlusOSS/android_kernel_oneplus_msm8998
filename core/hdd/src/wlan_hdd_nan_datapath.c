@@ -103,7 +103,11 @@ void hdd_nan_datapath_target_config(hdd_context_t *hdd_ctx,
 	hdd_ctx->nan_datapath_enabled =
 		hdd_ctx->config->enable_nan_datapath &&
 			cfg->nan_datapath_enabled;
-	hdd_info("enable_nan_datapath: %d", hdd_ctx->nan_datapath_enabled);
+
+	hdd_debug("final: %d, host: %d, fw: %d",
+		  hdd_ctx->nan_datapath_enabled,
+		  hdd_ctx->config->enable_nan_datapath,
+		  cfg->nan_datapath_enabled);
 }
 
 /**

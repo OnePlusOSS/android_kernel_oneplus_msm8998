@@ -2256,6 +2256,12 @@ static int hdd_ipa_wdi_enable_pipes(struct hdd_ipa_priv *hdd_ipa)
 	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 	int result;
 
+	if (!pdev) {
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR, "pdev is NULL");
+		result = QDF_STATUS_E_FAILURE;
+		return result;
+	}
+
 	/* Map IPA SMMU for all Rx hash table */
 	result = ol_txrx_rx_hash_smmu_map(pdev, true);
 	if (result) {
@@ -2318,6 +2324,12 @@ static int hdd_ipa_wdi_disable_pipes(struct hdd_ipa_priv *hdd_ipa)
 {
 	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 	int result;
+
+	if (!pdev) {
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR, "pdev is NULL");
+		result = QDF_STATUS_E_FAILURE;
+		return result;
+	}
 
 	HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "Disable RX PIPE");
 	result = ipa_suspend_wdi_pipe(hdd_ipa->rx_pipe_handle);

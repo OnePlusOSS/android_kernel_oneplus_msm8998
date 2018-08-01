@@ -7427,17 +7427,20 @@ static void hdd_bus_bw_compute_cbk(void *priv)
 
 int hdd_bus_bandwidth_init(hdd_context_t *hdd_ctx)
 {
+	ENTER();
 	spin_lock_init(&hdd_ctx->bus_bw_lock);
 
 	qdf_mc_timer_init(&hdd_ctx->bus_bw_timer,
 			  QDF_TIMER_TYPE_SW,
 			  hdd_bus_bw_compute_cbk, (void *)hdd_ctx);
 
+	EXIT();
 	return 0;
 }
 
 void hdd_bus_bandwidth_destroy(hdd_context_t *hdd_ctx)
 {
+	ENTER();
 	if (qdf_mc_timer_get_current_state(&hdd_ctx->bus_bw_timer) ==
 	    QDF_TIMER_STATE_RUNNING &&
 	    hdd_ctx->config->enable_tcp_delack)
@@ -7445,6 +7448,7 @@ void hdd_bus_bandwidth_destroy(hdd_context_t *hdd_ctx)
 
 	hdd_bus_bw_compute_timer_stop(hdd_ctx);
 	qdf_mc_timer_destroy(&hdd_ctx->bus_bw_timer);
+	EXIT();
 }
 #endif
 

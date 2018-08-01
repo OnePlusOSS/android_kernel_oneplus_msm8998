@@ -1522,9 +1522,9 @@ QDF_STATUS hdd_wlan_shutdown(void)
 
 	qdf_mc_timer_stop(&pHddCtx->tdls_source_timer);
 
-	hdd_wlan_stop_modules(pHddCtx, false);
+	hdd_bus_bw_compute_timer_stop(pHddCtx);
 
-	hdd_bus_bandwidth_destroy(pHddCtx);
+	hdd_wlan_stop_modules(pHddCtx, false);
 
 	hdd_lpass_notify_stop(pHddCtx);
 
@@ -1649,9 +1649,6 @@ QDF_STATUS hdd_wlan_re_init(void)
 
 	if (pHddCtx->config->enable_dp_trace)
 		hdd_dp_trace_init(pHddCtx->config);
-
-	hdd_bus_bandwidth_init(pHddCtx);
-
 
 	ret = hdd_wlan_start_modules(pHddCtx, pAdapter, true);
 	if (ret) {

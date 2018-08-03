@@ -806,6 +806,12 @@ void htt_rx_msdu_buff_replenish(htt_pdev_handle pdev);
  * Return: number of buffers actually replenished
  */
 int htt_rx_msdu_buff_in_order_replenish(htt_pdev_handle pdev, uint32_t num);
+#else
+static inline
+int htt_rx_msdu_buff_in_order_replenish(htt_pdev_handle pdev, uint32_t num)
+{
+	return 0;
+}
 #endif
 
 /**

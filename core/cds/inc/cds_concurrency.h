@@ -848,6 +848,8 @@ QDF_STATUS cds_pdev_set_hw_mode(uint32_t session_id,
 		enum hw_mode_agile_dfs_capab dfs,
 		enum hw_mode_sbs_capab sbs,
 		enum sir_conn_update_reason reason);
+bool cds_is_dbs_req_for_channel(uint8_t channel_id);
+
 enum cds_conc_next_action cds_need_opportunistic_upgrade(void);
 QDF_STATUS cds_next_actions(uint32_t session_id,
 		enum cds_conc_next_action action,

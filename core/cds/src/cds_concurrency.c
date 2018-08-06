@@ -2894,6 +2894,33 @@ QDF_STATUS cds_pdev_set_hw_mode(uint32_t session_id,
 	return QDF_STATUS_SUCCESS;
 }
 
+bool cds_is_dbs_req_for_channel(uint8_t channel_id)
+{
+	cds_context_type *cds_ctx;
+	uint32_t conn_index;
+	bool dbs_req = 0;
+	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
+	if (!cds_ctx) {
+		cds_err("Invalid CDS Context");
+		return 0;
+	}
+	if (wma_is_hw_dbs_capable() == false) {
+		cds_debug("driver isnt DBS capable");
+		return 0;
+	}
+	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
+	for (conn_index = 0; conn_index < MAX_NUMBER_OF_CONC_CONNECTIONS;
+	     conn_index++) {
+		if (!CDS_IS_SAME_BAND_CHANNELS(channel_id,
+			conc_connection_list[conn_index].chan)) {
+			dbs_req = true;
+			break;
+		}
+	}
+	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
+	return dbs_req;
+
+}
 /**
  * cds_is_connection_in_progress() - check if connection is in progress
  * @session_id: session id

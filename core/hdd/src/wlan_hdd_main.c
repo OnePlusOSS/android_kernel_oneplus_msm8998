@@ -3410,6 +3410,46 @@ static QDF_STATUS hdd_check_and_init_tdls(hdd_adapter_t *adapter, uint32_t type)
 }
 #endif
 
+/**
+ * hdd_update_ini_params() - Update config values to default ini param values
+ * @hdd_ctx: hdd context
+ *
+ * This function is used to update the specific config values that can change
+ * at run time to its default ini param values. For example in LONU driver
+ * if initial_scan_no_dfs_chnl is set to 1 by default, after scan request it
+ * is setting to 0 in csr_scan_request() which leads to scan DFS channels also.
+ * So, we need to update initial_scan_no_dfs_chnl to its default ini value.
+ *
+ * Return: QDF_STATUS
+ */
+static QDF_STATUS hdd_update_ini_params(hdd_context_t *hdd_ctx)
+{
+	QDF_STATUS status;
+	tSmeConfigParams *sme_config;
+
+	sme_config = qdf_mem_malloc(sizeof(*sme_config));
+	if (!sme_config) {
+		hdd_err("unable to allocate sme_config");
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	status = sme_get_config_param(hdd_ctx->hHal, sme_config);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		hdd_err("sme get config failed");
+		goto err;
+	}
+
+	sme_config->csrConfig.initial_scan_no_dfs_chnl =
+		hdd_ctx->config->initial_scan_no_dfs_chnl;
+
+	status = sme_update_config(hdd_ctx->hHal, sme_config);
+	if (QDF_IS_STATUS_ERROR(status))
+		hdd_err("sme update config failed");
+err:
+	qdf_mem_free(sme_config);
+	return status;
+}
+
 QDF_STATUS hdd_init_station_mode(hdd_adapter_t *adapter)
 {
 	struct net_device *pWlanDev = adapter->dev;
@@ -3566,6 +3606,12 @@ QDF_STATUS hdd_init_station_mode(hdd_adapter_t *adapter)
 
 	/* rcpi info initialization */
 	qdf_mem_zero(&adapter->rcpi, sizeof(adapter->rcpi));
+
+	if ((adapter->device_mode == QDF_STA_MODE) ||
+	    (adapter->device_mode == QDF_P2P_CLIENT_MODE)) {
+		ret_val = hdd_update_ini_params(hdd_ctx);
+		return ret_val;
+	}
 
 	return QDF_STATUS_SUCCESS;
 

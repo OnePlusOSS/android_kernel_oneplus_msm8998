@@ -3405,6 +3405,7 @@ struct periodic_tx_pattern {
  * @kek_len: Kek length
  * @ullKeyReplayCounter: replay counter
  * @bssid: bss id
+ * @is_fils_connection: Whether the present connection with the AP is FILS
  */
 struct gtk_offload_params {
 	uint32_t ulFlags;
@@ -3413,6 +3414,7 @@ struct gtk_offload_params {
 	uint32_t kek_len;
 	uint64_t ullKeyReplayCounter;
 	struct qdf_mac_addr bssid;
+	bool is_fils_connection;
 };
 
 /**
@@ -7379,6 +7381,9 @@ struct action_wakeup_set_param {
  * @WMI_ACTION_OUI_CONNECT_1X1: for 1x1 connection only
  * @WMI_ACTION_OUI_ITO_EXTENSION: for extending inactivity time of station
  * @WMI_ACTION_OUI_CCKM_1X1: for TX with CCKM 1x1 only
+ * @WMI_ACTION_OUI_ITO_ALTERNATE: for alternate inactivity time of station
+ * WMI_ACTION_OUI_SWITCH_TO_11N_MODE: for switching to 11n mode connection
+ * WMI_ACTION_OUI_CONNECT_1x1_WITH_1_CHAIN: for 1x1 connection with 1 Chain
  * @WMI_ACTION_OUI_MAXIMUM_ID: maximun number of action oui types
  */
 enum wmi_action_oui_id {
@@ -7387,7 +7392,8 @@ enum wmi_action_oui_id {
 	WMI_ACTION_OUI_CCKM_1X1 = 2,
 	WMI_ACTION_OUI_ITO_ALTERNATE = 3,
 	WMI_ACTION_OUI_SWITCH_TO_11N_MODE = 4,
-	WMI_ACTION_OUI_MAXIMUM_ID = 5,
+	WMI_ACTION_OUI_CONNECT_1x1_WITH_1_CHAIN = 5,
+	WMI_ACTION_OUI_MAXIMUM_ID = 6,
 };
 
 /**

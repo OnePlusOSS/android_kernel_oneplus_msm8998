@@ -459,12 +459,14 @@ void wlan_hdd_rso_cmd_status_cb(void *ctx, struct rso_cmd_status *rso_status);
 
 /**
  * wlan_hdd_cfg80211_chainrssi_callback - chainrssi callback
- * @ctx: hdd context
+ * @hdd_ctx: hdd context
  * @pmsg: pmsg
+ * @context: callback context
  *
  * Return: void
  */
-void wlan_hdd_cfg80211_chainrssi_callback(void *ctx, void *pmsg);
+void wlan_hdd_cfg80211_chainrssi_callback(void *hdd_ctx, void *pmsg,
+					  void *context);
 
 void hdd_rssi_threshold_breached(void *hddctx,
 				 struct rssi_breach_event *data);

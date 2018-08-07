@@ -80,6 +80,16 @@
  */
 #define NUM_OF_STA_DATA_TO_PRINT 16
 
+#ifdef WLAN_FEATURE_EXTWOW_SUPPORT
+/**
+ * struct enable_ext_wow_priv - Private data structure for ext wow
+ * @ext_wow_should_suspend: Suspend status of ext wow
+ */
+struct enable_ext_wow_priv {
+	bool ext_wow_should_suspend;
+};
+#endif
+
 /*
  * Android DRIVER command structures
  */
@@ -792,7 +802,7 @@ static int hdd_parse_reassoc_command_v1_data(const uint8_t *pValue,
 }
 
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
-void hdd_wma_send_fastreassoc_cmd(hdd_adapter_t *adapter,
+QDF_STATUS hdd_wma_send_fastreassoc_cmd(hdd_adapter_t *adapter,
 				const tSirMacAddr bssid, int channel)
 {
 	hdd_wext_state_t *wext_state = WLAN_HDD_GET_WEXT_STATE_PTR(adapter);
@@ -803,9 +813,10 @@ void hdd_wma_send_fastreassoc_cmd(hdd_adapter_t *adapter,
 
 	qdf_mem_copy(connected_bssid, hdd_sta_ctx->conn_info.bssId.bytes,
 		     ETH_ALEN);
-	sme_fast_reassoc(WLAN_HDD_GET_HAL_CTX(adapter),
-			 profile, bssid, channel, adapter->sessionId,
-			 connected_bssid);
+	return sme_fast_reassoc(WLAN_HDD_GET_HAL_CTX(adapter),
+				profile, bssid, channel,
+				adapter->sessionId,
+				connected_bssid);
 }
 #endif
 
@@ -868,8 +879,10 @@ int hdd_reassoc(hdd_adapter_t *adapter, const uint8_t *bssid,
 
 	/* Proceed with reassoc */
 	if (roaming_offload_enabled(hdd_ctx)) {
-		hdd_wma_send_fastreassoc_cmd(adapter,
-					bssid, (int)channel);
+		if (QDF_STATUS_SUCCESS !=
+		    hdd_wma_send_fastreassoc_cmd(adapter, bssid,
+						 (int)channel))
+		    ret = -EINVAL;
 	} else {
 		tCsrHandoffRequest handoffInfo;
 
@@ -1884,16 +1897,28 @@ static QDF_STATUS hdd_parse_plm_cmd(uint8_t *pValue, tSirPlmReq *pPlmRequest)
 #endif
 
 #ifdef WLAN_FEATURE_EXTWOW_SUPPORT
-static void wlan_hdd_ready_to_extwow(void *callbackContext, bool is_success)
+/**
+ * wlan_hdd_ready_to_extwow() - Callback function for enable ext wow
+ * @cookie: callback context
+ * @is_success: suspend status of ext wow
+ *
+ * Return: none
+ */
+static void wlan_hdd_ready_to_extwow(void *cookie, bool is_success)
 {
-	hdd_context_t *hdd_ctx = (hdd_context_t *) callbackContext;
-	int rc;
+	struct hdd_request *request = NULL;
+	struct enable_ext_wow_priv *priv = NULL;
 
-	rc = wlan_hdd_validate_context(hdd_ctx);
-	if (rc)
+	request = hdd_request_get(cookie);
+	if (!request) {
+		hdd_err("Obselete request");
 		return;
-	hdd_ctx->ext_wow_should_suspend = is_success;
-	complete(&hdd_ctx->ready_to_extwow);
+	}
+	priv = hdd_request_priv(request);
+	priv->ext_wow_should_suspend = is_success;
+
+	hdd_request_complete(request);
+	hdd_request_put(request);
 }
 
 static int hdd_enable_ext_wow(hdd_adapter_t *adapter,
@@ -1903,31 +1928,46 @@ static int hdd_enable_ext_wow(hdd_adapter_t *adapter,
 	QDF_STATUS qdf_ret_status;
 	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 	tHalHandle hHal = WLAN_HDD_GET_HAL_CTX(adapter);
-	int rc;
+	int rc = 0;
+	struct enable_ext_wow_priv *priv = NULL;
+	struct hdd_request *request = NULL;
+	void *cookie = NULL;
+	struct hdd_request_params hdd_params = {
+		.priv_size = sizeof(*priv),
+		.timeout_ms = WLAN_WAIT_TIME_READY_TO_EXTWOW,
+	};
 
 	qdf_mem_copy(&params, arg_params, sizeof(params));
 
-	INIT_COMPLETION(hdd_ctx->ready_to_extwow);
+	request = hdd_request_alloc(&hdd_params);
+	if (!request) {
+		hdd_err("Request Allocation Failure");
+		return -ENOMEM;
+	}
+	cookie = hdd_request_cookie(request);
 
 	qdf_ret_status = sme_configure_ext_wow(hHal, &params,
-						&wlan_hdd_ready_to_extwow,
-						hdd_ctx);
+					       &wlan_hdd_ready_to_extwow,
+					       cookie);
 	if (QDF_STATUS_SUCCESS != qdf_ret_status) {
 		hdd_err("sme_configure_ext_wow returned failure %d",
-			 qdf_ret_status);
-		return -EPERM;
+			qdf_ret_status);
+		rc = -EPERM;
+		goto exit;
 	}
 
-	rc = wait_for_completion_timeout(&hdd_ctx->ready_to_extwow,
-			msecs_to_jiffies(WLAN_WAIT_TIME_READY_TO_EXTWOW));
-	if (!rc) {
+	rc = hdd_request_wait_for_response(request);
+	if (rc) {
 		hdd_err("Failed to get ready to extwow");
-		return -EPERM;
+		rc = -EPERM;
+		goto exit;
 	}
 
-	if (!hdd_ctx->ext_wow_should_suspend) {
+	priv = hdd_request_priv(request);
+	if (!priv->ext_wow_should_suspend) {
 		hdd_err("Received ready to ExtWoW failure");
-		return -EPERM;
+		rc = -EPERM;
+		goto exit;
 	}
 
 	if (hdd_ctx->config->extWowGotoSuspend) {
@@ -1939,8 +1979,8 @@ static int hdd_enable_ext_wow(hdd_adapter_t *adapter,
 		rc = wlan_hdd_cfg80211_suspend_wlan(hdd_ctx->wiphy, NULL);
 		if (rc < 0) {
 			hdd_err("wlan_hdd_cfg80211_suspend_wlan failed, error = %d",
-				 rc);
-			return rc;
+				rc);
+			goto exit;
 		}
 
 		rc = wlan_hdd_bus_suspend(state);
@@ -1948,11 +1988,12 @@ static int hdd_enable_ext_wow(hdd_adapter_t *adapter,
 			hdd_err("wlan_hdd_bus_suspend failed, status = %d",
 				rc);
 			wlan_hdd_cfg80211_resume_wlan(hdd_ctx->wiphy);
-			return rc;
+			goto exit;
 		}
 	}
-
-	return 0;
+exit:
+	hdd_request_put(request);
+	return rc;
 }
 
 static int hdd_enable_ext_wow_parser(hdd_adapter_t *adapter, int vdev_id,
@@ -6617,6 +6658,35 @@ QDF_STATUS hdd_update_smps_antenna_mode(hdd_context_t *hdd_ctx, int mode)
 	return QDF_STATUS_SUCCESS;
 }
 
+/**
+ * wlan_hdd_soc_set_antenna_mode_cb() - Callback for set dual
+ * mac scan config
+ * @status: Status of set antenna mode
+ * @context: callback context
+ *
+ * Callback on setting the dual mac configuration
+ *
+ * Return: None
+ */
+static void
+wlan_hdd_soc_set_antenna_mode_cb(enum set_antenna_mode_status status,
+				 void *context)
+{
+	struct hdd_request *request = NULL;
+
+	hdd_debug("Status: %d", status);
+
+	request = hdd_request_get(context);
+	if (!request) {
+		hdd_err("obsolete request");
+		return;
+	}
+
+	/* Signal the completion of set dual mac config */
+	hdd_request_complete(request);
+	hdd_request_put(request);
+}
+
 int hdd_set_antenna_mode(hdd_adapter_t *adapter,
 				  hdd_context_t *hdd_ctx, int mode)
 {
@@ -6624,6 +6694,11 @@ int hdd_set_antenna_mode(hdd_adapter_t *adapter,
 	struct sir_antenna_mode_param params;
 	QDF_STATUS status;
 	int ret = 0;
+	struct hdd_request *request = NULL;
+	static const struct hdd_request_params request_params = {
+		.priv_size = 0,
+		.timeout_ms = WLAN_WAIT_TIME_ANTENNA_MODE_REQ,
+	};
 
 	if (hdd_ctx->current_antenna_mode == mode) {
 		hdd_err("System already in the requested mode");
@@ -6667,36 +6742,40 @@ int hdd_set_antenna_mode(hdd_adapter_t *adapter,
 			goto exit;
 	}
 
-	params.set_antenna_mode_resp =
-	    (void *)wlan_hdd_soc_set_antenna_mode_cb;
+	request = hdd_request_alloc(&request_params);
+	if (!request) {
+		hdd_err("Request Allocation Failure");
+		ret = -ENOMEM;
+		goto exit;
+	}
+
+	params.set_antenna_mode_ctx = hdd_request_cookie(request);
+	params.set_antenna_mode_resp = wlan_hdd_soc_set_antenna_mode_cb;
 	hdd_debug("Set antenna mode rx chains: %d tx chains: %d",
 		 params.num_rx_chains,
 		 params.num_tx_chains);
 
-
-	INIT_COMPLETION(hdd_ctx->set_antenna_mode_cmpl);
 	status = sme_soc_set_antenna_mode(hdd_ctx->hHal, &params);
 	if (QDF_IS_STATUS_ERROR(status)) {
 		hdd_err("set antenna mode failed status : %d", status);
 		ret = -EFAULT;
-		goto exit;
+		goto request_put;
 	}
 
-	ret = wait_for_completion_timeout(
-		&hdd_ctx->set_antenna_mode_cmpl,
-		msecs_to_jiffies(WLAN_WAIT_TIME_ANTENNA_MODE_REQ));
-	if (!ret) {
+	ret = hdd_request_wait_for_response(request);
+	if (ret) {
 		hdd_err("send set antenna mode timed out");
-		ret = -EFAULT;
-		goto exit;
+		goto request_put;
 	}
 
 	status = hdd_update_smps_antenna_mode(hdd_ctx, mode);
 	if (QDF_STATUS_SUCCESS != status) {
 		ret = -EFAULT;
-		goto exit;
+		goto request_put;
 	}
 	ret = 0;
+request_put:
+	hdd_request_put(request);
 exit:
 #ifdef FEATURE_WLAN_TDLS
 	/* Reset tdls NSS flags */
@@ -7033,6 +7112,70 @@ static int hdd_alloc_chan_cache(hdd_context_t *hdd_ctx, int num_chan)
 }
 
 /**
+ * check_disable_channels() - Check for disable channel
+ * @hdd_ctx: Pointer to hdd context
+ * @operating_channel: Current operating channel of adapter
+ *
+ * This function checks original_channels array for a specific channel
+ *
+ * Return: 0 if channel not found, 1 if channel found
+ */
+static bool check_disable_channels(hdd_context_t *hdd_ctx,
+				   uint8_t operating_channel)
+{
+	uint32_t num_channels;
+	uint8_t i;
+
+	if (!hdd_ctx || !hdd_ctx->original_channels ||
+	    !hdd_ctx->original_channels->channel_info)
+		return false;
+
+	num_channels = hdd_ctx->original_channels->num_channels;
+	for (i = 0; i < num_channels; i++)
+		if (hdd_ctx->original_channels->channel_info[i].channel_num ==
+				operating_channel)
+			return true;
+	return false;
+}
+
+/**
+ * disconnect_sta_and_stop_sap() - Disconnect STA and stop SAP
+ *
+ * @hdd_ctx: Pointer to hdd context
+ *
+ * Disable channels provided by user and disconnect STA if it is
+ * connected to any AP, stop SAP and send deauthentication request
+ * to STAs connected to SAP.
+ *
+ * Return: None
+ */
+static void disconnect_sta_and_stop_sap(hdd_context_t *hdd_ctx)
+{
+	hdd_adapter_list_node_t *adapter_node = NULL, *next = NULL;
+	hdd_adapter_t *adapter;
+	QDF_STATUS status;
+
+	if (!hdd_ctx)
+		return;
+
+	wlan_hdd_disable_channels(hdd_ctx);
+
+	status = hdd_get_front_adapter(hdd_ctx, &adapter_node);
+	while (adapter_node && (status == QDF_STATUS_SUCCESS)) {
+		adapter = adapter_node->pAdapter;
+
+		if (!hdd_validate_adapter(adapter) &&
+		    (adapter->device_mode == QDF_SAP_MODE) &&
+		    (check_disable_channels(hdd_ctx,
+		     adapter->sessionCtx.ap.operatingChannel)))
+			wlan_hdd_stop_sap(adapter);
+
+		status = hdd_get_next_adapter(hdd_ctx, adapter_node, &next);
+		adapter_node = next;
+	}
+}
+
+/**
  * hdd_parse_disable_chan_cmd() - Parse the channel list received
  * in command.
  * @adapter: pointer to hdd adapter
@@ -7201,6 +7344,9 @@ static int hdd_parse_disable_chan_cmd(hdd_adapter_t *adapter, uint8_t *ptr)
 		}
 		ret = 0;
 	}
+
+	if (!is_command_repeated && hdd_ctx->config->disable_channel)
+		disconnect_sta_and_stop_sap(hdd_ctx);
 mem_alloc_failed:
 
 	qdf_mutex_release(&hdd_ctx->cache_channel_lock);
@@ -7645,7 +7791,7 @@ static int __hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 	switch (cmd) {
 	case (SIOCDEVPRIVATE + 1):
-		if (is_compat_task())
+		if (in_compat_syscall())
 			ret = hdd_driver_compat_ioctl(adapter, ifr);
 		else
 			ret = hdd_driver_ioctl(adapter, ifr);

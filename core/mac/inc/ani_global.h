@@ -790,7 +790,6 @@ typedef struct sAniSirLim {
 	/* //////////////////////////////  HT RELATED           ////////////////////////////////////////// */
 
 #ifdef FEATURE_WLAN_TDLS
-	uint8_t gLimAddStaTdls;
 	uint8_t gLimTdlsLinkMode;
 	/* //////////////////////////////  TDLS RELATED         ////////////////////////////////////////// */
 #endif
@@ -1018,6 +1017,7 @@ typedef struct sAniSirGlobal {
 	uint32_t peer_rssi;
 	uint32_t peer_txrate;
 	uint32_t peer_rxrate;
+	uint32_t rx_mc_bc_cnt;
 } tAniSirGlobal;
 
 typedef enum {

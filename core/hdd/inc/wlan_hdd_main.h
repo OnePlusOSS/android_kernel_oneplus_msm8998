@@ -53,12 +53,23 @@
 #include "wlan_hdd_nan_datapath.h"
 #include "target_if_def_config.h"
 #include <qdf_idr.h>
+#include "wma_sar_public_structs.h"
 
 /** Number of Tx Queues */
 #ifdef QCA_LL_TX_FLOW_CONTROL_V2
 #define NUM_TX_QUEUES 5
 #else
 #define NUM_TX_QUEUES 4
+#endif
+
+/*
+ * API in_compat_syscall() is introduced in 4.6 kernel to check whether we're
+ * in a compat syscall or not. It is a new way to query the syscall type, which
+ * works properly on all architectures.
+ *
+ */
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0))
+static inline bool in_compat_syscall(void) { return is_compat_task(); }
 #endif
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 7, 0)) || \
@@ -103,6 +114,8 @@
 #define TDLS_INIT_DONE         (6)
 #define ACS_PENDING            (7)
 #define SOFTAP_INIT_DONE       (8)
+/* Interface went down during SSR*/
+#define DOWN_DURING_SSR        (9)
 
 /* HDD global event flags */
 #define ACS_IN_PROGRESS        (0)
@@ -1044,6 +1057,14 @@ enum dhcp_nego_status {
  * @vht_caps: VHT capabilities of current station
  * @reason_code: Disconnection reason code for current station
  * @rssi: RSSI of the current station reported from F/W
+ * @capability: Capability information of current station
+ * @rx_retry_cnt: Number of rx retries received from current station
+ *                Currently this feature is not supported from FW
+ * @rx_mc_bc_cnt: Multicast broadcast packet count received from
+ *              current station
+ * MSB of rx_mc_bc_cnt indicates whether FW supports rx_mc_bc_cnt
+ * feature or not, if first bit is 1 it indictes that FW supports this
+ * feature, if it is 0 it indicates FW doesn't support this feature
  */
 typedef struct {
 	bool isUsed;
@@ -1085,6 +1106,9 @@ typedef struct {
 	int8_t rssi;
 	enum dhcp_phase dhcp_phase;
 	enum dhcp_nego_status dhcp_nego_status;
+	uint16_t capability;
+	uint32_t rx_mc_bc_cnt;
+	uint32_t rx_retry_cnt;
 } hdd_station_info_t;
 
 /**
@@ -1727,14 +1751,10 @@ enum smps_mode {
 };
 
 /**
- * struct hdd_chain_rssi_context - hdd chain rssi context
- * @response_event: chain rssi request wait event
- * @ignore_result: Flag to ignore the result or not
- * @chain_rssi: chain rssi array
+ * struct hdd_chain_rssi_priv - hdd chain rssi private
+ * @result: chain rssi array
  */
-struct hdd_chain_rssi_context {
-	struct completion response_event;
-	bool ignore_result;
+struct hdd_chain_rssi_priv {
 	struct chain_rssi_result result;
 };
 
@@ -2016,6 +2036,7 @@ struct hdd_context_s {
 	enum tdls_nss_transition_type tdls_nss_transition_mode;
 	int32_t tdls_teardown_peers_cnt;
 	struct tdls_set_state_info set_state_info;
+	bool enable_tdls_in_fw;
 #endif
 
 	void *hdd_ipa;
@@ -2034,10 +2055,7 @@ struct hdd_context_s {
 #ifdef MSM_PLATFORM
 	/* DDR bus bandwidth compute timer
 	 */
-	qdf_timer_t bus_bw_timer;
-	bool bus_bw_timer_running;
-	qdf_spinlock_t bus_bw_timer_lock;
-	struct work_struct bus_bw_work;
+	qdf_mc_timer_t bus_bw_timer;
 	int cur_vote_level;
 	spinlock_t bus_bw_lock;
 	int cur_rx_level;
@@ -2107,8 +2125,6 @@ struct hdd_context_s {
 #ifdef WLAN_FEATURE_EXTWOW_SUPPORT
 	bool is_extwow_app_type1_param_set;
 	bool is_extwow_app_type2_param_set;
-	bool ext_wow_should_suspend;
-	struct completion ready_to_extwow;
 #endif
 
 	/* Time since boot up to extscan start (in micro seconds) */
@@ -2140,7 +2156,6 @@ struct hdd_context_s {
 	struct hdd_offloaded_packets_ctx op_ctx;
 #endif
 	bool mcc_mode;
-	struct hdd_chain_rssi_context chain_rssi_context;
 
 	struct mutex memdump_lock;
 	uint16_t driver_dump_size;
@@ -2158,8 +2173,6 @@ struct hdd_context_s {
 	 */
 	uint32_t fine_time_meas_cap_target;
 	uint32_t rx_high_ind_cnt;
-	/* completion variable to indicate set antenna mode complete*/
-	struct completion set_antenna_mode_cmpl;
 	/* Current number of TX X RX chains being used */
 	enum antenna_mode current_antenna_mode;
 	bool apf_supported;
@@ -2250,6 +2263,9 @@ struct hdd_context_s {
 	/* defining the board related information */
 	uint32_t hw_bd_id;
 	struct board_info hw_bd_info;
+
+	enum sar_version sar_version;
+
 };
 
 int hdd_validate_channel_and_bandwidth(hdd_adapter_t *adapter,
@@ -2452,7 +2468,6 @@ int hdd_bus_bandwidth_init(hdd_context_t *hdd_ctx);
  */
 void hdd_bus_bandwidth_destroy(hdd_context_t *hdd_ctx);
 #else
-
 void hdd_bus_bw_compute_timer_start(hdd_context_t *hdd_ctx)
 {
 }
@@ -2601,8 +2616,6 @@ QDF_STATUS wlan_hdd_check_custom_con_channel_rules(hdd_adapter_t *sta_adapter,
 						  bool *concurrent_chnl_same);
 void wlan_hdd_stop_sap(hdd_adapter_t *ap_adapter);
 void wlan_hdd_start_sap(hdd_adapter_t *ap_adapter, bool reinit);
-
-void wlan_hdd_soc_set_antenna_mode_cb(enum set_antenna_mode_status status);
 
 #ifdef QCA_CONFIG_SMP
 int wlan_hdd_get_cpu(void);

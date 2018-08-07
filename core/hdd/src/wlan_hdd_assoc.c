@@ -251,9 +251,8 @@ void hdd_conn_set_connection_state(hdd_adapter_t *adapter,
 	uint32_t time_buffer_size;
 
 	/* save the new connection state */
-	hdd_debug("%pS Changed conn state from old:%d to new:%d for dev %s",
-		(void *)_RET_IP_, hdd_sta_ctx->conn_info.connState,
-		conn_state, adapter->dev->name);
+	hdd_debug("Changed conn state from old:%d to new:%d for dev %s",
+		hdd_sta_ctx->conn_info.connState, conn_state, adapter->dev->name);
 
 	hdd_tsf_notify_wlan_state_change(adapter,
 					 hdd_sta_ctx->conn_info.connState,
@@ -5320,16 +5319,19 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 							    roamResult);
 		break;
 	case eCSR_ROAM_RESULT_MGMT_TX_COMPLETE_IND:
-		wlan_hdd_tdls_mgmt_completion_callback(pAdapter,
+		if (pRoamInfo)
+			wlan_hdd_tdls_mgmt_completion_callback(pAdapter,
 						       pRoamInfo->reasonCode);
 		break;
 	case eCSR_ROAM_TDLS_SET_STATE_DISABLE:
-		hdd_tdls_notify_set_state_disable(pRoamInfo->sessionId);
+		if (pRoamInfo)
+			hdd_tdls_notify_set_state_disable(pRoamInfo->sessionId);
 		break;
 #endif
 #ifdef WLAN_FEATURE_11W
 	case eCSR_ROAM_UNPROT_MGMT_FRAME_IND:
-		hdd_indicate_unprot_mgmt_frame(pAdapter,
+		if (pRoamInfo)
+			hdd_indicate_unprot_mgmt_frame(pAdapter,
 					       pRoamInfo->nFrameLength,
 					       pRoamInfo->pbFrames,
 					       pRoamInfo->frameType);
@@ -5337,7 +5339,8 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 #endif
 #ifdef FEATURE_WLAN_ESE
 	case eCSR_ROAM_TSM_IE_IND:
-		hdd_indicate_tsm_ie(pAdapter, pRoamInfo->tsmIe.tsid,
+		if (pRoamInfo)
+			hdd_indicate_tsm_ie(pAdapter, pRoamInfo->tsmIe.tsid,
 				    pRoamInfo->tsmIe.state,
 				    pRoamInfo->tsmIe.msmt_interval);
 		break;
@@ -5630,13 +5633,7 @@ hdd_translate_wpa_to_csr_encryption_type(uint8_t cipher_suite[4])
 }
 
 #ifdef WLAN_FEATURE_FILS_SK
-/*
- * hdd_is_fils_connection: API to determine if connection is FILS
- * @adapter: hdd adapter
- *
- * Return: true if fils connection else false
- */
-static inline bool hdd_is_fils_connection(hdd_adapter_t *adapter)
+bool hdd_is_fils_connection(hdd_adapter_t *adapter)
 {
 	hdd_wext_state_t *wext_state = WLAN_HDD_GET_WEXT_STATE_PTR(adapter);
 
@@ -5647,7 +5644,7 @@ static inline bool hdd_is_fils_connection(hdd_adapter_t *adapter)
 	return false;
 }
 #else
-static inline bool hdd_is_fils_connection(hdd_adapter_t *adapter)
+bool hdd_is_fils_connection(hdd_adapter_t *adapter)
 {
 	return false;
 }

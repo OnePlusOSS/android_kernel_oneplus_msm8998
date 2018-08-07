@@ -421,6 +421,7 @@ QDF_STATUS sme_roam_set_pmkid_cache(tHalHandle hHal, uint8_t sessionId,
 		uint32_t numItems,
 		bool update_entire_cache);
 
+#ifdef WLAN_FEATURE_ROAM_OFFLOAD
 /**
  * sme_get_pmk_info(): A wrapper function to request CSR to save PMK
  * @hal: Global structure
@@ -432,7 +433,6 @@ QDF_STATUS sme_roam_set_pmkid_cache(tHalHandle hHal, uint8_t sessionId,
 void sme_get_pmk_info(tHalHandle hal, uint8_t session_id,
 		      tPmkidCacheInfo *pmk_cache);
 
-#ifdef WLAN_FEATURE_ROAM_OFFLOAD
 QDF_STATUS sme_roam_set_psk_pmk(tHalHandle hHal, uint8_t sessionId,
 		uint8_t *pPSK_PMK, size_t pmk_len);
 #endif
@@ -1060,10 +1060,12 @@ QDF_STATUS sme_ll_stats_clear_req(tHalHandle hHal,
 QDF_STATUS sme_ll_stats_set_req(tHalHandle hHal,
 		tSirLLStatsSetReq *psetStatsReq);
 QDF_STATUS sme_ll_stats_get_req(tHalHandle hHal,
-		tSirLLStatsGetReq *pgetStatsReq);
+				tSirLLStatsGetReq *pgetStatsReq,
+				void *context);
 QDF_STATUS sme_set_link_layer_stats_ind_cb(tHalHandle hHal,
 		void (*callbackRoutine)(void *callbackCtx,
-				int indType, void *pRsp));
+					int indType, void *pRsp,
+					void *cookie));
 QDF_STATUS sme_set_link_layer_ext_cb(tHalHandle hal,
 		     void (*ll_stats_ext_cb)(tHddHandle callback_ctx,
 					     tSirLLStatsResults * rsp));
@@ -1594,15 +1596,16 @@ QDF_STATUS sme_update_fils_setting(tHalHandle hal, uint8_t session_id,
  *
  * @hal - MAC global handle
  * @callback_routine - callback routine from HDD
+ * @context - callback context
  *
  * This API is invoked by HDD to register its callback in SME
  *
  * Return: QDF_STATUS
  */
 QDF_STATUS sme_encrypt_decrypt_msg_register_callback(tHalHandle hal,
-		void (*encrypt_decrypt_cb)(void *hdd_context,
-			struct sir_encrypt_decrypt_rsp_params
-					*encrypt_decrypt_rsp_params));
+		void (*encrypt_decrypt_cb)(void *cookie,
+					   struct sir_encrypt_decrypt_rsp_params
+					   *encrypt_decrypt_rsp_params));
 
 /**
  * sme_encrypt_decrypt_msg_deregister_callback() - Registers
@@ -1625,7 +1628,8 @@ QDF_STATUS sme_encrypt_decrypt_msg_deregister_callback(tHalHandle h_hal);
  * Return: QDF_STATUS enumeration.
  */
 QDF_STATUS sme_encrypt_decrypt_msg(tHalHandle hal,
-	struct encrypt_decrypt_req_params *encrypt_decrypt_params);
+	struct encrypt_decrypt_req_params *encrypt_decrypt_params,
+	void *context);
 #endif
 
 /**
@@ -1910,11 +1914,26 @@ QDF_STATUS sme_get_chain_rssi(tHalHandle phal,
  * sme_chain_rssi_register_callback - chain rssi callback
  * @phal: global hal handle
  * @pchain_rssi_ind_cb: callback function pointer
+ * @context: callback context
  *
  * Return: QDF_STATUS enumeration.
  */
-QDF_STATUS sme_chain_rssi_register_callback(tHalHandle phal,
-			void (*pchain_rssi_ind_cb)(void *ctx, void *pmsg));
+QDF_STATUS
+sme_chain_rssi_register_callback(tHalHandle phal,
+				 void (*pchain_rssi_ind_cb)(void *ctx,
+							    void *pmsg,
+							    void *context),
+				 void *context);
+
+/**
+ * sme_chain_rssi_deregister_callback() - De-register chain rssi callback
+ * @hal: global hal handle
+ *
+ * This function De-registers the scandone callback  to SME
+ *
+ * Return: None
+ */
+void sme_chain_rssi_deregister_callback(tHalHandle hal);
 
 /**
  * sme_process_msg_callback() - process callback message from LIM

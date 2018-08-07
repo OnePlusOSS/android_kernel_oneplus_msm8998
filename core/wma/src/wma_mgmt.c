@@ -2293,7 +2293,7 @@ static int wmi_unified_probe_rsp_tmpl_send(tp_wma_handle wma,
 
 	WMA_LOGD(FL("Send probe response template for vdev %d"), vdev_id);
 
-	frm = probe_rsp_info->pProbeRespTemplate;
+	frm = probe_rsp_info->probeRespTemplate;
 
 	/*
 	 * Make the TSF offset negative so probe response in the same
@@ -2305,7 +2305,7 @@ static int wmi_unified_probe_rsp_tmpl_send(tp_wma_handle wma,
 	wh = (struct ieee80211_frame *)frm;
 	A_MEMCPY(&wh[1], &adjusted_tsf_le, sizeof(adjusted_tsf_le));
 
-	params.pProbeRespTemplate = probe_rsp_info->pProbeRespTemplate;
+	params.pProbeRespTemplate = probe_rsp_info->probeRespTemplate;
 	params.probeRespTemplateLen = probe_rsp_info->probeRespTemplateLen;
 	qdf_mem_copy(params.bssId, probe_rsp_info->bssId,
 		     IEEE80211_ADDR_LEN);
@@ -2530,7 +2530,8 @@ int wma_tbttoffset_update_event_handler(void *handle, uint8_t *event,
 
 		qdf_spin_lock_bh(&bcn->lock);
 		qdf_mem_zero(&bcn_info, sizeof(bcn_info));
-		bcn_info.beacon = qdf_nbuf_data(bcn->buf);
+		qdf_mem_copy(bcn_info.beacon, qdf_nbuf_data(bcn->buf),
+			     bcn->len);
 		bcn_info.p2pIeOffset = bcn->p2p_ie_offset;
 		bcn_info.beaconLength = bcn->len;
 		bcn_info.timIeOffset = bcn->tim_ie_offset;
@@ -2585,7 +2586,7 @@ void wma_send_probe_rsp_tmpl(tp_wma_handle wma,
 	}
 
 	probe_rsp = (struct sAniProbeRspStruct *)
-				 (probe_rsp_info->pProbeRespTemplate);
+				 (probe_rsp_info->probeRespTemplate);
 	if (!probe_rsp) {
 		WMA_LOGE(FL("probe_rsp is NULL"));
 		return;
@@ -2938,6 +2939,29 @@ void wma_process_update_opmode(tp_wma_handle wma_handle,
 }
 
 /**
+ * wma_update_txrx_chainmask() - process txrx chainmask
+ * @num_rf_chains: rf chains
+ * @cmd_value: rx nss value
+ *
+ * Return: none
+ */
+static void wma_update_txrx_chainmask(int num_rf_chains, int *cmd_value)
+{
+	int tmp;
+
+	tmp = WMA_MAX_RF_CHAINS(num_rf_chains);
+	if (*cmd_value > tmp) {
+		WMA_LOGE("%s: exceed the maximum! Request %d, Update %d",
+			 __func__, *cmd_value, tmp);
+		*cmd_value = tmp;
+	} else if (*cmd_value < WMA_MIN_RF_CHAINS) {
+		WMA_LOGE("%s: less than the minimum! Request %d Update %d",
+			 __func__, *cmd_value, WMA_MIN_RF_CHAINS);
+		*cmd_value = WMA_MIN_RF_CHAINS;
+	}
+}
+
+/**
  * wma_process_update_rx_nss() - process update RX NSS cmd from UMAC
  * @wma_handle: wma handle
  * @update_rx_nss: rx nss value
@@ -2950,6 +2974,8 @@ void wma_process_update_rx_nss(tp_wma_handle wma_handle,
 	struct wma_txrx_node *intr =
 		&wma_handle->interfaces[update_rx_nss->smesessionId];
 	int rx_nss = update_rx_nss->rxNss;
+
+	wma_update_txrx_chainmask(wma_handle->num_rf_chains, &rx_nss);
 
 	if (rx_nss > WMA_MAX_NSS)
 		rx_nss = WMA_MAX_NSS;
@@ -3257,6 +3283,11 @@ int wma_process_bip(tp_wma_handle wma_handle,
 	uint8_t *efrm;
 
 	efrm = qdf_nbuf_data(wbuf) + qdf_nbuf_len(wbuf);
+	/* Check if frame is invalid length */
+	if (efrm - (uint8_t *)wh < sizeof(*wh) + sizeof(struct ieee80211_mmie)) {
+		WMA_LOGE(FL("Invalid frame length"));
+		return -EINVAL;
+	}
 
 	if (iface->key.key_cipher == WMI_CIPHER_AES_CMAC) {
 		key_id = (uint16_t)*(efrm - cds_get_mmie_size() + 2);

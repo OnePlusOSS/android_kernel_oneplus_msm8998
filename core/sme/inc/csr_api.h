@@ -1578,6 +1578,8 @@ typedef struct tagCsrRoamInfo {
 	int rssi;
 	int tx_rate;
 	int rx_rate;
+	tSirMacCapabilityInfo capability_info;
+	uint32_t rx_mc_bc_cnt;
 } tCsrRoamInfo;
 
 typedef struct tagCsrFreqScanInfo {
@@ -1621,6 +1623,7 @@ typedef struct sSirSmeAssocIndToUpperLayerCnf {
 
 	tDot11fIEHTCaps HTCaps;
 	tDot11fIEVHTCaps VHTCaps;
+	tSirMacCapabilityInfo capability_info;
 } tSirSmeAssocIndToUpperLayerCnf, *tpSirSmeAssocIndToUpperLayerCnf;
 
 typedef struct tagCsrSummaryStatsInfo {

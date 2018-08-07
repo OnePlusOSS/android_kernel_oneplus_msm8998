@@ -225,6 +225,15 @@ typedef struct hdd_ap_ctx_s hdd_ap_ctx_t;
  */
 bool hdd_is_connecting(hdd_station_ctx_t *hdd_sta_ctx);
 
+/*
+ * hdd_is_fils_connection: API to determine if connection is FILS
+ * @adapter: hdd adapter
+ *
+ * Return: true if fils connection else false
+ */
+bool hdd_is_fils_connection(hdd_adapter_t *adapter);
+
+
 /**
  * hdd_conn_is_connected() - Function to check connection status
  * @pHddStaCtx:    pointer to global HDD Station context
@@ -358,7 +367,7 @@ int hdd_get_peer_idx(hdd_station_ctx_t *sta_ctx, struct qdf_mac_addr *addr);
 QDF_STATUS hdd_roam_deregister_sta(hdd_adapter_t *adapter, uint8_t sta_id);
 
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
-void hdd_wma_send_fastreassoc_cmd(hdd_adapter_t *adapter,
+QDF_STATUS hdd_wma_send_fastreassoc_cmd(hdd_adapter_t *adapter,
 				  const tSirMacAddr bssid, int channel);
 /**
  * hdd_save_gtk_params() - Save GTK offload params
@@ -371,9 +380,10 @@ void hdd_wma_send_fastreassoc_cmd(hdd_adapter_t *adapter,
 void hdd_save_gtk_params(hdd_adapter_t *adapter,
 			 tCsrRoamInfo *csr_roam_info, bool is_reassoc);
 #else
-static inline void hdd_wma_send_fastreassoc_cmd(hdd_adapter_t *adapter,
+static inline QDF_STATUS hdd_wma_send_fastreassoc_cmd(hdd_adapter_t *adapter,
 		const tSirMacAddr bssid, int channel)
 {
+	return QDF_STATUS_SUCCESS;
 }
 static inline void hdd_save_gtk_params(hdd_adapter_t *adapter,
 				       tCsrRoamInfo *csr_roam_info,

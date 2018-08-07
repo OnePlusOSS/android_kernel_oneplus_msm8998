@@ -182,8 +182,9 @@ typedef struct tagSmeStruct {
 	void (*pChAvoidNotificationCb)(void *hdd_context, void *indi_param);
 #endif /* FEATURE_WLAN_CH_AVOID */
 #ifdef WLAN_FEATURE_LINK_LAYER_STATS
+	void *ll_stats_context;
 	void (*pLinkLayerStatsIndCallback)(void *callbackContext,
-			int indType, void *pRsp);
+			int indType, void *pRsp, void *context);
 	void (*link_layer_stats_ext_cb)(tHddHandle callback_ctx,
 					tSirLLStatsResults *rsp);
 #endif /* WLAN_FEATURE_LINK_LAYER_STATS */
@@ -259,8 +260,9 @@ typedef struct tagSmeStruct {
 	p2p_lo_callback p2p_lo_event_callback;
 	void *p2p_lo_event_context;
 	sme_send_oem_data_rsp_msg oem_data_rsp_callback;
-	void (*encrypt_decrypt_cb)(void *,
-			struct sir_encrypt_decrypt_rsp_params *);
+	void *encrypt_decrypt_context;
+	void (*encrypt_decrypt_cb)(void *cookie,
+				   struct sir_encrypt_decrypt_rsp_params *rsp);
 	void (*lost_link_info_cb)(void *context,
 			struct sir_lost_link_info *lost_link_info);
 	void (*rso_cmd_status_cb)(void *hdd_context,
@@ -270,7 +272,8 @@ typedef struct tagSmeStruct {
 	void (*bt_activity_info_cb)(void *context, uint32_t bt_activity);
 	void (*chip_power_save_fail_cb)(void *,
 			struct chip_pwr_save_fail_detected_params *);
-	void (*pchain_rssi_ind_cb)(void *ctx, void *pmsg);
+	void *pchain_rssi_ind_ctx;
+	void (*pchain_rssi_ind_cb)(void *hdd_ctx, void *pmsg, void *context);
 	void (*spectral_scan_cb)(void *context,
 			struct spectral_samp_msg *samp_msg);
 	void (*stats_ext2_cb)(void *, struct stats_ext2_event *);

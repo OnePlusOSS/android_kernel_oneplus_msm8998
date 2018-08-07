@@ -5223,9 +5223,9 @@ static QDF_STATUS cds_get_channel_list(enum cds_pcl_type pcl,
 	sta_sap_scc_on_dfs_chan = cds_is_sta_sap_scc_allowed_on_dfs_channel();
 	cds_debug("sta_sap_scc_on_dfs_chan %u", sta_sap_scc_on_dfs_chan);
 
-	if ((((mode == CDS_SAP_MODE) || (mode == CDS_P2P_GO_MODE)) &&
-		(cds_mode_specific_connection_count(CDS_STA_MODE, NULL) > 0)) ||
-		!sta_sap_scc_on_dfs_chan) {
+	if (((mode == CDS_SAP_MODE) || (mode == CDS_P2P_GO_MODE)) &&
+		(cds_mode_specific_connection_count(CDS_STA_MODE, NULL) > 0) &&
+		(!sta_sap_scc_on_dfs_chan)) {
 		cds_debug("STA present, skip DFS channels from pcl for SAP/Go");
 		skip_dfs_channel = true;
 	}
@@ -8753,6 +8753,7 @@ void cds_restart_sap(hdd_adapter_t *ap_adapter)
 		hdd_cleanup_actionframe(hdd_ctx, ap_adapter);
 		hostapd_state = WLAN_HDD_GET_HOSTAP_STATE_PTR(ap_adapter);
 		qdf_event_reset(&hostapd_state->qdf_stop_bss_event);
+		hdd_ipa_ap_disconnect(ap_adapter);
 		if (QDF_STATUS_SUCCESS == wlansap_stop_bss(sap_ctx)) {
 			qdf_status =
 				qdf_wait_for_event_completion(&hostapd_state->
@@ -10708,6 +10709,8 @@ void cds_checkn_update_hw_mode_single_mac_mode(uint8_t channel)
 		cds_err("Invalid CDS Context");
 		return;
 	}
+	if (QDF_TIMER_STATE_RUNNING == cds_ctx->dbs_opportunistic_timer.state)
+		qdf_mc_timer_stop(&cds_ctx->dbs_opportunistic_timer);
 
 	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	for (i = 0; i < MAX_NUMBER_OF_CONC_CONNECTIONS; i++) {
@@ -10720,11 +10723,6 @@ void cds_checkn_update_hw_mode_single_mac_mode(uint8_t channel)
 			}
 	}
 	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
-
-	if (QDF_TIMER_STATE_RUNNING ==
-		cds_ctx->dbs_opportunistic_timer.state)
-		qdf_mc_timer_stop(&cds_ctx->dbs_opportunistic_timer);
-
 	cds_dbs_opportunistic_timer_handler((void *)cds_ctx);
 }
 

@@ -880,6 +880,9 @@ QDF_STATUS cds_disable(v_CONTEXT_t cds_context)
 	QDF_STATUS qdf_status;
 	void *handle;
 
+	if (gp_cds_sched_context)
+		cds_sched_flush_mc_mqs(gp_cds_sched_context);
+
 	qdf_status = wma_stop(cds_context, HAL_STOP_TYPE_RF_KILL);
 
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {

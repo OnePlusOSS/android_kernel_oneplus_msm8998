@@ -122,11 +122,6 @@
 #define MAX_NUM_HW_MODE    0xff
 #define MAX_NUM_PHY        0xff
 
-enum sar_version {
-	SAR_VERSION_1,
-	SAR_VERSION_2
-};
-
 /**
  * struct index_data_rate_type - non vht data rate type
  * @mcs_index: mcs rate index
@@ -1233,13 +1228,13 @@ QDF_STATUS wma_set_led_flashing(tp_wma_handle wma_handle,
 
 /**
  * wma_sar_rsp_evt_handler() -  process sar response event from FW.
- * @handle: wma handle
+ * @scn_handle: scn handle
  * @event: event buffer
  * @len: buffer length
  *
  * Return: 0 for success or error code
  */
-int wma_sar_rsp_evt_handler(void *handle, uint8_t *event, uint32_t len);
+int wma_sar_rsp_evt_handler(ol_scn_t scn_handle, uint8_t *event, uint32_t len);
 
 #ifdef FEATURE_WLAN_CH_AVOID
 int wma_channel_avoid_evt_handler(void *handle, uint8_t *event,

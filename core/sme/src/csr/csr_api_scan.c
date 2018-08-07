@@ -43,6 +43,7 @@
 #include "wlan_hdd_main.h"
 #include "pld_common.h"
 #include "csr_internal.h"
+#include "sch_api.h"
 
 #define MIN_CHN_TIME_TO_FIND_GO 100
 #define MAX_CHN_TIME_TO_FIND_GO 100
@@ -1654,16 +1655,13 @@ static void csr_scan_add_result(tpAniSirGlobal pMac, struct tag_csrscan_result
 				*pResult,
 				tDot11fBeaconIEs *pIes, uint32_t sessionId)
 {
-	tpCsrNeighborRoamControlInfo pNeighborRoamInfo;
+	tpCsrNeighborRoamControlInfo pNeighborRoamInfo = NULL;
 	struct qdf_mac_addr bssid;
 	uint8_t channel_id = pResult->Result.BssDescriptor.channelId;
+	bool is_session_valid = CSR_IS_SESSION_VALID(pMac, sessionId);
 
-	if (!CSR_IS_SESSION_VALID(pMac, sessionId)) {
-		sme_err("Invalid session id: %d", sessionId);
-		return;
-	}
-
-	pNeighborRoamInfo = &pMac->roam.neighborRoamInfo[sessionId];
+	if (is_session_valid)
+		pNeighborRoamInfo = &pMac->roam.neighborRoamInfo[sessionId];
 	qdf_mem_zero(&bssid.bytes, QDF_MAC_ADDR_SIZE);
 	qdf_mem_copy(bssid.bytes, &pResult->Result.BssDescriptor.bssId,
 			QDF_MAC_ADDR_SIZE);
@@ -1674,7 +1672,8 @@ static void csr_scan_add_result(tpAniSirGlobal pMac, struct tag_csrscan_result
 				&pResult->Result.BssDescriptor, pIes);
 	csr_ll_insert_tail(&pMac->scan.scanResultList, &pResult->Link,
 			   LL_ACCESS_LOCK);
-	if (0 == pNeighborRoamInfo->cfgParams.channelInfo.numOfChannels) {
+	if (pNeighborRoamInfo &&
+	    0 == pNeighborRoamInfo->cfgParams.channelInfo.numOfChannels) {
 		/*
 		 * Build the occupied channel list, only if
 		 * "gNeighborScanChannelList" is NOT set in the cfg.ini file
@@ -2448,8 +2447,15 @@ csr_save_scan_entry(tpAniSirGlobal pMac,
 				pcl_chan_weight);
 		}
 	}
-	if (pFilter)
+	if (pFilter && pMac->roam.configParam.is_bssid_hint_priority &&
+	    !qdf_mem_cmp(pResult->Result.BssDescriptor.bssId,
+			 pFilter->bssid_hint.bytes, QDF_MAC_ADDR_SIZE)) {
+		sme_debug("BSSID hint AP "MAC_ADDRESS_STR " give max score",
+			  MAC_ADDR_ARRAY(pFilter->bssid_hint.bytes));
+		pResult->bss_score = BEST_CANDIDATE_MAX_BSS_SCORE;
+	} else if (pFilter) {
 		csr_calculate_bss_score(pMac, pResult, pcl_chan_weight);
+	}
 
 	/*
 	 * No need to lock pRetList because it is locally allocated and no
@@ -2461,17 +2467,7 @@ csr_save_scan_entry(tpAniSirGlobal pMac,
 		(*count)++;
 		return status;
 	}
-	if (pFilter &&
-	   !qdf_mem_cmp(pResult->Result.BssDescriptor.bssId,
-	   pFilter->bssid_hint.bytes, QDF_MAC_ADDR_SIZE) &&
-	   pMac->roam.configParam.is_bssid_hint_priority) {
-		/* bssid hint AP should be on head */
-		csr_ll_insert_head(&pRetList->List,
-			&pResult->Link, LL_ACCESS_NOLOCK);
-		(*count)++;
-		pResult->bss_score = BEST_CANDIDATE_MAX_BSS_SCORE;
-		return status;
-	}
+
 	pTmpEntry = csr_ll_peek_head(&pRetList->List, LL_ACCESS_NOLOCK);
 	while (pTmpEntry) {
 		pTmpResult = GET_BASE_ADDR(pTmpEntry, struct tag_csrscan_result,
@@ -3826,6 +3822,10 @@ static struct tag_csrscan_result *csr_scan_save_bss_description(tpAniSirGlobal
 	/* figure out how big the BSS description is (the BSSDesc->length does
 	 * NOT include the size of the length field itself).
 	 */
+	if (CSR_SCAN_IS_OVER_BSS_LIMIT(pMac)) {
+		sme_debug("BSS Limit reached");
+		return NULL;
+	}
 	cbBSSDesc = pBSSDescription->length + sizeof(pBSSDescription->length);
 
 	cbAllocated = sizeof(struct tag_csrscan_result) + cbBSSDesc;
@@ -3841,10 +3841,7 @@ static struct tag_csrscan_result *csr_scan_save_bss_description(tpAniSirGlobal
 				       bssId));
 		qdf_mem_copy(&pCsrBssDescription->Result.BssDescriptor,
 			     pBSSDescription, cbBSSDesc);
-		if (NULL != pCsrBssDescription->Result.pvIes) {
-			QDF_ASSERT(pCsrBssDescription->Result.pvIes == NULL);
-			return NULL;
-		}
+
 		csr_scan_add_result(pMac, pCsrBssDescription, pIes, sessionId);
 	}
 
@@ -4069,6 +4066,7 @@ void csr_apply_channel_power_info_to_fw(tpAniSirGlobal mac_ctx,
 		sme_err("11D channel list is empty");
 	}
 	csr_set_cfg_country_code(mac_ctx, countryCode);
+	sch_edca_profile_update_all(mac_ctx);
 }
 
 #ifdef FEATURE_WLAN_DIAG_SUPPORT_CSR
@@ -4257,6 +4255,7 @@ QDF_STATUS csr_set_country_code(tpAniSirGlobal pMac, uint8_t *pCountry)
 				     pCountry,
 				     WNI_CFG_COUNTRY_CODE_LEN);
 			csr_set_cfg_country_code(pMac, pCountry);
+			sch_edca_profile_update_all(pMac);
 		}
 	}
 	return status;

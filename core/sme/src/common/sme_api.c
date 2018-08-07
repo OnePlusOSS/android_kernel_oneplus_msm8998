@@ -1563,24 +1563,17 @@ QDF_STATUS sme_update_roam_params(tHalHandle hal,
 }
 
 #ifdef WLAN_FEATURE_GTK_OFFLOAD
-static void sme_process_get_gtk_info_rsp(tHalHandle hHal,
+static void sme_process_get_gtk_info_rsp(tpAniSirGlobal mac_ctx,
 				  tpSirGtkOffloadGetInfoRspParams
 				  pGtkOffloadGetInfoRsp)
 {
-	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
-
-	if (NULL == pMac) {
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_FATAL,
-			  "%s: pMac is null", __func__);
-		return;
-	}
-	if (pMac->sme.gtk_offload_get_info_cb == NULL) {
+	if (mac_ctx->sme.gtk_offload_get_info_cb == NULL) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 			  "%s: HDD callback is null", __func__);
 		return;
 	}
-	pMac->sme.gtk_offload_get_info_cb(
-			pMac->sme.gtk_offload_get_info_cb_context,
+	mac_ctx->sme.gtk_offload_get_info_cb(
+			mac_ctx->sme.gtk_offload_get_info_cb_context,
 			pGtkOffloadGetInfoRsp);
 }
 #endif
@@ -2308,25 +2301,19 @@ QDF_STATUS sme_set_ese_roam_scan_channel_list(tHalHandle hHal,
 #endif /* FEATURE_WLAN_ESE */
 
 static
-QDF_STATUS sme_ibss_peer_info_response_handler(tHalHandle hHal,
+QDF_STATUS sme_ibss_peer_info_response_handler(tpAniSirGlobal mac_ctx,
 					       tpSirIbssGetPeerInfoRspParams
 					       pIbssPeerInfoParams)
 {
-	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 
-	if (NULL == pMac) {
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_FATAL,
-			  "%s: pMac is null", __func__);
-		return QDF_STATUS_E_FAILURE;
-	}
-	if (pMac->sme.peerInfoParams.peerInfoCbk == NULL) {
+	if (mac_ctx->sme.peerInfoParams.peerInfoCbk == NULL) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 			  "%s: HDD callback is null", __func__);
 		return QDF_STATUS_E_FAILURE;
 	}
-	pMac->sme.peerInfoParams.peerInfoCbk(pMac->sme.peerInfoParams.pUserData,
-					     &pIbssPeerInfoParams->
-					     ibssPeerInfoRspParams);
+	mac_ctx->sme.peerInfoParams.peerInfoCbk(
+			mac_ctx->sme.peerInfoParams.pUserData,
+			&pIbssPeerInfoParams->ibssPeerInfoRspParams);
 	return QDF_STATUS_SUCCESS;
 }
 
@@ -2411,6 +2398,7 @@ static QDF_STATUS sme_process_antenna_mode_resp(tpAniSirGlobal mac,
 	tListElem *entry;
 	tSmeCmd *command;
 	bool found;
+	void *context;
 	antenna_mode_cb callback;
 	struct sir_antenna_mode_resp *param;
 
@@ -2439,13 +2427,13 @@ static QDF_STATUS sme_process_antenna_mode_resp(tpAniSirGlobal mac,
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	callback =
-		command->u.set_antenna_mode_cmd.set_antenna_mode_resp;
+	context = command->u.set_antenna_mode_cmd.set_antenna_mode_ctx;
+	callback = command->u.set_antenna_mode_cmd.set_antenna_mode_resp;
 	if (callback) {
 		if (!param)
 			sme_err("Set antenna mode call back is NULL");
 		else
-			callback(param->status);
+			callback(param->status, context);
 	} else
 		sme_err("Callback does not exist");
 
@@ -2809,6 +2797,7 @@ QDF_STATUS sme_process_msg(tHalHandle hHal, cds_msg_t *pMsg)
 				pMac->peer_rssi = peer_stats[0].rssi;
 				pMac->peer_txrate = peer_stats[0].tx_rate;
 				pMac->peer_rxrate = peer_stats[0].rx_rate;
+				pMac->rx_mc_bc_cnt = peer_stats[0].rx_mc_bc_cnt;
 			}
 		}
 		qdf_mem_free(pMsg->bodyptr);
@@ -3228,10 +3217,14 @@ QDF_STATUS sme_close(tHalHandle hHal)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	QDF_STATUS fail_status = QDF_STATUS_SUCCESS;
-	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+	tpAniSirGlobal pMac;
 
-	if (!pMac)
+	if (NULL != hHal) {
+		pMac = PMAC_STRUCT(hHal);
+	} else {
+		sme_err(" Invalid hHal");
 		return QDF_STATUS_E_FAILURE;
+	}
 
 	/* Note: pSession will be invalid from here on, do not access */
 	status = csr_close(pMac);
@@ -3449,14 +3442,16 @@ QDF_STATUS sme_get_ap_channel_from_scan_cache(tHalHandle hal_handle,
 					uint8_t *ap_chnl_id)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
-	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal_handle);
+	tpAniSirGlobal mac_ctx;
 	tCsrScanResultFilter *scan_filter = NULL;
 	tScanResultHandle filtered_scan_result = NULL;
 	tSirBssDescription first_ap_profile;
 
-	if (NULL == mac_ctx) {
+	if (NULL != hal_handle) {
+		mac_ctx = PMAC_STRUCT(hal_handle);
+	} else {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-				FL("mac_ctx is NULL"));
+				FL("hal_handle is NULL"));
 		return QDF_STATUS_E_FAILURE;
 	}
 	scan_filter = qdf_mem_malloc(sizeof(tCsrScanResultFilter));
@@ -3941,10 +3936,14 @@ QDF_STATUS sme_roam_connect(tHalHandle hHal, uint8_t sessionId,
 			    tCsrRoamProfile *pProfile, uint32_t *pRoamId)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
-	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+	tpAniSirGlobal pMac;
 
-	if (!pMac)
+	if (NULL != hHal) {
+		pMac = PMAC_STRUCT(hHal);
+	} else {
+		sme_err("Invalid hHal");
 		return QDF_STATUS_E_FAILURE;
+	}
 
 	MTRACE(qdf_trace(QDF_MODULE_ID_SME,
 			 TRACE_CODE_SME_RX_HDD_MSG_CONNECT, sessionId, 0));
@@ -3977,19 +3976,12 @@ QDF_STATUS sme_set_phy_mode(tHalHandle hHal, eCsrPhyMode phyMode)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 
-	if (NULL == pMac) {
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-			  "%s: invalid context", __func__);
-		return QDF_STATUS_E_FAILURE;
-	}
-
 	pMac->roam.configParam.phyMode = phyMode;
 	pMac->roam.configParam.uCfgDot11Mode =
 		csr_get_cfg_dot11_mode_from_csr_phy_mode(NULL,
 						pMac->roam.configParam.phyMode,
 						pMac->roam.configParam.
 						ProprietaryRatesEnabled);
-
 	return QDF_STATUS_SUCCESS;
 }
 
@@ -4109,12 +4101,15 @@ QDF_STATUS sme_roam_disconnect(tHalHandle hHal, uint8_t sessionId,
  */
 void sme_dhcp_done_ind(tHalHandle hal, uint8_t session_id)
 {
-	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+	tpAniSirGlobal mac_ctx;
 	tCsrRoamSession *session;
 
-	if (!mac_ctx)
+	if (NULL != hal) {
+		mac_ctx = PMAC_STRUCT(hal);
+	} else {
+		sme_err("Invalid hal");
 		return;
-
+	}
 	session = CSR_GET_SESSION(mac_ctx, session_id);
 	if (!session) {
 		sme_err("Session: %d not found", session_id);
@@ -4167,7 +4162,10 @@ QDF_STATUS sme_roam_disconnect_sta(tHalHandle hHal, uint8_t sessionId,
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 
-	if (NULL == pMac) {
+	if (NULL != hHal) {
+		pMac = PMAC_STRUCT(hHal);
+	} else {
+		sme_err("Invalid hHal");
 		QDF_ASSERT(0);
 		return status;
 	}
@@ -4239,9 +4237,11 @@ QDF_STATUS sme_roam_tkip_counter_measures(tHalHandle hHal, uint8_t sessionId,
 					  bool bEnable)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
-	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+	tpAniSirGlobal pMac;
 
-	if (NULL == pMac) {
+	if (NULL != hHal) {
+		pMac = PMAC_STRUCT(hHal);
+	} else {
 		QDF_ASSERT(0);
 		return status;
 	}
@@ -4283,9 +4283,11 @@ QDF_STATUS sme_roam_get_associated_stas(tHalHandle hHal, uint8_t sessionId,
 					uint8_t *pAssocStasBuf)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
-	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+	tpAniSirGlobal pMac;
 
-	if (NULL == pMac) {
+	if (NULL != hHal) {
+		pMac = PMAC_STRUCT(hHal);
+	} else {
 		QDF_ASSERT(0);
 		return status;
 	}
@@ -4490,6 +4492,7 @@ QDF_STATUS sme_roam_del_pmkid_from_cache(tHalHandle hHal, uint8_t sessionId,
 	return status;
 }
 
+#ifdef WLAN_FEATURE_ROAM_OFFLOAD
 void sme_get_pmk_info(tHalHandle hal, uint8_t session_id,
 			   tPmkidCacheInfo *pmk_cache)
 {
@@ -4502,6 +4505,13 @@ void sme_get_pmk_info(tHalHandle hal, uint8_t session_id,
 		sme_release_global_lock(&mac_ctx->sme);
 	}
 }
+#else
+static inline
+void sme_get_pmk_info(tHalHandle hal, uint8_t session_id,
+			tPmkidCacheInfo *pmk_cache)
+{}
+#endif
+
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 /**
  * sme_roam_set_psk_pmk() - A wrapper function to request CSR to save PSK/PMK
@@ -5004,13 +5014,6 @@ void sme_register_ftm_msg_processor(tHalHandle hal,
 				    hdd_ftm_msg_processor callback)
 {
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
-
-	if (mac_ctx == NULL) {
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-			FL("mac ctx is NULL"));
-		return;
-	}
-
 	mac_ctx->ftm_msg_processor_callback = callback;
 }
 
@@ -14733,11 +14736,12 @@ QDF_STATUS sme_ll_stats_set_req(tHalHandle hHal, tSirLLStatsSetReq
  *
  * @hHal
  * @pgetStatsReq: Link Layer get stats request params structure
+ * @context: Callback context for ll stats
  *
  * Return QDF_STATUS
  */
 QDF_STATUS sme_ll_stats_get_req(tHalHandle hHal, tSirLLStatsGetReq
-				*pgetStatsReq)
+				*pgetStatsReq, void *context)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
@@ -14756,6 +14760,7 @@ QDF_STATUS sme_ll_stats_get_req(tHalHandle hHal, tSirLLStatsGetReq
 
 	*get_stats_req = *pgetStatsReq;
 
+	pMac->sme.ll_stats_context = context;
 	if (QDF_STATUS_SUCCESS == sme_acquire_global_lock(&pMac->sme)) {
 		/* Serialize the req through MC thread */
 		cds_message.bodyptr = get_stats_req;
@@ -14785,16 +14790,17 @@ QDF_STATUS sme_ll_stats_get_req(tHalHandle hHal, tSirLLStatsGetReq
 
 /**
  * sme_set_link_layer_stats_ind_cb() - SME API to trigger the stats are
- * available  after get request
+ * available after get request
  *
- * @hHal
- * @callback_routine - HDD callback which needs to be invoked after
- *	   getting status notification from FW
+ * @hHal: handle in hdd context
+ * @callback_routine: HDD callback which needs to be invoked after
+ * getting status notification from FW
  *
  * Return QDF_STATUS
  */
 QDF_STATUS sme_set_link_layer_stats_ind_cb(tHalHandle hHal,
-	void (*callback_routine)(void *callbackCtx, int indType, void *pRsp))
+	void (*callback_routine)(void *callbackCtx, int indType, void *pRsp,
+				 void *context))
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
@@ -17633,11 +17639,13 @@ QDF_STATUS sme_set_sar_power_limits(tHalHandle hal,
  * sme_encrypt_decrypt_msg() - handles encrypt/decrypt mesaage
  * @hal: HAL handle
  * @encrypt_decrypt_params: struct to set encryption/decryption params.
+ * @context: callback context
  *
  * Return: QDF_STATUS enumeration.
  */
 QDF_STATUS sme_encrypt_decrypt_msg(tHalHandle hal,
-	struct encrypt_decrypt_req_params *encrypt_decrypt_params)
+	struct encrypt_decrypt_req_params *encrypt_decrypt_params,
+	void *context)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
@@ -17664,6 +17672,7 @@ QDF_STATUS sme_encrypt_decrypt_msg(tHalHandle hal,
 					params->data_len);
 	}
 
+	mac_ctx->sme.encrypt_decrypt_context = context;
 	status = sme_acquire_global_lock(&mac_ctx->sme);
 	if (status == QDF_STATUS_SUCCESS) {
 		/* Serialize the req through MC thread */
@@ -17692,16 +17701,17 @@ QDF_STATUS sme_encrypt_decrypt_msg(tHalHandle hal,
  * encrypt/decrypt message callback
  *
  * @hal - MAC global handle
- * @callback_routine - callback routine from HDD
+ * @encrypt_decrypt_cb - callback routine from HDD
+ * @context - callback context
  *
  * This API is invoked by HDD to register its callback in SME
  *
  * Return: QDF_STATUS
  */
 QDF_STATUS sme_encrypt_decrypt_msg_register_callback(tHalHandle hal,
-		void (*encrypt_decrypt_cb)(void *hdd_context,
-			struct sir_encrypt_decrypt_rsp_params
-				*encrypt_decrypt_rsp_params))
+		void (*encrypt_decrypt_cb)(void *cookie,
+					   struct sir_encrypt_decrypt_rsp_params
+					   *encrypt_decrypt_rsp_params))
 {
 	QDF_STATUS status   = QDF_STATUS_SUCCESS;
 	tpAniSirGlobal mac;
@@ -18632,26 +18642,38 @@ QDF_STATUS sme_get_chain_rssi(tHalHandle phal,
 	return status;
 }
 
-/**
- * sme_chain_rssi_register_callback - chain rssi callback
- * @hal: global hal handle
- * @pchain_rssi_ind_cb: callback function pointer
- *
- * Return: QDF_STATUS enumeration.
- */
-QDF_STATUS sme_chain_rssi_register_callback(tHalHandle phal,
-			void (*pchain_rssi_ind_cb)(void *, void *))
+QDF_STATUS
+sme_chain_rssi_register_callback(tHalHandle phal,
+				 void (*pchain_rssi_ind_cb)(void *, void *,
+							    void *),
+				 void *context)
 {
 	QDF_STATUS status;
 	tpAniSirGlobal pmac = PMAC_STRUCT(phal);
 
 	status = sme_acquire_global_lock(&pmac->sme);
 	if (QDF_STATUS_SUCCESS == status) {
+		pmac->sme.pchain_rssi_ind_ctx = context;
 		pmac->sme.pchain_rssi_ind_cb = pchain_rssi_ind_cb;
 		sme_release_global_lock(&pmac->sme);
 	}
 
 	return status;
+}
+
+void sme_chain_rssi_deregister_callback(tHalHandle hal)
+{
+	tpAniSirGlobal pmac;
+
+	if (!hal) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			  FL("hHal is not valid"));
+		return;
+	}
+
+	pmac = PMAC_STRUCT(hal);
+	if (pmac->sme.pchain_rssi_ind_cb)
+		pmac->sme.pchain_rssi_ind_cb = NULL;
 }
 
 QDF_STATUS sme_set_reorder_timeout(tHalHandle hal,
@@ -19265,6 +19287,20 @@ QDF_STATUS sme_fast_reassoc(tHalHandle hal, tCsrRoamProfile *profile,
 	struct wma_roam_invoke_cmd *fastreassoc;
 	cds_msg_t msg = {0};
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+	tCsrRoamSession *session;
+	session = CSR_GET_SESSION(mac_ctx, vdev_id);
+	if (!session || !session->pCurRoamProfile) {
+		sme_err("session %d not found", vdev_id);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	if (session->pCurRoamProfile->supplicant_disabled_roaming ||
+	    session->pCurRoamProfile->driver_disabled_roaming) {
+		sme_debug("roaming status in Supplicant %d and in driver %d",
+			session->pCurRoamProfile->supplicant_disabled_roaming,
+			session->pCurRoamProfile->driver_disabled_roaming);
+		return QDF_STATUS_E_FAILURE;
+	}
 
 	fastreassoc = qdf_mem_malloc(sizeof(*fastreassoc));
 	if (NULL == fastreassoc) {

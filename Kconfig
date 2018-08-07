@@ -135,4 +135,8 @@ config ICMP_DISABLE_PS
 config CONFIG_BUILD_TIMESTAMP
 	bool "Embed timestamp in wlan version"
 	default n
+
+config WLAN_FEATURE_SARV1_TO_SARV2
+	bool "Enable conversion of SAR v1 to v2 feature"
+	default n
 endif # QCA_CLD_WLAN

@@ -573,16 +573,35 @@ struct sir_set_dual_mac_cfg {
 };
 
 /**
+ * enum set_antenna_mode_status - Status of set antenna mode
+ * command
+ * @SET_ANTENNA_MODE_STATUS_OK: command successful
+ * @SET_ANTENNA_MODE_STATUS_EINVAL: invalid antenna mode
+ * @SET_ANTENNA_MODE_STATUS_ECANCELED: mode change cancelled
+ * @SET_ANTENNA_MODE_STATUS_ENOTSUP: mode not supported
+ */
+enum set_antenna_mode_status {
+	SET_ANTENNA_MODE_STATUS_OK,
+	SET_ANTENNA_MODE_STATUS_EINVAL,
+	SET_ANTENNA_MODE_STATUS_ECANCELED,
+	SET_ANTENNA_MODE_STATUS_ENOTSUP,
+};
+
+typedef void (*antenna_mode_cb)(enum set_antenna_mode_status status,
+				void *context);
+
+/**
  * struct sir_antenna_mode_param - antenna mode param
  * @num_tx_chains: Number of TX chains
  * @num_rx_chains: Number of RX chains
- * @reason: Reason for setting antenna mode
  * @set_antenna_mode_resp: callback to set antenna mode command
+ * @set_antenna_mode_ctx: callback context to set antenna mode command
  */
 struct sir_antenna_mode_param {
 	uint32_t num_tx_chains;
 	uint32_t num_rx_chains;
-	void *set_antenna_mode_resp;
+	antenna_mode_cb set_antenna_mode_resp;
+	void *set_antenna_mode_ctx;
 };
 
 /**
@@ -1495,6 +1514,7 @@ typedef struct sSirSmeAssocInd {
 
 	tDot11fIEHTCaps HTCaps;
 	tDot11fIEVHTCaps VHTCaps;
+	tSirMacCapabilityInfo capability_info;
 } tSirSmeAssocInd, *tpSirSmeAssocInd;
 
 /* / Definition for Association confirm */
@@ -3840,6 +3860,7 @@ typedef struct {
 	uint32_t kek_len;
 	uint64_t ullKeyReplayCounter;   /* replay counter */
 	struct qdf_mac_addr bssid;
+	bool is_fils_connection;
 } tSirGtkOffloadParams, *tpSirGtkOffloadParams;
 
 /*---------------------------------------------------------------------------
@@ -4008,21 +4029,6 @@ struct sir_hw_mode_trans_ind {
  */
 struct sir_dual_mac_config_resp {
 	uint32_t status;
-};
-
-/**
- * enum set_antenna_mode_status - Status of set antenna mode
- * command
- * @SET_ANTENNA_MODE_STATUS_OK: command successful
- * @SET_ANTENNA_MODE_STATUS_EINVAL: invalid antenna mode
- * @SET_ANTENNA_MODE_STATUS_ECANCELED: mode change cancelled
- * @SET_ANTENNA_MODE_STATUS_ENOTSUP: mode not supported
- */
-enum set_antenna_mode_status {
-	SET_ANTENNA_MODE_STATUS_OK,
-	SET_ANTENNA_MODE_STATUS_EINVAL,
-	SET_ANTENNA_MODE_STATUS_ECANCELED,
-	SET_ANTENNA_MODE_STATUS_ENOTSUP,
 };
 
 /**
@@ -4515,6 +4521,11 @@ struct sir_peer_info_req {
  * @rssi: rssi
  * @tx_rate: last tx rate
  * @rx_rate: last rx rate
+ * @rx_mc_bc_cnt: Multicast broadcast packet count received from
+ *              current station
+ * MSB of rx_mc_bc_cnt indicates whether FW supports rx_mc_bc_cnt
+ * feature or not, if first bit is 1 it indictes that FW supports this
+ * feature, if it is 0 it indicates FW doesn't support this feature
  *
  * a station's information
  */
@@ -4523,6 +4534,7 @@ struct sir_peer_info {
 	int8_t rssi;
 	uint32_t tx_rate;
 	uint32_t rx_rate;
+	uint32_t rx_mc_bc_cnt;
 };
 
 /**
@@ -6785,7 +6797,6 @@ typedef void (*hw_mode_transition_cb)(uint32_t old_hw_mode_index,
 		uint32_t new_hw_mode_index,
 		uint32_t num_vdev_mac_entries,
 		struct sir_vdev_mac_map *vdev_mac_map);
-typedef void (*antenna_mode_cb)(uint32_t status);
 
 /**
  * struct sir_nss_update_request

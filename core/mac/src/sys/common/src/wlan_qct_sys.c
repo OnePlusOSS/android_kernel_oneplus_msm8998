@@ -212,13 +212,7 @@ QDF_STATUS sys_mc_process_msg(v_CONTEXT_t p_cds_context, cds_msg_t *pMsg)
 				break;
 			}
 			mac_ctx = PMAC_STRUCT(hHal);
-			if (NULL == mac_ctx) {
-				QDF_TRACE(QDF_MODULE_ID_SYS,
-						QDF_TRACE_LEVEL_ERROR,
-						FL("Invalid mac context"));
-				qdf_mem_free(pMsg->bodyptr);
-				break;
-			}
+
 			if (NULL == mac_ctx->ftm_msg_processor_callback) {
 				QDF_TRACE(QDF_MODULE_ID_SYS,
 						QDF_TRACE_LEVEL_ERROR,

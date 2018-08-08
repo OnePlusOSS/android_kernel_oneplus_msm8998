@@ -142,4 +142,24 @@ void hdd_sap_destroy_events(hdd_adapter_t *adapter);
 QDF_STATUS hdd_softap_set_peer_authorized(hdd_adapter_t *adapter,
 					  struct qdf_mac_addr *peer_mac);
 
+/**
+ * hdd_ipa_ap_disconnect() - call hdd_ipa_wlan_evt if
+ * ipa is enabled
+ * @pAdapter: pointer to adapter context
+ *
+ * Return: QDF_STATUS_SUCCESS on success, QDF_STATUS_E_** on error
+ */
+void hdd_ipa_ap_disconnect(hdd_adapter_t *pAdapter);
+
+/**
+ * wlan_hdd_disable_channels() - Cache the channels
+ * and current state of the channels from the channel list
+ * received in the command and disable the channels on the
+ * wiphy and reg table.
+ * @hdd_ctx: Pointer to hdd context
+ *
+ * Return: 0 on success, Error code on failure
+ */
+int wlan_hdd_disable_channels(hdd_context_t *hdd_ctx);
+
 #endif /* end #if !defined(WLAN_HDD_HOSTAPD_H) */

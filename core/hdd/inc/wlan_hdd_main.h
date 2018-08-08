@@ -53,6 +53,7 @@
 #include "wlan_hdd_nan_datapath.h"
 #include "target_if_def_config.h"
 #include <qdf_idr.h>
+#include "wma_sar_public_structs.h"
 
 /** Number of Tx Queues */
 #ifdef QCA_LL_TX_FLOW_CONTROL_V2
@@ -2035,6 +2036,7 @@ struct hdd_context_s {
 	enum tdls_nss_transition_type tdls_nss_transition_mode;
 	int32_t tdls_teardown_peers_cnt;
 	struct tdls_set_state_info set_state_info;
+	bool enable_tdls_in_fw;
 #endif
 
 	void *hdd_ipa;
@@ -2053,10 +2055,7 @@ struct hdd_context_s {
 #ifdef MSM_PLATFORM
 	/* DDR bus bandwidth compute timer
 	 */
-	qdf_timer_t bus_bw_timer;
-	bool bus_bw_timer_running;
-	qdf_spinlock_t bus_bw_timer_lock;
-	struct work_struct bus_bw_work;
+	qdf_mc_timer_t bus_bw_timer;
 	int cur_vote_level;
 	spinlock_t bus_bw_lock;
 	int cur_rx_level;
@@ -2264,6 +2263,9 @@ struct hdd_context_s {
 	/* defining the board related information */
 	uint32_t hw_bd_id;
 	struct board_info hw_bd_info;
+
+	enum sar_version sar_version;
+
 };
 
 int hdd_validate_channel_and_bandwidth(hdd_adapter_t *adapter,
@@ -2466,7 +2468,6 @@ int hdd_bus_bandwidth_init(hdd_context_t *hdd_ctx);
  */
 void hdd_bus_bandwidth_destroy(hdd_context_t *hdd_ctx);
 #else
-
 void hdd_bus_bw_compute_timer_start(hdd_context_t *hdd_ctx)
 {
 }

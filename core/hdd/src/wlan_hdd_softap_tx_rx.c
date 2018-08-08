@@ -1196,7 +1196,8 @@ QDF_STATUS hdd_softap_stop_bss(hdd_adapter_t *pAdapter)
 			}
 		}
 	}
-	if (pAdapter->device_mode == QDF_SAP_MODE)
+	if (pAdapter->device_mode == QDF_SAP_MODE &&
+	    !pHddCtx->config->disable_channel)
 		wlan_hdd_restore_channels(pHddCtx);
 
 	/* Mark the indoor channel (passive) to enable */
@@ -1204,14 +1205,6 @@ QDF_STATUS hdd_softap_stop_bss(hdd_adapter_t *pAdapter)
 			pAdapter->device_mode == QDF_SAP_MODE) {
 		hdd_update_indoor_channel(pHddCtx, false);
 		sme_update_channel_list(pHddCtx->hHal);
-	}
-
-	if (hdd_ipa_is_enabled(pHddCtx)) {
-		if (hdd_ipa_wlan_evt(pAdapter,
-				WLAN_HDD_GET_AP_CTX_PTR(pAdapter)->uBCStaId,
-				HDD_IPA_AP_DISCONNECT,
-				pAdapter->dev->dev_addr))
-			hdd_err("WLAN_AP_DISCONNECT event failed");
 	}
 
 	return qdf_status;

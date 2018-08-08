@@ -11646,6 +11646,44 @@ csr_roam_chk_lnk_assoc_ind(tpAniSirGlobal mac_ctx, tSirSmeRsp *msg_ptr)
 	}
 }
 
+static bool csr_is_deauth_disassoc_already_active(tpAniSirGlobal mac_ctx,
+		uint8_t session_id, struct qdf_mac_addr peer_macaddr)
+{
+	bool ret = false, active_cmd = false;
+	tSmeCmd *sme_cmd;
+	tListElem *entry;
+
+	entry = csr_ll_peek_head(&mac_ctx->sme.smeCmdActiveList,
+				 LL_ACCESS_LOCK);
+	while (entry) {
+		sme_cmd = GET_BASE_ADDR(entry, tSmeCmd, Link);
+		if (sme_cmd->command == eSmeCommandRoam &&
+		    (sme_cmd->u.roamCmd.roamReason == eCsrForcedDeauthSta ||
+		     sme_cmd->u.roamCmd.roamReason == eCsrForcedDisassocSta) &&
+		    sme_cmd->sessionId == session_id) {
+			active_cmd = true;
+			break;
+		}
+		entry = csr_ll_next(&mac_ctx->sme.smeCmdActiveList, entry,
+				    LL_ACCESS_LOCK);
+	}
+
+	if (!active_cmd)
+		return ret;
+
+	if ((mac_ctx->roam.curSubState[session_id] ==
+	     eCSR_ROAM_SUBSTATE_DEAUTH_REQ ||
+	     mac_ctx->roam.curSubState[session_id] ==
+	     eCSR_ROAM_SUBSTATE_DISASSOC_REQ) &&
+	    !qdf_mem_cmp(peer_macaddr.bytes, sme_cmd->u.roamCmd.peerMac,
+			 QDF_MAC_ADDR_SIZE)) {
+			sme_err("Ignore DEAUTH_IND/DIASSOC_IND as Deauth/Disassoc already in progress");
+			ret = true;
+	}
+
+	return ret;
+}
+
 static void
 csr_roam_chk_lnk_disassoc_ind(tpAniSirGlobal mac_ctx, tSirSmeRsp *msg_ptr)
 {
@@ -11672,6 +11710,12 @@ csr_roam_chk_lnk_disassoc_ind(tpAniSirGlobal mac_ctx, tSirSmeRsp *msg_ptr)
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		sme_err("Session Id not found for BSSID "MAC_ADDRESS_STR,
 			MAC_ADDR_ARRAY(pDisassocInd->bssid.bytes));
+		qdf_mem_free(cmd);
+		return;
+	}
+
+	if (csr_is_deauth_disassoc_already_active(mac_ctx, sessionId,
+	    pDisassocInd->peer_macaddr)) {
 		qdf_mem_free(cmd);
 		return;
 	}
@@ -11808,6 +11852,11 @@ csr_roam_chk_lnk_deauth_ind(tpAniSirGlobal mac_ctx, tSirSmeRsp *msg_ptr)
 						   &sessionId);
 	if (!QDF_IS_STATUS_SUCCESS(status))
 		return;
+
+	if (csr_is_deauth_disassoc_already_active(mac_ctx, sessionId,
+	    pDeauthInd->peer_macaddr))
+		return;
+
 	/* If we are in neighbor preauth done state then on receiving
 	 * disassoc or deauth we dont roam instead we just disassoc
 	 * from current ap and then go to disconnected state
@@ -15520,7 +15569,7 @@ void csr_dump_vendor_ies(uint8_t *ie, uint16_t ie_len)
 			return;
 		}
 		if (elem_id == SIR_MAC_EID_VENDOR) {
-			pe_debug("Dumping Vendor IE of len %d", elem_len);
+			sme_debug("Dumping Vendor IE of len %d", elem_len);
 			QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_PE,
 					   QDF_TRACE_LEVEL_DEBUG,
 					   &ptr[2], elem_len);
@@ -15564,18 +15613,20 @@ csr_check_vendor_ap_present(tpAniSirGlobal mac_ctx,
 	uint8_t *ie_fields = (uint8_t *)bss_desc->ieFields;
 
 	if (action_id >= WMI_ACTION_OUI_MAXIMUM_ID) {
-		pe_debug("Invalid OUI action ID");
+		sme_debug("Invalid OUI action ID");
 		return false;
 	}
 
+	sme_debug("Action ID : %d", action_id);
+
 	if (!mac_ctx->oui_info) {
-		pe_debug("action oui support is disabled or oui info is empty");
+		sme_debug("action oui support is disabled or oui info is empty");
 		return false;
 	}
 
 	sme_action = mac_ctx->oui_info->action_oui[action_id];
 	if (!sme_action) {
-		pe_debug("action oui for id %d is empty", action_id);
+		sme_debug("action oui for id %d is empty", action_id);
 		return false;
 	}
 
@@ -15584,11 +15635,9 @@ csr_check_vendor_ap_present(tpAniSirGlobal mac_ctx,
 	qdf_mutex_acquire(&sme_action->oui_ext_list_lock);
 	if (qdf_list_empty(oui_ext_list)) {
 		qdf_mutex_release(&sme_action->oui_ext_list_lock);
-		pe_debug("OUI List Empty");
+		sme_debug("OUI List Empty");
 		return false;
 	}
-
-	csr_dump_vendor_ies((uint8_t *)ie_fields, ie_len);
 
 	qdf_list_peek_front(oui_ext_list, &node);
 	while (node) {
@@ -15607,7 +15656,7 @@ csr_check_vendor_ap_present(tpAniSirGlobal mac_ctx,
 							 (uint8_t *)ie_fields,
 							 ie_len);
 		if (!oui_ptr) {
-			pe_debug("No matching IE found for OUI");
+			sme_debug("No matching IE found for OUI");
 			QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_PE,
 					   QDF_TRACE_LEVEL_DEBUG,
 					   extension->oui,
@@ -15615,7 +15664,7 @@ csr_check_vendor_ap_present(tpAniSirGlobal mac_ctx,
 			goto next;
 		}
 
-		pe_debug("IE found for OUI");
+		sme_debug("IE found for OUI");
 		QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_PE,
 				   QDF_TRACE_LEVEL_DEBUG,
 				   extension->oui,
@@ -15623,24 +15672,24 @@ csr_check_vendor_ap_present(tpAniSirGlobal mac_ctx,
 
 		if (extension->data_length &&
 		    !csr_check_for_vendor_oui_data(extension, oui_ptr)) {
-			pe_debug("Vendor IE Data mismatch");
+			sme_debug("Vendor IE Data mismatch");
 			goto next;
 		}
 
 		if ((extension->info_mask & WMI_ACTION_OUI_INFO_MAC_ADDRESS) &&
 		    !csr_check_for_vendor_ap_mac(extension, bss_desc->bssId)) {
-			pe_debug("Vendor IE MAC Mismatch");
+			sme_debug("Vendor IE MAC Mismatch");
 			goto next;
 		}
 
 		if (!csr_check_for_vendor_ap_capabilities(extension,
 							  ie, bss_desc,
 							  dot11_mode)) {
-			pe_debug("Vendor IE capabilties mismatch");
+			sme_debug("Vendor IE capabilties mismatch");
 			goto next;
 		}
 
-		pe_debug("Vendor AP found for OUI");
+		sme_debug("Vendor AP found for OUI");
 		QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
 				   extension->oui, extension->oui_length);
 		qdf_mutex_release(&sme_action->oui_ext_list_lock);
@@ -15682,7 +15731,7 @@ csr_check_vendor_ap_3_present(tpAniSirGlobal mac_ctx, uint8_t *ie,
 	     SIR_MAC_VENDOR_AP_3_OUI_LEN, ie, ie_len)) &&
 	    (cfg_get_vendor_ie_ptr_from_oui(mac_ctx, SIR_MAC_VENDOR_AP_4_OUI,
 	     SIR_MAC_VENDOR_AP_4_OUI_LEN, ie, ie_len))) {
-		pe_debug("Vendor OUI 3 and Vendor OUI 4 found");
+		sme_debug("Vendor OUI 3 and Vendor OUI 4 found");
 		ret = false;
 	}
 
@@ -15850,6 +15899,9 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 			pSession->supported_nss_1x1 = true;
 
 		ieLen = csr_get_ielen_from_bss_description(pBssDescription);
+		csr_dump_vendor_ies((uint8_t *)pBssDescription->ieFields,
+				    ieLen);
+
 		is_vendor_ap_present = csr_check_vendor_ap_present(
 						pMac, pBssDescription,
 						ucDot11Mode, pIes, ieLen,
@@ -15858,6 +15910,21 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 		if (is_vendor_ap_present) {
 			is_vendor_ap_present = csr_check_vendor_ap_3_present(
 						pMac, (uint8_t *)pIes, ieLen);
+		}
+
+		/*
+		 * For WMI_ACTION_OUI_CONNECT_1x1_WITH_1_CHAIN, the host
+		 * sends the NSS as 1 to the FW and the FW then decides
+		 * after receiving the first beacon after connection to
+		 * switch to 1 Tx/Rx Chain.
+		 */
+		if (!is_vendor_ap_present) {
+			is_vendor_ap_present = csr_check_vendor_ap_present(
+				pMac, pBssDescription,
+				ucDot11Mode, pIes, ieLen,
+				WMI_ACTION_OUI_CONNECT_1x1_WITH_1_CHAIN);
+			if (is_vendor_ap_present)
+				sme_debug("1x1 with 1 Chain AP");
 		}
 
 		if (pMac->roam.configParam.is_force_1x1 &&
@@ -15879,7 +15946,7 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 						ucDot11Mode, pIes,
 						ieLen, WMI_ACTION_OUI_CCKM_1X1);
 		if (is_vendor_ap_present) {
-			pe_debug("vdev: %d WMI_VDEV_PARAM_ABG_MODE_TX_CHAIN_NUM 1",
+			sme_debug("vdev: %d WMI_VDEV_PARAM_ABG_MODE_TX_CHAIN_NUM 1",
 				 pSession->sessionId);
 			wma_cli_set_command(
 				pSession->sessionId,

@@ -3741,7 +3741,7 @@ enum hdd_dot11_mode {
 #define CFG_INFRA_STA_KEEP_ALIVE_PERIOD_NAME          "gStaKeepAlivePeriod"
 #define CFG_INFRA_STA_KEEP_ALIVE_PERIOD_MIN           (0)
 #define CFG_INFRA_STA_KEEP_ALIVE_PERIOD_MAX           (65535)
-#define CFG_INFRA_STA_KEEP_ALIVE_PERIOD_DEFAULT       (90)
+#define CFG_INFRA_STA_KEEP_ALIVE_PERIOD_DEFAULT       (60)
 
 /**
  * enum station_keepalive_method - available keepalive methods for stations
@@ -12559,6 +12559,14 @@ enum hw_filter_mode {
  * This ini is used to specify which AP for which the connection has to be
  * made in 2x2 mode with HT capabilities only and not VHT.
  *
+ * Default OUIs: (All values in Hex)
+ * OUI 1 : 00904C
+ *   OUI data Len : 03
+ *   OUI Data : 0418BF
+ *   OUI data Mask: E0 - 11100000
+ *   Info Mask : 21 - Check for Band
+ *   Capabilities: 40 - Band == 2G
+ *
  * Related: None
  *
  * Supported Feature: Action OUIs
@@ -12568,7 +12576,51 @@ enum hw_filter_mode {
  * </ini>
  */
 #define CFG_ACTION_OUI_SWITCH_TO_11N_MODE_NAME    "gActionOUISwitchTo11nMode"
-#define CFG_ACTION_OUI_SWITCH_TO_11N_MODE_DEFAULT "00904C 03 FFFFBF 20 21 40"
+#define CFG_ACTION_OUI_SWITCH_TO_11N_MODE_DEFAULT "00904C 03 0418BF E0 21 40"
+
+/*
+ * <ini>
+ * gActionOUIConnect1x1with1TxRxChain - Used to specify action OUIs for
+ *                                      1x1 connection with one Tx/Rx Chain
+ * @Default:
+ * Note: User should strictly add new action OUIs at the end of this
+ * default value.
+ *
+ * Default OUIs: (All values in Hex)
+ * OUI 1 : 001018
+ *   OUI data Len : 06
+ *   OUI Data : 02FFF0040000
+ *   OUI data Mask: BC - 10111100
+ *   Info Mask : 21 - Check for Band
+ *   Capabilities: 40 - Band == 2G
+ *
+ * OUI 2 : 001018
+ *   OUI data Len : 06
+ *   OUI Data : 02FFF0050000
+ *   OUI data Mask: BC - 10111100
+ *   Info Mask : 21 - Check for Band
+ *   Capabilities: 40 - Band == 2G
+ *
+ * OUI 3 : 001018
+ *   OUI data Len : 06
+ *   OUI Data : 02FFF4050000
+ *   OUI data Mask: BC - 10111100
+ *   Info Mask : 21 - Check for Band
+ *   Capabilities: 40 - Band == 2G
+ *
+ * This ini is used to specify the AP OUIs with which only 1x1 connection
+ * with one Tx/Rx Chain is allowed.
+ *
+ * Related: gEnableActionOUI
+ *
+ * Supported Feature: Action OUIs
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ACTION_OUI_CONNECT_1X1_WITH_1_CHAIN_NAME    "gActionOUIConnect1x1with1TxRxChain"
+#define CFG_ACTION_OUI_CONNECT_1X1_WITH_1_CHAIN_DEFAULT "001018 06 02FFF0040000 BC 21 40 001018 06 02FFF0050000 BC 21 40 001018 06 02FFF4050000 BC 21 40"
 
  /* End of action oui inis */
 
@@ -14710,6 +14762,23 @@ enum hw_filter_mode {
 
 /*
  * <ini>
+ * gDisableChannel - Enable/Disable to disable channels specified
+ *
+ * @Min: 0
+ * @Max: 1
+ * Default: 0
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+#define CFG_ENABLE_DISABLE_CHANNEL_NAME    "gDisableChannel"
+#define CFG_ENABLE_DISABLE_CHANNEL_MIN     (0)
+#define CFG_ENABLE_DISABLE_CHANNEL_MAX     (1)
+#define CFG_ENABLE_DISABLE_CHANNEL_DEFAULT (0)
+
+/*
+ * <ini>
  * channel_select_logic_conc - Set channel selection logic
  * for different concurrency combinations to DBS or inter band
  * MCC. Default is DBS for STA+STA and STA+P2P.
@@ -14827,6 +14896,58 @@ enum hw_filter_mode {
 #define CFG_ENABLE_SECONDARY_RATE_MAX           (0x3F)
 #define CFG_ENABLE_SECONDARY_RATE_DEFAULT       (0x17)
 
+#ifdef MWS_COEX
+/*
+ * <ini>
+ * gMwsCoex4gQuickTdm - Bitmap to control MWS-COEX 4G quick FTDM policy
+ * @Min: 0x00000000
+ * @Max: 0xFFFFFFFF
+ * @Default: 0x00000000
+ *
+ * It is a 32 bit value such that the various bits represent as below:
+ * Bit-0 : 0 - Don't allow quick FTDM policy (Default)
+ *	   1 - Allow quick FTDM policy
+ * Bit 1-31 : reserved for future use
+ *
+ * It is used to enable or disable MWS-COEX 4G (LTE) Quick FTDM
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+
+#define CFG_MWS_COEX_4G_QUICK_FTDM_NAME      "gMwsCoex4gQuickTdm"
+#define CFG_MWS_COEX_4G_QUICK_FTDM_MIN       (0x00000000)
+#define CFG_MWS_COEX_4G_QUICK_FTDM_MAX       (0xFFFFFFFF)
+#define CFG_MWS_COEX_4G_QUICK_FTDM_DEFAULT   (0x00000000)
+
+/*
+ * <ini>
+ * gMwsCoex5gnrPwrLimit - Bitmap to set MWS-COEX 5G-NR power limit
+ * @Min: 0x00000000
+ * @Max: 0xFFFFFFFF
+ * @Default: 0x00000000
+ *
+ * It is a 32 bit value such that the various bits represent as below:
+ * Bit-0 : Don't apply user specific power limit,
+ *	   use internal power limit (Default)
+ * Bit 1-2 : Invalid value (Ignored)
+ * Bit 3-21 : Apply the specified value as the external power limit, in dBm
+ * Bit 22-31 : Invalid value (Ignored)
+ *
+ * It is used to set MWS-COEX 5G-NR power limit
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+
+#define CFG_MWS_COEX_5G_NR_PWR_LIMIT_NAME      "gMwsCoex5gnrPwrLimit"
+#define CFG_MWS_COEX_5G_NR_PWR_LIMIT_MIN       (0x00000000)
+#define CFG_MWS_COEX_5G_NR_PWR_LIMIT_MAX       (0xFFFFFFFF)
+#define CFG_MWS_COEX_5G_NR_PWR_LIMIT_DEFAULT   (0x00000000)
+#endif
+
 /*---------------------------------------------------------------------------
    Type declarations
    -------------------------------------------------------------------------*/
@@ -14896,6 +15017,14 @@ struct hdd_config {
 
 	/* Bitmap for operating voltage corner mode */
 	uint32_t vc_mode_cfg_bitmap;
+
+#ifdef MWS_COEX
+	/* Bitmap for MWS-COEX 4G Quick FTDM */
+	u32 g_mws_coex_4g_quick_tdm;
+
+	/* Bitmap for MWS-COEX 5G-NR power limit */
+	u32 g_mws_coex_5g_nr_pwr_limit;
+#endif
 
 	uint16_t nNeighborScanPeriod;
 	uint16_t neighbor_scan_min_period;
@@ -15684,6 +15813,7 @@ struct hdd_config {
 	uint8_t action_oui_cckm_1x1[MAX_ACTION_OUI_STRING_LEN];
 	uint8_t action_oui_ito_alternate[MAX_ACTION_OUI_STRING_LEN];
 	uint8_t action_oui_switch_to_11n[MAX_ACTION_OUI_STRING_LEN];
+	uint8_t action_oui_connect_1x1_with_1_chain[MAX_ACTION_OUI_STRING_LEN];
 	uint8_t rssi_weightage;
 	uint8_t ht_caps_weightage;
 	uint8_t vht_caps_weightage;
@@ -15751,6 +15881,7 @@ struct hdd_config {
 	bool enable_rtt_mac_randomization;
 	bool enable_ftopen;
 	bool is_unit_test_framework_enabled;
+	bool disable_channel;
 	uint32_t enable_secondary_rate;
 	bool roam_force_rssi_trigger;
 };

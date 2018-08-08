@@ -188,6 +188,8 @@
 #define SIR_MAC_VHT_GID_NOTIFICATION           1
 #define SIR_MAC_VHT_OPMODE_NOTIFICATION        2
 
+#define SIR_MAC_VHT_OPMODE_SIZE                3
+
 #define NUM_OF_SOUNDING_DIMENSIONS	1 /*Nss - 1, (Nss = 2 for 2x2)*/
 /* HT Action Field Codes */
 #define SIR_MAC_SM_POWER_SAVE       1
@@ -627,6 +629,11 @@
 
 #define SIR_MAC_VENDOR_AP_4_OUI             "\x8C\xFD\xF0"
 #define SIR_MAC_VENDOR_AP_4_OUI_LEN         3
+
+/* Maximum allowable size of a beacon and probe rsp frame */
+#define SIR_MAX_BEACON_SIZE    512
+#define SIR_MAX_PROBE_RESP_SIZE 512
+
 /* / Status Code (present in Management response frames) enum */
 
 typedef enum eSirMacStatusCodes {

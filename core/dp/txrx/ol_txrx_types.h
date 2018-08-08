@@ -374,9 +374,10 @@ struct ol_tx_sched_t;
 #ifndef OL_TXRX_NUM_LOCAL_PEER_IDS
 /*
  * Each AP will occupy one ID, so it will occupy two IDs for AP-AP mode.
- * And the remainder IDs will be assigned to other 32 clients.
+ * Clients will be assigned max 32 IDs.
+ * STA(associated)/P2P DEV (self-PEER) will get one ID.
  */
-#define OL_TXRX_NUM_LOCAL_PEER_IDS (2 + 32)
+#define OL_TXRX_NUM_LOCAL_PEER_IDS (32 + 1 + 1 + 1)
 #endif
 
 #ifndef ol_txrx_local_peer_id_t

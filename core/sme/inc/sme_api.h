@@ -1596,15 +1596,16 @@ QDF_STATUS sme_update_fils_setting(tHalHandle hal, uint8_t session_id,
  *
  * @hal - MAC global handle
  * @callback_routine - callback routine from HDD
+ * @context - callback context
  *
  * This API is invoked by HDD to register its callback in SME
  *
  * Return: QDF_STATUS
  */
 QDF_STATUS sme_encrypt_decrypt_msg_register_callback(tHalHandle hal,
-		void (*encrypt_decrypt_cb)(void *hdd_context,
-			struct sir_encrypt_decrypt_rsp_params
-					*encrypt_decrypt_rsp_params));
+		void (*encrypt_decrypt_cb)(void *cookie,
+					   struct sir_encrypt_decrypt_rsp_params
+					   *encrypt_decrypt_rsp_params));
 
 /**
  * sme_encrypt_decrypt_msg_deregister_callback() - Registers
@@ -1627,7 +1628,8 @@ QDF_STATUS sme_encrypt_decrypt_msg_deregister_callback(tHalHandle h_hal);
  * Return: QDF_STATUS enumeration.
  */
 QDF_STATUS sme_encrypt_decrypt_msg(tHalHandle hal,
-	struct encrypt_decrypt_req_params *encrypt_decrypt_params);
+	struct encrypt_decrypt_req_params *encrypt_decrypt_params,
+	void *context);
 #endif
 
 /**

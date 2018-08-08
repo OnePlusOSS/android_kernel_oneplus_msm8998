@@ -2737,6 +2737,16 @@ static int wlan_hdd_vendor_scan_random_attr(struct wiphy *wiphy,
 		return -EOPNOTSUPP;
 	}
 
+	if (!tb[QCA_WLAN_VENDOR_ATTR_SCAN_MAC] &&
+	    !tb[QCA_WLAN_VENDOR_ATTR_SCAN_MAC_MASK]) {
+		qdf_mem_zero(request->mac_addr, QDF_MAC_ADDR_SIZE);
+		qdf_mem_zero(request->mac_addr_mask, QDF_MAC_ADDR_SIZE);
+		request->mac_addr[0] = 0x2;
+		request->mac_addr_mask[0] = 0x3;
+
+		return 0;
+	}
+
 	if (!tb[QCA_WLAN_VENDOR_ATTR_SCAN_MAC] ||
 	    !tb[QCA_WLAN_VENDOR_ATTR_SCAN_MAC_MASK])
 		return -EINVAL;

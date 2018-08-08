@@ -3306,8 +3306,8 @@ static inline bool is_public_action_frame(uint8_t *pb_frames,
 static inline bool is_p2p_action_frame(uint8_t *pb_frames,
 				       uint32_t frame_len)
 {
-	if (frame_len <= WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET +
-	    SIR_MAC_P2P_OUI_SIZE) {
+	if (frame_len <= (WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET +
+	    SIR_MAC_P2P_OUI_SIZE + 2)) {
 		hdd_debug("Not a p2p action frame len: %d", frame_len);
 		return false;
 	}

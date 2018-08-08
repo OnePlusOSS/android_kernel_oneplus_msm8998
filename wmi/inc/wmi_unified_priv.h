@@ -1323,6 +1323,7 @@ struct wmi_unified {
 	uint32_t vdev_param[wmi_vdev_param_max];
 	uint32_t services[wmi_services_max];
 #endif
+	bool (*is_target_ready)(void);
 };
 #ifdef WMI_NON_TLV_SUPPORT
 /* ONLY_NON_TLV_TARGET:TLV attach dummy function defintion for case when

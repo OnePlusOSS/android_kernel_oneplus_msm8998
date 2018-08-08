@@ -9170,7 +9170,6 @@ hdd_validate_and_convert_info_mask(uint8_t *token,
 
 	info_mask = hex_value;
 
-	info_mask |= WMI_ACTION_OUI_INFO_OUI;
 	hdd_ext->info_mask = info_mask;
 
 	if (!info_mask || !(info_mask & ~WMI_ACTION_OUI_INFO_OUI)) {
@@ -9181,6 +9180,16 @@ hdd_validate_and_convert_info_mask(uint8_t *token,
 	if (info_mask & ~WMI_ACTION_OUI_INFO_MASK) {
 		hdd_err("Invalid bits are set in action OUI info mask");
 		return false;
+	}
+
+	/*
+	 * If OUI bit is not set in the info presence, we need to ignore the
+	 * OUI and OUI Data. Set OUI and OUI data length to 0 here.
+	 */
+	if (!(info_mask & WMI_ACTION_OUI_INFO_OUI)) {
+		hdd_ext->oui_length = 0;
+		hdd_ext->data_length = 0;
+		hdd_ext->data_mask_length = 0;
 	}
 
 	if (info_mask & WMI_ACTION_OUI_INFO_MAC_ADDRESS) {
@@ -9350,11 +9359,6 @@ hdd_set_action_oui_ext(hdd_context_t *hdd_ctx,
 	struct wmi_action_oui_extension *wmi_ext;
 	int ret = 0;
 	QDF_STATUS qdf_status;
-
-	if (!hdd_ext.oui_length) {
-		hdd_err("Invalid oui length");
-		return -EINVAL;
-	}
 
 	wmi_ext = qdf_mem_malloc(sizeof(*wmi_ext));
 	if (!wmi_ext) {

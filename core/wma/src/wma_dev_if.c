@@ -457,23 +457,6 @@ static void wma_vdev_detach_callback(void *ctx)
 			qdf_mem_free(req_msg);
 		}
 	}
-	if (iface->addBssStaContext)
-		qdf_mem_free(iface->addBssStaContext);
-
-
-	if (iface->staKeyParams)
-		qdf_mem_free(iface->staKeyParams);
-
-	if (iface->stats_rsp)
-		qdf_mem_free(iface->stats_rsp);
-
-	if (iface->roam_scan_stats_req) {
-		struct sir_roam_scan_stats *roam_scan_stats_req =
-						iface->roam_scan_stats_req;
-
-		iface->roam_scan_stats_req = NULL;
-		qdf_mem_free(roam_scan_stats_req);
-	}
 
 	wma_vdev_deinit(iface);
 	qdf_mem_zero(iface, sizeof(*iface));
@@ -596,6 +579,7 @@ static QDF_STATUS wma_handle_vdev_detach(tp_wma_handle wma_handle,
 		WMA_LOGE("%s: Failed to fill vdev request for vdev_id %d",
 			 __func__, vdev_id);
 		status = QDF_STATUS_E_NOMEM;
+		iface->del_staself_req = NULL;
 		goto out;
 	}
 
@@ -621,11 +605,6 @@ out:
 	WMA_LOGE("Call txrx detach callback for vdev %d, generate_rsp %u",
 		vdev_id, generate_rsp);
 	wma_ol_txrx_vdev_detach(wma_handle, vdev_id);
-
-	if (iface->addBssStaContext)
-		qdf_mem_free(iface->addBssStaContext);
-	if (iface->staKeyParams)
-		qdf_mem_free(iface->staKeyParams);
 
 	wma_vdev_deinit(iface);
 	qdf_mem_zero(iface, sizeof(*iface));
@@ -3463,16 +3442,7 @@ void wma_vdev_resp_timer(void *data)
 			iface->del_staself_req = NULL;
 		} else {
 			wma_send_del_sta_self_resp(iface->del_staself_req);
-		}
-
-		if (iface->addBssStaContext) {
-			qdf_mem_free(iface->addBssStaContext);
-			iface->addBssStaContext = NULL;
-		}
-
-		if (iface->staKeyParams) {
-			qdf_mem_free(iface->staKeyParams);
-			iface->staKeyParams = NULL;
+			iface->del_staself_req = NULL;
 		}
 
 		wma_vdev_deinit(iface);

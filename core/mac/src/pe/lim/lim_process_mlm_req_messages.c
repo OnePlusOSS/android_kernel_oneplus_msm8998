@@ -772,8 +772,10 @@ static void lim_post_join_set_link_state_callback(tpAniSirGlobal mac,
 	if (session_entry == NULL) {
 		pe_err("sessionId:%d does not exist",
 				session_cb_param->session_id);
+		qdf_mem_free(session_cb_param);
 		return;
 	}
+	qdf_mem_free(session_cb_param);
 
 	pe_debug("Sessionid %d set link state(%d) cb status: %d",
 			session_entry->peSessionId, session_entry->limMlmState,

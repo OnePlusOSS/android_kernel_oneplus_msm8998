@@ -1599,6 +1599,7 @@ void hdd_is_interface_down_during_ssr(hdd_context_t *hdd_ctx)
 	while (NULL != adapternode && QDF_STATUS_SUCCESS == status) {
 		adapter = adapternode->pAdapter;
 		if (test_bit(DOWN_DURING_SSR, &adapter->event_flags)) {
+			clear_bit(DOWN_DURING_SSR, &adapter->event_flags);
 			hdd_stop_adapter(hdd_ctx, adapter, true);
 			clear_bit(DEVICE_IFACE_OPENED, &adapter->event_flags);
 		}

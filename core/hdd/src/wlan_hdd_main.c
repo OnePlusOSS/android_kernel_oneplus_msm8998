@@ -10220,9 +10220,8 @@ int hdd_dbs_scan_selection_init(hdd_context_t *hdd_ctx)
 			       (CFG_DBS_SCAN_PARAM_PER_CLIENT
 				* CFG_DBS_SCAN_CLIENTS_MAX));
 
-	hdd_info("numentries %hu", numentries);
 	if (!numentries) {
-		hdd_info("Donot send scan_selection_config");
+		hdd_debug("Do not send scan_selection_config");
 		return 0;
 	}
 

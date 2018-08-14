@@ -276,6 +276,13 @@ endif
 WLAN_COMMON_ROOT ?= ../qca-wifi-host-cmn
 WLAN_COMMON_INC ?= $(WLAN_ROOT)/$(WLAN_COMMON_ROOT)
 
+ifeq ($(KERNEL_BUILD), 0)
+ifneq ($(ANDROID_BUILD_TOP),)
+	override WLAN_ROOT := $(ANDROID_BUILD_TOP)/$(WLAN_ROOT)
+	override WLAN_COMMON_INC := $(ANDROID_BUILD_TOP)/$(WLAN_COMMON_INC)
+endif
+endif
+
 ifneq ($(CONFIG_MOBILE_ROUTER), y)
 CONFIG_QCOM_ESE := y
 endif

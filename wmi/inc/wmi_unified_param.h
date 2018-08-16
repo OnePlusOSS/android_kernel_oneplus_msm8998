@@ -7286,6 +7286,40 @@ struct sar_limit_event {
 };
 
 /**
+ * enum coex_config_type - For identifying coex config type params
+ * COEX_CONFIG_TX_POWER: To set wlan total tx power when bt coex
+ * COEX_CONFIG_HANDOVER_RSSI: To set WLAN RSSI (dBm units)
+ * COEX_CONFIG_BTC_MODE: To set BTC mode
+ * COEX_CONFIG_ANTENNA_ISOLATION: To set solation between BT and WLAN antenna
+ * COEX_CONFIG_BT_LOW_RSSI_THRESHOLD: To set BT low rssi threshold (dbm units)
+ * COEX_CONFIG_BT_INTERFERENCE_LEVEL: To set BT interference level (dbm units)
+ */
+enum coex_config_type {
+	COEX_CONFIG_TX_POWER = 0x01,
+	COEX_CONFIG_HANDOVER_RSSI = 0x02,
+	COEX_CONFIG_BTC_MODE = 0x03,
+	COEX_CONFIG_ANTENNA_ISOLATION = 0x04,
+	COEX_CONFIG_BT_LOW_RSSI_THRESHOLD = 0x05,
+	COEX_CONFIG_BT_INTERFERENCE_LEVEL = 0x06
+};
+
+#define MAX_COEX_CONFIG_TYPE_ARGS 6
+/**
+ * struct coex_config_params - COEX config params
+ * @vdev_id: Virtual device Id
+ * @config_type: Type of config type from enum coex_config_type
+ * @config_value: config type values for enum coex_config_type,
+ *                only config type COEX_CONFIG_BT_INTERFERENCE_LEVEL
+ *                will use all arguments remaining will use only
+ *                0th argument.
+ */
+struct coex_config_params {
+	uint32_t vdev_id;
+	enum coex_config_type config_type;
+	uint32_t config_value[MAX_COEX_CONFIG_TYPE_ARGS];
+};
+
+/**
  * enum rcpi_measurement_type - for identifying type of rcpi measurement
  * @RCPI_MEASUREMENT_TYPE_AVG_MGMT: avg rcpi of mgmt frames
  * @RCPI_MEASUREMENT_TYPE_AVG_DATA: avg rcpi of data frames

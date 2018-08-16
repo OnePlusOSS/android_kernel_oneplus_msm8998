@@ -3933,6 +3933,77 @@ QDF_STATUS send_setup_install_key_cmd_tlv(wmi_unified_t wmi_handle,
 }
 
 /**
+ * send_coex_config_cmd_tlv() - send coex config command to firmware
+ * @wmi_handle: wmi handle
+ * @params: coex config params
+ *
+ * Return: QDF_STATUS_SUCCESS for success or error code
+ */
+static QDF_STATUS send_coex_config_cmd_tlv(wmi_unified_t wmi_handle,
+					   struct coex_config_params *params)
+{
+	WMI_COEX_CONFIG_CMD_fixed_param *cmd;
+	wmi_buf_t buf;
+	uint32_t len = sizeof(*cmd);
+	WMI_COEX_CONFIG_TYPE config_type;
+	QDF_STATUS status;
+
+	buf = wmi_buf_alloc(wmi_handle, len);
+	if (!buf) {
+		WMI_LOGE("Failed to allocate buffer to coex config params");
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	cmd = (WMI_COEX_CONFIG_CMD_fixed_param *)wmi_buf_data(buf);
+	WMITLV_SET_HDR(&cmd->tlv_header,
+		       WMITLV_TAG_STRUC_WMI_COEX_CONFIG_CMD_fixed_param,
+		       WMITLV_GET_STRUCT_TLVLEN(
+		       WMI_COEX_CONFIG_CMD_fixed_param));
+
+	cmd->vdev_id = params->vdev_id;
+	cmd->config_arg1 = params->config_value[0];
+
+	switch (params->config_type) {
+	case COEX_CONFIG_TX_POWER:
+		config_type = WMI_COEX_CONFIG_TX_POWER;
+		break;
+	case COEX_CONFIG_HANDOVER_RSSI:
+		config_type = WMI_COEX_CONFIG_HANDOVER_RSSI;
+		break;
+	case COEX_CONFIG_BTC_MODE:
+		config_type = WMI_COEX_CONFIG_BTC_MODE;
+		break;
+	case COEX_CONFIG_ANTENNA_ISOLATION:
+		config_type = WMI_COEX_CONFIG_ANTENNA_ISOLATION;
+		break;
+	case COEX_CONFIG_BT_LOW_RSSI_THRESHOLD:
+		config_type = WMI_COEX_CONFIG_BT_LOW_RSSI_THRESHOLD;
+		break;
+	case COEX_CONFIG_BT_INTERFERENCE_LEVEL:
+		config_type = WMI_COEX_CONFIG_BT_INTERFERENCE_LEVEL;
+		cmd->config_arg2 = params->config_value[1];
+		cmd->config_arg3 = params->config_value[2];
+		cmd->config_arg4 = params->config_value[3];
+		cmd->config_arg5 = params->config_value[4];
+		cmd->config_arg6 = params->config_value[5];
+		break;
+	default:
+		WMI_LOGE("Unknown coex config type received");
+		wmi_buf_free(buf);
+		return QDF_STATUS_E_FAILURE;
+	}
+	cmd->config_type = config_type;
+
+	status = wmi_unified_cmd_send(wmi_handle, buf, len,
+				      WMI_COEX_CONFIG_CMDID);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		WMI_LOGE("Failed to send WMI_COEX_CONFIG_CMDID");
+		wmi_buf_free(buf);
+	}
+	return status;
+}
+
+/**
  * send_sar_limit_cmd_tlv() - send sar limit cmd to fw
  * @wmi_handle: wmi handle
  * @params: sar limit params
@@ -15190,6 +15261,7 @@ struct wmi_ops tlv_ops =  {
 				send_encrypt_decrypt_send_cmd_tlv,
 	.send_sar_limit_cmd = send_sar_limit_cmd_tlv,
 	.get_sar_limit_cmd = get_sar_limit_cmd_tlv,
+	.send_coex_config_cmd = send_coex_config_cmd_tlv,
 	.extract_sar_limit_event = extract_sar_limit_event_tlv,
 	.extract_sar2_result_event = extract_sar2_result_event_tlv,
 	.send_per_roam_config_cmd = send_per_roam_config_cmd_tlv,

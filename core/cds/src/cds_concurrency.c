@@ -10234,9 +10234,12 @@ QDF_STATUS cds_valid_sap_conc_channel_check(uint8_t *con_ch, uint8_t sap_ch)
 
 	if (cds_valid_sta_channel_check(channel)) {
 		if (CDS_IS_DFS_CH(channel) ||
-			CDS_IS_PASSIVE_OR_DISABLE_CH(channel) ||
-			!(hdd_ctx->config->sta_sap_scc_on_lte_coex_chan ||
-			  cds_is_safe_channel(channel))) {
+		     CDS_IS_PASSIVE_OR_DISABLE_CH(channel) ||
+		    !(hdd_ctx->config->sta_sap_scc_on_lte_coex_chan ||
+		      cds_is_safe_channel(channel)) ||
+		     (!(hdd_ctx->config->etsi_srd_chan_in_master_mode) &&
+		       (cds_is_etsi13_regdmn_srd_chan(
+					cds_chan_to_freq(channel))))) {
 			if (wma_is_hw_dbs_capable()) {
 				temp_channel =
 					cds_get_alternate_channel_for_sap();

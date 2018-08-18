@@ -9088,6 +9088,11 @@ static int __wlan_hdd_cfg80211_start_ap(struct wiphy *wiphy,
 		hdd_err("SAP not allowed on DFS channel!!");
 		return -EINVAL;
 	}
+	if (cds_is_etsi13_regdmn_srd_chan(cds_chan_to_freq(channel) &&
+	    !(pHddCtx->config->etsi_srd_chan_in_master_mode))) {
+		hdd_err("SAP SRD master mode not supported. Cannot start SAP");
+		return -EINVAL;
+	}
 
 	if (cds_is_sap_mandatory_chan_list_enabled()) {
 		if (CDS_IS_CHANNEL_5GHZ(channel)) {

@@ -2392,6 +2392,7 @@ QDF_STATUS wma_open(void *cds_context,
 	}
 
 	WMA_LOGD("WMA --> wmi_unified_attach - success");
+	wmi_register_tgt_ready_cb(wmi_handle, cds_is_target_ready);
 	wmi_unified_register_event_handler(wmi_handle,
 					   WMI_SERVICE_AVAILABLE_EVENTID,
 					   wma_rx_service_available_event,

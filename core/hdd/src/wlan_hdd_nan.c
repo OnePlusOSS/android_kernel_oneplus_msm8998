@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -154,17 +154,4 @@ void wlan_hdd_cfg80211_nan_callback(void *ctx, tSirNanEvent *msg)
 		return;
 	}
 	cfg80211_vendor_event(vendor_event, GFP_KERNEL);
-}
-
-/**
- * wlan_hdd_nan_is_supported() - HDD NAN support query function
- *
- * This function is called to determine if NAN is supported by the
- * driver and by the firmware.
- *
- * Return: true if NAN is supported by the driver and firmware
- */
-bool wlan_hdd_nan_is_supported(void)
-{
-	return sme_is_feature_supported_by_fw(NAN);
 }

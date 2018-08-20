@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -110,6 +110,15 @@ static inline int pld_pcie_wlan_pm_control(bool vote)
 #endif
 
 #ifndef CONFIG_PLD_PCIE_CNSS
+static inline void *pld_pcie_smmu_get_mapping(void)
+{
+	return NULL;
+}
+static inline int pld_pcie_smmu_map(phys_addr_t paddr,
+				    uint32_t *iova_addr, size_t size)
+{
+	return 0;
+}
 static inline int
 pld_pcie_get_fw_files_for_target(struct pld_fw_files *pfw_files,
 				 u32 target_type, u32 target_version)
@@ -177,6 +186,15 @@ static inline int pld_pcie_power_off(struct device *dev)
 	return 0;
 }
 #else
+static inline void *pld_pcie_smmu_get_mapping(void)
+{
+	return cnss_smmu_get_mapping();
+}
+static inline int pld_pcie_smmu_map(phys_addr_t paddr,
+				    uint32_t *iova_addr, size_t size)
+{
+	return cnss_smmu_map(paddr, iova_addr, size);
+}
 int pld_pcie_get_fw_files_for_target(struct pld_fw_files *pfw_files,
 				     u32 target_type, u32 target_version);
 int pld_pcie_get_platform_cap(struct pld_platform_cap *cap);

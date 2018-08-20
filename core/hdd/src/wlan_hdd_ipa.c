@@ -7254,6 +7254,8 @@ hdd_ipa_uc_proc_pending_event(struct hdd_ipa_priv *hdd_ipa, bool is_loading)
 			(qdf_list_node_t **)&pending_event);
 	while (pending_event != NULL) {
 		if (pending_event->is_loading == is_loading &&
+		    hdd_is_adapter_valid(hdd_ipa->hdd_ctx,
+					 pending_event->adapter) &&
 		    !hdd_validate_adapter(pending_event->adapter)) {
 			__hdd_ipa_wlan_evt(pending_event->adapter,
 					pending_event->sta_id,

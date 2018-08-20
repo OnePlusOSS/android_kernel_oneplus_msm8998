@@ -83,6 +83,10 @@ typedef struct join_params {
 	tSirResultCodes result_code;
 } join_params;
 
+struct session_params {
+	uint16_t session_id;
+};
+
 typedef struct sPESession       /* Added to Support BT-AMP */
 {
 	/* To check session table is in use or free */

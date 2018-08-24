@@ -12109,6 +12109,9 @@ void wlan_hdd_start_sap(hdd_adapter_t *ap_adapter, bool reinit)
 		goto end;
 	}
 
+	cds_set_channel_params(hdd_ap_ctx->sapConfig.channel, 0,
+			       &hdd_ap_ctx->sapConfig.ch_params);
+
 	qdf_event_reset(&hostapd_state->qdf_event);
 	if (wlansap_start_bss(hdd_ap_ctx->sapContext, hdd_hostapd_sap_event_cb,
 			      &hdd_ap_ctx->sapConfig,

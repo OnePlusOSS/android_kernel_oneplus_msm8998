@@ -281,6 +281,18 @@ void qdf_snprintf(char *str_buffer, unsigned int size, char *str_format, ...)
 }
 qdf_export_symbol(qdf_snprintf);
 
+#ifdef MULTI_IF_NAME
+static const char *qdf_trace_wlan_modname(void)
+{
+	return MULTI_IF_NAME;
+}
+#else
+static const char *qdf_trace_wlan_modname(void)
+{
+	return "wlan";
+}
+#endif
+
 #ifdef QDF_ENABLE_TRACING
 void qdf_vtrace_msg(QDF_MODULE_ID module, QDF_TRACE_LEVEL level,
 		   char *str_format, va_list val)
@@ -305,7 +317,7 @@ void qdf_vtrace_msg(QDF_MODULE_ID module, QDF_TRACE_LEVEL level,
 
 		/* print the prefix string into the string buffer... */
 		n = snprintf(str_buffer, QDF_TRACE_BUFFER_SIZE,
-			     "wlan: [%d:%2s:%3s] ",
+			     "%s: [%d:%2s:%3s] ", qdf_trace_wlan_modname(),
 			     in_interrupt() ? 0 : current->pid,
 			     (char *)TRACE_LEVEL_STR[level],
 			     (char *)g_qdf_trace_info[module].module_name_str);

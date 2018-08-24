@@ -1522,9 +1522,9 @@ QDF_STATUS hdd_wlan_shutdown(void)
 
 	qdf_mc_timer_stop(&pHddCtx->tdls_source_timer);
 
-	hdd_wlan_stop_modules(pHddCtx, false);
+	hdd_bus_bw_compute_timer_stop(pHddCtx);
 
-	hdd_bus_bandwidth_destroy(pHddCtx);
+	hdd_wlan_stop_modules(pHddCtx, false);
 
 	hdd_lpass_notify_stop(pHddCtx);
 
@@ -1599,6 +1599,7 @@ void hdd_is_interface_down_during_ssr(hdd_context_t *hdd_ctx)
 	while (NULL != adapternode && QDF_STATUS_SUCCESS == status) {
 		adapter = adapternode->pAdapter;
 		if (test_bit(DOWN_DURING_SSR, &adapter->event_flags)) {
+			clear_bit(DOWN_DURING_SSR, &adapter->event_flags);
 			hdd_stop_adapter(hdd_ctx, adapter, true);
 			clear_bit(DEVICE_IFACE_OPENED, &adapter->event_flags);
 		}
@@ -1649,9 +1650,6 @@ QDF_STATUS hdd_wlan_re_init(void)
 
 	if (pHddCtx->config->enable_dp_trace)
 		hdd_dp_trace_init(pHddCtx->config);
-
-	hdd_bus_bandwidth_init(pHddCtx);
-
 
 	ret = hdd_wlan_start_modules(pHddCtx, pAdapter, true);
 	if (ret) {
@@ -1993,6 +1991,13 @@ static int __wlan_hdd_cfg80211_suspend_wlan(struct wiphy *wiphy,
 		return rc;
 
 	mutex_lock(&pHddCtx->iface_change_lock);
+
+	if (pHddCtx->driver_status == DRIVER_MODULES_OPENED) {
+		mutex_unlock(&pHddCtx->iface_change_lock);
+		hdd_err("Driver open state,  can't suspend");
+		return -EAGAIN;
+	}
+
 	if (pHddCtx->driver_status != DRIVER_MODULES_ENABLED) {
 		mutex_unlock(&pHddCtx->iface_change_lock);
 		hdd_debug("Driver Modules not Enabled ");

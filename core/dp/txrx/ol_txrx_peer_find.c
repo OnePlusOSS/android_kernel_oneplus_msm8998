@@ -101,6 +101,9 @@ void ol_txrx_peer_delete_roam_stale_peer(struct ol_txrx_pdev_t *pdev)
 		for (i = 0; i < MAX_NUM_PEER_ID_PER_PEER; i++) {
 			peer_id = peer->peer_ids[i];
 
+			if (peer_id == HTT_INVALID_PEER)
+				continue;
+
 			if (pdev->peer_id_to_obj_map[peer_id].peer_ref != peer)
 				continue;
 

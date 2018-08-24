@@ -457,23 +457,6 @@ static void wma_vdev_detach_callback(void *ctx)
 			qdf_mem_free(req_msg);
 		}
 	}
-	if (iface->addBssStaContext)
-		qdf_mem_free(iface->addBssStaContext);
-
-
-	if (iface->staKeyParams)
-		qdf_mem_free(iface->staKeyParams);
-
-	if (iface->stats_rsp)
-		qdf_mem_free(iface->stats_rsp);
-
-	if (iface->roam_scan_stats_req) {
-		struct sir_roam_scan_stats *roam_scan_stats_req =
-						iface->roam_scan_stats_req;
-
-		iface->roam_scan_stats_req = NULL;
-		qdf_mem_free(roam_scan_stats_req);
-	}
 
 	wma_vdev_deinit(iface);
 	qdf_mem_zero(iface, sizeof(*iface));
@@ -596,6 +579,7 @@ static QDF_STATUS wma_handle_vdev_detach(tp_wma_handle wma_handle,
 		WMA_LOGE("%s: Failed to fill vdev request for vdev_id %d",
 			 __func__, vdev_id);
 		status = QDF_STATUS_E_NOMEM;
+		iface->del_staself_req = NULL;
 		goto out;
 	}
 
@@ -621,11 +605,6 @@ out:
 	WMA_LOGE("Call txrx detach callback for vdev %d, generate_rsp %u",
 		vdev_id, generate_rsp);
 	wma_ol_txrx_vdev_detach(wma_handle, vdev_id);
-
-	if (iface->addBssStaContext)
-		qdf_mem_free(iface->addBssStaContext);
-	if (iface->staKeyParams)
-		qdf_mem_free(iface->staKeyParams);
 
 	wma_vdev_deinit(iface);
 	qdf_mem_zero(iface, sizeof(*iface));
@@ -1430,6 +1409,10 @@ QDF_STATUS wma_create_peer(tp_wma_handle wma, ol_txrx_pdev_handle pdev,
 	struct peer_create_params param = {0};
 	uint8_t *mac_addr_raw;
 
+	if (!cds_is_target_ready()) {
+		WMA_LOGE(FL("target not ready, drop the request"));
+		return QDF_STATUS_E_BUSY;
+	}
 
 	if (++wma->interfaces[vdev_id].peer_count >
 	    wma->wlan_resource_config.num_peers) {
@@ -1645,6 +1628,7 @@ static void wma_cleanup_target_req_param(struct wma_target_req *tgt_req)
 		tpLinkStateParams params =
 			(tpLinkStateParams) tgt_req->user_data;
 		qdf_mem_free(params->callbackArg);
+		params->callbackArg = NULL;
 		qdf_mem_free(tgt_req->user_data);
 		tgt_req->user_data = NULL;
 	}
@@ -3458,16 +3442,7 @@ void wma_vdev_resp_timer(void *data)
 			iface->del_staself_req = NULL;
 		} else {
 			wma_send_del_sta_self_resp(iface->del_staself_req);
-		}
-
-		if (iface->addBssStaContext) {
-			qdf_mem_free(iface->addBssStaContext);
-			iface->addBssStaContext = NULL;
-		}
-
-		if (iface->staKeyParams) {
-			qdf_mem_free(iface->staKeyParams);
-			iface->staKeyParams = NULL;
+			iface->del_staself_req = NULL;
 		}
 
 		wma_vdev_deinit(iface);
@@ -4196,14 +4171,17 @@ static void wma_add_bss_sta_mode(tp_wma_handle wma, tpAddBssParams add_bss)
 		else
 			WMA_LOGD("Sent PKT_PWR_SAVE_5G_EBT cmd to target, val = %x, status = %d",
 				pps_val, status);
-		wma_send_peer_assoc(wma, add_bss->nwType,
+		status = wma_send_peer_assoc(wma, add_bss->nwType,
 					    &add_bss->staContext);
+		if (QDF_IS_STATUS_ERROR(status)) {
+			WMA_LOGE("Failed to send peer assoc status:%d", status);
+			goto peer_cleanup;
+		}
+		peer_assoc_sent = true;
 
 		/* we just had peer assoc, so install key will be done later */
 		if (add_bss->staContext.encryptType != eSIR_ED_NONE)
 			iface->is_waiting_for_key = true;
-
-		peer_assoc_sent = true;
 
 		if (add_bss->rmfEnabled)
 			wma_set_mgmt_frame_protection(wma);

@@ -9687,6 +9687,8 @@ enum dot11p_mode {
  * 4 - enable DBS for connection as well as for scan with async
  *			scan policy disabled.
  * 5 - enable DBS for connection but disable dbs for scan.
+ * 6 - enable DBS for connection but disable simultaneous scan
+ *			from upper layer (DBS scan remains enabled in FW).
  *
  * Note: INI item value should match 'enum dbs_support'
  *
@@ -9700,7 +9702,7 @@ enum dot11p_mode {
  */
 #define CFG_DUAL_MAC_FEATURE_DISABLE               "gDualMacFeatureDisable"
 #define CFG_DUAL_MAC_FEATURE_DISABLE_MIN          (0)
-#define CFG_DUAL_MAC_FEATURE_DISABLE_MAX          (5)
+#define CFG_DUAL_MAC_FEATURE_DISABLE_MAX          (6)
 #define CFG_DUAL_MAC_FEATURE_DISABLE_DEFAULT      (0)
 
 /*
@@ -12328,6 +12330,9 @@ enum hw_filter_mode {
  *
  * <OUI> is mandatory and it can be either 3 or 5 bytes means 6 or 10
  * hexa-decimal characters
+ * If the OUI and Data checks needs to be ignored, the oui FFFFFF
+ * needs to be provided as OUI and bit 0 of Info_Presence_Bit should
+ * be set to 0.
  *
  * <Data_Length> is mandatory field and should give length of
  * the <Data> if present else zero
@@ -12348,8 +12353,8 @@ enum hw_filter_mode {
  * Presence of <Mac_Address> and <Capability> is
  * controlled by <Info_Presence_Bit> which is mandatory
  * <Info_Presence_Bit> will give the information for
- *   OUI – bit 0 (set/reset don't effect the behaviour,
- *                always enabled in the code)
+ *   OUI – bit 0 Should be set to 1
+ *               Setting to 0 will ignore OUI and data check
  *   Mac Address present – bit 1
  *   NSS – bit 2
  *   HT check – bit 3

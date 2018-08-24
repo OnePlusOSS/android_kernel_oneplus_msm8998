@@ -83,6 +83,10 @@ typedef struct join_params {
 	tSirResultCodes result_code;
 } join_params;
 
+struct session_params {
+	uint16_t session_id;
+};
+
 typedef struct sPESession       /* Added to Support BT-AMP */
 {
 	/* To check session table is in use or free */
@@ -443,6 +447,8 @@ typedef struct sPESession       /* Added to Support BT-AMP */
 	uint8_t  is_key_installed;
 	/* timer for reseting protection fileds at regular intervals */
 	qdf_mc_timer_t protection_fields_reset_timer;
+	/* timer to decrement CSA/ECSA count */
+	qdf_mc_timer_t ap_ecsa_timer;
 	void *mac_ctx;
 	/*
 	 * variable to store state of various protection struct like

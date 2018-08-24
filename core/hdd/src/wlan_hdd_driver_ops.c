@@ -770,6 +770,11 @@ static int __wlan_hdd_bus_suspend_noirq(void)
 		return err;
 	}
 
+	if (hdd_ctx->driver_status == DRIVER_MODULES_OPENED) {
+		hdd_err("Driver open state,  can't suspend");
+		return -EAGAIN;
+	}
+
 	if (hdd_ctx->driver_status != DRIVER_MODULES_ENABLED) {
 		hdd_debug("Driver Module closed return success");
 		return 0;
@@ -849,6 +854,11 @@ static int __wlan_hdd_bus_resume(void)
 	if (status) {
 		hdd_err("Invalid hdd context");
 		return status;
+	}
+
+	if (hdd_ctx->driver_status == DRIVER_MODULES_OPENED) {
+		hdd_err("Driver open state,  can't suspend");
+		return -EAGAIN;
 	}
 
 	if (hdd_ctx->driver_status != DRIVER_MODULES_ENABLED) {

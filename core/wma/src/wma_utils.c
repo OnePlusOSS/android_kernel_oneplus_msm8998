@@ -5571,8 +5571,10 @@ bool wma_is_scan_simultaneous_capable(void)
 	}
 
 	if ((mac->dual_mac_feature_disable == DISABLE_DBS_CXN_AND_SCAN) ||
-	    (mac->dual_mac_feature_disable ==
-	     ENABLE_DBS_CXN_AND_DISABLE_DBS_SCAN))
+		(mac->dual_mac_feature_disable ==
+		 ENABLE_DBS_CXN_AND_DISABLE_DBS_SCAN) ||
+		(mac->dual_mac_feature_disable ==
+		 ENABLE_DBS_CXN_AND_DISABLE_SIMULTANEOUS_SCAN))
 		return false;
 
 	return true;

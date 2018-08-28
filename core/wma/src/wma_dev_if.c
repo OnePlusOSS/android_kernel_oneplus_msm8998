@@ -2235,6 +2235,7 @@ ol_txrx_vdev_handle wma_vdev_attach(tp_wma_handle wma_handle,
 			status = QDF_STATUS_E_FAILURE;
 			wmi_unified_vdev_delete_send(wma_handle->wmi_handle,
 						     self_sta_req->session_id);
+			goto end;
 		}
 	}
 

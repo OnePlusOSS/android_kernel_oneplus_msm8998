@@ -10244,6 +10244,12 @@ QDF_STATUS cds_valid_sap_conc_channel_check(uint8_t *con_ch, uint8_t sap_ch)
 		     (!(hdd_ctx->config->etsi_srd_chan_in_master_mode) &&
 		       (cds_is_etsi13_regdmn_srd_chan(
 					cds_chan_to_freq(channel))))) {
+			if (CDS_IS_DFS_CH(channel) &&
+					sta_sap_scc_on_dfs_chan) {
+				cds_debug("STA, SAP SCC is allowed on DFS chan %u",
+						channel);
+				goto update_chan;
+			}
 			if (wma_is_hw_dbs_capable()) {
 				temp_channel =
 					cds_get_diff_band_ch_for_sap(channel);
@@ -10262,13 +10268,6 @@ QDF_STATUS cds_valid_sap_conc_channel_check(uint8_t *con_ch, uint8_t sap_ch)
 					return QDF_STATUS_E_FAILURE;
 				}
 			} else {
-				if (CDS_IS_DFS_CH(channel) &&
-						sta_sap_scc_on_dfs_chan) {
-					cds_debug("STA, SAP SCC is allowed on DFS chan %u",
-							channel);
-					goto update_chan;
-				}
-
 				cds_warn("Can't have concurrency on %d",
 						channel);
 				return QDF_STATUS_E_FAILURE;

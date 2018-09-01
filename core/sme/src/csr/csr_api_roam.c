@@ -11434,7 +11434,7 @@ bool csr_roam_issue_wm_status_change(tpAniSirGlobal pMac, uint32_t sessionId,
 					    DeauthIndMsg));
 		}
 		if (QDF_IS_STATUS_SUCCESS
-			    (csr_queue_sme_command(pMac, pCommand, true))) {
+			    (csr_queue_sme_command(pMac, pCommand, false))) {
 			fCommandQueued = true;
 		} else {
 			sme_err(" fail to send message ");
@@ -15611,6 +15611,7 @@ csr_check_vendor_ap_present(tpAniSirGlobal mac_ctx,
 	QDF_STATUS qdf_status;
 	uint8_t *oui_ptr;
 	uint8_t *ie_fields = (uint8_t *)bss_desc->ieFields;
+	bool wildcard_oui = false;
 
 	if (action_id >= WMI_ACTION_OUI_MAXIMUM_ID) {
 		sme_debug("Invalid OUI action ID");
@@ -15647,7 +15648,16 @@ csr_check_vendor_ap_present(tpAniSirGlobal mac_ctx,
 
 		extension = &sme_ext->extension;
 
-		if (!extension->oui_length)
+		/*
+		 * If a wildcard OUI 0xFFFFFF is defined in the INI, proceed
+		 * to other checks skipping the OUI and vendor data checks
+		 */
+		if (!(extension->info_mask & WMI_ACTION_OUI_INFO_OUI)) {
+			sme_debug("Wildcard OUI found");
+			wildcard_oui = true;
+		}
+
+		if (!extension->oui_length && !wildcard_oui)
 			goto next;
 
 		oui_ptr = cfg_get_vendor_ie_ptr_from_oui(mac_ctx,
@@ -15655,7 +15665,7 @@ csr_check_vendor_ap_present(tpAniSirGlobal mac_ctx,
 							 extension->oui_length,
 							 (uint8_t *)ie_fields,
 							 ie_len);
-		if (!oui_ptr) {
+		if (!oui_ptr && !wildcard_oui) {
 			sme_debug("No matching IE found for OUI");
 			QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_PE,
 					   QDF_TRACE_LEVEL_DEBUG,
@@ -15670,7 +15680,7 @@ csr_check_vendor_ap_present(tpAniSirGlobal mac_ctx,
 				   extension->oui,
 				   extension->oui_length);
 
-		if (extension->data_length &&
+		if (extension->data_length && !wildcard_oui &&
 		    !csr_check_for_vendor_oui_data(extension, oui_ptr)) {
 			sme_debug("Vendor IE Data mismatch");
 			goto next;
@@ -15702,6 +15712,7 @@ next:
 
 		node = next_node;
 		next_node = NULL;
+		wildcard_oui = false;
 	}
 
 	qdf_mutex_release(&sme_action->oui_ext_list_lock);
@@ -20594,14 +20605,6 @@ csr_roam_offload_scan(tpAniSirGlobal mac_ctx, uint8_t session_id,
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	if ((ROAM_SCAN_OFFLOAD_START == command &&
-		REASON_CTX_INIT != reason) &&
-		(session->pCurRoamProfile &&
-		session->pCurRoamProfile->supplicant_disabled_roaming)) {
-		sme_debug("Supplicant disabled driver roaming");
-		return QDF_STATUS_E_FAILURE;
-	}
-
 	if ((command == ROAM_SCAN_OFFLOAD_START) &&
 	    (session->pCurRoamProfile &&
 	    session->pCurRoamProfile->driver_disabled_roaming)) {
@@ -20615,6 +20618,14 @@ csr_roam_offload_scan(tpAniSirGlobal mac_ctx, uint8_t session_id,
 				  session_id);
 			return QDF_STATUS_E_FAILURE;
 		}
+	}
+
+	if ((ROAM_SCAN_OFFLOAD_START == command &&
+	    REASON_CTX_INIT != reason) &&
+	    (session->pCurRoamProfile &&
+	    session->pCurRoamProfile->supplicant_disabled_roaming)) {
+		sme_debug("Supplicant disabled driver roaming");
+		return QDF_STATUS_E_FAILURE;
 	}
 
 	if (0 == csr_roam_is_roam_offload_scan_enabled(mac_ctx)) {
@@ -20638,7 +20649,7 @@ csr_roam_offload_scan(tpAniSirGlobal mac_ctx, uint8_t session_id,
 	/* Roaming is not supported currently for FILS akm */
 	if (session->pCurRoamProfile && CSR_IS_AUTH_TYPE_FILS(
 	    session->pCurRoamProfile->AuthType.authType[0]) &&
-				!mac_ctx->is_fils_roaming_supported) {
+	    !mac_ctx->is_fils_roaming_supported) {
 		sme_info("FILS Roaming not suppprted by fw");
 		return QDF_STATUS_SUCCESS;
 	}

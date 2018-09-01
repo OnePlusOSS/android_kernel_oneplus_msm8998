@@ -12330,6 +12330,9 @@ enum hw_filter_mode {
  *
  * <OUI> is mandatory and it can be either 3 or 5 bytes means 6 or 10
  * hexa-decimal characters
+ * If the OUI and Data checks needs to be ignored, the oui FFFFFF
+ * needs to be provided as OUI and bit 0 of Info_Presence_Bit should
+ * be set to 0.
  *
  * <Data_Length> is mandatory field and should give length of
  * the <Data> if present else zero
@@ -12350,8 +12353,8 @@ enum hw_filter_mode {
  * Presence of <Mac_Address> and <Capability> is
  * controlled by <Info_Presence_Bit> which is mandatory
  * <Info_Presence_Bit> will give the information for
- *   OUI – bit 0 (set/reset don't effect the behaviour,
- *                always enabled in the code)
+ *   OUI – bit 0 Should be set to 1
+ *               Setting to 0 will ignore OUI and data check
  *   Mac Address present – bit 1
  *   NSS – bit 2
  *   HT check – bit 3
@@ -14576,7 +14579,7 @@ enum hw_filter_mode {
 #define CFG_ENABLE_GCMP_NAME    "gcmp_enabled"
 #define CFG_ENABLE_GCMP_MIN     (0)
 #define CFG_ENABLE_GCMP_MAX     (1)
-#define CFG_ENABLE_GCMP_DEFAULT (1)
+#define CFG_ENABLE_GCMP_DEFAULT (0)
 
 /*
  * <ini>

@@ -1599,6 +1599,7 @@ void hdd_is_interface_down_during_ssr(hdd_context_t *hdd_ctx)
 	while (NULL != adapternode && QDF_STATUS_SUCCESS == status) {
 		adapter = adapternode->pAdapter;
 		if (test_bit(DOWN_DURING_SSR, &adapter->event_flags)) {
+			clear_bit(DOWN_DURING_SSR, &adapter->event_flags);
 			hdd_stop_adapter(hdd_ctx, adapter, true);
 			clear_bit(DEVICE_IFACE_OPENED, &adapter->event_flags);
 		}
@@ -1990,6 +1991,13 @@ static int __wlan_hdd_cfg80211_suspend_wlan(struct wiphy *wiphy,
 		return rc;
 
 	mutex_lock(&pHddCtx->iface_change_lock);
+
+	if (pHddCtx->driver_status == DRIVER_MODULES_OPENED) {
+		mutex_unlock(&pHddCtx->iface_change_lock);
+		hdd_err("Driver open state,  can't suspend");
+		return -EAGAIN;
+	}
+
 	if (pHddCtx->driver_status != DRIVER_MODULES_ENABLED) {
 		mutex_unlock(&pHddCtx->iface_change_lock);
 		hdd_debug("Driver Modules not Enabled ");

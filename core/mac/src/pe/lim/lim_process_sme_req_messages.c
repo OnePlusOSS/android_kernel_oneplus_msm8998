@@ -539,6 +539,7 @@ static bool __lim_process_sme_sys_ready_ind(tpAniSirGlobal pMac, uint32_t *pMsgB
 		pe_register_callbacks_with_wma(pMac, ready_req);
 		pMac->lim.add_bssdescr_callback = ready_req->add_bssdescr_cb;
 		pMac->lim.sme_msg_callback = ready_req->sme_msg_cb;
+		pMac->lim.stop_roaming_callback = ready_req->stop_roaming_cb;
 	}
 	pe_debug("sending WMA_SYS_READY_IND msg to HAL");
 	MTRACE(mac_trace_msg_tx(pMac, NO_SESSION, msg.type));
@@ -628,6 +629,7 @@ __lim_handle_sme_start_bss_request(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 	uint32_t chanwidth;
 	struct vdev_type_nss *vdev_type_nss;
 	tSirRetStatus cfg_get_wmi_dfs_master_param = eSIR_SUCCESS;
+	struct sir_hw_mode_params hw_mode;
 
 /* FEATURE_WLAN_DIAG_SUPPORT */
 #ifdef FEATURE_WLAN_DIAG_SUPPORT_LIM
@@ -889,7 +891,14 @@ __lim_handle_sme_start_bss_request(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 				session->ch_center_freq_seg1 = 0;
 			}
 		}
-
+		/* check for the current HW index to update nss */
+		if (wma_is_hw_dbs_capable() &&
+		   (wma_get_current_hw_mode(&hw_mode) == QDF_STATUS_SUCCESS) &&
+		   hw_mode.dbs_cap) {
+			session->nss = 1;
+			pe_debug("HW_mode is DBS .Nss set to [%d]",
+				session->nss);
+		}
 		if (session->vhtCapability &&
 				(session->ch_width > CH_WIDTH_80MHZ)) {
 			session->nss = 1;
@@ -6124,18 +6133,7 @@ static void lim_process_sme_dfs_csa_ie_request(tpAniSirGlobal mac_ctx,
 		dfs_csa_ie_req->ch_params.center_freq_seg0;
 skip_vht:
 	/* Send CSA IE request from here */
-	if (sch_set_fixed_beacon_fields(mac_ctx, session_entry) !=
-			eSIR_SUCCESS) {
-		pe_err("Unable to set CSA IE in beacon");
-		return;
-	}
-
-	/*
-	 * First beacon update request is sent here, the remaining updates are
-	 * done when the FW responds back after sending the first beacon after
-	 * the template update
-	 */
-	lim_send_beacon_ind(mac_ctx, session_entry);
+	lim_send_dfs_chan_sw_ie_update(mac_ctx, session_entry);
 
 	if (dfs_csa_ie_req->ch_params.ch_width == CH_WIDTH_80MHZ)
 		ch_offset = BW80;
@@ -6153,6 +6151,7 @@ skip_vht:
 	lim_send_chan_switch_action_frame(mac_ctx,
 		session_entry->gLimChannelSwitch.primaryChannel,
 		ch_offset, session_entry);
+
 }
 
 /**

@@ -683,6 +683,7 @@ static QDF_STATUS sme_rrm_issue_scan_req(tpAniSirGlobal mac_ctx)
 
 	if ((sme_rrm_ctx->currentIndex) >=
 			sme_rrm_ctx->channelList.numOfChannels) {
+		sme_rrm_send_beacon_report_xmit_ind(mac_ctx, NULL, true, 0);
 		sme_debug("done with the complete ch lt. finish and fee now");
 		goto free_ch_lst;
 	}
@@ -886,6 +887,10 @@ QDF_STATUS sme_rrm_process_beacon_report_req_ind(tpAniSirGlobal pMac,
 		}
 		csr_get_cfg_valid_channels(pMac, pSmeRrmContext->channelList.
 					ChannelList, &len);
+		/* List all the channels in the requested RC */
+		cds_reg_dmn_get_channel_from_opclass(
+				pMac->scan.countryCodeCurrent,
+				pBeaconReq->channelInfo.regulatoryClass);
 
 		for (i = 0; i < len; i++) {
 			if (cds_reg_dmn_get_opclass_from_channel(

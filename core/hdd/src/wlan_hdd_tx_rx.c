@@ -1731,7 +1731,23 @@ void hdd_gro_destroy(void)
 		ol_deregister_offld_flush_cb(hdd_deinit_gro_mgr);
 }
 #else /* HELIUMPLUS */
-static inline void hdd_register_rx_ol(void) { }
+static inline void hdd_register_rx_ol(void)
+{
+	hdd_context_t *hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+
+	if  (!hdd_ctx) {
+		hdd_err("HDD context is NULL");
+		return;
+	}
+
+	if (hdd_ctx->config->enable_tcp_delack)
+		hdd_ctx->tcp_delack_on = 1;
+	else
+		hdd_ctx->tcp_delack_on = 0;
+
+	hdd_debug("TCP delack ack is %s",
+		hdd_ctx->tcp_delack_on ? "enabled" : "disabled");
+}
 
 void hdd_gro_destroy(void)
 {

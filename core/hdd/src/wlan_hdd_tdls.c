@@ -3877,6 +3877,7 @@ int wlan_hdd_tdls_add_station(struct wiphy *wiphy,
 	unsigned long rc;
 	int ret;
 	int rate_idx;
+	hdd_station_ctx_t *hdd_sta_ctx;
 
 	ENTER();
 
@@ -3893,6 +3894,26 @@ int wlan_hdd_tdls_add_station(struct wiphy *wiphy,
 		hdd_debug("TDLS mode is disabled OR not enabled in FW " MAC_ADDRESS_STR "Request declined.",
 			   MAC_ADDR_ARRAY(mac));
 		return -ENOTSUPP;
+	}
+
+	hdd_sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
+
+	/*
+	 * STA or P2P client should be connected and authenticated before
+	 *  adding TDLS STA.
+	 */
+	if ((eConnectionState_Associated !=
+	     hdd_sta_ctx->conn_info.connState) ||
+	     (false == hdd_sta_ctx->conn_info.uIsAuthenticated)) {
+		hdd_debug("STA is not connected or not authenticated. connState %u, uIsAuthenticated %u",
+			hdd_sta_ctx->conn_info.connState,
+			hdd_sta_ctx->conn_info.uIsAuthenticated);
+		return -EAGAIN;
+	}
+
+	if (!cds_check_is_tdls_allowed(pAdapter->device_mode)) {
+		hdd_debug("TDLS not allowed, reject TDLS add station");
+		return -EPERM;
 	}
 
 	mutex_lock(&pHddCtx->tdls_lock);

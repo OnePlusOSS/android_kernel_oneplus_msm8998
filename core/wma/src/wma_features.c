@@ -11060,6 +11060,11 @@ int wma_unified_power_debug_stats_event_handler(void *handle,
 
 	tpAniSirGlobal mac = (tpAniSirGlobal)cds_get_context(QDF_MODULE_ID_PE);
 
+	if (!cmd_param_info) {
+		WMA_LOGE("cmd_param_info got NULL");
+		return -EINVAL;
+	}
+
 	param_tlvs =
 		(WMI_PDEV_CHIP_POWER_STATS_EVENTID_param_tlvs *) cmd_param_info;
 

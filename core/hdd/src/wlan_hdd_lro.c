@@ -462,6 +462,22 @@ static void *hdd_init_lro_mgr(void)
 }
 
 /**
+ * hdd_is_lro_enabled() - Is LRO enabled
+ * @hdd_ctx: HDD context
+ *
+ * This function checks if LRO is enabled in HDD context.
+ *
+ * Return: 0 - success, < 0 - failure
+ */
+int hdd_is_lro_enabled(hdd_context_t *hdd_ctx)
+{
+	if (hdd_ctx->ol_enable != CFG_LRO_ENABLED)
+		return -EOPNOTSUPP;
+
+	return 0;
+}
+
+/**
  * hdd_lro_enable() - enable LRO
  * @hdd_ctx: HDD context
  * @adapter: HDD adapter

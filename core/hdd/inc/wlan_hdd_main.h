@@ -444,11 +444,8 @@ extern struct mutex hdd_init_deinit_lock;
 
 #define STATS_CONTEXT_MAGIC 0x53544154  /* STAT */
 #define PEER_INFO_CONTEXT_MAGIC 0x50494E46  /* PEER_INFO(PINF) */
-#define POWER_CONTEXT_MAGIC 0x504F5752  /* POWR */
 #define SNR_CONTEXT_MAGIC   0x534E5200  /* SNR */
-#define LINK_STATUS_MAGIC   0x4C4B5354  /* LINKSTATUS(LNST) */
 #define APF_CONTEXT_MAGIC 0x4575354    /* APF */
-#define POWER_STATS_MAGIC 0x14111990
 #define ACTION_FRAME_RANDOM_CONTEXT_MAGIC 0x87878787
 
 /* MAX OS Q block time value in msec
@@ -1625,7 +1622,6 @@ struct hdd_adapter_s {
 	 * channel needs to be moved from the existing 2.4GHz channel.
 	 */
 	uint8_t pre_cac_chan;
-	struct power_stats_response *chip_power_stats;
 
 	/* rcpi information */
 	struct rcpi_info rcpi;
@@ -2253,10 +2249,6 @@ struct hdd_context_s {
 	uint32_t num_derived_addr;
 	unsigned long provisioned_intf_addr_mask;
 	unsigned long derived_intf_addr_mask;
-#ifdef WLAN_POWER_DEBUGFS
-	/* mutex lock to block concurrent access */
-	struct mutex power_stats_lock;
-#endif
 	struct hdd_cache_channels *original_channels;
 	qdf_mutex_t cache_channel_lock;
 

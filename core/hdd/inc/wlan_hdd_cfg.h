@@ -14579,7 +14579,7 @@ enum hw_filter_mode {
 #define CFG_ENABLE_GCMP_NAME    "gcmp_enabled"
 #define CFG_ENABLE_GCMP_MIN     (0)
 #define CFG_ENABLE_GCMP_MAX     (1)
-#define CFG_ENABLE_GCMP_DEFAULT (1)
+#define CFG_ENABLE_GCMP_DEFAULT (0)
 
 /*
  * <ini>

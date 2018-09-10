@@ -5497,12 +5497,14 @@ static QDF_STATUS cds_get_channel_list(enum cds_pcl_type pcl,
 		cds_debug("pcl len (%d) and weight list len mismatch (%d)",
 			*len, i);
 
-	/* check the channel avoidance list */
+	/* check the channel avoidance list for beaconing entities */
+	if ((mode == CDS_SAP_MODE) || (mode == CDS_P2P_GO_MODE))
 	cds_update_with_safe_channel_list(pcl_channels, len,
 				pcl_weights, weight_len);
 
-	cds_remove_dfs_passive_channels_from_pcl(pcl_channels, len,
-			pcl_weights, weight_len);
+	cds_remove_dfs_passive_channels_from_pcl(pcl_channels,
+						 len, pcl_weights,
+						 weight_len);
 
 	return status;
 }
@@ -6076,29 +6078,15 @@ bool cds_allow_sap_go_concurrency(enum cds_con_mode mode, uint8_t channel)
 	return true;
 }
 
-/**
- * cds_allow_concurrency() - Check for allowed concurrency
- * combination
- * @mode:	new connection mode
- * @channel: channel on which new connection is coming up
- * @bw: Bandwidth requested by the connection (optional)
- *
- * When a new connection is about to come up check if current
- * concurrency combination including the new connection is
- * allowed or not based on the HW capability
- *
- * Return: True/False
- */
-bool cds_allow_concurrency(enum cds_con_mode mode,
-				uint8_t channel, enum hw_mode_bandwidth bw)
+bool cds_is_concurrency_allowed(enum cds_con_mode mode,
+				       uint8_t channel,
+				       enum hw_mode_bandwidth bw)
 {
 	uint32_t num_connections = 0, count = 0, index = 0;
 	bool status = false, match = false;
 	uint32_t list[MAX_NUMBER_OF_CONC_CONNECTIONS];
 	hdd_context_t *hdd_ctx;
 	cds_context_type *cds_ctx;
-	QDF_STATUS ret;
-	struct sir_pcl_list pcl;
 	bool is_sta_sap_on_dfs_chan;
 
 
@@ -6112,15 +6100,6 @@ bool cds_allow_concurrency(enum cds_con_mode mode,
 	if (!cds_ctx) {
 		cds_err("Invalid CDS Context");
 		return status;
-	}
-
-
-	qdf_mem_zero(&pcl, sizeof(pcl));
-	ret = cds_get_pcl(mode, pcl.pcl_list, &pcl.pcl_len,
-			pcl.weight_list, QDF_ARRAY_SIZE(pcl.weight_list));
-	if (QDF_IS_STATUS_ERROR(ret)) {
-		cds_err("disallow connection:%d", ret);
-		goto done;
 	}
 
 	/* find the current connection state from conc_connection_list*/
@@ -6294,6 +6273,37 @@ bool cds_allow_concurrency(enum cds_con_mode mode,
 
 done:
 	return status;
+}
+
+/**
+ * cds_allow_concurrency() - Check for allowed concurrency
+ * combination consulting the PCL
+ * @mode:	new connection mode
+ * @channel: channel on which new connection is coming up
+ * @bw: Bandwidth requested by the connection (optional)
+ *
+ * When a new connection is about to come up check if current
+ * concurrency combination including the new connection is
+ * allowed or not based on the HW capability
+ *
+ * Return: True/False
+ */
+bool cds_allow_concurrency(enum cds_con_mode mode,
+				 uint8_t channel,
+				 enum hw_mode_bandwidth bw)
+{
+	struct sir_pcl_list pcl;
+	QDF_STATUS status;
+
+	qdf_mem_zero(&pcl, sizeof(pcl));
+	status = cds_get_pcl(mode, pcl.pcl_list, &pcl.pcl_len,
+			     pcl.weight_list,
+			     QDF_ARRAY_SIZE(pcl.weight_list));
+	if (QDF_IS_STATUS_ERROR(status)) {
+		cds_err("disallow connection:%d", status);
+		return false;
+	}
+	return cds_is_concurrency_allowed(mode, channel, bw);
 }
 
 /**
@@ -10329,9 +10339,9 @@ QDF_STATUS cds_get_valid_chan_weights(struct sir_pcl_chan_weights *weight,
 		cds_store_and_del_conn_info(CDS_STA_MODE, false,
 						info, &num_cxn_del);
 		for (i = 0; i < weight->saved_num_chan; i++) {
-			if (cds_allow_concurrency(CDS_STA_MODE,
-						  weight->saved_chan_list[i],
-						  HW_MODE_20_MHZ)) {
+			if (cds_is_concurrency_allowed(CDS_STA_MODE,
+						     weight->saved_chan_list[i],
+						     HW_MODE_20_MHZ)) {
 				weight->weighed_valid_list[i] =
 					WEIGHT_OF_NON_PCL_CHANNELS;
 			}

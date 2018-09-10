@@ -4085,6 +4085,12 @@ hdd_roam_tdls_status_update_handler(hdd_adapter_t *pAdapter,
 				status = QDF_STATUS_E_FAILURE;
 				hdd_debug("no available slot in conn_info. staId: %d cannot be stored",
 					pRoamInfo->staId);
+				sme_delete_tdls_peer_sta(WLAN_HDD_GET_HAL_CTX
+							 (pAdapter),
+							 pAdapter->sessionId,
+							 pRoamInfo->
+							 peerMac.bytes);
+
 			}
 			pAdapter->tdlsAddStaStatus = status;
 		}
@@ -4267,7 +4273,8 @@ hdd_roam_tdls_status_update_handler(hdd_adapter_t *pAdapter,
 					     tdlsConnInfo[staIdx].
 					     peerMac,
 					     QDF_MAC_ADDR_SIZE);
-				pHddCtx->tdlsConnInfo[staIdx].staId = 0;
+				pHddCtx->tdlsConnInfo[staIdx].staId =
+						HDD_WLAN_INVALID_STA_ID;
 				pHddCtx->tdlsConnInfo[staIdx].
 				sessionId = 255;
 

@@ -150,7 +150,7 @@ static INLINE void wmi_packed_arr_set_bits(A_UINT32 *arr, A_UINT32 entry_index,
 }
 
 /** 2 word representation of MAC addr */
-typedef struct {
+typedef struct _wmi_mac_addr {
     /** upper 4 bytes of  MAC address */
     A_UINT32 mac_addr31to0;
     /** lower 2 bytes of  MAC address */
@@ -176,6 +176,16 @@ typedef struct {
         ((c_macaddr)[3] << 24)); \
     (pwmi_mac_addr)->mac_addr47to32 = ((c_macaddr)[4] | ((c_macaddr)[5] << 8));\
    } while (0)
+
+/*
+ * The below function declarations are for implementations on some
+ * platforms of the above macros, but in function form, to save code
+ * memory by avoiding macro-inlining of a non-trivial amount of code.
+ * These function versions of the above macros may not be available
+ * on all host and target platforms.
+ */
+void wmi_mac_addr_to_char_array(wmi_mac_addr *pwmi_mac_addr, A_UINT8 *c_macaddr);
+void wmi_char_array_to_mac_addr(A_UINT8 *c_macaddr, wmi_mac_addr *pwmi_mac_addr);
 
 /*
  * wmi command groups.
@@ -5104,6 +5114,8 @@ typedef enum {
      * >21:  invalid value (ignored)
      */
     WMI_PDEV_PARAM_MWSCOEX_SET_5GNR_PWR_LIMIT,        /* 0xA5 */
+    /** Set max msdus available for cong ctrl in target */
+    WMI_PDEV_PARAM_SET_CONG_CTRL_MAX_MSDUS,          /* 0xA6 */
 } WMI_PDEV_PARAM;
 
 typedef struct {
@@ -11274,6 +11286,8 @@ typedef struct {
     A_UINT32 wmm_caps;
     A_UINT32 mcsset[ROAM_OFFLOAD_NUM_MCS_SET>>2]; /* since this 4 byte aligned, we don't declare it as tlv array */
     A_UINT32 handoff_delay_for_rx; /* In msec. Delay Hand-Off by this duration to receive pending Rx frames from current BSS */
+    A_UINT32 max_mlme_sw_retries; /* maximum number of software retries for preauth and reassoc req */
+    A_UINT32 no_ack_timeout; /* In msec. duration to wait before another SW retry made if no ack seen for previous frame */
 } wmi_roam_offload_tlv_param;
 
 
@@ -21992,6 +22006,8 @@ static INLINE A_UINT8 *wmi_id_to_name(A_UINT32 wmi_command)
         WMI_RETURN_STRING(WMI_MOTION_DET_BASE_LINE_CONFIG_PARAM_CMDID);
         WMI_RETURN_STRING(WMI_MOTION_DET_START_STOP_CMDID);
         WMI_RETURN_STRING(WMI_MOTION_DET_BASE_LINE_START_STOP_CMDID);
+        WMI_RETURN_STRING(WMI_SAR_LIMITS_CMDID);
+        WMI_RETURN_STRING(WMI_SAR_GET_LIMITS_CMDID);
     }
 
     return "Invalid WMI cmd";

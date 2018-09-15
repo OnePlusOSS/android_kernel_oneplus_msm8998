@@ -3933,6 +3933,77 @@ QDF_STATUS send_setup_install_key_cmd_tlv(wmi_unified_t wmi_handle,
 }
 
 /**
+ * send_coex_config_cmd_tlv() - send coex config command to firmware
+ * @wmi_handle: wmi handle
+ * @params: coex config params
+ *
+ * Return: QDF_STATUS_SUCCESS for success or error code
+ */
+static QDF_STATUS send_coex_config_cmd_tlv(wmi_unified_t wmi_handle,
+					   struct coex_config_params *params)
+{
+	WMI_COEX_CONFIG_CMD_fixed_param *cmd;
+	wmi_buf_t buf;
+	uint32_t len = sizeof(*cmd);
+	WMI_COEX_CONFIG_TYPE config_type;
+	QDF_STATUS status;
+
+	buf = wmi_buf_alloc(wmi_handle, len);
+	if (!buf) {
+		WMI_LOGE("Failed to allocate buffer to coex config params");
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	cmd = (WMI_COEX_CONFIG_CMD_fixed_param *)wmi_buf_data(buf);
+	WMITLV_SET_HDR(&cmd->tlv_header,
+		       WMITLV_TAG_STRUC_WMI_COEX_CONFIG_CMD_fixed_param,
+		       WMITLV_GET_STRUCT_TLVLEN(
+		       WMI_COEX_CONFIG_CMD_fixed_param));
+
+	cmd->vdev_id = params->vdev_id;
+	cmd->config_arg1 = params->config_value[0];
+
+	switch (params->config_type) {
+	case COEX_CONFIG_TX_POWER:
+		config_type = WMI_COEX_CONFIG_TX_POWER;
+		break;
+	case COEX_CONFIG_HANDOVER_RSSI:
+		config_type = WMI_COEX_CONFIG_HANDOVER_RSSI;
+		break;
+	case COEX_CONFIG_BTC_MODE:
+		config_type = WMI_COEX_CONFIG_BTC_MODE;
+		break;
+	case COEX_CONFIG_ANTENNA_ISOLATION:
+		config_type = WMI_COEX_CONFIG_ANTENNA_ISOLATION;
+		break;
+	case COEX_CONFIG_BT_LOW_RSSI_THRESHOLD:
+		config_type = WMI_COEX_CONFIG_BT_LOW_RSSI_THRESHOLD;
+		break;
+	case COEX_CONFIG_BT_INTERFERENCE_LEVEL:
+		config_type = WMI_COEX_CONFIG_BT_INTERFERENCE_LEVEL;
+		cmd->config_arg2 = params->config_value[1];
+		cmd->config_arg3 = params->config_value[2];
+		cmd->config_arg4 = params->config_value[3];
+		cmd->config_arg5 = params->config_value[4];
+		cmd->config_arg6 = params->config_value[5];
+		break;
+	default:
+		WMI_LOGE("Unknown coex config type received");
+		wmi_buf_free(buf);
+		return QDF_STATUS_E_FAILURE;
+	}
+	cmd->config_type = config_type;
+
+	status = wmi_unified_cmd_send(wmi_handle, buf, len,
+				      WMI_COEX_CONFIG_CMDID);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		WMI_LOGE("Failed to send WMI_COEX_CONFIG_CMDID");
+		wmi_buf_free(buf);
+	}
+	return status;
+}
+
+/**
  * send_sar_limit_cmd_tlv() - send sar limit cmd to fw
  * @wmi_handle: wmi handle
  * @params: sar limit params
@@ -4709,6 +4780,8 @@ QDF_STATUS send_roam_scan_offload_mode_cmd_tlv(wmi_unified_t wmi_handle,
 
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 	int auth_mode = roam_req->auth_mode;
+	roam_offload_param *req_offload_params =
+		&roam_req->roam_offload_params;
 	wmi_roam_offload_tlv_param *roam_offload_params;
 	wmi_roam_11i_offload_tlv_param *roam_offload_11i;
 	wmi_roam_11r_offload_tlv_param *roam_offload_11r;
@@ -4834,31 +4907,31 @@ QDF_STATUS send_roam_scan_offload_mode_cmd_tlv(wmi_unified_t wmi_handle,
 		roam_offload_params->select_5g_margin =
 			roam_req->select_5ghz_margin;
 		roam_offload_params->handoff_delay_for_rx =
-			roam_req->roam_offload_params.ho_delay_for_rx;
+			req_offload_params->ho_delay_for_rx;
+		roam_offload_params->max_mlme_sw_retries =
+			req_offload_params->roam_preauth_retry_count;
+		roam_offload_params->no_ack_timeout =
+			req_offload_params->roam_preauth_no_ack_timeout;
 		roam_offload_params->reassoc_failure_timeout =
 			roam_req->reassoc_failure_timeout;
 
 		/* Fill the capabilities */
 		roam_offload_params->capability =
-				roam_req->roam_offload_params.capability;
+				req_offload_params->capability;
 		roam_offload_params->ht_caps_info =
-				roam_req->roam_offload_params.ht_caps_info;
+				req_offload_params->ht_caps_info;
 		roam_offload_params->ampdu_param =
-				roam_req->roam_offload_params.ampdu_param;
+				req_offload_params->ampdu_param;
 		roam_offload_params->ht_ext_cap =
-				roam_req->roam_offload_params.ht_ext_cap;
-		roam_offload_params->ht_txbf =
-				roam_req->roam_offload_params.ht_txbf;
-		roam_offload_params->asel_cap =
-				roam_req->roam_offload_params.asel_cap;
-		roam_offload_params->qos_caps =
-				roam_req->roam_offload_params.qos_caps;
+				req_offload_params->ht_ext_cap;
+		roam_offload_params->ht_txbf = req_offload_params->ht_txbf;
+		roam_offload_params->asel_cap = req_offload_params->asel_cap;
+		roam_offload_params->qos_caps = req_offload_params->qos_caps;
 		roam_offload_params->qos_enabled =
-				roam_req->roam_offload_params.qos_enabled;
-		roam_offload_params->wmm_caps =
-				roam_req->roam_offload_params.wmm_caps;
+				req_offload_params->qos_enabled;
+		roam_offload_params->wmm_caps = req_offload_params->wmm_caps;
 		qdf_mem_copy((uint8_t *)roam_offload_params->mcsset,
-				(uint8_t *)roam_req->roam_offload_params.mcsset,
+				(uint8_t *)req_offload_params->mcsset,
 				ROAM_OFFLOAD_NUM_MCS_SET);
 
 		buf_ptr += sizeof(wmi_roam_offload_tlv_param);
@@ -15188,6 +15261,7 @@ struct wmi_ops tlv_ops =  {
 				send_encrypt_decrypt_send_cmd_tlv,
 	.send_sar_limit_cmd = send_sar_limit_cmd_tlv,
 	.get_sar_limit_cmd = get_sar_limit_cmd_tlv,
+	.send_coex_config_cmd = send_coex_config_cmd_tlv,
 	.extract_sar_limit_event = extract_sar_limit_event_tlv,
 	.extract_sar2_result_event = extract_sar2_result_event_tlv,
 	.send_per_roam_config_cmd = send_per_roam_config_cmd_tlv,

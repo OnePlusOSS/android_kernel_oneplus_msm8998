@@ -385,7 +385,6 @@ extern void wlan_hdd_cfg80211_update_replay_counter_cb(
 						tpSirGtkOffloadGetInfoRspParams
 						pGtkOffloadGetInfoRsp);
 #endif
-void *wlan_hdd_change_country_code_cb(void *pAdapter);
 void hdd_select_cbmode(hdd_adapter_t *pAdapter, uint8_t operationChannel,
 		       struct ch_params_s *ch_params);
 

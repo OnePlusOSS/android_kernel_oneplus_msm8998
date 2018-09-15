@@ -5930,7 +5930,7 @@ void wlan_hdd_change_country_code_callback(void *context)
 	hdd_adapter_t *adapter = context;
 
 	if (adapter && (WLAN_HDD_ADAPTER_MAGIC == adapter->magic))
-		complete(&adapter->change_country_code);
+		qdf_event_set(&adapter->change_country_code);
 }
 
 /**

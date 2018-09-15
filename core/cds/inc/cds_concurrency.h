@@ -1018,15 +1018,19 @@ bool cds_is_safe_channel(uint8_t channel);
  */
 bool cds_disallow_mcc(uint8_t channel);
 /**
- * cds_get_alternate_channel_for_sap() - checks if any alternate channel can
+ * cds_get_diff_band_ch_for_sap() - checks if any alternate channel can
  * be obtained from PCL if current channel can't be allowed
  *
- * This function checks if any alternate channel can be obtained
- * from PCL or other means if current channel for SAP can't be allowed
+ * @channel: Present STA channel
+ *
+ * This API will get the PCl chanel list based upon the current connections
+ * and will return the different band channel to operate in DBS mode if enabled
+ * It may happen that STA+SAP SCC is not allowed, so we have to select a random
+ * preferred channel in different band than the STA channel.
  *
  * Return: New channel
  */
-uint8_t cds_get_alternate_channel_for_sap(void);
+uint8_t cds_get_diff_band_ch_for_sap(uint8_t channel);
 
 /**
  * cds_set_cur_conc_system_pref() - set the value of cur_conc_system_pref

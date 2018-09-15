@@ -735,7 +735,6 @@ static int hdd_stop_bss_link(hdd_adapter_t *pHostapdAdapter,
 		return status;
 
 	if (test_bit(SOFTAP_BSS_STARTED, &pHostapdAdapter->event_flags)) {
-		hdd_ipa_ap_disconnect(pHostapdAdapter);
 		status = wlansap_stop_bss(
 			WLAN_HDD_GET_SAP_CTX_PTR(pHostapdAdapter));
 		if (QDF_IS_STATUS_SUCCESS(status))
@@ -1658,6 +1657,7 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 	hdd_station_info_t *stainfo;
 	cds_context_type *cds_ctx;
 	hdd_adapter_t *sta_adapter;
+	tsap_Config_t *sap_config;
 
 	dev = (struct net_device *)usrDataForCallback;
 	if (!dev) {
@@ -1706,6 +1706,7 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 
 	dfs_info.channel = pHddApCtx->operatingChannel;
 	sme_get_country_code(pHddCtx->hHal, dfs_info.country_code, &cc_len);
+	sap_config = &pHostapdAdapter->sessionCtx.ap.sapConfig;
 
 	switch (sapEvent) {
 	case eSAP_START_BSS_EVENT:
@@ -1719,12 +1720,15 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 		pHostapdAdapter->sessionId =
 			pSapEvent->sapevt.sapStartBssCompleteEvent.sessionId;
 
-		pHostapdAdapter->sessionCtx.ap.sapConfig.channel =
+		sap_config->channel =
 			pSapEvent->sapevt.sapStartBssCompleteEvent.
 			operatingChannel;
 
-		pHostapdAdapter->sessionCtx.ap.sapConfig.ch_params.ch_width =
+		sap_config->ch_params.ch_width =
 			pSapEvent->sapevt.sapStartBssCompleteEvent.ch_width;
+
+		cds_set_channel_params(sap_config->channel, 0,
+				       &sap_config->ch_params);
 
 		pHostapdState->qdf_status =
 			pSapEvent->sapevt.sapStartBssCompleteEvent.status;
@@ -5349,7 +5353,6 @@ __iw_softap_stopbss(struct net_device *dev,
 			WLAN_HDD_GET_HOSTAP_STATE_PTR(pHostapdAdapter);
 
 		qdf_event_reset(&pHostapdState->qdf_stop_bss_event);
-		hdd_ipa_ap_disconnect(pHostapdAdapter);
 		status = wlansap_stop_bss(
 			WLAN_HDD_GET_SAP_CTX_PTR(pHostapdAdapter));
 		if (QDF_IS_STATUS_SUCCESS(status)) {
@@ -8808,7 +8811,6 @@ static int __wlan_hdd_cfg80211_stop_ap(struct wiphy *wiphy,
 			WLAN_HDD_GET_SAP_CTX_PTR(pAdapter), true);
 
 		qdf_event_reset(&pHostapdState->qdf_stop_bss_event);
-		hdd_ipa_ap_disconnect(pAdapter);
 		status = wlansap_stop_bss(WLAN_HDD_GET_SAP_CTX_PTR(pAdapter));
 		if (QDF_IS_STATUS_SUCCESS(status)) {
 			qdf_status =
@@ -9089,6 +9091,11 @@ static int __wlan_hdd_cfg80211_start_ap(struct wiphy *wiphy,
 	if (channel && (cds_get_channel_state(channel) == CHANNEL_STATE_DFS) &&
 			sta_sap_scc_on_dfs_chan && !sta_cnt) {
 		hdd_err("SAP not allowed on DFS channel!!");
+		return -EINVAL;
+	}
+	if (cds_is_etsi13_regdmn_srd_chan(cds_chan_to_freq(channel) &&
+	    !(pHddCtx->config->etsi_srd_chan_in_master_mode))) {
+		hdd_err("SAP SRD master mode not supported. Cannot start SAP");
 		return -EINVAL;
 	}
 
@@ -9510,18 +9517,4 @@ void hdd_sap_destroy_events(hdd_adapter_t *adapter)
 		return;
 	}
 	EXIT();
-}
-void hdd_ipa_ap_disconnect(hdd_adapter_t *pAdapter)
-{
-	hdd_context_t *hdd_ctx;
-	hdd_ctx = WLAN_HDD_GET_CTX(pAdapter);
-
-	if (hdd_ipa_is_enabled(hdd_ctx)) {
-		if (hdd_ipa_wlan_evt(pAdapter,
-			WLAN_HDD_GET_AP_CTX_PTR(pAdapter)->uBCStaId,
-			HDD_IPA_AP_DISCONNECT,
-			pAdapter->dev->dev_addr)) {
-		hdd_err("WLAN_AP_DISCONNECT event failed");
-		}
-	}
 }

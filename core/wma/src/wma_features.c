@@ -10839,6 +10839,26 @@ QDF_STATUS wma_set_sar_limit(WMA_HANDLE handle,
 	return ret;
 }
 
+QDF_STATUS wma_send_coex_config_cmd(WMA_HANDLE wma_handle,
+				    struct coex_config_params *coex_cfg_params)
+{
+	tp_wma_handle wma = (tp_wma_handle)wma_handle;
+
+	if (!wma || !wma->wmi_handle) {
+		WMA_LOGE("%s: WMA is closed, can not issue coex config command",
+			 __func__);
+		return QDF_STATUS_E_INVAL;
+	}
+
+	if (!coex_cfg_params) {
+		WMA_LOGE("%s: coex cfg params ptr NULL", __func__);
+		return QDF_STATUS_E_INVAL;
+	}
+
+	return wmi_unified_send_coex_config_cmd(wma->wmi_handle,
+					       coex_cfg_params);
+}
+
 #ifdef WLAN_FEATURE_DISA
 /**
  * wma_encrypt_decrypt_msg() -
@@ -11388,21 +11408,25 @@ int wma_pdev_div_info_evt_handler(void *handle, u_int8_t *event_buf,
 		return -EINVAL;
 	}
 
+	if (event->num_chains_valid > CHAIN_MAX_NUM) {
+		WMA_LOGE(FL("Invalid num of chains"));
+		return -EINVAL;
+	}
+
 	WMI_MAC_ADDR_TO_CHAR_ARRAY(&event->macaddr, macaddr);
 	WMA_LOGD(FL("macaddr: " MAC_ADDRESS_STR), MAC_ADDR_ARRAY(macaddr));
 
 	WMA_LOGD(FL("num_chains_valid: %d"), event->num_chains_valid);
 	chain_rssi_result.num_chains_valid = event->num_chains_valid;
 
-	for (i = 0; i < CHAIN_MAX_NUM; i++)
-		WMA_LOGD(FL("chain_rssi: %d"), event->chain_rssi[i]);
 	qdf_mem_copy(chain_rssi_result.chain_rssi, event->chain_rssi,
 						sizeof(event->chain_rssi));
-	for (i = 0; i < event->num_chains_valid; i++)
+	for (i = 0; i < event->num_chains_valid; i++) {
+		WMA_LOGD(FL("chain_rssi: %d, ant_id: %d"),
+			 event->chain_rssi[i], event->ant_id[i]);
 		chain_rssi_result.chain_rssi[i] += WMA_TGT_NOISE_FLOOR_DBM;
+	}
 
-	for (i = 0; i < CHAIN_MAX_NUM; i++)
-		WMA_LOGD(FL("ant_id: %d"), event->ant_id[i]);
 	qdf_mem_copy(chain_rssi_result.ant_id, event->ant_id,
 						sizeof(event->ant_id));
 

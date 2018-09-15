@@ -1476,6 +1476,11 @@ bool pld_is_fw_dump_skipped(struct device *dev)
 	return ret;
 }
 
+int pld_is_fw_rejuvenate(void)
+{
+	return pld_snoc_is_fw_rejuvenate();
+}
+
 #ifdef CONFIG_CNSS_UTILS
 /**
  * pld_set_cc_source() - Set the country code source

@@ -255,6 +255,7 @@ typedef enum {
     WMI_GRP_TWT,            /* 0x3e TWT (Target Wake Time) for STA and AP */
     WMI_GRP_MOTION_DET,     /* 0x3f */
     WMI_GRP_SPATIAL_REUSE,  /* 0x40 */
+    WMI_GRP_ESP,            /* 0x41 Estimate Service Parameters (802.11mc) */
 } WMI_GRP_ID;
 
 #define WMI_CMD_GRP_START_ID(grp_id) (((grp_id) << 12) | 0x1)
@@ -1714,6 +1715,9 @@ typedef enum {
     /** WMI events related to motion detection */
     WMI_MOTION_DET_HOST_EVENTID = WMI_EVT_GRP_START_ID(WMI_GRP_MOTION_DET),
     WMI_MOTION_DET_BASE_LINE_HOST_EVENTID,
+
+    /** WMI events related to Estimation of Service Parameters (802.11mc) */
+    WMI_ESP_ESTIMATE_EVENTID = WMI_EVT_GRP_START_ID(WMI_GRP_ESP),
 } WMI_EVT_ID;
 
 /* defines for OEM message sub-types */
@@ -2779,6 +2783,20 @@ typedef struct {
     #define WMI_RSRC_CFG_FLAG_EAPOL_REKEY_MINRATE_SUPPORT_ENABLE_S 14
     #define WMI_RSRC_CFG_FLAG_EAPOL_REKEY_MINRATE_SUPPORT_ENABLE_M 0x4000
 
+    #define WMI_RSRC_CFG_FLAG_EAPOL_AC_OVERRIDE_VALID_S 15
+    #define WMI_RSRC_CFG_FLAG_EAPOL_AC_OVERRIDE_VALID_M 0x8000
+
+    /*
+     * If the AC override valid bit is set then this field will specify the
+     * access category to use for EAPOL frames
+     * 0 - WMM_AC_BE
+     * 1 - WMM_AC_BK
+     * 2 - WMM_AC_VI
+     * 3 - WMM_AC_VO
+     */
+    #define WMI_RSRC_CFG_FLAG_EAPOL_AC_OVERRIDE_S 16
+    #define WMI_RSRC_CFG_FLAG_EAPOL_AC_OVERRIDE_M 0x30000
+
     A_UINT32 flag1;
 
     /** @brief smart_ant_cap - Smart Antenna capabilities information
@@ -2986,6 +3004,16 @@ typedef struct {
     WMI_RSRC_CFG_FLAG_SET((word32), EAPOL_REKEY_MINRATE_SUPPORT_ENABLE, (value))
 #define WMI_RSRC_CFG_FLAG_EAPOL_REKEY_MINRATE_SUPPORT_ENABLE_GET(word32) \
     WMI_RSRC_CFG_FLAG_GET((word32), EAPOL_REKEY_MINRATE_SUPPORT_ENABLE)
+
+#define WMI_RSRC_CFG_FLAG_EAPOL_AC_OVERRIDE_VALID_SET(word32, value) \
+    WMI_RSRC_CFG_FLAG_SET((word32), EAPOL_AC_OVERRIDE_VALID, (value))
+#define WMI_RSRC_CFG_FLAG_EAPOL_AC_OVERRIDE_VALID_GET(word32) \
+    WMI_RSRC_CFG_FLAG_GET((word32), EAPOL_AC_OVERRIDE_VALID)
+
+#define WMI_RSRC_CFG_FLAG_EAPOL_AC_OVERRIDE_SET(word32, value) \
+    WMI_RSRC_CFG_FLAG_SET((word32), EAPOL_AC_OVERRIDE, (value))
+#define WMI_RSRC_CFG_FLAG_EAPOL_AC_OVERRIDE_GET(word32) \
+    WMI_RSRC_CFG_FLAG_GET((word32), EAPOL_AC_OVERRIDE)
 
 typedef struct {
     A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_init_cmd_fixed_param */
@@ -5115,7 +5143,14 @@ typedef enum {
      */
     WMI_PDEV_PARAM_MWSCOEX_SET_5GNR_PWR_LIMIT,        /* 0xA5 */
     /** Set max msdus available for cong ctrl in target */
-    WMI_PDEV_PARAM_SET_CONG_CTRL_MAX_MSDUS,          /* 0xA6 */
+    WMI_PDEV_PARAM_SET_CONG_CTRL_MAX_MSDUS,           /* 0xA6 */
+    /*
+     * Configures the Estimated Throughput Calculation indication (802.11mc) settings.
+     * The accompanying A_UINT32 parameter, in units of seconds, specifies how often FW needs to send the ESP estimation indication to the host.
+     * Value 0: Disable this feature
+     * Non zero Value: Periodicity (seconds)
+     */
+    WMI_PDEV_PARAM_ESP_INDICATION_PERIOD,             /* 0xA7 */
 } WMI_PDEV_PARAM;
 
 typedef struct {
@@ -5192,6 +5227,35 @@ typedef struct {
  * ARRAY_BYTE TLV of ctltable_data
  */
 } wmi_pdev_update_ctltable_request_fixed_param;
+
+#define WMI_ESP_ESTIMATE_GET_BE(airtime)         WMI_GET_BITS(airtime, 0, 8)
+#define WMI_ESP_ESTIMATE_SET_BE(airtime, value)  WMI_SET_BITS(airtime, 0, 8, value)
+
+#define WMI_ESP_ESTIMATE_GET_BK(airtime)         WMI_GET_BITS(airtime, 8, 8)
+#define WMI_ESP_ESTIMATE_SET_BK(airtime, value)  WMI_SET_BITS(airtime, 8, 8, value)
+
+#define WMI_ESP_ESTIMATE_GET_VI(airtime)         WMI_GET_BITS(airtime, 16, 8)
+#define WMI_ESP_ESTIMATE_SET_VI(airtime, value)  WMI_SET_BITS(airtime, 16, 8, value)
+
+#define WMI_ESP_ESTIMATE_GET_VO(airtime)         WMI_GET_BITS(airtime, 24, 8)
+#define WMI_ESP_ESTIMATE_SET_VO(airtime, value)  WMI_SET_BITS(airtime, 24, 8, value)
+
+typedef struct {
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_esp_estimate_event_fixed_param */
+    /** pdev_id for identifying the MAC
+     * See macros starting with WMI_PDEV_ID_ for values.
+     * In non-DBDC case host should set it to 0
+     */
+    A_UINT32 pdev_id;
+    /*
+     * Percentage of air time available for each AC
+     * BIT[0-7]   : AC_BE
+     * BIT[8-15]  : AC_BK
+     * BIT[16-23] : AC_VI
+     * BIT[24-31] : AC_VO
+     */
+    A_UINT32 ac_airtime_percentage;
+} wmi_esp_estimate_event_fixed_param;
 
 #define WMI_FAST_DIVERSITY_BIT_OFFSET 0
 #define WMI_SLOW_DIVERSITY_BIT_OFFSET 1
@@ -9040,6 +9104,8 @@ typedef struct {
     A_UINT32 csa_event_bitmap;
     /** offset (in octets/bytes) of MBSSID IE in beacon frame */
     A_UINT32 mbssid_ie_offset;
+    /** offset (in octets/bytes) of ESP IE in beacon frame */
+    A_UINT32 esp_ie_offset;
 
 /*
  * The TLVs follows:
@@ -15869,6 +15935,12 @@ typedef struct {
 *     A_UINT8 data[]; <-- length in byte given by field data_len.
 */
 } wmi_nan_cmd_param;
+
+typedef struct {
+    A_UINT32 tlv_header; /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_nan_host_config_param */
+    A_UINT32 nan_2g_disc_disable:1; /** This bit when set to 1 indicate NAN 2G discovery should be disabled */
+    A_UINT32 nan_5g_disc_disable:1; /** This bit when set to 1 indicate NAN 5G discovery should be disabled */
+} wmi_nan_host_config_param;
 
 typedef struct {
     A_UINT32 tlv_header; /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_nan_event_hdr */
@@ -22926,6 +22998,28 @@ typedef struct {
      */
     A_INT32 noise_floor[WMI_MAX_CHAINS];
 } wmi_dma_buf_release_spectral_meta_data;
+
+typedef enum {
+    NO_SCALING = 0, /* No bin scaling*/
+    /**
+     * scaled_bin_mag = bin_mag * 
+     *                  sqrt(10^(max(legacy_max_gain - default_agc_max_gain + low_level_offset - RSSI_corr, 
+     *                  (agc_total_gain_db < default_agc_max_gain) * high_level_offset)/10)) *
+     *                  2^(DET{0,1,2}_SPECTRAL_SCAN_BIN_SCALE - legacy_spectral_scan_bin_scale)
+     */
+    AGC_GAIN_RSSI_CORR_BASED = 1,
+} WMI_SPECTRAL_SCALING_FORMULA_ID;
+
+typedef struct
+{
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_spectral_bin_scaling_params */
+    A_UINT32 pdev_id;   /* ID of pdev to which the scaling parameters are to be applied */
+    WMI_SPECTRAL_SCALING_FORMULA_ID formula_id; /* Represets the formula to be used */
+    A_UINT32 low_level_offset; /* low level offset for fine tuning the scaling factor based on RSSI and AGC gain */
+    A_UINT32 high_level_offset; /* high level offset for fine tuning the scaling factor based on RSSI and AGC gain */
+    A_UINT32 rssi_thr; /* RSSI threshold to be used to adjust the inband power of the given spectral report */
+    A_UINT32 default_agc_max_gain;/* DEFAULT AGC MAX GAIN used. Fetched from register RXTD_RADAR_SBS_CTRL_1_L bits20:13 */
+} wmi_spectral_bin_scaling_params;
 
 typedef struct {
     A_UINT32 tlv_header;  /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_runtime_dpd_recal_cmd_fixed_param  */

@@ -6036,6 +6036,13 @@ static void wma_populate_soc_caps(t_wma_handle *wma_handle,
 		wma_cleanup_dbs_phy_caps(wma_handle);
 		return;
 	}
+
+	if (num_of_mac_caps > param_buf->num_mac_phy_caps) {
+		WMA_LOGE("%s: Invalid num_of_mac_caps %d received from fw",
+			__func__, num_of_mac_caps);
+		wma_cleanup_dbs_phy_caps(wma_handle);
+		return;
+	}
 	qdf_mem_copy(phy_caps->each_phy_cap_per_hwmode,
 			param_buf->mac_phy_caps,
 			num_of_mac_caps * sizeof(WMI_MAC_PHY_CAPABILITIES));

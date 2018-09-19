@@ -5952,6 +5952,9 @@ static void hdd_ipa_send_pkt_to_tl(
 	hdd_adapter_t *adapter = NULL;
 	qdf_nbuf_t skb;
 	struct hdd_ipa_tx_desc *tx_desc;
+	qdf_device_t osdev;
+	qdf_dma_addr_t paddr;
+	QDF_STATUS status;
 
 	qdf_spin_lock_bh(&iface_context->interface_lock);
 	adapter = iface_context->adapter;
@@ -5979,6 +5982,15 @@ static void hdd_ipa_send_pkt_to_tl(
 		}
 	}
 
+	osdev = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
+	if (!osdev) {
+		ipa_free_skb(ipa_tx_desc);
+		iface_context->stats.num_tx_drop++;
+		qdf_spin_unlock_bh(&iface_context->interface_lock);
+		hdd_ipa_wdi_rm_try_release(hdd_ipa);
+		return;
+	}
+
 	++adapter->stats.tx_packets;
 
 	qdf_spin_unlock_bh(&iface_context->interface_lock);
@@ -5989,15 +6001,34 @@ static void hdd_ipa_send_pkt_to_tl(
 
 	/* Store IPA Tx buffer ownership into SKB CB */
 	qdf_nbuf_ipa_owned_set(skb);
+
+	if (hdd_ipa_wdi_is_smmu_enabled(hdd_ipa, osdev)) {
+		status = qdf_nbuf_map(osdev, skb, QDF_DMA_TO_DEVICE);
+		if (QDF_IS_STATUS_SUCCESS(status)) {
+			paddr = qdf_nbuf_get_frag_paddr(skb, 0);
+		} else {
+			ipa_free_skb(ipa_tx_desc);
+			qdf_spin_lock_bh(&iface_context->interface_lock);
+			iface_context->stats.num_tx_drop++;
+			qdf_spin_unlock_bh(&iface_context->interface_lock);
+			hdd_ipa_wdi_rm_try_release(hdd_ipa);
+			return;
+		}
+	} else {
+		paddr = ipa_tx_desc->dma_addr;
+	}
+
 	if (hdd_ipa_uc_sta_is_enabled(hdd_ipa->hdd_ctx)) {
 		qdf_nbuf_mapped_paddr_set(skb,
-					  ipa_tx_desc->dma_addr
-					  + HDD_IPA_WLAN_FRAG_HEADER
-					  + HDD_IPA_WLAN_IPA_HEADER);
+					  paddr +
+					  HDD_IPA_WLAN_FRAG_HEADER +
+					  HDD_IPA_WLAN_IPA_HEADER);
+
 		ipa_tx_desc->skb->len -=
 			HDD_IPA_WLAN_FRAG_HEADER + HDD_IPA_WLAN_IPA_HEADER;
-	} else
-		qdf_nbuf_mapped_paddr_set(skb, ipa_tx_desc->dma_addr);
+	} else {
+		qdf_nbuf_mapped_paddr_set(skb, paddr);
+	}
 
 	qdf_spin_lock_bh(&hdd_ipa->q_lock);
 	/* get free Tx desc and assign ipa_tx_desc pointer */

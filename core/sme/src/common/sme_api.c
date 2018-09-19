@@ -19293,6 +19293,7 @@ sme_get_roam_scan_stats(tHalHandle hal, roam_scan_stats_cb cb, void *context,
 	return status;
 }
 
+#ifdef WLAN_FEATURE_ROAM_OFFLOAD
 QDF_STATUS sme_fast_reassoc(tHalHandle hal, tCsrRoamProfile *profile,
 			    const tSirMacAddr bssid, int channel,
 			    uint8_t vdev_id, const tSirMacAddr connected_bssid)
@@ -19373,6 +19374,7 @@ QDF_STATUS sme_fast_reassoc(tHalHandle hal, tCsrRoamProfile *profile,
 
 	return status;
 }
+#endif
 
 void sme_enable_roaming_on_connected_sta(tHalHandle hal)
 {

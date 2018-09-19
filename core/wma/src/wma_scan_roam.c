@@ -1161,6 +1161,7 @@ QDF_STATUS wma_roam_scan_offload_rssi_thresh(tp_wma_handle wma_handle,
 	return status;
 }
 
+#ifdef WLAN_FEATURE_ROAM_OFFLOAD
 static const char *wma_roam_reason_to_string(uint32_t roam_reason)
 {
 	switch (roam_reason) {
@@ -1182,6 +1183,7 @@ static const char *wma_roam_reason_to_string(uint32_t roam_reason)
 		return "unknown";
 	}
 }
+#endif
 
 static const char *wma_roam_event_to_string(uint32_t roam_reason)
 {

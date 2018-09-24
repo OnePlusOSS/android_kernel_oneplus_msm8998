@@ -13493,10 +13493,7 @@ void hdd_drv_ops_inactivity_handler(unsigned long arg)
 		return;
 	}
 
-	if (cds_is_self_recovery_enabled())
-		cds_trigger_recovery(false);
-	else
-		QDF_BUG(0);
+	cds_trigger_recovery(false);
 }
 
 bool hdd_is_cli_iface_up(hdd_context_t *hdd_ctx)

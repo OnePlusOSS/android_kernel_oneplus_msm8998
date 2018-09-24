@@ -1444,8 +1444,8 @@ struct hdd_adapter_s {
 
 	struct completion roaming_comp_var;
 
-	/** Completion of change country code */
-	struct completion change_country_code;
+	/** Event of change country code */
+	qdf_event_t change_country_code;
 
 	/* completion variable for Linkup Event */
 	struct completion linkup_event_var;

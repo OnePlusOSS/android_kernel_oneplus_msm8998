@@ -9309,10 +9309,12 @@ __wlan_hdd_cfg80211_avoid_freq(struct wiphy *wiphy,
 	int ret;
 	qdf_device_t qdf_ctx = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
 	uint16_t *local_unsafe_list;
+	uint16_t unsafe_channel_count;
 	uint16_t unsafe_channel_index, local_unsafe_list_count;
 	tHddAvoidFreqList *channel_list;
 	enum tQDF_GLOBAL_CON_MODE curr_mode;
 	uint8_t num_args = 0;
+	bool user_set_avoid_channel = true;
 
 	ENTER_DEV(wdev->netdev);
 
@@ -9330,6 +9332,11 @@ __wlan_hdd_cfg80211_avoid_freq(struct wiphy *wiphy,
 	ret = wlan_hdd_validate_context(hdd_ctx);
 	if (0 != ret)
 		return ret;
+	if (!data && data_len == 0) {
+		hdd_debug("Userspace doesn't set avoid frequency channel list");
+		user_set_avoid_channel = false;
+		goto process_unsafe_channel;
+	}
 	if (!data || data_len < (sizeof(channel_list->avoidFreqRangeCount) +
 				 sizeof(tHddAvoidFreqRange))) {
 		hdd_err("Avoid frequency channel list empty");
@@ -9354,6 +9361,7 @@ __wlan_hdd_cfg80211_avoid_freq(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
+process_unsafe_channel:
 	ret = hdd_clone_local_unsafe_chan(hdd_ctx,
 					  &local_unsafe_list,
 					  &local_unsafe_list_count);
@@ -9363,16 +9371,24 @@ __wlan_hdd_cfg80211_avoid_freq(struct wiphy *wiphy,
 	pld_get_wlan_unsafe_channel(qdf_ctx->dev, hdd_ctx->unsafe_channel_list,
 			&(hdd_ctx->unsafe_channel_count),
 			sizeof(hdd_ctx->unsafe_channel_list));
-
-	hdd_ctx->unsafe_channel_count = hdd_validate_avoid_freq_chanlist(
+	if (user_set_avoid_channel) {
+		hdd_ctx->unsafe_channel_count =
+					hdd_validate_avoid_freq_chanlist(
 								hdd_ctx,
 								channel_list);
+		unsafe_channel_count = hdd_ctx->unsafe_channel_count;
 
-	pld_set_wlan_unsafe_channel(qdf_ctx->dev, hdd_ctx->unsafe_channel_list,
-				    hdd_ctx->unsafe_channel_count);
+		pld_set_wlan_unsafe_channel(qdf_ctx->dev,
+					    hdd_ctx->unsafe_channel_list,
+					    hdd_ctx->unsafe_channel_count);
+	} else {
+		unsafe_channel_count = QDF_MIN(
+					(uint16_t)hdd_ctx->unsafe_channel_count,
+					(uint16_t)NUM_CHANNELS);
+	}
 
 	for (unsafe_channel_index = 0;
-	     unsafe_channel_index < hdd_ctx->unsafe_channel_count;
+	     unsafe_channel_index < unsafe_channel_count;
 	     unsafe_channel_index++) {
 		hdd_debug("Channel %d is not safe",
 			  hdd_ctx->unsafe_channel_list[unsafe_channel_index]);
@@ -14643,17 +14659,6 @@ static int wlan_hdd_cfg80211_change_bss(struct wiphy *wiphy,
 	cds_ssr_unprotect(__func__);
 
 	return ret;
-}
-
-/* FUNCTION: wlan_hdd_change_country_code_cd
- *  to wait for contry code completion
- */
-void *wlan_hdd_change_country_code_cb(void *pAdapter)
-{
-	hdd_adapter_t *call_back_pAdapter = pAdapter;
-
-	complete(&call_back_pAdapter->change_country_code);
-	return NULL;
 }
 
 /**

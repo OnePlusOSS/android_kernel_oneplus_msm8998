@@ -2867,6 +2867,10 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 			pParam->nSelect5GHzMargin;
 		pMac->roam.configParam.ho_delay_for_rx =
 			pParam->ho_delay_for_rx;
+		pMac->roam.configParam.roam_preauth_retry_count =
+			pParam->roam_preauth_retry_count;
+		pMac->roam.configParam.roam_preauth_no_ack_timeout =
+			pParam->roam_preauth_no_ack_timeout;
 		pMac->roam.configParam.min_delay_btw_roam_scans =
 			pParam->min_delay_btw_roam_scans;
 		pMac->roam.configParam.roam_trigger_reason_bitmask =
@@ -3236,6 +3240,9 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 	pParam->max_amsdu_num = cfg_params->max_amsdu_num;
 	pParam->nSelect5GHzMargin = cfg_params->nSelect5GHzMargin;
 	pParam->ho_delay_for_rx = cfg_params->ho_delay_for_rx;
+	pParam->roam_preauth_no_ack_timeout =
+		cfg_params->roam_preauth_no_ack_timeout;
+	pParam->roam_preauth_retry_count = cfg_params->roam_preauth_retry_count;
 	pParam->min_delay_btw_roam_scans = cfg_params->min_delay_btw_roam_scans;
 	pParam->roam_trigger_reason_bitmask =
 			cfg_params->roam_trigger_reason_bitmask;
@@ -13641,15 +13648,15 @@ bool csr_roam_is_channel_valid(tpAniSirGlobal pMac, uint8_t channel)
 
 /* This function check and validate whether the NIC can do CB (40MHz) */
 static ePhyChanBondState csr_get_cb_mode_from_ies(tpAniSirGlobal pMac,
-						  uint8_t primaryChn,
+						  uint8_t chan,
 						  tDot11fBeaconIEs *pIes)
 {
 	ePhyChanBondState eRet = PHY_SINGLE_CHANNEL_CENTERED;
-	uint8_t centerChn;
+	uint8_t sec_ch = 0;
 	uint32_t ChannelBondingMode;
 	struct ch_params_s ch_params = {0};
 
-	if (CDS_IS_CHANNEL_24GHZ(primaryChn)) {
+	if (CDS_IS_CHANNEL_24GHZ(chan)) {
 		ChannelBondingMode =
 			pMac->roam.configParam.channelBondingMode24GHz;
 	} else {
@@ -13689,7 +13696,7 @@ static ePhyChanBondState csr_get_cb_mode_from_ies(tpAniSirGlobal pMac,
 	 * value of supported channel width and recommended tx width as per
 	 * standard
 	 */
-	sme_debug("scws %u rtws %u sco %u",
+	sme_debug("chan %d scws %u rtws %u sco %u", chan,
 		pIes->HTCaps.supportedChannelWidthSet,
 		pIes->HTInfo.recommendedTxWidthSet,
 		pIes->HTInfo.secondaryChannelOffset);
@@ -13701,26 +13708,28 @@ static ePhyChanBondState csr_get_cb_mode_from_ies(tpAniSirGlobal pMac,
 
 	switch (eRet) {
 	case PHY_DOUBLE_CHANNEL_LOW_PRIMARY:
-		centerChn = primaryChn + CSR_CB_CENTER_CHANNEL_OFFSET;
+		sec_ch = chan + CSR_SEC_CHANNEL_OFFSET;
 		break;
 	case PHY_DOUBLE_CHANNEL_HIGH_PRIMARY:
-		centerChn = primaryChn - CSR_CB_CENTER_CHANNEL_OFFSET;
+		sec_ch = chan - CSR_SEC_CHANNEL_OFFSET;
 		break;
-	case PHY_SINGLE_CHANNEL_CENTERED:
 	default:
-		centerChn = primaryChn;
 		break;
 	}
 
-	if (PHY_SINGLE_CHANNEL_CENTERED != eRet) {
-		ch_params.ch_width = CH_WIDTH_MAX;
-		cds_set_channel_params(primaryChn, 0, &ch_params);
-		if (ch_params.ch_width == CH_WIDTH_20MHZ) {
-			sme_err("40Mhz not supported for channel %d, continue with 20Mhz",
-				primaryChn);
+	if (eRet != PHY_SINGLE_CHANNEL_CENTERED) {
+		ch_params.ch_width = CH_WIDTH_40MHZ;
+		cds_set_channel_params(chan, sec_ch, &ch_params);
+		if (ch_params.ch_width == CH_WIDTH_20MHZ ||
+		    ch_params.sec_ch_offset != eRet) {
+			sme_err("chan %d :: Supported HT BW %d and cbmode %d, APs HT BW %d and cbmode %d, so switch to 20Mhz",
+				chan, ch_params.ch_width,
+				ch_params.sec_ch_offset,
+				pIes->HTInfo.recommendedTxWidthSet, eRet);
 			eRet = PHY_SINGLE_CHANNEL_CENTERED;
 		}
 	}
+
 	return eRet;
 }
 
@@ -19111,6 +19120,10 @@ csr_update_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 	req_buf->RoamRssiCatGap = mac_ctx->roam.configParam.bCatRssiOffset;
 	req_buf->Select5GHzMargin = mac_ctx->roam.configParam.nSelect5GHzMargin;
 	req_buf->ho_delay_for_rx = mac_ctx->roam.configParam.ho_delay_for_rx;
+	req_buf->roam_preauth_retry_count =
+		mac_ctx->roam.configParam.roam_preauth_retry_count;
+	req_buf->roam_preauth_no_ack_timeout =
+		mac_ctx->roam.configParam.roam_preauth_no_ack_timeout;
 	req_buf->min_delay_btw_roam_scans =
 			mac_ctx->roam.configParam.min_delay_btw_roam_scans;
 	req_buf->roam_trigger_reason_bitmask =

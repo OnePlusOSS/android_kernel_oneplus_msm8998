@@ -1924,6 +1924,7 @@ static void wma_shutdown_notifier_cb(void *priv)
 	QDF_STATUS status;
 
 	qdf_event_set(&wma_handle->wma_resume_event);
+	wmi_stop(wma_handle->wmi_handle);
 
 	sys_build_message_header(SYS_MSG_ID_CLEAN_VDEV_RSP_QUEUE, &msg);
 	msg.bodyptr = priv;
@@ -2475,7 +2476,6 @@ QDF_STATUS wma_open(void *cds_context,
 	}
 
 	WMA_LOGD("WMA --> wmi_unified_attach - success");
-	wmi_register_tgt_ready_cb(wmi_handle, cds_is_target_ready);
 	wmi_unified_register_event_handler(wmi_handle,
 					   WMI_SERVICE_AVAILABLE_EVENTID,
 					   wma_rx_service_available_event,

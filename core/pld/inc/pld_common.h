@@ -562,6 +562,18 @@ int pld_is_qmi_disable(struct device *dev);
 int pld_is_fw_down(void);
 int pld_force_assert_target(struct device *dev);
 bool pld_is_fw_dump_skipped(struct device *dev);
+
+/**
+ * pld_is_fw_rejuvenate() - Check WLAN fw is rejuvenating
+ *
+ * Help the driver decide whether FW down is due to
+ * SSR or FW rejuvenate.
+ *
+ * Return: 1 FW is rejuvenating
+ *         0 FW is not rejuvenating
+ */
+int pld_is_fw_rejuvenate(void);
+
 void pld_set_cc_source(struct device *dev, enum pld_cc_src cc_source);
 enum pld_cc_src pld_get_cc_source(struct device *dev);
 

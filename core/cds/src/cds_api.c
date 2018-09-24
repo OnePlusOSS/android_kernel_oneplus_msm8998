@@ -755,10 +755,11 @@ pktlog_disable:
  */
 QDF_STATUS cds_enable(v_CONTEXT_t cds_context)
 {
-	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
+	QDF_STATUS qdf_status;
 	tSirRetStatus sirStatus = eSIR_SUCCESS;
 	p_cds_contextType p_cds_context = (p_cds_contextType) cds_context;
 	tHalMacStartParameters halStartParams;
+	int errno;
 
 	/* We support only one instance for now ... */
 	if (gp_cds_context != p_cds_context) {
@@ -767,66 +768,46 @@ QDF_STATUS cds_enable(v_CONTEXT_t cds_context)
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	if ((p_cds_context->pWMAContext == NULL) ||
-	    (p_cds_context->pMACContext == NULL)) {
-		if (p_cds_context->pWMAContext == NULL)
-			QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
-				  "%s: WMA NULL context", __func__);
-		else
-			QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
-				  "%s: MAC NULL context", __func__);
+	if (!p_cds_context->pWMAContext) {
+		cds_err("WMA NULL context");
+		return QDF_STATUS_E_FAILURE;
+	}
 
+	if (!p_cds_context->pMACContext) {
+		cds_err("MAC NULL context");
 		return QDF_STATUS_E_FAILURE;
 	}
 
 	/* Start the wma */
 	qdf_status = wma_start(p_cds_context);
 	if (qdf_status != QDF_STATUS_SUCCESS) {
-		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
-			  "%s: Failed to start wma", __func__);
+		cds_err("Failed to start wma; status:%d", qdf_status);
 		return QDF_STATUS_E_FAILURE;
 	}
-	QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_INFO,
-		  "%s: wma correctly started", __func__);
 
 	/* Start the MAC */
-	qdf_mem_zero(&halStartParams,
-		     sizeof(tHalMacStartParameters));
+	qdf_mem_zero(&halStartParams, sizeof(tHalMacStartParameters));
 
 	/* Start the MAC */
-	sirStatus =
-		mac_start(p_cds_context->pMACContext, &halStartParams);
+	sirStatus = mac_start(p_cds_context->pMACContext, &halStartParams);
 
 	if (eSIR_SUCCESS != sirStatus) {
-		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_FATAL,
-			  "%s: Failed to start MAC", __func__);
+		cds_err("Failed to start MAC; status:%d", sirStatus);
 		goto err_wma_stop;
 	}
 
-	QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_INFO,
-		  "%s: MAC correctly started", __func__);
-
 	/* START SME */
 	qdf_status = sme_start(p_cds_context->pMACContext);
-
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_FATAL,
-			  "%s: Failed to start SME", __func__);
+		cds_err("Failed to start SME; status:%d", qdf_status);
 		goto err_mac_stop;
 	}
 
-	QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_INFO,
-		  "%s: SME correctly started", __func__);
-
-	if (ol_txrx_pdev_attach_target
-		       (p_cds_context->pdev_txrx_ctx)) {
-	   QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_FATAL,
-				"%s: Failed attach target", __func__);
-	   goto err_sme_stop;
+	errno = ol_txrx_pdev_attach_target(p_cds_context->pdev_txrx_ctx);
+	if (errno) {
+		cds_err("Failed to attach pdev target; errno:%d", errno);
+		goto err_sme_stop;
 	}
-
-	QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_INFO,
-		  "%s: CDS Start is successful!!", __func__);
 
 	return QDF_STATUS_SUCCESS;
 

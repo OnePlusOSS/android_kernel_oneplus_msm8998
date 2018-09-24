@@ -3129,7 +3129,6 @@ static int drv_cmd_country(hdd_adapter_t *adapter,
 {
 	int ret = 0;
 	QDF_STATUS status;
-	unsigned long rc;
 	char *country_code;
 	int32_t cc_from_db;
 
@@ -3163,7 +3162,7 @@ static int drv_cmd_country(hdd_adapter_t *adapter,
 		}
 	}
 
-	INIT_COMPLETION(adapter->change_country_code);
+	qdf_event_reset(&adapter->change_country_code);
 
 	status = sme_change_country_code(hdd_ctx->hHal,
 			wlan_hdd_change_country_code_callback,
@@ -3172,12 +3171,14 @@ static int drv_cmd_country(hdd_adapter_t *adapter,
 			hdd_ctx->pcds_context,
 			true,
 			true);
-	if (status == QDF_STATUS_SUCCESS) {
-		rc = wait_for_completion_timeout(
-			&adapter->change_country_code,
-			 msecs_to_jiffies(WLAN_WAIT_TIME_COUNTRY));
-		if (!rc)
+	if (QDF_IS_STATUS_SUCCESS(status)) {
+		status = qdf_wait_for_event_completion(
+					&adapter->change_country_code,
+					WLAN_WAIT_TIME_COUNTRY);
+		if (QDF_IS_STATUS_ERROR(status)) {
 			hdd_err("SME while setting country code timed out");
+			ret = -ETIMEDOUT;
+		}
 	} else {
 		hdd_err("SME Change Country code fail, status %d",
 			 status);

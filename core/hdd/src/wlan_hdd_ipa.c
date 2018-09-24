@@ -7642,4 +7642,33 @@ void hdd_ipa_clean_adapter_iface(hdd_adapter_t *adapter)
 	if (iface_ctx)
 		hdd_ipa_cleanup_iface(iface_ctx);
 }
+
+void hdd_ipa_fw_rejuvenate_send_msg(hdd_context_t *hdd_ctx)
+{
+	struct hdd_ipa_priv *hdd_ipa;
+	struct ipa_msg_meta meta;
+	struct ipa_wlan_msg *msg;
+	int ret;
+
+	hdd_ipa = hdd_ctx->hdd_ipa;
+	meta.msg_len = sizeof(*msg);
+	msg = qdf_mem_malloc(meta.msg_len);
+	if (!msg) {
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "msg allocation failed");
+		return;
+	}
+	meta.msg_type = WLAN_FWR_SSR_BEFORE_SHUTDOWN;
+	HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "ipa_send_msg(Evt:%d)",
+		    meta.msg_type);
+	ret = ipa_send_msg(&meta, msg, hdd_ipa_msg_free_fn);
+
+	if (ret) {
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,
+			    "ipa_send_msg(Evt:%d)-fail=%d",
+			    meta.msg_type, ret);
+		qdf_mem_free(msg);
+	}
+	hdd_ipa->stats.num_send_msg++;
+}
+
 #endif /* IPA_OFFLOAD */

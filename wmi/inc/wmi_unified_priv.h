@@ -1208,6 +1208,9 @@ QDF_STATUS (*send_sar_limit_cmd)(wmi_unified_t wmi_handle,
 
 QDF_STATUS (*get_sar_limit_cmd)(wmi_unified_t wmi_handle);
 
+QDF_STATUS (*send_coex_config_cmd)(wmi_unified_t wmi_handle,
+				   struct coex_config_params *params);
+
 QDF_STATUS (*extract_sar_limit_event)(wmi_unified_t wmi_handle,
 				      uint8_t *evt_buf,
 				      struct sar_limit_event *event);
@@ -1323,7 +1326,6 @@ struct wmi_unified {
 	uint32_t vdev_param[wmi_vdev_param_max];
 	uint32_t services[wmi_services_max];
 #endif
-	bool (*is_target_ready)(void);
 };
 #ifdef WMI_NON_TLV_SUPPORT
 /* ONLY_NON_TLV_TARGET:TLV attach dummy function defintion for case when

@@ -1454,6 +1454,16 @@ QDF_STATUS wmi_unified_send_sar_limit_cmd(void *wmi_hdl,
 QDF_STATUS wmi_unified_get_sar_limit_cmd(void *wmi_hdl);
 
 /**
+ * wmi_unified_send_coex_config_cmd() - send coex config command to firmware
+ * @wmi_hdl: wmi handle
+ * @params: coex config params
+ *
+ * Return: QDF_STATUS_SUCCESS on success or error code on failure
+ */
+QDF_STATUS wmi_unified_send_coex_config_cmd(void *wmi_hdl,
+					    struct coex_config_params *params);
+
+/**
  * wmi_unified_extract_sar_limit_event() - extract SAR limits from FW event
  * @wmi_hdl: wmi handle
  * @evt_buf: event buffer received from firmware
@@ -1613,13 +1623,4 @@ QDF_STATUS wmi_unified_offload_11k_cmd(void *wmi_hdl,
  */
 QDF_STATUS wmi_unified_invoke_neighbor_report_cmd(void *wmi_hdl,
 			struct wmi_invoke_neighbor_report_params *params);
-/**
- * wmi_register_tgt_ready_cb() - Register target ready check callback
- *  with wmi_handle
- * @wmi_handle: wmi handle
- * @cb: Callback to check target ready
- *
- * Return: None
- */
-void wmi_register_tgt_ready_cb(wmi_unified_t wmi_handle, bool (*cb)(void));
 #endif /* _WMI_UNIFIED_API_H_ */

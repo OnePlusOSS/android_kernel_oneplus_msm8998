@@ -1283,9 +1283,6 @@ QDF_STATUS wmi_unified_cmd_send(wmi_unified_t wmi_handle, wmi_buf_t buf,
 	QDF_STATUS status;
 	uint16_t htc_tag = 0;
 
-	if (wmi_handle->is_target_ready && !wmi_handle->is_target_ready())
-		return QDF_STATUS_E_FAILURE;
-
 	if (wmi_get_runtime_pm_inprogress(wmi_handle)) {
 		htc_tag =
 			(A_UINT16)wmi_handle->ops->wmi_set_htc_tx_tag(
@@ -2130,11 +2127,6 @@ wmi_stop(wmi_unified_t wmi_handle)
 		  "WMI Stop\n");
 	wmi_handle->wmi_stopinprogress = 1;
 	return 0;
-}
-
-void wmi_register_tgt_ready_cb(wmi_unified_t wmi_handle, bool (*cb)(void))
-{
-	wmi_handle->is_target_ready = cb;
 }
 
 #ifdef WMI_NON_TLV_SUPPORT

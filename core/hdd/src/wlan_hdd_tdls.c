@@ -6590,3 +6590,11 @@ revert_tdls_mode:
 				       HDD_SET_TDLS_MODE_SOURCE_POLICY_MGR);
 	}
 }
+
+void hdd_tdls_init_completion(hdd_adapter_t *adapter)
+{
+	init_completion(&adapter->tdls_add_station_comp);
+	init_completion(&adapter->tdls_del_station_comp);
+	init_completion(&adapter->tdls_mgmt_comp);
+	init_completion(&adapter->tdls_link_establish_req_comp);
+}

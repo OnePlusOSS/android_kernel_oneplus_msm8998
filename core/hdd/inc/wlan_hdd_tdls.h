@@ -951,4 +951,22 @@ static inline void hdd_wlan_block_scan_by_tdls_event(void) {}
 void process_rx_tdls_disc_resp_frame(hdd_adapter_t *adapter,
 				     uint8_t *peer_addr, int8_t rx_rssi);
 
+#ifdef FEATURE_WLAN_TDLS
+/**
+ * hdd_tdls_init_completion() - Initialize completion var
+ * @adapter: Hdd adapter
+ *
+ * This function Initialize the completion variables for a
+ * particular adapter
+ *
+ * Return: none
+ */
+void hdd_tdls_init_completion(hdd_adapter_t *adapter);
+#else
+static inline void
+hdd_tdls_init_completion(hdd_adapter_t *adapter)
+{
+}
+#endif /* End of FEATURE_WLAN_TDLS */
+
 #endif /* __HDD_TDLS_H */

@@ -13882,7 +13882,16 @@ static QDF_STATUS extract_channel_hopping_event_tlv(wmi_unified_t wmi_handle,
 static bool is_management_record_tlv(uint32_t cmd_id)
 {
 	if ((cmd_id == WMI_MGMT_TX_SEND_CMDID) ||
-			(cmd_id == WMI_MGMT_TX_COMPLETION_EVENTID))
+	    (cmd_id == WMI_MGMT_TX_COMPLETION_EVENTID) ||
+	    (cmd_id == WMI_MGMT_RX_EVENTID))
+		return true;
+
+	return false;
+}
+
+static bool is_diag_event_tlv(uint32_t event_id)
+{
+	if (WMI_DIAG_EVENTID == event_id)
 		return true;
 
 	return false;
@@ -15979,6 +15988,8 @@ void wmi_tlv_attach(wmi_unified_t wmi_handle)
 	wmi_handle->log_info.buf_offset_event = 4;
 	wmi_handle->log_info.is_management_record =
 		is_management_record_tlv;
+	wmi_handle->log_info.is_diag_event =
+		is_diag_event_tlv;
 #endif
 	populate_tlv_service(wmi_handle->services);
 	populate_tlv_events_id(wmi_handle->wmi_events);
@@ -15994,6 +16005,8 @@ void wmi_tlv_attach(wmi_unified_t wmi_handle)
 	wmi_handle->log_info.buf_offset_event = 4;
 	wmi_handle->log_info.is_management_record =
 		is_management_record_tlv;
+	wmi_handle->log_info.is_diag_event =
+		is_diag_event_tlv;
 #endif
 }
 #endif

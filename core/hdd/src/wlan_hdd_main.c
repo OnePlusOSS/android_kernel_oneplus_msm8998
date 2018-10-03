@@ -1115,8 +1115,8 @@ static void hdd_update_wiphy_vhtcap(hdd_context_t *hdd_ctx)
 	band_5g->vht_cap.cap |=
 		(val << IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_SHIFT);
 
-	hdd_info("Updated wiphy vhtcap:0x%x, CSNAntSupp:%d, NumSoundDim:%d",
-		band_5g->vht_cap.cap, hdd_ctx->config->txBFCsnValue, val);
+	hdd_debug("Updated wiphy vhtcap:0x%x, CSNAntSupp:%d, NumSoundDim:%d",
+		  band_5g->vht_cap.cap, hdd_ctx->config->txBFCsnValue, val);
 }
 
 /**
@@ -4411,7 +4411,7 @@ hdd_adapter_t *hdd_open_adapter(hdd_context_t *hdd_ctx, uint8_t session_type,
 			 * STA
 			 */
 			WLAN_HDD_RESET_LOCALLY_ADMINISTERED_BIT(macAddr);
-			hdd_info("locally administered bit reset in sta mode: "
+			hdd_debug("locally administered bit reset in sta mode: "
 				 MAC_ADDRESS_STR, MAC_ADDR_ARRAY(macAddr));
 		}
 	/* fall through */
@@ -9792,10 +9792,8 @@ static int hdd_platform_wlan_mac(hdd_context_t *hdd_ctx)
 
 	addr = hdd_get_platform_wlan_mac_buff(dev, &no_of_mac_addr);
 
-	if (no_of_mac_addr == 0 || !addr) {
-		hdd_err("Platform Driver doesn't have provisioned mac addr");
+	if (no_of_mac_addr == 0 || !addr)
 		return -EINVAL;
-	}
 
 	hdd_free_mac_address_lists(hdd_ctx);
 
@@ -9894,19 +9892,22 @@ static int hdd_initialize_mac_address(hdd_context_t *hdd_ctx)
 	bool update_mac_addr_to_fw = true;
 
 	ret = hdd_platform_wlan_mac(hdd_ctx);
-	if (hdd_ctx->config->mac_provision || !ret)
+	if (hdd_ctx->config->mac_provision || !ret) {
+		hdd_info("using MAC address from platform driver");
 		return ret;
+	}
 
 	hdd_info("MAC is not programmed in platform driver ret: %d, use wlan_mac.bin",
 		 ret);
 
 	status = hdd_update_mac_config(hdd_ctx);
 
-	if (QDF_IS_STATUS_SUCCESS(status))
+	if (QDF_IS_STATUS_SUCCESS(status)) {
+		hdd_info("using MAC address from wlan_mac.bin");
 		return 0;
+	}
 
-	hdd_info("MAC is not programmed in wlan_mac.bin ret %d, use default MAC",
-		 status);
+	hdd_info("using default MAC address");
 
 	/* Use fw provided MAC */
 	if (!qdf_is_macaddr_zero(&hdd_ctx->hw_macaddr)) {
@@ -9927,10 +9928,8 @@ static int hdd_initialize_mac_address(hdd_context_t *hdd_ctx)
 
 	if (update_mac_addr_to_fw) {
 		ret = hdd_update_mac_addr_to_fw(hdd_ctx);
-		if (ret != 0) {
+		if (ret)
 			hdd_err("MAC address out-of-sync, ret:%d", ret);
-			QDF_ASSERT(ret);
-		}
 	}
 	return 0;
 }

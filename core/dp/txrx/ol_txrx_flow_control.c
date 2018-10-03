@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -446,6 +446,11 @@ ol_tx_distribute_descs_to_deficient_pools(struct ol_tx_flow_pool_t *src_pool)
 					pdev->pause_cb(dst_pool->member_flow_id,
 						      WLAN_WAKE_ALL_NETIF_QUEUE,
 						      WLAN_DATA_FLOW_CONTROL);
+
+					pdev->pause_cb(dst_pool->member_flow_id,
+						      WLAN_NETIF_PRIORITY_QUEUE_ON,
+						      WLAN_DATA_FLOW_CONTROL_PRIORITY);
+
 					dst_pool->status =
 						FLOW_POOL_ACTIVE_UNPAUSED;
 				}

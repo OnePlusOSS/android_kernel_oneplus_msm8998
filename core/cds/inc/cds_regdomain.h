@@ -560,6 +560,8 @@ void cds_set_wma_dfs_region(uint8_t dfs_region);
 uint16_t cds_reg_dmn_get_opclass_from_channel(uint8_t *country,
 					      uint8_t channel,
 					      uint8_t offset);
+void cds_reg_dmn_get_channel_from_opclass(uint8_t *country,
+					  uint8_t op_class);
 uint16_t cds_reg_dmn_get_chanwidth_from_opclass(uint8_t *country,
 						uint8_t channel,
 						uint8_t opclass);

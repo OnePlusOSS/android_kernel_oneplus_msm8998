@@ -853,9 +853,20 @@ int hdd_reassoc(hdd_adapter_t *adapter, const uint8_t *bssid,
 
 	pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
 
-	/* if not associated, no need to proceed with reassoc */
-	if (eConnectionState_Associated != pHddStaCtx->conn_info.connState) {
+	/*
+	 * pHddStaCtx->conn_info.connState is set to disconnected only
+	 * after the disconnect done indication from SME. If the SME is
+	 * in the process of disconnecting, the SME Connection state is
+	 * set to disconnected and the pHddStaCtx->conn_info.connState
+	 * will still be associated till the disconnect is done.
+	 * So check both the HDD state and SME state here.
+	 * If not associated, no need to proceed with reassoc
+	 */
+	if ((eConnectionState_Associated != pHddStaCtx->conn_info.connState) ||
+	    (!sme_is_conn_state_connected(WLAN_HDD_GET_HAL_CTX(adapter),
+	    adapter->sessionId))) {
 		hdd_warn("Not associated");
+		hdd_debug("HDD Con state %d", pHddStaCtx->conn_info.connState);
 		ret = -EINVAL;
 		goto exit;
 	}

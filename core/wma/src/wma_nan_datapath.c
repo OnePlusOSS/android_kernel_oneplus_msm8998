@@ -686,6 +686,15 @@ static int wma_ndp_confirm_event_handler(void *handle, uint8_t *event_info,
 	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_WMA, QDF_TRACE_LEVEL_DEBUG,
 		&event->ndp_app_info, fixed_params->ndp_app_info_len);
 
+	if (fixed_params->num_ndp_channels > event->num_ndp_channel_list ||
+	    fixed_params->num_ndp_channels > event->num_nss_list) {
+		WMI_LOGE(FL("NDP Ch count %d greater than NDP Ch TLV len (%d) or NSS TLV len (%d)"),
+			 fixed_params->num_ndp_channels,
+			 event->num_ndp_channel_list,
+			 event->num_nss_list);
+		return QDF_STATUS_E_INVAL;
+	}
+
 	ndp_confirm.vdev_id = fixed_params->vdev_id;
 	ndp_confirm.ndp_instance_id = fixed_params->ndp_instance_id;
 	ndp_confirm.rsp_code = fixed_params->rsp_code;

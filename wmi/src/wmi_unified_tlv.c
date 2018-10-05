@@ -14732,9 +14732,6 @@ extract_roam_scan_stats_res_evt_tlv(wmi_unified_t wmi_handle, void *evt_buf,
 		WMI_LOGP("%s: Invalid roam scan stats event", __func__);
 		return QDF_STATUS_E_INVAL;
 	}
-	if (!(param_buf->num_channels && param_buf->num_roam_candidates &&
-	      param_buf->channel))
-		return QDF_STATUS_E_INVAL;
 
 	fixed_param = param_buf->fixed_param;
 	total_len = sizeof(*res) + fixed_param->num_roam_scans *
@@ -14779,26 +14776,26 @@ extract_roam_scan_stats_res_evt_tlv(wmi_unified_t wmi_handle, void *evt_buf,
 		roam_reason = param_buf->roam_reason;
 
 	if (param_buf->num_channels &&
-	    param_buf->num_num_channels == num_scans)
-		num_channels = param_buf->num_channels;
+	    param_buf->num_num_channels == num_scans) {
 
-	if (param_buf->num_num_channels) {
 		uint32_t count, chan_info_sum = 0;
+
+		num_channels = param_buf->num_channels;
 
 		for (count = 0; count < param_buf->num_num_channels; count++)
 			chan_info_sum += param_buf->num_channels[count];
 
 		if (param_buf->chan_info &&
-		    param_buf->num_chan_info == chan_info_sum)
+			param_buf->num_chan_info == chan_info_sum)
 			chan_info = param_buf->chan_info;
 	}
 
 	if (param_buf->num_roam_candidates &&
-	    param_buf->num_num_roam_candidates == num_scans)
-		num_roam_candidates = param_buf->num_roam_candidates;
+	    param_buf->num_num_roam_candidates == num_scans) {
 
-	if (param_buf->num_num_roam_candidates) {
 		uint32_t count, roam_cand_sum = 0;
+
+		num_roam_candidates = param_buf->num_roam_candidates;
 
 		for (count = 0; count < param_buf->num_num_roam_candidates;
 			count++)
@@ -14832,35 +14829,34 @@ extract_roam_scan_stats_res_evt_tlv(wmi_unified_t wmi_handle, void *evt_buf,
 		if (client_id)
 			roam->client_id = client_id[i];
 
-		if (num_channels)
+		if (num_channels) {
 			roam->num_scan_chans = num_channels[i];
+			if (chan_info) {
+				for (j = 0; j < num_channels[i]; j++)
+					roam->scan_freqs[j] =
+						chan_info[chan_idx++];
+			}
+		}
 
 		if (is_roaming_success)
 			roam->is_roam_successful = is_roaming_success[i];
 
-		if (num_roam_candidates)
-			roam->num_roam_candidates = num_roam_candidates[i];
 
 		if (roam_reason) {
 			roam->trigger_id = roam_reason[i].trigger_id;
 			roam->trigger_value = roam_reason[i].trigger_value;
 		}
 
-		if (chan_info && num_channels) {
-			for (j = 0; j < num_channels[i]; j++)
-				roam->scan_freqs[j] = chan_info[chan_idx++];
-		}
-
 		if (num_roam_candidates) {
+			roam->num_roam_candidates = num_roam_candidates[i];
 			for (j = 0; j < num_roam_candidates[i]; j++) {
 				if (score)
 					roam->cand[j].score = score[cand_idx];
 				if (rssi)
 					roam->cand[j].rssi = rssi[cand_idx];
-				if (chan_info)
+				if (channel)
 					roam->cand[j].freq =
 						channel[cand_idx];
-
 				if (bssid)
 					WMI_MAC_ADDR_TO_CHAR_ARRAY(
 							&bssid[cand_idx],

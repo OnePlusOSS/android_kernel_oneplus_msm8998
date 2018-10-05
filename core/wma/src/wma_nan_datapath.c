@@ -934,6 +934,21 @@ static int wma_ndp_sch_update_event_handler(void *handle, uint8_t *evinfo,
 		 fixed_params->flags, fixed_params->num_channels,
 		 fixed_params->num_ndp_instances);
 
+	if (fixed_params->num_channels > event->num_ndl_channel_list ||
+	    fixed_params->num_channels > event->num_nss_list) {
+		WMI_LOGE(FL("Channel count %d greater than NDP Ch list TLV len (%d) or NSS list TLV len (%d)"),
+			 fixed_params->num_channels,
+			 event->num_ndl_channel_list,
+			 event->num_nss_list);
+		return QDF_STATUS_E_INVAL;
+	}
+	if (fixed_params->num_ndp_instances > event->num_ndp_instance_list) {
+		WMI_LOGE(FL("NDP Instance count %d greater than NDP Instancei TLV len %d"),
+			 fixed_params->num_ndp_instances,
+			 event->num_ndp_instance_list);
+		return QDF_STATUS_E_INVAL;
+	}
+
 	if (fixed_params->vdev_id >= wma_handle->max_bssid) {
 		WMA_LOGE(FL("incorrect vdev_id: %d"), fixed_params->vdev_id);
 		return -EINVAL;

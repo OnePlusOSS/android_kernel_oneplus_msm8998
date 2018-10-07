@@ -342,10 +342,8 @@ bool hdd_dhcp_indication(hdd_adapter_t *adapter,
 {
 	enum qdf_proto_subtype subtype = QDF_PROTO_INVALID;
 	hdd_station_info_t *hdd_sta_info;
-
 	bool notify_tx_comp = false;
 
-	hdd_debug("adapter=%pK, sta_id=%d, dir=%d", adapter, sta_id, dir);
 
 	if (((adapter->device_mode == QDF_SAP_MODE) ||
 	     (adapter->device_mode == QDF_P2P_GO_MODE)) &&

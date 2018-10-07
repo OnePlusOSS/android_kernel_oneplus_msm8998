@@ -5619,7 +5619,8 @@ static void hdd_ipa_send_skb_to_network(qdf_nbuf_t skb,
 	if (!enabled)
 		hdd_ipa_set_wake_up_idle(true);
 
-	if (adapter->device_mode == QDF_SAP_MODE) {
+	if ((adapter->device_mode == QDF_SAP_MODE) &&
+	     (qdf_nbuf_is_ipv4_dhcp_pkt(skb) == true)) {
 		/* Send DHCP Indication to FW */
 		qdf_mem_copy(&src_mac, skb->data + QDF_NBUF_SRC_MAC_OFFSET,
 			     sizeof(src_mac));

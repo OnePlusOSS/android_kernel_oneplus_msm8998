@@ -1768,9 +1768,14 @@ void ol_txrx_vdev_flush(ol_txrx_vdev_handle vdev)
 			qdf_nbuf_next(vdev->ll_pause.txq.head);
 		qdf_nbuf_set_next(vdev->ll_pause.txq.head, NULL);
 		if (QDF_NBUF_CB_PADDR(vdev->ll_pause.txq.head)) {
-			qdf_nbuf_unmap(vdev->pdev->osdev,
-				       vdev->ll_pause.txq.head,
-				       QDF_DMA_TO_DEVICE);
+			if (!qdf_nbuf_ipa_owned_get(vdev->ll_pause.txq.head))
+				qdf_nbuf_unmap(vdev->pdev->osdev,
+					       vdev->ll_pause.txq.head,
+					       QDF_DMA_TO_DEVICE);
+			else if (qdf_mem_smmu_s1_enabled(vdev->pdev->osdev))
+				qdf_nbuf_unmap(vdev->pdev->osdev,
+					       vdev->ll_pause.txq.head,
+					       QDF_DMA_TO_DEVICE);
 		}
 		qdf_nbuf_tx_free(vdev->ll_pause.txq.head,
 				 QDF_NBUF_PKT_ERROR);

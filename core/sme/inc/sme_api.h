@@ -2213,6 +2213,18 @@ QDF_STATUS sme_send_limit_off_channel_params(tHalHandle hal, uint8_t vdev_id,
 		uint32_t rest_time, bool skip_dfs_chan);
 
 /**
+ * sme_is_conn_state_connected() -- check if SME connection state is connected
+ * @hal: global hal handle
+ * @session_id: current Session Id
+ *
+ * This API checks if the current SME connection state is connected for the
+ * given session id.
+ *
+ * Return: True if connected, false if any other state.
+ */
+bool sme_is_conn_state_connected(tHalHandle hal, uint8_t session_id);
+
+/**
  * sme_fast_reassoc() - invokes FAST REASSOC command
  * @hal: handle returned by mac_open
  * @profile: current connected profile

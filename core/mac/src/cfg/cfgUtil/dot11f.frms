@@ -3399,7 +3399,6 @@ FRAME AssocRequest                        // 7.2.3.4
     OPTIE  WFDIEOpaque;
     OPTIE  vendor_vht_ie;
     OPTIE  hs20vendor_ie;
-    OPTIE  MBO_IE;
     OPTIE  QCN_IE;
     OPTIE  osen_ie;
 } // End frame AssocRequest.

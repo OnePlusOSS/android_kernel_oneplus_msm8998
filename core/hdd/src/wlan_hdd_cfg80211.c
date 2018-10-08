@@ -15679,6 +15679,11 @@ static int __wlan_hdd_cfg80211_get_key(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
+	if (wlan_hdd_validate_session_id(pAdapter->sessionId)) {
+		hdd_err("Invalid session id: %d", pAdapter->sessionId);
+		return -EINVAL;
+	}
+
 	hdd_debug("Device_mode %s(%d)",
 		hdd_device_mode_to_string(pAdapter->device_mode),
 		pAdapter->device_mode);
@@ -15687,6 +15692,11 @@ static int __wlan_hdd_cfg80211_get_key(struct wiphy *wiphy,
 
 	if (CSR_MAX_NUM_KEY <= key_index) {
 		hdd_err("Invalid key index: %d", key_index);
+		return -EINVAL;
+	}
+
+	if (pRoamProfile == NULL) {
+		hdd_err("Get roam profile failed!");
 		return -EINVAL;
 	}
 

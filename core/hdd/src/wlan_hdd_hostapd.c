@@ -8395,6 +8395,12 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 
 		if (pIe != NULL) {
 			pIe++;
+			if (pIe[0] > SIR_MAC_RATESET_EID_MAX) {
+				hdd_err("Invalid supported rates %d",
+					pIe[0]);
+				ret = -EINVAL;
+				goto error;
+			}
 			pConfig->supported_rates.numRates = pIe[0];
 			pIe++;
 			for (i = 0;
@@ -8411,6 +8417,12 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 				WLAN_EID_EXT_SUPP_RATES);
 		if (pIe != NULL) {
 			pIe++;
+			if (pIe[0] > SIR_MAC_RATESET_EID_MAX) {
+				hdd_err("Invalid supported rates %d",
+					pIe[0]);
+				ret = -EINVAL;
+				goto error;
+			}
 			pConfig->extended_rates.numRates = pIe[0];
 			pIe++;
 			for (i = 0; i < pConfig->extended_rates.numRates; i++) {

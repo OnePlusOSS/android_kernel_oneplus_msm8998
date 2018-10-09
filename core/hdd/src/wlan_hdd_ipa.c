@@ -1174,6 +1174,11 @@ static int hdd_ipa_wdi_conn_pipes(struct hdd_ipa_priv *hdd_ipa,
 	int ret;
 	int i;
 
+	if (qdf_unlikely(NULL == osdev)) {
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR, "osdev is NULL");
+		return QDF_STATUS_E_FAILURE;
+	}
+
 	in = qdf_mem_malloc(sizeof(*in));
 	if (!in) {
 		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,

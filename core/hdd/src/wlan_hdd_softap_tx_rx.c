@@ -345,7 +345,7 @@ bool hdd_dhcp_indication(hdd_adapter_t *adapter,
 
 	bool notify_tx_comp = false;
 
-	hdd_debug("adapter=%p, sta_id=%d, dir=%d", adapter, sta_id, dir);
+	hdd_debug("adapter=%pK, sta_id=%d, dir=%d", adapter, sta_id, dir);
 
 	if (((adapter->device_mode == QDF_SAP_MODE) ||
 	     (adapter->device_mode == QDF_P2P_GO_MODE)) &&

@@ -2459,6 +2459,9 @@ int hdd_bus_bandwidth_init(hdd_context_t *hdd_ctx);
  * Return: None.
  */
 void hdd_bus_bandwidth_destroy(hdd_context_t *hdd_ctx);
+
+#define GET_BW_COMPUTE_INTV(config) ((config)->busBandwidthComputeInterval)
+
 #else
 void hdd_bus_bw_compute_timer_start(hdd_context_t *hdd_ctx)
 {
@@ -2488,6 +2491,9 @@ int hdd_bus_bandwidth_init(hdd_context_t *hdd_ctx)
 void hdd_bus_bandwidth_destroy(hdd_context_t *hdd_ctx)
 {
 }
+
+#define GET_BW_COMPUTE_INTV(config) 0
+
 #endif
 
 int hdd_init(void);

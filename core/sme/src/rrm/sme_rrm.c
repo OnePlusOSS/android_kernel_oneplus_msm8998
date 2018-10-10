@@ -218,6 +218,8 @@ sme_rrm_send_beacon_report_xmit_ind(tpAniSirGlobal mac_ctx,
 			beacon_rep->numBssDesc++;
 			if (++i >= SIR_BCN_REPORT_MAX_BSS_DESC)
 				break;
+			if (i + j >= bss_count)
+				break;
 			cur_result =
 				result_arr[j + i];
 		}
@@ -355,6 +357,8 @@ static QDF_STATUS sme_ese_send_beacon_req_scan_results(
 			bcn_report->numBss++;
 			if (++j >= SIR_BCN_REPORT_MAX_BSS_DESC)
 				break;
+			if (j >= bss_count)
+				break;
 			cur_result = result_arr[j];
 		}
 
@@ -409,17 +413,16 @@ static QDF_STATUS sme_rrm_send_scan_result(tpAniSirGlobal mac_ctx,
 	tCsrScanResultFilter filter;
 	tScanResultHandle result_handle;
 	tCsrScanResultInfo *scan_results, *next_result;
-	tCsrScanResultInfo *scanresults_arr[SIR_BCN_REPORT_MAX_BSS_DESC];
+	tCsrScanResultInfo **scanresults_arr = NULL;
+	struct scan_result_list *result_list;
 	QDF_STATUS status;
-	uint8_t counter = 0;
+	uint8_t num_scan_results, counter = 0;
 	tpRrmSMEContext rrm_ctx = &mac_ctx->rrm.rrmSmeContext;
 	uint32_t session_id;
 	tCsrRoamInfo *roam_info;
 	tSirScanType scan_type;
 
 	qdf_mem_zero(&filter, sizeof(filter));
-	qdf_mem_zero(scanresults_arr,
-			sizeof(next_result) * SIR_BCN_REPORT_MAX_BSS_DESC);
 	filter.BSSIDs.numOfBSSIDs = 1;
 	filter.BSSIDs.bssid = (struct qdf_mac_addr *)&rrm_ctx->bssId;
 
@@ -503,7 +506,23 @@ static QDF_STATUS sme_rrm_send_scan_result(tpAniSirGlobal mac_ctx,
 			status = sme_rrm_send_beacon_report_xmit_ind(mac_ctx,
 						NULL, measurementdone, 0);
 	}
-	counter = 0;
+
+	result_list = (struct scan_result_list *)result_handle;
+	num_scan_results = csr_ll_count(&result_list->List);
+	if (!num_scan_results) {
+		sme_err("num_scan_results is %d", num_scan_results);
+		status = QDF_STATUS_E_FAILURE;
+		goto rrm_send_scan_results_done;
+	}
+
+	sme_debug("num_scan_results %d", num_scan_results);
+	scanresults_arr = qdf_mem_malloc(num_scan_results *
+					 sizeof(next_result));
+	if (!scanresults_arr) {
+		sme_err("Failed to allocate scanresults_arr");
+		status = QDF_STATUS_E_NOMEM;
+		goto rrm_send_scan_results_done;
+	}
 
 	roam_info = qdf_mem_malloc(sizeof(*roam_info));
 	if (NULL == roam_info) {
@@ -556,7 +575,7 @@ static QDF_STATUS sme_rrm_send_scan_result(tpAniSirGlobal mac_ctx,
 			scanresults_arr[counter++] = scan_results;
 		}
 		scan_results = next_result;
-		if (counter >= SIR_BCN_REPORT_MAX_BSS_DESC)
+		if (counter >= num_scan_results)
 			break;
 	}
 	qdf_mem_free(roam_info);
@@ -586,7 +605,11 @@ static QDF_STATUS sme_rrm_send_scan_result(tpAniSirGlobal mac_ctx,
 	}
 
 rrm_send_scan_results_done:
+	if (scanresults_arr)
+		qdf_mem_free(scanresults_arr);
+
 	sme_scan_result_purge(mac_ctx, result_handle);
+
 	return status;
 }
 

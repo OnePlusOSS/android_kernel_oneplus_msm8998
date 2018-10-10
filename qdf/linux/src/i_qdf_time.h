@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2016, 2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -28,8 +28,6 @@
 #include <linux/delay.h>
 #ifdef MSM_PLATFORM
 #include <asm/arch_timer.h>
-#else
-#include <linux/ktime.h>
 #endif
 #ifdef CONFIG_CNSS
 #include <net/cnss.h>
@@ -182,8 +180,7 @@ static inline uint64_t __qdf_get_monotonic_boottime(void)
 	return ((uint64_t) ts.tv_sec * 1000000) + (ts.tv_nsec / 1000);
 }
 
-#ifdef QCA_WIFI_3_0_ADRASTEA
-#include <asm/arch_timer.h>
+#if defined (QCA_WIFI_3_0_ADRASTEA) && defined (MSM_PLATFORM)
 
 /**
  * __qdf_get_log_timestamp() - get QTIMER ticks

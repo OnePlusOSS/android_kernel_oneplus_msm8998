@@ -2728,7 +2728,11 @@ static inline void hdd_set_tso_flags(hdd_context_t *hdd_ctx,
 }
 #else
 static inline void hdd_set_tso_flags(hdd_context_t *hdd_ctx,
-	 struct net_device *wlan_dev){}
+	 struct net_device *wlan_dev)
+{
+	hdd_debug("SG Enabled");
+	wlan_dev->features |= NETIF_F_SG;
+}
 #endif /* FEATURE_TSO */
 
 #if defined(FEATURE_WLAN_MCC_TO_SCC_SWITCH) || \

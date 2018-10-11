@@ -761,17 +761,8 @@ static void hdd_scan_inactivity_timer_handler(unsigned long scan_req)
 	if (cds_is_load_or_unload_in_progress())
 		hdd_err("%s: Module (un)loading; Ignore hdd scan req timeout",
 			 __func__);
-	else if (cds_is_driver_recovering())
-		hdd_err("%s: Module recovering; Ignore hdd scan req timeout",
-			 __func__);
-	else if (cds_is_driver_in_bad_state())
-		hdd_err("%s: Module in bad state; Ignore hdd scan req timeout",
-			 __func__);
-	else if (cds_is_self_recovery_enabled())
-		cds_trigger_recovery(CDS_SCAN_REQ_EXPIRED);
 	else
-		QDF_BUG(0);
-
+		cds_trigger_recovery(CDS_SCAN_REQ_EXPIRED);
 }
 
 /**

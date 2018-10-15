@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1544,7 +1544,8 @@ static int wma_unified_radio_tx_power_level_stats_event_handler(void *handle,
 							 fixed_param->radio_id;
 	tx_power_level_values = (uint8_t *) param_tlvs->tx_time_per_power_level;
 
-	if (fixed_param->total_num_tx_power_levels >
+	if (rs_results->total_num_tx_power_levels &&
+	    fixed_param->total_num_tx_power_levels >
 		rs_results->total_num_tx_power_levels) {
 		WMA_LOGE("%s: excess tx_power buffers:%d, total_num_tx_power_levels:%d",
 			 __func__, fixed_param->total_num_tx_power_levels,

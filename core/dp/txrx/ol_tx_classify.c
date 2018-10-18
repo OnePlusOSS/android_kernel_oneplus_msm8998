@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -332,7 +332,8 @@ ol_tx_tid(
 	return tid;
 }
 
-#if defined(CONFIG_HL_SUPPORT) && defined(FEATURE_WLAN_TDLS)
+#if defined(CONFIG_HL_SUPPORT) && \
+	defined(FEATURE_WLAN_TDLS) && defined(QCA_SUPPORT_TXRX_LOCAL_PEER_ID)
 static inline
 struct ol_txrx_peer_t *ol_tx_tdls_peer_find(struct ol_txrx_pdev_t *pdev,
 						struct ol_txrx_vdev_t *vdev,
@@ -341,14 +342,14 @@ struct ol_txrx_peer_t *ol_tx_tdls_peer_find(struct ol_txrx_pdev_t *pdev,
 	struct ol_txrx_peer_t *peer = NULL;
 
 	if (vdev->hlTdlsFlag) {
-		peer = ol_txrx_find_peer_by_addr(pdev,
-						vdev->hl_tdls_ap_mac_addr.raw,
-						peer_id);
+		peer = ol_txrx_peer_find_hash_find_inc_ref(pdev,
+					vdev->hl_tdls_ap_mac_addr.raw, 0, 1);
 		if (peer &&  (peer->peer_ids[0] == HTT_INVALID_PEER_ID)) {
+			OL_TXRX_PEER_UNREF_DELETE(peer);
 			peer = NULL;
 		} else {
 			if (peer)
-				OL_TXRX_PEER_INC_REF_CNT(peer);
+				*peer_id = peer->local_id;
 		}
 	}
 	if (!peer)

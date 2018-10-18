@@ -686,6 +686,15 @@ static int wma_ndp_confirm_event_handler(void *handle, uint8_t *event_info,
 	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_WMA, QDF_TRACE_LEVEL_DEBUG,
 		&event->ndp_app_info, fixed_params->ndp_app_info_len);
 
+	if (fixed_params->num_ndp_channels > event->num_ndp_channel_list ||
+	    fixed_params->num_ndp_channels > event->num_nss_list) {
+		WMI_LOGE(FL("NDP Ch count %d greater than NDP Ch TLV len (%d) or NSS TLV len (%d)"),
+			 fixed_params->num_ndp_channels,
+			 event->num_ndp_channel_list,
+			 event->num_nss_list);
+		return QDF_STATUS_E_INVAL;
+	}
+
 	ndp_confirm.vdev_id = fixed_params->vdev_id;
 	ndp_confirm.ndp_instance_id = fixed_params->ndp_instance_id;
 	ndp_confirm.rsp_code = fixed_params->rsp_code;
@@ -924,6 +933,21 @@ static int wma_ndp_sch_update_event_handler(void *handle, uint8_t *evinfo,
 	WMA_LOGD(FL("flags: %d, num_ch: %d, num_ndp_instances: %d"),
 		 fixed_params->flags, fixed_params->num_channels,
 		 fixed_params->num_ndp_instances);
+
+	if (fixed_params->num_channels > event->num_ndl_channel_list ||
+	    fixed_params->num_channels > event->num_nss_list) {
+		WMI_LOGE(FL("Channel count %d greater than NDP Ch list TLV len (%d) or NSS list TLV len (%d)"),
+			 fixed_params->num_channels,
+			 event->num_ndl_channel_list,
+			 event->num_nss_list);
+		return QDF_STATUS_E_INVAL;
+	}
+	if (fixed_params->num_ndp_instances > event->num_ndp_instance_list) {
+		WMI_LOGE(FL("NDP Instance count %d greater than NDP Instancei TLV len %d"),
+			 fixed_params->num_ndp_instances,
+			 event->num_ndp_instance_list);
+		return QDF_STATUS_E_INVAL;
+	}
 
 	if (fixed_params->vdev_id >= wma_handle->max_bssid) {
 		WMA_LOGE(FL("incorrect vdev_id: %d"), fixed_params->vdev_id);

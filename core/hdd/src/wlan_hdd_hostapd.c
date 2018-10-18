@@ -6652,13 +6652,6 @@ hdd_adapter_t *hdd_wlan_create_ap_dev(hdd_context_t *pHddCtx,
 		pHostapdAdapter->wdev.wiphy = pHddCtx->wiphy;
 		pHostapdAdapter->wdev.netdev = pWlanHostapdDev;
 		hdd_set_tso_flags(pHddCtx, pWlanHostapdDev);
-		init_completion(&pHostapdAdapter->tx_action_cnf_event);
-		init_completion(&pHostapdAdapter->cancel_rem_on_chan_var);
-		init_completion(&pHostapdAdapter->rem_on_chan_ready_event);
-		init_completion(&pHostapdAdapter->sta_authorized_event);
-		init_completion(&pHostapdAdapter->offchannel_tx_event);
-		init_completion(&pHostapdAdapter->scan_info.
-				abortscan_event_var);
 
 		SET_NETDEV_DEV(pWlanHostapdDev, pHddCtx->parent_dev);
 		spin_lock_init(&pHostapdAdapter->pause_map_lock);

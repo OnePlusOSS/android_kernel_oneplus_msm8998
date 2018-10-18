@@ -1376,15 +1376,15 @@ static void wma_mgmt_tx_ack_work_handler(void *ack_work)
 	tp_wma_handle wma_handle;
 	pWMAAckFnTxComp ack_cb;
 
-	if (cds_is_load_or_unload_in_progress()) {
-		WMA_LOGE("%s: Driver load/unload in progress", __func__);
-		return;
-	}
-
 	work = (struct wma_tx_ack_work_ctx *)ack_work;
 
 	wma_handle = work->wma_handle;
 	ack_cb = wma_handle->umac_ota_ack_cb[work->sub_type];
+
+	if (cds_is_load_or_unload_in_progress()) {
+		WMA_LOGE("%s: Driver load/unload in progress", __func__);
+		goto end;
+	}
 
 	WMA_LOGD("Tx Ack Cb SubType %d Status %d",
 		 work->sub_type, work->status);
@@ -1392,7 +1392,7 @@ static void wma_mgmt_tx_ack_work_handler(void *ack_work)
 	/* Call the Ack Cb registered by UMAC */
 	ack_cb((tpAniSirGlobal) (wma_handle->mac_context),
 	       work->status ? 0 : 1);
-
+end:
 	qdf_mem_free(work);
 	wma_handle->mgmt_ack_work_ctx = NULL;
 }
@@ -2171,7 +2171,8 @@ int wma_ibss_peer_info_event_handler(void *handle, uint8_t *data,
 	}
 
 	/*sanity check */
-	if ((num_peers > 32) || (num_peers > param_tlvs->num_peer_info) ||
+	if (!num_peers || (num_peers > 32) ||
+	    (num_peers > param_tlvs->num_peer_info) ||
 	    (!peer_info)) {
 		WMA_LOGE("%s: Invalid event data from target num_peers %d peer_info %pK",
 			__func__, num_peers, peer_info);

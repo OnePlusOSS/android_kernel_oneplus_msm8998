@@ -117,6 +117,8 @@ typedef union {
  * @tx.trace.vdev_id     : vdev (for protocol trace)
  * @tx.ipa.owned   : packet owned by IPA
  * @tx.ipa.priv    : private data, used by IPA
+ * @tx.dma_option.bi_map: flag to do special dma map with QDF_DMA_BIDIRECTIONAL
+ * @tx.dma_option.reserved: reserved bits for future use
  * @tx.desc_id     : tx desc id, used to sync between host and fw
  */
 struct qdf_nbuf_cb {
@@ -192,8 +194,12 @@ struct qdf_nbuf_cb {
 						uint32_t owned:1,
 							priv:31;
 					} ipa; /* 4 */
+					struct {
+						uint8_t bi_map:1,
+							reserved:7;
+					} dma_option; /* 1 byte */
 					uint16_t desc_id; /* 2 bytes */
-				} mcl;/* 14 bytes*/
+				} mcl;/* 15 bytes*/
 			} dev;
 		} tx; /* 40 bytes */
 	} u;
@@ -298,6 +304,8 @@ struct qdf_nbuf_cb {
 	(((struct qdf_nbuf_cb *)((skb)->cb))->u.tx.dev.mcl.ipa.owned)
 #define QDF_NBUF_CB_TX_IPA_PRIV(skb) \
 	(((struct qdf_nbuf_cb *)((skb)->cb))->u.tx.dev.mcl.ipa.priv)
+#define QDF_NBUF_CB_TX_DMA_BI_MAP(skb) \
+	(((struct qdf_nbuf_cb *)((skb)->cb))->u.tx.dev.mcl.dma_option.bi_map)
 #define QDF_NBUF_CB_TX_DESC_ID(skb) \
 	(((struct qdf_nbuf_cb *)((skb)->cb))->u.tx.dev.mcl.desc_id)
 #define QDF_NBUF_CB_TX_FTYPE(skb) \

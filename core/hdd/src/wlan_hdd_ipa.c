@@ -5899,10 +5899,24 @@ void hdd_ipa_nbuf_cb(qdf_nbuf_t skb)
 	struct ipa_rx_data *ipa_tx_desc;
 	struct hdd_ipa_tx_desc *tx_desc;
 	uint16_t id;
+	qdf_device_t osdev;
 
 	if (!qdf_nbuf_ipa_owned_get(skb)) {
 		dev_kfree_skb_any(skb);
 		return;
+	}
+
+	osdev = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
+	if (osdev && qdf_mem_smmu_s1_enabled(osdev)) {
+		if (hdd_ipa_uc_sta_is_enabled(hdd_ipa->hdd_ctx)) {
+			qdf_dma_addr_t paddr = QDF_NBUF_CB_PADDR(skb);
+			qdf_nbuf_mapped_paddr_set(skb,
+						  paddr -
+						  HDD_IPA_WLAN_FRAG_HEADER -
+						  HDD_IPA_WLAN_IPA_HEADER);
+		}
+
+		qdf_nbuf_unmap(osdev, skb, QDF_DMA_TO_DEVICE);
 	}
 
 	/* Get Tx desc pointer from SKB CB */
@@ -6034,6 +6048,13 @@ static void hdd_ipa_send_pkt_to_tl(
 	} else {
 		hdd_ipa->stats.num_tx_desc_error++;
 		qdf_spin_unlock_bh(&hdd_ipa->q_lock);
+
+		if (qdf_mem_smmu_s1_enabled(osdev)) {
+			if (hdd_ipa_uc_sta_is_enabled(hdd_ipa->hdd_ctx))
+				qdf_nbuf_mapped_paddr_set(skb, paddr);
+			qdf_nbuf_unmap(osdev, skb, QDF_DMA_TO_DEVICE);
+		}
+
 		ipa_free_skb(ipa_tx_desc);
 		hdd_ipa_wdi_rm_try_release(hdd_ipa);
 		return;

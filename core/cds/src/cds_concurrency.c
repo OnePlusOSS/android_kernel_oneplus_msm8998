@@ -3826,18 +3826,8 @@ void cds_clear_concurrency_mode(enum tQDF_ADAPTER_MODE mode)
 		hdd_green_ap_start_bss(hdd_ctx);
 }
 
-/**
- * cds_pdev_set_pcl() - Sets PCL to FW
- * @mode: adapter mode
- *
- * Fetches the PCL and sends the PCL to SME
- * module which in turn will send the WMI
- * command WMI_PDEV_SET_PCL_CMDID to the fw
- *
- * Return: None
- */
 #if defined(QCA_WIFI_3_0)
-static void cds_pdev_set_pcl(enum tQDF_ADAPTER_MODE mode)
+void cds_pdev_set_pcl(enum tQDF_ADAPTER_MODE mode)
 {
 	QDF_STATUS status;
 	enum cds_con_mode con_mode;
@@ -4023,18 +4013,7 @@ void cds_incr_active_session(enum tQDF_ADAPTER_MODE mode,
 
 	cds_debug("No.# of active sessions for mode %d = %d",
 		mode, hdd_ctx->no_of_active_sessions[mode]);
-	/*
-	 * Get PCL logic makes use of the connection info structure.
-	 * Let us set the PCL to the FW before updating the connection
-	 * info structure about the new connection.
-	 */
-	if (mode == QDF_STA_MODE) {
-		qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
-		/* Set PCL of STA to the FW */
-		cds_pdev_set_pcl(mode);
-		qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
-		cds_debug("Set PCL of STA to FW");
-	}
+
 	cds_incr_connection_count(session_id);
 	if ((cds_mode_specific_connection_count(CDS_STA_MODE, NULL) > 0) &&
 		(mode != QDF_STA_MODE)) {

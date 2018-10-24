@@ -1135,4 +1135,16 @@ bool cds_is_sta_sap_scc(uint8_t sap_ch);
  * Restart: None
  */
 void cds_flush_sta_ap_intf_work(hdd_context_t *hdd_ctx);
+
+/**
+ * cds_pdev_set_pcl() - Sets PCL to FW
+ * @mode: adapter mode
+ *
+ * Fetches the PCL and sends the PCL to SME
+ * module which in turn will send the WMI
+ * command WMI_PDEV_SET_PCL_CMDID to the fw
+ *
+ * Return: None
+ */
+void cds_pdev_set_pcl(enum tQDF_ADAPTER_MODE mode);
 #endif /* __CDS_CONCURRENCY_H */

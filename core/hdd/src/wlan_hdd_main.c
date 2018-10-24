@@ -2356,12 +2356,14 @@ int hdd_wlan_start_modules(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 		hif_ctx = cds_get_context(QDF_MODULE_ID_HIF);
 		if (!hif_ctx) {
 			hdd_err("hif context is null!!");
+			ret = -EINVAL;
 			goto power_down;
 		}
 
 		status = ol_cds_init(qdf_dev, hif_ctx);
 		if (status != QDF_STATUS_SUCCESS) {
 			hdd_err("No Memory to Create BMI Context :%d", status);
+			ret = qdf_status_to_os_return(status);
 			goto hif_close;
 		}
 
@@ -2383,6 +2385,7 @@ int hdd_wlan_start_modules(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 		hdd_ctx->hHal = cds_get_context(QDF_MODULE_ID_SME);
 		if (NULL == hdd_ctx->hHal) {
 			hdd_err("HAL context is null");
+			ret = -EINVAL;
 			goto close;
 		}
 
@@ -2419,6 +2422,7 @@ int hdd_wlan_start_modules(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 		if (reinit) {
 			if (hdd_ipa_uc_ssr_reinit(hdd_ctx)) {
 				hdd_err("HDD IPA UC reinit failed");
+				ret = -EINVAL;
 				goto post_disable;
 			}
 		}
@@ -2438,6 +2442,7 @@ int hdd_wlan_start_modules(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 
 		if (hdd_configure_cds(hdd_ctx, adapter)) {
 			hdd_err("Failed to Enable cds modules");
+			ret = -EINVAL;
 			goto post_disable;
 		}
 
@@ -2449,6 +2454,7 @@ int hdd_wlan_start_modules(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 	default:
 		hdd_err("WLAN start invoked in wrong state! :%d\n",
 				hdd_ctx->driver_status);
+		ret = -EINVAL;
 		goto release_lock;
 	}
 	hdd_ctx->start_modules_in_progress = false;

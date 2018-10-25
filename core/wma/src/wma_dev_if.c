@@ -3440,6 +3440,11 @@ void wma_vdev_resp_timer(void *data)
 			wma_trigger_recovery_assert_on_fw_timeout(
 				WMA_ADD_BSS_REQ);
 		} else {
+			/* Send vdev stop to the FW */
+			if (wma_send_vdev_stop_to_fw(wma, tgt_req->vdev_id))
+				WMA_LOGE("%s: Failed to send vdev stop to fw",
+					 __func__);
+
 			peer = ol_txrx_find_peer_by_addr(pdev, params->bssId,
 							 &peer_id);
 			if (peer)

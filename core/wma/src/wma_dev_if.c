@@ -3339,7 +3339,8 @@ void wma_vdev_resp_timer(void *data)
 		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true) {
 			wma_trigger_recovery_assert_on_fw_timeout(
 				WMA_DELETE_BSS_REQ);
-			return;
+			wma_cleanup_target_req_param(tgt_req);
+			goto free_tgt_req;
 		}
 
 		if (wma_is_vdev_in_ibss_mode(wma, tgt_req->vdev_id))

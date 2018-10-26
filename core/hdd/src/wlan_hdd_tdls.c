@@ -700,6 +700,7 @@ void hdd_tdls_context_init(hdd_context_t *hdd_ctx, bool ssr)
 	hdd_ctx->set_state_info.vdev_id = 0;
 	hdd_ctx->tdls_nss_teardown_complete = false;
 	hdd_ctx->tdls_nss_transition_mode = TDLS_NSS_TRANSITION_UNKNOWN;
+	hdd_ctx->enable_tdls_in_fw = true;
 
 	if (false == hdd_ctx->config->fEnableTDLSImplicitTrigger) {
 		hdd_ctx->tdls_mode = eTDLS_SUPPORT_EXPLICIT_TRIGGER_ONLY;

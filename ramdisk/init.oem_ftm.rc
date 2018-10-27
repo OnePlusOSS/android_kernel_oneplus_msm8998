@@ -1,0 +1,84 @@
+# this file should import init.rc and then add some oem defined service
+
+#this service is a non-use service and just use to duplicate real console service
+service console /system/bin/xxx
+    class core
+    console
+    disabled
+    user root
+    group shell log
+    oneshot
+    seclabel u:r:shell:s0
+
+#this service is a non-use service and just use to duplicate real surfaceflinger service
+service surfaceflinger /system/bin/xxx
+    class core
+    oneshot
+    disabled
+
+service oemasserttip /system/bin/xxx
+     class main
+     user system
+     disabled
+
+service vendor.hwcomposer-2-1 /vendor/bin/hw/xxx
+    oneshot
+    disabled
+
+import /init.rc
+
+on post-fs-data
+    chmod 0666 /dev/block/sda4
+    chmod 0666 /dev/param
+
+service wcnss-service-f /system/bin/wcnss_service -f
+    class main
+    user root
+    group system wifi radio
+    oneshot
+    disabled
+
+service factory /vendor/bin/factory
+    class late_start
+    disabled
+
+service ftm_power_config /vendor/bin/sh /vendor/etc/init/hw/ftm_power_config.sh
+    class late_start
+    user root
+    disabled
+    oneshot
+
+on oem_ftm
+    chmod 0666  /sys/module/sysctl/parameters/oem_en_chg_prk_lv
+    chown system system /vendor/bin/factory
+    chmod 0755  /vendor/bin/factory
+    chown system system /vendor/bin/ptt_socket_app
+    chmod 0755  /vendor/bin/ptt_socket_app
+
+on property:ro.wandrfmode=0
+    start qcamerasvr
+    start qcom-sh
+    start self-init
+    start qmuxd
+    start factory
+    start ftm_power_config
+    start ril-daemon
+    start cnss-daemon
+    write /sys/class/power_supply/battery/charging_enabled 0
+
+on property:ro.wandrfmode=1
+    start qcom-sh
+    start self-init
+    start qmuxd
+    start ptt_ffbm
+    start ftm_power_config
+    start ril-daemon
+    start cnss-daemon
+
+on property:ro.wandrfmode=2
+    start qcom-sh
+    start self-init
+    start qcom-c_main-sh
+    start ftm_power_config
+    start cnss-daemon
+    write /sys/class/power_supply/battery/charging_enabled 0

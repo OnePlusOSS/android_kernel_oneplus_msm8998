@@ -1,0 +1,50 @@
+#!/sbin/sh
+
+OUTFD=$2
+ZIP=$3
+
+ui_print() {
+  echo -n -e "ui_print $1\n" > /proc/self/fd/$OUTFD
+  echo -n -e "ui_print\n" > /proc/self/fd/$OUTFD
+}
+
+cd /tmp
+rm -rf arter97
+mkdir arter97
+cd arter97
+unzip -o "$ZIP"
+
+ui_print " ";
+ui_print " - mounting system partition"
+mount /system
+
+ui_print " - mounting data partition"
+mount /data
+
+ui_print " - flashing boot.img"
+cat boot.img /dev/zero > /dev/block/bootdevice/by-name/boot 2>/dev/null
+
+ui_print " - installing files"
+find system -exec chown root:root {} \;
+find system -type d -exec chmod 755 {} \;
+find system -type f -exec chmod 644 {} \;
+find system/bin -type f -exec chown root:shell {} \;
+find system/bin -type f -exec chmod 755 {} \;
+find system -type f -name '*.sh' -exec chmod 755 {} \;
+cp -rp system/* /system/
+
+ui_print " - tuning file systems"
+fstrim -v /system > /dev/null 2>&1
+fstrim -v /data   > /dev/null 2>&1
+fstrim -v /cache  > /dev/null 2>&1
+
+ui_print " - unmounting partition /data"
+umount /data > /dev/null 2>&1
+
+ui_print " - unmounting partition /system"
+umount /system > /dev/null 2>&1
+
+ui_print " "
+ui_print "finished"
+rm -rf /tmp/arter97
+sync

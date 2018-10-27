@@ -13,12 +13,12 @@ config QCACLD_WLAN_LFR3
 	bool "Enable the WLAN Legacy Fast Roaming feature Version 3"
 	default n
 
-config PRIMA_WLAN_OKC
-	bool "Enable the Prima WLAN Opportunistic Key Caching feature"
-	default n
-
 config PRIMA_WLAN_11AC_HIGH_TP
 	bool "Enable the Prima WLAN 802.11ac High Throughput option (depends upon kernel support)"
+	default n
+
+config WLAN_FEATURE_FILS
+	bool "Enable FILS Feature (11ai)"
 	default n
 
 config WLAN_FEATURE_11W
@@ -44,6 +44,10 @@ config WLAN_FEATURE_NAN_DATAPATH
 
 config QCACLD_FEATURE_GREEN_AP
 	bool "Enable Green AP feature"
+	default n
+
+config QCACLD_FEATURE_METERING
+	bool "Enable stats & quota metering feature"
 	default n
 
 config HELIUMPLUS
@@ -124,8 +128,16 @@ config WLAN_FEATURE_DISA
 	bool "Enable DISA certification feature"
 	default n
 
-config WLAN_SPECTRAL_SCAN
-	bool "Enable Spectral Scan feature"
+config WLAN_FEATURE_OWE
+	bool "Enable OWE feature"
+	default n
+
+config WLAN_FEATURE_GMAC
+	bool "Enable GMAC feature"
+	default n
+
+config WLAN_FEATURE_SAE
+	bool "Enable SAE feature"
 	default n
 
 config ICMP_DISABLE_PS

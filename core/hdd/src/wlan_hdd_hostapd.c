@@ -7969,6 +7969,7 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 	tsap_Config_t *pConfig;
 	beacon_data_t *pBeacon = NULL;
 	struct ieee80211_mgmt *pMgmt_frame;
+	struct ieee80211_mgmt mgmt;
 	uint8_t *pIe = NULL;
 	uint16_t capab_info;
 	eCsrAuthType RSNAuthType;
@@ -7989,6 +7990,7 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 	enum dfs_mode mode;
 	bool disable_fw_tdls_state = false;
 	uint8_t ignore_cac = 0;
+	uint8_t beacon_fixed_len;
 	hdd_adapter_t *sta_adapter;
 
 	ENTER();
@@ -8094,6 +8096,21 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 	pConfig = &pHostapdAdapter->sessionCtx.ap.sapConfig;
 
 	pBeacon = pHostapdAdapter->sessionCtx.ap.beacon;
+
+	/*
+	 * beacon_fixed_len is the fixed length of beacon
+	 * frame which includes only mac header length and
+	 * beacon manadatory fields like timestamp,
+	 * beacon_int and capab_info.
+	 * (From the reference of struct ieee80211_mgmt)
+	 */
+	beacon_fixed_len = sizeof(mgmt) - sizeof(mgmt.u) +
+			   sizeof(mgmt.u.beacon);
+	if (pBeacon->head_len < beacon_fixed_len) {
+		hdd_err("Invalid beacon head len");
+		ret = -EINVAL;
+		goto error;
+	}
 
 	pMgmt_frame = (struct ieee80211_mgmt *)pBeacon->head;
 
@@ -8414,9 +8431,12 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 
 	if (!(ssid && qdf_str_len(PRE_CAC_SSID) == ssid_len &&
 	      (0 == qdf_mem_cmp(ssid, PRE_CAC_SSID, ssid_len)))) {
+		uint16_t beacon_data_len;
+
+		beacon_data_len = pBeacon->head_len - beacon_fixed_len;
 		pIe = wlan_hdd_cfg80211_get_ie_ptr(
 				&pMgmt_frame->u.beacon.variable[0],
-				pBeacon->head_len, WLAN_EID_SUPP_RATES);
+				beacon_data_len, WLAN_EID_SUPP_RATES);
 
 		if (pIe != NULL) {
 			pIe++;

@@ -9430,6 +9430,11 @@ QDF_STATUS csr_roam_save_connected_infomation(tpAniSirGlobal pMac,
 							    proxy_arp_service;
 		}
 
+		if (pIesTemp->Country.present)
+			qdf_mem_copy(pConnectProfile->countryCode,
+				     pIesTemp->Country.country,
+				     WNI_CFG_COUNTRY_CODE_LEN);
+
 		if (NULL == pIes)
 			/* Free memory if it allocated locally */
 			qdf_mem_free(pIesTemp);

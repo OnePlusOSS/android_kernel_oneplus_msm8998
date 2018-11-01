@@ -62,6 +62,13 @@
 
 static struct reg_dmn_supp_op_classes reg_dmn_curr_supp_opp_classes = { 0 };
 
+enum op_class_table_num {
+	OP_CLASS_US = 1,
+	OP_CLASS_EU,
+	OP_CLASS_JAPAN,
+	OP_CLASS_GLOBAL
+};
+
 static const struct reg_dmn_op_class_map_t global_op_class[] = {
 	{81, 25, BW20, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13} },
 	{82, 25, BW20, {14} },
@@ -892,14 +899,33 @@ uint16_t cds_reg_dmn_get_opclass_from_channel(uint8_t *country, uint8_t channel,
 	const struct reg_dmn_op_class_map_t *class = NULL;
 	uint16_t i = 0;
 
-	if (!qdf_mem_cmp(country, "US", 2)) {
+	switch (country[2]) {
+	case OP_CLASS_US:
 		class = us_op_class;
-	} else if (!qdf_mem_cmp(country, "EU", 2)) {
+		break;
+
+	case OP_CLASS_EU:
 		class = euro_op_class;
-	} else if (!qdf_mem_cmp(country, "JP", 2)) {
+		break;
+
+	case OP_CLASS_JAPAN:
 		class = japan_op_class;
-	} else {
+		break;
+
+	case OP_CLASS_GLOBAL:
 		class = global_op_class;
+		break;
+
+	default:
+		if (!qdf_mem_cmp(country, "US", 2)) {
+			class = us_op_class;
+		} else if (!qdf_mem_cmp(country, "EU", 2)) {
+			class = euro_op_class;
+		} else if (!qdf_mem_cmp(country, "JP", 2)) {
+			class = japan_op_class;
+		} else {
+			class = global_op_class;
+		}
 	}
 
 	while (class->op_class) {
@@ -917,26 +943,41 @@ uint16_t cds_reg_dmn_get_opclass_from_channel(uint8_t *country, uint8_t channel,
 	return 0;
 }
 
-/**
- * cds_reg_dmn_get_channel_from_opclass() - get channel from operating class
- * @country: the country code
- * @op_class: operating class
- *
- * Return: none
- */
-void cds_reg_dmn_get_channel_from_opclass(uint8_t *country, uint8_t op_class)
+void cds_reg_dmn_print_channels_in_opclass(uint8_t *country, uint8_t op_class)
 {
 	const struct reg_dmn_op_class_map_t *class = NULL;
 	uint16_t i = 0;
 
-	if (!qdf_mem_cmp(country, "US", 2)) {
+	qdf_debug("Country %c%c 0x%x",
+		  country[0], country[1], country[2]);
+
+	switch (country[2]) {
+	case OP_CLASS_US:
 		class = us_op_class;
-	} else if (!qdf_mem_cmp(country, "EU", 2)) {
+		break;
+
+	case OP_CLASS_EU:
 		class = euro_op_class;
-	} else if (!qdf_mem_cmp(country, "JP", 2)) {
+		break;
+
+	case OP_CLASS_JAPAN:
 		class = japan_op_class;
-	} else {
+		break;
+
+	case OP_CLASS_GLOBAL:
 		class = global_op_class;
+		break;
+
+	default:
+		if (!qdf_mem_cmp(country, "US", 2)) {
+			class = us_op_class;
+		} else if (!qdf_mem_cmp(country, "EU", 2)) {
+			class = euro_op_class;
+		} else if (!qdf_mem_cmp(country, "JP", 2)) {
+			class = japan_op_class;
+		} else {
+			class = global_op_class;
+		}
 	}
 
 	while (class->op_class) {
@@ -944,9 +985,7 @@ void cds_reg_dmn_get_channel_from_opclass(uint8_t *country, uint8_t op_class)
 			for (i = 0;
 			     (i < MAX_CHANNELS_PER_OPERATING_CLASS &&
 			      class->channels[i]); i++) {
-				QDF_TRACE(QDF_MODULE_ID_QDF,
-					  QDF_TRACE_LEVEL_ERROR,
-					  "Valid channel(%d) in requested RC(%d)",
+				qdf_debug("Valid channel(%d) in requested RC(%d)",
 					  class->channels[i], op_class);
 			}
 			break;

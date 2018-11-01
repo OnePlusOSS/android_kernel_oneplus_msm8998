@@ -926,9 +926,39 @@ QDF_STATUS sme_rrm_process_beacon_report_req_ind(tpAniSirGlobal pMac,
 	uint32_t len = 0, i = 0;
 	uint8_t temp = 0;
 	uint32_t total_rrm_scan_time;
+	uint8_t *country;
+	uint32_t session_id;
+	tCsrRoamSession *session;
+	struct qdf_mac_addr req_bssid;
+	QDF_STATUS status;
+
+	qdf_mem_copy(&req_bssid.bytes, pBeaconReq->bssId, sizeof(tSirMacAddr));
+	status = csr_roam_get_session_id_from_bssid(pMac,
+						    &req_bssid,
+						    &session_id);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		sme_err("sme session ID not found for bssid = " MAC_ADDRESS_STR,
+			MAC_ADDR_ARRAY(pBeaconReq->bssId));
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	session = CSR_GET_SESSION(pMac, session_id);
+	if (!session) {
+		sme_err("Invalid session id %d", session_id);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	if (session->connectedProfile.countryCode[0])
+		country = session->connectedProfile.countryCode;
+	else
+		country = pMac->scan.countryCodeCurrent;
 
 	sme_debug("Received Beacon report request ind Channel = %d",
 		pBeaconReq->channelInfo.channelNum);
+
+	sme_debug("Request Reg class %d, AP's country code %c%c 0x%x",
+		  pBeaconReq->channelInfo.regulatoryClass,
+		  country[0], country[1], country[2]);
 
 	if (pBeaconReq->channelList.numChannels >
 	    SIR_ESE_MAX_MEAS_IE_REQS) {
@@ -952,13 +982,11 @@ QDF_STATUS sme_rrm_process_beacon_report_req_ind(tpAniSirGlobal pMac,
 		csr_get_cfg_valid_channels(pMac, pSmeRrmContext->channelList.
 					ChannelList, &len);
 		/* List all the channels in the requested RC */
-		cds_reg_dmn_get_channel_from_opclass(
-				pMac->scan.countryCodeCurrent,
+		cds_reg_dmn_print_channels_in_opclass(country,
 				pBeaconReq->channelInfo.regulatoryClass);
 
 		for (i = 0; i < len; i++) {
-			if (cds_reg_dmn_get_opclass_from_channel(
-			    pMac->scan.countryCodeCurrent,
+			if (cds_reg_dmn_get_opclass_from_channel(country,
 			    pSmeRrmContext->channelList.ChannelList[i],
 			    BWALL) ==
 			    pBeaconReq->channelInfo.regulatoryClass) {

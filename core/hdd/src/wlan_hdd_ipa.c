@@ -85,7 +85,7 @@
 
 #define HDD_IPA_MAX_PENDING_EVENT_COUNT    20
 
-#define IPA_WLAN_RX_SOFTIRQ_THRESH 16
+#define IPA_WLAN_RX_SOFTIRQ_THRESH 32
 
 #define HDD_IPA_MAX_BANDWIDTH 800
 
@@ -1173,6 +1173,11 @@ static int hdd_ipa_wdi_conn_pipes(struct hdd_ipa_priv *hdd_ipa,
 	struct ipa_ep_cfg *rx_cfg;
 	int ret;
 	int i;
+
+	if (qdf_unlikely(NULL == osdev)) {
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR, "osdev is NULL");
+		return QDF_STATUS_E_FAILURE;
+	}
 
 	in = qdf_mem_malloc(sizeof(*in));
 	if (!in) {
@@ -5614,7 +5619,8 @@ static void hdd_ipa_send_skb_to_network(qdf_nbuf_t skb,
 	if (!enabled)
 		hdd_ipa_set_wake_up_idle(true);
 
-	if (adapter->device_mode == QDF_SAP_MODE) {
+	if ((adapter->device_mode == QDF_SAP_MODE) &&
+	     (qdf_nbuf_is_ipv4_dhcp_pkt(skb) == true)) {
 		/* Send DHCP Indication to FW */
 		qdf_mem_copy(&src_mac, skb->data + QDF_NBUF_SRC_MAC_OFFSET,
 			     sizeof(src_mac));

@@ -6306,6 +6306,12 @@ QDF_STATUS csr_roam_process_command(tpAniSirGlobal pMac, tSmeCmd *pCommand)
 
 	switch (pCommand->u.roamCmd.roamReason) {
 	case eCsrForcedDisassoc:
+		if (eCSR_ROAMING_STATE_IDLE ==
+		    sme_get_current_roam_state(pMac, sessionId)) {
+			sme_err("Ignore eCsrForcedDisassoc cmd on roam state %d",
+				eCSR_ROAMING_STATE_IDLE);
+			return QDF_STATUS_E_FAILURE;
+		}
 		status = csr_roam_process_disassoc_deauth(pMac, pCommand,
 				true, false);
 		lock_status = sme_acquire_global_lock(&pMac->sme);
@@ -11944,64 +11950,64 @@ csr_roam_chk_lnk_swt_ch_ind(tpAniSirGlobal mac_ctx, tSirSmeRsp *msg_ptr)
 	 */
 	status = csr_roam_get_session_id_from_bssid(mac_ctx,
 			&pSwitchChnInd->bssid, &sessionId);
-	if (QDF_IS_STATUS_SUCCESS(status)) {
-		session = CSR_GET_SESSION(mac_ctx, sessionId);
-		if (!session) {
-			sme_err("session %d not found", sessionId);
-			return;
-		}
-		session->connectedProfile.operationChannel =
+	if (QDF_IS_STATUS_ERROR(status))
+		return;
+
+	session = CSR_GET_SESSION(mac_ctx, sessionId);
+	if (!session) {
+		sme_err("session %d not found", sessionId);
+		return;
+	}
+	session->connectedProfile.operationChannel =
 			(uint8_t) pSwitchChnInd->newChannelId;
-		if (session->pConnectBssDesc) {
-			session->pConnectBssDesc->channelId =
-				(uint8_t) pSwitchChnInd->newChannelId;
-		}
+	if (session->pConnectBssDesc) {
+		session->pConnectBssDesc->channelId =
+			(uint8_t) pSwitchChnInd->newChannelId;
 
 		ds_params_ie = (tSirMacDsParamSetIE *)wlan_cfg_get_ie_ptr(
-					(uint8_t *)session->pConnectBssDesc->
-						ieFields,
-					csr_get_ielen_from_bss_description(
-						session->pConnectBssDesc),
-					DOT11F_EID_DSPARAMS, ONE_BYTE);
+				(uint8_t *)session->pConnectBssDesc->
+				ieFields,
+				csr_get_ielen_from_bss_description(
+					session->pConnectBssDesc),
+				DOT11F_EID_DSPARAMS, ONE_BYTE);
 		if (ds_params_ie)
 			ds_params_ie->channelNumber =
 				(uint8_t)pSwitchChnInd->newChannelId;
 
 		ht_info_ie = (tDot11fIEHTInfo *)wlan_cfg_get_ie_ptr(
-					(uint8_t *)session->pConnectBssDesc->
-						ieFields,
-					csr_get_ielen_from_bss_description(
-						session->pConnectBssDesc),
-					DOT11F_EID_HTINFO, ONE_BYTE);
+				(uint8_t *)session->pConnectBssDesc->
+				ieFields,
+				csr_get_ielen_from_bss_description(
+					session->pConnectBssDesc),
+				DOT11F_EID_HTINFO, ONE_BYTE);
 		if (ht_info_ie) {
 			ht_info_ie->primaryChannel =
 				(uint8_t)pSwitchChnInd->newChannelId;
 			ht_info_ie->secondaryChannelOffset =
 				pSwitchChnInd->chan_params.sec_ch_offset;
 		}
-
-		qdf_mem_set(&roamInfo, sizeof(tCsrRoamInfo), 0);
-		roamInfo.chan_info.chan_id = pSwitchChnInd->newChannelId;
-		roamInfo.chan_info.ch_width =
-				pSwitchChnInd->chan_params.ch_width;
-		roamInfo.chan_info.sec_ch_offset =
-				pSwitchChnInd->chan_params.sec_ch_offset;
-		roamInfo.chan_info.band_center_freq1 =
-				pSwitchChnInd->chan_params.center_freq_seg0;
-		roamInfo.chan_info.band_center_freq2 =
-				pSwitchChnInd->chan_params.center_freq_seg1;
-
-		if (CSR_IS_PHY_MODE_11ac(mac_ctx->roam.configParam.phyMode))
-			roamInfo.mode = SIR_SME_PHY_MODE_VHT;
-		else if (CSR_IS_PHY_MODE_11n(mac_ctx->roam.configParam.phyMode))
-			roamInfo.mode = SIR_SME_PHY_MODE_HT;
-		else
-			roamInfo.mode = SIR_SME_PHY_MODE_LEGACY;
-
-		status = csr_roam_call_callback(mac_ctx, sessionId,
-				&roamInfo, 0, eCSR_ROAM_STA_CHANNEL_SWITCH,
-				eCSR_ROAM_RESULT_NONE);
 	}
+
+	qdf_mem_set(&roamInfo, sizeof(tCsrRoamInfo), 0);
+	roamInfo.chan_info.chan_id = pSwitchChnInd->newChannelId;
+	roamInfo.chan_info.ch_width = pSwitchChnInd->chan_params.ch_width;
+	roamInfo.chan_info.sec_ch_offset =
+		pSwitchChnInd->chan_params.sec_ch_offset;
+	roamInfo.chan_info.band_center_freq1 =
+		pSwitchChnInd->chan_params.center_freq_seg0;
+	roamInfo.chan_info.band_center_freq2 =
+		pSwitchChnInd->chan_params.center_freq_seg1;
+
+	if (CSR_IS_PHY_MODE_11ac(mac_ctx->roam.configParam.phyMode))
+		roamInfo.mode = SIR_SME_PHY_MODE_VHT;
+	else if (CSR_IS_PHY_MODE_11n(mac_ctx->roam.configParam.phyMode))
+		roamInfo.mode = SIR_SME_PHY_MODE_HT;
+	else
+		roamInfo.mode = SIR_SME_PHY_MODE_LEGACY;
+
+	status = csr_roam_call_callback(mac_ctx, sessionId, &roamInfo, 0,
+					eCSR_ROAM_STA_CHANNEL_SWITCH,
+					eCSR_ROAM_RESULT_NONE);
 }
 
 static void
@@ -12291,7 +12297,7 @@ csr_roam_chk_lnk_wm_status_change_ntf(tpAniSirGlobal mac_ctx,
 		if (!QDF_IS_STATUS_SUCCESS(status))
 			break;
 		if (eCSR_ROAMING_STATE_JOINED ==
-			mac_ctx->roam.curState[sessionId]
+			sme_get_current_roam_state(mac_ctx, sessionId)
 		    && ((eCSR_ROAM_SUBSTATE_JOINED_REALTIME_TRAFFIC
 			== mac_ctx->roam.curSubState[sessionId])
 		    || (eCSR_ROAM_SUBSTATE_NONE ==

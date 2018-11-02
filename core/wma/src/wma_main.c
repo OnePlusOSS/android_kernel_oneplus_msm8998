@@ -2635,9 +2635,11 @@ QDF_STATUS wma_open(void *cds_context,
 		goto err_scn_context;
 	}
 
-	for (i = 0; i < wma_handle->max_bssid; ++i)
+	for (i = 0; i < wma_handle->max_bssid; ++i) {
 		wma_vdev_init(&wma_handle->interfaces[i]);
-
+		wma_handle->interfaces[i].delay_before_vdev_stop =
+			cds_cfg->delay_before_vdev_stop;
+	}
 	/* Register the debug print event handler */
 	wmi_unified_register_event_handler(wma_handle->wmi_handle,
 					WMI_DEBUG_PRINT_EVENTID,

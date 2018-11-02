@@ -1344,6 +1344,11 @@ static void hdd_send_association_event(struct net_device *dev,
 	hdd_wext_state_t *pWextState = WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
 	tCsrRoamProfile *pRoamProfile = &(pWextState->roamProfile);
 
+	if (!pHddCtx) {
+		hdd_err("HDD context is NULL");
+		return;
+	}
+
 	memset(&wrqu, '\0', sizeof(wrqu));
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
 	we_event = SIOCGIWAP;
@@ -6006,6 +6011,7 @@ int hdd_set_csr_auth_type(hdd_adapter_t *pAdapter, eCsrAuthType RSNAuthType)
 
 	switch (pHddStaCtx->conn_info.authType) {
 	case eCSR_AUTH_TYPE_OPEN_SYSTEM:
+	case eCSR_AUTH_TYPE_AUTOSWITCH:
 #ifdef FEATURE_WLAN_ESE
 	case eCSR_AUTH_TYPE_CCKM_WPA:
 	case eCSR_AUTH_TYPE_CCKM_RSN:

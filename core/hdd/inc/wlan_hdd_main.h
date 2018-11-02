@@ -1080,6 +1080,7 @@ typedef struct {
 	uint64_t rx_bytes;
 	qdf_time_t last_tx_rx_ts;
 	qdf_time_t assoc_ts;
+	qdf_time_t disassoc_ts;
 	uint32_t tx_rate;
 	uint32_t rx_rate;
 	bool ampdu;
@@ -2463,19 +2464,19 @@ void hdd_bus_bandwidth_destroy(hdd_context_t *hdd_ctx);
 #define GET_BW_COMPUTE_INTV(config) ((config)->busBandwidthComputeInterval)
 
 #else
-void hdd_bus_bw_compute_timer_start(hdd_context_t *hdd_ctx)
+static inline void hdd_bus_bw_compute_timer_start(hdd_context_t *hdd_ctx)
 {
 }
 
-void hdd_bus_bw_compute_timer_try_start(hdd_context_t *hdd_ctx)
+static inline void hdd_bus_bw_compute_timer_try_start(hdd_context_t *hdd_ctx)
 {
 }
 
-void hdd_bus_bw_compute_timer_stop(hdd_context_t *hdd_ctx)
+static inline void hdd_bus_bw_compute_timer_stop(hdd_context_t *hdd_ctx)
 {
 }
 
-void hdd_bus_bw_compute_timer_try_stop(hdd_context_t *hdd_ctx)
+static inline void hdd_bus_bw_compute_timer_try_stop(hdd_context_t *hdd_ctx)
 {
 }
 
@@ -2483,12 +2484,12 @@ static inline void hdd_stop_bus_bw_computer_timer(hdd_adapter_t *pAdapter)
 {
 }
 
-int hdd_bus_bandwidth_init(hdd_context_t *hdd_ctx)
+static inline int hdd_bus_bandwidth_init(hdd_context_t *hdd_ctx)
 {
 	return 0;
 }
 
-void hdd_bus_bandwidth_destroy(hdd_context_t *hdd_ctx)
+static inline void hdd_bus_bandwidth_destroy(hdd_context_t *hdd_ctx)
 {
 }
 
@@ -2727,7 +2728,11 @@ static inline void hdd_set_tso_flags(hdd_context_t *hdd_ctx,
 }
 #else
 static inline void hdd_set_tso_flags(hdd_context_t *hdd_ctx,
-	 struct net_device *wlan_dev){}
+	 struct net_device *wlan_dev)
+{
+	hdd_debug("SG Enabled");
+	wlan_dev->features |= NETIF_F_SG;
+}
 #endif /* FEATURE_TSO */
 
 #if defined(FEATURE_WLAN_MCC_TO_SCC_SWITCH) || \
@@ -3182,5 +3187,7 @@ void hdd_update_hw_sw_info(hdd_context_t *hdd_ctx);
  * Return: None
  */
 void hdd_get_nud_stats_cb(void *data, struct rsp_stats *rsp, void *context);
+
+void hdd_sched_scan_results(struct wiphy *wiphy, uint64_t reqid);
 
 #endif /* end #if !defined(WLAN_HDD_MAIN_H) */

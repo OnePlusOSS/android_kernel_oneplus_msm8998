@@ -8069,7 +8069,8 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 			hdd_update_indoor_channel(pHddCtx, false);
 			hdd_err("Can't start BSS: update channel list failed");
 			qdf_mem_free(sme_config);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto enable_roaming;
 		}
 
 		/* check if STA is on indoor channel*/
@@ -8560,11 +8561,8 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 		wlansap_reset_sap_config_add_ie(pConfig, eUPDATE_IE_ALL);
 		/* Bss already started. just return. */
 		/* TODO Probably it should update some beacon params. */
-		if (sme_config)
-			qdf_mem_free(sme_config);
 		hdd_debug("Bss Already started...Ignore the request");
-		EXIT();
-		return 0;
+		goto exit;
 	}
 
 	if (check_for_concurrency) {
@@ -8647,6 +8645,8 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 
 	cds_set_connection_in_progress(false);
 	pHostapdState->bCommit = true;
+
+exit:
 	if (sme_config)
 		qdf_mem_free(sme_config);
 

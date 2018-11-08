@@ -2176,6 +2176,12 @@ static QDF_STATUS dfs_phyerr_offload_event_handler(void *handle,
 
 	qdf_spin_lock_bh(&ic->chan_lock);
 	chan = ic->ic_curchan;
+	if (chan == NULL) {
+		WMA_LOGE("%s: chan is NULL", __func__);
+		qdf_spin_unlock_bh(&ic->chan_lock);
+		return QDF_STATUS_E_FAILURE;
+	}
+
 	if (ic->disable_phy_err_processing) {
 		WMA_LOGD("%s: radar indication done,drop phyerror event",
 			__func__);

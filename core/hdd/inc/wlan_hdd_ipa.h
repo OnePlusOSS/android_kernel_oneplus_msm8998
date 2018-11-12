@@ -365,7 +365,7 @@ static inline void hdd_ipa_clean_adapter_iface(hdd_adapter_t *adapter)
 {
 }
 
-static int hdd_ipa_uc_disconnect_ap(hdd_adapter_t *adapter)
+static inline int hdd_ipa_uc_disconnect_ap(hdd_adapter_t *adapter)
 {
 	return 0;
 }

@@ -5754,7 +5754,7 @@ static void hdd_get_station_statistics_cb(void *stats, void *context)
 	struct csr_per_chain_rssi_stats_info *per_chain_rssi_stats;
 
 	if (NULL == stats) {
-		hdd_err("Bad param, pStats [%p]", stats);
+		hdd_err("Bad param, pStats [%pK]", stats);
 		return;
 	}
 

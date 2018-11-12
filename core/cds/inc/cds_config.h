@@ -150,6 +150,7 @@ enum cds_auto_pwr_detect_failure_mode_t {
  * @active_mc_bc_apf_mode: Setting that determines how APF is applied in
  * active mode for MC/BC packets
  * @rps_enabled: RPS enabled in SAP mode
+ * @delay_before_vdev_stop: wait time for tx complete before vdev stop
  * @ito_repeat_count: Indicates ito repeated count
  * @bandcapability: Configured band by user
  * @etsi_srd_chan_in_master_mode: Use of ETSI SRD chan in SAP/P2P-GO ACS/PCL
@@ -214,6 +215,7 @@ struct cds_config_info {
 	enum active_apf_mode active_uc_apf_mode;
 	enum active_apf_mode active_mc_bc_apf_mode;
 	bool rps_enabled;
+	uint8_t delay_before_vdev_stop;
 	enum cds_auto_pwr_detect_failure_mode_t auto_power_save_fail_mode;
 	uint8_t ito_repeat_count;
 	uint8_t bandcapability;

@@ -1135,4 +1135,14 @@ bool cds_is_sta_sap_scc(uint8_t sap_ch);
  * Restart: None
  */
 void cds_flush_sta_ap_intf_work(hdd_context_t *hdd_ctx);
+
+/**
+ * cds_set_pcl_for_existing_combo() - Set PCL for existing connection
+ * @mode: Connection mode of type 'cds_con_mode'
+ *
+ * Set the PCL for an existing connection
+ *
+ * Return: None
+ */
+void cds_set_pcl_for_existing_combo(enum cds_con_mode mode);
 #endif /* __CDS_CONCURRENCY_H */

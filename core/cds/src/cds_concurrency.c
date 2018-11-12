@@ -3933,15 +3933,7 @@ static enum tQDF_ADAPTER_MODE cds_get_qdf_mode_from_cds(
 	return mode;
 }
 
-/**
- * cds_set_pcl_for_existing_combo() - Set PCL for existing connection
- * @mode: Connection mode of type 'cds_con_mode'
- *
- * Set the PCL for an existing connection
- *
- * Return: None
- */
-static void cds_set_pcl_for_existing_combo(enum cds_con_mode mode)
+void cds_set_pcl_for_existing_combo(enum cds_con_mode mode)
 {
 	struct cds_conc_connection_info
 				info[MAX_NUMBER_OF_CONC_CONNECTIONS] = { {0} };
@@ -4023,18 +4015,7 @@ void cds_incr_active_session(enum tQDF_ADAPTER_MODE mode,
 
 	cds_debug("No.# of active sessions for mode %d = %d",
 		mode, hdd_ctx->no_of_active_sessions[mode]);
-	/*
-	 * Get PCL logic makes use of the connection info structure.
-	 * Let us set the PCL to the FW before updating the connection
-	 * info structure about the new connection.
-	 */
-	if (mode == QDF_STA_MODE) {
-		qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
-		/* Set PCL of STA to the FW */
-		cds_pdev_set_pcl(mode);
-		qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
-		cds_debug("Set PCL of STA to FW");
-	}
+
 	cds_incr_connection_count(session_id);
 	if ((cds_mode_specific_connection_count(CDS_STA_MODE, NULL) > 0) &&
 		(mode != QDF_STA_MODE)) {
@@ -9007,6 +8988,11 @@ QDF_STATUS cds_decr_connection_count_utfw(uint32_t del_all,
 	sme_cbacks.sme_get_valid_channels = sme_cfg_get_str;
 	sme_cbacks.sme_get_nss_for_vdev = sme_get_vdev_type_nss;
 	if (del_all) {
+		status = cds_deinit_policy_mgr();
+		if (!QDF_IS_STATUS_SUCCESS(status)) {
+			cds_err("Policy manager initialization failed");
+			return QDF_STATUS_E_FAILURE;
+		}
 		status = cds_init_policy_mgr(&sme_cbacks);
 		if (!QDF_IS_STATUS_SUCCESS(status)) {
 			cds_err("Policy manager initialization failed");

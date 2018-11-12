@@ -44,8 +44,9 @@ QDF_STATUS csr_msg_processor(tpAniSirGlobal mac_ctx, void *msg_buf)
 	tCsrRoamSession *session;
 #endif
 	uint8_t session_id = sme_rsp->sessionId;
-	eCsrRoamState cur_state = mac_ctx->roam.curState[session_id];
+	eCsrRoamState cur_state;
 
+	cur_state = sme_get_current_roam_state(mac_ctx, session_id);
 	sme_debug("msg %d[0x%04X] recvd in curstate %s & substate %s id(%d)",
 		sme_rsp->messageType, sme_rsp->messageType,
 		mac_trace_getcsr_roam_state(cur_state),

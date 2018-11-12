@@ -85,7 +85,7 @@
 
 #define HDD_IPA_MAX_PENDING_EVENT_COUNT    20
 
-#define IPA_WLAN_RX_SOFTIRQ_THRESH 16
+#define IPA_WLAN_RX_SOFTIRQ_THRESH 32
 
 #define HDD_IPA_MAX_BANDWIDTH 800
 
@@ -503,7 +503,6 @@ struct hdd_ipa_priv {
 	struct completion ipa_resource_comp;
 
 	uint32_t wdi_version;
-	bool is_smmu_enabled;	/* IPA caps returned from ipa_wdi_init */
 };
 
 #define HDD_IPA_WLAN_FRAG_HEADER        sizeof(struct frag_header)
@@ -1083,12 +1082,6 @@ static inline void hdd_ipa_wdi_get_wdi_version(struct hdd_ipa_priv *hdd_ipa)
 }
 #endif
 
-static bool hdd_ipa_wdi_is_smmu_enabled(struct hdd_ipa_priv *hdd_ipa,
-		qdf_device_t osdev)
-{
-	return hdd_ipa->is_smmu_enabled && qdf_mem_smmu_s1_enabled(osdev);
-}
-
 #ifdef QCA_LL_TX_FLOW_CONTROL_V2
 static bool hdd_ipa_wdi_is_mcc_mode_enabled(struct hdd_ipa_priv *hdd_ipa)
 {
@@ -1137,9 +1130,6 @@ static int hdd_ipa_wdi_init(struct hdd_ipa_priv *hdd_ipa)
 	if (out.is_uC_ready) {
 		HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "IPA uC READY");
 		hdd_ipa->uc_loaded = true;
-		hdd_ipa->is_smmu_enabled = out.is_smmu_enabled;
-		HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "is_smmu_enabled=%d",
-				hdd_ipa->is_smmu_enabled);
 	} else {
 		ret = -EACCES;
 		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,
@@ -1174,6 +1164,11 @@ static int hdd_ipa_wdi_conn_pipes(struct hdd_ipa_priv *hdd_ipa,
 	int ret;
 	int i;
 
+	if (qdf_unlikely(NULL == osdev)) {
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR, "osdev is NULL");
+		return QDF_STATUS_E_FAILURE;
+	}
+
 	in = qdf_mem_malloc(sizeof(*in));
 	if (!in) {
 		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,
@@ -1195,7 +1190,7 @@ static int hdd_ipa_wdi_conn_pipes(struct hdd_ipa_priv *hdd_ipa,
 		in->num_sys_pipe_needed = 0;
 	}
 
-	if (hdd_ipa_wdi_is_smmu_enabled(hdd_ipa, osdev))
+	if (qdf_mem_smmu_s1_enabled(osdev))
 		in->is_smmu_enabled = true;
 	else
 		in->is_smmu_enabled = false;
@@ -1608,12 +1603,6 @@ static inline void hdd_ipa_wdi_get_wdi_version(struct hdd_ipa_priv *hdd_ipa)
 {
 }
 
-static int hdd_ipa_wdi_is_smmu_enabled(struct hdd_ipa_priv *hdd_ipa,
-		qdf_device_t osdev)
-{
-	return qdf_mem_smmu_s1_enabled(osdev);
-}
-
 #ifdef FEATURE_METERING
 static void hdd_ipa_wdi_init_metering(struct hdd_ipa_priv *ipa_ctxt, void *in)
 {
@@ -1704,7 +1693,7 @@ static int hdd_ipa_wdi_conn_pipes(struct hdd_ipa_priv *hdd_ipa,
 		pipe_in.sys.keep_ipa_awake = true;
 	}
 
-	pipe_in.smmu_enabled = hdd_ipa_wdi_is_smmu_enabled(hdd_ipa, osdev);
+	pipe_in.smmu_enabled = qdf_mem_smmu_s1_enabled(osdev);
 	if (pipe_in.smmu_enabled) {
 		qdf_mem_copy(&pipe_in.u.dl_smmu.comp_ring,
 			     &ipa_res->tx_comp_ring->sgtable,
@@ -1793,7 +1782,7 @@ static int hdd_ipa_wdi_conn_pipes(struct hdd_ipa_priv *hdd_ipa,
 		pipe_in.sys.keep_ipa_awake = true;
 	}
 
-	pipe_in.smmu_enabled = hdd_ipa_wdi_is_smmu_enabled(hdd_ipa, osdev);
+	pipe_in.smmu_enabled = qdf_mem_smmu_s1_enabled(osdev);
 	if (pipe_in.smmu_enabled) {
 		qdf_mem_copy(&pipe_in.u.ul_smmu.rdy_ring,
 			     &ipa_res->rx_rdy_ring->sgtable,
@@ -4865,7 +4854,7 @@ QDF_STATUS hdd_ipa_uc_ol_init(hdd_context_t *hdd_ctx)
 				IPA_CLIENT_WLAN1_PROD);
 	}
 
-	if (hdd_ipa_wdi_is_smmu_enabled(ipa_ctxt, osdev)) {
+	if (qdf_mem_smmu_s1_enabled(osdev)) {
 		pld_smmu_map(osdev->dev,
 				ipa_ctxt->tx_comp_doorbell_dmaaddr,
 				&tx_comp_db_dmaaddr,
@@ -5614,7 +5603,8 @@ static void hdd_ipa_send_skb_to_network(qdf_nbuf_t skb,
 	if (!enabled)
 		hdd_ipa_set_wake_up_idle(true);
 
-	if (adapter->device_mode == QDF_SAP_MODE) {
+	if ((adapter->device_mode == QDF_SAP_MODE) &&
+	     (qdf_nbuf_is_ipv4_dhcp_pkt(skb) == true)) {
 		/* Send DHCP Indication to FW */
 		qdf_mem_copy(&src_mac, skb->data + QDF_NBUF_SRC_MAC_OFFSET,
 			     sizeof(src_mac));
@@ -5909,10 +5899,24 @@ void hdd_ipa_nbuf_cb(qdf_nbuf_t skb)
 	struct ipa_rx_data *ipa_tx_desc;
 	struct hdd_ipa_tx_desc *tx_desc;
 	uint16_t id;
+	qdf_device_t osdev;
 
 	if (!qdf_nbuf_ipa_owned_get(skb)) {
 		dev_kfree_skb_any(skb);
 		return;
+	}
+
+	osdev = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
+	if (osdev && qdf_mem_smmu_s1_enabled(osdev)) {
+		if (hdd_ipa_uc_sta_is_enabled(hdd_ipa->hdd_ctx)) {
+			qdf_dma_addr_t paddr = QDF_NBUF_CB_PADDR(skb);
+			qdf_nbuf_mapped_paddr_set(skb,
+						  paddr -
+						  HDD_IPA_WLAN_FRAG_HEADER -
+						  HDD_IPA_WLAN_IPA_HEADER);
+		}
+
+		qdf_nbuf_unmap(osdev, skb, QDF_DMA_TO_DEVICE);
 	}
 
 	/* Get Tx desc pointer from SKB CB */
@@ -6002,7 +6006,7 @@ static void hdd_ipa_send_pkt_to_tl(
 	/* Store IPA Tx buffer ownership into SKB CB */
 	qdf_nbuf_ipa_owned_set(skb);
 
-	if (hdd_ipa_wdi_is_smmu_enabled(hdd_ipa, osdev)) {
+	if (qdf_mem_smmu_s1_enabled(osdev)) {
 		status = qdf_nbuf_map(osdev, skb, QDF_DMA_TO_DEVICE);
 		if (QDF_IS_STATUS_SUCCESS(status)) {
 			paddr = qdf_nbuf_get_frag_paddr(skb, 0);
@@ -6044,6 +6048,13 @@ static void hdd_ipa_send_pkt_to_tl(
 	} else {
 		hdd_ipa->stats.num_tx_desc_error++;
 		qdf_spin_unlock_bh(&hdd_ipa->q_lock);
+
+		if (qdf_mem_smmu_s1_enabled(osdev)) {
+			if (hdd_ipa_uc_sta_is_enabled(hdd_ipa->hdd_ctx))
+				qdf_nbuf_mapped_paddr_set(skb, paddr);
+			qdf_nbuf_unmap(osdev, skb, QDF_DMA_TO_DEVICE);
+		}
+
 		ipa_free_skb(ipa_tx_desc);
 		hdd_ipa_wdi_rm_try_release(hdd_ipa);
 		return;

@@ -3768,34 +3768,23 @@ tSirRetStatus lim_sta_send_add_bss(tpAniSirGlobal pMac, tpSirAssocRsp pAssocRsp,
 				sta_context->enable_su_tx_bformer = 1;
 		}
 
-		if ((pAssocRsp->HTCaps.supportedChannelWidthSet) &&
-				(chanWidthSupp)) {
-			pAddBssParams->staContext.ch_width = (uint8_t)
-				pAssocRsp->HTInfo.recommendedTxWidthSet;
-			if (pAssocRsp->VHTCaps.present)
-				vht_oper = &pAssocRsp->VHTOperation;
-			else if (pAssocRsp->vendor_vht_ie.VHTCaps.present) {
-				vht_oper = &pAssocRsp->
-						vendor_vht_ie.VHTOperation;
-				pe_debug("VHT Op IE is in vendor Specfic IE");
-			}
-			/*
-			 * in limExtractApCapability function intersection of FW
-			 * advertised channel width and AP advertised channel
-			 * width has been taken into account for calculating
-			 * psessionEntry->ch_width
-			 */
+		chanWidthSupp = lim_get_ht_capability(pMac,
+					eHT_SUPPORTED_CHANNEL_WIDTH_SET,
+					psessionEntry);
+
+		/*
+		 * in limExtractApCapability function intersection of FW
+		 * advertised channel width and AP advertised channel
+		 * width has been taken into account for calculating
+		 * psessionEntry->ch_width
+		 */
+		if (chanWidthSupp &&
+		    ((pAssocRsp->HTCaps.supportedChannelWidthSet) ||
+		    (pBeaconStruct->HTCaps.supportedChannelWidthSet))) {
 			pAddBssParams->staContext.ch_width =
 					psessionEntry->ch_width;
-
-			pe_debug("StaCtx: vhtCap %d ChBW %d TxBF %d",
-					pAddBssParams->staContext.vhtCapable,
-					pAddBssParams->staContext.ch_width,
-					sta_context->vhtTxBFCapable);
-			pe_debug("StaContext su_tx_bfer %d",
-					sta_context->enable_su_tx_bformer);
 		} else {
-			sta_context->ch_width =	CH_WIDTH_20MHZ;
+			sta_context->ch_width = CH_WIDTH_20MHZ;
 			if ((IS_SIR_STATUS_SUCCESS(
 				wlan_cfg_get_int(pMac,
 					WNI_CFG_VHT_ENABLE_TXBF_20MHZ,
@@ -3803,6 +3792,14 @@ tSirRetStatus lim_sta_send_add_bss(tpAniSirGlobal pMac, tpSirAssocRsp pAssocRsp,
 					(false == enableTxBF20MHz))
 				sta_context->vhtTxBFCapable = 0;
 		}
+
+		pe_debug("StaCtx: vhtCap %d ChBW %d TxBF %d",
+				pAddBssParams->staContext.vhtCapable,
+				pAddBssParams->staContext.ch_width,
+				sta_context->vhtTxBFCapable);
+		pe_debug("StaContext su_tx_bfer %d",
+				sta_context->enable_su_tx_bformer);
+
 		pAddBssParams->staContext.mimoPS =
 			(tSirMacHTMIMOPowerSaveState)
 			pAssocRsp->HTCaps.mimoPowerSave;

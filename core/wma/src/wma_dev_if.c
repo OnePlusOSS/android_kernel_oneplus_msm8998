@@ -532,6 +532,7 @@ static QDF_STATUS wma_self_peer_remove(tp_wma_handle wma_handle,
 				 vdev_id);
 			wma_remove_req(wma_handle, vdev_id,
 				WMA_DEL_P2P_SELF_STA_RSP_START);
+			qdf_mem_free(sta_self_wmi_rsp);
 			qdf_status = QDF_STATUS_E_FAILURE;
 			goto error;
 		}
@@ -991,7 +992,6 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 			if (resp_event->pdev_id == WMI_PDEV_ID_SOC) {
 				WMA_LOGE("%s: soc level id received for mac id",
 					__func__);
-				QDF_BUG(0);
 				return -EINVAL;
 			}
 			wma->interfaces[resp_event->vdev_id].mac_id =
@@ -1093,11 +1093,13 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 			wma->interfaces[resp_event->vdev_id].is_channel_switch =
 				false;
 		}
-		if (((resp_event->resp_type == WMI_VDEV_RESTART_RESP_EVENT) &&
-			((iface->type == WMI_VDEV_TYPE_STA) ||
-				(iface->type == WMI_VDEV_TYPE_MONITOR))) ||
-			((resp_event->resp_type == WMI_VDEV_START_RESP_EVENT) &&
-			 (iface->type == WMI_VDEV_TYPE_MONITOR))) {
+
+		if ((QDF_IS_STATUS_SUCCESS(resp_event->status) &&
+		     (resp_event->resp_type == WMI_VDEV_RESTART_RESP_EVENT) &&
+		     ((iface->type == WMI_VDEV_TYPE_STA) ||
+		      (iface->type == WMI_VDEV_TYPE_MONITOR))) ||
+		    ((resp_event->resp_type == WMI_VDEV_START_RESP_EVENT) &&
+		     (iface->type == WMI_VDEV_TYPE_MONITOR))) {
 			/* for CSA case firmware expects phymode before ch_wd */
 			err = wma_set_peer_param(wma, iface->bssid,
 					WMI_PEER_PHYMODE, iface->chanmode,
@@ -3337,7 +3339,8 @@ void wma_vdev_resp_timer(void *data)
 		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true) {
 			wma_trigger_recovery_assert_on_fw_timeout(
 				WMA_DELETE_BSS_REQ);
-			return;
+			wma_cleanup_target_req_param(tgt_req);
+			goto free_tgt_req;
 		}
 
 		if (wma_is_vdev_in_ibss_mode(wma, tgt_req->vdev_id))
@@ -3437,6 +3440,19 @@ void wma_vdev_resp_timer(void *data)
 			wma_trigger_recovery_assert_on_fw_timeout(
 				WMA_ADD_BSS_REQ);
 		} else {
+			/* Send vdev stop to the FW */
+			if (wma_send_vdev_stop_to_fw(wma, tgt_req->vdev_id))
+				WMA_LOGE("%s: Failed to send vdev stop to fw",
+					 __func__);
+
+			peer = ol_txrx_find_peer_by_addr(pdev, params->bssId,
+							 &peer_id);
+			if (peer)
+				wma_remove_peer(wma, params->bssId,
+						tgt_req->vdev_id, peer, false);
+			else
+				WMA_LOGE("%s: Failed to find peer", __func__);
+
 			wma_send_msg_high_priority(wma,
 				WMA_ADD_BSS_RSP, (void *)params, 0);
 			QDF_ASSERT(0);

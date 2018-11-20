@@ -3902,6 +3902,7 @@ static void wma_inc_wow_stats(struct sir_vdev_wow_stats *stats, uint8_t *data,
 
 	case WOW_REASON_BPF_ALLOW:
 	case WOW_REASON_PATTERN_MATCH_FOUND:
+	case WOW_REASON_PACKET_FILTER_MATCH:
 		if (!data || len == 0) {
 			WMA_LOGE("Null data packet for wow reason %s",
 				 wma_wow_wake_reason_str(reason));
@@ -4911,6 +4912,7 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 	case WOW_REASON_RA_MATCH:
 #endif /* FEATURE_WLAN_RA_FILTERING */
 	case WOW_REASON_RECV_MAGIC_PATTERN:
+	case WOW_REASON_PACKET_FILTER_MATCH:
 		WMA_LOGD("Wake up for Rx packet, dump starting from ethernet hdr");
 		if (!param_buf->wow_packet_buffer) {
 			WMA_LOGE("No wow packet buffer present");

@@ -957,6 +957,8 @@ static void wlan_hdd_cancel_pending_roc(hdd_adapter_t *adapter)
 	roc_scan_id = roc_ctx->scan_id;
 	mutex_unlock(&cfg_state->remain_on_chan_ctx_lock);
 
+	INIT_COMPLETION(adapter->cancel_rem_on_chan_var);
+
 	if (adapter->device_mode == QDF_P2P_GO_MODE) {
 		void *sap_ctx = WLAN_HDD_GET_SAP_CTX_PTR(adapter);
 

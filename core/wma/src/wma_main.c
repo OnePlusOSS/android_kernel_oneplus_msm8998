@@ -5958,6 +5958,10 @@ static void wma_populate_soc_caps(t_wma_handle *wma_handle,
 		WMA_LOGE("%s: Invalid number of hw modes", __func__);
 		return;
 	}
+	if (NULL == param_buf->hal_reg_caps) {
+		WMA_LOGE("%s: Invalid hal_reg_caps", __func__);
+		return;
+	}
 
 	if ((param_buf->soc_hw_mode_caps->num_hw_modes > MAX_NUM_HW_MODE) ||
 	    (param_buf->soc_hw_mode_caps->num_hw_modes >

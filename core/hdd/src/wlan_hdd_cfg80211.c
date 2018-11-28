@@ -14977,8 +14977,8 @@ QDF_STATUS wlan_hdd_send_sta_authorized_event(
 					const struct qdf_mac_addr *mac_addr)
 {
 	struct sk_buff *vendor_event;
-	uint32_t sta_flags = 0;
 	QDF_STATUS status;
+	struct  nl80211_sta_flag_update sta_flags;
 
 	ENTER();
 
@@ -14998,18 +14998,21 @@ QDF_STATUS wlan_hdd_send_sta_authorized_event(
 		return -EINVAL;
 	}
 
-	sta_flags |= BIT(NL80211_STA_FLAG_AUTHORIZED);
+	sta_flags.mask |= BIT(NL80211_STA_FLAG_AUTHORIZED);
+	sta_flags.set = true;
 
-	status = nla_put_u32(vendor_event,
+	status = nla_put(vendor_event,
 			     QCA_WLAN_VENDOR_ATTR_LINK_PROPERTIES_STA_FLAGS,
-			     sta_flags);
+			     sizeof(struct  nl80211_sta_flag_update),
+			     &sta_flags);
 	if (status) {
 		hdd_err("STA flag put fails");
 		kfree_skb(vendor_event);
 		return QDF_STATUS_E_FAILURE;
 	}
+
 	status = nla_put(vendor_event,
-			 QCA_WLAN_VENDOR_ATTR_LINK_PROPERTIES_STA_MAC,
+			 QCA_WLAN_VENDOR_ATTR_LINK_PROPERTIES_MAC_ADDR,
 			 QDF_MAC_ADDR_SIZE, mac_addr->bytes);
 	if (status) {
 		hdd_err("STA MAC put fails");

@@ -1402,11 +1402,6 @@ QDF_STATUS wma_create_peer(tp_wma_handle wma, ol_txrx_pdev_handle pdev,
 	struct peer_create_params param = {0};
 	uint8_t *mac_addr_raw;
 
-	if (!cds_is_target_ready()) {
-		WMA_LOGE(FL("target not ready, drop the request"));
-		return QDF_STATUS_E_BUSY;
-	}
-
 	if (++wma->interfaces[vdev_id].peer_count >
 	    wma->wlan_resource_config.num_peers) {
 		WMA_LOGE("%s, the peer count exceeds the limit %d", __func__,

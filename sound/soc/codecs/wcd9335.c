@@ -191,8 +191,8 @@ module_param(sido_buck_svs_voltage, int,
 		S_IRUGO | S_IWUSR | S_IWGRP);
 MODULE_PARM_DESC(sido_buck_svs_voltage,
 			"setting for SVS voltage for SIDO BUCK");
-
-#define TASHA_TX_UNMUTE_DELAY_MS	40
+#define TASHA_TX_UNMUTE_DELAY_MS        50
+#define HEADSET_TYPE_NAME_LEN    64
 
 static int tx_unmute_delay = TASHA_TX_UNMUTE_DELAY_MS;
 module_param(tx_unmute_delay, int,
@@ -882,6 +882,34 @@ static const struct tasha_reg_mask_val tasha_spkr_mode1[] = {
 	{WCD9335_CDC_BOOST1_BOOST_CTL, 0x7C, 0x44},
 };
 
+enum {
+	NO_DEVICE	= 0,
+	HS_WITH_MIC	= 1,
+	HS_WITHOUT_MIC = 2,
+};
+
+struct tasha_priv *priv_headset_type;
+
+static ssize_t wcd9xxx_print_name(struct switch_dev *sdev, char *buf)
+{
+
+	switch (switch_get_state(sdev)) {
+	case NO_DEVICE:
+		return snprintf(buf, HEADSET_TYPE_NAME_LEN, "No Device\n");
+	case HS_WITH_MIC:
+		if (priv_headset_type->mbhc.mbhc_cfg->headset_type == 1)
+			return snprintf(buf, HEADSET_TYPE_NAME_LEN,
+								"American Headset\n");
+		else
+			return snprintf(buf, HEADSET_TYPE_NAME_LEN,
+								"Headset\n");
+	case HS_WITHOUT_MIC:
+			return snprintf(buf, HEADSET_TYPE_NAME_LEN,
+								"Handset\n");
+
+	}
+	return -EINVAL;
+}
 /*
  * wcd9335_get_codec_info: Get codec specific information
  *
@@ -2288,6 +2316,44 @@ static int tasha_put_anc_slot(struct snd_kcontrol *kcontrol,
 	struct tasha_priv *tasha = snd_soc_codec_get_drvdata(codec);
 
 	tasha->anc_slot = ucontrol->value.integer.value[0];
+	return 0;
+}
+
+static int tasha_get_Bob_Power(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+
+	return 0;
+}
+
+static int tasha_put_Bob_Power(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	int ret = 0;
+	int mode;
+	pr_err("%s value = %d\n",
+	__func__, (uint32_t)ucontrol->value.integer.value[0]);
+
+	if (bob_power == NULL)
+		return 0;
+
+	if (ucontrol->value.integer.value[0] == 1) {
+		pr_err("%s enable vreg_bob power\n", __func__);
+		ret = regulator_set_mode(bob_power, REGULATOR_MODE_FAST);
+		if (ret)
+			pr_err("%s fail to enable vreg_bob power\n", __func__);
+	} else {
+		pr_err("%s disable vreg_bob power\n", __func__);
+		mode = regulator_get_mode(bob_power);
+		if (mode == REGULATOR_MODE_FAST) {
+			ret = regulator_set_mode(bob_power,
+				REGULATOR_MODE_NORMAL);
+			if (ret)
+				pr_err("%s fail to disable vreg_bob power\n",
+				__func__);
+		}
+	}
+
 	return 0;
 }
 
@@ -8587,6 +8653,9 @@ static const struct snd_kcontrol_new tasha_snd_controls[] = {
 
 	SOC_SINGLE_EXT("ANC Slot", SND_SOC_NOPM, 0, 100, 0, tasha_get_anc_slot,
 		       tasha_put_anc_slot),
+
+	SOC_SINGLE_EXT("BOB Power", SND_SOC_NOPM, 0, 100, 0,
+				tasha_get_Bob_Power, tasha_put_Bob_Power),
 	SOC_ENUM_EXT("ANC Function", tasha_anc_func_enum, tasha_get_anc_func,
 		     tasha_put_anc_func),
 
@@ -13586,6 +13655,8 @@ static int tasha_codec_probe(struct snd_soc_codec *codec)
 	void *ptr = NULL;
 	struct regulator *supply;
 
+pr_err("%s enter\n", __func__);
+
 	control = dev_get_drvdata(codec->dev->parent);
 
 	dev_info(codec->dev, "%s()\n", __func__);
@@ -13673,6 +13744,12 @@ static int tasha_codec_probe(struct snd_soc_codec *codec)
 		pr_err("%s: mbhc initialization failed\n", __func__);
 		goto err_hwdep;
 	}
+
+		tasha->mbhc.wcd9xxx_sdev.name = "h2w";
+		tasha->mbhc.wcd9xxx_sdev.print_name = wcd9xxx_print_name;
+		ret = switch_dev_register(&tasha->mbhc.wcd9xxx_sdev);
+		if (ret)
+			goto err_switch_dev_register;
 
 	ptr = devm_kzalloc(codec->dev, (sizeof(tasha_rx_chs) +
 			   sizeof(tasha_tx_chs)), GFP_KERNEL);
@@ -13785,12 +13862,17 @@ static int tasha_codec_probe(struct snd_soc_codec *codec)
 	mutex_unlock(&tasha->codec_mutex);
 	snd_soc_dapm_sync(dapm);
 
+
+	priv_headset_type = tasha;
+
 	return ret;
 
 err_pdata:
 	devm_kfree(codec->dev, ptr);
 	control->rx_chs = NULL;
 	control->tx_chs = NULL;
+	switch_dev_unregister(&tasha->mbhc.wcd9xxx_sdev);
+err_switch_dev_register:
 err_hwdep:
 	devm_kfree(codec->dev, tasha->fw_data);
 	tasha->fw_data = NULL;
@@ -14285,6 +14367,7 @@ static int tasha_probe(struct platform_device *pdev)
 	struct wcd9xxx_resmgr_v2 *resmgr;
 	struct wcd9xxx_power_region *cdc_pwr;
 
+pr_err("%s enter\n", __func__);
 	if (wcd9xxx_get_intf_type() == WCD9XXX_INTERFACE_TYPE_I2C) {
 		if (apr_get_subsys_state() == APR_SUBSYS_DOWN) {
 			dev_err(&pdev->dev, "%s: dsp down\n", __func__);
@@ -14368,6 +14451,8 @@ static int tasha_probe(struct platform_device *pdev)
 			__func__, "wcd_native_clk");
 	else
 		tasha->wcd_native_clk = wcd_native_clk;
+
+pr_err("%s snd_soc_register_codec\n", __func__);
 
 	if (wcd9xxx_get_intf_type() == WCD9XXX_INTERFACE_TYPE_SLIMBUS)
 		ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_tasha,

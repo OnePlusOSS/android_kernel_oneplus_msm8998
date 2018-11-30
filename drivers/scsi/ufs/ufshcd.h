@@ -1160,6 +1160,9 @@ out:
 
 int ufshcd_read_device_desc(struct ufs_hba *hba, u8 *buf, u32 size);
 
+/*qiuchangping@BSP 2015-11-17 add for ufs info display*/
+int ufshcd_read_geometry_desc(struct ufs_hba *hba, u8 *buf, u32 size);
+
 static inline bool ufshcd_is_hs_mode(struct ufs_pa_layer_attr *pwr_info)
 {
 	return (pwr_info->pwr_rx == FAST_MODE ||

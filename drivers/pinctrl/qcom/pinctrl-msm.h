@@ -122,4 +122,6 @@ int msm_pinctrl_probe(struct platform_device *pdev,
 int msm_pinctrl_remove(struct platform_device *pdev);
 
 extern int msm_show_resume_irq_mask;
+extern bool need_show_pinctrl_irq;
+
 #endif

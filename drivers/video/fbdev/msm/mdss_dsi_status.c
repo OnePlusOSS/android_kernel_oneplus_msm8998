@@ -117,6 +117,9 @@ irqreturn_t hw_vsync_handler(int irq, void *data)
 		return IRQ_HANDLED;
 	}
 
+	complete(&ctrl_pdata->te_comp);
+
+
 	if (pstatus_data)
 		mod_delayed_work(system_wq, &pstatus_data->check_status,
 			msecs_to_jiffies(interval));

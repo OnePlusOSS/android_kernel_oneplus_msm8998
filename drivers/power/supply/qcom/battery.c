@@ -516,6 +516,7 @@ static int pl_fcc_vote_callback(struct votable *votable, void *data,
 	if (chip->fcc_step_update)
 		cancel_delayed_work_sync(&chip->fcc_step_update_work);
 
+	pr_info("total_fcc_ua=%d\n", total_fcc_ua);
 
 	if (chip->pl_mode == POWER_SUPPLY_PL_NONE
 	    || get_effective_result_locked(chip->pl_disable_votable)) {
@@ -804,6 +805,7 @@ static int pl_fv_vote_callback(struct votable *votable, void *data,
 	struct pl_data *chip = data;
 	union power_supply_propval pval = {0, };
 	int rc = 0;
+	pr_info("%s,fv_uv=%d\n", __func__, fv_uv);
 
 	if (fv_uv < 0)
 		return 0;

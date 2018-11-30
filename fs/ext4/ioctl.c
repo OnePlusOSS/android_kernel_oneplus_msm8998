@@ -691,13 +691,19 @@ encryption_policy_out:
 		struct ext4_encryption_policy policy;
 		int err = 0;
 
-		if (!ext4_encrypted_inode(inode))
+		if (!ext4_encrypted_inode(inode)) {
+			pr_err("EXT4_IOC_GET_ENCRYPTION_POLICY: no entry!\n");
 			return -ENOENT;
+		}
 		err = ext4_get_policy(inode, &policy);
-		if (err)
+		if (err) {
+			pr_err("EXT4_IOC_GET_ENCRYPTION_POLICY: get policy failed:%d \n", err);
 			return err;
-		if (copy_to_user((void __user *)arg, &policy, sizeof(policy)))
+		}
+		if (copy_to_user((void __user *)arg, &policy, sizeof(policy))) {
+			pr_err("EXT4_IOC_GET_ENCRYPTION_POLICY: copy data failed!\n");
 			return -EFAULT;
+		}
 		return 0;
 #else
 		return -EOPNOTSUPP;

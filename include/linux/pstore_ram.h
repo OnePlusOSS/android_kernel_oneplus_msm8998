@@ -31,8 +31,15 @@
  */
 #define PRZ_FLAG_NO_LOCK	BIT(0)
 
-struct persistent_ram_buffer;
+/*struct persistent_ram_buffer;*/
 struct rs_control;
+
+struct persistent_ram_buffer {
+	uint32_t    sig;
+	atomic_t    start;
+	atomic_t    size;
+	uint8_t     data[0];
+};
 
 struct persistent_ram_ecc_info {
 	int block_size;
@@ -95,6 +102,7 @@ struct ramoops_platform_data {
 	unsigned long	record_size;
 	unsigned long	console_size;
 	unsigned long	ftrace_size;
+	unsigned long	device_info_size;
 	unsigned long	pmsg_size;
 	int		dump_oops;
 	struct persistent_ram_ecc_info ecc_info;

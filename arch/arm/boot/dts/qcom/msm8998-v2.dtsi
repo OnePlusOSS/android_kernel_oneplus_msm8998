@@ -1121,10 +1121,10 @@
 	      <0x01fcb24c 0x4>,
 	      <0x00784238 0x4>;
 	reg-names = "qusb_phy_base",
-			"tcsr_clamp_dig_n_1p8",
-			"efuse_addr";
-	qcom,efuse-bit-pos = <16>;
-	qcom,efuse-num-bits = <4>;
+			"tcsr_clamp_dig_n_1p8";
+	//		"efuse_addr";
+//	qcom,efuse-bit-pos = <16>;
+//	qcom,efuse-num-bits = <4>;
 	qcom,qusb-phy-init-seq =
 			/* <value reg_offset> */
 				<0x13 0x04 /* analog_controls_two */

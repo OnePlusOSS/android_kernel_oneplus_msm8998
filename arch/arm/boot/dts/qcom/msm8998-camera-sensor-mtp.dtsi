@@ -347,17 +347,17 @@
 				 &cam_sensor_front_suspend &led_disable>;
 		gpios = <&tlmm 14 0>,
 			<&tlmm 28 0>,
-			<&pm8998_gpios 9 0>,
-			<&tlmm 21 0>;
+			<&pm8998_gpios 9 0>/* delete by xcb, gpio 21 are used by lcd,
+			<&tlmm 21 0>*/;
 		qcom,gpio-reset = <1>;
 		qcom,gpio-vdig = <2>;
-		qcom,gpio-flash-en = <3>;
-		qcom,gpio-req-tbl-num = <0 1 2 3>;
-		qcom,gpio-req-tbl-flags = <1 0 0 0>;
+		/*qcom,gpio-flash-en = <3>;*/
+		qcom,gpio-req-tbl-num = <0 1 2 /*3*/>;
+		qcom,gpio-req-tbl-flags = <1 0 0 /*0*/>;
 		qcom,gpio-req-tbl-label = "CAMIF_MCLK2",
 					"CAM_RESET2",
-					"CAM_VDIG",
-					"FLASH_EN";
+					"CAM_VDIG"/*,
+					"FLASH_EN"*/;
 		qcom,sensor-position = <1>;
 		qcom,sensor-mode = <0>;
 		qcom,cci-master = <1>;

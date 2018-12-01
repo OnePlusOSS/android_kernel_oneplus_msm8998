@@ -1309,7 +1309,6 @@ hdd_suspend_wlan(void (*callback)(void *callbackContext, bool suspended),
 		return;
 	}
 
-
 	status = hdd_get_front_adapter(pHddCtx, &pAdapterNode);
 	while (NULL != pAdapterNode && QDF_STATUS_SUCCESS == status) {
 		pAdapter = pAdapterNode->pAdapter;
@@ -1665,10 +1664,8 @@ QDF_STATUS hdd_wlan_re_init(void)
 	/* Restart all adapters */
 	hdd_start_all_adapters(pHddCtx);
 
-	pHddCtx->last_scan_reject_session_id = 0xFF;
-	pHddCtx->last_scan_reject_reason = 0;
-	pHddCtx->last_scan_reject_timestamp = 0;
-	pHddCtx->scan_reject_cnt = 0;
+	/* init the scan reject params */
+	hdd_init_scan_reject_params(pHddCtx);
 
 	hdd_set_roaming_in_progress(false);
 	complete(&pAdapter->roaming_comp_var);
@@ -2095,10 +2092,10 @@ next_adapter:
 		pAdapter = pAdapterNode->pAdapter;
 
 		if (pAdapter->sessionId >= MAX_NUMBER_OF_ADAPTERS)
-			continue;
+			goto fetch_adapter;
 
 		sme_ps_timer_flush_sync(pHddCtx->hHal, pAdapter->sessionId);
-
+fetch_adapter:
 		status = hdd_get_next_adapter(pHddCtx, pAdapterNode,
 					      &pAdapterNode);
 	}

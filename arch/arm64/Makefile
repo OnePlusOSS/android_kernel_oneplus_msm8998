@@ -18,6 +18,7 @@ GZFLAGS		:=-9
 ifneq ($(CONFIG_RELOCATABLE),)
 LDFLAGS_vmlinux		+= -pie -Bsymbolic
 endif
+KBUILD_CFLAGS += -mno-fix-cortex-a53-843419
 
 KBUILD_DEFCONFIG := defconfig
 

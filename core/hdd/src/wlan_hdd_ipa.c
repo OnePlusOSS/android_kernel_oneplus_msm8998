@@ -6849,7 +6849,7 @@ static int __hdd_ipa_wlan_evt(hdd_adapter_t *adapter, uint8_t sta_id,
 	int ret = 0;
 
 	if (hdd_validate_adapter(adapter)) {
-		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR, "Invalid adapter: 0x%pK",
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "Invalid adapter: 0x%pK",
 			    adapter);
 		return -EINVAL;
 	}
@@ -7004,7 +7004,7 @@ static int __hdd_ipa_wlan_evt(hdd_adapter_t *adapter, uint8_t sta_id,
 
 		qdf_mutex_release(&hdd_ipa->event_lock);
 
-		HDD_IPA_LOG(QDF_TRACE_LEVEL_INFO, "sta_connected=%d",
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "sta_connected=%d",
 			    hdd_ipa->sta_connected);
 		break;
 
@@ -7089,7 +7089,7 @@ static int __hdd_ipa_wlan_evt(hdd_adapter_t *adapter, uint8_t sta_id,
 
 		qdf_mutex_release(&hdd_ipa->event_lock);
 
-		HDD_IPA_LOG(QDF_TRACE_LEVEL_INFO, "sta_connected=%d",
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "sta_connected=%d",
 			    hdd_ipa->sta_connected);
 		break;
 

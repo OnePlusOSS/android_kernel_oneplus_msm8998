@@ -3851,3 +3851,19 @@ void wlansap_cleanup_cac_timer(void *sap_ctx)
 			FL("sapdfs, force cleanup running dfs cac timer"));
 	}
 }
+
+bool wlansap_check_sap_started(void *sap_ctx)
+{
+	ptSapContext psap_ctx = CDS_GET_SAP_CB(sap_ctx);
+
+	if (!psap_ctx) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			  FL("Invalid SAP context"));
+		return false;
+	}
+
+	if (psap_ctx->sapsMachine == eSAP_STARTED)
+		return true;
+
+	return false;
+}

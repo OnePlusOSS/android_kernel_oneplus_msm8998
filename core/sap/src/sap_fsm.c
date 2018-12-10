@@ -4931,9 +4931,13 @@ static QDF_STATUS sap_get_channel_list(ptSapContext sap_ctx,
 		/* Dont scan DFS channels in case of MCC disallowed
 		 * As it can result in SAP starting on DFS channel
 		 * resulting  MCC on DFS channel
+		 * Also if the dfs master mode in not enabled, exclude the
+		 * dfs channels, as the user doesnt want the SAP bringup on
+		 * dfs channel.
 		 */
 		if (CDS_IS_DFS_CH(CDS_CHANNEL_NUM(loop_count)) &&
-				  cds_disallow_mcc(CDS_CHANNEL_NUM(loop_count)))
+		   (cds_disallow_mcc(CDS_CHANNEL_NUM(loop_count)) ||
+		    !sap_ctx->acs_cfg->dfs_master_enable))
 			continue;
 
 		/*

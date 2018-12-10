@@ -532,6 +532,7 @@ static QDF_STATUS wma_self_peer_remove(tp_wma_handle wma_handle,
 				 vdev_id);
 			wma_remove_req(wma_handle, vdev_id,
 				WMA_DEL_P2P_SELF_STA_RSP_START);
+			qdf_mem_free(sta_self_wmi_rsp);
 			qdf_status = QDF_STATUS_E_FAILURE;
 			goto error;
 		}
@@ -991,7 +992,6 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 			if (resp_event->pdev_id == WMI_PDEV_ID_SOC) {
 				WMA_LOGE("%s: soc level id received for mac id",
 					__func__);
-				QDF_BUG(0);
 				return -EINVAL;
 			}
 			wma->interfaces[resp_event->vdev_id].mac_id =

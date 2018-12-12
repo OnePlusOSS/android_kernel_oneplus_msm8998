@@ -3663,6 +3663,12 @@ sub process {
 #			     "LINUX_VERSION_CODE should be avoided, code should be for the version to which it is merged\n" . $herecurr);
 #		}
 
+# avoid VENDOR_EDIT
+		if ($line =~ /\bVENDOR_EDIT\b/) {
+			WARN("VENDOR_EDIT",
+			     "Please remove VENDOR_EDIT before you commit it\n" . $herecurr);
+		}
+
 # check for uses of printk_ratelimit
 		if ($line =~ /\bprintk_ratelimit\s*\(/) {
 			WARN("PRINTK_RATELIMITED",

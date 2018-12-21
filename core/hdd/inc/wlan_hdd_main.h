@@ -2259,6 +2259,7 @@ struct hdd_context_s {
 
 	enum sar_version sar_version;
 
+	bool is_ssr_in_progress;
 };
 
 int hdd_validate_channel_and_bandwidth(hdd_adapter_t *adapter,
@@ -3163,15 +3164,6 @@ hdd_station_info_t *hdd_get_stainfo(hdd_station_info_t *aStaInfo,
 
 int hdd_driver_memdump_init(void);
 void hdd_driver_memdump_deinit(void);
-
-/**
- * hdd_is_cli_iface_up() - check if there is any cli iface up
- * @hdd_ctx: HDD context
- *
- * Return: return true if there is any cli iface(STA/P2P_CLI) is up
- *         else return false
- */
-bool hdd_is_cli_iface_up(hdd_context_t *hdd_ctx);
 
 /**
  * wlan_hdd_free_cache_channels() - Free the cache channels list

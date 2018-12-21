@@ -1475,6 +1475,8 @@ QDF_STATUS hdd_wlan_shutdown(void)
 		return QDF_STATUS_E_FAILURE;
 	}
 
+	pHddCtx->is_ssr_in_progress = true;
+
 	cds_clear_concurrent_session_count();
 
 	hdd_debug("Invoking packetdump deregistration API");
@@ -1691,6 +1693,9 @@ success:
 	if (pHddCtx->config->sap_internal_restart)
 		hdd_ssr_restart_sap(pHddCtx);
 	hdd_is_interface_down_during_ssr(pHddCtx);
+
+	pHddCtx->is_ssr_in_progress = false;
+
 	hdd_wlan_ssr_reinit_event();
 	return QDF_STATUS_SUCCESS;
 }

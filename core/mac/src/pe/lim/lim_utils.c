@@ -7484,8 +7484,8 @@ void lim_process_ap_ecsa_timeout(void *data)
 	uint8_t bcn_int, ch, ch_width;
 	QDF_STATUS status;
 
-	 if (!session) {
-		pe_err("Session is NULL");
+	if (!session || !session->valid) {
+		pe_err("Session is not valid");
 		return;
 	}
 

@@ -1505,6 +1505,10 @@ void audit_log_format(struct audit_buffer *ab, const char *fmt, ...)
 
 	if (!ab)
 		return;
+
+	if (console_loglevel < 4)
+		return;
+
 	va_start(args, fmt);
 	audit_log_vformat(ab, fmt, args);
 	va_end(args);

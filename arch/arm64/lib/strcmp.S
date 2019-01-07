@@ -60,7 +60,6 @@ tmp3		.req	x9
 zeroones	.req	x10
 pos		.req	x11
 
-	.p2align 6
 ENTRY(strcmp)
 	prfm    pldl1strm, [src1]
 	prfm    pldl1strm, [src2]

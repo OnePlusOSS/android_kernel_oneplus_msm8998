@@ -174,6 +174,8 @@
  */
 #define HDD_NL_ERR_RATE_LIMIT 5
 
+#define CSA_COMPLETE_TIMEOUT_VALUE 10000
+
 static const u32 hdd_gcmp_cipher_suits[] = {
 	WLAN_CIPHER_SUITE_GCMP,
 	WLAN_CIPHER_SUITE_GCMP_256,
@@ -9474,6 +9476,7 @@ __wlan_hdd_cfg80211_sap_configuration_set(struct wiphy *wiphy,
 	struct net_device *ndev = wdev->netdev;
 	hdd_adapter_t *hostapd_adapter = WLAN_HDD_GET_PRIV_PTR(ndev);
 	hdd_context_t *hdd_ctx = wiphy_priv(wiphy);
+	hdd_hostapd_state_t *hostapd_state;
 	struct nlattr *tb[QCA_WLAN_VENDOR_ATTR_SAP_CONFIG_MAX + 1];
 	uint8_t config_channel = 0;
 	hdd_ap_ctx_t *ap_ctx;
@@ -9516,15 +9519,30 @@ __wlan_hdd_cfg80211_sap_configuration_set(struct wiphy *wiphy,
 
 		ap_ctx = WLAN_HDD_GET_AP_CTX_PTR(hostapd_adapter);
 		ap_ctx->sapConfig.channel = config_channel;
-		ap_ctx->sapConfig.ch_params.ch_width =
-					ap_ctx->sapConfig.ch_width_orig;
-		ap_ctx->bss_stop_reason = BSS_STOP_DUE_TO_VENDOR_CONFIG_CHAN;
+		ap_ctx->sapConfig.ch_params.ch_width = CH_WIDTH_MAX;
+		hdd_debug("config chan:%d, orig width:%d",
+			   config_channel, ap_ctx->sapConfig.ch_width_orig);
 
 		cds_set_channel_params(ap_ctx->sapConfig.channel,
 				ap_ctx->sapConfig.sec_ch,
 				&ap_ctx->sapConfig.ch_params);
 
-		cds_restart_sap(hostapd_adapter);
+		hostapd_state = WLAN_HDD_GET_HOSTAP_STATE_PTR(hostapd_adapter);
+		qdf_event_reset(&hostapd_state->qdf_event);
+		ret = hdd_softap_set_channel_change(hostapd_adapter->dev,
+						    config_channel,
+						    CH_WIDTH_MAX);
+		if (ret) {
+			hdd_err("Set channel with CSA failed!");
+			return -EINVAL;
+		}
+		status =
+		qdf_wait_for_event_completion(&hostapd_state->qdf_event,
+					      CSA_COMPLETE_TIMEOUT_VALUE);
+		if (!QDF_IS_STATUS_SUCCESS(status)) {
+			hdd_err("Wait for qdf_event failed!");
+			return -EINVAL;
+		}
 	}
 
 	if (tb[QCA_WLAN_VENDOR_ATTR_SAP_MANDATORY_FREQUENCY_LIST]) {
@@ -16779,7 +16797,8 @@ static bool wlan_hdd_handle_sap_sta_dfs_conc(hdd_adapter_t *adapter,
 	 * machine from disconnected to started and set this event.
 	 * wait for 10 secs to finish this.
 	 */
-	status = qdf_wait_for_event_completion(&hostapd_state->qdf_event, 10000);
+	status = qdf_wait_for_event_completion(&hostapd_state->qdf_event,
+					       CSA_COMPLETE_TIMEOUT_VALUE);
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		hdd_err("wait for qdf_event failed, STA not allowed!!");
 		return false;

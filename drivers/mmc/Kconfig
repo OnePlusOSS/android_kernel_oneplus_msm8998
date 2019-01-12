@@ -36,3 +36,14 @@ source "drivers/mmc/card/Kconfig"
 source "drivers/mmc/host/Kconfig"
 
 endif # MMC
+
+if !MMC
+
+config BOGUS_MMC
+	bool "Bogus MMC sysfs"
+	help
+	  This module exposes a bogus sysfs entry:
+	  /sys/class/mmc_host/mmc0/clk_scaling/enable,
+	  in order for perfd to operate properly.
+
+endif # !MMC

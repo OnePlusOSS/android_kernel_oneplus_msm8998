@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -2714,7 +2714,7 @@ static inline int hdd_process_pktlog_command(hdd_context_t *hdd_ctx,
 }
 #endif /* REMOVE_PKT_LOG */
 
-#ifdef FEATURE_SG
+#if defined(FEATURE_SG) && !defined(CONFIG_HL_SUPPORT)
 /**
  * hdd_set_sg_flags() - enable SG flag in the network device
  * @hdd_ctx: HDD context

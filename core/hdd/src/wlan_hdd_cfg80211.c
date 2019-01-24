@@ -17244,13 +17244,12 @@ static int wlan_hdd_cfg80211_set_auth_type(hdd_adapter_t *pAdapter,
 		hdd_debug("set authentication type to FILS SHARED");
 		pHddStaCtx->conn_info.authType = eCSR_AUTH_TYPE_OPEN_SYSTEM;
 		break;
-
+#endif
 	case NL80211_AUTHTYPE_SAE:
 		hdd_debug("set authentication type to SAE");
 		pHddStaCtx->conn_info.authType = eCSR_AUTH_TYPE_SAE;
 		break;
 
-#endif
 	default:
 		hdd_err("Unsupported authentication type: %d", auth_type);
 		pHddStaCtx->conn_info.authType = eCSR_AUTH_TYPE_UNKNOWN;

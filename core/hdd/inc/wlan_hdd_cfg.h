@@ -3609,6 +3609,20 @@ enum hdd_dot11_mode {
 #define CFG_FW_RSSI_MONITORING_DEFAULT         (1)
 
 /*
+ * gEnableRTTsupport
+ *
+ * @Min: 0 - Disabled
+ * @Max: 1 - Enabled
+ * @Default: 1 - Enabled
+ *
+ * The param is used to enable/disable support for RTT
+ */
+#define CFG_ENABLE_RTT_SUPPORT            "gEnableRTTSupport"
+#define CFG_ENABLE_RTT_SUPPORT_DEFAULT    (1)
+#define CFG_ENABLE_RTT_SUPPORT_MIN        (0)
+#define CFG_ENABLE_RTT_SUPPORT_MAX        (1)
+
+/*
  * <ini>
  * gFWMccRtsCtsProtection - RTS-CTS protection in MCC.
  * @Min: 0
@@ -16136,6 +16150,7 @@ struct hdd_config {
 	bool roam_force_rssi_trigger;
 	uint32_t roam_preauth_retry_count;
 	uint32_t roam_preauth_no_ack_timeout;
+	uint32_t enable_rtt_support;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

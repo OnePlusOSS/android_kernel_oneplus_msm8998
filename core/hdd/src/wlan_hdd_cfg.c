@@ -3618,6 +3618,13 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_ENABLE_NON_DFS_CHAN_ON_RADAR_MIN,
 		     CFG_ENABLE_NON_DFS_CHAN_ON_RADAR_MAX),
 
+	REG_VARIABLE(CFG_ENABLE_RTT_SUPPORT, WLAN_PARAM_Integer,
+		     struct hdd_config, enable_rtt_support,
+		     VAR_FLAGS_OPTIONAL,
+		     CFG_ENABLE_RTT_SUPPORT_DEFAULT,
+		     CFG_ENABLE_RTT_SUPPORT_MIN,
+		     CFG_ENABLE_RTT_SUPPORT_MAX ),
+
 	REG_VARIABLE(CFG_P2P_LISTEN_DEFER_INTERVAL_NAME, WLAN_PARAM_Integer,
 		     struct hdd_config, p2p_listen_defer_interval,
 		     VAR_FLAGS_OPTIONAL |

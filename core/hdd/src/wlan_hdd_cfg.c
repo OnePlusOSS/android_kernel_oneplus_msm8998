@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -4090,6 +4090,13 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_ROAM_SCAN_TRIGGER_REASON_BITMASK_MIN,
 		CFG_ROAM_SCAN_TRIGGER_REASON_BITMASK_MAX),
 
+	REG_VARIABLE(CFG_ROAM_SCAN_SCAN_POLICY_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, roaming_scan_policy,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ROAM_SCAN_SCAN_POLICY_DEFAULT,
+		     CFG_ROAM_SCAN_SCAN_POLICY_MIN,
+		     CFG_ROAM_SCAN_SCAN_POLICY_MAX),
+
 	REG_VARIABLE(CFG_ENABLE_FATAL_EVENT_TRIGGER, WLAN_PARAM_Integer,
 			struct hdd_config, enable_fatal_event,
 			VAR_FLAGS_OPTIONAL |
@@ -7402,6 +7409,9 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 		CFG_ROAM_SCAN_TRIGGER_REASON_BITMASK_NAME,
 		pHddCtx->config->roam_trigger_reason_bitmask);
 	hdd_debug("Name = [%s] Value = [%u]",
+		  CFG_ROAM_SCAN_SCAN_POLICY_NAME,
+		  pHddCtx->config->roaming_scan_policy);
+	hdd_debug("Name = [%s] Value = [%u]",
 		CFG_MIN_REST_TIME_NAME,
 		pHddCtx->config->min_rest_time_conc);
 	hdd_debug("Name = [%s] Value = [%u]",
@@ -10339,6 +10349,8 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 		pHddCtx->config->min_delay_btw_roam_scans;
 	smeConfig->csrConfig.roam_trigger_reason_bitmask =
 		pHddCtx->config->roam_trigger_reason_bitmask;
+	smeConfig->csrConfig.roaming_scan_policy =
+		pHddCtx->config->roaming_scan_policy;
 	smeConfig->csrConfig.obss_width_interval =
 			pHddCtx->config->obss_width_trigger_interval;
 	smeConfig->csrConfig.obss_active_dwelltime =

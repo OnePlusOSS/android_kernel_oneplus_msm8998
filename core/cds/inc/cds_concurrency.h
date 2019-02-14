@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1145,4 +1145,16 @@ void cds_flush_sta_ap_intf_work(hdd_context_t *hdd_ctx);
  * Return: None
  */
 void cds_set_pcl_for_existing_combo(enum cds_con_mode mode);
+
+/**
+ * cds_pdev_get_pcl() - Gets PCL
+ * @mode: adapter mode
+ * @pcl: the pointer to the pcl list
+ *
+ * Fetches the PCL
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS cds_pdev_get_pcl(enum tQDF_ADAPTER_MODE mode,
+			    struct sir_pcl_list *pcl);
 #endif /* __CDS_CONCURRENCY_H */

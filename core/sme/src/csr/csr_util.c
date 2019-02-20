@@ -3808,6 +3808,7 @@ uint8_t csr_construct_rsn_ie(tHalHandle hHal, uint32_t sessionId,
 		} else {
 			pPMK->cPMKIDs = 0;
 		}
+		qdf_mem_zero(&pmkid_cache, sizeof(pmkid_cache));
 
 #ifdef WLAN_FEATURE_11W
 		/* Advertise BIP in group cipher key management only if PMF is

@@ -1422,6 +1422,7 @@ typedef struct tagCsrConfigParam {
 	struct csr_neighbor_report_offload_params neighbor_report_offload;
 	bool enable_ftopen;
 	bool roam_force_rssi_trigger;
+	uint32_t btm_offload_config;
 } tCsrConfigParam;
 
 /* Tush */

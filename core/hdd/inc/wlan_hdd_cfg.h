@@ -15225,10 +15225,48 @@ enum hw_filter_mode {
 #define CFG_ROAM_PREAUTH_NO_ACK_TIMEOUT_MAX     (50)
 #define CFG_ROAM_PREAUTH_NO_ACK_TIMEOUT_DEFAULT (5)
 
-/*---------------------------------------------------------------------------
-   Type declarations
-   -------------------------------------------------------------------------*/
+/*
+ * <ini>
+ * btm_offload_config - Configure BTM
+ * @Min: 0x00000000
+ * @Max: 0xFFFFFFFF
+ * @Default: 0x00000001
+ *
+ * This ini is used to configure BTM
+ *
+ * Bit 0: Enable/Disable the BTM offload. Set this to 1 will
+ * enable and 0 will disable BTM offload.
+ *
+ * BIT 2, 1: Action on non matching candidate with cache. If a BTM request
+ * is received from AP then the candidate AP's may/may-not be present in
+ * the firmware scan cache . Based on below config firmware will decide
+ * whether to forward BTM frame to host or consume with firmware and proceed
+ * with Roaming to candidate AP.
+ * 00 scan and consume
+ * 01 no scan and forward to host
+ * 10, 11 reserved
+ *
+ * BIT 5, 4, 3: Roaming handoff decisions on multiple candidates match
+ * 000 match if exact BSSIDs are found
+ * 001 match if at least one top priority BSSID only
+ * 010, 011, 100, 101, 110, 111 reserved
+ *
+ * BIT 6-31: Reserved
+ *
+ * Supported Feature: STA
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_BTM_ENABLE_NAME      "btm_offload_config"
+#define CFG_BTM_ENABLE_MIN       (0x00000000)
+#define CFG_BTM_ENABLE_MAX       (0xffffffff)
+#define CFG_BTM_ENABLE_DEFAULT   (0x00000001)
 
+/*
+ * Type declarations
+ */
 
 struct hdd_config {
 	/* Bitmap to track what is explicitly configured */
@@ -16176,6 +16214,7 @@ struct hdd_config {
 	uint32_t roam_preauth_retry_count;
 	uint32_t roam_preauth_no_ack_timeout;
 	uint32_t enable_rtt_support;
+	uint32_t btm_offload_config;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

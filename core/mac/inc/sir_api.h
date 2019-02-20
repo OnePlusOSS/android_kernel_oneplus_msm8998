@@ -3723,6 +3723,7 @@ typedef struct sSirRoamOffloadScanReq {
 	uint32_t roam_trigger_reason_bitmask;
 	bool roam_force_rssi_trigger;
 	bool roaming_scan_policy;
+	uint32_t btm_offload_config;
 } tSirRoamOffloadScanReq, *tpSirRoamOffloadScanReq;
 
 typedef struct sSirRoamOffloadScanRsp {

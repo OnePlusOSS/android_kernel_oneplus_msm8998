@@ -693,6 +693,7 @@ typedef struct tagCsrConfig {
 	bool enable_ftopen;
 	bool roam_force_rssi_trigger;
 	bool roaming_scan_policy;
+	uint32_t btm_offload_config;
 } tCsrConfig;
 
 typedef struct tagCsrChannelPowerInfo {

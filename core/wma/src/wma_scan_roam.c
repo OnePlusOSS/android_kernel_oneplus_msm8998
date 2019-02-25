@@ -2108,6 +2108,7 @@ static QDF_STATUS wma_roam_scan_btm_offload(tp_wma_handle wma_handle,
 	params->btm_sticky_time = roam_req->btm_sticky_time;
 	WMA_LOGD("%s: Sending BTM offload to FW for vdev %u btm_offload_config %u",
 		__func__, params->vdev_id, params->btm_offload_config);
+	params->btm_query_bitmask = roam_req->btm_query_bitmask;
 	status = wmi_unified_send_btm_config(wma_handle->wmi_handle, params);
 	qdf_mem_free(params);
 

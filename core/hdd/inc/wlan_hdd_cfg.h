@@ -15253,9 +15253,22 @@ enum hw_filter_mode {
  *
  * BIT 6: Set this to 1 will send BTM query frame and 0 not sent.
  *
- * BIT 7-31: Reserved
+ * BIT 7: Roam to BTM candidates based on the roam score instead of BTM
+ * preferred value
  *
- * Supported Feature: STA
+ * BIT 8: If AP does not support Neighbor report response, STA should
+ * request BTM query to get BTM request and check neighbor report exists
+ * or not. If Neighbor report exists, STA can use this information to update
+ * cached channel information
+ *
+ * BIT 9: When ever roaming is triggered after a successful roam scan a BTM
+ * query is sends to current connected AP which is 11v capable including the
+ * preferred candidate list obtained as part of roam scan with preference filled
+ * based on our internal scoring logic.
+ *
+ * BIT 10-31: Reserved
+ *
+ * Supported Feature: Roaming
  *
  * Usage: External
  *
@@ -15276,7 +15289,7 @@ enum hw_filter_mode {
  * This ini is used to configure timeout value for waiting BTM request.
  * Unit: millionsecond
  *
- * Supported Feature: STA
+ * Supported Feature: Roaming
  *
  * Usage: External
  *
@@ -15296,7 +15309,7 @@ enum hw_filter_mode {
  *
  * This ini is used to configure maximum attempt for sending BTM query to ESS.
  *
- * Supported Feature: STA
+ * Supported Feature: Roaming
  *
  * Usage: External
  *
@@ -15317,7 +15330,7 @@ enum hw_filter_mode {
  * This ini is used to configure Stick time after roaming to new AP by BTM.
  * Unit: seconds
  *
- * Supported Feature: STA
+ * Supported Feature: Roaming
  *
  * Usage: External
  *
@@ -15327,6 +15340,36 @@ enum hw_filter_mode {
 #define CFG_BTM_STICKY_TIME_MIN       (0x00000001)
 #define CFG_BTM_STICKY_TIME_MAX       (0x0000FFFF)
 #define CFG_BTM_STICKY_TIME_DEFAULT   (300)
+
+/*
+ * <ini>
+ * btm_query_bitmask - To send BTM query with candidate list on various roam
+ * scans reasons
+ * @Min: 0
+ * @Max: 0xFFFFFFFF
+ * @Default: 0x8
+ *
+ * This new ini is introduced to configure the bitmask for various roam scan
+ * reasons. Fw sends "BTM query with preferred candidate list" only for those
+ * roam scans which are enable through this bitmask.
+
+ * For Example:
+ * Bitmask : 0x8 (LOW_RSSI) refer enum WMI_ROAM_TRIGGER_REASON_ID
+ * Bitmask : 0xDA (PER, LOW_RSSI, HIGH_RSSI, MAWC, DENSE)
+ * refer enum WMI_ROAM_TRIGGER_REASON_ID
+ *
+ * Related: None
+ *
+ * Supported Feature: Roaming
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_BTM_QUERY_BITMASK_NAME    "btm_query_bitmask"
+#define CFG_BTM_QUERY_BITMASK_MIN     (0)
+#define CFG_BTM_QUERY_BITMASK_MAX     (0xFFFFFFFF)
+#define CFG_BTM_QUERY_BITMASK_DEFAULT (0x8)
 
 /*
  * Type declarations
@@ -16282,6 +16325,7 @@ struct hdd_config {
 	uint32_t btm_solicited_timeout;
 	uint32_t btm_max_attempt_cnt;
 	uint32_t btm_sticky_time;
+	uint32_t btm_query_bitmask;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

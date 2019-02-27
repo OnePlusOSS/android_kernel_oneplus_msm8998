@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016, 2018 The Linux Foundation. All rights reserved.*
+ * Copyright (c) 2013-2016, 2018-2019 The Linux Foundation. All rights reserved.*
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -206,6 +206,7 @@ typedef enum {
         ((mode) == MODE_11AC_VHT80))
 #endif
 
+#if SUPPORT_11AX
 #define IS_MODE_HE(mode) (((mode) == MODE_11AX_HE20) || \
         ((mode) == MODE_11AX_HE40)     || \
         ((mode) == MODE_11AX_HE80)     || \
@@ -214,6 +215,10 @@ typedef enum {
         ((mode) == MODE_11AX_HE20_2G)  || \
         ((mode) == MODE_11AX_HE40_2G)  || \
         ((mode) == MODE_11AX_HE80_2G))
+#define IS_MODE_HE_2G(mode) (((mode) == MODE_11AX_HE20_2G) || \
+        ((mode) == MODE_11AX_HE40_2G) || \
+        ((mode) == MODE_11AX_HE80_2G))
+#endif /* SUPPORT_11AX */
 
 #define IS_MODE_VHT_2G(mode) (((mode) == MODE_11AC_VHT20_2G) || \
         ((mode) == MODE_11AC_VHT40_2G) || \
@@ -235,6 +240,40 @@ typedef enum {
                                  ((mode) == MODE_11NG_HT40))
 #define IS_MODE_11GONLY(mode)   ((mode) == MODE_11GONLY)
 
+#define IS_MODE_LEGACY(phymode)  ((phymode == MODE_11A) || \
+                                  (phymode == MODE_11G) || \
+                                  (phymode == MODE_11B) || \
+                                  (phymode == MODE_11GONLY))
+
+#define IS_MODE_11N(phymode)     ((phymode >= MODE_11NA_HT20) && \
+                                  (phymode <= MODE_11NG_HT40))
+#ifdef CONFIG_160MHZ_SUPPORT
+  #define IS_MODE_11AC(phymode)  ((phymode >= MODE_11AC_VHT20) && \
+                                  (phymode <= MODE_11AC_VHT160))
+#else
+  #define IS_MODE_11AC(phymode)  ((phymode >= MODE_11AC_VHT20) && \
+                                  (phymode <= MODE_11AC_VHT80_2G))
+#endif /* CONFIG_160MHZ_SUPPORT */
+
+#if SUPPORT_11AX
+  #define IS_MODE_80MHZ(phymode) ((phymode == MODE_11AC_VHT80_2G) || \
+                                  (phymode == MODE_11AC_VHT80) || \
+                                  (phymode == MODE_11AX_HE80) || \
+                                  (phymode == MODE_11AX_HE80_2G))
+  #define IS_MODE_40MHZ(phymode) ((phymode == MODE_11AC_VHT40_2G) || \
+                                  (phymode == MODE_11AC_VHT40) || \
+                                  (phymode == MODE_11NG_HT40) || \
+                                  (phymode == MODE_11NA_HT40) || \
+                                  (phymode == MODE_11AX_HE40) || \
+                                  (phymode == MODE_11AX_HE40_2G))
+#else
+  #define IS_MODE_80MHZ(phymode) ((phymode == MODE_11AC_VHT80_2G) || \
+                                  (phymode == MODE_11AC_VHT80))
+  #define IS_MODE_40MHZ(phymode) ((phymode == MODE_11AC_VHT40_2G) || \
+                                  (phymode == MODE_11AC_VHT40) || \
+                                  (phymode == MODE_11NG_HT40) || \
+                                  (phymode == MODE_11NA_HT40))
+#endif /* SUPPORT_11AX */
 
 enum {
     REGDMN_MODE_11A              = 0x00000001,  /* 11a channels */
@@ -318,12 +357,13 @@ typedef struct {
  * In host-based implementation of the rate-control feature, this struture is used to
  * create the payload for HTT message/s from target to host.
  */
-
-#if (NUM_SPATIAL_STREAM > 3)
-  #define A_RATEMASK A_UINT64
-#else
-  #define A_RATEMASK A_UINT32
-#endif
+#ifndef CONFIG_MOVE_RC_STRUCT_TO_MACCORE
+  #if (NUM_SPATIAL_STREAM > 3)
+    #define A_RATEMASK A_UINT64
+  #else
+    #define A_RATEMASK A_UINT32
+  #endif
+#endif /* CONFIG_MOVE_RC_STRUCT_TO_MACCORE */
 
 typedef A_UINT8 A_RATE;
 typedef A_UINT8 A_RATECODE;
@@ -425,6 +465,7 @@ typedef struct {
  * because the host should have no references to these target-only data
  * structures.
  */
+#ifndef CONFIG_MOVE_RC_STRUCT_TO_MACCORE
 #if !((NUM_SPATIAL_STREAM > 4) || SUPPORT_11AX)
   #if defined(CONFIG_AR900B_SUPPORT) || defined(AR900B)
   typedef struct{
@@ -494,6 +535,7 @@ typedef struct {
       A_UINT8     dd_profile;
   } RC_TX_RATE_INFO;
 #endif /* !((NUM_SPATIAL_STREAM > 4) || SUPPORT_11AX) */
+#endif /* CONFIG_MOVE_RC_STRUCT_TO_MACCORE */
 #endif
 
 /*

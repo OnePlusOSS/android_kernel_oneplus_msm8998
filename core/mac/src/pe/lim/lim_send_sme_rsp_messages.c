@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1514,9 +1514,8 @@ lim_send_sme_deauth_ntf(tpAniSirGlobal pMac, tSirMacAddr peerMacAddr,
 	}
 
 	/*Delete the PE session  created */
-	if (psessionEntry != NULL) {
+	if ((psessionEntry != NULL) && LIM_IS_STA_ROLE(psessionEntry))
 		pe_delete_session(pMac, psessionEntry);
-	}
 
 	lim_send_sme_disassoc_deauth_ntf(pMac, QDF_STATUS_SUCCESS,
 					 (uint32_t *) pMsg);
@@ -1895,8 +1894,8 @@ void lim_send_sme_pe_ese_tsm_rsp(tpAniSirGlobal pMac,
 	tpPESession pPeSessionEntry = NULL;
 
 	/* Get the Session Id based on Sta Id */
-	pPeSessionEntry =
-		pe_find_session_by_sta_id(pMac, pPeStats->staId, &sessionId);
+	pPeSessionEntry = pe_find_session_by_bssid(pMac, pPeStats->bssid.bytes,
+						   &sessionId);
 
 	/* Fill the Session Id */
 	if (NULL != pPeSessionEntry) {

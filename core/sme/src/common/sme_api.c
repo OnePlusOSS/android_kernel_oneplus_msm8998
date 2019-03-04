@@ -19364,10 +19364,8 @@ QDF_STATUS sme_fast_reassoc(tHalHandle hal, tCsrRoamProfile *profile,
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	if (session->pCurRoamProfile->supplicant_disabled_roaming ||
-	    session->pCurRoamProfile->driver_disabled_roaming) {
-		sme_debug("roaming status in Supplicant %d and in driver %d",
-			session->pCurRoamProfile->supplicant_disabled_roaming,
+	if (session->pCurRoamProfile->driver_disabled_roaming) {
+		sme_debug("roaming status in driver %d",
 			session->pCurRoamProfile->driver_disabled_roaming);
 		return QDF_STATUS_E_FAILURE;
 	}

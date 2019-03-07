@@ -4838,10 +4838,14 @@ static void csr_reset_cfg_privacy(tpAniSirGlobal pMac)
 
 	cfg_set_int(pMac, WNI_CFG_PRIVACY_ENABLED, 0);
 	cfg_set_int(pMac, WNI_CFG_RSN_ENABLED, 0);
-	cfg_set_str(pMac, WNI_CFG_WEP_DEFAULT_KEY_1, Key0, 0);
-	cfg_set_str(pMac, WNI_CFG_WEP_DEFAULT_KEY_2, Key1, 0);
-	cfg_set_str(pMac, WNI_CFG_WEP_DEFAULT_KEY_3, Key2, 0);
-	cfg_set_str(pMac, WNI_CFG_WEP_DEFAULT_KEY_4, Key3, 0);
+	cfg_set_str(pMac, WNI_CFG_WEP_DEFAULT_KEY_1, Key0,
+		    WNI_CFG_WEP_DEFAULT_KEY_1_LEN);
+	cfg_set_str(pMac, WNI_CFG_WEP_DEFAULT_KEY_2, Key1,
+		    WNI_CFG_WEP_DEFAULT_KEY_2_LEN);
+	cfg_set_str(pMac, WNI_CFG_WEP_DEFAULT_KEY_3, Key2,
+		    WNI_CFG_WEP_DEFAULT_KEY_3_LEN);
+	cfg_set_str(pMac, WNI_CFG_WEP_DEFAULT_KEY_4, Key3,
+		    WNI_CFG_WEP_DEFAULT_KEY_4_LEN);
 	cfg_set_int(pMac, WNI_CFG_WEP_KEY_LENGTH, 0);
 	cfg_set_int(pMac, WNI_CFG_WEP_DEFAULT_KEYID, 0);
 }
@@ -17289,8 +17293,10 @@ QDF_STATUS csr_send_mb_set_context_req_msg(tpAniSirGlobal pMac,
 			status = cds_mq_post_message_by_priority(
 					QDF_MODULE_ID_PE, &cds_msg,
 					LOW_PRIORITY);
-		if (QDF_IS_STATUS_ERROR(status))
+		if (QDF_IS_STATUS_ERROR(status)) {
+			qdf_mem_zero(pMsg, msgLen);
 			qdf_mem_free(pMsg);
+		}
 	} while (0);
 	return status;
 }

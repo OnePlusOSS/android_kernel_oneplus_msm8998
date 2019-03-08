@@ -179,6 +179,10 @@
 	firmware: firmware {
 		android {
 			compatible = "android,firmware";
+			vbmeta {
+				compatible = "android,vbmeta";
+				parts = "vbmeta,boot,system,vendor,dtbo,recovery";
+			};
 			fstab {
 				compatible = "android,fstab";
 				vendor: vendor {
@@ -186,7 +190,7 @@
 					dev = "/dev/block/platform/soc/7464900.sdhci/by-name/vendor";
 					type = "ext4";
 					mnt_flags = "ro,barrier=1,discard";
-					fsmgr_flags = "wait,verify";
+					fsmgr_flags = "wait,avb";
 					status = "ok";
 				};
 			};
@@ -4240,6 +4244,20 @@
                          qcom,glinkpkt-ch-name = "glink_pkt_lloop_CLNT";
                          qcom,glinkpkt-dev-name = "glink_pkt_loopback";
                  };
+
+		qcom,glinkpkt-apr-apps2 {
+			qcom,glinkpkt-transport = "smem";
+			qcom,glinkpkt-edge = "adsp";
+			qcom,glinkpkt-ch-name = "apr_apps2";
+			qcom,glinkpkt-dev-name = "apr_apps2";
+		};
+
+		qcom,glinkpkt-data40-cntl {
+			qcom,glinkpkt-transport = "smem";
+			qcom,glinkpkt-edge = "mpss";
+			qcom,glinkpkt-ch-name = "DATA40_CNTL";
+			qcom,glinkpkt-dev-name = "smdcntl8";
+		};
          };
 
 	qcom,cache_erp64@6500000 {

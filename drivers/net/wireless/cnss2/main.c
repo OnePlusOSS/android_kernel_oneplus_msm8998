@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -562,13 +562,49 @@ out:
 	return ret;
 }
 
-static int cnss_cal_update_hdlr(struct cnss_plat_data *plat_priv)
+static int caldb_mem_bounds_check(struct cnss_plat_data *plat_priv, void *data)
 {
-	/* QCN7605 store the cal data sent by FW to calDB memory area
-	 * get out of this after complete data is uploaded. FW is expected
-	 * to send cal done
-	*/
-	return 0;
+	int ret = 0;
+	struct cnss_cal_data *cal_data = data;
+	u8 *end_ptr, *cal_data_ptr;
+	u32 total_size;
+
+	end_ptr = (u8 *)plat_priv->caldb_mem + QCN7605_CALDB_SIZE;
+	cal_data_ptr = (u8 *)plat_priv->caldb_mem + cal_data->index;
+	total_size = cal_data->total_size;
+
+	if (cal_data_ptr >= end_ptr || (cal_data_ptr + total_size) >= end_ptr) {
+		cnss_pr_err("caldb data offset or size error\n");
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
+static int cnss_cal_update_hdlr(struct cnss_plat_data *plat_priv, void *data)
+{
+	int ret = 0;
+
+	ret  = caldb_mem_bounds_check(plat_priv, data);
+	if (ret)
+		CNSS_ASSERT(0);
+	else
+		cnss_wlfw_cal_update_req_send_sync(plat_priv, data);
+
+	return ret;
+}
+
+static int cnss_cal_download_hdlr(struct cnss_plat_data *plat_priv, void *data)
+{
+	int ret = 0;
+
+	ret = caldb_mem_bounds_check(plat_priv, data);
+	if (ret)
+		CNSS_ASSERT(0);
+	else
+		cnss_wlfw_cal_download_req_send_sync(plat_priv, data);
+
+	return ret;
 }
 
 static char *cnss_driver_event_to_str(enum cnss_driver_event_type type)
@@ -1157,11 +1193,6 @@ static int cnss_wlfw_server_arrive_hdlr(struct cnss_plat_data *plat_priv)
 			goto out;
 
 		ret = cnss_wlfw_bdf_dnld_send_sync(plat_priv);
-		if (ret)
-			goto out;
-		/*cnss driver sends  meta data report and waits for FW_READY*/
-		if (cnss_bus_dev_cal_rep_valid(plat_priv))
-			ret = cnss_wlfw_cal_report_send_sync(plat_priv);
 	}
 out:
 	return ret;
@@ -1255,7 +1286,10 @@ static void cnss_driver_event_work(struct work_struct *work)
 			ret = cnss_cold_boot_cal_start_hdlr(plat_priv);
 			break;
 		case CNSS_DRIVER_EVENT_CAL_UPDATE:
-			ret = cnss_cal_update_hdlr(plat_priv);
+			ret = cnss_cal_update_hdlr(plat_priv, event->data);
+			break;
+		case CNSS_DRIVER_EVENT_CAL_DOWNLOAD:
+			ret = cnss_cal_download_hdlr(plat_priv, event->data);
 			break;
 		case CNSS_DRIVER_EVENT_COLD_BOOT_CAL_DONE:
 			ret = cnss_cold_boot_cal_done_hdlr(plat_priv);
@@ -1655,6 +1689,30 @@ static ssize_t cnss_fs_ready_store(struct device *dev,
 
 static DEVICE_ATTR(fs_ready, 0220, NULL, cnss_fs_ready_store);
 
+static ssize_t cnss_wl_pwr_on(struct device *dev,
+			      struct device_attribute *attr,
+			      const char *buf,
+			      size_t count)
+{
+	int pwr_state = 0;
+	struct cnss_plat_data *plat_priv = dev_get_drvdata(dev);
+
+	if (sscanf(buf, "%du", &pwr_state) != 1)
+		return -EINVAL;
+
+	cnss_pr_dbg("vreg-wlan-en state change %d, count %zu", pwr_state,
+		    count);
+
+	if (pwr_state)
+		cnss_power_on_device(plat_priv);
+	else
+		cnss_power_off_device(plat_priv);
+
+	return count;
+}
+
+static DEVICE_ATTR(wl_pwr_on, 0220, NULL, cnss_wl_pwr_on);
+
 static int cnss_create_sysfs(struct cnss_plat_data *plat_priv)
 {
 	int ret = 0;
@@ -1673,6 +1731,27 @@ out:
 static void cnss_remove_sysfs(struct cnss_plat_data *plat_priv)
 {
 	device_remove_file(&plat_priv->plat_dev->dev, &dev_attr_fs_ready);
+}
+
+static int cnss_create_sysfs_wl_pwr(struct cnss_plat_data *plat_priv)
+{
+	int ret = 0;
+
+	ret = device_create_file(&plat_priv->plat_dev->dev,
+				 &dev_attr_wl_pwr_on);
+	if (ret) {
+		cnss_pr_err("Failed to create device file, err = %d\n", ret);
+		goto out;
+	}
+	cnss_pr_dbg("created sysfs for vreg-wlan-en control\n");
+	return 0;
+out:
+	return ret;
+}
+
+static void cnss_remove_sysfs_wl_pwr(struct cnss_plat_data *plat_priv)
+{
+	device_remove_file(&plat_priv->plat_dev->dev, &dev_attr_wl_pwr_on);
 }
 
 static int cnss_event_work_init(struct cnss_plat_data *plat_priv)
@@ -1694,6 +1773,25 @@ static int cnss_event_work_init(struct cnss_plat_data *plat_priv)
 static void cnss_event_work_deinit(struct cnss_plat_data *plat_priv)
 {
 	destroy_workqueue(plat_priv->event_wq);
+}
+
+static int cnss_alloc_caldb_mem(struct cnss_plat_data *plat_priv)
+{
+	int ret = 0;
+
+	plat_priv->caldb_mem = vzalloc(QCN7605_CALDB_SIZE);
+	if (plat_priv->caldb_mem)
+		cnss_pr_dbg("600KB cal db alloc done caldb_mem %pK\n",
+			    plat_priv->caldb_mem);
+	else
+		ret = -ENOMEM;
+
+	return ret;
+}
+
+static void cnss_free_caldb_mem(struct cnss_plat_data *plat_priv)
+{
+	vfree(plat_priv->caldb_mem);
 }
 
 static const struct platform_device_id cnss_platform_id_table[] = {
@@ -1745,6 +1843,7 @@ static int cnss_probe(struct platform_device *plat_dev)
 	plat_priv->plat_dev = plat_dev;
 	plat_priv->device_id = device_id->driver_data;
 	plat_priv->bus_type = cnss_get_bus_type(plat_priv->device_id);
+	cnss_pr_dbg("bus type selected  %d\n", plat_priv->bus_type);
 	cnss_set_plat_priv(plat_dev, plat_priv);
 	platform_set_drvdata(plat_dev, plat_priv);
 
@@ -1774,9 +1873,13 @@ static int cnss_probe(struct platform_device *plat_dev)
 	if (ret)
 		goto unreg_bus_scale;
 
-	ret = cnss_event_work_init(plat_priv);
+	ret = cnss_create_sysfs_wl_pwr(plat_priv);
 	if (ret)
 		goto remove_sysfs;
+
+	ret = cnss_event_work_init(plat_priv);
+	if (ret)
+		goto remove_sysfs_pwr;
 
 	ret = cnss_qmi_init(plat_priv);
 	if (ret)
@@ -1785,6 +1888,12 @@ static int cnss_probe(struct platform_device *plat_dev)
 	ret = cnss_debugfs_create(plat_priv);
 	if (ret)
 		goto deinit_qmi;
+
+	if (plat_priv->bus_type == CNSS_BUS_USB)	{
+		ret = cnss_alloc_caldb_mem(plat_priv);
+		if (ret)
+			goto remove_debugfs;
+	}
 
 	setup_timer(&plat_priv->fw_boot_timer,
 		    cnss_bus_fw_boot_timeout_hdlr, (unsigned long)plat_priv);
@@ -1803,12 +1912,16 @@ static int cnss_probe(struct platform_device *plat_dev)
 
 	return 0;
 
+remove_debugfs:
+	cnss_debugfs_destroy(plat_priv);
 deinit_qmi:
 	cnss_qmi_deinit(plat_priv);
 deinit_event_work:
 	cnss_event_work_deinit(plat_priv);
 remove_sysfs:
 	cnss_remove_sysfs(plat_priv);
+remove_sysfs_pwr:
+	cnss_remove_sysfs_wl_pwr(plat_priv);
 unreg_bus_scale:
 	cnss_unregister_bus_scale(plat_priv);
 unreg_esoc:
@@ -1836,6 +1949,7 @@ static int cnss_remove(struct platform_device *plat_dev)
 	device_init_wakeup(&plat_dev->dev, false);
 	unregister_pm_notifier(&cnss_pm_notifier);
 	del_timer(&plat_priv->fw_boot_timer);
+	cnss_free_caldb_mem(plat_priv);
 	cnss_debugfs_destroy(plat_priv);
 	cnss_qmi_deinit(plat_priv);
 	cnss_event_work_deinit(plat_priv);

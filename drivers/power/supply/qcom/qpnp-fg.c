@@ -5038,7 +5038,7 @@ static void cc_soc_store_work(struct work_struct *work)
 	fg_relax(&chip->cc_soc_wakeup_source);
 }
 
-#define HARD_JEITA_ALARM_CHECK_NS	10000000000
+#define HARD_JEITA_ALARM_CHECK_NS	10000000000ULL
 static enum alarmtimer_restart fg_hard_jeita_alarm_cb(struct alarm *alarm,
 						ktime_t now)
 {

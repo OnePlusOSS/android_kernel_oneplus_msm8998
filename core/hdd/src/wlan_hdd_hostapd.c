@@ -7764,7 +7764,7 @@ static inline int wlan_hdd_set_udp_resp_offload(hdd_adapter_t *padapter,
 }
 #endif
 
-static void hdd_check_and_disconnect_sta_on_invalid_channel(
+void hdd_check_and_disconnect_sta_on_invalid_channel(
 		hdd_context_t *hdd_ctx)
 {
 	hdd_adapter_t *sta_adapter;
@@ -7869,13 +7869,11 @@ int wlan_hdd_restore_channels(hdd_context_t *hdd_ctx)
 		 * Restore the orginal states of the channels
 		 * only if we have cached non zero values
 		 */
-		if (cache_chann->channel_info[i].reg_status)
-			cds_set_channel_state(rf_channel,
-					      cache_chann->
-						channel_info[i].reg_status);
+		cds_set_channel_state(rf_channel,
+				      cache_chann->
+				      channel_info[i].reg_status);
 
-		if (cache_chann->channel_info[i].wiphy_status && wiphy_channel)
-			wiphy_channel->flags =
+		wiphy_channel->flags =
 				cache_chann->channel_info[i].wiphy_status;
 	}
 
@@ -8084,18 +8082,6 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 		if (cds_is_force_scc())
 			hdd_check_and_disconnect_sta_on_invalid_channel(
 								       pHddCtx);
-	}
-
-	if (pHostapdAdapter->device_mode == QDF_SAP_MODE &&
-	    !iniConfig->disable_channel) {
-		/*
-		 * Disable the channels received in command
-		 * SET_DISABLE_CHANNEL_LIST
-		 */
-		status = wlan_hdd_disable_channels(pHddCtx);
-		if (!QDF_IS_STATUS_SUCCESS(status))
-			hdd_err("Disable channel list fail");
-		hdd_check_and_disconnect_sta_on_invalid_channel(pHddCtx);
 	}
 
 	pConfig = &pHostapdAdapter->sessionCtx.ap.sapConfig;
@@ -8683,9 +8669,6 @@ exit:
 	return 0;
 
 error:
-	if (pHostapdAdapter->device_mode == QDF_SAP_MODE &&
-	    !iniConfig->disable_channel)
-		wlan_hdd_restore_channels(pHddCtx);
 	/* Revert the indoor to passive marking if START BSS fails */
 	if (iniConfig->disable_indoor_channel &&
 			pHostapdAdapter->device_mode == QDF_SAP_MODE) {

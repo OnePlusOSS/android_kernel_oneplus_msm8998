@@ -1947,6 +1947,9 @@ QDF_STATUS hdd_change_peer_state(hdd_adapter_t *pAdapter,
 #endif
 
 	if (sta_state == OL_TXRX_PEER_STATE_AUTH) {
+		/* Reset scan reject params on successful set key */
+		hdd_debug("Reset scan reject params");
+		hdd_init_scan_reject_params(pAdapter->pHddCtx);
 #ifdef QCA_LL_LEGACY_TX_FLOW_CONTROL
 		/* make sure event is reset */
 		INIT_COMPLETION(pAdapter->sta_authorized_event);

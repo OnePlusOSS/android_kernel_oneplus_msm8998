@@ -108,11 +108,10 @@ static inline u64 __raw_readq_no_log(const volatile void __iomem *addr)
 
 #define __raw_write_logged(v, a, _t) ({ \
 	int _ret; \
-	volatile void __iomem *_a = (a); \
-	void *_addr = (void __force *)(_a); \
+	void *_addr = (void *)(a); \
 	_ret = uncached_logk(LOGK_WRITEL, _addr); \
 	ETB_WAYPOINT; \
-	__raw_write##_t##_no_log((v), _a); \
+	__raw_write##_t##_no_log((v), _addr); \
 	if (_ret) \
 		LOG_BARRIER; \
 	})
@@ -124,12 +123,11 @@ static inline u64 __raw_readq_no_log(const volatile void __iomem *addr)
 
 #define __raw_read_logged(a, _l, _t)    ({ \
 	_t __a; \
-	const volatile void __iomem *_a = (const volatile void __iomem *)(a); \
-	void *_addr = (void __force *)(_a); \
+	void *_addr = (void *)(a); \
 	int _ret; \
 	_ret = uncached_logk(LOGK_READL, _addr); \
 	ETB_WAYPOINT; \
-	__a = __raw_read##_l##_no_log(_a); \
+	__a = __raw_read##_l##_no_log(_addr); \
 	if (_ret) \
 		LOG_BARRIER; \
 	__a; \

@@ -383,6 +383,7 @@ typedef  enum  {
     WMI_SERVICE_CFR_CAPTURE_IND_EVT_TYPE_1 = 198, /* support WMI_PEER_CFR_CAPTURE_EVENT msg */
     WMI_SERVICE_BROADCAST_TWT = 199,  /* support of Broadcast TWT (Target Wake Time) for STA/AP */
     WMI_SERVICE_RAP_DETECTION_SUPPORT = 200, /* indicate FW supports rogue AP detection */
+    WMI_SERVICE_PS_TDCC = 201, /* FW support tx_duty_cycle_control powersave */
 
 
     /******* ADD NEW SERVICES HERE *******/

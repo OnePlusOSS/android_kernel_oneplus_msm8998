@@ -2983,6 +2983,36 @@ typedef struct {
     #define WMI_RSRC_CFG_FLAG_VIDEO_OVER_WIFI_ENABLE_S 23
     #define WMI_RSRC_CFG_FLAG_VIDEO_OVER_WIFI_ENABLE_M 0x800000
 
+    /*
+     * If the THREE_WAY_COEX_CONFIG_LEGACY flag is set, the target will use
+     * the configuration parameters given by Host driver to WLAN FW and
+     * apply them along with the existing CoEx Weights Override logic to
+     * prioritize the WLAN-BT-Zigbee packets accordingly.
+     *
+     * The host shall only set the THREE_WAY_COEX_CONFIG_LEGACY_SUPPORT
+     * RSRC_CFG flag if the target has set the WMI_SERVICE
+     * THREE_WAY_COEX_CONFIG_LEGACY_SUPPORT flag.
+     *
+     * The logic to send GPM to BT-SOC with BT-ZB priorities remains the same.
+     */
+    #define WMI_RSRC_CFG_FLAG_THREE_WAY_COEX_CONFIG_LEGACY_SUPPORT_S 24
+    #define WMI_RSRC_CFG_FLAG_THREE_WAY_COEX_CONFIG_LEGACY_SUPPORT_M 0x1000000
+
+    /*
+     * If the THREE_WAY_COEX_CONFIG_OVERRIDE flag is set, the target will use
+     * the configuration parameters given by Host driver to WLAN FW and
+     * apply them by OVERRIDing the existing CoEx Weights Override logic to
+     * prioritize the WLAN-BT-Zigbee packets accordingly.
+     *
+     * The host shall only set the THREE_WAY_COEX_CONFIG_OVERRIDE_SUPPORT
+     * RSRC_CFG flag if the target has set the WMI_SERVICE
+     * THREE_WAY_COEX_CONFIG_OVERRIDE_SUPPORT flag.
+     *
+     * The logic to send GPM to BT-SOC with BT-ZB priorities remains the same.
+     */
+    #define WMI_RSRC_CFG_FLAG_THREE_WAY_COEX_CONFIG_OVERRIDE_SUPPORT_S 25
+    #define WMI_RSRC_CFG_FLAG_THREE_WAY_COEX_CONFIG_OVERRIDE_SUPPORT_M 0x2000000
+
     A_UINT32 flag1;
 
     /** @brief smart_ant_cap - Smart Antenna capabilities information
@@ -3241,6 +3271,15 @@ typedef struct {
 #define WMI_RSRC_CFG_FLAG_VIDEO_OVER_WIFI_ENABLE_GET(word32) \
     WMI_RSRC_CFG_FLAG_GET((word32), VIDEO_OVER_WIFI_ENABLE)
 
+#define WMI_RSRC_CFG_FLAG_THREE_WAY_COEX_CONFIG_LEGACY_SUPPORT_SET(word32, value) \
+    WMI_RSRC_CFG_FLAG_SET((word32), THREE_WAY_COEX_CONFIG_LEGACY_SUPPORT, (value))
+#define WMI_RSRC_CFG_FLAG_THREE_WAY_COEX_CONFIG_LEGACY_SUPPORT_GET(word32) \
+    WMI_RSRC_CFG_FLAG_GET((word32), THREE_WAY_COEX_CONFIG_LEGACY_SUPPORT)
+
+#define WMI_RSRC_CFG_FLAG_THREE_WAY_COEX_CONFIG_OVERRIDE_SUPPORT_SET(word32, value) \
+    WMI_RSRC_CFG_FLAG_SET((word32), THREE_WAY_COEX_CONFIG_OVERRIDE_SUPPORT, (value))
+#define WMI_RSRC_CFG_FLAG_THREE_WAY_COEX_CONFIG_OVERRIDE_SUPPORT_GET(word32) \
+    WMI_RSRC_CFG_FLAG_GET((word32), THREE_WAY_COEX_CONFIG_OVERRIDE_SUPPORT)
 
 typedef struct {
     A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_init_cmd_fixed_param */

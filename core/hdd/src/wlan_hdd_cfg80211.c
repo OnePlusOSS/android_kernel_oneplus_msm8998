@@ -16063,16 +16063,7 @@ static void wlan_hdd_fill_per_chain_rssi(struct cfg80211_inform_bss *data,
 }
 #endif
 
-/*
- * wlan_hdd_cfg80211_update_bss_list :to inform nl80211
- * interface that BSS might have been lost.
- * @pAdapter: adaptor
- * @bssid: bssid which might have been lost
- *
- * Return: bss which is unlinked from kernel cache
- */
-struct cfg80211_bss *wlan_hdd_cfg80211_update_bss_list(
-	hdd_adapter_t *pAdapter, tSirMacAddr bssid)
+void wlan_hdd_cfg80211_unlink_bss(hdd_adapter_t *pAdapter, tSirMacAddr bssid)
 {
 	struct net_device *dev = pAdapter->dev;
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
@@ -16081,14 +16072,15 @@ struct cfg80211_bss *wlan_hdd_cfg80211_update_bss_list(
 
 	bss = hdd_cfg80211_get_bss(wiphy, NULL, bssid,
 			NULL, 0);
-	if (bss == NULL) {
+	if (!bss) {
 		hdd_err("BSS not present");
 	} else {
 		hdd_debug("cfg80211_unlink_bss called for BSSID "
 			MAC_ADDRESS_STR, MAC_ADDR_ARRAY(bssid));
 		cfg80211_unlink_bss(wiphy, bss);
+		/* cfg80211_get_bss get bss with ref count so release it */
+		cfg80211_put_bss(wiphy, bss);
 	}
-	return bss;
 }
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)) || \

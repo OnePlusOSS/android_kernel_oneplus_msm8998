@@ -1811,7 +1811,7 @@ static QDF_STATUS hdd_dis_connect_handler(hdd_adapter_t *pAdapter,
 		/* clear scan cache for Link Lost */
 		if (pRoamInfo && !pRoamInfo->reasonCode &&
 		    eCSR_ROAM_LOSTLINK == roamStatus) {
-			wlan_hdd_cfg80211_update_bss_list(pAdapter,
+			wlan_hdd_cfg80211_unlink_bss(pAdapter,
 				pHddStaCtx->conn_info.bssId.bytes);
 			sme_remove_bssid_from_scan_list(pHddCtx->hHal,
 			pHddStaCtx->conn_info.bssId.bytes);
@@ -3172,7 +3172,7 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 					pRoamInfo->statusCode) ||
 		   (eSIR_SME_ASSOC_TIMEOUT_RESULT_CODE ==
 					pRoamInfo->statusCode)))) {
-			wlan_hdd_cfg80211_update_bss_list(pAdapter,
+			wlan_hdd_cfg80211_unlink_bss(pAdapter,
 				pRoamInfo ?
 				pRoamInfo->bssid.bytes :
 				pWextState->req_bssId.bytes);

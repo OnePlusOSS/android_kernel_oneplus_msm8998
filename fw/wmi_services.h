@@ -386,6 +386,7 @@ typedef  enum  {
     WMI_SERVICE_PS_TDCC = 201, /* FW support tx_duty_cycle_control powersave */
     WMI_SERVICE_THREE_WAY_COEX_CONFIG_LEGACY   = 202, /* BTCOEX Three-way CoEx Config Legacy Feature support */
     WMI_SERVICE_THREE_WAY_COEX_CONFIG_OVERRIDE = 203, /* BTCOEX Three-way CoEx Config Override Feature support */
+    WMI_SERVICE_TX_PWR_PER_PEER = 204, /* target supports per-peer tx pwr spec via WMI_PEER_USE_FIXED_PWR */
 
 
     /******* ADD NEW SERVICES HERE *******/

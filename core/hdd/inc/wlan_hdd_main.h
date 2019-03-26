@@ -1062,6 +1062,8 @@ enum dhcp_nego_status {
  * MSB of rx_mc_bc_cnt indicates whether FW supports rx_mc_bc_cnt
  * feature or not, if first bit is 1 it indictes that FW supports this
  * feature, if it is 0 it indicates FW doesn't support this feature
+ * @support_mode: Max supported mode of a station currently
+ * connected to sap
  */
 typedef struct {
 	bool isUsed;
@@ -1107,6 +1109,7 @@ typedef struct {
 	uint16_t capability;
 	uint32_t rx_mc_bc_cnt;
 	uint32_t rx_retry_cnt;
+	uint8_t support_mode;
 } hdd_station_info_t;
 
 /**

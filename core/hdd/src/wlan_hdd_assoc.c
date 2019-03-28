@@ -5177,12 +5177,17 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 	case eCSR_ROAM_NAPI_OFF:
 		hdd_debug("After Roam Synch Comp: NAPI Serialize OFF");
 		hdd_napi_serialize(0);
-		hdd_set_roaming_in_progress(false);
-		if (roamResult == eCSR_ROAM_RESULT_FAILURE)
+		if (roamResult == eCSR_ROAM_RESULT_FAILURE) {
 			pAdapter->roam_ho_fail = true;
-		else
+			hdd_set_roaming_in_progress(false);
+		} else {
 			pAdapter->roam_ho_fail = false;
+		}
 		complete(&pAdapter->roaming_comp_var);
+		break;
+	case eCSR_ROAM_SYNCH_COMPLETE:
+		hdd_debug("LFR3: Roam synch complete");
+		hdd_set_roaming_in_progress(false);
 		break;
 	case eCSR_ROAM_SHOULD_ROAM:
 		/* notify apps that we can't pass traffic anymore */

@@ -342,7 +342,7 @@ static void unfreeze_cgroup(struct freezer *freezer)
 	css_task_iter_end(&it);
 	read_lock(&tasklist_lock);
 	do_each_thread(g, p) {
-		if (tmp_tsk &&
+		if (tmp_tsk && tmp_tsk->real_cred && p->real_cred &&
 			p->real_cred->uid.val == tmp_tsk->real_cred->uid.val)
 			__thaw_task(p);
 	} while_each_thread(g, p);

@@ -1856,6 +1856,29 @@ enum hdd_dot11_mode {
 
 /*
  * <ini>
+ * nth_beacon_reporting - Enable/Disable the nth beacon reporting offload
+ * @Min: 0
+ * @Max: 65536
+ * @Default: 0
+ *
+ * The configured value will be used by firmware to forward
+ * that beacon to host which is then forwarded to the userspace.
+ *
+ * Related: None
+ *
+ * Supported Feature: Beacon reporting
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_NTH_BEACON_REPORTING_OFFLOAD_NAME      "nth_beacon_reporting"
+#define CFG_NTH_BEACON_REPORTING_OFFLOAD_MIN       (0)
+#define CFG_NTH_BEACON_REPORTING_OFFLOAD_MAX       (65536)
+#define CFG_NTH_BEACON_REPORTING_OFFLOAD_DEFAULT   (0)
+
+/*
+ * <ini>
  * g11agNumTxChains - Number of Tx Chanins in 11ag mode
  * @Min: 0
  * @Max: 2
@@ -16326,6 +16349,7 @@ struct hdd_config {
 	uint32_t btm_max_attempt_cnt;
 	uint32_t btm_sticky_time;
 	uint32_t btm_query_bitmask;
+	uint16_t beacon_reporting;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

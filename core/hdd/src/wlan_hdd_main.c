@@ -13467,6 +13467,35 @@ void hdd_pld_ipa_uc_shutdown_pipes(void)
 	hdd_ipa_uc_force_pipe_shutdown(hdd_ctx);
 }
 
+#ifdef NTH_BEACON_OFFLOAD
+/**
+ * hdd_set_nth_beacon_offload() - Send the nth beacon offload command to FW
+ * @adapter: HDD adapter
+ * @value: Value of n, for which the nth beacon will be forwarded by the FW
+ *
+ * Return: QDF_STATUS_SUCCESS on success and failure status on failure
+ */
+QDF_STATUS hdd_set_nth_beacon_offload(hdd_adapter_t *adapter, uint16_t value)
+{
+	int ret;
+
+	ret = sme_cli_set_command(adapter->sessionId,
+				  WMI_VDEV_PARAM_NTH_BEACON_TO_HOST,
+				  value, VDEV_CMD);
+	if (ret) {
+		hdd_err("WMI_VDEV_PARAM_NTH_BEACON_TO_HOST %d", ret);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
+#else
+QDF_STATUS hdd_set_nth_beacon_offload(hdd_adapter_t *adapter, uint16_t value)
+{
+	return QDF_STATUS_SUCCESS;
+}
+#endif
+
 /**
  * hdd_start_driver_ops_timer() - Starts driver ops inactivity timer
  * @drv_op: Enum indicating driver op

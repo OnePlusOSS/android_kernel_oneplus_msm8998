@@ -3219,4 +3219,12 @@ void hdd_get_nud_stats_cb(void *data, struct rsp_stats *rsp, void *context);
 
 void hdd_sched_scan_results(struct wiphy *wiphy, uint64_t reqid);
 
+/**
+ * hdd_set_nth_beacon_offload() - Send the nth beacon offload command to FW
+ * @adapter: HDD adapter
+ * @value: Value of n, for which the nth beacon will be forwarded by the FW
+ *
+ * Return: QDF_STATUS_SUCCESS on success and failure status on failure
+ */
+QDF_STATUS hdd_set_nth_beacon_offload(hdd_adapter_t *adapter, uint16_t value);
 #endif /* end #if !defined(WLAN_HDD_MAIN_H) */

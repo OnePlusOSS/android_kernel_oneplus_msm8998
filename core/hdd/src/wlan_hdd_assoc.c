@@ -2693,6 +2693,16 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 		/* Indicate 'connect' status to user space */
 		hdd_send_association_event(dev, pRoamInfo);
 
+		/* Send beacon reporting offload command to FW */
+		if (pHddCtx->config->beacon_reporting) {
+			qdf_status = hdd_set_nth_beacon_offload
+					(pAdapter,
+					 pHddCtx->config->beacon_reporting);
+
+			if (QDF_IS_STATUS_ERROR(qdf_status))
+				hdd_err("Failed to set nth beacon reporting");
+		}
+
 		if (cds_is_mcc_in_24G()) {
 			if (pHddCtx->miracast_value)
 				cds_set_mas(pAdapter, pHddCtx->miracast_value);

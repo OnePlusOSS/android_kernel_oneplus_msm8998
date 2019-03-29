@@ -344,7 +344,7 @@ static void unfreeze_cgroup(struct freezer *freezer)
 /*make sure all the thread of one uid been wake up by huruihuan*/
 	read_lock(&tasklist_lock);
 	do_each_thread(g, p) {
-		if (tmp_tsk &&
+		if (tmp_tsk && tmp_tsk->real_cred && p->real_cred &&
 			p->real_cred->uid.val == tmp_tsk->real_cred->uid.val)
 			__thaw_task(p);
 	} while_each_thread(g, p);

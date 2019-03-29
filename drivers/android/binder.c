@@ -5781,7 +5781,8 @@ static int proc_transactions_open(struct inode *inode, struct file *file)
 
 static int proc_transaction_log_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, binder_transaction_log_show, inode->i_private);
+	return single_open(file, binder_transaction_log_show,
+                &binder_transaction_log);
 }
 
 static const struct file_operations proc_state_operations = {

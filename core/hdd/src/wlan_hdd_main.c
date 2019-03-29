@@ -5014,6 +5014,11 @@ QDF_STATUS hdd_stop_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 			cds_flush_delayed_work(&adapter->acs_pending_work);
 			clear_bit(ACS_PENDING, &adapter->event_flags);
 		}
+
+		/* Diassociate with all the peers before stop ap post */
+		if (test_bit(SOFTAP_BSS_STARTED, &adapter->event_flags))
+			wlan_hdd_del_station(adapter);
+
 		hdd_ipa_flush(hdd_ctx);
 
 	case QDF_P2P_GO_MODE:

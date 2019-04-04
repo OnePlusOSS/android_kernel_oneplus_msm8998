@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1301,7 +1301,15 @@ wlansap_modify_acl
 			  "%s: Invalid SAP Context", __func__);
 		return QDF_STATUS_E_FAULT;
 	}
-
+	if (qdf_mem_cmp(sap_ctx->bssid.bytes,
+	    peer_sta_mac, QDF_MAC_ADDR_SIZE) == 0) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			  "requested peer mac is" MAC_ADDRESS_STR
+			  "our own SAP BSSID."
+			  "Do not blacklist or whitelist this BSSID",
+			  MAC_ADDR_ARRAY(peer_sta_mac));
+		return QDF_STATUS_E_FAULT;
+	}
 	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_LOW,
 		  "Modify ACL entered\n" "Before modification of ACL\n"
 		  "size of accept and deny lists %d %d", sap_ctx->nAcceptMac,
@@ -3842,4 +3850,20 @@ void wlansap_cleanup_cac_timer(void *sap_ctx)
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
 			FL("sapdfs, force cleanup running dfs cac timer"));
 	}
+}
+
+bool wlansap_check_sap_started(void *sap_ctx)
+{
+	ptSapContext psap_ctx = CDS_GET_SAP_CB(sap_ctx);
+
+	if (!psap_ctx) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			  FL("Invalid SAP context"));
+		return false;
+	}
+
+	if (psap_ctx->sapsMachine == eSAP_STARTED)
+		return true;
+
+	return false;
 }

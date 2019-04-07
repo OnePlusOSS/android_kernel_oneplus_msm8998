@@ -301,7 +301,7 @@ static void *memcpy_to_log(void *dest, const void *src, size_t num_bytes)
 
 	/* Do byte copies until we hit 8-byte (double word) alignment */
 	while ((uintptr_t)temp_dst & mask && num_bytes) {
-		__raw_writeb_no_log(temp_src->u8, temp_dst);
+		__raw_writeb(temp_src->u8, temp_dst);
 		temp_src = (union fifo_mem *)((uintptr_t)temp_src + 1);
 		temp_dst = (union fifo_mem *)((uintptr_t)temp_dst + 1);
 		num_bytes--;
@@ -309,7 +309,7 @@ static void *memcpy_to_log(void *dest, const void *src, size_t num_bytes)
 
 	/* Do double word copies */
 	while (num_bytes >= sizeof(union fifo_mem)) {
-		__raw_writeq_no_log(temp_src->u64, temp_dst);
+		__raw_writeq(temp_src->u64, temp_dst);
 		temp_dst++;
 		temp_src++;
 		num_bytes -= sizeof(union fifo_mem);
@@ -317,7 +317,7 @@ static void *memcpy_to_log(void *dest, const void *src, size_t num_bytes)
 
 	/* Copy remaining bytes */
 	while (num_bytes--) {
-		__raw_writeb_no_log(temp_src->u8, temp_dst);
+		__raw_writeb(temp_src->u8, temp_dst);
 		temp_src = (union fifo_mem *)((uintptr_t)temp_src + 1);
 		temp_dst = (union fifo_mem *)((uintptr_t)temp_dst + 1);
 	}

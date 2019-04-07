@@ -214,13 +214,13 @@ struct msm_port {
 static
 void msm_write(struct uart_port *port, unsigned int val, unsigned int off)
 {
-	writel_relaxed_no_log(val, port->membase + off);
+	writel_relaxed(val, port->membase + off);
 }
 
 static
 unsigned int msm_read(struct uart_port *port, unsigned int off)
 {
-	return readl_relaxed_no_log(port->membase + off);
+	return readl_relaxed(port->membase + off);
 }
 
 /*
@@ -1659,7 +1659,7 @@ static void __msm_console_write(struct uart_port *port, const char *s,
 			cpu_relax();
 
 		buffer = (const u32 *)buf;
-		writel_relaxed_no_log(*buffer, tf);
+		writel_relaxed(*buffer, tf);
 		i += num_chars;
 	}
 	spin_unlock(&port->lock);

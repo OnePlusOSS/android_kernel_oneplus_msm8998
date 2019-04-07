@@ -148,7 +148,7 @@ static struct stm_drvdata *stmdrvdata;
 
 static inline void stm_data_writeb(uint8_t val, void *addr)
 {
-	__raw_writeb_no_log(val, addr);
+	__raw_writeb(val, addr);
 	if (stmdrvdata->data_barrier)
 		/* Helps avoid large number of outstanding writes */
 		mb();
@@ -156,7 +156,7 @@ static inline void stm_data_writeb(uint8_t val, void *addr)
 
 static inline void stm_data_writew(uint16_t val, void *addr)
 {
-	__raw_writew_no_log(val, addr);
+	__raw_writew(val, addr);
 	if (stmdrvdata->data_barrier)
 		/* Helps avoid large number of outstanding writes */
 		mb();
@@ -164,7 +164,7 @@ static inline void stm_data_writew(uint16_t val, void *addr)
 
 static inline void stm_data_writel(uint32_t val, void *addr)
 {
-	__raw_writel_no_log(val, addr);
+	__raw_writel(val, addr);
 	if (stmdrvdata->data_barrier)
 		/* Helps avoid large number of outstanding writes */
 		mb();

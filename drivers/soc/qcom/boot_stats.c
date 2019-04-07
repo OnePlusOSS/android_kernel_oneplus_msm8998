@@ -108,11 +108,11 @@ unsigned long long int msm_timer_get_sclk_ticks(void)
 	if (!sclk_tick)
 		return -EINVAL;
 	while (loop_zero_count--) {
-		t1 = __raw_readl_no_log(sclk_tick);
+		t1 = __raw_readl(sclk_tick);
 		do {
 			udelay(1);
 			t2 = t1;
-			t1 = __raw_readl_no_log(sclk_tick);
+			t1 = __raw_readl(sclk_tick);
 		} while ((t2 != t1) && --loop_count);
 		if (!loop_count) {
 			pr_err("boot_stats: SCLK  did not stabilize\n");

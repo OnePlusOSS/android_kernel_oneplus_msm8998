@@ -127,16 +127,13 @@ static void blk_rq_check_expired(struct request *rq, unsigned long *next_timeout
 	}
 }
 
-void blk_timeout_work(struct work_struct *work)
+void blk_rq_timed_out_timer(unsigned long data)
 {
-	struct request_queue *q =
-		container_of(work, struct request_queue, timeout_work);
+	struct request_queue *q = (struct request_queue *) data;
 	unsigned long flags, next = 0;
 	struct request *rq, *tmp;
 	int next_set = 0;
 
-	if (blk_queue_enter(q, true))
-		return;
 	spin_lock_irqsave(q->queue_lock, flags);
 
 	list_for_each_entry_safe(rq, tmp, &q->timeout_list, timeout_list)
@@ -146,7 +143,6 @@ void blk_timeout_work(struct work_struct *work)
 		mod_timer(&q->timeout, round_jiffies_up(next));
 
 	spin_unlock_irqrestore(q->queue_lock, flags);
-	blk_queue_exit(q);
 }
 
 /**

@@ -124,8 +124,11 @@ void habmem_remove_export(struct export_desc *exp)
 	struct uhab_context *ctx;
 
 	if (!exp || !exp->ctx || !exp->pchan) {
-		pr_err("failed to find valid info in exp %pK ctx %pK pchan %pK\n",
+		if (exp)
+			pr_err("invalid info in exp %pK ctx %pK pchan %pK\n",
 			   exp, exp->ctx, exp->pchan);
+		else
+			pr_err("invalid exp\n");
 		return;
 	}
 
@@ -243,7 +246,7 @@ int hab_mem_export(struct uhab_context *ctx,
 	if (!ctx || !param || !param->buffer)
 		return -EINVAL;
 
-	vchan = hab_get_vchan_fromvcid(param->vcid, ctx);
+	vchan = hab_get_vchan_fromvcid(param->vcid, ctx, 0);
 	if (!vchan || !vchan->pchan) {
 		ret = -ENODEV;
 		goto err;
@@ -274,8 +277,8 @@ int hab_mem_export(struct uhab_context *ctx,
 			&pdata_size);
 	}
 	if (ret < 0) {
-		pr_err("habmem_hyp_grant failed size=%d ret=%d\n",
-			pdata_size, ret);
+		pr_err("habmem_hyp_grant vc %x failed size=%d ret=%d\n",
+			   param->vcid, pdata_size, ret);
 		goto err;
 	}
 
@@ -310,7 +313,7 @@ int hab_mem_unexport(struct uhab_context *ctx,
 		return -EINVAL;
 
 	/* refcnt on the access */
-	vchan = hab_get_vchan_fromvcid(param->vcid, ctx);
+	vchan = hab_get_vchan_fromvcid(param->vcid, ctx, 1);
 	if (!vchan || !vchan->pchan) {
 		ret = -ENODEV;
 		goto err_novchan;
@@ -319,8 +322,7 @@ int hab_mem_unexport(struct uhab_context *ctx,
 	write_lock(&ctx->exp_lock);
 	list_for_each_entry_safe(exp, tmp, &ctx->exp_whse, node) {
 		if (param->exportid == exp->export_id &&
-			param->vcid == exp->vcid_local) {
-			/* same vchan guarantees the pchan for idr */
+			vchan->pchan == exp->pchan) {
 			list_del(&exp->node);
 			found = 1;
 			break;
@@ -358,7 +360,7 @@ int hab_mem_import(struct uhab_context *ctx,
 	if (!ctx || !param)
 		return -EINVAL;
 
-	vchan = hab_get_vchan_fromvcid(param->vcid, ctx);
+	vchan = hab_get_vchan_fromvcid(param->vcid, ctx, 0);
 	if (!vchan || !vchan->pchan) {
 		ret = -ENODEV;
 		goto err_imp;
@@ -367,15 +369,19 @@ int hab_mem_import(struct uhab_context *ctx,
 	spin_lock_bh(&ctx->imp_lock);
 	list_for_each_entry(exp, &ctx->imp_whse, node) {
 		if ((exp->export_id == param->exportid) &&
-			(param->vcid == exp->vcid_remote)) {
-			/* only allow import on the vchan recevied from
-			 * remote
-			 */
+			(exp->pchan == vchan->pchan)) {
 			found = 1;
 			break;
 		}
 	}
 	spin_unlock_bh(&ctx->imp_lock);
+
+	if ((exp->payload_count << PAGE_SHIFT) != param->sizebytes) {
+		pr_err("input size %d don't match buffer size %d\n",
+			param->sizebytes, exp->payload_count << PAGE_SHIFT);
+		ret = -EINVAL;
+		goto err_imp;
+	}
 
 	if (!found) {
 		pr_err("Fail to get export descriptor from export id %d\n",
@@ -414,7 +420,7 @@ int hab_mem_unimport(struct uhab_context *ctx,
 	if (!ctx || !param)
 		return -EINVAL;
 
-	vchan = hab_get_vchan_fromvcid(param->vcid, ctx);
+	vchan = hab_get_vchan_fromvcid(param->vcid, ctx, 1);
 	if (!vchan || !vchan->pchan) {
 		if (vchan)
 			hab_vchan_put(vchan);
@@ -424,8 +430,8 @@ int hab_mem_unimport(struct uhab_context *ctx,
 	spin_lock_bh(&ctx->imp_lock);
 	list_for_each_entry_safe(exp, exp_tmp, &ctx->imp_whse, node) {
 		if (exp->export_id == param->exportid &&
-			param->vcid == exp->vcid_remote) {
-			/* same vchan is expected here */
+			exp->pchan == vchan->pchan) {
+			/* same pchan is expected here */
 			list_del(&exp->node);
 			ctx->import_total--;
 			found = 1;

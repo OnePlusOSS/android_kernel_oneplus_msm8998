@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -73,8 +73,99 @@ static const char *sde_hdmi_hdr_sname(enum sde_hdmi_hdr_state hdr_state)
 	switch (hdr_state) {
 	case HDR_DISABLE: return "HDR_DISABLE";
 	case HDR_ENABLE: return "HDR_ENABLE";
+	case HDR_RESET: return "HDR_RESET";
 	default: return "HDR_INVALID_STATE";
 	}
+}
+
+static u8 sde_hdmi_infoframe_checksum(u8 *ptr, size_t size)
+{
+	u8 csum = 0;
+	size_t i;
+
+	/* compute checksum */
+	for (i = 0; i < size; i++)
+		csum += ptr[i];
+
+	return 256 - csum;
+}
+
+u8 sde_hdmi_hdr_set_chksum(struct drm_msm_ext_panel_hdr_metadata *hdr_meta)
+{
+	u8 *buff;
+	u8 *ptr;
+	u32 length;
+	u32 size;
+	u32 chksum = 0;
+	u32 const type_code = 0x87;
+	u32 const version = 0x01;
+	u32 const descriptor_id = 0x00;
+
+	/* length of metadata is 26 bytes */
+	length = 0x1a;
+	/* add 4 bytes for the header */
+	size = length + HDMI_INFOFRAME_HEADER_SIZE;
+
+	buff = kzalloc(size, GFP_KERNEL);
+
+	if (!buff) {
+		SDE_ERROR("invalid buff\n");
+		goto err_alloc;
+	}
+
+	ptr = buff;
+
+	buff[0] = type_code;
+	buff[1] = version;
+	buff[2] = length;
+	buff[3] = 0;
+	/* start infoframe payload */
+	buff += HDMI_INFOFRAME_HEADER_SIZE;
+
+	buff[0] = hdr_meta->eotf;
+	buff[1] = descriptor_id;
+
+	buff[2] = hdr_meta->display_primaries_x[0] & 0xff;
+	buff[3] = hdr_meta->display_primaries_x[0] >> 8;
+
+	buff[4] = hdr_meta->display_primaries_x[1] & 0xff;
+	buff[5] = hdr_meta->display_primaries_x[1] >> 8;
+
+	buff[6] = hdr_meta->display_primaries_x[2] & 0xff;
+	buff[7] = hdr_meta->display_primaries_x[2] >> 8;
+
+	buff[8] = hdr_meta->display_primaries_y[0] & 0xff;
+	buff[9] = hdr_meta->display_primaries_y[0] >> 8;
+
+	buff[10] = hdr_meta->display_primaries_y[1] & 0xff;
+	buff[11] = hdr_meta->display_primaries_y[1] >> 8;
+
+	buff[12] = hdr_meta->display_primaries_y[2] & 0xff;
+	buff[13] = hdr_meta->display_primaries_y[2] >> 8;
+
+	buff[14] = hdr_meta->white_point_x & 0xff;
+	buff[15] = hdr_meta->white_point_x >> 8;
+	buff[16] = hdr_meta->white_point_y & 0xff;
+	buff[17] = hdr_meta->white_point_y >> 8;
+
+	buff[18] = hdr_meta->max_luminance & 0xff;
+	buff[19] = hdr_meta->max_luminance >> 8;
+
+	buff[20] = hdr_meta->min_luminance & 0xff;
+	buff[21] = hdr_meta->min_luminance >> 8;
+
+	buff[22] = hdr_meta->max_content_light_level & 0xff;
+	buff[23] = hdr_meta->max_content_light_level >> 8;
+
+	buff[24] = hdr_meta->max_average_light_level & 0xff;
+	buff[25] = hdr_meta->max_average_light_level >> 8;
+
+	chksum = sde_hdmi_infoframe_checksum(ptr, size);
+
+	kfree(ptr);
+
+err_alloc:
+	return chksum;
 }
 
 /**
@@ -516,12 +607,19 @@ bool sde_hdmi_tx_is_encryption_set(struct sde_hdmi *hdmi_ctrl)
 
 	hdmi = hdmi_ctrl->ctrl.ctrl;
 
-	reg_val = hdmi_read(hdmi, HDMI_HDCP_CTRL2);
-	if ((reg_val & BIT(0)) && (reg_val & BIT(1)))
-		goto end;
+	/* Check if encryption was enabled */
+	if (hdmi_ctrl->hdmi_tx_major_version <= HDMI_TX_VERSION_3) {
+		reg_val = hdmi_read(hdmi, HDMI_HDCP_CTRL2);
+		if ((reg_val & BIT(0)) && (reg_val & BIT(1)))
+			goto end;
 
-	if (hdmi_read(hdmi, HDMI_CTRL) & BIT(2))
-		goto end;
+		if (hdmi_read(hdmi, HDMI_CTRL) & BIT(2))
+			goto end;
+	} else {
+		reg_val = hdmi_read(hdmi, HDMI_HDCP_STATUS);
+		if (reg_val)
+			goto end;
+	}
 
 	return false;
 
@@ -984,18 +1082,23 @@ u8 sde_hdmi_hdr_get_ops(u8 curr_state,
 	u8 new_state)
 {
 
-	/** There could be 3 valid state transitions:
+	/** There could be 4 valid state transitions:
 	 * 1. HDR_DISABLE -> HDR_ENABLE
 	 *
 	 * In this transition, we shall start sending
 	 * HDR metadata with metadata from the HDR clip
 	 *
-	 * 2. HDR_ENABLE -> HDR_ENABLE
+	 * 2. HDR_ENABLE -> HDR_RESET
 	 *
 	 * In this transition, we will keep sending
 	 * HDR metadata but with EOTF and metadata as 0
 	 *
-	 * 3. HDR_ENABLE -> HDR_DISABLE
+	 * 3. HDR_RESET -> HDR_ENABLE
+	 *
+	 * In this transition, we will start sending
+	 * HDR metadata with metadata from the HDR clip
+	 *
+	 * 4. HDR_RESET -> HDR_DISABLE
 	 *
 	 * In this transition, we will stop sending
 	 * metadata to the sink and clear PKT_CTRL register
@@ -1009,12 +1112,18 @@ u8 sde_hdmi_hdr_get_ops(u8 curr_state,
 						sde_hdmi_hdr_sname(new_state));
 		return HDR_SEND_INFO;
 	} else if ((curr_state == HDR_ENABLE)
+				&& (new_state == HDR_RESET)) {
+		HDMI_UTIL_DEBUG("State changed %s ---> %s\n",
+						sde_hdmi_hdr_sname(curr_state),
+						sde_hdmi_hdr_sname(new_state));
+		return HDR_SEND_INFO;
+	} else if ((curr_state == HDR_RESET)
 				&& (new_state == HDR_ENABLE)) {
 		HDMI_UTIL_DEBUG("State changed %s ---> %s\n",
 						sde_hdmi_hdr_sname(curr_state),
 						sde_hdmi_hdr_sname(new_state));
 		return HDR_SEND_INFO;
-	} else if ((curr_state == HDR_ENABLE)
+	} else if ((curr_state == HDR_RESET)
 				&& (new_state == HDR_DISABLE)) {
 		HDMI_UTIL_DEBUG("State changed %s ---> %s\n",
 						sde_hdmi_hdr_sname(curr_state),

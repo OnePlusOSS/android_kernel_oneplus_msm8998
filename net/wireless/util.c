@@ -591,6 +591,7 @@ int ieee80211_data_from_8023(struct sk_buff *skb, const u8 *addr,
 	hdr.frame_control = fc;
 	hdr.duration_id = 0;
 	hdr.seq_ctrl = 0;
+	eth_zero_addr(hdr.addr4);
 
 	skip_header_bytes = ETH_HLEN;
 	if (ethertype == ETH_P_AARP || ethertype == ETH_P_IPX) {
@@ -1355,7 +1356,7 @@ bool ieee80211_chandef_to_operating_class(struct cfg80211_chan_def *chandef,
 					  u8 *op_class)
 {
 	u8 vht_opclass;
-	u16 freq = chandef->center_freq1;
+	u32 freq = chandef->center_freq1;
 
 	if (freq >= 2412 && freq <= 2472) {
 		if (chandef->width > NL80211_CHAN_WIDTH_40)

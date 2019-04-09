@@ -28,6 +28,16 @@ config DRM_MSM_REGISTER_LOGGING
 	  that can be parsed by envytools demsm tool.  If enabled, register
 	  logging can be switched on via msm.reglog=y module param.
 
+config DRM_MSM_EARLY_CARD
+	bool "Enable Early DRM in MSM DRM driver"
+	depends on DRM_MSM
+	default y
+	help
+	  Choose this option if one wants to enable Early DRM driver
+	  for MSM/snapdragon.  Early DRM will create one DRI card to
+	  support early application.  One should also check device tree
+	  to assign proper display resources to early DRM
+
 config DRM_MSM_DSI
 	bool "Enable DSI support in MSM DRM driver"
 	depends on DRM_MSM
@@ -92,6 +102,16 @@ config DRM_SDE_WB
 	default y
 	help
 	  Choose this option for writeback connector support.
+
+config DRM_SDE_SHD
+	bool "Enable Shared display support in SDE DRM"
+	depends on DRM_MSM
+	help
+	  Choose this option for shared display support.
+	  This option enables multiple logical displays
+	  to share one base physical encoder/connector.
+	  Each logical display will appear as different
+	  connectors and report back to user.
 
 config DRM_SDE_HDMI
 	bool "Enable HDMI driver support in DRM SDE driver"

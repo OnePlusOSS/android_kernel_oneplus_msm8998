@@ -125,6 +125,15 @@ static void sde_hdmi_clear_hdr_info(struct drm_bridge *bridge)
 	connector->hdr_supported = false;
 }
 
+static void sde_hdmi_clear_colorimetry(struct drm_bridge *bridge)
+{
+	struct sde_hdmi_bridge *sde_hdmi_bridge = to_hdmi_bridge(bridge);
+	struct hdmi *hdmi = sde_hdmi_bridge->hdmi;
+	struct drm_connector *connector = hdmi->connector;
+
+	connector->color_enc_fmt = 0;
+}
+
 static void sde_hdmi_clear_vsdb_info(struct drm_bridge *bridge)
 {
 	struct sde_hdmi_bridge *sde_hdmi_bridge = to_hdmi_bridge(bridge);
@@ -654,7 +663,9 @@ static void _sde_hdmi_bridge_enable(struct drm_bridge *bridge)
 static void _sde_hdmi_bridge_disable(struct drm_bridge *bridge)
 {
 	struct sde_hdmi_bridge *sde_hdmi_bridge = to_hdmi_bridge(bridge);
+	struct hdmi *hdmi = sde_hdmi_bridge->hdmi;
 	struct sde_hdmi *display = sde_hdmi_bridge->display;
+	struct sde_connector_state *c_state;
 
 	mutex_lock(&display->display_lock);
 
@@ -663,6 +674,17 @@ static void _sde_hdmi_bridge_disable(struct drm_bridge *bridge)
 		mutex_unlock(&display->display_lock);
 		return;
 	}
+
+	hdmi->connector->hdr_eotf = 0;
+	hdmi->connector->hdr_metadata_type_one = 0;
+	hdmi->connector->hdr_max_luminance = 0;
+	hdmi->connector->hdr_avg_luminance = 0;
+	hdmi->connector->hdr_min_luminance = 0;
+
+	c_state = to_sde_connector_state(hdmi->connector->state);
+	memset(&c_state->hdr_ctrl.hdr_meta,
+		0, sizeof(c_state->hdr_ctrl.hdr_meta));
+	c_state->hdr_ctrl.hdr_state = HDR_DISABLE;
 
 	display->pll_update_enable = false;
 	display->sink_hdcp_ver = SDE_HDMI_HDCP_NONE;
@@ -676,6 +698,8 @@ static void _sde_hdmi_bridge_disable(struct drm_bridge *bridge)
 	sde_hdmi_clear_vsdbs(bridge);
 	/* Clear HDMI VCDB block info */
 	sde_hdmi_clear_vcdb_info(bridge);
+	/* Clear HDMI colorimetry data block info */
+	sde_hdmi_clear_colorimetry(bridge);
 
 	mutex_unlock(&display->display_lock);
 }

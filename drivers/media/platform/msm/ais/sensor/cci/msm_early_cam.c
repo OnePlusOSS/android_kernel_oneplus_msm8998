@@ -17,6 +17,7 @@
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/of_platform.h>
+#include <soc/qcom/early_domain.h>
 #include "msm_sd.h"
 #include "msm_early_cam.h"
 #include "msm_cam_cci_hwreg.h"
@@ -253,6 +254,16 @@ int msm_ais_disable_clocks(void)
 	return 0;
 
 }
+
+void msm_early_camera_wait(void)
+{
+	while (get_early_service_status(EARLY_CAMERA)) {
+		CDBG("%s: wait for signal of early camera from LK",
+			__func__);
+		msleep(500);
+	}
+}
+
 static int msm_early_cam_probe(struct platform_device *pdev)
 {
 	int rc = 0;

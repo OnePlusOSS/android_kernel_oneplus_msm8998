@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -37,6 +37,7 @@
 #define FW_READY_TIMEOUT		20000
 #define FW_ASSERT_TIMEOUT		5000
 #define CNSS_EVENT_PENDING		2989
+#define CE_MSI_NAME			"CE"
 
 static struct cnss_plat_data *plat_env;
 
@@ -249,7 +250,7 @@ int cnss_wlan_enable(struct device *dev,
 {
 	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
 	struct wlfw_wlan_cfg_req_msg_v01 req;
-	u32 i;
+	u32 i, ce_id, num_vectors, user_base_data, base_vector;
 	int ret = 0;
 
 	if (plat_priv->device_id == QCA6174_DEVICE_ID)
@@ -257,6 +258,9 @@ int cnss_wlan_enable(struct device *dev,
 
 	if (qmi_bypass)
 		return 0;
+
+	if (cnss_get_bus_type(plat_priv->device_id) == CNSS_BUS_USB)
+		goto skip_cfg;
 
 	if (!config || !host_version) {
 		cnss_pr_err("Invalid config or host_version pointer\n");
@@ -299,6 +303,19 @@ int cnss_wlan_enable(struct device *dev,
 		req.svc_cfg[i].pipe_num = config->ce_svc_cfg[i].pipe_num;
 	}
 
+	if (config->num_shadow_reg_cfg) {
+		req.shadow_reg_valid = 1;
+
+		if (config->num_shadow_reg_cfg >
+		    QMI_WLFW_MAX_NUM_SHADOW_REG_V01)
+			req.shadow_reg_len = QMI_WLFW_MAX_NUM_SHADOW_REG_V01;
+		else
+			req.shadow_reg_len = config->num_shadow_reg_cfg;
+		memcpy(req.shadow_reg, config->shadow_reg_cfg,
+		       sizeof(struct wlfw_shadow_reg_cfg_s_v01)
+		       * req.shadow_reg_len);
+	}
+
 	req.shadow_reg_v2_valid = 1;
 	if (config->num_shadow_reg_v2_cfg >
 	    QMI_WLFW_MAX_NUM_SHADOW_REG_V2_V01)
@@ -310,6 +327,30 @@ int cnss_wlan_enable(struct device *dev,
 	       sizeof(struct wlfw_shadow_reg_v2_cfg_s_v01)
 	       * req.shadow_reg_v2_len);
 
+	if (config->rri_over_ddr_cfg_valid) {
+		req.rri_over_ddr_cfg_valid = 1;
+		req.rri_over_ddr_cfg.base_addr_low =
+			config->rri_over_ddr_cfg.base_addr_low;
+		req.rri_over_ddr_cfg.base_addr_high =
+			config->rri_over_ddr_cfg.base_addr_high;
+	}
+
+	if (plat_priv->device_id == QCN7605_DEVICE_ID) {
+		ret = cnss_get_user_msi_assignment(dev, CE_MSI_NAME,
+						   &num_vectors,
+						   &user_base_data,
+						   &base_vector);
+		if (!ret) {
+			req.msi_cfg_valid = 1;
+			req.msi_cfg_len = QMI_WLFW_MAX_NUM_CE_V01;
+			for (ce_id = 0; ce_id < QMI_WLFW_MAX_NUM_CE_V01;
+				ce_id++) {
+				req.msi_cfg[ce_id].ce_id = ce_id;
+				req.msi_cfg[ce_id].msi_vector =
+					(ce_id % num_vectors) + base_vector;
+			}
+		}
+	}
 	ret = cnss_wlfw_wlan_cfg_send_sync(plat_priv, &req);
 	if (ret)
 		goto out;
@@ -461,6 +502,8 @@ static int cnss_fw_mem_ready_hdlr(struct cnss_plat_data *plat_priv)
 	if (ret)
 		goto out;
 
+	if (plat_priv->device_id == QCN7605_DEVICE_ID)
+		goto skip_m3_dnld;
 	ret = cnss_bus_load_m3(plat_priv);
 	if (ret)
 		goto out;
@@ -468,7 +511,7 @@ static int cnss_fw_mem_ready_hdlr(struct cnss_plat_data *plat_priv)
 	ret = cnss_wlfw_m3_dnld_send_sync(plat_priv);
 	if (ret)
 		goto out;
-
+skip_m3_dnld:
 	return 0;
 out:
 	return ret;
@@ -519,6 +562,51 @@ out:
 	return ret;
 }
 
+static int caldb_mem_bounds_check(struct cnss_plat_data *plat_priv, void *data)
+{
+	int ret = 0;
+	struct cnss_cal_data *cal_data = data;
+	u8 *end_ptr, *cal_data_ptr;
+	u32 total_size;
+
+	end_ptr = (u8 *)plat_priv->caldb_mem + QCN7605_CALDB_SIZE;
+	cal_data_ptr = (u8 *)plat_priv->caldb_mem + cal_data->index;
+	total_size = cal_data->total_size;
+
+	if (cal_data_ptr >= end_ptr || (cal_data_ptr + total_size) >= end_ptr) {
+		cnss_pr_err("caldb data offset or size error\n");
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
+static int cnss_cal_update_hdlr(struct cnss_plat_data *plat_priv, void *data)
+{
+	int ret = 0;
+
+	ret  = caldb_mem_bounds_check(plat_priv, data);
+	if (ret)
+		CNSS_ASSERT(0);
+	else
+		cnss_wlfw_cal_update_req_send_sync(plat_priv, data);
+
+	return ret;
+}
+
+static int cnss_cal_download_hdlr(struct cnss_plat_data *plat_priv, void *data)
+{
+	int ret = 0;
+
+	ret = caldb_mem_bounds_check(plat_priv, data);
+	if (ret)
+		CNSS_ASSERT(0);
+	else
+		cnss_wlfw_cal_download_req_send_sync(plat_priv, data);
+
+	return ret;
+}
+
 static char *cnss_driver_event_to_str(enum cnss_driver_event_type type)
 {
 	switch (type) {
@@ -536,6 +624,10 @@ static char *cnss_driver_event_to_str(enum cnss_driver_event_type type)
 		return "COLD_BOOT_CAL_START";
 	case CNSS_DRIVER_EVENT_COLD_BOOT_CAL_DONE:
 		return "COLD_BOOT_CAL_DONE";
+	case CNSS_DRIVER_EVENT_CAL_UPDATE:
+		return "COLD_BOOT_CAL_DATA_UPDATE";
+	case CNSS_DRIVER_EVENT_CAL_DOWNLOAD:
+		return "COLD_BOOT_CAL_DATA_DOWNLOAD";
 	case CNSS_DRIVER_EVENT_REGISTER_DRIVER:
 		return "REGISTER_DRIVER";
 	case CNSS_DRIVER_EVENT_UNREGISTER_DRIVER:
@@ -1087,6 +1179,25 @@ int cnss_force_fw_assert(struct device *dev)
 }
 EXPORT_SYMBOL(cnss_force_fw_assert);
 
+static int cnss_wlfw_server_arrive_hdlr(struct cnss_plat_data *plat_priv)
+{
+	int ret;
+
+	ret = cnss_wlfw_server_arrive(plat_priv);
+	if (ret)
+		goto out;
+
+	if (!cnss_bus_req_mem_ind_valid(plat_priv)) {
+		ret = cnss_wlfw_tgt_cap_send_sync(plat_priv);
+		if (ret)
+			goto out;
+
+		ret = cnss_wlfw_bdf_dnld_send_sync(plat_priv);
+	}
+out:
+	return ret;
+}
+
 static int cnss_cold_boot_cal_start_hdlr(struct cnss_plat_data *plat_priv)
 {
 	int ret = 0;
@@ -1103,9 +1214,12 @@ static int cnss_cold_boot_cal_done_hdlr(struct cnss_plat_data *plat_priv)
 {
 	plat_priv->cal_done = true;
 	cnss_wlfw_wlan_mode_send_sync(plat_priv, QMI_WLFW_OFF_V01);
+	if (plat_priv->device_id == QCN7605_DEVICE_ID)
+		goto skip_shutdown;
 	cnss_bus_dev_shutdown(plat_priv);
-	clear_bit(CNSS_COLD_BOOT_CAL, &plat_priv->driver_state);
 
+skip_shutdown:
+	clear_bit(CNSS_COLD_BOOT_CAL, &plat_priv->driver_state);
 	return 0;
 }
 
@@ -1151,7 +1265,7 @@ static void cnss_driver_event_work(struct work_struct *work)
 
 		switch (event->type) {
 		case CNSS_DRIVER_EVENT_SERVER_ARRIVE:
-			ret = cnss_wlfw_server_arrive(plat_priv);
+			ret = cnss_wlfw_server_arrive_hdlr(plat_priv);
 			break;
 		case CNSS_DRIVER_EVENT_SERVER_EXIT:
 			ret = cnss_wlfw_server_exit(plat_priv);
@@ -1170,6 +1284,12 @@ static void cnss_driver_event_work(struct work_struct *work)
 			break;
 		case CNSS_DRIVER_EVENT_COLD_BOOT_CAL_START:
 			ret = cnss_cold_boot_cal_start_hdlr(plat_priv);
+			break;
+		case CNSS_DRIVER_EVENT_CAL_UPDATE:
+			ret = cnss_cal_update_hdlr(plat_priv, event->data);
+			break;
+		case CNSS_DRIVER_EVENT_CAL_DOWNLOAD:
+			ret = cnss_cal_download_hdlr(plat_priv, event->data);
 			break;
 		case CNSS_DRIVER_EVENT_COLD_BOOT_CAL_DONE:
 			ret = cnss_cold_boot_cal_done_hdlr(plat_priv);
@@ -1233,6 +1353,13 @@ int cnss_register_subsys(struct cnss_plat_data *plat_priv)
 	case QCA6290_EMULATION_DEVICE_ID:
 	case QCA6290_DEVICE_ID:
 		subsys_info->subsys_desc.name = "QCA6290";
+		break;
+	case QCN7605_DEVICE_ID:
+	case QCN7605_STANDALONE_DEVICE_ID:
+	case QCN7605_COMPOSITE_DEVICE_ID:
+	case QCN7605_VER20_STANDALONE_DEVICE_ID:
+	case QCN7605_VER20_COMPOSITE_DEVICE_ID:
+		subsys_info->subsys_desc.name = "QCN7605";
 		break;
 	default:
 		cnss_pr_err("Unknown device ID: 0x%lx\n", plat_priv->device_id);
@@ -1449,8 +1576,15 @@ int cnss_register_ramdump(struct cnss_plat_data *plat_priv)
 		break;
 	case QCA6290_EMULATION_DEVICE_ID:
 	case QCA6290_DEVICE_ID:
+	case QCN7605_DEVICE_ID:
 		ret = cnss_register_ramdump_v2(plat_priv);
 		break;
+	case QCN7605_COMPOSITE_DEVICE_ID:
+	case QCN7605_STANDALONE_DEVICE_ID:
+	case QCN7605_VER20_STANDALONE_DEVICE_ID:
+	case QCN7605_VER20_COMPOSITE_DEVICE_ID:
+		break;
+
 	default:
 		cnss_pr_err("Unknown device ID: 0x%lx\n", plat_priv->device_id);
 		ret = -ENODEV;
@@ -1468,6 +1602,11 @@ void cnss_unregister_ramdump(struct cnss_plat_data *plat_priv)
 	case QCA6290_EMULATION_DEVICE_ID:
 	case QCA6290_DEVICE_ID:
 		cnss_unregister_ramdump_v2(plat_priv);
+		break;
+	case QCN7605_COMPOSITE_DEVICE_ID:
+	case QCN7605_STANDALONE_DEVICE_ID:
+	case QCN7605_VER20_STANDALONE_DEVICE_ID:
+	case QCN7605_VER20_COMPOSITE_DEVICE_ID:
 		break;
 	default:
 		cnss_pr_err("Unknown device ID: 0x%lx\n", plat_priv->device_id);
@@ -1537,6 +1676,7 @@ static ssize_t cnss_fs_ready_store(struct device *dev,
 	switch (plat_priv->device_id) {
 	case QCA6290_EMULATION_DEVICE_ID:
 	case QCA6290_DEVICE_ID:
+	case QCN7605_DEVICE_ID:
 		break;
 	default:
 		cnss_pr_err("Not supported for device ID 0x%lx\n",
@@ -1554,6 +1694,37 @@ static ssize_t cnss_fs_ready_store(struct device *dev,
 }
 
 static DEVICE_ATTR(fs_ready, 0220, NULL, cnss_fs_ready_store);
+
+static ssize_t cnss_wl_pwr_on(struct device *dev,
+			      struct device_attribute *attr,
+			      const char *buf,
+			      size_t count)
+{
+	int pwr_state = 0;
+	struct cnss_plat_data *plat_priv = dev_get_drvdata(dev);
+	unsigned int timeout;
+
+	if (sscanf(buf, "%du", &pwr_state) != 1)
+		return -EINVAL;
+
+	cnss_pr_dbg("vreg-wlan-en state change %d, count %zu", pwr_state,
+		    count);
+
+	timeout = cnss_get_qmi_timeout();
+	if (pwr_state) {
+		cnss_power_on_device(plat_priv);
+		if (timeout) {
+			mod_timer(&plat_priv->fw_boot_timer,
+				  jiffies + msecs_to_jiffies(timeout));
+		}
+	} else {
+		cnss_power_off_device(plat_priv);
+		del_timer(&plat_priv->fw_boot_timer);
+	}
+	return count;
+}
+
+static DEVICE_ATTR(wl_pwr_on, 0220, NULL, cnss_wl_pwr_on);
 
 static int cnss_create_sysfs(struct cnss_plat_data *plat_priv)
 {
@@ -1573,6 +1744,27 @@ out:
 static void cnss_remove_sysfs(struct cnss_plat_data *plat_priv)
 {
 	device_remove_file(&plat_priv->plat_dev->dev, &dev_attr_fs_ready);
+}
+
+static int cnss_create_sysfs_wl_pwr(struct cnss_plat_data *plat_priv)
+{
+	int ret = 0;
+
+	ret = device_create_file(&plat_priv->plat_dev->dev,
+				 &dev_attr_wl_pwr_on);
+	if (ret) {
+		cnss_pr_err("Failed to create device file, err = %d\n", ret);
+		goto out;
+	}
+	cnss_pr_dbg("created sysfs for vreg-wlan-en control\n");
+	return 0;
+out:
+	return ret;
+}
+
+static void cnss_remove_sysfs_wl_pwr(struct cnss_plat_data *plat_priv)
+{
+	device_remove_file(&plat_priv->plat_dev->dev, &dev_attr_wl_pwr_on);
 }
 
 static int cnss_event_work_init(struct cnss_plat_data *plat_priv)
@@ -1596,9 +1788,29 @@ static void cnss_event_work_deinit(struct cnss_plat_data *plat_priv)
 	destroy_workqueue(plat_priv->event_wq);
 }
 
+static int cnss_alloc_caldb_mem(struct cnss_plat_data *plat_priv)
+{
+	int ret = 0;
+
+	plat_priv->caldb_mem = vzalloc(QCN7605_CALDB_SIZE);
+	if (plat_priv->caldb_mem)
+		cnss_pr_dbg("600KB cal db alloc done caldb_mem %pK\n",
+			    plat_priv->caldb_mem);
+	else
+		ret = -ENOMEM;
+
+	return ret;
+}
+
+static void cnss_free_caldb_mem(struct cnss_plat_data *plat_priv)
+{
+	vfree(plat_priv->caldb_mem);
+}
+
 static const struct platform_device_id cnss_platform_id_table[] = {
 	{ .name = "qca6174", .driver_data = QCA6174_DEVICE_ID, },
 	{ .name = "qca6290", .driver_data = QCA6290_DEVICE_ID, },
+	{ .name = "qcn7605", .driver_data = QCN7605_DEVICE_ID, },
 };
 
 static const struct of_device_id cnss_of_match_table[] = {
@@ -1644,6 +1856,7 @@ static int cnss_probe(struct platform_device *plat_dev)
 	plat_priv->plat_dev = plat_dev;
 	plat_priv->device_id = device_id->driver_data;
 	plat_priv->bus_type = cnss_get_bus_type(plat_priv->device_id);
+	cnss_pr_dbg("bus type selected  %d\n", plat_priv->bus_type);
 	cnss_set_plat_priv(plat_dev, plat_priv);
 	platform_set_drvdata(plat_dev, plat_priv);
 
@@ -1673,9 +1886,13 @@ static int cnss_probe(struct platform_device *plat_dev)
 	if (ret)
 		goto unreg_bus_scale;
 
-	ret = cnss_event_work_init(plat_priv);
+	ret = cnss_create_sysfs_wl_pwr(plat_priv);
 	if (ret)
 		goto remove_sysfs;
+
+	ret = cnss_event_work_init(plat_priv);
+	if (ret)
+		goto remove_sysfs_pwr;
 
 	ret = cnss_qmi_init(plat_priv);
 	if (ret)
@@ -1684,6 +1901,12 @@ static int cnss_probe(struct platform_device *plat_dev)
 	ret = cnss_debugfs_create(plat_priv);
 	if (ret)
 		goto deinit_qmi;
+
+	if (plat_priv->bus_type == CNSS_BUS_USB)	{
+		ret = cnss_alloc_caldb_mem(plat_priv);
+		if (ret)
+			goto remove_debugfs;
+	}
 
 	setup_timer(&plat_priv->fw_boot_timer,
 		    cnss_bus_fw_boot_timeout_hdlr, (unsigned long)plat_priv);
@@ -1702,12 +1925,16 @@ static int cnss_probe(struct platform_device *plat_dev)
 
 	return 0;
 
+remove_debugfs:
+	cnss_debugfs_destroy(plat_priv);
 deinit_qmi:
 	cnss_qmi_deinit(plat_priv);
 deinit_event_work:
 	cnss_event_work_deinit(plat_priv);
 remove_sysfs:
 	cnss_remove_sysfs(plat_priv);
+remove_sysfs_pwr:
+	cnss_remove_sysfs_wl_pwr(plat_priv);
 unreg_bus_scale:
 	cnss_unregister_bus_scale(plat_priv);
 unreg_esoc:
@@ -1735,6 +1962,7 @@ static int cnss_remove(struct platform_device *plat_dev)
 	device_init_wakeup(&plat_dev->dev, false);
 	unregister_pm_notifier(&cnss_pm_notifier);
 	del_timer(&plat_priv->fw_boot_timer);
+	cnss_free_caldb_mem(plat_priv);
 	cnss_debugfs_destroy(plat_priv);
 	cnss_qmi_deinit(plat_priv);
 	cnss_event_work_deinit(plat_priv);

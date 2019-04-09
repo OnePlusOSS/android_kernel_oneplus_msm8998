@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014, 2017-2018, Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, 2017-2019, Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -47,7 +47,8 @@ static enum bus_id str_to_busid(const char *name)
 		return BUS_HSIC;
 	if (!strncasecmp("msm_ehci_host.0", name, BUSNAME_LEN))
 		return BUS_USB;
-	if (!strncasecmp("xhci-hcd.0.auto", name, BUSNAME_LEN))
+	if (!strncasecmp("xhci-hcd.0.auto", name, BUSNAME_LEN) ||
+	    !strncasecmp("xhci-hcd.1.auto", name, BUSNAME_LEN))
 		return BUS_USB;
 
 	return BUS_UNDEF;
@@ -462,9 +463,14 @@ static const struct usb_device_id ksb_usb_ids[] = {
 	{ USB_DEVICE_INTERFACE_NUMBER(0x5c6, 0x9025, 0), },
 	{ USB_DEVICE_INTERFACE_NUMBER(0x5c6, 0x9091, 0), },
 	{ USB_DEVICE_INTERFACE_NUMBER(0x5c6, 0x901D, 0), },
+	{ USB_DEVICE_INTERFACE_NUMBER(0x5c6, 0x901F, 0), },
 	{ USB_DEVICE_INTERFACE_NUMBER(0x5c6, 0x900E, 0), },
 	{ USB_DEVICE_INTERFACE_NUMBER(0x5c6, 0x9900, 0), },
 	{ USB_DEVICE_INTERFACE_NUMBER(0x5c6, 0x9901, 0), },
+	{ USB_DEVICE_INTERFACE_NUMBER(0x5c6, 0x9902, 3),
+	.driver_info = (unsigned long)&ksb_fboot_dev, },
+	{ USB_DEVICE_INTERFACE_NUMBER(0x5c6, 0x9903, 5),
+	.driver_info = (unsigned long)&ksb_fboot_dev, },
 	{ USB_DEVICE_INTERFACE_NUMBER(0x5c6, 0x9048, 2),
 	.driver_info = (unsigned long)&ksb_efs_hsic_dev, },
 	{ USB_DEVICE_INTERFACE_NUMBER(0x5c6, 0x904C, 2),
@@ -698,6 +704,7 @@ ksb_usb_probe(struct usb_interface *ifc, const struct usb_device_id *id)
 	case 0x9025:
 	case 0x9091:
 	case 0x901D:
+	case 0x901F:
 		/* 1-1 mapping between ksb and udev port which starts with 1 */
 		ksb_port_num = udev->portnum - 1;
 		dev_dbg(&udev->dev, "ifc_count: %u, port_num:%u\n", ifc_count,
@@ -721,6 +728,8 @@ ksb_usb_probe(struct usb_interface *ifc, const struct usb_device_id *id)
 		mdev->name = ksb->name;
 		break;
 	case 0x9008:
+	case 0x9902:
+	case 0x9903:
 		ksb = __ksb[bus_id];
 		mdev = &fbdev[bus_id];
 		break;

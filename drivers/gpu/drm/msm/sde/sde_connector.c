@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -11,14 +11,14 @@
  */
 
 #define pr_fmt(fmt)	"[drm:%s:%d] " fmt, __func__, __LINE__
+#include <linux/suspend.h>
+
 #include "msm_drv.h"
 
 #include "sde_kms.h"
 #include "sde_connector.h"
 #include "sde_backlight.h"
 #include "sde_splash.h"
-#include <linux/workqueue.h>
-#include <linux/atomic.h>
 
 #define SDE_DEBUG_CONN(c, fmt, ...) SDE_DEBUG("conn%d " fmt,\
 		(c) ? (c)->base.base.id : -1, ##__VA_ARGS__)
@@ -38,7 +38,8 @@ static const struct drm_prop_enum_list e_topology_control[] = {
 	{SDE_RM_TOPCTL_RESERVE_CLEAR,	"reserve_clear"},
 	{SDE_RM_TOPCTL_DSPP,		"dspp"},
 	{SDE_RM_TOPCTL_FORCE_TILING,	"force_tiling"},
-	{SDE_RM_TOPCTL_PPSPLIT,		"ppsplit"}
+	{SDE_RM_TOPCTL_PPSPLIT,		"ppsplit"},
+	{SDE_RM_TOPCTL_FORCE_MIXER,	"force_mixer"}
 };
 
 static const struct drm_prop_enum_list e_power_mode[] = {
@@ -52,8 +53,6 @@ static const struct drm_prop_enum_list hpd_clock_state[] = {
 	{SDE_MODE_HPD_ON,      "ON"},
 	{SDE_MODE_HPD_OFF,     "OFF"},
 };
-
-static struct work_struct cpu_up_work;
 
 int sde_connector_get_info(struct drm_connector *connector,
 		struct msm_display_info *info)
@@ -429,6 +428,7 @@ static int sde_connector_atomic_set_property(struct drm_connector *connector,
 	struct sde_connector *c_conn;
 	struct sde_connector_state *c_state;
 	int idx, rc;
+	uint64_t fence_fd = 0;
 
 	if (!connector || !state || !property) {
 		SDE_ERROR("invalid argument(s), conn %pK, state %pK, prp %pK\n",
@@ -471,6 +471,29 @@ static int sde_connector_atomic_set_property(struct drm_connector *connector,
 					c_state->aspace);
 			if (rc)
 				SDE_ERROR("prep fb failed, %d\n", rc);
+		}
+		break;
+	case CONNECTOR_PROP_RETIRE_FENCE:
+		if (!val)
+			goto end;
+
+		/*
+		 * update the the offset to a timeline for commit completion
+		 */
+		rc = sde_fence_create(&c_conn->retire_fence, &fence_fd, 1);
+		if (rc) {
+			SDE_ERROR("fence create failed rc:%d\n", rc);
+			goto end;
+		}
+
+		rc = copy_to_user((uint64_t __user *)val, &fence_fd,
+			sizeof(uint64_t));
+		if (rc) {
+			SDE_ERROR("copy to user failed rc:%d\n", rc);
+			/* fence will be released with timeline update */
+			put_unused_fd(fence_fd);
+			rc = -EFAULT;
+			goto end;
 		}
 		break;
 	case CONNECTOR_PROP_TOPOLOGY_CONTROL:
@@ -545,12 +568,14 @@ static int sde_connector_atomic_get_property(struct drm_connector *connector,
 	c_state = to_sde_connector_state(state);
 
 	idx = msm_property_index(&c_conn->property_info, property);
-	if (idx == CONNECTOR_PROP_RETIRE_FENCE)
-		rc = sde_fence_create(&c_conn->retire_fence, val, 0);
-	else
+	if (idx == CONNECTOR_PROP_RETIRE_FENCE) {
+		*val = ~0;
+		rc = 0;
+	} else {
 		/* get cached property value */
 		rc = msm_property_atomic_get(&c_conn->property_info,
 				c_state->property_values, 0, property, val);
+	}
 
 	/* allow for custom override */
 	if (c_conn->ops.get_property)
@@ -572,18 +597,11 @@ void sde_connector_prepare_fence(struct drm_connector *connector)
 	sde_fence_prepare(&to_sde_connector(connector)->retire_fence);
 }
 
-static void wake_up_cpu(struct work_struct *work)
-{
-	if (!cpu_up(1))
-		pr_info("cpu1 is online\n");
-}
-
 void sde_connector_complete_commit(struct drm_connector *connector)
 {
 	struct drm_device *dev;
 	struct msm_drm_private *priv;
 	struct sde_connector *c_conn;
-	static atomic_t cpu_up_scheduled = ATOMIC_INIT(0);
 
 	if (!connector) {
 		SDE_ERROR("invalid connector\n");
@@ -596,22 +614,24 @@ void sde_connector_complete_commit(struct drm_connector *connector)
 	/* signal connector's retire fence */
 	sde_fence_signal(&to_sde_connector(connector)->retire_fence, 0);
 
-	/*
-	 * After LK totally exits, LK's early splash resource
-	 * should be released, cpu1 is hot-plugged in case LK's
-	 * early domain has reserved it.
+	/* If below both 2 conditions are met, LK's early splash resources
+	 * should be freed.
+	 *	1) When get_hibernation_status() is returned as true.
+	 *		a. hibernation image snapshot failed.
+	 *		b. hibernation restore successful.
+	 *		c. hibernation restore failed.
+	 *	2) After LK totally exits.
 	 */
-	if (sde_splash_get_lk_complete_status(priv->kms)) {
+	if (get_hibernation_status() &&
+		sde_splash_get_lk_complete_status(priv->kms)) {
 		c_conn = to_sde_connector(connector);
 
 		sde_splash_free_resource(priv->kms, &priv->phandle,
 					c_conn->connector_type,
-					c_conn->display);
-		if (atomic_add_unless(&cpu_up_scheduled, 1, 1)) {
-			INIT_WORK(&cpu_up_work, wake_up_cpu);
-			schedule_work(&cpu_up_work);
-		}
+					c_conn->display,
+					c_conn->is_shared);
 	}
+
 }
 
 static int sde_connector_dpms(struct drm_connector *connector,
@@ -938,8 +958,8 @@ struct drm_connector *sde_connector_init(struct drm_device *dev,
 		"hdr_control", 0x0, 0, ~0, 0,
 		CONNECTOR_PROP_HDR_CONTROL);
 
-	msm_property_install_range(&c_conn->property_info, "RETIRE_FENCE",
-			0x0, 0, INR_OPEN_MAX, 0, CONNECTOR_PROP_RETIRE_FENCE);
+	msm_property_install_volatile_range(&c_conn->property_info,
+		"RETIRE_FENCE", 0x0, 0, ~0, 0, CONNECTOR_PROP_RETIRE_FENCE);
 
 	msm_property_install_volatile_signed_range(&c_conn->property_info,
 			"PLL_DELTA", 0x0, INT_MIN, INT_MAX, 0,
@@ -984,7 +1004,8 @@ struct drm_connector *sde_connector_init(struct drm_device *dev,
 
 	sinfo = &sde_kms->splash_info;
 	if (sinfo && sinfo->handoff)
-		sde_splash_setup_connector_count(sinfo, connector_type);
+		sde_splash_setup_connector_count(sinfo, connector_type,
+					display, c_conn->is_shared);
 
 	priv->connectors[priv->num_connectors++] = &c_conn->base;
 

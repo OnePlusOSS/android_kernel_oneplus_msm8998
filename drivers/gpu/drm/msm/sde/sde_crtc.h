@@ -154,6 +154,8 @@ struct sde_crtc {
  * @input_fence_timeout_ns : Cached input fence timeout, in ns
  * @property_blobs: Reference pointers for blob properties
  * @new_perf: new performance state being requested
+ * @is_shared: connector is shared
+ * @shared_roi: roi of the shared display
  */
 struct sde_crtc_state {
 	struct drm_crtc_state base;
@@ -168,6 +170,8 @@ struct sde_crtc_state {
 	struct drm_property_blob *property_blobs[CRTC_PROP_COUNT];
 
 	struct sde_core_perf_params new_perf;
+	bool is_shared;
+	struct sde_rect shared_roi;
 };
 
 #define to_sde_crtc_state(x) \
@@ -292,4 +296,13 @@ static inline bool sde_crtc_is_enabled(struct drm_crtc *crtc)
 	return crtc ? crtc->enabled : false;
 }
 
+/**
+ * sde_crtc_update_blob_property - update blob property of a given crtc
+ * @crtc: Pointer to crtc
+ * @key:  Pointer to key string
+ * @value: Signed 32 bit integer value
+ */
+void sde_crtc_update_blob_property(struct drm_crtc *crtc,
+				const char *key,
+				int32_t value);
 #endif /* _SDE_CRTC_H_ */

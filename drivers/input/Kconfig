@@ -216,6 +216,8 @@ source "drivers/input/fingerprint/Kconfig"
 
 source "drivers/input/misc/Kconfig"
 
+source "drivers/input/sensors/bmi160/Kconfig"
+
 endif
 
 menu "Hardware I/O ports"

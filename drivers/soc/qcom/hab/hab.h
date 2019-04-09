@@ -45,6 +45,8 @@
 #include <linux/reboot.h>
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
+#include <linux/delay.h>
+#include <soc/qcom/boot_stats.h>
 
 enum hab_payload_type {
 	HAB_PAYLOAD_TYPE_MSG = 0x0,
@@ -56,6 +58,10 @@ enum hab_payload_type {
 	HAB_PAYLOAD_TYPE_PROFILE,
 	HAB_PAYLOAD_TYPE_CLOSE,
 	HAB_PAYLOAD_TYPE_INIT_CANCEL,
+	HAB_PAYLOAD_TYPE_SCHE_MSG,
+	HAB_PAYLOAD_TYPE_SCHE_MSG_ACK,
+	HAB_PAYLOAD_TYPE_SCHE_RESULT_REQ,
+	HAB_PAYLOAD_TYPE_SCHE_RESULT_RSP,
 	HAB_PAYLOAD_TYPE_MAX,
 };
 #define LOOPBACK_DOM 0xFF
@@ -80,11 +86,9 @@ enum hab_payload_type {
 #define DEVICE_DISP5_NAME "hab_disp5"
 #define DEVICE_GFX_NAME "hab_ogles"
 #define DEVICE_VID_NAME "hab_vid"
+#define DEVICE_VID2_NAME "hab_vid2"
 #define DEVICE_MISC_NAME "hab_misc"
 #define DEVICE_QCPE1_NAME "hab_qcpe_vm1"
-#define DEVICE_QCPE2_NAME "hab_qcpe_vm2"
-#define DEVICE_QCPE3_NAME "hab_qcpe_vm3"
-#define DEVICE_QCPE4_NAME "hab_qcpe_vm4"
 #define DEVICE_CLK1_NAME "hab_clock_vm1"
 #define DEVICE_CLK2_NAME "hab_clock_vm2"
 #define DEVICE_FDE1_NAME "hab_fde1"
@@ -214,6 +218,7 @@ struct physical_channel {
 	/* debug only */
 	uint32_t sequence_tx;
 	uint32_t sequence_rx;
+	uint32_t status;
 
 	/* vchans on this pchan */
 	struct list_head vchannels;
@@ -255,8 +260,8 @@ struct hab_export_ack_recvd {
 };
 
 struct hab_message {
-	size_t sizebytes;
 	struct list_head node;
+	size_t sizebytes;
 	uint32_t data[];
 };
 
@@ -345,6 +350,8 @@ struct hab_driver {
 };
 
 struct virtual_channel {
+	struct list_head node; /* for ctx */
+	struct list_head pnode; /* for pchan */
 	/*
 	 * refcount is used to track the references from hab core to the virtual
 	 * channel such as references from physical channels,
@@ -353,8 +360,6 @@ struct virtual_channel {
 	struct kref refcount;
 	struct physical_channel *pchan;
 	struct uhab_context *ctx;
-	struct list_head node; /* for ctx */
-	struct list_head pnode; /* for pchan */
 	struct list_head rx_list;
 	wait_queue_head_t rx_queue;
 	spinlock_t rx_lock;
@@ -493,7 +498,7 @@ struct virtual_channel *hab_vchan_get(struct physical_channel *pchan,
 void hab_vchan_put(struct virtual_channel *vchan);
 
 struct virtual_channel *hab_get_vchan_fromvcid(int32_t vcid,
-		struct uhab_context *ctx);
+		struct uhab_context *ctx, int ignore_remote);
 struct physical_channel *hab_pchan_alloc(struct hab_device *habdev,
 		int otherend_id);
 struct physical_channel *hab_pchan_find_domid(struct hab_device *dev,

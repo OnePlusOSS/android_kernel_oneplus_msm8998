@@ -21,7 +21,7 @@
 	.openlock = __SPIN_LOCK_UNLOCKED(&hab_devices[__num__].openlock)\
 	}
 
-static const char hab_info_str[] = "Change: 16764735 Revision: #76";
+static const char hab_info_str[] = "Change: 17280941 Revision: #81";
 
 /*
  * The following has to match habmm definitions, order does not matter if
@@ -42,15 +42,13 @@ static struct hab_device hab_devices[] = {
 	HAB_DEVICE_CNSTR(DEVICE_DISP5_NAME, MM_DISP_5, 10),
 	HAB_DEVICE_CNSTR(DEVICE_GFX_NAME, MM_GFX, 11),
 	HAB_DEVICE_CNSTR(DEVICE_VID_NAME, MM_VID, 12),
-	HAB_DEVICE_CNSTR(DEVICE_MISC_NAME, MM_MISC, 13),
-	HAB_DEVICE_CNSTR(DEVICE_QCPE1_NAME, MM_QCPE_VM1, 14),
-	HAB_DEVICE_CNSTR(DEVICE_QCPE2_NAME, MM_QCPE_VM2, 15),
-	HAB_DEVICE_CNSTR(DEVICE_QCPE3_NAME, MM_QCPE_VM3, 16),
-	HAB_DEVICE_CNSTR(DEVICE_QCPE4_NAME, MM_QCPE_VM4, 17),
-	HAB_DEVICE_CNSTR(DEVICE_CLK1_NAME, MM_CLK_VM1, 18),
-	HAB_DEVICE_CNSTR(DEVICE_CLK2_NAME, MM_CLK_VM2, 19),
-	HAB_DEVICE_CNSTR(DEVICE_FDE1_NAME, MM_FDE_1, 20),
-	HAB_DEVICE_CNSTR(DEVICE_BUFFERQ1_NAME, MM_BUFFERQ_1, 21),
+	HAB_DEVICE_CNSTR(DEVICE_VID2_NAME, MM_VID_2, 13),
+	HAB_DEVICE_CNSTR(DEVICE_MISC_NAME, MM_MISC, 14),
+	HAB_DEVICE_CNSTR(DEVICE_QCPE1_NAME, MM_QCPE_VM1, 15),
+	HAB_DEVICE_CNSTR(DEVICE_CLK1_NAME, MM_CLK_VM1, 16),
+	HAB_DEVICE_CNSTR(DEVICE_CLK2_NAME, MM_CLK_VM2, 17),
+	HAB_DEVICE_CNSTR(DEVICE_FDE1_NAME, MM_FDE_1, 18),
+	HAB_DEVICE_CNSTR(DEVICE_BUFFERQ1_NAME, MM_BUFFERQ_1, 19),
 };
 
 struct hab_driver hab_driver = {
@@ -117,7 +115,7 @@ void hab_ctx_free(struct kref *ref)
 	struct export_desc *exp, *exp_tmp;
 
 	/* garbage-collect exp/imp buffers */
-	write_lock(&ctx->exp_lock);
+	write_lock_bh(&ctx->exp_lock);
 	list_for_each_entry_safe(exp, exp_tmp, &ctx->exp_whse, node) {
 		list_del(&exp->node);
 		pr_debug("potential leak exp %d vcid %X recovered\n",
@@ -125,7 +123,7 @@ void hab_ctx_free(struct kref *ref)
 		habmem_hyp_revoke(exp->payload, exp->payload_count);
 		habmem_remove_export(exp);
 	}
-	write_unlock(&ctx->exp_lock);
+	write_unlock_bh(&ctx->exp_lock);
 
 	spin_lock_bh(&ctx->imp_lock);
 	list_for_each_entry_safe(exp, exp_tmp, &ctx->imp_whse, node) {
@@ -159,27 +157,27 @@ void hab_ctx_free(struct kref *ref)
 			ctx->kernel, ctx->closing, ctx->owner);
 
 	/* check vchans in this ctx */
-	write_lock(&ctx->ctx_lock);
+	write_lock_bh(&ctx->ctx_lock);
 	list_for_each_entry(vchan, &ctx->vchannels, node) {
 		pr_warn("leak vchan id %X cnt %X remote %d in ctx\n",
 				vchan->id, get_refcnt(vchan->refcount),
 				vchan->otherend_id);
 	}
-	write_unlock(&ctx->ctx_lock);
+	write_unlock_bh(&ctx->ctx_lock);
 
 	/* check pending open */
 	if (ctx->pending_cnt)
 		pr_warn("potential leak of pendin_open nodes %d\n",
 			ctx->pending_cnt);
 
-	write_lock(&ctx->ctx_lock);
+	write_lock_bh(&ctx->ctx_lock);
 	list_for_each_entry(node, &ctx->pending_open, node) {
 		pr_warn("leak pending open vcid %X type %d subid %d openid %d\n",
 			node->request.xdata.vchan_id, node->request.type,
 			node->request.xdata.sub_id,
 			node->request.xdata.open_id);
 	}
-	write_unlock(&ctx->ctx_lock);
+	write_unlock_bh(&ctx->ctx_lock);
 
 	/* check vchans belong to this ctx in all hab/mmid devices */
 	for (i = 0; i < hab_driver.ndevices; i++) {
@@ -211,14 +209,23 @@ void hab_ctx_free(struct kref *ref)
  * the local ioctl access based on ctx
  */
 struct virtual_channel *hab_get_vchan_fromvcid(int32_t vcid,
-		struct uhab_context *ctx)
+		struct uhab_context *ctx, int ignore_remote)
 {
 	struct virtual_channel *vchan;
 
 	read_lock(&ctx->ctx_lock);
 	list_for_each_entry(vchan, &ctx->vchannels, node) {
 		if (vcid == vchan->id) {
-			kref_get(&vchan->refcount);
+			if ((ignore_remote ? 0 : vchan->otherend_closed) ||
+				vchan->closed ||
+				!kref_get_unless_zero(&vchan->refcount)) {
+				pr_debug("failed to inc vcid %x remote %x session %d refcnt %d close_flg remote %d local %d\n",
+					vchan->id, vchan->otherend_id,
+					vchan->session_id,
+					get_refcnt(vchan->refcount),
+					vchan->otherend_closed, vchan->closed);
+				vchan = NULL;
+			}
 			read_unlock(&ctx->ctx_lock);
 			return vchan;
 		}
@@ -544,7 +551,7 @@ long hab_vchan_send(struct uhab_context *ctx,
 		return -EINVAL;
 	}
 
-	vchan = hab_get_vchan_fromvcid(vcid, ctx);
+	vchan = hab_get_vchan_fromvcid(vcid, ctx, 0);
 	if (!vchan || vchan->otherend_closed) {
 		ret = -ENODEV;
 		goto err;
@@ -559,6 +566,14 @@ long hab_vchan_send(struct uhab_context *ctx,
 				sizeof(struct habmm_xing_vm_stat));
 			return -EINVAL;
 		}
+	} else if (flags & HABMM_SOCKET_XVM_SCHE_TEST) {
+		HAB_HEADER_SET_TYPE(header, HAB_PAYLOAD_TYPE_SCHE_MSG);
+	} else if (flags & HABMM_SOCKET_XVM_SCHE_TEST_ACK) {
+		HAB_HEADER_SET_TYPE(header, HAB_PAYLOAD_TYPE_SCHE_MSG_ACK);
+	} else if (flags & HABMM_SOCKET_XVM_SCHE_RESULT_REQ) {
+		HAB_HEADER_SET_TYPE(header, HAB_PAYLOAD_TYPE_SCHE_RESULT_REQ);
+	} else if (flags & HABMM_SOCKET_XVM_SCHE_RESULT_RSP) {
+		HAB_HEADER_SET_TYPE(header, HAB_PAYLOAD_TYPE_SCHE_RESULT_RSP);
 	} else {
 		HAB_HEADER_SET_TYPE(header, HAB_PAYLOAD_TYPE_MSG);
 	}
@@ -591,9 +606,9 @@ int hab_vchan_recv(struct uhab_context *ctx,
 	int ret = 0;
 	int nonblocking_flag = flags & HABMM_SOCKET_RECV_FLAGS_NON_BLOCKING;
 
-	vchan = hab_get_vchan_fromvcid(vcid, ctx);
+	vchan = hab_get_vchan_fromvcid(vcid, ctx, 1);
 	if (!vchan) {
-		pr_err("vcid %X, vchan %p ctx %p\n", vcid, vchan, ctx);
+		pr_err("vcid %X vchan 0x%pK ctx %pK\n", vcid, vchan, ctx);
 		return -ENODEV;
 	}
 
@@ -713,24 +728,20 @@ void hab_vchan_close(struct uhab_context *ctx, int32_t vcid)
 	write_lock(&ctx->ctx_lock);
 	list_for_each_entry_safe(vchan, tmp, &ctx->vchannels, node) {
 		if (vchan->id == vcid) {
-			write_unlock(&ctx->ctx_lock);
+			/* local close starts */
+			vchan->closed = 1;
+
+			/* vchan is not in this ctx anymore */
+			list_del(&vchan->node);
+			ctx->vcnt--;
+
 			pr_debug("vcid %x remote %x session %d refcnt %d\n",
 				vchan->id, vchan->otherend_id,
 				vchan->session_id, get_refcnt(vchan->refcount));
-			/*
-			 * only set when vc close is called locally by user
-			 * explicity. Used to block remote msg. if forked once
-			 * before, this local close is skipped due to child
-			 * usage. if forked but not closed locally, the local
-			 * context could NOT be closed, vchan can be prolonged
-			 * by arrived remote msgs
-			 */
-			if (vchan->forked)
-				vchan->forked = 0;
-			else {
-				vchan->closed = 1;
-				hab_vchan_stop_notify(vchan);
-			}
+
+			write_unlock(&ctx->ctx_lock);
+			/* unblocking blocked in-calls */
+			hab_vchan_stop_notify(vchan);
 			hab_vchan_put(vchan); /* there is a lock inside */
 			write_lock(&ctx->ctx_lock);
 			break;
@@ -1073,16 +1084,15 @@ static int hab_release(struct inode *inodep, struct file *filep)
 	write_lock(&ctx->ctx_lock);
 	/* notify remote side on vchan closing */
 	list_for_each_entry_safe(vchan, tmp, &ctx->vchannels, node) {
+		/* local close starts */
+		vchan->closed = 1;
+
 		list_del(&vchan->node); /* vchan is not in this ctx anymore */
-		hab_vchan_stop_notify(vchan);
+		ctx->vcnt--;
+
 		write_unlock(&ctx->ctx_lock);
-		if (!vchan->closed) {
-			pr_warn("potential leak vc %pK %x remote %x session %d refcnt %d\n",
-					vchan, vchan->id, vchan->otherend_id,
-					vchan->session_id,
-					get_refcnt(vchan->refcount));
-			hab_vchan_put(vchan); /* there is a lock inside */
-		}
+		hab_vchan_stop_notify(vchan);
+		hab_vchan_put(vchan); /* there is a lock inside */
 		write_lock(&ctx->ctx_lock);
 	}
 
@@ -1101,12 +1111,6 @@ static int hab_release(struct inode *inodep, struct file *filep)
 	hab_ctx_put(ctx);
 	filep->private_data = NULL;
 
-	/* ctx leak check */
-	if (get_refcnt(ctx->refcount))
-		pr_warn("pending ctx release owner %d refcnt %d total %d\n",
-				ctx->owner, get_refcnt(ctx->refcount),
-				hab_driver.ctx_cnt);
-
 	return 0;
 }
 
@@ -1118,7 +1122,7 @@ static long hab_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	struct hab_recv *recv_param;
 	struct hab_send *send_param;
 	struct hab_info *info_param;
-	struct hab_message *msg;
+	struct hab_message *msg = NULL;
 	void *send_data;
 	unsigned char data[256] = { 0 };
 	long ret = 0;
@@ -1315,6 +1319,7 @@ static int __init hab_init(void)
 	int result;
 	dev_t dev;
 
+	place_marker("M - HAB INIT Start");
 	result = alloc_chrdev_region(&hab_driver.major, 0, 1, "hab");
 
 	if (result < 0) {
@@ -1369,9 +1374,8 @@ static int __init hab_init(void)
 		} else
 			set_dma_ops(hab_driver.dev, &hab_dma_ops);
 	}
-
 	hab_stat_init(&hab_driver);
-
+	place_marker("M - HAB INIT End");
 	return result;
 
 err:

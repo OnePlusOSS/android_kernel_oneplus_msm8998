@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  *
@@ -591,6 +591,28 @@ static void sde_hdmi_tx_hdcp_cb(void *ptr, enum sde_hdcp_states status)
 	queue_delayed_work(hdmi->workq, &hdmi_ctrl->hdcp_cb_work, HZ/4);
 }
 
+static void sde_hdmi_tx_set_avmute(void *ptr)
+{
+	struct sde_hdmi *hdmi_ctrl = (struct sde_hdmi *)ptr;
+	struct hdmi *hdmi;
+
+	if (!hdmi_ctrl) {
+		DEV_ERR("%s: invalid input\n", __func__);
+		return;
+	}
+
+	hdmi = hdmi_ctrl->ctrl.ctrl;
+
+	/*
+	 * When we try to continuously re-auth there
+	 * is no need to enforce avmute for clear
+	 * content. Hence check the current encryption level
+	 * before enforcing avmute on authentication failure
+	 */
+	if (sde_hdmi_tx_is_encryption_set(hdmi_ctrl))
+		sde_hdmi_config_avmute(hdmi, true);
+}
+
 void sde_hdmi_hdcp_off(struct sde_hdmi *hdmi_ctrl)
 {
 
@@ -645,10 +667,6 @@ static void sde_hdmi_tx_hdcp_cb_work(struct work_struct *work)
 
 		hdmi_ctrl->auth_state = false;
 
-		if (sde_hdmi_tx_is_encryption_set(hdmi_ctrl) ||
-			!sde_hdmi_tx_is_stream_shareable(hdmi_ctrl))
-			rc = sde_hdmi_config_avmute(hdmi, true);
-
 		if (sde_hdmi_tx_is_panel_on(hdmi_ctrl)) {
 			pr_debug("%s: Reauthenticating\n", __func__);
 			if (hdmi_ctrl->hdcp_ops && hdmi_ctrl->hdcp_data) {
@@ -666,7 +684,7 @@ static void sde_hdmi_tx_hdcp_cb_work(struct work_struct *work)
 		}
 
 		break;
-		case HDCP_STATE_AUTH_FAIL_NOREAUTH:
+	case HDCP_STATE_AUTH_FAIL_NOREAUTH:
 		if (hdmi_ctrl->hdcp1_use_sw_keys && hdmi_ctrl->hdcp14_present) {
 			if (hdmi_ctrl->auth_state && !hdmi_ctrl->hdcp22_present)
 				hdcp1_set_enc(false);
@@ -2009,6 +2027,7 @@ struct drm_msm_ext_panel_hdr_metadata *hdr_meta)
 	u32 const version = 0x01;
 	u32 const length = 0x1a;
 	u32 const descriptor_id = 0x00;
+	u8 checksum;
 	struct hdmi *hdmi;
 	struct drm_connector *connector;
 
@@ -2025,11 +2044,33 @@ struct drm_msm_ext_panel_hdr_metadata *hdr_meta)
 		return;
 	}
 
+	/* Setup the line number to send the packet on */
+	packet_control = hdmi_read(hdmi, HDMI_GEN_PKT_CTRL);
+	packet_control |= BIT(16);
+	hdmi_write(hdmi, HDMI_GEN_PKT_CTRL, packet_control);
+
+	/* Setup the packet to be sent every frame */
+	packet_control = hdmi_read(hdmi, HDMI_GEN_PKT_CTRL);
+	packet_control |= BIT(1);
+	hdmi_write(hdmi, HDMI_GEN_PKT_CTRL, packet_control);
+
 	/* Setup Packet header and payload */
 	packet_header = type_code | (version << 8) | (length << 16);
 	hdmi_write(hdmi, HDMI_GENERIC0_HDR, packet_header);
 
-	packet_payload = (hdr_meta->eotf << 8);
+	/**
+	 * Checksum is not a mandatory field for
+	 * the HDR infoframe as per CEA-861-3 specification.
+	 * However some HDMI sinks still expect a
+	 * valid checksum to be included as part of
+	 * the infoframe. Hence compute and add
+	 * the checksum to improve sink interoperability
+	 * for our HDR solution on HDMI.
+	 */
+	checksum = sde_hdmi_hdr_set_chksum(hdr_meta);
+
+	packet_payload = (hdr_meta->eotf << 8) | checksum;
+
 	if (connector->hdr_metadata_type_one) {
 		packet_payload |= (descriptor_id << 16)
 			| (HDMI_GET_LSB(hdr_meta->display_primaries_x[0])
@@ -2083,14 +2124,20 @@ struct drm_msm_ext_panel_hdr_metadata *hdr_meta)
 	hdmi_write(hdmi, HDMI_GENERIC0_6, packet_payload);
 
 enable_packet_control:
-	/*
-	 * GENERIC0_LINE | GENERIC0_CONT | GENERIC0_SEND
-	 * Setup HDMI TX generic packet control
-	 * Enable this packet to transmit every frame
-	 * Enable HDMI TX engine to transmit Generic packet 1
-	 */
+
+	/* Flush the contents to the register */
 	packet_control = hdmi_read(hdmi, HDMI_GEN_PKT_CTRL);
-	packet_control |= BIT(0) | BIT(1) | BIT(2) | BIT(16);
+	packet_control |= BIT(2);
+	hdmi_write(hdmi, HDMI_GEN_PKT_CTRL, packet_control);
+
+	/* Clear the flush bit of the register */
+	packet_control = hdmi_read(hdmi, HDMI_GEN_PKT_CTRL);
+	packet_control &= ~BIT(2);
+	hdmi_write(hdmi, HDMI_GEN_PKT_CTRL, packet_control);
+
+	/* Start sending the packets*/
+	packet_control = hdmi_read(hdmi, HDMI_GEN_PKT_CTRL);
+	packet_control |= BIT(0);
 	hdmi_write(hdmi, HDMI_GEN_PKT_CTRL, packet_control);
 }
 
@@ -2443,6 +2490,7 @@ static int _sde_hdmi_init_hdcp(struct sde_hdmi *hdmi_ctrl)
 	hdcp_init_data.mutex         = &hdmi_ctrl->hdcp_mutex;
 	hdcp_init_data.workq         = hdmi->workq;
 	hdcp_init_data.notify_status = sde_hdmi_tx_hdcp_cb;
+	hdcp_init_data.avmute_sink   = sde_hdmi_tx_set_avmute;
 	hdcp_init_data.cb_data       = (void *)hdmi_ctrl;
 	hdcp_init_data.hdmi_tx_ver   = hdmi_ctrl->hdmi_tx_major_version;
 	hdcp_init_data.sec_access    = true;
@@ -2475,6 +2523,30 @@ static int _sde_hdmi_init_hdcp(struct sde_hdmi *hdmi_ctrl)
 	}
 
 end:
+	return rc;
+}
+
+int sde_hdmi_set_top_ctl(struct drm_connector *connector,
+			struct drm_display_mode *adj_mode, void *display)
+{
+	int rc = 0;
+	struct sde_hdmi *sde_hdmi = (struct sde_hdmi *)display;
+
+	if (!sde_hdmi) {
+		SDE_ERROR("sde_hdmi is NULL\n");
+		return -EINVAL;
+	}
+
+	if (sde_hdmi->display_topology) {
+		SDE_DEBUG("%s, set display topology %d\n",
+				__func__, sde_hdmi->display_topology);
+
+		msm_property_set_property(sde_connector_get_propinfo(connector),
+			sde_connector_get_property_values(connector->state),
+			CONNECTOR_PROP_TOPOLOGY_CONTROL,
+			sde_hdmi->display_topology);
+	}
+
 	return rc;
 }
 
@@ -3078,7 +3150,8 @@ static int _sde_hdmi_parse_dt(struct device_node *node,
 {
 	int rc = 0;
 
-	struct hdmi *hdmi = display->ctrl.ctrl;
+	const char *name;
+	u32 top = 0;
 
 	display->name = of_get_property(node, "label", NULL);
 
@@ -3090,10 +3163,25 @@ static int _sde_hdmi_parse_dt(struct device_node *node,
 	display->non_pluggable = of_property_read_bool(node,
 						"qcom,non-pluggable");
 
+	rc = of_property_read_string(node, "qcom,display-topology-control",
+				&name);
+	if (rc) {
+		SDE_ERROR("unable to get qcom,display-topology-control,rc=%d\n",
+				rc);
+	} else {
+		SDE_DEBUG("%s qcom,display-topology-control = %s\n",
+				__func__, name);
+
+		if (!strcmp(name, "force-mixer"))
+			top = BIT(SDE_RM_TOPCTL_FORCE_MIXER);
+		else if (!strcmp(name, "force-tiling"))
+			top = BIT(SDE_RM_TOPCTL_FORCE_TILING);
+
+		display->display_topology = top;
+	}
+
 	display->skip_ddc = of_property_read_bool(node,
 						"qcom,skip_ddc");
-	if (!display->non_pluggable)
-		hdmi_i2c_destroy(hdmi->i2c);
 
 	rc = _sde_hdmi_parse_dt_modes(node, &display->mode_list,
 					&display->num_of_modes);

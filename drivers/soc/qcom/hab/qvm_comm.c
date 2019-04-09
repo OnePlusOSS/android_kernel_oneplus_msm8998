@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -12,6 +12,8 @@
  */
 #include "hab.h"
 #include "hab_qvm.h"
+
+static unsigned long long xvm_sche_tx_tv_buffer[2];
 
 inline void habhyp_notify(void *commdev)
 {
@@ -40,9 +42,9 @@ int physical_channel_send(struct physical_channel *pchan,
 		struct hab_header *header,
 		void *payload)
 {
-	int sizebytes = HAB_HEADER_GET_SIZE(*header);
+	size_t sizebytes = HAB_HEADER_GET_SIZE(*header);
 	struct qvm_channel *dev  = (struct qvm_channel *)pchan->hyp_data;
-	int total_size = sizeof(*header) + sizebytes;
+	size_t total_size = sizeof(*header) + sizebytes;
 
 	if (total_size > dev->pipe_ep->tx_info.sh_buf->size)
 		return -EINVAL; /* too much data for ring */
@@ -56,6 +58,7 @@ int physical_channel_send(struct physical_channel *pchan,
 		return -EAGAIN; /* not enough free space */
 	}
 
+	header->sequence = pchan->sequence_tx + 1;
 	header->signature = HAB_HEAD_SIGNATURE;
 
 	if (hab_pipe_write(dev->pipe_ep,
@@ -78,6 +81,12 @@ int physical_channel_send(struct physical_channel *pchan,
 			spin_unlock_bh(&dev->io_lock);
 			return -EINVAL;
 		}
+	} else if (HAB_HEADER_GET_TYPE(*header)
+		== HAB_PAYLOAD_TYPE_SCHE_RESULT_REQ) {
+		((unsigned long long *)payload)[0] = xvm_sche_tx_tv_buffer[0];
+	} else if (HAB_HEADER_GET_TYPE(*header)
+		== HAB_PAYLOAD_TYPE_SCHE_RESULT_RSP) {
+		((unsigned long long *)payload)[2] = xvm_sche_tx_tv_buffer[1];
 	}
 
 	if (sizebytes) {
@@ -91,8 +100,12 @@ int physical_channel_send(struct physical_channel *pchan,
 
 	hab_pipe_write_commit(dev->pipe_ep);
 	spin_unlock_bh(&dev->io_lock);
+	if (HAB_HEADER_GET_TYPE(*header) == HAB_PAYLOAD_TYPE_SCHE_MSG)
+		xvm_sche_tx_tv_buffer[0] = msm_timer_get_sclk_ticks();
+	else if (HAB_HEADER_GET_TYPE(*header) == HAB_PAYLOAD_TYPE_SCHE_MSG_ACK)
+		xvm_sche_tx_tv_buffer[1] = msm_timer_get_sclk_ticks();
 	habhyp_notify(dev);
-
+	++pchan->sequence_tx;
 	return 0;
 }
 
@@ -116,6 +129,8 @@ void physical_channel_rx_dispatch(unsigned long data)
 				header.session_id,
 				header.sequence);
 		}
+
+		pchan->sequence_rx = header.sequence;
 
 		hab_msg_recv(pchan, &header);
 	}

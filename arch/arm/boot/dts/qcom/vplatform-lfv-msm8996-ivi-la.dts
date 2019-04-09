@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -16,11 +16,60 @@
 #include "vplatform-lfv-msm8996.dtsi"
 #include <dt-bindings/clock/msm-clocks-8996.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "Qualcomm Technologies, Inc. MSM 8996";
 	compatible = "qcom,msm8996";
 	qcom,msm-id = <246 0x0>;
+	cpus {
+		#address-cells = <2>;
+		#size-cells = <0>;
+	CPU0: cpu@0 {
+		device_type = "cpu";
+		compatible = "qcom,kryo";
+		reg = <0x0 0x0>;
+		efficiency = <1024>;
+	};
+	CPU1: cpu@1 {
+		device_type = "cpu";
+		compatible = "qcom,kryo";
+		reg = <0x0 0x1>;
+		efficiency = <1024>;
+	};
+	CPU2: cpu@2 {
+		device_type = "cpu";
+		compatible = "qcom,kryo";
+		reg = <0x0 0x2>;
+		efficiency = <1536>;
+	};
+	CPU3: cpu@3 {
+		device_type = "cpu";
+		compatible = "qcom,kryo";
+		reg = <0x0 0x3>;
+		efficiency = <1536>;
+	};
+	cpu-map {
+		cluster0 {
+			core0 {
+				cpu = <&CPU0>;
+			};
+			core1 {
+				cpu = <&CPU1>;
+			};
+		};
+
+		cluster1 {
+			core0 {
+				cpu = <&CPU2>;
+			};
+
+			core1 {
+				cpu = <&CPU3>;
+			};
+		};
+	};
+};
 
 	firmware: firmware {
 		android {
@@ -140,6 +189,7 @@
 		pinctrl-names = "bootstrap_active", "bootstrap_sleep";
 		pinctrl-0 = <&cnss_bootstrap_active>;
 		pinctrl-1 = <&cnss_bootstrap_sleep>;
+		qcom,wlan-ramdump-dynamic = <0x200000>;
 
 		qcom,msm-bus,name = "msm-cnss";
 		qcom,msm-bus,num-cases = <4>;
@@ -170,9 +220,7 @@
 		};
 		wlan {
 			subsys-name = "AR6320";
-			interrupts = <0 43 0>;
-			interrupt-names = "state-irq";
-			type = "virtual";
+			type = "native";
 			offset = <512>;
 		};
 
@@ -221,12 +269,17 @@
 	status = "okay";
 };
 
+&usb2s {
+	status = "okay";
+	qcom,no-wakeup-src-in-hostmode;
+};
+
 &qusb_phy1 {
-	status = "disabled";
+	status = "okay";
 };
 
 &usb_nop_phy {
-	status = "disabled";
+	status = "okay";
 };
 
 &usb_detect {
@@ -404,4 +457,26 @@
 
 &sde_kms_hyp {
 	qcom,client-id = "7815";
+};
+&sdhc_2 {
+	vdd-supply = <&pm8994_l21>;
+	qcom,vdd-voltage-level = <2950000 2950000>;
+	qcom,vdd-current-level = <200 800000>;
+
+	vdd-io-supply = <&pm8994_l13>;
+	qcom,vdd-io-voltage-level = <1800000 2950000>;
+	qcom,vdd-io-current-level = <200 22000>;
+
+	pinctrl-names = "active", "sleep";
+	pinctrl-0 = <&sdc2_clk_on &sdc2_cmd_on &sdc2_data_on &sdc2_cd_on_sbc>;
+	pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off
+			&sdc2_cd_on_sbc>;
+
+	qcom,clk-rates = <400000 20000000 25000000
+				50000000 100000000 200000000>;
+	qcom,bus-speed-mode = "SDR12", "SDR25", "SDR50", "DDR50", "SDR104";
+
+	cd-gpios = <&tlmm 38 GPIO_ACTIVE_LOW>;
+
+	status = "okay";
 };

@@ -47,6 +47,12 @@ int hab_open_request_add(struct physical_channel *pchan,
 	struct hab_open_request *request;
 	struct timeval tv;
 
+	if (sizebytes > HAB_HEADER_SIZE_MASK) {
+		pr_err("pchan %s request size too large %zd\n",
+			pchan->name, sizebytes);
+		return -EINVAL;
+	}
+
 	node = kzalloc(sizeof(*node), GFP_ATOMIC);
 	if (!node)
 		return -ENOMEM;
@@ -152,10 +158,13 @@ int hab_open_listen(struct uhab_context *ctx,
 		ret = wait_event_interruptible_timeout(dev->openq,
 			hab_open_request_find(ctx, dev, listen, recv_request),
 			ms_timeout);
-		if (!ret || (-ERESTARTSYS == ret)) {
+		if (!ret) {
+			pr_debug("%s timeout in open listen\n", dev->name);
+			ret = -EAGAIN; /* condition not met */
+		} else if (-ERESTARTSYS == ret) {
 			pr_warn("something failed in open listen ret %d\n",
 					ret);
-			ret = -EAGAIN; /* condition not met */
+			ret = -EINTR; /* condition not met */
 		} else if (ret > 0)
 			ret = 0; /* condition met */
 	} else { /* fe case */
@@ -183,6 +192,12 @@ int hab_open_receive_cancel(struct physical_channel *pchan,
 	struct hab_open_node *node, *tmp;
 	int bfound = 0;
 	struct timeval tv;
+
+	if (sizebytes > HAB_HEADER_SIZE_MASK) {
+		pr_err("pchan %s cancel size too large %zd\n",
+			pchan->name, sizebytes);
+		return -EINVAL;
+	}
 
 	if (physical_channel_read(pchan, &data, sizebytes) != sizebytes)
 		return -EIO;

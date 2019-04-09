@@ -27,6 +27,12 @@ hab_msg_alloc(struct physical_channel *pchan, size_t sizebytes)
 {
 	struct hab_message *message;
 
+	if (sizebytes > HAB_HEADER_SIZE_MASK) {
+		pr_err("pchan %s send size too large %zd\n",
+			pchan->name, sizebytes);
+		return NULL;
+	}
+
 	message = kzalloc(sizeof(*message) + sizebytes, GFP_ATOMIC);
 	if (!message)
 		return NULL;
@@ -64,9 +70,14 @@ hab_msg_dequeue(struct virtual_channel *vchan, struct hab_message **msg,
 		}
 	}
 
-	/* return all the received messages before the remote close */
-	if ((!ret || (ret == -ERESTARTSYS)) && !hab_rx_queue_empty(vchan)) {
-		spin_lock_bh(&vchan->rx_lock);
+	/*
+	 * return all the received messages before the remote close,
+	 * and need empty check again in case the list is empty now due to
+	 * dequeue by other threads
+	 */
+	spin_lock_bh(&vchan->rx_lock);
+
+	if ((!ret || (ret == -ERESTARTSYS)) && !list_empty(&vchan->rx_list)) {
 		message = list_first_entry(&vchan->rx_list,
 				struct hab_message, node);
 		if (message) {
@@ -76,17 +87,19 @@ hab_msg_dequeue(struct virtual_channel *vchan, struct hab_message **msg,
 				ret = 0;
 				*rsize = message->sizebytes;
 			} else {
-				pr_err("rcv buffer too small %d < %zd\n",
-					   *rsize, message->sizebytes);
+				pr_err("vcid %x rcv buf too small %d < %zd\n",
+					   vchan->id, *rsize,
+					   message->sizebytes);
 				*rsize = message->sizebytes;
 				message = NULL;
 				ret = -EOVERFLOW; /* come back again */
 			}
 		}
-		spin_unlock_bh(&vchan->rx_lock);
 	} else
 		/* no message received, retain the original status */
 		*rsize = 0;
+
+	spin_unlock_bh(&vchan->rx_lock);
 
 	*msg = message;
 	return ret;
@@ -146,6 +159,12 @@ static int hab_receive_create_export_ack(struct physical_channel *pchan,
 		pr_err("exp ack size %zu is not as arrived %zu\n",
 				  sizeof(ack_recvd->ack), sizebytes);
 
+	if (sizebytes > HAB_HEADER_SIZE_MASK) {
+		pr_err("pchan %s read size too large %zd\n",
+			pchan->name, sizebytes);
+		return -EINVAL;
+	}
+
 	if (physical_channel_read(pchan,
 		&ack_recvd->ack,
 		sizebytes) != sizebytes)
@@ -161,6 +180,11 @@ static int hab_receive_create_export_ack(struct physical_channel *pchan,
 static void hab_msg_drop(struct physical_channel *pchan, size_t sizebytes)
 {
 	uint8_t *data = NULL;
+
+	if (sizebytes > HAB_HEADER_SIZE_MASK) {
+		pr_err("%s read size too large %zd\n", pchan->name, sizebytes);
+		return;
+	}
 
 	data = kmalloc(sizebytes, GFP_ATOMIC);
 	if (data == NULL)
@@ -182,6 +206,7 @@ int hab_msg_recv(struct physical_channel *pchan,
 	struct virtual_channel *vchan = NULL;
 	struct export_desc *exp_desc;
 	struct timeval tv;
+	unsigned long long rx_mpm_tv;
 
 	/* get the local virtual channel if it isn't an open message */
 	if (payload_type != HAB_PAYLOAD_TYPE_INIT &&
@@ -203,7 +228,7 @@ int hab_msg_recv(struct physical_channel *pchan,
 		 */
 		vchan = hab_vchan_get(pchan, header);
 		if (!vchan) {
-			pr_info("vchan is not found, payload type %d, vchan id %x, sizebytes %zx, session %d\n",
+			pr_debug("vchan not found type %d vcid %x sz %zx sesn %d\n",
 				payload_type, vchan_id, sizebytes, session_id);
 
 			if (sizebytes) {
@@ -238,6 +263,8 @@ int hab_msg_recv(struct physical_channel *pchan,
 
 	switch (payload_type) {
 	case HAB_PAYLOAD_TYPE_MSG:
+	case HAB_PAYLOAD_TYPE_SCHE_RESULT_REQ:
+	case HAB_PAYLOAD_TYPE_SCHE_RESULT_RSP:
 		message = hab_msg_alloc(pchan, sizebytes);
 		if (!message)
 			break;
@@ -268,6 +295,12 @@ int hab_msg_recv(struct physical_channel *pchan,
 		break;
 
 	case HAB_PAYLOAD_TYPE_EXPORT:
+		if (sizebytes > HAB_HEADER_SIZE_MASK) {
+			pr_err("%s exp size too large %zd\n",
+					pchan->name, sizebytes);
+			break;
+		}
+
 		exp_desc = kzalloc(sizebytes, GFP_ATOMIC);
 		if (!exp_desc)
 			break;
@@ -281,7 +314,14 @@ int hab_msg_recv(struct physical_channel *pchan,
 			break;
 		}
 
-		exp_desc->domid_local = pchan->dom_id;
+		if (pchan->vmid_local != exp_desc->domid_remote ||
+			pchan->vmid_remote != exp_desc->domid_local)
+			pr_err("corrupted vmid %d != %d %d != %d\n",
+				pchan->vmid_local, exp_desc->domid_remote,
+				pchan->vmid_remote, exp_desc->domid_local);
+		exp_desc->domid_remote = pchan->vmid_remote;
+		exp_desc->domid_local = pchan->vmid_local;
+		exp_desc->pchan = pchan;
 
 		hab_export_enqueue(vchan, exp_desc);
 		hab_send_export_ack(vchan, pchan, exp_desc);
@@ -299,7 +339,7 @@ int hab_msg_recv(struct physical_channel *pchan,
 
 	case HAB_PAYLOAD_TYPE_CLOSE:
 		/* remote request close */
-		pr_info("remote request close vcid %pK %X other id %X session %d refcnt %d\n",
+		pr_debug("remote close vcid %pK %X other id %X session %d refcnt %d\n",
 			vchan, vchan->id, vchan->otherend_id,
 			session_id, get_refcnt(vchan->refcount));
 		hab_vchan_stop(vchan);
@@ -316,6 +356,19 @@ int hab_msg_recv(struct physical_channel *pchan,
 				(struct habmm_xing_vm_stat *)message->data;
 			pstat->rx_sec = tv.tv_sec;
 			pstat->rx_usec = tv.tv_usec;
+			hab_msg_queue(vchan, message);
+		}
+		break;
+
+	case HAB_PAYLOAD_TYPE_SCHE_MSG:
+	case HAB_PAYLOAD_TYPE_SCHE_MSG_ACK:
+		rx_mpm_tv = msm_timer_get_sclk_ticks();
+		/* pull down the incoming data */
+		message = hab_msg_alloc(pchan, sizebytes);
+		if (!message)
+			pr_err("failed to allocate msg Arrived msg will be lost\n");
+		else {
+			((unsigned long long *)message->data)[0] = rx_mpm_tv;
 			hab_msg_queue(vchan, message);
 		}
 		break;

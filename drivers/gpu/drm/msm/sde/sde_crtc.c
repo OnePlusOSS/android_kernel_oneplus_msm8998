@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2019 The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  *
@@ -181,6 +181,7 @@ static void _sde_crtc_blend_setup_mixer(struct drm_crtc *crtc,
 	struct sde_format *format;
 	struct sde_hw_ctl *ctl = mixer->hw_ctl;
 	struct sde_hw_stage_cfg *stage_cfg = &sde_crtc->stage_cfg;
+	struct sde_crtc_state *cstate;
 
 	u32 flush_mask = 0, crtc_split_width;
 	uint32_t lm_idx = LEFT_MIXER, idx;
@@ -194,20 +195,31 @@ static void _sde_crtc_blend_setup_mixer(struct drm_crtc *crtc,
 	drm_atomic_crtc_for_each_plane(plane, crtc) {
 
 		pstate = to_sde_plane_state(plane->state);
+		cstate = to_sde_crtc_state(crtc->state);
 
-		/* always stage plane on either left or right lm */
-		if (plane->state->crtc_x >= crtc_split_width) {
-			lm_idx = RIGHT_MIXER;
-			idx = right_crtc_zpos_cnt[pstate->stage]++;
-		} else {
+		/* shared dual mixer mode will always enable both LM */
+		if (cstate->is_shared &&
+				sde_crtc->num_mixers == CRTC_DUAL_MIXERS) {
 			lm_idx = LEFT_MIXER;
 			idx = left_crtc_zpos_cnt[pstate->stage]++;
-		}
+			lm_right = true;
+		} else {
+			/* always stage plane on either left or right lm */
+			if (plane->state->crtc_x >= crtc_split_width) {
+				lm_idx = RIGHT_MIXER;
+				idx = right_crtc_zpos_cnt[pstate->stage]++;
+			} else {
+				lm_idx = LEFT_MIXER;
+				idx = left_crtc_zpos_cnt[pstate->stage]++;
+			}
 
-		/* stage plane on right LM if it crosses the boundary */
-		lm_right = (lm_idx == LEFT_MIXER) &&
-		   (plane->state->crtc_x + plane->state->crtc_w >
+			/* stage plane on right LM if it crosses the
+			 * boundary.
+			 */
+			lm_right = (lm_idx == LEFT_MIXER) &&
+			   (plane->state->crtc_x + plane->state->crtc_w >
 							crtc_split_width);
+		}
 
 		/*
 		 * program each mixer with two hw pipes in dual mixer mode,
@@ -780,6 +792,24 @@ static void _sde_crtc_setup_mixers(struct drm_crtc *crtc)
 	mutex_unlock(&sde_crtc->crtc_lock);
 }
 
+static void _sde_crtc_setup_is_shared(struct drm_crtc_state *state)
+{
+	struct sde_crtc_state *cstate;
+
+	cstate = to_sde_crtc_state(state);
+
+	cstate->is_shared = false;
+	if (cstate->num_connectors) {
+		struct drm_connector *conn = cstate->connectors[0];
+		struct sde_connector *sde_conn = to_sde_connector(conn);
+
+		if (sde_conn->is_shared) {
+			cstate->is_shared = true;
+			cstate->shared_roi = sde_conn->shared_roi;
+		}
+	}
+}
+
 static void sde_crtc_atomic_begin(struct drm_crtc *crtc,
 		struct drm_crtc_state *old_state)
 {
@@ -803,8 +833,10 @@ static void sde_crtc_atomic_begin(struct drm_crtc *crtc,
 	sde_crtc = to_sde_crtc(crtc);
 	dev = crtc->dev;
 
-	if (!sde_crtc->num_mixers)
+	if (!sde_crtc->num_mixers) {
+		_sde_crtc_setup_is_shared(crtc->state);
 		_sde_crtc_setup_mixers(crtc);
+	}
 
 	/* Reset flush mask from previous commit */
 	for (i = 0; i < ARRAY_SIZE(sde_crtc->mixers); i++) {
@@ -1366,6 +1398,7 @@ static int sde_crtc_atomic_check(struct drm_crtc *crtc,
 		state->mode_changed = true;
 
 	mixer_width = sde_crtc_mixer_width(sde_crtc, mode);
+	_sde_crtc_setup_is_shared(state);
 
 	 /* get plane state for all drm planes associated with crtc state */
 	drm_atomic_crtc_state_for_each_plane(plane, state) {
@@ -1609,8 +1642,8 @@ static void sde_crtc_install_properties(struct drm_crtc *crtc,
 		"input_fence_timeout", 0x0, 0, SDE_CRTC_MAX_INPUT_FENCE_TIMEOUT,
 		SDE_CRTC_INPUT_FENCE_TIMEOUT, CRTC_PROP_INPUT_FENCE_TIMEOUT);
 
-	msm_property_install_range(&sde_crtc->property_info, "output_fence",
-			0x0, 0, INR_OPEN_MAX, 0x0, CRTC_PROP_OUTPUT_FENCE);
+	msm_property_install_volatile_range(&sde_crtc->property_info,
+		"output_fence", 0x0, 0, ~0, 0, CRTC_PROP_OUTPUT_FENCE);
 
 	msm_property_install_range(&sde_crtc->property_info,
 			"output_fence_offset", 0x0, 0, 1, 0,
@@ -1649,7 +1682,7 @@ static void sde_crtc_install_properties(struct drm_crtc *crtc,
 	 */
 	if (sde_kms->splash_info.handoff)
 		sde_kms_info_add_keyint(info, "max_blendstages",
-				catalog->max_mixer_blendstages - 1);
+				catalog->max_mixer_blendstages - 2);
 	else
 		sde_kms_info_add_keyint(info, "max_blendstages",
 				catalog->max_mixer_blendstages);
@@ -1675,6 +1708,28 @@ static void sde_crtc_install_properties(struct drm_crtc *crtc,
 	kfree(info);
 }
 
+static int _sde_crtc_get_output_fence(struct drm_crtc *crtc,
+	const struct drm_crtc_state *state, uint64_t *val)
+{
+	struct sde_crtc *sde_crtc;
+	struct sde_crtc_state *cstate;
+	uint32_t offset;
+
+	sde_crtc = to_sde_crtc(crtc);
+	cstate = to_sde_crtc_state(state);
+
+	offset = sde_crtc_get_property(cstate, CRTC_PROP_OUTPUT_FENCE_OFFSET);
+
+	/*
+	 * Hwcomposer now queries the fences using the commit list in atomic
+	 * commit ioctl. The offset should be set to next timeline
+	 * which will be incremented during the prepare commit phase
+	 */
+	offset++;
+
+	return sde_fence_create(&sde_crtc->output_fence, val, offset);
+}
+
 /**
  * sde_crtc_atomic_set_property - atomically set a crtc drm property
  * @crtc: Pointer to drm crtc structure
@@ -1691,27 +1746,60 @@ static int sde_crtc_atomic_set_property(struct drm_crtc *crtc,
 	struct sde_crtc *sde_crtc;
 	struct sde_crtc_state *cstate;
 	int idx, ret = -EINVAL;
+	 uint64_t fence_fd = 0;
 
 	if (!crtc || !state || !property) {
 		SDE_ERROR("invalid argument(s)\n");
-	} else {
-		sde_crtc = to_sde_crtc(crtc);
-		cstate = to_sde_crtc_state(state);
-		ret = msm_property_atomic_set(&sde_crtc->property_info,
-				cstate->property_values, cstate->property_blobs,
-				property, val);
-		if (!ret) {
-			idx = msm_property_index(&sde_crtc->property_info,
-					property);
-			if (idx == CRTC_PROP_INPUT_FENCE_TIMEOUT)
-				_sde_crtc_set_input_fence_timeout(cstate);
-		} else {
-			ret = sde_cp_crtc_set_property(crtc,
-					property, val);
-		}
-		if (ret)
-			DRM_ERROR("failed to set the property\n");
+		return -EINVAL;
 	}
+
+	sde_crtc = to_sde_crtc(crtc);
+	cstate = to_sde_crtc_state(state);
+
+	ret = msm_property_atomic_set(&sde_crtc->property_info,
+			cstate->property_values, cstate->property_blobs,
+			property, val);
+
+	if (!ret) {
+		idx = msm_property_index(&sde_crtc->property_info,
+				property);
+		switch (idx) {
+		case CRTC_PROP_INPUT_FENCE_TIMEOUT:
+			_sde_crtc_set_input_fence_timeout(cstate);
+			break;
+		case CRTC_PROP_OUTPUT_FENCE:
+			if (!val)
+				goto exit;
+
+			ret = _sde_crtc_get_output_fence(crtc,
+						state, &fence_fd);
+			if (ret) {
+				SDE_ERROR("fence create failed rc:%d\n", ret);
+				goto exit;
+			}
+
+			ret  = copy_to_user((uint64_t __user *)val, &fence_fd,
+					sizeof(uint64_t));
+
+			if (ret) {
+				SDE_ERROR("copy to user failed rc:%d\n", ret);
+				put_unused_fd(fence_fd);
+				ret = -EFAULT;
+				goto exit;
+			}
+			break;
+		default:
+			/* nothing to do */
+			break;
+		}
+	} else {
+		ret = sde_cp_crtc_set_property(crtc,
+				property, val);
+	}
+
+exit:
+	if (ret)
+		DRM_ERROR("failed to set the property\n");
 
 	return ret;
 }
@@ -1750,30 +1838,27 @@ static int sde_crtc_atomic_get_property(struct drm_crtc *crtc,
 
 	if (!crtc || !state) {
 		SDE_ERROR("invalid argument(s)\n");
-	} else {
-		sde_crtc = to_sde_crtc(crtc);
-		cstate = to_sde_crtc_state(state);
-
-		i = msm_property_index(&sde_crtc->property_info, property);
-		if (i == CRTC_PROP_OUTPUT_FENCE) {
-			int offset = sde_crtc_get_property(cstate,
-					CRTC_PROP_OUTPUT_FENCE_OFFSET);
-
-			ret = sde_fence_create(&sde_crtc->output_fence, val,
-							offset);
-			if (ret)
-				SDE_ERROR("fence create failed\n");
-		} else {
-			ret = msm_property_atomic_get(&sde_crtc->property_info,
-					cstate->property_values,
-					cstate->property_blobs, property, val);
-			if (ret)
-				ret = sde_cp_crtc_get_property(crtc,
-					property, val);
-		}
-		if (ret)
-			DRM_ERROR("get property failed\n");
+		return -EINVAL;
 	}
+
+	sde_crtc = to_sde_crtc(crtc);
+	cstate = to_sde_crtc_state(state);
+
+	i = msm_property_index(&sde_crtc->property_info, property);
+	if (i == CRTC_PROP_OUTPUT_FENCE) {
+		*val = ~0;
+		ret = 0;
+	} else {
+		ret = msm_property_atomic_get(&sde_crtc->property_info,
+				cstate->property_values,
+				cstate->property_blobs, property, val);
+		if (ret)
+			ret = sde_cp_crtc_get_property(crtc,
+				property, val);
+	}
+	if (ret)
+		DRM_ERROR("get property failed\n");
+
 	return ret;
 }
 
@@ -1994,6 +2079,26 @@ static void _sde_crtc_init_debugfs(struct sde_crtc *sde_crtc,
 {
 }
 #endif
+
+void sde_crtc_update_blob_property(struct drm_crtc *crtc,
+				const char *key,
+				int32_t value)
+{
+	struct sde_crtc *sde_crtc;
+	char *kms_info_str = NULL;
+	size_t len;
+
+	sde_crtc = to_sde_crtc(crtc);
+
+	kms_info_str = (char *)msm_property_get_blob(&sde_crtc->property_info,
+				&sde_crtc->blob_info, &len, CRTC_PROP_INFO);
+	if (!kms_info_str) {
+		SDE_ERROR("get crtc property_info failed");
+		return;
+	}
+
+	sde_kms_info_update_keystr(kms_info_str, key, value);
+}
 
 /* initialize crtc */
 struct drm_crtc *sde_crtc_init(struct drm_device *dev,

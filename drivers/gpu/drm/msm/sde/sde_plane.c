@@ -1232,6 +1232,7 @@ static int _sde_plane_mode_set(struct drm_plane *plane,
 	uint32_t nplanes, src_flags = 0x0;
 	struct sde_plane *psde;
 	struct sde_plane_state *pstate;
+	struct sde_crtc_state *cstate;
 	const struct sde_format *fmt;
 	struct drm_crtc *crtc;
 	struct drm_framebuffer *fb;
@@ -1379,6 +1380,23 @@ static int _sde_plane_mode_set(struct drm_plane *plane,
 				src.x += src.w * pp->index;
 				dst.x += dst.w * pp->index;
 			}
+
+			/* add extra offset for shared display */
+			if (crtc->state) {
+				cstate = to_sde_crtc_state(crtc->state);
+				if (cstate->is_shared) {
+					dst.x += cstate->shared_roi.x;
+					dst.y += cstate->shared_roi.y;
+
+					if (sde_plane_get_property(pstate,
+						PLANE_PROP_SRC_CONFIG) &
+						BIT(SDE_DRM_LINEPADDING)) {
+						src.h = cstate->shared_roi.h;
+						dst.h = cstate->shared_roi.h;
+					}
+				}
+			}
+
 			pp->pipe_cfg.src_rect = src;
 			pp->pipe_cfg.dst_rect = dst;
 
@@ -1795,7 +1813,8 @@ static void _sde_plane_install_properties(struct drm_plane *plane,
 		{SDE_DRM_BLEND_OP_COVERAGE,       "coverage"}
 	};
 	static const struct drm_prop_enum_list e_src_config[] = {
-		{SDE_DRM_DEINTERLACE, "deinterlace"}
+		{SDE_DRM_DEINTERLACE, "deinterlace"},
+		{SDE_DRM_LINEPADDING, "linepadding"},
 	};
 	static const struct drm_prop_enum_list e_fb_translation_mode[] = {
 		{SDE_DRM_FB_NON_SEC, "non_sec"},
@@ -2140,6 +2159,12 @@ static inline void _sde_plane_set_scaler_v2(struct sde_phy_plane *pp,
 
 	if (copy_from_user(&scale_v2, usr, sizeof(scale_v2))) {
 		SDE_ERROR_PLANE(psde, "failed to copy scale data\n");
+		return;
+	}
+
+	/* detach/ignore user data if 'disabled' */
+	if (!scale_v2.enable) {
+		SDE_DEBUG_PLANE(psde, "scale data removed\n");
 		return;
 	}
 
@@ -2724,6 +2749,24 @@ static int _sde_init_phy_plane(struct sde_kms *sde_kms,
 
 end:
 	return rc;
+}
+
+void sde_plane_update_blob_property(struct drm_plane *plane,
+				const char *key,
+				int32_t value)
+{
+	char *kms_info_str = NULL;
+	struct sde_plane *sde_plane = to_sde_plane(plane);
+	size_t len;
+
+	kms_info_str = (char *)msm_property_get_blob(&sde_plane->property_info,
+				&sde_plane->blob_info, &len, 0);
+	if (!kms_info_str) {
+		SDE_ERROR("get plane property_info failed\n");
+		return;
+	}
+
+	sde_kms_info_update_keystr(kms_info_str, key, value);
 }
 
 /* initialize plane */

@@ -240,6 +240,8 @@ struct dwc3_msm {
 	struct delayed_work sdp_check;
 	bool usb_compliance_mode;
 	struct mutex suspend_resume_mutex;
+
+	enum usb_device_speed override_usb_speed;
 };
 
 #define USB_HSPHY_3P3_VOL_MIN		3050000 /* uV */
@@ -1570,8 +1572,17 @@ static void dwc3_restart_usb_work(struct work_struct *w)
 
 	mdwc->in_restart = false;
 	/* Force reconnect only if cable is still connected */
-	if (mdwc->vbus_active)
+	if (mdwc->vbus_active) {
+		if (mdwc->override_usb_speed) {
+			dwc->maximum_speed = mdwc->override_usb_speed;
+			dwc->gadget.max_speed = dwc->maximum_speed;
+			dbg_event(0xFF, "override_usb_speed",
+					mdwc->override_usb_speed);
+			mdwc->override_usb_speed = 0;
+		}
+
 		dwc3_resume_work(&mdwc->resume_work);
+	}
 
 	dwc->err_evt_seen = false;
 	flush_delayed_work(&mdwc->sm_work);
@@ -2656,6 +2667,13 @@ static int dwc3_msm_id_notifier(struct notifier_block *nb,
 	if (dwc->maximum_speed > dwc->max_hw_supp_speed)
 		dwc->maximum_speed = dwc->max_hw_supp_speed;
 
+	if (!id && mdwc->override_usb_speed) {
+		dwc->maximum_speed = mdwc->override_usb_speed;
+		dbg_event(0xFF, "override_usb_speed",
+				mdwc->override_usb_speed);
+		mdwc->override_usb_speed = 0;
+	}
+
 	if (mdwc->id_state != id) {
 		mdwc->id_state = id;
 		dbg_event(0xFF, "id_state", mdwc->id_state);
@@ -2840,14 +2858,19 @@ static ssize_t mode_store(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR_RW(mode);
 
+/* This node only shows max speed supported dwc3 and it should be
+ * same as what is reported in udc/core.c max_speed node. For current
+ * operating gadget speed, query current_speed node which is implemented
+ * by udc/core.c
+ */
 static ssize_t speed_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
 	struct dwc3_msm *mdwc = dev_get_drvdata(dev);
 	struct dwc3 *dwc = platform_get_drvdata(mdwc->dwc3);
 
-	return snprintf(buf, PAGE_SIZE, "%s",
-			usb_speed_string(dwc->max_hw_supp_speed));
+	return snprintf(buf, PAGE_SIZE, "%s\n",
+			usb_speed_string(dwc->maximum_speed));
 }
 
 static ssize_t speed_store(struct device *dev, struct device_attribute *attr,
@@ -2857,14 +2880,25 @@ static ssize_t speed_store(struct device *dev, struct device_attribute *attr,
 	struct dwc3 *dwc = platform_get_drvdata(mdwc->dwc3);
 	enum usb_device_speed req_speed = USB_SPEED_UNKNOWN;
 
-	if (sysfs_streq(buf, "high"))
+	/* DEVSPD can only have values SS(0x4), HS(0x0) and FS(0x1).
+	 * per 3.20a data book. Allow only these settings. Note that,
+	 * xhci does not support full-speed only mode.
+	 */
+	if (sysfs_streq(buf, "full"))
+		req_speed = USB_SPEED_FULL;
+	else if (sysfs_streq(buf, "high"))
 		req_speed = USB_SPEED_HIGH;
 	else if (sysfs_streq(buf, "super"))
 		req_speed = USB_SPEED_SUPER;
+	else
+		return -EINVAL;
 
-	if (req_speed != USB_SPEED_UNKNOWN &&
-			req_speed != dwc->max_hw_supp_speed) {
-		dwc->maximum_speed = dwc->max_hw_supp_speed = req_speed;
+	/* restart usb only works for device mode. Perform manual cable
+	 * plug in/out for host mode restart.
+	 */
+	if (req_speed != dwc->maximum_speed &&
+			req_speed <= dwc->max_hw_supp_speed) {
+		mdwc->override_usb_speed = req_speed;
 		schedule_work(&mdwc->restart_usb_work);
 	}
 
@@ -3981,7 +4015,10 @@ static void dwc3_otg_sm_work(struct work_struct *w)
 				mdwc->otg_state = OTG_STATE_A_IDLE;
 				goto ret;
 			}
-			pm_wakeup_event(mdwc->dev, DWC3_WAKEUP_SRC_TIMEOUT);
+			if (mdwc->no_wakeup_src_in_hostmode) {
+				pm_wakeup_event(mdwc->dev,
+					DWC3_WAKEUP_SRC_TIMEOUT);
+			}
 		}
 		break;
 
@@ -3999,7 +4036,10 @@ static void dwc3_otg_sm_work(struct work_struct *w)
 			dbg_event(0xFF, "XHCIResume", 0);
 			if (dwc)
 				pm_runtime_resume(&dwc->xhci->dev);
-			pm_wakeup_event(mdwc->dev, DWC3_WAKEUP_SRC_TIMEOUT);
+			if (mdwc->no_wakeup_src_in_hostmode) {
+				pm_wakeup_event(mdwc->dev,
+					DWC3_WAKEUP_SRC_TIMEOUT);
+			}
 		}
 		break;
 

@@ -35,12 +35,14 @@ static struct cpu_sync cluster0_si;
 static struct cpu_sync cluster1_si;
 
 static struct kthread_work input_boost_work;
-static bool input_boost_enabled;
+static bool input_boost_enabled = true;
 
-static unsigned int input_boost_ms = 40;
+// NOOP
+static unsigned int input_boost_ms = 90;
 module_param(input_boost_ms, uint, 0644);
 
-static unsigned int input_boost_ms_s2 = 0;
+// NOOP
+static unsigned int input_boost_ms_s2 = 150;
 module_param(input_boost_ms_s2, uint, 0644);
 
 static bool sched_boost_on_input;
@@ -212,7 +214,7 @@ static void do_input_boost_s2(struct work_struct *work)
 	update_policy_online();
 
 	queue_delayed_work(system_power_efficient_wq,
-		&input_boost_rem, msecs_to_jiffies(input_boost_ms_s2));
+		&input_boost_rem, msecs_to_jiffies(150));
 }
 
 static void do_input_boost(struct kthread_work *work)
@@ -242,21 +244,14 @@ static void do_input_boost(struct kthread_work *work)
 	}
 
 	/* Decide behaviour based on whether two-step input boost is enabled */
-	if (!input_boost_ms_s2)
-		queue_delayed_work(system_power_efficient_wq,
-			&input_boost_rem, msecs_to_jiffies(input_boost_ms));
-	else
-		queue_delayed_work(system_power_efficient_wq,
-			&input_boost_work_s2, msecs_to_jiffies(input_boost_ms));
+	queue_delayed_work(system_power_efficient_wq,
+		&input_boost_work_s2, msecs_to_jiffies(90));
 }
 
 static void cpuboost_input_event(struct input_handle *handle,
 		unsigned int type, unsigned int code, int value)
 {
 	u64 now;
-
-	if (!input_boost_enabled)
-		return;
 
 	now = ktime_to_us(ktime_get());
 	if (now - last_input_time < MIN_INPUT_INTERVAL)
@@ -358,6 +353,11 @@ static int cpu_boost_init(void)
 
 	memset(&cluster0_si, 0, sizeof(struct cpu_sync));
 	memset(&cluster1_si, 0, sizeof(struct cpu_sync));
+
+	cluster0_si.input_boost_freq    = 1248000;
+	cluster1_si.input_boost_freq    = 1344000;
+	cluster0_si.input_boost_freq_s2 = 1171200;
+	cluster1_si.input_boost_freq_s2 = 1190400;
 
 	cpufreq_register_notifier(&boost_adjust_nb, CPUFREQ_POLICY_NOTIFIER);
 

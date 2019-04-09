@@ -1940,7 +1940,9 @@ void qdf_dp_trace_data_pkt(qdf_nbuf_t nbuf,
 	if (qdf_dp_enable_check(nbuf, code, dir) == false)
 		return;
 
-	qdf_dp_add_record(code, qdf_nbuf_data(nbuf), nbuf->len - nbuf->data_len,
+	qdf_dp_add_record(code,
+			  nbuf ? qdf_nbuf_data(nbuf) : NULL,
+			  nbuf ? nbuf->len - nbuf->data_len : 0,
 			  (uint8_t *)&buf, sizeof(struct qdf_dp_trace_data_buf),
 			  (nbuf) ? QDF_NBUF_CB_DP_TRACE_PRINT(nbuf)
 			  : false);

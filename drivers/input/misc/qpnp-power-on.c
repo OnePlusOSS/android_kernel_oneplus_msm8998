@@ -35,8 +35,6 @@
 #include <linux/syscalls.h>
 #include <linux/power/oem_external_fg.h>
 #include <linux/atomic.h>
-#include <linux/param_rw.h>
-#include <linux/oneplus/boot_mode.h>
 
 #define CREATE_MASK(NUM_BITS, POS) \
 	((unsigned char) (((1 << (NUM_BITS)) - 1) << (POS)))
@@ -1012,19 +1010,13 @@ err_return:
 
 int check_powerkey_count(int press)
 {
-	int ret=0;
 	int param_poweroff_count=0;
-
-	ret = get_param_by_index_and_offset(13, 0x30, &param_poweroff_count,
-		sizeof(param_poweroff_count));
 
 	if(press)
 		param_poweroff_count ++ ;
 	else
 		param_poweroff_count -- ;
 
-	ret = set_param_by_index_and_offset(13, 0x30, &param_poweroff_count,
-		sizeof(param_poweroff_count));
 	pr_info("param_poweroff_count=%d \n",param_poweroff_count);
 	return 0;
 }
@@ -1032,9 +1024,6 @@ int check_powerkey_count(int press)
 int qpnp_powerkey_state_check(struct qpnp_pon *pon,int up)
 {
 	int rc =0;
-
-	if (get_boot_mode() !=	MSM_BOOT_MODE__NORMAL)
-		return 0;
 
 	if ( up ) {
 		rc = atomic_read(&pon->press_count);

@@ -2635,9 +2635,11 @@ QDF_STATUS wma_open(void *cds_context,
 		goto err_scn_context;
 	}
 
-	for (i = 0; i < wma_handle->max_bssid; ++i)
+	for (i = 0; i < wma_handle->max_bssid; ++i) {
 		wma_vdev_init(&wma_handle->interfaces[i]);
-
+		wma_handle->interfaces[i].delay_before_vdev_stop =
+			cds_cfg->delay_before_vdev_stop;
+	}
 	/* Register the debug print event handler */
 	wmi_unified_register_event_handler(wma_handle->wmi_handle,
 					WMI_DEBUG_PRINT_EVENTID,
@@ -3240,7 +3242,7 @@ static int wma_pdev_set_hw_mode_resp_evt_handler(void *handle,
 	hw_mode_resp->cfgd_hw_mode_index = wmi_event->cfgd_hw_mode_index;
 	hw_mode_resp->num_vdev_mac_entries = wmi_event->num_vdev_mac_entries;
 
-	WMA_LOGE("%s: status:%d cfgd_hw_mode_index:%d num_vdev_mac_entries:%d",
+	WMA_LOGD("%s: status:%d cfgd_hw_mode_index:%d num_vdev_mac_entries:%d",
 			__func__, wmi_event->status,
 			wmi_event->cfgd_hw_mode_index,
 			wmi_event->num_vdev_mac_entries);
@@ -3255,8 +3257,7 @@ static int wma_pdev_set_hw_mode_resp_evt_handler(void *handle,
 		pdev_id = vdev_mac_entry[i].pdev_id;
 		if (pdev_id == WMI_PDEV_ID_SOC) {
 			WMA_LOGE("%s: soc level id received for mac id)",
-				__func__);
-			QDF_BUG(0);
+				 __func__);
 			goto fail;
 		}
 		if (vdev_id >= wma->max_bssid) {
@@ -3266,7 +3267,7 @@ static int wma_pdev_set_hw_mode_resp_evt_handler(void *handle,
 		}
 		mac_id = WMA_PDEV_TO_MAC_MAP(vdev_mac_entry[i].pdev_id);
 
-		WMA_LOGE("%s: vdev_id:%d mac_id:%d",
+		WMA_LOGD("%s: vdev_id:%d mac_id:%d",
 			__func__, vdev_id, mac_id);
 
 		hw_mode_resp->vdev_mac_map[i].vdev_id = vdev_id;
@@ -3284,7 +3285,7 @@ static int wma_pdev_set_hw_mode_resp_evt_handler(void *handle,
 		}
 	}
 
-	WMA_LOGE("%s: Updated: old_hw_mode_index:%d new_hw_mode_index:%d",
+	WMA_LOGD("%s: Updated: old_hw_mode_index:%d new_hw_mode_index:%d",
 		__func__, wma->old_hw_mode_index, wma->new_hw_mode_index);
 
 	wma_send_msg(wma, SIR_HAL_PDEV_SET_HW_MODE_RESP,
@@ -3334,7 +3335,7 @@ void wma_process_pdev_hw_mode_trans_ind(void *handle,
 	hw_mode_trans_ind->new_hw_mode_index = fixed_param->new_hw_mode_index;
 	hw_mode_trans_ind->num_vdev_mac_entries =
 					fixed_param->num_vdev_mac_entries;
-	WMA_LOGE("%s: old_hw_mode_index:%d new_hw_mode_index:%d entries=%d",
+	WMA_LOGD("%s: old_hw_mode_index:%d new_hw_mode_index:%d entries=%d",
 		__func__, fixed_param->old_hw_mode_index,
 		fixed_param->new_hw_mode_index,
 		fixed_param->num_vdev_mac_entries);
@@ -3348,8 +3349,7 @@ void wma_process_pdev_hw_mode_trans_ind(void *handle,
 
 		if (pdev_id == WMI_PDEV_ID_SOC) {
 			WMA_LOGE("%s: soc level id received for mac id)",
-					__func__);
-			QDF_BUG(0);
+				 __func__);
 			return;
 		}
 		if (vdev_id >= wma->max_bssid) {
@@ -3371,7 +3371,7 @@ void wma_process_pdev_hw_mode_trans_ind(void *handle,
 	wma->old_hw_mode_index = fixed_param->old_hw_mode_index;
 	wma->new_hw_mode_index = fixed_param->new_hw_mode_index;
 
-	WMA_LOGE("%s: Updated: old_hw_mode_index:%d new_hw_mode_index:%d",
+	WMA_LOGD("%s: Updated: old_hw_mode_index:%d new_hw_mode_index:%d",
 		__func__, wma->old_hw_mode_index, wma->new_hw_mode_index);
 }
 
@@ -5958,6 +5958,10 @@ static void wma_populate_soc_caps(t_wma_handle *wma_handle,
 		WMA_LOGE("%s: Invalid number of hw modes", __func__);
 		return;
 	}
+	if (NULL == param_buf->hal_reg_caps) {
+		WMA_LOGE("%s: Invalid hal_reg_caps", __func__);
+		return;
+	}
 
 	if ((param_buf->soc_hw_mode_caps->num_hw_modes > MAX_NUM_HW_MODE) ||
 	    (param_buf->soc_hw_mode_caps->num_hw_modes >
@@ -6031,6 +6035,13 @@ static void wma_populate_soc_caps(t_wma_handle *wma_handle,
 				sizeof(WMI_MAC_PHY_CAPABILITIES));
 	if (!phy_caps->each_phy_cap_per_hwmode) {
 		WMA_LOGE("%s: Memory allocation failed", __func__);
+		wma_cleanup_dbs_phy_caps(wma_handle);
+		return;
+	}
+
+	if (num_of_mac_caps > param_buf->num_mac_phy_caps) {
+		WMA_LOGE("%s: Invalid num_of_mac_caps %d received from fw",
+			__func__, num_of_mac_caps);
 		wma_cleanup_dbs_phy_caps(wma_handle);
 		return;
 	}
@@ -7530,7 +7541,6 @@ QDF_STATUS wma_mc_process_msg(void *cds_context, cds_msg_t *msg)
 		break;
 	case WMA_SEND_BEACON_REQ:
 		wma_send_beacon(wma_handle, (tpSendbeaconParams) msg->bodyptr);
-		qdf_mem_free(msg->bodyptr);
 		break;
 	case WMA_SEND_PROBE_RSP_TMPL:
 		wma_send_probe_rsp_tmpl(wma_handle,
@@ -8094,7 +8104,7 @@ QDF_STATUS wma_mc_process_msg(void *cds_context, cds_msg_t *msg)
 		break;
 	case SIR_HAL_PDEV_SET_PCL_TO_FW:
 		wma_send_pdev_set_pcl_cmd(wma_handle,
-				(struct wmi_pcl_chan_weights *)msg->bodyptr);
+				(struct set_pcl_req *)msg->bodyptr);
 		qdf_mem_free(msg->bodyptr);
 		break;
 	case SIR_HAL_PDEV_SET_HW_MODE:
@@ -8409,7 +8419,7 @@ static wmi_pcl_chan_weight wma_map_pcl_weights(uint32_t pcl_weight)
  * Return: Success if the cmd is sent successfully to the firmware
  */
 QDF_STATUS wma_send_pdev_set_pcl_cmd(tp_wma_handle wma_handle,
-				struct wmi_pcl_chan_weights *msg)
+				struct set_pcl_req *msg)
 {
 	uint32_t i;
 	QDF_STATUS status;
@@ -8421,26 +8431,36 @@ QDF_STATUS wma_send_pdev_set_pcl_cmd(tp_wma_handle wma_handle,
 	}
 
 	for (i = 0; i < wma_handle->saved_chan.num_channels; i++) {
-		msg->saved_chan_list[i] =
+		msg->chan_weights.saved_chan_list[i] =
 			wma_handle->saved_chan.channel_list[i];
 	}
 
-	msg->saved_num_chan = wma_handle->saved_chan.num_channels;
-	status = cds_get_valid_chan_weights((struct sir_pcl_chan_weights *)msg,
-					CDS_STA_MODE);
+	msg->chan_weights.saved_num_chan = wma_handle->saved_chan.num_channels;
+	status = cds_get_valid_chan_weights(
+			(struct sir_pcl_chan_weights *)&msg->chan_weights,
+			CDS_STA_MODE);
 
-	for (i = 0; i < msg->saved_num_chan; i++) {
-		msg->weighed_valid_list[i] =
-			wma_map_pcl_weights(msg->weighed_valid_list[i]);
+	for (i = 0; i < msg->chan_weights.saved_num_chan; i++) {
+		msg->chan_weights.weighed_valid_list[i] =
+			wma_map_pcl_weights(msg->chan_weights.
+					    weighed_valid_list[i]);
 		/* Dont allow roaming on 2G when 5G_ONLY configured */
-		if ((wma_handle->bandcapability == SIR_BAND_5_GHZ) &&
-			(msg->saved_chan_list[i] <= MAX_24GHZ_CHANNEL)) {
-			msg->weighed_valid_list[i] =
+		if (((wma_handle->bandcapability == SIR_BAND_5_GHZ) ||
+		    (msg->band == SIR_BAND_5_GHZ)) &&
+		    (CDS_IS_CHANNEL_24GHZ(
+		    msg->chan_weights.saved_chan_list[i]))) {
+			msg->chan_weights.weighed_valid_list[i] =
+				WEIGHT_OF_DISALLOWED_CHANNELS;
+		}
+		if ((msg->band == SIR_BAND_2_4_GHZ) &&
+		    CDS_IS_CHANNEL_5GHZ((msg->chan_weights.
+					saved_chan_list[i]))) {
+			msg->chan_weights.weighed_valid_list[i] =
 				WEIGHT_OF_DISALLOWED_CHANNELS;
 		}
 		WMA_LOGD("%s: chan:%d weight[%d]=%d", __func__,
-			 msg->saved_chan_list[i], i,
-			 msg->weighed_valid_list[i]);
+			 msg->chan_weights.saved_chan_list[i], i,
+			 msg->chan_weights.weighed_valid_list[i]);
 	}
 
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
@@ -8448,7 +8468,8 @@ QDF_STATUS wma_send_pdev_set_pcl_cmd(tp_wma_handle wma_handle,
 		return status;
 	}
 
-	if (wmi_unified_pdev_set_pcl_cmd(wma_handle->wmi_handle, msg))
+	if (wmi_unified_pdev_set_pcl_cmd(wma_handle->wmi_handle,
+					 &msg->chan_weights))
 		return QDF_STATUS_E_FAILURE;
 
 	return QDF_STATUS_SUCCESS;

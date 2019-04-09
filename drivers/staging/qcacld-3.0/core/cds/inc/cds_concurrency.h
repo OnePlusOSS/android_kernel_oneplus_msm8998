@@ -848,6 +848,8 @@ QDF_STATUS cds_pdev_set_hw_mode(uint32_t session_id,
 		enum hw_mode_agile_dfs_capab dfs,
 		enum hw_mode_sbs_capab sbs,
 		enum sir_conn_update_reason reason);
+bool cds_is_dbs_req_for_channel(uint8_t channel_id);
+
 enum cds_conc_next_action cds_need_opportunistic_upgrade(void);
 QDF_STATUS cds_next_actions(uint32_t session_id,
 		enum cds_conc_next_action action,
@@ -1133,4 +1135,14 @@ bool cds_is_sta_sap_scc(uint8_t sap_ch);
  * Restart: None
  */
 void cds_flush_sta_ap_intf_work(hdd_context_t *hdd_ctx);
+
+/**
+ * cds_set_pcl_for_existing_combo() - Set PCL for existing connection
+ * @mode: Connection mode of type 'cds_con_mode'
+ *
+ * Set the PCL for an existing connection
+ *
+ * Return: None
+ */
+void cds_set_pcl_for_existing_combo(enum cds_con_mode mode);
 #endif /* __CDS_CONCURRENCY_H */

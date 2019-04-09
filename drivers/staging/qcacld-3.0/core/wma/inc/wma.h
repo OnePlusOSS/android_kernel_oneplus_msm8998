@@ -348,8 +348,8 @@ enum ds_mode {
 #define WMA_RSSI_THOLD_DEFAULT   -300
 
 #ifdef FEATURE_WLAN_SCAN_PNO
-#define WMA_PNO_MATCH_WAKE_LOCK_TIMEOUT         WAKELOCK_DURATION_RECOMMENDED
-#define WMA_PNO_SCAN_COMPLETE_WAKE_LOCK_TIMEOUT WAKELOCK_DURATION_RECOMMENDED
+#define WMA_PNO_MATCH_WAKE_LOCK_TIMEOUT         2000
+#define WMA_PNO_SCAN_COMPLETE_WAKE_LOCK_TIMEOUT 2000
 #endif /* FEATURE_WLAN_SCAN_PNO */
 
 #define WMA_AUTH_REQ_RECV_WAKE_LOCK_TIMEOUT     WAKELOCK_DURATION_RECOMMENDED
@@ -2383,7 +2383,7 @@ QDF_STATUS wma_set_rssi_monitoring(tp_wma_handle wma,
 					struct rssi_monitor_req *req);
 
 QDF_STATUS wma_send_pdev_set_pcl_cmd(tp_wma_handle wma_handle,
-		struct wmi_pcl_chan_weights *msg);
+		struct set_pcl_req *msg);
 
 QDF_STATUS wma_send_pdev_set_hw_mode_cmd(tp_wma_handle wma_handle,
 		struct sir_hw_mode *msg);

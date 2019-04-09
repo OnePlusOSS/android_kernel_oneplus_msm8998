@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1080,6 +1080,7 @@ typedef struct {
 	uint64_t rx_bytes;
 	qdf_time_t last_tx_rx_ts;
 	qdf_time_t assoc_ts;
+	qdf_time_t disassoc_ts;
 	uint32_t tx_rate;
 	uint32_t rx_rate;
 	bool ampdu;
@@ -2258,6 +2259,7 @@ struct hdd_context_s {
 
 	enum sar_version sar_version;
 
+	bool is_ssr_in_progress;
 };
 
 int hdd_validate_channel_and_bandwidth(hdd_adapter_t *adapter,
@@ -2401,6 +2403,19 @@ struct qdf_mac_addr *
 hdd_wlan_get_ibss_mac_addr_from_staid(hdd_adapter_t *pAdapter,
 				      uint8_t staIdx);
 void hdd_checkandupdate_phymode(hdd_context_t *pHddCtx);
+
+/**
+ * wlan_hdd_validate_mac_address() - Function to validate mac address
+ * @mac_addr: input mac address
+ *
+ * Return QDF_STATUS
+ */
+#define wlan_hdd_validate_mac_address(mac_addr) \
+	__wlan_hdd_validate_mac_address(mac_addr, __func__)
+
+QDF_STATUS __wlan_hdd_validate_mac_address(struct qdf_mac_addr *mac_addr,
+					   const char *func);
+
 #ifdef MSM_PLATFORM
 /**
  * hdd_bus_bw_compute_timer_start() - start the bandwidth timer
@@ -2459,20 +2474,23 @@ int hdd_bus_bandwidth_init(hdd_context_t *hdd_ctx);
  * Return: None.
  */
 void hdd_bus_bandwidth_destroy(hdd_context_t *hdd_ctx);
+
+#define GET_BW_COMPUTE_INTV(config) ((config)->busBandwidthComputeInterval)
+
 #else
-void hdd_bus_bw_compute_timer_start(hdd_context_t *hdd_ctx)
+static inline void hdd_bus_bw_compute_timer_start(hdd_context_t *hdd_ctx)
 {
 }
 
-void hdd_bus_bw_compute_timer_try_start(hdd_context_t *hdd_ctx)
+static inline void hdd_bus_bw_compute_timer_try_start(hdd_context_t *hdd_ctx)
 {
 }
 
-void hdd_bus_bw_compute_timer_stop(hdd_context_t *hdd_ctx)
+static inline void hdd_bus_bw_compute_timer_stop(hdd_context_t *hdd_ctx)
 {
 }
 
-void hdd_bus_bw_compute_timer_try_stop(hdd_context_t *hdd_ctx)
+static inline void hdd_bus_bw_compute_timer_try_stop(hdd_context_t *hdd_ctx)
 {
 }
 
@@ -2480,14 +2498,17 @@ static inline void hdd_stop_bus_bw_computer_timer(hdd_adapter_t *pAdapter)
 {
 }
 
-int hdd_bus_bandwidth_init(hdd_context_t *hdd_ctx)
+static inline int hdd_bus_bandwidth_init(hdd_context_t *hdd_ctx)
 {
 	return 0;
 }
 
-void hdd_bus_bandwidth_destroy(hdd_context_t *hdd_ctx)
+static inline void hdd_bus_bandwidth_destroy(hdd_context_t *hdd_ctx)
 {
 }
+
+#define GET_BW_COMPUTE_INTV(config) 0
+
 #endif
 
 int hdd_init(void);
@@ -2693,6 +2714,28 @@ static inline int hdd_process_pktlog_command(hdd_context_t *hdd_ctx,
 }
 #endif /* REMOVE_PKT_LOG */
 
+#if defined(FEATURE_SG) && !defined(CONFIG_HL_SUPPORT)
+/**
+ * hdd_set_sg_flags() - enable SG flag in the network device
+ * @hdd_ctx: HDD context
+ * @wlan_dev: network device structure
+ *
+ * This function enables the SG feature flag in the
+ * given network device.
+ *
+ * Return: none
+ */
+static inline void hdd_set_sg_flags(hdd_context_t *hdd_ctx,
+	 struct net_device *wlan_dev)
+{
+	hdd_debug("SG Enabled");
+	wlan_dev->features |= NETIF_F_SG;
+}
+#else
+static inline void hdd_set_sg_flags(hdd_context_t *hdd_ctx,
+	 struct net_device *wlan_dev){}
+#endif
+
 #ifdef FEATURE_TSO
 /**
  * hdd_set_tso_flags() - enable TSO flags in the network device
@@ -2721,7 +2764,10 @@ static inline void hdd_set_tso_flags(hdd_context_t *hdd_ctx,
 }
 #else
 static inline void hdd_set_tso_flags(hdd_context_t *hdd_ctx,
-	 struct net_device *wlan_dev){}
+	 struct net_device *wlan_dev)
+{
+	hdd_set_sg_flags(hdd_ctx, wlan_dev);
+}
 #endif /* FEATURE_TSO */
 
 #if defined(FEATURE_WLAN_MCC_TO_SCC_SWITCH) || \
@@ -3120,15 +3166,6 @@ int hdd_driver_memdump_init(void);
 void hdd_driver_memdump_deinit(void);
 
 /**
- * hdd_is_cli_iface_up() - check if there is any cli iface up
- * @hdd_ctx: HDD context
- *
- * Return: return true if there is any cli iface(STA/P2P_CLI) is up
- *         else return false
- */
-bool hdd_is_cli_iface_up(hdd_context_t *hdd_ctx);
-
-/**
  * wlan_hdd_free_cache_channels() - Free the cache channels list
  * @hdd_ctx: Pointer to HDD context
  *
@@ -3176,5 +3213,7 @@ void hdd_update_hw_sw_info(hdd_context_t *hdd_ctx);
  * Return: None
  */
 void hdd_get_nud_stats_cb(void *data, struct rsp_stats *rsp, void *context);
+
+void hdd_sched_scan_results(struct wiphy *wiphy, uint64_t reqid);
 
 #endif /* end #if !defined(WLAN_HDD_MAIN_H) */

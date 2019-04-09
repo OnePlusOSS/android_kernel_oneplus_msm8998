@@ -3089,15 +3089,19 @@ static QDF_STATUS sme_process_nss_update_resp(tpAniSirGlobal mac, uint8_t *msg)
 	tSmeCmd *command = NULL;
 	bool found;
 	nss_update_cb callback = NULL;
-	struct sir_beacon_tx_complete_rsp *param;
+	struct sir_bcn_update_rsp *param;
 
-	param = (struct sir_beacon_tx_complete_rsp *)msg;
+	param = (struct sir_bcn_update_rsp *)msg;
 	if (!param)
 		sme_err("nss update resp param is NULL");
 		/* Not returning. Need to check if active command list
 		 * needs to be freed
 		 */
 
+	if (param && param->reason != REASON_NSS_UPDATE) {
+		sme_err("reason not NSS update");
+		return QDF_STATUS_E_INVAL;
+	}
 	entry = csr_ll_peek_head(&mac->sme.smeCmdActiveList,
 			LL_ACCESS_LOCK);
 	if (!entry) {
@@ -3122,8 +3126,8 @@ static QDF_STATUS sme_process_nss_update_resp(tpAniSirGlobal mac, uint8_t *msg)
 			sme_err("Callback failed since nss update params is NULL");
 		else
 			callback(command->u.nss_update_cmd.context,
-				param->tx_status,
-				param->session_id,
+				param->status,
+				param->vdev_id,
 				command->u.nss_update_cmd.next_action,
 				command->u.nss_update_cmd.reason);
 	} else
@@ -13938,7 +13942,7 @@ QDF_STATUS sme_update_dsc_pto_up_mapping(tHalHandle hHal,
 				&& (pSession->QosMapSet.dscp_range[i][1] ==
 							255)) {
 				QDF_TRACE(QDF_MODULE_ID_SME,
-					QDF_TRACE_LEVEL_ERROR,
+					QDF_TRACE_LEVEL_DEBUG,
 					FL("User Priority %d isn't used"), i);
 				break;
 			}
@@ -16006,6 +16010,22 @@ QDF_STATUS sme_set_rssi_monitoring(tHalHandle hal,
 	return status;
 }
 
+static tSirRFBand sme_get_connected_roaming_vdev_band(tpAniSirGlobal mac_ctx)
+{
+	tSirRFBand band = SIR_BAND_ALL;
+	tCsrRoamSession *session;
+	uint8_t session_id, channel;
+
+	session_id = csr_get_roam_enabled_sta_sessionid(mac_ctx);
+	if (session_id != CSR_SESSION_ID_INVALID) {
+		session = CSR_GET_SESSION(mac_ctx, session_id);
+		channel = session->connectedProfile.operationChannel;
+		band = get_rf_band(channel);
+	}
+
+	return band;
+}
+
 /**
  * sme_pdev_set_pcl() - Send WMI_PDEV_SET_PCL_CMDID to the WMA
  * @hal: Handle returned by macOpen
@@ -16021,23 +16041,28 @@ QDF_STATUS sme_pdev_set_pcl(tHalHandle hal,
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	tpAniSirGlobal mac   = PMAC_STRUCT(hal);
 	cds_msg_t cds_message;
-	struct wmi_pcl_chan_weights *req_msg;
-	uint32_t len, i;
+	struct set_pcl_req *req_msg;
+	uint32_t i;
 
-	len = sizeof(*req_msg);
+	req_msg = qdf_mem_malloc(sizeof(*req_msg));
 
-	req_msg = qdf_mem_malloc(len);
 	if (!req_msg) {
 		sme_err("qdf_mem_malloc failed");
 		return QDF_STATUS_E_NOMEM;
 	}
 
-	for (i = 0; i < msg.pcl_len; i++) {
-		req_msg->pcl_list[i] =  msg.pcl_list[i];
-		req_msg->weight_list[i] =  msg.weight_list[i];
+	req_msg->band = SIR_BAND_ALL;
+	if (CSR_IS_ROAM_INTRA_BAND_ENABLED(mac)) {
+		req_msg->band = sme_get_connected_roaming_vdev_band(mac);
+		sme_debug("Connected STA band %d", req_msg->band);
 	}
 
-	req_msg->pcl_len = msg.pcl_len;
+	for (i = 0; i < msg.pcl_len; i++) {
+		req_msg->chan_weights.pcl_list[i] =  msg.pcl_list[i];
+		req_msg->chan_weights.weight_list[i] =  msg.weight_list[i];
+	}
+
+	req_msg->chan_weights.pcl_len = msg.pcl_len;
 
 	status = sme_acquire_global_lock(&mac->sme);
 	if (status != QDF_STATUS_SUCCESS) {
@@ -19371,12 +19396,12 @@ QDF_STATUS sme_fast_reassoc(tHalHandle hal, tCsrRoamProfile *profile,
 		}
 	}
 
-	msg.type = SIR_HAL_ROAM_INVOKE;
+	msg.type = eWNI_SME_ROAM_INVOKE;
 	msg.reserved = 0;
 	msg.bodyptr = fastreassoc;
-	status = cds_mq_post_message(QDF_MODULE_ID_WMA, &msg);
+	status = cds_mq_post_message(QDF_MODULE_ID_PE, &msg);
 	if (QDF_STATUS_SUCCESS != status) {
-		sme_err("Not able to post ROAM_INVOKE_CMD message to WMA");
+		sme_err("Not able to post ROAM_INVOKE_CMD message to PE");
 		qdf_mem_free(fastreassoc);
 	}
 

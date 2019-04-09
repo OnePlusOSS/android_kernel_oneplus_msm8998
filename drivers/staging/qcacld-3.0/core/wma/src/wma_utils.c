@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -341,6 +341,12 @@ void wma_lost_link_info_handler(tp_wma_handle wma, uint32_t vdev_id,
 	struct sir_lost_link_info *lost_link_info;
 	QDF_STATUS qdf_status;
 	cds_msg_t sme_msg = {0};
+
+	if (vdev_id >= wma->max_bssid) {
+		WMA_LOGE("%s: received invalid vdev_id %d",
+			 __func__, vdev_id);
+		return;
+	}
 
 	/* report lost link information only for STA mode */
 	if (wma->interfaces[vdev_id].vdev_up &&
@@ -1431,7 +1437,6 @@ int wma_unified_radio_tx_mem_free(void *handle)
 	rs_results = (tSirWifiRadioStat *)
 				&wma_handle->link_stats_results->results[0];
 	for (i = 0; i < wma_handle->link_stats_results->num_radio; i++) {
-		rs_results += i;
 		if (rs_results->tx_time_per_power_level) {
 			qdf_mem_free(rs_results->tx_time_per_power_level);
 			rs_results->tx_time_per_power_level = NULL;
@@ -1441,6 +1446,7 @@ int wma_unified_radio_tx_mem_free(void *handle)
 			qdf_mem_free(rs_results->channels);
 			rs_results->channels = NULL;
 		}
+		rs_results++;
 	}
 
 	qdf_mem_free(wma_handle->link_stats_results);
@@ -1537,6 +1543,15 @@ static int wma_unified_radio_tx_power_level_stats_event_handler(void *handle,
 	rs_results = (tSirWifiRadioStat *) &link_stats_results->results[0] +
 							 fixed_param->radio_id;
 	tx_power_level_values = (uint8_t *) param_tlvs->tx_time_per_power_level;
+
+	if (rs_results->total_num_tx_power_levels &&
+	    fixed_param->total_num_tx_power_levels >
+		rs_results->total_num_tx_power_levels) {
+		WMA_LOGE("%s: excess tx_power buffers:%d, total_num_tx_power_levels:%d",
+			 __func__, fixed_param->total_num_tx_power_levels,
+			 rs_results->total_num_tx_power_levels);
+		return -EINVAL;
+	}
 
 	rs_results->total_num_tx_power_levels =
 				fixed_param->total_num_tx_power_levels;
@@ -1704,6 +1719,18 @@ static int wma_unified_link_radio_stats_event_handler(void *handle,
 		}
 	}
 	link_stats_results = wma_handle->link_stats_results;
+	if (link_stats_results->num_radio == 0) {
+		link_stats_results->num_radio = fixed_param->num_radio;
+	} else if (link_stats_results->num_radio < fixed_param->num_radio) {
+		/*
+		 * The link stats results size allocated based on num_radio of
+		 * first event must be same as following events. Otherwise these
+		 * events may be spoofed. Drop all of them and report error.
+		 */
+		WMA_LOGE("Invalid following WMI_RADIO_LINK_STATS_EVENTID. Discarding this set");
+		wma_unified_radio_tx_mem_free(handle);
+		return -EINVAL;
+	}
 
 	WMA_LOGD("Radio stats Fixed Param:");
 	WMA_LOGD("req_id: %u num_radio: %u more_radio_events: %u",
@@ -4745,14 +4772,32 @@ int8_t wma_get_num_dbs_hw_modes(void)
 	return wma->num_dbs_hw_modes;
 }
 
-/**
- * wma_is_hw_dbs_capable() - Check if HW is DBS capable
- *
- * Checks if the HW is DBS capable
- *
- * Return: true if the HW is DBS capable
- */
-bool wma_is_hw_dbs_capable(void)
+bool wma_find_if_fw_supports_dbs(void)
+{
+	tp_wma_handle wma;
+	bool dbs_support;
+
+	wma = cds_get_context(QDF_MODULE_ID_WMA);
+	if (!wma) {
+		WMA_LOGE("%s: Invalid WMA handle", __func__);
+		return false;
+	}
+	dbs_support =
+	WMI_SERVICE_IS_ENABLED(wma->wmi_service_bitmap,
+			       WMI_SERVICE_DUAL_BAND_SIMULTANEOUS_SUPPORT);
+	WMA_LOGD("%s: is DBS supported by FW/HW: %s", __func__,
+		 dbs_support ? "yes" : "no");
+	/* The agreement with FW is that: To know if the target is DBS
+	 * capable, DBS needs to be supported both in the HW mode list
+	 * and in the service ready event
+	 */
+	if (!dbs_support)
+		return false;
+
+	return true;
+}
+
+static bool wma_find_if_hwlist_has_dbs(void)
 {
 	tp_wma_handle wma;
 	uint32_t param, i, found = 0;
@@ -4762,24 +4807,6 @@ bool wma_is_hw_dbs_capable(void)
 		WMA_LOGE("%s: Invalid WMA handle", __func__);
 		return false;
 	}
-
-	if (!wma_is_dbs_enable()) {
-		WMA_LOGD("%s: DBS is disabled", __func__);
-		return false;
-	}
-
-	WMA_LOGD("%s: DBS service bit map: %d", __func__,
-		WMI_SERVICE_IS_ENABLED(wma->wmi_service_bitmap,
-		WMI_SERVICE_DUAL_BAND_SIMULTANEOUS_SUPPORT));
-
-	/* The agreement with FW is that: To know if the target is DBS
-	 * capable, DBS needs to be supported both in the HW mode list
-	 * and in the service ready event
-	 */
-	if (!(WMI_SERVICE_IS_ENABLED(wma->wmi_service_bitmap,
-			WMI_SERVICE_DUAL_BAND_SIMULTANEOUS_SUPPORT)))
-		return false;
-
 	for (i = 0; i < wma->num_dbs_hw_modes; i++) {
 		param = wma->hw_mode.hw_mode_list[i];
 		WMA_LOGD("%s: HW param: %x", __func__, param);
@@ -4789,11 +4816,32 @@ bool wma_is_hw_dbs_capable(void)
 			break;
 		}
 	}
-
 	if (found)
 		return true;
 
 	return false;
+}
+
+/**
+ * wma_is_hw_dbs_capable() - Check if HW is DBS capable
+ *
+ * Checks if the HW is DBS capable
+ *
+ * Return: true if the HW is DBS capable
+ */
+bool wma_is_hw_dbs_capable(void)
+{
+	if (!wma_is_dbs_enable()) {
+		WMA_LOGD("%s: DBS is disabled", __func__);
+		return false;
+	}
+
+	if (!wma_find_if_fw_supports_dbs()) {
+		WMA_LOGD("%s: HW mode list has no dbs", __func__);
+		return false;
+	}
+
+	return wma_find_if_hwlist_has_dbs();
 }
 
 /**

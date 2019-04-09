@@ -5754,7 +5754,7 @@ static void hdd_get_station_statistics_cb(void *stats, void *context)
 	struct csr_per_chain_rssi_stats_info *per_chain_rssi_stats;
 
 	if (NULL == stats) {
-		hdd_err("Bad param, pStats [%p]", stats);
+		hdd_err("Bad param, pStats [%pK]", stats);
 		return;
 	}
 
@@ -7221,17 +7221,17 @@ static int __iw_setint_getnone(struct net_device *dev,
 
 	ENTER_DEV(dev);
 
+	hdd_ctx = WLAN_HDD_GET_CTX(pAdapter);
+	ret = wlan_hdd_validate_context(hdd_ctx);
+	if (ret)
+		return -EINVAL;
+
 	sme_config = qdf_mem_malloc(sizeof(*sme_config));
 	if (!sme_config) {
 		hdd_err("failed to allocate memory for sme_config");
 		return -ENOMEM;
 	}
 	qdf_mem_zero(sme_config, sizeof(*sme_config));
-
-	hdd_ctx = WLAN_HDD_GET_CTX(pAdapter);
-	ret = wlan_hdd_validate_context(hdd_ctx);
-	if (0 != ret)
-		goto free;
 
 	switch (sub_cmd) {
 	case WE_SET_11D_STATE:

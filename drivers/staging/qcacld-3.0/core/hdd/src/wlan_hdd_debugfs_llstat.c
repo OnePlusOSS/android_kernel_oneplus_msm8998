@@ -424,7 +424,7 @@ static int __wlan_hdd_open_ll_stats_debugfs(struct inode *inode,
 {
 	hdd_adapter_t *adapter;
 	hdd_context_t *hdd_ctx;
-	int ret;
+	int errno;
 
 	ENTER();
 
@@ -432,26 +432,28 @@ static int __wlan_hdd_open_ll_stats_debugfs(struct inode *inode,
 		file->private_data = inode->i_private;
 
 	adapter = (hdd_adapter_t *)file->private_data;
-	if ((NULL == adapter) || (WLAN_HDD_ADAPTER_MAGIC != adapter->magic)) {
-		hdd_err("Invalid adapter or adapter has invalid magic");
-		return -EINVAL;
-	}
+	errno = hdd_validate_adapter(adapter);
+	if (errno)
+		return errno;
 
 	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
-	ret = wlan_hdd_validate_context(hdd_ctx);
-	if (0 != ret)
-		return ret;
+	errno = wlan_hdd_validate_context(hdd_ctx);
+	if (errno)
+		return errno;
 
-	ret = wlan_hdd_llstats_alloc_buf();
-	if (0 != ret)
-		return ret;
+	errno = wlan_hdd_llstats_alloc_buf();
+	if (errno)
+		return errno;
 
-	ret = wlan_hdd_ll_stats_get(adapter, DEBUGFS_LLSTATS_REQID,
-				    DEBUGFS_LLSTATS_REQMASK);
-	if (0 != ret)
-		return ret;
+	errno = wlan_hdd_ll_stats_get(adapter, DEBUGFS_LLSTATS_REQID,
+				      DEBUGFS_LLSTATS_REQMASK);
+	if (errno) {
+		wlan_hdd_llstats_free_buf();
+		return errno;
+	}
 
 	EXIT();
+
 	return 0;
 }
 

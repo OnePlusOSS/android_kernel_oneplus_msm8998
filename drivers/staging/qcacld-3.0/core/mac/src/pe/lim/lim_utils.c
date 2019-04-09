@@ -599,8 +599,16 @@ void lim_deactivate_timers(tpAniSirGlobal mac_ctx)
 	/* Deactivate remain on channel timer */
 	tx_timer_deactivate(&lim_timer->gLimRemainOnChannelTimer);
 
+	if (tx_timer_running(&lim_timer->gLimDisassocAckTimer)) {
+		pe_err("Disassoc timer running call the timeout API");
+		lim_timer_handler(mac_ctx, SIR_LIM_DISASSOC_ACK_TIMEOUT);
+	}
 	tx_timer_deactivate(&lim_timer->gLimDisassocAckTimer);
 
+	if (tx_timer_running(&lim_timer->gLimDeauthAckTimer)) {
+		pe_err("Deauth timer running call the timeout API");
+		lim_timer_handler(mac_ctx, SIR_LIM_DEAUTH_ACK_TIMEOUT);
+	}
 	tx_timer_deactivate(&lim_timer->gLimDeauthAckTimer);
 
 	tx_timer_deactivate(&lim_timer->
@@ -5505,7 +5513,8 @@ void lim_update_beacon(tpAniSirGlobal mac_ctx)
 			if (false == mac_ctx->sap.SapDfsInfo.
 					is_dfs_cac_timer_running)
 				lim_send_beacon_ind(mac_ctx,
-						&mac_ctx->lim.gpSession[i]);
+						&mac_ctx->lim.gpSession[i],
+						REASON_DEFAULT);
 		}
 	}
 }
@@ -5922,12 +5931,7 @@ bool lim_set_nss_change(tpAniSirGlobal pMac, tpPESession psessionEntry,
 
 	if (!rxNss) {
 		pe_err("Invalid rxNss value: %u", rxNss);
-		if (!cds_is_driver_recovering()) {
-			if (cds_is_self_recovery_enabled())
-				cds_trigger_recovery(CDS_REASON_UNSPECIFIED);
-			else
-				QDF_BUG(0);
-		}
+		cds_trigger_recovery(CDS_REASON_UNSPECIFIED);
 	}
 
 	tempParam.rxNss = rxNss;
@@ -7469,7 +7473,7 @@ lim_send_dfs_chan_sw_ie_update(tpAniSirGlobal mac_ctx, tpPESession session)
 	}
 
 	/* Send update beacon template message */
-	lim_send_beacon_ind(mac_ctx, session);
+	lim_send_beacon_ind(mac_ctx, session, REASON_CHANNEL_SWITCH);
 	pe_debug("Updated CSA IE, IE COUNT: %d",
 			session->gLimChannelSwitch.switchCount);
 }
@@ -7481,8 +7485,8 @@ void lim_process_ap_ecsa_timeout(void *data)
 	uint8_t bcn_int, ch, ch_width;
 	QDF_STATUS status;
 
-	 if (!session) {
-		pe_err("Session is NULL");
+	if (!session || !session->valid) {
+		pe_err("Session is not valid");
 		return;
 	}
 

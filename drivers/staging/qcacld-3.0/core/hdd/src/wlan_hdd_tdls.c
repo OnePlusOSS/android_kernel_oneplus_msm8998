@@ -700,6 +700,7 @@ void hdd_tdls_context_init(hdd_context_t *hdd_ctx, bool ssr)
 	hdd_ctx->set_state_info.vdev_id = 0;
 	hdd_ctx->tdls_nss_teardown_complete = false;
 	hdd_ctx->tdls_nss_transition_mode = TDLS_NSS_TRANSITION_UNKNOWN;
+	hdd_ctx->enable_tdls_in_fw = true;
 
 	if (false == hdd_ctx->config->fEnableTDLSImplicitTrigger) {
 		hdd_ctx->tdls_mode = eTDLS_SUPPORT_EXPLICIT_TRIGGER_ONLY;
@@ -4221,8 +4222,9 @@ static int __wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy,
 		}
 		/* if tdls_mode is disabled, then decline the peer's request */
 		if (eTDLS_SUPPORT_DISABLED == pHddCtx->tdls_mode) {
-			hdd_debug(MAC_ADDRESS_STR " TDLS mode is disabled. action %d declined.",
-				   MAC_ADDR_ARRAY(peer), action_code);
+			hdd_debug(MAC_ADDRESS_STR " TDLS mode is disabled. action %d declined. source bitmap:%lu",
+				  MAC_ADDR_ARRAY(peer), action_code,
+				  pHddCtx->tdls_source_bitmap);
 			return -ENOTSUPP;
 		}
 		if (pHddCtx->tdls_nss_switch_in_progress) {
@@ -6589,4 +6591,12 @@ revert_tdls_mode:
 		wlan_hdd_tdls_set_mode(hdd_ctx, tdls_mode, false,
 				       HDD_SET_TDLS_MODE_SOURCE_POLICY_MGR);
 	}
+}
+
+void hdd_tdls_init_completion(hdd_adapter_t *adapter)
+{
+	init_completion(&adapter->tdls_add_station_comp);
+	init_completion(&adapter->tdls_del_station_comp);
+	init_completion(&adapter->tdls_mgmt_comp);
+	init_completion(&adapter->tdls_link_establish_req_comp);
 }

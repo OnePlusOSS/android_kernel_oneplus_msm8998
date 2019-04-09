@@ -1309,7 +1309,6 @@ hdd_suspend_wlan(void (*callback)(void *callbackContext, bool suspended),
 		return;
 	}
 
-
 	status = hdd_get_front_adapter(pHddCtx, &pAdapterNode);
 	while (NULL != pAdapterNode && QDF_STATUS_SUCCESS == status) {
 		pAdapter = pAdapterNode->pAdapter;
@@ -1475,6 +1474,8 @@ QDF_STATUS hdd_wlan_shutdown(void)
 		hdd_err("HDD context is Null");
 		return QDF_STATUS_E_FAILURE;
 	}
+
+	pHddCtx->is_ssr_in_progress = true;
 
 	cds_clear_concurrent_session_count();
 
@@ -1665,10 +1666,8 @@ QDF_STATUS hdd_wlan_re_init(void)
 	/* Restart all adapters */
 	hdd_start_all_adapters(pHddCtx);
 
-	pHddCtx->last_scan_reject_session_id = 0xFF;
-	pHddCtx->last_scan_reject_reason = 0;
-	pHddCtx->last_scan_reject_timestamp = 0;
-	pHddCtx->scan_reject_cnt = 0;
+	/* init the scan reject params */
+	hdd_init_scan_reject_params(pHddCtx);
 
 	hdd_set_roaming_in_progress(false);
 	complete(&pAdapter->roaming_comp_var);
@@ -1694,6 +1693,9 @@ success:
 	if (pHddCtx->config->sap_internal_restart)
 		hdd_ssr_restart_sap(pHddCtx);
 	hdd_is_interface_down_during_ssr(pHddCtx);
+
+	pHddCtx->is_ssr_in_progress = false;
+
 	hdd_wlan_ssr_reinit_event();
 	return QDF_STATUS_SUCCESS;
 }
@@ -1806,13 +1808,13 @@ void wlan_hdd_inc_suspend_stats(hdd_context_t *hdd_ctx,
 }
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0)
-static inline void
+void
 hdd_sched_scan_results(struct wiphy *wiphy, uint64_t reqid)
 {
 	cfg80211_sched_scan_results(wiphy);
 }
 #else
-static inline void
+void
 hdd_sched_scan_results(struct wiphy *wiphy, uint64_t reqid)
 {
 	cfg80211_sched_scan_results(wiphy, reqid);
@@ -2094,8 +2096,11 @@ next_adapter:
 	while (pAdapterNode && QDF_IS_STATUS_SUCCESS(status)) {
 		pAdapter = pAdapterNode->pAdapter;
 
-		sme_ps_timer_flush_sync(pHddCtx->hHal, pAdapter->sessionId);
+		if (pAdapter->sessionId >= MAX_NUMBER_OF_ADAPTERS)
+			goto fetch_adapter;
 
+		sme_ps_timer_flush_sync(pHddCtx->hHal, pAdapter->sessionId);
+fetch_adapter:
 		status = hdd_get_next_adapter(pHddCtx, pAdapterNode,
 					      &pAdapterNode);
 	}

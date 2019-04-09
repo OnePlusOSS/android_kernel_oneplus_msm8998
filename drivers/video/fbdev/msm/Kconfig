@@ -122,4 +122,53 @@ config FB_MSM_MDSS_XLOG_DEBUG
 	driver during fatal errors and enable some display-driver logging
 	into an internal buffer (this avoids logging overhead).
 
+
+config IRIS2_IO
+	tristate "IRIS2 IO Driver"
+	default y
+	---help---
+	Say y to enable
+
+config BACKLIGHT_LP8557E01
+	tristate "LP8557E01 Backlight Driver"
+	default y
+	---help---
+	Say y to enable
+
+config IRIS2_FULL_SUPPORT
+	bool "Enable IRIS2 full support"
+	default n
+	---help---
+	Say y to enable
+
+config IRIS2_LIGHTUP_ONLY
+	bool "Lightup panel only (IRIS2)"
+	default n
+	---help---
+	Say y to enable
+
+config IRIS2_DRC_SUPPORT
+	bool "Enable IRIS2 DRC Support"
+	default n
+	---help---
+	Say y to enable
+
+config IRIS2P_FULL_SUPPORT
+	bool "Enable IRIS2P Support"
+	default n
+	---help---
+	Say y to enable
+
+config IRIS2P_LIGHTUP_ONLY
+	bool "Lightup panel only (IRIS2P)"
+	default n
+	---help---
+	Say y to enable
+
+config IRIS2P_DRC_SUPPORT
+	bool "Enable IRIS2P DRC support"
+	default n
+	---help---
+	Say y to enable
+
 endif

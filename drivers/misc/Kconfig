@@ -557,6 +557,16 @@ config UID_SYS_STATS
 	  Per UID based io statistics exported to /proc/uid_io
 	  Per UID based procstat control in /proc/uid_procstat
 
+config BOOTLOADER_LOG
+    tristate "proc/bootloader_log"
+    depends on OF
+    default y
+    help
+      show bootloader log in kernel.you can
+      "cat proc/bootloader_log"to see current bootloader log.
+      To compile this driver as a module, choose M here: the module
+      will be called bootloader_log.
+
 config QPNP_MISC
 	tristate "QPNP Misc Peripheral"
 	depends on SPMI || MSM_SPMI

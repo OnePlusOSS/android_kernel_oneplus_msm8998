@@ -1,0 +1,17 @@
+oem force serial
+
+Required properties:
+- compatible : should be "oem,force_serial"
+
+Example:
+	force_enable_serial {
+		compatible = "oem,force_serial";
+	};
+
+Required properties:
+- compatible : should be "em,oem_serial_pinctrl"
+
+Example:
+   oem_serial_pinctrl {
+        compatible = "oem,oem_serial_pinctrl";
+	};

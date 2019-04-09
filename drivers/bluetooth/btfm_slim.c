@@ -519,10 +519,11 @@ static int btfm_slim_remove(struct slim_device *slim)
 	BTFMSLIM_DBG("slim_remove_device() - btfm_slim->slim_ifd");
 	slim_remove_device(&btfm_slim->slim_ifd);
 
+	kfree(btfm_slim);
+
 	BTFMSLIM_DBG("slim_remove_device() - btfm_slim->slim_pgd");
 	slim_remove_device(slim);
 
-	kfree(btfm_slim);
 	return 0;
 }
 

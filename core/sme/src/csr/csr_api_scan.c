@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -596,15 +596,19 @@ QDF_STATUS csr_scan_request(tpAniSirGlobal pMac, uint16_t sessionId,
 				cfg_prm->scan_adaptive_dwell_mode;
 	}
 
-	if (scan_req->scan_flags & SME_SCAN_FLAG_HIGH_ACCURACY)
-		scan_req->scan_adaptive_dwell_mode = WMI_DWELL_MODE_STATIC;
+	if (cfg_prm->honour_nl_scan_policy_flags) {
+		if (scan_req->scan_flags & SME_SCAN_FLAG_HIGH_ACCURACY)
+			scan_req->scan_adaptive_dwell_mode =
+					WMI_DWELL_MODE_STATIC;
 
-	if (scan_req->scan_flags & SME_SCAN_FLAG_LOW_POWER ||
-	    scan_req->scan_flags & SME_SCAN_FLAG_LOW_SPAN) {
-		scan_req->scan_adaptive_dwell_mode = WMI_DWELL_MODE_AGGRESSIVE;
+		if (scan_req->scan_flags & SME_SCAN_FLAG_LOW_POWER ||
+		    scan_req->scan_flags & SME_SCAN_FLAG_LOW_SPAN)
+			scan_req->scan_adaptive_dwell_mode =
+					WMI_DWELL_MODE_AGGRESSIVE;
+
+		sme_debug("Set scan adaptive dwell mode %d ",
+			  scan_req->scan_adaptive_dwell_mode);
 	}
-	sme_debug("Set scan adaptive dwell mode %d ",
-					scan_req->scan_adaptive_dwell_mode);
 	status = csr_scan_copy_request(pMac, &scan_cmd->u.scanCmd.u.scanRequest,
 				       scan_req);
 	/*

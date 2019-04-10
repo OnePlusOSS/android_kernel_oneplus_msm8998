@@ -4300,6 +4300,13 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_ADAPTIVE_EXTSCAN_DWELL_MODE_MIN,
 		CFG_ADAPTIVE_EXTSCAN_DWELL_MODE_MAX),
 
+	REG_VARIABLE(CFG_HONOUR_NL_SCAN_POLICY_FLAGS_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, honour_nl_scan_policy_flags,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_HONOUR_NL_SCAN_POLICY_FLAGS_DEFAULT,
+		     CFG_HONOUR_NL_SCAN_POLICY_FLAGS_MIN,
+		     CFG_HONOUR_NL_SCAN_POLICY_FLAGS_MAX),
+
 	REG_VARIABLE(CFG_ADAPTIVE_DWELL_MODE_ENABLED_NAME, WLAN_PARAM_Integer,
 		struct hdd_config, adaptive_dwell_mode_enabled,
 		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -7542,6 +7549,9 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 		CFG_ADAPTIVE_EXTSCAN_DWELL_MODE_NAME,
 		pHddCtx->config->extscan_adaptive_dwell_mode);
 	hdd_debug("Name = [%s] Value = [%u]",
+		  CFG_HONOUR_NL_SCAN_POLICY_FLAGS_NAME,
+		  pHddCtx->config->honour_nl_scan_policy_flags);
+	hdd_debug("Name = [%s] Value = [%u]",
 		CFG_ADAPTIVE_DWELL_MODE_ENABLED_NAME,
 		pHddCtx->config->adaptive_dwell_mode_enabled);
 	hdd_debug("Name = [%s] Value = [%u]",
@@ -10422,6 +10432,8 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 			pHddCtx->config->scan_adaptive_dwell_mode;
 	smeConfig->csrConfig.scan_adaptive_dwell_mode_nc =
 			pHddCtx->config->scan_adaptive_dwell_mode_nc;
+	smeConfig->csrConfig.honour_nl_scan_policy_flags =
+			pHddCtx->config->honour_nl_scan_policy_flags;
 	smeConfig->csrConfig.roamscan_adaptive_dwell_mode =
 			pHddCtx->config->roamscan_adaptive_dwell_mode;
 	smeConfig->csrConfig.roam_force_rssi_trigger =

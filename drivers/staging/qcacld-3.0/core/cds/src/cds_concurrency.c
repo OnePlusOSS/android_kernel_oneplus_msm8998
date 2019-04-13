@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -2453,14 +2453,15 @@ static void cds_restore_deleted_conn_info(
 		return;
 	}
 
+	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	conn_index = cds_get_connection_count();
 	if (MAX_NUMBER_OF_CONC_CONNECTIONS <= conn_index) {
+		qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 		cds_err("Failed to restore the deleted information %d/%d",
 			conn_index, MAX_NUMBER_OF_CONC_CONNECTIONS);
 		return;
 	}
 
-	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	qdf_mem_copy(&conc_connection_list[conn_index], info,
 			num_cxn_del * sizeof(*info));
 	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
@@ -3826,30 +3827,14 @@ void cds_clear_concurrency_mode(enum tQDF_ADAPTER_MODE mode)
 		hdd_green_ap_start_bss(hdd_ctx);
 }
 
-/**
- * cds_pdev_set_pcl() - Sets PCL to FW
- * @mode: adapter mode
- *
- * Fetches the PCL and sends the PCL to SME
- * module which in turn will send the WMI
- * command WMI_PDEV_SET_PCL_CMDID to the fw
- *
- * Return: None
- */
 #if defined(QCA_WIFI_3_0)
-static void cds_pdev_set_pcl(enum tQDF_ADAPTER_MODE mode)
+QDF_STATUS cds_pdev_get_pcl(enum tQDF_ADAPTER_MODE mode,
+			    struct sir_pcl_list *pcl)
 {
 	QDF_STATUS status;
 	enum cds_con_mode con_mode;
-	struct sir_pcl_list pcl;
-	hdd_context_t *hdd_ctx;
 
-	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
-	if (!hdd_ctx) {
-		cds_err("HDD context is NULL");
-		return;
-	}
-	pcl.pcl_len = 0;
+	pcl->pcl_len = 0;
 
 	switch (mode) {
 	case QDF_STA_MODE:
@@ -3869,28 +3854,25 @@ static void cds_pdev_set_pcl(enum tQDF_ADAPTER_MODE mode)
 		break;
 	default:
 		cds_err("Unable to set PCL to FW: %d", mode);
-		return;
+		return QDF_STATUS_E_FAILURE;
 	}
 
 	cds_debug("get pcl to set it to the FW");
 
 	status = cds_get_pcl(con_mode,
-			pcl.pcl_list, &pcl.pcl_len,
-			pcl.weight_list, QDF_ARRAY_SIZE(pcl.weight_list));
-	if (status != QDF_STATUS_SUCCESS) {
-		cds_err("Unable to set PCL to FW, Get PCL failed");
-		return;
-	}
-
-	status = sme_pdev_set_pcl(hdd_ctx->hHal, pcl);
+			pcl->pcl_list, &pcl->pcl_len,
+			pcl->weight_list, QDF_ARRAY_SIZE(pcl->weight_list));
 	if (status != QDF_STATUS_SUCCESS)
-		cds_err("Send soc set PCL to SME failed");
-	else
-		cds_debug("Set PCL to FW for mode:%d", mode);
+		cds_err("Unable to set PCL to FW, Get PCL failed");
+
+	return status;
+
 }
 #else
-static void cds_pdev_set_pcl(enum tQDF_ADAPTER_MODE mode)
+QDF_STATUS cds_pdev_get_pcl(enum tQDF_ADAPTER_MODE mode,
+			    struct sir_pcl_list *pcl)
 {
+	return QDF_STATUS_SUCCESS;
 }
 #endif
 
@@ -3935,33 +3917,48 @@ static enum tQDF_ADAPTER_MODE cds_get_qdf_mode_from_cds(
 
 void cds_set_pcl_for_existing_combo(enum cds_con_mode mode)
 {
+	QDF_STATUS status;
 	struct cds_conc_connection_info
 				info[MAX_NUMBER_OF_CONC_CONNECTIONS] = { {0} };
 	uint8_t num_cxn_del = 0;
 	enum tQDF_ADAPTER_MODE pcl_mode;
 	cds_context_type *cds_ctx;
+	struct sir_pcl_list pcl;
+	hdd_context_t *hdd_ctx;
 
 	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
 	if (!cds_ctx) {
 		cds_err("Invalid CDS Context");
 		return;
 	}
+
+	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+	if (!hdd_ctx) {
+		cds_err("HDD context is NULL");
+		return;
+	}
+
 	pcl_mode = cds_get_qdf_mode_from_cds(mode);
 	if (pcl_mode == QDF_MAX_NO_OF_MODE)
 		return;
 	qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
 	if (cds_mode_specific_connection_count(mode, NULL) > 0) {
+		qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 		/* Check, store and temp delete the mode's parameter */
 		cds_store_and_del_conn_info(mode, false, info, &num_cxn_del);
-		qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 		/* Set the PCL to the FW since connection got updated */
-		cds_pdev_set_pcl(pcl_mode);
-		qdf_mutex_acquire(&cds_ctx->qdf_conc_list_lock);
+		status = cds_pdev_get_pcl(pcl_mode, &pcl);
 		cds_debug("Set PCL to FW for mode:%d", mode);
 		/* Restore the connection info */
 		cds_restore_deleted_conn_info(info, num_cxn_del);
+		if (QDF_IS_STATUS_SUCCESS(status)) {
+			status = sme_pdev_set_pcl(hdd_ctx->hHal, pcl);
+			if (!QDF_IS_STATUS_SUCCESS(status))
+				cds_err("Send soc set PCL to SME failed");
+		}
+	} else {
+		qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 	}
-	qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
 }
 
 /**

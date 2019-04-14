@@ -6046,7 +6046,7 @@ int32_t msm_pcie_irq_init(struct msm_pcie_dev_t *dev)
 		rc = devm_request_irq(pdev,
 			dev->irq[MSM_PCIE_INT_MSI].num,
 			handle_msi_irq,
-			IRQF_TRIGGER_RISING,
+			IRQF_TRIGGER_RISING | IRQF_NO_THREAD,
 			dev->irq[MSM_PCIE_INT_MSI].name,
 			dev);
 		if (rc) {

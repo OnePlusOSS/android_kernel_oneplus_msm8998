@@ -3878,7 +3878,7 @@ QDF_STATUS wlansap_filter_ch_based_acs(void *cds_ctx,
 
 	sap_ctx = CDS_GET_SAP_CB(cds_ctx);
 
-	if (!sap_ctx || !ch_list || !ch_cnt) {
+	if (!sap_ctx || !ch_list || !ch_cnt || !sap_ctx->acs_cfg) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
 			  "Null parameters");
 		return QDF_STATUS_E_FAULT;

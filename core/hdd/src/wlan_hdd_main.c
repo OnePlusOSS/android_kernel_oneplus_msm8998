@@ -8226,7 +8226,7 @@ void hdd_unsafe_channel_restart_sap(hdd_context_t *hdd_ctxt)
 
 		restart_chan =
 			wlansap_get_safe_channel_from_pcl_and_acs_range(
-					adapter_temp);
+					adapter_temp->sessionCtx.ap.sapContext);
 		if (!restart_chan) {
 			hdd_err("fail to restart SAP");
 		} else {

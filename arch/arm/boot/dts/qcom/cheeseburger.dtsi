@@ -488,6 +488,8 @@
 };
 
 &i2c_7 {
+	qcom,clk-freq-out = <100000>;
+
 	bq27541-battery@55 {
 		status = "ok";
 		compatible = "ti,bq27541-battery";

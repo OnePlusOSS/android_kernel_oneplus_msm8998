@@ -966,6 +966,14 @@ QDF_STATUS cds_post_disable(void)
 		return QDF_STATUS_E_INVAL;
 	}
 
+	if (cds_get_pktcap_mode_enable()) {
+		qdf_status = cds_close_mon_thread(gp_cds_context);
+		if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
+			cds_err("Failed to close MON thread!");
+			return QDF_STATUS_E_INVAL;
+		}
+	}
+
 	ol_txrx_pdev_pre_detach(txrx_pdev, 1);
 
 	return QDF_STATUS_SUCCESS;

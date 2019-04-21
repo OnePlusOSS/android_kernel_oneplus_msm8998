@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -714,6 +714,10 @@ void wma_process_update_userpos(tp_wma_handle wma_handle,
 
 void wma_hidden_ssid_vdev_restart(tp_wma_handle wma_handle,
 				  tHalHiddenSsidVdevRestart *pReq);
+
+int
+wma_mgmt_offload_data_event_handler(void *handle, uint8_t *data,
+				    uint32_t data_len);
 
 /*
  * wma_power.c functions declarations

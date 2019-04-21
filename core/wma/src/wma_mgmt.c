@@ -2771,6 +2771,9 @@ static const char *wma_get_status_str(uint32_t status)
 	}
 }
 
+#define RATE_LIMIT 16
+#define RESERVE_BYTES   100
+
 /**
  * wma_process_mon_mgmt_tx_data(): process management tx packets
  * for pkt capture mode
@@ -2824,9 +2827,6 @@ wma_process_mon_mgmt_tx_data(wmi_mgmt_hdr *hdr,
 
 	return ol_txrx_mon_mgmt_process(&txrx_status, nbuf, status);
 }
-
-#define RATE_LIMIT 16
-#define RESERVE_BYTES   100
 
 static int wma_process_mon_mgmt_tx_completion(tp_wma_handle wma_handle,
 					      uint32_t desc_id,
@@ -3777,6 +3777,105 @@ end:
 	if (peer)
 		OL_TXRX_PEER_UNREF_DELETE(peer);
 	return should_drop;
+}
+
+/**
+ * wma_mgmt_offload_data_event_handler() - process management offload frame.
+ * @handle: wma handle
+ * @data: mgmt data
+ * @data_len: data length
+ *
+ * Return: 0 for success or error code
+ */
+int
+wma_mgmt_offload_data_event_handler(void *handle, uint8_t *data,
+				    uint32_t data_len)
+{
+	tp_wma_handle wma_handle = (tp_wma_handle)handle;
+	WMI_VDEV_MGMT_OFFLOAD_EVENTID_param_tlvs *param_tlvs = NULL;
+	wmi_mgmt_hdr *hdr = NULL;
+	static uint8_t limit_prints_invalid_len = RATE_LIMIT - 1;
+	static uint8_t limit_prints_load_unload = RATE_LIMIT - 1;
+	static uint8_t limit_prints_recovery = RATE_LIMIT - 1;
+	uint8_t status;
+	qdf_nbuf_t wbuf;
+
+	if (!wma_handle) {
+		WMA_LOGE("%s: Failed to get WMA  context", __func__);
+		return -EINVAL;
+	}
+
+	param_tlvs = (WMI_VDEV_MGMT_OFFLOAD_EVENTID_param_tlvs *)data;
+	if (!param_tlvs) {
+		WMA_LOGE("Get NULL point message from FW");
+		return -EINVAL;
+	}
+
+	hdr = param_tlvs->fixed_param;
+	if (!hdr) {
+		WMA_LOGE("Offload data event is NULL");
+		return -EINVAL;
+	}
+
+	if (hdr->buf_len > param_tlvs->num_bufp) {
+		WMA_LOGE(
+		"Invalid frame len hdr->buf_len:%u, param_tlvs->num_bufp:%u",
+		hdr->buf_len, param_tlvs->num_bufp);
+		return -EINVAL;
+	}
+	if (hdr->buf_len < sizeof(struct ieee80211_frame) ||
+	    hdr->buf_len > data_len) {
+		limit_prints_invalid_len++;
+		if (limit_prints_invalid_len == RATE_LIMIT) {
+			WMA_LOGD(
+			"Invalid mgmt packet, data_len %u, hdr->buf_len %u",
+			data_len, hdr->buf_len);
+			limit_prints_invalid_len = 0;
+		}
+		return -EINVAL;
+	}
+
+	if (cds_is_load_or_unload_in_progress()) {
+		limit_prints_load_unload++;
+		if (limit_prints_load_unload == RATE_LIMIT) {
+			WMA_LOGD(FL("Load/Unload in progress"));
+			limit_prints_load_unload = 0;
+		}
+		return -EINVAL;
+	}
+
+	if (cds_is_driver_recovering()) {
+		limit_prints_recovery++;
+		if (limit_prints_recovery == RATE_LIMIT) {
+			WMA_LOGD(FL("Recovery in progress"));
+			limit_prints_recovery = 0;
+		}
+		return -EINVAL;
+	}
+
+	if (cds_is_driver_in_bad_state()) {
+		WMA_LOGW(FL("Driver in bad state"));
+		return -EINVAL;
+	}
+
+	wbuf = qdf_nbuf_alloc(NULL,
+			      roundup(hdr->buf_len + RESERVE_BYTES, 4),
+			      RESERVE_BYTES, 4, false);
+	if (!wbuf) {
+		WMA_LOGE("%s: Failed to allocate wbuf for mgmt pkt len(%u)",
+			 __func__, hdr->buf_len);
+		return -ENOMEM;
+	}
+
+	qdf_nbuf_put_tail(wbuf, hdr->buf_len);
+	qdf_nbuf_set_protocol(wbuf, ETH_P_CONTROL);
+	qdf_mem_copy(qdf_nbuf_data(wbuf), param_tlvs->bufp, hdr->buf_len);
+
+	status = hdr->tx_status;
+	if (!wma_process_mon_mgmt_tx_data(hdr, wbuf, status))
+		qdf_nbuf_free(wbuf);
+
+	return 0;
 }
 
 /**

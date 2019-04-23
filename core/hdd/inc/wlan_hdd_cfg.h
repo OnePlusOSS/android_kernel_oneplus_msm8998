@@ -15444,6 +15444,28 @@ enum hw_filter_mode {
 #define CFG_PKTCAP_MODE_ENABLE_DEFAULT  (0)
 
 /*
+ * pktcapture_mode - Control to decide pktcapture mode
+ *
+ * @Min: 0
+ * @Max: 3
+ *
+ * @Default: 0 - Capture no packets
+ *           1 - Capture Mgmt packets only
+ *           2 - Capture Data packets only
+ *           3 - Capture Both Data & Mgmt packets
+ *
+ * This ini is used to decide pktcapture mode
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+#define CFG_PKTCAPTURE_MODE_NAME     "pktcapture_mode"
+#define CFG_PKTCAPTURE_MODE_MIN      (0)
+#define CFG_PKTCAPTURE_MODE_MAX      (3)
+#define CFG_PKTCAPTURE_MODE_DEFAULT  (0)
+
+/*
  * Type declarations
  */
 
@@ -16402,6 +16424,7 @@ struct hdd_config {
 	uint16_t beacon_reporting;
 
 	bool pktcap_mode_enable;
+	uint8_t pktcapture_mode;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

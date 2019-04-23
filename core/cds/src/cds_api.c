@@ -3068,3 +3068,16 @@ bool cds_get_pktcap_mode_enable(void)
 
 	return hdd_ctx->config->pktcap_mode_enable;
 }
+
+uint8_t cds_get_pktcapture_mode(void)
+{
+	hdd_context_t *hdd_ctx;
+
+	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+	if (!hdd_ctx) {
+		cds_err("HDD context is NULL");
+		return 0;
+	}
+
+	return hdd_ctx->pktcapture_mode;
+}

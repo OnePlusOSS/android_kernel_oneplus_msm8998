@@ -591,4 +591,16 @@ QDF_STATUS cds_deregister_mode_change_cb(void);
  * Return: 0 - disable, 1 - enable
  */
 bool cds_get_pktcap_mode_enable(void);
+
+/**
+ * cds_get_pktcapture_mode() - get pktcapture mode value
+ *
+ * Get the pktcapture mode value from hdd context
+ *
+ * Return: 0 - disable
+ *         1 - Mgmt packets
+ *         2 - Data packets
+ *         3 - Both Mgmt and Data packets
+ */
+uint8_t cds_get_pktcapture_mode(void);
 #endif /* if !defined __CDS_API_H */

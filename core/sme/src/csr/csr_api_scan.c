@@ -3815,7 +3815,6 @@ static void csr_move_temp_scan_results_to_main_list(tpAniSirGlobal pMac,
 						    uint8_t reason,
 						    uint8_t sessionId)
 {
-	tCsrRoamSession *pSession;
 	uint32_t i;
 	bool found_11d_ctry = false;
 
@@ -3831,9 +3830,10 @@ static void csr_move_temp_scan_results_to_main_list(tpAniSirGlobal pMac,
 	for (i = 0; i < CSR_ROAM_SESSION_MAX; i++) {
 		if (!CSR_IS_SESSION_VALID(pMac, i))
 			continue;
-		pSession = CSR_GET_SESSION(pMac, i);
-		if (csr_is_conn_state_connected(pMac, i)) {
-			sme_debug("No need to update CC in connected state");
+		if (csr_is_conn_state_connected_infra_ap(pMac, i) ||
+		    csr_is_conn_state_connected_ibss(pMac, i) ||
+		    csr_is_conn_state_connected_wds(pMac, i)) {
+			sme_debug("No need to update CC in softap/ibss/wds");
 			return;
 		}
 	}

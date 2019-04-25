@@ -15423,6 +15423,27 @@ enum hw_filter_mode {
 #define CFG_BTM_QUERY_BITMASK_DEFAULT (0x8)
 
 /*
+ * <ini>
+ * pktcap_mode_enable - Control to decide pktcapture mode enable/disable
+ *
+ * @Min: 0
+ * @Max: 1
+ *
+ * @Default: 0 - disable
+ *           1 - enable
+ *
+ * This ini is used to enable/disable pktcapture mode
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+#define CFG_PKTCAP_MODE_ENABLE_NAME     "pktcap_mode_enable"
+#define CFG_PKTCAP_MODE_ENABLE_MIN      (0)
+#define CFG_PKTCAP_MODE_ENABLE_MAX      (1)
+#define CFG_PKTCAP_MODE_ENABLE_DEFAULT  (0)
+
+/*
  * Type declarations
  */
 
@@ -16379,6 +16400,8 @@ struct hdd_config {
 	uint32_t btm_sticky_time;
 	uint32_t btm_query_bitmask;
 	uint16_t beacon_reporting;
+
+	bool pktcap_mode_enable;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

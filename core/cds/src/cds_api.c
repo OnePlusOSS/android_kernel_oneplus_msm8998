@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -3054,4 +3054,17 @@ QDF_STATUS cds_deregister_mode_change_cb(void)
 	cds_ctx->mode_change_cb = NULL;
 
 	return QDF_STATUS_SUCCESS;
+}
+
+bool cds_get_pktcap_mode_enable(void)
+{
+	hdd_context_t *hdd_ctx;
+
+	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+	if (!hdd_ctx) {
+		cds_err("HDD context is NULL");
+		return false;
+	}
+
+	return hdd_ctx->config->pktcap_mode_enable;
 }

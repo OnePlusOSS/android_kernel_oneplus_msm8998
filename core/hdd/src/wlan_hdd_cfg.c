@@ -5811,6 +5811,13 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_NTH_BEACON_REPORTING_OFFLOAD_DEFAULT,
 		     CFG_NTH_BEACON_REPORTING_OFFLOAD_MIN,
 		     CFG_NTH_BEACON_REPORTING_OFFLOAD_MAX),
+
+	REG_VARIABLE(CFG_PKTCAP_MODE_ENABLE_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, pktcap_mode_enable,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_PKTCAP_MODE_ENABLE_DEFAULT,
+		     CFG_PKTCAP_MODE_ENABLE_MIN,
+		     CFG_PKTCAP_MODE_ENABLE_MAX),
 };
 
 /**
@@ -7857,6 +7864,8 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_debug("Name = [%s] value = [%u]",
 		  CFG_NTH_BEACON_REPORTING_OFFLOAD_NAME,
 		  pHddCtx->config->beacon_reporting);
+	hdd_debug("Name = [%s] value = [%d]",
+		  CFG_PKTCAP_MODE_ENABLE_NAME, pHddCtx->config->pktcap_mode_enable);
 }
 
 /**

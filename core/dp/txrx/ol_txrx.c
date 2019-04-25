@@ -5465,6 +5465,103 @@ static inline int ol_txrx_drop_nbuf_list(qdf_nbuf_t buf_list)
 }
 
 /**
+ * ol_txrx_mon_mgmt_cb(): callback to process management packets
+ * for pkt capture mode
+ * @ppdev: device handler
+ * @nbuf_list: netbuf list
+ * @vdev_id: vdev id for which packet is captured
+ * @tid:  tid number
+ * @status: Tx status
+ * @pktformat: Frame format
+ *
+ * Return: none
+ */
+static void
+ol_txrx_mon_mgmt_cb(void *ppdev, void *nbuf_list, uint8_t vdev_id,
+		    uint8_t tid, uint8_t status, bool pkt_format)
+{
+	struct ol_txrx_pdev_t *pdev = (struct ol_txrx_pdev_t *)ppdev;
+	uint8_t drop_count;
+	void *mon_osif_dev;
+	qdf_nbuf_t msdu, next_buf;
+	ol_txrx_mon_callback_fp data_rx = NULL;
+	void *cds_ctx = cds_get_global_context();
+
+	if (qdf_unlikely(!cds_ctx) || qdf_unlikely(!pdev))
+		goto free_buf;
+
+	data_rx = pdev->mon_cb;
+	mon_osif_dev = pdev->mon_osif_dev;
+
+	if (!data_rx || !mon_osif_dev)
+		goto free_buf;
+
+	msdu = nbuf_list;
+	while (msdu) {
+		next_buf = qdf_nbuf_queue_next(msdu);
+		qdf_nbuf_set_next(msdu, NULL);   /* Add NULL terminator */
+		if (QDF_STATUS_SUCCESS != data_rx(mon_osif_dev, msdu)) {
+			ol_txrx_err("Frame Rx to HDD failed");
+			qdf_nbuf_free(msdu);
+		}
+		msdu = next_buf;
+	}
+
+	return;
+free_buf:
+	drop_count = ol_txrx_drop_nbuf_list(nbuf_list);
+	ol_txrx_warn("%s:Dropped frames %u", __func__, drop_count);
+}
+
+/**
+ * ol_txrx_mon_mgmt_process(): process management packets for pkt capture mode
+ * @txrx_status: mon_rx_status to update radiotap header
+ * @nbuf: netbuf
+ * @status: Tx status
+ * @pktformat: Frame format
+ *
+ * Return: true if pkt is post to thread else false
+ */
+bool ol_txrx_mon_mgmt_process(struct mon_rx_status *txrx_status,
+			      qdf_nbuf_t nbuf, uint8_t status)
+{
+	uint32_t headroom;
+	struct cds_ol_mon_pkt *pkt;
+	ol_txrx_pdev_handle pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+	p_cds_sched_context sched_ctx = get_cds_sched_ctxt();
+
+	if (unlikely(!sched_ctx))
+		return false;
+
+	if (!pdev) {
+		ol_txrx_err("pdev is NULL");
+		return false;
+	}
+
+	/*
+	 * Calculate the headroom and adjust head to prepare radiotap header
+	 */
+	headroom = qdf_nbuf_headroom(nbuf);
+	qdf_nbuf_push_head(nbuf, headroom);
+	qdf_nbuf_update_radiotap(txrx_status, nbuf, headroom);
+
+	pkt = cds_alloc_ol_mon_pkt(sched_ctx);
+	if (!pkt)
+		return false;
+
+	pkt->callback = ol_txrx_mon_mgmt_cb;
+	pkt->context = (void *)pdev;
+	pkt->monpkt = (void *)nbuf;
+	pkt->vdev_id = HTT_INVALID_VDEV;
+	pkt->tid = HTT_INVALID_TID;
+	pkt->status = status;
+	pkt->pkt_format = TXRX_PKT_FORMAT_80211;
+	cds_indicate_monpkt(sched_ctx, pkt);
+
+	return true;
+}
+
+/**
  * ol_rx_data_cb() - data rx callback
  * @peer: peer
  * @buf_list: buffer list

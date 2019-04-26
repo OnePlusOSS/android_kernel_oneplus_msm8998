@@ -1852,7 +1852,7 @@ static int bq27541_battery_probe(struct i2c_client *client,
 		bq_modify_soc_smooth_parameter);
 	INIT_DELAYED_WORK(&di->battery_soc_work, update_battery_soc_work);
 	schedule_delayed_work(&di->hw_config, msecs_to_jiffies(BQ27541_INIT_DELAY_MS));
-	schedule_delayed_work(&di->battery_soc_work, msecs_to_jiffies(BATTERY_SOC_UPDATE_MS * 100));
+	schedule_delayed_work(&di->battery_soc_work, msecs_to_jiffies(BATTERY_SOC_UPDATE_MS * 10));
 	pr_info("probe sucdess\n");
 	check_bat_present(di);
 	return 0;

@@ -3031,6 +3031,14 @@ typedef struct {
     #define WMI_RSRC_CFG_FLAG_THREE_WAY_COEX_CONFIG_OVERRIDE_SUPPORT_S 25
     #define WMI_RSRC_CFG_FLAG_THREE_WAY_COEX_CONFIG_OVERRIDE_SUPPORT_M 0x2000000
 
+    /*
+     * If the TX_COMPLETION_TX_TSF64 flag is set, the target should
+     * populate the htt_tx_compl_ind_append_tx_tsf64 array within the
+     * HTT_T2H TX_COMPL_IND message.
+     */
+    #define WMI_RSRC_CFG_FLAG_TX_COMPLETION_TX_TSF64_ENABLE_S 26
+    #define WMI_RSRC_CFG_FLAG_TX_COMPLETION_TX_TSF64_ENABLE_M 0x4000000
+
     A_UINT32 flag1;
 
     /** @brief smart_ant_cap - Smart Antenna capabilities information
@@ -3298,6 +3306,11 @@ typedef struct {
     WMI_RSRC_CFG_FLAG_SET((word32), THREE_WAY_COEX_CONFIG_OVERRIDE_SUPPORT, (value))
 #define WMI_RSRC_CFG_FLAG_THREE_WAY_COEX_CONFIG_OVERRIDE_SUPPORT_GET(word32) \
     WMI_RSRC_CFG_FLAG_GET((word32), THREE_WAY_COEX_CONFIG_OVERRIDE_SUPPORT)
+
+#define WMI_RSRC_CFG_FLAG_TX_COMPLETION_TX_TSF64_ENABLE_SET(word32, value) \
+    WMI_RSRC_CFG_FLAG_SET((word32), TX_COMPLETION_TX_TSF64_ENABLE, (value))
+#define WMI_RSRC_CFG_FLAG_TX_COMPLETION_TX_TSF64_ENABLE_GET(word32) \
+    WMI_RSRC_CFG_FLAG_GET((word32), TX_COMPLETION_TX_TSF64_ENABLE)
 
 typedef struct {
     A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_init_cmd_fixed_param */
@@ -20380,6 +20393,10 @@ typedef struct {
      */
     A_UINT32 mac_id;
     A_UINT32 mac_id_valid;
+    /* low 32 bits of wlan global tsf */
+    A_UINT32 wlan_global_tsf_low;
+    /* high 32 bits of wlan global tsf */
+    A_UINT32 wlan_global_tsf_high;
 } wmi_vdev_tsf_report_event_fixed_param;
 
 /* ie_id values:

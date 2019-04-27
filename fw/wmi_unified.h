@@ -24513,13 +24513,21 @@ typedef struct {
 #define TWT_EN_DIS_FLAGS_GET_BTWT(flag)         WMI_GET_BITS(flag, 0, 1)
 #define TWT_EN_DIS_FLAGS_SET_BTWT(flag, val)    WMI_SET_BITS(flag, 0, 1, val)
 
+/* legacy MBSSID enable/disable */
+#define TWT_EN_DIS_FLAGS_GET_L_MBSSID(flag)       WMI_GET_BITS(flag, 1, 1)
+#define TWT_EN_DIS_FLAGS_SET_L_MBSSID(flag, val)  WMI_SET_BITS(flag, 1, 1, val)
+
+/* 11ax MBSSID enable/disable */
+#define TWT_EN_DIS_FLAGS_GET_AX_MBSSID(flag)      WMI_GET_BITS(flag, 2, 1)
+#define TWT_EN_DIS_FLAGS_SET_AX_MBSSID(flag, val) WMI_SET_BITS(flag, 2, 1, val)
+
 typedef struct {
     A_UINT32 tlv_header;    /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_twt_enable_cmd_fixed_param  */
     /** pdev_id for identifying the MAC.  See macros starting with WMI_PDEV_ID_ for values. In non-DBDC case host should set it to 0
      */
     A_UINT32 pdev_id;
     A_UINT32 sta_cong_timer_ms;     /* STA TWT congestion timer TO value in terms of ms */
-    A_UINT32 mbss_support;          /* Flag indicating if AP TWT feature supported in MBSS mode or not */
+    A_UINT32 mbss_support;          /* Reserved */
     A_UINT32 default_slot_size;              /* This is the default value for the TWT slot setup by AP (units = microseconds) */
     A_UINT32 congestion_thresh_setup;        /* Minimum congestion required to start setting up TWT sessions */
     /*
@@ -24613,7 +24621,7 @@ typedef struct {
     A_UINT32 tlv_header;    /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_twt_add_dialog_cmd_fixed_param  */
     A_UINT32 vdev_id;       /* VDEV identifier */
     wmi_mac_addr peer_macaddr;      /* peer MAC address */
-    A_UINT32 dialog_id; /* TWT dialog_id is per peer */
+    A_UINT32 dialog_id; /* TWT dialog_id (< 0xFF) is per peer, I-TWT & B-TWT use different diaglog ID */
 
     /* 1. wake_intvl_mantis must be <= 0xFFFF
      * 2. wake_intvl_us must be divided evenly by wake_intvl_mantis,
@@ -24625,10 +24633,17 @@ typedef struct {
     A_UINT32 wake_intvl_mantis;     /* TWT Wake Interval Mantissa */
 
     /* wake_dura_us must be divided evenly by 256, i.e., wake_dura_us % 256 == 0 */
-    A_UINT32 wake_dura_us;          /* TWT Wake Duration in units of us, must be <= 0xFFFF  */
+    A_UINT32 wake_dura_us;          /* TWT Wake Duration in units of us, must be <= 65280 (0xFF00) */
 
     A_UINT32 sp_offset_us;          /* this long time after TWT setup the 1st SP will start */
     A_UINT32 flags;                 /* TWT flags, refer to MACROs TWT_FLAGS_*(TWT_FLAGS_GET_CMD etc) */
+
+    /* Broadcast TWT(B-TWT) Persistence, when used in Add/update Dialog,
+     * indicates for how long(in units of TBTTs) current B-TWT session
+     * parameters will not be changed.
+     * Refer to 11ax spec session "9.4.2.199 TWT element" for more info.
+     */
+    A_UINT32 b_twt_persistence;
 } wmi_twt_add_dialog_cmd_fixed_param;
 
 /* status code of adding TWT dialog */
@@ -24658,6 +24673,12 @@ typedef struct {
     A_UINT32 vdev_id;       /* VDEV identifier */
     wmi_mac_addr peer_macaddr; /* peer MAC address */
     A_UINT32 dialog_id;     /* TWT dialog ID */
+    /* Broadcast TWT(B-TWT) Persistence, when used in Del Dialog,
+     * indicates for how long(in units of TBTTs) current B-TWT session
+     * parameters will be present.
+     * Refer to 11ax spec session "9.4.2.199 TWT element" for more info.
+     */
+    A_UINT32 b_twt_persistence;
 } wmi_twt_del_dialog_cmd_fixed_param;
 
 /* status code of deleting TWT dialog */

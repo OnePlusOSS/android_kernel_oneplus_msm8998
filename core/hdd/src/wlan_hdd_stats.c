@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -3099,7 +3099,7 @@ static uint32_t hdd_get_max_rate_legacy(hdd_station_info_t *stainfo,
 			maxidx < stainfo->max_ext_idx)
 		maxidx = stainfo->max_ext_idx;
 
-	for (i = 0; QDF_ARRAY_SIZE(supported_data_rate); i++) {
+	for (i = 0; i < QDF_ARRAY_SIZE(supported_data_rate); i++) {
 		if (supported_data_rate[i].beacon_rate_index == maxidx)
 			maxrate =
 				supported_data_rate[i].supported_rate[rssidx];

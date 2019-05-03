@@ -628,12 +628,19 @@ fail_cmd:
 	return ret;
 }
 
+#ifdef CONFIG_ARCH_MSM8996
 enum q6_subsys_image q6core_get_avs_version(void)
 {
 	if (q6core_lcl.q6_core_avs_version == 0)
 		core_get_adsp_ver();
 	return q6core_lcl.q6_core_avs_version;
 }
+#else
+enum q6_subsys_image q6core_get_avs_version(void)
+{
+	return Q6_SUBSYS_INVALID;
+}
+#endif
 
 int32_t core_get_license_status(uint32_t module_id)
 {

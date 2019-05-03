@@ -2881,6 +2881,7 @@ struct ll_stats_get_params {
  * @sta_id: Per STA stats request must contain valid
  * @stats_mask: categories of stats requested
  * @session_id: wsm ts spec flag
+ * @pdev_id: PDEV id
  */
 struct pe_stats_req {
 	/* Common for all types are requests */
@@ -2890,6 +2891,7 @@ struct pe_stats_req {
 	/* categories of stats requested. look at ePEStatsMask */
 	uint32_t stats_mask;
 	uint8_t session_id;
+	uint8_t pdev_id;
 };
 
 /**

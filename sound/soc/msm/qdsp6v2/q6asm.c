@@ -2180,8 +2180,8 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 			buf_index = asm_token._token.buf_index;
 			if (buf_index < 0 ||
 					buf_index >= port->max_buf_cnt) {
-				pr_debug("%s: Invalid buffer index %u\n",
-				__func__, buf_index);
+				pr_err("%s: Invalid buffer index %u\n",
+					__func__, buf_index);
 				spin_unlock_irqrestore(&port->dsp_lock,
 								dsp_flags);
 				spin_unlock_irqrestore(
@@ -2300,8 +2300,8 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 			spin_lock_irqsave(&port->dsp_lock, dsp_flags);
 			buf_index = asm_token._token.buf_index;
 			if (buf_index < 0 || buf_index >= port->max_buf_cnt) {
-				pr_debug("%s: Invalid buffer index %u\n",
-				__func__, buf_index);
+				pr_err("%s: Invalid buffer index %u\n",
+					__func__, buf_index);
 				spin_unlock_irqrestore(&port->dsp_lock,
 								dsp_flags);
 				spin_unlock_irqrestore(

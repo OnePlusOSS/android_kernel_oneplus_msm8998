@@ -4281,6 +4281,7 @@ QDF_STATUS csr_set_country_code(tpAniSirGlobal pMac, uint8_t *pCountry)
 	return status;
 }
 
+#ifdef FEATURE_WLAN_DIAG_SUPPORT_CSR
 /* caller allocated memory for pNumChn and pChnPowerInfo */
 /* As input, *pNumChn has the size of the array of pChnPowerInfo */
 /* Upon return, *pNumChn has the number of channels assigned. */
@@ -4309,7 +4310,6 @@ static void csr_get_channel_power_info(tpAniSirGlobal pMac, tDblLinkList *list,
 
 }
 
-#ifdef FEATURE_WLAN_DIAG_SUPPORT_CSR
 static void csr_diag_apply_country_info(tpAniSirGlobal mac_ctx)
 {
 	host_log_802_11d_pkt_type *p11dLog;
@@ -6087,9 +6087,9 @@ send_scan_req:
 	return status;
 }
 
-#ifdef FEATURE_WLAN_DIAG_SUPPORT_CSR
 static void csr_diag_scan_channels(tpAniSirGlobal pMac, tSmeCmd *pCommand)
 {
+#ifdef FEATURE_WLAN_DIAG_SUPPORT_CSR
 	host_log_scan_pkt_type *pScanLog = NULL;
 
 	WLAN_HOST_DIAG_LOG_ALLOC(pScanLog,
@@ -6122,10 +6122,8 @@ static void csr_diag_scan_channels(tpAniSirGlobal pMac, tSmeCmd *pCommand)
 		      pScanLog->numChannel);
 	}
 	WLAN_HOST_DIAG_LOG_REPORT(pScanLog);
+#endif
 }
-#else
-#define csr_diag_scan_channels(tpAniSirGlobal pMac, tSmeCmd *pCommand) (void)0;
-#endif /* #ifdef FEATURE_WLAN_DIAG_SUPPORT_CSR */
 
 static QDF_STATUS csr_scan_channels(tpAniSirGlobal pMac, tSmeCmd *pCommand)
 {

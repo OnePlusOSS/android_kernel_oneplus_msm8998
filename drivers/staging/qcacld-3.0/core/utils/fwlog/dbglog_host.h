@@ -71,6 +71,7 @@ extern "C" {
 #define DIAG_GET_PAYLEN16(arg) \
 	((arg & DIAG_PAYLEN_MASK16) >> DIAG_PAYLEN_OFFSET16)
 
+#ifdef WLAN_DEBUG
 /*
  * set the dbglog parser type
  */int
@@ -178,6 +179,75 @@ int cnss_diag_activate_service(void);
  * Return: 0
  */
 int cnss_diag_deactivate_service(void);
+
+#else
+
+static inline int dbglog_parser_type_init(wmi_unified_t wmi_handle, int type)
+{
+	return 0;
+}
+static inline int dbglog_init(wmi_unified_t wmi_handle)
+{
+	return 0;
+}
+static inline int dbglog_deinit(wmi_unified_t wmi_handle)
+{
+	return 0;
+}
+static inline int dbglog_set_report_size(wmi_unified_t wmi_handle, A_UINT16 size)
+{
+	return 0;
+}
+static inline int dbglog_set_timestamp_resolution(wmi_unified_t wmi_handle,
+				A_UINT16 tsr)
+{
+	return 0;
+}
+static inline int dbglog_report_enable(wmi_unified_t wmi_handle, A_BOOL isenable)
+{
+	return 0;
+}
+static inline int dbglog_set_log_lvl(wmi_unified_t wmi_handle, DBGLOG_LOG_LVL log_lvl)
+{
+	return 0;
+}
+static inline int dbglog_set_mod_log_lvl(wmi_unified_t wmi_handle, A_UINT32 mod_id_lvl)
+{
+	return 0;
+}
+static inline int dbglog_vap_log_enable(wmi_unified_t wmi_handle, A_UINT16 vap_id,
+		      A_BOOL isenable)
+{
+	return 0;
+}
+static inline int dbglog_module_log_enable(wmi_unified_t wmi_handle, A_UINT32 mod_id,
+			 A_BOOL isenable)
+{
+	return 0;
+}
+static inline void  dbglog_set_vap_enable_bitmap(wmi_unified_t wmi_handle,
+			     A_UINT32 vap_enable_bitmap)
+{
+}
+static inline void  dbglog_set_mod_enable_bitmap(wmi_unified_t wmi_handle,
+			     A_UINT32 log_level,
+			     A_UINT32 *mod_enable_bitmap,
+			     A_UINT32 bitmap_len)
+{
+}
+static inline int dbglog_parse_debug_logs(ol_scn_t scn, u_int8_t *datap, u_int32_t len)
+{
+	return 0;
+}
+static inline int cnss_diag_activate_service(void)
+{
+	return 0;
+}
+static inline int cnss_diag_deactivate_service(void)
+{
+	return 0;
+}
+#endif /* WLAN_DEBUG */
 
 #ifdef __cplusplus
 }

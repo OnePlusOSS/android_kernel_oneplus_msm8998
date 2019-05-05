@@ -31,14 +31,13 @@
 
 #include "ani_global.h"
 
-#ifdef TRACE_RECORD
-
 #define MAC_TRACE_GET_MODULE_ID(data) ((data >> 8) & 0xff)
 #define MAC_TRACE_GET_MSG_ID(data)       (data & 0xffff)
 
 #define eLOG_NODROP_MISSED_BEACON_SCENARIO 0
 #define eLOG_PROC_DEAUTH_FRAME_SCENARIO 1
 
+#ifdef TRACE_RECORD
 void mac_trace(tpAniSirGlobal pMac, uint8_t code, uint16_t session,
 	       uint32_t data);
 void mac_trace_new(tpAniSirGlobal pMac, uint8_t module, uint8_t code,
@@ -50,14 +49,73 @@ uint8_t *mac_trace_get_sme_msg_string(uint16_t smeMsg);
 uint8_t *mac_trace_get_info_log_string(uint16_t infoLog);
 QDF_STATUS pe_acquire_global_lock(tAniSirLim *psPe);
 QDF_STATUS pe_release_global_lock(tAniSirLim *psPe);
-
 uint8_t *mac_trace_get_neighbour_roam_state(uint16_t neighbourRoamState);
 uint8_t *mac_trace_getcsr_roam_state(uint16_t csr_roamState);
 uint8_t *mac_trace_getcsr_roam_sub_state(uint16_t csr_roamSubState);
 uint8_t *mac_trace_get_lim_sme_state(uint16_t limState);
 uint8_t *mac_trace_get_lim_mlm_state(uint16_t mlmState);
 uint8_t *mac_trace_get_tl_state(uint16_t tlState);
-
+#else
+static inline void mac_trace(tpAniSirGlobal pMac, uint8_t code, uint16_t session,
+			     uint32_t data)
+{
+}
+static inline void mac_trace_new(tpAniSirGlobal pMac, uint8_t module, uint8_t code,
+				 uint16_t session, uint32_t data)
+{
+}
+static inline uint8_t *mac_trace_get_cfg_msg_string(uint16_t cfgMsg)
+{
+	return NULL;
+}
+static inline uint8_t *mac_trace_get_lim_msg_string(uint16_t limMsg)
+{
+	return NULL;
+}
+static inline uint8_t *mac_trace_get_wma_msg_string(uint16_t wmaMsg)
+{
+	return NULL;
+}
+static inline uint8_t *mac_trace_get_sme_msg_string(uint16_t smeMsg)
+{
+	return NULL;
+}
+static inline uint8_t *mac_trace_get_info_log_string(uint16_t infoLog)
+{
+	return NULL;
+}
+static inline QDF_STATUS pe_acquire_global_lock(tAniSirLim *psPe)
+{
+	return QDF_STATUS_SUCCESS;
+}
+static inline QDF_STATUS pe_release_global_lock(tAniSirLim *psPe)
+{
+	return QDF_STATUS_SUCCESS;
+}
+static inline uint8_t *mac_trace_get_neighbour_roam_state(uint16_t neighbourRoamState)
+{
+	return NULL;
+}
+static inline uint8_t *mac_trace_getcsr_roam_state(uint16_t csr_roamState)
+{
+	return NULL;
+}
+static inline uint8_t *mac_trace_getcsr_roam_sub_state(uint16_t csr_roamSubState)
+{
+	return NULL;
+}
+static inline uint8_t *mac_trace_get_lim_sme_state(uint16_t limState)
+{
+	return NULL;
+}
+static inline uint8_t *mac_trace_get_lim_mlm_state(uint16_t mlmState)
+{
+	return NULL;
+}
+static inline uint8_t *mac_trace_get_tl_state(uint16_t tlState)
+{
+	return NULL;
+}
 #endif
 
 #endif

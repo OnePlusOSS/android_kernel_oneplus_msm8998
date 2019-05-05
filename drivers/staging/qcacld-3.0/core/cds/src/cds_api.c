@@ -2742,11 +2742,7 @@ void cds_svc_fw_shutdown_ind(struct device *dev)
 inline void cds_pkt_stats_to_logger_thread(void *pl_hdr, void *pkt_dump,
 						void *data)
 {
-	if (cds_get_ring_log_level(RING_ID_PER_PACKET_STATS) !=
-						WLAN_LOG_LEVEL_ACTIVE)
-		return;
-
-	wlan_pkt_stats_to_logger_thread(pl_hdr, pkt_dump, data);
+	return;
 }
 
 /**

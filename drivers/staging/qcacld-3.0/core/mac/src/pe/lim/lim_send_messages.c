@@ -588,11 +588,11 @@ tSirRetStatus lim_send_mode_update(tpAniSirGlobal pMac,
 	pe_debug("Sending WMA_UPDATE_OP_MODE, op_mode %d, sta_id %d",
 			pVhtOpMode->opMode, pVhtOpMode->staId);
 	if (NULL == psessionEntry)
-		MTRACE(mac_trace_msg_tx(pMac, NO_SESSION, msgQ.type));
+		MTRACE(mac_trace_msg_tx(pMac, NO_SESSION, msgQ.type);)
 	else
 		MTRACE(mac_trace_msg_tx(pMac,
 					psessionEntry->peSessionId,
-					msgQ.type));
+					msgQ.type);)
 	retCode = wma_post_ctrl_msg(pMac, &msgQ);
 	if (eSIR_SUCCESS != retCode) {
 		qdf_mem_free(pVhtOpMode);
@@ -623,11 +623,11 @@ tSirRetStatus lim_send_rx_nss_update(tpAniSirGlobal pMac,
 	msgQ.bodyval = 0;
 	pe_debug("Sending WMA_UPDATE_RX_NSS");
 	if (NULL == psessionEntry)
-		MTRACE(mac_trace_msg_tx(pMac, NO_SESSION, msgQ.type));
+		MTRACE(mac_trace_msg_tx(pMac, NO_SESSION, msgQ.type);)
 	else
 		MTRACE(mac_trace_msg_tx(pMac,
 					psessionEntry->peSessionId,
-					msgQ.type));
+					msgQ.type);)
 	retCode = wma_post_ctrl_msg(pMac, &msgQ);
 	if (eSIR_SUCCESS != retCode) {
 		qdf_mem_free(pRxNss);
@@ -660,11 +660,11 @@ tSirRetStatus lim_set_membership(tpAniSirGlobal pMac,
 	msgQ.bodyval = 0;
 	pe_debug("Sending WMA_UPDATE_MEMBERSHIP");
 	if (NULL == psessionEntry)
-		MTRACE(mac_trace_msg_tx(pMac, NO_SESSION, msgQ.type));
+		MTRACE(mac_trace_msg_tx(pMac, NO_SESSION, msgQ.type);)
 	else
 		MTRACE(mac_trace_msg_tx(pMac,
 					psessionEntry->peSessionId,
-					msgQ.type));
+					msgQ.type);)
 	retCode = wma_post_ctrl_msg(pMac, &msgQ);
 	if (eSIR_SUCCESS != retCode) {
 		qdf_mem_free(pMembership);
@@ -696,11 +696,11 @@ tSirRetStatus lim_set_user_pos(tpAniSirGlobal pMac,
 	msgQ.bodyval = 0;
 	pe_debug("Sending WMA_UPDATE_USERPOS");
 	if (NULL == psessionEntry)
-		MTRACE(mac_trace_msg_tx(pMac, NO_SESSION, msgQ.type));
+		MTRACE(mac_trace_msg_tx(pMac, NO_SESSION, msgQ.type);)
 	else
 		MTRACE(mac_trace_msg_tx(pMac,
 					psessionEntry->peSessionId,
-					msgQ.type));
+					msgQ.type);)
 	retCode = wma_post_ctrl_msg(pMac, &msgQ);
 	if (eSIR_SUCCESS != retCode) {
 		qdf_mem_free(pUserPos);

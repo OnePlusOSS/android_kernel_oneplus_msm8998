@@ -47,9 +47,7 @@
 
 #include "cds_utils.h"
 
-#if !defined(REMOVE_PKT_LOG)
 #include "pktlog_ac.h"
-#endif /* REMOVE_PKT_LOG */
 
 #include "dbglog_host.h"
 #include "csr_api.h"

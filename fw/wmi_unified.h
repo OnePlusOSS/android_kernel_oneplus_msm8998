@@ -697,6 +697,8 @@ typedef enum {
     WMI_ROAM_DEAUTH_CONFIG_CMDID,
     /** Configure idle roam trigger parameters */
     WMI_ROAM_IDLE_CONFIG_CMDID,
+    /** roaming filter cmd with DSM filters along with existing roam filters */
+    WMI_ROAM_DSM_FILTER_CMDID,
 
     /** offload scan specific commands */
     /** set offload scan AP profile   */
@@ -23889,6 +23891,7 @@ static INLINE A_UINT8 *wmi_id_to_name(A_UINT32 wmi_command)
         WMI_RETURN_STRING(WMI_ROAM_DEAUTH_CONFIG_CMDID);
         WMI_RETURN_STRING(WMI_ROAM_IDLE_CONFIG_CMDID);
         WMI_RETURN_STRING(WMI_IDLE_TRIGGER_MONITOR_CMDID);
+        WMI_RETURN_STRING(WMI_ROAM_DSM_FILTER_CMDID);
     }
 
     return "Invalid WMI cmd";
@@ -24786,7 +24789,8 @@ typedef struct {
      *          12 = 10MHz
      *          (13-15 unused)
      * [15:8 ]: Reserved
-     * [31:16]: Frequency -  channel frequency of RF characteristic info (MHz)
+     * [31:16]: Frequency - Center frequency of the channel for which
+     *          the RF characterisation info applies (MHz)
      */
     A_UINT32 freq_info;
 } WMI_CHAN_RF_CHARACTERIZATION_INFO;
@@ -25119,6 +25123,60 @@ typedef enum {
      */
     WMI_IDLE_TRIGGER_MONITOR_OFF,
 } WMI_SCREEN_STATUS_NOTIFY_ID;
+
+typedef struct {
+    /** TLV tag and len; tag equals wmi_roam_dsm_filter_fixed_param */
+    A_UINT32 tlv_header;
+    /** Unique id identifying the VDEV on which new roaming filter(data stall AP mitigation) is adopted */
+    A_UINT32 vdev_id;
+    /**
+     * TLV (tag length value) parameter's following roam_dsm_filter_cmd are,
+     *
+     *  wmi_roam_bssid_disallow_list_config_param bssid_disallow_list[]; i.e array containing
+     *  all roam filter lists including the new DSM lists(avoidlist/driver_blacklist) and
+     *  existing roam lists(supplicant_blacklist/rssi_rejectlist etc.)
+     */
+} wmi_roam_dsm_filter_fixed_param;
+
+typedef struct {
+    /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_roam_bssid_disallow_list_config_param */
+    A_UINT32 tlv_header;
+    /** bssid type i.e whether bssid falls in avoid list or driver_blacklist etc.
+      see WMI_BSSID_DISALLOW_LIST_TYPE **/
+    A_UINT32 bssid_type;
+    /** mac address of disallow BSSID */
+    wmi_mac_addr bssid;
+    /** Disallow AP for certain duration, in units of milliseconds */
+    A_UINT32 remaining_disallow_duration;
+    /** AP will be allowed for candidate, when AP RSSI better than expected RSSI units in dBm */
+    A_INT32 expected_rssi;
+} wmi_roam_bssid_disallow_list_config_param;
+
+typedef enum {
+    /* USER_SPACE_BLACK_LIST
+     * Black Listed AP's by host's user space
+     */
+    WMI_BSSID_DISALLOW_USER_SPACE_BLACK_LIST = 0,
+    /* DRIVER_BLACK_LIST
+     * Black Listed AP's by host driver
+     * used for data stall migitation
+     */
+    WMI_BSSID_DISALLOW_DRIVER_BLACK_LIST,
+    /* USER_SPACE_AVOID_LIST
+     * Avoid List AP's by host's user space
+     * used for data stall migitation
+     */
+    WMI_BSSID_DISALLOW_USER_SPACE_AVOID_LIST,
+    /* DRIVER_AVOID_LIST
+     * Avoid List AP's by host driver
+     * used for data stall migitation
+     */
+    WMI_BSSID_DISALLOW_DRIVER_AVOID_LIST,
+    /* RSSI_REJECT_LIST
+     * OCE AP's
+     */
+    WMI_BSSID_DISALLOW_RSSI_REJECT_LIST,
+} WMI_BSSID_DISALLOW_LIST_TYPE;
 
 typedef struct {
     /*

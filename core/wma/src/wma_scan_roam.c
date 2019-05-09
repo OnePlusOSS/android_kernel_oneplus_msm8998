@@ -3001,6 +3001,30 @@ static void wma_roam_remove_self_reassoc(tp_wma_handle wma, uint32_t vdev_id)
 }
 
 /**
+ * wma_get_phy_mode: get current PHY Mode
+ * @chan: channel number
+ * @chan_width: maximum channel width possible
+ * @phy_mode: PHY Mode
+ *
+ * Return: None
+ */
+static
+void wma_get_phy_mode(uint8_t chan, uint32_t chan_width, uint32_t *phy_mode)
+{
+	uint32_t dot11_mode;
+	struct sAniSirGlobal *mac = cds_get_context(QDF_MODULE_ID_PE);
+
+	if (!mac) {
+		WMA_LOGE("MAC context is NULL");
+		*phy_mode = MODE_UNKNOWN;
+		return;
+	}
+
+	wlan_cfg_get_int(mac, WNI_CFG_DOT11_MODE, &dot11_mode);
+	*phy_mode = wma_chan_phy_mode(chan, chan_width, dot11_mode);
+}
+
+/**
  * wma_roam_synch_event_handler() - roam synch event handler
  * @handle: wma handle
  * @event: event data
@@ -3019,6 +3043,7 @@ int wma_roam_synch_event_handler(void *handle, uint8_t *event,
 	tp_wma_handle wma = (tp_wma_handle) handle;
 	roam_offload_synch_ind *roam_synch_ind_ptr = NULL;
 	tpSirBssDescription  bss_desc_ptr = NULL;
+	uint8_t channel;
 	uint16_t ie_len = 0;
 	int status = -EINVAL;
 	tSirRoamOffloadScanReq *roam_req;
@@ -3215,6 +3240,20 @@ int wma_roam_synch_event_handler(void *handle, uint8_t *event,
 	if (roam_synch_ind_ptr->join_rsp)
 		wma->interfaces[synch_event->vdev_id].chan_width =
 			roam_synch_ind_ptr->join_rsp->vht_channel_width;
+
+	/*
+	 * update phy_mode in wma to avoid mismatch in phymode between
+	 * host and firmware. The phymode stored in
+	 * interface[vdev_id].chanmode is sent to firmware as part of
+	 * opmode update during either - vht opmode action frame received
+	 * or during opmode change detected while processing beacon.
+	 * Any mismatch of this value with firmware phymode results in
+	 * firmware assert.
+	 */
+	channel = cds_freq_to_chan(wma->interfaces[synch_event->vdev_id].mhz);
+	wma_get_phy_mode(channel,
+			 wma->interfaces[synch_event->vdev_id].chan_width,
+			 &wma->interfaces[synch_event->vdev_id].chanmode);
 
 	wma->csr_roam_synch_cb((tpAniSirGlobal)wma->mac_context,
 		roam_synch_ind_ptr, bss_desc_ptr, SIR_ROAM_SYNCH_COMPLETE);

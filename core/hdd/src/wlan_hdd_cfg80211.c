@@ -14803,6 +14803,9 @@ static int __wlan_hdd_cfg80211_change_iface(struct wiphy *wiphy,
 			 TRACE_CODE_HDD_CFG80211_CHANGE_IFACE,
 			 pAdapter->sessionId, type));
 
+	if (wlan_hdd_check_mon_concurrency())
+		return -EINVAL;
+
 	hdd_debug("Device_mode = %d, IFTYPE = 0x%x",
 	       pAdapter->device_mode, type);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -617,6 +617,9 @@ struct ol_txrx_pdev_t {
 
 	/* osdev - handle for mem alloc / free, map / unmap */
 	qdf_device_t osdev;
+
+	void *mon_osif_dev;
+	ol_txrx_mon_callback_fp mon_cb;
 
 	htt_pdev_handle htt_pdev;
 

@@ -2446,6 +2446,48 @@ ol_txrx_vdev_attach(ol_txrx_pdev_handle pdev,
 }
 
 /**
+ * ol_txrx_mon_cb_deregister() - Deregister pkt capture mode callback
+ * @void:
+ *
+ * Return: None
+ */
+void ol_txrx_mon_cb_deregister(void)
+{
+	ol_txrx_pdev_handle pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+
+	if (qdf_unlikely(!pdev)) {
+		qdf_print("%s: pdev is NULL!\n", __func__);
+		qdf_assert(0);
+		return;
+	}
+
+	pdev->mon_osif_dev = NULL;
+	pdev->mon_cb = NULL;
+}
+
+/**
+ * ol_txrx_mon_cb_register() - Register pkt capture mode callback
+ * @osif_vdev: the virtual device's OS shim object
+ * @mon_cb: callback to register
+ *
+ * Return: None
+ */
+void ol_txrx_mon_cb_register(void *osif_vdev,
+			     ol_txrx_mon_callback_fp mon_cb)
+{
+	ol_txrx_pdev_handle pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+
+	if (qdf_unlikely(!pdev)) {
+		qdf_print("%s: pdev is NULL!\n", __func__);
+		qdf_assert(0);
+		return;
+	}
+
+	pdev->mon_osif_dev = osif_vdev;
+	pdev->mon_cb = mon_cb;
+}
+
+/**
  *ol_txrx_vdev_register - Link a vdev's data object with the
  * matching OS shim vdev object.
  *

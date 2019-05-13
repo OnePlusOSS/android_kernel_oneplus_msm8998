@@ -2211,6 +2211,23 @@ ol_txrx_vdev_handle wma_vdev_attach(tp_wma_handle wma_handle,
 		if (status != QDF_STATUS_SUCCESS)
 			WMA_LOGE("failed to set retry threshold(err=%d)",
 				 status);
+
+		if (cds_get_pktcap_mode_enable() &&
+		    wma_handle->is_pktcapture_enabled &&
+		    (cds_get_pktcapture_mode() != PKT_CAPTURE_MODE_DISABLE)) {
+			uint8_t val = cds_get_pktcapture_mode();
+
+			status = wma_set_packet_capture_mode(
+					wma_handle, vdev_id, val);
+
+			if (status != QDF_STATUS_SUCCESS)
+				WMA_LOGE("failed to set capture mode (err=%d)",
+					 status);
+			else if (status == QDF_STATUS_SUCCESS)
+				ol_cfg_set_pktcapture_mode(txrx_pdev->ctrl_pdev,
+							   val);
+		}
+
 		break;
 	}
 
@@ -3208,6 +3225,26 @@ void wma_remove_req(tp_wma_handle wma, uint8_t vdev_id,
 	qdf_mc_timer_stop(&req_msg->event_timeout);
 	qdf_mc_timer_destroy(&req_msg->event_timeout);
 	qdf_mem_free(req_msg);
+}
+
+/**
+ * wma_set_packet_capture_mode() - set packet capture mode
+ * @wma: wma handle
+ * @vdev_id: vdev id
+ * @val: mode to set
+ *
+ * Return: 0 on success, errno on failure
+ */
+int wma_set_packet_capture_mode(tp_wma_handle wma_handle,
+				uint8_t vdev_id,
+				uint8_t val)
+{
+	int ret;
+
+	ret = wma_cli_set_command(vdev_id,
+				  WMI_VDEV_PARAM_PACKET_CAPTURE_MODE,
+				  val, VDEV_CMD);
+	return ret;
 }
 
 /**

@@ -602,6 +602,10 @@ QDF_STATUS wma_vdev_start(tp_wma_handle wma, struct wma_vdev_start_req *req,
 
 void wma_vdev_resp_timer(void *data);
 
+int wma_set_packet_capture_mode(tp_wma_handle wma_handle,
+				uint8_t vdev_id,
+				uint8_t val);
+
 struct wma_target_req *wma_fill_vdev_req(tp_wma_handle wma,
 						uint8_t vdev_id,
 						uint32_t msg_type, uint8_t type,

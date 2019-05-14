@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -51,6 +51,13 @@ struct cnss_fw_files {
 	char evicted_data[CNSS_MAX_FILE_NAME];
 };
 
+struct cnss_device_version {
+	u32 family_number;
+	u32 device_number;
+	u32 major_version;
+	u32 minor_version;
+};
+
 struct cnss_soc_info {
 	void __iomem *va;
 	phys_addr_t pa;
@@ -60,6 +67,7 @@ struct cnss_soc_info {
 	uint32_t soc_id;
 	uint32_t fw_version;
 	char fw_build_timestamp[CNSS_MAX_TIMESTAMP_LEN + 1];
+	struct cnss_device_version device_version;
 };
 
 struct cnss_wlan_runtime_ops {
@@ -96,6 +104,7 @@ struct cnss_usb_wlan_driver {
 	int  (*suspend)(struct usb_interface *pintf, pm_message_t state);
 	int  (*resume)(struct usb_interface *pintf);
 	int  (*reset_resume)(struct usb_interface *pintf);
+	void (*update_status)(struct usb_interface *pintf, uint32_t status);
 	const struct usb_device_id *id_table;
 };
 
@@ -189,6 +198,7 @@ extern void cnss_schedule_recovery(struct device *dev,
 extern int cnss_self_recovery(struct device *dev,
 			      enum cnss_recovery_reason reason);
 extern int cnss_force_fw_assert(struct device *dev);
+extern int cnss_force_collect_rddm(struct device *dev);
 extern void *cnss_get_virt_ramdump_mem(struct device *dev, unsigned long *size);
 extern int cnss_get_fw_files_for_target(struct device *dev,
 					struct cnss_fw_files *pfw_files,

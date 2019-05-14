@@ -192,6 +192,8 @@ enum q6_subsys_image {
 	Q6_SUBSYS_AVS2_8,
 	Q6_SUBSYS_INVALID,
 };
+
 enum q6_subsys_image q6core_get_avs_version(void);
+
 int core_get_adsp_ver(void);
 #endif /* __Q6CORE_H__ */

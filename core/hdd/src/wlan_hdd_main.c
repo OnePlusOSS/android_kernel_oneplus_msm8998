@@ -319,6 +319,7 @@ const char *hdd_device_mode_to_string(uint8_t device_mode)
 	CASE_RETURN_STRING(QDF_P2P_GO_MODE);
 	CASE_RETURN_STRING(QDF_FTM_MODE);
 	CASE_RETURN_STRING(QDF_IBSS_MODE);
+	CASE_RETURN_STRING(QDF_MONITOR_MODE);
 	CASE_RETURN_STRING(QDF_P2P_DEVICE_MODE);
 	CASE_RETURN_STRING(QDF_OCB_MODE);
 	CASE_RETURN_STRING(QDF_NDI_MODE);
@@ -1984,7 +1985,12 @@ static int __hdd_mon_open(struct net_device *dev)
 	}
 
 	hdd_mon_mode_ether_setup(dev);
-	ret = hdd_set_mon_rx_cb(dev);
+
+	if (cds_get_conparam() == QDF_GLOBAL_MONITOR_MODE)
+		ret = hdd_set_mon_rx_cb(dev);
+	else
+		ret = hdd_set_mon_mode_cb(dev);
+
 	set_bit(DEVICE_IFACE_OPENED, &adapter->event_flags);
 	return ret;
 }
@@ -2682,15 +2688,20 @@ static int __hdd_stop(struct net_device *dev)
 				     WLAN_STOP_ALL_NETIF_QUEUE_N_CARRIER,
 				     WLAN_CONTROL_PATH);
 
-	hdd_debug("Disabling Auto Power save timer");
-	sme_ps_disable_auto_ps_timer(
-		WLAN_HDD_GET_HAL_CTX(adapter),
-		adapter->sessionId);
+	if (!wlan_hdd_is_session_type_monitor(adapter->device_mode)) {
+		hdd_debug("Disabling Auto Power save timer");
+		sme_ps_disable_auto_ps_timer(
+			WLAN_HDD_GET_HAL_CTX(adapter),
+			adapter->sessionId);
+	}
 
 	if (adapter->device_mode == QDF_STA_MODE) {
 		hdd_debug("Sending Lpass stop notifcation");
 		hdd_lpass_notify_stop(hdd_ctx);
 	}
+
+	if (wlan_hdd_is_session_type_monitor(adapter->device_mode))
+		hdd_reset_mon_mode_cb();
 
 	/*
 	 * NAN data interface is different in some sense. The traffic on NDI is
@@ -5961,6 +5972,11 @@ QDF_STATUS hdd_start_all_adapters(hdd_context_t *hdd_ctx)
 			hdd_delete_sta(adapter);
 			break;
 		case QDF_MONITOR_MODE:
+			if (wlan_hdd_is_session_type_monitor(
+						QDF_MONITOR_MODE)) {
+				hdd_set_mon_mode_cb(adapter->dev);
+				break;
+			}
 			hdd_init_station_mode(adapter);
 			hdd_set_mon_rx_cb(adapter->dev);
 			wlan_hdd_set_mon_chan(adapter, adapter->mon_chan,
@@ -6802,6 +6818,10 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 		hdd_cleanup_scan_queue(hdd_ctx, NULL);
 		hdd_abort_mac_scan_all_adapters(hdd_ctx);
 		hdd_abort_sched_scan_all_adapters(hdd_ctx);
+
+		if (wlan_hdd_is_session_type_monitor(QDF_MONITOR_MODE))
+			hdd_reset_mon_mode_cb();
+
 		hdd_stop_all_adapters(hdd_ctx, true);
 		hdd_deinit_all_adapters(hdd_ctx, false);
 	}

@@ -2357,6 +2357,36 @@ void wlan_hdd_netif_queue_control(hdd_adapter_t *adapter,
 	adapter->queue_oper_history[index].pause_map = adapter->pause_map;
 }
 
+#ifdef WLAN_FEATURE_PKT_CAPTURE
+/**
+ * hdd_set_mon_mode_cb() - Set pkt capture mode callback
+ * @dev:        Pointer to net_device structure
+ *
+ * Return: 0 on success; non-zero for failure
+ */
+int hdd_set_mon_mode_cb(struct net_device *dev)
+{
+	ol_txrx_mon_callback_fp mon_cb;
+	hdd_adapter_t *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
+
+	mon_cb = hdd_mon_rx_packet_cbk;
+	ol_txrx_mon_cb_register(adapter, mon_cb);
+
+	return 0;
+}
+
+/**
+ * hdd_reset_mon_mode_cb() - Reset pkt capture mode callback
+ * @void
+ *
+ * Return: None
+ */
+void hdd_reset_mon_mode_cb(void)
+{
+	ol_txrx_mon_cb_deregister();
+}
+#endif /* WLAN_FEATURE_PKT_CAPTURE */
+
 /**
  * hdd_set_mon_rx_cb() - Set Monitor mode Rx callback
  * @dev:        Pointer to net_device structure

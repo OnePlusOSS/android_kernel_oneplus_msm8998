@@ -3194,6 +3194,7 @@ int __wlan_hdd_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 	} else if (wlan_hdd_is_session_type_monitor(
 				pVirtAdapter->device_mode)) {
 		wlan_hdd_del_monitor(pHddCtx, pVirtAdapter, TRUE);
+		hdd_reset_mon_mode_cb();
 	} else {
 		wlan_hdd_release_intf_addr(pHddCtx,
 					 pVirtAdapter->macAddressCurrent.bytes);

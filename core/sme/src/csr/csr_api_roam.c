@@ -10769,7 +10769,7 @@ void csr_roam_joined_state_msg_processor(tpAniSirGlobal pMac, void *pMsgBuf)
 		pRoamInfo->ampdu = pUpperLayerAssocCnf->ampdu;
 		pRoamInfo->sgi_enable = pUpperLayerAssocCnf->sgi_enable;
 		pRoamInfo->tx_stbc = pUpperLayerAssocCnf->tx_stbc;
-		pRoamInfo->tx_stbc = pUpperLayerAssocCnf->rx_stbc;
+		pRoamInfo->rx_stbc = pUpperLayerAssocCnf->rx_stbc;
 		pRoamInfo->ch_width = pUpperLayerAssocCnf->ch_width;
 		pRoamInfo->mode = pUpperLayerAssocCnf->mode;
 		pRoamInfo->max_supp_idx = pUpperLayerAssocCnf->max_supp_idx;

@@ -558,6 +558,26 @@ struct ol_txrx_fw_stats_desc_elem_t {
 	struct ol_txrx_fw_stats_desc_t desc;
 };
 
+/**
+ * ol_txrx_mon_hdr_elem_t - tx packets header struture to update radiotap header
+ * for packet capture mode
+ */
+struct ol_txrx_mon_hdr_elem_t {
+	uint32_t timestamp;
+	uint8_t preamble;
+	uint8_t mcs;
+	uint8_t rate;
+	uint8_t rssi_comb;
+	uint8_t nss;
+	uint8_t bw;
+	bool stbc;
+	bool sgi;
+	bool ldpc;
+	bool beamformed;
+	bool dir; /* rx:0 , tx:1 */
+	uint8_t status; /* tx status */
+};
+
 /*
  * As depicted in the diagram below, the pdev contains an array of
  * NUM_EXT_TID ol_tx_active_queues_in_tid_t elements.

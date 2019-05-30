@@ -6163,6 +6163,7 @@ ol_txrx_mon_rx_data_cb(void *ppdev, void *nbuf_list, uint8_t vdev_id,
 
 		/* clear IEEE80211_RADIOTAP_F_FCS flag*/
 		rx_status.rtap_flags &= ~(BIT(4));
+		rx_status.rtap_flags &= ~(BIT(2));
 
 		/*
 		 * convert 802.3 header format into 802.11 format

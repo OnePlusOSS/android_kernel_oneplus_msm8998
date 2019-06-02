@@ -2181,7 +2181,6 @@ void wma_set_stakey(tp_wma_handle wma_handle, tpSetStaKeyParams key_info)
 		key_params.key_len = key_info->key[i].keyLength;
 		status = wma_setup_install_key_cmd(wma_handle, &key_params,
 						   opmode);
-		qdf_mem_zero(&key_params, sizeof(struct wma_set_key_params));
 		if (status == QDF_STATUS_E_NOMEM) {
 			WMA_LOGE("%s:Failed to setup install key buf",
 				 __func__);
@@ -2211,9 +2210,12 @@ void wma_set_stakey(tp_wma_handle wma_handle, tpSetStaKeyParams key_info)
 	/* TODO: Should we wait till we get HTT_T2H_MSG_TYPE_SEC_IND? */
 	key_info->status = QDF_STATUS_SUCCESS;
 out:
+	qdf_mem_zero(&key_params, sizeof(struct wma_set_key_params));
 	if (key_info->sendRsp)
 		wma_send_msg_high_priority(wma_handle, WMA_SET_STAKEY_RSP,
 			(void *)key_info, 0);
+	else
+		qdf_mem_free(key_info);
 }
 
 /**
@@ -2771,6 +2773,110 @@ static const char *wma_get_status_str(uint32_t status)
 	}
 }
 
+#define RATE_LIMIT 16
+#define RESERVE_BYTES   100
+
+/**
+ * wma_process_mon_mgmt_tx_data(): process management tx packets
+ * for pkt capture mode
+ * @hdr: wmi_mgmt_hdr
+ * @nbuf: netbuf
+ *
+ * Return: true if pkt is post to thread else false
+ */
+static bool
+wma_process_mon_mgmt_tx_data(wmi_mgmt_hdr *hdr,
+			     qdf_nbuf_t nbuf, uint8_t status)
+{
+	struct ol_txrx_pdev_t *pdev_ctx;
+	ol_txrx_mon_callback_fp data_rx = NULL;
+	struct mon_rx_status txrx_status = {0};
+	uint16_t channel_flags = 0;
+
+	pdev_ctx = cds_get_context(QDF_MODULE_ID_TXRX);
+	if (!pdev_ctx) {
+		WMA_LOGE(FL("Failed to get the context"));
+		return false;
+	}
+
+	data_rx = pdev_ctx->mon_cb;
+	if (!data_rx)
+		return false;
+
+	txrx_status.tsft = (u_int64_t)hdr->tsf_l32;
+	txrx_status.chan_num = cds_freq_to_chan(hdr->chan_freq);
+	txrx_status.chan_freq = hdr->chan_freq;
+	/* hdr->rate is in Kbps, convert into Mbps */
+	txrx_status.rate = (hdr->rate_kbps / 1000);
+	txrx_status.ant_signal_db = hdr->rssi;
+	/* RSSI -128 is invalid rssi for TX, add 96 here,
+	 * will be normalized during radiotap updation
+	 */
+	if (txrx_status.ant_signal_db == -128)
+		txrx_status.ant_signal_db += 96;
+
+	txrx_status.nr_ant = 1;
+	txrx_status.rtap_flags |=
+		((txrx_status.rate == 6 /* Mbps */) ? BIT(1) : 0);
+	channel_flags |=
+		((txrx_status.rate == 6 /* Mbps */) ?
+		IEEE80211_CHAN_OFDM : IEEE80211_CHAN_CCK);
+	channel_flags |=
+		(cds_chan_to_band(txrx_status.chan_num) == CDS_BAND_2GHZ ?
+		IEEE80211_CHAN_2GHZ : IEEE80211_CHAN_5GHZ);
+	txrx_status.chan_flags = channel_flags;
+	txrx_status.rate = ((txrx_status.rate == 6 /* Mbps */) ? 0x0c : 0x02);
+
+	return ol_txrx_mon_mgmt_process(&txrx_status, nbuf, status);
+}
+
+static int wma_process_mon_mgmt_tx_completion(tp_wma_handle wma_handle,
+					      uint32_t desc_id,
+					      uint32_t status,
+					      wmi_mgmt_hdr *mgmt_hdr)
+{
+	struct wmi_desc_t *wmi_desc;
+	qdf_nbuf_t wbuf, nbuf;
+	int nbuf_len;
+
+	if (desc_id >= WMI_DESC_POOL_MAX) {
+		WMA_LOGE("%s: Invalid desc id %d", __func__, desc_id);
+		return -EINVAL;
+	}
+
+	WMA_LOGD("%s: status: %s wmi_desc_id: %d", __func__,
+		 wma_get_status_str(status), desc_id);
+
+	wmi_desc = (struct wmi_desc_t *)
+			(&wma_handle->wmi_desc_pool.array[desc_id]);
+
+	if (!wmi_desc) {
+		WMA_LOGE("%s: Invalid wmi desc", __func__);
+		return -EINVAL;
+	}
+
+	nbuf = wmi_desc->nbuf;
+	nbuf_len = qdf_nbuf_len(nbuf);
+
+	wbuf = qdf_nbuf_alloc(NULL, roundup(nbuf_len + RESERVE_BYTES, 4),
+			      RESERVE_BYTES, 4, false);
+
+	if (!wbuf) {
+		WMA_LOGE("%s: Failed to allocate wbuf for mgmt len(%u)",
+			 __func__, nbuf_len);
+		return -ENOMEM;
+	}
+
+	qdf_nbuf_put_tail(wbuf, nbuf_len);
+
+	qdf_mem_copy(qdf_nbuf_data(wbuf), qdf_nbuf_data(nbuf), nbuf_len);
+
+	if (!wma_process_mon_mgmt_tx_data(mgmt_hdr, wbuf, status))
+		qdf_nbuf_free(wbuf);
+
+	return 0;
+}
+
 /**
  * wma_process_mgmt_tx_completion() - process mgmt completion
  * @wma_handle: wma handle
@@ -2838,13 +2944,16 @@ static int wma_process_mgmt_tx_completion(tp_wma_handle wma_handle,
  *
  * Return: 0 on success; error number otherwise
  */
-
 int wma_mgmt_tx_completion_handler(void *handle, uint8_t *cmpl_event_params,
 				   uint32_t len)
 {
 	tp_wma_handle wma_handle = (tp_wma_handle)handle;
 	WMI_MGMT_TX_COMPLETION_EVENTID_param_tlvs *param_buf;
 	wmi_mgmt_tx_compl_event_fixed_param	*cmpl_params;
+	wmi_mgmt_hdr *mgmt_hdr = NULL;
+	ol_txrx_pdev_handle pdev;
+
+	pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 
 	param_buf = (WMI_MGMT_TX_COMPLETION_EVENTID_param_tlvs *)
 		cmpl_event_params;
@@ -2853,7 +2962,16 @@ int wma_mgmt_tx_completion_handler(void *handle, uint8_t *cmpl_event_params,
 		return -EINVAL;
 	}
 	cmpl_params = param_buf->fixed_param;
-
+	if (pdev && cds_get_pktcap_mode_enable() &&
+	    (ol_cfg_pktcapture_mode(pdev->ctrl_pdev) &
+	     PKT_CAPTURE_MODE_MGMT_ONLY) &&
+	    pdev->mon_cb) {
+		mgmt_hdr = (wmi_mgmt_hdr *)(param_buf->mgmt_hdr);
+		wma_process_mon_mgmt_tx_completion(
+			wma_handle,
+			cmpl_params->desc_id,
+			cmpl_params->status, mgmt_hdr);
+	}
 	wma_process_mgmt_tx_completion(wma_handle,
 		cmpl_params->desc_id, cmpl_params->status);
 
@@ -2879,6 +2997,10 @@ int wma_mgmt_tx_bundle_completion_handler(void *handle, uint8_t *buf,
 	uint32_t *status;
 	uint32_t i, buf_len;
 	bool excess_data = false;
+	wmi_mgmt_hdr *mgmt_hdr = NULL;
+	ol_txrx_pdev_handle pdev;
+
+	pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 
 	param_buf = (WMI_MGMT_TX_BUNDLE_COMPLETION_EVENTID_param_tlvs *)buf;
 	if (!param_buf || !wma_handle) {
@@ -2914,7 +3036,16 @@ int wma_mgmt_tx_bundle_completion_handler(void *handle, uint8_t *buf,
 			 param_buf->num_status);
 		return -EINVAL;
 	}
-
+	if (pdev && cds_get_pktcap_mode_enable() &&
+	    (ol_cfg_pktcapture_mode(pdev->ctrl_pdev) &
+	     PKT_CAPTURE_MODE_MGMT_ONLY) &&
+	    pdev->mon_cb) {
+		mgmt_hdr = (wmi_mgmt_hdr *)(param_buf->mgmt_hdr);
+		for (i = 0; i < num_reports; i++)
+			wma_process_mon_mgmt_tx_completion(
+					wma_handle, desc_ids[i],
+					status[i], &mgmt_hdr[i]);
+	}
 	for (i = 0; i < num_reports; i++)
 		wma_process_mgmt_tx_completion(wma_handle,
 			desc_ids[i], status[i]);
@@ -3506,6 +3637,54 @@ static inline int wma_process_rmf_frame(tp_wma_handle wma_handle,
 #endif
 
 /**
+ * wma_process_mon_mgmt_rx_data(): process management rx packets
+ * for pkt capture mode
+ * @hdr: wmi_mgmt_rx_hdr
+ * @nbuf: netbuf
+ *
+ * Return: true if pkt is post to thread else false
+ */
+static bool
+wma_process_mon_mgmt_rx_data(wmi_mgmt_rx_hdr *hdr,
+			     qdf_nbuf_t nbuf)
+{
+	struct ol_txrx_pdev_t *pdev_ctx;
+	ol_txrx_mon_callback_fp data_rx = NULL;
+	struct mon_rx_status txrx_status = {0};
+	uint16_t channel_flags = 0;
+
+	pdev_ctx = cds_get_context(QDF_MODULE_ID_TXRX);
+	if (!pdev_ctx) {
+		WMA_LOGE(FL("Failed to get the context"));
+		return false;
+	}
+
+	data_rx = pdev_ctx->mon_cb;
+	if (!data_rx)
+		return false;
+
+	txrx_status.tsft = (u_int64_t)hdr->rx_tsf_l32;
+	txrx_status.chan_num = hdr->channel;
+	txrx_status.chan_freq = cds_chan_to_freq(txrx_status.chan_num);
+	/* hdr->rate is in Kbps, convert into Mbps */
+	txrx_status.rate = (hdr->rate / 1000);
+	txrx_status.ant_signal_db = hdr->snr;
+	txrx_status.nr_ant = 1;
+	txrx_status.rtap_flags |=
+		((txrx_status.rate == 6 /* Mbps */) ? BIT(1) : 0);
+	channel_flags |=
+		((txrx_status.rate == 6 /* Mbps */) ?
+		IEEE80211_CHAN_OFDM : IEEE80211_CHAN_CCK);
+	channel_flags |=
+		(cds_chan_to_band(txrx_status.chan_num) == CDS_BAND_2GHZ ?
+		IEEE80211_CHAN_2GHZ : IEEE80211_CHAN_5GHZ);
+	txrx_status.chan_flags = channel_flags;
+	txrx_status.rate = ((txrx_status.rate == 6 /* Mbps */) ? 0x0c : 0x02);
+
+	return ol_txrx_mon_mgmt_process(&txrx_status, nbuf, 0);
+}
+
+/**
  * wma_is_pkt_drop_candidate() - check if the mgmt frame should be droppped
  * @wma_handle: wma handle
  * @peer_addr: peer MAC address
@@ -3602,8 +3781,105 @@ end:
 	return should_drop;
 }
 
-#define RATE_LIMIT 16
-#define RESERVE_BYTES   100
+/**
+ * wma_mgmt_offload_data_event_handler() - process management offload frame.
+ * @handle: wma handle
+ * @data: mgmt data
+ * @data_len: data length
+ *
+ * Return: 0 for success or error code
+ */
+int
+wma_mgmt_offload_data_event_handler(void *handle, uint8_t *data,
+				    uint32_t data_len)
+{
+	tp_wma_handle wma_handle = (tp_wma_handle)handle;
+	WMI_VDEV_MGMT_OFFLOAD_EVENTID_param_tlvs *param_tlvs = NULL;
+	wmi_mgmt_hdr *hdr = NULL;
+	static uint8_t limit_prints_invalid_len = RATE_LIMIT - 1;
+	static uint8_t limit_prints_load_unload = RATE_LIMIT - 1;
+	static uint8_t limit_prints_recovery = RATE_LIMIT - 1;
+	uint8_t status;
+	qdf_nbuf_t wbuf;
+
+	if (!wma_handle) {
+		WMA_LOGE("%s: Failed to get WMA  context", __func__);
+		return -EINVAL;
+	}
+
+	param_tlvs = (WMI_VDEV_MGMT_OFFLOAD_EVENTID_param_tlvs *)data;
+	if (!param_tlvs) {
+		WMA_LOGE("Get NULL point message from FW");
+		return -EINVAL;
+	}
+
+	hdr = param_tlvs->fixed_param;
+	if (!hdr) {
+		WMA_LOGE("Offload data event is NULL");
+		return -EINVAL;
+	}
+
+	if (hdr->buf_len > param_tlvs->num_bufp) {
+		WMA_LOGE(
+		"Invalid frame len hdr->buf_len:%u, param_tlvs->num_bufp:%u",
+		hdr->buf_len, param_tlvs->num_bufp);
+		return -EINVAL;
+	}
+	if (hdr->buf_len < sizeof(struct ieee80211_frame) ||
+	    hdr->buf_len > data_len) {
+		limit_prints_invalid_len++;
+		if (limit_prints_invalid_len == RATE_LIMIT) {
+			WMA_LOGD(
+			"Invalid mgmt packet, data_len %u, hdr->buf_len %u",
+			data_len, hdr->buf_len);
+			limit_prints_invalid_len = 0;
+		}
+		return -EINVAL;
+	}
+
+	if (cds_is_load_or_unload_in_progress()) {
+		limit_prints_load_unload++;
+		if (limit_prints_load_unload == RATE_LIMIT) {
+			WMA_LOGD(FL("Load/Unload in progress"));
+			limit_prints_load_unload = 0;
+		}
+		return -EINVAL;
+	}
+
+	if (cds_is_driver_recovering()) {
+		limit_prints_recovery++;
+		if (limit_prints_recovery == RATE_LIMIT) {
+			WMA_LOGD(FL("Recovery in progress"));
+			limit_prints_recovery = 0;
+		}
+		return -EINVAL;
+	}
+
+	if (cds_is_driver_in_bad_state()) {
+		WMA_LOGW(FL("Driver in bad state"));
+		return -EINVAL;
+	}
+
+	wbuf = qdf_nbuf_alloc(NULL,
+			      roundup(hdr->buf_len + RESERVE_BYTES, 4),
+			      RESERVE_BYTES, 4, false);
+	if (!wbuf) {
+		WMA_LOGE("%s: Failed to allocate wbuf for mgmt pkt len(%u)",
+			 __func__, hdr->buf_len);
+		return -ENOMEM;
+	}
+
+	qdf_nbuf_put_tail(wbuf, hdr->buf_len);
+	qdf_nbuf_set_protocol(wbuf, ETH_P_CONTROL);
+	qdf_mem_copy(qdf_nbuf_data(wbuf), param_tlvs->bufp, hdr->buf_len);
+
+	status = hdr->tx_status;
+	if (!wma_process_mon_mgmt_tx_data(hdr, wbuf, status))
+		qdf_nbuf_free(wbuf);
+
+	return 0;
+}
+
 /**
  * wma_mgmt_rx_process() - process management rx frame.
  * @handle: wma handle
@@ -3620,7 +3896,8 @@ static int wma_mgmt_rx_process(void *handle, uint8_t *data,
 	wmi_mgmt_rx_hdr *hdr = NULL;
 	uint8_t vdev_id = WMA_INVALID_VDEV_ID;
 	cds_pkt_t *rx_pkt;
-	qdf_nbuf_t wbuf;
+	ol_txrx_pdev_handle pdev;
+	qdf_nbuf_t wbuf, nbuf;
 	struct ieee80211_frame *wh;
 	uint8_t mgt_type, mgt_subtype;
 	struct wma_txrx_node *iface = NULL;
@@ -3634,6 +3911,7 @@ static int wma_mgmt_rx_process(void *handle, uint8_t *data,
 		WMA_LOGE("%s: Failed to get WMA  context", __func__);
 		return -EINVAL;
 	}
+	pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 
 	param_tlvs = (WMI_MGMT_RX_EVENTID_param_tlvs *) data;
 	if (!param_tlvs) {
@@ -3883,7 +4161,31 @@ static int wma_mgmt_rx_process(void *handle, uint8_t *data,
 		packetdump_cb(rx_pkt->pkt_buf, QDF_STATUS_SUCCESS,
 			rx_pkt->pkt_meta.sessionId, RX_MGMT_PKT);
 
+	if (pdev && cds_get_pktcap_mode_enable() &&
+	    (ol_cfg_pktcapture_mode(pdev->ctrl_pdev) &
+	     PKT_CAPTURE_MODE_MGMT_ONLY)) {
+		if (pdev->mon_cb) {
+			nbuf = qdf_nbuf_alloc(NULL, roundup(
+					      hdr->buf_len + RESERVE_BYTES, 4),
+					      RESERVE_BYTES, 4, false);
+			if (nbuf) {
+				qdf_nbuf_put_tail(nbuf, hdr->buf_len);
+				qdf_mem_copy(qdf_nbuf_data(nbuf),
+					     qdf_nbuf_data(wbuf),
+					     hdr->buf_len);
+				if (!wma_process_mon_mgmt_rx_data(hdr, nbuf))
+					qdf_nbuf_free(nbuf);
+			}
+		}
+		if (hdr->status & WMI_RX_OFFLOAD_MON_MODE) {
+			/* It is offloaded mgmt pkt, drop here */
+			cds_pkt_return_packet(rx_pkt);
+			return 0;
+		}
+	}
+
 	wma_handle->mgmt_rx(wma_handle, rx_pkt);
+
 	return 0;
 }
 

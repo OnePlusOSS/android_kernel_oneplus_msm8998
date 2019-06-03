@@ -7150,7 +7150,7 @@ QDF_STATUS csr_scan_for_ssid(tpAniSirGlobal mac_ctx, uint32_t session_id,
 	tpCsrNeighborRoamControlInfo neighbor_roaminfo =
 		&mac_ctx->roam.neighborRoamInfo[session_id];
 	tCsrSSIDs *ssids = NULL;
-	struct csr_scan_for_ssid_context *context;
+	struct csr_scan_for_ssid_context *context = NULL;
 
 	if (!(mac_ctx->scan.fScanEnable) && (num_ssid != 1)) {
 		sme_err(
@@ -7323,6 +7323,7 @@ error:
 			csr_roam_call_callback(mac_ctx, session_id, NULL,
 					roam_id, eCSR_ROAM_FAILED,
 					eCSR_ROAM_RESULT_FAILURE);
+		qdf_mem_free(context);
 	}
 	return status;
 }

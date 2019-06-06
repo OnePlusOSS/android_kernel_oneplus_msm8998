@@ -18709,18 +18709,23 @@ QDF_STATUS sme_get_chain_rssi(tHalHandle phal,
 	*req_msg = *input;
 
 	status = sme_acquire_global_lock(&pmac->sme);
-	if (QDF_STATUS_SUCCESS == status) {
-		/* serialize the req through MC thread */
-		cds_message.bodyptr = req_msg;
-		cds_message.type    = SIR_HAL_GET_CHAIN_RSSI_REQ;
-		cds_status = cds_mq_post_message(QDF_MODULE_ID_WMA, &cds_message);
-		if (!QDF_IS_STATUS_SUCCESS(cds_status)) {
-			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-				FL("Post Get Chain Rssi msg fail"));
-			status = QDF_STATUS_E_FAILURE;
-		}
-		sme_release_global_lock(&pmac->sme);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		qdf_mem_free(req_msg);
+		return QDF_STATUS_E_FAILURE;
 	}
+
+	/* serialize the req through MC thread */
+	cds_message.bodyptr = req_msg;
+	cds_message.type    = SIR_HAL_GET_CHAIN_RSSI_REQ;
+	cds_status = cds_mq_post_message(QDF_MODULE_ID_WMA, &cds_message);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			FL("Post Get Chain Rssi msg fail"));
+		qdf_mem_free(req_msg);
+		status = QDF_STATUS_E_FAILURE;
+	}
+	sme_release_global_lock(&pmac->sme);
+
 
 	return status;
 }

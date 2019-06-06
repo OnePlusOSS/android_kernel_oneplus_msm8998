@@ -1328,7 +1328,9 @@ QDF_STATUS wma_send_peer_assoc(tp_wma_handle wma,
 	if (cmd->peer_nss > WMA_MAX_NSS)
 		cmd->peer_nss = WMA_MAX_NSS;
 
-	intr->nss = cmd->peer_nss;
+	if (!wma_is_vdev_in_ap_mode(wma, params->smesessionId))
+		intr->nss = cmd->peer_nss;
+
 	cmd->peer_phymode = phymode;
 	WMA_LOGI("%s: vdev_id %d associd %d peer_flags %x nss %d phymode %d ht_caps %x",
 		 __func__, cmd->vdev_id, cmd->peer_associd, cmd->peer_flags,

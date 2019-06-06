@@ -13030,8 +13030,9 @@ QDF_STATUS sme_update_sta_inactivity_timeout(tHalHandle hal_handle,
 	inactivity_time->sta_inactivity_timeout =
 		sta_inactivity_timer->sta_inactivity_timeout;
 
-	wma_update_sta_inactivity_timeout(wma_handle,
-				inactivity_time);
+	wma_update_sta_inactivity_timeout(wma_handle, inactivity_time);
+	qdf_mem_free(inactivity_time);
+
 	return QDF_STATUS_SUCCESS;
 }
 
@@ -13667,17 +13668,21 @@ QDF_STATUS sme_ap_disable_intra_bss_fwd(tHalHandle hHal, uint8_t sessionId,
 	pSapDisableIntraFwd->disableintrabssfwd = disablefwd;
 
 	status = sme_acquire_global_lock(&pMac->sme);
-	if (QDF_IS_STATUS_SUCCESS(status)) {
-		/* serialize the req through MC thread */
-		cds_message.bodyptr = pSapDisableIntraFwd;
-		cds_message.type = WMA_SET_SAP_INTRABSS_DIS;
-		qdf_status = cds_mq_post_message(QDF_MODULE_ID_WMA, &cds_message);
-		if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-			status = QDF_STATUS_E_FAILURE;
-			qdf_mem_free(pSapDisableIntraFwd);
-		}
-		sme_release_global_lock(&pMac->sme);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		qdf_mem_free(pSapDisableIntraFwd);
+		return QDF_STATUS_E_FAILURE;
 	}
+
+	/* serialize the req through MC thread */
+	cds_message.bodyptr = pSapDisableIntraFwd;
+	cds_message.type = WMA_SET_SAP_INTRABSS_DIS;
+	qdf_status = cds_mq_post_message(QDF_MODULE_ID_WMA, &cds_message);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		status = QDF_STATUS_E_FAILURE;
+		qdf_mem_free(pSapDisableIntraFwd);
+	}
+	sme_release_global_lock(&pMac->sme);
+
 	return status;
 }
 
@@ -14323,12 +14328,17 @@ QDF_STATUS sme_set_wisa_params(tHalHandle hal,
 
 	*cds_msg_wisa_params = *wisa_params;
 	status = sme_acquire_global_lock(&mac->sme);
-	if (QDF_IS_STATUS_SUCCESS(status)) {
-		cds_message.bodyptr = cds_msg_wisa_params;
-		cds_message.type = WMA_SET_WISA_PARAMS;
-		status = cds_mq_post_message(QDF_MODULE_ID_WMA, &cds_message);
-		sme_release_global_lock(&mac->sme);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		qdf_mem_free(cds_msg_wisa_params);
+		return QDF_STATUS_E_FAILURE;
 	}
+	cds_message.bodyptr = cds_msg_wisa_params;
+	cds_message.type = WMA_SET_WISA_PARAMS;
+	status = cds_mq_post_message(QDF_MODULE_ID_WMA, &cds_message);
+	if (QDF_IS_STATUS_ERROR(status))
+		qdf_mem_free(cds_msg_wisa_params);
+
+	sme_release_global_lock(&mac->sme);
 	return status;
 }
 

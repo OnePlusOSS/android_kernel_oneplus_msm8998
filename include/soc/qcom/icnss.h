@@ -159,4 +159,5 @@ extern u8 *icnss_get_wlan_mac_address(struct device *dev, uint32_t *num);
 extern int icnss_trigger_recovery(struct device *dev);
 extern void icnss_block_shutdown(bool status);
 extern void cnss_set_fw_version(u32 version);
+extern bool icnss_is_pdr(void);
 #endif /* _ICNSS_WLAN_H_ */

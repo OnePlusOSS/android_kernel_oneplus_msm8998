@@ -299,6 +299,17 @@ void sync_fence_put(struct sync_fence *fence);
 void sync_fence_install(struct sync_fence *fence, int fd);
 
 /**
+ * sync_fence_signaled() - checks if the fence has already signaled
+ * @fence:		fence to check
+ *
+ * Returns true if @fence has already signaled.
+ */
+static inline bool sync_fence_signaled(struct sync_fence *fence)
+{
+	return atomic_read(&fence->status) <= 0;
+}
+
+/**
  * sync_fence_wait_async() - registers and async wait on the fence
  * @fence:		fence to wait on
  * @waiter:		waiter callback struck

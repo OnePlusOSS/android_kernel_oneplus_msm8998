@@ -3373,7 +3373,8 @@ QDF_STATUS sme_scan_request(tHalHandle hal, uint8_t session_id,
 	msg.reserved = 0;
 	msg.bodyval = 0;
 	if (QDF_STATUS_SUCCESS !=
-		cds_mq_post_message(QDF_MODULE_ID_SME, &msg)) {
+	    cds_mq_post_message_by_priority(QDF_MODULE_ID_SME,
+					    &msg, HIGH_PRIORITY)) {
 		sme_err("sme_scan_req failed to post msg");
 		csr_scan_free_request(mac_ctx, scan_msg->scan_param);
 		qdf_mem_free(scan_msg->scan_param);
@@ -9382,6 +9383,7 @@ QDF_STATUS sme_stop_roaming(tHalHandle hal, uint8_t session_id, uint8_t reason)
 	status = wma_post_ctrl_msg(mac_ctx, &wma_msg);
 	if (eSIR_SUCCESS != status) {
 		sme_err("Posting WMA_ROAM_SCAN_OFFLOAD_REQ failed");
+		qdf_mem_zero(req, sizeof(tSirRoamOffloadScanReq));
 		qdf_mem_free(req);
 		return QDF_STATUS_E_FAULT;
 	}

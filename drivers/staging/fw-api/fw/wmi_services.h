@@ -379,7 +379,22 @@ typedef  enum  {
     WMI_SERVICE_EXT_PEER_TID_CONFIGS_SUPPORT = 194, /* Extended Peer Tid configuration support for QoS related settings */
     WMI_SERVICE_WPA3_FT_SAE_SUPPORT = 195, /* FW roaming support for WPA3_FT_SAE */
     WMI_SERVICE_WPA3_FT_SUITE_B_SUPPORT = 196, /* FW roaming support for WPA3_FT_SUITE_B */
-
+    WMI_SERVICE_VOW_ENABLE=197, /* FW supports a set of features to optimize VoW performance */
+    WMI_SERVICE_CFR_CAPTURE_IND_EVT_TYPE_1 = 198, /* support WMI_PEER_CFR_CAPTURE_EVENT msg */
+    WMI_SERVICE_BROADCAST_TWT = 199,  /* support of Broadcast TWT (Target Wake Time) for STA/AP */
+    WMI_SERVICE_RAP_DETECTION_SUPPORT = 200, /* indicate FW supports rogue AP detection */
+    WMI_SERVICE_PS_TDCC = 201, /* FW support tx_duty_cycle_control powersave */
+    WMI_SERVICE_THREE_WAY_COEX_CONFIG_LEGACY   = 202, /* BTCOEX Three-way CoEx Config Legacy Feature support */
+    WMI_SERVICE_THREE_WAY_COEX_CONFIG_OVERRIDE = 203, /* BTCOEX Three-way CoEx Config Override Feature support */
+    WMI_SERVICE_TX_PWR_PER_PEER = 204, /* target supports per-peer tx pwr spec via WMI_PEER_USE_FIXED_PWR */
+    WMI_SERVICE_STA_PLUS_STA_SUPPORT = 205, /* indicates target supports STA + STA concurrency */
+    WMI_SERVICE_WPA3_FT_FILS = 206,
+    WMI_SERVICE_ADAPTIVE_11R_ROAM = 207, /* Indicates FW supports adaptive 11r roaming */
+    WMI_SERVICE_CHAN_RF_CHARACTERIZATION_INFO = 208, /* FW provides RF scores for chans in the service ready extension msg */
+    WMI_SERVICE_FW_IFACE_COMBINATION_SUPPORT = 209, /* FW sends WMI_IFACE_COMBINATION_IND_EVENT msg immediately after WMI_SERVICE_READY_EXT_EVENT msg */
+    WMI_SERVICE_TX_COMPL_TSF64 = 210, /* FW supports 64-bit tx TSF in HTT_T2H TX_COMPL_IND msg */
+    WMI_SERVICE_DSM_ROAM_FILTER = 211, /* FW supports data stall AP mitigation while roaming */
+    WMI_SERVICE_PACKET_CAPTURE_SUPPORT = 212, /* target supports packet capture Mode (SMART MU) */
 
     /******* ADD NEW SERVICES HERE *******/
 

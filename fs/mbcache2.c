@@ -24,7 +24,7 @@
 
 struct mb2_cache {
 	/* Hash table of entries */
-	struct hlist_bl_head	*c_hash;
+	struct mb2_bucket	*c_bucket;
 	/* log2 of hash table size */
 	int			c_bucket_bits;
 	/* Protects c_lru_list, c_entry_count */
@@ -33,6 +33,17 @@ struct mb2_cache {
 	/* Number of entries in cache */
 	unsigned long		c_entry_count;
 	struct shrinker		c_shrink;
+};
+
+struct mb2_bucket {
+	struct hlist_bl_head hash;
+	struct list_head req_list;
+};
+
+struct mb2_cache_req {
+	struct list_head lnode;
+	sector_t block;
+	u32 key;
 };
 
 static struct kmem_cache *mb2_entry_cache;
@@ -54,26 +65,49 @@ int mb2_cache_entry_create(struct mb2_cache *cache, gfp_t mask, u32 key,
 	struct mb2_cache_entry *entry, *dup;
 	struct hlist_bl_node *dup_node;
 	struct hlist_bl_head *head;
+	struct mb2_cache_req *tmp_req, req = {
+		.block = block,
+		.key = key
+	};
+	struct mb2_bucket *bucket;
 
-	entry = kmem_cache_alloc(mb2_entry_cache, mask);
-	if (!entry)
-		return -ENOMEM;
-
-	INIT_LIST_HEAD(&entry->e_lru_list);
-	/* One ref for hash, one ref returned */
-	atomic_set(&entry->e_refcnt, 1);
-	entry->e_key = key;
-	entry->e_block = block;
-	head = &cache->c_hash[hash_32(key, cache->c_bucket_bits)];
-	entry->e_hash_list_head = head;
+	bucket = &cache->c_bucket[hash_32(key, cache->c_bucket_bits)];
+	head = &bucket->hash;
 	hlist_bl_lock(head);
-	hlist_bl_for_each_entry(dup, dup_node, head, e_hash_list) {
-		if (dup->e_key == key && dup->e_block == block) {
+	list_for_each_entry(tmp_req, &bucket->req_list, lnode) {
+		if (tmp_req->key == key && tmp_req->block == block) {
 			hlist_bl_unlock(head);
-			kmem_cache_free(mb2_entry_cache, entry);
 			return -EBUSY;
 		}
 	}
+	hlist_bl_for_each_entry(dup, dup_node, head, e_hash_list) {
+		if (dup->e_key == key && dup->e_block == block) {
+			hlist_bl_unlock(head);
+			return -EBUSY;
+		}
+	}
+	list_add(&req.lnode, &bucket->req_list);
+	hlist_bl_unlock(head);
+
+	entry = kmem_cache_alloc(mb2_entry_cache, mask);
+	if (!entry) {
+		hlist_bl_lock(head);
+		list_del(&req.lnode);
+		hlist_bl_unlock(head);
+		return -ENOMEM;
+	}
+
+	*entry = (typeof(*entry)){
+		.e_lru_list = LIST_HEAD_INIT(entry->e_lru_list),
+		/* One ref for hash, one ref returned */
+		.e_refcnt = ATOMIC_INIT(1),
+		.e_key = key,
+		.e_block = block,
+		.e_hash_list_head = head
+	};
+
+	hlist_bl_lock(head);
+	list_del(&req.lnode);
 	hlist_bl_add_head(&entry->e_hash_list, head);
 	hlist_bl_unlock(head);
 
@@ -105,7 +139,7 @@ static struct mb2_cache_entry *__entry_find(struct mb2_cache *cache,
 	if (entry)
 		head = entry->e_hash_list_head;
 	else
-		head = &cache->c_hash[hash_32(key, cache->c_bucket_bits)];
+		head = &cache->c_bucket[hash_32(key, cache->c_bucket_bits)].hash;
 	hlist_bl_lock(head);
 	if (entry && !hlist_bl_unhashed(&entry->e_hash_list))
 		node = entry->e_hash_list.next;
@@ -175,7 +209,7 @@ void mb2_cache_entry_delete_block(struct mb2_cache *cache, u32 key,
 	struct hlist_bl_head *head;
 	struct mb2_cache_entry *entry;
 
-	head = &cache->c_hash[hash_32(key, cache->c_bucket_bits)];
+	head = &cache->c_bucket[hash_32(key, cache->c_bucket_bits)].hash;
 	hlist_bl_lock(head);
 	hlist_bl_for_each_entry(entry, node, head, e_hash_list) {
 		if (entry->e_key == key && entry->e_block == block) {
@@ -282,14 +316,16 @@ struct mb2_cache *mb2_cache_create(int bucket_bits)
 	cache->c_bucket_bits = bucket_bits;
 	INIT_LIST_HEAD(&cache->c_lru_list);
 	spin_lock_init(&cache->c_lru_list_lock);
-	cache->c_hash = kmalloc(bucket_count * sizeof(struct hlist_bl_head),
-				GFP_KERNEL);
-	if (!cache->c_hash) {
+	cache->c_bucket = kmalloc(bucket_count * sizeof(*cache->c_bucket),
+				  GFP_KERNEL);
+	if (!cache->c_bucket) {
 		kfree(cache);
 		goto err_out;
 	}
-	for (i = 0; i < bucket_count; i++)
-		INIT_HLIST_BL_HEAD(&cache->c_hash[i]);
+	for (i = 0; i < bucket_count; i++) {
+		INIT_HLIST_BL_HEAD(&cache->c_bucket[i].hash);
+		INIT_LIST_HEAD(&cache->c_bucket[i].req_list);
+	}
 
 	cache->c_shrink.count_objects = mb2_cache_count;
 	cache->c_shrink.scan_objects = mb2_cache_scan;
@@ -331,7 +367,7 @@ void mb2_cache_destroy(struct mb2_cache *cache)
 		WARN_ON(atomic_read(&entry->e_refcnt) != 1);
 		mb2_cache_entry_put(cache, entry);
 	}
-	kfree(cache->c_hash);
+	kfree(cache->c_bucket);
 	kfree(cache);
 	module_put(THIS_MODULE);
 }

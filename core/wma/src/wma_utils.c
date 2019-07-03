@@ -3665,8 +3665,7 @@ QDF_STATUS wma_send_link_speed(uint32_t link_speed)
 {
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
 	tpAniSirGlobal mac_ctx;
-	tSirLinkSpeedInfo *ls_ind =
-		(tSirLinkSpeedInfo *) qdf_mem_malloc(sizeof(tSirLinkSpeedInfo));
+	tSirLinkSpeedInfo *ls_ind;
 
 	mac_ctx = cds_get_context(QDF_MODULE_ID_PE);
 	if (!mac_ctx) {
@@ -3674,18 +3673,20 @@ QDF_STATUS wma_send_link_speed(uint32_t link_speed)
 		return QDF_STATUS_E_INVAL;
 	}
 
+	ls_ind = (tSirLinkSpeedInfo *)qdf_mem_malloc(sizeof(tSirLinkSpeedInfo));
 	if (!ls_ind) {
 		WMA_LOGE("%s: Memory allocation failed.", __func__);
-		qdf_status = QDF_STATUS_E_NOMEM;
-	} else {
-		ls_ind->estLinkSpeed = link_speed;
-		if (mac_ctx->sme.pLinkSpeedIndCb)
-			mac_ctx->sme.pLinkSpeedIndCb(ls_ind,
-					mac_ctx->sme.pLinkSpeedCbContext);
-		else
-			WMA_LOGD("%s: pLinkSpeedIndCb is null", __func__);
-		qdf_mem_free(ls_ind);
+		return QDF_STATUS_E_NOMEM;
 	}
+
+	ls_ind->estLinkSpeed = link_speed;
+	if (mac_ctx->sme.pLinkSpeedIndCb)
+		mac_ctx->sme.pLinkSpeedIndCb(ls_ind,
+				mac_ctx->sme.pLinkSpeedCbContext);
+	else
+		WMA_LOGD("%s: pLinkSpeedIndCb is null", __func__);
+
+	qdf_mem_free(ls_ind);
 
 	return qdf_status;
 }

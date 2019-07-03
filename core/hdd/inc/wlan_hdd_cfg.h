@@ -11368,8 +11368,8 @@ enum restart_beaconing_on_ch_avoid_rule {
  * <ini>
  * gAutoBmpsTimerValue - Set Auto BMPS Timer value
  * @Min: 0
- * @Max: 120
- * @Default: 90
+ * @Max: 1000
+ * @Default: 600
  *
  * This ini is used to set Auto BMPS Timer value in seconds
  *
@@ -11383,8 +11383,8 @@ enum restart_beaconing_on_ch_avoid_rule {
  */
 #define CFG_AUTO_PS_ENABLE_TIMER_NAME          "gAutoBmpsTimerValue"
 #define CFG_AUTO_PS_ENABLE_TIMER_MIN           (0)
-#define CFG_AUTO_PS_ENABLE_TIMER_MAX           (120)
-#define CFG_AUTO_PS_ENABLE_TIMER_DEFAULT       (90)
+#define CFG_AUTO_PS_ENABLE_TIMER_MAX           (1000)
+#define CFG_AUTO_PS_ENABLE_TIMER_DEFAULT       (600)
 
 #ifdef WLAN_ICMP_DISABLE_PS
 /*
@@ -12675,7 +12675,7 @@ enum hw_filter_mode {
  * </ini>
  */
 #define CFG_ACTION_OUI_SWITCH_TO_11N_MODE_NAME    "gActionOUISwitchTo11nMode"
-#define CFG_ACTION_OUI_SWITCH_TO_11N_MODE_DEFAULT "00904C 03 0418BF E0 21 40"
+#define CFG_ACTION_OUI_SWITCH_TO_11N_MODE_DEFAULT "00904C 05 0418BF0CB2 F8 21 40"
 
 /*
  * <ini>

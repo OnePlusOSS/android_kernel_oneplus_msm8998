@@ -810,7 +810,7 @@ static void csr_roam_sort_channel_for_early_stop(tpAniSirGlobal mac_ctx,
 	if (!chan_list_greedy || !chan_list_non_greedy) {
 		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
 			  "Failed to allocate memory for tSirUpdateChanList");
-		return;
+		goto scan_list_sort_error;
 	}
 	/*
 	 * fixed_greedy_chan_list is an evaluated channel list based on most of
@@ -7207,7 +7207,6 @@ static void csr_roam_process_start_bss_success(tpAniSirGlobal mac_ctx,
 	tSirBssDescription *bss_desc = NULL;
 	tCsrRoamInfo roam_info;
 	tSirSmeStartBssRsp *start_bss_rsp = NULL;
-	struct tag_csrscan_result *scan_res = NULL;
 	eRoamCmdStatus roam_status;
 	eCsrRoamResult roam_result;
 	tDot11fBeaconIEs *ies_ptr = NULL;
@@ -7274,10 +7273,8 @@ static void csr_roam_process_start_bss_success(tpAniSirGlobal mac_ctx,
 		}
 	}
 	if (!CSR_IS_INFRA_AP(profile) && !CSR_IS_NDI(profile)) {
-		scan_res =
-			csr_scan_append_bss_description(mac_ctx,
-					bss_desc, ies_ptr,
-					session_id);
+		csr_scan_append_bss_description(mac_ctx, bss_desc, ies_ptr,
+						session_id);
 	}
 	csr_roam_save_connected_bss_desc(mac_ctx, session_id, bss_desc);
 	csr_roam_free_connect_profile(&session->connectedProfile);

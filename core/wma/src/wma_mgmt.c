@@ -1328,7 +1328,9 @@ QDF_STATUS wma_send_peer_assoc(tp_wma_handle wma,
 	if (cmd->peer_nss > WMA_MAX_NSS)
 		cmd->peer_nss = WMA_MAX_NSS;
 
-	intr->nss = cmd->peer_nss;
+	if (!wma_is_vdev_in_ap_mode(wma, params->smesessionId))
+		intr->nss = cmd->peer_nss;
+
 	cmd->peer_phymode = phymode;
 	WMA_LOGI("%s: vdev_id %d associd %d peer_flags %x nss %d phymode %d ht_caps %x",
 		 __func__, cmd->vdev_id, cmd->peer_associd, cmd->peer_flags,
@@ -2792,6 +2794,21 @@ wma_process_mon_mgmt_tx_data(wmi_mgmt_hdr *hdr,
 	ol_txrx_mon_callback_fp data_rx = NULL;
 	struct mon_rx_status txrx_status = {0};
 	uint16_t channel_flags = 0;
+	tpSirMacFrameCtl pFc = (tpSirMacFrameCtl) (qdf_nbuf_data(nbuf));
+	struct ieee80211_frame *wh;
+	uint8_t action_category = 0;
+	bool deauth_disassoc = false;
+	uint8_t mgt_type;
+	tp_wma_handle wma_handle;
+	struct wma_txrx_node *iface = NULL;
+	uint8_t vdev_id = WMA_INVALID_VDEV_ID;
+
+	wma_handle = cds_get_context(QDF_MODULE_ID_WMA);
+
+	if (!wma_handle) {
+		WMA_LOGE(FL("Failed to get WMA handle"));
+		return false;
+	}
 
 	pdev_ctx = cds_get_context(QDF_MODULE_ID_TXRX);
 	if (!pdev_ctx) {
@@ -2802,6 +2819,56 @@ wma_process_mon_mgmt_tx_data(wmi_mgmt_hdr *hdr,
 	data_rx = pdev_ctx->mon_cb;
 	if (!data_rx)
 		return false;
+
+	wh = (struct ieee80211_frame *)qdf_nbuf_data(nbuf);
+	mgt_type = (wh)->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
+
+	if (mgt_type == IEEE80211_FC0_TYPE_MGT &&
+	    (pFc->subType == SIR_MAC_MGMT_DISASSOC ||
+	     pFc->subType == SIR_MAC_MGMT_DEAUTH ||
+	     pFc->subType == SIR_MAC_MGMT_ACTION)) {
+		uint8_t *orig_hdr;
+		uint8_t mic_len, hdr_len;
+
+		if (pFc->subType == SIR_MAC_MGMT_ACTION)
+			action_category =
+					*((uint8_t *)(qdf_nbuf_data(nbuf)) +
+					sizeof(struct ieee80211_frame));
+		else
+			deauth_disassoc = true;
+
+		if (wma_find_vdev_by_bssid(wma_handle, wh->i_addr3, &vdev_id))
+			iface = &wma_handle->interfaces[vdev_id];
+
+		if (iface && iface->rmfEnabled &&
+		    !IEEE80211_IS_BROADCAST(wh->i_addr1) &&
+		    !IEEE80211_IS_MULTICAST(wh->i_addr1)) {
+			if (pFc->wep) {
+				orig_hdr = (uint8_t *)qdf_nbuf_data(nbuf);
+
+				if (iface->ucast_key_cipher ==
+				    WMI_CIPHER_AES_GCM) {
+					hdr_len = WLAN_IEEE80211_GCMP_HEADERLEN;
+					mic_len = WLAN_IEEE80211_GCMP_MICLEN;
+				} else {
+					hdr_len = IEEE80211_CCMP_HEADERLEN;
+					mic_len = IEEE80211_CCMP_MICLEN;
+				}
+				/* Strip privacy headers (and trailer)
+				 * for a received frame
+				 */
+				qdf_mem_move(orig_hdr +
+					     hdr_len, wh,
+					     sizeof(*wh));
+				qdf_nbuf_pull_head(nbuf,
+						   hdr_len);
+				qdf_nbuf_trim_tail(nbuf, mic_len);
+			}
+		} else if (iface && iface->rmfEnabled && (deauth_disassoc ||
+			   wma_is_rmf_mgmt_action_frame(action_category))) {
+			qdf_nbuf_trim_tail(nbuf, IEEE80211_MMIE_LEN);
+		}
+	}
 
 	txrx_status.tsft = (u_int64_t)hdr->tsf_l32;
 	txrx_status.chan_num = cds_freq_to_chan(hdr->chan_freq);
@@ -2826,6 +2893,9 @@ wma_process_mon_mgmt_tx_data(wmi_mgmt_hdr *hdr,
 		IEEE80211_CHAN_2GHZ : IEEE80211_CHAN_5GHZ);
 	txrx_status.chan_flags = channel_flags;
 	txrx_status.rate = ((txrx_status.rate == 6 /* Mbps */) ? 0x0c : 0x02);
+
+	wh = (struct ieee80211_frame *)qdf_nbuf_data(nbuf);
+	wh->i_fc[1] &= ~IEEE80211_FC1_WEP;
 
 	return ol_txrx_mon_mgmt_process(&txrx_status, nbuf, status);
 }
@@ -3652,6 +3722,7 @@ wma_process_mon_mgmt_rx_data(wmi_mgmt_rx_hdr *hdr,
 	ol_txrx_mon_callback_fp data_rx = NULL;
 	struct mon_rx_status txrx_status = {0};
 	uint16_t channel_flags = 0;
+	struct ieee80211_frame *wh;
 
 	pdev_ctx = cds_get_context(QDF_MODULE_ID_TXRX);
 	if (!pdev_ctx) {
@@ -3680,6 +3751,9 @@ wma_process_mon_mgmt_rx_data(wmi_mgmt_rx_hdr *hdr,
 		IEEE80211_CHAN_2GHZ : IEEE80211_CHAN_5GHZ);
 	txrx_status.chan_flags = channel_flags;
 	txrx_status.rate = ((txrx_status.rate == 6 /* Mbps */) ? 0x0c : 0x02);
+
+	wh = (struct ieee80211_frame *)qdf_nbuf_data(nbuf);
+	wh->i_fc[1] &= ~IEEE80211_FC1_WEP;
 
 	return ol_txrx_mon_mgmt_process(&txrx_status, nbuf, 0);
 }
@@ -4165,14 +4239,17 @@ static int wma_mgmt_rx_process(void *handle, uint8_t *data,
 	    (ol_cfg_pktcapture_mode(pdev->ctrl_pdev) &
 	     PKT_CAPTURE_MODE_MGMT_ONLY)) {
 		if (pdev->mon_cb) {
+			int buf_len;
+
+			buf_len = qdf_nbuf_len(wbuf);
 			nbuf = qdf_nbuf_alloc(NULL, roundup(
-					      hdr->buf_len + RESERVE_BYTES, 4),
+					      buf_len + RESERVE_BYTES, 4),
 					      RESERVE_BYTES, 4, false);
 			if (nbuf) {
-				qdf_nbuf_put_tail(nbuf, hdr->buf_len);
+				qdf_nbuf_put_tail(nbuf, buf_len);
 				qdf_mem_copy(qdf_nbuf_data(nbuf),
 					     qdf_nbuf_data(wbuf),
-					     hdr->buf_len);
+					     buf_len);
 				if (!wma_process_mon_mgmt_rx_data(hdr, nbuf))
 					qdf_nbuf_free(nbuf);
 			}

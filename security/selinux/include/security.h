@@ -157,10 +157,10 @@ int security_member_sid(u32 ssid, u32 tsid,
 int security_change_sid(u32 ssid, u32 tsid,
 	u16 tclass, u32 *out_sid);
 
-int security_sid_to_context(u32 sid, char **scontext,
-	u32 *scontext_len);
-
+int security_sid_to_context(u32 sid, char **scontext, u32 *scontext_len);
 int security_sid_to_context_force(u32 sid, char **scontext, u32 *scontext_len);
+int security_sid_to_context_stack(u32 sid, char **scontext, u32 *scontext_len);
+int security_sid_to_context_force_stack(u32 sid, char **scontext, u32 *scontext_len);
 
 int security_context_to_sid(const char *scontext, u32 scontext_len,
 			    u32 *out_sid, gfp_t gfp);

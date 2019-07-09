@@ -90,7 +90,7 @@ static u32 latest_granting;
 
 /* Forward declaration. */
 static int context_struct_to_string(struct context *context, char **scontext,
-				    u32 *scontext_len);
+				    u32 *scontext_len, bool alloc);
 
 static void context_struct_compute_av(struct context *scontext,
 					struct context *tcontext,
@@ -1193,20 +1193,24 @@ allow:
  * to point to this string and set `*scontext_len' to
  * the length of the string.
  */
-static int context_struct_to_string(struct context *context, char **scontext, u32 *scontext_len)
+static int context_struct_to_string(struct context *context, char **scontext, u32 *scontext_len, bool alloc)
 {
 	char *scontextp;
 
-	if (scontext)
+	if (alloc && scontext)
 		*scontext = NULL;
 	*scontext_len = 0;
 
 	if (context->len) {
 		*scontext_len = context->len;
-		if (scontext) {
-			*scontext = kstrdup(context->str, GFP_ATOMIC);
-			if (!(*scontext))
-				return -ENOMEM;
+		if (alloc) {
+			if (scontext) {
+				*scontext = kstrdup(context->str, GFP_ATOMIC);
+				if (!(*scontext))
+					return -ENOMEM;
+			}
+		} else {
+			strcpy(*scontext, context->str);
 		}
 		return 0;
 	}
@@ -1220,11 +1224,15 @@ static int context_struct_to_string(struct context *context, char **scontext, u3
 	if (!scontext)
 		return 0;
 
-	/* Allocate space for the context; caller must free this space. */
-	scontextp = kmalloc(*scontext_len, GFP_ATOMIC);
-	if (!scontextp)
-		return -ENOMEM;
-	*scontext = scontextp;
+	if (alloc) {
+		/* Allocate space for the context; caller must free this space. */
+		scontextp = kmalloc(*scontext_len, GFP_ATOMIC);
+		if (!scontextp)
+			return -ENOMEM;
+		*scontext = scontextp;
+	} else {
+		scontextp = *scontext;
+	}
 
 	/*
 	 * Copy the user name, role name and type name into the context.
@@ -1251,12 +1259,12 @@ const char *security_get_initial_sid_context(u32 sid)
 }
 
 static int security_sid_to_context_core(u32 sid, char **scontext,
-					u32 *scontext_len, int force)
+					u32 *scontext_len, int force, bool alloc)
 {
 	struct context *context;
 	int rc = 0;
 
-	if (scontext)
+	if (alloc && scontext)
 		*scontext = NULL;
 	*scontext_len  = 0;
 
@@ -1265,15 +1273,20 @@ static int security_sid_to_context_core(u32 sid, char **scontext,
 			char *scontextp;
 
 			*scontext_len = strlen(initial_sid_to_string[sid]) + 1;
-			if (!scontext)
-				goto out;
-			scontextp = kmemdup(initial_sid_to_string[sid],
-					    *scontext_len, GFP_ATOMIC);
-			if (!scontextp) {
-				rc = -ENOMEM;
-				goto out;
+			if (alloc) {
+				if (!scontext)
+					goto out;
+				scontextp = kmemdup(initial_sid_to_string[sid],
+						    *scontext_len, GFP_ATOMIC);
+				if (!scontextp) {
+					rc = -ENOMEM;
+					goto out;
+				}
+				*scontext = scontextp;
+			} else {
+				strncpy(*scontext, initial_sid_to_string[sid],
+					*scontext_len);
 			}
-			*scontext = scontextp;
 			goto out;
 		}
 		printk(KERN_ERR "SELinux: %s:  called before initial "
@@ -1292,7 +1305,7 @@ static int security_sid_to_context_core(u32 sid, char **scontext,
 		rc = -EINVAL;
 		goto out_unlock;
 	}
-	rc = context_struct_to_string(context, scontext, scontext_len);
+	rc = context_struct_to_string(context, scontext, scontext_len, alloc);
 out_unlock:
 	read_unlock(&policy_rwlock);
 out:
@@ -1312,12 +1325,22 @@ out:
  */
 int security_sid_to_context(u32 sid, char **scontext, u32 *scontext_len)
 {
-	return security_sid_to_context_core(sid, scontext, scontext_len, 0);
+	return security_sid_to_context_core(sid, scontext, scontext_len, 0, true);
 }
 
 int security_sid_to_context_force(u32 sid, char **scontext, u32 *scontext_len)
 {
-	return security_sid_to_context_core(sid, scontext, scontext_len, 1);
+	return security_sid_to_context_core(sid, scontext, scontext_len, 1, true);
+}
+
+int security_sid_to_context_stack(u32 sid, char **scontext, u32 *scontext_len)
+{
+	return security_sid_to_context_core(sid, scontext, scontext_len, 0, false);
+}
+
+int security_sid_to_context_force_stack(u32 sid, char **scontext, u32 *scontext_len)
+{
+	return security_sid_to_context_core(sid, scontext, scontext_len, 1, false);
 }
 
 /*

@@ -94,27 +94,24 @@ struct snd_ctl_elem_info32 {
 static int snd_ctl_elem_info_compat(struct snd_ctl_file *ctl,
 				    struct snd_ctl_elem_info32 __user *data32)
 {
-	struct snd_ctl_elem_info *data;
+	struct snd_ctl_elem_info data;
 	int err;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if (! data)
-		return -ENOMEM;
-
+	memset(&data, 0, sizeof(data));
 	err = -EFAULT;
 	/* copy id */
-	if (copy_from_user(&data->id, &data32->id, sizeof(data->id)))
+	if (copy_from_user(&data.id, &data32->id, sizeof(data.id)))
 		goto error;
 	/* we need to copy the item index.
 	 * hope this doesn't break anything..
 	 */
-	if (get_user(data->value.enumerated.item, &data32->value.enumerated.item))
+	if (get_user(data.value.enumerated.item, &data32->value.enumerated.item))
 		goto error;
 
 	snd_power_lock(ctl->card);
 	err = snd_power_wait(ctl->card, SNDRV_CTL_POWER_D0);
 	if (err >= 0)
-		err = snd_ctl_elem_info(ctl, data);
+		err = snd_ctl_elem_info(ctl, &data);
 	snd_power_unlock(ctl->card);
 
 	if (err < 0)
@@ -122,29 +119,29 @@ static int snd_ctl_elem_info_compat(struct snd_ctl_file *ctl,
 	/* restore info to 32bit */
 	err = -EFAULT;
 	/* id, type, access, count */
-	if (copy_to_user(&data32->id, &data->id, sizeof(data->id)) ||
-	    copy_to_user(&data32->type, &data->type, 3 * sizeof(u32)))
+	if (copy_to_user(&data32->id, &data.id, sizeof(data.id)) ||
+	    copy_to_user(&data32->type, &data.type, 3 * sizeof(u32)))
 		goto error;
-	if (put_user(data->owner, &data32->owner))
+	if (put_user(data.owner, &data32->owner))
 		goto error;
-	switch (data->type) {
+	switch (data.type) {
 	case SNDRV_CTL_ELEM_TYPE_BOOLEAN:
 	case SNDRV_CTL_ELEM_TYPE_INTEGER:
-		if (put_user(data->value.integer.min, &data32->value.integer.min) ||
-		    put_user(data->value.integer.max, &data32->value.integer.max) ||
-		    put_user(data->value.integer.step, &data32->value.integer.step))
+		if (put_user(data.value.integer.min, &data32->value.integer.min) ||
+		    put_user(data.value.integer.max, &data32->value.integer.max) ||
+		    put_user(data.value.integer.step, &data32->value.integer.step))
 			goto error;
 		break;
 	case SNDRV_CTL_ELEM_TYPE_INTEGER64:
 		if (copy_to_user(&data32->value.integer64,
-				 &data->value.integer64,
-				 sizeof(data->value.integer64)))
+				 &data.value.integer64,
+				 sizeof(data.value.integer64)))
 			goto error;
 		break;
 	case SNDRV_CTL_ELEM_TYPE_ENUMERATED:
 		if (copy_to_user(&data32->value.enumerated,
-				 &data->value.enumerated,
-				 sizeof(data->value.enumerated)))
+				 &data.value.enumerated,
+				 sizeof(data.value.enumerated)))
 			goto error;
 		break;
 	default:
@@ -152,7 +149,6 @@ static int snd_ctl_elem_info_compat(struct snd_ctl_file *ctl,
 	}
 	err = 0;
  error:
-	kfree(data);
 	return err;
 }
 
@@ -189,7 +185,7 @@ static int get_ctl_type(struct snd_card *card, struct snd_ctl_elem_id *id,
 			int *countp)
 {
 	struct snd_kcontrol *kctl;
-	struct snd_ctl_elem_info *info;
+	struct snd_ctl_elem_info info;
 	int err;
 
 	down_read(&card->controls_rwsem);
@@ -198,19 +194,13 @@ static int get_ctl_type(struct snd_card *card, struct snd_ctl_elem_id *id,
 		up_read(&card->controls_rwsem);
 		return -ENXIO;
 	}
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
-	if (info == NULL) {
-		up_read(&card->controls_rwsem);
-		return -ENOMEM;
-	}
-	info->id = *id;
-	err = kctl->info(kctl, info);
+	info = (typeof(info)){ .id = *id };
+	err = kctl->info(kctl, &info);
 	up_read(&card->controls_rwsem);
 	if (err >= 0) {
-		err = info->type;
-		*countp = info->count;
+		err = info.type;
+		*countp = info.count;
 	}
-	kfree(info);
 	return err;
 }
 
@@ -303,14 +293,11 @@ static int copy_ctl_value_to_user(void __user *userdata,
 static int ctl_elem_read_user(struct snd_card *card,
 			      void __user *userdata, void __user *valuep)
 {
-	struct snd_ctl_elem_value *data;
+	struct snd_ctl_elem_value data;
 	int err, type, count;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if (data == NULL)
-		return -ENOMEM;
-
-	err = copy_ctl_value_from_user(card, data, userdata, valuep,
+	memset(&data, 0, sizeof(data));
+	err = copy_ctl_value_from_user(card, &data, userdata, valuep,
 				       &type, &count);
 	if (err < 0)
 		goto error;
@@ -318,28 +305,24 @@ static int ctl_elem_read_user(struct snd_card *card,
 	snd_power_lock(card);
 	err = snd_power_wait(card, SNDRV_CTL_POWER_D0);
 	if (err >= 0)
-		err = snd_ctl_elem_read(card, data);
+		err = snd_ctl_elem_read(card, &data);
 	snd_power_unlock(card);
 	if (err >= 0)
-		err = copy_ctl_value_to_user(userdata, valuep, data,
+		err = copy_ctl_value_to_user(userdata, valuep, &data,
 					     type, count);
  error:
-	kfree(data);
 	return err;
 }
 
 static int ctl_elem_write_user(struct snd_ctl_file *file,
 			       void __user *userdata, void __user *valuep)
 {
-	struct snd_ctl_elem_value *data;
+	struct snd_ctl_elem_value data;
 	struct snd_card *card = file->card;
 	int err, type, count;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if (data == NULL)
-		return -ENOMEM;
-
-	err = copy_ctl_value_from_user(card, data, userdata, valuep,
+	memset(&data, 0, sizeof(data));
+	err = copy_ctl_value_from_user(card, &data, userdata, valuep,
 				       &type, &count);
 	if (err < 0)
 		goto error;
@@ -347,13 +330,12 @@ static int ctl_elem_write_user(struct snd_ctl_file *file,
 	snd_power_lock(card);
 	err = snd_power_wait(card, SNDRV_CTL_POWER_D0);
 	if (err >= 0)
-		err = snd_ctl_elem_write(card, file, data);
+		err = snd_ctl_elem_write(card, file, &data);
 	snd_power_unlock(card);
 	if (err >= 0)
-		err = copy_ctl_value_to_user(userdata, valuep, data,
+		err = copy_ctl_value_to_user(userdata, valuep, &data,
 					     type, count);
  error:
-	kfree(data);
 	return err;
 }
 
@@ -388,48 +370,44 @@ static int snd_ctl_elem_add_compat(struct snd_ctl_file *file,
 				   struct snd_ctl_elem_info32 __user *data32,
 				   int replace)
 {
-	struct snd_ctl_elem_info *data;
+	struct snd_ctl_elem_info data;
 	int err;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if (! data)
-		return -ENOMEM;
-
+	memset(&data, 0, sizeof(data));
 	err = -EFAULT;
 	/* id, type, access, count */ \
-	if (copy_from_user(&data->id, &data32->id, sizeof(data->id)) ||
-	    copy_from_user(&data->type, &data32->type, 3 * sizeof(u32)))
+	if (copy_from_user(&data.id, &data32->id, sizeof(data.id)) ||
+	    copy_from_user(&data.type, &data32->type, 3 * sizeof(u32)))
 		goto error;
-	if (get_user(data->owner, &data32->owner))
+	if (get_user(data.owner, &data32->owner))
 		goto error;
-	switch (data->type) {
+	switch (data.type) {
 	case SNDRV_CTL_ELEM_TYPE_BOOLEAN:
 	case SNDRV_CTL_ELEM_TYPE_INTEGER:
-		if (get_user(data->value.integer.min, &data32->value.integer.min) ||
-		    get_user(data->value.integer.max, &data32->value.integer.max) ||
-		    get_user(data->value.integer.step, &data32->value.integer.step))
+		if (get_user(data.value.integer.min, &data32->value.integer.min) ||
+		    get_user(data.value.integer.max, &data32->value.integer.max) ||
+		    get_user(data.value.integer.step, &data32->value.integer.step))
 			goto error;
 		break;
 	case SNDRV_CTL_ELEM_TYPE_INTEGER64:
-		if (copy_from_user(&data->value.integer64,
+		if (copy_from_user(&data.value.integer64,
 				   &data32->value.integer64,
-				   sizeof(data->value.integer64)))
+				   sizeof(data.value.integer64)))
 			goto error;
 		break;
 	case SNDRV_CTL_ELEM_TYPE_ENUMERATED:
-		if (copy_from_user(&data->value.enumerated,
+		if (copy_from_user(&data.value.enumerated,
 				   &data32->value.enumerated,
-				   sizeof(data->value.enumerated)))
+				   sizeof(data.value.enumerated)))
 			goto error;
-		data->value.enumerated.names_ptr =
-			(uintptr_t)compat_ptr(data->value.enumerated.names_ptr);
+		data.value.enumerated.names_ptr =
+			(uintptr_t)compat_ptr(data.value.enumerated.names_ptr);
 		break;
 	default:
 		break;
 	}
-	err = snd_ctl_elem_add(file, data, replace);
+	err = snd_ctl_elem_add(file, &data, replace);
  error:
-	kfree(data);
 	return err;
 }  
 

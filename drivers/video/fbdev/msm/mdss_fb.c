@@ -3518,7 +3518,7 @@ static int mdss_fb_pan_display(struct fb_var_screeninfo *var,
 	 * 2. When the splash handoff is pending.
 	 */
 	if ((mfd->switch_state != MDSS_MDP_NO_UPDATE_REQUESTED) ||
-			mdata->handoff_pending) {
+		(mdss_fb_is_hdmi_primary(mfd) && mdata->handoff_pending)) {
 		pr_debug("fb%d: pan_display skipped during switch or handoff\n",
 				mfd->index);
 		return 0;

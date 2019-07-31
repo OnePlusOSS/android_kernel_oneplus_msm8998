@@ -4903,9 +4903,9 @@ static int mdss_fb_atomic_commit_ioctl(struct fb_info *info,
 	int ret, i = 0, j = 0, rc;
 	struct mdp_layer_commit  commit;
 	u32 buffer_size, layer_count;
-	struct mdp_input_layer *layer, *layer_list = NULL;
+	struct mdp_input_layer *layer, layer_list[MAX_LAYER_COUNT];
 	struct mdp_input_layer __user *input_layer_list;
-	struct mdp_output_layer *output_layer = NULL;
+	struct mdp_output_layer output_layer;
 	struct mdp_output_layer __user *output_layer_user;
 	struct mdp_destination_scaler_data __user *ds_data_user;
 	struct msm_fb_data_type *mfd;
@@ -4942,20 +4942,13 @@ static int mdss_fb_atomic_commit_ioctl(struct fb_info *info,
 
 	output_layer_user = commit.commit_v1.output_layer;
 	if (output_layer_user) {
-		buffer_size = sizeof(struct mdp_output_layer);
-		output_layer = kzalloc(buffer_size, GFP_KERNEL);
-		if (!output_layer) {
-			pr_err("unable to allocate memory for output layer\n");
-			return -ENOMEM;
-		}
-
-		ret = copy_from_user(output_layer,
-			output_layer_user, buffer_size);
+		ret = copy_from_user(&output_layer, output_layer_user,
+				     sizeof(output_layer));
 		if (ret) {
 			pr_err("layer list copy from user failed\n");
 			goto err;
 		}
-		commit.commit_v1.output_layer = output_layer;
+		commit.commit_v1.output_layer = &output_layer;
 	}
 
 	layer_count = commit.commit_v1.input_layer_cnt;
@@ -4967,13 +4960,6 @@ static int mdss_fb_atomic_commit_ioctl(struct fb_info *info,
 		goto err;
 	} else if (layer_count) {
 		buffer_size = sizeof(struct mdp_input_layer) * layer_count;
-		layer_list = kzalloc(buffer_size, GFP_KERNEL);
-		if (!layer_list) {
-			pr_err("unable to allocate memory for layers\n");
-			ret = -ENOMEM;
-			goto err;
-		}
-
 		ret = copy_from_user(layer_list, input_layer_list, buffer_size);
 		if (ret) {
 			pr_err("layer list copy from user failed\n");
@@ -5049,7 +5035,7 @@ static int mdss_fb_atomic_commit_ioctl(struct fb_info *info,
 
 	if (output_layer_user) {
 		rc = copy_to_user(&output_layer_user->buffer.fence,
-			&output_layer->buffer.fence,
+			&output_layer.buffer.fence,
 			sizeof(int));
 
 		if (rc)
@@ -5062,8 +5048,6 @@ err:
 		layer_list[i].scale = NULL;
 		mdss_mdp_free_layer_pp_info(&layer_list[i]);
 	}
-	kfree(layer_list);
-	kfree(output_layer);
 
 	return ret;
 }

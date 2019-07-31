@@ -2386,6 +2386,7 @@ static u32 mdss_mdp_scaler_init(struct mdss_data_type *mdata,
 			return -EINVAL;
 		}
 		mdata->scaler_off->ndest_scalers = len/sizeof(u32);
+		BUG_ON(mdata->scaler_off->ndest_scalers > 2);
 
 		mdata->scaler_off->dest_scaler_off =
 			devm_kzalloc(dev, sizeof(u32) *

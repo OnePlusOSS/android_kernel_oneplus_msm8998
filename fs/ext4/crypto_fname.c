@@ -74,7 +74,8 @@ static int ext4_fname_encrypt(struct inode *inode,
 	char iv[EXT4_CRYPTO_BLOCK_SIZE];
 	struct scatterlist src_sg, dst_sg;
 	int padding = 4 << (ci->ci_flags & EXT4_POLICY_FLAGS_PAD_MASK);
-	char *workbuf, buf[32], *alloc_buf = NULL;
+	char *workbuf, *alloc_buf = NULL;
+	char buf[SZ_4K] __aligned(sizeof(long));
 	unsigned lim = max_name_len(inode);
 
 	if (iname->len <= 0 || iname->len > lim)

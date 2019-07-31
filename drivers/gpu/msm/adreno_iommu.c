@@ -753,20 +753,13 @@ static int _set_pagetable_gpu(struct adreno_ringbuffer *rb,
 			struct kgsl_pagetable *new_pt)
 {
 	struct adreno_device *adreno_dev = ADRENO_RB_DEVICE(rb);
-	unsigned int *link = NULL, *cmds;
+	unsigned int link[PAGE_SIZE / sizeof(unsigned int)];
+	unsigned int *cmds = link;
 	int result;
 
-	link = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	if (link == NULL)
-		return -ENOMEM;
-
-	cmds = link;
-
 	/* If we are in a fault the MMU will be reset soon */
-	if (test_bit(ADRENO_DEVICE_FAULT, &adreno_dev->priv)) {
-		kfree(link);
+	if (test_bit(ADRENO_DEVICE_FAULT, &adreno_dev->priv))
 		return 0;
-	}
 
 	cmds += adreno_iommu_set_pt_generate_cmds(rb, cmds, new_pt);
 
@@ -783,7 +776,6 @@ static int _set_pagetable_gpu(struct adreno_ringbuffer *rb,
 			KGSL_CMD_FLAGS_PMODE, link,
 			(unsigned int)(cmds - link));
 
-	kfree(link);
 	return result;
 }
 

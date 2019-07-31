@@ -656,13 +656,14 @@ static int heh_setkey(struct crypto_ablkcipher *parent, const u8 *key,
 		      unsigned int keylen)
 {
 	struct heh_tfm_ctx *ctx = crypto_ablkcipher_ctx(parent);
+	u8 derived_keys_onstack[SZ_1K] __aligned(sizeof(long));
 	struct crypto_shash *cmac = ctx->cmac;
 	struct crypto_ablkcipher *ecb = ctx->ecb;
 	SHASH_DESC_ON_STACK(desc, cmac);
 	u8 *derived_keys;
 	u8 digest[HEH_BLOCK_SIZE];
 	unsigned int i;
-	int err;
+	int err, len;
 
 	/* set prf_key = key */
 	crypto_shash_clear_flags(cmac, CRYPTO_TFM_REQ_MASK);
@@ -680,10 +681,15 @@ static int heh_setkey(struct crypto_ablkcipher *parent, const u8 *key,
 	 * ecb_key = cmac(prf_key, 0x00...02) || cmac(prf_key, 0x00...03) || ...
 	 *           truncated to keylen bytes
 	 */
-	derived_keys = kzalloc(round_up(HEH_BLOCK_SIZE + keylen,
-					HEH_BLOCK_SIZE), GFP_KERNEL);
-	if (!derived_keys)
-		return -ENOMEM;
+	len = round_up(HEH_BLOCK_SIZE + keylen, HEH_BLOCK_SIZE);
+	if (len <= ARRAY_SIZE(derived_keys_onstack)) {
+		derived_keys = derived_keys_onstack;
+		memset(derived_keys, 0, len);
+	} else {
+		derived_keys = kzalloc(len, GFP_KERNEL);
+		if (!derived_keys)
+			return -ENOMEM;
+	}
 	desc->tfm = cmac;
 	desc->flags = (crypto_shash_get_flags(cmac) & CRYPTO_TFM_REQ_MASK);
 	for (i = 0; i < keylen + HEH_BLOCK_SIZE; i += HEH_BLOCK_SIZE) {
@@ -708,7 +714,10 @@ static int heh_setkey(struct crypto_ablkcipher *parent, const u8 *key,
 	crypto_ablkcipher_set_flags(parent, crypto_ablkcipher_get_flags(ecb) &
 					    CRYPTO_TFM_RES_MASK);
 out:
-	kzfree(derived_keys);
+	if (derived_keys == derived_keys_onstack)
+		memzero_explicit(derived_keys, len);
+	else
+		kzfree(derived_keys);
 	return err;
 }
 

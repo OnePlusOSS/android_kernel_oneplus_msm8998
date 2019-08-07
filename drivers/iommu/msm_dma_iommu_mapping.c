@@ -40,7 +40,6 @@ struct msm_iommu_meta {
 	struct rb_node node;
 	struct list_head maps;
 	struct kref ref;
-	struct mutex map_lock;
 	rwlock_t lock;
 	void *buffer;
 };
@@ -140,10 +139,7 @@ static void msm_iommu_map_destroy(struct kref *kref)
 	list_del(&map->lnode);
 	write_unlock(&meta->lock);
 
-	mutex_lock(&meta->map_lock);
 	dma_unmap_sg(map->dev, &map->sgl, map->nents, map->dir);
-	mutex_unlock(&meta->map_lock);
-
 	kfree(map);
 }
 
@@ -162,7 +158,6 @@ static struct msm_iommu_meta *msm_iommu_meta_create(struct dma_buf *dma_buf)
 
 	meta->buffer = dma_buf->priv;
 	kref_init(&meta->ref);
-	mutex_init(&meta->map_lock);
 	rwlock_init(&meta->lock);
 	INIT_LIST_HEAD(&meta->maps);
 	msm_iommu_meta_add(meta);
@@ -210,9 +205,7 @@ static int __msm_dma_map_sg(struct device *dev, struct scatterlist *sg,
 			goto release_meta;
 		}
 
-		mutex_lock(&meta->map_lock);
 		ret = dma_map_sg_attrs(dev, sg, nents, dir, attrs);
-		mutex_unlock(&meta->map_lock);
 		if (ret != nents) {
 			kfree(map);
 			goto release_meta;
@@ -304,28 +297,6 @@ void msm_dma_unmap_sg(struct device *dev, struct scatterlist *sgl, int nents,
 }
 EXPORT_SYMBOL(msm_dma_unmap_sg);
 
-static void msm_dma_unmap_list(struct list_head *unmap_list)
-{
-	struct msm_iommu_map *map, *map_next;
-	struct msm_iommu_meta *meta;
-	LIST_HEAD(kfree_list);
-
-	while (!list_empty(unmap_list)) {
-		meta = list_first_entry(unmap_list, typeof(*map), lnode)->meta;
-		mutex_lock(&meta->map_lock);
-		list_for_each_entry_safe(map, map_next, unmap_list, lnode) {
-			if (map->meta != meta)
-				break;
-			dma_unmap_sg(map->dev, &map->sgl, map->nents, map->dir);
-			list_move_tail(&map->lnode, &kfree_list);
-		}
-		mutex_unlock(&meta->map_lock);
-	}
-
-	list_for_each_entry_safe(map, map_next, &kfree_list, lnode)
-		kfree(map);
-}
-
 int msm_dma_unmap_all_for_dev(struct device *dev)
 {
 	struct msm_iommu_map *map, *map_next;
@@ -355,7 +326,10 @@ int msm_dma_unmap_all_for_dev(struct device *dev)
 	}
 	read_unlock(&rb_tree_lock);
 
-	msm_dma_unmap_list(&unmap_list);
+	list_for_each_entry_safe(map, map_next, &unmap_list, lnode) {
+		dma_unmap_sg(map->dev, &map->sgl, map->nents, map->dir);
+		kfree(map);
+	}
 
 	return ret;
 }
@@ -380,7 +354,10 @@ void msm_dma_buf_freed(void *buffer)
 	}
 	write_unlock(&meta->lock);
 
-	msm_dma_unmap_list(&unmap_list);
+	list_for_each_entry_safe(map, map_next, &unmap_list, lnode) {
+		dma_unmap_sg(map->dev, &map->sgl, map->nents, map->dir);
+		kfree(map);
+	}
 
 	/* Do an extra put to undo msm_iommu_meta_lookup_get */
 	kref_put(&meta->ref, msm_iommu_meta_destroy);

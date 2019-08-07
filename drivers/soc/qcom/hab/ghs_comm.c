@@ -53,6 +53,12 @@ int physical_channel_send(struct physical_channel *pchan,
 	GIPC_Result result = GIPC_Success;
 	uint8_t *msg = NULL;
 
+	if (!dev) {
+		pr_err("no send pchan %s has been de-alloced msg for %zd bytes\n",
+			pchan->name);
+		return -ENODEV;
+	}
+
 	spin_lock_bh(&dev->io_lock);
 
 	result = GIPC_PrepareMessage(dev->endpoint, sizebytes+sizeof(*header),
@@ -104,9 +110,14 @@ void physical_channel_rx_dispatch(unsigned long physical_channel)
 		(struct physical_channel *)physical_channel;
 	struct ghs_vdev *dev = (struct ghs_vdev *)pchan->hyp_data;
 	GIPC_Result result = GIPC_Success;
-
 	uint32_t events;
 	unsigned long flags;
+
+	if (!dev) {
+		pr_err("no recv pchan %s has been de-alloced msg for %zd bytes\n",
+			pchan->name);
+		return;
+	}
 
 	spin_lock_irqsave(&pchan->rxbuf_lock, flags);
 	events = kgipc_dequeue_events(dev->endpoint);

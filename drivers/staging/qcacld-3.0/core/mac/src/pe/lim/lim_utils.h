@@ -460,6 +460,11 @@ void lim_handle_heart_beat_failure_timeout(tpAniSirGlobal pMac);
 	cfg_get_vendor_ie_ptr_from_oui(pMac, SIR_MAC_P2P_OUI, \
 			SIR_MAC_P2P_OUI_SIZE, ie, ie_len)
 
+#define LE_READ_2(p) \
+	((uint16_t)\
+	((((const uint8_t *)(p))[0]) |\
+	(((const uint8_t *)(p))[1] <<  8)))
+
 uint8_t lim_get_noa_attr_stream_in_mult_p2p_ies(tpAniSirGlobal pMac,
 		uint8_t *noaStream, uint8_t noaLen,
 		uint8_t overFlowLen);

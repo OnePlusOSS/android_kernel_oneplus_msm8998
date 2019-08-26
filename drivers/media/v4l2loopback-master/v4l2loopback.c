@@ -483,6 +483,8 @@ static ssize_t attr_store_format(struct device *cd,
 	struct v4l2_loopback_device *dev = v4l2loopback_cd2dev(cd);
 	int fps_num = 0, fps_den = 1;
 
+	if (!dev)
+		return -EINVAL;
 	/* only fps changing is supported */
 	if (sscanf(buf, "@%d/%d", &fps_num, &fps_den) > 0) {
 		struct v4l2_fract f = {
@@ -490,7 +492,6 @@ static ssize_t attr_store_format(struct device *cd,
 			.denominator = fps_num
 		};
 		int err = 0;
-
 		err = set_timeperframe(dev, &f);
 		if (err < 0)
 			return err;
@@ -671,7 +672,7 @@ static inline void unset_flags(struct v4l2l_buffer *buffer)
 static void vidioc_fill_name(char *buf, int len, int nr)
 {
 	if (card_label[nr] != NULL)
-		snprintf(buf, len, card_label[nr]);
+		snprintf(buf, len, "%s\n", card_label[nr]);
 	else
 		snprintf(buf, len, "Dummy video device (0x%04X)", nr);
 }
@@ -1909,7 +1910,7 @@ static int v4l2_loopback_mmap(struct file *file, struct vm_area_struct *vma)
 
 		page = (void *)vmalloc_to_page((void *)addr);
 
-		if (vm_insert_page(vma, start, page) < 0)
+		if (!page || vm_insert_page(vma, start, page) < 0)
 			return -EAGAIN;
 
 		start += PAGE_SIZE;

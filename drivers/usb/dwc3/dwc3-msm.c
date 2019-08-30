@@ -2325,6 +2325,12 @@ static int dwc3_msm_resume(struct dwc3_msm *mdwc)
 	/* Resume HS PHY */
 	usb_phy_set_suspend(mdwc->hs_phy, 0);
 
+	/* Disable HSPHY auto suspend */
+	dwc3_msm_write_reg(mdwc->base, DWC3_GUSB2PHYCFG(0),
+		dwc3_msm_read_reg(mdwc->base, DWC3_GUSB2PHYCFG(0)) &
+				~(DWC3_GUSB2PHYCFG_ENBLSLPM |
+					DWC3_GUSB2PHYCFG_SUSPHY));
+
 	/* Recover from controller power collapse */
 	if (mdwc->lpm_flags & MDWC3_POWER_COLLAPSE) {
 		dev_dbg(mdwc->dev, "%s: exit power collapse\n", __func__);
@@ -2338,12 +2344,6 @@ static int dwc3_msm_resume(struct dwc3_msm *mdwc)
 
 	/* enable power evt irq for IN P3 detection */
 	enable_irq(mdwc->pwr_event_irq);
-
-	/* Disable HSPHY auto suspend */
-	dwc3_msm_write_reg(mdwc->base, DWC3_GUSB2PHYCFG(0),
-		dwc3_msm_read_reg(mdwc->base, DWC3_GUSB2PHYCFG(0)) &
-				~(DWC3_GUSB2PHYCFG_ENBLSLPM |
-					DWC3_GUSB2PHYCFG_SUSPHY));
 
 	/* Disable wakeup capable for HS_PHY IRQ & SS_PHY_IRQ if enabled */
 	if (mdwc->lpm_flags & MDWC3_ASYNC_IRQ_WAKE_CAPABILITY) {

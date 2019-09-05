@@ -2029,6 +2029,8 @@
 			interrupts = <0 131 0>;
 			usb-phy = <&qusb_phy0>, <&ssphy>;
 			tx-fifo-resize;
+			snps,dis_u2_susphy_quirk;
+			snps,dis_enblslpm_quirk;
 			snps,usb3-u1u2-disable;
 			snps,nominal-elastic-buffer;
 			snps,is-utmi-l1-suspend;
@@ -2138,6 +2140,8 @@
 			interrupts = <0 138 0>;
 			usb-phy = <&qusb_phy1>, <&usb_nop_phy>;
 			maximum-speed = "high-speed";
+			snps,dis_u2_susphy_quirk;
+			snps,dis_enblslpm_quirk;
 			snps,nominal-elastic-buffer;
 			snps,is-utmi-l1-suspend;
 			snps,hird-threshold = /bits/ 8 <0x0>;

@@ -2125,5 +2125,6 @@ struct dentry *ipa_debugfs_get_root(void);
 bool ipa3_is_msm_device(void);
 struct device *ipa3_get_pdev(void);
 int ipa3_allocate_dma_task_for_gsi(void);
+bool ipa3_check_idr_if_freed(void *ptr);
 void ipa3_free_dma_task_for_gsi(void);
 #endif /* _IPA3_I_H_ */

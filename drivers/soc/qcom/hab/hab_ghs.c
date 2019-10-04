@@ -263,7 +263,8 @@ int habhyp_commdev_dealloc(void *commdev)
 	kgipc_endpoint_free(dev->endpoint);
 	kfree(dev->read_data);
 	kfree(dev);
-
+	pchan->closed = 1;
+	pchan->hyp_data = NULL;
 	if (get_refcnt(pchan->refcount) > 1) {
 		pr_warn("potential leak pchan %s vchans %d refcnt %d\n",
 			pchan->name, pchan->vcnt, get_refcnt(pchan->refcount));

@@ -61,6 +61,40 @@ module_param(quirks, ulong, 0600);
 MODULE_PARM_DESC(quirks, "Debug quirks for the driver");
 #endif
 
+static unsigned int wow_wake_gpionum;
+#ifdef CONFIG_CNSS2_DEBUG
+module_param(wow_wake_gpionum, uint, 0600);
+MODULE_PARM_DESC(wow_wake_gpionum, "configure gpio number for wow wake");
+#endif
+
+static unsigned int wow_wake_enable;
+int cnss_enable_wow_wake(const char *val, const struct kernel_param *kp)
+{
+	int ret;
+	unsigned int prev_val;
+
+	prev_val = *(unsigned int *)kp->arg;
+	ret = param_set_uint(val, kp);
+	if (ret || prev_val == wow_wake_enable) {
+		cnss_pr_err("failed set new wow_enable ret = %d", ret);
+		return ret;
+	}
+	if (wow_wake_enable) {
+		if (!wow_wake_gpionum)
+			wow_wake_gpionum = HOST_WAKE_GPIO_IN;
+		cnss_set_wlan_chip_to_host_wakeup(wow_wake_gpionum);
+	}
+	return 0;
+}
+
+static const struct kernel_param_ops cnss_param_ops_uint = {
+	.set = &cnss_enable_wow_wake,
+	.get = &param_get_uint
+};
+
+module_param_cb(wow_wake_enable, &cnss_param_ops_uint,
+		&wow_wake_enable, 0600);
+
 static struct cnss_fw_files FW_FILES_QCA6174_FW_3_0 = {
 	"qwlan30.bin", "bdwlan30.bin", "otp30.bin", "utf30.bin",
 	"utfbd30.bin", "epping30.bin", "evicted30.bin"

@@ -276,6 +276,8 @@ struct dwc3_msm {
 	struct mutex suspend_resume_mutex;
 
 	enum usb_device_speed override_usb_speed;
+
+	bool core_init_failed;
 };
 
 #define USB_HSPHY_3P3_VOL_MIN		3050000 /* uV */
@@ -1953,12 +1955,20 @@ static void dwc3_msm_power_collapse_por(struct dwc3_msm *mdwc)
 		ret = dwc3_core_pre_init(dwc);
 		if (ret) {
 			dev_err(mdwc->dev, "dwc3_core_pre_init failed\n");
+			mdwc->core_init_failed = true;
 			return;
 		}
 		mdwc->init = true;
 	}
 
-	dwc3_core_init(dwc);
+	ret = dwc3_core_init(dwc);
+	if (ret) {
+		dev_err(mdwc->dev, "dwc3_core_init failed\n");
+		mdwc->core_init_failed = true;
+		return;
+	}
+
+	mdwc->core_init_failed = false;
 	/* Re-configure event buffers */
 	dwc3_event_buffers_setup(dwc);
 
@@ -2229,7 +2239,7 @@ static int dwc3_msm_suspend(struct dwc3_msm *mdwc, bool hibernation)
 
 	/* kick_sm if it is waiting for lpm sequence to finish */
 	if (test_and_clear_bit(WAIT_FOR_LPM, &mdwc->inputs))
-		schedule_delayed_work(&mdwc->sm_work, 0);
+		queue_delayed_work(mdwc->sm_usb_wq, &mdwc->sm_work, 0);
 
 	mutex_unlock(&mdwc->suspend_resume_mutex);
 
@@ -2325,6 +2335,12 @@ static int dwc3_msm_resume(struct dwc3_msm *mdwc)
 	/* Resume HS PHY */
 	usb_phy_set_suspend(mdwc->hs_phy, 0);
 
+	/* Disable HSPHY auto suspend */
+	dwc3_msm_write_reg(mdwc->base, DWC3_GUSB2PHYCFG(0),
+		dwc3_msm_read_reg(mdwc->base, DWC3_GUSB2PHYCFG(0)) &
+				~(DWC3_GUSB2PHYCFG_ENBLSLPM |
+					DWC3_GUSB2PHYCFG_SUSPHY));
+
 	/* Recover from controller power collapse */
 	if (mdwc->lpm_flags & MDWC3_POWER_COLLAPSE) {
 		dev_dbg(mdwc->dev, "%s: exit power collapse\n", __func__);
@@ -2338,12 +2354,6 @@ static int dwc3_msm_resume(struct dwc3_msm *mdwc)
 
 	/* enable power evt irq for IN P3 detection */
 	enable_irq(mdwc->pwr_event_irq);
-
-	/* Disable HSPHY auto suspend */
-	dwc3_msm_write_reg(mdwc->base, DWC3_GUSB2PHYCFG(0),
-		dwc3_msm_read_reg(mdwc->base, DWC3_GUSB2PHYCFG(0)) &
-				~(DWC3_GUSB2PHYCFG_ENBLSLPM |
-					DWC3_GUSB2PHYCFG_SUSPHY));
 
 	/* Disable wakeup capable for HS_PHY IRQ & SS_PHY_IRQ if enabled */
 	if (mdwc->lpm_flags & MDWC3_ASYNC_IRQ_WAKE_CAPABILITY) {
@@ -3602,6 +3612,12 @@ static int dwc3_otg_start_host(struct dwc3_msm *mdwc, int on)
 		dev_dbg(mdwc->dev, "%s: turn on host\n", __func__);
 
 		pm_runtime_get_sync(mdwc->dev);
+		if (mdwc->core_init_failed) {
+			dev_err(mdwc->dev, "%s: Core init failed\n", __func__);
+			pm_runtime_put_sync_suspend(mdwc->dev);
+			return -EAGAIN;
+		}
+
 		mdwc->hs_phy->flags |= PHY_HOST_MODE;
 		if (dwc->maximum_speed == USB_SPEED_SUPER) {
 			mdwc->ss_phy->flags |= PHY_HOST_MODE;
@@ -3748,8 +3764,7 @@ static int dwc3_otg_start_host(struct dwc3_msm *mdwc, int on)
 		/* wait for LPM, to ensure h/w is reset after stop_host */
 		set_bit(WAIT_FOR_LPM, &mdwc->inputs);
 
-		pm_runtime_mark_last_busy(mdwc->dev);
-		pm_runtime_put_sync_autosuspend(mdwc->dev);
+		pm_runtime_put_sync_suspend(mdwc->dev);
 		dbg_event(0xFF, "StopHost psync",
 			atomic_read(&mdwc->dev->power.usage_count));
 	}
@@ -4076,6 +4091,10 @@ static void dwc3_otg_sm_work(struct work_struct *w)
 				delay = VBUS_REG_CHECK_DELAY;
 				work = 1;
 				mdwc->vbus_retry_count++;
+			} else if (ret == -EAGAIN) {
+				mdwc->drd_state = DRD_STATE_HOST_IDLE;
+				dev_dbg(mdwc->dev, "Core init failed. Retrying...\n");
+				work = 1;
 			} else if (ret) {
 				dev_err(mdwc->dev, "unable to start host\n");
 				mdwc->drd_state = DRD_STATE_HOST_IDLE;

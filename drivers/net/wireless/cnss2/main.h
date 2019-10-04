@@ -31,6 +31,7 @@
 #define CNSS_EVENT_SYNC_UNINTERRUPTIBLE (CNSS_EVENT_SYNC | \
 				CNSS_EVENT_UNINTERRUPTIBLE)
 #define QCN7605_CALDB_SIZE 614400
+#define HOST_WAKE_GPIO_IN 144
 
 enum cnss_dev_bus_type {
 	CNSS_BUS_NONE = -1,
@@ -259,4 +260,6 @@ void cnss_set_pin_connect_status(struct cnss_plat_data *plat_priv);
 u32 cnss_get_wake_msi(struct cnss_plat_data *plat_priv);
 bool *cnss_get_qmi_bypass(void);
 bool is_qcn7605_device(u16 device_id);
+void cnss_set_wlan_chip_to_host_wakeup(unsigned int wakeup_gpio_num);
+int cnss_enable_wow_wake(const char *val, const struct kernel_param *kp);
 #endif /* _CNSS_MAIN_H */

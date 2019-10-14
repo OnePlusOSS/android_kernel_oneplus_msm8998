@@ -797,7 +797,8 @@ int cnss_wlfw_bdf_dnld_send_sync(struct cnss_plat_data *plat_priv)
 	    plat_priv->device_id == QCN7605_COMPOSITE_DEVICE_ID ||
 	    plat_priv->device_id == QCN7605_STANDALONE_DEVICE_ID ||
 	    plat_priv->device_id == QCN7605_VER20_STANDALONE_DEVICE_ID ||
-	    plat_priv->device_id == QCN7605_VER20_COMPOSITE_DEVICE_ID)
+	    plat_priv->device_id == QCN7605_VER20_COMPOSITE_DEVICE_ID ||
+	    plat_priv->device_id == QCN7605_SDIO_DEVICE_ID)
 		bdf_type = CNSS_BDF_BIN;
 
 	if (plat_priv->board_info.board_id == 0xFF) {

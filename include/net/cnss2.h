@@ -15,6 +15,10 @@
 
 #include <linux/pci.h>
 #include <linux/usb.h>
+#include <linux/mmc/sdio_func.h>
+#ifdef CONFIG_SDIO_QCN
+#include <linux/qcn_sdio_al.h>
+#endif
 
 #define CNSS_MAX_FILE_NAME		20
 #define CNSS_MAX_TIMESTAMP_LEN		32
@@ -110,6 +114,21 @@ struct cnss_usb_wlan_driver {
 	void (*update_status)(struct usb_interface *pintf, uint32_t status);
 	const struct usb_device_id *id_table;
 };
+
+#ifdef CONFIG_SDIO_QCN
+struct cnss_sdio_wlan_driver {
+	const char *name;
+	const struct sdio_device_id *id_table;
+	int (*probe)(struct sdio_func *, const struct sdio_device_id *);
+	void (*remove)(struct sdio_func *);
+	int (*reinit)(struct sdio_func *, const struct sdio_device_id *);
+	void (*shutdown)(struct sdio_func *);
+	void (*crash_shutdown)(struct sdio_func *);
+	int (*suspend)(struct device *);
+	int (*resume)(struct device *);
+	void (*update_status)(struct sdio_func *, uint32_t status);
+};
+#endif
 
 enum cnss_driver_status {
 	CNSS_UNINITIALIZED,
@@ -256,5 +275,42 @@ extern int cnss_usb_wlan_register_driver(struct cnss_usb_wlan_driver *driver);
 extern void cnss_usb_wlan_unregister_driver(struct cnss_usb_wlan_driver *
 					    driver);
 extern int cnss_usb_is_device_down(struct device *dev);
+#ifdef CONFIG_SDIO_QCN
+extern int cnss_sdio_wlan_register_driver(struct cnss_sdio_wlan_driver *
+					  driver_ops);
+extern void cnss_sdio_wlan_unregister_driver(struct cnss_sdio_wlan_driver *
+					     driver_ops);
+extern struct sdio_al_client_handle *cnss_sdio_wlan_get_sdio_al_client_handle(
+						       struct sdio_func *func);
+extern struct sdio_al_channel_handle *cnss_sdio_wlan_register_sdio_al_channel(
+				    struct sdio_al_channel_data *channel_data);
+extern void cnss_sdio_wlan_unregister_sdio_al_channel(
+	     struct sdio_al_channel_handle *ch_handle);
+#else
+extern inline int cnss_sdio_wlan_register_driver(void *driver_ops)
+{
+	return 0;
+}
+
+extern inline void cnss_sdio_wlan_unregister_driver(void *driver_ops)
+{
+
+}
+
+extern inline void *cnss_sdio_wlan_get_sdio_al_client_handle(void *func)
+{
+	return NULL;
+}
+
+extern inline void *cnss_sdio_wlan_register_sdio_al_channel(void *channel_data)
+{
+	return NULL;
+}
+
+extern inline void cnss_sdio_wlan_unregister_sdio_al_channel(void *ch_handle)
+{
+
+}
+#endif
 
 #endif /* _NET_CNSS2_H */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2008-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1390,8 +1390,8 @@ static int msm_spi_process_transfer(struct msm_spi *dd)
 	dd->write_buf          = dd->cur_transfer->tx_buf;
 	dd->tx_done = false;
 	dd->rx_done = false;
-	init_completion(&dd->tx_transfer_complete);
-	init_completion(&dd->rx_transfer_complete);
+	reinit_completion(&dd->tx_transfer_complete);
+	reinit_completion(&dd->rx_transfer_complete);
 	if (dd->cur_transfer->bits_per_word)
 		bpw = dd->cur_transfer->bits_per_word;
 	else
@@ -2716,6 +2716,8 @@ skip_dma_resources:
 	spin_lock_init(&dd->queue_lock);
 	mutex_init(&dd->core_lock);
 	init_waitqueue_head(&dd->continue_suspend);
+	init_completion(&dd->tx_transfer_complete);
+	init_completion(&dd->rx_transfer_complete);
 
 	if (!devm_request_mem_region(&pdev->dev, dd->mem_phys_addr,
 					dd->mem_size, SPI_DRV_NAME)) {

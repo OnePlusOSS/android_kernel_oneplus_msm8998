@@ -282,7 +282,7 @@ int cnss_wlan_enable(struct device *dev,
 		     enum cnss_driver_mode mode,
 		     const char *host_version)
 {
-	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
+	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(NULL);
 	struct wlfw_wlan_cfg_req_msg_v01 req;
 	u32 i, ce_id, num_vectors, user_base_data, base_vector;
 	int ret = 0;
@@ -293,7 +293,8 @@ int cnss_wlan_enable(struct device *dev,
 	if (qmi_bypass)
 		return 0;
 
-	if (cnss_get_bus_type(plat_priv->device_id) == CNSS_BUS_USB)
+	if (plat_priv->bus_type == CNSS_BUS_USB ||
+	    plat_priv->bus_type == CNSS_BUS_SDIO)
 		goto skip_cfg;
 
 	if (!config || !host_version) {
@@ -398,7 +399,7 @@ EXPORT_SYMBOL(cnss_wlan_enable);
 
 int cnss_wlan_disable(struct device *dev, enum cnss_driver_mode mode)
 {
-	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
+	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(NULL);
 
 	if (plat_priv->device_id == QCA6174_DEVICE_ID)
 		return 0;
@@ -1288,7 +1289,8 @@ static int cnss_wlfw_server_arrive_hdlr(struct cnss_plat_data *plat_priv)
 	if (ret)
 		goto out;
 
-	if (!cnss_bus_req_mem_ind_valid(plat_priv)) {
+	if (plat_priv->bus_type == CNSS_BUS_USB ||
+	    plat_priv->bus_type == CNSS_BUS_SDIO) {
 		ret = cnss_wlfw_tgt_cap_send_sync(plat_priv);
 		if (ret)
 			goto out;
@@ -1308,7 +1310,7 @@ static int cnss_cold_boot_cal_start_hdlr(struct cnss_plat_data *plat_priv)
 	if (test_bit(CNSS_DEV_REMOVED, &plat_priv->driver_state))
 		pwr_up_reqd = true;
 
-	if (pwr_up_reqd || plat_priv->bus_type != CNSS_BUS_USB)
+	if (pwr_up_reqd || plat_priv->bus_type == CNSS_BUS_PCI)
 		ret = cnss_bus_dev_powerup(plat_priv);
 
 	if (ret)
@@ -1467,6 +1469,7 @@ int cnss_register_subsys(struct cnss_plat_data *plat_priv)
 	case QCN7605_COMPOSITE_DEVICE_ID:
 	case QCN7605_VER20_STANDALONE_DEVICE_ID:
 	case QCN7605_VER20_COMPOSITE_DEVICE_ID:
+	case QCN7605_SDIO_DEVICE_ID:
 		subsys_info->subsys_desc.name = "QCN7605";
 		break;
 	default:
@@ -1803,6 +1806,18 @@ static ssize_t cnss_fs_ready_store(struct device *dev,
 	return count;
 }
 
+#ifdef CONFIG_SDIO_QCN
+static void cnss_set_card_state(bool state)
+{
+	qcn_sdio_card_state(state);
+}
+#else
+static void cnss_set_card_state(bool state)
+{
+	/* no op */
+}
+#endif
+
 static DEVICE_ATTR(fs_ready, 0220, NULL, cnss_fs_ready_store);
 
 static ssize_t cnss_wl_pwr_on(struct device *dev,
@@ -1823,12 +1838,14 @@ static ssize_t cnss_wl_pwr_on(struct device *dev,
 	timeout = cnss_get_qmi_timeout();
 	if (pwr_state) {
 		cnss_power_on_device(plat_priv);
+		cnss_set_card_state(true);
 		if (timeout) {
 			mod_timer(&plat_priv->fw_boot_timer,
 				  jiffies + msecs_to_jiffies(timeout));
 		}
 	} else {
 		cnss_power_off_device(plat_priv);
+		cnss_set_card_state(false);
 		del_timer(&plat_priv->fw_boot_timer);
 	}
 	return count;
@@ -1921,6 +1938,7 @@ static const struct platform_device_id cnss_platform_id_table[] = {
 	{ .name = "qca6174", .driver_data = QCA6174_DEVICE_ID, },
 	{ .name = "qca6290", .driver_data = QCA6290_DEVICE_ID, },
 	{ .name = "qcn7605", .driver_data = QCN7605_DEVICE_ID, },
+	{ .name = "qcn7605_sdio", .driver_data = QCN7605_SDIO_DEVICE_ID, },
 };
 
 static const struct of_device_id cnss_of_match_table[] = {
@@ -1930,6 +1948,12 @@ static const struct of_device_id cnss_of_match_table[] = {
 	{
 		.compatible = "qcom,cnss-qca6290",
 		.data = (void *)&cnss_platform_id_table[1]},
+	{
+		.compatible = "qcom,cnss",
+		.data = (void *)&cnss_platform_id_table[2]},
+	{
+		.compatible = "qcom,cnss-sdio",
+		.data = (void *)&cnss_platform_id_table[3]},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, cnss_of_match_table);
@@ -1980,7 +2004,9 @@ static int cnss_probe(struct platform_device *plat_dev)
 			goto free_res;
 
 		ret = cnss_bus_init(plat_priv);
-		if (ret)
+		if (ret == -EPROBE_DEFER)
+			goto free_res;
+		else if (ret)
 			goto power_off;
 	}
 

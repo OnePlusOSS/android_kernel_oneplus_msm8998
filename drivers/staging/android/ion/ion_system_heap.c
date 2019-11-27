@@ -348,7 +348,7 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
 	struct sg_table table_sync;
 	struct scatterlist *sg;
 	struct scatterlist *sg_sync;
-	int ret;
+	int ret = 0;
 	struct list_head pages;
 	struct list_head pages_from_pool;
 	struct page_info *info, *tmp_info;

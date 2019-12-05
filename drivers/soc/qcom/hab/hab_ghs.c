@@ -86,7 +86,7 @@ static void ghs_irq_handler(void *cookie)
 		(struct ghs_vdev *) (pchan ? pchan->hyp_data : NULL);
 
 	if (dev)
-		tasklet_schedule(&dev->task);
+		tasklet_hi_schedule(&dev->task);
 }
 
 static int get_dt_name_idx(int vmid_base, int mmid,

@@ -54,7 +54,8 @@ int cnss_usb_dev_powerup(struct cnss_plat_data *plat_priv)
 	case QCN7605_STANDALONE_DEVICE_ID:
 	case QCN7605_VER20_STANDALONE_DEVICE_ID:
 	case QCN7605_VER20_COMPOSITE_DEVICE_ID:
-		ret = cnss_qcn7605_usb_powerup(plat_priv);
+		if (test_bit(CNSS_DEV_REMOVED, &plat_priv->driver_state))
+			ret = cnss_qcn7605_usb_powerup(plat_priv);
 		break;
 	default:
 		cnss_pr_err("Unknown device_id found: %lu\n",
@@ -160,7 +161,6 @@ int cnss_usb_unregister_driver_hdlr(struct cnss_usb_data *usb_priv)
 	set_bit(CNSS_DRIVER_UNLOADING, &plat_priv->driver_state);
 	cnss_usb_dev_shutdown(usb_priv);
 	usb_priv->driver_ops = NULL;
-	usb_priv->plat_priv = NULL;
 	return 0;
 }
 

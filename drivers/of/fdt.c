@@ -29,6 +29,13 @@
 #include <asm/setup.h>  /* for COMMAND_LINE_SIZE */
 #include <asm/page.h>
 
+#include <linux/module.h>
+static unsigned long long ddr_size = 0;
+module_param(ddr_size, ullong, S_IRUGO);
+MODULE_PARM_DESC(ddr_size, "ddr size");
+
+void init_param_mem_base_size(phys_addr_t base, unsigned long size);
+
 /*
  * of_fdt_limit_memory - limit the number of regions in the /memory node
  * @limit: maximum entries
@@ -132,7 +139,7 @@ bool of_fdt_is_big_endian(const void *blob, unsigned long node)
  * of_fdt_match - Return true if node matches a list of compatible values
  */
 int of_fdt_match(const void *blob, unsigned long node,
-                 const char *const *compat)
+		 const char *const *compat)
 {
 	unsigned int tmp, score = 0;
 
@@ -501,6 +508,10 @@ static int __init __reserved_mem_reserve_reg(unsigned long node,
 		else
 			pr_info("Reserved memory: failed to reserve memory for node '%s': base %pa, size %ld MiB\n",
 				uname, &base, (unsigned long)size / SZ_1M);
+
+		if(!strncmp(uname, "param_mem",9)){
+			init_param_mem_base_size(base,size);
+		}
 
 		len -= t_len;
 		if (first) {
@@ -942,7 +953,7 @@ int __init early_init_dt_scan_memory(unsigned long node, const char *uname,
 			continue;
 		pr_debug(" - %llx ,  %llx\n", (unsigned long long)base,
 		    (unsigned long long)size);
-
+		ddr_size += size;
 		early_init_dt_add_memory_arch(base, size);
 	}
 

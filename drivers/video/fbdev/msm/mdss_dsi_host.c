@@ -29,6 +29,9 @@
 #include "mdss_debug.h"
 #include "mdss_smmu.h"
 #include "mdss_dsi_phy.h"
+#if defined(CONFIG_IRIS2P_FULL_SUPPORT)
+#include "mdss_dsi_iris2p_lightup_priv.h"
+#endif
 
 #define VSYNC_PERIOD 17
 #define DMA_TX_TIMEOUT 200
@@ -123,7 +126,12 @@ void mdss_dsi_ctrl_init(struct device *ctrl_dev,
 	mutex_init(&ctrl->cmd_mutex);
 	mutex_init(&ctrl->clk_lane_mutex);
 	mutex_init(&ctrl->cmdlist_mutex);
+#if defined(CONFIG_IRIS2P_FULL_SUPPORT)
+	spin_lock_init(&ctrl->iris_lock);
+	mdss_dsi_buf_alloc(ctrl_dev, &ctrl->tx_buf, DSI_DMA_TX_BUF_SIZE);
+#else
 	mdss_dsi_buf_alloc(ctrl_dev, &ctrl->tx_buf, SZ_4K);
+#endif
 	mdss_dsi_buf_alloc(ctrl_dev, &ctrl->rx_buf, SZ_4K);
 	mdss_dsi_buf_alloc(ctrl_dev, &ctrl->status_buf, SZ_4K);
 	ctrl->cmdlist_commit = mdss_dsi_cmdlist_commit;

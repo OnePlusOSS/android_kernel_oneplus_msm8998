@@ -637,12 +637,9 @@ static int pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state)
 		break;
 	}
 
-	/* enter specified state */
-	pci_write_config_word(dev, dev->pm_cap + PCI_PM_CTRL, pmcsr);
-
-	/* Mandatory power management transition delays */
-	/* see PCI PM 1.1 5.6.1 table 18 */
-	if (state == PCI_D3hot || dev->current_state == PCI_D3hot)
+	if ((pci_write_config_word(dev, dev->pm_cap + PCI_PM_CTRL, pmcsr)
+		!= PCIBIOS_DEVICE_NOT_FOUND) &&
+		(state == PCI_D3hot || dev->current_state == PCI_D3hot))
 		pci_dev_d3_sleep(dev);
 	else if (state == PCI_D2 || dev->current_state == PCI_D2)
 		udelay(PCI_PM_D2_DELAY);

@@ -365,13 +365,12 @@ int msm_cam_clk_enable(struct device *dev, struct msm_cam_clk_info *clk_info,
 		}
 	} else {
 		for (i = num_clk - 1; i >= 0; i--) {
-			if (!IS_ERR_OR_NULL(clk_ptr[i])) {
+			if (clk_ptr[i] != NULL) {
 				CDBG("%s disable %s\n", __func__,
 					clk_info[i].clk_name);
 				clk_disable(clk_ptr[i]);
 				clk_unprepare(clk_ptr[i]);
 				clk_put(clk_ptr[i]);
-				clk_ptr[i] = NULL;
 			}
 		}
 	}
@@ -385,11 +384,10 @@ cam_clk_set_err:
 	clk_put(clk_ptr[i]);
 cam_clk_get_err:
 	for (i--; i >= 0; i--) {
-		if (!IS_ERR_OR_NULL(clk_ptr[i])) {
+		if (clk_ptr[i] != NULL) {
 			clk_disable(clk_ptr[i]);
 			clk_unprepare(clk_ptr[i]);
 			clk_put(clk_ptr[i]);
-			clk_ptr[i] = NULL;
 		}
 	}
 	return rc;

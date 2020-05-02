@@ -32,8 +32,6 @@
 #define MSM_JPEG_NAME "jpeg"
 #define DEV_NAME_LEN 10
 
-static char devname[DEV_NAME_LEN];
-
 static int msm_jpeg_open(struct inode *inode, struct file *filp)
 {
 	int rc = 0;
@@ -187,6 +185,7 @@ static int msm_jpeg_init_dev(struct platform_device *pdev)
 	struct msm_jpeg_device *msm_jpeg_device_p;
 	const struct of_device_id *device_id;
 	const struct msm_jpeg_priv_data *priv_data;
+	char devname[DEV_NAME_LEN];
 
 	msm_jpeg_device_p = kzalloc(sizeof(struct msm_jpeg_device), GFP_ATOMIC);
 	if (!msm_jpeg_device_p) {
@@ -323,7 +322,6 @@ static struct platform_driver msm_jpeg_driver = {
 		.name = "msm_jpeg",
 		.owner = THIS_MODULE,
 		.of_match_table = msm_jpeg_dt_match,
-		.suppress_bind_attrs = true,
 	},
 };
 

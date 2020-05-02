@@ -58,6 +58,11 @@ __visible u64 jiffies_64 __cacheline_aligned_in_smp = INITIAL_JIFFIES;
 
 EXPORT_SYMBOL(jiffies_64);
 
+u64 delay_check1_bug;
+u64 delay_check2_bug;
+u64 old_jiffies_bug;
+u64 new_jiffies_bug;
+
 /*
  * per-CPU timer vector definitions:
  */
@@ -1749,10 +1754,46 @@ void __init init_timers(void)
  */
 void msleep(unsigned int msecs)
 {
+	u64 delay_check1, delay_check2;
+	u64 old_jiffies, new_jiffies;
+	u64 jiffies_diff = 0;
+	bool check_rst = false;
+	unsigned long timeout_tmp;
 	unsigned long timeout = msecs_to_jiffies(msecs) + 1;
 
+	timeout_tmp = timeout;
+	delay_check1 = sched_clock();
+	old_jiffies = (u64)jiffies;
 	while (timeout)
 		timeout = schedule_timeout_uninterruptible(timeout);
+	delay_check2 = sched_clock();
+	new_jiffies = (u64)jiffies;
+	check_rst = (delay_check2 - delay_check1) < msecs*1000000;
+	jiffies_diff = new_jiffies - old_jiffies;
+	if (unlikely(check_rst) && unlikely(jiffies_diff < timeout_tmp)) {
+		delay_check1_bug = delay_check1;
+		delay_check2_bug = delay_check2;
+		old_jiffies_bug = old_jiffies;
+		new_jiffies_bug = new_jiffies;
+		trace_printk("msecs is %u, delay_check1 is %llu, delay_check2 is %llu,",
+			msecs, delay_check1, delay_check2);
+		trace_printk(" delay_check2 - delay_check1 is %llu, old_jiffies is %llu,",
+			(delay_check2 - delay_check1), old_jiffies);
+		trace_printk(" new_jiffies is %llu, new_jiffies - old_jiffies is %llu\n",
+			new_jiffies, (new_jiffies - old_jiffies));
+		printk_deferred(KERN_ERR "msleep: msecs is %u,", msecs);
+		printk_deferred(KERN_ERR " delay_check1 is %llu,",
+			delay_check1);
+		printk_deferred(KERN_ERR " delay_check2 is %llu,",
+			delay_check2);
+		printk_deferred(KERN_ERR "delay_check2 -delay_check1 is %llu",
+			(delay_check2 - delay_check1));
+		printk_deferred(KERN_ERR ", old_jiffies is %llu,", old_jiffies);
+		printk_deferred(KERN_ERR " new_jiff is %llu,", new_jiffies);
+		printk_deferred(KERN_ERR " new_jiffies - old_jiffies is %llu\n",
+			(new_jiffies - old_jiffies));
+		panic("msleep error\n");
+	}
 }
 
 EXPORT_SYMBOL(msleep);

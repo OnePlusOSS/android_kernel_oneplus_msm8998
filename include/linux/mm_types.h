@@ -531,7 +531,9 @@ struct mm_struct {
 #ifdef CONFIG_MSM_APP_SETTINGS
 	int app_setting;
 #endif
-
+	unsigned int zygoteheap_in_MB;
+	int va_feature;
+	unsigned long va_feature_rnd;
 	struct work_struct async_put_work;
 };
 

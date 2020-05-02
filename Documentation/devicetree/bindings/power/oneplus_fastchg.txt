@@ -1,0 +1,21 @@
+crochip,oneplus_fastcg"
+
+
+
+Required properties:
+
+- compatible : should be "microchip,oneplus_fastcg"
+
+
+Example:
+	oneplus_fastcg@26{
+
+               status = "ok";
+
+               compatible = "microchip,oneplus_fastcg";
+
+               reg = <0x26>;
+
+               microchip,mcu-en-gpio = <&tlmm 96 0x00>;
+
+               microchip,usb-sw-1-gpio = <&tlmm 15 0x00>;

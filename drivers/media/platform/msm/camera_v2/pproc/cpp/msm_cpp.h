@@ -293,7 +293,6 @@ struct cpp_device {
 	struct msm_cpp_vbif_data *vbif_data;
 	bool turbo_vote;
 	struct cx_ipeak_client *cpp_cx_ipeak;
-	int cx_ipeak_bit;
 	enum cpp_iommu_fault_state fault_status;
 };
 

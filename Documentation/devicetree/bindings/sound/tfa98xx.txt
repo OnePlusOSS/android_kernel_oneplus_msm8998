@@ -1,0 +1,9 @@
+nxp,tfa9891
+
+Required properties:
+- compatible : should be "nxp,tfa9891"
+
+Example:
+	bootloader_log {
+		compatible = "nxp,tfa9891";
+	};

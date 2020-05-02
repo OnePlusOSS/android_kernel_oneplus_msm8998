@@ -25,9 +25,8 @@
 #define MSM_CAMERA_TZ_BOOT_PROTECTED (false)
 
 /* Update version major number in case the HLOS-TA interface is changed*/
-#define TA_IF_VERSION_MAJ	    2
-#define TA_IF_VERSION_MIN	    1
-
+#define TA_IF_VERSION_MAJ	    1
+#define TA_IF_VERSION_MIN	    2
 #undef CDBG
 #ifdef MSM_CAMERA_TZ_UTIL_VERBOSE
 	#define CDBG(fmt, args...) \

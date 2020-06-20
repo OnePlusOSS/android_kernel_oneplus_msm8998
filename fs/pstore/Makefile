@@ -7,6 +7,8 @@ obj-$(CONFIG_PSTORE) += pstore.o
 pstore-objs += inode.o platform.o
 pstore-$(CONFIG_PSTORE_FTRACE)	+= ftrace.o
 
+pstore-$(CONFIG_PSTORE_DEVICE_INFO)	+= device_info.o
+
 pstore-$(CONFIG_PSTORE_PMSG)	+= pmsg.o
 
 ramoops-objs += ram.o ram_core.o

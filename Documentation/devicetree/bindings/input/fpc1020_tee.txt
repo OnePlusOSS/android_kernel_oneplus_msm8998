@@ -1,0 +1,20 @@
+fpc Fingerprint
+
+Required Properties:
+- compatible:			Must be "ompatible = "fpc,fpc1020".
+
+
+Example:
+
+	/* Fingerprint */
+	fpc_fpc1020 {
+		compatible = "fpc,fpc1020";
+		interrupt-parent = <&tlmm>;
+		fpc,irq-gpio    = <&tlmm 121 0>;
+		/*
+		fpc,gpio_id0    = <&tlmm 39 0>;
+		fpc,gpio_id1    = <&tlmm 41 0>;
+		fpc,gpio_id2    = <&tlmm 63 0>;
+		*/
+	};
+

@@ -342,7 +342,8 @@
 			qcom,fg-esr-timer-charging = <0 96>;
 			qcom,cycle-counter-en;
 			status = "okay";
-
+			qcom,fg-sys-term-current = <190>;
+			qcom,fg-chg-term-current = <180>;
 			qcom,fg-batt-soc@4000 {
 				status = "okay";
 				reg = <0x4000 0x100>;

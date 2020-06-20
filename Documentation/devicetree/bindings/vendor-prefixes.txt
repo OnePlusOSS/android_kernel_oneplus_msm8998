@@ -262,3 +262,8 @@ zyxel	ZyXEL Communications Corp.
 zarlink	Zarlink Semiconductor
 zii	Zodiac Inflight Innovations
 zte	ZTE Corp.
+oem Oneplus Technologies
+oneplus OnePlus Technologies
+fpc fpc1020
+HWK synaptics
+android Android P

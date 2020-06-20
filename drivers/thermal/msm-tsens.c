@@ -869,6 +869,9 @@ static int tsens_tz_get_temp(struct thermal_zone_device *thermal,
 	if (rc)
 		return rc;
 
+	if (tm_sensor->sensor_hw_num < 0 || tm_sensor->sensor_hw_num > 15)
+		return 0;
+
 	idx = tmdev->sensor_dbg_info[tm_sensor->sensor_hw_num].idx;
 	tmdev->sensor_dbg_info[tm_sensor->sensor_hw_num].temp[idx%10] = *temp;
 	tmdev->sensor_dbg_info[tm_sensor->sensor_hw_num].time_stmp[idx%10] =

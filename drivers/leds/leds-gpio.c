@@ -21,6 +21,7 @@
 #include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
+#include <linux/regulator/consumer.h>
 
 struct gpio_led_data {
 	struct led_classdev cdev;
@@ -31,6 +32,9 @@ struct gpio_led_data {
 	u8 blinking;
 	int (*platform_gpio_blink_set)(struct gpio_desc *desc, int state,
 			unsigned long *delay_on, unsigned long *delay_off);
+	struct regulator *vdd;
+	int vmin_high;
+	int vmin_low;
 };
 
 static void gpio_led_work(struct work_struct *work)
@@ -57,6 +61,10 @@ static void gpio_led_set(struct led_classdev *led_cdev,
 		level = 0;
 	else
 		level = 1;
+
+	if(led_dat->vdd){
+		regulator_set_voltage(led_dat->vdd, level?led_dat->vmin_high:led_dat->vmin_low,INT_MAX);
+	}
 
 	/* Setting GPIOs with I2C/etc requires a task context, and we don't
 	 * seem to have a reliable way to know if we're already in one; so
@@ -92,6 +100,7 @@ static int create_gpio_led(const struct gpio_led *template,
 			 unsigned long *))
 {
 	int ret, state;
+	const __be32 *min_uV, *max_uV;
 
 	led_dat->gpiod = template->gpiod;
 	if (!led_dat->gpiod) {
@@ -126,6 +135,15 @@ static int create_gpio_led(const struct gpio_led *template,
 	led_dat->cdev.default_trigger = template->default_trigger;
 	led_dat->can_sleep = gpiod_cansleep(led_dat->gpiod);
 	led_dat->blinking = 0;
+
+	led_dat->vdd = regulator_get(parent, "vdd");
+	min_uV = of_get_property(parent->of_node, "keypad-led-vbob-min", NULL);
+	max_uV = of_get_property(parent->of_node, "keypad-led-vbob-max", NULL);
+	if (!IS_ERR(led_dat->vdd)) {
+		led_dat->vmin_low = be32_to_cpu(*min_uV);
+		led_dat->vmin_high = be32_to_cpu(*max_uV);
+	}
+
 	if (blink_set) {
 		led_dat->platform_gpio_blink_set = blink_set;
 		led_dat->cdev.blink_set = gpio_blink_set;
@@ -250,23 +268,25 @@ static int gpio_led_probe(struct platform_device *pdev)
 	struct gpio_leds_priv *priv;
 	int i, ret = 0;
 
-	if (pdata && pdata->num_leds) {
-		priv = devm_kzalloc(&pdev->dev,
-				sizeof_gpio_leds_priv(pdata->num_leds),
-					GFP_KERNEL);
-		if (!priv)
-			return -ENOMEM;
+	if (pdata) {
+		if (pdata->num_leds) {
+			priv = devm_kzalloc(&pdev->dev,
+					sizeof_gpio_leds_priv(pdata->num_leds),
+						GFP_KERNEL);
+			if (!priv)
+				return -ENOMEM;
 
-		priv->num_leds = pdata->num_leds;
-		for (i = 0; i < priv->num_leds; i++) {
-			ret = create_gpio_led(&pdata->leds[i],
-					      &priv->leds[i],
-					      &pdev->dev, pdata->gpio_blink_set);
-			if (ret < 0) {
-				/* On failure: unwind the led creations */
-				for (i = i - 1; i >= 0; i--)
-					delete_gpio_led(&priv->leds[i]);
-				return ret;
+			priv->num_leds = pdata->num_leds;
+			for (i = 0; i < priv->num_leds; i++) {
+				ret = create_gpio_led(&pdata->leds[i],
+						&priv->leds[i],
+						&pdev->dev, pdata->gpio_blink_set);
+				if (ret < 0) {
+					/* On failure: unwind the led creations */
+					for (i = i - 1; i >= 0; i--)
+						delete_gpio_led(&priv->leds[i]);
+					return ret;
+				}
 			}
 		}
 	} else {

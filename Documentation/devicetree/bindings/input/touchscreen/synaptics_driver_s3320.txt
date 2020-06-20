@@ -1,0 +1,9 @@
+synaptics,s3320
+
+Required properties:
+- compatible : should be "synaptics,s3320"
+
+Example:
+	synaptics-rmi-ts@20 {
+		compatible = "synaptics,s3320";
+	};

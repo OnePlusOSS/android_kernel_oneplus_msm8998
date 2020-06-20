@@ -50,6 +50,11 @@
 #define DPSE_INTERRUPT			BIT(0)
 
 #define QUSB2PHY_PORT_TUNE1		0x23c
+#define QUSB2PHY_PORT_TUNE2		0x240
+#define QUSB2PHY_PORT_TUNE3		0x244
+#define QUSB2PHY_PORT_TUNE4		0x248
+#define QUSB2PHY_IMP_CTRL1		0x21c
+#define QUSB2PHY_IMP_CTRL2		0x220
 #define QUSB2PHY_TEST1			0x24C
 
 #define QUSB2PHY_1P2_VOL_MIN           1200000 /* uV */
@@ -73,6 +78,21 @@
 unsigned int phy_tune1;
 module_param(phy_tune1, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(phy_tune1, "QUSB PHY v2 TUNE1");
+unsigned int phy_tune2;
+module_param(phy_tune2, uint, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(phy_tune2, "QUSB PHY v2 TUNE2");
+unsigned int phy_tune3;
+module_param(phy_tune3, uint, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(phy_tune3, "QUSB PHY v2 TUNE3");
+unsigned int phy_tune4;
+module_param(phy_tune4, uint, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(phy_tune4, "QUSB PHY v2 TUNE4");
+unsigned int imp_ctrl1;
+module_param(imp_ctrl1, uint, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(imp_ctrl1, "QUSB PHY v2 IMP_CTRL1");
+unsigned int imp_ctrl2;
+module_param(imp_ctrl2, uint, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(imp_ctrl2, "QUSB PHY v2 IMP_CTRL2");
 
 struct qusb_phy {
 	struct usb_phy		phy;
@@ -530,10 +550,45 @@ static int qusb_phy_init(struct usb_phy *phy)
 
 	/* If phy_tune1 modparam set, override tune1 value */
 	if (phy_tune1) {
-		pr_debug("%s(): (modparam) TUNE1 val:0x%02x\n",
+		pr_err("%s(): (modparam) TUNE1 val:0x%02x\n",
 						__func__, phy_tune1);
 		writel_relaxed(phy_tune1,
 				qphy->base + QUSB2PHY_PORT_TUNE1);
+	}
+	/* If phy_tune2 modparam set, override tune2 value */
+	if (phy_tune2) {
+		pr_err("%s(): (modparam) TUNE2 val:0x%02x\n",
+						__func__, phy_tune2);
+		writel_relaxed(phy_tune2,
+				qphy->base + QUSB2PHY_PORT_TUNE2);
+	}
+	/* If phy_tune3 modparam set, override tune3 value */
+	if (phy_tune3) {
+		pr_err("%s(): (modparam) TUNE3 val:0x%02x\n",
+						__func__, phy_tune3);
+		writel_relaxed(phy_tune3,
+				qphy->base + QUSB2PHY_PORT_TUNE3);
+	}
+	/* If phy_tune4 modparam set, override tune4 value */
+	if (phy_tune4) {
+		pr_err("%s(): (modparam) TUNE4 val:0x%02x\n",
+						__func__, phy_tune4);
+		writel_relaxed(phy_tune4,
+				qphy->base + QUSB2PHY_PORT_TUNE4);
+	}
+	/* If imp_ctrl1 modparam set, override imp_ctrl1 value */
+	if (imp_ctrl1) {
+		pr_err("%s(): (modparam) IMP_CTRL1 val:0x%02x\n",
+						__func__, imp_ctrl1);
+		writel_relaxed(imp_ctrl1,
+				qphy->base + QUSB2PHY_IMP_CTRL1);
+	}
+	/* If imp_ctrl2 modparam set, override imp_ctrl2 value */
+	if (imp_ctrl2) {
+		pr_err("%s(): (modparam) IMP_CTRL2 val:0x%02x\n",
+						__func__, imp_ctrl2);
+		writel_relaxed(imp_ctrl2,
+				qphy->base + QUSB2PHY_IMP_CTRL2);
 	}
 
 	/* ensure above writes are completed before re-enabling PHY */

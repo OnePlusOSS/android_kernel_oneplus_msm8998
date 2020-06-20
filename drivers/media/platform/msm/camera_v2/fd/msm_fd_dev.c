@@ -442,7 +442,7 @@ static int msm_fd_open(struct file *file)
 	}
 
 	ctx->mem_pool.fd_device = ctx->fd_device;
-	ctx->stats = vzalloc(sizeof(*ctx->stats) * MSM_FD_MAX_RESULT_BUFS);
+	ctx->stats = vmalloc(sizeof(*ctx->stats) * MSM_FD_MAX_RESULT_BUFS);
 	if (!ctx->stats) {
 		dev_err(device->dev, "No memory for face statistics\n");
 		ret = -ENOMEM;
@@ -1471,7 +1471,6 @@ static struct platform_driver fd_driver = {
 		.name = MSM_FD_DRV_NAME,
 		.owner = THIS_MODULE,
 		.of_match_table = msm_fd_dt_match,
-		.suppress_bind_attrs = true,
 	},
 };
 

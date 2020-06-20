@@ -1,0 +1,4 @@
+fingerprint
+
+Required Properties:
+- compatible:			Must be "ompatible = "oneplus,fpdetect".

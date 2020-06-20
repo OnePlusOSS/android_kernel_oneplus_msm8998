@@ -1,0 +1,20 @@
+ti,bq27541-battery
+
+
+
+Required properties:
+
+- compatible : should be "ti,bq27541-battery"
+
+
+Example:
+
+          bq27541-battery@55 {
+
+           status = "ok";
+
+           compatible = "ti,bq27541-battery";
+
+           reg = <0x55>;
+
+           qcom,modify-soc-smooth;
